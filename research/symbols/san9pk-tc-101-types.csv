@@ -6,3 +6,4 @@ San9ZoneRecord,0x1BC,none,get_zone_record,high,RE-SAN9PK-0003,"Size and table id
 San9ArrayRecord,0x88,"0x10 name; 0x5C/0x60/0x64/0x68/0x6C capabilities; 0x70 view; 0x74 range; 0x78 expense",get_array_record_or_first,high,RE-SAN9PK-0003,"Array is a retained source term and is not mapped to Army or Formation"
 San9BuildingRecord,0x50,none,get_building_record_or_first,high,RE-SAN9PK-0003,"Size and table identity established; fields pending"
 San9KillerRecord,0x8C,"0x10 name; 0x58 learn proficiency; 0x64 power; 0x7C interval",get_killer_record,high,RE-SAN9PK-0003,"Killer is a retained source term for the tactic table"
+San9ItemRecord,0x58,"0x10 name[13]; 0x1D description[19]; 0x30/0x34 resource ids; 0x38 category; 0x3C image; 0x40 loyalty change; 0x44 ability bonus; 0x48 tactic; 0x4C discovery state; 0x50 discovery location; 0x54 holder person",get_item_record,high,RE-SAN9PK-0006,"Runtime layout; serialized item record is 0x16 bytes"

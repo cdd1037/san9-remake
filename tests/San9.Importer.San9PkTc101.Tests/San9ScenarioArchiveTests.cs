@@ -100,6 +100,90 @@ public sealed class San9ScenarioArchiveTests
         Assert.Contains("beginning", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void ReadKnownItemRecords_ParsesReferencesAndBonuses()
+    {
+        using MemoryStream stream = BuildScenarioArchiveWithItems();
+        WriteItemRecord(
+            stream,
+            index: 8,
+            imageId: 8,
+            categoryId: 1,
+            loyaltyChange: 12,
+            abilityBonus: 3,
+            tacticCode: 3,
+            holderPersonCode: 326,
+            discoveryStateCode: 2,
+            discoveryLocationCode: 13);
+
+        stream.Position = 0;
+        IReadOnlyList<San9ScenarioItemRecord> records =
+            San9ScenarioItemArchive.ReadKnownRecords(stream);
+
+        San9ScenarioItemRecord record = records[8];
+        Assert.Equal(120, records.Count);
+        Assert.Equal(8, record.SerializedId);
+        Assert.Equal(3, record.AbilityBonus);
+        Assert.Equal(3, record.TacticId);
+        Assert.Equal(326, record.HolderPersonId);
+        Assert.Equal(13, record.DiscoveryLocationId);
+    }
+
+    [Fact]
+    public void ReadKnownItemRecords_MapsMissingCodesToNull()
+    {
+        using MemoryStream stream = BuildScenarioArchiveWithItems();
+
+        San9ScenarioItemRecord record = San9ScenarioItemArchive.ReadKnownRecords(stream)[0];
+
+        Assert.Null(record.TacticId);
+        Assert.Null(record.HolderPersonId);
+        Assert.Null(record.DiscoveryLocationId);
+    }
+
+    [Fact]
+    public void ReadKnownItemRecords_RejectsInconsistentIdentity()
+    {
+        using MemoryStream stream = BuildScenarioArchiveWithItems();
+        stream.Position = 0x8D142 + San9ScenarioItemArchive.RecordSize;
+        using (BinaryWriter writer = new(stream, Encoding.ASCII, leaveOpen: true))
+        {
+            writer.Write((ushort)99);
+        }
+
+        stream.Position = 0;
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(
+            () => San9ScenarioItemArchive.ReadKnownRecords(stream));
+
+        Assert.Contains("record 1", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData(0x06, 100, "image")]
+    [InlineData(0x08, 13, "category")]
+    [InlineData(0x0E, 41, "tactic")]
+    [InlineData(0x10, 850, "holder")]
+    [InlineData(0x12, 3, "state")]
+    [InlineData(0x14, 250, "location")]
+    public void ReadKnownItemRecords_RejectsOutOfRangeFields(
+        int fieldOffset,
+        ushort value,
+        string fieldName)
+    {
+        using MemoryStream stream = BuildScenarioArchiveWithItems();
+        stream.Position = 0x8D142 + fieldOffset;
+        using (BinaryWriter writer = new(stream, Encoding.ASCII, leaveOpen: true))
+        {
+            writer.Write(value);
+        }
+
+        stream.Position = 0;
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(
+            () => San9ScenarioItemArchive.ReadKnownRecords(stream));
+
+        Assert.Contains(fieldName, exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static MemoryStream BuildScenarioArchiveWithHeader(
         ushort scenarioId,
         ushort encodedStartDate)
@@ -120,6 +204,55 @@ public sealed class San9ScenarioArchiveTests
 
         stream.Position = 0;
         return stream;
+    }
+
+    private static MemoryStream BuildScenarioArchiveWithItems()
+    {
+        MemoryStream stream = BuildScenarioArchive(San9ScenarioArchive.ExpectedSections);
+        for (int index = 0; index < San9ScenarioItemArchive.RecordCount; index++)
+        {
+            WriteItemRecord(
+                stream,
+                index,
+                imageId: index < 100 ? index : 0,
+                categoryId: 0,
+                loyaltyChange: 3,
+                abilityBonus: 0,
+                tacticCode: ushort.MaxValue,
+                holderPersonCode: ushort.MaxValue,
+                discoveryStateCode: 0,
+                discoveryLocationCode: ushort.MaxValue);
+        }
+
+        stream.Position = 0;
+        return stream;
+    }
+
+    private static void WriteItemRecord(
+        Stream stream,
+        int index,
+        int imageId,
+        int categoryId,
+        int loyaltyChange,
+        int abilityBonus,
+        int tacticCode,
+        int holderPersonCode,
+        int discoveryStateCode,
+        int discoveryLocationCode)
+    {
+        stream.Position = 0x8D142 + index * San9ScenarioItemArchive.RecordSize;
+        using BinaryWriter writer = new(stream, Encoding.ASCII, leaveOpen: true);
+        writer.Write((ushort)index);
+        writer.Write((ushort)index);
+        writer.Write((ushort)index);
+        writer.Write((ushort)imageId);
+        writer.Write((ushort)categoryId);
+        writer.Write((ushort)loyaltyChange);
+        writer.Write((ushort)abilityBonus);
+        writer.Write((ushort)tacticCode);
+        writer.Write((ushort)holderPersonCode);
+        writer.Write((ushort)discoveryStateCode);
+        writer.Write((ushort)discoveryLocationCode);
     }
 
     private static MemoryStream BuildScenarioArchive(

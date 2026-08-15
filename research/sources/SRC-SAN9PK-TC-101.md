@@ -19,7 +19,7 @@
 
 ## 内容与用途
 
-该样本是 `San9.Importer.San9PkTc101` 的唯一初始输入构建，也是后续本项目 IDA 数据库、黑盒实验和规则复验的样本身份基线。导入器必须同时核对大小与 SHA-256，不得把其他版本自动当作兼容版本。
+该可执行文件是 `San9.Importer.San9PkTc101` 的唯一初始构建身份门槛，也是后续本项目 IDA 数据库、黑盒实验和规则复验的样本基线。导入器必须同时核对大小与 SHA-256，不得把其他版本自动当作兼容版本。与它同一安装中的剧本、地图、头像和消息文件是后续本地转换输入；各格式和必要指纹分别记录，不因目录相同而自动获得可信语义。
 
 ## 可信度与限制
 
@@ -30,6 +30,6 @@
 ## 关联记录
 
 - `EXP-*`：无
-- `RE-*`：[RE-SAN9PK-0001](../findings/RE-SAN9PK-0001.md)
-- `BEH-*`：无
+- `RE-*`：[RE-SAN9PK-0001](../findings/RE-SAN9PK-0001.md)、[RE-SAN9PK-0005](../findings/RE-SAN9PK-0005.md)
+- `BEH-*`：[BEH-IMPORT-0001](../../specs/behavior/BEH-IMPORT-0001-source-container-validation.md)
 - 导入器：`src/San9.Importer.San9PkTc101/`

@@ -21,4 +21,4 @@
 4. 大型样本、差分产物和工具输出放在被 Git 忽略的目录，只提交哈希和生成说明。
 5. 研究成熟后，另写不含原版实现细节的行为规格；不要把研究笔记直接移动成规格。
 
-参见[现有第三方仓库简介](upstream-repositories.md)、[全局候选目录记录](findings/RE-SAN9PK-0002.md)、[核心类型记录](findings/RE-SAN9PK-0003.md)、[运行库与探索辅助对象](findings/RE-SAN9PK-0004.md)和[证据链纸面演练](notes/0001-source-trace-example.md)。
+参见[现有第三方仓库简介](upstream-repositories.md)、[全局候选目录记录](findings/RE-SAN9PK-0002.md)、[核心类型记录](findings/RE-SAN9PK-0003.md)、[运行库与探索辅助对象](findings/RE-SAN9PK-0004.md)、[剧本与头像容器布局](findings/RE-SAN9PK-0005.md)和[证据链纸面演练](notes/0001-source-trace-example.md)。

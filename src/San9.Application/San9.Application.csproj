@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Application use cases for San9 Remake.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../San9.Content/San9.Content.csproj" />
+    <ProjectReference Include="../San9.Core/San9.Core.csproj" />
+  </ItemGroup>
+</Project>

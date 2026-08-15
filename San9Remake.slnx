@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/San9.Application/San9.Application.csproj" />
+    <Project Path="src/San9.Client.Godot/San9.Client.Godot.csproj" />
+    <Project Path="src/San9.Content/San9.Content.csproj" />
+    <Project Path="src/San9.Core/San9.Core.csproj" />
+    <Project Path="src/San9.Importer.San9PkTc101/San9.Importer.San9PkTc101.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/San9.Content.Tests/San9.Content.Tests.csproj" />
+    <Project Path="tests/San9.Core.Tests/San9.Core.Tests.csproj" />
+    <Project Path="tests/San9.Importer.San9PkTc101.Tests/San9.Importer.San9PkTc101.Tests.csproj" />
+  </Folder>
+</Solution>

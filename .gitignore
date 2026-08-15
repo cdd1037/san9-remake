@@ -1,0 +1,64 @@
+# Local/private samples (only the policy file is tracked)
+/private/*
+!/private/README.md
+
+# IDA databases and local analysis state
+*.idb
+*.i64
+*.id0
+*.id1
+*.id2
+*.nam
+*.til
+
+# Original, patched, or third-party binaries
+*.exe
+*.dll
+*.com
+
+# Locally collected third-party research snapshots
+/research/upsteam/
+/research/docs/
+
+# Experiment scratch data and generated evidence artifacts
+/research/experiments/**/_work/
+/research/experiments/**/artifacts/
+/artifacts/
+
+# Build and tool output
+/build/
+/dist/
+/out/
+/tmp/
+**/bin/
+**/obj/
+.godot/
+*.log
+*.tmp
+
+# Locally generated converted content and runtime caches
+/local/generated/
+*.s9cache
+
+# Secrets and machine-local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+secrets.*
+
+# IDE and operating-system state
+.idea/
+.vscode/
+.vs/
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.user
+*.suo
+*.ncb
+*.opt
+*.aps

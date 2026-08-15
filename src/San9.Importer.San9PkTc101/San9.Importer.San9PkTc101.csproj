@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Importer for the identified Traditional Chinese San9 PK 1.0.1.0 build.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../San9.Content/San9.Content.csproj" />
+  </ItemGroup>
+</Project>

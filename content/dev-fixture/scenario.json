@@ -1,0 +1,21 @@
+{
+  "scenarioId": "dev-m0",
+  "nameKey": "scenario.dev_m0.name",
+  "startDate": {
+    "year": 190,
+    "month": 1,
+    "xun": 1
+  },
+  "officers": [
+    { "id": { "value": 1 }, "name": "测试武将" }
+  ],
+  "forces": [
+    { "id": { "value": 1 }, "name": "测试势力" }
+  ],
+  "settlements": [
+    { "id": { "value": 1 }, "name": "测试城市", "ownerId": { "value": 1 } }
+  ],
+  "formations": [],
+  "tactics": [],
+  "facilities": []
+}

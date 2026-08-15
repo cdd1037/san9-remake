@@ -1,0 +1,11 @@
+<Project Sdk="Godot.NET.Sdk/4.7.1">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>San9.Client.Godot</RootNamespace>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../San9.Application/San9.Application.csproj" />
+    <ProjectReference Include="../San9.Core/San9.Core.csproj" />
+  </ItemGroup>
+</Project>

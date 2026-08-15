@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Deterministic, engine-independent simulation core for San9 Remake.</Description>
+  </PropertyGroup>
+</Project>

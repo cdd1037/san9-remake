@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Versioned content contracts and validation for San9 Remake.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../San9.Core/San9.Core.csproj" />
+  </ItemGroup>
+</Project>

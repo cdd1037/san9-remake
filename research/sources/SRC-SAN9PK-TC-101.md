@@ -30,6 +30,6 @@
 ## 关联记录
 
 - `EXP-*`：无
-- `RE-*`：无
+- `RE-*`：[RE-SAN9PK-0001](../findings/RE-SAN9PK-0001.md)
 - `BEH-*`：无
 - 导入器：`src/San9.Importer.San9PkTc101/`

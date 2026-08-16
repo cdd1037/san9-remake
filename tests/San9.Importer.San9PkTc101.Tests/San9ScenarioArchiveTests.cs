@@ -342,6 +342,109 @@ public sealed class San9ScenarioArchiveTests
         Assert.Contains("tactic", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void ReadKnownPersonRecords_ParsesAbilitiesYearsAndTactics()
+    {
+        using MemoryStream stream = BuildScenarioArchiveWithPersons();
+        WritePersonRecord(
+            stream,
+            index: 0,
+            personFlags:
+                (1U << (3 + 4)) |
+                (1U << 2) |
+                (1U << 12) |
+                (1U << 15) |
+                (7U << 16),
+            familyNameResourceCode: 11,
+            givenNameResourceCode: 22,
+            courtesyNameResourceCode: 33,
+            nameReadingResourceCode: 44,
+            encodedBirthYear: 60,
+            encodedAppearanceYear: 89,
+            locationCode: 17,
+            statusCode: 6,
+            command: 66,
+            strength: 73,
+            intelligence: 30,
+            politics: 42,
+            titleCode: 3,
+            lifespanTier: 2,
+            affinity: 62,
+            temperament: 1,
+            duty: 8,
+            ambition: 4,
+            learnedTacticFlags: (1UL << 2) | (1UL << 40));
+
+        stream.Position = 0;
+        IReadOnlyList<San9ScenarioPersonRecord> records =
+            San9ScenarioPersonArchive.ReadKnownRecords(stream);
+        San9ScenarioPersonRecord record = records[0];
+
+        Assert.Equal(800, records.Count);
+        Assert.Equal(11, record.FamilyNameResourceCode);
+        Assert.Equal(22, record.GivenNameResourceCode);
+        Assert.Equal(33, record.CourtesyNameResourceCode);
+        Assert.Equal(44, record.NameReadingResourceCode);
+        Assert.Equal(190, record.BirthYear);
+        Assert.Equal(219, record.AppearanceYear);
+        Assert.Equal(17, record.LocationId);
+        Assert.Equal(6, record.StatusId);
+        Assert.Equal(66, record.Command);
+        Assert.Equal(73, record.Strength);
+        Assert.Equal(30, record.Intelligence);
+        Assert.Equal(42, record.Politics);
+        Assert.Equal(62, record.Affinity);
+        Assert.True(record.HasTacticCategoryMastery(4));
+        Assert.True(record.IsOwnerLeader);
+        Assert.True(record.IsCommandParticipant);
+        Assert.True(record.IsTacticTraining);
+        Assert.Equal(7, record.FormationSlot);
+        Assert.True(record.HasLearnedTactic(2));
+        Assert.True(record.HasLearnedTactic(40));
+    }
+
+    [Fact]
+    public void ReadKnownPersonRecords_NormalizesOutOfRangeRuntimeReferencesToNull()
+    {
+        using MemoryStream stream = BuildScenarioArchiveWithPersons();
+        WritePersonRecord(
+            stream,
+            index: 0,
+            locationCode: ushort.MaxValue,
+            statusCode: ushort.MaxValue,
+            titleCode: 76,
+            equippedTacticCode: ushort.MaxValue);
+
+        stream.Position = 0;
+        San9ScenarioPersonRecord record = San9ScenarioPersonArchive.ReadKnownRecords(stream)[0];
+
+        Assert.Null(record.LocationId);
+        Assert.Null(record.StatusId);
+        Assert.Null(record.TitleId);
+        Assert.Null(record.EquippedTacticId);
+        Assert.Equal(ushort.MaxValue, record.LocationCode);
+    }
+
+    [Fact]
+    public void ReadKnownPersonRecords_PreservesOpaqueTablesAndAllFortyEightTacticBits()
+    {
+        using MemoryStream stream = BuildScenarioArchiveWithPersons();
+        byte[] loyalty = Enumerable.Range(0, San9ScenarioPersonArchive.ForceCount)
+            .Select(value => (byte)value)
+            .ToArray();
+        WritePersonRecord(
+            stream,
+            index: 0,
+            forceLoyaltyValues: loyalty,
+            learnedTacticFlags: 1UL << 47);
+
+        stream.Position = 0;
+        San9ScenarioPersonRecord record = San9ScenarioPersonArchive.ReadKnownRecords(stream)[0];
+
+        Assert.Equal(loyalty, record.ForceLoyaltyValues);
+        Assert.Equal(1UL << 47, record.LearnedTacticFlags);
+    }
+
     private static MemoryStream BuildScenarioArchiveWithHeader(
         ushort scenarioId,
         ushort encodedStartDate)
@@ -415,6 +518,88 @@ public sealed class San9ScenarioArchiveTests
 
         stream.Position = 0;
         return stream;
+    }
+
+    private static MemoryStream BuildScenarioArchiveWithPersons()
+    {
+        MemoryStream stream = BuildScenarioArchive(San9ScenarioArchive.ExpectedSections);
+        for (int index = 0; index < San9ScenarioPersonArchive.RecordCount; index++)
+        {
+            WritePersonRecord(stream, index);
+        }
+
+        stream.Position = 0;
+        return stream;
+    }
+
+    private static void WritePersonRecord(
+        Stream stream,
+        int index,
+        uint personFlags = 0,
+        int familyNameResourceCode = -1,
+        int givenNameResourceCode = -1,
+        int courtesyNameResourceCode = -1,
+        int nameReadingResourceCode = -1,
+        int encodedBirthYear = 0,
+        int encodedAppearanceYear = 0,
+        int locationCode = ushort.MaxValue,
+        int statusCode = ushort.MaxValue,
+        int command = 0,
+        int strength = 0,
+        int intelligence = 0,
+        int politics = 0,
+        int titleCode = 76,
+        int lifespanTier = 0,
+        int affinity = 0,
+        int temperament = 0,
+        int duty = 0,
+        int ambition = 0,
+        int equippedTacticCode = ushort.MaxValue,
+        byte[]? forceLoyaltyValues = null,
+        ulong learnedTacticFlags = 0)
+    {
+        stream.Position = 0x958A2 + index * San9ScenarioPersonArchive.RecordSize;
+        using BinaryWriter writer = new(stream, Encoding.ASCII, leaveOpen: true);
+        writer.Write(personFlags);
+        writer.Write((ushort)index);
+        writer.Write((ushort)(familyNameResourceCode < 0 ? index : familyNameResourceCode));
+        writer.Write((ushort)(givenNameResourceCode < 0 ? index : givenNameResourceCode));
+        writer.Write((ushort)(courtesyNameResourceCode < 0 ? index : courtesyNameResourceCode));
+        writer.Write((ushort)(nameReadingResourceCode < 0 ? index : nameReadingResourceCode));
+
+        writer.Write((ushort)0);
+        writer.Write((ushort)0);
+        writer.Write((ushort)encodedBirthYear);
+        writer.Write((ushort)encodedAppearanceYear);
+        writer.Write((ushort)0);
+        writer.Write((ushort)locationCode);
+        writer.Write((ushort)0);
+        writer.Write((ushort)statusCode);
+        writer.Write((ushort)command);
+        writer.Write((ushort)strength);
+        writer.Write((ushort)intelligence);
+        writer.Write((ushort)politics);
+        writer.Write((ushort)titleCode);
+        writer.Write((ushort)lifespanTier);
+        writer.Write((ushort)0);
+        writer.Write(ushort.MaxValue);
+        writer.Write(ushort.MaxValue);
+        writer.Write((ushort)affinity);
+        writer.Write((ushort)temperament);
+        writer.Write((ushort)duty);
+        writer.Write((ushort)ambition);
+        for (int categoryIndex = 0; categoryIndex < San9ScenarioPersonArchive.TacticCategoryCount; categoryIndex++)
+        {
+            writer.Write((ushort)(categoryIndex * 100));
+        }
+
+        writer.Write((ushort)equippedTacticCode);
+        writer.Write(ushort.MaxValue);
+        writer.Write(forceLoyaltyValues ?? new byte[San9ScenarioPersonArchive.ForceCount]);
+        for (int byteIndex = 0; byteIndex < 6; byteIndex++)
+        {
+            writer.Write((byte)(learnedTacticFlags >> (byteIndex * 8)));
+        }
     }
 
     private static void WriteItemRecord(

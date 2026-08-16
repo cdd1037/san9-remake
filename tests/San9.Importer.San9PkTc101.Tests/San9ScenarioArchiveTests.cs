@@ -184,6 +184,164 @@ public sealed class San9ScenarioArchiveTests
         Assert.Contains(fieldName, exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void ReadKnownCityRecords_ParsesDomesticValuesReferencesAndFlags()
+    {
+        using MemoryStream stream = BuildScenarioArchiveWithCities();
+        WriteCityRecord(
+            stream,
+            index: 0,
+            cityFlags: San9ScenarioCityArchive.TraderFlag,
+            population: 58_000,
+            draftPopulation: 7_000,
+            soldiers: 8_000,
+            areaCode: 0,
+            forceCode: 12,
+            publicOrder: 200,
+            maxIncome: 600,
+            maxHarvest: 400,
+            income: 240,
+            harvest: 180,
+            durability: 380,
+            maxDurability: 600,
+            x: 164,
+            y: 17,
+            terrainCode: 2,
+            tacticFlags: (1UL << San9ScenarioCityArchive.RockfallTacticId) |
+                (1UL << San9ScenarioCityArchive.ArrowPlatformTacticId));
+
+        stream.Position = 0;
+        San9ScenarioCityRecord record = San9ScenarioCityArchive.ReadKnownRecords(stream)[0];
+
+        Assert.Equal(58_000U, record.Population);
+        Assert.Equal(7_000U, record.DraftPopulation);
+        Assert.Equal(8_000U, record.Soldiers);
+        Assert.Equal(12, record.ForceId);
+        Assert.Equal(240, record.Income);
+        Assert.Equal(600, record.MaxIncome);
+        Assert.Equal(164, record.X);
+        Assert.Equal(17, record.Y);
+        Assert.True(record.HasTrader);
+        Assert.True(record.HasRockfall);
+        Assert.True(record.HasArrowPlatform);
+    }
+
+    [Fact]
+    public void ReadKnownCityRecords_MapsUnownedCityToNullForce()
+    {
+        using MemoryStream stream = BuildScenarioArchiveWithCities();
+
+        San9ScenarioCityRecord record = San9ScenarioCityArchive.ReadKnownRecords(stream)[0];
+
+        Assert.Null(record.ForceId);
+    }
+
+    [Fact]
+    public void ReadKnownCityRecords_PreservesReservedScenarioFields()
+    {
+        using MemoryStream stream = BuildScenarioArchiveWithCities();
+        stream.Position = 0x8B576 + 0x18;
+        using (BinaryWriter writer = new(stream, Encoding.ASCII, leaveOpen: true))
+        {
+            writer.Write((ushort)0x1234);
+            writer.Write((ushort)0x5678);
+        }
+
+        stream.Position = 0;
+        San9ScenarioCityRecord record = San9ScenarioCityArchive.ReadKnownRecords(stream)[0];
+
+        Assert.Equal(0x1234, record.Reserved18);
+        Assert.Equal(0x5678, record.Reserved1A);
+    }
+
+    [Fact]
+    public void ReadKnownCityRecords_RejectsInconsistentIdentity()
+    {
+        using MemoryStream stream = BuildScenarioArchiveWithCities();
+        stream.Position = 0x8B576 + San9ScenarioCityArchive.RecordSize + 0x12;
+        using (BinaryWriter writer = new(stream, Encoding.ASCII, leaveOpen: true))
+        {
+            writer.Write((ushort)99);
+        }
+
+        stream.Position = 0;
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(
+            () => San9ScenarioCityArchive.ReadKnownRecords(stream));
+
+        Assert.Contains("record 1", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData(0x00, 2, 4, "flags")]
+    [InlineData(0x04, 1_000_001, 4, "population")]
+    [InlineData(0x08, 500_001, 4, "population")]
+    [InlineData(0x0C, 500_001, 4, "population")]
+    [InlineData(0x16, 15, 2, "area")]
+    [InlineData(0x1C, 50, 2, "force")]
+    [InlineData(0x1E, 1_001, 2, "public order")]
+    [InlineData(0x2C, 200, 2, "coordinates")]
+    [InlineData(0x30, 3, 2, "terrain")]
+    public void ReadKnownCityRecords_RejectsOutOfRangeFields(
+        int fieldOffset,
+        int value,
+        int fieldSize,
+        string fieldName)
+    {
+        using MemoryStream stream = BuildScenarioArchiveWithCities();
+        stream.Position = 0x8B576 + fieldOffset;
+        using (BinaryWriter writer = new(stream, Encoding.ASCII, leaveOpen: true))
+        {
+            if (fieldSize == 4)
+            {
+                writer.Write((uint)value);
+            }
+            else
+            {
+                writer.Write((ushort)value);
+            }
+        }
+
+        stream.Position = 0;
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(
+            () => San9ScenarioCityArchive.ReadKnownRecords(stream));
+
+        Assert.Contains(fieldName, exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ReadKnownCityRecords_RejectsCurrentValueAboveMaximum()
+    {
+        using MemoryStream stream = BuildScenarioArchiveWithCities();
+        stream.Position = 0x8B576 + 0x24;
+        using (BinaryWriter writer = new(stream, Encoding.ASCII, leaveOpen: true))
+        {
+            writer.Write((ushort)601);
+        }
+
+        stream.Position = 0;
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(
+            () => San9ScenarioCityArchive.ReadKnownRecords(stream));
+
+        Assert.Contains("income", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ReadKnownCityRecords_RejectsTacticBitsOutsideKnownRange()
+    {
+        using MemoryStream stream = BuildScenarioArchiveWithCities();
+        stream.Position = 0x8B576 + 0x32 + 5;
+        using (BinaryWriter writer = new(stream, Encoding.ASCII, leaveOpen: true))
+        {
+            writer.Write((byte)0x02);
+        }
+
+        stream.Position = 0;
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(
+            () => San9ScenarioCityArchive.ReadKnownRecords(stream));
+
+        Assert.Contains("tactic", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static MemoryStream BuildScenarioArchiveWithHeader(
         ushort scenarioId,
         ushort encodedStartDate)
@@ -228,6 +386,37 @@ public sealed class San9ScenarioArchiveTests
         return stream;
     }
 
+    private static MemoryStream BuildScenarioArchiveWithCities()
+    {
+        MemoryStream stream = BuildScenarioArchive(San9ScenarioArchive.ExpectedSections);
+        for (int index = 0; index < San9ScenarioCityArchive.RecordCount; index++)
+        {
+            WriteCityRecord(
+                stream,
+                index,
+                cityFlags: 0,
+                population: 30_000,
+                draftPopulation: 1_000,
+                soldiers: 0,
+                areaCode: Math.Min(index / 4, San9ScenarioCityArchive.AreaCount - 1),
+                forceCode: ushort.MaxValue,
+                publicOrder: 100,
+                maxIncome: 600,
+                maxHarvest: 600,
+                income: 100,
+                harvest: 100,
+                durability: 300,
+                maxDurability: 600,
+                x: index,
+                y: index,
+                terrainCode: 0,
+                tacticFlags: 0);
+        }
+
+        stream.Position = 0;
+        return stream;
+    }
+
     private static void WriteItemRecord(
         Stream stream,
         int index,
@@ -253,6 +442,56 @@ public sealed class San9ScenarioArchiveTests
         writer.Write((ushort)holderPersonCode);
         writer.Write((ushort)discoveryStateCode);
         writer.Write((ushort)discoveryLocationCode);
+    }
+
+    private static void WriteCityRecord(
+        Stream stream,
+        int index,
+        uint cityFlags,
+        uint population,
+        uint draftPopulation,
+        uint soldiers,
+        int areaCode,
+        int forceCode,
+        int publicOrder,
+        int maxIncome,
+        int maxHarvest,
+        int income,
+        int harvest,
+        int durability,
+        int maxDurability,
+        int x,
+        int y,
+        int terrainCode,
+        ulong tacticFlags)
+    {
+        stream.Position = 0x8B576 + index * San9ScenarioCityArchive.RecordSize;
+        using BinaryWriter writer = new(stream, Encoding.ASCII, leaveOpen: true);
+        writer.Write(cityFlags);
+        writer.Write(population);
+        writer.Write(draftPopulation);
+        writer.Write(soldiers);
+        writer.Write((ushort)index);
+        writer.Write((ushort)index);
+        writer.Write((ushort)index);
+        writer.Write((ushort)areaCode);
+        writer.Write((ushort)0);
+        writer.Write((ushort)0);
+        writer.Write((ushort)forceCode);
+        writer.Write((ushort)publicOrder);
+        writer.Write((ushort)maxIncome);
+        writer.Write((ushort)maxHarvest);
+        writer.Write((ushort)income);
+        writer.Write((ushort)harvest);
+        writer.Write((ushort)durability);
+        writer.Write((ushort)maxDurability);
+        writer.Write((ushort)x);
+        writer.Write((ushort)y);
+        writer.Write((ushort)terrainCode);
+        for (int byteIndex = 0; byteIndex < 6; byteIndex++)
+        {
+            writer.Write((byte)(tacticFlags >> (byteIndex * 8)));
+        }
     }
 
     private static MemoryStream BuildScenarioArchive(

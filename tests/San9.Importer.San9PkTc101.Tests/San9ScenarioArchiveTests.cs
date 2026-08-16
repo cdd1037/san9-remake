@@ -127,10 +127,14 @@ public sealed class San9ScenarioArchiveTests
         Assert.Equal(3, record.TacticId);
         Assert.Equal(326, record.HolderPersonId);
         Assert.Equal(13, record.DiscoveryLocationId);
+        Assert.Equal(San9ScenarioItemDiscoveryState.Unearthed, record.DiscoveryState);
+        Assert.False(record.IsInvalid);
+        Assert.False(record.CanBeUnearthed);
+        Assert.True(record.IsUnearthed);
     }
 
     [Fact]
-    public void ReadKnownItemRecords_MapsMissingCodesToNull()
+    public void ReadKnownItemRecords_MapsMissingCodesToNullAndInvalidStateToNeverUnearthable()
     {
         using MemoryStream stream = BuildScenarioArchiveWithItems();
 
@@ -139,6 +143,35 @@ public sealed class San9ScenarioArchiveTests
         Assert.Null(record.TacticId);
         Assert.Null(record.HolderPersonId);
         Assert.Null(record.DiscoveryLocationId);
+        Assert.Equal(San9ScenarioItemDiscoveryState.Invalid, record.DiscoveryState);
+        Assert.True(record.IsInvalid);
+        Assert.False(record.CanBeUnearthed);
+        Assert.False(record.IsUnearthed);
+    }
+
+    [Fact]
+    public void ReadKnownItemRecords_MapsNotUnearthedStateToUnearthable()
+    {
+        using MemoryStream stream = BuildScenarioArchiveWithItems();
+        WriteItemRecord(
+            stream,
+            index: 0,
+            imageId: 0,
+            categoryId: 0,
+            loyaltyChange: 3,
+            abilityBonus: 0,
+            tacticCode: ushort.MaxValue,
+            holderPersonCode: ushort.MaxValue,
+            discoveryStateCode: (int)San9ScenarioItemDiscoveryState.NotUnearthed,
+            discoveryLocationCode: ushort.MaxValue);
+
+        stream.Position = 0;
+        San9ScenarioItemRecord record = San9ScenarioItemArchive.ReadKnownRecords(stream)[0];
+
+        Assert.Equal(San9ScenarioItemDiscoveryState.NotUnearthed, record.DiscoveryState);
+        Assert.False(record.IsInvalid);
+        Assert.True(record.CanBeUnearthed);
+        Assert.False(record.IsUnearthed);
     }
 
     [Fact]

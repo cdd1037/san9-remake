@@ -2,6 +2,13 @@ using System.Collections.ObjectModel;
 
 namespace San9.Importer.San9PkTc101;
 
+public enum San9ScenarioItemDiscoveryState : ushort
+{
+    Invalid = 0,
+    NotUnearthed = 1,
+    Unearthed = 2,
+}
+
 public sealed record San9ScenarioItemRecord(
     ushort SerializedId,
     ushort ResourceId1,
@@ -15,6 +22,16 @@ public sealed record San9ScenarioItemRecord(
     ushort DiscoveryStateCode,
     ushort DiscoveryLocationCode)
 {
+    public San9ScenarioItemDiscoveryState DiscoveryState =>
+        (San9ScenarioItemDiscoveryState)DiscoveryStateCode;
+
+    public bool IsInvalid => DiscoveryState == San9ScenarioItemDiscoveryState.Invalid;
+
+    public bool CanBeUnearthed =>
+        DiscoveryState == San9ScenarioItemDiscoveryState.NotUnearthed;
+
+    public bool IsUnearthed => DiscoveryState == San9ScenarioItemDiscoveryState.Unearthed;
+
     public int? TacticId => TacticCode < San9ScenarioItemArchive.TacticCount ? TacticCode : null;
 
     public int? HolderPersonId =>

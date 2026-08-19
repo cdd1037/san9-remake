@@ -22,6 +22,13 @@ import struct
 from dataclasses import dataclass
 from pathlib import Path
 
+from legacy_text import (
+    convert_text_segments,
+    decode_big5_segments,
+    display_text_from_segments,
+    render_big5,
+)
+
 
 LS11_MAGIC = {b"LS11", b"Ls12"}
 LS11_DICTIONARY_OFFSET = 16
@@ -223,97 +230,6 @@ def split_indexed_records(decoded: bytes) -> tuple[int, int, list[bytes], list[i
         for index, start in enumerate(offsets)
     ]
     return record_count, table_end, records, offsets
-
-
-def _append_segment(
-    segments: list[dict[str, str]],
-    kind: str,
-    value: str | None = None,
-    hex_value: str | None = None,
-) -> None:
-    if kind == "text" and not value:
-        return
-    if kind == "control" and not hex_value:
-        return
-    if segments and segments[-1]["kind"] == kind:
-        if kind == "text":
-            segments[-1]["value"] += value or ""
-        else:
-            segments[-1]["hex"] += " " + (hex_value or "")
-        return
-    if kind == "text":
-        segments.append({"kind": "text", "value": value or ""})
-    else:
-        segments.append({"kind": "control", "hex": hex_value or ""})
-
-
-def decode_big5_segments(data: bytes) -> tuple[list[dict[str, str]], bool, bool]:
-    """Decode Big5-family text into ordered display/control segments.
-
-    A few rare pairs in the local Taiwan sample are outside Python's strict
-    Big5 and CP950 tables but are present in Big5-HKSCS. They are accepted as
-    a display fallback and remain identifiable through the archive summary.
-    Bytes below 0x20 (except line feed) and undecodable bytes are retained as
-    control segments instead of being silently discarded.
-    """
-
-    segments: list[dict[str, str]] = []
-    index = 0
-    had_decode_error = False
-    used_extension = False
-    while index < len(data):
-        value = data[index]
-        if value == 0x0A:
-            _append_segment(segments, "text", "\n")
-            index += 1
-            continue
-        if 0x20 <= value <= 0x7E:
-            _append_segment(segments, "text", chr(value))
-            index += 1
-            continue
-        if value < 0x20 or value == 0x7F:
-            _append_segment(segments, "control", hex_value=f"{value:02X}")
-            index += 1
-            continue
-        if 0x81 <= value <= 0xFE and index + 1 < len(data):
-            pair = data[index : index + 2]
-            try:
-                decoded = pair.decode("big5")
-            except UnicodeDecodeError:
-                try:
-                    decoded = pair.decode("big5hkscs")
-                except UnicodeDecodeError:
-                    _append_segment(segments, "control", hex_value=f"{value:02X}")
-                    had_decode_error = True
-                    index += 1
-                else:
-                    used_extension = True
-                    _append_segment(segments, "text", decoded)
-                    index += 2
-            else:
-                _append_segment(segments, "text", decoded)
-                index += 2
-            continue
-        _append_segment(segments, "control", hex_value=f"{value:02X}")
-        if value >= 0x80:
-            had_decode_error = True
-        index += 1
-    return segments, had_decode_error, used_extension
-
-
-def display_text_from_segments(segments: list[dict[str, str]]) -> str:
-    result: list[str] = []
-    for segment in segments:
-        if segment["kind"] == "text":
-            result.append(segment["value"])
-            continue
-        result.extend(f"<0x{value}>" for value in segment["hex"].split())
-    return "".join(result)
-
-
-def render_big5(data: bytes) -> tuple[str, bool, bool]:
-    segments, had_decode_error, used_extension = decode_big5_segments(data)
-    return display_text_from_segments(segments), had_decode_error, used_extension
 
 
 def _escape_bbcode_text(value: str) -> str:
@@ -971,6 +887,68 @@ def _metadata_identity(source: Path) -> str:
     return f"{source.stem}.metadata.json"
 
 
+def build_research_catalog(
+    source: Path,
+    simplified: bool = False,
+) -> tuple[dict[str, object], list[dict[str, object]], dict[str, int]]:
+    """Build the byte-faithful archive projection shared with EXE exports."""
+
+    raw = source.read_bytes()
+    decoded, block_count = decode_ls11(raw)
+    record_count, table_end, records, offsets = split_indexed_records(decoded)
+    catalog_name, source_kind, _ = _catalog_identity(source)
+    source_id = f"{source.name}:{hashlib.sha256(raw).hexdigest()[:12]}"
+    converter = None
+    if simplified:
+        from opencc import OpenCC
+
+        converter = OpenCC("t2s")
+
+    entries: list[dict[str, object]] = []
+    diagnostics = {"decode_error_records": 0, "extension_records": 0}
+    for index, (offset, record) in enumerate(zip(offsets, records)):
+        body, has_common_terminator = strip_common_terminator(record)
+        segments, had_decode_error, used_extension = decode_big5_segments(body)
+        traditional = display_text_from_segments(segments)
+        simplified_text = (
+            display_text_from_segments(convert_text_segments(segments, converter.convert))
+            if converter is not None
+            else None
+        )
+        diagnostics["decode_error_records"] += int(had_decode_error)
+        diagnostics["extension_records"] += int(used_extension)
+        entry: dict[str, object] = {
+            "source_id": source_id,
+            "source_kind": source_kind,
+            "locator": f"{source.name}#record:{index}",
+            "record_index": index,
+            "decoded_offset": f"0x{offset:X}",
+            "raw_hex": body.hex(" ").upper(),
+            "segments": segments,
+            "traditional_text": traditional,
+            "encoding": "big5-hkscs" if used_extension else "big5",
+            "decode_status": "error" if had_decode_error else "exact",
+            "terminator": TERMINATOR.hex(" ").upper() if has_common_terminator else None,
+        }
+        if simplified_text is not None:
+            entry["simplified_text"] = simplified_text
+        entries.append(entry)
+
+    source_row: dict[str, object] = {
+        "source_id": source_id,
+        "source_kind": source_kind,
+        "catalog_name": catalog_name,
+        "file_name": source.name,
+        "sha256": hashlib.sha256(raw).hexdigest(),
+        "raw_size": len(raw),
+        "decoded_size": len(decoded),
+        "block_count": block_count,
+        "record_count": record_count,
+        "offset_table_end": f"0x{table_end:X}",
+    }
+    return source_row, entries, diagnostics
+
+
 def build_json_archive(
     source: Path,
     decoded: bytes,
@@ -1218,12 +1196,21 @@ def main() -> int:
         default=None,
         help="write aggregate unresolved-control reports; defaults to the selected output directory in bbcode mode",
     )
+    parser.add_argument(
+        "--research-catalog-output",
+        type=Path,
+        default=None,
+        help="write a byte-faithful unified research catalog for all input archives",
+    )
     args = parser.parse_args()
 
     report_dir = args.metadata_report_dir
     if args.format == "bbcode" and report_dir is None:
         report_dir = args.json_output_dir or args.output_dir
 
+    research_sources: list[dict[str, object]] = []
+    research_records: list[dict[str, object]] = []
+    research_diagnostics: dict[str, dict[str, int]] = {}
     for source in args.sources:
         if args.format == "bbcode":
             suffix = ".bbcode.zh-CN.txt" if args.simplified else ".bbcode.txt"
@@ -1260,6 +1247,36 @@ def main() -> int:
                 f"{source} -> {json_output}: records={json_info.record_count}, "
                 f"language={'zh-CN' if args.simplified else 'zh-TW'}, format={args.format}"
             )
+        if args.research_catalog_output is not None:
+            source_row, entries, diagnostics = build_research_catalog(
+                source,
+                simplified=args.simplified,
+            )
+            research_sources.append(source_row)
+            research_records.extend(entries)
+            research_diagnostics[str(source_row["source_id"])] = diagnostics
+
+    if args.research_catalog_output is not None:
+        catalog = {
+            "schema_version": 1,
+            "authority_language": "zh-TW",
+            "derived_language": "zh-CN" if args.simplified else None,
+            "sources": research_sources,
+            "records": sorted(
+                research_records,
+                key=lambda row: (str(row["source_id"]), int(row["record_index"])),
+            ),
+            "diagnostics": research_diagnostics,
+        }
+        args.research_catalog_output.parent.mkdir(parents=True, exist_ok=True)
+        args.research_catalog_output.write_text(
+            json.dumps(catalog, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        print(
+            f"research catalog -> {args.research_catalog_output}: "
+            f"sources={len(research_sources)}, records={len(research_records)}"
+        )
     return 0
 
 

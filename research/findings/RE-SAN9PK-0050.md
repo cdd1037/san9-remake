@@ -12,7 +12,7 @@
 
 把 `San9PK.exe` 内的繁体中文 C 字符串纳入消息/列传共用的字节保真研究目录。调查只读取项目主 IDB 已加载的程序字节，不读取工作区外原始 EXE。脚本默认 dry-run，只有显式 apply 才定义 IDA 字符串；任何模式都不修改程序字节。
 
-公共文本层保留原始字节、顺序文本/控制片段和繁体 UTF-8 权威投影。消息资源继续采用 Big5 与显式 Big5-HKSCS 回退；EXE 使用本记录确认的 Windows CP950 配置。OpenCC 简体只作为合并目录上的文本片段派生。
+公共文本层保留原始字节、顺序文本/控制片段和繁体 UTF-8 权威投影。消息资源继续采用 Big5 与显式 Big5-HKSCS 回退；EXE 使用本记录确认的 Windows CP950 配置。各来源只共享解码模型，分别输出文件，不建立跨来源合并目录。
 
 ## 事实
 
@@ -46,5 +46,4 @@
 
 - `research/scripts/legacy_text.py`：公共字节解码与片段模型。
 - `research/scripts/ida/configure_big5_strings.py`：IDA dry-run、apply 和统一 EXE 目录。
-- `research/scripts/parse_pk_text.py --research-catalog-output`：消息/列传统一目录投影。
-- `research/scripts/merge_text_catalogs.py`：跨来源校验、合并及可选简体派生。
+- `research/scripts/parse_pk_text.py --research-catalog-output-dir`：为消息和列传分别生成研究目录。

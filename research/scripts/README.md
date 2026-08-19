@@ -14,7 +14,6 @@
 - `ida/apply_core_records.py`：默认 dry-run；仅带 `--apply` 时写入七类核心记录名称和类型。
 - `parse_pk_text.py`：解压并解析 PK 消息/人物列传文本表；可用 `--simplified` 调用 OpenCC `t2s` 生成简体 UTF-8 输出，并用 `--json-output-dir` 分别生成引擎可读取的 `messages.json` 与 `biographies.json`。`--format bbcode` 默认生成源语义的 BBCode：显式字体控制转换为颜色标签，对象值只生成占位符；保留实际换行，并用 `--metadata-report-dir` 输出未静态展开的控制流、未知字节和 BBCode 无法表达的样式效果报告。需要模拟原版对象格式化器颜色时，显式添加 `--bbcode-runtime-effects`。
 - `legacy_text.py`：消息资源与 EXE 共用的字节保真 ASCII/Big5 家族解码、片段转换和 C 字符串扫描组件。
-- `merge_text_catalogs.py`：校验并合并 EXE、消息和列传统一研究目录；`--simplified` 只转换文本片段。
 - `export_g_still_treasure.py`：按已确认的模式 3 索引，从 `G_Still.s9` 导出内置宝物 `image_id=0..99` 的原始 RGB PNG 和预览拼图；生成物放在 `artifacts/image-research/` 等 Git 忽略目录。
 - `export_g_face_palette0.py`：只导出 `G_FaceL/S.s9` 的全部基础头像，使用 `P_Face[0]`，以 `L_000.png`/`S_000.png` 形式平铺输出。
 
@@ -28,7 +27,7 @@ PK 文本示例：
 python research/scripts/parse_pk_text.py \
   private/s9数据文件/M_MsgPK.s9 private/s9数据文件/M_RtdnPK.s9 \
   --simplified --json-output-dir local/generated/san9pk-tc-101-text \
-  --research-catalog-output local/generated/san9pk-tc-101-text/archive-text.json
+  --research-catalog-output-dir local/generated/san9pk-tc-101-text/research
 ```
 
 JSON 文件本身就是数组，每项只有 `index` 和 `content` 两个字段。`index` 是原文件的 0 起始序号，空记录也保留；控制字节以 `<0xNN>` 直接写进 `content`，原始 `0A` 换行保留，暂不做自动换行归一化。
@@ -45,13 +44,6 @@ python research/scripts/parse_pk_text.py \
 
 BBCode JSON 仍只包含 `index` 和 `content`。已确认的动态值使用普通占位符，例如 `{{person[0].name}}` 和 `{{unit[0].related_location}}`；原始 `0A` 保留为实际换行，不转成 `[br]`。只有显式样式控制才使用 `[color=#RRGGBB]`；对象格式化器附加的颜色默认不写入模板。若使用 `--bbcode-runtime-effects`，则会把已确认的原版对象颜色作为可选投影包在占位符外。没有运行时上下文的宏、条件、表达式和未识别属性使用 `{{meta...}}` 或 `{{raw...}}` 保留，报告文件按类别汇总并附最多 10 条样本。
 
-EXE 字符串在 IDA 内先设置 `SAN9_IDA_BIG5_OUTPUT` 执行 dry-run，审阅 `status=ready` 后再设置 `SAN9_IDA_BIG5_APPLY=1` 重跑并保存主 IDB。EXE 使用 Windows CP950 映射；消息资源继续使用严格 Big5 加显式 Big5-HKSCS 回退，两者共享片段模型但不混淆来源编码。
+EXE 字符串在 IDA 内先设置 `SAN9_IDA_BIG5_OUTPUT` 执行 dry-run，审阅 `status=ready` 后再设置 `SAN9_IDA_BIG5_APPLY=1` 重跑并保存主 IDB。EXE 使用 Windows CP950 映射；消息资源继续使用严格 Big5 加显式 Big5-HKSCS 回退，两者共享片段模型但不混淆来源编码，也不合并输出文件。
 
-统一合并及简体派生：
-
-```text
-python research/scripts/merge_text_catalogs.py \
-  artifacts/ida/San9PK-TC-101/exe-strings-applied-cp950.json \
-  local/generated/san9pk-tc-101-text/archive-text.json \
-  --simplified --output local/generated/san9pk-tc-101-text/text-catalog.json
-```
+`--research-catalog-output-dir` 为每个输入分别生成 `M_MsgPK.research.json` 和 `M_RtdnPK.research.json`。EXE 目录始终由 IDA 工具单独生成。

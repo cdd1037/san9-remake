@@ -1197,10 +1197,10 @@ def main() -> int:
         help="write aggregate unresolved-control reports; defaults to the selected output directory in bbcode mode",
     )
     parser.add_argument(
-        "--research-catalog-output",
+        "--research-catalog-output-dir",
         type=Path,
         default=None,
-        help="write a byte-faithful unified research catalog for all input archives",
+        help="write one byte-faithful research catalog per input archive",
     )
     args = parser.parse_args()
 
@@ -1208,9 +1208,6 @@ def main() -> int:
     if args.format == "bbcode" and report_dir is None:
         report_dir = args.json_output_dir or args.output_dir
 
-    research_sources: list[dict[str, object]] = []
-    research_records: list[dict[str, object]] = []
-    research_diagnostics: dict[str, dict[str, int]] = {}
     for source in args.sources:
         if args.format == "bbcode":
             suffix = ".bbcode.zh-CN.txt" if args.simplified else ".bbcode.txt"
@@ -1247,36 +1244,30 @@ def main() -> int:
                 f"{source} -> {json_output}: records={json_info.record_count}, "
                 f"language={'zh-CN' if args.simplified else 'zh-TW'}, format={args.format}"
             )
-        if args.research_catalog_output is not None:
+        if args.research_catalog_output_dir is not None:
             source_row, entries, diagnostics = build_research_catalog(
                 source,
                 simplified=args.simplified,
             )
-            research_sources.append(source_row)
-            research_records.extend(entries)
-            research_diagnostics[str(source_row["source_id"])] = diagnostics
-
-    if args.research_catalog_output is not None:
-        catalog = {
-            "schema_version": 1,
-            "authority_language": "zh-TW",
-            "derived_language": "zh-CN" if args.simplified else None,
-            "sources": research_sources,
-            "records": sorted(
-                research_records,
-                key=lambda row: (str(row["source_id"]), int(row["record_index"])),
-            ),
-            "diagnostics": research_diagnostics,
-        }
-        args.research_catalog_output.parent.mkdir(parents=True, exist_ok=True)
-        args.research_catalog_output.write_text(
-            json.dumps(catalog, ensure_ascii=False, indent=2) + "\n",
-            encoding="utf-8",
-        )
-        print(
-            f"research catalog -> {args.research_catalog_output}: "
-            f"sources={len(research_sources)}, records={len(research_records)}"
-        )
+            catalog = {
+                "schema_version": 1,
+                "authority_language": "zh-TW",
+                "derived_language": "zh-CN" if args.simplified else None,
+                "sources": [source_row],
+                "records": entries,
+                "diagnostics": diagnostics,
+            }
+            research_output = (
+                args.research_catalog_output_dir / f"{source.stem}.research.json"
+            )
+            research_output.parent.mkdir(parents=True, exist_ok=True)
+            research_output.write_text(
+                json.dumps(catalog, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            print(
+                f"{source} -> {research_output}: research_records={len(entries)}"
+            )
     return 0
 
 

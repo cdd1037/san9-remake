@@ -3,7 +3,7 @@
 - 状态：已确认（记录边界、已知字段、主目标对象编码、`unit_status` 状态域、策略集合边界、运行时目标类型映射、引用范围和加载上限视图；部分业务语义未确认）
 - 负责人：项目开发者
 - 最后更新：2026-08-19
-- 关联证据：[RE-SAN9PK-0022](../../research/findings/RE-SAN9PK-0022.md)、[RE-SAN9PK-0033](../../research/findings/RE-SAN9PK-0033.md)
+- 关联证据：[RE-SAN9PK-0022](../../research/findings/RE-SAN9PK-0022.md)、[RE-SAN9PK-0029](../../research/findings/RE-SAN9PK-0029.md)
 - 关联决策：[DEC-DATA-0001](../decisions/DEC-DATA-0001-content-pipeline.md)
 
 ## 适用范围
@@ -75,7 +75,7 @@ bit 2 与 bit 22 组成交战组合 `0x00400004`。它们可以作为主动/被�
 
 upstream 还使用了两个有助于理解的组合掩码：`0x00400004` 表示 bit 2/22 的主动/被动交战组合；`0x00700006` 同时覆盖 bit 1、2、20、21、22；`0x0000000B` 同时测试 bit 0、1、3，用于筛选非内嵌、非单人、未出征部队。`unit +0x22` 的字节掩码是同一 `runtime_flags_0C` 的 bit 16–23 别名，不是另一个字段。
 
-上述研究线索只用于后续逆向和调试，不改变导入字段的原始值，也不自动生成领域枚举。完整证据见 [RE-SAN9PK-0033](../../research/findings/RE-SAN9PK-0033.md)。
+上述研究线索只用于后续逆向和调试，不改变导入字段的原始值，也不自动生成领域枚举。完整证据见 [RE-SAN9PK-0029](../../research/findings/RE-SAN9PK-0029.md)。
 
 ## 重制行为
 

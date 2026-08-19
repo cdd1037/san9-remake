@@ -3,8 +3,8 @@
 - 状态：已确认（区块边界、字段宽度、地图线性索引、城市/据点区域编码、疆界线相关消费者、寻路阻塞消费者、地图绘制与资源消费者、目标哨兵行为和无损读取；部分字节字段正式业务名称未确认）
 - 负责人：项目开发者
 - 最后更新：2026-08-19
-- 关联证据：[RE-SAN9PK-0019](../../research/findings/RE-SAN9PK-0019.md)、[RE-SAN9PK-0036](../../research/findings/RE-SAN9PK-0036.md)
-- 深入证据：[RE-SAN9PK-0028](../../research/findings/RE-SAN9PK-0028.md)、[RE-SAN9PK-0029](../../research/findings/RE-SAN9PK-0029.md)、[RE-SAN9PK-0034](../../research/findings/RE-SAN9PK-0034.md)、[RE-SAN9PK-0035](../../research/findings/RE-SAN9PK-0035.md)、[RE-SAN9PK-0036](../../research/findings/RE-SAN9PK-0036.md)、[RE-SAN9PK-0037](../../research/findings/RE-SAN9PK-0037.md)、[RE-SAN9PK-0038](../../research/findings/RE-SAN9PK-0038.md)
+- 关联证据：[RE-SAN9PK-0019](../../research/findings/RE-SAN9PK-0019.md)、[RE-SAN9PK-0032](../../research/findings/RE-SAN9PK-0032.md)
+- 深入证据：[RE-SAN9PK-0024](../../research/findings/RE-SAN9PK-0024.md)、[RE-SAN9PK-0025](../../research/findings/RE-SAN9PK-0025.md)、[RE-SAN9PK-0030](../../research/findings/RE-SAN9PK-0030.md)、[RE-SAN9PK-0031](../../research/findings/RE-SAN9PK-0031.md)、[RE-SAN9PK-0032](../../research/findings/RE-SAN9PK-0032.md)、[RE-SAN9PK-0033](../../research/findings/RE-SAN9PK-0033.md)、[RE-SAN9PK-0034](../../research/findings/RE-SAN9PK-0034.md)
 - 关联决策：[DEC-DATA-0001](../decisions/DEC-DATA-0001-content-pipeline.md)
 
 ## 适用范围
@@ -153,9 +153,9 @@
 - 寻路函数：`find_square_grid_path`、`init_square_path_graph`、`solve_square_path_graph`、`run_square_graph_search`、`expand_square_neighbors_4way`、`build_square_path_costs`、`square_has_blocking_bits`、`square_has_slow_terrain`；
 - 地图绘制函数：`redraw_map_scene`、`draw_visible_square_tiles`、`draw_square_tile_records`、`draw_square_tile_texture`、`square_to_isometric_anchor`、`square_to_isometric_center`、`screen_to_square_coords`、`adjust_square_visual_position`、`calculate_square_edge_visual_position`；
 - 资源函数：`get_square_terrain_family`、`select_land_tile_resource`、`select_land_tile_subresource`、`select_map_mask_resource`、`get_loaded_resource_by_id`、`composite_land_tile_pixels`、`composite_mask_tile_pixels`、`draw_square_mesh_overlays`、`create_square_mesh_visual`、`build_minimap_terrain_texture`。
-- `CSquareData` 字段接口：`deserialize_squa_record`、`get_csquare_value`、`format_square_property_value`；其中 `+0x06` 的 getter/格式化证据见 [RE-SAN9PK-0038](../../research/findings/RE-SAN9PK-0038.md)。
+- `CSquareData` 字段接口：`deserialize_squa_record`、`get_csquare_value`、`format_square_property_value`；其中 `+0x06` 的 getter/格式化证据见 [RE-SAN9PK-0034](../../research/findings/RE-SAN9PK-0034.md)。
 - 标志/标记函数：`square_has_overlay_marker_bit`、`update_square_runtime_flags`、`square_has_runtime_bit12`、`square_has_runtime_bit13`。
 
 已追加字段来源、阻塞条件、四邻格扩展、等距投影和资源编号链注释；IDB 保存成功并通过 IDA MCP 回读函数名称与注释。本次未修改程序字节、函数边界或结构类型。
 
-本轮还写入了研究层候选字段名：`square_flags_02`、`tile_edge_geometry_mask`、`map_visual_variant`、`boundary_edge_mask`；新增位消费者、方向顺序和函数名证据见 [RE-SAN9PK-0038](../../research/findings/RE-SAN9PK-0038.md)。
+本轮还写入了研究层候选字段名：`square_flags_02`、`tile_edge_geometry_mask`、`map_visual_variant`、`boundary_edge_mask`；新增位消费者、方向顺序和函数名证据见 [RE-SAN9PK-0034](../../research/findings/RE-SAN9PK-0034.md)。

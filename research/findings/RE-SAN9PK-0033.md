@@ -1,112 +1,50 @@
-# RE-SAN9PK-0033：`unit_status` 与运行时 `+0x20` 旗标分层
+# RE-SAN9PK-0033：SQUARE 字段候选语义命名
 
-- 状态：`unit_status` 的加载链已确认；`+0x20` 的部分旗标已确认，部分高位仍待验证
+- 状态：候选命名已写入 IDA 注释；完整业务名称仍分层确认
 - 日期：2026-08-19
-- 结论类型：IDA 直接证据、编辑器用词表、upstream 研究代码交叉分析
-- 置信度：高（状态字段位置、`0..8` 域、bit 2/22 的访问器、bit 3、bit 12–15）；中高（bit 0/1、bit 19–22 的 upstream 语义）；中或待验证（bit 16–18、bit 23–24）
-- 关联记录：[RE-SAN9PK-0022](RE-SAN9PK-0022.md)
-- 关联规格：[BEH-IMPORT-0017](../../specs/behavior/BEH-IMPORT-0017-scenario-unit-records.md)
+- 分析者：Codex
+- 结论类型：事实与候选语义名分开记录
+- 置信度：高（字段到运行时偏移和直接消费者）；中（候选名称作为正式玩法字段名）
+- 关联证据：[RE-SAN9PK-0024](RE-SAN9PK-0024.md)、[RE-SAN9PK-0031](RE-SAN9PK-0031.md)、[RE-SAN9PK-0032](RE-SAN9PK-0032.md)
+- 关联规格：[BEH-IMPORT-0014](../../specs/behavior/BEH-IMPORT-0014-scenario-square-records.md)
 
-## 1. 结论
+## 命名原则
 
-编辑器的 `unit_status` 不是 `unit +0x0C` 中的某一个 bit，也不应与四项方针位混写。当前证据闭合为：
+候选名只描述已经确认的直接消费者，不把一个字段在所有系统中的完整业务含义提前定死。导入器现有 `OpaqueField*` 原始属性暂不改名；以下名称首先作为 IDA/研究层语义别名。
 
-```text
-unit +0x12
-  -> deserialize_unit_record 0x460FF0
-  -> set_unit_status_code 0x45EBB0
-  -> CUnitData +0x24
-  -> get_unit_status_code 0x45EBF0
-  -> get_unit_status_text 0x45EC10
-  -> get_status_text_resource_by_code 0x568240
-```
+| `squa` 偏移 | 候选研究名 | 当前确认用途 | 置信度 |
+| ---: | --- | --- | --- |
+| `+0x02` | `square_flags_02` | 写入运行时 `CSquareData +0x34`；其中 `PathBlockingBits = value & 0x1FE`，在方格图寻路中非零表示不可进入；其他 bit 仍有未确认消费者 | 高（局部用途）/中（整体字段名） |
+| `+0x07` | `tile_edge_geometry_mask` | 写入运行时 `+0x24`；8 个 bit 触发相邻/对角边缘覆盖，并参与瓦片视觉位置修正 | 高 |
+| `+0x09` | `terrain_code` | 通过 `get_square_terrain_family` 映射为地形族，间接参与底图颜色、地形资源和概览纹理 | 高 |
+| `+0x0A` | `map_visual_variant` | 写入运行时 `+0x1C`；作为 MESH/COV 覆盖视觉的资源变体/资源偏移，并参与疆界片段变体选择 | 中高 |
+| `+0x0D` | `boundary_edge_mask` | 写入运行时 `+0x36`；低四位和高四位两组掩码由疆界刷新分别消费 | 高 |
 
-`0x568240` 的状态文本资源表接受 `0..8`，超过 8 报错；这与用词表中的 `unit_status` 域完全相符：
+## 直接证据
 
-| 值 | 用词表名称 | 当前说明 |
-| ---: | --- | --- |
-| 0 | 无效 | 编辑器用词表；直接加载链已确认该值属于状态域 |
-| 1 | 正常(一般) | 原始状态值 1；状态 getter 在满足运行时条件时可派生为 2 |
-| 2 | 正常(交战) | 独立状态码/派生显示值，不是四项方针位之一 |
-| 3 | 陷阱 | 编辑器用词表名称；当前尚未在 base 二进制中闭合其产生路径 |
-| 4 | 伪装 | 编辑器用词表名称；upstream 注释曾称同一状态为“伪报” |
-| 5 | 无阵 | 编辑器用词表名称；upstream 直接按状态 5 使用 |
-| 6 | 混乱 | 编辑器用词表名称；upstream 直接按状态 6 使用 |
-| 7 | 溃败 | 编辑器用词表名称；upstream 直接按状态 7 使用 |
-| 8 | 高昂 | 编辑器用词表名称；状态文本表接受该值 |
+- `deserialize_squa_record` 将 `+0x02/+0x07/+0x09/+0x0A/+0x0D` 分别写入运行时 `CSquareData +0x34/+0x24/+0x10/+0x1C/+0x36`。
+- `square_has_blocking_bits` 与通用 getter 的 bit 读取路径确认 `+0x02` 的 `0x1FE` 派生位段；`build_square_path_costs` 将其转为 `0xFF` 节点代价，`expand_square_neighbors_4way` 跳过该节点。
+- `build_square_edge_overlays` 逐 bit 使用运行时 `+0x24` 的 `0..3` 与 `4..7` 位，生成八方向边缘覆盖；`adjust_square_visual_position` 使用同一字段修正瓦片边缘位置。
+- `get_square_terrain_family` 消费运行时 `+0x10`，`build_minimap_terrain_texture` 使用地形族选择概览颜色，底图绘制链使用该分类参与资源选择。
+- `create_square_mesh_visual` 将运行时 `+0x1C` 作为资源选择参数；`build_square_boundary_segments` 将同一值作为疆界片段变体输入。
+- `test_square_edge_mask_high/test_square_edge_mask_low` 和 `refresh_map_square_boundaries` 消费运行时 `+0x36` 的两组四方向位；`build_square_boundary_segments` 最终选择 `G_MapMkr.s9` 的疆界资源。
 
-因此，“正常(交战)”在界面上是 `unit_status=2`，但运行时另有交战组合标志：`(+0x20 & 0x400004) != 0`。这两个层次可以同时参与显示或逻辑，不能把它们当作同一个字段。
+## 结论边界
 
-## 2. 状态字段与相邻序列化字段
+- `square_flags_02` 不应直接改名为 `passability`：目前只确认 `0x1FE` 位段在已确认寻路路径中的阻塞用途，不能排除该字段承载其他地图状态。
+- `map_visual_variant` 比 `resource_offset` 更稳妥：在 MESH/COV 链中表现为资源偏移，但在疆界片段链中还参与变体/形状选择。
+- `boundary_edge_mask` 可以作为 `+0x0D` 的稳定研究名；低四位/高四位的正式线型含义和四方向顺序仍未确认。
+- `tile_edge_geometry_mask` 可以作为 `+0x07` 的稳定研究名；它描述的是视觉几何/覆盖消费者，不等于寻路邻接规则。
 
-`0x460FF0` 的加载顺序还直接证明：
+## IDA 写入与验证
 
-| 文件字段 | 运行时去向 | 判断 |
-| --- | --- | --- |
-| `unit +0x12` | `CUnitData +0x24` | `unit_status` 状态码 |
-| `unit +0x14` | `CUnitData +0x28` | upstream 标为异常持续天数；编辑器把源槽显示为未知 `0014`，产品字段暂不强命名 |
-| `unit +0x16` | `CUnitData +0x38` | 士气字段，样本值 `100` 与编辑器闭合 |
+已在项目主数据库 `research/analysis/San9PK-TC-101.i64` 的以下函数注释中写入候选字段名：
 
-这会修正旧记录中把 `+0x12` 写成 `CommandCode`、把 `+0x14` 写成 `TargetTypeCode` 的表述。`unit_command` 和 `unit_target_type` 用词表本身仍有效；运行时目标类型 `3=部队`、`4=据点/Zone`、`5=都市` 已由 `0x4537C0` 闭合，但命令/目标对象从剧本或存档恢复的完整来源仍待单变量追踪。
+- `deserialize_squa_record`
+- `get_csquare_value`
+- `square_has_blocking_bits`
+- `build_square_edge_overlays`
+- `create_square_mesh_visual`
+- `build_square_boundary_segments`
 
-## 3. `+0x20` 已有证据的旗标
-
-| bit | 掩码 | 当前语义 | 证据等级 |
-| ---: | ---: | --- | --- |
-| 0 | `0x00000001` | 都市内嵌/内部部队分类；会影响距离起点、战法间隔、伤兵上限和俘虏处理等特殊路径 | 中高；这是类别旗标，不是状态码 |
-| 1 | `0x00000002` | 单人部队分类；会被普通目标、护卫/援护和外部部队筛选排除 | 中高；这是类别旗标，不等于士兵数为 1 |
-| 2 | `0x00000004` | 主动交战位；CUnitData 虚函数 `0x45EA60/0x45EA70` 明确读写该位 | 高；“主动”来自 upstream 语义注释 |
-| 3 | `0x00000008` | 已出征位；当前有独立 getter，upstream 也直接标为“部队已出征” | 高 |
-| 12 | `0x00001000` | 敌接近时攻击 | 高 |
-| 13 | `0x00002000` | 自主撤退许可 | 高 |
-| 14 | `0x00004000` | 追击许可 | 高 |
-| 15 | `0x00008000` | 事后攻击 | 高 |
-| 16 | `0x00010000` | 在行动辅助函数中有设置/清除；独立业务语义尚未闭合 | 待验证 |
-| 17 | `0x00020000` | 转移/目标区域处理门控之一；在若干行动后被清除 | 中；暂不命名 |
-| 18 | `0x00040000` | 目标状态位之一；追击路径要求目标具备该位，行动辅助函数也会设置 | 中；暂不命名 |
-| 19 | `0x00080000` | 建设部队上下文中的“正在建设”标志；upstream 会据此跳过中继点设置，并在撤退/清除建设设施时清除 | 中高；当前二进制中其它通用门控路径的完整对象语义仍待闭合 |
-| 20 | `0x00100000` | 建设图标标志 | 中高；upstream 直接测试 `unit +0x22` 的 `0x10` |
-| 21 | `0x00200000` | 运输标志 | 中高；upstream 直接设置/测试 `unit +0x22` 的 `0x20` |
-| 22 | `0x00400000` | 被动交战位；CUnitData 虚函数 `0x45EA80/0x45EA90` 明确读写该位 | 高；“被动”来自 upstream 语义注释 |
-| 23 | `0x00800000` | `0x464910` 的士气/战斗处理前后保存、设置、恢复，符合瞬时处理/重入保护位 | 高；具体产品名称待验证 |
-| 24 | `0x01000000` | 状态/行动转换中被设置，但当前未找到同一对象的直接读取 | 待验证 |
-
-其中 bit 2 与 bit 22 的关系由当前二进制和 upstream 同时支持：upstream 使用 `0x400004` 作为“主动/被动交战”组合；当前 IDA 中两个 bit 各自有虚访问器，说明它们是两个独立运行时位，而不是 `unit_status=2` 的编码。
-
-对 bit 4–11、25–31，目前没有足够的当前二进制直接消费者证据，不能据此宣布“未使用”。bit 16–18 也只能确认存在写入、清除或门控读取，不能把这些操作本身当作语义确认。bit 19–22 虽已有 upstream 的上下文语义，但 bit 19 在当前二进制的其它通用路径中仍可能承担更窄的门控作用，不能把“建设中”无条件推广到所有部队。
-
-## 4. upstream 的补充行为证据
-
-upstream 对同一运行时部队对象的直接访问还给出了以下组合和行为。`unit +0x22` 是 `CUnitData +0x20` 旗标字的高字节别名，因此这里的字节掩码对应整体 `u32` 的 bit 16–23；但源码中也存在其它显示对象使用相同偏移的情况，只有带有部队循环/部队对象上下文的代码才纳入本结论。
-
-| 证据 | 观察 | 语义边界 |
-| --- | --- | --- |
-| `InsertAsmSrc2.h:1444–1448` 的 `test eax, 700006h` | 同时筛掉 bit 1、bit 2、bit 20、bit 21、bit 22 | upstream 注释依次对应单人部队、主动交战、建设图标、运输标志、被动交战 |
-| `InsertAsmSrc2.h:1680–1684` 的 `test byte ptr[edi+20h], 0Bh` | 只有 bit 0、bit 1、bit 3 全为 0 的部队进入“未出征部队”统计 | 这是“非内嵌、非单人、未出征”的筛选条件，不是 bit0/1/3 的组合状态枚举 |
-| `InsertAsmSrc.h:919–924` | 先测 bit 3，再测 bit 20 和 bit 22，处理已出征且有建设图标、处于交战的建设部队 | 支持 bit 3、bit 20、bit 22 的组合使用 |
-| `InsertAsmSrc.h:941–944` | 清除建设设施后清除 `unit +0x22` 的 `0x08` | 在该路径中 bit 19 是“正在建设”标志 |
-| `InsertAsmSrc2.h:6002–6009` | 建设命令范围内，若 `unit +0x22` 的 `0x08` 已置位，则不设置中继点并保留出征日期为 0 | 进一步支持 bit 19 的建设中语义，但仅限建设部队路径 |
-
-bit 0 的其它 upstream 行为包括把所属都市作为距离计算起点、调整针对内嵌部队的战法效果/间隔、限制伤兵和俘虏相关数值；bit 1 则用于排除单人部队的普通目标、护卫和外部部队选择。这些行为支持“分类旗标”的解释，但尚不足以要求重制版建立同名内部对象或复刻所有数值规则。
-
-## 5. 依据与验证边界
-
-- 项目 IDA 数据库 `research/analysis/San9PK-TC-101.i64`：`0x460FF0`、`0x45EBB0`、`0x45EBF0`、`0x45EC10`、`0x568240`、`0x45EA60`、`0x45EA70`、`0x45EA80`、`0x45EA90`、`0x469730`、`0x464910`、`0x465160`、`0x467190`、`0x467FA0` 等。
-- `research/catalogs/san9pk-tc-101-editor-enums.csv`：`unit_status` 的 0–8 名称，以及 `unit_command`、`unit_target_type` 的编辑器/消息词汇。
-- upstream `research/upsteam/San9PKHard/InsertAsmSrc.h`、`InsertAsmSrc2.h`：状态 1/4/5/6/7、已出征、单人/内嵌分类、主动/被动交战组合，以及建设中/建设图标/运输标志的上下文注释。upstream 作为二级证据，不替代当前样本 IDA 证据。
-- `private/剧本编辑器截图/部队.png`：状态下拉框与独立“交战”复选框的显示结构；截图不单独证明内部字段。
-
-本结论的边界是：已经确认字段分层和若干位的读写/组合关系，但还没有完成所有高位的单变量黑盒实验，也没有把 `unit_command`、`unit_target_type` 的源偏移重新命名为已确认字段。
-
-## 6. IDA 写入与回读验证
-
-2026-08-18 在项目主 IDB 中完成并保存：
-
-- `0x45EBB0` → `set_unit_status_code`
-- `0x45EBF0` → `get_unit_status_code`
-- `0x45EC10` → `get_unit_status_text`
-- `0x568240` → `get_status_text_resource_by_code`
-- 在 `0x460FF0` 的状态/相邻字段加载点、四个状态函数和 `0x465160` 写入证据注释。
-- 2026-08-19 在同一主 IDB 中补充 `unit +0x08/+0x18/+0x1A/+0x1C` 的加载链注释及运行时目标类型说明；相关函数重命名与回读记录见 [RE-SAN9PK-0022](RE-SAN9PK-0022.md)。
-
-保存路径为 `research/analysis/San9PK-TC-101.i64`，回读反编译确认新名称、调用链和注释均存在。本次未修改程序字节。
+IDB 已保存，并通过 IDA MCP 回读注释确认。本轮未创建 `CSquareData` 结构字段类型，也未修改程序字节、函数边界或导入器公开属性名。

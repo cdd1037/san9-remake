@@ -29,7 +29,7 @@ LS11_DICTIONARY_SIZE = 256
 LS11_DESCRIPTOR_OFFSET = LS11_DICTIONARY_OFFSET + LS11_DICTIONARY_SIZE
 TERMINATOR = b"\x05\x05\x05"
 
-# Runtime palette blocks reconstructed in RE-SAN9PK-0034. These are used only
+# Runtime palette blocks reconstructed in RE-SAN9PK-0026. These are used only
 # for the BBCode projection; the legacy renderer continues to expose the raw
 # control bytes.
 FONT_PALETTE_COLORS = {

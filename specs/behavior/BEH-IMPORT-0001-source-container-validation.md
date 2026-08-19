@@ -3,7 +3,7 @@
 - 状态：已确认
 - 负责人：项目开发者
 - 最后更新：2026-08-16
-- 关联证据：[RE-SAN9PK-0005](../../research/findings/RE-SAN9PK-0005.md)、[RE-SAN9PK-0025](../../research/findings/RE-SAN9PK-0025.md)
+- 关联证据：[RE-SAN9PK-0005](../../research/findings/RE-SAN9PK-0005.md)、[RE-SAN9PK-0023](../../research/findings/RE-SAN9PK-0023.md)
 - 关联决策：[DEC-DATA-0001](../decisions/DEC-DATA-0001-content-pipeline.md)
 
 ## 适用范围

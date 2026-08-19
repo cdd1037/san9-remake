@@ -16,10 +16,10 @@ public sealed record San9ScenarioHeader(
     ushort PackedFlags,
     ushort EncodedStartDate,
     San9ScenarioDate StartDate,
-    ushort UnknownField,
+    ushort AllianceDurationTurns,
     ushort MapWidth,
     ushort MapHeight,
-    IReadOnlyList<byte> ForceSlots);
+    IReadOnlyList<byte> EncodedCityForceMapCodes);
 
 public sealed class San9ScenarioLayout
 {
@@ -118,11 +118,11 @@ public static class San9ScenarioArchive
         ushort scenarioId = reader.ReadUInt16();
         ushort packedFlags = reader.ReadUInt16();
         ushort encodedStartDate = reader.ReadUInt16();
-        ushort unknownField = reader.ReadUInt16();
+        ushort allianceDurationTurns = reader.ReadUInt16();
         ushort mapWidth = reader.ReadUInt16();
         ushort mapHeight = reader.ReadUInt16();
-        byte[] forceSlots = reader.ReadBytes(50);
-        if (forceSlots.Length != 50 || stream.Position != head.DataOffset + head.Size)
+        byte[] encodedCityForceMapCodes = reader.ReadBytes(50);
+        if (encodedCityForceMapCodes.Length != 50 || stream.Position != head.DataOffset + head.Size)
         {
             throw new InvalidDataException("Scenario head chunk has an unexpected field layout.");
         }
@@ -134,10 +134,10 @@ public static class San9ScenarioArchive
             packedFlags,
             encodedStartDate,
             DecodeDate(encodedStartDate),
-            unknownField,
+            allianceDurationTurns,
             mapWidth,
             mapHeight,
-            Array.AsReadOnly(forceSlots));
+            Array.AsReadOnly(encodedCityForceMapCodes));
     }
 
     public static San9ScenarioHeader ReadInitialScenario190Header(Stream stream)

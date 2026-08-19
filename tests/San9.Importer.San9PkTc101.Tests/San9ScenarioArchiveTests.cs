@@ -30,9 +30,10 @@ public sealed class San9ScenarioArchiveTests
         Assert.Equal(0x20030317U, header.FormatVersion);
         Assert.Equal(1, header.ScenarioId);
         Assert.Equal(new(190, 1, 1), header.StartDate);
+        Assert.Equal(36, header.AllianceDurationTurns);
         Assert.Equal(200, header.MapWidth);
         Assert.Equal(200, header.MapHeight);
-        Assert.Equal(50, header.ForceSlots.Count);
+        Assert.Equal(50, header.EncodedCityForceMapCodes.Count);
     }
 
     [Fact]
@@ -394,6 +395,7 @@ public sealed class San9ScenarioArchiveTests
             nameReadingResourceCode: 44,
             encodedBirthYear: 60,
             encodedAppearanceYear: 89,
+            encodedStatusStartYear: 89,
             locationCode: 17,
             statusCode: 6,
             command: 66,
@@ -402,6 +404,9 @@ public sealed class San9ScenarioArchiveTests
             politics: 42,
             titleCode: 3,
             lifespanTier: 2,
+            health: 5,
+            bloodlineRootPersonCode: 900,
+            parentPersonCode: 1_000,
             affinity: 62,
             temperament: 1,
             duty: 8,
@@ -420,13 +425,18 @@ public sealed class San9ScenarioArchiveTests
         Assert.Equal(44, record.NameReadingResourceCode);
         Assert.Equal(190, record.BirthYear);
         Assert.Equal(219, record.AppearanceYear);
+        Assert.Equal(219, record.StatusStartYear);
+        Assert.Equal(2, record.StatusDurationYears(220));
         Assert.Equal(17, record.LocationId);
+        Assert.Equal(900, record.BloodlineRootPersonId);
+        Assert.Equal(1_000, record.ParentPersonId);
         Assert.Equal(6, record.StatusId);
         Assert.Equal(66, record.Command);
         Assert.Equal(73, record.Strength);
         Assert.Equal(30, record.Intelligence);
         Assert.Equal(42, record.Politics);
         Assert.Equal(62, record.Affinity);
+        Assert.Equal(San9ScenarioPersonHealthState.SevereInjury, record.HealthState);
         Assert.True(record.HasTacticCategoryMastery(4));
         Assert.True(record.IsOwnerLeader);
         Assert.True(record.IsCommandParticipant);
@@ -446,6 +456,9 @@ public sealed class San9ScenarioArchiveTests
             locationCode: ushort.MaxValue,
             statusCode: ushort.MaxValue,
             titleCode: 76,
+            health: 15,
+            bloodlineRootPersonCode: San9ScenarioPersonArchive.BloodlineRootReferenceLimit,
+            parentPersonCode: San9ScenarioPersonArchive.ParentReferenceLimit,
             equippedTacticCode: ushort.MaxValue);
 
         stream.Position = 0;
@@ -454,7 +467,11 @@ public sealed class San9ScenarioArchiveTests
         Assert.Null(record.LocationId);
         Assert.Null(record.StatusId);
         Assert.Null(record.TitleId);
+        Assert.Null(record.BloodlineRootPersonId);
+        Assert.Null(record.ParentPersonId);
         Assert.Null(record.EquippedTacticId);
+        Assert.Equal(San9ScenarioPersonHealthState.Unknown, record.HealthState);
+        Assert.Null(record.StatusDurationYears(200));
         Assert.Equal(ushort.MaxValue, record.LocationCode);
     }
 
@@ -575,6 +592,7 @@ public sealed class San9ScenarioArchiveTests
         int nameReadingResourceCode = -1,
         int encodedBirthYear = 0,
         int encodedAppearanceYear = 0,
+        int encodedStatusStartYear = 0,
         int locationCode = ushort.MaxValue,
         int statusCode = ushort.MaxValue,
         int command = 0,
@@ -583,6 +601,9 @@ public sealed class San9ScenarioArchiveTests
         int politics = 0,
         int titleCode = 76,
         int lifespanTier = 0,
+        int health = 0,
+        int bloodlineRootPersonCode = ushort.MaxValue,
+        int parentPersonCode = ushort.MaxValue,
         int affinity = 0,
         int temperament = 0,
         int duty = 0,
@@ -604,7 +625,7 @@ public sealed class San9ScenarioArchiveTests
         writer.Write((ushort)0);
         writer.Write((ushort)encodedBirthYear);
         writer.Write((ushort)encodedAppearanceYear);
-        writer.Write((ushort)0);
+        writer.Write((ushort)encodedStatusStartYear);
         writer.Write((ushort)locationCode);
         writer.Write((ushort)0);
         writer.Write((ushort)statusCode);
@@ -614,9 +635,9 @@ public sealed class San9ScenarioArchiveTests
         writer.Write((ushort)politics);
         writer.Write((ushort)titleCode);
         writer.Write((ushort)lifespanTier);
-        writer.Write((ushort)0);
-        writer.Write(ushort.MaxValue);
-        writer.Write(ushort.MaxValue);
+        writer.Write((ushort)health);
+        writer.Write((ushort)bloodlineRootPersonCode);
+        writer.Write((ushort)parentPersonCode);
         writer.Write((ushort)affinity);
         writer.Write((ushort)temperament);
         writer.Write((ushort)duty);

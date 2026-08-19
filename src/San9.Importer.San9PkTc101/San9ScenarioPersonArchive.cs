@@ -2,6 +2,14 @@ using System.Collections.ObjectModel;
 
 namespace San9.Importer.San9PkTc101;
 
+public enum San9ScenarioPersonHealthState
+{
+    Healthy,
+    LightInjury,
+    SevereInjury,
+    Unknown,
+}
+
 public sealed record San9ScenarioPersonRecord(
     uint PersonFlags,
     ushort SerializedId,
@@ -42,8 +50,28 @@ public sealed record San9ScenarioPersonRecord(
 
     public int StatusStartYear => San9ScenarioPersonArchive.DecodeYear(EncodedStatusStartYear);
 
+    public int? StatusDurationYears(int currentYear)
+    {
+        if (EncodedStatusStartYear == 0 || currentYear < StatusStartYear)
+        {
+            return null;
+        }
+
+        return currentYear - StatusStartYear + 1;
+    }
+
     public int? LocationId =>
         LocationCode < San9ScenarioPersonArchive.LocationCount ? LocationCode : null;
+
+    public int? BloodlineRootPersonId =>
+        BloodlineRootPersonCode < San9ScenarioPersonArchive.BloodlineRootReferenceLimit
+            ? BloodlineRootPersonCode
+            : null;
+
+    public int? ParentPersonId =>
+        ParentPersonCode < San9ScenarioPersonArchive.ParentReferenceLimit
+            ? ParentPersonCode
+            : null;
 
     public int? StatusId => StatusCode < San9ScenarioPersonArchive.StatusCount ? StatusCode : null;
 
@@ -51,6 +79,14 @@ public sealed record San9ScenarioPersonRecord(
 
     public int? EquippedTacticId =>
         EquippedTacticCode < San9ScenarioPersonArchive.TacticCount ? EquippedTacticCode : null;
+
+    public San9ScenarioPersonHealthState HealthState => Health switch
+    {
+        0 => San9ScenarioPersonHealthState.Healthy,
+        <= 4 => San9ScenarioPersonHealthState.LightInjury,
+        <= 14 => San9ScenarioPersonHealthState.SevereInjury,
+        _ => San9ScenarioPersonHealthState.Unknown,
+    };
 
     public int GenderFlag => (int)(PersonFlags & 1U);
 
@@ -101,6 +137,8 @@ public static class San9ScenarioPersonArchive
     public const int RecordCount = 800;
     public const int RecordSize = 134;
     public const int RuntimePersonCount = 850;
+    public const int BloodlineRootReferenceLimit = 1_050;
+    public const int ParentReferenceLimit = 1_031;
     public const int LocationCount = 1_100;
     public const int StatusCount = 10;
     public const int PrisonerStatusId = 4;

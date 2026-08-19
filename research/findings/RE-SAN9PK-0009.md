@@ -12,7 +12,7 @@
 
 调查 `prsn` chunk 的 134 字节记录、目标程序反序列化路径，以及用户本次提供的黑盒剧本编辑器人物页能支持到什么程度。截图只作为字段分组和显示值线索，不把界面标签单独提升为格式事实。
 
-本次没有读取工作区外的剧本、编辑器或其他私有样本。IDA 调查使用仓库内 `research/analysis/San9PK-TC-101.i64`，只读调查与后续 IDB 标注分别记录。
+本次剧本样本和编辑器资料均来自仓库私有目录 `private/s9数据文件/` 与 `private/剧本编辑器截图/`，没有读取工作区外的样本。IDA 调查使用仓库内 `research/analysis/San9PK-TC-101.i64`，只读调查与后续 IDB 标注分别记录。
 
 ## 记录边界
 
@@ -137,11 +137,27 @@
 - 中等置信度：`0x26` 的爵位/称号名称、50 字节表的忠诚语义。
 - 待验证：姓名读音采用的具体注音体系，勇猛的存储位置，`0x00` bit 14 的精确业务语义、bit 1 与 bit 21–31 是否在其他流程使用，旗代码到显示字符的资源转换，以及正式剧本中的数值范围和不变量。`0x1A` 已确认在目标加载流程中无效，不再为其推测业务语义。
 
+## 独立导入 API 与样本复验
+
+`San9ScenarioPersonArchive` 在保留原始值之外提供以下已确认派生视图：
+
+| 序列化偏移 | API | 规则 |
+| ---: | --- | --- |
+| `0x16` | `StatusStartYear` | 编码值加 130；编码 0 保留为未设置哨兵 |
+| `0x16` | `StatusDurationYears(currentYear)` | 编码非 0 且当前年份不早于起始年时，返回 `currentYear - startYear + 1`；否则为空 |
+| `0x2A` | `HealthState` | 0 为 `Healthy`，1–4 为 `LightInjury`，5–14 为 `SevereInjury`，大于 14 为 `Unknown` |
+| `0x2C` | `BloodlineRootPersonId` | 小于 1050 时提供人物编号，否则为空 |
+| `0x2E` | `ParentPersonId` | 小于 1031 时提供人物编号，否则为空 |
+
+这些视图不覆盖 `EncodedStatusStartYear`、`Health`、`BloodlineRootPersonCode` 或 `ParentPersonCode`。使用 `private/s9数据文件/` 中的 `D_Sce001.S9`–`D_Sce020.S9`、`D_Ttrl00.S9`–`D_Ttrl05.S9` 共 26 个正式布局样本复验，每份均读取为 800 条记录；样本中健康值只出现 0 和 7，血缘根编号范围为 0–799。该统计支持当前读取链，但不替代资源文本和扩展人物槽的后续实验。
+
 ## IDA 调查与独立实现
 
 本轮先只读反编译 `deserialize_person_record`、名称加载与格式化链、头像生成链、列传访问链、血缘引用的正反向访问链、寿命生成链、新武将信念生成与反向分类链、部队成员位置链、其字段 setter、出生/登场年 getter、全局编辑覆盖序列化链和 50 字节表访问器。证据闭合后，相关原自动名函数均先通过不覆盖现有名称的 dry-run，再写入名称；关键入口加入本记录注释。强制重新反编译后，名称资源分支、年份 `+130`、50 项边界、134 字节读取顺序和控制流均未改变。
 
 本次 `0x00` 位域补充先以项目级 IDA MCP 完成只读枚举，再经用户同意写入当前 `San9PK-TC-101.i64`。`San9PersonRecord` 的 `+0xE8` 已从错误的两字节精通位修正为四字节 `person_flags`，`+0xF8` 定义为 `equipped_tactic` 指针，`+0xFC` 定义为六字节 `learned_tactics_bits`；结构总尺寸回读仍为 `0x128`。另写入十个中性函数名及其类型：`set_person_flags_raw`、`set_or_clear_person_flags`、`set_person_gender_flag`、`get_person_gender_flag`、`has_person_tactic_category_mastery`、`set_person_tactic_category_mastery`、`set_person_unit_formation_slot`、`get_person_unit_formation_row`、`set_person_equipped_tactic` 和 `is_special_prisoner_state`。bit 13、bit 14 的注释明确保留精确业务名称未知，不以推断命名。重新反编译 `deserialize_person_record` 后已显示 `this->person_flags`、`this->equipped_tactic` 和 `this->learned_tactics_bits`，记录消费顺序未改变。
+
+2026-08-18 增量同步：在 `deserialize_person_record`（`0x44F830`）入口追加 `prsn +0x32` 性格字段及四项消息语义注释；明确数字存储顺序尚未独立证明，未写入性格枚举类型或修改人物结构布局。回读反编译确认字段读取顺序未变。
 
 没有读取或修改旧版 `San9PK.exe.idb`，也没有修改程序字节或函数边界；IDB 变更仅发生在 `San9PK-TC-101.i64`。
 

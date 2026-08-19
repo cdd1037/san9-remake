@@ -4,13 +4,15 @@
 
 ## 当前目录
 
-- `analysis/`：历史分析数据库与说明。旧 IDB 只作线索，禁止修改和提交。
+- `analysis/`：项目主 IDA 数据库与说明。新研究按对应样本版本同步有证据的标注；旧库移入被忽略的 `artifacts/ida/legacy/`，只作历史线索。
 - `docs/`：收集的电子书、分析文章与图片，许可状态需要逐项确认。
 - `experiments/`：新增黑盒实验记录；每个实验使用 `EXP-*`。
-- `findings/`：可追溯的逆向结论；每项结论使用 `RE-*`，地址只保留在这里。
+- `findings/`：可追溯的逆向结论；每项结论使用 `RE-*`，地址只保留在这里；按主题浏览见[结论索引](findings/README.md)。
 - `notes/`：研究笔记、冲突整理和证据链演练。
+- `prototypes/`：不进入产品的可复现研究预览；不得作为行为规格或运行时依赖。
 - `scripts/`：未来可复现的研究辅助脚本，不得成为产品运行依赖。
 - `symbols/`：可追溯的符号摘要，不保存 IDB。
+- `../private/s9数据文件/`：本地游戏数据样本；`../private/剧本编辑器截图/`：本地黑盒对照截图。研究记录统一引用这些仓库相对路径，不记录机器绝对路径。
 - `upsteam/`：历史遗留第三方资料目录。路径拼写暂时保留，新增来源不应继续无清单堆放。
 
 ## 使用规则
@@ -20,5 +22,6 @@
 3. 把事实、推断和待验证事项分开。可信资料与目标样本的地址、字节或结构吻合时，可以作为 IDA 工作事实；进入正式行为规格时再执行更严格验证。
 4. 大型样本、差分产物和工具输出放在被 Git 忽略的目录，只提交哈希和生成说明。
 5. 研究成熟后，另写不含原版实现细节的行为规格；不要把研究笔记直接移动成规格。
+6. 逆向任务产生可靠命名、类型或注释时，按需写入对应版本的项目主 IDA 数据库并回读验证；只读调查无需记录“数据库未修改”。
 
-参见[`.s9` 文件清单](s9-file-inventory.md)、[现有第三方仓库简介](upstream-repositories.md)、[全局候选目录记录](findings/RE-SAN9PK-0002.md)、[核心类型记录](findings/RE-SAN9PK-0003.md)、[运行库与探索辅助对象](findings/RE-SAN9PK-0004.md)、[剧本与头像容器布局](findings/RE-SAN9PK-0005.md)、[剧本宝物记录](findings/RE-SAN9PK-0006.md)、[启动工作剧本与全局武将编辑覆盖](findings/RE-SAN9PK-0007.md)、[剧本城市记录](findings/RE-SAN9PK-0008.md)、[剧本武将记录](findings/RE-SAN9PK-0009.md)和[证据链纸面演练](notes/0001-source-trace-example.md)。
+主要入口为[`.s9` 文件清单](s9-file-inventory.md)、[来源登记表](SOURCES.md)、[逆向结论索引](findings/README.md)、[现有第三方仓库简介](upstream-repositories.md)和[证据链纸面演练](notes/0001-source-trace-example.md)。

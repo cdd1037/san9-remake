@@ -26,14 +26,14 @@ San9PKHard 的 `San9PKHardDlg.h` 同时给出七张表的基址、记录数和�
 | Person | `0x1258EE0` | 850 | `0x128` | `San9PersonRecord` | `get_person_record` (`0x4531B0`) |
 | Building | `0x14FD4A0` | 17 | `0x50` | `San9BuildingRecord` | `get_building_record_or_first` (`0x453740`) |
 | Killer | `0x14FDAD0` | 41 | `0x8C` | `San9KillerRecord` | `get_killer_record` (`0x453720`) |
-| Array | `0x1500B70` | 28 | `0x88` | `San9ArrayRecord` | `get_array_record_or_first` (`0x453870`) |
+| Array | `0x1500B70` | 28 | `0x88` | `San9ArrayRecord` | `get_array_record_or_first` (`0x453870`); `get_array_record_or_null` (`0x453890`) |
 
 `Array` 和 `Killer` 是来源术语。本轮保留它们，不强行映射为 Army、Formation 或 Tactic。
 
 ## 边界行为
 
 - Zone、City、Force、Person 和 Killer 访问器先检查索引上下界，非法时返回空指针。
-- Building 和 Array 的目标代码在非法索引路径把索引清零后继续计算，因此返回第 0 项而不是空指针。函数名显式记录这一差异。
+- Building 和 `get_array_record_or_first` 的目标代码在非法索引路径把索引清零后继续计算，因此返回第 0 项而不是空指针。严格访问器 `get_array_record_or_null`（`0x453890`）在非法索引时返回空指针；`unit +0x22` 的加载路径使用严格访问器，详见 [RE-SAN9PK-0022](RE-SAN9PK-0022.md)。
 - 这些边界行为来自完整目标函数体，可作为后续调查事实使用；是否原样进入重制规则仍需单独的行为规格决策。
 
 ## 类型骨架
@@ -49,8 +49,12 @@ IDA 大小检查结果：Person `0x128`、Force `0xD4`、City `0x1F0`、Zone `0x
 - IDA `type_inspect` 检查七个结构体总大小及所有已知字段偏移，无偏移漂移。
 - 抽查 `get_person_record` 和 `get_city_record`：目标函数中的数量、乘法步长和基址均与类型一致。
 - 抽查 `0x453EB4` 的武将循环：850 项、步长 `0x128`，与访问器和来源一致。
-- 未修改任何程序字节或函数边界。
+- 前一轮未修改任何程序字节或既有函数边界；本轮新增的 `0x460FF0` 函数定义见下文。
 - 项目 IDB 已原位保存。
+
+## 后续 IDA 写入与回读
+
+2026-08-18 在项目主 IDB `research/analysis/San9PK-TC-101.i64` 中将严格访问器 `0x453890` 重命名为 `get_array_record_or_null`，并定义、命名 `0x460FF0` 为 `deserialize_unit_record`。回读确认前者在 `index >= 0x1C` 时返回空指针，否则返回 `san9_array_records[index]`；后者从 `unit +0x22` 读取索引并调用该访问器。本次未修改程序字节，详细写入清单和 `jnki` 顺序载入验证见 [RE-SAN9PK-0022](RE-SAN9PK-0022.md)。
 
 ## 限制
 

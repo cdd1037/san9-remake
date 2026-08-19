@@ -4,6 +4,11 @@
 - `reconcile_ida_catalogs.py`：合并来源分类、旧 IDB 和当前 IDB 导出。
 - `build_ida_module_batches.py`：把统一候选按六个既定应用阶段拆成 dry-run 清单，并检查无静默遗漏。
 - `ida/export_idb_catalog.py`：在 IDA 中只读导出数据库目录。
+- `ida/health_baseline.py`：在 IDA 中只读生成可重复的样本、段、函数、交叉引用、类型、字符串和异常候选健康报告；输出放在被 Git 忽略的 `artifacts/ida/`。
+- `ida/export_runtime_classes.py`：按 24 字节 CRuntimeClass 形态只读扫描类名字符串前置记录，生成 MFC/运行时类 dry-run 目录；输出放在被 Git 忽略的 `artifacts/ida/`。
+- `ida/export_vtable_candidates.py`：只读导出 IDA 中已有虚表/函数表候选的原始槽位、目标段、函数归属和交叉引用；不推断边界或写入 IDB，输出放在被 Git 忽略的 `artifacts/ida/`。
+- `ida/export_message_maps.py`：只读扫描 MFC 风格 8 字节消息映射头、24 字节 handler 表项和零项哨兵，生成消息映射 dry-run 目录；不写入 IDB，输出放在被 Git 忽略的 `artifacts/ida/`。
+- `ida/export_global_roots.py`：按代码到 `.data/.rdata` 的引用只读汇总高传播全局/静态数据候选，记录边界、类型、来源函数和中性分类；不写入 IDB，输出放在被 Git 忽略的 `artifacts/ida/`。
 - `ida/classify_source_catalog.py`：在目标 IDB 中只读分类来源候选。
 - `ida/apply_core_records.py`：默认 dry-run；仅带 `--apply` 时写入七类核心记录名称和类型。
 - `parse_pk_text.py`：解压并解析 PK 消息/人物列传文本表；可用 `--simplified` 调用 OpenCC `t2s` 生成简体 UTF-8 输出，并用 `--json-output-dir` 分别生成引擎可读取的 `messages.json` 与 `biographies.json`。`--format bbcode` 默认生成源语义的 BBCode：显式字体控制转换为颜色标签，对象值只生成占位符；保留实际换行，并用 `--metadata-report-dir` 输出未静态展开的控制流、未知字节和 BBCode 无法表达的样式效果报告。需要模拟原版对象格式化器颜色时，显式添加 `--bbcode-runtime-effects`。

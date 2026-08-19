@@ -17,7 +17,7 @@
 
 IDA 导出放在被 Git 忽略的 `artifacts/ida/`，图像研究输出放在 `artifacts/image-research/`，本地转换内容放在 `local/generated/`。执行和证据说明见 [`RE-SAN9PK-0002`](../findings/RE-SAN9PK-0002.md)、[`RE-SAN9PK-0003`](../findings/RE-SAN9PK-0003.md)、[`RE-SAN9PK-0026`](../findings/RE-SAN9PK-0026.md)与 [`RE-SAN9PK-0035`](../findings/RE-SAN9PK-0035.md)。
 
-完整人物姓名、剧本标题、宝物名等由原版资源批量派生的目录只保存在 `local/generated/research-catalogs/`，不得提交。`research/catalogs/` 仅保存支撑字段语义所必需的短枚举摘要。
+人物姓名、语义文本和编辑器短枚举等由原版资源或本地研究批量派生的目录统一保存在 `local/generated/research-catalogs/`，不得提交。
 
 PK 文本示例：
 

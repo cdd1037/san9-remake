@@ -10,3 +10,5 @@
 - [DEC-PROJECT-0002：选择性继承核心体验与现代重组](DEC-PROJECT-0002-selective-inheritance.md)
 - [DEC-DATA-0001：JSON 内容源包与本地生成缓存](DEC-DATA-0001-content-pipeline.md)
 - [DEC-SIM-0001：确定性命令结算与显式存档迁移](DEC-SIM-0001-determinism-and-saves.md)
+- [DEC-SCOPE-0001：最小可玩版本的剧本范围](DEC-SCOPE-0001-scenario-scope.md)
+- [DEC-EVENT-0001：神兽事件采用连续的武力成功率参数](DEC-EVENT-0001-shenshou-probability.md)

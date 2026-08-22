@@ -16,6 +16,7 @@
 - `legacy_text.py`：消息资源与 EXE 共用的字节保真 ASCII/Big5 家族解码、片段转换和 C 字符串扫描组件。
 - `export_g_still_treasure.py`：按已确认的模式 3 索引，从 `G_Still.s9` 导出内置宝物 `image_id=0..99` 的原始 RGB PNG 和预览拼图；生成物放在 `artifacts/image-research/` 等 Git 忽略目录。
 - `export_g_face_palette0.py`：只导出 `G_FaceL/S.s9` 的全部基础头像，使用 `P_Face[0]`，以 `L_000.png`/`S_000.png` 形式平铺输出。
+- `render_square_map.py`：使用 `squa`、`G_LLand.s9`/`P_Land_*.s9` 与 `G_MASK.s9`/`P_MASK.s9` 渲染局部等距底图及八方向地形过渡；默认 `--land-palette auto` 按场景起始月份选择原版季节调色板，也可显式传入 `S/N/A/W`。已接入原版地形资源合法偏移范围、边缘记录 flags 对应的两组 `elevation_mask=0` 专用 `G_MASK` 资源、原版 atlas sort key、当前格扫描线连续复制与边缘格 256 权重逐像素混合路径，并使用全图等距坐标驱动图库循环取样。可用 `--mesh-state 0..5` 显式叠加 `G_MESH.s9`/`P_MESH.s9` 的 MESH 方格覆盖诊断层，`--mesh-elevated-only` 只显示 `squa +0x0A` 非零的高差变体。MESH 诊断已采用原版状态 alpha 和横向 `-32` 锚点修正；已确认但尚未接入的水面层是 `G_LMask.s9` 的四种方格奇偶资源、每项六帧动画。RGB555 写回量化与 `G_MapCov.s9` 也未接入。当前只用于实验，暂不包含疆界、桥、建筑、单位和其他覆盖层，输出放在 `artifacts/image-research/square-map/`。
 
 IDA 导出放在被 Git 忽略的 `artifacts/ida/`，图像研究输出放在 `artifacts/image-research/`，本地转换内容放在 `local/generated/`。执行和证据说明见 [`RE-SAN9PK-0002`](../findings/RE-SAN9PK-0002.md)、[`RE-SAN9PK-0003`](../findings/RE-SAN9PK-0003.md)、[`RE-SAN9PK-0026`](../findings/RE-SAN9PK-0026.md)与 [`RE-SAN9PK-0035`](../findings/RE-SAN9PK-0035.md)。
 

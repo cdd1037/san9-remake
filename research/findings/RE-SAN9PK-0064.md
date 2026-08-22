@@ -1,6 +1,6 @@
 # RE-SAN9PK-0064：原作字形分档、文本布局与物理分辨率重绘边界
 
-- 状态：静态逆向与双合成链已确认；当前物理分辨率重绘方案已否定并从原型删除
+- 状态：静态逆向与像素写入边界已确认；保留式文字命令层进入运行时验证
 - 样本：`SRC-SAN9PK-TC-101`
 - 关联：[RE-SAN9PK-0026](RE-SAN9PK-0026.md)、[RE-SAN9PK-0063](RE-SAN9PK-0063.md)
 
@@ -109,6 +109,23 @@
   删除；D3D11 RGB555 上传与 Catmull–Rom 画面缩放不受影响。以下静态逆向事实仍保留，
   但不得再直接作为影子表面方案的充分实现依据。
 
+### 保留式文字命令原型
+
+- 新原型不恢复上述影子表面模型。`render_font_glyphs` 每次调用前直接复制本次目标字形区域，
+  调用原作以取得确切的字形覆盖事实，随后在同一调用栈内恢复调用前像素，并登记文字语义命令。
+  该背景只存在于一次绘制事务中，不跨帧保存，也不参与 Present 阶段的最终像素差推断。
+- 文字命令和逐行所有权附着于 `KoeiSurface::pixels`。表面复制按源/目标坐标传播命令；位图资源
+  合成按本次实际写入覆盖裁剪命令；Present 只消费最终后缓冲仍拥有的命令，并在 Catmull–Rom
+  缩放后用 Direct2D/DirectWrite 绘制。
+- 只代理两条表面复制路径仍不闭合。静态回读确认 `fill_surface (0x5BEB00)` 以及
+  `0x5C2810`、`0x5C29D0`、`0x5C2AB0`、`0x5C2CA0`、`0x5C3250`、`0x5C3310`、
+  `0x5C33D0` 会直接写 `KoeiSurface::pixels`，绕过 KOEIGrpX 的 BitBlt 导入族；新原型把
+  这些全表面填充、像素、横纵线、矩形和棋盘填充入口纳入同一所有权失效边界。
+- 启动器与 Runtime 增加预恢复握手：字体及其像素写入钩子安装完成后才允许游戏主线程开始，
+  消除启动首帧先显示原字体、异步安装后才切换的竞态。
+- 当前结论仍标记为“待运行时验证”：编译和入口字节校验不能替代动态水面、菜单遮挡、叙事
+  动画和缓存 UI 的实际闭合测试。
+
 ## 实现推断
 
 - 原作资源最高只有 24×24 原生字形。继续使用 `F_Font.s9` 可以准确复现原作，但无法在
@@ -147,6 +164,11 @@
   `draw_cached_surface_visual`、`blit_surface_to_surface`、`destroy_memory_surface`。在透明底
   填充、缓存绑定、双后端、透明键/alpha 调用点及表面析构清理边界写入事实注释。保存主 IDB
   后已回读名称、类型、字段访问和注释。
+- 命名 `fill_surface_horizontal_span_rgb`、`write_surface_pixel`、
+  `draw_surface_horizontal_line`、`draw_surface_vertical_line`、
+  `fill_surface_rectangle_rgb`、`fill_surface_checker_rgb`、
+  `draw_surface_vertical_span_rgb`；在上述七个直写入口及 `fill_surface` 写入绕过导入合成器的
+  事实注释。保存主 IDB 后已回读全部名称。
 - 补定义此前被当作未探索字节的 `CNarrationDlg` 入口并命名
   `initialize_narration_dialog`、`build_narration_text_layout`、
   `allocate_narration_content_surface`、`draw_narration_panel`；在叙事内容表面复制点、缓存视觉

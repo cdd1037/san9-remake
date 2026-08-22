@@ -33,6 +33,10 @@ def encode_rgb_png(width: int, height: int, rgb: bytes) -> bytes:
 
 def parse_image_stream(path: Path) -> list[ImageRecord]:
     data = path.read_bytes()
+    return _parse_image_stream_bytes(data, path)
+
+
+def _parse_image_stream_bytes(data: bytes, path: Path) -> list[ImageRecord]:
     total = struct.unpack_from("<I", data, 0)[0]
     if total != len(data):
         raise ValueError(f"{path}: stream size {total} != file size {len(data)}")
@@ -53,6 +57,34 @@ def parse_image_stream(path: Path) -> list[ImageRecord]:
         records.append(ImageRecord(width, height, pixels))
         position += record_size
     return records
+
+
+def parse_palette_image_archive(
+    path: Path,
+) -> tuple[list[list[tuple[int, int, int]]], list[ImageRecord]]:
+    """Read a palette-prefix archive followed by a complete image stream."""
+
+    data = path.read_bytes()
+    if len(data) < 4:
+        raise ValueError(f"{path}: truncated palette/image archive")
+    palette_count = struct.unpack_from("<I", data, 0)[0]
+    palette_record_size = 40 + 256 * 4
+    image_offset = 4 + palette_count * palette_record_size
+    if image_offset + 4 > len(data):
+        raise ValueError(f"{path}: palette prefix exceeds file size")
+
+    palettes: list[list[tuple[int, int, int]]] = []
+    for index in range(palette_count):
+        start = 4 + index * palette_record_size + 40
+        palette_bytes = data[start : start + 256 * 4]
+        palettes.append(
+            [
+                tuple(palette_bytes[offset : offset + 3])
+                for offset in range(0, len(palette_bytes), 4)
+            ]
+        )
+    images = _parse_image_stream_bytes(data[image_offset:], path)
+    return palettes, images
 
 
 def parse_palettes(path: Path) -> list[list[tuple[int, int, int]]]:

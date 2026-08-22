@@ -39,6 +39,9 @@ MESH_STATE_BASES = (10972, 11004, 11036, 11020, 10988, 11052)
 MESH_STATE_ALPHA = (50, 25, 20, 22, 20, 20)
 BOUNDARY_RESOURCE_BASE = 10794
 BOUNDARY_RESOURCE_COUNT = 12
+PERSON_RECORD_SIZE = 134
+PERSON_RECORD_COUNT = 800
+EMPEROR_BIOGRAPHY_CODES = (563, 564, 565)
 
 
 @dataclass(frozen=True)
@@ -77,6 +80,15 @@ class BuildingSnapshot:
     city_terrain_code: int | None
     current_income: int | None
     current_harvest: int | None
+    soldiers: int
+    permanent_merchant: bool
+
+
+@dataclass(frozen=True)
+class ScenarioBuildingSnapshot:
+    fixed_buildings: list[FixedBuilding]
+    buildings: list[BuildingSnapshot]
+    emperor_city_code: int | None
 
 
 @dataclass(frozen=True)
@@ -174,7 +186,8 @@ def read_squares(path: Path) -> list[Square]:
 
 def read_building_snapshot(
     path: Path,
-) -> tuple[list[FixedBuilding], list[BuildingSnapshot]]:
+    resolve_emperor: bool = False,
+) -> ScenarioBuildingSnapshot:
     """Read fixed-building definitions and city/zone snapshot records."""
 
     sections = parse_scenario_sections(path.read_bytes())
@@ -228,6 +241,8 @@ def read_building_snapshot(
                 city_terrain_code=values[20],
                 current_income=values[14],
                 current_harvest=values[15],
+                soldiers=values[3],
+                permanent_merchant=bool(values[0] & 1),
             )
         )
 
@@ -257,6 +272,62 @@ def read_building_snapshot(
                 city_terrain_code=city_terrain_by_code.get(values[6]),
                 current_income=None,
                 current_harvest=None,
+                soldiers=values[0],
+                permanent_merchant=False,
             )
         )
-    return fixed_buildings, snapshots
+    return ScenarioBuildingSnapshot(
+        fixed_buildings=fixed_buildings,
+        buildings=snapshots,
+        emperor_city_code=(
+            _read_emperor_city_code(path, sections, snapshots)
+            if resolve_emperor
+            else None
+        ),
+    )
+
+
+def _read_emperor_city_code(
+    path: Path,
+    sections: dict[str, bytes],
+    buildings: list[BuildingSnapshot],
+) -> int | None:
+    """Resolve the static emperor host from confirmed head/prsn fields."""
+
+    head = sections.get("head")
+    persons = sections.get("prsn")
+    if head is None or len(head) < 8:
+        raise ValueError(f"{path}: scenario head cannot resolve emperor state")
+    if persons is None or len(persons) != PERSON_RECORD_COUNT * PERSON_RECORD_SIZE:
+        raise ValueError(f"{path}: person chunk has an unexpected size")
+    return resolve_emperor_city_code(head, persons, buildings)
+
+
+def resolve_emperor_city_code(
+    head: bytes,
+    persons: bytes,
+    buildings: list[BuildingSnapshot],
+) -> int | None:
+    """Resolve an emperor city from already validated static scenario sections."""
+
+    if struct.unpack_from("<I", head, 4)[0] & 1:
+        return None
+
+    zone_city_codes = {
+        building.zone_code: building.city_code
+        for building in buildings
+        if not building.is_city
+    }
+    for biography_code in EMPEROR_BIOGRAPHY_CODES:
+        for record_index in range(PERSON_RECORD_COUNT):
+            offset = record_index * PERSON_RECORD_SIZE
+            if struct.unpack_from("<H", persons, offset + 0x10)[0] != biography_code:
+                continue
+            location = struct.unpack_from("<H", persons, offset + 0x18)[0]
+            status = struct.unpack_from("<H", persons, offset + 0x1C)[0]
+            if status == 8:
+                break
+            if location < 50:
+                return location
+            return zone_city_codes.get(location)
+    return None

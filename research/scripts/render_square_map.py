@@ -6,6 +6,12 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from square_map.building_info import (
+    BuildingInfoContext,
+    BuildingInfoResources,
+    read_semantic_catalog,
+    validate_morale,
+)
 from square_map.graphics import encode_rgb_png
 from square_map.render_map import render_region
 from square_map.resources import MapVisualResources
@@ -42,6 +48,22 @@ def main() -> None:
         "--land-palette", choices=("auto", "S", "N", "A", "W"), default="auto",
         help="P_Land palette; auto follows the scenario start month",
     )
+    parser.add_argument(
+        "--building-info", action="store_true",
+        help="draw static original-style information panels for visible buildings",
+    )
+    parser.add_argument(
+        "--building-info-font", type=Path,
+        help="TTF/OTF used by --building-info",
+    )
+    parser.add_argument(
+        "--semantic-catalog", type=Path,
+        help="kind,id,name CSV used by --building-info",
+    )
+    parser.add_argument(
+        "--building-morale", type=int, default=50,
+        help="static morale for occupied buildings (0..100; default: 50)",
+    )
     args = parser.parse_args()
 
     if (
@@ -50,12 +72,35 @@ def main() -> None:
         or args.y + args.height > MAP_HEIGHT
     ):
         raise ValueError("requested region is outside the 200x200 map")
+    try:
+        validate_morale(args.building_morale)
+    except ValueError as exc:
+        parser.error(str(exc))
+    if args.building_info:
+        if args.building_info_font is None:
+            parser.error("--building-info requires --building-info-font")
+        if args.semantic_catalog is None:
+            parser.error("--building-info requires --semantic-catalog")
+    elif args.building_info_font is not None or args.semantic_catalog is not None:
+        parser.error("building information inputs require --building-info")
 
     squares = read_squares(args.scenario)
     resources = MapVisualResources.load(
         args.data_dir, args.scenario, args.land_palette, args.boundaries
     )
-    fixed_buildings, building_snapshots = read_building_snapshot(args.scenario)
+    building_snapshot = read_building_snapshot(
+        args.scenario, resolve_emperor=args.building_info
+    )
+    building_info = None
+    if args.building_info:
+        building_info = BuildingInfoContext(
+            resources=BuildingInfoResources.load(
+                args.data_dir, args.building_info_font
+            ),
+            names=read_semantic_catalog(args.semantic_catalog),
+            morale=args.building_morale,
+            emperor_city_code=building_snapshot.emperor_city_code,
+        )
 
     (
         width, height, rgb, resource_counts, mesh_counts,
@@ -64,8 +109,9 @@ def main() -> None:
         squares, resources, args.x, args.y, args.width, args.height,
         args.mesh_state, args.mesh_elevated_only,
         args.boundaries,
-        fixed_buildings=fixed_buildings,
-        building_snapshots=building_snapshots,
+        fixed_buildings=building_snapshot.fixed_buildings,
+        building_snapshots=building_snapshot.buildings,
+        building_info=building_info,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_bytes(encode_rgb_png(width, height, rgb))
@@ -87,6 +133,7 @@ def main() -> None:
     print(f"building_composition_ids={len(building_counts)}")
     print(f"building_objects={sum(building_counts.values())}")
     print(f"building_fallback_objects={building_counts[-1]}")
+    print(f"building_info={args.building_info}")
     print(f"land_palette=P_Land_{resources.land_palette_name}.s9")
 
 

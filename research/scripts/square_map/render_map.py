@@ -6,6 +6,7 @@ import collections
 
 from .canvas import RgbCanvas
 from .boundaries import draw_boundaries
+from .building_info import BuildingInfoContext, draw_building_info_panels
 from .render_buildings import draw_buildings
 from .resources import MapVisualResources
 from .scenario import (
@@ -54,6 +55,7 @@ def render_region(
     draw_boundary_layer: bool = False,
     fixed_buildings: list[FixedBuilding] | None = None,
     building_snapshots: list[BuildingSnapshot] | None = None,
+    building_info: BuildingInfoContext | None = None,
 ) -> tuple[
     int,
     int,
@@ -321,6 +323,18 @@ def render_region(
             margin,
             canvas,
         )
+        if building_info is not None:
+            draw_building_info_panels(
+                squares,
+                building_snapshots,
+                building_info,
+                x0,
+                y0,
+                width,
+                height,
+                margin,
+                canvas,
+            )
 
     return (
         output_width,

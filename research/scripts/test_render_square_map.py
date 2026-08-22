@@ -1,7 +1,11 @@
+import struct
+import tempfile
 import unittest
+from pathlib import Path
 
 from square_map import (
     boundaries,
+    building_info,
     building_compositions,
     buildings,
     canvas,
@@ -158,6 +162,8 @@ class OverlaySelectionTests(unittest.TestCase):
             city_terrain_code=0,
             current_income=560,
             current_harvest=150,
+            soldiers=32000,
+            permanent_merchant=True,
         )
         sprite = building_compositions.BUILDING_COMPOSITIONS[9][7]
         self.assertEqual(5909, buildings.building_sprite_resource_id(city, sprite))
@@ -255,6 +261,184 @@ class BuildingPaletteAlphaTests(unittest.TestCase):
             (120, 120, 120),
             graphics.palette_alpha_blend(destination, source, 64),
         )
+
+
+class BuildingInfoTests(unittest.TestCase):
+    @staticmethod
+    def building(
+        *, city_code: int = 15, is_city: bool = True,
+        soldiers: int = 1000, merchant: bool = False,
+        zone_code: int = 99, fixed_building_code: int = 0,
+    ) -> scenario.BuildingSnapshot:
+        return scenario.BuildingSnapshot(
+            zone_code=city_code if is_city else zone_code,
+            fixed_building_code=fixed_building_code,
+            force_code=0,
+            city_code=city_code,
+            durability=50,
+            max_durability=100,
+            x=10,
+            y=10,
+            is_city=is_city,
+            city_terrain_code=0,
+            current_income=None,
+            current_harvest=None,
+            soldiers=soldiers,
+            permanent_merchant=merchant,
+        )
+
+    def test_panel_width_and_city_icon_rules(self) -> None:
+        ordinary = self.building()
+        merchant = self.building(merchant=True)
+        training = self.building(city_code=14)
+        zone = self.building(is_city=False, merchant=True)
+        self.assertEqual(76, building_info.panel_width(ordinary, None))
+        self.assertEqual(95, building_info.panel_width(merchant, None))
+        self.assertEqual(95, building_info.panel_width(training, None))
+        self.assertEqual(116, building_info.panel_width(merchant, 15))
+        self.assertEqual((240, 200), building_info.panel_origin(100, 200, 128, 0))
+        self.assertEqual((240, 254), building_info.panel_origin(100, 200, 128, 1))
+        self.assertEqual((308, 222), building_info.panel_origin(100, 200, 128, 4))
+        with self.assertRaises(ValueError):
+            building_info.panel_origin(100, 200, 128, -1)
+        with self.assertRaises(ValueError):
+            building_info.panel_origin(100, 200, 128, 17)
+        self.assertIsNone(building_info.shared_icon_resource(zone))
+        self.assertFalse(building_info.building_hosts_emperor(zone, 15))
+
+    def test_merchant_takes_precedence_and_emperor_coexists(self) -> None:
+        training_merchant = self.building(city_code=14, merchant=True)
+        self.assertEqual(
+            building_info.MERCHANT_ICON_RESOURCE,
+            building_info.shared_icon_resource(training_merchant),
+        )
+        self.assertTrue(
+            building_info.building_hosts_emperor(training_merchant, 14)
+        )
+
+    def test_static_morale_is_zero_without_soldiers(self) -> None:
+        self.assertEqual(50, building_info.displayed_morale(self.building(), 50))
+        self.assertEqual(
+            0,
+            building_info.displayed_morale(self.building(soldiers=0), 50),
+        )
+        self.assertEqual(100, building_info.validate_morale(100))
+        with self.assertRaisesRegex(ValueError, "between 0 and 100"):
+            building_info.validate_morale(101)
+
+    def test_soldier_count_field_ends_at_original_right_edge(self) -> None:
+        self.assertEqual(
+            72,
+            building_info.SOLDIER_TEXT_X + building_info.SOLDIER_TEXT_WIDTH,
+        )
+
+    def test_common_and_marker_archive_counts_are_strict(self) -> None:
+        building_info.validate_resource_counts(
+            [None] * 67, [None] * 491, [None] * 5, [None] * 34
+        )
+        with self.assertRaisesRegex(ValueError, "G_Common"):
+            building_info.validate_resource_counts(
+                [None] * 66, [None] * 491, [None] * 5, [None] * 34
+            )
+        with self.assertRaisesRegex(ValueError, "G_Marker"):
+            building_info.validate_resource_counts(
+                [None] * 67, [None] * 491, [None] * 5, [None] * 33
+            )
+
+    def test_status_bar_width_and_threshold_resources_match_original(self) -> None:
+        self.assertEqual(0, building_info.status_bar_width(0, 100))
+        self.assertEqual(34, building_info.status_bar_width(50, 100))
+        self.assertEqual(68, building_info.status_bar_width(100, 100))
+        resources = building_info.MORALE_BAR_RESOURCES
+        self.assertEqual(394, building_info.status_bar_fill_resource(19, 100, resources))
+        self.assertEqual(395, building_info.status_bar_fill_resource(20, 100, resources))
+        self.assertEqual(392, building_info.status_bar_fill_resource(40, 100, resources))
+
+    def test_name_keys_distinguish_city_and_zone_catalogs(self) -> None:
+        self.assertEqual(
+            ("city", 15), building_info.building_name_key(self.building())
+        )
+        self.assertEqual(
+            ("zone", 49),
+            building_info.building_name_key(self.building(is_city=False)),
+        )
+        with self.assertRaisesRegex(ValueError, "missing visible building"):
+            building_info.resolve_building_name(self.building(), {})
+
+    def test_static_building_type_suffixes_follow_the_executable(self) -> None:
+        names = {
+            ("city", 15): "洛阳",
+            ("zone", 49): "虎牢关",
+            ("zone", 50): "孟津",
+        }
+        self.assertEqual(
+            "洛阳", building_info.resolve_building_name(self.building(), names)
+        )
+        self.assertEqual(
+            "虎牢关",
+            building_info.resolve_building_name(
+                self.building(is_city=False, fixed_building_code=4), names
+            ),
+        )
+        self.assertEqual(
+            "孟津港",
+            building_info.resolve_building_name(
+                self.building(
+                    is_city=False, zone_code=100, fixed_building_code=1
+                ),
+                names,
+            ),
+        )
+
+    def test_semantic_catalog_rejects_duplicate_keys(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "names.csv"
+            path.write_text("kind,id,name\ncity,15,洛阳\ncity,15,雒阳\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "duplicate semantic key"):
+                building_info.read_semantic_catalog(path)
+
+    def test_emperor_candidates_follow_biography_order_and_status(self) -> None:
+        head = bytes(82)
+        persons = bytearray(
+            scenario.PERSON_RECORD_COUNT * scenario.PERSON_RECORD_SIZE
+        )
+        for index, biography, status in (
+            (675, 563, 8),
+            (676, 564, 8),
+            (677, 565, 9),
+        ):
+            offset = index * scenario.PERSON_RECORD_SIZE
+            struct.pack_into("<H", persons, offset + 0x10, biography)
+            struct.pack_into("<H", persons, offset + 0x18, 15)
+            struct.pack_into("<H", persons, offset + 0x1C, status)
+        self.assertEqual(
+            15,
+            scenario.resolve_emperor_city_code(head, bytes(persons), []),
+        )
+        disabled_head = bytearray(head)
+        struct.pack_into("<I", disabled_head, 4, 1)
+        self.assertIsNone(
+            scenario.resolve_emperor_city_code(
+                bytes(disabled_head), bytes(persons), []
+            )
+        )
+
+
+class PaletteImageArchiveTests(unittest.TestCase):
+    def test_palette_prefix_and_image_stream_are_both_consumed(self) -> None:
+        palette = bytes(40) + bytes(range(256)) * 4
+        pixels = b"\x00\x01"
+        image_record = struct.pack("<4I", 18, 2, 2, 1) + pixels
+        image_stream = struct.pack("<I", 4 + len(image_record)) + image_record
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "archive.s9"
+            path.write_bytes(struct.pack("<I", 1) + palette + image_stream)
+            palettes, images = graphics.parse_palette_image_archive(path)
+        self.assertEqual(1, len(palettes))
+        self.assertEqual((0, 1, 2), palettes[0][0])
+        self.assertEqual((2, 1, pixels), (
+            images[0].width, images[0].height, images[0].pixels
+        ))
 
 
 if __name__ == "__main__":

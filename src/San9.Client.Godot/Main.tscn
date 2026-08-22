@@ -1,26 +1,32 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource path="res://Main.cs" type="Script" id="1_main"]
+[ext_resource path="res://MapWorld.cs" type="Script" id="2_map"]
 
-[node name="Main" type="Control"]
+[node name="Main" type="Node"]
+script = ExtResource("1_main")
+
+[node name="MapWorld" type="Node2D" parent="."]
+script = ExtResource("2_map")
+
+[node name="Background" type="ColorRect" parent="MapWorld"]
+mouse_filter = 2
+color = Color(0.055, 0.067, 0.082, 1)
+
+[node name="Camera" type="Camera2D" parent="MapWorld"]
+
+[node name="UiLayer" type="CanvasLayer" parent="."]
+layer = 10
+
+[node name="UiRoot" type="Control" parent="UiLayer"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1_main")
 
-[node name="Background" type="ColorRect" parent="."]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-color = Color(0.055, 0.067, 0.082, 1)
-
-[node name="Panel" type="VBoxContainer" parent="."]
+[node name="Panel" type="VBoxContainer" parent="UiLayer/UiRoot"]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -35,29 +41,29 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 18
 
-[node name="Title" type="Label" parent="Panel"]
+[node name="Title" type="Label" parent="UiLayer/UiRoot/Panel"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 32
 text = "三国志 9 重制 · M0"
 horizontal_alignment = 1
 
-[node name="Description" type="Label" parent="Panel"]
+[node name="Description" type="Label" parent="UiLayer/UiRoot/Panel"]
 layout_mode = 2
 text = "Godot 表现层通过 Application 推进纯 C# 确定性模拟。"
 horizontal_alignment = 1
 
-[node name="Clock" type="Label" parent="Panel"]
+[node name="Clock" type="Label" parent="UiLayer/UiRoot/Panel"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 24
 horizontal_alignment = 1
 
-[node name="Advance" type="Button" parent="Panel"]
+[node name="Advance" type="Button" parent="UiLayer/UiRoot/Panel"]
 layout_mode = 2
 text = "提交等待命令并推进一旬"
 
-[node name="Hash" type="Label" parent="Panel"]
+[node name="Hash" type="Label" parent="UiLayer/UiRoot/Panel"]
 layout_mode = 2
 text_overrun_behavior = 3
 horizontal_alignment = 1
 
-[connection signal="pressed" from="Panel/Advance" to="." method="OnAdvancePressed"]
+[connection signal="pressed" from="UiLayer/UiRoot/Panel/Advance" to="." method="OnAdvancePressed"]

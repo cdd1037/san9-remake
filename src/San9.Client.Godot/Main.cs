@@ -5,7 +5,7 @@ using San9.Core.Simulation;
 
 namespace San9.Client.Godot;
 
-public partial class Main : Control
+public partial class Main : Node
 {
     private GameSession _session = null!;
     private Label _clockLabel = null!;
@@ -18,8 +18,8 @@ public partial class Main : Control
             new GameClock(190, 1, XunIndex.Early),
             seed: 190UL);
         _session = new GameSession(initialState);
-        _clockLabel = GetNode<Label>("Panel/Clock");
-        _hashLabel = GetNode<Label>("Panel/Hash");
+        _clockLabel = GetNode<Label>("UiLayer/UiRoot/Panel/Clock");
+        _hashLabel = GetNode<Label>("UiLayer/UiRoot/Panel/Hash");
         Render(_session.Snapshot);
     }
 

@@ -13,3 +13,4 @@
 - [DEC-SCOPE-0001：最小可玩版本的剧本范围](DEC-SCOPE-0001-scenario-scope.md)
 - [DEC-EVENT-0001：神兽事件采用连续的武力成功率参数](DEC-EVENT-0001-shenshou-probability.md)
 - [DEC-RENDER-0001：地图渲染采用现代高精度颜色](DEC-RENDER-0001-high-color-map-rendering.md)
+- [DEC-UI-0001：MVP 采用固定 4:3 逻辑画布](DEC-UI-0001-fixed-four-by-three-mvp-canvas.md)

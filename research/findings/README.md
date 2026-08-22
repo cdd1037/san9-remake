@@ -48,6 +48,11 @@
 - [0052：洛阳与带方港 SQUARE footprint 实例](RE-SAN9PK-0052.md)
 - [0053：SQUARE 静态底图渲染链与场景对照](RE-SAN9PK-0053.md)
 - [0054：G_LMask 六帧水面动画](RE-SAN9PK-0054.md)
+## 外部运行库
+
+- [SANCALC-0001：SanCalc EXE 导入函数契约](RE-SANCALC-0001.md)
+- [KOEIGRPX-0001：KOEIGrpX EXE 导入像素契约](RE-KOEIGRPX-0001.md)
+- [San9 EXE 外部 DLL 契约清单](../exe-dll-analysis-inventory.md)
 
 ## 文本与事件
 

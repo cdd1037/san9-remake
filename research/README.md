@@ -13,6 +13,7 @@
 - `scripts/`：未来可复现的研究辅助脚本，不得成为产品运行依赖。
 - `symbols/`：可追溯的符号摘要，不保存 IDB。
 - [`ida-foundation-todo.md`](ida-foundation-todo.md)：IDA 全局铺底的待排期研究队列及统一验收门槛。
+- [`exe-dll-analysis-inventory.md`](exe-dll-analysis-inventory.md)：`San9.exe`/`San9PK.exe` 实际导入的 SanCalc 与 KOEIGrpX 契约、IAT 和调用导航。
 - `../private/s9数据文件/`：本地游戏数据样本；`../private/剧本编辑器截图/`：本地黑盒对照截图。研究记录统一引用这些仓库相对路径，不记录机器绝对路径。
 - `upsteam/`：历史遗留第三方资料目录。路径拼写暂时保留，新增来源不应继续无清单堆放。
 
@@ -25,4 +26,4 @@
 5. 研究成熟后，另写不含原版实现细节的行为规格；不要把研究笔记直接移动成规格。
 6. 逆向任务产生可靠命名、类型或注释时，按需写入对应版本的项目主 IDA 数据库并回读验证；只读调查无需记录“数据库未修改”。
 
-主要入口为[`.s9` 文件清单](s9-file-inventory.md)、[来源登记表](SOURCES.md)、[逆向结论索引](findings/README.md)、[IDA 铺底后续任务](ida-foundation-todo.md)、[现有第三方仓库简介](upstream-repositories.md)和[证据链纸面演练](notes/0001-source-trace-example.md)。
+主要入口为[`.s9` 文件清单](s9-file-inventory.md)、[来源登记表](SOURCES.md)、[逆向结论索引](findings/README.md)、[EXE 外部 DLL 契约清单](exe-dll-analysis-inventory.md)、[IDA 铺底后续任务](ida-foundation-todo.md)、[现有第三方仓库简介](upstream-repositories.md)和[证据链纸面演练](notes/0001-source-trace-example.md)。

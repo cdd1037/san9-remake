@@ -10,6 +10,8 @@
 | `SRC-JSLHCL` | `research/upsteam/jslhcl.github.io/files/` | SAN9PK 多武将探索补丁、辅助脚本和逆向笔记；用于发现候选调用链和业务名称 | README 给出繁中 PK 构建与补丁哈希，但本地快照来源/提交未知 | 待确认；本项目不复制其补丁实现 | 中：目标字节、调用链或 vtable 吻合时可采用工作名称；行为规格另行验证 |
 | `SRC-LEGACY-IDB` | `artifacts/ida/legacy/San9PK.exe.idb` | 已归档的前人旧版 IDA 数据库；用于提供函数边界、类型和名称候选，不承载项目新标注 | 所分析输入 SHA-256 为 `893296…FF04`，与项目基线不同；创建者和来源未知 | 待确认；归档文件被 Git 忽略且不得提交 | 中：只在局部字节或结构匹配后采用；不能单独支撑行为规格 |
 | `SRC-SAN9PK-TC-101` | `private/s9数据文件/` | 首个原版研究与转换基线；包含剧本、游戏数据和资源 `.s9` 文件 | 繁中 PK 1.0.1.0，样本版本与文件清单见 [`s9-file-inventory.md`](s9-file-inventory.md) | 商业游戏数据；不得提交或再分发 | 高：样本身份已确认，具体行为仍需实验或逆向验证 |
+| `SRC-SANCALC-SAN9TC-001` | `private/San9Tc/dll/SanCalc.dll` | EXE 使用的数学、随机数、概率与位字段运行库 | 114,688 字节；SHA-256 与独立[来源记录](sources/SRC-SANCALC-SAN9TC-001.md)一致 | 商业游戏二进制；不得提交或再分发 | 高：精确样本已确认，函数契约见 `RE-SANCALC-0001` |
+| `SRC-KOEIGRPX-SAN9TC-001` | `private/San9Tc/dll/KOEIGrpX.dll` | EXE 使用的索引图、RGB555、KBMP 与像素混合运行库 | 90,112 字节；SHA-256 与独立[来源记录](sources/SRC-KOEIGRPX-SAN9TC-001.md)一致 | 商业游戏二进制；不得提交或再分发 | 高：精确样本已确认，函数契约见 `RE-KOEIGRPX-0001` |
 | `SRC-EDITOR-SCREENSHOTS` | `private/剧本编辑器截图/` | 剧本编辑器字段、数值和显示标签的黑盒对照 | 用户提供的本地截图；按文件名逐项引用 | 截图不得提交或再分发 | 中：只能作为界面对照，不能单独支撑文件字段语义 |
 
 ## 维护要求

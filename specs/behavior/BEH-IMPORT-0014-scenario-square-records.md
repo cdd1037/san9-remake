@@ -1,11 +1,12 @@
 # BEH-IMPORT-0014：剧本地图方格记录解析
 
-- 状态：已确认（区块边界、字段宽度、地图线性索引、城市/据点区域编码、疆界线相关消费者、寻路阻塞消费者、地图绘制与资源消费者、目标哨兵行为和无损读取；部分字节字段正式业务名称未确认）
+- 状态：已确认（区块边界、字段宽度、地图线性索引、城市/据点区域编码、地形/高差过渡、桥方向、两类疆界线、寻路阻塞消费者、地图绘制与资源消费者、目标哨兵行为和无损读取；部分辅助值及自动生成算法未确认）
 - 负责人：项目开发者
-- 最后更新：2026-08-19
-- 关联证据：[RE-SAN9PK-0019](../../research/findings/RE-SAN9PK-0019.md)、[RE-SAN9PK-0032](../../research/findings/RE-SAN9PK-0032.md)
+- 最后更新：2026-08-22
+- 关联证据：[RE-SAN9PK-0019](../../research/findings/RE-SAN9PK-0019.md)、[RE-SAN9PK-0032](../../research/findings/RE-SAN9PK-0032.md)、[RE-SAN9PK-0051](../../research/findings/RE-SAN9PK-0051.md)、[RE-SAN9PK-0052](../../research/findings/RE-SAN9PK-0052.md)、[RE-SAN9PK-0053](../../research/findings/RE-SAN9PK-0053.md)、[RE-SAN9PK-0054](../../research/findings/RE-SAN9PK-0054.md)
 - 深入证据：[RE-SAN9PK-0024](../../research/findings/RE-SAN9PK-0024.md)、[RE-SAN9PK-0025](../../research/findings/RE-SAN9PK-0025.md)、[RE-SAN9PK-0030](../../research/findings/RE-SAN9PK-0030.md)、[RE-SAN9PK-0031](../../research/findings/RE-SAN9PK-0031.md)、[RE-SAN9PK-0032](../../research/findings/RE-SAN9PK-0032.md)、[RE-SAN9PK-0033](../../research/findings/RE-SAN9PK-0033.md)、[RE-SAN9PK-0034](../../research/findings/RE-SAN9PK-0034.md)
 - 关联决策：[DEC-DATA-0001](../decisions/DEC-DATA-0001-content-pipeline.md)
+- 渲染决策：[DEC-RENDER-0001](../decisions/DEC-RENDER-0001-high-color-map-rendering.md)
 
 ## 适用范围
 
@@ -24,16 +25,16 @@
 | 偏移 | 类型 | 规格字段 | 已确认语义 |
 | ---: | --- | --- | --- |
 | `0x00` | `u16` | `serialized_id` | 原始序号槽位；原程序读取后丢弃，运行时编号使用记录序号 |
-| `0x02` | `u16` | `square_flags_02` | 写入运行时 `CSquareData +0x34`；其中 `PathBlockingBits = value & 0x1FE`，在已确认的方格图寻路中非零时该格不可进入；bit0、bit9、bit11、bit12、bit13、bit15 另有城市/标记/运行时消费者，完整业务名称仍未确认 |
+| `0x02` | `u16` | `square_flags_02` | 初始化运行时可变复合标志 `CSquareData +0x34`；`value & 0x1FE` 在已确认寻路中非零即阻塞；实例支持 bit0 对象占用格、bit14 对象核心区、bit12/13 方向编码，bit9 是通用 overlay 资格位并在 terrain 11 桥链中充当锚点资格，bit11/15 会被运行时流程复用 |
 | `0x04` | `u16` | `zone_code` | 所属地域编码；`0..49` 对应城市，`50..249` 对应 `bldg` 记录 `zone_code - 50`，`0xFFFF` 表示无所属地域 |
-| `0x06` | `byte` | `opaque_field_06` | 单字节原始字段；不得按 `u16` 重组；加载到 `CSquareData +0x18`，由通用 getter case 4 读取，并可由 `CSquareData` 的通用属性格式化接口按十六进制输出；尚未确认具体玩法名称或专用地图/寻路消费者 |
-| `0x07` | `byte` | `tile_edge_geometry_mask` | 单字节原始字段；不得按 `u16` 重组；由 `adjust_square_visual_position`、`build_square_edge_overlays` 等地图绘制函数消费，影响八方向瓦片边缘几何 |
+| `0x06` | `byte` | `terrain_transition_aux`（候选） | 编辑器 `0004` 的低字节；水域类地形外通常为 `0xFF`，具体视觉作用未闭合；加载到 `CSquareData +0x18` 并由通用 getter/格式化接口读取 |
+| `0x07` | `byte` | `terrain_transition_mask` | 编辑器 `0004` 的高字节；地形/高度融合的八方向掩码，bit7..0 依次为北、南、西、东、西南、东南、东北、西北；由边缘覆盖和视觉位置函数消费 |
 | `0x08` | `byte` | `offset_code` | 偏移代码；`0xFF` 派生为空，原始字节不变 |
 | `0x09` | `byte` | `terrain_code` | 地形编号；经 `get_square_terrain_family` 转换后间接参与底图颜色/地形资源选择；`0xFF` 派生为空，原始字节不变 |
-| `0x0A` | `byte` | `map_visual_variant` | 原始字节；`0xFF` 可提供空值派生。原作将其加载到运行时 `CSquareData +0x1C`，由 `create_square_mesh_visual` 参与 MESH/COV 覆盖资源编号、由 `build_square_boundary_segments` 参与疆界片段变体选择，并由 `calculate_square_edge_visual_position` 参与边缘锚点垂直步进；完整编码含义仍未确认 |
-| `0x0B` | `byte` | `opaque_field_0B` | 原始字节；`0xFF` 可提供空值派生，业务名称未确认 |
-| `0x0C` | `byte` | `opaque_field_0C` | 原始字节；目标路径对 `0xFF` 提供归一值 `0`，不覆盖原始值 |
-| `0x0D` | `byte` | `boundary_edge_mask` | 原样写入运行时 `CSquareData +0x36`；`refresh_map_square_boundaries` 按 `k=0..3` 测试低四位与高四位方向掩码，并由 `build_square_boundary_segments` 选择疆界资源。bit0..3 已确认对应 `(x,y-1)`、`(x+1,y)`、`(x,y+1)`、`(x-1,y)`，两组掩码的正式线型含义仍未确认 |
+| `0x0A` | `byte` | `elevation_transition_mask` | 编辑器 `0006` 的低字节；按相邻更高偏移格形成的高差/边缘过渡掩码，进入底图图集索引、MESH/COV、疆界片段和边缘锚点计算；完整自动生成表仍待恢复 |
+| `0x0B` | `byte` | `land_texture_variant` | 编辑器 `0006` 的高字节；进入底图 atlas 索引和 `select_land_tile_resource`。可信黑盒观测表现为同地形的颜色浓度变体，但代码未证明它是线性色彩参数 |
+| `0x0C` | `byte` | `bridge_orientation_code` | 编辑器 `0008` 的低字节；桥地形覆盖链以 `10004 + value` 选择资源，正式地图中 `0` 为南北、`1` 为东西；`0xFF` 归一行为不覆盖原始值 |
+| `0x0D` | `byte` | `boundary_edge_mask` | 编辑器 `0008` 的高字节；低四位是淡黄白地域线、高四位是红白都市线，两组均按北、东、南、西排列；最终绘制还依赖邻格和资源规则 |
 
 ### 疆界线相关运行时消费者
 
@@ -48,20 +49,22 @@
 
 因此，`opaque_field_0D` 不是“每格直接存一条完整边界线”，而是参与四方向边资格筛选的位字段；最终是否生成某边还依赖运行时邻格、城市/据点对象和代码中的方向规则。`opaque_field_0A` 已确认存在疆界片段选择消费者，但其正式字段语义仍保持不命名。
 
-`k=0..3` 的坐标方向已经由刷新函数中的邻格表闭合：`k=0` 为 `(x,y-1)`，`k=1` 为 `(x+1,y)`，`k=2` 为 `(x,y+1)`，`k=3` 为 `(x-1,y)`。因此在通常的行列坐标约定下，依次是上、右、下、左；低四位使用 `0x01/0x02/0x04/0x08`，高四位使用 `0x10/0x20/0x40/0x80`。两组掩码的正式线型、颜色或边界类别仍未确认。
+`k=0..3` 的坐标方向已经由刷新函数中的邻格表闭合：`k=0` 为 `(x,y-1)`，`k=1` 为 `(x+1,y)`，`k=2` 为 `(x,y+1)`，`k=3` 为 `(x-1,y)`。因此依次是北、东、南、西；低四位 `0x01/0x02/0x04/0x08` 对应淡黄白地域线，高四位 `0x10/0x20/0x40/0x80` 对应红白都市线。黑盒观测显示两类线重合时都市线视觉优先；最终是否生成某边仍由邻格和代码规则决定。
 
 ### `square_flags_02` 的已确认部分位消费者
 
-`square_flags_02` 是运行时复合标志字，当前不能整体解释为可通行字段。已确认的局部消费者如下：
+`square_flags_02` 是“文件模板初值 + 运行时复用”的可变复合标志，不能整体解释为可通行字段。已确认或可信观测到的局部语义如下：
 
 - `bit1..bit8`（`0x01FE`）：由 `square_has_blocking_bits` 提供方格图寻路阻塞判断；
-- `bit0`（`0x0001`）：参与 Zone/城市对象条件门和部分移动模式；
-- `bit9`（`0x0200`）：参与类型 11 地图对象的标记资格及特殊对象邻格检查；
+- `bit0`（`0x0001`）：可信模板观测表示工作物/建筑占用格；代码中还参与 Zone/城市对象条件门和部分移动模式；
+- `bit9`（`0x0200`）：通用 overlay/地图块资格位；洛阳 5×5 与带方港 3×3 的全部格都置有该位，不能整体命名为桥标志。仅在 `terrain_code == 11` 的桥覆盖链中，`1` 表示该格具备桥覆盖锚点资格；
+- `bit10`（`0x0400`）：可信模板观测表示无所属/不画疆域线，直接代码消费者仍待闭合；
 - `bit11`（`0x0800`）：由 `update_square_runtime_flags` 设置和整图清除，当前按运行时临时标记处理；
-- `bit12/bit13`（`0x1000/0x2000`）：参与两组城市相关条件门和移动/选择模式，具体玩法名称未确认；
+- `bit12/bit13`（`0x1000/0x2000`）：可信模板观测参与 3×1 关、土垒、栅栏的方向编码；代码中还进入两组条件门和移动/选择模式；
+- `bit14`（`0x4000`）：对象核心区位；洛阳内部 3×3 九格、带方港正中心一格为 `0x4201`。它不是所有对象都只有一格的“中心点”布尔值；
 - `bit15`（`0x8000`）：城市路径相关列表设置，当前按运行时临时覆盖范围标记处理。
 
-`bit10` 和 `bit14` 在当前覆盖的方格专用消费者中尚未发现直接位测试。上述局部结论不改变导入器对 `OpaqueField02` 的无损保存。
+`bit1..8` 虽被前人描述为八方向阻塞形态，但当前确认的方格图寻路只测试整个 `0x01FE` 是否非零，不能据此实现方向化移动。上述局部结论不改变导入器对 `OpaqueField02` 的无损保存。
 
 `+0x06..+0x0D` 的字段全部是单字节。目标汇编中对 `u8` 与 `0xFFFF` 的比较不可达，不能据此把这些字段解释成 16 位字段或改变原始文件布局。`+0x06` 虽然没有在当前寻路/地图绘制链中闭合出专用规则，但 `CSquareData` 的通用属性格式化接口会以属性编号 4 读取它并按 `0x%08x` 输出；这属于通用属性可见性，不是已确认的玩法语义。
 
@@ -78,34 +81,52 @@
 
 ### 地图绘制与资源消费者
 
-主地图刷新 `redraw_map_scene` 调用 `draw_visible_square_tiles/redraw_visible_square_tile_pairs -> draw_square_tile_records -> draw_square_tile_texture` 绘制可见方格。逻辑方格通过 `square_to_isometric_anchor/square_to_isometric_center` 转成 64×32 的等距投影位置；200×200 是逻辑地图尺寸，不是屏幕上的 200×200 个普通矩形。
+主地图刷新 `redraw_map_scene` 调用 `draw_visible_square_tiles/redraw_visible_square_tile_pairs -> draw_square_tile_records -> draw_square_tile_texture` 绘制可见方格；瓦片记录再分派到 `composite_mask_tile_pixels` 或 `composite_land_tile_pixels`。当前格路径按 G_MASK 每行首尾非零点连续复制源图横段，八方向边缘路径才按 P_MASK 权重逐像素混合。方格记录绘制完成后依次经过特殊标记检查、桥覆盖、地图边缘/边框装饰、疆界刷新、MESH/COV 覆盖和更高层地图对象。逻辑方格通过 `square_to_isometric_anchor/square_to_isometric_center` 转成 64×32 的等距投影位置；图库循环取样使用减去目标缓存原点前的全图等距坐标。200×200 是逻辑地图尺寸，不是屏幕上的 200×200 个普通矩形。
 
-底图绘制会由 `select_land_tile_resource`、`select_land_tile_subresource` 和 `select_map_mask_resource` 根据地形、方向及边缘状态计算资源编号，再由 `get_loaded_resource_by_id` 从已加载资源表取对象，最后由 `composite_land_tile_pixels/composite_mask_tile_pixels` 读取像素并合成纹理。`squa +0x09` 先经 `get_square_terrain_family` 转为地形族；`build_minimap_terrain_texture` 使用该地形族生成概览纹理颜色，而不是把该字段直接当成图片编号。
+底图绘制会由 `select_land_tile_resource`、`select_land_tile_subresource` 和 `select_map_mask_resource` 根据地形、偏移、`+0x0A`、`+0x0B` 及边缘状态计算资源编号，再由 `get_loaded_resource_by_id` 从已加载资源表取对象，最后由 `composite_land_tile_pixels/composite_mask_tile_pixels` 读取像素并合成纹理。`+0x07` 在 `build_square_edge_overlays` 中决定邻接/对角边缘记录的展开，不作为像素资源选择器的四字段参数。`calculate_square_land_tile_atlas_index` 的结果写入 `record+0x0C`，并在记录构造时折入 `record+0x20` 排序键；`draw_square_tile_texture` 不再直接读取 `record+0x0C` 选择资源。`squa +0x09` 先经 `get_square_terrain_family` 转为地形族；`build_minimap_terrain_texture` 使用该地形族生成概览纹理颜色，而不是把该字段直接当成图片编号。
 
-覆盖层中，`squa +0x0A` 被 `draw_square_mesh_overlays -> create_square_mesh_visual` 用作 MESH/COV 资源选择参数；同一字段还由 `calculate_square_edge_visual_position` 参与边缘锚点的垂直步进；`squa +0x0D` 被疆界线链用作四方向掩码并选择 `G_MapMkr.s9` 的资源变体。`squa +0x07` 参与八方向边缘几何修正，不是直接图片编号。资源编号与资源包在代码加载表中绑定，`SQUARE` 通常保存选择参数/偏移，而不是资源文件名。
+覆盖层中，`squa +0x0A` 被 `draw_square_mesh_overlays -> create_square_mesh_visual` 用作 MESH/COV 资源选择参数；同一字段还由 `calculate_square_edge_visual_position` 参与边缘锚点的垂直步进，并作为像素合成前的资源选择参数。MESH/COV 是否出现另由运行时覆盖网格决定：`apply_square_overlay_states` 将选中的 `CSquareData` 列表写入网格并传入状态 `0..5`，`draw_square_mesh_overlays` 再读取该状态；因此不能仅凭 `squa +0x0A` 在裸地图上自动铺满 MESH/COV。`squa +0x0B` 与地形、偏移、`+0x0A` 一起进入底图预计算索引。`squa +0x0C` 在桥覆盖链中选择 `10004/10005`；`squa +0x0D` 被疆界线链用作四方向掩码并选择 `G_MapMkr.s9` 资源。`squa +0x07` 参与八方向地形融合与边缘记录展开。资源编号与资源包在代码加载表中绑定，`SQUARE` 通常保存选择参数/偏移，而不是资源文件名。
 
 为避免把字段用途混在一起，当前确认的直接映射单列如下：
 
 - `squa +0x09`：地形类型；经地形族转换后，间接决定底图颜色/地形资源；
-- `squa +0x0A`：参与 MESH/COV 覆盖图片编号、疆界片段变体和边缘锚点垂直步进；
-- `squa +0x0D`：决定疆界线四方向掩码，并选择 `G_MapMkr.s9` 的 `10794..10805` 图片资源；
-- `squa +0x07`：影响瓦片边缘几何位置，不是图片编号。
+- `squa +0x07`：八方向地形/高差融合掩码，方向顺序已确认；
+- `squa +0x0A`：高差过渡掩码，参与底图、MESH/COV、疆界片段和边缘锚点；
+- `squa +0x0B`：底图纹理变体；黑盒上表现为颜色浓度变化；
+- `squa +0x0C`：桥覆盖方向，`0` 南北、`1` 东西；
+- `squa +0x0D`：地域线/都市线两组北东南西掩码，并选择 `G_MapMkr.s9` 的 `10794..10805` 图片资源。
+
+### 地图对象 footprint
+
+可信原作观测给出都市以中心坐标为锚点覆盖 5×5 方格、港口覆盖 3×3 方格。运行时代码的 `get_map_object_rect -> quantize_map_rect_to_square_grid -> enumerate_map_object_squares` 与此建模方式相容：对象矩形先按 5 个地图坐标单位量化成 SQUARE 半开矩形，再按 `x + y × 200` 逐格枚举；出征覆盖层通过 `expand_map_objects_to_squares` 使用实际对象矩形，而不是只读取中心格或 `ZoneCode`。
+
+`D_Sce002.S9` 的具体实例已闭合：洛阳 `city[15]` 的 `(89,64)` 对应 `x=87..91/y=62..66`，25 格 `ZoneCode` 均为 15，内部 3×3 为 `square_flags_02=0x4201`；带方港 `bldg[0]` 的 `(184,26)` 对应 `x=183..185/y=25..27`，9 格 `ZoneCode` 均为 50，仅中心为 `0x4201`。完整矩阵见 [RE-SAN9PK-0052](../../research/findings/RE-SAN9PK-0052.md)。
+
+因此，重制版领域模型应把对象 footprint 与方格记录分开：方格保存地形、过渡和区域等模板属性，都市/港口/工作物保存自己的占用几何。都市 5×5、港口 3×3 是可信原作基线；其他工作物尺寸和旋转规则尚未进入本规格的实现要求。
+
+### 重制渲染颜色精度
+
+原作将调色板颜色和混合结果写入 RGB555 目标画面。重制版正式地图渲染依 [DEC-RENDER-0001](../decisions/DEC-RENDER-0001-high-color-map-rendering.md) 使用 RGB888 或更高精度的 GPU 中间目标，不执行 RGB555 写回量化；RGB555 仅用于研究和可选兼容对照。该选择只提升颜色精度，不改变本规格已确认的资源选择、遮罩形状和过渡规则。
+
+### 水面动态覆盖
+
+原作在静态 `G_LLand` 水域底图之后创建独立 `G_LMask` 水面动画。terrain `9/10/15/16` 直接参与；terrain `12` 只在邻近合格 terrain `11` 桥锚点时参与。方格以 `10000 + (x & 1) + 2 × (y & 1)` 选择四种奇偶资源，每项 `384×32` 横向切为六个 `64×32` 帧，并由 motion sprite 循环推进。已知创建链不读取 `squa +0x06`，因此该动画不能用来确认 `terrain_transition_aux` 的语义。证据见 [RE-SAN9PK-0054](../../research/findings/RE-SAN9PK-0054.md)。
 
 ## 重制行为
 
-导入器必须生成 40,000 个按文件顺序排列的方格定义，并保留所有原始字段。正式地图尺寸为 200×200，方格 `Id` 使用行优先线性索引：`Id = y × 200 + x`。`SerializedId`、`OpaqueField02`、`ZoneCode` 和 8 个原始字节均可逐项回读。上述 `square_flags_02`、`tile_edge_geometry_mask`、`map_visual_variant`、`boundary_edge_mask` 是研究层别名，当前不替换导入器的原始属性名。
+导入器必须生成 40,000 个按文件顺序排列的方格定义，并保留所有原始字段。正式地图尺寸为 200×200，方格 `Id` 使用行优先线性索引：`Id = y × 200 + x`。`SerializedId`、`OpaqueField02`、`ZoneCode` 和 8 个原始字节均可逐项回读。上述语义名都是研究层别名，当前不替换导入器的原始属性名；尤其不能重新合并成编辑器显示的 16 位字段。
 
 导入器提供以下地图拓扑派生视图：
 
 - `GridX`、`GridY`：由运行时记录序号计算，不从 `SerializedId` 推导；
 - `CityId`：区域编码 `0..49` 的城市 ID；
 - `ZoneRecordId`：区域编码 `50..249` 减去 50 后的 `bldg` 记录 ID。
-- `OpaqueField0DLowEdgeMask`：`opaque_field_0D & 0x0F`，仅作为原作兼容的四方向低位掩码视图，不赋予具体方向名称；
-- `OpaqueField0DHighEdgeMask`：`(opaque_field_0D >> 4) & 0x0F`，仅作为原作兼容的四方向高位掩码视图，不赋予具体方向名称。
+- `OpaqueField0DLowEdgeMask`：`opaque_field_0D & 0x0F`，原作地域线的北、东、南、西掩码；
+- `OpaqueField0DHighEdgeMask`：`(opaque_field_0D >> 4) & 0x0F`，原作都市线的北、东、南、西掩码。
 
 导入器还提供跨表拓扑校验：城市坐标必须映射到对应城市区域编码；有坐标的据点必须映射到 `50 + bldg` 记录 ID；城市和据点不得占用同一格。未知方格字节不参与规则推断。
 
-导入器只提供以下不改变原始值的派生视图：`RegionCode` 将 `0xFFFF` 映射为空；`OffsetValue`、`TerrainId`、`OpaqueField0AValue` 和 `OpaqueField0BValue` 将 `0xFF` 映射为空；`NormalizedField0C` 将 `0xFF` 映射为目标路径观察到的 `0`。上述 `OpaqueField0D` 位视图只表达原作已确认的掩码消费方式，不声明四个 bit 的方向顺序或完整玩法语义。
+导入器只提供以下不改变原始值的派生视图：`RegionCode` 将 `0xFFFF` 映射为空；`OffsetValue`、`TerrainId`、`OpaqueField0AValue` 和 `OpaqueField0BValue` 将 `0xFF` 映射为空；`NormalizedField0C` 将 `0xFF` 映射为目标路径观察到的 `0`。现有属性名保持兼容研究存量；规格已确认的语义不授权丢弃原始值或直接复刻原作运行时复合标志。
 
 ## 状态与不变量
 
@@ -132,30 +153,33 @@
 - [x] 异常 chunk 大小会被拒绝。
 - [x] 测试夹具不依赖原版文件、编辑器或 IDA 数据库。
 - [x] 地图线性索引、城市/据点区域编码和坐标占用关系由自动测试证明。
-- [x] `OpaqueField0DLowEdgeMask` 与 `OpaqueField0DHighEdgeMask` 在不改变原始字节的前提下提供，并保持方向顺序未知。
+- [x] `OpaqueField0DLowEdgeMask` 与 `OpaqueField0DHighEdgeMask` 在不改变原始字节的前提下提供；原作地域线/都市线语义和北东南西位序已有证据。
 - [x] 已记录实际方格图寻路的四邻格规则、`opaque_field_02 & 0x1FE` 阻塞条件和 10/12 基础代价；其他移动类型入口另行验证。
 - [x] 已记录地图方格的 64×32 等距投影、底图资源编号选择、像素合成链和 `+0x0A/+0x0D` 覆盖资源消费者。
 
 ## 未决问题
 
-- `square_flags_02` 除 `PathBlockingBits` 外的完整 bit 语义和消费者；
-- `map_visual_variant` 的正式业务名称、编码值含义，以及它在 `build_square_boundary_segments` 中对应的具体片段变体规则；
-- `boundary_edge_mask` 低四位/高四位的正式业务名称，以及两组掩码分别对应的完整线型语义；
-- `+0x02` 已确认的城市/标记/临时运行时位与地图块/占用描述的完整关系，以及其与城市、据点 footprint 的完整关系；这是当前 `squa` 的 P0 未决项。
-- `+0x06/+0x07`、`+0x0B`、`+0x0C` 的完整业务名称和专用消费者；在获得编辑器单变量差分或明确专用消费者前暂缓。`+0x06` 的通用属性格式化接口已确认，但其上层调用者和正式标签仍未确认。
+- 后续可评估使用 GPU shader 执行底图与边缘混合；颜色精度已由 `DEC-RENDER-0001` 确定，但混合规则仍以 `source × (256 - mask) + target × mask` 后右移 8 位为原作基线。若改用归一化 alpha 或其他现代混合规则，应另立设计决策并进行截图验收。
+- `square_flags_02 bit10` 的无所属/疆域线直接消费者、bit12/13 的完整 3×1 工作物方向编码，以及静态模板位与运行时复用的完整边界；
+- `terrain_transition_mask (+0x07)` 与 `elevation_transition_mask (+0x0A)` 的原作自动生成算法、地形优先级表和桥例外；
+- `terrain_transition_aux (+0x06)` 在水域类地形中的具体视觉效果；其通用 getter/格式化接口已确认，但专用消费者仍未闭合。已确认的 `G_LMask` 六帧水面动画不读取该字段；
+- `land_texture_variant (+0x0B)` 与资源图案/色调的精确编码；当前已确认它进入底图 atlas 排序索引和像素合成前的资源选择，并有可信的颜色浓度表现；
+- 其他寻路或移动入口是否逐方向解释 `square_flags_02 bit1..8`；当前确认的方格图只整体测试 `0x01FE`；
+- 地域线与都市线重合时的资源级优先规则，以及高差过渡对疆界片段的完整组合表；
+- 除都市 5×5、港口 3×3 外，各类工作物的 footprint 尺寸、旋转规则和不规则占用；
 - 原作 `ZoneCode` 之外的重制版地图对象关系仍需单独设计；当前只确认正式剧本的城市/据点编码映射。
 - 偏移代码、地形代码和未知字节对编辑器保存行为及玩法规则的影响。
 
 ## IDA 同步记录
 
-2026-08-19 已将本规格涉及的已确认语义同步到项目主数据库 `research/analysis/San9PK-TC-101.i64`：
+2026-08-19 至 2026-08-22 已将本规格涉及的已确认语义同步到项目主数据库 `research/analysis/San9PK-TC-101.i64`：
 
 - 寻路函数：`find_square_grid_path`、`init_square_path_graph`、`solve_square_path_graph`、`run_square_graph_search`、`expand_square_neighbors_4way`、`build_square_path_costs`、`square_has_blocking_bits`、`square_has_slow_terrain`；
-- 地图绘制函数：`redraw_map_scene`、`draw_visible_square_tiles`、`draw_square_tile_records`、`draw_square_tile_texture`、`square_to_isometric_anchor`、`square_to_isometric_center`、`screen_to_square_coords`、`adjust_square_visual_position`、`calculate_square_edge_visual_position`；
-- 资源函数：`get_square_terrain_family`、`select_land_tile_resource`、`select_land_tile_subresource`、`select_map_mask_resource`、`get_loaded_resource_by_id`、`composite_land_tile_pixels`、`composite_mask_tile_pixels`、`draw_square_mesh_overlays`、`create_square_mesh_visual`、`build_minimap_terrain_texture`。
+- 地图绘制函数：`redraw_map_scene`、`draw_visible_square_tiles`、`redraw_visible_square_tile_pairs`、`draw_square_tile_records`、`draw_square_tile_texture`、`build_square_edge_overlays`、`square_to_isometric_anchor`、`square_to_isometric_center`、`screen_to_square_coords`、`adjust_square_visual_position`、`calculate_square_edge_visual_position`、`draw_visible_bridge_overlays`、`refresh_map_square_boundaries`；
+- 资源函数：`load_map_visual_resources`、`get_square_terrain_family`、`terrain_uses_edge_transition_variants`、`calculate_land_tile_atlas_index`、`calculate_square_land_tile_atlas_index`、`select_land_tile_resource`、`select_land_tile_subresource`、`select_map_mask_resource`、`get_loaded_resource_by_id`、`composite_land_tile_pixels`、`composite_mask_tile_pixels`、`draw_square_mesh_overlays`、`create_square_mesh_visual`、`build_minimap_terrain_texture`。
 - `CSquareData` 字段接口：`deserialize_squa_record`、`get_csquare_value`、`format_square_property_value`；其中 `+0x06` 的 getter/格式化证据见 [RE-SAN9PK-0034](../../research/findings/RE-SAN9PK-0034.md)。
 - 标志/标记函数：`square_has_overlay_marker_bit`、`update_square_runtime_flags`、`square_has_runtime_bit12`、`square_has_runtime_bit13`。
 
 已追加字段来源、阻塞条件、四邻格扩展、等距投影和资源编号链注释；IDB 保存成功并通过 IDA MCP 回读函数名称与注释。本次未修改程序字节、函数边界或结构类型。
 
-本轮还写入了研究层候选字段名：`square_flags_02`、`tile_edge_geometry_mask`、`map_visual_variant`、`boundary_edge_mask`；新增位消费者、方向顺序和函数名证据见 [RE-SAN9PK-0034](../../research/findings/RE-SAN9PK-0034.md)。
+后续结合可信黑盒观测与绘制链，进一步写入 `terrain_transition_mask`、`elevation_transition_mask`、`land_texture_variant`、`bridge_orientation_code`，并新增 `terrain_uses_edge_transition_variants`、`calculate_land_tile_atlas_index`、`calculate_square_land_tile_atlas_index`、`draw_visible_bridge_overlays`。本轮还回读了可见方格记录、边缘展开、桥/疆界/MESH 覆盖和主刷新入口的注释；bit9 helper 经 footprint 实例收窄后保持保守名称 `square_has_overlay_marker_bit`。云南对照继续闭合了当前格扫描线连续复制、边缘格 256 权重混合、全图源取样坐标、地形资源合法偏移范围以及特殊视觉链不覆盖 terrain 2 的边界。新增绘制记录构造、缓存和通用像素辅助函数命名，并确认 terrain 6 只能选择 `10523/10524`。证据见 [RE-SAN9PK-0051](../../research/findings/RE-SAN9PK-0051.md)、[RE-SAN9PK-0052](../../research/findings/RE-SAN9PK-0052.md) 与 [RE-SAN9PK-0053](../../research/findings/RE-SAN9PK-0053.md)。

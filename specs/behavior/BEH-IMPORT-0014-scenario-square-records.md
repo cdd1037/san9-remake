@@ -111,7 +111,7 @@
 
 ### 水面动态覆盖
 
-原作在静态 `G_LLand` 水域底图之后创建独立 `G_LMask` 水面动画。terrain `9/10/15/16` 直接参与；terrain `12` 只在邻近合格 terrain `11` 桥锚点时参与。方格以 `10000 + (x & 1) + 2 × (y & 1)` 选择四种奇偶资源，每项 `384×32` 横向切为六个 `64×32` 帧，并由 motion sprite 循环推进。已知创建链不读取 `squa +0x06`，因此该动画不能用来确认 `terrain_transition_aux` 的语义。证据见 [RE-SAN9PK-0054](../../research/findings/RE-SAN9PK-0054.md)。
+原作在静态 `G_LLand` 水域底图之后创建独立 `G_LMask` 水面动画。terrain `9/10/15/16` 直接参与；terrain `12` 只在邻近合格 terrain `11` 桥锚点时参与。方格以 `10000 + (x & 1) + 2 × (y & 1)` 选择四种奇偶资源，每项 `384×32` 横向切为六个 `64×32` 帧，并由 motion sprite 以每帧 `200 ms`、六帧标称周期 `1.2 s` 循环推进。该计时值沿更新链直接与 WinMM `timeGetTime()` 的差值比较，单位已确认。已知创建链不读取 `squa +0x06`，因此该动画不能用来确认 `terrain_transition_aux` 的语义。证据见 [RE-SAN9PK-0054](../../research/findings/RE-SAN9PK-0054.md)。
 
 ## 重制行为
 

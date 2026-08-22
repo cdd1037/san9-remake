@@ -1,10 +1,10 @@
 # RE-SAN9PK-0054：G_LMask 六帧水面动画
 
-- 状态：已确认（水域资格、资源选择、帧布局和循环推进链已闭合；200 参数的绝对时间单位仍待动态验证）
+- 状态：已确认（水域资格、资源选择、帧布局、200 毫秒间隔和循环推进链已闭合）
 - 日期：2026-08-22
 - 分析者：Codex
-- 结论类型：IDA 代码事实、资源结构事实、受限时间单位推断
-- 置信度：高（水面动画资源、六帧布局、方格奇偶变体和逐帧推进）；中高（`200` 表示约 200 毫秒）
+- 结论类型：IDA 代码事实、资源结构事实
+- 置信度：高（水面动画资源、六帧布局、方格奇偶变体、200 毫秒帧间隔和逐帧推进）
 - 前置记录：[RE-SAN9PK-0053](RE-SAN9PK-0053.md)
 - 关联规格：[BEH-IMPORT-0014](../../specs/behavior/BEH-IMPORT-0014-scenario-square-records.md)
 
@@ -28,7 +28,7 @@ resource_id = 10000 + (x & 1) + 2 × (y & 1)
 - terrain `12` 只有邻近 `square_flags_02 bit9` 置位的 terrain `11` 桥锚点时才创建；
 - 其他 terrain 不进入该链。
 
-函数以 `sub_4349D0(resource, id, 1, 6, 0, 0)` 把 `384×32` 资源配置成 1 行 6 列帧表，再由 `sub_51EB40` 创建 motion sprite。后者把帧网格设为 `1×6`、总帧数设为 `6`，并通过 `sub_53D730` 写入 `0xC8`（十进制 200）的更新间隔参数。`sub_53DA30` 是通用帧推进逻辑：递增或按表映射当前帧、按总帧数回绕，并执行循环/终止策略。
+函数以 `sub_4349D0(resource, id, 1, 6, 0, 0)` 把 `384×32` 资源配置成 1 行 6 列帧表，再由 `sub_51EB40` 创建 motion sprite。后者把帧网格设为 `1×6`、总帧数设为 `6`，并通过 `set_motion_frame_interval_ms`（`0x53D730`）把 `0xC8`（十进制 200）写入对象 `+0x30` 的帧间隔字段。`advance_motion_frames`（`0x53DA30`）是通用帧推进逻辑：递增或按表映射当前帧、按总帧数回绕，并执行循环/终止策略。
 
 因此原作水面可分为两层：
 
@@ -37,7 +37,15 @@ G_LLand：静态水域底图
 G_LMask：四种方格奇偶变体 × 六帧动态水面覆盖
 ```
 
-`200` 很可能是毫秒单位，但本轮只由 motion 更新参数和调用语境确认其为动画更新间隔；绝对时间单位仍需运行时计时验证。
+### 2.1 计时单位
+
+`update_motion_visual_from_clock`（`0x53DB10`）直接调用 WinMM `timeGetTime()`，以返回值减去对象 `+0x34` 保存的上次计时值，并与对象 `+0x30` 的帧间隔比较。达到间隔后，它以 `elapsed_ms / interval_ms` 计算本次应推进的帧数，再通过虚表槽 `+0x3C` 调用 `advance_motion_frames`。`timeGetTime()` 的返回单位就是毫秒，因此水面动画传入的 `0xC8` 已确认是 **200 毫秒/帧**，六帧完整循环的标称周期为 **1.2 秒**。
+
+若一次更新跨过多个间隔，代码会一次推进多帧；实际屏幕刷新仍受主循环调度粒度影响，但这不改变配置间隔的毫秒语义。
+
+### 2.2 与地图标记资源的边界
+
+本函数选择的是 `G_LMask.s9` 的 `10000..10003`，创建对象组 `40` 的动态水面覆盖；它不读取 `G_MapMkr.s9` 的 `10794..10805`。后者由 `update_square_edge_visuals`（`0x5191D0`）按边缘掩码创建为对象组 `41`，属于疆界/地图标记资源链。因此，不应再把 `0x51BB00` 归类为“特殊地形/地图标记”。
 
 ## 3. 与 `squa +0x06` 的边界
 
@@ -51,7 +59,9 @@ G_LMask：四种方格奇偶变体 × 六帧动态水面覆盖
 
 ## 5. IDA 写入与回读
 
-- `0x51BB00` 从 `draw_square_water_mask_marker` 更名为 `create_square_water_surface_animation`；
-- `0x51BB00`、`0x51BC75`、`0x51BCE6` 与 `0x53DA30` 使用 `[RE-SAN9PK-0054]` 事实注释；
+- `0x51BB00` 使用 `create_square_water_surface_animation`，明确归入动态水面覆盖链；
+- `0x51CFE0` 更名为 `is_direct_water_surface_terrain`；
+- `0x53D730`、`0x53DA30`、`0x53DB10` 分别更名为 `set_motion_frame_interval_ms`、`advance_motion_frames`、`update_motion_visual_from_clock`；
+- `0x51BB00`、`0x51BC75`、`0x51BCE6`、`0x53D730`、`0x53DA30` 与 `0x53DB10` 使用 `[RE-SAN9PK-0054]` 事实注释；
 - 保存后通过函数查询、反编译和注释回读确认；
 - 未修改程序字节、函数边界或结构类型。

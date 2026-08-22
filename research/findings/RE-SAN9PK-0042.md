@@ -27,13 +27,13 @@
 sub_50A760  state this+0x30 == 1005
   -> advance_date_and_run_daily_updates 0x50A340
        -> advance_current_date 0x452E50 (days=1, months=0, years=0)
-       -> random() % 10 == 1 作为返回 BOOL
+       -> current_day % 10 == 1 作为返回 BOOL
        -> run_mainmap_daily_updates 0x508930
             -> resolve CMainmapView via 0x508010
             -> process_date_stamped_unit_building_updates 0x52E050
 ```
 
-- `0x50A340` 的函数体固定推进一天，再计算随机条件并调用 `0x508930`；它的返回值被 `0x50A760` 用于从状态 1005 进入后续状态 1006/1007/1008 等路径。
+- `0x50A340` 的函数体固定推进一天，再判断当前日 `% 10 == 1` 并调用 `0x508930`；它的返回值被 `0x50A760` 用于从状态 1005 进入后续状态 1006/1007/1008 等路径。该条件在 30 日月份模型中对应每月 1、11、21 日的旬边界，不使用随机数。
 - `0x508930` 通过 `0x508010` 获取 `CMainmapView`，随后将该对象内部的日期更新上下文传给 `0x52E050`。
 - `0x52E050` 读取当前年、月、日，并将它们打包成 `year << 16 | month << 8 | day` 的日期标记；之后分别枚举 `CUnitData` 和 `CChiikiBuildingData` 对象，调用 `0x52DF80`、`0x52D4D0` 分发每个对象的更新处理。
 

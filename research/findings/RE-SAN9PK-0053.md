@@ -225,7 +225,7 @@ result = (source × (256 - mask_red) + target × mask_red) >> 8
 
 ## 9. IDA 写入与回读
 
-合并前各轮已在项目主数据库中为以下函数写入 `[RE-SAN9PK-0053]` 至 `[RE-SAN9PK-0056]` 证据注释；原编号保留在 IDA 中作为实际写入审计记录，不再对应独立 Markdown 文件：
+合并前各轮曾在项目主数据库中为以下函数写入 `[RE-SAN9PK-0053]`、`[RE-SAN9PK-0055]` 与 `[RE-SAN9PK-0056]` 证据注释：
 
 - 字段与索引：`get_csquare_value`、`calculate_land_tile_atlas_index`、`calculate_square_land_tile_atlas_index`；
 - 方格记录与像素合成：`append_current_square_tile_record`、`append_square_edge_tile_record`、`build_square_edge_overlays`、`draw_square_tile_texture`、`draw_visible_square_tiles`；
@@ -233,6 +233,8 @@ result = (source × (256 - mask_red) + target × mask_red) >> 8
 - 记录、缓存与像素辅助：`initialize_square_tile_draw_record`、`set_square_tile_draw_record_coords`、`set_square_tile_draw_record_mask_flag`、`allocate_square_tile_draw_record`、`sort_square_tile_draw_records`、`select_current_tile_mask_resource`、`build_or_load_land_tile_draw_cache`、`get_bitmap_pixel_pointer`、`get_surface_pixel_pointer_checked`、`blit_bitmap_resource_to_surface`、`decode_blit_mode_and_alpha`。
 
 保存路径为 `research/analysis/San9PK-TC-101.i64`。保存后通过 IDA MCP 的注释搜索回读到新增 MESH/COV 证据注释（`0x51CC30`、`0x51CC70`、`0x520CF0`、`0x4F5279`）及既有注释；未修改程序字节、函数边界或结构类型。
+
+2026-08-22 文档合并后又同步了 IDA 注释编号：将原 0055/0056 的静态底图证据并入 0053，并在同址存在多轮注释时合并内容而非简单叠加。与水面动画直接相关的 `0x51BB00` 归入 [RE-SAN9PK-0054](RE-SAN9PK-0054.md)。本次同时处理函数注释、可重复函数注释和指令行注释，保存项目主数据库后全库回读结果为：`[RE-SAN9PK-0055]`、`[RE-SAN9PK-0056]`、`[RE-SAN9PK-0057]` 均为 0 个命中，`[RE-SAN9PK-0053]` 为 31 个命中，`[RE-SAN9PK-0054]` 为 4 个命中。未修改程序字节、函数边界或结构类型。
 
 ### 9.1 2026-08-22 表述更正
 

@@ -7,6 +7,7 @@ from pathlib import Path
 
 from .graphics import parse_image_stream, parse_palette_alphas, parse_palettes
 from .scenario import (
+    BOUNDARY_RESOURCE_COUNT,
     BRIDGE_PALETTE_FILENAME,
     BRIDGE_PALETTE_INDEX,
     BRIDGE_RESOURCE_COUNT,
@@ -31,6 +32,12 @@ class BuildingRenderResources:
 
 
 @dataclass(frozen=True)
+class BoundaryRenderResources:
+    images: list[ImageRecord]
+    palette: Palette
+
+
+@dataclass(frozen=True)
 class MapVisualResources:
     land_images: list[ImageRecord]
     land_palettes: list[Palette]
@@ -40,12 +47,17 @@ class MapVisualResources:
     mesh_palette: Palette
     bridge_images: list[ImageRecord]
     bridge_palette: Palette
+    boundaries: BoundaryRenderResources | None
     buildings: BuildingRenderResources
     land_palette_name: str
 
     @classmethod
     def load(
-        cls, data_dir: Path, scenario: Path, requested_land_palette: str
+        cls,
+        data_dir: Path,
+        scenario: Path,
+        requested_land_palette: str,
+        include_boundaries: bool = False,
     ) -> MapVisualResources:
         land_palette_name = select_land_palette_name(
             scenario, requested_land_palette
@@ -60,6 +72,16 @@ class MapVisualResources:
         mesh_palettes = parse_palettes(data_dir / "P_MESH.s9")
         bridge_images = parse_image_stream(data_dir / "G_LHashi.s9")
         bridge_palettes = parse_palettes(data_dir / BRIDGE_PALETTE_FILENAME)
+        boundary_images = (
+            parse_image_stream(data_dir / "G_MAPMKR.s9")
+            if include_boundaries
+            else []
+        )
+        boundary_palettes = (
+            parse_palettes(data_dir / "P_MAPMKR.s9")
+            if include_boundaries
+            else []
+        )
         building_images = parse_image_stream(data_dir / "G_LBUILD.s9")
         building_palettes = parse_palettes(data_dir / "P_LBUILD.s9")
         building_alphas = parse_palette_alphas(data_dir / "P_LBUILD.s9")
@@ -85,6 +107,17 @@ class MapVisualResources:
                     f"expected {expected} {resource_name} records, "
                     f"found {len(records)}"
                 )
+        if include_boundaries:
+            if len(boundary_images) != BOUNDARY_RESOURCE_COUNT:
+                raise ValueError(
+                    f"expected {BOUNDARY_RESOURCE_COUNT} G_MAPMKR records, "
+                    f"found {len(boundary_images)}"
+                )
+            if len(boundary_palettes) != 1:
+                raise ValueError(
+                    "expected 1 P_MAPMKR palette, "
+                    f"found {len(boundary_palettes)}"
+                )
         if len(bridge_palettes) <= BRIDGE_PALETTE_INDEX:
             raise ValueError(
                 f"expected {BRIDGE_PALETTE_FILENAME} palette index "
@@ -100,6 +133,9 @@ class MapVisualResources:
             mesh_palettes[0],
             bridge_images,
             bridge_palettes[BRIDGE_PALETTE_INDEX],
+            BoundaryRenderResources(boundary_images, boundary_palettes[0])
+            if include_boundaries
+            else None,
             BuildingRenderResources(
                 building_images,
                 building_palettes,

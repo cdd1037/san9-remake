@@ -37,6 +37,8 @@ MESH_STATE_BASES = (10972, 11004, 11036, 11020, 10988, 11052)
 # create_square_mesh_visual() stores (alpha << 8) | 2 at resource +0x14.
 # The low byte selects alpha-blend mode 2; the high byte is the source alpha.
 MESH_STATE_ALPHA = (50, 25, 20, 22, 20, 20)
+BOUNDARY_RESOURCE_BASE = 10794
+BOUNDARY_RESOURCE_COUNT = 12
 
 
 @dataclass(frozen=True)

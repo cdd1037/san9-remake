@@ -1,6 +1,7 @@
 import unittest
 
 from square_map import (
+    boundaries,
     building_compositions,
     buildings,
     canvas,
@@ -68,6 +69,34 @@ class LandResourceSelectionTests(unittest.TestCase):
 
 
 class OverlaySelectionTests(unittest.TestCase):
+    def test_boundary_direction_order_matches_north_east_south_west(self) -> None:
+        self.assertEqual(
+            (0x01, 0x02, 0x04, 0x08),
+            tuple(direction.bit for direction in boundaries.BOUNDARY_DIRECTIONS),
+        )
+
+    def test_boundary_resource_uses_style_orientation_and_elevation_shape(self) -> None:
+        north, east, _, _ = boundaries.BOUNDARY_DIRECTIONS
+        self.assertEqual(
+            (10797, False),
+            boundaries.select_boundary_resource(0, 0x01, 0, north),
+        )
+        self.assertEqual(
+            (10795, True),
+            boundaries.select_boundary_resource(0x08, 0x02, 0, east),
+        )
+        self.assertEqual(
+            (10802, False),
+            boundaries.select_boundary_resource(0x02, 0, 0x02, east),
+        )
+
+    def test_city_boundary_takes_precedence_when_masks_overlap(self) -> None:
+        north = boundaries.BOUNDARY_DIRECTIONS[0]
+        self.assertEqual(
+            (10803, False),
+            boundaries.select_boundary_resource(0, 0x01, 0x01, north),
+        )
+
     def test_bridge_uses_lndadd_first_palette(self) -> None:
         self.assertEqual("P_LndAdd.s9", scenario.BRIDGE_PALETTE_FILENAME)
         self.assertEqual(0, scenario.BRIDGE_PALETTE_INDEX)

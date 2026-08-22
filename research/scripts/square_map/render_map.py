@@ -5,6 +5,7 @@ from __future__ import annotations
 import collections
 
 from .canvas import RgbCanvas
+from .boundaries import draw_boundaries
 from .render_buildings import draw_buildings
 from .resources import MapVisualResources
 from .scenario import (
@@ -50,12 +51,14 @@ def render_region(
     height: int,
     mesh_state: int | None = None,
     mesh_elevated_only: bool = False,
+    draw_boundary_layer: bool = False,
     fixed_buildings: list[FixedBuilding] | None = None,
     building_snapshots: list[BuildingSnapshot] | None = None,
 ) -> tuple[
     int,
     int,
     bytes,
+    collections.Counter[int],
     collections.Counter[int],
     collections.Counter[int],
     collections.Counter[int],
@@ -68,6 +71,7 @@ def render_region(
     counters: collections.Counter[int] = collections.Counter()
     mesh_counters: collections.Counter[int] = collections.Counter()
     bridge_counters: collections.Counter[int] = collections.Counter()
+    boundary_counters: collections.Counter[int] = collections.Counter()
     building_counters: collections.Counter[int] = collections.Counter()
 
     def draw_record(
@@ -250,6 +254,20 @@ def render_region(
                 margin + anchor_y,
             )
 
+    if draw_boundary_layer:
+        if resources.boundaries is None:
+            raise ValueError("boundary resources were not loaded")
+        boundary_counters = draw_boundaries(
+            canvas,
+            squares,
+            resources.boundaries,
+            x0,
+            y0,
+            width,
+            height,
+            margin,
+        )
+
     # The original draw_square_mesh_overlays() consumes a separate runtime
     # overlay-state grid. It is not serialized in SQUA, so this renderer only
     # enables it explicitly. In elevated-only mode, the test marks squares whose
@@ -311,5 +329,6 @@ def render_region(
         counters,
         mesh_counters,
         bridge_counters,
+        boundary_counters,
         building_counters,
     )

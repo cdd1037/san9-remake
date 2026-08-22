@@ -35,6 +35,10 @@ def main() -> None:
         help="with --mesh-state, draw only squares whose SQUA +0x0A is non-zero",
     )
     parser.add_argument(
+        "--boundaries", action="store_true",
+        help="draw the serialized pale region and red city boundary layer",
+    )
+    parser.add_argument(
         "--land-palette", choices=("auto", "S", "N", "A", "W"), default="auto",
         help="P_Land palette; auto follows the scenario start month",
     )
@@ -49,16 +53,17 @@ def main() -> None:
 
     squares = read_squares(args.scenario)
     resources = MapVisualResources.load(
-        args.data_dir, args.scenario, args.land_palette
+        args.data_dir, args.scenario, args.land_palette, args.boundaries
     )
     fixed_buildings, building_snapshots = read_building_snapshot(args.scenario)
 
     (
         width, height, rgb, resource_counts, mesh_counts,
-        bridge_counts, building_counts,
+        bridge_counts, boundary_counts, building_counts,
     ) = render_region(
         squares, resources, args.x, args.y, args.width, args.height,
         args.mesh_state, args.mesh_elevated_only,
+        args.boundaries,
         fixed_buildings=fixed_buildings,
         building_snapshots=building_snapshots,
     )
@@ -76,6 +81,9 @@ def main() -> None:
     print(f"mesh_squares={sum(mesh_counts.values())}")
     print(f"bridge_resource_ids={len(bridge_counts)}")
     print(f"bridge_squares={sum(bridge_counts.values())}")
+    print(f"boundaries={args.boundaries}")
+    print(f"boundary_resource_ids={len(boundary_counts)}")
+    print(f"boundary_segments={sum(boundary_counts.values())}")
     print(f"building_composition_ids={len(building_counts)}")
     print(f"building_objects={sum(building_counts.values())}")
     print(f"building_fallback_objects={building_counts[-1]}")

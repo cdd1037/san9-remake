@@ -6,7 +6,7 @@
 - 结论类型：DLL 代码事实、EXE 调用事实与 32 位合成缓冲区探针
 - 置信度：高
 - 关联来源：[SRC-KOEIGRPX-SAN9TC-001](../sources/SRC-KOEIGRPX-SAN9TC-001.md)、[SRC-SAN9PK-TC-101](../sources/SRC-SAN9PK-TC-101.md)
-- 关联记录：[RE-SAN9PK-0026](RE-SAN9PK-0026.md)、[RE-SAN9PK-0053](RE-SAN9PK-0053.md)、`RE-SAN9PK-0056`（当前工作树研究记录）
+- 关联记录：[RE-SAN9PK-0026](RE-SAN9PK-0026.md)、[RE-SAN9PK-0053](RE-SAN9PK-0053.md)、[RE-SAN9PK-0055](RE-SAN9PK-0055.md)
 
 ## 样本与范围
 

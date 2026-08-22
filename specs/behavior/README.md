@@ -19,6 +19,7 @@
 - [BEH-IMPORT-0015：剧本据点（`bldg`）记录解析](BEH-IMPORT-0015-scenario-zone-records.md)（已确认结构与核心字段）
 - [BEH-IMPORT-0016：剧本势力（`forc`）记录解析](BEH-IMPORT-0016-scenario-force-records.md)（已确认结构与主要字段）
 - [BEH-IMPORT-0017：剧本部队（`unit`）记录解析](BEH-IMPORT-0017-scenario-unit-records.md)（已确认结构与已知字段）
+- [BEH-RENDER-0001：大地图静态视觉快照](BEH-RENDER-0001-static-map-snapshot.md)（已确认地貌、桥、静态建筑、坐标与像素回归基线）
 - [BEH-EVENT-0001：神兽事件的战斗判定](BEH-EVENT-0001-shenshou-event.md)（草案）
 
 新增规格必须使用[行为规格模板](../templates/behavior-spec.md)，分别描述原作基线、重制行为和依据。若规格声称描述原作行为，没有本项目可复验证据时不得设为“已确认”；原创或现代化设计可以依据明确决策、原型验证和可测试的验收标准进入“已确认”。

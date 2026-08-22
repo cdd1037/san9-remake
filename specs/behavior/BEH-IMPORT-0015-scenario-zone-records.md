@@ -5,6 +5,7 @@
 - 最后更新：2026-08-16
 - 关联证据：[RE-SAN9PK-0020](../../research/findings/RE-SAN9PK-0020.md)
 - 关联决策：[DEC-DATA-0001](../decisions/DEC-DATA-0001-content-pipeline.md)
+- 关联渲染规格：[BEH-RENDER-0001](BEH-RENDER-0001-static-map-snapshot.md)
 
 ## 适用范围
 

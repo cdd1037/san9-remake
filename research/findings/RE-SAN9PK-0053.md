@@ -144,6 +144,8 @@ Python 渲染器已增加显式诊断参数 `--mesh-state 0..5`，并支持 `--m
 result = (source × (256 - mask_red) + target × mask_red) >> 8
 ```
 
+两条路径都只对每条扫描线的**源起点**按 `image_width - 64` 取模，随后让源指针连续前进，最多复制 64 像素；扫描线内部的每个像素不能再次取模。当前格的起点是 `(global_source_x + first_nonzero_x) % (image_width - 64)`，边缘格的起点是 `global_source_x % (image_width - 64)`。南皮 `(134,30)` 城下与河内港花丛对照暴露了实验渲染器原先的逐像素回卷：花丛扫描线跨过周期末端时会在格内跳回图库左侧，形成错块、拉伸或倾斜感；未跨界的花丛则近似正确。渲染器现已改为一次取模后连续取样，并以 `288` 像素宽图库、`224` 像素起点周期和跨周期的 64 像素扫描线测试锁定该不变量。
+
 原作在 RGB555 目标画面上执行该式。研究脚本保留 8 位 RGB 输出，按 [DEC-RENDER-0001](../../specs/decisions/DEC-RENDER-0001-high-color-map-rendering.md) 不把 RGB555 写回量化带入正式重制渲染；这不会改变资源、遮罩或 256 权重规则本身。
 
 图库循环取样使用减去目标缓存原点之前的全图等距坐标。局部导出窗口只影响目标画布位置，不能改变同一逻辑方格在图库中的取样相位。源位图行地址按 `base + y × stride + ceil(x × bpp / 8)` 计算，没有源图纵向翻转；目标 surface 的可选翻转只是底向上存储映射。
@@ -163,6 +165,8 @@ result = (source × (256 - mask_red) + target × mask_red) >> 8
 - `select_current_tile_mask_resource`、`append_current_square_tile_record`、`append_square_edge_tile_record`；
 - `build_or_load_land_tile_draw_cache`；
 - `get_bitmap_pixel_pointer`、`get_surface_pixel_pointer_checked`、`blit_bitmap_resource_to_surface`、`decode_blit_mode_and_alpha`。
+
+`sort_square_tile_draw_records` 并非稳定排序。它先按原顺序取出全部记录，再逐条插回有序链表；若新键小于当前首尾键的整数中点，则从头查找并插在第一个 `>= new_key` 的节点前，同键记录因而前插；否则从尾查找并插在最后一个 `<= new_key` 的节点后，同键记录因而后插。最终键序仍是升序，差异只存在于同键组内。研究脚本用 `key -> deque` 复刻前插/后插规则，再统一按 key 展开，避免照搬原链表的 O(n²) 扫描。以 `D_Sce002.S9` 生成的 96,489 条记录对照工作区 `D_Land00.s9`，字段及顺序 96,489/96,489 完全一致；因此无需把缓存文件作为渲染输入依赖。
 
 ## 6. 虎牢关与季节调色板对照
 
@@ -206,6 +210,7 @@ result = (source × (256 - mask_red) + target × mask_red) >> 8
 - `G_LLand` 资源与活动 `P_Land_*` 调色板槽位的静态绑定由 `0x65E7D0` 的 `(resource_id, palette_slot)` 表直接给出；水域资源基址 `10315/10319/10323/10327` 的基准组使用调色板记录 `4`，其变体使用记录 `5..7`。
 - `G_MASK/P_MASK` 的 16 个高差组、两组 `elevation_mask=0` 的边缘 flag 专用组、每组 9 个当前/边缘子图，以及 `0x610C20/0x610C24/0x6110A0` 的目标位置/垂直修正已闭合。
 - 当前格扫描线连续复制、边缘格 256 权重混合、全图源坐标循环取样、terrain 6 资源边界与非法偏移回退已由代码和实验交叉闭合。
+- 当前格与边缘格的横向循环只作用于扫描线起点；`0x51BE52/0x51BF2C/0x5199FE/0x519A4F` 共同确认连续复制期间源指针不再次回卷。
 - `G_MESH.s9` 的 96 个资源、六组基础编号、`+0x0A` 变体偏移、64×44 尺寸和组 25 插入点已闭合；其是否出现仍取决于运行时覆盖网格，而不是 `squa` 单独决定。
 
 ### 推断
@@ -225,19 +230,17 @@ result = (source × (256 - mask_red) + target × mask_red) >> 8
 
 ## 9. IDA 写入与回读
 
-合并前各轮曾在项目主数据库中为以下函数写入 `[RE-SAN9PK-0053]`、`[RE-SAN9PK-0055]` 与 `[RE-SAN9PK-0056]` 证据注释：
+项目主数据库为以下地貌函数保留 `[RE-SAN9PK-0053]` 证据注释：
 
 - 字段与索引：`get_csquare_value`、`calculate_land_tile_atlas_index`、`calculate_square_land_tile_atlas_index`；
 - 方格记录与像素合成：`append_current_square_tile_record`、`append_square_edge_tile_record`、`build_square_edge_overlays`、`draw_square_tile_texture`、`draw_visible_square_tiles`；
 - 覆盖层与刷新入口：`draw_visible_bridge_overlays`、`refresh_map_square_boundaries`、`draw_square_mesh_overlays`、`apply_square_overlay_states`、`redraw_map_scene`。
 - 记录、缓存与像素辅助：`initialize_square_tile_draw_record`、`set_square_tile_draw_record_coords`、`set_square_tile_draw_record_mask_flag`、`allocate_square_tile_draw_record`、`sort_square_tile_draw_records`、`select_current_tile_mask_resource`、`build_or_load_land_tile_draw_cache`、`get_bitmap_pixel_pointer`、`get_surface_pixel_pointer_checked`、`blit_bitmap_resource_to_surface`、`decode_blit_mode_and_alpha`。
 
-保存路径为 `research/analysis/San9PK-TC-101.i64`。保存后通过 IDA MCP 的注释搜索回读到新增 MESH/COV 证据注释（`0x51CC30`、`0x51CC70`、`0x520CF0`、`0x4F5279`）及既有注释；未修改程序字节、函数边界或结构类型。
-
-2026-08-22 文档合并后又同步了 IDA 注释编号：将原 0055/0056 的静态底图证据并入 0053，并在同址存在多轮注释时合并内容而非简单叠加。与水面动画直接相关的 `0x51BB00` 归入 [RE-SAN9PK-0054](RE-SAN9PK-0054.md)。本次同时处理函数注释、可重复函数注释和指令行注释，保存项目主数据库后全库回读结果为：`[RE-SAN9PK-0055]`、`[RE-SAN9PK-0056]`、`[RE-SAN9PK-0057]` 均为 0 个命中，`[RE-SAN9PK-0053]` 为 31 个命中，`[RE-SAN9PK-0054]` 为 4 个命中。未修改程序字节、函数边界或结构类型。
+`0x51BE52/0x51BF2C/0x5199FE/0x519A4F` 记录扫描线起点取模与连续源指针，`0x5183E5/0x518408/0x51842E` 记录同键前插/后插排序。保存并回读确认；水面动画注释归 [RE-SAN9PK-0054](RE-SAN9PK-0054.md)。未修改程序字节、函数边界或结构类型。
 
 ### 9.1 2026-08-22 表述更正
 
 重新回读 `append_current_square_tile_record`、`append_square_edge_tile_record` 与 `draw_square_tile_texture` 后，已更正早期把 `+0x07` 写成记录内资源参数的表述：记录内 `record[6]` 实际来自文件 `+0x0A`；文件 `+0x07` 只在 `build_square_edge_overlays` 上游决定八方向记录展开。同时确认 atlas 预计算值在构造时已折入 `record+0x20` 排序键，不再作为“消费者未知”的槽位处理。
 
-项目主 IDA 数据库已替换上述三个函数的旧注释，保存后通过反编译回读确认更正内容；未修改程序字节、函数边界或结构类型。
+项目主数据库已替换上述三个函数的旧注释并回读确认；未修改程序字节、函数边界或结构类型。

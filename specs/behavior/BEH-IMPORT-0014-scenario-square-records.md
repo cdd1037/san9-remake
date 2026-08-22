@@ -3,10 +3,11 @@
 - 状态：已确认（区块边界、字段宽度、地图线性索引、城市/据点区域编码、地形/高差过渡、桥方向、两类疆界线、寻路阻塞消费者、地图绘制与资源消费者、目标哨兵行为和无损读取；部分辅助值及自动生成算法未确认）
 - 负责人：项目开发者
 - 最后更新：2026-08-22
-- 关联证据：[RE-SAN9PK-0019](../../research/findings/RE-SAN9PK-0019.md)、[RE-SAN9PK-0032](../../research/findings/RE-SAN9PK-0032.md)、[RE-SAN9PK-0051](../../research/findings/RE-SAN9PK-0051.md)、[RE-SAN9PK-0052](../../research/findings/RE-SAN9PK-0052.md)、[RE-SAN9PK-0053](../../research/findings/RE-SAN9PK-0053.md)、[RE-SAN9PK-0054](../../research/findings/RE-SAN9PK-0054.md)
+- 关联证据：[RE-SAN9PK-0019](../../research/findings/RE-SAN9PK-0019.md)、[RE-SAN9PK-0032](../../research/findings/RE-SAN9PK-0032.md)、[RE-SAN9PK-0051](../../research/findings/RE-SAN9PK-0051.md)、[RE-SAN9PK-0052](../../research/findings/RE-SAN9PK-0052.md)、[RE-SAN9PK-0053](../../research/findings/RE-SAN9PK-0053.md)、[RE-SAN9PK-0054](../../research/findings/RE-SAN9PK-0054.md)、[RE-SAN9PK-0056](../../research/findings/RE-SAN9PK-0056.md)
 - 深入证据：[RE-SAN9PK-0024](../../research/findings/RE-SAN9PK-0024.md)、[RE-SAN9PK-0025](../../research/findings/RE-SAN9PK-0025.md)、[RE-SAN9PK-0030](../../research/findings/RE-SAN9PK-0030.md)、[RE-SAN9PK-0031](../../research/findings/RE-SAN9PK-0031.md)、[RE-SAN9PK-0032](../../research/findings/RE-SAN9PK-0032.md)、[RE-SAN9PK-0033](../../research/findings/RE-SAN9PK-0033.md)、[RE-SAN9PK-0034](../../research/findings/RE-SAN9PK-0034.md)
 - 关联决策：[DEC-DATA-0001](../decisions/DEC-DATA-0001-content-pipeline.md)
 - 渲染决策：[DEC-RENDER-0001](../decisions/DEC-RENDER-0001-high-color-map-rendering.md)
+- 关联渲染规格：[BEH-RENDER-0001](BEH-RENDER-0001-static-map-snapshot.md)
 
 ## 适用范围
 
@@ -180,6 +181,4 @@
 - `CSquareData` 字段接口：`deserialize_squa_record`、`get_csquare_value`、`format_square_property_value`；其中 `+0x06` 的 getter/格式化证据见 [RE-SAN9PK-0034](../../research/findings/RE-SAN9PK-0034.md)。
 - 标志/标记函数：`square_has_overlay_marker_bit`、`update_square_runtime_flags`、`square_has_runtime_bit12`、`square_has_runtime_bit13`。
 
-已追加字段来源、阻塞条件、四邻格扩展、等距投影和资源编号链注释；IDB 保存成功并通过 IDA MCP 回读函数名称与注释。本次未修改程序字节、函数边界或结构类型。
-
-后续结合可信黑盒观测与绘制链，进一步写入 `terrain_transition_mask`、`elevation_transition_mask`、`land_texture_variant`、`bridge_orientation_code`，并新增 `terrain_uses_edge_transition_variants`、`calculate_land_tile_atlas_index`、`calculate_square_land_tile_atlas_index`、`draw_visible_bridge_overlays`。本轮还回读了可见方格记录、边缘展开、桥/疆界/MESH 覆盖和主刷新入口的注释；bit9 helper 经 footprint 实例收窄后保持保守名称 `square_has_overlay_marker_bit`。云南对照继续闭合了当前格扫描线连续复制、边缘格 256 权重混合、全图源取样坐标、地形资源合法偏移范围以及特殊视觉链不覆盖 terrain 2 的边界。新增绘制记录构造、缓存和通用像素辅助函数命名，并确认 terrain 6 只能选择 `10523/10524`。证据见 [RE-SAN9PK-0051](../../research/findings/RE-SAN9PK-0051.md)、[RE-SAN9PK-0052](../../research/findings/RE-SAN9PK-0052.md) 与 [RE-SAN9PK-0053](../../research/findings/RE-SAN9PK-0053.md)。
+字段来源、阻塞条件、四邻格扩展、等距投影、地貌合成和覆盖层资源链已同步并回读确认；bit9 helper 保持保守名称 `square_has_overlay_marker_bit`。未修改程序字节、函数边界或结构类型。详细证据见 [RE-SAN9PK-0051](../../research/findings/RE-SAN9PK-0051.md)、[RE-SAN9PK-0052](../../research/findings/RE-SAN9PK-0052.md)、[RE-SAN9PK-0053](../../research/findings/RE-SAN9PK-0053.md) 与 [RE-SAN9PK-0056](../../research/findings/RE-SAN9PK-0056.md)。

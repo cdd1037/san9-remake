@@ -16,9 +16,10 @@
 - `legacy_text.py`：消息资源与 EXE 共用的字节保真 ASCII/Big5 家族解码、片段转换和 C 字符串扫描组件。
 - `export_g_still_treasure.py`：按已确认的模式 3 索引，从 `G_Still.s9` 导出内置宝物 `image_id=0..99` 的原始 RGB PNG 和预览拼图；生成物放在 `artifacts/image-research/` 等 Git 忽略目录。
 - `export_g_face_palette0.py`：只导出 `G_FaceL/S.s9` 的全部基础头像，使用 `P_Face[0]`，以 `L_000.png`/`S_000.png` 形式平铺输出。
-- `render_square_map.py`：使用 `squa`、`G_LLand.s9`/`P_Land_*.s9` 与 `G_MASK.s9`/`P_MASK.s9` 渲染局部等距底图及八方向地形过渡；默认 `--land-palette auto` 按场景起始月份选择原版季节调色板，也可显式传入 `S/N/A/W`。已接入原版地形资源合法偏移范围、边缘记录 flags 对应的两组 `elevation_mask=0` 专用 `G_MASK` 资源、原版 atlas sort key、当前格扫描线连续复制与边缘格 256 权重逐像素混合路径，并使用全图等距坐标驱动图库循环取样。可用 `--mesh-state 0..5` 显式叠加 `G_MESH.s9`/`P_MESH.s9` 的 MESH 方格覆盖诊断层，`--mesh-elevated-only` 只显示 `squa +0x0A` 非零的高差变体。MESH 诊断已采用原版状态 alpha 和横向 `-32` 锚点修正；已确认但尚未接入的水面层是 `G_LMask.s9` 的四种方格奇偶资源、每项六帧动画。RGB555 写回量化与 `G_MapCov.s9` 也未接入。当前只用于实验，暂不包含疆界、桥、建筑、单位和其他覆盖层，输出放在 `artifacts/image-research/square-map/`。
+- `render_square_map.py`：地图转换 CLI；读取 `squa/fbld/bldg/city`，按场景月份选择地貌调色板，导出地貌、桥和静态建筑快照。`--mesh-state 0..5` 可启用 MESH 诊断层；水面动画、旗帜、士兵、疆界和动态单位尚未合成。输出放在 `artifacts/image-research/square-map/`。
+- `square_map/`：转换实现。`scenario.py` 解析场景，`graphics.py` 解析图像与调色板，`resources.py` 装载并验证资源集合，`canvas.py` 提供 RGB 像素操作，`terrain.py` 与 `buildings.py` 保存选择规则，`building_compositions.py` 保存已确认的静态建筑组合表，`render_map.py` 与 `render_buildings.py` 分别绘制地图和建筑。行为见 [BEH-RENDER-0001](../../specs/behavior/BEH-RENDER-0001-static-map-snapshot.md)。
 
-IDA 导出放在被 Git 忽略的 `artifacts/ida/`，图像研究输出放在 `artifacts/image-research/`，本地转换内容放在 `local/generated/`。执行和证据说明见 [`RE-SAN9PK-0002`](../findings/RE-SAN9PK-0002.md)、[`RE-SAN9PK-0003`](../findings/RE-SAN9PK-0003.md)、[`RE-SAN9PK-0026`](../findings/RE-SAN9PK-0026.md)与 [`RE-SAN9PK-0035`](../findings/RE-SAN9PK-0035.md)。
+IDA 导出放在被 Git 忽略的 `artifacts/ida/`，图像研究输出放在 `artifacts/image-research/`，本地转换内容放在 `local/generated/`。执行和证据说明见 [`RE-SAN9PK-0002`](../findings/RE-SAN9PK-0002.md)、[`RE-SAN9PK-0003`](../findings/RE-SAN9PK-0003.md)、[`RE-SAN9PK-0026`](../findings/RE-SAN9PK-0026.md)、[`RE-SAN9PK-0035`](../findings/RE-SAN9PK-0035.md)与 [`RE-SAN9PK-0055`](../findings/RE-SAN9PK-0055.md)。
 
 人物姓名、语义文本和编辑器短枚举等由原版资源或本地研究批量派生的目录统一保存在 `local/generated/research-catalogs/`，不得提交。
 

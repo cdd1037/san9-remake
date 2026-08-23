@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "sample": "SRC-SAN9PK-TC-101",
-  "dispatcher": "0x5179B0",
+  "dispatcher": "dispatch_simulation_action_code@0x5179B0",
   "updated": "2026-08-23",
   "status_definitions": {
-    "dispatcher-confirmed": "The opcode-to-handler edge is confirmed; gameplay semantics remain open.",
-    "record-type-confirmed": "The dispatch edge and principal record adapter are confirmed; gameplay semantics remain open.",
+    "dispatcher-confirmed": "The opcode-to-handler edge is confirmed; downstream semantics remain open.",
+    "ui-handler-confirmed": "The dispatch edge, record filters and terminal information/editor/help behavior are confirmed; the upstream menu or event producer remains open.",
     "range-dispatch-confirmed": "The opcode is accepted by the virtual 10000-10070 path; its individual factory result is not yet mapped.",
     "behavior-confirmed": "Producer, filters, randomness and final side effect are closed."
   },
@@ -1518,7 +1518,7 @@
       ],
       "missing_evidence": [
         "producer",
-        "gameplay semantics",
+        "gameplay or UI semantics",
         "final writeback"
       ]
     },
@@ -1539,7 +1539,7 @@
       ],
       "missing_evidence": [
         "producer",
-        "gameplay semantics",
+        "gameplay or UI semantics",
         "final writeback"
       ]
     },
@@ -1560,7 +1560,7 @@
       ],
       "missing_evidence": [
         "producer",
-        "gameplay semantics",
+        "gameplay or UI semantics",
         "final writeback"
       ]
     },
@@ -1581,7 +1581,7 @@
       ],
       "missing_evidence": [
         "producer",
-        "gameplay semantics",
+        "gameplay or UI semantics",
         "final writeback"
       ]
     },
@@ -1602,7 +1602,7 @@
       ],
       "missing_evidence": [
         "producer",
-        "gameplay semantics",
+        "gameplay or UI semantics",
         "final writeback"
       ]
     },
@@ -1623,7 +1623,7 @@
       ],
       "missing_evidence": [
         "producer",
-        "gameplay semantics",
+        "gameplay or UI semantics",
         "final writeback"
       ]
     },
@@ -1644,7 +1644,7 @@
       ],
       "missing_evidence": [
         "producer",
-        "gameplay semantics",
+        "gameplay or UI semantics",
         "final writeback"
       ]
     },
@@ -1665,7 +1665,7 @@
       ],
       "missing_evidence": [
         "producer",
-        "gameplay semantics",
+        "gameplay or UI semantics",
         "final writeback"
       ]
     },
@@ -1686,7 +1686,7 @@
       ],
       "missing_evidence": [
         "producer",
-        "gameplay semantics",
+        "gameplay or UI semantics",
         "final writeback"
       ]
     },
@@ -1707,7 +1707,7 @@
       ],
       "missing_evidence": [
         "producer",
-        "gameplay semantics",
+        "gameplay or UI semantics",
         "final writeback"
       ]
     },
@@ -1728,7 +1728,7 @@
       ],
       "missing_evidence": [
         "producer",
-        "gameplay semantics",
+        "gameplay or UI semantics",
         "final writeback"
       ]
     },
@@ -1749,7 +1749,7 @@
       ],
       "missing_evidence": [
         "producer",
-        "gameplay semantics",
+        "gameplay or UI semantics",
         "final writeback"
       ]
     },
@@ -1770,7 +1770,7 @@
       ],
       "missing_evidence": [
         "producer",
-        "gameplay semantics",
+        "gameplay or UI semantics",
         "final writeback"
       ]
     },
@@ -1778,168 +1778,160 @@
       "opcode": 11020,
       "family": "11020-11029",
       "dispatch": "direct",
-      "handler": "0x510CF0",
-      "input_object": "pending",
+      "handler": "open_title_catalog@0x510CF0",
+      "input_object": "global title list",
       "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "dispatcher-confirmed",
+      "filtering": "catalog fixed to title id 8",
+      "randomness": "none in confirmed handler",
+      "final_side_effect": "show title catalog (message 8382)",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0073"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay semantics",
-        "final writeback"
+        "upstream producer/menu mapping"
       ]
     },
     {
       "opcode": 11021,
       "family": "11020-11029",
       "dispatch": "direct",
-      "handler": "0x5143A0",
-      "input_object": "CPersonData-backed enumeration",
+      "handler": "browse_person_information@0x5143A0",
+      "input_object": "CPersonData global list",
       "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "record-type-confirmed",
+      "filtering": "selector 63 plus current validity filters",
+      "randomness": "none in confirmed handler",
+      "final_side_effect": "show person-information selector (message 8159)",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0073"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay semantics",
-        "final writeback"
+        "upstream producer/menu mapping"
       ]
     },
     {
       "opcode": 11022,
       "family": "11020-11029",
       "dispatch": "direct",
-      "handler": "0x516DE0",
-      "input_object": "pending",
+      "handler": "browse_city_information@0x516DE0",
+      "input_object": "CCityData global list",
       "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "dispatcher-confirmed",
+      "filtering": "valid city records",
+      "randomness": "none in confirmed handler",
+      "final_side_effect": "show city-information selector (message 8160)",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0073"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay semantics",
-        "final writeback"
+        "upstream producer/menu mapping"
       ]
     },
     {
       "opcode": 11023,
       "family": "11020-11029",
       "dispatch": "direct",
-      "handler": "0x517880",
-      "input_object": "CForceData-backed adapter",
+      "handler": "browse_force_information@0x517880",
+      "input_object": "CForceData global list",
       "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "record-type-confirmed",
+      "filtering": "force enumeration callback",
+      "randomness": "none in confirmed handler",
+      "final_side_effect": "show force-information selector (message 8161)",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0073"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay semantics",
-        "final writeback"
+        "upstream producer/menu mapping"
       ]
     },
     {
       "opcode": 11024,
       "family": "11020-11029",
       "dispatch": "direct",
-      "handler": "0x516680",
-      "input_object": "pending",
+      "handler": "browse_unit_information@0x516680",
+      "input_object": "CUnitData global list",
       "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "dispatcher-confirmed",
+      "filtering": "unit enumeration callback",
+      "randomness": "none in confirmed handler",
+      "final_side_effect": "show unit-information selector (message 8162)",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0073"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay semantics",
-        "final writeback"
+        "upstream producer/menu mapping"
       ]
     },
     {
       "opcode": 11025,
       "family": "11020-11029",
       "dispatch": "direct",
-      "handler": "0x5172B0",
-      "input_object": "CForceData-backed adapter",
+      "handler": "browse_corps_information@0x5172B0",
+      "input_object": "CForceData-backed corps list",
       "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "record-type-confirmed",
+      "filtering": "shared list plus corps presentation filter",
+      "randomness": "none in confirmed handler",
+      "final_side_effect": "show corps-information selector (message 8163)",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0073"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay semantics",
-        "final writeback"
+        "upstream producer/menu mapping"
       ]
     },
     {
       "opcode": 11026,
       "family": "11020-11029",
       "dispatch": "direct",
-      "handler": "0x516A00",
-      "input_object": "CForceData/list adapter",
+      "handler": "browse_region_information@0x516A00",
+      "input_object": "CChiikiBuildingData-backed region list",
       "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "record-type-confirmed",
+      "filtering": "valid region/building records",
+      "randomness": "none in confirmed handler",
+      "final_side_effect": "show region-information selector (message 8323)",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0073"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay semantics",
-        "final writeback"
+        "upstream producer/menu mapping"
       ]
     },
     {
       "opcode": 11027,
       "family": "11020-11029",
       "dispatch": "direct",
-      "handler": "0x514010",
-      "input_object": "CItemData-backed enumeration",
+      "handler": "browse_item_information@0x514010",
+      "input_object": "CItemData global list",
       "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "record-type-confirmed",
+      "filtering": "item enumeration callback",
+      "randomness": "none in confirmed handler",
+      "final_side_effect": "show item-information selector (message 8165)",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0073"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay semantics",
-        "final writeback"
+        "upstream producer/menu mapping"
       ]
     },
     {
@@ -1959,7 +1951,7 @@
       ],
       "missing_evidence": [
         "producer",
-        "gameplay semantics",
+        "gameplay or UI semantics",
         "final writeback"
       ]
     },
@@ -1967,21 +1959,20 @@
       "opcode": 11029,
       "family": "11020-11029",
       "dispatch": "direct",
-      "handler": "0x50F6C0",
-      "input_object": "pending",
+      "handler": "open_force_leader_information@0x50F6C0",
+      "input_object": "current force record",
       "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "dispatcher-confirmed",
+      "filtering": "resolve force leader",
+      "randomness": "none in confirmed handler",
+      "final_side_effect": "open leader-specific person dialog",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0073"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay semantics",
-        "final writeback"
+        "upstream producer/menu mapping"
       ]
     },
     {
@@ -2001,7 +1992,7 @@
       ],
       "missing_evidence": [
         "producer",
-        "gameplay semantics",
+        "gameplay or UI semantics",
         "final writeback"
       ]
     },
@@ -2022,7 +2013,7 @@
       ],
       "missing_evidence": [
         "producer",
-        "gameplay semantics",
+        "gameplay or UI semantics",
         "final writeback"
       ]
     },
@@ -2030,21 +2021,20 @@
       "opcode": 11037,
       "family": "11035-11038",
       "dispatch": "direct",
-      "handler": "0x50F7B0",
-      "input_object": "pending",
+      "handler": "open_game_help_topic@0x50F7B0",
+      "input_object": "help-topic context",
       "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "dispatcher-confirmed",
+      "filtering": "none",
+      "randomness": "none in confirmed handler",
+      "final_side_effect": "call WinHelpA for SAN9PK_T.HLP",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0073"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay semantics",
-        "final writeback"
+        "upstream producer/menu mapping"
       ]
     },
     {
@@ -2064,7 +2054,7 @@
       ],
       "missing_evidence": [
         "producer",
-        "gameplay semantics",
+        "gameplay or UI semantics",
         "final writeback"
       ]
     },
@@ -2072,399 +2062,380 @@
       "opcode": 11040,
       "family": "11040-11053",
       "dispatch": "direct",
-      "handler": "0x516E50",
-      "input_object": "CCityData context",
+      "handler": "show_context_city_information@0x516E50",
+      "input_object": "current CCityData context",
       "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "record-type-confirmed",
+      "filtering": "CCityData RTTI",
+      "randomness": "none in confirmed handler",
+      "final_side_effect": "show selected city information",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0073"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay semantics",
-        "final writeback"
+        "upstream producer/menu mapping"
       ]
     },
     {
       "opcode": 11041,
       "family": "11040-11053",
       "dispatch": "direct",
-      "handler": "0x514460",
-      "input_object": "CCityData or CChiikiBuildingData, then person adapter",
+      "handler": "browse_context_city_person_information@0x514460",
+      "input_object": "current city/building context",
       "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "record-type-confirmed",
+      "filtering": "CCityData and CChiikiBuildingData RTTI; enumerate associated persons",
+      "randomness": "none in confirmed handler",
+      "final_side_effect": "show person-information selector",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0073"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay semantics",
-        "final writeback"
+        "upstream producer/menu mapping"
       ]
     },
     {
       "opcode": 11042,
       "family": "11040-11053",
       "dispatch": "direct",
-      "handler": "0x516A70",
-      "input_object": "CChiikiBuildingData context",
+      "handler": "show_context_region_information@0x516A70",
+      "input_object": "current CChiikiBuildingData context",
       "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "record-type-confirmed",
+      "filtering": "CChiikiBuildingData RTTI",
+      "randomness": "none in confirmed handler",
+      "final_side_effect": "show selected region/building information",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0073"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay semantics",
-        "final writeback"
+        "upstream producer/menu mapping"
       ]
     },
     {
       "opcode": 11043,
       "family": "11040-11053",
       "dispatch": "direct",
-      "handler": "0x514550",
-      "input_object": "CChiikiBuildingData context",
+      "handler": "browse_context_region_person_information@0x514550",
+      "input_object": "current CChiikiBuildingData context",
       "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "record-type-confirmed",
+      "filtering": "CChiikiBuildingData RTTI; enumerate associated persons",
+      "randomness": "none in confirmed handler",
+      "final_side_effect": "show person-information selector",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0073"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay semantics",
-        "final writeback"
+        "upstream producer/menu mapping"
       ]
     },
     {
       "opcode": 11044,
       "family": "11040-11053",
       "dispatch": "direct",
-      "handler": "0x516720",
-      "input_object": "CUnitData context",
+      "handler": "show_context_unit_information@0x516720",
+      "input_object": "current CUnitData context",
       "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "record-type-confirmed",
+      "filtering": "CUnitData RTTI",
+      "randomness": "none in confirmed handler",
+      "final_side_effect": "show selected unit information",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0073"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay semantics",
-        "final writeback"
+        "upstream producer/menu mapping"
       ]
     },
     {
       "opcode": 11045,
       "family": "11040-11053",
       "dispatch": "direct",
-      "handler": "0x514620",
-      "input_object": "CUnitData, then person adapter",
+      "handler": "browse_context_unit_person_information@0x514620",
+      "input_object": "current CUnitData context",
       "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "record-type-confirmed",
+      "filtering": "CUnitData RTTI; enumerate unit persons",
+      "randomness": "none in confirmed handler",
+      "final_side_effect": "show person-information selector",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0073"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay semantics",
-        "final writeback"
+        "upstream producer/menu mapping"
       ]
     },
     {
       "opcode": 11046,
       "family": "11040-11053",
       "dispatch": "direct",
-      "handler": "0x517920",
-      "input_object": "pending",
+      "handler": "show_context_force_information@0x517920",
+      "input_object": "current valid map object",
       "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "dispatcher-confirmed",
+      "filtering": "resolve associated force through virtual slot +0x30",
+      "randomness": "none in confirmed handler",
+      "final_side_effect": "show associated force information",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0073"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay semantics",
-        "final writeback"
+        "upstream producer/menu mapping"
       ]
     },
     {
       "opcode": 11047,
       "family": "11040-11053",
       "dispatch": "direct",
-      "handler": "0x5146F0",
-      "input_object": "associated object from virtual slot +0x30, then person adapter",
+      "handler": "browse_context_force_person_information@0x5146F0",
+      "input_object": "current valid map object",
       "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "record-type-confirmed",
+      "filtering": "resolve associated force and enumerate persons",
+      "randomness": "none in confirmed handler",
+      "final_side_effect": "show person-information selector",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0073"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay semantics",
-        "final writeback"
+        "upstream producer/menu mapping"
       ]
     },
     {
       "opcode": 11048,
       "family": "11040-11053",
       "dispatch": "direct",
-      "handler": "0x517350",
-      "input_object": "pending",
+      "handler": "show_context_corps_information@0x517350",
+      "input_object": "current valid map object",
       "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "dispatcher-confirmed",
+      "filtering": "resolve associated corps through virtual slot +0x34",
+      "randomness": "none in confirmed handler",
+      "final_side_effect": "show associated corps information",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0073"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay semantics",
-        "final writeback"
+        "upstream producer/menu mapping"
       ]
     },
     {
       "opcode": 11049,
       "family": "11040-11053",
       "dispatch": "direct",
-      "handler": "0x5147B0",
-      "input_object": "pending",
+      "handler": "browse_context_corps_person_information@0x5147B0",
+      "input_object": "current valid map object",
       "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "dispatcher-confirmed",
+      "filtering": "resolve associated corps and enumerate persons",
+      "randomness": "none in confirmed handler",
+      "final_side_effect": "show person-information selector",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0073"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay semantics",
-        "final writeback"
+        "upstream producer/menu mapping"
       ]
     },
     {
       "opcode": 11050,
       "family": "11040-11053",
       "dispatch": "direct",
-      "handler": "0x510E60",
-      "input_object": "pending",
+      "handler": "show_available_rank_catalog@0x510E60",
+      "input_object": "force associated with current object",
       "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "dispatcher-confirmed",
+      "filtering": "build appointable-rank list",
+      "randomness": "none in confirmed handler",
+      "final_side_effect": "show available ranks (message 8435)",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0073"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay semantics",
-        "final writeback"
+        "upstream producer/menu mapping"
       ]
     },
     {
       "opcode": 11051,
       "family": "11040-11053",
       "dispatch": "direct",
-      "handler": "0x510F50",
-      "input_object": "pending",
+      "handler": "show_available_tactic_catalog@0x510F50",
+      "input_object": "force associated with current object",
       "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "dispatcher-confirmed",
+      "filtering": "build available-tactic list",
+      "randomness": "none in confirmed handler",
+      "final_side_effect": "show available tactics (message 8436)",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0073"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay semantics",
-        "final writeback"
+        "upstream producer/menu mapping"
       ]
     },
     {
       "opcode": 11052,
       "family": "11040-11053",
       "dispatch": "direct",
-      "handler": "0x511030",
-      "input_object": "pending",
+      "handler": "show_available_formation_catalog@0x511030",
+      "input_object": "force associated with current object",
       "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "dispatcher-confirmed",
+      "filtering": "build available-formation list",
+      "randomness": "none in confirmed handler",
+      "final_side_effect": "show available formations (message 8437)",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0073"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay semantics",
-        "final writeback"
+        "upstream producer/menu mapping"
       ]
     },
     {
       "opcode": 11053,
       "family": "11040-11053",
       "dispatch": "direct",
-      "handler": "0x511110",
-      "input_object": "pending",
+      "handler": "show_available_ship_catalog@0x511110",
+      "input_object": "force associated with current object",
       "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "dispatcher-confirmed",
+      "filtering": "build available-ship list",
+      "randomness": "none in confirmed handler",
+      "final_side_effect": "show available ships (message 8438)",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0073"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay semantics",
-        "final writeback"
+        "upstream producer/menu mapping"
       ]
     },
     {
       "opcode": 11060,
       "family": "11060-11064",
       "dispatch": "direct",
-      "handler": "0x513D60",
-      "input_object": "pending",
+      "handler": "open_person_editor@0x513D60",
+      "input_object": "global CPersonData list",
       "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "dispatcher-confirmed",
+      "filtering": "editable-person filters",
+      "randomness": "none in confirmed handler",
+      "final_side_effect": "open person editor; committed user changes may update records (message 8483)",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0073"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay semantics",
-        "final writeback"
+        "upstream producer/menu mapping"
       ]
     },
     {
       "opcode": 11061,
       "family": "11060-11064",
       "dispatch": "direct",
-      "handler": "0x513E20",
-      "input_object": "pending",
+      "handler": "open_city_editor@0x513E20",
+      "input_object": "global CCityData list",
       "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "dispatcher-confirmed",
+      "filtering": "editable-city filters",
+      "randomness": "none in confirmed handler",
+      "final_side_effect": "open city editor; committed user changes may update records (message 8502)",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0073"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay semantics",
-        "final writeback"
+        "upstream producer/menu mapping"
       ]
     },
     {
       "opcode": 11062,
       "family": "11060-11064",
       "dispatch": "direct",
-      "handler": "0x513E90",
-      "input_object": "pending",
+      "handler": "open_corps_editor@0x513E90",
+      "input_object": "global CForceData-backed corps list",
       "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "dispatcher-confirmed",
+      "filtering": "editable-corps filters",
+      "randomness": "none in confirmed handler",
+      "final_side_effect": "open corps editor; committed user changes may update records (message 8519)",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0073"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay semantics",
-        "final writeback"
+        "upstream producer/menu mapping"
       ]
     },
     {
       "opcode": 11063,
       "family": "11060-11064",
       "dispatch": "direct",
-      "handler": "0x513F30",
-      "input_object": "pending",
+      "handler": "open_facility_editor@0x513F30",
+      "input_object": "global CChiikiBuildingData list",
       "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "dispatcher-confirmed",
+      "filtering": "editable-facility filters",
+      "randomness": "none in confirmed handler",
+      "final_side_effect": "open facility editor; committed user changes may update records (message 8507)",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0073"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay semantics",
-        "final writeback"
+        "upstream producer/menu mapping"
       ]
     },
     {
       "opcode": 11064,
       "family": "11060-11064",
       "dispatch": "direct",
-      "handler": "0x513FA0",
-      "input_object": "pending",
+      "handler": "open_obstacle_editor@0x513FA0",
+      "input_object": "global CChiikiBuildingData list",
       "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "dispatcher-confirmed",
+      "filtering": "obstacle filters",
+      "randomness": "none in confirmed handler",
+      "final_side_effect": "open obstacle editor; committed user changes may update records (message 8512)",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0073"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay semantics",
-        "final writeback"
+        "upstream producer/menu mapping"
       ]
     }
   ]

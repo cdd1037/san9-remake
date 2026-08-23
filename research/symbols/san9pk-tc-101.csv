@@ -254,3 +254,5 @@ address,symbol,kind,module,confidence,evidence,sources,match,notes
 0x0049C7B0,execute_unit_retreat_command,function,command,high,RE-SAN9PK-0085,SRC-SAN9PK-TC-101,target-type39-event+policy-bits+completion,"Executes the type-39 unit-retreat command"
 0x00608EFC,vftable_automatic_unit_retreat_planner,data,tactical-ai,high,RE-SAN9PK-0085,SRC-SAN9PK-TC-101,target-constructor+next-vtable-boundary,"Fourteen-slot automatic unit-retreat planner vtable"
 0x00608CE8,vftable_unit_retreat_command,data,command,high,RE-SAN9PK-0085,SRC-SAN9PK-TC-101,target-constructor+next-vtable-boundary,"Twenty-two-slot type-39 unit-retreat command vtable"
+0x00435380,is_region_building_record_empty,function,core-data,high,RE-SAN9PK-0086,SRC-SAN9PK-TC-101,target-fields-0x3C-and-0x48+operation-10,"Checks whether a region-building record has no runtime building and no nonzero id/state word"
+0x00435840,is_unoccupied_region_building,function,core-data,high,RE-SAN9PK-0086,SRC-SAN9PK-TC-101,target-nonempty+invalid-virtual-owner+operation-60,"Checks whether a nonempty region building has no valid occupying or owning object"

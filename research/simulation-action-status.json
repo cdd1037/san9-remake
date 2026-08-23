@@ -101,9 +101,9 @@
       "output": "persistent source-building list and attack target; final command boundary at create_automatic_attack_command@0x4B5640",
       "filtering": "ownership/type/path filters, per-source 10000/5000 troop minima, target-defense aggregation and strict 75/100/125/150 percent strength gates",
       "randomness": "adjacent candidates use threshold 40 or floor(max(0,89-V)^2/100); strength fallback uses config+5 only with source troops >=70000; alternate path target uses 25*path_count and is certain when path_count >=4",
-      "command_boundary": "operations 9/60 call allocate_unit_deployment_command and shared command type 9; operation 10 selects a square/fixed facility and enters the shared construction-unit command",
-      "status": "owner-source-target-allocation-randomness-and-command-writeback-confirmed; helper gameplay names and operation 60 versus 9 semantics pending",
-      "evidence": ["RE-SAN9PK-0082", "RE-SANCALC-0001", "RE-SAN9PK-0078", "RE-SAN9PK-0084"]
+      "command_boundary": "empty region-building records select operation 10 and the shared construction command; unoccupied and other nonempty targets select operations 60 and 9, which merge into the identical shared command type 9 without storing the operation label",
+      "status": "owner-source-target-allocation-randomness-target-classification-and-command-writeback-confirmed; remaining helper gameplay names pending",
+      "evidence": ["RE-SAN9PK-0082", "RE-SANCALC-0001", "RE-SAN9PK-0078", "RE-SAN9PK-0084", "RE-SAN9PK-0086"]
     },
     {
       "function": "select_automatic_construction_facility@0x4B3D00",

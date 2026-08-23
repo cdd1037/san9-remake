@@ -1,0 +1,21 @@
+{
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0086",
+  "status": "applied-and-read-back",
+  "function_renames": [
+    {"address":"0x435380","before":"sub_435380","after":"is_region_building_record_empty","confidence":"high"},
+    {"address":"0x435840","before":"sub_435840","after":"is_unoccupied_region_building","confidence":"high"}
+  ],
+  "dry_run":"2/2 passed",
+  "comments": ["0x435380", "0x435840", "0x4B5640"],
+  "representative_diff":["0x4B5640"],
+  "application_result": {
+    "idb_saved":true,
+    "names_read_back":"2/2",
+    "comments_read_back":"3/3",
+    "health_baseline":{"function_count":10978,"named_function_count":1211,"auto_named_function_count":9767,"function_comment_count":719,"local_type_count":195,"decompile_failure_count":7,"undefined_bytes_in_exec":0,"digest":"7b4a190f2fbbf9988e3d427620879864f1aed053a5d84724e9b8e1da7a06ab10"},
+    "catalogs":{"runtime_classes":400,"vtable_candidates":31,"message_map_headers":67,"message_map_entries":183,"global_roots":500},
+    "repeat_export":"all five core-stat digests identical"
+  },
+  "evidence_summary":"The current-sample target predicates classify operation 10 as an empty region-building record, 60 as a nonempty but unoccupied building, and 9 as other nonempty targets. Cases 9 and 60 merge before the sole shared type-9 command allocator and the operation label is not stored in the command."
+}

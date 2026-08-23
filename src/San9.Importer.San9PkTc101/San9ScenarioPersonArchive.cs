@@ -35,9 +35,9 @@ public sealed record San9ScenarioPersonRecord(
     ushort BloodlineRootPersonCode,
     ushort ParentPersonCode,
     ushort Affinity,
-    ushort Temperament,
-    ushort Duty,
+    ushort Righteousness,
     ushort Ambition,
+    ushort Personality,
     IReadOnlyList<ushort> TacticProficiencies,
     ushort EquippedTacticCode,
     ushort FlagCode,
@@ -189,9 +189,9 @@ public static class San9ScenarioPersonArchive
             ushort bloodlineRootPersonCode = reader.ReadUInt16();
             ushort parentPersonCode = reader.ReadUInt16();
             ushort affinity = reader.ReadUInt16();
-            ushort temperament = reader.ReadUInt16();
-            ushort duty = reader.ReadUInt16();
+            ushort righteousness = reader.ReadUInt16();
             ushort ambition = reader.ReadUInt16();
+            ushort personality = reader.ReadUInt16();
             ushort[] tacticProficiencies = ReadUInt16Values(reader, TacticCategoryCount);
             ushort equippedTacticCode = reader.ReadUInt16();
             ushort flagCode = reader.ReadUInt16();
@@ -227,9 +227,9 @@ public static class San9ScenarioPersonArchive
                 bloodlineRootPersonCode,
                 parentPersonCode,
                 affinity,
-                temperament,
-                duty,
+                righteousness,
                 ambition,
+                personality,
                 Array.AsReadOnly(tacticProficiencies),
                 equippedTacticCode,
                 flagCode,

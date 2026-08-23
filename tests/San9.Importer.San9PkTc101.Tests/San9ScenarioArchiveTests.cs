@@ -408,9 +408,9 @@ public sealed class San9ScenarioArchiveTests
             bloodlineRootPersonCode: 900,
             parentPersonCode: 1_000,
             affinity: 62,
-            temperament: 1,
-            duty: 8,
+            righteousness: 8,
             ambition: 4,
+            personality: 1,
             learnedTacticFlags: (1UL << 2) | (1UL << 40));
 
         stream.Position = 0;
@@ -436,6 +436,9 @@ public sealed class San9ScenarioArchiveTests
         Assert.Equal(30, record.Intelligence);
         Assert.Equal(42, record.Politics);
         Assert.Equal(62, record.Affinity);
+        Assert.Equal(8, record.Righteousness);
+        Assert.Equal(4, record.Ambition);
+        Assert.Equal(1, record.Personality);
         Assert.Equal(San9ScenarioPersonHealthState.SevereInjury, record.HealthState);
         Assert.True(record.HasTacticCategoryMastery(4));
         Assert.True(record.IsOwnerLeader);
@@ -605,9 +608,9 @@ public sealed class San9ScenarioArchiveTests
         int bloodlineRootPersonCode = ushort.MaxValue,
         int parentPersonCode = ushort.MaxValue,
         int affinity = 0,
-        int temperament = 0,
-        int duty = 0,
+        int righteousness = 0,
         int ambition = 0,
+        int personality = 0,
         int equippedTacticCode = ushort.MaxValue,
         byte[]? forceLoyaltyValues = null,
         ulong learnedTacticFlags = 0)
@@ -639,9 +642,9 @@ public sealed class San9ScenarioArchiveTests
         writer.Write((ushort)bloodlineRootPersonCode);
         writer.Write((ushort)parentPersonCode);
         writer.Write((ushort)affinity);
-        writer.Write((ushort)temperament);
-        writer.Write((ushort)duty);
+        writer.Write((ushort)righteousness);
         writer.Write((ushort)ambition);
+        writer.Write((ushort)personality);
         for (int categoryIndex = 0; categoryIndex < San9ScenarioPersonArchive.TacticCategoryCount; categoryIndex++)
         {
             writer.Write((ushort)(categoryIndex * 100));

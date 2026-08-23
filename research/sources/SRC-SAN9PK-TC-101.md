@@ -29,7 +29,7 @@
 
 ## 关联记录
 
-- `EXP-*`：无
+- `EXP-*`：[EXP-SAN9PK-0001](../experiments/EXP-SAN9PK-0001.md)
 - `RE-*`：[RE-SAN9PK-0001](../findings/RE-SAN9PK-0001.md)、[RE-SAN9PK-0005](../findings/RE-SAN9PK-0005.md)、[RE-SAN9PK-0006](../findings/RE-SAN9PK-0006.md)、[RE-SAN9PK-0008](../findings/RE-SAN9PK-0008.md)
 - `BEH-*`：[BEH-IMPORT-0001](../../specs/behavior/BEH-IMPORT-0001-source-container-validation.md)、[BEH-IMPORT-0002](../../specs/behavior/BEH-IMPORT-0002-scenario-item-records.md)、[BEH-IMPORT-0003](../../specs/behavior/BEH-IMPORT-0003-scenario-city-records.md)
 - 导入器：`src/San9.Importer.San9PkTc101/`

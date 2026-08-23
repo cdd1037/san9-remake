@@ -1,0 +1,54 @@
+{
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0090",
+  "status": "applied-and-read-back",
+  "structural_repairs": [
+    {
+      "range": "0x50A168..0x50A23F",
+      "before": "one data item hiding executable code",
+      "after": "process_simulation_stage_task_state@0x50A170..0x50A238",
+      "result": "defined-and-read-back"
+    }
+  ],
+  "function_renames": [
+    {"address":"0x50A170","before":"sub_50A170","after":"process_simulation_stage_task_state","confidence":"high"},
+    {"address":"0x4642B0","before":"sub_4642B0","after":"try_set_unit_return_event","confidence":"high"},
+    {"address":"0x46BF20","before":"sub_46BF20","after":"unit_return_event_ctor","confidence":"high"},
+    {"address":"0x462670","before":"sub_462670","after":"clear_unit_command","confidence":"high"},
+    {"address":"0x461E40","before":"sub_461E40","after":"set_unit_command_event","confidence":"high"},
+    {"address":"0x461C00","before":"sub_461C00","after":"get_unit_command_event_type","confidence":"high"},
+    {"address":"0x46A770","before":"set_person_personality","after":"set_person_righteousness","confidence":"high"},
+    {"address":"0x45E200","before":"set_person_righteousness","after":"set_person_ambition","confidence":"high"},
+    {"address":"0x45E350","before":"set_person_ambition","after":"set_person_personality","confidence":"high"}
+  ],
+  "type_edits": [
+    {
+      "type": "San9PersonRecord",
+      "size": "0x128",
+      "members": {
+        "0x6C": "affinity",
+        "0x70": "righteousness",
+        "0x74": "ambition",
+        "0x78": "personality",
+        "0x7C": "lifespan",
+        "0x80": "health"
+      },
+      "result": "renamed-and-read-back"
+    }
+  ],
+  "comments": ["0x50A170","0x50A1A6","0x50A1B2","0x4642B0","0x46BF20","0x44F830","0x453B20","0x453B50"],
+  "application_result": {
+    "idb_saved": true,
+    "function_boundary": "0x50A170..0x50A238",
+    "direct_xrefs": {
+      "process_unit_autonomous_retreat_updates@0x453B20": ["0x50A1A6"],
+      "process_unit_pursuit_updates@0x453B50": ["0x50A1B2"]
+    },
+    "function_names_read_back": "9/9",
+    "comments_read_back": "8/8",
+    "type_members_read_back": "6/6",
+    "range_sha256": "390bcbead1960b42a6cc2523424089e54ccecbe69be64e286d58ab61b95d8084",
+    "patched_byte_count": 0
+  },
+  "evidence_summary": "The vtable-backed daily simulation stage directly calls the retreat and pursuit 850-unit scans. Guan Yu ID 95 and twenty formal scenarios correct the runtime person field order to affinity/righteousness/ambition/personality."
+}

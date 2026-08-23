@@ -44,7 +44,7 @@
 | `0x2A` | 健康/伤势值，写入运行时 `+0x80`；`0` 为良，`1..4` 为轻伤，`5..14` 为重伤；恢复路径逐期递减至 0 |
 | `0x2C` | 血缘根人物编号，写入运行时 `+0x90`；亲代关系变化时会递归更新后代的此字段 |
 | `0x2E` | 父母/亲代人物编号，写入运行时 `+0x94`；程序据此枚举子代、判断同亲代关系，并在亲代人物删除时清空引用 |
-| `0x30`、`0x32`、`0x34`、`0x36` | 相性、性格、义理、野心；全局编辑覆盖与本次界面分组相互吻合 |
+| `0x30`、`0x32`、`0x34`、`0x36` | 相性、义理、野心、性格；`RE-SAN9PK-0090` 以关羽 ID 95 的 20 份正式剧本值 `75/15/3/1`、暂停运行时同值及人物资料交叉更正旧顺序 |
 | `0x38..0x49` | 九个 `u16` 兵法类别熟练度，写入运行时 `+0xA4` |
 | `0x4A` | 当前装备兵法代码；通过 41 项兵法定义访问器转为 Person `+0xF8` 指针，与 `0x00` 标志字相互独立 |
 | `0x4C` | 旗代码；`0xFFFF` 归一为 `-1` 后写入运行时 `+0x9C`，生成时按姓氏表取得，同姓人物可复用同一代码 |
@@ -53,7 +53,7 @@
 
 `D_Person.s9` 的 40 字节覆盖表再次交叉确认四维、相性、性格、义理、野心、九类熟练度、九个精通标志和 41 个已习得兵法位。它是覆盖层，不改变 `prsn` 的记录布局。
 
-后续 `RE-SAN9PK-0081` 已把四项运行时落点闭合：`prsn +0x30/+0x32/+0x34/+0x36` 分别经独立 setter 写入 Person `+0x6C/+0x70/+0x74/+0x78`。敌接近、自动撤退和追击响应读取的是最后一项 `+0x78` 野心，不是 `+0x70` 性格。
+后续 `RE-SAN9PK-0081` 已把四项运行时落点闭合，`RE-SAN9PK-0090` 又用正式剧本和暂停运行时对象更正业务映射：`prsn +0x30/+0x32/+0x34/+0x36` 分别写入 Person `+0x6C/+0x70/+0x74/+0x78`，语义依次为相性、义理、野心、性格。敌接近、自动撤退和追击响应读取的最后一项 `+0x78` 因而是性格，不是野心。
 
 ## 黑盒界面对照
 
@@ -159,7 +159,7 @@
 
 本次 `0x00` 位域补充先以项目级 IDA MCP 完成只读枚举，再经用户同意写入当前 `San9PK-TC-101.i64`。`San9PersonRecord` 的 `+0xE8` 已从错误的两字节精通位修正为四字节 `person_flags`，`+0xF8` 定义为 `equipped_tactic` 指针，`+0xFC` 定义为六字节 `learned_tactics_bits`；结构总尺寸回读仍为 `0x128`。另写入十个中性函数名及其类型：`set_person_flags_raw`、`set_or_clear_person_flags`、`set_person_gender_flag`、`get_person_gender_flag`、`has_person_tactic_category_mastery`、`set_person_tactic_category_mastery`、`set_person_unit_formation_slot`、`get_person_unit_formation_row`、`set_person_equipped_tactic` 和 `is_special_prisoner_state`。bit 13、bit 14 的注释明确保留精确业务名称未知，不以推断命名。重新反编译 `deserialize_person_record` 后已显示 `this->person_flags`、`this->equipped_tactic` 和 `this->learned_tactics_bits`，记录消费顺序未改变。
 
-2026-08-18 增量同步：在 `deserialize_person_record`（`0x44F830`）入口追加 `prsn +0x32` 性格字段及四项消息语义注释；明确数字存储顺序尚未独立证明，未写入性格枚举类型或修改人物结构布局。回读反编译确认字段读取顺序未变。
+2026-08-18 增量同步曾把 `prsn +0x32` 记为性格；该判断已由 `RE-SAN9PK-0090` 更正。2026-08-24 回读确认 `+0x32/+0x34/+0x36` 应为义理、野心、性格，并已同步修正 IDA setter、人物结构、导入 API 与本行为规格。
 
 没有读取或修改旧版 `San9PK.exe.idb`，也没有修改程序字节或函数边界；IDB 变更仅发生在 `San9PK-TC-101.i64`。
 

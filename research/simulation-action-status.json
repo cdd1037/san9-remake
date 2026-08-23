@@ -32,12 +32,12 @@
   "tactical_ai_anchors": [
     {
       "function": "select_ai_unit_formation@0x4A20A0",
-      "automatic_factory_candidate": "internal code 27 constructor 0x4A4600 and adjacent task cluster",
+      "automatic_factory_owner": "internal code 58 constructor 0x4A1370; vftable 0x609004 slot +0x28 is 0x4A4430",
       "inputs": "five selected persons, four land-tactic category counts, available formation list, rule-mode flag",
       "output": "San9ArrayRecord formation pointer",
       "randomness": "rnd(2, global stream, 1) only when infantry count is maximal; returns formation 0 or 1",
-      "status": "decision-rule-confirmed; exact automatic-task virtual call edge remains pending",
-      "evidence": ["RE-SAN9PK-0075"]
+      "status": "decision-rule-and-owner-confirmed; upstream work-code producer remains pending",
+      "evidence": ["RE-SAN9PK-0075", "RE-SAN9PK-0076"]
     }
   ],
   "opcodes": [

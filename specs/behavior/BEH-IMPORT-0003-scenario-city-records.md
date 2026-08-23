@@ -3,7 +3,7 @@
 - 状态：已确认
 - 负责人：项目开发者
 - 最后更新：2026-08-22
-- 关联证据：[RE-SAN9PK-0008](../../research/findings/RE-SAN9PK-0008.md)、[RE-SAN9PK-0055](../../research/findings/RE-SAN9PK-0055.md)、[RE-SAN9PK-0058](../../research/findings/RE-SAN9PK-0058.md)
+- 关联证据：[RE-SAN9PK-0008](../../research/findings/RE-SAN9PK-0008.md)、[RE-SAN9PK-0055](../../research/findings/RE-SAN9PK-0055.md)、[RE-SAN9PK-0058](../../research/findings/RE-SAN9PK-0058.md)、[RE-SAN9PK-0061](../../research/findings/RE-SAN9PK-0061.md)
 - 关联决策：[DEC-DATA-0001](../decisions/DEC-DATA-0001-content-pipeline.md)
 - 关联渲染规格：[BEH-RENDER-0001](BEH-RENDER-0001-static-map-snapshot.md)
 
@@ -11,7 +11,7 @@
 
 本规格约束繁中 PK 1.0.1.0 正式剧本 `city` chunk 的记录边界、已确认字段和输入校验。输入必须先通过 [BEH-IMPORT-0001](BEH-IMPORT-0001-source-container-validation.md)。
 
-本规格不定义城市名称文本、州域显示名称、坐标到道路拓扑的映射、其他版本对两个保留字段的可能解释、城市武将列表或城市属性的运行时变化公式。
+本规格不定义城市名称文本、州域显示名称、坐标到道路拓扑的映射、其他版本对两个保留字段的可能解释、城市武将列表或城市属性的运行时变化公式。原作在剧本载入后对势力君主城市执行的兵役转化与增兵属于新局初始化，不属于 `city` chunk 解析；证据见 [RE-SAN9PK-0061](../../research/findings/RE-SAN9PK-0061.md)。
 
 ## 原作基线
 

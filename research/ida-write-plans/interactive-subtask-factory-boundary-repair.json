@@ -1,0 +1,39 @@
+{
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0074",
+  "status": "applied-and-read-back",
+  "target": {
+    "start": "0x5125A0",
+    "end_exclusive": "0x513127",
+    "byte_count": 2951,
+    "sha256": "dd876b02535652630fd0858d7099b4bf72fb1b86f4a7e1488e37080d9d266802"
+  },
+  "observed_problem": {
+    "vtable_reference": "vftable_interactive_force_action_task+0x28 (0x610BF0) -> 0x5125A0",
+    "incorrect_data_item": "0x5125A0..0x512738 is one 408-byte data item",
+    "incorrect_function": "sub_5128B8@0x5128B8..0x513127 begins at an internal switch target",
+    "effect": "the true virtual factory cannot be decompiled and the 10000-series mapping is split"
+  },
+  "planned_edits": [
+    "delete the auto-created internal function at 0x5128B8 without changing bytes",
+    "undefine only the erroneous 408-byte data item at 0x5125A0",
+    "define code and one function from the vtable target 0x5125A0 through the existing terminal return at 0x513127",
+    "name the recovered function create_interactive_force_action_subtask only after decompilation confirms its code argument and returned child-task construction"
+  ],
+  "rollback_evidence": "The exact target bytes are hashed above; no program byte patch is authorized. The main IDB was saved before repair.",
+  "acceptance": [
+    "0x610BF0 resolves to a function head at 0x5125A0",
+    "the recovered function decompiles",
+    "0x5128B8 remains an internal switch target, not a function head",
+    "function count changes only by merging the false internal function into the recovered factory",
+    "target byte hash remains unchanged"
+  ],
+  "application_result": {
+    "old_internal_function_deleted": true,
+    "factory_function_created": "0x5125A0..0x513127",
+    "internal_target_0x5128B8_is_function_head": false,
+    "decompilation": "successful; 0..70 switch recovered",
+    "function_name": "create_interactive_force_action_subtask",
+    "byte_sha256_after": "dd876b02535652630fd0858d7099b4bf72fb1b86f4a7e1488e37080d9d266802"
+  }
+}

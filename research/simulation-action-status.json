@@ -9,6 +9,26 @@
     "range-dispatch-confirmed": "The opcode is accepted by the virtual 10000-10070 path; its individual factory result is not yet mapped.",
     "behavior-confirmed": "Producer, filters, randomness and final side effect are closed."
   },
+  "interactive_factory": {
+    "address": "create_interactive_force_action_subtask@0x5125A0",
+    "finding": "RE-SAN9PK-0074",
+    "input_mapping": "opcode 10000..10070 maps to factory code 0..70",
+    "supported_code_to_constructor": {
+      "0": "0x4C1720", "1": "0x4C61F0", "2": "0x4C1D40", "3": "0x4C2060",
+      "4": "0x4BF460", "5": "0x4C35F0", "6": "0x4BE810", "7": "0x4BEB00",
+      "8": "0x4C6E70", "9": "0x4C6670", "10": "0x4C2C00", "11": "0x4C88A0",
+      "12": "0x4C12D0", "13": "0x4C0160", "14": "0x4C5B00", "15": "0x4C0820",
+      "16": "0x4C1A30", "17": "0x4BF060", "18": "0x4C5F90", "19": "0x4C74A0",
+      "21": "0x4C7AC0", "22": "0x4C0C30", "23": "0x4C6B70", "24": "0x4C7170",
+      "25": "0x4BFE20", "26": "0x4C2380", "27": "0x4BFAE0", "28": "0x4C3990",
+      "29": "0x4C52F0", "30": "0x4C7780", "31": "0x4BF7A0", "32": "0x4C5620",
+      "33": "0x4C8C80", "34": "0x4C7FA0", "35": "0x4C0490", "36": "0x4C26C0",
+      "38": "0x4C40C0", "39": "0x4C4A20", "51": "0x4C4060", "52": "0x4C45F0"
+    },
+    "null_codes": [20, 37, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70],
+    "status": "factory-edge-confirmed",
+    "remaining_gap": "constructor/task semantics, filtering, randomness and final command writeback"
+  },
   "opcodes": [
     {
       "opcode": 10000,

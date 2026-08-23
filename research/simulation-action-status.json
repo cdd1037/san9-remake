@@ -46,6 +46,21 @@
     "status": "producer-and-order-confirmed",
     "evidence": ["RE-SAN9PK-0072", "RE-SAN9PK-0076", "RE-SAN9PK-0077"]
   },
+  "tactical_ai_coverage": {
+    "status": "eight-decision-categories-confirmed",
+    "categories": {
+      "formation_composition": ["RE-SAN9PK-0076", "RE-SAN9PK-0079", "RE-SAN9PK-0080", "RE-SAN9PK-0082"],
+      "person_selection": ["RE-SAN9PK-0078", "RE-SAN9PK-0079", "RE-SAN9PK-0082"],
+      "tactic_selection": ["RE-SAN9PK-0079"],
+      "formation_selection": ["RE-SAN9PK-0075", "RE-SAN9PK-0082"],
+      "troop_allocation": ["RE-SAN9PK-0078", "RE-SAN9PK-0079", "RE-SAN9PK-0082"],
+      "target_selection": ["RE-SAN9PK-0080", "RE-SAN9PK-0082", "RE-SAN9PK-0084", "RE-SAN9PK-0086"],
+      "attack": ["RE-SAN9PK-0078", "RE-SAN9PK-0081", "RE-SAN9PK-0082", "RE-SAN9PK-0087"],
+      "retreat": ["RE-SAN9PK-0081", "RE-SAN9PK-0085", "RE-SAN9PK-0087"]
+    },
+    "completion_evidence": "RE-SAN9PK-0088",
+    "remaining_experiment": "EXP-SAN9PK-0001 tests runtime reachability of the statically orphaned autonomous-retreat and pursuit scans"
+  },
   "tactical_ai_anchors": [
     {
       "function": "create_automatic_unit_retreat_command@0x49EC70",
@@ -91,8 +106,8 @@
       "output": "San9ArrayRecord formation pointer",
       "randomness": "rnd(2, global stream, 1) only when infantry count is maximal; returns formation 0 or 1",
       "command_boundary": "command type 9 validates at 0x48BC00 and executes at 0x48BD20; creates the unit and subtracts source troops through 0x485FA0",
-      "status": "decision-rule-owner-work-schedule-and-command-execution-confirmed; remaining AI decision categories pending",
-      "evidence": ["RE-SAN9PK-0075", "RE-SAN9PK-0076", "RE-SAN9PK-0077", "RE-SAN9PK-0078"]
+      "status": "decision-rule-owner-work-schedule-and-command-execution-confirmed; cross-category coverage closed by RE-SAN9PK-0088",
+      "evidence": ["RE-SAN9PK-0075", "RE-SAN9PK-0076", "RE-SAN9PK-0077", "RE-SAN9PK-0078", "RE-SAN9PK-0088"]
     },
     {
       "function": "select_automatic_attack_source_and_target@0x4B62F0",

@@ -1,0 +1,12 @@
+{
+  "sample": "SRC-SAN9PK-TC-101",
+  "database": "research/analysis/San9PK-TC-101.i64",
+  "mode": "reviewed-static-write",
+  "functions": [
+    {"address":"0x44C940","name":"get_person_tactic_proficiency","type":null,"comment":"[RE-SAN9PK-0068] 读取人物指定兵法类别的16位熟练度；阻击链以类别3作为弩兵熟练度。"},
+    {"address":"0x46E900","name":"select_random_list_value","type":null,"comment":"[RE-SAN9PK-0068] 用全局随机流在列表计数范围内取随机索引并返回对应元素。"},
+    {"address":"0x502E30","name":"resolve_tactic_interception","type":null,"comment":"[RE-SAN9PK-0068] 武力型兵法阻击结算：筛选弩兵熟练度大于300的发动者和可受伤目标，计算箕形/熟练度概率，随机选人并求伤势等级。"},
+    {"address":"0x5083B0","name":"raise_person_injury_state","type":null,"comment":"[RE-SAN9PK-0068] 将人物伤势提高到给定等级（不降低既有等级），随后经人物状态写回。"},
+    {"address":"0x4FF180","name":"apply_tactic_interception_injury","type":null,"comment":"[RE-SAN9PK-0068] 对阻击目标应用伤势等级并进入消息和后续阵亡判定链。"}
+  ]
+}

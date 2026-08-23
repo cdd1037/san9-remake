@@ -1,0 +1,13 @@
+{
+  "sample": "SRC-SAN9PK-TC-101",
+  "database": "research/analysis/San9PK-TC-101.i64",
+  "mode": "reviewed-static-write",
+  "functions": [
+    {"address":"0x44C920","name":"is_valid_tactic_category","type":null,"comment":"[RE-SAN9PK-0067] 判断兵法类别编号是否位于人物熟练度槽 0..8。"},
+    {"address":"0x44C960","name":"set_person_tactic_proficiency","type":"__int16 __thiscall set_person_tactic_proficiency(San9PersonRecord *this, unsigned int tactic_category, __int16 value)","comment":"[RE-SAN9PK-0067] 把指定兵法类别的熟练度写回人物记录。"},
+    {"address":"0x44C980","name":"add_person_tactic_proficiency_raw","type":"int __thiscall add_person_tactic_proficiency_raw(San9PersonRecord *this, unsigned int tactic_category, int delta)","comment":"[RE-SAN9PK-0067] 给指定类别增加已计算好的熟练度增量，原版以 limadd 饱和到 1000 后写回。"},
+    {"address":"0x44DC80","name":"add_person_tactic_proficiency","type":"int __thiscall add_person_tactic_proficiency(San9PersonRecord *this, unsigned int tactic_category, int base_delta)","comment":"[RE-SAN9PK-0067] 熟练度公共入口：类别有效时，精通该类别者把基础增量乘3，否则乘1，再进入统一写回。"},
+    {"address":"0x460DC0","name":"add_unit_person_tactic_proficiency","type":null,"comment":"[RE-SAN9PK-0067] 枚举部队人物，对每名人物调用熟练度公共入口。"},
+    {"address":"0x4FF5F0","name":"apply_tactic_result_growth","type":null,"comment":"[RE-SAN9PK-0067] 陆战/水战兵法结算后的成长入口：随机尝试一次对应基础能力成长，并给部队全员增加该兵法类别熟练度，原版基础增量为3。"}
+  ]
+}

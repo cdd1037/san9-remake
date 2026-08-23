@@ -1,12 +1,14 @@
-# RE-SAN9PK-0048：场景世界状态根与候选对象布局
+# RE-SAN9PK-0048：场景世界状态根与候选对象布局（已由 0072 裁决）
 
-- 状态：草案
+- 状态：历史铺底；存储形式与生命周期已由 [RE-SAN9PK-0069](RE-SAN9PK-0069.md) 纠正并闭合
 - 日期：2026-08-19
 - 分析者：Codex
 - 结论类型：事实、推断和待验证项分开记录
 - 置信度：高（全局传参形式与数据项冲突）；中（候选构造族身份）
 - 关联来源：`SRC-SAN9PK-TC-101`
 - 关联记录：`RE-SAN9PK-0039`、`RE-SAN9PK-0041`、`RE-SAN9PK-0047`
+
+> **后续裁决（2026-08-23）**：本记录把 `0x1232688` 解释为“读取其中保存的值”并倾向指针/句柄，是对反编译表达的误读。指令级复核确认 218 个有效引用直接执行 `mov ecx, offset 0x1232688`；`0x5FAC70` 又以该地址调用构造函数并向 `_atexit` 注册同一实例的析构包装器。该地址是大小 `0x78` 的静态内联 `scenario_world_state` 对象，不是指针或句柄。下文保留当时调查过程；涉及存储形式、对象边界和生命周期的结论一律以 `RE-SAN9PK-0069` 为准。
 
 ## 样本与工具
 
@@ -19,23 +21,23 @@
 
 ## 已确认事实
 
-- `reset_scenario_runtime_state(0x453DA0)` 与 `process_force_unit_simulation_task_state(0x50EC90)` 都把 `0x1232688` 数据项中保存的值作为对象参数传递，没有把 `0x1232688` 的地址作为 `this`。因此该全局现命名为 `scenario_world_state_root`，只表示根/句柄候选，不表示存储形式已确定。
-- `0x1232688` 当前 IDA 数据项大小为 20 字节，且相邻地址仍有独立数据项；若视为内联对象，会与下述候选对象的 `this+0x38` 成员及 `0x1232760` 的独立使用发生边界冲突。
-- 工作名 `scenario_world_state_ctor(0x46ABC0)` 的候选构造函数将对象首字段设为 `vftable_scenario_world_state(0x6065F0)`，在 `this+0x38` 调用 `CForceData_ctor(0x46DF70)`，随后调用 `reset_date_world_state_fields(0x46AB30)`；当前没有可靠交叉引用把该实例直接连接到 `0x1232688`。
+- **历史误判（已作废）**：当时把 `mov ecx, offset 0x1232688` 误读成读取数据项中保存的值，因而命名为 `scenario_world_state_root` 并保留指针/句柄解释。`RE-SAN9PK-0069` 已用指令和静态初始化链确认这里传递的就是地址本身。
+- **历史误判（已作废）**：当时把 IDA 的 20 字节数据项切分当成对象边界证据。后续重置函数的 `+0x76` 写入和独立 `config(0x1232700)` 起点共同确认真实对象大小为 `0x78`；中间地址名是字段历史名，不是相邻独立全局。
+- `scenario_world_state_ctor(0x46ABC0)` 将对象首字段设为 `vftable_scenario_world_state(0x6065F0)`，在 `this+0x38` 调用 `CForceData_ctor(0x46DF70)`，随后调用 `reset_date_world_state_fields(0x46AB30)`。后续恢复的 `initialize_static_scenario_world_state(0x5FAC70)` 已把该构造函数与 `0x1232688` 静态实例直接连接。
 - `scenario_world_state_dtor(0x46A560)` 写回同一 `vftable_scenario_world_state(0x6065F0)`，再在 `this+0x38` 调用 `CForceData_dtor(0x46DF90)`；构造/析构的虚表与成员偏移对称。
 - `CForceData_ctor(0x46DF70)` 使用 `runtime_class_CForceData(0x605C2C)` 并写入 `vftable_CForceData(0x606AA4)`；`CForceData_dtor(0x46DF90)` 恢复同一虚表并调用公共 `CGameData` 销毁路径 `0x473050`。
 - `reset_date_world_state_fields(0x46AB30)` 访问传入对象的 `this+0x04..0x76` 字段，并重新初始化 `this+0x38`；若该对象与上述构造族相同，`this+0x38` 是构造/析构可观察的 `CForceData` 成员边界，但这个实例映射仍待验证。
 
 ## 推断
 
-- `scenario_world_state_root` 是日期/世界状态的高传播根候选，更可能保存指针或句柄，而非内联完整对象；在赋值来源和生命周期闭合前不得合并其相邻数据项或套用覆盖结构。
-- 候选构造族的外层类型不等同于 `CForceData`，而是至少包含一个从 `+0x38` 开始的 `CForceData` 成员或同布局对象；这不自动证明该类型就是全局根指向的实例类型。
+- 原“更可能保存指针或句柄”的推断已经证伪；`scenario_world_state` 是静态内联对象。
+- 构造族的外层类型不等同于 `CForceData`，而是包含一个从 `+0x38` 开始的 `CForceData` 成员；静态初始化器已确认该类型就是 `0x1232688` 实例。
 - `vftable_scenario_world_state` 的身份已由构造/析构对称性确认，但它对应的正式类名、虚表完整边界及每个槽位语义仍未机械闭合。
 - 该根可作为后续日期、存档、模拟、势力关系和 AI 数据流的共同导航点；它不能单独证明任何具体玩法规则。
 
 ## 待验证
 
-- `scenario_world_state_root` 的所有写入点、存储形式、初始化和释放路径。
+- `scenario_world_state` 的存储形式、初始化和释放路径已由 `RE-SAN9PK-0069` 闭合；完整字段读写矩阵仍待建立。
 - 候选外层对象的完整大小及 `+0x00..+0x37`、`+0x3C` 之后字段布局，以及它与全局根的实例关系。
 - `0x6065F0` 虚表的完整边界、每个槽位的接口签名，以及该类型是否存在独立运行时类记录。
 - 候选构造函数的静态或间接调用点；当前 IDA 交叉引用只直接闭合了构造体内的虚表/成员操作。

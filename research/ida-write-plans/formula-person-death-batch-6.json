@@ -1,0 +1,13 @@
+{
+  "sample": "SRC-SAN9PK-TC-101",
+  "database": "research/analysis/San9PK-TC-101.i64",
+  "mode": "reviewed-static-write",
+  "functions": [
+    {"address":"0x44D370","name":"get_person_max_base_ability","type":null,"comment":"[RE-SAN9PK-0068] 返回人物四项基础能力（统率、武力、智力、政治）的最大值；三条战斗阵亡链均要求结果小于80。"},
+    {"address":"0x5025F0","name":"roll_duel_death","type":null,"comment":"[RE-SAN9PK-0068] 单挑败者阵亡筛选与概率：应用模式、主将、基础能力等豁免后，按 min(30,80-当前有效武力) 投骰。"},
+    {"address":"0x503AC0","name":"resolve_duel_combat","type":null,"comment":"[RE-SAN9PK-0068] 单挑/混战式人物对决结算主链；处理交手、败者、阵亡筛选、俘虏和后续对象损失。"},
+    {"address":"0x452440","name":"resolve_interception_death","type":null,"comment":"[RE-SAN9PK-0068] 阻击伤势后的阵亡判定：应用主将、基础能力和模式豁免后，以伤势等级平方作为概率并进入死亡写回。"},
+    {"address":"0x452560","name":"resolve_melee_death","type":null,"comment":"[RE-SAN9PK-0068] 部队被击破前的混战阵亡判定：按当前有效武力和阵位排数计算概率并进入死亡写回。"},
+    {"address":"0x452190","name":"kill_person","type":null,"comment":"[RE-SAN9PK-0068] 人物死亡写回与清理；转入身份8，解除原对象/势力关系并处理所属对象后续状态。"}
+  ]
+}

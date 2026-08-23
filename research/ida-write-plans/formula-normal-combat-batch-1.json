@@ -1,0 +1,14 @@
+{
+  "sample": "SRC-SAN9PK-TC-101",
+  "database": "research/analysis/San9PK-TC-101.i64",
+  "mode": "reviewed-static-write",
+  "functions": [
+    {"address":"0x41D390","name":"compute_command_troop_power_cap","type":null,"comment":"[RE-SAN9PK-0068] 攻防基数的统率/兵力上限；min(兵力,(统率*5/2)^2)，保留 muldiv 与 32 位乘法顺序。"},
+    {"address":"0x41D3C0","name":"compute_combat_power_base","type":null,"comment":"[RE-SAN9PK-0068] 普攻攻防基数；按原整数顺序组合统率、兵力、状态效果、士气与攻击程度。"},
+    {"address":"0x41D5A0","name":"compute_building_durability_damage_terms","type":null,"comment":"[RE-SAN9PK-0068] 耐久伤害原始项辅助；组合执行统率、兵力和阵型对城壁系数，尚未执行最终除3与耐久上限。"},
+    {"address":"0x4356B0","name":"apply_building_durability_damage","type":null,"comment":"[RE-SAN9PK-0068] 以饱和减法扣除建筑当前耐久，写回后返回剩余耐久。"},
+    {"address":"0x43743B","name":"compute_building_combat_power_base","type":null,"comment":"[RE-SAN9PK-0068] 建筑守军攻防基数虚函数实现；取得大将统率、守兵、状态与士气后调用公共基数函数。"},
+    {"address":"0x499F40","name":"resolve_unit_attack_against_building","type":null,"comment":"[RE-SAN9PK-0068] 部队普攻建筑的耐久结算；验证对象/阵型前置，计算整数耐久损伤并完成写回与摧毁分支。"},
+    {"address":"0x49B460","name":"advance_normal_attack_resolution","type":null,"comment":"[RE-SAN9PK-0068] 普攻状态机；计算双方攻防、平方/兵力项、强度修正，并经士兵/伤兵写回链结算。"}
+  ]
+}

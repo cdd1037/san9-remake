@@ -1,0 +1,22 @@
+{
+  "sample": "SRC-SAN9PK-TC-101",
+  "database": "research/analysis/San9PK-TC-101.i64",
+  "mode": "reviewed-static-write",
+  "functions": [
+    {"address":"0x504B80","name":"check_confusion_tactic_eligibility","type":null,"comment":"[RE-SAN9PK-0068] 混乱兵法入口资格；排除无效目标和既有混乱/溃败状态，并执行对象关系与兵法入口概率检查。"},
+    {"address":"0x504C40","name":"resolve_confusion_tactic","type":null,"comment":"[RE-SAN9PK-0068] 混乱兵法结算；计算效果后按熟练度和执行智力求持续日数，并写入状态码6。"},
+    {"address":"0x5057E0","name":"check_targeted_intelligence_tactic_eligibility","type":null,"comment":"[RE-SAN9PK-0068] 攻心/辱骂共用入口资格；检查目标关系、对象有效性及兵法入口概率。"},
+    {"address":"0x505030","name":"resolve_heart_attack_tactic","type":null,"comment":"[RE-SAN9PK-0068] 攻心兵法结算；按目标兵力、熟练度、执行智力、威力和效果计算倒戈兵数并完成双方写回。"},
+    {"address":"0x5009C0","name":"resolve_taunt_tactic","type":null,"comment":"[RE-SAN9PK-0068] 辱骂兵法结算；按熟练度、执行智力、威力和效果计算士气减量并写回。"},
+    {"address":"0x506980","name":"check_illusion_tactic_eligibility","type":null,"comment":"[RE-SAN9PK-0068] 幻术兵法入口资格；构造范围目标并执行对象和兵法入口概率检查。"},
+    {"address":"0x506A80","name":"resolve_illusion_tactic","type":null,"comment":"[RE-SAN9PK-0068] 幻术范围结算；逐目标计算效果和伤害，应用最低伤害基数并经兵法损失链写回。"},
+    {"address":"0x505890","name":"check_inspire_tactic_eligibility","type":null,"comment":"[RE-SAN9PK-0068] 鼓舞兵法入口资格；要求目标士气低于80，并执行兵法入口概率检查。"},
+    {"address":"0x500D40","name":"resolve_inspire_tactic","type":null,"comment":"[RE-SAN9PK-0068] 鼓舞兵法结算；士气增量按熟练度、执行智力和威力计算，并限制在6到30。"},
+    {"address":"0x5071B0","name":"check_heal_tactic_eligibility","type":null,"comment":"[RE-SAN9PK-0068] 治疗兵法入口资格；构造可治疗目标列表并执行兵法入口概率检查。"},
+    {"address":"0x507280","name":"resolve_heal_tactic","type":null,"comment":"[RE-SAN9PK-0068] 治疗兵法结算；以伤兵数计算并按容量恢复兵力；若部队状态非通常(1)则改为1并清零状态计数，随后遍历在队武将清除非零伤势并刷新当前有效能力。状态/伤势恢复不以存在伤兵为前提。"},
+    {"address":"0x5075F0","name":"check_sorcery_tactic_eligibility","type":null,"comment":"[RE-SAN9PK-0068] 妖术兵法入口资格；构造范围目标并执行对象和兵法入口概率检查。"},
+    {"address":"0x5076F0","name":"resolve_sorcery_tactic","type":null,"comment":"[RE-SAN9PK-0068] 妖术范围结算；逐目标计算效果和伤害，应用最低伤害基数并经兵法损失链写回。"},
+    {"address":"0x4FEF70","name":"compute_trap_tactic_damage","type":null,"comment":"[RE-SAN9PK-0068] 陷阱兵法伤害；按目标兵力、熟练度、执行智力、威力和效果计算，并封顶于目标现有兵力。"},
+    {"address":"0x505B30","name":"resolve_trap_tactic","type":null,"comment":"[RE-SAN9PK-0068] 陷阱兵法结算；取得效果与伤害后经通用兵法损失链写回。"}
+  ]
+}

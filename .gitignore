@@ -30,8 +30,10 @@
 /dist/
 /out/
 /tmp/
+/tools/san9-toolkit/
 **/bin/
 **/obj/
+*.obj
 **/__pycache__/
 .godot/
 *.log

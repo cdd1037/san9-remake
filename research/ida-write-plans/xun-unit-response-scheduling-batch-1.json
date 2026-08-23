@@ -1,0 +1,20 @@
+{
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0087",
+  "status": "applied-and-read-back",
+  "function_renames": [
+    {"address":"0x50E8F0","before":"sub_50E8F0","after":"process_xun_unit_update_phase","confidence":"high"}
+  ],
+  "comments": ["0x50E8F0", "0x453AF0", "0x453B20", "0x453B50", "0x610B20"],
+  "dry_run":"1/1 passed",
+  "representative_diff":["0x50E8F0", "0x453AF0", "0x453B20", "0x453B50"],
+  "application_result": {
+    "idb_saved":true,
+    "names_read_back":"1/1",
+    "comments_read_back":"5/5",
+    "health_baseline":{"function_count":10978,"named_function_count":1212,"auto_named_function_count":9766,"function_comment_count":720,"local_type_count":195,"decompile_failure_count":7,"undefined_bytes_in_exec":0,"digest":"b7041affde3c28892cf24587c7c4b9c03e80fa3e7300e38736c9abacb97c2575"},
+    "catalogs":{"runtime_classes":400,"vtable_candidates":31,"message_map_headers":67,"message_map_entries":183,"global_roots":500},
+    "repeat_export":"all five core-stat digests identical"
+  },
+  "evidence_summary":"The active xun-date unit phase reaches only the enemy-approach scan. Exhaustive xrefs, absolute pointer bytes and decoded instruction operands find no static entry to the adjacent autonomous-retreat or pursuit scans, so their runtime reachability moves to an explicit experiment instead of receiving a fabricated caller."
+}

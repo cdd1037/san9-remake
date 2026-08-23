@@ -52,8 +52,9 @@
       "inputs": "five selected persons, four land-tactic category counts, available formation list, rule-mode flag",
       "output": "San9ArrayRecord formation pointer",
       "randomness": "rnd(2, global stream, 1) only when infantry count is maximal; returns formation 0 or 1",
-      "status": "decision-rule-owner-and-work-schedule-confirmed; command execution remains pending",
-      "evidence": ["RE-SAN9PK-0075", "RE-SAN9PK-0076", "RE-SAN9PK-0077"]
+      "command_boundary": "command type 9 validates at 0x48BC00 and executes at 0x48BD20; creates the unit and subtracts source troops through 0x485FA0",
+      "status": "decision-rule-owner-work-schedule-and-command-execution-confirmed; remaining AI decision categories pending",
+      "evidence": ["RE-SAN9PK-0075", "RE-SAN9PK-0076", "RE-SAN9PK-0077", "RE-SAN9PK-0078"]
     }
   ],
   "opcodes": [

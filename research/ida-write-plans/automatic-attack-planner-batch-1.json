@@ -1,0 +1,56 @@
+{
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0082",
+  "status": "applied-and-read-back",
+  "function_boundaries": [
+    {"address": "0x4B3860", "end": "0x4B387E", "result": "defined-and-read-back"},
+    {"address": "0x4B3880", "end": "0x4B38BE", "result": "defined-and-read-back"},
+    {"address": "0x4B6710", "end": "0x4B672E", "result": "defined-and-read-back; belongs to next vftable 0x6096E8 and remains neutrally named"}
+  ],
+  "function_renames": [
+    {"address": "0x4B3690", "before": "sub_4B3690", "after": "automatic_attack_planner_ctor", "confidence": "high"},
+    {"address": "0x4B3710", "before": "sub_4B3710", "after": "automatic_attack_planner_dtor", "confidence": "high"},
+    {"address": "0x4B3860", "before": "sub_4B3860", "after": "automatic_attack_planner_scalar_dtor", "confidence": "high"},
+    {"address": "0x4B3880", "before": "sub_4B3880", "after": "has_automatic_attack_plan", "confidence": "high"},
+    {"address": "0x4B5580", "before": "sub_4B5580", "after": "prepare_automatic_attack_candidates", "confidence": "high"},
+    {"address": "0x4B62F0", "before": "sub_4B62F0", "after": "select_automatic_attack_source_and_target", "confidence": "high"},
+    {"address": "0x4B4A20", "before": "sub_4B4A20", "after": "select_automatic_attack_source_allocations", "confidence": "high"},
+    {"address": "0x4B4CD0", "before": "sub_4B4CD0", "after": "build_automatic_attack_source_plan", "confidence": "high"},
+    {"address": "0x4B38C0", "before": "sub_4B38C0", "after": "select_automatic_attack_formation", "confidence": "high"},
+    {"address": "0x4B5640", "before": "sub_4B5640", "after": "create_automatic_attack_command", "confidence": "high"},
+    {"address": "0x4B39A0", "before": "sub_4B39A0", "after": "select_probabilistic_adjacent_attack_target", "confidence": "high"},
+    {"address": "0x4B57F0", "before": "sub_4B57F0", "after": "passes_automatic_attack_strength_gate", "confidence": "high"},
+    {"address": "0x4B46F0", "before": "sub_4B46F0", "after": "try_select_alternate_attack_target", "confidence": "high"}
+  ],
+  "data_renames": [
+    {"address": "0x6096AC", "before": "off_6096AC", "after": "vftable_automatic_attack_planner", "confidence": "high", "boundary": "15 slots; next vftable starts at 0x6096E8"}
+  ],
+  "dry_run": {
+    "function_renames": "13/13 passed",
+    "data_renames": "1/1 passed"
+  },
+  "representative_diff": ["0x4B62F0", "0x4B5640", "0x4B57F0"],
+  "application_result": {
+    "idb_saved": true,
+    "function_names_and_comments_read_back": "13/13",
+    "vftable_name_and_comment_read_back": "1/1",
+    "health_baseline": {
+      "function_count": 10968,
+      "named_function_count": 1155,
+      "auto_named_function_count": 9813,
+      "function_comment_count": 661,
+      "local_type_count": 195,
+      "decompile_failure_count": 7,
+      "undefined_bytes_in_exec": 0
+    },
+    "catalogs": {
+      "runtime_classes": 400,
+      "vtable_candidates": 27,
+      "message_map_headers": 67,
+      "message_map_entries": 183,
+      "global_roots": 500
+    },
+    "repeat_export": "all five core-stat digests identical"
+  },
+  "evidence_summary": "Current-sample factory ownership, ctor/dtor writes, 15-slot vftable boundary, candidate and path data flow, source reserves, strict strength comparisons, three kakuritsu sites and shared command type 9 close the automatic code-9 offensive deployment chain without importing San9PKHard semantics."
+}

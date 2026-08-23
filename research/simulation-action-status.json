@@ -81,6 +81,17 @@
       "command_boundary": "command type 9 validates at 0x48BC00 and executes at 0x48BD20; creates the unit and subtracts source troops through 0x485FA0",
       "status": "decision-rule-owner-work-schedule-and-command-execution-confirmed; remaining AI decision categories pending",
       "evidence": ["RE-SAN9PK-0075", "RE-SAN9PK-0076", "RE-SAN9PK-0077", "RE-SAN9PK-0078"]
+    },
+    {
+      "function": "select_automatic_attack_source_and_target@0x4B62F0",
+      "automatic_factory_owner": "internal code 9 constructor automatic_attack_planner_ctor@0x4B3690; 15-slot vftable 0x6096AC ending before next vftable 0x6096E8",
+      "inputs": "ranked CCityData candidates, related CChiikiBuildingData sources, path-derived target candidates and force/mode state",
+      "output": "persistent source-building list and attack target; final command boundary at create_automatic_attack_command@0x4B5640",
+      "filtering": "ownership/type/path filters, per-source 10000/5000 troop minima, target-defense aggregation and strict 75/100/125/150 percent strength gates",
+      "randomness": "adjacent candidates use threshold 40 or floor(max(0,89-V)^2/100); strength fallback uses config+5 only with source troops >=70000; alternate path target uses 25*path_count and is certain when path_count >=4",
+      "command_boundary": "operations 9/60 call allocate_unit_deployment_command and shared command type 9; operation 10 follows a separate command path still pending",
+      "status": "owner-source-target-allocation-randomness-and-shared-command-writeback-confirmed; helper gameplay names and operation 10/60 semantics pending",
+      "evidence": ["RE-SAN9PK-0082", "RE-SANCALC-0001", "RE-SAN9PK-0078"]
     }
   ],
   "opcodes": [

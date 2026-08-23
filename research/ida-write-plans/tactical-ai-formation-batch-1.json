@@ -1,0 +1,23 @@
+{
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0075",
+  "status": "applied-and-read-back",
+  "function_renames": [
+    {
+      "address": "0x4A20A0",
+      "before": "sub_4A20A0",
+      "after": "select_ai_unit_formation",
+      "confidence": "high",
+      "dry_run": "passed",
+      "diff_before_after": "only the reviewed function name changed"
+    }
+  ],
+  "comments": [
+    {
+      "address": "0x4A20A0",
+      "scope": "function",
+      "tag": "[RE-SAN9PK-0075][FACT]"
+    }
+  ],
+  "evidence_summary": "Current-sample tactic-category counts, CJinkeiData filtering, strict formation-record accessors, the single rnd(2) call and caller writeback close the selector. San9PKHard exact patch addresses are corroboration only."
+}

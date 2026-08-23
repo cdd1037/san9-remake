@@ -185,3 +185,4 @@ address,symbol,kind,module,confidence,evidence,sources,match,notes
 0x00513FA0,open_obstacle_editor,function,interactive-ui,high,RE-SAN9PK-0073,SRC-SAN9PK-TC-101,target-message-8512+record-adapter,"Opens the PK obstacle editor"
 0x0050F7B0,open_game_help_topic,function,interactive-ui,high,RE-SAN9PK-0073,SRC-SAN9PK-TC-101,target-WinHelpA+SAN9PK_T.HLP,"Opens a game help topic"
 0x005125A0,create_interactive_force_action_subtask,function,simulation-task,high,RE-SAN9PK-0074,SRC-SAN9PK-TC-101,target-vtable-slot+range-switch+constructors,"Creates interactive child tasks for 40 supported codes in the 0 through 70 range"
+0x004A20A0,select_ai_unit_formation,function,tactical-ai,high,RE-SAN9PK-0075,SRC-SAN9PK-TC-101,target-tactic-counts+formation-accessor+rng+caller-writeback,"Selects one AI unit formation from tactic-category counts and available formations"

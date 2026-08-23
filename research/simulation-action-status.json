@@ -1,0 +1,2471 @@
+{
+  "schema_version": 1,
+  "sample": "SRC-SAN9PK-TC-101",
+  "dispatcher": "0x5179B0",
+  "updated": "2026-08-23",
+  "status_definitions": {
+    "dispatcher-confirmed": "The opcode-to-handler edge is confirmed; gameplay semantics remain open.",
+    "record-type-confirmed": "The dispatch edge and principal record adapter are confirmed; gameplay semantics remain open.",
+    "range-dispatch-confirmed": "The opcode is accepted by the virtual 10000-10070 path; its individual factory result is not yet mapped.",
+    "behavior-confirmed": "Producer, filters, randomness and final side effect are closed."
+  },
+  "opcodes": [
+    {
+      "opcode": 10000,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10001,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10002,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10003,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10004,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10005,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10006,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10007,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10008,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10009,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10010,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10011,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10012,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10013,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10014,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10015,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10016,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10017,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10018,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10019,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10020,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10021,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10022,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10023,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10024,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10025,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10026,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10027,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10028,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10029,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10030,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10031,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10032,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10033,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10034,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10035,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10036,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10037,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10038,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10039,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10040,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10041,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10042,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10043,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10044,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10045,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10046,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10047,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10048,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10049,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10050,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10051,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10052,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10053,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10054,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10055,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10056,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10057,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10058,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10059,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10060,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10061,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10062,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10063,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10064,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10065,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10066,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10067,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10068,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10069,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 10070,
+      "family": "10000-10070",
+      "dispatch": "virtual slot +0x28 on interactive task",
+      "handler": "returned subtask factory",
+      "input_object": "interactive force-action task context",
+      "producer": "pending",
+      "filtering": "range check only at dispatcher",
+      "randomness": "pending",
+      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
+      "status": "range-dispatch-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "per-opcode factory mapping",
+        "gameplay semantics",
+        "child task writeback"
+      ]
+    },
+    {
+      "opcode": 11000,
+      "family": "11000-11012",
+      "dispatch": "direct",
+      "handler": "0x510490/0x513CB0",
+      "input_object": "pending",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "dispatcher-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11001,
+      "family": "11000-11012",
+      "dispatch": "direct",
+      "handler": "0x510520",
+      "input_object": "pending",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "dispatcher-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11002,
+      "family": "11000-11012",
+      "dispatch": "direct",
+      "handler": "0x5105B0",
+      "input_object": "pending",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "dispatcher-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11003,
+      "family": "11000-11012",
+      "dispatch": "direct",
+      "handler": "0x50F4E0",
+      "input_object": "pending",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "dispatcher-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11004,
+      "family": "11000-11012",
+      "dispatch": "direct",
+      "handler": "0x510640",
+      "input_object": "pending",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "dispatcher-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11005,
+      "family": "11000-11012",
+      "dispatch": "direct",
+      "handler": "0x50F580",
+      "input_object": "pending",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "dispatcher-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11006,
+      "family": "11000-11012",
+      "dispatch": "direct",
+      "handler": "0x5108E0",
+      "input_object": "pending",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "dispatcher-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11007,
+      "family": "11000-11012",
+      "dispatch": "direct",
+      "handler": "0x5109A0",
+      "input_object": "pending",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "dispatcher-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11008,
+      "family": "11000-11012",
+      "dispatch": "direct",
+      "handler": "0x510430",
+      "input_object": "pending",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "dispatcher-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11009,
+      "family": "11000-11012",
+      "dispatch": "direct",
+      "handler": "0x50F600",
+      "input_object": "pending",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "dispatcher-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11010,
+      "family": "11000-11012",
+      "dispatch": "direct",
+      "handler": "0x50F620",
+      "input_object": "pending",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "dispatcher-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11011,
+      "family": "11000-11012",
+      "dispatch": "direct",
+      "handler": "0x510740",
+      "input_object": "pending",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "dispatcher-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11012,
+      "family": "11000-11012",
+      "dispatch": "direct",
+      "handler": "0x50F730",
+      "input_object": "pending",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "dispatcher-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11020,
+      "family": "11020-11029",
+      "dispatch": "direct",
+      "handler": "0x510CF0",
+      "input_object": "pending",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "dispatcher-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11021,
+      "family": "11020-11029",
+      "dispatch": "direct",
+      "handler": "0x5143A0",
+      "input_object": "CPersonData-backed enumeration",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "record-type-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11022,
+      "family": "11020-11029",
+      "dispatch": "direct",
+      "handler": "0x516DE0",
+      "input_object": "pending",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "dispatcher-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11023,
+      "family": "11020-11029",
+      "dispatch": "direct",
+      "handler": "0x517880",
+      "input_object": "CForceData-backed adapter",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "record-type-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11024,
+      "family": "11020-11029",
+      "dispatch": "direct",
+      "handler": "0x516680",
+      "input_object": "pending",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "dispatcher-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11025,
+      "family": "11020-11029",
+      "dispatch": "direct",
+      "handler": "0x5172B0",
+      "input_object": "CForceData-backed adapter",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "record-type-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11026,
+      "family": "11020-11029",
+      "dispatch": "direct",
+      "handler": "0x516A00",
+      "input_object": "CForceData/list adapter",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "record-type-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11027,
+      "family": "11020-11029",
+      "dispatch": "direct",
+      "handler": "0x514010",
+      "input_object": "CItemData-backed enumeration",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "record-type-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11028,
+      "family": "11020-11029",
+      "dispatch": "direct",
+      "handler": "0x50F650",
+      "input_object": "pending",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "dispatcher-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11029,
+      "family": "11020-11029",
+      "dispatch": "direct",
+      "handler": "0x50F6C0",
+      "input_object": "pending",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "dispatcher-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11035,
+      "family": "11035-11038",
+      "dispatch": "direct",
+      "handler": "0x514080",
+      "input_object": "pending",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "dispatcher-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11036,
+      "family": "11035-11038",
+      "dispatch": "direct",
+      "handler": "0x510DC0",
+      "input_object": "pending",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "dispatcher-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11037,
+      "family": "11035-11038",
+      "dispatch": "direct",
+      "handler": "0x50F7B0",
+      "input_object": "pending",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "dispatcher-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11038,
+      "family": "11035-11038",
+      "dispatch": "direct",
+      "handler": "0x50F830",
+      "input_object": "pending",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "dispatcher-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11040,
+      "family": "11040-11053",
+      "dispatch": "direct",
+      "handler": "0x516E50",
+      "input_object": "CCityData context",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "record-type-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11041,
+      "family": "11040-11053",
+      "dispatch": "direct",
+      "handler": "0x514460",
+      "input_object": "CCityData or CChiikiBuildingData, then person adapter",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "record-type-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11042,
+      "family": "11040-11053",
+      "dispatch": "direct",
+      "handler": "0x516A70",
+      "input_object": "CChiikiBuildingData context",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "record-type-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11043,
+      "family": "11040-11053",
+      "dispatch": "direct",
+      "handler": "0x514550",
+      "input_object": "CChiikiBuildingData context",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "record-type-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11044,
+      "family": "11040-11053",
+      "dispatch": "direct",
+      "handler": "0x516720",
+      "input_object": "CUnitData context",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "record-type-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11045,
+      "family": "11040-11053",
+      "dispatch": "direct",
+      "handler": "0x514620",
+      "input_object": "CUnitData, then person adapter",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "record-type-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11046,
+      "family": "11040-11053",
+      "dispatch": "direct",
+      "handler": "0x517920",
+      "input_object": "pending",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "dispatcher-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11047,
+      "family": "11040-11053",
+      "dispatch": "direct",
+      "handler": "0x5146F0",
+      "input_object": "associated object from virtual slot +0x30, then person adapter",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "record-type-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11048,
+      "family": "11040-11053",
+      "dispatch": "direct",
+      "handler": "0x517350",
+      "input_object": "pending",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "dispatcher-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11049,
+      "family": "11040-11053",
+      "dispatch": "direct",
+      "handler": "0x5147B0",
+      "input_object": "pending",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "dispatcher-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11050,
+      "family": "11040-11053",
+      "dispatch": "direct",
+      "handler": "0x510E60",
+      "input_object": "pending",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "dispatcher-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11051,
+      "family": "11040-11053",
+      "dispatch": "direct",
+      "handler": "0x510F50",
+      "input_object": "pending",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "dispatcher-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11052,
+      "family": "11040-11053",
+      "dispatch": "direct",
+      "handler": "0x511030",
+      "input_object": "pending",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "dispatcher-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11053,
+      "family": "11040-11053",
+      "dispatch": "direct",
+      "handler": "0x511110",
+      "input_object": "pending",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "dispatcher-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11060,
+      "family": "11060-11064",
+      "dispatch": "direct",
+      "handler": "0x513D60",
+      "input_object": "pending",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "dispatcher-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11061,
+      "family": "11060-11064",
+      "dispatch": "direct",
+      "handler": "0x513E20",
+      "input_object": "pending",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "dispatcher-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11062,
+      "family": "11060-11064",
+      "dispatch": "direct",
+      "handler": "0x513E90",
+      "input_object": "pending",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "dispatcher-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11063,
+      "family": "11060-11064",
+      "dispatch": "direct",
+      "handler": "0x513F30",
+      "input_object": "pending",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "dispatcher-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    },
+    {
+      "opcode": 11064,
+      "family": "11060-11064",
+      "dispatch": "direct",
+      "handler": "0x513FA0",
+      "input_object": "pending",
+      "producer": "pending",
+      "filtering": "pending",
+      "randomness": "pending",
+      "final_side_effect": "pending",
+      "status": "dispatcher-confirmed",
+      "evidence": [
+        "RE-SAN9PK-0049",
+        "RE-SAN9PK-0072"
+      ],
+      "missing_evidence": [
+        "producer",
+        "gameplay semantics",
+        "final writeback"
+      ]
+    }
+  ]
+}

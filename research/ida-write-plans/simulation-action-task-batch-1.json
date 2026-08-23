@@ -1,0 +1,94 @@
+{
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0072",
+  "status": "applied-and-read-back",
+  "function_renames": [
+    {
+      "address": "0x50F380",
+      "before": "simulation_action_task_ctor",
+      "after": "interactive_force_action_task_ctor",
+      "confidence": "high"
+    },
+    {
+      "address": "0x50F400",
+      "before": "sub_50F400",
+      "after": "interactive_force_action_task_dtor",
+      "confidence": "high"
+    },
+    {
+      "address": "0x50F410",
+      "before": "sub_50F410",
+      "after": "is_interactive_force_action_context_valid",
+      "confidence": "high"
+    },
+    {
+      "address": "0x514370",
+      "before": "sub_514370",
+      "after": "handle_interactive_force_action_event",
+      "confidence": "high"
+    },
+    {
+      "address": "0x4BCFC0",
+      "before": "sub_4BCFC0",
+      "after": "automatic_force_action_task_ctor",
+      "confidence": "high"
+    },
+    {
+      "address": "0x4BD000",
+      "before": "sub_4BD000",
+      "after": "automatic_force_action_task_dtor",
+      "confidence": "high"
+    },
+    {
+      "address": "0x4BD010",
+      "before": "sub_4BD010",
+      "after": "is_automatic_force_action_context_valid",
+      "confidence": "high"
+    },
+    {
+      "address": "0x4BD030",
+      "before": "sub_4BD030",
+      "after": "create_automatic_force_action_subtask",
+      "confidence": "high"
+    },
+    {
+      "address": "0x4BDE30",
+      "before": "sub_4BDE30",
+      "after": "process_automatic_force_action_task_state",
+      "confidence": "high"
+    },
+    {
+      "address": "0x50EC10",
+      "before": "unknown_libname_18",
+      "after": "get_current_scenario_force",
+      "confidence": "high"
+    },
+    {
+      "address": "0x46AAD0",
+      "before": "sub_46AAD0",
+      "after": "scenario_force_cursor_current",
+      "confidence": "high"
+    },
+    {
+      "address": "0x46AC10",
+      "before": "sub_46AC10",
+      "after": "advance_scenario_force_cursor",
+      "confidence": "high"
+    }
+  ],
+  "data_renames": [
+    {
+      "address": "0x610BC8",
+      "before": "vftable_simulation_action_task",
+      "after": "vftable_interactive_force_action_task",
+      "confidence": "high"
+    },
+    {
+      "address": "0x6098CC",
+      "before": "off_6098CC",
+      "after": "vftable_automatic_force_action_task",
+      "confidence": "high"
+    }
+  ],
+  "evidence_summary": "The scenario-force iterator selects two mutually exclusive task families through one force virtual predicate. The 0x50F380 family owns command-menu/map interaction handlers; the 0x4BCFC0 family owns a 0..63 automatic subtask factory and a stage-driven executor."
+}

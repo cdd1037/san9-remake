@@ -6,7 +6,8 @@
   "status_definitions": {
     "dispatcher-confirmed": "The opcode-to-handler edge is confirmed; downstream semantics remain open.",
     "ui-handler-confirmed": "The dispatch edge, record filters and terminal information/editor/help behavior are confirmed; the upstream menu or event producer remains open.",
-    "range-dispatch-confirmed": "The opcode is accepted by the virtual 10000-10070 path; its individual factory result is not yet mapped.",
+    "range-dispatch-confirmed": "The opcode is accepted by the virtual 10000-10070 path; individual constructor/null and RTTI detail is normalized in interactive_factory.",
+    "factory-rtti-confirmed": "The code-to-constructor edge and downstream MFC dialog runtime class are confirmed; detailed command execution may remain open.",
     "behavior-confirmed": "Producer, filters, randomness and final side effect are closed."
   },
   "interactive_factory": {
@@ -26,13 +27,40 @@
       "38": "0x4C40C0", "39": "0x4C4A20", "51": "0x4C4060", "52": "0x4C45F0"
     },
     "null_codes": [20, 37, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70],
-    "status": "factory-edge-confirmed",
-    "remaining_gap": "constructor/task semantics, filtering, randomness and final command writeback"
+    "rtti_confirmed_code_to_dialog": {
+      "0":"COrderJunsatsuDlg", "1":"COrderShougyouDlg", "2":"COrderKaikonDlg", "3":"COrderKaishuuDlg",
+      "4":"COrderChouheiDlg", "5":"COrderKunrenDlg", "6":"COrderKounyuuDlg", "7":"COrderBaikyakuDlg",
+      "13":"COrderGunshiDlg", "15":"COrderHoubiDlg", "16":"COrderJuyoDlg", "18":"COrderShodanDlg",
+      "19":"COrderTsuihouDlg", "21":"COrderYobiyoseDlg", "22":"COrderIdouDlg", "23":"COrderTansakuDlg",
+      "24":"COrderTouyouDlg", "25":"COrderGihouDlg", "26":"COrderKakuranDlg", "27":"COrderGekireiDlg",
+      "28":"COrderKyuuenDlg", "29":"COrderRikanDlg", "30":"COrderYakiuchiDlg", "31":"COrderDasshuDlg",
+      "32":"COrderRyuugenDlg", "33":"COrderZouteiDlg", "34":"COrderYouseiDlg", "35":"COrderHenkanDlg",
+      "36":"COrderKankokuDlg"
+    },
+    "unit_response_codes": {
+      "38":"base response type 38; unit-target command constructor 0x499AF0",
+      "39":"base response type 39; building target; shared unit_retreat_command_ctor",
+      "51":"base response type 51; building-target command constructor 0x48CE80",
+      "52":"second context-sensitive producer of base response type 39 and shared unit_retreat_command_ctor; not a type-52 command"
+    },
+    "neutral_business_label_codes": [8, 9, 10, 11, 12, 14, 17, 38, 51],
+    "status": "factory-rtti-and-selected-behavior-confirmed",
+    "remaining_gap": "formal labels and full terminal effects for the neutral-code set; 29 RTTI dialog identities, gift code 33 and retreat codes 39/52 are closed"
   },
+  "opcode_detail_precedence": "For 10000-10070, interactive_factory is the normalized per-code constructor/null/RTTI source; entries in opcodes retain dispatcher-level fields and track only deeper producer/behavior gaps.",
   "automatic_work_schedule": {
     "selector": "select_automatic_force_action_work_batch@0x4BDD00",
     "consumer": "process_automatic_force_action_task_state@0x4BDE30",
     "factory": "create_automatic_force_action_subtask@0x4BD030",
+    "supported_code_to_constructor": {
+      "0":"0x4AAB20", "1":"0x4B3120", "2":"0x4AB3F0", "3":"0x4AB920", "4":"0x49F8F0", "5":"0x4ADE90",
+      "9":"0x4B3690", "10":"0x4AD040", "12":"0x4AA170", "13":"0x4A5900", "14":"0x4B27C0", "15":"0x4A6EB0",
+      "16":"0x4AB050", "17":"0x49DC10", "22":"0x4A9020", "23":"0x4B6630", "24":"0x4B6F10", "25":"0x4A4E70",
+      "26":"0x4ABE70", "27":"0x4A4600", "28":"0x4AE350", "29":"0x4B0EE0", "30":"0x4BA000", "31":"0x49FCA0",
+      "32":"0x4B1580", "33":"0x4BC650", "34":"0x4BA970", "35":"0x4A5C50", "36":"0x4AC8D0", "51":"0x4BC5B0",
+      "55":"0x4A6880", "56":"0x4A6220", "57":"0x49E0B0", "58":"0x4A1370", "59":"0x4A0580", "60":"0x4B1F40",
+      "61":"0x49D2B0", "62":"0x4A71B0", "63":"0x4A8B40"
+    },
     "batch0_by_branch": {
       "scenario_flag_word_2_equals_9": [57, 58, 26, 25, 28, 27, 4, 5, 3],
       "force_virtual_predicate_plus_0x48_true": [57, 58, 9, 59, 5, 4, 3, 33],
@@ -149,7 +177,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -170,7 +198,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -191,7 +219,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -212,7 +240,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -233,7 +261,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -254,7 +282,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -275,7 +303,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -296,7 +324,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -317,7 +345,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -338,7 +366,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -359,7 +387,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -380,7 +408,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -401,7 +429,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -422,7 +450,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -443,7 +471,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -464,7 +492,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -485,7 +513,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -506,7 +534,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -527,7 +555,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -548,7 +576,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -569,7 +597,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -590,7 +618,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -611,7 +639,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -632,7 +660,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -653,7 +681,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -674,7 +702,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -695,7 +723,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -716,7 +744,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -737,7 +765,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -758,7 +786,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -779,7 +807,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -800,7 +828,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -821,7 +849,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -842,7 +870,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -863,7 +891,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -884,7 +912,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -905,7 +933,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -926,7 +954,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -947,7 +975,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -968,7 +996,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -989,7 +1017,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -1010,7 +1038,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -1031,7 +1059,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -1052,7 +1080,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -1073,7 +1101,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -1094,7 +1122,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -1115,7 +1143,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -1136,7 +1164,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -1157,7 +1185,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -1178,7 +1206,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -1199,7 +1227,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -1220,7 +1248,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -1241,7 +1269,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -1262,7 +1290,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -1283,7 +1311,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -1304,7 +1332,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -1325,7 +1353,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -1346,7 +1374,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -1367,7 +1395,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -1388,7 +1416,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -1409,7 +1437,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -1430,7 +1458,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -1451,7 +1479,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -1472,7 +1500,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -1493,7 +1521,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -1514,7 +1542,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -1535,7 +1563,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -1556,7 +1584,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -1577,7 +1605,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -1598,7 +1626,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]
@@ -1619,7 +1647,7 @@
         "RE-SAN9PK-0072"
       ],
       "missing_evidence": [
-        "per-opcode factory mapping",
+        "business label and terminal behavior beyond normalized factory mapping",
         "gameplay semantics",
         "child task writeback"
       ]

@@ -1,0 +1,40 @@
+{
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0084",
+  "status": "applied-and-read-back",
+  "function_boundaries": [
+    {"address":"0x489C60","end":"0x489C7E","result":"defined-and-read-back"}
+  ],
+  "function_renames": [
+    {"address":"0x50F650","before":"sub_50F650","after":"open_progress_log_dialog","confidence":"high"},
+    {"address":"0x430B00","before":"sub_430B00","after":"CLogDlg_ctor","confidence":"high"},
+    {"address":"0x4307C0","before":"sub_4307C0","after":"CLogDlg_dtor","confidence":"high"},
+    {"address":"0x4B4530","before":"sub_4B4530","after":"select_automatic_construction_target_square","confidence":"high"},
+    {"address":"0x4B3D00","before":"sub_4B3D00","after":"select_automatic_construction_facility","confidence":"high"},
+    {"address":"0x4B3790","before":"sub_4B3790","after":"allocate_construction_unit_command","confidence":"high"},
+    {"address":"0x489CD0","before":"sub_489CD0","after":"construction_unit_command_ctor","confidence":"high"},
+    {"address":"0x489C00","before":"??1strstreambuf@std@@UAE@XZ_1","after":"construction_unit_command_dtor","confidence":"high"},
+    {"address":"0x489C60","before":"sub_489C60","after":"construction_unit_command_scalar_dtor","confidence":"high"},
+    {"address":"0x4897F0","before":"sub_4897F0","after":"validate_construction_unit_command","confidence":"high"},
+    {"address":"0x489980","before":"sub_489980","after":"execute_construction_unit_command","confidence":"high"},
+    {"address":"0x489760","before":"sub_489760","after":"calculate_construction_cost","confidence":"high"}
+  ],
+  "data_renames": [
+    {"address":"0x604B20","before":"off_604B20","after":"vftable_CLogDlg","confidence":"high"},
+    {"address":"0x607BE0","before":"off_607BE0","after":"vftable_construction_unit_command","confidence":"high","boundary":"22 slots; next sibling vftable starts at 0x607C38"}
+  ],
+  "dry_run": {
+    "existing_functions_and_data":"13/13 passed",
+    "new_scalar_destructor":"1/1 passed after boundary definition"
+  },
+  "representative_diff": ["0x4B5640","0x4B3D00","0x489980","0x50F650"],
+  "application_result": {
+    "idb_saved":true,
+    "function_names_and_comments_read_back":"12/12",
+    "vftable_names_and_comments_read_back":"2/2",
+    "health_baseline":{"function_count":10969,"named_function_count":1182,"auto_named_function_count":9787,"function_comment_count":690,"local_type_count":195,"decompile_failure_count":7,"undefined_bytes_in_exec":0,"digest":"8501506cdbf651cd957820746099fc4efcc6dc65e17363c84e0eb58220f11e9e"},
+    "catalogs":{"runtime_classes":400,"vtable_candidates":29,"message_map_headers":67,"message_map_entries":183,"global_roots":500},
+    "repeat_export":"all five core-stat digests identical"
+  },
+  "evidence_summary":"Current-sample CLogDlg runtime metadata closes opcode 11028. The automatic code-9 operation-10 path selects a square and fixed facility, while the shared command validates, creates a construction unit, charges the computed cost and marks participants."
+}

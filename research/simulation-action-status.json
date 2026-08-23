@@ -1591,20 +1591,19 @@
       "family": "11000-11012",
       "dispatch": "direct",
       "handler": "0x510490/0x513CB0",
-      "input_object": "pending",
-      "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "dispatcher-confirmed",
+      "input_object": "interactive task plus scenario/control context",
+      "producer": "MFC command route; selects CRButtonMenuDlg mode 1, 5 or 6",
+      "filtering": "0x417030 predicate and scenario_control_flags bit 2 select the available system-menu set",
+      "randomness": "none",
+      "final_side_effect": "opens system menu and redispatches the selected nested opcode",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0083"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay or UI semantics",
-        "final writeback"
+        "exact toolbar or shortcut control"
       ]
     },
     {
@@ -1612,20 +1611,19 @@
       "family": "11000-11012",
       "dispatch": "direct",
       "handler": "0x510520",
-      "input_object": "pending",
-      "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "dispatcher-confirmed",
+      "input_object": "interactive task and CRButtonMenuDlg mode 0 table",
+      "producer": "static information button record (message 8261) and MFC command route",
+      "filtering": "mode 0 contains ten confirmed 11020-11029 catalog entries",
+      "randomness": "none",
+      "final_side_effect": "opens information menu and redispatches the selected catalog opcode",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0083"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay or UI semantics",
-        "final writeback"
+        "none for menu behavior"
       ]
     },
     {
@@ -1633,20 +1631,19 @@
       "family": "11000-11012",
       "dispatch": "direct",
       "handler": "0x5105B0",
-      "input_object": "pending",
-      "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "dispatcher-confirmed",
+      "input_object": "interactive task and CRButtonMenuDlg mode 2 table",
+      "producer": "MFC command route; exact physical help control pending",
+      "filtering": "mode 2 exposes game instructions, terminology dictionary and version information",
+      "randomness": "none",
+      "final_side_effect": "opens help menu and redispatches the selected modal UI opcode",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0083"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay or UI semantics",
-        "final writeback"
+        "exact toolbar or shortcut control"
       ]
     },
     {
@@ -1654,20 +1651,19 @@
       "family": "11000-11012",
       "dispatch": "direct",
       "handler": "0x50F4E0",
-      "input_object": "pending",
-      "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "dispatcher-confirmed",
+      "input_object": "CSaveLoadDlg mode 0 selection",
+      "producer": "system-menu static item message 8269",
+      "filtering": "selected save slot index must be less than 40",
+      "randomness": "none",
+      "final_side_effect": "writes the selected save slot through 0x45B4B0 and restores map interaction",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0083"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay or UI semantics",
-        "final writeback"
+        "save serializer internals are outside this opcode batch"
       ]
     },
     {
@@ -1675,20 +1671,19 @@
       "family": "11000-11012",
       "dispatch": "direct",
       "handler": "0x510640",
-      "input_object": "pending",
-      "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "dispatcher-confirmed",
+      "input_object": "CSaveLoadDlg mode 1 selection",
+      "producer": "system-menu static item message 8270",
+      "filtering": "slot index below 40; current-control predicate may require message 8027 confirmation",
+      "randomness": "none",
+      "final_side_effect": "loads through 0x45B1C0, clears interaction state and sets task stage 1003",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0083"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay or UI semantics",
-        "final writeback"
+        "load deserializer internals are outside this opcode batch"
       ]
     },
     {
@@ -1696,20 +1691,19 @@
       "family": "11000-11012",
       "dispatch": "direct",
       "handler": "0x50F580",
-      "input_object": "pending",
-      "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "dispatcher-confirmed",
+      "input_object": "interactive task and CKankyouDlg",
+      "producer": "system-menu static item message 8096",
+      "filtering": "none outside modal dialog",
+      "randomness": "none",
+      "final_side_effect": "opens environment settings and restores map interaction after close",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0083"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay or UI semantics",
-        "final writeback"
+        "per-control config field writeback"
       ]
     },
     {
@@ -1717,20 +1711,19 @@
       "family": "11000-11012",
       "dispatch": "direct",
       "handler": "0x5108E0",
-      "input_object": "pending",
-      "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "dispatcher-confirmed",
+      "input_object": "interactive task, scenario mode and current control state",
+      "producer": "system-menu static item message 8111",
+      "filtering": "uses confirmation message 8298 or 8024; only result 6 commits",
+      "randomness": "none",
+      "final_side_effect": "sets interactive task stage 1004 or restores map interaction on cancel",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0083"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay or UI semantics",
-        "final writeback"
+        "none for external behavior"
       ]
     },
     {
@@ -1738,20 +1731,19 @@
       "family": "11000-11012",
       "dispatch": "direct",
       "handler": "0x5109A0",
-      "input_object": "pending",
-      "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "dispatcher-confirmed",
+      "input_object": "interactive task, current force and eligible force list",
+      "producer": "system-menu static item message 8066",
+      "filtering": "scenario modes 2/9 bypass the menu; force availability controls delegation choices",
+      "randomness": "none",
+      "final_side_effect": "posts exit command or delegates current/all forces by writing control 0 and state 15",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0083"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay or UI semantics",
-        "final writeback"
+        "none for external behavior"
       ]
     },
     {
@@ -1759,20 +1751,19 @@
       "family": "11000-11012",
       "dispatch": "direct",
       "handler": "0x510430",
-      "input_object": "pending",
-      "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "dispatcher-confirmed",
+      "input_object": "interactive task and current force",
+      "producer": "static advance button record message 8253",
+      "filtering": "message 6082 confirmation; only result 6 commits",
+      "randomness": "none",
+      "final_side_effect": "clears interaction state, advances the map phase and zeroes the task stage",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0083"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay or UI semantics",
-        "final writeback"
+        "none for external behavior"
       ]
     },
     {
@@ -1780,20 +1771,19 @@
       "family": "11000-11012",
       "dispatch": "direct",
       "handler": "0x50F600",
-      "input_object": "pending",
-      "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "dispatcher-confirmed",
+      "input_object": "CMainmapView ranking overlay controller",
+      "producer": "MFC command route; exact physical toggle control pending",
+      "filtering": "requires a valid main-map controller",
+      "randomness": "none",
+      "final_side_effect": "hides the force-ranking overlay and restores map interaction",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0083"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay or UI semantics",
-        "final writeback"
+        "exact toolbar or shortcut control"
       ]
     },
     {
@@ -1801,20 +1791,19 @@
       "family": "11000-11012",
       "dispatch": "direct",
       "handler": "0x50F620",
-      "input_object": "pending",
-      "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "dispatcher-confirmed",
+      "input_object": "CMainmapView ranking overlay controller",
+      "producer": "MFC command route; exact physical toggle control pending",
+      "filtering": "requires a valid main-map controller",
+      "randomness": "none",
+      "final_side_effect": "pauses map interaction and shows force rankings for trust, cities, persons and troops",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0083"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay or UI semantics",
-        "final writeback"
+        "exact toolbar or shortcut control"
       ]
     },
     {
@@ -1822,20 +1811,19 @@
       "family": "11000-11012",
       "dispatch": "direct",
       "handler": "0x510740",
-      "input_object": "pending",
-      "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "dispatcher-confirmed",
+      "input_object": "interactive task and CRButtonMenuDlg mode 4 table",
+      "producer": "MFC command route; exact physical editor control pending",
+      "filtering": "mode 4 contains five confirmed editor opcodes 11060-11064",
+      "randomness": "none",
+      "final_side_effect": "opens editor menu and redispatches the selected editor opcode",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0083"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay or UI semantics",
-        "final writeback"
+        "exact toolbar or shortcut control"
       ]
     },
     {
@@ -1843,20 +1831,19 @@
       "family": "11000-11012",
       "dispatch": "direct",
       "handler": "0x50F730",
-      "input_object": "pending",
-      "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "dispatcher-confirmed",
+      "input_object": "interactive task and CSetPKEnvDlg",
+      "producer": "system/editor-menu static item message 8552",
+      "filtering": "none outside modal dialog",
+      "randomness": "none",
+      "final_side_effect": "opens tactic-presentation and expert-rule settings and restores map interaction",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0083"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay or UI semantics",
-        "final writeback"
+        "per-control world/config field writeback"
       ]
     },
     {
@@ -2065,20 +2052,19 @@
       "family": "11035-11038",
       "dispatch": "direct",
       "handler": "0x514080",
-      "input_object": "pending",
-      "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "dispatcher-confirmed",
+      "input_object": "modal game-instructions dialog",
+      "producer": "CRButtonMenuDlg mode 2 static item message 8384",
+      "filtering": "none outside modal dialog",
+      "randomness": "none",
+      "final_side_effect": "opens game instructions and restores map interaction after close",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0083"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay or UI semantics",
-        "final writeback"
+        "none for external behavior"
       ]
     },
     {
@@ -2086,20 +2072,19 @@
       "family": "11035-11038",
       "dispatch": "direct",
       "handler": "0x510DC0",
-      "input_object": "pending",
-      "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "dispatcher-confirmed",
+      "input_object": "modal terminology-dictionary dialog",
+      "producer": "CRButtonMenuDlg mode 2 static item message 8383",
+      "filtering": "none outside modal dialog",
+      "randomness": "none",
+      "final_side_effect": "opens terminology dictionary and restores map interaction after close",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0083"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay or UI semantics",
-        "final writeback"
+        "none for external behavior"
       ]
     },
     {
@@ -2127,20 +2112,19 @@
       "family": "11035-11038",
       "dispatch": "direct",
       "handler": "0x50F830",
-      "input_object": "pending",
-      "producer": "pending",
-      "filtering": "pending",
-      "randomness": "pending",
-      "final_side_effect": "pending",
-      "status": "dispatcher-confirmed",
+      "input_object": "modal version-information dialog",
+      "producer": "CRButtonMenuDlg mode 2 static item message 8385",
+      "filtering": "none outside modal dialog",
+      "randomness": "none",
+      "final_side_effect": "opens version information and restores map interaction after close",
+      "status": "ui-handler-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0083"
       ],
       "missing_evidence": [
-        "producer",
-        "gameplay or UI semantics",
-        "final writeback"
+        "none for external behavior"
       ]
     },
     {

@@ -40,12 +40,24 @@
       "nonprimary_force": [57, 58, 61, 24, 22]
     },
     "terminal_batch": [63],
-    "code_58_status": "scheduled in batch 0 for every observed branch, immediately after code 57; planner command emission remains conditional",
+    "code_57_status": "scheduled in batch 0 for every observed branch; independently selects retreat buildings and unit groups, then emits shared command type 39 without randomness",
+    "code_58_status": "scheduled in batch 0 for every observed branch, immediately after code 57; independently emits shared deployment command type 9 and does not consume the code-57 plan",
     "secondary_batch": "selected from seven static lists by a force-associated bit-field value 0..6; gameplay state name pending",
     "status": "producer-and-order-confirmed",
     "evidence": ["RE-SAN9PK-0072", "RE-SAN9PK-0076", "RE-SAN9PK-0077"]
   },
   "tactical_ai_anchors": [
+    {
+      "function": "create_automatic_unit_retreat_command@0x49EC70",
+      "automatic_factory_owner": "internal code 57 constructor automatic_unit_retreat_planner_ctor@0x49E0B0; 14-slot vftable 0x608EFC ending before the secondary response-plan vftable at 0x608F34",
+      "inputs": "filtered CChiikiBuildingData retreat targets and three ordered CUnitData candidate groups",
+      "output": "one selected unit plus a target building, converted to shared command type 39",
+      "filtering": "building category 0/2, path-filtered troop threshold min(20000,4000*N)+6000, unit state/flags, target match, distance below 10 and cumulative troop gates",
+      "randomness": "none in target collection, candidate grouping or group selection",
+      "command_boundary": "unit_retreat_command_ctor@0x49C650 is shared by automatic code 57 and interactive action 39; validation 0x49C6B0, execution 0x49C7B0",
+      "status": "owner-target-unit-group-order-and-command-writeback-confirmed; formal candidate-group and force-predicate names pending",
+      "evidence": ["RE-SAN9PK-0085", "RE-SAN9PK-0077", "RE-SAN9PK-0081"]
+    },
     {
       "function": "select_automatic_deployment_source_and_target@0x4A43B0",
       "inputs": "three CChiikiBuildingData candidate groups built by 0x4A2FD0",

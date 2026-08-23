@@ -47,6 +47,15 @@
   },
   "tactical_ai_anchors": [
     {
+      "function": "select_automatic_deployment_source_and_target@0x4A43B0",
+      "inputs": "three CChiikiBuildingData candidate groups built by 0x4A2FD0",
+      "output": "group 0/1: building source plus CUnitData target; group 2: building source plus building target",
+      "filtering": "ownership, active command target, person/troop thresholds, route checks, nearby units and deterministic pressure scores",
+      "randomness": "none in candidate grouping or the three target selectors",
+      "status": "candidate-source-filter-score-order-and-target-writeback-confirmed; helper field names remain pending",
+      "evidence": ["RE-SAN9PK-0080"]
+    },
+    {
       "function": "build_ai_deployment_people_and_troops@0x4A3BB0",
       "inputs": "source building, target/context record, available people and nearby friendly units",
       "output": "up to five participants and deployment troop count",

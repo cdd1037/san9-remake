@@ -47,6 +47,23 @@
   },
   "tactical_ai_anchors": [
     {
+      "function": "build_ai_deployment_people_and_troops@0x4A3BB0",
+      "inputs": "source building, target/context record, available people and nearby friendly units",
+      "output": "up to five participants and deployment troop count",
+      "filtering": "requires at least one available person; troop result is min(source troops minus reserve, participant capacity capped at 25000) and must be at least 8000",
+      "randomness": "none in this function",
+      "status": "candidate-source-selection-and-troop-bounds-confirmed; upstream person sort helper semantics remain pending",
+      "evidence": ["RE-SAN9PK-0079"]
+    },
+    {
+      "function": "select_ai_person_deployment_tactic@0x4A1930",
+      "inputs": "one selected person, target/context record, tactics already assigned in the deployment plan",
+      "output": "one usable tactic record or null",
+      "randomness": "random among usable tactic IDs 30/26/29; explicit probability gates using 2 times a person-field difference; final random fallback among usable IDs 28/22/21",
+      "status": "candidate-filter-priority-randomness-and-plan-writeback-confirmed; several helper predicate gameplay names remain pending",
+      "evidence": ["RE-SAN9PK-0079"]
+    },
+    {
       "function": "select_ai_unit_formation@0x4A20A0",
       "automatic_factory_owner": "internal code 58 constructor 0x4A1370; vftable 0x609004 slot +0x28 is 0x4A4430",
       "inputs": "five selected persons, four land-tactic category counts, available formation list, rule-mode flag",

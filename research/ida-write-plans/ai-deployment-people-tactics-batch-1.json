@@ -1,0 +1,33 @@
+{
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0079",
+  "status": "applied-and-read-back",
+  "function_renames": [
+    {"address": "0x4A3BB0", "before": "sub_4A3BB0", "after": "build_ai_deployment_people_and_troops", "confidence": "high"},
+    {"address": "0x4A2A10", "before": "sub_4A2A10", "after": "assign_ai_deployment_tactics", "confidence": "high"},
+    {"address": "0x4A1930", "before": "sub_4A1930", "after": "select_ai_person_deployment_tactic", "confidence": "high"}
+  ],
+  "dry_run": "3/3 passed",
+  "representative_diff": ["0x4A1930"],
+  "application_result": {
+    "idb_saved": true,
+    "function_names_and_comments_read_back": "3/3",
+    "health_baseline": {
+      "function_count": 10965,
+      "named_function_count": 1126,
+      "auto_named_function_count": 9839,
+      "function_comment_count": 636,
+      "local_type_count": 195,
+      "decompile_failure_count": 7,
+      "undefined_bytes_in_exec": 0
+    },
+    "catalogs": {
+      "runtime_classes": 400,
+      "vtable_candidates": 26,
+      "message_map_headers": 67,
+      "message_map_entries": 183,
+      "global_roots": 500
+    }
+  },
+  "evidence_summary": "Current-sample participant containers, source and nearby-unit troop bounds, tactic record IDs, target/duplicate filters, explicit random calls, proficiency comparison, and plan pair writeback close these decisions while unnamed predicates remain neutral."
+}

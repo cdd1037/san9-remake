@@ -1,6 +1,8 @@
 # 研究脚本
 
 - `build_source_catalog.py`：从本地源码和文档生成统一来源候选。
+- `build_formula_catalog.py`：把公式文档的 0–29 项原版主张、独立的优化主张、电子书交叉来源和明确映射的 San9PKHard 补丁点汇总为语义目录；可通过审阅后的状态文件合并当前 IDA 地址、目标函数、证据和待实验项，输出放在 `artifacts/ida/`。
+- `verify_patch_points.py`：把声明的旧字节按 PE32 映射回精确哈希样本，只读输出直接匹配与冲突；不加载或执行目标程序。
 - `reconcile_ida_catalogs.py`：合并来源分类、旧 IDB 和当前 IDB 导出。
 - `build_ida_module_batches.py`：把统一候选按六个既定应用阶段拆成 dry-run 清单，并检查无静默遗漏。
 - `ida/export_idb_catalog.py`：在 IDA 中只读导出数据库目录。

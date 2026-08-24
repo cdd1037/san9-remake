@@ -14,7 +14,7 @@
     {"address":"0x4965D0","name":"execute_burn_command","type":null,"comment":"[RE-SAN9PK-0067] 烧夷执行链；耐久伤害、3% 兵粮分支、随机项与写回均在本函数。"},
     {"address":"0x49A340","name":"compute_normal_attack_power_terms","type":null,"comment":"[RE-SAN9PK-0068] 普攻攻防项；包含阵型系数、守城耐久项、muldiv 截断和最小值。"},
     {"address":"0x44CEC0","name":"compute_person_affinity_distance","type":null,"comment":"[RE-SAN9PK-0068] 人物相性环距，超过 75 时取 150-d，最终上限 50。"},
-    {"address":"0x4FF770","name":"compute_tactic_link_relationship_bonus","type":null,"comment":"[RE-SAN9PK-0068] 兵法联动关系加成：亲密表、父子/兄弟排除与赵云加成。"},
+    {"address":"0x4FF770","name":"compute_tactic_link_relationship_bonus","type":null,"comment":"[RE-SAN9PK-0068/0106] 兵法联动关系加成：静态关系表及赵云特例均以 biography_resource_code 为键，不是 PersonId；另含父子/兄弟排除。"},
     {"address":"0x502350","name":"roll_tactic_link","type":null,"comment":"[RE-SAN9PK-0068] 兵法联动概率随机点；组合相性、关系与阵型系数。"},
     {"address":"0x4FEA50","name":"get_tactic_member_count_coefficient","type":null,"comment":"[RE-SAN9PK-0068] 按部队人数返回 0,20,14,10,9,8 系数。"},
     {"address":"0x4FEB20","name":"compute_martial_tactic_effect","type":null,"comment":"[RE-SAN9PK-0068] 武力型兵法效果：步兵对象兵特例与熟练度抵挡，返回 1/10/15。"},

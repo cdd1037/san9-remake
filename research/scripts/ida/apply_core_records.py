@@ -47,7 +47,9 @@ typedef struct San9PersonRecord {
     unsigned char unknown_000[0x10];
     char family_name[5];
     char given_name[5];
-    unsigned char unknown_01A[0x32];
+    unsigned char unknown_01A[0x22];
+    int biography_resource_code;
+    unsigned char unknown_040[0x0C];
     unsigned char strength;
     unsigned char unknown_04D[7];
     unsigned char intelligence;

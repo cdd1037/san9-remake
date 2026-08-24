@@ -20,7 +20,7 @@
     "status": "original-confirmed",
     "current_addresses": ["0x495270", "0x494580", "0x4946E6", "0x49530E", "0x49542F", "0x49575D"],
     "target_functions": ["compute_recruit_success_threshold", "execute_recruit_command"],
-    "evidence": ["闭合目标对源势力忠诚、自忠诚、守城大将、双方君主相性、双方信望、情义、俘虏与刘备特例；所有差值均按机器整数除 5。正常政治项直接读取源武将 +0x60 当前有效政治，不调用 0x41D300；刘备特例另取 +0x5C 基础政治。", "0x494580 调用阈值并在 0x4946E6 比较随机结果，随后写回归属与忠诚。文档的信望系数、相性变量、能力层次及刘备加成已按机器修正。"],
+    "evidence": ["闭合目标对源势力忠诚、自忠诚、守城大将、双方君主相性、双方信望、情义、俘虏与刘备特例；所有差值均按机器整数除 5。正常政治项直接读取源武将 +0x60 当前有效政治，不调用 0x41D300；仅执行者 +0x3C biography_resource_code=36（刘备）另取 +0x5C 基础政治。目标列传码 177（许攸）的事件谓词成立时阈值直接为 100。", "0x494580 调用阈值并在 0x4946E6 比较随机结果，随后写回归属与忠诚。文档的信望系数、相性变量、能力层次及刘备加成已按机器修正；RE-SAN9PK-0106 确认这些身份常数是列传资源码而非 PersonId。"],
     "missing_evidence": []
   },
   {
@@ -148,7 +148,7 @@
     "status": "original-confirmed",
     "current_addresses": ["0x44CEC0", "0x4FF770", "0x502350"],
     "target_functions": ["compute_affinity_distance", "compute_tactic_link_relationship_bonus", "roll_tactic_link"],
-    "evidence": ["闭合相性环距、亲密表、父子/兄弟与排除表、赵云加成、锥行系数、整数先乘后除和 kakuritsu 调用。"],
+    "evidence": ["闭合相性环距、亲密表、父子/兄弟与排除表、赵云加成、锥行系数、整数先乘后除和 kakuritsu 调用；RE-SAN9PK-0106 确认静态关系表键与赵云特例读取 +0x3C biography_resource_code，而非 PersonId。"],
     "missing_evidence": []
   },
   {

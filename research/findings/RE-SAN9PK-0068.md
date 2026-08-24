@@ -27,7 +27,7 @@
 
 兵法入口 `check_tactic_opportunity_eligibility(0x49AFF0)` 在每次普攻结算中给发起方一次无 50% 门控入口；对方的额外入口要求阵型/交战条件并通过 `kakuritsu(50)`。两者还共同要求普攻后目标存活、对象有效且有可用武将；之后仍有候选、最小间隔、分配概率和效果判定，不能简化成“每日平均 1.5 次”。`get_tactic_member_count_coefficient(0x4FEA50)` 的成员数表为 `0,20,14,10,9,8`，不是发动机会。
 
-联动 `roll_tactic_link(0x502350)` 使用 `compute_person_affinity_distance(0x44CEC0)` 得到 0–149 相性环距（封顶 50），再组合亲密/父子/兄弟排除、赵云加成、基数 25、`max(0,5*(5-相性差))` 和锥行 3/其它 2 系数。武力型效果 `compute_martial_tactic_effect(0x4FEB20)` 对步兵系对象兵特例返回 15；其余按熟练度差除 20 后随机抵挡，正常 10、抵挡 1。
+联动 `roll_tactic_link(0x502350)` 使用 `compute_person_affinity_distance(0x44CEC0)` 得到 0–149 相性环距（封顶 50），再组合亲密/父子/兄弟排除、列传码 `9`（基础列传资源标签“赵云”）加成、基数 25、`max(0,5*(5-相性差))` 和锥行 3/其它 2 系数。静态关系表的键同样读取双方 `biography_resource_code`，不是 PersonId；身份域审计见 `RE-SAN9PK-0106`。武力型效果 `compute_martial_tactic_effect(0x4FEB20)` 对步兵系对象兵特例返回 15；其余按熟练度差除 20 后随机抵挡，正常 10、抵挡 1。
 
 `resolve_martial_tactic(0x506670)` 构造主发/联动成员并调用 `compute_martial_tactic_total_damage(0x4FEE20)`；后者对每名参与者计算 `兵法威力*(熟练度/2+1000)*max(70,执行武力+45)/1000`，联动者再除 2，成员求和后才应用伤害加倍。随后加入普攻伤害，再依次乘兵法效果 `/10` 和目标状态因子 `/10`；状态 5/6/7 因子 13，其余 10。
 

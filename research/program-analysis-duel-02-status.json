@@ -16,7 +16,7 @@
     "double critical chance and ordinary damage fallback",
     "raw damage clamping and alternating HP state",
     "winner HP carryover and replacement full-HP initialization",
-    "special person numeric-id branches",
+    "special biography-resource-code branches",
     "core and presentation global random-call order",
     "duplicate-source arithmetic conflict calibration"
   ],

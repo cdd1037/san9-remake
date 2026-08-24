@@ -4,7 +4,7 @@
   "mode": "reviewed-static-write",
   "functions": [
     {"address":"0x508C80","name":"compute_counselor_judgment_accuracy","type":null,"comment":"[RE-SAN9PK-0067] 军师判断准确率；60 + max(0,智力-70) + max(0,智力-90)。"},
-    {"address":"0x495270","name":"compute_recruit_success_threshold","type":null,"comment":"[RE-SAN9PK-0067] 登用成功阈值；正常政治项取当前有效政治，刘备特例另取基础政治，不经过执行力换算；其余闭合忠诚、相性、信望、情义与俘虏条件。"},
+    {"address":"0x495270","name":"compute_recruit_success_threshold","type":null,"comment":"[RE-SAN9PK-0067/0106] 登用成功阈值；正常政治项取当前有效政治，执行者列传码 36（刘备）另取基础政治补偿；目标列传码 177（许攸）含事件阈值 100 前置。列传码不是 PersonId。"},
     {"address":"0x494580","name":"execute_recruit_command","type":null,"comment":"[RE-SAN9PK-0067] 登用执行链；调用阈值、比较随机结果，并写回归属与忠诚。"},
     {"address":"0x4934C0","name":"compute_alienate_success_threshold","type":null,"comment":"[RE-SAN9PK-0067] 离间成功阈值；双方均取当前有效智力，不经过执行力换算。"},
     {"address":"0x493535","name":"execute_alienate_command","type":null,"comment":"[RE-SAN9PK-0067] 离间执行链；闭合随机比较、忠诚效果与熟练度写回。"},

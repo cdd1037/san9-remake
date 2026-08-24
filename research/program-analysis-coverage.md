@@ -34,13 +34,13 @@
 | `SIX-DOM-07` | 一.2：训练规范统率与士气增量模型 | 训练 | `confirmed` | `roadmap:DOM-02` | 当前样本的信望输入、规范统率和机器整数顺序见 `RE-SAN9PK-0096`；原 `FML-SAN9PK-0029` 链接不能支持本项 |
 | `SIX-DOM-08` | 一.2：买进与卖出属于八项内政指令 | 交易 | `confirmed` | `roadmap:DOM-03` | 玩家入口、商人条件、数量/资源边界见 `RE-SAN9PK-0097`；共享交易使用位清除及商人/市价旬刷新顺序见 `RE-SAN9PK-0098`；标准自动内政工厂没有动作码 6、7 |
 | `SIX-STR-01` | 一.3：计略和外交为确定公式、无概率 | 计略与外交 | `conflict` | `out-of-scope` | `RE-SAN9PK-0067` 已确认多条 `kakuritsu` 随机比较；本轮不扩展完整计略/外交 |
-| `SIX-DUEL-01` | 二.1：逐刀按看破、动画必杀、双倍必杀、普通攻击短路 | 单挑逐刀状态机 | `planned` | `roadmap:DUEL-02` | 公式 25 只闭合数值，缺调用顺序、随机顺序和 HP 写回 |
-| `SIX-DUEL-02` | 二.1：规范武力、四类概率与伤害公式 | 单挑伤害 | `confirmed` | `baseline` | `FML-SAN9PK-0025`、`RE-SAN9PK-0068`；机器式已校核原文差异 |
-| `SIX-DUEL-03` | 二.1：吕布、赵云、马超特殊分支 | 单挑特殊人物 | `confirmed` | `baseline` | `FML-SAN9PK-0025`、`RE-SAN9PK-0068`；在 `DUEL-02` 验证其调度位置 |
-| `SIX-DUEL-04` | 二.1：主动发起方固定先砍 | 单挑先手 | `planned` | `roadmap:DUEL-01` | 缺参与者选择至首击的控制流 |
+| `SIX-DUEL-01` | 二.1：逐刀按看破、动画必杀、双倍必杀、普通攻击短路 | 单挑逐刀状态机 | `planned` | `roadmap:DUEL-02` | `RE-SAN9PK-0103` 只闭合初始调用方向；现有公式目录没有逐刀基线，仍缺完整短路、随机顺序和 HP 状态机 |
+| `SIX-DUEL-02` | 二.1：规范武力、四类概率与伤害公式 | 单挑伤害 | `planned` | `roadmap:DUEL-02` | 旧链接有误：`FML-SAN9PK-0025` 实为俘虏；须从 `sub_500650` 重新闭合机器式 |
+| `SIX-DUEL-03` | 二.1：吕布、赵云、马超特殊分支 | 单挑特殊人物 | `planned` | `roadmap:DUEL-02` | 旧链接有误：公式 25/`RE-SAN9PK-0068` 未证明逐刀特殊人物分支 |
+| `SIX-DUEL-04` | 二.1：主动发起方固定先砍 | 单挑先手 | `confirmed` | `roadmap:DUEL-01` | `RE-SAN9PK-0103` 确认双方首选者置于表首，`0x50409C` 先扣接受方 HP，存活后才在 `0x50418F` 还击 |
 | `SIX-DUEL-05` | 二.2：君主/总大将/四能力门槛与最大 30% 阵亡 | 单挑阵亡 | `confirmed` | `baseline` | `FML-SAN9PK-0027`、`RE-SAN9PK-0068/0071` 已修正最大基础能力门槛及共同开关；战后状态链见 `SIX-DUEL-06` |
 | `SIX-DUEL-06` | 二.2：失败、阵亡、伤势和人物状态最终写回 | 单挑结束 | `planned` | `roadmap:DUEL-03` | 缺胜负出口到完整人物/部队写回链 |
-| `SIX-DUEL-07` | 二.3：阵位、阵形、性格和武力限制决定触发 | 单挑触发 | `planned` | `roadmap:DUEL-01` | 缺候选遍历、遮蔽和概率调用的当前样本证据 |
+| `SIX-DUEL-07` | 二.3：阵位、阵形、性格和武力限制决定触发 | 单挑触发 | `confirmed` | `roadmap:DUEL-01` | `RE-SAN9PK-0103` 闭合发起/接受两套资格、最高当前武力遮蔽、`3×阵形倍率×前排人数`、性格阈值及普通兵法骰独立性 |
 | `SIX-TAC-01` | 三.一.1.1：普通攻击次数产生兵法机会，地域/高昂修正 15–30% | 兵法机会 | `confirmed` | `roadmap:TAC-01` | `RE-SAN9PK-0099` 闭合每日类型 38 普攻入口、双机会任务、15+10+5 概率和成功候选列表写入；1–3 次/日仅为观察值 |
 | `SIX-TAC-02` | 三.一.1.2：按健康、间隔、阵位、人数、阵形和类别分配机会 | 陆战候选分配 | `confirmed` | `roadmap:TAC-02` | `RE-SAN9PK-0100` 闭合当前间隔/健康谓词、前中后顺序、人数与阵位系数、四类有利阵形、谋略/策略无阵形乘数及逐项消费 |
 | `SIX-TAC-03` | 三.一.1.2：特定编队只检查锋线并丢失机会 | 陆战提前终止 | `confirmed` | `roadmap:TAC-02` | `RE-SAN9PK-0100` 确认候选谓词会接纳无有效兵法及不受陆战工厂支持的类别；队首人物先弹出，空任务返回会立即结束整次机会并遮蔽后排 |
@@ -116,4 +116,4 @@
 - `COV-03`：已由 [`program-analysis-queue-status.json`](program-analysis-queue-status.json)、[`program-analysis-queue-ida-audit.json`](program-analysis-queue-ida-audit.json) 与 [`RE-SAN9PK-0094`](findings/RE-SAN9PK-0094.md) 完成机器可校验的候选队列；完整队列可按状态清单中的命令重建到 `tmp/`。
 - `DOM-01`：从 `SIX-DOM-03/04`、`EBK-DOM-01` 和 `HARD-DOM-01` 开始，不重复公式 29。
 - `TAC-01`：从 `SIX-TAC-01`、`EBK-TAC-01` 开始，以 `FML-SAN9PK-0017` 的普攻事件事实为入口。
-- `DUEL-01`：从 `SIX-DUEL-04/07` 开始；公式 25/27 只作已完成数值基线。
+- `DUEL-02`：从 `SIX-DUEL-01/02/03` 开始；`FML-SAN9PK-0025` 是俘虏而非单挑逐刀，只有公式 27 的阵亡链可留作 `DUEL-03` 基线。

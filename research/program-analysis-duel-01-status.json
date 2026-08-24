@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "batch": "DUEL-01",
+  "status": "completed",
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0103",
+  "queue_candidates": 7,
+  "candidate_disposition": {
+    "presentation_patch_image_instances": 3,
+    "unrelated_keyword_image_instances": 1,
+    "semantic_only_patch_configuration": 3,
+    "unresolved": 0
+  },
+  "closed_dimensions": [
+    "duel initiator common health and interval gate",
+    "front-row and non-cautious initiator filter",
+    "highest-current-martial initiator masking",
+    "ordinary tactic opportunity roll independence",
+    "healthy front-row defender filter without interval gate",
+    "highest-current-martial defender masking",
+    "formation and source-front-count duel probability",
+    "personality-dependent martial threshold",
+    "support participant eligibility and ordering",
+    "active-side first strike"
+  ],
+  "deferred": {
+    "DUEL-02": [
+      "normalized martial and per-strike state machine",
+      "special-person branches and complete random-call order"
+    ],
+    "DUEL-03": [
+      "winner and loser exits",
+      "death, injury, capture and post-duel write-back"
+    ],
+    "DUEL-04": [
+      "full duplicate-source reconciliation and behavior-spec candidacy"
+    ]
+  },
+  "ida_mcp": {
+    "health": "ok",
+    "idb": "research/analysis/San9PK-TC-101.i64",
+    "function_boundaries_created": 1,
+    "function_renames": 6,
+    "data_renames": 1,
+    "comments": 16,
+    "program_byte_changes": 0,
+    "save": "succeeded",
+    "read_back": "boundary, seven names and sixteen comments verified; eight key functions force-recompiled"
+  },
+  "next_batch": "DUEL-02"
+}

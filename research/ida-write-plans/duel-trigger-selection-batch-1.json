@@ -1,0 +1,28 @@
+{
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0103",
+  "status": "applied-and-read-back",
+  "scope": "DUEL-01 trigger gates, initial participant selection, candidate masking and first strike",
+  "function_boundary": {
+    "address": "0x4FE9C0",
+    "end": "0x4FEA05",
+    "evidence": "the bytes form one predicate ending in ret at 0x4FEA04; its address is passed to the target-member list filter at 0x503939, and the next named function begins at 0x4FEA10"
+  },
+  "function_renames": [
+    { "address": "0x4FE5F0", "before": "sub_4FE5F0", "after": "is_duel_initiator_candidate_person", "confidence": "high" },
+    { "address": "0x4FE9C0", "before": "dword_4FE9B4+0x0C", "after": "is_duel_defender_candidate_person", "confidence": "high" },
+    { "address": "0x4719D0", "before": "sub_4719D0", "after": "get_person_current_martial_sort_key", "confidence": "high" },
+    { "address": "0x5038C0", "before": "sub_5038C0", "after": "check_duel_trigger_eligibility", "confidence": "high" },
+    { "address": "0x500600", "before": "sub_500600", "after": "duel_resolution_task_ctor", "confidence": "high" },
+    { "address": "0x502470", "before": "sub_502470", "after": "is_duel_support_participant_candidate", "confidence": "high" }
+  ],
+  "data_renames": [
+    { "address": "0x6104EC", "before": "off_6104EC", "after": "vftable_duel_resolution_task", "confidence": "high" }
+  ],
+  "dry_run": { "total": 7, "ok": 7, "failed": 0 },
+  "apply": { "total": 7, "ok": 7, "failed": 0 },
+  "comments": 16,
+  "program_byte_changes": 0,
+  "save": "in-place save succeeded",
+  "read_back": "boundary, six function names, one vtable name and sixteen comments verified; eight key functions force-recompiled"
+}

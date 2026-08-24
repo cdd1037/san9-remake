@@ -45,6 +45,7 @@
 - [0091：程序分析来源覆盖与批次路由](RE-SAN9PK-0091.md)
 - [0092：San9PKHard 全量补丁候选账本](RE-SAN9PK-0092.md)
 - [0093：San9PKHard 候选的 IDA MCP 样本核验](RE-SAN9PK-0093.md)
+- [0094：R0–R3 程序分析候选队列](RE-SAN9PK-0094.md)
 
 ## 剧本记录
 

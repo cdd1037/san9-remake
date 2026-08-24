@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "source_id": "SRC-SAN9PKHARD",
+  "catalog_sha256": "EC34A05B2FCA098F82F27F2C5643CFD8AF969388A86298E3409B627945ED47F2",
+  "queue_sha256": "0E9146D3344DF3D7ED76A198FE446BE19ACC8D06B128C80D835BBF80B8A6CC8F",
+  "candidate_count": 2635,
+  "expected_candidate_count": 2635,
+  "kind_counts": {
+    "address-array-entry": 122,
+    "address-symbol": 478,
+    "config-binding": 161,
+    "config-bit": 104,
+    "process-write": 1417,
+    "static-patch": 353
+  },
+  "subsystem_counts": {
+    "domestic": 176,
+    "duel": 35,
+    "events": 26,
+    "infrastructure": 792,
+    "personnel-diplomacy": 322,
+    "tactical-ai": 854,
+    "tactics": 343,
+    "ui-system": 87
+  },
+  "status_counts": {
+    "confirmed": 854,
+    "inferred": 1227,
+    "planned": 554
+  },
+  "disposition_counts": {
+    "baseline": 854,
+    "out-of-scope": 1227,
+    "roadmap": 554
+  },
+  "batch_counts": {
+    "DOM-01": 30,
+    "DOM-02": 90,
+    "DOM-04": 56,
+    "DUEL-01": 7,
+    "DUEL-03": 28,
+    "TAC-01": 6,
+    "TAC-02": 26,
+    "TAC-03": 71,
+    "TAC-04": 240
+  },
+  "address_kind_counts": {
+    "dynamic-or-patch-structure-write": 761,
+    "image-address-candidate": 911,
+    "relative-offset-or-count": 654,
+    "runtime-or-injected-data": 44,
+    "semantic-only": 265
+  },
+  "supporting_coverage": {
+    "inactive_address_symbols": 7,
+    "inactive_address_array_entries": 0,
+    "patch_restore_entries": 353,
+    "inactive_patch_entries": 0,
+    "byte_arrays": 1039,
+    "old_value_symbols": 110,
+    "old_byte_records": 477,
+    "config_files": 5,
+    "file_inventory": 38
+  },
+  "validation": {
+    "valid": true,
+    "issue_counts": {},
+    "issues": {},
+    "duplicate_address_count": 468,
+    "duplicate_address_sha256": "2A671009EE1E7104D6AA7806B32813B4C2079A19B3BD663CA9C8560D0B87162D"
+  },
+  "ida_mcp_audit": "research/program-analysis-queue-ida-audit.json",
+  "reproduce": "python research/scripts/build_program_analysis_queue.py --source-root research/upsteam/San9PKHard --catalog-status research/patch-points/san9pkhard-catalog-status.json --output tmp/program-analysis-queue.json --status-output research/program-analysis-queue-status.json"
+}

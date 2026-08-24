@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "source_id": "SRC-SAN9PK-TC-101",
+  "queue_sha256": "0E9146D3344DF3D7ED76A198FE446BE19ACC8D06B128C80D835BBF80B8A6CC8F",
+  "sample": {
+    "idb_path": "research/analysis/San9PK-TC-101.i64",
+    "module": "San9PK.exe",
+    "architecture": "x86-32",
+    "imagebase": "0x400000",
+    "image_size": "0x1759000",
+    "sha256": "D20794AEFF67301EC2BF8C3BECB1E9944C68C6C0588FBFD4BF04E8597F0E5028"
+  },
+  "ida_mcp": {
+    "health": "ok",
+    "auto_analysis_ready": true,
+    "hexrays_ready": true,
+    "capabilities_used": [
+      "server_health",
+      "survey_binary",
+      "get_bytes"
+    ],
+    "write_operations": 0
+  },
+  "image_address_validation": {
+    "candidate_observations": 911,
+    "unique_addresses": 640,
+    "readable_addresses": 640,
+    "read_errors": 0,
+    "read_size_per_address": 1
+  },
+  "non_image_address_classes": {
+    "relative-offset-or-count": 654,
+    "runtime-or-injected-data": 44,
+    "dynamic-or-patch-structure-write": 761,
+    "semantic-only": 265
+  },
+  "conclusion": "Every unique current-image address in this queue resolves to readable IDB bytes. Non-image observations remain explicitly separated and were not queried as absolute sample addresses."
+}

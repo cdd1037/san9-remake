@@ -113,7 +113,7 @@
 ## 后续批次入口
 
 - `COV-02`：已由 [`san9pkhard-catalog-status.json`](patch-points/san9pkhard-catalog-status.json)、[`san9pkhard-ida-audit.json`](patch-points/san9pkhard-ida-audit.json)、[`RE-SAN9PK-0092`](findings/RE-SAN9PK-0092.md) 与 [`RE-SAN9PK-0093`](findings/RE-SAN9PK-0093.md) 完成全文件抽取及 IDA MCP 当前样本核验；完整逐项账本可按状态清单中的命令重建到 `tmp/`。
-- `COV-03`：把本账本与 COV-02 地址账本转换为机器可校验的候选队列；校验重复来源、状态枚举、批次路由、地址格式和无静默遗漏。
+- `COV-03`：已由 [`program-analysis-queue-status.json`](program-analysis-queue-status.json)、[`program-analysis-queue-ida-audit.json`](program-analysis-queue-ida-audit.json) 与 [`RE-SAN9PK-0094`](findings/RE-SAN9PK-0094.md) 完成机器可校验的候选队列；完整队列可按状态清单中的命令重建到 `tmp/`。
 - `DOM-01`：从 `SIX-DOM-03/04`、`EBK-DOM-01` 和 `HARD-DOM-01` 开始，不重复公式 29。
 - `TAC-01`：从 `SIX-TAC-01`、`EBK-TAC-01` 开始，以 `FML-SAN9PK-0017` 的普攻事件事实为入口。
 - `DUEL-01`：从 `SIX-DUEL-04/07` 开始；公式 25/27 只作已完成数值基线。

@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "batch": "DOM-01",
+  "status": "completed",
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0095",
+  "queue_candidates": 30,
+  "address_kinds": {
+    "image": 11,
+    "relative": 6,
+    "dynamic": 13
+  },
+  "unique_image_addresses": 7,
+  "candidate_disposition": {
+    "corroborating_original_sites": [
+      "0x4895C8",
+      "0x4AB6E6",
+      "0x4AB791",
+      "0x4ABCD1",
+      "0x4B3456",
+      "0x4B3501"
+    ],
+    "misrouted_by_third_party_label": ["0x4B6787"],
+    "supporting_only": "relative injected offsets, dynamic writes and repeated observations"
+  },
+  "closed_dimensions": [
+    "interactive and automatic producers",
+    "command validation and revalidation",
+    "participant selection bounds",
+    "ability inputs and integer effect formula",
+    "target caps and special doubling",
+    "funds, action flags, durability and repair proficiency writeback",
+    "execution task timing"
+  ],
+  "deferred_to": {
+    "DOM-04": [
+      "domestic-use flag reset timing",
+      "relationship to xun and population-cycle scheduling",
+      "formal behavior-spec promotion"
+    ]
+  }
+}

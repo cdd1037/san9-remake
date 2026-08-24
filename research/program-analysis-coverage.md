@@ -27,8 +27,8 @@
 | --- | --- | --- | --- | --- | --- |
 | `SIX-DOM-01` | 一.1：总人口、总兵役及逐城分配模型 | 城市人口周期 | `confirmed` | `baseline` | `FML-SAN9PK-0014`、`RE-SAN9PK-0067`；城市周期调度边界另见 `SIX-DOM-02` |
 | `SIX-DOM-02` | 一.1：人口变动发生周期及与内政指令衔接 | 城市周期调度 | `planned` | `roadmap:DOM-04` | 缺入口、执行日期和与旬刷新先后顺序 |
-| `SIX-DOM-03` | 一.2：巡查、商业、开垦、修筑共享效果模型 | 内政四指令 | `confirmed` | `baseline` | 公式值见 `FML-SAN9PK-0029`、`RE-SAN9PK-0067`；命令生命周期见 `SIX-DOM-04` |
-| `SIX-DOM-04` | 一.2：前四指令的参与者、资源、经验与执行写回 | 内政四指令 | `planned` | `roadmap:DOM-01` | 公式研究未闭合命令创建、验证、结算时点和全部写回 |
+| `SIX-DOM-03` | 一.2：巡查、商业、开垦、修筑共享效果模型 | 内政四指令 | `confirmed` | `baseline` | 当前样本整数顺序及资料公式冲突见 `RE-SAN9PK-0095`；原 `FML-SAN9PK-0029` 链接属于能力成长公式，不能支持本项 |
+| `SIX-DOM-04` | 一.2：前四指令的参与者、资源、经验与执行写回 | 内政四指令 | `confirmed` | `roadmap:DOM-01` | 玩家/AI 共享命令、复验、费用、即时写回和修筑熟练度已由 `RE-SAN9PK-0095` 闭合；使用标志清除仍路由 `DOM-04` |
 | `SIX-DOM-05` | 一.2：征兵数量模型 | 征兵 | `confirmed` | `baseline` | `FML-SAN9PK-0029`、`RE-SAN9PK-0067`；命令边界见 `SIX-DOM-06` |
 | `SIX-DOM-06` | 一.2：征兵与训练的资源、上限、经验和失败边界 | 征兵与训练 | `planned` | `roadmap:DOM-02` | 缺完整调用/写回链；原文自述训练细节记忆不完整 |
 | `SIX-DOM-07` | 一.2：训练规范统率与士气增量模型 | 训练 | `confirmed` | `baseline` | `FML-SAN9PK-0029`、`RE-SAN9PK-0067` |

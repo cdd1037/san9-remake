@@ -165,84 +165,80 @@
       "opcode": 10000,
       "family": "10000-10070",
       "dispatch": "virtual slot +0x28 on interactive task",
-      "handler": "returned subtask factory",
+      "handler": "interactive patrol action task -> patrol command",
       "input_object": "interactive force-action task context",
-      "producer": "pending",
-      "filtering": "range check only at dispatcher",
-      "randomness": "pending",
-      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
-      "status": "range-dispatch-confirmed",
+      "producer": "interactive code 0 and automatic code 0 converge on the patrol command type",
+      "filtering": "valid city, nonempty unacted participants, funds >= 50*n, public order below 1000 and patrol-use flag clear; revalidated before execution",
+      "randomness": "post-base special-pair doubling, otherwise 5*largest-affinity-group chance; flavor-message randomness does not affect state",
+      "final_side_effect": "immediately add capped public order, deduct 50*n funds, mark all participants acted and set city patrol-use bit 8",
+      "status": "four-command-lifecycle-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0095"
       ],
       "missing_evidence": [
-        "business label and terminal behavior beyond normalized factory mapping",
-        "gameplay semantics",
-        "child task writeback"
+        "city domestic-use flag reset timing"
       ]
     },
     {
       "opcode": 10001,
       "family": "10000-10070",
       "dispatch": "virtual slot +0x28 on interactive task",
-      "handler": "returned subtask factory",
+      "handler": "interactive commerce action task -> commerce command",
       "input_object": "interactive force-action task context",
-      "producer": "pending",
-      "filtering": "range check only at dispatcher",
-      "randomness": "pending",
-      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
-      "status": "range-dispatch-confirmed",
+      "producer": "interactive code 1 and automatic code 1 converge on the commerce command type",
+      "filtering": "valid city, nonempty unacted participants, funds >= 50*n, commerce below city maximum and commerce-use flag clear; revalidated before execution",
+      "randomness": "post-base special-pair doubling, otherwise 5*largest-affinity-group chance; flavor-message randomness does not affect state",
+      "final_side_effect": "immediately add capped commerce, deduct 50*n funds, mark all participants acted and set city commerce-use bit 16",
+      "status": "four-command-lifecycle-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0095"
       ],
       "missing_evidence": [
-        "business label and terminal behavior beyond normalized factory mapping",
-        "gameplay semantics",
-        "child task writeback"
+        "city domestic-use flag reset timing"
       ]
     },
     {
       "opcode": 10002,
       "family": "10000-10070",
       "dispatch": "virtual slot +0x28 on interactive task",
-      "handler": "returned subtask factory",
+      "handler": "interactive cultivate action task -> cultivate command",
       "input_object": "interactive force-action task context",
-      "producer": "pending",
-      "filtering": "range check only at dispatcher",
-      "randomness": "pending",
-      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
-      "status": "range-dispatch-confirmed",
+      "producer": "interactive code 2 and automatic code 2 converge on the cultivate command type",
+      "filtering": "valid city, nonempty unacted participants, funds >= 50*n, cultivation below city maximum and cultivate-use flag clear; revalidated before execution",
+      "randomness": "post-base special-pair doubling, otherwise 5*largest-affinity-group chance; flavor-message randomness does not affect state",
+      "final_side_effect": "immediately add capped cultivation, deduct 50*n funds, mark all participants acted and set city cultivate-use bit 32",
+      "status": "four-command-lifecycle-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0095"
       ],
       "missing_evidence": [
-        "business label and terminal behavior beyond normalized factory mapping",
-        "gameplay semantics",
-        "child task writeback"
+        "city domestic-use flag reset timing"
       ]
     },
     {
       "opcode": 10003,
       "family": "10000-10070",
       "dispatch": "virtual slot +0x28 on interactive task",
-      "handler": "returned subtask factory",
+      "handler": "interactive repair action task -> repair command",
       "input_object": "interactive force-action task context",
-      "producer": "pending",
-      "filtering": "range check only at dispatcher",
-      "randomness": "pending",
-      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
-      "status": "range-dispatch-confirmed",
+      "producer": "interactive code 3 and automatic code 3 converge on the repair command type",
+      "filtering": "valid building, nonempty unacted participants, funds >= 50*n, durability below building maximum and repair-use flag clear; revalidated before execution",
+      "randomness": "post-base special-pair doubling, otherwise 5*largest-affinity-group chance; flavor-message randomness does not affect state",
+      "final_side_effect": "immediately add capped durability, deduct 50*n funds, mark participants acted, add proficiency categories 6 and 5 by 1 and set building repair-use bit 1",
+      "status": "four-command-lifecycle-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0095"
       ],
       "missing_evidence": [
-        "business label and terminal behavior beyond normalized factory mapping",
-        "gameplay semantics",
-        "child task writeback"
+        "building repair-use flag reset timing"
       ]
     },
     {

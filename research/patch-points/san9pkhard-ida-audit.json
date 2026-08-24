@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "sample": {
+    "source_id": "SRC-SAN9PK-TC-101",
+    "idb_path": "research/analysis/San9PK-TC-101.i64",
+    "module": "San9PK.exe",
+    "architecture": "x86-32",
+    "imagebase": "0x400000",
+    "image_size": "0x1759000",
+    "md5": "BD64F659C8E4DE35013E798EDF84678A",
+    "sha256": "D20794AEFF67301EC2BF8C3BECB1E9944C68C6C0588FBFD4BF04E8597F0E5028"
+  },
+  "ida_mcp": {
+    "health": "ok",
+    "auto_analysis_ready": true,
+    "hexrays_ready": true,
+    "write_operations": 0,
+    "capabilities_used": [
+      "server_health",
+      "survey_binary",
+      "get_bytes",
+      "lookup_funcs",
+      "xref_query",
+      "analyze_function",
+      "analyze_batch",
+      "entity_query"
+    ]
+  },
+  "registered_old_bytes": {
+    "source_section_sha256": "3EDB00FA6112D4E12B356C49EB2A8DBB59498C4F768205F770AA2E2F89F21ECA",
+    "records_queried": 475,
+    "unique_addresses": 474,
+    "exact_matches": 473,
+    "mismatches": [
+      {
+        "address": "0x4B2E37",
+        "expected": "58 8B 4E 60",
+        "actual": "60 8B 4E 58",
+        "classification": "third-party-old-byte-error",
+        "prior_evidence": "RE-SAN9PK-0067"
+      },
+      {
+        "address": "0x4B6787",
+        "expected": "23",
+        "actual": "2D",
+        "classification": "layered-restore-value",
+        "note": "The same address also has a matching 2D original-byte record. San9PKHard first changes 2D to 23 for cultivate, then changes 23 to 3C for search, and unwinds in reverse order."
+      }
+    ]
+  },
+  "person_judgement_registration": {
+    "address": "0x508C80",
+    "function": "compute_counselor_judgment_accuracy",
+    "function_size": 45,
+    "callers": [
+      "0x486439",
+      "0x515D26"
+    ],
+    "replacement_length": 47,
+    "restore_length": 45,
+    "current_function_bytes_match_restore": true,
+    "following_bytes": "90 90",
+    "residual_bytes_after_uninstall": "FF C3",
+    "classification": "registration-length-error-in-unreachable-padding",
+    "note": "The 45-byte restore covers the complete function through RET at 0x508CAC. The 47-byte install also overwrites two following NOP padding bytes; uninstall leaves FF C3 after the RET."
+  },
+  "missing_restore_audit": {
+    "reported_addresses": 46,
+    "outside_defined_function": {
+      "count": 38,
+      "nop_prefixed_count": 37,
+      "addresses": [
+        "0x43CF67", "0x43E916", "0x43F177", "0x43F3D1", "0x43F4CC", "0x43F4CD", "0x43F4CE", "0x43F4CF",
+        "0x43F7CC", "0x43F7E4", "0x43F887", "0x43F88F", "0x43FF16", "0x43FF17", "0x43FF18", "0x43FF19",
+        "0x43FF1A", "0x43FF1B", "0x43FF1C", "0x43FF1D", "0x43FFDE", "0x44F093", "0x4505C2", "0x4538B6",
+        "0x453911", "0x453D61", "0x454AC4", "0x459B94", "0x45B7A6", "0x45BFB5", "0x45CCE5", "0x45D8E7",
+        "0x45DDB1", "0x46B9F1", "0x4861A1", "0x487D12", "0x492591", "0x4B4CC1"
+      ],
+      "classification": "code-cave-or-tool-storage-candidate",
+      "note": "IDA has no containing function at these addresses. They are destinations for injected helper code or tool-owned scalar storage; this establishes location class, not business semantics."
+    },
+    "explicit_constant_restore": {
+      "count": 5,
+      "function": "get_tactic_member_count_coefficient@0x4FEA50",
+      "addresses_and_original_values": {
+        "0x4FEA7B": 20,
+        "0x4FEA83": 14,
+        "0x4FEA8B": 10,
+        "0x4FEA93": 9,
+        "0x4FEA9B": 8
+      },
+      "classification": "extractor-false-positive",
+      "note": "The teardown path restores these same constants through a local scalar rather than an Old-named symbol."
+    },
+    "paired_pointer_swap": {
+      "count": 2,
+      "addresses": [
+        "0x4A5759",
+        "0x4AC72A"
+      ],
+      "classification": "paired-state-transition",
+      "note": "Both sites are function-pointer operands. The install and teardown paths write the external/internal predicate pair in opposite order rather than restore independent byte arrays."
+    },
+    "unresolved_function_overwrite": {
+      "count": 1,
+      "address": "0x4FF790",
+      "function": "compute_tactic_link_relationship_bonus@0x4FF770",
+      "classification": "missing-restore-write",
+      "note": "The source catalog contains a direct write of codeGetPersonFriendship at this instruction site and no resolved teardown write."
+    }
+  }
+}

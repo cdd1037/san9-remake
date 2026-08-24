@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "batch": "PERS-03",
+  "status": "completed",
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0111",
+  "queue_candidates": 48,
+  "candidate_disposition": {
+    "used_for_navigation": 48,
+    "unresolved_lifecycle_dimensions": 0
+  },
+  "closed_dimensions": [
+    "interactive code-24 producer and shared recruit-target predicate",
+    "automatic source, actor and raw identity 4/5 target candidates",
+    "automatic politics 35..115 actor gate and ability ordering",
+    "shared type-24 command creation, actor reservation and travel",
+    "stable command random payload and live phase threshold comparison",
+    "advisor agreement/disagreement model",
+    "task phases 1000 through 1003",
+    "ordinary success identity, force, destination and loyalty initialization",
+    "responsible-person object defection and follower competition",
+    "old-force loyalty 45 writeback",
+    "failure identity, force and location invariants",
+    "conditional failed-attempt force-loyalty adjustment",
+    "search-person immediate recruitment differences",
+    "actor politics growth and task completion"
+  ],
+  "ida_mcp": {
+    "health": "ok",
+    "idb": "research/analysis/San9PK-TC-101.i64",
+    "function_boundary_repairs": 2,
+    "function_renames": 16,
+    "comments": 6,
+    "program_byte_changes": 0,
+    "save": "succeeded",
+    "read_back": "all 16 planned names resolved; key phase and advisor decompilations read back"
+  },
+  "out_of_scope": [
+    "periodic loyalty recovery and decay",
+    "reward, appointment, exile, recall and movement commands",
+    "exact product labels for neutral force flags 4/5"
+  ],
+  "next_batch": "PERS-04"
+}

@@ -663,19 +663,18 @@
       "dispatch": "virtual slot +0x28 on interactive task",
       "handler": "returned subtask factory",
       "input_object": "interactive force-action task context",
-      "producer": "pending",
-      "filtering": "range check only at dispatcher",
-      "randomness": "pending",
-      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
-      "status": "range-dispatch-confirmed",
+      "producer": "interactive_recruit_action_ctor@0x4C7170; automatic_recruit_action_ctor@0x4B6F10 converges on recruit_command_ctor@0x494F10",
+      "filtering": "interactive source validation and shared target eligibility; automatic actors use identity mask 0x0F, unused flag and current politics 35..115, targets use identity mask 0x30 plus the shared force/location predicate",
+      "randomness": "dispatch stores stable actor-target rnd(100); phase 1002 recomputes the live threshold and succeeds iff stored_random < threshold; advisor output separately compares two same-seed Bernoulli results",
+      "final_side_effect": "success writes identity 3, force, destination and per-force loyalty, optionally transfers a responsible person's object and followers; failure preserves identity/force/location while conditionally changing relations and force loyalty; both finish actor politics growth and task cleanup",
+      "status": "behavior-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0111"
       ],
       "missing_evidence": [
-        "business label and terminal behavior beyond normalized factory mapping",
-        "gameplay semantics",
-        "child task writeback"
+        "periodic loyalty changes outside the command lifecycle are deferred to PERS-04"
       ]
     },
     {

@@ -1,0 +1,57 @@
+{
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0111",
+  "status": "applied-and-read-back",
+  "scope": "PERS-03 recruit command production, resolution and final writeback",
+  "dry_run": { "total": 16, "ok": 16, "failed": 0 },
+  "apply": { "total": 16, "ok": 16, "failed": 0 },
+  "save": "in-place save succeeded",
+  "read_back": "both repaired boundaries resolved; all 16 addresses resolved to their planned names; key phase and advisor decompilations read back",
+  "function_boundary_repairs": [
+    {
+      "address": "0x4955A0",
+      "end": "0x496248",
+      "before": "unrecognized entry with spurious sub_495D51 at 0x495D51..0x496248",
+      "after": "one function at the vtable-referenced entry 0x4955A0..0x496248",
+      "confidence": "high",
+      "evidence": "vtable 0x608660 slot +0x0C points to 0x4955A0; 0x4955A0 has an SEH function prologue; 0x496247 is RET, 0x496248..0x49624F is padding, and the next independently referenced function begins at 0x496250"
+    },
+    {
+      "address": "0x472E40",
+      "before": "unrecognized callback entry referenced by the interactive and automatic recruit target filters",
+      "end": "0x472F7C",
+      "after": "one function at 0x472E40..0x472F7C",
+      "confidence": "high",
+      "evidence": "the callback pointer is passed directly to the typed person-list filter; 0x472E40 has an independent register-save prologue and no containing function"
+    }
+  ],
+  "function_renames": [
+    { "address": "0x472E40", "before": "sub_472E40", "after": "is_recruit_target_eligible_for_force", "confidence": "high" },
+    { "address": "0x4C7170", "before": "sub_4C7170", "after": "interactive_recruit_action_ctor", "confidence": "high" },
+    { "address": "0x4C7390", "before": "sub_4C7390", "after": "validate_and_populate_interactive_recruit_action", "confidence": "high" },
+    { "address": "0x4C7290", "before": "sub_4C7290", "after": "create_interactive_recruit_command", "confidence": "high" },
+    { "address": "0x4B6F10", "before": "sub_4B6F10", "after": "automatic_recruit_action_ctor", "confidence": "high" },
+    { "address": "0x4B7380", "before": "sub_4B7380", "after": "validate_and_populate_automatic_recruit_action", "confidence": "high" },
+    { "address": "0x4B7010", "before": "sub_4B7010", "after": "collect_automatic_recruit_actors", "confidence": "high" },
+    { "address": "0x4B70F0", "before": "sub_4B70F0", "after": "collect_automatic_recruit_targets", "confidence": "high" },
+    { "address": "0x4B7460", "before": "sub_4B7460", "after": "create_automatic_recruit_command", "confidence": "high" },
+    { "address": "0x494F10", "before": "sub_494F10", "after": "recruit_command_ctor", "confidence": "high" },
+    { "address": "0x494F50", "before": "sub_494F50", "after": "validate_recruit_command", "confidence": "high" },
+    { "address": "0x4950A0", "before": "sub_4950A0", "after": "recruit_command_event_task_ctor", "confidence": "high" },
+    { "address": "0x495150", "before": "sub_495150", "after": "dispatch_recruit_command", "confidence": "high" },
+    { "address": "0x495480", "before": "sub_495480", "after": "evaluate_recruit_advisor_result", "confidence": "high" },
+    { "address": "0x4955A0", "before": "sub_4955A0", "after": "process_recruit_command_event_task", "confidence": "high" },
+    { "address": "0x4B72C0", "before": "sub_4B72C0", "after": "get_recruit_success_threshold_for_candidate", "confidence": "high" }
+  ],
+  "comments": [
+    { "address": "0x472E40", "comment": "RE-SAN9PK-0111 [confirmed]: shared recruit-target predicate rejects own-side, same-leader and force-relation exclusions; automatic code-24 prefilters raw identities 4/5, so captured targets must be held by the acting side and identity-5 targets must be unassigned/recruitable." },
+    { "address": "0x4B7380", "comment": "RE-SAN9PK-0111 [confirmed]: automatic code-24 requires an available source, actors from own cities with raw identity mask 0x0F and current politics 35..115, and eligible targets from raw identity mask 0x30." },
+    { "address": "0x495150", "comment": "RE-SAN9PK-0111 [confirmed]: command dispatch reserves the actor, stores type 24 plus a stable actor-target rnd(100) payload, computes normal travel time, and marks the source task active." },
+    { "address": "0x495480", "comment": "RE-SAN9PK-0111 [confirmed]: advisor output compares two Bernoulli results made with the same stable seed—recruit threshold versus advisor judgment threshold—and reports agreement (1) or disagreement (3); it is not the command's final roll." },
+    { "address": "0x4955A0", "comment": "RE-SAN9PK-0111 [confirmed]: code-24 task phases 1000/1001/1002/1003 handle arrival, presentation, stored-random<threshold resolution, and final writeback. Success initializes identity 3, destination, per-force loyalty and possible leader-led object defection; failure preserves identity/force/location while only adjusting relations and per-force loyalty." },
+    { "address": "0x494580", "comment": "RE-SAN9PK-0111 [confirmed boundary]: search-person immediate recruitment shares the threshold but uses a fresh global-stream roll and distinct loyalty initialization; accepted failure exposes identity 5 at the found location and sets recruiting-force loyalty 49." }
+  ],
+  "types": [],
+  "program_byte_changes": 0,
+  "evidence_summary": "Interactive and automatic code-24 producers converge on one command; dispatch fixes only a stable 0..99 payload, while phase 1002 recomputes the live threshold. Success initializes identity, destination and per-force loyalty with optional responsible-person object defection; failure preserves identity, force and location."
+}

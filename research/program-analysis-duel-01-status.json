@@ -20,7 +20,7 @@
     "highest-current-martial defender masking",
     "formation and source-front-count duel probability",
     "personality-dependent martial threshold",
-    "support participant eligibility and ordering",
+    "support participant eligibility exact probability random order and stable ordering",
     "active-side first strike"
   ],
   "deferred": {
@@ -46,6 +46,18 @@
     "program_byte_changes": 0,
     "save": "succeeded",
     "read_back": "boundary, seven names and sixteen comments verified; eight key functions force-recompiled"
+  },
+  "specification_followup": {
+    "date": "2026-08-24",
+    "purpose": "complete support-participant probability and random ordering for BEH-DUEL-0001",
+    "read_only_capabilities": [
+      "server_health",
+      "decompile",
+      "xref_query"
+    ],
+    "decompile_targets": 10,
+    "xref_targets": 1,
+    "writes": 0
   },
   "next_batch": "DUEL-02"
 }

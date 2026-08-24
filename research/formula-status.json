@@ -148,7 +148,7 @@
     "status": "original-confirmed",
     "current_addresses": ["0x44CEC0", "0x4FF770", "0x502350"],
     "target_functions": ["compute_affinity_distance", "compute_tactic_link_relationship_bonus", "roll_tactic_link"],
-    "evidence": ["闭合相性环距、亲密表、父子/兄弟与排除表、赵云加成、锥行系数、整数先乘后除和 kakuritsu 调用；RE-SAN9PK-0106 确认静态关系表键与赵云特例读取 +0x3C biography_resource_code，而非 PersonId。"],
+    "evidence": ["闭合相性环距、亲密表、父子/兄弟与排除表、赵云加成、锥行系数、整数先乘后除和 kakuritsu 调用；RE-SAN9PK-0106 确认静态关系表键与赵云特例读取 +0x3C biography_resource_code，而非 PersonId。RE-SAN9PK-0103 的追加参战者回读确认复用同一公式，并澄清赵云 +10 判断的是当前候选（关系函数第二参数），不是主发或本方初始人物。"],
     "missing_evidence": []
   },
   {

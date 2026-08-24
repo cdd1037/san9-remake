@@ -28,7 +28,7 @@
 
 以下三份规格具有闭合静态入口/写回链，并由来源中与当前控制流直接吻合的独立主张、第二调用现场或独立数据流佐证：
 
-- [`BEH-DUEL-0001`](../../specs/behavior/BEH-DUEL-0001-duel-trigger-and-initial-pair.md)：只覆盖陆战初始候选、精确触发概率、武力门与主动方首击；不抢先规定追加参战者概率。
+- [`BEH-DUEL-0001`](../../specs/behavior/BEH-DUEL-0001-duel-trigger-and-participant-selection.md)：覆盖陆战初始候选、精确触发概率、武力门、双方追加参战者和主动方首击；重制版按 `DEC-PROJECT-0002` 排除原作对固定初始人物的无效追加随机。
 - [`BEH-DUEL-0002`](../../specs/behavior/BEH-DUEL-0002-duel-strike-resolution.md)：覆盖四类逐刀结果、整数顺序、特殊人物、HP 与玩法随机顺序；依据 `DEC-SIM-0001` 将表现随机与玩法随机分流。
 - [`BEH-DUEL-0003`](../../specs/behavior/BEH-DUEL-0003-duel-aftermath.md)：覆盖阵亡、俘虏、重伤、士气和临时状态清理；明确不增加资料所误写的独立君主免疫。
 

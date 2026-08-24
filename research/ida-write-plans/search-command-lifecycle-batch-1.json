@@ -1,0 +1,35 @@
+{
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0110",
+  "status": "applied-and-read-back",
+  "scope": "PERS-02 search command production, resolution and result events",
+  "dry_run": { "total": 14, "ok": 14, "failed": 0 },
+  "apply": { "total": 14, "ok": 14, "failed": 0 },
+  "save": "in-place save succeeded",
+  "read_back": "all 14 addresses resolved to their planned names; key result-gate decompilation read back",
+  "function_renames": [
+    { "address": "0x4C6B70", "before": "sub_4C6B70", "after": "interactive_search_action_ctor", "confidence": "high" },
+    { "address": "0x4C6D90", "before": "sub_4C6D90", "after": "validate_and_populate_interactive_search_action", "confidence": "high" },
+    { "address": "0x4B6630", "before": "sub_4B6630", "after": "automatic_search_action_ctor", "confidence": "high" },
+    { "address": "0x4B6E40", "before": "sub_4B6E40", "after": "validate_and_populate_automatic_search_action", "confidence": "high" },
+    { "address": "0x4B6A40", "before": "sub_4B6A40", "after": "create_automatic_search_command", "confidence": "high" },
+    { "address": "0x4944B0", "before": "sub_4944B0", "after": "search_command_event_task_ctor", "confidence": "high" },
+    { "address": "0x494100", "before": "sub_494100", "after": "create_search_result_task", "confidence": "high" },
+    { "address": "0x494810", "before": "sub_494810", "after": "compute_search_person_event_threshold", "confidence": "high" },
+    { "address": "0x494980", "before": "sub_494980", "after": "compute_search_item_event_threshold", "confidence": "high" },
+    { "address": "0x494B50", "before": "sub_494B50", "after": "evaluate_search_result_gate", "confidence": "high" },
+    { "address": "0x494E70", "before": "sub_494E70", "after": "validate_search_person_event", "confidence": "high" },
+    { "address": "0x494EC0", "before": "sub_494EC0", "after": "validate_search_item_event", "confidence": "high" },
+    { "address": "0x494AA0", "before": "sub_494AA0", "after": "execute_search_funds_event", "confidence": "high" },
+    { "address": "0x494400", "before": "sub_494400", "after": "execute_search_no_result_event", "confidence": "high" }
+  ],
+  "comments": [
+    { "address": "0x4B6E40", "comment": "RE-SAN9PK-0110 [confirmed]: automatic code-23 producer closes target-building, in-range city and politics>=45 available-officer lists before creating the shared search command." },
+    { "address": "0x493F90", "comment": "RE-SAN9PK-0110 [confirmed]: search command execution records type 23, deterministic random payload and max-axis travel distance, then marks the explorer busy through the shared participant path." },
+    { "address": "0x494B50", "comment": "RE-SAN9PK-0110 [confirmed]: search result gate combines person/item thresholds, counselor judgment and current target inventories; it returns result code 1 or no-result code 3." },
+    { "address": "0x494580", "comment": "RE-SAN9PK-0110 [confirmed boundary]: search person event selects from the target hidden-person list; success changes identity to 3, failure reveals the person as identity 5 at the target building, and both paths try politics growth. Recruitment probability remains PERS-03." }
+  ],
+  "types": [],
+  "program_byte_changes": 0,
+  "evidence_summary": "Interactive and automatic code-23 producers converge on the shared search command; daily resolution creates search result tasks whose event objects cover person, item, funds and no-result outcomes, with automatic mode limited to event types 63, 65 and 66."
+}

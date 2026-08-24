@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "batch": "TAC-01",
+  "status": "completed",
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0099",
+  "queue_candidates": 6,
+  "candidate_disposition": {
+    "confirmed_patch_site": ["0x49B1DE"],
+    "relative_symbol_and_write_support": 2,
+    "dynamic_support_only": 3,
+    "unresolved": 0
+  },
+  "closed_dimensions": [
+    "daily unit-command event entry",
+    "type-38 normal-attack event construction",
+    "attacker and defender tactic-opportunity entries",
+    "defender-only formation, engagement and 50-percent gate",
+    "15-percent base opportunity chance",
+    "10-percent own-controlled-region modifier",
+    "5-percent high-morale-state modifier",
+    "successful candidate-list write",
+    "SanIX and electronic-book reconciliation"
+  ],
+  "ida_mcp": {
+    "health": "ok",
+    "idb": "research/analysis/San9PK-TC-101.i64",
+    "read_only_capabilities": [
+      "server_health",
+      "lookup_funcs",
+      "decompile",
+      "disasm",
+      "xref_query",
+      "xrefs_to",
+      "read-only Python instruction and vtable enumeration"
+    ],
+    "function_renames": 8,
+    "program_byte_changes": 0,
+    "save": "succeeded",
+    "read_back": "all 8 names verified; key callers force-recompiled"
+  },
+  "next_batch": "TAC-02"
+}

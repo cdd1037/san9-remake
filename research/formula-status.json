@@ -138,9 +138,9 @@
   {
     "claim_id": "FML-SAN9PK-0017",
     "status": "original-confirmed",
-    "current_addresses": ["0x49AFF0", "0x49B1DE", "0x49B460", "0x4FE490"],
-    "target_functions": ["check_tactic_opportunity_eligibility", "advance_normal_attack_resolution"],
-    "evidence": ["0x49B460 的状态 1006 以发起方为兵法源调用 0x49AFF0，门控参数为 0；状态 1007 交换双方并把门控参数设为 1。两条成功路径分别构造 0x4FE490 的兵法结算对象。", "0x49AFF0 先检查目标在本次伤害后仍有兵力、兵法源/目标类型与可用武将；仅门控参数为 1 的对方路径额外要求阵型类型 1/8、交战关系和 kakuritsu(50)。", "因此机器事实是每个普攻结算事件中发起方有一次无 50% 门控入口、对方有一次额外 50% 入口。每天平均 1.5 次只在双方当天各形成一次互攻事件时成立，不是无条件日调度规则。San9PKHard 的 0x49B1DE thunk 将 50 调整为 50+源部队士气-80，属于改进逻辑。"],
+    "current_addresses": ["0x49AFF0", "0x49B1DE", "0x49B460", "0x4FE490", "0x505EF0", "0x509AF0", "0x50A760"],
+    "target_functions": ["check_tactic_opportunity_eligibility", "advance_normal_attack_resolution", "tactic_opportunity_task_ctor", "process_tactic_opportunity_task_state", "process_daily_unit_command_event_task_state", "process_simulation_state_machine"],
+    "evidence": ["0x49B460 的状态 1006 以发起方为兵法源调用 0x49AFF0，门控参数为 0；状态 1007 交换双方并把门控参数设为 1。两条成功路径分别构造 0x4FE490 的兵法机会任务。", "0x49AFF0 先检查目标在本次伤害后仍有兵力、兵法源/目标类型与可用武将；仅门控参数为 1 的对方路径额外要求阵型类型 1/8、交战关系和 kakuritsu(50)。", "RE-SAN9PK-0099 进一步闭合每日入口：0x50A760 每个日期循环在日期推进前创建 0x509AF0 所属单位命令事件任务，类型 38 普攻进入上述结算；0x505EF0 按源部队执行一次 kakuritsu(15+自地域10+状态码8的5)，成功后把候选列表写入机会任务。", "因此机器事实是每个普攻结算事件中发起方有一次无 50% 门控入口、对方有一次额外 50% 入口；不存在无条件的固定每日机会次数。San9PKHard 的 0x49B1DE thunk 将 50 调整为 50+源部队士气-80，属于改进逻辑。"],
     "missing_evidence": []
   },
   {

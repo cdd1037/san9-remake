@@ -1,0 +1,24 @@
+{
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0099",
+  "status": "applied-and-read-back",
+  "scope": "TAC-01 daily normal-attack and tactic-opportunity generation",
+  "dry_run": { "total": 8, "ok": 8, "failed": 0 },
+  "apply": { "total": 8, "ok": 8, "failed": 0 },
+  "save": "in-place save succeeded",
+  "read_back": "all 8 addresses resolved to their planned names; five key callers force-recompiled",
+  "function_renames": [
+    { "address": "0x464170", "before": "sub_464170", "after": "is_unit_in_own_controlled_region", "confidence": "medium-high" },
+    { "address": "0x485280", "before": "sub_485280", "after": "create_unit_command_event_task", "confidence": "high" },
+    { "address": "0x499B80", "before": "sub_499B80", "after": "normal_attack_event_task_ctor_from_map_object", "confidence": "high" },
+    { "address": "0x499C90", "before": "sub_499C90", "after": "normal_attack_event_task_ctor_from_unit_command", "confidence": "high" },
+    { "address": "0x4FE490", "before": "sub_4FE490", "after": "tactic_opportunity_task_ctor", "confidence": "high" },
+    { "address": "0x505EF0", "before": "sub_505EF0", "after": "process_tactic_opportunity_task_state", "confidence": "high" },
+    { "address": "0x509890", "before": "sub_509890", "after": "daily_unit_command_event_task_ctor", "confidence": "high" },
+    { "address": "0x509AF0", "before": "sub_509AF0", "after": "process_daily_unit_command_event_task_state", "confidence": "high" }
+  ],
+  "comments": [],
+  "types": [],
+  "program_byte_changes": 0,
+  "evidence_summary": "The per-date state machine creates the unit-command event task before date advance; type 38 reaches normal-attack resolution, which creates a tactic-opportunity task whose land branch rolls 15 plus own-region 10 plus status-8 5 and copies the successful candidate list."
+}

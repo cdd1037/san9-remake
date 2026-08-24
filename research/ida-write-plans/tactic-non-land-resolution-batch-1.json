@@ -1,0 +1,35 @@
+{
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0101",
+  "status": "applied-and-read-back",
+  "scope": "TAC-03 water, facility and post-activation tactic resolution",
+  "boundary_recovery": {
+    "total": 7,
+    "addresses": ["0x4FE640", "0x4FE685", "0x4FE690", "0x4FE700", "0x5037E0", "0x503860", "0x5038C0"],
+    "result": "all seven created from vtable targets and ret/alignment bounds, then decompiled successfully"
+  },
+  "dry_run": { "total": 14, "ok": 14, "failed": 0 },
+  "apply": { "total": 14, "ok": 14, "failed": 0 },
+  "save": "in-place save succeeded",
+  "read_back": "all seven boundaries, fourteen function names and seventeen comments resolved as planned; four key callers force-recompiled",
+  "function_renames": [
+    { "address": "0x4FE640", "before": "sub_4FE640", "after": "is_water_tactic_candidate_person", "confidence": "high" },
+    { "address": "0x501AF0", "before": "sub_501AF0", "after": "create_facility_tactic_resolution_task", "confidence": "high" },
+    { "address": "0x501FE0", "before": "sub_501FE0", "after": "create_water_tactic_resolution_task", "confidence": "high" },
+    { "address": "0x5037E0", "before": "sub_5037E0", "after": "check_water_melee_tactic_eligibility", "confidence": "high" },
+    { "address": "0x503860", "before": "sub_503860", "after": "check_water_ranged_tactic_eligibility", "confidence": "high" },
+    { "address": "0x4FB760", "before": "sub_4FB760", "after": "set_person_tactic_interval", "confidence": "high" },
+    { "address": "0x4FF030", "before": "sub_4FF030", "after": "reset_tactic_participant_intervals", "confidence": "high" },
+    { "address": "0x503250", "before": "sub_503250", "after": "roll_martial_tactic_animation_double", "confidence": "high" },
+    { "address": "0x4FF830", "before": "sub_4FF830", "after": "present_tactic_activation", "confidence": "high" },
+    { "address": "0x4FE980", "before": "sub_4FE980", "after": "process_tactic_resolution_task_state", "confidence": "high" },
+    { "address": "0x4FDF00", "before": "sub_4FDF00", "after": "execute_and_schedule_tactic_resolution_result", "confidence": "high" },
+    { "address": "0x44E080", "before": "sub_44E080", "after": "try_person_learn_tactic", "confidence": "high" },
+    { "address": "0x460D70", "before": "sub_460D70", "after": "try_unit_members_learn_tactic", "confidence": "high" },
+    { "address": "0x462AD0", "before": "sub_462AD0", "after": "try_unit_members_learn_tactic_by_id", "confidence": "high" }
+  ],
+  "comments": 17,
+  "types": [],
+  "program_byte_changes": 0,
+  "evidence_summary": "The opportunity task gives water and facility branches one ten-percent roll each, selects a healthy zero-interval random water attacker or the facility responsible person, dispatches formation/facility-specific tactic tasks, then writes intervals, presentation, effects, growth and parent completion through the shared result-task chain."
+}

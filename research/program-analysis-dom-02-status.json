@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "batch": "DOM-02",
+  "status": "completed",
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0096",
+  "queue_candidates": 90,
+  "address_kinds": {
+    "image": 27,
+    "relative": 22,
+    "dynamic": 24,
+    "runtime": 1,
+    "semantic": 16
+  },
+  "unique_image_addresses": 19,
+  "candidate_disposition": {
+    "corroborating_original_sites": ["0x48A2B8", "0x49FA97", "0x49FAEC", "0x49FB20", "0x4AE1C1", "0x4AE200"],
+    "supporting_original_sites": ["0x43B426", "0x47FD12"],
+    "misrouted_by_third_party_label": ["0x40BDCA", "0x40BF25", "0x40CAEF"],
+    "supporting_only": "third-party enable/configuration sites, injected data, relative offsets, dynamic writes and repeated observations"
+  },
+  "closed_dimensions": [
+    "interactive and automatic producers",
+    "command validation and revalidation",
+    "participant selection bounds",
+    "draft amount, fund cost and recruit-morale blend",
+    "training leadership input and integer morale formula",
+    "funds, food, draft population, soldier and morale caps",
+    "five-category training proficiency writeback",
+    "execution-time race and failure boundaries"
+  ],
+  "deferred_to": {
+    "DOM-04": [
+      "draft and training use-flag reset timing",
+      "relationship to xun and population-cycle scheduling",
+      "formal behavior-spec promotion"
+    ]
+  }
+}

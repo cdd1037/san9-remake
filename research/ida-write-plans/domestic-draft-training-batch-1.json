@@ -1,0 +1,49 @@
+{
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0096",
+  "status": "applied-and-read-back",
+  "scope": "DOM-02 draft and training lifecycle",
+  "boundary_recovery": {
+    "status": "applied-before-renaming",
+    "functions": [
+      { "address": "0x4BF540", "end": "0x4BF57A", "role": "draft interaction message" },
+      { "address": "0x4BF580", "end": "0x4BF658", "role": "interactive draft command creation" },
+      { "address": "0x489F10", "end": "0x489FEB", "role": "training command validation" },
+      { "address": "0x489FF0", "end": "0x48A317", "role": "training command execution" },
+      { "address": "0x49FA10", "end": "0x49FB5E", "role": "automatic draft plan preparation" }
+    ],
+    "note": "Only original code boundaries hidden by data definitions were restored; no program bytes were changed."
+  },
+  "dry_run": { "total": 23, "ok": 23, "failed": 0 },
+  "apply": { "total": 23, "ok": 23, "failed": 0 },
+  "save": "in-place save succeeded",
+  "read_back": "all 23 addresses resolved to their planned names",
+  "function_renames": [
+    { "address": "0x4BF460", "before": "sub_4BF460", "after": "interactive_draft_action_task_ctor", "confidence": "high" },
+    { "address": "0x4C35F0", "before": "sub_4C35F0", "after": "interactive_training_action_task_ctor", "confidence": "high" },
+    { "address": "0x4BF680", "before": "sub_4BF680", "after": "validate_interactive_draft_action", "confidence": "high" },
+    { "address": "0x4C3890", "before": "sub_4C3890", "after": "validate_interactive_training_action", "confidence": "high" },
+    { "address": "0x4BF580", "before": "sub_4BF580", "after": "create_interactive_draft_command", "confidence": "high" },
+    { "address": "0x4C37A0", "before": "sub_4C37A0", "after": "create_interactive_training_command", "confidence": "high" },
+    { "address": "0x49F8F0", "before": "sub_49F8F0", "after": "automatic_draft_planner_ctor", "confidence": "high" },
+    { "address": "0x4ADE90", "before": "sub_4ADE90", "after": "automatic_training_planner_ctor", "confidence": "high" },
+    { "address": "0x49F5D0", "before": "sub_49F5D0", "after": "create_automatic_draft_command", "confidence": "high" },
+    { "address": "0x4ADF60", "before": "sub_4ADF60", "after": "create_automatic_training_command", "confidence": "high" },
+    { "address": "0x49FA10", "before": "sub_49FA10", "after": "prepare_automatic_draft_plan", "confidence": "high" },
+    { "address": "0x4AE130", "before": "sub_4AE130", "after": "select_automatic_training_participants", "confidence": "high" },
+    { "address": "0x486D00", "before": "sub_486D00", "after": "draft_command_ctor", "confidence": "high" },
+    { "address": "0x489D80", "before": "sub_489D80", "after": "training_command_ctor", "confidence": "high" },
+    { "address": "0x486F20", "before": "sub_486F20", "after": "validate_draft_command", "confidence": "high" },
+    { "address": "0x489F10", "before": "sub_489F10", "after": "validate_training_command", "confidence": "high" },
+    { "address": "0x486D90", "before": "sub_486D90", "after": "execute_draft_command", "confidence": "high" },
+    { "address": "0x489FF0", "before": "sub_489FF0", "after": "execute_training_command", "confidence": "high" },
+    { "address": "0x487030", "before": "sub_487030", "after": "calculate_draft_amount", "confidence": "high" },
+    { "address": "0x486D40", "before": "?max@@YAHHH@Z_w_2", "after": "calculate_draft_fund_cost", "confidence": "high" },
+    { "address": "0x489DE0", "before": "sub_489DE0", "after": "calculate_training_morale_gain", "confidence": "high" },
+    { "address": "0x43F830", "before": "sub_43F830", "after": "calculate_force_recruit_morale", "confidence": "high" },
+    { "address": "0x45E040", "before": "sub_45E040", "after": "blend_troop_morale_by_count", "confidence": "high" }
+  ],
+  "comments": [],
+  "types": [],
+  "evidence_summary": "Interactive and automatic task vtables converge on shared draft/training commands; validators, formula functions and terminal writes close the lifecycle."
+}

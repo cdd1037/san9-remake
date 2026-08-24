@@ -245,42 +245,40 @@
       "opcode": 10004,
       "family": "10000-10070",
       "dispatch": "virtual slot +0x28 on interactive task",
-      "handler": "returned subtask factory",
+      "handler": "interactive draft action task -> draft command",
       "input_object": "interactive force-action task context",
-      "producer": "pending",
-      "filtering": "range check only at dispatcher",
-      "randomness": "pending",
-      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
-      "status": "range-dispatch-confirmed",
+      "producer": "interactive code 4 and automatic code 4 converge on the draft command type",
+      "filtering": "valid city, nonempty unacted participants, draft-use bit clear, draft population > 0, saved amount > 0 and funds > 0; interactive precheck also requires soldiers below capacity",
+      "randomness": "none in state calculation; player-facing message choices do not change draft writeback",
+      "final_side_effect": "immediately blend morale with recruit baseline floor(sqrt(force trust))+40, add capped soldiers, deduct full saved draft population and ceil(amount/10) funds, mark participants acted and set city draft-use bit 4",
+      "status": "draft-command-lifecycle-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0096"
       ],
       "missing_evidence": [
-        "business label and terminal behavior beyond normalized factory mapping",
-        "gameplay semantics",
-        "child task writeback"
+        "city draft-use flag reset timing"
       ]
     },
     {
       "opcode": 10005,
       "family": "10000-10070",
       "dispatch": "virtual slot +0x28 on interactive task",
-      "handler": "returned subtask factory",
+      "handler": "interactive training action task -> training command",
       "input_object": "interactive force-action task context",
-      "producer": "pending",
-      "filtering": "range check only at dispatcher",
-      "randomness": "pending",
-      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
-      "status": "range-dispatch-confirmed",
+      "producer": "interactive code 5 and automatic code 5 converge on the training command type",
+      "filtering": "valid city, nonempty unacted participants, soldiers > 0, training-use bit clear and morale < 100; no funds or food requirement",
+      "randomness": "post-base special-pair doubling, otherwise 5*largest-affinity-group chance; flavor-message randomness does not affect state",
+      "final_side_effect": "immediately add capped morale, mark participants acted, add base proficiency 1 to categories 0..4 for every participant and set building training-use bit 2",
+      "status": "training-command-lifecycle-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0096"
       ],
       "missing_evidence": [
-        "business label and terminal behavior beyond normalized factory mapping",
-        "gameplay semantics",
-        "child task writeback"
+        "building training-use flag reset timing"
       ]
     },
     {

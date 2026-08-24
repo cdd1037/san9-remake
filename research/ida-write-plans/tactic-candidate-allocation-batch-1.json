@@ -1,0 +1,29 @@
+{
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0100",
+  "status": "applied-and-read-back",
+  "scope": "TAC-02 land tactic candidate allocation",
+  "boundary_recovery": {
+    "total": 5,
+    "addresses": ["0x4719D0", "0x472CB0", "0x503560", "0x503680", "0x503730"],
+    "result": "all five created and decompiled successfully"
+  },
+  "dry_run": { "total": 8, "ok": 8, "failed": 0 },
+  "apply": { "total": 8, "ok": 8, "failed": 0 },
+  "save": "in-place save succeeded",
+  "read_back": "all five boundaries and eight function names resolved as planned; six key functions force-recompiled",
+  "function_renames": [
+    { "address": "0x472CB0", "before": "sub_472CB0", "after": "is_tactic_opportunity_candidate_person", "confidence": "high" },
+    { "address": "0x471C10", "before": "sub_471C10", "after": "get_person_formation_row_sort_key", "confidence": "high" },
+    { "address": "0x4FEA10", "before": "sub_4FEA10", "after": "get_tactic_position_coefficient", "confidence": "high" },
+    { "address": "0x503560", "before": "sub_503560", "after": "check_infantry_cavalry_tactic_allocation", "confidence": "high" },
+    { "address": "0x503680", "before": "sub_503680", "after": "check_mounted_archery_tactic_allocation", "confidence": "high" },
+    { "address": "0x503730", "before": "sub_503730", "after": "check_crossbow_tactic_allocation", "confidence": "high" },
+    { "address": "0x5014B0", "before": "sub_5014B0", "after": "create_person_tactic_resolution_task", "confidence": "high" },
+    { "address": "0x518210", "before": "sub_518210", "after": "pop_front_list_value", "confidence": "high" }
+  ],
+  "comments": 8,
+  "types": [],
+  "program_byte_changes": 0,
+  "evidence_summary": "The land opportunity task filters by current interval, injury and person flags, sorts candidates front-to-rear, pops each candidate before dispatch, applies position/member/formation probability by tactic class, and terminates immediately when the selected tactic cannot create a land subtask."
+}

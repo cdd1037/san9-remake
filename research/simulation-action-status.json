@@ -760,84 +760,84 @@
       "opcode": 10029,
       "family": "10000-10070",
       "dispatch": "virtual slot +0x28 on interactive task",
-      "handler": "returned subtask factory",
-      "input_object": "interactive force-action task context",
-      "producer": "pending",
-      "filtering": "range check only at dispatcher",
-      "randomness": "pending",
-      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
-      "status": "range-dispatch-confirmed",
+      "handler": "COrderRikanDlg interactive alienate action and shared alienate command",
+      "input_object": "interactive force-action context, acting person, source unit and eligible target person",
+      "producer": "interactive_alienate_action_ctor; automatic_alienate_action_ctor converges on the same command",
+      "filtering": "target person must pass current-force eligibility and relation gates; actor must be unreserved",
+      "randomness": "submission stores stable rnd(100); execution succeeds iff stored roll is below live formula-3 threshold",
+      "final_side_effect": "success writes the computed loyalty delta, changes target-side force relations and may grow intelligence; failure changes actor-side force relations; both branches add strategy proficiency and complete the task",
+      "status": "behavior-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0067",
+        "RE-SAN9PK-0115"
       ],
       "missing_evidence": [
-        "business label and terminal behavior beyond normalized factory mapping",
-        "gameplay semantics",
-        "child task writeback"
+        "semantic name of target-person raw field 0x70"
       ]
     },
     {
       "opcode": 10030,
       "family": "10000-10070",
       "dispatch": "virtual slot +0x28 on interactive task",
-      "handler": "returned subtask factory",
-      "input_object": "interactive force-action task context",
-      "producer": "pending",
-      "filtering": "range check only at dispatcher",
-      "randomness": "pending",
-      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
-      "status": "range-dispatch-confirmed",
+      "handler": "COrderYakiuchiDlg interactive burn action and shared burn command",
+      "input_object": "interactive force-action context, acting person, source unit and hostile region-building target",
+      "producer": "interactive_burn_action_ctor; automatic_burn_action_ctor converges on the same command",
+      "filtering": "target must be an eligible non-empty region building with valid hostile ownership and relation gates; actor must be unreserved",
+      "randomness": "submission stores stable rnd(100); execution succeeds iff stored roll is below live formula-8 threshold, with additional rnd(5), 3% and rnd(100) effect rolls",
+      "final_side_effect": "success applies formula-13 durability damage, may remove food and may grow war; failure injures the actor and changes force relations; both branches add strategy proficiency and complete the task",
+      "status": "behavior-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0067",
+        "RE-SAN9PK-0115"
       ],
       "missing_evidence": [
-        "business label and terminal behavior beyond normalized factory mapping",
-        "gameplay semantics",
-        "child task writeback"
+        "complete player-facing terminology for automatic candidate scoring"
       ]
     },
     {
       "opcode": 10031,
       "family": "10000-10070",
       "dispatch": "virtual slot +0x28 on interactive task",
-      "handler": "returned subtask factory",
-      "input_object": "interactive force-action task context",
-      "producer": "pending",
-      "filtering": "range check only at dispatcher",
-      "randomness": "pending",
-      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
-      "status": "range-dispatch-confirmed",
+      "handler": "COrderDasshuDlg interactive seize action and shared seize command",
+      "input_object": "interactive force-action context, acting person, source unit and funded hostile region-building target",
+      "producer": "interactive_seize_action_ctor; automatic_seize_action_ctor converges on the same command",
+      "filtering": "burn-domain building gates plus positive target-force funds; actor must be unreserved",
+      "randomness": "submission stores stable rnd(100); execution tests ordered item, person and formula-9 money thresholds, while the item threshold has an extra 50% global gate",
+      "final_side_effect": "first matching branch transfers an item, a target person, or formula-12 money; no match injures the actor and changes force relations; success may grow war and all paths complete common proficiency/task cleanup",
+      "status": "behavior-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0067",
+        "RE-SAN9PK-0115"
       ],
       "missing_evidence": [
-        "business label and terminal behavior beyond normalized factory mapping",
-        "gameplay semantics",
-        "child task writeback"
+        "complete player-facing terminology for the person-transfer branch"
       ]
     },
     {
       "opcode": 10032,
       "family": "10000-10070",
       "dispatch": "virtual slot +0x28 on interactive task",
-      "handler": "returned subtask factory",
-      "input_object": "interactive force-action task context",
-      "producer": "pending",
-      "filtering": "range check only at dispatcher",
-      "randomness": "pending",
-      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
-      "status": "range-dispatch-confirmed",
+      "handler": "COrderRyuugenDlg interactive gossip action and shared gossip command",
+      "input_object": "interactive force-action context, acting person, source unit and two eligible target forces",
+      "producer": "interactive_gossip_action_ctor; automatic_gossip_action_ctor converges on the same command",
+      "filtering": "two distinct forces must pass current-force and mutual relation gates; first target force has at least two people; actor must be unreserved",
+      "randomness": "submission stores stable rnd(100); execution succeeds iff stored roll is below live formula-4 threshold, then may pass a 100-target-intelligence loyalty gate",
+      "final_side_effect": "success reduces relation between target forces, may add 3..4 loyalty to a selected target person and may grow intelligence; failure changes actor-side force relations; both branches add strategy proficiency and complete the task",
+      "status": "behavior-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0067",
+        "RE-SAN9PK-0115"
       ],
       "missing_evidence": [
-        "business label and terminal behavior beyond normalized factory mapping",
-        "gameplay semantics",
-        "child task writeback"
+        "complete player-facing terminology for automatic force-pair scoring"
       ]
     },
     {

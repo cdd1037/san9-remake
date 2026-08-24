@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "batch": "TAC-04",
+  "status": "completed",
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0102",
+  "queue_candidates": 240,
+  "candidate_disposition": {
+    "formula_baseline_image_instances": 16,
+    "adjacent_or_baselined_image_instances": 53,
+    "dynamic_or_patch_structure_write": 68,
+    "relative_offset_or_count": 62,
+    "semantic_only": 40,
+    "runtime_or_injected_data": 1,
+    "unresolved": 0
+  },
+  "closed_dimensions": [
+    "hiho minimum-interval field width and runtime widening",
+    "complete 41-record 0/6/9/15 interval table",
+    "terrain trap selector to concrete result record mapping",
+    "daily saturating interval decrement before command events",
+    "ten-day boundary after date advance",
+    "main, linked and facility interval write-back values",
+    "successful inspire-command interval clear",
+    "event-driven rather than fixed per-person activation frequency",
+    "formula 17..24 and 28..29 layering",
+    "duel interval fixed-value claim conflict"
+  ],
+  "state_machine": [
+    "daily_pre_command_decrement",
+    "daily_unit_command_events",
+    "normal_attack_opportunity",
+    "candidate_allocation_and_resolution",
+    "interval_effect_and_growth_writeback",
+    "date_advance",
+    "xun_boundary_or_next_day"
+  ],
+  "deferred": {
+    "DUEL-03/04": [
+      "duel participant role and current-ability slot semantics",
+      "duel interval write-back in the complete post-duel chain"
+    ]
+  },
+  "ida_mcp": {
+    "health": "ok",
+    "idb": "research/analysis/San9PK-TC-101.i64",
+    "function_boundaries_created": 1,
+    "function_renames": 7,
+    "record_types_updated": 2,
+    "function_signatures": 4,
+    "comments": 10,
+    "program_byte_changes": 0,
+    "save": "succeeded",
+    "read_back": "boundary, seven names, two record layouts, four signatures and ten comments verified; seven key functions force-recompiled"
+  },
+  "next_batch": "DUEL-01"
+}

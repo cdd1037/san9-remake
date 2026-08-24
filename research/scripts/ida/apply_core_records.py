@@ -55,15 +55,24 @@ typedef struct San9PersonRecord {
     unsigned char politics;
     unsigned char unknown_05D[7];
     unsigned char command;
-    unsigned char unknown_065[0x1F];
+    unsigned char unknown_065[7];
+    int affinity;
+    int righteousness;
+    int ambition;
+    int personality;
+    int lifespan;
+    int health;
     unsigned char status;
-    unsigned char unknown_085[0x1F];
+    unsigned char unknown_085[0x13];
+    int tactic_interval;
+    unsigned char unknown_09C[8];
     unsigned short tactic_proficiency[9];
     unsigned char unknown_0B6[0x32];
-    unsigned short tactic_general_proficiency_bits;
-    unsigned char unknown_0EA[0x16];
-    unsigned int learned_tactics_bits;
-    unsigned char unknown_104[0x24];
+    unsigned int person_flags;
+    unsigned char unknown_0EC[0x0C];
+    struct San9KillerRecord *equipped_tactic;
+    unsigned char learned_tactics_bits[6];
+    unsigned char unknown_102[0x26];
 } San9PersonRecord;
 
 typedef struct San9ForceRecord {
@@ -125,8 +134,8 @@ typedef struct San9KillerRecord {
     unsigned char unknown_05A[0x0A];
     unsigned char power_064;
     unsigned char unknown_065[0x17];
-    unsigned char interval_07C;
-    unsigned char unknown_07D[0x0F];
+    unsigned int minimum_interval_07C;
+    unsigned char unknown_080[0x0C];
 } San9KillerRecord;
 #pragma pack(pop)
 """

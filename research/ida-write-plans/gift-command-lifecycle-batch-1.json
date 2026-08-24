@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "batch": "DIP-01",
+  "sample": "SRC-SAN9PK-TC-101",
+  "idb": "research/analysis/San9PK-TC-101.i64",
+  "mode": "applied-and-verified",
+  "function_boundaries": [
+    {
+      "start": "0x00498EE0",
+      "end": "0x0049905E",
+      "reason": "vftable_gift_command slot points to this aligned standard prologue; the current data item hides executable control flow; 0x00499060 is the next established function"
+    }
+  ],
+  "planned_renames": [
+    { "address": "0x00498C00", "name": "validate_gift_command" },
+    { "address": "0x00498CB0", "name": "get_gift_target_force" },
+    { "address": "0x00498EE0", "name": "dispatch_gift_command" },
+    { "address": "0x00499110", "name": "get_gift_advisor_result" },
+    { "address": "0x00499280", "name": "resolve_gift_acceptance" },
+    { "address": "0x004BC650", "name": "automatic_gift_action_ctor" },
+    { "address": "0x004BC730", "name": "compute_automatic_gift_payload" },
+    { "address": "0x004BCBB0", "name": "is_automatic_gift_target_score_in_range" },
+    { "address": "0x004BCCF0", "name": "validate_and_populate_automatic_gift_action" },
+    { "address": "0x004BCE30", "name": "create_automatic_gift_command" },
+    { "address": "0x004BCF50", "name": "collect_automatic_gift_target_candidates" }
+  ],
+  "planned_comments": [
+    { "address": "0x00498C00", "summary": "submission validity requires the common command boundary, a live distinct target force, and a non-empty gift payload" },
+    { "address": "0x00498EE0", "summary": "submission stores rnd(100), deducts money or food immediately, stages item ownership on the envoy, writes the type-33 event, and reserves action state" },
+    { "address": "0x00499110", "summary": "advisor compares the truth class of same-seed gift-threshold and counselor-accuracy samples; it does not reveal the execution roll" },
+    { "address": "0x00499280", "summary": "acceptance uses the stored event roll for non-player targets; player-controlled targets receive an explicit accept/reject dialog" },
+    { "address": "0x00499370", "summary": "success transfers one payload and raises relation by max(60-current,20); failure lowers relation by 5; only success grows actor politics" },
+    { "address": "0x004BC730", "summary": "automatic gift selects either money or food from post-reserve surplus and caps either amount at 10000" },
+    { "address": "0x004BCCF0", "summary": "automatic code 33 rejects unavailable/flagged source forces, builds payload, then chooses target and one envoy" }
+  ],
+  "program_byte_changes": 0,
+  "result": {
+    "boundary_repairs": 1,
+    "renames": 11,
+    "comments": 7,
+    "save": "succeeded",
+    "read_back": "succeeded",
+    "health_core_stats_sha256": "5ef6c21ba0699a383a33b34808231380fc448c6c5d935c640f04596f15142abc"
+  }
+}

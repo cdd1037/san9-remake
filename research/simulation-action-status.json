@@ -717,42 +717,43 @@
       "opcode": 10027,
       "family": "10000-10070",
       "dispatch": "virtual slot +0x28 on interactive task",
-      "handler": "returned subtask factory",
-      "input_object": "interactive force-action task context",
-      "producer": "pending",
-      "filtering": "range check only at dispatcher",
-      "randomness": "pending",
-      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
-      "status": "range-dispatch-confirmed",
+      "handler": "COrderGekireiDlg interactive inspire action and shared inspire command",
+      "input_object": "interactive force-action context, acting person and friendly unit target",
+      "producer": "interactive_inspire_action_ctor; automatic_inspire_action_ctor converges on the same command",
+      "filtering": "valid unreserved actor; related friendly unit target with morale/status gates; automatic actors use effective intelligence 45..115",
+      "randomness": "submission stores stable rnd(100) roll; execution succeeds iff stored roll is below live formula-5 threshold",
+      "final_side_effect": "success adds 20 morale, applies status 8 with leadership-derived duration, clears member tactic intervals and attempts intelligence growth; failure loses 1..5 morale; all outcomes write strategy proficiency",
+      "status": "behavior-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0067",
+        "RE-SAN9PK-0102",
+        "RE-SAN9PK-0114"
       ],
       "missing_evidence": [
-        "business label and terminal behavior beyond normalized factory mapping",
-        "gameplay semantics",
-        "child task writeback"
+        "complete player-facing enumeration name for raw unit status 8"
       ]
     },
     {
       "opcode": 10028,
       "family": "10000-10070",
       "dispatch": "virtual slot +0x28 on interactive task",
-      "handler": "returned subtask factory",
-      "input_object": "interactive force-action task context",
-      "producer": "pending",
-      "filtering": "range check only at dispatcher",
-      "randomness": "pending",
-      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
-      "status": "range-dispatch-confirmed",
+      "handler": "COrderKyuuenDlg interactive reinforce action and shared reinforce command",
+      "input_object": "interactive force-action context, acting person, source object and friendly unit target",
+      "producer": "interactive_reinforce_action_ctor; automatic_reinforce_action_ctor converges on the same command",
+      "filtering": "source has at least 3000 troops; target is related friendly unit below capacity at execution; automatic path adds free-capacity, morale, event-type and source-retention gates",
+      "randomness": "submission stores stable rnd(100) roll after deducting 3000 source troops; execution succeeds iff stored roll is below live formula-10 threshold",
+      "final_side_effect": "success adds up to 3000 troops, blends morale, clears statuses other than 1/8 and attempts leadership growth; failure still adds up to 15*executed leadership troops and blends morale; no wounded-troop write",
+      "status": "behavior-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0067",
+        "RE-SAN9PK-0114"
       ],
       "missing_evidence": [
-        "business label and terminal behavior beyond normalized factory mapping",
-        "gameplay semantics",
-        "child task writeback"
+        "complete player-facing terminology for automatic source-retention predicates"
       ]
     },
     {

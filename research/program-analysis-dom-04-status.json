@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "batch": "DOM-04",
+  "status": "completed",
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0098",
+  "queue_candidates": 56,
+  "candidate_rules": {
+    "population": 18,
+    "income": 25,
+    "harvest": 9,
+    "municipal": 4
+  },
+  "address_kinds": {
+    "image": 11,
+    "relative": 12,
+    "dynamic": 24,
+    "semantic": 9
+  },
+  "candidate_disposition": {
+    "corroborating_population_sites": ["0x43B337", "0x43B419", "0x47FBDB", "0x47FCFD"],
+    "population_supporting_only": 14,
+    "routed_out_of_r1_scope": {
+      "income": 25,
+      "harvest": 9,
+      "municipal": 4,
+      "reason": "independent city economy, display, combat-income and empty-city rules; not domestic-use reset or population scheduling"
+    }
+  },
+  "closed_dimensions": [
+    "immediate command execution versus periodic reset",
+    "city and building domestic-use flag reset order",
+    "person acted-state reset timing",
+    "merchant-presence and food-price xun refresh order",
+    "quarter-month and month-start population gate",
+    "minimum elapsed-scenario-day gate",
+    "population and draft-population terminal caps",
+    "SanIX and electronic-book reconciliation",
+    "formal behavior-spec candidates"
+  ],
+  "ida_mcp": {
+    "health": "ok",
+    "idb": "research/analysis/San9PK-TC-101.i64",
+    "read_only_capabilities": [
+      "server_health",
+      "lookup_funcs",
+      "analyze_function",
+      "analyze_batch",
+      "decompile",
+      "callees",
+      "xref_query",
+      "get_bytes",
+      "read-only Python instruction decoding"
+    ],
+    "boundary_recovery": 1,
+    "function_renames": 9,
+    "program_byte_changes": 0,
+    "save": "succeeded",
+    "read_back": "all function boundaries and names verified"
+  },
+  "next_batch": "TAC-01"
+}

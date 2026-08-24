@@ -34,9 +34,9 @@
 | `SIX-DOM-07` | 一.2：训练规范统率与士气增量模型 | 训练 | `confirmed` | `roadmap:DOM-02` | 当前样本的信望输入、规范统率和机器整数顺序见 `RE-SAN9PK-0096`；原 `FML-SAN9PK-0029` 链接不能支持本项 |
 | `SIX-DOM-08` | 一.2：买进与卖出属于八项内政指令 | 交易 | `confirmed` | `roadmap:DOM-03` | 玩家入口、商人条件、数量/资源边界见 `RE-SAN9PK-0097`；共享交易使用位清除及商人/市价旬刷新顺序见 `RE-SAN9PK-0098`；标准自动内政工厂没有动作码 6、7 |
 | `SIX-STR-01` | 一.3：计略和外交为确定公式、无概率 | 计略与外交 | `conflict` | `out-of-scope` | `RE-SAN9PK-0067` 已确认多条 `kakuritsu` 随机比较；本轮不扩展完整计略/外交 |
-| `SIX-DUEL-01` | 二.1：逐刀按看破、动画必杀、双倍必杀、普通攻击短路 | 单挑逐刀状态机 | `planned` | `roadmap:DUEL-02` | `RE-SAN9PK-0103` 只闭合初始调用方向；现有公式目录没有逐刀基线，仍缺完整短路、随机顺序和 HP 状态机 |
-| `SIX-DUEL-02` | 二.1：规范武力、四类概率与伤害公式 | 单挑伤害 | `planned` | `roadmap:DUEL-02` | 旧链接有误：`FML-SAN9PK-0025` 实为俘虏；须从 `sub_500650` 重新闭合机器式 |
-| `SIX-DUEL-03` | 二.1：吕布、赵云、马超特殊分支 | 单挑特殊人物 | `planned` | `roadmap:DUEL-02` | 旧链接有误：公式 25/`RE-SAN9PK-0068` 未证明逐刀特殊人物分支 |
+| `SIX-DUEL-01` | 二.1：逐刀按看破、动画必杀、双倍必杀、普通攻击短路 | 单挑逐刀状态机 | `confirmed` | `roadmap:DUEL-02` | `RE-SAN9PK-0104` 确认 outcome `0/3/2/1` 的严格短路、核心 1/4 次随机抽样及看破后额外 `8%→4%` 表现随机 |
+| `SIX-DUEL-02` | 二.1：规范武力、四类概率与伤害公式 | 单挑伤害 | `confirmed` | `roadmap:DUEL-02` | `RE-SAN9PK-0104` 从 `resolve_duel_strike` 闭合机器式；资料的看破括号、动画差值和基础随机分母分别与机器冲突 |
+| `SIX-DUEL-03` | 二.1：吕布、赵云、马超特殊分支 | 单挑特殊人物 | `confirmed` | `roadmap:DUEL-02` | `RE-SAN9PK-0104` 确认 ID `3/9/4` 的 40% 看破、33 基础上限和 24 双倍上限；姓名为重复资料标签映射，机器分支事实独立成立 |
 | `SIX-DUEL-04` | 二.1：主动发起方固定先砍 | 单挑先手 | `confirmed` | `roadmap:DUEL-01` | `RE-SAN9PK-0103` 确认双方首选者置于表首，`0x50409C` 先扣接受方 HP，存活后才在 `0x50418F` 还击 |
 | `SIX-DUEL-05` | 二.2：君主/总大将/四能力门槛与最大 30% 阵亡 | 单挑阵亡 | `confirmed` | `baseline` | `FML-SAN9PK-0027`、`RE-SAN9PK-0068/0071` 已修正最大基础能力门槛及共同开关；战后状态链见 `SIX-DUEL-06` |
 | `SIX-DUEL-06` | 二.2：失败、阵亡、伤势和人物状态最终写回 | 单挑结束 | `planned` | `roadmap:DUEL-03` | 缺胜负出口到完整人物/部队写回链 |
@@ -116,4 +116,4 @@
 - `COV-03`：已由 [`program-analysis-queue-status.json`](program-analysis-queue-status.json)、[`program-analysis-queue-ida-audit.json`](program-analysis-queue-ida-audit.json) 与 [`RE-SAN9PK-0094`](findings/RE-SAN9PK-0094.md) 完成机器可校验的候选队列；完整队列可按状态清单中的命令重建到 `tmp/`。
 - `DOM-01`：从 `SIX-DOM-03/04`、`EBK-DOM-01` 和 `HARD-DOM-01` 开始，不重复公式 29。
 - `TAC-01`：从 `SIX-TAC-01`、`EBK-TAC-01` 开始，以 `FML-SAN9PK-0017` 的普攻事件事实为入口。
-- `DUEL-02`：从 `SIX-DUEL-01/02/03` 开始；`FML-SAN9PK-0025` 是俘虏而非单挑逐刀，只有公式 27 的阵亡链可留作 `DUEL-03` 基线。
+- `DUEL-03`：沿 `RE-SAN9PK-0104` 的逐刀退出进入胜负、阵亡和战后写回；`FML-SAN9PK-0027` 只作为阵亡链基线，不能替代当前样本完整出口核验。

@@ -1,4 +1,4 @@
-"""Build and validate the R0-R3 program-analysis candidate queue.
+"""Build and validate the program-analysis candidate queue.
 
 The queue is a scheduling artifact, not an original-behavior specification.
 It classifies every active COV-02 observation exactly once and keeps restore
@@ -27,6 +27,10 @@ ALLOWED_BATCHES = {
     "DOM-01", "DOM-02", "DOM-03", "DOM-04",
     "TAC-01", "TAC-02", "TAC-03", "TAC-04",
     "DUEL-01", "DUEL-02", "DUEL-03", "DUEL-04",
+    "PERS-02", "PERS-03", "PERS-04",
+    "STR-01", "STR-02", "STR-03", "STR-04",
+    "DIP-01", "DIP-02", "DIP-03", "DIP-04",
+    "GOV-01", "GOV-02", "GOV-03", "GOV-04",
 }
 ADDRESS_PATTERN = re.compile(r"^0x[0-9A-F]+$")
 IMAGE_START = 0x400000
@@ -107,7 +111,21 @@ def route_candidate(subsystem: str, search_text: str) -> tuple[str, str, str | N
         return "planned", "roadmap", "DUEL-01", "duel-trigger-or-participant-candidate"
     if subsystem == "tactical-ai":
         return "confirmed", "baseline", None, "tactical-ai-coverage-already-closed"
-    return "inferred", "out-of-scope", None, "outside-R1-R3-or-infrastructure"
+    if subsystem == "personnel-diplomacy":
+        if has_term(search_text, "search"):
+            return "planned", "roadmap", "PERS-02", "search-or-discovery-candidate"
+        if any(has_term(search_text, word) for word in ("invite", "friendship")):
+            return "planned", "roadmap", "PERS-03", "recruitment-or-affinity-candidate"
+        if any(has_term(search_text, word) for word in ("award", "official", "loyal", "loyalty", "loyaty")):
+            return "planned", "roadmap", "PERS-04", "reward-office-or-loyalty-candidate"
+        if any(has_term(search_text, word) for word in ("alienate", "gossip")):
+            return "planned", "roadmap", "STR-03", "alienate-or-gossip-candidate"
+        if any(has_term(search_text, word) for word in ("counselor", "counsellor")):
+            return "planned", "roadmap", "STR-04", "shared-counselor-candidate"
+        if has_term(search_text, "league"):
+            return "planned", "roadmap", "DIP-03", "league-state-candidate"
+        raise ValueError(f"unrouted personnel-diplomacy candidate: {search_text}")
+    return "inferred", "out-of-scope", None, "outside-active-roadmap-or-infrastructure"
 
 
 def normalized_source_ref(item: dict[str, object]) -> dict[str, object]:
@@ -216,7 +234,7 @@ def build_queue(catalog: dict[str, object], source_root: Path) -> dict[str, obje
         + sum(item["active"] for item in sections["config_bit_mappings"])
     )
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "source_id": "SRC-SAN9PKHARD",
         "catalog_sha256": build_status(catalog)["catalog_sha256"],
         "expected_candidate_count": expected_candidates,
@@ -292,9 +310,10 @@ def validate_queue(queue: dict[str, object], source_root: Path) -> dict[str, obj
 
 def build_queue_status(queue: dict[str, object], validation: dict[str, object]) -> dict[str, object]:
     candidates = queue["candidates"]
+    personnel = [item for item in candidates if item["subsystem"] == "personnel-diplomacy"]
     canonical = json.dumps(queue, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "source_id": queue["source_id"],
         "catalog_sha256": queue["catalog_sha256"],
         "queue_sha256": hashlib.sha256(canonical).hexdigest().upper(),
@@ -305,6 +324,12 @@ def build_queue_status(queue: dict[str, object], validation: dict[str, object]) 
         "status_counts": dict(sorted(Counter(str(item["status"]) for item in candidates).items())),
         "disposition_counts": dict(sorted(Counter(str(item["disposition"]) for item in candidates).items())),
         "batch_counts": dict(sorted(Counter(str(item["batch"]) for item in candidates if item["batch"]).items())),
+        "personnel_diplomacy_routing": {
+            "candidate_count": len(personnel),
+            "disposition_counts": dict(sorted(Counter(str(item["disposition"]) for item in personnel).items())),
+            "batch_counts": dict(sorted(Counter(str(item["batch"]) for item in personnel if item["batch"]).items())),
+            "unrouted_count": sum(item["batch"] is None and item["disposition"] == "roadmap" for item in personnel),
+        },
         "address_kind_counts": dict(sorted(Counter(str(item["address_kind"]) for item in candidates).items())),
         "supporting_coverage": queue["supporting_coverage"],
         "validation": validation,

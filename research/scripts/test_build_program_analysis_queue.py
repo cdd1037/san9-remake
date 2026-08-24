@@ -82,6 +82,26 @@ void f() {
         self.assertEqual((status, disposition, batch), ("planned", "roadmap", "TAC-04"))
         self.assertEqual(reason, "tactic-candidate-needs-baseline-reconciliation")
 
+    def test_routes_personnel_diplomacy_candidates_to_r4_r6(self):
+        cases = {
+            "dwAddrSearchRange": "PERS-02",
+            "dwAddrInviteNewPerson": "PERS-03",
+            "m_dwAddrPersonFriendship": "PERS-03",
+            "m_dwOfficialLoyaltyAddr": "PERS-04",
+            "m_dwLoyatyAddr": "PERS-04",
+            "dwAddrGossipToPlayer": "STR-03",
+            "dwAddrCounselorAdvise": "STR-04",
+            "dwAddrLeagueSucceed": "DIP-03",
+        }
+        for text, expected_batch in cases.items():
+            with self.subTest(text=text):
+                status, disposition, batch, _ = route_candidate("personnel-diplomacy", text)
+                self.assertEqual((status, disposition, batch), ("planned", "roadmap", expected_batch))
+
+    def test_rejects_unrouted_personnel_diplomacy_candidate(self):
+        with self.assertRaisesRegex(ValueError, "unrouted personnel-diplomacy"):
+            route_candidate("personnel-diplomacy", "unknown person operation")
+
     def test_distinguishes_image_addresses_from_relative_offsets(self):
         with tempfile.TemporaryDirectory() as directory:
             root = self.make_root(directory)

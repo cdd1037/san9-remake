@@ -38,8 +38,8 @@
 | `SIX-DUEL-02` | 二.1：规范武力、四类概率与伤害公式 | 单挑伤害 | `confirmed` | `roadmap:DUEL-02` | `RE-SAN9PK-0104` 从 `resolve_duel_strike` 闭合机器式；资料的看破括号、动画差值和基础随机分母分别与机器冲突 |
 | `SIX-DUEL-03` | 二.1：吕布、赵云、马超特殊分支 | 单挑特殊人物 | `confirmed` | `roadmap:DUEL-02` | `RE-SAN9PK-0104` 确认 ID `3/9/4` 的 40% 看破、33 基础上限和 24 双倍上限；姓名为重复资料标签映射，机器分支事实独立成立 |
 | `SIX-DUEL-04` | 二.1：主动发起方固定先砍 | 单挑先手 | `confirmed` | `roadmap:DUEL-01` | `RE-SAN9PK-0103` 确认双方首选者置于表首，`0x50409C` 先扣接受方 HP，存活后才在 `0x50418F` 还击 |
-| `SIX-DUEL-05` | 二.2：君主/总大将/四能力门槛与最大 30% 阵亡 | 单挑阵亡 | `confirmed` | `baseline` | `FML-SAN9PK-0027`、`RE-SAN9PK-0068/0071` 已修正最大基础能力门槛及共同开关；战后状态链见 `SIX-DUEL-06` |
-| `SIX-DUEL-06` | 二.2：失败、阵亡、伤势和人物状态最终写回 | 单挑结束 | `planned` | `roadmap:DUEL-03` | 缺胜负出口到完整人物/部队写回链 |
+| `SIX-DUEL-05` | 二.2：君主/总大将/四能力门槛与最大 30% 阵亡 | 单挑阵亡 | `conflict` | `roadmap:DUEL-03` | `RE-SAN9PK-0105` 确认主将、蛮族、场景/开关、四基础能力最大值 80 门与 `min(30,80-当前有效武力)`；当前样本没有独立君主免疫，资料的“君主不能阵亡”扩写与机器冲突 |
+| `SIX-DUEL-06` | 二.2：失败、阵亡、伤势和人物状态最终写回 | 单挑结束 | `confirmed` | `roadmap:DUEL-03` | `RE-SAN9PK-0105` 闭合胜负名单、双方间隔、阵亡→俘虏→至少 7 伤势分区、俘虏状态/槽位/链接、临时位清零及士气 1..100 写回 |
 | `SIX-DUEL-07` | 二.3：阵位、阵形、性格和武力限制决定触发 | 单挑触发 | `confirmed` | `roadmap:DUEL-01` | `RE-SAN9PK-0103` 闭合发起/接受两套资格、最高当前武力遮蔽、`3×阵形倍率×前排人数`、性格阈值及普通兵法骰独立性 |
 | `SIX-TAC-01` | 三.一.1.1：普通攻击次数产生兵法机会，地域/高昂修正 15–30% | 兵法机会 | `confirmed` | `roadmap:TAC-01` | `RE-SAN9PK-0099` 闭合每日类型 38 普攻入口、双机会任务、15+10+5 概率和成功候选列表写入；1–3 次/日仅为观察值 |
 | `SIX-TAC-02` | 三.一.1.2：按健康、间隔、阵位、人数、阵形和类别分配机会 | 陆战候选分配 | `confirmed` | `roadmap:TAC-02` | `RE-SAN9PK-0100` 闭合当前间隔/健康谓词、前中后顺序、人数与阵位系数、四类有利阵形、谋略/策略无阵形乘数及逐项消费 |
@@ -116,4 +116,4 @@
 - `COV-03`：已由 [`program-analysis-queue-status.json`](program-analysis-queue-status.json)、[`program-analysis-queue-ida-audit.json`](program-analysis-queue-ida-audit.json) 与 [`RE-SAN9PK-0094`](findings/RE-SAN9PK-0094.md) 完成机器可校验的候选队列；完整队列可按状态清单中的命令重建到 `tmp/`。
 - `DOM-01`：从 `SIX-DOM-03/04`、`EBK-DOM-01` 和 `HARD-DOM-01` 开始，不重复公式 29。
 - `TAC-01`：从 `SIX-TAC-01`、`EBK-TAC-01` 开始，以 `FML-SAN9PK-0017` 的普攻事件事实为入口。
-- `DUEL-03`：沿 `RE-SAN9PK-0104` 的逐刀退出进入胜负、阵亡和战后写回；`FML-SAN9PK-0027` 只作为阵亡链基线，不能替代当前样本完整出口核验。
+- `DUEL-04`：以 `RE-SAN9PK-0103/0104/0105` 的当前样本事实逐项校核 SanIX 与电子书重复章节，清账冲突并形成满足证据门槛的单挑 `BEH-*` 候选。

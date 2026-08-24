@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "batch": "DUEL-03",
+  "status": "completed",
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0105",
+  "queue_candidates": 28,
+  "candidate_disposition": {
+    "formula_baseline_image_instances": 15,
+    "semantic_only_patch_configuration": 7,
+    "unrelated_personnel_propensity_image_instances": 3,
+    "unrelated_personnel_propensity_configuration": 3,
+    "unresolved": 0
+  },
+  "closed_dimensions": [
+    "winner and losing-side selection",
+    "participant tactic-interval write-back",
+    "duel scratch initialization prior-winner immunity and cleanup",
+    "death caller gates predicate gates probability and kill write-back",
+    "main-general and barbarian immunity with independent-ruler source conflict",
+    "capture gates probability status flags slot and winner linkage",
+    "death capture and severe-injury outcome partition",
+    "post-duel global random-call order",
+    "winner and loser morale adjustment"
+  ],
+  "deferred": {
+    "DUEL-04": [
+      "final duplicate-source reconciliation",
+      "posthumous winner-growth branch reachability classification",
+      "behavior-spec candidacy"
+    ]
+  },
+  "ida_mcp": {
+    "health": "ok",
+    "idb": "research/analysis/San9PK-TC-101.i64",
+    "function_boundaries": 2,
+    "function_renames": 6,
+    "function_signatures": 7,
+    "comments": 35,
+    "program_byte_changes": 0,
+    "save": "succeeded",
+    "read_back": "two boundaries, seven names and signatures, death/capture pseudocode and key comments verified; eight related functions force-recompiled"
+  },
+  "next_batch": "DUEL-04"
+}

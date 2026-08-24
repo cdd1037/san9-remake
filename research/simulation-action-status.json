@@ -432,19 +432,18 @@
       "dispatch": "virtual slot +0x28 on interactive task",
       "handler": "returned subtask factory",
       "input_object": "interactive force-action task context",
-      "producer": "pending",
-      "filtering": "range check only at dispatcher",
-      "randomness": "pending",
-      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
-      "status": "range-dispatch-confirmed",
+      "producer": "interactive_appoint_strategist_action_ctor@0x4C0160 creates appoint_strategist_command_ctor@0x487220",
+      "filtering": "shared interactive context; selected identity 3 person must have current intelligence at least 70; command revalidates the target",
+      "randomness": "only an old-strategist relation/display adjustment uses rnd(3); appointment itself is deterministic",
+      "final_side_effect": "old strategist identity 2 becomes 3, selected identity 3 becomes 2 and the force strategist reference is replaced; no direct office, salary or loyalty write",
+      "status": "behavior-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0112"
       ],
       "missing_evidence": [
-        "business label and terminal behavior beyond normalized factory mapping",
-        "gameplay semantics",
-        "child task writeback"
+        "general office appointment is a separate command family"
       ]
     },
     {
@@ -474,19 +473,18 @@
       "dispatch": "virtual slot +0x28 on interactive task",
       "handler": "returned subtask factory",
       "input_object": "interactive force-action task context",
-      "producer": "pending",
-      "filtering": "range check only at dispatcher",
-      "randomness": "pending",
-      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
-      "status": "range-dispatch-confirmed",
+      "producer": "interactive_reward_action_ctor@0x4C0820 creates reward_command_ctor@0x487470",
+      "filtering": "nonempty valid list; loyalty below 100; reward marker 0x4000 clear; funds at least 100 per person",
+      "randomness": "none in the loyalty or funds writeback",
+      "final_side_effect": "each person gains min(50*(20-integrity)/100,10) capped at loyalty 100, costs 100 funds and receives marker 0x4000 until the next xun",
+      "status": "behavior-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0112"
       ],
       "missing_evidence": [
-        "business label and terminal behavior beyond normalized factory mapping",
-        "gameplay semantics",
-        "child task writeback"
+        "none within the command lifecycle"
       ]
     },
     {
@@ -495,19 +493,18 @@
       "dispatch": "virtual slot +0x28 on interactive task",
       "handler": "returned subtask factory",
       "input_object": "interactive force-action task context",
-      "producer": "pending",
-      "filtering": "range check only at dispatcher",
-      "randomness": "pending",
-      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
-      "status": "range-dispatch-confirmed",
+      "producer": "interactive_grant_item_action_ctor@0x4C1A30 creates grant_item_command_ctor@0x4889A0",
+      "filtering": "valid person and item; acting ruler can grant the selected item",
+      "randomness": "none in holder transfer or loyalty writeback",
+      "final_side_effect": "transfers the item holder to the selected person, then adds item+0x40 loyalty through the bounded feedback path; item resource code 79 also sets a force event flag",
+      "status": "behavior-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0112"
       ],
       "missing_evidence": [
-        "business label and terminal behavior beyond normalized factory mapping",
-        "gameplay semantics",
-        "child task writeback"
+        "player-facing name of the resource-code-79 force event"
       ]
     },
     {
@@ -558,19 +555,18 @@
       "dispatch": "virtual slot +0x28 on interactive task",
       "handler": "returned subtask factory",
       "input_object": "interactive force-action task context",
-      "producer": "pending",
-      "filtering": "range check only at dispatcher",
-      "randomness": "pending",
-      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
-      "status": "range-dispatch-confirmed",
+      "producer": "interactive_exile_action_ctor@0x4C74A0 creates exile_command_ctor@0x48C7A0",
+      "filtering": "nonempty valid list; excludes raw identity 0 from the executable selection",
+      "randomness": "none in the terminal loyalty and detachment writes",
+      "final_side_effect": "non-prisoners get loyalty 45 toward the expelling force before detachment; prisoners instead gain integrity/5 toward the captor and are released or re-homed",
+      "status": "behavior-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0112"
       ],
       "missing_evidence": [
-        "business label and terminal behavior beyond normalized factory mapping",
-        "gameplay semantics",
-        "child task writeback"
+        "automatic item confiscation is not supported by this command chain"
       ]
     },
     {
@@ -600,19 +596,18 @@
       "dispatch": "virtual slot +0x28 on interactive task",
       "handler": "returned subtask factory",
       "input_object": "interactive force-action task context",
-      "producer": "pending",
-      "filtering": "range check only at dispatcher",
-      "randomness": "pending",
-      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
-      "status": "range-dispatch-confirmed",
+      "producer": "interactive_recall_action_ctor@0x4C7AC0 creates recall_command_ctor@0x496A90",
+      "filtering": "valid destination; identities and current locations compatible; rejects reserved people unless command mode permits",
+      "randomness": "none",
+      "final_side_effect": "groups selected people by current associated object and dispatches each origin group to one destination, then completes and releases participants",
+      "status": "behavior-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0112"
       ],
       "missing_evidence": [
-        "business label and terminal behavior beyond normalized factory mapping",
-        "gameplay semantics",
-        "child task writeback"
+        "exact player-facing labels for every destination runtime subclass"
       ]
     },
     {
@@ -621,19 +616,18 @@
       "dispatch": "virtual slot +0x28 on interactive task",
       "handler": "returned subtask factory",
       "input_object": "interactive force-action task context",
-      "producer": "pending",
-      "filtering": "range check only at dispatcher",
-      "randomness": "pending",
-      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
-      "status": "range-dispatch-confirmed",
+      "producer": "interactive_move_person_action_ctor@0x4C0C30 creates move_person_command_ctor@0x4902B0",
+      "filtering": "valid destination and transferable people; rejects participant reservation 0x1000 unless command mode permits",
+      "randomness": "none",
+      "final_side_effect": "moves participants to the destination through the shared transfer path; ruler movement across forces uses dedicated force and unit migration before cleanup",
+      "status": "behavior-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0112"
       ],
       "missing_evidence": [
-        "business label and terminal behavior beyond normalized factory mapping",
-        "gameplay semantics",
-        "child task writeback"
+        "exact player-facing labels for every destination runtime subclass"
       ]
     },
     {
@@ -674,7 +668,7 @@
         "RE-SAN9PK-0111"
       ],
       "missing_evidence": [
-        "periodic loyalty changes outside the command lifecycle are deferred to PERS-04"
+        "periodic loyalty changes are closed separately by RE-SAN9PK-0112"
       ]
     },
     {

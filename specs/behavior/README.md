@@ -27,5 +27,8 @@
 - [BEH-PERSON-0001：人物发现、登用与归属初始化](BEH-PERSON-0001-discovery-recruitment-and-affiliation.md)（已确认）
 - [BEH-PERSON-0002：人物奖惩与忠诚周期](BEH-PERSON-0002-rewards-exile-and-loyalty-cycle.md)（已确认范围）
 - [BEH-PERSON-0003：人物召回、移动与行动占用](BEH-PERSON-0003-recall-movement-and-action-reservation.md)（已确认）
+- [BEH-STRATEGY-0001：计略提交、军师意见与阶段结算](BEH-STRATEGY-0001-command-advice-and-resolution.md)（已确认）
+- [BEH-STRATEGY-0002：部队计略状态与救援](BEH-STRATEGY-0002-unit-status-and-reinforcement.md)（已确认）
+- [BEH-STRATEGY-0003：人物、建筑与势力计略效果](BEH-STRATEGY-0003-person-building-and-force-effects.md)（已确认）
 
 新增规格必须使用[行为规格模板](../templates/behavior-spec.md)，分别描述原作基线、重制行为和依据。若规格声称描述原作行为，没有本项目可复验证据时不得设为“已确认”；原创或现代化设计可以依据明确决策、原型验证和可测试的验收标准进入“已确认”。

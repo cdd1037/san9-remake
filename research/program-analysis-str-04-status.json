@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "batch": "STR-04",
+  "status": "completed",
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0116",
+  "closed_dimensions": [
+    "fresh advisor recomputation for every current actor and target selection",
+    "same-seed counselor truth-class comparison without execution-roll prediction",
+    "single selected actor for every strategy command",
+    "submission and event-execution stage validation",
+    "live target and source revalidation before effects",
+    "stable stored 0..99 payload for all eight strategy commands",
+    "strategy proficiency for every current source-unit person",
+    "selected-actor ability growth only on successful result branches",
+    "xun-wide release of command participant reservations",
+    "daily positive unit-status duration decrement",
+    "all 58 routed counselor candidates explicitly classified",
+    "SanIX and electronic-book no-probability claim corrected for all eight strategies",
+    "three address-free confirmed strategy behavior specifications"
+  ],
+  "candidate_disposition": {
+    "total": 58,
+    "current_image_addresses": 13,
+    "ui_advisor_recompute_sites": 10,
+    "automatic_counselor_governance_sites": 1,
+    "adjacent_report_or_object_helpers": 2,
+    "patch_infrastructure_config_relative_or_semantic_only": 45,
+    "unresolved": 0
+  },
+  "ida_mcp": {
+    "health": "ok",
+    "idb": "research/analysis/San9PK-TC-101.i64",
+    "function_boundary_repairs": 0,
+    "function_renames": 16,
+    "comments": 9,
+    "program_byte_changes": 0,
+    "save": "succeeded",
+    "read_back": "all 16 planned names resolved and the IDB health probe remained ready"
+  },
+  "unconfirmed_claims": [
+    "complete player-facing names for unit statuses outside the three statuses directly written by strategy commands",
+    "exact UI wording represented by third-party counselor-report presentation patches",
+    "whether diplomacy contradicts the duplicated no-probability source claim"
+  ],
+  "next_batch": "DIP-01"
+}

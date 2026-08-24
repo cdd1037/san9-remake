@@ -1,0 +1,42 @@
+{
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0116",
+  "status": "applied-and-read-back",
+  "scope": "STR-04 shared strategy command construction, advisor evaluation, validation, experience and cleanup boundaries",
+  "dry_run": { "total": 16, "ok": 16, "failed": 0 },
+  "apply": { "total": 16, "ok": 16, "failed": 0 },
+  "save": "in-place save succeeded",
+  "read_back": "all 16 planned names resolved; advisor, common validation, single-actor construction, event roll, task context, routing and daily status cleanup helpers show the planned names",
+  "function_boundary_repairs": [],
+  "function_renames": [
+    ["0x486450", "sub_486450", "validate_command_and_show_advisor_result"],
+    ["0x493130", "sub_493130", "validate_strategy_command_common_impl"],
+    ["0x4922D0", "?Win95IsDebuggerPresent@@YGHXZ_4", "validate_strategy_command_common"],
+    ["0x492260", "sub_492260", "strategy_command_base_ctor"],
+    ["0x492E90", "sub_492E90", "single_actor_command_ctor"],
+    ["0x485BC0", "sub_485BC0", "single_actor_command_base_ctor"],
+    ["0x485E50", "sub_485E50", "get_selected_command_actor"],
+    ["0x485EE0", "sub_485EE0", "get_selected_actor_force"],
+    ["0x485F10", "sub_485F10", "get_selected_actor_unit"],
+    ["0x485F70", "sub_485F70", "get_selected_actor_location"],
+    ["0x45EF70", "sub_45EF70", "get_unit_command_event_roll"],
+    ["0x486050", "sub_486050", "create_command_task_context"],
+    ["0x485AA0", "sub_485AA0", "set_command_route_to_target"],
+    ["0x50B100", "sub_50B100", "decrement_unit_status_durations_daily"],
+    ["0x45DF40", "sub_45DF40", "decrease_unit_status_duration"],
+    ["0x4A5AC0", "sub_4A5AC0", "collect_automatic_counselor_candidates"]
+  ],
+  "comments": [
+    {"address": "0x486450", "summary": "fresh command validation and advisor display on UI selection changes"},
+    {"address": "0x492300", "summary": "same-seed zero/nonzero advisor comparison; no execution-roll storage"},
+    {"address": "0x493130", "summary": "submission versus event-execution common validation"},
+    {"address": "0x485BC0", "summary": "exactly one selected strategy actor"},
+    {"address": "0x492F50", "summary": "participant reservation and xun release boundary"},
+    {"address": "0x460DC0", "summary": "proficiency applies to all current source-unit persons"},
+    {"address": "0x480A60", "summary": "xun-wide action and reservation cleanup"},
+    {"address": "0x50B100", "summary": "daily positive status-duration decrement"},
+    {"address": "0x4A5AC0", "summary": "automatic counselor-successor pool, not strategy production"}
+  ],
+  "types": [],
+  "program_byte_changes": 0
+}

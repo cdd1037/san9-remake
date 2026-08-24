@@ -675,42 +675,42 @@
       "opcode": 10025,
       "family": "10000-10070",
       "dispatch": "virtual slot +0x28 on interactive task",
-      "handler": "returned subtask factory",
-      "input_object": "interactive force-action task context",
-      "producer": "pending",
-      "filtering": "range check only at dispatcher",
-      "randomness": "pending",
-      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
-      "status": "range-dispatch-confirmed",
+      "handler": "COrderGihouDlg interactive false-report action and shared false-report command",
+      "input_object": "interactive force-action context, acting person and enemy unit target",
+      "producer": "interactive_false_report_action_ctor; automatic_false_report_action_ctor converges on the same command",
+      "filtering": "valid unreserved actor; enemy unit target with runtime flag 0x8, relation/command-object gates and false-report-specific status constraints",
+      "randomness": "submission stores stable rnd(100) roll; execution succeeds iff stored roll is below live formula-6 threshold",
+      "final_side_effect": "success applies unit status 4 for 5..7 days and attempts intelligence growth; failure decreases force relation; all outcomes write strategy proficiency and complete the command task",
+      "status": "behavior-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0067",
+        "RE-SAN9PK-0113"
       ],
       "missing_evidence": [
-        "business label and terminal behavior beyond normalized factory mapping",
-        "gameplay semantics",
-        "child task writeback"
+        "complete player-facing names for every force-relation filter callback"
       ]
     },
     {
       "opcode": 10026,
       "family": "10000-10070",
       "dispatch": "virtual slot +0x28 on interactive task",
-      "handler": "returned subtask factory",
-      "input_object": "interactive force-action task context",
-      "producer": "pending",
-      "filtering": "range check only at dispatcher",
-      "randomness": "pending",
-      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
-      "status": "range-dispatch-confirmed",
+      "handler": "COrderKakuranDlg interactive disorder action and shared disorder command",
+      "input_object": "interactive force-action context, acting person and enemy unit target",
+      "producer": "interactive_disorder_action_ctor; automatic_disorder_action_ctor converges on the same command",
+      "filtering": "valid unreserved actor; enemy unit target with runtime flag 0x8, relation/command-object gates, disorder status constraints and formation type 27 exclusion",
+      "randomness": "submission stores stable rnd(100) roll; execution succeeds iff stored roll is below live formula-7 threshold",
+      "final_side_effect": "success applies unit status 5 for an intelligence-derived duration, lowers morale and attempts intelligence growth; failure decreases force relation; all outcomes write strategy proficiency and complete the command task",
+      "status": "behavior-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0067",
+        "RE-SAN9PK-0113"
       ],
       "missing_evidence": [
-        "business label and terminal behavior beyond normalized factory mapping",
-        "gameplay semantics",
-        "child task writeback"
+        "complete player-facing names for every force-relation filter callback"
       ]
     },
     {

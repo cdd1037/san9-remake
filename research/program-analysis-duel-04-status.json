@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "batch": "DUEL-04",
+  "status": "completed",
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0107",
+  "source_claims": {
+    "sanix": 7,
+    "ebook_duplicates": 7,
+    "unresolved": 0
+  },
+  "behavior_specs": [
+    "BEH-DUEL-0001",
+    "BEH-DUEL-0002",
+    "BEH-DUEL-0003"
+  ],
+  "excluded_from_specs": [
+    "duel participant interval ability-slot identity",
+    "posthumous winner-growth branch reachability"
+  ],
+  "ida_mcp": {
+    "health": "ok",
+    "idb": "research/analysis/San9PK-TC-101.i64",
+    "read_only_capabilities": [
+      "server_health",
+      "func_profile",
+      "decompile"
+    ],
+    "profile_targets": 4,
+    "decompile_targets": 2,
+    "writes": 0
+  },
+  "next_batch": null
+}

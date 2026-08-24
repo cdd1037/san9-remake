@@ -62,7 +62,14 @@
 | `EBK-TAC-08` | 2-7-2、6-12：部队兵法最小间隔表 | 陆战最小间隔 | `confirmed` | `roadmap:TAC-04` | `RE-SAN9PK-0102` 以加载路径和库存 `hiho` 表确认逐项 0/6/9/15 值、每日预命令饱和递减及最小日期差；旬次数仍由普通攻击事件与随机门决定 |
 | `EBK-TAC-09` | 2-7-2、6-12：设施及联动最小间隔 | 设施/发动后写回 | `confirmed` | `roadmap:TAC-04` | `RE-SAN9PK-0101/0102` 确认设施负责人承载间隔、设施武力固定 3、其余读取实际结果记录；联动是基础值整数除 3，故数值为 2/3/5 而非恒为 3 |
 | `EBK-TAC-10` | 2-7-2、6-12：单挑间隔及三类间隔总结 | 资料校核 | `conflict` | `roadmap:TAC-04` | `RE-SAN9PK-0102` 确认单挑写回为当前能力非线性分值派生式并上限夹 10，不是固定 5 或 6；完整参与者与战后链归 `DUEL-03/04` |
-| `EBK-SIX-01` | 2-7-3：SanIX 程序分析全文转载 | 内政、单挑、兵法、AI | `planned` | `duplicate` | `duplicate-of:SIX-*`；按上表逐项复用状态和批次，不生成第二套候选 |
+| `EBK-SIX-01` | 2-7-3：SanIX 程序分析全文转载 | 内政、单挑、兵法、AI | `completed` | `duplicate` | `duplicate-of:SIX-*`；单挑部分已拆为下列七项，其余按 SanIX 表逐项复用，不生成第二套候选 |
+| `EBK-DUEL-01` | 2-7-3.二.1：逐刀四类结果短路 | 单挑逐刀状态机 | `confirmed` | `duplicate` | `duplicate-of:SIX-DUEL-01`；`RE-SAN9PK-0104/0107` |
+| `EBK-DUEL-02` | 2-7-3.二.1：规范武力、概率与伤害公式 | 单挑伤害 | `confirmed` | `duplicate` | `duplicate-of:SIX-DUEL-02`；当前行为已闭合，但转载的看破括号、动画差值和基础随机分母与机器冲突，见 `RE-SAN9PK-0104/0107` |
+| `EBK-DUEL-03` | 2-7-3.二.1：吕布、赵云、马超特殊分支 | 单挑特殊人物 | `confirmed` | `duplicate` | `duplicate-of:SIX-DUEL-03`；分支成立但身份域是列传资源码，见 `RE-SAN9PK-0106/0107` |
+| `EBK-DUEL-04` | 2-7-3.二.1：主动方固定先砍 | 单挑先手 | `confirmed` | `duplicate` | `duplicate-of:SIX-DUEL-04`；`RE-SAN9PK-0103/0107` |
+| `EBK-DUEL-05` | 2-7-3.二.2：君主/总大将/四能力与阵亡上限 | 单挑阵亡 | `conflict` | `duplicate` | `duplicate-of:SIX-DUEL-05`；独立君主免疫与当前样本冲突，见 `RE-SAN9PK-0105/0107` |
+| `EBK-DUEL-06` | 2-7-3.二.2：失败、阵亡与最终人物状态 | 单挑结束 | `confirmed` | `duplicate` | `duplicate-of:SIX-DUEL-06`；来源覆盖不足的俘虏、重伤和士气链由 `RE-SAN9PK-0105/0107` 补齐 |
+| `EBK-DUEL-07` | 2-7-3.二.3：阵位、阵形、性格和武力限制 | 单挑触发 | `confirmed` | `duplicate` | `duplicate-of:SIX-DUEL-07`；当前行为已闭合，三类武力门成立但接受方间隔推广与机器冲突，见 `RE-SAN9PK-0103/0107` |
 | `EBK-DOM-01` | 3-1：基础心得中的内政收益与城市经营观察 | 内政经验观察 | `inferred` | `roadmap:DOM-04` | `RE-SAN9PK-0098` 已完成 R1 清账；按旬感知行动恢复与静态旬清除相容，其余攻略、委任和因果主张不升格 |
 | `EBK-DOM-02` | 3-2：投资贸易和粮食回报 | 探索投资事件 | `confirmed` | `roadmap:DOM-03` | `RE-SAN9PK-0097` 确认它不是日常买卖；事件 `0x5801CC` 直接实现净资金 `floor(a/2)+4b`、粮食 `P(floor(3a/2)+4b)` 和最多现有资金 20% 的选择边界 |
 | `EBK-DOM-03` | 3-6、6-3：兵役人口影响因素 | 人口与兵役周期 | `conflict` | `roadmap:DOM-04` | 3-6 的“每一季”和全局兵力观察与 `RE-SAN9PK-0098` 相容；6-3 的“80.5 万后每旬递减”与季度唯一入口及 100 万写回上限冲突 |
@@ -116,4 +123,4 @@
 - `COV-03`：已由 [`program-analysis-queue-status.json`](program-analysis-queue-status.json)、[`program-analysis-queue-ida-audit.json`](program-analysis-queue-ida-audit.json) 与 [`RE-SAN9PK-0094`](findings/RE-SAN9PK-0094.md) 完成机器可校验的候选队列；完整队列可按状态清单中的命令重建到 `tmp/`。
 - `DOM-01`：从 `SIX-DOM-03/04`、`EBK-DOM-01` 和 `HARD-DOM-01` 开始，不重复公式 29。
 - `TAC-01`：从 `SIX-TAC-01`、`EBK-TAC-01` 开始，以 `FML-SAN9PK-0017` 的普攻事件事实为入口。
-- `DUEL-04`：以 `RE-SAN9PK-0103/0104/0105` 的当前样本事实逐项校核 SanIX 与电子书重复章节，清账冲突并形成满足证据门槛的单挑 `BEH-*` 候选。
+- `DUEL-04`：已由 `RE-SAN9PK-0107` 完成七项 SanIX/电子书重复主张清账，并形成 `BEH-DUEL-0001..0003`；间隔能力槽和疑似不可达成长分支明确留在研究层。

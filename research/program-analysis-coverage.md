@@ -32,7 +32,7 @@
 | `SIX-DOM-05` | 一.2：征兵数量模型 | 征兵 | `confirmed` | `roadmap:DOM-02` | 当前样本整数顺序、兵役人口与资金夹取见 `RE-SAN9PK-0096`；原 `FML-SAN9PK-0029` 链接属于基础能力成长，不能支持本项 |
 | `SIX-DOM-06` | 一.2：征兵与训练的资源、上限、经验和失败边界 | 征兵与训练 | `confirmed` | `roadmap:DOM-02` | 玩家/AI 共享命令、复验、资源、上限、熟练度与竞争窗口已由 `RE-SAN9PK-0096` 闭合；使用位清除仍路由 `DOM-04` |
 | `SIX-DOM-07` | 一.2：训练规范统率与士气增量模型 | 训练 | `confirmed` | `roadmap:DOM-02` | 当前样本的信望输入、规范统率和机器整数顺序见 `RE-SAN9PK-0096`；原 `FML-SAN9PK-0029` 链接不能支持本项 |
-| `SIX-DOM-08` | 一.2：买进与卖出属于八项内政指令 | 交易 | `planned` | `roadmap:DOM-03` | 原文没有价格、数量夹取、资源转移和商人条件 |
+| `SIX-DOM-08` | 一.2：买进与卖出属于八项内政指令 | 交易 | `confirmed` | `roadmap:DOM-03` | 玩家入口、商人条件、市价旬刷新、政治数量上限、资源转移和整数边界见 `RE-SAN9PK-0097`；标准自动内政工厂没有动作码 6、7 |
 | `SIX-STR-01` | 一.3：计略和外交为确定公式、无概率 | 计略与外交 | `conflict` | `out-of-scope` | `RE-SAN9PK-0067` 已确认多条 `kakuritsu` 随机比较；本轮不扩展完整计略/外交 |
 | `SIX-DUEL-01` | 二.1：逐刀按看破、动画必杀、双倍必杀、普通攻击短路 | 单挑逐刀状态机 | `planned` | `roadmap:DUEL-02` | 公式 25 只闭合数值，缺调用顺序、随机顺序和 HP 写回 |
 | `SIX-DUEL-02` | 二.1：规范武力、四类概率与伤害公式 | 单挑伤害 | `confirmed` | `baseline` | `FML-SAN9PK-0025`、`RE-SAN9PK-0068`；机器式已校核原文差异 |
@@ -64,7 +64,7 @@
 | `EBK-TAC-10` | 2-7-2、6-12：单挑间隔及三类间隔总结 | 资料校核 | `experiment-required` | `roadmap:TAC-04` | 单挑语境数值不确定；在调度清账中登记与 R3 的交叉缺口 |
 | `EBK-SIX-01` | 2-7-3：SanIX 程序分析全文转载 | 内政、单挑、兵法、AI | `planned` | `duplicate` | `duplicate-of:SIX-*`；按上表逐项复用状态和批次，不生成第二套候选 |
 | `EBK-DOM-01` | 3-1：基础心得中的内政收益与城市经营观察 | 内政经验观察 | `inferred` | `roadmap:DOM-04` | 在 R1 清账时作独立观察候选；其中委任与攻略内容范围外 |
-| `EBK-DOM-02` | 3-2：投资贸易和粮食回报 | 买进与卖出 | `experiment-required` | `roadmap:DOM-03` | 经验数据可作独立黑盒佐证；缺价格来源、夹取与机器整数顺序 |
+| `EBK-DOM-02` | 3-2：投资贸易和粮食回报 | 探索投资事件 | `confirmed` | `roadmap:DOM-03` | `RE-SAN9PK-0097` 确认它不是日常买卖；事件 `0x5801CC` 直接实现净资金 `floor(a/2)+4b`、粮食 `P(floor(3a/2)+4b)` 和最多现有资金 20% 的选择边界 |
 | `EBK-DOM-03` | 3-6、6-3：兵役人口影响因素 | 人口与兵役周期 | `inferred` | `roadmap:DOM-04` | 两章为经验讨论；与 `FML-SAN9PK-0014` 静态事实逐项校核 |
 | `EBK-GROW-01` | 3-9：能力上升法 | 能力成长 | `confirmed` | `baseline` | 公式部分由 `FML-SAN9PK-0028/0029`、`RE-SAN9PK-0067/0068` 覆盖；攻略建议不入队 |
 | `EBK-PRES-01` | 3-10：信望计算公式 | 信望 | `confirmed` | `baseline` | `FML-SAN9PK-0029`、`RE-SAN9PK-0067` |

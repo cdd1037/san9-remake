@@ -285,42 +285,40 @@
       "opcode": 10006,
       "family": "10000-10070",
       "dispatch": "virtual slot +0x28 on interactive task",
-      "handler": "returned subtask factory",
+      "handler": "interactive buy-food action task -> buy-food command",
       "input_object": "interactive force-action task context",
-      "producer": "pending",
-      "filtering": "range check only at dispatcher",
-      "randomness": "pending",
-      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
-      "status": "range-dispatch-confirmed",
+      "producer": "interactive code 6; the standard automatic force-action factory has no code 6 branch",
+      "filtering": "valid city, nonempty unacted participants, merchant present, trade-use bit 64 clear, funds > 0 and food < 1000000",
+      "randomness": "none in command effect; the shared global food price is selected once per xun from five month-specific values",
+      "final_side_effect": "immediately add capacity-clamped food, deduct ceil(actual food/price) funds with saturation, mark participants acted and set city trade-use bit 64",
+      "status": "buy-food-command-lifecycle-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0097"
       ],
       "missing_evidence": [
-        "business label and terminal behavior beyond normalized factory mapping",
-        "gameplay semantics",
-        "child task writeback"
+        "city trade-use flag reset timing"
       ]
     },
     {
       "opcode": 10007,
       "family": "10000-10070",
       "dispatch": "virtual slot +0x28 on interactive task",
-      "handler": "returned subtask factory",
+      "handler": "interactive sell-food action task -> sell-food command",
       "input_object": "interactive force-action task context",
-      "producer": "pending",
-      "filtering": "range check only at dispatcher",
-      "randomness": "pending",
-      "final_side_effect": "if factory returns non-null, enqueue child task and set stage to 1002",
-      "status": "range-dispatch-confirmed",
+      "producer": "interactive code 7; the standard automatic force-action factory has no code 7 branch",
+      "filtering": "valid city, nonempty unacted participants, merchant present, trade-use bit 64 clear, food/price > 0 and funds < 1000000",
+      "randomness": "none in command effect; the shared global food price is selected once per xun from five month-specific values",
+      "final_side_effect": "immediately deduct available-clamped food, add floor(actual food/price) funds capped at 1000000, mark participants acted and set city trade-use bit 64",
+      "status": "sell-food-command-lifecycle-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
-        "RE-SAN9PK-0072"
+        "RE-SAN9PK-0072",
+        "RE-SAN9PK-0097"
       ],
       "missing_evidence": [
-        "business label and terminal behavior beyond normalized factory mapping",
-        "gameplay semantics",
-        "child task writeback"
+        "city trade-use flag reset timing"
       ]
     },
     {

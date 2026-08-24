@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "batch": "DOM-03",
+  "status": "completed",
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0097",
+  "queue_candidates": 0,
+  "candidate_disposition": {
+    "queue_note": "San9PKHard contains no reliable full-word buy/sell candidates for this batch",
+    "navigation": [
+      "interactive force-action subtask factory codes 6 and 7",
+      "food-trade task and command vtables",
+      "world xun update and scenario-world price field",
+      "electronic-book claim routed to the separate exploration investment event"
+    ]
+  },
+  "closed_dimensions": [
+    "interactive producers and absence from the standard automatic factory",
+    "merchant, use-flag, participant and resource validation",
+    "participant count and politics-based quantity bounds",
+    "monthly food-price table and xun refresh order",
+    "buy ceiling and sell floor integer conversion",
+    "fund and food caps, terminal writes and acted state",
+    "execution-time race and saturation boundaries",
+    "separation from exploration investment return formulas"
+  ],
+  "deferred_to": {
+    "DOM-04": [
+      "trade use-flag reset timing",
+      "complete merchant-presence refresh and city-cycle relationship",
+      "formal behavior-spec promotion"
+    ]
+  }
+}

@@ -1,0 +1,3409 @@
+{
+  "schema_version": 1,
+  "source_root": "research/upsteam/San9PKHard",
+  "catalog_sha256": "EC34A05B2FCA098F82F27F2C5643CFD8AF969388A86298E3409B627945ED47F2",
+  "summary": {
+    "address_symbols": 485,
+    "address_array_entries": 122,
+    "patch_entries": 706,
+    "byte_arrays": 1039,
+    "write_calls": 1417,
+    "config_bindings": 161,
+    "config_bit_mappings": 104,
+    "config_files": 5,
+    "file_inventory": 38,
+    "old_value_symbols": 110,
+    "old_byte_records": 477,
+    "source_files": 23,
+    "active_write_calls": 1417,
+    "excluded_write_calls": 1,
+    "issue_counts": {
+      "duplicate_addresses": 356,
+      "missing_old_bytes": 46,
+      "registration_errors": 1
+    }
+  },
+  "section_status": {
+    "address_symbols": {
+      "count": 485,
+      "active": 478,
+      "excluded_or_inactive": 7,
+      "sha256": "591C81A2F2D6ED3C7BB9F83AFA279485D381BAB49F3C741E25C8A78BC8E48300"
+    },
+    "address_array_entries": {
+      "count": 122,
+      "active": 122,
+      "excluded_or_inactive": 0,
+      "sha256": "68C51FA081CC1F1D605254413531608482ADEA2141E8C7DE45D94C01BB034777"
+    },
+    "patch_entries": {
+      "count": 706,
+      "active": 706,
+      "excluded_or_inactive": 0,
+      "sha256": "4DD5DF0BD2E44B9CC1D700C1AF5A039A0D98018B2E01BC32EB81B927B98728A7"
+    },
+    "byte_arrays": {
+      "count": 1039,
+      "active": 1039,
+      "excluded_or_inactive": 0,
+      "sha256": "43BBF022A598CCDE75152B5DFD26840DC8B26A9EB7F35FD8FD3EE2CEE37DB6DB"
+    },
+    "write_calls": {
+      "count": 1417,
+      "active": 1417,
+      "excluded_or_inactive": 0,
+      "sha256": "2AD991475E2B170063924D3C62AB4895FCBDC0103E151D8DE5148B4A61CA548D"
+    },
+    "config_bindings": {
+      "count": 161,
+      "active": 161,
+      "excluded_or_inactive": 0,
+      "sha256": "3F35ED2D076CAC28D50AAB155DD103936874981EC5A36F3832D0810864940BD7"
+    },
+    "config_bit_mappings": {
+      "count": 104,
+      "active": 104,
+      "excluded_or_inactive": 0,
+      "sha256": "481130EE98592442083A3249A9F9977740E9670C1B1F172B868AF9A1C435E40C"
+    },
+    "config_files": {
+      "count": 5,
+      "active": 0,
+      "excluded_or_inactive": 0,
+      "sha256": "1FDD16583509F9A1E1ABC6E95E431182504125468AA90D07EA1C5E9D8476E056"
+    },
+    "file_inventory": {
+      "count": 38,
+      "active": 0,
+      "excluded_or_inactive": 0,
+      "sha256": "5A0D06AB298DF8A930255DF81EF1CA4F8B24ECC5435C7D10547E85E77891CB96"
+    },
+    "old_value_symbols": {
+      "count": 110,
+      "active": 104,
+      "excluded_or_inactive": 6,
+      "sha256": "C6523F2C4AA8BF81124ED5C2D0D73E0D1A73D0F19DA659E65B88715CDF6CDBA2"
+    },
+    "old_byte_records": {
+      "count": 477,
+      "active": 0,
+      "excluded_or_inactive": 0,
+      "sha256": "3EDB00FA6112D4E12B356C49EB2A8DBB59498C4F768205F770AA2E2F89F21ECA"
+    }
+  },
+  "old_byte_status": {
+    "registered": 475,
+    "runtime-captured": 1,
+    "runtime-data-restore": 1
+  },
+  "file_classification": {
+    "binary-ide-asset-excluded": 4,
+    "build-metadata-excluded": 3,
+    "config-scanned": 5,
+    "source-scanned": 23,
+    "ui-resource-excluded": 3
+  },
+  "issues": {
+    "duplicate_addresses": [
+      {
+        "address": "0x43F824",
+        "registrations": [
+          "SEND_MSG_ADDRESS[]",
+          "dwAddrSendMessage[0]"
+        ]
+      },
+      {
+        "address": "0xA0000",
+        "registrations": [
+          "dwAddrCheckMinDefence[]",
+          "dwAddrStackBottom[]"
+        ]
+      },
+      {
+        "address": "0x4B6787",
+        "registrations": [
+          "m_dwCultivateMinPoliticsAddr[]",
+          "m_dwSearchMinPoliticsAddr[]"
+        ]
+      },
+      {
+        "address": "0x57B2C0",
+        "registrations": [
+          "patchLeagueLowPrestigeThunk[0]",
+          "patchLeagueLowPrestigeThunk[1]"
+        ]
+      },
+      {
+        "address": "0x49A0DD",
+        "registrations": [
+          "patchMinDurabilityThunk[0]",
+          "patchMinDurabilityThunk[1]"
+        ]
+      },
+      {
+        "address": "0x49B0B0",
+        "registrations": [
+          "patchHarborKillerThunk[0]",
+          "patchHarborKillerThunk[1]"
+        ]
+      },
+      {
+        "address": "0x43D140",
+        "registrations": [
+          "patchBuildingKillerThunk[0]",
+          "patchBuildingKillerThunk[1]"
+        ]
+      },
+      {
+        "address": "0x49A130",
+        "registrations": [
+          "patchSiegeExperienceThunk[0]",
+          "patchSiegeExperienceThunk[1]"
+        ]
+      },
+      {
+        "address": "0x493785",
+        "registrations": [
+          "patchAlienateExperienceThunk[0]",
+          "patchAlienateExperienceThunk[1]"
+        ]
+      },
+      {
+        "address": "0x493E43",
+        "registrations": [
+          "patchGossipExperienceThunk[0]",
+          "patchGossipExperienceThunk[1]"
+        ]
+      },
+      {
+        "address": "0x48EFBE",
+        "registrations": [
+          "patchCheatExperienceThunk[0]",
+          "patchCheatExperienceThunk[1]"
+        ]
+      },
+      {
+        "address": "0x490EDE",
+        "registrations": [
+          "patchDisorderExperienceThunk[0]",
+          "patchDisorderExperienceThunk[1]"
+        ]
+      },
+      {
+        "address": "0x48E975",
+        "registrations": [
+          "patchInspireExperienceThunk[0]",
+          "patchInspireExperienceThunk[1]"
+        ]
+      },
+      {
+        "address": "0x48E143",
+        "registrations": [
+          "patchRobMoneyThunk[0]",
+          "patchRobMoneyThunk[1]"
+        ]
+      },
+      {
+        "address": "0x508C80",
+        "registrations": [
+          "patchPersonJudgementThunk[0]",
+          "patchPersonJudgementThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4E9E25",
+        "registrations": [
+          "patchJourneyExpenseThunk[0]",
+          "patchJourneyExpenseThunk[1]"
+        ]
+      },
+      {
+        "address": "0x460ABA",
+        "registrations": [
+          "patchSubJourneyExpenseThunk[0]",
+          "patchSubJourneyExpenseThunk[1]"
+        ]
+      },
+      {
+        "address": "0x49F9E6",
+        "registrations": [
+          "patchEnableDraftThunk[0]",
+          "patchEnableDraftThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B0396",
+        "registrations": [
+          "patchNotAlienateGarbageThunk[0]",
+          "patchNotAlienateGarbageThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4AF3D3",
+        "registrations": [
+          "patchFullPrizeThunk[0]",
+          "patchFullPrizeThunk[1]"
+        ]
+      },
+      {
+        "address": "0x48BEB8",
+        "registrations": [
+          "patchDispatchTroopThunk[0]",
+          "patchDispatchTroopThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4EC414",
+        "registrations": [
+          "patchSearchSelectThunk[0]",
+          "patchSearchSelectThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4E6270",
+        "registrations": [
+          "patchSearchStopThunk[0]",
+          "patchSearchStopThunk[1]"
+        ]
+      },
+      {
+        "address": "0x485DB6",
+        "registrations": [
+          "patchSearchPerformThunk[0]",
+          "patchSearchPerformThunk[1]"
+        ]
+      },
+      {
+        "address": "0x49575D",
+        "registrations": [
+          "patchInvitePerformThunk[0]",
+          "patchInvitePerformThunk[1]"
+        ]
+      },
+      {
+        "address": "0x5CAE0E",
+        "registrations": [
+          "patchMessageEntryThunk[0]",
+          "patchMessageEntryThunk[1]"
+        ]
+      },
+      {
+        "address": "0x5B67C5",
+        "registrations": [
+          "patchGoFastThunk[0]",
+          "patchGoFastThunk[1]"
+        ]
+      },
+      {
+        "address": "0x5B8551",
+        "registrations": [
+          "patchGoNodisplayThunk[0]",
+          "patchGoNodisplayThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4573ED",
+        "registrations": [
+          "patchReadSceneIndexThunk[0]",
+          "patchReadSceneIndexThunk[1]"
+        ]
+      },
+      {
+        "address": "0x52F4B2",
+        "registrations": [
+          "patchTestDarkFlagThunk[0]",
+          "patchTestDarkFlagThunk[1]"
+        ]
+      },
+      {
+        "address": "0x46522F",
+        "registrations": [
+          "patchChaseFlagThunk[0]",
+          "patchChaseFlagThunk[1]"
+        ]
+      },
+      {
+        "address": "0x467B8D",
+        "registrations": [
+          "patchKeepAttackFlagThunk[0]",
+          "patchKeepAttackFlagThunk[1]"
+        ]
+      },
+      {
+        "address": "0x464F10",
+        "registrations": [
+          "patchCheckTroopPosThunk[0]",
+          "patchCheckTroopPosThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A3F08",
+        "registrations": [
+          "patchDispatchPersonThunk[0]",
+          "patchDispatchPersonThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4FE174",
+        "registrations": [
+          "patchWisdomPersonThunk[0]",
+          "patchWisdomPersonThunk[1]"
+        ]
+      },
+      {
+        "address": "0x500AF5",
+        "registrations": [
+          "patchWisdomPersonAbuseThunk[0]",
+          "patchWisdomPersonAbuseThunk[1]"
+        ]
+      },
+      {
+        "address": "0x505240",
+        "registrations": [
+          "patchWisdomPersonAttackHeartThunk[0]",
+          "patchWisdomPersonAttackHeartThunk[1]"
+        ]
+      },
+      {
+        "address": "0x506CD6",
+        "registrations": [
+          "patchWisdomPersonMagicThunk[0]",
+          "patchWisdomPersonMagicThunk[1]"
+        ]
+      },
+      {
+        "address": "0x507924",
+        "registrations": [
+          "patchWisdomPersonBlackArtThunk[0]",
+          "patchWisdomPersonBlackArtThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4FEBDE",
+        "registrations": [
+          "patchWisdomEffectivFlagThunk[0]",
+          "patchWisdomEffectivFlagThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4897BD",
+        "registrations": [
+          "patchLowerBuildExpenseThunk[0]",
+          "patchLowerBuildExpenseThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A3FAB",
+        "registrations": [
+          "patchMinDispatchSoldierThunk[0]",
+          "patchMinDispatchSoldierThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A2516",
+        "registrations": [
+          "patchAttackTroopConditionThunk[0]",
+          "patchAttackTroopConditionThunk[1]"
+        ]
+      },
+      {
+        "address": "0x49E5AB",
+        "registrations": [
+          "patchCheckMinDefenceThunk[0]",
+          "patchCheckMinDefenceThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A3DAD",
+        "registrations": [
+          "patchAntiAttackMinDefenceThunk[0]",
+          "patchAntiAttackMinDefenceThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B13AC",
+        "registrations": [
+          "patchAlienateMinDayThunk[0]",
+          "patchAlienateMinDayThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A9C2D",
+        "registrations": [
+          "patchCheckNoSoldierBuildingThunk[0]",
+          "patchCheckNoSoldierBuildingThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A9BB1",
+        "registrations": [
+          "patchMinBuildingPersonThunk[0]",
+          "patchMinBuildingPersonThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A9B28",
+        "registrations": [
+          "patchForceTroopListThunk[0]",
+          "patchForceTroopListThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A9BE8",
+        "registrations": [
+          "patchBuildingTotalSoldierThunk[0]",
+          "patchBuildingTotalSoldierThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A37AF",
+        "registrations": [
+          "patchSameForceDispatchThunk[0]",
+          "patchSameForceDispatchThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A3A9E",
+        "registrations": [
+          "patchRelayFailedDispatchThunk[0]",
+          "patchRelayFailedDispatchThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A3712",
+        "registrations": [
+          "patchRelayDispatchOkThunk[0]",
+          "patchRelayDispatchOkThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A3863",
+        "registrations": [
+          "patchFastRelayThunk[0]",
+          "patchFastRelayThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A26CF",
+        "registrations": [
+          "patchTroopSiegePowerThunk[0]",
+          "patchTroopSiegePowerThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B0379",
+        "registrations": [
+          "patchBattleDisableTaskThunk[0]",
+          "patchBattleDisableTaskThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B1D97",
+        "registrations": [
+          "patchBattleDisableGossipThunk[0]",
+          "patchBattleDisableGossipThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A3125",
+        "registrations": [
+          "patchCheckAttackTroopSaveThunk[0]",
+          "patchCheckAttackTroopSaveThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A3403",
+        "registrations": [
+          "patchCheckAttackTroopAntiThunk[0]",
+          "patchCheckAttackTroopAntiThunk[1]"
+        ]
+      },
+      {
+        "address": "0x49F1BE",
+        "registrations": [
+          "patchCheckTroopRetreatThunk[0]",
+          "patchCheckTroopRetreatThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A3D36",
+        "registrations": [
+          "patchCheckMinLeftSoldierThunk[0]",
+          "patchCheckMinLeftSoldierThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A380C",
+        "registrations": [
+          "patchCheckMaxSaveSoldierThunk[0]",
+          "patchCheckMaxSaveSoldierThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B405C",
+        "registrations": [
+          "patchAttackIfCheckSoldierThunk[0]",
+          "patchAttackIfCheckSoldierThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B58E3",
+        "registrations": [
+          "patchAttackBuildingSoldierThunk[0]",
+          "patchAttackBuildingSoldierThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B785D",
+        "registrations": [
+          "patchAttackLeftSoldierThunk[0]",
+          "patchAttackLeftSoldierThunk[1]"
+        ]
+      },
+      {
+        "address": "0x50F16E",
+        "registrations": [
+          "patchBeforeGoThunk[0]",
+          "patchBeforeGoThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4C097A",
+        "registrations": [
+          "patchSimpleAwardThunk[0]",
+          "patchSimpleAwardThunk[1]"
+        ]
+      },
+      {
+        "address": "0x5B846E",
+        "registrations": [
+          "patchMenuNoDisplayThunk[0]",
+          "patchMenuNoDisplayThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A1BB9",
+        "registrations": [
+          "patchIntelligenceKillerCoefThunk[0]",
+          "patchIntelligenceKillerCoefThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B82A5",
+        "registrations": [
+          "patchIntelligenceKillerCoef2Thunk[0]",
+          "patchIntelligenceKillerCoef2Thunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A1CFC",
+        "registrations": [
+          "patchWisdomAntiBlackArtThunk[0]",
+          "patchWisdomAntiBlackArtThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B3456",
+        "registrations": [
+          "patchEnableCommerceThunk[0]",
+          "patchEnableCommerceThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A225B",
+        "registrations": [
+          "patchDefenceHorseWimbleThunk[0]",
+          "patchDefenceHorseWimbleThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A216D",
+        "registrations": [
+          "patchDefenceArrayArrowThunk[0]",
+          "patchDefenceArrayArrowThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A22A9",
+        "registrations": [
+          "patchDefenceArrayWimbleThunk[0]",
+          "patchDefenceArrayWimbleThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A22C6",
+        "registrations": [
+          "patchDefenceArrayScaleThunk[0]",
+          "patchDefenceArrayScaleThunk[1]"
+        ]
+      },
+      {
+        "address": "0x561601",
+        "registrations": [
+          "patchChangeInterfaceThunk[0]",
+          "patchChangeInterfaceThunk[1]"
+        ]
+      },
+      {
+        "address": "0x5106CD",
+        "registrations": [
+          "patchUpdateEndPlayThunk[0]",
+          "patchUpdateEndPlayThunk[1]"
+        ]
+      },
+      {
+        "address": "0x56036E",
+        "registrations": [
+          "patchUpdateEndMainThunk[0]",
+          "patchUpdateEndMainThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A1B8C",
+        "registrations": [
+          "patchCheckAbuseThunk[0]",
+          "patchCheckAbuseThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A1B5E",
+        "registrations": [
+          "patchCheckChaosThunk[0]",
+          "patchCheckChaosThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A2B8B",
+        "registrations": [
+          "patchSwitchFootHorseThunk[0]",
+          "patchSwitchFootHorseThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A2C10",
+        "registrations": [
+          "patchAdjustPersonPosThunk[0]",
+          "patchAdjustPersonPosThunk[1]"
+        ]
+      },
+      {
+        "address": "0x492733",
+        "registrations": [
+          "patchSaveTroopExpenseThunk[0]",
+          "patchSaveTroopExpenseThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A3206",
+        "registrations": [
+          "patchMinDangerDispatchThunk[0]",
+          "patchMinDangerDispatchThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A2651",
+        "registrations": [
+          "patchMaxAntiTroopThunk[0]",
+          "patchMaxAntiTroopThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4AB6E6",
+        "registrations": [
+          "patchEnableCultivateThunk[0]",
+          "patchEnableCultivateThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A98BC",
+        "registrations": [
+          "patchMoveIdlePersonThunk[0]",
+          "patchMoveIdlePersonThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A9917",
+        "registrations": [
+          "patchMoveAgainThunk[0]",
+          "patchMoveAgainThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B2FB0",
+        "registrations": [
+          "patchCheckOfficerMoneyThunk[0]",
+          "patchCheckOfficerMoneyThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B2FF0",
+        "registrations": [
+          "patchFilterReadyPersonThunk[0]",
+          "patchFilterReadyPersonThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B2BFD",
+        "registrations": [
+          "patchCommandIntAbilityThunk[0]",
+          "patchCommandIntAbilityThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B2CBE",
+        "registrations": [
+          "patchCommandAbilityThunk[0]",
+          "patchCommandAbilityThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B2CC2",
+        "registrations": [
+          "patchJiaXuOfficerThunk[0]",
+          "patchJiaXuOfficerThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B2D1F",
+        "registrations": [
+          "patchUndelCommandPersonThunk[0]",
+          "patchUndelCommandPersonThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B2D71",
+        "registrations": [
+          "patchDelCommandPersonThunk[0]",
+          "patchDelCommandPersonThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B2E0D",
+        "registrations": [
+          "patchUndelIntelligencePersonThunk[0]",
+          "patchUndelIntelligencePersonThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B2E6F",
+        "registrations": [
+          "patchDelIntelligencePersonThunk[0]",
+          "patchDelIntelligencePersonThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B2D8F",
+        "registrations": [
+          "patchJiaXuBackThunk[0]",
+          "patchJiaXuBackThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B2DA2",
+        "registrations": [
+          "patchIntelligenceAbilityThunk[0]",
+          "patchIntelligenceAbilityThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B2ED5",
+        "registrations": [
+          "patchDegradePersonThunk[0]",
+          "patchDegradePersonThunk[1]"
+        ]
+      },
+      {
+        "address": "0x49D079",
+        "registrations": [
+          "patchStoneStopThunk[0]",
+          "patchStoneStopThunk[1]"
+        ]
+      },
+      {
+        "address": "0x52FA45",
+        "registrations": [
+          "patchArrayImageThunk[0]",
+          "patchArrayImageThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4FF755",
+        "registrations": [
+          "patchKillerExperienceThunk[0]",
+          "patchKillerExperienceThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4FF6A7",
+        "registrations": [
+          "patchWaterKillerExperienceThunk[0]",
+          "patchWaterKillerExperienceThunk[1]"
+        ]
+      },
+      {
+        "address": "0x48F5F2",
+        "registrations": [
+          "patchCaptiveMoneyThunk[0]",
+          "patchCaptiveMoneyThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B6BE1",
+        "registrations": [
+          "patchSearchRangeThunk[0]",
+          "patchSearchRangeThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B6C29",
+        "registrations": [
+          "patchSearchConditionThunk[0]",
+          "patchSearchConditionThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4946E6",
+        "registrations": [
+          "patchSearchInviteThunk[0]",
+          "patchSearchInviteThunk[1]"
+        ]
+      },
+      {
+        "address": "0x49530E",
+        "registrations": [
+          "patchInviteNewPersonThunk[0]",
+          "patchInviteNewPersonThunk[1]"
+        ]
+      },
+      {
+        "address": "0x48F7E0",
+        "registrations": [
+          "patchTreasureValueThunk[0]",
+          "patchTreasureValueThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4FEF1C",
+        "registrations": [
+          "patchUpdateKillerDamageThunk[0]",
+          "patchUpdateKillerDamageThunk[1]"
+        ]
+      },
+      {
+        "address": "0x50604E",
+        "registrations": [
+          "patchBuildingKillerPersonThunk[0]",
+          "patchBuildingKillerPersonThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4660F3",
+        "registrations": [
+          "patchNotSureCaptiveThunk[0]",
+          "patchNotSureCaptiveThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A316F",
+        "registrations": [
+          "patchSaveHarborThunk[0]",
+          "patchSaveHarborThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4527D1",
+        "registrations": [
+          "patchGotoNpcCityThunk[0]",
+          "patchGotoNpcCityThunk[1]"
+        ]
+      },
+      {
+        "address": "0x444393",
+        "registrations": [
+          "patchNewForceSoldierThunk[0]",
+          "patchNewForceSoldierThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4EC3D8",
+        "registrations": [
+          "patchSearchCounselorAdviseThunk[0]",
+          "patchSearchCounselorAdviseThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4ED075",
+        "registrations": [
+          "patchInviteCounselorAdviseThunk[0]",
+          "patchInviteCounselorAdviseThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4D1EA7",
+        "registrations": [
+          "patchFalseCounselorAdviseThunk[0]",
+          "patchFalseCounselorAdviseThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4D16DD",
+        "registrations": [
+          "patchFalseCounselorAdvise2Thunk[0]",
+          "patchFalseCounselorAdvise2Thunk[1]"
+        ]
+      },
+      {
+        "address": "0x4DBE67",
+        "registrations": [
+          "patchDisorderCounselorAdviseThunk[0]",
+          "patchDisorderCounselorAdviseThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4DB77D",
+        "registrations": [
+          "patchDisorderCounselorAdvise2Thunk[0]",
+          "patchDisorderCounselorAdvise2Thunk[1]"
+        ]
+      },
+      {
+        "address": "0x4E06EA",
+        "registrations": [
+          "patchSaveCounselorAdviseThunk[0]",
+          "patchSaveCounselorAdviseThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4E003D",
+        "registrations": [
+          "patchSaveCounselorAdvise2Thunk[0]",
+          "patchSaveCounselorAdvise2Thunk[1]"
+        ]
+      },
+      {
+        "address": "0x4D0DFA",
+        "registrations": [
+          "patchInspireCounselorAdviseThunk[0]",
+          "patchInspireCounselorAdviseThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4D068D",
+        "registrations": [
+          "patchInspireCounselorAdvise2Thunk[0]",
+          "patchInspireCounselorAdvise2Thunk[1]"
+        ]
+      },
+      {
+        "address": "0x4D016D",
+        "registrations": [
+          "patchRobCounselorAdviseThunk[0]",
+          "patchRobCounselorAdviseThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4CFB0D",
+        "registrations": [
+          "patchRobCounselorAdvise2Thunk[0]",
+          "patchRobCounselorAdvise2Thunk[1]"
+        ]
+      },
+      {
+        "address": "0x4EE94D",
+        "registrations": [
+          "patchBurnCounselorAdviseThunk[0]",
+          "patchBurnCounselorAdviseThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4EE34D",
+        "registrations": [
+          "patchBurnCounselorAdvise2Thunk[0]",
+          "patchBurnCounselorAdvise2Thunk[1]"
+        ]
+      },
+      {
+        "address": "0x4E11F2",
+        "registrations": [
+          "patchAlienateCounselorAdviseThunk[0]",
+          "patchAlienateCounselorAdviseThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4ED0AE",
+        "registrations": [
+          "patchInviteMultiSelectThunk[0]",
+          "patchInviteMultiSelectThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4DFCAB",
+        "registrations": [
+          "patchSaveMultiSelectThunk[0]",
+          "patchSaveMultiSelectThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4CF7BB",
+        "registrations": [
+          "patchRobMultiSelectThunk[0]",
+          "patchRobMultiSelectThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4EDFAB",
+        "registrations": [
+          "patchBurnMultiSelectThunk[0]",
+          "patchBurnMultiSelectThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4FEC45",
+        "registrations": [
+          "patchSubAntiTrickThunk[0]",
+          "patchSubAntiTrickThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4FED88",
+        "registrations": [
+          "patchSubAntiTrapThunk[0]",
+          "patchSubAntiTrapThunk[1]"
+        ]
+      },
+      {
+        "address": "0x43DA2F",
+        "registrations": [
+          "patchMaxForceFoodThunk[0]",
+          "patchMaxForceFoodThunk[1]"
+        ]
+      },
+      {
+        "address": "0x49B1DE",
+        "registrations": [
+          "patchFightToKillerThunk[0]",
+          "patchFightToKillerThunk[1]"
+        ]
+      },
+      {
+        "address": "0x49FAEC",
+        "registrations": [
+          "patchDraftMinMoneyThunk[0]",
+          "patchDraftMinMoneyThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B55A7",
+        "registrations": [
+          "patchAttackMinMoneyThunk[0]",
+          "patchAttackMinMoneyThunk[1]"
+        ]
+      },
+      {
+        "address": "0x493D47",
+        "registrations": [
+          "patchGossipToPlayerThunk[0]",
+          "patchGossipToPlayerThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A12A0",
+        "registrations": [
+          "patchPreBuildingSoldierThunk[0]",
+          "patchPreBuildingSoldierThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B5DC6",
+        "registrations": [
+          "patchFilterBuildingSoldierThunk[0]",
+          "patchFilterBuildingSoldierThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B6208",
+        "registrations": [
+          "patchNearNullCityThunk[0]",
+          "patchNearNullCityThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A8673",
+        "registrations": [
+          "patchSetForceGoalThunk[0]",
+          "patchSetForceGoalThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B61ED",
+        "registrations": [
+          "patchGetPlayerCityThunk[0]",
+          "patchGetPlayerCityThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B419A",
+        "registrations": [
+          "patchAllieAttackThunk[0]",
+          "patchAllieAttackThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B43AE",
+        "registrations": [
+          "patchAttackNullBuildingThunk[0]",
+          "patchAttackNullBuildingThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B8757",
+        "registrations": [
+          "patchNullBuildingArrayThunk[0]",
+          "patchNullBuildingArrayThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B648B",
+        "registrations": [
+          "patchAttackSourceCityThunk[0]",
+          "patchAttackSourceCityThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B5176",
+        "registrations": [
+          "patchCircleAttackBuildingThunk[0]",
+          "patchCircleAttackBuildingThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B5320",
+        "registrations": [
+          "patchSelectAttackBuildingThunk[0]",
+          "patchSelectAttackBuildingThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B7BA3",
+        "registrations": [
+          "patchAttackMinPersonThunk[0]",
+          "patchAttackMinPersonThunk[1]"
+        ]
+      },
+      {
+        "address": "0x43AFD0",
+        "registrations": [
+          "patchAddCityRelationThunk[0]",
+          "patchAddCityRelationThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B6139",
+        "registrations": [
+          "patchTestNotNullCityThunk[0]",
+          "patchTestNotNullCityThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B5E08",
+        "registrations": [
+          "patchReserveAttackedBuildingThunk[0]",
+          "patchReserveAttackedBuildingThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B65B4",
+        "registrations": [
+          "patchRetryAttackedBuildingThunk[0]",
+          "patchRetryAttackedBuildingThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B58B1",
+        "registrations": [
+          "patchRegardedBuildingOnAttackThunk[0]",
+          "patchRegardedBuildingOnAttackThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B4BC8",
+        "registrations": [
+          "patchRegardedBuildingOnAttack2Thunk[0]",
+          "patchRegardedBuildingOnAttack2Thunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B4DF2",
+        "registrations": [
+          "patchRegardedBuildingOnAttack3Thunk[0]",
+          "patchRegardedBuildingOnAttack3Thunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B4DA5",
+        "registrations": [
+          "patchSelectAttackPersonThunk[0]",
+          "patchSelectAttackPersonThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B4AF2",
+        "registrations": [
+          "patchMaxAttackSoldierThunk[0]",
+          "patchMaxAttackSoldierThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B432B",
+        "registrations": [
+          "patchBuildingOnTheWayThunk[0]",
+          "patchBuildingOnTheWayThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B4366",
+        "registrations": [
+          "patchBeingBuildThunk[0]",
+          "patchBeingBuildThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B8377",
+        "registrations": [
+          "patchLeftCleverKillerThunk[0]",
+          "patchLeftCleverKillerThunk[1]"
+        ]
+      },
+      {
+        "address": "0x45C5E3",
+        "registrations": [
+          "patchOfficialLoyatyThunk[0]",
+          "patchOfficialLoyatyThunk[1]"
+        ]
+      },
+      {
+        "address": "0x48AEF1",
+        "registrations": [
+          "patchAddOfficialLoyatyThunk[0]",
+          "patchAddOfficialLoyatyThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B59C4",
+        "registrations": [
+          "patchCorrectNearMaxSoldierThunk[0]",
+          "patchCorrectNearMaxSoldierThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B59E7",
+        "registrations": [
+          "patchSaveNearMaxSoldierThunk[0]",
+          "patchSaveNearMaxSoldierThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B4BB9",
+        "registrations": [
+          "patchLoadNearMaxSoldierThunk[0]",
+          "patchLoadNearMaxSoldierThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B4DDB",
+        "registrations": [
+          "patchLoadNearMaxSoldier2Thunk[0]",
+          "patchLoadNearMaxSoldier2Thunk[1]"
+        ]
+      },
+      {
+        "address": "0x50A34A",
+        "registrations": [
+          "patchOperationPerDayThunk[0]",
+          "patchOperationPerDayThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B89BC",
+        "registrations": [
+          "patchSelectAttackArrayThunk[0]",
+          "patchSelectAttackArrayThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B661A",
+        "registrations": [
+          "patchDecideAttackOkThunk[0]",
+          "patchDecideAttackOkThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B5786",
+        "registrations": [
+          "patchSetNearAttackFlagThunk[0]",
+          "patchSetNearAttackFlagThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B4E4B",
+        "registrations": [
+          "patchAdjustAttackSoldierThunk[0]",
+          "patchAdjustAttackSoldierThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B8092",
+        "registrations": [
+          "patchSelectWaterWisdomThunk[0]",
+          "patchSelectWaterWisdomThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B830D",
+        "registrations": [
+          "patchSelectAttackWisdomThunk[0]",
+          "patchSelectAttackWisdomThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A1C00",
+        "registrations": [
+          "patchAntiAttackAntitrapThunk[0]",
+          "patchAntiAttackAntitrapThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A1D11",
+        "registrations": [
+          "patchAntiAttackWisdomThunk[0]",
+          "patchAntiAttackWisdomThunk[1]"
+        ]
+      },
+      {
+        "address": "0x464B74",
+        "registrations": [
+          "patchNotAttackNearTroopThunk[0]",
+          "patchNotAttackNearTroopThunk[1]"
+        ]
+      },
+      {
+        "address": "0x47937E",
+        "registrations": [
+          "patchNotApproachNearTroopThunk[0]",
+          "patchNotApproachNearTroopThunk[1]"
+        ]
+      },
+      {
+        "address": "0x479370",
+        "registrations": [
+          "patchGoThroughNearBuildingThunk[0]",
+          "patchGoThroughNearBuildingThunk[1]"
+        ]
+      },
+      {
+        "address": "0x479340",
+        "registrations": [
+          "patchGoThroughNearBarrierThunk[0]",
+          "patchGoThroughNearBarrierThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4FEB44",
+        "registrations": [
+          "patchElephantAntiKillerThunk[0]",
+          "patchElephantAntiKillerThunk[1]"
+        ]
+      },
+      {
+        "address": "0x458800",
+        "registrations": [
+          "patchLeagueFailThunk[0]",
+          "patchLeagueFailThunk[1]"
+        ]
+      },
+      {
+        "address": "0x458D14",
+        "registrations": [
+          "patchLeagueSucceedThunk[0]",
+          "patchLeagueSucceedThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B4717",
+        "registrations": [
+          "patchBaramNotBuildThunk[0]",
+          "patchBaramNotBuildThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B4953",
+        "registrations": [
+          "patchBuildMinSoldierThunk[0]",
+          "patchBuildMinSoldierThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4BBBB7",
+        "registrations": [
+          "patchTransportGoalConditionThunk[0]",
+          "patchTransportGoalConditionThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4BC361",
+        "registrations": [
+          "patchInitMatchStepThunk[0]",
+          "patchInitMatchStepThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B4798",
+        "registrations": [
+          "patchSelectBuildAreaThunk[0]",
+          "patchSelectBuildAreaThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B49B8",
+        "registrations": [
+          "patchDecideBuildThunk[0]",
+          "patchDecideBuildThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B45B3",
+        "registrations": [
+          "patchBuildRealGoalThunk[0]",
+          "patchBuildRealGoalThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B3D3D",
+        "registrations": [
+          "patchMaxBuildMoneyThunk[0]",
+          "patchMaxBuildMoneyThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4AE200",
+        "registrations": [
+          "patchSelectTrainPersonThunk[0]",
+          "patchSelectTrainPersonThunk[1]"
+        ]
+      },
+      {
+        "address": "0x525BDD",
+        "registrations": [
+          "patchDisplayYearThunk[0]",
+          "patchDisplayYearThunk[1]"
+        ]
+      },
+      {
+        "address": "0x48F670",
+        "registrations": [
+          "patchRefuseChangeThunk[0]",
+          "patchRefuseChangeThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4FEE96",
+        "registrations": [
+          "patchKillerPowerToDamageThunk[0]",
+          "patchKillerPowerToDamageThunk[1]"
+        ]
+      },
+      {
+        "address": "0x503525",
+        "registrations": [
+          "patchLinkageKillerToDialogThunk[0]",
+          "patchLinkageKillerToDialogThunk[1]"
+        ]
+      },
+      {
+        "address": "0x49FA97",
+        "registrations": [
+          "patchDraftFailBugThunk[0]",
+          "patchDraftFailBugThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4AE1C1",
+        "registrations": [
+          "patchStopTrainBugThunk[0]",
+          "patchStopTrainBugThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B3501",
+        "registrations": [
+          "patchStopCommerceBugThunk[0]",
+          "patchStopCommerceBugThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4AB791",
+        "registrations": [
+          "patchStopCultivateBugThunk[0]",
+          "patchStopCultivateBugThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4AAEC1",
+        "registrations": [
+          "patchStopVisitBugThunk[0]",
+          "patchStopVisitBugThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4ABCD1",
+        "registrations": [
+          "patchStopRepairBugThunk[0]",
+          "patchStopRepairBugThunk[1]"
+        ]
+      },
+      {
+        "address": "0x49FB20",
+        "registrations": [
+          "patchDraftMinFoodThunk[0]",
+          "patchDraftMinFoodThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B591C",
+        "registrations": [
+          "patchSaveAttackSourceBuildingThunk[0]",
+          "patchSaveAttackSourceBuildingThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B5A27",
+        "registrations": [
+          "patchCorrectBuildingAttackSoldierThunk[0]",
+          "patchCorrectBuildingAttackSoldierThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B5A66",
+        "registrations": [
+          "patchCorrectGoalBuildingSoldierThunk[0]",
+          "patchCorrectGoalBuildingSoldierThunk[1]"
+        ]
+      },
+      {
+        "address": "0x44E057",
+        "registrations": [
+          "patchCheckPersonKillerLevelThunk[0]",
+          "patchCheckPersonKillerLevelThunk[1]"
+        ]
+      },
+      {
+        "address": "0x5023D5",
+        "registrations": [
+          "patchJudgeKillerLinkageThunk[0]",
+          "patchJudgeKillerLinkageThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4FFA9D",
+        "registrations": [
+          "patchLinkageKillerToRecordThunk[0]",
+          "patchLinkageKillerToRecordThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A36A2",
+        "registrations": [
+          "patchMainForceDispatchThunk[0]",
+          "patchMainForceDispatchThunk[1]"
+        ]
+      },
+      {
+        "address": "0x49A068",
+        "registrations": [
+          "patchGetArrayToWallThunk[0]",
+          "patchGetArrayToWallThunk[1]"
+        ]
+      },
+      {
+        "address": "0x49A487",
+        "registrations": [
+          "patchGetArrayToGarrisonThunk[0]",
+          "patchGetArrayToGarrisonThunk[1]"
+        ]
+      },
+      {
+        "address": "0x539384",
+        "registrations": [
+          "patchDirectBigAnimationThunk[0]",
+          "patchDirectBigAnimationThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4934E0",
+        "registrations": [
+          "patchPhaseErrorAlienateThunk[0]",
+          "patchPhaseErrorAlienateThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4BBF98",
+        "registrations": [
+          "patchForceFightTroopThunk[0]",
+          "patchForceFightTroopThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4BC1F3",
+        "registrations": [
+          "patchCheckTransportTaskThunk[0]",
+          "patchCheckTransportTaskThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4BC0CE",
+        "registrations": [
+          "patchSetBuildingSoldierRemainsThunk[0]",
+          "patchSetBuildingSoldierRemainsThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4BBC43",
+        "registrations": [
+          "patchInitTransportBuildingThunk[0]",
+          "patchInitTransportBuildingThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4BBE35",
+        "registrations": [
+          "patchSelectTransportSourceThunk[0]",
+          "patchSelectTransportSourceThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4BBEA4",
+        "registrations": [
+          "patchSortTransportSourceThunk[0]",
+          "patchSortTransportSourceThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4BC3B6",
+        "registrations": [
+          "patchTransportMatchThunk[0]",
+          "patchTransportMatchThunk[1]"
+        ]
+      },
+      {
+        "address": "0x45DDA1",
+        "registrations": [
+          "patchMaxBuildingWoundThunk[0]",
+          "patchMaxBuildingWoundThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4BB84A",
+        "registrations": [
+          "patchCheckTransportBlockThunk[0]",
+          "patchCheckTransportBlockThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4BB6EC",
+        "registrations": [
+          "patchGetTransportSoldierThunk[0]",
+          "patchGetTransportSoldierThunk[1]"
+        ]
+      },
+      {
+        "address": "0x45B50E",
+        "registrations": [
+          "patchAutoSaveDocnameThunk[0]",
+          "patchAutoSaveDocnameThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B12F2",
+        "registrations": [
+          "patchMultiAlienateThunk[0]",
+          "patchMultiAlienateThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B74B6",
+        "registrations": [
+          "patchTryInviteCaptiveThunk[0]",
+          "patchTryInviteCaptiveThunk[1]"
+        ]
+      },
+      {
+        "address": "0x44C9A3",
+        "registrations": [
+          "patchPersonExperienceThunk[0]",
+          "patchPersonExperienceThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B2CCD",
+        "registrations": [
+          "patchCommandOfficerParaThunk[0]",
+          "patchCommandOfficerParaThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B2CA0",
+        "registrations": [
+          "patchDeleteMaxOfficerThunk[0]",
+          "patchDeleteMaxOfficerThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B2DB1",
+        "registrations": [
+          "patchIntelligenceOfficerParaThunk[0]",
+          "patchIntelligenceOfficerParaThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4361C0",
+        "registrations": [
+          "patchBuildingMaxSoldierThunk[0]",
+          "patchBuildingMaxSoldierThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4C1A05",
+        "registrations": [
+          "patchMaxPeopleHeartCmpThunk[0]",
+          "patchMaxPeopleHeartCmpThunk[1]"
+        ]
+      },
+      {
+        "address": "0x48865F",
+        "registrations": [
+          "patchMaxPeopleHeartCmp2Thunk[0]",
+          "patchMaxPeopleHeartCmp2Thunk[1]"
+        ]
+      },
+      {
+        "address": "0x488723",
+        "registrations": [
+          "patchMaxPeopleHeartCmp3Thunk[0]",
+          "patchMaxPeopleHeartCmp3Thunk[1]"
+        ]
+      },
+      {
+        "address": "0x4AAE0F",
+        "registrations": [
+          "patchMaxPeopleHeartCmp4Thunk[0]",
+          "patchMaxPeopleHeartCmp4Thunk[1]"
+        ]
+      },
+      {
+        "address": "0x43A4B0",
+        "registrations": [
+          "patchGetCityMaxPeopleHeartThunk[0]",
+          "patchGetCityMaxPeopleHeartThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4CA548",
+        "registrations": [
+          "patchMaxPeopleHeartPushThunk[0]",
+          "patchMaxPeopleHeartPushThunk[1]"
+        ]
+      },
+      {
+        "address": "0x58B37A",
+        "registrations": [
+          "patchMaxPeopleHeartPush2Thunk[0]",
+          "patchMaxPeopleHeartPush2Thunk[1]"
+        ]
+      },
+      {
+        "address": "0x43A48D",
+        "registrations": [
+          "patchMaxPeopleHeartPush3Thunk[0]",
+          "patchMaxPeopleHeartPush3Thunk[1]"
+        ]
+      },
+      {
+        "address": "0x469431",
+        "registrations": [
+          "patchMaxPeopleHeartPush4Thunk[0]",
+          "patchMaxPeopleHeartPush4Thunk[1]"
+        ]
+      },
+      {
+        "address": "0x48874F",
+        "registrations": [
+          "patchMaxPeopleHeartMovThunk[0]",
+          "patchMaxPeopleHeartMovThunk[1]"
+        ]
+      },
+      {
+        "address": "0x48879A",
+        "registrations": [
+          "patchMaxPeopleHeartMov2Thunk[0]",
+          "patchMaxPeopleHeartMov2Thunk[1]"
+        ]
+      },
+      {
+        "address": "0x488505",
+        "registrations": [
+          "patchMaxPeopleHeartBasicThunk[0]",
+          "patchMaxPeopleHeartBasicThunk[1]"
+        ]
+      },
+      {
+        "address": "0x58B437",
+        "registrations": [
+          "patchMaxSoldierPushThunk[0]",
+          "patchMaxSoldierPushThunk[1]"
+        ]
+      },
+      {
+        "address": "0x58ADF8",
+        "registrations": [
+          "patchMaxSoldierPush2Thunk[0]",
+          "patchMaxSoldierPush2Thunk[1]"
+        ]
+      },
+      {
+        "address": "0x49F9F8",
+        "registrations": [
+          "patchMaxSoldierCmpThunk[0]",
+          "patchMaxSoldierCmpThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4505F9",
+        "registrations": [
+          "patchDynamicAddProficiencyThunk[0]",
+          "patchDynamicAddProficiencyThunk[1]"
+        ]
+      },
+      {
+        "address": "0x450F72",
+        "registrations": [
+          "patchLearnToPhaseThunk[0]",
+          "patchLearnToPhaseThunk[1]"
+        ]
+      },
+      {
+        "address": "0x570DB7",
+        "registrations": [
+          "patchLearnToPhase2Thunk[0]",
+          "patchLearnToPhase2Thunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B4C03",
+        "registrations": [
+          "patchAttackTroopSoldierThunk[0]",
+          "patchAttackTroopSoldierThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B4E3E",
+        "registrations": [
+          "patchAttackTroopSoldier2Thunk[0]",
+          "patchAttackTroopSoldier2Thunk[1]"
+        ]
+      },
+      {
+        "address": "0x451A5C",
+        "registrations": [
+          "patchPersonCharNumThunk[0]",
+          "patchPersonCharNumThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B5AF4",
+        "registrations": [
+          "patchAttackRatioDoorThunk[0]",
+          "patchAttackRatioDoorThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4641C1",
+        "registrations": [
+          "patchTroopAtGoodPlaceThunk[0]",
+          "patchTroopAtGoodPlaceThunk[1]"
+        ]
+      },
+      {
+        "address": "0x465106",
+        "registrations": [
+          "patchTroopRetreatThunk[0]",
+          "patchTroopRetreatThunk[1]"
+        ]
+      },
+      {
+        "address": "0x50644E",
+        "registrations": [
+          "patchSecondKillerThunk[0]",
+          "patchSecondKillerThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4FF085",
+        "registrations": [
+          "patchSecondKillerIntervalThunk[0]",
+          "patchSecondKillerIntervalThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A9DBA",
+        "registrations": [
+          "patchGetPersonQuotaThunk[0]",
+          "patchGetPersonQuotaThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B4187",
+        "registrations": [
+          "patchCoordinateRequestThunk[0]",
+          "patchCoordinateRequestThunk[1]"
+        ]
+      },
+      {
+        "address": "0x463040",
+        "registrations": [
+          "patchGetArrayAttackRangeThunk[0]",
+          "patchGetArrayAttackRangeThunk[1]"
+        ]
+      },
+      {
+        "address": "0x52FB18",
+        "registrations": [
+          "patchDisplayTroopConditionThunk[0]",
+          "patchDisplayTroopConditionThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4339CC",
+        "registrations": [
+          "patchPersonSmallDialogThunk[0]",
+          "patchPersonSmallDialogThunk[1]"
+        ]
+      },
+      {
+        "address": "0x591ADF",
+        "registrations": [
+          "patchTroopAtSmallMapThunk[0]",
+          "patchTroopAtSmallMapThunk[1]"
+        ]
+      },
+      {
+        "address": "0x470ABE",
+        "registrations": [
+          "patchJourneyGoalTroopThunk[0]",
+          "patchJourneyGoalTroopThunk[1]"
+        ]
+      },
+      {
+        "address": "0x470BEF",
+        "registrations": [
+          "patchJourneyGoalTroop2Thunk[0]",
+          "patchJourneyGoalTroop2Thunk[1]"
+        ]
+      },
+      {
+        "address": "0x474E73",
+        "registrations": [
+          "patchFalseGoalTroopThunk[0]",
+          "patchFalseGoalTroopThunk[1]"
+        ]
+      },
+      {
+        "address": "0x474FD9",
+        "registrations": [
+          "patchDisorderGoalTroopThunk[0]",
+          "patchDisorderGoalTroopThunk[1]"
+        ]
+      },
+      {
+        "address": "0x52E769",
+        "registrations": [
+          "patchDisplayBuildingConditionThunk[0]",
+          "patchDisplayBuildingConditionThunk[1]"
+        ]
+      },
+      {
+        "address": "0x528CAF",
+        "registrations": [
+          "patchHideDutyPersonNumThunk[0]",
+          "patchHideDutyPersonNumThunk[1]"
+        ]
+      },
+      {
+        "address": "0x52951A",
+        "registrations": [
+          "patchHideDutyPersonNum2Thunk[0]",
+          "patchHideDutyPersonNum2Thunk[1]"
+        ]
+      },
+      {
+        "address": "0x533788",
+        "registrations": [
+          "patchSaveTroopDisplayObjectThunk[0]",
+          "patchSaveTroopDisplayObjectThunk[1]"
+        ]
+      },
+      {
+        "address": "0x513BEF",
+        "registrations": [
+          "patchHideInfoMenuThunk[0]",
+          "patchHideInfoMenuThunk[1]"
+        ]
+      },
+      {
+        "address": "0x508BC5",
+        "registrations": [
+          "patchDamageNumberDownThunk[0]",
+          "patchDamageNumberDownThunk[1]"
+        ]
+      },
+      {
+        "address": "0x5084FC",
+        "registrations": [
+          "patchHideDownStoneThunk[0]",
+          "patchHideDownStoneThunk[1]"
+        ]
+      },
+      {
+        "address": "0x44A9F5",
+        "registrations": [
+          "patchHideSpecialStateThunk[0]",
+          "patchHideSpecialStateThunk[1]"
+        ]
+      },
+      {
+        "address": "0x5287AB",
+        "registrations": [
+          "patchHideCityMoraleThunk[0]",
+          "patchHideCityMoraleThunk[1]"
+        ]
+      },
+      {
+        "address": "0x52886B",
+        "registrations": [
+          "patchHideCityIncomeThunk[0]",
+          "patchHideCityIncomeThunk[1]"
+        ]
+      },
+      {
+        "address": "0x528942",
+        "registrations": [
+          "patchHideCityHarvestThunk[0]",
+          "patchHideCityHarvestThunk[1]"
+        ]
+      },
+      {
+        "address": "0x453389",
+        "registrations": [
+          "patchAllocFreeTroopThunk[0]",
+          "patchAllocFreeTroopThunk[1]"
+        ]
+      },
+      {
+        "address": "0x5150E3",
+        "registrations": [
+          "patchCounselorReportPropThunk[0]",
+          "patchCounselorReportPropThunk[1]"
+        ]
+      },
+      {
+        "address": "0x5030FD",
+        "registrations": [
+          "patchBlcokPropThunk[0]",
+          "patchBlcokPropThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4E122B",
+        "registrations": [
+          "patchAlienateMultiSelectThunk[0]",
+          "patchAlienateMultiSelectThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4D134B",
+        "registrations": [
+          "patchFalseMultiSelectThunk[0]",
+          "patchFalseMultiSelectThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4DB3EB",
+        "registrations": [
+          "patchDisorderMultiSelectThunk[0]",
+          "patchDisorderMultiSelectThunk[1]"
+        ]
+      },
+      {
+        "address": "0x50500A",
+        "registrations": [
+          "patchChaosLinkageFlagThunk[0]",
+          "patchChaosLinkageFlagThunk[1]"
+        ]
+      },
+      {
+        "address": "0x505BEA",
+        "registrations": [
+          "patchTrapLinkageFlagThunk[0]",
+          "patchTrapLinkageFlagThunk[1]"
+        ]
+      },
+      {
+        "address": "0x50577D",
+        "registrations": [
+          "patchAttackHeartLinkageFlagThunk[0]",
+          "patchAttackHeartLinkageFlagThunk[1]"
+        ]
+      },
+      {
+        "address": "0x504BF5",
+        "registrations": [
+          "patchKillerToBuildingThunk[0]",
+          "patchKillerToBuildingThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4BE443",
+        "registrations": [
+          "patchAllStrongForceThunk[0]",
+          "patchAllStrongForceThunk[1]"
+        ]
+      },
+      {
+        "address": "0x45EB36",
+        "registrations": [
+          "patchChangeTroopCommandThunk[0]",
+          "patchChangeTroopCommandThunk[1]"
+        ]
+      },
+      {
+        "address": "0x506104",
+        "registrations": [
+          "patchWaterKillerPropThunk[0]",
+          "patchWaterKillerPropThunk[1]"
+        ]
+      },
+      {
+        "address": "0x506314",
+        "registrations": [
+          "patchKillerDrivePropThunk[0]",
+          "patchKillerDrivePropThunk[1]"
+        ]
+      },
+      {
+        "address": "0x5063AB",
+        "registrations": [
+          "patchKillerDriveProp2Thunk[0]",
+          "patchKillerDriveProp2Thunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A188C",
+        "registrations": [
+          "patchClearTroopCurGoalThunk[0]",
+          "patchClearTroopCurGoalThunk[1]"
+        ]
+      },
+      {
+        "address": "0x49CFC1",
+        "registrations": [
+          "patchMoveGuardTroopThunk[0]",
+          "patchMoveGuardTroopThunk[1]"
+        ]
+      },
+      {
+        "address": "0x43019E",
+        "registrations": [
+          "patchMonthTableInfoThunk[0]",
+          "patchMonthTableInfoThunk[1]"
+        ]
+      },
+      {
+        "address": "0x506814",
+        "registrations": [
+          "patchStrengthKillerBigAnimaitonThunk[0]",
+          "patchStrengthKillerBigAnimaitonThunk[1]"
+        ]
+      },
+      {
+        "address": "0x44F3F7",
+        "registrations": [
+          "patchUpdateCaptivePropThunk[0]",
+          "patchUpdateCaptivePropThunk[1]"
+        ]
+      },
+      {
+        "address": "0x439A44",
+        "registrations": [
+          "patchControlMarchTroopThunk[0]",
+          "patchControlMarchTroopThunk[1]"
+        ]
+      },
+      {
+        "address": "0x44B235",
+        "registrations": [
+          "patchYearTableInfoThunk[0]",
+          "patchYearTableInfoThunk[1]"
+        ]
+      },
+      {
+        "address": "0x45869C",
+        "registrations": [
+          "patchRobFoodThunk[0]",
+          "patchRobFoodThunk[1]"
+        ]
+      },
+      {
+        "address": "0x49EA1B",
+        "registrations": [
+          "patchRetreatBuildingConditionThunk[0]",
+          "patchRetreatBuildingConditionThunk[1]"
+        ]
+      },
+      {
+        "address": "0x472D02",
+        "registrations": [
+          "patchKillerCheckBugThunk[0]",
+          "patchKillerCheckBugThunk[1]"
+        ]
+      },
+      {
+        "address": "0x504FA4",
+        "registrations": [
+          "patchChaosPowerCoefThunk[0]",
+          "patchChaosPowerCoefThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4FE994",
+        "registrations": [
+          "patchClearSecondKillerPersonThunk[0]",
+          "patchClearSecondKillerPersonThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A2509",
+        "registrations": [
+          "patchSkipArriveDayThunk[0]",
+          "patchSkipArriveDayThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A2D9E",
+        "registrations": [
+          "patchBuildArriveDayThunk[0]",
+          "patchBuildArriveDayThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A2F4E",
+        "registrations": [
+          "patchJudgeAttackBuildThunk[0]",
+          "patchJudgeAttackBuildThunk[1]"
+        ]
+      },
+      {
+        "address": "0x5023F9",
+        "registrations": [
+          "patchGooseKillerLinkageThunk[0]",
+          "patchGooseKillerLinkageThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4869AA",
+        "registrations": [
+          "patchMaxBusinessThunk[0]",
+          "patchMaxBusinessThunk[1]"
+        ]
+      },
+      {
+        "address": "0x486A8A",
+        "registrations": [
+          "patchMaxBusiness2Thunk[0]",
+          "patchMaxBusiness2Thunk[1]"
+        ]
+      },
+      {
+        "address": "0x43A5F0",
+        "registrations": [
+          "patchIncomeThunk[0]",
+          "patchIncomeThunk[1]"
+        ]
+      },
+      {
+        "address": "0x43A696",
+        "registrations": [
+          "patchHarvestThunk[0]",
+          "patchHarvestThunk[1]"
+        ]
+      },
+      {
+        "address": "0x43B337",
+        "registrations": [
+          "patchCityPopulationCoef1Thunk[0]",
+          "patchCityPopulationCoef1Thunk[1]"
+        ]
+      },
+      {
+        "address": "0x43B419",
+        "registrations": [
+          "patchCityPopulationCoef2Thunk[0]",
+          "patchCityPopulationCoef2Thunk[1]"
+        ]
+      },
+      {
+        "address": "0x47FBDB",
+        "registrations": [
+          "patchCityPopulationCoef3Thunk[0]",
+          "patchCityPopulationCoef3Thunk[1]"
+        ]
+      },
+      {
+        "address": "0x47FCFD",
+        "registrations": [
+          "patchCityPopulationCoef4Thunk[0]",
+          "patchCityPopulationCoef4Thunk[1]"
+        ]
+      },
+      {
+        "address": "0x4A8656",
+        "registrations": [
+          "patchGoalForceParaThunk[0]",
+          "patchGoalForceParaThunk[1]"
+        ]
+      },
+      {
+        "address": "0x43B426",
+        "registrations": [
+          "patchShowCityDraftThunk[0]",
+          "patchShowCityDraftThunk[1]"
+        ]
+      },
+      {
+        "address": "0x47FD12",
+        "registrations": [
+          "patchAddCityDraftThunk[0]",
+          "patchAddCityDraftThunk[1]"
+        ]
+      },
+      {
+        "address": "0x49542F",
+        "registrations": [
+          "patchPhaseErrorInviteThunk[0]",
+          "patchPhaseErrorInviteThunk[1]"
+        ]
+      },
+      {
+        "address": "0x50ECDC",
+        "registrations": [
+          "patchPlayerAutoProcessThunk[0]",
+          "patchPlayerAutoProcessThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4BDD8E",
+        "registrations": [
+          "patchAutoProcessTaskThunk[0]",
+          "patchAutoProcessTaskThunk[1]"
+        ]
+      },
+      {
+        "address": "0x57B1D0",
+        "registrations": [
+          "patchGetLeagueGoalThunk[0]",
+          "patchGetLeagueGoalThunk[1]"
+        ]
+      },
+      {
+        "address": "0x49BD6A",
+        "registrations": [
+          "patchFightSubIncomeThunk[0]",
+          "patchFightSubIncomeThunk[1]"
+        ]
+      },
+      {
+        "address": "0x49BD92",
+        "registrations": [
+          "patchFightSubIncome2Thunk[0]",
+          "patchFightSubIncome2Thunk[1]"
+        ]
+      },
+      {
+        "address": "0x49BDBA",
+        "registrations": [
+          "patchFightSubIncome3Thunk[0]",
+          "patchFightSubIncome3Thunk[1]"
+        ]
+      },
+      {
+        "address": "0x49B9E7",
+        "registrations": [
+          "patchLeaderInspireThunk[0]",
+          "patchLeaderInspireThunk[1]"
+        ]
+      },
+      {
+        "address": "0x48B0EB",
+        "registrations": [
+          "patchKillSubPrestigeThunk[0]",
+          "patchKillSubPrestigeThunk[1]"
+        ]
+      },
+      {
+        "address": "0x40BDCA",
+        "registrations": [
+          "patchTrainBasicAbilityThunk[0]",
+          "patchTrainBasicAbilityThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4C4CE3",
+        "registrations": [
+          "patchRetreatChangeArrayThunk[0]",
+          "patchRetreatChangeArrayThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4FEAC0",
+        "registrations": [
+          "patchAbilityKillerPropThunk[0]",
+          "patchAbilityKillerPropThunk[1]"
+        ]
+      },
+      {
+        "address": "0x465FBB",
+        "registrations": [
+          "patchSetMaxCaptiveThunk[0]",
+          "patchSetMaxCaptiveThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4661FB",
+        "registrations": [
+          "patchGetMaxCaptiveThunk[0]",
+          "patchGetMaxCaptiveThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4F9DDF",
+        "registrations": [
+          "patchCaptiveMoney2Thunk[0]",
+          "patchCaptiveMoney2Thunk[1]"
+        ]
+      },
+      {
+        "address": "0x50217C",
+        "registrations": [
+          "patchAddWaterKillerThunk[0]",
+          "patchAddWaterKillerThunk[1]"
+        ]
+      },
+      {
+        "address": "0x5038A7",
+        "registrations": [
+          "patchEnableWaterKillerThunk[0]",
+          "patchEnableWaterKillerThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4B8BF7",
+        "registrations": [
+          "patchSelectAttackShipThunk[0]",
+          "patchSelectAttackShipThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4E9207",
+        "registrations": [
+          "patchAutoAdjustKillerThunk[0]",
+          "patchAutoAdjustKillerThunk[1]"
+        ]
+      },
+      {
+        "address": "0x580373",
+        "registrations": [
+          "patchInvestmentThunk[0]",
+          "patchInvestmentThunk[1]"
+        ]
+      },
+      {
+        "address": "0x505393",
+        "registrations": [
+          "patchHeartAttackDamage1Thunk[0]",
+          "patchHeartAttackDamage1Thunk[1]"
+        ]
+      },
+      {
+        "address": "0x5053C5",
+        "registrations": [
+          "patchHeartAttackDamage2Thunk[0]",
+          "patchHeartAttackDamage2Thunk[1]"
+        ]
+      },
+      {
+        "address": "0x4FE0CD",
+        "registrations": [
+          "patchIntelligenceDamageRecordThunk[0]",
+          "patchIntelligenceDamageRecordThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4FFD51",
+        "registrations": [
+          "patchStrengthDamageRecordThunk[0]",
+          "patchStrengthDamageRecordThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4FFD7C",
+        "registrations": [
+          "patchSkipContainedDialogThunk[0]",
+          "patchSkipContainedDialogThunk[1]"
+        ]
+      },
+      {
+        "address": "0x48C00B",
+        "registrations": [
+          "patchSetTroopIndexThunk[0]",
+          "patchSetTroopIndexThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4EA2E0",
+        "registrations": [
+          "patchTroopIndexThunk[0]",
+          "patchTroopIndexThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4EA304",
+        "registrations": [
+          "patchTroopAdviseThunk[0]",
+          "patchTroopAdviseThunk[1]"
+        ]
+      },
+      {
+        "address": "0x4557F8",
+        "registrations": [
+          "patchGetTroopIndexThunk[0]",
+          "patchGetTroopIndexThunk[1]"
+        ]
+      }
+    ],
+    "missing_old_bytes": [
+      {
+        "address": "0x43CF67",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 1008
+          }
+        ]
+      },
+      {
+        "address": "0x43E916",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 1044
+          }
+        ]
+      },
+      {
+        "address": "0x43F177",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 1392
+          }
+        ]
+      },
+      {
+        "address": "0x43F3D1",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 4228
+          }
+        ]
+      },
+      {
+        "address": "0x43F4CC",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 4174
+          }
+        ]
+      },
+      {
+        "address": "0x43F4CD",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 4496
+          }
+        ]
+      },
+      {
+        "address": "0x43F4CE",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 4550
+          }
+        ]
+      },
+      {
+        "address": "0x43F4CF",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 4179
+          }
+        ]
+      },
+      {
+        "address": "0x43F7CC",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 3726
+          }
+        ]
+      },
+      {
+        "address": "0x43F7E4",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 1757
+          }
+        ]
+      },
+      {
+        "address": "0x43F887",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 4241
+          }
+        ]
+      },
+      {
+        "address": "0x43F88F",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 4245
+          }
+        ]
+      },
+      {
+        "address": "0x43FF16",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 4446
+          }
+        ]
+      },
+      {
+        "address": "0x43FF17",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 4472
+          }
+        ]
+      },
+      {
+        "address": "0x43FF18",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 4572
+          }
+        ]
+      },
+      {
+        "address": "0x43FF19",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 4201
+          }
+        ]
+      },
+      {
+        "address": "0x43FF1A",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 4217
+          }
+        ]
+      },
+      {
+        "address": "0x43FF1B",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 4584
+          }
+        ]
+      },
+      {
+        "address": "0x43FF1C",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 4418
+          }
+        ]
+      },
+      {
+        "address": "0x43FF1D",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 4222
+          }
+        ]
+      },
+      {
+        "address": "0x43FFDE",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 4102
+          }
+        ]
+      },
+      {
+        "address": "0x44F093",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 926
+          }
+        ]
+      },
+      {
+        "address": "0x4505C2",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 1012
+          }
+        ]
+      },
+      {
+        "address": "0x4538B6",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 1004
+          }
+        ]
+      },
+      {
+        "address": "0x453911",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 1000
+          }
+        ]
+      },
+      {
+        "address": "0x453D61",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 1024
+          }
+        ]
+      },
+      {
+        "address": "0x454AC4",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 1070
+          }
+        ]
+      },
+      {
+        "address": "0x459B94",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 1028
+          }
+        ]
+      },
+      {
+        "address": "0x45B7A6",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 1040
+          }
+        ]
+      },
+      {
+        "address": "0x45BFB5",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 1016
+          }
+        ]
+      },
+      {
+        "address": "0x45CCE5",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 1032
+          }
+        ]
+      },
+      {
+        "address": "0x45D8E7",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 1074
+          }
+        ]
+      },
+      {
+        "address": "0x45DDB1",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 1036
+          }
+        ]
+      },
+      {
+        "address": "0x46B9F1",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 1845
+          }
+        ]
+      },
+      {
+        "address": "0x4861A1",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 2161
+          }
+        ]
+      },
+      {
+        "address": "0x487D12",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 908
+          }
+        ]
+      },
+      {
+        "address": "0x492591",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 1020
+          }
+        ]
+      },
+      {
+        "address": "0x4A5759",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 3999
+          },
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 5111
+          }
+        ]
+      },
+      {
+        "address": "0x4AC72A",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 4003
+          },
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 5108
+          }
+        ]
+      },
+      {
+        "address": "0x4B4CC1",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 841
+          }
+        ]
+      },
+      {
+        "address": "0x4FEA7B",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 4184
+          },
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 5025
+          }
+        ]
+      },
+      {
+        "address": "0x4FEA83",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 4187
+          },
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 5028
+          }
+        ]
+      },
+      {
+        "address": "0x4FEA8B",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 4190
+          },
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 5031
+          }
+        ]
+      },
+      {
+        "address": "0x4FEA93",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 4193
+          },
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 5034
+          }
+        ]
+      },
+      {
+        "address": "0x4FEA9B",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 4196
+          },
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 5037
+          }
+        ]
+      },
+      {
+        "address": "0x4FF790",
+        "reason": "direct-image-write-has-no-resolved-restore-write",
+        "write_sites": [
+          {
+            "source": "San9PKHardDlg.cpp",
+            "line": 3782
+          }
+        ]
+      }
+    ],
+    "registration_errors": [
+      {
+        "patch": "patchPersonJudgementThunk",
+        "reason": "new-old-length-mismatch",
+        "new_symbol": "codePersonJudgementThunk",
+        "new_length": 47,
+        "old_symbol": "codePersonJudgementOldThunk",
+        "old_length": 45
+      }
+    ]
+  },
+  "source_files": [
+    {
+      "path": "ArrayConfigDlg.cpp",
+      "classification": "source-scanned",
+      "exclusion_reason": null,
+      "size": 7120,
+      "sha256": "79B27989CE9BEDF8A17C3AA552EB143B898B2B9EBA6DABC4D4CF860518062001"
+    },
+    {
+      "path": "ArrayConfigDlg.h",
+      "classification": "source-scanned",
+      "exclusion_reason": null,
+      "size": 1660,
+      "sha256": "38AB9F8D986EE5FBE6BB392746C0B7907EAFF1378B02A33EC16F53CB4791E232"
+    },
+    {
+      "path": "CityConfigDlg.cpp",
+      "classification": "source-scanned",
+      "exclusion_reason": null,
+      "size": 10407,
+      "sha256": "D047A2134DD54D5C54E8FDBA8098F52CF11785AC53ACFDCCED85501039F2218E"
+    },
+    {
+      "path": "CityConfigDlg.h",
+      "classification": "source-scanned",
+      "exclusion_reason": null,
+      "size": 1941,
+      "sha256": "F4C67C5A48309389909BEA41E571ADF33674BFF530F830E752D83FF0D49B3B63"
+    },
+    {
+      "path": "InitData.h",
+      "classification": "source-scanned",
+      "exclusion_reason": null,
+      "size": 3826,
+      "sha256": "DEBF785214D5625E6A2A13CCA5ED015D4E223B49460333CD8B03C7E5B0A729C4"
+    },
+    {
+      "path": "InsertAsm.h",
+      "classification": "source-scanned",
+      "exclusion_reason": null,
+      "size": 902628,
+      "sha256": "30F1E1E6212D164A73341B483C7F82D4A8E69B85A4102A918A68335F4DD18D1B"
+    },
+    {
+      "path": "InsertAsmSrc.h",
+      "classification": "source-scanned",
+      "exclusion_reason": null,
+      "size": 138839,
+      "sha256": "FDE7D0390BBA27FF5E53B0F969E7C05AF8AC8ACD193F0E849703988DDA6CDCE5"
+    },
+    {
+      "path": "InsertAsmSrc2.h",
+      "classification": "source-scanned",
+      "exclusion_reason": null,
+      "size": 214590,
+      "sha256": "775AF25B4A785464D648754AC69028BFF78350B0EB94CC8DF7377A41B42CE430"
+    },
+    {
+      "path": "InsertAsmSrc3.h",
+      "classification": "source-scanned",
+      "exclusion_reason": null,
+      "size": 30910,
+      "sha256": "16D7475B5BECEB16F550B9E6F9CC50E6C37434346A2770B578CABCB4268CC5D4"
+    },
+    {
+      "path": "KillerConfigDlg.cpp",
+      "classification": "source-scanned",
+      "exclusion_reason": null,
+      "size": 5153,
+      "sha256": "A493210F268B498E97DC7E1C8992D657D6D30D4EBE413FDEF88B1B3740839E7A"
+    },
+    {
+      "path": "KillerConfigDlg.h",
+      "classification": "source-scanned",
+      "exclusion_reason": null,
+      "size": 1583,
+      "sha256": "22B294160DF0CCD33D89F5097734E4D341807B024170B18800891FBC734C164F"
+    },
+    {
+      "path": "Parasettingdlg.cpp",
+      "classification": "source-scanned",
+      "exclusion_reason": null,
+      "size": 19811,
+      "sha256": "D94F135330C39E66FA1F2BB56964D59ABA372B7C72A96C7B21057A8BB69233CB"
+    },
+    {
+      "path": "Parasettingdlg.h",
+      "classification": "source-scanned",
+      "exclusion_reason": null,
+      "size": 3794,
+      "sha256": "E116C7A296392BD0CE702154D68572480C4A627EFEC14076ED9684BBBE79C093"
+    },
+    {
+      "path": "PersonConfigDlg.cpp",
+      "classification": "source-scanned",
+      "exclusion_reason": null,
+      "size": 18586,
+      "sha256": "FF849D7CC621319AFB0501D06A715C4FC822B9DD2980DA521CDCA18B4889F17B"
+    },
+    {
+      "path": "PersonConfigDlg.h",
+      "classification": "source-scanned",
+      "exclusion_reason": null,
+      "size": 3615,
+      "sha256": "AD23C937E66FD5F917D498AC90F6BA137A3180B8C401E1EEDA3CC6C3EBCFE776"
+    },
+    {
+      "path": "ReadWriteError.h",
+      "classification": "source-scanned",
+      "exclusion_reason": null,
+      "size": 46880,
+      "sha256": "E9EC7ADACEC384BF3D1A0793096EE7E0EFCA5A96CACC1EA20142573CA57C8F21"
+    },
+    {
+      "path": "res/San9PKHard.ico",
+      "classification": "binary-ide-asset-excluded",
+      "exclusion_reason": "non-source IDE or icon artifact",
+      "size": 1078,
+      "sha256": "A02AA4AA8CFB57A1BA154DFB7BCA5055908D8E0926892303E508D42F023C7E0A"
+    },
+    {
+      "path": "res/San9PKHard.rc2",
+      "classification": "ui-resource-excluded",
+      "exclusion_reason": "no executable patch registration; controls join through DDX bindings",
+      "size": 389,
+      "sha256": "F83AA7CE3429409946CDAF488B0C0DF5D0478CEC4D7437E1B483F4EE180C3042"
+    },
+    {
+      "path": "resource.h",
+      "classification": "source-scanned",
+      "exclusion_reason": null,
+      "size": 9973,
+      "sha256": "9D6CA6A740C09A46ECDB8694F0BCBE41769BA4876D07E7AD38D04B0E7BE5AD4B"
+    },
+    {
+      "path": "San9PKHard.aps",
+      "classification": "binary-ide-asset-excluded",
+      "exclusion_reason": "non-source IDE or icon artifact",
+      "size": 42776,
+      "sha256": "88DBC69D50C0E9AC7E2E547EACEEA935A6459EFB344B238E491EDFE83C233338"
+    },
+    {
+      "path": "San9PKHard.clw",
+      "classification": "ui-resource-excluded",
+      "exclusion_reason": "no executable patch registration; controls join through DDX bindings",
+      "size": 14295,
+      "sha256": "F31C2025AD827A418EF11019777B5C96901F6FB9A1B25F178B4EE4F98A9EF3D7"
+    },
+    {
+      "path": "San9PKHard.cpp",
+      "classification": "source-scanned",
+      "exclusion_reason": null,
+      "size": 1881,
+      "sha256": "55C545F66D923213706678B65619B8E8DD44FC083D1676BD0A55AE63CAA458FE"
+    },
+    {
+      "path": "San9PKHard.dsp",
+      "classification": "build-metadata-excluded",
+      "exclusion_reason": "no executable patch registration",
+      "size": 4928,
+      "sha256": "76ECB42DBF60E711E44699A7059F3924175A53736F17B1AF5D0192F9B1096741"
+    },
+    {
+      "path": "San9PKHard.dsw",
+      "classification": "build-metadata-excluded",
+      "exclusion_reason": "no executable patch registration",
+      "size": 516,
+      "sha256": "46829AED26153B4FFE081F6E13FF16D04517CCC979FAF0A96BC4DEBF8D3496A5"
+    },
+    {
+      "path": "San9PKHard.h",
+      "classification": "source-scanned",
+      "exclusion_reason": null,
+      "size": 1319,
+      "sha256": "847F8071114F9032ECD3E25FEDDA3150EA222813078989D3A2DF2B903B0F25BC"
+    },
+    {
+      "path": "San9PKHard.ncb",
+      "classification": "binary-ide-asset-excluded",
+      "exclusion_reason": "non-source IDE or icon artifact",
+      "size": 484352,
+      "sha256": "E21A6EF9FEC36EC95BD988E39F995BFBF1383F72C37A9BD13C077E6BECAF91DE"
+    },
+    {
+      "path": "San9PKHard.opt",
+      "classification": "binary-ide-asset-excluded",
+      "exclusion_reason": "non-source IDE or icon artifact",
+      "size": 209920,
+      "sha256": "BB8AC79765BAD9C53C0695E91C59E993A777AEF312ED27B28689C0562D9C82AD"
+    },
+    {
+      "path": "San9PKHard.plg",
+      "classification": "build-metadata-excluded",
+      "exclusion_reason": "no executable patch registration",
+      "size": 238,
+      "sha256": "733DBE7BE88AC71CAEC8D9D8BA9F1357894FEBDDA06C8313E0B0976009990749"
+    },
+    {
+      "path": "San9PKHard.rc",
+      "classification": "ui-resource-excluded",
+      "exclusion_reason": "no executable patch registration; controls join through DDX bindings",
+      "size": 30836,
+      "sha256": "E6BE9F8160A4E855AC8048AD741B8742E75F6DEC123F9ED7D9D514C5EEECF557"
+    },
+    {
+      "path": "San9PKHardArray.txt",
+      "classification": "config-scanned",
+      "exclusion_reason": null,
+      "size": 459,
+      "sha256": "7769C3618A6F9064A10797F0D07F930D4151F5AEEF7D7EBE2C601C83E49A96AB"
+    },
+    {
+      "path": "San9PKHardCity.txt",
+      "classification": "config-scanned",
+      "exclusion_reason": null,
+      "size": 2148,
+      "sha256": "EB454601E044BDAE65E96F5F5E8C4028D9AB21B1BE8F24363F81CB441EECAD79"
+    },
+    {
+      "path": "San9PKHardDlg.cpp",
+      "classification": "source-scanned",
+      "exclusion_reason": null,
+      "size": 391571,
+      "sha256": "4D41522CC4907BE8BE5044AF5BF496ADADF8F35499FC8FB45AA38F17FBF15ECC"
+    },
+    {
+      "path": "San9PKHardDlg.h",
+      "classification": "source-scanned",
+      "exclusion_reason": null,
+      "size": 21482,
+      "sha256": "905B350718A75C1D99C4DE69184E6F78748DA5E41FBA4BC658E8366B859BD6BE"
+    },
+    {
+      "path": "San9PKHardPara.txt",
+      "classification": "config-scanned",
+      "exclusion_reason": null,
+      "size": 105,
+      "sha256": "F8E2DD5FD236E445B546358B319213BA73BF05FE88B673995C3C664B962643F2"
+    },
+    {
+      "path": "San9PKHardPerson.txt",
+      "classification": "config-scanned",
+      "exclusion_reason": null,
+      "size": 4942,
+      "sha256": "C8BCD326C268DFE93E6BA766974E7E2A22C2D800FC23FB7279D360E9DB032361"
+    },
+    {
+      "path": "San9PKHardSkill.txt",
+      "classification": "config-scanned",
+      "exclusion_reason": null,
+      "size": 331,
+      "sha256": "03970DFB70EDB8B05E1FD54CC9B93BF5705A191C2D4D628379291A0FDF4FAFB5"
+    },
+    {
+      "path": "StdAfx.cpp",
+      "classification": "source-scanned",
+      "exclusion_reason": null,
+      "size": 204,
+      "sha256": "91B45F44199FE2D3D5D73D0A1B0C56EFB3FDECF742C303346D97D359E2CA7CCF"
+    },
+    {
+      "path": "StdAfx.h",
+      "classification": "source-scanned",
+      "exclusion_reason": null,
+      "size": 973,
+      "sha256": "3C3391744DF0415EDE445E2E0902C45FC4A4C9D4683CBF2F8FEB883F16120FC7"
+    }
+  ],
+  "config_files": [
+    {
+      "path": "San9PKHardPara.txt",
+      "semantic": "global-parameters",
+      "value_count": 34,
+      "all_integer": true,
+      "sha256": "F8E2DD5FD236E445B546358B319213BA73BF05FE88B673995C3C664B962643F2"
+    },
+    {
+      "path": "San9PKHardPerson.txt",
+      "semantic": "person-configuration",
+      "value_count": 917,
+      "all_integer": true,
+      "sha256": "C8BCD326C268DFE93E6BA766974E7E2A22C2D800FC23FB7279D360E9DB032361"
+    },
+    {
+      "path": "San9PKHardCity.txt",
+      "semantic": "city-configuration",
+      "value_count": 250,
+      "all_integer": true,
+      "sha256": "EB454601E044BDAE65E96F5F5E8C4028D9AB21B1BE8F24363F81CB441EECAD79"
+    },
+    {
+      "path": "San9PKHardArray.txt",
+      "semantic": "formation-configuration",
+      "value_count": 54,
+      "all_integer": true,
+      "sha256": "7769C3618A6F9064A10797F0D07F930D4151F5AEEF7D7EBE2C601C83E49A96AB"
+    },
+    {
+      "path": "San9PKHardSkill.txt",
+      "semantic": "tactic-configuration",
+      "value_count": 39,
+      "all_integer": true,
+      "sha256": "03970DFB70EDB8B05E1FD54CC9B93BF5705A191C2D4D628379291A0FDF4FAFB5"
+    }
+  ],
+  "sample_verification": null,
+  "reproduce": "python research/scripts/build_san9pkhard_catalog.py --source-root research/upsteam/San9PKHard --output tmp/san9pkhard-catalog.json --summary-output research/patch-points/san9pkhard-catalog-status.json"
+}

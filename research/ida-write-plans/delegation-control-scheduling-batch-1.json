@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "batch": "GOV-03",
+  "sample": "SRC-SAN9PK-TC-101",
+  "idb": "research/analysis/San9PK-TC-101.i64",
+  "program_byte_changes": 0,
+  "function_boundaries": [
+    {
+      "start": "0x43EC70",
+      "end": "0x43EC8A",
+      "reason": "the root-control-order wrapper tail-jumps here with mask 0xF00; the bytes form a complete thiscall helper ending in ret 8 but were decoded from the preceding byte"
+    }
+  ],
+  "type_declarations": [
+    "struct San9ForceRecord { unsigned __int8 unknown_000[12]; unsigned int encoded_runtime_metadata_00C; int record_id_010; int funds_014; int food_018; unsigned __int8 unknown_01C[8]; int delegation_policy_024; unsigned int delegation_target_ref_028; unsigned __int8 unknown_02C[8]; unsigned int flags_034; unsigned __int8 unknown_038[64]; unsigned __int8 city_list_078[32]; unsigned __int8 unit_list_098[32]; struct San9ForceRecord *root_force_0B8; struct San9PersonRecord *direct_leader_0BC; unsigned __int8 unknown_0C0[20]; };"
+  ],
+  "function_names": [
+    {"addr": "0x440D80", "name": "update_force_flags_by_mask"},
+    {"addr": "0x4433A0", "name": "set_root_force_player_controlled"},
+    {"addr": "0x4412D0", "name": "set_root_force_control_order"},
+    {"addr": "0x43EC70", "name": "write_force_control_order_bits"},
+    {"addr": "0x43FB00", "name": "get_force_runtime_type_code"},
+    {"addr": "0x4FDBB0", "name": "get_encoded_runtime_type_code"},
+    {"addr": "0x43F870", "name": "clear_corps_delegation_target"},
+    {"addr": "0x43F890", "name": "get_corps_delegation_policy_label"},
+    {"addr": "0x568080", "name": "get_delegation_policy_label"},
+    {"addr": "0x4595C0", "name": "clear_corps_targets_for_force_pair_change"},
+    {"addr": "0x45A800", "name": "clear_invalid_corps_building_targets"},
+    {"addr": "0x45A8F0", "name": "clear_invalid_corps_targets_by_object_id"},
+    {"addr": "0x57B800", "name": "clear_corps_targets_between_alliance_members"},
+    {"addr": "0x4AF1F0", "name": "get_automatic_work_code_metadata"},
+    {"addr": "0x4AF5D0", "name": "get_root_force_metadata_bit_8"},
+    {"addr": "0x4B02A0", "name": "automatic_bounded_work_action_ctor"},
+    {"addr": "0x50E9F0", "name": "set_automatic_work_attempt_budget"},
+    {"addr": "0x4A9E40", "name": "initialize_corps_management_plan_record"},
+    {"addr": "0x4A9E60", "name": "assign_city_to_corps_governor_plan"},
+    {"addr": "0x4A9E80", "name": "assign_building_city_to_corps_governor_plan"},
+    {"addr": "0x4A9EC0", "name": "clear_corps_plan_consumed_flags"},
+    {"addr": "0x4A9F50", "name": "collect_direct_root_corps_cities"},
+    {"addr": "0x4A9F80", "name": "reset_corps_city_plan_slots"},
+    {"addr": "0x4AA000", "name": "consume_next_corps_city_plan_group"},
+    {"addr": "0x4AA0A0", "name": "is_subordinate_corps_of_root"},
+    {"addr": "0x4AA0F0", "name": "corps_management_plan_record_ctor"},
+    {"addr": "0x4AA2B0", "name": "allocate_planned_corps_resources"},
+    {"addr": "0x4AA3E0", "name": "create_next_automatic_corps_management_command"},
+    {"addr": "0x4AA510", "name": "collect_area_personnel_distribution"},
+    {"addr": "0x4AA740", "name": "build_automatic_corps_city_groups"},
+    {"addr": "0x4AAA00", "name": "prepare_automatic_corps_management_plan"}
+  ],
+  "comments": [
+    {"addr": "0x43F9F0", "comment": "[GOV-03] Direct-control predicate for one force record: flags_034 bit 0 selects the interactive task; zero selects the automatic task. Subordinate corps keep zero even when their root polity is player controlled."},
+    {"addr": "0x43F9D0", "comment": "[GOV-03] Polity-level player-control query normalizes subordinate corps through root_force_0B8 before dispatching the direct bit-0 predicate."},
+    {"addr": "0x4433A0", "comment": "[GOV-03] Sets or clears player control on the root record. Clearing also writes control-order sentinel 15; selected player forces receive order values 0..N-1."},
+    {"addr": "0x5109A0", "comment": "[GOV-03] The exit/control menu can hand the current root force or all selected forces to computer control, then clears the current map selection/context before returning to simulation."},
+    {"addr": "0x50EC90", "comment": "[GOV-03] The world force cursor creates exactly one child per force record: direct bit-0 records use the interactive task, while subordinate delegated corps and computer-controlled roots use the automatic task."},
+    {"addr": "0x4BDD00", "comment": "[GOV-03] Automatic batch selection first distinguishes scenario-special, special virtual predicate, primary root and subordinate record branches; the second batch uses encoded_runtime_metadata_00C type bits, not delegation_policy_024."},
+    {"addr": "0x4BDE30", "comment": "[GOV-03] Work codes are attempted in table order and each non-null child is awaited before advancing, so validation and side effects of earlier shared commands are visible to later planners."},
+    {"addr": "0x4B02A0", "comment": "[GOV-03] Common bounded automatic-action constructor derives an attempt budget from per-code metadata, a root metadata bit and a world mode flag, then clamps it to 1..metadata maximum."},
+    {"addr": "0x43F890", "comment": "[GOV-03] Delegation policy labels are 0 general, 1 domestic focus, 2 defeat target force and 3 capture target facility; modes 2 and 3 resolve typed target references."},
+    {"addr": "0x4AAA00", "comment": "[GOV-03] Automatic code-12 preparation collects same-root subordinate corps, measures directly held cities and area personnel, builds governor/city groups, and sets the number of management commands to emit."},
+    {"addr": "0x4AA2B0", "comment": "[GOV-03] Planned corps funds are apportioned by selected personnel share; food is apportioned by selected troop share, falling back to city-count share when the root troop total is zero."},
+    {"addr": "0x4AA3E0", "comment": "[GOV-03] Emits mode-2 commands for queued subordinate corps or mode-0 commands for planned governor/city groups, then uses the same corps command constructor, validator and executor as interactive code 12."},
+    {"addr": "0x43F870", "comment": "[GOV-03] Invalid targeted delegation state is normalized atomically to policy 0 (general) and target -1."},
+    {"addr": "0x4595C0", "comment": "[GOV-03] Force-pair state changes invalidate subordinate attack-force or capture-facility targets whose root relation no longer permits the target."},
+    {"addr": "0x45A800", "comment": "[GOV-03] Building deletion, vacancy or ownership invalidation clears affected capture-facility delegation targets before later automatic work runs."},
+    {"addr": "0x57B800", "comment": "[GOV-03] Alliance membership invalidates targeted delegation against an allied force and resets the subordinate corps to general delegation."}
+  ]
+}

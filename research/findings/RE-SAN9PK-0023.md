@@ -59,7 +59,7 @@
 | `0x14` | `u16` | `ScenarioId` | 正式文件名序号减 1；事实 |
 | `0x16` | `u16` | `PackedFlags` | 正式样本为 `0x0000` 或 `0x0100`；高字节 `0x01` 对应“忽略年龄”。低字节以及教学/挑战模式值仍需单独处理 |
 | `0x18` | `u16` | `EncodedStartDate` | 以 130 年为纪元、360 天/年、30 天/月的编码；事实 |
-| `0x1A` | `u16` | `AllianceDurationTurns` | 编辑器“联盟时间（旬）”；`D_Sce002` 为 36；事实 |
+| `0x1A` | `u16` | `AllianceDurationTurns` | 编辑器“联盟时间（旬）”；`D_Sce002` 为 36；`RE-SAN9PK-0119` 已确认形成时初始化为 36、每旬递减并在归零时清理；事实 |
 | `0x1C` | `u16` | `MapWidth` | 正式样本均为 200；事实 |
 | `0x1E` | `u16` | `MapHeight` | 正式样本均为 200；事实 |
 | `0x20..0x51` | 50 bytes | `EncodedCityForceMapCodes` | 按城市编号排列的编码后势力分布向量；与 `city +0x1C` 存在固定映射，但不是同一组原始代码 |

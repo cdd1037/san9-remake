@@ -20,7 +20,8 @@
 - [BEH-IMPORT-0016：剧本势力（`forc`）记录解析](BEH-IMPORT-0016-scenario-force-records.md)（已确认结构与主要字段）
 - [BEH-IMPORT-0017：剧本部队（`unit`）记录解析](BEH-IMPORT-0017-scenario-unit-records.md)（已确认结构与已知字段）
 - [BEH-RENDER-0001：大地图静态视觉快照](BEH-RENDER-0001-static-map-snapshot.md)（已确认地貌、桥、静态建筑、坐标与像素回归基线）
-- [BEH-EVENT-0001：神兽事件的战斗判定](BEH-EVENT-0001-shenshou-event.md)（草案）
+- [BEH-EVENT-0001：神兽事件的战斗判定](BEH-EVENT-0001-shenshou-event.md)（已确认）
+- [BEH-EVENT-0002：事件选择、演出与原子提交](BEH-EVENT-0002-event-selection-and-commit.md)（已确认）
 - [BEH-DUEL-0001：单挑触发与参战者选择](BEH-DUEL-0001-duel-trigger-and-participant-selection.md)（已确认）
 - [BEH-DUEL-0002：单挑逐刀结算](BEH-DUEL-0002-duel-strike-resolution.md)（已确认）
 - [BEH-DUEL-0003：单挑战后结果分区](BEH-DUEL-0003-duel-aftermath.md)（已确认范围）

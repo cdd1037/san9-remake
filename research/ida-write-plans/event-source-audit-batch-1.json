@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "batch": "EVT-04",
+  "sample": "SRC-SAN9PK-TC-101",
+  "idb": "research/analysis/San9PK-TC-101.i64",
+  "program_byte_changes": 0,
+  "function_boundaries": [],
+  "function_names": [
+    {
+      "address": "0x57CF70",
+      "old": "cai_yan_return_event_ctor",
+      "name": "three_visits_part2a_event_ctor"
+    },
+    {
+      "address": "0x57D060",
+      "old": "cai_yan_return_event_predicate",
+      "name": "three_visits_part2a_event_predicate"
+    },
+    {
+      "address": "0x57CFF0",
+      "old": "cai_yan_return_event_execute",
+      "name": "three_visits_part2a_event_execute"
+    },
+    {
+      "address": "0x57D1B0",
+      "old": "cai_yan_return_event_commit",
+      "name": "three_visits_part2a_event_commit"
+    }
+  ],
+  "comments": [
+    {"address": "0x57CDA0", "topic": "type 2 embedded Three Visits part-1 name and bit-4 prerequisite"},
+    {"address": "0x57CFE0", "topic": "type 3 embedded Three Visits part-2a name"},
+    {"address": "0x57D060", "topic": "corrected type-3 identity and predicate"},
+    {"address": "0x57D1B0", "topic": "corrected type-3 affiliation commit"},
+    {"address": "0x580C90", "topic": "beast-location source conflict and per-location bits"},
+    {"address": "0x580E20", "topic": "martial-probability source conflict and escape consumption"},
+    {"address": "0x57D880", "topic": "Shanyang Gong execute-branch loyalty source conflict"}
+  ],
+  "dry_run": {
+    "function_names": 4,
+    "ok": 4,
+    "failed": 0
+  },
+  "saved": true,
+  "readback_verified": true
+}

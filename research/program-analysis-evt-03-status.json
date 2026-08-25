@@ -20,7 +20,7 @@
     {
       "family": "historical_person_transfer",
       "event_type": 3,
-      "representative": "Cai Yan return",
+      "representative": "Three Visits part 2a",
       "trigger_shape": "prerequisite persistent bit + unconsumed bit + person/force/object gates",
       "effect_shape": "consume bit, change person status/ownership/loyalty, add prestige, append event log",
       "one_shot_flag": 5
@@ -94,5 +94,13 @@
     "dotnet_tests": 112,
     "json_parse": true,
     "git_diff_check": true
+  },
+  "later_correction": {
+    "batch": "EVT-04",
+    "finding": "RE-SAN9PK-0130",
+    "reason": "the type-3 vtable name slot returns the embedded literal Event Sanko-No-Rei2a; type 2 returns Event Sanko-No-Rei1 and commits prerequisite bit 4",
+    "superseded_identity": "Cai Yan return",
+    "current_identity": "Three Visits part 2a",
+    "corrected_function_names": ["0x57CF70", "0x57D060", "0x57CFF0", "0x57D1B0"]
   }
 }

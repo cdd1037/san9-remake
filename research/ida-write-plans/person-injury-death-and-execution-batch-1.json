@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "batch": "LIFE-02",
+  "finding": "RE-SAN9PK-0132",
+  "sample": "SRC-SAN9PK-TC-101",
+  "idb": "research/analysis/San9PK-TC-101.i64",
+  "program_byte_changes": 0,
+  "function_boundaries": [
+    {"start": "0x48B090", "end": "0x48B340", "name": "execute_prisoner_execution_command", "evidence": "command type-18 vtable slot +0x30 and the next commerce-command constructor boundary"},
+    {"start": "0x4432D0", "end": "0x443334", "name": "recompute_force_prestige", "evidence": "direct execution call, complete prologue/return boundary and bounded prestige component data flow"}
+  ],
+  "function_names": [
+    {"address": "0x44F070", "name": "advance_person_injury_recovery_for_xun"},
+    {"address": "0x44CDD0", "name": "get_person_years_since_appearance"},
+    {"address": "0x480E40", "name": "compute_natural_death_chance"},
+    {"address": "0x481A60", "name": "process_quarterly_natural_deaths"},
+    {"address": "0x48AFF0", "name": "prisoner_execution_command_ctor"},
+    {"address": "0x48B050", "name": "validate_prisoner_execution_command"},
+    {"address": "0x48B090", "name": "execute_prisoner_execution_command"},
+    {"address": "0x4432D0", "name": "recompute_force_prestige"},
+    {"address": "0x443610", "name": "select_force_successor"},
+    {"address": "0x450A70", "name": "transfer_person_items_to_person"},
+    {"address": "0x44F7D0", "name": "clear_person_item_holders"},
+    {"address": "0x44D0C0", "name": "has_same_bloodline_root"},
+    {"address": "0x44DDB0", "name": "adjust_person_loyalty_for_force"},
+    {"address": "0x44C210", "name": "person_holds_item_resource"},
+    {"address": "0x4406F0", "name": "force_leader_holds_item_79"}
+  ],
+  "comments": [
+    "0x44F070", "0x44CDD0", "0x480E40", "0x481A60", "0x48AFF0", "0x48B050",
+    "0x48B090", "0x4432D0", "0x443610", "0x450A70", "0x44F7D0", "0x44D0C0",
+    "0x44DDB0", "0x44C210", "0x4406F0", "0x452190"
+  ],
+  "dry_run": {"function_names": 15, "ok": 15, "failed": 0},
+  "saved": true,
+  "readback_verified": true,
+  "post_write_statistics": {"total_functions": 11049, "named_functions": 1818}
+}

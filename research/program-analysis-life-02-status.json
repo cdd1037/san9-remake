@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "batch": "LIFE-02",
+  "status": "completed",
+  "sample": {
+    "id": "SRC-SAN9PK-TC-101",
+    "module": "San9PK.exe",
+    "sha256": "d20794aeff67301ec2bf8c3becb1e9944c68c6c0588fbfd4bf04e8597f0e5028",
+    "ida_database": "research/analysis/San9PK-TC-101.i64"
+  },
+  "domain_model": {
+    "objects": ["person injury state", "lifespan category", "person status", "bloodline and parent references", "per-force loyalty", "held items", "force and corps ownership"],
+    "inputs": ["combat or event result", "xun update", "quarterly update", "execution command", "scripted death path", "global random stream"],
+    "outputs": ["injury decrement or clear", "status 8 death write", "force succession or elimination", "relationship and loyalty changes", "item transfer or holder clear", "refresh and event feedback"],
+    "invariants": [
+      "xun recovery decrements a nonzero injury value by exactly one",
+      "natural death uses years since appearance rather than biological age",
+      "battle-death option bit 4 does not gate natural death, execution or scripted death",
+      "death cause is a caller-path property and is not persisted by kill_person",
+      "death snapshots old ownership before status 8 and completes succession and item cleanup afterward"
+    ]
+  },
+  "injury": {
+    "field": "Person+0x80",
+    "recovery_entry": "advance_person_injury_recovery_for_xun@0x44F070",
+    "scheduler": "update_persons_for_xun@0x4806E0 from run_xun_world_updates@0x484E70",
+    "transition": "health>0 -> health-1 once per xun; health=0 unchanged",
+    "direct_clear_examples": ["healing tactic", "Hua Tuo event"],
+    "separate_daily_or_annual_recovery": false
+  },
+  "natural_death": {
+    "entry": "process_quarterly_natural_deaths@0x481A60",
+    "schedule": "day 1 of months 1, 4, 7 and 10",
+    "elapsed_day_gate": 360,
+    "scenario_mode_exclusions": [1, 2, 9],
+    "candidate_status_exclusions": [8, 9],
+    "immunities": ["player-controlled status-0 ruler", "barbarian-force person"],
+    "years_input": "current_scenario_year + 1 - appearance_year",
+    "chance": "clamp(3*(years_since_appearance-6*lifespan-35),0,100)",
+    "random_stream": "GLOBAL_STREAM",
+    "roll_order": "stored candidate order; player rulers and barbarians consume no roll; other candidates call kakuritsu even at chance 0",
+    "battle_death_option_bit4_applies": false
+  },
+  "execution": {
+    "command_type": 18,
+    "constructor": "prisoner_execution_command_ctor@0x48AFF0",
+    "validator": "validate_prisoner_execution_command@0x48B050",
+    "executor": "execute_prisoner_execution_command@0x48B090",
+    "target_gate": "valid status-4 prisoner",
+    "death_probability": null,
+    "original_force_relation_delta": "-(5+rnd(3)) when original force is valid",
+    "same_bloodline_loyalty_loss": 5,
+    "direct_child_loyalty_loss_when_parent_and_bloodline_gates_both_match": 10,
+    "item_79_effect": "recompute and store executing-force prestige after death"
+  },
+  "death_sink": {
+    "function": "kill_person@0x452190",
+    "static_call_sites": 11,
+    "cause_families": ["natural death", "execution", "battle or duel", "scripted event", "special-prisoner cleanup", "barbarian detach cleanup"],
+    "persisted_cause_enum": false,
+    "final_status": 8,
+    "ruler_outcomes": ["select and write successor", "eliminate force when no holding or person remains"],
+    "item_outcomes": ["transfer every held item to derived recipient", "clear every holder when no recipient exists"]
+  },
+  "source_routes": {
+    "RE-SAN9PK-0009": "lifespan, injury, bloodline-root and parent-reference fields consumed",
+    "RE-SAN9PK-0068": "combat injury and death formulas reused without rederivation",
+    "RE-SAN9PK-0069": "world-state scheduling and elapsed-day storage consumed",
+    "RE-SAN9PK-0071": "battle-death option scope narrowed to battle paths",
+    "RE-SAN9PK-0098": "quarterly month/day scheduling reused",
+    "electronic_book_lifecycle_claims": "deferred to LIFE-04 source audit"
+  },
+  "scope": {
+    "confirmed": "injury transitions, xun recovery, quarterly natural death, lifespan input, exemptions, random order, execution, death-cause boundary, succession and final person/force/item writes",
+    "deferred_to_life_03": "appearance, birth-year gates, age-derived relations and child-officer training",
+    "deferred_to_life_04": "electronic-book claim audit and behavior-spec promotion",
+    "deferred_to_war_04": "complete postwar troop, wounded-soldier, food and final-holding cleanup"
+  },
+  "ida_writes": {
+    "function_boundaries_repaired": ["0x48B090..0x48B340", "0x4432D0..0x443334"],
+    "function_renames": 15,
+    "comments": 16,
+    "saved": true,
+    "readback_verified": true,
+    "sample_bytes_modified": false,
+    "post_write_health": {
+      "total_functions": 11049,
+      "named_functions": 1818,
+      "sample_sha256_unchanged": true
+    }
+  },
+  "verification": {
+    "research_script_tests": 63,
+    "dotnet_tests": 112,
+    "json_parse": true,
+    "git_diff_check": true
+  },
+  "next_batch": "LIFE-03"
+}

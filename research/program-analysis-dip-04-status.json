@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "batch": "DIP-04",
+  "status": "completed",
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0120",
+  "behavior_specs": [
+    "BEH-DIPLOMACY-0001",
+    "BEH-DIPLOMACY-0002",
+    "BEH-DIPLOMACY-0003"
+  ],
+  "closed_dimensions": [
+    "automatic work-code factory for gift, attack request, prisoner return and surrender demand",
+    "primary, special virtual-predicate and nonprimary force batch membership",
+    "sequential child scheduling and live-state observation",
+    "attack-request force, building and envoy candidate priorities",
+    "attack-request source gate, advisor feasibility and command construction",
+    "prisoner-return target and envoy priorities",
+    "prisoner-return planner-only random feasibility check",
+    "surrender target metric ordering, advisor feasibility and command construction",
+    "shared command boundary with interactive diplomacy",
+    "automatic diplomacy behavior-spec handoff"
+  ],
+  "candidate_disposition": {
+    "generated_queue_total": 0,
+    "targeted_factory_and_vtable_roots": 4,
+    "unresolved": 0,
+    "note": "DIP-04 had no routed candidate batch; closure used the automatic action factory, scheduler tables, vtables and score/filter data flows."
+  },
+  "follow_up_queue": [
+    {
+      "id": "EVENT-DIP-01",
+      "scope": "alliance formation, expiry presentation and notice-case labels",
+      "evidence": "RE-SAN9PK-0119",
+      "reason": "quarterly/xun event presentation is outside automatic diplomacy scheduling"
+    }
+  ],
+  "ida_mcp": {
+    "health": "ok",
+    "idb": "research/analysis/San9PK-TC-101.i64",
+    "function_boundary_repairs": 15,
+    "function_renames": 35,
+    "comments": 9,
+    "program_byte_changes": 0,
+    "save": "succeeded",
+    "read_back": "verified: 35 names, 15 repaired boundaries and 9 comments",
+    "health_baseline": {
+      "core_stats_sha256": "a9484587d58a64a6d2d827eb768321e4e902c37bd577514f4232676e7b08ba8d",
+      "function_count": 11031,
+      "decompile_failure_count": 7,
+      "undefined_bytes_in_exec": 0
+    }
+  },
+  "unconfirmed_claims": [
+    "player-facing meaning of automatic force-context bit 8",
+    "player-facing meaning of the surrender target 7-bit metric",
+    "player-facing labels for attack-request building category priority",
+    "alliance event notice-case labels"
+  ],
+  "next_batch": "GOV-01"
+}

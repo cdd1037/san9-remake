@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "batch": "GOV-02",
+  "status": "completed",
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0122",
+  "behavior_spec": "BEH-GOVERNANCE-0001",
+  "closed_dimensions": [
+    "fixed force/corps record pool and primary/subordinate root relation",
+    "direct governor versus normalized polity ruler access",
+    "formal create/modify/dissolve mode enumeration",
+    "default governor candidate scope and ordering key",
+    "city, region-building, person and unit effective ownership transfer",
+    "same-root ownership and resource conservation invariants",
+    "dissolution merge, stale-reference clearing and record reuse",
+    "primary ruler-corps protection and terminal polity-elimination boundary"
+  ],
+  "source_claim_disposition": {
+    "confirmed": ["EBK-GOV-01"],
+    "split_follow_up": ["EBK-GOV-04"],
+    "reason": "governor ordering and corps territory ownership are confirmed; low-loyalty cross-polity loss requires the GOV-04 periodic personnel/control chain"
+  },
+  "ida_mcp": {
+    "health": "ok",
+    "idb": "research/analysis/San9PK-TC-101.i64",
+    "function_boundary_repairs": 1,
+    "function_renames": 43,
+    "type_declarations": 1,
+    "comments": 11,
+    "program_byte_changes": 0,
+    "save": "succeeded",
+    "read_back": "verified: 43 names, one 0xE0-byte repaired boundary, one 0xD4/15-member type and 11 comments",
+    "post_write_survey": {
+      "function_count": 11034,
+      "named_function_count": 1683,
+      "sample_sha256": "d20794aeff67301ec2bf8c3becb1e9944c68c6c0588fbfd4bf04e8597f0e5028"
+    }
+  },
+  "follow_up_queue": [
+    {
+      "batch": "GOV-03",
+      "scope": "delegation control flags, automatic work selection, actor/resource budgets and post-control cleanup"
+    },
+    {
+      "batch": "GOV-04",
+      "scope": "periodic delegated governance and the low-loyalty cross-polity city-loss claim split as EBK-GOV-04"
+    }
+  ],
+  "next_batch": "GOV-03"
+}

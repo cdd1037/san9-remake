@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "batch": "GOV-01",
+  "sample": "SRC-SAN9PK-TC-101",
+  "idb": "research/analysis/San9PK-TC-101.i64",
+  "program_byte_changes": 0,
+  "function_boundaries": [
+    {
+      "start": "0x48C5D0",
+      "end": "0x48C731",
+      "reason": "demolish-structure command vtable execution entry was split after the SEH prefix; the second fragment is reached only from the prefix and both form one epilogue-closed function"
+    },
+    {
+      "start": "0x4C11D0",
+      "end": "0x4C12C5",
+      "reason": "interactive code-12 command creator referenced by task vtable slot 10"
+    },
+    {
+      "start": "0x4C14E0",
+      "end": "0x4C1715",
+      "reason": "interactive code-12 validator/populator referenced by task vtable slot 8"
+    },
+    {
+      "start": "0x4C1910",
+      "end": "0x4C192E",
+      "reason": "patrol-action deleting destructor referenced by the vtable immediately following the code-12 task table; its call to the patrol destructor proves ownership"
+    },
+    {
+      "start": "0x487D20",
+      "end": "0x4882D9",
+      "reason": "code-12 command execution entry referenced by command-vtable slot 12 was misidentified as data after its SEH prefix"
+    }
+  ],
+  "function_names": [
+    {"addr": "0x4C6E70", "name": "interactive_demolish_structure_action_ctor"},
+    {"addr": "0x4C6FA0", "name": "validate_and_populate_interactive_demolish_structure_action"},
+    {"addr": "0x4C70C0", "name": "create_interactive_demolish_structure_command"},
+    {"addr": "0x48C520", "name": "demolish_structure_command_ctor"},
+    {"addr": "0x48C580", "name": "validate_demolish_structure_command"},
+    {"addr": "0x48C5D0", "name": "execute_demolish_structure_command"},
+    {"addr": "0x4C6670", "name": "interactive_unit_deployment_action_ctor"},
+    {"addr": "0x4C6570", "name": "validate_and_populate_interactive_unit_deployment_action"},
+    {"addr": "0x4C6710", "name": "process_interactive_unit_deployment_action_state"},
+    {"addr": "0x4C2C00", "name": "interactive_construction_action_ctor"},
+    {"addr": "0x4C2A90", "name": "validate_and_populate_interactive_construction_action"},
+    {"addr": "0x4C2CB0", "name": "process_interactive_construction_action_state"},
+    {"addr": "0x4C88A0", "name": "interactive_troop_transport_action_ctor"},
+    {"addr": "0x4C8950", "name": "process_interactive_troop_transport_action_state"},
+    {"addr": "0x48D500", "name": "troop_transport_command_ctor"},
+    {"addr": "0x48CFE0", "name": "validate_troop_transport_command"},
+    {"addr": "0x48D0F0", "name": "execute_troop_transport_command"},
+    {"addr": "0x4C12D0", "name": "interactive_corps_management_action_ctor"},
+    {"addr": "0x4C14E0", "name": "validate_and_populate_interactive_corps_management_action"},
+    {"addr": "0x4C11D0", "name": "create_interactive_corps_management_command"},
+    {"addr": "0x4882E0", "name": "corps_management_command_ctor"},
+    {"addr": "0x487B00", "name": "validate_corps_management_command"},
+    {"addr": "0x487D20", "name": "execute_corps_management_command"},
+    {"addr": "0x4AA170", "name": "automatic_corps_management_action_ctor"},
+    {"addr": "0x4AA1E0", "name": "create_automatic_corps_management_command"},
+    {"addr": "0x4C5B00", "name": "interactive_peerage_assignment_action_ctor"},
+    {"addr": "0x4C5D10", "name": "validate_and_populate_interactive_peerage_assignment_action"},
+    {"addr": "0x4C5EB0", "name": "create_interactive_peerage_assignment_command"},
+    {"addr": "0x48AD20", "name": "peerage_assignment_command_ctor"},
+    {"addr": "0x48ADB0", "name": "validate_peerage_assignment_command"},
+    {"addr": "0x48AE30", "name": "execute_peerage_assignment_command"},
+    {"addr": "0x4BF060", "name": "interactive_confiscate_item_action_ctor"},
+    {"addr": "0x4BF180", "name": "validate_and_populate_interactive_confiscate_item_action"},
+    {"addr": "0x4BF380", "name": "create_interactive_confiscate_item_command"},
+    {"addr": "0x486B40", "name": "confiscate_item_command_ctor"},
+    {"addr": "0x486BA0", "name": "validate_confiscate_item_command"},
+    {"addr": "0x486C00", "name": "execute_confiscate_item_command"},
+    {"addr": "0x4C1910", "name": "patrol_action_deleting_destructor"}
+  ],
+  "comments": [
+    {"addr": "0x4C6E70", "comment": "[GOV-01] Interactive action code 8 is structure demolition; message 6022 and its command execution remove the target structure and return stored quantities to the owning city."},
+    {"addr": "0x4C6670", "comment": "[GOV-01] Interactive action code 9 is unit deployment; its state machine creates the shared unit-deployment command documented by RE-SAN9PK-0076/0078."},
+    {"addr": "0x4C2C00", "comment": "[GOV-01] Interactive action code 10 is construction; its state machine creates the shared construction-unit command documented by RE-SAN9PK-0084/0086."},
+    {"addr": "0x4C88A0", "comment": "[GOV-01] Interactive action code 11 is troop transport; interactive and automatic producers share the type-11 transport command."},
+    {"addr": "0x4C12D0", "comment": "[GOV-01] Interactive action code 12 manages corps organization, dissolution and modification; message 5904 and the shared command side effects establish the mapping."},
+    {"addr": "0x487D20", "comment": "[GOV-01] Corps command execution: mode 0 creates and appends a corps, mode 1 changes leader/territory/assets and balances funds/food, other modes remove and finalize the selected corps."},
+    {"addr": "0x4C5B00", "comment": "[GOV-01] Interactive action code 14 assigns peerage; execution changes each selected officer's title and adjusts loyalty from the title-value difference."},
+    {"addr": "0x4BF060", "comment": "[GOV-01] Interactive action code 17 confiscates an item; execution transfers the item away from its holder and applies the command's loyalty penalty."},
+    {"addr": "0x4C1910", "comment": "[GOV-01] This deleting destructor belongs to the patrol action vtable immediately following the code-12 task vtable; it is not a code-12 slot."}
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "batch": "GOV-01",
+  "status": "completed",
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0121",
+  "closed_dimensions": [
+    "interactive action-code mappings for 8 through 12, 14 and 17",
+    "menu producer and resource-text cross-check",
+    "typed command records and validation boundary",
+    "final command side effects",
+    "interactive and automatic shared command boundary for codes 11 and 12",
+    "task-vtable versus command-vtable length correction",
+    "explicit non-governance routing"
+  ],
+  "candidate_disposition": {
+    "targeted_interactive_codes": 7,
+    "governance": [12],
+    "baseline": [9, 10],
+    "follow_up": [8, 11, 14, 17],
+    "unresolved": 0
+  },
+  "follow_up_queue": [
+    {
+      "id": "UNIT-CMD-01",
+      "scope": "structure demolition and troop transport command specifications",
+      "evidence": "RE-SAN9PK-0121",
+      "reason": "codes 8 and 11 are unit/map command semantics, not corps governance"
+    },
+    {
+      "id": "PERSON-CMD-01",
+      "scope": "peerage assignment and item confiscation command specifications",
+      "evidence": "RE-SAN9PK-0121",
+      "reason": "codes 14 and 17 are personnel reward/punishment semantics, not corps governance"
+    }
+  ],
+  "ida_mcp": {
+    "health": "ok",
+    "idb": "research/analysis/San9PK-TC-101.i64",
+    "function_boundary_repairs": 5,
+    "function_renames": 38,
+    "comments": 9,
+    "program_byte_changes": 0,
+    "save": "succeeded",
+    "read_back": "verified: 38 names, 5 repaired boundaries and 9 comments",
+    "post_write_survey": {
+      "function_count": 11033,
+      "named_function_count": 1641,
+      "sample_sha256": "d20794aeff67301ec2bf8c3becb1e9944c68c6c0588fbfd4bf04e8597f0e5028"
+    }
+  },
+  "unconfirmed_claims": [
+    "formal enum labels for the three corps command modes",
+    "stable field names for corps ownership and control records",
+    "lord-corps reference constraints and failure cleanup order"
+  ],
+  "next_batch": "GOV-02"
+}

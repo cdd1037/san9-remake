@@ -104,11 +104,11 @@
     "RE-SAN9PK-0061": "new-game force scheduling kept separate from the trainee state machine",
     "RE-SAN9PK-0110": "status-6 hidden-person and 6-to-3/5 discovery transitions reused",
     "RE-SAN9PK-0112": "status and ownership primitives reused",
-    "EBK-LIFE-01": "machine-supported direction retained; construction trigger and subjective advice deferred to LIFE-04"
+    "EBK-LIFE-01": "resolved by RE-SAN9PK-0134; machine-supported direction retained, construction trigger kept as conflict and subjective advice excluded"
   },
   "scope": {
     "confirmed": "year semantics, age, status-7 appearance, relationship-derived status/location, trainee triggers, activation, nine-xun progress, growth, completion and final ownership",
-    "deferred_to_life_04": "electronic-book event text, subjective evaluations, pairing advice, construction-trigger conflict and lifecycle behavior spec",
+    "later_resolution": "RE-SAN9PK-0134 excluded event prose and subjective advice, retained the construction-trigger conflict and promoted lifecycle behavior specs",
     "excluded": "pure plot prose and player recommendations"
   },
   "ida_writes": {

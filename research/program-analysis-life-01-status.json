@@ -54,12 +54,12 @@
     "RE-SAN9PK-0015": "core record fields consumed; remaining content semantics stay deferred",
     "RE-SAN9PK-0067": "formula 28 and 29 reused without rederivation",
     "RE-SAN9PK-0068": "formula 17-27 results reused without rederivation",
-    "EBK-GROW-01": "deferred to LIFE-04 source audit",
-    "EBK-GROW-02": "deferred to LIFE-04 source audit"
+    "EBK-GROW-01": "resolved by RE-SAN9PK-0134 and promoted to BEH-PERSON-LIFECYCLE-0001",
+    "EBK-GROW-02": "resolved by RE-SAN9PK-0134 and promoted to BEH-PERSON-LIFECYCLE-0001"
   },
   "scope": {
     "confirmed": "growth producers, ability/proficiency inputs, learning and cap gates, random order, batch settlement and person-record writes",
-    "deferred_to_life_04": "electronic-book claim audit, player-facing content mapping and behavior-spec promotion",
+    "later_resolution": "electronic-book claims were audited by LIFE-04; machine behavior was promoted and player advice excluded",
     "excluded": "unreachable duel-growth bug and third-party patch balance rules"
   },
   "ida_writes": {

@@ -68,7 +68,7 @@
     "RE-SAN9PK-0069": "world-state scheduling and elapsed-day storage consumed",
     "RE-SAN9PK-0071": "battle-death option scope narrowed to battle paths",
     "RE-SAN9PK-0098": "quarterly month/day scheduling reused",
-    "electronic_book_lifecycle_claims": "deferred to LIFE-04 source audit"
+    "electronic_book_lifecycle_claims": "resolved by RE-SAN9PK-0134; subjective evaluations and pairing advice excluded"
   },
   "scope": {
     "confirmed": "injury transitions, xun recovery, quarterly natural death, lifespan input, exemptions, random order, execution, death-cause boundary, succession and final person/force/item writes",

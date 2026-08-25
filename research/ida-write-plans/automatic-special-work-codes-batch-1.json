@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "batch": "RE-SAN9PK-0126-automatic-special-work-codes-batch-1",
+  "sample": "SRC-SAN9PK-TC-101",
+  "idb": "research/analysis/San9PK-TC-101.i64",
+  "status": "applied-and-read-back",
+  "program_byte_changes": 0,
+  "function_names": [
+    {"addr": "0x4BC5B0", "name": "automatic_work51_building_pair_planner_ctor"},
+    {"addr": "0x4BBA00", "name": "create_automatic_work51_transfer_or_deployment_command"},
+    {"addr": "0x4BC240", "name": "select_automatic_work51_building_pair"},
+    {"addr": "0x4A6220", "name": "automatic_work56_recruit_planner_ctor"},
+    {"addr": "0x4A6720", "name": "create_automatic_work56_recruit_command"},
+    {"addr": "0x4A63F0", "name": "collect_automatic_work56_person_candidates"},
+    {"addr": "0x4A0580", "name": "automatic_work59_deployment_planner_ctor"},
+    {"addr": "0x4A1030", "name": "create_automatic_work59_deployment_command"},
+    {"addr": "0x4A09C0", "name": "collect_automatic_work59_building_candidates"},
+    {"addr": "0x4A0D20", "name": "build_automatic_work59_unit_plan"}
+  ],
+  "data_names": [
+    {"address": "0x60984C", "before": "off_60984C", "after": "vftable_automatic_work51_building_pair_planner"},
+    {"address": "0x609144", "before": "off_609144", "after": "vftable_automatic_work56_recruit_planner"},
+    {"address": "0x608FC8", "before": "off_608FC8", "after": "vftable_automatic_work59_deployment_planner"}
+  ],
+  "comments": [
+    {"addr": "0x4BC5B0", "comment": "[RE-SAN9PK-0126][FACT] Factory code 51 constructor. Its command slot selects a CChiikiBuildingData pair and emits either a shared troop-transport command or a fallback unit-deployment command."},
+    {"addr": "0x4BBA00", "comment": "[RE-SAN9PK-0126][FACT] Code 51 final command factory: emits troop_transport_command_ctor for the transfer branch, otherwise create_fallback_unit_deployment_command."},
+    {"addr": "0x4A6220", "comment": "[RE-SAN9PK-0126][FACT] Factory code 56 constructor. The task builds person candidates and its command slot always emits the shared recruit command."},
+    {"addr": "0x4A6720", "comment": "[RE-SAN9PK-0126][FACT] Code 56 final command factory selects source/actor/target through the common selector and calls recruit_command_ctor."},
+    {"addr": "0x4A0580", "comment": "[RE-SAN9PK-0126][FACT] Factory code 59 constructor. The task builds CChiikiBuildingData candidates and its command slot emits the shared unit-deployment command."},
+    {"addr": "0x4A1030", "comment": "[RE-SAN9PK-0126][FACT] Code 59 final command factory builds a person/troop plan for one building candidate and calls allocate_unit_deployment_command."}
+  ],
+  "dry_run": "13/13 function and vtable names passed",
+  "application_result": {
+    "idb_saved": true,
+    "function_names_read_back": "10/10",
+    "vtable_names_read_back": "3/3",
+    "comments_read_back": "6/6",
+    "factory_decompile_uses_named_constructors": "3/3",
+    "program_byte_changes": 0,
+    "health": {
+      "status": "ok",
+      "auto_analysis_ready": true,
+      "hexrays_ready": true,
+      "total_functions": 11040,
+      "named_functions": 1749,
+      "unnamed_functions": 8838,
+      "total_strings": 1816
+    }
+  },
+  "evidence_summary": "Factory code constants, constructor-installed vtables, candidate runtime classes, and final shared command constructors close stable neutral roles for automatic work codes 51, 56 and 59 without assigning unverified UI labels."
+}

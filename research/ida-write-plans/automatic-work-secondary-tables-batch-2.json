@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "batch": "RE-SAN9PK-0077-secondary-tables-batch-2",
+  "sample": "SRC-SAN9PK-TC-101",
+  "idb": "research/analysis/San9PK-TC-101.i64",
+  "status": "applied-and-read-back",
+  "program_byte_changes": 0,
+  "data_definitions": [
+    {"address": "0x6578B8", "before": "unk_6578B8", "name": "automatic_work_codes_secondary_mode_0", "type": "int automatic_work_codes_secondary_mode_0[19]", "confidence": "high"},
+    {"address": "0x657724", "before": "unk_657724", "name": "automatic_work_codes_secondary_mode_1", "type": "int automatic_work_codes_secondary_mode_1[12]", "confidence": "high"},
+    {"address": "0x6577C8", "before": "unk_6577C8", "name": "automatic_work_codes_secondary_mode_2", "type": "int automatic_work_codes_secondary_mode_2[19]", "confidence": "high"},
+    {"address": "0x657818", "before": "unk_657818", "name": "automatic_work_codes_secondary_mode_3", "type": "int automatic_work_codes_secondary_mode_3[19]", "confidence": "high"},
+    {"address": "0x657868", "before": "unk_657868", "name": "automatic_work_codes_secondary_mode_4", "type": "int automatic_work_codes_secondary_mode_4[19]", "confidence": "high"},
+    {"address": "0x657788", "before": "unk_657788", "name": "automatic_work_codes_secondary_mode_5", "type": "int automatic_work_codes_secondary_mode_5[15]", "confidence": "high"},
+    {"address": "0x657754", "before": "unk_657754", "name": "automatic_work_codes_secondary_mode_6", "type": "int automatic_work_codes_secondary_mode_6[13]", "confidence": "high"}
+  ],
+  "comments": [
+    {"address": "0x6578B8", "comment": "[RE-SAN9PK-0077][FACT] Secondary mode 0 ordered work codes: 9,59,26,25,28,27,51,4,5,56,1,2,0,3,23,29,30,31,32."},
+    {"address": "0x657724", "comment": "[RE-SAN9PK-0077][FACT] Secondary mode 1 ordered work codes: 26,25,28,27,51,5,1,2,0,3,31,23."},
+    {"address": "0x6577C8", "comment": "[RE-SAN9PK-0077][FACT] Secondary mode 2 ordered work codes: 9,59,26,25,28,27,51,4,5,56,1,2,0,3,30,31,29,32,23."},
+    {"address": "0x657818", "comment": "[RE-SAN9PK-0077][FACT] Secondary mode 3 is byte-for-byte identical to mode 2: 9,59,26,25,28,27,51,4,5,56,1,2,0,3,30,31,29,32,23."},
+    {"address": "0x657868", "comment": "[RE-SAN9PK-0077][FACT] Secondary mode 4 ordered work codes: 9,59,26,25,28,27,51,4,5,56,30,31,29,32,3,1,2,0,23."},
+    {"address": "0x657788", "comment": "[RE-SAN9PK-0077][FACT] Secondary mode 5 ordered work codes: 59,26,25,28,27,51,4,5,56,1,2,0,3,23,31."},
+    {"address": "0x657754", "comment": "[RE-SAN9PK-0077][FACT] Secondary mode 6 ordered work codes: 26,25,28,27,51,4,5,3,1,2,0,23,31."},
+    {"address": "0x4BDBE0", "comment": "[RE-SAN9PK-0077][FACT] encoded_runtime_metadata_00C type values 0..6 select the seven named ordered arrays; modes 2 and 3 contain identical codes. The formal gameplay labels remain unverified."}
+  ],
+  "dry_run": "7/7 data names passed",
+  "application_result": {
+    "idb_saved": true,
+    "data_definitions_read_back": "7/7",
+    "data_comments_read_back": "7/7",
+    "selector_comment_read_back": true,
+    "integer_contents_read_back": "116/116",
+    "selector_decompile_uses_named_arrays": "7/7",
+    "health": {
+      "status": "ok",
+      "auto_analysis_ready": true,
+      "hexrays_ready": true,
+      "total_functions": 11040,
+      "named_functions": 1739,
+      "unnamed_functions": 8848,
+      "total_strings": 1816
+    }
+  },
+  "evidence_summary": "The current main IDB selector and direct array byte readback establish seven exact ordered int32 work-code arrays. Neutral numeric mode names preserve the unresolved gameplay labels."
+}

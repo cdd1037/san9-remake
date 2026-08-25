@@ -43,9 +43,9 @@ void f() {
         self.assertTrue(validation["valid"])
         self.assertEqual(len(queue["candidates"]), queue["expected_candidate_count"])
         routes = {item["name"]: item.get("batch") for item in queue["candidates"]}
-        self.assertEqual(routes["patchDraftThunk"], "DOM-02")
-        self.assertEqual(routes["dwAddrKillerInterval[0]"], "TAC-02")
-        self.assertEqual(routes["m_dwDuelDeadAddr"], "DUEL-03")
+        self.assertIsNone(routes["patchDraftThunk"])
+        self.assertIsNone(routes["dwAddrKillerInterval[0]"])
+        self.assertIsNone(routes["m_dwDuelDeadAddr"])
 
     def test_validation_rejects_invalid_status_address_source_and_omission(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -77,30 +77,34 @@ void f() {
         self.assertEqual(classify_subsystem("restrainTarget"), ("tactical-ai", "target"))
         self.assertEqual(classify_subsystem("m_bCityStone"), ("infrastructure", "fallback-no-domain-keyword"))
 
-    def test_routes_generic_tactic_candidate_to_reconciliation(self):
+    def test_closes_generic_tactic_candidate_to_baseline(self):
         status, disposition, batch, reason = route_candidate("tactics", "patchSecondKillerThunk")
-        self.assertEqual((status, disposition, batch), ("planned", "roadmap", "TAC-04"))
-        self.assertEqual(reason, "tactic-candidate-needs-baseline-reconciliation")
+        self.assertEqual((status, disposition, batch), ("completed", "baseline", None))
+        self.assertEqual(reason, "tactic-coverage-closed-by-r2")
 
-    def test_routes_personnel_diplomacy_candidates_to_r4_r6(self):
-        cases = {
-            "dwAddrSearchRange": "PERS-02",
-            "dwAddrInviteNewPerson": "PERS-03",
-            "m_dwAddrPersonFriendship": "PERS-03",
-            "m_dwOfficialLoyaltyAddr": "PERS-04",
-            "m_dwLoyatyAddr": "PERS-04",
-            "dwAddrGossipToPlayer": "STR-03",
-            "dwAddrCounselorAdvise": "STR-04",
-            "dwAddrLeagueSucceed": "DIP-03",
-        }
-        for text, expected_batch in cases.items():
+    def test_closes_personnel_diplomacy_candidates_to_baseline(self):
+        cases = (
+            "dwAddrSearchRange", "dwAddrInviteNewPerson", "m_dwAddrPersonFriendship",
+            "m_dwOfficialLoyaltyAddr", "m_dwLoyatyAddr", "dwAddrGossipToPlayer",
+            "dwAddrCounselorAdvise", "dwAddrLeagueSucceed",
+        )
+        for text in cases:
             with self.subTest(text=text):
                 status, disposition, batch, _ = route_candidate("personnel-diplomacy", text)
-                self.assertEqual((status, disposition, batch), ("planned", "roadmap", expected_batch))
+                self.assertEqual((status, disposition, batch), ("completed", "baseline", None))
 
-    def test_rejects_unrouted_personnel_diplomacy_candidate(self):
-        with self.assertRaisesRegex(ValueError, "unrouted personnel-diplomacy"):
-            route_candidate("personnel-diplomacy", "unknown person operation")
+    def test_routes_final_round_strong_terms_before_historical_subsystems(self):
+        cases = {
+            ("infrastructure", "patchTransportTask"): "WAR-02",
+            ("tactical-ai", "m_uMaxDurability"): "WAR-03",
+            ("duel", "m_bAllPersonDead"): "WAR-04",
+            ("personnel-diplomacy", "m_bDisableSearchEvent"): "EVT-03",
+            ("events", "m_dwGameEndYearAddr"): "SCN-03",
+        }
+        for (subsystem, text), expected_batch in cases.items():
+            with self.subTest(text=text):
+                status, disposition, batch, _ = route_candidate(subsystem, text)
+                self.assertEqual((status, disposition, batch), ("planned", "roadmap", expected_batch))
 
     def test_distinguishes_image_addresses_from_relative_offsets(self):
         with tempfile.TemporaryDirectory() as directory:

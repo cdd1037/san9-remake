@@ -31,6 +31,11 @@ ALLOWED_BATCHES = {
     "STR-01", "STR-02", "STR-03", "STR-04",
     "DIP-01", "DIP-02", "DIP-03", "DIP-04",
     "GOV-01", "GOV-02", "GOV-03", "GOV-04",
+    "EVT-02", "EVT-03", "EVT-04",
+    "LIFE-01", "LIFE-02", "LIFE-03", "LIFE-04",
+    "WAR-01", "WAR-02", "WAR-03", "WAR-04",
+    "SCN-01", "SCN-02", "SCN-03", "SCN-04",
+    "CLOSE-01", "CLOSE-02", "CLOSE-03", "CLOSE-04",
 }
 ADDRESS_PATTERN = re.compile(r"^0x[0-9A-F]+$")
 IMAGE_START = 0x400000
@@ -87,44 +92,45 @@ def classify_subsystem(search_text: str) -> tuple[str, str]:
 
 
 def route_candidate(subsystem: str, search_text: str) -> tuple[str, str, str | None, str]:
+    # R0-R7 have passed independent acceptance.  The queue is the current
+    # schedule, so completed domains must no longer appear as planned work.
+    # Strong final-round terms are routed before the historical subsystem
+    # buckets because many San9PKHard identifiers were originally classified
+    # only as generic infrastructure or tactical AI.
+    if any(has_term(search_text, word) for word in ("game end", "end year", "victory", "defeat", "ending")):
+        return "planned", "roadmap", "SCN-03", "terminal-state-or-end-condition-candidate"
+    if any(has_term(search_text, word) for word in ("emperor", "title", "successor", "succession")):
+        return "planned", "roadmap", "SCN-02", "imperial-title-or-succession-candidate"
+    if any(has_term(search_text, word) for word in ("transport", "convoy")):
+        return "planned", "roadmap", "WAR-02", "transport-command-candidate"
+    if any(has_term(search_text, word) for word in ("durability", "siege")):
+        return "planned", "roadmap", "WAR-03", "siege-or-durability-candidate"
+    if any(has_term(search_text, word) for word in ("move again", "move guard", "path", "movement")):
+        return "planned", "roadmap", "WAR-01", "movement-or-path-candidate"
+    if any(has_term(search_text, word) for word in ("all person dead", "general dead")):
+        return "planned", "roadmap", "WAR-04", "battle-death-or-unit-cleanup-candidate"
+    if any(has_term(search_text, word) for word in ("hua tuo", "search event", "story")):
+        return "planned", "roadmap", "EVT-03", "representative-event-family-candidate"
+    if subsystem == "events":
+        if any(has_term(search_text, word) for word in ("year table", "display year")):
+            return "planned", "roadmap", "CLOSE-02", "calendar-observable-boundary-candidate"
+        return "planned", "roadmap", "EVT-02", "event-engine-or-state-candidate"
+    if any(has_term(search_text, word) for word in ("lifespan", "life span", "natural death", "injury", "recover")):
+        return "planned", "roadmap", "LIFE-02", "injury-lifespan-or-natural-death-candidate"
+    if any(has_term(search_text, word) for word in ("learn tactic", "learn killer", "ability growth", "proficiency growth")):
+        return "planned", "roadmap", "LIFE-01", "growth-or-learning-candidate"
+    if any(has_term(search_text, word) for word in ("cadet", "trainee", "minor officer")):
+        return "planned", "roadmap", "LIFE-03", "cadet-training-candidate"
     if subsystem == "domestic":
-        if any(has_term(search_text, word) for word in ("draft", "train")):
-            return "planned", "roadmap", "DOM-02", "conscription-or-training-candidate"
-        if any(has_term(search_text, word) for word in ("buy", "sell", "trade")):
-            return "planned", "roadmap", "DOM-03", "buy-or-sell-candidate"
-        if any(has_term(search_text, word) for word in ("population", "harvest", "income", "municipal")):
-            return "planned", "roadmap", "DOM-04", "city-cycle-candidate"
-        return "planned", "roadmap", "DOM-01", "shared-domestic-command-candidate"
+        return "completed", "baseline", None, "domestic-coverage-closed-by-r1"
     if subsystem == "tactics":
-        if any(has_term(search_text, word) for word in ("interval", "select", "block array", "position", "person num")):
-            return "planned", "roadmap", "TAC-02", "land-candidate-or-interval"
-        if any(has_term(search_text, word) for word in ("water", "facility", "building killer", "experience", "proficiency")):
-            return "planned", "roadmap", "TAC-03", "post-activation-or-non-land-candidate"
-        if any(has_term(search_text, word) for word in ("opportunity", "chance", "fight to killer", "normal attack")):
-            return "planned", "roadmap", "TAC-01", "opportunity-generation-candidate"
-        return "planned", "roadmap", "TAC-04", "tactic-candidate-needs-baseline-reconciliation"
+        return "completed", "baseline", None, "tactic-coverage-closed-by-r2"
     if subsystem == "duel":
-        if any(has_term(search_text, word) for word in ("dead", "death", "kill person")):
-            return "planned", "roadmap", "DUEL-03", "duel-death-or-final-writeback-candidate"
-        if any(has_term(search_text, word) for word in ("damage", "power", "hp")):
-            return "planned", "roadmap", "DUEL-02", "duel-strike-candidate"
-        return "planned", "roadmap", "DUEL-01", "duel-trigger-or-participant-candidate"
+        return "completed", "baseline", None, "duel-coverage-closed-by-r3"
     if subsystem == "tactical-ai":
-        return "confirmed", "baseline", None, "tactical-ai-coverage-already-closed"
+        return "completed", "baseline", None, "tactical-ai-coverage-closed-by-existing-baseline"
     if subsystem == "personnel-diplomacy":
-        if has_term(search_text, "search"):
-            return "planned", "roadmap", "PERS-02", "search-or-discovery-candidate"
-        if any(has_term(search_text, word) for word in ("invite", "friendship")):
-            return "planned", "roadmap", "PERS-03", "recruitment-or-affinity-candidate"
-        if any(has_term(search_text, word) for word in ("award", "official", "loyal", "loyalty", "loyaty")):
-            return "planned", "roadmap", "PERS-04", "reward-office-or-loyalty-candidate"
-        if any(has_term(search_text, word) for word in ("alienate", "gossip")):
-            return "planned", "roadmap", "STR-03", "alienate-or-gossip-candidate"
-        if any(has_term(search_text, word) for word in ("counselor", "counsellor")):
-            return "planned", "roadmap", "STR-04", "shared-counselor-candidate"
-        if has_term(search_text, "league"):
-            return "planned", "roadmap", "DIP-03", "league-state-candidate"
-        raise ValueError(f"unrouted personnel-diplomacy candidate: {search_text}")
+        return "completed", "baseline", None, "personnel-diplomacy-coverage-closed-by-r4-r7"
     return "inferred", "out-of-scope", None, "outside-active-roadmap-or-infrastructure"
 
 
@@ -329,6 +335,14 @@ def build_queue_status(queue: dict[str, object], validation: dict[str, object]) 
             "disposition_counts": dict(sorted(Counter(str(item["disposition"]) for item in personnel).items())),
             "batch_counts": dict(sorted(Counter(str(item["batch"]) for item in personnel if item["batch"]).items())),
             "unrouted_count": sum(item["batch"] is None and item["disposition"] == "roadmap" for item in personnel),
+        },
+        "final_round_routing": {
+            "candidate_count": sum(item["disposition"] == "roadmap" for item in candidates),
+            "batch_counts": dict(sorted(Counter(
+                str(item["batch"]) for item in candidates
+                if item["disposition"] == "roadmap"
+            ).items())),
+            "unrouted_count": sum(item["disposition"] == "roadmap" and item["batch"] is None for item in candidates),
         },
         "address_kind_counts": dict(sorted(Counter(str(item["address_kind"]) for item in candidates).items())),
         "supporting_coverage": queue["supporting_coverage"],

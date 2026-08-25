@@ -14,7 +14,7 @@
     "outputs": ["injury decrement or clear", "status 8 death write", "force succession or elimination", "relationship and loyalty changes", "item transfer or holder clear", "refresh and event feedback"],
     "invariants": [
       "xun recovery decrements a nonzero injury value by exactly one",
-      "natural death uses years since appearance rather than biological age",
+      "natural death uses current scenario year + 1 - birth year",
       "battle-death option bit 4 does not gate natural death, execution or scripted death",
       "death cause is a caller-path property and is not persisted by kill_person",
       "death snapshots old ownership before status 8 and completes succession and item cleanup afterward"
@@ -35,8 +35,8 @@
     "scenario_mode_exclusions": [1, 2, 9],
     "candidate_status_exclusions": [8, 9],
     "immunities": ["player-controlled status-0 ruler", "barbarian-force person"],
-    "years_input": "current_scenario_year + 1 - appearance_year",
-    "chance": "clamp(3*(years_since_appearance-6*lifespan-35),0,100)",
+    "years_input": "current_scenario_year + 1 - birth_year",
+    "chance": "clamp(3*(age_years-6*lifespan-35),0,100)",
     "random_stream": "GLOBAL_STREAM",
     "roll_order": "stored candidate order; player rulers and barbarians consume no roll; other candidates call kakuritsu even at chance 0",
     "battle_death_option_bit4_applies": false

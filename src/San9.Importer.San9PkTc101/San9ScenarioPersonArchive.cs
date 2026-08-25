@@ -19,8 +19,8 @@ public sealed record San9ScenarioPersonRecord(
     ushort NameReadingResourceCode,
     ushort PortraitResourceCode,
     ushort BiographyResourceCode,
-    ushort EncodedBirthYear,
     ushort EncodedAppearanceYear,
+    ushort EncodedBirthYear,
     ushort EncodedStatusStartYear,
     ushort LocationCode,
     ushort Reserved1A,
@@ -173,8 +173,8 @@ public static class San9ScenarioPersonArchive
             ushort nameReadingResourceCode = reader.ReadUInt16();
             ushort portraitResourceCode = reader.ReadUInt16();
             ushort biographyResourceCode = reader.ReadUInt16();
-            ushort encodedBirthYear = reader.ReadUInt16();
             ushort encodedAppearanceYear = reader.ReadUInt16();
+            ushort encodedBirthYear = reader.ReadUInt16();
             ushort encodedStatusStartYear = reader.ReadUInt16();
             ushort locationCode = reader.ReadUInt16();
             ushort reserved1A = reader.ReadUInt16();
@@ -211,8 +211,8 @@ public static class San9ScenarioPersonArchive
                 nameReadingResourceCode,
                 portraitResourceCode,
                 biographyResourceCode,
-                encodedBirthYear,
                 encodedAppearanceYear,
+                encodedBirthYear,
                 encodedStatusStartYear,
                 locationCode,
                 reserved1A,

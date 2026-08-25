@@ -393,8 +393,8 @@ public sealed class San9ScenarioArchiveTests
             givenNameResourceCode: 22,
             courtesyNameResourceCode: 33,
             nameReadingResourceCode: 44,
-            encodedBirthYear: 60,
             encodedAppearanceYear: 89,
+            encodedBirthYear: 60,
             encodedStatusStartYear: 89,
             locationCode: 17,
             statusCode: 6,
@@ -423,8 +423,8 @@ public sealed class San9ScenarioArchiveTests
         Assert.Equal(22, record.GivenNameResourceCode);
         Assert.Equal(33, record.CourtesyNameResourceCode);
         Assert.Equal(44, record.NameReadingResourceCode);
-        Assert.Equal(190, record.BirthYear);
         Assert.Equal(219, record.AppearanceYear);
+        Assert.Equal(190, record.BirthYear);
         Assert.Equal(219, record.StatusStartYear);
         Assert.Equal(2, record.StatusDurationYears(220));
         Assert.Equal(17, record.LocationId);
@@ -593,8 +593,8 @@ public sealed class San9ScenarioArchiveTests
         int givenNameResourceCode = -1,
         int courtesyNameResourceCode = -1,
         int nameReadingResourceCode = -1,
-        int encodedBirthYear = 0,
         int encodedAppearanceYear = 0,
+        int encodedBirthYear = 0,
         int encodedStatusStartYear = 0,
         int locationCode = ushort.MaxValue,
         int statusCode = ushort.MaxValue,
@@ -626,8 +626,8 @@ public sealed class San9ScenarioArchiveTests
 
         writer.Write((ushort)0);
         writer.Write((ushort)0);
-        writer.Write((ushort)encodedBirthYear);
         writer.Write((ushort)encodedAppearanceYear);
+        writer.Write((ushort)encodedBirthYear);
         writer.Write((ushort)encodedStatusStartYear);
         writer.Write((ushort)locationCode);
         writer.Write((ushort)0);

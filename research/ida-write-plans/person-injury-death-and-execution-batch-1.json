@@ -11,7 +11,7 @@
   ],
   "function_names": [
     {"address": "0x44F070", "name": "advance_person_injury_recovery_for_xun"},
-    {"address": "0x44CDD0", "name": "get_person_years_since_appearance"},
+    {"address": "0x44CDD0", "name": "get_person_age_years"},
     {"address": "0x480E40", "name": "compute_natural_death_chance"},
     {"address": "0x481A60", "name": "process_quarterly_natural_deaths"},
     {"address": "0x48AFF0", "name": "prisoner_execution_command_ctor"},

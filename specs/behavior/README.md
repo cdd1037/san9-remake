@@ -35,5 +35,6 @@
 - [BEH-DIPLOMACY-0003：自动外交规划与调度](BEH-DIPLOMACY-0003-automatic-diplomacy-planning.md)（已确认）
 - [BEH-GOVERNANCE-0001：军团记录与对象归属](BEH-GOVERNANCE-0001-corps-record-and-ownership.md)（已确认）
 - [BEH-GOVERNANCE-0002：委任控制与自动工作调度](BEH-GOVERNANCE-0002-delegation-control-and-automatic-scheduling.md)（已确认）
+- [BEH-GOVERNANCE-0003：旬级委任人事与辖区归属变化](BEH-GOVERNANCE-0003-xun-personnel-and-territorial-transition.md)（已确认）
 
 新增规格必须使用[行为规格模板](../templates/behavior-spec.md)，分别描述原作基线、重制行为和依据。若规格声称描述原作行为，没有本项目可复验证据时不得设为“已确认”；原创或现代化设计可以依据明确决策、原型验证和可测试的验收标准进入“已确认”。

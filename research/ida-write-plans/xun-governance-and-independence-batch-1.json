@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "batch": "GOV-04",
+  "sample": "SRC-SAN9PK-TC-101",
+  "idb": "research/analysis/San9PK-TC-101.i64",
+  "program_byte_changes": 0,
+  "function_boundaries": [
+    {
+      "start": "0x4AF420",
+      "end": "0x4AF480",
+      "reason": "multiple automatic-work vtables target 0x4AF420; the 0x60-byte body has complete control flow and ends before the existing function at 0x4AF480"
+    },
+    {
+      "start": "0x4A9DA0",
+      "end": "0x4A9DD2",
+      "reason": "the automatic move-person vtable targets 0x4A9DA0; the 0x32-byte readiness helper has two complete return paths followed by fourteen NOP bytes"
+    }
+  ],
+  "function_names": [
+    {"addr": "0x484300", "name": "run_xun_force_emergence_and_independence_updates"},
+    {"addr": "0x484310", "name": "process_xun_ownable_object_defections"},
+    {"addr": "0x483E20", "name": "execute_ownable_object_defection"},
+    {"addr": "0x483180", "name": "create_unaffiliated_person_forces_for_xun"},
+    {"addr": "0x483580", "name": "process_city_independence_for_xun"},
+    {"addr": "0x456BD0", "name": "create_force_record_for_founder_at_city"},
+    {"addr": "0x456C00", "name": "create_force_from_person_current_city"},
+    {"addr": "0x45BFC0", "name": "create_force_with_supporters_at_city"},
+    {"addr": "0x4AF39C", "name": "is_automatic_work_permitted_for_force"},
+    {"addr": "0x4AF420", "name": "process_bounded_automatic_work_action_state"},
+    {"addr": "0x4A9020", "name": "automatic_move_person_action_ctor"},
+    {"addr": "0x4A9DA0", "name": "prepare_automatic_move_person_action"},
+    {"addr": "0x4A96A0", "name": "create_automatic_move_person_command"},
+    {"addr": "0x4A9C90", "name": "collect_automatic_move_surplus_deficit_buildings"},
+    {"addr": "0x4A9230", "name": "collect_move_person_candidates_for_building"},
+    {"addr": "0x4A9390", "name": "measure_building_personnel_allocation"},
+    {"addr": "0x4A9470", "name": "compute_building_personnel_surplus"},
+    {"addr": "0x4A94D0", "name": "compare_building_personnel_surplus"},
+    {"addr": "0x4A9510", "name": "score_automatic_move_person_candidate"},
+    {"addr": "0x4B03C0", "name": "collect_direct_corps_source_cities"},
+    {"addr": "0x46D830", "name": "city_belongs_to_direct_corps"},
+    {"addr": "0x46CCF0", "name": "region_building_belongs_to_direct_corps"},
+    {"addr": "0x45E210", "name": "ownable_object_belongs_to_direct_corps"}
+  ],
+  "comments": [
+    {"addr": "0x484300", "topic": "xun force-emergence and independence order"},
+    {"addr": "0x484310", "topic": "existing-force ownable-object defection inputs"},
+    {"addr": "0x483E20", "topic": "cross-force object/person final write-back"},
+    {"addr": "0x483580", "topic": "city-independence formula and prerequisites"},
+    {"addr": "0x483180", "topic": "distinct unaffiliated-person force emergence"},
+    {"addr": "0x456BD0", "topic": "shared force-record creation boundary"},
+    {"addr": "0x4AF39C", "topic": "automatic-work force permission bits"},
+    {"addr": "0x4AF420", "topic": "bounded automatic-work executor boundary"},
+    {"addr": "0x4A9DA0", "topic": "automatic move-person preparation boundary"},
+    {"addr": "0x4A9C90", "topic": "direct-corps surplus and deficit buildings"},
+    {"addr": "0x4A96A0", "topic": "automatic move-person command production"},
+    {"addr": "0x4B03C0", "topic": "direct-corps automatic recruit source cities"},
+    {"addr": "0x4AF1F0", "topic": "code 22/24 versus 33-36 force scope"},
+    {"addr": "0x484E70", "topic": "xun update and later independence/cleanup order"}
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "batch": "LIFE-01",
+  "sample": "SRC-SAN9PK-TC-101",
+  "idb": "research/analysis/San9PK-TC-101.i64",
+  "program_byte_changes": 0,
+  "function_boundaries": [
+    {
+      "start": "0x57A1B0",
+      "end": "0x57A2D0",
+      "name": "fengshan_event_commit",
+      "evidence": "Event Houzen vtable commit slot and exact next-function boundary"
+    }
+  ],
+  "function_names": [
+    {"address": "0x447610", "name": "compute_tactic_known_bit_location"},
+    {"address": "0x4476B0", "name": "get_tactic_known_bit"},
+    {"address": "0x447700", "name": "set_tactic_known_bit"},
+    {"address": "0x44C160", "name": "person_knows_tactic"},
+    {"address": "0x44C170", "name": "set_person_tactic_known"},
+    {"address": "0x44DFD0", "name": "person_knows_tactic_record"},
+    {"address": "0x44E000", "name": "set_person_tactic_known_from_record"},
+    {"address": "0x44E030", "name": "can_person_learn_tactic"},
+    {"address": "0x44F750", "name": "try_person_learn_tactic_by_id"},
+    {"address": "0x462AF0", "name": "try_unit_members_learn_tactic_from_building_type"},
+    {"address": "0x481850", "name": "apply_quarterly_city_tactic_teaching"},
+    {"address": "0x49CB00", "name": "apply_building_result_growth"},
+    {"address": "0x4FDF90", "name": "try_both_sides_learn_tactic22_on_effect"},
+    {"address": "0x4FDFF0", "name": "try_both_sides_learn_tactic21_on_trap"},
+    {"address": "0x50AF80", "name": "apply_daily_active_unit_tactic_proficiency"},
+    {"address": "0x57A1B0", "name": "fengshan_event_commit"},
+    {"address": "0x57F9C0", "name": "exploration_event_type60_ctor"},
+    {"address": "0x57FB30", "name": "exploration_event_type60_execute"},
+    {"address": "0x57FC70", "name": "exploration_event_type60_commit"},
+    {"address": "0x57FCB0", "name": "exploration_event_type60_predicate"},
+    {"address": "0x583BD0", "name": "exploration_event_type40_commit"},
+    {"address": "0x588FA0", "name": "get_event_base_ability_cap"},
+    {"address": "0x588FD0", "name": "apply_event_base_ability_reward"}
+  ],
+  "comments": [
+    "0x447610", "0x44C160", "0x44C170", "0x44E030", "0x44E080", "0x460D70",
+    "0x462AF0", "0x481850", "0x49CB00", "0x4FDF90", "0x4FDFF0", "0x4FF5F0",
+    "0x50AF80", "0x57A1B0", "0x57FCB0", "0x57FC70", "0x583BD0", "0x588FD0"
+  ],
+  "dry_run": {
+    "function_names": 23,
+    "ok": 23,
+    "failed": 0
+  },
+  "saved": true,
+  "readback_verified": true,
+  "post_write_statistics": {
+    "total_functions": 11048,
+    "named_functions": 1804
+  }
+}

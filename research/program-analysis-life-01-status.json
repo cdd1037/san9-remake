@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "batch": "LIFE-01",
+  "status": "completed",
+  "sample": {
+    "id": "SRC-SAN9PK-TC-101",
+    "module": "San9PK.exe",
+    "sha256": "d20794aeff67301ec2bf8c3becb1e9944c68c6c0588fbfd4bf04e8597f0e5028",
+    "ida_database": "research/analysis/San9PK-TC-101.i64"
+  },
+  "domain_model": {
+    "objects": ["four base abilities", "nine tactic-proficiency categories", "41 tactic-known bits"],
+    "inputs": ["growth producer", "person state", "tactic record", "ordered participant collection", "event context", "global random stream"],
+    "outputs": ["saturated base-ability write", "saturated proficiency write", "tactic-known bit", "refresh and feedback"],
+    "invariants": [
+      "base and current-effective ability remain distinct",
+      "normal proficiency reuses formula 28 mastery and cap rules",
+      "normal ability attempts reuse formula 29 probability and cap rules",
+      "only eligible tactic learners consume the learning roll",
+      "direct grants are not probabilistic learning"
+    ]
+  },
+  "reused_formula_claims": [17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29],
+  "learning": {
+    "eligibility": ["valid tactic record", "not already known", "category proficiency at least record threshold"],
+    "chance": "min(70, floor(max(proficiency-threshold,0)/5)+30)",
+    "random_stream": "GLOBAL_STREAM",
+    "known_bit": "person+0xFC, byte=floor(tactic_id/8), bit=1<<(tactic_id&7)",
+    "aggregate_known_cap": null,
+    "proficiency_cap": 1000
+  },
+  "scheduling": {
+    "batch_order": "stored member linked-list order; each member completes eligibility, roll and write before the next",
+    "tactic_result_order": ["target learning", "source participant selection", "selected-person ability attempt", "source proficiency", "source learning"],
+    "event_type60_order": "leadership/5 probability roll precedes later city, category and proficiency gates",
+    "event_type60_category_map": "context object types 2/6 -> category 4; 5/7/8/9 -> category 2; otherwise invalid category 9"
+  },
+  "producer_families": [
+    "domestic and battlefield work",
+    "strategy, diplomacy and search commands",
+    "tactic result and passive effects",
+    "daily and quarterly updates",
+    "direct exploration-event rewards"
+  ],
+  "direct_bypasses": [
+    "quarterly city teaching",
+    "exploration event type 40 tactic grant",
+    "exploration event type 56 tactic grant",
+    "shared exploration base-ability reward",
+    "Fengshan four-ability reward",
+    "exploration event type 60 raw proficiency reward"
+  ],
+  "source_routes": {
+    "RE-SAN9PK-0015": "core record fields consumed; remaining content semantics stay deferred",
+    "RE-SAN9PK-0067": "formula 28 and 29 reused without rederivation",
+    "RE-SAN9PK-0068": "formula 17-27 results reused without rederivation",
+    "EBK-GROW-01": "deferred to LIFE-04 source audit",
+    "EBK-GROW-02": "deferred to LIFE-04 source audit"
+  },
+  "scope": {
+    "confirmed": "growth producers, ability/proficiency inputs, learning and cap gates, random order, batch settlement and person-record writes",
+    "deferred_to_life_04": "electronic-book claim audit, player-facing content mapping and behavior-spec promotion",
+    "excluded": "unreachable duel-growth bug and third-party patch balance rules"
+  },
+  "ida_writes": {
+    "function_boundaries_repaired": ["0x57A1B0..0x57A2D0"],
+    "function_renames": 23,
+    "comments": 18,
+    "saved": true,
+    "readback_verified": true,
+    "sample_bytes_modified": false,
+    "post_write_health": {
+      "total_functions": 11048,
+      "named_functions": 1804,
+      "auto_analysis_ready": true,
+      "hexrays_ready": true
+    }
+  },
+  "verification": {
+    "research_script_tests": 63,
+    "dotnet_tests": 112,
+    "json_parse": true,
+    "git_diff_check": true
+  },
+  "next_batch": "LIFE-02"
+}

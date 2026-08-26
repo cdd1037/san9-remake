@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "batch": "SCN-01",
+  "status": "completed",
+  "date": "2026-08-26",
+  "inputs": {
+    "machine_findings": ["RE-SAN9PK-0005", "RE-SAN9PK-0007", "RE-SAN9PK-0022", "RE-SAN9PK-0023", "RE-SAN9PK-0047", "RE-SAN9PK-0048", "RE-SAN9PK-0069", "RE-SAN9PK-0071"],
+    "source_claims": [],
+    "hard_candidate_count": 0
+  },
+  "claim_disposition": {
+    "confirmed": [
+      "scenario selection resets runtime pools before importing the selected S9SC and optional overlays",
+      "scenario head directly initializes current date and four world-flag words before entity records",
+      "post-load finalization deterministically rebuilds item, person, unit, city, force, corps and map relationships",
+      "new-scenario-only derived defaults are gated by an explicit argument and skipped for save loading",
+      "the 50-byte head city vector has no post-load consumer and does not override city ownership"
+    ],
+    "inferred": [
+      "scenario zero is the scenario-selection and editor working model rather than an entered campaign"
+    ],
+    "deferred": [
+      "precise UI-frame timing of the initial scenario-zero load",
+      "complete business names for two new-scenario city and regional runtime reference slots",
+      "save-only runtime current-target slot semantics"
+    ],
+    "conflict": [
+      "initialize_primary_force_leader_cities has no valid caller in the current IDB and is not part of the confirmed new-game chain"
+    ]
+  },
+  "outputs": {
+    "finding": "RE-SAN9PK-0140",
+    "behavior_specs": [],
+    "required_remaining_experiments": []
+  },
+  "ida_writes": {
+    "required": true,
+    "function_boundaries_repaired": 9,
+    "function_names": 12,
+    "comments": 16,
+    "program_byte_changes": 0,
+    "saved": true,
+    "readback_verified": true
+  },
+  "verification": {
+    "research_script_tests": "64 passed",
+    "dotnet_tests": "112 passed",
+    "queue_rebuild": "2635 candidates; 0 issues; final routing valid",
+    "json_parse": "115 research JSON files parsed",
+    "markdown_links": "183 local links checked across nine changed markdown files; 0 missing",
+    "ida_health": "core stats SHA-256 1265497A2D48A9D1433AC5CB6944504ED5F43012E9F3C2BBECCC29108D7C3B47; 0 undefined executable bytes",
+    "git_diff_check": "passed"
+  },
+  "next_batch": "SCN-02"
+}

@@ -9,6 +9,8 @@
 - 头部补充：[RE-SAN9PK-0023](RE-SAN9PK-0023.md)
 - 关联规格：[BEH-IMPORT-0001](../../specs/behavior/BEH-IMPORT-0001-source-container-validation.md)
 
+> **SCN-01 收口（2026-08-26）**：场景 chunk 导入后的确定性关系重建、新局/读档分界及头部城市向量无消费者的结论见 [RE-SAN9PK-0140](RE-SAN9PK-0140.md)。
+
 ## 样本范围
 
 在私有样本目录 `private/s9数据文件/` 中，只读检查以下内容：

@@ -23,6 +23,8 @@ FINAL_BATCHES = {
     "CLOSE-01", "CLOSE-02", "CLOSE-03", "CLOSE-04",
 }
 
+ROUTING_INPUT_MAX_FINDING = 126
+
 # One primary route per finding.  A later batch may cite the same finding as
 # supporting evidence, but ownership of its still-open core question remains
 # unique here.  Mixed UI/content/editor questions stay excluded by the scope
@@ -102,6 +104,9 @@ SOURCE_CLAIM_ROUTES = {
 def pending_finding_ids(findings_dir: Path) -> list[str]:
     result = []
     for path in sorted(findings_dir.glob("RE-SAN9PK-*.md")):
+        finding_number = int(path.stem.rsplit("-", 1)[1])
+        if finding_number > ROUTING_INPUT_MAX_FINDING:
+            continue
         if "待验证" in path.read_text(encoding="utf-8"):
             result.append(path.stem)
     return result
@@ -109,10 +114,16 @@ def pending_finding_ids(findings_dir: Path) -> list[str]:
 
 def coverage_routes(coverage: Path) -> dict[str, str]:
     result = {}
-    pattern = re.compile(r"^\| `([^`]+)` .*\| `roadmap:([^`]+)` \|", re.MULTILINE)
-    for claim_id, batch in pattern.findall(coverage.read_text(encoding="utf-8")):
-        if claim_id in SOURCE_CLAIM_ROUTES:
-            result[claim_id] = batch
+    for line in coverage.read_text(encoding="utf-8").splitlines():
+        match = re.match(r"^\| `([^`]+)` ", line)
+        if not match or match.group(1) not in SOURCE_CLAIM_ROUTES:
+            continue
+        claim_id = match.group(1)
+        roadmap = re.search(r"`roadmap:([^`]+)`", line)
+        if roadmap:
+            result[claim_id] = roadmap.group(1)
+        elif "`completed`" in line or "`completed:" in line:
+            result[claim_id] = SOURCE_CLAIM_ROUTES[claim_id]
     return result
 
 

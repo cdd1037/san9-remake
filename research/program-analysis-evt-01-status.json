@@ -65,10 +65,10 @@
     "queue_sha256": "472C391B153BCF7B3875EF1E050EC3A98DBDF64E18B924E397A3A7CA5EA5CBD4"
   },
   "existing_findings": {
-    "pending_marker_finding_count": 106,
-    "pending_id_sha256": "887CFD58A4A94D6D6B2B6639A67CECF1DAE4509FC17E44D7EF776D0BD9FA6C5B",
+    "pending_marker_finding_count": 105,
+    "pending_id_sha256": "63421F3DB4BF39CC44E2A37DA918D258EF7834C0E0315EE8953B1B90618C9361",
     "disposition_counts": {
-      "baseline": 22,
+      "baseline": 21,
       "out-of-scope": 29,
       "roadmap": 55
     },
@@ -717,12 +717,6 @@
         "disposition": "roadmap",
         "batch": "WAR-02",
         "reason": "open-core-question"
-      },
-      {
-        "finding": "RE-SAN9PK-0127",
-        "disposition": "baseline",
-        "batch": null,
-        "reason": "accepted-r0-r7-or-superseded-follow-up"
       }
     ]
   },

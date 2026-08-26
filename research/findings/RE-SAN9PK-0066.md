@@ -15,6 +15,9 @@
 - `play_game_movie (0x415FC0)` 先按影片编号取得相对文件名，再解析完整路径；它向
   `MPEGMovieSetSan9MsgLoop` 注册无参数回调，然后同步调用
   `MPEGMoviePlay(hwnd, path, mode, soundEnabled)`。返回后才恢复原作窗口、焦点与播放前状态。
+- 返回路径在 `0x4161D4` 无条件调用 `ShowWindow(main_window, SW_SHOWNORMAL)`，随后依次调用
+  `UpdateWindow`、`SetForegroundWindow` 与 `SetFocus`。因此外部将主窗口改为原生最大化后，
+  每次影片返回都会由这条固定调用主动切回普通窗口；该变化不是用户窗口操作。
 - 回调 `pump_one_game_message_for_movie (0x414B90)` 每次最多取得并分派一条游戏消息。
   因而新播放器必须在同步播放调用内部继续泵送游戏消息，不能将 `MPEGMoviePlay` 简化为
   启动后台任务后立即返回。

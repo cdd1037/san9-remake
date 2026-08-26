@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "batch": "SCN-03",
+  "finding": "RE-SAN9PK-0142",
+  "sample": "SRC-SAN9PK-TC-101",
+  "idb": "research/analysis/San9PK-TC-101.i64",
+  "program_byte_changes": 0,
+  "function_boundaries": [
+    {"address": "0x47B9B0", "end": "0x47BB2F", "reason": "victory-task vtable slot 0x607454 targets executable bytes ending at the return before sub_47BB30"}
+  ],
+  "function_names": [
+    {"address": "0x46A820", "name": "update_runtime_flags_34", "before": "update_square_runtime_flags"},
+    {"address": "0x4580A0", "name": "count_player_controlled_primary_forces", "before": "sub_4580A0"},
+    {"address": "0x46E020", "name": "is_regular_force_list_entry", "before": "sub_46E020"},
+    {"address": "0x46D910", "name": "is_core_city_list_entry", "before": "sub_46D910"},
+    {"address": "0x435740", "name": "city_belongs_to_force", "before": "sub_435740"},
+    {"address": "0x480190", "name": "select_terminal_victory_force", "before": "sub_480190"},
+    {"address": "0x4803A0", "name": "is_year_limit_reached", "before": "sub_4803A0"},
+    {"address": "0x484EE0", "name": "process_xun_world_update_and_terminal_state", "before": "process_xun_world_update_task_state"},
+    {"address": "0x47E390", "name": "schedule_root_task_code", "before": "sub_47E390"},
+    {"address": "0x47EB20", "name": "create_scheduled_root_task", "before": "sub_47EB20"},
+    {"address": "0x47AFC0", "name": "construct_victory_ending_task", "before": "sub_47AFC0"},
+    {"address": "0x47B9B0", "name": "process_victory_ending_task_state"},
+    {"address": "0x5930C0", "name": "construct_return_to_title_task", "before": "sub_5930C0"},
+    {"address": "0x593160", "name": "process_return_to_title_task_state", "before": "sub_593160"}
+  ],
+  "comments": [
+    "0x441EC0", "0x4421B8", "0x442257", "0x46A820", "0x480190", "0x4803A0", "0x4803C7",
+    "0x484F40", "0x48506A", "0x47E390", "0x47EB20", "0x47B9B0", "0x593160", "0x4A2EBE"
+  ],
+  "dry_run": {"function_names": 14, "ok": 14, "failed": 0, "pending": false},
+  "saved": true,
+  "readback": {
+    "function_boundary": "0x47B9B0..0x47BB2F decompiles as one 0x17F-byte vtable handler",
+    "function_names": "14/14",
+    "comments": "14/14",
+    "function_entry_byte_snapshots": "14/14 unchanged",
+    "terminal_decompile_chain": "victory selector, xun router, victory ending, return-to-title"
+  },
+  "readback_verified": true
+}

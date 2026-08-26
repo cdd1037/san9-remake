@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "batch": "SCN-03",
+  "status": "completed",
+  "date": "2026-08-26",
+  "inputs": {
+    "machine_findings": ["RE-SAN9PK-0041", "RE-SAN9PK-0059", "RE-SAN9PK-0069", "RE-SAN9PK-0132", "RE-SAN9PK-0139", "RE-SAN9PK-0141"],
+    "source_claims": [],
+    "hard_candidate_count": 4
+  },
+  "claim_disposition": {
+    "confirmed": [
+      "xun state 1001 is the unified terminal evaluation entry",
+      "existing terminal bits, victory-force selection, year 350, and ordinary continuation are evaluated in that order",
+      "one regular primary force or ownership of all 45 core cities selects a victory force outside modes 2 and 9",
+      "player victory schedules root code 6 while AI victory, ordinary defeat, and year limit schedule code 7",
+      "the player victory ending enters CEndingView and then hands off to root code 7"
+    ],
+    "inferred": [
+      "runtime mask 2 is a regular-force-set terminal flag and mask 4 is a companion terminal or year-limit flag"
+    ],
+    "deferred": [
+      "formal names for scenario modes 2 and 9, root code 3, and individual CEndingView content stages to SCN-04"
+    ],
+    "conflict": [
+      "RE-SAN9PK-0139 described an unfiltered last-force count; the actual elimination predicate counts regular primary forces",
+      "HARD-Q-01899 was mechanically routed by nearby source context but its host address is an unrelated deployment path-selection instruction"
+    ]
+  },
+  "candidate_disposition": {
+    "confirmed_host_operand": ["HARD-Q-00447", "HARD-Q-01734", "HARD-Q-01898"],
+    "routing_false_positive": ["HARD-Q-01899"]
+  },
+  "outputs": {
+    "finding": "RE-SAN9PK-0142",
+    "behavior_specs": [],
+    "ida_write_plan": "research/ida-write-plans/scenario-terminal-conditions-batch-1.json",
+    "required_remaining_experiments": []
+  },
+  "ida_writes": {
+    "required": true,
+    "function_boundaries_repaired": 1,
+    "function_names": 14,
+    "comments": 14,
+    "program_byte_changes": 0,
+    "saved": true,
+    "readback_verified": true
+  },
+  "verification": {
+    "research_script_tests": "64 passed",
+    "dotnet_tests": "112 passed",
+    "queue_rebuild": "2635 candidates; 0 issues; final routing valid",
+    "json_parse": "119 files parsed",
+    "markdown_links": "193 local links checked across seven changed markdown files; 0 missing",
+    "ida_health": "11064 functions; 1973 named; 1812 strings; auto-analysis and Hex-Rays ready; sample SHA-256 d20794aeff67301ec2bf8c3becb1e9944c68c6c0588fbfd4bf04e8597f0e5028",
+    "git_diff_check": "passed"
+  },
+  "next_batch": "SCN-04"
+}

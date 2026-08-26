@@ -27,7 +27,7 @@
 | 1..8 | `0x01FE` | `square_has_blocking_bits`；由 `build_square_path_costs` 转成阻塞节点 | `path_blocking_bits` | 已确认非零时该方格在这条方格图寻路链中不可进入 |
 | 9 | `0x0200` | `square_has_overlay_marker_bit`；地图对象类型 11 的标记刷新，以及特殊对象邻格检查 | `overlay_marker_bit9` | 是地图标记资格/邻格条件，不等于通行位 |
 | 10 | `0x0400` | 本轮调查的方格专用消费者中未见直接位测试 | 未决 | 不能据未发现命名为保留位或无效位 |
-| 11 | `0x0800` | `update_square_runtime_flags` 设置；清理函数遍历 40,000 格清除 | `transient_runtime_bit11` | 当前证据支持这是运行时临时标记，不是文件字段的独立业务含义 |
+| 11 | `0x0800` | `update_runtime_flags_34` 设置；清理函数遍历 40,000 格清除 | `transient_runtime_bit11` | 当前证据支持这是运行时临时标记，不是文件字段的独立业务含义 |
 | 12 | `0x1000` | `square_has_runtime_bit12`；城市条件函数、建筑/事件选择链、若干移动模式 | `city_condition_bit12` | 已确认是城市相关条件门；具体事件/建筑名称未确认 |
 | 13 | `0x2000` | `square_has_runtime_bit13`；与 bit12 对称但进入另一组移动模式和选择回调 | `city_condition_bit13` | 已确认是城市相关条件门；具体事件/建筑名称未确认 |
 | 14 | `0x4000` | 本轮调查的方格专用消费者中未见直接位测试 | 未决 | 保留原始值 |
@@ -102,7 +102,7 @@
 
 - `calculate_square_edge_visual_position`
 - `square_has_overlay_marker_bit`
-- `update_square_runtime_flags`
+- `update_runtime_flags_34`（后续 [RE-SAN9PK-0142](RE-SAN9PK-0142.md) 证明该 helper 也作用于场景世界状态，故更正原方格专用旧名）
 - `square_has_runtime_bit12`
 - `square_has_runtime_bit13`
 - `format_square_property_value`（原 `sub_45CB70`，CSquareData vtable slot `+0x24`）

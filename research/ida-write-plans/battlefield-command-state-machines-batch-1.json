@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "batch": "WAR-02",
+  "finding": "RE-SAN9PK-0137",
+  "sample": "SRC-SAN9PK-TC-101",
+  "idb": "research/analysis/San9PK-TC-101.i64",
+  "program_byte_changes": 0,
+  "function_boundaries": [
+    {"start": "0x48C4A0", "end": "0x48C4D4", "name": "complete_transport_unit_arrival", "evidence": "type-51 task vtable callback, complete instruction sequence and return before aligned gap"},
+    {"start": "0x48C4E0", "end": "0x48C517", "name": "is_transport_unit_at_destination", "evidence": "type-51 task vtable predicate, complete current-square building equality test and return"}
+  ],
+  "function_names": [
+    {"address": "0x4371A0", "name": "initialize_region_building_construction"},
+    {"address": "0x4379C0", "name": "merge_unit_into_region_building"},
+    {"address": "0x45F780", "name": "format_unit_command_event_text"},
+    {"address": "0x4688A0", "name": "absorb_unit_into_region_building_state"},
+    {"address": "0x48C4A0", "name": "complete_transport_unit_arrival"},
+    {"address": "0x48C4E0", "name": "is_transport_unit_at_destination"},
+    {"address": "0x48CEC0", "name": "transport_unit_event_task_ctor"},
+    {"address": "0x48CF80", "name": "advance_transport_unit_daily"},
+    {"address": "0x48D360", "name": "retarget_transport_unit_to_destination"},
+    {"address": "0x49BE20", "name": "advance_construction_unit_daily"},
+    {"address": "0x49BEB0", "name": "construction_unit_event_task_ctor"},
+    {"address": "0x49BF60", "name": "prepare_construction_unit_command_event"},
+    {"address": "0x49BFD0", "name": "process_construction_unit_progress"},
+    {"address": "0x49C410", "name": "is_construction_unit_in_work_range"},
+    {"address": "0x49CAC0", "name": "handle_unit_command_event_task_failure"},
+    {"address": "0x4BB670", "name": "select_automatic_transport_officer_and_troops"},
+    {"address": "0x4BB7A0", "name": "is_automatic_transport_path_blocked"},
+    {"address": "0x4BBB80", "name": "is_automatic_work51_target_building_candidate"},
+    {"address": "0x4BBBE0", "name": "partition_automatic_work51_city_candidates"},
+    {"address": "0x4BBDF0", "name": "select_automatic_work51_source_buildings"},
+    {"address": "0x4BC1F0", "name": "validate_and_prepare_automatic_work51_task"}
+  ],
+  "comments": ["0x4371A0", "0x4379C0", "0x45F780", "0x4688A0", "0x489310", "0x489980", "0x48BD20", "0x48C4A0", "0x48C4E0", "0x48C5D0", "0x48CEC0", "0x48CF80", "0x48D0F0", "0x48D360", "0x49B460", "0x49BE20", "0x49BEB0", "0x49BF60", "0x49BFD0", "0x49C410", "0x49CAC0", "0x4BB670", "0x4BB7A0", "0x4BBA00", "0x4BBB80", "0x4BBBE0", "0x4BBDF0", "0x4BC1F0", "0x4BC3B6"],
+  "dry_run": {"function_names": 21, "ok": 21, "failed": 0},
+  "saved": true,
+  "readback_verified": true
+}

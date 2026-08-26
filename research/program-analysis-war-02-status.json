@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "batch": "WAR-02",
+  "status": "completed",
+  "date": "2026-08-26",
+  "inputs": {
+    "machine_findings": ["RE-SAN9PK-0043", "RE-SAN9PK-0078", "RE-SAN9PK-0084", "RE-SAN9PK-0085", "RE-SAN9PK-0089", "RE-SAN9PK-0090", "RE-SAN9PK-0095", "RE-SAN9PK-0099", "RE-SAN9PK-0100", "RE-SAN9PK-0101", "RE-SAN9PK-0102", "RE-SAN9PK-0103", "RE-SAN9PK-0104", "RE-SAN9PK-0105", "RE-SAN9PK-0121", "RE-SAN9PK-0126", "RE-SAN9PK-0131", "RE-SAN9PK-0136"],
+    "hard_candidate_count": 43
+  },
+  "claim_disposition": {
+    "confirmed": [
+      "interactive codes 8 through 11 share typed command validation and execution boundaries",
+      "type-9 deployment commits troops before later type-38 daily attack resolution",
+      "construction command commits funds and action before multi-day facility progress",
+      "immediate repair and multi-day construction are distinct state machines",
+      "type-51 transport retains an exact destination, moves daily and completes by building absorption",
+      "shared invalid-task handling avoids command-specific success effects"
+    ],
+    "inferred": ["construction leader field +0x68 is a construction-efficiency ability input"],
+    "deferred": ["facility defeat and ownership transition", "unit defeat, retreat recovery and post-battle cleanup"],
+    "out_of_scope": ["injected patch semantics and transport-balance modifications"]
+  },
+  "candidate_disposition": {
+    "confirmed_original_host_callsite": ["HARD-Q-00436", "HARD-Q-00789", "HARD-Q-00819", "HARD-Q-00821", "HARD-Q-00822", "HARD-Q-00823", "HARD-Q-00824", "HARD-Q-00826", "HARD-Q-00827"],
+    "merged_relative_patch_offset": ["HARD-Q-00182", "HARD-Q-00186", "HARD-Q-00187", "HARD-Q-00188", "HARD-Q-00191", "HARD-Q-00192"],
+    "duplicate_process_write": ["HARD-Q-01040", "HARD-Q-01041", "HARD-Q-01203", "HARD-Q-01204", "HARD-Q-01283", "HARD-Q-01284", "HARD-Q-01727", "HARD-Q-01913"],
+    "dynamic_patch_infrastructure": ["HARD-Q-01484", "HARD-Q-01485", "HARD-Q-01487", "HARD-Q-01488", "HARD-Q-01489", "HARD-Q-01496", "HARD-Q-01497", "HARD-Q-01656", "HARD-Q-01657", "HARD-Q-01658", "HARD-Q-02011", "HARD-Q-02012", "HARD-Q-02013", "HARD-Q-02014", "HARD-Q-02176", "HARD-Q-02183", "HARD-Q-02184", "HARD-Q-02185", "HARD-Q-02187", "HARD-Q-02188"]
+  },
+  "outputs": {
+    "finding": "RE-SAN9PK-0137",
+    "ida_write_plan": "research/ida-write-plans/battlefield-command-state-machines-batch-1.json",
+    "required_remaining_experiments": []
+  },
+  "ida_writes": {
+    "required": true,
+    "function_boundaries_repaired": 2,
+    "function_names": 21,
+    "comments": 29,
+    "program_byte_changes": 0,
+    "saved": true,
+    "readback_verified": true
+  },
+  "verification": {
+    "research_script_tests": "63 passed",
+    "dotnet_tests": "112 passed",
+    "queue_rebuild": "2635 candidates; 0 issues; WAR-02 partition 43 unique candidates",
+    "json_parse": "110 research JSON files parsed",
+    "markdown_links": "156 local links validated across three changed markdown files",
+    "git_diff_check": "passed"
+  },
+  "next_batch": "WAR-03"
+}

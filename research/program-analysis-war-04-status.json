@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "batch": "WAR-04",
+  "status": "completed",
+  "date": "2026-08-26",
+  "inputs": {
+    "machine_findings": ["RE-SAN9PK-0044", "RE-SAN9PK-0068", "RE-SAN9PK-0081", "RE-SAN9PK-0085", "RE-SAN9PK-0090", "RE-SAN9PK-0105", "RE-SAN9PK-0133", "RE-SAN9PK-0136", "RE-SAN9PK-0137", "RE-SAN9PK-0138"],
+    "source_claims": ["EBK-WAR-02"],
+    "hard_candidate_count": 18
+  },
+  "claim_disposition": {
+    "confirmed": [
+      "type-39 retreat and type-52 automatic return share exact-building arrival and unit absorption callbacks",
+      "returning normal units merge troops, wounded, morale and members into the destination building state",
+      "unit defeat settles personnel, proportional corps funds and food, wounded or draft population before resetting the unit",
+      "terminal force elimination clears remaining people, units, buildings, targets, relations and force references",
+      "barbarian forces use direct person-death cleanup where ordinary defeated forces relocate surviving people"
+    ],
+    "inferred": [],
+    "deferred": ["meaning of last-global-force scenario flags and final victory or defeat routing to SCN-03", "formal content names for message and event codes"],
+    "out_of_scope": ["third-party all-person-death and general-death options, injected patch behavior and tactical advice"]
+  },
+  "candidate_disposition": {
+    "confirmed_original_host_operand": ["HARD-Q-01773", "HARD-Q-01774", "HARD-Q-01775", "HARD-Q-01834", "HARD-Q-01835", "HARD-Q-01836"],
+    "duplicate_process_write": ["HARD-Q-01887", "HARD-Q-01888", "HARD-Q-01889", "HARD-Q-01967", "HARD-Q-01968", "HARD-Q-01969"],
+    "semantic_only_patch_configuration": ["HARD-Q-02418", "HARD-Q-02482", "HARD-Q-02555", "HARD-Q-02582", "HARD-Q-02607", "HARD-Q-02634"]
+  },
+  "outputs": {
+    "finding": "RE-SAN9PK-0139",
+    "behavior_specs": ["BEH-WAR-0001", "BEH-WAR-0002", "BEH-WAR-0003"],
+    "ida_write_plan": "research/ida-write-plans/unit-defeat-force-cleanup-batch-1.json",
+    "required_remaining_experiments": []
+  },
+  "ida_writes": {
+    "required": true,
+    "function_boundaries_repaired": 0,
+    "function_names": 10,
+    "comments": 31,
+    "program_byte_changes": 0,
+    "saved": true,
+    "readback_verified": true
+  },
+  "verification": {
+    "research_script_tests": "63 passed",
+    "dotnet_tests": "112 passed",
+    "queue_rebuild": "2635 candidates; 0 issues; WAR-04 partition 18 unique candidates",
+    "json_parse": "114 research JSON files parsed",
+    "markdown_links": "225 local links validated across eight changed markdown files",
+    "git_diff_check": "passed"
+  },
+  "next_batch": "SCN-01"
+}

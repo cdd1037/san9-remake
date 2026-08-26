@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "batch": "WAR-04",
+  "finding": "RE-SAN9PK-0139",
+  "sample": "SRC-SAN9PK-TC-101",
+  "idb": "research/analysis/San9PK-TC-101.i64",
+  "program_byte_changes": 0,
+  "function_boundaries": [],
+  "function_names": [
+    {"address": "0x4669A0", "name": "resolve_unit_defeat"},
+    {"address": "0x441EC0", "name": "eliminate_force_and_cleanup_assets"},
+    {"address": "0x452690", "name": "relocate_or_remove_person_after_force_loss"},
+    {"address": "0x466610", "name": "relocate_remaining_unit_personnel"},
+    {"address": "0x459950", "name": "clear_unit_location_and_target_references"},
+    {"address": "0x4617F0", "name": "reset_unit_runtime_state"},
+    {"address": "0x437420", "name": "add_region_building_wounded"},
+    {"address": "0x45DD90", "name": "add_unit_wounded"},
+    {"address": "0x48C4A0", "name": "complete_unit_arrival_into_building", "before": "complete_transport_unit_arrival"},
+    {"address": "0x48C4E0", "name": "is_unit_at_destination_building", "before": "is_transport_unit_at_destination"}
+  ],
+  "comments": [
+    "0x4669A0", "0x466A24", "0x466C2A", "0x466CD7", "0x466CE8", "0x466F53", "0x466DCA", "0x466FBC", "0x466FC6", "0x466FFF",
+    "0x4688A0", "0x468CCF", "0x468D33", "0x468E4F", "0x468F87", "0x468FAD", "0x468FB6", "0x468FC1", "0x468FCD", "0x4691B5",
+    "0x441EC0", "0x4421B8", "0x442218", "0x442257", "0x4422E8", "0x442327", "0x4423A0", "0x4423D5", "0x4526C5", "0x48C4A0", "0x48C4E0"
+  ],
+  "dry_run": {"function_names": 10, "ok": 10, "failed": 0},
+  "saved": true,
+  "readback": {
+    "function_names": "10/10",
+    "comments": "31/31",
+    "function_entry_byte_snapshots": "10/10 unchanged",
+    "shared_arrival_vtable_slots": "4/4"
+  },
+  "readback_verified": true
+}

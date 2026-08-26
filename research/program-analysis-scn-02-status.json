@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "batch": "SCN-02",
+  "status": "completed",
+  "date": "2026-08-26",
+  "inputs": {
+    "machine_findings": ["RE-SAN9PK-0016", "RE-SAN9PK-0021", "RE-SAN9PK-0045", "RE-SAN9PK-0060", "RE-SAN9PK-0122", "RE-SAN9PK-0124", "RE-SAN9PK-0132", "RE-SAN9PK-0139"],
+    "source_claims": [],
+    "hard_candidate_count": 0
+  },
+  "claim_disposition": {
+    "confirmed": [
+      "emperor identity, root-force peerage, person office and ruler status are independent state systems",
+      "peerage promotion follows adjacent-rank territory or prestige gates and applies a loyalty award to non-ruler officers",
+      "a captured ruler retains ruler identity through the special-prisoner flag until a later terminal transition",
+      "ruler death selects a player or automatic successor when the force survives, otherwise performs terminal elimination",
+      "successor commit may make a child corps the surviving root and terminal elimination clears cross-object references"
+    ],
+    "inferred": [
+      "the composite automatic successor sort key expresses relationship, lineage or seniority and office priority without a single canonical UI label"
+    ],
+    "deferred": [
+      "formal narrative name of emperor world bit 0 and peerage event UI titles",
+      "last-force victory and defeat flags and ending routing to SCN-03 and SCN-04"
+    ],
+    "conflict": [
+      "kans +0x0A was previously documented as an ability bonus; all located runtime grant consumers use it as a force-loyalty increment",
+      "command type 14 changes person shak office rank rather than root-force kans peerage"
+    ]
+  },
+  "outputs": {
+    "finding": "RE-SAN9PK-0141",
+    "behavior_specs": ["BEH-IMPORT-0005"],
+    "ida_write_plan": "research/ida-write-plans/force-peerage-succession-batch-1.json",
+    "required_remaining_experiments": []
+  },
+  "ida_writes": {
+    "required": true,
+    "function_boundaries_repaired": 0,
+    "function_names": 20,
+    "comments": 20,
+    "program_byte_changes": 0,
+    "saved": true,
+    "readback_verified": true
+  },
+  "verification": {
+    "research_script_tests": "64 passed",
+    "dotnet_tests": "112 passed",
+    "queue_rebuild": "2635 candidates; 0 issues; final routing valid with 99 pending-marker findings",
+    "json_parse": "117 research JSON files parsed",
+    "markdown_links": "197 local links checked across 13 changed markdown files; 0 missing",
+    "ida_health": "core stats SHA-256 F5CADB19B995038B8D6B8516AD12DB4D2B9E65C4BF619EEA3BEDF2B8835C3DE2; 0 undefined executable bytes",
+    "git_diff_check": "passed"
+  },
+  "next_batch": "SCN-03"
+}

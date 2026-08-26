@@ -9,7 +9,7 @@ public sealed record San9ScenarioRankRecord(
     ushort SerializedId,
     ushort OpaqueField06,
     ushort OpaqueField08,
-    ushort AbilityBonus,
+    ushort PromotionLoyaltyBonus,
     ushort PrestigeRequirement);
 
 public static class San9ScenarioRankArchive

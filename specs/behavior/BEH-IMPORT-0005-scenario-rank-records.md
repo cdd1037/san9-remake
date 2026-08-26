@@ -2,8 +2,8 @@
 
 - 状态：已确认
 - 负责人：项目开发者
-- 最后更新：2026-08-16
-- 关联证据：[RE-SAN9PK-0010](../../research/findings/RE-SAN9PK-0010.md)
+- 最后更新：2026-08-26
+- 关联证据：[RE-SAN9PK-0010](../../research/findings/RE-SAN9PK-0010.md)、[RE-SAN9PK-0141](../../research/findings/RE-SAN9PK-0141.md)
 - 关联决策：[DEC-DATA-0001](../decisions/DEC-DATA-0001-content-pipeline.md)
 
 ## 适用范围
@@ -22,12 +22,12 @@
 | `0x04` | `u16` | `serialized_id_ignored` | 库存剧本中等于记录序号；加载后丢弃，当前运行时无效 |
 | `0x06` | `u16` | `opaque_unused_1` | 加载后只保存在对象槽位；当前官爵 getter 和业务路径不消费 |
 | `0x08` | `u16` | `opaque_unused_2` | 加载后只保存在对象槽位；当前官爵 getter 和业务路径不消费 |
-| `0x0A` | `u16` | `ability_bonus` | 官爵给予四项能力的共享增加值；界面显示为“能力上升” |
+| `0x0A` | `u16` | `promotion_loyalty_bonus` | 势力晋升或授予官爵后，给该势力非君主武将增加的忠诚值 |
 | `0x0C` | `u16` | `prestige_requirement` | 任用/达到该官爵所需的信望 |
 
 `+0x04/+0x06/+0x08` 是当前运行时无效或遗留的原始槽位，不得进入官爵玩法领域模型。它们仍属于输入记录的原始字节，导入器必须保留，以支持无损内容源和编辑器往返。
 
-官爵没有“忠诚上升”字段。本记录中 `+0x0A` 是能力增加值，`+0x0C` 是所需信望。
+旧版编辑器截图曾把 `+0x0A` 暂记为“能力上升”，但当前 EXE 的全部已定位授爵消费者都把该值传给逐势力忠诚增加器；没有发现用它修改人物四维的路径。玩法语义以当前运行时写回为准。
 
 编辑器下方的 `0002/0004/0006/0008` 是原始记录的 2 字节偏移显示，不是四个额外业务字段：`0002` 是 `+0x00` 的高 16 位，后三项分别对应 `+0x04/+0x06/+0x08`。
 
@@ -37,10 +37,10 @@
 
 - `id`：记录序号 `0..8`；
 - `command_capacity`：`+0x00` 原始 `u32`；
-- `ability_bonus`：`+0x0A` 原始 `u16`；该值同时用于统率、武力、智力和政治四项能力的官爵增加；
+- `promotion_loyalty_bonus`：`+0x0A` 原始 `u16`；晋升或事件授爵后逐名增加非君主武将对当前势力的忠诚；
 - `prestige_requirement`：`+0x0C` 原始 `u16`。
 
-导入器还必须保留 `serialized_id_ignored`、`opaque_unused_1` 和 `opaque_unused_2` 的原始值，但不得根据它们改变官爵 ID、指挥上限、能力增加、所需信望或任何其他玩法行为。不得把这些字段命名为能力类型、忠诚、排序权重或其他未被证据支持的业务属性。
+导入器还必须保留 `serialized_id_ignored`、`opaque_unused_1` 和 `opaque_unused_2` 的原始值，但不得根据它们改变官爵 ID、指挥上限、授爵忠诚、所需信望或任何其他玩法行为。不得把这些字段命名为能力类型、忠诚、排序权重或其他未被证据支持的业务属性。
 
 本规格不对上述 `u16/u32` 施加库存样本之外的平衡范围，不得静默钳制或截断；若产品需要额外设计范围，必须另行建立决策记录。
 
@@ -54,15 +54,15 @@
 
 ## 示例与边界
 
-- 官爵 0：`command_capacity = 60000`、`ability_bonus = 5`、`prestige_requirement = 1000`。
-- 官爵 8：`command_capacity = 20000`、`ability_bonus = 0`、`prestige_requirement = 0`。
+- 官爵 0：`command_capacity = 60000`、`promotion_loyalty_bonus = 5`、`prestige_requirement = 1000`。
+- 官爵 8：`command_capacity = 20000`、`promotion_loyalty_bonus = 0`、`prestige_requirement = 0`。
 - 官爵 0 的原始 14 字节为 `60 EA 00 00 00 00 00 00 00 00 05 00 E8 03`；三个无效/遗留槽位均为 0。
 - 修改任一 `+0x04/+0x06/+0x08` 原始值不得改变导入后的三项领域字段。
 
 ## 验收标准
 
 - [x] 9×14 字节边界和字段宽度由自制夹具测试证明。
-- [x] `command_capacity`、`ability_bonus`、`prestige_requirement` 的字段映射由自制夹具测试证明。
+- [x] `command_capacity`、`promotion_loyalty_bonus`、`prestige_requirement` 的字段映射由自制夹具测试证明；忠诚语义由当前 EXE 的三类授爵提交路径证明。
 - [x] 三个无效/遗留槽位能无损保留，且不会进入玩法领域模型。
 - [x] 测试夹具不依赖原版文件、编辑器或 IDA 数据库。
 

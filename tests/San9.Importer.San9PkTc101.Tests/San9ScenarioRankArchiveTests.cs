@@ -32,7 +32,7 @@ public sealed class San9ScenarioRankArchiveTests
         Assert.Equal((ushort)0, records[0].SerializedId);
         Assert.Equal((ushort)0x1111, records[0].OpaqueField06);
         Assert.Equal((ushort)0x2222, records[0].OpaqueField08);
-        Assert.Equal((ushort)5, records[0].AbilityBonus);
+        Assert.Equal((ushort)5, records[0].PromotionLoyaltyBonus);
         Assert.Equal((ushort)1_000, records[0].PrestigeRequirement);
         Assert.Equal(8, records[8].Id);
     }

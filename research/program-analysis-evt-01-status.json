@@ -65,12 +65,12 @@
     "queue_sha256": "472C391B153BCF7B3875EF1E050EC3A98DBDF64E18B924E397A3A7CA5EA5CBD4"
   },
   "existing_findings": {
-    "pending_marker_finding_count": 105,
-    "pending_id_sha256": "63421F3DB4BF39CC44E2A37DA918D258EF7834C0E0315EE8953B1B90618C9361",
+    "pending_marker_finding_count": 99,
+    "pending_id_sha256": "C870751D78B882434BE83975CEA1448BBB50F8231AB39B2D64732F8AABB0638C",
     "disposition_counts": {
       "baseline": 21,
       "out-of-scope": 29,
-      "roadmap": 55
+      "roadmap": 49
     },
     "batch_counts": {
       "CLOSE-02": 10,
@@ -80,7 +80,6 @@
       "LIFE-02": 2,
       "LIFE-03": 3,
       "SCN-01": 6,
-      "SCN-02": 6,
       "SCN-03": 1,
       "WAR-01": 4,
       "WAR-02": 8,
@@ -149,12 +148,6 @@
         "reason": "open-core-question"
       },
       {
-        "finding": "RE-SAN9PK-0016",
-        "disposition": "roadmap",
-        "batch": "SCN-02",
-        "reason": "open-core-question"
-      },
-      {
         "finding": "RE-SAN9PK-0018",
         "disposition": "out-of-scope",
         "batch": null,
@@ -164,12 +157,6 @@
         "finding": "RE-SAN9PK-0020",
         "disposition": "roadmap",
         "batch": "WAR-03",
-        "reason": "open-core-question"
-      },
-      {
-        "finding": "RE-SAN9PK-0021",
-        "disposition": "roadmap",
-        "batch": "SCN-02",
         "reason": "open-core-question"
       },
       {
@@ -299,12 +286,6 @@
         "reason": "open-core-question"
       },
       {
-        "finding": "RE-SAN9PK-0045",
-        "disposition": "roadmap",
-        "batch": "SCN-02",
-        "reason": "open-core-question"
-      },
-      {
         "finding": "RE-SAN9PK-0046",
         "disposition": "roadmap",
         "batch": "CLOSE-02",
@@ -363,12 +344,6 @@
         "disposition": "out-of-scope",
         "batch": null,
         "reason": "content-ui-editor-rendering-or-optional-deep-dive"
-      },
-      {
-        "finding": "RE-SAN9PK-0060",
-        "disposition": "roadmap",
-        "batch": "SCN-02",
-        "reason": "open-core-question"
       },
       {
         "finding": "RE-SAN9PK-0061",
@@ -689,21 +664,9 @@
         "reason": "accepted-r0-r7-or-superseded-follow-up"
       },
       {
-        "finding": "RE-SAN9PK-0122",
-        "disposition": "roadmap",
-        "batch": "SCN-02",
-        "reason": "open-core-question"
-      },
-      {
         "finding": "RE-SAN9PK-0123",
         "disposition": "roadmap",
         "batch": "CLOSE-02",
-        "reason": "open-core-question"
-      },
-      {
-        "finding": "RE-SAN9PK-0124",
-        "disposition": "roadmap",
-        "batch": "SCN-02",
         "reason": "open-core-question"
       },
       {

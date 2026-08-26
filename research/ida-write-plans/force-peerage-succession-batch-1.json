@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "batch": "SCN-02",
+  "finding": "RE-SAN9PK-0141",
+  "sample": "SRC-SAN9PK-TC-101",
+  "idb": "research/analysis/San9PK-TC-101.i64",
+  "program_byte_changes": 0,
+  "function_boundaries": [],
+  "function_names": [
+    {"address": "0x43F940", "name": "get_root_force_peerage_rank_id"},
+    {"address": "0x441260", "name": "get_root_force_peerage_rank"},
+    {"address": "0x43F960", "name": "set_root_force_peerage_rank_id"},
+    {"address": "0x4412B0", "name": "get_root_force_promotion_loyalty_bonus"},
+    {"address": "0x444140", "name": "apply_force_peerage_loyalty_bonus_to_officers"},
+    {"address": "0x589130", "name": "is_force_eligible_for_peerage_promotion"},
+    {"address": "0x578DC0", "name": "find_first_peerage_promotion_candidate"},
+    {"address": "0x578E90", "name": "can_trigger_peerage_promotion_without_emperor"},
+    {"address": "0x578ED0", "name": "promote_all_eligible_forces_one_peerage_rank"},
+    {"address": "0x5791F0", "name": "can_trigger_peerage_promotion_with_emperor"},
+    {"address": "0x579100", "name": "find_emperor_investiture_promotion_candidate"},
+    {"address": "0x579230", "name": "promote_eligible_forces_with_emperor_investiture"},
+    {"address": "0x4403C0", "name": "reset_force_record_state"},
+    {"address": "0x440110", "name": "force_requires_ruler_successor"},
+    {"address": "0x4439E0", "name": "repair_force_or_corps_leadership"},
+    {"address": "0x443510", "name": "select_player_force_successor"},
+    {"address": "0x441DB0", "name": "select_automatic_force_successor"},
+    {"address": "0x441C30", "name": "commit_force_ruler_successor"},
+    {"address": "0x43FFA0", "name": "compute_automatic_force_successor_sort_key"},
+    {"address": "0x43FFE0", "name": "compute_player_successor_candidate_sort_key"}
+  ],
+  "comments": [
+    "0x43F940", "0x43F960", "0x4412B0", "0x444140", "0x589130",
+    "0x578E90", "0x578ED0", "0x5791F0", "0x579100", "0x579230",
+    "0x4403C0", "0x440110", "0x4439E0", "0x443510", "0x441DB0",
+    "0x441C30", "0x452190", "0x450710", "0x458540", "0x441EC0"
+  ],
+  "dry_run": {"function_names": 20, "ok": 20, "failed": 0},
+  "saved": true,
+  "readback": {
+    "function_names": "20/20",
+    "comments": "20/20",
+    "program_byte_changes": 0
+  },
+  "health_baseline": {
+    "function_count": 11064,
+    "named_function_count": 2044,
+    "function_comment_count": 1035,
+    "decompile_failure_count": 7,
+    "undefined_bytes_in_exec": 0,
+    "digest": "f5cadb19b995038b8d6b8516ad12db4d2b9e65c4bf619eea3bedf2b8835c3de2"
+  },
+  "readback_verified": true
+}

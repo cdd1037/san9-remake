@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "batch": "SCN-04",
+  "finding": "RE-SAN9PK-0143",
+  "sample": "SRC-SAN9PK-TC-101",
+  "idb": "research/analysis/San9PK-TC-101.i64",
+  "program_byte_changes": 0,
+  "function_boundaries": [],
+  "function_names": [
+    {"address": "0x46DFD0", "name": "is_player_controlled_force_list_entry", "before": "sub_46DFD0"},
+    {"address": "0x47AB20", "name": "count_remaining_barbarian_forces", "before": "sub_47AB20"},
+    {"address": "0x47AFF0", "name": "count_force_owned_treasure_or_accessory_items", "before": "sub_47AFF0"},
+    {"address": "0x47AC20", "name": "construct_ending_resolution_view", "before": "sub_47AC20"},
+    {"address": "0x47B4A0", "name": "is_ending_succession_stable", "before": "sub_47B4A0"},
+    {"address": "0x47B4F0", "name": "initialize_ending_resolution_state", "before": "sub_47B4F0"},
+    {"address": "0x47B970", "name": "initialize_ending_resolution_view", "before": "sub_47B970"},
+    {"address": "0x47BB30", "name": "select_ending_officeholders", "before": "sub_47BB30"},
+    {"address": "0x47C000", "name": "process_ending_resolution_state", "before": "sub_47C000"},
+    {"address": "0x47DEE0", "name": "update_ending_resolution_view", "before": "sub_47DEE0"}
+  ],
+  "comments": [
+    "0x46DFD0", "0x47AB20", "0x47AFF0", "0x47B4A0", "0x47B4F0", "0x47BB30",
+    "0x47C093", "0x47C473", "0x47C742", "0x47C98B", "0x47CC8A", "0x47D067",
+    "0x47D284", "0x47D41A", "0x47D5F3", "0x47D712", "0x47DC64", "0x47E10F"
+  ],
+  "dry_run": {"function_names": 10, "ok": 10, "failed": 0, "pending": false},
+  "saved": true,
+  "readback": {
+    "function_names": "10/10",
+    "comments": "18/18",
+    "function_entry_byte_snapshots": "10/10 unchanged",
+    "ending_decompile_chain": "player-force selection, officeholder selection, two policy branches, eight transient outcomes, view close"
+  },
+  "readback_verified": true
+}

@@ -45,7 +45,7 @@
 
 命令类型 14 的执行器处理人物列表和 77 项 `shak` 官职：写入新官职，并按新旧官职俸禄值差的一半调整忠诚。它不读取或修改势力 `kans`。此前把该命令称为“武将爵位”会把人物官职和势力官爵混为一谈；文档、路线图及 IDA 中交互生产、命令构造、校验和执行的 6 个 `peerage_assignment_*` 旧名现均已更正为 `office_assignment_*`。
 
-同时，`kans +0x0A` 过去依据编辑器截图被记作“能力上升”。当前 EXE 的周期晋升、皇帝册授和山阳公授爵三类消费者都把它传给逐势力忠诚增加器，且跳过身份 0 的君主；没有人物四维写回。故 [BEH-IMPORT-0005](../../specs/behavior/BEH-IMPORT-0005-scenario-rank-records.md) 和导入模型已改为 `promotion_loyalty_bonus`。
+同时，`kans +0x0A` 过去因误读、误转录编辑器截图中的“忠诚上升”而被记作“能力上升”。重新核图与当前 EXE 的周期晋升、皇帝册授和山阳公授爵三类消费者一致：它们都把该值传给逐势力忠诚增加器，且跳过身份 0 的君主；没有人物四维写回。故 [BEH-IMPORT-0005](../../specs/behavior/BEH-IMPORT-0005-scenario-rank-records.md) 和导入模型已改为 `promotion_loyalty_bonus`。
 
 ### 宝物、官职与官爵的能力/忠诚字段
 

@@ -30,15 +30,15 @@
   },
   "outputs": {
     "finding": "RE-SAN9PK-0141",
-    "behavior_specs": ["BEH-IMPORT-0005"],
+    "behavior_specs": ["BEH-IMPORT-0002", "BEH-IMPORT-0005", "BEH-IMPORT-0006"],
     "ida_write_plan": "research/ida-write-plans/force-peerage-succession-batch-1.json",
     "required_remaining_experiments": []
   },
   "ida_writes": {
     "required": true,
     "function_boundaries_repaired": 0,
-    "function_names": 20,
-    "comments": 20,
+    "function_names": 32,
+    "comments": 32,
     "program_byte_changes": 0,
     "saved": true,
     "readback_verified": true
@@ -47,9 +47,9 @@
     "research_script_tests": "64 passed",
     "dotnet_tests": "112 passed",
     "queue_rebuild": "2635 candidates; 0 issues; final routing valid with 99 pending-marker findings",
-    "json_parse": "117 research JSON files parsed",
-    "markdown_links": "197 local links checked across 13 changed markdown files; 0 missing",
-    "ida_health": "core stats SHA-256 F5CADB19B995038B8D6B8516AD12DB4D2B9E65C4BF619EEA3BEDF2B8835C3DE2; 0 undefined executable bytes",
+    "json_parse": "117 files parsed",
+    "markdown_links": "35 local links checked across six changed markdown files; 0 missing",
+    "ida_health": "11064 functions; 2050 named; 1046 function comments; 7 decompile failures; 0 undefined executable bytes; digest d9dd61a05a7bfe9d2aeea6b21b61414c2dcda47475376d0beffaf65f5706d421",
     "git_diff_check": "passed"
   },
   "next_batch": "SCN-03"

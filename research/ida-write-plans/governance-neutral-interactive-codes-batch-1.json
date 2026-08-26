@@ -81,5 +81,13 @@
     {"addr": "0x4C5B00", "comment": "[GOV-01] Interactive action code 14 assigns peerage; execution changes each selected officer's title and adjusts loyalty from the title-value difference."},
     {"addr": "0x4BF060", "comment": "[GOV-01] Interactive action code 17 confiscates an item; execution transfers the item away from its holder and applies the command's loyalty penalty."},
     {"addr": "0x4C1910", "comment": "[GOV-01] This deleting destructor belongs to the patrol action vtable immediately following the code-12 task vtable; it is not a code-12 slot."}
+  ],
+  "semantic_corrections": [
+    {
+      "date": "2026-08-26",
+      "evidence": "RE-SAN9PK-0141",
+      "addresses": ["0x4C5B00", "0x4C5D10", "0x4C5EB0", "0x48AD20", "0x48ADB0", "0x48AE30"],
+      "correction": "command type 14 assigns person shak office ranks; peerage_assignment names were replaced by office_assignment names; root-force kans peerage remains event-driven"
+    }
   ]
 }

@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "batch": "CLOSE-04",
+  "date": "2026-08-27",
+  "sample": {
+    "id": "SRC-SAN9PK-TC-101",
+    "idb": "research/analysis/San9PK-TC-101.i64",
+    "module": "San9PK.exe",
+    "architecture": "x86-32",
+    "imagebase": "0x400000",
+    "image_size": "0x1759000",
+    "sha256": "d20794aeff67301ec2bf8c3becb1e9944c68c6c0588fbfd4bf04e8597f0e5028"
+  },
+  "ida_mcp": {
+    "calls": ["server_health", "survey_binary", "py_eval", "type_inspect"],
+    "health": "ok",
+    "auto_analysis_ready": true,
+    "hexrays_ready": true,
+    "total_functions": 11064,
+    "named_functions": 1991,
+    "total_strings": 1814,
+    "write_operations": 0,
+    "program_byte_changes": 0
+  },
+  "symbol_readback": {
+    "csv": "research/symbols/san9pk-tc-101.csv",
+    "row_count": 419,
+    "function_count": 387,
+    "data_count": 32,
+    "initial_stale_names": [
+      {"address": "0x0052EAB0", "before": "get_map_building_city", "current": "get_map_building_region_object", "evidence": "RE-SAN9PK-0057"},
+      {"address": "0x0050E8F0", "before": "process_xun_unit_update_phase", "current": "process_daily_pre_command_updates", "evidence": "RE-SAN9PK-0102"},
+      {"address": "0x004C12D0", "before": "interactive_force_action_12_task_ctor", "current": "interactive_corps_management_action_ctor", "evidence": "RE-SAN9PK-0121"}
+    ],
+    "final_name_mismatch_count": 0,
+    "function_entry_mismatch_count": 0
+  },
+  "type_readback": {
+    "csv": "research/symbols/san9pk-tc-101-types.csv",
+    "row_count": 8,
+    "size_mismatch_count": 0,
+    "missing_accessor_count": 0,
+    "types": [
+      {"name": "San9PersonRecord", "size": "0x128", "accessor": "get_person_record", "accessor_address": "0x4531B0"},
+      {"name": "San9ForceRecord", "size": "0xD4", "accessor": "get_force_record", "accessor_address": "0x453100"},
+      {"name": "San9CityRecord", "size": "0x1F0", "accessor": "get_city_record", "accessor_address": "0x452F70"},
+      {"name": "San9ZoneRecord", "size": "0x1BC", "accessor": "get_zone_record", "accessor_address": "0x452F10"},
+      {"name": "San9ArrayRecord", "size": "0x88", "accessor": "get_array_record_or_first", "accessor_address": "0x453870"},
+      {"name": "San9BuildingRecord", "size": "0x50", "accessor": "get_building_record_or_first", "accessor_address": "0x453740"},
+      {"name": "San9KillerRecord", "size": "0x8C", "accessor": "get_killer_record", "accessor_address": "0x453720"},
+      {"name": "San9ItemRecord", "size": "0x58", "accessor": "get_item_record", "accessor_address": "0x453190"}
+    ]
+  },
+  "conclusion": "The current project IDB identity is correct; every exported symbol and function entry matches after three stale summary rows were corrected; all exported type sizes and accessors read back; this audit performed no IDA write."
+}

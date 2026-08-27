@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "batch": "CLOSE-04",
+  "status": "archived",
+  "san9pkhard_candidates": {
+    "count": 832,
+    "subsystems": {"infrastructure": 745, "ui-system": 87},
+    "disposition": "out-of-scope",
+    "reason": "patch infrastructure, injection/configuration machinery, or presentation behavior that does not change core simulation state, command availability, results, or information semantics"
+  },
+  "existing_findings": {
+    "count": 29,
+    "disposition": "out-of-scope",
+    "ids": [
+      "RE-SAN9PK-0001", "RE-SAN9PK-0010", "RE-SAN9PK-0011", "RE-SAN9PK-0012", "RE-SAN9PK-0013",
+      "RE-SAN9PK-0018", "RE-SAN9PK-0024", "RE-SAN9PK-0025", "RE-SAN9PK-0026", "RE-SAN9PK-0029",
+      "RE-SAN9PK-0030", "RE-SAN9PK-0035", "RE-SAN9PK-0037", "RE-SAN9PK-0050", "RE-SAN9PK-0053",
+      "RE-SAN9PK-0059", "RE-SAN9PK-0062", "RE-SAN9PK-0065", "RE-SAN9PK-0066", "RE-SAN9PK-0072",
+      "RE-SAN9PK-0073", "RE-SAN9PK-0074", "RE-SAN9PK-0075", "RE-SAN9PK-0076", "RE-SAN9PK-0077",
+      "RE-SAN9PK-0079", "RE-SAN9PK-0080", "RE-SAN9PK-0082", "RE-SAN9PK-0088"
+    ],
+    "reason": "content, UI, editor, rendering, tool support, or optional deep investigation outside the core reverse-engineering closure"
+  },
+  "source_claims": {
+    "count": 8,
+    "ids": ["EBK-EXC-01", "EBK-DATA-01", "EBK-ADV-01", "EBK-DATA-02", "EBK-EXC-08", "HARD-INIT-01", "HARD-OTHER-01", "HARD-BUILD-01"],
+    "disposition": "out-of-scope"
+  },
+  "remaining_categories": [
+    {
+      "id": "content-entry",
+      "examples": ["event prose and exhaustive event parameters", "static person, item, tactic and scenario values", "localized labels and names"],
+      "owner": "content pipeline and content acceptance"
+    },
+    {
+      "id": "presentation-ui",
+      "examples": ["complete dialog and animation behavior", "optional FHD layout deep dive", "visual-only calendar and message presentation"],
+      "owner": "Godot presentation specifications and UI tests"
+    },
+    {
+      "id": "tooling",
+      "examples": ["author/editor workflows", "third-party patch installation and configuration", "MFC build and IDE artifacts"],
+      "owner": "tools roadmap or separate product decision"
+    },
+    {
+      "id": "optional-deep-dive",
+      "examples": ["unconsumed runtime labels", "non-blocking source conflicts", "extreme or presentation-only paths"],
+      "owner": "new bounded research record only when selected"
+    },
+    {
+      "id": "implementation-triggered-evidence",
+      "examples": ["a confirmed behavior lacks an implementable acceptance input", "a product test contradicts a confirmed invariant", "new current-sample evidence changes a selected rule"],
+      "owner": "targeted RE/EXP and BEH correction"
+    }
+  ],
+  "optional_experiments": [
+    {"id": "EXP-EVT-CONTENT-01", "category": "content-entry", "blocks_core_spec": false}
+  ],
+  "core_required_experiments": [],
+  "global_reverse_rounds_allowed": false,
+  "reopen_triggers": [
+    "an implementation or acceptance test exposes a concrete specification gap",
+    "new evidence contradicts a selected confirmed behavior",
+    "the project explicitly selects an archived content, UI, tool, or optional rule for implementation"
+  ]
+}

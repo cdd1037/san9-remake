@@ -14,6 +14,8 @@
 - `symbols/`：可追溯的符号摘要，不保存 IDB。
 - [`program-analysis-roadmap.md`](program-analysis-roadmap.md)：面向核心模拟实现的程序分析路线、原子批次与统一验收门槛。
 - [`program-analysis-coverage.md`](program-analysis-coverage.md)：SanIX、电子书、San9PKHard 与现有 `RE-*` 的统一来源覆盖账本。
+- [`program-analysis-r0-r12-acceptance.md`](program-analysis-r0-r12-acceptance.md)：52 个核心程序分析批次的最终独立验收与后续重开边界。
+- [`program-analysis-non-core-archive.md`](program-analysis-non-core-archive.md)：核心铺底结束后的内容、表现、工具和定向补证归档。
 - `archive/`：已完成且仅供历史追溯的研究路线与清单，不作为当前排期入口。
 - [`exe-dll-analysis-inventory.md`](exe-dll-analysis-inventory.md)：`San9.exe`/`San9PK.exe` 实际导入的 SanCalc 与 KOEIGrpX 契约、IAT 和调用导航。
 - `../private/s9数据文件/`：本地游戏数据样本；`../private/剧本编辑器截图/`：本地黑盒对照截图。研究记录统一引用这些仓库相对路径，不记录机器绝对路径。

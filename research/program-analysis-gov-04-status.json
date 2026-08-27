@@ -13,7 +13,9 @@
     "automatic move-person surplus/deficit pairing and shared command write-back",
     "existing-force ownable-object defection probability and transfer",
     "city independence probability, leader and force-slot prerequisites",
-    "distinct unaffiliated-person force emergence path",
+    "failed city-independence candidate departure into unaffiliated state",
+    "unaffiliated-person xun relocation and voluntary office-request thresholds",
+    "distinct unaffiliated-person empty-city force emergence eligibility, supporter and founder ordering",
     "electronic-book claims EBK-GOV-02 through EBK-GOV-04",
     "R4-R7 completion consistency"
   ],
@@ -25,14 +27,14 @@
     "health": "ok",
     "idb": "research/analysis/San9PK-TC-101.i64",
     "function_boundary_repairs": 2,
-    "function_renames": 23,
-    "comments": 14,
+    "function_renames": 31,
+    "comments": 22,
     "program_byte_changes": 0,
     "save": "succeeded",
-    "read_back": "verified: 23 names, 0x60-byte and 0x32-byte repaired boundaries, and 14 function comments",
+    "read_back": "original GOV-04 verified 23 names, two repaired boundaries and 14 comments; 2026-08-27 supplement verified 8 additional names, 8 comments and propagated decompilation",
     "post_write_survey": {
-      "function_count": 11037,
-      "named_function_count": 1736,
+      "function_count": 11064,
+      "named_function_count": 1999,
       "sample_sha256": "d20794aeff67301ec2bf8c3becb1e9944c68c6c0588fbfd4bf04e8597f0e5028"
     }
   },

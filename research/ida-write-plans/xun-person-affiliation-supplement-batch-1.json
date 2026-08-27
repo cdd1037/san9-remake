@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "batch": "GOV-04-SUPPLEMENT-01",
+  "sample": "SRC-SAN9PK-TC-101",
+  "idb": "research/analysis/San9PK-TC-101.i64",
+  "program_byte_changes": 0,
+  "reason": "Close the xun-level unaffiliated-person relocation, voluntary office request, empty-city force emergence, and failed city-independence departure paths discovered while answering a targeted behavior question.",
+  "function_names": [
+    {"addr": "0x481C80", "name": "process_unaffiliated_person_office_requests_for_xun"},
+    {"addr": "0x4800B0", "name": "relocate_unaffiliated_persons_for_xun"},
+    {"addr": "0x470F70", "name": "is_unaffiliated_person_list_entry"},
+    {"addr": "0x480C10", "name": "is_unaffiliated_empty_city_founder_candidate"},
+    {"addr": "0x480CF0", "name": "score_unaffiliated_force_founder_candidate"},
+    {"addr": "0x44DCC0", "name": "get_person_loyalty_for_force"},
+    {"addr": "0x44DE00", "name": "get_person_current_force_loyalty"},
+    {"addr": "0x45E0D0", "name": "get_object_force_leader"}
+  ],
+  "comments": [
+    {"addr": "0x481C80", "topic": "unaffiliated-person voluntary office-request gates, player/AI acceptance, loyalty and rejection relocation"},
+    {"addr": "0x4800B0", "topic": "50-percent xun relocation of unaffiliated persons"},
+    {"addr": "0x483180", "topic": "unowned-city founder eligibility, nearby affinity-close supporters and deterministic founder ranking"},
+    {"addr": "0x483580", "topic": "shared ambition-righteousness-loyalty roll for city independence and failed-candidate departure"},
+    {"addr": "0x480C10", "topic": "unaffiliated empty-city founder candidate predicate"},
+    {"addr": "0x480CF0", "topic": "special-biography and ambition founder priority"},
+    {"addr": "0x44DCC0", "topic": "explicit-force loyalty lookup with current-force fallback"},
+    {"addr": "0x45E0D0", "topic": "owning-force leader lookup shared by object consumers"}
+  ],
+  "dry_run": "8 of 8 function names validated without conflicts"
+}

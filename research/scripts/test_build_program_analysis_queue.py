@@ -93,6 +93,13 @@ void f() {
                 status, disposition, batch, _ = route_candidate("personnel-diplomacy", text)
                 self.assertEqual((status, disposition, batch), ("completed", "baseline", None))
 
+    def test_closes_calendar_boundary_candidates_to_baseline(self):
+        for text in ("dwAddrDisplayYear", "patchYearTableInfoThunk"):
+            with self.subTest(text=text):
+                status, disposition, batch, reason = route_candidate("events", text)
+                self.assertEqual((status, disposition, batch), ("completed", "baseline", None))
+                self.assertEqual(reason, "calendar-boundary-closed-by-close-02")
+
     def test_routes_final_round_strong_terms_before_historical_subsystems(self):
         cases = {
             ("infrastructure", "patchTransportTask"): "WAR-02",

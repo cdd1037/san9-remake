@@ -2,7 +2,7 @@
   "schema_version": 2,
   "source_id": "SRC-SAN9PKHARD",
   "catalog_sha256": "EC34A05B2FCA098F82F27F2C5643CFD8AF969388A86298E3409B627945ED47F2",
-  "queue_sha256": "472C391B153BCF7B3875EF1E050EC3A98DBDF64E18B924E397A3A7CA5EA5CBD4",
+  "queue_sha256": "A3BB0B0F01D3DE4FA06A4274A6A5331E71EC6263266C267C4EE11F124B35B78C",
   "candidate_count": 2635,
   "expected_candidate_count": 2635,
   "kind_counts": {
@@ -24,17 +24,16 @@
     "ui-system": 87
   },
   "status_counts": {
-    "completed": 1669,
+    "completed": 1686,
     "inferred": 832,
-    "planned": 134
+    "planned": 117
   },
   "disposition_counts": {
-    "baseline": 1669,
+    "baseline": 1686,
     "out-of-scope": 832,
-    "roadmap": 134
+    "roadmap": 117
   },
   "batch_counts": {
-    "CLOSE-02": 17,
     "EVT-02": 1,
     "EVT-03": 7,
     "SCN-03": 4,
@@ -55,9 +54,8 @@
     "unrouted_count": 0
   },
   "final_round_routing": {
-    "candidate_count": 134,
+    "candidate_count": 117,
     "batch_counts": {
-      "CLOSE-02": 17,
       "EVT-02": 1,
       "EVT-03": 7,
       "SCN-03": 4,

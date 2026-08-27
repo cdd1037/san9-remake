@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "batch": "CLOSE-02",
+  "sample": "SRC-SAN9PK-TC-101",
+  "status": "applied-and-read-back",
+  "program_byte_changes": 0,
+  "function_names": [
+    {"address": "0x47F590", "before": "sub_47F590", "after": "start_quarterly_pre_update_event_selector", "confidence": "high"},
+    {"address": "0x47F600", "before": "start_quarterly_event_selector", "after": "start_quarterly_main_event_selector", "confidence": "high"},
+    {"address": "0x47F670", "before": "sub_47F670", "after": "start_monthly_periodic_event_selector", "confidence": "high"},
+    {"address": "0x47F6E0", "before": "sub_47F6E0", "after": "start_xun_periodic_event_selector", "confidence": "high"},
+    {"address": "0x44B210", "before": "sub_44B210", "after": "get_year_table_entry_year", "confidence": "high"},
+    {"address": "0x42FFE0", "before": "sub_42FFE0", "after": "rebuild_year_table_display_rows", "confidence": "high"},
+    {"address": "0x525BA0", "before": "sub_525BA0", "after": "refresh_mainmap_calendar_display", "confidence": "high"},
+    {"address": "0x52C340", "before": "sub_52C340", "after": "set_mainmap_display_date_and_refresh", "confidence": "high"},
+    {"address": "0x51EE80", "before": "sub_51EE80", "after": "sync_mainmap_display_date_from_world", "confidence": "high"}
+  ],
+  "comments": [
+    {"address": "0x507DA0", "scope": "func", "summary": "owns the sequential xun pipeline: world update, presentation children, force/unit simulation, then the ten-day date simulation"},
+    {"address": "0x484EE0", "scope": "func", "summary": "orders terminal evaluation, xun/monthly/quarterly event selectors, xun updates, quarterly updates, annual appearance, and cleanup"},
+    {"address": "0x50A760", "scope": "func", "summary": "orders daily pre-command work, unit command events, date advance/daily map updates, unit/building events, and final date-display refresh"},
+    {"address": "0x45AF50", "scope": "func", "summary": "save header persists the authoritative scenario date code"},
+    {"address": "0x457530", "scope": "func", "summary": "save header restore writes the authoritative scenario date before record reconstruction"},
+    {"address": "0x525BA0", "scope": "func", "summary": "renders cached year/month/xun and seasonal calendar controls; it does not own the simulation date"},
+    {"address": "0x44B210", "scope": "func", "summary": "returns one bounded year-table entry year; zero is the original invalid-entry sentinel"},
+    {"address": "0x430152", "scope": "line", "summary": "original conditional rejects a zero year-table entry; the third-party condition-byte change at 0x430153 adds negative-year support rather than exposing an original rule"}
+  ],
+  "dry_run": {"function_names": 9, "ok": 9, "failed": 0},
+  "write_result": {"function_names": "9/9", "comments": "8/8", "saved": true},
+  "readback": {"function_names": "9/9", "comments": "8/8", "server_health": "ok", "program_byte_changes": 0},
+  "evidence_summary": "Current-sample xun and daily state machines, four periodic event tables, save header read/write, main-map derived date cache, and year-table/display host control flow close the observable time and ownership boundary without adopting third-party injected calendar semantics."
+}

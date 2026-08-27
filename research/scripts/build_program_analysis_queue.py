@@ -113,7 +113,7 @@ def route_candidate(subsystem: str, search_text: str) -> tuple[str, str, str | N
         return "planned", "roadmap", "EVT-03", "representative-event-family-candidate"
     if subsystem == "events":
         if any(has_term(search_text, word) for word in ("year table", "display year")):
-            return "planned", "roadmap", "CLOSE-02", "calendar-observable-boundary-candidate"
+            return "completed", "baseline", None, "calendar-boundary-closed-by-close-02"
         return "planned", "roadmap", "EVT-02", "event-engine-or-state-candidate"
     if any(has_term(search_text, word) for word in ("lifespan", "life span", "natural death", "injury", "recover")):
         return "planned", "roadmap", "LIFE-02", "injury-lifespan-or-natural-death-candidate"

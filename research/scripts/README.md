@@ -1,6 +1,7 @@
 # 研究脚本
 
 - `build_source_catalog.py`：从本地源码和文档生成统一来源候选。
+- `build_program_analysis_close01.py`：汇总路线图、覆盖账本、San9PKHard 候选状态和 `EVT-01` 旧待验证项路由，验证已完成批次不再伪装为当前待办，并把唯一剩余核心项守恒到 `CLOSE-02`。
 - `build_formula_catalog.py`：把公式文档的 0–29 项原版主张、独立的优化主张、电子书交叉来源和明确映射的 San9PKHard 补丁点汇总为语义目录；可通过审阅后的状态文件合并当前 IDA 地址、目标函数、证据和待实验项，输出放在 `artifacts/ida/`。
 - `verify_patch_points.py`：把声明的旧字节按 PE32 映射回精确哈希样本，只读输出直接匹配与冲突；不加载或执行目标程序。
 - `build_san9pkhard_catalog.py`：线性扫描 San9PKHard 的地址符号/数组、`ASM_PATCH` 注册、代码与旧字节数组、`WriteProcessMemory` 调用、DDX 配置绑定和参数位域；完整账本输出到 `tmp/`，仓库只保存带分段哈希与问题清单的 `patch-points/san9pkhard-catalog-status.json`。可选 `--image` 只读校验静态旧字节。

@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "batch": "CLOSE-01",
+  "status": "completed",
+  "sample": "SRC-SAN9PK-TC-101",
+  "domain_model": {
+    "object": "source claim, San9PKHard candidate, routed finding, or roadmap batch",
+    "states": [
+      "confirmed-baseline",
+      "closed-batch",
+      "explicit-non-core",
+      "current-roadmap"
+    ],
+    "input": [
+      "program-analysis-coverage.md",
+      "program-analysis-queue-status.json",
+      "program-analysis-evt-01-status.json",
+      "program-analysis-roadmap.md"
+    ],
+    "output": "one auditable current disposition per source item without stale batch ownership",
+    "invariant": "counts are conserved; completed batches cannot remain current work; scheduling does not create machine facts"
+  },
+  "source_claims": {
+    "count": 10,
+    "closed_count": 10,
+    "unresolved": []
+  },
+  "san9pkhard_candidates": {
+    "total": 2635,
+    "confirmed_baseline_or_closed_batch": 1786,
+    "explicit_non_core": 832,
+    "closed_final_round_by_batch": {
+      "EVT-02": 1,
+      "EVT-03": 7,
+      "SCN-03": 4,
+      "WAR-01": 12,
+      "WAR-02": 43,
+      "WAR-03": 32,
+      "WAR-04": 18
+    },
+    "current_roadmap_by_batch": {
+      "CLOSE-02": 17
+    },
+    "unrouted": 0
+  },
+  "existing_findings": {
+    "audited_count": 99,
+    "terminal_counts": {
+      "baseline": 21,
+      "closed-batch": 39,
+      "out-of-scope": 29
+    },
+    "current_roadmap_by_batch": {
+      "CLOSE-02": 10
+    }
+  },
+  "coverage": {
+    "row_count": 83,
+    "stale_planned_rows": [],
+    "stale_roadmap_rows": []
+  },
+  "roadmap": {
+    "completed_pre_close_batches": 48,
+    "incomplete_pre_close_batches": [],
+    "next_batch": "CLOSE-02"
+  },
+  "ida_mcp": {
+    "investigation": "not executed",
+    "reason": "CLOSE-01 audits existing source and routing artifacts and asserts no new sample address, bytes, control flow, or game rule",
+    "write_operations": 0
+  },
+  "validation": {
+    "valid": true,
+    "issues": {
+      "incomplete_pre_close_batches": [],
+      "stale_planned_coverage_rows": [],
+      "stale_roadmap_coverage_rows": [],
+      "queue_validation_issues": {},
+      "queue_unrouted_count": 0,
+      "unexpected_active_candidate_batches": [],
+      "unexpected_active_finding_batches": [],
+      "unresolved_source_claims": []
+    }
+  },
+  "verification": {
+    "research_script_tests": "66 passed",
+    "dotnet_tests": "112 passed",
+    "queue_rebuild": "2635 candidates; 0 issues; 468 duplicate-address groups stable",
+    "json_parse": "122 research JSON files parsed",
+    "markdown_links": "175 local links checked across five changed markdown files; 0 missing",
+    "git_diff_check": "passed"
+  }
+}

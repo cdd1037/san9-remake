@@ -4,6 +4,7 @@
 - 负责人：项目开发者
 - 最后更新：2026-08-24
 - 关联证据：[RE-SAN9PK-0009](../../research/findings/RE-SAN9PK-0009.md)、[RE-SAN9PK-0112](../../research/findings/RE-SAN9PK-0112.md)
+- 关联决策：[DEC-SIM-0001](../decisions/DEC-SIM-0001-determinism-and-saves.md)
 - 继承方式：关系保留
 
 ## 适用范围

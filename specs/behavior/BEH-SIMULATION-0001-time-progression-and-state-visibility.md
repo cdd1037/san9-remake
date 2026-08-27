@@ -4,7 +4,7 @@
 - 负责人：项目开发者
 - 最后更新：2026-08-27
 - 关联证据：[RE-SAN9PK-0069](../../research/findings/RE-SAN9PK-0069.md)、[RE-SAN9PK-0071](../../research/findings/RE-SAN9PK-0071.md)、[RE-SAN9PK-0083](../../research/findings/RE-SAN9PK-0083.md)、[RE-SAN9PK-0102](../../research/findings/RE-SAN9PK-0102.md)、[RE-SAN9PK-0123](../../research/findings/RE-SAN9PK-0123.md)、[RE-SAN9PK-0142](../../research/findings/RE-SAN9PK-0142.md)、[RE-SAN9PK-0145](../../research/findings/RE-SAN9PK-0145.md)
-- 关联决策：无
+- 关联决策：[DEC-PROJECT-0001](../decisions/DEC-PROJECT-0001-layered-architecture.md)、[DEC-PROJECT-0002](../decisions/DEC-PROJECT-0002-selective-inheritance.md)、[DEC-SIM-0001](../decisions/DEC-SIM-0001-determinism-and-saves.md)
 - 继承方式：关系保留、领域模型现代化
 
 ## 适用范围

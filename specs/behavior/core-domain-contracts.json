@@ -1,0 +1,293 @@
+{
+  "schema_version": 1,
+  "status": "confirmed",
+  "purpose": "Implementation-facing domain contracts derived only from confirmed BEH specifications and approved DEC decisions.",
+  "architecture_decisions": [
+    "DEC-PROJECT-0001",
+    "DEC-PROJECT-0002",
+    "DEC-SIM-0001"
+  ],
+  "domains": [
+    {
+      "id": "simulation",
+      "classification": "core",
+      "behavior_specs": ["BEH-SIMULATION-0001"],
+      "objects": ["SimulationClock", "PeriodBoundary", "ResolutionPipeline", "WorldSnapshot", "CalendarViewModel"],
+      "states": ["stable-interaction", "xun-resolution", "daily-resolution", "terminal-short-circuit"],
+      "inputs": ["typed command log", "authoritative world state", "stable random state", "periodic event catalog"],
+      "outputs": ["committed world snapshot", "ordered domain events", "derived calendar view"],
+      "invariants": ["one authoritative date", "at most one active resolution stage", "derived views never write world truth", "save only at stable interaction boundaries"],
+      "acceptance_gates": ["period boundary order", "terminal short-circuit", "save and restore authority", "stale-reference rejection"],
+      "depends_on": [],
+      "implementation": {
+        "project": "San9.Core",
+        "target_namespace": "San9.Core.Simulation",
+        "target_path": "src/San9.Core/Simulation",
+        "entry_types": ["SimulationEngine", "ResolutionPipeline", "WorldState", "SimulationClock"],
+        "existing_anchors": ["src/San9.Core/Simulation/SimulationEngine.cs", "src/San9.Core/Simulation/WorldState.cs", "src/San9.Core/Simulation/GameClock.cs"]
+      }
+    },
+    {
+      "id": "personnel",
+      "classification": "core",
+      "behavior_specs": ["BEH-PERSON-0001", "BEH-PERSON-0002", "BEH-PERSON-0003"],
+      "objects": ["Person", "Affiliation", "LoyaltyLedger", "PersonLocation", "ActionReservation"],
+      "states": ["hidden", "free", "serving", "captured", "reserved"],
+      "inputs": ["typed personnel command", "current affiliation snapshot", "stable random payload", "valid destination"],
+      "outputs": ["atomic affiliation transition", "loyalty and item transfer", "released reservation", "personnel event"],
+      "invariants": ["one valid affiliation and location", "failed commands preserve affiliation", "item ownership is unique", "reservations always release"],
+      "acceptance_gates": ["recruitment real-time revalidation", "reward and loyalty boundaries", "multi-origin movement", "reservation cleanup"],
+      "depends_on": ["simulation"],
+      "implementation": {
+        "project": "San9.Core",
+        "target_namespace": "San9.Core.Personnel",
+        "target_path": "src/San9.Core/Personnel",
+        "entry_types": ["PersonnelCommandService", "AffiliationTransition", "ActionReservationService"],
+        "existing_anchors": ["src/San9.Core/Domain/Entities.cs", "src/San9.Core/Simulation/GameCommand.cs"]
+      }
+    },
+    {
+      "id": "person-lifecycle",
+      "classification": "core",
+      "behavior_specs": ["BEH-PERSON-LIFECYCLE-0001", "BEH-PERSON-LIFECYCLE-0002", "BEH-PERSON-LIFECYCLE-0003"],
+      "objects": ["PersonGrowth", "InjuryState", "LifeState", "TraineeRecord"],
+      "states": ["not-appeared", "active", "injured", "dead", "trainee-waiting", "trainee-active", "trainee-complete"],
+      "inputs": ["period boundary", "person snapshot", "growth cause", "death cause", "stable lifecycle random stream"],
+      "outputs": ["bounded growth", "appearance or recovery", "atomic death cleanup", "completed trainee person"],
+      "invariants": ["base and effective ability are distinct", "growth is bounded", "death removes every live reference", "one trainee record per force"],
+      "acceptance_gates": ["growth and learning bounds", "appearance and death curve", "death reference cleanup", "nine-xun trainee state machine"],
+      "depends_on": ["simulation", "personnel"],
+      "implementation": {
+        "project": "San9.Core",
+        "target_namespace": "San9.Core.Personnel.Lifecycle",
+        "target_path": "src/San9.Core/Personnel/Lifecycle",
+        "entry_types": ["PersonGrowthService", "PersonLifecycleService", "TraineeDevelopmentService"],
+        "existing_anchors": ["src/San9.Core/Domain/Entities.cs", "src/San9.Core/Simulation/StableRandom.cs"]
+      }
+    },
+    {
+      "id": "governance",
+      "classification": "core",
+      "behavior_specs": ["BEH-GOVERNANCE-0001", "BEH-GOVERNANCE-0002", "BEH-GOVERNANCE-0003"],
+      "objects": ["Polity", "Corps", "TerritoryAssignment", "DelegationPolicy", "TerritorialTransition"],
+      "states": ["direct-control", "delegated-control", "planned-command", "territorial-transition", "dissolved"],
+      "inputs": ["current corps ownership", "delegation configuration", "direct territory snapshot", "stable planning order"],
+      "outputs": ["validated automatic command", "atomic ownership transition", "dissolved corps cleanup", "updated delegation target"],
+      "invariants": ["one polity root per corps", "territory ownership is consistent", "resources are conserved", "automatic and interactive commands share final validation"],
+      "acceptance_gates": ["corps create change and dissolve", "control and ownership separation", "deterministic work table", "cross-polity transaction rollback"],
+      "depends_on": ["simulation", "personnel"],
+      "implementation": {
+        "project": "San9.Core",
+        "target_namespace": "San9.Core.Governance",
+        "target_path": "src/San9.Core/Governance",
+        "entry_types": ["CorpsService", "DelegationPlanner", "TerritorialTransitionService"],
+        "existing_anchors": ["src/San9.Core/Domain/Entities.cs", "src/San9.Core/Simulation/SimulationEngine.cs"]
+      }
+    },
+    {
+      "id": "diplomacy",
+      "classification": "core",
+      "behavior_specs": ["BEH-DIPLOMACY-0001", "BEH-DIPLOMACY-0002", "BEH-DIPLOMACY-0003"],
+      "objects": ["ForceRelation", "Alliance", "DiplomacyCommand", "Negotiation", "DiplomacyPlan"],
+      "states": ["eligible", "reserved", "negotiating", "resolved", "allied", "expired"],
+      "inputs": ["force relation snapshot", "typed diplomacy request", "current eligibility", "stable diplomacy random streams"],
+      "outputs": ["symmetric relation update", "resource-conserving settlement", "alliance transition", "zero or one planned command"],
+      "invariants": ["relations are symmetric and bounded", "alliance identity is explicit", "resources do not appear", "planning uses live state and stable tie-breaks"],
+      "acceptance_gates": ["relation and alliance boundaries", "four command lifecycles", "resource conservation", "deterministic incremental planning"],
+      "depends_on": ["simulation", "personnel", "governance"],
+      "implementation": {
+        "project": "San9.Core",
+        "target_namespace": "San9.Core.Diplomacy",
+        "target_path": "src/San9.Core/Diplomacy",
+        "entry_types": ["RelationService", "AllianceService", "DiplomacyCommandHandler", "DiplomacyPlanner"],
+        "existing_anchors": ["src/San9.Core/Domain/Entities.cs", "src/San9.Core/Simulation/GameCommand.cs"]
+      }
+    },
+    {
+      "id": "strategy",
+      "classification": "core",
+      "behavior_specs": ["BEH-STRATEGY-0001", "BEH-STRATEGY-0002", "BEH-STRATEGY-0003"],
+      "objects": ["StrategyCommand", "StrategyTarget", "Advice", "UnitStatus", "StrategyOutcome"],
+      "states": ["draft", "submitted", "reserved", "resolved", "expired"],
+      "inputs": ["single executor", "typed target", "live threshold inputs", "stable strategy random streams"],
+      "outputs": ["saved command result", "typed target effect", "growth and proficiency event", "released reservation"],
+      "invariants": ["one executor", "advice is read-only", "player and AI share resolution", "effects preserve ownership and resource bounds"],
+      "acceptance_gates": ["eight command shared lifecycle", "status duration and reinforcement", "person building and force effects", "independent random gates"],
+      "depends_on": ["simulation", "personnel", "diplomacy", "warfare"],
+      "implementation": {
+        "project": "San9.Core",
+        "target_namespace": "San9.Core.Strategy",
+        "target_path": "src/San9.Core/Strategy",
+        "entry_types": ["StrategyCommandHandler", "StrategyAdviceService", "StrategyEffectService"],
+        "existing_anchors": ["src/San9.Core/Simulation/GameCommand.cs", "src/San9.Core/Simulation/DomainEvent.cs"]
+      }
+    },
+    {
+      "id": "warfare",
+      "classification": "core",
+      "behavior_specs": ["BEH-WAR-0001", "BEH-WAR-0002", "BEH-WAR-0003"],
+      "objects": ["Army", "MovementPlan", "BattlefieldCommand", "BuildingCombatState", "UnitSettlement"],
+      "states": ["planned", "moving", "resolving", "returning", "defeated", "complete"],
+      "inputs": ["typed battlefield command", "map occupancy snapshot", "live target", "unit and building state"],
+      "outputs": ["validated daily movement", "atomic capture settlement", "unit termination settlement", "force elimination input"],
+      "invariants": ["hard obstacles are never crossed", "success commits once", "ownership is singular", "reset units retain no live references"],
+      "acceptance_gates": ["daily re-path and collision", "command revalidation", "three building defeat gates", "unit and force cleanup"],
+      "depends_on": ["simulation", "personnel", "governance"],
+      "implementation": {
+        "project": "San9.Core",
+        "target_namespace": "San9.Core.Warfare",
+        "target_path": "src/San9.Core/Warfare",
+        "entry_types": ["MovementService", "BattlefieldCommandHandler", "BuildingCaptureService", "UnitTerminationService"],
+        "existing_anchors": ["src/San9.Core/Domain/Entities.cs", "src/San9.Core/Simulation/SimulationEngine.cs"]
+      }
+    },
+    {
+      "id": "duel",
+      "classification": "core",
+      "behavior_specs": ["BEH-DUEL-0001", "BEH-DUEL-0002", "BEH-DUEL-0003"],
+      "objects": ["DuelOpportunity", "DuelRoster", "DuelStrike", "DuelOutcome", "DuelAftermath"],
+      "states": ["not-triggered", "active", "strike-resolved", "finished", "committed"],
+      "inputs": ["valid land attack opportunity", "ordered participants", "combat attributes", "stable duel random streams"],
+      "outputs": ["duel roster", "exclusive strike result", "partitioned personnel outcomes", "morale update"],
+      "invariants": ["one initial participant per side", "one result per strike", "death capture and injury are mutually exclusive", "presentation random never changes gameplay"],
+      "acceptance_gates": ["trigger and participant order", "strike probability and damage", "aftermath partition", "original erroneous growth gate remains excluded"],
+      "depends_on": ["simulation", "personnel", "warfare"],
+      "implementation": {
+        "project": "San9.Core",
+        "target_namespace": "San9.Core.Duels",
+        "target_path": "src/San9.Core/Duels",
+        "entry_types": ["DuelTriggerService", "DuelResolver", "DuelAftermathService"],
+        "existing_anchors": ["src/San9.Core/Domain/Entities.cs", "src/San9.Core/Simulation/StableRandom.cs"]
+      }
+    },
+    {
+      "id": "event",
+      "classification": "core",
+      "behavior_specs": ["BEH-EVENT-0001", "BEH-EVENT-0002"],
+      "objects": ["EventCandidate", "EventSession", "EventOutcome", "PersistentEventKey", "EventTrigger"],
+      "states": ["eligible", "skipped", "presenting", "cancelled", "committed"],
+      "inputs": ["named trigger", "stable candidate catalog", "read-only world snapshot", "stable event random streams"],
+      "outputs": ["zero or one active event", "atomic world effect", "persistent consumption key", "domain event"],
+      "invariants": ["one active event", "candidate cursor is monotonic", "presentation cannot write world state", "effect and consumption key commit together"],
+      "acceptance_gates": ["candidate order and failure continuation", "three consumption policies", "atomic invalid-reference rejection", "approved Shenshou probability adjustment"],
+      "depends_on": ["simulation", "personnel"],
+      "implementation": {
+        "project": "San9.Core",
+        "target_namespace": "San9.Core.Events",
+        "target_path": "src/San9.Core/Events",
+        "entry_types": ["EventSelector", "EventSessionService", "EventCommitService"],
+        "existing_anchors": ["src/San9.Core/Simulation/DomainEvent.cs", "src/San9.Core/Simulation/StableRandom.cs"]
+      }
+    },
+    {
+      "id": "scenario",
+      "classification": "core",
+      "behavior_specs": ["BEH-SCENARIO-0001", "BEH-SCENARIO-0002"],
+      "objects": ["TerminalEvaluation", "TerminalResult", "EndingSnapshot", "EndingOfficeholders", "EndingOutcome"],
+      "states": ["continue", "player-victory", "player-defeat", "return-to-title", "ending-resolved"],
+      "inputs": ["immutable terminal snapshot", "player control state", "core city ownership", "ending policy and officeholders"],
+      "outputs": ["one terminal result", "one ending outcome", "optional resolution trace"],
+      "invariants": ["terminal results are mutually exclusive", "warfare never creates UI endings", "ending resolution is pure", "stable content IDs identify scenario objects"],
+      "acceptance_gates": ["terminal gate order", "victory and defeat routing", "two ending policies", "eight unique ending outcomes"],
+      "depends_on": ["simulation", "personnel", "governance", "warfare"],
+      "implementation": {
+        "project": "San9.Core",
+        "target_namespace": "San9.Core.Scenarios",
+        "target_path": "src/San9.Core/Scenarios",
+        "entry_types": ["TerminalEvaluator", "EndingResolver"],
+        "existing_anchors": ["src/San9.Core/Simulation/WorldState.cs", "src/San9.Core/Domain/Entities.cs"]
+      }
+    },
+    {
+      "id": "content-import",
+      "classification": "boundary",
+      "behavior_specs": ["BEH-IMPORT-0001", "BEH-IMPORT-0002", "BEH-IMPORT-0003", "BEH-IMPORT-0004", "BEH-IMPORT-0005", "BEH-IMPORT-0006", "BEH-IMPORT-0007", "BEH-IMPORT-0008", "BEH-IMPORT-0009", "BEH-IMPORT-0010", "BEH-IMPORT-0011", "BEH-IMPORT-0012", "BEH-IMPORT-0013", "BEH-IMPORT-0014", "BEH-IMPORT-0015", "BEH-IMPORT-0016", "BEH-IMPORT-0017"],
+      "objects": ["source archive", "lossless source record", "content package", "scenario definition"],
+      "states": ["unrecognized", "validated", "decoded", "normalized", "rejected"],
+      "inputs": ["approved local source container"],
+      "outputs": ["validated content package", "diagnostic rejection"],
+      "invariants": ["importer is not a runtime dependency", "unknown fields remain opaque", "stable content IDs replace source offsets"],
+      "acceptance_gates": ["source identity", "record bounds", "reference validation", "deterministic conversion"],
+      "depends_on": [],
+      "implementation": {
+        "project": "San9.Importer.San9PkTc101",
+        "target_namespace": "San9.Importer.San9PkTc101",
+        "target_path": "src/San9.Importer.San9PkTc101",
+        "entry_types": ["San9PkTc101Detector", "San9ScenarioArchive", "ContentPackageConverter"],
+        "existing_anchors": ["src/San9.Importer.San9PkTc101/San9PkTc101Detector.cs", "src/San9.Importer.San9PkTc101/San9ScenarioArchive.cs", "src/San9.Content/ScenarioDefinition.cs"]
+      }
+    },
+    {
+      "id": "presentation",
+      "classification": "boundary",
+      "behavior_specs": ["BEH-RENDER-0001"],
+      "objects": ["read-only world snapshot", "static map snapshot", "calendar view model"],
+      "states": ["unbound", "rendering", "presented"],
+      "inputs": ["application snapshot", "validated content assets"],
+      "outputs": ["Godot view state", "player input request"],
+      "invariants": ["client never owns rule truth", "rendering consumes no gameplay random", "input enters through Application"],
+      "acceptance_gates": ["static map pixel baseline", "snapshot-only binding", "no Core dependency on Godot"],
+      "depends_on": [],
+      "implementation": {
+        "project": "San9.Client.Godot",
+        "target_namespace": "San9.Client.Godot",
+        "target_path": "src/San9.Client.Godot",
+        "entry_types": ["Main", "MapWorld", "CalendarPresenter"],
+        "existing_anchors": ["src/San9.Client.Godot/Main.cs", "src/San9.Client.Godot/MapWorld.cs", "src/San9.Application/GameSession.cs"]
+      }
+    }
+  ],
+  "decision_gates": [
+    {
+      "id": "deterministic-resolution",
+      "kind": "system-redesign",
+      "behavior_specs": ["BEH-SIMULATION-0001", "BEH-PERSON-0001", "BEH-PERSON-0002", "BEH-PERSON-0003", "BEH-PERSON-LIFECYCLE-0001", "BEH-PERSON-LIFECYCLE-0002", "BEH-PERSON-LIFECYCLE-0003", "BEH-GOVERNANCE-0002", "BEH-GOVERNANCE-0003", "BEH-DIPLOMACY-0001", "BEH-DIPLOMACY-0002", "BEH-DIPLOMACY-0003", "BEH-STRATEGY-0001", "BEH-STRATEGY-0002", "BEH-STRATEGY-0003", "BEH-WAR-0001", "BEH-DUEL-0001", "BEH-DUEL-0002", "BEH-DUEL-0003", "BEH-EVENT-0001", "BEH-EVENT-0002"],
+      "decision": "DEC-SIM-0001",
+      "disposition": "typed commands, named stable random streams, explicit save state and deterministic commit order"
+    },
+    {
+      "id": "modern-domain-model",
+      "kind": "system-redesign",
+      "behavior_specs": ["BEH-GOVERNANCE-0001", "BEH-GOVERNANCE-0002", "BEH-GOVERNANCE-0003", "BEH-WAR-0001", "BEH-WAR-0002", "BEH-WAR-0003", "BEH-SCENARIO-0001", "BEH-SCENARIO-0002", "BEH-SIMULATION-0001"],
+      "decision": "DEC-PROJECT-0002",
+      "disposition": "preserve selected behavior while replacing source storage and task structures with explicit domain types"
+    },
+    {
+      "id": "duel-noop-random-removal",
+      "kind": "intentional-difference",
+      "behavior_specs": ["BEH-DUEL-0001"],
+      "decision": "DEC-PROJECT-0002",
+      "disposition": "do not consume an ineffective additional-participant roll for an already selected initial participant"
+    },
+    {
+      "id": "duel-erroneous-growth-gate",
+      "kind": "original-bug",
+      "behavior_specs": ["BEH-DUEL-0003"],
+      "decision": "DEC-PROJECT-0002",
+      "disposition": "exclude the ineffective original growth gate; any future replacement requires a new decision"
+    },
+    {
+      "id": "shenshou-probability",
+      "kind": "parameter-adjustment",
+      "behavior_specs": ["BEH-EVENT-0001"],
+      "decision": "DEC-EVENT-0001",
+      "disposition": "use the approved continuous effective-martial formula"
+    },
+    {
+      "id": "event-content-separation",
+      "kind": "system-redesign",
+      "behavior_specs": ["BEH-EVENT-0002"],
+      "decision": "DEC-DATA-0001",
+      "disposition": "event rules consume stable content keys and typed conditions instead of source object codes"
+    },
+    {
+      "id": "high-color-map",
+      "kind": "system-redesign",
+      "behavior_specs": ["BEH-RENDER-0001"],
+      "decision": "DEC-RENDER-0001",
+      "disposition": "preserve source coordinates and blending relationships while rendering to RGB888"
+    }
+  ],
+  "unresolved_conflicts": [],
+  "implementation_rule": "Core owns rules, Application owns use-case coordination, Content owns normalized data, Importer is offline-only, and Godot owns presentation only. Planned target paths are entry boundaries, not evidence that implementation already exists."
+}

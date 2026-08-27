@@ -4,7 +4,7 @@
 - 负责人：项目开发者
 - 最后更新：2026-08-25
 - 关联证据：[RE-SAN9PK-0111](../../research/findings/RE-SAN9PK-0111.md)、[RE-SAN9PK-0112](../../research/findings/RE-SAN9PK-0112.md)、[RE-SAN9PK-0120](../../research/findings/RE-SAN9PK-0120.md)、[RE-SAN9PK-0122](../../research/findings/RE-SAN9PK-0122.md)、[RE-SAN9PK-0123](../../research/findings/RE-SAN9PK-0123.md)、[RE-SAN9PK-0124](../../research/findings/RE-SAN9PK-0124.md)
-- 关联决策：无
+- 关联决策：[DEC-PROJECT-0002](../decisions/DEC-PROJECT-0002-selective-inheritance.md)、[DEC-SIM-0001](../decisions/DEC-SIM-0001-determinism-and-saves.md)
 - 继承方式：语义保留、领域模型现代化
 
 ## 适用范围

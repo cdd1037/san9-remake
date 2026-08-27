@@ -4,7 +4,7 @@
 - 负责人：项目开发者
 - 最后更新：2026-08-26
 - 关联证据：[RE-SAN9PK-0068](../../research/findings/RE-SAN9PK-0068.md)、[RE-SAN9PK-0137](../../research/findings/RE-SAN9PK-0137.md)、[RE-SAN9PK-0138](../../research/findings/RE-SAN9PK-0138.md)
-- 关联决策：无
+- 关联决策：[DEC-PROJECT-0002](../decisions/DEC-PROJECT-0002-selective-inheritance.md)
 - 继承方式：关系保留、领域模型现代化
 
 ## 适用范围

@@ -455,3 +455,5 @@ address,symbol,kind,module,confidence,evidence,sources,match,notes
 0x00578090,handle_catalog_command,function,catalog-ui,high,RE-SAN9PK-0151,SRC-SAN9PK-TC-101,target-command,"Handles page commands 7441..7458 and row/header commands in the common catalog dialog"
 0x00571800,CListBaseDlg_ctor,function,catalog-ui,high,RE-SAN9PK-0151,SRC-SAN9PK-TC-101,target-base-constructor,"Constructs the generic entry container, active columns, 15 visible rows, and 20 header/cell objects"
 0x005768C0,CSan9ListDlg_ctor,function,catalog-ui,high,RE-SAN9PK-0151,SRC-SAN9PK-TC-101,target-dialog-constructor,"Adds page controls and common actions above CListBaseDlg; directly reused by 17 specialized list dialogs"
+0x00567B30,resolve_typed_record_resource_text,function,resource-text,high,RE-SAN9PK-0151,SRC-SAN9PK-TC-101,target-resource-resolver,"Validates the packed record type and resolves message text at base plus stride times the sequential record ID"
+0x00567CC0,get_tactic_description_resource_text,function,tactic-ui,high,RE-SAN9PK-0151,SRC-SAN9PK-TC-101,target-description-resource,"Resolves tactic description message 1221 plus 3 times the sequential tactic ID"

@@ -11,7 +11,8 @@
     "adapter": "The generic catalog calls item vtable +0x28 for descriptors, +0x24 for formatting, +0x18 for values, and +0x2C for sort-key mapping",
     "capacity": "Construction and command IDs independently bound the viewport to 15 rows, headers to 20 columns, and page controls to 18",
     "page_switch": "Commands 7441..7458 store the selected page, install its property-key array/count, and request refresh flags 0x52; Ctrl+Tab cycles the same commands",
-    "sorting": "Header clicks map the active property key, toggle a direction bit, choose numeric/text comparison, sort the entry container, and update the indicator"
+    "sorting": "Header clicks map the active property key, toggle a direction bit, choose numeric/text comparison, sort the entry container, and update the indicator",
+    "description_binding": "Property key 46 returns runtime +0x1E; hiho loading resolves that cache through message 1221 + 3 * sequential tactic ID, while adjacent bases 1219 and 1220 populate +0x10 and +0x15"
   },
   "ida_changes": {
     "function_recovery": [
@@ -37,14 +38,16 @@
       { "address": "0x573390", "before": "sub_573390", "after": "get_catalog_page_column_config", "confidence": "high" },
       { "address": "0x5759E0", "before": "sub_5759E0", "after": "activate_catalog_page", "confidence": "high" },
       { "address": "0x5760F0", "before": "sub_5760F0", "after": "initialize_catalog_page_controls", "confidence": "high" },
-      { "address": "0x578090", "before": "sub_578090", "after": "handle_catalog_command", "confidence": "high" }
+      { "address": "0x578090", "before": "sub_578090", "after": "handle_catalog_command", "confidence": "high" },
+      { "address": "0x567B30", "before": "sub_567B30", "after": "resolve_typed_record_resource_text", "confidence": "high" },
+      { "address": "0x567CC0", "before": "sub_567CC0", "after": "get_tactic_description_resource_text", "confidence": "high" }
     ],
-    "dry_run": { "total": 16, "ok": 16, "failed": 0 },
-    "apply": { "total": 16, "ok": 16, "failed": 0 },
-    "comments": 19,
+    "dry_run": { "total": 18, "ok": 18, "failed": 0 },
+    "apply": { "total": 18, "ok": 18, "failed": 0 },
+    "comments": 23,
     "program_byte_changes": 0,
     "save": "in-place save succeeded",
-    "read_back": "CSan9ListDlg_ctor calls CListBaseDlg_ctor; recovered initializer, page activation, row formatting, control-ID bounds and evidence comments were visible after save"
+    "read_back": "CSan9ListDlg_ctor calls CListBaseDlg_ctor; recovered initializer, page activation, row formatting, control-ID bounds and evidence comments were visible after save; get_tactic_description_resource_text calls the generic resolver with constants 1221, 10 and 3"
   },
   "conclusion": "CListBaseDlg and CSan9ListDlg form a reusable data-driven table system. Specialized dialogs supply configuration and item adapters; the common classes own columns, rows, layout, scrolling, sorting, selection, pages and commands. The tactic catalog is one verified instance."
 }

@@ -23,6 +23,70 @@ from .scenario import (
 )
 from .terrain import region_building_base
 
+
+def collect_building_visual_bounds(
+    squares: list[Square],
+    fixed_buildings: list[FixedBuilding],
+    snapshots: list[BuildingSnapshot],
+    resources: BuildingRenderResources,
+    x0: int,
+    y0: int,
+    width: int,
+    height: int,
+    margin: int,
+) -> list[tuple[int, int, int, int]]:
+    """Collect composite sprite bounds for static cloud-overlap selection."""
+
+    result: list[tuple[int, int, int, int]] = []
+    for snapshot in snapshots:
+        if not (x0 - 5 <= snapshot.x < x0 + width + 5):
+            continue
+        if not (y0 - 5 <= snapshot.y < y0 + height + 5):
+            continue
+        fixed_building = fixed_buildings[snapshot.fixed_building_code]
+        composition_id = select_building_composition(
+            fixed_building,
+            snapshot.durability,
+            snapshot.city_terrain_code,
+        )
+        if composition_id is None:
+            continue
+        square = squares[snapshot.y * MAP_WIDTH + snapshot.x]
+        base_x, base_y = region_building_base(
+            snapshot.x - x0,
+            snapshot.y - y0,
+            height,
+            square.offset,
+        )
+        sprite_bounds: list[tuple[int, int, int, int]] = []
+        for sprite in BUILDING_COMPOSITIONS[composition_id]:
+            resource_id = building_sprite_resource_id(snapshot, sprite)
+            location = building_resource_location(resource_id)
+            if location is None:
+                continue
+            stream_name, _ = location
+            image = (
+                resources.images[resource_id - BUILDING_RESOURCE_BASE]
+                if stream_name == "G_LBUILD"
+                else resources.add_images[resource_id - BUILDING_ADD_RESOURCE_BASE]
+            )
+            left = margin + base_x + sprite.offset_x
+            top = margin + base_y + sprite.offset_y
+            sprite_bounds.append(
+                (left, top, left + image.width - 1, top + image.height - 1)
+            )
+        if sprite_bounds:
+            result.append(
+                (
+                    min(item[0] for item in sprite_bounds),
+                    min(item[1] for item in sprite_bounds),
+                    max(item[2] for item in sprite_bounds),
+                    max(item[3] for item in sprite_bounds),
+                )
+            )
+    return result
+
+
 def draw_buildings(
     squares: list[Square],
     fixed_buildings: list[FixedBuilding],

@@ -38,6 +38,13 @@ class BoundaryRenderResources:
 
 
 @dataclass(frozen=True)
+class CloudRenderResources:
+    images: list[ImageRecord]
+    palettes: list[Palette]
+    palette_alphas: list[list[int]]
+
+
+@dataclass(frozen=True)
 class MapVisualResources:
     land_images: list[ImageRecord]
     land_palettes: list[Palette]
@@ -47,6 +54,7 @@ class MapVisualResources:
     mesh_palette: Palette
     bridge_images: list[ImageRecord]
     bridge_palette: Palette
+    clouds: CloudRenderResources | None
     boundaries: BoundaryRenderResources | None
     buildings: BuildingRenderResources
     land_palette_name: str
@@ -58,6 +66,7 @@ class MapVisualResources:
         scenario: Path,
         requested_land_palette: str,
         include_boundaries: bool = False,
+        include_clouds: bool = False,
     ) -> MapVisualResources:
         land_palette_name = select_land_palette_name(
             scenario, requested_land_palette
@@ -72,6 +81,21 @@ class MapVisualResources:
         mesh_palettes = parse_palettes(data_dir / "P_MESH.s9")
         bridge_images = parse_image_stream(data_dir / "G_LHashi.s9")
         bridge_palettes = parse_palettes(data_dir / BRIDGE_PALETTE_FILENAME)
+        cloud_images = (
+            parse_image_stream(data_dir / "G_LCLOUD.s9")
+            if include_clouds
+            else []
+        )
+        cloud_palettes = (
+            parse_palettes(data_dir / "P_LCLOUD.s9")
+            if include_clouds
+            else []
+        )
+        cloud_alphas = (
+            parse_palette_alphas(data_dir / "P_LCLOUD.s9")
+            if include_clouds
+            else []
+        )
         boundary_images = (
             parse_image_stream(data_dir / "G_MAPMKR.s9")
             if include_boundaries
@@ -107,6 +131,11 @@ class MapVisualResources:
                     f"expected {expected} {resource_name} records, "
                     f"found {len(records)}"
                 )
+        if include_clouds:
+            if len(cloud_images) != 17 or len(cloud_palettes) != 5:
+                raise ValueError(
+                    "expected 17 G_LCLOUD records and 5 P_LCLOUD palettes"
+                )
         if include_boundaries:
             if len(boundary_images) != BOUNDARY_RESOURCE_COUNT:
                 raise ValueError(
@@ -133,6 +162,9 @@ class MapVisualResources:
             mesh_palettes[0],
             bridge_images,
             bridge_palettes[BRIDGE_PALETTE_INDEX],
+            CloudRenderResources(cloud_images, cloud_palettes, cloud_alphas)
+            if include_clouds
+            else None,
             BoundaryRenderResources(boundary_images, boundary_palettes[0])
             if include_boundaries
             else None,

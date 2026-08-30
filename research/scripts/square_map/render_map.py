@@ -5,9 +5,10 @@ from __future__ import annotations
 import collections
 
 from .canvas import RgbCanvas
+from .clouds import draw_map_edge_cloud_fill, draw_map_edge_cloud_foreground
 from .boundaries import draw_boundaries
 from .building_info import BuildingInfoContext, draw_building_info_panels
-from .render_buildings import draw_buildings
+from .render_buildings import collect_building_visual_bounds, draw_buildings
 from .resources import MapVisualResources
 from .scenario import (
     BRIDGE_RESOURCE_BASE,
@@ -56,6 +57,7 @@ def render_region(
     fixed_buildings: list[FixedBuilding] | None = None,
     building_snapshots: list[BuildingSnapshot] | None = None,
     building_info: BuildingInfoContext | None = None,
+    draw_edge_cloud_layer: bool = False,
 ) -> tuple[
     int,
     int,
@@ -256,6 +258,13 @@ def render_region(
                 margin + anchor_y,
             )
 
+    if draw_edge_cloud_layer:
+        if (x0, y0, width, height) != (0, 0, MAP_WIDTH, MAP_HEIGHT):
+            raise ValueError("edge clouds require the full 200x200 map region")
+        if resources.clouds is None:
+            raise ValueError("edge cloud resources were not loaded")
+        draw_map_edge_cloud_fill(canvas, squares, resources.clouds, margin)
+
     if draw_boundary_layer:
         if resources.boundaries is None:
             raise ValueError("boundary resources were not loaded")
@@ -323,18 +332,43 @@ def render_region(
             margin,
             canvas,
         )
-        if building_info is not None:
-            draw_building_info_panels(
+
+    if draw_edge_cloud_layer:
+        obstacle_bounds = (
+            collect_building_visual_bounds(
                 squares,
+                fixed_buildings,
                 building_snapshots,
-                building_info,
+                resources.buildings,
                 x0,
                 y0,
                 width,
                 height,
                 margin,
-                canvas,
             )
+            if fixed_buildings is not None and building_snapshots is not None
+            else []
+        )
+        draw_map_edge_cloud_foreground(
+            canvas,
+            squares,
+            resources.clouds,
+            margin,
+            obstacle_bounds,
+        )
+
+    if building_info is not None and building_snapshots is not None:
+        draw_building_info_panels(
+            squares,
+            building_snapshots,
+            building_info,
+            x0,
+            y0,
+            width,
+            height,
+            margin,
+            canvas,
+        )
 
     return (
         output_width,

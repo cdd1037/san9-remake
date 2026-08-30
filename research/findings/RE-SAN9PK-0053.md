@@ -108,7 +108,7 @@ redraw_map_scene
   │    │         └─ composite_mask_tile_pixels 或 composite_land_tile_pixels
   │    ├─ create_square_water_surface_animation：逐格水面动画检查
   │    └─ draw_visible_bridge_overlays
-  ├─ sub_519E30：地图边缘/边框装饰（具体对象语义待闭合）
+  ├─ draw_map_edge_clouds：菱形地图外部底云与四边前景云（见 RE-SAN9PK-0148）
   ├─ refresh_map_square_boundaries
   ├─ draw_square_mesh_overlays
   └─ 单位、建筑、季节、地图对象等更高层视觉对象

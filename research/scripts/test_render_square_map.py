@@ -9,10 +9,53 @@ from square_map import (
     building_compositions,
     buildings,
     canvas,
+    clouds,
     graphics,
     scenario,
     terrain,
 )
+
+
+class MapEdgeCloudTests(unittest.TestCase):
+    def test_flat_map_edge_polylines_meet_at_diamond_vertices(self) -> None:
+        square = scenario.Square(3, 0, 0, 0, 0, 0, -1, -1, -1)
+        left, right = clouds.build_edge_polylines(
+            [square] * (scenario.MAP_WIDTH * scenario.MAP_HEIGHT), 128
+        )
+        self.assertEqual(400, len(left))
+        self.assertEqual(400, len(right))
+        self.assertEqual((6496, 122), left[0])
+        self.assertEqual(left[0], right[0])
+        self.assertEqual(96, min(x for x, _ in left))
+        self.assertEqual(12896, max(x for x, _ in right))
+
+    def test_cloud_resource_groups_keep_registry_palette_partition(self) -> None:
+        self.assertEqual(10783, clouds.CLOUD_FILL_RESOURCE)
+        self.assertEqual(1, clouds.CLOUD_FILL_PALETTE)
+        self.assertEqual(0, clouds.CLOUD_OBSTRUCTED_PALETTE)
+        self.assertEqual(4, clouds.CLOUD_FOREGROUND_PALETTE)
+        foreground_ids = {
+            placement.resource_id
+            for table in (
+                clouds.NORTH_WEST_CLOUDS,
+                clouds.NORTH_EAST_CLOUDS,
+                clouds.SOUTH_WEST_CLOUDS,
+                clouds.SOUTH_EAST_CLOUDS,
+            )
+            for placement in table
+        }
+        self.assertEqual(set(range(10788, 10794)), foreground_ids)
+
+    def test_foreground_height_uses_edge_sample_average(self) -> None:
+        samples = [clouds.EdgeSample(2, False)] * 399
+        self.assertEqual(
+            72,
+            clouds._adjust_foreground_y(100, samples, north_side=True),
+        )
+
+    def test_building_overlap_selects_dark_cloud_pair(self) -> None:
+        self.assertTrue(clouds._intersects_any(0, 0, 9, 9, [(9, 9, 20, 20)]))
+        self.assertFalse(clouds._intersects_any(0, 0, 8, 8, [(9, 9, 20, 20)]))
 
 
 class RgbCanvasTests(unittest.TestCase):

@@ -41,6 +41,14 @@ def main() -> None:
         help="with --mesh-state, draw only squares whose SQUA +0x0A is non-zero",
     )
     parser.add_argument(
+        "--edge-clouds",
+        action="store_true",
+        help=(
+            "draw the confirmed full-map G_LCLOUD edge layer "
+            "(requires x=0,y=0,w=200,h=200)"
+        ),
+    )
+    parser.add_argument(
         "--boundaries", action="store_true",
         help="draw the serialized pale region and red city boundary layer",
     )
@@ -72,6 +80,10 @@ def main() -> None:
         or args.y + args.height > MAP_HEIGHT
     ):
         raise ValueError("requested region is outside the 200x200 map")
+    if args.edge_clouds and (
+        args.x, args.y, args.width, args.height
+    ) != (0, 0, MAP_WIDTH, MAP_HEIGHT):
+        parser.error("--edge-clouds requires x=0, y=0, width=200, height=200")
     try:
         validate_morale(args.building_morale)
     except ValueError as exc:
@@ -86,7 +98,11 @@ def main() -> None:
 
     squares = read_squares(args.scenario)
     resources = MapVisualResources.load(
-        args.data_dir, args.scenario, args.land_palette, args.boundaries
+        args.data_dir,
+        args.scenario,
+        args.land_palette,
+        include_boundaries=args.boundaries,
+        include_clouds=args.edge_clouds,
     )
     building_snapshot = read_building_snapshot(
         args.scenario, resolve_emperor=args.building_info
@@ -112,6 +128,7 @@ def main() -> None:
         fixed_buildings=building_snapshot.fixed_buildings,
         building_snapshots=building_snapshot.buildings,
         building_info=building_info,
+        draw_edge_cloud_layer=args.edge_clouds,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_bytes(encode_rgb_png(width, height, rgb))
@@ -128,6 +145,7 @@ def main() -> None:
     print(f"bridge_resource_ids={len(bridge_counts)}")
     print(f"bridge_squares={sum(bridge_counts.values())}")
     print(f"boundaries={args.boundaries}")
+    print(f"edge_clouds={args.edge_clouds}")
     print(f"boundary_resource_ids={len(boundary_counts)}")
     print(f"boundary_segments={sum(boundary_counts.values())}")
     print(f"building_composition_ids={len(building_counts)}")

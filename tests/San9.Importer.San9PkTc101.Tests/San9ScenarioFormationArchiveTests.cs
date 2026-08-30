@@ -29,9 +29,9 @@ public sealed class San9ScenarioFormationArchiveTests
         Assert.Equal(San9ScenarioFormationArchive.RecordCount, records.Count);
         Assert.Equal(0, records[0].Id);
         Assert.Equal(0x2000, records[0].SerializedId);
-        Assert.Equal(0x2001, records[0].OpaqueField02);
-        Assert.Equal(0x2002, records[0].OpaqueField04);
-        Assert.Equal(0x2003, records[0].OpaqueField06);
+        Assert.Equal(0x2001, records[0].CatalogCode);
+        Assert.Equal(0x2002, records[0].ReservedField04);
+        Assert.Equal(0x2003, records[0].ReservedField06);
         Assert.Equal(0x2004, records[0].AgainstUnits);
         Assert.Equal(0x2005, records[0].AgainstSoldiers);
         Assert.Equal(0x2006, records[0].AgainstWalls);
@@ -39,17 +39,23 @@ public sealed class San9ScenarioFormationArchiveTests
         Assert.Equal(0x2008, records[0].Mobility);
         Assert.Equal(0x2009, records[0].VisionRadius);
         Assert.Equal(0x200A, records[0].VisionAngleCode);
+        Assert.Equal(0x200A * 45, records[0].VisionAngleDegrees);
         Assert.Equal(0x200B, records[0].DeploymentCost);
-        Assert.Equal(0x200C, records[0].OpaqueField18);
+        Assert.Equal(0x200C, records[0].DescriptionResourceCode);
         Assert.Equal(new byte[] { 1, 3, 4, 5, 7 }, records[0].DeploymentSlotCodes);
+        Assert.Equal(new FormationGridPosition(1, 0), records[0].GetDeploymentSlotPosition(0));
+        Assert.Equal(new FormationGridPosition(0, 1), records[0].GetDeploymentSlotPosition(1));
+        Assert.Equal(new FormationGridPosition(1, 1), records[0].GetDeploymentSlotPosition(2));
+        Assert.Equal(new FormationGridPosition(2, 1), records[0].GetDeploymentSlotPosition(3));
+        Assert.Equal(new FormationGridPosition(1, 2), records[0].GetDeploymentSlotPosition(4));
         Assert.Equal(0x39, records[0].IgnoredByte);
-        Assert.Null(records[0].ResourceCode);
+        Assert.Null(records[0].DescriptionId);
         Assert.Equal(27, records[27].Id);
         Assert.Equal(0x2360, records[27].SerializedId);
     }
 
     [Fact]
-    public void ReadKnownFormations_DerivesResourceCodeWithoutDroppingRawValue()
+    public void ReadKnownFormations_DerivesDescriptionAndNoSlotWithoutDroppingRawValues()
     {
         using MemoryStream stream = BuildScenarioArchive();
         stream.Position = 0x107E + 4 * San9ScenarioFormationArchive.RecordSize + 0x18;
@@ -61,8 +67,18 @@ public sealed class San9ScenarioFormationArchiveTests
         stream.Position = 0;
         San9ScenarioFormationRecord record = San9ScenarioFormationArchive.ReadKnownRecords(stream)[4];
 
-        Assert.Equal((ushort)14, record.OpaqueField18);
-        Assert.Equal(14, record.ResourceCode);
+        Assert.Equal((ushort)14, record.DescriptionResourceCode);
+        Assert.Equal(14, record.DescriptionId);
+
+        stream.Position = 0x107E + 4 * San9ScenarioFormationArchive.RecordSize + 0x1A;
+        using (BinaryWriter writer = new(stream, Encoding.ASCII, leaveOpen: true))
+        {
+            writer.Write((byte)San9ScenarioFormationArchive.NoFormationSlotCode);
+        }
+
+        stream.Position = 0;
+        record = San9ScenarioFormationArchive.ReadKnownRecords(stream)[4];
+        Assert.Null(record.GetDeploymentSlotPosition(0));
     }
 
     [Fact]

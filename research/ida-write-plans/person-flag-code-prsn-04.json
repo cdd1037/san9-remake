@@ -2,13 +2,15 @@
   "sample": "SRC-SAN9PK-TC-101",
   "finding": "RE-SAN9PK-0009",
   "status": "applied-and-read-back",
-  "scope": "PRSN-04 person flag-code producer and negative display-consumer audit",
+  "scope": "PRSN-04 person flag-code producer, map display consumer and resource mapping",
   "evidence": {
     "serialization": "prsn +0x4C loads into Person +0x9C with 0xFFFF normalized to runtime -1; save, copy and compare paths preserve it",
     "generation": "one generated family-name index 0..103 selects both the family-name resource and a parallel flag code",
     "parallel_table": "the 104-byte table contains 104 distinct codes in range 2..173",
     "inheritance": "new persons copy a nonempty flag code from a base person whose first two family-name bytes match, otherwise store no code",
-    "remaining_gap": "the current EXE has no display, text-resource, font-atlas or gameplay consumer for Person +0x9C, so code-to-character mapping needs resource data or a repeatable display experiment"
+    "map_consumers": "resolve_map_object_flag_glyph_code feeds both building and unit snapshots; normal owned buildings use the effective force leader and units use their active leader",
+    "resource_mapping": "codes 0..185 select G_Name.s9 global image 543+code or 729+code; G_Name contains exactly two 186-image animated glyph sets, while G_Flag contains the 52 base flag images",
+    "resource_validation": "workspace archive parsing found G_Flag=4 palettes/52 images and G_Name=2 palettes/372 images; exported code 1 visibly renders the character 阿"
   },
   "ida_changes": {
     "function_renames": [
@@ -17,14 +19,24 @@
       { "address": "0x408D90", "before": "sub_408D90", "after": "generate_person_name_and_flag_code", "confidence": "high" }
     ],
     "data_renames": [
-      { "address": "0x64BC20", "before": "byte_64BC20", "after": "generated_family_name_flag_code_table", "confidence": "high" }
+      { "address": "0x64BC20", "before": "byte_64BC20", "after": "generated_family_name_flag_code_table", "confidence": "high" },
+      { "address": "0x64BBAC", "before": "dword_64BBAC", "after": "flag_glyph_resource_base_ids", "confidence": "high" }
     ],
-    "dry_run": { "total": 4, "ok": 4, "failed": 0 },
-    "comments": 6,
+    "display_function_renames": [
+      { "address": "0x462A20", "before": "sub_462A20", "after": "resolve_map_object_flag_glyph_code", "confidence": "high" },
+      { "address": "0x460C60", "before": "sub_460C60", "after": "resolve_map_object_flag_base_code", "confidence": "high" },
+      { "address": "0x405FF0", "before": "sub_405FF0", "after": "initialize_flag_phased_sprite_resources", "confidence": "high" },
+      { "address": "0x5389E0", "before": "sub_5389E0", "after": "initialize_flag_motion_visual", "confidence": "high" },
+      { "address": "0x538B00", "before": "sub_538B00", "after": "initialize_map_unit_flag_motion_visual", "confidence": "high" },
+      { "address": "0x530F80", "before": "sub_530F80", "after": "create_map_unit_flag_motion_visual", "confidence": "high" },
+      { "address": "0x45DAE0", "before": "sub_45DAE0", "after": "flag_base_code_uses_second_glyph_variant", "confidence": "high" }
+    ],
+    "dry_run": { "producer_batch": { "total": 4, "ok": 4, "failed": 0 }, "display_batch": { "total": 8, "ok": 8, "failed": 0 } },
+    "comments": 17,
     "program_byte_changes": 0,
     "function_boundary_changes": 0,
     "type_changes": 0,
     "save": "in-place save succeeded",
-    "read_back": "All three function names, the data name and all six comments were visible after save and forced recompile; generated and inherited flag-code paths use the new symbols"
+    "read_back": "Producer names and comments remain visible. After the display batch save and forced recompile, both snapshot callers use resolve_map_object_flag_glyph_code, the phased-sprite initializer shows flag_glyph_resource_base_ids[variant]+code, and the unit flag initializer consumes snapshot +0x18/+0x1C."
   }
 }

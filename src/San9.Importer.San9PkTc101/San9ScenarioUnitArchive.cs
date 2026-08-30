@@ -31,14 +31,14 @@ public sealed record San9ScenarioUnitRecord(
     uint RuntimeFlags0C,
     ushort SerializedId,
     ushort UnitStatusCode,
-    ushort OpaqueField14,
+    ushort StatusDurationDays,
     ushort Morale,
     ushort CommandCode,
-    ushort OpaqueField1A,
-    ushort OpaqueField1C,
-    ushort AreaCode,
+    ushort ReservedField1A,
+    ushort ReservedField1C,
+    ushort HomeBaseCode,
     ushort ForceCode,
-    ushort ArrayCode,
+    ushort FormationCode,
     ushort CoordinateX,
     ushort CoordinateY)
 {
@@ -57,7 +57,7 @@ public sealed record San9ScenarioUnitRecord(
         WoundedSoldierCount,
         (uint)San9ScenarioUnitArchive.WoundedSoldierCountLimit);
 
-    public ushort TargetObjectCode => (ushort)EncodedTargetObject;
+    public ushort TargetObjectId => (ushort)EncodedTargetObject;
 
     public ushort TargetObjectTypeCode => (ushort)(EncodedTargetObject >> 16);
 
@@ -86,16 +86,16 @@ public sealed record San9ScenarioUnitRecord(
 
     public bool AttacksAfterAction => HasRuntimeFlagBit(15);
 
-    public int? AreaId => AreaCode < San9ScenarioUnitArchive.LocationCodeLimitExclusive
-        ? AreaCode
+    public int? HomeBaseId => HomeBaseCode < San9ScenarioUnitArchive.HomeBaseCodeLimitExclusive
+        ? HomeBaseCode
         : null;
 
     public int? ForceId => ForceCode < San9ScenarioUnitArchive.ForceCount
         ? ForceCode
         : null;
 
-    public int? ArrayId => ArrayCode < San9ScenarioUnitArchive.ArrayCount
-        ? ArrayCode
+    public int? FormationId => FormationCode < San9ScenarioUnitArchive.FormationCount
+        ? FormationCode
         : null;
 
     public int? XCoordinate => CoordinateX == ushort.MaxValue ? null : CoordinateX;
@@ -108,8 +108,8 @@ public static class San9ScenarioUnitArchive
     public const int RecordCount = 800;
     public const int RecordSize = 40;
     public const int ForceCount = 50;
-    public const int ArrayCount = 28;
-    public const int LocationCodeLimitExclusive = 250;
+    public const int FormationCount = 28;
+    public const int HomeBaseCodeLimitExclusive = 250;
     public const int MaximumCommandCode = 70;
     public const int SoldierCountLimit = 60_000;
     public const int WoundedSoldierCountLimit = 50_000;

@@ -41,7 +41,7 @@ public sealed class San9ScenarioUnitArchiveTests
         Assert.Equal(60_001U, record.SoldierCount);
         Assert.Equal(50_001U, record.WoundedSoldierCount);
         Assert.Equal(0x5002CU, record.EncodedTargetObject);
-        Assert.Equal(0x2C, record.TargetObjectCode);
+        Assert.Equal(0x2C, record.TargetObjectId);
         Assert.Equal(5, record.TargetObjectTypeCode);
         Assert.Equal(San9ScenarioUnitTargetType.City, record.TargetObjectType);
         Assert.Equal(0xF000U, record.RuntimeFlags0C);
@@ -55,15 +55,15 @@ public sealed class San9ScenarioUnitArchiveTests
         Assert.Equal(326, record.SerializedId);
         Assert.Equal(1, record.UnitStatusCode);
         Assert.Equal(San9ScenarioUnitStatus.Normal, record.UnitStatus);
-        Assert.Equal(0, record.OpaqueField14);
+        Assert.Equal(0, record.StatusDurationDays);
         Assert.Equal(100, record.Morale);
         Assert.Equal(38, record.CommandCode);
         Assert.Equal(38, record.LoadedCommandCode);
-        Assert.Equal(0x1A1A, record.OpaqueField1A);
-        Assert.Equal(0x1C1C, record.OpaqueField1C);
-        Assert.Equal(43, record.AreaId);
+        Assert.Equal(0x1A1A, record.ReservedField1A);
+        Assert.Equal(0x1C1C, record.ReservedField1C);
+        Assert.Equal(43, record.HomeBaseId);
         Assert.Equal(7, record.ForceId);
-        Assert.Equal(11, record.ArrayId);
+        Assert.Equal(11, record.FormationId);
         Assert.Equal(9, record.XCoordinate);
         Assert.Equal(189, record.YCoordinate);
         Assert.Equal(San9ScenarioUnitArchive.SoldierCountLimit, record.LoadedSoldierCount);
@@ -109,9 +109,9 @@ public sealed class San9ScenarioUnitArchiveTests
         Assert.Null(record.TargetObjectType);
         Assert.Null(record.UnitStatus);
         Assert.Equal(-1, record.LoadedCommandCode);
-        Assert.Null(record.AreaId);
+        Assert.Null(record.HomeBaseId);
         Assert.Null(record.ForceId);
-        Assert.Null(record.ArrayId);
+        Assert.Null(record.FormationId);
         Assert.Null(record.XCoordinate);
         Assert.Null(record.YCoordinate);
     }
@@ -128,7 +128,7 @@ public sealed class San9ScenarioUnitArchiveTests
             0, 0, 0, (uint)(typeCode << 16) | 42, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
         Assert.Equal(expected, record.TargetObjectType);
-        Assert.Equal(42, record.TargetObjectCode);
+        Assert.Equal(42, record.TargetObjectId);
     }
 
     [Theory]

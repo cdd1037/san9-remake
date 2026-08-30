@@ -68,11 +68,11 @@
     "activation_writes": ["instructor", "policy", "countdown=9"]
   },
   "trainee_generation": {
-    "generated_age_range": "15..30 selected by portrait group",
+    "generated_age_range": "15..32 selected by portrait group; corrected by RE-SAN9PK-0149",
     "birth_year": "current_year + 1 - generated_age",
     "ability_source": "trigger actor ability plus trainee RNG",
     "ability_caps": "four separate cap bytes generated from trigger actor ability plus RNG",
-    "trait_source": "affinity mostly near trigger actor; righteousness, ambition and personality each mix inheritance with full-range random",
+    "trait_source": "affinity mostly near the trigger actor's force leader; righteousness, ambition and personality each mix trigger-actor inheritance with full-range random",
     "tactic_source": "trigger code plus ability totals, then shared tactic/proficiency initialization"
   },
   "trainee_progress": {

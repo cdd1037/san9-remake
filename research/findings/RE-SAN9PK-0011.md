@@ -3,7 +3,7 @@
 - 状态：已确认记录边界、加载流程、运行时索引、官职数量、无官职哨兵、指挥/带兵上限、官职对应官爵组、俸禄、能力加成掩码和能力加成值；并已确认 `+0x04/+0x06/+0x08` 对当前官职业务没有有效 getter 消费。它们的原始编辑器/旧格式来源仍未命名。
 - 日期：2026-08-16
 - 结论类型：逆向事实、黑盒/资料推断、待验证项分开记录。
-- 相关记录：`RE-SAN9PK-0005`（剧本 chunk 布局）、`RE-SAN9PK-0009`（武将记录中的 `TitleCode` 候选）、`RE-SAN9PK-0010`（官爵/君主位阶）。
+- 相关记录：`RE-SAN9PK-0005`（剧本 chunk 布局）、`RE-SAN9PK-0009`（武将记录中的 `OfficeRankCode`）、`RE-SAN9PK-0010`（官爵/君主位阶）。
 
 ## 1. 范围与证据边界
 
@@ -14,7 +14,7 @@
 - `SRC-IDA-003`：`deserialize_scenario_chunks`（`0x453F60`）和 `deserialize_shak_record`（`0x45C400`）。
 - `SRC-IDA-004`：`CShakuiData` 的运行时表、getter、官职引用/筛选逻辑。
 - `SRC-BIN-001`：`research/findings/RE-SAN9PK-0005.md` 中的 `shak` chunk 偏移和尺寸。
-- `SRC-RECORD-001`：`research/findings/RE-SAN9PK-0009.md` 及 `San9ScenarioPersonArchive.cs` 中武将 `prsn +0x26` 的 `TitleCode` 候选。
+- `SRC-RECORD-001`：`research/findings/RE-SAN9PK-0009.md` 及 `San9ScenarioPersonArchive.cs` 中武将 `prsn +0x26` 的 `OfficeRankCode`。
 - `SRC-SOURCE-001`：`research/upsteam/San9PKHard` 中的 `OFFICIAL_NUM = 0x4D`、运行时官职步长 `0x44`、`m_dwOfficialLoyalty[77]`、`m_dwOldSalary[77]` 及忠诚替换补丁；这是第三方辅助工程的旁证，与本二进制 IDA 结果交叉使用，不把未实际写入运行时的参考数组单独当作字段映射依据。
 - `SRC-BIN-002`：`private/s9数据文件/D_Sce001.S9` 及同目录库存剧本；其中 `shak` 60..76 行与官职截图数值逐项对照。
 - `SRC-DOCS-001`：`research/docs/三国志9电子书.md`，约第 8168、8170 行；资料描述官位、声望/信望、带兵上限、俸禄和附加能力，但没有提供本版本二进制的字段表。
@@ -275,8 +275,8 @@ shak +0x0A / runtime +0x40 = 官职对应的 kans 官爵/品级组 ID（0..8）
 
 - `sub_4E2F50(id)` 对 `id == -1` 或 `id == 76` 返回“无标题/无官职”判断结果；
 - 武将官职清除逻辑 `0x4E4170` 把官职引用写为 76；
-- 现有 `San9ScenarioPersonArchive` 将 `TitleCount` 设为 76，接受的正常 `TitleCode` 是 `0..75`，超出范围返回空引用；
-- `RE-SAN9PK-0009` 已记录武将 `prsn +0x26` 是官爵/称号候选引用字段，当前应与 `shak` 的正常官职 ID 0..75 交叉理解，而不是把 76 当作普通官职。
+- 现有 `San9ScenarioPersonArchive` 将 `AssignableOfficeRankCount` 设为 76，接受的正常 `OfficeRankCode` 是 `0..75`，代码 76 及超出范围返回空引用；
+- `RE-SAN9PK-0009` 已确认武将 `prsn +0x26` 是 `shak` 官职引用字段，应按正常官职 ID 0..75 解释，而不是把 76 当作普通官职。
 
 因此应使用以下不变量：
 
@@ -287,7 +287,7 @@ no office sentinel      = 76      // 表中有记录，但语义是“无”
 runtime empty candidate = -1      // 某些访问器中的内部空值
 ```
 
-这是本次分析中最重要的边界结论之一。不能因为 `OFFICIAL_NUM` 是 77，就把武将官职枚举器或 `TitleCode` 的正常上限写成 77。
+这是本次分析中最重要的边界结论之一。不能因为 `OFFICIAL_NUM` 是 77，就把武将官职枚举器或 `OfficeRankCode` 的正常上限写成 77。
 
 ### 5.2 名称来源
 

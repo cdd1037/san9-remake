@@ -29,7 +29,7 @@ public sealed record San9ScenarioPersonRecord(
     ushort Strength,
     ushort Intelligence,
     ushort Politics,
-    ushort TitleCode,
+    ushort OfficeRankCode,
     ushort LifespanTier,
     ushort Health,
     ushort BloodlineRootPersonCode,
@@ -75,7 +75,21 @@ public sealed record San9ScenarioPersonRecord(
 
     public int? StatusId => StatusCode < San9ScenarioPersonArchive.StatusCount ? StatusCode : null;
 
-    public int? TitleId => TitleCode < San9ScenarioPersonArchive.TitleCount ? TitleCode : null;
+    public int? OfficeRankId =>
+        OfficeRankCode < San9ScenarioPersonArchive.AssignableOfficeRankCount
+            ? OfficeRankCode
+            : null;
+
+    public byte GetForceLoyalty(int forceId)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(forceId);
+        if (forceId >= San9ScenarioPersonArchive.ForceCount)
+        {
+            throw new ArgumentOutOfRangeException(nameof(forceId));
+        }
+
+        return ForceLoyaltyValues[forceId];
+    }
 
     public int? EquippedTacticId =>
         EquippedTacticCode < San9ScenarioPersonArchive.TacticCount ? EquippedTacticCode : null;
@@ -94,9 +108,12 @@ public sealed record San9ScenarioPersonRecord(
 
     public bool IsCommandParticipant => (PersonFlags & (1U << 12)) != 0;
 
-    public bool IsSpecialPrisonerState =>
+    public bool IsCapturedRuler =>
         StatusCode == San9ScenarioPersonArchive.PrisonerStatusId &&
-        (PersonFlags & (1U << 13)) != 0;
+        (PersonFlags & San9ScenarioPersonArchive.CapturedRulerFlag) != 0;
+
+    public bool WasRewardedThisXun =>
+        (PersonFlags & San9ScenarioPersonArchive.RewardedThisXunFlag) != 0;
 
     public bool IsTacticTraining => (PersonFlags & (1U << 15)) != 0;
 
@@ -142,12 +159,16 @@ public static class San9ScenarioPersonArchive
     public const int LocationCount = 1_100;
     public const int StatusCount = 10;
     public const int PrisonerStatusId = 4;
-    public const int TitleCount = 76;
+    public const int AssignableOfficeRankCount = 76;
+    public const int NoOfficeRankCode = 76;
     public const int TacticCategoryCount = 9;
     public const int ForceCount = 50;
     public const int TacticCount = 41;
     public const int FormationSlotCount = 9;
+    public const uint CapturedRulerFlag = 1U << 13;
+    public const uint RewardedThisXunFlag = 1U << 14;
     public const uint FormationSlotMask = 0x001F0000;
+    public const uint ReservedPersonFlagMask = (1U << 1) | 0xFFE00000;
 
     private const int YearEpoch = 130;
 
@@ -183,7 +204,7 @@ public static class San9ScenarioPersonArchive
             ushort strength = reader.ReadUInt16();
             ushort intelligence = reader.ReadUInt16();
             ushort politics = reader.ReadUInt16();
-            ushort titleCode = reader.ReadUInt16();
+            ushort officeRankCode = reader.ReadUInt16();
             ushort lifespanTier = reader.ReadUInt16();
             ushort health = reader.ReadUInt16();
             ushort bloodlineRootPersonCode = reader.ReadUInt16();
@@ -221,7 +242,7 @@ public static class San9ScenarioPersonArchive
                 strength,
                 intelligence,
                 politics,
-                titleCode,
+                officeRankCode,
                 lifespanTier,
                 health,
                 bloodlineRootPersonCode,

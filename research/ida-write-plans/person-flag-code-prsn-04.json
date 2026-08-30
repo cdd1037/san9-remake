@@ -1,0 +1,30 @@
+{
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0009",
+  "status": "applied-and-read-back",
+  "scope": "PRSN-04 person flag-code producer and negative display-consumer audit",
+  "evidence": {
+    "serialization": "prsn +0x4C loads into Person +0x9C with 0xFFFF normalized to runtime -1; save, copy and compare paths preserve it",
+    "generation": "one generated family-name index 0..103 selects both the family-name resource and a parallel flag code",
+    "parallel_table": "the 104-byte table contains 104 distinct codes in range 2..173",
+    "inheritance": "new persons copy a nonempty flag code from a base person whose first two family-name bytes match, otherwise store no code",
+    "remaining_gap": "the current EXE has no display, text-resource, font-atlas or gameplay consumer for Person +0x9C, so code-to-character mapping needs resource data or a repeatable display experiment"
+  },
+  "ida_changes": {
+    "function_renames": [
+      { "address": "0x44BFA0", "before": "sub_44BFA0", "after": "set_person_flag_code", "confidence": "high" },
+      { "address": "0x44D820", "before": "sub_44D820", "after": "inherit_person_flag_code_by_family_name", "confidence": "high" },
+      { "address": "0x408D90", "before": "sub_408D90", "after": "generate_person_name_and_flag_code", "confidence": "high" }
+    ],
+    "data_renames": [
+      { "address": "0x64BC20", "before": "byte_64BC20", "after": "generated_family_name_flag_code_table", "confidence": "high" }
+    ],
+    "dry_run": { "total": 4, "ok": 4, "failed": 0 },
+    "comments": 6,
+    "program_byte_changes": 0,
+    "function_boundary_changes": 0,
+    "type_changes": 0,
+    "save": "in-place save succeeded",
+    "read_back": "All three function names, the data name and all six comments were visible after save and forced recompile; generated and inherited flag-code paths use the new symbols"
+  }
+}

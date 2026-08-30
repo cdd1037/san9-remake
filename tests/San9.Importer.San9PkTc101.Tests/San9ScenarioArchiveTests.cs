@@ -387,6 +387,7 @@ public sealed class San9ScenarioArchiveTests
                 (1U << (3 + 4)) |
                 (1U << 2) |
                 (1U << 12) |
+                (1U << 14) |
                 (1U << 15) |
                 (7U << 16),
             familyNameResourceCode: 11,
@@ -402,7 +403,7 @@ public sealed class San9ScenarioArchiveTests
             strength: 73,
             intelligence: 30,
             politics: 42,
-            titleCode: 3,
+            officeRankCode: 3,
             lifespanTier: 2,
             health: 5,
             bloodlineRootPersonCode: 900,
@@ -443,10 +444,38 @@ public sealed class San9ScenarioArchiveTests
         Assert.True(record.HasTacticCategoryMastery(4));
         Assert.True(record.IsOwnerLeader);
         Assert.True(record.IsCommandParticipant);
+        Assert.True(record.WasRewardedThisXun);
         Assert.True(record.IsTacticTraining);
         Assert.Equal(7, record.FormationSlot);
         Assert.True(record.HasLearnedTactic(2));
         Assert.True(record.HasLearnedTactic(40));
+    }
+
+    [Fact]
+    public void ReadKnownPersonRecords_DecodesCapturedRulerAndPreservesReservedFlags()
+    {
+        using MemoryStream stream = BuildScenarioArchiveWithPersons();
+        uint flags =
+            San9ScenarioPersonArchive.CapturedRulerFlag |
+            San9ScenarioPersonArchive.ReservedPersonFlagMask;
+        WritePersonRecord(
+            stream,
+            index: 0,
+            personFlags: flags,
+            statusCode: San9ScenarioPersonArchive.PrisonerStatusId);
+        WritePersonRecord(
+            stream,
+            index: 1,
+            personFlags: flags,
+            statusCode: 3);
+
+        stream.Position = 0;
+        IReadOnlyList<San9ScenarioPersonRecord> records =
+            San9ScenarioPersonArchive.ReadKnownRecords(stream);
+
+        Assert.Equal(flags, records[0].PersonFlags);
+        Assert.True(records[0].IsCapturedRuler);
+        Assert.False(records[1].IsCapturedRuler);
     }
 
     [Fact]
@@ -458,7 +487,7 @@ public sealed class San9ScenarioArchiveTests
             index: 0,
             locationCode: ushort.MaxValue,
             statusCode: ushort.MaxValue,
-            titleCode: 76,
+            officeRankCode: San9ScenarioPersonArchive.NoOfficeRankCode,
             health: 15,
             bloodlineRootPersonCode: San9ScenarioPersonArchive.BloodlineRootReferenceLimit,
             parentPersonCode: San9ScenarioPersonArchive.ParentReferenceLimit,
@@ -469,7 +498,7 @@ public sealed class San9ScenarioArchiveTests
 
         Assert.Null(record.LocationId);
         Assert.Null(record.StatusId);
-        Assert.Null(record.TitleId);
+        Assert.Null(record.OfficeRankId);
         Assert.Null(record.BloodlineRootPersonId);
         Assert.Null(record.ParentPersonId);
         Assert.Null(record.EquippedTacticId);
@@ -479,7 +508,7 @@ public sealed class San9ScenarioArchiveTests
     }
 
     [Fact]
-    public void ReadKnownPersonRecords_PreservesOpaqueTablesAndAllFortyEightTacticBits()
+    public void ReadKnownPersonRecords_IndexesForceLoyaltyAndPreservesAllFortyEightTacticBits()
     {
         using MemoryStream stream = BuildScenarioArchiveWithPersons();
         byte[] loyalty = Enumerable.Range(0, San9ScenarioPersonArchive.ForceCount)
@@ -495,6 +524,9 @@ public sealed class San9ScenarioArchiveTests
         San9ScenarioPersonRecord record = San9ScenarioPersonArchive.ReadKnownRecords(stream)[0];
 
         Assert.Equal(loyalty, record.ForceLoyaltyValues);
+        Assert.Equal(loyalty[17], record.GetForceLoyalty(17));
+        Assert.Throws<ArgumentOutOfRangeException>(() => record.GetForceLoyalty(-1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => record.GetForceLoyalty(50));
         Assert.Equal(1UL << 47, record.LearnedTacticFlags);
     }
 
@@ -602,7 +634,7 @@ public sealed class San9ScenarioArchiveTests
         int strength = 0,
         int intelligence = 0,
         int politics = 0,
-        int titleCode = 76,
+        int officeRankCode = San9ScenarioPersonArchive.NoOfficeRankCode,
         int lifespanTier = 0,
         int health = 0,
         int bloodlineRootPersonCode = ushort.MaxValue,
@@ -636,7 +668,7 @@ public sealed class San9ScenarioArchiveTests
         writer.Write((ushort)strength);
         writer.Write((ushort)intelligence);
         writer.Write((ushort)politics);
-        writer.Write((ushort)titleCode);
+        writer.Write((ushort)officeRankCode);
         writer.Write((ushort)lifespanTier);
         writer.Write((ushort)health);
         writer.Write((ushort)bloodlineRootPersonCode);

@@ -25,8 +25,8 @@
 | `0x06` | `u16` | `construction_cost` | 建造费用 |
 | `0x08` | `u16` | `max_durability` | 最大耐久 |
 | `0x0A` | `u16` | `opaque_field_0A` | 独立数值槽位；原版业务名称未确认 |
-| `0x0C` | `u16` | `shape_length` | 外形长度 |
-| `0x0E` | `u16` | `shape_width` | 外形宽度 |
+| `0x0C` | `u16` | `shape_length` | 外形长度；运行时作为 footprint 的 X 轴宽度 |
+| `0x0E` | `u16` | `shape_width` | 外形宽度；运行时作为 footprint 的 Y 轴高度 |
 | `0x10` | `u16` | `appearance_id` | 外形/外观 ID |
 | `0x12` | `u16` | `recovery_per_turn` | 每旬恢复 |
 | `0x14` | `u16` | `tactic_code` | `hiho`/兵法表索引代码；`0..40` 可派生为 `tactic_id`，其他值保留但不解析为 ID |
@@ -37,6 +37,9 @@
 ## 重制行为
 
 导入器必须生成 17 个按文件顺序排列的固定建筑定义，并暴露：
+
+- `FootprintWidth = ShapeLength`、`FootprintHeight = ShapeWidth`、`FootprintArea = width × height`；
+- footprint 始终是以对象坐标为中心的轴对齐矩形；当前记录没有旋转或不规则占用编码。
 
 - `Id`：记录序号 `0..16`；
 - 所有已确认的可见字段；

@@ -13,7 +13,7 @@ public sealed class San9ScenarioSquareArchiveTests
         using (BinaryWriter writer = new(stream, Encoding.ASCII, leaveOpen: true))
         {
             writer.Write((ushort)0x4000);
-            writer.Write((ushort)0x4001);
+            writer.Write((ushort)0x7401);
             writer.Write(ushort.MaxValue);
             writer.Write(new byte[] { 0xFE, 0x10, 0xFF, 0x02, 0xFF, 0xFF, 0xFF, 0x39 });
         }
@@ -34,19 +34,25 @@ public sealed class San9ScenarioSquareArchiveTests
         Assert.Equal(San9ScenarioSquareArchive.RecordCount, records.Count);
         Assert.Equal(0, records[0].Id);
         Assert.Equal(0x4000, records[0].SerializedId);
-        Assert.Equal(0x4001, records[0].OpaqueField02);
+        Assert.Equal(0x7401, records[0].SquareFlags);
+        Assert.True(records[0].IsExcludedFromRegionSquareCount);
+        Assert.Equal(0, records[0].PathBlockingBits);
+        Assert.False(records[0].IsPathBlocked);
+        Assert.True(records[0].AllowsFacilityShape3By1);
+        Assert.True(records[0].AllowsFacilityShape1By3);
+        Assert.True(records[0].IsRegionBuildingCoreSquare);
         Assert.Equal(ushort.MaxValue, records[0].ZoneCode);
         Assert.Null(records[0].RegionCode);
-        Assert.Equal(0xFE, records[0].OpaqueField06);
-        Assert.Equal(0x10, records[0].OpaqueField07);
+        Assert.Equal(0xFE, records[0].WaterTerrainAuxiliaryCode);
+        Assert.Equal(0x10, records[0].TerrainTransitionMask);
         Assert.Equal(0, records[0].GridX);
         Assert.Equal(0, records[0].GridY);
         Assert.Equal(0xFF, records[0].OffsetCode);
         Assert.Null(records[0].OffsetValue);
         Assert.Equal(2, records[0].TerrainCode);
         Assert.Equal(2, records[0].TerrainId);
-        Assert.Equal(0xFF, records[0].OpaqueField0A);
-        Assert.Null(records[0].OpaqueField0AValue);
+        Assert.Equal(0xFF, records[0].ElevationTransitionMask);
+        Assert.Null(records[0].ElevationTransitionMaskValue);
         Assert.Equal(0xFF, records[0].OpaqueField0B);
         Assert.Null(records[0].OpaqueField0BValue);
         Assert.Equal(0xFF, records[0].OpaqueField0C);
@@ -56,13 +62,24 @@ public sealed class San9ScenarioSquareArchiveTests
         Assert.Equal(0x03, records[0].OpaqueField0DHighEdgeMask);
 
         Assert.Equal(1, records[1].SerializedId);
-        Assert.Equal(966, records[1].OpaqueField02);
+        Assert.Equal(966, records[1].SquareFlags);
+        Assert.Equal(966 & 0x01FE, records[1].PathBlockingBits);
+        Assert.True(records[1].IsPathBlocked);
         Assert.Equal(118, records[1].ZoneCode);
         Assert.Null(records[1].CityId);
         Assert.Equal(68, records[1].ZoneRecordId);
         Assert.Equal(4, records[1].OffsetValue);
         Assert.Equal(2, records[1].TerrainId);
         Assert.Equal(27, records[27].Id);
+    }
+
+    [Fact]
+    public void SquareFlags_RejectOutOfRangeBitQueries()
+    {
+        San9ScenarioSquareRecord record = CreateSquares()[0];
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => record.HasSquareFlagBit(-1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => record.HasSquareFlagBit(16));
     }
 
     [Fact]

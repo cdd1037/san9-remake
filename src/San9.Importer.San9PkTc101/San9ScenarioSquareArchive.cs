@@ -6,17 +6,24 @@ namespace San9.Importer.San9PkTc101;
 public sealed record San9ScenarioSquareRecord(
     int Id,
     ushort SerializedId,
-    ushort OpaqueField02,
+    ushort SquareFlags,
     ushort ZoneCode,
-    byte OpaqueField06,
-    byte OpaqueField07,
+    byte WaterTerrainAuxiliaryCode,
+    byte TerrainTransitionMask,
     byte OffsetCode,
     byte TerrainCode,
-    byte OpaqueField0A,
+    byte ElevationTransitionMask,
     byte OpaqueField0B,
     byte OpaqueField0C,
     byte OpaqueField0D)
 {
+    public bool HasSquareFlagBit(int bit)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(bit);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(bit, sizeof(ushort) * 8);
+        return (SquareFlags & (1 << bit)) != 0;
+    }
+
     public int GridX => Id % San9ScenarioSquareArchive.MapWidth;
 
     public int GridY => Id / San9ScenarioSquareArchive.MapWidth;
@@ -30,11 +37,24 @@ public sealed record San9ScenarioSquareRecord(
         ? ZoneCode - San9ScenarioSquareArchive.ZoneCodeOffset
         : null;
 
+    public bool IsExcludedFromRegionSquareCount => HasSquareFlagBit(10);
+
+    public ushort PathBlockingBits => (ushort)(SquareFlags & 0x01FE);
+
+    public bool IsPathBlocked => PathBlockingBits != 0;
+
+    public bool AllowsFacilityShape3By1 => HasSquareFlagBit(12);
+
+    public bool AllowsFacilityShape1By3 => HasSquareFlagBit(13);
+
+    public bool IsRegionBuildingCoreSquare => HasSquareFlagBit(14);
+
     public int? OffsetValue => OffsetCode == byte.MaxValue ? null : OffsetCode;
 
     public int? TerrainId => TerrainCode == byte.MaxValue ? null : TerrainCode;
 
-    public int? OpaqueField0AValue => OpaqueField0A == byte.MaxValue ? null : OpaqueField0A;
+    public int? ElevationTransitionMaskValue =>
+        ElevationTransitionMask == byte.MaxValue ? null : ElevationTransitionMask;
 
     public int? OpaqueField0BValue => OpaqueField0B == byte.MaxValue ? null : OpaqueField0B;
 

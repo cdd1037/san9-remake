@@ -58,6 +58,53 @@ class MapEdgeCloudTests(unittest.TestCase):
         self.assertFalse(clouds._intersects_any(0, 0, 8, 8, [(9, 9, 20, 20)]))
 
 
+class SquareTransitionGenerationTests(unittest.TestCase):
+    @staticmethod
+    def _square(terrain_code: int, offset: int = 1) -> scenario.Square:
+        return scenario.Square(
+            terrain_code, 0, offset, 0, 0, 0, -1, -1, -1
+        )
+
+    def test_elevation_mask_raises_each_corner_from_three_neighbors(self) -> None:
+        squares = [self._square(2) for _ in range(9)]
+        squares[0] = self._square(2, 2)  # north-west raises bit 0
+        squares[5] = self._square(2, 2)  # east raises north-east and south-east
+
+        self.assertEqual(
+            0x0B,
+            terrain.calculate_elevation_transition_mask(
+                squares, 1, 1, width=3, height=3
+            ),
+        )
+
+    def test_terrain_mask_uses_atlas_order_and_diagonal_strict_maximum(self) -> None:
+        squares = [self._square(16) for _ in range(9)]
+        squares[4] = self._square(2)
+        squares[1] = self._square(0)  # north is greater than the center
+        squares[5] = self._square(3)  # east is greater than the center
+        squares[0] = self._square(1)  # north-west is greater than both sides
+        squares[2] = self._square(5)  # north-east loses to the north square
+
+        self.assertEqual(
+            0x91,
+            terrain.calculate_terrain_transition_mask(
+                squares, 1, 1, width=3, height=3
+            ),
+        )
+
+    def test_bridge_transition_uses_shared_atlas_order(self) -> None:
+        squares = [self._square(11) for _ in range(9)]
+        squares[1] = self._square(12)  # same atlas key: no north transition
+        squares[5] = self._square(2)  # higher land key: east transition
+
+        self.assertEqual(
+            0x10,
+            terrain.calculate_terrain_transition_mask(
+                squares, 1, 1, width=3, height=3
+            ),
+        )
+
+
 class RgbCanvasTests(unittest.TestCase):
     def test_weighted_pixel_blends_in_rgb888(self) -> None:
         target = canvas.RgbCanvas(1, 1)
@@ -95,6 +142,29 @@ class LandResourceSelectionTests(unittest.TestCase):
     def test_terrain_six_uses_its_two_registered_resources(self) -> None:
         self.assertEqual(10523, terrain.select_land_resource(6, 1, 0, 0))
         self.assertEqual(10524, terrain.select_land_resource(6, 1, 0, 1))
+
+    def test_water_texture_variant_selects_exact_registered_resource(self) -> None:
+        self.assertEqual(
+            [10315, 10316, 10317, 10318, 10317, 10316],
+            [terrain.select_land_resource(9, 1, 0, variant) for variant in range(6)],
+        )
+
+    def test_edge_texture_variant_keeps_nine_resource_stride(self) -> None:
+        self.assertEqual(
+            [10336, 10345, 10354],
+            [terrain.select_land_resource(0, 0, 1, variant) for variant in range(3)],
+        )
+
+    def test_water_texture_variant_has_confirmed_atlas_sort_remap(self) -> None:
+        self.assertEqual(
+            [339, 337, 338, 336, 337, 338],
+            [
+                terrain.calculate_land_atlas_index(
+                    scenario.Square(9, 0, 1, 0, variant, 0, -1, -1, -1)
+                )
+                for variant in range(6)
+            ],
+        )
 
     def test_out_of_range_offset_returns_terrain_base(self) -> None:
         self.assertEqual(10523, terrain.select_land_resource(6, 0, 0, 1))
@@ -143,6 +213,34 @@ class OverlaySelectionTests(unittest.TestCase):
             (10803, False),
             boundaries.select_boundary_resource(0, 0x01, 0x01, north),
         )
+
+    def test_boundary_resource_table_covers_both_styles_and_all_shapes(self) -> None:
+        for direction in boundaries.BOUNDARY_DIRECTIONS:
+            orientation_offset = 0 if direction.uses_first_resource_triplet else 3
+            elevation_cases = (
+                (0, 0, False),
+                (direction.primary_elevation_bit, 1, True),
+                (direction.secondary_elevation_bit, 2, False),
+                (
+                    direction.primary_elevation_bit | direction.secondary_elevation_bit,
+                    0,
+                    True,
+                ),
+            )
+            for elevation_mask, shape, primary_elevated in elevation_cases:
+                with self.subTest(direction=direction.bit, elevation=elevation_mask):
+                    self.assertEqual(
+                        (10794 + orientation_offset + shape, primary_elevated),
+                        boundaries.select_boundary_resource(
+                            elevation_mask, direction.bit, 0, direction
+                        ),
+                    )
+                    self.assertEqual(
+                        (10800 + orientation_offset + shape, primary_elevated),
+                        boundaries.select_boundary_resource(
+                            elevation_mask, direction.bit, direction.bit, direction
+                        ),
+                    )
 
     def test_bridge_uses_lndadd_first_palette(self) -> None:
         self.assertEqual("P_LndAdd.s9", scenario.BRIDGE_PALETTE_FILENAME)

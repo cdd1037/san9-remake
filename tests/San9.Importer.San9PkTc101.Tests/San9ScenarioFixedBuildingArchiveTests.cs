@@ -43,6 +43,9 @@ public sealed class San9ScenarioFixedBuildingArchiveTests
         Assert.Equal(0x1005, records[0].OpaqueField0A);
         Assert.Equal(0x1006, records[0].ShapeLength);
         Assert.Equal(0x1007, records[0].ShapeWidth);
+        Assert.Equal(0x1006, records[0].FootprintWidth);
+        Assert.Equal(0x1007, records[0].FootprintHeight);
+        Assert.Equal((long)0x1006 * 0x1007, records[0].FootprintArea);
         Assert.Equal(0x1008, records[0].AppearanceId);
         Assert.Equal(0x1009, records[0].RecoveryPerTurn);
         Assert.Equal(0x100A, records[0].TacticCode);

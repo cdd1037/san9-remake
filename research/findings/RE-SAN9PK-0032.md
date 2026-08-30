@@ -1,7 +1,7 @@
 # RE-SAN9PK-0032：寻路可通行条件与地图方格资源绘制链
 
-- 状态：核心数据流已确认；具体移动类型对成本字段的全部差异仍待验证；IDA 标注已同步
-- 日期：2026-08-19
+- 状态：核心数据流及 `0x01FE` 当前程序消费边界已确认；IDA 标注已同步
+- 日期：2026-08-30
 - 分析者：Codex
 - 结论类型：IDA 直接证据；部分资源包对应关系为推断
 - 置信度：高（寻路阻塞条件、四邻接、方格到资源编号）；中（各资源编号在画面上的具体图案）
@@ -40,7 +40,15 @@ if (square->word_34 & 0x1FE) {
 
 因此，疆界线使用的 `squa +0x0D` 四方向掩码不能当作通行标志；它在 `refresh_map_square_boundaries`/`build_square_boundary_segments` 的疆界线绘制链中消费，和寻路阻塞字段是两条不同数据流。
 
-### 1.1 地形编号到地形族的完整映射
+### 1.1 `0x01FE` 的全程序消费边界
+
+`square_has_blocking_bits` 的 6 个直接调用点已逐一回读：通用 getter、普通方格路径代价、单位有界步进路径代价、无阻塞落点筛选以及两条地图路径选择链都只取得一个布尔结果，没有传入移动方向。通用位读取路径对该段也只提供 `flags & 0x01FE` 或其非零布尔值。
+
+随后审计全部已知方格索引/坐标访问器调用者以及 `CSquareData +0x34` 的直接 `test/and` 指令：独立位测试属于 bit0，动态掩码属于 bit10 或已确认的运行时高位；没有发现 `0x0002..0x0100` 中任何单独位参与方向选择。路径图扩展仍固定为四邻格，并在扩展前以节点代价 `0xFF` 整格拒绝。
+
+因此对当前 EXE 可以关闭“逐方向移动消费者”问题：文件里的不同 bit 组合可能保留地图模板形状来源，但运行时语义统一折叠为 `PathBlockingBits` 非零即整格硬阻塞。这个负向结论不外推到其他版本或编辑器生成逻辑。
+
+### 1.2 地形编号到地形族的完整映射
 
 `get_square_terrain_family` 是依据函数行为写入 IDA 的研究层名称，不是原程序保留的符号。函数读取 `CSquareData +0x10` 的地形编号，并用固定 `switch` 返回 `0..7` 的族编号。程序中尚未发现这 8 个族编号对应的正式中文名称表。
 
@@ -94,7 +102,7 @@ if (square->word_34 & 0x1FE) {
 - 事实：地图用逻辑方格坐标做 64×32 等距投影，底图会从资源表取图像并逐像素合成；不是把 `SQUARE` 直接当作一张 200×200 图片。
 - 事实：`+0x0A`、`+0x0D`、`+0x07` 分别参与覆盖资源选择、疆界线掩码、几何边缘修正；它们不是同一个“可通行”字段。
 - 推断：`+0x09` 更接近地形类别，底图具体图案由代码表、方向/边缘状态和资源包共同决定。
-- 待验证：不同移动类型是否在另一套寻路入口中采用不同的阻塞位段；`10006` 等底图资源号在资源包内对应的具体图案名称仍需继续读取资源目录/资源对象元数据。
+- 待验证：`10006` 等底图资源号在资源包内对应的具体图案名称仍需继续读取资源目录/资源对象元数据。
 
 ## IDA 状态
 
@@ -107,6 +115,8 @@ if (square->word_34 & 0x1FE) {
 - 资源：`select_land_tile_resource`、`select_land_tile_subresource`、`select_map_mask_resource`、`get_loaded_resource_by_id`、`composite_land_tile_pixels`、`composite_mask_tile_pixels`、`draw_square_mesh_overlays`、`create_square_mesh_visual`、`get_map_marker_resource`、`load_map_visual_resources`、`build_minimap_terrain_texture`。
 
 关键函数入口已追加字段来源、`0x1FE` 阻塞判断、四邻格扩展、64×32 等距投影和资源编号链注释；已保存至 `research/analysis/San9PK-TC-101.i64`，并通过 IDA MCP 回读名称与注释。
+
+2026-08-30 又在 `square_has_blocking_bits` 及其 5 个专用调用点记录完整消费者审计结论；保存、强制重新反编译并回读确认 helper 函数注释，未修改程序字节、函数边界或类型。
 
 关键函数：`find_square_grid_path`、`init_square_path_graph`、`solve_square_path_graph`、`run_square_graph_search`、`expand_square_neighbors_4way`、`build_square_path_costs`、`square_has_blocking_bits`、`draw_visible_square_tiles`、`draw_square_tile_texture`、`select_land_tile_resource`、`composite_land_tile_pixels`、`draw_square_mesh_overlays`、`create_square_mesh_visual`、`build_minimap_terrain_texture`。
 

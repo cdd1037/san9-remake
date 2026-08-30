@@ -274,6 +274,87 @@ def calculate_land_atlas_index(square: Square) -> int:
     return (ATLAS_BASE_BY_TERRAIN[terrain] << 4) + 272 * offset + variant + edge_variant
 
 
+def calculate_elevation_transition_mask(
+    squares: list[Square],
+    x: int,
+    y: int,
+    width: int = MAP_WIDTH,
+    height: int = MAP_HEIGHT,
+) -> int:
+    """Rebuild ``squa +0x0A`` from the surrounding base offsets.
+
+    Each bit is one tile corner. A corner rises when any of the three neighbors
+    touching it has a greater base offset. Coordinates outside the map have
+    offset ``-1`` and therefore never raise a border corner.
+    """
+
+    def offset_at(sample_x: int, sample_y: int) -> int:
+        if not 0 <= sample_x < width or not 0 <= sample_y < height:
+            return -1
+        return squares[sample_y * width + sample_x].offset
+
+    current = offset_at(x, y)
+    mask = 0
+    corner_neighbors = (
+        (0x01, ((0, -1), (-1, 0), (-1, -1))),
+        (0x08, ((0, -1), (1, 0), (1, -1))),
+        (0x02, ((0, 1), (1, 0), (1, 1))),
+        (0x04, ((0, 1), (-1, 0), (-1, 1))),
+    )
+    for bit, neighbors in corner_neighbors:
+        if any(offset_at(x + dx, y + dy) > current for dx, dy in neighbors):
+            mask |= bit
+    return mask
+
+
+def calculate_terrain_transition_mask(
+    squares: list[Square],
+    x: int,
+    y: int,
+    width: int = MAP_WIDTH,
+    height: int = MAP_HEIGHT,
+) -> int:
+    """Rebuild ``squa +0x07`` from the confirmed land-atlas ordering key.
+
+    Cardinal neighbors contribute when their complete atlas key is greater
+    than the current square's. A diagonal contributes only when it is also
+    strictly greater than both cardinal neighbors touching that corner. This
+    makes bridge/water behavior fall out of the shared ordering table instead
+    of requiring a terrain-specific compatibility branch.
+    """
+
+    def atlas_at(sample_x: int, sample_y: int) -> int:
+        if not 0 <= sample_x < width or not 0 <= sample_y < height:
+            return -1
+        return calculate_land_atlas_index(squares[sample_y * width + sample_x])
+
+    current = atlas_at(x, y)
+    mask = 0
+    cardinal_neighbors = (
+        (0x80, 0, -1),
+        (0x40, 0, 1),
+        (0x20, -1, 0),
+        (0x10, 1, 0),
+    )
+    for bit, dx, dy in cardinal_neighbors:
+        if atlas_at(x + dx, y + dy) > current:
+            mask |= bit
+
+    diagonal_neighbors = (
+        (0x01, -1, -1, ((0, -1), (-1, 0))),
+        (0x02, 1, -1, ((0, -1), (1, 0))),
+        (0x04, 1, 1, ((0, 1), (1, 0))),
+        (0x08, -1, 1, ((0, 1), (-1, 0))),
+    )
+    for bit, dx, dy, adjacent in diagonal_neighbors:
+        diagonal = atlas_at(x + dx, y + dy)
+        if diagonal > current and all(
+            diagonal > atlas_at(x + ax, y + ay) for ax, ay in adjacent
+        ):
+            mask |= bit
+    return mask
+
+
 LandDrawCall = tuple[int, Square, int, int, int, int]
 
 

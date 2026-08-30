@@ -18,6 +18,12 @@ public sealed record San9ScenarioFixedBuildingRecord(
     ushort TacticCode,
     IReadOnlyList<byte> OpaqueTail)
 {
+    public int FootprintWidth => ShapeLength;
+
+    public int FootprintHeight => ShapeWidth;
+
+    public long FootprintArea => (long)FootprintWidth * FootprintHeight;
+
     public int? TacticId => TacticCode < San9ScenarioFixedBuildingArchive.TacticCount
         ? TacticCode
         : null;

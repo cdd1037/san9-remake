@@ -6,12 +6,16 @@ namespace San9.Importer.San9PkTc101;
 public sealed record San9ScenarioCountryTitleRecord(
     int Id,
     ushort SerializedId,
-    ushort OpaqueField02,
-    ushort OpaqueField04,
+    ushort SerializedIdCopy02,
+    ushort SerializedIdCopy04,
     ushort RulerPersonCode,
     ushort Area1Code,
     ushort Area2Code)
 {
+    public int NameMessageId => San9ScenarioCountryTitleArchive.GetNameMessageId(Id);
+
+    public int NameReadingMessageId => San9ScenarioCountryTitleArchive.GetNameReadingMessageId(Id);
+
     public int? RulerPersonId => RulerPersonCode < San9ScenarioCountryTitleArchive.PersonReferenceLimit
         ? RulerPersonCode
         : null;
@@ -31,6 +35,31 @@ public static class San9ScenarioCountryTitleArchive
     public const int RecordSize = 12;
     public const int PersonReferenceLimit = 1_050;
     public const int AreaCount = 15;
+    public const int NameMessageBaseId = 5_315;
+    public const int NameReadingMessageBaseId = 5_316;
+    public const int NameMessageStride = 2;
+
+    public static int GetNameMessageId(int countryTitleId)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(countryTitleId);
+        if (countryTitleId >= RecordCount)
+        {
+            throw new ArgumentOutOfRangeException(nameof(countryTitleId));
+        }
+
+        return NameMessageBaseId + NameMessageStride * countryTitleId;
+    }
+
+    public static int GetNameReadingMessageId(int countryTitleId)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(countryTitleId);
+        if (countryTitleId >= RecordCount)
+        {
+            throw new ArgumentOutOfRangeException(nameof(countryTitleId));
+        }
+
+        return NameReadingMessageBaseId + NameMessageStride * countryTitleId;
+    }
 
     public static IReadOnlyList<San9ScenarioCountryTitleRecord> ReadKnownRecords(Stream stream)
     {

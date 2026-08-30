@@ -15,7 +15,7 @@
 - [BEH-IMPORT-0008：剧本地形记录解析](BEH-IMPORT-0008-scenario-terrain-records.md)（已确认边界与无损读取）
 - [BEH-IMPORT-0009：剧本固定建筑记录解析](BEH-IMPORT-0009-scenario-fixed-building-records.md)（已确认边界、可见字段与无损读取）
 - [BEH-IMPORT-0010：剧本兵法记录解析](BEH-IMPORT-0010-scenario-tactic-records.md)（已确认边界、可见字段与无损读取）
-- [BEH-IMPORT-0011：剧本国号记录解析](BEH-IMPORT-0011-scenario-country-title-records.md)（已确认边界、引用与无损读取）
+- [BEH-IMPORT-0011：剧本国号记录解析](BEH-IMPORT-0011-scenario-country-title-records.md)（已确认三份序号、名称资源、势力关联、引用与无损读取）
 - [BEH-IMPORT-0012：剧本阵型记录解析](BEH-IMPORT-0012-scenario-formation-records.md)（已确认边界、可见字段与无损读取）
 - [BEH-IMPORT-0013：剧本 `skrk` 记录解析](BEH-IMPORT-0013-scenario-skrk-records.md)（已确认边界与无损读取）
 - [BEH-IMPORT-0014：剧本地图方格记录解析](BEH-IMPORT-0014-scenario-square-records.md)（已确认边界、地形/高差过渡、桥方向、疆界及洛阳/带方港 footprint 实例）

@@ -22,7 +22,7 @@
 ### 势力记录结构访问
 
 - `is_primary_force_record(0x43E510)` 当且仅当 `*(this+0xB8) == this` 时返回真；调用者用它筛选自根/主记录。
-- `get_effective_force_id(0x43ED00)` 在主记录上读取自身 `+0x10`，否则读取关联记录 `+0xB8` 的 `+0x10`。
+- `get_root_force_country_title_id(0x43ED00)` 在主记录上读取自身 `+0x10`，否则读取根势力指针 `+0xB8` 的 `+0x10`。`RE-SAN9PK-0016` 后续用 `forc` 加载、`kkgu` 访问、名称资源和授予/清除链确认该值是根势力国号 ID，取代本记录早期的“effective force ID”推断。
 - `get_force_flag_bit_4/5/6/12`（`0x43FA70`、`0x43FAA0`、`0x43FAD0`、`0x43FB40`）分别从主记录或关联记录的 flag 字读取对应位。
 
 ### 50 项筛选和清理

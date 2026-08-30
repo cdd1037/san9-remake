@@ -28,8 +28,8 @@ public sealed class San9ScenarioCountryTitleArchiveTests
         Assert.Equal(San9ScenarioCountryTitleArchive.RecordCount, records.Count);
         Assert.Equal(0, records[0].Id);
         Assert.Equal(0x1000, records[0].SerializedId);
-        Assert.Equal(0x2000, records[0].OpaqueField02);
-        Assert.Equal(0x3000, records[0].OpaqueField04);
+        Assert.Equal(0x2000, records[0].SerializedIdCopy02);
+        Assert.Equal(0x3000, records[0].SerializedIdCopy04);
         Assert.Equal(0x4000, records[0].RulerPersonCode);
         Assert.Equal(0x5000, records[0].Area1Code);
         Assert.Equal(0x6000, records[0].Area2Code);
@@ -38,6 +38,19 @@ public sealed class San9ScenarioCountryTitleArchiveTests
         Assert.Null(records[0].Area2Id);
         Assert.Equal(19, records[19].Id);
         Assert.Equal(0x1013, records[19].SerializedId);
+        Assert.Equal(5315, records[0].NameMessageId);
+        Assert.Equal(5316, records[0].NameReadingMessageId);
+        Assert.Equal(5353, records[19].NameMessageId);
+        Assert.Equal(5354, records[19].NameReadingMessageId);
+    }
+
+    [Fact]
+    public void CountryTitleNameMessageIds_RejectInvalidIds()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => San9ScenarioCountryTitleArchive.GetNameMessageId(-1));
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => San9ScenarioCountryTitleArchive.GetNameReadingMessageId(20));
     }
 
     [Fact]

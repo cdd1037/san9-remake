@@ -25,10 +25,21 @@ public sealed class San9ScenarioAreaArchiveTests
         Assert.Equal(San9ScenarioAreaArchive.RecordCount, records.Count);
         Assert.Equal(0, records[0].Id);
         Assert.Equal(1000, records[0].SerializedId);
-        Assert.Equal(0x2000, records[0].OpaqueField02);
-        Assert.Equal(0x4000, records[0].OpaqueField04);
+        Assert.Equal(0x2000, records[0].SerializedIdCopy02);
+        Assert.Equal(0x4000, records[0].SerializedIdCopy04);
+        Assert.Equal(136, records[0].NameMessageId);
+        Assert.Equal(137, records[0].NameReadingMessageId);
         Assert.Equal(14, records[14].Id);
         Assert.Equal(1014, records[14].SerializedId);
+        Assert.Equal(164, records[14].NameMessageId);
+        Assert.Equal(165, records[14].NameReadingMessageId);
+    }
+
+    [Fact]
+    public void AreaNameMessageIds_RejectInvalidIds()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => San9ScenarioAreaArchive.GetNameMessageId(-1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => San9ScenarioAreaArchive.GetNameReadingMessageId(15));
     }
 
     [Fact]

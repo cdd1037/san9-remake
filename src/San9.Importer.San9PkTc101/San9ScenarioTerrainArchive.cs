@@ -6,13 +6,28 @@ namespace San9.Importer.San9PkTc101;
 public sealed record San9ScenarioTerrainRecord(
     int Id,
     ushort SerializedId,
-    ushort OpaqueField02,
-    ushort OpaqueField04);
+    ushort SerializedIdCopy02,
+    ushort OpaqueField04)
+{
+    public int NameMessageId => San9ScenarioTerrainArchive.GetNameMessageId(Id);
+}
 
 public static class San9ScenarioTerrainArchive
 {
     public const int RecordCount = 17;
     public const int RecordSize = 6;
+    public const int NameMessageBaseId = 704;
+
+    public static int GetNameMessageId(int terrainId)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(terrainId);
+        if (terrainId >= RecordCount)
+        {
+            throw new ArgumentOutOfRangeException(nameof(terrainId));
+        }
+
+        return NameMessageBaseId + terrainId;
+    }
 
     public static IReadOnlyList<San9ScenarioTerrainRecord> ReadKnownRecords(Stream stream)
     {

@@ -25,10 +25,19 @@ public sealed class San9ScenarioTerrainArchiveTests
         Assert.Equal(San9ScenarioTerrainArchive.RecordCount, records.Count);
         Assert.Equal(0, records[0].Id);
         Assert.Equal(2000, records[0].SerializedId);
-        Assert.Equal(0x2100, records[0].OpaqueField02);
+        Assert.Equal(0x2100, records[0].SerializedIdCopy02);
         Assert.Equal(0x4100, records[0].OpaqueField04);
+        Assert.Equal(704, records[0].NameMessageId);
         Assert.Equal(16, records[16].Id);
         Assert.Equal(2016, records[16].SerializedId);
+        Assert.Equal(720, records[16].NameMessageId);
+    }
+
+    [Fact]
+    public void TerrainNameMessageIds_RejectInvalidIds()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => San9ScenarioTerrainArchive.GetNameMessageId(-1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => San9ScenarioTerrainArchive.GetNameMessageId(17));
     }
 
     private static MemoryStream BuildScenarioArchive()

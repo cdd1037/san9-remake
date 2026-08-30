@@ -1,0 +1,29 @@
+{
+  "sample": "SRC-SAN9PK-TC-101",
+  "findings": ["RE-SAN9PK-0012", "RE-SAN9PK-0013"],
+  "status": "applied-and-read-back",
+  "scope": "AREA-01 and TERR-01 serialized fields, name resources, and runtime-consumer audit",
+  "evidence": {
+    "area_inventory": "Across 20 formal and 6 tutorial scenarios, all 390 area records have +0x00, +0x02 and +0x04 equal to the sequential record ID",
+    "area_negative_audit": "The area accessor's city, country-title, map and automatic-corps consumers do not read runtime +0x1C/+0x20; direct table and field-address audits found no other business reader",
+    "area_names": "Record type 8 resolves display/readings at messages 136/137 plus 2 times sequential ID; the TC PK catalog contains 15 names and 15 empty reading records",
+    "terrain_inventory": "Across the same 26 scenarios, all 442 terrain records have +0x00/+0x02 equal to sequential ID; +0x04 is 1 for Forest and 0 for every other terrain",
+    "terrain_negative_audit": "Runtime-class, global-table and exact field-address xrefs found no business reader for runtime +0x18/+0x1C, so +0x04 retains an opaque name despite its inventory pattern",
+    "terrain_names": "Record type 13 resolves display names at message 704 plus sequential ID; the TC PK catalog contains 17 names"
+  },
+  "ida_changes": {
+    "function_renames": [
+      { "address": "0x567B80", "before": "sub_567B80", "after": "get_area_name_resource_text", "confidence": "high" },
+      { "address": "0x567BA0", "before": "sub_567BA0", "after": "get_area_name_reading_resource_text", "confidence": "high" },
+      { "address": "0x567C00", "before": "sub_567C00", "after": "get_terrain_name_resource_text", "confidence": "high" },
+      { "address": "0x43A1E0", "before": "deserialize_ciki_record", "after": "deserialize_terrain_record", "confidence": "high" }
+    ],
+    "dry_run": { "total": 4, "ok": 4, "failed": 0 },
+    "comments": 8,
+    "program_byte_changes": 0,
+    "function_boundary_changes": 0,
+    "type_changes": 0,
+    "save": "in-place save succeeded",
+    "read_back": "All four function names were resolved by address; forced recompilation of both loaders showed the serialized-field findings and name-resource formulas."
+  }
+}

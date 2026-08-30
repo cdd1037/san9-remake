@@ -6,13 +6,33 @@ namespace San9.Importer.San9PkTc101;
 public sealed record San9ScenarioAreaRecord(
     int Id,
     ushort SerializedId,
-    ushort OpaqueField02,
-    ushort OpaqueField04);
+    ushort SerializedIdCopy02,
+    ushort SerializedIdCopy04)
+{
+    public int NameMessageId => San9ScenarioAreaArchive.GetNameMessageId(Id);
+
+    public int NameReadingMessageId => San9ScenarioAreaArchive.GetNameReadingMessageId(Id);
+}
 
 public static class San9ScenarioAreaArchive
 {
     public const int RecordCount = 15;
     public const int RecordSize = 6;
+    public const int NameMessageBaseId = 136;
+    public const int NameReadingMessageBaseId = 137;
+    public const int NameMessageStride = 2;
+
+    public static int GetNameMessageId(int areaId)
+    {
+        ValidateId(areaId);
+        return NameMessageBaseId + NameMessageStride * areaId;
+    }
+
+    public static int GetNameReadingMessageId(int areaId)
+    {
+        ValidateId(areaId);
+        return NameReadingMessageBaseId + NameMessageStride * areaId;
+    }
 
     public static IReadOnlyList<San9ScenarioAreaRecord> ReadKnownRecords(Stream stream)
     {
@@ -41,5 +61,14 @@ public static class San9ScenarioAreaArchive
         }
 
         return new ReadOnlyCollection<San9ScenarioAreaRecord>(records);
+    }
+
+    private static void ValidateId(int areaId)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(areaId);
+        if (areaId >= RecordCount)
+        {
+            throw new ArgumentOutOfRangeException(nameof(areaId));
+        }
     }
 }

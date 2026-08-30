@@ -1,0 +1,45 @@
+{
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0018",
+  "status": "applied-and-read-back",
+  "scope": "SKRK-01 runtime type, serialized fields, generic properties, and tactic-name relationship",
+  "evidence": {
+    "runtime_type": "MFC RTTI names the 0x20-byte record CSakuryakuData; deserialization assigns packed runtime type 14 and sequential IDs 0..6",
+    "inventory": "Across 20 formal and 6 tutorial scenarios, all 182 records share one table: +0x00/+0x02 equal sequential ID, +0x04 groups 1/2, +0x06 groups 1/4, and +0x08 is always 3",
+    "tactic_relation": "The recovered name virtual maps Sakuryaku ID plus 35 through the bounded 0..40 tactic accessor, yielding tactic IDs 35..40 for strategy IDs 0..5 and no relation for ID 6",
+    "catalog": "The related TC PK tactic names are 穴陷, 火陷, 水陷, 岩陷, 落石 and 射台",
+    "negative_audit": "Direct table and exact field-address xrefs, CSakuryakuData RTTI downcasts, recovered class virtuals and local message selector usage show no business reader for runtime +0x10..+0x1C"
+  },
+  "ida_changes": {
+    "function_boundaries": [
+      { "start": "0x452C50", "end": "0x452C68", "name": "initialize_sakuryaku_record_fields", "evidence": "complete prologue, four field stores, return and alignment" },
+      { "start": "0x452D20", "end": "0x452D3E", "name": "CSakuryakuData_scalar_deleting_dtor", "evidence": "vtable entry, destructor call, optional free, return and alignment" },
+      { "start": "0x452D40", "end": "0x452D6F", "name": "is_valid_sakuryaku_record", "evidence": "vtable entry, complete type/identity predicate and return" },
+      { "start": "0x452D70", "end": "0x452D8A", "name": "get_sakuryaku_identity_property", "evidence": "vtable entry, bounded selector and complete returns" },
+      { "start": "0x452D90", "end": "0x452DB8", "name": "get_sakuryaku_tactic_name", "evidence": "complete ID-plus-35 accessor path, fallback return and alignment" },
+      { "start": "0x452DC0", "end": "0x452DD2", "name": "copy_sakuryaku_tactic_name", "evidence": "complete name call, string assignment and return" },
+      { "start": "0x452DE0", "end": "0x452E2B", "name": "format_sakuryaku_property", "evidence": "vtable entry, complete selector 0..2 branches, returns and alignment" }
+    ],
+    "function_renames": [
+      { "address": "0x452C10", "before": "sub_452C10", "after": "CSakuryakuData_get_runtime_class" },
+      { "address": "0x452C40", "before": "sub_452C40", "after": "CSakuryakuData_dtor" },
+      { "address": "0x452C50", "before": "sub_452C50", "after": "initialize_sakuryaku_record_fields" },
+      { "address": "0x452C70", "before": "deserialize_skrk_record", "after": "deserialize_sakuryaku_record" },
+      { "address": "0x452D20", "before": "sub_452D20", "after": "CSakuryakuData_scalar_deleting_dtor" },
+      { "address": "0x452D40", "before": "sub_452D40", "after": "is_valid_sakuryaku_record" },
+      { "address": "0x452D70", "before": "sub_452D70", "after": "get_sakuryaku_identity_property" },
+      { "address": "0x452D90", "before": "sub_452D90", "after": "get_sakuryaku_tactic_name" },
+      { "address": "0x452DC0", "before": "sub_452DC0", "after": "copy_sakuryaku_tactic_name" },
+      { "address": "0x452DE0", "before": "sub_452DE0", "after": "format_sakuryaku_property" }
+    ],
+    "data_renames": [
+      { "address": "0x14FD9F0", "before": "g_scenario_skrk_records", "after": "g_scenario_sakuryaku_records" }
+    ],
+    "dry_run": { "total": 11, "ok": 11, "failed": 0 },
+    "comments": 8,
+    "program_byte_changes": 0,
+    "type_changes": 0,
+    "save": "in-place save succeeded",
+    "read_back": "All ten function names resolve by address; forced recompilation shows the four serialized slots, ID-plus-35 tactic relation, and generic properties 0/1/2."
+  }
+}

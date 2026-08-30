@@ -3,15 +3,15 @@ using San9.Importer.San9PkTc101;
 
 namespace San9.Importer.San9PkTc101.Tests;
 
-public sealed class San9ScenarioSkrkArchiveTests
+public sealed class San9ScenarioStrategyArchiveTests
 {
     [Fact]
-    public void ReadKnownSkrkRecords_UsesRecordOrderAndPreservesAllWords()
+    public void ReadKnownStrategyRecords_UsesRecordOrderAndPreservesAllWords()
     {
         using MemoryStream stream = BuildScenarioArchive();
-        for (int index = 0; index < San9ScenarioSkrkArchive.RecordCount; index++)
+        for (int index = 0; index < San9ScenarioStrategyArchive.RecordCount; index++)
         {
-            stream.Position = 0xF38 + index * San9ScenarioSkrkArchive.RecordSize;
+            stream.Position = 0xF38 + index * San9ScenarioStrategyArchive.RecordSize;
             using BinaryWriter writer = new(stream, Encoding.ASCII, leaveOpen: true);
             for (int field = 0; field < 5; field++)
             {
@@ -20,22 +20,35 @@ public sealed class San9ScenarioSkrkArchiveTests
         }
 
         stream.Position = 0;
-        IReadOnlyList<San9ScenarioSkrkRecord> records =
-            San9ScenarioSkrkArchive.ReadKnownRecords(stream);
+        IReadOnlyList<San9ScenarioStrategyRecord> records =
+            San9ScenarioStrategyArchive.ReadKnownRecords(stream);
 
-        Assert.Equal(San9ScenarioSkrkArchive.RecordCount, records.Count);
+        Assert.Equal(San9ScenarioStrategyArchive.RecordCount, records.Count);
         Assert.Equal(0, records[0].Id);
         Assert.Equal(0x3000, records[0].SerializedId);
-        Assert.Equal(0x3001, records[0].OpaqueField02);
+        Assert.Equal(0x3001, records[0].SerializedIdCopy02);
         Assert.Equal(0x3002, records[0].OpaqueField04);
         Assert.Equal(0x3003, records[0].OpaqueField06);
         Assert.Equal(0x3004, records[0].OpaqueField08);
+        Assert.Equal(35, records[0].RelatedTacticId);
         Assert.Equal(6, records[6].Id);
         Assert.Equal(0x3060, records[6].SerializedId);
+        Assert.Null(records[6].RelatedTacticId);
     }
 
     [Fact]
-    public void ReadKnownSkrkRecords_RejectsUnexpectedSectionSize()
+    public void RelatedTacticIds_MapSixRecordsAndRejectInvalidStrategyIds()
+    {
+        Assert.Equal(40, San9ScenarioStrategyArchive.GetRelatedTacticId(5));
+        Assert.Null(San9ScenarioStrategyArchive.GetRelatedTacticId(6));
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => San9ScenarioStrategyArchive.GetRelatedTacticId(-1));
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => San9ScenarioStrategyArchive.GetRelatedTacticId(7));
+    }
+
+    [Fact]
+    public void ReadKnownStrategyRecords_RejectsUnexpectedSectionSize()
     {
         using MemoryStream stream = BuildScenarioArchive();
         stream.Position = 0xF34;
@@ -46,7 +59,7 @@ public sealed class San9ScenarioSkrkArchiveTests
 
         stream.Position = 0;
         InvalidDataException exception = Assert.Throws<InvalidDataException>(
-            () => San9ScenarioSkrkArchive.ReadKnownRecords(stream));
+            () => San9ScenarioStrategyArchive.ReadKnownRecords(stream));
 
         Assert.Contains("FourCC", exception.Message);
     }

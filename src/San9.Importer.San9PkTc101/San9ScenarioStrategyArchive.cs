@@ -3,20 +3,38 @@ using System.Text;
 
 namespace San9.Importer.San9PkTc101;
 
-public sealed record San9ScenarioSkrkRecord(
+public sealed record San9ScenarioStrategyRecord(
     int Id,
     ushort SerializedId,
-    ushort OpaqueField02,
+    ushort SerializedIdCopy02,
     ushort OpaqueField04,
     ushort OpaqueField06,
-    ushort OpaqueField08);
+    ushort OpaqueField08)
+{
+    public int? RelatedTacticId => San9ScenarioStrategyArchive.GetRelatedTacticId(Id);
+}
 
-public static class San9ScenarioSkrkArchive
+public static class San9ScenarioStrategyArchive
 {
     public const int RecordCount = 7;
     public const int RecordSize = 10;
+    public const int RelatedTacticBaseId = 35;
+    public const int RelatedTacticCount = 6;
 
-    public static IReadOnlyList<San9ScenarioSkrkRecord> ReadKnownRecords(Stream stream)
+    public static int? GetRelatedTacticId(int strategyId)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(strategyId);
+        if (strategyId >= RecordCount)
+        {
+            throw new ArgumentOutOfRangeException(nameof(strategyId));
+        }
+
+        return strategyId < RelatedTacticCount
+            ? RelatedTacticBaseId + strategyId
+            : null;
+    }
+
+    public static IReadOnlyList<San9ScenarioStrategyRecord> ReadKnownRecords(Stream stream)
     {
         San9ScenarioLayout layout = San9ScenarioArchive.ReadKnownLayout(stream);
         San9ScenarioSection section = layout.GetRequiredSection("skrk");
@@ -27,7 +45,7 @@ public static class San9ScenarioSkrkArchive
 
         stream.Position = section.DataOffset;
         using BinaryReader reader = new(stream, Encoding.ASCII, leaveOpen: true);
-        List<San9ScenarioSkrkRecord> records = new(RecordCount);
+        List<San9ScenarioStrategyRecord> records = new(RecordCount);
         for (int index = 0; index < RecordCount; index++)
         {
             records.Add(new(
@@ -44,6 +62,6 @@ public static class San9ScenarioSkrkArchive
             throw new InvalidDataException("Scenario skrk records do not fill the skrk section exactly.");
         }
 
-        return new ReadOnlyCollection<San9ScenarioSkrkRecord>(records);
+        return new ReadOnlyCollection<San9ScenarioStrategyRecord>(records);
     }
 }

@@ -44,15 +44,20 @@ public sealed class San9ScenarioForceArchiveTests
         Assert.Equal(326, record.LeaderId);
         Assert.Equal(150, record.BaseTrust);
         Assert.Equal(156, record.Trust);
-        Assert.Null(record.RelatedForceId);
+        Assert.Null(record.RivalForceId);
         Assert.Equal(8, record.RankGroupId);
         Assert.Equal((ushort)12, record.ColorCode);
-        Assert.Equal(2, record.RuntimeTypeCode);
+        Assert.True(record.IsAllianceMember);
+        Assert.False(record.IsAllianceLeader);
+        Assert.False(record.IsAllianceTarget);
+        Assert.Equal(San9ForceAllianceRole.Member, record.AllianceRole);
+        Assert.Equal(0, record.ControlOrderCode);
+        Assert.Equal(0, record.ControlOrder);
         Assert.True(record.HasFlagBit(4));
         Assert.False(record.HasFlagBit(5));
-        Assert.Equal(0x605040302010UL, record.ForceTacticFlags);
-        Assert.True(record.HasForceTacticFlagBit(4));
-        Assert.False(record.HasForceTacticFlagBit(5));
+        Assert.Equal(0x605040302010UL, record.TacticFlags);
+        Assert.True(record.HasTactic(4));
+        Assert.False(record.HasTactic(5));
         Assert.Equal(50, record.DiplomaticRelations.Count);
         Assert.Equal((byte)49, record.DiplomaticRelations[49]);
     }
@@ -65,8 +70,12 @@ public sealed class San9ScenarioForceArchiveTests
 
         Assert.Throws<ArgumentOutOfRangeException>(() => record.HasFlagBit(-1));
         Assert.Throws<ArgumentOutOfRangeException>(() => record.HasFlagBit(32));
-        Assert.Throws<ArgumentOutOfRangeException>(() => record.HasForceTacticFlagBit(-1));
-        Assert.Throws<ArgumentOutOfRangeException>(() => record.HasForceTacticFlagBit(48));
+        Assert.Throws<ArgumentOutOfRangeException>(() => record.HasTactic(-1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => record.HasTactic(41));
+        Assert.Throws<ArgumentOutOfRangeException>(() => record.HasPersistentMarker(-1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => record.HasPersistentMarker(5));
+        Assert.Throws<ArgumentOutOfRangeException>(() => record.HasEventHistoryMarker(-1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => record.HasEventHistoryMarker(15));
     }
 
     [Fact]
@@ -99,9 +108,52 @@ public sealed class San9ScenarioForceArchiveTests
         Assert.Equal(0, record.RuntimeOwningForceId);
         Assert.Null(record.CountryTitleId);
         Assert.Null(record.LeaderId);
-        Assert.Null(record.RelatedForceId);
+        Assert.Null(record.RivalForceId);
         Assert.Null(record.RankGroupId);
-        Assert.Equal(1, record.RuntimeTypeCode);
+        Assert.Equal(San9ForceAllianceRole.Target, record.AllianceRole);
+    }
+
+    [Fact]
+    public void ForceFlags_DecodeControlOrderAndOverlappingPersistentMarkers()
+    {
+        using MemoryStream stream = BuildScenarioArchive();
+        stream.Position = 0x8C06E + 8;
+        using (BinaryWriter writer = new(stream, Encoding.ASCII, leaveOpen: true))
+        {
+            writer.Write((uint)0x0003AF15);
+        }
+
+        stream.Position = 0;
+        San9ScenarioForceRecord record = San9ScenarioForceArchive.ReadKnownRecords(stream)[0];
+
+        Assert.True(record.IsPlayerControlled);
+        Assert.True(record.IsBarbarian);
+        Assert.True(record.IsAllianceMember);
+        Assert.False(record.IsAllianceLeader);
+        Assert.False(record.IsAllianceTarget);
+        Assert.Equal(15, record.ControlOrderCode);
+        Assert.Null(record.ControlOrder);
+        Assert.True(record.HasPersistentMarker(0));
+        Assert.True(record.HasPersistentMarker(4));
+        Assert.True(record.HasEventHistoryMarker(0));
+        Assert.True(record.HasEventHistoryMarker(1));
+    }
+
+    [Fact]
+    public void ForceTactics_PreserveReservedHighBitsWithoutExposingThemAsTactics()
+    {
+        using MemoryStream stream = BuildScenarioArchive();
+        stream.Position = 0x8C06E + 0x1E;
+        using (BinaryWriter writer = new(stream, Encoding.ASCII, leaveOpen: true))
+        {
+            writer.Write(new byte[] { 0, 0, 0, 0, 0, 0x82 });
+        }
+
+        stream.Position = 0;
+        San9ScenarioForceRecord record = San9ScenarioForceArchive.ReadKnownRecords(stream)[0];
+
+        Assert.Equal(0x820000000000UL, record.TacticFlags);
+        Assert.Throws<ArgumentOutOfRangeException>(() => record.HasTactic(41));
     }
 
     [Fact]

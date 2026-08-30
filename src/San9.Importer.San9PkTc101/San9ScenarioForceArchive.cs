@@ -3,6 +3,14 @@ using System.Text;
 
 namespace San9.Importer.San9PkTc101;
 
+public enum San9ForceAllianceRole
+{
+    None = 0,
+    Target = 1,
+    Member = 2,
+    Leader = 3,
+}
+
 public sealed record San9ScenarioForceRecord(
     int Id,
     uint Money,
@@ -14,10 +22,10 @@ public sealed record San9ScenarioForceRecord(
     ushort LeaderCode,
     ushort BaseTrust,
     ushort Trust,
-    ushort RelatedForceCode,
+    ushort RivalForceCode,
     ushort RankGroupCode,
     ushort ColorCode,
-    ulong ForceTacticFlags,
+    ulong TacticFlags,
     IReadOnlyList<byte> DiplomaticRelations)
 {
     public bool HasFlagBit(int bit)
@@ -27,21 +35,56 @@ public sealed record San9ScenarioForceRecord(
         return (Flags & (1u << bit)) != 0;
     }
 
-    public int RuntimeTypeCode => (Flags & 0x40) != 0
-        ? 1
-        : (Flags & 0x20) != 0
-            ? 3
-            : (Flags & 0x10) != 0
-                ? 2
-                : 0;
+    public bool IsPlayerControlled => (Flags & San9ScenarioForceArchive.PlayerControlledFlag) != 0;
 
-    public bool HasForceTacticFlagBit(int bit)
+    public bool IsBarbarian => (Flags & San9ScenarioForceArchive.BarbarianFlag) != 0;
+
+    public bool IsAllianceMember => (Flags & San9ScenarioForceArchive.AllianceMemberFlag) != 0;
+
+    public bool IsAllianceLeader => (Flags & San9ScenarioForceArchive.AllianceLeaderFlag) != 0;
+
+    public bool IsAllianceTarget => (Flags & San9ScenarioForceArchive.AllianceTargetFlag) != 0;
+
+    public San9ForceAllianceRole AllianceRole => IsAllianceTarget
+        ? San9ForceAllianceRole.Target
+        : IsAllianceLeader
+            ? San9ForceAllianceRole.Leader
+            : IsAllianceMember
+                ? San9ForceAllianceRole.Member
+                : San9ForceAllianceRole.None;
+
+    public int ControlOrderCode => (int)((Flags & San9ScenarioForceArchive.ControlOrderMask)
+        >> San9ScenarioForceArchive.ControlOrderBitOffset);
+
+    public int? ControlOrder => ControlOrderCode == San9ScenarioForceArchive.NoControlOrderCode
+        ? null
+        : ControlOrderCode;
+
+    public bool HasTactic(int tacticId)
     {
-        ArgumentOutOfRangeException.ThrowIfNegative(bit);
+        ArgumentOutOfRangeException.ThrowIfNegative(tacticId);
         ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(
-            bit,
-            San9ScenarioForceArchive.ForceTacticFlagBitCount);
-        return (ForceTacticFlags & (1UL << bit)) != 0;
+            tacticId,
+            San9ScenarioForceArchive.TacticCount);
+        return (TacticFlags & (1UL << tacticId)) != 0;
+    }
+
+    public bool HasPersistentMarker(int markerIndex)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(markerIndex);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(
+            markerIndex,
+            San9ScenarioForceArchive.PersistentMarkerCount);
+        return (Flags & (1u << (San9ScenarioForceArchive.PersistentMarkerBitOffset + markerIndex))) != 0;
+    }
+
+    public bool HasEventHistoryMarker(int markerIndex)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(markerIndex);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(
+            markerIndex,
+            San9ScenarioForceArchive.EventHistoryMarkerCount);
+        return (Flags & (1u << (San9ScenarioForceArchive.EventHistoryMarkerBitOffset + markerIndex))) != 0;
     }
 
     public int? OwningForceId => OwningForceCode < San9ScenarioForceArchive.ForceCount
@@ -58,8 +101,8 @@ public sealed record San9ScenarioForceRecord(
         ? LeaderCode
         : null;
 
-    public int? RelatedForceId => RelatedForceCode < San9ScenarioForceArchive.ForceCount
-        ? RelatedForceCode
+    public int? RivalForceId => RivalForceCode < San9ScenarioForceArchive.ForceCount
+        ? RivalForceCode
         : null;
 
     public int? RankGroupId => RankGroupCode < San9ScenarioForceArchive.RankGroupCount
@@ -75,8 +118,21 @@ public static class San9ScenarioForceArchive
     public const int CountryTitleCount = 20;
     public const int PersonReferenceLimit = 850;
     public const int RankGroupCount = 9;
-    public const int ForceTacticFlagBitCount = 48;
+    public const int SerializedTacticFlagBitCount = 48;
+    public const int TacticCount = 41;
     public const int DiplomaticRelationCount = 50;
+    public const uint PlayerControlledFlag = 1u << 0;
+    public const uint BarbarianFlag = 1u << 2;
+    public const uint AllianceMemberFlag = 1u << 4;
+    public const uint AllianceLeaderFlag = 1u << 5;
+    public const uint AllianceTargetFlag = 1u << 6;
+    public const int ControlOrderBitOffset = 8;
+    public const uint ControlOrderMask = 0x00000F00;
+    public const int NoControlOrderCode = 15;
+    public const int PersistentMarkerBitOffset = 13;
+    public const int PersistentMarkerCount = 5;
+    public const int EventHistoryMarkerBitOffset = 16;
+    public const int EventHistoryMarkerCount = 15;
 
     public static IReadOnlyList<San9ScenarioForceRecord> ReadKnownRecords(Stream stream)
     {
@@ -101,10 +157,10 @@ public static class San9ScenarioForceArchive
             ushort leaderCode = reader.ReadUInt16();
             ushort baseTrust = reader.ReadUInt16();
             ushort trust = reader.ReadUInt16();
-            ushort relatedForceCode = reader.ReadUInt16();
+            ushort rivalForceCode = reader.ReadUInt16();
             ushort rankGroupCode = reader.ReadUInt16();
             ushort colorCode = reader.ReadUInt16();
-            ulong forceTacticFlags = ReadUInt48(reader);
+            ulong tacticFlags = ReadUInt48(reader);
             byte[] diplomaticRelations = reader.ReadBytes(DiplomaticRelationCount);
             if (diplomaticRelations.Length != DiplomaticRelationCount)
             {
@@ -122,10 +178,10 @@ public static class San9ScenarioForceArchive
                 leaderCode,
                 baseTrust,
                 trust,
-                relatedForceCode,
+                rivalForceCode,
                 rankGroupCode,
                 colorCode,
-                forceTacticFlags,
+                tacticFlags,
                 Array.AsReadOnly(diplomaticRelations)));
         }
 
@@ -140,7 +196,7 @@ public static class San9ScenarioForceArchive
     private static ulong ReadUInt48(BinaryReader reader)
     {
         ulong value = 0;
-        for (int bit = 0; bit < ForceTacticFlagBitCount; bit += 8)
+        for (int bit = 0; bit < SerializedTacticFlagBitCount; bit += 8)
         {
             value |= (ulong)reader.ReadByte() << bit;
         }

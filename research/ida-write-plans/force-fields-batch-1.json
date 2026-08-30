@@ -1,0 +1,52 @@
+{
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0021",
+  "status": "applied-and-read-back",
+  "scope": "FORCE-01/02/03 force flags, tactic flags, and scenario rival reference",
+  "evidence": {
+    "force_flags": "load/save preserve the full u32; dedicated accessors and writers close player control, barbarian, alliance roles, control-order bits, emperor-city transfer marker, persistent marker range, and event-history range",
+    "overlap": "bits 16..17 are visible through both the 13..17 persistent-marker reader and the 16..30 event-history reader; the serialized word is intentionally composite",
+    "tactic_flags": "force tactic wrapper queries the shared 0..40 tactic-bit mapper at runtime Force +0x6C; no direct read of the sixth data byte was found",
+    "rival_reference": "51 valid references in 1,000 formal-scenario force records all point to relation values 0..60 and repeatedly encode historical opponent pairs; the EXE loads, saves, copies and clears the pointer but has no gameplay consumer"
+  },
+  "ida_changes": {
+    "function_definition": [
+      { "address": "0x440BA0", "end": "0x440D37", "name": "serialize_save_force_record", "confidence": "high", "boundary_recovery": "undefine erroneous decode 0x440B9A..0x440BA1; restore entry bytes 56 57 through retn 4 at 0x440D34" }
+    ],
+    "function_renames": [
+      { "address": "0x43DBA0", "before": "get_tactic_known_bit_w_1", "after": "force_has_tactic", "confidence": "high" },
+      { "address": "0x43DBB0", "before": "sub_43DBB0", "after": "find_first_force_tactic_record", "confidence": "high" },
+      { "address": "0x43FBD0", "before": "sub_43FBD0", "after": "root_force_has_tactic", "confidence": "high" },
+      { "address": "0x43FC10", "before": "sub_43FC10", "after": "force_has_tactic_record", "confidence": "high" },
+      { "address": "0x441390", "before": "sub_441390", "after": "get_root_force_alliance_role_code", "confidence": "high" },
+      { "address": "0x4413D0", "before": "sub_4413D0", "after": "set_force_emperor_city_transfer_marker", "confidence": "high" },
+      { "address": "0x43FB40", "before": "get_force_flag_bit_12", "after": "has_force_emperor_city_transfer_marker", "confidence": "high" },
+      { "address": "0x483070", "before": "sub_483070", "after": "process_pending_emperor_city_transfer_for_xun", "confidence": "high" },
+      { "address": "0x4592B0", "before": "sub_4592B0", "after": "resolve_emperor_city_transfer_event", "confidence": "high" },
+      { "address": "0x4433E0", "before": "sub_4433E0", "after": "set_root_force_barbarian", "confidence": "high" },
+      { "address": "0x43ED70", "before": "sub_43ED70", "after": "has_root_force_barbarian_country_title", "confidence": "high" },
+      { "address": "0x440790", "before": "sub_440790", "after": "has_force_persistent_marker", "confidence": "high" },
+      { "address": "0x441410", "before": "sub_441410", "after": "has_force_event_history_marker", "confidence": "high" },
+      { "address": "0x443400", "before": "sub_443400", "after": "set_force_event_history_marker", "confidence": "high" },
+      { "address": "0x43E6E0", "before": "sub_43E6E0", "after": "set_force_scenario_rival_reference", "confidence": "medium-high" }
+    ],
+    "struct_edits": [
+      { "name": "San9ForceRecord", "change": "name prestige/color/peerage fields; split relations, embedded tactic flags, root/leader pointers, and scenario rival pointer while preserving size 0xD4", "confidence": "high" }
+    ],
+    "function_type_edits": [
+      { "address": "0x440BA0", "signature": "void __thiscall serialize_save_force_record(San9ForceRecord *this, unsigned char **cursor);" },
+      { "address": "0x43DBA0", "signature": "BOOL __thiscall force_has_tactic(San9ForceRecord *this, unsigned int tactic_id);" },
+      { "address": "0x43FBD0", "signature": "BOOL __thiscall root_force_has_tactic(San9ForceRecord *this, unsigned int tactic_id);" },
+      { "address": "0x43FC10", "signature": "BOOL __thiscall force_has_tactic_record(San9ForceRecord *this, San9KillerRecord *tactic_record);" },
+      { "address": "0x43E6E0", "signature": "San9ForceRecord *__thiscall set_force_scenario_rival_reference(San9ForceRecord *this, San9ForceRecord *rival_force);" }
+    ],
+    "dry_run": { "total": 16, "ok": 16, "failed": 0 },
+    "apply": { "total": 16, "ok": 16, "failed": 0 },
+    "comments": 17,
+    "program_byte_changes": 0,
+    "function_boundary_changes": 1,
+    "type_changes": 6,
+    "save": "in-place save succeeded",
+    "read_back": "16 function names, recovered writer boundary, San9ForceRecord size 0xD4 with 25 members, 5 function signatures, 17 comments, loader/writer field accesses, 0..40 tactic query, overlapping bit13..17 and bit16..30 marker ranges, and rival-reference cleanup were visible after forced recompilation and save"
+  }
+}

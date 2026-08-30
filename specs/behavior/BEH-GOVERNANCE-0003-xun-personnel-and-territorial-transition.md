@@ -2,8 +2,8 @@
 
 - 状态：已确认
 - 负责人：项目开发者
-- 最后更新：2026-08-25
-- 关联证据：[RE-SAN9PK-0111](../../research/findings/RE-SAN9PK-0111.md)、[RE-SAN9PK-0112](../../research/findings/RE-SAN9PK-0112.md)、[RE-SAN9PK-0120](../../research/findings/RE-SAN9PK-0120.md)、[RE-SAN9PK-0122](../../research/findings/RE-SAN9PK-0122.md)、[RE-SAN9PK-0123](../../research/findings/RE-SAN9PK-0123.md)、[RE-SAN9PK-0124](../../research/findings/RE-SAN9PK-0124.md)
+- 最后更新：2026-08-30
+- 关联证据：[RE-SAN9PK-0111](../../research/findings/RE-SAN9PK-0111.md)、[RE-SAN9PK-0112](../../research/findings/RE-SAN9PK-0112.md)、[RE-SAN9PK-0120](../../research/findings/RE-SAN9PK-0120.md)、[RE-SAN9PK-0122](../../research/findings/RE-SAN9PK-0122.md)、[RE-SAN9PK-0123](../../research/findings/RE-SAN9PK-0123.md)、[RE-SAN9PK-0124](../../research/findings/RE-SAN9PK-0124.md)、[RE-SAN9PK-0150](../../research/findings/RE-SAN9PK-0150.md)
 - 关联决策：[DEC-PROJECT-0002](../decisions/DEC-PROJECT-0002-selective-inheritance.md)、[DEC-SIM-0001](../decisions/DEC-SIM-0001-determinism-and-saves.md)
 - 继承方式：语义保留、领域模型现代化
 
@@ -25,7 +25,7 @@
 
 ## 重制行为
 
-重制版使用显式的 `AutomaticPermission`、`DirectCorpsOwnership`、`PersonnelAllocation`、`DefectionCandidate`、`IndependenceCandidate` 和 `TerritorialTransition`。自动规划只能读取当前军团直属对象，并产生待提交命令；提交器重新验证人物、建筑、行动占用和归属。
+重制版使用显式的 `AutomaticPermission`、`DirectCorpsOwnership`、`PersonnelAllocation`、`DefectionCandidate`、`IndependenceCandidate` 和 `TerritorialTransition`。自动规划只能读取当前军团直属且 `CanHostPersons=true` 的对象，并产生待提交命令；提交器重新验证人物、建筑可驻留能力、行动占用和归属。障碍物不得因直属当前军团或人员配额字段异常而进入调动目的地。
 
 主记录与子军团的权限由数据配置表达，但默认语义保留：子军团允许登用和调动，普通自动外交归主记录。人员调动按建筑的目标配置与现有人数形成盈余/短缺，不引入“按兵力比例摊派武将”的规则。
 
@@ -35,7 +35,7 @@
 
 - 输入与前置条件：当前旬阶段、活动军团、工作权限、直属城市/建筑、有效人物、目标势力关系、可用势力记录和稳定随机输入。
 - 状态变化：产生并提交登用/调动命令；转移对象及追随者；以城市建立新势力；解体空军团；清除无效目标、临时标记和行动占用。
-- 始终成立的不变量：自动来源直属当前军团；同根调动不改变势力；人物和对象各自只有一个有效军团/势力归属；城市自立必须有负责人和势力槽；外交工作不得越过记录权限；失败转换零写回。
+- 始终成立的不变量：自动来源直属当前军团；自动调动两端均可驻留人物；同根调动不改变势力；人物和对象各自只有一个有效军团/势力归属；城市自立必须有负责人和势力槽；外交工作不得越过记录权限；失败转换零写回。
 - 失败或无效输入行为：来源不再直属、人物已移动/占用、配额不再有盈余/短缺、目标势力无效、负责人条件不满足或势力记录已满时拒绝相应命令/转换并继续后续安全清理。
 
 ## 调度规则
@@ -63,6 +63,7 @@
 - [ ] 子军团自动登用和调动、主记录自动外交的权限矩阵有数据驱动测试。
 - [ ] 根势力同属但非直属的城市/建筑不会进入子军团人事来源。
 - [ ] 人员盈余/短缺配对、排序、单次 10 人上限和提交期竞争有确定性测试。
+- [ ] 直属障碍物、未完成设施和其他不可驻留对象不会进入自动调动来源或目的列表，最终提交器再次拒绝伪造候选。
 - [ ] 自动与交互人事命令复用同一验证器和事务写回。
 - [ ] 已有对象叛离覆盖城市、非城市对象、追随者和不追随者分支。
 - [ ] 城市自立覆盖概率边界、非负责人、非城市、势力槽已满和成功建势力。

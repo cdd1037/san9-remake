@@ -2,7 +2,7 @@
 
 - 状态：已确认
 - 负责人：项目开发者
-- 最后更新：2026-08-24
+- 最后更新：2026-08-30
 - 关联证据：[RE-SAN9PK-0115](../../research/findings/RE-SAN9PK-0115.md)、[RE-SAN9PK-0116](../../research/findings/RE-SAN9PK-0116.md)
 - 关联决策：[DEC-SIM-0001](../decisions/DEC-SIM-0001-determinism-and-saves.md)、[DEC-PROJECT-0002](../decisions/DEC-PROJECT-0002-selective-inheritance.md)
 - 继承方式：关系保留
@@ -53,4 +53,4 @@
 
 ## 未决问题
 
-无。
+当前规格只确认繁中 PK 1.0.1.0 的效果方向与状态边界。日本版 2005-08-10 又调整过离间成功率和电脑目标选择；在取得最终版机器证据或建立重制平衡决策前，不得把当前样本的离间常量、评分和候选偏向宣称为跨版本最终规则。参见[修正履历核对审计](../../research/jp-patch-history-audit.md)。

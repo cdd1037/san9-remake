@@ -13,6 +13,7 @@
 | `SRC-SANCALC-SAN9TC-001` | `private/San9Tc/dll/SanCalc.dll` | EXE 使用的数学、随机数、概率与位字段运行库 | 114,688 字节；SHA-256 与独立[来源记录](sources/SRC-SANCALC-SAN9TC-001.md)一致 | 商业游戏二进制；不得提交或再分发 | 高：精确样本已确认，函数契约见 `RE-SANCALC-0001` |
 | `SRC-KOEIGRPX-SAN9TC-001` | `private/San9Tc/dll/KOEIGrpX.dll` | EXE 使用的索引图、RGB555、KBMP 与像素混合运行库 | 90,112 字节；SHA-256 与独立[来源记录](sources/SRC-KOEIGRPX-SAN9TC-001.md)一致 | 商业游戏二进制；不得提交或再分发 | 高：精确样本已确认，函数契约见 `RE-KOEIGRPX-0001` |
 | `SRC-EDITOR-SCREENSHOTS` | `private/剧本编辑器截图/` | 剧本编辑器字段、数值和显示标签的黑盒对照 | 用户提供的本地截图；按文件名逐项引用 | 截图不得提交或再分发 | 中：只能作为界面对照，不能单独支撑文件字段语义 |
+| `SRC-SAN9PK-JP-PATCH-HISTORY` | [`research/sources/SRC-SAN9PK-JP-PATCH-HISTORY.md`](sources/SRC-SAN9PK-JP-PATCH-HISTORY.md) | 日本版 PK 2003-09-04 至 2005-08-10 修正履历的中文转译；用于建立跨版本差异和实验候选 | 最终发布日期由 GAMECITY 官方入口确认；逐条内容来自用户提供的日文转录 | 商业游戏官方文档，许可状态待确认；仅登记中文事实性转译 | 中至高：可确认版本修正意图，不能直接证明繁中 PK 1.0.1.0 的当前行为 |
 
 ## 维护要求
 

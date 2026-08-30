@@ -41,9 +41,15 @@ flowchart LR
   Scenario --> Governance
   Scenario --> Personnel
   Scenario --> Simulation
+  AI[ai] --> Warfare
+  AI --> Strategy
+  AI --> Diplomacy
+  AI --> Governance
+  AI --> Personnel
+  AI --> Simulation
 ```
 
-推荐实现顺序由该图直接导出：先完成 `simulation`；再完成 `personnel`；随后可并行推进 `person-lifecycle` 与 `governance`；再推进 `warfare` 与 `diplomacy`；之后是 `strategy`、`duel`、`event`；最后以 `scenario` 消费稳定世界快照。并行指开发工作可并行，逻辑提交顺序仍由模拟流水线串行确定。
+推荐实现顺序由该图直接导出：先完成 `simulation`；再完成 `personnel`；随后可并行推进 `person-lifecycle` 与 `governance`；再推进 `warfare` 与 `diplomacy`；之后是 `strategy`、`duel`、`event` 和 `scenario`；AI 的公共边界现在建立，具体规划器在其所需玩法快照稳定后实现。并行指开发工作可并行，逻辑提交顺序仍由模拟流水线串行确定。
 
 ## 核心领域契约
 
@@ -55,6 +61,7 @@ flowchart LR
 | `governance` | `BEH-GOVERNANCE-0001..0003` | 势力、军团、辖区、委任、归属事务 | 当前所有权与委任配置 → 自动命令、归属转换、军团清理 | 单一势力根；资源守恒；自动/交互共享终验 | `San9.Core.Governance`：`CorpsService`、`DelegationPlanner`、`TerritorialTransitionService` | 27 |
 | `diplomacy` | `BEH-DIPLOMACY-0001..0003` | 关系、联盟、外交命令、谈判、计划 | 关系快照、请求、资格、随机流 → 对称关系、守恒结算、联盟、计划 | 关系对称有界；联盟显式；增量规划读取实时状态 | `San9.Core.Diplomacy`：关系、联盟、命令与规划服务 | 17 |
 | `warfare` | `BEH-WAR-0001..0003` | 部队、移动计划、战场命令、设施战斗、终止结算 | 命令、地图占用、实时目标 → 日移动、占领、部队/势力清理输入 | 不穿硬阻挡；效果只提交一次；重置后无活引用 | `San9.Core.Warfare`：移动、命令、占领与终止服务 | 16 |
+| `ai` | `BEH-AI-0001` | 势力视角观察、确定性预算、计划、诊断 | 不可变观察、命名用途、预算 → 有序命令候选、评分、可选诊断 | 不持有可变世界；分析随机隔离；诊断不改行为；共享命令终验 | `San9.Core.AI`：`AiObservation`、`AiPlanningContext`、`AiPlan`、`IAiPlanner` | 7 |
 | `strategy` | `BEH-STRATEGY-0001..0003` | 计略命令、目标、意见、部队状态、结果 | 单执行者、类型目标、实时阈值、随机流 → 目标效果、成长、占用释放 | 意见只读；玩家/AI 共用结算；资源与所有权有界 | `San9.Core.Strategy`：命令、意见与效果服务 | 18 |
 | `duel` | `BEH-DUEL-0001..0003` | 单挑机会、名单、逐刀、结果、战后结算 | 陆战攻击机会、名单、属性、随机流 → 名单、逐刀结果、人员分区、士气 | 单刀单结果；死亡/俘虏/伤势互斥；表现随机隔离 | `San9.Core.Duels`：触发、解析与战后服务 | 24 |
 | `event` | `BEH-EVENT-0001..0002` | 候选、会话、结果、持久键、触发器 | 命名触发、候选表、只读世界、随机流 → 活动事件、原子效果、消费键 | 单活动事件；游标单调；效果与消费键同批提交 | `San9.Core.Events`：选择、会话与提交服务 | 11 |
@@ -71,6 +78,7 @@ flowchart LR
 
 | 类别 | 已批准决策 | 实现约束 |
 | --- | --- | --- |
+| 现代 AI 规划边界 | `DEC-AI-0001` | 势力视角不可变观察、确定性工作预算、分析随机隔离、诊断无行为影响、公共命令终验 |
 | 确定性系统替换 | `DEC-SIM-0001` | 类型化命令、命名稳定随机流、显式随机/世界存档和固定提交顺序 |
 | 现代领域模型 | `DEC-PROJECT-0002` | 保留被规格选用的关系，以现代对象替换原版存储和任务结构 |
 | 单挑无效随机与错误成长门 | `DEC-PROJECT-0002` | 不消费已选初始人物的无效追加骰；不实现原版无效成长门；未来新增成长必须另立决策 |

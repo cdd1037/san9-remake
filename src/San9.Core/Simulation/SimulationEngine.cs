@@ -16,7 +16,7 @@ public sealed class SimulationEngine
 
     public WorldSnapshot Snapshot => _world.CreateSnapshot();
 
-    public CommandSubmissionResult Submit(GameCommand command)
+    public CommandSubmissionResult Validate(GameCommand command)
     {
         ArgumentNullException.ThrowIfNull(command);
 
@@ -25,11 +25,23 @@ public sealed class SimulationEngine
             return CommandSubmissionResult.Reject(CommandRejection.NegativeSequence);
         }
 
-        if (!_commandIds.Add(command.CommandId))
+        if (_commandIds.Contains(command.CommandId))
         {
             return CommandSubmissionResult.Reject(CommandRejection.DuplicateCommandId);
         }
 
+        return CommandSubmissionResult.Success;
+    }
+
+    public CommandSubmissionResult Submit(GameCommand command)
+    {
+        CommandSubmissionResult validation = Validate(command);
+        if (!validation.Accepted)
+        {
+            return validation;
+        }
+
+        _commandIds.Add(command.CommandId);
         _commands.Add(command);
         return CommandSubmissionResult.Success;
     }

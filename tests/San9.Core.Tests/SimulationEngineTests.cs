@@ -50,6 +50,23 @@ public sealed class SimulationEngineTests
         Assert.Equal(CommandRejection.DuplicateCommandId, duplicate.Rejection);
     }
 
+    [Fact]
+    public void Validate_DoesNotReserveCommandIdOrQueueCommand()
+    {
+        SimulationEngine engine = CreateEngine();
+        WaitCommand command = new(
+            Guid.Parse("00000000-0000-0000-0000-000000000001"),
+            new ForceId(1),
+            0);
+
+        Assert.True(engine.Validate(command).Accepted);
+        Assert.True(engine.Validate(command).Accepted);
+        Assert.True(engine.Submit(command).Accepted);
+
+        AdvanceXunResult result = engine.AdvanceXun();
+        Assert.Single(result.Events.OfType<CommandResolvedEvent>());
+    }
+
     private static SimulationEngine CreateEngine()
     {
         WorldState world = WorldState.Create(

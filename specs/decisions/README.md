@@ -6,6 +6,7 @@
 
 ## 已确认决策
 
+- [DEC-AI-0001：确定性 AI 规划与观察边界](DEC-AI-0001-deterministic-planning-boundary.md)
 - [DEC-PROJECT-0001：Godot 表现层与纯 C# 模拟核心分离](DEC-PROJECT-0001-layered-architecture.md)
 - [DEC-PROJECT-0002：选择性继承核心体验与现代重组](DEC-PROJECT-0002-selective-inheritance.md)
 - [DEC-DATA-0001：JSON 内容源包与本地生成缓存](DEC-DATA-0001-content-pipeline.md)

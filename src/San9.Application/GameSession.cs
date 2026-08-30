@@ -13,6 +13,8 @@ public sealed class GameSession
 
     public WorldSnapshot Snapshot => _simulation.Snapshot;
 
+    public CommandSubmissionResult Validate(GameCommand command) => _simulation.Validate(command);
+
     public CommandSubmissionResult Submit(GameCommand command) => _simulation.Submit(command);
 
     public AdvanceXunResult AdvanceXun() => _simulation.AdvanceXun();

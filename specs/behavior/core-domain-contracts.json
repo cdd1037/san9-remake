@@ -3,6 +3,7 @@
   "status": "confirmed",
   "purpose": "Implementation-facing domain contracts derived only from confirmed BEH specifications and approved DEC decisions.",
   "architecture_decisions": [
+    "DEC-AI-0001",
     "DEC-PROJECT-0001",
     "DEC-PROJECT-0002",
     "DEC-SIM-0001"
@@ -142,6 +143,25 @@
       }
     },
     {
+      "id": "ai",
+      "classification": "core",
+      "behavior_specs": ["BEH-AI-0001"],
+      "objects": ["AiObservation", "AiPlanningContext", "AiPlanningBudget", "AiPlan", "AiDiagnostic"],
+      "states": ["observing", "analyzing", "proposed", "validated", "submitted"],
+      "inputs": ["force-perspective immutable observation", "named planning purpose", "deterministic work budget", "diagnostic level"],
+      "outputs": ["ordered command proposals", "integer scores and rationale", "optional non-authoritative diagnostics"],
+      "invariants": ["no mutable world reference", "analysis random never consumes resolution random", "diagnostics never change proposals", "AI and player commands share final validation"],
+      "acceptance_gates": ["stable analysis seed", "fixed-budget repeatability", "diagnostic independence", "shared command rejection without partial writeback"],
+      "depends_on": ["simulation", "personnel", "governance", "diplomacy", "strategy", "warfare"],
+      "implementation": {
+        "project": "San9.Core",
+        "target_namespace": "San9.Core.AI",
+        "target_path": "src/San9.Core/AI",
+        "entry_types": ["AiObservation", "AiPlanningContext", "AiPlan", "IAiPlanner"],
+        "existing_anchors": ["src/San9.Core/AI/AiPlanning.cs", "src/San9.Core/Simulation/SimulationEngine.cs"]
+      }
+    },
+    {
       "id": "duel",
       "classification": "core",
       "behavior_specs": ["BEH-DUEL-0001", "BEH-DUEL-0002", "BEH-DUEL-0003"],
@@ -238,6 +258,13 @@
     }
   ],
   "decision_gates": [
+    {
+      "id": "deterministic-ai-planning",
+      "kind": "system-redesign",
+      "behavior_specs": ["BEH-AI-0001"],
+      "decision": "DEC-AI-0001",
+      "disposition": "force-perspective immutable observations, deterministic work budgets, isolated analysis random streams and shared command validation"
+    },
     {
       "id": "deterministic-resolution",
       "kind": "system-redesign",

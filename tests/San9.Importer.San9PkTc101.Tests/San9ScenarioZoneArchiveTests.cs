@@ -6,7 +6,7 @@ namespace San9.Importer.San9PkTc101.Tests;
 public sealed class San9ScenarioZoneArchiveTests
 {
     [Fact]
-    public void ReadKnownZones_PreservesVisibleFieldsAndFeatureFlags()
+    public void ReadKnownZones_PreservesVisibleFieldsAndTacticFlags()
     {
         using MemoryStream stream = BuildScenarioArchive();
         stream.Position = 0x89F8E;
@@ -37,15 +37,19 @@ public sealed class San9ScenarioZoneArchiveTests
         Assert.Equal(1, record.FixedBuildingId);
         Assert.Equal(0, record.NameResourceCode);
         Assert.Equal(0, record.NameReadingResourceCode);
+        Assert.Equal(166, record.NameMessageId);
+        Assert.Equal(167, record.NameReadingMessageId);
         Assert.Equal(12, record.ForceId);
         Assert.Equal(0, record.CityId);
         Assert.Equal((ushort)300, record.Durability);
         Assert.Equal(184, record.XCoordinate);
         Assert.Equal(26, record.YCoordinate);
-        Assert.Equal(1UL << San9ScenarioZoneArchive.RockfallFeatureId, record.FeatureFlags);
+        Assert.Equal(San9ScenarioZoneArchive.OtherSoldierCapacity, record.SoldierCapacity);
+        Assert.Equal((uint)1_000, record.RuntimeSoldiers);
+        Assert.Equal(1UL << San9ScenarioZoneArchive.RockfallTacticId, record.TacticFlags);
         Assert.True(record.HasRockfall);
         Assert.False(record.HasArrowPlatform);
-        Assert.True(record.HasFeature(San9ScenarioZoneArchive.RockfallFeatureId));
+        Assert.True(record.HasTactic(San9ScenarioZoneArchive.RockfallTacticId));
     }
 
     [Fact]
@@ -77,6 +81,62 @@ public sealed class San9ScenarioZoneArchiveTests
         Assert.Null(record.XCoordinate);
         Assert.Null(record.YCoordinate);
         Assert.False(record.HasRockfall);
+    }
+
+    [Fact]
+    public void ReadKnownZones_PreservesReservedHighTacticBitsWithoutExposingThemAsTactics()
+    {
+        using MemoryStream stream = BuildScenarioArchive();
+        stream.Position = 0x89F8E + 0x16;
+        using (BinaryWriter writer = new(stream, Encoding.ASCII, leaveOpen: true))
+        {
+            writer.Write(new byte[] { 0, 0, 0, 0, 0, 0x80 });
+        }
+
+        stream.Position = 0;
+        San9ScenarioZoneRecord record = San9ScenarioZoneArchive.ReadKnownRecords(stream)[0];
+
+        Assert.Equal(1UL << 47, record.TacticFlags);
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => record.HasTactic(San9ScenarioZoneArchive.TacticCount));
+    }
+
+    [Theory]
+    [InlineData(0, 500_000, 500_000)]
+    [InlineData(1, 500_000, 250_000)]
+    [InlineData(16, 300_000, 250_000)]
+    [InlineData(ushort.MaxValue, 300_000, 250_000)]
+    public void ReadKnownZones_DerivesRuntimeSoldierCapacityFromFixedBuildingType(
+        ushort fixedBuildingCode,
+        uint soldiers,
+        uint expectedRuntimeSoldiers)
+    {
+        using MemoryStream stream = BuildScenarioArchive();
+        stream.Position = 0x89F8E;
+        using (BinaryWriter writer = new(stream, Encoding.ASCII, leaveOpen: true))
+        {
+            writer.Write(soldiers);
+            writer.Write((ushort)0);
+            writer.Write(fixedBuildingCode);
+        }
+
+        stream.Position = 0;
+        San9ScenarioZoneRecord record = San9ScenarioZoneArchive.ReadKnownRecords(stream)[0];
+
+        uint expectedCapacity = fixedBuildingCode == San9ScenarioZoneArchive.CityFixedBuildingId
+            ? San9ScenarioZoneArchive.CitySoldierCapacity
+            : San9ScenarioZoneArchive.OtherSoldierCapacity;
+        Assert.Equal(expectedCapacity, record.SoldierCapacity);
+        Assert.Equal(expectedRuntimeSoldiers, record.RuntimeSoldiers);
+    }
+
+    [Fact]
+    public void ZoneNameResourceCodes_MapToInterleavedMessagePairs()
+    {
+        Assert.Equal(166, San9ScenarioZoneArchive.GetNameMessageId(0));
+        Assert.Equal(167, San9ScenarioZoneArchive.GetNameReadingMessageId(0));
+        Assert.Equal(564, San9ScenarioZoneArchive.GetNameMessageId(199));
+        Assert.Equal(565, San9ScenarioZoneArchive.GetNameReadingMessageId(199));
     }
 
     [Fact]

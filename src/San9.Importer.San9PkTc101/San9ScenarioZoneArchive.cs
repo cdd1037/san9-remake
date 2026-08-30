@@ -15,7 +15,7 @@ public sealed record San9ScenarioZoneRecord(
     ushort Durability,
     ushort X,
     ushort Y,
-    ulong FeatureFlags)
+    ulong TacticFlags)
 {
     public int? FixedBuildingId => FixedBuildingCode == ushort.MaxValue ? null : FixedBuildingCode;
 
@@ -27,19 +27,30 @@ public sealed record San9ScenarioZoneRecord(
 
     public int? YCoordinate => Y == ushort.MaxValue ? null : Y;
 
-    public bool HasRockfall => HasFeature(San9ScenarioZoneArchive.RockfallFeatureId);
+    public uint SoldierCapacity => FixedBuildingCode == San9ScenarioZoneArchive.CityFixedBuildingId
+        ? San9ScenarioZoneArchive.CitySoldierCapacity
+        : San9ScenarioZoneArchive.OtherSoldierCapacity;
 
-    public bool HasArrowPlatform => HasFeature(San9ScenarioZoneArchive.ArrowPlatformFeatureId);
+    public uint RuntimeSoldiers => Math.Min(Soldiers, SoldierCapacity);
 
-    public bool HasFeature(int featureId)
+    public int NameMessageId => San9ScenarioZoneArchive.GetNameMessageId(NameResourceCode);
+
+    public int NameReadingMessageId =>
+        San9ScenarioZoneArchive.GetNameReadingMessageId(NameReadingResourceCode);
+
+    public bool HasRockfall => HasTactic(San9ScenarioZoneArchive.RockfallTacticId);
+
+    public bool HasArrowPlatform => HasTactic(San9ScenarioZoneArchive.ArrowPlatformTacticId);
+
+    public bool HasTactic(int tacticId)
     {
-        ArgumentOutOfRangeException.ThrowIfNegative(featureId);
-        if (featureId >= San9ScenarioZoneArchive.FeatureBitCount)
+        ArgumentOutOfRangeException.ThrowIfNegative(tacticId);
+        if (tacticId >= San9ScenarioZoneArchive.TacticCount)
         {
-            throw new ArgumentOutOfRangeException(nameof(featureId));
+            throw new ArgumentOutOfRangeException(nameof(tacticId));
         }
 
-        return (FeatureFlags & (1UL << featureId)) != 0;
+        return (TacticFlags & (1UL << tacticId)) != 0;
     }
 }
 
@@ -51,10 +62,23 @@ public static class San9ScenarioZoneArchive
     public const int ForceCount = 50;
     public const int CityCount = 50;
     public const int MapExtent = 200;
-    public const int FeatureBitCount = 48;
-    public const int RockfallFeatureId = 39;
-    public const int ArrowPlatformFeatureId = 40;
-    public const uint SoldiersLimit = 500_000;
+    public const int SerializedTacticFlagBitCount = 48;
+    public const int TacticCount = 41;
+    public const int RockfallTacticId = 39;
+    public const int ArrowPlatformTacticId = 40;
+    public const ushort CityFixedBuildingId = 0;
+    public const uint CitySoldierCapacity = 500_000;
+    public const uint OtherSoldierCapacity = 250_000;
+    public const uint SoldiersLimit = CitySoldierCapacity;
+    public const int NameMessageBaseId = 166;
+    public const int NameReadingMessageBaseId = 167;
+    public const int NameMessageStride = 2;
+
+    public static int GetNameMessageId(ushort resourceCode) =>
+        NameMessageBaseId + NameMessageStride * resourceCode;
+
+    public static int GetNameReadingMessageId(ushort resourceCode) =>
+        NameReadingMessageBaseId + NameMessageStride * resourceCode;
 
     public static IReadOnlyList<San9ScenarioZoneRecord> ReadKnownRecords(Stream stream)
     {

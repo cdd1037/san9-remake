@@ -1,0 +1,46 @@
+{
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0020",
+  "status": "applied-and-read-back",
+  "scope": "ZONE-01/02/03 zone tactic flags, text resources, and soldier capacity",
+  "evidence": {
+    "load": "bldg +0x16..+0x1B -> deserialize_zone_record -> runtime zone +0x50..+0x55",
+    "mapping": "region-building wrapper -> generic tactic-bit reader; collect_region_building_tactics synchronously traverses tactic ids and hiho records 0..40",
+    "known_bits": "id 39 and 40 consumers correspond to rockfall and arrow platform",
+    "reserved_bits": "generic bit locator rejects ids above 40; no direct runtime +0x55 data read found in the executable listing",
+    "soldier_capacity": "fixed-building type 0 returns 500000; all other or invalid types return 250000; shared by bounded writes and gameplay gates",
+    "text_resources": "packed type 4; name message id = 166 + 2*code and reading message id = 167 + 2*code"
+  },
+  "ida_changes": {
+    "function_renames": [
+      { "address": "0x447560", "before": "sub_447560", "after": "deserialize_tactic_flag_set", "confidence": "high" },
+      { "address": "0x4358D0", "before": "get_tactic_known_bit_w", "after": "region_building_has_tactic", "confidence": "high" },
+      { "address": "0x4358E0", "before": "set_tactic_known_bit_w", "after": "set_region_building_tactic", "confidence": "high" },
+      { "address": "0x4365D0", "before": "sub_4365D0", "after": "collect_region_building_tactics", "confidence": "high" }
+      ,{ "address": "0x4353D0", "before": "sub_4353D0", "after": "get_region_building_fixed_type_code", "confidence": "high" }
+      ,{ "address": "0x4361C0", "before": "sub_4361C0", "after": "get_region_building_soldier_capacity", "confidence": "high" }
+      ,{ "address": "0x4373A0", "before": "sub_4373A0", "after": "set_region_building_soldiers", "confidence": "high" }
+      ,{ "address": "0x435280", "before": "sub_435280", "after": "refresh_zone_name", "confidence": "high" }
+      ,{ "address": "0x435300", "before": "sub_435300", "after": "refresh_zone_name_reading", "confidence": "high" }
+      ,{ "address": "0x567BC0", "before": "sub_567BC0", "after": "get_zone_name_resource_text", "confidence": "high" }
+      ,{ "address": "0x567BE0", "before": "sub_567BE0", "after": "get_zone_name_reading_resource_text", "confidence": "high" }
+    ],
+    "struct_edits": [
+      { "name": "San9TacticFlagSet", "change": "define 4-byte vtable followed by six tactic flag bytes", "confidence": "high" },
+      { "name": "San9ZoneRecord", "change": "embed San9TacticFlagSet at +0x4C, placing flag bytes at +0x50..+0x55 while preserving total size 0x1BC", "confidence": "high" }
+    ],
+    "function_type_edits": [
+      { "address": "0x447560", "signature": "void __thiscall deserialize_tactic_flag_set(San9TacticFlagSet *this, char **cursor);" },
+      { "address": "0x4476B0", "signature": "BOOL __thiscall get_tactic_known_bit(San9TacticFlagSet *this, unsigned int tactic_id);" },
+      { "address": "0x447700", "signature": "int __thiscall set_tactic_known_bit(San9TacticFlagSet *this, unsigned int tactic_id, int enabled);" }
+    ],
+    "dry_run": { "total": 11, "ok": 11, "failed": 0 },
+    "apply": { "total": 11, "ok": 11, "failed": 0 },
+    "comments": 14,
+    "program_byte_changes": 0,
+    "function_boundary_changes": 0,
+    "type_changes": 5,
+    "save": "in-place save succeeded",
+    "read_back": "11 names, tactic flag types, Zone size 0x1BC, loader member access, 0..40 bit query, two-tier capacity, draft gate and both text formulas were visible after forced recompilation and save"
+  }
+}

@@ -63,11 +63,11 @@
 `square_flags_02` 是“文件模板初值 + 运行时复用”的可变复合标志，不能整体解释为可通行字段。已确认或可信观测到的局部语义如下：
 
 - `bit1..bit8`（`0x01FE`）：由 `square_has_blocking_bits` 提供方格图寻路阻塞判断；
-- `bit0`（`0x0001`）：可信模板观测表示工作物/建筑占用格；代码中还参与 Zone/城市对象条件门和部分移动模式；
+- `bit0`（`0x0001`）：工作物格模板位，不等同于“当前已有建筑”。玩家建设阵、砦、箭楼、城塞时，以候选中心生成 3×3 footprint，九格必须同属一个地域对象且全部置有 bit0；已存在对象与预留的空建设点都可在静态模板中置位，动态占用由地域对象状态另行判断；
 - `bit9`（`0x0200`）：通用 overlay/地图块资格位；洛阳 5×5 与带方港 3×3 的全部格都置有该位，不能整体命名为桥标志。仅在 `terrain_code == 11` 的桥覆盖链中，`1` 表示该格具备桥覆盖锚点资格；
 - `bit10`（`0x0400`）：排除于地域对象计数；方格仍保留 `ZoneCode`，该位也不被疆界绘制函数读取；
 - `bit11`（`0x0800`）：由 `update_square_runtime_flags` 设置和整图清除，当前按运行时临时标记处理；
-- `bit12/bit13`（`0x1000/0x2000`）：地图模板中的设施建设资格；bit12 允许代码 11/13/15 的 3×1 设施，bit13 允许代码 10/12/14 的 1×3 设施，3×3 的代码 16 同时接受两位；
+- `bit12/bit13`（`0x1000/0x2000`）：地图模板中的方向化设施建设资格；玩家模式中 bit12 允许代码 11/13/15 的 3×1 设施，bit13 允许代码 10/12/14 的 1×3 设施。自动设施候选过滤可让代码 16 同时接受两位，但代码 16 的玩家选格模式使用 3×3 bit0；
 - `bit14`（`0x4000`）：对象核心区位；洛阳内部 3×3 九格、带方港正中心一格为 `0x4201`。它不是所有对象都只有一格的“中心点”布尔值；
 - `bit15`（`0x8000`）：城市路径相关列表设置，当前按运行时临时覆盖范围标记处理。
 
@@ -133,7 +133,7 @@
 
 导入器还提供跨表拓扑校验：城市坐标必须映射到对应城市区域编码；有坐标的据点必须映射到 `50 + bldg` 记录 ID；城市和据点不得占用同一格。未知方格字节不参与规则推断。
 
-产品层将原 `OpaqueField02` 命名为 `SquareFlags` 并完整保留 `u16`。`PathBlockingBits`/`IsPathBlocked` 提供 `0x01FE` 的整体阻塞视图；`IsExcludedFromRegionSquareCount`、`AllowsFacilityShape3By1`、`AllowsFacilityShape1By3`、`IsRegionBuildingCoreSquare` 分别提供 bit10、12、13、14 的只读视图；`HasSquareFlagBit(0..15)` 可查询原始位，越界参数必须拒绝。导入器不生成原作运行时 bit11/15。
+产品层将原 `OpaqueField02` 命名为 `SquareFlags` 并完整保留 `u16`。`PathBlockingBits`/`IsPathBlocked` 提供 `0x01FE` 的整体阻塞视图；`IsFacilityTemplateSquare`、`IsExcludedFromRegionSquareCount`、`AllowsFacilityShape3By1`、`AllowsFacilityShape1By3`、`IsRegionBuildingCoreSquare` 分别提供 bit0、10、12、13、14 的只读视图；`HasSquareFlagBit(0..15)` 可查询原始位，越界参数必须拒绝。导入器不生成原作运行时 bit11/15。
 
 导入器只提供以下不改变原始值的派生视图：`RegionCode` 将 `0xFFFF` 映射为空；`OffsetValue`、`TerrainId`、`ElevationTransitionMaskValue` 和 `OpaqueField0BValue` 将 `0xFF` 映射为空；`NormalizedField0C` 将 `0xFF` 映射为目标路径观察到的 `0`。已确认字段使用 `WaterTerrainAuxiliaryCode`、`TerrainTransitionMask` 和 `ElevationTransitionMask`；规格语义不授权丢弃原始值或直接复刻原作运行时复合标志。
 

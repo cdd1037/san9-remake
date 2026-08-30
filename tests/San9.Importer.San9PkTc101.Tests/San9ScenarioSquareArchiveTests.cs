@@ -35,6 +35,7 @@ public sealed class San9ScenarioSquareArchiveTests
         Assert.Equal(0, records[0].Id);
         Assert.Equal(0x4000, records[0].SerializedId);
         Assert.Equal(0x7401, records[0].SquareFlags);
+        Assert.True(records[0].IsFacilityTemplateSquare);
         Assert.True(records[0].IsExcludedFromRegionSquareCount);
         Assert.Equal(0, records[0].PathBlockingBits);
         Assert.False(records[0].IsPathBlocked);

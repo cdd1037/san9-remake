@@ -1,6 +1,6 @@
 # RE-SAN9PK-0019：`squa` 地图方格记录
 
-- 状态：已确认区块边界、字段读取布局及 `square_flags_02` 的静态/运行时分层；其余辅助字节按清单继续研究
+- 状态：已确认区块边界、字段读取布局、建设选格资格及 `square_flags_02` 的静态/运行时分层；其余辅助字节按清单继续研究
 - 日期：2026-08-30
 - 结论类型：事实、反编译器修正与截图/样本对照
 - 置信度：高（边界、字段宽度、目标运行时偏移、已观察字段）；中（字段业务名称）
@@ -61,6 +61,18 @@
 
 ## SQUA-01：`square_flags_02` 静态模板位与运行时复用
 
+### bit0：普通设施建设选格
+
+玩家建设动作按固定设施代码 `6..16` 建立对应的地图选格模式；代码 6“阵”对应模式 40。`is_construction_target_square_selectable(0x4F4A90)` 是鼠标启用态与实际点击共同复用的资格谓词：它以 `mode - 34` 还原固定设施代码，调用 `collect_fixed_building_footprint_squares(0x4738C0)` 从候选中心生成该设施的方格集合，并逐格验证。
+
+对阵、砦、箭楼、城塞（代码 `6..9`，模式 `40..43`），生成集合均为中心 3×3 九格；候选必须不在地图最外圈，九格必须全部解析到同一个地域建筑对象，并且每格 `square_flags_02 bit0` 都为 1。该地域对象还必须存在于进入选格界面前准备好的允许列表中。`update_construction_target_hover_state(0x4F4E90)` 把谓词结果直接传给地图启用/禁用反馈，`handle_construction_target_map_input(0x4F4CB0)` 在接受点击前再次调用同一谓词，因此亮暗显示与实际可选条件没有两套分支。
+
+这把 bit0 的语义从“已有建筑占用格”修正为更准确的“工作物格模板位”：已存在对象和预留的空建设点都可在静态模板中置位；当前是否已有设施则由 `ZoneCode` 解析出的地域对象运行时状态另行判断。`get_square_region_building(0x45C8A0)` 读取 `squa +0x04`，通过统一地域编码返回 `0..49` 的城市或 `50..249` 的 `bldg` 对象，旧名 `get_zone_city_record` 错误暗示它只返回城市。
+
+方向化设施使用不同的逐格门：模式 `44/46/48`（代码 `10/12/14`）要求 bit13，模式 `45/47/49`（代码 `11/13/15`）要求 bit12；代码 16 的玩家模式 50 使用 3×3 与 bit0。自动设施候选筛选仍允许代码 16 同时通过 bit12 或 bit13 的偏好过滤，这与玩家选格时的模式 50 条件属于不同阶段，不能合并。
+
+### bit10/12/13/14 与运行时复用
+
 `derive_region_building_square_membership(0x459830)` 在 40,000 格载入并完成 Zone 关联后逐格执行两条独立派生：bit14 置位时，把方格加入对应城市/据点对象的核心格列表；bit10 **未**置位时，把该对象的计数格总数增加 1。因此 bit10 的直接语义是“排除于地域对象计数”，而不是“无 `ZoneCode`”。正式共享地图中 4,987 个 bit10 方格全部仍有合法 `ZoneCode`，其中 547 格还带非零 `boundary_edge_mask`；`refresh_map_square_boundaries` 也不读取 bit10。旧候选“无所属/不画疆域线”据此收窄为 `IsExcludedFromRegionSquareCount`，不得用它清空地域关联或抑制疆界层。
 
 bit12/13 的代码和样本关系已经闭合：
@@ -83,5 +95,7 @@ bit12/13 的代码和样本关系已经闭合：
 - 将 `0x46DD90/0x46DE00` 重命名为 `is_constructible_facility_shape_3x1_or_3x3` / `is_constructible_facility_shape_1x3_or_3x3`；
 - 将 `0x4358A0`、`0x4359C0`、`0x459830` 分别重命名为 `increment_region_building_counted_square_count`、`append_region_building_core_square`、`derive_region_building_square_membership`；
 - 在 bit10/14 派生点、bit12/13 访问器和候选谓词、bit11 全图清除点及 bit15 路径标记点写入事实注释。
+
+2026-08-30 又将 `0x45C8A0`、`0x4738C0`、`0x4F4A90`、`0x4F4E90`、`0x4F4CB0` 分别重命名为 `get_square_region_building`、`collect_fixed_building_footprint_squares`、`is_construction_target_square_selectable`、`update_construction_target_hover_state`、`handle_construction_target_map_input`，并在函数入口记录统一地域解析、3×3 bit0 资格及悬停/点击复用关系。
 
 保存后回读确认上述函数边界、代码集合与位测试均保持；未修改程序字节。

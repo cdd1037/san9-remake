@@ -37,6 +37,8 @@ public sealed record San9ScenarioSquareRecord(
         ? ZoneCode - San9ScenarioSquareArchive.ZoneCodeOffset
         : null;
 
+    public bool IsFacilityTemplateSquare => HasSquareFlagBit(0);
+
     public bool IsExcludedFromRegionSquareCount => HasSquareFlagBit(10);
 
     public ushort PathBlockingBits => (ushort)(SquareFlags & 0x01FE);

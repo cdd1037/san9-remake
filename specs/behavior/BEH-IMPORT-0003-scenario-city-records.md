@@ -2,8 +2,8 @@
 
 - 状态：已确认
 - 负责人：项目开发者
-- 最后更新：2026-08-22
-- 关联证据：[RE-SAN9PK-0008](../../research/findings/RE-SAN9PK-0008.md)、[RE-SAN9PK-0055](../../research/findings/RE-SAN9PK-0055.md)、[RE-SAN9PK-0058](../../research/findings/RE-SAN9PK-0058.md)、[RE-SAN9PK-0061](../../research/findings/RE-SAN9PK-0061.md)
+- 最后更新：2026-08-30
+- 关联证据：[RE-SAN9PK-0008](../../research/findings/RE-SAN9PK-0008.md)、[RE-SAN9PK-0052](../../research/findings/RE-SAN9PK-0052.md)、[RE-SAN9PK-0055](../../research/findings/RE-SAN9PK-0055.md)、[RE-SAN9PK-0058](../../research/findings/RE-SAN9PK-0058.md)、[RE-SAN9PK-0061](../../research/findings/RE-SAN9PK-0061.md)
 - 关联决策：[DEC-DATA-0001](../decisions/DEC-DATA-0001-content-pipeline.md)
 - 关联渲染规格：[BEH-RENDER-0001](BEH-RENDER-0001-static-map-snapshot.md)
 
@@ -44,6 +44,8 @@
 
 原程序以记录位置建立两个运行时对象 ID，不依赖文件中的三个编号字段；正式输入仍要求三个编号一致。州域代码和势力代码分别经过 15 项、50 项访问器转换为运行时引用。士兵载入路径使用 500,000 上限。
 
+城市坐标是建筑视觉与占用几何的中心锚点；完整占用区不由坐标字段单独编码，而由 `squa` 方格的 `ZoneCode` 和 flags 表达。已验证实例中，洛阳 `city[15]` 的 `(89,64)` 对应 5×5、共 25 格 `ZoneCode=15`；据点则以 `50 + bldgId` 编码，例如带方港 `bldg[0]` 的 `(184,26)` 对应 3×3、共 9 格 `ZoneCode=50`。方格地形和过渡属性与对象占用保持正交。
+
 ## 重制行为
 
 导入器必须保留全部字段，包括两个剧本保留字段和完整 48 位原始兵法位集。`0xFFFF` 势力代码必须映射为空值。
@@ -76,6 +78,6 @@
 
 ## 未决问题
 
-- 城市坐标与 `bldg`、`squa` 地图拓扑之间的引用关系。
+本记录字段范围内无。坐标到道路连通性的设计不由 `city` chunk 单独决定，仍在本规格范围外。
 
 城市建筑组合的耐久度分段、三组外观资源和开发度资源偏移见 [RE-SAN9PK-0055](../../research/findings/RE-SAN9PK-0055.md)；它们不改变本记录的导入字段语义。

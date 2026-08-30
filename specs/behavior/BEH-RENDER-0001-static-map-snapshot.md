@@ -2,7 +2,7 @@
 
 - 状态：已确认（地貌、桥、静态建筑、可选边缘云、可选疆界线和可选 MESH 诊断层；动态对象全集不在静态快照范围内）
 - 负责人：项目开发者
-- 最后更新：2026-08-27
+- 最后更新：2026-08-30
 - 关联证据：[RE-SAN9PK-0053](../../research/findings/RE-SAN9PK-0053.md)、[RE-SAN9PK-0054](../../research/findings/RE-SAN9PK-0054.md)、[RE-SAN9PK-0055](../../research/findings/RE-SAN9PK-0055.md)、[RE-SAN9PK-0056](../../research/findings/RE-SAN9PK-0056.md)、[RE-SAN9PK-0148](../../research/findings/RE-SAN9PK-0148.md)、[RE-KOEIGRPX-0001](../../research/findings/RE-KOEIGRPX-0001.md)
 - 关联数据规格：[BEH-IMPORT-0003](BEH-IMPORT-0003-scenario-city-records.md)、[BEH-IMPORT-0009](BEH-IMPORT-0009-scenario-fixed-building-records.md)、[BEH-IMPORT-0014](BEH-IMPORT-0014-scenario-square-records.md)、[BEH-IMPORT-0015](BEH-IMPORT-0015-scenario-zone-records.md)
 - 关联决策：[DEC-RENDER-0001](../decisions/DEC-RENDER-0001-high-color-map-rendering.md)
@@ -110,6 +110,7 @@ MESH 仅在调用者显式提供状态 `0..5` 时绘制。裸 `squa` 的高差�
 - [x] 自动测试夹具不依赖原版文件或 IDA；私有样本只用于人工全图回归。
 - [x] 单元测试覆盖疆界方向位序、地域/都市线资源分组、三种高差形态和重合优先级。
 - [x] `D_Sce002.S9` 洛阳局部启用疆界后命中 11 个资源、475 个线段，目视确认地域线与都市线沿地形高差连续绘制。
+- [x] `D_Sce002.S9` 的 40×40 地区回归命中全部 12 个疆界资源、711 个线段，地貌和建筑 fallback 为 0；全图序列化掩码覆盖 13,396 个片段和 7,982 个同方向重合实例。
 - [x] RGB888 差异由 `DEC-RENDER-0001` 批准；静态帧和省略图层仅是本规格的范围边界。
 - [x] 单元测试覆盖边缘云两条边界折线的四顶点、资源组、调色板分区、16 格高度式和包围盒相交；`D_Sce002.S9` 全图启用边缘云后仍为 `13056×6656`，并目视确认底云只覆盖菱形外部、前景云覆盖乌丸附近边缘建筑。
 

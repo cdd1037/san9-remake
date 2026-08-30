@@ -1,0 +1,43 @@
+{
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0151",
+  "status": "applied-and-read-back",
+  "scope": "Tactic catalog item-adapter evidence: exact sources of land, water and facility columns",
+  "evidence": {
+    "column_keys": "CHeihouListDlg config resolves to property keys 1,4,8,48,49,16, matching tactic/system/power/land/water/facility",
+    "descriptor_flags": "Property descriptors 16,48,49 all use flags 0x202",
+    "row_formatter": "0x570B35 calls the item vtable +0x24 formatter; 0x44748A emits the circle glyph when the vtable +0x18 property value is nonzero",
+    "land": "Property 48 returns constant 1 at 0x447286",
+    "water": "Property 49 calls 0x446FA0, which derives the result from sequential tactic ID and system_code",
+    "facility": "Property 16 directly reads San9KillerRecord +0x84 at 0x44726B, serialized hiho +0x20"
+  },
+  "conclusion": "Only the facility column directly reads its dedicated hiho field. Land is always true, water is derived from tactic ID/system, and neither land nor water reads the Array compatibility mask. The facility field is a UI consumer input but remains non-authoritative for battle eligibility.",
+  "ida_changes": {
+    "function_recovery": [
+      { "address": "0x4468C0", "end": "0x4468E1", "note": "generic base helper recovered while validating the tactic vtable neighborhood; no semantic rename" },
+      { "address": "0x4468F0", "end": "0x446911", "note": "generic base helper recovered while validating the tactic vtable neighborhood; no semantic rename" },
+      { "address": "0x446D20", "end": "0x446D33", "note": "tactic object constructor boundary recovered; no semantic rename" },
+      { "address": "0x446D50", "end": "0x446DD0", "note": "tactic object reset boundary recovered; no semantic rename" },
+      { "address": "0x446DD0", "end": "0x446E07" },
+      { "address": "0x4471C0", "end": "0x4472A4" },
+      { "address": "0x447370", "end": "0x4474C9" },
+      { "address": "0x447660", "end": "0x44767E", "note": "neighboring destructor boundary recovered during vtable validation; no semantic rename" }
+    ],
+    "function_renames": [
+      { "address": "0x446DD0", "before": "sub_446DD0", "after": "get_tactic_property_descriptor", "confidence": "high" },
+      { "address": "0x446FA0", "before": "sub_446FA0", "after": "tactic_catalog_supports_water", "confidence": "high" },
+      { "address": "0x4471C0", "before": "sub_4471C0", "after": "get_tactic_property_value", "confidence": "high" },
+      { "address": "0x447370", "before": "sub_447370", "after": "format_tactic_property_value", "confidence": "high" }
+    ],
+    "data_renames": [
+      { "address": "0x66C0F0", "before": "dword_66C0F0", "after": "tactic_catalog_list_config", "confidence": "high" }
+    ],
+    "dry_run": { "total": 5, "ok": 5, "failed": 0 },
+    "apply": { "total": 5, "ok": 5, "failed": 0 },
+    "function_type_edits": 4,
+    "comments": 11,
+    "program_byte_changes": 0,
+    "save": "in-place save succeeded",
+    "read_back": "Names, prototypes, typed +0x84 field read, land constant, water predicate and boolean circle formatter were visible after save and decompilation"
+  }
+}

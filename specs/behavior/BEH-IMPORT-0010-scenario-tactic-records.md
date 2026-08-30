@@ -3,7 +3,7 @@
 - 状态：已确认（边界、顺序身份、系统映射、阵形兼容位图、当前 EXE 消费边界和无损读取；其余无消费者源槽位保持不透明）
 - 负责人：项目开发者
 - 最后更新：2026-08-30
-- 关联证据：[RE-SAN9PK-0015](../../research/findings/RE-SAN9PK-0015.md)
+- 关联证据：[RE-SAN9PK-0015](../../research/findings/RE-SAN9PK-0015.md)、[RE-SAN9PK-0151](../../research/findings/RE-SAN9PK-0151.md)
 - 关联决策：[DEC-DATA-0001](../decisions/DEC-DATA-0001-content-pipeline.md)
 
 ## 适用范围

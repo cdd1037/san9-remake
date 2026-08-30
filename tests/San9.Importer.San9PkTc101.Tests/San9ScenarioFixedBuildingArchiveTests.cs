@@ -36,8 +36,8 @@ public sealed class San9ScenarioFixedBuildingArchiveTests
         Assert.Equal(San9ScenarioFixedBuildingArchive.RecordCount, records.Count);
         Assert.Equal(0, records[0].Id);
         Assert.Equal(0x1000, records[0].SerializedId);
-        Assert.Equal(0x1001, records[0].OpaqueField02);
-        Assert.Equal(0x1002, records[0].OpaqueField04);
+        Assert.Equal(0x1001, records[0].CatalogCode);
+        Assert.Equal(0x1002, records[0].VisualDefinitionCode);
         Assert.Equal(0x1003, records[0].ConstructionCost);
         Assert.Equal(0x1004, records[0].MaxDurability);
         Assert.Equal(0x1005, records[0].OpaqueField0A);
@@ -50,10 +50,46 @@ public sealed class San9ScenarioFixedBuildingArchiveTests
         Assert.Equal(0x1009, records[0].RecoveryPerTurn);
         Assert.Equal(0x100A, records[0].TacticCode);
         Assert.Null(records[0].TacticId);
-        Assert.Equal(new byte[] { 1, 2, 3, 4, 5, 6 }, records[0].OpaqueTail);
+        Assert.Equal(0x060504030201UL, records[0].TacticFlags);
         Assert.Equal(16, records[16].Id);
         Assert.Equal(0x1100, records[16].SerializedId);
-        Assert.Equal(new byte[] { 17, 18, 19, 20, 21, 22 }, records[16].OpaqueTail);
+        Assert.Equal(0x161514131211UL, records[16].TacticFlags);
+    }
+
+    [Fact]
+    public void ReadKnownFixedBuildings_DecodesTacticFlags()
+    {
+        using MemoryStream stream = BuildScenarioArchive();
+        long recordsOffset = 0x13E;
+        stream.Position = recordsOffset + 8 * San9ScenarioFixedBuildingArchive.RecordSize + 0x16;
+        using (BinaryWriter writer = new(stream, Encoding.ASCII, leaveOpen: true))
+        {
+            ulong arrowPlatform = 1UL << San9ScenarioFixedBuildingArchive.ArrowPlatformTacticId;
+            for (int byteIndex = 0; byteIndex < 6; byteIndex++)
+            {
+                writer.Write((byte)(arrowPlatform >> (byteIndex * 8)));
+            }
+        }
+
+        stream.Position = recordsOffset + 9 * San9ScenarioFixedBuildingArchive.RecordSize + 0x16;
+        using (BinaryWriter writer = new(stream, Encoding.ASCII, leaveOpen: true))
+        {
+            ulong rockfall = 1UL << San9ScenarioFixedBuildingArchive.RockfallTacticId;
+            for (int byteIndex = 0; byteIndex < 6; byteIndex++)
+            {
+                writer.Write((byte)(rockfall >> (byteIndex * 8)));
+            }
+        }
+
+        stream.Position = 0;
+        IReadOnlyList<San9ScenarioFixedBuildingRecord> records =
+            San9ScenarioFixedBuildingArchive.ReadKnownRecords(stream);
+
+        Assert.True(records[8].HasArrowPlatform);
+        Assert.False(records[8].HasRockfall);
+        Assert.True(records[9].HasRockfall);
+        Assert.False(records[9].HasArrowPlatform);
+        Assert.Throws<ArgumentOutOfRangeException>(() => records[8].HasTactic(41));
     }
 
     [Fact]

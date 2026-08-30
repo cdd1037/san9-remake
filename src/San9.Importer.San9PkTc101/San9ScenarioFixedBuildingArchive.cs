@@ -6,8 +6,8 @@ namespace San9.Importer.San9PkTc101;
 public sealed record San9ScenarioFixedBuildingRecord(
     int Id,
     ushort SerializedId,
-    ushort OpaqueField02,
-    ushort OpaqueField04,
+    ushort CatalogCode,
+    ushort VisualDefinitionCode,
     ushort ConstructionCost,
     ushort MaxDurability,
     ushort OpaqueField0A,
@@ -16,7 +16,7 @@ public sealed record San9ScenarioFixedBuildingRecord(
     ushort AppearanceId,
     ushort RecoveryPerTurn,
     ushort TacticCode,
-    IReadOnlyList<byte> OpaqueTail)
+    ulong TacticFlags)
 {
     public int FootprintWidth => ShapeLength;
 
@@ -27,6 +27,21 @@ public sealed record San9ScenarioFixedBuildingRecord(
     public int? TacticId => TacticCode < San9ScenarioFixedBuildingArchive.TacticCount
         ? TacticCode
         : null;
+
+    public bool HasRockfall => HasTactic(San9ScenarioFixedBuildingArchive.RockfallTacticId);
+
+    public bool HasArrowPlatform => HasTactic(San9ScenarioFixedBuildingArchive.ArrowPlatformTacticId);
+
+    public bool HasTactic(int tacticId)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(tacticId);
+        if (tacticId >= San9ScenarioFixedBuildingArchive.TacticCount)
+        {
+            throw new ArgumentOutOfRangeException(nameof(tacticId));
+        }
+
+        return (TacticFlags & (1UL << tacticId)) != 0;
+    }
 }
 
 public static class San9ScenarioFixedBuildingArchive
@@ -34,7 +49,8 @@ public static class San9ScenarioFixedBuildingArchive
     public const int RecordCount = 17;
     public const int RecordSize = 28;
     public const int TacticCount = 41;
-    public const int OpaqueTailSize = 6;
+    public const int RockfallTacticId = 39;
+    public const int ArrowPlatformTacticId = 40;
 
     public static IReadOnlyList<San9ScenarioFixedBuildingRecord> ReadKnownRecords(Stream stream)
     {
@@ -63,7 +79,7 @@ public static class San9ScenarioFixedBuildingArchive
                 reader.ReadUInt16(),
                 reader.ReadUInt16(),
                 reader.ReadUInt16(),
-                Array.AsReadOnly(reader.ReadBytes(OpaqueTailSize))));
+                ReadUInt48(reader)));
         }
 
         if (stream.Position != section.DataOffset + section.Size)
@@ -73,5 +89,16 @@ public static class San9ScenarioFixedBuildingArchive
         }
 
         return new ReadOnlyCollection<San9ScenarioFixedBuildingRecord>(records);
+    }
+
+    private static ulong ReadUInt48(BinaryReader reader)
+    {
+        ulong value = 0;
+        for (int byteIndex = 0; byteIndex < 6; byteIndex++)
+        {
+            value |= (ulong)reader.ReadByte() << (byteIndex * 8);
+        }
+
+        return value;
     }
 }

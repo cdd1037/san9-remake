@@ -1,0 +1,31 @@
+{
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0014",
+  "status": "applied-and-read-back",
+  "scope": "FBLD-01 fixed-building visual code, tactic flags, and negative field audit",
+  "evidence": {
+    "visual_definition_code": "fbld +0x04 -> runtime +0x1C -> region-building accessor -> map snapshot +0x38 -> select_building_composition_id",
+    "tactic_flags": "fbld +0x16..+0x1B -> runtime +0x48..+0x4D -> fixed_building_has_tactic_flag -> generic ID 0..40 bit reader",
+    "stock_bits": "fixed code 8 sets bit40 (arrow platform); fixed code 9 sets bit39 (rockfall)",
+    "negative_audit": "fbld +0x02 has no post-load read; +0x0A has only catalog property 5 and decimal formatting, with no gameplay/render consumer"
+  },
+  "ida_changes": {
+    "function_renames": [
+      { "address": "0x43CF30", "before": "sub_43CF30", "after": "get_fixed_building_property_descriptor", "confidence": "high" },
+      { "address": "0x43CF70", "before": "get_tactic_known_bit_w_0", "after": "fixed_building_has_tactic_flag", "confidence": "high" },
+      { "address": "0x43D500", "before": "sub_43D500", "after": "format_fixed_building_property_value", "confidence": "high" },
+      { "address": "0x436200", "before": "sub_436200", "after": "get_region_building_visual_definition_code", "confidence": "high" },
+      { "address": "0x52E4F0", "before": "sub_52E4F0", "after": "build_map_building_snapshot", "confidence": "high" },
+      { "address": "0x52E230", "before": "sub_52E230", "after": "set_map_building_visual_definition_code", "confidence": "high" },
+      { "address": "0x52EB60", "before": "sub_52EB60", "after": "compare_map_building_snapshot", "confidence": "high" }
+    ],
+    "dry_run": { "total": 7, "ok": 7, "failed": 0 },
+    "apply": { "total": 7, "ok": 7, "failed": 0 },
+    "comments": 8,
+    "program_byte_changes": 0,
+    "function_boundary_changes": 0,
+    "type_changes": 0,
+    "save": "in-place save succeeded",
+    "read_back": "Names and comments were visible in the loader, tactic-bit reader, map snapshot builder and composition comparison after save"
+  }
+}

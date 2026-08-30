@@ -1,0 +1,33 @@
+{
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0015",
+  "status": "applied-and-read-back",
+  "scope": "HIHO-02 follow-up: actual facility-target eligibility versus serialized hiho +0x20",
+  "source_observation": {
+    "same_layout_samples": 26,
+    "nonzero_hiho_0x20_ids": [6, 7, 8, 9, 10, 11, 23, 25, 26, 27, 30, 31, 32],
+    "values": "all nonzero values are 1 in the registered samples"
+  },
+  "runtime_gate": {
+    "common": "0x502280 accepts valid unit command-event targets or map objects whose +0x20 bit0 marks a facility",
+    "facility_capable_ids": [6, 7, 8, 9, 10, 11, 23, 25, 26, 27, 30, 31, 32],
+    "decision": "specific tactic-resolution eligibility callbacks hard-code the final facility-target decision and never read San9KillerRecord +0x84"
+  },
+  "conclusion": "Serialized hiho +0x20 is an accurate redundant declaration of the stock facility-target capability set, but it is not the authoritative runtime gate in this EXE; changing only the field does not change eligibility.",
+  "ida_changes": {
+    "function_renames": [
+      {
+        "address": "0x502280",
+        "before": "sub_502280",
+        "after": "check_tactic_resolution_common_eligibility",
+        "confidence": "high"
+      }
+    ],
+    "dry_run": { "total": 1, "ok": 1, "failed": 0 },
+    "apply": { "total": 1, "ok": 1, "failed": 0 },
+    "function_comments": 3,
+    "program_byte_changes": 0,
+    "save": "in-place save succeeded",
+    "read_back": "the common gate name and the mounted-archery/crossbow evidence comments were visible after forced recompilation"
+  }
+}

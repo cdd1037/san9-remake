@@ -22,10 +22,17 @@ public sealed record San9ScenarioTacticRecord(
     ushort MinimumInterval,
     ushort OpaqueField1E,
     ushort AffectsFacilitiesCode,
-    ushort OpaqueField22,
-    ushort OpaqueField24)
+    ushort CompatibleArrayTypeMaskLow,
+    ushort CompatibleArrayTypeMaskHigh)
 {
     public bool AffectsFacilities => AffectsFacilitiesCode != 0;
+
+    public uint CompatibleArrayTypeMask =>
+        CompatibleArrayTypeMaskLow | ((uint)CompatibleArrayTypeMaskHigh << 16);
+
+    public bool SupportsArrayType(int arrayTypeId) =>
+        (uint)arrayTypeId < 28 &&
+        (CompatibleArrayTypeMask & (1u << arrayTypeId)) != 0;
 }
 
 public static class San9ScenarioTacticArchive

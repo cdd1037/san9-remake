@@ -1,0 +1,55 @@
+{
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0015",
+  "status": "applied-and-read-back",
+  "scope": "HIHO-01 tactic system-code names, proficiency boundary and direct consumers",
+  "evidence": {
+    "serialized_field": "hiho +0x08 is widened into San9KillerRecord +0x54",
+    "resource_records": "M_MsgPK.s9 records 4975..4992 contain nine ordered system names and nine proficiency labels",
+    "editor": "codes 0..8 display the same nine names; tactic 39/40 code 9 displays an empty system cell",
+    "runtime": "is_valid_tactic_category accepts only 0..8; tactic 39/40 are the only stock code-9 records"
+  },
+  "enum": {
+    "name": "TacticSystemCode",
+    "members": {
+      "TACTIC_SYSTEM_INFANTRY": 0,
+      "TACTIC_SYSTEM_CAVALRY": 1,
+      "TACTIC_SYSTEM_MOUNTED_ARCHERY": 2,
+      "TACTIC_SYSTEM_CROSSBOW": 3,
+      "TACTIC_SYSTEM_NAVAL": 4,
+      "TACTIC_SYSTEM_SIEGE": 5,
+      "TACTIC_SYSTEM_WISDOM": 6,
+      "TACTIC_SYSTEM_PLOT": 7,
+      "TACTIC_SYSTEM_STRATEGY": 8,
+      "TACTIC_SYSTEM_NO_PROFICIENCY": 9
+    }
+  },
+  "type_edits": [
+    {
+      "type": "San9KillerRecord",
+      "size": "0x8C",
+      "change": "split the coarse spans into the known runtime fields from +0x48 through +0x8A and type +0x54 as TacticSystemCode",
+      "evidence": "deserialize_hiho_record sequential writes and copied tail"
+    }
+  ],
+  "function_renames": [
+    {
+      "address": "0x4FEAF0",
+      "before": "sub_4FEAF0",
+      "after": "get_tactic_system_code",
+      "confidence": "high"
+    },
+    {
+      "address": "0x48BB60",
+      "before": "sub_48BB60",
+      "after": "count_selected_tactics_by_system",
+      "confidence": "high"
+    }
+  ],
+  "dry_run": { "total": 2, "ok": 2, "failed": 0 },
+  "apply": { "total": 2, "ok": 2, "failed": 0 },
+  "comments": 3,
+  "program_byte_changes": 0,
+  "save": "in-place save succeeded",
+  "read_back": "San9KillerRecord remained 0x8C; +0x54 is TacticSystemCode; both names and comments were visible after forced recompilation"
+}

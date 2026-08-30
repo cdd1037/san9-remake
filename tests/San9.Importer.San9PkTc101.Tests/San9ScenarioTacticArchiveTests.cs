@@ -43,8 +43,9 @@ public sealed class San9ScenarioTacticArchiveTests
         Assert.Equal(0x100F, records[0].OpaqueField1E);
         Assert.Equal(0x1010, records[0].AffectsFacilitiesCode);
         Assert.True(records[0].AffectsFacilities);
-        Assert.Equal(0x1011, records[0].OpaqueField22);
-        Assert.Equal(0x1012, records[0].OpaqueField24);
+        Assert.Equal(0x1011, records[0].CompatibleArrayTypeMaskLow);
+        Assert.Equal(0x1012, records[0].CompatibleArrayTypeMaskHigh);
+        Assert.Equal(0x10121011u, records[0].CompatibleArrayTypeMask);
         Assert.Equal(40, records[40].Id);
         Assert.Equal(0x1500, records[40].SerializedId);
     }
@@ -64,6 +65,30 @@ public sealed class San9ScenarioTacticArchiveTests
 
         Assert.Equal((ushort)1, record.AffectsFacilitiesCode);
         Assert.True(record.AffectsFacilities);
+    }
+
+    [Fact]
+    public void ReadKnownTactics_CombinesAndQueriesArrayTypeCompatibilityMask()
+    {
+        using MemoryStream stream = BuildScenarioArchive();
+        stream.Position = 0x322 + 0x22;
+        using (BinaryWriter writer = new(stream, Encoding.ASCII, leaveOpen: true))
+        {
+            writer.Write((ushort)0x8001);
+            writer.Write((ushort)0x0410);
+        }
+
+        stream.Position = 0;
+        San9ScenarioTacticRecord record = San9ScenarioTacticArchive.ReadKnownRecords(stream)[0];
+
+        Assert.Equal(0x04108001u, record.CompatibleArrayTypeMask);
+        Assert.True(record.SupportsArrayType(0));
+        Assert.True(record.SupportsArrayType(15));
+        Assert.True(record.SupportsArrayType(20));
+        Assert.True(record.SupportsArrayType(26));
+        Assert.False(record.SupportsArrayType(27));
+        Assert.False(record.SupportsArrayType(-1));
+        Assert.False(record.SupportsArrayType(28));
     }
 
     [Fact]

@@ -2,7 +2,7 @@
 
 - 状态：已确认
 - 负责人：项目开发者
-- 最后更新：2026-08-30
+- 最后更新：2026-08-31
 - 关联证据：[RE-SAN9PK-0014](../../research/findings/RE-SAN9PK-0014.md)
 - 关联决策：[DEC-DATA-0001](../decisions/DEC-DATA-0001-content-pipeline.md)
 - 关联渲染规格：[BEH-RENDER-0001](BEH-RENDER-0001-static-map-snapshot.md)
@@ -82,6 +82,5 @@ recovered = min(base, W)
 
 ## 非阻塞补证
 
-- 编辑器单变量修改后的保存差分。
-- `D_Trst01.S9`–`D_Trst28.S9` 的不同 `head` 布局适用性。
-- 其他版本若让 `+0x0A` 取非默认值，需重新确认其目录标签，但不得反向改变当前版本的负面审计结论。
+- 编辑器单变量修改后的保存差分，以及其他版本对 `+0x0A` 的目录标签，统一归入 [`EDITOR-01`](../../research/scenario-field-research-checklist.md#范围外与后续扩展)；不得反向改变当前版本的负面审计结论。
+- `D_Trst01.S9`–`D_Trst28.S9` 的特殊 `head` 布局适用性归入 [`EXT-SCENARIO-01`](../../research/scenario-field-research-checklist.md#范围外与后续扩展)。

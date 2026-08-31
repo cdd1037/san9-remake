@@ -61,4 +61,4 @@
 
 ## 未决问题
 
-- `D_Trst01.S9`–`D_Trst28.S9` 中不同 `head` 布局下的 `area` 偏移和语义。
+无。`D_Trst01.S9`–`D_Trst28.S9` 的特殊 `head` 布局和专属语义属于 [`EXT-SCENARIO-01`](../../research/scenario-field-research-checklist.md#范围外与后续扩展)，不在本规格适用范围内。

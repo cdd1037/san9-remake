@@ -2,7 +2,7 @@
 
 - 状态：已确认
 - 负责人：项目开发者
-- 最后更新：2026-08-22
+- 最后更新：2026-08-31
 - 关联证据：[RE-SAN9PK-0005](../../research/findings/RE-SAN9PK-0005.md)、[RE-SAN9PK-0023](../../research/findings/RE-SAN9PK-0023.md)、[RE-SAN9PK-0060](../../research/findings/RE-SAN9PK-0060.md)
 - 关联决策：[DEC-DATA-0001](../decisions/DEC-DATA-0001-content-pipeline.md)
 
@@ -97,4 +97,4 @@
 
 ## 未决问题
 
-无。未纳入适用范围的字段和像素语义必须通过后续 `BEH-*` 单独确认。
+无。未纳入适用范围的字段和像素语义必须通过后续 `BEH-*` 单独确认。正式剧本剩余头部位义统一登记为 [`HEAD-01`](../../research/scenario-field-research-checklist.md#当前未决项)，剧本显示名称登记为 [`CONTENT-01`](../../research/scenario-field-research-checklist.md#当前未决项)；二者都不阻塞本容器规格。

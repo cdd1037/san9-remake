@@ -54,5 +54,4 @@
 
 ## 未决问题
 
-- `D_Trst01.S9`–`D_Trst28.S9` 的不同 `head` 布局适用性。
-- 其它程序版本是否读取三个当前无消费者槽位。
+无。`D_Trst01.S9`–`D_Trst28.S9` 归入 [`EXT-SCENARIO-01`](../../research/scenario-field-research-checklist.md#范围外与后续扩展)；其他程序版本是否读取当前无消费者槽位归入 [`EDITOR-01`](../../research/scenario-field-research-checklist.md#范围外与后续扩展)。二者均不在本规格适用范围内。

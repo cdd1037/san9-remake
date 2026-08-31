@@ -134,6 +134,8 @@ IDA 的 `read_scenario_chunks`（`0x425B00`）按上述顺序把所有 chunk 数
 
 ## 待验证
 
+> **终态路由（2026-08-31）**：本节是容器调查早期形成的历史清单，不再作为当前研究队列。`city/forc/unit/prsn` 等字段已由后续 `RE-*` 与 `BEH-IMPORT-*` 闭合；`head`、正式剧本数据不变量和周边资源分别统一登记为 [`HEAD-01`](../scenario-field-research-checklist.md#当前未决项)、[`PRSN-05`](../scenario-field-research-checklist.md#当前未决项) 与 [`RESOURCE-01`](../scenario-field-research-checklist.md#范围外与后续扩展)。
+
 1. 通过游戏剧本选择界面、消息资源读取函数或黑盒编辑器确认文件编号与剧本显示名称。
 2. 对 `city`、`forc`、`bldg`、`unit` 和 `prsn` 分别执行单变量差分，确认序列化字段偏移与含义。
 3. 渲染少量仅存于本地的头像预览，确认调色板选择、BGRA/RGBA 通道顺序、行方向及透明度。

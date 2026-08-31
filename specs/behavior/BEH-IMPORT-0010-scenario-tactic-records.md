@@ -2,7 +2,7 @@
 
 - 状态：已确认（边界、顺序身份、系统映射、阵形兼容位图、当前 EXE 消费边界和无损读取；其余无消费者源槽位保持不透明）
 - 负责人：项目开发者
-- 最后更新：2026-08-30
+- 最后更新：2026-08-31
 - 关联证据：[RE-SAN9PK-0015](../../research/findings/RE-SAN9PK-0015.md)、[RE-SAN9PK-0151](../../research/findings/RE-SAN9PK-0151.md)
 - 关联决策：[DEC-DATA-0001](../decisions/DEC-DATA-0001-content-pipeline.md)
 
@@ -70,6 +70,4 @@
 
 ## 未决问题
 
-- 库存外 `system_code` 自定义值的其他版本/编辑器行为；导入器当前只无损保留。
-- 编辑器单变量修改后的保存差分只用于研究编辑器写回行为；当前 EXE 的设施资格集合已经由具体任务回调闭合。
-- `D_Trst01.S9`–`D_Trst28.S9` 的不同 `head` 布局适用性。
+无阻塞本规格的未决问题。库存外 `system_code`、编辑器保存差分和其他版本行为统一归入 [`EDITOR-01`](../../research/scenario-field-research-checklist.md#范围外与后续扩展)；`D_Trst01.S9`–`D_Trst28.S9` 归入 [`EXT-SCENARIO-01`](../../research/scenario-field-research-checklist.md#范围外与后续扩展)。导入器继续无损保留未知值。

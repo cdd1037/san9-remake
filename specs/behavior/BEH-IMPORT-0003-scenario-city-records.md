@@ -2,7 +2,7 @@
 
 - 状态：已确认
 - 负责人：项目开发者
-- 最后更新：2026-08-30
+- 最后更新：2026-08-31
 - 关联证据：[RE-SAN9PK-0008](../../research/findings/RE-SAN9PK-0008.md)、[RE-SAN9PK-0052](../../research/findings/RE-SAN9PK-0052.md)、[RE-SAN9PK-0055](../../research/findings/RE-SAN9PK-0055.md)、[RE-SAN9PK-0058](../../research/findings/RE-SAN9PK-0058.md)、[RE-SAN9PK-0061](../../research/findings/RE-SAN9PK-0061.md)
 - 关联决策：[DEC-DATA-0001](../decisions/DEC-DATA-0001-content-pipeline.md)
 - 关联渲染规格：[BEH-RENDER-0001](BEH-RENDER-0001-static-map-snapshot.md)
@@ -78,6 +78,6 @@
 
 ## 未决问题
 
-本记录字段范围内无。坐标到道路连通性的设计不由 `city` chunk 单独决定，仍在本规格范围外。
+本记录字段范围内无。城市显示名称资源绑定登记为 [`CONTENT-01`](../../research/scenario-field-research-checklist.md#当前未决项)；坐标到道路连通性的设计不由 `city` chunk 单独决定，仍在本规格范围外。
 
 城市建筑组合的耐久度分段、三组外观资源和开发度资源偏移见 [RE-SAN9PK-0055](../../research/findings/RE-SAN9PK-0055.md)；它们不改变本记录的导入字段语义。

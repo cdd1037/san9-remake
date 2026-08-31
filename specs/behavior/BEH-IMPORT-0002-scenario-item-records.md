@@ -2,7 +2,7 @@
 
 - 状态：已确认
 - 负责人：项目开发者
-- 最后更新：2026-08-26
+- 最后更新：2026-08-31
 - 关联证据：[RE-SAN9PK-0006](../../research/findings/RE-SAN9PK-0006.md)、[RE-SAN9PK-0141](../../research/findings/RE-SAN9PK-0141.md)
 - 关联决策：[DEC-DATA-0001](../decisions/DEC-DATA-0001-content-pipeline.md)
 
@@ -77,4 +77,4 @@
 
 ## 未决问题
 
-无。类别名称和地点映射已明确排除在本规格之外。
+无。类别名称、宝物名称和发现地点资源映射已明确排除在本规格之外，并统一登记为 [`CONTENT-01`](../../research/scenario-field-research-checklist.md#当前未决项)。

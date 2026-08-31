@@ -1,8 +1,8 @@
 # BEH-IMPORT-0014：剧本地图方格记录解析
 
-- 状态：已确认（区块边界、字段宽度、地图线性索引、城市/据点区域编码、地形/高差过渡及自动生成、桥方向、两类疆界线、寻路阻塞消费者、地图绘制与资源消费者、目标哨兵行为和无损读取；部分其他辅助值仍未确认）
+- 状态：已确认（区块边界、字段宽度、地图线性索引、城市/据点区域编码、地形/高差过渡及自动生成、桥方向、两类疆界线、寻路阻塞消费者、地图绘制与资源消费者、目标哨兵行为和无损读取；无当前消费者的辅助值按原始值保留）
 - 负责人：项目开发者
-- 最后更新：2026-08-30
+- 最后更新：2026-08-31
 - 关联证据：[RE-SAN9PK-0019](../../research/findings/RE-SAN9PK-0019.md)、[RE-SAN9PK-0032](../../research/findings/RE-SAN9PK-0032.md)、[RE-SAN9PK-0051](../../research/findings/RE-SAN9PK-0051.md)、[RE-SAN9PK-0052](../../research/findings/RE-SAN9PK-0052.md)、[RE-SAN9PK-0053](../../research/findings/RE-SAN9PK-0053.md)、[RE-SAN9PK-0054](../../research/findings/RE-SAN9PK-0054.md)、[RE-SAN9PK-0056](../../research/findings/RE-SAN9PK-0056.md)
 - 深入证据：[RE-SAN9PK-0024](../../research/findings/RE-SAN9PK-0024.md)、[RE-SAN9PK-0025](../../research/findings/RE-SAN9PK-0025.md)、[RE-SAN9PK-0030](../../research/findings/RE-SAN9PK-0030.md)、[RE-SAN9PK-0031](../../research/findings/RE-SAN9PK-0031.md)、[RE-SAN9PK-0032](../../research/findings/RE-SAN9PK-0032.md)、[RE-SAN9PK-0033](../../research/findings/RE-SAN9PK-0033.md)、[RE-SAN9PK-0034](../../research/findings/RE-SAN9PK-0034.md)
 - 关联决策：[DEC-DATA-0001](../decisions/DEC-DATA-0001-content-pipeline.md)
@@ -169,9 +169,9 @@
 
 ## 未决问题
 
-- 后续可评估使用 GPU shader 执行底图与边缘混合；颜色精度已由 `DEC-RENDER-0001` 确定，但混合规则仍以 `source × (256 - mask) + target × mask` 后右移 8 位为原作基线。若改用归一化 alpha 或其他现代混合规则，应另立设计决策并进行截图验收。
-- 原作 `ZoneCode` 之外的重制版地图对象关系仍需单独设计；当前只确认正式剧本的城市/据点编码映射。
-- 偏移代码、地形代码和未知字节对编辑器保存行为及玩法规则的影响。
+无阻塞正式剧本方格导入的字段未决项。既有 `SQUA-01..05` 已在[统一研究清单](../../research/scenario-field-research-checklist.md#已关闭字段队列)关闭。
+
+GPU shader 与混合精度、原作 `ZoneCode` 之外的重制地图对象关系属于产品设计，若改变当前规格须另立 `DEC-*`；编辑器保存行为归入 [`EDITOR-01`](../../research/scenario-field-research-checklist.md#范围外与后续扩展)，不作为本规格未决字段。
 
 ## IDA 同步记录
 

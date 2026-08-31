@@ -91,7 +91,6 @@ GAMECITY 公开更新入口确认 PK 更新程序的最终发布日期为 2005-0
 
 ## 关联记录
 
-- 核对审计：[日本版 PK 修正履历与繁中 PK 1.0.1.0 核对审计](../jp-patch-history-audit.md)
 - `EXP-*`：后续按具体修正项建立，不在本来源记录中预先确认
 - `RE-*`：[RE-SAN9PK-0009](../findings/RE-SAN9PK-0009.md)、[RE-SAN9PK-0067](../findings/RE-SAN9PK-0067.md)、[RE-SAN9PK-0115](../findings/RE-SAN9PK-0115.md)、[RE-SAN9PK-0119](../findings/RE-SAN9PK-0119.md)、[RE-SAN9PK-0137](../findings/RE-SAN9PK-0137.md)、[RE-SAN9PK-0141](../findings/RE-SAN9PK-0141.md)、[RE-SAN9PK-0150](../findings/RE-SAN9PK-0150.md)
 - `BEH-*`：只作为跨版本线索，不直接支撑已确认行为规格

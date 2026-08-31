@@ -11,15 +11,24 @@ public sealed record San9ScenarioDate(int Year, int Month, int Day);
 
 public sealed record San9ScenarioHeader(
     uint FormatVersion,
-    IReadOnlyList<uint> UnknownWords,
+    IReadOnlyList<uint> ScenarioWorldFlagWords,
     ushort ScenarioId,
-    ushort PackedFlags,
+    ushort RawModeAndLandCode,
     ushort EncodedStartDate,
     San9ScenarioDate StartDate,
     ushort AllianceDurationTurns,
     ushort MapWidth,
     ushort MapHeight,
-    IReadOnlyList<byte> EncodedCityForceMapCodes);
+    IReadOnlyList<byte> CityForceColorCodes)
+{
+    public byte LandDrawCacheCode => (byte)RawModeAndLandCode;
+
+    public byte ScenarioModeCode => (byte)((RawModeAndLandCode >> 8) & 0x0F);
+
+    public byte DiscardedPackedHighBits => (byte)(RawModeAndLandCode >> 12);
+
+    public bool IgnoresPersonAge => ScenarioModeCode == 1;
+}
 
 public sealed class San9ScenarioLayout
 {
@@ -109,35 +118,35 @@ public static class San9ScenarioArchive
                 $"but found 0x{formatVersion:X8}.");
         }
 
-        uint[] unknownWords = new uint[4];
-        for (int index = 0; index < unknownWords.Length; index++)
+        uint[] scenarioWorldFlagWords = new uint[4];
+        for (int index = 0; index < scenarioWorldFlagWords.Length; index++)
         {
-            unknownWords[index] = reader.ReadUInt32();
+            scenarioWorldFlagWords[index] = reader.ReadUInt32();
         }
 
         ushort scenarioId = reader.ReadUInt16();
-        ushort packedFlags = reader.ReadUInt16();
+        ushort rawModeAndLandCode = reader.ReadUInt16();
         ushort encodedStartDate = reader.ReadUInt16();
         ushort allianceDurationTurns = reader.ReadUInt16();
         ushort mapWidth = reader.ReadUInt16();
         ushort mapHeight = reader.ReadUInt16();
-        byte[] encodedCityForceMapCodes = reader.ReadBytes(50);
-        if (encodedCityForceMapCodes.Length != 50 || stream.Position != head.DataOffset + head.Size)
+        byte[] cityForceColorCodes = reader.ReadBytes(50);
+        if (cityForceColorCodes.Length != 50 || stream.Position != head.DataOffset + head.Size)
         {
             throw new InvalidDataException("Scenario head chunk has an unexpected field layout.");
         }
 
         return new(
             formatVersion,
-            Array.AsReadOnly(unknownWords),
+            Array.AsReadOnly(scenarioWorldFlagWords),
             scenarioId,
-            packedFlags,
+            rawModeAndLandCode,
             encodedStartDate,
             DecodeDate(encodedStartDate),
             allianceDurationTurns,
             mapWidth,
             mapHeight,
-            Array.AsReadOnly(encodedCityForceMapCodes));
+            Array.AsReadOnly(cityForceColorCodes));
     }
 
     public static San9ScenarioHeader ReadInitialScenario190Header(Stream stream)

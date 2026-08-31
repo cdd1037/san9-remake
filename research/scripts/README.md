@@ -19,6 +19,7 @@
 - `ida/classify_source_catalog.py`：在目标 IDB 中只读分类来源候选。
 - `ida/apply_core_records.py`：默认 dry-run；仅带 `--apply` 时写入七类核心记录名称和类型。
 - `parse_pk_text.py`：解压并解析 PK 消息/人物列传文本表；可用 `--simplified` 调用 OpenCC `t2s` 生成简体 UTF-8 输出，并用 `--json-output-dir` 分别生成 `messages.json` 与 `biographies.json`。控制字节保持原始可见形式；如何在新引擎中解释和渲染消息脚本另行设计。
+- `analyze_scenario_head.py`：审计 20 个正式剧本的 82 字节 `head`，复算日期初始化后的世界事件位，验证 50 字节城市向量与 `forc.ColorCode` 的逐项关系，并输出不含原版文本的 JSON 证据。
 - `legacy_text.py`：消息资源与 EXE 共用的字节保真 ASCII/Big5 家族解码、片段转换和 C 字符串扫描组件。
 - `export_g_still_treasure.py`：按已确认的模式 3 索引，从 `G_Still.s9` 导出内置宝物 `image_id=0..99` 的原始 RGB PNG 和预览拼图；生成物放在 `artifacts/image-research/` 等 Git 忽略目录。
 - `export_g_face_palette0.py`：只导出 `G_FaceL/S.s9` 的全部基础头像，使用 `P_Face[0]`，以 `L_000.png`/`S_000.png` 形式平铺输出。

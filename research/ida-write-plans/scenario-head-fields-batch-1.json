@@ -1,0 +1,39 @@
+{
+  "record": "RE-SAN9PK-0023",
+  "scope": "formal scenario head runtime type, field consumers, resource bindings and city color snapshot",
+  "sample": "SRC-SAN9PK-TC-101",
+  "evidence": {
+    "formal_inventory": "All 20 formal scenarios use an 82-byte head; format/version, IDs, dates and dimensions close exactly.",
+    "world_flags": "head +0x04..+0x13 load four u32 words into the 128-bit ScenarioWorldState flag store; date finalization ORs fixed bits into the first word.",
+    "packed_field": "The loader widens the low byte to land_draw_cache_code and masks the high byte to a four-bit scenario_mode_code; the former is the sole D_Land%1d%1d.s9 cache filename selector.",
+    "city_colors": "Across 1,000 formal city slots, all 798 valid slots equal the owning force record ColorCode and all 202 empty slots equal 0xFF.",
+    "resource_binding": "Formal scenario title and description use M_MsgPK message IDs 2*ScenarioId and 2*ScenarioId+1; text is generated at runtime and is not serialized in head."
+  },
+  "renames": [
+    {"address": "0x1232478", "before": "stru_1232478", "after": "scenario_header_runtime", "confidence": "high"},
+    {"address": "0x446A10", "before": "sub_446A10", "after": "reset_scenario_header_runtime", "confidence": "high"},
+    {"address": "0x446A50", "before": "sub_446A50", "after": "get_scenario_start_year", "confidence": "high"},
+    {"address": "0x446A70", "before": "sub_446A70", "after": "get_scenario_start_month", "confidence": "high"},
+    {"address": "0x446AF0", "before": "sub_446AF0", "after": "set_scenario_display_name", "confidence": "high"},
+    {"address": "0x446B20", "before": "sub_446B20", "after": "scenario_header_runtime_ctor", "confidence": "high"},
+    {"address": "0x449CC0", "before": "sub_449CC0", "after": "set_scenario_map_dimensions", "confidence": "high"},
+    {"address": "0x567A30", "before": "sub_567A30", "after": "load_standard_scenario_title_message", "confidence": "high"},
+    {"address": "0x567A50", "before": "sub_567A50", "after": "load_standard_scenario_description_message", "confidence": "high"},
+    {"address": "0x567A70", "before": "sub_567A70", "after": "load_tutorial_scenario_title_message", "confidence": "high"},
+    {"address": "0x567A90", "before": "sub_567A90", "after": "load_tutorial_scenario_description_message", "confidence": "high"}
+  ],
+  "type": {
+    "name": "San9ScenarioHeaderRuntime",
+    "size": 528,
+    "global": "0x1232478"
+  },
+  "comments": 5,
+  "verification": {
+    "rename_dry_run": "11/11 accepted without overwrite",
+    "type_readback": "San9ScenarioHeaderRuntime size 528 with expected field offsets",
+    "decompiler_readback": "deserialize_scenario_head uses the recovered field names",
+    "database_saved": true,
+    "module_sha256_after_write": "d20794aeff67301ec2bf8c3becb1e9944c68c6c0588fbfd4bf04e8597f0e5028"
+  },
+  "sample_bytes_modified": false
+}

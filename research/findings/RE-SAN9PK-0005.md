@@ -86,7 +86,7 @@ IDA 的 `read_scenario_chunks`（`0x425B00`）按上述顺序把所有 chunk 数
 | `0x1A` | 2 | 联盟持续时间，单位为旬；截图中的“联盟时间（旬）” |
 | `0x1C` | 2 | 地图宽度 200 |
 | `0x1E` | 2 | 地图高度 200 |
-| `0x20` | 50 | 按城市编号排列的编码后势力分布向量；与 `city +0x1C` 不是同一原始代码域，详见 [RE-SAN9PK-0023](RE-SAN9PK-0023.md) |
+| `0x20` | 50 | 按城市编号排列的势力颜色快照；有效项等于所属 `forc.ColorCode`，空城市为 `0xFF`，详见 [RE-SAN9PK-0023](RE-SAN9PK-0023.md) |
 
 20 个正式剧本的日期码均满足 `year = 130 + code / 360`、`month = 1 + code % 360 / 30`、`day = 1 + code % 30`。例如 `19470 → 184-02-01`、`21600 → 190-01-01`、`23190 → 194-06-01`，并与多个已知剧本年份序列一致。`D_Sce002.S9` 因此可以确认是剧本编号 1、起始于 190 年 1 月 1 日的内容文件；界面名称“反董卓联盟”仍属于独立文本映射，不能仅由日期推出。
 
@@ -134,9 +134,9 @@ IDA 的 `read_scenario_chunks`（`0x425B00`）按上述顺序把所有 chunk 数
 
 ## 待验证
 
-> **终态路由（2026-08-31）**：本节是容器调查早期形成的历史清单，不再作为当前研究队列。`city/forc/unit/prsn` 等字段已由后续 `RE-*` 与 `BEH-IMPORT-*` 闭合；`head`、正式剧本数据不变量和周边资源分别统一登记为 [`HEAD-01`](../scenario-field-research-checklist.md#当前未决项)、[`PRSN-05`](../scenario-field-research-checklist.md#当前未决项) 与 [`RESOURCE-01`](../scenario-field-research-checklist.md#范围外与后续扩展)。
+> **终态路由（2026-08-31）**：本节是容器调查早期形成的历史清单，不再作为当前研究队列。`city/forc/unit/prsn` 等字段已由后续 `RE-*` 与 `BEH-IMPORT-*` 闭合；`head` 已由 [`HEAD-01`](../scenario-field-research-checklist.md#已关闭字段队列) 闭合，正式剧本数据不变量和周边资源分别统一登记为 [`PRSN-05`](../scenario-field-research-checklist.md#当前未决项) 与 [`RESOURCE-01`](../scenario-field-research-checklist.md#范围外与后续扩展)。
 
 1. 通过游戏剧本选择界面、消息资源读取函数或黑盒编辑器确认文件编号与剧本显示名称。
 2. 对 `city`、`forc`、`bldg`、`unit` 和 `prsn` 分别执行单变量差分，确认序列化字段偏移与含义。
 3. 渲染少量仅存于本地的头像预览，确认调色板选择、BGRA/RGBA 通道顺序、行方向及透明度。
-4. 继续确认 `head` 的 `UnknownWord0..3`、50 字节向量的完整编码表及加载后消费者、组合标志其他模式值和基本信息统计汇总；详见 [RE-SAN9PK-0023](RE-SAN9PK-0023.md)。
+4. `head` 的四个世界状态字、50 字节颜色快照、模式/缓存组合值和基本信息统计已由 [RE-SAN9PK-0023](RE-SAN9PK-0023.md) 闭合。

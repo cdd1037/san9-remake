@@ -28,12 +28,38 @@ public sealed class San9ScenarioArchiveTests
         San9ScenarioHeader header = San9ScenarioArchive.ReadHeader(stream);
 
         Assert.Equal(0x20030317U, header.FormatVersion);
+        Assert.Equal(new uint[] { 0, 0, 0, 0 }, header.ScenarioWorldFlagWords);
         Assert.Equal(1, header.ScenarioId);
+        Assert.Equal(0, header.LandDrawCacheCode);
+        Assert.Equal(0, header.ScenarioModeCode);
+        Assert.False(header.IgnoresPersonAge);
         Assert.Equal(new(190, 1, 1), header.StartDate);
         Assert.Equal(36, header.AllianceDurationTurns);
         Assert.Equal(200, header.MapWidth);
         Assert.Equal(200, header.MapHeight);
-        Assert.Equal(50, header.EncodedCityForceMapCodes.Count);
+        Assert.Equal(50, header.CityForceColorCodes.Count);
+    }
+
+    [Fact]
+    public void ReadHeader_SplitsLandCacheAndScenarioModeCodesLikeTheTargetLoader()
+    {
+        using MemoryStream stream = BuildScenarioArchiveWithHeader(
+            scenarioId: 18,
+            encodedStartDate: 28_080);
+        using (BinaryWriter writer = new(stream, Encoding.ASCII, leaveOpen: true))
+        {
+            stream.Position = 0x2A;
+            writer.Write((ushort)0xA12C);
+        }
+        stream.Position = 0;
+
+        San9ScenarioHeader header = San9ScenarioArchive.ReadHeader(stream);
+
+        Assert.Equal(0xA12C, header.RawModeAndLandCode);
+        Assert.Equal(0x2C, header.LandDrawCacheCode);
+        Assert.Equal(1, header.ScenarioModeCode);
+        Assert.Equal(0x0A, header.DiscardedPackedHighBits);
+        Assert.True(header.IgnoresPersonAge);
     }
 
     [Fact]

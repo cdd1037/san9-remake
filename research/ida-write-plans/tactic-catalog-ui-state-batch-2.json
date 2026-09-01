@@ -1,0 +1,42 @@
+{
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0151",
+  "status": "applied-and-read-back",
+  "scope": "Generic catalog help key, scroll/selection state, keyboard navigation, and bulk selection",
+  "evidence": {
+    "help_key": "Config +0x04 is copied to object +0xC8; command 7507 reaches a common vtable method that maps this value through the static help-topic table and opens the result",
+    "reserved_slot": "Config +0x08 is copied to object +0x174, but the complete current list-dialog vtable audit found no reader",
+    "state_tuple": "The save path builds {object +0x194 scroll offset, first current-or-selected entry index}; the recovered restore path clamps the former through the scrollbar model and restores the latter as the current/focus anchor without serializing the full selection set",
+    "inactive_hook": "Object +0x43F0 gates state save after selection and during destruction; the current executable has no writer that enables it and no caller of the recovered restore routine",
+    "scrolling": "Scrollbar range checks, visible-row refresh, focus repair, and entry bit-2 disablement converge on object +0x194 as the viewport start",
+    "keyboard": "Up/Down traverse or scroll, Ctrl+Tab cycles pages, Ctrl+A invokes capped bulk selection, and Ctrl+Shift+A clears the full entry set"
+  },
+  "ida_changes": {
+    "function_recovery": [
+      {
+        "address": "0x575C20",
+        "end": "0x575CCD",
+        "note": "Recovered one continuous function after raw-byte, instruction-flow, virtual-call and return-boundary validation"
+      }
+    ],
+    "function_renames": [
+      { "address": "0x420340", "before": "sub_420340", "after": "open_dialog_help_topic", "confidence": "high" },
+      { "address": "0x575BB0", "before": "sub_575BB0", "after": "save_catalog_view_state", "confidence": "high" },
+      { "address": "0x575C20", "before": "sub_575C20", "after": "restore_catalog_view_state", "confidence": "high" },
+      { "address": "0x569B00", "before": "sub_569B00", "after": "store_tactic_catalog_view_state", "confidence": "high" },
+      { "address": "0x569B20", "before": "sub_569B20", "after": "load_tactic_catalog_view_state", "confidence": "high" },
+      { "address": "0x576760", "before": "sub_576760", "after": "refresh_catalog_after_scroll", "confidence": "high" },
+      { "address": "0x577230", "before": "sub_577230", "after": "apply_catalog_scroll_position", "confidence": "high" },
+      { "address": "0x575A30", "before": "sub_575A30", "after": "select_catalog_entries_up_to_limit", "confidence": "high" },
+      { "address": "0x573170", "before": "sub_573170", "after": "clear_catalog_selection", "confidence": "high" },
+      { "address": "0x577880", "before": "sub_577880", "after": "handle_catalog_keyboard_input", "confidence": "high" }
+    ],
+    "dry_run": { "total": 10, "ok": 10, "failed": 0 },
+    "apply": { "total": 10, "ok": 10, "failed": 0 },
+    "comments": 12,
+    "program_byte_changes": 0,
+    "save": "in-place save succeeded",
+    "read_back": "Recovered restore routine, all ten function names, help-key access, state tuple, scrollbar clamp, keyboard branches and bulk-selection paths were visible after save"
+  },
+  "conclusion": "The catalog owns one authoritative scroll offset and entry-container selection state. Config +0x04 is a help key, +0x08 is unread in the current class, and the specialized persistence hook is structurally complete but inactive for current tactic-catalog entry points."
+}

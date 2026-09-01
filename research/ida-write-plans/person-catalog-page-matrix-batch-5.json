@@ -1,0 +1,39 @@
+{
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0152",
+  "status": "applied-and-read-back",
+  "scope": "Person catalog optional first page, full and tactic-only page presets, complete property-key matrix, and formatter recovery",
+  "evidence": {
+    "page_source": "Total page count adds one when an optional first-page descriptor exists; page zero resolves to it and later indices address the normal page array with a one-step shift",
+    "screenshot": "Movement first-page keys 22,83,84,27,28,29,30,162 plus fixed key 3 reproduce Officer, Identity, Rank, Command, Leadership, Martial, Intelligence, Politics, Learned",
+    "normal_pages": "The full config contains 13 pages from Ability through Strategies; the reduced config contains the nine tactic-family pages from Infantry through Strategies",
+    "headers": "Person descriptor message IDs equal 4878 plus property key; read-only message extraction supplied every page and column label",
+    "formatting": "Property keys 121..151 map value 0 to blank, 1 to triangle, and 2 to circle",
+    "row_boundary": "The Movement caller filters its candidate list before opening the selector; page activation only changes property keys and refreshes columns/rows"
+  },
+  "ida_changes": {
+    "function_recovery": [
+      { "address": "0x451970", "end": "0x452030", "note": "Replaced nineteen spurious switch-fragment functions with the single person property formatter proven by the byte dispatch table and shared stack/return paths" },
+      { "address": "0x5FE150", "end": "0x5FE167", "note": "Recovered full person catalog static-config initializer" },
+      { "address": "0x5FE170", "end": "0x5FE187", "note": "Recovered tactic-only person catalog static-config initializer" }
+    ],
+    "declared_types": [
+      { "name": "CatalogPageDescriptor", "size": 12 },
+      { "name": "CatalogDialogConfig", "size": 32 }
+    ],
+    "structured_data_items": 19,
+    "function_renames": [
+      { "address": "0x451970", "before": "unrecognized/split switch fragments", "after": "format_person_catalog_property_value", "confidence": "high" },
+      { "address": "0x5FE150", "before": "unrecognized data", "after": "initialize_person_catalog_full_config", "confidence": "high" },
+      { "address": "0x5FE170", "before": "unrecognized data", "after": "initialize_person_catalog_tactic_only_config", "confidence": "high" },
+      { "address": "0x56A1C0", "before": "sub_56A1C0", "after": "uses_person_catalog_tactic_only_pages", "confidence": "high" }
+    ],
+    "dry_run": { "total": 4, "ok": 4, "failed": 0 },
+    "apply": { "total": 4, "ok": 4, "failed": 0 },
+    "comments": 14,
+    "program_byte_changes": 0,
+    "save": "in-place save succeeded",
+    "read_back": "Four function names, two structure layouts, nineteen data names, and the unified 0x6C0-byte formatter boundary were visible after save"
+  },
+  "conclusion": "The screenshot is an optional Movement context page followed by thirteen shared person-inspection pages. Page changes replace column property keys but do not filter the caller-owned candidate set."
+}

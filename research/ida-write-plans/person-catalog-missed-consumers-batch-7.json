@@ -1,0 +1,32 @@
+{
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0153",
+  "status": "applied-and-read-back; recruitment enumeration refined within RE-SAN9PK-0153",
+  "scope": "Runtime confirmation and function recovery for the Strategist person-catalog context page, plus raw .text scan of the other initially missed consumers",
+  "evidence": {
+    "breakpoint": "A four-byte hardware read breakpoint at 0x66C5D4 stopped at get_catalog_page_column_config with EDX=0x66C5D4",
+    "stack": "The paused stack contained open_single_officer_selector return 0x5703A5 and undefined .text return address 0x4D2774",
+    "callsite": "0x4D276F calls open_single_officer_selector and 0x4D2759 supplies descriptor 0x66C5D4",
+    "class": "The recovered handler is referenced from 0x60B078 adjacent to runtime_class_COrderGunshiDlg and the COrderGunshiDlg class string",
+    "raw_scan": "Eighteen of the other nineteen initially missed descriptors have direct little-endian address occurrences in .text regions currently marked as data; the consolidated RE-SAN9PK-0153 records recovery of the 0x66C6A0 consumer and the actual target descriptor at previously omitted 0x66C5A4"
+  },
+  "ida_changes": {
+    "function_recovery": [
+      { "address": "0x4D26E0", "end": "0x4D27CC", "note": "Converted misclassified data to code and defined the COrderGunshiDlg command handler" }
+    ],
+    "function_renames": [
+      { "address": "0x4D26E0", "before": "sub_4D26E0", "after": "COrderGunshiDlg_on_command", "confidence": "high" }
+    ],
+    "data_renames": [
+      { "address": "0x66C5D4", "before": "stru_66C5D4", "after": "strategist_person_catalog_page_descriptor", "confidence": "high" }
+    ],
+    "rename_dry_run": { "total": 2, "ok": 2, "failed": 0 },
+    "rename_apply": { "total": 2, "ok": 2, "failed": 0 },
+    "comments_replaced_or_added": 21,
+    "program_byte_changes": 0,
+    "breakpoint_cleanup": "Hardware read breakpoint at 0x66C5D4 removed after evidence capture",
+    "save": "in-place save succeeded",
+    "read_back": "Recovered 0xEC-byte function boundary, function and descriptor names, xrefs 0x4D2759 -> 0x66C5D4 and 0x60B078 -> 0x4D26E0, corrected comments, and breakpoint removal were all verified"
+  },
+  "conclusion": "The Strategist page is reachable; its consumer was hidden by a misclassified .text function. The prior 34/20 reachability split is invalid."
+}

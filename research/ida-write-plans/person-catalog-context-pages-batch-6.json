@@ -1,0 +1,40 @@
+{
+  "sample": "SRC-SAN9PK-TC-101",
+  "finding": "RE-SAN9PK-0153",
+  "status": "applied-and-read-back; reachability classification corrected within RE-SAN9PK-0153",
+  "scope": "All 54 person-catalog context pages, current consumers, and full-versus-tactic-only suffix selection",
+  "evidence": {
+    "descriptor_family": "54 consecutive 12-byte CatalogPageDescriptor records occupy 0x66C5B0..0x66C837",
+    "consumers": "Initial defined-code xrefs identified 34 descriptors; the consolidated RE-SAN9PK-0153 proves that missing xrefs were caused by .text regions misclassified as data and supersedes the 34/20 reachability split",
+    "suffix_selection": "uses_person_catalog_tactic_only_pages compares exactly twelve descriptor addresses; all others receive the full thirteen-page suffix",
+    "factory": "Catalog type 10 in create_catalog_dialog_by_type allocates CPersonListDlg; single and multi wrappers share this factory",
+    "negative_evidence": "Absence of a defined-code xref is not evidence of dormancy until misclassified .text and indirect addressing are excluded"
+  },
+  "ida_changes": {
+    "typed_data": {
+      "type": "CatalogPageDescriptor",
+      "first": "0x66C5B0",
+      "last": "0x66C82C",
+      "stride": 12,
+      "count": 54,
+      "applied": 54,
+      "failed": 0
+    },
+    "function_renames": [
+      { "address": "0x56EA20", "before": "sub_56EA20", "after": "create_catalog_dialog_by_type", "confidence": "high" },
+      { "address": "0x56F930", "before": "sub_56F930", "after": "open_single_catalog_selector_by_type", "confidence": "high" },
+      { "address": "0x570150", "before": "sub_570150", "after": "open_multi_catalog_selector_by_type", "confidence": "high" }
+    ],
+    "data_renames": [
+      { "address": "0x66C5B0", "before": "off_66C5B0", "after": "person_catalog_context_page_descriptors", "confidence": "high" },
+      { "address": "0x66C694", "before": "search_result_columns", "after": "search_person_catalog_page_descriptor", "confidence": "high" }
+    ],
+    "rename_dry_run": { "total": 5, "ok": 5, "failed": 0 },
+    "rename_apply": { "total": 5, "ok": 5, "failed": 0 },
+    "comments": 58,
+    "program_byte_changes": 0,
+    "save": "in-place save succeeded",
+    "read_back": "Three function names, two data names, all 54 descriptor types, and representative context/predicate comments were visible after save"
+  },
+  "conclusion": "The shared person catalog composes one caller-supplied context page with either thirteen full pages or nine tactic pages. The original 34/20 consumer split is invalid and is corrected within RE-SAN9PK-0153."
+}

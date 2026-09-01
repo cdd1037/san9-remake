@@ -167,6 +167,8 @@
 
 四批写入先为 `0x66C5B0..0x66C82C` 的 54 个条目应用 `CatalogPageDescriptor`，随后为遗漏的 `0x66C5A4` 补型；恢复并命名 `COrderGunshiDlg_on_command(0x4D26E0)`、`COrderTouyouDlg_on_command(0x4ECFB0)`、`get_person_catalog_property_value(0x450C20)` 和 `estimate_arrival_days_between_positions(0x44A3C0)`，并命名军师、登用目标/执行者首页及命令来源全局。保存后回读确认函数边界、描述符 xref、属性 `175` 分支、名称和注释均保留；临时硬件断点已删除，程序字节修改为 `0`。逐批详情见页首四份写入计划。
 
+研究记录合并后，IDA MCP 将旧 `0156/0157/0158/0159` 的 69 次注释标签出现统一改为本记录 `0153`，无写入失败。保存后回读移动首页的场景族谱标签、`COrderGunshiDlg_on_command(0x4D26E0)`、登用处理函数和“到达预定”取值链均指向 `RE-SAN9PK-0153`；本次未改变注释正文之外的数据库内容。
+
 ## 结论
 
 武将表格由“业务候选集合 + 场景首页 + 完整或精简公共页集 + 通用目录引擎”组成。55 个首页只是小型观察配置；动态派生列还可读取命令上下文。顶部按钮换列而不筛行，消费者可达性也不能由当前 IDA xref 数量裁决，必须结合原始 `.text` 扫描、函数边界恢复或动态断点。

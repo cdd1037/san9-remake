@@ -16,6 +16,8 @@
 
 转换包和原版素材均不随仓库分发。运行地图前，需要在本地完成资源转换。
 
+界面字体文件也不随仓库分发。运行前请将 `LXGWWenKaiMonoGBLite-Medium.ttf` 放入 `src/San9.Client.Godot/assets/`；仓库保留其 Godot 导入配置及 OFL 许可证。
+
 ## 快速开始
 
 在仓库根目录执行。准备 .NET 10 SDK 和 Godot 4.7.2 Mono；仅运行研究侧图像脚本时需要 Python 与 Pillow。

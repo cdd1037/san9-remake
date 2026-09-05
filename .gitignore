@@ -69,3 +69,6 @@ Desktop.ini
 *.ncb
 *.opt
 *.aps
+
+# Locally supplied UI font
+/src/San9.Client.Godot/assets/LXGWWenKaiMonoGBLite-Medium.ttf

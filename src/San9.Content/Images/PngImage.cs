@@ -8,6 +8,7 @@ namespace San9.Content.Images;
 public sealed record PngImage(int Width, int Height, int Channels, byte[] Pixels)
 {
     private static readonly byte[] Signature = [137, 80, 78, 71, 13, 10, 26, 10];
+    private static readonly uint[] CrcTable = CreateCrcTable();
     public byte[] Encode()
     {
         Validate();
@@ -81,7 +82,18 @@ public sealed record PngImage(int Width, int Height, int Channels, byte[] Pixels
     private static uint Crc(ReadOnlySpan<byte> bytes)
     {
         uint crc = uint.MaxValue;
-        foreach (byte b in bytes) { crc ^= b; for (int bit = 0; bit < 8; bit++) crc = (crc >> 1) ^ ((crc & 1) != 0 ? 0xedb88320u : 0); }
+        foreach (byte b in bytes) crc = (crc >> 8) ^ CrcTable[(crc ^ b) & 255];
         return ~crc;
+    }
+    private static uint[] CreateCrcTable()
+    {
+        var table = new uint[256];
+        for (uint i = 0; i < table.Length; i++)
+        {
+            uint crc = i;
+            for (int bit = 0; bit < 8; bit++) crc = (crc >> 1) ^ ((crc & 1) != 0 ? 0xedb88320u : 0);
+            table[i] = crc;
+        }
+        return table;
     }
 }

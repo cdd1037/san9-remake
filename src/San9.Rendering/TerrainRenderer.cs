@@ -60,15 +60,25 @@ public sealed class TerrainRenderer
                 int run = stamp.IsCenter ? first : 0;
                 int sx = MapGeometry.Mod(stamp.SourceX + run, source.Width - 64) - run;
                 int sy = MapGeometry.Mod(stamp.SourceY + my, source.Height);
-                for (int mx = Math.Max(first, x0 - stamp.X); mx <= Math.Min(last, x0 + width - 1 - stamp.X); mx++)
+                int start = Math.Max(first, x0 - stamp.X), end = Math.Min(last, x0 + width - 1 - stamp.X);
+                if (start > end) continue;
+                if (stamp.IsCenter)
+                {
+                    Buffer.BlockCopy(source.Pixels, (sy * source.Width + sx + start) * 3,
+                        output, ((stamp.Y + my - y0) * width + stamp.X + start - x0) * 3, (end - start + 1) * 3);
+                    continue;
+                }
+                for (int mx = start; mx <= end; mx++)
                 {
                     int mi = my * mask.Width + mx;
-                    if (!stamp.IsCenter && coverage.Pixels[mi] == 0) continue;
+                    if (coverage.Pixels[mi] == 0) continue;
                     int from = (sy * source.Width + sx + mx) * source.Channels;
                     int to = ((stamp.Y + my - y0) * width + stamp.X + mx - x0) * 3;
                     int weight = mask.Pixels[mi];
-                    for (int c = 0; c < 3; c++) output[to + c] = stamp.IsCenter ? source.Pixels[from + c] :
-                        (byte)((source.Pixels[from + c] * (256 - weight) + output[to + c] * weight) >> 8);
+                    int inverse = 256 - weight;
+                    output[to] = (byte)((source.Pixels[from] * inverse + output[to] * weight) >> 8);
+                    output[to + 1] = (byte)((source.Pixels[from + 1] * inverse + output[to + 1] * weight) >> 8);
+                    output[to + 2] = (byte)((source.Pixels[from + 2] * inverse + output[to + 2] * weight) >> 8);
                 }
             }
         }

@@ -30,8 +30,6 @@ public static class ClientContentFiles
         var content = await PackageFiles.ReadAsync<ClientContentPackage>(Path.Combine(root, "content.json"), token);
         content.ValidateLinks();
         MapPackageFiles.Validate(content.Map);
-        await San9.Content.Images.ImageAssetFiles.VerifyAsync(root,
-            content.Map.Assets.Concat(content.Map.Seasons.SelectMany(s => s.Textures)).Concat(content.Skin.Assets), token);
         return content;
     }
 }

@@ -7,6 +7,31 @@ namespace San9.Client.Godot.Tests;
 public sealed class MapRenderingTests
 {
     [Fact]
+    public void EdgeBlendKeepsWeightsCoverageAndChannelOrder()
+    {
+        byte[] weights = [0, 1, 128, 255, 0];
+        Dictionary<string, PngImage> common = new()
+        {
+            ["weight"] = new(5, 1, 1, weights), ["coverage"] = new(5, 1, 1, [255, 255, 255, 255, 0]),
+            ["cloud-fill"] = new(1, 1, 3, [0, 0, 0])
+        };
+        var map = new MapPackage(7, "fixture", "fixture", "spring", 200, 200, 13056, 6656, [], [], [], [new(1, "weight", "coverage")],
+            [new(1, 1, 510, 10, 0, 0, true), new(2, 1, 510, 10, 0, 0, false)], [], [], [], [],
+            Enumerable.Repeat<int?>(0, 6656).ToArray(), Enumerable.Repeat<int?>(13056, 6656).ToArray(), [], new([], [], []), []);
+        var renderer = new TerrainRenderer(map, common, new()
+        {
+            [1] = new(128, 1, 3, Enumerable.Range(0, 128).SelectMany(_ => new byte[] { 100, 20, 250 }).ToArray()),
+            [2] = new(128, 1, 3, Enumerable.Range(0, 128).SelectMany(_ => new byte[] { 200, 80, 10 }).ToArray())
+        });
+        var chunks = new[] { renderer.RenderChunk(0, 0), renderer.RenderChunk(1, 0) };
+        byte[][] expected = [[200, 80, 10], [199, 79, 10], [150, 50, 130], [100, 20, 249], [0, 0, 0]];
+        for (int i = 0; i < 5; i++)
+        {
+            var chunk = chunks[(510 + i) / 512]; int offset = (10 * chunk.Width + (510 + i) % 512) * 3;
+            Assert.Equal(expected[i], chunk.Pixels[offset..(offset + 3)]);
+        }
+    }
+    [Fact]
     public void EverySquareCenterRoundTripsAndOutsideDiamondIsRejected()
     {
         for (int y = 0; y < 200; y++) for (int x = 0; x < 200; x++)

@@ -15,15 +15,20 @@ public partial class Main : Node
         var ui = GetNode<Control>("UiLayer/UiRoot");
         try
         {
+            var startup = System.Diagnostics.Stopwatch.StartNew();
             var options = ClientOptions.Parse(OS.GetCmdlineUserArgs(), ProjectSettings.GlobalizePath("res://"));
             var loaded = await Task.Run(async () =>
             {
                 var package = await ClientContentFiles.LoadAsync(options.PackageRoot);
+                double validationMs = startup.Elapsed.TotalMilliseconds;
                 var images = ImageAssetFiles.Load(options.PackageRoot, package.Skin.Assets);
                 if (images.Values.Any(p => p.Channels != 4)) throw new InvalidDataException("UI assets must be RGBA images.");
-                return (Content: package, Images: images);
+                return (Content: package, Images: images, ValidationMs: validationMs);
             });
             var content = loaded.Content;
+            GD.Print($"CLIENT_PREPARE content_ms={loaded.ValidationMs:F2} ui_decode_ms={startup.Elapsed.TotalMilliseconds - loaded.ValidationMs:F2}");
+            void OnFirstMapReady() { GD.Print($"CLIENT_READY total_ms={startup.Elapsed.TotalMilliseconds:F2}"); world.MapReady -= OnFirstMapReady; }
+            world.MapReady += OnFirstMapReady;
             var selection = new StrategySelection(content.Scenario);
             world.BuildingPicked += selection.SelectBuilding;
             world.SquarePicked += selection.SelectSquare;

@@ -8,12 +8,23 @@ public partial class StrategyHud
     {
         void Check(bool condition, string reason) { if (!condition) throw new InvalidOperationException(reason); }
         async Task Frame() => await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        async Task View()
+        {
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            while (!World.IsVisibleReady)
+            {
+                Check(World.HasCompleteView, "UI navigation exposed missing terrain.");
+                Check(World.LoadError is null && watch.Elapsed.TotalSeconds < 30, "UI view preparation failed.");
+                await Frame();
+            }
+            await Frame();
+        }
         async Task Click(Vector2 point)
         {
             GetViewport().PushInput(new InputEventMouseMotion { Position = point, GlobalPosition = point }, true);
             GetViewport().PushInput(new InputEventMouseButton { Position = point, GlobalPosition = point, ButtonIndex = MouseButton.Left, Pressed = true }, true);
             GetViewport().PushInput(new InputEventMouseButton { Position = point, GlobalPosition = point, ButtonIndex = MouseButton.Left, Pressed = false }, true);
-            await Frame();
+            await View();
         }
         await Frame();
         var territoryButton = (StrategyButton)_territory!;
@@ -69,7 +80,7 @@ public partial class StrategyHud
         var target = World.Package!.Buildings.Single(b => b.Id == last);
         var center = San9.Rendering.MapGeometry.Center(target.X, target.Y);
         Check(World.CameraPosition.DistanceTo(new(center.X, center.Y)) < .01f, "Facility camera focus failed.");
-        _scroll.Size = listSize; FocusFacility(first); await Frame();
+        _scroll.Size = listSize; FocusFacility(first); await View();
         Check(_scroll.GetVScrollBar().Value == 0, "Map selection did not reveal first facility.");
         var old = Selection.BuildingId;
         await Click(new(970, 590));
@@ -96,12 +107,13 @@ public partial class StrategyHud
         Check(!_minimap.Navigate(Vector2.Zero) && World.CameraPosition == camera, "Minimap decoration navigated.");
         await Click(new(974, 698));
         Check(Scenario.Day == 1 && Selection.BuildingId == old, "Disabled advance changed initial state.");
-        FocusFacility(first); await Frame();
+        FocusFacility(first); await View();
         foreach (int buildingId in new[] { 15, 99, 100 })
         {
             var facility = World.Package!.Buildings.Single(b => b.Id == buildingId);
             var ground = San9.Rendering.MapGeometry.Center(facility.X, facility.Y);
             World.FocusWorld(new(ground.X, ground.Y));
+            await View();
             var point = World.WorldToViewport(new(ground.X, ground.Y));
             GetViewport().PushInput(new InputEventMouseMotion { Position = point, GlobalPosition = point }, true);
             UpdateHover(point);
@@ -117,7 +129,7 @@ public partial class StrategyHud
             UpdateHover(point);
             Check(!_regionVisible && !_footer.Visible, "UI or black bar retained the region panel.");
         }
-        World.SetZoom(1); FocusFacility(first); await Frame();
+        World.SetZoom(1); FocusFacility(first); await View();
         await Click(new(512, 384));
         Check(Selection.BuildingId == first, "Map click did not select facility.");
         Check(IsBlockedPoint(new(500, 25)) && !IsBlockedPoint(new(500, 400)), "UI hit regions are incorrect.");

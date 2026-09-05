@@ -1,6 +1,5 @@
 using San9.Content.Packages;
 using San9.Content.Images;
-using System.Security.Cryptography;
 using System.Text.Json;
 
 namespace San9.Content.Maps;
@@ -36,13 +35,6 @@ public static class MapPackageFiles
         var map = await JsonSerializer.DeserializeAsync<MapPackage>(file, PackageFiles.JsonOptions, cancellationToken)
             ?? throw new InvalidDataException("Empty map package.");
         Validate(map);
-        foreach (var asset in map.Assets.Concat(map.Seasons.SelectMany(s => s.Textures)))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            await using var data = File.OpenRead(PackageFiles.Resolve(root, asset.Path));
-            string hash = Convert.ToHexString(await SHA256.HashDataAsync(data, cancellationToken));
-            if (!hash.Equals(asset.Sha256, StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException($"Asset checksum mismatch: {asset.Id}");
-        }
         return map;
     }
 

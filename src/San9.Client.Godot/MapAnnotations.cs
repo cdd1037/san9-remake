@@ -19,9 +19,17 @@ public partial class MapAnnotations : Node2D
     public Font UiFont { get; init; } = null!;
     private readonly Dictionary<string, ImageTexture> _textures = [];
     private Dictionary<int, SettlementSnapshot> _settlements = [];
+    private readonly Dictionary<int, (string Soldiers, float Width, string Name)> _labels = [];
+    private long _viewRevision = -1;
+    public long DrawCount { get; private set; }
     public override void _Ready()
     {
         _settlements = Scenario.Settlements.ToDictionary(s => s.Id);
+        foreach (var s in Scenario.Settlements)
+        {
+            string soldiers = s.Soldiers.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            _labels.Add(s.Id, (soldiers, UiFont.GetStringSize(soldiers, fontSize: 16).X, Texts.Resolve(s.NameKey)));
+        }
         foreach (var pair in Skin.Roles.Where(p => p.Key.StartsWith("bar-") || p.Key.StartsWith("icon-")))
         {
             var p = SkinImages[pair.Value];
@@ -29,10 +37,15 @@ public partial class MapAnnotations : Node2D
             _textures.Add(pair.Key, ImageTexture.CreateFromImage(image));
         }
     }
-    public override void _Process(double delta) => QueueRedraw();
+    public override void _Process(double delta)
+    {
+        if (_viewRevision == World.ViewRevision) return;
+        _viewRevision = World.ViewRevision; QueueRedraw();
+    }
     public override void _Draw()
     {
-        if (World.Package is not { } map || World.IsLoading) return;
+        DrawCount++;
+        if (World.Package is not { } map || !World.HasCompleteView) return;
         foreach (var b in map.Buildings)
         {
             var anchor = BuildingInfoGeometry.Anchor(b.X, b.Y, b.FixedType, map.Squares[b.Y * 200 + b.X].Elevation);
@@ -41,12 +54,11 @@ public partial class MapAnnotations : Node2D
             if (!new Rect2(-116 * zoom, -55 * zoom, 1024 + 116 * zoom, 768 + 55 * zoom).HasPoint(point)) continue;
             DrawSetTransform(point, 0, Vector2.One * zoom);
             var s = _settlements[b.Id];
-            string soldiers = s.Soldiers.ToString(System.Globalization.CultureInfo.InvariantCulture);
-            float width = UiFont.GetStringSize(soldiers, fontSize: 16).X;
-            Text(soldiers, new(72 - width, 16));
+            var label = _labels[b.Id];
+            Text(label.Soldiers, new(72 - label.Width, 16));
             Bar("durability", s.Durability, s.MaxDurability, new(0, 16));
             Bar("morale", s.Morale, 100, new(0, 29));
-            Text(Texts.Resolve(s.NameKey), new(0, 53));
+            Text(label.Name, new(0, 53));
             foreach (string icon in s.Icons) DrawTexture(_textures["icon-" + icon], icon == "emperor" ? new(96, 17) : new(75, 17));
         }
         DrawSetTransform(Vector2.Zero);

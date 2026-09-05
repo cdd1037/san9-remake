@@ -1,0 +1,29 @@
+using San9.Content.Scenarios;
+
+namespace San9.Application.Presentation;
+
+public sealed class StrategySelection(ScenarioSnapshot scenario)
+{
+    public event Action? Changed;
+    public (int X, int Y)? Square { get; private set; }
+    public int? BuildingId { get; private set; }
+    public SettlementSnapshot[] PlayerFacilities => scenario.Settlements
+        .Where(s => s.OwnerId == scenario.PlayerForceId).OrderBy(s => s.Id).ToArray();
+
+    public void SelectBuilding(int id)
+    {
+        var building = scenario.Settlements.SingleOrDefault(s => s.Id == id)
+            ?? throw new ArgumentOutOfRangeException(nameof(id));
+        Square = (building.X, building.Y); BuildingId = id; Changed?.Invoke();
+    }
+
+    public void SelectSquare(int x, int y)
+    {
+        if (x is < 0 or >= 200 || y is < 0 or >= 200) throw new ArgumentOutOfRangeException(nameof(x));
+        Square = (x, y);
+        BuildingId = scenario.Settlements.FirstOrDefault(s => s.X == x && s.Y == y)?.Id;
+        Changed?.Invoke();
+    }
+
+    public void Clear() { Square = null; BuildingId = null; Changed?.Invoke(); }
+}

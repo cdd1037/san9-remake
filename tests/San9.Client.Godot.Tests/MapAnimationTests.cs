@@ -1,3 +1,5 @@
+using San9.Content.Packages;
+using San9.Content.Images;
 using San9.Content.Maps;
 using San9.Rendering;
 
@@ -24,9 +26,9 @@ public sealed class MapAnimationTests
     [Fact]
     public void InvalidAnimationReferencesAndDimensionsAreRejected()
     {
-        var a = new MapAsset("a", "a.png", new string('0', 64), 32, 40);
+        var a = new ImageAsset("a", "a.png", new string('0', 64), 32, 40);
         var b = a with { Id = "b", Width = 64 };
-        var assets = new Dictionary<string, MapAsset> { ["a"] = a, ["b"] = b };
+        var assets = new Dictionary<string, ImageAsset> { ["a"] = a, ["b"] = b };
         var clip = new MapAnimationClip("clip", ["a"], 100, []);
         var sprites = new[] { new MapAnimatedSprite("clip", 0, 0, 0, 15) };
         MapPackageFiles.ValidateAnimations(new([clip], [], sprites), assets, new HashSet<int> { 15 });

@@ -1,3 +1,4 @@
+using San9.Importer.San9PkTc101.Images;
 using San9.Importer.San9PkTc101;
 
 namespace San9.Importer.San9PkTc101.Tests;
@@ -18,15 +19,15 @@ public sealed class MapAnimationCompilerTests
     [Fact]
     public void FrameExtractionKeepsOtherFrameColorsOutsideTransparentDilation()
     {
-        var sheet = new IndexedMapImage(4, 2, [1, 0, 2, 0, 0, 0, 0, 0]);
+        var sheet = new IndexedImage(4, 2, [1, 0, 2, 0, 0, 0, 0, 0]);
         byte[] palette = new byte[1024];
         new byte[] { 0, 248, 0, 0, 255, 0, 0, 128, 0, 0, 255, 128 }.CopyTo(palette, 0);
-        var frame = MapImageArchive.Frame(sheet, 2, 1, 1, 0);
-        var decoded = MapImageArchive.Decode(frame, palette, true, true);
+        var frame = IndexedImageArchive.Frame(sheet, 2, 1, 1, 0);
+        var decoded = IndexedImageArchive.Decode(frame, palette, true, true);
         Assert.Equal(new byte[] { 0, 0, 255, 0 }, decoded.Pixels.AsSpan(4, 4).ToArray());
         Assert.Equal(new byte[] { 2, 0, 0, 0 }, frame.Pixels);
-        Assert.Throws<InvalidDataException>(() => MapImageArchive.Frame(sheet, 3, 1, 0, 0));
-        Assert.Throws<InvalidDataException>(() => MapImageArchive.Frame(sheet, 2, 1, 2, 0));
-        Assert.Throws<InvalidDataException>(() => MapImageArchive.ReadCombined(new byte[8], 4, 52));
+        Assert.Throws<InvalidDataException>(() => IndexedImageArchive.Frame(sheet, 3, 1, 0, 0));
+        Assert.Throws<InvalidDataException>(() => IndexedImageArchive.Frame(sheet, 2, 1, 2, 0));
+        Assert.Throws<InvalidDataException>(() => IndexedImageArchive.ReadCombined(new byte[8], 4, 52));
     }
 }

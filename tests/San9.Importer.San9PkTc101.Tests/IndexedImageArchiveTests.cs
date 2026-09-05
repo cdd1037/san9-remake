@@ -1,8 +1,10 @@
+using San9.Importer.San9PkTc101.Images;
+using San9.Content.Images;
 using San9.Importer.San9PkTc101;
 
 namespace San9.Importer.San9PkTc101.Tests;
 
-public sealed class MapImageArchiveTests
+public sealed class IndexedImageArchiveTests
 {
     [Fact]
     public void TransparentBorderExportsNeighborColorWithoutChangingCoverage()
@@ -10,8 +12,8 @@ public sealed class MapImageArchiveTests
         byte[] palette = new byte[1024];
         new byte[] { 0, 248, 0, 0, 180, 120, 60, 64 }.CopyTo(palette, 0);
         byte[] indices = new byte[25]; indices[12] = 1;
-        var decoded = MapImageArchive.Decode(new(5, 5, indices), palette, true, true);
-        var roundTrip = San9.Content.Maps.PngImage.Decode(decoded.Encode());
+        var decoded = IndexedImageArchive.Decode(new(5, 5, indices), palette, true, true);
+        var roundTrip = PngImage.Decode(decoded.Encode());
         for (int i = 0; i < 25; i++)
         {
             Assert.Equal(new byte[] { 180, 120, 60 }, roundTrip.Pixels.AsSpan(i * 4, 3).ToArray());
@@ -33,12 +35,12 @@ public sealed class MapImageArchiveTests
     {
         byte[] palette = new byte[1024];
         new byte[] { 255, 0, 255, 0, 180, 120, 60, 128, 40, 80, 120, 128 }.CopyTo(palette, 0);
-        var decoded = MapImageArchive.Decode(new(5, 1, [1, 0, 0, 0, 2]), palette, true, true);
+        var decoded = IndexedImageArchive.Decode(new(5, 1, [1, 0, 0, 0, 2]), palette, true, true);
         Assert.Equal(new byte[] { 180, 120, 60, 0 }, decoded.Pixels.AsSpan(8, 4).ToArray());
         Assert.Equal(new byte[] { 40, 80, 120, 0 }, decoded.Pixels.AsSpan(12, 4).ToArray());
-        Assert.Equal(new byte[8], MapImageArchive.Decode(new(1, 2, [0, 0]), palette, true, true).Pixels);
-        Assert.Equal(new byte[] { 180, 120, 60, 255, 40, 80, 120, 255 }, MapImageArchive.Decode(new(2, 1, [1, 2]), palette, true, true).Pixels);
-        Assert.Equal(new byte[] { 255, 0, 255 }, MapImageArchive.Decode(new(1, 1, [0]), palette, false, false).Pixels);
+        Assert.Equal(new byte[8], IndexedImageArchive.Decode(new(1, 2, [0, 0]), palette, true, true).Pixels);
+        Assert.Equal(new byte[] { 180, 120, 60, 255, 40, 80, 120, 255 }, IndexedImageArchive.Decode(new(2, 1, [1, 2]), palette, true, true).Pixels);
+        Assert.Equal(new byte[] { 255, 0, 255 }, IndexedImageArchive.Decode(new(1, 1, [0]), palette, false, false).Pixels);
     }
 
     [Fact]
@@ -47,10 +49,10 @@ public sealed class MapImageArchiveTests
         byte[] palette = new byte[1024];
         byte[][] colors = [[1, 2, 3, 0], [100, 150, 200, 64], [100, 150, 200, 128], [100, 150, 200, 255], [1, 2, 3, 0], [1, 2, 3, 64]];
         for (int i = 0; i < colors.Length; i++) colors[i].CopyTo(palette, i * 4);
-        var image = new IndexedMapImage(6, 1, [0, 1, 2, 3, 4, 5]);
-        var decoded = MapImageArchive.Decode(image, palette, true, true);
+        var image = new IndexedImage(6, 1, [0, 1, 2, 3, 4, 5]);
+        var decoded = IndexedImageArchive.Decode(image, palette, true, true);
         Assert.Equal(new byte[] { 0, 128, 255, 255, 0, 128 }, Enumerable.Range(0, 6).Select(i => decoded.Pixels[i * 4 + 3]).ToArray());
-        var keyOnly = MapImageArchive.Decode(image, palette, true, false);
+        var keyOnly = IndexedImageArchive.Decode(image, palette, true, false);
         Assert.Equal(255, keyOnly.Pixels[7]); Assert.Equal(0, keyOnly.Pixels[19]); Assert.Equal(255, keyOnly.Pixels[23]);
     }
     [Fact]
@@ -58,9 +60,9 @@ public sealed class MapImageArchiveTests
     {
         using var stream = new MemoryStream(); using var writer = new BinaryWriter(stream);
         writer.Write(24); writer.Write(20); writer.Write(2); writer.Write(2); writer.Write(2); writer.Write(new byte[] { 1, 2, 3, 4 });
-        var bytes = stream.ToArray(); Assert.Single(MapImageArchive.ReadImages(bytes, 1));
-        Assert.Throws<InvalidDataException>(() => MapImageArchive.ReadImages(bytes, 2));
-        bytes[8] = 3; Assert.Throws<InvalidDataException>(() => MapImageArchive.ReadImages(bytes, 1));
-        Assert.Throws<InvalidDataException>(() => MapImageArchive.ReadPalettes(new byte[12], 1));
+        var bytes = stream.ToArray(); Assert.Single(IndexedImageArchive.ReadImages(bytes, 1));
+        Assert.Throws<InvalidDataException>(() => IndexedImageArchive.ReadImages(bytes, 2));
+        bytes[8] = 3; Assert.Throws<InvalidDataException>(() => IndexedImageArchive.ReadImages(bytes, 1));
+        Assert.Throws<InvalidDataException>(() => IndexedImageArchive.ReadPalettes(new byte[12], 1));
     }
 }

@@ -1,57 +1,45 @@
+using San9.Content.Packages;
+using San9.Content.Images;
 using System.Security.Cryptography;
 using System.Text.Json;
 
 namespace San9.Content.Maps;
 
-public sealed record MapSquare(int Terrain, int Elevation, int ElevationMask, int RegionId);
-public sealed record MapAsset(string Id, string Path, string Sha256, int Width, int Height);
-public sealed record MapSeason(string Id, MapAsset[] Textures);
+public sealed record MapSquare(int Terrain, int Elevation, int ElevationMask, int RegionId)
+{
+    [System.Text.Json.Serialization.JsonRequired]
+    public bool HideRegionName { get; init; }
+}
+public sealed record MapSeason(string Id, ImageAsset[] Textures);
 public sealed record MapMask(int Id, string WeightAsset, string CoverageAsset);
 public sealed record TerrainStamp(int ResourceId, int MaskId, int X, int Y, int SourceX, int SourceY, bool IsCenter);
 public sealed record MapSprite(string AssetId, int X, int Y);
 public sealed record MapBuilding(int Id, int X, int Y, int FixedType, int CompositionId, MapSprite[] Sprites);
 public sealed record MapComposition(int Id, MapCompositionPart[] Parts);
 public sealed record MapCompositionPart(bool PaletteAlpha, bool DevelopmentVariant, int ResourceId, int X, int Y);
-public sealed record MapSource(string Name, string Sha256);
 public sealed record MapAnimationClip(string Id, string[] Frames, int FrameMilliseconds, Dictionary<string, string[]> SeasonFrames);
 public sealed record MapAnimatedSprite(string ClipId, int X, int Y, int Phase, int BuildingId);
 public sealed record MapAnimations(MapAnimationClip[] Clips, MapAnimatedSprite[] Water, MapAnimatedSprite[] Buildings);
 public sealed record MapPackage(
     int SchemaVersion, string SourceBuild, string ScenarioId, string InitialSeason,
     int Width, int Height, int CanvasWidth, int CanvasHeight,
-    MapSquare[] Squares, MapSeason[] Seasons, MapAsset[] Assets, MapMask[] Masks,
+    MapSquare[] Squares, MapSeason[] Seasons, ImageAsset[] Assets, MapMask[] Masks,
     TerrainStamp[] Terrain, MapSprite[] Bridges, MapBuilding[] Buildings,
     MapComposition[] Compositions, MapSprite[] Clouds, int?[] LeftEdge, int?[] RightEdge,
-    MapSource[] Sources, MapAnimations Animations);
+    ContentSource[] Sources, MapAnimations Animations, MapSprite[] Boundaries);
 
 public static class MapPackageFiles
 {
-    public static JsonSerializerOptions JsonOptions { get; } = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        RespectRequiredConstructorParameters = true,
-        RespectNullableAnnotations = true,
-    };
-
-    public static string Resolve(string root, string relative)
-    {
-        if (string.IsNullOrWhiteSpace(relative) || Path.IsPathRooted(relative)) throw new InvalidDataException("Asset path must be relative.");
-        string directory = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root)) + Path.DirectorySeparatorChar;
-        string result = Path.GetFullPath(Path.Combine(root, relative));
-        if (!result.StartsWith(directory, StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("Asset path escapes map package.");
-        return result;
-    }
-
     public static async Task<MapPackage> LoadAsync(string root, CancellationToken cancellationToken = default)
     {
         await using var file = File.OpenRead(Path.Combine(root, "map.json"));
-        var map = await JsonSerializer.DeserializeAsync<MapPackage>(file, JsonOptions, cancellationToken)
+        var map = await JsonSerializer.DeserializeAsync<MapPackage>(file, PackageFiles.JsonOptions, cancellationToken)
             ?? throw new InvalidDataException("Empty map package.");
         Validate(map);
         foreach (var asset in map.Assets.Concat(map.Seasons.SelectMany(s => s.Textures)))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await using var data = File.OpenRead(Resolve(root, asset.Path));
+            await using var data = File.OpenRead(PackageFiles.Resolve(root, asset.Path));
             string hash = Convert.ToHexString(await SHA256.HashDataAsync(data, cancellationToken));
             if (!hash.Equals(asset.Sha256, StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException($"Asset checksum mismatch: {asset.Id}");
         }
@@ -60,7 +48,7 @@ public static class MapPackageFiles
 
     public static void Validate(MapPackage map)
     {
-        if (map.SchemaVersion != 3 || map.Width != 200 || map.Height != 200 || map.Squares.Length != 40000 ||
+        if (map.SchemaVersion != 7 || map.Width != 200 || map.Height != 200 || map.Squares.Length != 40000 ||
             map.CanvasWidth != 13056 || map.CanvasHeight != 6656) throw new InvalidDataException("Unsupported map dimensions or schema.");
         if (!map.Seasons.Select(s => s.Id).Order().SequenceEqual(new[] { "autumn", "spring", "summer", "winter" }) ||
             !map.Seasons.Any(s => s.Id == map.InitialSeason)) throw new InvalidDataException("Invalid seasons.");
@@ -82,8 +70,10 @@ public static class MapPackageFiles
         foreach (var stamp in map.Terrain)
             if (!terrainSet.Contains(stamp.ResourceId.ToString(System.Globalization.CultureInfo.InvariantCulture)) || !masks.ContainsKey(stamp.MaskId))
                 throw new InvalidDataException("Missing terrain or mask reference.");
-        foreach (var sprite in map.Bridges.Concat(map.Buildings.SelectMany(b => b.Sprites)).Concat(map.Clouds))
+        foreach (var sprite in map.Boundaries.Concat(map.Bridges).Concat(map.Buildings.SelectMany(b => b.Sprites)).Concat(map.Clouds))
             if (!common.ContainsKey(sprite.AssetId)) throw new InvalidDataException("Missing sprite reference.");
+        if (!common.TryGetValue("minimap-terrain", out var minimap) || minimap.Width != 320 || minimap.Height != 160)
+            throw new InvalidDataException("Invalid minimap terrain image.");
         if (!common.ContainsKey("cloud-fill") || map.LeftEdge.Length != map.CanvasHeight || map.RightEdge.Length != map.CanvasHeight)
             throw new InvalidDataException("Invalid cloud boundaries.");
         foreach (var square in map.Squares)
@@ -95,7 +85,7 @@ public static class MapPackageFiles
         ValidateAnimations(map.Animations, common, map.Buildings.Select(b => b.Id).ToHashSet());
     }
 
-    public static void ValidateAnimations(MapAnimations animations, IReadOnlyDictionary<string, MapAsset> assets, ISet<int> buildings)
+    public static void ValidateAnimations(MapAnimations animations, IReadOnlyDictionary<string, ImageAsset> assets, ISet<int> buildings)
     {
         var clips = animations.Clips.ToDictionary(c => c.Id);
         foreach (var clip in clips.Values)

@@ -1,3 +1,5 @@
+using San9.Content.Packages;
+using San9.Content.Images;
 using San9.Content.Maps;
 
 namespace San9.Rendering;
@@ -33,19 +35,6 @@ public sealed class TerrainRenderer
                 list.Add(stamp);
             }
         }
-    }
-
-    public static Dictionary<string, PngImage> LoadImages(string root, IEnumerable<MapAsset> assets, CancellationToken token = default)
-    {
-        Dictionary<string, PngImage> result = [];
-        foreach (var a in assets)
-        {
-            token.ThrowIfCancellationRequested();
-            var image = PngImage.Decode(File.ReadAllBytes(MapPackageFiles.Resolve(root, a.Path)));
-            if (image.Width != a.Width || image.Height != a.Height) throw new InvalidDataException($"Image size mismatch: {a.Id}");
-            result.Add(a.Id, image);
-        }
-        return result;
     }
 
     public PngImage RenderChunk(int column, int row, CancellationToken token = default)

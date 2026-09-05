@@ -1,3 +1,5 @@
+using San9.Importer.San9PkTc101.Images;
+using San9.Content.Images;
 using System.Buffers.Binary;
 using System.Text.Json;
 using San9.Content.Maps;
@@ -15,17 +17,17 @@ public static class MapAnimationCompiler
     public static MapAnimations Compile(byte[] exe, byte[] scenario, string dataDir, JsonElement locations,
         IReadOnlyList<San9ScenarioSquareRecord> squares, IReadOnlyList<San9ScenarioCityRecord> cities,
         IReadOnlyList<San9ScenarioZoneRecord> zones, MapBuilding[] buildings, byte[] waterPalette, Func<string, byte[]> read,
-        Func<string, string, PngImage, MapAsset> save, List<MapAsset> assets)
+        Func<string, string, PngImage, ImageAsset> save, List<ImageAsset> assets)
     {
         int Int(int offset) => BinaryPrimitives.ReadInt32LittleEndian(exe.AsSpan(offset, 4));
         byte[] Read(string name) => read(Path.Combine(dataDir, name + ".s9"));
         using var forceStream = new MemoryStream(scenario); using var personStream = new MemoryStream(scenario);
         var forces = San9ScenarioForceArchive.ReadKnownRecords(forceStream);
         var persons = San9ScenarioPersonArchive.ReadKnownRecords(personStream);
-        var flagArchive = MapImageArchive.ReadCombined(Read("G_Flag"), 4, 52);
-        var glyphArchive = MapImageArchive.ReadCombined(Read("G_Name"), 2, 372);
-        var soldierArchive = MapImageArchive.ReadCombined(Read("G_UnitS"), 21, 611);
-        var waterImages = MapImageArchive.ReadImages(Read("G_LMask"), 4);
+        var flagArchive = IndexedImageArchive.ReadCombined(Read("G_Flag"), 4, 52);
+        var glyphArchive = IndexedImageArchive.ReadCombined(Read("G_Name"), 2, 372);
+        var soldierArchive = IndexedImageArchive.ReadCombined(Read("G_UnitS"), 21, 611);
+        var waterImages = IndexedImageArchive.ReadImages(Read("G_LMask"), 4);
         Dictionary<int, int> palettes = [];
         foreach (var (start, count) in new[] { (0x24ea90, 1425), (0x2601d0, 1145) })
             for (int i = 0; i < count; i++) palettes[Int(start + i * 8) & 65535] = Int(start + i * 8 + 4);
@@ -59,7 +61,7 @@ public static class MapAnimationCompiler
             if (image.Width != 384 || image.Height != 32) throw new InvalidDataException("Unexpected water sheet.");
             Clip($"water-{parity}", 6, 200, f =>
             {
-                var rgba = MapImageArchive.Decode(MapImageArchive.Frame(image, 6, 1, f, 0), waterPalette, true, false);
+                var rgba = IndexedImageArchive.Decode(IndexedImageArchive.Frame(image, 6, 1, f, 0), waterPalette, true, false);
                 for (int i = 0; i < rgba.Pixels.Length; i += 4)
                     for (int c = 0; c < 3; c++) rgba.Pixels[i + c] = (byte)((rgba.Pixels[i + c] * 179 + 128) / 256);
                 return rgba;
@@ -77,7 +79,7 @@ public static class MapAnimationCompiler
             int resource = 5384 + direction;
             var image = soldierArchive.Images[resource - 5000];
             if (image.Width != 288 || image.Height != 36 || palettes[resource] != 11) throw new InvalidDataException("Unexpected soldier resource.");
-            Clip($"soldier-{direction}", 8, 100, f => MapImageArchive.Decode(MapImageArchive.Frame(image, 8, 1, f, 0), soldierArchive.Palettes[11], true, false));
+            Clip($"soldier-{direction}", 8, 100, f => IndexedImageArchive.Decode(IndexedImageArchive.Frame(image, 8, 1, f, 0), soldierArchive.Palettes[11], true, false));
         }
         var byComposition = locations.GetProperty("compositions").EnumerateArray().ToDictionary(c => c.GetProperty("id").GetInt32());
         var secondGlyphColors = new HashSet<int> { 3, 6, 7, 8, 11, 16, 18, 21, 22, 23, 24, 26, 27, 29, 31, 33, 38, 39, 40, 46, 49, 50 };
@@ -107,18 +109,18 @@ public static class MapAnimationCompiler
                 var result = new PngImage(68, 52, 4, new byte[68 * 52 * 4]);
                 // Direction 1 places the pole behind the cloth; direction 5 places it in front.
                 int clothX = direction == 1 ? 1 : 34, glyphRow = direction == 1 ? 1 : 4;
-                var pole = MapImageArchive.Decode(flagArchive.Images[0], flagArchive.Palettes[palettes[491] - 285], true, false);
+                var pole = IndexedImageArchive.Decode(flagArchive.Images[0], flagArchive.Palettes[palettes[491] - 285], true, false);
                 if (direction == 1) Overlay(result, pole, 31, 8);
-                var face = MapImageArchive.Frame(flagArchive.Images[color + 1], 4, 8, f, direction);
-                Overlay(result, MapImageArchive.Decode(face, flagArchive.Palettes[palettes[492 + color] - 285], true, false), clothX, 3);
+                var face = IndexedImageArchive.Frame(flagArchive.Images[color + 1], 4, 8, f, direction);
+                Overlay(result, IndexedImageArchive.Decode(face, flagArchive.Palettes[palettes[492 + color] - 285], true, false), clothX, 3);
                 if (glyph >= 0)
                 {
                     int variant = secondGlyphColors.Contains(color) ? 1 : 0;
-                    var letter = MapImageArchive.Frame(glyphArchive.Images[variant * 186 + glyph], 4, 6, f, glyphRow);
-                    Overlay(result, MapImageArchive.Decode(letter, glyphArchive.Palettes[variant], true, true), clothX, 3);
+                    var letter = IndexedImageArchive.Frame(glyphArchive.Images[variant * 186 + glyph], 4, 6, f, glyphRow);
+                    Overlay(result, IndexedImageArchive.Decode(letter, glyphArchive.Palettes[variant], true, true), clothX, 3);
                 }
                 if (direction == 5) Overlay(result, pole, 31, 8);
-                MapImageArchive.ExtendTransparentColors(result.Pixels, result.Width, result.Height);
+                IndexedImageArchive.ExtendTransparentColors(result.Pixels, result.Width, result.Height);
                 return result;
             }
             Clip(flagId, 4, 142, f => FlagFrame(f, 1), f => FlagFrame(f, 5));

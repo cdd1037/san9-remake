@@ -1,3 +1,6 @@
+using San9.Importer.San9PkTc101.Images;
+using San9.Content.Packages;
+using San9.Content.Images;
 using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -19,7 +22,7 @@ public static class MapImporter
         {
             var map = Build(sourceExe, dataDirectory, scenarioPath, staging, progress, token);
             MapPackageFiles.Validate(map);
-            await File.WriteAllTextAsync(Path.Combine(staging, "map.json"), JsonSerializer.Serialize(map, MapPackageFiles.JsonOptions), token);
+            await File.WriteAllTextAsync(Path.Combine(staging, "map.json"), JsonSerializer.Serialize(map, PackageFiles.JsonOptions), token);
             await MapPackageFiles.LoadAsync(staging, token);
             Directory.Move(staging, output);
             return map;
@@ -29,7 +32,7 @@ public static class MapImporter
 
     private static MapPackage Build(string exePath, string dataDir, string scenarioPath, string output, Action<string>? progress, CancellationToken token)
     {
-        List<MapSource> sources = []; List<MapAsset> assets = [];
+        List<ContentSource> sources = []; List<ImageAsset> assets = [];
         byte[] Read(string path)
         {
             token.ThrowIfCancellationRequested(); var bytes = File.ReadAllBytes(path);
@@ -45,7 +48,7 @@ public static class MapImporter
         var zones = Scenario(San9ScenarioZoneArchive.ReadKnownRecords);
         var fixedBuildings = Scenario(San9ScenarioFixedBuildingArchive.ReadKnownRecords);
         San9ScenarioSquareArchive.ValidateKnownTopology(rawSquares, cities, zones);
-        var squares = rawSquares.Select(s => new MapSquare(s.TerrainCode, s.OffsetCode, s.ElevationTransitionMask, s.RegionCode ?? -1)).ToArray();
+        var squares = rawSquares.Select(s => new MapSquare(s.TerrainCode, s.OffsetCode, s.ElevationTransitionMask, s.RegionCode ?? -1) { HideRegionName = s.IsExcludedFromRegionSquareCount }).ToArray();
         using var locationsStream = typeof(MapImporter).Assembly.GetManifestResourceStream("San9.Importer.San9PkTc101.MapSourceLocations.json")!;
         using var locations = JsonDocument.Parse(locationsStream); var root = locations.RootElement;
         int Int(int offset) => offset == -1 ? 0 : BinaryPrimitives.ReadInt32LittleEndian(exe.AsSpan(offset, 4));
@@ -62,11 +65,11 @@ public static class MapImporter
         var terrain = MapTerrainCompiler.Compile(rawSquares, positions, adjustments);
         progress?.Invoke($"Validated {squares.Length} squares; compiled {terrain.Length} terrain stamps.");
 
-        IndexedMapImage[] Images(string name, int count) => MapImageArchive.ReadImages(Read(Path.Combine(dataDir, name + ".s9")), count);
-        byte[][] Palettes(string name, int count) => MapImageArchive.ReadPalettes(Read(Path.Combine(dataDir, name + ".s9")), count);
-        MapAsset Save(string id, string path, PngImage image)
+        IndexedImage[] Images(string name, int count) => IndexedImageArchive.ReadImages(Read(Path.Combine(dataDir, name + ".s9")), count);
+        byte[][] Palettes(string name, int count) => IndexedImageArchive.ReadPalettes(Read(Path.Combine(dataDir, name + ".s9")), count);
+        ImageAsset Save(string id, string path, PngImage image)
         {
-            token.ThrowIfCancellationRequested(); string target = MapPackageFiles.Resolve(output, path); Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            token.ThrowIfCancellationRequested(); string target = PackageFiles.Resolve(output, path); Directory.CreateDirectory(Path.GetDirectoryName(target)!);
             byte[] bytes = image.Encode(); File.WriteAllBytes(target, bytes);
             return new(id, path, Convert.ToHexString(SHA256.HashData(bytes)), image.Width, image.Height);
         }
@@ -74,11 +77,11 @@ public static class MapImporter
         string[] names = ["spring", "summer", "autumn", "winter"], suffixes = ["S", "N", "A", "W"];
         for (int s = 0; s < 4; s++)
         {
-            var palettes = Palettes("P_Land_" + suffixes[s], 13); List<MapAsset> textures = [];
+            var palettes = Palettes("P_Land_" + suffixes[s], 13); List<ImageAsset> textures = [];
             for (int i = 0; i < land.Length; i++)
             {
                 int id = 10006 + i; int p = paletteBindings[id];
-                textures.Add(Save(id.ToString(System.Globalization.CultureInfo.InvariantCulture), $"terrain/{names[s]}/{id}.png", MapImageArchive.Decode(land[i], palettes[p], false, false)));
+                textures.Add(Save(id.ToString(System.Globalization.CultureInfo.InvariantCulture), $"terrain/{names[s]}/{id}.png", IndexedImageArchive.Decode(land[i], palettes[p], false, false)));
             }
             seasons.Add(new(names[s], textures.ToArray())); progress?.Invoke($"Converted {names[s]}: {textures.Count} RGB textures.");
         }
@@ -90,8 +93,12 @@ public static class MapImporter
             assets.Add(Save(coverage, $"masks/{id}-coverage.png", new(image.Width, image.Height, 1, image.Pixels.Select(p => p == 0 ? (byte)0 : (byte)255).ToArray())));
             maskRecords.Add(new(id, weight, coverage));
         }
+        assets.Add(Save("minimap-terrain", "overview/terrain.png", MinimapCompiler.Compile(rawSquares, Palettes("P_MapEtc", 2)[0])));
+        var boundaryImages = Images("G_MAPMKR", 12); var boundaryPalette = Palettes("P_MAPMKR", 1)[0];
+        for (int i = 0; i < 12; i++) assets.Add(Save($"boundary-{10794 + i}", $"boundaries/{10794 + i}.png", IndexedImageArchive.Decode(boundaryImages[i], boundaryPalette, true, false)));
+        var boundaries = MapBoundaryCompiler.Compile(rawSquares);
         var bridgeImages = Images("G_LHashi", 2); var additionalLandPalettes = Palettes("P_LndAdd", 2); var bridgePalette = additionalLandPalettes[0];
-        for (int i = 0; i < 2; i++) assets.Add(Save($"bridge-{i}", $"objects/bridge-{i}.png", MapImageArchive.Decode(bridgeImages[i], bridgePalette, true, false)));
+        for (int i = 0; i < 2; i++) assets.Add(Save($"bridge-{i}", $"objects/bridge-{i}.png", IndexedImageArchive.Decode(bridgeImages[i], bridgePalette, true, false)));
         List<MapSprite> bridges = [];
         foreach (var s in rawSquares.Where(s => s.TerrainCode == 11 && s.HasSquareFlagBit(9)))
         {
@@ -112,14 +119,14 @@ public static class MapImporter
         {
             string key = $"building-{id}-{(alpha ? "alpha" : "key")}";
             if (!exported.Add(key)) return key;
-            IndexedMapImage image; byte[] palette;
+            IndexedImage image; byte[] palette;
             if (id >= 5947 && id <= 5974) { image = addImages[id - 5947]; palette = addPalettes[(id - 5947) / 4]; }
             else
             {
                 int p = id switch { >= 5663 and <= 5673 => 0, >= 5674 and <= 5684 => 1, >= 5685 and <= 5695 => 2, >= 5696 and <= 5737 => 3, >= 5738 and <= 5842 => 4, >= 5843 and <= 5946 => 5, _ => throw new InvalidDataException("Unknown building resource.") };
                 image = buildingImages[id - 5663]; palette = buildingPalettes[p];
             }
-            assets.Add(Save(key, $"objects/{key}.png", MapImageArchive.Decode(image, palette, true, alpha))); return key;
+            assets.Add(Save(key, $"objects/{key}.png", IndexedImageArchive.Decode(image, palette, true, alpha))); return key;
         }
         // Export the confirmed visual catalog independently of the scenario snapshot.
         foreach (var composition in compositions)
@@ -150,9 +157,9 @@ public static class MapImporter
             if (z.FixedBuildingId is int type && z.Durability != ushort.MaxValue) Building(50 + z.Id, z.X, z.Y, type, z.Durability, z.CityId is int c ? cities[c].TerrainCode : 0, 0);
         var orderedBuildings = buildings.OrderBy(b => b.X + b.Y).ThenBy(b => b.X).ToArray();
         var cloudImages = Images("G_LCLOUD", 17); var cloudPalettes = Palettes("P_LCLOUD", 5);
-        assets.Add(Save("cloud-fill", "objects/cloud-fill.png", MapImageArchive.Decode(cloudImages[6], cloudPalettes[1], false, false)));
+        assets.Add(Save("cloud-fill", "objects/cloud-fill.png", IndexedImageArchive.Decode(cloudImages[6], cloudPalettes[1], false, false)));
         foreach (int id in Enumerable.Range(10777, 6).Concat(Enumerable.Range(10788, 6)))
-            assets.Add(Save($"cloud-{id}", $"objects/cloud-{id}.png", MapImageArchive.Decode(cloudImages[id - 10777], cloudPalettes[id < 10783 ? 0 : 4], true, true)));
+            assets.Add(Save($"cloud-{id}", $"objects/cloud-{id}.png", IndexedImageArchive.Decode(cloudImages[id - 10777], cloudPalettes[id < 10783 ? 0 : 4], true, true)));
         var cloudPlacements = root.GetProperty("clouds").EnumerateArray().Select(c =>
         {
             var offsets = c.GetProperty("offsets").EnumerateArray().Select(o => Int(o.GetInt32())).ToArray();
@@ -163,6 +170,6 @@ public static class MapImporter
         var animations = MapAnimationCompiler.Compile(exe, scenario, dataDir, root, rawSquares, cities, zones, orderedBuildings, additionalLandPalettes[1], Read, Save, assets);
         progress?.Invoke($"Animations: {animations.Clips.Length} clips, {animations.Water.Length} water tiles, {animations.Buildings.Length} building sprites.");
         progress?.Invoke($"Objects: {bridges.Count} bridges, {buildings.Count} buildings, {clouds.Length} foreground clouds; fallback=0.");
-        return new(3, San9PkTc101Detector.SourceBuildId, header.ScenarioId.ToString(System.Globalization.CultureInfo.InvariantCulture), names[(header.StartDate.Month - 1) / 3], 200, 200, 13056, 6656, squares, seasons.ToArray(), assets.ToArray(), maskRecords.ToArray(), terrain, bridges.ToArray(), orderedBuildings, compositions.ToArray(), clouds, edges.Left, edges.Right, sources.OrderBy(s => s.Name, StringComparer.Ordinal).ToArray(), animations);
+        return new(7, San9PkTc101Detector.SourceBuildId, header.ScenarioId.ToString(System.Globalization.CultureInfo.InvariantCulture), names[(header.StartDate.Month - 1) / 3], 200, 200, 13056, 6656, squares, seasons.ToArray(), assets.ToArray(), maskRecords.ToArray(), terrain, bridges.ToArray(), orderedBuildings, compositions.ToArray(), clouds, edges.Left, edges.Right, sources.OrderBy(s => s.Name, StringComparer.Ordinal).ToArray(), animations, boundaries);
     }
 }

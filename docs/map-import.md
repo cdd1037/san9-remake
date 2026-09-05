@@ -1,6 +1,8 @@
 # 大地图导入与运行
 
-MVP 显示190年剧本的初始地图快照，并播放水面、建筑旗帜与守兵动画。四季各771张地貌RGB纹理，布局与遮罩共用；桥、建筑、云使用RGBA。所有资源在本地生成，仓库不包含原版素材。
+本文只覆盖地图转换、地貌与对象绘制、动画及历史验收。客户端主界面、文本和剧本展示数据见[客户端内容与主界面](client-content.md)。
+
+当前纯地图包为schema7，不包含日期/势力数值、名称目录或界面皮肤。`import-map`不读取M_MsgPK和G_Main，输出可以独立用于`render-map`；完整客户端由`import-client`组合各类内容。旧包重新转换，不提供兼容分支。
 
 建筑资源独立于当前场景状态导出：三种城池外观×四个耐久阶段×三个开发档位的城墙、城内建筑及对应阴影全部包含在包中，同时包含其余已确认建筑组合引用的纹理。30项已确认组合去重后共154张建筑PNG，位于包内 `objects/building-*.png`，组合顺序与位置在 `map.json` 的 `compositions` 中。未确认的其他原版组合不在此目录承诺范围内；游戏仍只显示190年初始状态。
 
@@ -11,7 +13,7 @@ MVP 显示190年剧本的初始地图快照，并播放水面、建筑旗帜与�
 在仓库根目录运行（替换 EXE 路径）：
 
 ```powershell
-dotnet run --project src/San9.Tools -- import-map --source-exe "<已登记的San9PK.exe>" --data-dir "private/s9数据文件" --scenario "private/s9数据文件/D_Sce002.S9" --output "local/generated/maps/scenario-190"
+dotnet run --project src/San9.Tools -- import-map --source-exe "<已登记的San9PK.exe>" --data-dir "private/s9数据文件" --scenario "private/s9数据文件/D_Sce002.S9" --output "local/generated/maps/scenario-190-map"
 ```
 
 EXE须通过繁中PK 1.0.1.0指纹校验。输出目录必须不存在，避免覆盖已有内容；重新转换时指定另一个目录。转换先写临时目录，验证通过后才成为可加载包。map.json保存版本、源哈希、图像哈希、方格、顺序化地貌描述、建筑实例与组合。
@@ -20,9 +22,9 @@ EXE须通过繁中PK 1.0.1.0指纹校验。输出目录必须不存在，避免�
 
 ## 动态显示
 
-当前地图包schema为3，旧版须重新导入。`animations`记录片段、帧时长和实例，独立PNG帧位于 `animations/`。四类水面各六帧/200ms，以179/256源亮度加色显示；八方向守兵各八帧/100ms；26组当前场景旗色/旗字各包含春夏四帧与秋冬四帧，均142ms。共7818格水面、247面旗帜、335个守兵站位。无驻兵建筑不显示守兵。
+动画首次接入时为schema3；当前schema7保持主界面内容分离，包含疆界精灵、小地图底图及方格地域名称显示标志，动画契约不变。`animations`记录片段、帧时长和实例，独立PNG帧位于 `animations/`。四类水面各六帧/200ms，以179/256源亮度加色显示；八方向守兵各八帧/100ms；26组当前场景旗色/旗字各包含春夏四帧与秋冬四帧，均142ms。共7818格水面、247面旗帜、335个守兵站位。无驻兵建筑不显示守兵。
 
-默认 `scenario-190` 已更新为含季节旗帜的schema3包（74333580字节，约70.89 MiB），共3873项PNG。原有动态包重复导出逐字节一致；本次新增秋冬旗帜帧，旧资产及场景实例保持不变。旧包已按用户要求移入回收站。
+2026-09-05的 `scenario-190` 为含季节旗帜的schema3包（74333580字节，约70.89 MiB），共3873项PNG。原有动态包重复导出逐字节一致；本次新增秋冬旗帜帧，旧资产及场景实例保持不变。旧包已按用户要求移入回收站。
 
 动画采用独立显示时钟，暂停模拟日期不停止飘旗，切季不重置相位。旗帜已按当前预览季节切换：春夏方向1、秋冬方向5，旗字使用对应源帧，换季保持动画时间和初相位。此处没有确认独立风向系统；其他动态对象的完整全局遮挡排序也尚未接入。城市数值、静态纹理、初始场景实例不变；离线 `render-map`仍是静态基线导出。
 
@@ -30,16 +32,16 @@ EXE须通过繁中PK 1.0.1.0指纹校验。输出目录必须不存在，避免�
 
 ## Godot
 
-使用Godot 4.7.2 Mono和.NET 10打开 `src/San9.Client.Godot/project.godot`，先构建C#工程，再运行主场景。默认读取上述输出位置；其他位置可通过游戏参数指定：
+使用Godot 4.7.2 Mono和.NET 10打开 `src/San9.Client.Godot/project.godot`，先构建C#工程，再运行主场景。客户端读取组合包（不是上述纯地图输出），生成方式见[客户端内容](client-content.md)；其他位置可通过游戏参数指定：
 
 ```powershell
-& "<Godot Mono可执行文件>" --path "src/San9.Client.Godot" -- --map-package "<地图包绝对路径>"
+& "<Godot Mono可执行文件>" --path "src/San9.Client.Godot" -- --content-package "<客户端内容包绝对路径>"
 ```
 
 - 右键拖动，滚轮以鼠标为中心缩放，左键选方格。
-- 左上季节选择切换四套外观；准备完成后统一替换当前视野。
+- F3调试面板中的季节选择切换四套外观；准备完成后统一替换当前视野。
 - 初始定位洛阳；可用 `--map-center 133,3 --map-season winter` 预览乌丸边缘。
-- 模拟推进旬的按钮仍保留，但地图建筑和季节不随模拟变化；这是初始快照浏览器。
+- F3中的独立模拟推进旬不改变初始展示快照；正式“进行”按钮暂不可用。
 
 显示纹理按512×512分块后台合成，可见区外围一圈预取，显示缓存预算256 MiB。通常只加载当前季节，换季准备期间两季可能暂时共存。预算不包含源纹理、托管运行时和Godot本身。
 
@@ -47,8 +49,8 @@ EXE须通过繁中PK 1.0.1.0指纹校验。输出目录必须不存在，避免�
 
 ```powershell
 dotnet test San9Remake.slnx
-dotnet run --project src/San9.Tools -- render-map --package local/generated/maps/scenario-190 --season spring --x 6880 --y 2610 --width 800 --height 450 --terrain-only true --output local/generated/maps/verification/product-terrain.png
-python -B research/scripts/verify_map_package.py "<已登记EXE>" private/s9数据文件 local/generated/maps/scenario-190 local/generated/maps/verification
+dotnet run --project src/San9.Tools -- render-map --content-package local/generated/content/scenario-190 --season spring --x 6880 --y 2610 --width 800 --height 450 --terrain-only true --output local/generated/maps/verification/product-terrain.png
+python -B research/scripts/verify_map_package.py "<已登记EXE>" private/s9数据文件 local/generated/maps/scenario-190-map local/generated/maps/verification
 ```
 
 研究比较脚本需要Python和Pillow，仅用于私有样本验收，不参与客户端运行。`render-map` 默认包含静态对象，`--terrain-only true`只输出地貌/底云。完整导出使用 `--width 13056 --height 6656`；离线PNG导出会占用较多内存，不代表客户端分块缓存占用。
@@ -85,6 +87,6 @@ Godot图形模式验收参数：`--map-smoke --map-screenshot <绝对PNG路径> 
 - 自动夹具不需要私有样本；实际源图与运行截图位于被忽略的 local/generated/maps/，不提交。
 - 未验证：其他19个正式剧本、组合31、动态水面/建筑/部队、完整原版动态对象遮挡。未进行全图原作截屏逐像素配准。
 
-复现：按 README 的 import-map 生成包，然后运行 `python -B research/scripts/verify_map_package.py <已识别EXE> <数据目录> <地图包> <验证输出目录>`；参考色差比较前先用 San9.Tools render-map 导出同坐标 product-terrain.png。
+复现：按本文的 import-map 生成包，然后运行 `python -B research/scripts/verify_map_package.py <已识别EXE> <数据目录> <地图包> <验证输出目录>`；参考色差比较前先用 San9.Tools render-map 导出同坐标 product-terrain.png。
 
 这里的 Godot 自检通过程序调用输入处理并检查实际 GPU 截图，未进行操作系统鼠标自动化。

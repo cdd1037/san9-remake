@@ -13,6 +13,7 @@ config_version=5
 config/name="San9 Remake"
 run/main_scene="res://Main.tscn"
 config/features=PackedStringArray("4.7", "C#")
+run/max_fps=60
 
 [display]
 

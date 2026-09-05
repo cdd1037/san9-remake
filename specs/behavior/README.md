@@ -52,5 +52,6 @@
 
 - [BEH-RENDER-0002：可交互静态地图与现代地图包](BEH-RENDER-0002-interactive-static-map.md)（已确认）
 - [BEH-RENDER-0003：地图水面、建筑旗帜与守兵动画](BEH-RENDER-0003-map-ambient-animation.md)（已确认）
+- [BEH-UI-0001：190年董卓势力初始主界面](BEH-UI-0001-initial-strategy-screen.md)（已确认）
 
 新增规格必须使用[行为规格模板](../templates/behavior-spec.md)，分别描述原作基线、重制行为和依据。若规格声称描述原作行为，没有本项目可复验证据时不得设为“已确认”；原创或现代化设计可以依据明确决策、原型验证和可测试的验收标准进入“已确认”。

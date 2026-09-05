@@ -1,0 +1,32 @@
+using San9.Application.Presentation;
+using San9.Content.Maps;
+using San9.Content.Scenarios;
+using San9.Content.Text;
+using San9.Rendering;
+
+namespace San9.Client.Godot.Tests;
+
+public sealed class RegionHoverTests
+{
+    [Fact]
+    public void RegionAndCityAreIndependentEvenWhenTheyAreTheSame()
+    {
+        var scenario = new ScenarioSnapshot(2, "fixture", 190, 1, 1, 5, [], [],
+            new() { [15] = "city", [99] = "gate" }, new() { [15] = 15, [99] = 15 });
+        var text = new TextCatalog(1, new() { ["city"] = new("洛阳", "洛陽"), ["gate"] = new("虎牢关", "虎牢關") });
+        Assert.Equal(new("洛阳", "洛阳"), RegionHoverInfo.Resolve(new(0, 0, 0, 15), scenario, text));
+        Assert.Equal(new("虎牢关", "洛阳"), RegionHoverInfo.Resolve(new(0, 0, 0, 99), scenario, text));
+        Assert.Equal(new("———", "——"), RegionHoverInfo.Resolve(new(0, 0, 0, 99) { HideRegionName = true }, scenario, text));
+        Assert.Equal(new("———", "——"), RegionHoverInfo.Resolve(new(0, 0, 0, -1), scenario, text));
+    }
+
+    [Theory]
+    [InlineData("请选择命令起点。", 388, 248)]
+    [InlineData("ABC", 440, 144)]
+    [InlineData("", 452, 120)]
+    public void MessagePanelUsesLogicalCharacterColumns(string text, int x, int width)
+    {
+        Assert.Equal((x, width), MessagePanelGeometry.Bounds(text));
+        Assert.Equal(512, x + width / 2);
+    }
+}

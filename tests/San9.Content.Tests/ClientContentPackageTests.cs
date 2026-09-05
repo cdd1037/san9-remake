@@ -1,0 +1,84 @@
+using San9.Content.Images;
+using San9.Content.Maps;
+using San9.Content.Scenarios;
+using San9.Content.Interface;
+using San9.Content.Packages;
+using San9.Content.Text;
+
+namespace San9.Content.Tests;
+
+public sealed class ClientContentPackageTests
+{
+    [Fact]
+    public void SquareDisplayContractRequiresRegionVisibilityFlag()
+    {
+        Assert.Throws<System.Text.Json.JsonException>(() => System.Text.Json.JsonSerializer.Deserialize<MapSquare>(
+            "{\"Terrain\":0,\"Elevation\":0,\"ElevationMask\":0,\"RegionId\":15}"));
+    }
+    private static Dictionary<string, string> Colors() => Enumerable.Range(0, 52).Select(i => $"city-marker-{i}")
+        .Concat(["facility-available", "facility-unavailable"]).ToDictionary(s => s, _ => "F0F0F0");
+    private static readonly MapBuilding[] Buildings = [new(15, 89, 64, 0, 1, []), new(100, 86, 65, 1, 18, [])];
+    private static readonly ImageAsset Asset = new("ui", "ui/frame.png", new string('0', 64), 32, 32);
+    private static ScenarioSnapshot Fixture() => new(2, "fixture", 190, 1, 1, 5,
+        [new(5, "player", 2, 9520, 73200, 100)],
+        [new(15, "city", 5, 89, 64, 32000, 500, 1000, 50, true, 5, []), new(100, "port", null, 86, 65, 1000, 200, 300, 50, true, null, [])],
+        new() { [15] = "city" }, []);
+
+    [Fact]
+    public void ScenarioValidatesOwnershipWithoutMapOrSkin()
+    {
+        var p = Fixture(); p.Validate();
+
+        Assert.Throws<InvalidDataException>(() => (p with { Settlements = [p.Settlements[0], p.Settlements[0]] }).Validate());
+        Assert.Throws<InvalidDataException>(() => (p with { Settlements = [p.Settlements[0] with { OwnerId = 99 }, p.Settlements[1]] }).Validate());
+
+        Assert.Throws<InvalidDataException>(() => (p with { PlayerForceId = 6 }).Validate());
+        Assert.Throws<InvalidDataException>(() => (p with { Forces = [p.Forces[0], p.Forces[0]] }).Validate());
+    }
+    [Fact]
+    public void MissingUiAndInvalidDurabilityOrNamesFailValidation()
+    {
+        var skin = new InterfaceSkin(3, [Asset], InterfaceSkin.RequiredUiAssets.ToDictionary(s => s, _ => "ui"), Colors());
+        skin.Validate(); skin.Roles.Remove("top-frame");
+        Assert.Throws<InvalidDataException>(skin.Validate);
+        skin.Roles["top-frame"] = "missing";
+        Assert.Throws<InvalidDataException>(skin.Validate);
+        var p = Fixture();
+        Assert.Throws<InvalidDataException>(() => (p with { Settlements = [p.Settlements[0] with { Durability = 1001 }, p.Settlements[1]] }).Validate());
+        Assert.Throws<InvalidDataException>(() => (p with { Settlements = [p.Settlements[0] with { NameKey = "" }, p.Settlements[1]] }).Validate());
+    }
+    [Fact]
+    public void DisplaySnapshotRejectsInventedIconsMoraleAndRegionReferences()
+    {
+        var snapshot = Fixture();
+        void Reject(SettlementSnapshot city) => Assert.Throws<InvalidDataException>(() =>
+            (snapshot with { Settlements = [city, snapshot.Settlements[1]] }).Validate());
+        Reject(snapshot.Settlements[0] with { Morale = 101 });
+        Reject(snapshot.Settlements[0] with { Soldiers = 0 });
+        Reject(snapshot.Settlements[0] with { Icons = ["merchant", "training"] });
+        Reject(snapshot.Settlements[0] with { CityMarkerColor = null });
+        Assert.Throws<InvalidDataException>(() => (snapshot with { RegionCityIds = new() { [15] = 99 } }).Validate());
+        Assert.Throws<InvalidDataException>(() => (snapshot with { Settlements = [snapshot.Settlements[0], snapshot.Settlements[1] with { Icons = ["emperor"] }] }).Validate());
+    }
+    [Fact]
+    public void CompositionChecksIdentityCoordinatesAndEveryTextReference()
+    {
+        var map = new MapPackage(7, "fixture", "fixture", "spring", 200, 200, 13056, 6656,
+            [], [], [], [], [], [], Buildings, [], [], [], [], [], new([], [], []), []);
+        var skin = new InterfaceSkin(3, [Asset], InterfaceSkin.RequiredUiAssets.ToDictionary(s => s, _ => "ui"), Colors());
+        var text = new TextCatalog(1, new() { ["player"] = new("Player", "Player"), ["city"] = new("City", "City"), ["port"] = new("Port", "Port") });
+        var p = new ClientContentPackage(4, [], map, Fixture(), text, skin); p.ValidateLinks();
+        Assert.Throws<InvalidDataException>(() => (p with { Scenario = p.Scenario with { Settlements = [p.Scenario.Settlements[0]] } }).ValidateLinks());
+        Assert.Throws<InvalidDataException>(() => (p with { Scenario = p.Scenario with { ScenarioId = "other" } }).ValidateLinks());
+        Assert.Throws<InvalidDataException>(() => (p with { Scenario = p.Scenario with { Settlements = [p.Scenario.Settlements[0] with { X = 88 }, p.Scenario.Settlements[1]] } }).ValidateLinks());
+        foreach (string key in text.Entries.Keys)
+        {
+            var entries = new Dictionary<string, TextEntry>(text.Entries); entries.Remove(key);
+            Assert.Throws<InvalidDataException>(() => (p with { Text = new(1, entries) }).ValidateLinks());
+        }
+        var translated = text with { Entries = text.Entries.ToDictionary(kv => kv.Key, kv => kv.Value with { Text = "中文" }) };
+        var changed = p with { Text = translated }; changed.ValidateLinks();
+        Assert.Same(p.Map, changed.Map); Assert.Same(p.Scenario, changed.Scenario);
+        Assert.Equal("中文", changed.Text.Resolve("city")); Assert.Equal("City", changed.Text.Entries["city"].SourceText);
+    }
+}

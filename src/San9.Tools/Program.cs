@@ -1,3 +1,6 @@
+using San9.Importer.San9PkTc101.Packages;
+using San9.Content.Packages;
+using San9.Content.Images;
 using System.Diagnostics;
 using San9.Content.Maps;
 using San9.Importer.San9PkTc101;
@@ -5,11 +8,11 @@ using San9.Rendering;
 
 try
 {
-    if(args.Length==0)throw new ArgumentException("Commands: import-map --source-exe PATH --data-dir PATH --scenario PATH --output PATH; render-map --package PATH --season spring --output PATH [--x 0 --y 0 --width 1024 --height 768]");
+    if(args.Length==0)throw new ArgumentException("Commands: import-client --source-exe PATH --data-dir PATH --scenario PATH --output PATH; import-map --source-exe PATH --data-dir PATH --scenario PATH --output PATH; render-map --package PATH --season spring --output PATH [--x 0 --y 0 --width 1024 --height 768]");
     Dictionary<string,string> options=[];
     for(int i=1;i<args.Length;i+=2)
         if(i+1>=args.Length||!args[i].StartsWith("--",StringComparison.Ordinal)||!options.TryAdd(args[i],args[i+1]))throw new ArgumentException("Invalid or duplicate option.");
-    string[] allowed=args[0]=="import-map"?["--source-exe","--data-dir","--scenario","--output"]:["--package","--season","--output","--x","--y","--width","--height","--terrain-only"];
+    string[] allowed=args[0] is "import-map" or "import-client"?["--source-exe","--data-dir","--scenario","--output"]:["--package","--content-package","--season","--output","--x","--y","--width","--height","--terrain-only"];
     if(options.Keys.Any(k=>!allowed.Contains(k)))throw new ArgumentException("Unknown option.");
     string Required(string key)=>options.TryGetValue(key,out var value)?value:throw new ArgumentException($"Missing {key}.");
     var watch=Stopwatch.StartNew();
@@ -18,12 +21,19 @@ try
         var map=await MapImporter.ImportAsync(Required("--source-exe"),Required("--data-dir"),Required("--scenario"),Required("--output"),Console.WriteLine);
         Console.WriteLine($"Complete: {map.ScenarioId}, {watch.Elapsed.TotalSeconds:F2}s");
     }
+    else if(args[0]=="import-client")
+    {
+        var content=await ClientContentImporter.ImportAsync(Required("--source-exe"),Required("--data-dir"),Required("--scenario"),Required("--output"),Console.WriteLine);
+        Console.WriteLine($"Complete: {content.Scenario.ScenarioId}, {watch.Elapsed.TotalSeconds:F2}s");
+    }
     else if(args[0]=="render-map")
     {
-        string root=Required("--package");var map=await MapPackageFiles.LoadAsync(root);
+        if (options.ContainsKey("--package") == options.ContainsKey("--content-package")) throw new ArgumentException("Specify exactly one of --package or --content-package.");
+        string root=options.ContainsKey("--content-package") ? Required("--content-package") : Required("--package");
+        var map=options.ContainsKey("--content-package") ? (await ClientContentFiles.LoadAsync(root)).Map : await MapPackageFiles.LoadAsync(root);
         string season=options.GetValueOrDefault("--season",map.InitialSeason);
-        var common=TerrainRenderer.LoadImages(root,map.Assets);
-        var land=TerrainRenderer.LoadImages(root,map.Seasons.Single(s=>s.Id==season).Textures).ToDictionary(k=>int.Parse(k.Key),v=>v.Value);
+        var common=ImageAssetFiles.Load(root,map.Assets);
+        var land=ImageAssetFiles.Load(root,map.Seasons.Single(s=>s.Id==season).Textures).ToDictionary(k=>int.Parse(k.Key),v=>v.Value);
         var renderer=new TerrainRenderer(map,common,land);
         int Number(string key,int fallback)=>options.TryGetValue(key,out var v)?int.Parse(v):fallback;
         int x=Number("--x",0),y=Number("--y",0),width=Number("--width",1024),height=Number("--height",768);

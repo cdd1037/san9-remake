@@ -1,3 +1,4 @@
+using San9.Content.Images;
 using San9.Content.Maps;
 
 namespace San9.Importer.San9PkTc101;
@@ -37,7 +38,7 @@ internal static class MapCloudCompiler
         }
         return (Raster(left), Raster(right));
     }
-    public static MapSprite[] Foreground(MapSquare[] squares, MapBuilding[] buildings, IReadOnlyDictionary<string, MapAsset> assets, IEnumerable<(int Side, int Id, int X, int Y)> placements)
+    public static MapSprite[] Foreground(MapSquare[] squares, MapBuilding[] buildings, IReadOnlyDictionary<string, ImageAsset> assets, IEnumerable<(int Side, int Id, int X, int Y)> placements)
     {
         var bounds = buildings.Select(b => (Left: b.Sprites.Min(s => s.X), Top: b.Sprites.Min(s => s.Y), Right: b.Sprites.Max(s => s.X + assets[s.AssetId].Width), Bottom: b.Sprites.Max(s => s.Y + assets[s.AssetId].Height))).ToArray();
         List<MapSprite> output = [];

@@ -1,19 +1,19 @@
-using San9.Content.Maps;
+using San9.Content.Images;
 
-namespace San9.Importer.San9PkTc101;
+namespace San9.Importer.San9PkTc101.Images;
 
-public sealed record IndexedMapImage(int Width, int Height, byte[] Pixels);
+public sealed record IndexedImage(int Width, int Height, byte[] Pixels);
 
-public static class MapImageArchive
+public static class IndexedImageArchive
 {
-    public static (byte[][] Palettes, IndexedMapImage[] Images) ReadCombined(byte[] bytes, int paletteCount, int imageCount)
+    public static (byte[][] Palettes, IndexedImage[] Images) ReadCombined(byte[] bytes, int paletteCount, int imageCount)
     {
         int offset = checked(4 + paletteCount * 1064);
         if (bytes.Length < offset + 4) throw new InvalidDataException("Truncated palette/image archive.");
         return (ReadPalettes(bytes[..offset], paletteCount), ReadImages(bytes[offset..], imageCount));
     }
 
-    public static IndexedMapImage Frame(IndexedMapImage sheet, int columns, int rows, int column, int row)
+    public static IndexedImage Frame(IndexedImage sheet, int columns, int rows, int column, int row)
     {
         if (columns <= 0 || rows <= 0 || sheet.Width % columns != 0 || sheet.Height % rows != 0 || column < 0 || column >= columns || row < 0 || row >= rows)
             throw new InvalidDataException("Invalid animation frame grid.");
@@ -23,33 +23,33 @@ public static class MapImageArchive
         return new(width, height, pixels);
     }
 
-    public static IndexedMapImage[] ReadImages(byte[] bytes, int expectedCount)
+    public static IndexedImage[] ReadImages(byte[] bytes, int expectedCount)
     {
         using var r = new BinaryReader(new MemoryStream(bytes));
-        if (bytes.Length < 4 || r.ReadUInt32() != bytes.Length) throw new InvalidDataException("Map image length mismatch.");
-        List<IndexedMapImage> images = [];
+        if (bytes.Length < 4 || r.ReadUInt32() != bytes.Length) throw new InvalidDataException("Image length mismatch.");
+        List<IndexedImage> images = [];
         while (r.BaseStream.Position < bytes.Length)
         {
             long start = r.BaseStream.Position;
-            if (start + 16 > bytes.Length) throw new InvalidDataException("Truncated map image record.");
+            if (start + 16 > bytes.Length) throw new InvalidDataException("Truncated image record.");
             uint size = r.ReadUInt32(), stride = r.ReadUInt32(), width = r.ReadUInt32(), height = r.ReadUInt32();
             if (width is 0 or > 4096 || height is 0 or > 4096 || stride != width || size != 16 + (long)stride * height || start + size > bytes.Length)
-                throw new InvalidDataException("Invalid map image dimensions.");
+                throw new InvalidDataException("Invalid image dimensions.");
             images.Add(new((int)width, (int)height, r.ReadBytes(checked((int)(stride * height)))));
-            if (images.Count > expectedCount) throw new InvalidDataException("Excess map images.");
+            if (images.Count > expectedCount) throw new InvalidDataException("Excess images.");
         }
-        if (images.Count != expectedCount) throw new InvalidDataException("Map image count mismatch.");
+        if (images.Count != expectedCount) throw new InvalidDataException("Image count mismatch.");
         return images.ToArray();
     }
     public static byte[][] ReadPalettes(byte[] bytes, int expectedCount)
     {
         using var r = new BinaryReader(new MemoryStream(bytes));
-        if (bytes.Length != 4 + expectedCount * 1064 || r.ReadUInt32() != expectedCount) throw new InvalidDataException("Map palette count/length mismatch.");
+        if (bytes.Length != 4 + expectedCount * 1064 || r.ReadUInt32() != expectedCount) throw new InvalidDataException("Palette count/length mismatch.");
         byte[][] palettes = new byte[expectedCount][];
         for (int i = 0; i < expectedCount; i++) { r.BaseStream.Position += 40; palettes[i] = r.ReadBytes(1024); }
         return palettes;
     }
-    public static PngImage Decode(IndexedMapImage image, byte[] palette, bool transparent, bool paletteAlpha)
+    public static PngImage Decode(IndexedImage image, byte[] palette, bool transparent, bool paletteAlpha)
     {
         if (palette.Length != 1024) throw new InvalidDataException("Invalid palette.");
         int channels = transparent ? 4 : 3;

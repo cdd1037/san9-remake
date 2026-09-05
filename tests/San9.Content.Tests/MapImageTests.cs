@@ -1,3 +1,5 @@
+using San9.Content.Packages;
+using San9.Content.Images;
 using San9.Content.Maps;
 
 namespace San9.Content.Tests;
@@ -25,5 +27,5 @@ public sealed class MapImageTests
     [InlineData("../outside.png")]
     [InlineData("../../outside.png")]
     [InlineData("C:/outside.png")]
-    public void AssetPathsCannotEscapePackage(string path) => Assert.Throws<InvalidDataException>(() => MapPackageFiles.Resolve(Path.GetTempPath(), path));
+    public void AssetPathsCannotEscapePackage(string path) => Assert.Throws<InvalidDataException>(() => PackageFiles.Resolve(Path.GetTempPath(), path));
 }

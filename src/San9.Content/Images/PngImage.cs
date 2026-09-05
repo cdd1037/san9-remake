@@ -2,7 +2,7 @@ using System.Buffers.Binary;
 using System.IO.Compression;
 using System.Text;
 
-namespace San9.Content.Maps;
+namespace San9.Content.Images;
 
 // Package PNG contract: lossless, 8-bit, non-interlaced, filter 0, RGB/RGBA/gray.
 public sealed record PngImage(int Width, int Height, int Channels, byte[] Pixels)
@@ -50,7 +50,7 @@ public sealed record PngImage(int Width, int Height, int Channels, byte[] Pixels
             }
             else if (type == "IDAT") compressed.Write(payload);
             else if (type == "IEND") { ended = true; pos += length + 12; break; }
-            else throw new InvalidDataException($"Unsupported map PNG chunk: {type}");
+            else throw new InvalidDataException($"Unsupported PNG chunk: {type}");
             pos += length + 12;
         }
         if (!ended || pos != data.Length || channels == 0) throw new InvalidDataException("Incomplete PNG.");
@@ -59,7 +59,7 @@ public sealed record PngImage(int Width, int Height, int Channels, byte[] Pixels
         byte[] pixels = new byte[checked(w * h * channels)];
         for (int y = 0; y < h; y++)
         {
-            if (z.ReadByte() != 0) throw new InvalidDataException("Unsupported map PNG filter.");
+            if (z.ReadByte() != 0) throw new InvalidDataException("Unsupported PNG filter.");
             z.ReadExactly(pixels.AsSpan(y * w * channels, w * channels));
         }
         if (z.ReadByte() != -1) throw new InvalidDataException("Excess PNG pixels.");

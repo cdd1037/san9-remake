@@ -1,4 +1,6 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Unicode;
 
 namespace San9.Content.Packages;
 
@@ -6,6 +8,8 @@ public static class PackageFiles
 {
     public static JsonSerializerOptions JsonOptions { get; } = new()
     {
+        Encoder = JavaScriptEncoder.Create(UnicodeRanges.All),
+        WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         RespectRequiredConstructorParameters = true,
         RespectNullableAnnotations = true,

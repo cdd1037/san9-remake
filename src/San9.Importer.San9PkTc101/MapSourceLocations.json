@@ -1,0 +1,790 @@
+{
+  "maskPositionOffset": 2162208,
+  "maskHeightOffset": 2163360,
+  "compositions": [
+    {
+      "id": 1,
+      "offset": 2178312,
+      "count": 10,
+      "flags": {
+        "offset": 2164504,
+        "count": 4
+      },
+      "soldiers": {
+        "offset": 2165952,
+        "count": 8
+      }
+    },
+    {
+      "id": 2,
+      "offset": 2178032,
+      "count": 10,
+      "flags": {
+        "offset": 2164504,
+        "count": 4
+      },
+      "soldiers": {
+        "offset": 2165952,
+        "count": 8
+      }
+    },
+    {
+      "id": 3,
+      "offset": 2177752,
+      "count": 10,
+      "flags": {
+        "offset": 2164504,
+        "count": 4
+      },
+      "soldiers": {
+        "offset": 2165952,
+        "count": 8
+      }
+    },
+    {
+      "id": 4,
+      "offset": 2177472,
+      "count": 10,
+      "flags": {
+        "offset": 2164504,
+        "count": 4
+      },
+      "soldiers": {
+        "offset": 2165952,
+        "count": 8
+      }
+    },
+    {
+      "id": 6,
+      "offset": 2177192,
+      "count": 10,
+      "flags": {
+        "offset": 2164472,
+        "count": 4
+      },
+      "soldiers": {
+        "offset": 2165824,
+        "count": 8
+      }
+    },
+    {
+      "id": 7,
+      "offset": 2176912,
+      "count": 10,
+      "flags": {
+        "offset": 2164472,
+        "count": 4
+      },
+      "soldiers": {
+        "offset": 2165824,
+        "count": 8
+      }
+    },
+    {
+      "id": 8,
+      "offset": 2176632,
+      "count": 10,
+      "flags": {
+        "offset": 2164472,
+        "count": 4
+      },
+      "soldiers": {
+        "offset": 2165824,
+        "count": 8
+      }
+    },
+    {
+      "id": 9,
+      "offset": 2176352,
+      "count": 10,
+      "flags": {
+        "offset": 2164472,
+        "count": 4
+      },
+      "soldiers": {
+        "offset": 2165824,
+        "count": 8
+      }
+    },
+    {
+      "id": 11,
+      "offset": 2176072,
+      "count": 10,
+      "flags": {
+        "offset": 2164440,
+        "count": 4
+      },
+      "soldiers": {
+        "offset": 2165696,
+        "count": 8
+      }
+    },
+    {
+      "id": 12,
+      "offset": 2175736,
+      "count": 12,
+      "flags": {
+        "offset": 2164440,
+        "count": 4
+      },
+      "soldiers": {
+        "offset": 2165696,
+        "count": 8
+      }
+    },
+    {
+      "id": 13,
+      "offset": 2175456,
+      "count": 10,
+      "flags": {
+        "offset": 2164440,
+        "count": 4
+      },
+      "soldiers": {
+        "offset": 2165696,
+        "count": 8
+      }
+    },
+    {
+      "id": 14,
+      "offset": 2175176,
+      "count": 10,
+      "flags": {
+        "offset": 2164440,
+        "count": 4
+      },
+      "soldiers": {
+        "offset": 2165696,
+        "count": 8
+      }
+    },
+    {
+      "id": 16,
+      "offset": 2175120,
+      "count": 2,
+      "flags": {
+        "offset": 2164432,
+        "count": 1
+      },
+      "soldiers": {
+        "offset": 2165648,
+        "count": 3
+      }
+    },
+    {
+      "id": 17,
+      "offset": 2175064,
+      "count": 2,
+      "flags": {
+        "offset": 2164432,
+        "count": 1
+      },
+      "soldiers": {
+        "offset": 2165648,
+        "count": 3
+      }
+    },
+    {
+      "id": 18,
+      "offset": 2175008,
+      "count": 2,
+      "flags": {
+        "offset": 2164432,
+        "count": 1
+      },
+      "soldiers": {
+        "offset": 2165648,
+        "count": 3
+      }
+    },
+    {
+      "id": 20,
+      "offset": 2174840,
+      "count": 6,
+      "flags": {
+        "offset": 2164424,
+        "count": 1
+      },
+      "soldiers": {
+        "offset": 2165616,
+        "count": 2
+      }
+    },
+    {
+      "id": 21,
+      "offset": 2174672,
+      "count": 6,
+      "flags": {
+        "offset": 2164424,
+        "count": 1
+      },
+      "soldiers": {
+        "offset": 2165616,
+        "count": 2
+      }
+    },
+    {
+      "id": 22,
+      "offset": 2174504,
+      "count": 6,
+      "flags": {
+        "offset": 2164424,
+        "count": 1
+      },
+      "soldiers": {
+        "offset": 2165616,
+        "count": 2
+      }
+    },
+    {
+      "id": 23,
+      "offset": 2174336,
+      "count": 6,
+      "flags": {
+        "offset": 2164424,
+        "count": 1
+      },
+      "soldiers": {
+        "offset": 2165616,
+        "count": 2
+      }
+    },
+    {
+      "id": 25,
+      "offset": 2174224,
+      "count": 4,
+      "flags": {
+        "offset": 2164416,
+        "count": 1
+      },
+      "soldiers": {
+        "offset": 2165584,
+        "count": 2
+      }
+    },
+    {
+      "id": 26,
+      "offset": 2174112,
+      "count": 4,
+      "flags": {
+        "offset": 2164416,
+        "count": 1
+      },
+      "soldiers": {
+        "offset": 2165584,
+        "count": 2
+      }
+    },
+    {
+      "id": 27,
+      "offset": 2174000,
+      "count": 4,
+      "flags": {
+        "offset": 2164416,
+        "count": 1
+      },
+      "soldiers": {
+        "offset": 2165584,
+        "count": 2
+      }
+    },
+    {
+      "id": 28,
+      "offset": 2173888,
+      "count": 4,
+      "flags": {
+        "offset": 2164416,
+        "count": 1
+      },
+      "soldiers": {
+        "offset": 2165584,
+        "count": 2
+      }
+    },
+    {
+      "id": 30,
+      "offset": 2173720,
+      "count": 6,
+      "flags": {
+        "offset": 2164400,
+        "count": 2
+      },
+      "soldiers": {
+        "offset": 2165520,
+        "count": 4
+      }
+    },
+    {
+      "id": 32,
+      "offset": 2173384,
+      "count": 6,
+      "flags": {
+        "offset": 2164400,
+        "count": 2
+      },
+      "soldiers": {
+        "offset": 2165520,
+        "count": 4
+      }
+    },
+    {
+      "id": 33,
+      "offset": 2173216,
+      "count": 6,
+      "flags": {
+        "offset": 2164400,
+        "count": 2
+      },
+      "soldiers": {
+        "offset": 2165520,
+        "count": 4
+      }
+    },
+    {
+      "id": 54,
+      "offset": 2169920,
+      "count": 6,
+      "flags": {
+        "offset": 2164352,
+        "count": 1
+      },
+      "soldiers": {
+        "offset": 2165264,
+        "count": 3
+      }
+    },
+    {
+      "id": 55,
+      "offset": 2169752,
+      "count": 6,
+      "flags": {
+        "offset": 2164352,
+        "count": 1
+      },
+      "soldiers": {
+        "offset": 2165264,
+        "count": 3
+      }
+    },
+    {
+      "id": 56,
+      "offset": 2169584,
+      "count": 6,
+      "flags": {
+        "offset": 2164352,
+        "count": 1
+      },
+      "soldiers": {
+        "offset": 2165264,
+        "count": 3
+      }
+    },
+    {
+      "id": 57,
+      "offset": 2169416,
+      "count": 6,
+      "flags": {
+        "offset": 2164352,
+        "count": 1
+      },
+      "soldiers": {
+        "offset": 2165264,
+        "count": 3
+      }
+    }
+  ],
+  "clouds": [
+    {
+      "side": 0,
+      "offsets": [
+        1153897,
+        1153998,
+        1154006
+      ]
+    },
+    {
+      "side": 0,
+      "offsets": [
+        1153902,
+        1154018,
+        -1
+      ]
+    },
+    {
+      "side": 0,
+      "offsets": [
+        1153897,
+        1154029,
+        -1
+      ]
+    },
+    {
+      "side": 0,
+      "offsets": [
+        1153907,
+        1154047,
+        1154058
+      ]
+    },
+    {
+      "side": 0,
+      "offsets": [
+        1153902,
+        1154076,
+        1153988
+      ]
+    },
+    {
+      "side": 0,
+      "offsets": [
+        1153907,
+        1154101,
+        1153988
+      ]
+    },
+    {
+      "side": 0,
+      "offsets": [
+        1153897,
+        1154119,
+        1154130
+      ]
+    },
+    {
+      "side": 0,
+      "offsets": [
+        1153907,
+        1154166,
+        1154148
+      ]
+    },
+    {
+      "side": 0,
+      "offsets": [
+        1153907,
+        1154166,
+        1154177
+      ]
+    },
+    {
+      "side": 0,
+      "offsets": [
+        1153902,
+        1154195,
+        1154206
+      ]
+    },
+    {
+      "side": 0,
+      "offsets": [
+        1153902,
+        1153942,
+        1154224
+      ]
+    },
+    {
+      "side": 0,
+      "offsets": [
+        1153907,
+        1153942,
+        1154242
+      ]
+    },
+    {
+      "side": 1,
+      "offsets": [
+        1154972,
+        1155065,
+        1155073
+      ]
+    },
+    {
+      "side": 1,
+      "offsets": [
+        1154972,
+        1155085,
+        1155093
+      ]
+    },
+    {
+      "side": 1,
+      "offsets": [
+        1154977,
+        1155111,
+        1154058
+      ]
+    },
+    {
+      "side": 1,
+      "offsets": [
+        1154977,
+        1155129,
+        1154058
+      ]
+    },
+    {
+      "side": 1,
+      "offsets": [
+        1154982,
+        1155140,
+        1155151
+      ]
+    },
+    {
+      "side": 1,
+      "offsets": [
+        1154972,
+        1155169,
+        1155180
+      ]
+    },
+    {
+      "side": 1,
+      "offsets": [
+        1154982,
+        1155191,
+        1155202
+      ]
+    },
+    {
+      "side": 1,
+      "offsets": [
+        1154972,
+        1155220,
+        1154206
+      ]
+    },
+    {
+      "side": 1,
+      "offsets": [
+        1154977,
+        1155249,
+        1155260
+      ]
+    },
+    {
+      "side": 1,
+      "offsets": [
+        1154977,
+        1155278,
+        1154242
+      ]
+    },
+    {
+      "side": 1,
+      "offsets": [
+        1154977,
+        1155307,
+        1155318
+      ]
+    },
+    {
+      "side": 1,
+      "offsets": [
+        1154982,
+        1155329,
+        1155340
+      ]
+    },
+    {
+      "side": 2,
+      "offsets": [
+        1154972,
+        1156126,
+        -1
+      ]
+    },
+    {
+      "side": 2,
+      "offsets": [
+        1154977,
+        1154148,
+        1154058
+      ]
+    },
+    {
+      "side": 2,
+      "offsets": [
+        1154982,
+        1154426,
+        1156183
+      ]
+    },
+    {
+      "side": 2,
+      "offsets": [
+        1154972,
+        1156201,
+        1154130
+      ]
+    },
+    {
+      "side": 2,
+      "offsets": [
+        1154972,
+        1156230,
+        1156241
+      ]
+    },
+    {
+      "side": 2,
+      "offsets": [
+        1154977,
+        1156112,
+        1156112
+      ]
+    },
+    {
+      "side": 2,
+      "offsets": [
+        1154977,
+        1156280,
+        1156291
+      ]
+    },
+    {
+      "side": 2,
+      "offsets": [
+        1154977,
+        1155129,
+        1156320
+      ]
+    },
+    {
+      "side": 2,
+      "offsets": [
+        1154972,
+        1156338,
+        1156349
+      ]
+    },
+    {
+      "side": 2,
+      "offsets": [
+        1154982,
+        1156367,
+        1156378
+      ]
+    },
+    {
+      "side": 2,
+      "offsets": [
+        1154982,
+        1155278,
+        1155318
+      ]
+    },
+    {
+      "side": 2,
+      "offsets": [
+        1154977,
+        1156425,
+        1156436
+      ]
+    },
+    {
+      "side": 3,
+      "offsets": [
+        1153907,
+        1157243,
+        1157251
+      ]
+    },
+    {
+      "side": 3,
+      "offsets": [
+        1153897,
+        1157263,
+        1157271
+      ]
+    },
+    {
+      "side": 3,
+      "offsets": [
+        1153902,
+        1157289,
+        1157300
+      ]
+    },
+    {
+      "side": 3,
+      "offsets": [
+        1153907,
+        1157311,
+        1157322
+      ]
+    },
+    {
+      "side": 3,
+      "offsets": [
+        1153897,
+        1157340,
+        1154148
+      ]
+    },
+    {
+      "side": 3,
+      "offsets": [
+        1153902,
+        1157369,
+        1155111
+      ]
+    },
+    {
+      "side": 3,
+      "offsets": [
+        1153897,
+        1157234,
+        1157405
+      ]
+    },
+    {
+      "side": 3,
+      "offsets": [
+        1153907,
+        1157234,
+        1157423
+      ]
+    },
+    {
+      "side": 3,
+      "offsets": [
+        1153902,
+        1157441,
+        1154206
+      ]
+    },
+    {
+      "side": 3,
+      "offsets": [
+        1153897,
+        1157470,
+        1157481
+      ]
+    },
+    {
+      "side": 3,
+      "offsets": [
+        1153907,
+        1157492,
+        1154224
+      ]
+    },
+    {
+      "side": 3,
+      "offsets": [
+        1153902,
+        1157521,
+        1157532
+      ]
+    },
+    {
+      "side": 3,
+      "offsets": [
+        1153907,
+        1157543,
+        1157554
+      ]
+    }
+  ]
+}

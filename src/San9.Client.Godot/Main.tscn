@@ -9,10 +9,6 @@ script = ExtResource("1_main")
 [node name="MapWorld" type="Node2D" parent="."]
 script = ExtResource("2_map")
 
-[node name="Background" type="ColorRect" parent="MapWorld"]
-mouse_filter = 2
-color = Color(0.055, 0.067, 0.082, 1)
-
 [node name="Camera" type="Camera2D" parent="MapWorld"]
 
 [node name="UiLayer" type="CanvasLayer" parent="."]
@@ -25,37 +21,29 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
 
 [node name="Panel" type="VBoxContainer" parent="UiLayer/UiRoot"]
 layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -260.0
-offset_top = -120.0
-offset_right = 260.0
-offset_bottom = 120.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_constants/separation = 18
+offset_left = 16.0
+offset_top = 640.0
+offset_right = 500.0
+offset_bottom = 752.0
+theme_override_constants/separation = 4
 
 [node name="Title" type="Label" parent="UiLayer/UiRoot/Panel"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 32
-text = "三国志 9 重制 · M0"
-horizontal_alignment = 1
+visible = false
+text = "三国志 9 重制"
 
 [node name="Description" type="Label" parent="UiLayer/UiRoot/Panel"]
 layout_mode = 2
-text = "Godot 表现层通过 Application 推进纯 C# 确定性模拟。"
-horizontal_alignment = 1
+visible = false
+text = "初始静态地图"
 
 [node name="Clock" type="Label" parent="UiLayer/UiRoot/Panel"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 24
-horizontal_alignment = 1
+theme_override_font_sizes/font_size = 16
 
 [node name="Advance" type="Button" parent="UiLayer/UiRoot/Panel"]
 layout_mode = 2
@@ -64,6 +52,31 @@ text = "提交等待命令并推进一旬"
 [node name="Hash" type="Label" parent="UiLayer/UiRoot/Panel"]
 layout_mode = 2
 text_overrun_behavior = 3
-horizontal_alignment = 1
+theme_override_font_sizes/font_size = 14
+
+[node name="MapPanel" type="VBoxContainer" parent="UiLayer/UiRoot"]
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 470.0
+offset_bottom = 180.0
+theme_override_constants/separation = 6
+
+[node name="Heading" type="Label" parent="UiLayer/UiRoot/MapPanel"]
+text = "三国志 IX · 大地图"
+theme_override_font_sizes/font_size = 24
+
+[node name="Status" type="Label" parent="UiLayer/UiRoot/MapPanel"]
+text = "准备地图…"
+theme_override_colors/font_shadow_color = Color(0,0,0,1)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+
+[node name="Season" type="OptionButton" parent="UiLayer/UiRoot/MapPanel"]
+
+[node name="Selection" type="Label" parent="UiLayer/UiRoot/MapPanel"]
+text = "右键拖动 · 滚轮缩放 · 左键选择方格"
+theme_override_colors/font_shadow_color = Color(0,0,0,1)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
 
 [connection signal="pressed" from="UiLayer/UiRoot/Panel/Advance" to="." method="OnAdvancePressed"]

@@ -4,5 +4,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../San9.Content/San9.Content.csproj" />
+    <EmbeddedResource Include="MapSourceLocations.json" />
   </ItemGroup>
 </Project>

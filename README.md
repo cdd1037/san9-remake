@@ -4,7 +4,7 @@
 
 ## 当前阶段
 
-项目目前处于 M0 工程基线阶段。技术路线已确定为 Godot 4.7.1 Mono、.NET 10、纯 C# 确定性模拟核心、JSON 内容源包和本地编译缓存。
+项目目前处于 M0 工程基线与地图接入阶段。技术路线已确定为 Godot 4.7.2 Mono、.NET 10、纯 C# 确定性模拟核心、JSON 内容源包和本地编译缓存。
 
 项目采用以下单向信息流：
 
@@ -30,12 +30,16 @@
 
 ## 工程入口
 
+大地图转换、四季资源与 Godot 浏览入口见 [大地图导入与运行](docs/map-import.md)。MVP 已接入190年剧本的初始静态地图。
+
 - `San9Remake.slnx`：.NET 解决方案。
 - `src/San9.Core/`：不依赖 Godot 的确定性领域核心。
 - `src/San9.Content/`：内容清单、剧本定义与校验。
 - `src/San9.Application/`：游戏会话与用例入口。
 - `src/San9.Importer.San9PkTc101/`：繁中 PK 1.0.1.0 样本识别与后续转换器。
 - `src/San9.Client.Godot/`：Godot 客户端。
+- `src/San9.Rendering/`：独立的运行时地貌分块合成与地图坐标。
+- `src/San9.Tools/`：地图转换与离线验证命令行。
 - `tests/`：无头自动测试。
 - `local/generated/`：本地转换数据和缓存，禁止提交。
 

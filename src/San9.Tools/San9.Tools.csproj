@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../San9.Importer.San9PkTc101/San9.Importer.San9PkTc101.csproj" />
+    <ProjectReference Include="../San9.Rendering/San9.Rendering.csproj" />
+  </ItemGroup>
+</Project>

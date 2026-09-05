@@ -7,5 +7,6 @@
   <ItemGroup>
     <ProjectReference Include="../San9.Application/San9.Application.csproj" />
     <ProjectReference Include="../San9.Core/San9.Core.csproj" />
+    <ProjectReference Include="../San9.Rendering/San9.Rendering.csproj" />
   </ItemGroup>
 </Project>

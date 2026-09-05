@@ -124,6 +124,8 @@ redraw_map_scene
 
 ### 4.2 疆界与 MESH/COV
 
+2026-09-06范围语义更正：下文都市分支的state 5“路线覆盖”应理解为都市周边可达范围；其生成器与地利、通常士气衰减豁免的范围缓存相同，详见 [0099复核](RE-SAN9PK-0099.md#2026-09-06复核都市周边地利出征覆盖与士气)。state与资源选择结论不变。
+
 `refresh_map_square_boundaries`（`0x521370`）在脏区域内逐格检查邻格、Zone 对象和城市条件，之后把 `+0x0D` 的低/高四位合并为两组 N/E/S/W 掩码，再调用 `build_square_boundary_segments`（`0x5191D0`）。该函数按 `+0x0A`、偏移及两组掩码选择 `G_MapMkr.s9` 的 `10794..10805` 资源变体，并创建组 `41` 的疆界片段。
 
 `draw_square_mesh_overlays`（`0x51F140`）在底图和疆界刷新之后，读取每格的临时 overlay state 与 `CSquareData +0x1C`（文件 `+0x0A`），由 `create_square_mesh_visual`（`0x51E1F0`）在六组 MESH/COV 基础资源 `[10972,11004,11036,11020,10988,11052]` 上加上 `+0x0A`，再以组 `25` 插入可见对象。这个消费者是当前 `+0x0A` 最清晰的直接绘制证据。

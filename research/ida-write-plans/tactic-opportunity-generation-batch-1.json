@@ -18,6 +18,9 @@
     { "address": "0x509AF0", "before": "sub_509AF0", "after": "process_daily_unit_command_event_task_state", "confidence": "high" }
   ],
   "comments": [],
+  "subsequent_corrections": [
+    { "date": "2026-09-06", "address": "0x464170", "before": "is_unit_in_own_controlled_region", "after": "is_unit_in_own_city_local_range", "confidence": "high", "finding": "RE-SAN9PK-0099", "status": "applied-saved-and-read-back", "verification": "Dry-run and apply each succeeded for one function; all three callers show the new name after cache refresh; entry pseudocode is unchanged except for the name." }
+  ],
   "types": [],
   "program_byte_changes": 0,
   "evidence_summary": "The per-date state machine creates the unit-command event task before date advance; type 38 reaches normal-attack resolution, which creates a tactic-opportunity task whose land branch rolls 15 plus own-region 10 plus status-8 5 and copies the successful candidate list."

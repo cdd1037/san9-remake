@@ -570,3 +570,6 @@ address,symbol,kind,module,confidence,evidence,sources,match,notes
 0x00530F80,create_map_unit_flag_motion_visual,function,map-flags,high,RE-SAN9PK-0009,SRC-SAN9PK-TC-101,target-unit-visual-construction,Creates and registers CMapUnitFlagMotionVO for a map-unit snapshot
 0x005389E0,initialize_flag_motion_visual,function,map-flags,high,RE-SAN9PK-0009,SRC-SAN9PK-TC-101,target-flag-motion-chain,Builds the phased flag sprite and initializes its animation frame
 0x00538B00,initialize_map_unit_flag_motion_visual,function,map-flags,high,RE-SAN9PK-0009,SRC-SAN9PK-TC-101,target-unit-snapshot-consumer,Consumes map-unit snapshot base code +0x18 and glyph code +0x1C
+0x0051F9F0,update_hovered_square_region,function,map-ui,high,RE-SAN9PK-0158,SRC-SAN9PK-TC-101,caller-and-dataflow-readback,Mouse-hit square drives region labels and visibility; serialized flag bit10 hides region name.
+0x00526710,update_hovered_region_labels,function,map-ui,high,RE-SAN9PK-0158,SRC-SAN9PK-TC-101,caller-and-dataflow-readback,Displays hovered region and its parent city independently; city regions retain their own parent name.
+0x00428260,get_button_visual_state,function,map-ui,high,RE-SAN9PK-0158,SRC-SAN9PK-TC-101,vtable-pointers-and-complete-control-flow,Restored 40-byte entry; ten static pointers; this+0x38 low bits encode hover/selected/disabled.

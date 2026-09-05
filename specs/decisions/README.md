@@ -17,3 +17,4 @@
 - [DEC-UI-0001：MVP 采用固定 4:3 逻辑画布](DEC-UI-0001-fixed-four-by-three-mvp-canvas.md)
 - [DEC-UI-0002：用现代方式对齐原作文字效果](DEC-UI-0002-modern-text-effects.md)
 - [DEC-RENDER-0002：MVP 四季彩色纹理与标准透明混合](DEC-RENDER-0002-seasonal-textures-and-standard-alpha.md)
+- [DEC-UI-0003：地图窗口仅做连续边界限制](DEC-UI-0003-continuous-map-camera-boundary.md)

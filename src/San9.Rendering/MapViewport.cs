@@ -2,14 +2,13 @@ namespace San9.Rendering;
 
 public readonly record struct MapViewport(double X, double Y, double Zoom)
 {
-    public MapViewport Clamp(int canvasWidth, int canvasHeight, int width, int height)
+    public MapViewport Clamp(IReadOnlyList<San9.Content.Maps.MapSquare> squares)
     {
         if (!double.IsFinite(X) || !double.IsFinite(Y) || !double.IsFinite(Zoom) || Zoom <= 0)
             throw new ArgumentOutOfRangeException(nameof(Zoom));
         double zoom = Math.Clamp(Zoom, .25, 2);
-        double halfWidth = width / (2 * zoom), halfHeight = height / (2 * zoom);
-        return new(canvasWidth <= 2 * halfWidth ? canvasWidth / 2.0 : Math.Clamp(X, halfWidth, canvasWidth - halfWidth),
-            canvasHeight <= 2 * halfHeight ? canvasHeight / 2.0 : Math.Clamp(Y, halfHeight, canvasHeight - halfHeight), zoom);
+        var center = MapCameraBoundary.Clamp(X, Y, squares);
+        return new(center.X, center.Y, zoom);
     }
 
     public IEnumerable<(int X, int Y)> Chunks(int canvasWidth, int canvasHeight, int width, int height, int margin = 0)

@@ -58,7 +58,16 @@ public partial class ClientVerification : Node
             Check(previous.DistanceTo(World.CameraPosition) > 50, "Drag failed.");
             World.SetZoom(0.01f); await WaitForView(); Check(World.ZoomFactor == 0.25f, "Minimum zoom failed.");
             World.SetZoom(20); await WaitForView(); Check(World.ZoomFactor == 2, "Maximum zoom failed.");
-            World.FocusWorld(new(-10000, -10000)); Check(World.CameraPosition.X > 0 && World.CameraPosition.Y > 0, "Camera limits failed.");
+            foreach (var target in new[] { new Vector2(6496, -10000), new Vector2(6496, 20000), new Vector2(-20000, 3312), new Vector2(30000, 3312) })
+            {
+                World.FocusWorld(target); await WaitForView();
+                var edge = World.CameraPosition;
+                Check(edge.DistanceTo(target) > 1000, "Outside center was accepted.");
+                World.SetZoom(.25f); await WaitForView();
+                Check(edge.DistanceTo(World.CameraPosition) < .01f, "Zoom moved boundary center.");
+                World.SetZoom(2); await WaitForView();
+                Check(edge.DistanceTo(World.CameraPosition) < .01f, "Zoom moved boundary center.");
+            }
             World.SetZoom(1); World.FocusWorld(new(origin.X, origin.Y));
             await WaitForView();
             foreach (string season in new[] { "winter", "summer", "autumn", "spring" })

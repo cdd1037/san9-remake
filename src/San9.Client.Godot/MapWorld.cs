@@ -135,7 +135,7 @@ public partial class MapWorld : Node2D
                 {
                     var sprites = loaded.Map.Boundaries.Concat(loaded.Map.Bridges).Concat(loaded.Map.Buildings.SelectMany(b => b.Sprites)).Concat(loaded.Map.Clouds);
                     var ids = sprites.Select(s => s.AssetId).Concat(loaded.Map.Animations.Clips.SelectMany(c => c.Frames.Concat(c.SeasonFrames.Values.SelectMany(f => f)))).Distinct();
-                    foreach (var id in ids)
+                    foreach (var id in ids.Append("cloud-fill"))
                         if (!_objects.ContainsKey(id)) stagedObjects.Add(id, Texture(loaded.Images[id]));
                     foreach (var pair in loaded.Chunks)
                         stagedChunks.Add(pair.Key, new(Texture(pair.Value), (long)pair.Value.Width * pair.Value.Height * 7, _tick));
@@ -229,6 +229,11 @@ public partial class MapWorld : Node2D
     {
         TerrainDraws++;
         if (!HasCompleteView) return;
+        var fill = _objects["cloud-fill"];
+        var rect = VisibleRect();
+        for (float y = 112 + MathF.Floor((rect.Position.Y - 112) / fill.GetHeight()) * fill.GetHeight(); y < rect.End.Y; y += fill.GetHeight())
+        for (float x = 96 + MathF.Floor((rect.Position.X - 96) / fill.GetWidth()) * fill.GetWidth(); x < rect.End.X; x += fill.GetWidth())
+            DrawTexture(fill, new(x, y));
         foreach (var key in _presentedChunks)
             if (_chunks.TryGetValue(key, out var c)) DrawTexture(c.Texture, new(key.X * 512, key.Y * 512));
         _waterLayer.QueueRedraw(); _objectLayer.QueueRedraw();
@@ -348,7 +353,7 @@ public partial class MapWorld : Node2D
         RequestView(_view.Requested with { Zoom = Math.Clamp(zoomFactor, 0.25f, 2) });
     }
     private MapViewport ClampView(MapViewport view) => _map is null ? view :
-        view.Clamp(_map.CanvasWidth, _map.CanvasHeight, ClientLayout.LogicalWidth, ClientLayout.LogicalHeight);
+        view.Clamp(_map.Squares);
     private void RequestView(MapViewport view)
     {
         view = ClampView(view);

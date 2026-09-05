@@ -11,6 +11,9 @@ public partial class StrategyMinimap : Control
     public ScenarioSnapshot Scenario { get; init; } = null!;
     public InterfaceSkin Skin { get; init; } = null!;
     private ImageTexture? _terrain;
+    private readonly Node2D _markers = new();
+    private readonly Node2D _viewport = new();
+    private (Vector2 Position, float Zoom) _view;
     public override void _Ready()
     {
         MouseFilter = MouseFilterEnum.Stop; MouseDefaultCursorShape = CursorShape.PointingHand;
@@ -18,6 +21,16 @@ public partial class StrategyMinimap : Control
         var pixels = World.AssetPixels("minimap-terrain");
         using var image = Image.CreateFromData(pixels.Width, pixels.Height, false, Image.Format.Rgba8, pixels.Pixels);
         _terrain = ImageTexture.CreateFromImage(image);
+        var background = new TextureRect { Texture = _terrain, MouseFilter = MouseFilterEnum.Ignore,
+            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize };
+        AddChild(background);
+        background.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        _markers.Draw += DrawMarkers;
+        _viewport.Draw += DrawViewport;
+        AddChild(_markers);
+        AddChild(_viewport);
+        _view = (World.CameraPosition, World.ZoomFactor);
+        Resized += ResizeLayers;
     }
     public override bool _HasPoint(Vector2 point) => MinimapGeometry.TryGrid(point.X / Size.X, point.Y / Size.Y, out _, out _);
     public bool Navigate(Vector2 point)
@@ -31,26 +44,38 @@ public partial class StrategyMinimap : Control
         if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } b) Navigate(b.Position);
         AcceptEvent();
     }
-    public override void _Process(double delta) => QueueRedraw();
-    public override void _Draw()
+    public override void _Process(double delta)
     {
-        if (_terrain is null) return;
-        DrawTextureRect(_terrain, new(Vector2.Zero, Size), false);
+        var view = (World.CameraPosition, World.ZoomFactor);
+        if (_view == view) return;
+        _view = view;
+        _viewport.QueueRedraw();
+    }
+    private void ResizeLayers()
+    {
+        _markers.QueueRedraw();
+        _viewport.QueueRedraw();
+    }
+    private void DrawMarkers()
+    {
         foreach (var s in Scenario.Settlements.Where(s => s.CityMarkerColor is not null))
         {
             var p = MinimapGeometry.FromGrid(s.X, s.Y); var position = new Vector2((float)p.X * Size.X, (float)p.Y * Size.Y);
             var color = new Color(Skin.Colors[$"city-marker-{s.CityMarkerColor}"]);
             position = position.Floor();
-            DrawRect(new(position - Vector2.One * 4, new Vector2(8, 8)), new Color("080808"));
-            DrawRect(new(position - Vector2.One * 3, new Vector2(6, 6)), color);
+            _markers.DrawRect(new(position - Vector2.One * 4, new Vector2(8, 8)), new Color("080808"));
+            _markers.DrawRect(new(position - Vector2.One * 3, new Vector2(6, 6)), color);
         }
-        var half = new Vector2(512, 384) / World.ZoomFactor;
-        var a = MinimapGeometry.FromWorld(World.CameraPosition.X - half.X, World.CameraPosition.Y - half.Y);
-        var b = MinimapGeometry.FromWorld(World.CameraPosition.X + half.X, World.CameraPosition.Y + half.Y);
+    }
+    private void DrawViewport()
+    {
+        var half = new Vector2(ClientLayout.LogicalWidth, ClientLayout.LogicalHeight) / (2 * _view.Zoom);
+        var a = MinimapGeometry.FromWorld(_view.Position.X - half.X, _view.Position.Y - half.Y);
+        var b = MinimapGeometry.FromWorld(_view.Position.X + half.X, _view.Position.Y + half.Y);
         var polygon = MinimapGeometry.ClipViewport(a.U, a.V, b.U, b.V).Select(p => new Vector2((float)p.U * Size.X, (float)p.V * Size.Y)).ToArray();
         if (polygon.Length >= 3)
         {
-            DrawPolyline([.. polygon, polygon[0]], Colors.White, 1);
+            _viewport.DrawPolyline([.. polygon, polygon[0]], Colors.White, 1);
         }
     }
     public override void _ExitTree() => _terrain?.Dispose();

@@ -27,6 +27,10 @@ window/stretch/mode="canvas_items"
 
 project/assembly_name="San9.Client.Godot"
 
+[gui]
+
+theme/custom_font="res://assets/LXGWWenKaiMonoGBLite-Medium.ttf"
+
 [rendering]
 
 renderer/rendering_method="gl_compatibility"

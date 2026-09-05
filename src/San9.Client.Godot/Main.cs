@@ -13,8 +13,6 @@ public partial class Main : Node
     {
         var world = GetNode<MapWorld>("MapWorld");
         var ui = GetNode<Control>("UiLayer/UiRoot");
-        var theme = new Theme { DefaultFont = GD.Load<Font>("res://assets/LXGWWenKaiMonoGBLite-Medium.ttf"), DefaultFontSize = 16 };
-        ui.Theme = theme;
         try
         {
             var options = ClientOptions.Parse(OS.GetCmdlineUserArgs(), ProjectSettings.GlobalizePath("res://"));
@@ -34,7 +32,7 @@ public partial class Main : Node
             var center = MapGeometry.Center(options.CenterX, options.CenterY);
             world.FocusWorld(new(center.X, center.Y)); world.SetZoom(options.Zoom);
             world.LoadMap(content.Map, options.PackageRoot, options.Season, options.AnimationTime);
-            ui.AddChild(new MapAnnotations { World = world, Selection = selection, Scenario = content.Scenario, Texts = content.Text, UiFont = theme.DefaultFont, Skin = content.Skin, SkinImages = loaded.Images });
+            ui.AddChild(new MapAnnotations { World = world, Selection = selection, Scenario = content.Scenario, Texts = content.Text, UiFont = ui.GetThemeFont("font"), Skin = content.Skin, SkinImages = loaded.Images });
             var hud = new StrategyHud { World = world, Selection = selection, Scenario = content.Scenario, Texts = content.Text, Skin = content.Skin, SkinImages = loaded.Images };
             ui.AddChild(hud);
             var debug = new DebugPanel { World = world }; ui.AddChild(debug);

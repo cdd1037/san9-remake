@@ -61,9 +61,7 @@ public partial class CatalogView : Control
                 ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.Scale, MouseFilter = MouseFilterEnum.Ignore };
             AddChild(_portrait);
         }
-        var hint = LabelAt(HintText, new(250, 740), new(524, 24));
-        hint.HorizontalAlignment = HorizontalAlignment.Center;
-        _text.Apply(hint, GameTextStyles.Message(true));
+        AddChild(new GameMessageBar { Textures = Textures, Text = HintText });
         ChangePage(InitialPage, InitialCurrentId, InitialOffset);
     }
 

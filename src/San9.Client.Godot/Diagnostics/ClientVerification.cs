@@ -19,6 +19,7 @@ public partial class ClientVerification : Node
         _started = true;
         try
         {
+            if (Options.InformationSmoke) await RunInformationChecks();
             if (Options.Smoke) await RunSmoke();
             if (Options.RuntimeSmoke) await RunRuntimeChecks();
             var timeout = System.Diagnostics.Stopwatch.StartNew();

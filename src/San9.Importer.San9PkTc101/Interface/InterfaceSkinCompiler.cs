@@ -33,6 +33,10 @@ public static class InterfaceSkinCompiler
                 ui.Add(key, asset);
             }
         }
+        foreach (var (part, index) in new[] { ("top-left", 32), ("top", 33), ("top-right", 34), ("left", 35), ("center", 36), ("right", 37), ("bottom-left", 38), ("bottom", 39), ("bottom-right", 40) })
+            Export("information-menu-" + part, index, 11);
+        foreach (var (part, index) in new[] { ("left", 23), ("middle", 24), ("right", 25) })
+            Export("information-menu-button-" + part, index, 10, 4);
         Export("top-frame", 88, 17); Export("radar-frame", 82, 16); Export("sidebar-frame", 84, 16); Export("roster-scroll-decoration", 85, 16);
         Export("button-scroll-up", 51, 6, 4); Export("button-scroll-down", 52, 6, 4);
         foreach (var (part, index) in new[] { ("top", 53), ("middle", 54), ("bottom", 55) })
@@ -114,6 +118,23 @@ public static class InterfaceSkinCompiler
                 ui.Add(key, id);
             }
         }
+        Extra("information-background", 337, 40);
+        foreach (var (part, resource) in new[] { ("bottom", 338), ("left", 339), ("right", 340), ("top", 341), ("bottom-left", 342), ("top-left", 343), ("bottom-right", 344), ("top-right", 345), ("ornament", 346) })
+            Extra("information-frame-" + part, resource, 41);
+        foreach (var (part, resource) in new[] { ("left", 361), ("middle", 362), ("right", 363) }) Extra("information-title-" + part, resource, 42);
+        foreach (var (part, resource) in new[] { ("left", 382), ("middle", 383), ("right", 384) }) Extra("information-footer-" + part, resource, 47);
+        foreach (var (role, resource) in new[] { ("left", 350), ("middle", 351), ("right", 352), ("close", 353) })
+        {
+            if (bindings[resource] != 242) throw new InvalidDataException("Unconfirmed information button palette.");
+            for (int frame = 0; frame < 4; frame++)
+            {
+                string key = "information-action-" + role + (frame == 0 ? "" : $"-{frame}");
+                string id = "ui-" + key;
+                var pixels = IndexedImageArchive.Frame(common.Images[resource], 4, 1, frame, 0);
+                assets.Add(save(id, $"ui/{key}.png", IndexedImageArchive.Decode(pixels, common.Palettes[42], true, false)));
+                ui.Add(key, id);
+            }
+        }
         Extra("city-prefix", 43, 5);
         Extra("message-left", 165, 15, true); Extra("message-middle", 166, 15, true); Extra("message-right", 167, 15, true);
         Extra("bar-morale-frame", 390, 51); Extra("bar-durability-frame", 391, 51);
@@ -128,6 +149,6 @@ public static class InterfaceSkinCompiler
         var fontPalette = read(Path.Combine(dataDirectory, "P_Font.s9"));
         string FontColor(int style) => Convert.ToHexString(fontPalette.AsSpan((style / 2 * 32 + 16 + style % 2 * 8 + 7) * 4, 3));
         colors.Add("roster-available", FontColor(7)); colors.Add("roster-unavailable", FontColor(26));
-        return new(7, assets.ToArray(), ui, colors);
+        return new(8, assets.ToArray(), ui, colors);
     }
 }

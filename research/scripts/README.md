@@ -92,3 +92,7 @@ python -B -m unittest discover -s research/scripts -p test_verify_initial_ui.py
 ```
 
 `--baseline`仅与`--all`组合，用于已有历史地图基线比较。报告列出每个实际执行的范围和图片数量；`mode=scoped`不代表未选择的范围通过。增加皮肤资源时应同时增加所属范围的独立来源映射，全量检查会拒绝没有来源覆盖的新角色。
+
+情报增量检查：菜单使用`--scope information-menu`，公共窗口使用`--scope information`，人物头像与宝物图使用`--scope information-art`，人物/官爵/军团/关系等初始数据使用`--scope scenario`。本次更改组合契约，验收使用`--all`。
+
+十项菜单按钮三段四帧可用`--scope information-menu-buttons`单独核对；底部十条普通提示及两条空态原因由`--scope scenario`核对源消息。

@@ -48,13 +48,13 @@ public sealed class StrategyRoster
         static RosterEntry Facility(SettlementView s) => new(new(RosterPage.Facilities, s.Id), s.NameKey,
             s.Id, s.CityMarkerColor is not null, s.HasAvailableOfficer);
         static RosterEntry Officer(OfficerView o) => new(new(RosterPage.Officers, o.Id), o.NameKey,
-            o.SettlementId, o.HasCityPrefix, o.IsAvailable);
+            o.SettlementId!.Value, o.HasCityPrefix, o.IsAvailable);
         var rulerFacility = snapshot.Settlements.SingleOrDefault(s => s.Id == force.LeaderSettlementId && s.IsFacilityListEntry);
         var ruler = snapshot.Officers.SingleOrDefault(o => o.Id == force.LeaderId);
         Facilities.Refresh(rulerFacility is null ? null : Facility(rulerFacility),
             snapshot.Settlements.Where(s => s.CorpsId == corpsId && s.IsFacilityListEntry).Select(Facility), reset);
         Officers.Refresh(ruler is null ? null : Officer(ruler),
-            snapshot.Officers.Where(o => o.CorpsId == corpsId && o.OwnerId == snapshot.PlayerForceId).Select(Officer), reset);
+            snapshot.Officers.Where(o => o.IsServing && o.CorpsId == corpsId && o.OwnerId == snapshot.PlayerForceId).Select(Officer), reset);
     }
 
     public RosterEntry? Find(RosterKey key)

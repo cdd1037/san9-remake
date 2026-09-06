@@ -26,3 +26,5 @@
 - [DEC-UI-0005：私有姓名字形的现代显示规范化](DEC-UI-0005-officer-name-normalization.md)
 
 - [DEC-UI-0006：全图导航与悬停反馈](DEC-UI-0006-overview-navigation.md)
+
+- [DEC-UI-0007：情报浏览的运行态与交互](DEC-UI-0007-information-browser.md)

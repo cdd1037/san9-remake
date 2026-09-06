@@ -1,15 +1,23 @@
 namespace San9.Core.Domain;
 
+public enum OfficerStatus { Ruler, Governor, Strategist, Serving, Captive, Free }
+
 public readonly record struct OfficerAbilities(int War, int Intelligence, int Politics, int Leadership)
 {
     [System.Text.Json.Serialization.JsonIgnore]
     public bool IsNonnegative => War >= 0 && Intelligence >= 0 && Politics >= 0 && Leadership >= 0;
 }
 
-/// <summary>A serving officer resident in a settlement. Names belong to content definitions.</summary>
-public sealed record OfficerState(int Id, int? OwnerId, int SettlementId, OfficerAbilities BaseAbilities, bool Acted)
+/// <summary>A visible person with identity, status and optional location. Names belong to content definitions.</summary>
+public sealed record OfficerState(int Id, int? OwnerId, int? SettlementId, OfficerAbilities BaseAbilities, bool Acted)
 {
     public int Injury { get; init; }
+    public OfficerStatus Status { get; init; } = OfficerStatus.Serving;
+    [System.Text.Json.Serialization.JsonIgnore] public bool IsServing => Status <= OfficerStatus.Serving;
+    public int? RegionId { get; init; }
+    public int BirthYear { get; init; }
+    public int? OfficeId { get; init; }
+    public int Loyalty { get; init; }
     public OfficerAbilities ItemBonuses { get; init; }
     public OfficerAbilities OfficeBonuses { get; init; }
 
@@ -25,7 +33,7 @@ public sealed record OfficerState(int Id, int? OwnerId, int SettlementId, Office
 
     public bool IsValid()
     {
-        if (Id < 0 || SettlementId < 0 || OwnerId < 0 || Injury is < 0 or > 14 ||
+        if (Id < 0 || IsServing && SettlementId is null || SettlementId < 0 || OwnerId < 0 || RegionId < 0 || RegionId is not null && SettlementId is not null || !Enum.IsDefined(Status) || Injury is < 0 or > 14 ||
             !BaseAbilities.IsNonnegative || !ItemBonuses.IsNonnegative || !OfficeBonuses.IsNonnegative) return false;
         try { _ = Abilities; return true; }
         catch (OverflowException) { return false; }

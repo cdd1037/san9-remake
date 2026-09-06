@@ -10,6 +10,16 @@ from PIL import Image
 # Independent source mappings; groups describe presentation responsibilities, not file layout.
 # Each tuple is (role, resource, columns, palette_alpha).
 ASSET_GROUPS = {
+    "information-menu": ("G_Main.s9", 5975, 60, [
+        ("information-menu-" + role, 5975 + 32 + i, 1, False)
+        for i, role in enumerate(["top-left", "top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right"])]),
+    "information-menu-buttons": ("G_Main.s9", 5975, 60, [("information-menu-button-" + role, 5998+i, 4, False) for i,role in enumerate(["left", "middle", "right"])]),
+    "information": ("G_Common.s9", 0, 200, [
+        ("information-background", 337, 1, False),
+        *[("information-frame-" + role, resource, 1, False) for role, resource in [("bottom",338),("left",339),("right",340),("top",341),("bottom-left",342),("top-left",343),("bottom-right",344),("top-right",345),("ornament",346)]],
+        *[("information-title-" + role, 361+i, 1, False) for i, role in enumerate(["left","middle","right"])],
+        *[("information-footer-" + role, 382+i, 1, False) for i, role in enumerate(["left","middle","right"])],
+        *[("information-action-" + role, 350+i, 4, False) for i, role in enumerate(["left","middle","right","close"])]]),
     "overview": ("G_MMap.s9", 999, 295, [
         ("overview-background", 1156, 1, False), ("overview-terrain", 1163, 1, False),
         ("overview-borders", 1162, 1, True), ("overview-ranking", 1160, 1, True),
@@ -48,7 +58,7 @@ ASSET_GROUPS = {
     "icons": ("G_Marker.s9", 1220, 311, [
         ("icon-emperor", 1243, 1, False), ("icon-training", 1244, 1, False), ("icon-merchant", 1245, 1, False)]),
 }
-SCOPES = (*ASSET_GROUPS, "minimap", "scenario", "integrity")
+SCOPES = (*ASSET_GROUPS, "minimap", "scenario", "information-art", "integrity")
 ARCHIVE_SHAPES = {"G_Main.s9": (21, 98), "G_Common.s9": (67, 491), "G_Marker.s9": (5, 34), "G_MMap.s9": (16, 221)}
 
 
@@ -61,12 +71,12 @@ def expected_roles(groups):
     return set(roles)
 
 
-def verify_role_coverage(skin, groups):
+def verify_role_coverage(skin, groups, extra_roles=()):
     expected = expected_roles(groups)
     missing = expected - skin["roles"].keys()
     assert not missing, f"Missing selected roles: {sorted(missing)}"
     if set(groups) == set(ASSET_GROUPS):
-        unknown = skin["roles"].keys() - expected
+        unknown = skin["roles"].keys() - expected - set(extra_roles)
         assert not unknown, f"Roles without independent source coverage: {sorted(unknown)}"
 
 
@@ -74,8 +84,8 @@ def verify_asset_hash(root, asset):
     assert hashlib.sha256((root / asset["path"]).read_bytes()).hexdigest().upper() == asset["sha256"], asset["path"]
 
 
-def verify_skin_assets(root, data, skin, bindings, groups):
-    verify_role_coverage(skin, groups)
+def verify_skin_assets(root, data, skin, bindings, groups, extra_roles=()):
+    verify_role_coverage(skin, groups, extra_roles)
     assets = {a["id"]: a for a in skin["assets"]}
     archives, checked = {}, {}
     for group in groups:
@@ -198,12 +208,15 @@ def verify_officers(scenario, entries, texts, messages):
     for index in range(800):
         raw = people[index*134:(index+1)*134]
         u16 = lambda offset: struct.unpack_from("<H", raw, offset)[0]
-        if u16(0x1c) > 3:
+        if u16(0x1c) > 5:
             continue
         expected_ids.append(index)
         entry = next(e for e in entries if e["state"]["id"] == index)
         state = entry["state"]
-        assert state["settlementId"] == u16(0x18)
+        assert (state["settlementId"] if state["settlementId"] is not None else state["regionId"]) == u16(0x18)
+        assert state["status"] == u16(0x1c)
+        assert state["birthYear"] == u16(0x14) + 130
+        assert state["officeId"] == (u16(0x26) if u16(0x26) < 76 else None)
         assert state["acted"] == bool(struct.unpack_from("<I", raw)[0] & 0x1000)
         assert state["injury"] == u16(0x2a)
         source = name(1678 + 4*u16(6)) + name(1679 + 4*u16(8))
@@ -221,6 +234,34 @@ def verify_officers(scenario, entries, texts, messages):
         assert texts[f"officer.{index}"]["text"] == display
 
 
+
+def verify_information_art(content, data, root):
+    from square_map.scenario import parse_scenario_sections
+    from square_map.graphics import parse_image_stream
+    raw = parse_scenario_sections((data / "D_Sce002.S9").read_bytes())
+    faces = parse_image_stream(data / "G_FaceL.s9")
+    face_palette = (data / "P_Face.s9").read_bytes()[44:1068]
+    palettes, still = parse_combined((data / "G_Still.s9").read_bytes())
+    assets = {a["id"]: a for a in content["skin"]["assets"]}
+    def check(role, width, height, pixels, palette):
+        asset = assets[content["skin"]["roles"][role]]
+        verify_asset_hash(root, asset)
+        expected = Image.frombytes("P", (width, height), pixels)
+        expected.putpalette(bytes(v for i in range(256) for v in palette[4*i:4*i+3]))
+        with Image.open(root / asset["path"]) as actual:
+            assert actual.mode == "RGBA" and actual.size == expected.size
+            assert actual.convert("RGB").tobytes() == expected.convert("RGB").tobytes(), role
+            assert actual.getchannel("A").getextrema() == (255,255), role
+    for officer in content["scenario"]["officers"]:
+        i = officer["state"]["id"]
+        index = struct.unpack_from("<H", raw["prsn"], i*134+14)[0]
+        image = faces[index]
+        check(f"information-person-{i}", image.width, image.height, image.pixels, face_palette)
+    for treasure in content["scenario"]["information"]["treasures"]:
+        i = treasure["id"]
+        index = struct.unpack_from("<H", raw["item"], i*22+6)[0] + 172
+        check(f"information-treasure-{i}", *still[index], palettes[index])
+
 def verify_scenario(content, data):
     package, p, text = content["map"], content["scenario"], content["text"]["entries"]
     from parse_pk_text import decode_ls11, split_indexed_records, strip_common_terminator
@@ -228,7 +269,8 @@ def verify_scenario(content, data):
     hints = {"information":8261, "functions":8260, "help":8262, "pause":8439,
              "territory":8430, "map-large":8291, "map-small":8293, "advance":8253,
              "facilities":8290, "officers":8289, "units":8288,
-             "overview-forces":8440, "overview-facilities":8442, "overview-units":8441}
+             "overview-forces":8440, "overview-facilities":8442, "overview-units":8441,
+             **dict(zip(["information-"+r for r in ["ranks","forces","corps","cities","regions","units","officers","treasures","records","chronicle","units-empty","treasures-empty"]], [8287,8281,8366,8280,8367,8282,8279,8283,8405,8537,8371,8372]))}
     for role, index in hints.items():
         assert text[f"ui.hint.{role}"]["sourceText"] == strip_common_terminator(messages[index])[0].decode("big5hkscs")
     font = (data / "P_Font.s9").read_bytes()
@@ -241,6 +283,40 @@ def verify_scenario(content, data):
         flags = struct.unpack_from("<I",raw["forc"],force["id"]*86+8)[0]
         title = struct.unpack_from("<H",raw["forc"],force["id"]*86+16)[0]
         assert force["isBarbarian"] == (bool(flags & 4) or 4 <= title <= 8)
+    info = p["information"]
+    for force in p["forces"]:
+        rank = struct.unpack_from("<H", raw["forc"], force["id"]*86+26)[0]
+        assert force["rankId"] == (rank if rank < 8 else None)
+    assert [c["id"] for c in info["corps"]] == sorted({s["corpsId"] for s in p["settlements"] if s["corpsId"] is not None})
+    for corps in info["corps"]:
+        offset = corps["id"]*86
+        owner, _, leader = struct.unpack_from("<3H", raw["forc"], offset+14)
+        assert corps["ownerId"] == (corps["id"] if owner == 65535 else owner)
+        assert corps["leaderId"] == leader
+        if corps["ownerId"] == corps["id"]:
+            assert corps["treasury"] is None
+        else:
+            assert (corps["treasury"]["money"], corps["treasury"]["food"]) == struct.unpack_from("<II", raw["forc"], offset)
+    pairs = {(a["id"], b["id"]) for a in p["forces"] for b in p["forces"] if a["id"] < b["id"]}
+    assert {(r["firstId"], r["secondId"]) for r in info["relations"]} == pairs
+    for relation in info["relations"]:
+        a, b = relation["firstId"], relation["secondId"]
+        assert relation["value"] == raw["forc"][a*86+36+b] == raw["forc"][b*86+36+a]
+    assert [r["id"] for r in info["ranks"]] == list(range(8))
+    for r in info["ranks"]:
+        record = struct.unpack_from("<I5H", raw["kans"], r["id"]*14)
+        assert (r["commandCapacity"],r["loyaltyBonus"],r["requiredTrust"]) == (record[0],record[4],record[5])
+    def original(index): return strip_common_terminator(messages[index])[0].decode("big5hkscs")
+    for records, base, stride in [(info["ranks"],1652,2),(info["offices"],5065,2),(info["treasures"],1392,2)]:
+        for r in records: assert text[r["nameKey"]]["sourceText"] == original(base + stride*r["id"])
+    for city in p["settlements"]:
+        if city["id"] < 50:
+            assert (city["population"],city["draftPopulation"]) == struct.unpack_from("<II",raw["city"],city["id"]*56+4)
+    visible = {o["state"]["id"] for o in p["officers"]}
+    expected_items = [i for i in range(120) if struct.unpack_from("<HH",raw["item"],i*22+16)[0] in visible and struct.unpack_from("<H",raw["item"],i*22+18)[0] == 2]
+    assert [t["id"] for t in info["treasures"]] == expected_items
+    for t in info["treasureStates"]:
+        assert t["discovered"] and t["holderId"] == struct.unpack_from("<H",raw["item"],t["id"]*22+16)[0]
     assert p["units"] == [] and all(struct.unpack_from("<H",raw["unit"],i*40+18)[0] == 0 for i in range(800))
     assert all(s["kind"] == (0 if s["id"] < 50 else 1) for s in p["settlements"])
     assert sum(s["id"] < 50 for s in p["settlements"]) == 50
@@ -249,7 +325,7 @@ def verify_scenario(content, data):
     assert len(p["settlements"]) == 94
     player = next(f for f in p["forces"] if f["id"] == p["playerForceId"])
     officers = [o["state"] for o in p["officers"]]
-    assert len(officers) == 195
+    assert len(officers) == 210 and sum(o["status"] <= 3 for o in officers) == 195
     verify_officers((data / "D_Sce002.S9").read_bytes(), p["officers"], text, (data / "M_MsgPK.s9").read_bytes())
     assert all(o["nameKey"] in text for o in p["officers"])
     ruler = next(o for o in officers if o["id"] == player["leaderId"])
@@ -311,9 +387,9 @@ def main(argv=None):
     assert hashlib.sha256(exe).hexdigest() == "d20794aeff67301ec2bf8c3becb1e9944c68c6c0588fbfd4bf04e8597f0e5028"
     content = json.loads((args.package / "content.json").read_text(encoding="utf-8"))
     package, p, skin = content["map"], content["scenario"], content["skin"]
-    assert content["schemaVersion"] == 7
+    assert content["schemaVersion"] == 8
     assert package["schemaVersion"] == 8 and "presentation" not in package
-    assert p["schemaVersion"] == 6 and skin["schemaVersion"] == 7
+    assert p["schemaVersion"] == 7 and skin["schemaVersion"] == 8
     assert not {a["id"] for a in skin["assets"]}.intersection(a["id"] for a in package["assets"])
     groups = [scope for scope in scopes if scope in ASSET_GROUPS]
     checked = {}
@@ -323,7 +399,8 @@ def main(argv=None):
             for i in range(count):
                 resource, palette = struct.unpack_from("<2I", exe, start + 8 * i)
                 bindings[resource & 65535] = palette
-        checked = verify_skin_assets(args.package, args.data, skin, bindings, groups)
+        extra_roles = [f"information-person-{o['state']['id']}" for o in p["officers"]] + [f"information-treasure-{t['id']}" for t in p["information"]["treasures"]]
+        checked = verify_skin_assets(args.package, args.data, skin, bindings, groups, extra_roles)
     if "minimap" in scopes:
         asset = next(a for a in package["assets"] if a["id"] == "minimap-terrain")
         verify_asset_hash(args.package, asset)
@@ -333,6 +410,8 @@ def main(argv=None):
         assert len(package["boundaries"]) > 0
     if "scenario" in scopes:
         verify_scenario(content, args.data)
+    if "information-art" in scopes:
+        verify_information_art(content, args.data, args.package)
     if "integrity" in scopes:
         for asset in package["assets"] + [a for season in package["seasons"] for a in season["textures"]] + skin["assets"]:
             verify_asset_hash(args.package, asset)

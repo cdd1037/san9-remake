@@ -6,6 +6,7 @@ public sealed record ClientOptions(string PackageRoot, int CenterX, int CenterY,
     double? AnimationTime, bool Smoke, bool UiSmoke, string? Screenshot, bool Quit)
 {
     public bool RuntimeSmoke { get; init; }
+    public bool InformationSmoke { get; init; }
     public static ClientOptions Parse(string[] args, string projectRoot)
     {
         string? Argument(string name)
@@ -27,6 +28,6 @@ public sealed record ClientOptions(string PackageRoot, int CenterX, int CenterY,
         if (time is {} ms && (!double.IsFinite(ms) || ms < 0)) throw new ArgumentException("Invalid animation capture time.");
         return new(Argument("--content-package") ?? Path.GetFullPath(Path.Combine(projectRoot, "../../local/generated/content/scenario-190-live")),
             x, y, zoom, Argument("--map-season"), time, args.Contains("--map-smoke") || args.Contains("--ui-smoke"),
-            args.Contains("--ui-smoke"), Argument("--map-screenshot"), args.Contains("--map-quit")) { RuntimeSmoke = args.Contains("--runtime-smoke") };
+            args.Contains("--ui-smoke"), Argument("--map-screenshot"), args.Contains("--map-quit")) { RuntimeSmoke = args.Contains("--runtime-smoke"), InformationSmoke = args.Contains("--information-smoke") };
     }
 }

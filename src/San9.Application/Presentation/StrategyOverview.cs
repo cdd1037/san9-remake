@@ -27,7 +27,7 @@ public sealed class StrategyOverview
     public static IReadOnlyList<ForceRankingColumn> Rankings(StrategySnapshot snapshot)
     {
         var settlements = snapshot.Settlements.Where(s => s.OwnerId is not null).ToLookup(s => s.OwnerId!.Value);
-        var officers = snapshot.Officers.Where(o => o.OwnerId is not null).ToLookup(o => o.OwnerId!.Value);
+        var officers = snapshot.Officers.Where(o => o.IsServing && o.OwnerId is not null).ToLookup(o => o.OwnerId!.Value);
         var units = snapshot.World.Units.ToLookup(u => u.OwnerId);
         var forces = snapshot.Forces.Where(f => !f.IsBarbarian || f.Id == snapshot.PlayerForceId).ToArray();
         return Array.AsReadOnly(Enum.GetValues<ForceRankingMetric>().Select(metric =>

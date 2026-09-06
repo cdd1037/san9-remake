@@ -28,6 +28,7 @@ public partial class StrategyHud : Control
     private PopupMenu _contextMenu = null!;
     private StrategyMinimap? _minimap;
     public StrategyOverview Overview { get; } = new();
+    public InformationPanel Information { get; private set; } = null!;
     private StrategyOverviewPanel _overviewPanel = null!;
     private bool _built;
     private long _stateRevision = -1;
@@ -80,7 +81,7 @@ public partial class StrategyHud : Control
         _text.Apply(LabelAt("春", new(26, 40), new(16, 16), 16), GameTextStyles.For(GameTextRole.Spring));
         _territory = AddButton("疆界", "button-territory", new(694, 10), new(64, 36), true, () => World.ShowBoundaries = !World.ShowBoundaries);
         _territory.ToggleMode = true; _territory.SetPressedNoSignal(World.ShowBoundaries);
-        AddButton("情报", "button-information", new(842, 7), new(80, 40), false);
+        AddButton("情报", "button-information", new(842, 7), new(80, 40), true, () => Information.OpenMenu());
         AddButton("功能", "button-functions", new(929, 7), new(80, 40), false);
         AddButton("?", "button-help", new(957, 50), new(56, 40), false);
         AddButton("部队", "button-units", new(956, 208), new(56, 32), false);
@@ -100,9 +101,10 @@ public partial class StrategyHud : Control
         AddChild(_contextMenu);
         foreach (string title in new[] { "进行", "情报", "储存", "载入" })
         {
-            _contextMenu.AddItem(title + "（尚未实现）");
-            _contextMenu.SetItemDisabled(_contextMenu.ItemCount - 1, true);
+            _contextMenu.AddItem(title == "情报" ? title : title + "（尚未实现）");
+            _contextMenu.SetItemDisabled(_contextMenu.ItemCount - 1, title != "情报");
         }
+        _contextMenu.IdPressed += id => { if (id == 1) Information.OpenMenu(); };
         _rosterList = new StrategyRosterList { Position = new(892, 303), Textures = _textures,
             Texts = Texts, Skin = Skin, Activated = ActivateRosterEntry, ContextRequested = ShowContextMenu };
         AddChild(_rosterList);
@@ -111,6 +113,8 @@ public partial class StrategyHud : Control
             Skin = Skin, Texts = Texts, Textures = _textures, Visible = false };
         GetParent().AddChild(_overviewPanel);
         GetParent().MoveChild(_overviewPanel, GetIndex());
+        Information = new InformationPanel { Session = Session, Texts = Texts, Textures = _textures, Locate = id => { Overview.Close(); World.FocusBuilding(id); } };
+        GetParent().AddChild(Information);
         UpdateSelection(); QueueRedraw();
     }
 
@@ -162,6 +166,7 @@ public partial class StrategyHud : Control
 
     public bool IsBlockedPoint(Vector2 point)
     {
+        if (Information?.State.IsOpen == true) return true;
         if (point.Y >= 740 && point.Y < 768 && point.X >= 0 && point.X < 1024) return true;
         foreach (var (asset, position) in _frames)
         {
@@ -196,10 +201,18 @@ public partial class StrategyHud : Control
     }
     public void FocusFacility(int id) => World.FocusBuilding(id);
     private void UpdateSelection() => UpdateMessage();
+    public string MessageText => _message.Text;
     private void UpdateMessage()
     {
         if (World.LoadError is not null) { _message.Text = "地图加载失败 · F3 查看详情"; return; }
         if (!_built) return;
+        if (Information?.State.IsOpen == true)
+        {
+            var menu = Information.HoverMenuButton;
+            _message.Text = menu?.HintText ?? "";
+            _text.Apply(_message, GameTextStyles.Message(menu is null || !menu.Disabled));
+            return;
+        }
         var button = GetChildren().OfType<StrategyButton>().FirstOrDefault(b => b.IsHovered())
             ?? (Overview.IsOpen ? _overviewPanel.HoverButton : null);
         _message.Text = button?.HintText ?? (Overview.IsOpen ? "" : "请选择命令起点。");

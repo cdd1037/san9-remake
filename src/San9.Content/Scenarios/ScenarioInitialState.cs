@@ -5,6 +5,7 @@ public sealed record ForceInitialState(int Id, string NameKey, int ColorCode, ui
     [System.Text.Json.Serialization.JsonRequired] public bool IsBarbarian { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public int FlagGlyph { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public int? LeaderId { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public int? RankId { get; init; }
 }
 public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId, int X, int Y,
     uint Soldiers, int Durability, int MaxDurability, int Morale, string[] Icons)
@@ -18,17 +19,22 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
     [System.Text.Json.Serialization.JsonRequired] public int MaxCommerce { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public int Cultivation { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public int MaxCultivation { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public uint Population { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public uint DraftPopulation { get; init; }
 }
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
     [System.Text.Json.Serialization.JsonRequired] public OfficerInitialState[] Officers { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public San9.Core.Domain.UnitState[] Units { get; init; } = [];
+    [System.Text.Json.Serialization.JsonRequired] public InformationDefinitions Information { get; init; } = InformationDefinitions.Empty;
     public void Validate()
     {
-        if (SchemaVersion != 6 || string.IsNullOrWhiteSpace(ScenarioId) || Year < 1 || Month is < 1 or > 12 || Day is < 1 or > 30 ||
+        if (SchemaVersion != 7 || string.IsNullOrWhiteSpace(ScenarioId) || Year < 1 || Month is < 1 or > 12 || Day is < 1 or > 30 ||
             Forces.Select(f => f.Id).Distinct().Count() != Forces.Length || !Forces.Any(f => f.Id == PlayerForceId))
             throw new InvalidDataException("Invalid scenario date or player force.");
+        Information.Validate(this);
+        if (Officers.Any(o => o.State.RegionId is int region && !RegionNameKeys.ContainsKey(region))) throw new InvalidDataException("Invalid officer region.");
         var forceIds = Forces.Select(f => f.Id).ToHashSet();
         if (Units.Select(u => u.Id).Distinct().Count() != Units.Length || Units.Any(u => !u.IsValid || !forceIds.Contains(u.OwnerId)))
             throw new InvalidDataException("Invalid field unit initial state.");
@@ -46,9 +52,9 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
         var settlementIds=Settlements.Select(s=>s.Id).ToHashSet();
         if (Officers.Any(o => string.IsNullOrWhiteSpace(o.NameKey) || o.State is null || !o.State.IsValid()) ||
             Officers.Select(o => o.State.Id).Distinct().Count() != Officers.Length || Officers.Any(o =>
-                !settlementIds.Contains(o.State.SettlementId) ||
+                o.State.SettlementId is int location && !settlementIds.Contains(location) ||
                 o.State.OwnerId is int owner && !forceIds.Contains(owner) ||
-                Settlements.Single(s => s.Id == o.State.SettlementId).OwnerId != o.State.OwnerId))
+                o.State.IsServing && Settlements.Single(s => s.Id == o.State.SettlementId).OwnerId != o.State.OwnerId))
             throw new InvalidDataException("Invalid officer initial state.");
         if (Forces.Any(f => f.LeaderId is int leader && !Officers.Any(o => o.State.Id == leader && o.State.OwnerId == f.Id)))
             throw new InvalidDataException("Invalid force leader reference.");

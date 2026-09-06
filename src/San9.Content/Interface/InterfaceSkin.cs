@@ -4,7 +4,7 @@ namespace San9.Content.Interface;
 
 public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dictionary<string,string> Roles, Dictionary<string,string> Colors)
 {
-    private static readonly string[] BaseUiAssets = ["top-frame", "radar-frame", "sidebar-frame", "roster-scroll-decoration",
+    private static readonly string[] BaseUiAssets = ["information-menu-button-left", "information-menu-button-middle", "information-menu-button-right", "top-frame", "radar-frame", "sidebar-frame", "roster-scroll-decoration",
         "scroll-track-top", "scroll-track-middle", "scroll-track-bottom",
         "scroll-thumb-top", "scroll-thumb-middle", "scroll-thumb-bottom", "button-scroll-up", "button-scroll-down",
         "field-left", "field-middle", "field-right", "ruler-frame", "region-frame",
@@ -19,15 +19,20 @@ public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dicti
         "overview-background", "overview-terrain", "overview-borders", "overview-ranking",
         "button-overview-forces", "button-overview-facilities", "button-overview-units"];
     public static IReadOnlyList<string> RequiredUiAssets { get; } = Array.AsReadOnly(BaseUiAssets.SelectMany(id =>
-        (id.StartsWith("button-", StringComparison.Ordinal) || id.StartsWith("roster-row-", StringComparison.Ordinal))
+        (id.StartsWith("button-", StringComparison.Ordinal) || id.StartsWith("roster-row-", StringComparison.Ordinal) || id.StartsWith("information-menu-button-", StringComparison.Ordinal))
             ? Enumerable.Range(0, id == "button-territory" ? 6 : 4).Select(frame => frame == 0 ? id : $"{id}-{frame}")
             : [id]).Concat(Enumerable.Range(0, 50).Select(i => $"overview-city-{i}"))
         .Concat(Enumerable.Range(0, 51).SelectMany(i => new[] {$"overview-marker-{i}", $"overview-facility-{i}"}))
-        .Concat(Enumerable.Range(0, 50).Select(i => $"overview-unit-{i}")).ToArray());
+        .Concat(Enumerable.Range(0, 50).Select(i => $"overview-unit-{i}"))
+        .Concat(new[] { "top-left", "top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right" }.Select(p => "information-menu-" + p))
+        .Concat(new[] { "top-left", "top", "top-right", "left", "right", "bottom-left", "bottom", "bottom-right", "ornament" }.Select(p => "information-frame-" + p))
+        .Concat(new[] { "left", "middle", "right" }.SelectMany(p => new[] { "information-title-" + p, "information-footer-" + p }))
+        .Concat(new[] { "left", "middle", "right", "close" }.SelectMany(p => Enumerable.Range(0, 4).Select(f => "information-action-" + p + (f == 0 ? "" : $"-{f}"))))
+        .Append("information-background").ToArray());
 
     public void Validate()
     {
-        if (SchemaVersion != 7 || Assets.Select(a => a.Id).Distinct().Count() != Assets.Length)
+        if (SchemaVersion != 8 || Assets.Select(a => a.Id).Distinct().Count() != Assets.Length)
             throw new InvalidDataException("Invalid interface skin version or duplicate assets.");
         var assets = Assets.ToDictionary(a => a.Id);
         if (Enumerable.Range(0, 52).Any(i => !Colors.ContainsKey($"city-marker-{i}")) ||

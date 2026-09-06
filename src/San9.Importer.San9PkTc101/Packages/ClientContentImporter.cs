@@ -65,7 +65,8 @@ public static class ClientContentImporter
             return new(id, path, Convert.ToHexString(SHA256.HashData(bytes)), image.Width, image.Height);
         }
         var skin = InterfaceSkinCompiler.Compile(exe, dataDirectory, Read, Save);
-        var content = new ClientContentPackage(7, sources.Distinct().OrderBy(s => s.Name, StringComparer.Ordinal).ToArray(), map, scenario, text, skin);
+        skin = InformationArtCompiler.Compile(skin, scenarioBytes, scenario, dataDirectory, Read, Save);
+        var content = new ClientContentPackage(8, sources.Distinct().OrderBy(s => s.Name, StringComparer.Ordinal).ToArray(), map, scenario, text, skin);
         content.ValidateLinks();
         _ = ImageAssetFiles.Load(output, skin.Assets, token);
         string pending = manifest + ".pending";

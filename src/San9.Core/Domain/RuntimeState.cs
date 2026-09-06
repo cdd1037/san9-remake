@@ -4,6 +4,7 @@ public sealed record ForceState(int Id, uint Money, uint Food, int Trust)
 {
     public bool IsBarbarian { get; init; }
     public int? LeaderId { get; init; }
+    public int? RankId { get; init; }
 }
 
 public enum SettlementKind { City, Facility }
@@ -14,6 +15,8 @@ public sealed record SettlementState(int Id, int? OwnerId, uint Soldiers, int Du
 {
     public SettlementKind Kind { get; init; }
     public int? CorpsId { get; init; }
+    public uint Population { get; init; }
+    public uint DraftPopulation { get; init; }
 }
 
 public sealed record DevelopmentCommand(int ForceId, int SettlementId, int OfficerId, DomesticActivity Activity);

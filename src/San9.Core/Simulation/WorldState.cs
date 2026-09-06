@@ -12,6 +12,9 @@ public sealed class WorldState
     private readonly Dictionary<int, SettlementState> _settlements = [];
     private readonly Dictionary<int, OfficerState> _officers = [];
     private readonly Dictionary<int, UnitState> _units = [];
+    private ForceRelation[] _relations = [];
+    private CorpsState[] _corps = [];
+    private TreasureState[] _treasures = [];
     public long Revision { get; private set; }
     private WorldSnapshot? _snapshot;
     private WorldState(GameClock clock, ulong randomState)
@@ -27,7 +30,7 @@ public sealed class WorldState
     public static WorldState Create(GameClock clock, ulong seed) => new(clock, seed);
 
     public static WorldState Create(GameClock clock, ulong seed, IEnumerable<ForceState> forces,
-        IEnumerable<SettlementState> settlements, IEnumerable<OfficerState> officers, IEnumerable<UnitState>? units = null)
+        IEnumerable<SettlementState> settlements, IEnumerable<OfficerState> officers, IEnumerable<UnitState>? units = null, IEnumerable<CorpsState>? corps = null, IEnumerable<TreasureState>? treasures = null, IEnumerable<ForceRelation>? relations = null)
     {
         var world = new WorldState(clock, seed);
         foreach (var force in forces)
@@ -46,9 +49,9 @@ public sealed class WorldState
         }
         foreach (var officer in officers)
         {
-            if (!officer.IsValid() || !world._settlements.ContainsKey(officer.SettlementId) ||
+            if (!officer.IsValid() || officer.SettlementId is int location && !world._settlements.ContainsKey(location) ||
                 officer.OwnerId is int owner && !world._forces.ContainsKey(owner) ||
-                world._settlements[officer.SettlementId].OwnerId != officer.OwnerId) throw new ArgumentException("Invalid officer.");
+                officer.IsServing && world._settlements[officer.SettlementId!.Value].OwnerId != officer.OwnerId) throw new ArgumentException("Invalid officer.");
             world._officers.Add(officer.Id, officer);
         }
         if (world._forces.Values.Any(f => f.LeaderId is int leader &&
@@ -62,6 +65,17 @@ public sealed class WorldState
             if (!unit.IsValid || !world._forces.ContainsKey(unit.OwnerId)) throw new ArgumentException("Invalid unit.");
             world._units.Add(unit.Id, unit);
         }
+        world._relations = (relations ?? []).ToArray();
+        world._corps = (corps ?? []).ToArray();
+        world._treasures = (treasures ?? []).ToArray();
+        if (world._corps.Select(c => c.Id).Distinct().Count() != world._corps.Length ||
+            world._corps.Any(c => c.Id < 0 || !world._forces.ContainsKey(c.OwnerId) ||
+                !world._officers.TryGetValue(c.LeaderId, out var leader) || !leader.IsServing || leader.OwnerId != c.OwnerId) ||
+            world._treasures.Select(t => t.Id).Distinct().Count() != world._treasures.Length ||
+            world._treasures.Any(t => t.Id < 0 || t.HolderId is int holder && !world._officers.ContainsKey(holder)) ||
+            world._relations.Select(r => (r.FirstId, r.SecondId)).Distinct().Count() != world._relations.Length ||
+            world._relations.Any(r => r.FirstId >= r.SecondId || r.Value is < 0 or > 100 || !world._forces.ContainsKey(r.FirstId) || !world._forces.ContainsKey(r.SecondId)))
+            throw new ArgumentException("Invalid information state relationships.");
         return world;
     }
 
@@ -72,7 +86,7 @@ public sealed class WorldState
         if (!_forces.TryGetValue(command.ForceId, out var force) || !_settlements.TryGetValue(command.SettlementId, out var city) ||
             !_officers.TryGetValue(command.OfficerId, out var officer)) return new(DevelopmentRejection.UnknownObject);
         if (city.OwnerId != force.Id || officer.OwnerId != force.Id) return new(DevelopmentRejection.WrongOwner);
-        if (officer.Acted || officer.SettlementId != city.Id) return new(DevelopmentRejection.OfficerUnavailable);
+        if (!officer.IsServing || officer.Acted || officer.SettlementId != city.Id) return new(DevelopmentRejection.OfficerUnavailable);
         bool commerce = command.Activity == DomesticActivity.Commerce;
         if (commerce ? city.CommerceUsed : city.CultivationUsed) return new(DevelopmentRejection.AlreadyUsed);
         int current = commerce ? city.Commerce : city.Cultivation, maximum = commerce ? city.MaxCommerce : city.MaxCultivation;
@@ -106,10 +120,13 @@ public sealed class WorldState
         var forces = Array.AsReadOnly(_forces.Values.OrderBy(f => f.Id).ToArray());
         var settlements = Array.AsReadOnly(_settlements.Values.OrderBy(s => s.Id).ToArray());
         var officers = Array.AsReadOnly(_officers.Values.OrderBy(o => o.Id).ToArray());
+        var corps = Array.AsReadOnly(_corps);
+        var relations = Array.AsReadOnly(_relations);
+        var treasures = Array.AsReadOnly(_treasures);
         var units = Array.AsReadOnly(_units.Values.OrderBy(u => u.Id).ToArray());
-        canonical += JsonSerializer.Serialize(new { forces, settlements, officers, units });
+        canonical += JsonSerializer.Serialize(new { forces, settlements, officers, units, corps, treasures, relations });
         string hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
-        return _snapshot = new WorldSnapshot(Clock, RandomState, hash) { Forces = forces, Settlements = settlements, Officers = officers, Units = units, Revision = Revision };
+        return _snapshot = new WorldSnapshot(Clock, RandomState, hash) { Forces = forces, Settlements = settlements, Officers = officers, Units = units, Corps = corps, Treasures = treasures, Relations = relations, Revision = Revision };
     }
 }
 
@@ -122,5 +139,8 @@ public sealed record WorldSnapshot(
     public IReadOnlyList<SettlementState> Settlements { get; init; } = [];
     public IReadOnlyList<OfficerState> Officers { get; init; } = [];
     public IReadOnlyList<UnitState> Units { get; init; } = [];
+    public IReadOnlyList<ForceRelation> Relations { get; init; } = [];
+    public IReadOnlyList<CorpsState> Corps { get; init; } = [];
+    public IReadOnlyList<TreasureState> Treasures { get; init; } = [];
     public long Revision { get; init; }
 }

@@ -29,10 +29,10 @@
 | 模块 | 职责 | 输出 |
 | --- | --- | --- |
 | Content.Maps / MapImporter | 方格、地貌、建筑、云、动画、疆界精灵和小地图底图 | `content.json.map`，地图schema8 |
-| Content.Scenarios / Scenarios.ScenarioContentCompiler | 初始日期、势力资源、据点归属/坐标/显示数值、图标、驻留武将初始状态和地域所属城市 | `content.json.scenario`，schema5 |
+| Content.Scenarios / Scenarios.ScenarioContentCompiler | 初始日期、势力资源、据点归属/坐标/显示数值、图标、驻留武将初始状态和地域所属城市 | `content.json.scenario`，schema7 |
 | Content.Text / Text.ScenarioTextReader | 原作名称索引、类型后缀与简体投影；运行时按键解析 | `content.json.text`，schema1 |
-| Content.Interface / Interface.InterfaceSkinCompiler | 框架、三段背景、季节、按钮、状态条、图标和原版显示颜色 | `content.json.skin`，schema6 |
-| Content.Packages / Packages.ClientContentImporter | 组合入口、跨包ID/坐标/文本引用校验、来源清单 | 唯一`content.json`，顶层schema7 |
+| Content.Interface / Interface.InterfaceSkinCompiler | 框架、三段背景、季节、按钮、状态条、图标和原版显示颜色 | `content.json.skin`，schema8 |
+| Content.Packages / Packages.ClientContentImporter | 组合入口、跨包ID/坐标/文本引用校验、来源清单 | 唯一`content.json`，顶层schema8 |
 | Content.Images / Importer.Images | 通用PNG、索引图解码和透明边缘处理 | 由使用方选择输出目录 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 
@@ -44,7 +44,7 @@
 
 ## 转换与运行
 
-从仓库根目录执行，输出目录必须不存在：
+从仓库根目录执行；已有目录按来源清单原位增量更新：
 
 ```powershell
 dotnet run --project src/San9.Tools -- import-client --source-exe "<已登记San9PK.exe绝对路径>" --data-dir "private/s9数据文件" --scenario "private/s9数据文件/D_Sce002.S9" --output "local/generated/content/scenario-190-live"
@@ -59,7 +59,7 @@ dotnet run --project src/San9.Tools -- import-client --source-exe "<已登记San
 
 顶部信望100、资金9520、兵粮73200来自剧本。原截图资金9076，差444已由RE-0145/0157确认是普通旬俸禄；当前不执行完整周期经济。洛阳32000、孟津港1000、虎牢关30000；董卓设施共13项。耐久条与士气条、商人/训练/皇帝图标已恢复。初始士气由原作初始化链派生，三个主要据点均为50。建筑名称、兵力、条和图标暂随地图缩放；后续修改只需调整独立标注层。
 
-左键选择设施/方格，右键拖动，滚轮连续缩放，大小按钮选择1倍/0.5倍显示。设施名单按直属军团列出，君主所在设施固定首行并从普通13行中去重；移入取得且保留焦点，按下使用原图底纹和(2,2)文字位移，点击或Enter只定位镜头。褐色行仍可点击；无详情提示或黄色选中，不随地图选择强制滚动。原生滚动条按行滚动；右键菜单将未实现动作明确禁用。详见 [DEC-UI-0004](../specs/decisions/DEC-UI-0004-facility-list-interaction.md)。小地图有效菱形区域点击定位，装饰不定位；使用原版八类地形颜色，只标城市，标记色来自根势力颜色与原版调色板。疆界按钮点击切换按下/弹起状态，分别显示/隐藏边界。部队、情报、功能、帮助、进行禁用并附说明。F3打开四季预览与单人商业/开垦入口，后者实际修改当前世界，视图随版本刷新。
+左键选择设施/方格，右键拖动，滚轮连续缩放，大小按钮选择1倍/0.5倍显示。设施名单按直属军团列出，君主所在设施固定首行并从普通13行中去重；移入取得且保留焦点，按下使用原图底纹和(2,2)文字位移，点击或Enter只定位镜头。褐色行仍可点击；无详情提示或黄色选中，不随地图选择强制滚动。原生滚动条按行滚动；右键菜单将未实现动作明确禁用。详见 [DEC-UI-0004](../specs/decisions/DEC-UI-0004-facility-list-interaction.md)。小地图有效菱形区域点击定位，装饰不定位；使用原版八类地形颜色，只标城市，标记色来自根势力颜色与原版调色板。疆界按钮点击切换按下/弹起状态，分别显示/隐藏边界。情报入口与详情见[情报界面](information-browser.md)；部队、功能、帮助、进行禁用并附说明。F3打开四季预览与单人商业/开垦入口，后者实际修改当前世界，视图随版本刷新。
 
 ## 高一致性验收（2026-09-06）
 

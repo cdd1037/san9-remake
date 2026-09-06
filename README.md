@@ -22,6 +22,8 @@
 
 界面字体文件也不随仓库分发。运行前请将 `LXGWWenKaiMonoGBLite-Medium.ttf` 放入 `src/San9.Client.Godot/assets/`；仓库保留其 Godot 导入配置及 OFL 许可证。
 
+情报按钮已接入十类目录、分页排序、详情关联浏览及地图定位；人物和宝物使用转换图像。当前规则与验收边界见[情报界面](docs/information-browser.md)。
+
 ## 快速开始
 
 在仓库根目录执行。准备 .NET 10 SDK 和 Godot 4.7.2 Mono；仅运行研究侧图像脚本时需要 Python 与 Pillow。
@@ -41,7 +43,7 @@ dotnet test San9Remake.slnx
 dotnet run --project src/San9.Tools -- import-client --source-exe "<San9PK.exe绝对路径>" --data-dir "private/s9数据文件" --scenario "private/s9数据文件/D_Sce002.S9" --output "local/generated/content/scenario-190-live"
 ```
 
-输出目录必须不存在。包内只有一个`content.json`，按map、scenario、text、skin分区保存；图片按`images/map/`和`images/interface/`分类。纯地图仍可用`import-map`独立转换；包结构见[客户端内容与主界面](docs/client-content.md)。
+导出优先原位增量更新现有目录，复用未变化资源并清理失效生成文件。包内只有一个`content.json`，按map、scenario、text、skin分区保存；图片按`images/map/`和`images/interface/`分类。纯地图仍可用`import-map`独立转换；包结构见[客户端内容与主界面](docs/client-content.md)。
 
 ### 运行客户端
 

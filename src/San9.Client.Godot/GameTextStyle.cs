@@ -35,6 +35,10 @@ public static class GameTextStyles
         Foreground = enabled ? White : new Color("f06850")
     };
 
+    public static GameTextStyle InformationMenu(bool hovered, bool pressed, bool disabled) =>
+        Outlined(16, disabled ? new Color(hovered ? "000000" : "a4a4a4") : pressed ? new Color("f8f850") : White,
+            disabled ? hovered ? "f0f0f0" : "000000" : pressed ? "005028" : "000000");
+
     public static GameTextStyle Button(GameButtonTextRole role, bool hovered, bool selected, bool disabled)
     {
         bool command = role is GameButtonTextRole.Information or GameButtonTextRole.Functions or GameButtonTextRole.Help or GameButtonTextRole.Advance;

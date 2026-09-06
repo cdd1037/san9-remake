@@ -59,3 +59,5 @@
 
 - [BEH-UI-0002：武将运行态与右侧武将名单](BEH-UI-0002-officer-roster.md)（已确认）
 - [BEH-UI-0003：战略全图面板](BEH-UI-0003-strategy-overview.md)（已确认）
+
+- [BEH-UI-0004：情报目录与详情浏览](BEH-UI-0004-information-browser.md)（已确认）

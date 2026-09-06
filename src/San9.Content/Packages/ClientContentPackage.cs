@@ -9,9 +9,12 @@ public sealed record ClientContentPackage(int SchemaVersion, ContentSource[] Sou
 {
     public void ValidateLinks()
     {
-        if (SchemaVersion != 7) throw new InvalidDataException("Unsupported client content version.");
+        if (SchemaVersion != 8) throw new InvalidDataException("Unsupported client content version.");
         Scenario.Validate(); Text.Validate(); Skin.Validate();
         foreach (string role in StrategyHintText.Roles) _ = Text.Resolve(StrategyHintText.Key(role));
+        foreach (string role in Scenario.Officers.Select(o => $"information-person-{o.State.Id}")
+                     .Concat(Scenario.Information.Treasures.Select(t => $"information-treasure-{t.Id}")))
+            if (!Skin.Roles.ContainsKey(role)) throw new InvalidDataException($"Missing information illustration: {role}");
         if (Map.ScenarioId != Scenario.ScenarioId ||
             !Map.Buildings.Select(b => b.Id).Order().SequenceEqual(Scenario.Settlements.Select(s => s.Id).Order()))
             throw new InvalidDataException("Scenario and map identities differ.");
@@ -19,7 +22,7 @@ public sealed record ClientContentPackage(int SchemaVersion, ContentSource[] Sou
         foreach (var s in Scenario.Settlements)
             if (s.X != buildings[s.Id].X || s.Y != buildings[s.Id].Y)
                 throw new InvalidDataException("Scenario and map coordinates differ.");
-        foreach (string key in Scenario.Forces.Select(f => f.NameKey).Concat(Scenario.Settlements.Select(s => s.NameKey)).Concat(Scenario.RegionNameKeys.Values).Concat(Scenario.Officers.Select(o => o.NameKey)))
+        foreach (string key in Scenario.Forces.Select(f => f.NameKey).Concat(Scenario.Settlements.Select(s => s.NameKey)).Concat(Scenario.RegionNameKeys.Values).Concat(Scenario.Officers.Select(o => o.NameKey)).Concat(Scenario.Information.Ranks.Select(r => r.NameKey)).Concat(Scenario.Information.Offices.Select(o => o.NameKey)).Concat(Scenario.Information.Treasures.Select(t => t.NameKey)))
             _ = Text.Resolve(key);
     }
 }

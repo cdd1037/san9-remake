@@ -15,13 +15,17 @@ public sealed class ScenarioTextReader(byte[] messages, byte[] executable) : IDi
     public void ReadStrategyHints()
     {
         // RE-SAN9PK-0160: toolbar IDs 1000..1013, table 0x660F60.
-        int[] messages = [8261, 8260, 8262, 8439, 8430, 8291, 8293, 8253, 8290, 8289, 8288, 8440, 8442, 8441];
+        int[] messages = [8261, 8260, 8262, 8439, 8430, 8291, 8293, 8253, 8290, 8289, 8288, 8440, 8442, 8441,
+            8287, 8281, 8366, 8280, 8367, 8282, 8279, 8283, 8405, 8537, 8371, 8372];
         for (int i = 0; i < messages.Length; i++) Add(StrategyHintText.Key(StrategyHintText.Roles[i]), _messages.PlainText(messages[i]));
     }
     private string Add(string key, byte[] source)
     {
         _entries.Add(key, _converter.Convert(source)); return key;
     }
+    public string Rank(string key, int id) => Add(key, _messages.PlainText(1652 + 2 * id));
+    public string Treasure(string key, int id) => Add(key, _messages.PlainText(1392 + 2 * id));
+    public string Office(string key, int id) => Add(key, _messages.PlainText(5065 + 2 * id));
     public string City(string key, int code) => Add(key, _messages.PlainText(721 + 2 * code));
     public string Region(string key, int code) => Add(key, _messages.PlainText(166 + 2 * code));
     public string Settlement(string key, int code, int type) => Add(key, [.. _messages.PlainText(166 + 2 * code), .. TypeSuffix(type)]);

@@ -7,6 +7,7 @@ public sealed record ForceView(int Id,string NameKey,int ColorCode,int FlagGlyph
 {
     public bool IsBarbarian { get; init; }
     public int? LeaderId { get; init; }
+    public int? RankId { get; init; }
     public int? LeaderSettlementId { get; init; }
 }
 public sealed record SettlementView(int Id,string NameKey,int? OwnerId,int X,int Y,uint Soldiers,int Durability,int MaxDurability,
@@ -22,6 +23,7 @@ public sealed class StrategySnapshot
 {
     public StrategySnapshot(ScenarioInitialState definition, WorldSnapshot world)
     {
+        Information = new(definition.Information);
         World=world; PlayerForceId=definition.PlayerForceId;
         RegionNameKeys=new System.Collections.ObjectModel.ReadOnlyDictionary<int,string>(new Dictionary<int,string>(definition.RegionNameKeys));
         RegionCityIds=new System.Collections.ObjectModel.ReadOnlyDictionary<int,int>(new Dictionary<int,int>(definition.RegionCityIds));
@@ -29,26 +31,27 @@ public sealed class StrategySnapshot
         var settlements = world.Settlements.ToDictionary(s => s.Id);
         Officers = Array.AsReadOnly(world.Officers.Select(o =>
         {
-            var location = settlements[o.SettlementId];
-            return new OfficerView(o.Id, officerDefinitions[o.Id].NameKey, o.OwnerId, location.CorpsId,
-                o.SettlementId, location.Kind == San9.Core.Domain.SettlementKind.City, !o.Acted, o.Abilities);
+            var location = o.SettlementId is int id ? settlements[id] : null;
+            return new OfficerView(o.Id, officerDefinitions[o.Id].NameKey, o.OwnerId, o.IsServing ? location?.CorpsId : null,
+                o.SettlementId, location?.Kind == San9.Core.Domain.SettlementKind.City, o.IsServing && !o.Acted, o.Abilities) { Status = o.Status };
         }).ToArray());
         Forces=Array.AsReadOnly(world.Forces.Select(f=>
         {
             var d=definition.Forces.Single(d=>d.Id==f.Id);
             return new ForceView(f.Id,d.NameKey,d.ColorCode,d.FlagGlyph,f.Money,f.Food,f.Trust)
-            { IsBarbarian = f.IsBarbarian, LeaderId = f.LeaderId, LeaderSettlementId = world.Officers.SingleOrDefault(o => o.Id == f.LeaderId)?.SettlementId };
+            { IsBarbarian = f.IsBarbarian, LeaderId = f.LeaderId, RankId = f.RankId, LeaderSettlementId = world.Officers.SingleOrDefault(o => o.Id == f.LeaderId)?.SettlementId };
         }).ToArray());
         Settlements=Array.AsReadOnly(world.Settlements.Select(s=>
         {
             var d=definition.Settlements.Single(d=>d.Id==s.Id);
             return new SettlementView(s.Id,d.NameKey,s.OwnerId,d.X,d.Y,s.Soldiers,s.Durability,s.MaxDurability,s.Morale,
-                world.Officers.Any(o=>o.SettlementId==s.Id && o.OwnerId==s.OwnerId && !o.Acted),
+                world.Officers.Any(o=>o.SettlementId==s.Id && o.IsServing && o.OwnerId==s.OwnerId && !o.Acted),
                 s.Kind == San9.Core.Domain.SettlementKind.City ? s.OwnerId is int owner ? definition.Forces.Single(f=>f.Id==owner).ColorCode : 50 : null,
                 Array.AsReadOnly(d.Icons.ToArray()),d.Appearance,s.PublicOrder,s.Commerce,s.MaxCommerce,s.Cultivation,s.MaxCultivation)
             { Kind = s.Kind, CorpsId = s.CorpsId, IsFacilityListEntry = d.IsFacilityListEntry };
         }).ToArray());
     }
+    public InformationCatalog Information { get; }
     public WorldSnapshot World { get; }
     public int Year => World.Clock.Year;
     public int Month => World.Clock.Month;
@@ -59,4 +62,11 @@ public sealed class StrategySnapshot
     public IReadOnlyList<ForceView> Forces { get; }
     public IReadOnlyList<OfficerView> Officers { get; }
     public IReadOnlyList<SettlementView> Settlements { get; }
+}
+
+public sealed class InformationCatalog(InformationDefinitions definitions)
+{
+    public IReadOnlyList<RankDefinition> Ranks { get; } = Array.AsReadOnly(definitions.Ranks.ToArray());
+    public IReadOnlyList<OfficeDefinition> Offices { get; } = Array.AsReadOnly(definitions.Offices.ToArray());
+    public IReadOnlyList<TreasureDefinition> Treasures { get; } = Array.AsReadOnly(definitions.Treasures.ToArray());
 }

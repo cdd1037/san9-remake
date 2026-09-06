@@ -57,21 +57,39 @@
     ["0x4806E0", "sub_4806E0", "update_persons_for_xun"],
     ["0x44DD10", "sub_44DD10", "set_person_loyalty_for_force"],
     ["0x44DD60", "sub_44DD60", "increase_person_loyalty_for_force"],
-    ["0x44DE60", "sub_44DE60", "increase_person_loyalty_for_current_force"],
+    ["0x44DE60", "sub_44DE60", "decrease_person_loyalty_for_current_force"],
     ["0x447E00", "sub_447E00", "transfer_item_holder"]
   ],
   "comments": [
-    { "address": "0x4872B0", "comment": "RE-SAN9PK-0112 [confirmed]: code 13 replaces the force strategist: old identity 2 becomes 3, selected identity 3 becomes 2, and force+0xC0 is updated. This command does not directly write salary or loyalty." },
+    { "address": "0x4872B0", "comment": "RE-SAN9PK-0112 [confirmed, corrected 2026-09-06]: code 13 replaces the strategist (old identity 2->3, selected 3->2, force+0xC0). With a valid old strategist, old current intelligence at person+0x58 >= selected current intelligence consumes rnd(3, GLOBAL_STREAM, 1) and subtracts its 0..2 result from the old person's loyalty toward the appointing root force, bounded at 0 (0x44DDB0 -> 0x44CA60 -> limsub -> 0x44C9F0). Equal intelligence is included; zero draw means no visible loss. No old strategist or strictly higher new intelligence skips this draw/write. Loyalty settles before identity changes and presentation. No general office or salary write. Supersedes the former no-loyalty-write claim; Steam manual PDF p21 describes the loss direction but omits equality and zero draw." },
     { "address": "0x487500", "comment": "RE-SAN9PK-0112 [confirmed]: reward loyalty gain is min(50*(20-integrity)/100, 10), then capped by the remaining distance to 100." },
     { "address": "0x487600", "comment": "RE-SAN9PK-0112 [confirmed]: each selected person receives the computed loyalty gain, costs 100 force funds, and gets person_flags 0x4000 until the next xun person update." },
     { "address": "0x488A50", "comment": "RE-SAN9PK-0112 [confirmed]: grant-item execution transfers holder ownership and adds item+0x40 to the recipient's loyalty through the common bounded feedback path." },
     { "address": "0x48C8A0", "comment": "RE-SAN9PK-0112 [confirmed]: exile sets non-prisoners' loyalty toward the expelling force to 45 before detaching them; prisoners instead gain floor(integrity/5) loyalty toward the captor and are released or re-homed." },
     { "address": "0x496E40", "comment": "RE-SAN9PK-0112 [confirmed]: recall groups selected people by current associated object and dispatches one transfer group per origin to a single destination." },
     { "address": "0x490540", "comment": "RE-SAN9PK-0112 [confirmed]: move uses shared participant reservation, creates a command event and transfers people to the destination; moving a ruler across forces takes the dedicated force and unit migration branch." },
-    { "address": "0x4806E0", "comment": "RE-SAN9PK-0112 [confirmed]: each xun clears reward marker 0x4000 for every person; identity-4 prisoners make an affinity-distance-based probability check and gain 1 loyalty toward their current force on success." },
+    { "address": "0x4806E0", "comment": "RE-SAN9PK-0112 [confirmed, corrected 2026-09-06]: each xun clears reward marker 0x4000. Identity-4 prisoners roll threshold 15*floor(sqrt(d))+10, d=affinity to the original force ruler via person+0xEC (fallback 50). SanCalc sqr is integer square root, not square. On success subtract 1 (floor 0) from loyalty toward the original root force resolved by person vtable+0x30 -> 0x44DE80 -> 0x44BFF0. This periodic loss is separate from code-24 failed recruitment, which may add recruiting-force loyalty and skips its employed-target subtraction." },
     { "address": "0x44DD10", "comment": "RE-SAN9PK-0112 [confirmed]: writes one person's loyalty entry for the supplied force, or the current force when omitted." },
     { "address": "0x447E00", "comment": "RE-SAN9PK-0112 [confirmed]: removes an item from its old holder, assigns a valid new person holder when supplied, or clears holder state while preserving the item's location context." }
   ],
+  "comment_revision": {
+    "date": "2026-09-06",
+    "finding": "RE-SAN9PK-0112",
+    "address": "0x4872B0",
+    "reason": "Correct the earlier missed loyalty subtraction in the strategist replacement branch",
+    "applied": ["repeatable function comment", "regular entry comment"],
+    "read_back": "Both comments match; forced re-decompilation shows corrected comment and unchanged function body; in-place IDB save succeeded",
+    "program_byte_changes": 0
+  },
+  "prisoner_cycle_revision": {
+    "date": "2026-09-06",
+    "finding": "RE-SAN9PK-0112",
+    "rename": { "address": "0x44DE60", "before": "increase_person_loyalty_for_current_force", "after": "decrease_person_loyalty_for_current_force", "dry_run_ok": true, "applied": true },
+    "function_comments": ["0x4806E0", "0x44DE60"],
+    "evidence": "Captured-force producer, person vtable +0x30, saved +0xEC ownership, limsub writeback and RE-SANCALC-0001 integer-square-root contract",
+    "read_back": "Both functions re-decompiled with corrected name/comments and unchanged control flow; in-place save succeeded",
+    "program_byte_changes": 0
+  },
   "types": [],
   "program_byte_changes": 0
 }

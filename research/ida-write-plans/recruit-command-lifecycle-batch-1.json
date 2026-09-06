@@ -48,9 +48,21 @@
     { "address": "0x4B7380", "comment": "RE-SAN9PK-0111 [confirmed]: automatic code-24 requires an available source, actors from own cities with raw identity mask 0x0F and current politics 35..115, and eligible targets from raw identity mask 0x30." },
     { "address": "0x495150", "comment": "RE-SAN9PK-0111 [confirmed]: command dispatch reserves the actor, stores type 24 plus a stable actor-target rnd(100) payload, computes normal travel time, and marks the source task active." },
     { "address": "0x495480", "comment": "RE-SAN9PK-0111 [confirmed]: advisor output compares two Bernoulli results made with the same stable seed—recruit threshold versus advisor judgment threshold—and reports agreement (1) or disagreement (3); it is not the command's final roll." },
-    { "address": "0x4955A0", "comment": "RE-SAN9PK-0111 [confirmed]: code-24 task phases 1000/1001/1002/1003 handle arrival, presentation, stored-random<threshold resolution, and final writeback. Success initializes identity 3, destination, per-force loyalty and possible leader-led object defection; failure preserves identity/force/location while only adjusting relations and per-force loyalty." },
+    { "address": "0x4955A0", "comment": "RE-SAN9PK-0111 [confirmed, corrected 2026-09-06]: code-24 phases 1000..1003 resolve arrival, presentation, saved-roll versus live threshold, and writeback. Success initializes affiliation/loyalty and may transfer a responsible person's object; its branch attempts actor politics growth. Ordinary failure preserves target identity/force/location. First, target-to-RECRUITING-RULER affinity (sub_485E80 -> get_object_force_leader), not actor affinity, supplies 75-distance for a +1 recruiting-force loyalty roll (cap 255). Independently, valid old force, identity 1/2/3, old-ruler affinity distance>0 and integrity<15 enable a saved-threshold roll for -1 to the SAME recruiting-force loyalty entry (floor 0). Old-force personal loyalty is not the operand of either call. Preserve add-then-subtract saturation; the second roll can cause a net loss. Failure skips the success politics-growth call." },
     { "address": "0x494580", "comment": "RE-SAN9PK-0111 [confirmed boundary]: search-person immediate recruitment shares the threshold but uses a fresh global-stream roll and distinct loyalty initialization; accepted failure exposes identity 5 at the found location and sets recruiting-force loyalty 49." }
   ],
+  "comment_revision": {
+    "date": "2026-09-06",
+    "finding": "RE-SAN9PK-0111",
+    "applied": [
+      { "address": "0x4955A0", "kind": "regular function comment", "reason": "Clarify recruiting ruler affinity, independent same-force add/subtract, bounds and success-only politics growth" },
+      { "address": "0x495EAE", "kind": "regular instruction comment", "comment": "RE-SAN9PK-0111 [confirmed 2026-09-06]: second affinity argument is recruiting ruler returned by 0x485E80 at 0x495789, not the selected actor." },
+      { "address": "0x495F32", "kind": "regular instruction comment", "comment": "RE-SAN9PK-0111 [confirmed 2026-09-06]: EBP is recruiting force saved at 0x495787; subtract 1 from its loyalty entry, not old-force EBX. This gate is independent of the earlier +1 result." }
+    ],
+    "confidence": "high",
+    "read_back": "All three comments read back; forced decompilation shows the corrected function comment and an identical function body; in-place IDB save succeeded",
+    "program_byte_changes": 0
+  },
   "types": [],
   "program_byte_changes": 0,
   "evidence_summary": "Interactive and automatic code-24 producers converge on one command; dispatch fixes only a stable 0..99 payload, while phase 1002 recomputes the live threshold. Success initializes identity, destination and per-force loyalty with optional responsible-person object defection; failure preserves identity, force and location."

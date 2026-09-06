@@ -6,6 +6,8 @@
 
 ## 已确认决策
 
+- [DEC-PERSON-0001：登用失败扣减所属势力忠诚](DEC-PERSON-0001-recruit-failure-affiliation-loyalty.md)
+
 - [DEC-AI-0001：确定性 AI 规划与观察边界](DEC-AI-0001-deterministic-planning-boundary.md)
 - [DEC-PROJECT-0001：Godot 表现层与纯 C# 模拟核心分离](DEC-PROJECT-0001-layered-architecture.md)
 - [DEC-PROJECT-0002：选择性继承核心体验与现代重组](DEC-PROJECT-0002-selective-inheritance.md)

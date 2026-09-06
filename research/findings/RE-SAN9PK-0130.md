@@ -1,5 +1,7 @@
 # RE-SAN9PK-0130：事件资料裁决、类型 3 更正与行为规格
 
+> 2026-09-06 关联更正：RE-SAN9PK-0112 已确认本文引用的 `increase_person_loyalty_for_current_force` 实为减法，并更名为 `decrease_person_loyalty_for_current_force`。下文山阳公处斩的“忠诚增加 20、与攻略下降方向冲突”判断撤回；该事件调用点与筛选范围尚须专项复核，不继续以旧函数名支持增加结论。
+
 - 状态：已完成 `EVT-04`
 - 日期：2026-08-25
 - 分析者：Codex 与项目所有者

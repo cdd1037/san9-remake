@@ -434,8 +434,8 @@
       "input_object": "interactive force-action task context",
       "producer": "interactive_appoint_strategist_action_ctor@0x4C0160 creates appoint_strategist_command_ctor@0x487220",
       "filtering": "shared interactive context; selected identity 3 person must have current intelligence at least 70; command revalidates the target",
-      "randomness": "only an old-strategist relation/display adjustment uses rnd(3); appointment itself is deterministic",
-      "final_side_effect": "old strategist identity 2 becomes 3, selected identity 3 becomes 2 and the force strategist reference is replaced; no direct office, salary or loyalty write",
+      "randomness": "with a valid old strategist and old current intelligence >= selected current intelligence, consume rnd(3, GLOBAL_STREAM, 1) once as a loyalty-loss magnitude 0..2; otherwise skip this draw",
+      "final_side_effect": "conditionally subtract 0..2 from the old strategist's loyalty toward the appointing root force, bounded at zero, before changing old identity 2 to 3, selected identity 3 to 2 and replacing the force strategist reference; no general office or salary write",
       "status": "behavior-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",
@@ -660,7 +660,7 @@
       "producer": "interactive_recruit_action_ctor@0x4C7170; automatic_recruit_action_ctor@0x4B6F10 converges on recruit_command_ctor@0x494F10",
       "filtering": "interactive source validation and shared target eligibility; automatic actors use identity mask 0x0F, unused flag and current politics 35..115, targets use identity mask 0x30 plus the shared force/location predicate",
       "randomness": "dispatch stores stable actor-target rnd(100); phase 1002 recomputes the live threshold and succeeds iff stored_random < threshold; advisor output separately compares two same-seed Bernoulli results",
-      "final_side_effect": "success writes identity 3, force, destination and per-force loyalty, optionally transfers a responsible person's object and followers; failure preserves identity/force/location while conditionally changing relations and force loyalty; both finish actor politics growth and task cleanup",
+      "final_side_effect": "success writes identity 3, force, destination and per-force loyalty, optionally transfers a responsible person's object and followers, and attempts actor politics growth; ordinary failure preserves identity/force/location, conditionally reduces force relations, then independently adds/subtracts one to the recruiting-force loyalty entry (addition uses target-to-recruiting-ruler affinity, cap 255; subtraction uses the stored threshold and employed-target gates, floor 0), without the success politics-growth call; both complete the task",
       "status": "behavior-confirmed",
       "evidence": [
         "RE-SAN9PK-0049",

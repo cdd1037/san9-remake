@@ -4,6 +4,8 @@
 
 ## 当前目录
 
+- [`research-open-questions.md`](research-open-questions.md)：当前疑点复核、已纠错结论、保留边界，以及集中决策和实验清单；历史“待验证”不直接作为当前待办。
+
 - `analysis/`：项目主 IDA 数据库与说明。新研究按对应样本版本同步有证据的标注；旧库移入被忽略的 `artifacts/ida/legacy/`，只作历史线索。
 - `docs/`：收集的电子书、分析文章与图片，许可状态需要逐项确认。
 - `experiments/`：新增黑盒实验记录；每个实验使用 `EXP-*`。
@@ -12,7 +14,7 @@
 - `prototypes/`：不进入产品的可复现研究预览；不得作为行为规格或运行时依赖。
 - `scripts/`：未来可复现的研究辅助脚本，不得成为产品运行依赖。
 - `symbols/`：可追溯的符号摘要，不保存 IDB。
-- [`program-analysis-roadmap.md`](program-analysis-roadmap.md)：面向核心模拟实现的程序分析路线、原子批次与统一验收门槛。
+- [历史程序分析路线](archive/program-analysis-roadmap.md)：已完成的原子批次与验收门槛，仅作证据追溯；当前工作见疑点清单。
 - [`program-analysis-coverage.md`](program-analysis-coverage.md)：SanIX、电子书、San9PKHard 与现有 `RE-*` 的统一来源覆盖账本。
 - [`program-analysis-r0-r12-acceptance.md`](program-analysis-r0-r12-acceptance.md)：52 个核心程序分析批次的最终独立验收与后续重开边界。
 - [`program-analysis-non-core-archive.md`](program-analysis-non-core-archive.md)：核心铺底结束后的内容、表现、工具和定向补证归档。
@@ -30,4 +32,4 @@
 5. 研究成熟后，另写不含原版实现细节的行为规格；不要把研究笔记直接移动成规格。
 6. 逆向任务产生可靠命名、类型或注释时，按需写入对应版本的项目主 IDA 数据库并回读验证；只读调查无需记录“数据库未修改”。
 
-主要入口为[`.s9` 文件清单](s9-file-inventory.md)、[来源登记表](SOURCES.md)、[逆向结论索引](findings/README.md)、[EXE 外部 DLL 契约清单](exe-dll-analysis-inventory.md)、[程序分析路线](program-analysis-roadmap.md)、[来源覆盖账本](program-analysis-coverage.md)、[现有第三方仓库简介](upstream-repositories.md)和[证据链纸面演练](notes/0001-source-trace-example.md)。
+主要入口为[`.s9` 文件清单](s9-file-inventory.md)、[来源登记表](SOURCES.md)、[逆向结论索引](findings/README.md)、[EXE 外部 DLL 契约清单](exe-dll-analysis-inventory.md)、[程序分析路线](archive/program-analysis-roadmap.md)、[来源覆盖账本](program-analysis-coverage.md)、[现有第三方仓库简介](upstream-repositories.md)和[证据链纸面演练](notes/0001-source-trace-example.md)。

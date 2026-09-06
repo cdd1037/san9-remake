@@ -6,7 +6,7 @@
 - 更新日期：2026-08-27
 
 本账本把 SanIX、电子书和 San9PKHard 的主张映射到现有证据与
-[`program-analysis-roadmap.md`](program-analysis-roadmap.md) 的程序分析批次。`EVT-01` 在不改写既有来源上下文的前提下，把原先按 R0–R7 范围合并排除的复合条目拆成 R8–R12 原子主张；机器可读总数与 San9PKHard 逐候选路由见 [`program-analysis-evt-01-status.json`](program-analysis-evt-01-status.json)。本账本只回答“来源说了什么、目前证据到哪里、下一步归谁”，不把低优先级资料直接升格为原作规则。
+[`program-analysis-roadmap.md`](archive/program-analysis-roadmap.md) 的程序分析批次。`EVT-01` 在不改写既有来源上下文的前提下，把原先按 R0–R7 范围合并排除的复合条目拆成 R8–R12 原子主张；机器可读总数与 San9PKHard 逐候选路由见 [`program-analysis-evt-01-status.json`](program-analysis-evt-01-status.json)。本账本只回答“来源说了什么、目前证据到哪里、下一步归谁”，不把低优先级资料直接升格为原作规则。
 
 ## 账本模型
 

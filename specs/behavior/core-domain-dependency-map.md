@@ -1,7 +1,7 @@
 # 核心领域依赖图与实现入口
 
 - 状态：已确认
-- 最后更新：2026-08-27
+- 最后更新：2026-09-06
 - 机器契约：[core-domain-contracts.json](core-domain-contracts.json)
 - 架构决策：[DEC-PROJECT-0001](../decisions/DEC-PROJECT-0001-layered-architecture.md)、[DEC-PROJECT-0002](../decisions/DEC-PROJECT-0002-selective-inheritance.md)、[DEC-SIM-0001](../decisions/DEC-SIM-0001-determinism-and-saves.md)
 
@@ -51,28 +51,30 @@ flowchart LR
 
 推荐实现顺序由该图直接导出：先完成 `simulation`；再完成 `personnel`；随后可并行推进 `person-lifecycle` 与 `governance`；再推进 `warfare` 与 `diplomacy`；之后是 `strategy`、`duel`、`event` 和 `scenario`；AI 的公共边界现在建立，具体规划器在其所需玩法快照稳定后实现。并行指开发工作可并行，逻辑提交顺序仍由模拟流水线串行确定。
 
+验收条款以各BEH原文为准；当前覆盖由领域契约验证器生成，不在此重复维护计数。
+
 ## 核心领域契约
 
-| 领域 | 已确认规格 | 对象与状态 | 输入 → 输出 | 关键不变量 | 首个实现入口 | 验收条款 |
-| --- | --- | --- | --- | --- | --- | ---: |
-| `simulation` | `BEH-SIMULATION-0001` | 时钟、周期边界、结算流水线；稳定交互/旬/日/终局短路 | 命令日志、世界与随机状态 → 快照、领域事件、派生日历 | 单一权威日期；单活动阶段；稳定边界保存 | `San9.Core.Simulation`：`SimulationEngine`、`ResolutionPipeline` | 6 |
-| `personnel` | `BEH-PERSON-0001..0003` | 人物、归属、忠诚、地点、行动占用 | 人事命令与实时归属 → 原子归属变化、忠诚/宝物转移、占用释放 | 单一归属/地点；失败零写回；宝物唯一；占用必释放 | `San9.Core.Personnel`：`PersonnelCommandService`、`AffiliationTransition` | 13 |
-| `person-lifecycle` | `BEH-PERSON-LIFECYCLE-0001..0003` | 成长、伤势、生命、培养记录 | 周期、人物、成长/死亡原因 → 成长、登场/恢复、死亡清理、培养完成 | 成长有界；死亡无活引用；一势力一培养记录 | `San9.Core.Personnel.Lifecycle`：三个专责服务 | 15 |
-| `governance` | `BEH-GOVERNANCE-0001..0003` | 势力、军团、辖区、委任、归属事务 | 当前所有权与委任配置 → 自动命令、归属转换、军团清理 | 单一势力根；资源守恒；自动/交互共享终验 | `San9.Core.Governance`：`CorpsService`、`DelegationPlanner`、`TerritorialTransitionService` | 27 |
-| `diplomacy` | `BEH-DIPLOMACY-0001..0003` | 关系、联盟、外交命令、谈判、计划 | 关系快照、请求、资格、随机流 → 对称关系、守恒结算、联盟、计划 | 关系对称有界；联盟显式；增量规划读取实时状态 | `San9.Core.Diplomacy`：关系、联盟、命令与规划服务 | 17 |
-| `warfare` | `BEH-WAR-0001..0003` | 部队、移动计划、战场命令、设施战斗、终止结算 | 命令、地图占用、实时目标 → 日移动、占领、部队/势力清理输入 | 不穿硬阻挡；效果只提交一次；重置后无活引用 | `San9.Core.Warfare`：移动、命令、占领与终止服务 | 16 |
-| `ai` | `BEH-AI-0001` | 势力视角观察、确定性预算、计划、诊断 | 不可变观察、命名用途、预算 → 有序命令候选、评分、可选诊断 | 不持有可变世界；分析随机隔离；诊断不改行为；共享命令终验 | `San9.Core.AI`：`AiObservation`、`AiPlanningContext`、`AiPlan`、`IAiPlanner` | 7 |
-| `strategy` | `BEH-STRATEGY-0001..0003` | 计略命令、目标、意见、部队状态、结果 | 单执行者、类型目标、实时阈值、随机流 → 目标效果、成长、占用释放 | 意见只读；玩家/AI 共用结算；资源与所有权有界 | `San9.Core.Strategy`：命令、意见与效果服务 | 18 |
-| `duel` | `BEH-DUEL-0001..0003` | 单挑机会、名单、逐刀、结果、战后结算 | 陆战攻击机会、名单、属性、随机流 → 名单、逐刀结果、人员分区、士气 | 单刀单结果；死亡/俘虏/伤势互斥；表现随机隔离 | `San9.Core.Duels`：触发、解析与战后服务 | 24 |
-| `event` | `BEH-EVENT-0001..0002` | 候选、会话、结果、持久键、触发器 | 命名触发、候选表、只读世界、随机流 → 活动事件、原子效果、消费键 | 单活动事件；游标单调；效果与消费键同批提交 | `San9.Core.Events`：选择、会话与提交服务 | 11 |
-| `scenario` | `BEH-SCENARIO-0001..0002` | 终局判定、终局结果、结局快照、责任者、结局结果 | 不可变世界/结局快照 → 唯一终局结果与唯一结局 | 终局互斥；战争不创建 UI 结局；结局解析为纯函数 | `San9.Core.Scenarios`：`TerminalEvaluator`、`EndingResolver` | 11 |
+| 领域 | 已确认规格 | 对象与状态 | 输入 → 输出 | 关键不变量 | 首个实现入口 |
+| --- | --- | --- | --- | --- | --- |
+| `simulation` | `BEH-SIMULATION-0001` | 时钟、周期边界、结算流水线；稳定交互/旬/日/终局短路 | 命令日志、世界与随机状态 → 快照、领域事件、派生日历 | 单一权威日期；单活动阶段；稳定边界保存 | `San9.Core.Simulation`：`SimulationEngine`、`ResolutionPipeline` |
+| `personnel` | `BEH-PERSON-0001..0003` | 人物、归属、忠诚、地点、行动占用 | 人事命令与实时归属 → 原子归属变化、忠诚/宝物转移、占用释放 | 单一归属/地点；失败零写回；宝物唯一；占用必释放 | `San9.Core.Personnel`：`PersonnelCommandService`、`AffiliationTransition` |
+| `person-lifecycle` | `BEH-PERSON-LIFECYCLE-0001..0003` | 成长、伤势、生命、培养记录 | 周期、人物、成长/死亡原因 → 成长、登场/恢复、死亡清理、培养完成 | 成长有界；死亡无活引用；一势力一培养记录 | `San9.Core.Personnel.Lifecycle`：三个专责服务 |
+| `governance` | `BEH-GOVERNANCE-0001..0003` | 势力、军团、辖区、委任、归属事务 | 当前所有权与委任配置 → 自动命令、归属转换、军团清理 | 单一势力根；资源守恒；自动/交互共享终验 | `San9.Core.Governance`：`CorpsService`、`DelegationPlanner`、`TerritorialTransitionService` |
+| `diplomacy` | `BEH-DIPLOMACY-0001..0003` | 关系、联盟、外交命令、谈判、计划 | 关系快照、请求、资格、随机流 → 对称关系、守恒结算、联盟、计划 | 关系对称有界；联盟显式；增量规划读取实时状态 | `San9.Core.Diplomacy`：关系、联盟、命令与规划服务 |
+| `warfare` | `BEH-WAR-0001..0003` | 部队、移动计划、战场命令、设施战斗、终止结算 | 命令、地图占用、实时目标 → 日移动、占领、部队/势力清理输入 | 不穿硬阻挡；效果只提交一次；重置后无活引用 | `San9.Core.Warfare`：移动、命令、占领与终止服务 |
+| `ai` | `BEH-AI-0001` | 势力视角观察、确定性预算、计划、诊断 | 不可变观察、命名用途、预算 → 有序命令候选、评分、可选诊断 | 不持有可变世界；分析随机隔离；诊断不改行为；共享命令终验 | `San9.Core.AI`：`AiObservation`、`AiPlanningContext`、`AiPlan`、`IAiPlanner` |
+| `strategy` | `BEH-STRATEGY-0001..0003` | 计略命令、目标、意见、部队状态、结果 | 单执行者、类型目标、实时阈值、随机流 → 目标效果、成长、占用释放 | 意见只读；玩家/AI 共用结算；资源与所有权有界 | `San9.Core.Strategy`：命令、意见与效果服务 |
+| `duel` | `BEH-DUEL-0001..0003` | 单挑机会、名单、逐刀、结果、战后结算 | 陆战攻击机会、名单、属性、随机流 → 名单、逐刀结果、人员分区、士气 | 单刀单结果；死亡/俘虏/伤势互斥；表现随机隔离 | `San9.Core.Duels`：触发、解析与战后服务 |
+| `event` | `BEH-EVENT-0001..0002` | 候选、会话、结果、持久键、触发器 | 命名触发、候选表、只读世界、随机流 → 活动事件、原子效果、消费键 | 单活动事件；游标单调；效果与消费键同批提交 | `San9.Core.Events`：选择、会话与提交服务 |
+| `scenario` | `BEH-SCENARIO-0001..0002` | 终局判定、终局结果、结局快照、责任者、结局结果 | 不可变世界/结局快照 → 唯一终局结果与唯一结局 | 终局互斥；战争不创建 UI 结局；结局解析为纯函数 | `San9.Core.Scenarios`：`TerminalEvaluator`、`EndingResolver` |
 
 ## 支撑边界
 
-| 边界 | 规格 | 职责 | 实现入口 | 验收条款 |
-| --- | --- | --- | --- | ---: |
-| `content-import` | `BEH-IMPORT-0001..0017` | 识别批准样本、无损解码已知/未知字段、生成稳定内容 ID 与规范化内容包；不进入运行时依赖 | `San9.Importer.San9PkTc101` 与 `San9.Content` | 89 |
-| `presentation` | `BEH-RENDER-0001` | 从 Application 快照和已验证内容资产生成地图/日历视图；不拥有规则真值或玩法随机 | `San9.Client.Godot` | 8 |
+| 边界 | 规格 | 职责 | 实现入口 |
+| --- | --- | --- | --- |
+| `content-import` | `BEH-IMPORT-0001..0017` | 识别批准样本、无损解码已知/未知字段、生成稳定内容 ID 与规范化内容包；不进入运行时依赖 | `San9.Importer.San9PkTc101` 与 `San9.Content` |
+| `presentation` | `BEH-RENDER-0001..0003`、`BEH-UI-0001` | 消费只读快照和内容资产，组织地图、动画、完整视野提交、选择与固定UI；不拥有规则真值或玩法随机 | `San9.Rendering`、`San9.Application` 与 `San9.Client.Godot` |
 
 ## 决策门
 
@@ -84,6 +86,11 @@ flowchart LR
 | 单挑无效随机与错误成长门 | `DEC-PROJECT-0002` | 不消费已选初始人物的无效追加骰；不实现原版无效成长门；未来新增成长必须另立决策 |
 | 神兽事件概率调整 | `DEC-EVENT-0001` | 使用已批准的连续有效武力公式 |
 | 事件内容分离 | `DEC-DATA-0001` | 规则只消费稳定内容键和类型化条件/效果 |
+| 登用失败忠诚 | `DEC-PERSON-0001` | 失败扣减所属势力忠诚，保留已批准的专项调整 |
+| 固定逻辑画布 | `DEC-UI-0001` | 4:3逻辑画布等比缩放 |
+| 现代文字效果 | `DEC-UI-0002` | 保留文字角色，以现代字体和批准的效果近似呈现 |
+| 四季纹理与透明混合 | `DEC-RENDER-0002` | 转换四季纹理、标准Alpha，显示不消费模拟状态 |
+| 连续相机边界 | `DEC-UI-0003` | 沿视觉地图边界连续限制，不吸附格心 |
 | 高色深地图 | `DEC-RENDER-0001` | 保留坐标与混合关系，输出改为 RGB888 |
 
-当前没有未解决的核心规格冲突。未确认的字段标签、UI 名称、挑战剧本布局和可选细节保持在各规格的排除范围，不能进入上述类型或验证器。任何新的核心规则、平衡、数据语义、存档或玩家预期差异，都必须先有新的 `DEC-*` 和可执行验收场景。
+当前聚合契约没有登记中的核心规格冲突；这不表示各研究公式的全部输入或范围外规则已经闭合，具体见[研究与规格疑点清单](../../research/research-open-questions.md)。未确认的字段标签、UI 名称、挑战剧本布局和可选细节保持在各规格的排除范围，不能进入上述类型或验证器。任何新的核心规则、平衡、数据语义、存档或玩家预期差异，都必须先有新的 `DEC-*` 和可执行验收场景。

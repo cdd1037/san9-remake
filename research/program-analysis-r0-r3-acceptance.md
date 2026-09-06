@@ -3,7 +3,7 @@
 - 验收结论：通过
 - 适用样本：`SRC-SAN9PK-TC-101`
 - 验收日期：2026-08-24
-- 验收范围：[`program-analysis-roadmap.md`](program-analysis-roadmap.md) 的 `COV-01` 至 `DUEL-04`
+- 验收范围：[`program-analysis-roadmap.md`](archive/program-analysis-roadmap.md) 的 `COV-01` 至 `DUEL-04`
 
 ## 交付核对
 
@@ -34,4 +34,4 @@
 - `inferred`、`conflict` 与 `experiment-required` 项仍只表示已登记的证据边界；本次通过不把它们提升为已确认行为。
 - 本次验收只确认 R0–R3 的研究目标完成，不表示人物、计略、外交、军团、事件或结局系统已经闭合。
 
-下一轮从人物与势力治理的实现依赖继续，范围和完成门槛仍以当前 [`program-analysis-roadmap.md`](program-analysis-roadmap.md) 为准。
+下一轮从人物与势力治理的实现依赖继续，范围和完成门槛仍以当前 [`program-analysis-roadmap.md`](archive/program-analysis-roadmap.md) 为准。

@@ -1,0 +1,30 @@
+{
+  "sample": "SRC-SAN9PK-TC-101",
+  "save_success": true,
+  "entries": [
+    {
+      "address": "0x486ba0",
+      "comment": "[RE-SAN9PK-0112][FACT][2026-09-06] Command17 revalidates current item holder using472DB0: items>0, same-root employed statuses1..3 (ruler excluded), or status4 captive held in same-root location. Does not repeat menu mobility predicate472C60 or compare against original selected holder.",
+      "write_success": true,
+      "readback_match": true,
+      "decompile_success": true,
+      "bytes_unchanged": true
+    },
+    {
+      "address": "0x486c00",
+      "comment": "[RE-SAN9PK-0112][FACT][2026-09-06] Command17 transfers item to acting root ruler and refreshes both holder abilities before loyalty penalty floor(3*item loyalty value/2), floor0. Employed holder: current affiliation loyalty via5081A0; captive: acting-force loyalty via44DDB0. Item79 recomputes current prestige, not unconditional +100. Separate from exile.",
+      "write_success": true,
+      "readback_match": true,
+      "decompile_success": true,
+      "bytes_unchanged": true
+    },
+    {
+      "address": "0x4bf180",
+      "comment": "[RE-SAN9PK-0112][FACT][2026-09-06] Menu candidate chain472DB0 then472C60. Additional filter excludes person unit flagbit1 and command event38..52; gathers all items from remaining holders. Mobility filter is absent from command17 final validation.",
+      "write_success": true,
+      "readback_match": true,
+      "decompile_success": true,
+      "bytes_unchanged": true
+    }
+  ]
+}

@@ -240,13 +240,13 @@
     {
       "id": "presentation",
       "classification": "boundary",
-      "behavior_specs": ["BEH-RENDER-0001"],
-      "objects": ["read-only world snapshot", "static map snapshot", "calendar view model"],
+      "behavior_specs": ["BEH-RENDER-0001", "BEH-RENDER-0002", "BEH-RENDER-0003", "BEH-UI-0001"],
+      "objects": ["read-only world snapshot", "static map snapshot", "calendar view model", "requested and presented viewport", "presentation clock", "strategy selection"],
       "states": ["unbound", "rendering", "presented"],
       "inputs": ["application snapshot", "validated content assets"],
       "outputs": ["Godot view state", "player input request"],
       "invariants": ["client never owns rule truth", "rendering consumes no gameplay random", "input enters through Application"],
-      "acceptance_gates": ["static map pixel baseline", "snapshot-only binding", "no Core dependency on Godot"],
+      "acceptance_gates": ["static map pixel baseline", "snapshot-only binding", "no Core dependency on Godot", "complete viewport commit", "animation clock isolation", "shared selection and UI input isolation", "continuous camera boundary"],
       "depends_on": [],
       "implementation": {
         "project": "San9.Client.Godot",
@@ -258,6 +258,41 @@
     }
   ],
   "decision_gates": [
+    {
+      "id": "recruit-failure-affiliation-loyalty",
+      "kind": "intentional-difference",
+      "behavior_specs": ["BEH-PERSON-0001"],
+      "decision": "DEC-PERSON-0001",
+      "disposition": "failed recruitment reduces loyalty toward the current affiliated force as approved"
+    },
+    {
+      "id": "fixed-logical-canvas",
+      "kind": "system-redesign",
+      "behavior_specs": ["BEH-RENDER-0002", "BEH-UI-0001"],
+      "decision": "DEC-UI-0001",
+      "disposition": "use the approved fixed four-by-three logical canvas with uniform scaling"
+    },
+    {
+      "id": "modern-text-effects",
+      "kind": "system-redesign",
+      "behavior_specs": ["BEH-UI-0001"],
+      "decision": "DEC-UI-0002",
+      "disposition": "preserve text roles and layout using modern fonts and approved approximate effects"
+    },
+    {
+      "id": "seasonal-textures-standard-alpha",
+      "kind": "system-redesign",
+      "behavior_specs": ["BEH-RENDER-0002", "BEH-RENDER-0003"],
+      "decision": "DEC-RENDER-0002",
+      "disposition": "use converted seasonal textures and standard alpha without consuming simulation state"
+    },
+    {
+      "id": "continuous-map-camera-boundary",
+      "kind": "intentional-difference",
+      "behavior_specs": ["BEH-RENDER-0002"],
+      "decision": "DEC-UI-0003",
+      "disposition": "constrain camera centers continuously to the visual map boundary without grid snapping"
+    },
     {
       "id": "deterministic-ai-planning",
       "kind": "system-redesign",

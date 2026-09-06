@@ -12,30 +12,51 @@ public sealed class GameTextStyleTests
         Assert.Equal(new Color("f0f0f0"), enabled.Foreground);
         Assert.Equal(new Color("f06850"), disabled.Foreground);
         Assert.Equal(enabled with { Foreground = disabled.Foreground }, disabled);
-        Assert.True(disabled.OutlineSize > 0 && disabled.Shadow.A > 0);
+        Assert.Equal(GameTextEffect.Shadow, disabled.Effect);
     }
     [Theory]
-    [InlineData(GameTextRole.Header, 0, false)]
-    [InlineData(GameTextRole.Resource, 0, false)]
-    [InlineData(GameTextRole.Roster, 0, false)]
-    [InlineData(GameTextRole.Building, 1, false)]
-    [InlineData(GameTextRole.Message, 1, true)]
-    [InlineData(GameTextRole.Region, 1, false)]
-    [InlineData(GameTextRole.Spring, 1, false)]
-    [InlineData(GameTextRole.Compass, 1, false)]
-    public void RolesKeepTheirDistinctEffects(GameTextRole role, int outline, bool shadow)
+    [InlineData(GameTextRole.Header, GameTextEffect.None, 0)]
+    [InlineData(GameTextRole.Resource, GameTextEffect.None, 0)]
+    [InlineData(GameTextRole.Roster, GameTextEffect.None, 0)]
+    [InlineData(GameTextRole.Building, GameTextEffect.NeighborOutline, 8)]
+    [InlineData(GameTextRole.Message, GameTextEffect.Shadow, 1)]
+    [InlineData(GameTextRole.Region, GameTextEffect.NeighborOutline, 8)]
+    [InlineData(GameTextRole.Spring, GameTextEffect.NeighborOutline, 8)]
+    [InlineData(GameTextRole.Compass, GameTextEffect.NeighborOutline, 8)]
+    public void RolesKeepTheirDistinctEffects(GameTextRole role, GameTextEffect effect, int passes)
     {
         var style = GameTextStyles.For(role);
-        Assert.Equal(outline, style.OutlineSize);
-        Assert.Equal(shadow, style.Shadow.A > 0);
-        Assert.Equal(shadow ? Vector2.One : Vector2.Zero, style.ShadowOffset);
+        Assert.Equal(effect, style.Effect);
+        Assert.Equal(passes, GameTextEffects.PassCount(style));
+    }
+
+    [Fact]
+    public void OutlineUsesEightUniqueNeighborsAtQuarterCoverage()
+    {
+        var style = GameTextStyles.InformationMenu(true, false, true);
+        var offsets = Enumerable.Range(0, GameTextEffects.PassCount(style)).Select(i => GameTextEffects.Offset(style, i)).ToArray();
+        Assert.Equal(8, offsets.Distinct().Count());
+        Assert.DoesNotContain(Vector2.Zero, offsets);
+        Assert.All(offsets, p => Assert.True(Math.Abs(p.X) <= 1 && Math.Abs(p.Y) <= 1));
+        Assert.Equal(new Color(new Color("f0f0f0"), .25f), GameTextEffects.Color(style));
+        Assert.Equal(Colors.Black, style.Foreground);
+    }
+
+    [Fact]
+    public void MessageHasOneFullCoverageOffsetWithoutOutline()
+    {
+        var style = GameTextStyles.Message(true);
+        Assert.Equal(1, GameTextEffects.PassCount(style));
+        Assert.Equal(Vector2.One, GameTextEffects.Offset(style, 0));
+        Assert.Equal(Colors.Black, GameTextEffects.Color(style));
+        Assert.Throws<ArgumentOutOfRangeException>(() => GameTextEffects.Offset(style, 1));
     }
 
     [Fact]
     public void RegionAndSpringUseTheirOwnEdgeColors()
     {
-        Assert.Equal(new Color(new Color("005028"), .65f), GameTextStyles.For(GameTextRole.Region).Outline);
-        Assert.Equal(new Color(new Color("770000"), .65f), GameTextStyles.For(GameTextRole.Spring).Outline);
+        Assert.Equal(new Color("005028"), GameTextStyles.For(GameTextRole.Region).EffectColor);
+        Assert.Equal(new Color("770000"), GameTextStyles.For(GameTextRole.Spring).EffectColor);
     }
 
     [Theory]
@@ -52,7 +73,7 @@ public sealed class GameTextStyleTests
     {
         Assert.Equal(new Color("d8d8d8"), GameTextStyles.Button(role, false, false, false).Foreground);
         Assert.Equal(new Color(selectedWhite ? "f0f0f0" : "d8d8d8"), GameTextStyles.Button(role, false, true, false).Foreground);
-        Assert.Equal(new Color(new Color(edge), .65f), GameTextStyles.Button(role, true, true, false).Outline);
+        Assert.Equal(new Color(edge), GameTextStyles.Button(role, true, true, false).EffectColor);
         foreach (bool selected in new[] { false, true })
         {
             Assert.Equal(new Color("a4a4a4"), GameTextStyles.Button(role, false, selected, true).Foreground);

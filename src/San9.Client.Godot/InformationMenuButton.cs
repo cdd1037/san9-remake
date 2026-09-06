@@ -10,8 +10,6 @@ public partial class InformationMenuButton : BaseButton
     public IReadOnlyDictionary<string, ImageTexture> Textures { get; init; } = null!;
     private readonly GameTextPresenter _text = new();
     private Label _label = null!;
-    private readonly TextLine _glyphs = new();
-    private bool _neighborEffect;
     private (bool Hovered, bool Pressed, bool Disabled)? _state;
     public int VisualFrame { get; private set; }
 
@@ -21,7 +19,6 @@ public partial class InformationMenuButton : BaseButton
         _label = new Label { Text = Title, Size = Size, HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center, MouseFilter = MouseFilterEnum.Ignore };
         AddChild(_label);
-        _glyphs.AddString(Title, _label.GetThemeFont("font"), 16);
         RefreshVisual();
     }
 
@@ -33,8 +30,6 @@ public partial class InformationMenuButton : BaseButton
         if (_state == state) return;
         _state = state;
         _text.Apply(_label, GameTextStyles.InformationMenu(state.Item1, pressed, Disabled));
-        _neighborEffect = Disabled && state.Item1;
-        _label.Visible = !_neighborEffect;
         _label.Position = pressed ? new(2, 2) : Vector2.Zero;
         VisualFrame = ButtonVisualState.Frame(false, state.Item1, pressed, Disabled);
         QueueRedraw();
@@ -54,17 +49,7 @@ public partial class InformationMenuButton : BaseButton
             DrawTextureRectRegion(middle, new(new(x, 0), size), new(Vector2.Zero, size));
         }
         DrawTexture(right, new(end, 0));
-        if (_neighborEffect)
-        {
-            var origin = ((Size - _glyphs.GetSize()) / 2).Floor();
-            var edge = new Color(new Color("f0f0f0"), .25f);
-            for (int y = -1; y <= 1; y++)
-                for (int x = -1; x <= 1; x++)
-                    if (x != 0 || y != 0)
-                        _glyphs.Draw(GetCanvasItem(), origin + new Vector2(x, y), edge);
-            _glyphs.Draw(GetCanvasItem(), origin, Colors.Black);
-        }
     }
 
-    public override void _ExitTree() { _glyphs.Dispose(); _text.Dispose(); }
+    public override void _ExitTree() { _text.Dispose(); }
 }

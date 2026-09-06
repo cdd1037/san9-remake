@@ -148,7 +148,8 @@ public partial class StrategyOverviewPanel : Control
     private void DrawText(string text, Vector2 p, float width, int size, Color color, HorizontalAlignment alignment = HorizontalAlignment.Left)
     {
         var font = GetThemeFont("font");
-        DrawString(font, p + new Vector2(0,font.GetAscent(size)), text, alignment, width, size, color);
+        GameTextPresenter.Draw(this, font, text, p + new Vector2(0, font.GetAscent(size)),
+            GameTextStyles.For(GameTextRole.Resource) with { FontSize = size, Foreground = color }, alignment, width);
     }
     private void DrawViewport()
     {

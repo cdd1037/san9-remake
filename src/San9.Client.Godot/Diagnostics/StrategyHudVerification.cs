@@ -42,8 +42,8 @@ public partial class StrategyHud
             for (int repeat = 0; repeat < 3; repeat++) territoryButton.RefreshVisual();
             Check(ReferenceEquals(settings, territoryButton.TextSettings), "Unchanged state recreated text settings.");
             var expectedStyle = GameTextStyles.Button(GameButtonTextRole.Territory, hovered, selected, disabled);
-            Check(settings.FontColor == expectedStyle.Foreground && settings.OutlineColor == expectedStyle.Outline &&
-                settings.OutlineSize == 1 && settings.ShadowColor.A == 0, "Button text effect mismatch.");
+            Check(settings.FontColor == expectedStyle.Foreground && settings.GetStackedShadowColor(0) == GameTextEffects.Color(expectedStyle) &&
+                settings.OutlineSize == 0 && settings.StackedShadowCount == 8 && settings.ShadowColor.A == 0, "Button text effect mismatch.");
             Check(territoryButton.TextPosition == (selected ? new Vector2(2, 2) : Vector2.Zero),
                 "Button text offset drifted or disagreed with selected state.");
             Check(territoryButton.VisualFrame == San9.Rendering.ButtonVisualState.Frame(true, hovered, selected, disabled),
@@ -55,8 +55,10 @@ public partial class StrategyHud
         Check(GetChildren().OfType<StrategyButton>().Where(b => b.Disabled).All(b => b.VisualFrame == 3),
             "Disabled buttons must use the original fourth frame.");
         Check(_rosterList.Rows.Count == 14, "Facility list must have a fixed ruler slot and thirteen ordinary slots.");
-        Check(_message.LabelSettings.OutlineSize == 1 && _message.LabelSettings.ShadowColor.A > 0 &&
-            _footer.LabelSettings.OutlineColor == GameTextStyles.For(GameTextRole.Region).Outline,
+        Check(_message.LabelSettings.OutlineSize == 0 && _message.LabelSettings.StackedShadowCount == 1 &&
+            _message.LabelSettings.GetStackedShadowOffset(0) == Vector2.One &&
+            _footer.LabelSettings.StackedShadowCount == 8 &&
+            _footer.LabelSettings.GetStackedShadowColor(0) == GameTextEffects.Color(GameTextStyles.For(GameTextRole.Region)),
             "Footer text effects mismatch.");
         Check(_message.LabelSettings.Font == _message.GetThemeFont("font") &&
             territoryButton.TextSettings.Font == GetThemeFont("font"), "Shared text settings changed the project font.");

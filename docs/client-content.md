@@ -81,16 +81,16 @@ dotnet run --project src/San9.Tools -- import-client --source-exe "<已登记San
 - GPU截图：`local/generated/verification/client-history/ui-refactored.png`及`ui-wide.png`，分别为1024×768内容和1280×720窗口下960×720内容；逻辑画布均1024×768。与拆分前`local/generated/verification/map-history/ui-final.png`和`ui-wide.png`逐像素零差异。画面保留原版框架布局、洛阳构图、文字位置与透明边缘。
 - 截图仅为GPU游戏内容，不包含OS窗口装饰与宽屏两侧黑边；未执行操作系统鼠标自动化。黑边输入拒绝由画布自动测试和引擎输入检查覆盖，不能把它称为OS验收。
 
-复现：
+完整验收复现（局部修改按[验证范围说明](../research/scripts/README.md#界面验证按影响范围运行)选择，纯客户端改动无需原图审计）：
 
 ```powershell
 dotnet test San9Remake.slnx
 python -B -m unittest discover -s research/scripts -p test_verify_initial_ui.py
-python -B research/scripts/verify_initial_ui.py "<已登记EXE>" private/s9数据文件 local/generated/content/scenario-190-live
+python -B research/scripts/verify_initial_ui.py "<已登记EXE>" private/s9数据文件 local/generated/content/scenario-190-live --all
 & "<Godot Mono可执行文件>" --path src/San9.Client.Godot --log-file "<绝对日志路径>" -- --ui-smoke --map-time-ms 0 --map-screenshot "<绝对PNG路径>" --map-quit
 ```
 
-宽屏在Godot参数（`--`之前）增加`--resolution 1280x720`。`--baseline`仅用于已有历史基线的研究对照，旧包清理后日常验收不再传入此参数。首次主界面接入的165项测试及旧截图保留于RE-0157历史验收。
+宽屏在Godot参数（`--`之前）增加`--resolution 1280x720`。`--baseline`须与`--all`组合，仅用于已有历史基线的研究对照，旧包清理后日常验收不再传入此参数。首次主界面接入的165项测试及旧截图保留于RE-0157历史验收。
 
 ## 单JSON整理（2026-09-06）
 

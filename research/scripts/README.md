@@ -60,3 +60,34 @@ JSON 文件本身就是数组，每项只有 `index` 和 `content` 两个字段�
 EXE 字符串在 IDA 内先设置 `SAN9_IDA_BIG5_OUTPUT` 执行 dry-run，审阅 `status=ready` 后再设置 `SAN9_IDA_BIG5_APPLY=1` 重跑并保存主 IDB。EXE 使用 Windows CP950 映射；消息资源继续使用严格 Big5 加显式 Big5-HKSCS 回退，两者共享片段模型但不混淆来源编码，也不合并输出文件。
 
 `--research-catalog-output-dir` 为每个输入分别生成 `M_MsgPK.research.json` 和 `M_RtdnPK.research.json`。EXE 目录始终由 IDA 工具单独生成。
+
+
+## 界面验证按影响范围运行
+
+`verify_initial_ui.py`是独立原图/初始数据审计器，不是每次客户端修改都要执行的回归入口。原版结论仍需对应RE证据；此脚本检查已确认来源与转换结果的一致性。范围必须显式选择，不默认运行全量，也不使用历史通过缓存跳过检查。
+
+| 改动或目的 | 验证范围 |
+| --- | --- |
+| 仅修改客户端布局、绘制、交互 | 相关自动测试、Godot输入自检与实际GPU截图；无需重新逐像素核对未改的导出资源 |
+| 滚动条资源映射/分帧/转换 | `--scope scrollbar`，含装饰、轨道、滑块、全部箭头状态帧 |
+| 主界面框架、季节、导航按钮 | `--scope hud` |
+| 名单行背景、城市前缀、可用性文字颜色 | `--scope roster` |
+| 消息框、士气/耐久条、状态图标 | 分别为 `--scope messages`、`--scope bars`、`--scope icons` |
+| 小地图内容转换 | `--scope minimap` |
+| 初始人物、姓名、能力或据点数据转换 | `--scope scenario` |
+| 单独检查整个导出包的图片文件与清单指纹一致 | `--scope integrity`；不声称已核对原图像素 |
+| 共享解码、调色板/Alpha转换、包契约、审计器变更，或首次建立基线 | `--all` |
+
+资源范围只打开涉及的源图集与导出PNG，检查所选帧的可见RGB、Alpha及输出清单指纹；不扫描整个地图包或解析人物数据。所有模式都会核对EXE样本身份和内容schema。源映射按职责集中在独立审计表中，与产品转换器保持独立；全量皮肤审计按角色集合检查缺项和未覆盖项，不维护固定资源总数。
+
+```powershell
+# 局部资源改动
+python -B research/scripts/verify_initial_ui.py "<已登记EXE>" private/s9数据文件 local/generated/content/scenario-190-live --scope scrollbar
+# 跨范围改动；相同范围重复指定只执行一次
+python -B research/scripts/verify_initial_ui.py "<已登记EXE>" private/s9数据文件 local/generated/content/scenario-190-live --scope roster --scope scenario
+# 显式全量审计
+python -B research/scripts/verify_initial_ui.py "<已登记EXE>" private/s9数据文件 local/generated/content/scenario-190-live --all
+python -B -m unittest discover -s research/scripts -p test_verify_initial_ui.py
+```
+
+`--baseline`仅与`--all`组合，用于已有历史地图基线比较。报告列出每个实际执行的范围和图片数量；`mode=scoped`不代表未选择的范围通过。增加皮肤资源时应同时增加所属范围的独立来源映射，全量检查会拒绝没有来源覆盖的新角色。

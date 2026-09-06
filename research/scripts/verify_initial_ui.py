@@ -7,20 +7,93 @@ from pathlib import Path
 from PIL import Image
 
 
-UI_RECORDS = {
-    "roster-scroll-decoration": (85, 1),
-    "button-scroll-up": (51, 4), "button-scroll-down": (52, 4),
-    "scroll-track-top": (53, 1), "scroll-track-middle": (54, 1), "scroll-track-bottom": (55, 1),
-    "scroll-thumb-top": (56, 1), "scroll-thumb-middle": (57, 1), "scroll-thumb-bottom": (58, 1), "field-left": (91, 1), "field-middle": (92, 1), "field-right": (93, 1),
-    "ruler-frame": (94, 1), "region-frame": (97, 1),
-    "top-frame": (88, 1), "radar-frame": (82, 1), "sidebar-frame": (84, 1),
-    "season-spring": (64, 1), "season-summer": (65, 1),
-    "season-autumn": (66, 1), "season-winter": (67, 1),
-    "button-territory": (68, 6), "button-facilities": (69, 4),
-    "button-officers": (70, 4), "button-units": (71, 4),
-    "button-information": (74, 4), "button-functions": (73, 4),
-    "button-help": (75, 4), "button-zoom": (86, 4), "button-advance": (87, 4),
+# Independent source mappings; groups describe presentation responsibilities, not file layout.
+# Each tuple is (role, resource, columns, palette_alpha).
+ASSET_GROUPS = {
+    "scrollbar": ("G_Main.s9", 5975, 60, [
+        ("roster-scroll-decoration", 6060, 1, False),
+        ("button-scroll-up", 6026, 4, False), ("button-scroll-down", 6027, 4, False),
+        ("scroll-track-top", 6028, 1, False), ("scroll-track-middle", 6029, 1, False),
+        ("scroll-track-bottom", 6030, 1, False), ("scroll-thumb-top", 6031, 1, False),
+        ("scroll-thumb-middle", 6032, 1, False), ("scroll-thumb-bottom", 6033, 1, False)]),
+    "hud": ("G_Main.s9", 5975, 60, [
+        ("field-left", 6066, 1, False), ("field-middle", 6067, 1, False), ("field-right", 6068, 1, False),
+        ("ruler-frame", 6069, 1, False), ("region-frame", 6072, 1, True),
+        ("top-frame", 6063, 1, False), ("radar-frame", 6057, 1, False), ("sidebar-frame", 6059, 1, False),
+        ("season-spring", 6039, 1, False), ("season-summer", 6040, 1, False),
+        ("season-autumn", 6041, 1, False), ("season-winter", 6042, 1, False),
+        ("button-territory", 6043, 6, False), ("button-facilities", 6044, 4, False),
+        ("button-officers", 6045, 4, False), ("button-units", 6046, 4, False),
+        ("button-information", 6049, 4, False), ("button-functions", 6048, 4, False),
+        ("button-help", 6050, 4, False), ("button-zoom", 6061, 4, False), ("button-advance", 6062, 4, False)]),
+    "roster": ("G_Common.s9", 0, 200, [
+        ("city-prefix", 43, 1, False), ("roster-row-left", 290, 4, True),
+        ("roster-row-middle", 291, 4, True), ("roster-row-right", 292, 4, True)]),
+    "messages": ("G_Common.s9", 0, 200, [
+        ("message-left", 165, 1, True), ("message-middle", 166, 1, True), ("message-right", 167, 1, True)]),
+    "bars": ("G_Common.s9", 0, 200, [
+        ("bar-morale-frame", 390, 1, False), ("bar-durability-frame", 391, 1, False),
+        ("bar-morale-normal", 392, 1, False), ("bar-durability-normal", 393, 1, False),
+        ("bar-morale-critical", 394, 1, False), ("bar-morale-warning", 395, 1, False),
+        ("bar-durability-critical", 396, 1, False), ("bar-durability-warning", 397, 1, False)]),
+    "icons": ("G_Marker.s9", 1220, 311, [
+        ("icon-emperor", 1243, 1, False), ("icon-training", 1244, 1, False), ("icon-merchant", 1245, 1, False)]),
 }
+SCOPES = (*ASSET_GROUPS, "minimap", "scenario", "integrity")
+ARCHIVE_SHAPES = {"G_Main.s9": (21, 98), "G_Common.s9": (67, 491), "G_Marker.s9": (5, 34)}
+
+
+def expected_roles(groups):
+    roles = []
+    for group in groups:
+        for name, _, columns, _ in ASSET_GROUPS[group][3]:
+            roles.extend(name if frame == 0 else f"{name}-{frame}" for frame in range(columns))
+    assert len(roles) == len(set(roles)), "Duplicate roles in independent audit catalog"
+    return set(roles)
+
+
+def verify_role_coverage(skin, groups):
+    expected = expected_roles(groups)
+    missing = expected - skin["roles"].keys()
+    assert not missing, f"Missing selected roles: {sorted(missing)}"
+    if set(groups) == set(ASSET_GROUPS):
+        unknown = skin["roles"].keys() - expected
+        assert not unknown, f"Roles without independent source coverage: {sorted(unknown)}"
+
+
+def verify_asset_hash(root, asset):
+    assert hashlib.sha256((root / asset["path"]).read_bytes()).hexdigest().upper() == asset["sha256"], asset["path"]
+
+
+def verify_skin_assets(root, data, skin, bindings, groups):
+    verify_role_coverage(skin, groups)
+    assets = {a["id"]: a for a in skin["assets"]}
+    archives, checked = {}, {}
+    for group in groups:
+        filename, base, palette_base, records = ASSET_GROUPS[group]
+        if filename not in archives:
+            archives[filename] = parse_combined((data / filename).read_bytes())
+            assert tuple(map(len, archives[filename])) == ARCHIVE_SHAPES[filename], filename
+        palettes, images = archives[filename]
+        checked[group] = 0
+        for name, resource, columns, alpha in records:
+            if name.startswith("roster-row-"):
+                assert bindings[resource] == 234
+            for frame in range(columns):
+                role = name if frame == 0 else f"{name}-{frame}"
+                asset = assets[skin["roles"][role]]
+                verify_asset_hash(root, asset)
+                with Image.open(root / asset["path"]) as actual:
+                    try:
+                        verify_frame(actual, images[resource-base], palettes[bindings[resource]-palette_base], columns, frame, alpha)
+                        if name.startswith("roster-row-") and frame in (0, 3):
+                            assert not any(actual.getchannel("A").tobytes())
+                    except AssertionError as error:
+                        raise AssertionError(f"Source pixels mismatch: {role}") from error
+                checked[group] += 1
+        if group == "roster":
+            assert skin["colors"]["roster-available"] == "F0F0F0" and skin["colors"]["roster-unavailable"] == "988058"
+    return checked
 
 
 def parse_combined(data):
@@ -126,69 +199,8 @@ def verify_officers(scenario, entries, texts, messages):
         assert texts[f"officer.{index}"]["text"] == display
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("exe", type=Path)
-    parser.add_argument("data", type=Path)
-    parser.add_argument("package", type=Path)
-    parser.add_argument("--baseline", type=Path)
-    args = parser.parse_args()
-    exe = args.exe.read_bytes()
-    assert hashlib.sha256(exe).hexdigest() == "d20794aeff67301ec2bf8c3becb1e9944c68c6c0588fbfd4bf04e8597f0e5028"
-    content = json.loads((args.package / "content.json").read_text(encoding="utf-8"))
-    assert content["schemaVersion"] == 7
-    map_root = skin_root = args.package
-    package, p, skin = content["map"], content["scenario"], content["skin"]
-    text = content["text"]["entries"]
-    assert package["schemaVersion"] == 8 and "presentation" not in package
-    assert p["schemaVersion"] == 5 and skin["schemaVersion"] == 6
-    assets = {a["id"]: a for a in skin["assets"]}
-    map_assets = {a["id"]: a for a in package["assets"]}
-    assert not set(assets).intersection(map_assets)
-    for root, entries in [(map_root, package["assets"] + [a for s in package["seasons"] for a in s["textures"]]), (skin_root, skin["assets"])]:
-        for a in entries:
-            assert hashlib.sha256((root / a["path"]).read_bytes()).hexdigest().upper() == a["sha256"]
-    bindings = {}
-    for start, count in [(0x24ea90, 1425), (0x2601d0, 1145)]:
-        for i in range(count):
-            resource, palette = struct.unpack_from("<2I", exe, start + 8 * i)
-            bindings[resource & 65535] = palette
-    palettes, images = parse_combined((args.data / "G_Main.s9").read_bytes())
-    assert len(palettes) == 21 and len(images) == 98
-    checked = 0
-    for name, (index, columns) in UI_RECORDS.items():
-        for frame in range(columns):
-            key = name if frame == 0 else f"{name}-{frame}"
-            asset = assets[skin["roles"][key]]
-            with Image.open(skin_root / asset["path"]) as actual:
-                verify_frame(actual, images[index], palettes[bindings[5975 + index] - 60], columns, frame, name == "region-frame")
-            checked += 1
-    extras = {"city-prefix":43,"message-left":165,"message-middle":166,"message-right":167,
-        "bar-morale-frame":390,"bar-durability-frame":391,"bar-morale-normal":392,"bar-durability-normal":393,
-        "bar-morale-critical":394,"bar-morale-warning":395,"bar-durability-critical":396,"bar-durability-warning":397,
-        "icon-emperor":1243,"icon-training":1244,"icon-merchant":1245}
-    common = parse_combined((args.data / "G_Common.s9").read_bytes())
-    marker = parse_combined((args.data / "G_Marker.s9").read_bytes())
-    for role, resource in extras.items():
-        archive, base, palette_base = (common, 0, 200) if resource < 1220 else (marker, 1220, 311)
-        with Image.open(skin_root / assets[skin["roles"][role]]["path"]) as actual:
-            verify_frame(actual, archive[1][resource-base], archive[0][bindings[resource]-palette_base], 1, 0, role.startswith("message-"))
-        checked += 1
-    for part, resource in [("left",290),("middle",291),("right",292)]:
-        assert bindings[resource] == 234
-        for frame in range(4):
-            role = "roster-row-" + part + (f"-{frame}" if frame else "")
-            with Image.open(skin_root / assets[skin["roles"][role]]["path"]) as actual:
-                verify_frame(actual, common[1][resource], common[0][34], 4, frame, True)
-                if frame in (0,3):
-                    assert not any(actual.getchannel("A").tobytes())
-            checked += 1
-    assert checked == len(skin["roles"]) == 92
-    assert skin["colors"]["roster-available"] == "F0F0F0" and skin["colors"]["roster-unavailable"] == "988058"
-    with Image.open(map_root / map_assets["minimap-terrain"]["path"]) as mini:
-        verify_minimap(mini, package["squares"], (args.data/"P_MapEtc.s9").read_bytes()[44:1068])
-    assert len(package["boundaries"]) > 0
-    assert (map_assets["minimap-terrain"]["width"],map_assets["minimap-terrain"]["height"]) == (320,160)
+def verify_scenario(content, data):
+    package, p, text = content["map"], content["scenario"], content["text"]["entries"]
     assert sum(s["id"] < 50 for s in p["settlements"]) == 50
     assert all("cityMarkerColor" not in s and "hasAvailableOfficer" not in s for s in p["settlements"])
     assert len([a for a in package["assets"] if a["id"].startswith("building-")]) == 624
@@ -196,7 +208,7 @@ def main():
     player = next(f for f in p["forces"] if f["id"] == p["playerForceId"])
     officers = [o["state"] for o in p["officers"]]
     assert len(officers) == 195
-    verify_officers((args.data / "D_Sce002.S9").read_bytes(), p["officers"], text, (args.data / "M_MsgPK.s9").read_bytes())
+    verify_officers((data / "D_Sce002.S9").read_bytes(), p["officers"], text, (data / "M_MsgPK.s9").read_bytes())
     assert all(o["nameKey"] in text for o in p["officers"])
     ruler = next(o for o in officers if o["id"] == player["leaderId"])
     assert ruler["ownerId"] == 5 and ruler["settlementId"] == 15
@@ -215,21 +227,81 @@ def main():
     assert p["regionCityIds"]["99"] == 15
     assert [s["id"] for s in p["settlements"] if s["ownerId"] == 5] == [15, 16, 17, 18, 95, 96, 97, 98, 99, 100, 104, 106, 107]
     assert not {"M_MsgPK.s9", "G_Main.s9"}.intersection(a["name"] for a in package["sources"])
+
+
+def verify_baseline(package, baseline):
+    map_assets = {a["id"]: a for a in package["assets"]}
+    old = json.loads((baseline / "map.json").read_text(encoding="utf-8"))
+    assert old["schemaVersion"] == 8, "Baseline must use the current map contract"
+    for key in ["buildingTypes", "squares", "terrain", "bridges", "buildings", "compositions", "clouds", "leftEdge", "rightEdge", "animations", "seasons"]:
+        if key == "seasons":
+            current = json.loads(json.dumps(package[key]))
+            for season in current:
+                for asset in season["textures"]:
+                    asset["path"] = asset["path"].removeprefix("images/map/")
+            assert old[key] == current, key
+        else:
+            assert old[key] == package[key], key
+    for asset in old["assets"]:
+        assert asset == {**map_assets[asset["id"]], "path": map_assets[asset["id"]]["path"].removeprefix("images/map/")}, asset["id"]
+
+
+def parse_args(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("exe", type=Path)
+    parser.add_argument("data", type=Path)
+    parser.add_argument("package", type=Path)
+    selection = parser.add_mutually_exclusive_group(required=True)
+    selection.add_argument("--scope", action="append", choices=SCOPES,
+                           help="Audit one responsibility; repeat to combine scopes")
+    selection.add_argument("--all", action="store_true", help="Full source, pixel, data and integrity audit")
+    parser.add_argument("--baseline", type=Path, help="Historical map comparison; requires --all")
+    args = parser.parse_args(argv)
+    if args.baseline and not args.all:
+        parser.error("--baseline requires --all")
+    return args
+
+
+def main(argv=None):
+    args = parse_args(argv)
+    scopes = SCOPES if args.all else tuple(dict.fromkeys(args.scope))
+    exe = args.exe.read_bytes()
+    assert hashlib.sha256(exe).hexdigest() == "d20794aeff67301ec2bf8c3becb1e9944c68c6c0588fbfd4bf04e8597f0e5028"
+    content = json.loads((args.package / "content.json").read_text(encoding="utf-8"))
+    package, p, skin = content["map"], content["scenario"], content["skin"]
+    assert content["schemaVersion"] == 7
+    assert package["schemaVersion"] == 8 and "presentation" not in package
+    assert p["schemaVersion"] == 5 and skin["schemaVersion"] == 6
+    assert not {a["id"] for a in skin["assets"]}.intersection(a["id"] for a in package["assets"])
+    groups = [scope for scope in scopes if scope in ASSET_GROUPS]
+    checked = {}
+    if groups:
+        bindings = {}
+        for start, count in [(0x24ea90, 1425), (0x2601d0, 1145)]:
+            for i in range(count):
+                resource, palette = struct.unpack_from("<2I", exe, start + 8 * i)
+                bindings[resource & 65535] = palette
+        checked = verify_skin_assets(args.package, args.data, skin, bindings, groups)
+    if "minimap" in scopes:
+        asset = next(a for a in package["assets"] if a["id"] == "minimap-terrain")
+        verify_asset_hash(args.package, asset)
+        with Image.open(args.package / asset["path"]) as mini:
+            verify_minimap(mini, package["squares"], (args.data / "P_MapEtc.s9").read_bytes()[44:1068])
+        assert (asset["width"], asset["height"]) == (320, 160)
+        assert len(package["boundaries"]) > 0
+    if "scenario" in scopes:
+        verify_scenario(content, args.data)
+    if "integrity" in scopes:
+        for asset in package["assets"] + [a for season in package["seasons"] for a in season["textures"]] + skin["assets"]:
+            verify_asset_hash(args.package, asset)
     if args.baseline:
-        old = json.loads((args.baseline / "map.json").read_text(encoding="utf-8"))
-        assert old["schemaVersion"] == 8, "Baseline must use the current map contract"
-        for key in ["buildingTypes", "squares", "terrain", "bridges", "buildings", "compositions", "clouds", "leftEdge", "rightEdge", "animations", "seasons"]:
-            if key == "seasons":
-                current = json.loads(json.dumps(package[key]))
-                for season in current:
-                    for asset in season["textures"]:
-                        asset["path"] = asset["path"].removeprefix("images/map/")
-                assert old[key] == current, key
-            else:
-                assert old[key] == package[key], key
-        for asset in old["assets"]:
-            assert asset == {**map_assets[asset["id"]], "path": map_assets[asset["id"]]["path"].removeprefix("images/map/")}, asset["id"]
-    print(f"UI_AUDIT_OK: {checked} source-identical visible RGB/alpha assets; names, initial values, hashes and optional baseline verified.")
+        verify_baseline(package, args.baseline)
+    for group, count in checked.items():
+        print(f"ASSET_AUDIT_OK scope={group} images={count} checks=source-rgb,alpha,output-hash")
+    for scope in scopes:
+        if scope not in ASSET_GROUPS:
+            print(f"DATA_AUDIT_OK scope={scope}")
+    print(f"UI_AUDIT_OK mode={'full' if args.all else 'scoped'} scopes={','.join(scopes)} images={sum(checked.values())}")
 
 
 if __name__ == "__main__":

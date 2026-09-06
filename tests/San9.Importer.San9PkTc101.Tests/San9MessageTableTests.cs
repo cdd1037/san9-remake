@@ -84,6 +84,6 @@ public sealed class San9MessageTableTests
         var archive = Archive(Table([65])); archive[283] = 0;
         Assert.Throws<InvalidDataException>(() => new San9MessageTable(archive));
         Assert.Throws<InvalidDataException>(() => Ls11Archive.Decode(new byte[8]));
-        Assert.Throws<InvalidDataException>(() => new OriginalTextConverter().Convert(new San9MessageTable(Archive(Table([0xFA, 0x42]))).PlainText(0)));
+        Assert.Throws<InvalidDataException>(() => new OriginalTextConverter().Convert(new San9MessageTable(Archive(Table([0xFA, 0x46]))).PlainText(0)));
     }
 }

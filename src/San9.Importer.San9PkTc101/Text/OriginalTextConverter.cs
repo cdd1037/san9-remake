@@ -31,7 +31,7 @@ public sealed class OriginalTextConverter
             {
                 value = bytes[offset + 1] switch
                 {
-                    0x40 => "伷", 0x41 => "璝", 0x45 => "儁",
+                    0x40 => "伷", 0x41 => "璝", 0x42 => "寗", 0x43 => "勑", 0x44 => "𩅦", 0x45 => "儁",
                     _ => throw new InvalidDataException($"Unregistered original glyph at byte {offset}: {System.Convert.ToHexString(bytes.Slice(offset, length))}.")
                 };
             }

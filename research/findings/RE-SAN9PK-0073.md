@@ -12,7 +12,7 @@
 ## 样本与工具
 
 - 样本、哈希、架构、工具和项目主 IDB 同 `RE-SAN9PK-0072`。
-- 文本证据来自当前样本消息资源的可复现解析结果 `local/generated/san9pk-tc-101-text/messages.json`；该本地目录不提交，消息索引和语义摘要登记在本记录。
+- 文本证据来自当前样本消息资源的可复现解析结果 `local/generated/research/san9pk-tc-101-text/messages.json`；该本地目录不提交，消息索引和语义摘要登记在本记录。
 
 ## 调查问题
 

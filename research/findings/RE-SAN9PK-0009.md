@@ -12,7 +12,7 @@
 
 ### PRSN-05：正式剧本数据剖面（2026-09-06）
 
-事实：使用[人物剖面脚本](../scripts/analyze_scenario_persons.py)只读扫描 `D_Sce001.S9`–`D_Sce020.S9` 的 16,000 条记录；逐样本来源 SHA-256、直方图与异常位置保存在忽略目录 `local/generated/research-audit/person-profile.json`。本次不含六个教学剧本，不能沿用 20,800 的旧样本计数。
+事实：使用[人物剖面脚本](../scripts/analyze_scenario_persons.py)只读扫描 `D_Sce001.S9`–`D_Sce020.S9` 的 16,000 条记录；逐样本来源 SHA-256、直方图与异常位置保存在忽略目录 `local/generated/research/audit/person-profile.json`。本次不含六个教学剧本，不能沿用 20,800 的旧样本计数。
 
 | 观察对象 | 20 个正式剧本结果 | 结论边界 |
 | --- | --- | --- |

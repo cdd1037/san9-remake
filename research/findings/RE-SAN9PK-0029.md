@@ -98,7 +98,7 @@ bit 0 的其它 upstream 行为包括把所属都市作为距离计算起点、�
 ## 5. 依据与验证边界
 
 - 项目 IDA 数据库 `research/analysis/San9PK-TC-101.i64`：`0x460FF0`、`0x45EBB0`、`0x45EBF0`、`0x45EC10`、`0x45EC20`、`0x461730`、`0x461A90`、`0x463C80`、`0x568240`、`0x45EA60`、`0x45EA70`、`0x45EA80`、`0x45EA90`、`0x49A1FA`、`0x49A637`、`0x504FE5`、`0x507034`、`0x50BD00` 等。
-- `local/generated/research-catalogs/san9pk-tc-101-editor-enums.csv`：`unit_status` 的 0–8 名称，以及 `unit_command`、`unit_target_type` 的编辑器/消息词汇；该本地派生目录被 Git 忽略。
+- `local/generated/research/catalogs/san9pk-tc-101-editor-enums.csv`：`unit_status` 的 0–8 名称，以及 `unit_command`、`unit_target_type` 的编辑器/消息词汇；该本地派生目录被 Git 忽略。
 - upstream `research/upsteam/San9PKHard/InsertAsmSrc.h`、`InsertAsmSrc2.h`：状态 1/4/5/6/7、已出征、单人/内嵌分类、主动/被动交战组合，以及建设中/建设图标/运输标志的上下文注释。upstream 作为二级证据，不替代当前样本 IDA 证据。
 - `private/剧本编辑器截图/部队.png`：状态下拉框与独立“交战”复选框的显示结构；截图不单独证明内部字段。
 

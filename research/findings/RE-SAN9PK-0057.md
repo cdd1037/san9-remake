@@ -106,7 +106,7 @@ MFC 运行时类记录 `0x614C50` 的类名为 `CMapBuildingInfoDIB`，对象大
 | 7 | 36 | 西城 |
 | 8 | 42 | 建宁 |
 
-城市 ID 与名称由工作区内生成的语义目录 `local/generated/research-catalogs/san9pk-tc-101-semantic.csv` 回读。完整目录含原版批量文本，只保存在被 Git 忽略的 `local/generated/`，不进入提交。其他城市和超出城市范围的 ID 均返回 `-1`。
+城市 ID 与名称由工作区内生成的语义目录 `local/generated/research/catalogs/san9pk-tc-101-semantic.csv` 回读。完整目录含原版批量文本，只保存在被 Git 忽略的 `local/generated/`，不进入提交。其他城市和超出城市范围的 ID 均返回 `-1`。
 
 图标组合存在明确优先级：`+0x308` 先检查商人，只有没有商人时才显示训练；皇帝使用独立的 `+0x338`，可以与商人或训练同时显示。面板宽度按图标需求从 `76` 扩到 `95` 或 `116`，高度固定为 `55`。
 

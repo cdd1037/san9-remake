@@ -1,6 +1,6 @@
 # 研究脚本
 
-- `analyze_scenario_persons.py`：只读统计 20 个正式剧本的人物编号、能力、属性、熟练度、忠诚和标志位；原始样本哈希用于来源识别，逐值分布保存在忽略目录，不将库存极值转成产品拒绝规则。运行：`python research/scripts/analyze_scenario_persons.py private/s9数据文件 local/generated/research-audit/person-profile.json`；验证：`python -m unittest discover -s research/scripts -p test_analyze_scenario_persons.py`。
+- `analyze_scenario_persons.py`：只读统计 20 个正式剧本的人物编号、能力、属性、熟练度、忠诚和标志位；原始样本哈希用于来源识别，逐值分布保存在忽略目录，不将库存极值转成产品拒绝规则。运行：`python research/scripts/analyze_scenario_persons.py private/s9数据文件 local/generated/research/audit/person-profile.json`；验证：`python -m unittest discover -s research/scripts -p test_analyze_scenario_persons.py`。
 
 - `build_source_catalog.py`：从本地源码和文档生成统一来源候选。
 - `build_program_analysis_close01.py`：汇总路线图、覆盖账本、San9PKHard 候选状态和 `EVT-01` 旧待验证项路由，验证已完成批次不再伪装为当前待办，并把唯一剩余核心项守恒到 `CLOSE-02`。
@@ -30,7 +30,7 @@
 
 IDA 导出放在被 Git 忽略的 `artifacts/ida/`，图像研究输出放在 `artifacts/image-research/`，本地转换内容放在 `local/generated/`。执行和证据说明见 [`RE-SAN9PK-0002`](../findings/RE-SAN9PK-0002.md)、[`RE-SAN9PK-0003`](../findings/RE-SAN9PK-0003.md)、[`RE-SAN9PK-0026`](../findings/RE-SAN9PK-0026.md)、[`RE-SAN9PK-0035`](../findings/RE-SAN9PK-0035.md)与 [`RE-SAN9PK-0055`](../findings/RE-SAN9PK-0055.md)。
 
-人物姓名、语义文本和编辑器短枚举等由原版资源或本地研究批量派生的目录统一保存在 `local/generated/research-catalogs/`，不得提交。
+人物姓名、语义文本和编辑器短枚举等由原版资源或本地研究批量派生的目录统一保存在 `local/generated/research/catalogs/`，不得提交。
 
 建筑信息面板依赖 Pillow，可通过 `python -m pip install -r research/scripts/requirements.txt` 安装。洛阳附近的局部导出示例：
 
@@ -40,7 +40,7 @@ python research/scripts/render_square_map.py \
   artifacts/image-research/square-map/d_sce002-luoyang-building-info.png \
   --x 80 --y 55 --width 35 --height 30 --building-info \
   --building-info-font private/LXGWWenKaiMonoGBLite-Medium.ttf \
-  --semantic-catalog local/generated/research-catalogs/san9pk-tc-101-semantic.csv \
+  --semantic-catalog local/generated/research/catalogs/san9pk-tc-101-semantic.csv \
   --building-morale 50
 ```
 
@@ -51,8 +51,8 @@ PK 文本示例：
 ```text
 python research/scripts/parse_pk_text.py \
   private/s9数据文件/M_MsgPK.s9 private/s9数据文件/M_RtdnPK.s9 \
-  --simplified --json-output-dir local/generated/san9pk-tc-101-text \
-  --research-catalog-output-dir local/generated/san9pk-tc-101-text/research
+  --simplified --json-output-dir local/generated/research/san9pk-tc-101-text \
+  --research-catalog-output-dir local/generated/research/san9pk-tc-101-text/research
 ```
 
 JSON 文件本身就是数组，每项只有 `index` 和 `content` 两个字段。`index` 是原文件的 0 起始序号，空记录也保留；控制字节以 `<0xNN>` 直接写进 `content`，原始 `0A` 换行保留，暂不做自动换行归一化。

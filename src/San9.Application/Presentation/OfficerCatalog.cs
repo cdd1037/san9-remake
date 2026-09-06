@@ -22,13 +22,13 @@ public static class OfficerCatalog
         T("智略", 6, "营造", "石兵", "破陷", "教谕"), T("谋略", 7, "混乱", "陷阱", "攻心", "幻术"), T("策略", 8, "辱骂", "鼓舞", "治疗", "妖术")
     });
 
-    public static InformationTable Read(StrategySnapshot view, TextCatalog texts, int page, int? force, int? settlement)
+    public static InformationTable Read(StrategySnapshot view, TextCatalog texts, int page, int? force, int? settlement, int? officerId = null)
     {
         if ((uint)page >= Pages.Count) throw new ArgumentOutOfRangeException(nameof(page));
         string Person(int? id) => view.Officers.FirstOrDefault(o => o.Id == id) is { } p ? texts.Resolve(p.NameKey) : "";
         string Place(int? id) => id is int key && view.RegionNameKeys.TryGetValue(key, out var name) ? texts.Resolve(name) : "";
         var columns = Pages[page].Columns;
-        var rows = view.Officers.Where(o => (force is null || o.OwnerId == force) && (settlement is null || o.SettlementId == settlement))
+        var rows = view.Officers.Where(o => (officerId is null || o.Id == officerId) && (force is null || o.OwnerId == force) && (settlement is null || o.SettlementId == settlement))
             .OrderBy(o => texts.Resolve(o.NameKey), StringComparer.Create(System.Globalization.CultureInfo.GetCultureInfo("zh-CN"), false))
             .Select(o =>
             {

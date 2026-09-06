@@ -143,6 +143,34 @@ public static class InterfaceSkinCompiler
                 ui.Add(key, "ui-" + key);
             }
         }
+        foreach (var (role, resource, palette) in new[]
+        {
+            ("background",51,6), ("list-top",53,6), ("list-bottom",54,6),
+            ("panel-center",59,7), ("panel-top-left",60,7), ("panel-top",61,7), ("panel-top-right",62,7),
+            ("panel-left",63,7), ("panel-right",64,7), ("panel-bottom-left",65,7), ("panel-bottom",66,7), ("panel-bottom-right",67,7),
+            ("label-left",69,7), ("label-middle",70,7), ("label-right",71,7),
+            ("title-left",84,7), ("title-middle",85,7), ("title-right",86,7),
+            ("biography-field",99,8), ("tactics-field",93,8), ("portrait-frame",88,7), ("radar-background",89,7), ("radar-grid",94,8),
+            ("name-left",90,8), ("name-middle",91,8), ("name-right",92,8),
+            ("field-left",95,8), ("field-middle",96,8), ("field-right",97,8),
+            ("tactic-category-left",101,9), ("tactic-category-middle",102,9), ("tactic-category-right",103,9), ("button-shadow",309,38)
+        }) Extra("detail-" + role, resource, palette, true);
+        foreach (var (role, resource, palette, frames) in new[]
+        {
+            ("tab",303,38,4), ("treasure",100,9,4), ("close",308,38,4), ("close-icon",305,38,4), ("help",306,38,4),
+            ("tactic-0",104,9,2), ("tactic-1",105,9,2), ("tactic-2",106,9,2), ("tactic-3",112,9,2),
+            ("tactic-4",107,9,2), ("tactic-5",108,9,2), ("tactic-6",109,9,2), ("tactic-7",110,9,2), ("tactic-8",111,9,2)
+        })
+        {
+            if (bindings[resource] != palette + 200) throw new InvalidDataException("Unconfirmed detail palette binding.");
+            for (int frame = 0; frame < frames; frame++)
+            {
+                string key = "detail-" + role + (frame == 0 ? "" : $"-{frame}");
+                var pixels = IndexedImageArchive.Frame(common.Images[resource], frames, 1, frame, 0);
+                assets.Add(save("ui-" + key, $"ui/{key}.png", IndexedImageArchive.Decode(pixels, common.Palettes[palette], true, true)));
+                ui.Add(key, "ui-" + key);
+            }
+        }
         Extra("information-background", 337, 40);
         foreach (var (part, resource) in new[] { ("bottom", 338), ("left", 339), ("right", 340), ("top", 341), ("bottom-left", 342), ("top-left", 343), ("bottom-right", 344), ("top-right", 345), ("ornament", 346) })
             Extra("information-frame-" + part, resource, 41, true);
@@ -174,6 +202,6 @@ public static class InterfaceSkinCompiler
         var fontPalette = read(Path.Combine(dataDirectory, "P_Font.s9"));
         string FontColor(int style) => Convert.ToHexString(fontPalette.AsSpan((style / 2 * 32 + 16 + style % 2 * 8 + 7) * 4, 3));
         colors.Add("roster-available", FontColor(7)); colors.Add("roster-unavailable", FontColor(26));
-        return new(10, assets.ToArray(), ui, colors);
+        return new(12, assets.ToArray(), ui, colors);
     }
 }

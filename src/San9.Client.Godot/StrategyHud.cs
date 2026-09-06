@@ -19,7 +19,8 @@ public partial class StrategyHud : Control
     public IReadOnlyDictionary<string, PngImage> SkinImages { get; init; } = null!;
     private readonly Dictionary<string, ImageTexture> _textures = [];
     private readonly List<(string Asset, Vector2 Position)> _frames = [];
-    private Label _footer = null!, _message = null!;
+    private Label _footer = null!;
+    private GameMessageBar _message = null!;
     private Label _footerCity = null!;
     private readonly List<Label> _regionLabels = [];
     private bool _regionVisible;
@@ -42,8 +43,8 @@ public partial class StrategyHud : Control
         Name = "StrategyHud"; Size = new(1024, 768); MouseFilter = MouseFilterEnum.Stop;
         World.MapReady += Build;
         GetWindow().MouseExited += ClearHover;
-        _message = LabelAt("正在准备190年地图…", new(312, 740), new(400, 24), 16);
-        _text.Apply(_message, GameTextStyles.For(GameTextRole.Message));
+        _message = new GameMessageBar { Textures = _textures, Text = "正在准备190年地图…" };
+        AddChild(_message);
         Label RegionLabel(string value, int x, int width)
         {
             var label = LabelAt(value, new(x, 744), new(width, 16), 16);
@@ -209,14 +210,12 @@ public partial class StrategyHud : Control
         if (Information?.State.IsOpen == true)
         {
             var menu = Information.HoverMenuButton;
-            _message.Text = menu?.HintText ?? "";
-            _text.Apply(_message, GameTextStyles.Message(menu is null || !menu.Disabled));
+            _message.SetMessage(menu?.HintText ?? "", menu is null || !menu.Disabled);
             return;
         }
         var button = GetChildren().OfType<StrategyButton>().FirstOrDefault(b => b.IsHovered())
             ?? (Overview.IsOpen ? _overviewPanel.HoverButton : null);
-        _message.Text = button?.HintText ?? (Overview.IsOpen ? "" : "请选择命令起点。");
-        _text.Apply(_message, GameTextStyles.Message(button is null || !button.Disabled));
+        _message.SetMessage(button?.HintText ?? (Overview.IsOpen ? "" : "请选择命令起点。"), button is null || !button.Disabled);
     }
     private void UpdateRegion(int x, int y)
     {
@@ -287,11 +286,6 @@ public partial class StrategyHud : Control
         foreach (var (asset, point) in _frames) DrawTexture(_textures[asset], point);
         DrawTexture(_textures["season-spring"], new(26, 31));
         Strip("field", new(377, 15), 88); Strip("field", new(457, 15), 112); Strip("field", new(561, 15), 112);
-        if (!string.IsNullOrEmpty(_message.Text))
-        {
-            var bounds = MessagePanelGeometry.Bounds(_message.Text);
-            Strip("message", new(bounds.X, 736), bounds.Width);
-        }
         if (_regionVisible) DrawTexture(_textures["region-frame"], new(824, 738));
     }
     public override void _ExitTree()

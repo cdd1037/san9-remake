@@ -35,11 +35,11 @@ public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dicti
         .Concat(new[] { "catalog-sort-up", "catalog-sort-down", "catalog-portrait-frame" })
         .Concat(new[] { "track", "thumb" }.SelectMany(p => new[] { "top", "middle", "bottom" }.Select(s => "catalog-scroll-" + p + "-" + s)))
         .Concat(new[] { "top-left", "top", "top-right", "left", "right", "bottom-left", "bottom", "bottom-right" }.Select(p => "catalog-tabs-" + p))
-        .Append("information-background").ToArray());
+        .Concat(OfficerDetailSkin.RequiredRoles).Append("information-background").ToArray());
 
     public void Validate()
     {
-        if (SchemaVersion != 10 || Assets.Select(a => a.Id).Distinct().Count() != Assets.Length)
+        if (SchemaVersion != 12 || Assets.Select(a => a.Id).Distinct().Count() != Assets.Length)
             throw new InvalidDataException("Invalid interface skin version or duplicate assets.");
         var assets = Assets.ToDictionary(a => a.Id);
         if (Enumerable.Range(0, 52).Any(i => !Colors.ContainsKey($"city-marker-{i}")) ||

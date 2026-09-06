@@ -17,18 +17,22 @@ public sealed class San9MessageTable
         if (count == 0 || end > _data.Length) throw new InvalidDataException("Invalid message count.");
         _offsets = new int[count + 1];
         for (int i = 0; i < count; i++) _offsets[i] = BinaryPrimitives.ReadInt32LittleEndian(_data.AsSpan(2 + i * 4));
-        _offsets[count] = _data.Length;
+        // Some text archives include one container-level NUL after the last message terminator.
+        _offsets[count] = _data.AsSpan().EndsWith(new byte[] { 5, 5, 5, 0 }) ? _data.Length - 1 : _data.Length;
         if (_offsets[0] != end || _offsets.Zip(_offsets.Skip(1)).Any(p => p.First < end || p.First > p.Second || p.Second > _data.Length))
             throw new InvalidDataException("Invalid message offsets.");
     }
 
-    public byte[] PlainText(int id)
+    public byte[] PlainText(int id) => ReadText(id, false);
+    public byte[] MultilineText(int id) => ReadText(id, true);
+
+    private byte[] ReadText(int id, bool multiline)
     {
         if (id < 0 || id >= _offsets.Length - 1) throw new InvalidDataException("Missing plain-text resource.");
         var text = _data.AsSpan(_offsets[id], _offsets[id + 1] - _offsets[id]);
-        if (text.Length < 3 || !text[^3..].SequenceEqual(new byte[] { 5, 5, 5 })) throw new InvalidDataException("Invalid plain-text terminator.");
+        if (text.Length < 3 || !text[^3..].SequenceEqual(new byte[] { 5, 5, 5 })) throw new InvalidDataException($"Invalid plain-text terminator in resource {id}.");
         text = text[..^3];
-        foreach (byte b in text) if (b < 32) throw new InvalidDataException("Control code in plain-text resource.");
+        foreach (byte b in text) if (b < 32 && !(multiline && b == 10)) throw new InvalidDataException("Control code in plain-text resource.");
         return text.ToArray();
     }
 }

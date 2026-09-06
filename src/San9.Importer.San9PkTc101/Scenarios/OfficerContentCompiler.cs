@@ -9,7 +9,7 @@ public static class OfficerContentCompiler
 {
     public static OfficerInitialState[] Compile(IReadOnlyList<San9ScenarioPersonRecord> people,
         IReadOnlyList<San9ScenarioItemRecord> items, IReadOnlyList<San9ScenarioOfficeRecord> offices,
-        IReadOnlyList<SettlementInitialState> settlements, ScenarioTextReader text)
+        IReadOnlyList<SettlementInitialState> settlements, ScenarioTextReader text, San9MessageTable biographies)
     {
         var locations = settlements.ToDictionary(s => s.Id);
         var heldItems = items.Where(i => !i.IsInvalid && i.HolderPersonId is not null).ToLookup(i => i.HolderPersonId!.Value);
@@ -38,7 +38,11 @@ public static class OfficerContentCompiler
                 ItemBonuses = new(ItemBonus(1), ItemBonus(5, 9), ItemBonus(3, 4, 6), ItemBonus(2)),
                 OfficeBonuses = new(OfficeBonus(1), OfficeBonus(2), OfficeBonus(3), OfficeBonus(0))
             };
-            result.Add(new(text.Person($"officer.{id}", person.FamilyNameResourceCode, person.GivenNameResourceCode), state));
+            result.Add(new(text.Person($"officer.{id}", person.FamilyNameResourceCode, person.GivenNameResourceCode), state)
+            {
+                CourtesyNameKey = text.Courtesy($"officer-courtesy.{id}", person.CourtesyNameResourceCode),
+                BiographyKey = text.Biography($"officer-biography.{id}", person.BiographyResourceCode, biographies)
+            });
         }
         return result.ToArray();
     }

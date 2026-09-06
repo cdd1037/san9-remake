@@ -28,3 +28,4 @@
 - [DEC-UI-0006：全图导航与悬停反馈](DEC-UI-0006-overview-navigation.md)
 
 - [DEC-UI-0007：情报浏览的运行态与交互](DEC-UI-0007-information-browser.md)
+- [DEC-RENDER-0003：四维图采用固定坐标的程序渐变](DEC-RENDER-0003-procedural-officer-radar.md)

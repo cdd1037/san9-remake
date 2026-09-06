@@ -31,7 +31,7 @@ public sealed class ClientContentPackageTests
         .Concat(Enumerable.Range(0, 51).Select(i => $"overview-force-{i}")).Concat(["roster-available", "roster-unavailable"]).ToDictionary(s => s, _ => "F0F0F0");
     private static readonly MapBuildingPlacement[] Buildings = [new(15, 89, 64, 0), new(100, 86, 65, 1)];
     private static readonly ImageAsset Asset = new("ui", "ui/frame.png", new string('0', 64), 32, 32);
-    private static ScenarioInitialState Fixture() => new(8, "fixture", 190, 1, 1, 5,
+    private static ScenarioInitialState Fixture() => new(9, "fixture", 190, 1, 1, 5,
         [new(5, "player", 2, 9520, 73200, 100)],
         [new(15, "city", 5, 89, 64, 32000, 500, 1000, 50, []), new(100, "port", null, 86, 65, 1000, 200, 300, 50, [])],
         new() { [15] = "city" }, []);
@@ -50,7 +50,7 @@ public sealed class ClientContentPackageTests
     [Fact]
     public void MissingUiAndInvalidDurabilityOrNamesFailValidation()
     {
-        var skin = new InterfaceSkin(10, [Asset], InterfaceSkin.RequiredUiAssets.ToDictionary(s => s, _ => "ui"), Colors());
+        var skin = new InterfaceSkin(12, [Asset], InterfaceSkin.RequiredUiAssets.ToDictionary(s => s, _ => "ui"), Colors());
         skin.Validate(); skin.Roles.Remove("top-frame");
         Assert.Throws<InvalidDataException>(skin.Validate);
         skin.Roles["top-frame"] = "missing";
@@ -77,10 +77,10 @@ public sealed class ClientContentPackageTests
     {
         var map = new MapPackage(8, "fixture", "fixture", "spring", 200, 200, 13056, 6656,
             [], [], [], [], [], [], Buildings, [], [], [], [], [], new([], []), []);
-        var skin = new InterfaceSkin(10, [Asset], InterfaceSkin.RequiredUiAssets.ToDictionary(s => s, _ => "ui"), Colors());
+        var skin = new InterfaceSkin(12, [Asset], InterfaceSkin.RequiredUiAssets.ToDictionary(s => s, _ => "ui"), Colors());
         var text = new TextCatalog(1, new() { ["player"] = new("Player", "Player"), ["city"] = new("City", "City"), ["port"] = new("Port", "Port") });
         foreach (string role in StrategyHintText.Roles) text.Entries.Add(StrategyHintText.Key(role), new("Hint", "Hint"));
-        var p = new ClientContentPackage(10, [], map, Fixture(), text, skin); p.ValidateLinks();
+        var p = new ClientContentPackage(12, [], map, Fixture(), text, skin); p.ValidateLinks();
         Assert.Throws<InvalidDataException>(() => (p with { Scenario = p.Scenario with { Settlements = [p.Scenario.Settlements[0]] } }).ValidateLinks());
         Assert.Throws<InvalidDataException>(() => (p with { Scenario = p.Scenario with { ScenarioId = "other" } }).ValidateLinks());
         Assert.Throws<InvalidDataException>(() => (p with { Scenario = p.Scenario with { Settlements = [p.Scenario.Settlements[0] with { X = 88 }, p.Scenario.Settlements[1]] } }).ValidateLinks());

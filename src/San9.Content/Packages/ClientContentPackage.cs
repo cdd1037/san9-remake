@@ -9,7 +9,7 @@ public sealed record ClientContentPackage(int SchemaVersion, ContentSource[] Sou
 {
     public void ValidateLinks()
     {
-        if (SchemaVersion != 10) throw new InvalidDataException("Unsupported client content version.");
+        if (SchemaVersion != 12) throw new InvalidDataException("Unsupported client content version.");
         Scenario.Validate(); Text.Validate(); Skin.Validate();
         foreach (string role in StrategyHintText.Roles) _ = Text.Resolve(StrategyHintText.Key(role));
         foreach (string role in Scenario.Officers.SelectMany(o => new[] { $"information-person-{o.State.Id}", $"catalog-person-{o.State.Id}" })
@@ -22,7 +22,7 @@ public sealed record ClientContentPackage(int SchemaVersion, ContentSource[] Sou
         foreach (var s in Scenario.Settlements)
             if (s.X != buildings[s.Id].X || s.Y != buildings[s.Id].Y)
                 throw new InvalidDataException("Scenario and map coordinates differ.");
-        foreach (string key in Scenario.Forces.Select(f => f.NameKey).Concat(Scenario.Settlements.Select(s => s.NameKey)).Concat(Scenario.RegionNameKeys.Values).Concat(Scenario.Officers.Select(o => o.NameKey)).Concat(Scenario.Information.Ranks.Select(r => r.NameKey)).Concat(Scenario.Information.Offices.Select(o => o.NameKey)).Concat(Scenario.Information.Treasures.Select(t => t.NameKey)))
+        foreach (string key in Scenario.Forces.Select(f => f.NameKey).Concat(Scenario.Settlements.Select(s => s.NameKey)).Concat(Scenario.RegionNameKeys.Values).Concat(Scenario.Officers.SelectMany(o => new[] { o.NameKey, o.CourtesyNameKey, o.BiographyKey }.OfType<string>())).Concat(Scenario.Information.Ranks.Select(r => r.NameKey)).Concat(Scenario.Information.Offices.Select(o => o.NameKey)).Concat(Scenario.Information.Treasures.Select(t => t.NameKey)))
             _ = Text.Resolve(key);
     }
 }

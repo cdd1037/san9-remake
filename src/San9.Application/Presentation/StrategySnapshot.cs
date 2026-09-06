@@ -33,7 +33,7 @@ public sealed class StrategySnapshot
         {
             var location = o.SettlementId is int id ? settlements[id] : null;
             return new OfficerView(o.Id, officerDefinitions[o.Id].NameKey, o.OwnerId, o.IsServing ? location?.CorpsId : null,
-                o.SettlementId, location?.Kind == San9.Core.Domain.SettlementKind.City, o.IsServing && !o.Acted, o.Abilities) { Status = o.Status };
+                o.SettlementId, location?.Kind == San9.Core.Domain.SettlementKind.City, o.IsServing && !o.Acted, o.Abilities) { Status = o.Status, CourtesyNameKey = officerDefinitions[o.Id].CourtesyNameKey, BiographyKey = officerDefinitions[o.Id].BiographyKey };
         }).ToArray());
         Forces=Array.AsReadOnly(world.Forces.Select(f=>
         {

@@ -8,9 +8,9 @@ namespace San9.Client.Godot.Tests;
 
 public sealed class InformationBrowserTests
 {
-    private static (GameSession Session, InformationQuery Query) Fixture()
+    private static (GameSession Session, InformationQuery Query) Fixture(bool adjusted = false)
     {
-        var scenario = new ScenarioInitialState(8, "information", 190, 1, 1, 5,
+        var scenario = new ScenarioInitialState(9, "information", 190, 1, 1, 5,
             [new(5, "force", 5, 100, 200, 100) { LeaderId = 1, RankId = 0, ProvidedTactics = [1] }],
             [new(15, "city", 5, 80, 60, 1000, 500, 1000, 50, []) { CorpsId = 5, Commerce = 100, MaxCommerce = 1000, Cultivation = 100, MaxCultivation = 1000, Population = 50000 }],
             new() { [15] = "city", [50] = "region" }, new() { [15] = 15, [50] = 15 })
@@ -20,6 +20,12 @@ public sealed class InformationBrowserTests
             Information = new([new(0, "rank", 60000, 1000, 5)], [], [new(0, "treasure", 1, 5, 10, 2)],
                 [new(5, 5, 1, null)], [new(0, 1, true)])
         };
+        if (adjusted)
+        {
+            var officer = scenario.Officers[0];
+            scenario = scenario with { Officers = [officer with { State = officer.State with
+                { Injury = 2, ItemBonuses = new(5, 0, 0, 0), OfficeBonuses = new(3, 0, 0, 0) } }, scenario.Officers[1]] };
+        }
         var text = new TextCatalog(1, new[] { "force", "city", "region", "ruler", "free", "rank", "treasure" }.ToDictionary(s => s, s => new TextEntry(s, s)));
         var session = GameSession.Start(scenario, 1);
         return (session, new(session, text));
@@ -44,6 +50,25 @@ public sealed class InformationBrowserTests
         Assert.Equal(before, session.Snapshot.StateHash);
     }
 
+    [Fact]
+    public void OfficerDetailProjectsCurrentAbilitiesFieldsAndOwnedItemsWithoutMutatingWorld()
+    {
+        var (session, _) = Fixture(adjusted: true);
+        var texts = new TextCatalog(1, new Dictionary<string, TextEntry>());
+        // The fixture names are their own display strings.
+        foreach (string key in session.View.Officers.Select(o => o.NameKey).Concat(session.View.RegionNameKeys.Values)
+            .Concat(session.View.Information.Offices.Select(o => o.NameKey))) texts.Entries[key] = new(key, key);
+        var before = session.Snapshot.StateHash;
+        var detail = OfficerDetails.Read(session.View, texts, 1);
+        Assert.Equal(new[] { 6, 4, 5, 6 }, detail.Fields.Select(c => c.Length));
+        Assert.Equal(session.View.Officers.Single(o => o.Id == 1).Abilities, detail.RadarAbilities);
+        Assert.Equal(80, detail.RadarAbilities.War);
+        Assert.Equal("90-10", detail.AbilityValues[1]);
+        Assert.Equal(9, detail.Tactics.Length);
+        Assert.All(detail.Tactics[0].Tactics, t => Assert.True(t.Available));
+        Assert.Equal(session.View.World.Treasures.Where(t => t.Discovered && t.HolderId == 1).Select(t => t.Id), detail.Treasures);
+        Assert.Equal(before, session.Snapshot.StateHash);
+    }
     [Fact]
     public void EveryCategoryReadsRealStateAndUnoccupiedRegionIsNotACity()
     {

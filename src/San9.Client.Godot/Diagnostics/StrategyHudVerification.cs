@@ -55,12 +55,13 @@ public partial class StrategyHud
         Check(GetChildren().OfType<StrategyButton>().Where(b => b.Disabled).All(b => b.VisualFrame == 3),
             "Disabled buttons must use the original fourth frame.");
         Check(_rosterList.Rows.Count == 14, "Facility list must have a fixed ruler slot and thirteen ordinary slots.");
-        Check(_message.LabelSettings.OutlineSize == 0 && _message.LabelSettings.StackedShadowCount == 1 &&
-            _message.LabelSettings.GetStackedShadowOffset(0) == Vector2.One &&
+        var messageLabel = _message.GetChildren().OfType<Label>().Single();
+        Check(messageLabel.LabelSettings.OutlineSize == 0 && messageLabel.LabelSettings.StackedShadowCount == 1 &&
+            messageLabel.LabelSettings.GetStackedShadowOffset(0) == Vector2.One &&
             _footer.LabelSettings.StackedShadowCount == 8 &&
             _footer.LabelSettings.GetStackedShadowColor(0) == GameTextEffects.Color(GameTextStyles.For(GameTextRole.Region)),
             "Footer text effects mismatch.");
-        Check(_message.LabelSettings.Font == _message.GetThemeFont("font") &&
+        Check(messageLabel.LabelSettings.Font == messageLabel.GetThemeFont("font") &&
             territoryButton.TextSettings.Font == GetThemeFont("font"), "Shared text settings changed the project font.");
         var headers = GetChildren().OfType<Label>().Where(l => l.LabelSettings?.FontSize == 24).ToArray();
         Check(headers.Length == 3 && headers.All(l => l.LabelSettings.OutlineSize == 0 && l.LabelSettings.ShadowColor.A == 0 &&

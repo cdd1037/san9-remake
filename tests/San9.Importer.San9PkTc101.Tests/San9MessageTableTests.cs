@@ -56,6 +56,16 @@ public sealed class San9MessageTableTests
         Assert.Throws<InvalidDataException>(() => table.PlainText(3));
     }
     [Fact]
+    public void BiographyAllowsLineBreaksWithoutRelaxingOtherTextControls()
+    {
+        var table = new San9MessageTable(Archive(Table([65, 10, 66], [65, 1, 66])));
+        Assert.Equal(new byte[] { 65, 10, 66 }, table.MultilineText(0));
+        var terminatedArchive = new San9MessageTable(Archive([.. Table([65, 10, 66]), 0]));
+        Assert.Equal(table.MultilineText(0), terminatedArchive.MultilineText(0));
+        Assert.Throws<InvalidDataException>(() => table.PlainText(0));
+        Assert.Throws<InvalidDataException>(() => table.MultilineText(1));
+    }
+    [Fact]
     public void CompressedLiteralsAndOverlappingCopiesDecodeToDeclaredSize()
     {
         Assert.Equal("abcabc"u8.ToArray(), Ls11Archive.Decode(Archive(Codes(97, 98, 99, 259, 0), 6)));

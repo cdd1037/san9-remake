@@ -55,7 +55,7 @@ public static class ClientContentImporter
             sources.Add(new(Path.GetFileName(path), Convert.ToHexString(SHA256.HashData(bytes)))); return bytes;
         }
         byte[] exe = Read(sourceExe), scenarioBytes = Read(scenarioPath);
-        var (scenario, text) = ScenarioContentCompiler.Compile(exe, scenarioBytes, Read(Path.Combine(dataDirectory, "M_MsgPK.s9")));
+        var (scenario, text) = ScenarioContentCompiler.Compile(exe, scenarioBytes, Read(Path.Combine(dataDirectory, "M_MsgPK.s9")), Read(Path.Combine(dataDirectory, "M_RtdnPK.s9")));
         ImageAsset Save(string id, string path, PngImage image)
         {
             path = "images/interface/" + Path.GetFileName(path);
@@ -66,7 +66,7 @@ public static class ClientContentImporter
         }
         var skin = InterfaceSkinCompiler.Compile(exe, dataDirectory, Read, Save);
         skin = InformationArtCompiler.Compile(skin, scenarioBytes, scenario, dataDirectory, Read, Save);
-        var content = new ClientContentPackage(10, sources.Distinct().OrderBy(s => s.Name, StringComparer.Ordinal).ToArray(), map, scenario, text, skin);
+        var content = new ClientContentPackage(12, sources.Distinct().OrderBy(s => s.Name, StringComparer.Ordinal).ToArray(), map, scenario, text, skin);
         content.ValidateLinks();
         _ = ImageAssetFiles.Load(output, skin.Assets, token);
         string pending = manifest + ".pending";

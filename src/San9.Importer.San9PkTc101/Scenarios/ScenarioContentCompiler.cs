@@ -7,7 +7,7 @@ namespace San9.Importer.San9PkTc101.Scenarios;
 
 public static class ScenarioContentCompiler
 {
-    public static (ScenarioInitialState Scenario, TextCatalog Text) Compile(byte[] exe, byte[] scenario, byte[] messages)
+    public static (ScenarioInitialState Scenario, TextCatalog Text) Compile(byte[] exe, byte[] scenario, byte[] messages, byte[] biographies)
     {
         T Read<T>(Func<Stream, T> parser) { using var stream = new MemoryStream(scenario); return parser(stream); }
         var header = Read(San9ScenarioArchive.ReadInitialScenario190Header);
@@ -68,7 +68,7 @@ public static class ScenarioContentCompiler
             string name = text.Person($"force.{id}", p.FamilyNameResourceCode, p.GivenNameResourceCode);
             return new ForceInitialState(id, name, f.ColorCode, f.Money, f.Food, f.Trust) { ProvidedTactics = Enumerable.Range(0, San9ScenarioForceArchive.TacticCount).Where(f.HasTactic).ToImmutableArray(), RankId = f.RankGroupId is < 8 ? f.RankGroupId : null, IsBarbarian = f.IsBarbarian || f.CountryTitleId is >= 4 and <= 8, LeaderId = leader, FlagGlyph = f.CountryTitleId is int title ? System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(exe.AsSpan(0x253bb0 + title * 4, 4)) : p.FlagCode < 186 ? p.FlagCode : -1 };
         }).ToArray();
-        var officers = OfficerContentCompiler.Compile(persons, items, offices, settlements, text);
+        var officers = OfficerContentCompiler.Compile(persons, items, offices, settlements, text, new San9MessageTable(biographies));
         var knownPeople = officers.Select(o => o.State.Id).ToHashSet();
         var visibleItems = items.Where(i => i.IsUnearthed && i.HolderPersonId is int holder && knownPeople.Contains(holder)).ToArray();
         var information = new InformationDefinitions(
@@ -91,7 +91,7 @@ public static class ScenarioContentCompiler
                 throw new InvalidDataException("Invalid active field unit.");
             return new San9.Core.Domain.UnitState(u.Id, owner, x, y, (uint)u.LoadedSoldierCount);
         }).ToArray();
-        var snapshot = new ScenarioInitialState(8, header.ScenarioId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        var snapshot = new ScenarioInitialState(9, header.ScenarioId.ToString(System.Globalization.CultureInfo.InvariantCulture),
             header.StartDate.Year, header.StartDate.Month, header.StartDate.Day, 5, summaries, settlements.OrderBy(s => s.Id).ToArray(), regions, regionCities)
         { Officers = officers, Units = units, Information = information };
         snapshot.Validate(); catalog.Validate(); return (snapshot, catalog);

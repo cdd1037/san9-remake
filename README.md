@@ -4,7 +4,7 @@
 
 ## 当前能力与边界
 
-当前处于工程基线与地图 MVP 阶段，使用 Godot 4.7.2 Mono（.NET 版）和 .NET 10。
+当前处于运行时规则与界面接入阶段，使用 Godot 4.7.2 Mono（.NET 版）和 .NET 10。
 
 - 已接入190年剧本初始地图，支持方格选择、拖动、缩放和四季外观切换；相机中心按含高度的地图边界限制，外围延续云层。
 - 地图跳转在目标地形准备完整后提交，等待期间保持旧视野；资源并行准备、可见动画按帧变化刷新，计时与验收见[地图性能记录](docs/map-import.md#视野提交与性能验收2026-09-06)。
@@ -14,15 +14,14 @@
 - 地貌保留四套季节纹理，运行时按块合成；水面、旗帜和守兵播放帧动画，旗帜随预览季节改变方向。
 - 已导出完整建筑纹理目录，以及全部旗色、旗字和守兵方向；建筑外观按运行时耐久、开发度、驻兵和归属选择。
 - 右侧设施/武将栏共用名单控件：君主固定首行、直属军团过滤、独立滚动、点击定位和行动可用性；武将四项能力来自运行态，显示文本在导入时通过导入器统一原版文本入口解码并经OpenCC转简体。详见[武将栏规格](specs/behavior/BEH-UI-0002-officer-roster.md)。
-- GameSession持有独立运行时势力、据点和驻留武将；单人商业/开垦命令会扣费、提高开发度并消耗行动，HUD与地图读取同一份世界状态。详见[运行时架构](docs/runtime-state.md)。
+- GameSession持有独立运行时势力、据点、人物和宝物等状态；单人商业/开垦命令会扣费、提高开发度并消耗行动，HUD与地图读取同一份世界状态。详见[运行时架构](docs/runtime-state.md)。
+- 情报接入十类目录及详情浏览，武将和宝物表格支持排序、滚动及详情返回；宝物出土/转移、人物登场等命令尚未实现。详见[情报界面](docs/information-browser.md)。
 - 地图包已有方格数据，尚不能据此认为 Core/Application 已具备完整地图领域模型、寻路或地形代价计算。
 - Core已实现[四项内政基础增量](specs/behavior/BEH-DOMESTIC-0001-base-development-effect.md)，具有独立自动测试；多人组合、巡察/修筑命令、周期经济和存档闭环尚未接入；移动部队、全局遮挡和季节随日期联动也属于后续范围。
 
 转换包和原版素材均不随仓库分发。运行地图前，需要在本地完成资源转换。
 
 界面字体文件也不随仓库分发。运行前请将 `LXGWWenKaiMonoGBLite-Medium.ttf` 放入 `src/San9.Client.Godot/assets/`；仓库保留其 Godot 导入配置及 OFL 许可证。
-
-情报按钮已接入十类目录、分页排序、详情关联浏览及地图定位；人物和宝物使用转换图像。当前规则与验收边界见[情报界面](docs/information-browser.md)。
 
 ## 快速开始
 
@@ -94,5 +93,3 @@ dotnet run --project src/San9.Tools -- import-client --source-exe "<San9PK.exe�
 - [客户端内容与主界面](docs/client-content.md)与[大地图导入与运行](docs/map-import.md)
 - [研究区说明](research/README.md)、[研究结论索引](research/findings/README.md)与[来源登记表](research/SOURCES.md)
 - [本地私有文件规则](private/README.md)
-
-武将一览已接入通用表格候选组件：13页列组、原版目录皮肤、排序与头像联动，当前范围及待验收项见[情报界面](docs/information-browser.md)。

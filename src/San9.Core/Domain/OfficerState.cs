@@ -2,7 +2,7 @@ using System.Collections.Immutable;
 
 namespace San9.Core.Domain;
 
-public enum OfficerStatus { Ruler, Governor, Strategist, Serving, Captive, Free }
+public enum OfficerStatus { Ruler, Governor, Strategist, Serving, Captive, Free, Undiscovered, NotAppeared, Dead, Special }
 
 public readonly record struct OfficerAbilities(int War, int Intelligence, int Politics, int Leadership)
 {
@@ -10,7 +10,7 @@ public readonly record struct OfficerAbilities(int War, int Intelligence, int Po
     public bool IsNonnegative => War >= 0 && Intelligence >= 0 && Politics >= 0 && Leadership >= 0;
 }
 
-/// <summary>A visible person with identity, status and optional location. Names belong to content definitions.</summary>
+/// <summary>A person with runtime identity, status and optional location. Names belong to content definitions.</summary>
 public sealed record OfficerState(int Id, int? OwnerId, int? SettlementId, OfficerAbilities BaseAbilities, bool Acted)
 {
     public ImmutableArray<int> LearnedTactics { get; init; } = [];
@@ -22,6 +22,7 @@ public sealed record OfficerState(int Id, int? OwnerId, int? SettlementId, Offic
     public int Injury { get; init; }
     public OfficerStatus Status { get; init; } = OfficerStatus.Serving;
     [System.Text.Json.Serialization.JsonIgnore] public bool IsServing => Status <= OfficerStatus.Serving;
+    [System.Text.Json.Serialization.JsonIgnore] public bool IsVisible => Status <= OfficerStatus.Free;
     public int? RegionId { get; init; }
     public int BirthYear { get; init; }
     public int? OfficeId { get; init; }

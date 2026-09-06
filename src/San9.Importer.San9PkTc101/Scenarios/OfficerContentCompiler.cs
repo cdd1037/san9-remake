@@ -17,7 +17,12 @@ public static class OfficerContentCompiler
         for (int id = 0; id < people.Count; id++)
         {
             var person = people[id];
-            if (person.StatusCode > 5) continue;
+            // Unconfigured expansion person slots have no built-in text resources.
+            if (id >= 700)
+            {
+                if (person.StatusCode != 8) throw new InvalidDataException("Unsupported configured expansion officer.");
+                continue;
+            }
             var settlement = person.LocationId is int sourceLocation ? locations.GetValueOrDefault(sourceLocation) : null;
             int? location = settlement?.Id;
             if (person.StatusCode <= 3 && settlement is null)

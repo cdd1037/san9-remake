@@ -27,6 +27,8 @@ public partial class InformationPanel : Control
     private CatalogTableState _officerCatalogState = new();
     private CatalogTableState _treasureCatalogState = new();
     private bool _dirty;
+    private TreasureDetailView? _treasureDetail;
+    private readonly TreasureDetailState _treasureDetailState = new();
     private OfficerDetailView? _officerDetail;
     private readonly OfficerDetailState _officerDetailState = new();
     private LineEdit? _note;
@@ -49,7 +51,7 @@ public partial class InformationPanel : Control
         Visible = State.IsOpen; QueueRedraw();
         if (_content is not null) { RemoveChild(_content); _content.QueueFree(); }
         _content = new Control { Size = Size, MouseFilter = MouseFilterEnum.Ignore }; AddChild(_content);
-        _catalog = null; _officerDetail = null; _scroll = null; _rowControls.Clear(); _note = null; _mapButton = null;
+        _catalog = null; _officerDetail = null; _treasureDetail = null; _scroll = null; _rowControls.Clear(); _note = null; _mapButton = null;
         if (!Visible) return;
         if (State.IsMenu)
         {
@@ -101,6 +103,17 @@ public partial class InformationPanel : Control
             };
             _content.AddChild(_officerDetail); return;
         }
+        if (State.Category == InformationCategory.Treasures && State.IsDetail)
+        {
+            _treasureDetail = new TreasureDetailView
+            {
+                State = _treasureDetailState, Textures = Textures, Texts = Texts,
+                Read = id => TreasureDetails.Read(Session.View, Texts, id),
+                ReadName = id => Texts.Resolve(Session.View.Information.Treasures.Single(t => t.Id == id).NameKey),
+                CurrentChanged = State.Select, Closed = Back
+            };
+            _content.AddChild(_treasureDetail); return;
+        }
         if (State.Category == InformationCategory.Treasures)
         {
             if (State.SelectedId is null) _treasureCatalogState = new();
@@ -112,7 +125,11 @@ public partial class InformationPanel : Control
                 ReadRows = _ => TreasureCatalog.Read(Session.View, Texts, State.HolderFilter, State.ForceFilter, State.SettlementFilter)
                     .Rows.Select(row => new CatalogRow(row.Key.Id, row.Cells)).ToArray(),
                 Portrait = id => Textures[$"information-treasure-{id}"], PortraitSize = new(128, 128),
-                Closed = Back,
+                Closed = Back, Activated = id =>
+                {
+                    _treasureDetailState.Open(_treasureCatalogState.Rows.Select(row => row.Id), id);
+                    State.ShowDetail(id); Rebuild();
+                },
                 ViewChanged = (_, offset, selected) =>
                 {
                     State.Scroll(offset, _treasureCatalogState.Rows.Length);
@@ -275,7 +292,7 @@ public partial class InformationPanel : Control
     }
     public override void _Input(InputEvent @event)
     {
-        if (!Visible || _catalog is not null || _officerDetail is not null) return;
+        if (!Visible || _catalog is not null || _officerDetail is not null || _treasureDetail is not null) return;
         if (@event is InputEventKey { Pressed: true, Keycode: Key.Escape })
         { if (_note is not null) Rebuild(); else Back(); GetViewport().SetInputAsHandled(); }
         else if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Right })
@@ -298,7 +315,7 @@ public partial class InformationPanel : Control
     }
     public override void _GuiInput(InputEvent @event)
     {
-        if (_catalog is not null || _officerDetail is not null) return;
+        if (_catalog is not null || _officerDetail is not null || _treasureDetail is not null) return;
         if (@event is InputEventMouseButton { Pressed: true } mouse)
         {
             if (State.IsMenu && !_menu.HasPoint(mouse.Position)) Back();
@@ -325,7 +342,7 @@ public partial class InformationPanel : Control
     }
     public override void _Draw()
     {
-        if (_catalog is not null || _officerDetail is not null) return;
+        if (_catalog is not null || _officerDetail is not null || _treasureDetail is not null) return;
         if (!Visible) return;
         if (State.IsMenu)
         {

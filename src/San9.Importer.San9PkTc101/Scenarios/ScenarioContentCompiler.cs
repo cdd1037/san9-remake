@@ -69,16 +69,19 @@ public static class ScenarioContentCompiler
             return new ForceInitialState(id, name, f.ColorCode, f.Money, f.Food, f.Trust) { ProvidedTactics = Enumerable.Range(0, San9ScenarioForceArchive.TacticCount).Where(f.HasTactic).ToImmutableArray(), RankId = f.RankGroupId is < 8 ? f.RankGroupId : null, IsBarbarian = f.IsBarbarian || f.CountryTitleId is >= 4 and <= 8, LeaderId = leader, FlagGlyph = f.CountryTitleId is int title ? System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(exe.AsSpan(0x253bb0 + title * 4, 4)) : p.FlagCode < 186 ? p.FlagCode : -1 };
         }).ToArray();
         var officers = OfficerContentCompiler.Compile(persons, items, offices, settlements, text, new San9MessageTable(biographies));
-        var knownPeople = officers.Select(o => o.State.Id).ToHashSet();
-        var visibleItems = items.Where(i => i.IsUnearthed && i.HolderPersonId is int holder && knownPeople.Contains(holder)).ToArray();
+        var treasureStates = TreasureContentCompiler.InitialStates(items);
         var information = new InformationDefinitions(
             ranks.Where(r => r.Id < 8).Select(r => new RankDefinition(r.Id, text.Rank($"rank.{r.Id}", r.Id), r.CommandCapacity, r.PrestigeRequirement, r.PromotionLoyaltyBonus)).ToArray(),
             offices.Where(o => o.IsAssignable).Select(o => new OfficeDefinition(o.Id, text.Office($"office.{o.Id}", o.Id), o.CommandCapacity, o.Salary)).ToArray(),
-            visibleItems.Select(i => new TreasureDefinition(i.SerializedId, text.Treasure($"treasure.{i.SerializedId}", i.ResourceId1), i.CategoryId, i.AbilityBonus, i.LoyaltyChange, i.TacticId)).ToArray(),
+            items.Where(i => i.SerializedId < TreasureContentCompiler.BuiltInCount).Select(i =>
+            {
+                text.TreasureDescription(i.SerializedId, i.ResourceId2);
+                return new TreasureDefinition(i.SerializedId, text.Treasure($"treasure.{i.SerializedId}", i.ResourceId1), i.CategoryId, i.AbilityBonus, i.LoyaltyChange, i.TacticId);
+            }).ToArray(),
             settlements.Where(s => s.CorpsId is not null).Select(s => s.CorpsId!.Value).Distinct().Order().Select(id =>
                 new San9.Core.Domain.CorpsState(id, Root(id)!.Value, forces[id].LeaderId ?? throw new InvalidDataException("Missing corps leader."),
                     id == Root(id) ? null : new San9.Core.Domain.CorpsTreasury(forces[id].Money, forces[id].Food))).ToArray(),
-            visibleItems.Select(i => new San9.Core.Domain.TreasureState(i.SerializedId, i.HolderPersonId, true)).ToArray())
+            treasureStates)
         {
             Relations = summaries.SelectMany(a => summaries.Where(b => b.Id > a.Id).Select(b =>
                 new San9.Core.Domain.ForceRelation(a.Id, b.Id, forces[a.Id].DiplomaticRelations[b.Id]))).ToArray()
@@ -91,7 +94,7 @@ public static class ScenarioContentCompiler
                 throw new InvalidDataException("Invalid active field unit.");
             return new San9.Core.Domain.UnitState(u.Id, owner, x, y, (uint)u.LoadedSoldierCount);
         }).ToArray();
-        var snapshot = new ScenarioInitialState(9, header.ScenarioId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        var snapshot = new ScenarioInitialState(10, header.ScenarioId.ToString(System.Globalization.CultureInfo.InvariantCulture),
             header.StartDate.Year, header.StartDate.Month, header.StartDate.Day, 5, summaries, settlements.OrderBy(s => s.Id).ToArray(), regions, regionCities)
         { Officers = officers, Units = units, Information = information };
         snapshot.Validate(); catalog.Validate(); return (snapshot, catalog);

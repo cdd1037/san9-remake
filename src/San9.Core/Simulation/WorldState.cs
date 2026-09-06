@@ -72,7 +72,7 @@ public sealed class WorldState
             world._corps.Any(c => c.Id < 0 || !world._forces.ContainsKey(c.OwnerId) ||
                 !world._officers.TryGetValue(c.LeaderId, out var leader) || !leader.IsServing || leader.OwnerId != c.OwnerId) ||
             world._treasures.Select(t => t.Id).Distinct().Count() != world._treasures.Length ||
-            world._treasures.Any(t => t.Id < 0 || t.HolderId is int holder && !world._officers.ContainsKey(holder)) ||
+            world._treasures.Any(t => !t.IsValid || t.HolderId is int holder && !world._officers.ContainsKey(holder)) ||
             world._relations.Select(r => (r.FirstId, r.SecondId)).Distinct().Count() != world._relations.Length ||
             world._relations.Any(r => r.FirstId >= r.SecondId || r.Value is < 0 or > 100 || !world._forces.ContainsKey(r.FirstId) || !world._forces.ContainsKey(r.SecondId)))
             throw new ArgumentException("Invalid information state relationships.");

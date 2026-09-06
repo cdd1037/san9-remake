@@ -290,8 +290,8 @@ public partial class DetailNameButton : BaseButton
         int frame=ButtonPressed?2:_focused?1:0;_label.Position=ButtonPressed?new(2,2):Vector2.Zero;
         string suffix=frame==0?"":$"-{frame}";
         DrawTexture(Textures["roster-row-left"+suffix],Vector2.Zero);
-        DrawTextureRect(Textures["roster-row-middle"+suffix],new(8,0,48,16),true);
-        DrawTexture(Textures["roster-row-right"+suffix],new(56,0));
+        DrawTextureRect(Textures["roster-row-middle"+suffix],new(8,0,Size.X-16,16),true);
+        DrawTexture(Textures["roster-row-right"+suffix],new(Size.X-8,0));
     }
     public override void _ExitTree()=>_text.Dispose();
 }

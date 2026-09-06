@@ -29,7 +29,7 @@ public sealed class StrategySnapshot
         RegionCityIds=new System.Collections.ObjectModel.ReadOnlyDictionary<int,int>(new Dictionary<int,int>(definition.RegionCityIds));
         var officerDefinitions = definition.Officers.ToDictionary(o => o.State.Id);
         var settlements = world.Settlements.ToDictionary(s => s.Id);
-        Officers = Array.AsReadOnly(world.Officers.Select(o =>
+        Officers = Array.AsReadOnly(world.Officers.Where(o => o.IsVisible).Select(o =>
         {
             var location = o.SettlementId is int id ? settlements[id] : null;
             return new OfficerView(o.Id, officerDefinitions[o.Id].NameKey, o.OwnerId, o.IsServing ? location?.CorpsId : null,

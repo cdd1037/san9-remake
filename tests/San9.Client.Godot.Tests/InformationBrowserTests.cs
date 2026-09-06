@@ -10,7 +10,7 @@ public sealed class InformationBrowserTests
 {
     private static (GameSession Session, InformationQuery Query) Fixture(bool adjusted = false)
     {
-        var scenario = new ScenarioInitialState(9, "information", 190, 1, 1, 5,
+        var scenario = new ScenarioInitialState(10, "information", 190, 1, 1, 5,
             [new(5, "force", 5, 100, 200, 100) { LeaderId = 1, RankId = 0, ProvidedTactics = [1] }],
             [new(15, "city", 5, 80, 60, 1000, 500, 1000, 50, []) { CorpsId = 5, Commerce = 100, MaxCommerce = 1000, Cultivation = 100, MaxCultivation = 1000, Population = 50000 }],
             new() { [15] = "city", [50] = "region" }, new() { [15] = 15, [50] = 15 })
@@ -18,7 +18,7 @@ public sealed class InformationBrowserTests
             Officers = [new("ruler", new(1, 5, 15, new(90, 60, 80, 90), false) { Status = OfficerStatus.Ruler, BirthYear = 150, LearnedTactics = [0], TacticProficiencies = [200, 0, 0, 0, 0, 0, 0, 0, 0] }),
                 new("free", new(2, null, null, new(20, 60, 40, 50), false) { Status = OfficerStatus.Free, RegionId = 50 })],
             Information = new([new(0, "rank", 60000, 1000, 5)], [], [new(0, "treasure", 1, 5, 10, 2)],
-                [new(5, 5, 1, null)], [new(0, 1, true)])
+                [new(5, 5, 1, null)], [new(0, 1, TreasureDiscovery.Discovered, 15)])
         };
         if (adjusted)
         {
@@ -29,6 +29,50 @@ public sealed class InformationBrowserTests
         var text = new TextCatalog(1, new[] { "force", "city", "region", "ruler", "free", "rank", "treasure" }.ToDictionary(s => s, s => new TextEntry(s, s)));
         var session = GameSession.Start(scenario, 1);
         return (session, new(session, text));
+    }
+
+    [Fact]
+    public void TreasureDetailProjectsCurrentHolderAndMultilineDescriptionWithoutMutatingWorld()
+    {
+        var (session, _) = Fixture();
+        var texts = new TextCatalog(1, new()
+        {
+            ["treasure"] = new("测试宝物", "测试宝物"), ["ruler"] = new("持有人", "持有人"),
+            [TreasureText.DescriptionKey(0)] = new("第一行\n第二行", "第一行\n第二行")
+        });
+        var hash = session.Snapshot.StateHash;
+        var detail = TreasureDetails.Read(session.View, texts, 0);
+        Assert.Equal("持有人", detail.Holder);
+        Assert.Equal("第一行\n第二行", detail.Description);
+        Assert.Equal("武力+5", detail.Ability);
+        Assert.Equal("", detail.Effect);
+        Assert.Equal(0, detail.TacticGroup);
+        Assert.Equal("奋迅", detail.Tactic);
+        Assert.Equal(hash, session.Snapshot.StateHash);
+        texts.Entries.Remove(TreasureText.DescriptionKey(0));
+        Assert.Throws<InvalidDataException>(() => TreasureDetails.Read(session.View, texts, 0));
+    }
+
+    [Fact]
+    public void TreasureDetailReturnPreservesFilteredCatalogAndThenOriginalOfficer()
+    {
+        var browser = new InformationBrowser();
+        browser.Open(InformationCategory.Officers); browser.ShowDetail(1);
+        browser.Navigate(new("宝物", InformationCategory.Treasures, HolderId: 1));
+        browser.Sort(3, 7); browser.Scroll(5, 40); browser.Select(7);
+        browser.ShowDetail(7); browser.Select(9); browser.Back();
+        Assert.False(browser.IsDetail);
+        Assert.Equal(InformationCategory.Treasures, browser.Category);
+        Assert.Equal(1, browser.HolderFilter);
+        Assert.Equal(9, browser.SelectedId);
+        Assert.Equal(5, browser.Offset);
+        Assert.Equal(3, browser.SortColumn);
+        Assert.True(browser.Descending);
+        browser.Back();
+        Assert.True(browser.IsDetail);
+        Assert.Equal(InformationCategory.Officers, browser.Category);
+        Assert.Equal(1, browser.SelectedId);
+        Assert.Null(browser.HolderFilter);
     }
 
     [Fact]

@@ -31,7 +31,7 @@ public sealed class ClientContentPackageTests
         .Concat(Enumerable.Range(0, 51).Select(i => $"overview-force-{i}")).Concat(["roster-available", "roster-unavailable"]).ToDictionary(s => s, _ => "F0F0F0");
     private static readonly MapBuildingPlacement[] Buildings = [new(15, 89, 64, 0), new(100, 86, 65, 1)];
     private static readonly ImageAsset Asset = new("ui", "ui/frame.png", new string('0', 64), 32, 32);
-    private static ScenarioInitialState Fixture() => new(9, "fixture", 190, 1, 1, 5,
+    private static ScenarioInitialState Fixture() => new(10, "fixture", 190, 1, 1, 5,
         [new(5, "player", 2, 9520, 73200, 100)],
         [new(15, "city", 5, 89, 64, 32000, 500, 1000, 50, []), new(100, "port", null, 86, 65, 1000, 200, 300, 50, [])],
         new() { [15] = "city" }, []);
@@ -50,7 +50,7 @@ public sealed class ClientContentPackageTests
     [Fact]
     public void MissingUiAndInvalidDurabilityOrNamesFailValidation()
     {
-        var skin = new InterfaceSkin(12, [Asset], InterfaceSkin.RequiredUiAssets.ToDictionary(s => s, _ => "ui"), Colors());
+        var skin = new InterfaceSkin(13, [Asset], InterfaceSkin.RequiredUiAssets.ToDictionary(s => s, _ => "ui"), Colors());
         skin.Validate(); skin.Roles.Remove("top-frame");
         Assert.Throws<InvalidDataException>(skin.Validate);
         skin.Roles["top-frame"] = "missing";
@@ -77,10 +77,11 @@ public sealed class ClientContentPackageTests
     {
         var map = new MapPackage(8, "fixture", "fixture", "spring", 200, 200, 13056, 6656,
             [], [], [], [], [], [], Buildings, [], [], [], [], [], new([], []), []);
-        var skin = new InterfaceSkin(12, [Asset], InterfaceSkin.RequiredUiAssets.ToDictionary(s => s, _ => "ui"), Colors());
+        var skin = new InterfaceSkin(13, [Asset], InterfaceSkin.RequiredUiAssets.ToDictionary(s => s, _ => "ui"), Colors());
         var text = new TextCatalog(1, new() { ["player"] = new("Player", "Player"), ["city"] = new("City", "City"), ["port"] = new("Port", "Port") });
         foreach (string role in StrategyHintText.Roles) text.Entries.Add(StrategyHintText.Key(role), new("Hint", "Hint"));
-        var p = new ClientContentPackage(12, [], map, Fixture(), text, skin); p.ValidateLinks();
+        var p = new ClientContentPackage(15, [], map, Fixture(), text, skin); p.ValidateLinks();
+        Assert.Throws<InvalidDataException>(() => (p with { SchemaVersion = 13 }).ValidateLinks());
         Assert.Throws<InvalidDataException>(() => (p with { Scenario = p.Scenario with { Settlements = [p.Scenario.Settlements[0]] } }).ValidateLinks());
         Assert.Throws<InvalidDataException>(() => (p with { Scenario = p.Scenario with { ScenarioId = "other" } }).ValidateLinks());
         Assert.Throws<InvalidDataException>(() => (p with { Scenario = p.Scenario with { Settlements = [p.Scenario.Settlements[0] with { X = 88 }, p.Scenario.Settlements[1]] } }).ValidateLinks());
@@ -91,6 +92,25 @@ public sealed class ClientContentPackageTests
         }
         var translated = text with { Entries = text.Entries.ToDictionary(kv => kv.Key, kv => kv.Value with { Text = "中文" }) };
         var changed = p with { Text = translated }; changed.ValidateLinks();
+        var treasurePackage = p with { Scenario = p.Scenario with
+        {
+            Information = new([], [], [new(0, "treasure", 0, 0, 0, null)], [], [new(0, null, San9.Core.Domain.TreasureDiscovery.Discovered, 15)])
+        }, Text = new(1, new(text.Entries)), Skin = skin with { Roles = new(skin.Roles) } };
+        treasurePackage.Skin.Roles.Add("information-treasure-0", "ui");
+        treasurePackage.Text.Entries.Add("treasure", new("Treasure", "Treasure"));
+        Assert.Throws<InvalidDataException>(treasurePackage.ValidateLinks);
+        treasurePackage.Text.Entries.Add(TreasureText.DescriptionKey(0), new("First\nSecond", "First\nSecond"));
+        treasurePackage.ValidateLinks();
+        Assert.Throws<InvalidDataException>(() => (treasurePackage.Scenario with
+        {
+            Information = treasurePackage.Scenario.Information with
+            { TreasureStates = [new(0, 999, San9.Core.Domain.TreasureDiscovery.Discovered, 15)] }
+        }).Validate());
+        Assert.Throws<InvalidDataException>(() => (treasurePackage.Scenario with
+        {
+            Information = treasurePackage.Scenario.Information with
+            { TreasureStates = [new(0, null, San9.Core.Domain.TreasureDiscovery.Buried, 999)] }
+        }).Validate());
         Assert.Same(p.Map, changed.Map); Assert.Same(p.Scenario, changed.Scenario);
         Assert.Equal("中文", changed.Text.Resolve("city")); Assert.Equal("City", changed.Text.Entries["city"].SourceText);
     }

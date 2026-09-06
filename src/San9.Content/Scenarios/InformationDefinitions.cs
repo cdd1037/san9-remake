@@ -26,8 +26,11 @@ public sealed record InformationDefinitions(RankDefinition[] Ranks, OfficeDefini
         if (Ranks.Any(r => string.IsNullOrWhiteSpace(r.NameKey) || r.RequiredTrust < 0 || r.LoyaltyBonus < 0) ||
             Offices.Any(o => string.IsNullOrWhiteSpace(o.NameKey) || o.Salary < 0) ||
             Treasures.Any(t => string.IsNullOrWhiteSpace(t.NameKey) || t.Category is < 0 or > 12 || t.AbilityBonus < 0 || t.LoyaltyBonus < 0) ||
-            !Treasures.Select(t => t.Id).Order().SequenceEqual(TreasureStates.Select(t => t.Id).Order()) ||
-            TreasureStates.Any(t => t.HolderId is int holder && !scenario.Officers.Any(o => o.State.Id == holder)) ||
+            Treasures.Any(t => !TreasureStates.Any(state => state.Id == t.Id)) ||
+            TreasureStates.Any(t => t.Discovery != TreasureDiscovery.Disabled && !Treasures.Any(d => d.Id == t.Id)) ||
+            TreasureStates.Any(t => !t.IsValid ||
+                t.DiscoveryRegionId is int region && !scenario.RegionNameKeys.ContainsKey(region) ||
+                t.HolderId is int holder && !scenario.Officers.Any(o => o.State.Id == holder)) ||
             Corps.Any(c => !scenario.Forces.Any(f => f.Id == c.OwnerId) || !scenario.Officers.Any(o => o.State.Id == c.LeaderId && o.State.OwnerId == c.OwnerId)))
             throw new InvalidDataException("Invalid information definition or relationship.");
     }

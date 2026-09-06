@@ -206,3 +206,5 @@
 事实：RE-0035确认G_FaceS的原生尺寸64×80，对应用户要求的中档头像；G_FaceL是240×240，不能以缩放替代不同构图。目录独立使用catalog-person-*角色，详情继续information-person-*大图。转换与审计分别绑定源文件，不在客户端读取原版资源。
 
 验证：默认生成包已原地重新导入，地图资源复用。`dotnet test San9Remake.slnx --no-restore`通过275项；`python -m unittest discover -s research/scripts -p test_verify_initial_ui.py`通过6项；`verify_initial_ui.py`以原版EXE、源数据目录及默认生成包执行`--all`通过，覆盖428张固定界面图及434张人物/宝物图，并检查数据与包完整性。审计允许所有有效Alpha为零的像素进行RGB扩边，仍逐像素核对非零Alpha的RGB与全部Alpha值；新增回归覆盖非透明键的零Alpha及半透明颜色错误。依用户要求未启动Godot或游戏，实际画面由用户验收。
+
+历史工具说明：本文引用的`verify_initial_ui.py`及其测试已于2026-09-06按用户要求删除；既有结果仅为同一规则来源下的两份转换实现交叉检查，不构成独立的原版行为证据。源数据与IDA分析结论仍按各自证据保留。

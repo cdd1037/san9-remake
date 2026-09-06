@@ -9,9 +9,29 @@ import struct
 from pathlib import Path
 from PIL import Image, ImageDraw
 from parse_pk_text import decode_ls11, split_indexed_records, strip_common_terminator
-from verify_initial_ui import parse_combined
 
 BANKS = [(24, 0x14410), (16, 0x66C410), (12, 0x93E810)]
+
+
+def parse_combined(data):
+    if len(data) < 4:
+        raise ValueError("Missing palette count")
+    count = struct.unpack_from("<I", data)[0]
+    start = 4 + count * 1064
+    if start + 4 > len(data) or struct.unpack_from("<I", data, start)[0] != len(data) - start:
+        raise ValueError("Invalid image stream bounds")
+    palettes = [data[44 + i * 1064:1068 + i * 1064] for i in range(count)]
+    images = []
+    position = start + 4
+    while position < len(data):
+        if position + 16 > len(data):
+            raise ValueError("Truncated image header")
+        size, stride, width, height = struct.unpack_from("<4I", data, position)
+        if width == 0 or height == 0 or stride != width or size != 16 + stride * height or position + size > len(data):
+            raise ValueError("Invalid indexed image")
+        images.append((width, height, data[position + 16:position + size]))
+        position += size
+    return palettes, images
 
 
 def decode(code, encoding):

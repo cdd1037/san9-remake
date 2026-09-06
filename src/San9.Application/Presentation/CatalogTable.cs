@@ -54,7 +54,7 @@ public sealed class CatalogTableState
     public void Sort(int column)
     {
         if (column < 0 || Rows.Any(r => column >= r.Cells.Length)) throw new ArgumentOutOfRangeException(nameof(column));
-        Descending = SortColumn == column && !Descending; SortColumn = column;
+        Descending = SortColumn != column || !Descending; SortColumn = column;
         var comparer = Comparer<CatalogCell>.Create((a, b) =>
         {
             if (a.IsUnavailable != b.IsUnavailable) return a.IsUnavailable ? 1 : -1;

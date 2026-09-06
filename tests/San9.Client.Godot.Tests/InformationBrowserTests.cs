@@ -115,13 +115,13 @@ public sealed class InformationBrowserTests
         InformationRow Row(int id, int value) => new(new(InformationCategory.Officers, id), [value]);
         var table = new InformationTable("test", ["page"], ["number"], [Row(0, 100), Row(1, 9), Row(2, 20)]);
         browser.Sort(0, 1);
-        Assert.Equal([1, 2, 0], browser.Order(table).Select(r => r.Key.Id));
-        browser.Sort(0, 1);
         Assert.Equal([0, 2, 1], browser.Order(table).Select(r => r.Key.Id));
+        browser.Sort(0, 1);
+        Assert.Equal([1, 2, 0], browser.Order(table).Select(r => r.Key.Id));
         browser.Scroll(10, 50); browser.ShowDetail(2);
         browser.Navigate(new("force", InformationCategory.Forces, 5));
         browser.Back();
-        Assert.True(browser.IsDetail); Assert.Equal(2, browser.SelectedId); Assert.Equal(10, browser.Offset); Assert.True(browser.Descending);
+        Assert.True(browser.IsDetail); Assert.Equal(2, browser.SelectedId); Assert.Equal(10, browser.Offset); Assert.False(browser.Descending);
         browser.Back(); Assert.False(browser.IsDetail); Assert.True(browser.IsOpen);
         browser.Back(); Assert.False(browser.IsOpen);
     }

@@ -22,10 +22,10 @@ public sealed class CatalogTableTests
         var model = new CatalogTableState();
         model.SetRows([Row(8, 9), Row(3, 100), Row(7, 9), Row(1, CatalogCell.Unavailable)], 3);
         model.Sort(0);
-        Assert.Equal([8, 7, 3, 1], model.Rows.Select(r => r.Id));
+        Assert.Equal([3, 8, 7, 1], model.Rows.Select(r => r.Id));
         Assert.Equal(1, model.CurrentIndex);
         model.Sort(0);
-        Assert.Equal([3, 8, 7, 1], model.Rows.Select(r => r.Id));
+        Assert.Equal([8, 7, 3, 1], model.Rows.Select(r => r.Id));
         Assert.Equal(1, model.CurrentIndex);
     }
 

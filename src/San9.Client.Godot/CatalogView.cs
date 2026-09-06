@@ -91,7 +91,7 @@ public partial class CatalogView : Control
         _page = page; _state.SetRows(ReadRows(page), current, offset);
         if (restoreSort && sortColumn >= 0 && sortColumn < Pages[page].Columns.Length)
         {
-            _state.Sort(sortColumn); if (descending) _state.Sort(sortColumn);
+            _state.Sort(sortColumn); if (!descending) _state.Sort(sortColumn);
             if (current is int id) _state.PointAt(Array.FindIndex(_state.Rows, row => row.Id == id));
         }
         _grid = new Control { Position = _tableOrigin, MouseFilter = MouseFilterEnum.Ignore }; AddChild(_grid);

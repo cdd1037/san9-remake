@@ -55,7 +55,7 @@ public sealed class InformationBrowser
     public void Sort(int column, int count)
     {
         if (column < 0 || column >= count) throw new ArgumentOutOfRangeException(nameof(column));
-        Descending = SortColumn == column && !Descending; SortColumn = column; Offset = 0;
+        Descending = SortColumn != column || !Descending; SortColumn = column; Offset = 0;
     }
     public void Scroll(int offset, int count) => Offset = Math.Clamp(offset, 0, Math.Max(0, count - PageSize));
     public void Select(int id) => SelectedId = id;

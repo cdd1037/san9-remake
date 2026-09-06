@@ -12,17 +12,23 @@ public sealed class ScenarioTextReader(byte[] messages, byte[] executable) : IDi
     private readonly OriginalTextConverter _converter = new();
 
     public TextCatalog Catalog => new(1, new(_entries));
+    public void ReadStrategyHints()
+    {
+        // RE-SAN9PK-0160: toolbar IDs 1000..1013, table 0x660F60.
+        int[] messages = [8261, 8260, 8262, 8439, 8430, 8291, 8293, 8253, 8290, 8289, 8288, 8440, 8442, 8441];
+        for (int i = 0; i < messages.Length; i++) Add(StrategyHintText.Key(StrategyHintText.Roles[i]), _messages.PlainText(messages[i]));
+    }
     private string Add(string key, byte[] source)
     {
         _entries.Add(key, _converter.Convert(source)); return key;
     }
-    public string City(string key, int code) => Add(key, _messages.Name(721 + 2 * code));
-    public string Region(string key, int code) => Add(key, _messages.Name(166 + 2 * code));
-    public string Settlement(string key, int code, int type) => Add(key, [.. _messages.Name(166 + 2 * code), .. TypeSuffix(type)]);
+    public string City(string key, int code) => Add(key, _messages.PlainText(721 + 2 * code));
+    public string Region(string key, int code) => Add(key, _messages.PlainText(166 + 2 * code));
+    public string Settlement(string key, int code, int type) => Add(key, [.. _messages.PlainText(166 + 2 * code), .. TypeSuffix(type)]);
     public string Person(string key, int family, int given)
     {
         if (family >= 700 || given >= 700) throw new InvalidDataException("Unsupported generated person name.");
-        return Add(key, [.. _messages.Name(1678 + 4 * family), .. _messages.Name(1679 + 4 * given)]);
+        return Add(key, [.. _messages.PlainText(1678 + 4 * family), .. _messages.PlainText(1679 + 4 * given)]);
     }
     private byte[] TypeSuffix(int type)
     {

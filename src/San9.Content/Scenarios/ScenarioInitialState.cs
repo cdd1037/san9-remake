@@ -2,12 +2,14 @@ namespace San9.Content.Scenarios;
 
 public sealed record ForceInitialState(int Id, string NameKey, int ColorCode, uint Money, uint Food, int Trust)
 {
+    [System.Text.Json.Serialization.JsonRequired] public bool IsBarbarian { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public int FlagGlyph { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public int? LeaderId { get; init; }
 }
 public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId, int X, int Y,
     uint Soldiers, int Durability, int MaxDurability, int Morale, string[] Icons)
 {
+    [System.Text.Json.Serialization.JsonRequired] public San9.Core.Domain.SettlementKind Kind { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public int Appearance { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public int? CorpsId { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public bool IsFacilityListEntry { get; init; }
@@ -21,16 +23,19 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
     [System.Text.Json.Serialization.JsonRequired] public OfficerInitialState[] Officers { get; init; } = [];
+    [System.Text.Json.Serialization.JsonRequired] public San9.Core.Domain.UnitState[] Units { get; init; } = [];
     public void Validate()
     {
-        if (SchemaVersion != 5 || string.IsNullOrWhiteSpace(ScenarioId) || Year < 1 || Month is < 1 or > 12 || Day is < 1 or > 30 ||
+        if (SchemaVersion != 6 || string.IsNullOrWhiteSpace(ScenarioId) || Year < 1 || Month is < 1 or > 12 || Day is < 1 or > 30 ||
             Forces.Select(f => f.Id).Distinct().Count() != Forces.Length || !Forces.Any(f => f.Id == PlayerForceId))
             throw new InvalidDataException("Invalid scenario date or player force.");
         var forceIds = Forces.Select(f => f.Id).ToHashSet();
+        if (Units.Select(u => u.Id).Distinct().Count() != Units.Length || Units.Any(u => !u.IsValid || !forceIds.Contains(u.OwnerId)))
+            throw new InvalidDataException("Invalid field unit initial state.");
         if (Forces.Any(f => f.Id < 0 || string.IsNullOrWhiteSpace(f.NameKey) || f.Trust < 0 || f.ColorCode is < 0 or > 50 || f.FlagGlyph is < -1 or > 185))
             throw new InvalidDataException("Invalid force snapshot.");
         if (Settlements.Select(s => s.Id).Distinct().Count() != Settlements.Length || Settlements.Any(s =>
-            s.Id < 0 || string.IsNullOrWhiteSpace(s.NameKey) || s.OwnerId is int owner && !forceIds.Contains(owner) ||
+            s.Id < 0 || !Enum.IsDefined(s.Kind) || string.IsNullOrWhiteSpace(s.NameKey) || s.OwnerId is int owner && !forceIds.Contains(owner) ||
             s.X < 0 || s.Y < 0 || s.Morale is < 0 or > 100 ||
             s.Icons.Contains("merchant") && s.Icons.Contains("training") ||
             s.Icons.Distinct().Count() != s.Icons.Length || s.Icons.Any(i => i is not ("merchant" or "training" or "emperor")) ||

@@ -24,3 +24,5 @@
 - [DEC-UI-0004：设施名单按原作行为、用原生控件实现](DEC-UI-0004-facility-list-interaction.md)
 
 - [DEC-UI-0005：私有姓名字形的现代显示规范化](DEC-UI-0005-officer-name-normalization.md)
+
+- [DEC-UI-0006：全图导航与悬停反馈](DEC-UI-0006-overview-navigation.md)

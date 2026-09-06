@@ -14,10 +14,12 @@ public static class ScenarioContentCompiler
         var zones = Read(San9ScenarioZoneArchive.ReadKnownRecords);
         var forces = Read(San9ScenarioForceArchive.ReadKnownRecords);
         var persons = Read(San9ScenarioPersonArchive.ReadKnownRecords);
+        var sourceUnits = Read(San9ScenarioUnitArchive.ReadKnownRecords);
         var items = Read(San9ScenarioItemArchive.ReadKnownRecords);
         var offices = Read(San9ScenarioOfficeArchive.ReadKnownRecords);
         var fixedBuildings = Read(San9ScenarioFixedBuildingArchive.ReadKnownRecords);
         using var text = new ScenarioTextReader(messages, exe);
+        text.ReadStrategyHints();
         int? Root(int? id)
         {
             if (id is null) return null;
@@ -54,7 +56,7 @@ public static class ScenarioContentCompiler
             if (z.FixedBuildingId is not int type || z.Durability == ushort.MaxValue) continue;
             string name = text.Settlement($"settlement.{id}", z.NameResourceCode, type);
             settlements.Add(new(id, name, Root(z.ForceId), z.X, z.Y, z.Soldiers, z.Durability, fixedBuildings[type].MaxDurability, Morale(Root(z.ForceId), z.Soldiers), [])
-            { CorpsId = z.ForceId, IsFacilityListEntry = fixedBuildings[type].IsFacilityListEntry });
+            { Kind = San9.Core.Domain.SettlementKind.Facility, CorpsId = z.ForceId, IsFacilityListEntry = fixedBuildings[type].IsFacilityListEntry });
         }
         var summaries = settlements.Where(s => s.OwnerId is not null).Select(s => s.OwnerId!.Value).Append(5).Distinct().Order().Select(id =>
         {
@@ -62,14 +64,20 @@ public static class ScenarioContentCompiler
             if (f.LeaderId is not int leader || leader >= persons.Count) throw new InvalidDataException("Missing force leader.");
             var p = persons[leader];
             string name = text.Person($"force.{id}", p.FamilyNameResourceCode, p.GivenNameResourceCode);
-            return new ForceInitialState(id, name, f.ColorCode, f.Money, f.Food, f.Trust) { LeaderId = leader, FlagGlyph = f.CountryTitleId is int title ? System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(exe.AsSpan(0x253bb0 + title * 4, 4)) : p.FlagCode < 186 ? p.FlagCode : -1 };
+            return new ForceInitialState(id, name, f.ColorCode, f.Money, f.Food, f.Trust) { IsBarbarian = f.IsBarbarian || f.CountryTitleId is >= 4 and <= 8, LeaderId = leader, FlagGlyph = f.CountryTitleId is int title ? System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(exe.AsSpan(0x253bb0 + title * 4, 4)) : p.FlagCode < 186 ? p.FlagCode : -1 };
         }).ToArray();
         var officers = OfficerContentCompiler.Compile(persons, items, offices, settlements, text);
         var catalog = text.Catalog;
         if (catalog.Resolve(summaries.Single(f => f.Id == 5).NameKey) != "董卓") throw new InvalidDataException("Unexpected 190-year player force.");
-        var snapshot = new ScenarioInitialState(5, header.ScenarioId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        var units = sourceUnits.Where(u => u.UnitStatus != San9ScenarioUnitStatus.Invalid).Select(u =>
+        {
+            if (u.UnitStatus is null || Root(u.ForceId) is not int owner || u.XCoordinate is not int x || u.YCoordinate is not int y)
+                throw new InvalidDataException("Invalid active field unit.");
+            return new San9.Core.Domain.UnitState(u.Id, owner, x, y, (uint)u.LoadedSoldierCount);
+        }).ToArray();
+        var snapshot = new ScenarioInitialState(6, header.ScenarioId.ToString(System.Globalization.CultureInfo.InvariantCulture),
             header.StartDate.Year, header.StartDate.Month, header.StartDate.Day, 5, summaries, settlements.OrderBy(s => s.Id).ToArray(), regions, regionCities)
-        { Officers = officers };
+        { Officers = officers, Units = units };
         snapshot.Validate(); catalog.Validate(); return (snapshot, catalog);
     }
 }

@@ -4,6 +4,16 @@ namespace San9.Client.Godot.Tests;
 
 public sealed class GameTextStyleTests
 {
+    [Fact]
+    public void HintAvailabilityChangesForegroundButPreservesEffects()
+    {
+        var enabled = GameTextStyles.Message(true);
+        var disabled = GameTextStyles.Message(false);
+        Assert.Equal(new Color("f0f0f0"), enabled.Foreground);
+        Assert.Equal(new Color("f06850"), disabled.Foreground);
+        Assert.Equal(enabled with { Foreground = disabled.Foreground }, disabled);
+        Assert.True(disabled.OutlineSize > 0 && disabled.Shadow.A > 0);
+    }
     [Theory]
     [InlineData(GameTextRole.Header, 0, false)]
     [InlineData(GameTextRole.Resource, 0, false)]
@@ -34,7 +44,7 @@ public sealed class GameTextStyleTests
     [InlineData(GameButtonTextRole.Help, "603000", true)]
     [InlineData(GameButtonTextRole.Advance, "005028", true)]
     [InlineData(GameButtonTextRole.Territory, "603000", false)]
-    [InlineData(GameButtonTextRole.Zoom, "603000", false)]
+    [InlineData(GameButtonTextRole.MapMode, "603000", false)]
     [InlineData(GameButtonTextRole.Facilities, "005028", false)]
     [InlineData(GameButtonTextRole.Officers, "800090", false)]
     [InlineData(GameButtonTextRole.Units, "5828c8", false)]

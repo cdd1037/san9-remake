@@ -11,6 +11,7 @@ public sealed class WorldState
     private readonly Dictionary<int, ForceState> _forces = [];
     private readonly Dictionary<int, SettlementState> _settlements = [];
     private readonly Dictionary<int, OfficerState> _officers = [];
+    private readonly Dictionary<int, UnitState> _units = [];
     public long Revision { get; private set; }
     private WorldSnapshot? _snapshot;
     private WorldState(GameClock clock, ulong randomState)
@@ -26,7 +27,7 @@ public sealed class WorldState
     public static WorldState Create(GameClock clock, ulong seed) => new(clock, seed);
 
     public static WorldState Create(GameClock clock, ulong seed, IEnumerable<ForceState> forces,
-        IEnumerable<SettlementState> settlements, IEnumerable<OfficerState> officers)
+        IEnumerable<SettlementState> settlements, IEnumerable<OfficerState> officers, IEnumerable<UnitState>? units = null)
     {
         var world = new WorldState(clock, seed);
         foreach (var force in forces)
@@ -36,7 +37,7 @@ public sealed class WorldState
         }
         foreach (var settlement in settlements)
         {
-            if (settlement.Id < 0 || settlement.OwnerId is int owner && !world._forces.ContainsKey(owner) ||
+            if (settlement.Id < 0 || !Enum.IsDefined(settlement.Kind) || settlement.OwnerId is int owner && !world._forces.ContainsKey(owner) ||
                 settlement.MaxDurability <= 0 || settlement.Durability < 0 || settlement.Durability > settlement.MaxDurability ||
                 settlement.Morale is < 0 or > 100 || settlement.Commerce < 0 || settlement.Commerce > settlement.MaxCommerce ||
                 settlement.Cultivation < 0 || settlement.Cultivation > settlement.MaxCultivation || settlement.PublicOrder is < 0 or > 1000)
@@ -56,6 +57,11 @@ public sealed class WorldState
             world._settlements.Values.Where(s => s.CorpsId is not null).GroupBy(s => s.CorpsId)
                 .Any(g => g.Select(s => s.OwnerId).Distinct().Count() != 1))
             throw new ArgumentException("Invalid leader or corps relationship.");
+        foreach (var unit in units ?? [])
+        {
+            if (!unit.IsValid || !world._forces.ContainsKey(unit.OwnerId)) throw new ArgumentException("Invalid unit.");
+            world._units.Add(unit.Id, unit);
+        }
         return world;
     }
 
@@ -100,9 +106,10 @@ public sealed class WorldState
         var forces = Array.AsReadOnly(_forces.Values.OrderBy(f => f.Id).ToArray());
         var settlements = Array.AsReadOnly(_settlements.Values.OrderBy(s => s.Id).ToArray());
         var officers = Array.AsReadOnly(_officers.Values.OrderBy(o => o.Id).ToArray());
-        canonical += JsonSerializer.Serialize(new { forces, settlements, officers });
+        var units = Array.AsReadOnly(_units.Values.OrderBy(u => u.Id).ToArray());
+        canonical += JsonSerializer.Serialize(new { forces, settlements, officers, units });
         string hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
-        return _snapshot = new WorldSnapshot(Clock, RandomState, hash) { Forces = forces, Settlements = settlements, Officers = officers, Revision = Revision };
+        return _snapshot = new WorldSnapshot(Clock, RandomState, hash) { Forces = forces, Settlements = settlements, Officers = officers, Units = units, Revision = Revision };
     }
 }
 
@@ -114,5 +121,6 @@ public sealed record WorldSnapshot(
     public IReadOnlyList<ForceState> Forces { get; init; } = [];
     public IReadOnlyList<SettlementState> Settlements { get; init; } = [];
     public IReadOnlyList<OfficerState> Officers { get; init; } = [];
+    public IReadOnlyList<UnitState> Units { get; init; } = [];
     public long Revision { get; init; }
 }

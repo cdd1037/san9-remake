@@ -177,14 +177,38 @@ public partial class StrategyHud
         await Click(new(970, 590));
         Check(Selection.BuildingId == old, "Sidebar input leaked to map.");
         float zoom = World.ZoomFactor;
+        var overviewCenter = World.CameraPosition;
+        string overviewHash = Session.Snapshot.StateHash;
         await Click(new(979, 628));
-        Check(World.ZoomFactor == .5f && _small!.ButtonPressed, "Small map button failed.");
+        Check(Overview.IsOpen && _overviewPanel.Visible && World.ZoomFactor == zoom && World.CameraPosition == overviewCenter && _small!.ButtonPressed,
+            "Overview did not open independently of the detailed camera.");
+        Check(_territory!.Disabled, "Detailed-map territory toggle remained active in overview.");
+        await Click(new(618,415));
+        Check(!Overview.ShowForces && Overview.ShowFacilities && Overview.ShowUnits, "Overview layer toggles are not independent.");
+        await Click(new(558,445));
+        await Click(new(499,475));
+        Check(!Overview.ShowFacilities && !Overview.ShowUnits, "Overview marker toggles failed.");
+        GetViewport().PushInput(new InputEventMouseButton { Position = new(400,280), ButtonIndex = MouseButton.WheelUp, Pressed = true },true);
+        GetViewport().PushInput(new InputEventMouseButton { Position = new(400,280), ButtonIndex = MouseButton.WheelUp, Pressed = false },true);
+        await View();
+        Check(World.ZoomFactor == Math.Clamp(zoom * 1.2f, .25f, 2), "Overview wheel did not adjust detailed zoom.");
+        zoom = World.ZoomFactor;
+        await Click(new(400,280));
+        Check(Overview.IsOpen && World.CameraPosition != overviewCenter && Selection.BuildingId == old, "Overview positioning closed panel or changed command selection.");
+        var overviewTarget = World.CameraPosition;
+        await Click(new(300,650));
+        Check(World.CameraPosition == overviewTarget && Session.Snapshot.StateHash == overviewHash, "Ranking click changed camera or world.");
         await Click(new(922, 649));
-        Check(World.ZoomFactor == 1 && _large!.ButtonPressed, "Large map button failed.");
+        Check(!Overview.IsOpen && World.ZoomFactor == zoom && World.CameraPosition == overviewTarget && _large!.ButtonPressed,
+            $"Large map button did not restore detailed map: open={Overview.IsOpen}, zoom={World.ZoomFactor}/{zoom}, center={World.CameraPosition}/{overviewTarget}, pressed={_large!.ButtonPressed}.");
+        await Click(new(979,628));
+        Check(!Overview.ShowForces && !Overview.ShowFacilities && !Overview.ShowUnits, "Reopening overview reset layers.");
+        await Click(new(618,415)); await Click(new(558,445)); await Click(new(499,475));
+        await Click(new(922,649));
         ((StrategyButton)_large!).RefreshVisual();
         ((StrategyButton)_small!).RefreshVisual();
         Check(((StrategyButton)_large).TextPosition == new Vector2(2, 2) &&
-            ((StrategyButton)_small).TextPosition == Vector2.Zero, "Zoom button text did not follow selection.");
+            ((StrategyButton)_small).TextPosition == Vector2.Zero, "Map mode button text did not follow selection.");
         bool boundaries = World.ShowBoundaries;
         await Click(new(726, 28));
         Check(World.ShowBoundaries != boundaries && _territory!.ButtonPressed == World.ShowBoundaries, "Boundary toggle failed.");
@@ -225,7 +249,7 @@ public partial class StrategyHud
         Check(Selection.BuildingId == first, "Map click did not select facility.");
         Check(IsBlockedPoint(new(500, 25)) && !IsBlockedPoint(new(500, 400)), "UI hit regions are incorrect.");
         World.SetZoom(1); FocusFacility(first); Selection.Clear();
-        GD.Print("UI_SMOKE_OK viewport-dispatched facility focus, press, drag cancel/reentry, ruler, Enter, context menu, discrete scrolling and thumb drag, Tab traversal, map selection isolation, minimap, zoom");
+        GD.Print("UI_SMOKE_OK viewport-dispatched facility focus, press, drag cancel/reentry, ruler, Enter, context menu, discrete scrolling and thumb drag, Tab traversal, map selection isolation, minimap, overview layers and navigation");
     }
     public async Task CaptureFacilityStatesAsync(Func<string, Task> capture)
     {

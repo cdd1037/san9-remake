@@ -46,7 +46,7 @@ public partial class Main : Node
             var hud = new StrategyHud { World = world, Selection = selection, Session = session, Texts = content.Text, Skin = content.Skin, SkinImages = loaded.Images };
             ui.AddChild(hud);
             var debug = new DebugPanel { World = world, Session = session, Selection = selection }; ui.AddChild(debug);
-            world.IsInputBlocked = p => (debug.Visible && debug.GetRect().HasPoint(p)) || hud.IsBlockedPoint(p);
+            world.IsInputBlocked = p => hud.Overview.IsOpen || (debug.Visible && debug.GetRect().HasPoint(p)) || hud.IsBlockedPoint(p);
             if (options.Smoke || options.RuntimeSmoke || options.Screenshot is not null)
                 AddChild(new ClientVerification { World = world, Selection = selection, Hud = hud, Options = options });
         }

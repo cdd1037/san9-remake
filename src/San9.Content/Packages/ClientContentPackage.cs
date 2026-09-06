@@ -11,6 +11,7 @@ public sealed record ClientContentPackage(int SchemaVersion, ContentSource[] Sou
     {
         if (SchemaVersion != 7) throw new InvalidDataException("Unsupported client content version.");
         Scenario.Validate(); Text.Validate(); Skin.Validate();
+        foreach (string role in StrategyHintText.Roles) _ = Text.Resolve(StrategyHintText.Key(role));
         if (Map.ScenarioId != Scenario.ScenarioId ||
             !Map.Buildings.Select(b => b.Id).Order().SequenceEqual(Scenario.Settlements.Select(s => s.Id).Order()))
             throw new InvalidDataException("Scenario and map identities differ.");

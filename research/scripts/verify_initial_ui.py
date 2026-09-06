@@ -10,6 +10,15 @@ from PIL import Image
 # Independent source mappings; groups describe presentation responsibilities, not file layout.
 # Each tuple is (role, resource, columns, palette_alpha).
 ASSET_GROUPS = {
+    "overview": ("G_MMap.s9", 999, 295, [
+        ("overview-background", 1156, 1, False), ("overview-terrain", 1163, 1, False),
+        ("overview-borders", 1162, 1, True), ("overview-ranking", 1160, 1, True),
+        ("button-overview-forces", 1158, 4, True), ("button-overview-facilities", 1159, 4, True),
+        ("button-overview-units", 1157, 4, True),
+        *[(f"overview-city-{i}", 1161, 1, True) for i in range(50)],
+        *[(f"overview-marker-{i}", 1050+i, 1, False) for i in range(51)],
+        *[(f"overview-facility-{i}", 999+i, 1, False) for i in range(51)],
+        *[(f"overview-unit-{i}", 1170+i, 1, False) for i in range(50)]]),
     "scrollbar": ("G_Main.s9", 5975, 60, [
         ("roster-scroll-decoration", 6060, 1, False),
         ("button-scroll-up", 6026, 4, False), ("button-scroll-down", 6027, 4, False),
@@ -25,7 +34,7 @@ ASSET_GROUPS = {
         ("button-territory", 6043, 6, False), ("button-facilities", 6044, 4, False),
         ("button-officers", 6045, 4, False), ("button-units", 6046, 4, False),
         ("button-information", 6049, 4, False), ("button-functions", 6048, 4, False),
-        ("button-help", 6050, 4, False), ("button-zoom", 6061, 4, False), ("button-advance", 6062, 4, False)]),
+        ("button-help", 6050, 4, False), ("button-map-mode", 6061, 4, False), ("button-advance", 6062, 4, False)]),
     "roster": ("G_Common.s9", 0, 200, [
         ("city-prefix", 43, 1, False), ("roster-row-left", 290, 4, True),
         ("roster-row-middle", 291, 4, True), ("roster-row-right", 292, 4, True)]),
@@ -40,7 +49,7 @@ ASSET_GROUPS = {
         ("icon-emperor", 1243, 1, False), ("icon-training", 1244, 1, False), ("icon-merchant", 1245, 1, False)]),
 }
 SCOPES = (*ASSET_GROUPS, "minimap", "scenario", "integrity")
-ARCHIVE_SHAPES = {"G_Main.s9": (21, 98), "G_Common.s9": (67, 491), "G_Marker.s9": (5, 34)}
+ARCHIVE_SHAPES = {"G_Main.s9": (21, 98), "G_Common.s9": (67, 491), "G_Marker.s9": (5, 34), "G_MMap.s9": (16, 221)}
 
 
 def expected_roles(groups):
@@ -85,7 +94,17 @@ def verify_skin_assets(root, data, skin, bindings, groups):
                 verify_asset_hash(root, asset)
                 with Image.open(root / asset["path"]) as actual:
                     try:
-                        verify_frame(actual, images[resource-base], palettes[bindings[resource]-palette_base], columns, frame, alpha)
+                        if name.startswith("overview-city-"):
+                            city = int(name.removeprefix("overview-city-"))
+                            w, h, indices = images[resource-base]
+                            assert actual.mode == "RGBA" and actual.size == (w, h)
+                            assert actual.tobytes() == bytes(v for index in indices for v in (255,255,255,143 if index == city+1 else 0))
+                        else:
+                            palette = palettes[bindings[resource]-palette_base]
+                            if name == "overview-borders":
+                                palette = bytearray(palette)
+                                palette[52*4+3] = 72
+                            verify_frame(actual, images[resource-base], palette, columns, frame, alpha)
                         if name.startswith("roster-row-") and frame in (0, 3):
                             assert not any(actual.getchannel("A").tobytes())
                     except AssertionError as error:
@@ -93,6 +112,9 @@ def verify_skin_assets(root, data, skin, bindings, groups):
                 checked[group] += 1
         if group == "roster":
             assert skin["colors"]["roster-available"] == "F0F0F0" and skin["colors"]["roster-unavailable"] == "988058"
+        if group == "overview":
+            for color in range(51):
+                assert skin["colors"][f"overview-force-{color}"] == palettes[8][(color+1)*4:(color+1)*4+3].hex().upper()
     return checked
 
 
@@ -201,6 +223,26 @@ def verify_officers(scenario, entries, texts, messages):
 
 def verify_scenario(content, data):
     package, p, text = content["map"], content["scenario"], content["text"]["entries"]
+    from parse_pk_text import decode_ls11, split_indexed_records, strip_common_terminator
+    messages = split_indexed_records(decode_ls11((data / "M_MsgPK.s9").read_bytes())[0])[2]
+    hints = {"information":8261, "functions":8260, "help":8262, "pause":8439,
+             "territory":8430, "map-large":8291, "map-small":8293, "advance":8253,
+             "facilities":8290, "officers":8289, "units":8288,
+             "overview-forces":8440, "overview-facilities":8442, "overview-units":8441}
+    for role, index in hints.items():
+        assert text[f"ui.hint.{role}"]["sourceText"] == strip_common_terminator(messages[index])[0].decode("big5hkscs")
+    font = (data / "P_Font.s9").read_bytes()
+    for style, rgb in [(2,"f06850"),(7,"f0f0f0")]:
+        offset = (style // 2 * 32 + 16 + style % 2 * 8 + 7) * 4
+        assert font[offset:offset+3].hex() == rgb
+    from square_map.scenario import parse_scenario_sections
+    raw = parse_scenario_sections((data / "D_Sce002.S9").read_bytes())
+    for force in p["forces"]:
+        flags = struct.unpack_from("<I",raw["forc"],force["id"]*86+8)[0]
+        title = struct.unpack_from("<H",raw["forc"],force["id"]*86+16)[0]
+        assert force["isBarbarian"] == (bool(flags & 4) or 4 <= title <= 8)
+    assert p["units"] == [] and all(struct.unpack_from("<H",raw["unit"],i*40+18)[0] == 0 for i in range(800))
+    assert all(s["kind"] == (0 if s["id"] < 50 else 1) for s in p["settlements"])
     assert sum(s["id"] < 50 for s in p["settlements"]) == 50
     assert all("cityMarkerColor" not in s and "hasAvailableOfficer" not in s for s in p["settlements"])
     assert len([a for a in package["assets"] if a["id"].startswith("building-")]) == 624
@@ -271,7 +313,7 @@ def main(argv=None):
     package, p, skin = content["map"], content["scenario"], content["skin"]
     assert content["schemaVersion"] == 7
     assert package["schemaVersion"] == 8 and "presentation" not in package
-    assert p["schemaVersion"] == 5 and skin["schemaVersion"] == 6
+    assert p["schemaVersion"] == 6 and skin["schemaVersion"] == 7
     assert not {a["id"] for a in skin["assets"]}.intersection(a["id"] for a in package["assets"])
     groups = [scope for scope in scopes if scope in ASSET_GROUPS]
     checked = {}

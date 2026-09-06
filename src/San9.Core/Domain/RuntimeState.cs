@@ -2,13 +2,17 @@ namespace San9.Core.Domain;
 
 public sealed record ForceState(int Id, uint Money, uint Food, int Trust)
 {
+    public bool IsBarbarian { get; init; }
     public int? LeaderId { get; init; }
 }
+
+public enum SettlementKind { City, Facility }
 
 public sealed record SettlementState(int Id, int? OwnerId, uint Soldiers, int Durability, int MaxDurability,
     int Morale, int PublicOrder, int Commerce, int MaxCommerce, int Cultivation, int MaxCultivation,
     bool CommerceUsed = false, bool CultivationUsed = false)
 {
+    public SettlementKind Kind { get; init; }
     public int? CorpsId { get; init; }
 }
 

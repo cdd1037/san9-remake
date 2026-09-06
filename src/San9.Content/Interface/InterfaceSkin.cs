@@ -15,18 +15,23 @@ public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dicti
         "icon-merchant", "icon-training", "icon-emperor",
         "season-spring", "season-summer", "season-autumn", "season-winter",
         "button-territory", "button-facilities", "button-officers", "button-units",
-        "button-information", "button-functions", "button-help", "button-zoom", "button-advance"];
+        "button-information", "button-functions", "button-help", "button-map-mode", "button-advance",
+        "overview-background", "overview-terrain", "overview-borders", "overview-ranking",
+        "button-overview-forces", "button-overview-facilities", "button-overview-units"];
     public static IReadOnlyList<string> RequiredUiAssets { get; } = Array.AsReadOnly(BaseUiAssets.SelectMany(id =>
         (id.StartsWith("button-", StringComparison.Ordinal) || id.StartsWith("roster-row-", StringComparison.Ordinal))
             ? Enumerable.Range(0, id == "button-territory" ? 6 : 4).Select(frame => frame == 0 ? id : $"{id}-{frame}")
-            : [id]).ToArray());
+            : [id]).Concat(Enumerable.Range(0, 50).Select(i => $"overview-city-{i}"))
+        .Concat(Enumerable.Range(0, 51).SelectMany(i => new[] {$"overview-marker-{i}", $"overview-facility-{i}"}))
+        .Concat(Enumerable.Range(0, 50).Select(i => $"overview-unit-{i}")).ToArray());
 
     public void Validate()
     {
-        if (SchemaVersion != 6 || Assets.Select(a => a.Id).Distinct().Count() != Assets.Length)
+        if (SchemaVersion != 7 || Assets.Select(a => a.Id).Distinct().Count() != Assets.Length)
             throw new InvalidDataException("Invalid interface skin version or duplicate assets.");
         var assets = Assets.ToDictionary(a => a.Id);
         if (Enumerable.Range(0, 52).Any(i => !Colors.ContainsKey($"city-marker-{i}")) ||
+            Enumerable.Range(0, 51).Any(i => !Colors.ContainsKey($"overview-force-{i}")) ||
             !Colors.ContainsKey("roster-available") || !Colors.ContainsKey("roster-unavailable") ||
             Colors.Values.Any(c => c.Length != 6 || !uint.TryParse(c, System.Globalization.NumberStyles.HexNumber, null, out _)))
             throw new InvalidDataException("Missing or invalid interface colors.");

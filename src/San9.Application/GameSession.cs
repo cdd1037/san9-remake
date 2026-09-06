@@ -28,15 +28,15 @@ public sealed class GameSession
         definition.Validate();
         definition = definition with
         {
-            Forces = definition.Forces.ToArray(), Officers = definition.Officers.ToArray(),
+            Forces = definition.Forces.ToArray(), Officers = definition.Officers.ToArray(), Units = definition.Units.ToArray(),
             Settlements = definition.Settlements.Select(s => s with { Icons = s.Icons.ToArray() }).ToArray(),
             RegionNameKeys = new(definition.RegionNameKeys), RegionCityIds = new(definition.RegionCityIds)
         };
         if (definition.Day is not (1 or 11 or 21)) throw new ArgumentException("Expected a stable xun boundary.");
         var world = WorldState.Create(new(definition.Year, definition.Month, (XunIndex)((definition.Day - 1) / 10 + 1)), seed,
-            definition.Forces.Select(f => new ForceState(f.Id, f.Money, f.Food, f.Trust) { LeaderId = f.LeaderId }),
+            definition.Forces.Select(f => new ForceState(f.Id, f.Money, f.Food, f.Trust) { IsBarbarian = f.IsBarbarian, LeaderId = f.LeaderId }),
             definition.Settlements.Select(s => new SettlementState(s.Id, s.OwnerId, s.Soldiers, s.Durability, s.MaxDurability,
-                s.Morale, s.PublicOrder, s.Commerce, s.MaxCommerce, s.Cultivation, s.MaxCultivation) { CorpsId = s.CorpsId }), definition.Officers.Select(o => o.State));
+                s.Morale, s.PublicOrder, s.Commerce, s.MaxCommerce, s.Cultivation, s.MaxCultivation) { Kind = s.Kind, CorpsId = s.CorpsId }), definition.Officers.Select(o => o.State), definition.Units);
         return new GameSession(world) { _definition = definition };
     }
 

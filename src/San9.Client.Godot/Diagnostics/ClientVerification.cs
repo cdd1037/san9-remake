@@ -174,16 +174,19 @@ public partial class ClientVerification : Node
         World.ShowBoundaries = false;
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         await Capture(Variant("-boundaries-off"), false);
-        World.ShowBoundaries = boundaries; World.SetZoom(.5f);
-        var timeout = System.Diagnostics.Stopwatch.StartNew();
-        do
-        {
-            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-            if (timeout.Elapsed.TotalSeconds > 30) throw new TimeoutException("Zoom capture readiness failed.");
-        } while (!World.IsVisibleReady);
-        await Capture(Variant("-small"), false);
-        World.SetZoom(1);
-        await WaitForView();
+        World.ShowBoundaries = boundaries;
+        Hud.Overview.Open();
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await Capture(Variant("-overview"), false);
+        Hud.Overview.Toggle(San9.Application.Presentation.OverviewLayer.Forces);
+        Hud.Overview.Toggle(San9.Application.Presentation.OverviewLayer.Facilities);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await Capture(Variant("-overview-terrain"), false);
+        Hud.Overview.Toggle(San9.Application.Presentation.OverviewLayer.Forces);
+        Hud.Overview.Toggle(San9.Application.Presentation.OverviewLayer.Facilities);
+        Hud.Overview.Close();
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         Hud.FocusFacility(Hud.Session.View.Forces.Single(f => f.Id == Hud.Session.View.PlayerForceId).LeaderSettlementId!.Value);
         await WaitForView();
         foreach (var (suffix, point) in new[] { ("-hover", new Vector2(726, 28)), ("-disabled-hover", new Vector2(974, 698)) })

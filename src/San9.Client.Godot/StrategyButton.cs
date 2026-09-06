@@ -11,6 +11,7 @@ public partial class StrategyButton : TextureButton
     private readonly GameTextPresenter _text = new();
     private (bool Hovered, bool Selected, bool Disabled)? _lastState;
     public string Title { get; init; } = "";
+    public string HintText { get; init; } = "";
     private Label _label = null!;
     public Vector2 TextPosition => _label.Position;
     public int VisualFrame { get; private set; }

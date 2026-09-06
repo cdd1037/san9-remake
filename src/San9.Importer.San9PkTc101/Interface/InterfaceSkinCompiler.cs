@@ -44,10 +44,53 @@ public static class InterfaceSkinCompiler
         Export("button-territory", 68, 2, 6); Export("button-facilities", 69, 2, 4);
         Export("button-officers", 70, 2, 4); Export("button-units", 71, 2, 4);
         Export("button-information", 74, 3, 4); Export("button-functions", 73, 3, 4); Export("button-help", 75, 3, 4);
-        Export("button-zoom", 86, 4, 4); Export("button-advance", 87, 4, 4);
+        Export("button-map-mode", 86, 4, 4); Export("button-advance", 87, 4, 4);
         Export("field-left", 91, 5); Export("field-middle", 92, 5); Export("field-right", 93, 5);
         Export("ruler-frame", 94, 5); Export("region-frame", 97, 20, paletteAlpha: true);
         var common = IndexedImageArchive.ReadCombined(read(Path.Combine(dataDirectory, "G_Common.s9")), 67, 491);
+        var overview = IndexedImageArchive.ReadCombined(read(Path.Combine(dataDirectory, "G_MMap.s9")), 16, 221);
+        void Overview(string role, int resource, int palette, int frames = 1, bool alpha = false)
+        {
+            if (bindings[resource] != palette + 295) throw new InvalidDataException("Unconfirmed overview palette binding.");
+            for (int frame = 0; frame < frames; frame++)
+            {
+                string key = frame == 0 ? role : $"{role}-{frame}";
+                var source = overview.Images[resource - 999];
+                var pixels = frames == 1 ? source : IndexedImageArchive.Frame(source, frames, 1, frame, 0);
+                string id = "ui-" + key;
+                byte[] colors = overview.Palettes[palette];
+                if (role == "overview-borders")
+                {
+                    colors = colors.ToArray();
+                    colors[52 * 4 + 3] = 72;
+                }
+                assets.Add(save(id, $"ui/{key}.png", IndexedImageArchive.Decode(pixels, colors, true, alpha)));
+                ui.Add(key, id);
+            }
+        }
+        Overview("overview-background", 1156, 5);
+        Overview("overview-terrain", 1163, 9);
+        Overview("overview-borders", 1162, 8, alpha: true);
+        Overview("overview-ranking", 1160, 7, alpha: true);
+        Overview("button-overview-forces", 1158, 6, 4, true);
+        Overview("button-overview-facilities", 1159, 6, 4, true);
+        Overview("button-overview-units", 1157, 6, 4, true);
+        for (int city = 0; city < 50; city++)
+        {
+            var source = overview.Images[162];
+            byte[] rgba = new byte[source.Width * source.Height * 4];
+            for (int pixel = 0; pixel < source.Pixels.Length; pixel++)
+            {
+                rgba[pixel * 4] = rgba[pixel * 4 + 1] = rgba[pixel * 4 + 2] = 255;
+                rgba[pixel * 4 + 3] = source.Pixels[pixel] == city + 1 ? (byte)143 : (byte)0;
+            }
+            string key = $"overview-city-{city}";
+            assets.Add(save("ui-" + key, $"ui/{key}.png", new(source.Width, source.Height, 4, rgba)));
+            ui.Add(key, "ui-" + key);
+        }
+        for (int color = 0; color < 51; color++) Overview($"overview-marker-{color}", 1050 + color, 1);
+        for (int color = 0; color < 51; color++) Overview($"overview-facility-{color}", 999 + color, 0);
+        for (int color = 0; color < 50; color++) Overview($"overview-unit-{color}", 1170 + color, 15);
         var marker = IndexedImageArchive.ReadCombined(read(Path.Combine(dataDirectory, "G_Marker.s9")), 5, 34);
         void Extra(string role, int resource, int palette, bool paletteAlpha = false)
         {
@@ -79,11 +122,12 @@ public static class InterfaceSkinCompiler
         Extra("bar-durability-critical", 396, 52); Extra("bar-durability-warning", 397, 52);
         Extra("icon-emperor", 1243, 3); Extra("icon-training", 1244, 3); Extra("icon-merchant", 1245, 3);
         Dictionary<string, string> colors = [];
+        for (int i = 0; i < 51; i++) colors.Add($"overview-force-{i}", Convert.ToHexString(overview.Palettes[8].AsSpan((i + 1) * 4, 3)));
         for (int i = 0; i < 52; i++) colors.Add($"city-marker-{i}", Convert.ToHexString(common.Palettes[49].AsSpan((i + 1) * 4, 3)));
         // P_Font contains interleaved 16-entry coverage ramps; use the opaque endpoint.
         var fontPalette = read(Path.Combine(dataDirectory, "P_Font.s9"));
         string FontColor(int style) => Convert.ToHexString(fontPalette.AsSpan((style / 2 * 32 + 16 + style % 2 * 8 + 7) * 4, 3));
         colors.Add("roster-available", FontColor(7)); colors.Add("roster-unavailable", FontColor(26));
-        return new(6, assets.ToArray(), ui, colors);
+        return new(7, assets.ToArray(), ui, colors);
     }
 }

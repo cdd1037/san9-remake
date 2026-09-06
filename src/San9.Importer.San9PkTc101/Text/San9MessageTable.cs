@@ -3,7 +3,7 @@ using System.Buffers.Binary;
 
 namespace San9.Importer.San9PkTc101.Text;
 
-// Name-only message reader. Formatting/control sequences are deliberately rejected.
+// Plain-text message reader. Formatting/control sequences are deliberately rejected.
 public sealed class San9MessageTable
 {
     private readonly byte[] _data;
@@ -22,13 +22,13 @@ public sealed class San9MessageTable
             throw new InvalidDataException("Invalid message offsets.");
     }
 
-    public byte[] Name(int id)
+    public byte[] PlainText(int id)
     {
-        if (id < 0 || id >= _offsets.Length - 1) throw new InvalidDataException("Missing name resource.");
+        if (id < 0 || id >= _offsets.Length - 1) throw new InvalidDataException("Missing plain-text resource.");
         var text = _data.AsSpan(_offsets[id], _offsets[id + 1] - _offsets[id]);
-        if (text.Length < 3 || !text[^3..].SequenceEqual(new byte[] { 5, 5, 5 })) throw new InvalidDataException("Invalid name terminator.");
+        if (text.Length < 3 || !text[^3..].SequenceEqual(new byte[] { 5, 5, 5 })) throw new InvalidDataException("Invalid plain-text terminator.");
         text = text[..^3];
-        foreach (byte b in text) if (b < 32) throw new InvalidDataException("Control code in name resource.");
+        foreach (byte b in text) if (b < 32) throw new InvalidDataException("Control code in plain-text resource.");
         return text.ToArray();
     }
 }

@@ -48,12 +48,12 @@ public sealed class San9MessageTableTests
     public void StoredNamesKeepSourceTextAndExplicitExtension()
     {
         var table = new San9MessageTable(Archive(Table([0xB5, 0x4C], [0xFA, 0x40], [])));
-        Assert.Equal("無", new OriginalTextConverter().Convert(table.Name(0)).SourceText);
-        Assert.Equal("伷", new OriginalTextConverter().Convert(table.Name(1)).SourceText);
-        Assert.Equal("", new OriginalTextConverter().Convert(table.Name(2)).SourceText);
+        Assert.Equal("無", new OriginalTextConverter().Convert(table.PlainText(0)).SourceText);
+        Assert.Equal("伷", new OriginalTextConverter().Convert(table.PlainText(1)).SourceText);
+        Assert.Equal("", new OriginalTextConverter().Convert(table.PlainText(2)).SourceText);
         var extensions = new San9MessageTable(Archive(Table([0xFA, 0x41], [0xFA, 0x45])));
-        Assert.Equal("璝", new OriginalTextConverter().Convert(extensions.Name(0)).SourceText); Assert.Equal("儁", new OriginalTextConverter().Convert(extensions.Name(1)).SourceText);
-        Assert.Throws<InvalidDataException>(() => table.Name(3));
+        Assert.Equal("璝", new OriginalTextConverter().Convert(extensions.PlainText(0)).SourceText); Assert.Equal("儁", new OriginalTextConverter().Convert(extensions.PlainText(1)).SourceText);
+        Assert.Throws<InvalidDataException>(() => table.PlainText(3));
     }
     [Fact]
     public void CompressedLiteralsAndOverlappingCopiesDecodeToDeclaredSize()
@@ -68,12 +68,12 @@ public sealed class San9MessageTableTests
         var data = Table("City"u8.ToArray()); data[2] = 1;
         Assert.Throws<InvalidDataException>(() => new San9MessageTable(Archive(data)));
         var control = new San9MessageTable(Archive(Table([65, 10, 66])));
-        Assert.Throws<InvalidDataException>(() => control.Name(0));
+        Assert.Throws<InvalidDataException>(() => control.PlainText(0));
         data = Table([65]); data[^1] = 0;
-        Assert.Throws<InvalidDataException>(() => new San9MessageTable(Archive(data)).Name(0));
+        Assert.Throws<InvalidDataException>(() => new San9MessageTable(Archive(data)).PlainText(0));
         var archive = Archive(Table([65])); archive[283] = 0;
         Assert.Throws<InvalidDataException>(() => new San9MessageTable(archive));
         Assert.Throws<InvalidDataException>(() => Ls11Archive.Decode(new byte[8]));
-        Assert.Throws<InvalidDataException>(() => new OriginalTextConverter().Convert(new San9MessageTable(Archive(Table([0xFA, 0x42]))).Name(0)));
+        Assert.Throws<InvalidDataException>(() => new OriginalTextConverter().Convert(new San9MessageTable(Archive(Table([0xFA, 0x42]))).PlainText(0)));
     }
 }

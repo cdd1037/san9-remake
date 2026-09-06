@@ -71,6 +71,7 @@ EXE 字符串在 IDA 内先设置 `SAN9_IDA_BIG5_OUTPUT` 执行 dry-run，审阅
 | 仅修改客户端布局、绘制、交互 | 相关自动测试、Godot输入自检与实际GPU截图；无需重新逐像素核对未改的导出资源 |
 | 滚动条资源映射/分帧/转换 | `--scope scrollbar`，含装饰、轨道、滑块、全部箭头状态帧 |
 | 主界面框架、季节、导航按钮 | `--scope hud` |
+| 战略全图背景、城市着色掩码、图层按钮、排行榜及标记 | `--scope overview`；按RE-0160核对运行时调色板Alpha |
 | 名单行背景、城市前缀、可用性文字颜色 | `--scope roster` |
 | 消息框、士气/耐久条、状态图标 | 分别为 `--scope messages`、`--scope bars`、`--scope icons` |
 | 小地图内容转换 | `--scope minimap` |

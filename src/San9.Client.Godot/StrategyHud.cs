@@ -27,6 +27,8 @@ public partial class StrategyHud : Control
     private StrategyRosterList _rosterList = null!;
     private PopupMenu _contextMenu = null!;
     private StrategyMinimap? _minimap;
+    public StrategyOverview Overview { get; } = new();
+    private StrategyOverviewPanel _overviewPanel = null!;
     private bool _built;
     private long _stateRevision = -1;
     private readonly Dictionary<string,Label> _resourceValues = [];
@@ -85,9 +87,9 @@ public partial class StrategyHud : Control
         _officers = AddButton("武将", "button-officers", new(927, 238), new(56, 32), true, () => SelectRosterPage(RosterPage.Officers));
         _facilities = AddButton("设施", "button-facilities", new(899, 268), new(56, 32), true, () => SelectRosterPage(RosterPage.Facilities));
         _officers.ToggleMode = true; _facilities.ToggleMode = true; _facilities.SetPressedNoSignal(true);
-        _large = AddButton("大", "button-zoom", new(900, 627), new(44, 44), true, () => World.SetZoom(1));
+        _large = AddButton("大", "button-map-mode", new(900, 627), new(44, 44), true, Overview.Close);
         _large.ToggleMode = true;
-        _small = AddButton("小", "button-zoom", new(957, 606), new(44, 44), true, () => World.SetZoom(.5f));
+        _small = AddButton("小", "button-map-mode", new(957, 606), new(44, 44), true, Overview.Open);
         _small.ToggleMode = true;
         AddButton("进行", "button-advance", new(943, 664), new(60, 60), false);
         _minimap = new StrategyMinimap { World = World, Session = Session, Skin = Skin, Position = new(643, 31), Size = new(320, 160) };
@@ -105,6 +107,10 @@ public partial class StrategyHud : Control
             Texts = Texts, Skin = Skin, Activated = ActivateRosterEntry, ContextRequested = ShowContextMenu };
         AddChild(_rosterList);
         _rosterList.Refresh(Scenario, Scenario.PlayerForceId);
+        _overviewPanel = new StrategyOverviewPanel { State = Overview, World = World, Session = Session,
+            Skin = Skin, Texts = Texts, Textures = _textures, Visible = false };
+        GetParent().AddChild(_overviewPanel);
+        GetParent().MoveChild(_overviewPanel, GetIndex());
         UpdateSelection(); QueueRedraw();
     }
 
@@ -134,7 +140,7 @@ public partial class StrategyHud : Control
                 "button-functions" => GameButtonTextRole.Functions,
                 "button-help" => GameButtonTextRole.Help,
                 "button-territory" => GameButtonTextRole.Territory,
-                "button-zoom" => GameButtonTextRole.Zoom,
+                "button-map-mode" => GameButtonTextRole.MapMode,
                 "button-advance" => GameButtonTextRole.Advance,
                 "button-facilities" => GameButtonTextRole.Facilities,
                 "button-officers" => GameButtonTextRole.Officers,
@@ -144,7 +150,11 @@ public partial class StrategyHud : Control
             Frames = Enumerable.Range(0, asset == "button-territory" ? 6 : 4)
                 .Select(frame => (Texture2D)_textures[frame == 0 ? asset : $"{asset}-{frame}"]).ToArray(),
             StretchMode = TextureButton.StretchModeEnum.Scale, Disabled = !enabled,
-            TooltipText = enabled ? title : $"{title}：首版尚未实现", MouseFilter = MouseFilterEnum.Stop };
+            HintText = Texts.Resolve(StrategyHintText.Key(title switch
+            {
+                "大" => "map-large", "小" => "map-small",
+                _ => asset["button-".Length..]
+            })), MouseFilter = MouseFilterEnum.Stop };
         if (action is not null) button.Pressed += () => action();
         AddChild(button);
         return button;
@@ -185,7 +195,16 @@ public partial class StrategyHud : Control
         if (_rosterList.Roster.Find(key) is { } entry) World.FocusBuilding(entry.SettlementId);
     }
     public void FocusFacility(int id) => World.FocusBuilding(id);
-    private void UpdateSelection() => _message.Text = "请选择命令起点。";
+    private void UpdateSelection() => UpdateMessage();
+    private void UpdateMessage()
+    {
+        if (World.LoadError is not null) { _message.Text = "地图加载失败 · F3 查看详情"; return; }
+        if (!_built) return;
+        var button = GetChildren().OfType<StrategyButton>().FirstOrDefault(b => b.IsHovered())
+            ?? (Overview.IsOpen ? _overviewPanel.HoverButton : null);
+        _message.Text = button?.HintText ?? (Overview.IsOpen ? "" : "请选择命令起点。");
+        _text.Apply(_message, GameTextStyles.Message(button is null || !button.Disabled));
+    }
     private void UpdateRegion(int x, int y)
     {
         if (World.Package is not { } map) return;
@@ -202,9 +221,17 @@ public partial class StrategyHud : Control
         bool visible = false;
         if (_built && !World.IsLoading && new Rect2(0, 0, 1024, 768).HasPoint(mouse) && !IsBlockedPoint(mouse))
         {
-            var world = World.ViewportToWorld(mouse);
-            if (MapGeometry.TrySquare(world.X, world.Y, out int x, out int y))
-            { UpdateRegion(x, y); visible = true; }
+            if (Overview.IsOpen)
+            {
+                if (_overviewPanel.TrySquare(mouse, out int x, out int y))
+                { UpdateRegion(x, y); visible = true; }
+            }
+            else
+            {
+                var world = World.ViewportToWorld(mouse);
+                if (MapGeometry.TrySquare(world.X, world.Y, out int x, out int y))
+                { UpdateRegion(x, y); visible = true; }
+            }
         }
         _regionVisible = visible;
         foreach (var label in _regionLabels) label.Visible = visible;
@@ -222,7 +249,9 @@ public partial class StrategyHud : Control
             UpdateSelection();
         }
         UpdateHover(_hoverPosition ?? GetGlobalMousePosition());
-        _large?.SetPressedNoSignal(World.ZoomFactor >= .75f); _small?.SetPressedNoSignal(World.ZoomFactor < .75f);
+        UpdateMessage();
+        _large?.SetPressedNoSignal(!Overview.IsOpen); _small?.SetPressedNoSignal(Overview.IsOpen);
+        if (_territory is not null) _territory.Disabled = Overview.IsOpen;
         _territory?.SetPressedNoSignal(World.ShowBoundaries);
         QueueRedraw();
     }
@@ -245,8 +274,11 @@ public partial class StrategyHud : Control
         foreach (var (asset, point) in _frames) DrawTexture(_textures[asset], point);
         DrawTexture(_textures["season-spring"], new(26, 31));
         Strip("field", new(377, 15), 88); Strip("field", new(457, 15), 112); Strip("field", new(561, 15), 112);
-        var bounds = MessagePanelGeometry.Bounds(_message.Text);
-        Strip("message", new(bounds.X, 736), bounds.Width);
+        if (!string.IsNullOrEmpty(_message.Text))
+        {
+            var bounds = MessagePanelGeometry.Bounds(_message.Text);
+            Strip("message", new(bounds.X, 736), bounds.Width);
+        }
         if (_regionVisible) DrawTexture(_textures["region-frame"], new(824, 738));
     }
     public override void _ExitTree()

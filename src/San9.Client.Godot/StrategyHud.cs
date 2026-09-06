@@ -60,7 +60,6 @@ public partial class StrategyHud : Control
     private void Build()
     {
         if (_built) return;
-        _built = true;
         var p = Scenario;
         foreach (var pair in Skin.Roles)
         {
@@ -116,6 +115,8 @@ public partial class StrategyHud : Control
         GetParent().MoveChild(_overviewPanel, GetIndex());
         Information = new InformationPanel { Session = Session, Texts = Texts, Textures = _textures, Locate = id => { Overview.Close(); World.FocusBuilding(id); } };
         GetParent().AddChild(Information);
+        // Adding controls can trigger hit testing before the HUD is fully constructed.
+        _built = true;
         UpdateSelection(); QueueRedraw();
     }
 

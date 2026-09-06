@@ -6,4 +6,7 @@
     <ProjectReference Include="../San9.Content/San9.Content.csproj" />
     <EmbeddedResource Include="MapSourceLocations.json" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="OpenccNetLib" Version="1.6.2" />
+  </ItemGroup>
 </Project>

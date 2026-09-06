@@ -48,10 +48,11 @@ public sealed class San9MessageTableTests
     public void StoredNamesKeepSourceTextAndExplicitExtension()
     {
         var table = new San9MessageTable(Archive(Table([0xB5, 0x4C], [0xFA, 0x40], [])));
-        Assert.Equal("無", table.Name(0));
-        Assert.Equal("\U00020547", table.Name(1));
-        Assert.Equal("", table.Name(2));
-        Assert.Equal("洛阳长安孟津港", NameLocalizer.ToSimplified("洛陽長安孟津港"));
+        Assert.Equal("無", new OriginalTextConverter().Convert(table.Name(0)).SourceText);
+        Assert.Equal("伷", new OriginalTextConverter().Convert(table.Name(1)).SourceText);
+        Assert.Equal("", new OriginalTextConverter().Convert(table.Name(2)).SourceText);
+        var extensions = new San9MessageTable(Archive(Table([0xFA, 0x41], [0xFA, 0x45])));
+        Assert.Equal("璝", new OriginalTextConverter().Convert(extensions.Name(0)).SourceText); Assert.Equal("儁", new OriginalTextConverter().Convert(extensions.Name(1)).SourceText);
         Assert.Throws<InvalidDataException>(() => table.Name(3));
     }
     [Fact]
@@ -73,6 +74,6 @@ public sealed class San9MessageTableTests
         var archive = Archive(Table([65])); archive[283] = 0;
         Assert.Throws<InvalidDataException>(() => new San9MessageTable(archive));
         Assert.Throws<InvalidDataException>(() => Ls11Archive.Decode(new byte[8]));
-        Assert.Throws<InvalidDataException>(() => new San9MessageTable(Archive(Table([0xFA, 0x41]))).Name(0));
+        Assert.Throws<InvalidDataException>(() => new OriginalTextConverter().Convert(new San9MessageTable(Archive(Table([0xFA, 0x42]))).Name(0)));
     }
 }

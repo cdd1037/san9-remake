@@ -1,6 +1,5 @@
 using San9.Importer.San9PkTc101.Containers;
 using System.Buffers.Binary;
-using System.Text;
 
 namespace San9.Importer.San9PkTc101.Text;
 
@@ -9,13 +8,6 @@ public sealed class San9MessageTable
 {
     private readonly byte[] _data;
     private readonly int[] _offsets;
-    private static readonly Encoding TextEncoding = CreateEncoding();
-    private static Encoding CreateEncoding()
-    {
-        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-        return Encoding.GetEncoding(950, EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback);
-    }
-
     public San9MessageTable(byte[] source)
     {
         _data = Ls11Archive.Decode(source);
@@ -30,25 +22,13 @@ public sealed class San9MessageTable
             throw new InvalidDataException("Invalid message offsets.");
     }
 
-    public string Name(int id)
+    public byte[] Name(int id)
     {
         if (id < 0 || id >= _offsets.Length - 1) throw new InvalidDataException("Missing name resource.");
         var text = _data.AsSpan(_offsets[id], _offsets[id + 1] - _offsets[id]);
         if (text.Length < 3 || !text[^3..].SequenceEqual(new byte[] { 5, 5, 5 })) throw new InvalidDataException("Invalid name terminator.");
         text = text[..^3];
         foreach (byte b in text) if (b < 32) throw new InvalidDataException("Control code in name resource.");
-        var result = new StringBuilder();
-        for (int i = 0; i < text.Length;)
-        {
-            int length = text[i] < 128 ? 1 : 2;
-            if (i + length > text.Length) throw new InvalidDataException("Truncated Big5 name.");
-            // Registered HKSCS name extension; CP950 otherwise projects this to a private-use glyph.
-            string value = length == 2 && text[i] == 0xFA && text[i + 1] == 0x40
-                ? "\U00020547" : TextEncoding.GetString(text.Slice(i, length));
-            if (value.Any(c => c is >= '\uE000' and <= '\uF8FF')) throw new InvalidDataException("Unregistered name glyph extension.");
-            result.Append(value); i += length;
-        }
-        return result.ToString();
+        return text.ToArray();
     }
-
 }

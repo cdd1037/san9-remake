@@ -30,11 +30,7 @@ Core保存人物身份、人口、官爵归属、军团、宝物归属和关系�
 ## 2026-09-06 验证
 
 - `dotnet test San9Remake.slnx`：269项通过；包含目录页、地域/在野边界、数字排序、关联返回、成功/失败命令记录、金库更新与浏览不改变模拟的自动测试。
-- `python -m unittest discover -s research/scripts -p test_verify_initial_ui.py`：5项通过。
-- `python research/scripts/verify_initial_ui.py "C:/home/game/san9/San9 Tc/San9PK.exe" private/s9数据文件 local/generated/content/scenario-190-live --all`：全量通过，351幅固定界面图及434幅人物/宝物图独立核对；头像/宝物从源索引和调色板独立重算，不依赖产品转换器映射。
 - Godot 4.7.2 Mono实际GPU运行：`--information-smoke --map-screenshot <截图目录>/main.png --map-quit`。遍历十类、截图、模态地图阻挡、武将详情的引擎键盘输入及返回、模拟状态和地图命令选择不变。
-
-GPU截图位于被忽略的`local/generated/verification/information/`，不是单元测试或操作系统交互的替代品。
 
 操作系统交互：真实San9 Remake窗口鼠标打开情报和全武将，End到末页、Enter进入末项头像详情、Escape返回保留末页选择；点击地图定位南蛮，原命令起点保持洛阳。此项与引擎派发输入分开记录。
 
@@ -57,3 +53,5 @@ GPU截图位于被忽略的`local/generated/verification/information/`，不是�
 本轮验证：275项.NET测试通过（含客户端编译），6项Python审计器测试通过；`verify_initial_ui.py --all`通过，428幅固定界面资源及434幅人物/宝物图核对，其中65幅为本次目录资源。初始人物/势力新增字段与源剧本独立核对通过。未执行任何Godot运行检查。
 
 目录最终调整：保留源调色板Alpha，中档头像使用原生64×80；高亮中段覆盖左端透明末列。正文和表头使用已确认的描边配置，正文在24像素行内垂直居中。关闭与详情导航在回调前消费输入，避免节点离树后访问Viewport。标题及关闭按钮文字效果尚未完成原版核对。
+
+Python界面转换交叉检查器及其专用测试已按用户要求删除；上述审计数量仅保留为历史记录，不是当前验收入口或原版一致性证明。

@@ -11,7 +11,7 @@ public sealed class RegionHoverTests
     [Fact]
     public void RegionAndCityAreIndependentEvenWhenTheyAreTheSame()
     {
-        var scenario = new ScenarioInitialState(10, "fixture", 190, 1, 1, 5, [new(5,"player",5,100,100,100)], [],
+        var scenario = new ScenarioInitialState(11, "fixture", 190, 1, 1, 5, [new(5,"player",5,100,100,100)], [],
             new() { [15] = "city", [99] = "gate" }, new() { [15] = 15, [99] = 15 });
         var view = San9.Application.GameSession.Start(scenario,1).View;
         var text = new TextCatalog(1, new() { ["city"] = new("洛阳", "洛陽"), ["gate"] = new("虎牢关", "虎牢關") });

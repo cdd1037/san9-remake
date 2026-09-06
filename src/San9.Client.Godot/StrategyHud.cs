@@ -32,6 +32,8 @@ public partial class StrategyHud : Control
     public InformationPanel Information { get; private set; } = null!;
     private StrategyOverviewPanel _overviewPanel = null!;
     private bool _built;
+    private BuildingHoverCard _buildingHover = null!;
+    private long _hoverRevision = -1;
     private long _stateRevision = -1;
     private readonly Dictionary<string,Label> _resourceValues = [];
     public string DisplayedMoney => _resourceValues.TryGetValue("资金", out var label) ? label.Text : "";
@@ -115,6 +117,8 @@ public partial class StrategyHud : Control
         GetParent().MoveChild(_overviewPanel, GetIndex());
         Information = new InformationPanel { Session = Session, Texts = Texts, Textures = _textures, Locate = id => { Overview.Close(); World.FocusBuilding(id); } };
         GetParent().AddChild(Information);
+        _buildingHover = new BuildingHoverCard { World = World, Textures = _textures, UiFont = GetThemeFont("font"), Visible = false };
+        AddChild(_buildingHover);
         // Adding controls can trigger hit testing before the HUD is fully constructed.
         _built = true;
         UpdateSelection(); QueueRedraw();
@@ -232,6 +236,7 @@ public partial class StrategyHud : Control
     private void UpdateHover(Vector2 mouse)
     {
         bool visible = false;
+        int? hovered = null;
         if (_built && !World.IsLoading && new Rect2(0, 0, 1024, 768).HasPoint(mouse) && !IsBlockedPoint(mouse))
         {
             if (Overview.IsOpen)
@@ -241,10 +246,18 @@ public partial class StrategyHud : Control
             }
             else
             {
+                if (World.IsInputBlocked?.Invoke(mouse) != true && !_contextMenu.Visible)
+                    hovered = World.BuildingAtViewport(mouse);
                 var world = World.ViewportToWorld(mouse);
                 if (MapGeometry.TrySquare(world.X, world.Y, out int x, out int y))
                 { UpdateRegion(x, y); visible = true; }
             }
+        }
+        World.HoverBuilding(hovered);
+        if (_built && (_buildingHover.Info?.Id != hovered || _hoverRevision != Session.Snapshot.Revision))
+        {
+            _hoverRevision = Session.Snapshot.Revision;
+            _buildingHover.ShowInfo(hovered is int id ? BuildingHoverInfo.Resolve(Scenario, Texts, id) : null, mouse);
         }
         _regionVisible = visible;
         foreach (var label in _regionLabels) label.Visible = visible;

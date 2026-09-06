@@ -22,6 +22,7 @@ public partial class MapAnnotations : Node2D
     private Dictionary<int, SettlementView> _settlements = [];
     private readonly Dictionary<int, (string Soldiers, float Width, string Name)> _labels = [];
     private long _viewRevision = -1, _stateRevision = -1;
+    private int? _hovered;
     public long DrawCount { get; private set; }
     public override void _Ready()
     {
@@ -40,6 +41,7 @@ public partial class MapAnnotations : Node2D
     }
     public override void _Process(double delta)
     {
+        if (_hovered != World.HoveredBuildingId) { _hovered = World.HoveredBuildingId; QueueRedraw(); }
         if (_stateRevision != Session.Snapshot.Revision)
         {
             _stateRevision = Session.Snapshot.Revision;
@@ -67,10 +69,10 @@ public partial class MapAnnotations : Node2D
             DrawSetTransform(point, 0, Vector2.One * zoom);
             var s = _settlements[b.Id];
             var label = _labels[b.Id];
-            Text(label.Soldiers, new(72 - label.Width, 16));
+            Text(label.Soldiers, new(72 - label.Width, 16), b.Id == _hovered);
             Bar("durability", s.Durability, s.MaxDurability, new(0, 16));
             Bar("morale", s.Morale, 100, new(0, 29));
-            Text(label.Name, new(0, 53));
+            Text(label.Name, new(0, 53), b.Id == _hovered);
             foreach (string icon in s.Icons) DrawTexture(_textures["icon-" + icon], icon == "emperor" ? new(96, 17) : new(75, 17));
         }
         DrawSetTransform(Vector2.Zero);
@@ -83,7 +85,9 @@ public partial class MapAnnotations : Node2D
         var fill = _textures[$"bar-{kind}-{BuildingInfoGeometry.FillState(current, max)}"];
         DrawTextureRectRegion(fill, new(position + new Vector2(4, 4), new Vector2(width, fill.GetHeight())), new(0, 0, width, fill.GetHeight()));
     }
-    private void Text(string text, Vector2 point) =>
-        GameTextPresenter.Draw(this, UiFont, text, point, GameTextStyles.For(GameTextRole.Building));
+    private void Text(string text, Vector2 point, bool hovered) =>
+        GameTextPresenter.Draw(this, UiFont, text, point, hovered
+            ? GameTextStyles.For(GameTextRole.Building) with { Foreground = new Color("f8f850") }
+            : GameTextStyles.For(GameTextRole.Building));
     public override void _ExitTree() { foreach (var texture in _textures.Values) texture.Dispose(); }
 }

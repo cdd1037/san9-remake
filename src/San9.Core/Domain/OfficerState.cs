@@ -26,6 +26,7 @@ public sealed record OfficerState(int Id, int? OwnerId, int? SettlementId, Offic
     public int? RegionId { get; init; }
     public int BirthYear { get; init; }
     public int? OfficeId { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public bool IsCommander { get; init; }
     public int Loyalty { get; init; }
     public OfficerAbilities ItemBonuses { get; init; }
     public OfficerAbilities OfficeBonuses { get; init; }

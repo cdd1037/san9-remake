@@ -66,7 +66,7 @@ public static class ClientContentImporter
         }
         var skin = InterfaceSkinCompiler.Compile(exe, dataDirectory, Read, Save);
         skin = InformationArtCompiler.Compile(skin, scenarioBytes, scenario, dataDirectory, Read, Save);
-        var content = new ClientContentPackage(15, sources.Distinct().OrderBy(s => s.Name, StringComparer.Ordinal).ToArray(), map, scenario, text, skin);
+        var content = new ClientContentPackage(16, sources.Distinct().OrderBy(s => s.Name, StringComparer.Ordinal).ToArray(), map, scenario, text, skin);
         content.ValidateLinks();
         _ = ImageAssetFiles.Load(output, skin.Assets, token);
         string pending = manifest + ".pending";

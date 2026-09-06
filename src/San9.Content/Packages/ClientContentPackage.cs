@@ -9,7 +9,7 @@ public sealed record ClientContentPackage(int SchemaVersion, ContentSource[] Sou
 {
     public void ValidateLinks()
     {
-        if (SchemaVersion != 15) throw new InvalidDataException("Unsupported client content version.");
+        if (SchemaVersion != 16) throw new InvalidDataException("Unsupported client content version.");
         Scenario.Validate(); Text.Validate(); Skin.Validate();
         foreach (var treasure in Scenario.Information.Treasures) _ = Text.Resolve(TreasureText.DescriptionKey(treasure.Id));
         foreach (string role in StrategyHintText.Roles) _ = Text.Resolve(StrategyHintText.Key(role));

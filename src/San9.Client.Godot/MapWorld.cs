@@ -44,6 +44,38 @@ public partial class MapWorld : Node2D
     private readonly System.Diagnostics.Stopwatch _loadWatch = new();
     private long _tick;
     private Vector2I? _selected;
+    private readonly Dictionary<string, ImageTexture> _hoverTextures = [];
+    public int? HoveredBuildingId { get; private set; }
+    public void HoverBuilding(int? id)
+    {
+        if (HoveredBuildingId == id) return;
+        HoveredBuildingId = id; _objectLayer.QueueRedraw();
+    }
+    public int? BuildingAtViewport(Vector2 point) => HasCompleteView && !IsLoading ? TryBuildingAt(ViewportToWorld(point)) : null;
+    private ImageTexture HoverTexture(string id)
+    {
+        if (_hoverTextures.TryGetValue(id, out var texture)) return texture;
+        var source = _images![id]; var pixels = source.Pixels.ToArray();
+        for (int i = 0; i < pixels.Length; i += source.Channels)
+        {
+            for (int c = 0; c < 3; c++) pixels[i + c] = (byte)Math.Round(pixels[i + c] * .6875 + 240 * .3125);
+            if (source.Channels == 4) pixels[i + 3] = (byte)Math.Round(pixels[i + 3] * .9375);
+        }
+        texture = Texture(new(source.Width, source.Height, source.Channels, pixels));
+        _hoverTextures.Add(id, texture); return texture;
+    }
+    public void DrawHoverFlag(Node2D target, int color, int glyph, Vector2 position)
+    {
+        // The card uses direction 5, frame 2, independently of the map's season and clock.
+        void Draw(string id) => target.DrawTexture(_objects[_clips[id].SeasonFrames["autumn"][2]], position);
+        Draw("flag-pole-back"); Draw($"flag-cloth-{color}");
+        if (glyph >= 0)
+        {
+            int ink = new[] { 3,6,7,8,11,16,18,21,22,23,24,26,27,29,31,33,38,39,40,46,49,50 }.Contains(color) ? 1 : 0;
+            Draw($"flag-glyph-{ink}-{glyph}");
+        }
+        Draw("flag-pole-front");
+    }
     public event Action<int>? BuildingPicked;
     public event Action<int, int>? SquarePicked;
     public event Action? SelectionCleared;
@@ -281,16 +313,16 @@ public partial class MapWorld : Node2D
         ObjectDraws++;
         if (!HasCompleteView) return;
         var view = VisibleRect(); double time = AnimationTime;
-        void Draw(MapSprite sprite)
+        void Draw(MapSprite sprite, bool hovered = false)
         {
-            var texture = _objects[sprite.AssetId]; var position = new Vector2(sprite.X, sprite.Y);
+            var texture = hovered ? HoverTexture(sprite.AssetId) : _objects[sprite.AssetId]; var position = new Vector2(sprite.X, sprite.Y);
             if (view.Intersects(new(position, texture.GetSize()))) _objectLayer.DrawTexture(texture, position);
         }
         foreach (var sprite in _visibleBridges) Draw(sprite);
         if (ShowBoundaries) foreach (var sprite in _visibleBoundaries) Draw(sprite);
         foreach (var building in _visibleBuildings)
         {
-            foreach (var sprite in building.Sprites) Draw(sprite);
+            foreach (var sprite in building.Sprites) Draw(sprite, building.Id == HoveredBuildingId);
             if (_buildingAnimations.TryGetValue(building.Id, out var animations))
                 foreach (var sprite in animations) DrawAnimated(_objectLayer, sprite, view, time);
         }
@@ -450,5 +482,6 @@ public partial class MapWorld : Node2D
         _cancellation.Cancel(); _cancellation.Dispose();
         foreach (var job in _pending.Values) { job.Cancellation.Cancel(); job.Cancellation.Dispose(); }
         foreach (var c in _chunks.Values) c.Texture.Dispose(); foreach (var t in _objects.Values) t.Dispose();
+        foreach (var t in _hoverTextures.Values) t.Dispose();
     }
 }

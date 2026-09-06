@@ -94,7 +94,7 @@ public static class ScenarioContentCompiler
                 throw new InvalidDataException("Invalid active field unit.");
             return new San9.Core.Domain.UnitState(u.Id, owner, x, y, (uint)u.LoadedSoldierCount);
         }).ToArray();
-        var snapshot = new ScenarioInitialState(10, header.ScenarioId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        var snapshot = new ScenarioInitialState(11, header.ScenarioId.ToString(System.Globalization.CultureInfo.InvariantCulture),
             header.StartDate.Year, header.StartDate.Month, header.StartDate.Day, 5, summaries, settlements.OrderBy(s => s.Id).ToArray(), regions, regionCities)
         { Officers = officers, Units = units, Information = information };
         snapshot.Validate(); catalog.Validate(); return (snapshot, catalog);

@@ -61,3 +61,5 @@
 - [BEH-UI-0003：战略全图面板](BEH-UI-0003-strategy-overview.md)（已确认）
 
 - [BEH-UI-0004：情报目录与详情浏览](BEH-UI-0004-information-browser.md)（已确认）
+
+- [BEH-UI-0005：大地图建筑悬停](BEH-UI-0005-map-building-hover.md)（采用）

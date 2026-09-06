@@ -172,6 +172,19 @@ public static class InterfaceSkinCompiler
                 ui.Add(key, "ui-" + key);
             }
         }
+        foreach (var (theme, first, palette) in new[] { ("own", 398, 53), ("other", 407, 54), ("friendly", 416, 55) })
+        {
+            if (Enumerable.Range(first, 9).Any(id => bindings[id] != palette + 200))
+                throw new InvalidDataException("Unconfirmed map hover frame palette.");
+            foreach (var (kind, height) in new[] { ("city", 316), ("facility", 248) })
+            {
+                string role = $"hover-{theme}-{kind}";
+                var indexed = MapHoverArt.Compose(common.Images.Skip(first).Take(9).ToArray(), 160, height);
+                assets.Add(save("ui-" + role, $"ui/{role}.png", IndexedImageArchive.Decode(indexed, common.Palettes[palette], true, true)));
+                ui.Add(role, "ui-" + role);
+            }
+        }
+        Extra("hover-divider", 425, 55, true);
         Extra("information-background", 337, 40);
         foreach (var (part, resource) in new[] { ("bottom", 338), ("left", 339), ("right", 340), ("top", 341), ("bottom-left", 342), ("top-left", 343), ("bottom-right", 344), ("top-right", 345), ("ornament", 346) })
             Extra("information-frame-" + part, resource, 41, true);
@@ -203,6 +216,6 @@ public static class InterfaceSkinCompiler
         var fontPalette = read(Path.Combine(dataDirectory, "P_Font.s9"));
         string FontColor(int style) => Convert.ToHexString(fontPalette.AsSpan((style / 2 * 32 + 16 + style % 2 * 8 + 7) * 4, 3));
         colors.Add("roster-available", FontColor(7)); colors.Add("roster-unavailable", FontColor(26));
-        return new(13, assets.ToArray(), ui, colors);
+        return new(14, assets.ToArray(), ui, colors);
     }
 }

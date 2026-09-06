@@ -1,3 +1,5 @@
+using System.Collections.Immutable;
+
 namespace San9.Core.Domain;
 
 public enum OfficerStatus { Ruler, Governor, Strategist, Serving, Captive, Free }
@@ -11,6 +13,12 @@ public readonly record struct OfficerAbilities(int War, int Intelligence, int Po
 /// <summary>A visible person with identity, status and optional location. Names belong to content definitions.</summary>
 public sealed record OfficerState(int Id, int? OwnerId, int? SettlementId, OfficerAbilities BaseAbilities, bool Acted)
 {
+    public ImmutableArray<int> LearnedTactics { get; init; } = [];
+    public ImmutableArray<int> TacticProficiencies { get; init; } = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+    public int? ServiceStartYear { get; init; }
+    public int? ParentId { get; init; }
+    public bool IsFemale { get; init; }
+    public int Personality { get; init; }
     public int Injury { get; init; }
     public OfficerStatus Status { get; init; } = OfficerStatus.Serving;
     [System.Text.Json.Serialization.JsonIgnore] public bool IsServing => Status <= OfficerStatus.Serving;
@@ -33,6 +41,9 @@ public sealed record OfficerState(int Id, int? OwnerId, int? SettlementId, Offic
 
     public bool IsValid()
     {
+        if (LearnedTactics.IsDefault || TacticProficiencies.IsDefault || TacticProficiencies.Length != 9 ||
+            TacticProficiencies.Any(v => v < 0) || LearnedTactics.Any(v => v < 0) || LearnedTactics.Distinct().Count() != LearnedTactics.Length ||
+            ParentId < 0 || Personality is < 0 or > 3) return false;
         if (Id < 0 || IsServing && SettlementId is null || SettlementId < 0 || OwnerId < 0 || RegionId < 0 || RegionId is not null && SettlementId is not null || !Enum.IsDefined(Status) || Injury is < 0 or > 14 ||
             !BaseAbilities.IsNonnegative || !ItemBonuses.IsNonnegative || !OfficeBonuses.IsNonnegative) return false;
         try { _ = Abilities; return true; }

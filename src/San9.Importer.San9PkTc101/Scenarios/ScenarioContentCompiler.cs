@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using San9.Content.Scenarios;
 using San9.Content.Text;
 using San9.Importer.San9PkTc101.Text;
@@ -65,7 +66,7 @@ public static class ScenarioContentCompiler
             if (f.LeaderId is not int leader || leader >= persons.Count) throw new InvalidDataException("Missing force leader.");
             var p = persons[leader];
             string name = text.Person($"force.{id}", p.FamilyNameResourceCode, p.GivenNameResourceCode);
-            return new ForceInitialState(id, name, f.ColorCode, f.Money, f.Food, f.Trust) { RankId = f.RankGroupId is < 8 ? f.RankGroupId : null, IsBarbarian = f.IsBarbarian || f.CountryTitleId is >= 4 and <= 8, LeaderId = leader, FlagGlyph = f.CountryTitleId is int title ? System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(exe.AsSpan(0x253bb0 + title * 4, 4)) : p.FlagCode < 186 ? p.FlagCode : -1 };
+            return new ForceInitialState(id, name, f.ColorCode, f.Money, f.Food, f.Trust) { ProvidedTactics = Enumerable.Range(0, San9ScenarioForceArchive.TacticCount).Where(f.HasTactic).ToImmutableArray(), RankId = f.RankGroupId is < 8 ? f.RankGroupId : null, IsBarbarian = f.IsBarbarian || f.CountryTitleId is >= 4 and <= 8, LeaderId = leader, FlagGlyph = f.CountryTitleId is int title ? System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(exe.AsSpan(0x253bb0 + title * 4, 4)) : p.FlagCode < 186 ? p.FlagCode : -1 };
         }).ToArray();
         var officers = OfficerContentCompiler.Compile(persons, items, offices, settlements, text);
         var knownPeople = officers.Select(o => o.State.Id).ToHashSet();
@@ -90,7 +91,7 @@ public static class ScenarioContentCompiler
                 throw new InvalidDataException("Invalid active field unit.");
             return new San9.Core.Domain.UnitState(u.Id, owner, x, y, (uint)u.LoadedSoldierCount);
         }).ToArray();
-        var snapshot = new ScenarioInitialState(7, header.ScenarioId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        var snapshot = new ScenarioInitialState(8, header.ScenarioId.ToString(System.Globalization.CultureInfo.InvariantCulture),
             header.StartDate.Year, header.StartDate.Month, header.StartDate.Day, 5, summaries, settlements.OrderBy(s => s.Id).ToArray(), regions, regionCities)
         { Officers = officers, Units = units, Information = information };
         snapshot.Validate(); catalog.Validate(); return (snapshot, catalog);

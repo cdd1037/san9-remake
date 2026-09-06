@@ -8,7 +8,7 @@ public static class StrategyHintText
         "advance", "facilities", "officers", "units", "overview-forces", "overview-facilities", "overview-units",
         "information-ranks", "information-forces", "information-corps", "information-cities", "information-regions",
         "information-units", "information-officers", "information-treasures", "information-records", "information-chronicle",
-        "information-units-empty", "information-treasures-empty"
+        "information-units-empty", "information-treasures-empty", "catalog-officers"
     });
     public static string Key(string role) => $"ui.hint.{role}";
 }

@@ -2,6 +2,7 @@ namespace San9.Core.Domain;
 
 public sealed record ForceState(int Id, uint Money, uint Food, int Trust)
 {
+    public System.Collections.Immutable.ImmutableArray<int> ProvidedTactics { get; init; } = [];
     public bool IsBarbarian { get; init; }
     public int? LeaderId { get; init; }
     public int? RankId { get; init; }

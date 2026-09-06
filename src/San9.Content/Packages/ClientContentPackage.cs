@@ -9,10 +9,10 @@ public sealed record ClientContentPackage(int SchemaVersion, ContentSource[] Sou
 {
     public void ValidateLinks()
     {
-        if (SchemaVersion != 8) throw new InvalidDataException("Unsupported client content version.");
+        if (SchemaVersion != 10) throw new InvalidDataException("Unsupported client content version.");
         Scenario.Validate(); Text.Validate(); Skin.Validate();
         foreach (string role in StrategyHintText.Roles) _ = Text.Resolve(StrategyHintText.Key(role));
-        foreach (string role in Scenario.Officers.Select(o => $"information-person-{o.State.Id}")
+        foreach (string role in Scenario.Officers.SelectMany(o => new[] { $"information-person-{o.State.Id}", $"catalog-person-{o.State.Id}" })
                      .Concat(Scenario.Information.Treasures.Select(t => $"information-treasure-{t.Id}")))
             if (!Skin.Roles.ContainsKey(role)) throw new InvalidDataException($"Missing information illustration: {role}");
         if (Map.ScenarioId != Scenario.ScenarioId ||

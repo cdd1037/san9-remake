@@ -23,6 +23,8 @@ public partial class InformationPanel : Control
     private readonly Rect2 _menu = new(842, 47, 104, 272);
     public InformationMenuButton? HoverMenuButton => State.IsMenu
         ? _content.GetChildren().OfType<InformationMenuButton>().FirstOrDefault(b => b.IsHovered()) : null;
+    private CatalogView? _catalog;
+    private CatalogTableState _officerCatalogState = new();
     private bool _dirty;
     private LineEdit? _note;
     private InformationActionButton? _mapButton;
@@ -44,7 +46,7 @@ public partial class InformationPanel : Control
         Visible = State.IsOpen; QueueRedraw();
         if (_content is not null) { RemoveChild(_content); _content.QueueFree(); }
         _content = new Control { Size = Size, MouseFilter = MouseFilterEnum.Ignore }; AddChild(_content);
-        _scroll = null; _rowControls.Clear(); _note = null; _mapButton = null;
+        _catalog = null; _scroll = null; _rowControls.Clear(); _note = null; _mapButton = null;
         if (!Visible) return;
         if (State.IsMenu)
         {
@@ -60,6 +62,25 @@ public partial class InformationPanel : Control
                 _content.AddChild(button);
             }
             return;
+        }
+        if (State.Category == InformationCategory.Officers && !State.IsDetail)
+        {
+            if (State.SelectedId is null) _officerCatalogState = new();
+            _catalog = new CatalogView
+            {
+                TableState = _officerCatalogState, Title = "武将一览", HintText = Texts.Resolve(StrategyHintText.Key("catalog-officers")), Pages = OfficerCatalog.Pages, Textures = Textures,
+                InitialPage = State.Page, InitialCurrentId = State.SelectedId, InitialOffset = State.Offset,
+                ReadRows = page => _query.Read(State.Category, page, State.ForceFilter, State.SettlementFilter).Rows
+                    .Select(row => new CatalogRow(row.Key.Id, row.Cells)).ToArray(),
+                Portrait = id => Textures[$"catalog-person-{id}"],
+                Closed = Back, Activated = id => { State.ShowDetail(id); Rebuild(); },
+                ViewChanged = (page, offset, selected) =>
+                {
+                    State.SelectPage(page, OfficerCatalog.Pages.Count); State.Scroll(offset, _query.Read(State).Rows.Length);
+                    if (selected is int id) State.Select(id);
+                }
+            };
+            _content.AddChild(_catalog); return;
         }
         _table = _query.Read(State); _rows = State.Order(_table);
         State.Scroll(State.Offset, _rows.Length);
@@ -215,7 +236,7 @@ public partial class InformationPanel : Control
     }
     public override void _Input(InputEvent @event)
     {
-        if (!Visible) return;
+        if (!Visible || _catalog is not null) return;
         if (@event is InputEventKey { Pressed: true, Keycode: Key.Escape })
         { if (_note is not null) Rebuild(); else Back(); GetViewport().SetInputAsHandled(); }
         else if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Right })
@@ -238,6 +259,7 @@ public partial class InformationPanel : Control
     }
     public override void _GuiInput(InputEvent @event)
     {
+        if (_catalog is not null) return;
         if (@event is InputEventMouseButton { Pressed: true } mouse)
         {
             if (State.IsMenu && !_menu.HasPoint(mouse.Position)) Back();
@@ -264,6 +286,7 @@ public partial class InformationPanel : Control
     }
     public override void _Draw()
     {
+        if (_catalog is not null) return;
         if (!Visible) return;
         if (State.IsMenu)
         {
@@ -290,13 +313,16 @@ public partial class InformationPanel : Control
 
 public partial class InformationActionButton : BaseButton
 {
+    private readonly GameTextPresenter _text = new();
+    public override void _ExitTree() => _text.Dispose();
     public string Title { get; init; } = "";
     public IReadOnlyDictionary<string, ImageTexture> Textures { get; init; } = null!;
     public override void _Ready()
     {
         FocusMode = FocusModeEnum.All;
         var label = new Label { Text = Title, Size = Size, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, MouseFilter = MouseFilterEnum.Ignore };
-        AddChild(label); label.AddThemeFontSizeOverride("font_size", 18);
+        AddChild(label);
+        _text.Apply(label, GameTextStyles.For(GameTextRole.Resource) with { FontSize = 18, Foreground = Colors.White });
     }
     public override void _Process(double delta) { Modulate = Disabled ? new Color("888888") : Colors.White; QueueRedraw(); }
     public override void _Draw()

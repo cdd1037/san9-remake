@@ -6,7 +6,7 @@
 
 ## 文字样式
 
-主界面文字使用客户端`GameTextStyle`语义样式目录；`GameTextPresenter`将同一配置适配到共享`LabelSettings`、设施行文字控件及地图原生描边绘制。共享设置按样式与项目字体缓存，按钮仅在状态变化时切换设置。效果按[DEC-UI-0002](../specs/decisions/DEC-UI-0002-modern-text-effects.md)作现代近似；完整原作效果表见RE-0158，不把所有白字统一加描边。
+主界面文字使用客户端`GameTextStyle`语义样式目录；`GameTextPresenter`将同一配置适配到共享`LabelSettings`、设施行文字控件及地图文字副本绘制。共享设置按样式与项目字体缓存，按钮仅在状态变化时切换设置。效果按[DEC-UI-0002](../specs/decisions/DEC-UI-0002-modern-text-effects.md)作现代近似；完整原作效果表见RE-0158，不把所有白字统一加描边。
 
 ## 小地图分层刷新（2026-09-06）
 
@@ -29,10 +29,10 @@
 | 模块 | 职责 | 输出 |
 | --- | --- | --- |
 | Content.Maps / MapImporter | 方格、地貌、建筑、云、动画、疆界精灵和小地图底图 | `content.json.map`，地图schema8 |
-| Content.Scenarios / Scenarios.ScenarioContentCompiler | 初始日期、势力资源、据点归属/坐标/显示数值、图标、驻留武将初始状态和地域所属城市 | `content.json.scenario`，schema7 |
+| Content.Scenarios / Scenarios.ScenarioContentCompiler | 初始日期、势力资源、据点归属/坐标/显示数值、图标、驻留武将初始状态和地域所属城市 | `content.json.scenario`，schema8 |
 | Content.Text / Text.ScenarioTextReader | 原作名称索引、类型后缀与简体投影；运行时按键解析 | `content.json.text`，schema1 |
-| Content.Interface / Interface.InterfaceSkinCompiler | 框架、三段背景、季节、按钮、状态条、图标和原版显示颜色 | `content.json.skin`，schema8 |
-| Content.Packages / Packages.ClientContentImporter | 组合入口、跨包ID/坐标/文本引用校验、来源清单 | 唯一`content.json`，顶层schema8 |
+| Content.Interface / Interface.InterfaceSkinCompiler | 框架、三段背景、季节、按钮、状态条、图标和原版显示颜色 | `content.json.skin`，schema10 |
+| Content.Packages / Packages.ClientContentImporter | 组合入口、跨包ID/坐标/文本引用校验、来源清单 | 唯一`content.json`，顶层schema10 |
 | Content.Images / Importer.Images | 通用PNG、索引图解码和透明边缘处理 | 由使用方选择输出目录 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 
@@ -180,3 +180,9 @@ FA40/41/45直接映射伷/璝/儁，与所处姓名或正文无关。未知扩�
 全图滚轮调整详细地图视野并同步白框；地域栏按全图鼠标方格更新。四列表头按实际单元格边界居中，数值右对齐且距右边界统一14逻辑像素。最终266项.NET自动测试通过，5项Python测试及全量离线原图审计通过；遵照用户要求，后续改动未启动Godot、未做引擎输入自检或GPU验收，不能用上面的初版截图代替本版验收。
 
 待处理：全图势力/设施/部队按钮仍复用普通HUD文字样式，尚未接入其独立描边状态表；用户明确暂缓这项调整。这与底部按钮提示的可用状态颜色是两套显示规则。
+
+## 全局文字效果候选版（2026-09-06）
+
+基线提交为`f8708f6`。当前统一适配八邻域各0.25覆盖度与(1,1)完整覆盖度阴影；Label使用零扩张的叠加阴影层，Canvas消费相同效果序列。取消菜单禁用悬停的专用TextLine分支，主体由同一Label完成排版。底部提示按复核结果仅绘制阴影。顶部和名单等无效果角色保持无效果，情报详情未确认配置仍属重制选择。
+
+验证：`dotnet test San9Remake.slnx --no-restore`通过271项自动测试并完成客户端编译。依用户要求未启动Godot，未执行引擎内自检、GPU截图或操作系统交互；全局效果及缩放裁切留待用户验收。

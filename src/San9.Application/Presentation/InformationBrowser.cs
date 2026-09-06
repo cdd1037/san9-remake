@@ -2,13 +2,7 @@ namespace San9.Application.Presentation;
 
 public enum InformationCategory { Ranks, Forces, Corps, Cities, Regions, Units, Officers, Treasures, Records, Chronicle }
 public readonly record struct InformationKey(InformationCategory Category, int Id);
-public sealed record InformationCell(string Text, long? Number = null)
-{
-    public static implicit operator InformationCell(string text) => new(text);
-    public static implicit operator InformationCell(int value) => new(value.ToString(System.Globalization.CultureInfo.InvariantCulture), value);
-    public static implicit operator InformationCell(long value) => new(value.ToString(System.Globalization.CultureInfo.InvariantCulture), value);
-}
-public sealed record InformationRow(InformationKey Key, InformationCell[] Cells, int? SettlementId = null);
+public sealed record InformationRow(InformationKey Key, CatalogCell[] Cells, int? SettlementId = null);
 public sealed record InformationTable(string Title, string[] Pages, string[] Columns, InformationRow[] Rows);
 public sealed record InformationField(string Label, string Value);
 public sealed record InformationLink(string Label, InformationCategory Category, int? ForceId = null, int? SettlementId = null);
@@ -71,7 +65,7 @@ public sealed class InformationBrowser
         IEnumerable<InformationRow> rows = table.Rows;
         if (SortColumn >= 0 && SortColumn < table.Columns.Length)
         {
-            var comparer = Comparer<InformationCell>.Create((a, b) => a.Number is long x && b.Number is long y
+            var comparer = Comparer<CatalogCell>.Create((a, b) => a.Number is long x && b.Number is long y
                 ? x.CompareTo(y) : StringComparer.Ordinal.Compare(a.Text, b.Text));
             rows = Descending ? rows.OrderByDescending(r => r.Cells[SortColumn], comparer) : rows.OrderBy(r => r.Cells[SortColumn], comparer);
         }

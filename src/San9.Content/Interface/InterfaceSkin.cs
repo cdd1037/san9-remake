@@ -28,11 +28,18 @@ public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dicti
         .Concat(new[] { "top-left", "top", "top-right", "left", "right", "bottom-left", "bottom", "bottom-right", "ornament" }.Select(p => "information-frame-" + p))
         .Concat(new[] { "left", "middle", "right" }.SelectMany(p => new[] { "information-title-" + p, "information-footer-" + p }))
         .Concat(new[] { "left", "middle", "right", "close" }.SelectMany(p => Enumerable.Range(0, 4).Select(f => "information-action-" + p + (f == 0 ? "" : $"-{f}"))))
+        .Concat(new[] { "catalog-header-left", "catalog-header-middle", "catalog-header-right", "catalog-row-left", "catalog-row-middle", "catalog-row-right", "catalog-help", "catalog-scroll-up", "catalog-scroll-down" }
+            .SelectMany(p => Enumerable.Range(0,4).Select(f => p + (f == 0 ? "" : $"-{f}"))))
+        .Concat(Enumerable.Range(0,6).Select(f => "catalog-tab" + (f == 0 ? "" : $"-{f}")))
+        .Concat(new[] { "top-left", "top", "top-right", "bottom-left", "bottom", "bottom-right" }.Select(p => "catalog-frame-" + p))
+        .Concat(new[] { "catalog-sort-up", "catalog-sort-down", "catalog-portrait-frame" })
+        .Concat(new[] { "track", "thumb" }.SelectMany(p => new[] { "top", "middle", "bottom" }.Select(s => "catalog-scroll-" + p + "-" + s)))
+        .Concat(new[] { "top-left", "top", "top-right", "left", "right", "bottom-left", "bottom", "bottom-right" }.Select(p => "catalog-tabs-" + p))
         .Append("information-background").ToArray());
 
     public void Validate()
     {
-        if (SchemaVersion != 8 || Assets.Select(a => a.Id).Distinct().Count() != Assets.Length)
+        if (SchemaVersion != 10 || Assets.Select(a => a.Id).Distinct().Count() != Assets.Length)
             throw new InvalidDataException("Invalid interface skin version or duplicate assets.");
         var assets = Assets.ToDictionary(a => a.Id);
         if (Enumerable.Range(0, 52).Any(i => !Colors.ContainsKey($"city-marker-{i}")) ||

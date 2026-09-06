@@ -34,6 +34,18 @@ class InitialUiAuditTests(unittest.TestCase):
         with self.assertRaises(AssertionError):
             verify_frame(image, source, palette, 2, 0)
 
+    def test_palette_alpha_allows_hidden_rgb_but_checks_partial_alpha_pixels(self):
+        palette = bytes([0, 248, 0, 0, 10, 20, 30, 0, 50, 80, 120, 21]) + bytes(1012)
+        source = (2, 1, bytes([1, 2]))
+        image = Image.frombytes("RGBA", (2, 1), bytes([50, 80, 120, 0, 50, 80, 120, 42]))
+        verify_frame(image, source, palette, 1, 0, True)
+        image.putpixel((1, 0), (51, 80, 120, 42))
+        with self.assertRaises(AssertionError):
+            verify_frame(image, source, palette, 1, 0, True)
+        image.putpixel((1, 0), (50, 80, 120, 43))
+        with self.assertRaises(AssertionError):
+            verify_frame(image, source, palette, 1, 0, True)
+
     def test_scope_is_explicit_and_baseline_requires_full_audit(self):
         paths = ["sample.exe", "data", "package"]
         for options in [[], ["--scope", "unknown"], ["--scope", "scrollbar", "--all"],

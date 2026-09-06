@@ -35,7 +35,7 @@ public sealed class WorldState
         var world = new WorldState(clock, seed);
         foreach (var force in forces)
         {
-            if (force.Id < 0 || force.Trust < 0) throw new ArgumentException("Invalid force.");
+            if (force.Id < 0 || force.Trust < 0 || force.ProvidedTactics.IsDefault || force.ProvidedTactics.Any(t => t < 0) || force.ProvidedTactics.Distinct().Count() != force.ProvidedTactics.Length) throw new ArgumentException("Invalid force.");
             world._forces.Add(force.Id, force);
         }
         foreach (var settlement in settlements)

@@ -80,7 +80,11 @@ public partial class SkinnedScrollBar : Control
             float height = Math.Min(Skin.TrackMiddle.GetHeight(), Size.Y - y);
             DrawTextureRectRegion(Skin.TrackMiddle, new(0, y, Size.X, height), new(0, 0, Size.X, height));
         }
-        DrawTexture(Skin.TrackTop, Vector2.Zero);
-        DrawTexture(Skin.TrackBottom, new(0, Size.Y - Skin.TrackBottom.GetHeight()));
+        // A skin may provide a full-height track overlay, so cap drawing must stay inside the viewport.
+        float topHeight = Math.Min(Size.Y, Skin.TrackTop.GetHeight());
+        DrawTextureRectRegion(Skin.TrackTop, new(0, 0, Size.X, topHeight), new(0, 0, Size.X, topHeight));
+        float bottomHeight = Math.Min(Size.Y, Skin.TrackBottom.GetHeight());
+        DrawTextureRectRegion(Skin.TrackBottom, new(0, Size.Y - bottomHeight, Size.X, bottomHeight),
+            new(0, Skin.TrackBottom.GetHeight() - bottomHeight, Size.X, bottomHeight));
     }
 }

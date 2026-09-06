@@ -14,6 +14,13 @@ public sealed record ScrollBarSkin(Texture2D TrackTop, Texture2D TrackMiddle, Te
         Enumerable.Range(0, 4).Select(i => (Texture2D)textures[i == 0 ? "button-scroll-down" : $"button-scroll-down-{i}"]).ToArray(),
         new(3, 14));
 
+    public static ScrollBarSkin FromCatalog(IReadOnlyDictionary<string, ImageTexture> textures)
+    {
+        Texture2D Part(string role) => new AtlasTexture { Atlas = textures["catalog-scroll-" + role], Region = new(0, 0, 16, textures["catalog-scroll-" + role].GetHeight()) };
+        Texture2D[] Frames(string role) => Enumerable.Range(0, 4).Select(i => (Texture2D)textures["catalog-scroll-" + role + (i == 0 ? "" : $"-{i}")]).ToArray();
+        return new(Part("track-top"), Part("track-middle"), Part("track-bottom"), Part("thumb-top"), Part("thumb-middle"), Part("thumb-bottom"), Frames("up"), Frames("down"), new(0, 16));
+    }
+
     public StyleBoxTexture CreateThumbStyle()
     {
         int width = ThumbMiddle.GetWidth(), top = ThumbTop.GetHeight(), bottom = ThumbBottom.GetHeight();

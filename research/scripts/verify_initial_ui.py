@@ -10,15 +10,24 @@ from PIL import Image
 # Independent source mappings; groups describe presentation responsibilities, not file layout.
 # Each tuple is (role, resource, columns, palette_alpha).
 ASSET_GROUPS = {
+    "catalog": ("G_Common.s9", 0, 200, [
+        *[("catalog-frame-"+p,r,1,True) for p,r in [("top-left",314),("top",315),("top-right",316),("bottom-left",320),("bottom",321),("bottom-right",322)]],
+        *[("catalog-header-"+p,332+i,4,True) for i,p in enumerate(["left","middle","right"])],
+        *[("catalog-row-"+p,293+i,4,True) for i,p in enumerate(["left","middle","right"])],
+        ("catalog-sort-down",335,1,True),("catalog-sort-up",336,1,True),("catalog-tab",380,6,True),
+        ("catalog-portrait-frame",297,1,True),("catalog-help",354,4,True),
+        ("catalog-scroll-down",372,4,True),("catalog-scroll-up",373,4,True),
+        *[("catalog-scroll-"+p,374+i,1,True) for i,p in enumerate(["track-top","track-middle","track-bottom","thumb-top","thumb-middle","thumb-bottom"])],
+        *[("catalog-tabs-"+p,364+i,1,True) for i,p in enumerate(["top-left","top","top-right","left","right","bottom-left","bottom","bottom-right"])]]),
     "information-menu": ("G_Main.s9", 5975, 60, [
         ("information-menu-" + role, 5975 + 32 + i, 1, False)
         for i, role in enumerate(["top-left", "top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right"])]),
     "information-menu-buttons": ("G_Main.s9", 5975, 60, [("information-menu-button-" + role, 5998+i, 4, False) for i,role in enumerate(["left", "middle", "right"])]),
     "information": ("G_Common.s9", 0, 200, [
         ("information-background", 337, 1, False),
-        *[("information-frame-" + role, resource, 1, False) for role, resource in [("bottom",338),("left",339),("right",340),("top",341),("bottom-left",342),("top-left",343),("bottom-right",344),("top-right",345),("ornament",346)]],
-        *[("information-title-" + role, 361+i, 1, False) for i, role in enumerate(["left","middle","right"])],
-        *[("information-footer-" + role, 382+i, 1, False) for i, role in enumerate(["left","middle","right"])],
+        *[("information-frame-" + role, resource, 1, True) for role, resource in [("bottom",338),("left",339),("right",340),("top",341),("bottom-left",342),("top-left",343),("bottom-right",344),("top-right",345),("ornament",346)]],
+        *[("information-title-" + role, 361+i, 1, True) for i, role in enumerate(["left","middle","right"])],
+        *[("information-footer-" + role, 382+i, 1, True) for i, role in enumerate(["left","middle","right"])],
         *[("information-action-" + role, 350+i, 4, False) for i, role in enumerate(["left","middle","right","close"])]]),
     "overview": ("G_MMap.s9", 999, 295, [
         ("overview-background", 1156, 1, False), ("overview-terrain", 1163, 1, False),
@@ -162,8 +171,10 @@ def verify_frame(actual, source, palette, columns, frame, palette_alpha=False):
             a = (y * w + x) * 4
             visible = entry != palette[:4]
             expected_alpha = (min(entry[3], 128) * 255 + 64) // 128 if palette_alpha else 255
-            assert rgba[a + 3] == (expected_alpha if visible else 0)
-            if visible:
+            expected_alpha = expected_alpha if visible else 0
+            assert rgba[a + 3] == expected_alpha
+            # The exporter extends neighboring RGB into every fully transparent pixel.
+            if expected_alpha > 0:
                 assert rgba[a:a + 3] == entry[:3]
 
 
@@ -219,6 +230,13 @@ def verify_officers(scenario, entries, texts, messages):
         assert state["officeId"] == (u16(0x26) if u16(0x26) < 76 else None)
         assert state["acted"] == bool(struct.unpack_from("<I", raw)[0] & 0x1000)
         assert state["injury"] == u16(0x2a)
+        assert state["tacticProficiencies"] == list(struct.unpack_from("<9H", raw, 0x38))
+        learned = int.from_bytes(raw[0x80:0x86], "little")
+        assert state["learnedTactics"] == [i for i in range(41) if learned & (1 << i)]
+        assert state["personality"] == u16(0x36)
+        assert state["isFemale"] == bool(struct.unpack_from("<I", raw)[0] & 1)
+        assert state["parentId"] == (u16(0x2e) if u16(0x2e) < 1031 else None)
+        assert state["serviceStartYear"] == (u16(0x16) + 130 if u16(0x16) else None)
         source = name(1678 + 4*u16(6)) + name(1679 + 4*u16(8))
         assert texts[entry["nameKey"]]["sourceText"] == source
         for ability, offset, categories, bit in [("leadership",0x1e,[2],0),("war",0x20,[1],1),
@@ -240,6 +258,7 @@ def verify_information_art(content, data, root):
     from square_map.graphics import parse_image_stream
     raw = parse_scenario_sections((data / "D_Sce002.S9").read_bytes())
     faces = parse_image_stream(data / "G_FaceL.s9")
+    catalog_faces = parse_image_stream(data / "G_FaceS.s9")
     face_palette = (data / "P_Face.s9").read_bytes()[44:1068]
     palettes, still = parse_combined((data / "G_Still.s9").read_bytes())
     assets = {a["id"]: a for a in content["skin"]["assets"]}
@@ -257,6 +276,9 @@ def verify_information_art(content, data, root):
         index = struct.unpack_from("<H", raw["prsn"], i*134+14)[0]
         image = faces[index]
         check(f"information-person-{i}", image.width, image.height, image.pixels, face_palette)
+        image = catalog_faces[index]
+        assert (image.width, image.height) == (64, 80)
+        check(f"catalog-person-{i}", image.width, image.height, image.pixels, face_palette)
     for treasure in content["scenario"]["information"]["treasures"]:
         i = treasure["id"]
         index = struct.unpack_from("<H", raw["item"], i*22+6)[0] + 172
@@ -266,7 +288,7 @@ def verify_scenario(content, data):
     package, p, text = content["map"], content["scenario"], content["text"]["entries"]
     from parse_pk_text import decode_ls11, split_indexed_records, strip_common_terminator
     messages = split_indexed_records(decode_ls11((data / "M_MsgPK.s9").read_bytes())[0])[2]
-    hints = {"information":8261, "functions":8260, "help":8262, "pause":8439,
+    hints = {"catalog-officers":8159, "information":8261, "functions":8260, "help":8262, "pause":8439,
              "territory":8430, "map-large":8291, "map-small":8293, "advance":8253,
              "facilities":8290, "officers":8289, "units":8288,
              "overview-forces":8440, "overview-facilities":8442, "overview-units":8441,
@@ -287,6 +309,8 @@ def verify_scenario(content, data):
     for force in p["forces"]:
         rank = struct.unpack_from("<H", raw["forc"], force["id"]*86+26)[0]
         assert force["rankId"] == (rank if rank < 8 else None)
+        tactic_bits = int.from_bytes(raw["forc"][force["id"]*86+30:force["id"]*86+36], "little")
+        assert force["providedTactics"] == [i for i in range(41) if tactic_bits & (1 << i)]
     assert [c["id"] for c in info["corps"]] == sorted({s["corpsId"] for s in p["settlements"] if s["corpsId"] is not None})
     for corps in info["corps"]:
         offset = corps["id"]*86
@@ -387,9 +411,9 @@ def main(argv=None):
     assert hashlib.sha256(exe).hexdigest() == "d20794aeff67301ec2bf8c3becb1e9944c68c6c0588fbfd4bf04e8597f0e5028"
     content = json.loads((args.package / "content.json").read_text(encoding="utf-8"))
     package, p, skin = content["map"], content["scenario"], content["skin"]
-    assert content["schemaVersion"] == 8
+    assert content["schemaVersion"] == 10
     assert package["schemaVersion"] == 8 and "presentation" not in package
-    assert p["schemaVersion"] == 7 and skin["schemaVersion"] == 8
+    assert p["schemaVersion"] == 8 and skin["schemaVersion"] == 10
     assert not {a["id"] for a in skin["assets"]}.intersection(a["id"] for a in package["assets"])
     groups = [scope for scope in scopes if scope in ASSET_GROUPS]
     checked = {}
@@ -399,7 +423,7 @@ def main(argv=None):
             for i in range(count):
                 resource, palette = struct.unpack_from("<2I", exe, start + 8 * i)
                 bindings[resource & 65535] = palette
-        extra_roles = [f"information-person-{o['state']['id']}" for o in p["officers"]] + [f"information-treasure-{t['id']}" for t in p["information"]["treasures"]]
+        extra_roles = [f"{prefix}-person-{o['state']['id']}" for o in p["officers"] for prefix in ["information", "catalog"]] + [f"information-treasure-{t['id']}" for t in p["information"]["treasures"]]
         checked = verify_skin_assets(args.package, args.data, skin, bindings, groups, extra_roles)
     if "minimap" in scopes:
         asset = next(a for a in package["assets"] if a["id"] == "minimap-terrain")

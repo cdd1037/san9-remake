@@ -49,7 +49,7 @@ public sealed class GameSession
         };
         if (definition.Day is not (1 or 11 or 21)) throw new ArgumentException("Expected a stable xun boundary.");
         var world = WorldState.Create(new(definition.Year, definition.Month, (XunIndex)((definition.Day - 1) / 10 + 1)), seed,
-            definition.Forces.Select(f => new ForceState(f.Id, f.Money, f.Food, f.Trust) { IsBarbarian = f.IsBarbarian, LeaderId = f.LeaderId, RankId = f.RankId }),
+            definition.Forces.Select(f => new ForceState(f.Id, f.Money, f.Food, f.Trust) { ProvidedTactics = f.ProvidedTactics, IsBarbarian = f.IsBarbarian, LeaderId = f.LeaderId, RankId = f.RankId }),
             definition.Settlements.Select(s => new SettlementState(s.Id, s.OwnerId, s.Soldiers, s.Durability, s.MaxDurability,
                 s.Morale, s.PublicOrder, s.Commerce, s.MaxCommerce, s.Cultivation, s.MaxCultivation) { Kind = s.Kind, CorpsId = s.CorpsId, Population = s.Population, DraftPopulation = s.DraftPopulation }), definition.Officers.Select(o => o.State), definition.Units, definition.Information.Corps, definition.Information.TreasureStates, definition.Information.Relations);
         var session = new GameSession(world) { _definition = definition };

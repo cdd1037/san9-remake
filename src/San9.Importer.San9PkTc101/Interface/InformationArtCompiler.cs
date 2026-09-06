@@ -15,6 +15,7 @@ public static class InformationArtCompiler
         stream.Position = 0;
         var treasures = San9ScenarioItemArchive.ReadKnownRecords(stream);
         var faces = IndexedImageArchive.ReadImages(read(Path.Combine(dataDirectory, "G_FaceL.s9")), 786);
+        var catalogFaces = IndexedImageArchive.ReadImages(read(Path.Combine(dataDirectory, "G_FaceS.s9")), 786);
         var facePalettes = IndexedImageArchive.ReadPalettes(read(Path.Combine(dataDirectory, "P_Face.s9")), 2);
         var still = IndexedImageArchive.ReadCombined(read(Path.Combine(dataDirectory, "G_Still.s9")), 283, 283);
         List<ImageAsset> assets = [.. skin.Assets]; var roles = new Dictionary<string, string>(skin.Roles);
@@ -32,6 +33,9 @@ public static class InformationArtCompiler
             int portrait = people[person.State.Id].PortraitResourceCode;
             if (portrait >= faces.Length) throw new InvalidDataException("Unsupported expansion portrait in this scenario.");
             Add($"information-person-{person.State.Id}", faces[portrait], facePalettes[0]);
+            if (catalogFaces[portrait].Width != 64 || catalogFaces[portrait].Height != 80)
+                throw new InvalidDataException("Invalid catalog portrait dimensions.");
+            Add($"catalog-person-{person.State.Id}", catalogFaces[portrait], facePalettes[0]);
         }
         foreach (var treasure in scenario.Information.Treasures)
         {

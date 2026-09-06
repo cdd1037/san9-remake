@@ -118,11 +118,36 @@ public static class InterfaceSkinCompiler
                 ui.Add(key, id);
             }
         }
+        foreach (var (role, resource, columns, palette) in new[]
+        {
+            ("catalog-frame-top-left",314,1,39), ("catalog-frame-top",315,1,39), ("catalog-frame-top-right",316,1,39),
+            ("catalog-frame-bottom-left",320,1,39), ("catalog-frame-bottom",321,1,39), ("catalog-frame-bottom-right",322,1,39),
+            ("catalog-header-left",332,4,44), ("catalog-header-middle",333,4,44), ("catalog-header-right",334,4,44),
+            ("catalog-sort-down",335,1,44), ("catalog-sort-up",336,1,44),
+            ("catalog-row-left",293,4,35), ("catalog-row-middle",294,4,35), ("catalog-row-right",295,4,35),
+            ("catalog-tab",380,6,45), ("catalog-portrait-frame",297,1,37), ("catalog-help",354,4,42),
+            ("catalog-scroll-down",372,4,48), ("catalog-scroll-up",373,4,48),
+            ("catalog-scroll-track-top",374,1,48), ("catalog-scroll-track-middle",375,1,48), ("catalog-scroll-track-bottom",376,1,48),
+            ("catalog-scroll-thumb-top",377,1,48), ("catalog-scroll-thumb-middle",378,1,48), ("catalog-scroll-thumb-bottom",379,1,48),
+            ("catalog-tabs-top-left",364,1,43), ("catalog-tabs-top",365,1,43), ("catalog-tabs-top-right",366,1,43),
+            ("catalog-tabs-left",367,1,43), ("catalog-tabs-right",368,1,43),
+            ("catalog-tabs-bottom-left",369,1,43), ("catalog-tabs-bottom",370,1,43), ("catalog-tabs-bottom-right",371,1,43)
+        })
+        {
+            if (bindings[resource] != palette + 200) throw new InvalidDataException("Unconfirmed catalog palette binding.");
+            for (int frame = 0; frame < columns; frame++)
+            {
+                string key = role + (frame == 0 ? "" : $"-{frame}");
+                var pixels = IndexedImageArchive.Frame(common.Images[resource], columns, 1, frame, 0);
+                assets.Add(save("ui-" + key, $"ui/{key}.png", IndexedImageArchive.Decode(pixels, common.Palettes[palette], true, true)));
+                ui.Add(key, "ui-" + key);
+            }
+        }
         Extra("information-background", 337, 40);
         foreach (var (part, resource) in new[] { ("bottom", 338), ("left", 339), ("right", 340), ("top", 341), ("bottom-left", 342), ("top-left", 343), ("bottom-right", 344), ("top-right", 345), ("ornament", 346) })
-            Extra("information-frame-" + part, resource, 41);
-        foreach (var (part, resource) in new[] { ("left", 361), ("middle", 362), ("right", 363) }) Extra("information-title-" + part, resource, 42);
-        foreach (var (part, resource) in new[] { ("left", 382), ("middle", 383), ("right", 384) }) Extra("information-footer-" + part, resource, 47);
+            Extra("information-frame-" + part, resource, 41, true);
+        foreach (var (part, resource) in new[] { ("left", 361), ("middle", 362), ("right", 363) }) Extra("information-title-" + part, resource, 42, true);
+        foreach (var (part, resource) in new[] { ("left", 382), ("middle", 383), ("right", 384) }) Extra("information-footer-" + part, resource, 47, true);
         foreach (var (role, resource) in new[] { ("left", 350), ("middle", 351), ("right", 352), ("close", 353) })
         {
             if (bindings[resource] != 242) throw new InvalidDataException("Unconfirmed information button palette.");
@@ -149,6 +174,6 @@ public static class InterfaceSkinCompiler
         var fontPalette = read(Path.Combine(dataDirectory, "P_Font.s9"));
         string FontColor(int style) => Convert.ToHexString(fontPalette.AsSpan((style / 2 * 32 + 16 + style % 2 * 8 + 7) * 4, 3));
         colors.Add("roster-available", FontColor(7)); colors.Add("roster-unavailable", FontColor(26));
-        return new(8, assets.ToArray(), ui, colors);
+        return new(10, assets.ToArray(), ui, colors);
     }
 }

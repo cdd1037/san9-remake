@@ -96,3 +96,5 @@ python -B -m unittest discover -s research/scripts -p test_verify_initial_ui.py
 情报增量检查：菜单使用`--scope information-menu`，公共窗口使用`--scope information`，人物头像与宝物图使用`--scope information-art`，人物/官爵/军团/关系等初始数据使用`--scope scenario`。本次更改组合契约，验收使用`--all`。
 
 十项菜单按钮三段四帧可用`--scope information-menu-buttons`单独核对；底部十条普通提示及两条空态原因由`--scope scenario`核对源消息。
+
+通用表格皮肤使用`--scope catalog`，覆盖表头、方向标记、六帧页签、行背景、头像框、帮助、目录滚动条和表格边框。武将新增运行时字段由`--scope scenario`独立核对；本次契约/审计器同时更新，运行`--all`。

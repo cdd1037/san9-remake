@@ -10,19 +10,38 @@ public sealed class InformationBrowserTests
 {
     private static (GameSession Session, InformationQuery Query) Fixture()
     {
-        var scenario = new ScenarioInitialState(7, "information", 190, 1, 1, 5,
-            [new(5, "force", 5, 100, 200, 100) { LeaderId = 1, RankId = 0 }],
+        var scenario = new ScenarioInitialState(8, "information", 190, 1, 1, 5,
+            [new(5, "force", 5, 100, 200, 100) { LeaderId = 1, RankId = 0, ProvidedTactics = [1] }],
             [new(15, "city", 5, 80, 60, 1000, 500, 1000, 50, []) { CorpsId = 5, Commerce = 100, MaxCommerce = 1000, Cultivation = 100, MaxCultivation = 1000, Population = 50000 }],
             new() { [15] = "city", [50] = "region" }, new() { [15] = 15, [50] = 15 })
         {
-            Officers = [new("ruler", new(1, 5, 15, new(90, 60, 80, 90), false) { Status = OfficerStatus.Ruler, BirthYear = 150 }),
+            Officers = [new("ruler", new(1, 5, 15, new(90, 60, 80, 90), false) { Status = OfficerStatus.Ruler, BirthYear = 150, LearnedTactics = [0], TacticProficiencies = [200, 0, 0, 0, 0, 0, 0, 0, 0] }),
                 new("free", new(2, null, null, new(20, 60, 40, 50), false) { Status = OfficerStatus.Free, RegionId = 50 })],
-            Information = new([new(0, "rank", 60000, 1000, 5)], [], [new(0, "treasure", 1, 5, 10, null)],
+            Information = new([new(0, "rank", 60000, 1000, 5)], [], [new(0, "treasure", 1, 5, 10, 2)],
                 [new(5, 5, 1, null)], [new(0, 1, true)])
         };
         var text = new TextCatalog(1, new[] { "force", "city", "region", "ruler", "free", "rank", "treasure" }.ToDictionary(s => s, s => new TextEntry(s, s)));
         var session = GameSession.Start(scenario, 1);
         return (session, new(session, text));
+    }
+
+    [Fact]
+    public void OfficerPagesShareCandidatesAndKeepThreeDistinctTacticSources()
+    {
+        var (session, query) = Fixture();
+        var before = session.Snapshot.StateHash;
+        var ability = query.Read(InformationCategory.Officers);
+        Assert.Equal(13, ability.Pages.Length);
+        Assert.Equal(1, ability.Rows.Single(r => r.Key.Id == 1).Cells[5].Number);
+        Assert.Equal("良", ability.Rows.Single(r => r.Key.Id == 1).Cells[6].Text);
+        var infantry = query.Read(InformationCategory.Officers, 4);
+        var cells = infantry.Rows.Single(r => r.Key.Id == 1).Cells;
+        Assert.Equal(200, cells[1].Number);
+        Assert.Equal(["○", "△", "△"], cells.Skip(2).Select(c => c.Text));
+        Assert.All(infantry.Rows.Single(r => r.Key.Id == 2).Cells.Skip(2), c => Assert.Equal("", c.Text));
+        for (int page = 0; page < 13; page++)
+            Assert.Equal(ability.Rows.Select(r => r.Key), query.Read(InformationCategory.Officers, page).Rows.Select(r => r.Key));
+        Assert.Equal(before, session.Snapshot.StateHash);
     }
 
     [Fact]
@@ -41,7 +60,7 @@ public sealed class InformationBrowserTests
         Assert.Equal(2, query.Read(InformationCategory.Regions).Rows.Length);
         Assert.Equal(2, query.Read(InformationCategory.Officers).Rows.Length);
         Assert.Single(query.Read(InformationCategory.Officers, force: 5).Rows);
-        Assert.Equal("region", query.Read(InformationCategory.Officers).Rows.Single(r => r.Key.Id == 2).Cells[2].Text);
+        Assert.Equal("region", query.Read(InformationCategory.Officers, 1).Rows.Single(r => r.Key.Id == 2).Cells[4].Text);
         Assert.False(query.Available(InformationCategory.Units));
         Assert.Equal(before, session.Snapshot.StateHash);
     }

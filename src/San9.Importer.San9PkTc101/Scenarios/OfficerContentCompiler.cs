@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using San9.Content.Scenarios;
 using San9.Core.Domain;
 using San9.Importer.San9PkTc101.Text;
@@ -28,6 +29,10 @@ public static class OfficerContentCompiler
             var state = new OfficerState(id, person.StatusCode <= 3 ? settlement?.OwnerId : null, location,
                 new(person.Strength, person.Intelligence, person.Politics, person.Command), person.IsCommandParticipant)
             {
+                LearnedTactics = Enumerable.Range(0, San9ScenarioPersonArchive.TacticCount).Where(person.HasLearnedTactic).ToImmutableArray(),
+                TacticProficiencies = person.TacticProficiencies.Select(v => (int)v).ToImmutableArray(),
+                ServiceStartYear = person.EncodedStatusStartYear == 0 ? null : person.StatusStartYear,
+                ParentId = person.ParentPersonId, IsFemale = person.GenderFlag != 0, Personality = person.Personality,
                 RegionId = settlement is null ? person.LocationId : null, Injury = person.Health, Status = (OfficerStatus)person.StatusCode, BirthYear = person.BirthYear, OfficeId = person.OfficeRankId,
                 Loyalty = person.StatusCode <= 3 && settlement?.OwnerId is int owner ? person.GetForceLoyalty(owner) : 0,
                 ItemBonuses = new(ItemBonus(1), ItemBonus(5, 9), ItemBonus(3, 4, 6), ItemBonus(2)),

@@ -7,7 +7,7 @@ public sealed class GameTextStyleTests
     [Theory]
     [InlineData(GameTextRole.Header, 0, false)]
     [InlineData(GameTextRole.Resource, 0, false)]
-    [InlineData(GameTextRole.Facility, 0, false)]
+    [InlineData(GameTextRole.Roster, 0, false)]
     [InlineData(GameTextRole.Building, 1, false)]
     [InlineData(GameTextRole.Message, 1, true)]
     [InlineData(GameTextRole.Region, 1, false)]

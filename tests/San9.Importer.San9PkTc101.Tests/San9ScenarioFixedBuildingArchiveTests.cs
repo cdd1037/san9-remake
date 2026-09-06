@@ -6,6 +6,16 @@ namespace San9.Importer.San9PkTc101.Tests;
 public sealed class San9ScenarioFixedBuildingArchiveTests
 {
     [Fact]
+    public void FacilityRosterUsesGroupedCategoriesRatherThanSourceIds()
+    {
+        using var stream = BuildScenarioArchive();
+        var records = San9ScenarioFixedBuildingArchive.ReadKnownRecords(stream);
+        Assert.True(records[7].IsFacilityListEntry);
+        Assert.True(records[9].IsFacilityListEntry);
+        Assert.False(records[10].IsFacilityListEntry);
+        Assert.False(records[16].IsFacilityListEntry);
+    }
+    [Fact]
     public void ReadKnownFixedBuildings_UsesRecordOrderAndPreservesAllFields()
     {
         using MemoryStream stream = BuildScenarioArchive();

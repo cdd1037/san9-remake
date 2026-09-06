@@ -3,11 +3,14 @@ namespace San9.Content.Scenarios;
 public sealed record ForceInitialState(int Id, string NameKey, int ColorCode, uint Money, uint Food, int Trust)
 {
     [System.Text.Json.Serialization.JsonRequired] public int FlagGlyph { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public int? LeaderId { get; init; }
 }
 public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId, int X, int Y,
     uint Soldiers, int Durability, int MaxDurability, int Morale, string[] Icons)
 {
     [System.Text.Json.Serialization.JsonRequired] public int Appearance { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public int? CorpsId { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public bool IsFacilityListEntry { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public int PublicOrder { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public int Commerce { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public int MaxCommerce { get; init; }
@@ -17,10 +20,10 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    [System.Text.Json.Serialization.JsonRequired] public San9.Core.Domain.OfficerState[] Officers { get; init; } = [];
+    [System.Text.Json.Serialization.JsonRequired] public OfficerInitialState[] Officers { get; init; } = [];
     public void Validate()
     {
-        if (SchemaVersion != 3 || string.IsNullOrWhiteSpace(ScenarioId) || Year < 1 || Month is < 1 or > 12 || Day is < 1 or > 30 ||
+        if (SchemaVersion != 5 || string.IsNullOrWhiteSpace(ScenarioId) || Year < 1 || Month is < 1 or > 12 || Day is < 1 or > 30 ||
             Forces.Select(f => f.Id).Distinct().Count() != Forces.Length || !Forces.Any(f => f.Id == PlayerForceId))
             throw new InvalidDataException("Invalid scenario date or player force.");
         var forceIds = Forces.Select(f => f.Id).ToHashSet();
@@ -36,8 +39,17 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
             s.Soldiers == 0 && s.Morale != 0 || s.MaxDurability <= 0 || s.Durability < 0 || s.Durability > s.MaxDurability))
             throw new InvalidDataException("Invalid settlement snapshot.");
         var settlementIds=Settlements.Select(s=>s.Id).ToHashSet();
-        if (Officers.Select(o=>o.Id).Distinct().Count()!=Officers.Length || Officers.Any(o=>o.Id<0 || o.CurrentPolitics<0 || !settlementIds.Contains(o.SettlementId) || o.OwnerId is int owner && !forceIds.Contains(owner)))
+        if (Officers.Any(o => string.IsNullOrWhiteSpace(o.NameKey) || o.State is null || !o.State.IsValid()) ||
+            Officers.Select(o => o.State.Id).Distinct().Count() != Officers.Length || Officers.Any(o =>
+                !settlementIds.Contains(o.State.SettlementId) ||
+                o.State.OwnerId is int owner && !forceIds.Contains(owner) ||
+                Settlements.Single(s => s.Id == o.State.SettlementId).OwnerId != o.State.OwnerId))
             throw new InvalidDataException("Invalid officer initial state.");
+        if (Forces.Any(f => f.LeaderId is int leader && !Officers.Any(o => o.State.Id == leader && o.State.OwnerId == f.Id)))
+            throw new InvalidDataException("Invalid force leader reference.");
+        if (Settlements.Any(s => s.CorpsId < 0 || s.CorpsId is not null && s.OwnerId is null) ||
+            Settlements.Where(s => s.CorpsId is not null).GroupBy(s => s.CorpsId).Any(g => g.Select(s => s.OwnerId).Distinct().Count() != 1))
+            throw new InvalidDataException("Invalid direct corps ownership.");
         if (RegionCityIds.Any(p => !RegionNameKeys.ContainsKey(p.Key) || p.Value is < 0 or >= 50 || !RegionNameKeys.ContainsKey(p.Value)))
             throw new InvalidDataException("Invalid region city reference.");
         if (RegionNameKeys.Any(p => p.Key < 0 || string.IsNullOrWhiteSpace(p.Value))) throw new InvalidDataException("Invalid region names.");

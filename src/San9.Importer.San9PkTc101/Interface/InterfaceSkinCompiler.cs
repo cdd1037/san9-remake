@@ -54,6 +54,18 @@ public static class InterfaceSkinCompiler
             assets.Add(save(id, $"ui/{role}.png", IndexedImageArchive.Decode(pack.Images[resource - start], pack.Palettes[palette], true, paletteAlpha)));
             ui.Add(role, id);
         }
+        foreach (var (role, resource) in new[] { ("left", 290), ("middle", 291), ("right", 292) })
+        {
+            if (bindings[resource] != 234) throw new InvalidDataException("Unconfirmed facility row palette.");
+            for (int frame = 0; frame < 4; frame++)
+            {
+                string key = "roster-row-" + role + (frame == 0 ? "" : $"-{frame}");
+                string id = "ui-" + key;
+                var pixels = IndexedImageArchive.Frame(common.Images[resource], 4, 1, frame, 0);
+                assets.Add(save(id, $"ui/{key}.png", IndexedImageArchive.Decode(pixels, common.Palettes[34], true, true)));
+                ui.Add(key, id);
+            }
+        }
         Extra("city-prefix", 43, 5);
         Extra("message-left", 165, 15, true); Extra("message-middle", 166, 15, true); Extra("message-right", 167, 15, true);
         Extra("bar-morale-frame", 390, 51); Extra("bar-durability-frame", 391, 51);
@@ -66,7 +78,7 @@ public static class InterfaceSkinCompiler
         // P_Font contains interleaved 16-entry coverage ramps; use the opaque endpoint.
         var fontPalette = read(Path.Combine(dataDirectory, "P_Font.s9"));
         string FontColor(int style) => Convert.ToHexString(fontPalette.AsSpan((style / 2 * 32 + 16 + style % 2 * 8 + 7) * 4, 3));
-        colors.Add("facility-available", FontColor(7)); colors.Add("facility-unavailable", FontColor(26));
-        return new(3, assets.ToArray(), ui, colors);
+        colors.Add("roster-available", FontColor(7)); colors.Add("roster-unavailable", FontColor(26));
+        return new(5, assets.ToArray(), ui, colors);
     }
 }

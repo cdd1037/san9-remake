@@ -104,7 +104,7 @@ public partial class ClientVerification : Node
         var session = World.Session;
         var before = session.Snapshot;
         var officer = before.Officers.Where(o => o.SettlementId == 15 && o.OwnerId == 5 && !o.Acted)
-            .OrderByDescending(o => o.CurrentPolitics).First();
+            .OrderByDescending(o => o.Abilities.Politics).First();
         if (Options.Screenshot is { } path) await Capture(Path.Combine(Path.GetDirectoryName(path)!, "runtime-before.png"), false);
         var result = session.Develop(new(5,15,officer.Id,San9.Core.Domain.DomesticActivity.Commerce));
         if (!result.Accepted || session.Snapshot.Forces.Single(f => f.Id == 5).Money != before.Forces.Single(f => f.Id == 5).Money-50 ||
@@ -184,7 +184,7 @@ public partial class ClientVerification : Node
         await Capture(Variant("-small"), false);
         World.SetZoom(1);
         await WaitForView();
-        Hud.FocusFacility(Selection.PlayerFacilities[0].Id);
+        Hud.FocusFacility(Hud.Session.View.Forces.Single(f => f.Id == Hud.Session.View.PlayerForceId).LeaderSettlementId!.Value);
         await WaitForView();
         foreach (var (suffix, point) in new[] { ("-hover", new Vector2(726, 28)), ("-disabled-hover", new Vector2(974, 698)) })
         {
@@ -192,6 +192,11 @@ public partial class ClientVerification : Node
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             await Capture(Variant(suffix), false);
         }
+        await Hud.CaptureFacilityStatesAsync(async suffix =>
+        {
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            await Capture(Variant(suffix), false);
+        });
         Selection.Clear();
         foreach (var (suffix, id) in new[] { ("-region-gate", 99), ("-region-port", 100) })
         {

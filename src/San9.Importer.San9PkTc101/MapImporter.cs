@@ -30,7 +30,7 @@ public static class MapImporter
         finally { if (Directory.Exists(staging)) Directory.Delete(staging, true); }
     }
 
-    private static MapPackage Build(string exePath, string dataDir, string scenarioPath, string output, Action<string>? progress, CancellationToken token)
+    internal static MapPackage Build(string exePath, string dataDir, string scenarioPath, string output, Action<string>? progress, CancellationToken token)
     {
         List<ContentSource> sources = []; List<ImageAsset> assets = [];
         byte[] Read(string path)
@@ -70,7 +70,8 @@ public static class MapImporter
         ImageAsset Save(string id, string path, PngImage image)
         {
             token.ThrowIfCancellationRequested(); string target = PackageFiles.Resolve(output, path); Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-            byte[] bytes = image.Encode(); File.WriteAllBytes(target, bytes);
+            byte[] bytes = image.Encode();
+            if (!File.Exists(target) || !File.ReadAllBytes(target).AsSpan().SequenceEqual(bytes)) File.WriteAllBytes(target, bytes);
             return new(id, path, Convert.ToHexString(SHA256.HashData(bytes)), image.Width, image.Height);
         }
         var land = Images("G_LLand", 771); List<MapSeason> seasons = [];

@@ -21,6 +21,7 @@ public partial class StrategyButton : TextureButton
             HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
             MouseFilter = MouseFilterEnum.Ignore };
         AddChild(_label);
+        MouseEntered += () => { if (!Disabled) GrabFocus(); };
         RefreshVisual();
     }
     public override void _Process(double delta) => RefreshVisual();

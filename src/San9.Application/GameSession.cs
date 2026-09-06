@@ -34,9 +34,9 @@ public sealed class GameSession
         };
         if (definition.Day is not (1 or 11 or 21)) throw new ArgumentException("Expected a stable xun boundary.");
         var world = WorldState.Create(new(definition.Year, definition.Month, (XunIndex)((definition.Day - 1) / 10 + 1)), seed,
-            definition.Forces.Select(f => new ForceState(f.Id, f.Money, f.Food, f.Trust)),
+            definition.Forces.Select(f => new ForceState(f.Id, f.Money, f.Food, f.Trust) { LeaderId = f.LeaderId }),
             definition.Settlements.Select(s => new SettlementState(s.Id, s.OwnerId, s.Soldiers, s.Durability, s.MaxDurability,
-                s.Morale, s.PublicOrder, s.Commerce, s.MaxCommerce, s.Cultivation, s.MaxCultivation)), definition.Officers);
+                s.Morale, s.PublicOrder, s.Commerce, s.MaxCommerce, s.Cultivation, s.MaxCultivation) { CorpsId = s.CorpsId }), definition.Officers.Select(o => o.State));
         return new GameSession(world) { _definition = definition };
     }
 

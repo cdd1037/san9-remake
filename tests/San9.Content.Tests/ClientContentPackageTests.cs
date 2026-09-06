@@ -10,16 +10,28 @@ namespace San9.Content.Tests;
 public sealed class ClientContentPackageTests
 {
     [Fact]
+    public void ScenarioRejectsDanglingLeaderAndCorpsWithTwoRootOwners()
+    {
+        var initial = Fixture();
+        Assert.Throws<InvalidDataException>(() => (initial with
+            { Forces = [initial.Forces[0] with { LeaderId = 99 }] }).Validate());
+        Assert.Throws<InvalidDataException>(() => (initial with
+            { Settlements = [initial.Settlements[0], initial.Settlements[1] with { CorpsId = 5 }] }).Validate());
+        var twoForces = initial with { Forces = [initial.Forces[0], initial.Forces[0] with { Id = 6 }],
+            Settlements = [initial.Settlements[0] with { CorpsId = 5 }, initial.Settlements[1] with { OwnerId = 6, CorpsId = 5 }] };
+        Assert.Throws<InvalidDataException>(twoForces.Validate);
+    }
+    [Fact]
     public void SquareDisplayContractRequiresRegionVisibilityFlag()
     {
         Assert.Throws<System.Text.Json.JsonException>(() => System.Text.Json.JsonSerializer.Deserialize<MapSquare>(
             "{\"Terrain\":0,\"Elevation\":0,\"ElevationMask\":0,\"RegionId\":15}"));
     }
     private static Dictionary<string, string> Colors() => Enumerable.Range(0, 52).Select(i => $"city-marker-{i}")
-        .Concat(["facility-available", "facility-unavailable"]).ToDictionary(s => s, _ => "F0F0F0");
+        .Concat(["roster-available", "roster-unavailable"]).ToDictionary(s => s, _ => "F0F0F0");
     private static readonly MapBuildingPlacement[] Buildings = [new(15, 89, 64, 0), new(100, 86, 65, 1)];
     private static readonly ImageAsset Asset = new("ui", "ui/frame.png", new string('0', 64), 32, 32);
-    private static ScenarioInitialState Fixture() => new(3, "fixture", 190, 1, 1, 5,
+    private static ScenarioInitialState Fixture() => new(5, "fixture", 190, 1, 1, 5,
         [new(5, "player", 2, 9520, 73200, 100)],
         [new(15, "city", 5, 89, 64, 32000, 500, 1000, 50, []), new(100, "port", null, 86, 65, 1000, 200, 300, 50, [])],
         new() { [15] = "city" }, []);
@@ -38,7 +50,7 @@ public sealed class ClientContentPackageTests
     [Fact]
     public void MissingUiAndInvalidDurabilityOrNamesFailValidation()
     {
-        var skin = new InterfaceSkin(3, [Asset], InterfaceSkin.RequiredUiAssets.ToDictionary(s => s, _ => "ui"), Colors());
+        var skin = new InterfaceSkin(5, [Asset], InterfaceSkin.RequiredUiAssets.ToDictionary(s => s, _ => "ui"), Colors());
         skin.Validate(); skin.Roles.Remove("top-frame");
         Assert.Throws<InvalidDataException>(skin.Validate);
         skin.Roles["top-frame"] = "missing";
@@ -65,9 +77,9 @@ public sealed class ClientContentPackageTests
     {
         var map = new MapPackage(8, "fixture", "fixture", "spring", 200, 200, 13056, 6656,
             [], [], [], [], [], [], Buildings, [], [], [], [], [], new([], []), []);
-        var skin = new InterfaceSkin(3, [Asset], InterfaceSkin.RequiredUiAssets.ToDictionary(s => s, _ => "ui"), Colors());
+        var skin = new InterfaceSkin(5, [Asset], InterfaceSkin.RequiredUiAssets.ToDictionary(s => s, _ => "ui"), Colors());
         var text = new TextCatalog(1, new() { ["player"] = new("Player", "Player"), ["city"] = new("City", "City"), ["port"] = new("Port", "Port") });
-        var p = new ClientContentPackage(5, [], map, Fixture(), text, skin); p.ValidateLinks();
+        var p = new ClientContentPackage(7, [], map, Fixture(), text, skin); p.ValidateLinks();
         Assert.Throws<InvalidDataException>(() => (p with { Scenario = p.Scenario with { Settlements = [p.Scenario.Settlements[0]] } }).ValidateLinks());
         Assert.Throws<InvalidDataException>(() => (p with { Scenario = p.Scenario with { ScenarioId = "other" } }).ValidateLinks());
         Assert.Throws<InvalidDataException>(() => (p with { Scenario = p.Scenario with { Settlements = [p.Scenario.Settlements[0] with { X = 88 }, p.Scenario.Settlements[1]] } }).ValidateLinks());

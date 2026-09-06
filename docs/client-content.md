@@ -6,7 +6,7 @@
 
 ## 文字样式
 
-主界面文字使用客户端`GameTextStyle`语义样式目录；`GameTextPresenter`将同一配置适配到共享`LabelSettings`、设施按钮主题及地图原生描边绘制。共享设置按样式与项目字体缓存，按钮仅在状态变化时切换设置。效果按[DEC-UI-0002](../specs/decisions/DEC-UI-0002-modern-text-effects.md)作现代近似；完整原作效果表见RE-0158，不把所有白字统一加描边。
+主界面文字使用客户端`GameTextStyle`语义样式目录；`GameTextPresenter`将同一配置适配到共享`LabelSettings`、设施行文字控件及地图原生描边绘制。共享设置按样式与项目字体缓存，按钮仅在状态变化时切换设置。效果按[DEC-UI-0002](../specs/decisions/DEC-UI-0002-modern-text-effects.md)作现代近似；完整原作效果表见RE-0158，不把所有白字统一加描边。
 
 ## 小地图分层刷新（2026-09-06）
 
@@ -29,10 +29,10 @@
 | 模块 | 职责 | 输出 |
 | --- | --- | --- |
 | Content.Maps / MapImporter | 方格、地貌、建筑、云、动画、疆界精灵和小地图底图 | `content.json.map`，地图schema8 |
-| Content.Scenarios / Scenarios.ScenarioContentCompiler | 初始日期、势力资源、据点归属/坐标/显示数值、图标、驻留武将初始状态和地域所属城市 | `content.json.scenario`，schema3 |
+| Content.Scenarios / Scenarios.ScenarioContentCompiler | 初始日期、势力资源、据点归属/坐标/显示数值、图标、驻留武将初始状态和地域所属城市 | `content.json.scenario`，schema5 |
 | Content.Text / Text.ScenarioTextReader | 原作名称索引、类型后缀与简体投影；运行时按键解析 | `content.json.text`，schema1 |
-| Content.Interface / Interface.InterfaceSkinCompiler | 框架、三段背景、季节、按钮、状态条、图标和原版显示颜色 | `content.json.skin`，schema3 |
-| Content.Packages / Packages.ClientContentImporter | 组合入口、跨包ID/坐标/文本引用校验、来源清单 | 唯一`content.json`，顶层schema5 |
+| Content.Interface / Interface.InterfaceSkinCompiler | 框架、三段背景、季节、按钮、状态条、图标和原版显示颜色 | `content.json.skin`，schema5 |
+| Content.Packages / Packages.ClientContentImporter | 组合入口、跨包ID/坐标/文本引用校验、来源清单 | 唯一`content.json`，顶层schema7 |
 | Content.Images / Importer.Images | 通用PNG、索引图解码和透明边缘处理 | 由使用方选择输出目录 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 
@@ -59,7 +59,7 @@ dotnet run --project src/San9.Tools -- import-client --source-exe "<已登记San
 
 顶部信望100、资金9520、兵粮73200来自剧本。原截图资金9076，差444已由RE-0145/0157确认是普通旬俸禄；当前不执行完整周期经济。洛阳32000、孟津港1000、虎牢关30000；董卓设施共13项。耐久条与士气条、商人/训练/皇帝图标已恢复。初始士气由原作初始化链派生，三个主要据点均为50。建筑名称、兵力、条和图标暂随地图缩放；后续修改只需调整独立标注层。
 
-左键选择设施/方格，右键拖动，滚轮连续缩放，大小按钮选择1倍/0.5倍显示。设施列表仅列董卓所有，点击选中并定位；地图选择同步列表高亮和滚动。小地图有效菱形区域点击定位，装饰不定位；使用原版八类地形颜色，只标城市，标记色来自根势力颜色与原版调色板。疆界按钮点击切换按下/弹起状态，分别显示/隐藏边界。部队、武将、情报、功能、帮助、进行禁用并附说明。F3打开四季预览与单人商业/开垦入口，后者实际修改当前世界，视图随版本刷新。
+左键选择设施/方格，右键拖动，滚轮连续缩放，大小按钮选择1倍/0.5倍显示。设施名单按直属军团列出，君主所在设施固定首行并从普通13行中去重；移入取得且保留焦点，按下使用原图底纹和(2,2)文字位移，点击或Enter只定位镜头。褐色行仍可点击；无详情提示或黄色选中，不随地图选择强制滚动。原生滚动条按行滚动；右键菜单将未实现动作明确禁用。详见 [DEC-UI-0004](../specs/decisions/DEC-UI-0004-facility-list-interaction.md)。小地图有效菱形区域点击定位，装饰不定位；使用原版八类地形颜色，只标城市，标记色来自根势力颜色与原版调色板。疆界按钮点击切换按下/弹起状态，分别显示/隐藏边界。部队、情报、功能、帮助、进行禁用并附说明。F3打开四季预览与单人商业/开垦入口，后者实际修改当前世界，视图随版本刷新。
 
 ## 高一致性验收（2026-09-06）
 
@@ -117,3 +117,37 @@ python -B research/scripts/verify_initial_ui.py "<已登记EXE>" private/s9数�
 - 实际GPU截图：`local/generated/verification/interface/shadows.png`与`shadows-wide.png`；窗口分别1024×768、1280×720，宽屏内容区960×720。附属`-small`、`-hover`、`-disabled-hover`、`-region-gate`、`-region-port`截图覆盖缩放和地域状态。已检查顶部背景、底部渐变边缘、文字裁切及建筑条遮挡；保留DEC-UI-0002允许的现代文字渲染差异。
 
 此次为引擎注入输入和GPU渲染验证，没有执行操作系统鼠标交互测试。截图和转换产物均留在忽略目录。
+
+## 设施名单对齐验收（2026-09-06）
+
+现代实现：Godot焦点、原生滚动条/箭头和通用弹出菜单，简体文字与标准Alpha。保留原作可见规则；滚动条外观、Tab控件顺序、Space激活为明确的现代差异。部队页、详图面板、完整军团和君主移动命令未实现，不声称这些用例已验收。
+
+导出在现有目录原位更新：校验未变化地图来源与图像后复用地图，仅重编译剧本/文本/皮肤；变化PNG才写入，最终替换清单并清理失效图像。重复导出验证确认全部PNG修改时间保持不变，注入的失效导出文件被清除。此次原游戏独占消息文件，使用已有 `private/s9数据文件` 同版本样本导入；原游戏保持打开。
+
+- 自动单元测试：`dotnet test San9Remake.slnx --no-restore` 255项通过；Python校验器2项通过。
+- 私有资源审计：78幅UI图像RGB/Alpha与源解码一致，君主引用、董卓13项设施（含107郿城塞）、名称和全部图像指纹通过。
+- 引擎输入自检：Godot 4.7.2 Mono/OpenGL/RTX5070，焦点保留/转移、按下位移、拖出取消/移回、褐色点击、Enter、Tab/Shift+Tab、Down不换行、双击、右键菜单及Escape、滚轮幅度归一、箭头、轨道13行和拖动滑块全部通过。溢出使用诊断层合成直属归属夹具，恢复后检查隐藏滚动条；未改会话世界。
+- GPU截图：1024×768普通、焦点、移出保留焦点、按下和取消五种状态已逐图检查；君主洛阳首行固定、底板不重复，郿城塞保留。截图及无错误引擎日志在 `local/generated/verification/facility-list/`。
+- 操作系统输入：真实重制窗口右键打开菜单、Escape关闭、随后点击长安仍能定位，最后点击君主行恢复洛阳。原游戏保持打开；原版交互证据另见RE-0158，不将引擎派发按住测试冒充操作系统按住截图。
+
+不提交原版资源、生成包或GPU截图。独立宽屏本轮未重跑，既有等比画布规则未变；完整部队页、军团切换及君主移动命令未实现。
+
+## 武将内容与共用名单
+
+当前scenario5以 `OfficerInitialState(NameKey, State)` 分离姓名定义与武将运行态，四项当前能力从基础值、伤势和逐能力加成计算。皮肤5使用 `roster-row-*`、`roster-available/unavailable` 共用语义。武将页已启用，与设施共用固定君主行、普通13行、分页独立滚动和相机定位；本轮不做视觉验收，由用户检查。原版基线与范围见 [BEH-UI-0002](../specs/behavior/BEH-UI-0002-officer-roster.md)，三名私有字形姓名的现代显示映射见 [DEC-UI-0005](../specs/decisions/DEC-UI-0005-officer-name-normalization.md)。
+
+## 原版文本统一入口
+
+转换能力保留在 `San9.Importer.San9PkTc101.Text.OriginalTextConverter`。输入原版字节，输出TextEntry：CP950与已确认扩展码位统一解码为正确SourceText，再用OpenccNetLib 1.6.2的T2S配置生成Text。人物、地名、地区建筑及EXE设施后缀共用入口。消息容器只提取字节，JSON序列化输出UTF-8，客户端不依赖OpenCC。
+
+FA40/41/45直接映射伷/璝/儁，与所处姓名或正文无关。未知扩展与脚本/图标控制明确拒绝。璝按所用词典显示为𪻺；异体字归一化仍待议，见[DEC-UI-0005](../specs/decisions/DEC-UI-0005-officer-name-normalization.md)。没有独立文本项目或按整姓名补救逻辑。
+
+## 当前名单与文本验证
+
+- 262项C#测试通过，覆盖武将四维能力、会话隔离、行动后可用性、两页独立滚动和统一字节转换。
+- UI审计脚本2项、字体审计脚本3项测试通过。私有样本审计核对195名驻留武将与78幅UI资产。
+- Godot无窗口输入自检验证真实武将页切换、定位、滚轮、轨道、拖动和跨页滚动保留；运行态自检验证内政成功与重复命令拒绝。
+- 统一入口重导出后514条显示值不变，4条SourceText纠正为原字（孔伷势力名及三个人名）。默认包原地更新，未提交源资源或生成物。
+- 本轮武将与文本视觉检查由用户负责；上文GPU记录属于此前设施及主界面验收，不代表本轮视觉验收。
+
+依赖资料：[OpenCC](https://github.com/BYVoid/OpenCC)、[OpenccNetLib](https://github.com/laisuk/OpenccNet)。依赖版本固定，不声称移植版词典与上游master实时一致。

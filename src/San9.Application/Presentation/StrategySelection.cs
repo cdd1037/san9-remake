@@ -8,8 +8,6 @@ public sealed class StrategySelection(GameSession session)
     public event Action? Changed;
     public (int X, int Y)? Square { get; private set; }
     public int? BuildingId { get; private set; }
-    public SettlementView[] PlayerFacilities => scenario.Settlements
-        .Where(s => s.OwnerId == scenario.PlayerForceId).OrderBy(s => s.Id).ToArray();
 
     public void SelectBuilding(int id)
     {

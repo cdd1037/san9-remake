@@ -8,7 +8,7 @@ public sealed class RuntimeWorldTests
     private static WorldState Create(uint funds = 100) => WorldState.Create(new(190,1,XunIndex.Early),190,
         [new(1,funds,500,100),new(2,100,500,100)],
         [new(15,1,1000,500,1000,50,500,900,1000,900,1000), new(16,2,1000,500,1000,50,500,900,1000,900,1000)],
-        [new(1,1,15,100,false),new(2,1,15,100,false),new(3,2,16,100,false)]);
+        [new(1,1,15,new(0,0,100,0),false),new(2,1,15,new(0,0,100,0),false),new(3,2,16,new(0,0,100,0),false)]);
 
     [Fact]
     public void DevelopmentAtomicallyUpdatesOnlyOneWorldAndPreservesOldSnapshot()

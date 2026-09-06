@@ -18,6 +18,9 @@ public sealed record San9ScenarioFixedBuildingRecord(
     ushort TacticCode,
     ulong TacticFlags)
 {
+    // Source definitions 10..16 map to runtime categories 7..10 (RE-0158).
+    public bool IsFacilityListEntry => Id is >= 0 and < 10;
+
     public int FootprintWidth => ShapeLength;
 
     public int FootprintHeight => ShapeWidth;

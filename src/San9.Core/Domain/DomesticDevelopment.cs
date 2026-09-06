@@ -8,8 +8,6 @@ public enum DomesticActivity
     Repair,
 }
 
-public readonly record struct CurrentAbilities(int War, int Intelligence, int Politics, int Leadership);
-
 public readonly record struct DomesticDevelopmentResult(int BaseIncrement, int Increment, int Cost);
 
 /// <summary>Base development before combination bonuses; BEH-DOMESTIC-0001.</summary>
@@ -20,7 +18,7 @@ public static class DomesticDevelopment
         int current,
         int maximum,
         int funds,
-        IReadOnlyList<CurrentAbilities> participants,
+        IReadOnlyList<OfficerAbilities> participants,
         bool doubled)
     {
         int baseIncrement = CalculateBaseEffect(activity, current, maximum, funds, participants);
@@ -36,7 +34,7 @@ public static class DomesticDevelopment
         int current,
         int maximum,
         int funds,
-        IReadOnlyList<CurrentAbilities> participants)
+        IReadOnlyList<OfficerAbilities> participants)
     {
         ArgumentNullException.ThrowIfNull(participants);
         if (!Enum.IsDefined(activity))
@@ -48,7 +46,7 @@ public static class DomesticDevelopment
             throw new ArgumentOutOfRangeException(nameof(participants));
 
         long abilitySum = 0;
-        foreach (CurrentAbilities abilities in participants)
+        foreach (OfficerAbilities abilities in participants)
         {
             if (abilities.War < 0 || abilities.Intelligence < 0 || abilities.Politics < 0 || abilities.Leadership < 0)
                 throw new ArgumentOutOfRangeException(nameof(participants));

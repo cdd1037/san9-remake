@@ -2,7 +2,7 @@ using Godot;
 
 namespace San9.Client.Godot;
 
-public enum GameTextRole { Header, Resource, Building, Message, Region, Spring, Compass, Facility }
+public enum GameTextRole { Header, Resource, Building, Message, Region, Spring, Compass, Roster }
 public enum GameButtonTextRole { Information, Functions, Help, Territory, Zoom, Advance, Facilities, Officers, Units }
 
 public readonly record struct GameTextStyle(int FontSize, Color Foreground, int OutlineSize,
@@ -26,7 +26,7 @@ public static class GameTextStyles
         GameTextRole.Header => Plain(24, White),
         GameTextRole.Resource => Plain(16, White),
         GameTextRole.Region => Outlined(16, new Color("f8f8b0"), "005028"),
-        GameTextRole.Facility => Plain(16, White),
+        GameTextRole.Roster => Plain(16, White),
         _ => throw new ArgumentOutOfRangeException(nameof(role))
     };
 

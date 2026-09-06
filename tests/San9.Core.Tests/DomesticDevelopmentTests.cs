@@ -25,7 +25,7 @@ public sealed class DomesticDevelopmentTests
     [Fact]
     public void FinalIncrementSaturatesAndUnaffordableResultIsRejected()
     {
-        CurrentAbilities[] people = [new(1000, 1000, 1000, 1000)];
+        OfficerAbilities[] people = [new(1000, 1000, 1000, 1000)];
         Assert.Equal(10, DomesticDevelopment.CalculateResult(DomesticActivity.Repair, 90, 100, 50, people, true).Increment);
         Assert.Throws<ArgumentException>(() => DomesticDevelopment.CalculateResult(DomesticActivity.Repair, 90, 100, 49, people, true));
         Assert.Equal(int.MaxValue, DomesticDevelopment.CalculateResult(DomesticActivity.Commerce, 0, int.MaxValue, int.MaxValue,
@@ -65,7 +65,7 @@ public sealed class DomesticDevelopmentTests
     [Fact]
     public void MultipleParticipantsAreOrderIndependentAndDoNotApplyBonuses()
     {
-        CurrentAbilities[] people = [new(1, 1, 100, 1), new(1, 1, 50, 1)];
+        OfficerAbilities[] people = [new(1, 1, 100, 1), new(1, 1, 50, 1)];
         Assert.Equal(8, DomesticDevelopment.CalculateBaseEffect(DomesticActivity.Commerce, 0, 100, 1000, people));
         Assert.Equal(8, DomesticDevelopment.CalculateBaseEffect(DomesticActivity.Commerce, 0, 100, 1000, people.Reverse().ToArray()));
     }
@@ -77,14 +77,14 @@ public sealed class DomesticDevelopmentTests
     [InlineData(DomesticActivity.Repair)]
     public void LargeInputsSaturateWithoutOverflow(DomesticActivity activity)
     {
-        CurrentAbilities[] people = Enumerable.Repeat(new CurrentAbilities(int.MaxValue, int.MaxValue, int.MaxValue, int.MaxValue), 5).ToArray();
+        OfficerAbilities[] people = Enumerable.Repeat(new OfficerAbilities(int.MaxValue, int.MaxValue, int.MaxValue, int.MaxValue), 5).ToArray();
         Assert.Equal(int.MaxValue, DomesticDevelopment.CalculateBaseEffect(activity, 0, int.MaxValue, int.MaxValue, people));
     }
 
     [Fact]
     public void RejectsInvalidInputs()
     {
-        CurrentAbilities[] people = [new(100, 100, 100, 100)];
+        OfficerAbilities[] people = [new(100, 100, 100, 100)];
         Assert.Throws<ArgumentOutOfRangeException>(() => DomesticDevelopment.CalculateBaseEffect((DomesticActivity)999, 0, 100, 100, people));
         Assert.Throws<ArgumentOutOfRangeException>(() => DomesticDevelopment.CalculateBaseEffect(DomesticActivity.Commerce, -1, 100, 100, people));
         Assert.Throws<ArgumentOutOfRangeException>(() => DomesticDevelopment.CalculateBaseEffect(DomesticActivity.Commerce, 101, 100, 100, people));
@@ -94,6 +94,6 @@ public sealed class DomesticDevelopmentTests
         Assert.Throws<ArgumentOutOfRangeException>(() => DomesticDevelopment.CalculateBaseEffect(DomesticActivity.Commerce, 0, 100, 100, [new(0, 0, -1, 0)]));
     }
 
-    private static int Calculate(DomesticActivity activity, int missing, int funds, CurrentAbilities abilities) =>
+    private static int Calculate(DomesticActivity activity, int missing, int funds, OfficerAbilities abilities) =>
         DomesticDevelopment.CalculateBaseEffect(activity, 0, missing, funds, [abilities]);
 }

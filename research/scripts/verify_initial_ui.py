@@ -85,6 +85,44 @@ def verify_minimap(actual, squares, palette):
             assert actual.getpixel((x,y)) == expected, (x,y,sx,sy)
 
 
+def verify_officers(scenario, entries, texts, messages):
+    """Independent raw-record reference: RE-0141 / RE-0158, BEH-UI-0002."""
+    from square_map.scenario import parse_scenario_sections
+    from parse_pk_text import decode_ls11, split_indexed_records, strip_common_terminator
+    sections = parse_scenario_sections(scenario)
+    names = split_indexed_records(decode_ls11(messages)[0])[2]
+    def name(index):
+        return strip_common_terminator(names[index])[0].decode("big5hkscs").replace("\U00020547", "伷").replace("\u92DB", "璝").replace("\u42B5", "儁")
+    people = sections["prsn"]
+    items = list(struct.iter_unpack("<11H", sections["item"]))
+    offices = list(struct.iter_unpack("<I7H", sections["shak"]))
+    expected_ids = []
+    for index in range(800):
+        raw = people[index*134:(index+1)*134]
+        u16 = lambda offset: struct.unpack_from("<H", raw, offset)[0]
+        if u16(0x1c) > 3:
+            continue
+        expected_ids.append(index)
+        entry = next(e for e in entries if e["state"]["id"] == index)
+        state = entry["state"]
+        assert state["settlementId"] == u16(0x18)
+        assert state["acted"] == bool(struct.unpack_from("<I", raw)[0] & 0x1000)
+        assert state["injury"] == u16(0x2a)
+        source = name(1678 + 4*u16(6)) + name(1679 + 4*u16(8))
+        assert texts[entry["nameKey"]]["sourceText"] == source
+        for ability, offset, categories, bit in [("leadership",0x1e,[2],0),("war",0x20,[1],1),
+                ("intelligence",0x22,[5,9],2),("politics",0x24,[3,4,6],3)]:
+            assert state["baseAbilities"][ability] == u16(offset)
+            bonus = max([i[6] for i in items if i[8] == index and i[9] != 0 and i[4] in categories], default=0)
+            assert state["itemBonuses"][ability] == bonus
+            rank = u16(0x26)
+            office_bonus = offices[rank][7] if rank < 76 and offices[rank][6] & (1 << bit) else 0
+            assert state["officeBonuses"][ability] == office_bonus
+    assert [e["state"]["id"] for e in entries] == expected_ids
+    for index, display in [(175,"孔伷"),(239,"朱俊"),(602,"刘𪻺")]:
+        assert texts[f"officer.{index}"]["text"] == display
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("exe", type=Path)
@@ -95,12 +133,12 @@ def main():
     exe = args.exe.read_bytes()
     assert hashlib.sha256(exe).hexdigest() == "d20794aeff67301ec2bf8c3becb1e9944c68c6c0588fbfd4bf04e8597f0e5028"
     content = json.loads((args.package / "content.json").read_text(encoding="utf-8"))
-    assert content["schemaVersion"] == 5
+    assert content["schemaVersion"] == 7
     map_root = skin_root = args.package
     package, p, skin = content["map"], content["scenario"], content["skin"]
     text = content["text"]["entries"]
     assert package["schemaVersion"] == 8 and "presentation" not in package
-    assert p["schemaVersion"] == 3 and skin["schemaVersion"] == 3
+    assert p["schemaVersion"] == 5 and skin["schemaVersion"] == 5
     assets = {a["id"]: a for a in skin["assets"]}
     map_assets = {a["id"]: a for a in package["assets"]}
     assert not set(assets).intersection(map_assets)
@@ -133,8 +171,17 @@ def main():
         with Image.open(skin_root / assets[skin["roles"][role]]["path"]) as actual:
             verify_frame(actual, archive[1][resource-base], archive[0][bindings[resource]-palette_base], 1, 0, role.startswith("message-"))
         checked += 1
-    assert checked == len(skin["roles"]) == 66
-    assert skin["colors"]["facility-available"] == "F0F0F0" and skin["colors"]["facility-unavailable"] == "988058"
+    for part, resource in [("left",290),("middle",291),("right",292)]:
+        assert bindings[resource] == 234
+        for frame in range(4):
+            role = "roster-row-" + part + (f"-{frame}" if frame else "")
+            with Image.open(skin_root / assets[skin["roles"][role]]["path"]) as actual:
+                verify_frame(actual, common[1][resource], common[0][34], 4, frame, True)
+                if frame in (0,3):
+                    assert not any(actual.getchannel("A").tobytes())
+            checked += 1
+    assert checked == len(skin["roles"]) == 78
+    assert skin["colors"]["roster-available"] == "F0F0F0" and skin["colors"]["roster-unavailable"] == "988058"
     with Image.open(map_root / map_assets["minimap-terrain"]["path"]) as mini:
         verify_minimap(mini, package["squares"], (args.data/"P_MapEtc.s9").read_bytes()[44:1068])
     assert len(package["boundaries"]) > 0
@@ -144,13 +191,23 @@ def main():
     assert len([a for a in package["assets"] if a["id"].startswith("building-")]) == 624
     assert len(p["settlements"]) == 94
     player = next(f for f in p["forces"] if f["id"] == p["playerForceId"])
+    officers = [o["state"] for o in p["officers"]]
+    assert len(officers) == 195
+    verify_officers((args.data / "D_Sce002.S9").read_bytes(), p["officers"], text, (args.data / "M_MsgPK.s9").read_bytes())
+    assert all(o["nameKey"] in text for o in p["officers"])
+    ruler = next(o for o in officers if o["id"] == player["leaderId"])
+    assert ruler["ownerId"] == 5 and ruler["settlementId"] == 15
+    facilities = [s for s in p["settlements"] if s["corpsId"] == 5 and s["isFacilityListEntry"]]
+    assert all(s["ownerId"] == 5 for s in facilities)
+    assert len(facilities) == 13 and next(s for s in facilities if s["id"] == 107)["isFacilityListEntry"]
+    assert [s["id"] for s in facilities if s["id"] < 50] == [15,16,17,18]
     assert (text[player["nameKey"]]["text"], player["money"], player["food"], player["trust"]) == ("董卓", 9520, 73200, 100)
     for id, name, soldiers in [(15, "洛阳", 32000), (99, "虎牢关", 30000), (100, "孟津港", 1000), (107, "郿城塞", 3000)]:
         s = next(s for s in p["settlements"] if s["id"] == id)
         assert (text[s["nameKey"]]["text"], s["soldiers"], s["ownerId"], s["morale"]) == (name, soldiers, 5, 50)
     settlements = {s["id"]:s for s in p["settlements"]}
     assert settlements[15]["icons"] == ["merchant","emperor"] and settlements[17]["icons"] == ["training"]
-    assert [s["id"] for s in p["settlements"] if s["ownerId"] == 5 and any(o["settlementId"] == s["id"] and o["ownerId"] == 5 and not o["acted"] for o in p["officers"])] == [15,16,17,18,99]
+    assert [s["id"] for s in p["settlements"] if s["ownerId"] == 5 and any(o["settlementId"] == s["id"] and o["ownerId"] == 5 and not o["acted"] for o in officers)] == [15,16,17,18,99]
     assert all(not s["icons"] for s in p["settlements"] if s["id"] >= 50)
     assert p["regionCityIds"]["99"] == 15
     assert [s["id"] for s in p["settlements"] if s["ownerId"] == 5] == [15, 16, 17, 18, 95, 96, 97, 98, 99, 100, 104, 106, 107]

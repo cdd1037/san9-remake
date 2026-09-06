@@ -18,22 +18,21 @@ public partial class StrategyHud : Control
     public InterfaceSkin Skin { get; init; } = null!;
     public IReadOnlyDictionary<string, PngImage> SkinImages { get; init; } = null!;
     private readonly Dictionary<string, ImageTexture> _textures = [];
-    private readonly Dictionary<int, Button> _facilityButtons = [];
     private readonly List<(string Asset, Vector2 Position)> _frames = [];
     private Label _footer = null!, _message = null!;
     private Label _footerCity = null!;
     private readonly List<Label> _regionLabels = [];
     private bool _regionVisible;
     private Vector2? _hoverPosition;
-    private ScrollContainer _scroll = null!;
+    private StrategyRosterList _rosterList = null!;
+    private PopupMenu _contextMenu = null!;
     private StrategyMinimap? _minimap;
     private bool _built;
     private long _stateRevision = -1;
     private readonly Dictionary<string,Label> _resourceValues = [];
     public string DisplayedMoney => _resourceValues.TryGetValue("资金", out var label) ? label.Text : "";
     private Label _year = null!, _date = null!;
-    private TextureButton? _large, _small, _territory;
-    private readonly Dictionary<int, Color> _facilityColors = [];
+    private TextureButton? _large, _small, _territory, _facilities, _officers;
     private readonly GameTextPresenter _text = new();
     public override void _Ready()
     {
@@ -84,9 +83,9 @@ public partial class StrategyHud : Control
         AddButton("功能", "button-functions", new(929, 7), new(80, 40), false);
         AddButton("?", "button-help", new(957, 50), new(56, 40), false);
         AddButton("部队", "button-units", new(956, 208), new(56, 32), false);
-        AddButton("武将", "button-officers", new(927, 238), new(56, 32), false);
-        var facilities = AddButton("设施", "button-facilities", new(899, 268), new(56, 32), true, () => _scroll.GrabFocus());
-        facilities.ToggleMode = true; facilities.SetPressedNoSignal(true);
+        _officers = AddButton("武将", "button-officers", new(927, 238), new(56, 32), true, () => SelectRosterPage(RosterPage.Officers));
+        _facilities = AddButton("设施", "button-facilities", new(899, 268), new(56, 32), true, () => SelectRosterPage(RosterPage.Facilities));
+        _officers.ToggleMode = true; _facilities.ToggleMode = true; _facilities.SetPressedNoSignal(true);
         _large = AddButton("大", "button-zoom", new(900, 627), new(44, 44), true, () => World.SetZoom(1));
         _large.ToggleMode = true;
         _small = AddButton("小", "button-zoom", new(957, 606), new(44, 44), true, () => World.SetZoom(.5f));
@@ -96,32 +95,17 @@ public partial class StrategyHud : Control
         AddChild(_minimap);
         foreach (var (text, x, y) in new[] { ("东", 880, 154), ("西", 710, 52), ("南", 710, 154), ("北", 880, 52) })
             _text.Apply(LabelAt(text, new(x, y), new(16, 16), 16), GameTextStyles.For(GameTextRole.Compass));
-        _scroll = new ScrollContainer { Position = new(892, 303), Size = new(100, 280),
-            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled, VerticalScrollMode = ScrollContainer.ScrollMode.Auto,
-            FocusMode = FocusModeEnum.All, MouseFilter = MouseFilterEnum.Stop };
-        AddChild(_scroll);
-        var list = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        list.AddThemeConstantOverride("separation", 0); _scroll.AddChild(list);
-        foreach (var s in Selection.PlayerFacilities)
+        _contextMenu = new PopupMenu();
+        AddChild(_contextMenu);
+        foreach (string title in new[] { "进行", "情报", "储存", "载入" })
         {
-            var b = new Button { Text = Texts.Resolve(s.NameKey), Flat = true, Alignment = HorizontalAlignment.Left,
-                CustomMinimumSize = new(100, 20), MouseDefaultCursorShape = CursorShape.PointingHand,
-                TooltipText = $"{Texts.Resolve(s.NameKey)} · 兵力 {s.Soldiers}\n耐久 {s.Durability}/{s.MaxDurability}" };
-            var style = new StyleBoxEmpty();
-            style.ContentMarginLeft = 16; style.ContentMarginTop = 0; style.ContentMarginBottom = 0; style.ContentMarginRight = 0;
-            b.AddThemeStyleboxOverride("normal", style); b.AddThemeStyleboxOverride("hover", style); b.AddThemeStyleboxOverride("pressed", style); b.AddThemeStyleboxOverride("focus", new StyleBoxEmpty());
-            var color = new Color(Skin.Colors[s.HasAvailableOfficer ? "facility-available" : "facility-unavailable"]);
-            _facilityColors.Add(s.Id, color);
-            GameTextPresenter.Apply(b, GameTextStyles.For(GameTextRole.Facility) with { Foreground = color });
-            if (s.CityMarkerColor is not null)
-            {
-                var icon = new TextureRect { Texture = _textures["city-prefix"], Position = new(0, 2), Size = new(16, 16), MouseFilter = MouseFilterEnum.Ignore };
-                b.AddChild(icon);
-            }
-            b.Pressed += () => FocusFacility(s.Id);
-            list.AddChild(b); _facilityButtons.Add(s.Id, b);
+            _contextMenu.AddItem(title + "（尚未实现）");
+            _contextMenu.SetItemDisabled(_contextMenu.ItemCount - 1, true);
         }
-        Selection.Changed += UpdateSelection;
+        _rosterList = new StrategyRosterList { Position = new(892, 303), Textures = _textures,
+            Texts = Texts, Skin = Skin, Activated = ActivateRosterEntry, ContextRequested = ShowContextMenu };
+        AddChild(_rosterList);
+        _rosterList.Refresh(Scenario, Scenario.PlayerForceId);
         UpdateSelection(); QueueRedraw();
     }
 
@@ -176,23 +160,33 @@ public partial class StrategyHud : Control
             int x = (int)Math.Floor(point.X - position.X), y = (int)Math.Floor(point.Y - position.Y);
             if (x >= 0 && y >= 0 && x < pixels.Width && y < pixels.Height && pixels.Pixels[(y * pixels.Width + x) * 4 + 3] > 0) return true;
         }
-        return _built && (_scroll.GetRect().HasPoint(point) || _minimap!.GetRect().HasPoint(point) ||
+        return _built && (_rosterList.GetRect().HasPoint(point) || _minimap!.GetRect().HasPoint(point) ||
             GetChildren().OfType<TextureButton>().Any(button => button.GetRect().HasPoint(point)));
     }
     public override bool _HasPoint(Vector2 point) => IsBlockedPoint(point);
-    public override void _GuiInput(InputEvent @event) => AcceptEvent();
-    public void FocusFacility(int id) { Selection.SelectBuilding(id); World.FocusBuilding(id); }
-    private void UpdateSelection()
+    public override void _GuiInput(InputEvent @event)
     {
-        int? id = Selection.BuildingId;
-        foreach (var pair in _facilityButtons)
-        {
-            GameTextPresenter.Apply(pair.Value, GameTextStyles.For(GameTextRole.Facility) with
-                { Foreground = pair.Key == id ? new Color("fff19c") : _facilityColors[pair.Key] });
-            if (pair.Key == id) _scroll.EnsureControlVisible(pair.Value);
-        }
-        _message.Text = "请选择命令起点。";
+        if (_built && @event is InputEventMouseButton { Pressed: false, ButtonIndex: MouseButton.Right }) ShowContextMenu();
+        AcceptEvent();
     }
+    private void ShowContextMenu()
+    {
+        var point = GetViewport().GetScreenTransform() * GetGlobalMousePosition();
+        _contextMenu.Position = new((int)point.X, (int)point.Y);
+        _contextMenu.Popup();
+    }
+    private void SelectRosterPage(RosterPage page)
+    {
+        _rosterList.SelectPage(page);
+        _facilities!.SetPressedNoSignal(page == RosterPage.Facilities);
+        _officers!.SetPressedNoSignal(page == RosterPage.Officers);
+    }
+    private void ActivateRosterEntry(RosterKey key)
+    {
+        if (_rosterList.Roster.Find(key) is { } entry) World.FocusBuilding(entry.SettlementId);
+    }
+    public void FocusFacility(int id) => World.FocusBuilding(id);
+    private void UpdateSelection() => _message.Text = "请选择命令起点。";
     private void UpdateRegion(int x, int y)
     {
         if (World.Package is not { } map) return;
@@ -225,12 +219,7 @@ public partial class StrategyHud : Control
             var view=Session.View; var force=view.Forces.Single(f => f.Id==view.PlayerForceId);
             _resourceValues["资金"].Text=force.Money.ToString(); _resourceValues["兵粮"].Text=force.Food.ToString(); _resourceValues["信望"].Text=force.Trust.ToString();
             _year.Text=$"{view.Year}年"; _date.Text=$"{view.Month}月{(view.Day==1?"上旬":view.Day==11?"中旬":"下旬")}";
-            foreach(var facility in view.Settlements)
-                if(_facilityButtons.TryGetValue(facility.Id,out var button))
-                {
-                    _facilityColors[facility.Id]=new Color(Skin.Colors[facility.HasAvailableOfficer?"facility-available":"facility-unavailable"]);
-                    button.TooltipText=$"{Texts.Resolve(facility.NameKey)} · 兵力 {facility.Soldiers}\n耐久 {facility.Durability}/{facility.MaxDurability}\n商业 {facility.Commerce}/{facility.MaxCommerce} · 开垦 {facility.Cultivation}/{facility.MaxCultivation}";
-                }
+            _rosterList.Refresh(view, view.PlayerForceId);
             UpdateSelection();
         }
         UpdateHover(_hoverPosition ?? GetGlobalMousePosition());
@@ -265,7 +254,6 @@ public partial class StrategyHud : Control
     {
         World.MapReady -= Build;
         GetWindow().MouseExited -= ClearHover;
-        if (Selection is not null) Selection.Changed -= UpdateSelection;
         foreach (var texture in _textures.Values) texture.Dispose();
         _text.Dispose();
     }

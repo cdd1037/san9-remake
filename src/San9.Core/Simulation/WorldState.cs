@@ -45,10 +45,17 @@ public sealed class WorldState
         }
         foreach (var officer in officers)
         {
-            if (officer.Id < 0 || officer.CurrentPolitics < 0 || !world._settlements.ContainsKey(officer.SettlementId) ||
-                officer.OwnerId is int owner && !world._forces.ContainsKey(owner)) throw new ArgumentException("Invalid officer.");
+            if (!officer.IsValid() || !world._settlements.ContainsKey(officer.SettlementId) ||
+                officer.OwnerId is int owner && !world._forces.ContainsKey(owner) ||
+                world._settlements[officer.SettlementId].OwnerId != officer.OwnerId) throw new ArgumentException("Invalid officer.");
             world._officers.Add(officer.Id, officer);
         }
+        if (world._forces.Values.Any(f => f.LeaderId is int leader &&
+                (!world._officers.TryGetValue(leader, out var officer) || officer.OwnerId != f.Id)) ||
+            world._settlements.Values.Any(s => s.CorpsId < 0 || s.CorpsId is not null && s.OwnerId is null) ||
+            world._settlements.Values.Where(s => s.CorpsId is not null).GroupBy(s => s.CorpsId)
+                .Any(g => g.Select(s => s.OwnerId).Distinct().Count() != 1))
+            throw new ArgumentException("Invalid leader or corps relationship.");
         return world;
     }
 
@@ -66,7 +73,7 @@ public sealed class WorldState
         if (current >= maximum) return new(DevelopmentRejection.AtMaximum);
         if (force.Money < 50) return new(DevelopmentRejection.InsufficientFunds);
         var result = DomesticDevelopment.CalculateResult(command.Activity, current, maximum, (int)Math.Min(force.Money, int.MaxValue),
-            [new(0, 0, officer.CurrentPolitics, 0)], false);
+            [officer.Abilities], false);
         _forces[force.Id] = force with { Money = force.Money - (uint)result.Cost };
         _settlements[city.Id] = commerce ? city with { Commerce = city.Commerce + result.Increment, CommerceUsed = true }
             : city with { Cultivation = city.Cultivation + result.Increment, CultivationUsed = true };

@@ -9,7 +9,7 @@ public sealed record ClientContentPackage(int SchemaVersion, ContentSource[] Sou
 {
     public void ValidateLinks()
     {
-        if (SchemaVersion != 5) throw new InvalidDataException("Unsupported client content version.");
+        if (SchemaVersion != 7) throw new InvalidDataException("Unsupported client content version.");
         Scenario.Validate(); Text.Validate(); Skin.Validate();
         if (Map.ScenarioId != Scenario.ScenarioId ||
             !Map.Buildings.Select(b => b.Id).Order().SequenceEqual(Scenario.Settlements.Select(s => s.Id).Order()))
@@ -18,7 +18,7 @@ public sealed record ClientContentPackage(int SchemaVersion, ContentSource[] Sou
         foreach (var s in Scenario.Settlements)
             if (s.X != buildings[s.Id].X || s.Y != buildings[s.Id].Y)
                 throw new InvalidDataException("Scenario and map coordinates differ.");
-        foreach (string key in Scenario.Forces.Select(f => f.NameKey).Concat(Scenario.Settlements.Select(s => s.NameKey)).Concat(Scenario.RegionNameKeys.Values))
+        foreach (string key in Scenario.Forces.Select(f => f.NameKey).Concat(Scenario.Settlements.Select(s => s.NameKey)).Concat(Scenario.RegionNameKeys.Values).Concat(Scenario.Officers.Select(o => o.NameKey)))
             _ = Text.Resolve(key);
     }
 }

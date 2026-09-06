@@ -25,12 +25,14 @@ public sealed class InformationQuery(GameSession session, TextCatalog texts)
     public bool Available(InformationCategory category) => category switch
     {
         InformationCategory.Units => View.World.Units.Count > 0,
-        InformationCategory.Treasures => View.World.Treasures.Any(t => t.Discovered && t.HolderId is not null),
+        InformationCategory.Treasures => TreasureCatalog.Read(View, texts).Rows.Length > 0,
         _ => true
     };
     public string MenuHintKey(InformationCategory category) => StrategyHintText.Key("information-" + category.ToString().ToLowerInvariant() +
         (!Available(category) ? "-empty" : ""));
-    public InformationTable Read(InformationBrowser browser) => Read(browser.Category, browser.Page, browser.ForceFilter, browser.SettlementFilter);
+    public InformationTable Read(InformationBrowser browser) => browser.Category == InformationCategory.Treasures
+        ? TreasureCatalog.Read(View, texts, browser.HolderFilter, browser.ForceFilter, browser.SettlementFilter)
+        : Read(browser.Category, browser.Page, browser.ForceFilter, browser.SettlementFilter);
     public InformationTable Read(InformationCategory category, int page = 0, int? force = null, int? settlement = null)
     {
         var v = View;
@@ -100,11 +102,7 @@ public sealed class InformationQuery(GameSession session, TextCatalog texts)
             case InformationCategory.Officers:
                 return OfficerCatalog.Read(v, texts, page, force, settlement);
             case InformationCategory.Treasures:
-                return new("宝物一览", ["状态"], ["宝物", "持有武将", "势力", "能力上升", "忠诚上升"], v.World.Treasures.Where(t => t.Discovered && t.HolderId is not null).Select(t =>
-                {
-                    var d = v.Information.Treasures.Single(d => d.Id == t.Id); var holder = v.Officers.Single(o => o.Id == t.HolderId);
-                    return (holder, row: Row(t.Id, [Name(d.NameKey), Person(t.HolderId), Force(holder.OwnerId), d.AbilityBonus, d.LoyaltyBonus], holder.SettlementId));
-                }).Where(p => Owner(p.holder.OwnerId) && (settlement is null || p.holder.SettlementId == settlement)).Select(p => p.row).ToArray());
+                return TreasureCatalog.Read(v, texts, force: force, settlement: settlement);
             case InformationCategory.Records:
                 return new("进行记录", ["记录"], ["日期", "内容"], session.Records.Select((r, i) => Row(i,
                     [$"{r.Clock.Year}年{r.Clock.Month}月{(int)r.Clock.Xun}旬", $"{Person(r.OfficerId)}在{Place(r.SettlementId)}执行{(r.Activity == DomesticActivity.Commerce ? "商业" : "开垦")}，增加{r.Increment}，支出{r.Cost}。"], r.SettlementId)).ToArray());

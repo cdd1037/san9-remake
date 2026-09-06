@@ -10,7 +10,7 @@ public partial class OfficerDetailView : Control
     public OfficerDetailState State { get; init; } = null!;
     public Func<int, OfficerDetailData> Read { get; init; } = null!;
     public Func<int, string> ReadName { get; init; } = null!;
-    public Func<int, InformationDetail> ReadTreasure { get; init; } = null!;
+    public Action<int> OpenTreasures { get; init; } = null!;
     public IReadOnlyDictionary<string, ImageTexture> Textures { get; init; } = null!;
     public TextCatalog Texts { get; init; } = null!;
     public Action<int> CurrentChanged { get; init; } = null!;
@@ -180,17 +180,9 @@ public partial class OfficerDetailView : Control
         Label("单击右侧姓名或按回车切换武将。\n上下键移动名单焦点，滚轮翻阅名单。\n状态、兵法页在切换武将后保持。\n宝物显示当前武将持有的可见宝物。\nEsc 或右键返回。",new(24,68,472,230),18,parent:panel);
         Action("关闭","close",new(206,330),new(108,44),CloseOverlay,panel);
     }
-    private void ShowTreasures() => ShowTreasure(0);
-    private void ShowTreasure(int index)
+    private void ShowTreasures()
     {
-        if (_data.Treasures.Length==0)return;
-        var detail=ReadTreasure(_data.Treasures[index]);var panel=Overlay();
-        Label(detail.Title,new(20,12,480,36),24,parent:panel);
-        if(detail.ImageRole is string image)panel.AddChild(new TextureRect {Texture=Textures[image],Position=new(24,65),Size=new(128,128),ExpandMode=TextureRect.ExpandModeEnum.IgnoreSize,StretchMode=TextureRect.StretchModeEnum.KeepAspectCentered});
-        for(int i=0;i<detail.Fields.Length;i++)Label(detail.Fields[i].Label+"  "+detail.Fields[i].Value,new(176,64+i*36,320,32),16,parent:panel);
-        if(index>0)Action("上一件","tab",new(30,276),new(120,40),()=>ShowTreasure(index-1),panel);
-        if(index+1<_data.Treasures.Length)Action("下一件","tab",new(370,276),new(120,40),()=>ShowTreasure(index+1),panel);
-        Action("关闭","close",new(206,330),new(108,44),CloseOverlay,panel);
+        if (_data.Treasures.Length > 0) OpenTreasures(State.CurrentId);
     }
     public override void _Input(InputEvent input)
     {

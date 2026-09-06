@@ -5,7 +5,7 @@ public readonly record struct InformationKey(InformationCategory Category, int I
 public sealed record InformationRow(InformationKey Key, CatalogCell[] Cells, int? SettlementId = null);
 public sealed record InformationTable(string Title, string[] Pages, string[] Columns, InformationRow[] Rows);
 public sealed record InformationField(string Label, string Value);
-public sealed record InformationLink(string Label, InformationCategory Category, int? ForceId = null, int? SettlementId = null);
+public sealed record InformationLink(string Label, InformationCategory Category, int? ForceId = null, int? SettlementId = null, int? HolderId = null);
 public sealed record InformationDetail(string Title, InformationField[] Fields, InformationLink[] Links, int? SettlementId)
 {
     public string? ImageRole { get; init; }
@@ -14,7 +14,7 @@ public sealed record InformationDetail(string Title, InformationField[] Fields, 
 /// <summary>Modal navigation state; no map selection or world mutations.</summary>
 public sealed class InformationBrowser
 {
-    private readonly Stack<(InformationCategory Category, int Page, int Offset, int Sort, bool Descending, int? Selected, bool Detail, int? Force, int? Settlement)> _history = [];
+    private readonly Stack<(InformationCategory Category, int Page, int Offset, int Sort, bool Descending, int? Selected, bool Detail, int? Force, int? Settlement, int? Holder)> _history = [];
     public bool IsOpen { get; private set; }
     public bool IsMenu { get; private set; }
     public bool IsDetail { get; private set; }
@@ -26,18 +26,19 @@ public sealed class InformationBrowser
     public int? SelectedId { get; private set; }
     public int? ForceFilter { get; private set; }
     public int? SettlementFilter { get; private set; }
+    public int? HolderFilter { get; private set; }
     public const int PageSize = 15;
     public void OpenMenu() { Close(); IsOpen = IsMenu = true; }
-    public void Open(InformationCategory category, int? force = null, int? settlement = null)
+    public void Open(InformationCategory category, int? force = null, int? settlement = null, int? holder = null)
     {
         if (!Enum.IsDefined(category)) throw new ArgumentOutOfRangeException(nameof(category));
         IsOpen = true; IsMenu = IsDetail = false; Category = category; Page = Offset = 0;
-        SortColumn = -1; Descending = false; SelectedId = null; ForceFilter = force; SettlementFilter = settlement;
+        SortColumn = -1; Descending = false; SelectedId = null; ForceFilter = force; SettlementFilter = settlement; HolderFilter = holder;
     }
     public void Navigate(InformationLink link)
     {
-        _history.Push((Category, Page, Offset, SortColumn, Descending, SelectedId, IsDetail, ForceFilter, SettlementFilter));
-        Open(link.Category, link.ForceId, link.SettlementId);
+        _history.Push((Category, Page, Offset, SortColumn, Descending, SelectedId, IsDetail, ForceFilter, SettlementFilter, HolderFilter));
+        Open(link.Category, link.ForceId, link.SettlementId, link.HolderId);
     }
     public void Close() { IsOpen = IsMenu = IsDetail = false; _history.Clear(); }
     public void Back()
@@ -45,7 +46,7 @@ public sealed class InformationBrowser
         if (IsDetail) { IsDetail = false; return; }
         if (_history.TryPop(out var previous))
         {
-            (Category, Page, Offset, SortColumn, Descending, SelectedId, IsDetail, ForceFilter, SettlementFilter) = previous;
+            (Category, Page, Offset, SortColumn, Descending, SelectedId, IsDetail, ForceFilter, SettlementFilter, HolderFilter) = previous;
             return;
         }
         Close();

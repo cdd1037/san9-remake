@@ -32,6 +32,40 @@ public sealed class InformationBrowserTests
     }
 
     [Fact]
+    public void TreasureCatalogFiltersHolderAndReturnsToOriginalOfficerDetail()
+    {
+        var (session, query) = Fixture();
+        var hash = session.Snapshot.StateHash;
+        var browser = new InformationBrowser();
+        browser.Open(InformationCategory.Officers);
+        browser.SelectPage(5, 13);
+        browser.Sort(2, 4);
+        browser.Scroll(7, 40);
+        browser.ShowDetail(1);
+        var detail = new OfficerDetailState();
+        detail.Open([1, 2], 1);
+        detail.SelectPage(OfficerDetailPage.Tactics);
+        detail.PointAt(2);
+        browser.Navigate(new("宝物", InformationCategory.Treasures, HolderId: 1));
+        var table = query.Read(browser);
+        Assert.Equal(["宝物", "种类", "能力", "上升", "兵法", "效果", "所有"], table.Columns);
+        Assert.Equal("武力", Assert.Single(table.Rows).Cells[2].Text);
+        Assert.Equal("奋迅", table.Rows[0].Cells[4].Text);
+        browser.Back();
+        Assert.Equal(InformationCategory.Officers, browser.Category);
+        Assert.True(browser.IsDetail);
+        Assert.Equal(1, browser.SelectedId);
+        Assert.Equal(5, browser.Page);
+        Assert.Equal(7, browser.Offset);
+        Assert.Equal(2, browser.SortColumn);
+        Assert.Equal(OfficerDetailPage.Tactics, detail.Page);
+        Assert.Equal(2, detail.FocusedId);
+        browser.Navigate(new("宝物", InformationCategory.Treasures, HolderId: 2));
+        Assert.Empty(query.Read(browser).Rows);
+        Assert.Equal(hash, session.Snapshot.StateHash);
+    }
+
+    [Fact]
     public void OfficerPagesShareCandidatesAndKeepThreeDistinctTacticSources()
     {
         var (session, query) = Fixture();

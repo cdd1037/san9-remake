@@ -12,6 +12,7 @@ public partial class CatalogView : Control
     public Func<int, CatalogRow[]> ReadRows { get; init; } = null!;
     public Func<int, Texture2D?>? Portrait { get; init; }
     public IReadOnlyDictionary<string, ImageTexture> Textures { get; init; } = null!;
+    public Vector2 PortraitSize { get; init; } = new(64, 80);
     public Action<int>? Activated { get; init; }
     public Action<int>? CurrentChanged { get; init; }
     public Action? Closed { get; init; }
@@ -57,7 +58,7 @@ public partial class CatalogView : Control
         IconButton("catalog-help", new(_body.End.X - 72, _body.Position.Y + 8), ToggleHelp);
         if (Portrait is not null)
         {
-            _portrait = new TextureRect { Position = new(_body.Position.X - 36, _tableOrigin.Y + 42), Size = new(64, 80),
+            _portrait = new TextureRect { Position = new(_body.Position.X + 28 - PortraitSize.X, _tableOrigin.Y + 42), Size = PortraitSize,
                 ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.Scale, MouseFilter = MouseFilterEnum.Ignore };
             AddChild(_portrait);
         }
@@ -264,7 +265,7 @@ public partial class CatalogView : Control
             int middleStart = left.GetWidth() - 1;
             Tile("catalog-row-middle-2",new(point+new Vector2(middleStart,0),new(width-rightCap.GetWidth()-middleStart,left.GetHeight())));
         }
-        if(_portrait is not null) DrawTexture(Textures["catalog-portrait-frame"],new(x-46,_tableOrigin.Y+30));
+        if(_portrait is not null) DrawTextureRect(Textures["catalog-portrait-frame"], new(_portrait.Position - new Vector2(10,12), PortraitSize + new Vector2(20,24)), false);
     }
     private void DrawTableFrame(int width)
     {

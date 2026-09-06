@@ -25,6 +25,7 @@ public partial class InformationPanel : Control
         ? _content.GetChildren().OfType<InformationMenuButton>().FirstOrDefault(b => b.IsHovered()) : null;
     private CatalogView? _catalog;
     private CatalogTableState _officerCatalogState = new();
+    private CatalogTableState _treasureCatalogState = new();
     private bool _dirty;
     private OfficerDetailView? _officerDetail;
     private readonly OfficerDetailState _officerDetailState = new();
@@ -95,10 +96,30 @@ public partial class InformationPanel : Control
                 State = _officerDetailState, Textures = Textures, Texts = Texts,
                 Read = id => OfficerDetails.Read(Session.View, Texts, id),
                 ReadName = id => Texts.Resolve(Session.View.Officers.Single(o => o.Id == id).NameKey),
-                ReadTreasure = id => _query.Detail(new(InformationCategory.Treasures, id)),
+                OpenTreasures = id => { State.Navigate(new("宝物", InformationCategory.Treasures, HolderId: id)); Rebuild(); },
                 CurrentChanged = State.Select, Closed = Back
             };
             _content.AddChild(_officerDetail); return;
+        }
+        if (State.Category == InformationCategory.Treasures)
+        {
+            if (State.SelectedId is null) _treasureCatalogState = new();
+            _catalog = new CatalogView
+            {
+                TableState = _treasureCatalogState, Title = "宝物一览", HintText = "请选择欲观看其情报的宝物。",
+                Pages = TreasureCatalog.Pages, Textures = Textures,
+                InitialCurrentId = State.SelectedId, InitialOffset = State.Offset,
+                ReadRows = _ => TreasureCatalog.Read(Session.View, Texts, State.HolderFilter, State.ForceFilter, State.SettlementFilter)
+                    .Rows.Select(row => new CatalogRow(row.Key.Id, row.Cells)).ToArray(),
+                Portrait = id => Textures[$"information-treasure-{id}"], PortraitSize = new(128, 128),
+                Closed = Back,
+                ViewChanged = (_, offset, selected) =>
+                {
+                    State.Scroll(offset, _treasureCatalogState.Rows.Length);
+                    if (selected is int id) State.Select(id);
+                }
+            };
+            _content.AddChild(_catalog); return;
         }
         _table = _query.Read(State); _rows = State.Order(_table);
         State.Scroll(State.Offset, _rows.Length);

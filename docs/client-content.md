@@ -31,7 +31,7 @@
 | Content.Maps / MapImporter | 方格、地貌、建筑、云、动画、疆界精灵和小地图底图 | `content.json.map`，地图schema8 |
 | Content.Scenarios / Scenarios.ScenarioContentCompiler | 初始日期、势力资源、据点归属/坐标/显示数值、图标、驻留武将初始状态和地域所属城市 | `content.json.scenario`，schema5 |
 | Content.Text / Text.ScenarioTextReader | 原作名称索引、类型后缀与简体投影；运行时按键解析 | `content.json.text`，schema1 |
-| Content.Interface / Interface.InterfaceSkinCompiler | 框架、三段背景、季节、按钮、状态条、图标和原版显示颜色 | `content.json.skin`，schema5 |
+| Content.Interface / Interface.InterfaceSkinCompiler | 框架、三段背景、季节、按钮、状态条、图标和原版显示颜色 | `content.json.skin`，schema6 |
 | Content.Packages / Packages.ClientContentImporter | 组合入口、跨包ID/坐标/文本引用校验、来源清单 | 唯一`content.json`，顶层schema7 |
 | Content.Images / Importer.Images | 通用PNG、索引图解码和透明边缘处理 | 由使用方选择输出目录 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
@@ -120,7 +120,7 @@ python -B research/scripts/verify_initial_ui.py "<已登记EXE>" private/s9数�
 
 ## 设施名单对齐验收（2026-09-06）
 
-现代实现：Godot焦点、原生滚动条/箭头和通用弹出菜单，简体文字与标准Alpha。保留原作可见规则；滚动条外观、Tab控件顺序、Space激活为明确的现代差异。部队页、详图面板、完整军团和君主移动命令未实现，不声称这些用例已验收。
+现代实现：Godot焦点、原生滚动输入与原图滚动条/箭头和通用弹出菜单，简体文字与标准Alpha。保留原作可见规则；Tab控件顺序、Space激活为明确的现代差异。部队页、详图面板、完整军团和君主移动命令未实现，不声称这些用例已验收。
 
 导出在现有目录原位更新：校验未变化地图来源与图像后复用地图，仅重编译剧本/文本/皮肤；变化PNG才写入，最终替换清单并清理失效图像。重复导出验证确认全部PNG修改时间保持不变，注入的失效导出文件被清除。此次原游戏独占消息文件，使用已有 `private/s9数据文件` 同版本样本导入；原游戏保持打开。
 
@@ -134,7 +134,7 @@ python -B research/scripts/verify_initial_ui.py "<已登记EXE>" private/s9数�
 
 ## 武将内容与共用名单
 
-当前scenario5以 `OfficerInitialState(NameKey, State)` 分离姓名定义与武将运行态，四项当前能力从基础值、伤势和逐能力加成计算。皮肤5使用 `roster-row-*`、`roster-available/unavailable` 共用语义。武将页已启用，与设施共用固定君主行、普通13行、分页独立滚动和相机定位；本轮不做视觉验收，由用户检查。原版基线与范围见 [BEH-UI-0002](../specs/behavior/BEH-UI-0002-officer-roster.md)，三名私有字形姓名的现代显示映射见 [DEC-UI-0005](../specs/decisions/DEC-UI-0005-officer-name-normalization.md)。
+当前scenario5以 `OfficerInitialState(NameKey, State)` 分离姓名定义与武将运行态，四项当前能力从基础值、伤势和逐能力加成计算。皮肤6使用 `roster-row-*`、`roster-available/unavailable` 共用语义。武将页已启用，与设施共用固定君主行、普通13行、分页独立滚动和相机定位；本轮不做视觉验收，由用户检查。原版基线与范围见 [BEH-UI-0002](../specs/behavior/BEH-UI-0002-officer-roster.md)，三名私有字形姓名的现代显示映射见 [DEC-UI-0005](../specs/decisions/DEC-UI-0005-officer-name-normalization.md)。
 
 ## 原版文本统一入口
 
@@ -151,3 +151,12 @@ FA40/41/45直接映射伷/璝/儁，与所处姓名或正文无关。未知扩�
 - 本轮武将与文本视觉检查由用户负责；上文GPU记录属于此前设施及主界面验收，不代表本轮视觉验收。
 
 依赖资料：[OpenCC](https://github.com/BYVoid/OpenCC)、[OpenccNetLib](https://github.com/laisuk/OpenccNet)。依赖版本固定，不声称移植版词典与上游master实时一致。
+
+
+### 滚动条原图与组件复用验收（2026-09-06）
+
+原版证据见[RE-SAN9PK-0158](../research/findings/RE-SAN9PK-0158.md)滚动条复核，重制契约见[DEC-UI-0004](../specs/decisions/DEC-UI-0004-facility-list-interaction.md)。皮肤schema6区分`roster-scroll-decoration`与`scroll-track-*`、`scroll-thumb-*`、`button-scroll-up/down`四帧；导入器、校验器与客户端同步更新，原目录增量导出并清理旧scroll-track.png，复用地图资源。
+
+`SkinnedScrollBar`只维护原生范围、箭头及绘制，`ScrollBarSkin`传入分段图和布局；名单自身保留行模型。未来人物界面可选择自己的皮肤与页大小，尚未实现这些界面的业务。
+
+验证：262项.NET测试、2项Python解析测试通过；私有样本独立脚本核对92项原图可见RGB/Alpha全部通过。Godot无窗口输入自检与1024×768、1280×720图形运行均取得UI_SMOKE_OK/MAP_SMOKE_OK；GPU截图`local/generated/verification/scrollbar-scroll-top.png`、`scrollbar-scroll-bottom.png`及`scrollbar-wide-scroll-bottom.png`已检查，含顶部/底部禁用箭头及中间滚动状态。图形测试移至屏幕外运行以隔离桌面指针影响；首次屏幕内执行曾在既有设施行按下断言失败，隔离后完整通过。上述为引擎派发输入和GPU输出，未做操作系统鼠标交互验收。

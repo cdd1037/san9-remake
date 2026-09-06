@@ -33,7 +33,12 @@ public static class InterfaceSkinCompiler
                 ui.Add(key, asset);
             }
         }
-        Export("top-frame", 88, 17); Export("radar-frame", 82, 16); Export("sidebar-frame", 84, 16); Export("scroll-track", 85, 16);
+        Export("top-frame", 88, 17); Export("radar-frame", 82, 16); Export("sidebar-frame", 84, 16); Export("roster-scroll-decoration", 85, 16);
+        Export("button-scroll-up", 51, 6, 4); Export("button-scroll-down", 52, 6, 4);
+        foreach (var (part, index) in new[] { ("top", 53), ("middle", 54), ("bottom", 55) })
+            Export("scroll-track-" + part, index, 6);
+        foreach (var (part, index) in new[] { ("top", 56), ("middle", 57), ("bottom", 58) })
+            Export("scroll-thumb-" + part, index, 6);
         string[] seasons = ["spring", "summer", "autumn", "winter"];
         for (int i = 0; i < seasons.Length; i++) Export("season-" + seasons[i], 64 + i, 1);
         Export("button-territory", 68, 2, 6); Export("button-facilities", 69, 2, 4);
@@ -79,6 +84,6 @@ public static class InterfaceSkinCompiler
         var fontPalette = read(Path.Combine(dataDirectory, "P_Font.s9"));
         string FontColor(int style) => Convert.ToHexString(fontPalette.AsSpan((style / 2 * 32 + 16 + style % 2 * 8 + 7) * 4, 3));
         colors.Add("roster-available", FontColor(7)); colors.Add("roster-unavailable", FontColor(26));
-        return new(5, assets.ToArray(), ui, colors);
+        return new(6, assets.ToArray(), ui, colors);
     }
 }

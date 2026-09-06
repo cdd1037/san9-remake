@@ -25,7 +25,7 @@
 
 两页分别保持滚动位置；任何世界版本刷新都重建两页数据并裁剪上限；军团变化清零两页。姓名与可用性刷新后不得保留过时条目。原生滚动条、简体字体、标准Alpha、Tab/Space行为继承DEC-UI-0004；本次启用武将页取代其中“武将尚未实现”的旧限制。未知旅行和部队状态不以额外布尔开关伪造支持。
 
-组合内容schema7，scenario5保存`OfficerInitialState(NameKey, State)`，State是无引擎依赖的武将运行态；皮肤schema5把共用行资源及颜色改为roster语义。旧包重新导出，不保留旧字段兼容。
+组合内容schema7，scenario5保存`OfficerInitialState(NameKey, State)`，State是无引擎依赖的武将运行态；皮肤schema6把共用行资源及颜色改为roster语义。旧包重新导出，不保留旧字段兼容。
 
 ## 状态与不变量
 

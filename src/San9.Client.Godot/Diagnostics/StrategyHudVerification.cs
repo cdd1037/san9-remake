@@ -243,6 +243,13 @@ public partial class StrategyHud
         Motion(new(850, 400), MouseButtonMask.Left); Left(new(850, 400), false);
         await capture("-facility-cancelled");
         _territory.GrabFocus();
+        SelectRosterPage(San9.Application.Presentation.RosterPage.Officers);
+        _rosterList.Roster.Current.ScrollTo(0); _rosterList.Wheel(0);
+        Motion(new(512, 400)); await capture("-scroll-top");
+        _rosterList.Wheel(1); await capture("-scroll-middle");
+        _rosterList.Roster.Current.ScrollTo(_rosterList.Roster.Current.MaximumOffset);
+        _rosterList.Wheel(0); await capture("-scroll-bottom");
+        SelectRosterPage(San9.Application.Presentation.RosterPage.Facilities);
     }
 
 }

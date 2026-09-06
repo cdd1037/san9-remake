@@ -68,7 +68,6 @@ public partial class StrategyHud : Control
         _frames.Add(("radar-frame", new(624, 0)));
         _frames.Add(("sidebar-frame", new(836, 167)));
         _frames.Add(("ruler-frame", new(275, 11)));
-        _frames.Add(("scroll-track", new(992, 303)));
         var force = p.Forces.Single(f => f.Id == p.PlayerForceId);
         _year = LabelAt($"{p.Year}年", new(104, 11), new(66, 32), 24);
         _date = LabelAt($"{p.Month}月上旬", new(182, 11), new(89, 32), 24);

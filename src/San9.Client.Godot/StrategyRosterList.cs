@@ -14,7 +14,8 @@ public partial class StrategyRosterList : Control
     public IReadOnlyList<RosterRowButton> Rows => _rows;
     private readonly List<RosterRowButton> _rows = [];
     private VScrollBar _bar = null!;
-    private Button _up = null!, _down = null!;
+    private SkinnedScrollBar _scroll = null!;
+    private TextureRect _decoration = null!;
     public VScrollBar ScrollBar => _bar;
 
     public override void _Ready()
@@ -27,38 +28,17 @@ public partial class StrategyRosterList : Control
             AddChild(row); _rows.Add(row);
             row.Pressed += () => { if (row.EntryKey is RosterKey key) Activated?.Invoke(key); };
         }
-        _bar = new RosterScrollBar { Scrolled = Wheel, Position = new(100, 16), Size = new(16, 248), Step = 1, CustomStep = 1,
-            Page = RosterPageState.PageSize, FocusMode = FocusModeEnum.All };
-        AddChild(_bar);
-        Button Arrow(string text, int y, int step)
-        {
-            var button = new Button { Text = text, Position = new(100, y), Size = new(16, 16), FocusMode = FocusModeEnum.All };
-            button.AddThemeFontSizeOverride("font_size", 8);
-            button.AddThemeStyleboxOverride("normal", new StyleBoxFlat { BgColor = new Color("202025") });
-            button.AddThemeStyleboxOverride("hover", new StyleBoxFlat { BgColor = new Color("404045") });
-            button.AddThemeStyleboxOverride("pressed", new StyleBoxFlat { BgColor = new Color("606065") });
-            button.AddThemeStyleboxOverride("focus", new StyleBoxEmpty());
-            button.Pressed += () => Wheel(step);
-            button.MouseEntered += () => button.GrabFocus();
-            button.GuiInput += @event =>
-            {
-                if (@event is InputEventMouseButton { Pressed: false, ButtonIndex: MouseButton.Right }) ContextRequested?.Invoke();
-                if (@event is InputEventMouseButton { Pressed: true } mouse)
-                {
-                    if (mouse.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown)
-                        Wheel(mouse.ButtonIndex == MouseButton.WheelDown ? 1 : -1);
-                }
-            };
-            AddChild(button); button.Size = new(16, 16); return button;
-        }
-        _up = Arrow("▲", 0, -1); _down = Arrow("▼", 264, 1);
+        _decoration = new TextureRect { Texture = Textures["roster-scroll-decoration"],
+            Position = new(100, 0), MouseFilter = MouseFilterEnum.Ignore };
+        AddChild(_decoration);
+        _scroll = new SkinnedScrollBar { Skin = ScrollBarSkin.FromInterface(Textures),
+            Position = new(100, 0), Size = new(16, 280),
+            ContextRequested = () => ContextRequested?.Invoke() };
+        AddChild(_scroll);
+        _bar = _scroll.Range;
+        _bar.Page = RosterPageState.PageSize;
         _bar.ValueChanged += value => { Roster.Current.ScrollTo((int)value); BindRows(); };
-        _bar.MouseEntered += () => _bar.GrabFocus();
-        _bar.GuiInput += @event =>
-        {
-            if (@event is InputEventMouseButton { Pressed: false, ButtonIndex: MouseButton.Right })
-            { ContextRequested?.Invoke(); _bar.AcceptEvent(); }
-        };
+
     }
 
     public void Refresh(StrategySnapshot snapshot, int corpsId)
@@ -81,7 +61,9 @@ public partial class StrategyRosterList : Control
         {
             _bar.MaxValue = Math.Max(RosterPageState.PageSize, Roster.Current.Ordinary.Count);
             _bar.Page = RosterPageState.PageSize;
-            _bar.Visible = _up.Visible = _down.Visible = Roster.Current.MaximumOffset > 0;
+            _scroll.Visible = Roster.Current.MaximumOffset > 0;
+            _decoration.Visible = !_scroll.Visible;
+            _bar.Visible = _scroll.Visible;
             _bar.SetValueNoSignal(Roster.Current.Offset);
         }
         finally { _bar.SetBlockSignals(blocked); }
@@ -90,6 +72,7 @@ public partial class StrategyRosterList : Control
 
     private void BindRows()
     {
+        _scroll.UpdateArrows();
         var entries = new[] { Roster.Current.Pinned }.Concat(Roster.Current.Visible).ToArray();
         for (int i = 0; i < _rows.Count; i++)
         {

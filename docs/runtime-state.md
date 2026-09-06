@@ -20,7 +20,7 @@ F3面板对选中玩家城市选择可用武将中当前政治最高者执行，
 
 ## 内容与显示契约
 
-客户端schema7、地图schema8、剧本初始态schema5、皮肤schema5。旧包重新生成，没有兼容分支。当前默认包为`local/generated/content/scenario-190-live`。
+客户端schema7、地图schema8、剧本初始态schema5、皮肤schema6。旧包重新生成，没有兼容分支。当前默认包为`local/generated/content/scenario-190-live`。
 
 - 地图建筑记录只保存稳定ID、位置和固定类型；类型目录提供耐久上限，30个已确认组合提供部件与旗帜/守兵锚点。
 - 312项建筑源资源全部导出键色及调色板Alpha两种解释，共624张纹理，不再依赖初始剧本是否使用。三种城市外观及已确认耐久、开发档位都可选择。

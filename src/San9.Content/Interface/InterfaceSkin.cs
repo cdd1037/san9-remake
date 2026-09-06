@@ -4,7 +4,9 @@ namespace San9.Content.Interface;
 
 public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dictionary<string,string> Roles, Dictionary<string,string> Colors)
 {
-    private static readonly string[] BaseUiAssets = ["top-frame", "radar-frame", "sidebar-frame", "scroll-track",
+    private static readonly string[] BaseUiAssets = ["top-frame", "radar-frame", "sidebar-frame", "roster-scroll-decoration",
+        "scroll-track-top", "scroll-track-middle", "scroll-track-bottom",
+        "scroll-thumb-top", "scroll-thumb-middle", "scroll-thumb-bottom", "button-scroll-up", "button-scroll-down",
         "field-left", "field-middle", "field-right", "ruler-frame", "region-frame",
         "message-left", "message-middle", "message-right", "city-prefix",
         "roster-row-left", "roster-row-middle", "roster-row-right",
@@ -21,7 +23,7 @@ public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dicti
 
     public void Validate()
     {
-        if (SchemaVersion != 5 || Assets.Select(a => a.Id).Distinct().Count() != Assets.Length)
+        if (SchemaVersion != 6 || Assets.Select(a => a.Id).Distinct().Count() != Assets.Length)
             throw new InvalidDataException("Invalid interface skin version or duplicate assets.");
         var assets = Assets.ToDictionary(a => a.Id);
         if (Enumerable.Range(0, 52).Any(i => !Colors.ContainsKey($"city-marker-{i}")) ||

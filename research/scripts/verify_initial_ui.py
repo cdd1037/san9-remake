@@ -8,7 +8,10 @@ from PIL import Image
 
 
 UI_RECORDS = {
-    "scroll-track": (85, 1), "field-left": (91, 1), "field-middle": (92, 1), "field-right": (93, 1),
+    "roster-scroll-decoration": (85, 1),
+    "button-scroll-up": (51, 4), "button-scroll-down": (52, 4),
+    "scroll-track-top": (53, 1), "scroll-track-middle": (54, 1), "scroll-track-bottom": (55, 1),
+    "scroll-thumb-top": (56, 1), "scroll-thumb-middle": (57, 1), "scroll-thumb-bottom": (58, 1), "field-left": (91, 1), "field-middle": (92, 1), "field-right": (93, 1),
     "ruler-frame": (94, 1), "region-frame": (97, 1),
     "top-frame": (88, 1), "radar-frame": (82, 1), "sidebar-frame": (84, 1),
     "season-spring": (64, 1), "season-summer": (65, 1),
@@ -138,7 +141,7 @@ def main():
     package, p, skin = content["map"], content["scenario"], content["skin"]
     text = content["text"]["entries"]
     assert package["schemaVersion"] == 8 and "presentation" not in package
-    assert p["schemaVersion"] == 5 and skin["schemaVersion"] == 5
+    assert p["schemaVersion"] == 5 and skin["schemaVersion"] == 6
     assets = {a["id"]: a for a in skin["assets"]}
     map_assets = {a["id"]: a for a in package["assets"]}
     assert not set(assets).intersection(map_assets)
@@ -180,7 +183,7 @@ def main():
                 if frame in (0,3):
                     assert not any(actual.getchannel("A").tobytes())
             checked += 1
-    assert checked == len(skin["roles"]) == 78
+    assert checked == len(skin["roles"]) == 92
     assert skin["colors"]["roster-available"] == "F0F0F0" and skin["colors"]["roster-unavailable"] == "988058"
     with Image.open(map_root / map_assets["minimap-terrain"]["path"]) as mini:
         verify_minimap(mini, package["squares"], (args.data/"P_MapEtc.s9").read_bytes()[44:1068])

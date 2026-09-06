@@ -50,7 +50,7 @@ public sealed class ClientContentPackageTests
     [Fact]
     public void MissingUiAndInvalidDurabilityOrNamesFailValidation()
     {
-        var skin = new InterfaceSkin(5, [Asset], InterfaceSkin.RequiredUiAssets.ToDictionary(s => s, _ => "ui"), Colors());
+        var skin = new InterfaceSkin(6, [Asset], InterfaceSkin.RequiredUiAssets.ToDictionary(s => s, _ => "ui"), Colors());
         skin.Validate(); skin.Roles.Remove("top-frame");
         Assert.Throws<InvalidDataException>(skin.Validate);
         skin.Roles["top-frame"] = "missing";
@@ -77,7 +77,7 @@ public sealed class ClientContentPackageTests
     {
         var map = new MapPackage(8, "fixture", "fixture", "spring", 200, 200, 13056, 6656,
             [], [], [], [], [], [], Buildings, [], [], [], [], [], new([], []), []);
-        var skin = new InterfaceSkin(5, [Asset], InterfaceSkin.RequiredUiAssets.ToDictionary(s => s, _ => "ui"), Colors());
+        var skin = new InterfaceSkin(6, [Asset], InterfaceSkin.RequiredUiAssets.ToDictionary(s => s, _ => "ui"), Colors());
         var text = new TextCatalog(1, new() { ["player"] = new("Player", "Player"), ["city"] = new("City", "City"), ["port"] = new("Port", "Port") });
         var p = new ClientContentPackage(7, [], map, Fixture(), text, skin); p.ValidateLinks();
         Assert.Throws<InvalidDataException>(() => (p with { Scenario = p.Scenario with { Settlements = [p.Scenario.Settlements[0]] } }).ValidateLinks());

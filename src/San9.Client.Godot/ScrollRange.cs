@@ -2,7 +2,7 @@ using Godot;
 
 namespace San9.Client.Godot;
 
-public partial class RosterScrollBar : VScrollBar
+public partial class ScrollRange : VScrollBar
 {
     public Action<int>? Scrolled { get; init; }
     public override void _Input(InputEvent @event)

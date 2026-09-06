@@ -1,8 +1,10 @@
 # 大地图导入与运行
 
+历史产物清理说明（2026-09-06）：本页引用的旧`verification/client-history`、`font`、`interface`、`map-history`和`minimap`目录已按用户要求移到回收站；历史验收结论保留，路径不再作为现存文件入口。最新验收位于`local/generated/verification/runtime/`，可复用检查脚本保留在`verification/checks/`。
+
 本文只覆盖地图转换、地貌与对象绘制、动画及历史验收。客户端主界面、文本和剧本展示数据见[客户端内容与主界面](client-content.md)。
 
-当前纯地图包为schema7，不包含日期/势力数值、名称目录或界面皮肤。`import-map`不读取M_MsgPK和G_Main，输出可以独立用于`render-map`；完整客户端由`import-client`组合各类内容。旧包重新转换，不提供兼容分支。
+当前纯地图包为schema8，不包含日期/势力数值、名称目录或界面皮肤。`import-map`不读取M_MsgPK和G_Main，输出可独立用于`render-map --terrain-only true`；完整客户端由`import-client`组合各类内容。旧包重新转换，不提供兼容分支。
 
 建筑资源独立于当前场景状态导出：三种城池外观×四个耐久阶段×三个开发档位的城墙、城内建筑及对应阴影全部包含在包中，同时包含其余已确认建筑组合引用的纹理。30项已确认组合去重后共154张建筑PNG，位于包内 `objects/building-*.png`，组合顺序与位置在 `map.json` 的 `compositions` 中。未确认的其他原版组合不在此目录承诺范围内；游戏仍只显示190年初始状态。
 
@@ -22,13 +24,13 @@ EXE须通过繁中PK 1.0.1.0指纹校验。输出目录必须不存在，避免�
 
 ## 动态显示
 
-动画首次接入时为schema3；当前schema7保持主界面内容分离，包含疆界精灵、小地图底图及方格地域名称显示标志，动画契约不变。`animations`记录片段、帧时长和实例，独立PNG帧位于 `animations/`。四类水面各六帧/200ms，以179/256源亮度加色显示；八方向守兵各八帧/100ms；26组当前场景旗色/旗字各包含春夏四帧与秋冬四帧，均142ms。共7818格水面、247面旗帜、335个守兵站位。无驻兵建筑不显示守兵。
+动画首次接入时为schema3；当前schema8保持主界面内容分离，建筑实例改为位置与类型，组合包含旗帜和守兵锚点。`animations`记录片段、帧时长和实例，独立PNG帧位于 `animations/`。四类水面各六帧/200ms，以179/256源亮度加色显示；八方向守兵各八帧/100ms；全部51种旗色及两套各186个旗字各包含春夏四帧与秋冬四帧，均142ms。共7818格水面、247面旗帜、335个守兵站位。无驻兵建筑不显示守兵。
 
 2026-09-05的 `scenario-190` 为含季节旗帜的schema3包（74333580字节，约70.89 MiB），共3873项PNG。原有动态包重复导出逐字节一致；本次新增秋冬旗帜帧，旧资产及场景实例保持不变。旧包已按用户要求移入回收站。
 
-动画采用独立显示时钟，暂停模拟日期不停止飘旗，切季不重置相位。旗帜已按当前预览季节切换：春夏方向1、秋冬方向5，旗字使用对应源帧，换季保持动画时间和初相位。此处没有确认独立风向系统；其他动态对象的完整全局遮挡排序也尚未接入。城市数值、静态纹理、初始场景实例不变；离线 `render-map`仍是静态基线导出。
+动画采用独立显示时钟，暂停模拟日期不停止飘旗，切季不重置相位。旗帜已按当前预览季节切换：春夏方向1、秋冬方向5，旗字使用对应源帧，换季保持动画时间和初相位。此处没有确认独立风向系统；其他动态对象的完整全局遮挡排序也尚未接入。建筑静态部件和动画实例随运行时开发度、耐久、归属和驻兵选择；完整资源范围见[运行时架构](runtime-state.md)。离线`render-map --content-package`从初始内容派生建筑，仅导出该状态的静态画面。
 
-用 `--map-time-ms 0` 或 `--map-time-ms 200` 固定截图时间；省略则实时播放。实际GPU截图 `local/generated/maps/verification/animation-0.png` 与 `animation-200.png` 已检查水面、旗帜、守兵三个独立区域都有像素变化。156项自动测试通过，Godot四季/选择/缩放/拖动/边界与120帧平移检查通过（中位6.24ms、P95 6.34ms）。这仍是引擎内测试及GPU截图，不是操作系统鼠标自动化。证据见RE-SAN9PK-0156，行为见BEH-RENDER-0003。
+用 `--map-time-ms 0` 或 `--map-time-ms 200` 固定截图时间；省略则实时播放。实际GPU截图 `local/generated/verification/map-history/animation-0.png` 与 `animation-200.png` 已检查水面、旗帜、守兵三个独立区域都有像素变化。156项自动测试通过，Godot四季/选择/缩放/拖动/边界与120帧平移检查通过（中位6.24ms、P95 6.34ms）。这仍是引擎内测试及GPU截图，不是操作系统鼠标自动化。证据见RE-SAN9PK-0156，行为见BEH-RENDER-0003。
 
 ## Godot
 
@@ -41,7 +43,7 @@ EXE须通过繁中PK 1.0.1.0指纹校验。输出目录必须不存在，避免�
 - 右键拖动，滚轮以鼠标为中心缩放，左键选方格。
 - F3调试面板中的季节选择切换四套外观；准备完成后统一替换当前视野。
 - 初始定位洛阳；可用 `--map-center 133,3 --map-season winter` 预览乌丸边缘。
-- F3中的独立模拟推进旬不改变初始展示快照；正式“进行”按钮暂不可用。
+- F3提供单人商业/开垦运行时命令；完整周期经济未接入，正式“进行”按钮暂不可用。
 
 显示纹理按512×512分块后台合成，可见区外围一圈预取，显示缓存预算256 MiB。通常只加载当前季节，换季准备期间两季可能暂时共存。预算不包含源纹理、托管运行时和Godot本身。
 
@@ -69,7 +71,7 @@ EXE须通过繁中PK 1.0.1.0指纹校验。输出目录必须不存在，避免�
 
 214项自动测试通过，新增覆盖最新请求覆盖旧请求、未完整视野不可提交、换季保留新请求、块边界、RGB权重混合、并行图像身份/损坏/取消。实际Godot引擎内输入及完整视野状态检查覆盖连续远跳、缓存往返、拖动、缩放、四季切换、换季中再次导航、小地图GUI点击和设施导航。等待、目标及缩小视野的GPU截图已检查无地形缺块。
 
-固定200ms、相同初始视野的前后GPU截图在地图区域逐像素一致；整张图仅右下悬停地域栏有3523个差异像素（鼠标/输入历史不同），因此不宣称整张截图相同。文件位于被忽略的 `local/generated/maps/verification/`：`performance-before.png`、`performance-after.png`、`navigation-waiting.png`、`navigation-target.png`、`performance-live-small.png`，日志为 `performance-fixed.log`、`performance-live.log`。
+固定200ms、相同初始视野的前后GPU截图在地图区域逐像素一致；整张图仅右下悬停地域栏有3523个差异像素（鼠标/输入历史不同），因此不宣称整张截图相同。文件位于被忽略的 `local/generated/verification/map-history/`：`performance-before.png`、`performance-after.png`、`navigation-waiting.png`、`navigation-target.png`、`performance-live-small.png`，日志为 `performance-fixed.log`、`performance-live.log`。
 
 本轮没有操作系统鼠标自动化、原版运行时耗时对照、完整帧录像或全图逐像素回归。没有实现新读档用例、全图预合成、图集或资源容器转换。下一步是否改变资源管线，应依据现有分阶段计时继续评估。
 
@@ -77,11 +79,11 @@ EXE须通过繁中PK 1.0.1.0指纹校验。输出目录必须不存在，避免�
 
 ```powershell
 dotnet test San9Remake.slnx
-dotnet run --project src/San9.Tools -- render-map --content-package local/generated/content/scenario-190 --season spring --x 6880 --y 2610 --width 800 --height 450 --terrain-only true --output local/generated/maps/verification/product-terrain.png
-python -B research/scripts/verify_map_package.py "<已登记EXE>" private/s9数据文件 local/generated/maps/scenario-190-map local/generated/maps/verification
+dotnet run --project src/San9.Tools -- render-map --content-package local/generated/content/scenario-190-live --season spring --x 6880 --y 2610 --width 800 --height 450 --terrain-only true --output local/generated/verification/map-history/product-terrain.png
+python -B research/scripts/verify_map_package.py "<已登记EXE>" private/s9数据文件 local/generated/maps/scenario-190-map local/generated/verification/map-history
 ```
 
-研究比较脚本需要Python和Pillow，仅用于私有样本验收，不参与客户端运行。`render-map` 默认包含静态对象，`--terrain-only true`只输出地貌/底云。完整导出使用 `--width 13056 --height 6656`；离线PNG导出会占用较多内存，不代表客户端分块缓存占用。
+研究比较脚本需要Python和Pillow，仅用于私有样本验收，不参与客户端运行。`render-map --content-package`默认包含初始态静态对象；单独`--package`缺少剧本初始态，必须指定`--terrain-only true`，`--terrain-only true`只输出地貌/底云。完整导出使用 `--width 13056 --height 6656`；离线PNG导出会占用较多内存，不代表客户端分块缓存占用。
 
 Godot图形模式验收参数：`--map-smoke --map-screenshot <绝对PNG路径> --map-quit`。它验证坐标选择、鼠标中心缩放、拖动、相机边界、四季切换并记录连续平移帧时间；截图需要图形渲染，不能用无图形的headless模式替代。额外季节和边缘截图可使用 `--map-season`、`--map-center`。
 
@@ -93,7 +95,7 @@ Godot图形模式验收参数：`--map-smoke --map-screenshot <绝对PNG路径> 
 
 实际重新转换并逐像素对照：74张RGBA共994435个完全透明像素的隐藏RGB变化；所有Alpha、可见像素、3084张四季地貌、其他图像以及布局数据不变。150项自动测试通过，包含透明边缘的普通插值、PNG往返、全透明图和可见颜色保持。
 
-复现截图参数为 `--map-zoom 1.728 --map-screenshot <绝对PNG路径> --map-quit`，本地前后截图为 `local/generated/maps/verification/green-before.png` 和 `border-export.png`；转换后的PNG在默认材质下，该视野的建筑、栅栏和阴影绿色轮廓消失。默认 `scenario-190` 已更新，旧包保留为同目录 `scenario-190-before-border`。此验证是Godot实际GPU渲染及截图检查，不是操作系统鼠标自动化；`--map-smoke`也通过程序直接调用输入处理，不能代替完整桌面交互验收。
+复现截图参数为 `--map-zoom 1.728 --map-screenshot <绝对PNG路径> --map-quit`，本地前后截图为 `local/generated/verification/map-history/green-before.png` 和 `border-export.png`；转换后的PNG在默认材质下，该视野的建筑、栅栏和阴影绿色轮廓消失。默认 `scenario-190` 已更新，旧包保留为同目录 `scenario-190-before-border`。此验证是Godot实际GPU渲染及截图检查，不是操作系统鼠标自动化；`--map-smoke`也通过程序直接调用输入处理，不能代替完整桌面交互验收。
 
 季节旗帜补充验收：新增104张秋冬PNG；26组旗帜四季引用齐全，春夏帧和其余旧资产逐字节不变。157项自动测试通过，包括换季相位保持和季节帧组校验。实际GPU春冬对照见 `verification/season-flags-spring.png`、`verification/season-flags-winter.png`，换季交互测试记录见 `verification/season-flags-smoke.log`。旧包按用户要求移入回收站，默认目录只保留当前包。
 
@@ -127,12 +129,12 @@ Godot图形模式验收参数：`--map-smoke --map-screenshot <绝对PNG路径> 
 
 PNG CRC改为256项查表，编码与解码使用相同标准CRC-32算法。测试以独立逐位参考检查RGB、RGBA、灰度PNG的全部块CRC，并覆盖运行时允许哈希变化、离线校验拒绝哈希变化、尺寸不符、损坏数据及取消。
 
-214项自动测试通过，Godot实际运行的选择、缩放、拖动、边界、四季与连续导航自检通过。单次同机运行首屏图片读取解码85.35ms、首屏地图准备220ms、客户端就绪470.60ms；对比上一轮约202–210ms、338–351ms、660–669ms，仅作为少量运行观测。日志与GPU截图分别为 `local/generated/maps/verification/runtime-images.log`、`runtime-images.png`。没有新增操作系统交互测试。
+214项自动测试通过，Godot实际运行的选择、缩放、拖动、边界、四季与连续导航自检通过。单次同机运行首屏图片读取解码85.35ms、首屏地图准备220ms、客户端就绪470.60ms；对比上一轮约202–210ms、338–351ms、660–669ms，仅作为少量运行观测。日志与GPU截图分别为 `local/generated/verification/map-history/runtime-images.log`、`runtime-images.png`。没有新增操作系统交互测试。
 
-移除转换器全量哈希回读后，同配置连续启动三次复测（固定动画200ms，未清空系统文件缓存），日志为 `local/generated/maps/verification/performance-repeat-1.log` 至 `performance-repeat-3.log`：首屏图片读取解码83.40–88.84ms；首屏地图准备211–224ms；客户端就绪464.30–476.62ms；每次前四次换季139–213ms；未缓存跳转28.52–45.51ms；缓存跳转0.85–0.86ms；移动120帧间隔P95为15.87–15.89ms。三次地图自检通过。这轮转换器改动不改变游戏加载路径，未测完整重新转换耗时；客户端就绪计时从Main._Ready开始，不包含进程启动。跳转计时不包含下一次屏幕呈现，移动间隔受60 FPS配置与调度影响。
+移除转换器全量哈希回读后，同配置连续启动三次复测（固定动画200ms，未清空系统文件缓存），日志为 `local/generated/verification/map-history/performance-repeat-1.log` 至 `performance-repeat-3.log`：首屏图片读取解码83.40–88.84ms；首屏地图准备211–224ms；客户端就绪464.30–476.62ms；每次前四次换季139–213ms；未缓存跳转28.52–45.51ms；缓存跳转0.85–0.86ms；移动120帧间隔P95为15.87–15.89ms。三次地图自检通过。这轮转换器改动不改变游戏加载路径，未测完整重新转换耗时；客户端就绪计时从Main._Ready开始，不包含进程启动。跳转计时不包含下一次屏幕呈现，移动间隔受60 FPS配置与调度影响。
 
 ### 相机边界验收（2026-09-06）
 
 依据RE-SAN9PK-0062与BEH-RENDER-0002，将贴图矩形约束替换为含高度的视觉地图中心约束。画布外底云与已有块保持世界坐标相位，缩放不收缩中心范围。按用户纠正，越界只连续约束到最近外边界，已移除退到格心的行为。220项自动测试通过，覆盖四个极端方向、斜边连续滑动、内部亚像素位置、缩放和幂等性；修改后的实际Godot MAP_SMOKE_OK再次通过。
 
-实际Godot 4.7.2 Mono/OpenGL/RTX5070的MAP_SMOKE_OK通过，包括四个极端方向定位后等待视野提交、0.25与2倍缩放中心不变、拖动、四季、导航准备完整性。GPU截图`local/generated/maps/verification/boundary-north.png`（0.25倍北角）、`boundary-west.png`（1倍西角）已目视检查：地图外显示连续云层，无黑色画布外缺口。未执行原作运行时边界实验或操作系统输入自动化；原作结论来自主库静态调用链交叉核对。
+实际Godot 4.7.2 Mono/OpenGL/RTX5070的MAP_SMOKE_OK通过，包括四个极端方向定位后等待视野提交、0.25与2倍缩放中心不变、拖动、四季、导航准备完整性。GPU截图`local/generated/verification/map-history/boundary-north.png`（0.25倍北角）、`boundary-west.png`（1倍西角）已目视检查：地图外显示连续云层，无黑色画布外缺口。未执行原作运行时边界实验或操作系统输入自动化；原作结论来自主库静态调用链交叉核对。

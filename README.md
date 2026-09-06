@@ -11,9 +11,10 @@
 - 已接入董卓势力初始主界面：原版框架与按钮美术、顶部与底部原版背景、耐久/士气条和城市图标、原版小地图配色、疆界开关、设施列表及双向选择；右下地域栏随鼠标显示地域与所属城市。
 - 主界面文字通过统一样式适配Godot原生描边与阴影，按原作位置及按钮状态配置效果，保留现有简体字体并允许现代渲染差异。
 - 地貌保留四套季节纹理，运行时按块合成；水面、旗帜和守兵播放帧动画，旗帜随预览季节改变方向。
-- 已导出三种城池外观、各耐久与开发档位的已确认建筑纹理及阴影；客户端目前显示初始城市状态。
-- 地图仍是初始快照浏览器：城市数值变化尚未驱动地图外观，预览季节尚未与模拟日期联动；移动部队及其全局遮挡排序尚未接入。
+- 已导出完整建筑纹理目录，以及全部旗色、旗字和守兵方向；建筑外观按运行时耐久、开发度、驻兵和归属选择。
+- GameSession持有独立运行时势力、据点和驻留武将；单人商业/开垦命令会扣费、提高开发度并消耗行动，HUD与地图读取同一份世界状态。详见[运行时架构](docs/runtime-state.md)。
 - 地图包已有方格数据，尚不能据此认为 Core/Application 已具备完整地图领域模型、寻路或地形代价计算。
+- Core已实现[四项内政基础增量](specs/behavior/BEH-DOMESTIC-0001-base-development-effect.md)，具有独立自动测试；多人组合、巡察/修筑命令、周期经济和存档闭环尚未接入；移动部队、全局遮挡和季节随日期联动也属于后续范围。
 
 转换包和原版素材均不随仓库分发。运行地图前，需要在本地完成资源转换。
 
@@ -35,20 +36,20 @@ dotnet test San9Remake.slnx
 准备已登记且通过指纹校验的繁中 PK 1.0.1.0 EXE，以及本地 `private/s9数据文件/` 下的源数据：
 
 ```powershell
-dotnet run --project src/San9.Tools -- import-client --source-exe "<San9PK.exe绝对路径>" --data-dir "private/s9数据文件" --scenario "private/s9数据文件/D_Sce002.S9" --output "local/generated/content/scenario-190"
+dotnet run --project src/San9.Tools -- import-client --source-exe "<San9PK.exe绝对路径>" --data-dir "private/s9数据文件" --scenario "private/s9数据文件/D_Sce002.S9" --output "local/generated/content/scenario-190-live"
 ```
 
 输出目录必须不存在。包内只有一个`content.json`，按map、scenario、text、skin分区保存；图片按`images/map/`和`images/interface/`分类。纯地图仍可用`import-map`独立转换；包结构见[客户端内容与主界面](docs/client-content.md)。
 
 ### 运行客户端
 
-用 Godot Mono 打开 `src/San9.Client.Godot/project.godot`，构建 C# 后运行主场景。客户端默认读取上述 `scenario-190` 包，也可从命令行指定：
+用 Godot Mono 打开 `src/San9.Client.Godot/project.godot`，构建 C# 后运行主场景。客户端默认读取上述 `scenario-190-live` 包，也可从命令行指定：
 
 ```powershell
 & "<Godot Mono可执行文件>" --path "src/San9.Client.Godot" -- --content-package "<客户端内容包绝对路径>"
 ```
 
-右键拖动、滚轮缩放、左键选择设施或方格；点击小地图或右侧设施列表定位，大小按钮选择显示比例，建筑标注暂随地图缩放；疆界按钮切换边界显示。F3打开四季预览与独立模拟时钟调试面板。经营与战斗按钮暂不可用。旧包需重新转换；主界面验收见[客户端内容与主界面](docs/client-content.md)，纯地图转换与离线渲染见[大地图导入与运行](docs/map-import.md)。
+右键拖动、滚轮缩放、左键选择设施或方格；点击小地图或右侧设施列表定位，大小按钮选择显示比例，建筑标注暂随地图缩放；疆界按钮切换边界显示。F3打开调试面板，可对选中城市执行单人商业或开垦，并预览四季。正式经营菜单、战斗及“进行”按钮暂不可用。旧包需重新转换；主界面验收见[客户端内容与主界面](docs/client-content.md)，纯地图转换与离线渲染见[大地图导入与运行](docs/map-import.md)。
 
 ## 工程结构
 
@@ -56,7 +57,7 @@ dotnet run --project src/San9.Tools -- import-client --source-exe "<San9PK.exe�
 | --- | --- |
 | `src/San9.Core/` | 不依赖 Godot 的确定性领域核心 |
 | `src/San9.Application/` | 游戏会话、用例与策略界面选择状态 |
-| `src/San9.Content/` | 地图、剧本快照、文本、皮肤契约及组合校验 |
+| `src/San9.Content/` | 地图、剧本初始态、文本、皮肤契约及组合校验 |
 | `src/San9.Importer.San9PkTc101/` | 繁中 PK 样本识别、源数据解析与资源转换 |
 | `src/San9.Rendering/` | 引擎无关的地貌合成、地图坐标及动画帧选择 |
 | `src/San9.Client.Godot/` | 输入、相机、UI 与地图绘制 |
@@ -65,6 +66,8 @@ dotnet run --project src/San9.Tools -- import-client --source-exe "<San9PK.exe�
 | `research/` | 来源、实验、逆向证据及独立验证脚本 |
 | `specs/` | 行为规格、设计决策与路线图 |
 | `local/generated/` | 被 Git 忽略的转换包、缓存与验证产物 |
+
+`local/generated/`按`content/`（当前运行包）、`verification/`（验收截图与报告）、`research/`（本地研究证据）整理，避免临时文件散落根目录。
 
 客户端运行时只读取转换后的内容，不读取源 EXE、S9、IDA 数据库或研究脚本。地图动画由独立显示时钟选帧，再交给 Godot 绘制；显示状态与模拟状态分离。
 

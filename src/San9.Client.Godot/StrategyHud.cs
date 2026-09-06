@@ -12,7 +12,8 @@ public partial class StrategyHud : Control
 {
     public MapWorld World { get; init; } = null!;
     public StrategySelection Selection { get; init; } = null!;
-    public ScenarioSnapshot Scenario { get; init; } = null!;
+    public San9.Application.GameSession Session { get; init; } = null!;
+    public San9.Application.Presentation.StrategySnapshot Scenario => Session.View;
     public TextCatalog Texts { get; init; } = null!;
     public InterfaceSkin Skin { get; init; } = null!;
     public IReadOnlyDictionary<string, PngImage> SkinImages { get; init; } = null!;
@@ -27,6 +28,10 @@ public partial class StrategyHud : Control
     private ScrollContainer _scroll = null!;
     private StrategyMinimap? _minimap;
     private bool _built;
+    private long _stateRevision = -1;
+    private readonly Dictionary<string,Label> _resourceValues = [];
+    public string DisplayedMoney => _resourceValues.TryGetValue("资金", out var label) ? label.Text : "";
+    private Label _year = null!, _date = null!;
     private TextureButton? _large, _small, _territory;
     private readonly Dictionary<int, Color> _facilityColors = [];
     private readonly GameTextPresenter _text = new();
@@ -66,8 +71,8 @@ public partial class StrategyHud : Control
         _frames.Add(("ruler-frame", new(275, 11)));
         _frames.Add(("scroll-track", new(992, 303)));
         var force = p.Forces.Single(f => f.Id == p.PlayerForceId);
-        LabelAt($"{p.Year}年", new(104, 11), new(66, 32), 24);
-        LabelAt($"{p.Month}月上旬", new(182, 11), new(89, 32), 24);
+        _year = LabelAt($"{p.Year}年", new(104, 11), new(66, 32), 24);
+        _date = LabelAt($"{p.Month}月上旬", new(182, 11), new(89, 32), 24);
         LabelAt(Texts.Resolve(force.NameKey), new(280, 11), new(92, 32), 24, HorizontalAlignment.Left);
         AddResourceField("信望", force.Trust.ToString(), 385, 425, 32);
         AddResourceField("资金", force.Money.ToString(), 465, 505, 56);
@@ -87,7 +92,7 @@ public partial class StrategyHud : Control
         _small = AddButton("小", "button-zoom", new(957, 606), new(44, 44), true, () => World.SetZoom(.5f));
         _small.ToggleMode = true;
         AddButton("进行", "button-advance", new(943, 664), new(60, 60), false);
-        _minimap = new StrategyMinimap { World = World, Scenario = Scenario, Skin = Skin, Position = new(643, 31), Size = new(320, 160) };
+        _minimap = new StrategyMinimap { World = World, Session = Session, Skin = Skin, Position = new(643, 31), Size = new(320, 160) };
         AddChild(_minimap);
         foreach (var (text, x, y) in new[] { ("东", 880, 154), ("西", 710, 52), ("南", 710, 154), ("北", 880, 52) })
             _text.Apply(LabelAt(text, new(x, y), new(16, 16), 16), GameTextStyles.For(GameTextRole.Compass));
@@ -124,7 +129,7 @@ public partial class StrategyHud : Control
     {
         // Center the font's line metrics in the background, not in an original bitmap glyph cell.
         LabelAt(title, new(titleX, 15), new(32, 24), 16, HorizontalAlignment.Left);
-        LabelAt(value, new(valueX, 15), new(valueWidth, 24), 16, HorizontalAlignment.Right);
+        _resourceValues.Add(title, LabelAt(value, new(valueX, 15), new(valueWidth, 24), 16, HorizontalAlignment.Right));
     }
 
     private Label LabelAt(string text, Vector2 position, Vector2 size, int fontSize, HorizontalAlignment alignment = HorizontalAlignment.Center)
@@ -214,6 +219,20 @@ public partial class StrategyHud : Control
     public override void _Process(double delta)
     {
         if (World.LoadError is not null) _message.Text = "地图加载失败 · F3 查看详情";
+        if (_built && _stateRevision != Session.Snapshot.Revision)
+        {
+            _stateRevision = Session.Snapshot.Revision;
+            var view=Session.View; var force=view.Forces.Single(f => f.Id==view.PlayerForceId);
+            _resourceValues["资金"].Text=force.Money.ToString(); _resourceValues["兵粮"].Text=force.Food.ToString(); _resourceValues["信望"].Text=force.Trust.ToString();
+            _year.Text=$"{view.Year}年"; _date.Text=$"{view.Month}月{(view.Day==1?"上旬":view.Day==11?"中旬":"下旬")}";
+            foreach(var facility in view.Settlements)
+                if(_facilityButtons.TryGetValue(facility.Id,out var button))
+                {
+                    _facilityColors[facility.Id]=new Color(Skin.Colors[facility.HasAvailableOfficer?"facility-available":"facility-unavailable"]);
+                    button.TooltipText=$"{Texts.Resolve(facility.NameKey)} · 兵力 {facility.Soldiers}\n耐久 {facility.Durability}/{facility.MaxDurability}\n商业 {facility.Commerce}/{facility.MaxCommerce} · 开垦 {facility.Cultivation}/{facility.MaxCultivation}";
+                }
+            UpdateSelection();
+        }
         UpdateHover(_hoverPosition ?? GetGlobalMousePosition());
         _large?.SetPressedNoSignal(World.ZoomFactor >= .75f); _small?.SetPressedNoSignal(World.ZoomFactor < .75f);
         _territory?.SetPressedNoSignal(World.ShowBoundaries);

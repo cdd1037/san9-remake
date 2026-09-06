@@ -1,7 +1,6 @@
 using San9.Importer.San9PkTc101.Images;
 using San9.Content.Images;
 using System.Buffers.Binary;
-using System.Text.Json;
 using San9.Content.Maps;
 
 namespace San9.Importer.San9PkTc101;
@@ -14,16 +13,12 @@ public static class MapAnimationCompiler
         return terrain == 12 && (bridge(x + 1, y - 1) || bridge(x - 3, y - 1) || bridge(x - 1, y + 1) || bridge(x - 1, y - 3));
     }
 
-    public static MapAnimations Compile(byte[] exe, byte[] scenario, string dataDir, JsonElement locations,
-        IReadOnlyList<San9ScenarioSquareRecord> squares, IReadOnlyList<San9ScenarioCityRecord> cities,
-        IReadOnlyList<San9ScenarioZoneRecord> zones, MapBuilding[] buildings, byte[] waterPalette, Func<string, byte[]> read,
+    public static MapAnimations Compile(byte[] exe, string dataDir,
+        IReadOnlyList<San9ScenarioSquareRecord> squares, byte[] waterPalette, Func<string, byte[]> read,
         Func<string, string, PngImage, ImageAsset> save, List<ImageAsset> assets)
     {
         int Int(int offset) => BinaryPrimitives.ReadInt32LittleEndian(exe.AsSpan(offset, 4));
         byte[] Read(string name) => read(Path.Combine(dataDir, name + ".s9"));
-        using var forceStream = new MemoryStream(scenario); using var personStream = new MemoryStream(scenario);
-        var forces = San9ScenarioForceArchive.ReadKnownRecords(forceStream);
-        var persons = San9ScenarioPersonArchive.ReadKnownRecords(personStream);
         var flagArchive = IndexedImageArchive.ReadCombined(Read("G_Flag"), 4, 52);
         var glyphArchive = IndexedImageArchive.ReadCombined(Read("G_Name"), 2, 372);
         var soldierArchive = IndexedImageArchive.ReadCombined(Read("G_UnitS"), 21, 611);
@@ -31,7 +26,7 @@ public static class MapAnimationCompiler
         Dictionary<int, int> palettes = [];
         foreach (var (start, count) in new[] { (0x24ea90, 1425), (0x2601d0, 1145) })
             for (int i = 0; i < count; i++) palettes[Int(start + i * 8) & 65535] = Int(start + i * 8 + 4);
-        List<MapAnimationClip> clips = []; List<MapAnimatedSprite> water = [], objects = [];
+        List<MapAnimationClip> clips = []; List<MapAnimatedSprite> water = [];
         var clipIds = new HashSet<string>();
         void Clip(string id, int count, int milliseconds, Func<int, PngImage> frame, Func<int, PngImage>? autumnWinterFrame = null)
         {
@@ -81,68 +76,33 @@ public static class MapAnimationCompiler
             if (image.Width != 288 || image.Height != 36 || palettes[resource] != 11) throw new InvalidDataException("Unexpected soldier resource.");
             Clip($"soldier-{direction}", 8, 100, f => IndexedImageArchive.Decode(IndexedImageArchive.Frame(image, 8, 1, f, 0), soldierArchive.Palettes[11], true, false));
         }
-        var byComposition = locations.GetProperty("compositions").EnumerateArray().ToDictionary(c => c.GetProperty("id").GetInt32());
-        var secondGlyphColors = new HashSet<int> { 3, 6, 7, 8, 11, 16, 18, 21, 22, 23, 24, 26, 27, 29, 31, 33, 38, 39, 40, 46, 49, 50 };
-        foreach (var building in buildings)
+        // Export independent layers, not the scenario's color/glyph combinations.
+        // Runtime composition avoids a 51 x 187 cross-product of baked flag textures.
+        PngImage Canvas(PngImage? layer, int x, int y)
         {
-            int? forceId = building.Id < 50 ? cities[building.Id].ForceId : zones.Single(z => z.Id == building.Id - 50).ForceId;
-            uint soldiers = building.Id < 50 ? cities[building.Id].Soldiers : zones.Single(z => z.Id == building.Id - 50).Soldiers;
-            int color = 50, glyph = -1;
-            if (forceId is int fid)
-            {
-                HashSet<int> visited = [];
-                while (true)
-                {
-                    if (fid < 0 || fid >= forces.Count || !visited.Add(fid)) throw new InvalidDataException("Invalid root force chain.");
-                    var force = forces[fid]; int root = force.RuntimeOwningForceId;
-                    if (root != fid) { fid = root; continue; }
-                    color = force.ColorCode;
-                    glyph = force.CountryTitleId is int title ? Int(0x253bb0 + title * 4) : force.LeaderId is int leader ? persons[leader].FlagCode : -1;
-                    break;
-                }
-            }
-            if (color is < 0 or > 50) throw new InvalidDataException("Invalid flag color.");
-            if (glyph is < 0 or > 185) glyph = -1;
-            string flagId = $"flag-{color}-{glyph}";
-            PngImage FlagFrame(int f, int direction)
-            {
-                var result = new PngImage(68, 52, 4, new byte[68 * 52 * 4]);
-                // Direction 1 places the pole behind the cloth; direction 5 places it in front.
-                int clothX = direction == 1 ? 1 : 34, glyphRow = direction == 1 ? 1 : 4;
-                var pole = IndexedImageArchive.Decode(flagArchive.Images[0], flagArchive.Palettes[palettes[491] - 285], true, false);
-                if (direction == 1) Overlay(result, pole, 31, 8);
-                var face = IndexedImageArchive.Frame(flagArchive.Images[color + 1], 4, 8, f, direction);
-                Overlay(result, IndexedImageArchive.Decode(face, flagArchive.Palettes[palettes[492 + color] - 285], true, false), clothX, 3);
-                if (glyph >= 0)
-                {
-                    int variant = secondGlyphColors.Contains(color) ? 1 : 0;
-                    var letter = IndexedImageArchive.Frame(glyphArchive.Images[variant * 186 + glyph], 4, 6, f, glyphRow);
-                    Overlay(result, IndexedImageArchive.Decode(letter, glyphArchive.Palettes[variant], true, true), clothX, 3);
-                }
-                if (direction == 5) Overlay(result, pole, 31, 8);
-                IndexedImageArchive.ExtendTransparentColors(result.Pixels, result.Width, result.Height);
-                return result;
-            }
-            Clip(flagId, 4, 142, f => FlagFrame(f, 1), f => FlagFrame(f, 5));
-            var basePoint = MapTerrainCompiler.Center(building.X, building.Y);
-            int bx = basePoint.X, by = basePoint.Y - 10 * (squares[building.Y * 200 + building.X].OffsetCode - 1);
-            var definition = byComposition[building.CompositionId];
-            var guardTable = definition.GetProperty("soldiers");
-            if (soldiers > 0)
-                for (int i = 0; i < guardTable.GetProperty("count").GetInt32(); i++)
-                {
-                    int p = guardTable.GetProperty("offset").GetInt32() + i * 16, direction = Int(p + 12);
-                    if (direction is < 0 or > 7) throw new InvalidDataException("Invalid guard direction.");
-                    objects.Add(new($"soldier-{direction}", bx + Int(p), by + Int(p + 4), (building.Id + i) % 8, building.Id));
-                }
-            var flagTable = definition.GetProperty("flags");
-            for (int i = 0; i < flagTable.GetProperty("count").GetInt32(); i++)
-            {
-                int p = flagTable.GetProperty("offset").GetInt32() + i * 8;
-                objects.Add(new(flagId, bx + Int(p), by + Int(p + 4), (building.Id + i) % 4, building.Id));
-            }
+            var result = new PngImage(68,52,4,new byte[68*52*4]);
+            if (layer is not null) Overlay(result,layer,x,y);
+            IndexedImageArchive.ExtendTransparentColors(result.Pixels,result.Width,result.Height);
+            return result;
         }
-        return new(clips.ToArray(), water.ToArray(), objects.ToArray());
+        var pole = IndexedImageArchive.Decode(flagArchive.Images[0], flagArchive.Palettes[palettes[491]-285],true,false);
+        Clip("flag-pole-back",4,142,f => Canvas(pole,31,8),f => Canvas(null,0,0));
+        Clip("flag-pole-front",4,142,f => Canvas(null,0,0),f => Canvas(pole,31,8));
+        for (int color = 0; color <= 50; color++)
+        {
+            int c = color;
+            PngImage Cloth(int f,int direction) => Canvas(IndexedImageArchive.Decode(
+                IndexedImageArchive.Frame(flagArchive.Images[c+1],4,8,f,direction),flagArchive.Palettes[palettes[492+c]-285],true,false),direction==1?1:34,3);
+            Clip($"flag-cloth-{c}",4,142,f => Cloth(f,1),f => Cloth(f,5));
+        }
+        for (int variant = 0; variant < 2; variant++) for (int glyph = 0; glyph < 186; glyph++)
+        {
+            int v = variant, g = glyph;
+            PngImage Glyph(int f,int direction) => Canvas(IndexedImageArchive.Decode(
+                IndexedImageArchive.Frame(glyphArchive.Images[v*186+g],4,6,f,direction==1?1:4),glyphArchive.Palettes[v],true,true),direction==1?1:34,3);
+            Clip($"flag-glyph-{v}-{g}",4,142,f => Glyph(f,1),f => Glyph(f,5));
+        }
+        return new(clips.ToArray(), water.ToArray());
     }
 
     private static void Overlay(PngImage target, PngImage source, int x, int y)

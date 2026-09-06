@@ -13,12 +13,24 @@ from square_map.canvas import RgbCanvas
 from square_map.terrain import global_square_center
 from square_map.clouds import build_edge_polylines, _polyline_x_by_y, draw_map_edge_cloud_foreground
 from square_map.render_buildings import collect_building_visual_bounds
+from square_map.buildings import select_building_composition, building_sprite_resource_id
+from square_map.building_compositions import BUILDING_COMPOSITIONS
+from square_map.terrain import region_building_base
 import square_map.render_map as reference
 
 def main():
     parser=argparse.ArgumentParser()
     parser.add_argument('exe',type=Path);parser.add_argument('data',type=Path);parser.add_argument('package',type=Path);parser.add_argument('output',type=Path)
     args=parser.parse_args();args.output.mkdir(parents=True,exist_ok=True)
+    manifest=args.package/'content.json'
+    if manifest.exists():
+        content=json.loads(manifest.read_text(encoding='utf-8'))
+        assert content['schemaVersion']==5
+        package=content['map']
+    else:
+        package=json.loads((args.package/'map.json').read_text(encoding='utf-8'))
+    assert package['schemaVersion']==8
+    terrain_assets={s['id']:{str(a['id']):a for a in s['textures']} for s in package['seasons']}
     raw=args.exe.read_bytes()
     assert hashlib.sha256(raw).hexdigest()=='d20794aeff67301ec2bf8c3becb1e9944c68c6c0588fbfd4bf04e8597f0e5028'
     pairs=[struct.unpack_from('<2I',raw,0x25cfd0+i*8) for i in range(0x42e)]
@@ -30,7 +42,7 @@ def main():
         for i,image in enumerate(images):
             palette=palettes[registry[10006+i]];rgb=bytearray(len(image.pixels)*3)
             for c in range(3):rgb[c::3]=image.pixels.translate(bytes(p[c] for p in palette))
-            actual=Image.open(args.package/f'terrain/{season}/{10006+i}.png').convert('RGB')
+            actual=Image.open(args.package/terrain_assets[season][str(10006+i)]['path']).convert('RGB')
             assert actual.size==(image.width,image.height) and actual.tobytes()==rgb
             hashes[i].append(hashlib.sha256(rgb).hexdigest())
     assert all(len(set(h))==4 for h in hashes)
@@ -40,7 +52,6 @@ def main():
     scenario=args.data/'D_Sce002.S9'
     resources=MapVisualResources.load(args.data,scenario,'S',include_clouds=True)
     squares=read_squares(scenario)
-    package=json.loads((args.package/'map.json').read_text())
     left,right=build_edge_polylines(squares,128)
     for points,field in [(left,'leftEdge'),(right,'rightEdge')]:
         rows=_polyline_x_by_y(points)
@@ -86,7 +97,15 @@ def main():
         # 129-value original alpha domain is recoverable from the converted byte.
         old=bytearray(Image.open(actual_path).convert('RGB').tobytes())
         assets={a['id']:a for a in package['assets']}
-        sprites=package['bridges']+[s for b in package['buildings'] for s in b['sprites']]+package['clouds']
+        building_sprites=[]
+        for b in sorted(snapshot.buildings,key=lambda b:(b.x+b.y,b.x)):
+            composition=select_building_composition(snapshot.fixed_buildings[b.fixed_building_code],b.durability,b.city_terrain_code)
+            assert composition is not None
+            x,y=region_building_base(b.x,b.y,200,squares[b.y*200+b.x].offset)
+            for part in BUILDING_COMPOSITIONS[composition]:
+                resource=building_sprite_resource_id(b,part)
+                building_sprites.append({'assetId':f'building-{resource}-'+('alpha' if part.dynamic_flag else 'key'),'x':128+x+part.offset_x,'y':128+y+part.offset_y})
+        sprites=package['bridges']+building_sprites+package['clouds']
         for sprite in sprites:
             asset=assets[sprite['assetId']];x,y=sprite['x'],sprite['y']
             if x>=7680 or y>=3060 or x+asset['width']<=6880 or y+asset['height']<=2610:continue

@@ -5,11 +5,11 @@ using San9.Content.Interface;
 
 namespace San9.Content.Packages;
 
-public sealed record ClientContentPackage(int SchemaVersion, ContentSource[] Sources, MapPackage Map, ScenarioSnapshot Scenario, TextCatalog Text, InterfaceSkin Skin)
+public sealed record ClientContentPackage(int SchemaVersion, ContentSource[] Sources, MapPackage Map, ScenarioInitialState Scenario, TextCatalog Text, InterfaceSkin Skin)
 {
     public void ValidateLinks()
     {
-        if (SchemaVersion != 4) throw new InvalidDataException("Unsupported client content version.");
+        if (SchemaVersion != 5) throw new InvalidDataException("Unsupported client content version.");
         Scenario.Validate(); Text.Validate(); Skin.Validate();
         if (Map.ScenarioId != Scenario.ScenarioId ||
             !Map.Buildings.Select(b => b.Id).Order().SequenceEqual(Scenario.Settlements.Select(s => s.Id).Order()))

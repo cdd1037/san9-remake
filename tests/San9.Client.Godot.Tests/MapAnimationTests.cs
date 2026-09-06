@@ -30,17 +30,17 @@ public sealed class MapAnimationTests
         var b = a with { Id = "b", Width = 64 };
         var assets = new Dictionary<string, ImageAsset> { ["a"] = a, ["b"] = b };
         var clip = new MapAnimationClip("clip", ["a"], 100, []);
-        var sprites = new[] { new MapAnimatedSprite("clip", 0, 0, 0, 15) };
-        MapPackageFiles.ValidateAnimations(new([clip], [], sprites), assets, new HashSet<int> { 15 });
-        Assert.Throws<InvalidDataException>(() => MapPackageFiles.ValidateAnimations(new([clip], [], sprites), assets, new HashSet<int>()));
-        Assert.Throws<InvalidDataException>(() => MapPackageFiles.ValidateAnimations(new([clip with { Frames = ["missing"] }], [], []), assets, new HashSet<int>()));
-        Assert.Throws<InvalidDataException>(() => MapPackageFiles.ValidateAnimations(new([clip with { Frames = ["a", "b"] }], [], []), assets, new HashSet<int>()));
-        Assert.Throws<InvalidDataException>(() => MapPackageFiles.ValidateAnimations(new([clip], [], [sprites[0] with { Phase = 1 }]), assets, new HashSet<int> { 15 }));
-        Assert.Throws<InvalidDataException>(() => MapPackageFiles.ValidateAnimations(new([clip with { SeasonFrames = new() { ["winter"] = ["a"] } }], [], []), assets, new HashSet<int>()));
+        var sprites = new[] { new MapAnimatedSprite("clip", 0, 0, 0, -1) };
+        MapPackageFiles.ValidateAnimations(new([clip], sprites), assets, new HashSet<int> { 15 });
+        Assert.Throws<InvalidDataException>(() => MapPackageFiles.ValidateAnimations(new([clip], [sprites[0] with { BuildingId = 15 }]), assets, new HashSet<int>()));
+        Assert.Throws<InvalidDataException>(() => MapPackageFiles.ValidateAnimations(new([clip with { Frames = ["missing"] }], []), assets, new HashSet<int>()));
+        Assert.Throws<InvalidDataException>(() => MapPackageFiles.ValidateAnimations(new([clip with { Frames = ["a", "b"] }], []), assets, new HashSet<int>()));
+        Assert.Throws<InvalidDataException>(() => MapPackageFiles.ValidateAnimations(new([clip], [sprites[0] with { Phase = 1 }]), assets, new HashSet<int> { 15 }));
+        Assert.Throws<InvalidDataException>(() => MapPackageFiles.ValidateAnimations(new([clip with { SeasonFrames = new() { ["winter"] = ["a"] } }], []), assets, new HashSet<int>()));
         var seasons = new Dictionary<string, string[]> { ["spring"] = ["a"], ["summer"] = ["a"], ["autumn"] = ["b"], ["winter"] = ["b"] };
-        Assert.Throws<InvalidDataException>(() => MapPackageFiles.ValidateAnimations(new([clip with { SeasonFrames = seasons }], [], []), assets, new HashSet<int>()));
+        Assert.Throws<InvalidDataException>(() => MapPackageFiles.ValidateAnimations(new([clip with { SeasonFrames = seasons }], []), assets, new HashSet<int>()));
         seasons["autumn"] = ["a", "a"];
-        Assert.Throws<InvalidDataException>(() => MapPackageFiles.ValidateAnimations(new([clip with { SeasonFrames = seasons }], [], []), assets, new HashSet<int>()));
+        Assert.Throws<InvalidDataException>(() => MapPackageFiles.ValidateAnimations(new([clip with { SeasonFrames = seasons }], []), assets, new HashSet<int>()));
     }
 
     [Fact]

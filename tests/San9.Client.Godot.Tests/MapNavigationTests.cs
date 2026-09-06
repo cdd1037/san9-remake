@@ -10,10 +10,10 @@ public sealed class MapNavigationTests
     [Fact]
     public void SelectionAndFilteredFacilitiesUseBuildingIdentityNotRegionMembership()
     {
-        var presentation = new ScenarioSnapshot(2, "fixture", 190, 1, 1, 5, [],
-            [new(100, "port", 5, 80, 65, 1000, 300, 300, 50, true, null, []), new(15, "city", 5, 89, 64, 32000, 500, 1000, 50, true, 5, []),
-                new(16, "enemy", 6, 90, 60, 9000, 400, 600, 50, true, 6, []), new(17, "empty", null, 88, 60, 0, 300, 600, 0, true, 50, [])], [], []);
-        var selection = new StrategySelection(presentation); int changes = 0; selection.Changed += () => changes++;
+        var presentation = new ScenarioInitialState(3, "fixture", 190, 1, 1, 5, [new(5,"player",5,100,100,100),new(6,"enemy",6,100,100,100)],
+            [new(100, "port", 5, 80, 65, 1000, 300, 300, 50, []), new(15, "city", 5, 89, 64, 32000, 500, 1000, 50, []),
+                new(16, "enemy", 6, 90, 60, 9000, 400, 600, 50, []), new(17, "empty", null, 88, 60, 0, 300, 600, 0, [])], [], []);
+        var selection = new StrategySelection(San9.Application.GameSession.Start(presentation,1)); int changes = 0; selection.Changed += () => changes++;
         Assert.Equal(new[] { 15, 100 }, selection.PlayerFacilities.Select(s => s.Id));
         selection.SelectBuilding(100); Assert.Equal((80, 65), selection.Square); Assert.Equal(100, selection.BuildingId);
         selection.SelectSquare(89, 64); Assert.Equal(15, selection.BuildingId);

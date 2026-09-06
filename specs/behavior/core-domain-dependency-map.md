@@ -17,6 +17,7 @@
 
 ```mermaid
 flowchart LR
+  Domestic[domestic-development: pure base effect]
   Personnel[personnel] --> Simulation[simulation]
   Lifecycle[person-lifecycle] --> Personnel
   Lifecycle --> Simulation
@@ -54,6 +55,8 @@ flowchart LR
 验收条款以各BEH原文为准；当前覆盖由领域契约验证器生成，不在此重复维护计数。
 
 ## 核心领域契约
+
+`domestic-development` 是四项内政随机加倍前的纯计算入口，已由 `San9.Core.Domain.DomesticDevelopment` 实现；它没有模拟调度依赖。WorldState另接入单人商业/开垦的校验与原子提交；完整多人内政与周期经济尚未加入本契约，不能将局部实现视为其替代。
 
 | 领域 | 已确认规格 | 对象与状态 | 输入 → 输出 | 关键不变量 | 首个实现入口 |
 | --- | --- | --- | --- | --- | --- |

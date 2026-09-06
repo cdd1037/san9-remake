@@ -11,13 +11,14 @@ public sealed class RegionHoverTests
     [Fact]
     public void RegionAndCityAreIndependentEvenWhenTheyAreTheSame()
     {
-        var scenario = new ScenarioSnapshot(2, "fixture", 190, 1, 1, 5, [], [],
+        var scenario = new ScenarioInitialState(3, "fixture", 190, 1, 1, 5, [new(5,"player",5,100,100,100)], [],
             new() { [15] = "city", [99] = "gate" }, new() { [15] = 15, [99] = 15 });
+        var view = San9.Application.GameSession.Start(scenario,1).View;
         var text = new TextCatalog(1, new() { ["city"] = new("洛阳", "洛陽"), ["gate"] = new("虎牢关", "虎牢關") });
-        Assert.Equal(new("洛阳", "洛阳"), RegionHoverInfo.Resolve(new(0, 0, 0, 15), scenario, text));
-        Assert.Equal(new("虎牢关", "洛阳"), RegionHoverInfo.Resolve(new(0, 0, 0, 99), scenario, text));
-        Assert.Equal(new("———", "——"), RegionHoverInfo.Resolve(new(0, 0, 0, 99) { HideRegionName = true }, scenario, text));
-        Assert.Equal(new("———", "——"), RegionHoverInfo.Resolve(new(0, 0, 0, -1), scenario, text));
+        Assert.Equal(new("洛阳", "洛阳"), RegionHoverInfo.Resolve(new(0, 0, 0, 15), view, text));
+        Assert.Equal(new("虎牢关", "洛阳"), RegionHoverInfo.Resolve(new(0, 0, 0, 99), view, text));
+        Assert.Equal(new("———", "——"), RegionHoverInfo.Resolve(new(0, 0, 0, 99) { HideRegionName = true }, view, text));
+        Assert.Equal(new("———", "——"), RegionHoverInfo.Resolve(new(0, 0, 0, -1), view, text));
     }
 
     [Theory]

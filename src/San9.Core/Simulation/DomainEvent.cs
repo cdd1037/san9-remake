@@ -12,6 +12,5 @@ public sealed record CommandResolvedEvent(
 
 public sealed record XunAdvancedEvent(
     GameClock Previous,
-    GameClock Current,
-    ulong ResolutionToken)
+    GameClock Current)
     : DomainEvent;

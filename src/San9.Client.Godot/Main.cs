@@ -29,7 +29,12 @@ public partial class Main : Node
             GD.Print($"CLIENT_PREPARE content_ms={loaded.ValidationMs:F2} ui_decode_ms={startup.Elapsed.TotalMilliseconds - loaded.ValidationMs:F2}");
             void OnFirstMapReady() { GD.Print($"CLIENT_READY total_ms={startup.Elapsed.TotalMilliseconds:F2}"); world.MapReady -= OnFirstMapReady; }
             world.MapReady += OnFirstMapReady;
-            var selection = new StrategySelection(content.Scenario);
+            var initial = content.Scenario;
+            // A controlled, in-memory boundary fixture for GPU verification; never changes the content package.
+            if (options.RuntimeSmoke) initial = initial with { Settlements = initial.Settlements.Select(s => s.Id == 15 ? s with { Commerce = 300, Cultivation = 150 } : s).ToArray() };
+            var session = San9.Application.GameSession.Start(initial, 190);
+            world.Session = session;
+            var selection = new StrategySelection(session);
             world.BuildingPicked += selection.SelectBuilding;
             world.SquarePicked += selection.SelectSquare;
             world.SelectionCleared += selection.Clear;
@@ -37,12 +42,12 @@ public partial class Main : Node
             var center = MapGeometry.Center(options.CenterX, options.CenterY);
             world.FocusWorld(new(center.X, center.Y)); world.SetZoom(options.Zoom);
             world.LoadMap(content.Map, options.PackageRoot, options.Season, options.AnimationTime);
-            ui.AddChild(new MapAnnotations { World = world, Selection = selection, Scenario = content.Scenario, Texts = content.Text, UiFont = ui.GetThemeFont("font"), Skin = content.Skin, SkinImages = loaded.Images });
-            var hud = new StrategyHud { World = world, Selection = selection, Scenario = content.Scenario, Texts = content.Text, Skin = content.Skin, SkinImages = loaded.Images };
+            ui.AddChild(new MapAnnotations { World = world, Selection = selection, Session = session, Texts = content.Text, UiFont = ui.GetThemeFont("font"), Skin = content.Skin, SkinImages = loaded.Images });
+            var hud = new StrategyHud { World = world, Selection = selection, Session = session, Texts = content.Text, Skin = content.Skin, SkinImages = loaded.Images };
             ui.AddChild(hud);
-            var debug = new DebugPanel { World = world }; ui.AddChild(debug);
+            var debug = new DebugPanel { World = world, Session = session, Selection = selection }; ui.AddChild(debug);
             world.IsInputBlocked = p => (debug.Visible && debug.GetRect().HasPoint(p)) || hud.IsBlockedPoint(p);
-            if (options.Smoke || options.Screenshot is not null)
+            if (options.Smoke || options.RuntimeSmoke || options.Screenshot is not null)
                 AddChild(new ClientVerification { World = world, Selection = selection, Hud = hud, Options = options });
         }
         catch (Exception e)

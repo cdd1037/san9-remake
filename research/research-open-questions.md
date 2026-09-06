@@ -61,20 +61,26 @@
 - 已执行：正式20剧本人物剖面；`python -m unittest discover -s research/scripts`，90项测试全部通过。
 - 已执行：当前领域契约验证，48份行为规格全部归类、13个领域/13项决策门通过，未发现依赖环或研究细节进入聚合契约；这只验证结构和登记一致性，不证明全部玩法语义正确。
 - 已执行：`research/`、`specs/`、`docs/`（不含第三方`upsteam`）270份Markdown的1,486个本地链接目标检查，缺失0；`git diff --check`通过。链接检查不覆盖外部网址或全部标题锚点。
-- 原始剖面及工具输出位于 `local/generated/research-audit/`，不提交；版本化写入清单只含研究注释与验证状态，不含程序代码/资源。
+- 原始剖面及工具输出位于 `local/generated/research/audit/`，不提交；版本化写入清单只含研究注释与验证状态，不含程序代码/资源。
 - 已执行：用户操作原游戏、IDA断点记录一次完整俸禄结算，27笔合计444；详见RE-0157。断点已全部删除并保存。
 - 未执行：重复开局、兵粮与没收动态对照、GPU截图、OS交互自动化、当前全EXE反编译、全部玩法回归或.NET产品测试。本轮没有修改产品代码与画面；这些不能被表述为已验证。
 
 复现主要检查：
 
 ```powershell
-python research/scripts/analyze_scenario_persons.py private/s9数据文件 local/generated/research-audit/person-profile.json
+python research/scripts/analyze_scenario_persons.py private/s9数据文件 local/generated/research/audit/person-profile.json
 python -m unittest discover -s research/scripts
-python research/scripts/validate_core_domain_contracts.py --contracts specs/behavior/core-domain-contracts.json --map specs/behavior/core-domain-dependency-map.md --behavior-dir specs/behavior --decision-dir specs/decisions --repo-root . --output local/generated/research-audit/core-contract-validation.json
+python research/scripts/validate_core_domain_contracts.py --contracts specs/behavior/core-domain-contracts.json --map specs/behavior/core-domain-dependency-map.md --behavior-dir specs/behavior --decision-dir specs/decisions --repo-root . --output local/generated/research/audit/core-contract-validation.json
 git diff --check
 ```
 
 ## 集中处理结果与后置事项
+
+### 实现前新增复核：内政证据仍有遗漏
+
+2026-09-06再次对照实际指令，确认RE-0095旧记录存在能力字段错位、相性概率漏加1及修筑基础增量漏资金上限。巡查使用当前智力、商业/开垦使用当前政治、修筑使用当前统率；相性后备加倍概率为 `5*(最大同相性人数+1)`，少于两人返回0。特殊组合另有逐对10%概率、根君主相性及身份资格，不能仅按组合存在保证加倍。正文、两份资料上的项目校核注及主库注释已同步纠正。
+
+已将不依赖组合内容的数量计算提升为[BEH-DOMESTIC-0001](../specs/behavior/BEH-DOMESTIC-0001-base-development-effect.md)，Core基础/最终增量与固定费用计算及自动测试已实现。续查已静态闭合29个有序组合、全部玩家入口最多五人、稳定降序候选排序，以及修筑加倍后不再受资金限制、仍每人扣50的边界，见RE-0095；无需用户补实验。组合条件尚未转为产品内容契约与判定实现。已从剧本创建独立势力、据点、驻留武将运行态，并接入单人商业/开垦的原子提交与状态驱动显示，见[运行时架构](../docs/runtime-state.md)。**完整新局初始化、多人即时内政、周期经济及存档闭环尚未完成**；不能因数量公式落地而标记M2完成。
 
 ### 决策 D01：繁中与日版1.3差异如何进入重制
 

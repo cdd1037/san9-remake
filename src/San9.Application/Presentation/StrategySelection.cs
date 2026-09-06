@@ -2,12 +2,13 @@ using San9.Content.Scenarios;
 
 namespace San9.Application.Presentation;
 
-public sealed class StrategySelection(ScenarioSnapshot scenario)
+public sealed class StrategySelection(GameSession session)
 {
+    private StrategySnapshot scenario => session.View;
     public event Action? Changed;
     public (int X, int Y)? Square { get; private set; }
     public int? BuildingId { get; private set; }
-    public SettlementSnapshot[] PlayerFacilities => scenario.Settlements
+    public SettlementView[] PlayerFacilities => scenario.Settlements
         .Where(s => s.OwnerId == scenario.PlayerForceId).OrderBy(s => s.Id).ToArray();
 
     public void SelectBuilding(int id)

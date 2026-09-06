@@ -29,7 +29,7 @@ public sealed class SimulationEngineTests
         AdvanceXunResult firstResult = first.AdvanceXun();
         AdvanceXunResult secondResult = second.AdvanceXun();
 
-        Assert.Equal(firstResult.Snapshot, secondResult.Snapshot);
+        Assert.Equal(firstResult.Snapshot.StateHash, secondResult.Snapshot.StateHash);
         Assert.Equal(firstResult.Events, secondResult.Events);
         CommandResolvedEvent[] resolved = firstResult.Events.OfType<CommandResolvedEvent>().ToArray();
         Assert.Equal(new ForceId(1), resolved[0].IssuerId);

@@ -8,9 +8,11 @@ namespace San9.Client.Godot;
 public partial class StrategyMinimap : Control
 {
     public MapWorld World { get; init; } = null!;
-    public ScenarioSnapshot Scenario { get; init; } = null!;
+    public San9.Application.GameSession Session { get; init; } = null!;
+    public San9.Application.Presentation.StrategySnapshot Scenario => Session.View;
     public InterfaceSkin Skin { get; init; } = null!;
     private ImageTexture? _terrain;
+    private long _stateRevision = -1;
     private readonly Node2D _markers = new();
     private readonly Node2D _viewport = new();
     private (Vector2 Position, float Zoom) _view;
@@ -46,6 +48,7 @@ public partial class StrategyMinimap : Control
     }
     public override void _Process(double delta)
     {
+        if (_stateRevision != Session.Snapshot.Revision) { _stateRevision = Session.Snapshot.Revision; _markers.QueueRedraw(); }
         var view = (World.CameraPosition, World.ZoomFactor);
         if (_view == view) return;
         _view = view;

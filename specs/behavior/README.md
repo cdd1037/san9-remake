@@ -5,6 +5,7 @@
 跨领域实现从[核心领域依赖图与实现入口](core-domain-dependency-map.md)开始；其机器可校验源为 [`core-domain-contracts.json`](core-domain-contracts.json)。
 
 - [BEH-AI-0001：AI 观察、规划与命令提交边界](BEH-AI-0001-planning-boundary.md)（已确认）
+- [BEH-DOMESTIC-0001：四项内政基础增量](BEH-DOMESTIC-0001-base-development-effect.md)（已确认；不含完整命令与组合加倍）
 - [BEH-IMPORT-0001：繁中 PK 1.0.1.0 源容器校验](BEH-IMPORT-0001-source-container-validation.md)（已确认）
 - [BEH-IMPORT-0002：剧本宝物记录解析](BEH-IMPORT-0002-scenario-item-records.md)（已确认）
 - [BEH-IMPORT-0003：剧本城市记录解析](BEH-IMPORT-0003-scenario-city-records.md)（已确认）

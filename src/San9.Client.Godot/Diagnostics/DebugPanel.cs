@@ -10,8 +10,8 @@ public partial class DebugPanel : PanelContainer
     public MapWorld World { get; init; } = null!;
     private Label _debugStatus = null!, _debugClock = null!;
     private OptionButton _season = null!;
-    private readonly GameSession _debugSession = new(WorldState.Create(new(190, 1, XunIndex.Early), 190));
-    private long _sequence;
+    public GameSession Session { get; init; } = null!;
+    public San9.Application.Presentation.StrategySelection Selection { get; init; } = null!;
     public override void _UnhandledKeyInput(InputEvent input)
     {
         if (input is InputEventKey { Pressed: true, Echo: false, Keycode: Key.F3 })
@@ -31,18 +31,23 @@ public partial class DebugPanel : PanelContainer
             ContentMarginRight = 12, ContentMarginTop = 10, ContentMarginBottom = 10 };
         AddThemeStyleboxOverride("panel", style);
         var box = new VBoxContainer(); AddChild(box);
-        box.AddChild(new Label { Text = "调试 · F3 关闭（不改变初始展示快照）" });
+        box.AddChild(new Label { Text = "调试 · F3 关闭（内政操作改变当前运行状态）" });
         _debugStatus = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart, CustomMinimumSize = new(400, 40) }; box.AddChild(_debugStatus);
         _season = new OptionButton(); foreach (string s in new[] { "春季预览", "夏季预览", "秋季预览", "冬季预览" }) _season.AddItem(s);
         _season.ItemSelected += i => World.PreviewSeason(new[] { "spring", "summer", "autumn", "winter" }[i]); box.AddChild(_season);
-        _debugClock = new Label { Text = "独立模拟：190年1月上旬" }; box.AddChild(_debugClock);
-        var advance = new Button { Text = "独立模拟推进一旬" }; box.AddChild(advance);
-        advance.Pressed += () =>
+        _debugClock = new Label { Text = "选择己方城市后可执行单人内政" }; box.AddChild(_debugClock);
+        foreach (var activity in new[] { DomesticActivity.Commerce, DomesticActivity.Cultivation })
         {
-            var result = _debugSession.Submit(new WaitCommand(Guid.NewGuid(), new ForceId(5), _sequence++));
-            if (!result.Accepted) { _debugClock.Text = $"拒绝：{result.Rejection}"; return; }
-            var snapshot = _debugSession.AdvanceXun().Snapshot;
-            _debugClock.Text = $"独立模拟：{snapshot.Clock.Year}年{snapshot.Clock.Month}月 第{(int)snapshot.Clock.Xun}旬";
-        };
+            var button = new Button { Text = activity == DomesticActivity.Commerce ? "商业（单人）" : "开垦（单人）" }; box.AddChild(button);
+            button.Pressed += () =>
+            {
+                if (Selection.BuildingId is not int city) { _debugClock.Text="请先选择城市"; return; }
+                var officer=Session.Snapshot.Officers.Where(o => o.SettlementId==city && o.OwnerId==Session.View.PlayerForceId && !o.Acted)
+                    .OrderByDescending(o => o.CurrentPolitics).ThenBy(o => o.Id).FirstOrDefault();
+                if(officer is null) { _debugClock.Text="没有可行动武将"; return; }
+                var result=Session.Develop(new(Session.View.PlayerForceId,city,officer.Id,activity));
+                _debugClock.Text=result.Accepted ? $"增加 {result.Increment}，支出 {result.Cost}" : $"拒绝：{result.Rejection}";
+            };
+        }
     }
 }

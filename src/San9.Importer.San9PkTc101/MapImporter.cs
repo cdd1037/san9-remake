@@ -110,7 +110,12 @@ public static class MapImporter
         {
             int start = location.GetProperty("offset").GetInt32(), count = location.GetProperty("count").GetInt32();
             var parts = Enumerable.Range(0, count).Select(i => { int p = start + 28 * i; return new MapCompositionPart(Int(p) != 0, Int(p + 4) != 0, Int(p + 12), Int(p + 16), Int(p + 20)); }).ToArray();
-            compositions.Add(new(location.GetProperty("id").GetInt32(), parts));
+            var guards = location.GetProperty("soldiers"); var flags = location.GetProperty("flags");
+            compositions.Add(new(location.GetProperty("id").GetInt32(), parts)
+            {
+                Guards = Enumerable.Range(0, guards.GetProperty("count").GetInt32()).Select(i => { int p = guards.GetProperty("offset").GetInt32() + 16*i; return new MapGuard(Int(p), Int(p+4), Int(p+12)); }).ToArray(),
+                Flags = Enumerable.Range(0, flags.GetProperty("count").GetInt32()).Select(i => { int p = flags.GetProperty("offset").GetInt32() + 8*i; return new MapFlag(Int(p), Int(p+4)); }).ToArray()
+            });
         }
         var buildingImages = Images("G_LBUILD", 284); var buildingPalettes = Palettes("P_LBUILD", 6);
         var addImages = Images("G_LBAdd", 28); var addPalettes = Palettes("P_BAdd", 7);
@@ -128,7 +133,14 @@ public static class MapImporter
             }
             assets.Add(Save(key, $"objects/{key}.png", IndexedImageArchive.Decode(image, palette, true, alpha))); return key;
         }
-        // Export the confirmed visual catalog independently of the scenario snapshot.
+        // Every decoded building resource has a known palette mapping. Export both supported
+        // transparency interpretations; composition metadata selects the required one at runtime.
+        for (int resource = 5663; resource <= 5974; resource++)
+        {
+            BuildingImage(resource, false);
+            BuildingImage(resource, true);
+        }
+        // Validate every confirmed composition independently of the scenario snapshot.
         foreach (var composition in compositions)
             foreach (var part in composition.Parts)
                 for (int variant = 0; variant < (composition.Id < 15 && part.DevelopmentVariant ? 3 : 1); variant++)
@@ -167,9 +179,9 @@ public static class MapImporter
         }).ToArray();
         var edges = MapCloudCompiler.Edges(squares);
         var clouds = MapCloudCompiler.Foreground(squares, orderedBuildings, assets.ToDictionary(a => a.Id), cloudPlacements);
-        var animations = MapAnimationCompiler.Compile(exe, scenario, dataDir, root, rawSquares, cities, zones, orderedBuildings, additionalLandPalettes[1], Read, Save, assets);
-        progress?.Invoke($"Animations: {animations.Clips.Length} clips, {animations.Water.Length} water tiles, {animations.Buildings.Length} building sprites.");
+        var animations = MapAnimationCompiler.Compile(exe, dataDir, rawSquares, additionalLandPalettes[1], Read, Save, assets);
+        progress?.Invoke($"Animations: {animations.Clips.Length} clips, {animations.Water.Length} water tiles, complete runtime flag and guard catalog.");
         progress?.Invoke($"Objects: {bridges.Count} bridges, {buildings.Count} buildings, {clouds.Length} foreground clouds; fallback=0.");
-        return new(7, San9PkTc101Detector.SourceBuildId, header.ScenarioId.ToString(System.Globalization.CultureInfo.InvariantCulture), names[(header.StartDate.Month - 1) / 3], 200, 200, 13056, 6656, squares, seasons.ToArray(), assets.ToArray(), maskRecords.ToArray(), terrain, bridges.ToArray(), orderedBuildings, compositions.ToArray(), clouds, edges.Left, edges.Right, sources.OrderBy(s => s.Name, StringComparer.Ordinal).ToArray(), animations, boundaries);
+        return new(8, San9PkTc101Detector.SourceBuildId, header.ScenarioId.ToString(System.Globalization.CultureInfo.InvariantCulture), names[(header.StartDate.Month - 1) / 3], 200, 200, 13056, 6656, squares, seasons.ToArray(), assets.ToArray(), maskRecords.ToArray(), terrain, bridges.ToArray(), orderedBuildings.Select(b => new MapBuildingPlacement(b.Id,b.X,b.Y,b.FixedType)).ToArray(), compositions.ToArray(), clouds, edges.Left, edges.Right, sources.OrderBy(s => s.Name, StringComparer.Ordinal).ToArray(), animations, boundaries) { BuildingTypes = fixedBuildings.Select((b,id) => new MapBuildingType(id, b.MaxDurability)).ToArray() };
     }
 }

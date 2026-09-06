@@ -10,6 +10,25 @@
   ],
   "domains": [
     {
+      "id": "domestic-development",
+      "classification": "core",
+      "behavior_specs": ["BEH-DOMESTIC-0001"],
+      "objects": ["DomesticActivity", "CurrentAbilities", "DevelopmentCommand", "ForceState", "SettlementState", "OfficerState"],
+      "states": ["validated-input", "command-rejected", "development-committed"],
+      "inputs": ["current effective abilities", "attribute deficit", "pre-command funds"],
+      "outputs": ["base increment before combination bonuses", "final increment for resolved bonus", "fixed participant cost"],
+      "invariants": ["integer truncation order", "nonnegative capped result", "pure calculation", "atomic single-officer commit", "rejection leaves world unchanged"],
+      "acceptance_gates": ["ability selection", "integer boundaries", "repair funds cap", "overflow rejection prevention"],
+      "depends_on": [],
+      "implementation": {
+        "project": "San9.Core",
+        "target_namespace": "San9.Core.Domain",
+        "target_path": "src/San9.Core/Domain",
+        "entry_types": ["DomesticDevelopment"],
+        "existing_anchors": ["src/San9.Core/Domain/DomesticDevelopment.cs", "src/San9.Core/Domain/RuntimeState.cs", "src/San9.Core/Simulation/WorldState.cs"]
+      }
+    },
+    {
       "id": "simulation",
       "classification": "core",
       "behavior_specs": ["BEH-SIMULATION-0001"],

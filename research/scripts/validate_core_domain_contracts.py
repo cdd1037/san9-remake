@@ -11,6 +11,7 @@ from pathlib import Path
 
 
 REQUIRED_CORE_DOMAINS = {
+    "domestic-development",
     "ai",
     "simulation",
     "personnel",

@@ -13,19 +13,30 @@ public sealed record MapSeason(string Id, ImageAsset[] Textures);
 public sealed record MapMask(int Id, string WeightAsset, string CoverageAsset);
 public sealed record TerrainStamp(int ResourceId, int MaskId, int X, int Y, int SourceX, int SourceY, bool IsCenter);
 public sealed record MapSprite(string AssetId, int X, int Y);
+public sealed record MapBuildingPlacement(int Id, int X, int Y, int FixedType);
+public sealed record MapBuildingType(int Id, int MaxDurability);
+public sealed record MapGuard(int X, int Y, int Direction);
+public sealed record MapFlag(int X, int Y);
 public sealed record MapBuilding(int Id, int X, int Y, int FixedType, int CompositionId, MapSprite[] Sprites);
-public sealed record MapComposition(int Id, MapCompositionPart[] Parts);
+public sealed record MapComposition(int Id, MapCompositionPart[] Parts)
+{
+    [System.Text.Json.Serialization.JsonRequired] public MapGuard[] Guards { get; init; } = [];
+    [System.Text.Json.Serialization.JsonRequired] public MapFlag[] Flags { get; init; } = [];
+}
 public sealed record MapCompositionPart(bool PaletteAlpha, bool DevelopmentVariant, int ResourceId, int X, int Y);
 public sealed record MapAnimationClip(string Id, string[] Frames, int FrameMilliseconds, Dictionary<string, string[]> SeasonFrames);
 public sealed record MapAnimatedSprite(string ClipId, int X, int Y, int Phase, int BuildingId);
-public sealed record MapAnimations(MapAnimationClip[] Clips, MapAnimatedSprite[] Water, MapAnimatedSprite[] Buildings);
+public sealed record MapAnimations(MapAnimationClip[] Clips, MapAnimatedSprite[] Water);
 public sealed record MapPackage(
     int SchemaVersion, string SourceBuild, string ScenarioId, string InitialSeason,
     int Width, int Height, int CanvasWidth, int CanvasHeight,
     MapSquare[] Squares, MapSeason[] Seasons, ImageAsset[] Assets, MapMask[] Masks,
-    TerrainStamp[] Terrain, MapSprite[] Bridges, MapBuilding[] Buildings,
+    TerrainStamp[] Terrain, MapSprite[] Bridges, MapBuildingPlacement[] Buildings,
     MapComposition[] Compositions, MapSprite[] Clouds, int?[] LeftEdge, int?[] RightEdge,
-    ContentSource[] Sources, MapAnimations Animations, MapSprite[] Boundaries);
+    ContentSource[] Sources, MapAnimations Animations, MapSprite[] Boundaries)
+{
+    [System.Text.Json.Serialization.JsonRequired] public MapBuildingType[] BuildingTypes { get; init; } = [];
+}
 
 public static class MapPackageFiles
 {
@@ -40,7 +51,7 @@ public static class MapPackageFiles
 
     public static void Validate(MapPackage map)
     {
-        if (map.SchemaVersion != 7 || map.Width != 200 || map.Height != 200 || map.Squares.Length != 40000 ||
+        if (map.SchemaVersion != 8 || map.Width != 200 || map.Height != 200 || map.Squares.Length != 40000 ||
             map.CanvasWidth != 13056 || map.CanvasHeight != 6656) throw new InvalidDataException("Unsupported map dimensions or schema.");
         if (!map.Seasons.Select(s => s.Id).Order().SequenceEqual(new[] { "autumn", "spring", "summer", "winter" }) ||
             !map.Seasons.Any(s => s.Id == map.InitialSeason)) throw new InvalidDataException("Invalid seasons.");
@@ -62,7 +73,7 @@ public static class MapPackageFiles
         foreach (var stamp in map.Terrain)
             if (!terrainSet.Contains(stamp.ResourceId.ToString(System.Globalization.CultureInfo.InvariantCulture)) || !masks.ContainsKey(stamp.MaskId))
                 throw new InvalidDataException("Missing terrain or mask reference.");
-        foreach (var sprite in map.Boundaries.Concat(map.Bridges).Concat(map.Buildings.SelectMany(b => b.Sprites)).Concat(map.Clouds))
+        foreach (var sprite in map.Boundaries.Concat(map.Bridges).Concat(map.Clouds))
             if (!common.ContainsKey(sprite.AssetId)) throw new InvalidDataException("Missing sprite reference.");
         if (!common.TryGetValue("minimap-terrain", out var minimap) || minimap.Width != 320 || minimap.Height != 160)
             throw new InvalidDataException("Invalid minimap terrain image.");
@@ -72,8 +83,32 @@ public static class MapPackageFiles
             if (square.Terrain is < 0 or > 16 || square.Elevation is < 0 or > 7 || square.ElevationMask is < 0 or > 15)
                 throw new InvalidDataException("Invalid square.");
         foreach (var building in map.Buildings)
-            if (building.X is < 0 or >= 200 || building.Y is < 0 or >= 200 || building.Sprites.Length == 0)
+            if (building.X is < 0 or >= 200 || building.Y is < 0 or >= 200)
                 throw new InvalidDataException("Invalid building.");
+        var types = map.BuildingTypes.ToDictionary(t => t.Id);
+        for (int resource = 5663; resource <= 5974; resource++)
+            if (!common.ContainsKey($"building-{resource}-alpha") || !common.ContainsKey($"building-{resource}-key"))
+                throw new InvalidDataException("Incomplete building resource catalog.");
+        if (map.Buildings.Select(b => b.Id).Distinct().Count() != map.Buildings.Length ||
+            map.Buildings.Any(b => !types.ContainsKey(b.FixedType)) || types.Values.Any(t => t.Id is < 0 or > 16 || t.MaxDurability <= 0))
+            throw new InvalidDataException("Invalid building type catalog.");
+        if (map.Compositions.Select(c => c.Id).Distinct().Count() != map.Compositions.Length)
+            throw new InvalidDataException("Duplicate building composition.");
+        foreach (var composition in map.Compositions)
+        {
+            if (composition.Parts.Length == 0 || composition.Guards.Any(g => g.Direction is < 0 or > 7))
+                throw new InvalidDataException("Invalid building composition.");
+            foreach (var part in composition.Parts)
+                for (int variant = 0; variant < (composition.Id < 15 && part.DevelopmentVariant ? 3 : 1); variant++)
+                    if (!common.ContainsKey($"building-{part.ResourceId+variant}-{(part.PaletteAlpha?"alpha":"key")}"))
+                        throw new InvalidDataException("Incomplete building development catalog.");
+        }
+        var clipIds = map.Animations.Clips.Select(c => c.Id).ToHashSet();
+        var requiredClips = Enumerable.Range(0,51).Select(c => $"flag-cloth-{c}")
+            .Concat(Enumerable.Range(0,2).SelectMany(v => Enumerable.Range(0,186).Select(g => $"flag-glyph-{v}-{g}")))
+            .Concat(Enumerable.Range(0,8).Select(d => $"soldier-{d}"))
+            .Concat(["flag-pole-back","flag-pole-front"]);
+        if (requiredClips.Any(id => !clipIds.Contains(id))) throw new InvalidDataException("Incomplete runtime flag or guard catalog.");
         ValidateAnimations(map.Animations, common, map.Buildings.Select(b => b.Id).ToHashSet());
     }
 
@@ -92,10 +127,10 @@ public static class MapPackageFiles
             if (clip.Frames.Concat(clip.SeasonFrames.Values.SelectMany(f => f)).Any(f => assets[f].Width != first.Width || assets[f].Height != first.Height))
                 throw new InvalidDataException("Animation frame dimensions differ.");
         }
-        foreach (var sprite in animations.Water.Concat(animations.Buildings))
+        foreach (var sprite in animations.Water)
             if (!clips.TryGetValue(sprite.ClipId, out var clip) || sprite.Phase < 0 || sprite.Phase >= clip.Frames.Length)
                 throw new InvalidDataException("Invalid animation reference or phase.");
-        if (animations.Water.Any(s => s.BuildingId != -1) || animations.Buildings.Any(s => !buildings.Contains(s.BuildingId)))
+        if (animations.Water.Any(s => s.BuildingId != -1))
             throw new InvalidDataException("Invalid animation owner.");
     }
 }

@@ -30,7 +30,14 @@ try
     {
         if (options.ContainsKey("--package") == options.ContainsKey("--content-package")) throw new ArgumentException("Specify exactly one of --package or --content-package.");
         string root=options.ContainsKey("--content-package") ? Required("--content-package") : Required("--package");
-        var map=options.ContainsKey("--content-package") ? (await ClientContentFiles.LoadAsync(root)).Map : await MapPackageFiles.LoadAsync(root);
+        var content=options.ContainsKey("--content-package") ? await ClientContentFiles.LoadAsync(root) : null;
+        var map=content?.Map ?? await MapPackageFiles.LoadAsync(root);
+        if(content is null && !options.ContainsKey("--terrain-only")) throw new ArgumentException("Building rendering requires --content-package; a map catalog contains no runtime state.");
+        var buildings=content is null ? Array.Empty<MapBuilding>() : BuildingVisuals.Resolve(map,content.Scenario.Settlements.Select(s =>
+        {
+            var force=s.OwnerId is int owner?content.Scenario.Forces.Single(f=>f.Id==owner):null;
+            return new BuildingVisualState(s.Id,s.Durability,s.Appearance,Math.Max(s.Commerce,s.Cultivation),s.Soldiers,force?.ColorCode??50,force?.FlagGlyph??-1);
+        }).ToArray()).Buildings;
         string season=options.GetValueOrDefault("--season",map.InitialSeason);
         var common=ImageAssetFiles.Load(root,map.Assets);
         var land=ImageAssetFiles.Load(root,map.Seasons.Single(s=>s.Id==season).Textures).ToDictionary(k=>int.Parse(k.Key),v=>v.Value);
@@ -49,7 +56,7 @@ try
             }
         }
         if(!options.ContainsKey("--terrain-only"))
-        foreach(var sprite in map.Bridges.Concat(map.Buildings.SelectMany(b=>b.Sprites)).Concat(map.Clouds))
+        foreach(var sprite in map.Bridges.Concat(buildings.SelectMany(b=>b.Sprites)).Concat(map.Clouds))
         {
             var image=common[sprite.AssetId];
             for(int py=Math.Max(y,sprite.Y);py<Math.Min(y+height,sprite.Y+image.Height);py++)

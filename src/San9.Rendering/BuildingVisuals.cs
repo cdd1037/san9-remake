@@ -1,0 +1,47 @@
+using San9.Content.Maps;
+
+namespace San9.Rendering;
+
+public sealed record BuildingVisualState(int Id, int Durability, int Appearance, int Development, uint Soldiers, int Color, int Glyph);
+public sealed record BuildingVisuals(MapBuilding[] Buildings, MapAnimatedSprite[] Animations)
+{
+    public static BuildingVisuals Resolve(MapPackage map, IReadOnlyList<BuildingVisualState> states)
+    {
+        int[] bases = [0, 15, 19, 24, 29, 34, 39, 43, 48, 53, 58, 62, 66, 71, 76, 81, 86];
+        HashSet<int> darkGlyph = [3,6,7,8,11,16,18,21,22,23,24,26,27,29,31,33,38,39,40,46,49,50];
+        var input = states.ToDictionary(s => s.Id);
+        var compositions = map.Compositions.ToDictionary(c => c.Id);
+        var types = map.BuildingTypes.ToDictionary(t => t.Id);
+        List<MapBuilding> buildings = []; List<MapAnimatedSprite> animations = [];
+        foreach (var b in map.Buildings.OrderBy(b => b.X+b.Y).ThenBy(b => b.X))
+        {
+            var state = input[b.Id]; int type = b.FixedType, maximum = types[type].MaxDurability;
+            if (state.Color is < 0 or > 50 || state.Glyph is < -1 or > 185 || state.Durability < 0 || maximum <= 0)
+                throw new InvalidDataException("Invalid runtime building visual state.");
+            bool four = type is 0 or 2 or 3 or 4 or 5 or 7 or 9 or 12 or 13 or 16;
+            int frame = (long)state.Durability*100 < maximum*20L ? 0 : four && (long)state.Durability*100 < maximum*40L ? 1 :
+                (long)state.Durability*100 < maximum*60L ? (four?2:1) : (four?3:2);
+            int style = type != 0 ? 0 : state.Appearance switch { 0 => 1, 1 => 2, 2 => 0, _ => throw new InvalidDataException("Invalid city style.") };
+            int id = bases[type]+1+frame+(type==0?style*5:0);
+            if (!compositions.TryGetValue(id,out var composition)) throw new InvalidDataException($"Unconfirmed composition {id}.");
+            var center = MapGeometry.Center(b.X,b.Y); int x = center.X, y = center.Y-10*(map.Squares[b.Y*map.Width+b.X].Elevation-1);
+            int development = state.Development <= 300 ? 0 : state.Development <= 600 ? 1 : 2;
+            var sprites = composition.Parts.Select(p => new MapSprite($"building-{p.ResourceId+(type==0 && p.DevelopmentVariant?development:0)}-{(p.PaletteAlpha?"alpha":"key")}",x+p.X,y+p.Y)).ToArray();
+            buildings.Add(new(b.Id,b.X,b.Y,type,id,sprites));
+            if (state.Soldiers > 0)
+                for (int i=0;i<composition.Guards.Length;i++)
+                {
+                    var g=composition.Guards[i]; animations.Add(new($"soldier-{g.Direction}",x+g.X,y+g.Y,(b.Id+i)%8,b.Id));
+                }
+            for (int i=0;i<composition.Flags.Length;i++)
+            {
+                var f=composition.Flags[i]; int phase=(b.Id+i)%4;
+                animations.Add(new("flag-pole-back",x+f.X,y+f.Y,phase,b.Id));
+                animations.Add(new($"flag-cloth-{state.Color}",x+f.X,y+f.Y,phase,b.Id));
+                if(state.Glyph>=0) animations.Add(new($"flag-glyph-{(darkGlyph.Contains(state.Color)?1:0)}-{state.Glyph}",x+f.X,y+f.Y,phase,b.Id));
+                animations.Add(new("flag-pole-front",x+f.X,y+f.Y,phase,b.Id));
+            }
+        }
+        return new(buildings.ToArray(),animations.ToArray());
+    }
+}

@@ -95,12 +95,12 @@ def main():
     exe = args.exe.read_bytes()
     assert hashlib.sha256(exe).hexdigest() == "d20794aeff67301ec2bf8c3becb1e9944c68c6c0588fbfd4bf04e8597f0e5028"
     content = json.loads((args.package / "content.json").read_text(encoding="utf-8"))
-    assert content["schemaVersion"] == 4
+    assert content["schemaVersion"] == 5
     map_root = skin_root = args.package
     package, p, skin = content["map"], content["scenario"], content["skin"]
     text = content["text"]["entries"]
-    assert package["schemaVersion"] == 7 and "presentation" not in package
-    assert p["schemaVersion"] == 2 and skin["schemaVersion"] == 3
+    assert package["schemaVersion"] == 8 and "presentation" not in package
+    assert p["schemaVersion"] == 3 and skin["schemaVersion"] == 3
     assets = {a["id"]: a for a in skin["assets"]}
     map_assets = {a["id"]: a for a in package["assets"]}
     assert not set(assets).intersection(map_assets)
@@ -139,7 +139,9 @@ def main():
         verify_minimap(mini, package["squares"], (args.data/"P_MapEtc.s9").read_bytes()[44:1068])
     assert len(package["boundaries"]) > 0
     assert (map_assets["minimap-terrain"]["width"],map_assets["minimap-terrain"]["height"]) == (320,160)
-    assert sum(s["cityMarkerColor"] is not None for s in p["settlements"]) == 50
+    assert sum(s["id"] < 50 for s in p["settlements"]) == 50
+    assert all("cityMarkerColor" not in s and "hasAvailableOfficer" not in s for s in p["settlements"])
+    assert len([a for a in package["assets"] if a["id"].startswith("building-")]) == 624
     assert len(p["settlements"]) == 94
     player = next(f for f in p["forces"] if f["id"] == p["playerForceId"])
     assert (text[player["nameKey"]]["text"], player["money"], player["food"], player["trust"]) == ("董卓", 9520, 73200, 100)
@@ -148,15 +150,15 @@ def main():
         assert (text[s["nameKey"]]["text"], s["soldiers"], s["ownerId"], s["morale"]) == (name, soldiers, 5, 50)
     settlements = {s["id"]:s for s in p["settlements"]}
     assert settlements[15]["icons"] == ["merchant","emperor"] and settlements[17]["icons"] == ["training"]
-    assert [s["id"] for s in p["settlements"] if s["ownerId"] == 5 and s["hasAvailableOfficer"]] == [15,16,17,18,99]
+    assert [s["id"] for s in p["settlements"] if s["ownerId"] == 5 and any(o["settlementId"] == s["id"] and o["ownerId"] == 5 and not o["acted"] for o in p["officers"])] == [15,16,17,18,99]
     assert all(not s["icons"] for s in p["settlements"] if s["id"] >= 50)
-    assert all(s["cityMarkerColor"] == 50 for s in p["settlements"] if s["id"] < 50 and s["ownerId"] is None)
     assert p["regionCityIds"]["99"] == 15
     assert [s["id"] for s in p["settlements"] if s["ownerId"] == 5] == [15, 16, 17, 18, 95, 96, 97, 98, 99, 100, 104, 106, 107]
     assert not {"M_MsgPK.s9", "G_Main.s9"}.intersection(a["name"] for a in package["sources"])
     if args.baseline:
         old = json.loads((args.baseline / "map.json").read_text(encoding="utf-8"))
-        for key in ["squares", "terrain", "bridges", "buildings", "compositions", "clouds", "leftEdge", "rightEdge", "animations", "seasons"]:
+        assert old["schemaVersion"] == 8, "Baseline must use the current map contract"
+        for key in ["buildingTypes", "squares", "terrain", "bridges", "buildings", "compositions", "clouds", "leftEdge", "rightEdge", "animations", "seasons"]:
             if key == "seasons":
                 current = json.loads(json.dumps(package[key]))
                 for season in current:

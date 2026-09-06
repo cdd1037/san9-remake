@@ -22,7 +22,7 @@ public sealed class AiPlanningTests
         AdvanceXunResult expected = withoutAnalysis.AdvanceXun();
         AdvanceXunResult actual = withAnalysis.AdvanceXun();
 
-        Assert.Equal(expected.Snapshot, actual.Snapshot);
+        Assert.Equal(expected.Snapshot.StateHash, actual.Snapshot.StateHash);
         Assert.Equal(expected.Events, actual.Events);
     }
 

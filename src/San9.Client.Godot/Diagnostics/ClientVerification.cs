@@ -20,6 +20,7 @@ public partial class ClientVerification : Node
         try
         {
             if (Options.Smoke) await RunSmoke();
+            if (Options.RuntimeSmoke) await RunRuntimeChecks();
             var timeout = System.Diagnostics.Stopwatch.StartNew();
             while (!World.IsVisibleReady)
             {
@@ -97,6 +98,26 @@ public partial class ClientVerification : Node
             GD.Print($"MAP_SMOKE_OK picking zoom drag bounds seasons; cache_mib={World.CacheBytes / 1048576}");
         }
         catch (Exception e) { throw new InvalidOperationException("Map smoke failed.", e); }
+    }
+    private async Task RunRuntimeChecks()
+    {
+        var session = World.Session;
+        var before = session.Snapshot;
+        var officer = before.Officers.Where(o => o.SettlementId == 15 && o.OwnerId == 5 && !o.Acted)
+            .OrderByDescending(o => o.CurrentPolitics).First();
+        if (Options.Screenshot is { } path) await Capture(Path.Combine(Path.GetDirectoryName(path)!, "runtime-before.png"), false);
+        var result = session.Develop(new(5,15,officer.Id,San9.Core.Domain.DomesticActivity.Commerce));
+        if (!result.Accepted || session.Snapshot.Forces.Single(f => f.Id == 5).Money != before.Forces.Single(f => f.Id == 5).Money-50 ||
+            session.Snapshot.Settlements.Single(s => s.Id == 15).Commerce <= 300 || session.Snapshot.Clock != before.Clock)
+            throw new InvalidOperationException("Runtime development transaction failed.");
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        if (World.StateRevision != session.Snapshot.Revision || Hud.DisplayedMoney != session.Snapshot.Forces.Single(f => f.Id == 5).Money.ToString())
+            throw new InvalidOperationException("Runtime map or HUD did not consume the committed snapshot.");
+        var after = session.Snapshot;
+        if (session.Develop(new(5,15,officer.Id,San9.Core.Domain.DomesticActivity.Commerce)).Accepted || session.Snapshot.StateHash != after.StateHash)
+            throw new InvalidOperationException("Rejected runtime command changed the world.");
+        GD.Print($"RUNTIME_SMOKE_OK development={result.Increment} cost={result.Cost} revision={World.StateRevision} old_snapshot_money={before.Forces.Single(f => f.Id == 5).Money}");
     }
     private async Task WaitForView()
     {

@@ -4,14 +4,12 @@ public sealed class SimulationEngine
 {
     private readonly List<GameCommand> _commands = [];
     private readonly HashSet<Guid> _commandIds = [];
-    private readonly StableRandom _random;
     private readonly WorldState _world;
 
     public SimulationEngine(WorldState world)
     {
         ArgumentNullException.ThrowIfNull(world);
         _world = world;
-        _random = new StableRandom(world.RandomState);
     }
 
     public WorldSnapshot Snapshot => _world.CreateSnapshot();
@@ -62,10 +60,9 @@ public sealed class SimulationEngine
                 command.GetType().Name));
         }
 
-        ulong resolutionToken = _random.NextUInt64();
         GameClock current = previous.Advance();
-        _world.CommitXun(current, _random.State);
-        events.Add(new XunAdvancedEvent(previous, current, resolutionToken));
+        _world.CommitXun(current, _world.RandomState);
+        events.Add(new XunAdvancedEvent(previous, current));
 
         _commands.Clear();
         _commandIds.Clear();

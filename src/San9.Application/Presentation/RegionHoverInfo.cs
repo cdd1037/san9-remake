@@ -6,7 +6,7 @@ namespace San9.Application.Presentation;
 
 public readonly record struct RegionHoverInfo(string Region, string City)
 {
-    public static RegionHoverInfo Resolve(MapSquare square, ScenarioSnapshot scenario, TextCatalog texts)
+    public static RegionHoverInfo Resolve(MapSquare square, StrategySnapshot scenario, TextCatalog texts)
     {
         if (square.HideRegionName || !scenario.RegionNameKeys.TryGetValue(square.RegionId, out var regionKey))
             return new("———", "——");

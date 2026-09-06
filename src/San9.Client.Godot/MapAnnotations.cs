@@ -12,15 +12,16 @@ public partial class MapAnnotations : Node2D
 {
     public MapWorld World { get; init; } = null!;
     public StrategySelection Selection { get; init; } = null!;
-    public ScenarioSnapshot Scenario { get; init; } = null!;
+    public San9.Application.GameSession Session { get; init; } = null!;
+    public San9.Application.Presentation.StrategySnapshot Scenario => Session.View;
     public TextCatalog Texts { get; init; } = null!;
     public InterfaceSkin Skin { get; init; } = null!;
     public IReadOnlyDictionary<string, PngImage> SkinImages { get; init; } = null!;
     public Font UiFont { get; init; } = null!;
     private readonly Dictionary<string, ImageTexture> _textures = [];
-    private Dictionary<int, SettlementSnapshot> _settlements = [];
+    private Dictionary<int, SettlementView> _settlements = [];
     private readonly Dictionary<int, (string Soldiers, float Width, string Name)> _labels = [];
-    private long _viewRevision = -1;
+    private long _viewRevision = -1, _stateRevision = -1;
     public long DrawCount { get; private set; }
     public override void _Ready()
     {
@@ -39,6 +40,17 @@ public partial class MapAnnotations : Node2D
     }
     public override void _Process(double delta)
     {
+        if (_stateRevision != Session.Snapshot.Revision)
+        {
+            _stateRevision = Session.Snapshot.Revision;
+            _settlements = Scenario.Settlements.ToDictionary(s => s.Id);
+            foreach (var s in _settlements.Values)
+            {
+                string soldiers=s.Soldiers.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                _labels[s.Id]=(soldiers,UiFont.GetStringSize(soldiers,fontSize:16).X,Texts.Resolve(s.NameKey));
+            }
+            QueueRedraw();
+        }
         if (_viewRevision == World.ViewRevision) return;
         _viewRevision = World.ViewRevision; QueueRedraw();
     }

@@ -39,7 +39,7 @@ public static class ClientContentImporter
                 return new(id, path, Convert.ToHexString(SHA256.HashData(bytes)), image.Width, image.Height);
             }
             var skin = InterfaceSkinCompiler.Compile(exe, dataDirectory, Read, Save);
-            var content = new ClientContentPackage(4, sources.Distinct().OrderBy(s => s.Name, StringComparer.Ordinal).ToArray(), map, scenario, text, skin);
+            var content = new ClientContentPackage(5, sources.Distinct().OrderBy(s => s.Name, StringComparer.Ordinal).ToArray(), map, scenario, text, skin);
             content.ValidateLinks();
             await File.WriteAllTextAsync(Path.Combine(staging, "content.json"), JsonSerializer.Serialize(content, PackageFiles.JsonOptions), token);
             await ClientContentFiles.LoadAsync(staging, token);

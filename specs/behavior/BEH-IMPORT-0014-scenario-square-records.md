@@ -171,7 +171,7 @@
 
 无阻塞正式剧本方格导入的字段未决项。既有 `SQUA-01..05` 已在[统一研究清单](../../research/scenario-field-research-checklist.md#已关闭字段队列)关闭。
 
-GPU shader 与混合精度、原作 `ZoneCode` 之外的重制地图对象关系属于产品设计，若改变当前规格须另立 `DEC-*`；编辑器保存行为归入 [`EDITOR-01`](../../research/scenario-field-research-checklist.md#范围外与后续扩展)，不作为本规格未决字段。
+GPU shader 与混合精度、原作 `ZoneCode` 之外的重制地图对象关系属于产品设计，若改变当前规格须更新目标行为与验收，是否新增 DEC 按[文档规则](../README.md)判断；编辑器保存行为归入 [`EDITOR-01`](../../research/scenario-field-research-checklist.md#范围外与后续扩展)，不作为本规格未决字段。
 
 ## IDA 同步记录
 

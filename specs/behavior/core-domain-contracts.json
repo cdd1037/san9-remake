@@ -259,7 +259,7 @@
     {
       "id": "presentation",
       "classification": "boundary",
-      "behavior_specs": ["BEH-RENDER-0001", "BEH-RENDER-0002", "BEH-RENDER-0003", "BEH-UI-0001"],
+      "behavior_specs": ["BEH-RENDER-0001", "BEH-RENDER-0002", "BEH-RENDER-0003", "BEH-RENDER-0004", "BEH-UI-0001"],
       "objects": ["read-only world snapshot", "static map snapshot", "calendar view model", "requested and presented viewport", "presentation clock", "strategy selection"],
       "states": ["unbound", "rendering", "presented"],
       "inputs": ["application snapshot", "validated content assets"],

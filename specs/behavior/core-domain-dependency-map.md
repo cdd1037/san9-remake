@@ -77,7 +77,7 @@ flowchart LR
 | 边界 | 规格 | 职责 | 实现入口 |
 | --- | --- | --- | --- |
 | `content-import` | `BEH-IMPORT-0001..0017` | 识别批准样本、无损解码已知/未知字段、生成稳定内容 ID 与规范化内容包；不进入运行时依赖 | `San9.Importer.San9PkTc101` 与 `San9.Content` |
-| `presentation` | `BEH-RENDER-0001..0003`、`BEH-UI-0001` | 消费只读快照和内容资产，组织地图、动画、完整视野提交、选择与固定UI；不拥有规则真值或玩法随机 | `San9.Rendering`、`San9.Application` 与 `San9.Client.Godot` |
+| `presentation` | `BEH-RENDER-0001..0004`、`BEH-UI-0001` | 消费只读快照和内容资产，组织地图、动画、完整视野提交、选择与固定UI；不拥有规则真值或玩法随机 | `San9.Rendering`、`San9.Application` 与 `San9.Client.Godot` |
 
 ## 决策门
 

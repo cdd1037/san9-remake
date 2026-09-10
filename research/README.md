@@ -29,7 +29,7 @@
 2. 使用 [研究模板](../specs/templates/README.md)记录实验或逆向结论。
 3. 把事实、推断和待验证事项分开。可信资料与目标样本的地址、字节或结构吻合时，可以作为 IDA 工作事实；进入正式行为规格时再执行更严格验证。
 4. 大型样本、差分产物和工具输出放在被 Git 忽略的目录，只提交哈希和生成说明。
-5. 研究成熟后，另写不含原版实现细节的行为规格；不要把研究笔记直接移动成规格。
+5. 产品采用研究结论时，按[规格维护规则](../specs/README.md#规格维护)更新相关 BEH；研究成熟本身不要求新增产品规格。
 6. 逆向任务产生可靠命名、类型或注释时，按需写入对应版本的项目主 IDA 数据库并回读验证；只读调查无需记录“数据库未修改”。
 
 主要入口为[`.s9` 文件清单](s9-file-inventory.md)、[来源登记表](SOURCES.md)、[逆向结论索引](findings/README.md)、[EXE 外部 DLL 契约清单](exe-dll-analysis-inventory.md)、[程序分析路线](archive/program-analysis-roadmap.md)、[来源覆盖账本](program-analysis-coverage.md)、[现有第三方仓库简介](upstream-repositories.md)和[证据链纸面演练](notes/0001-source-trace-example.md)。

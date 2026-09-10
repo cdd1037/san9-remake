@@ -56,7 +56,7 @@
 - [BEH-RENDER-0004：单份头像与统一裁剪视图](BEH-RENDER-0004-shared-portrait-views.md)（已确认，待接入）
 - [BEH-UI-0001：190年董卓势力初始主界面](BEH-UI-0001-initial-strategy-screen.md)（已确认）
 
-优先更新已有 BEH，仅在形成独立行为主题时参考[行为规格模板](../templates/behavior-spec.md)新增，说明目标行为、依据和验收；栏目按范围裁剪。可在规格内直接说明的取舍不另立 DEC，需独立记录的重要长期取舍见[决策目录](../decisions/README.md)。已有行为内的修复、布局调整与普通重构不要求新增规格。若规格声称描述原作行为，没有本项目可复验证据时不得设为“已确认”；原创或现代化设计可以依据明确的产品选择、原型验证和可测试的验收标准进入“已确认”。
+维护条件与状态含义见[规格索引](../README.md#规格维护)；新增时按[行为规格模板](../templates/behavior-spec.md)裁剪栏目。原作事实的确认遵循[研究规范](../research-method.md#从证据到规格)。
 
 - [BEH-UI-0002：武将运行态与右侧武将名单](BEH-UI-0002-officer-roster.md)（已确认）
 - [BEH-UI-0003：战略全图面板](BEH-UI-0003-strategy-overview.md)（已确认）

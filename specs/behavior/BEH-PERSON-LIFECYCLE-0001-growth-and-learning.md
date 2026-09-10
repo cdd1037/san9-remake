@@ -2,7 +2,7 @@
 
 - 状态：已确认
 - 负责人：项目开发者
-- 最后更新：2026-08-25
+- 最后更新：2026-09-11
 - 关联证据：[RE-SAN9PK-0067](../../research/findings/RE-SAN9PK-0067.md)、[RE-SAN9PK-0131](../../research/findings/RE-SAN9PK-0131.md)、[RE-SAN9PK-0134](../../research/findings/RE-SAN9PK-0134.md)
 - 关联决策：[DEC-SIM-0001](../decisions/DEC-SIM-0001-determinism-and-saves.md)
 - 继承方式：关系保留
@@ -25,7 +25,7 @@ chance = min(70, floor(max(proficiency-threshold, 0)/5) + 30)
 
 ## 重制行为
 
-重制版保留上述层次、趋势、上限、资格和顺序。随机来自显式玩法随机流；直接奖励使用独立命令类型，不伪装成概率习得。具体成长生产者由命令、战斗和事件规格调用，本规格只提供统一状态迁移。
+重制版保留上述层次、趋势、上限、资格和顺序。随机来自显式玩法随机流；直接奖励使用独立命令类型，不伪装成概率习得。具体成长生产者由命令、战斗和事件规格调用，本规格只提供统一状态迁移；单挑的低武力胜者成长即其中一个强制生产者，见 [BEH-DUEL-0003](BEH-DUEL-0003-duel-aftermath.md)。
 
 ## 状态与不变量
 

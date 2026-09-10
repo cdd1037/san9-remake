@@ -31,7 +31,7 @@
 | 登用失败扣谁的忠诚 | 繁中原作对招募方同一忠诚项先加后减；“程序员传错对象”仍是推断。重制改扣所属势力已经批准，不再征求相同决定 | [RE-0111](findings/RE-SAN9PK-0111.md)、[DEC-PERSON-0001](../specs/decisions/DEC-PERSON-0001-recruit-failure-affiliation-loyalty.md) |
 | 军师替换、俘虏忠诚 | 已修正旧漏判和平方/平方根误读；按最新记录执行，不能复用早期公式 | [RE-0112](findings/RE-SAN9PK-0112.md) |
 | 城市地利、逐日士气 | 最近定向复核已形成各自适用条件；本轮不把旧概括再次当作确认事实 | [RE-0099](findings/RE-SAN9PK-0099.md)、[RE-0090](findings/RE-SAN9PK-0090.md) |
-| 单挑成长、君主免死等旧说法 | 胜者死亡门、人物列传码/ID、接受方间隔等已分别裁决；攻略转载不是独立佐证 | [RE-0105](findings/RE-SAN9PK-0105.md)、[RE-0106](findings/RE-SAN9PK-0106.md)、[RE-0107](findings/RE-SAN9PK-0107.md)、[RE-0108](findings/RE-SAN9PK-0108.md) |
+| 单挑成长、君主免死等旧说法 | 单挑低武力胜者成长已按非 PK 版与第三方资料裁决为产品规则（`DEC-DUEL-0001`）；君主免死、人物列传码/ID、接受方间隔等已分别裁决 | [RE-0105](findings/RE-SAN9PK-0105.md)、[RE-0106](findings/RE-SAN9PK-0106.md)、[RE-0107](findings/RE-SAN9PK-0107.md)、[RE-0108](findings/RE-SAN9PK-0108.md)、[RE-0165](findings/RE-SAN9PK-0165.md) |
 | 人物出生/登场年、勇猛、官职/官爵 | 早期错名已有生产消费链纠正；不再新增兼容字段维持旧抽象 | [RE-0009](findings/RE-SAN9PK-0009.md)、[RE-0133](findings/RE-SAN9PK-0133.md) |
 | 部队状态、目标编码、地图阻挡与过渡字段 | 已关闭字段队列的33项历史问题沿当前结论；原始保留位不等于规则未实现 | [字段清单](scenario-field-research-checklist.md) |
 | 生效时机与联机 | 已决定当前保留原作各命令生效时机，联机设计时再重审；不是本次待批准事项 | [DEC-SIM-0001](../specs/decisions/DEC-SIM-0001-determinism-and-saves.md) |

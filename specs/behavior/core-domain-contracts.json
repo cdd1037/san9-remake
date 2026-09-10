@@ -187,9 +187,9 @@
       "objects": ["DuelOpportunity", "DuelRoster", "DuelStrike", "DuelOutcome", "DuelAftermath"],
       "states": ["not-triggered", "active", "strike-resolved", "finished", "committed"],
       "inputs": ["valid land attack opportunity", "ordered participants", "combat attributes", "stable duel random streams"],
-      "outputs": ["duel roster", "exclusive strike result", "partitioned personnel outcomes", "morale update"],
-      "invariants": ["one initial participant per side", "one result per strike", "death capture and injury are mutually exclusive", "presentation random never changes gameplay"],
-      "acceptance_gates": ["trigger and participant order", "strike probability and damage", "aftermath partition", "original erroneous growth gate remains excluded"],
+      "outputs": ["duel roster", "exclusive strike result", "partitioned personnel outcomes", "morale update", "low-martial bout winner base martial growth"],
+      "invariants": ["one initial participant per side", "one result per strike", "death capture and injury are mutually exclusive", "presentation random never changes gameplay", "low-martial bout winner grows base martial at most once per duel"],
+      "acceptance_gates": ["trigger and participant order", "strike probability and damage", "aftermath partition", "low-martial winner growth eligibility and saturating write"],
       "depends_on": ["simulation", "personnel", "warfare"],
       "implementation": {
         "project": "San9.Core",
@@ -341,11 +341,11 @@
       "disposition": "do not consume an ineffective additional-participant roll for an already selected initial participant"
     },
     {
-      "id": "duel-erroneous-growth-gate",
-      "kind": "original-bug",
+      "id": "duel-low-martial-winner-growth",
+      "kind": "source-conflict",
       "behavior_specs": ["BEH-DUEL-0003"],
-      "decision": "DEC-PROJECT-0002",
-      "disposition": "exclude the ineffective original growth gate; any future replacement requires a new decision"
+      "decision": "DEC-DUEL-0001",
+      "disposition": "adopt the guide and non-PK rule where a bout winner whose duel-start effective martial is lower than the paired loser gains one base martial, instead of the unreachable PK guard"
     },
     {
       "id": "shenshou-probability",

@@ -15,6 +15,7 @@
 - [DEC-SIM-0001：确定性命令结算与显式存档迁移](DEC-SIM-0001-determinism-and-saves.md)
 - [DEC-SCOPE-0001：最小可玩版本的剧本范围](DEC-SCOPE-0001-scenario-scope.md)
 - [DEC-EVENT-0001：神兽事件采用连续的武力成功率参数](DEC-EVENT-0001-shenshou-probability.md)
+- [DEC-DUEL-0001：单挑低武力胜者成长采用攻略书与非 PK 版行为](DEC-DUEL-0001-duel-low-martial-winner-growth.md)
 - [DEC-RENDER-0001：地图渲染采用现代高精度颜色](DEC-RENDER-0001-high-color-map-rendering.md)
 - [DEC-UI-0001：MVP 采用固定 4:3 逻辑画布](DEC-UI-0001-fixed-four-by-three-mvp-canvas.md)
 - [DEC-UI-0002：用现代方式对齐原作文字效果](DEC-UI-0002-modern-text-effects.md)

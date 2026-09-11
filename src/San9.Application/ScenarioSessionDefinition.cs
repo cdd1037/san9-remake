@@ -20,7 +20,7 @@ internal sealed class ScenarioSessionDefinition
         };
         Fingerprint = CanonicalJson.Hash(new
         {
-            definition.SchemaVersion, definition.ScenarioId, definition.Year, definition.Month, definition.Day, definition.PlayerForceId,
+            definition.SchemaVersion, definition.ScenarioId, definition.Year, definition.Month, definition.Day, definition.PlayerForceId, definition.DomesticPairs, definition.ImperialSealId, definition.EmperorId,
             Forces = Forces().OrderBy(f => f.Id), Settlements = Settlements().OrderBy(s => s.Id),
             Officers = definition.Officers.Select(o => o.State with { LearnedTactics = o.State.LearnedTactics.Order().ToImmutableArray() }).OrderBy(o => o.Id),
             Units = definition.Units.OrderBy(u => u.Id), Corps = definition.Information.Corps.OrderBy(c => c.Id),
@@ -46,13 +46,13 @@ internal sealed class ScenarioSessionDefinition
     private IEnumerable<ForceState> Forces() => Content.Forces.Select(f => new ForceState(f.Id, f.Money, f.Food, f.Trust)
     {
         ProvidedTactics = f.ProvidedTactics.Order().ToImmutableArray(), IsBarbarian = f.IsBarbarian,
-        LeaderId = f.LeaderId, RankId = f.RankId
+        LeaderId = f.LeaderId, RankId = f.RankId, BaseTrust = f.BaseTrust
     });
 
     private IEnumerable<SettlementState> Settlements() => Content.Settlements.Select(s => new SettlementState(s.Id,
         s.OwnerId, s.Soldiers, s.Durability, s.MaxDurability, s.Morale, s.PublicOrder, s.Commerce, s.MaxCommerce,
         s.Cultivation, s.MaxCultivation)
     {
-        Kind = s.Kind, CorpsId = s.CorpsId, Population = s.Population, DraftPopulation = s.DraftPopulation
+        Kind = s.Kind, CorpsId = s.CorpsId, SoldierCapacity = s.SoldierCapacity, ConsumesFood = s.ConsumesFood, Population = s.Population, DraftPopulation = s.DraftPopulation
     });
 }

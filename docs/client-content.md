@@ -7,7 +7,7 @@
 | 模块 | 职责 | 输出 |
 | --- | --- | --- |
 | Content.Maps / MapImporter | 当前地图方格、地貌及对象位置 | `map.json`（无图片文件） |
-| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态 | `scenario.json`，schema11 |
+| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态 | `scenario.json`，schema12 |
 | Content.Text / ScenarioTextReader | 名称与全量消息目录 | `text.json` / `messages.json`，schema3 |
 | Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema16 |
 | Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema24 |
@@ -99,3 +99,5 @@ F3提供四季预览及单人商业、开垦入口，内政修改当前会话世
 当前运行包为`local/generated/content/scenario-190-live`。研究资料位于`local/generated/research`，仍有用途的运行态对照、字体研究和检查工具位于`local/generated/verification`。局部问题解决后清理对应临时截图与日志，不保留多轮重复验收记录。
 
 文字角色、状态与原生效果的统一入口见[统一文字样式](text-styles.md)。
+
+G03经济内容保留基础信望、相性、精通类别、军团账户、兵力容量与粮耗资格；组合表映射为规范化人物ID对，官职俸禄进入Core规则目录。数据覆盖与运行验证见[G03验收](g03-verification.md)。

@@ -10,6 +10,68 @@
   ],
   "domains": [
     {
+      "id": "economy",
+      "classification": "core",
+      "behavior_specs": [
+        "BEH-ECONOMY-0001"
+      ],
+      "objects": [
+        "EconomyRulebook",
+        "ResourceAccount",
+        "DevelopmentCommand",
+        "ForceState",
+        "SettlementState",
+        "OfficerState"
+      ],
+      "states": [
+        "validated",
+        "rejected",
+        "committed",
+        "resource-shortfall"
+      ],
+      "inputs": [
+        "normalized salaries and combination pairs",
+        "current participants and ownership",
+        "simulation calendar"
+      ],
+      "outputs": [
+        "domestic effects",
+        "structured resource events",
+        "population and periodic income"
+      ],
+      "invariants": [
+        "single resource account owner",
+        "recruitment conserves military population",
+        "rejected command has no random or state effects",
+        "restore never repeats economic preparation"
+      ],
+      "acceptance_gates": [
+        "multi-officer command boundaries",
+        "independent treasury and saturation",
+        "quarterly and July gates",
+        "economic year with disk and recording replay"
+      ],
+      "depends_on": [
+        "simulation",
+        "domestic-development"
+      ],
+      "implementation": {
+        "project": "San9.Core",
+        "target_namespace": "San9.Core.Simulation",
+        "target_path": "src/San9.Core/Simulation",
+        "entry_types": [
+          "EconomicCycle",
+          "DomesticDevelopmentHandler",
+          "ResourceAccounts"
+        ],
+        "existing_anchors": [
+          "src/San9.Core/Simulation/EconomicCycle.cs",
+          "src/San9.Core/Simulation/DomesticDevelopmentHandler.cs",
+          "src/San9.Application/DomesticPlanner.cs"
+        ]
+      }
+    },
+    {
       "id": "session-persistence",
       "classification": "boundary",
       "behavior_specs": [
@@ -82,7 +144,7 @@
       "states": ["validated-input", "command-rejected", "development-committed"],
       "inputs": ["current effective abilities", "attribute deficit", "pre-command funds"],
       "outputs": ["base increment before combination bonuses", "final increment for resolved bonus", "fixed participant cost"],
-      "invariants": ["integer truncation order", "nonnegative capped result", "pure calculation", "atomic single-officer commit", "rejection leaves world unchanged"],
+      "invariants": ["integer truncation order", "nonnegative capped result", "pure calculation", "atomic participant commit", "rejection leaves world unchanged"],
       "acceptance_gates": ["ability selection", "integer boundaries", "repair funds cap", "overflow rejection prevention"],
       "depends_on": [],
       "implementation": {

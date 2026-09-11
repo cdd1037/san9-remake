@@ -4,6 +4,7 @@
 
 跨领域实现从[核心领域依赖图与实现入口](core-domain-dependency-map.md)开始；其机器可校验源为 [`core-domain-contracts.json`](core-domain-contracts.json)。
 
+- [BEH-ECONOMY-0001：经营命令与周期经济](BEH-ECONOMY-0001-domestic-and-economic-cycle.md)（已确认）
 - [BEH-SAVE-0001：会话持久化、重放与无界面运行](BEH-SAVE-0001-session-persistence-replay-and-headless.md)（已确认、G02已验收）
 - [BEH-AI-0001：AI 观察、规划与命令提交边界](BEH-AI-0001-planning-boundary.md)（已确认）
 - [BEH-DOMESTIC-0001：四项内政基础增量](BEH-DOMESTIC-0001-base-development-effect.md)（已确认；不含完整命令与组合加倍）

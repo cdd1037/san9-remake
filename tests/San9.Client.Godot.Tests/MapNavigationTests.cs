@@ -10,7 +10,7 @@ public sealed class MapNavigationTests
     [Fact]
     public void SelectionAndFilteredFacilitiesUseBuildingIdentityNotRegionMembership()
     {
-        var presentation = new ScenarioInitialState(11, "fixture", 190, 1, 1, 5, [new(5,"player",5,100,100,100),new(6,"enemy",6,100,100,100)],
+        var presentation = new ScenarioInitialState(12, "fixture", 190, 1, 1, 5, [new(5,"player",5,100,100,100),new(6,"enemy",6,100,100,100)],
             [new(100, "port", 5, 80, 65, 1000, 300, 300, 50, []), new(15, "city", 5, 89, 64, 32000, 500, 1000, 50, []),
                 new(16, "enemy", 6, 90, 60, 9000, 400, 600, 50, []), new(17, "empty", null, 88, 60, 0, 300, 600, 0, [])], [], []);
         var selection = new StrategySelection(San9.Application.GameSession.Start(presentation,1)); int changes = 0; selection.Changed += () => changes++;

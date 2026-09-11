@@ -2,6 +2,7 @@ namespace San9.Core.Domain;
 
 public sealed record ForceState(int Id, uint Money, uint Food, int Trust)
 {
+    [System.Text.Json.Serialization.JsonRequired] public int BaseTrust { get; init; }
     public System.Collections.Immutable.ImmutableArray<int> ProvidedTactics { get; init; } = [];
     public bool IsBarbarian { get; init; }
     public int? LeaderId { get; init; }
@@ -15,13 +16,19 @@ public sealed record SettlementState(int Id, int? OwnerId, uint Soldiers, int Du
     bool CommerceUsed = false, bool CultivationUsed = false)
 {
     public SettlementKind Kind { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public uint SoldierCapacity { get; init; } = 500000;
+    [System.Text.Json.Serialization.JsonRequired] public bool ConsumesFood { get; init; } = true;
+    [System.Text.Json.Serialization.JsonRequired] public bool PatrolUsed { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public bool RepairUsed { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public bool RecruitUsed { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public bool TrainUsed { get; init; }
     public int? CorpsId { get; init; }
     public uint Population { get; init; }
     public uint DraftPopulation { get; init; }
 }
 
-public sealed record DevelopmentCommand(int ForceId, int SettlementId, int OfficerId, DomesticActivity Activity);
-public enum DevelopmentRejection { None, UnknownObject, UnsupportedActivity, WrongOwner, OfficerUnavailable, AlreadyUsed, AtMaximum, InsufficientFunds, NotAuthorized }
+public sealed record DevelopmentCommand(int ForceId, int SettlementId, System.Collections.Immutable.ImmutableArray<int> OfficerIds, DomesticActivity Activity);
+public enum DevelopmentRejection { None, UnknownObject, UnsupportedActivity, WrongOwner, OfficerUnavailable, AlreadyUsed, AtMaximum, InsufficientFunds, NotAuthorized, InvalidParticipants, NoRecruits, NoSoldiers }
 public readonly record struct DevelopmentOutcome(DevelopmentRejection Rejection, int Increment = 0, int Cost = 0)
 {
     [System.Text.Json.Serialization.JsonIgnore]

@@ -1,5 +1,8 @@
 namespace San9.Core.Simulation;
 
+[System.Text.Json.Serialization.JsonDerivedType(typeof(ResourceChangedEvent), "resource-changed")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(OfficerLoyaltyChangedEvent), "loyalty-changed")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(ForceTrustChangedEvent), "trust-changed")]
 [System.Text.Json.Serialization.JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(DevelopmentCompletedEvent), "development-completed")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(CommandResolvedEvent), "command-resolved")]

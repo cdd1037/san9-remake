@@ -107,7 +107,7 @@ public partial class ClientVerification : Node
         var officer = before.Officers.Where(o => o.SettlementId == 15 && o.OwnerId == 5 && !o.Acted)
             .OrderByDescending(o => o.Abilities.Politics).First();
         if (Options.Screenshot is { } path) await Capture(Path.Combine(Path.GetDirectoryName(path)!, "runtime-before.png"), false);
-        var result = session.Develop(new(5,15,officer.Id,San9.Core.Domain.DomesticActivity.Commerce));
+        var result = session.Develop(new(5, 15, [officer.Id], San9.Core.Domain.DomesticActivity.Commerce));
         if (!result.Accepted || session.Snapshot.Forces.Single(f => f.Id == 5).Money != before.Forces.Single(f => f.Id == 5).Money-50 ||
             session.Snapshot.Settlements.Single(s => s.Id == 15).Commerce <= 300 || session.Snapshot.Clock != before.Clock)
             throw new InvalidOperationException("Runtime development transaction failed.");
@@ -116,7 +116,7 @@ public partial class ClientVerification : Node
         if (World.StateRevision != session.Snapshot.Revision || Hud.DisplayedMoney != session.Snapshot.Forces.Single(f => f.Id == 5).Money.ToString())
             throw new InvalidOperationException("Runtime map or HUD did not consume the committed snapshot.");
         var after = session.Snapshot;
-        if (session.Develop(new(5,15,officer.Id,San9.Core.Domain.DomesticActivity.Commerce)).Accepted || session.Snapshot.StateHash != after.StateHash)
+        if (session.Develop(new(5, 15, [officer.Id], San9.Core.Domain.DomesticActivity.Commerce)).Accepted || session.Snapshot.StateHash != after.StateHash)
             throw new InvalidOperationException("Rejected runtime command changed the world.");
         GD.Print($"RUNTIME_SMOKE_OK development={result.Increment} cost={result.Cost} revision={World.StateRevision} old_snapshot_money={before.Forces.Single(f => f.Id == 5).Money}");
     }

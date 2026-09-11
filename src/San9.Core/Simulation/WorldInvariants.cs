@@ -9,12 +9,12 @@ internal static class WorldInvariants
         ValidateSimulation(state);
         foreach (var force in state.Forces.Values)
         {
-            if (force.Id < 0 || force.Trust < 0 || force.ProvidedTactics.IsDefault || force.ProvidedTactics.Any(t => t < 0) || force.ProvidedTactics.Distinct().Count() != force.ProvidedTactics.Length) throw new ArgumentException("Invalid force.");
+            if (force.Id < 0 || force.Trust is < 0 or > 1000 || force.BaseTrust is < 0 or > 1000 || force.ProvidedTactics.IsDefault || force.ProvidedTactics.Any(t => t < 0) || force.ProvidedTactics.Distinct().Count() != force.ProvidedTactics.Length) throw new ArgumentException("Invalid force.");
         }
         foreach (var settlement in state.Settlements.Values)
         {
             if (settlement.Id < 0 || !Enum.IsDefined(settlement.Kind) || settlement.OwnerId is int owner && !state.Forces.ContainsKey(owner) ||
-                settlement.MaxDurability <= 0 || settlement.Durability < 0 || settlement.Durability > settlement.MaxDurability ||
+                settlement.SoldierCapacity is 0 or > 500000 || settlement.Soldiers > settlement.SoldierCapacity || settlement.Population > 1000000 || settlement.DraftPopulation > 500000 || settlement.MaxCommerce > 2500 || settlement.MaxCultivation > 4000 || settlement.MaxDurability <= 0 || settlement.Durability < 0 || settlement.Durability > settlement.MaxDurability ||
                 settlement.Morale is < 0 or > 100 || settlement.Commerce < 0 || settlement.Commerce > settlement.MaxCommerce ||
                 settlement.Cultivation < 0 || settlement.Cultivation > settlement.MaxCultivation || settlement.PublicOrder is < 0 or > 1000)
                 throw new ArgumentException("Invalid settlement.");
@@ -27,13 +27,13 @@ internal static class WorldInvariants
         }
         if (state.Forces.Values.Any(f => f.LeaderId is int leader &&
                 (!state.Officers.TryGetValue(leader, out var officer) || officer.OwnerId != f.Id)) ||
-            state.Settlements.Values.Any(s => s.CorpsId < 0 || s.CorpsId is not null && s.OwnerId is null) ||
+            state.Settlements.Values.Any(s => s.CorpsId < 0 || s.CorpsId is int corpsId && (!state.Corps.TryGetValue(corpsId, out var corps) || corps.OwnerId != s.OwnerId)) ||
             state.Settlements.Values.Where(s => s.CorpsId is not null).GroupBy(s => s.CorpsId)
                 .Any(g => g.Select(s => s.OwnerId).Distinct().Count() != 1))
             throw new ArgumentException("Invalid leader or corps relationship.");
         foreach (var unit in state.Units.Values)
         {
-            if (!unit.IsValid || !state.Forces.ContainsKey(unit.OwnerId)) throw new ArgumentException("Invalid unit.");
+            if (!unit.IsValid || !state.Forces.ContainsKey(unit.OwnerId) || unit.CorpsId is int corpsId && (!state.Corps.TryGetValue(corpsId, out var corps) || corps.OwnerId != unit.OwnerId)) throw new ArgumentException("Invalid unit.");
         }
         if (state.Corps.Values.Any(c => c.Id < 0 || !state.Forces.ContainsKey(c.OwnerId) ||
                 !state.Officers.TryGetValue(c.LeaderId, out var leader) || !leader.IsServing || leader.OwnerId != c.OwnerId) ||

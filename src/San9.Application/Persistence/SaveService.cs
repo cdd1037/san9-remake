@@ -30,7 +30,7 @@ public static class SaveService
     internal static string Integrity(SaveEnvelope envelope) => CanonicalJson.Hash(new
         { envelope.FormatVersion, envelope.RulesVersion, envelope.HashVersion, envelope.ContentFingerprint, envelope.Session });
 
-    public static GameSession Decode(ReadOnlyMemory<byte> bytes, ScenarioInitialState definition) => Decode(bytes, definition, world => new(world));
+    public static GameSession Decode(ReadOnlyMemory<byte> bytes, ScenarioInitialState definition) => Decode(bytes, definition, GameSession.EngineFactory(definition));
 
     internal static GameSession Decode(ReadOnlyMemory<byte> bytes, ScenarioInitialState definition, Func<WorldState, SimulationEngine> factory)
     {
@@ -66,7 +66,7 @@ public static class SaveService
         { throw new SaveException(SaveFailure.IoFailure, "Could not atomically write save.", error); }
     }
 
-    public static GameSession Read(string path, ScenarioInitialState definition) => Read(path, definition, world => new(world));
+    public static GameSession Read(string path, ScenarioInitialState definition) => Read(path, definition, GameSession.EngineFactory(definition));
     internal static GameSession Read(string path, ScenarioInitialState definition, Func<WorldState, SimulationEngine> factory)
     {
         byte[] bytes;

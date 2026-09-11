@@ -16,6 +16,24 @@ public sealed class HeadlessProcessTests : IDisposable
     }
     private string FilePath(string name) => Path.Combine(_directory, name);
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task EconomicYearUsesAllProjectsAndSurvivesDiskRestore(bool policy)
+    {
+        string[] args = policy ? ["verify", "--fixture", "--strategy", "simple", "--xuns", "36", "--output", _directory] :
+            ["verify", "--fixture", "--xuns", "36", "--output", _directory];
+        var result = await Run(args);
+        Assert.Equal(0, result.Code);
+        Assert.Equal(36, result.Report.GetProperty("completedXun").GetInt32());
+        foreach (string activity in new[] { "Patrol", "Commerce", "Cultivation", "Repair", "Recruit", "Train" })
+            Assert.True(result.Report.GetProperty("activities").GetProperty(activity).GetInt32() > 0);
+        Assert.Equal(0, result.Report.GetProperty("waitCommands").GetInt32());
+        Assert.Equal(0, result.Report.GetProperty("resourceShortfall").GetInt64());
+        Assert.Equal(10, result.Report.GetProperty("restoreCount").GetInt32());
+        Assert.Equal(File.ReadAllBytes(FilePath("continuous.save.json")), File.ReadAllBytes(FilePath("restored.save.json")));
+    }
+
     [Fact]
     public async Task ExecutableRunsCommandsSavesResumesAndSkipsRepeatedPrefix()
     {

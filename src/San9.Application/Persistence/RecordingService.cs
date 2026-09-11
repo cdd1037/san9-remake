@@ -30,7 +30,7 @@ public static class RecordingService
     public static void Write(string path, SessionRecording recording) => AtomicFile.Write(path, Encode(recording));
 
     public static RecordingReplay Replay(string path, ScenarioInitialState definition) =>
-        Replay(File.ReadAllBytes(path), definition, world => new(world));
+        Replay(File.ReadAllBytes(path), definition, GameSession.EngineFactory(definition));
 
     internal static RecordingReplay Replay(ReadOnlyMemory<byte> bytes, ScenarioInitialState definition,
         Func<WorldState, SimulationEngine> factory)

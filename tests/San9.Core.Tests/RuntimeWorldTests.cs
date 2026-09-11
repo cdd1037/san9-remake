@@ -22,22 +22,22 @@ public sealed class RuntimeWorldTests
     {
         var first=Create(); var second=Create(); var engine=new SimulationEngine(first);
         var before=engine.Snapshot;
-        var command = new DevelopmentCommand(1, 15, 1, DomesticActivity.Commerce);
+        var command = new DevelopmentCommand(1, 15, [1], DomesticActivity.Commerce);
         var result = Develop(engine, command);
         Assert.Equal(new DevelopmentOutcome(DevelopmentRejection.None,7,50), result.Development!.Value);
         Assert.Equal(new DevelopmentCompletedEvent(before.Clock, command, 7, 50), Assert.Single(result.Events.OfType<DevelopmentCompletedEvent>()));
         Assert.Same(engine.Snapshot, result.Snapshot);
         Assert.Equal(before.Revision + 1, result.Snapshot.Revision);
         var after=engine.Snapshot;
-        Assert.Equal(50u,after.Forces.Single(f=>f.Id==1).Money);
+        Assert.Equal(48u,after.Forces.Single(f=>f.Id==1).Money);
         Assert.Equal(907,after.Settlements.Single(s=>s.Id==15).Commerce);
         Assert.True(after.Officers.Single(o=>o.Id==1).Acted);
         Assert.True(after.Settlements.Single(s=>s.Id==15).CommerceUsed);
         Assert.Equal(before.Clock,after.Clock); Assert.Equal(before.Simulation.RandomStreams,after.Simulation.RandomStreams);
-        Assert.Equal(100u,before.Forces.Single(f=>f.Id==1).Money);
+        Assert.Equal(98u,before.Forces.Single(f=>f.Id==1).Money);
         Assert.Equal(before.StateHash,new SimulationEngine(second).Snapshot.StateHash);
         Assert.NotEqual(before.StateHash,after.StateHash);
-        Assert.False(Develop(engine, new(1,15,2,DomesticActivity.Commerce)).Submission.Accepted);
+        Assert.False(Develop(engine, new(1, 15, [2], DomesticActivity.Commerce)).Submission.Accepted);
         Assert.Equal(after.StateHash,engine.Snapshot.StateHash);
     }
 
@@ -45,8 +45,8 @@ public sealed class RuntimeWorldTests
     public void InvalidCommandsHaveNoEffects()
     {
         var world=Create(49); var engine=new SimulationEngine(world); var initial=engine.Snapshot;
-        foreach(var command in new DevelopmentCommand[] { new(1,15,1,DomesticActivity.Commerce),new(1,16,1,DomesticActivity.Commerce),
-            new(1,15,3,DomesticActivity.Cultivation),new(1,15,99,DomesticActivity.Commerce),new(1,15,1,DomesticActivity.Repair) })
+        foreach(var command in new DevelopmentCommand[] { new(1, 15, [1], DomesticActivity.Commerce),new(1, 16, [1], DomesticActivity.Commerce),
+            new(1, 15, [3], DomesticActivity.Cultivation),new(1, 15, [99], DomesticActivity.Commerce),new(1, 15, [1], DomesticActivity.Repair) })
         {
             var result = Develop(engine, command);
             Assert.False(result.Development!.Value.Accepted);
@@ -60,8 +60,8 @@ public sealed class RuntimeWorldTests
     public void XunActionRefreshAllowsNextDevelopmentAndHashIncludesActionState()
     {
         var world=Create(150); var engine=new SimulationEngine(world);
-        Assert.True(Develop(engine, new(1,15,1,DomesticActivity.Commerce)).Submission.Accepted);
-        Assert.False(Develop(engine, new(1,15,1,DomesticActivity.Cultivation)).Submission.Accepted);
+        Assert.True(Develop(engine, new(1, 15, [1], DomesticActivity.Commerce)).Submission.Accepted);
+        Assert.False(Develop(engine, new(1, 15, [1], DomesticActivity.Cultivation)).Submission.Accepted);
         var before = engine.Snapshot;
         var wait = new WaitCommand(Guid.NewGuid(), 1, engine.Snapshot.Simulation.NextSequence);
         Assert.True(engine.Execute(new("player"), wait).Submission.Accepted);
@@ -76,7 +76,7 @@ public sealed class RuntimeWorldTests
         Assert.True(before.Officers.Single(o => o.Id == 1).Acted);
         Assert.Equal(new XunAdvancedEvent(before.Clock, before.Clock.Advance()), Assert.Single(advanced.Events.OfType<XunAdvancedEvent>()));
         Assert.Equal(CommandRejection.WrongSequence, engine.Validate(new("player"), wait).Rejection);
-        Assert.True(Develop(engine, new(1,15,1,DomesticActivity.Commerce)).Submission.Accepted);
+        Assert.True(Develop(engine, new(1, 15, [1], DomesticActivity.Commerce)).Submission.Accepted);
     }
 
     [Fact]

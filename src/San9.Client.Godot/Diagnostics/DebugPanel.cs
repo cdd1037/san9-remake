@@ -45,7 +45,7 @@ public partial class DebugPanel : PanelContainer
                 var officer=Session.Snapshot.Officers.Where(o => o.SettlementId==city && o.OwnerId==Session.View.PlayerForceId && !o.Acted)
                     .OrderByDescending(o => o.Abilities.Politics).ThenBy(o => o.Id).FirstOrDefault();
                 if(officer is null) { _debugClock.Text="没有可行动武将"; return; }
-                var result=Session.Develop(new(Session.View.PlayerForceId,city,officer.Id,activity));
+                var result=Session.Develop(new(Session.View.PlayerForceId,city,[officer.Id],activity));
                 _debugClock.Text=result.Accepted ? $"增加 {result.Increment}，支出 {result.Cost}" : $"拒绝：{result.Rejection}";
             };
         }

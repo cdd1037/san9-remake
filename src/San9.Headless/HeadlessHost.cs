@@ -127,6 +127,8 @@ public sealed class HeadlessHost
         if (xuns <= 0) throw new UsageException("Xun count must be positive.");
         ulong seed = options.TryGetValue("seed", out value) && ulong.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out ulong parsedSeed) ? parsedSeed :
             options.ContainsKey("seed") ? throw new UsageException("Invalid seed.") : 190UL;
+        if (options.TryGetValue("strategy", out var strategy) && strategy != "simple") throw new UsageException("Unknown strategy.");
+        _report.Policy = options.ContainsKey("strategy") ? "simple" : "scripted";
         var definition = Content(options);
         _session = GameSession.Start(definition, seed);
         _session.BeginRecording();
@@ -146,6 +148,16 @@ public sealed class HeadlessHost
                 throw new VerificationException($"Operation {request.Sequence} diverged or was rejected.");
             _report.AcceptedOperations++;
             _report.DevelopmentCommands += a.Events.OfType<DevelopmentCompletedEvent>().Count();
+            foreach (var developed in a.Events.OfType<DevelopmentCompletedEvent>())
+            {
+                string key = developed.Command.Activity.ToString();
+                _report.Activities[key] = _report.Activities.GetValueOrDefault(key) + 1;
+            }
+            foreach (var change in a.Events.OfType<ResourceChangedEvent>())
+            {
+                _report.ResourceShortfall += change.Shortfall;
+                _report.SaturationLoss += change.SaturationLoss;
+            }
             if (request.Operation is CommandOperation { Command: WaitCommand }) _report.WaitCommands++;
             events.AddRange(a.Events.Select(e => CanonicalJson.Text<DomainEvent>(e)));
         }
@@ -165,7 +177,8 @@ public sealed class HeadlessHost
         {
             foreach (var seat in _session.Snapshot.Simulation.Controls)
             {
-                Compare(ScriptedCommand(_session, seat, xun));
+                var planned = _session.Request(new EndControlOperation(), seat.ControllerId);
+                Compare(planned with { Operation = new CommandOperation(DomesticPlanner.Choose(_session, seat, planned.Id, xun, !options.ContainsKey("strategy"))) });
                 if (firstCommand) { Checkpoint("first-command"); firstCommand = false; }
                 Compare(_session.Request(new EndControlOperation(), seat.ControllerId));
             }
@@ -204,18 +217,6 @@ public sealed class HeadlessHost
         _report.TerminationReason = _session.Snapshot.Simulation.TerminalReason ?? "requested-xuns";
     }
 
-    private static SessionRequest ScriptedCommand(GameSession session, ControlSeat seat, int xun)
-    {
-        var request = session.Request(new EndControlOperation(), seat.ControllerId);
-        foreach (var officer in session.Snapshot.Officers.Where(o => o.IsServing && !o.Acted && o.OwnerId == seat.ForceId))
-        {
-            var command = new DevelopCommand(request.Id, seat.ForceId, session.Snapshot.Simulation.NextSequence,
-                new(seat.ForceId, officer.SettlementId!.Value, officer.Id, xun % 2 == 0 ? DomesticActivity.Commerce : DomesticActivity.Cultivation));
-            if (session.Validate(new(seat.ControllerId), command).Accepted) return request with { Operation = new CommandOperation(command) };
-        }
-        return request with { Operation = new CommandOperation(new WaitCommand(request.Id, seat.ForceId, session.Snapshot.Simulation.NextSequence)) };
-    }
-
     private static ScenarioInitialState Content(Dictionary<string, string> options)
     {
         try
@@ -235,7 +236,7 @@ public sealed class HeadlessHost
         if (args.Length == 0 || args[0] is not ("run" or "verify" or "replay"))
             throw new UsageException("Use verify --fixture|--scenario PATH --output DIR [--xuns N] [--seed N], or run --fixture|--scenario PATH --log PATH --report PATH [--load PATH] [--save PATH] [--record PATH], or replay --fixture|--scenario PATH --recording PATH --report PATH [--save PATH].");
         var values = new Dictionary<string, string>(StringComparer.Ordinal);
-        string[] allowed = args[0] == "verify" ? ["fixture", "scenario", "output", "xuns", "seed"] : args[0] == "run" ? ["fixture", "scenario", "log", "report", "load", "save", "record"] : ["fixture", "scenario", "recording", "report", "save"];
+        string[] allowed = args[0] == "verify" ? ["fixture", "scenario", "output", "xuns", "seed", "strategy"] : args[0] == "run" ? ["fixture", "scenario", "log", "report", "load", "save", "record"] : ["fixture", "scenario", "recording", "report", "save"];
         for (int i = 1; i < args.Length; i++)
         {
             if (!args[i].StartsWith("--", StringComparison.Ordinal)) throw new UsageException("Expected named option.");

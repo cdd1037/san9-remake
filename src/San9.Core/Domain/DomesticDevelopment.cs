@@ -6,6 +6,8 @@ public enum DomesticActivity
     Commerce,
     Cultivation,
     Repair,
+    Recruit,
+    Train,
 }
 
 public readonly record struct DomesticDevelopmentResult(int BaseIncrement, int Increment, int Cost);
@@ -37,7 +39,7 @@ public static class DomesticDevelopment
         IReadOnlyList<OfficerAbilities> participants)
     {
         ArgumentNullException.ThrowIfNull(participants);
-        if (!Enum.IsDefined(activity))
+        if (activity is < DomesticActivity.Patrol or > DomesticActivity.Repair)
             throw new ArgumentOutOfRangeException(nameof(activity));
         ArgumentOutOfRangeException.ThrowIfNegative(current);
         ArgumentOutOfRangeException.ThrowIfLessThan(maximum, current);

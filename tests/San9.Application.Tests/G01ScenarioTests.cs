@@ -12,7 +12,7 @@ namespace San9.Application.Tests;
 
 public sealed class G01ScenarioTests
 {
-    internal static ScenarioInitialState Fixture() => new(11, "g01-public", 190, 1, 1, 1,
+    internal static ScenarioInitialState Fixture() => new(12, "g01-public", 190, 1, 1, 1,
         [new(1, "force.1", 1, 1000, 2000, 50) { LeaderId = 1 }, new(2, "force.2", 2, 1000, 2000, 50) { LeaderId = 4 }],
         [new(1, "city.1", 1, 1, 1, 100, 100, 100, 50, []) { Commerce = 300, MaxCommerce = 500, Cultivation = 200, MaxCultivation = 500 },
          new(2, "city.2", 2, 2, 2, 100, 100, 100, 50, []) { Commerce = 300, MaxCommerce = 500, Cultivation = 200, MaxCultivation = 500 }], [], [])
@@ -64,7 +64,7 @@ public sealed class G01ScenarioTests
                     var commandId = new Guid(checked((int)sequence + 1), 0, 0, new byte[8]);
                     GameCommand command = officer is null ? new WaitCommand(commandId, seat.ForceId, sequence) :
                         new DevelopCommand(commandId, seat.ForceId, sequence,
-                            new(seat.ForceId, officer.SettlementId!.Value, officer.Id, xun % 2 == 0 ? DomesticActivity.Commerce : DomesticActivity.Cultivation));
+                            new(seat.ForceId, officer.SettlementId!.Value, [officer.Id], xun % 2 == 0 ? DomesticActivity.Commerce : DomesticActivity.Cultivation));
                     var a = continuous.Execute(new(seat.ControllerId), command);
                     var b = resumed.Execute(new(seat.ControllerId), command);
                     Equal(a.Snapshot, b.Snapshot, a.Events, b.Events);
@@ -143,10 +143,10 @@ public sealed class G01ScenarioTests
     {
         var session = GameSession.Start(Fixture(), 190);
         var before = session.View;
-        Assert.Equal(DevelopmentRejection.NotAuthorized, session.Develop(new(2, 2, 5, DomesticActivity.Commerce)).Rejection);
+        Assert.Equal(DevelopmentRejection.NotAuthorized, session.Develop(new(2, 2, [5], DomesticActivity.Commerce)).Rejection);
         Assert.Same(before, session.View);
         Assert.Empty(session.Records);
-        Assert.True(session.Develop(new(1, 1, 2, DomesticActivity.Commerce)).Accepted);
+        Assert.True(session.Develop(new(1, 1, [2], DomesticActivity.Commerce)).Accepted);
         Assert.Single(session.Records);
         Assert.Equal(1, session.Snapshot.Simulation.NextSequence);
     }

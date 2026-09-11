@@ -74,8 +74,15 @@ public sealed class GameSession
     public StrategySnapshot InitialView => _initialView;
     public StrategySnapshot View => _view.World.Revision == Snapshot.Revision ? _view : _view = _snapshotSource.Project(Snapshot);
 
+    internal static Func<WorldState, SimulationEngine> EngineFactory(ScenarioInitialState definition)
+    {
+        var rules = new EconomyRulebook(definition.Information.Offices.Select(o => new OfficeSalary(o.Id, o.Salary)).ToImmutableArray(),
+            definition.DomesticPairs, definition.ImperialSealId, definition.EmperorId);
+        return world => new(world, rules);
+    }
+
     public static string Fingerprint(ScenarioInitialState definition) => new ScenarioSessionDefinition(definition).Fingerprint;
-    public static GameSession Start(ScenarioInitialState definition, ulong seed) => Start(definition, seed, world => new(world));
+    public static GameSession Start(ScenarioInitialState definition, ulong seed) => Start(definition, seed, EngineFactory(definition));
 
     internal static GameSession Start(ScenarioInitialState definition, ulong seed, Func<WorldState, SimulationEngine> factory)
     {
@@ -84,7 +91,7 @@ public sealed class GameSession
     }
 
     public static GameSession Restore(ScenarioInitialState definition, SessionSnapshot snapshot) =>
-        Restore(definition, snapshot, world => new(world));
+        Restore(definition, snapshot, EngineFactory(definition));
 
     internal static GameSession Restore(ScenarioInitialState definition, SessionSnapshot snapshot, Func<WorldState, SimulationEngine> factory)
     {
@@ -186,7 +193,7 @@ public sealed class GameSession
                     return Rejected(SessionRejection.InvalidRequest);
             }
             var completed = events.OfType<DevelopmentCompletedEvent>().Select(e =>
-                new SessionRecord(e.Clock, e.Command.ForceId, e.Command.SettlementId, e.Command.OfficerId,
+                new SessionRecord(e.Clock, e.Command.ForceId, e.Command.SettlementId, e.Command.OfficerIds[0],
                     e.Command.Activity, e.Increment, e.Cost)).ToArray();
             var snapshot = candidate.CaptureStableState();
             var publishedEvents = events.ToImmutableArray();

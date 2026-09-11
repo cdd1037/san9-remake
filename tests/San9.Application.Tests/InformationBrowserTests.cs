@@ -10,7 +10,7 @@ public sealed class InformationBrowserTests
 {
     private static (GameSession Session, InformationQuery Query) Fixture(bool adjusted = false)
     {
-        var scenario = new ScenarioInitialState(11, "information", 190, 1, 1, 5,
+        var scenario = new ScenarioInitialState(12, "information", 190, 1, 1, 5,
             [new(5, "force", 5, 100, 200, 100) { LeaderId = 1, RankId = 0, ProvidedTactics = [1] }],
             [new(15, "city", 5, 80, 60, 1000, 500, 1000, 50, []) { CorpsId = 5, Commerce = 100, MaxCommerce = 1000, Cultivation = 100, MaxCultivation = 1000, Population = 50000 }],
             new() { [15] = "city", [50] = "region" }, new() { [15] = 15, [50] = 15 })
@@ -173,13 +173,13 @@ public sealed class InformationBrowserTests
     {
         var (session, query) = Fixture();
         string initial = query.Read(InformationCategory.Chronicle).Rows[0].Cells[1].Text;
-        Assert.True(session.Develop(new(5, 15, 1, DomesticActivity.Commerce)).Accepted);
+        Assert.True(session.Develop(new(5, 15, [1], DomesticActivity.Commerce)).Accepted);
         Assert.Equal(50, query.Read(InformationCategory.Forces, 2).Rows[0].Cells[1].Number);
         Assert.Equal(50, query.Read(InformationCategory.Corps, 1).Rows[0].Cells[2].Number);
         Assert.Single(query.Read(InformationCategory.Records).Rows);
-        Assert.False(session.Develop(new(5, 15, 1, DomesticActivity.Commerce)).Accepted);
+        Assert.False(session.Develop(new(5, 15, [1], DomesticActivity.Commerce)).Accepted);
         Assert.Single(session.Records);
-        Assert.False(session.Develop(new(5, 15, 2, DomesticActivity.Commerce)).Accepted);
+        Assert.False(session.Develop(new(5, 15, [2], DomesticActivity.Commerce)).Accepted);
         session.AddChronicleNote("A note");
         Assert.Equal(initial, query.Read(InformationCategory.Chronicle).Rows[0].Cells[1].Text);
         Assert.Contains(query.Read(InformationCategory.Chronicle).Rows, r => r.Cells[1].Text == "A note");

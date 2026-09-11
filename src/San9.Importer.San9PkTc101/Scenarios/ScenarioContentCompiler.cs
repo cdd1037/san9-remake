@@ -50,7 +50,7 @@ public static class ScenarioContentCompiler
                 Morale(Root(c.ForceId), c.Soldiers),
                 (c.HasTrader ? new[] { "merchant" } : trainingCities.Contains(i) ? ["training"] : Array.Empty<string>())
                     .Concat(emperorCity == i ? ["emperor"] : Array.Empty<string>()).ToArray())
-            { Population = c.Population, DraftPopulation = c.DraftPopulation, CorpsId = c.ForceId, IsFacilityListEntry = true, Appearance = c.TerrainCode, PublicOrder = c.PublicOrder, Commerce = c.Income, MaxCommerce = c.MaxIncome, Cultivation = c.Harvest, MaxCultivation = c.MaxHarvest });
+            { SoldierCapacity = San9ScenarioZoneArchive.CitySoldierCapacity, Population = c.Population, DraftPopulation = c.DraftPopulation, CorpsId = c.ForceId, IsFacilityListEntry = true, Appearance = c.TerrainCode, PublicOrder = c.PublicOrder, Commerce = c.Income, MaxCommerce = c.MaxIncome, Cultivation = c.Harvest, MaxCultivation = c.MaxHarvest });
         }
         foreach (var z in zones)
         {
@@ -58,7 +58,7 @@ public static class ScenarioContentCompiler
             if (z.FixedBuildingId is not int type || z.Durability == ushort.MaxValue) continue;
             string name = text.Settlement($"settlement.{id}", z.NameResourceCode, type);
             settlements.Add(new(id, name, Root(z.ForceId), z.X, z.Y, z.Soldiers, z.Durability, fixedBuildings[type].MaxDurability, Morale(Root(z.ForceId), z.Soldiers), [])
-            { Kind = San9.Core.Domain.SettlementKind.Facility, CorpsId = z.ForceId, IsFacilityListEntry = fixedBuildings[type].IsFacilityListEntry });
+            { SoldierCapacity = z.SoldierCapacity, ConsumesFood = type is not (>= 7 and <= 10), Kind = San9.Core.Domain.SettlementKind.Facility, CorpsId = z.ForceId, IsFacilityListEntry = fixedBuildings[type].IsFacilityListEntry });
         }
         var summaries = settlements.Where(s => s.OwnerId is not null).Select(s => s.OwnerId!.Value).Append(5).Distinct().Order().Select(id =>
         {
@@ -66,7 +66,7 @@ public static class ScenarioContentCompiler
             if (f.LeaderId is not int leader || leader >= persons.Count) throw new InvalidDataException("Missing force leader.");
             var p = persons[leader];
             string name = text.Person($"force.{id}", p.FamilyNameResourceCode, p.GivenNameResourceCode);
-            return new ForceInitialState(id, name, f.ColorCode, f.Money, f.Food, f.Trust) { ProvidedTactics = Enumerable.Range(0, San9ScenarioForceArchive.TacticCount).Where(f.HasTactic).ToImmutableArray(), RankId = f.RankGroupId is < 8 ? f.RankGroupId : null, IsBarbarian = f.IsBarbarian || f.CountryTitleId is >= 4 and <= 8, LeaderId = leader, FlagGlyph = f.CountryTitleId is int title ? System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(exe.AsSpan(0x253bb0 + title * 4, 4)) : p.FlagCode < 186 ? p.FlagCode : -1 };
+            return new ForceInitialState(id, name, f.ColorCode, f.Money, f.Food, f.Trust) { BaseTrust = f.BaseTrust, ProvidedTactics = Enumerable.Range(0, San9ScenarioForceArchive.TacticCount).Where(f.HasTactic).ToImmutableArray(), RankId = f.RankGroupId is < 8 ? f.RankGroupId : null, IsBarbarian = f.IsBarbarian || f.CountryTitleId is >= 4 and <= 8, LeaderId = leader, FlagGlyph = f.CountryTitleId is int title ? System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(exe.AsSpan(0x253bb0 + title * 4, 4)) : p.FlagCode < 186 ? p.FlagCode : -1 };
         }).ToArray();
         var officers = OfficerContentCompiler.Compile(persons, items, offices, settlements, text, new San9MessageTable(biographies));
         var treasureStates = TreasureContentCompiler.InitialStates(items);
@@ -92,11 +92,12 @@ public static class ScenarioContentCompiler
         {
             if (u.UnitStatus is null || Root(u.ForceId) is not int owner || u.XCoordinate is not int x || u.YCoordinate is not int y)
                 throw new InvalidDataException("Invalid active field unit.");
-            return new San9.Core.Domain.UnitState(u.Id, owner, x, y, (uint)u.LoadedSoldierCount);
+            return new San9.Core.Domain.UnitState(u.Id, owner, x, y, (uint)u.LoadedSoldierCount) { CorpsId = u.ForceId };
         }).ToArray();
-        var snapshot = new ScenarioInitialState(11, header.ScenarioId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        var snapshot = new ScenarioInitialState(12, header.ScenarioId.ToString(System.Globalization.CultureInfo.InvariantCulture),
             header.StartDate.Year, header.StartDate.Month, header.StartDate.Day, 5, summaries, settlements.OrderBy(s => s.Id).ToArray(), regions, regionCities)
-        { Officers = officers, Units = units, Information = information };
+        { Officers = officers, Units = units, Information = information, DomesticPairs = DomesticContentCompiler.Compile(persons),
+            ImperialSealId = 79, EmperorId = persons.Take(700).Select((p, id) => (p, id)).Where(v => v.p.BiographyResourceCode is 563 or 564 or 565 && v.p.StatusCode != 8).Select(v => (int?)v.id).FirstOrDefault() };
         snapshot.Validate(); catalog.Validate(); return (snapshot, catalog);
     }
 }

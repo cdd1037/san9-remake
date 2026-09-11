@@ -2,6 +2,8 @@
 
 验收日期：2026-09-12。G01前置提交为`c7df256`，复用其日历、任务、随机、事务和统一命令终验；G02退出条件已成立。行为依据为[BEH-SAVE-0001](../specs/behavior/BEH-SAVE-0001-session-persistence-replay-and-headless.md)。没有启动游戏或扩展表现层。
 
+本文保留G02完成时的协议与验收记录。当前G03已扩展经营规则及内容字段，规则版本、格式和重新转换要求见[G03验收](g03-verification.md)。
+
 ## 实际能力与所有权
 
 `ScenarioSessionDefinition`从现有Content剧本创建规则身份与世界；`GameSession.Start/Restore`组织新局和恢复。`SaveService`保存完整世界、控制轮次、任务、命名随机、最近128条内政记录、玩家年表和序号水位；完整历史仅在显式录像中记录。恢复不重复新局准备，先验证身份与引用再构造查询。Content/Importer沿用已有完整剧本集合，没有新增导入字段。

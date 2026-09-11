@@ -18,6 +18,8 @@
 ```mermaid
 flowchart LR
   Domestic[domestic-development: pure base effect]
+  Economy[economy] --> Domestic
+  Economy --> Simulation
   Personnel[personnel] --> Simulation[simulation]
   Lifecycle[person-lifecycle] --> Personnel
   Lifecycle --> Simulation
@@ -56,7 +58,7 @@ flowchart LR
 
 ## 核心领域契约
 
-`domestic-development` 是四项内政随机加倍前的纯计算入口，已由 `San9.Core.Domain.DomesticDevelopment` 实现；它没有模拟调度依赖。WorldState另接入单人商业/开垦的校验与原子提交；完整多人内政与周期经济尚未加入本契约，不能将局部实现视为其替代。
+`domestic-development` 是四项内政随机加倍前的纯计算入口，已由 `San9.Core.Domain.DomesticDevelopment` 实现；它没有模拟调度依赖。`economy`依赖该计算与`simulation`，由BEH-ECONOMY-0001定义多人六项命令、共享资源账户及周期经济；Application通过`DomesticPlanner`和公共命令运行确定性简单策略。经济状态、名义规则输入及事件同步存档、内容指纹和录像。
 
 | 领域 | 已确认规格 | 对象与状态 | 输入 → 输出 | 关键不变量 | 首个实现入口 |
 | --- | --- | --- | --- | --- | --- |
@@ -103,4 +105,4 @@ G01已接入以上模拟内核与现有内政命令，持续任务通过内部�
 
 ## 保存与无界面边界
 
-`session-persistence`依赖`simulation`，已确认规格为`BEH-SAVE-0001`。Core的`CanonicalJson`提供规范化编码与按需诊断摘要，普通快照不携带摘要；Application持有内容/规则身份、操作水位、轻量保存恢复、独立录像及原子会话发布；独立`San9.Headless`只消费Application，不拥有领域规则。Content与Importer沿用已验证的规范化剧本契约，没有新增导入字段。后续新增领域状态、规则输入与动态身份必须同步保存、恢复校验、指纹和重放测试。实际入口为`SaveService`、`CommandLogService`与`HeadlessHost`，验证见[G02验收](../../docs/g02-verification.md)。
+`session-persistence`依赖`simulation`，已确认规格为`BEH-SAVE-0001`。Core的`CanonicalJson`提供规范化编码与按需诊断摘要，普通快照不携带摘要；Application持有内容/规则身份、操作水位、轻量保存恢复、独立录像及原子会话发布；独立`San9.Headless`只消费Application，不拥有领域规则。G03新增相性、精通、基础信望、容量与粮耗资格，规范化组合对和官职俸禄成为经济输入。后续新增领域状态、规则输入与动态身份必须同步保存、恢复校验、指纹和重放测试。实际入口为`SaveService`、`CommandLogService`与`HeadlessHost`，验证见[G02验收](../../docs/g02-verification.md)。

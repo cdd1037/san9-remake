@@ -65,7 +65,7 @@ public sealed class PersistenceTests : IDisposable
         var definition = Fixture();
         var rules = new FixtureRules();
         var session = GameSession.Start(definition, 190, w => new(w, rules));
-        Assert.True(session.Develop(new(1, 1, 2, DomesticActivity.Commerce)).Accepted);
+        Assert.True(session.Develop(new(1, 1, [2], DomesticActivity.Commerce)).Accepted);
         session.AddChronicleNote("  已完成第一笔内政  ");
         session.EndControl(new("player"));
         string path = FilePath("save.json");
@@ -83,7 +83,7 @@ public sealed class PersistenceTests : IDisposable
         Assert.Equal(session.Snapshot.Relations, restored.Snapshot.Relations);
         Assert.Equal(session.View.Year, restored.View.Year);
         var request = session.Request(new CommandOperation(new DevelopCommand(Id(10), 2, 1,
-            new(2, 2, 5, DomesticActivity.Cultivation))), "ai:2", Id(10));
+            new(2, 2, [5], DomesticActivity.Cultivation))), "ai:2", Id(10));
         Equal(session.Apply(request), restored.Apply(request));
         Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
     }
@@ -106,7 +106,7 @@ public sealed class PersistenceTests : IDisposable
         }
         Apply(continuous.Request(new ChronicleOperation("首轮记录")));
         Apply(continuous.Request(new CommandOperation(new StartTaskCommand(Id(1), 1, 0, "fixture-investment", 2, 1)), id: Id(1)));
-        Apply(continuous.Request(new CommandOperation(new DevelopCommand(Id(2), 1, 1, new(1, 1, 3, DomesticActivity.Commerce))), id: Id(2)));
+        Apply(continuous.Request(new CommandOperation(new DevelopCommand(Id(2), 1, 1, new(1, 1, [3], DomesticActivity.Commerce))), id: Id(2)));
         Checkpoint();
         for (int xun = 0; xun < 36; xun++)
         {
@@ -118,7 +118,7 @@ public sealed class PersistenceTests : IDisposable
                 long sequence = continuous.Snapshot.Simulation.NextSequence;
                 Guid id = Id(100 + xun * 2 + seat.ForceId);
                 var development = new DevelopCommand(id, seat.ForceId, sequence,
-                    new(seat.ForceId, seat.ForceId, seat.ForceId == 1 ? 3 : 5, DomesticActivity.Cultivation));
+                    new(seat.ForceId, seat.ForceId, [seat.ForceId == 1 ? 3 : 5], DomesticActivity.Cultivation));
                 GameCommand command = continuous.Validate(new(seat.ControllerId), development).Accepted
                     ? development : new WaitCommand(id, seat.ForceId, sequence);
                 Apply(continuous.Request(new CommandOperation(command), seat.ControllerId, id));
@@ -164,7 +164,7 @@ public sealed class PersistenceTests : IDisposable
         var definition = Fixture();
         var session = GameSession.Start(definition, 190);
         var request = session.Request(new CommandOperation(new DevelopCommand(Id(1), 1, 0,
-            new(1, 1, 2, DomesticActivity.Commerce))), id: Id(1));
+            new(1, 1, [2], DomesticActivity.Commerce))), id: Id(1));
         Assert.Equal(SessionDisposition.Accepted, session.Apply(request).Disposition);
         session = SaveService.Decode(SaveService.Encode(session), definition);
         var before = session.Capture();
@@ -175,7 +175,7 @@ public sealed class PersistenceTests : IDisposable
         Assert.Equal(SessionDisposition.AlreadyProcessed, session.Apply(request with { Operation = new ChronicleOperation("changed") }).Disposition);
         Assert.Equal(SessionRejection.OutOfOrder, session.Apply(new(Id(2), 10, "player", new ChronicleOperation("later"))).Rejection);
         var invalid = new SessionRequest(Id(2), 1, "player", new CommandOperation(new DevelopCommand(Id(2), 1, 1,
-            new(1, 1, 2, DomesticActivity.Commerce))));
+            new(1, 1, [2], DomesticActivity.Commerce))));
         Assert.Equal(SessionDisposition.Rejected, session.Apply(invalid).Disposition);
         Assert.Same(before, session.Capture());
         Assert.Equal(SessionDisposition.Accepted, session.Apply(invalid with { Operation = new ChronicleOperation("same rejected ID is reusable") }).Disposition);
@@ -230,7 +230,7 @@ public sealed class PersistenceTests : IDisposable
         var corrupted = envelope with { Session = envelope.Session with { World = world } };
         var resigned = CanonicalJson.Encode(corrupted with { IntegrityHash = SaveService.Integrity(corrupted) });
         Assert.Equal(SaveFailure.InvalidState, Assert.Throws<SaveException>(() => SaveService.Decode(resigned, definition)).Failure);
-        Assert.Equal(1000u, session.Snapshot.Forces[0].Money);
+        Assert.Equal(997u, session.Snapshot.Forces[0].Money);
     }
 
     [Fact]
@@ -333,7 +333,7 @@ public sealed class PersistenceTests : IDisposable
     {
         var definition = Fixture();
         byte[] bytes = SaveService.Encode(GameSession.Start(definition, 190));
-        string duplicate = Encoding.UTF8.GetString(bytes).Replace("\"formatVersion\":3", "\"formatVersion\":3,\"formatVersion\":3", StringComparison.Ordinal);
+        string duplicate = Encoding.UTF8.GetString(bytes).Replace("\"formatVersion\":4", "\"formatVersion\":4,\"formatVersion\":4", StringComparison.Ordinal);
         Assert.Equal(SaveFailure.InvalidFormat, Assert.Throws<SaveException>(() => SaveService.Decode(Encoding.UTF8.GetBytes(duplicate), definition)).Failure);
         var root = JsonNode.Parse(bytes)!;
         root["unexpected"] = true;
@@ -389,7 +389,7 @@ public sealed class PersistenceTests : IDisposable
     {
         var definition = Fixture();
         var session = GameSession.Start(definition, 190);
-        session.Develop(new(1, 1, 2, DomesticActivity.Commerce));
+        session.Develop(new(1, 1, [2], DomesticActivity.Commerce));
         var root = JsonNode.Parse(SaveService.Encode(session))!;
         root["session"]!["records"]![0]!["activity"] = 999;
         Assert.Equal(SaveFailure.InvalidFormat, Assert.Throws<SaveException>(() => SaveService.Decode(Encoding.UTF8.GetBytes(root.ToJsonString()), definition)).Failure);
@@ -428,12 +428,12 @@ public sealed class PersistenceTests : IDisposable
     {
         var value = Fixture();
         var definition = value with { Forces = value.Forces.Select(f => f with { Money = 100000 }).ToArray(),
-            Settlements = value.Settlements.Select(s => s with { MaxCommerce = 5000 }).ToArray() };
+            Settlements = value.Settlements.Select(s => s with { MaxCommerce = 2500 }).ToArray() };
         var session = GameSession.Start(definition, 190);
         session.AddChronicleNote("player note");
         for (int i = 0; i < GameSession.RecentRecordLimit + 10; i++)
         {
-            Assert.True(session.Develop(new(1, 1, 2, DomesticActivity.Commerce)).Accepted);
+            Assert.True(session.Develop(new(1, 1, [2], DomesticActivity.Commerce)).Accepted);
             session.AdvanceXun();
         }
         Assert.Equal(GameSession.RecentRecordLimit, session.Records.Count);

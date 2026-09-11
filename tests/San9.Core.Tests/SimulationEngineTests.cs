@@ -61,7 +61,7 @@ public sealed class SimulationEngineTests
         };
         var engine = new SimulationEngine(CreateWorld(), rules);
         Assert.Equal(1, calls);
-        Assert.Equal(993u, engine.Snapshot.Forces[0].Money);
+        Assert.Equal(990u, engine.Snapshot.Forces[0].Money);
         Assert.Equal(new GameClock(190, 1, 1), engine.Snapshot.Clock);
         var saved = engine.CaptureStableState();
         var restored = new SimulationEngine(WorldState.Restore(saved), rules);
@@ -110,7 +110,7 @@ public sealed class SimulationEngineTests
     {
         var world = CreateWorld();
         var engine = new SimulationEngine(world);
-        var command = new DevelopCommand(Id(1), 1, 0, new(1, 1, 2, DomesticActivity.Commerce));
+        var command = new DevelopCommand(Id(1), 1, 0, new(1, 1, [2], DomesticActivity.Commerce));
         var before = engine.Snapshot;
         Assert.True(engine.Validate(new("player"), command).Accepted);
         Assert.True(engine.Validate(new("player"), command).Accepted);
@@ -119,9 +119,9 @@ public sealed class SimulationEngineTests
         {
             command with { IssuerId = -1 }, command with { Sequence = -1 }, command with { Sequence = 9 },
             command with { CommandId = Guid.Empty }, command with { IssuerId = 2 },
-            command with { Development = new(2, 2, 5, DomesticActivity.Commerce) },
-            command with { Development = new(1, 2, 2, DomesticActivity.Commerce) },
-            command with { Development = new(1, 1, 99, DomesticActivity.Commerce) },
+            command with { Development = new(2, 2, [5], DomesticActivity.Commerce) },
+            command with { Development = new(1, 2, [2], DomesticActivity.Commerce) },
+            command with { Development = new(1, 1, [99], DomesticActivity.Commerce) },
             new StartTaskCommand(Id(1), 1, 0, "unknown", 2, 1),
         })
         {
@@ -135,16 +135,16 @@ public sealed class SimulationEngineTests
         Assert.True(accepted.Submission.Accepted);
         Assert.Equal(new DevelopmentOutcome(DevelopmentRejection.None, 7, 50), accepted.Development);
         Assert.Equal(307, accepted.Snapshot.Settlements[0].Commerce);
-        Assert.Equal(950u, accepted.Snapshot.Forces[0].Money);
+        Assert.Equal(947u, accepted.Snapshot.Forces[0].Money);
         Assert.Equal(before.Clock, accepted.Snapshot.Clock);
         Assert.Empty(accepted.Snapshot.Simulation.RandomStreams);
         Assert.Equal(CommandRejection.WrongSequence, engine.Execute(new("player"), command).Submission.Rejection);
         Assert.False(engine.Execute(new("player"), command with { CommandId = Id(2), Sequence = 1,
-            Development = new(1, 1, 2, DomesticActivity.Cultivation) }).Submission.Accepted);
+            Development = new(1, 1, [2], DomesticActivity.Cultivation) }).Submission.Accepted);
         Assert.Same(accepted.Snapshot, engine.Snapshot);
         engine.EndControl(new("player"));
         Assert.False(engine.Execute(new("player"), new WaitCommand(Id(2), 1, 1)).Submission.Accepted);
-        Assert.True(engine.Execute(new("ai"), new DevelopCommand(Id(2), 2, 1, new(2, 2, 5, DomesticActivity.Commerce))).Submission.Accepted);
+        Assert.True(engine.Execute(new("ai"), new DevelopCommand(Id(2), 2, 1, new(2, 2, [5], DomesticActivity.Commerce))).Submission.Accepted);
         Assert.Throws<InvalidOperationException>(() => engine.EndControl(new("player")));
         engine.EndControl(new("ai"));
         engine.AdvanceXun();
@@ -156,7 +156,7 @@ public sealed class SimulationEngineTests
     {
         var world = CreateWorld();
         var engine = new SimulationEngine(world);
-        var command = new DevelopCommand(Id(1), 1, 0, new(1, 1, 2, DomesticActivity.Commerce));
+        var command = new DevelopCommand(Id(1), 1, 0, new(1, 1, [2], DomesticActivity.Commerce));
         Assert.True(engine.Validate(new("player"), command).Accepted);
         var mutation = world.BeginMutation();
         mutation.Replace(mutation.Officers[2] with { OwnerId = 2, SettlementId = 2 });
@@ -174,12 +174,12 @@ public sealed class SimulationEngineTests
         var start = engine.Execute(new("player"), new StartTaskCommand(Id(1), 1, 0, "fixture-investment", 2, 1));
         Assert.True(start.Submission.Accepted);
         Assert.Single(start.Events.OfType<TaskStartedEvent>());
-        Assert.Equal(1000u, engine.Snapshot.Forces[0].Money);
+        Assert.Equal(997u, engine.Snapshot.Forces[0].Money);
         Assert.Equal(300, engine.Snapshot.Settlements[0].Commerce);
         Assert.Empty(Advance(engine).Events.OfType<TaskCompletedEvent>());
         Assert.Equal(10, Assert.Single(engine.Snapshot.Simulation.Tasks).ProgressDays);
         Assert.False(engine.Execute(new("player"), new DevelopCommand(Id(2), 1, 1,
-            new(1, 1, 2, DomesticActivity.Commerce))).Submission.Accepted);
+            new(1, 1, [2], DomesticActivity.Commerce))).Submission.Accepted);
         var json = JsonSerializer.Serialize(engine.CaptureStableState());
         var restored = new SimulationEngine(WorldState.Restore(JsonSerializer.Deserialize<WorldSnapshot>(json)!), rules);
         Assert.Empty(restored.InitialEvents);
@@ -189,11 +189,11 @@ public sealed class SimulationEngineTests
         Assert.Equal(expected.Snapshot.StateHash, actual.Snapshot.StateHash);
         Assert.Equal(new GameClock(190, 1, 16), Assert.Single(actual.Events.OfType<TaskCompletedEvent>()).Clock);
         Assert.Empty(actual.Snapshot.Simulation.Tasks);
-        Assert.Equal(950u, actual.Snapshot.Forces[0].Money);
+        Assert.Equal(941u, actual.Snapshot.Forces[0].Money);
         Assert.InRange(actual.Snapshot.Settlements[0].Commerce, 301, 310);
         Assert.Single(actual.Snapshot.Simulation.RandomStreams);
         Assert.Empty(Advance(restored).Events.OfType<TaskCompletedEvent>());
-        Assert.Equal(950u, restored.Snapshot.Forces[0].Money);
+        Assert.Equal(938u, restored.Snapshot.Forces[0].Money);
     }
 
     [Fact]
@@ -223,11 +223,11 @@ public sealed class SimulationEngineTests
         Assert.Single(result.Events.OfType<TaskCancelledEvent>());
         Assert.Empty(result.Events.OfType<TaskCompletedEvent>());
         Assert.Empty(result.Snapshot.Simulation.Tasks);
-        Assert.Equal(1000u, result.Snapshot.Forces[0].Money);
+        Assert.Equal(994u, result.Snapshot.Forces[0].Money);
         Assert.Empty(result.Snapshot.Simulation.RandomStreams);
         Assert.Empty(Advance(engine).Events.OfType<TaskCancelledEvent>());
         engine.EndControl(new("player"));
-        Assert.True(engine.Execute(new("ai"), new DevelopCommand(Id(2), 2, 1, new(2, 1, 2, DomesticActivity.Commerce))).Submission.Accepted);
+        Assert.True(engine.Execute(new("ai"), new DevelopCommand(Id(2), 2, 1, new(2, 1, [2], DomesticActivity.Commerce))).Submission.Accepted);
     }
 
     [Fact]
@@ -336,7 +336,7 @@ public sealed class SimulationEngineTests
         Assert.True(engine.Execute(new("player"), new StartTaskCommand(Id(3), 1, 1, "fixture-investment", 3, 1)).Submission.Accepted);
         var result = Advance(engine);
         Assert.Equal(new[] { Id(9), Id(3) }, result.Events.OfType<TaskCompletedEvent>().Select(e => e.TaskId));
-        Assert.Equal(900u, result.Snapshot.Forces[0].Money);
+        Assert.Equal(894u, result.Snapshot.Forces[0].Money);
     }
 
     [Fact]
@@ -353,7 +353,7 @@ public sealed class SimulationEngineTests
         var result = Advance(engine);
         Assert.Equal(new GameClock(190, 1, 3), Assert.Single(result.Events.OfType<TaskCancelledEvent>()).Clock);
         Assert.Empty(result.Events.OfType<TaskCompletedEvent>());
-        Assert.Equal(49u, result.Snapshot.Forces[0].Money);
+        Assert.Equal(46u, result.Snapshot.Forces[0].Money);
         Assert.Equal(300, result.Snapshot.Settlements[0].Commerce);
         Assert.Empty(result.Snapshot.Simulation.RandomStreams);
     }

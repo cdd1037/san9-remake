@@ -5,7 +5,11 @@ public sealed record ContentCoverage(int Forces, int Settlements, int Officers, 
 
 public sealed class HeadlessReport
 {
-    public string Goal { get; init; } = "G02";
+    public string Goal { get; init; } = "G03";
+    public string Policy { get; set; } = "replay";
+    public Dictionary<string, int> Activities { get; set; } = [];
+    public long ResourceShortfall { get; set; }
+    public long SaturationLoss { get; set; }
     public string Mode { get; set; } = "unknown";
     public bool Success { get; set; }
     public string RulesVersion { get; init; } = Application.SessionProtocol.RulesVersion;
@@ -28,5 +32,5 @@ public sealed class HeadlessReport
     public int WaitCommands { get; set; }
     public int RestoreCount { get; set; }
     public ContentCoverage? Coverage { get; set; }
-    public string Scope { get; init; } = "Scripted timing, persistence and replay; no economy cycle, autonomous AI or warfare.";
+    public string Scope { get; init; } = "Domestic commands and economic cycles with scripted/simple policy, save and replay; no warfare or complete strategic AI.";
 }

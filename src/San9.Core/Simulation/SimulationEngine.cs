@@ -9,12 +9,14 @@ public sealed class SimulationEngine
     private readonly ResolutionPipeline _pipeline;
 
     public SimulationEngine(WorldState world) : this(world, new SimulationRules()) { }
+    public SimulationEngine(WorldState world, EconomyRulebook economy) : this(world, new SimulationRules { Economy = economy }) { }
 
     internal SimulationEngine(WorldState world, SimulationRules rules)
     {
         ArgumentNullException.ThrowIfNull(world);
         _world = world;
         _rules = rules;
+        rules.Economy.Validate();
         _pipeline = new(rules);
         foreach (var task in world.Simulation.Tasks)
             if (rules.FindTask(task.Kind) is not TaskRule rule || rule.DurationDays != task.Due.DayNumber - task.Started.DayNumber)
@@ -67,7 +69,7 @@ public sealed class SimulationEngine
                 case DevelopCommand develop:
                     if (develop.Development is null || develop.Development.ForceId != command.IssuerId)
                         return Reject(CommandRejection.NotActiveController);
-                    development = DomesticDevelopmentHandler.Apply(mutation, develop.Development);
+                    development = DomesticDevelopmentHandler.Apply(mutation, develop.Development, _rules.Economy, events);
                     if (!development.Value.Accepted) return Reject(CommandRejection.DevelopmentFailed, development);
                     events.Add(new DevelopmentCompletedEvent(mutation.Clock, develop.Development,
                         development.Value.Increment, development.Value.Cost));

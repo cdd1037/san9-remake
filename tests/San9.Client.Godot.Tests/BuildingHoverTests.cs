@@ -29,7 +29,7 @@ public sealed class BuildingHoverTests
     [Fact]
     public void CardUsesCurrentServingPeopleAndIndependentCommanderState()
     {
-        var initial = new ScenarioInitialState(11, "hover", 190, 1, 1, 5,
+        var initial = new ScenarioInitialState(12, "hover", 190, 1, 1, 5,
             [new(5, "force", 5, 500, 100, 100) { LeaderId = 1 }],
             [new(15, "city", 5, 89, 64, 32000, 440, 800, 50, ["merchant", "emperor"])
                 { CorpsId = 5, Commerce = 560, MaxCommerce = 1000, Cultivation = 150, MaxCultivation = 400, PublicOrder = 150 },
@@ -46,7 +46,7 @@ public sealed class BuildingHoverTests
         Assert.Equal(10, before.Rows.Count);
         Assert.Equal("leader", before.Rows.Single(r => r.Label == "大将").Value);
         Assert.Equal("  2/  2", before.Rows.Single(r => r.Label == "在任").Value);
-        Assert.True(session.Develop(new(5, 15, 1, DomesticActivity.Commerce)).Accepted);
+        Assert.True(session.Develop(new(5, 15, [1], DomesticActivity.Commerce)).Accepted);
         var after = BuildingHoverInfo.Resolve(session.View, texts, 15)!;
         Assert.Equal("  1/  2", after.Rows.Single(r => r.Label == "在任").Value);
         Assert.NotEqual(before.Rows.Single(r => r.Label == "收益").Value, after.Rows.Single(r => r.Label == "收益").Value);

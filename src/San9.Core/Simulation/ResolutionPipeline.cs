@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using San9.Core.Domain;
 
 namespace San9.Core.Simulation;
 
@@ -20,6 +21,7 @@ public sealed record ControlEndedEvent(string ControllerId, int ForceId) : Domai
 // The empty registry intentionally rejects unimplemented gameplay tasks.
 internal class SimulationRules
 {
+    internal EconomyRulebook Economy { get; init; } = EconomyRulebook.Empty;
     internal virtual TaskRule? FindTask(string kind) => null;
     internal virtual void ApplyStage(ResolutionStage stage, WorldMutation world, List<DomainEvent> events) { }
 }
@@ -62,6 +64,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
     {
         if (!CheckTerminal(world, events)) return false;
         if (stage == ResolutionStage.XunUpdate) XunRecovery.Apply(world);
+        EconomicCycle.Apply(stage, world, rules.Economy, events);
         rules.ApplyStage(stage, world, events);
         events.Add(new StageCompletedEvent(world.Clock, stage));
         return CheckTerminal(world, events);

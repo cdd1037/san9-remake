@@ -11,7 +11,7 @@ public sealed class TreasureRuntimeTests
     [Fact]
     public void RuntimeDiscoveryAndHolderVisibilityDoNotDependOnInitialCatalogMembership()
     {
-        var definition = new ScenarioInitialState(11, "runtime-treasures", 190, 1, 1, 5,
+        var definition = new ScenarioInitialState(12, "runtime-treasures", 190, 1, 1, 5,
             [new(5, "force", 5, 100, 100, 100)], [], new() { [15] = "region" }, [])
         {
             Officers = [new("visible", new(1, null, null, new(50,50,50,50), false) { Status = OfficerStatus.Free, RegionId = 15 }),

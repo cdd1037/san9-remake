@@ -34,6 +34,8 @@ public static class OfficerContentCompiler
             var state = new OfficerState(id, person.StatusCode <= 3 ? settlement?.OwnerId : null, location,
                 new(person.Strength, person.Intelligence, person.Politics, person.Command), person.IsCommandParticipant)
             {
+                Affinity = person.Affinity,
+                MasteredCategories = Enumerable.Range(0, 9).Where(person.HasTacticCategoryMastery).ToImmutableArray(),
                 LearnedTactics = Enumerable.Range(0, San9ScenarioPersonArchive.TacticCount).Where(person.HasLearnedTactic).ToImmutableArray(),
                 TacticProficiencies = person.TacticProficiencies.Select(v => (int)v).ToImmutableArray(),
                 ServiceStartYear = person.EncodedStatusStartYear == 0 ? null : person.StatusStartYear,

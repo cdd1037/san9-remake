@@ -272,7 +272,7 @@
         "target_namespace": "San9.Client.Godot",
         "target_path": "src/San9.Client.Godot",
         "entry_types": ["Main", "MapWorld", "CalendarPresenter"],
-        "existing_anchors": ["src/San9.Client.Godot/Main.cs", "src/San9.Client.Godot/MapWorld.cs", "src/San9.Application/GameSession.cs"]
+        "existing_anchors": ["src/San9.Client.Godot/Main.cs", "src/San9.Client.Godot/Map/MapWorld.cs", "src/San9.Application/GameSession.cs"]
       }
     }
   ],

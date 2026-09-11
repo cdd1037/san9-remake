@@ -1,7 +1,7 @@
 [gd_scene load_steps=3 format=3]
 
 [ext_resource path="res://Main.cs" type="Script" id="1_main"]
-[ext_resource path="res://MapWorld.cs" type="Script" id="2_map"]
+[ext_resource path="res://Map/MapWorld.cs" type="Script" id="2_map"]
 
 [node name="Main" type="Node"]
 script = ExtResource("1_main")

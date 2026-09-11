@@ -9,7 +9,7 @@ public sealed record ClientContentPackage(int SchemaVersion, ContentSource[] Sou
 {
     public void ValidateLinks()
     {
-        if (SchemaVersion != 17) throw new InvalidDataException("Unsupported client content version.");
+        if (SchemaVersion != 18) throw new InvalidDataException("Unsupported client content version.");
         Scenario.Validate(); Text.Validate(); Skin.Validate();
         var markup = Text.Entries.Values.SelectMany(e => new[] { e.Text, e.SourceText })
             .Concat(MessageGraph.Walk(Text.Messages.Values.SelectMany(m => m.Nodes)).SelectMany(n => n switch

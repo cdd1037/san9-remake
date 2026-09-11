@@ -5,6 +5,20 @@ namespace San9.Client.Godot.Tests;
 
 public sealed class MessageEvaluatorTests
 {
+    [Fact]
+    public void IndependentChannelsRemainBalancedAcrossChildAndSkippedBranch()
+    {
+        var evaluator = new MessageEvaluator(new Dictionary<string, MessageDefinition>
+        {
+            ["m"] = Message(new MessageFormat("[color=red]", "[/color]"), Text("A"),
+                new MessageReference("child", false), Text("C"), new MessageFormat("", "", "effect"), Text("D")),
+            ["child"] = Message(new MessageFormat("[outline_size=1]", "[/outline_size]", "effect"),
+                new MessageConditional(new("constant", Number: 0), [new MessageFormat("", "")]), Text("B"))
+        });
+        Assert.Equal("[color=red]A[/color][outline_size=1][color=red]BC[/color][/outline_size][color=red]D[/color]",
+            evaluator.Evaluate("m", Context()));
+    }
+
     [Theory]
     [InlineData(-12, 5, true, null, "-0012")]
     [InlineData(-12, 6, true, 4, " -0012")]

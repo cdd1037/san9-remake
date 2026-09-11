@@ -19,7 +19,7 @@ public sealed record MessageReference(string Key, bool Tail) : MessageNode;
 public sealed record MessageConditional(MessageExpression Predicate, MessageNode[] Body) : MessageNode;
 public sealed record MessageChoice(MessageExpression Index, MessageNode[][] Choices) : MessageNode;
 public sealed record MessageReturn : MessageNode;
-public sealed record MessageFormat(string Open, string Close) : MessageNode;
+public sealed record MessageFormat(string Open, string Close, string Channel = "foreground") : MessageNode;
 
 public sealed record MessageExpression(string Operation, string? Binding = null, long? Number = null,
     MessageExpression[]? Arguments = null);
@@ -59,13 +59,28 @@ public static class MessageMarkup
     public static string Static(IEnumerable<MessageNode> nodes, bool source = false)
     {
         var result = new System.Text.StringBuilder();
-        string closing = "";
+        var formatting = new MessageFormatting();
         foreach (var node in nodes)
         {
             if (node is MessageLiteral text) result.Append(source ? text.SourceBbCode : text.BbCode);
-            else if (node is MessageFormat format) { result.Append(closing).Append(format.Open); closing = format.Close; }
+            else if (node is MessageFormat format) { formatting.Change(result, format); }
             else throw new InvalidDataException("Dynamic content requested as static text.");
         }
-        return result.Append(closing).ToString();
+        return result.Append(formatting.Closing).ToString();
+    }
+}
+
+/// <summary>Independent BBCode channels with balanced nesting across message control flow.</summary>
+public sealed class MessageFormatting
+{
+    private readonly SortedDictionary<string, MessageFormat> _channels = new(StringComparer.Ordinal);
+    public string Closing => string.Concat(_channels.Values.Reverse().Select(f => f.Close));
+    public void Change(System.Text.StringBuilder output, MessageFormat format)
+    {
+        if (format.Channel is not ("foreground" or "effect")) throw new InvalidDataException("Unknown message format channel.");
+        output.Append(Closing);
+        if (format.Open.Length == 0) _channels.Remove(format.Channel);
+        else _channels[format.Channel] = format;
+        foreach (var active in _channels.Values) output.Append(active.Open);
     }
 }

@@ -12,7 +12,7 @@ public sealed record TextCatalog(int SchemaVersion, Dictionary<string, TextEntry
     public void Validate()
     {
         MessageGraph.Validate(Messages);
-        if (SchemaVersion != 2 || Entries.Any(p => string.IsNullOrWhiteSpace(p.Key) ||
+        if (SchemaVersion != 3 || Entries.Any(p => string.IsNullOrWhiteSpace(p.Key) ||
             string.IsNullOrWhiteSpace(p.Value.Text) || string.IsNullOrWhiteSpace(p.Value.SourceText)))
             throw new InvalidDataException("Invalid text catalog.");
     }

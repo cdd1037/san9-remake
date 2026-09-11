@@ -86,8 +86,6 @@ public partial class MapAnnotations : Node2D
         DrawTextureRectRegion(fill, new(position + new Vector2(4, 4), new Vector2(width, fill.GetHeight())), new(0, 0, width, fill.GetHeight()));
     }
     private void Text(string text, Vector2 point, bool hovered) =>
-        GameTextPresenter.Draw(this, UiFont, text, point, hovered
-            ? GameTextStyles.For(GameTextRole.Building) with { Foreground = new Color("f8f850") }
-            : GameTextStyles.For(GameTextRole.Building));
+        GameTextPresenter.Draw(this, UiFont, text, point, GameTextStyles.Building(hovered));
     public override void _ExitTree() { foreach (var texture in _textures.Values) texture.Dispose(); }
 }

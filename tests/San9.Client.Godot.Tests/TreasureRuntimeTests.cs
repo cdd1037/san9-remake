@@ -20,7 +20,7 @@ public sealed class TreasureRuntimeTests
                 [new(0, null, TreasureDiscovery.Buried, 15), new(1, 2, TreasureDiscovery.Discovered, 15),
                  new(100, null, TreasureDiscovery.Disabled, 15)])
         };
-        var texts = new TextCatalog(2, new[] { "force", "region", "visible", "hidden", "buried", "owned" }
+        var texts = new TextCatalog(3, new[] { "force", "region", "visible", "hidden", "buried", "owned" }
             .ToDictionary(key => key, key => new TextEntry(key, key)));
         foreach (int id in new[] { 0, 1 }) texts.Entries.Add(TreasureText.DescriptionKey(id), new("Description", "Description"));
         var initial = GameSession.Start(definition, 1).View;

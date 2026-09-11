@@ -28,7 +28,7 @@
 | `MessageChoice` | 求值Index后执行一个候选 |
 | `MessageReference` | `Tail=false`返回后继续当前消息；`Tail=true`转移后结束当前消息 |
 | `MessageReturn` | 结束当前消息调用 |
-| `MessageFormat` | 导入原作的持续样式切换；Open/Close仍是原生BBCode片段 |
+| `MessageFormat` | 导入原作的持续样式切换；Channel区分foreground/effect，Open/Close仍是原生BBCode片段 |
 
 新编写内容一般使用自包含的静态BBCode片段，不需要模拟原作持续样式。富文本组合通过明确的`MessageReference`，不能用普通字符串参数注入标签。表达式支持常量、具名绑定、显式查询、随机与算术/比较/逻辑操作；原作算术按32位无符号规则，不能把它当作任意精度公式语言。
 
@@ -53,6 +53,8 @@ Application的`MessageEvaluator`接收消息目录及`MessageContext`。Values�
 
 ## 名称与富文本的区别
 
-`TextCatalog.Resolve`用于纯名称、排序、查询；遇到富文本会报错，禁止自行剥标签后静默丢图标。`ResolveRich`读取静态图文；动态内容使用`MessageEvaluator`。客户端统一调用`GameRichTextLabel.Present`，字体来自`GameFont.tres`，字号、主体颜色由`GameTextStyles`提供。纯文字地图绘制共享同一主题和角色配置。描边/阴影强一致仍为未决项。
+`TextCatalog.Resolve`用于纯名称、排序、查询；遇到富文本会报错，禁止自行剥标签后静默丢图标。`ResolveRich`读取静态图文；动态内容使用`MessageEvaluator`。客户端统一调用`GameRichTextLabel.Present`，字体来自`GameFont.tres`，字号、主体颜色由`GameTextStyles`提供。纯文字地图绘制共享同一主题和角色配置。描边和阴影使用[统一文字样式](text-styles.md)的原生实现，不要求与原作像素强一致。
 
 原始偏移、控制码、解码错误、样式号及调用现场证据保存在导入报告，不能成为新玩法的接口。繁简转换只改变文字片段，源文与简体共用控制结构、参数及图片标识。
+
+普通原作 `b` 转成轮廓而非主体色；`m` 改主体色；格式通道独立嵌套。原生局部阴影和带宿主阴影的行内轮廓切换明确报错。帮助／教学正文的额外强调色转换属于专用调用策略，尚未接入，不能与普通消息规则混用。

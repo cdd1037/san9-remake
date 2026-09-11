@@ -378,7 +378,7 @@ public partial class InformationActionButton : BaseButton
         FocusMode = FocusModeEnum.All;
         var label = new Label { Text = Title, Size = Size, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, MouseFilter = MouseFilterEnum.Ignore };
         AddChild(label);
-        _text.Apply(label, GameTextStyles.For(GameTextRole.Resource) with { FontSize = 18, Foreground = Colors.White });
+        _text.Apply(label, GameTextStyles.For(GameTextRole.DialogTitle));
     }
     public override void _Process(double delta) { Modulate = Disabled ? new Color("888888") : Colors.White; QueueRedraw(); }
     public override void _Draw()

@@ -21,11 +21,18 @@ public partial class GameRichTextLabel : RichTextLabel
 
     public void Present(string markup, GameTextStyle style)
     {
+        if (style.Effect == GameTextEffect.Shadow && markup.Contains("[outline_size=", StringComparison.Ordinal))
+            throw new InvalidDataException("Inline outlines cannot replace a host shadow in native RichTextLabel; choose an explicit presentation policy.");
         _markup = markup; Style = style;
         AddThemeFontOverride("normal_font", GetThemeFont("font"));
         AddThemeFontSizeOverride("normal_font_size", style.FontSize);
         AddThemeColorOverride("default_color", style.Foreground);
-        AddThemeConstantOverride("outline_size", 0);
+        AddThemeConstantOverride("outline_size", GameTextEffects.OutlineSize(style));
+        AddThemeColorOverride("font_outline_color", GameTextEffects.OutlineColor(style));
+        AddThemeColorOverride("font_shadow_color", GameTextEffects.ShadowColor(style));
+        AddThemeConstantOverride("shadow_offset_x", (int)GameTextEffects.ShadowOffset(style).X);
+        AddThemeConstantOverride("shadow_offset_y", (int)GameTextEffects.ShadowOffset(style).Y);
+        AddThemeConstantOverride("shadow_outline_size", 0);
         var sizes = new Stack<int>();
         sizes.Push(style.FontSize);
         Text = Images.Replace(markup, match =>

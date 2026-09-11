@@ -90,3 +90,5 @@ dotnet run --project src/San9.Tools -- import-client --source-exe "<San9PK.exe�
 - [本地私有文件规则](private/README.md)
 
 原作文本已统一为原生Godot BBCode及结构化消息目录；转换、全量诊断、字体和图标入口见[内容管线](docs/client-content.md#原版文本统一入口)，覆盖及未确认语义见[RE-0166](research/findings/RE-SAN9PK-0166.md)。
+
+文字显示通过[统一文字样式](docs/text-styles.md)复用角色与状态，消息正文遵循[原生 BBCode 约定](docs/messages.md)。

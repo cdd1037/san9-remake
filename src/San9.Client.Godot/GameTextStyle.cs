@@ -2,42 +2,30 @@ using Godot;
 
 namespace San9.Client.Godot;
 
-public enum GameTextRole { Header, Resource, Building, Message, Region, Spring, Compass, Roster }
+public enum GameTextRole { Header, Resource, Building, Message, Region, Spring, Compass, Roster, HelpBody, DetailBody, DialogTitle }
 public enum GameButtonTextRole { Information, Functions, Help, Territory, MapMode, Advance, Facilities, Officers, Units }
 
-public enum GameTextEffect { None, NeighborOutline, Shadow }
+public enum GameTextEffect { None, Outline, Shadow }
 
 public readonly record struct GameTextStyle(int FontSize, Color Foreground,
     GameTextEffect Effect, Color EffectColor);
 
 public static class GameTextEffects
 {
-    private static readonly Vector2[] Neighbors =
-    [new(-1, -1), new(0, -1), new(1, -1), new(-1, 0), new(1, 0), new(-1, 1), new(0, 1), new(1, 1)];
-
-    public static int PassCount(GameTextStyle style) => style.Effect switch
-    {
-        GameTextEffect.None => 0,
-        GameTextEffect.NeighborOutline => Neighbors.Length,
-        GameTextEffect.Shadow => 1,
-        _ => throw new ArgumentOutOfRangeException(nameof(style))
-    };
-
-    public static Vector2 Offset(GameTextStyle style, int pass)
-    {
-        if ((uint)pass >= PassCount(style)) throw new ArgumentOutOfRangeException(nameof(pass));
-        return style.Effect == GameTextEffect.Shadow ? Vector2.One : Neighbors[pass];
-    }
-
-    public static Color Color(GameTextStyle style) =>
-        new(style.EffectColor, style.EffectColor.A * (style.Effect == GameTextEffect.NeighborOutline ? .25f : 1f));
+    public static int OutlineSize(GameTextStyle style) => style.Effect == GameTextEffect.Outline ? 1 : 0;
+    public static Color OutlineColor(GameTextStyle style) => style.Effect == GameTextEffect.Outline
+        ? new Color(style.EffectColor, style.EffectColor.A * .65f) : Colors.Transparent;
+    public static Color ShadowColor(GameTextStyle style) => style.Effect == GameTextEffect.Shadow
+        ? style.EffectColor : Colors.Transparent;
+    public static Vector2 ShadowOffset(GameTextStyle style) => style.Effect == GameTextEffect.Shadow
+        ? Vector2.One : Vector2.Zero;
 }
 
 public static class GameTextStyles
 {
     private static readonly Color White = new("f0f0f0");
     private static GameTextStyle Outlined(int size, Color foreground, string edge = "000000") =>
-        new(size, foreground, GameTextEffect.NeighborOutline, new Color(edge));
+        new(size, foreground, GameTextEffect.Outline, new Color(edge));
     private static GameTextStyle Plain(int size, Color foreground) =>
         new(size, foreground, GameTextEffect.None, Colors.Transparent);
 
@@ -51,6 +39,8 @@ public static class GameTextStyles
         GameTextRole.Resource => Plain(16, White),
         GameTextRole.Region => Outlined(16, new Color("f8f8b0"), "005028"),
         GameTextRole.Roster => Plain(16, White),
+        GameTextRole.HelpBody or GameTextRole.DetailBody => Outlined(16, White),
+        GameTextRole.DialogTitle => Plain(18, Colors.White),
         _ => throw new ArgumentOutOfRangeException(nameof(role))
     };
 
@@ -60,6 +50,21 @@ public static class GameTextStyles
     };
 
     public static GameTextStyle CatalogRow => Outlined(16, White);
+
+    public static GameTextStyle Building(bool highlighted) => For(GameTextRole.Building) with
+    { Foreground = highlighted ? new Color("f8f850") : White };
+
+    public static GameTextStyle CatalogTab(bool hovered, bool selected) =>
+        Outlined(16, new Color(hovered ? "f0f0f0" : "d8d8d8"), hovered || selected ? "603000" : "000000");
+
+    // Confirmed paired tables in help/training page updates; these are reusable before those screens exist.
+    public static GameTextStyle HelpTopic(bool hovered, bool pressed, bool disabled, bool current)
+    {
+        var foreground = disabled ? new Color(current ? "000000" : "a4a4a4")
+            : new Color(current || pressed ? "f0f0f0" : hovered ? "c0e0e8" : "d8d8d8");
+        return !current && !hovered && !pressed && !disabled ? Plain(16, foreground)
+            : Outlined(16, foreground, disabled ? "000000" : "5828c8");
+    }
 
     public static GameTextStyle CatalogHeader(bool hovered, bool pressed) =>
         Outlined(16, new Color(hovered && !pressed ? "f0f0f0" : "d8d8d8"),
@@ -96,16 +101,9 @@ public sealed class GameTextPresenter : IDisposable
         if (!_settings.TryGetValue(key, out var settings))
         {
             settings = new LabelSettings { Font = key.Item2, FontSize = style.FontSize, FontColor = style.Foreground,
-                OutlineSize = 0, OutlineColor = Colors.Transparent, ShadowColor = Colors.Transparent,
-                ShadowSize = 0, StackedShadowCount = GameTextEffects.PassCount(style) };
-            for (int pass = 0; pass < settings.StackedShadowCount; pass++)
-            {
-                // Godot draws stacked shadows from the last index to the first.
-                int layer = settings.StackedShadowCount - 1 - pass;
-                settings.SetStackedShadowOffset(layer, GameTextEffects.Offset(style, pass));
-                settings.SetStackedShadowColor(layer, GameTextEffects.Color(style));
-                settings.SetStackedShadowOutlineSize(layer, 0);
-            }
+                OutlineSize = GameTextEffects.OutlineSize(style), OutlineColor = GameTextEffects.OutlineColor(style),
+                ShadowColor = GameTextEffects.ShadowColor(style), ShadowOffset = GameTextEffects.ShadowOffset(style),
+                ShadowSize = 0 };
             _settings.Add(key, settings);
         }
         label.LabelSettings = settings;
@@ -124,9 +122,12 @@ public sealed class GameTextPresenter : IDisposable
     public static void Draw(CanvasItem canvas, Font font, string text, Vector2 point, GameTextStyle style,
         HorizontalAlignment alignment = HorizontalAlignment.Left, float width = -1)
     {
-        for (int pass = 0; pass < GameTextEffects.PassCount(style); pass++)
-            canvas.DrawString(font, point + GameTextEffects.Offset(style, pass), text, alignment, width,
-                style.FontSize, GameTextEffects.Color(style));
+        if (style.Effect == GameTextEffect.Shadow)
+            canvas.DrawString(font, point + GameTextEffects.ShadowOffset(style), text, alignment, width,
+                style.FontSize, GameTextEffects.ShadowColor(style));
+        if (style.Effect == GameTextEffect.Outline)
+            canvas.DrawStringOutline(font, point, text, alignment, width, style.FontSize,
+                GameTextEffects.OutlineSize(style), GameTextEffects.OutlineColor(style));
         canvas.DrawString(font, point, text, alignment, width, style.FontSize, style.Foreground);
     }
 

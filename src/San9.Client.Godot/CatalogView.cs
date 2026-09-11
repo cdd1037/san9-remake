@@ -313,7 +313,7 @@ public partial class CatalogSkinButton : BaseButton
         bool pressed=GetDrawMode() is DrawMode.Pressed or DrawMode.HoverPressed;
         var state=(Selected,IsHovered(),pressed,SortDirection); if(_previous==state)return;_previous=state;
         var style=GameTextStyles.CatalogHeader(IsHovered(),pressed);
-        if(Kind==CatalogButtonKind.Tab)style=style with { Foreground=new Color(IsHovered()?"f0f0f0":"d8d8d8"),Effect=GameTextEffect.NeighborOutline,EffectColor=new Color(Selected||IsHovered()?"603000":"000000") };
+        if(Kind==CatalogButtonKind.Tab)style=GameTextStyles.CatalogTab(IsHovered(),Selected);
         _text.Apply(_label,style);_label.Position=pressed||(Kind==CatalogButtonKind.Tab&&Selected)?new(2,2):Vector2.Zero;QueueRedraw();
     }
     public override void _Draw()

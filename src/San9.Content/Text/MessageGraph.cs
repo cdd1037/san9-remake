@@ -29,6 +29,8 @@ public static class MessageGraph
             {
                 if (node is MessageReference reference && (string.IsNullOrWhiteSpace(reference.Key) || message.SemanticsConfirmed && !messages.ContainsKey(reference.Key)))
                     throw new InvalidDataException($"Invalid message reference in {key}.");
+                if (node is MessageFormat format && format.Channel is not ("foreground" or "effect"))
+                    throw new InvalidDataException("Invalid message format channel.");
                 if (node is MessageChoice { Choices.Length: 0 }) throw new InvalidDataException("Empty message choice.");
                 MessageExpression? expression = node switch { MessageValue v => v.Expression, MessageConditional c => c.Predicate, MessageChoice c => c.Index, _ => null };
                 if (expression is not null) ValidateExpression(expression, 0);

@@ -7,6 +7,30 @@ namespace San9.Importer.San9PkTc101.Tests;
 public sealed class OriginalMessageParserTests
 {
     [Fact]
+    public void OutlineDoesNotOverwriteForegroundAndResetRestoresBase()
+    {
+        var parsed = new OriginalMessageParser().Parse([.. Encoding.ASCII.GetBytes("\x1b[2mA"), 2, 0x8C,
+            .. Encoding.ASCII.GetBytes("1bB"), 2, 0x8C, .. Encoding.ASCII.GetBytes("32bC")], terminated: false);
+        Assert.True(parsed.FullyParsed);
+        Assert.True(parsed.Definition.SemanticsConfirmed);
+        string markup = MessageMarkup.Static(parsed.Definition.Nodes);
+        Assert.Contains("[outline_color=#98B0F8A6][color=#F06850]B", markup);
+        Assert.DoesNotContain("[color=#98B0F8]", markup);
+        Assert.EndsWith("[outline_size=0]C[/outline_size]", markup);
+    }
+
+    [Fact]
+    public void InlineShadowIsConsumedButExplicitlyNotExecutable()
+    {
+        var bytes = Encoding.ASCII.GetBytes("\x1b[1sA");
+        var parsed = new OriginalMessageParser().Parse(bytes, terminated: false);
+        Assert.Equal(bytes.Length, parsed.ConsumedBytes);
+        Assert.True(parsed.FullyParsed);
+        Assert.False(parsed.Definition.SemanticsConfirmed);
+        Assert.Contains(parsed.Issues, issue => issue.Offset == 0 && issue.Reason.Contains("shadow"));
+    }
+
+    [Fact]
     public void MissingRandomCandidateAndDeepExpressionAreIncomplete()
     {
         var parser = new OriginalMessageParser();

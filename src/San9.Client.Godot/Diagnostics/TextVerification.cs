@@ -38,7 +38,7 @@ public partial class TextVerification : Control
             var wrap = new GameRichTextLabel { Position=new(28,380),Size=new(400,180),Textures=textures,AutowrapMode=TextServer.AutowrapMode.WordSmart };
             AddChild(wrap);
             wrap.Present("[img]icons/city[/img]洛阳：[color=#88F880]这是一段用于检查自动换行与行内图标的说明文字。[/color]" +
-                "显式换行如下：\n" + MessageMarkup.Escape("参数里的[b]必须按普通文字显示。") + "\n[font_size=24]字号切换[/font_size]结束。",GameTextStyles.CatalogRow);
+                "[outline_size=1][outline_color=#98B0F8A6]蓝色描边[/outline_color][/outline_size]，显式换行如下：\n" + MessageMarkup.Escape("参数里的[b]必须按普通文字显示。") + "\n[font_size=24]字号切换[/font_size]结束。",GameTextStyles.CatalogRow);
             var font = GetThemeFont("font");
             IEnumerable<string> Literals(IEnumerable<MessageNode> nodes) => nodes.SelectMany(n => n switch
             {
@@ -61,6 +61,27 @@ public partial class TextVerification : Control
                 await ToSignal(RenderingServer.Singleton,RenderingServer.SignalName.FramePostDraw);
                 using var screenshot=GetViewport().GetTexture().GetImage();
                 screenshot.SavePng(Path.Combine(Output,"text-layout.png"));
+            }
+            foreach (var child in GetChildren().OfType<CanvasItem>()) child.Hide();
+            var samples = Enum.GetValues<GameTextRole>().Select(role => (Name: role.ToString(), Style: GameTextStyles.For(role)))
+                .Concat(Enum.GetValues<GameButtonTextRole>().SelectMany(role => Enumerable.Range(0, 8).Select(state =>
+                    (Name: $"{role}/{state}", Style: GameTextStyles.Button(role, (state & 1) != 0, (state & 2) != 0, (state & 4) != 0)))))
+                .Concat(Enumerable.Range(0, 16).Select(state => (Name: $"HelpTopic/{state}", Style: GameTextStyles.HelpTopic(
+                    (state & 1) != 0, (state & 2) != 0, (state & 4) != 0, (state & 8) != 0)))).ToArray();
+            foreach (int size in new[] {12, 16, 24})
+            foreach (var page in samples.Chunk(18).Select((rows, index) => (rows, index)))
+            {
+                var sheet = new TextStyleSheet { Size = Size, Samples = page.rows, FontSize = size, Textures = textures };
+                AddChild(sheet);
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                if (DisplayServer.GetName() != "headless")
+                {
+                    await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+                    using var screenshot = GetViewport().GetTexture().GetImage();
+                    screenshot.SavePng(Path.Combine(Output, $"styles-{size}-{page.index}.png"));
+                }
+                RemoveChild(sheet); sheet.Free();
             }
             GD.Print($"TEXT_VERIFICATION_OK characters={characters.Length} missing={missing.Length}");
             GetTree().Quit();

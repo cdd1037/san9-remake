@@ -35,7 +35,7 @@ public partial class BuildingHoverCard : Node2D
         }
     }
     private void Text(string value, Vector2 point, Color color, bool numeric, int width) =>
-        GameTextPresenter.Draw(this, UiFont, value, point, new(16, color, GameTextEffect.NeighborOutline, Colors.Black),
+        GameTextPresenter.Draw(this, UiFont, value, point, GameTextStyles.CatalogRow with { Foreground = color },
             numeric ? HorizontalAlignment.Right : HorizontalAlignment.Center, width);
     private void Tile(string role, Rect2 rect)
     {

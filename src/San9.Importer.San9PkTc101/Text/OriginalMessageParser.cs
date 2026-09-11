@@ -15,7 +15,6 @@ public sealed class OriginalMessageParser
     private byte[] _bytes = [];
     private int _position;
     private string _catalog = "messages";
-    private string? _color;
     private int _depth;
     private int _expressionDepth;
     private List<MessageNode> _root = [];
@@ -33,7 +32,7 @@ public sealed class OriginalMessageParser
 
     public ParsedMessage Parse(byte[] bytes, string catalog = "messages", bool terminated = true, bool formatString = false)
     {
-        _bytes = bytes; _position = 0; _catalog = catalog; _color = null; _depth = 0; _expressionDepth = 0;
+        _bytes = bytes; _position = 0; _catalog = catalog; _depth = 0; _expressionDepth = 0;
         _issues.Clear(); _bindings.Clear();
         List<MessageNode> nodes = [];
         bool complete = true;
@@ -110,8 +109,7 @@ public sealed class OriginalMessageParser
                 {
                     Take(); long style = Decimal(); byte suffix = Take();
                     if (suffix != 'b') throw new InvalidDataException($"Unsupported style suffix {suffix:X2}.");
-                    _color = style < 30 ? Palette[style] : null;
-                    nodes.Add(new MessageFormat(Prefix, Suffix));
+                    AddStyle(nodes, style, suffix, start);
                 }
                 else
                 {
@@ -127,8 +125,7 @@ public sealed class OriginalMessageParser
                     long? style = Peek() is >= (byte)'0' and <= (byte)'9' ? Decimal() : null;
                     byte suffix = Take();
                     if (suffix is not ((byte)'b' or (byte)'s' or (byte)'m' or (byte)'u')) throw new InvalidDataException("Unknown runtime style suffix.");
-                    _color = style is >= 0 and < 32 && suffix != 'u' ? Palette[style.Value] : null;
-                    nodes.Add(new MessageFormat(Prefix,Suffix));
+                    AddStyle(nodes, style, suffix, start);
                     continue;
                 }
                 if (code is (byte)'B' or (byte)'C' or (byte)'F') Take();
@@ -161,8 +158,26 @@ public sealed class OriginalMessageParser
         _depth--;
         return nodes;
     }
-    private string Prefix => _color is null ? "" : $"[color=#{_color}]";
-    private string Suffix => _color is null ? "" : "[/color]";
+    private void AddStyle(List<MessageNode> nodes, long? index, byte suffix, int offset)
+    {
+        if (suffix == 's')
+        {
+            // Native RichTextLabel has no per-span shadow. Keep the exact diagnostic,
+            // consume the grammar, and refuse execution rather than changing text color.
+            Issue("Inline shadow transition requires a supported presentation policy.", offset);
+            return;
+        }
+        if (suffix == 'u' || index >= 32 || suffix == 'm')
+        {
+            nodes.Add(new MessageFormat("[outline_size=0]", "[/outline_size]", "effect"));
+            string? foreground = suffix == 'm' && index is >= 0 and < 32 ? Palette[index.Value] : null;
+            nodes.Add(new MessageFormat(foreground is null ? "" : $"[color=#{foreground}]", foreground is null ? "" : "[/color]"));
+            return;
+        }
+        string? edge = index is >= 0 and < 32 ? Palette[index.Value] : null;
+        nodes.Add(new MessageFormat(edge is null ? "[outline_size=0]" : $"[outline_size=1][outline_color=#{edge}A6]",
+            edge is null ? "[/outline_size]" : "[/outline_color][/outline_size]", "effect"));
+    }
     private MessageExpression Boolean()
     {
         var left = Comparison();

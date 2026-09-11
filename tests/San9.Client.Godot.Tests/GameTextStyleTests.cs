@@ -5,6 +5,23 @@ namespace San9.Client.Godot.Tests;
 public sealed class GameTextStyleTests
 {
     [Fact]
+    public void HelpTopicsPreservePairedFiveEntryTablesAndTheirEightStateExpansion()
+    {
+        string[][] foreground = [
+            ["d8d8d8", "c0e0e8", "f0f0f0", "f0f0f0", "a4a4a4", "a4a4a4", "a4a4a4", "a4a4a4"],
+            ["f0f0f0", "f0f0f0", "f0f0f0", "f0f0f0", "000000", "000000", "000000", "000000"]];
+        for (int current = 0; current < 2; current++)
+        for (int state = 0; state < 8; state++)
+        {
+            var style = GameTextStyles.HelpTopic((state & 1) != 0, (state & 2) != 0, (state & 4) != 0, current != 0);
+            Assert.Equal(new Color(foreground[current][state]), style.Foreground);
+            Assert.Equal(current == 0 && state == 0 ? GameTextEffect.None : GameTextEffect.Outline, style.Effect);
+            if (style.Effect == GameTextEffect.Outline)
+                Assert.Equal(new Color(state < 4 ? "5828c8" : "000000"), style.EffectColor);
+        }
+    }
+
+    [Fact]
     public void HintAvailabilityChangesForegroundButPreservesEffects()
     {
         var enabled = GameTextStyles.Message(true);
@@ -18,38 +35,30 @@ public sealed class GameTextStyleTests
     [InlineData(GameTextRole.Header, GameTextEffect.None, 0)]
     [InlineData(GameTextRole.Resource, GameTextEffect.None, 0)]
     [InlineData(GameTextRole.Roster, GameTextEffect.None, 0)]
-    [InlineData(GameTextRole.Building, GameTextEffect.NeighborOutline, 8)]
-    [InlineData(GameTextRole.Message, GameTextEffect.Shadow, 1)]
-    [InlineData(GameTextRole.Region, GameTextEffect.NeighborOutline, 8)]
-    [InlineData(GameTextRole.Spring, GameTextEffect.NeighborOutline, 8)]
-    [InlineData(GameTextRole.Compass, GameTextEffect.NeighborOutline, 8)]
+    [InlineData(GameTextRole.Building, GameTextEffect.Outline, 1)]
+    [InlineData(GameTextRole.Message, GameTextEffect.Shadow, 0)]
+    [InlineData(GameTextRole.Region, GameTextEffect.Outline, 1)]
+    [InlineData(GameTextRole.Spring, GameTextEffect.Outline, 1)]
+    [InlineData(GameTextRole.Compass, GameTextEffect.Outline, 1)]
     public void RolesKeepTheirDistinctEffects(GameTextRole role, GameTextEffect effect, int passes)
     {
         var style = GameTextStyles.For(role);
         Assert.Equal(effect, style.Effect);
-        Assert.Equal(passes, GameTextEffects.PassCount(style));
+        Assert.Equal(passes, GameTextEffects.OutlineSize(style));
     }
 
     [Fact]
-    public void OutlineUsesEightUniqueNeighborsAtQuarterCoverage()
+    public void NativeEffectsHaveIndependentOutlineAndShadowProperties()
     {
-        var style = GameTextStyles.InformationMenu(true, false, true);
-        var offsets = Enumerable.Range(0, GameTextEffects.PassCount(style)).Select(i => GameTextEffects.Offset(style, i)).ToArray();
-        Assert.Equal(8, offsets.Distinct().Count());
-        Assert.DoesNotContain(Vector2.Zero, offsets);
-        Assert.All(offsets, p => Assert.True(Math.Abs(p.X) <= 1 && Math.Abs(p.Y) <= 1));
-        Assert.Equal(new Color(new Color("f0f0f0"), .25f), GameTextEffects.Color(style));
-        Assert.Equal(Colors.Black, style.Foreground);
-    }
-
-    [Fact]
-    public void MessageHasOneFullCoverageOffsetWithoutOutline()
-    {
-        var style = GameTextStyles.Message(true);
-        Assert.Equal(1, GameTextEffects.PassCount(style));
-        Assert.Equal(Vector2.One, GameTextEffects.Offset(style, 0));
-        Assert.Equal(Colors.Black, GameTextEffects.Color(style));
-        Assert.Throws<ArgumentOutOfRangeException>(() => GameTextEffects.Offset(style, 1));
+        var outline = GameTextStyles.InformationMenu(true, false, true);
+        Assert.Equal(1, GameTextEffects.OutlineSize(outline));
+        Assert.Equal(new Color(new Color("f0f0f0"), .65f), GameTextEffects.OutlineColor(outline));
+        Assert.Equal(Colors.Transparent, GameTextEffects.ShadowColor(outline));
+        var shadow = GameTextStyles.Message(true);
+        Assert.Equal(0, GameTextEffects.OutlineSize(shadow));
+        Assert.Equal(Colors.Transparent, GameTextEffects.OutlineColor(shadow));
+        Assert.Equal(Vector2.One, GameTextEffects.ShadowOffset(shadow));
+        Assert.Equal(Colors.Black, GameTextEffects.ShadowColor(shadow));
     }
 
     [Fact]

@@ -18,7 +18,7 @@ public sealed class MessageEvaluator(IReadOnlyDictionary<string, MessageDefiniti
         var output = new StringBuilder();
         var active = new HashSet<string>(StringComparer.Ordinal);
         int steps = 0;
-        string closing = "";
+        var formatting = new MessageFormatting();
         void Render(string id)
         {
             if (active.Count >= 64 || !active.Add(id)) throw new InvalidDataException($"Cyclic/deep message reference: {id}");
@@ -38,7 +38,7 @@ public sealed class MessageEvaluator(IReadOnlyDictionary<string, MessageDefiniti
                 switch (node)
                 {
                     case MessageLiteral literal: output.Append(source ? literal.SourceBbCode : literal.BbCode); break;
-                    case MessageFormat format: output.Append(closing).Append(format.Open); closing = format.Close; break;
+                    case MessageFormat format: formatting.Change(output, format); break;
                     case MessageValue value:
                         var resolved = Value(value.Expression);
                         output.Append(value.Prefix).Append(MessageMarkup.Escape(Format(resolved,value.Format))).Append(value.Suffix); break;
@@ -87,7 +87,7 @@ public sealed class MessageEvaluator(IReadOnlyDictionary<string, MessageDefiniti
             });
         }
         Render(key);
-        output.Append(closing);
+        output.Append(formatting.Closing);
         if (output.Length > 1_000_000) throw new InvalidDataException("Message output limit exceeded.");
         return output.ToString();
     }

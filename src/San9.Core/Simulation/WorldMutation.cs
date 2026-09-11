@@ -66,11 +66,7 @@ internal sealed class WorldMutation
         EnsureOpen();
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         var existing = Simulation.RandomStreams.SingleOrDefault(s => s.Name == name);
-        ulong seed = Simulation.InitialSeed;
-        // FNV-1a over UTF-8; no runtime string hash or platform byte order.
-        foreach (byte value in System.Text.Encoding.UTF8.GetBytes(name))
-            seed = unchecked((seed ^ value) * 1099511628211UL);
-        var random = new StableRandom(existing?.State ?? seed);
+        var random = new StableRandom(existing?.State ?? StableRandom.DeriveSeed(Simulation.InitialSeed, name));
         ulong result = random.NextUInt64();
         SetSimulation(Simulation with { RandomStreams = Simulation.RandomStreams
             .Where(s => s.Name != name).Append(new(name, random.State))

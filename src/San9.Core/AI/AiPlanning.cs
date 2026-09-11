@@ -1,6 +1,3 @@
-using System.Buffers.Binary;
-using System.Security.Cryptography;
-using System.Text;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -8,25 +5,26 @@ namespace San9.Core.AI;
 
 public sealed record AiObservation
 {
-    private AiObservation(int observerId, GameClock clock, string stateHash)
+    private AiObservation(int observerId, GameClock clock, ulong analysisSeed)
     {
         ObserverId = observerId;
         Clock = clock;
-        StateHash = stateHash;
+        AnalysisSeed = analysisSeed;
     }
 
     public int ObserverId { get; }
 
     public GameClock Clock { get; }
 
-    public string StateHash { get; }
+    public ulong AnalysisSeed { get; }
 
     public static AiObservation FromSnapshot(int observerId, WorldSnapshot snapshot)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(observerId);
         ArgumentNullException.ThrowIfNull(snapshot);
-        ArgumentException.ThrowIfNullOrWhiteSpace(snapshot.StateHash);
-        return new AiObservation(observerId, snapshot.Clock, snapshot.StateHash);
+        ulong seed = StableRandom.DeriveSeed(snapshot.Simulation.InitialSeed,
+            FormattableString.Invariant($"ai:{observerId}:{snapshot.Clock.DayNumber}"));
+        return new AiObservation(observerId, snapshot.Clock, seed);
     }
 }
 
@@ -101,16 +99,7 @@ public sealed record AiPlanningContext
             throw new ArgumentOutOfRangeException(nameof(diagnosticLevel));
         }
 
-        string canonical = string.Join(
-            '|',
-            observation.StateHash,
-            observation.ObserverId,
-            observation.Clock.Year,
-            observation.Clock.Month,
-            (int)observation.Clock.Xun,
-            purpose);
-        byte[] digest = SHA256.HashData(Encoding.UTF8.GetBytes(canonical));
-        ulong analysisSeed = BinaryPrimitives.ReadUInt64BigEndian(digest);
+        ulong analysisSeed = StableRandom.DeriveSeed(observation.AnalysisSeed, purpose);
 
         return new AiPlanningContext(observation, purpose, budget, diagnosticLevel, analysisSeed);
     }

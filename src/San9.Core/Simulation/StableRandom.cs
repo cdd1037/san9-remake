@@ -15,6 +15,15 @@ public sealed class StableRandom
 
     public ulong State => _state;
 
+    public static ulong DeriveSeed(ulong seed, string name)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        // Stable FNV-1a mixing over UTF-8; this is random stream separation, not integrity checking.
+        foreach (byte value in System.Text.Encoding.UTF8.GetBytes(name))
+            seed = unchecked((seed ^ value) * 1099511628211UL);
+        return seed;
+    }
+
     public ulong NextUInt64()
     {
         ulong value = _state += Gamma;

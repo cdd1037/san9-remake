@@ -1,8 +1,11 @@
 # 字体资源
 
-`GameFont.tres`统一用于普通控件、地图文字和富文本。主字体仍为霞鹜文楷等宽GB轻量版；主字体缺字时使用BabelStone Han，不修改Unicode或用其他汉字代替。
+`GameFont.tres`统一用于普通控件、地图文字和富文本，目前只使用霞鹜文楷等宽 GB Lite。来源：[LXGW WenKai GB](https://github.com/lxgw/LxgwWenkaiGB)，许可见`OFL.txt`。
 
-- 主字体：[LXGW WenKai GB](https://github.com/lxgw/LxgwWenkaiGB)，许可见`OFL.txt`。
-- 回退字体：[BabelStone Han](https://www.babelstone.co.uk/Fonts/Han.html)，使用作者16.0.3版原始TTF文件，未裁剪或修改；许可全文见`ARPHICPL.txt`。仅在主字体缺字时使用其宋体字形。
+## 已确认取舍（2026-09-11）
 
-运行`--text-smoke`生成全量文本字形覆盖报告与图文展示页，输出位于`local/generated/verification/text/`。报告包含源文及简体文本，按Unicode标量检查扩展汉字。
+根据项目所有者决定，不为缺字增补字体文件，撤除此前的 BabelStone Han 回退。明确接受 U+20860（𠡠）、U+29166（𩅦）、U+2AEFA（𪻺）、U+2B623（𫘣）缺字。保留文本 Unicode，不替换成其他字、不删除、不用图标补字。字形缺失时保留引擎缺字显示。
+
+用户补入的 `LXGWWenKaiMonoGB-Medium.ttf` 尚未切换为主字体；它只补齐上述四字中的 U+29166，不能消除全部缺字。
+
+运行`--text-smoke`生成实际字体覆盖报告。报告保留全部缺字并分别标记是否已接受，只有这四个字符可通过验收，其他新增缺字仍报错。原文与转换后文字的出处见 [RE-0166](../../../research/findings/RE-SAN9PK-0166.md#缺字出处核对与不增补字体决定2026-09-11)。

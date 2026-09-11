@@ -22,7 +22,7 @@
 
 `SkinnedScrollBar`负责原生范围、箭头和绘制，`ScrollBarSkin`提供分段纹理与布局，业务列表持有条目与视口。资源帧数量与文字状态表分别定义，不能从背景四帧推断完整文字状态。
 
-主题为`GameFont.tres`（霞鹜文楷等宽GB Lite和经全量缺字检查的BabelStone Han回退），纯文字与图文控件共用字体。`GameRichTextLabel`使用Godot原生BBCode和转换包图标；提示、列传、说明及侧栏名称共用消息求值和显示链路。名称排序使用严格纯文本读取，不剥离图标。详见[统一消息规格](../specs/behavior/BEH-UI-0006-unified-messages.md)。
+主题为`GameFont.tres`（霞鹜文楷等宽GB Lite，不增补回退字体，四个已知缺字明确接受），纯文字与图文控件共用字体。`GameRichTextLabel`使用Godot原生BBCode和转换包图标；提示、列传、说明及侧栏名称共用消息求值和显示链路。名称排序使用严格纯文本读取，不剥离图标。详见[统一消息规格](../specs/behavior/BEH-UI-0006-unified-messages.md)。
 
 描边、阴影强一致是未决项，既有纯文字效果可保留；不作为本轮图文验收条件。文字按容器布局，表格正文在24像素行内垂直居中，不针对不同字体追加固定偏移。
 

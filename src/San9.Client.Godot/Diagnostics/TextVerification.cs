@@ -48,10 +48,13 @@ public partial class TextVerification : Control
             var characters=Content.Text.Entries.Values.SelectMany(t=>new[]{t.Text,t.SourceText})
                 .Concat(Content.Text.Messages.Values.SelectMany(m=>Literals(m.Nodes)))
                 .SelectMany(s=>s.EnumerateRunes()).Where(r=>!System.Text.Rune.IsControl(r)).Distinct().ToArray();
-            var missing=characters.Where(r=>!font.HasChar(r.Value)).Select(r=>new {Code=$"U+{r.Value:X}",Character=r.ToString()}).ToArray();
+            int[] acceptedMissing = [0x20860, 0x29166, 0x2AEFA, 0x2B623];
+            var missing=characters.Where(r=>!font.HasChar(r.Value)).Select(r=>new {
+                Code=$"U+{r.Value:X}",Character=r.ToString(),Accepted=acceptedMissing.Contains(r.Value) }).ToArray();
+            var unexpected = missing.Where(glyph => !glyph.Accepted).ToArray();
             Directory.CreateDirectory(Output);
             File.WriteAllText(Path.Combine(Output,"font-coverage.json"),System.Text.Json.JsonSerializer.Serialize(new {Characters=characters.Length,Missing=missing},PackageFiles.JsonOptions),System.Text.Encoding.UTF8);
-            if (missing.Length != 0) throw new InvalidDataException($"Modern font coverage has {missing.Length} missing characters.");
+            if (unexpected.Length != 0) throw new InvalidDataException($"Modern font coverage has {unexpected.Length} unaccepted missing characters.");
             await ToSignal(GetTree(),SceneTree.SignalName.ProcessFrame);
             await ToSignal(GetTree(),SceneTree.SignalName.ProcessFrame);
             foreach(var label in labels)
@@ -83,7 +86,7 @@ public partial class TextVerification : Control
                 }
                 RemoveChild(sheet); sheet.Free();
             }
-            GD.Print($"TEXT_VERIFICATION_OK characters={characters.Length} missing={missing.Length}");
+            GD.Print($"TEXT_VERIFICATION_OK characters={characters.Length} missing={missing.Length} accepted={missing.Length - unexpected.Length} unexpected={unexpected.Length}");
             GetTree().Quit();
         }
         catch(Exception e) { GD.PushError($"TEXT_VERIFICATION_FAILED {e}"); GetTree().Quit(1); }

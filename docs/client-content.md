@@ -83,7 +83,7 @@ EXE证据先在项目主IDA库运行`research/scripts/ida/export_text_evidence.p
 
 武将一览使用通用CatalogView，提供13页列组、排序、滚动及原生64×80中档头像。正文在24像素行内垂直居中，各列保留声明的水平对齐。武将详情使用240×240头像、独立18行名单、四维图、状态/兵法页及列传。字段与其他情报页面范围见[情报界面](information-browser.md)。
 
-主题`GameFont.tres`以霞鹜文楷等宽GB Lite为主字体，并按全量缺字检查配置BabelStone Han回退；来源与许可证见[字体说明](../src/San9.Client.Godot/assets/README.md)。纯文字地图绘制与富文本共用主题字体和角色色彩/字号。原生RichTextLabel承担图文排版；描边和阴影强一致仍为未决项，不自建排版引擎。
+主题`GameFont.tres`只使用霞鹜文楷等宽GB Lite，按用户决定不增补字体并明确接受四个缺字；来源与许可证见[字体说明](../src/San9.Client.Godot/assets/README.md)。纯文字地图绘制与富文本共用主题字体和角色色彩/字号。原生RichTextLabel承担图文排版；描边和阴影强一致仍为未决项，不自建排版引擎。
 
 F3提供四季预览及单人商业、开垦入口，内政修改当前会话世界。完整旬结算、部队出征与战斗生命周期尚未接入。全图三个图层按钮的独立文字效果暂缓；目录标题及关闭按钮文字效果仍待核对。
 

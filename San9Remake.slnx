@@ -9,6 +9,7 @@
     <Project Path="src/San9.Tools/San9.Tools.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/San9.Application.Tests/San9.Application.Tests.csproj" />
     <Project Path="tests/San9.Client.Godot.Tests/San9.Client.Godot.Tests.csproj" />
     <Project Path="tests/San9.Content.Tests/San9.Content.Tests.csproj" />
     <Project Path="tests/San9.Core.Tests/San9.Core.Tests.csproj" />

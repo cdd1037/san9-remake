@@ -12,8 +12,8 @@ public sealed class SimulationEngineTests
         SimulationEngine second = CreateEngine();
         WaitCommand[] commands =
         [
-            new(Guid.Parse("00000000-0000-0000-0000-000000000002"), new ForceId(2), 0),
-            new(Guid.Parse("00000000-0000-0000-0000-000000000001"), new ForceId(1), 0),
+            new(Guid.Parse("00000000-0000-0000-0000-000000000002"), 2, 0),
+            new(Guid.Parse("00000000-0000-0000-0000-000000000001"), 1, 0),
         ];
 
         foreach (WaitCommand command in commands)
@@ -32,8 +32,8 @@ public sealed class SimulationEngineTests
         Assert.Equal(firstResult.Snapshot.StateHash, secondResult.Snapshot.StateHash);
         Assert.Equal(firstResult.Events, secondResult.Events);
         CommandResolvedEvent[] resolved = firstResult.Events.OfType<CommandResolvedEvent>().ToArray();
-        Assert.Equal(new ForceId(1), resolved[0].IssuerId);
-        Assert.Equal(new ForceId(2), resolved[1].IssuerId);
+        Assert.Equal(1, resolved[0].IssuerId);
+        Assert.Equal(2, resolved[1].IssuerId);
     }
 
     [Fact]
@@ -41,7 +41,7 @@ public sealed class SimulationEngineTests
     {
         SimulationEngine engine = CreateEngine();
         Guid id = Guid.Parse("00000000-0000-0000-0000-000000000001");
-        WaitCommand command = new(id, new ForceId(1), 0);
+        WaitCommand command = new(id, 1, 0);
 
         Assert.True(engine.Submit(command).Accepted);
         CommandSubmissionResult duplicate = engine.Submit(command);
@@ -56,7 +56,7 @@ public sealed class SimulationEngineTests
         SimulationEngine engine = CreateEngine();
         WaitCommand command = new(
             Guid.Parse("00000000-0000-0000-0000-000000000001"),
-            new ForceId(1),
+            1,
             0);
 
         Assert.True(engine.Validate(command).Accepted);
@@ -65,6 +65,19 @@ public sealed class SimulationEngineTests
 
         AdvanceXunResult result = engine.AdvanceXun();
         Assert.Single(result.Events.OfType<CommandResolvedEvent>());
+    }
+
+    [Fact]
+    public void Submit_RejectsNegativeIssuerId()
+    {
+        SimulationEngine engine = CreateEngine();
+        WaitCommand command = new(Guid.Parse("00000000-0000-0000-0000-000000000001"), -1, 0);
+
+        CommandSubmissionResult result = engine.Submit(command);
+
+        Assert.False(result.Accepted);
+        Assert.Equal(CommandRejection.NegativeIssuerId, result.Rejection);
+        Assert.Empty(engine.AdvanceXun().Events.OfType<CommandResolvedEvent>());
     }
 
     private static SimulationEngine CreateEngine()

@@ -1,21 +1,20 @@
-using San9.Core.Domain;
-
 namespace San9.Core.Simulation;
 
 public abstract record GameCommand(
     Guid CommandId,
-    ForceId IssuerId,
+    int IssuerId,
     long Sequence);
 
 public sealed record WaitCommand(
     Guid CommandId,
-    ForceId IssuerId,
+    int IssuerId,
     long Sequence)
     : GameCommand(CommandId, IssuerId, Sequence);
 
 public enum CommandRejection
 {
     None = 0,
+    NegativeIssuerId,
     DuplicateCommandId,
     NegativeSequence,
 }

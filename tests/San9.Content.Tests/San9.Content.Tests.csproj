@@ -14,7 +14,4 @@
   <ItemGroup>
     <ProjectReference Include="../../src/San9.Content/San9.Content.csproj" />
   </ItemGroup>
-  <ItemGroup>
-    <Content Include="Fixtures/dev-fixture/*.json" Link="dev-fixture/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
 </Project>

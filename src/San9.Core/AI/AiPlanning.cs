@@ -8,21 +8,22 @@ namespace San9.Core.AI;
 
 public sealed record AiObservation
 {
-    private AiObservation(ForceId observerId, GameClock clock, string stateHash)
+    private AiObservation(int observerId, GameClock clock, string stateHash)
     {
         ObserverId = observerId;
         Clock = clock;
         StateHash = stateHash;
     }
 
-    public ForceId ObserverId { get; }
+    public int ObserverId { get; }
 
     public GameClock Clock { get; }
 
     public string StateHash { get; }
 
-    public static AiObservation FromSnapshot(ForceId observerId, WorldSnapshot snapshot)
+    public static AiObservation FromSnapshot(int observerId, WorldSnapshot snapshot)
     {
+        ArgumentOutOfRangeException.ThrowIfNegative(observerId);
         ArgumentNullException.ThrowIfNull(snapshot);
         ArgumentException.ThrowIfNullOrWhiteSpace(snapshot.StateHash);
         return new AiObservation(observerId, snapshot.Clock, snapshot.StateHash);
@@ -103,7 +104,7 @@ public sealed record AiPlanningContext
         string canonical = string.Join(
             '|',
             observation.StateHash,
-            observation.ObserverId.Value,
+            observation.ObserverId,
             observation.Clock.Year,
             observation.Clock.Month,
             (int)observation.Clock.Xun,

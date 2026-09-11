@@ -63,7 +63,7 @@
         "target_namespace": "San9.Core.Personnel",
         "target_path": "src/San9.Core/Personnel",
         "entry_types": ["PersonnelCommandService", "AffiliationTransition", "ActionReservationService"],
-        "existing_anchors": ["src/San9.Core/Domain/Entities.cs", "src/San9.Core/Simulation/GameCommand.cs"]
+        "existing_anchors": ["src/San9.Core/Domain/OfficerState.cs", "src/San9.Core/Simulation/GameCommand.cs"]
       }
     },
     {
@@ -82,7 +82,7 @@
         "target_namespace": "San9.Core.Personnel.Lifecycle",
         "target_path": "src/San9.Core/Personnel/Lifecycle",
         "entry_types": ["PersonGrowthService", "PersonLifecycleService", "TraineeDevelopmentService"],
-        "existing_anchors": ["src/San9.Core/Domain/Entities.cs", "src/San9.Core/Simulation/StableRandom.cs"]
+        "existing_anchors": ["src/San9.Core/Domain/OfficerState.cs", "src/San9.Core/Simulation/StableRandom.cs"]
       }
     },
     {
@@ -101,7 +101,7 @@
         "target_namespace": "San9.Core.Governance",
         "target_path": "src/San9.Core/Governance",
         "entry_types": ["CorpsService", "DelegationPlanner", "TerritorialTransitionService"],
-        "existing_anchors": ["src/San9.Core/Domain/Entities.cs", "src/San9.Core/Simulation/SimulationEngine.cs"]
+        "existing_anchors": ["src/San9.Core/Domain/RuntimeState.cs", "src/San9.Core/Simulation/SimulationEngine.cs"]
       }
     },
     {
@@ -120,7 +120,7 @@
         "target_namespace": "San9.Core.Diplomacy",
         "target_path": "src/San9.Core/Diplomacy",
         "entry_types": ["RelationService", "AllianceService", "DiplomacyCommandHandler", "DiplomacyPlanner"],
-        "existing_anchors": ["src/San9.Core/Domain/Entities.cs", "src/San9.Core/Simulation/GameCommand.cs"]
+        "existing_anchors": ["src/San9.Core/Domain/InformationState.cs", "src/San9.Core/Simulation/GameCommand.cs"]
       }
     },
     {
@@ -158,7 +158,7 @@
         "target_namespace": "San9.Core.Warfare",
         "target_path": "src/San9.Core/Warfare",
         "entry_types": ["MovementService", "BattlefieldCommandHandler", "BuildingCaptureService", "UnitTerminationService"],
-        "existing_anchors": ["src/San9.Core/Domain/Entities.cs", "src/San9.Core/Simulation/SimulationEngine.cs"]
+        "existing_anchors": ["src/San9.Core/Domain/UnitState.cs", "src/San9.Core/Simulation/SimulationEngine.cs"]
       }
     },
     {
@@ -196,7 +196,7 @@
         "target_namespace": "San9.Core.Duels",
         "target_path": "src/San9.Core/Duels",
         "entry_types": ["DuelTriggerService", "DuelResolver", "DuelAftermathService"],
-        "existing_anchors": ["src/San9.Core/Domain/Entities.cs", "src/San9.Core/Simulation/StableRandom.cs"]
+        "existing_anchors": ["src/San9.Core/Domain/OfficerState.cs", "src/San9.Core/Simulation/StableRandom.cs"]
       }
     },
     {
@@ -234,7 +234,7 @@
         "target_namespace": "San9.Core.Scenarios",
         "target_path": "src/San9.Core/Scenarios",
         "entry_types": ["TerminalEvaluator", "EndingResolver"],
-        "existing_anchors": ["src/San9.Core/Simulation/WorldState.cs", "src/San9.Core/Domain/Entities.cs"]
+        "existing_anchors": ["src/San9.Core/Simulation/WorldState.cs", "src/San9.Core/Domain/RuntimeState.cs"]
       }
     },
     {
@@ -252,8 +252,8 @@
         "project": "San9.Importer.San9PkTc101",
         "target_namespace": "San9.Importer.San9PkTc101",
         "target_path": "src/San9.Importer.San9PkTc101",
-        "entry_types": ["San9PkTc101Detector", "San9ScenarioArchive", "ContentPackageConverter"],
-        "existing_anchors": ["src/San9.Importer.San9PkTc101/San9PkTc101Detector.cs", "src/San9.Importer.San9PkTc101/San9ScenarioArchive.cs", "src/San9.Content/ScenarioDefinition.cs"]
+        "entry_types": ["San9PkTc101Detector", "San9ScenarioArchive", "ScenarioContentCompiler"],
+        "existing_anchors": ["src/San9.Importer.San9PkTc101/San9PkTc101Detector.cs", "src/San9.Importer.San9PkTc101/San9ScenarioArchive.cs", "src/San9.Content/Scenarios/ScenarioInitialState.cs"]
       }
     },
     {

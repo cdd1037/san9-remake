@@ -8,13 +8,16 @@ namespace San9.Application;
 public sealed class GameSession
 {
     private readonly SimulationEngine _simulation;
-    private readonly WorldState _world;
-    private ScenarioInitialState? _definition;
+    private readonly StrategySnapshotSource _snapshotSource;
+    private readonly StrategySnapshot _initialView;
+    private readonly System.Collections.ObjectModel.ReadOnlyCollection<SessionRecord> _readOnlyRecords;
+    private readonly System.Collections.ObjectModel.ReadOnlyCollection<ChronicleEntry> _readOnlyChronicle;
+    private StrategySnapshot _view;
     public event Action? Changed;
     private readonly List<SessionRecord> _records = [];
     private readonly List<ChronicleEntry> _chronicle = [];
-    public IReadOnlyList<SessionRecord> Records => _records.AsReadOnly();
-    public IReadOnlyList<ChronicleEntry> Chronicle => _chronicle.AsReadOnly();
+    public IReadOnlyList<SessionRecord> Records => _readOnlyRecords;
+    public IReadOnlyList<ChronicleEntry> Chronicle => _readOnlyChronicle;
     public void AddChronicleNote(string text)
     {
         text = text.Trim();
@@ -24,19 +27,28 @@ public sealed class GameSession
         Changed?.Invoke();
     }
 
-    public GameSession(WorldState initialState)
+    private GameSession(ScenarioInitialState definition, WorldState initialState)
     {
         _simulation = new SimulationEngine(initialState);
-        _world = initialState;
+        _snapshotSource = new(definition);
+        _view = _snapshotSource.Project(_simulation.Snapshot);
+        _initialView = _view;
+        _readOnlyRecords = _records.AsReadOnly();
+        _readOnlyChronicle = _chronicle.AsReadOnly();
+        InitialDate = $"{definition.Year}年{definition.Month}月{definition.Day}日";
     }
 
-    public string InitialDate => _definition is { } d ? $"{d.Year}年{d.Month}月{d.Day}日" : "";
+    public string InitialDate { get; }
     public WorldSnapshot Snapshot => _simulation.Snapshot;
-    private StrategySnapshot? _initialView;
-    public StrategySnapshot InitialView => _initialView ?? throw new InvalidOperationException("No scenario attached.");
-    private StrategySnapshot? _view;
-    public StrategySnapshot View => _view is not null && _view.World.Revision == Snapshot.Revision ? _view :
-        _view = new(_definition ?? throw new InvalidOperationException("No scenario content attached."), Snapshot);
+    public StrategySnapshot InitialView => _initialView;
+    public StrategySnapshot View
+    {
+        get
+        {
+            WorldSnapshot snapshot = Snapshot;
+            return _view.World.Revision == snapshot.Revision ? _view : _view = _snapshotSource.Project(snapshot);
+        }
+    }
 
     public static GameSession Start(ScenarioInitialState definition, ulong seed)
     {
@@ -52,20 +64,19 @@ public sealed class GameSession
             definition.Forces.Select(f => new ForceState(f.Id, f.Money, f.Food, f.Trust) { ProvidedTactics = f.ProvidedTactics, IsBarbarian = f.IsBarbarian, LeaderId = f.LeaderId, RankId = f.RankId }),
             definition.Settlements.Select(s => new SettlementState(s.Id, s.OwnerId, s.Soldiers, s.Durability, s.MaxDurability,
                 s.Morale, s.PublicOrder, s.Commerce, s.MaxCommerce, s.Cultivation, s.MaxCultivation) { Kind = s.Kind, CorpsId = s.CorpsId, Population = s.Population, DraftPopulation = s.DraftPopulation }), definition.Officers.Select(o => o.State), definition.Units, definition.Information.Corps, definition.Information.TreasureStates, definition.Information.Relations);
-        var session = new GameSession(world) { _definition = definition };
-        session._initialView = session.View;
-        return session;
+        return new GameSession(definition, world);
     }
 
     public DevelopmentOutcome Develop(DevelopmentCommand command)
     {
-        var result = _world.Develop(command);
-        if (result.Accepted)
+        var result = _simulation.Develop(command);
+        foreach (var completed in result.Events.OfType<DevelopmentCompletedEvent>())
         {
-            _records.Add(new(Snapshot.Clock, command.ForceId, command.SettlementId, command.OfficerId, command.Activity, result.Increment, result.Cost));
-            Changed?.Invoke();
+            _records.Add(new(completed.Clock, completed.Command.ForceId, completed.Command.SettlementId,
+                completed.Command.OfficerId, completed.Command.Activity, completed.Increment, completed.Cost));
         }
-        return result;
+        if (result.Outcome.Accepted) Changed?.Invoke();
+        return result.Outcome;
     }
 
     public CommandSubmissionResult Validate(GameCommand command) => _simulation.Validate(command);

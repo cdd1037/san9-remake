@@ -1,3 +1,5 @@
+using San9.Core.Domain;
+
 namespace San9.Core.Simulation;
 
 public sealed class SimulationEngine
@@ -14,9 +16,25 @@ public sealed class SimulationEngine
 
     public WorldSnapshot Snapshot => _world.CreateSnapshot();
 
+    public DevelopmentExecutionResult Develop(DevelopmentCommand command)
+    {
+        var mutation = _world.BeginMutation();
+        DevelopmentOutcome outcome = DomesticDevelopmentHandler.Apply(mutation, command);
+        if (!outcome.Accepted) return new(outcome, [], Snapshot);
+
+        _world.Commit(mutation);
+        return new(outcome, Array.AsReadOnly<DomainEvent>(
+            [new DevelopmentCompletedEvent(mutation.Clock, command, outcome.Increment, outcome.Cost)]), Snapshot);
+    }
+
     public CommandSubmissionResult Validate(GameCommand command)
     {
         ArgumentNullException.ThrowIfNull(command);
+
+        if (command.IssuerId < 0)
+        {
+            return CommandSubmissionResult.Reject(CommandRejection.NegativeIssuerId);
+        }
 
         if (command.Sequence < 0)
         {
@@ -50,7 +68,7 @@ public sealed class SimulationEngine
         List<DomainEvent> events = [];
 
         foreach (GameCommand command in _commands
-                     .OrderBy(static command => command.IssuerId.Value)
+                     .OrderBy(static command => command.IssuerId)
                      .ThenBy(static command => command.Sequence)
                      .ThenBy(static command => command.CommandId))
         {
@@ -61,7 +79,10 @@ public sealed class SimulationEngine
         }
 
         GameClock current = previous.Advance();
-        _world.CommitXun(current, _world.RandomState);
+        var mutation = _world.BeginMutation();
+        mutation.SetSimulationState(current, mutation.RandomState);
+        XunRecovery.Apply(mutation);
+        _world.Commit(mutation);
         events.Add(new XunAdvancedEvent(previous, current));
 
         _commands.Clear();
@@ -71,5 +92,10 @@ public sealed class SimulationEngine
 }
 
 public sealed record AdvanceXunResult(
+    IReadOnlyList<DomainEvent> Events,
+    WorldSnapshot Snapshot);
+
+public sealed record DevelopmentExecutionResult(
+    DevelopmentOutcome Outcome,
     IReadOnlyList<DomainEvent> Events,
     WorldSnapshot Snapshot);

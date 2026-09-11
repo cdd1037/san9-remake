@@ -3,7 +3,7 @@ using San9.Application.Presentation;
 using San9.Content.Scenarios;
 using San9.Core.Domain;
 
-namespace San9.Client.Godot.Tests;
+namespace San9.Application.Tests;
 
 public sealed class StrategyOverviewTests
 {

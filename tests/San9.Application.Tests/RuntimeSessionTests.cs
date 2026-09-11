@@ -3,7 +3,7 @@ using San9.Application.Presentation;
 using San9.Content.Scenarios;
 using San9.Core.Domain;
 
-namespace San9.Client.Godot.Tests;
+namespace San9.Application.Tests;
 
 public sealed class RuntimeSessionTests
 {
@@ -19,7 +19,8 @@ public sealed class RuntimeSessionTests
         Assert.True(Assert.Single(roster.Current.Ordinary).IsAvailable);
         initial.Officers[0] = new("changed", initial.Officers[0].State with { BaseAbilities = new(1,1,1,1) });
         initial.Forces[0]=initial.Forces[0] with { Money=1,ColorCode=49 };
-        Assert.True(first.Develop(new(5,15,1,DomesticActivity.Commerce)).Accepted);
+        var development = first.Develop(new(5,15,1,DomesticActivity.Commerce));
+        Assert.True(development.Accepted);
         Assert.Equal(50u,first.View.Forces.Single().Money);
         Assert.Equal(5,first.View.Forces.Single().ColorCode);
         Assert.False(first.View.Settlements.Single().HasAvailableOfficer);
@@ -31,7 +32,16 @@ public sealed class RuntimeSessionTests
         Assert.Equal(100u,old.Forces.Single().Money);
         Assert.Equal(100u,second.View.Forces.Single().Money);
         Assert.Equal(300,second.View.Settlements.Single().Commerce);
+        Assert.Equal(new SessionRecord(old.World.Clock, 5, 15, 1, DomesticActivity.Commerce, development.Increment, development.Cost),
+            Assert.Single(first.Records));
+        Assert.False(first.Develop(new(5,15,1,DomesticActivity.Commerce)).Accepted);
+        Assert.Single(first.Records);
+        Assert.Empty(second.Records);
         Assert.NotEqual(first.Snapshot.StateHash,second.Snapshot.StateHash);
+        Assert.Same(first.InitialView.Information, first.View.Information);
+        Assert.Same(first.InitialView.RegionNameKeys, first.View.RegionNameKeys);
+        Assert.Same(first.InitialView.RegionCityIds, first.View.RegionCityIds);
+        Assert.Same(first.InitialView.Settlements.Single().Icons, first.View.Settlements.Single().Icons);
         roster.Refresh(first.View, 5);
         Assert.False(Assert.Single(roster.Current.Ordinary).IsAvailable);
         Assert.Equal("officer.1", first.View.Officers.Single().NameKey);

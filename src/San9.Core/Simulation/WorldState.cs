@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Collections.Immutable;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -8,17 +9,19 @@ namespace San9.Core.Simulation;
 
 public sealed class WorldState
 {
-    private readonly Dictionary<int, ForceState> _forces = [];
-    private readonly Dictionary<int, SettlementState> _settlements = [];
-    private readonly Dictionary<int, OfficerState> _officers = [];
-    private readonly Dictionary<int, UnitState> _units = [];
-    private ForceRelation[] _relations = [];
-    private CorpsState[] _corps = [];
-    private TreasureState[] _treasures = [];
+    private ImmutableDictionary<int, ForceState> _forces = ImmutableDictionary<int, ForceState>.Empty;
+    private ImmutableDictionary<int, SettlementState> _settlements = ImmutableDictionary<int, SettlementState>.Empty;
+    private ImmutableDictionary<int, OfficerState> _officers = ImmutableDictionary<int, OfficerState>.Empty;
+    private ImmutableDictionary<int, UnitState> _units = ImmutableDictionary<int, UnitState>.Empty;
+    private ImmutableDictionary<int, CorpsState> _corps = ImmutableDictionary<int, CorpsState>.Empty;
+    private ImmutableDictionary<int, TreasureState> _treasures = ImmutableDictionary<int, TreasureState>.Empty;
+    private ImmutableDictionary<(int FirstId, int SecondId), ForceRelation> _relations =
+        ImmutableDictionary<(int FirstId, int SecondId), ForceRelation>.Empty;
     public long Revision { get; private set; }
     private WorldSnapshot? _snapshot;
     private WorldState(GameClock clock, ulong randomState)
     {
+        _ = new GameClock(clock.Year, clock.Month, clock.Xun);
         Clock = clock;
         RandomState = randomState;
     }
@@ -27,88 +30,56 @@ public sealed class WorldState
 
     public ulong RandomState { get; private set; }
 
-    public static WorldState Create(GameClock clock, ulong seed) => new(clock, seed);
+    public static WorldState Create(GameClock clock, ulong seed) => Create(clock, seed, [], [], []);
 
     public static WorldState Create(GameClock clock, ulong seed, IEnumerable<ForceState> forces,
         IEnumerable<SettlementState> settlements, IEnumerable<OfficerState> officers, IEnumerable<UnitState>? units = null, IEnumerable<CorpsState>? corps = null, IEnumerable<TreasureState>? treasures = null, IEnumerable<ForceRelation>? relations = null)
     {
         var world = new WorldState(clock, seed);
-        foreach (var force in forces)
-        {
-            if (force.Id < 0 || force.Trust < 0 || force.ProvidedTactics.IsDefault || force.ProvidedTactics.Any(t => t < 0) || force.ProvidedTactics.Distinct().Count() != force.ProvidedTactics.Length) throw new ArgumentException("Invalid force.");
-            world._forces.Add(force.Id, force);
-        }
-        foreach (var settlement in settlements)
-        {
-            if (settlement.Id < 0 || !Enum.IsDefined(settlement.Kind) || settlement.OwnerId is int owner && !world._forces.ContainsKey(owner) ||
-                settlement.MaxDurability <= 0 || settlement.Durability < 0 || settlement.Durability > settlement.MaxDurability ||
-                settlement.Morale is < 0 or > 100 || settlement.Commerce < 0 || settlement.Commerce > settlement.MaxCommerce ||
-                settlement.Cultivation < 0 || settlement.Cultivation > settlement.MaxCultivation || settlement.PublicOrder is < 0 or > 1000)
-                throw new ArgumentException("Invalid settlement.");
-            world._settlements.Add(settlement.Id, settlement);
-        }
-        foreach (var officer in officers)
-        {
-            if (!officer.IsValid() || officer.SettlementId is int location && !world._settlements.ContainsKey(location) ||
-                officer.OwnerId is int owner && !world._forces.ContainsKey(owner) ||
-                officer.IsServing && world._settlements[officer.SettlementId!.Value].OwnerId != officer.OwnerId) throw new ArgumentException("Invalid officer.");
-            world._officers.Add(officer.Id, officer);
-        }
-        if (world._forces.Values.Any(f => f.LeaderId is int leader &&
-                (!world._officers.TryGetValue(leader, out var officer) || officer.OwnerId != f.Id)) ||
-            world._settlements.Values.Any(s => s.CorpsId < 0 || s.CorpsId is not null && s.OwnerId is null) ||
-            world._settlements.Values.Where(s => s.CorpsId is not null).GroupBy(s => s.CorpsId)
-                .Any(g => g.Select(s => s.OwnerId).Distinct().Count() != 1))
-            throw new ArgumentException("Invalid leader or corps relationship.");
-        foreach (var unit in units ?? [])
-        {
-            if (!unit.IsValid || !world._forces.ContainsKey(unit.OwnerId)) throw new ArgumentException("Invalid unit.");
-            world._units.Add(unit.Id, unit);
-        }
-        world._relations = (relations ?? []).ToArray();
-        world._corps = (corps ?? []).ToArray();
-        world._treasures = (treasures ?? []).ToArray();
-        if (world._corps.Select(c => c.Id).Distinct().Count() != world._corps.Length ||
-            world._corps.Any(c => c.Id < 0 || !world._forces.ContainsKey(c.OwnerId) ||
-                !world._officers.TryGetValue(c.LeaderId, out var leader) || !leader.IsServing || leader.OwnerId != c.OwnerId) ||
-            world._treasures.Select(t => t.Id).Distinct().Count() != world._treasures.Length ||
-            world._treasures.Any(t => !t.IsValid || t.HolderId is int holder && !world._officers.ContainsKey(holder)) ||
-            world._relations.Select(r => (r.FirstId, r.SecondId)).Distinct().Count() != world._relations.Length ||
-            world._relations.Any(r => r.FirstId >= r.SecondId || r.Value is < 0 or > 100 || !world._forces.ContainsKey(r.FirstId) || !world._forces.ContainsKey(r.SecondId)))
-            throw new ArgumentException("Invalid information state relationships.");
+        world._forces = IndexUnique(forces, value => value.Id);
+        world._settlements = IndexUnique(settlements, value => value.Id);
+        world._officers = IndexUnique(officers, value => value.Id);
+        world._units = IndexUnique(units ?? [], value => value.Id);
+        world._corps = IndexUnique(corps ?? [], value => value.Id);
+        world._treasures = IndexUnique(treasures ?? [], value => value.Id);
+        world._relations = IndexUnique(relations ?? [], value => (value.FirstId, value.SecondId));
+        WorldInvariants.Validate(world.BeginMutation());
         return world;
     }
 
-    public DevelopmentOutcome Develop(DevelopmentCommand command)
+    private static ImmutableDictionary<TKey, TValue> IndexUnique<TKey, TValue>(
+        IEnumerable<TValue> values, Func<TValue, TKey> identity) where TKey : notnull
     {
-        if (command.Activity is not (DomesticActivity.Commerce or DomesticActivity.Cultivation))
-            return new(DevelopmentRejection.UnsupportedActivity);
-        if (!_forces.TryGetValue(command.ForceId, out var force) || !_settlements.TryGetValue(command.SettlementId, out var city) ||
-            !_officers.TryGetValue(command.OfficerId, out var officer)) return new(DevelopmentRejection.UnknownObject);
-        if (city.OwnerId != force.Id || officer.OwnerId != force.Id) return new(DevelopmentRejection.WrongOwner);
-        if (!officer.IsServing || officer.Acted || officer.SettlementId != city.Id) return new(DevelopmentRejection.OfficerUnavailable);
-        bool commerce = command.Activity == DomesticActivity.Commerce;
-        if (commerce ? city.CommerceUsed : city.CultivationUsed) return new(DevelopmentRejection.AlreadyUsed);
-        int current = commerce ? city.Commerce : city.Cultivation, maximum = commerce ? city.MaxCommerce : city.MaxCultivation;
-        if (current >= maximum) return new(DevelopmentRejection.AtMaximum);
-        if (force.Money < 50) return new(DevelopmentRejection.InsufficientFunds);
-        var result = DomesticDevelopment.CalculateResult(command.Activity, current, maximum, (int)Math.Min(force.Money, int.MaxValue),
-            [officer.Abilities], false);
-        _forces[force.Id] = force with { Money = force.Money - (uint)result.Cost };
-        _settlements[city.Id] = commerce ? city with { Commerce = city.Commerce + result.Increment, CommerceUsed = true }
-            : city with { Cultivation = city.Cultivation + result.Increment, CultivationUsed = true };
-        _officers[officer.Id] = officer with { Acted = true };
-        Revision++;
-        return new(DevelopmentRejection.None, result.Increment, result.Cost);
+        var builder = ImmutableDictionary.CreateBuilder<TKey, TValue>();
+        foreach (var value in values)
+        {
+            TKey key = identity(value);
+            if (builder.ContainsKey(key)) throw new ArgumentException($"Duplicate {typeof(TValue).Name} identity '{key}'.");
+            builder.Add(key, value);
+        }
+        return builder.ToImmutable();
     }
 
-    internal void CommitXun(GameClock clock, ulong randomState)
+    internal WorldMutation BeginMutation() => new(this, Revision, Clock, RandomState, _forces, _settlements,
+        _officers, _units, _corps, _treasures, _relations);
+
+    internal void Commit(WorldMutation mutation)
     {
-        Clock = clock;
-        RandomState = randomState;
-        foreach (var city in _settlements.Values.ToArray()) _settlements[city.Id] = city with { CommerceUsed = false, CultivationUsed = false };
-        foreach (var officer in _officers.Values.ToArray()) _officers[officer.Id] = officer with { Acted = false };
+        ArgumentNullException.ThrowIfNull(mutation);
+        mutation.VerifyCommit(this, Revision);
+        WorldInvariants.Validate(mutation);
+        _forces = mutation.Forces;
+        _settlements = mutation.Settlements;
+        _officers = mutation.Officers;
+        _units = mutation.Units;
+        _corps = mutation.Corps;
+        _treasures = mutation.Treasures;
+        _relations = mutation.Relations;
+        Clock = mutation.Clock;
+        RandomState = mutation.RandomState;
         Revision++;
+        _snapshot = null;
+        mutation.MarkCommitted();
     }
 
     internal WorldSnapshot CreateSnapshot()
@@ -120,9 +91,9 @@ public sealed class WorldState
         var forces = Array.AsReadOnly(_forces.Values.OrderBy(f => f.Id).ToArray());
         var settlements = Array.AsReadOnly(_settlements.Values.OrderBy(s => s.Id).ToArray());
         var officers = Array.AsReadOnly(_officers.Values.OrderBy(o => o.Id).ToArray());
-        var corps = Array.AsReadOnly(_corps);
-        var relations = Array.AsReadOnly(_relations);
-        var treasures = Array.AsReadOnly(_treasures);
+        var corps = Array.AsReadOnly(_corps.Values.OrderBy(c => c.Id).ToArray());
+        var relations = Array.AsReadOnly(_relations.Values.OrderBy(r => r.FirstId).ThenBy(r => r.SecondId).ToArray());
+        var treasures = Array.AsReadOnly(_treasures.Values.OrderBy(t => t.Id).ToArray());
         var units = Array.AsReadOnly(_units.Values.OrderBy(u => u.Id).ToArray());
         canonical += JsonSerializer.Serialize(new { forces, settlements, officers, units, corps, treasures, relations });
         string hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));

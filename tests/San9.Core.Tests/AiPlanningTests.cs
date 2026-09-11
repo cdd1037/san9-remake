@@ -60,7 +60,7 @@ public sealed class AiPlanningTests
     public void CandidateCommand_UsesSharedValidationAndRejectedCandidateDoesNotCommit()
     {
         SimulationEngine engine = CreateEngine();
-        WaitCommand invalid = new(Guid.Parse("00000000-0000-0000-0000-000000000001"), new ForceId(1), -1);
+        WaitCommand invalid = new(Guid.Parse("00000000-0000-0000-0000-000000000001"), 1, -1);
         AiPlan plan = new([new AiCommandProposal(invalid, 100, "invalid test candidate")]);
 
         CommandSubmissionResult validation = engine.Validate(plan.Proposals[0].Command);
@@ -84,9 +84,10 @@ public sealed class AiPlanningTests
     public void PlanningContext_RejectsInvalidPurposeAndDiagnosticLevel()
     {
         SimulationEngine engine = CreateEngine();
-        AiObservation observation = AiObservation.FromSnapshot(new ForceId(1), engine.Snapshot);
+        AiObservation observation = AiObservation.FromSnapshot(1, engine.Snapshot);
         AiPlanningBudget budget = new(1, 0);
 
+        Assert.Throws<ArgumentOutOfRangeException>(() => AiObservation.FromSnapshot(-1, engine.Snapshot));
         Assert.Throws<ArgumentException>(() => AiPlanningContext.Create(observation, "", budget));
         Assert.Throws<ArgumentOutOfRangeException>(() => AiPlanningContext.Create(
             observation,
@@ -99,7 +100,7 @@ public sealed class AiPlanningTests
     public void PlanningPurpose_DerivesAnIndependentAnalysisSeed()
     {
         SimulationEngine engine = CreateEngine();
-        AiObservation observation = AiObservation.FromSnapshot(new ForceId(1), engine.Snapshot);
+        AiObservation observation = AiObservation.FromSnapshot(1, engine.Snapshot);
         AiPlanningBudget budget = new(1, 0);
 
         AiPlanningContext strategic = AiPlanningContext.Create(observation, "strategic-turn", budget);
@@ -112,7 +113,7 @@ public sealed class AiPlanningTests
         SimulationEngine engine,
         AiDiagnosticLevel diagnosticLevel)
     {
-        AiObservation observation = AiObservation.FromSnapshot(new ForceId(1), engine.Snapshot);
+        AiObservation observation = AiObservation.FromSnapshot(1, engine.Snapshot);
         return AiPlanningContext.Create(
             observation,
             "strategic-turn",

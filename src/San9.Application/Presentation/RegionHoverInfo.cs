@@ -11,7 +11,7 @@ public readonly record struct RegionHoverInfo(string Region, string City)
         if (square.HideRegionName || !scenario.RegionNameKeys.TryGetValue(square.RegionId, out var regionKey))
             return new("———", "——");
         string city = scenario.RegionCityIds.TryGetValue(square.RegionId, out int cityId) &&
-            scenario.RegionNameKeys.TryGetValue(cityId, out var cityKey) ? texts.Resolve(cityKey) : "——";
+            scenario.Settlements.FirstOrDefault(s => s.Id == cityId) is { } settlement ? texts.Resolve(settlement.NameKey) : "——";
         return new(texts.Resolve(regionKey), city);
     }
 }

@@ -33,7 +33,7 @@ public sealed class ClientContentPackageTests
     private static readonly ImageAsset Asset = new("ui", "ui/frame.png", 32, 32);
     private static ScenarioInitialState Fixture() => new(12, "fixture", 190, 1, 1, 5,
         [new(5, "player", 2, 9520, 73200, 100)],
-        [new(15, "city", 5, 89, 64, 32000, 500, 1000, 50, []), new(100, "port", null, 86, 65, 1000, 200, 300, 50, [])],
+        [new(15, "city", 5, 89, 64, 32000, 500, 1000, 50, []), new(100, "port", null, 86, 65, 1000, 200, 300, 50, []) { Kind = San9.Core.Domain.SettlementKind.Facility }],
         new() { [15] = "city" }, []);
 
     [Fact]

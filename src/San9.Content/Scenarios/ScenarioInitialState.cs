@@ -56,7 +56,7 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
             s.X < 0 || s.Y < 0 || s.Morale is < 0 or > 100 ||
             s.Icons.Contains("merchant") && s.Icons.Contains("training") ||
             s.Icons.Distinct().Count() != s.Icons.Length || s.Icons.Any(i => i is not ("merchant" or "training" or "emperor")) ||
-            s.Id >= 50 && s.Icons.Length != 0 ||
+            s.Kind != San9.Core.Domain.SettlementKind.City && s.Icons.Length != 0 ||
             s.Appearance is < 0 or > 2 || s.PublicOrder is < 0 or > 1000 || s.Commerce < 0 || s.Commerce > s.MaxCommerce || s.Cultivation < 0 || s.Cultivation > s.MaxCultivation ||
             s.SoldierCapacity is 0 or > 500000 || s.Soldiers > s.SoldierCapacity || s.Population > 1000000 || s.DraftPopulation > 500000 || s.MaxCommerce > 2500 || s.MaxCultivation > 4000 || s.Soldiers == 0 && s.Morale != 0 || s.MaxDurability <= 0 || s.Durability < 0 || s.Durability > s.MaxDurability))
             throw new InvalidDataException("Invalid settlement snapshot.");
@@ -72,7 +72,8 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
         if (Settlements.Any(s => s.CorpsId < 0 || s.CorpsId is not null && s.OwnerId is null) ||
             Settlements.Where(s => s.CorpsId is not null).GroupBy(s => s.CorpsId).Any(g => g.Select(s => s.OwnerId).Distinct().Count() != 1))
             throw new InvalidDataException("Invalid direct corps ownership.");
-        if (RegionCityIds.Any(p => !RegionNameKeys.ContainsKey(p.Key) || p.Value is < 0 or >= 50 || !RegionNameKeys.ContainsKey(p.Value)))
+        var cityIds = Settlements.Where(s => s.Kind == San9.Core.Domain.SettlementKind.City).Select(s => s.Id).ToHashSet();
+        if (RegionCityIds.Any(p => !RegionNameKeys.ContainsKey(p.Key) || !cityIds.Contains(p.Value)))
             throw new InvalidDataException("Invalid region city reference.");
         if (RegionNameKeys.Any(p => p.Key < 0 || string.IsNullOrWhiteSpace(p.Value))) throw new InvalidDataException("Invalid region names.");
     }

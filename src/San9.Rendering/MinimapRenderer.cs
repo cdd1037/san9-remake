@@ -1,9 +1,9 @@
 using San9.Content.Images;
 
-namespace San9.Importer.San9PkTc101;
+namespace San9.Rendering;
 
 /// <summary>Display-only minimap specified by BEH-UI-0001.</summary>
-public static class MinimapCompiler
+public static class MinimapRenderer
 {
     public static int TerrainFamily(int terrain) => terrain switch
     {
@@ -12,9 +12,9 @@ public static class MinimapCompiler
         _ => throw new ArgumentOutOfRangeException(nameof(terrain))
     };
 
-    public static PngImage Compile(IReadOnlyList<San9ScenarioSquareRecord> squares, byte[] palette)
+    public static PngImage Compile(IReadOnlyList<San9.Content.Maps.MapSquare> squares, byte[] colors)
     {
-        if (squares.Count != 40000 || palette.Length != 1024) throw new InvalidDataException("Invalid minimap inputs.");
+        if (squares.Count != 40000 || colors.Length != 32) throw new InvalidDataException("Invalid minimap inputs.");
         byte[] pixels = new byte[320 * 160 * 4];
         for (int y = 1; y < 160; y++)
         {
@@ -22,10 +22,10 @@ public static class MinimapCompiler
             for (int x = left; x < left + span; x++)
             {
                 var (sx, sy) = SampleSquare(x, y);
-                int color = (TerrainFamily(squares[sy * 200 + sx].TerrainCode) + 1) * 4;
+                int color = TerrainFamily(squares[sy * 200 + sx].Terrain) * 4;
                 int target = (y * 320 + x) * 4;
                 for (int channel = 0; channel < 3; channel++)
-                    pixels[target + channel] = (byte)(palette[color + channel] & (channel == 1 ? 252 : 248));
+                    pixels[target + channel] = (byte)(colors[color + channel] & (channel == 1 ? 252 : 248));
                 pixels[target + 3] = 255;
             }
         }

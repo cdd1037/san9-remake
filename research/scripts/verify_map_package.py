@@ -22,14 +22,15 @@ def main():
     parser=argparse.ArgumentParser()
     parser.add_argument('exe',type=Path);parser.add_argument('data',type=Path);parser.add_argument('package',type=Path);parser.add_argument('output',type=Path)
     args=parser.parse_args();args.output.mkdir(parents=True,exist_ok=True)
-    manifest=args.package/'content.json'
-    if manifest.exists():
-        content=json.loads(manifest.read_text(encoding='utf-8'))
-        assert content['schemaVersion']==5
-        package=content['map']
-    else:
-        package=json.loads((args.package/'map.json').read_text(encoding='utf-8'))
-    assert package['schemaVersion']==8
+    content=json.loads((args.package/'content.json').read_text(encoding='utf-8'))
+    assert content['schemaVersion']==22
+    texture_root=(args.package/content['textures']['path']).resolve()
+    textures=json.loads((texture_root/'textures.json').read_text(encoding='utf-8'))
+    package=dict(textures['map'], **content['map'])
+    def image_region(asset):
+        with Image.open(texture_root/asset['file']['path']) as image:
+            x,y=asset['x'],asset['y']
+            return image.crop((x,y,x+asset['width'],y+asset['height']))
     terrain_assets={s['id']:{str(a['id']):a for a in s['textures']} for s in package['seasons']}
     raw=args.exe.read_bytes()
     assert hashlib.sha256(raw).hexdigest()=='d20794aeff67301ec2bf8c3becb1e9944c68c6c0588fbfd4bf04e8597f0e5028'
@@ -42,7 +43,7 @@ def main():
         for i,image in enumerate(images):
             palette=palettes[registry[10006+i]];rgb=bytearray(len(image.pixels)*3)
             for c in range(3):rgb[c::3]=image.pixels.translate(bytes(p[c] for p in palette))
-            actual=Image.open(args.package/terrain_assets[season][str(10006+i)]['path']).convert('RGB')
+            actual=image_region(terrain_assets[season][str(10006+i)]).convert('RGB')
             assert actual.size==(image.width,image.height) and actual.tobytes()==rgb
             hashes[i].append(hashlib.sha256(rgb).hexdigest())
     assert all(len(set(h))==4 for h in hashes)
@@ -109,7 +110,7 @@ def main():
         for sprite in sprites:
             asset=assets[sprite['assetId']];x,y=sprite['x'],sprite['y']
             if x>=7680 or y>=3060 or x+asset['width']<=6880 or y+asset['height']<=2610:continue
-            rgba=Image.open(args.package/asset['path']).convert('RGBA');pixels=rgba.tobytes()
+            rgba=image_region(asset).convert('RGBA');pixels=rgba.tobytes()
             for py in range(max(2610,y),min(3060,y+rgba.height)):
                 for px in range(max(6880,x),min(7680,x+rgba.width)):
                     src=((py-y)*rgba.width+px-x)*4;dst=((py-2610)*800+px-6880)*3

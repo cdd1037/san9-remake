@@ -42,7 +42,8 @@ public sealed class OfficerDetailState
 }
 
 public sealed record OfficerDetailData(string Name, string Biography, string PortraitRole, OfficerAbilities RadarAbilities,
-    string[] AbilityValues, InformationField[][] Fields, OfficerTacticGroup[] Tactics, int[] Treasures);
+    string[] AbilityValues, InformationField[][] Fields, OfficerTacticGroup[] Tactics, int[] Treasures)
+{ public bool IsDeceased { get; init; } }
 public sealed record OfficerTacticGroup(string Name, int Proficiency, OfficerTactic[] Tactics);
 public sealed record OfficerTactic(string Name, bool Available);
 
@@ -77,6 +78,6 @@ public static class OfficerDetails
         var abilityValues = Base(person.BaseAbilities).Select((value, i) => current[i] == value ? $"{value}" : $"{value}{current[i] - value:+0;-0}").ToArray();
         return new(name, officer.BiographyKey is string bio ? texts.ResolveRich(bio) : "", $"information-person-{id}",
             officer.Abilities, abilityValues, FieldIds.Select(column => column.Select(key => values[key]).ToArray()).ToArray(),
-            tactics.ToArray(), view.World.Treasures.Where(t => t.Discovered && t.HolderId == id).Select(t => t.Id).ToArray());
+            tactics.ToArray(), view.World.Treasures.Where(t => t.Discovered && t.HolderId == id).Select(t => t.Id).ToArray()) { IsDeceased = person.Status == OfficerStatus.Dead };
     }
 }

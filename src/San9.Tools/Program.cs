@@ -8,15 +8,24 @@ using San9.Rendering;
 
 try
 {
-    if(args.Length==0)throw new ArgumentException("Commands: import-text --source-exe PATH --data-dir PATH --output PATH [--exe-evidence PATH]; import-client --source-exe PATH --data-dir PATH --scenario PATH --output PATH; import-map --source-exe PATH --data-dir PATH --scenario PATH --output PATH; render-map --package PATH --season spring --output PATH [--x 0 --y 0 --width 1024 --height 768]");
+    if(args.Length==0)throw new ArgumentException("Commands: import-textures --source-exe PATH --data-dir PATH --output PATH; import-client --source-exe PATH --data-dir PATH --scenario PATH --texture-package PATH --output PATH; verify-textures --texture-package PATH; verify-client --content-package PATH; import-text --source-exe PATH --data-dir PATH --output PATH; render-map --content-package PATH --output PATH");
     Dictionary<string,string> options=[];
     for(int i=1;i<args.Length;i+=2)
         if(i+1>=args.Length||!args[i].StartsWith("--",StringComparison.Ordinal)||!options.TryAdd(args[i],args[i+1]))throw new ArgumentException("Invalid or duplicate option.");
-    string[] allowed=args[0] == "import-text" ? ["--source-exe","--data-dir","--output","--exe-evidence"] : args[0] is "import-map" or "import-client"?["--source-exe","--data-dir","--scenario","--output"]:["--package","--content-package","--season","--output","--x","--y","--width","--height","--terrain-only"];
+    string[] allowed=args[0] == "import-textures" ? ["--source-exe","--data-dir","--output"] : args[0] == "verify-textures" ? ["--texture-package"] : args[0] == "verify-client" ? ["--content-package"] : args[0] == "import-text" ? ["--source-exe","--data-dir","--output","--exe-evidence"] : args[0] == "import-client"?["--source-exe","--data-dir","--scenario","--texture-package","--output"]:["--content-package","--season","--output","--x","--y","--width","--height","--terrain-only"];
     if(options.Keys.Any(k=>!allowed.Contains(k)))throw new ArgumentException("Unknown option.");
     string Required(string key)=>options.TryGetValue(key,out var value)?value:throw new ArgumentException($"Missing {key}.");
     var watch=Stopwatch.StartNew();
-    if(args[0]=="import-text")
+    if(args[0]=="verify-client")
+    {
+        string root = Required("--content-package");
+        var package = await ClientContentFiles.LoadAsync(root);
+        var assets = package.Map.Assets.Concat(package.Map.Seasons.SelectMany(s => s.Textures)).Concat(package.Skin.Assets).Concat(package.Textures.Assets).Distinct().ToArray();
+        await ImageAssetFiles.VerifyAsync(package.TextureRoot, assets);
+        foreach (var file in assets.Select(a => a.File).Distinct()) _ = ImageAssetFiles.LoadFile(package.TextureRoot, file);
+        Console.WriteLine($"Verified {assets.Length} logical images, {assets.Select(a => a.File).Distinct().Count()} physical files, all hashes, formats and regions.");
+    }
+    else if(args[0]=="import-text")
     {
         var identity=await San9.Importer.San9PkTc101.San9PkTc101Detector.DetectAsync(Required("--source-exe"));
         if(!identity.IsMatch) throw new InvalidDataException(identity.Reason);
@@ -25,31 +34,36 @@ try
         if(options.TryGetValue("--exe-evidence",out var evidence))
             San9.Importer.San9PkTc101.Text.ExecutableTextCompiler.Export(Required("--source-exe"),evidence,Required("--output"));
     }
-    else if(args[0]=="import-map")
+    else if(args[0]=="import-textures")
     {
-        var map=await MapImporter.ImportAsync(Required("--source-exe"),Required("--data-dir"),Required("--scenario"),Required("--output"),Console.WriteLine);
-        Console.WriteLine($"Complete: {map.ScenarioId}, {watch.Elapsed.TotalSeconds:F2}s");
+        await TexturePackageImporter.ImportAsync(Required("--source-exe"), Required("--data-dir"), Required("--output"), Console.WriteLine);
+    }
+    else if(args[0]=="verify-textures")
+    {
+        string root = Required("--texture-package");
+        var package = await TexturePackageFiles.LoadAsync(root);
+        await ImageAssetFiles.VerifyAsync(root, package.Assets);
+        foreach (var file in package.Assets.Select(a => a.File).Distinct()) _ = ImageAssetFiles.LoadFile(root, file);
+        Console.WriteLine($"Verified independent texture package: {package.Assets.Count()} logical images.");
     }
     else if(args[0]=="import-client")
     {
-        var content=await ClientContentImporter.ImportAsync(Required("--source-exe"),Required("--data-dir"),Required("--scenario"),Required("--output"),Console.WriteLine);
+        var content=await ClientContentImporter.ImportAsync(Required("--source-exe"),Required("--data-dir"),Required("--scenario"),Required("--texture-package"),Required("--output"),Console.WriteLine);
         Console.WriteLine($"Complete: {content.Scenario.ScenarioId}, {watch.Elapsed.TotalSeconds:F2}s");
     }
     else if(args[0]=="render-map")
     {
-        if (options.ContainsKey("--package") == options.ContainsKey("--content-package")) throw new ArgumentException("Specify exactly one of --package or --content-package.");
-        string root=options.ContainsKey("--content-package") ? Required("--content-package") : Required("--package");
-        var content=options.ContainsKey("--content-package") ? await ClientContentFiles.LoadAsync(root) : null;
-        var map=content?.Map ?? await MapPackageFiles.LoadAsync(root);
-        if(content is null && !options.ContainsKey("--terrain-only")) throw new ArgumentException("Building rendering requires --content-package; a map catalog contains no runtime state.");
-        var buildings=content is null ? Array.Empty<MapBuilding>() : BuildingVisuals.Resolve(map,content.Scenario.Settlements.Select(s =>
+        string root = Required("--content-package");
+        var content = await ClientContentFiles.LoadAsync(root);
+        var map = content.Map;
+        var buildings = BuildingVisuals.Resolve(map,content.Scenario.Settlements.Select(s =>
         {
             var force=s.OwnerId is int owner?content.Scenario.Forces.Single(f=>f.Id==owner):null;
             return new BuildingVisualState(s.Id,s.Durability,s.Appearance,Math.Max(s.Commerce,s.Cultivation),s.Soldiers,force?.ColorCode??50,force?.FlagGlyph??-1);
         }).ToArray()).Buildings;
         string season=options.GetValueOrDefault("--season",map.InitialSeason);
-        var common=ImageAssetFiles.Load(root,map.Assets);
-        var land=ImageAssetFiles.Load(root,map.Seasons.Single(s=>s.Id==season).Textures).ToDictionary(k=>int.Parse(k.Key),v=>v.Value);
+        var common=ImageAssetFiles.Load(content.TextureRoot,map.Assets);
+        var land=ImageAssetFiles.Load(content.TextureRoot,map.Seasons.Single(s=>s.Id==season).Textures).ToDictionary(k=>int.Parse(k.Key),v=>v.Value);
         var renderer=new TerrainRenderer(map,common,land);
         int Number(string key,int fallback)=>options.TryGetValue(key,out var v)?int.Parse(v):fallback;
         int x=Number("--x",0),y=Number("--y",0),width=Number("--width",1024),height=Number("--height",768);

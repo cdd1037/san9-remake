@@ -9,7 +9,7 @@ public partial class GameRichTextLabel : RichTextLabel
     private static readonly Regex Images = new(@"\[font_size=(?<size>\d+)\]|(?<end>\[/font_size\])|\[img(?<options>[^\]]*)\]icons/(?<id>[a-z0-9-]+)\[/img\]", RegexOptions.CultureInvariant);
     private string _markup = "";
     public string Markup => _markup;
-    public IReadOnlyDictionary<string, ImageTexture> Textures { get; init; } = null!;
+    public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;
     public GameTextStyle Style { get; private set; }
 
     public GameRichTextLabel()
@@ -46,8 +46,8 @@ public partial class GameRichTextLabel : RichTextLabel
             if (match.Groups["end"].Success) { if (sizes.Count > 1) sizes.Pop(); return match.Value; }
             int size = sizes.Peek();
             string prefix = "text-icon-" + match.Groups["id"].Value + "-";
-            var candidates = Textures.Where(p => p.Key.StartsWith(prefix, StringComparison.Ordinal))
-                .Select(p => (Texture: p.Value, Size: int.Parse(p.Key[prefix.Length..])))
+            var candidates = Textures.Keys.Where(key => key.StartsWith(prefix, StringComparison.Ordinal))
+                .Select(p => (Texture: Textures[p], Size: int.Parse(p[prefix.Length..])))
                 .OrderBy(p => Math.Abs(p.Size - size)).ThenByDescending(p => p.Size).ToArray();
             if (candidates.Length == 0) throw new InvalidDataException($"Missing text icon: {match.Groups["id"].Value}");
             var texture = candidates[0].Texture;

@@ -11,7 +11,8 @@ public partial class OfficerDetailView : Control
     public Func<int, OfficerDetailData> Read { get; init; } = null!;
     public Func<int, string> ReadName { get; init; } = null!;
     public Action<int> OpenTreasures { get; init; } = null!;
-    public IReadOnlyDictionary<string, ImageTexture> Textures { get; init; } = null!;
+    public TextureService Service { get; init; } = null!;
+    public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;
     public TextCatalog Texts { get; init; } = null!;
     public Action<int> CurrentChanged { get; init; } = null!;
     public Action Closed { get; init; } = null!;
@@ -112,7 +113,7 @@ public partial class OfficerDetailView : Control
         _body = new Control { MouseFilter = MouseFilterEnum.Ignore }; AddChild(_body);
         Label("武将情报",new(108,50,112,28),24,HorizontalAlignment.Center);
         Label(_data.Name,new(232,50,196,28),24,HorizontalAlignment.Center);
-        var portrait = new TextureRect { Texture = Textures[_data.PortraitRole], Position = new(94,118), Size = new(240,240), MouseFilter = MouseFilterEnum.Ignore };
+        var portrait = new AsyncPortrait { Service = Service, Role = _data.PortraitRole, IsDeceased = () => _data.IsDeceased, Position = new(94,118), Size = new(240,240), MouseFilter = MouseFilterEnum.Ignore };
         _body.AddChild(portrait);
         var radar = new OfficerAbilityRadar { Abilities = _data.RadarAbilities, Position = new(431,156), Size = new(164,164) }; _body.AddChild(radar);
         _body.AddChild(new TextureRect { Texture = Textures["detail-radar-grid"], Position = new(431,156), MouseFilter = MouseFilterEnum.Ignore });
@@ -257,7 +258,7 @@ public partial class DetailActionButton : BaseButton
     public string? HintRole {get;set;}
     public string Title {get;init;}="";
     public string Role {get;init;}="";
-    public IReadOnlyDictionary<string,ImageTexture> Textures {get;init;}=null!;
+    public IReadOnlyDictionary<string,Texture2D> Textures {get;init;}=null!;
     public bool Selected {get;set;}
     private readonly GameTextPresenter _text=new();
     private Label _label=null!;
@@ -278,7 +279,7 @@ public partial class DetailActionButton : BaseButton
 
 public partial class DetailNameButton : BaseButton
 {
-    public IReadOnlyDictionary<string,ImageTexture> Textures {get;init;}=null!;
+    public IReadOnlyDictionary<string,Texture2D> Textures {get;init;}=null!;
     private readonly GameTextPresenter _text=new();private Label _label=null!;private bool _focused;
     public override void _Ready()
     {FocusMode=FocusModeEnum.None;_label=new Label {Size=Size,MouseFilter=MouseFilterEnum.Ignore,ClipText=true};AddChild(_label);_text.Apply(_label,GameTextStyles.CatalogRow);}
@@ -289,7 +290,12 @@ public partial class DetailNameButton : BaseButton
         int frame=ButtonPressed?2:_focused?1:0;_label.Position=ButtonPressed?new(2,2):Vector2.Zero;
         string suffix=frame==0?"":$"-{frame}";
         DrawTexture(Textures["roster-row-left"+suffix],Vector2.Zero);
-        DrawTextureRect(Textures["roster-row-middle"+suffix],new(8,0,Size.X-16,16),true);
+        var middle = Textures["roster-row-middle" + suffix];
+        for (float x = 8; x < Size.X - 8; x += middle.GetWidth())
+        {
+            float width = Math.Min(middle.GetWidth(), Size.X - 8 - x);
+            DrawTextureRectRegion(middle, new(x, 0, width, 16), new(0, 0, width, 16));
+        }
         DrawTexture(Textures["roster-row-right"+suffix],new(Size.X-8,0));
     }
     public override void _ExitTree()=>_text.Dispose();

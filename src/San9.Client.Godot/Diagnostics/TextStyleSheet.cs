@@ -7,7 +7,7 @@ public partial class TextStyleSheet : Control
 {
     public (string Name, GameTextStyle Style)[] Samples { get; init; } = [];
     public int FontSize { get; init; }
-    public IReadOnlyDictionary<string, ImageTexture> Textures { get; init; } = null!;
+    public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;
     private readonly GameTextPresenter _presenter = new();
 
     public override void _Ready()

@@ -220,7 +220,17 @@ public partial class ClientVerification : Node
     }
     private async Task Capture(string path, bool quit = true)
     {
-        await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+        // Two settled draw frames also discover resources requested by custom _Draw methods.
+        var timeout = System.Diagnostics.Stopwatch.StartNew();
+        int settled = 0;
+        while (settled < 2)
+        {
+            await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+            if (World.Textures.ActiveError is { } error) throw error;
+            settled = World.Textures.ActiveReady && World.IsVisibleReady ? settled + 1 : 0;
+            if (timeout.Elapsed.TotalSeconds > 30) throw new TimeoutException("Texture capture readiness failed.");
+        }
+        GD.Print(World.Textures.Statistics);
         using var image = GetViewport().GetTexture().GetImage();
         GD.Print($"MAP_CAPTURE_GEOMETRY window={GetWindow().Size} gpu_content={image.GetWidth()}x{image.GetHeight()} logical={GetViewport().GetVisibleRect().Size}");
         string absolute = Path.GetFullPath(path); Directory.CreateDirectory(Path.GetDirectoryName(absolute)!);

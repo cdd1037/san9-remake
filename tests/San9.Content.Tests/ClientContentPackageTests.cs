@@ -50,7 +50,7 @@ public sealed class ClientContentPackageTests
     [Fact]
     public void MissingUiAndInvalidDurabilityOrNamesFailValidation()
     {
-        var skin = new InterfaceSkin(15, [Asset], InterfaceSkin.RequiredUiAssets.ToDictionary(s => s, _ => "ui"), Colors());
+        var skin = new InterfaceSkin(16, [Asset], InterfaceSkin.RequiredUiAssets.ToDictionary(s => s, _ => "ui"), Colors());
         skin.Validate(); skin.Roles.Remove("top-frame");
         Assert.Throws<InvalidDataException>(skin.Validate);
         skin.Roles["top-frame"] = "missing";
@@ -75,12 +75,12 @@ public sealed class ClientContentPackageTests
     [Fact]
     public void CompositionChecksIdentityCoordinatesAndEveryTextReference()
     {
-        var map = new MapPackage(8, "fixture", "fixture", "spring", 200, 200, 13056, 6656,
+        var map = new MapPackage(9, "fixture", "fixture", "spring", 200, 200, 13056, 6656,
             [], [], [], [], [], [], Buildings, [], [], [], [], [], new([], []), []);
-        var skin = new InterfaceSkin(15, [Asset], InterfaceSkin.RequiredUiAssets.ToDictionary(s => s, _ => "ui"), Colors());
+        var skin = new InterfaceSkin(16, [Asset], InterfaceSkin.RequiredUiAssets.ToDictionary(s => s, _ => "ui"), Colors());
         var text = new TextCatalog(3, new() { ["player"] = new("Player", "Player"), ["city"] = new("City", "City"), ["port"] = new("Port", "Port") });
         foreach (string role in StrategyHintText.Roles) text.Entries.Add(StrategyHintText.Key(role), new("Hint", "Hint"));
-        var p = new ClientContentPackage(18, [], map, Fixture(), text, skin); p.ValidateLinks();
+        var p = new ClientContentPackage(22, [], map, Fixture(), text, skin, new(2, [])); p.ValidateLinks();
         Assert.Throws<InvalidDataException>(() => (p with { SchemaVersion = 13 }).ValidateLinks());
         Assert.Throws<InvalidDataException>(() => (p with { Scenario = p.Scenario with { Settlements = [p.Scenario.Settlements[0]] } }).ValidateLinks());
         Assert.Throws<InvalidDataException>(() => (p with { Scenario = p.Scenario with { ScenarioId = "other" } }).ValidateLinks());

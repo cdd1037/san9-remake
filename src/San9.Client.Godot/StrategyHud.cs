@@ -16,8 +16,8 @@ public partial class StrategyHud : Control
     public San9.Application.Presentation.StrategySnapshot Scenario => Session.View;
     public TextCatalog Texts { get; init; } = null!;
     public InterfaceSkin Skin { get; init; } = null!;
-    public IReadOnlyDictionary<string, PngImage> SkinImages { get; init; } = null!;
-    private readonly Dictionary<string, ImageTexture> _textures = [];
+    public TextureService Textures { get; init; } = null!;
+    private TextureScope _textures = null!;
     private readonly List<(string Asset, Vector2 Position)> _frames = [];
     private Label _footer = null!;
     private GameMessageBar _message = null!;
@@ -42,6 +42,7 @@ public partial class StrategyHud : Control
     private readonly GameTextPresenter _text = new();
     public override void _Ready()
     {
+        _textures = Textures.CreateScope(owner: this);
         Name = "StrategyHud"; Size = new(1024, 768); MouseFilter = MouseFilterEnum.Stop;
         World.MapReady += Build;
         GetWindow().MouseExited += ClearHover;
@@ -63,12 +64,6 @@ public partial class StrategyHud : Control
     {
         if (_built) return;
         var p = Scenario;
-        foreach (var pair in Skin.Roles)
-        {
-            var pixels = SkinImages[pair.Value];
-            using var image = Image.CreateFromData(pixels.Width, pixels.Height, false, Image.Format.Rgba8, pixels.Pixels);
-            _textures.Add(pair.Key, ImageTexture.CreateFromImage(image));
-        }
         _frames.Add(("top-frame", Vector2.Zero));
         _frames.Add(("radar-frame", new(624, 0)));
         _frames.Add(("sidebar-frame", new(836, 167)));
@@ -112,10 +107,10 @@ public partial class StrategyHud : Control
         AddChild(_rosterList);
         _rosterList.Refresh(Scenario, Scenario.PlayerForceId);
         _overviewPanel = new StrategyOverviewPanel { State = Overview, World = World, Session = Session,
-            Skin = Skin, Texts = Texts, Textures = _textures, Visible = false };
+            Skin = Skin, Texts = Texts, Service = Textures, Visible = false };
         GetParent().AddChild(_overviewPanel);
         GetParent().MoveChild(_overviewPanel, GetIndex());
-        Information = new InformationPanel { Session = Session, Texts = Texts, Textures = _textures, Locate = id => { Overview.Close(); World.FocusBuilding(id); } };
+        Information = new InformationPanel { Session = Session, Texts = Texts, Service = Textures, Locate = id => { Overview.Close(); World.FocusBuilding(id); } };
         GetParent().AddChild(Information);
         _buildingHover = new BuildingHoverCard { World = World, Textures = _textures, UiFont = GetThemeFont("font"), Visible = false };
         AddChild(_buildingHover);
@@ -176,9 +171,9 @@ public partial class StrategyHud : Control
         if (point.Y >= 740 && point.Y < 768 && point.X >= 0 && point.X < 1024) return true;
         foreach (var (asset, position) in _frames)
         {
-            var pixels = SkinImages[Skin.Roles[asset]];
+            var pixels = Textures.Roles[asset];
             int x = (int)Math.Floor(point.X - position.X), y = (int)Math.Floor(point.Y - position.Y);
-            if (x >= 0 && y >= 0 && x < pixels.Width && y < pixels.Height && pixels.Pixels[(y * pixels.Width + x) * 4 + 3] > 0) return true;
+            if (Textures.Hit(pixels, x, y)) return true;
         }
         return _built && (_rosterList.GetRect().HasPoint(point) || _minimap!.GetRect().HasPoint(point) ||
             GetChildren().OfType<TextureButton>().Any(button => button.GetRect().HasPoint(point)));
@@ -306,7 +301,7 @@ public partial class StrategyHud : Control
     {
         World.MapReady -= Build;
         GetWindow().MouseExited -= ClearHover;
-        foreach (var texture in _textures.Values) texture.Dispose();
+        _textures.Dispose();
         _text.Dispose();
     }
 

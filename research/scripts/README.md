@@ -59,3 +59,5 @@ python research/scripts/render_square_map.py \
 ## 界面转换交叉检查已移除
 
 按用户2026-09-06决定，删除Python界面转换结果交叉检查器及其专用测试，不再维护与C#导入器使用相同规则来源的另一套像素、映射和字段验收实现。历史运行结果仅表示当时两套实现一致，不能独立证明原版行为。原版研究记录、字体研究工具及C#测试保留；实际画面由用户验收。
+
+- `verify_texture_library.py`：将独立纹理包的导出资源与原版解码颜色、Alpha及BMP比较，并核对单份头像和相对锚点；可传 `--baseline` 核对原有显示图片，`--report` 输出到 `local/generated/verification/`。

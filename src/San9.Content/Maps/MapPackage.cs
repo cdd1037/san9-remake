@@ -35,26 +35,19 @@ public sealed record MapPackage(
     MapComposition[] Compositions, MapSprite[] Clouds, int?[] LeftEdge, int?[] RightEdge,
     ContentSource[] Sources, MapAnimations Animations, MapSprite[] Boundaries)
 {
+    public byte[] MinimapColors { get; init; } = new byte[32];
     [System.Text.Json.Serialization.JsonRequired] public MapBuildingType[] BuildingTypes { get; init; } = [];
 }
 
 public static class MapPackageFiles
 {
-    public static async Task<MapPackage> LoadAsync(string root, CancellationToken cancellationToken = default)
-    {
-        await using var file = File.OpenRead(Path.Combine(root, "map.json"));
-        var map = await JsonSerializer.DeserializeAsync<MapPackage>(file, PackageFiles.JsonOptions, cancellationToken)
-            ?? throw new InvalidDataException("Empty map package.");
-        Validate(map);
-        return map;
-    }
-
     public static void Validate(MapPackage map)
     {
-        if (map.SchemaVersion != 8 || map.Width != 200 || map.Height != 200 || map.Squares.Length != 40000 ||
+        if (map.SchemaVersion != 9 || map.Width != 200 || map.Height != 200 || map.Squares.Length != 40000 ||
             map.CanvasWidth != 13056 || map.CanvasHeight != 6656) throw new InvalidDataException("Unsupported map dimensions or schema.");
         if (!map.Seasons.Select(s => s.Id).Order().SequenceEqual(new[] { "autumn", "spring", "summer", "winter" }) ||
             !map.Seasons.Any(s => s.Id == map.InitialSeason)) throw new InvalidDataException("Invalid seasons.");
+        ImageAssetFiles.ValidateCatalog(map.Assets.Concat(map.Seasons.SelectMany(s => s.Textures)));
         var common = map.Assets.ToDictionary(a => a.Id);
         var terrainIds = map.Seasons[0].Textures.Select(a => a.Id).Order().ToArray();
         if (terrainIds.Length != 771) throw new InvalidDataException("Expected 771 terrain textures per season.");
@@ -75,8 +68,7 @@ public static class MapPackageFiles
                 throw new InvalidDataException("Missing terrain or mask reference.");
         foreach (var sprite in map.Boundaries.Concat(map.Bridges).Concat(map.Clouds))
             if (!common.ContainsKey(sprite.AssetId)) throw new InvalidDataException("Missing sprite reference.");
-        if (!common.TryGetValue("minimap-terrain", out var minimap) || minimap.Width != 320 || minimap.Height != 160)
-            throw new InvalidDataException("Invalid minimap terrain image.");
+        if (map.MinimapColors.Length != 32) throw new InvalidDataException("Invalid minimap colors.");
         if (!common.ContainsKey("cloud-fill") || map.LeftEdge.Length != map.CanvasHeight || map.RightEdge.Length != map.CanvasHeight)
             throw new InvalidDataException("Invalid cloud boundaries.");
         foreach (var square in map.Squares)

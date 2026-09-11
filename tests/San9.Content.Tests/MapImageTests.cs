@@ -18,7 +18,7 @@ public sealed class MapImageTests
                 byte[] png = new PngImage(1, 1, 3, [(byte)i, 42, 255]).Encode();
                 string name = $"{i}.png";
                 File.WriteAllBytes(Path.Combine(root, name), png);
-                return new ImageAsset(i.ToString(), name, Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(png)), 1, 1);
+                return new ImageAsset(i.ToString(), name, Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(png)), 1, 1, 3);
             }).ToArray();
             await ImageAssetFiles.VerifyAsync(root, assets);
             var decoded = ImageAssetFiles.Load(root, assets);
@@ -36,6 +36,16 @@ public sealed class MapImageTests
             Assert.ThrowsAny<OperationCanceledException>(() => ImageAssetFiles.Load(root, assets, cancellation.Token));
         }
         finally { Directory.Delete(root, true); }
+    }
+    [Fact]
+    public void CatalogRejectsOverlapsOutOfBoundsAndConflictingFileMetadata()
+    {
+        var file = new ImageFile("atlas.png", new string('0', 64), 16, 16, 4);
+        var a = new ImageAsset("a", file, 2, 2, 4, 4);
+        ImageAssetFiles.ValidateCatalog([a, a with { Id = "alias" }, a with { Id = "b", X = 8 }]);
+        Assert.Throws<InvalidDataException>(() => ImageAssetFiles.ValidateCatalog([a, a with { Id = "b", X = 4 }]));
+        Assert.Throws<InvalidDataException>(() => ImageAssetFiles.ValidateCatalog([a with { X = 14 }]));
+        Assert.Throws<InvalidDataException>(() => ImageAssetFiles.ValidateCatalog([a, a with { Id = "b", File = file with { Channels = 3 } }]));
     }
     [Theory]
     [InlineData(1)]

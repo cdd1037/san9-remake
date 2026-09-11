@@ -6,7 +6,7 @@ namespace San9.Client.Godot;
 public partial class StrategyRosterList : Control
 {
     public StrategyRoster Roster { get; } = new();
-    public IReadOnlyDictionary<string, ImageTexture> Textures { get; init; } = null!;
+    public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;
     public San9.Content.Text.TextCatalog Texts { get; init; } = null!;
     public San9.Content.Interface.InterfaceSkin Skin { get; init; } = null!;
     public Action<RosterKey>? Activated { get; init; }

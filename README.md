@@ -7,7 +7,8 @@
 当前处于运行时规则与界面接入阶段，使用 Godot 4.7.2 Mono（.NET 版）和 .NET 10。
 
 - 已接入190年剧本初始地图，支持方格选择、拖动、缩放和四季外观切换；相机中心按含高度的地图边界限制，外围延续云层。
-- 地图跳转在目标地形准备完整后提交，等待期间保持旧视野；资源并行准备、可见动画按帧变化刷新，计时与验收见[地图性能记录](docs/map-import.md#视野提交与性能验收2026-09-06)。
+- 地图跳转在目标地形和对象纹理准备完整后提交，等待期间保持旧视野；资源并行准备、可见动画按帧变化刷新，计时与验收见[地图性能记录](docs/map-import.md#视野提交与性能验收2026-09-06)。
+- 转换包按类别生成静态纹理图集，转换已确认资源并明确未决边界；头像和宝物只保留单份大图；显示资源使用统一GPU缓存，头像按需加载且不保留CPU图片副本；缓存预算、资源生命周期与画面验收见[纹理资源](docs/texture-resources.md)。
 - 已接入董卓势力初始主界面：原版框架与按钮美术、顶部与底部原版背景、耐久/士气条和城市图标、原版小地图配色、疆界开关、独立设施名单焦点、君主固定首行与镜头定位；右下地域栏随鼠标显示地域与所属城市。
 - 滚动条使用已核对的原版分段纹理与四帧箭头，输入使用Godot原生控件；独立皮肤组件供后续列表复用。
 - 大地图城市与普通建筑支持悬停高亮和详情卡，按归属与外交关系使用三种原版背景；字段来自当前会话，详见[悬停规格](specs/behavior/BEH-UI-0005-map-building-hover.md)。
@@ -40,10 +41,11 @@ dotnet test San9Remake.slnx
 准备已登记且通过指纹校验的繁中 PK 1.0.1.0 EXE，以及本地 `private/s9数据文件/` 下的源数据：
 
 ```powershell
-dotnet run --project src/San9.Tools -- import-client --source-exe "<San9PK.exe绝对路径>" --data-dir "private/s9数据文件" --scenario "private/s9数据文件/D_Sce002.S9" --output "local/generated/content/scenario-190-live"
+dotnet run --project src/San9.Tools -- import-textures --source-exe "<San9PK.exe绝对路径>" --data-dir "private/s9数据文件" --output "local/generated/content/textures-san9pk-tc101"
+dotnet run --project src/San9.Tools -- import-client --source-exe "<San9PK.exe绝对路径>" --data-dir "private/s9数据文件" --scenario "private/s9数据文件/D_Sce002.S9" --texture-package "local/generated/content/textures-san9pk-tc101" --output "local/generated/content/scenario-190-live"
 ```
 
-导出优先原位增量更新现有目录，复用未变化资源并清理失效生成文件。包内只有一个`content.json`，按map、scenario、text、skin分区保存；图片按`images/map/`和`images/interface/`分类。纯地图仍可用`import-map`独立转换；包结构见[客户端内容与主界面](docs/client-content.md)。
+纹理由 `import-textures` 独立构建，按类别存入共享纹理包；`import-client` 只生成剧本、文本、地图实例及资源引用。增量复用与失效产物清理归纹理构建所有。入口见[内容管线](docs/client-content.md)。
 
 ### 运行客户端
 
@@ -65,7 +67,7 @@ dotnet run --project src/San9.Tools -- import-client --source-exe "<San9PK.exe�
 | `src/San9.Importer.San9PkTc101/` | 繁中 PK 样本识别、源数据解析与资源转换 |
 | `src/San9.Rendering/` | 引擎无关的地貌合成、地图坐标及动画帧选择 |
 | `src/San9.Client.Godot/` | 输入、相机、UI 与地图绘制 |
-| `src/San9.Tools/` | `import-client` 组合转换、`import-map` 纯地图转换与 `render-map` 静态导出 |
+| `src/San9.Tools/` | `import-textures` 独立纹理、`import-client` 剧本转换与 `render-map` 静态导出 |
 | `tests/` | 自动化测试 |
 | `research/` | 来源、实验、逆向证据及独立验证脚本 |
 | `specs/` | 行为规格、设计决策与路线图 |

@@ -14,7 +14,9 @@ public partial class StrategyOverviewPanel : Control
     public GameSession Session { get; init; } = null!;
     public InterfaceSkin Skin { get; init; } = null!;
     public TextCatalog Texts { get; init; } = null!;
-    public IReadOnlyDictionary<string, ImageTexture> Textures { get; init; } = null!;
+    public TextureService Service { get; init; } = null!;
+    private TextureScope? _scope;
+    private TextureScope Textures => _scope!;
     private static readonly Vector2 Origin = new(40, 71);
     private readonly Dictionary<OverviewLayer, StrategyButton> _buttons = [];
     private IReadOnlyList<ForceRankingColumn> _rankings = [];
@@ -24,7 +26,7 @@ public partial class StrategyOverviewPanel : Control
     public bool TrySquare(Vector2 position, out int x, out int y)
     {
         x = y = 0;
-        if (_buttons.Values.Any(b => b.GetRect().HasPoint(position) && b.TextureClickMask.GetBitv((Vector2I)(position - b.Position)))) return false;
+        if (_buttons.Values.Any(b => b.GetRect().HasPoint(position) && (b.TextureClickMask?.GetBitv((Vector2I)(position - b.Position)) ?? true))) return false;
         var local = position - Origin;
         if (!MinimapGeometry.TryGrid(local.X / 800, local.Y / 400, out double gx, out double gy)) return false;
         x = (int)Math.Floor(gx + .5); y = (int)Math.Floor(gy + .5);
@@ -34,6 +36,9 @@ public partial class StrategyOverviewPanel : Control
     public override void _Ready()
     {
         Name = "StrategyOverview"; Size = new(1024, 768); MouseFilter = MouseFilterEnum.Stop;
+    }
+    private void BuildButtons()
+    {
         foreach (var (layer, title, role, x, y, textRole) in new[]
         {
             (OverviewLayer.Forces, "势力", "forces", 564, 385, GameButtonTextRole.Territory),
@@ -48,8 +53,6 @@ public partial class StrategyOverviewPanel : Control
                 Frames = Enumerable.Range(0,4).Select(f => (Texture2D)Textures[$"button-overview-{role}" + (f == 0 ? "" : $"-{f}")]).ToArray()
             };
             // The four rectangular frames contain a diamond-shaped button.
-            using var pixels = Textures[$"button-overview-{role}"].GetImage();
-            var mask = new Bitmap(); mask.CreateFromImageAlpha(pixels); button.TextureClickMask = mask;
             button.Pressed += () => State.Toggle(layer);
             AddChild(button); _buttons.Add(layer, button);
         }
@@ -58,7 +61,21 @@ public partial class StrategyOverviewPanel : Control
     public override void _Process(double delta)
     {
         Visible = State.IsOpen;
-        if (!Visible) return;
+        if (!Visible)
+        {
+            if (_scope is not null)
+            {
+                foreach (var button in _buttons.Values) { RemoveChild(button); button.QueueFree(); }
+                _buttons.Clear(); _scope.Dispose(); _scope = null; QueueRedraw();
+            }
+            return;
+        }
+        if (_scope is null) { _scope = Service.CreateScope(owner: this); BuildButtons(); }
+        foreach (var pair in _buttons)
+        {
+            string role = "button-overview-" + pair.Key.ToString().ToLowerInvariant();
+            if (pair.Value.TextureClickMask is null) pair.Value.TextureClickMask = Service.ClickMask(Service.Roles[role]);
+        }
         if (_revision != Session.Snapshot.Revision)
         {
             _revision = Session.Snapshot.Revision;
@@ -69,6 +86,8 @@ public partial class StrategyOverviewPanel : Control
         _buttons[OverviewLayer.Units].SetPressedNoSignal(State.ShowUnits);
         QueueRedraw();
     }
+
+    public override void _ExitTree() => _scope?.Dispose();
 
     public bool Navigate(Vector2 position)
     {
@@ -89,7 +108,7 @@ public partial class StrategyOverviewPanel : Control
 
     public override void _Draw()
     {
-        if (!State.IsOpen) return;
+        if (!State.IsOpen || _scope is null) return;
         DrawTexture(Textures["overview-background"], Vector2.Zero);
         DrawTexture(Textures["overview-terrain"], Origin);
         var view = Session.View;

@@ -5,7 +5,7 @@ namespace San9.Client.Godot.Tests;
 
 public sealed class BuildingVisualTests
 {
-    private static MapPackage Map() => new(8,"fixture","fixture","spring",200,200,13056,6656,
+    private static MapPackage Map() => new(9,"fixture","fixture","spring",200,200,13056,6656,
         Enumerable.Repeat(new MapSquare(0,1,0,0),40000).ToArray(),[],[],[],[],[],[new(0,89,64,0)],
         Enumerable.Range(1,14).Select(id=>new MapComposition(id,[new(false,true,100,0,0)])
             { Guards=[new(1,2,3)],Flags=[new(4,5)] }).ToArray(),[],[],[],[],new([],[]),[])

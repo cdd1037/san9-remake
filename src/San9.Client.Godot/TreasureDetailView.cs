@@ -9,7 +9,8 @@ public partial class TreasureDetailView : Control
     public TreasureDetailState State { get; init; } = null!;
     public Func<int, TreasureDetailData> Read { get; init; } = null!;
     public Func<int, string> ReadName { get; init; } = null!;
-    public IReadOnlyDictionary<string, ImageTexture> Textures { get; init; } = null!;
+    public TextureService Service { get; init; } = null!;
+    public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;
     public Action<int> CurrentChanged { get; init; } = null!;
     public Action Closed { get; init; } = null!;
     public TextCatalog Texts { get; init; } = null!;
@@ -83,7 +84,7 @@ public partial class TreasureDetailView : Control
         foreach (Node child in _body.GetChildren()) { _body.RemoveChild(child); child.QueueFree(); }
         Label("宝物情报", new(96,50,120,28), 24, centered: true);
         Label(_data.Name, new(232,50,148,28), 24, centered: true);
-        _body.AddChild(new TextureRect { Texture = Textures[_data.PortraitRole], Position = new(94,118), Size = new(240,240),
+        _body.AddChild(new AsyncPortrait { Service = Service, Role = _data.PortraitRole, Position = new(94,118), Size = new(240,240),
             ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
             MouseFilter = MouseFilterEnum.Ignore });
         Label("所有", new(380,120,64,24), centered: true); Label(_data.Holder, new(452,120,88,24), centered: true);

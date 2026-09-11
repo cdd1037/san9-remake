@@ -19,7 +19,7 @@ public partial class DebugPanel : PanelContainer
     }
     public override void _Process(double delta)
     {
-        _debugStatus.Text = World.StatusText;
+        _debugStatus.Text = World.StatusText + "\n" + World.Textures.Statistics + $"\n地形GPU估算 {World.CacheBytes / 1048576.0:F1} MiB CPU合成源 {World.CpuSourceBytes / 1048576.0:F1} MiB";
         _season.Disabled = World.IsLoading || World.Package is null;
         if (!World.IsLoading) _season.Select(Array.IndexOf(new[] { "spring", "summer", "autumn", "winter" }, World.Season));
         if (World.LoadError is not null) Visible = true;

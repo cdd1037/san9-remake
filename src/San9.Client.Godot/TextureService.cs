@@ -1,0 +1,111 @@
+using Godot;
+using San9.Content.Images;
+using San9.Content.Packages;
+using San9.Rendering;
+
+namespace San9.Client.Godot;
+
+public partial class TextureService : Node
+{
+    private Dictionary<string, PortraitDefinition> _portraits = [];
+    private TextureCache<ImageTexture> _cache = null!;
+    private readonly Dictionary<ImageAsset, AlphaMask> _masks = [];
+    private readonly Dictionary<ImageFile, ImageAsset[]> _maskSources = [];
+    private readonly HashSet<TextureScope> _scopes = [];
+    private readonly List<(long Frame, Action Release)> _retired = [];
+    private long _frame;
+    private bool _closed;
+    private double _frameUploadMilliseconds;
+    private long _generatedUploadOverruns;
+    public bool CanUpload => _frameUploadMilliseconds < 2;
+    public IReadOnlyDictionary<string, ImageAsset> MapAssets { get; private set; } = null!;
+    public IReadOnlyDictionary<string, ImageAsset> Roles { get; private set; } = null!;
+    public TextureCache<ImageTexture> Cache => _cache;
+    public void Initialize(ClientContentPackage package, string root)
+    {
+        _portraits = package.Portraits.ToDictionary(p => p.Image.Id);
+        MapAssets = package.Map.Assets.ToDictionary(a => a.Id);
+        var ui = package.Skin.Assets.ToDictionary(a => a.Id);
+        Roles = package.Skin.Roles.ToDictionary(p => p.Key, p => ui[p.Value]);
+        var hitImages = MapAssets.Values.Where(a => a.Id.StartsWith("building-", StringComparison.Ordinal))
+            .Concat(Roles.Where(p => p.Key is "top-frame" or "radar-frame" or "sidebar-frame" or "ruler-frame" || p.Key.StartsWith("button-overview-", StringComparison.Ordinal)).Select(p => p.Value));
+        foreach (var group in hitImages.Distinct().GroupBy(a => a.File)) _maskSources[group.Key] = group.ToArray();
+        _cache = new((file, token) => { token.ThrowIfCancellationRequested(); var p = ImageAssetFiles.LoadFile(root, file); token.ThrowIfCancellationRequested(); return p; }, Upload, t => t.Dispose());
+        ProcessPriority = -100;
+    }
+    private ImageTexture Upload(ImageFile file, PngImage pixels)
+    {
+        if (_maskSources.TryGetValue(file, out var assets))
+            foreach (var asset in assets)
+                if (!_masks.ContainsKey(asset)) _masks.Add(asset, new(pixels, asset, asset.Id.StartsWith("building-", StringComparison.Ordinal) ? (byte)128 : (byte)1));
+        return CreateTexture(pixels);
+    }
+    private static ImageTexture CreateTexture(PngImage pixels)
+    {
+        using var image = Image.CreateFromData(pixels.Width, pixels.Height, false,
+            pixels.Channels switch { 1 => Image.Format.L8, 3 => Image.Format.Rgb8, _ => Image.Format.Rgba8 }, pixels.Pixels);
+        return ImageTexture.CreateFromImage(image);
+    }
+    public ImageTexture UploadGenerated(PngImage pixels)
+    {
+        if (!CanUpload) throw new InvalidOperationException("The frame upload budget is exhausted.");
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        var texture = CreateTexture(pixels);
+        double elapsed = watch.Elapsed.TotalMilliseconds;
+        _frameUploadMilliseconds += elapsed; if (elapsed > 2) _generatedUploadOverruns++;
+        return texture;
+    }
+    public bool Hit(ImageAsset asset, int x, int y) => _masks.TryGetValue(asset, out var mask) && mask.Contains(x, y);
+    public Bitmap? ClickMask(ImageAsset asset)
+    {
+        if (!_masks.TryGetValue(asset, out var mask)) return null;
+        var bitmap = new Bitmap(); bitmap.Create(new(mask.Width, mask.Height));
+        for (int y = 0; y < mask.Height; y++) for (int x = 0; x < mask.Width; x++) bitmap.SetBit(x, y, mask.Contains(x, y));
+        return bitmap;
+    }
+    public TextureScope CreatePortraitScope(string role, PortraitView view, CanvasItem owner)
+    {
+        var image = Roles[role];
+        if (_portraits.TryGetValue(image.Id, out var portrait)) image = portrait.GetView(view);
+        return CreateScope(new Dictionary<string, ImageAsset> { [role] = image }, owner: owner);
+    }
+    public TextureScope CreateScope(IReadOnlyDictionary<string, ImageAsset>? assets = null, bool prefetch = false, CanvasItem? owner = null)
+    {
+        var scope = new TextureScope(this, assets ?? Roles, prefetch);
+        if (owner is not null) scope.Changed += () => Redraw(owner);
+        _scopes.Add(scope); return scope;
+    }
+    private static void Redraw(Node node)
+    {
+        if (!GodotObject.IsInstanceValid(node) || !node.IsInsideTree()) return;
+        if (node is CanvasItem canvas) canvas.QueueRedraw();
+        foreach (var child in node.GetChildren()) Redraw(child);
+    }
+    public bool ActiveReady => _scopes.All(s => s.IsReady);
+    public Exception? ActiveError => _scopes.Select(s => s.Error).FirstOrDefault(e => e is not null);
+    public void Defer(Action release) { if (_closed) release(); else _retired.Add((_frame + 2, release)); }
+    internal void Retire(TextureScope scope, Action release)
+    {
+        _scopes.Remove(scope);
+        if (_closed) release(); else _retired.Add((_frame + 2, release));
+    }
+    public override void _Process(double delta)
+    {
+        _frame++;
+        foreach (var item in _retired.Where(r => r.Frame <= _frame).ToArray()) { item.Release(); _retired.Remove(item); }
+        double previousUploads = _cache.UploadMilliseconds;
+        _cache.Pump();
+        _frameUploadMilliseconds = _cache.UploadMilliseconds - previousUploads;
+        foreach (var scope in _scopes.ToArray()) scope.Refresh();
+    }
+    public string Statistics => $"GPU估算 {_cache.Bytes / 1048576.0:F1} MiB（固定 {_cache.PinnedBytes / 1048576.0:F1} / 闲置 {(_cache.Bytes - _cache.PinnedBytes) / 1048576.0:F1}）\n" +
+        $"纹理 {_cache.Count} 命中 {_cache.Hits} 缺失 {_cache.Misses} 淘汰 {_cache.Evictions} 待上传 {_cache.PendingBytes / 1048576.0:F1} MiB\n" +
+        $"解码 {_cache.DecodeMilliseconds:F1} ms 上传 {_cache.UploadMilliseconds:F1} ms 单次超时 {_cache.UploadOverruns + _generatedUploadOverruns}";
+    public override void _ExitTree()
+    {
+        _closed = true;
+        foreach (var scope in _scopes.ToArray()) scope.Dispose();
+        foreach (var item in _retired) item.Release(); _retired.Clear();
+        _cache.Dispose(); _masks.Clear();
+    }
+}

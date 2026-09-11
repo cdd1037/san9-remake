@@ -12,6 +12,7 @@ public partial class StrategyMinimap : Control
     public San9.Application.Presentation.StrategySnapshot Scenario => Session.View;
     public InterfaceSkin Skin { get; init; } = null!;
     private ImageTexture? _terrain;
+    private TextureRect? _background;
     private long _stateRevision = -1;
     private readonly Node2D _markers = new();
     private readonly Node2D _viewport = new();
@@ -20,10 +21,11 @@ public partial class StrategyMinimap : Control
     {
         MouseFilter = MouseFilterEnum.Stop; MouseDefaultCursorShape = CursorShape.PointingHand;
         TooltipText = "点击小地图定位";
-        var pixels = World.AssetPixels("minimap-terrain");
+        var map = World.Package!;
+        var pixels = MinimapRenderer.Compile(map.Squares, map.MinimapColors);
         using var image = Image.CreateFromData(pixels.Width, pixels.Height, false, Image.Format.Rgba8, pixels.Pixels);
         _terrain = ImageTexture.CreateFromImage(image);
-        var background = new TextureRect { Texture = _terrain, MouseFilter = MouseFilterEnum.Ignore,
+        var background = _background = new TextureRect { Texture = _terrain, MouseFilter = MouseFilterEnum.Ignore,
             ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize };
         AddChild(background);
         background.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
@@ -81,5 +83,9 @@ public partial class StrategyMinimap : Control
             _viewport.DrawPolyline([.. polygon, polygon[0]], Colors.White, 1);
         }
     }
-    public override void _ExitTree() => _terrain?.Dispose();
+    public override void _ExitTree()
+    {
+        if (_background is not null) _background.Texture = null;
+        _terrain?.Dispose(); _terrain = null;
+    }
 }

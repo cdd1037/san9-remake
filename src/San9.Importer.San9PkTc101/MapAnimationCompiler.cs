@@ -13,8 +13,21 @@ public static class MapAnimationCompiler
         return terrain == 12 && (bridge(x + 1, y - 1) || bridge(x - 3, y - 1) || bridge(x - 1, y + 1) || bridge(x - 1, y - 3));
     }
 
+    public static MapAnimatedSprite[] PlaceWater(IReadOnlyList<San9ScenarioSquareRecord> squares)
+    {
+        List<MapAnimatedSprite> water = [];
+        bool Bridge(int x, int y) => x is >= 0 and < 200 && y is >= 0 and < 200 && squares[y * 200 + x].TerrainCode == 11 && squares[y * 200 + x].HasSquareFlagBit(9);
+        for (int y = 0; y < 200; y++) for (int x = 0; x < 200; x++)
+            if (HasWater(squares[y * 200 + x].TerrainCode, x, y, Bridge))
+            {
+                var center = MapTerrainCompiler.Center(x, y);
+                water.Add(new($"water-{(x & 1) + 2 * (y & 1)}", center.X - 32, center.Y - 16, 0, -1));
+            }
+        return water.ToArray();
+    }
+
     public static MapAnimations Compile(byte[] exe, string dataDir,
-        IReadOnlyList<San9ScenarioSquareRecord> squares, byte[] waterPalette, Func<string, byte[]> read,
+        byte[] waterPalette, Func<string, byte[]> read,
         Func<string, string, PngImage, ImageAsset> save, List<ImageAsset> assets)
     {
         int Int(int offset) => BinaryPrimitives.ReadInt32LittleEndian(exe.AsSpan(offset, 4));
@@ -62,13 +75,6 @@ public static class MapAnimationCompiler
                 return rgba;
             });
         }
-        bool Bridge(int x, int y) => x is >= 0 and < 200 && y is >= 0 and < 200 && squares[y * 200 + x].TerrainCode == 11 && squares[y * 200 + x].HasSquareFlagBit(9);
-        for (int y = 0; y < 200; y++) for (int x = 0; x < 200; x++)
-            if (HasWater(squares[y * 200 + x].TerrainCode, x, y, Bridge))
-            {
-                var center = MapTerrainCompiler.Center(x, y);
-                water.Add(new($"water-{(x & 1) + 2 * (y & 1)}", center.X - 32, center.Y - 16, 0, -1));
-            }
         for (int direction = 0; direction < 8; direction++)
         {
             int resource = 5384 + direction;

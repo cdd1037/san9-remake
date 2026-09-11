@@ -5,7 +5,7 @@ namespace San9.Client.Godot;
 
 public partial class BuildingHoverCard : Node2D
 {
-    public IReadOnlyDictionary<string, ImageTexture> Textures { get; init; } = null!;
+    public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;
     public MapWorld World { get; init; } = null!;
     public Font UiFont { get; init; } = null!;
     public BuildingHoverInfo? Info { get; private set; }

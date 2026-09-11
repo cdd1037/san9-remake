@@ -8,7 +8,9 @@ namespace San9.Client.Godot.Diagnostics;
 public partial class TextVerification : Control
 {
     public ClientContentPackage Content { get; init; } = null!;
-    public IReadOnlyDictionary<string, PngImage> Images { get; init; } = null!;
+    public TextureService Service { get; init; } = null!;
+    private TextureScope? _scope;
+    public override void _ExitTree() => _scope?.Dispose();
     public string Output { get; init; } = "";
 
     public override async void _Ready()
@@ -17,12 +19,12 @@ public partial class TextVerification : Control
         {
             Size = new(1024,768);
             AddChild(new ColorRect { Size = Size, Color = new("182025") });
-            Dictionary<string, ImageTexture> textures = [];
-            foreach (var pair in Content.Skin.Roles.Where(p => p.Key.StartsWith("text-icon-",StringComparison.Ordinal)))
+            var textures = _scope = Service.CreateScope();
+            textures.Request(Service.Roles.Keys.Where(k => k.StartsWith("text-icon-", StringComparison.Ordinal)));
+            while (!textures.IsReady)
             {
-                var pixels = Images[pair.Value];
-                using var image = Image.CreateFromData(pixels.Width,pixels.Height,false,Image.Format.Rgba8,pixels.Pixels);
-                textures.Add(pair.Key,ImageTexture.CreateFromImage(image));
+                if (textures.Error is { } error) throw error;
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             }
             var labels = new List<GameRichTextLabel>();
             int y = 28;

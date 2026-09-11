@@ -6,7 +6,7 @@ namespace San9.Client.Godot;
 /// <summary>A view-owned instance of the common bottom explanation panel.</summary>
 public partial class GameMessageBar : Control
 {
-    public IReadOnlyDictionary<string, ImageTexture> Textures { get; init; } = null!;
+    public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;
     private GameRichTextLabel _label = null!;
     private string _text = "";
     private bool _enabled = true;

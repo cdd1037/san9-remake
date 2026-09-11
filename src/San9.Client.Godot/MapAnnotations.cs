@@ -16,9 +16,9 @@ public partial class MapAnnotations : Node2D
     public San9.Application.Presentation.StrategySnapshot Scenario => Session.View;
     public TextCatalog Texts { get; init; } = null!;
     public InterfaceSkin Skin { get; init; } = null!;
-    public IReadOnlyDictionary<string, PngImage> SkinImages { get; init; } = null!;
+    public TextureService Textures { get; init; } = null!;
     public Font UiFont { get; init; } = null!;
-    private readonly Dictionary<string, ImageTexture> _textures = [];
+    private TextureScope _textures = null!;
     private Dictionary<int, SettlementView> _settlements = [];
     private readonly Dictionary<int, (string Soldiers, float Width, string Name)> _labels = [];
     private long _viewRevision = -1, _stateRevision = -1;
@@ -32,12 +32,7 @@ public partial class MapAnnotations : Node2D
             string soldiers = s.Soldiers.ToString(System.Globalization.CultureInfo.InvariantCulture);
             _labels.Add(s.Id, (soldiers, UiFont.GetStringSize(soldiers, fontSize: 16).X, Texts.Resolve(s.NameKey)));
         }
-        foreach (var pair in Skin.Roles.Where(p => p.Key.StartsWith("bar-") || p.Key.StartsWith("icon-")))
-        {
-            var p = SkinImages[pair.Value];
-            using var image = Image.CreateFromData(p.Width, p.Height, false, Image.Format.Rgba8, p.Pixels);
-            _textures.Add(pair.Key, ImageTexture.CreateFromImage(image));
-        }
+        _textures = Textures.CreateScope(owner: this);
     }
     public override void _Process(double delta)
     {
@@ -87,5 +82,5 @@ public partial class MapAnnotations : Node2D
     }
     private void Text(string text, Vector2 point, bool hovered) =>
         GameTextPresenter.Draw(this, UiFont, text, point, GameTextStyles.Building(hovered));
-    public override void _ExitTree() { foreach (var texture in _textures.Values) texture.Dispose(); }
+    public override void _ExitTree() { _textures.Dispose(); }
 }

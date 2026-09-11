@@ -37,6 +37,8 @@ public sealed class TerrainRenderer
         }
     }
 
+    public long SourceBytes => _common.Values.Concat(_land.Values).Sum(p => (long)p.Pixels.Length);
+
     public PngImage RenderChunk(int column, int row, CancellationToken token = default)
     {
         int x0 = column * ChunkSize, y0 = row * ChunkSize;

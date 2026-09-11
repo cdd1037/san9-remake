@@ -9,6 +9,8 @@ namespace San9.Client.Godot;
 
 public partial class Main : Node
 {
+    private TextureScope? _startupTextures;
+    public override void _ExitTree() => _startupTextures?.Dispose();
     public override async void _Ready()
     {
         var world = GetNode<MapWorld>("MapWorld");
@@ -21,18 +23,25 @@ public partial class Main : Node
             {
                 var package = await ClientContentFiles.LoadAsync(options.PackageRoot);
                 double validationMs = startup.Elapsed.TotalMilliseconds;
-                var images = ImageAssetFiles.Load(options.PackageRoot, package.Skin.Assets);
-                if (images.Values.Any(p => p.Channels != 4)) throw new InvalidDataException("UI assets must be RGBA images.");
-                return (Content: package, Images: images, ValidationMs: validationMs);
+                return (Content: package, ValidationMs: validationMs);
             });
+            var textures = new TextureService(); textures.Initialize(loaded.Content, loaded.Content.TextureRoot); AddChild(textures);
+            world.Textures = textures;
+            _startupTextures = textures.CreateScope();
+            _startupTextures.Request(textures.Roles.Keys.Where(k => TextureGroups.Interface(k) == "hud"));
+            while (!_startupTextures.IsReady)
+            {
+                if (_startupTextures.Error is { } error) throw error;
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            }
             if (OS.GetCmdlineUserArgs().Contains("--text-smoke"))
             {
-                ui.AddChild(new TextVerification { Content = loaded.Content, Images = loaded.Images,
+                ui.AddChild(new TextVerification { Content = loaded.Content, Service = textures,
                     Output = Path.GetFullPath(Path.Combine(options.PackageRoot,"../../verification/text")) });
                 return;
             }
             var content = loaded.Content;
-            GD.Print($"CLIENT_PREPARE content_ms={loaded.ValidationMs:F2} ui_decode_ms={startup.Elapsed.TotalMilliseconds - loaded.ValidationMs:F2}");
+            GD.Print($"CLIENT_PREPARE content_ms={loaded.ValidationMs:F2} ui_prepare_ms={startup.Elapsed.TotalMilliseconds - loaded.ValidationMs:F2}");
             void OnFirstMapReady() { GD.Print($"CLIENT_READY total_ms={startup.Elapsed.TotalMilliseconds:F2}"); world.MapReady -= OnFirstMapReady; }
             world.MapReady += OnFirstMapReady;
             var initial = content.Scenario;
@@ -47,9 +56,9 @@ public partial class Main : Node
             selection.Changed += () => world.Highlight(selection.Square);
             var center = MapGeometry.Center(options.CenterX, options.CenterY);
             world.FocusWorld(new(center.X, center.Y)); world.SetZoom(options.Zoom);
-            world.LoadMap(content.Map, options.PackageRoot, options.Season, options.AnimationTime);
-            ui.AddChild(new MapAnnotations { World = world, Selection = selection, Session = session, Texts = content.Text, UiFont = ui.GetThemeFont("font"), Skin = content.Skin, SkinImages = loaded.Images });
-            var hud = new StrategyHud { World = world, Selection = selection, Session = session, Texts = content.Text, Skin = content.Skin, SkinImages = loaded.Images };
+            world.LoadMap(content.Map, content.TextureRoot, options.Season, options.AnimationTime);
+            ui.AddChild(new MapAnnotations { World = world, Selection = selection, Session = session, Texts = content.Text, UiFont = ui.GetThemeFont("font"), Skin = content.Skin, Textures = textures });
+            var hud = new StrategyHud { World = world, Selection = selection, Session = session, Texts = content.Text, Skin = content.Skin, Textures = textures };
             ui.AddChild(hud);
             var debug = new DebugPanel { World = world, Session = session, Selection = selection }; ui.AddChild(debug);
             world.IsInputBlocked = p => hud.Overview.IsOpen || (debug.Visible && debug.GetRect().HasPoint(p)) || hud.IsBlockedPoint(p);

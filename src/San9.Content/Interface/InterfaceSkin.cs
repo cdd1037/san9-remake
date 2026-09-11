@@ -43,8 +43,9 @@ public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dicti
 
     public void Validate()
     {
-        if (SchemaVersion != 15 || Assets.Select(a => a.Id).Distinct().Count() != Assets.Length)
+        if (SchemaVersion != 16 || Assets.Select(a => a.Id).Distinct().Count() != Assets.Length)
             throw new InvalidDataException("Invalid interface skin version or duplicate assets.");
+        ImageAssetFiles.ValidateCatalog(Assets);
         var assets = Assets.ToDictionary(a => a.Id);
         if (Enumerable.Range(0, 52).Any(i => !Colors.ContainsKey($"city-marker-{i}")) ||
             Enumerable.Range(0, 51).Any(i => !Colors.ContainsKey($"overview-force-{i}")) ||

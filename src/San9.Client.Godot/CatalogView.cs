@@ -10,8 +10,10 @@ public partial class CatalogView : Control
     public string HintText { get; init; } = "";
     public IReadOnlyList<CatalogPage> Pages { get; init; } = [];
     public Func<int, CatalogRow[]> ReadRows { get; init; } = null!;
-    public Func<int, Texture2D?>? Portrait { get; init; }
-    public IReadOnlyDictionary<string, ImageTexture> Textures { get; init; } = null!;
+    public TextureService Service { get; init; } = null!;
+    public Func<int, bool>? PortraitDeceased { get; init; }
+    public Func<int, string?>? Portrait { get; init; }
+    public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;
     public Vector2 PortraitSize { get; init; } = new(64, 80);
     public Action<int>? Activated { get; init; }
     public Action<int>? CurrentChanged { get; init; }
@@ -28,7 +30,7 @@ public partial class CatalogView : Control
     private readonly List<Label[]> _cells = [];
     private Control _grid = null!;
     private SkinnedScrollBar _scroll = null!;
-    private TextureRect? _portrait;
+    private AsyncPortrait? _portrait;
     private Rect2 _body;
     private Vector2 _tableOrigin;
     private int _page;
@@ -58,7 +60,8 @@ public partial class CatalogView : Control
         IconButton("catalog-help", new(_body.End.X - 72, _body.Position.Y + 8), ToggleHelp);
         if (Portrait is not null)
         {
-            _portrait = new TextureRect { Position = new(_body.Position.X + 28 - PortraitSize.X, _tableOrigin.Y + 42), Size = PortraitSize,
+            _portrait = new AsyncPortrait { Service = Service, View = San9.Content.Images.PortraitView.Face,
+                IsDeceased = () => _state.Current is { } current && (PortraitDeceased?.Invoke(current.Id) ?? false), Position = new(_body.Position.X + 28 - PortraitSize.X, _tableOrigin.Y + 42), Size = PortraitSize,
                 ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.Scale, MouseFilter = MouseFilterEnum.Ignore };
             AddChild(_portrait);
         }
@@ -134,7 +137,7 @@ public partial class CatalogView : Control
         }
         for (int c = 0; c < _headers.Count; c++) _headers[c].SortDirection = _state.SortColumn == c ? _state.Descending ? -1 : 1 : 0;
         _scroll.Range.Value = _state.Offset; _scroll.UpdateArrows();
-        if (_portrait is not null) _portrait.Texture = _state.Current is { } selected ? Portrait!(selected.Id) : null;
+        if (_portrait is not null) _portrait.Role = _state.Current is { } selected ? Portrait!(selected.Id) : null;
         if (_state.Current is { } row) CurrentChanged?.Invoke(row.Id);
         ViewChanged?.Invoke(_page, _state.Offset, _state.Current?.Id);
         _refreshing = false; QueueRedraw();
@@ -295,7 +298,7 @@ public partial class CatalogSkinButton : BaseButton
 {
     public string Title { get; init; } = "";
     public CatalogButtonKind Kind { get; init; }
-    public IReadOnlyDictionary<string, ImageTexture> Textures { get; init; } = null!;
+    public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;
     public bool Selected { get; set; }
     public int SortDirection { get; set; }
     private Label _label = null!;

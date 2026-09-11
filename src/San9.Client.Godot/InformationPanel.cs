@@ -10,7 +10,8 @@ public partial class InformationPanel : Control
     public InformationBrowser State { get; } = new();
     public GameSession Session { get; init; } = null!;
     public TextCatalog Texts { get; init; } = null!;
-    public IReadOnlyDictionary<string, ImageTexture> Textures { get; init; } = null!;
+    public TextureService Service { get; init; } = null!;
+    private TextureScope Textures = null!;
     public Action<int> Locate { get; init; } = null!;
     private InformationQuery _query = null!;
     private readonly GameTextPresenter _text = new();
@@ -50,6 +51,7 @@ public partial class InformationPanel : Control
     {
         Visible = State.IsOpen; QueueRedraw();
         if (_content is not null) { RemoveChild(_content); _content.QueueFree(); }
+        Textures?.Dispose(); Textures = Service.CreateScope(owner: this);
         _content = new Control { Size = Size, MouseFilter = MouseFilterEnum.Ignore }; AddChild(_content);
         _catalog = null; _officerDetail = null; _treasureDetail = null; _scroll = null; _rowControls.Clear(); _note = null; _mapButton = null;
         if (!Visible) return;
@@ -73,11 +75,13 @@ public partial class InformationPanel : Control
             if (State.SelectedId is null) _officerCatalogState = new();
             _catalog = new CatalogView
             {
+                Service = Service,
                 TableState = _officerCatalogState, Title = "武将一览", HintText = Texts.ResolveRich(StrategyHintText.Key("catalog-officers")), Pages = OfficerCatalog.Pages, Textures = Textures,
                 InitialPage = State.Page, InitialCurrentId = State.SelectedId, InitialOffset = State.Offset,
                 ReadRows = page => _query.Read(State.Category, page, State.ForceFilter, State.SettlementFilter).Rows
                     .Select(row => new CatalogRow(row.Key.Id, row.Cells)).ToArray(),
-                Portrait = id => Textures[$"catalog-person-{id}"],
+                Portrait = id => $"catalog-person-{id}",
+                PortraitDeceased = id => Session.View.World.Officers.Any(o => o.Id == id && o.Status == San9.Core.Domain.OfficerStatus.Dead),
                 Closed = Back, Activated = id =>
                 {
                     _officerDetailState.Open(_officerCatalogState.Rows.Select(row => row.Id), id);
@@ -95,6 +99,7 @@ public partial class InformationPanel : Control
         {
             _officerDetail = new OfficerDetailView
             {
+                Service = Service,
                 State = _officerDetailState, Textures = Textures, Texts = Texts,
                 Read = id => OfficerDetails.Read(Session.View, Texts, id),
                 ReadName = id => Texts.Resolve(Session.View.Officers.Single(o => o.Id == id).NameKey),
@@ -107,6 +112,7 @@ public partial class InformationPanel : Control
         {
             _treasureDetail = new TreasureDetailView
             {
+                Service = Service,
                 State = _treasureDetailState, Textures = Textures, Texts = Texts,
                 Read = id => TreasureDetails.Read(Session.View, Texts, id),
                 ReadName = id => Texts.Resolve(Session.View.Information.Treasures.Single(t => t.Id == id).NameKey),
@@ -119,12 +125,13 @@ public partial class InformationPanel : Control
             if (State.SelectedId is null) _treasureCatalogState = new();
             _catalog = new CatalogView
             {
+                Service = Service,
                 TableState = _treasureCatalogState, Title = "宝物一览", HintText = "请选择欲观看其情报的宝物。",
                 Pages = TreasureCatalog.Pages, Textures = Textures,
                 InitialCurrentId = State.SelectedId, InitialOffset = State.Offset,
                 ReadRows = _ => TreasureCatalog.Read(Session.View, Texts, State.HolderFilter, State.ForceFilter, State.SettlementFilter)
                     .Rows.Select(row => new CatalogRow(row.Key.Id, row.Cells)).ToArray(),
-                Portrait = id => Textures[$"information-treasure-{id}"], PortraitSize = new(128, 128),
+                Portrait = id => $"information-treasure-{id}", PortraitSize = new(128, 128),
                 Closed = Back, Activated = id =>
                 {
                     _treasureDetailState.Open(_treasureCatalogState.Rows.Select(row => row.Id), id);
@@ -247,8 +254,9 @@ public partial class InformationPanel : Control
         bool hasImage = detail.ImageRole is not null;
         if (hasImage)
         {
-            var image = new TextureRect { ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
-                Texture = Textures[detail.ImageRole!], Position = new(230, 188), Size = new(160, 160),
+            var image = new AsyncPortrait { Service = Service, ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+                Role = detail.ImageRole!, IsDeceased = () => detail.ImageRole is { } role && role.StartsWith("information-person-", StringComparison.Ordinal) &&
+                    int.TryParse(role["information-person-".Length..], out int id) && Session.View.World.Officers.Any(o => o.Id == id && o.Status == San9.Core.Domain.OfficerStatus.Dead), Position = new(230, 188), Size = new(160, 160),
                 StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered, MouseFilter = MouseFilterEnum.Ignore };
             _content.AddChild(image);
         }
@@ -364,7 +372,7 @@ public partial class InformationPanel : Control
         Strip("information-footer", new(648, 616), 224);
         if (!State.IsDetail) DrawRect(new(224, 240, 590, 360), new Color(0, 0, 0, .52f));
     }
-    public override void _ExitTree() { Session.Changed -= OnChanged; _text.Dispose(); }
+    public override void _ExitTree() { Session.Changed -= OnChanged; _text.Dispose(); Textures?.Dispose(); }
 }
 
 public partial class InformationActionButton : BaseButton
@@ -372,7 +380,7 @@ public partial class InformationActionButton : BaseButton
     private readonly GameTextPresenter _text = new();
     public override void _ExitTree() => _text.Dispose();
     public string Title { get; init; } = "";
-    public IReadOnlyDictionary<string, ImageTexture> Textures { get; init; } = null!;
+    public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;
     public override void _Ready()
     {
         FocusMode = FocusModeEnum.All;
@@ -392,7 +400,7 @@ public partial class InformationActionButton : BaseButton
 
 public partial class InformationRowButton : BaseButton
 {
-    public IReadOnlyDictionary<string, ImageTexture> Textures { get; init; } = null!;
+    public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;
     public bool Selected { get; set; }
     public override void _Ready() { FocusMode = FocusModeEnum.All; MouseFilter = MouseFilterEnum.Pass; }
     public override void _Process(double delta) => QueueRedraw();

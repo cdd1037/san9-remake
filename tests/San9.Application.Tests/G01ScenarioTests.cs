@@ -1,6 +1,5 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using San9.Application.Presentation;
@@ -13,7 +12,7 @@ namespace San9.Application.Tests;
 
 public sealed class G01ScenarioTests
 {
-    private static ScenarioInitialState Fixture() => new(11, "g01-public", 190, 1, 1, 1,
+    internal static ScenarioInitialState Fixture() => new(11, "g01-public", 190, 1, 1, 1,
         [new(1, "force.1", 1, 1000, 2000, 50) { LeaderId = 1 }, new(2, "force.2", 2, 1000, 2000, 50) { LeaderId = 4 }],
         [new(1, "city.1", 1, 1, 1, 100, 100, 100, 50, []) { Commerce = 300, MaxCommerce = 500, Cultivation = 200, MaxCultivation = 500 },
          new(2, "city.2", 2, 2, 2, 100, 100, 100, 50, []) { Commerce = 300, MaxCommerce = 500, Cultivation = 200, MaxCultivation = 500 }], [], [])
@@ -43,7 +42,7 @@ public sealed class G01ScenarioTests
             var definition = string.IsNullOrWhiteSpace(contentPath) ? Fixture() :
                 JsonSerializer.Deserialize<ScenarioInitialState>(File.ReadAllText(contentPath, Encoding.UTF8), ScenarioContentFiles.DataJsonOptions)!;
             definition.Validate();
-            fingerprint = Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(definition, ScenarioContentFiles.DataJsonOptions)));
+            fingerprint = GameSession.Fingerprint(definition);
             var session = GameSession.Start(definition, 190);
             Assert.Single(session.InitialEvents.OfType<StageCompletedEvent>(), e => e.Stage == ResolutionStage.XunUpdate);
             var continuous = new SimulationEngine(WorldState.Restore(session.CaptureStableState()));
@@ -110,7 +109,7 @@ public sealed class G01ScenarioTests
                 File.WriteAllText(Path.Combine(reportDirectory, $"{label}-report.json"), JsonSerializer.Serialize(new
                 {
                     goal = "G01", scenario = label, contentFingerprint = fingerprint,
-                    fingerprintScope = "normalized scenario initial state; G02 defines production rule fingerprint",
+                    fingerprintScope = "normalized gameplay content; shared Application fingerprint",
                     seed = 190, commandLog = logPath, completedXun, terminationReason = failure is null ? "requested-36-xun" : "failure",
                     finalHash, firstFailure = failure, elapsedMilliseconds = timer.ElapsedMilliseconds,
                     acceptedCommands = accepted, rejectedCommands = rejected, restoreCount,

@@ -1,8 +1,4 @@
-using System.Globalization;
 using System.Collections.Immutable;
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.Json;
 using San9.Core.Domain;
 
 namespace San9.Core.Simulation;
@@ -69,8 +65,6 @@ public sealed class WorldState
         if (snapshot.Revision < 0) throw new ArgumentException("Invalid world revision.");
         world.Revision = snapshot.Revision;
         WorldInvariants.Validate(world.BeginMutation());
-        if (world.CreateSnapshot().StateHash != snapshot.StateHash)
-            throw new ArgumentException("World state hash mismatch.");
         return world;
     }
 
@@ -112,26 +106,21 @@ public sealed class WorldState
     internal WorldSnapshot CreateSnapshot()
     {
         if (_snapshot is not null && _snapshot.Revision == Revision) return _snapshot;
-        string canonical = string.Create(
-            CultureInfo.InvariantCulture,
-            $"{Clock.Year}|{Clock.Month}|{Clock.Day}");
-        var forces = Array.AsReadOnly(_forces.Values.OrderBy(f => f.Id).ToArray());
+        var forces = Array.AsReadOnly(_forces.Values.OrderBy(f => f.Id).Select(f => f with { ProvidedTactics = f.ProvidedTactics.Order().ToImmutableArray() }).ToArray());
         var settlements = Array.AsReadOnly(_settlements.Values.OrderBy(s => s.Id).ToArray());
-        var officers = Array.AsReadOnly(_officers.Values.OrderBy(o => o.Id).ToArray());
+        var officers = Array.AsReadOnly(_officers.Values.OrderBy(o => o.Id).Select(o => o with { LearnedTactics = o.LearnedTactics.Order().ToImmutableArray() }).ToArray());
         var corps = Array.AsReadOnly(_corps.Values.OrderBy(c => c.Id).ToArray());
         var relations = Array.AsReadOnly(_relations.Values.OrderBy(r => r.FirstId).ThenBy(r => r.SecondId).ToArray());
         var treasures = Array.AsReadOnly(_treasures.Values.OrderBy(t => t.Id).ToArray());
         var units = Array.AsReadOnly(_units.Values.OrderBy(u => u.Id).ToArray());
-        canonical += JsonSerializer.Serialize(new { simulation = Simulation, forces, settlements, officers, units, corps, treasures, relations });
-        string hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
-        return _snapshot = new WorldSnapshot(Clock, Simulation, hash) { Forces = forces, Settlements = settlements, Officers = officers, Units = units, Corps = corps, Treasures = treasures, Relations = relations, Revision = Revision };
+        var simulation = Simulation with { Tasks = Simulation.Tasks.OrderBy(t => t.Sequence).ThenBy(t => t.Id).ToImmutableArray() };
+        return _snapshot = new WorldSnapshot(Clock, simulation) { Forces = forces, Settlements = settlements, Officers = officers, Units = units, Corps = corps, Treasures = treasures, Relations = relations, Revision = Revision };
     }
 }
 
 public sealed record WorldSnapshot(
     GameClock Clock,
-    SimulationState Simulation,
-    string StateHash)
+    SimulationState Simulation)
 {
     public IReadOnlyList<ForceState> Forces { get; init; } = [];
     public IReadOnlyList<SettlementState> Settlements { get; init; } = [];
@@ -140,5 +129,9 @@ public sealed record WorldSnapshot(
     public IReadOnlyList<ForceRelation> Relations { get; init; } = [];
     public IReadOnlyList<CorpsState> Corps { get; init; } = [];
     public IReadOnlyList<TreasureState> Treasures { get; init; } = [];
+    // Diagnostics are derived on demand, never persisted or required for normal play/restore.
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string StateHash => CanonicalJson.Hash(new { version = CanonicalJson.Version, clock = Clock, simulation = Simulation,
+        forces = Forces, settlements = Settlements, officers = Officers, units = Units, corps = Corps, treasures = Treasures, relations = Relations });
     public long Revision { get; init; }
 }

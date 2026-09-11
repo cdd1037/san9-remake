@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <Description>Engine-independent scenario runner and replay verification.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../San9.Application/San9.Application.csproj" />
+  </ItemGroup>
+</Project>

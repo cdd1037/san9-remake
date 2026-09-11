@@ -1,5 +1,15 @@
 namespace San9.Core.Simulation;
 
+[System.Text.Json.Serialization.JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(DevelopmentCompletedEvent), "development-completed")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(CommandResolvedEvent), "command-resolved")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(XunAdvancedEvent), "xun-advanced")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(StageCompletedEvent), "stage-completed")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(TaskStartedEvent), "task-started")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(TaskCompletedEvent), "task-completed")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(TaskCancelledEvent), "task-cancelled")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(SimulationEndedEvent), "simulation-ended")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(ControlEndedEvent), "control-ended")]
 public abstract record DomainEvent;
 
 public sealed record DevelopmentCompletedEvent(

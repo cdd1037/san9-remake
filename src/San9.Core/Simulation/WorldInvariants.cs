@@ -47,10 +47,8 @@ internal static class WorldInvariants
         _ = new GameClock(sim.Started.Year, sim.Started.Month, sim.Started.Day);
         if (!sim.Started.IsXunBoundary || sim.Started.DayNumber > state.Clock.DayNumber ||
             !Enum.IsDefined(sim.Boundary) || sim.Controls.IsDefault || sim.Tasks.IsDefault ||
-            sim.AcceptedCommandIds.IsDefault || sim.RandomStreams.IsDefault ||
+            sim.RandomStreams.IsDefault ||
             sim.ActiveControl < 0 || sim.ActiveControl > sim.Controls.Length || sim.NextSequence < 0 ||
-            sim.NextSequence != sim.AcceptedCommandIds.Length ||
-            sim.AcceptedCommandIds.Any(id => id == Guid.Empty) || sim.AcceptedCommandIds.Distinct().Count() != sim.AcceptedCommandIds.Length ||
             sim.Controls.Any(c => string.IsNullOrWhiteSpace(c.ControllerId) || !Enum.IsDefined(c.Kind) || !state.Forces.ContainsKey(c.ForceId)) ||
             sim.Controls.Select(c => c.ForceId).Distinct().Count() != sim.Controls.Length ||
             sim.Boundary != SimulationBoundary.Terminal && (!state.Clock.IsXunBoundary || sim.TerminalReason is not null) ||
@@ -59,14 +57,15 @@ internal static class WorldInvariants
             !sim.RandomStreams.Select(s => s.Name).SequenceEqual(sim.RandomStreams.Select(s => s.Name).Distinct().Order(StringComparer.Ordinal)))
             throw new ArgumentException("Invalid simulation boundary, control, sequence or random state.");
         if (sim.Tasks.Select(t => t.Id).Distinct().Count() != sim.Tasks.Length ||
-            sim.Tasks.Select(t => t.OfficerId).Distinct().Count() != sim.Tasks.Length)
+            sim.Tasks.Select(t => t.OfficerId).Distinct().Count() != sim.Tasks.Length ||
+            sim.Tasks.Select(t => t.Sequence).Distinct().Count() != sim.Tasks.Length)
             throw new ArgumentException("Duplicate task identity or officer occupation.");
         foreach (var task in sim.Tasks)
         {
             _ = new GameClock(task.Started.Year, task.Started.Month, task.Started.Day);
             _ = new GameClock(task.Due.Year, task.Due.Month, task.Due.Day);
-            if (string.IsNullOrWhiteSpace(task.Kind) || !sim.AcceptedCommandIds.Contains(task.Id) ||
-                task.Sequence < 0 || task.Sequence >= sim.NextSequence || sim.AcceptedCommandIds[(int)task.Sequence] != task.Id ||
+            if (string.IsNullOrWhiteSpace(task.Kind) || task.Id == Guid.Empty ||
+                task.Sequence < 0 || task.Sequence >= sim.NextSequence ||
                 !sim.Controls.Any(c => c.ControllerId == task.ControllerId && c.ForceId == task.ForceId) ||
                 !state.Forces.ContainsKey(task.ForceId) || !state.Officers.ContainsKey(task.OfficerId) || !state.Settlements.ContainsKey(task.TargetId) ||
                 task.Started.DayNumber < sim.Started.DayNumber || task.Started.DayNumber > state.Clock.DayNumber ||

@@ -93,7 +93,6 @@ public sealed class SimulationEngine
             mutation.SetSimulation(mutation.Simulation with
             {
                 NextSequence = checked(mutation.Simulation.NextSequence + 1),
-                AcceptedCommandIds = mutation.Simulation.AcceptedCommandIds.Add(command.CommandId),
             });
             WorldInvariants.Validate(mutation);
             if (!commit) return new(CommandSubmissionResult.Success, [], Snapshot, development);
@@ -111,7 +110,7 @@ public sealed class SimulationEngine
         if (command.Sequence < 0) return CommandRejection.NegativeSequence;
         if (command.CommandId == Guid.Empty) return CommandRejection.InvalidCommandId;
         if (_world.IsExecuting || _world.Simulation.Boundary != SimulationBoundary.Stable) return CommandRejection.NotStable;
-        if (_world.Simulation.AcceptedCommandIds.Contains(command.CommandId)) return CommandRejection.DuplicateCommandId;
+        if (_world.Simulation.Tasks.Any(t => t.Id == command.CommandId)) return CommandRejection.DuplicateCommandId;
         if (command.Sequence != _world.Simulation.NextSequence) return CommandRejection.WrongSequence;
         var sim = _world.Simulation;
         if (sim.ActiveControl >= sim.Controls.Length) return CommandRejection.NotActiveController;

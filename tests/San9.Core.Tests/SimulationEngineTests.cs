@@ -138,7 +138,7 @@ public sealed class SimulationEngineTests
         Assert.Equal(950u, accepted.Snapshot.Forces[0].Money);
         Assert.Equal(before.Clock, accepted.Snapshot.Clock);
         Assert.Empty(accepted.Snapshot.Simulation.RandomStreams);
-        Assert.Equal(CommandRejection.DuplicateCommandId, engine.Execute(new("player"), command).Submission.Rejection);
+        Assert.Equal(CommandRejection.WrongSequence, engine.Execute(new("player"), command).Submission.Rejection);
         Assert.False(engine.Execute(new("player"), command with { CommandId = Id(2), Sequence = 1,
             Development = new(1, 1, 2, DomesticActivity.Cultivation) }).Submission.Accepted);
         Assert.Same(accepted.Snapshot, engine.Snapshot);
@@ -148,7 +148,7 @@ public sealed class SimulationEngineTests
         Assert.Throws<InvalidOperationException>(() => engine.EndControl(new("player")));
         engine.EndControl(new("ai"));
         engine.AdvanceXun();
-        Assert.Equal(CommandRejection.DuplicateCommandId, engine.Validate(new("player"), command).Rejection);
+        Assert.Equal(CommandRejection.WrongSequence, engine.Validate(new("player"), command).Rejection);
     }
 
     [Fact]
@@ -323,7 +323,6 @@ public sealed class SimulationEngineTests
         Assert.True(restored.Execute(new("ai"), new WaitCommand(Id(2), 2, 1)).Submission.Accepted);
         Assert.Equal(2, restored.Snapshot.Simulation.NextSequence);
         Assert.Equal(2, Assert.Single(restored.Execute(new("ai"), new WaitCommand(Id(3), 2, 2)).Events.OfType<CommandResolvedEvent>()).Sequence);
-        Assert.Throws<ArgumentException>(() => WorldState.Restore(saved with { StateHash = "bad" }));
         Assert.Throws<ArgumentException>(() => WorldState.Restore(CreateWorld().CreateSnapshot()));
     }
     [Fact]

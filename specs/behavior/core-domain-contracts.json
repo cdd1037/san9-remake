@@ -10,6 +10,71 @@
   ],
   "domains": [
     {
+      "id": "session-persistence",
+      "classification": "boundary",
+      "behavior_specs": [
+        "BEH-SAVE-0001"
+      ],
+      "objects": [
+        "ScenarioSessionDefinition",
+        "SessionSnapshot",
+        "SessionRequest",
+        "SaveEnvelope",
+        "SessionRecording"
+      ],
+      "states": [
+        "stable",
+        "accepted",
+        "already-processed",
+        "rejected"
+      ],
+      "inputs": [
+        "normalized scenario",
+        "versioned save",
+        "typed JSONL requests"
+      ],
+      "outputs": [
+        "restored session",
+        "ordered events",
+        "on-demand diagnostic hashes",
+        "machine report"
+      ],
+      "invariants": [
+        "atomic session publication",
+        "rejected request has no effects",
+        "restore never repeats preparation",
+        "strict content and version identity"
+      ],
+      "acceptance_gates": [
+        "disk roundtrip with pending tasks and random",
+        "continuous versus restored replay",
+        "sequence watermark and log header identity",
+        "bounded player saves and opt-in recordings",
+        "corrupt save rejection",
+        "headless public and full scenario"
+      ],
+      "depends_on": [
+        "simulation"
+      ],
+      "implementation": {
+        "project": "San9.Application",
+        "target_namespace": "San9.Application.Persistence",
+        "target_path": "src/San9.Application/Persistence",
+        "entry_types": [
+          "SaveService",
+          "CommandLogService",
+          "RecordingService"
+        ],
+        "existing_anchors": [
+          "src/San9.Application/GameSession.cs",
+          "src/San9.Application/Persistence/SaveService.cs",
+          "src/San9.Application/Persistence/CommandLogService.cs",
+          "src/San9.Application/Persistence/RecordingService.cs",
+          "src/San9.Headless/HeadlessHost.cs"
+        ]
+      }
+    },
+    {
       "id": "domestic-development",
       "classification": "core",
       "behavior_specs": ["BEH-DOMESTIC-0001"],

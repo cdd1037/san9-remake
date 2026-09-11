@@ -75,7 +75,7 @@ public sealed class RuntimeWorldTests
         Assert.False(advanced.Snapshot.Settlements.Single(s => s.Id == 15).CommerceUsed);
         Assert.True(before.Officers.Single(o => o.Id == 1).Acted);
         Assert.Equal(new XunAdvancedEvent(before.Clock, before.Clock.Advance()), Assert.Single(advanced.Events.OfType<XunAdvancedEvent>()));
-        Assert.Equal(CommandRejection.DuplicateCommandId, engine.Validate(new("player"), wait).Rejection);
+        Assert.Equal(CommandRejection.WrongSequence, engine.Validate(new("player"), wait).Rejection);
         Assert.True(Develop(engine, new(1,15,1,DomesticActivity.Commerce)).Submission.Accepted);
     }
 

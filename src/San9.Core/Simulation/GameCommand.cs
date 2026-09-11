@@ -1,5 +1,9 @@
 namespace San9.Core.Simulation;
 
+[System.Text.Json.Serialization.JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(WaitCommand), "wait")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(DevelopCommand), "develop")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(StartTaskCommand), "start-task")]
 public abstract record GameCommand(
     Guid CommandId,
     int IssuerId,

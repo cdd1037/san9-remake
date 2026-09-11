@@ -1,0 +1,59 @@
+using San9.Core.Domain;
+using San9.Core.Simulation;
+
+namespace San9.Application;
+
+internal static class SessionValidation
+{
+    internal static void Validate(ScenarioSessionDefinition definition, SessionSnapshot snapshot)
+    {
+        if (snapshot.Records.IsDefault || snapshot.Chronicle.IsDefault || snapshot.Records.Length > GameSession.RecentRecordLimit ||
+            snapshot.NextOperationSequence < snapshot.World.Simulation.NextSequence)
+            throw new ArgumentException("Missing session state.");
+        var expected = definition.CreateWorld(snapshot.World.Simulation.InitialSeed);
+        if (snapshot.World.Simulation.Started != expected.Clock ||
+            !snapshot.World.Simulation.Controls.SequenceEqual(expected.Simulation.Controls))
+            throw new ArgumentException("Scenario date or control configuration mismatch.");
+        var content = definition.Content;
+        static void Same(IEnumerable<int> a, IEnumerable<int> b)
+        {
+            if (!a.Order().SequenceEqual(b.Order())) throw new ArgumentException("Scenario identity set mismatch.");
+        }
+        Same(content.Forces.Select(f => f.Id), snapshot.World.Forces.Select(f => f.Id));
+        Same(content.Settlements.Select(s => s.Id), snapshot.World.Settlements.Select(s => s.Id));
+        Same(content.Officers.Select(o => o.State.Id), snapshot.World.Officers.Select(o => o.Id));
+        Same(content.Units.Select(u => u.Id), snapshot.World.Units.Select(u => u.Id));
+        Same(content.Information.Corps.Select(c => c.Id), snapshot.World.Corps.Select(c => c.Id));
+        Same(content.Information.TreasureStates.Select(t => t.Id), snapshot.World.Treasures.Select(t => t.Id));
+        if (!content.Information.Relations.Select(r => (r.FirstId, r.SecondId)).Order()
+            .SequenceEqual(snapshot.World.Relations.Select(r => (r.FirstId, r.SecondId)).Order()))
+            throw new ArgumentException("Scenario relation identity set mismatch.");
+        if (snapshot.World.Officers.Any(o => o.RegionId is int region && !content.RegionNameKeys.ContainsKey(region) ||
+            o.OfficeId is int office && !content.Information.Offices.Any(d => d.Id == office)) ||
+            snapshot.World.Forces.Any(f => f.RankId is int rank && !content.Information.Ranks.Any(r => r.Id == rank)))
+            throw new ArgumentException("Unknown content reference.");
+
+        long previousDay = snapshot.World.Simulation.Started.DayNumber;
+        foreach (var record in snapshot.Records)
+        {
+            _ = new GameClock(record.Clock.Year, record.Clock.Month, record.Clock.Day);
+            if (record.Clock.DayNumber < previousDay || record.Clock.DayNumber > snapshot.World.Clock.DayNumber ||
+                !snapshot.World.Forces.Any(f => f.Id == record.ForceId) ||
+                !snapshot.World.Settlements.Any(s => s.Id == record.SettlementId) ||
+                !snapshot.World.Officers.Any(o => o.Id == record.OfficerId) ||
+                !Enum.IsDefined(record.Activity) || record.Increment < 0 || record.Cost < 0)
+                throw new ArgumentException("Invalid recent development record.");
+            previousDay = record.Clock.DayNumber;
+        }
+        previousDay = snapshot.World.Simulation.Started.DayNumber;
+        foreach (var note in snapshot.Chronicle)
+        {
+            var clock = new GameClock(note.Year, note.Month, note.Day);
+            if (clock.DayNumber < previousDay || clock.DayNumber > snapshot.World.Clock.DayNumber ||
+                note.ForceId != content.PlayerForceId || string.IsNullOrWhiteSpace(note.Text) ||
+                note.Text.Length > 240 || note.Text != note.Text.Trim())
+                throw new ArgumentException("Invalid player chronicle.");
+            previousDay = clock.DayNumber;
+        }
+    }
+}

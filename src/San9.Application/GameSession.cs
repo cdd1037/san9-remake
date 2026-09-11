@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using San9.Core.Simulation;
 using San9.Core.Domain;
 using San9.Content.Scenarios;
@@ -7,120 +8,251 @@ namespace San9.Application;
 
 public sealed class GameSession
 {
-    private readonly SimulationEngine _simulation;
+    private SimulationEngine _simulation;
+    private readonly Func<WorldState, SimulationEngine> _engineFactory;
+    private readonly ScenarioSessionDefinition _definition;
     private readonly StrategySnapshotSource _snapshotSource;
     private readonly StrategySnapshot _initialView;
+    private readonly IReadOnlyList<DomainEvent> _initialEvents;
     private readonly System.Collections.ObjectModel.ReadOnlyCollection<SessionRecord> _readOnlyRecords;
     private readonly System.Collections.ObjectModel.ReadOnlyCollection<ChronicleEntry> _readOnlyChronicle;
-    private StrategySnapshot _view;
-    public event Action? Changed;
     private readonly List<SessionRecord> _records = [];
     private readonly List<ChronicleEntry> _chronicle = [];
-    public IReadOnlyList<SessionRecord> Records => _readOnlyRecords;
-    public IReadOnlyList<ChronicleEntry> Chronicle => _readOnlyChronicle;
-    public void AddChronicleNote(string text)
-    {
-        text = text.Trim();
-        if (text.Length is < 1 or > 240) throw new ArgumentException("Chronicle notes must contain 1 to 240 characters.");
-        var clock = Snapshot.Clock;
-        _chronicle.Add(new(clock.Year, clock.Month, clock.Day, View.PlayerForceId, text));
-        Changed?.Invoke();
-    }
+    public const int RecentRecordLimit = 128;
+    private SessionSnapshot? _recordingInitial;
+    private readonly List<RecordedOperation> _recording = [];
+    public bool IsRecording => _recordingInitial is not null;
+    public long NextOperationSequence { get; private set; }
+    private StrategySnapshot _view;
+    private SessionSnapshot? _capture;
+    private bool _executing;
+    public event Action? Changed;
 
-    private GameSession(ScenarioInitialState definition, WorldState initialState)
+    private GameSession(ScenarioSessionDefinition definition, SimulationEngine simulation,
+        Func<WorldState, SimulationEngine> engineFactory)
     {
-        _simulation = new SimulationEngine(initialState);
-        _snapshotSource = new(definition);
-        _view = _snapshotSource.Project(_simulation.Snapshot);
+        _definition = definition;
+        _simulation = simulation;
+        _engineFactory = engineFactory;
+        _initialEvents = simulation.InitialEvents;
+        _snapshotSource = new(definition.Content);
+        _view = _snapshotSource.Project(simulation.Snapshot);
         _initialView = _view;
         _readOnlyRecords = _records.AsReadOnly();
         _readOnlyChronicle = _chronicle.AsReadOnly();
-        InitialDate = $"{definition.Year}年{definition.Month}月{definition.Day}日";
+        InitialDate = $"{definition.Content.Year}年{definition.Content.Month}月{definition.Content.Day}日";
     }
 
     public string InitialDate { get; }
-    public IReadOnlyList<DomainEvent> InitialEvents => _simulation.InitialEvents;
-    public WorldSnapshot CaptureStableState() => _simulation.CaptureStableState();
-    public WorldSnapshot Snapshot => _simulation.Snapshot;
-    public StrategySnapshot InitialView => _initialView;
-    public StrategySnapshot View
+    public string ContentFingerprint => _definition.Fingerprint;
+    public IReadOnlyList<DomainEvent> InitialEvents => _initialEvents;
+    public IReadOnlyList<SessionRecord> Records => _readOnlyRecords;
+    public IReadOnlyList<ChronicleEntry> Chronicle => _readOnlyChronicle;
+    public void BeginRecording()
     {
-        get
-        {
-            WorldSnapshot snapshot = Snapshot;
-            return _view.World.Revision == snapshot.Revision ? _view : _view = _snapshotSource.Project(snapshot);
-        }
+        if (IsRecording) throw new InvalidOperationException("Recording is already active.");
+        _recordingInitial = Capture();
+        _recording.Clear();
     }
 
-    public static GameSession Start(ScenarioInitialState definition, ulong seed)
+    public SessionRecording CaptureRecording()
     {
-        definition.Validate();
-        definition = definition with
-        {
-            Information = definition.Information.Copy(), Forces = definition.Forces.ToArray(), Officers = definition.Officers.ToArray(), Units = definition.Units.ToArray(),
-            Settlements = definition.Settlements.Select(s => s with { Icons = s.Icons.ToArray() }).ToArray(),
-            RegionNameKeys = new(definition.RegionNameKeys), RegionCityIds = new(definition.RegionCityIds)
-        };
-        if (definition.Day is not (1 or 11 or 21)) throw new ArgumentException("Expected a stable xun boundary.");
-        var world = WorldState.Create(new(definition.Year, definition.Month, definition.Day), seed,
-            definition.Forces.Select(f => new ForceState(f.Id, f.Money, f.Food, f.Trust) { ProvidedTactics = f.ProvidedTactics, IsBarbarian = f.IsBarbarian, LeaderId = f.LeaderId, RankId = f.RankId }),
-            definition.Settlements.Select(s => new SettlementState(s.Id, s.OwnerId, s.Soldiers, s.Durability, s.MaxDurability,
-                s.Morale, s.PublicOrder, s.Commerce, s.MaxCommerce, s.Cultivation, s.MaxCultivation) { Kind = s.Kind, CorpsId = s.CorpsId, Population = s.Population, DraftPopulation = s.DraftPopulation }), definition.Officers.Select(o => o.State), definition.Units, definition.Information.Corps, definition.Information.TreasureStates, definition.Information.Relations,
-            definition.Forces.OrderBy(f => f.Id == definition.PlayerForceId ? 0 : 1).ThenBy(f => f.Id)
-                .Select(f => new ControlSeat(f.Id == definition.PlayerForceId ? "player" : $"ai:{f.Id}", f.Id,
-                    f.Id == definition.PlayerForceId ? ControllerKind.Player : ControllerKind.Automatic)));
-        return new GameSession(definition, world);
+        CaptureStableState();
+        return new(ContentFingerprint, _recordingInitial ?? throw new InvalidOperationException("Recording is not enabled."),
+            _recording.ToImmutableArray(), Capture().StateHash);
     }
+
+    public SessionRecording EndRecording()
+    {
+        var recording = CaptureRecording();
+        _recordingInitial = null;
+        _recording.Clear();
+        _recording.TrimExcess();
+        return recording;
+    }
+    public WorldSnapshot Snapshot => _simulation.Snapshot;
+    public StrategySnapshot InitialView => _initialView;
+    public StrategySnapshot View => _view.World.Revision == Snapshot.Revision ? _view : _view = _snapshotSource.Project(Snapshot);
+
+    public static string Fingerprint(ScenarioInitialState definition) => new ScenarioSessionDefinition(definition).Fingerprint;
+    public static GameSession Start(ScenarioInitialState definition, ulong seed) => Start(definition, seed, world => new(world));
+
+    internal static GameSession Start(ScenarioInitialState definition, ulong seed, Func<WorldState, SimulationEngine> factory)
+    {
+        var owned = new ScenarioSessionDefinition(definition);
+        return new(owned, factory(owned.CreateWorld(seed)), factory);
+    }
+
+    public static GameSession Restore(ScenarioInitialState definition, SessionSnapshot snapshot) =>
+        Restore(definition, snapshot, world => new(world));
+
+    internal static GameSession Restore(ScenarioInitialState definition, SessionSnapshot snapshot, Func<WorldState, SimulationEngine> factory)
+    {
+        return Restore(new ScenarioSessionDefinition(definition), snapshot, factory);
+    }
+
+    internal static GameSession Restore(ScenarioSessionDefinition owned, SessionSnapshot snapshot, Func<WorldState, SimulationEngine> factory)
+    {
+        var world = WorldState.Restore(snapshot.World);
+        SessionValidation.Validate(owned, snapshot);
+        var simulation = factory(world);
+        var session = new GameSession(owned, simulation, factory);
+        session._records.AddRange(snapshot.Records);
+        session._chronicle.AddRange(snapshot.Chronicle);
+        session.NextOperationSequence = snapshot.NextOperationSequence;
+        return session;
+    }
+
+    public WorldSnapshot CaptureStableState()
+    {
+        if (_executing) throw new InvalidOperationException("Session is executing.");
+        return _simulation.CaptureStableState();
+    }
+
+    public SessionSnapshot Capture()
+    {
+        var world = CaptureStableState();
+        if (_capture is not null && ReferenceEquals(_capture.World, world)) return _capture;
+        var records = _records.ToImmutableArray();
+        var chronicle = _chronicle.ToImmutableArray();
+        return _capture = new(world, records, chronicle, NextOperationSequence);
+    }
+
+    public SessionRequest Request(SessionOperation operation, string controllerId = "player", Guid? id = null)
+    {
+        Guid requestId = id ?? NextId();
+        return new(requestId, NextOperationSequence, controllerId, operation);
+    }
+
+    private Guid NextId()
+    {
+        // Stable sequence watermarks identify requests without retaining their history.
+        Span<byte> bytes = stackalloc byte[16];
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt64BigEndian(bytes, Snapshot.Simulation.InitialSeed);
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt64BigEndian(bytes[8..], (ulong)NextOperationSequence + 1);
+        return new Guid(bytes, bigEndian: true);
+    }
+
+    public SessionResult Apply(SessionRequest request)
+    {
+        if (_executing) return Rejected(SessionRejection.NotStable);
+        if (request is null || request.Id == Guid.Empty || request.Sequence < 0 ||
+            string.IsNullOrWhiteSpace(request.ControllerId) || request.Operation is null)
+            return Rejected(SessionRejection.InvalidRequest);
+        if (request.Sequence < NextOperationSequence)
+            return new(SessionDisposition.AlreadyProcessed, SessionRejection.None, [], Snapshot);
+        if (request.Sequence != NextOperationSequence || NextOperationSequence == long.MaxValue)
+            return Rejected(SessionRejection.OutOfOrder);
+        if (Snapshot.Simulation.Boundary == SimulationBoundary.Terminal) return Rejected(SessionRejection.Terminal);
+        _executing = true;
+        SessionResult result;
+        try
+        {
+            // One operation can close several controls and advance. Publish only after all validation succeeds.
+            var candidate = _engineFactory(WorldState.Restore(_simulation.CaptureStableState()));
+            List<DomainEvent> events = [];
+            DevelopmentOutcome? development = null;
+            ChronicleEntry? note = null;
+            switch (request.Operation)
+            {
+                case CommandOperation execute:
+                    if (execute.Command is null || execute.Command.CommandId != request.Id)
+                        return Rejected(SessionRejection.InvalidRequest);
+                    var command = candidate.Execute(new(request.ControllerId), execute.Command);
+                    if (!command.Submission.Accepted)
+                        return Rejected(SessionRejection.CommandRejected, command.Submission.Rejection, command.Development);
+                    development = command.Development;
+                    events.AddRange(command.Events);
+                    break;
+                case EndControlOperation:
+                    events.AddRange(candidate.EndControl(new(request.ControllerId)).Events);
+                    break;
+                case AdvanceOperation:
+                    if (request.ControllerId != "player") return Rejected(SessionRejection.InvalidRequest);
+                    while (candidate.Snapshot.Simulation.ActiveControl < candidate.Snapshot.Simulation.Controls.Length)
+                    {
+                        var seat = candidate.Snapshot.Simulation.Controls[candidate.Snapshot.Simulation.ActiveControl];
+                        events.AddRange(candidate.EndControl(new(seat.ControllerId)).Events);
+                    }
+                    events.AddRange(candidate.AdvanceXun().Events);
+                    break;
+                case ChronicleOperation chronicle:
+                    if (request.ControllerId != "player" || chronicle.Text is null || chronicle.Text.Trim().Length is < 1 or > 240)
+                        return Rejected(SessionRejection.InvalidRequest);
+                    var clock = candidate.Snapshot.Clock;
+                    note = new(clock.Year, clock.Month, clock.Day, View.PlayerForceId, chronicle.Text.Trim());
+                    break;
+                default:
+                    return Rejected(SessionRejection.InvalidRequest);
+            }
+            var completed = events.OfType<DevelopmentCompletedEvent>().Select(e =>
+                new SessionRecord(e.Clock, e.Command.ForceId, e.Command.SettlementId, e.Command.OfficerId,
+                    e.Command.Activity, e.Increment, e.Cost)).ToArray();
+            var snapshot = candidate.CaptureStableState();
+            var publishedEvents = events.ToImmutableArray();
+            var recorded = IsRecording ? new RecordedOperation(request, snapshot.StateHash, publishedEvents) : null;
+            _simulation = candidate;
+            _records.AddRange(completed);
+            if (_records.Count > RecentRecordLimit) _records.RemoveRange(0, _records.Count - RecentRecordLimit);
+            if (note is not null) _chronicle.Add(note);
+            NextOperationSequence++;
+            if (recorded is not null) _recording.Add(recorded);
+            _capture = null;
+            result = new(SessionDisposition.Accepted, SessionRejection.None, publishedEvents, snapshot, Development: development);
+        }
+        catch (InvalidOperationException) { return Rejected(SessionRejection.NotStable); }
+        finally { _executing = false; }
+        Changed?.Invoke();
+        return result;
+    }
+
+    private SessionResult Rejected(SessionRejection reason, CommandRejection command = CommandRejection.None, DevelopmentOutcome? development = null) =>
+        new(SessionDisposition.Rejected, reason, [], Snapshot, command, development);
 
     public DevelopmentOutcome Develop(DevelopmentCommand command)
     {
         ArgumentNullException.ThrowIfNull(command);
-        long sequence = Snapshot.Simulation.NextSequence;
-        Span<byte> id = stackalloc byte[16];
-        System.Buffers.Binary.BinaryPrimitives.WriteInt64LittleEndian(id, checked(sequence + 1));
-        System.Buffers.Binary.BinaryPrimitives.WriteUInt64LittleEndian(id[8..], Snapshot.Simulation.InitialSeed);
-        var result = Execute(new("player"), new DevelopCommand(new Guid(id), command.ForceId, sequence, command));
+        var id = NextId();
+        var result = Execute(new("player"), new DevelopCommand(id, command.ForceId, Snapshot.Simulation.NextSequence, command));
         return result.Development ?? new(DevelopmentRejection.NotAuthorized);
     }
 
     public CommandExecutionResult Execute(CommandContext context, GameCommand command)
     {
-        var result = _simulation.Execute(context, command);
-        foreach (var completed in result.Events.OfType<DevelopmentCompletedEvent>())
+        var result = Apply(Request(new CommandOperation(command), context.ControllerId, command.CommandId));
+        CommandRejection rejection = result.CommandRejection != CommandRejection.None ? result.CommandRejection : result.Rejection switch
         {
-            _records.Add(new(completed.Clock, completed.Command.ForceId, completed.Command.SettlementId,
-                completed.Command.OfficerId, completed.Command.Activity, completed.Increment, completed.Cost));
-        }
-        if (result.Submission.Accepted) Changed?.Invoke();
-        return result;
+            SessionRejection.None => CommandRejection.None,
+            SessionRejection.OutOfOrder => CommandRejection.WrongSequence,
+            SessionRejection.NotStable or SessionRejection.Terminal => CommandRejection.NotStable,
+            _ => CommandRejection.UnsupportedCommand,
+        };
+        return new(new(result.Disposition != SessionDisposition.Rejected, rejection), result.Events, result.Snapshot, result.Development);
     }
 
-    public CommandSubmissionResult Validate(CommandContext context, GameCommand command) => _simulation.Validate(context, command);
+    public CommandSubmissionResult Validate(CommandContext context, GameCommand command) => _executing
+        ? CommandSubmissionResult.Reject(CommandRejection.NotStable) : _simulation.Validate(context, command);
 
     public AdvanceXunResult EndControl(CommandContext context)
     {
-        var result = _simulation.EndControl(context);
-        Changed?.Invoke();
-        return result;
+        var result = Apply(Request(new EndControlOperation(), context.ControllerId));
+        if (result.Disposition == SessionDisposition.Rejected) throw new InvalidOperationException(result.Rejection.ToString());
+        return new(result.Events, result.Snapshot);
     }
 
-    // The current client has one player and no automatic planner yet. Ending its strategy
-    // phase explicitly closes remaining automatic seats; G11 supplies actual planning.
     public AdvanceXunResult AdvanceXun()
     {
-        List<DomainEvent> events = [];
-        while (Snapshot.Simulation.Boundary == SimulationBoundary.Stable &&
-            Snapshot.Simulation.ActiveControl < Snapshot.Simulation.Controls.Length)
-        {
-            var seat = Snapshot.Simulation.Controls[Snapshot.Simulation.ActiveControl];
-            events.AddRange(_simulation.EndControl(new(seat.ControllerId)).Events);
-        }
-        var result = _simulation.AdvanceXun();
-        events.AddRange(result.Events);
-        Changed?.Invoke();
-        return new(events.AsReadOnly(), result.Snapshot);
+        if (Snapshot.Simulation.Boundary == SimulationBoundary.Terminal) return new([], Snapshot);
+        var result = Apply(Request(new AdvanceOperation()));
+        if (result.Disposition == SessionDisposition.Rejected) throw new InvalidOperationException(result.Rejection.ToString());
+        return new(result.Events, result.Snapshot);
     }
 
+    public void AddChronicleNote(string text)
+    {
+        var result = Apply(Request(new ChronicleOperation(text)));
+        if (result.Disposition == SessionDisposition.Rejected) throw new ArgumentException(result.Rejection.ToString());
+    }
 }
 
 public sealed record SessionRecord(GameClock Clock, int ForceId, int SettlementId, int OfficerId, DomesticActivity Activity, int Increment, int Cost);

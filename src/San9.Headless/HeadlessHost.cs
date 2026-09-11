@@ -1,0 +1,289 @@
+using System.Diagnostics;
+using System.Globalization;
+using System.Text;
+using System.Text.Json;
+using San9.Application;
+using San9.Application.Persistence;
+using San9.Content.Packages;
+using San9.Content.Scenarios;
+using San9.Core.Domain;
+using San9.Core.Simulation;
+
+namespace San9.Headless;
+
+public sealed class HeadlessHost
+{
+    private readonly HeadlessReport _report = new();
+    private GameSession? _session;
+    private string? _reportPath;
+    private GameClock _started;
+
+    public static int Run(string[] args) => new HeadlessHost().Execute(args);
+
+    private int Execute(string[] args)
+    {
+        var timer = Stopwatch.StartNew();
+        int exitCode = 0;
+        try
+        {
+            var options = Parse(args);
+            _report.Mode = args[0];
+            if (_report.Mode == "verify")
+            {
+                string output = Path.GetFullPath(Required(options, "output"));
+                _reportPath = Path.Combine(output, "report.json");
+                Verify(options, output);
+            }
+            else
+            {
+                _reportPath = Path.GetFullPath(Required(options, "report"));
+                if (_report.Mode == "replay") ReplayRecording(options);
+                else Replay(options);
+            }
+            _report.Success = true;
+        }
+        catch (UsageException error) { exitCode = Fail(2, "usage", error); }
+        catch (ContentException error) { exitCode = Fail(3, "content", error); }
+        catch (SaveException error) { exitCode = Fail(4, "save-" + error.Failure, error); }
+        catch (RecordingException error) { exitCode = Fail(5, "recording", error); _report.FailureSequence = error.Sequence; }
+        catch (CommandLogException error) { exitCode = Fail(5, "replay", error, error.Line); }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException) { exitCode = Fail(6, "io", error); }
+        catch (VerificationException error) { exitCode = Fail(7, "verification", error); }
+        catch (Exception error) { exitCode = Fail(8, "unexpected", error); }
+        finally
+        {
+            if (_session is not null)
+            {
+                _report.ContentFingerprint = _session.ContentFingerprint;
+                _report.Seed = _session.Snapshot.Simulation.InitialSeed;
+                _report.FinalHash = _session.Capture().StateHash;
+                _report.WorldHash = _session.Snapshot.StateHash;
+                _report.CompletedXun = (_session.Snapshot.Clock.DayNumber - _started.DayNumber) / 10;
+                _report.Coverage = new(_session.Snapshot.Forces.Count, _session.Snapshot.Settlements.Count,
+                    _session.Snapshot.Officers.Count, _session.Snapshot.Units.Count, _session.Snapshot.Corps.Count,
+                    _session.Snapshot.Treasures.Count, _session.Snapshot.Relations.Count);
+            }
+            _report.ElapsedMilliseconds = timer.ElapsedMilliseconds;
+            if (_reportPath is not null)
+            {
+                try { Write(_reportPath, CanonicalJson.Encode(_report)); }
+                catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+                { exitCode = Fail(6, "report-io", error); }
+            }
+            Console.WriteLine(CanonicalJson.Text(_report));
+        }
+        return exitCode;
+    }
+
+    private int Fail(int code, string category, Exception error, int? line = null)
+    {
+        _report.Success = false;
+        _report.TerminationReason = "failure";
+        _report.FirstFailure ??= new(category, error.Message + (error.InnerException is null ? "" : " " + error.InnerException.Message), line);
+        return code;
+    }
+
+    private void Replay(Dictionary<string, string> options)
+    {
+        var definition = Content(options);
+        string log = Path.GetFullPath(Required(options, "log"));
+        _report.CommandLog = log;
+        var header = CommandLogService.ReadHeader(log);
+        _session = options.TryGetValue("load", out string? load) ? SaveService.Read(load, definition) : GameSession.Start(definition, header.Seed);
+        _started = _session.Snapshot.Clock;
+        if (options.ContainsKey("record")) _session.BeginRecording();
+        var result = CommandLogService.Replay(log, _session);
+        _report.AcceptedOperations = result.Accepted;
+        _report.AlreadyProcessedOperations = result.AlreadyProcessed;
+        _report.DevelopmentCommands = result.Events.OfType<DevelopmentCompletedEvent>().Count();
+        _report.WaitCommands = result.Attempts.Count(a => a.Disposition == SessionDisposition.Accepted && a.Request?.Operation is CommandOperation { Command: WaitCommand });
+        _report.EventLog = Path.ChangeExtension(_reportPath!, ".events.jsonl");
+        _report.AttemptLog = Path.ChangeExtension(_reportPath!, ".attempts.jsonl");
+        WriteLines(_report.EventLog, result.Events.Select(e => CanonicalJson.Text<DomainEvent>(e)));
+        WriteLines(_report.AttemptLog, result.Attempts.Select(a => CanonicalJson.Text(a)));
+        if (options.TryGetValue("save", out string? save)) SaveService.Write(save, _session);
+        if (options.TryGetValue("record", out string? record)) RecordingService.Write(record, _session.CaptureRecording());
+        if (result.FirstFailure is not null)
+            throw new CommandLogException(result.FirstFailure.Line, "Operation rejected: " + result.FirstFailure.Rejection);
+        _report.TerminationReason = _session.Snapshot.Simulation.TerminalReason ?? "log-complete";
+    }
+
+    private void ReplayRecording(Dictionary<string, string> options)
+    {
+        var replay = RecordingService.Replay(Required(options, "recording"), Content(options));
+        _session = replay.Session;
+        _started = replay.Started;
+        _report.AcceptedOperations = replay.Accepted;
+        _report.EventLog = Path.ChangeExtension(_reportPath!, ".events.jsonl");
+        WriteLines(_report.EventLog, replay.Events.Select(e => CanonicalJson.Text<DomainEvent>(e)));
+        if (options.TryGetValue("save", out string? save)) SaveService.Write(save, _session);
+        _report.TerminationReason = "recording-complete";
+    }
+
+    private void Verify(Dictionary<string, string> options, string output)
+    {
+        int xuns = options.TryGetValue("xuns", out var value) && int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out int parsed) ? parsed :
+            options.ContainsKey("xuns") ? throw new UsageException("Invalid xun count.") : 36;
+        if (xuns <= 0) throw new UsageException("Xun count must be positive.");
+        ulong seed = options.TryGetValue("seed", out value) && ulong.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out ulong parsedSeed) ? parsedSeed :
+            options.ContainsKey("seed") ? throw new UsageException("Invalid seed.") : 190UL;
+        var definition = Content(options);
+        _session = GameSession.Start(definition, seed);
+        _session.BeginRecording();
+        _started = _session.Snapshot.Clock;
+        var restored = GameSession.Start(definition, seed);
+        Directory.CreateDirectory(output);
+        SaveService.Write(Path.Combine(output, "initial.save.json"), _session);
+        List<string> events = [];
+        List<object> checkpoints = [];
+        void Compare(SessionRequest request)
+        {
+            var a = _session.Apply(request);
+            var b = restored.Apply(request);
+            if (a.Disposition != SessionDisposition.Accepted || b.Disposition != SessionDisposition.Accepted ||
+                a.Snapshot.StateHash != b.Snapshot.StateHash ||
+                !a.Events.Select(e => CanonicalJson.Text<DomainEvent>(e)).SequenceEqual(b.Events.Select(e => CanonicalJson.Text<DomainEvent>(e))))
+                throw new VerificationException($"Operation {request.Sequence} diverged or was rejected.");
+            _report.AcceptedOperations++;
+            _report.DevelopmentCommands += a.Events.OfType<DevelopmentCompletedEvent>().Count();
+            if (request.Operation is CommandOperation { Command: WaitCommand }) _report.WaitCommands++;
+            events.AddRange(a.Events.Select(e => CanonicalJson.Text<DomainEvent>(e)));
+        }
+        void Checkpoint(string reason)
+        {
+            SaveService.Write(Path.Combine(output, "checkpoint.save.json"), restored);
+            restored = SaveService.Read(Path.Combine(output, "checkpoint.save.json"), definition);
+            if (_session.Capture().StateHash != restored.Capture().StateHash || _session.Snapshot.Revision != restored.Snapshot.Revision)
+                throw new VerificationException("Restored session differs from continuous session.");
+            if (restored.InitialEvents.Count != 0) throw new VerificationException("Restore repeated initial preparation.");
+            _report.RestoreCount++;
+            checkpoints.Add(new { reason, clock = restored.Snapshot.Clock, operationCount = restored.NextOperationSequence, stateHash = restored.Capture().StateHash });
+        }
+        Compare(_session.Request(new ChronicleOperation("Headless scripted verification")));
+        bool firstCommand = true;
+        for (int xun = 0; xun < xuns && _session.Snapshot.Simulation.Boundary != SimulationBoundary.Terminal; xun++)
+        {
+            foreach (var seat in _session.Snapshot.Simulation.Controls)
+            {
+                Compare(ScriptedCommand(_session, seat, xun));
+                if (firstCommand) { Checkpoint("first-command"); firstCommand = false; }
+                Compare(_session.Request(new EndControlOperation(), seat.ControllerId));
+            }
+            Compare(_session.Request(new AdvanceOperation()));
+            if (xun % 5 == 0 || _session.Snapshot.Clock is { Month: 12, Day: 21 }) Checkpoint("stable-period");
+            if (_session.View.Year != restored.View.Year || _session.View.Day != restored.View.Day ||
+                !_session.Records.SequenceEqual(restored.Records) || !_session.Chronicle.SequenceEqual(restored.Chronicle))
+                throw new VerificationException("Restored application query or records differ.");
+        }
+        if (_report.DevelopmentCommands == 0) throw new VerificationException("Scenario executed no development commands.");
+        if (_session.Capture().StateHash != restored.Capture().StateHash) throw new VerificationException("Final session hash mismatch.");
+        SaveService.Write(Path.Combine(output, "continuous.save.json"), _session);
+        SaveService.Write(Path.Combine(output, "restored.save.json"), restored);
+        if (!File.ReadAllBytes(Path.Combine(output, "continuous.save.json")).SequenceEqual(File.ReadAllBytes(Path.Combine(output, "restored.save.json"))))
+            throw new VerificationException("Canonical save files differ.");
+        _report.CommandLog = Path.Combine(output, "commands.jsonl");
+        CommandLogService.Write(_report.CommandLog, _session);
+        _report.EventLog = Path.Combine(output, "events.jsonl");
+        WriteLines(_report.EventLog, events);
+        Write(Path.Combine(output, "checkpoints.json"), CanonicalJson.Encode(checkpoints));
+        string recordingPath = Path.Combine(output, "verification.recording.json");
+        RecordingService.Write(recordingPath, _session.CaptureRecording());
+        var recordingReplay = RecordingService.Replay(recordingPath, definition);
+        if (recordingReplay.Session.Capture().StateHash != _session.Capture().StateHash)
+            throw new VerificationException("Recording replay differs.");
+        var replayed = GameSession.Start(definition, seed);
+        var replay = CommandLogService.Replay(_report.CommandLog, replayed);
+        if (replay.FirstFailure is not null || replayed.Capture().StateHash != _session.Capture().StateHash ||
+            !events.SequenceEqual(replay.Events.Select(e => CanonicalJson.Text<DomainEvent>(e))))
+            throw new VerificationException("Exported log replay differs.");
+        var duplicate = CommandLogService.Replay(_report.CommandLog, restored);
+        if (duplicate.FirstFailure is not null || duplicate.AlreadyProcessed != _session.NextOperationSequence || duplicate.Events.Length != 0 ||
+            restored.Capture().StateHash != _session.Capture().StateHash)
+            throw new VerificationException("Duplicate log prefix changed the session.");
+        _report.AlreadyProcessedOperations = duplicate.AlreadyProcessed;
+        _report.TerminationReason = _session.Snapshot.Simulation.TerminalReason ?? "requested-xuns";
+    }
+
+    private static SessionRequest ScriptedCommand(GameSession session, ControlSeat seat, int xun)
+    {
+        var request = session.Request(new EndControlOperation(), seat.ControllerId);
+        foreach (var officer in session.Snapshot.Officers.Where(o => o.IsServing && !o.Acted && o.OwnerId == seat.ForceId))
+        {
+            var command = new DevelopCommand(request.Id, seat.ForceId, session.Snapshot.Simulation.NextSequence,
+                new(seat.ForceId, officer.SettlementId!.Value, officer.Id, xun % 2 == 0 ? DomesticActivity.Commerce : DomesticActivity.Cultivation));
+            if (session.Validate(new(seat.ControllerId), command).Accepted) return request with { Operation = new CommandOperation(command) };
+        }
+        return request with { Operation = new CommandOperation(new WaitCommand(request.Id, seat.ForceId, session.Snapshot.Simulation.NextSequence)) };
+    }
+
+    private static ScenarioInitialState Content(Dictionary<string, string> options)
+    {
+        try
+        {
+            var definition = options.ContainsKey("fixture") ? ScenarioFixture.Create() :
+                JsonSerializer.Deserialize<ScenarioInitialState>(File.ReadAllText(Required(options, "scenario"), Encoding.UTF8), ScenarioContentFiles.DataJsonOptions)
+                    ?? throw new JsonException("Null scenario.");
+            definition.Validate();
+            return definition;
+        }
+        catch (Exception error) when (error is JsonException or ArgumentException or InvalidDataException)
+        { throw new ContentException("Invalid scenario content.", error); }
+    }
+
+    private static Dictionary<string, string> Parse(string[] args)
+    {
+        if (args.Length == 0 || args[0] is not ("run" or "verify" or "replay"))
+            throw new UsageException("Use verify --fixture|--scenario PATH --output DIR [--xuns N] [--seed N], or run --fixture|--scenario PATH --log PATH --report PATH [--load PATH] [--save PATH] [--record PATH], or replay --fixture|--scenario PATH --recording PATH --report PATH [--save PATH].");
+        var values = new Dictionary<string, string>(StringComparer.Ordinal);
+        string[] allowed = args[0] == "verify" ? ["fixture", "scenario", "output", "xuns", "seed"] : args[0] == "run" ? ["fixture", "scenario", "log", "report", "load", "save", "record"] : ["fixture", "scenario", "recording", "report", "save"];
+        for (int i = 1; i < args.Length; i++)
+        {
+            if (!args[i].StartsWith("--", StringComparison.Ordinal)) throw new UsageException("Expected named option.");
+            string key = args[i][2..];
+            if (!allowed.Contains(key) || values.ContainsKey(key)) throw new UsageException("Unknown or duplicate option: " + key);
+            if (key == "fixture") values.Add(key, "true");
+            else
+            {
+                if (++i >= args.Length || args[i].StartsWith("--", StringComparison.Ordinal)) throw new UsageException("Missing value: " + key);
+                values.Add(key, args[i]);
+            }
+        }
+        if (values.ContainsKey("fixture") == values.ContainsKey("scenario")) throw new UsageException("Select exactly one scenario source.");
+        if (args[0] != "verify") ValidatePaths(values);
+        return values;
+    }
+
+    private static void ValidatePaths(Dictionary<string, string> options)
+    {
+        var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+        var outputs = new Dictionary<string, string>(comparer);
+        string report = Path.GetFullPath(Required(options, "report"));
+        outputs.Add(report, "report");
+        if (!outputs.TryAdd(Path.ChangeExtension(report, ".events.jsonl"), "events") ||
+            !outputs.TryAdd(Path.ChangeExtension(report, ".attempts.jsonl"), "attempts"))
+            throw new UsageException("Report path conflicts with a diagnostic output.");
+        if (options.TryGetValue("save", out var save) && !outputs.TryAdd(Path.GetFullPath(save), "save"))
+            throw new UsageException("Output paths must be distinct.");
+        if (options.TryGetValue("record", out var record) && !outputs.TryAdd(Path.GetFullPath(record), "record"))
+            throw new UsageException("Recording output must be distinct.");
+        foreach (string key in new[] { "scenario", "log", "load", "recording" })
+            if (options.TryGetValue(key, out var input) && outputs.TryGetValue(Path.GetFullPath(input), out var output) &&
+                !(key == "load" && output == "save"))
+                throw new UsageException("Output would overwrite an input: " + key);
+    }
+
+    private static string Required(Dictionary<string, string> options, string key) => options.TryGetValue(key, out var value) ? value : throw new UsageException("Missing option: " + key);
+    private static void WriteLines(string path, IEnumerable<string> lines)
+    {
+        string text = string.Join('\n', lines);
+        Write(path, Encoding.UTF8.GetBytes(text.Length == 0 ? text : text + "\n"));
+    }
+    private static void Write(string path, byte[] bytes)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
+        File.WriteAllBytes(path, bytes);
+    }
+    private sealed class UsageException(string message) : Exception(message);
+    private sealed class ContentException(string message, Exception inner) : Exception(message, inner);
+    private sealed class VerificationException(string message) : Exception(message);
+}

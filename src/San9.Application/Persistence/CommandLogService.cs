@@ -1,0 +1,82 @@
+using System.Collections.Immutable;
+using System.Text;
+using System.Text.Json;
+using San9.Core.Simulation;
+
+namespace San9.Application.Persistence;
+
+public sealed record CommandLogHeader(int FormatVersion, string RulesVersion, int HashVersion, string ContentFingerprint, ulong Seed);
+public sealed record ReplayAttempt(int Line, SessionRequest? Request, SessionDisposition Disposition, SessionRejection Rejection);
+public sealed record ReplayResult(int Accepted, int AlreadyProcessed, ReplayAttempt? FirstFailure,
+    ImmutableArray<DomainEvent> Events, ImmutableArray<ReplayAttempt> Attempts);
+
+public sealed class CommandLogException(int line, string message, Exception? inner = null) : Exception(message, inner)
+{
+    public int Line { get; } = line;
+}
+
+public static class CommandLogService
+{
+    public static void Write(string path, GameSession session)
+    {
+        var recording = session.CaptureRecording();
+        Write(path, new(SessionProtocol.LogFormatVersion, SessionProtocol.RulesVersion, CanonicalJson.Version,
+            session.ContentFingerprint, recording.Initial.World.Simulation.InitialSeed),
+            recording.Operations.Select(e => e.Request));
+    }
+
+    public static void Write(string path, CommandLogHeader header, IEnumerable<SessionRequest> requests)
+    {
+        var text = new StringBuilder(CanonicalJson.Text(header)).Append('\n');
+        foreach (var request in requests) text.Append(CanonicalJson.Text(request)).Append('\n');
+        AtomicFile.Write(path, Encoding.UTF8.GetBytes(text.ToString()));
+    }
+
+    public static CommandLogHeader ReadHeader(string path)
+    {
+        using var reader = new StreamReader(path, new UTF8Encoding(false, true));
+        return Parse<CommandLogHeader>(reader.ReadLine(), 1);
+    }
+
+    public static ReplayResult Replay(string path, GameSession session)
+    {
+        using var reader = new StreamReader(path, new UTF8Encoding(false, true));
+        var header = Parse<CommandLogHeader>(reader.ReadLine(), 1);
+        if (header.FormatVersion != SessionProtocol.LogFormatVersion || header.RulesVersion != SessionProtocol.RulesVersion ||
+            header.HashVersion != CanonicalJson.Version || header.ContentFingerprint != session.ContentFingerprint ||
+            header.Seed != session.Snapshot.Simulation.InitialSeed)
+            throw new CommandLogException(1, "Log version, content or seed mismatch.");
+        int line = 1, accepted = 0, alreadyProcessed = 0;
+        var events = ImmutableArray.CreateBuilder<DomainEvent>();
+        var attempts = ImmutableArray.CreateBuilder<ReplayAttempt>();
+        while (reader.ReadLine() is string text)
+        {
+            line++;
+            SessionRequest request;
+            try { request = Parse<SessionRequest>(text, line); }
+            catch (CommandLogException)
+            {
+                var invalid = new ReplayAttempt(line, null, SessionDisposition.Rejected, SessionRejection.InvalidRequest);
+                attempts.Add(invalid);
+                return new(accepted, alreadyProcessed, invalid, events.ToImmutable(), attempts.ToImmutable());
+            }
+            var result = session.Apply(request);
+            var attempt = new ReplayAttempt(line, request, result.Disposition, result.Rejection);
+            attempts.Add(attempt);
+            if (result.Disposition == SessionDisposition.Rejected)
+                return new(accepted, alreadyProcessed, attempt, events.ToImmutable(), attempts.ToImmutable());
+            if (result.Disposition == SessionDisposition.AlreadyProcessed) alreadyProcessed++;
+            else accepted++;
+            events.AddRange(result.Events);
+        }
+        return new(accepted, alreadyProcessed, null, events.ToImmutable(), attempts.ToImmutable());
+    }
+
+    private static T Parse<T>(string? text, int line)
+    {
+        if (string.IsNullOrWhiteSpace(text)) throw new CommandLogException(line, "Missing log record.");
+        try { return StrictJson.Deserialize<T>(Encoding.UTF8.GetBytes(text)); }
+        catch (Exception error) when (error is JsonException or NotSupportedException or ArgumentException or InvalidOperationException)
+        { throw new CommandLogException(line, "Invalid log record.", error); }
+    }
+}

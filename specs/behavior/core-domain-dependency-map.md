@@ -60,7 +60,7 @@ flowchart LR
 
 | 领域 | 已确认规格 | 对象与状态 | 输入 → 输出 | 关键不变量 | 首个实现入口 |
 | --- | --- | --- | --- | --- | --- |
-| `simulation` | `BEH-SIMULATION-0001` | 日历、周期流水线、控制席位、实际命令序号、持续任务和命名随机；稳定/执行/终局 | 命令日志、世界与随机状态 → 快照、领域事件、派生日历 | 单一权威日期；单活动阶段；权限终验；持续占用；拒绝零副作用；稳定快照恢复 | `San9.Core.Simulation`：`SimulationEngine`、`ResolutionPipeline` |
+| `simulation` | `BEH-SIMULATION-0001` | 日历、周期流水线、控制席位、命令序号水位、持续任务和命名随机；稳定/执行/终局 | 命令日志、世界与随机状态 → 快照、领域事件、派生日历 | 单一权威日期；单活动阶段；权限终验；持续占用；拒绝零副作用；稳定快照恢复 | `San9.Core.Simulation`：`SimulationEngine`、`ResolutionPipeline` |
 | `personnel` | `BEH-PERSON-0001..0003` | 人物、归属、忠诚、地点、行动占用 | 人事命令与实时归属 → 原子归属变化、忠诚/宝物转移、占用释放 | 单一归属/地点；失败零写回；宝物唯一；占用必释放 | `San9.Core.Personnel`：`PersonnelCommandService`、`AffiliationTransition` |
 | `person-lifecycle` | `BEH-PERSON-LIFECYCLE-0001..0003` | 成长、伤势、生命、培养记录 | 周期、人物、成长/死亡原因 → 成长、登场/恢复、死亡清理、培养完成 | 成长有界；死亡无活引用；一势力一培养记录 | `San9.Core.Personnel.Lifecycle`：三个专责服务 |
 | `governance` | `BEH-GOVERNANCE-0001..0003` | 势力、军团、辖区、委任、归属事务 | 当前所有权与委任配置 → 自动命令、归属转换、军团清理 | 单一势力根；资源守恒；自动/交互共享终验 | `San9.Core.Governance`：`CorpsService`、`DelegationPlanner`、`TerritorialTransitionService` |
@@ -100,3 +100,7 @@ G01已接入以上模拟内核与现有内政命令，持续任务通过内部�
 | 高色深地图 | `DEC-RENDER-0001` | 保留坐标与混合关系，输出改为 RGB888 |
 
 当前聚合契约没有登记中的核心规格冲突；这不表示各研究公式的全部输入或范围外规则已经闭合，具体见[研究与规格疑点清单](../../research/research-open-questions.md)。未确认的字段标签、UI 名称、挑战剧本布局和可选细节保持在各规格的排除范围，不能进入上述类型或验证器。新的规则或语义差异须更新相关 BEH 并明确可执行验收场景；是否新增 DEC 按[文档规则](../README.md)判断。
+
+## 保存与无界面边界
+
+`session-persistence`依赖`simulation`，已确认规格为`BEH-SAVE-0001`。Core的`CanonicalJson`提供规范化编码与按需诊断摘要，普通快照不携带摘要；Application持有内容/规则身份、操作水位、轻量保存恢复、独立录像及原子会话发布；独立`San9.Headless`只消费Application，不拥有领域规则。Content与Importer沿用已验证的规范化剧本契约，没有新增导入字段。后续新增领域状态、规则输入与动态身份必须同步保存、恢复校验、指纹和重放测试。实际入口为`SaveService`、`CommandLogService`与`HeadlessHost`，验证见[G02验收](../../docs/g02-verification.md)。

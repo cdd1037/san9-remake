@@ -24,5 +24,6 @@ public sealed record DevelopmentCommand(int ForceId, int SettlementId, int Offic
 public enum DevelopmentRejection { None, UnknownObject, UnsupportedActivity, WrongOwner, OfficerUnavailable, AlreadyUsed, AtMaximum, InsufficientFunds, NotAuthorized }
 public readonly record struct DevelopmentOutcome(DevelopmentRejection Rejection, int Increment = 0, int Cost = 0)
 {
+    [System.Text.Json.Serialization.JsonIgnore]
     public bool Accepted => Rejection == DevelopmentRejection.None;
 }

@@ -4,6 +4,7 @@
     <Project Path="src/San9.Client.Godot/San9.Client.Godot.csproj" />
     <Project Path="src/San9.Content/San9.Content.csproj" />
     <Project Path="src/San9.Core/San9.Core.csproj" />
+    <Project Path="src/San9.Headless/San9.Headless.csproj" />
     <Project Path="src/San9.Importer.San9PkTc101/San9.Importer.San9PkTc101.csproj" />
     <Project Path="src/San9.Rendering/San9.Rendering.csproj" />
     <Project Path="src/San9.Tools/San9.Tools.csproj" />
@@ -13,6 +14,7 @@
     <Project Path="tests/San9.Client.Godot.Tests/San9.Client.Godot.Tests.csproj" />
     <Project Path="tests/San9.Content.Tests/San9.Content.Tests.csproj" />
     <Project Path="tests/San9.Core.Tests/San9.Core.Tests.csproj" />
+    <Project Path="tests/San9.Headless.Tests/San9.Headless.Tests.csproj" />
     <Project Path="tests/San9.Importer.San9PkTc101.Tests/San9.Importer.San9PkTc101.Tests.csproj" />
   </Folder>
 </Solution>

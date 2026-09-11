@@ -17,14 +17,20 @@ public static class ClientContentImporter
         if (textureRoot == output) throw new InvalidDataException("Scenario and texture package directories must differ.");
         var textures = await TexturePackageFiles.LoadAsync(textureRoot, token);
         if (textures.SourceBuild != San9PkTc101Detector.SourceBuildId) throw new InvalidDataException("Texture source build differs.");
-        var map = MapImporter.Build(sourceExe, scenarioPath, textures.Map, progress, token);
-        List<ContentSource> sources = [.. map.Sources];
+        List<ContentSource> sources = [];
+        var buffers = new Dictionary<string, byte[]>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
         byte[] Read(string path)
         {
-            token.ThrowIfCancellationRequested(); var bytes = File.ReadAllBytes(path);
-            sources.Add(new(Path.GetFileName(path), Convert.ToHexString(SHA256.HashData(bytes)))); return bytes;
+            token.ThrowIfCancellationRequested();
+            path = Path.GetFullPath(path);
+            if (buffers.TryGetValue(path, out var cached)) return cached;
+            byte[] bytes = File.ReadAllBytes(path);
+            buffers.Add(path, bytes);
+            sources.Add(new(Path.GetFileName(path), Convert.ToHexString(SHA256.HashData(bytes))));
+            return bytes;
         }
         byte[] exe = Read(sourceExe), scenarioBytes = Read(scenarioPath);
+        var map = MapImporter.Build(scenarioBytes, textures.Map, sources.ToArray());
         var (scenario, text) = ScenarioContentCompiler.Compile(exe, scenarioBytes, Read(Path.Combine(dataDirectory, "M_MsgPK.s9")), Read(Path.Combine(dataDirectory, "M_RtdnPK.s9")));
         Dictionary<string, San9.Content.Text.MessageDefinition> messages = [];
         foreach (var (file, catalog) in new[] { ("M_MsgPK.s9", "messages"), ("M_RtdnPK.s9", "biographies"), ("M_Msg.s9", "base-messages"), ("M_Rtdn.s9", "base-biographies") })

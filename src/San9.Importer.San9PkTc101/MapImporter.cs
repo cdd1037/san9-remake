@@ -1,25 +1,14 @@
 using San9.Importer.San9PkTc101.Images;
 using San9.Content.Packages;
 using San9.Content.Images;
-using System.Buffers.Binary;
-using System.Security.Cryptography;
-using System.Text.Json;
 using San9.Content.Maps;
 
 namespace San9.Importer.San9PkTc101;
 
 public static class MapImporter
 {
-    internal static MapPackage Build(string exePath, string scenarioPath, MapResources resources,
-        Action<string>? progress, CancellationToken token)
+    internal static MapPackage Build(byte[] scenario, MapResources resources, IReadOnlyList<ContentSource> sources)
     {
-        List<ContentSource> sources = [];
-        byte[] Read(string path)
-        {
-            token.ThrowIfCancellationRequested(); var bytes = File.ReadAllBytes(path);
-            sources.Add(new(Path.GetFileName(path), Convert.ToHexString(SHA256.HashData(bytes)))); return bytes;
-        }
-        byte[] exe = Read(exePath), scenario = Read(scenarioPath);
         T Scenario<T>(Func<Stream, T> read) { using var stream = new MemoryStream(scenario); return read(stream); }
         var header = Scenario(San9ScenarioArchive.ReadHeader);
         if (header.ScenarioId != 1 || header.StartDate != new San9ScenarioDate(190, 1, 1) || header.MapWidth != 200 || header.MapHeight != 200)

@@ -50,7 +50,7 @@ flowchart LR
   AI --> Simulation
 ```
 
-推荐实现顺序由该图直接导出：先完成 `simulation`；再完成 `personnel`；随后可并行推进 `person-lifecycle` 与 `governance`；再推进 `warfare` 与 `diplomacy`；之后是 `strategy`、`duel`、`event` 和 `scenario`；AI 的公共边界现在建立，具体规划器在其所需玩法快照稳定后实现。并行指开发工作可并行，逻辑提交顺序仍由模拟流水线串行确定。
+实际交付顺序以[路线图](../roadmap.md)为准：先完成时间/命令、保存与经营底座，再接入人事治理和战争，随后补齐其他领域。上图表示契约依赖，不要求一个上游领域全部完成后才开始下游切片。各阶段复用点、缺失输入和代表性场景见[G00实施基线](../roadmap-baseline.md)；逻辑提交顺序仍由模拟流水线串行确定。
 
 验收条款以各BEH原文为准；当前覆盖由领域契约验证器生成，不在此重复维护计数。
 

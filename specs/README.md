@@ -14,6 +14,7 @@
 ## 规范文件
 
 - [整体路线图](roadmap.md)
+- [路线图实施基线与规则缺口（G00）](roadmap-baseline.md)
 - [项目与文档约定](project-conventions.md)
 - [研究与证据规范](research-method.md)
 - [逆向工程规范](reverse-engineering.md)

@@ -4,7 +4,7 @@
 
 本文只覆盖地图转换、地貌与对象绘制、动画及历史验收。客户端主界面、文本和剧本展示数据见[客户端内容与主界面](client-content.md)。
 
-地图资源由独立 `import-textures` 构建，`textures.json.map` 保存四季源图、遮罩、建筑组合、动画帧和云资源。`import-client` 只读取共享资源定义并编译剧本地图实例，`content.json.map` 保存方格、地形、对象位置与边界，不包含图片目录。小地图底图改为客户端按当前地图方格合成。资源覆盖不依赖190剧本的当前显示状态。
+地图资源由独立 `import-textures` 构建，`textures.json.map` 保存四季源图、遮罩、建筑组合、动画帧和云资源。`import-client` 只读取共享资源定义并编译剧本地图实例，`map.json` 保存方格、地形、对象位置与边界，不包含图片目录。小地图底图改为客户端按当前地图方格合成。资源覆盖不依赖190剧本的当前显示状态。
 
 ```powershell
 dotnet run --project src/San9.Tools -- import-textures --source-exe "<已登记的San9PK.exe>" --data-dir "private/s9数据文件" --output "local/generated/content/textures-san9pk-tc101"

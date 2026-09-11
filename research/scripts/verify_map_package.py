@@ -23,10 +23,12 @@ def main():
     parser.add_argument('exe',type=Path);parser.add_argument('data',type=Path);parser.add_argument('package',type=Path);parser.add_argument('output',type=Path)
     args=parser.parse_args();args.output.mkdir(parents=True,exist_ok=True)
     content=json.loads((args.package/'content.json').read_text(encoding='utf-8'))
-    assert content['schemaVersion']==23
+    assert content['schemaVersion']==24
     texture_root=(args.package/content['textures']['path']).resolve()
     textures=json.loads((texture_root/'textures.json').read_text(encoding='utf-8'))
-    package=dict(textures['map'], **content['map'])
+    map_path=(args.package/content['map']).resolve()
+    assert map_path.is_relative_to(args.package.resolve())
+    package=dict(textures['map'], **json.loads(map_path.read_text(encoding='utf-8')))
     def image_region(asset):
         with Image.open(texture_root/asset['file']['path']) as image:
             x,y=asset['x'],asset['y']

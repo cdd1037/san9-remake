@@ -12,6 +12,14 @@ from square_map.scenario import parse_scenario_sections
 
 def audit(data_dir: Path, package_root: Path) -> dict:
     package = json.loads((package_root / "content.json").read_text(encoding="utf-8"))
+    assert package["schemaVersion"] == 24
+    for field in ("map", "scenario"):
+        path = (package_root / package[field]).resolve()
+        assert path.is_relative_to(package_root.resolve())
+        package[field] = json.loads(path.read_text(encoding="utf-8"))
+    texture_root = (package_root / package["textures"]["path"]).resolve()
+    textures = json.loads((texture_root / "textures.json").read_text(encoding="utf-8"))
+    package["skin"] = textures["skin"]
     raw = (data_dir / "G_Common.s9").read_bytes()
     palettes = [raw[4 + i * 1064 + 40:4 + (i + 1) * 1064] for i in range(67)]
     images = []
@@ -29,8 +37,10 @@ def audit(data_dir: Path, package_root: Path) -> dict:
         palette = palettes[palette_id]
         for kind, height in [("city", 316), ("facility", 248)]:
             role = f"hover-{theme}-{kind}"
-            path = assets[package["skin"]["roles"][role]]["path"]
-            actual = Image.open(package_root / path).convert("RGBA")
+            asset = assets[package["skin"]["roles"][role]]
+            with Image.open(texture_root / asset["file"]["path"]) as atlas:
+                x, y = asset["x"], asset["y"]
+                actual = atlas.crop((x, y, x + asset["width"], y + asset["height"])).convert("RGBA")
             assert actual.size == (160, height)
             for y in range(height):
                 for x in range(160):

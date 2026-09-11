@@ -6,11 +6,11 @@
 
 | 模块 | 职责 | 输出 |
 | --- | --- | --- |
-| Content.Maps / MapImporter | 当前地图方格、地貌及对象位置 | `content.json.map`（无图片文件） |
-| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态 | `content.json.scenario`，schema11 |
-| Content.Text / ScenarioTextReader | 名称与全量消息目录 | `content.json.text`，schema3 |
+| Content.Maps / MapImporter | 当前地图方格、地貌及对象位置 | `map.json`（无图片文件） |
+| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态 | `scenario.json`，schema11 |
+| Content.Text / ScenarioTextReader | 名称与全量消息目录 | `text.json` / `messages.json`，schema3 |
 | Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema16 |
-| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema23 |
+| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema24 |
 | Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema3／转换版本7 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 
@@ -21,6 +21,8 @@
 共享纹理默认位于 `local/generated/content/textures-san9pk-tc101`。剧本包只引用共享包的目录和资源 ID，没有 `images` 目录。43个已确认非头像档案及836张正常色大头像转换为最终图片；未确认项只记录研究边界，不保留索引图和原始调色板副本。具体覆盖与透明规则见[纹理资源](texture-resources.md)。
 
 图片契约、静态图集、GPU缓存和资源租约见[纹理资源文档](texture-resources.md)。头像上传后不保留CPU像素，窗口与地图按实际使用异步申请。
+
+清单保留缩进；五个数据文件使用紧凑 JSON，保留完整字段名和内容。仅省略消息表达式及参数中默认值为 null 的可选字段，必填 nullable 状态字段仍显式保存。数据子文件必须位于包内，共享纹理目录允许相对引用包外目录。schema23 及更早的包须原位重新转换，不提供兼容读取。导入先校验、暂存全部文件，再替换数据并最后发布清单；不支持导入过程中并发读取。
 
 ## 来源边界与统一内容
 

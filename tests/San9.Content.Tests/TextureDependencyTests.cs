@@ -59,10 +59,9 @@ public sealed class TextureDependencyTests
             var map = new MapInstance("source", "first", "spring", 200, 200, 13056, 6656,
                 [], [], [], [], [], [], [], [], [], [], []);
             var scenario = new San9.Content.Scenarios.ScenarioInitialState(11, "first", 190, 1, 1, 0, [], [], [], []);
-            var content = new ScenarioContent(23, [], new("../textures"), map, scenario,
+            var content = new ScenarioContent(24, [], new("../textures"), map, scenario,
                 new(3, []), []);
-            await File.WriteAllTextAsync(Path.Combine(root, "scenario", "content.json"),
-                JsonSerializer.Serialize(content, PackageFiles.JsonOptions));
+            await ScenarioContentFiles.WriteAsync(Path.Combine(root, "scenario"), content);
             await Assert.ThrowsAsync<JsonException>(() => ClientContentFiles.LoadAsync(Path.Combine(root, "scenario")));
             using var dependency = JsonDocument.Parse(JsonSerializer.Serialize(content.Textures, PackageFiles.JsonOptions));
             Assert.Equal("path", Assert.Single(dependency.RootElement.EnumerateObject()).Name);

@@ -8,7 +8,7 @@
 - 样本：`SRC-SAN9PK-TC-101`
 - 项目主数据库：`research/analysis/San9PK-TC-101.i64`
 - 前置记录：[RE-SAN9PK-0089](RE-SAN9PK-0089.md)、[RE-SAN9PK-0117](RE-SAN9PK-0117.md)
-- IDA 写入计划：[`diplomacy-request-return-surrender-batch-1.json`](../ida-write-plans/diplomacy-request-return-surrender-batch-1.json)
+- IDA 写入计划：[`diplomacy-request-return-surrender-batch-1.json`](../analysis/ida-write-records/diplomacy-request-return-surrender-batch-1.json)
 
 ## 对象、状态、输入、输出与不变量
 
@@ -73,7 +73,7 @@ AI 接受阈值先排除一个目标君主特殊谓词，再要求一个势力�
 
 事实：`0x491280` 两次调用 `get_force_current_prestige(0x43F7F0)` 后分别钳制至 `0..1000`；该访问器读取根势力当前信望而非基础信望，与 RE-0119/0158 的独立消费者一致。城市集合由 `0x46D770` 绑定 `CCityData`，`0x4730F0` 保存目标势力，`0x46F280` 清空结果后遍历并返回追加数量；过滤器 `0x46D7E0 → city_belongs_to_force(0x435740)` 以共同君主判断归属。因此计数是目标根势力全部所属城市，不是武将数、所有建筑数或直属军团城市数。原文未命名状态撤销，公式算术不变。`0x491260` 的君主排除条件读取列传码 `36` 或 `59..64`，不是人物顺序 ID（RE-0106）；不猜测人物名。
 
-在 `0x491280` 追加事实注释，保存及强制反编译回读见[疑点复核写入清单](../ida-write-plans/research-questions-audit-2026-09-06.json)。
+在 `0x491280` 追加事实注释，保存及强制反编译回读见[疑点复核写入清单](../analysis/ida-write-records/research-questions-audit-2026-09-06.json)。
 
 本批先调用健康探针和 minimal binary survey，确认项目主库、`San9PK.exe`、SHA-256 `d20794ae...f0e5028`、32 位镜像、自动分析与 Hex-Rays 状态。只读调查实际使用交互工厂反编译、任务/命令虚表整数回读、函数批量分析、调用者/被调者、组件调用图、全库 `get_unit_command_event_roll` 交叉引用、原始字节、函数目录和只读 IDAPython 指令解码，覆盖三个任务构造器、对话框确认槽、命令构造/有效性/提交/军师/谈判回调/执行及最终写回。
 

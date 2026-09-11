@@ -13,7 +13,7 @@
 
 ## 对象、输入、输出与不变量
 
-本批领域对象是 San9PKHard 源码中的“补丁候选观察”：地址字段/数组项、静态 `ASM_PATCH` 项、替换与旧字节数组、直接进程写调用、配置控件绑定、参数位域及五类配置文件。输入固定为 `research/upsteam/San9PKHard/` 当前 38 个文件；输出是可重建的完整 JSON 账本和提交到仓库的哈希状态清单。
+本批领域对象是 San9PKHard 源码中的“补丁候选观察”：地址字段/数组项、静态 `ASM_PATCH` 项、替换与旧字节数组、直接进程写调用、配置控件绑定、参数位域及五类配置文件。输入固定为 `private/research/upstream/San9PKHard/` 当前 38 个文件；输出是可重建的完整 JSON 账本和提交到仓库的哈希状态清单。
 
 不变量如下：注释代码保留观察但不得成为活动候选；运行时记录写入和相对页偏移不能冒充 EXE 补丁点；`OldThunk`、运行时捕获旧字节和标量旧值必须分开；重复地址只能报告，不能静默去重；补丁业务名只代表工具作者意图；完整生成物进入被忽略的 `tmp/`，仓库清单必须能用来源哈希和分段哈希证明其精确内容。
 
@@ -60,7 +60,7 @@
 
 ```text
 python research/scripts/build_san9pkhard_catalog.py \
-  --source-root research/upsteam/San9PKHard \
+  --source-root private/research/upstream/San9PKHard \
   --output tmp/san9pkhard-catalog.json \
   --summary-output research/patch-points/san9pkhard-catalog-status.json
 ```

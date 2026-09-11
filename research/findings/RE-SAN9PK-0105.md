@@ -78,7 +78,7 @@ D = trunc0((survivor_hp + 100*min(0, participant_count-defeated_count-1))/5) + 1
 
 `DUEL-03` 队列共 28 项，已全部处置、未决为 0：15 项是公式基线对应的当前映像地址实例（阵亡开关、四能力 80 门、武力 80 系数），7 项是只描述补丁绑定/保存/加载的语义配置；另 6 项围绕 `m_dwKillPersonPropAddr=0x4A6E01`。只读核验确认 `0x4A6E01` 位于 AI/动作选择函数 `sub_4A6D50`，使用动作码 `18/19`，与单挑、战后人物状态或阵亡谓词无关，已明确排除。
 
-按 [`duel-finalization-state-batch-1.json`](../ida-write-plans/duel-finalization-state-batch-1.json) 恢复 `0x43F9D0..0x43F9E9` 与 `0x446920..0x446941` 两处函数边界；6 个命名 dry-run `6/6`、应用 `6/6` 成功，7 个函数签名及 35 条事实注释写入成功。原位保存后回读确认两处边界大小、7 个名称/签名、阵亡/俘虏伪代码和关键注释，8 个相关函数强制重编译成功。程序字节修改为 0。
+按 [`duel-finalization-state-batch-1.json`](../analysis/ida-write-records/duel-finalization-state-batch-1.json) 恢复 `0x43F9D0..0x43F9E9` 与 `0x446920..0x446941` 两处函数边界；6 个命名 dry-run `6/6`、应用 `6/6` 成功，7 个函数签名及 35 条事实注释写入成功。原位保存后回读确认两处边界大小、7 个名称/签名、阵亡/俘虏伪代码和关键注释，8 个相关函数强制重编译成功。程序字节修改为 0。
 
 ## 结论与后续
 

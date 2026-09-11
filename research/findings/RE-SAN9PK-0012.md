@@ -62,7 +62,7 @@
 
 ## 5. IDA MCP 同步与回读（2026-08-31）
 
-写入两个名称资源包装器名称和 4 条事实注释；保存后回读确认加载器显示序号副本和消息公式，`get_scenario_area_record` 注释列明四类关系消费者。程序字节、边界和类型未修改，账本见 [`area-terrain-fields-batch-1.json`](../ida-write-plans/area-terrain-fields-batch-1.json)。
+写入两个名称资源包装器名称和 4 条事实注释；保存后回读确认加载器显示序号副本和消息公式，`get_scenario_area_record` 注释列明四类关系消费者。程序字节、边界和类型未修改，账本见 [`area-terrain-fields-batch-1.json`](../analysis/ida-write-records/area-terrain-fields-batch-1.json)。
 
 ## 6. 适用范围与限制
 

@@ -5,7 +5,7 @@
 - 分析者：Codex
 - 结论类型：IDA 事实、可信黑盒观测、冲突裁决和待验证项分开记录
 - 置信度：高（文件/运行时映射、八方向位序、底图索引、桥方向资源、疆界方向）；中高（地貌融合、色调强度和疆界样式的产品语义）
-- 关联来源：[`SQUARE研究`](../docs/SQUARE研究/SQUARE研究.md)、`SRC-SAN9PK-TC-101`
+- 关联来源：[`SQUARE研究`](../../private/research/docs/SQUARE研究/SQUARE研究.md)、`SRC-SAN9PK-TC-101`
 - 前置记录：[RE-SAN9PK-0019](RE-SAN9PK-0019.md)、[RE-SAN9PK-0024](RE-SAN9PK-0024.md)、[RE-SAN9PK-0032](RE-SAN9PK-0032.md)、[RE-SAN9PK-0034](RE-SAN9PK-0034.md)
 - 关联规格：[BEH-IMPORT-0014](../../specs/behavior/BEH-IMPORT-0014-scenario-square-records.md)
 - 后续收窄：[RE-SAN9PK-0052](RE-SAN9PK-0052.md) 证明 bit9 广泛存在于都市/港口 footprint，故不能整体命名为桥锚点；只有 terrain 11 绘制上下文使用该资格位。

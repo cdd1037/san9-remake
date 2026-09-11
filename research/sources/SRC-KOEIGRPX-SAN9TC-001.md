@@ -17,7 +17,7 @@
 
 该文件由用户指定的繁体中文版安装目录复制到工作区私有样本区；复制前后 SHA-256 一致。`San9.exe` 与 `San9PK.exe` 都静态导入其中相同的 17 个 8 位索引图、RGB555、KBMP、混合、灰度和边框函数。本项目只研究 EXE 实际使用的 17 个入口及其共享像素核心，不把 DLL 链接进重制产品。
 
-本样本对应的唯一项目主数据库是被 Git 忽略的 `research/analysis/KOEIGrpX-SAN9TC-001.i64`。函数契约见 [RE-KOEIGRPX-0001](../findings/RE-KOEIGRPX-0001.md)；EXE 使用矩阵见 [DLL 契约清单](../exe-dll-analysis-inventory.md)。
+本样本对应的唯一项目主数据库是被 Git 忽略的 `research/analysis/KOEIGrpX-SAN9TC-001.i64`。函数契约见 [RE-KOEIGRPX-0001](../findings/RE-KOEIGRPX-0001.md)；EXE 使用矩阵见 [DLL 契约清单](exe-dll-analysis-inventory.md)。
 
 ## 限制
 

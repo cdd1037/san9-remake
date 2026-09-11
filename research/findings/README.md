@@ -174,7 +174,7 @@
 
 - [SANCALC-0001：SanCalc EXE 导入函数契约](RE-SANCALC-0001.md)
 - [KOEIGRPX-0001：KOEIGrpX EXE 导入像素契约](RE-KOEIGRPX-0001.md)
-- [San9 EXE 外部 DLL 契约清单](../exe-dll-analysis-inventory.md)
+- [San9 EXE 外部 DLL 契约清单](../sources/exe-dll-analysis-inventory.md)
 
 ## 文本与事件
 
@@ -200,7 +200,7 @@
 
 - [RE-SAN9PK-0158：主界面高一致性复核](RE-SAN9PK-0158.md)：布局、背景、城市前缀与颜色、小地图取样/配色、初始士气来源及IDA注释回读。
 
-地图接入以来的数据库同步：[2026-09-06修改与回读清单](../ida-write-plans/map-ui-sync-2026-09-06.json)，覆盖EXE及两个DLL项目主库，详见0053/0055/0148/0155/0156/0157/0158及对应DLL记录。
+地图接入以来的数据库同步：[2026-09-06修改与回读清单](../analysis/ida-write-records/map-ui-sync-2026-09-06.json)，覆盖EXE及两个DLL项目主库，详见0053/0055/0148/0155/0156/0157/0158及对应DLL记录。
 
 - [RE-SAN9PK-0159：原版全字库扩展码位与私有图标审计](RE-SAN9PK-0159.md)：全部字体槽、两条渲染路径、原位图与姓名纠错。
 

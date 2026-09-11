@@ -7,7 +7,7 @@
 - 置信度：高（规格集合、元数据、依赖、验收条款、决策门和路径均由版本化契约机械校验）
 - 前置记录：[RE-SAN9PK-0144](RE-SAN9PK-0144.md)、[RE-SAN9PK-0145](RE-SAN9PK-0145.md)
 - 产品契约：[核心领域依赖图](../../specs/behavior/core-domain-dependency-map.md)、[`core-domain-contracts.json`](../../specs/behavior/core-domain-contracts.json)
-- 状态清单：[`program-analysis-close-03-status.json`](../program-analysis-close-03-status.json)
+- 状态清单：[`program-analysis-close-03-status.json`](../archive/program-analysis/status/program-analysis-close-03-status.json)
 
 ## 对象、状态、输入、输出与不变量
 

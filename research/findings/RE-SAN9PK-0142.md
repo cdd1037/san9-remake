@@ -7,8 +7,8 @@
 - 置信度：高（判定入口、顺序、阈值、玩家/AI 分流、任务代码及普通继续路径）；中高（运行时三个位的业务概括）
 - 样本：`SRC-SAN9PK-TC-101`
 - 前置记录：[RE-SAN9PK-0041](RE-SAN9PK-0041.md)、[RE-SAN9PK-0059](RE-SAN9PK-0059.md)、[RE-SAN9PK-0069](RE-SAN9PK-0069.md)、[RE-SAN9PK-0132](RE-SAN9PK-0132.md)、[RE-SAN9PK-0139](RE-SAN9PK-0139.md)、[RE-SAN9PK-0141](RE-SAN9PK-0141.md)
-- 状态清单：[`program-analysis-scn-03-status.json`](../program-analysis-scn-03-status.json)
-- IDA 写入计划：[`scenario-terminal-conditions-batch-1.json`](../ida-write-plans/scenario-terminal-conditions-batch-1.json)
+- 状态清单：[`program-analysis-scn-03-status.json`](../archive/program-analysis/status/program-analysis-scn-03-status.json)
+- IDA 写入计划：[`scenario-terminal-conditions-batch-1.json`](../analysis/ida-write-records/scenario-terminal-conditions-batch-1.json)
 
 ## 领域模型与判定入口
 

@@ -85,13 +85,13 @@ tail: FF 9F 0F 00
 
 ## 5. IDA 同步与回读
 
-系统代码补证按 [`tactic-system-code-batch-1.json`](../ida-write-plans/tactic-system-code-batch-1.json) 写入项目主数据库：新增 `TacticSystemCode` 枚举，细化 140 字节 `San9KillerRecord` 的全部已知运行时落点，将 `+0x54` 定义为 `system_code_054`，并把 `0x4FEAF0`、`0x48BB60` 命名为 `get_tactic_system_code`、`count_selected_tactics_by_system`。两项名称 dry-run 与实际写入均为 `2/2`，另写入三条证据注释。
+系统代码补证按 [`tactic-system-code-batch-1.json`](../analysis/ida-write-records/tactic-system-code-batch-1.json) 写入项目主数据库：新增 `TacticSystemCode` 枚举，细化 140 字节 `San9KillerRecord` 的全部已知运行时落点，将 `+0x54` 定义为 `system_code_054`，并把 `0x4FEAF0`、`0x48BB60` 命名为 `get_tactic_system_code`、`count_selected_tactics_by_system`。两项名称 dry-run 与实际写入均为 `2/2`，另写入三条证据注释。
 
 回读确认结构大小仍为 `0x8C`，`system_code_054` 位于 `0x54` 且类型为 `TacticSystemCode`；强制重编译后 getter 直接返回该字段，AI 阵形选择的计数器按请求代码比较该字段。项目主数据库原位保存成功，程序字节修改为 `0`。
 
-阵形兼容补证继续写入同一项目主数据库：命名 `compute_array_type_compatibility_bit(0x446E10)`、`tactic_supports_array_type_id(0x446ED0)`、`tactic_supports_array_record(0x446F20)`，并恢复 `CHeihouListDlg` 构造、初始化和标题访问器名称；三个兼容 helper 写入函数类型，`San9KillerRecord +0x88/+0x8A` 两个成员改名为兼容位图低/高半字。保存后回读确认结构仍为 `0x8C`，两个成员仍各占 `u16`，反编译已显示从低半字地址开始按字节索引的读取。详见 [`tactic-array-compatibility-mask-batch-1.json`](../ida-write-plans/tactic-array-compatibility-mask-batch-1.json)。
+阵形兼容补证继续写入同一项目主数据库：命名 `compute_array_type_compatibility_bit(0x446E10)`、`tactic_supports_array_type_id(0x446ED0)`、`tactic_supports_array_record(0x446F20)`，并恢复 `CHeihouListDlg` 构造、初始化和标题访问器名称；三个兼容 helper 写入函数类型，`San9KillerRecord +0x88/+0x8A` 两个成员改名为兼容位图低/高半字。保存后回读确认结构仍为 `0x8C`，两个成员仍各占 `u16`，反编译已显示从低半字地址开始按字节索引的读取。详见 [`tactic-array-compatibility-mask-batch-1.json`](../analysis/ida-write-records/tactic-array-compatibility-mask-batch-1.json)。
 
-目录三列的领域取值补证也写回同一数据库：恢复并命名 `get_tactic_property_descriptor(0x446DD0)`、`tactic_catalog_supports_water(0x446FA0)`、`get_tactic_property_value(0x4471C0)`、`format_tactic_property_value(0x447370)`，写入函数类型。保存后回读确认键 `16` 已类型化为直接读取 `affects_facilities_code_084`，键 `48` 固定返回 `1`，键 `49` 调用水上目录判定。表格配置、分页、列宽、格式化、排序与交互实现已拆入 [`RE-SAN9PK-0151`](RE-SAN9PK-0151.md)；本记录只保留字段来源和玩法消费者边界。详见 [`tactic-catalog-capability-columns-batch-1.json`](../ida-write-plans/tactic-catalog-capability-columns-batch-1.json)。
+目录三列的领域取值补证也写回同一数据库：恢复并命名 `get_tactic_property_descriptor(0x446DD0)`、`tactic_catalog_supports_water(0x446FA0)`、`get_tactic_property_value(0x4471C0)`、`format_tactic_property_value(0x447370)`，写入函数类型。保存后回读确认键 `16` 已类型化为直接读取 `affects_facilities_code_084`，键 `48` 固定返回 `1`，键 `49` 调用水上目录判定。表格配置、分页、列宽、格式化、排序与交互实现已拆入 [`RE-SAN9PK-0151`](RE-SAN9PK-0151.md)；本记录只保留字段来源和玩法消费者边界。详见 [`tactic-catalog-capability-columns-batch-1.json`](../analysis/ida-write-records/tactic-catalog-capability-columns-batch-1.json)。
 
 ## 6. 其余字段的全程序消费者审计
 
@@ -156,9 +156,9 @@ tail: FF 9F 0F 00
 | `31/32` | 箭雨、箭岚的水战远程资格不设单位目标门，允许设施目标 |
 | 其余 | 由单位目标门、自身/友方用途、地形目标或任务工厂范围排除，不形成对设施目标 |
 
-公共资格函数 `check_tactic_resolution_common_eligibility(0x502280)` 只确认来源/目标属于有效单位事件或目标对象 `+0x20 bit 0` 表示设施，并处理公共状态、兵法身份等不变量；最终能否对设施由上述具体任务的虚表资格回调决定。因此 `hiho +0x20` 在库存数据中准确描述了原作能力，但它是与代码重复的声明，不是当前 EXE 的权威运行时开关：单独修改该字段不会改变可对设施集合。补证和 IDA 同步见 [`tactic-facility-target-gate-batch-1.json`](../ida-write-plans/tactic-facility-target-gate-batch-1.json)。
+公共资格函数 `check_tactic_resolution_common_eligibility(0x502280)` 只确认来源/目标属于有效单位事件或目标对象 `+0x20 bit 0` 表示设施，并处理公共状态、兵法身份等不变量；最终能否对设施由上述具体任务的虚表资格回调决定。因此 `hiho +0x20` 在库存数据中准确描述了原作能力，但它是与代码重复的声明，不是当前 EXE 的权威运行时开关：单独修改该字段不会改变可对设施集合。补证和 IDA 同步见 [`tactic-facility-target-gate-batch-1.json`](../analysis/ida-write-records/tactic-facility-target-gate-batch-1.json)。
 
-因此这是收窄后的版本边界：`+0x22/+0x24` 已确认是其他表现层路径会消费的阵形兼容位图，但不是目录“陆上/水上”两列来源；`+0x20` 是目录直接显示、同时与硬编码设施资格一致的冗余能力声明。其余不透明槽位在繁中 PK 1.0.1.0 当前 EXE 中仍未发现倍率、伤害、状态效果或图形参数消费者。导入器须无损保留未知槽位，并显式合并兼容位图；产品逻辑不得从其余库存相关性猜测语义。更正审计与 IDA 写入见 [`tactic-opaque-field-negative-audit-batch-1.json`](../ida-write-plans/tactic-opaque-field-negative-audit-batch-1.json)、[`tactic-array-compatibility-mask-batch-1.json`](../ida-write-plans/tactic-array-compatibility-mask-batch-1.json) 和 [`tactic-catalog-capability-columns-batch-1.json`](../ida-write-plans/tactic-catalog-capability-columns-batch-1.json)。
+因此这是收窄后的版本边界：`+0x22/+0x24` 已确认是其他表现层路径会消费的阵形兼容位图，但不是目录“陆上/水上”两列来源；`+0x20` 是目录直接显示、同时与硬编码设施资格一致的冗余能力声明。其余不透明槽位在繁中 PK 1.0.1.0 当前 EXE 中仍未发现倍率、伤害、状态效果或图形参数消费者。导入器须无损保留未知槽位，并显式合并兼容位图；产品逻辑不得从其余库存相关性猜测语义。更正审计与 IDA 写入见 [`tactic-opaque-field-negative-audit-batch-1.json`](../analysis/ida-write-records/tactic-opaque-field-negative-audit-batch-1.json)、[`tactic-array-compatibility-mask-batch-1.json`](../analysis/ida-write-records/tactic-array-compatibility-mask-batch-1.json) 和 [`tactic-catalog-capability-columns-batch-1.json`](../analysis/ida-write-records/tactic-catalog-capability-columns-batch-1.json)。
 
 ### 6.4 目录属性键与原始列的再核对
 

@@ -7,8 +7,8 @@
 - 置信度：高（玩家入口、商人条件、价格刷新、数量上限、资源写回与整数边界）；中（未发现其他临时交易生产者不等于全程序不存在独立事件式交易）
 - 关联来源：`SRC-SAN9PK-TC-101`、`SRC-SANIX`、`SRC-SAN9-EBK`
 - 前置记录：[RE-SAN9PK-0069](RE-SAN9PK-0069.md)、[RE-SAN9PK-0072](RE-SAN9PK-0072.md)、[RE-SAN9PK-0074](RE-SAN9PK-0074.md)、[RE-SAN9PK-0094](RE-SAN9PK-0094.md)、[RE-SAN9PK-0095](RE-SAN9PK-0095.md)、[RE-SAN9PK-0096](RE-SAN9PK-0096.md)
-- 状态清单：[`program-analysis-dom-03-status.json`](../program-analysis-dom-03-status.json)
-- IDA 写入计划：[`domestic-food-trade-batch-1.json`](../ida-write-plans/domestic-food-trade-batch-1.json)
+- 状态清单：[`program-analysis-dom-03-status.json`](../archive/program-analysis/status/program-analysis-dom-03-status.json)
+- IDA 写入计划：[`domestic-food-trade-batch-1.json`](../analysis/ida-write-records/domestic-food-trade-batch-1.json)
 
 ## 对象、状态与不变量
 

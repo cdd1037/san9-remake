@@ -166,9 +166,9 @@ def find_markdown_heading_lines(text: str) -> dict[str, int]:
 
 
 def build_rows(workspace: Path, status_file: Path | None = None) -> list[dict[str, object]]:
-    formula_path = workspace / "research/docs/程序分析、设计公式、优化方法/三国志9威力加强版的设计公式和优化方法.md"
-    ebook_path = workspace / "research/docs/三国志9电子书.md"
-    patch_path = workspace / "research/upsteam/San9PKHard/San9PKHardDlg.cpp"
+    formula_path = workspace / "private/research/docs/程序分析、设计公式、优化方法/三国志9威力加强版的设计公式和优化方法.md"
+    ebook_path = workspace / "private/research/docs/三国志9电子书.md"
+    patch_path = workspace / "private/research/upstream/San9PKHard/San9PKHardDlg.cpp"
     patch_manifest_path = workspace / "research/patch-points/san9pkhard-formulas.json"
     sections = extract_formula_sections(formula_path.read_text(encoding="utf-8"))
     ebook_lines = find_markdown_heading_lines(ebook_path.read_text(encoding="utf-8"))

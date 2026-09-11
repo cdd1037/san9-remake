@@ -1,7 +1,7 @@
 """Build a normalized address catalog from the local research sources.
 
 Only Python's standard library is required. Generated JSON/CSV output belongs
-under artifacts/ and is intentionally not tracked.
+under local/generated/research/ and is intentionally not tracked.
 """
 
 from __future__ import annotations
@@ -81,9 +81,9 @@ def source_id(path: Path) -> str:
 
 def iter_candidates(workspace: Path):
     roots = (
-        workspace / "research" / "upsteam" / "San9PKHard",
-        workspace / "research" / "upsteam" / "jslhcl.github.io" / "files",
-        workspace / "research" / "docs",
+        workspace / "private" / "research" / "upstream" / "San9PKHard",
+        workspace / "private" / "research" / "upstream" / "jslhcl.github.io" / "files",
+        workspace / "private" / "research" / "docs",
     )
     suffixes = {".c", ".cc", ".cpp", ".h", ".hpp", ".py", ".md", ".txt"}
     for root in roots:

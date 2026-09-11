@@ -16,14 +16,9 @@
 *.dll
 *.com
 
-# Locally collected third-party research snapshots
-/research/upsteam/
-/research/docs/
-
 # Experiment scratch data and generated evidence artifacts
 /research/experiments/**/_work/
 /research/experiments/**/artifacts/
-/artifacts/
 
 # Build and tool output
 /build/

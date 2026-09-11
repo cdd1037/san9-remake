@@ -8,7 +8,7 @@
 - 样本：`SRC-SAN9PK-TC-101`
 - 项目主数据库：`research/analysis/San9PK-TC-101.i64`
 - 前置记录：[RE-SAN9PK-0001](RE-SAN9PK-0001.md)、[RE-SAN9PK-0032](RE-SAN9PK-0032.md)、[RE-SAN9PK-0067](RE-SAN9PK-0067.md)、[RE-SAN9PK-0109](RE-SAN9PK-0109.md)
-- IDA 写入计划：[`search-command-lifecycle-batch-1.json`](../ida-write-plans/search-command-lifecycle-batch-1.json)
+- IDA 写入计划：[`search-command-lifecycle-batch-1.json`](../analysis/ida-write-records/search-command-lifecycle-batch-1.json)
 
 ## 对象、状态、输入、输出与不变量
 

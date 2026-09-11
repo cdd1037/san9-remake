@@ -5,9 +5,9 @@
 - 分析者：Codex 与项目所有者
 - 结论类型：全路线独立验收、在线 IDA 回读与非核心归档
 - 置信度：高（版本化账本机械重建、当前主 IDA 数据库在线回读和全量测试相互独立）
-- 前置验收：[R0–R3](../program-analysis-r0-r3-acceptance.md)、[R4–R7](../program-analysis-r4-r7-acceptance.md)、[RE-SAN9PK-0144](RE-SAN9PK-0144.md)、[RE-SAN9PK-0145](RE-SAN9PK-0145.md)、[RE-SAN9PK-0146](RE-SAN9PK-0146.md)
-- 机器状态：[`program-analysis-close-04-status.json`](../program-analysis-close-04-status.json)
-- 最终验收：[R0–R12 程序分析独立验收](../program-analysis-r0-r12-acceptance.md)
+- 前置验收：[R0–R3](../archive/program-analysis/program-analysis-r0-r3-acceptance.md)、[R4–R7](../archive/program-analysis/program-analysis-r4-r7-acceptance.md)、[RE-SAN9PK-0144](RE-SAN9PK-0144.md)、[RE-SAN9PK-0145](RE-SAN9PK-0145.md)、[RE-SAN9PK-0146](RE-SAN9PK-0146.md)
+- 机器状态：[`program-analysis-close-04-status.json`](../archive/program-analysis/status/program-analysis-close-04-status.json)
+- 最终验收：[R0–R12 程序分析独立验收](../archive/program-analysis/program-analysis-r0-r12-acceptance.md)
 
 ## 对象、状态、输入、输出与不变量
 
@@ -29,7 +29,7 @@
 
 逐行回读 `san9pk-tc-101.csv` 的 419 个符号：387 个函数行均位于真实函数入口，32 个数据行地址一致。首次核对发现 3 个摘要名称落后于已有证据和当前数据库，已分别按 `RE-SAN9PK-0057`、`RE-SAN9PK-0102`、`RE-SAN9PK-0121` 修正；复查后名称差异为零。8 个导出结构类型全部存在且尺寸匹配，8 个访问器均在预期地址。
 
-机器可读详情见 [`program-analysis-final-ida-readback.json`](../program-analysis-final-ida-readback.json)。本批没有新的可靠名称、类型或注释需要同步，IDA 写入和程序字节变化均为零；历史机器批次的 15 份写入记录均包含保存与回读成功证据。
+机器可读详情见 [`program-analysis-final-ida-readback.json`](../archive/program-analysis/status/program-analysis-final-ida-readback.json)。本批没有新的可靠名称、类型或注释需要同步，IDA 写入和程序字节变化均为零；历史机器批次的 15 份写入记录均包含保存与回读成功证据。
 
 ## 审计更正
 
@@ -44,7 +44,7 @@
 
 ## 非核心归档与重开条件
 
-[`program-analysis-non-core-archive.json`](../program-analysis-non-core-archive.json) 把剩余工作限制为五类：内容录入、表现/UI、工具、可选深挖和实现触发的定向补证。明确归档 832 个第三方基础设施/UI 候选、29 份旧研究记录和 8 个来源主张。`EXP-EVT-CONTENT-01` 只服务内容录入，不阻塞核心规格；核心必需实验为空。
+[`program-analysis-non-core-archive.json`](../archive/program-analysis/status/program-analysis-non-core-archive.json) 把剩余工作限制为五类：内容录入、表现/UI、工具、可选深挖和实现触发的定向补证。明确归档 832 个第三方基础设施/UI 候选、29 份旧研究记录和 8 个来源主张。`EXP-EVT-CONTENT-01` 只服务内容录入，不阻塞核心规格；核心必需实验为空。
 
 只有三类事件可以重开研究：实现或验收测试暴露具体规格缺口；新证据反驳已选择的确认行为；项目明确选择归档内容、UI、工具或可选规则进入实现。重开必须是有边界的新 `RE-*`/`EXP-*`，不能恢复全局扫描。
 

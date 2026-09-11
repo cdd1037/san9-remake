@@ -6,7 +6,7 @@
 - 样本：`SRC-SAN9PK-TC-101`
 - 项目主数据库：`research/analysis/San9PK-TC-101.i64`
 - 前置记录：[RE-SAN9PK-0152](RE-SAN9PK-0152.md)
-- IDA 写入计划：[`person-catalog-context-pages-batch-6.json`](../ida-write-plans/person-catalog-context-pages-batch-6.json)、[`person-catalog-missed-consumers-batch-7.json`](../ida-write-plans/person-catalog-missed-consumers-batch-7.json)、[`recruit-person-catalog-consumers-batch-8.json`](../ida-write-plans/recruit-person-catalog-consumers-batch-8.json)、[`person-catalog-arrival-estimate-batch-9.json`](../ida-write-plans/person-catalog-arrival-estimate-batch-9.json)
+- IDA 写入计划：[`person-catalog-context-pages-batch-6.json`](../analysis/ida-write-records/person-catalog-context-pages-batch-6.json)、[`person-catalog-missed-consumers-batch-7.json`](../analysis/ida-write-records/person-catalog-missed-consumers-batch-7.json)、[`recruit-person-catalog-consumers-batch-8.json`](../analysis/ida-write-records/recruit-person-catalog-consumers-batch-8.json)、[`person-catalog-arrival-estimate-batch-9.json`](../analysis/ida-write-records/person-catalog-arrival-estimate-batch-9.json)
 
 ## 调查问题与方法
 

@@ -347,8 +347,8 @@ def build_queue_status(queue: dict[str, object], validation: dict[str, object]) 
         "address_kind_counts": dict(sorted(Counter(str(item["address_kind"]) for item in candidates).items())),
         "supporting_coverage": queue["supporting_coverage"],
         "validation": validation,
-        "ida_mcp_audit": "research/program-analysis-queue-ida-audit.json",
-        "reproduce": "python research/scripts/build_program_analysis_queue.py --source-root research/upsteam/San9PKHard --catalog-status research/patch-points/san9pkhard-catalog-status.json --output tmp/program-analysis-queue.json --status-output research/program-analysis-queue-status.json",
+        "ida_mcp_audit": "research/archive/program-analysis/status/program-analysis-queue-ida-audit.json",
+        "reproduce": "python research/scripts/build_program_analysis_queue.py --source-root private/research/upstream/San9PKHard --catalog-status research/patch-points/san9pkhard-catalog-status.json --output tmp/program-analysis-queue.json --status-output research/archive/program-analysis/status/program-analysis-queue-status.json",
     }
 
 

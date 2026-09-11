@@ -10,7 +10,7 @@
 - 样本：`SRC-SAN9PK-TC-101`
 - 项目主数据库：`research/analysis/San9PK-TC-101.i64`
 - 前置记录：[RE-SAN9PK-0027](RE-SAN9PK-0027.md)、[RE-SAN9PK-0028](RE-SAN9PK-0028.md)、[RE-SAN9PK-0128](RE-SAN9PK-0128.md)、[RE-SAN9PK-0129](RE-SAN9PK-0129.md)、[RE-SANCALC-0001](RE-SANCALC-0001.md)
-- IDA 写入计划：[`event-source-audit-batch-1.json`](../ida-write-plans/event-source-audit-batch-1.json)
+- IDA 写入计划：[`event-source-audit-batch-1.json`](../analysis/ida-write-records/event-source-audit-batch-1.json)
 - 行为规格：[BEH-EVENT-0001](../../specs/behavior/BEH-EVENT-0001-shenshou-event.md)、[BEH-EVENT-0002](../../specs/behavior/BEH-EVENT-0002-event-selection-and-commit.md)
 
 ## 对象、状态、输入、输出与不变量

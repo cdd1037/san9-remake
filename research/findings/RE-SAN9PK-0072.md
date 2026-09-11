@@ -64,7 +64,7 @@
 
 ## IDA 标注变更与回读
 
-- dry-run：`research/ida-write-plans/simulation-action-task-batch-1.json`；14 项名称检查全部通过。
+- dry-run：`research/analysis/ida-write-records/simulation-action-task-batch-1.json`；14 项名称检查全部通过。
 - 实际写入 12 个函数名和 2 个虚表名，另在 16 个任务边界、虚表、游标和 dispatcher 地址写入统一的 `[RE-SAN9PK-0072][FACT]` 注释；无失败项。
 - 对 `0x50F380` 和 `0x4BD030` 执行修改前后反编译比较：变化只传播新的任务族/工厂名称，没有改变控制流或掩盖类型冲突。
 - 使用 IDA 原生保存后回读全部 14 个名称、16 条注释和两个虚表入口；交互任务仍为 10 槽，自动任务已确认的槽 3/8/10 均保持指向原函数。

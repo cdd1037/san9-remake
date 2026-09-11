@@ -9,7 +9,7 @@
 - 关联来源：`SRC-SAN9PK-TC-101`、`SRC-EDITOR-SCREENSHOTS`、`SRC-DOCS`
 - 前置记录：[RE-SAN9PK-0005](RE-SAN9PK-0005.md)
 - 关联决策：[DEC-SCOPE-0001](../../specs/decisions/DEC-SCOPE-0001-scenario-scope.md)
-- IDA 写入计划：[scenario-head-fields-batch-1.json](../ida-write-plans/scenario-head-fields-batch-1.json)
+- IDA 写入计划：[scenario-head-fields-batch-1.json](../analysis/ida-write-records/scenario-head-fields-batch-1.json)
 
 ## 1. 范围和样本
 

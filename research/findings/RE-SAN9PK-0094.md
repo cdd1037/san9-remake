@@ -7,8 +7,8 @@
 - 置信度：高（候选覆盖、来源定位、地址类别和 IDB 可读性）；中（关键词子系统分类，后续批次仍须裁决具体语义）
 - 关联来源：`SRC-SAN9PKHARD`、`SRC-SAN9PK-TC-101`
 - 前置记录：[RE-SAN9PK-0091](RE-SAN9PK-0091.md)、[RE-SAN9PK-0092](RE-SAN9PK-0092.md)、[RE-SAN9PK-0093](RE-SAN9PK-0093.md)
-- 状态清单：[`program-analysis-queue-status.json`](../program-analysis-queue-status.json)
-- IDA MCP 审计：[`program-analysis-queue-ida-audit.json`](../program-analysis-queue-ida-audit.json)
+- 状态清单：[`program-analysis-queue-status.json`](../archive/program-analysis/status/program-analysis-queue-status.json)
+- IDA MCP 审计：[`program-analysis-queue-ida-audit.json`](../archive/program-analysis/status/program-analysis-queue-ida-audit.json)
 
 ## 对象、输入、输出与不变量
 

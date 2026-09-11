@@ -39,8 +39,8 @@ BEH/DEC 的维护条件与状态统一见[规格索引](README.md#规格维护)�
 - `specs/behavior/`：面向实现的原作与重制行为规格。
 - `specs/decisions/`：需要独立说明理由的重要长期取舍，不重复行为规格。
 - `specs/templates/`：统一记录结构。
-- `research/upsteam/`：历史遗留的第三方资料目录；拼写暂不修正，也不继续扩大。
-- `research/experiments/`：可复现黑盒实验记录；大型中间产物放入被忽略的 `artifacts/`。
+- `private/research/upstream/`：本地第三方资料快照；不进入版本库，也不继续无清单扩大。
+- `research/experiments/`：可复现黑盒实验记录；大型中间产物统一放入被忽略的 `local/generated/research/`。
 - `research/notes/`：尚未上升为规格的分析和证据链示例。
 - `research/symbols/`：可公开、可追溯的符号映射导出；不保存 IDB。
 - `private/`：当前本地私有样本区；研究文档统一使用其仓库相对路径，默认不入 Git。

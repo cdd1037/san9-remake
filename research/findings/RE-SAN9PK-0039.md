@@ -21,7 +21,7 @@
 
 - 输入 SHA-256：`D20794AEFF67301EC2BF8C3BECB1E9944C68C6C0588FBFD4BF04E8597F0E5028`
 - top-500 候选输出摘要：`0ECB63D9D2B60DD480A9AD43A5F0BCD2508B30FE4D111C3D392FADA5A6D9AA36`
-- 报告：`artifacts/ida/San9PK-TC-101/global-roots.json`（Git 忽略）
+- 报告：`local/generated/research/ida/San9PK-TC-101/global-roots.json`（Git 忽略）
 
 ## 已闭合的公共根
 

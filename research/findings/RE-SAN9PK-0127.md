@@ -7,7 +7,7 @@
 - 置信度：高（候选守恒、来源位置、状态与批次唯一性）；中（第三方业务词到最终批次的调度语义，仍须后续样本调查裁决）
 - 关联来源：`SRC-DOCS`、`SRC-SAN9PKHARD`、`SRC-SAN9PK-TC-101`
 - 前置记录：[RE-SAN9PK-0091](RE-SAN9PK-0091.md)、[RE-SAN9PK-0094](RE-SAN9PK-0094.md)、[RE-SAN9PK-0109](RE-SAN9PK-0109.md)
-- 状态清单：[`program-analysis-evt-01-status.json`](../program-analysis-evt-01-status.json)
+- 状态清单：[`program-analysis-evt-01-status.json`](../archive/program-analysis/status/program-analysis-evt-01-status.json)
 
 ## 对象、状态、输入、输出与不变量
 

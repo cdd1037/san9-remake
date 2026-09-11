@@ -65,6 +65,6 @@
 
 ## IDA 写回与结论
 
-当前主数据库修复了 `0x45DE70..0x45DEB1`、`0x473640..0x4736B6`、`0x47AA20..0x47AAA3`、`0x49CAC0..0x49CAE0` 四个函数边界；其中前两处在调查早段恢复，后两处用于本批备用目标代价与任务回调。写回 20 个证据支持的函数名和 16 条事实注释，保存后逐项回读；四个修复区间程序字节变化均为 0。具体清单见 [`unit-movement-path-and-arrival-batch-1.json`](../ida-write-plans/unit-movement-path-and-arrival-batch-1.json)。
+当前主数据库修复了 `0x45DE70..0x45DEB1`、`0x473640..0x4736B6`、`0x47AA20..0x47AAA3`、`0x49CAC0..0x49CAE0` 四个函数边界；其中前两处在调查早段恢复，后两处用于本批备用目标代价与任务回调。写回 20 个证据支持的函数名和 16 条事实注释，保存后逐项回读；四个修复区间程序字节变化均为 0。具体清单见 [`unit-movement-path-and-arrival-batch-1.json`](../analysis/ida-write-records/unit-movement-path-and-arrival-batch-1.json)。
 
 `WAR-01` 至此完成：位置模型、每日重寻路、机动力预算、格位/对象阻挡、碰撞到达、目标失效边界与位置写回均已闭合；下一原子批次为 `WAR-02`。

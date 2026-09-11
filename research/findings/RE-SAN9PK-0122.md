@@ -9,7 +9,7 @@
 - 项目主数据库：`research/analysis/San9PK-TC-101.i64`
 - 前置记录：[RE-SAN9PK-0045](RE-SAN9PK-0045.md)、[RE-SAN9PK-0061](RE-SAN9PK-0061.md)、[RE-SAN9PK-0121](RE-SAN9PK-0121.md)
 - 关联规格：[BEH-GOVERNANCE-0001](../../specs/behavior/BEH-GOVERNANCE-0001-corps-record-and-ownership.md)
-- IDA 写入计划：[`corps-record-ownership-batch-1.json`](../ida-write-plans/corps-record-ownership-batch-1.json)
+- IDA 写入计划：[`corps-record-ownership-batch-1.json`](../analysis/ida-write-records/corps-record-ownership-batch-1.json)
 
 ## 对象、状态与不变量
 

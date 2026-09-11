@@ -8,8 +8,8 @@
 - 样本：`SRC-SAN9PK-TC-101`，SHA-256 `d20794aeff67301ec2bf8c3becb1e9944c68c6c0588fbfd4bf04e8597f0e5028`
 - 前置记录：[RE-SAN9PK-0038](RE-SAN9PK-0038.md)、[RE-SAN9PK-0039](RE-SAN9PK-0039.md)、[RE-SAN9PK-0040](RE-SAN9PK-0040.md)、[RE-SAN9PK-0046](RE-SAN9PK-0046.md)、[RE-SAN9PK-0049](RE-SAN9PK-0049.md)、[RE-SAN9PK-0069](RE-SAN9PK-0069.md)、[RE-SAN9PK-0071](RE-SAN9PK-0071.md)、[RE-SAN9PK-0083](RE-SAN9PK-0083.md)、[RE-SAN9PK-0087](RE-SAN9PK-0087.md)、[RE-SAN9PK-0090](RE-SAN9PK-0090.md)、[RE-SAN9PK-0098](RE-SAN9PK-0098.md)、[RE-SAN9PK-0102](RE-SAN9PK-0102.md)、[RE-SAN9PK-0123](RE-SAN9PK-0123.md)、[RE-SAN9PK-0142](RE-SAN9PK-0142.md)
 - 行为规格：[BEH-SIMULATION-0001](../../specs/behavior/BEH-SIMULATION-0001-time-progression-and-state-visibility.md)
-- 状态清单：[`program-analysis-close-02-status.json`](../program-analysis-close-02-status.json)
-- IDA 写入计划：[`cross-system-time-ownership-batch-1.json`](../ida-write-plans/cross-system-time-ownership-batch-1.json)
+- 状态清单：[`program-analysis-close-02-status.json`](../archive/program-analysis/status/program-analysis-close-02-status.json)
+- IDA 写入计划：[`cross-system-time-ownership-batch-1.json`](../analysis/ida-write-records/cross-system-time-ownership-batch-1.json)
 
 ## 对象、状态、输入、输出与不变量
 
@@ -25,7 +25,7 @@
 
 `process_force_unit_simulation_task_state(0x50EC90)`按当前势力创建玩家交互或自动行动任务；玩家下令在这个阶段内，而非在整个旬循环之前。因此正常顺序是**本旬世界结算 → 势力行动/玩家下令 → 逐日执行至下一旬 → 下一旬世界结算 → 再次下令**。新局首次下令前也执行第一轮普通旬世界结算，没有额外的“开局俸禄”函数或固定费用。代码5从势力行动阶段恢复，跳过已经完成的前置结算；这与读档分支调度代码5相互印证。
 
-此前“战略阶段提交→旬世界结算→部队模拟→逐日推进”的概括遗漏了部队模拟阶段内的玩家交互，容易把俸禄误放在玩家点击进行之后。撤销这一线性概括；后文列举的子任务内部顺序仍成立。2026-09-06用户未推进时间时的27笔俸禄动态观察见[RE-0157](RE-SAN9PK-0157.md)，资金/兵粮时机见[RE-0098](RE-SAN9PK-0098.md#资金与兵粮周期复核2026-09-06)。本轮5处注释保存与回读见[同步清单](../ida-write-plans/funds-food-cycle-2026-09-06.json)。
+此前“战略阶段提交→旬世界结算→部队模拟→逐日推进”的概括遗漏了部队模拟阶段内的玩家交互，容易把俸禄误放在玩家点击进行之后。撤销这一线性概括；后文列举的子任务内部顺序仍成立。2026-09-06用户未推进时间时的27笔俸禄动态观察见[RE-0157](RE-SAN9PK-0157.md)，资金/兵粮时机见[RE-0098](RE-SAN9PK-0098.md#资金与兵粮周期复核2026-09-06)。本轮5处注释保存与回读见[同步清单](../analysis/ida-write-records/funds-food-cycle-2026-09-06.json)。
 
 `confirm_end_strategy_phase`（`0x510430`）只在确认后清除交互状态并推进地图阶段，不推进日期，也不消费随机数。`process_xun_resolution_task_state`（`0x507DA0`）依次创建旬世界任务、两个中间/演出子任务、势力/部队模拟任务和旬日期模拟任务；`task_set_active_child`（`0x47E6F0`）只保存一个活动子任务并建立父子关系，因此这些阶段不是并发提交。
 

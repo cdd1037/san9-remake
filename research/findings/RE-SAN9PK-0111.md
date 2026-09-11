@@ -9,7 +9,7 @@
 - 样本：`SRC-SAN9PK-TC-101`
 - 项目主数据库：`research/analysis/San9PK-TC-101.i64`
 - 前置记录：[RE-SAN9PK-0009](RE-SAN9PK-0009.md)、[RE-SAN9PK-0067](RE-SAN9PK-0067.md)、[RE-SAN9PK-0106](RE-SAN9PK-0106.md)、[RE-SAN9PK-0109](RE-SAN9PK-0109.md)、[RE-SAN9PK-0110](RE-SAN9PK-0110.md)
-- IDA 写入计划：[`recruit-command-lifecycle-batch-1.json`](../ida-write-plans/recruit-command-lifecycle-batch-1.json)
+- IDA 写入计划：[`recruit-command-lifecycle-batch-1.json`](../analysis/ida-write-records/recruit-command-lifecycle-batch-1.json)
 
 ## 对象、状态、输入、输出与不变量
 
@@ -71,7 +71,7 @@ code 24 失败不改变目标身份、所属势力或位置，也不调用成功
 
 ### 反复失败与攻略对照（2026-09-06）
 
-来源为 [Steam 官方手册](../sources/SRC-SAN9WPK-STEAM-MANUAL.md) PDF 第 17 页（原手册第 47 页）“耐心是登庸的关键”及电子书 3-11（`SRC-DOCS`，`research/docs/三国志9电子书.md`）。本次完整阅读并视觉核对 PDF 页，攻略原文保留，不将其改写成研究结论。
+来源为 [Steam 官方手册](../sources/SRC-SAN9WPK-STEAM-MANUAL.md) PDF 第 17 页（原手册第 47 页）“耐心是登庸的关键”及电子书 3-11（`SRC-DOCS`，`private/research/docs/三国志9电子书.md`）。本次完整阅读并视觉核对 PDF 页，攻略原文保留，不将其改写成研究结论。
 
 | 主张 | 当前样本裁决 |
 | --- | --- |

@@ -7,8 +7,8 @@
 - 置信度：高（生产、复验、资源提交、建设/输送日级执行、成功完成与共同失败出口）；中（建设公式中的主将 `+0x68` 属性正式名称、自动输送建筑 `+0xE8` 数量正式名称）
 - 样本：`SRC-SAN9PK-TC-101`
 - 前置记录：[RE-SAN9PK-0078](RE-SAN9PK-0078.md)、[RE-SAN9PK-0084](RE-SAN9PK-0084.md)、[RE-SAN9PK-0085](RE-SAN9PK-0085.md)、[RE-SAN9PK-0095](RE-SAN9PK-0095.md)、[RE-SAN9PK-0099](RE-SAN9PK-0099.md)、[RE-SAN9PK-0121](RE-SAN9PK-0121.md)、[RE-SAN9PK-0126](RE-SAN9PK-0126.md)、[RE-SAN9PK-0136](RE-SAN9PK-0136.md)
-- 状态清单：[`program-analysis-war-02-status.json`](../program-analysis-war-02-status.json)
-- IDA 写入计划：[`battlefield-command-state-machines-batch-1.json`](../ida-write-plans/battlefield-command-state-machines-batch-1.json)
+- 状态清单：[`program-analysis-war-02-status.json`](../archive/program-analysis/status/program-analysis-war-02-status.json)
+- IDA 写入计划：[`battlefield-command-state-machines-batch-1.json`](../analysis/ida-write-records/battlefield-command-state-machines-batch-1.json)
 
 ## 研究对象、状态与不变量
 

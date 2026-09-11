@@ -7,8 +7,8 @@
 - 置信度：高（输入、阈值、互斥路由、结果码与写回边界）；中高（八类结果的资料名称）
 - 样本：`SRC-SAN9PK-TC-101`
 - 前置记录：[RE-SAN9PK-0142](RE-SAN9PK-0142.md)
-- 状态清单：[`program-analysis-scn-04-status.json`](../program-analysis-scn-04-status.json)
-- IDA 写入计划：[`scenario-ending-resolution-batch-1.json`](../ida-write-plans/scenario-ending-resolution-batch-1.json)
+- 状态清单：[`program-analysis-scn-04-status.json`](../archive/program-analysis/status/program-analysis-scn-04-status.json)
+- IDA 写入计划：[`scenario-ending-resolution-batch-1.json`](../analysis/ida-write-records/scenario-ending-resolution-batch-1.json)
 
 ## 领域模型与入口
 

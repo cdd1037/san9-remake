@@ -8,7 +8,7 @@
 - 样本：`SRC-SAN9PK-TC-101`
 - 项目主数据库：`research/analysis/San9PK-TC-101.i64`
 - 前置记录：[RE-SAN9PK-0072](RE-SAN9PK-0072.md)、[RE-SAN9PK-0077](RE-SAN9PK-0077.md)、[RE-SAN9PK-0117](RE-SAN9PK-0117.md)、[RE-SAN9PK-0118](RE-SAN9PK-0118.md)、[RE-SAN9PK-0119](RE-SAN9PK-0119.md)
-- IDA 写入计划：[`automatic-diplomacy-scheduling-batch-1.json`](../ida-write-plans/automatic-diplomacy-scheduling-batch-1.json)
+- IDA 写入计划：[`automatic-diplomacy-scheduling-batch-1.json`](../analysis/ida-write-records/automatic-diplomacy-scheduling-batch-1.json)
 
 ## 对象、状态、输入、输出与不变量
 

@@ -1,5 +1,5 @@
 {
-  "source": "research/upsteam/San9PKHard/San9PKHardDlg.cpp",
+  "source": "private/research/upstream/San9PKHard/San9PKHardDlg.cpp",
   "notes": "仅列入公式相关、且构造器或恢复路径明确给出旧值的标量补丁点。多字节值按 x86 小端序登记。",
   "points": [
     {"name":"m_dwReinforceExperienceAddr","address":"0x492E29","expected_old_hex":"6A 02 6A 07"},

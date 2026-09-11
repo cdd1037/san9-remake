@@ -99,7 +99,7 @@ bit 0 的其它 upstream 行为包括把所属都市作为距离计算起点、�
 
 - 项目 IDA 数据库 `research/analysis/San9PK-TC-101.i64`：`0x460FF0`、`0x45EBB0`、`0x45EBF0`、`0x45EC10`、`0x45EC20`、`0x461730`、`0x461A90`、`0x463C80`、`0x568240`、`0x45EA60`、`0x45EA70`、`0x45EA80`、`0x45EA90`、`0x49A1FA`、`0x49A637`、`0x504FE5`、`0x507034`、`0x50BD00` 等。
 - `local/generated/research/catalogs/san9pk-tc-101-editor-enums.csv`：`unit_status` 的 0–8 名称，以及 `unit_command`、`unit_target_type` 的编辑器/消息词汇；该本地派生目录被 Git 忽略。
-- upstream `research/upsteam/San9PKHard/InsertAsmSrc.h`、`InsertAsmSrc2.h`：状态 1/4/5/6/7、已出征、单人/内嵌分类、主动/被动交战组合，以及建设中/建设图标/运输标志的上下文注释。upstream 作为二级证据，不替代当前样本 IDA 证据。
+- upstream `private/research/upstream/San9PKHard/InsertAsmSrc.h`、`InsertAsmSrc2.h`：状态 1/4/5/6/7、已出征、单人/内嵌分类、主动/被动交战组合，以及建设中/建设图标/运输标志的上下文注释。upstream 作为二级证据，不替代当前样本 IDA 证据。
 - `private/剧本编辑器截图/部队.png`：状态下拉框与独立“交战”复选框的显示结构；截图不单独证明内部字段。
 
 本结论的边界是：已经确认状态字段分层、生命周期和若干位的读写/组合关系，但还没有完成所有高位的单变量黑盒实验。`unit_command` 字段位置与范围已经确认；其逐命令行为由各命令研究记录承载，不属于本状态记录。
@@ -129,6 +129,6 @@ bit 0 的其它 upstream 行为包括把所属都市作为距离计算起点、�
 - 状态为 8 但 `+0x28` 在进入本次遍历前已不大于 0 的单位跳过以上分支，只把状态归一为 1 且不扣士气。
 - 治疗把非 1 状态恢复为 1 并清零日数，因此治疗先命中会解除高昂且不触发 `-30`；救援只在成功分支清除 1/8 以外的状态，保留高昂。
 
-`apply_unit_status_with_duration(0x463C80)` 在写入状态 4..8 后调用 `try_unit_members_learn_tactic_by_id(0x462AD0)(target, 0x16)`。`0x16` 是兵法记录 id 22；[`三国志9电子书.md`](../docs/三国志9电子书.md) 的兵法 id 表把 `0x16` 列为教谕（状态不会失常），与伪报/扰乱资格要求“目标没有兵法 22”吻合。激励成功因此顺带让目标成员做一次教谕习得尝试。
+`apply_unit_status_with_duration(0x463C80)` 在写入状态 4..8 后调用 `try_unit_members_learn_tactic_by_id(0x462AD0)(target, 0x16)`。`0x16` 是兵法记录 id 22；[`三国志9电子书.md`](../../private/research/docs/三国志9电子书.md) 的兵法 id 表把 `0x16` 列为教谕（状态不会失常），与伪报/扰乱资格要求“目标没有兵法 22”吻合。激励成功因此顺带让目标成员做一次教谕习得尝试。
 
 IDA 写入：在 `0x50BDDE` 写入状态 8 到期分支事实注释，在 `0x462AD0` 标出 `0x16` 的兵法记录 id 与教谕对应；回读 `process_daily_unit_events` 反编译确认注释生效，原位保存 `research/analysis/San9PK-TC-101.i64` 成功，未修改程序字节。

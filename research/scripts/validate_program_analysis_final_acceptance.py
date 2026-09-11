@@ -113,8 +113,10 @@ def validate_repository(root: Path) -> dict[str, object]:
         issues.setdefault(kind, []).append(value)
 
     research = root / "research"
+    program_archive = research / "archive" / "program-analysis"
+    program_status_archive = program_archive / "status"
     specs = root / "specs"
-    roadmap_path = research / "program-analysis-roadmap.md"
+    roadmap_path = program_archive / "program-analysis-roadmap.md"
     roadmap_text = roadmap_path.read_text(encoding="utf-8")
     try:
         batches = roadmap_batches(roadmap_text)
@@ -132,10 +134,10 @@ def validate_repository(root: Path) -> dict[str, object]:
     if "- 状态：已完成" not in roadmap_text:
         issue("roadmap_header", "roadmap is not marked completed")
 
-    r0_r3 = (research / "program-analysis-r0-r3-acceptance.md").read_text(encoding="utf-8")
+    r0_r3 = (program_archive / "program-analysis-r0-r3-acceptance.md").read_text(encoding="utf-8")
     if "- 验收结论：通过" not in r0_r3:
         issue("r0_r3_acceptance", "not passed")
-    r4_r7 = load_json(research / "program-analysis-r4-r7-acceptance.json")
+    r4_r7 = load_json(program_status_archive / "program-analysis-r4-r7-acceptance.json")
     expected_r4_r7 = {
         f"{prefix}-{index:02d}"
         for prefix in ("PERS", "STR", "DIP", "GOV")
@@ -146,7 +148,7 @@ def validate_repository(root: Path) -> dict[str, object]:
 
     final_statuses: dict[str, dict[str, object]] = {}
     for name in FINAL_STATUS_NAMES:
-        path = research / f"program-analysis-{name}-status.json"
+        path = program_status_archive / f"program-analysis-{name}-status.json"
         if not path.is_file():
             issue("missing_final_status", name)
             continue
@@ -171,7 +173,7 @@ def validate_repository(root: Path) -> dict[str, object]:
     if life04_ida.get("required") is not False:
         issue("life04_ida_boundary", life04_ida)
 
-    queue = load_json(research / "program-analysis-queue-status.json")
+    queue = load_json(program_status_archive / "program-analysis-queue-status.json")
     if queue.get("candidate_count") != 2635 or queue.get("expected_candidate_count") != 2635:
         issue("queue_count", {"actual": queue.get("candidate_count"), "expected": queue.get("expected_candidate_count")})
     if not queue.get("validation", {}).get("valid"):
@@ -186,7 +188,7 @@ def validate_repository(root: Path) -> dict[str, object]:
     if sum(queue_counts.values()) != 2635:
         issue("queue_conservation", queue_counts)
 
-    evt = load_json(research / "program-analysis-evt-01-status.json")
+    evt = load_json(program_status_archive / "program-analysis-evt-01-status.json")
     if evt.get("source_claims", {}).get("atomic_final_claim_count") != 10:
         issue("source_claim_count", evt.get("source_claims"))
     existing = evt.get("existing_findings", {})
@@ -200,7 +202,7 @@ def validate_repository(root: Path) -> dict[str, object]:
             issue("source_claim_open_route", batch)
 
     coverage_rows: list[dict[str, str]] = []
-    for line in (research / "program-analysis-coverage.md").read_text(encoding="utf-8").splitlines():
+    for line in (program_archive / "program-analysis-coverage.md").read_text(encoding="utf-8").splitlines():
         if not line.startswith("| `"):
             continue
         cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
@@ -223,16 +225,16 @@ def validate_repository(root: Path) -> dict[str, object]:
         if not match or batches.get(match.group(1)) != "completed":
             issue("coverage_nonterminal_disposition", row)
 
-    formulas = load_json(research / "formula-status.json")
+    formulas = load_json(program_status_archive / "formula-status.json")
     if len(formulas) != 30:
         issue("formula_count", len(formulas))
     for formula in formulas:
         if formula.get("status") != "original-confirmed" or formula.get("missing_evidence"):
             issue("formula_not_closed", formula.get("claim_id"))
-    if "当前队列为空" not in (research / "formula-experiment-queue.md").read_text(encoding="utf-8"):
+    if "当前队列为空" not in (program_archive / "formula-experiment-queue.md").read_text(encoding="utf-8"):
         issue("formula_experiment_queue", "not empty")
 
-    close03 = load_json(research / "program-analysis-close-03-status.json")
+    close03 = load_json(program_status_archive / "program-analysis-close-03-status.json")
     if close03.get("status") != "completed" or not close03.get("validation", {}).get("valid"):
         issue("behavior_contract", close03.get("validation"))
     if close03.get("behavior_spec_count") != 44 or close03.get("research_detail_leak_count") != 0:
@@ -268,7 +270,7 @@ def validate_repository(root: Path) -> dict[str, object]:
     if len(types) != 8:
         issue("type_summary_count", len(types))
 
-    ida = load_json(research / "program-analysis-final-ida-readback.json")
+    ida = load_json(program_status_archive / "program-analysis-final-ida-readback.json")
     if ida.get("sample", {}).get("sha256") != EXPECTED_SAMPLE_HASH:
         issue("final_ida_sample", ida.get("sample"))
     ida_state = ida.get("ida_mcp", {})
@@ -283,7 +285,7 @@ def validate_repository(root: Path) -> dict[str, object]:
     if type_readback.get("row_count") != len(types) or type_readback.get("size_mismatch_count") != 0 or type_readback.get("missing_accessor_count") != 0:
         issue("final_type_readback", type_readback)
 
-    non_core = load_json(research / "program-analysis-non-core-archive.json")
+    non_core = load_json(program_status_archive / "program-analysis-non-core-archive.json")
     hard = non_core.get("san9pkhard_candidates", {})
     old = non_core.get("existing_findings", {})
     claims = non_core.get("source_claims", {})
@@ -331,7 +333,7 @@ def validate_repository(root: Path) -> dict[str, object]:
         "status": "completed" if not issues else "invalid",
         "sample": "SRC-SAN9PK-TC-101",
         "finding": "RE-SAN9PK-0147",
-        "acceptance": "research/program-analysis-r0-r12-acceptance.md",
+        "acceptance": "research/archive/program-analysis/program-analysis-r0-r12-acceptance.md",
         "roadmap": {"batch_count": len(batches), "completed_count": sum(status == "completed" for status in batches.values()), "incomplete": incomplete},
         "source_and_candidate_closure": {
             "coverage_rows": len(coverage_rows),

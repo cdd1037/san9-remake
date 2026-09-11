@@ -17,7 +17,7 @@
 - 架构与映像基址：32 位 PE，`0x400000`
 - IDA/Hex-Rays/MCP 版本：IDA 9.3；Hex-Rays 可用；IDA MCP server health 为 `ok`
 - 项目 IDB 标识：`research/analysis/San9PK-TC-101.i64`，未提交数据库文件
-- 机器报告：`artifacts/ida/San9PK-TC-101/health-baseline.json`（Git 忽略）
+- 机器报告：`local/generated/research/ida/San9PK-TC-101/health-baseline.json`（Git 忽略）
 - 生成脚本：`research/scripts/ida/health_baseline.py`
 
 ## 调查问题

@@ -15,14 +15,14 @@
 - [`export_idb_catalog.py`](../scripts/ida/export_idb_catalog.py)：只读导出 IDB 元数据、段、名称、函数边界、注释、类型、32 字节窗口与 SHA-256 指纹。
 - [`build_source_catalog.py`](../scripts/build_source_catalog.py)：提取源码和文档中的地址成员、宏、补丁地址及业务名称。
 - [`classify_source_catalog.py`](../scripts/ida/classify_source_catalog.py)：在目标 IDB 中把来源候选分类为已应用、冲突、目标不匹配、越界或待后续。
-- [`reconcile_ida_catalogs.py`](../scripts/reconcile_ida_catalogs.py)：合并来源分类、旧 IDB 导出和项目 IDB 导出；结果写入被忽略的 `artifacts/ida/`。
+- [`reconcile_ida_catalogs.py`](../scripts/reconcile_ida_catalogs.py)：合并来源分类、旧 IDB 导出和项目 IDB 导出；结果写入被忽略的 `local/generated/research/ida/`。
 
 所有脚本默认只读；本记录中的目录生成未修改程序字节。
 
 ## 旧 IDB 隔离与完整性
 
-- 原始文件：`research/analysis/San9PK.exe.idb`。
-- 工作副本：`artifacts/ida/legacy/San9PK-legacy-copy.i64`。
+- 原始文件：`private/ida/legacy/San9PK.exe.idb`。
+- 工作副本：`local/generated/research/ida/legacy/San9PK-legacy-copy.i64`。
 - 原始文件 SHA-256：`B0D8C1F49E1BB3CF9370F5190E2B2B7834032D01E1AC690A14F75A3847E0DF98`。
 - 原始文件大小：31,992,224 字节。
 - 原始文件 UTC 修改时间：`2022-02-01T09:07:59.2526666Z`。

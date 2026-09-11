@@ -730,7 +730,7 @@ def build_catalog(root: Path, image: Path | None = None) -> dict[str, object]:
     })
     return {
         "schema_version": 1,
-        "source_root": "research/upsteam/San9PKHard",
+        "source_root": "private/research/upstream/San9PKHard",
         "scope": "SRC-SAN9PKHARD candidates; source claims only, not original behavior",
         "summary": summary,
         "issues": issues,
@@ -767,7 +767,7 @@ def build_status(catalog: dict[str, object]) -> dict[str, object]:
         "source_files": sections["file_inventory"],
         "config_files": sections["config_files"],
         "sample_verification": catalog["sample_verification"],
-        "reproduce": "python research/scripts/build_san9pkhard_catalog.py --source-root research/upsteam/San9PKHard --output tmp/san9pkhard-catalog.json --summary-output research/patch-points/san9pkhard-catalog-status.json",
+        "reproduce": "python research/scripts/build_san9pkhard_catalog.py --source-root private/research/upstream/San9PKHard --output tmp/san9pkhard-catalog.json --summary-output research/patch-points/san9pkhard-catalog-status.json",
     }
 
 

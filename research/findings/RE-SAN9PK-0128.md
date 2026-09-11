@@ -7,7 +7,7 @@
 - 置信度：高（入口、候选顺序、状态机、随机调用、一次性位和提交槽）；中（`status == 3` 的正式业务名称仍未确认）
 - 关联来源：`SRC-SAN9PK-TC-101`
 - 前置记录：[RE-SAN9PK-0027](RE-SAN9PK-0027.md)、[RE-SAN9PK-0028](RE-SAN9PK-0028.md)、[RE-SAN9PK-0070](RE-SAN9PK-0070.md)
-- 状态清单：[`program-analysis-evt-02-status.json`](../program-analysis-evt-02-status.json)
+- 状态清单：[`program-analysis-evt-02-status.json`](../archive/program-analysis/status/program-analysis-evt-02-status.json)
 
 ## 对象、状态与不变量
 

@@ -7,7 +7,7 @@
 
 - `San9.exe` 与 `San9PK.exe` 静态导入相同的 22 个 SanCalc 函数和 17 个 KOEIGrpX 函数；下表 IAT 地址专属于 `SRC-SAN9PK-TC-101`。
 - “已闭合”表示 DLL 函数体、ABI、至少一个 EXE 调用现场和 32 位探针相互一致；地址不得套用于其它 EXE/DLL 指纹。
-- `Surface`/`KBMP` 是 [RE-KOEIGRPX-0001](findings/RE-KOEIGRPX-0001.md) 定义的 7 DWORD 视图；所有图像矩形由 EXE 预先裁剪。
+- `Surface`/`KBMP` 是 [RE-KOEIGRPX-0001](../findings/RE-KOEIGRPX-0001.md) 定义的 7 DWORD 视图；所有图像矩形由 EXE 预先裁剪。
 
 ## SanCalc：22 个 EXE 导入
 

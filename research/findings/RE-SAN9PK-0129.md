@@ -10,7 +10,7 @@
 - 样本：`SRC-SAN9PK-TC-101`
 - 项目主数据库：`research/analysis/San9PK-TC-101.i64`
 - 前置记录：[RE-SAN9PK-0027](RE-SAN9PK-0027.md)、[RE-SAN9PK-0028](RE-SAN9PK-0028.md)、[RE-SAN9PK-0110](RE-SAN9PK-0110.md)、[RE-SAN9PK-0119](RE-SAN9PK-0119.md)、[RE-SAN9PK-0128](RE-SAN9PK-0128.md)
-- IDA 写入计划：[`event-representative-families-batch-1.json`](../ida-write-plans/event-representative-families-batch-1.json)
+- IDA 写入计划：[`event-representative-families-batch-1.json`](../analysis/ida-write-records/event-representative-families-batch-1.json)
 
 ## 对象、状态、输入、输出与不变量
 

@@ -7,8 +7,8 @@
 - 置信度：高（普通剧本路径的旬级清除、季度日期门、人口调用与写回）；中（特殊模式位 0/1 的完整业务名称）
 - 关联来源：`SRC-SAN9PK-TC-101`、`SRC-SANIX`、`SRC-SAN9-EBK`、`SRC-SAN9PKHARD`
 - 前置记录：[RE-SAN9PK-0059](RE-SAN9PK-0059.md)、[RE-SAN9PK-0067](RE-SAN9PK-0067.md)、[RE-SAN9PK-0095](RE-SAN9PK-0095.md)、[RE-SAN9PK-0096](RE-SAN9PK-0096.md)、[RE-SAN9PK-0097](RE-SAN9PK-0097.md)
-- 状态清单：[`program-analysis-dom-04-status.json`](../program-analysis-dom-04-status.json)
-- IDA 写入计划：[`domestic-cycle-scheduling-batch-1.json`](../ida-write-plans/domestic-cycle-scheduling-batch-1.json)
+- 状态清单：[`program-analysis-dom-04-status.json`](../archive/program-analysis/status/program-analysis-dom-04-status.json)
+- IDA 写入计划：[`domestic-cycle-scheduling-batch-1.json`](../analysis/ida-write-records/domestic-cycle-scheduling-batch-1.json)
 
 ## 对象、状态与不变量
 
@@ -64,7 +64,7 @@ and 普通剧本路径允许季度世界更新
 
 粮耗对象不是不加筛选的全军兵力：`0x43E0B0`取势力单位集合，`0x473D70 → 0x463B70`筛事件类型38–52的部队，`0x474A00`另筛符合条件的内嵌守兵；其中有空建筑、建筑标志及类型7–10排除。当前复核闭合时机，不扩大成所有驻军的无条件统一粮耗公式。
 
-动态已验证俸禄9520→9076及完整函数返回；用户确认未推进时间。兵粮日扣、季度/七月收入和重复开局本轮只做静态调用链/指令核验，未声称已经动态重放。IDA注释实际写入及回读见[资金兵粮同步清单](../ida-write-plans/funds-food-cycle-2026-09-06.json)。
+动态已验证俸禄9520→9076及完整函数返回；用户确认未推进时间。兵粮日扣、季度/七月收入和重复开局本轮只做静态调用链/指令核验，未声称已经动态重放。IDA注释实际写入及回读见[资金兵粮同步清单](../analysis/ida-write-records/funds-food-cycle-2026-09-06.json)。
 
 ## 来源校核（原批次）
 

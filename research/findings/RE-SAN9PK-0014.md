@@ -118,7 +118,7 @@ recovered = min(base, W)
 
 ## IDA 标注同步
 
-2026-09-06 在 `0x482F10/0x4354D0/0x461730` 写入带本记录编号的纠错注释，保存、逐项回读及强制反编译通过，函数字节和边界保持一致。见[疑点复核写入清单](../ida-write-plans/research-questions-audit-2026-09-06.json)。
+2026-09-06 在 `0x482F10/0x4354D0/0x461730` 写入带本记录编号的纠错注释，保存、逐项回读及强制反编译通过，函数字节和边界保持一致。见[疑点复核写入清单](../analysis/ida-write-records/research-questions-audit-2026-09-06.json)。
 
 2026-08-18 已将以下高置信结论写入项目主数据库 `research/analysis/San9PK-TC-101.i64`：
 
@@ -138,4 +138,4 @@ recovered = min(base, W)
 
 调用 IDA 原生保存后重新反编译 `0x435560`、`0x436220`、`0x482F10` 与 `run_xun_world_updates`，确认新名称已进入调用链，公式和函数边界不变；仍未修改程序字节、结构体类型或未决虚槽名称。
 
-2026-08-30 的 `FBLD-01` 收口批次又写入 7 个高置信名称：`get_fixed_building_property_descriptor`、`fixed_building_has_tactic_flag`、`format_fixed_building_property_value`、`get_region_building_visual_definition_code`、`build_map_building_snapshot`、`set_map_building_visual_definition_code` 和 `compare_map_building_snapshot`，并在加载、位读取、快照与组合选择点写入 8 条证据注释。名称 dry-run 与实际写入均为 `7/7`；原位保存后回读确认 `+0x04` 视觉链和尾部兵法位链进入反编译，程序字节、函数边界和结构类型均未修改。详见 [`fixed-building-fields-batch-1.json`](../ida-write-plans/fixed-building-fields-batch-1.json)。
+2026-08-30 的 `FBLD-01` 收口批次又写入 7 个高置信名称：`get_fixed_building_property_descriptor`、`fixed_building_has_tactic_flag`、`format_fixed_building_property_value`、`get_region_building_visual_definition_code`、`build_map_building_snapshot`、`set_map_building_visual_definition_code` 和 `compare_map_building_snapshot`，并在加载、位读取、快照与组合选择点写入 8 条证据注释。名称 dry-run 与实际写入均为 `7/7`；原位保存后回读确认 `+0x04` 视觉链和尾部兵法位链进入反编译，程序字节、函数边界和结构类型均未修改。详见 [`fixed-building-fields-batch-1.json`](../analysis/ida-write-records/fixed-building-fields-batch-1.json)。

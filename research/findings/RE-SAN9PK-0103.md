@@ -72,7 +72,7 @@ San9PKHard 的 `m_dwNotDisplaySlashAddr=0x504389` 位于结算后的表现调用
 
 ## IDA MCP 调查、同步与回读
 
-只读阶段核对项目主数据库、类型 41 构造器及虚表、机会任务状态 `1003/1004`、发起者与接受者谓词、排序方向、阵形/人数概率、性格武力门、追加参战者和两次逐刀调用。原先 `0x4FE9C0..0x4FEA05` 被误标为数据；原始字节、唯一列表谓词用途、末尾 `ret` 和下一函数 `0x4FEA10` 共同确认边界后，按 [`duel-trigger-selection-batch-1.json`](../ida-write-plans/duel-trigger-selection-batch-1.json) 恢复为函数。
+只读阶段核对项目主数据库、类型 41 构造器及虚表、机会任务状态 `1003/1004`、发起者与接受者谓词、排序方向、阵形/人数概率、性格武力门、追加参战者和两次逐刀调用。原先 `0x4FE9C0..0x4FEA05` 被误标为数据；原始字节、唯一列表谓词用途、末尾 `ret` 和下一函数 `0x4FEA10` 共同确认边界后，按 [`duel-trigger-selection-batch-1.json`](../analysis/ida-write-records/duel-trigger-selection-batch-1.json) 恢复为函数。
 
 6 个函数名和 1 个虚表名分两次 dry-run，合计 `7/7` 通过后写入；应用 16 条事实/边界注释。原位保存后回读确认函数边界、7 个名称和 16 条注释一致，8 个关键函数强制重编译成功。程序字节修改为 0，未强制应用类型。
 

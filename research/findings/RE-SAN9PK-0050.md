@@ -20,7 +20,7 @@
 2. 对 `.rdata` 执行 NUL 边界、严格 CP950、至少一个 CJK 字符和现有数据边界检查后得到 2,721 条候选：863 条达到自动应用门槛，1,858 条保留为 `review`，没有写入 IDB。
 3. 已确认样本包括 `0x604D64 三国志ⅨPK`、`0x61B358 出征部隊`、`0x61BD74 打倒敵勢‧%s` 和 `0x61CDDC 淮南王‧劉安`。
 4. 字节 `A1 45` 在 Python `big5` 中映射为 `U+2022 •`，而 IDA `Big5` 与 Python `cp950` 均映射为 `U+2027 ‧`。四条字符串在初次标准 Big5 校验中因此出现文本差异；切换 EXE 来源配置为 CP950 后，863 条全部与 IDA 原生显示逐条一致。
-5. apply 后 863 条记录均为 IDA 原生、NUL 结尾、编码名 `Big5` 的字符串项；重新读取字符串类型、长度与 UTF-8 内容全部成功。最终报告位于被 Git 忽略的 `artifacts/ida/San9PK-TC-101/exe-strings-applied-cp950.json`。
+5. apply 后 863 条记录均为 IDA 原生、NUL 结尾、编码名 `Big5` 的字符串项；重新读取字符串类型、长度与 UTF-8 内容全部成功。最终报告位于被 Git 忽略的 `local/generated/research/ida/San9PK-TC-101/exe-strings-applied-cp950.json`。
 6. IDA 中的 Big5 字符串用于 EXE 地址、显示与交叉引用；统一 JSON 目录另外保存来源 SHA-256、文件偏移、原始十六进制、片段、编码判定和完整 xref。二者互为回读验证，不建立第二套 IDB 字符串真相。
 
 ## 推断
@@ -46,4 +46,4 @@
 
 - `research/scripts/executable_strings.py`保留严格CP950候选扫描职责；`ida/configure_big5_strings.py`继续负责IDA dry-run/apply与回读，不承担消息转换。
 - `ida/export_text_evidence.py`导出当前登记的原始字节与xref；`San9.Tools import-text --exe-evidence`使用与消息档案相同的解析器生成审计。
-- 旧Python消息转换、旧最小JSON和旧消息研究投影已删除，当前产物位于`local/generated/research/unified-text/`。上文863条apply事实及`artifacts/ida/`的独有研究证据保留。
+- 旧Python消息转换、旧最小JSON和旧消息研究投影已删除，当前产物位于`local/generated/research/unified-text/`。上文863条apply事实及`local/generated/research/ida/`的独有研究证据保留。

@@ -14,9 +14,9 @@
 - `SRC-IDA-001`：`deserialize_scenario_chunks`（`0x453F60`）及 `deserialize_kans_record`（`0x449390`）的反编译和交叉引用。
 - `SRC-IDA-002`：`CKanshakuData` 的初始化、通用 getter 和运行时表访问器。
 - `SRC-BIN-001`：`research/findings/RE-SAN9PK-0005.md` 中的剧本 chunk 偏移与尺寸。
-- `SRC-DOCS-001`：`research/docs/三国志9电子书.md`，约第 8168、8170、8838 行；资料混用“爵位/官爵”称呼，其中俸禄和附加能力描述对应人物 `shak` 官职，不能据此命名势力 `kans` 字段，也没有给出本二进制字段到 UI 控件的可靠偏移表。
+- `SRC-DOCS-001`：`private/research/docs/三国志9电子书.md`，约第 8168、8170、8838 行；资料混用“爵位/官爵”称呼，其中俸禄和附加能力描述对应人物 `shak` 官职，不能据此命名势力 `kans` 字段，也没有给出本二进制字段到 UI 控件的可靠偏移表。
 - `SRC-BLACKBOX-001`：本轮用户提供的官爵编辑界面图。图中可见 9 个等级，列出了官爵、指挥、所需信望；编辑对话框还显示“忠诚上升”和四个原始偏移槽位。早期研究曾把“忠诚上升”误读、误转录为“能力上升”，本记录现按重新核图结果更正。
-- `SRC-SOURCE-002`：`research/upsteam/San9PKHard` 的 `official_loyalty[77]` 官职表。该表通过官职对象的 ID（`shak`）索引，不是 `kans` 的 9 条君主位阶表；不能用它给 `kans +0x0A/+0x0C` 命名。
+- `SRC-SOURCE-002`：`private/research/upstream/San9PKHard` 的 `official_loyalty[77]` 官职表。该表通过官职对象的 ID（`shak`）索引，不是 `kans` 的 9 条君主位阶表；不能用它给 `kans +0x0A/+0x0C` 命名。
 - `SRC-BIN-002`：`private/s9数据文件/D_Sce001.S9` 及同目录 `D_Sce001.S9`–`D_Sce020.S9`。9 条 `kans` 记录在这些库存剧本中一致，并逐项匹配截图数值。
 
 除非特别标注，以下“事实”指 IDA 或剧本布局直接支持的结论；“推断”指多个证据相互吻合但尚未通过单变量保存实验确认的命名。

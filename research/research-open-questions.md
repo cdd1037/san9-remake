@@ -18,9 +18,9 @@
 | A07 | RE-0157仍称双条、图标、小地图整体未闭合 | **过期状态**：后续已有耐久/士气比例、城市图标、小地图几何与原色证据；兵力是数字而非另一条比例条。保留资金差额疑问 | [RE-0157](findings/RE-SAN9PK-0157.md)、[RE-0158](findings/RE-SAN9PK-0158.md) |
 | A08 | 外交规格把攻击请求概括为结算资金兵粮 | **文档纠错**：已确认报价是交换俘虏、资金或宝物；兵粮属于其他命令路径。修正原作基线，未扩展产品规则 | [RE-0118](findings/RE-SAN9PK-0118.md)、[BEH-DIPLOMACY-0002](../specs/behavior/BEH-DIPLOMACY-0002-command-negotiation-and-resolution.md) |
 | A09 | 内容绑定完全未开始 | **过期状态**：剧本标题、城市/地区、人物、国号、兵法和主界面已有绑定证据；剩余是完整可替换内容契约和覆盖，`CONTENT-01` 改为调查中 | [字段清单](scenario-field-research-checklist.md)、[RE-0151](findings/RE-SAN9PK-0151.md)、[RE-0157](findings/RE-SAN9PK-0157.md) |
-| A10 | 旧核心总验收仍能证明当前全量一致 | **证据维护纠错**：路线图在`4b540ac`被删除而7处链接继续引用；从其父提交恢复至归档并修链。旧验证器固定147份研究/419个符号，只能重放`6cbbfba`历史工作树，不能拿旧在线快照认证当前库 | [历史路线](archive/program-analysis-roadmap.md)、[历史验收说明](program-analysis-r0-r12-acceptance.md) |
+| A10 | 旧核心总验收仍能证明当前全量一致 | **证据维护纠错**：路线图在`4b540ac`被删除而7处链接继续引用；从其父提交恢复至归档并修链。旧验证器固定147份研究/419个符号，只能重放`6cbbfba`历史工作树，不能拿旧在线快照认证当前库 | [历史路线](archive/program-analysis/program-analysis-roadmap.md)、[历史验收说明](archive/program-analysis/program-analysis-r0-r12-acceptance.md) |
 
-另删除 RE-0151 重复的资源8436待办。上述机器语义按各自原记录承接，没有为单字段补证重复建研究编号。IDA实际写入、保存与回读见[本轮清单](ida-write-plans/research-questions-audit-2026-09-06.json)。
+另删除 RE-0151 重复的资源8436待办。上述机器语义按各自原记录承接，没有为单字段补证重复建研究编号。IDA实际写入、保存与回读见[本轮清单](analysis/ida-write-records/research-questions-audit-2026-09-06.json)。
 
 补充关闭 **A11（规格契约遗漏）**：3份已确认的显示/UI规格遗漏领域分类，章节和决策元数据不统一，导致当前契约校验失败；已补齐分类、章节及5项已批准决策门，并删除依赖图中易过期的验收计数。另将地图规格过期的schema6声明改为引用当前UI内容契约；当前验证器实际要求地图schema7。没有借此批准新玩法。[领域契约](../specs/behavior/core-domain-contracts.json)、[依赖图](../specs/behavior/core-domain-dependency-map.md)、[地图规格](../specs/behavior/BEH-RENDER-0002-interactive-static-map.md)。
 
@@ -51,7 +51,7 @@
 | 通用列表 | 重复首页描述符的间接引用、三个编辑首页的操作名、各场景候选/禁用/人数/默认选择、辅助文本与保留字 | [RE-0151](findings/RE-SAN9PK-0151.md)、[RE-0153](findings/RE-SAN9PK-0153.md)。三态来源已经解决；这些属于独立调用方契约，不从列配置反推业务规则 |
 | 函数恢复 | 无法静态枚举的间接分派、六个共享尾块与数据操作数、少数过期反编译缓存/旧引用 | [RE-0155](findings/RE-SAN9PK-0155.md)。901项为已确认恢复区间，不是全EXE完整性证明；本轮也遇到缓存仍显示旧地址表达式，强制重编译与实际call指令互证后才采信。没有有界问题便不安排全局动态实验 |
 | 文本与内容 | 完整事件参数、列传/结局、替换内容键、Big5扩展字形身份 | [字段清单](scenario-field-research-checklist.md)、[RE-0026](findings/RE-SAN9PK-0026.md)、[RE-0157](findings/RE-SAN9PK-0157.md)。属于内容管线交付；已解码Unicode投影不等于原字形身份，未授权原文不进入产品仓库 |
-| 扩展范围 | 新人物/宝物覆盖、教学/挑战、编辑器往返、外围数据文件与工具 | `EXT-PRSN-01/EXT-ITEM-01/EXT-SCENARIO-01/EDITOR-01/RESOURCE-01` 继续按[字段清单](scenario-field-research-checklist.md)和[非核心归档](program-analysis-non-core-archive.md)处置；不要用本轮审计隐式扩大MVP |
+| 扩展范围 | 新人物/宝物覆盖、教学/挑战、编辑器往返、外围数据文件与工具 | `EXT-PRSN-01/EXT-ITEM-01/EXT-SCENARIO-01/EDITOR-01/RESOURCE-01` 继续按[字段清单](scenario-field-research-checklist.md)和[非核心归档](archive/program-analysis/program-analysis-non-core-archive.md)处置；不要用本轮审计隐式扩大MVP |
 
 **验收含义修正**：历史R0–R12通过证明当时的批次、来源和所选状态机边界完成，不证明上述外围输入全部语义化，也不证明当前研究没有错误。BEH里的未勾选自动测试多数是产品实现验收，不是欠用户的原作实验。若实现某公式仍需自拟输入或规则，则是定向补证/DEC触发条件，不能用“核心无阻塞项”跳过。
 
@@ -60,7 +60,7 @@
 - 已执行：主库健康与身份路径检查；相关调用、构造、虚表、字段和实际指令回查；首批14处、资金兵粮5处、没收3处函数注释保存、逐项回读、强制重新反编译与函数字节/边界不变检查。
 - 已执行：正式20剧本人物剖面；`python -m unittest discover -s research/scripts`，90项测试全部通过。
 - 已执行：当前领域契约验证，48份行为规格全部归类、13个领域/13项决策门通过，未发现依赖环或研究细节进入聚合契约；这只验证结构和登记一致性，不证明全部玩法语义正确。
-- 已执行：`research/`、`specs/`、`docs/`（不含第三方`upsteam`）270份Markdown的1,486个本地链接目标检查，缺失0；`git diff --check`通过。链接检查不覆盖外部网址或全部标题锚点。
+- 已执行：`research/`、`specs/`、`docs/`（不含 `private/research/` 中的第三方资料）270份 Markdown 的 1,486 个本地链接目标检查，缺失 0；`git diff --check` 通过。链接检查不覆盖外部网址或全部标题锚点。
 - 原始剖面及工具输出位于 `local/generated/research/audit/`，不提交；版本化写入清单只含研究注释与验证状态，不含程序代码/资源。
 - 已执行：用户操作原游戏、IDA断点记录一次完整俸禄结算，27笔合计444；详见RE-0157。断点已全部删除并保存。
 - 未执行：重复开局、兵粮与没收动态对照、GPU截图、OS交互自动化、当前全EXE反编译、全部玩法回归或.NET产品测试。本轮没有修改产品代码与画面；这些不能被表述为已验证。

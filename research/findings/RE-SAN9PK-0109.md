@@ -7,7 +7,7 @@
 - 置信度：高（候选守恒、来源定位和路由可重建）；中（第三方名称到研究主题的映射）
 - 关联来源：`SRC-SAN9PKHARD`、电子书 3-7/3-8/3-11/3-12
 - 前置记录：[RE-SAN9PK-0091](RE-SAN9PK-0091.md)、[RE-SAN9PK-0092](RE-SAN9PK-0092.md)、[RE-SAN9PK-0094](RE-SAN9PK-0094.md)
-- 状态清单：[`program-analysis-queue-status.json`](../program-analysis-queue-status.json)
+- 状态清单：[`program-analysis-queue-status.json`](../archive/program-analysis/status/program-analysis-queue-status.json)
 
 ## 对象、状态、输入、输出与不变量
 

@@ -7,7 +7,7 @@
 - 置信度：高（来源章节、现有 RE/公式状态和路线边界）；中（第三方源码主题名，待 COV-02 逐地址复核）
 - 关联来源：`SRC-DOCS`、`SRC-SAN9PKHARD`、`SRC-SAN9PK-TC-101`
 - 前置记录：[RE-SAN9PK-0067](RE-SAN9PK-0067.md)、[RE-SAN9PK-0068](RE-SAN9PK-0068.md)、[RE-SAN9PK-0088](RE-SAN9PK-0088.md)、[RE-SAN9PK-0090](RE-SAN9PK-0090.md)
-- 交付账本：[核心程序分析来源覆盖账本](../program-analysis-coverage.md)
+- 交付账本：[核心程序分析来源覆盖账本](../archive/program-analysis/program-analysis-coverage.md)
 
 ## 调查对象与不变量
 

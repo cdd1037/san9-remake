@@ -18,10 +18,10 @@
 - 样本 SHA-256：`D20794AEFF67301EC2BF8C3BECB1E9944C68C6C0588FBFD4BF04E8597F0E5028`。
 - 项目主 IDB：`research/analysis/San9PK-TC-101.i64`，未提交数据库文件。
 - IDA/Hex-Rays/MCP：IDA 9.3，Hex-Rays 可用，MCP server health 为 `ok`。
-- 机器报告：`artifacts/ida/San9PK-TC-101/runtime-classes.json`（Git 忽略）。
-- 虚表机器报告：`artifacts/ida/San9PK-TC-101/vtable-candidates.json`（Git 忽略）。
-- 消息映射机器报告：`artifacts/ida/San9PK-TC-101/message-maps.json`（Git 忽略）。
-- 全局根对象机器报告：`artifacts/ida/San9PK-TC-101/global-roots.json`（Git 忽略）。
+- 机器报告：`local/generated/research/ida/San9PK-TC-101/runtime-classes.json`（Git 忽略）。
+- 虚表机器报告：`local/generated/research/ida/San9PK-TC-101/vtable-candidates.json`（Git 忽略）。
+- 消息映射机器报告：`local/generated/research/ida/San9PK-TC-101/message-maps.json`（Git 忽略）。
+- 全局根对象机器报告：`local/generated/research/ida/San9PK-TC-101/global-roots.json`（Git 忽略）。
 - 生成脚本：`research/scripts/ida/export_runtime_classes.py`。
 - 生成脚本：`research/scripts/ida/export_message_maps.py`、`research/scripts/ida/export_global_roots.py`。
 
@@ -184,7 +184,7 @@ typedef struct WindowMessageQueueNode {
 
 按计划重新运行 `health_baseline.py`；在新增数据类构造器、共享字符串 API、`SharedStringBufferHeader`、10 个子系统访问器、日期链、按日更新入口、部队周期入口、两个模拟状态机、势力关系处理链和旬命令路由边界标注后得到当前核心摘要 `f7152b15c1f16dda7754d2f399b41d7c963c591b923bdd8fd0bebb3643274b7f`；函数总数 10,918、命名函数 785、自动命名函数 10,133、库函数 465、thunk 136、函数注释 355、命名实体 7,430、命名数据实体 6,268、本地类型 185、反编译失败 7、可执行段未定义字节 0、非执行段代码项 0、执行段数据项 15,472。函数/ thunk 计数稳定；相关写入未修改程序字节。
 
-验收整理完成后再次在项目主 IDB 上实跑全部五个导出器：健康基线连续两次得到摘要 `b9cf1108caef89c4ed7588943ff84e3a58188754c66254a03e9e060ac2be02d4`，函数 10,919、用户命名函数 810、函数注释 393、反编译失败 7、可执行段未定义字节 0；运行时类仍为 400 条高置信度记录，消息映射仍为 67 张/183 项，全局根仍为 top-500。随后新增的已命名虚表使当前候选数增至 13，连续两次摘要为 `ae9837746fa17a45b25e6f37954b8cf3932dd3e68b56b7e64e7f8cbf12ddc63f`；这是 IDB 标注增长，不是脚本不稳定。所有验收报告仍位于被 Git 忽略的 `artifacts/ida/San9PK-TC-101/`。
+验收整理完成后再次在项目主 IDB 上实跑全部五个导出器：健康基线连续两次得到摘要 `b9cf1108caef89c4ed7588943ff84e3a58188754c66254a03e9e060ac2be02d4`，函数 10,919、用户命名函数 810、函数注释 393、反编译失败 7、可执行段未定义字节 0；运行时类仍为 400 条高置信度记录，消息映射仍为 67 张/183 项，全局根仍为 top-500。随后新增的已命名虚表使当前候选数增至 13，连续两次摘要为 `ae9837746fa17a45b25e6f37954b8cf3932dd3e68b56b7e64e7f8cbf12ddc63f`；这是 IDB 标注增长，不是脚本不稳定。所有验收报告仍位于被 Git 忽略的 `local/generated/research/ida/San9PK-TC-101/`。
 
 ## 结论、推断与待验证
 

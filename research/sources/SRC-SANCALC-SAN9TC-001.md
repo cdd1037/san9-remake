@@ -17,7 +17,7 @@
 
 该文件由用户指定的繁体中文版安装目录复制到工作区私有样本区；复制前后 SHA-256 一致。`San9.exe` 与 `San9PK.exe` 都静态导入其中相同的 22 个数学、随机数、概率和位字段函数。本项目只把它作为原作行为研究输入，不作为重制运行时依赖。
 
-本样本对应的唯一项目主数据库是被 Git 忽略的 `research/analysis/SanCalc-SAN9TC-001.i64`。函数契约见 [RE-SANCALC-0001](../findings/RE-SANCALC-0001.md)；EXE 使用矩阵见 [DLL 契约清单](../exe-dll-analysis-inventory.md)。
+本样本对应的唯一项目主数据库是被 Git 忽略的 `research/analysis/SanCalc-SAN9TC-001.i64`。函数契约见 [RE-SANCALC-0001](../findings/RE-SANCALC-0001.md)；EXE 使用矩阵见 [DLL 契约清单](exe-dll-analysis-inventory.md)。
 
 ## 限制
 

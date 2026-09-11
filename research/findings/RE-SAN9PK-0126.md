@@ -8,7 +8,7 @@
 - 样本：`SRC-SAN9PK-TC-101`
 - 项目主数据库：`research/analysis/San9PK-TC-101.i64`
 - 前置记录：[RE-SAN9PK-0077](RE-SAN9PK-0077.md)、[RE-SAN9PK-0088](RE-SAN9PK-0088.md)、[RE-SAN9PK-0111](RE-SAN9PK-0111.md)
-- IDA 写入计划：[`automatic-special-work-codes-batch-1.json`](../ida-write-plans/automatic-special-work-codes-batch-1.json)
+- IDA 写入计划：[`automatic-special-work-codes-batch-1.json`](../analysis/ida-write-records/automatic-special-work-codes-batch-1.json)
 
 ## 调查问题
 

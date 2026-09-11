@@ -295,7 +295,7 @@ def validate_contracts(
             "issue_counts": {key: len(value) for key, value in sorted(issues.items())},
             "issues": dict(sorted(issues.items())),
         },
-        "reproduce": "python research/scripts/validate_core_domain_contracts.py --contracts specs/behavior/core-domain-contracts.json --map specs/behavior/core-domain-dependency-map.md --behavior-dir specs/behavior --decision-dir specs/decisions --repo-root . --output research/program-analysis-close-03-status.json",
+        "reproduce": "python research/scripts/validate_core_domain_contracts.py --contracts specs/behavior/core-domain-contracts.json --map specs/behavior/core-domain-dependency-map.md --behavior-dir specs/behavior --decision-dir specs/decisions --repo-root . --output research/archive/program-analysis/status/program-analysis-close-03-status.json",
         "next_batch": "CLOSE-04" if not issues else None,
     }
 

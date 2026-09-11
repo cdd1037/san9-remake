@@ -7,7 +7,7 @@
 - 置信度：高（计数守恒、批次状态、来源处置和旧路由由生成器校验）
 - 关联来源：`SRC-DOCS`、`SRC-SAN9PKHARD`、`SRC-SAN9PK-TC-101`
 - 前置记录：[RE-SAN9PK-0127](RE-SAN9PK-0127.md)、[RE-SAN9PK-0130](RE-SAN9PK-0130.md)、[RE-SAN9PK-0134](RE-SAN9PK-0134.md)、[RE-SAN9PK-0139](RE-SAN9PK-0139.md)、[RE-SAN9PK-0143](RE-SAN9PK-0143.md)
-- 状态清单：[`program-analysis-close-01-status.json`](../program-analysis-close-01-status.json)
+- 状态清单：[`program-analysis-close-01-status.json`](../archive/program-analysis/status/program-analysis-close-01-status.json)
 
 ## 对象、状态、输入、输出与不变量
 

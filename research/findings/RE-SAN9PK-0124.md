@@ -9,7 +9,7 @@
 - 项目主数据库：`research/analysis/San9PK-TC-101.i64`
 - 前置记录：[RE-SAN9PK-0111](RE-SAN9PK-0111.md)、[RE-SAN9PK-0112](RE-SAN9PK-0112.md)、[RE-SAN9PK-0120](RE-SAN9PK-0120.md)、[RE-SAN9PK-0122](RE-SAN9PK-0122.md)、[RE-SAN9PK-0123](RE-SAN9PK-0123.md)
 - 关联规格：[BEH-GOVERNANCE-0003](../../specs/behavior/BEH-GOVERNANCE-0003-xun-personnel-and-territorial-transition.md)
-- IDA 写入计划：[`xun-governance-and-independence-batch-1.json`](../ida-write-plans/xun-governance-and-independence-batch-1.json)
+- IDA 写入计划：[`xun-governance-and-independence-batch-1.json`](../analysis/ida-write-records/xun-governance-and-independence-batch-1.json)
 
 ## 对象、状态与不变量
 
@@ -87,7 +87,7 @@
 
 本批实际只读调用覆盖旬任务 `0x507DA0/0x47F500/0x484EE0/0x484E70/0x484300/0x483140`，自动权限和元数据 `0x4AF39C/0x4AF1F0`，登用来源 `0x4B03C0/0x46D830/0x45E210`，调动生产 `0x4A9020/0x4A9DA0/0x4A9C90/0x4A96A0/0x4A9390/0x4A9470/0x4A9510`，以及跨势力链 `0x484310/0x483E20/0x483580/0x483180/0x456C00/0x456BD0/0x45BFC0/0x44AA60`。关键结果包括类型码 5 的城市同一性、子军团权限位、直属对象精确比较、单次调动上限 10、自立概率式和全部最终清理。
 
-2026-08-27 的定向补证继续只读核对 `0x4800B0/0x481C80/0x470F70/0x480C10/0x480CF0/0x44DCC0/0x44DE00/0x45E0D0`，闭合在野迁移、主动求官、空城候选、实际君主排序、忠诚读取和君主解析。增量写入计划见 [`xun-person-affiliation-supplement-batch-1.json`](../ida-write-plans/xun-person-affiliation-supplement-batch-1.json)。8 个函数名 dry-run 全部通过，实际写入 8 个名称和 8 条证据注释；原位保存成功。逐项导出回读确认 8 个名称、注释和调用传播均已持久化，`process_unaffiliated_person_office_requests_for_xun` 的伪代码已直接显示忠诚、信望、相性和新命名访问器。保存后健康检查为 11,064 个函数、1,999 个具名函数，样本 SHA-256 仍为 `d20794aeff67301ec2bf8c3becb1e9944c68c6c0588fbfd4bf04e8597f0e5028`，程序字节修改为 0。
+2026-08-27 的定向补证继续只读核对 `0x4800B0/0x481C80/0x470F70/0x480C10/0x480CF0/0x44DCC0/0x44DE00/0x45E0D0`，闭合在野迁移、主动求官、空城候选、实际君主排序、忠诚读取和君主解析。增量写入计划见 [`xun-person-affiliation-supplement-batch-1.json`](../analysis/ida-write-records/xun-person-affiliation-supplement-batch-1.json)。8 个函数名 dry-run 全部通过，实际写入 8 个名称和 8 条证据注释；原位保存成功。逐项导出回读确认 8 个名称、注释和调用传播均已持久化，`process_unaffiliated_person_office_requests_for_xun` 的伪代码已直接显示忠诚、信望、相性和新命名访问器。保存后健康检查为 11,064 个函数、1,999 个具名函数，样本 SHA-256 仍为 `d20794aeff67301ec2bf8c3becb1e9944c68c6c0588fbfd4bf04e8597f0e5028`，程序字节修改为 0。
 
 写入前 dry-run 的 23 个名称全部通过。修复 `0x4AF420..0x4AF480` 和 `0x4A9DA0..0x4A9DD2` 两处虚表目标边界，写入 23 个函数名和 14 条证据注释；程序字节未改变。原位保存后逐项回读确认全部名称、`0x60/0x32` 字节边界和注释。保存后数据库共有 11,037 个函数、1,736 个具名函数，样本 SHA-256 仍为 `d20794ae...f0e5028`。
 

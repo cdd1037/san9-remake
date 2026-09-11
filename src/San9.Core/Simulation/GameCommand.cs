@@ -11,12 +11,25 @@ public sealed record WaitCommand(
     long Sequence)
     : GameCommand(CommandId, IssuerId, Sequence);
 
+public sealed record DevelopCommand(Guid CommandId, int IssuerId, long Sequence,
+    San9.Core.Domain.DevelopmentCommand Development) : GameCommand(CommandId, IssuerId, Sequence);
+
+internal sealed record StartTaskCommand(Guid CommandId, int IssuerId, long Sequence,
+    string Kind, int OfficerId, int TargetId) : GameCommand(CommandId, IssuerId, Sequence);
+
 public enum CommandRejection
 {
     None = 0,
     NegativeIssuerId,
     DuplicateCommandId,
     NegativeSequence,
+    InvalidCommandId,
+    WrongSequence,
+    NotActiveController,
+    NotStable,
+    UnsupportedCommand,
+    InvalidTask,
+    DevelopmentFailed,
 }
 
 public readonly record struct CommandSubmissionResult(
@@ -27,3 +40,7 @@ public readonly record struct CommandSubmissionResult(
 
     public static CommandSubmissionResult Reject(CommandRejection reason) => new(false, reason);
 }
+
+public sealed record CommandExecutionResult(CommandSubmissionResult Submission,
+    IReadOnlyList<DomainEvent> Events, WorldSnapshot Snapshot,
+    San9.Core.Domain.DevelopmentOutcome? Development = null);

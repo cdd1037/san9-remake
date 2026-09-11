@@ -69,12 +69,13 @@ public sealed class StrategySnapshot
         RegionNameKeys = source.RegionNameKeys;
         RegionCityIds = source.RegionCityIds;
         var settlements = world.Settlements.ToDictionary(settlement => settlement.Id);
+        var occupied = world.Simulation.Tasks.Select(t => t.OfficerId).ToHashSet();
         Officers = Array.AsReadOnly(world.Officers.Where(o => o.IsVisible).Select(o =>
         {
             var location = o.SettlementId is int id ? settlements[id] : null;
             var definition = source.Officer(o.Id);
             return new OfficerView(o.Id, definition.NameKey, o.OwnerId, o.IsServing ? location?.CorpsId : null,
-                o.SettlementId, location?.Kind == San9.Core.Domain.SettlementKind.City, o.IsServing && !o.Acted, o.Abilities)
+                o.SettlementId, location?.Kind == San9.Core.Domain.SettlementKind.City, o.IsServing && !o.Acted && !occupied.Contains(o.Id), o.Abilities)
             {
                 Status = o.Status,
                 CourtesyNameKey = definition.CourtesyNameKey,
@@ -97,7 +98,7 @@ public sealed class StrategySnapshot
             };
         }).ToArray());
         var availableSettlementIds = world.Officers
-            .Where(officer => officer.IsServing && !officer.Acted && officer.SettlementId is not null)
+            .Where(officer => officer.IsServing && !officer.Acted && !occupied.Contains(officer.Id) && officer.SettlementId is not null)
             .Select(officer => (officer.SettlementId!.Value, officer.OwnerId))
             .ToHashSet();
         Settlements = Array.AsReadOnly(world.Settlements.Select(s =>
@@ -121,7 +122,7 @@ public sealed class StrategySnapshot
     public WorldSnapshot World { get; }
     public int Year => World.Clock.Year;
     public int Month => World.Clock.Month;
-    public int Day => 1+10*((int)World.Clock.Xun-1);
+    public int Day => World.Clock.Day;
     public int PlayerForceId { get; }
     public IReadOnlyDictionary<int,string> RegionNameKeys { get; }
     public IReadOnlyDictionary<int,int> RegionCityIds { get; }

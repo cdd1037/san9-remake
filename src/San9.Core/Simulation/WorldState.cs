@@ -19,21 +19,28 @@ public sealed class WorldState
         ImmutableDictionary<(int FirstId, int SecondId), ForceRelation>.Empty;
     public long Revision { get; private set; }
     private WorldSnapshot? _snapshot;
-    private WorldState(GameClock clock, ulong randomState)
+    internal bool IsExecuting { get; private set; }
+    internal void EnterExecution()
     {
-        _ = new GameClock(clock.Year, clock.Month, clock.Xun);
+        if (IsExecuting) throw new InvalidOperationException("World is already executing.");
+        IsExecuting = true;
+    }
+    internal void ExitExecution() => IsExecuting = false;
+    private WorldState(GameClock clock, ulong seed)
+    {
+        _ = new GameClock(clock.Year, clock.Month, clock.Day);
         Clock = clock;
-        RandomState = randomState;
+        Simulation = new(clock, seed);
     }
 
     public GameClock Clock { get; private set; }
 
-    public ulong RandomState { get; private set; }
+    public SimulationState Simulation { get; private set; }
 
     public static WorldState Create(GameClock clock, ulong seed) => Create(clock, seed, [], [], []);
 
     public static WorldState Create(GameClock clock, ulong seed, IEnumerable<ForceState> forces,
-        IEnumerable<SettlementState> settlements, IEnumerable<OfficerState> officers, IEnumerable<UnitState>? units = null, IEnumerable<CorpsState>? corps = null, IEnumerable<TreasureState>? treasures = null, IEnumerable<ForceRelation>? relations = null)
+        IEnumerable<SettlementState> settlements, IEnumerable<OfficerState> officers, IEnumerable<UnitState>? units = null, IEnumerable<CorpsState>? corps = null, IEnumerable<TreasureState>? treasures = null, IEnumerable<ForceRelation>? relations = null, IEnumerable<ControlSeat>? controls = null)
     {
         var world = new WorldState(clock, seed);
         world._forces = IndexUnique(forces, value => value.Id);
@@ -43,7 +50,27 @@ public sealed class WorldState
         world._corps = IndexUnique(corps ?? [], value => value.Id);
         world._treasures = IndexUnique(treasures ?? [], value => value.Id);
         world._relations = IndexUnique(relations ?? [], value => (value.FirstId, value.SecondId));
+        world.Simulation = world.Simulation with { Controls = (controls ?? []).ToImmutableArray() };
         WorldInvariants.Validate(world.BeginMutation());
+        return world;
+    }
+
+    /// <summary>Restores authoritative stable state; disk/content validation belongs to Application.</summary>
+    public static WorldState Restore(WorldSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        if (snapshot.Simulation.Boundary is not (SimulationBoundary.Stable or SimulationBoundary.Terminal))
+            throw new ArgumentException("Only a committed stable boundary can be restored.");
+        var world = Create(snapshot.Simulation.Started, snapshot.Simulation.InitialSeed, snapshot.Forces,
+            snapshot.Settlements, snapshot.Officers, snapshot.Units, snapshot.Corps, snapshot.Treasures,
+            snapshot.Relations, snapshot.Simulation.Controls);
+        world.Clock = snapshot.Clock;
+        world.Simulation = snapshot.Simulation;
+        if (snapshot.Revision < 0) throw new ArgumentException("Invalid world revision.");
+        world.Revision = snapshot.Revision;
+        WorldInvariants.Validate(world.BeginMutation());
+        if (world.CreateSnapshot().StateHash != snapshot.StateHash)
+            throw new ArgumentException("World state hash mismatch.");
         return world;
     }
 
@@ -60,7 +87,7 @@ public sealed class WorldState
         return builder.ToImmutable();
     }
 
-    internal WorldMutation BeginMutation() => new(this, Revision, Clock, RandomState, _forces, _settlements,
+    internal WorldMutation BeginMutation() => new(this, Revision, Clock, Simulation, _forces, _settlements,
         _officers, _units, _corps, _treasures, _relations);
 
     internal void Commit(WorldMutation mutation)
@@ -76,7 +103,7 @@ public sealed class WorldState
         _treasures = mutation.Treasures;
         _relations = mutation.Relations;
         Clock = mutation.Clock;
-        RandomState = mutation.RandomState;
+        Simulation = mutation.Simulation;
         Revision++;
         _snapshot = null;
         mutation.MarkCommitted();
@@ -87,7 +114,7 @@ public sealed class WorldState
         if (_snapshot is not null && _snapshot.Revision == Revision) return _snapshot;
         string canonical = string.Create(
             CultureInfo.InvariantCulture,
-            $"{Clock.Year}|{Clock.Month}|{(int)Clock.Xun}|{RandomState}");
+            $"{Clock.Year}|{Clock.Month}|{Clock.Day}");
         var forces = Array.AsReadOnly(_forces.Values.OrderBy(f => f.Id).ToArray());
         var settlements = Array.AsReadOnly(_settlements.Values.OrderBy(s => s.Id).ToArray());
         var officers = Array.AsReadOnly(_officers.Values.OrderBy(o => o.Id).ToArray());
@@ -95,15 +122,15 @@ public sealed class WorldState
         var relations = Array.AsReadOnly(_relations.Values.OrderBy(r => r.FirstId).ThenBy(r => r.SecondId).ToArray());
         var treasures = Array.AsReadOnly(_treasures.Values.OrderBy(t => t.Id).ToArray());
         var units = Array.AsReadOnly(_units.Values.OrderBy(u => u.Id).ToArray());
-        canonical += JsonSerializer.Serialize(new { forces, settlements, officers, units, corps, treasures, relations });
+        canonical += JsonSerializer.Serialize(new { simulation = Simulation, forces, settlements, officers, units, corps, treasures, relations });
         string hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
-        return _snapshot = new WorldSnapshot(Clock, RandomState, hash) { Forces = forces, Settlements = settlements, Officers = officers, Units = units, Corps = corps, Treasures = treasures, Relations = relations, Revision = Revision };
+        return _snapshot = new WorldSnapshot(Clock, Simulation, hash) { Forces = forces, Settlements = settlements, Officers = officers, Units = units, Corps = corps, Treasures = treasures, Relations = relations, Revision = Revision };
     }
 }
 
 public sealed record WorldSnapshot(
     GameClock Clock,
-    ulong RandomState,
+    SimulationState Simulation,
     string StateHash)
 {
     public IReadOnlyList<ForceState> Forces { get; init; } = [];

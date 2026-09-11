@@ -32,19 +32,19 @@
       "id": "simulation",
       "classification": "core",
       "behavior_specs": ["BEH-SIMULATION-0001"],
-      "objects": ["SimulationClock", "PeriodBoundary", "ResolutionPipeline", "WorldSnapshot", "CalendarViewModel"],
+      "objects": ["GameClock", "PeriodBoundary", "ResolutionPipeline", "SimulationState", "ControlSeat", "PersistentTask", "RandomStreamState", "GameCommand", "WorldSnapshot"],
       "states": ["stable-interaction", "xun-resolution", "daily-resolution", "terminal-short-circuit"],
       "inputs": ["typed command log", "authoritative world state", "stable random state", "periodic event catalog"],
       "outputs": ["committed world snapshot", "ordered domain events", "derived calendar view"],
-      "invariants": ["one authoritative date", "at most one active resolution stage", "derived views never write world truth", "save only at stable interaction boundaries"],
-      "acceptance_gates": ["period boundary order", "terminal short-circuit", "save and restore authority", "stale-reference rejection"],
+      "invariants": ["one authoritative date", "at most one active resolution stage", "derived views never write world truth", "capture only committed stable or terminal state", "persistent occupation survives xun recovery", "requests match active controller and force", "failed execution preserves state events and random", "restoration never repeats preparation"],
+      "acceptance_gates": ["period boundary order", "terminal short-circuit", "save and restore authority", "stale-reference rejection", "persistent task due-time and cancellation", "named random isolation", "headless continuous versus restored execution"],
       "depends_on": [],
       "implementation": {
         "project": "San9.Core",
         "target_namespace": "San9.Core.Simulation",
         "target_path": "src/San9.Core/Simulation",
-        "entry_types": ["SimulationEngine", "ResolutionPipeline", "WorldState", "SimulationClock"],
-        "existing_anchors": ["src/San9.Core/Simulation/SimulationEngine.cs", "src/San9.Core/Simulation/WorldState.cs", "src/San9.Core/Simulation/GameClock.cs"]
+        "entry_types": ["SimulationEngine", "ResolutionPipeline", "WorldState", "GameClock"],
+        "existing_anchors": ["src/San9.Core/Simulation/SimulationEngine.cs", "src/San9.Core/Simulation/WorldState.cs", "src/San9.Core/Simulation/GameClock.cs", "src/San9.Core/Simulation/SimulationState.cs", "src/San9.Core/Simulation/ResolutionPipeline.cs"]
       }
     },
     {

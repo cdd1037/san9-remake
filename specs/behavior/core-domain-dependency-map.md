@@ -1,7 +1,7 @@
 # 核心领域依赖图与实现入口
 
 - 状态：已确认
-- 最后更新：2026-09-11
+- 最后更新：2026-09-12
 - 机器契约：[core-domain-contracts.json](core-domain-contracts.json)
 - 架构决策：[DEC-PROJECT-0001](../decisions/DEC-PROJECT-0001-layered-architecture.md)、[DEC-PROJECT-0002](../decisions/DEC-PROJECT-0002-selective-inheritance.md)、[DEC-SIM-0001](../decisions/DEC-SIM-0001-determinism-and-saves.md)
 
@@ -60,7 +60,7 @@ flowchart LR
 
 | 领域 | 已确认规格 | 对象与状态 | 输入 → 输出 | 关键不变量 | 首个实现入口 |
 | --- | --- | --- | --- | --- | --- |
-| `simulation` | `BEH-SIMULATION-0001` | 时钟、周期边界、结算流水线；稳定交互/旬/日/终局短路 | 命令日志、世界与随机状态 → 快照、领域事件、派生日历 | 单一权威日期；单活动阶段；稳定边界保存 | `San9.Core.Simulation`：`SimulationEngine`、`ResolutionPipeline` |
+| `simulation` | `BEH-SIMULATION-0001` | 日历、周期流水线、控制席位、实际命令序号、持续任务和命名随机；稳定/执行/终局 | 命令日志、世界与随机状态 → 快照、领域事件、派生日历 | 单一权威日期；单活动阶段；权限终验；持续占用；拒绝零副作用；稳定快照恢复 | `San9.Core.Simulation`：`SimulationEngine`、`ResolutionPipeline` |
 | `personnel` | `BEH-PERSON-0001..0003` | 人物、归属、忠诚、地点、行动占用 | 人事命令与实时归属 → 原子归属变化、忠诚/宝物转移、占用释放 | 单一归属/地点；失败零写回；宝物唯一；占用必释放 | `San9.Core.Personnel`：`PersonnelCommandService`、`AffiliationTransition` |
 | `person-lifecycle` | `BEH-PERSON-LIFECYCLE-0001..0003` | 成长、伤势、生命、培养记录 | 周期、人物、成长/死亡原因 → 成长、登场/恢复、死亡清理、培养完成 | 成长有界；死亡无活引用；一势力一培养记录 | `San9.Core.Personnel.Lifecycle`：三个专责服务 |
 | `governance` | `BEH-GOVERNANCE-0001..0003` | 势力、军团、辖区、委任、归属事务 | 当前所有权与委任配置 → 自动命令、归属转换、军团清理 | 单一势力根；资源守恒；自动/交互共享终验 | `San9.Core.Governance`：`CorpsService`、`DelegationPlanner`、`TerritorialTransitionService` |
@@ -71,6 +71,8 @@ flowchart LR
 | `duel` | `BEH-DUEL-0001..0003` | 单挑机会、名单、逐刀、结果、战后结算 | 陆战攻击机会、名单、属性、随机流 → 名单、逐刀结果、人员分区、士气、低武力胜者成长 | 单刀单结果；死亡/俘虏/伤势互斥；表现随机隔离；成长每场至多一次 | `San9.Core.Duels`：触发、解析与战后服务 |
 | `event` | `BEH-EVENT-0001..0002` | 候选、会话、结果、持久键、触发器 | 命名触发、候选表、只读世界、随机流 → 活动事件、原子效果、消费键 | 单活动事件；游标单调；效果与消费键同批提交 | `San9.Core.Events`：选择、会话与提交服务 |
 | `scenario` | `BEH-SCENARIO-0001..0002` | 终局判定、终局结果、结局快照、责任者、结局结果 | 不可变世界/结局快照 → 唯一终局结果与唯一结局 | 终局互斥；战争不创建 UI 结局；结局解析为纯函数 | `San9.Core.Scenarios`：`TerminalEvaluator`、`EndingResolver` |
+
+G01已接入以上模拟内核与现有内政命令，持续任务通过内部领域规则夹具验收；尚未实现人事/战争任务、实际终局条件或磁盘存档。证据与运行入口见[G01验收](../../docs/g01-verification.md)。
 
 ## 支撑边界
 

@@ -63,8 +63,8 @@ public sealed class AiPlanningTests
         WaitCommand invalid = new(Guid.Parse("00000000-0000-0000-0000-000000000001"), 1, -1);
         AiPlan plan = new([new AiCommandProposal(invalid, 100, "invalid test candidate")]);
 
-        CommandSubmissionResult validation = engine.Validate(plan.Proposals[0].Command);
-        CommandSubmissionResult submission = engine.Submit(plan.Proposals[0].Command);
+        CommandSubmissionResult validation = engine.Validate(new("ai"), plan.Proposals[0].Command);
+        CommandSubmissionResult submission = engine.Execute(new("ai"), plan.Proposals[0].Command).Submission;
         AdvanceXunResult result = engine.AdvanceXun();
 
         Assert.Equal(CommandRejection.NegativeSequence, validation.Rejection);

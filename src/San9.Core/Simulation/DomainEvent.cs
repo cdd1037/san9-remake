@@ -12,7 +12,10 @@ public sealed record CommandResolvedEvent(
     Guid CommandId,
     int IssuerId,
     string CommandType)
-    : DomainEvent;
+    : DomainEvent
+{
+    public long Sequence { get; init; }
+}
 
 public sealed record XunAdvancedEvent(
     GameClock Previous,

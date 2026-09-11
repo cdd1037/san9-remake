@@ -33,7 +33,7 @@ public sealed record BuildingHoverInfo(int Id, string Name, BuildingHoverTheme T
             new("收益", $"{s.Commerce}/{s.MaxCommerce}", true), new("收获", $"{s.Cultivation}/{s.MaxCultivation}", true)]);
         rows.AddRange([new("耐久", $"{s.Durability}/{s.MaxDurability}", true),
             new("士气", s.Soldiers == 0 ? "----" : $"{s.Morale}/100", true),
-            new("士兵", s.Soldiers.ToString(), true), new("在任", $"{people.Count(o => !o.Acted),3}/{people.Length,3}", true)]);
+            new("士兵", s.Soldiers.ToString(), true), new("在任", $"{people.Count(o => !o.Acted && !view.World.Simulation.Tasks.Any(t => t.OfficerId == o.Id)),3}/{people.Length,3}", true)]);
         return new(id, texts.Resolve(s.NameKey), ThemeFor(s.OwnerId, view.PlayerForceId, relation), force,
             city ? s.Icons : [], rows, city ? 316 : 248);
     }

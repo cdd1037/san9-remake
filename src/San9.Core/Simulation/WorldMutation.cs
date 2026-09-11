@@ -17,7 +17,7 @@ internal sealed class WorldMutation
         WorldState owner,
         long expectedRevision,
         GameClock clock,
-        ulong randomState,
+        SimulationState simulation,
         ImmutableDictionary<int, ForceState> forces,
         ImmutableDictionary<int, SettlementState> settlements,
         ImmutableDictionary<int, OfficerState> officers,
@@ -29,7 +29,7 @@ internal sealed class WorldMutation
         _owner = owner;
         _expectedRevision = expectedRevision;
         Clock = clock;
-        RandomState = randomState;
+        Simulation = simulation;
         Forces = forces;
         Settlements = settlements;
         Officers = officers;
@@ -40,7 +40,7 @@ internal sealed class WorldMutation
     }
 
     internal GameClock Clock { get; private set; }
-    internal ulong RandomState { get; private set; }
+    internal SimulationState Simulation { get; private set; }
     internal ImmutableDictionary<int, ForceState> Forces { get; private set; }
     internal ImmutableDictionary<int, SettlementState> Settlements { get; private set; }
     internal ImmutableDictionary<int, OfficerState> Officers { get; private set; }
@@ -49,11 +49,33 @@ internal sealed class WorldMutation
     internal ImmutableDictionary<int, TreasureState> Treasures { get; private set; }
     internal ImmutableDictionary<(int FirstId, int SecondId), ForceRelation> Relations { get; private set; }
 
-    internal void SetSimulationState(GameClock clock, ulong randomState)
+    internal void SetClock(GameClock clock)
     {
         EnsureOpen();
         Clock = clock;
-        RandomState = randomState;
+    }
+
+    internal void SetSimulation(SimulationState simulation)
+    {
+        EnsureOpen();
+        Simulation = simulation;
+    }
+
+    internal ulong NextRandom(string name)
+    {
+        EnsureOpen();
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        var existing = Simulation.RandomStreams.SingleOrDefault(s => s.Name == name);
+        ulong seed = Simulation.InitialSeed;
+        // FNV-1a over UTF-8; no runtime string hash or platform byte order.
+        foreach (byte value in System.Text.Encoding.UTF8.GetBytes(name))
+            seed = unchecked((seed ^ value) * 1099511628211UL);
+        var random = new StableRandom(existing?.State ?? seed);
+        ulong result = random.NextUInt64();
+        SetSimulation(Simulation with { RandomStreams = Simulation.RandomStreams
+            .Where(s => s.Name != name).Append(new(name, random.State))
+            .OrderBy(s => s.Name, StringComparer.Ordinal).ToImmutableArray() });
+        return result;
     }
 
     internal void Replace(ForceState value) => Forces = Replace(Forces, value.Id, value);

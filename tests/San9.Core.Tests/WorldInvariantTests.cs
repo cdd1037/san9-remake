@@ -12,7 +12,7 @@ public sealed class WorldInvariantTests
         [new(1, 1, 10, 10, 100)], [new(1, 1, 1, null)],
         [new(1, 1, TreasureDiscovery.Discovered, null)], [new(1, 2, 50)]);
 
-    private static WorldState Recreate(WorldSnapshot state) => WorldState.Create(state.Clock, state.RandomState,
+    private static WorldState Recreate(WorldSnapshot state) => WorldState.Create(state.Clock, state.Simulation.InitialSeed,
         state.Forces, state.Settlements, state.Officers, state.Units, state.Corps, state.Treasures, state.Relations);
 
     public static IEnumerable<object[]> DuplicateCases =>
@@ -52,7 +52,8 @@ public sealed class WorldInvariantTests
         var world = Create();
         var before = world.CreateSnapshot();
         var mutation = world.BeginMutation();
-        mutation.SetSimulationState(before.Clock.Advance(), 99);
+        mutation.SetClock(before.Clock.Advance());
+        mutation.NextRandom("invariant-test");
         mutation.Replace(before.Forces[0] with { Money = 1 });
         switch (violation)
         {
@@ -63,17 +64,17 @@ public sealed class WorldInvariantTests
             case 4: mutation.Replace(before.Corps[0] with { LeaderId = 99 }); break;
             case 5: mutation.Replace(before.Treasures[0] with { HolderId = 99 }); break;
             case 6: mutation.Replace(before.Relations[0] with { Value = 101 }); break;
-            case 7: mutation.SetSimulationState(default, 99); break;
+            case 7: mutation.SetClock(default); break;
         }
 
-        Assert.ThrowsAny<ArgumentException>(() => WorldState.Create(mutation.Clock, mutation.RandomState,
+        Assert.ThrowsAny<ArgumentException>(() => WorldState.Create(mutation.Clock, mutation.Simulation.InitialSeed,
             mutation.Forces.Values, mutation.Settlements.Values, mutation.Officers.Values,
             mutation.Units.Values, mutation.Corps.Values, mutation.Treasures.Values, mutation.Relations.Values));
         Assert.ThrowsAny<ArgumentException>(() => world.Commit(mutation));
         Assert.Same(before, world.CreateSnapshot());
         Assert.Equal(before.Revision, world.Revision);
         Assert.Equal(before.Clock, world.Clock);
-        Assert.Equal(before.RandomState, world.RandomState);
+        Assert.Equal(before.Simulation.RandomStreams, world.Simulation.RandomStreams);
     }
 
     [Fact]

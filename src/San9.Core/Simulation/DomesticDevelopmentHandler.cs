@@ -17,7 +17,8 @@ internal static class DomesticDevelopmentHandler
             return new(DevelopmentRejection.UnknownObject);
         if (settlement.OwnerId != force.Id || officer.OwnerId != force.Id)
             return new(DevelopmentRejection.WrongOwner);
-        if (!officer.IsServing || officer.Acted || officer.SettlementId != settlement.Id)
+        if (!officer.IsServing || officer.Acted || officer.SettlementId != settlement.Id ||
+            mutation.Simulation.Tasks.Any(t => t.OfficerId == officer.Id))
             return new(DevelopmentRejection.OfficerUnavailable);
 
         bool commerce = command.Activity == DomesticActivity.Commerce;

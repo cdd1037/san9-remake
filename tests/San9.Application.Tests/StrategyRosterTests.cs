@@ -12,12 +12,14 @@ public sealed class StrategyRosterTests
         var definition = new ScenarioInitialState(11, "roster", 190, 1, 1, 5,
             [new(5, "force", 5, 100, 100, 100) { LeaderId = 15 }],
             Enumerable.Range(0, 40).Select(id => new SettlementInitialState(id, $"city.{id}", 5, id, 1, 1, 1, 1, 50, [])
-                { CorpsId = id == 2 ? 6 : 5, IsFacilityListEntry = true }).ToArray(), [], [])
+                { CorpsId = id == 2 ? 6 : 5, IsFacilityListEntry = true, MaxCommerce = 100 }).ToArray(), [], [])
         {
             Officers = Enumerable.Range(0, 40).Reverse().Select(id => new OfficerInitialState($"officer.{id}",
                 new(id, 5, id, new(50, 60, 70, 80), id == 3))).ToArray()
         };
-        var view = GameSession.Start(definition, 1).View;
+        var session = GameSession.Start(definition, 1);
+        Assert.True(session.Develop(new(5, 3, 3, San9.Core.Domain.DomesticActivity.Commerce)).Accepted);
+        var view = session.View;
         var roster = new StrategyRoster(); roster.Refresh(view, 5);
         roster.Current.ScrollTo(4);
         roster.SelectPage(RosterPage.Officers);

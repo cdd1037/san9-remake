@@ -5,6 +5,7 @@ using San9.Content.Maps;
 using San9.Content.Packages;
 using San9.Importer.San9PkTc101.Interface;
 using San9.Importer.San9PkTc101.Scenarios;
+using San9.Importer.San9PkTc101.Text;
 
 namespace San9.Importer.San9PkTc101.Packages;
 
@@ -56,6 +57,14 @@ public static class ClientContentImporter
         }
         byte[] exe = Read(sourceExe), scenarioBytes = Read(scenarioPath);
         var (scenario, text) = ScenarioContentCompiler.Compile(exe, scenarioBytes, Read(Path.Combine(dataDirectory, "M_MsgPK.s9")), Read(Path.Combine(dataDirectory, "M_RtdnPK.s9")));
+        Dictionary<string, San9.Content.Text.MessageDefinition> messages = [];
+        foreach (var (file, catalog) in new[] { ("M_MsgPK.s9", "messages"), ("M_RtdnPK.s9", "biographies"), ("M_Msg.s9", "base-messages"), ("M_Rtdn.s9", "base-biographies") })
+        {
+            var converted = MessageArchiveCompiler.Compile(Read(Path.Combine(dataDirectory, file)), file, catalog);
+            foreach (var item in converted.Messages) messages.Add(item.Key, item.Value);
+        }
+        San9.Content.Text.NameMessages.AddTo(messages);
+        text = text with { Messages = messages };
         ImageAsset Save(string id, string path, PngImage image)
         {
             path = "images/interface/" + Path.GetFileName(path);
@@ -66,7 +75,7 @@ public static class ClientContentImporter
         }
         var skin = InterfaceSkinCompiler.Compile(exe, dataDirectory, Read, Save);
         skin = InformationArtCompiler.Compile(skin, scenarioBytes, scenario, dataDirectory, Read, Save);
-        var content = new ClientContentPackage(16, sources.Distinct().OrderBy(s => s.Name, StringComparer.Ordinal).ToArray(), map, scenario, text, skin);
+        var content = new ClientContentPackage(17, sources.Distinct().OrderBy(s => s.Name, StringComparer.Ordinal).ToArray(), map, scenario, text, skin);
         content.ValidateLinks();
         _ = ImageAssetFiles.Load(output, skin.Assets, token);
         string pending = manifest + ".pending";

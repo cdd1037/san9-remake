@@ -12,7 +12,7 @@
 
 把 `San9PK.exe` 内的繁体中文 C 字符串纳入消息/列传共用的字节保真研究目录。调查只读取项目主 IDB 已加载的程序字节，不读取工作区外原始 EXE。脚本默认 dry-run，只有显式 apply 才定义 IDA 字符串；任何模式都不修改程序字节。
 
-公共文本层保留原始字节、顺序文本/控制片段和繁体 UTF-8 权威投影。消息资源继续采用 Big5 与显式 Big5-HKSCS 回退；EXE 使用本记录确认的 Windows CP950 配置。各来源只共享解码模型，分别输出文件，不建立跨来源合并目录。
+本记录保留当时的IDA字符串登记事实。旧公共片段转换模型及HKSCS回退方案已被[RE-0166](RE-SAN9PK-0166.md)与[统一消息规格](../../specs/behavior/BEH-UI-0006-unified-messages.md)替代；现在由版本Importer按CP950及精确的其他来源编码解析，EXE地址和字节证据仍不进入产品业务接口。
 
 ## 事实
 
@@ -42,8 +42,8 @@
 - 已调用 IDA 原生保存，数据库仍为 `research/analysis/San9PK-TC-101.i64`。未修改程序字节、函数边界、名称或类型。
 - 保存后重跑健康基线成功：输入 SHA-256 不变，可执行段未定义字节和非执行段代码项均为 0；报告摘要为 `dd3f5c1323b36e6fdc4cbb450e835acddd45f63fd7b653c2d4ca345eb75d23bc`。
 
-## 实现入口
+## 现行入口与替代关系
 
-- `research/scripts/legacy_text.py`：公共字节解码与片段模型。
-- `research/scripts/ida/configure_big5_strings.py`：IDA dry-run、apply 和统一 EXE 目录。
-- `research/scripts/parse_pk_text.py --research-catalog-output-dir`：为消息和列传分别生成研究目录。
+- `research/scripts/executable_strings.py`保留严格CP950候选扫描职责；`ida/configure_big5_strings.py`继续负责IDA dry-run/apply与回读，不承担消息转换。
+- `ida/export_text_evidence.py`导出当前登记的原始字节与xref；`San9.Tools import-text --exe-evidence`使用与消息档案相同的解析器生成审计。
+- 旧Python消息转换、旧最小JSON和旧消息研究投影已删除，当前产物位于`local/generated/research/unified-text/`。上文863条apply事实及`artifacts/ida/`的独有研究证据保留。

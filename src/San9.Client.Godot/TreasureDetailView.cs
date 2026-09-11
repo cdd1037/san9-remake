@@ -62,7 +62,7 @@ public partial class TreasureDetailView : Control
             MouseFilter = MouseFilterEnum.Ignore };
         (parent ?? _body).AddChild(label); _text.Apply(label, GameTextStyles.CatalogRow with { FontSize = size }); return label;
     }
-    private void SetHint(string role) => _message.SetMessage(Texts.Resolve(StrategyHintText.Key(role)), true);
+    private void SetHint(string role) => _message.SetMessage(Texts.ResolveRich(StrategyHintText.Key(role)), true);
     private void ClearNameFocus() { State.ClearFocus(); RefreshNames(); }
     private void Activate(int id) { State.Activate(id); CurrentChanged(id); RefreshNames(); RefreshBody(); }
     private void RefreshNames()
@@ -87,10 +87,10 @@ public partial class TreasureDetailView : Control
             ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
             MouseFilter = MouseFilterEnum.Ignore });
         Label("所有", new(380,120,64,24), centered: true); Label(_data.Holder, new(452,120,88,24), centered: true);
-        var description = Label(_data.Description, new(392,156,168,68));
-        description.VerticalAlignment = VerticalAlignment.Top;
+        var description = new GameRichTextLabel { Position = new(392,156), Size = new(168,68), Textures = Textures };
+        _body.AddChild(description); description.Present(_data.Description, GameTextStyles.CatalogRow);
         description.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        description.AddThemeConstantOverride("line_spacing", -3);
+        description.AddThemeConstantOverride("line_separation", -3);
         Label("种类", new(380,272,64,24), centered: true); Label(_data.Category, new(452,272,80,24), centered: true);
         Label(_data.Effect, new(538,272,88,24), centered: true);
         Label("能力", new(380,304,64,24), centered: true); Label(_data.Ability, new(452,304,80,24), centered: true);

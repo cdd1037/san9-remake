@@ -11,7 +11,7 @@ public sealed class ScenarioTextReader(byte[] messages, byte[] executable) : IDi
     private readonly Dictionary<string, TextEntry> _entries = [];
     private readonly OriginalTextConverter _converter = new();
 
-    public TextCatalog Catalog => new(1, new(_entries));
+    public TextCatalog Catalog => new(2, new(_entries));
     public void ReadStrategyHints()
     {
         // RE-SAN9PK-0160: toolbar IDs 1000..1013, table 0x660F60.

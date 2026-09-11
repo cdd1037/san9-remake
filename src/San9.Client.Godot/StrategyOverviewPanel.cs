@@ -44,7 +44,7 @@ public partial class StrategyOverviewPanel : Control
             var button = new StrategyButton
             {
                 Title = title, Position = new(x,y), Size = new(108,60), IgnoreTextureSize = true,
-                ToggleMode = true, TextRole = textRole, HintText = Texts.Resolve(StrategyHintText.Key($"overview-{role}")),
+                ToggleMode = true, TextRole = textRole, HintText = Texts.ResolveRich(StrategyHintText.Key($"overview-{role}")),
                 Frames = Enumerable.Range(0,4).Select(f => (Texture2D)Textures[$"button-overview-{role}" + (f == 0 ? "" : $"-{f}")]).ToArray()
             };
             // The four rectangular frames contain a diamond-shaped button.

@@ -8,7 +8,7 @@ import json
 import struct
 from pathlib import Path
 from PIL import Image, ImageDraw
-from parse_pk_text import decode_ls11, split_indexed_records, strip_common_terminator
+from ls11_archive import decode_ls11, split_indexed_records, strip_common_terminator
 
 BANKS = [(24, 0x14410), (16, 0x66C410), (12, 0x93E810)]
 

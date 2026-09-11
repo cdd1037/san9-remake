@@ -7,8 +7,7 @@ namespace San9.Client.Godot;
 public partial class GameMessageBar : Control
 {
     public IReadOnlyDictionary<string, ImageTexture> Textures { get; init; } = null!;
-    private readonly GameTextPresenter _presenter = new();
-    private Label _label = null!;
+    private GameRichTextLabel _label = null!;
     private string _text = "";
     private bool _enabled = true;
     public string Text { get => _text; set => SetMessage(value); }
@@ -16,9 +15,7 @@ public partial class GameMessageBar : Control
     public override void _Ready()
     {
         Position = new(0,736); Size = new(1024,32); MouseFilter = MouseFilterEnum.Ignore;
-        _label = new Label { Position = new(0,4), Size = new(1024,24),
-            HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
-            MouseFilter = MouseFilterEnum.Ignore };
+        _label = new GameRichTextLabel { Position = new(0,4), Size = new(1024,24), Textures = Textures };
         AddChild(_label);
         Refresh();
     }
@@ -30,14 +27,14 @@ public partial class GameMessageBar : Control
     }
     private void Refresh()
     {
-        _label.Text = _text;
-        _presenter.Apply(_label, GameTextStyles.Message(_enabled));
+        _label.Present("[center]" + _text + "[/center]", GameTextStyles.Message(_enabled));
         QueueRedraw();
     }
     public override void _Draw()
     {
         if (string.IsNullOrEmpty(_text) || Textures.Count == 0) return;
-        var bounds = MessagePanelGeometry.Bounds(_text);
+        int width = Math.Min(1024, _label.GetContentWidth() + 32);
+        var bounds = (X: (1024 - width) / 2, Width: width);
         var left = Textures["message-left"]; var middle = Textures["message-middle"]; var right = Textures["message-right"];
         DrawTexture(left,new(bounds.X,0));
         float start = bounds.X + left.GetWidth(), end = bounds.X + bounds.Width - right.GetWidth();
@@ -48,5 +45,4 @@ public partial class GameMessageBar : Control
         }
         DrawTexture(right,new(end,0));
     }
-    public override void _ExitTree() => _presenter.Dispose();
 }

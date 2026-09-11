@@ -75,7 +75,7 @@ public static class OfficerDetails
         int[] Base(OfficerAbilities a) => [a.Leadership, a.War, a.Intelligence, a.Politics];
         var current = Base(officer.Abilities);
         var abilityValues = Base(person.BaseAbilities).Select((value, i) => current[i] == value ? $"{value}" : $"{value}{current[i] - value:+0;-0}").ToArray();
-        return new(name, officer.BiographyKey is string bio ? texts.Resolve(bio) : "", $"information-person-{id}",
+        return new(name, officer.BiographyKey is string bio ? texts.ResolveRich(bio) : "", $"information-person-{id}",
             officer.Abilities, abilityValues, FieldIds.Select(column => column.Select(key => values[key]).ToArray()).ToArray(),
             tactics.ToArray(), view.World.Treasures.Where(t => t.Discovered && t.HolderId == id).Select(t => t.Id).ToArray());
     }

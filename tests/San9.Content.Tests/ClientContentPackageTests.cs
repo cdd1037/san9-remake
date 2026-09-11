@@ -50,7 +50,7 @@ public sealed class ClientContentPackageTests
     [Fact]
     public void MissingUiAndInvalidDurabilityOrNamesFailValidation()
     {
-        var skin = new InterfaceSkin(14, [Asset], InterfaceSkin.RequiredUiAssets.ToDictionary(s => s, _ => "ui"), Colors());
+        var skin = new InterfaceSkin(15, [Asset], InterfaceSkin.RequiredUiAssets.ToDictionary(s => s, _ => "ui"), Colors());
         skin.Validate(); skin.Roles.Remove("top-frame");
         Assert.Throws<InvalidDataException>(skin.Validate);
         skin.Roles["top-frame"] = "missing";
@@ -77,10 +77,10 @@ public sealed class ClientContentPackageTests
     {
         var map = new MapPackage(8, "fixture", "fixture", "spring", 200, 200, 13056, 6656,
             [], [], [], [], [], [], Buildings, [], [], [], [], [], new([], []), []);
-        var skin = new InterfaceSkin(14, [Asset], InterfaceSkin.RequiredUiAssets.ToDictionary(s => s, _ => "ui"), Colors());
-        var text = new TextCatalog(1, new() { ["player"] = new("Player", "Player"), ["city"] = new("City", "City"), ["port"] = new("Port", "Port") });
+        var skin = new InterfaceSkin(15, [Asset], InterfaceSkin.RequiredUiAssets.ToDictionary(s => s, _ => "ui"), Colors());
+        var text = new TextCatalog(2, new() { ["player"] = new("Player", "Player"), ["city"] = new("City", "City"), ["port"] = new("Port", "Port") });
         foreach (string role in StrategyHintText.Roles) text.Entries.Add(StrategyHintText.Key(role), new("Hint", "Hint"));
-        var p = new ClientContentPackage(16, [], map, Fixture(), text, skin); p.ValidateLinks();
+        var p = new ClientContentPackage(17, [], map, Fixture(), text, skin); p.ValidateLinks();
         Assert.Throws<InvalidDataException>(() => (p with { SchemaVersion = 13 }).ValidateLinks());
         Assert.Throws<InvalidDataException>(() => (p with { Scenario = p.Scenario with { Settlements = [p.Scenario.Settlements[0]] } }).ValidateLinks());
         Assert.Throws<InvalidDataException>(() => (p with { Scenario = p.Scenario with { ScenarioId = "other" } }).ValidateLinks());
@@ -88,14 +88,14 @@ public sealed class ClientContentPackageTests
         foreach (string key in text.Entries.Keys)
         {
             var entries = new Dictionary<string, TextEntry>(text.Entries); entries.Remove(key);
-            Assert.Throws<InvalidDataException>(() => (p with { Text = new(1, entries) }).ValidateLinks());
+            Assert.Throws<InvalidDataException>(() => (p with { Text = new(2, entries) }).ValidateLinks());
         }
         var translated = text with { Entries = text.Entries.ToDictionary(kv => kv.Key, kv => kv.Value with { Text = "中文" }) };
         var changed = p with { Text = translated }; changed.ValidateLinks();
         var treasurePackage = p with { Scenario = p.Scenario with
         {
             Information = new([], [], [new(0, "treasure", 0, 0, 0, null)], [], [new(0, null, San9.Core.Domain.TreasureDiscovery.Discovered, 15)])
-        }, Text = new(1, new(text.Entries)), Skin = skin with { Roles = new(skin.Roles) } };
+        }, Text = new(2, new(text.Entries)), Skin = skin with { Roles = new(skin.Roles) } };
         treasurePackage.Skin.Roles.Add("information-treasure-0", "ui");
         treasurePackage.Text.Entries.Add("treasure", new("Treasure", "Treasure"));
         Assert.Throws<InvalidDataException>(treasurePackage.ValidateLinks);

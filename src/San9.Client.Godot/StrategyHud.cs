@@ -160,7 +160,7 @@ public partial class StrategyHud : Control
             Frames = Enumerable.Range(0, asset == "button-territory" ? 6 : 4)
                 .Select(frame => (Texture2D)_textures[frame == 0 ? asset : $"{asset}-{frame}"]).ToArray(),
             StretchMode = TextureButton.StretchModeEnum.Scale, Disabled = !enabled,
-            HintText = Texts.Resolve(StrategyHintText.Key(title switch
+            HintText = Texts.ResolveRich(StrategyHintText.Key(title switch
             {
                 "大" => "map-large", "小" => "map-small",
                 _ => asset["button-".Length..]

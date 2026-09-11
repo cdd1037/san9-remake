@@ -26,7 +26,7 @@ public sealed class InformationBrowserTests
             scenario = scenario with { Officers = [officer with { State = officer.State with
                 { Injury = 2, ItemBonuses = new(5, 0, 0, 0), OfficeBonuses = new(3, 0, 0, 0) } }, scenario.Officers[1]] };
         }
-        var text = new TextCatalog(1, new[] { "force", "city", "region", "ruler", "free", "rank", "treasure" }.ToDictionary(s => s, s => new TextEntry(s, s)));
+        var text = new TextCatalog(2, new[] { "force", "city", "region", "ruler", "free", "rank", "treasure" }.ToDictionary(s => s, s => new TextEntry(s, s)));
         var session = GameSession.Start(scenario, 1);
         return (session, new(session, text));
     }
@@ -35,7 +35,7 @@ public sealed class InformationBrowserTests
     public void TreasureDetailProjectsCurrentHolderAndMultilineDescriptionWithoutMutatingWorld()
     {
         var (session, _) = Fixture();
-        var texts = new TextCatalog(1, new()
+        var texts = new TextCatalog(2, new()
         {
             ["treasure"] = new("测试宝物", "测试宝物"), ["ruler"] = new("持有人", "持有人"),
             [TreasureText.DescriptionKey(0)] = new("第一行\n第二行", "第一行\n第二行")
@@ -132,7 +132,7 @@ public sealed class InformationBrowserTests
     public void OfficerDetailProjectsCurrentAbilitiesFieldsAndOwnedItemsWithoutMutatingWorld()
     {
         var (session, _) = Fixture(adjusted: true);
-        var texts = new TextCatalog(1, new Dictionary<string, TextEntry>());
+        var texts = new TextCatalog(2, new Dictionary<string, TextEntry>());
         // The fixture names are their own display strings.
         foreach (string key in session.View.Officers.Select(o => o.NameKey).Concat(session.View.RegionNameKeys.Values)
             .Concat(session.View.Information.Offices.Select(o => o.NameKey))) texts.Entries[key] = new(key, key);

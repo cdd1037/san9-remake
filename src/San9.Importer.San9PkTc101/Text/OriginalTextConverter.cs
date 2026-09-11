@@ -18,6 +18,14 @@ public sealed class OriginalTextConverter
 
     public TextEntry Convert(ReadOnlySpan<byte> bytes)
     {
+        var parsed = new OriginalMessageParser().Parse(bytes.ToArray(), terminated: false);
+        if (!parsed.FullyParsed || !parsed.Definition.SemanticsConfirmed)
+            throw new InvalidDataException("Dynamic or invalid message requested as static text.");
+        return new(MessageMarkup.Static(parsed.Definition.Nodes), MessageMarkup.Static(parsed.Definition.Nodes, true));
+    }
+
+    internal TextEntry DecodeCharacters(ReadOnlySpan<byte> bytes)
+    {
         var source = new StringBuilder();
         for (int offset = 0; offset < bytes.Length;)
         {

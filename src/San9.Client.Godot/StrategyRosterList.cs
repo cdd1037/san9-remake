@@ -74,10 +74,15 @@ public partial class StrategyRosterList : Control
     {
         _scroll.UpdateArrows();
         var entries = new[] { Roster.Current.Pinned }.Concat(Roster.Current.Visible).ToArray();
+        var evaluator = new MessageEvaluator(Texts.Messages);
         for (int i = 0; i < _rows.Count; i++)
         {
             var entry = i < entries.Length ? entries[i] : null;
-            _rows[i].Bind(entry, entry is null ? "" : Texts.Resolve(entry.NameKey),
+            string markup = entry is null ? "" : evaluator.Evaluate(entry.MessageKey,
+                new(new Dictionary<string, MessageBinding> { ["name"] = new(0, Texts.Resolve(entry.NameKey)) },
+                    (_, _) => throw new InvalidDataException("Name message cannot query world state."),
+                    _ => throw new InvalidDataException("Name message cannot draw randomness.")));
+            _rows[i].Bind(entry, markup,
                 new Color(Skin.Colors[entry?.IsAvailable == true ? "roster-available" : "roster-unavailable"]));
         }
     }

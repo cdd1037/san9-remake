@@ -29,7 +29,7 @@ project/assembly_name="San9.Client.Godot"
 
 [gui]
 
-theme/custom_font="res://assets/LXGWWenKaiMonoGBLite-Medium.ttf"
+theme/custom_font="res://assets/GameFont.tres"
 
 [rendering]
 

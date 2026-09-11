@@ -55,13 +55,11 @@ public partial class StrategyHud
         Check(GetChildren().OfType<StrategyButton>().Where(b => b.Disabled).All(b => b.VisualFrame == 3),
             "Disabled buttons must use the original fourth frame.");
         Check(_rosterList.Rows.Count == 14, "Facility list must have a fixed ruler slot and thirteen ordinary slots.");
-        var messageLabel = _message.GetChildren().OfType<Label>().Single();
-        Check(messageLabel.LabelSettings.OutlineSize == 0 && messageLabel.LabelSettings.StackedShadowCount == 1 &&
-            messageLabel.LabelSettings.GetStackedShadowOffset(0) == Vector2.One &&
-            _footer.LabelSettings.StackedShadowCount == 8 &&
+        var messageLabel = _message.GetChildren().OfType<GameRichTextLabel>().Single();
+        Check(_footer.LabelSettings.StackedShadowCount == 8 &&
             _footer.LabelSettings.GetStackedShadowColor(0) == GameTextEffects.Color(GameTextStyles.For(GameTextRole.Region)),
             "Footer text effects mismatch.");
-        Check(messageLabel.LabelSettings.Font == messageLabel.GetThemeFont("font") &&
+        Check(messageLabel.GetThemeFont("normal_font") == messageLabel.GetThemeFont("font") &&
             territoryButton.TextSettings.Font == GetThemeFont("font"), "Shared text settings changed the project font.");
         var headers = GetChildren().OfType<Label>().Where(l => l.LabelSettings?.FontSize == 24).ToArray();
         Check(headers.Length == 3 && headers.All(l => l.LabelSettings.OutlineSize == 0 && l.LabelSettings.ShadowColor.A == 0 &&
@@ -120,7 +118,7 @@ public partial class StrategyHud
         GetViewport().PushInput(new InputEventMouseButton { Position = rowPoint, GlobalPosition = rowPoint,
             ButtonIndex = MouseButton.Right, Pressed = false }, true);
         await Frame();
-        Check(_contextMenu.Visible && _contextMenu.ItemCount == 4 && Enumerable.Range(0, 4).All(_contextMenu.IsItemDisabled),
+        Check(_contextMenu.Visible && _contextMenu.ItemCount == 4 && !_contextMenu.IsItemDisabled(1) && new[] { 0, 2, 3 }.All(_contextMenu.IsItemDisabled),
             "Shared context menu did not expose the current capability boundary.");
         Input.ParseInputEvent(new InputEventKey { Keycode = Key.Escape, Pressed = true });
         Input.ParseInputEvent(new InputEventKey { Keycode = Key.Escape, Pressed = false });

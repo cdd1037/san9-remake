@@ -29,7 +29,7 @@ import idc
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR.parent))
 
-from legacy_text import scan_null_terminated_big5  # noqa: E402
+from executable_strings import scan_null_terminated_big5  # noqa: E402
 
 
 EXPECTED_INPUT_SHA256 = (
@@ -43,7 +43,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--report",
         type=Path,
-        default=Path(os.environ.get("SAN9_IDA_BIG5_OUTPUT", "artifacts/ida/exe-strings.json")),
+        default=Path(os.environ.get("SAN9_IDA_BIG5_OUTPUT", "local/generated/research/unified-text/ida-string-candidates.json")),
     )
     parser.add_argument(
         "--apply",

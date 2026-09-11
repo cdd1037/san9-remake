@@ -77,7 +77,7 @@ public partial class OfficerDetailView : Control
     {
         string role = _hintButton?.HintRole ?? "officer-detail";
         if (_hintButton == _treasure && _treasure.Disabled) role = "officer-detail-treasures-empty";
-        _message.SetMessage(Texts.Resolve(StrategyHintText.Key(role)), _hintButton is null || !_hintButton.Disabled);
+        _message.SetMessage(Texts.ResolveRich(StrategyHintText.Key(role)), _hintButton is null || !_hintButton.Disabled);
     }
     private void Icon(string role, Vector2 position, Action action)
     {
@@ -138,11 +138,10 @@ public partial class OfficerDetailView : Control
                 Label(field.Value,new(x+labelWidth+8,y,column is 0 or 3?104:88,24),16,HorizontalAlignment.Center);
             }
             Label("列传",new(96,636,64,24),16,HorizontalAlignment.Center);
-            var biography=Label(_data.Biography,new(180,640,296,92));
-            biography.LabelSettings=(LabelSettings)biography.LabelSettings.Duplicate();
-            biography.LabelSettings.LineSpacing=-3;
+            var biography = new GameRichTextLabel { Position = new(180,640), Size = new(296,92), Textures = Textures };
+            _body.AddChild(biography); biography.Present(_data.Biography, GameTextStyles.CatalogRow);
+            biography.AddThemeConstantOverride("line_separation", -3);
             biography.AutowrapMode=TextServer.AutowrapMode.Arbitrary;
-            biography.VerticalAlignment=VerticalAlignment.Top;
         }
         else
         {

@@ -3,11 +3,15 @@ using System.Buffers.Binary;
 
 namespace San9.Importer.San9PkTc101.Text;
 
-// Plain-text message reader. Formatting/control sequences are deliberately rejected.
+// Container boundaries only; message syntax belongs to OriginalMessageParser.
 public sealed class San9MessageTable
 {
     private readonly byte[] _data;
     private readonly int[] _offsets;
+    public int Count => _offsets.Length - 1;
+    public string TrailerHex => Convert.ToHexString(_data.AsSpan(_offsets[^1]));
+    public int Offset(int id) => _offsets[id];
+    public byte[] Record(int id) => _data.AsSpan(_offsets[id], _offsets[id + 1] - _offsets[id]).ToArray();
     public San9MessageTable(byte[] source)
     {
         _data = Ls11Archive.Decode(source);

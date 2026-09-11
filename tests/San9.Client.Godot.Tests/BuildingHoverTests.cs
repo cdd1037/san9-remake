@@ -40,7 +40,7 @@ public sealed class BuildingHoverTests
                 new("free", new(3, null, 15, new(1, 1, 1, 1), false) { Status = OfficerStatus.Free, IsCommander = true })],
             Information = InformationDefinitions.Empty with { Corps = [new(5, 5, 1, null)] }
         };
-        var texts = new TextCatalog(1, new[] { "city", "gate", "force", "leader", "other", "free" }.ToDictionary(k => k, k => new TextEntry(k, k)));
+        var texts = new TextCatalog(2, new[] { "city", "gate", "force", "leader", "other", "free" }.ToDictionary(k => k, k => new TextEntry(k, k)));
         var session = GameSession.Start(initial, 190);
         var before = BuildingHoverInfo.Resolve(session.View, texts, 15)!;
         Assert.Equal(10, before.Rows.Count);

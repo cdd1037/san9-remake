@@ -59,7 +59,7 @@ public partial class InformationPanel : Control
             {
                 var button = new InformationMenuButton
                 {
-                    Title = InformationQuery.MenuTitle(category), HintText = Texts.Resolve(_query.MenuHintKey(category)),
+                    Title = InformationQuery.MenuTitle(category), HintText = Texts.ResolveRich(_query.MenuHintKey(category)),
                     Textures = Textures, Position = new(858, 63 + (int)category * 24), Size = new(72, 24),
                     Disabled = !_query.Available(category)
                 };
@@ -73,7 +73,7 @@ public partial class InformationPanel : Control
             if (State.SelectedId is null) _officerCatalogState = new();
             _catalog = new CatalogView
             {
-                TableState = _officerCatalogState, Title = "武将一览", HintText = Texts.Resolve(StrategyHintText.Key("catalog-officers")), Pages = OfficerCatalog.Pages, Textures = Textures,
+                TableState = _officerCatalogState, Title = "武将一览", HintText = Texts.ResolveRich(StrategyHintText.Key("catalog-officers")), Pages = OfficerCatalog.Pages, Textures = Textures,
                 InitialPage = State.Page, InitialCurrentId = State.SelectedId, InitialOffset = State.Offset,
                 ReadRows = page => _query.Read(State.Category, page, State.ForceFilter, State.SettlementFilter).Rows
                     .Select(row => new CatalogRow(row.Key.Id, row.Cells)).ToArray(),

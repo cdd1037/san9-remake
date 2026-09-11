@@ -9,6 +9,7 @@ public static class InterfaceSkinCompiler
 {
     public static InterfaceSkin Compile(byte[] exe, string dataDirectory, Func<string, byte[]> read, Func<string,string,PngImage,ImageAsset> save)
     {
+        using var pe = new System.Reflection.PortableExecutable.PEReader(new MemoryStream(exe));
         List<ImageAsset> assets = [];
         var archive = IndexedImageArchive.ReadCombined(read(Path.Combine(dataDirectory, "G_Main.s9")), 21, 98);
         Dictionary<int, int> bindings = [];
@@ -202,7 +203,16 @@ public static class InterfaceSkinCompiler
                 ui.Add(key, id);
             }
         }
-        Extra("city-prefix", 43, 5);
+        // RE-0159: 48 entries per size row; no 12px binding and no 24px city glyph.
+        foreach (var (code, name) in Text.OriginalMessageParser.Icons)
+        foreach (int size in new[] { 16, 24 })
+        {
+            int index = code - 0xB0;
+            int resource = BinaryPrimitives.ReadInt32LittleEndian(pe.GetSectionData(0x253318).GetContent(((size == 24 ? 0 : 1) * 48 + index) * 4, 4).AsSpan());
+            if (resource < 0) continue;
+            int palette = bindings[resource] - 200;
+            Extra($"text-icon-{name}-{size}", resource, palette);
+        }
         Extra("message-left", 165, 15, true); Extra("message-middle", 166, 15, true); Extra("message-right", 167, 15, true);
         Extra("bar-morale-frame", 390, 51); Extra("bar-durability-frame", 391, 51);
         Extra("bar-morale-normal", 392, 51); Extra("bar-durability-normal", 393, 51);
@@ -216,6 +226,6 @@ public static class InterfaceSkinCompiler
         var fontPalette = read(Path.Combine(dataDirectory, "P_Font.s9"));
         string FontColor(int style) => Convert.ToHexString(fontPalette.AsSpan((style / 2 * 32 + 16 + style % 2 * 8 + 7) * 4, 3));
         colors.Add("roster-available", FontColor(7)); colors.Add("roster-unavailable", FontColor(26));
-        return new(14, assets.ToArray(), ui, colors);
+        return new(15, assets.ToArray(), ui, colors);
     }
 }

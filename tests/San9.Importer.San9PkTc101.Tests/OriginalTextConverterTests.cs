@@ -31,7 +31,7 @@ public sealed class OriginalTextConverterTests
     {
         var converter = new OriginalTextConverter();
         Assert.Throws<InvalidDataException>(() => converter.Convert([0xFA, 0x46]));
-        Assert.Throws<InvalidDataException>(() => converter.Convert([0xFA, 0xD0]));
+        Assert.Equal("[img]icons/city[/img]", converter.Convert([0xFA, 0xD0]).Text);
         Assert.Throws<InvalidDataException>(() => converter.Convert([0xFA]));
         Assert.Throws<InvalidDataException>(() => converter.Convert([1, 2]));
     }

@@ -8,9 +8,9 @@
 | --- | --- | --- |
 | Content.Maps / MapImporter | 方格、地貌、建筑、云、动画、疆界精灵和小地图底图 | `content.json.map`，地图schema8 |
 | Content.Scenarios / Scenarios.ScenarioContentCompiler | 初始日期、势力资源、据点、人物、宝物初始状态和地域所属城市 | `content.json.scenario`，schema11 |
-| Content.Text / Text.ScenarioTextReader | 原作名称索引、类型后缀与简体投影；运行时按键解析 | `content.json.text`，schema1 |
-| Content.Interface / Interface.InterfaceSkinCompiler | 框架、三段背景、季节、按钮、状态条、图标和原版显示颜色 | `content.json.skin`，schema14 |
-| Content.Packages / Packages.ClientContentImporter | 组合入口、跨包ID/坐标/文本引用校验、来源清单 | 唯一`content.json`，顶层schema16 |
+| Content.Text / Text.ScenarioTextReader | 语义名称与全量消息目录、原生BBCode、结构化控制及绑定 | `content.json.text`，schema2 |
+| Content.Interface / Interface.InterfaceSkinCompiler | 框架、三段背景、季节、按钮、状态条、图标和原版显示颜色 | `content.json.skin`，schema15 |
+| Content.Packages / Packages.ClientContentImporter | 组合入口、跨包ID/坐标/文本引用校验、来源清单 | 唯一`content.json`，顶层schema17 |
 | Content.Images / Importer.Images | 通用PNG、索引图解码和透明边缘处理 | 由使用方选择输出目录 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 
@@ -55,9 +55,23 @@ dotnet run --project src/San9.Tools -- import-client --source-exe "<已登记San
 
 ## 原版文本统一入口
 
-转换能力保留在 `San9.Importer.San9PkTc101.Text.OriginalTextConverter`。输入原版字节，输出TextEntry：CP950与已确认扩展码位统一解码为正确SourceText，再用OpenccNetLib 1.6.2的T2S配置生成Text。人物、地名、地区建筑及EXE设施后缀共用入口。消息容器只提取字节，JSON序列化输出UTF-8，客户端不依赖OpenCC。
+编写控制节点、绑定参数和显示图片的具体用法见[消息约定](messages.md)。
 
-FA40..FA45依次映射伷/璝/寗/勑/𩅦/儁，与所处姓名或正文无关；原字形依据见[RE-0159](../research/findings/RE-SAN9PK-0159.md)。未知扩展与脚本/图标控制明确拒绝。可选表字、列传的空白文本表示未提供该项，不导致人物记录被删除。璝按所用词典显示为𪻺；异体字归一化仍待议，见[DEC-UI-0005](../specs/decisions/DEC-UI-0005-officer-name-normalization.md)。没有独立文本项目或按整姓名补救逻辑。
+现行契约见[统一消息规格](../specs/behavior/BEH-UI-0006-unified-messages.md)，原作证据与覆盖边界见[RE-0166](../research/findings/RE-SAN9PK-0166.md)。唯一语法实现为`OriginalMessageParser`；`OriginalTextConverter`只调用该解析器读取静态片段。`import-client`将四个消息/列传档案合入同一个`TextCatalog.Messages`，保留未就绪记录；`import-text`使用同一实现导出全量诊断和合成上下文报告。
+
+静态内容使用Godot原生BBCode，逻辑图片路径示例为`[img]icons/city[/img]洛阳`。运行时`MessageEvaluator`接收显式值、查询和随机源，产生可保留的BBCode结果。普通参数始终转义；富文本组合用消息引用。`01J`转换为尾部转移，`01C`为返回调用。样式切换只保存明确BBCode开闭片段，支持跨分支/引用的显示状态，不维护重复样式树。节点中不保存原始地址、控制码或资源偏移。
+
+`Resolve`是严格纯文本读取，遇到图标/格式标签拒绝，供名称排序和查询使用；`ResolveRich`供提示、列传和说明使用。侧栏城市名称由通用消息模板求值，再交给`GameRichTextLabel`；控件不判断城市前缀。图片由客户端按逻辑标识选择转换包中的最近有效尺寸、同距优先较大图并保持比例，Godot负责行内排版。缺图明确报错。
+
+FA40..FA45依次映射伷/璝/寗/勑/𩅦/儁；不使用HKSCS猜测。CP950是来源编码，繁简转换仅作用于文字片段。四十条日文占位记录按索引和精确原始字节签名识别CP932，不做宽松编码回退。未知字形、未确认属性及异常尾部保留在诊断，并阻止消息执行；所有引用和依赖确认度另行统计。璝按OpenCC词典显示为𪻺，见[DEC-UI-0005](../specs/decisions/DEC-UI-0005-officer-name-normalization.md)。
+
+```powershell
+dotnet run --project src/San9.Tools -- import-text --source-exe "<已登记San9PK.exe绝对路径>" --data-dir "private/s9数据文件" --output "local/generated/research/unified-text" --exe-evidence "local/generated/research/unified-text/exe-evidence.json"
+python research/scripts/verify_message_export.py "private/s9数据文件" local/generated/research/unified-text
+& "<Godot Mono可执行文件>" --path src/San9.Client.Godot -- --text-smoke --map-quit
+```
+
+EXE证据先在项目主IDA库运行`research/scripts/ida/export_text_evidence.py`只读生成；未提供该文件时只审计四个档案。EXE字符串登记和格式识别不等于玩法调用已绑定，必须检查诊断中的边界声明。字节哈希、偏移、控制码、未确认原因只在导入报告中。未来玩法提供的具名绑定与查询清单由`coverage.json`生成；`synthetic-evaluation.json`只证明合成上下文求值，不冒充真实玩法验证。
 
 状态所有权、侧栏行为、小地图刷新、文字和验证入口详见[战略界面约定](strategy-ui.md)。
 
@@ -69,7 +83,7 @@ FA40..FA45依次映射伷/璝/寗/勑/𩅦/儁，与所处姓名或正文无关�
 
 武将一览使用通用CatalogView，提供13页列组、排序、滚动及原生64×80中档头像。正文在24像素行内垂直居中，各列保留声明的水平对齐。武将详情使用240×240头像、独立18行名单、四维图、状态/兵法页及列传。字段与其他情报页面范围见[情报界面](information-browser.md)。
 
-项目字体为`assets/LXGWWenKaiMonoGBLite-Medium.ttf`。GameTextPresenter统一Label与Canvas文字，按角色采用八邻域各0.25覆盖度描边或(1,1)单次阴影；源资源保留调色板Alpha。仍应评估更简单的现代文字效果，见[DEC-UI-0002](../specs/decisions/DEC-UI-0002-modern-text-effects.md)。
+主题`GameFont.tres`以霞鹜文楷等宽GB Lite为主字体，并按全量缺字检查配置BabelStone Han回退；来源与许可证见[字体说明](../src/San9.Client.Godot/assets/README.md)。纯文字地图绘制与富文本共用主题字体和角色色彩/字号。原生RichTextLabel承担图文排版；描边和阴影强一致仍为未决项，不自建排版引擎。
 
 F3提供四季预览及单人商业、开垦入口，内政修改当前会话世界。完整旬结算、部队出征与战斗生命周期尚未接入。全图三个图层按钮的独立文字效果暂缓；目录标题及关闭按钮文字效果仍待核对。
 

@@ -25,6 +25,12 @@ public partial class Main : Node
                 if (images.Values.Any(p => p.Channels != 4)) throw new InvalidDataException("UI assets must be RGBA images.");
                 return (Content: package, Images: images, ValidationMs: validationMs);
             });
+            if (OS.GetCmdlineUserArgs().Contains("--text-smoke"))
+            {
+                ui.AddChild(new TextVerification { Content = loaded.Content, Images = loaded.Images,
+                    Output = Path.GetFullPath(Path.Combine(options.PackageRoot,"../../verification/text")) });
+                return;
+            }
             var content = loaded.Content;
             GD.Print($"CLIENT_PREPARE content_ms={loaded.ValidationMs:F2} ui_decode_ms={startup.Elapsed.TotalMilliseconds - loaded.ValidationMs:F2}");
             void OnFirstMapReady() { GD.Print($"CLIENT_READY total_ms={startup.Elapsed.TotalMilliseconds:F2}"); world.MapReady -= OnFirstMapReady; }

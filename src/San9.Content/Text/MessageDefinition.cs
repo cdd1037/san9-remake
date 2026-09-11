@@ -1,0 +1,71 @@
+using System.Text.Json.Serialization;
+
+namespace San9.Content.Text;
+
+// Display syntax is Godot BBCode; message control and bindings are ordinary data.
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "kind")]
+[JsonDerivedType(typeof(MessageLiteral), "literal")]
+[JsonDerivedType(typeof(MessageValue), "value")]
+[JsonDerivedType(typeof(MessageReference), "reference")]
+[JsonDerivedType(typeof(MessageConditional), "conditional")]
+[JsonDerivedType(typeof(MessageChoice), "choice")]
+[JsonDerivedType(typeof(MessageReturn), "return")]
+[JsonDerivedType(typeof(MessageFormat), "format")]
+public abstract record MessageNode;
+public sealed record MessageLiteral(string BbCode, string SourceBbCode) : MessageNode;
+public sealed record MessageValue(MessageExpression Expression, string Prefix = "", string Suffix = "", MessageValueFormat? Format = null) : MessageNode;
+public sealed record MessageValueFormat(string Kind, int Width = 0, bool PadZero = false, bool AlignLeft = false, int? Precision = null);
+public sealed record MessageReference(string Key, bool Tail) : MessageNode;
+public sealed record MessageConditional(MessageExpression Predicate, MessageNode[] Body) : MessageNode;
+public sealed record MessageChoice(MessageExpression Index, MessageNode[][] Choices) : MessageNode;
+public sealed record MessageReturn : MessageNode;
+public sealed record MessageFormat(string Open, string Close) : MessageNode;
+
+public sealed record MessageExpression(string Operation, string? Binding = null, long? Number = null,
+    MessageExpression[]? Arguments = null);
+public sealed record MessageDefinition(MessageNode[] Nodes, bool SemanticsConfirmed, string[] RequiredBindings);
+
+public static class MessageMarkup
+{
+    public static IEnumerable<string> IconIds(string bbCode)
+    {
+        foreach (System.Text.RegularExpressions.Match match in System.Text.RegularExpressions.Regex.Matches(
+                     bbCode, @"\[img[^\]]*\](?<path>[^\[]*)\[/img\]"))
+        {
+            string path = match.Groups["path"].Value;
+            if (!path.StartsWith("icons/", StringComparison.Ordinal) || !System.Text.RegularExpressions.Regex.IsMatch(path[6..], "^[a-z0-9-]+$"))
+                throw new InvalidDataException($"Invalid package image path: {path}");
+            yield return path[6..];
+        }
+    }
+
+    public static string Escape(string text) => text.Replace("[", "[lb]", StringComparison.Ordinal);
+
+    // A strict accessor, never a lossy tag stripper. Suitable for names and sorting.
+    public static string Plain(string bbCode)
+    {
+        var result = new System.Text.StringBuilder();
+        for (int i = 0; i < bbCode.Length; i++)
+        {
+            if (bbCode[i] != '[') { result.Append(bbCode[i]); continue; }
+            if (bbCode.AsSpan(i).StartsWith("[lb]")) result.Append('[');
+            else if (bbCode.AsSpan(i).StartsWith("[rb]")) result.Append(']');
+            else throw new InvalidDataException("Rich content requested as plain text.");
+            i += 3;
+        }
+        return result.ToString();
+    }
+
+    public static string Static(IEnumerable<MessageNode> nodes, bool source = false)
+    {
+        var result = new System.Text.StringBuilder();
+        string closing = "";
+        foreach (var node in nodes)
+        {
+            if (node is MessageLiteral text) result.Append(source ? text.SourceBbCode : text.BbCode);
+            else if (node is MessageFormat format) { result.Append(closing).Append(format.Open); closing = format.Close; }
+            else throw new InvalidDataException("Dynamic content requested as static text.");
+        }
+        return result.Append(closing).ToString();
+    }
+}

@@ -88,3 +88,5 @@ dotnet run --project src/San9.Tools -- import-client --source-exe "<San9PK.exe�
 - [客户端内容与主界面](docs/client-content.md)与[大地图导入与运行](docs/map-import.md)
 - [研究区说明](research/README.md)、[研究结论索引](research/findings/README.md)与[来源登记表](research/SOURCES.md)
 - [本地私有文件规则](private/README.md)
+
+原作文本已统一为原生Godot BBCode及结构化消息目录；转换、全量诊断、字体和图标入口见[内容管线](docs/client-content.md#原版文本统一入口)，覆盖及未确认语义见[RE-0166](research/findings/RE-SAN9PK-0166.md)。

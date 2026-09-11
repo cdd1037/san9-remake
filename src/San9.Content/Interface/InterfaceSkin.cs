@@ -8,7 +8,7 @@ public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dicti
         "scroll-track-top", "scroll-track-middle", "scroll-track-bottom",
         "scroll-thumb-top", "scroll-thumb-middle", "scroll-thumb-bottom", "button-scroll-up", "button-scroll-down",
         "field-left", "field-middle", "field-right", "ruler-frame", "region-frame",
-        "message-left", "message-middle", "message-right", "city-prefix",
+        "message-left", "message-middle", "message-right",
         "roster-row-left", "roster-row-middle", "roster-row-right",
         "bar-morale-frame", "bar-morale-normal", "bar-morale-warning", "bar-morale-critical",
         "bar-durability-frame", "bar-durability-normal", "bar-durability-warning", "bar-durability-critical",
@@ -37,11 +37,13 @@ public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dicti
         .Concat(new[] { "top-left", "top", "top-right", "left", "right", "bottom-left", "bottom", "bottom-right" }.Select(p => "catalog-tabs-" + p))
         .Concat(new[] { "own", "other", "friendly" }.SelectMany(t =>
             new[] { "city", "facility" }.Select(p => $"hover-{t}-{p}")))
-        .Append("hover-divider").Concat(OfficerDetailSkin.RequiredRoles).Append("information-background").ToArray());
+        .Append("hover-divider").Concat(OfficerDetailSkin.RequiredRoles).Append("information-background")
+        .Concat(new[] { "arrow-up-right", "arrow-down-right", "crossed-arrows", "empty-square", "question", "turn-arrow", "book", "waves", "circle" }
+            .SelectMany(id => new[] { $"text-icon-{id}-16", $"text-icon-{id}-24" })).Append("text-icon-city-16").ToArray());
 
     public void Validate()
     {
-        if (SchemaVersion != 14 || Assets.Select(a => a.Id).Distinct().Count() != Assets.Length)
+        if (SchemaVersion != 15 || Assets.Select(a => a.Id).Distinct().Count() != Assets.Length)
             throw new InvalidDataException("Invalid interface skin version or duplicate assets.");
         var assets = Assets.ToDictionary(a => a.Id);
         if (Enumerable.Range(0, 52).Any(i => !Colors.ContainsKey($"city-marker-{i}")) ||

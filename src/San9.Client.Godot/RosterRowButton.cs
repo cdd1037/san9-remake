@@ -10,21 +10,17 @@ public partial class RosterRowButton : BaseButton
     public San9.Application.Presentation.RosterKey? EntryKey { get; private set; }
     public Action<int>? Scrolled { get; init; }
     public Action? ContextRequested { get; init; }
-    private readonly GameTextPresenter _text = new();
-    private Label _label = null!;
-    private TextureRect _icon = null!;
+    private GameRichTextLabel _label = null!;
     public int VisualFrame { get; private set; }
-    public Vector2 TextOffset => _label.Position - new Vector2(16, 0);
-    public Color TextColor => _label.LabelSettings.FontColor;
+    public Vector2 TextOffset => _label.Position;
+    public Color TextColor => _label.Style.Foreground;
 
     public override void _Ready()
     {
         Size = new(100, 16); FocusMode = FocusModeEnum.All;
         MouseFilter = MouseFilterEnum.Stop;
-        _label = new Label { Position = new(16, 0), Size = new(84, 16),
-            VerticalAlignment = VerticalAlignment.Center, MouseFilter = MouseFilterEnum.Ignore };
-        _icon = new TextureRect { Texture = Textures["city-prefix"], Size = new(16, 16), MouseFilter = MouseFilterEnum.Ignore };
-        AddChild(_label); AddChild(_icon);
+        _label = new GameRichTextLabel { Size = new(100, 16), Textures = Textures };
+        AddChild(_label);
         MouseEntered += () => { if (!Disabled) GrabFocus(); };
     }
 
@@ -32,8 +28,8 @@ public partial class RosterRowButton : BaseButton
     {
         if (EntryKey != entry?.Key && HasFocus()) ReleaseFocus();
         EntryKey = entry?.Key; Visible = entry is not null; Disabled = entry is null;
-        _label.Text = title; _icon.Visible = entry?.HasCityPrefix == true;
-        _text.Apply(_label, GameTextStyles.For(GameTextRole.Roster) with { Foreground = color });
+        _label.Present(title,
+            GameTextStyles.For(GameTextRole.Roster) with { Foreground = color });
         RefreshVisual();
     }
 
@@ -62,7 +58,7 @@ public partial class RosterRowButton : BaseButton
         bool pressed = GetDrawMode() is DrawMode.Pressed or DrawMode.HoverPressed;
         VisualFrame = Disabled ? 3 : pressed ? 2 : HasFocus() ? 1 : 0;
         var offset = pressed ? new Vector2(2, 2) : Vector2.Zero;
-        _label.Position = new Vector2(16, 0) + offset; _icon.Position = offset;
+        _label.Position = offset;
         QueueRedraw();
     }
 
@@ -80,5 +76,4 @@ public partial class RosterRowButton : BaseButton
         }
         DrawTexture(right, new(92, 0));
     }
-    public override void _ExitTree() => _text.Dispose();
 }

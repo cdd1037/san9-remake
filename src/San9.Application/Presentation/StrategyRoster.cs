@@ -2,7 +2,7 @@ namespace San9.Application.Presentation;
 
 public enum RosterPage { Facilities, Officers }
 public readonly record struct RosterKey(RosterPage Page, int Id);
-public sealed record RosterEntry(RosterKey Key, string NameKey, int SettlementId, bool HasCityPrefix, bool IsAvailable);
+public sealed record RosterEntry(RosterKey Key, string NameKey, int SettlementId, string MessageKey, bool IsAvailable);
 
 public sealed class RosterPageState
 {
@@ -46,9 +46,9 @@ public sealed class StrategyRoster
         CorpsId = corpsId;
         var force = snapshot.Forces.Single(f => f.Id == snapshot.PlayerForceId);
         static RosterEntry Facility(SettlementView s) => new(new(RosterPage.Facilities, s.Id), s.NameKey,
-            s.Id, s.CityMarkerColor is not null, s.HasAvailableOfficer);
+            s.Id, s.CityMarkerColor is not null ? San9.Content.Text.NameMessages.City : San9.Content.Text.NameMessages.Indented, s.HasAvailableOfficer);
         static RosterEntry Officer(OfficerView o) => new(new(RosterPage.Officers, o.Id), o.NameKey,
-            o.SettlementId!.Value, o.HasCityPrefix, o.IsAvailable);
+            o.SettlementId!.Value, o.HasCityPrefix ? San9.Content.Text.NameMessages.City : San9.Content.Text.NameMessages.Indented, o.IsAvailable);
         var rulerFacility = snapshot.Settlements.SingleOrDefault(s => s.Id == force.LeaderSettlementId && s.IsFacilityListEntry);
         var ruler = snapshot.Officers.SingleOrDefault(o => o.Id == force.LeaderId);
         Facilities.Refresh(rulerFacility is null ? null : Facility(rulerFacility),

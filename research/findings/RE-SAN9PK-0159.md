@@ -21,7 +21,7 @@ FA40..FA45六个码位三档都有完整字形；FA46只有1/2/2个非零像素�
 
 事实：`0x5BAB60`接受FAB0..FAFC共77个语法码，返回尾字节减B0；`0x5BB330`把它们标成0x8000，`0x5BACC0`走位图资源路径。`0x427A30`按`0x653318 + 4*(sizeClass*48 + glyphIndex)`取资源。
 
-每个字号的表行只有48项。有效已绑定码为FACC、FACD、FAD0..FAD7：24px对应资源32/33、无D0、34..40；16px对应41/42/43..50；12px本行全部-1。其余本行码未绑定。FAE0..FAFC虽然被语法入口接受，却超出48项本字号行；其读值会别名到下一字号行或邻接数据，不能据此宣布又有29个有效图标。
+每个字号的表行只有48项。有效已绑定码为FACD、FACE、FAD0..FAD7（2026-09-11逐项回读纠正，先前FACC/FACD下标有一位偏差；FACC实际未绑定，见[RE-0166](RE-SAN9PK-0166.md)）：24px对应资源32/33、无D0、34..40；16px对应41/42/43..50；12px本行全部-1。其余本行码未绑定。FAE0..FAFC虽然被语法入口接受，却超出48项本字号行；其读值会别名到下一字号行或邻接数据，不能据此宣布又有29个有效图标。
 
 含义以图像为证：上/下斜箭头、16px城市前缀、交叉箭头、空框、问号、回转箭头、书本、波纹、圆形图案。最终资源和字号逐码列在inventory.json，完整原图在icons.png。
 
@@ -36,7 +36,7 @@ FA40..FA45六个码位三档都有完整字形；FA46只有1/2/2个非零像素�
 ## 复现与产物
 
 ```powershell
-python research/scripts/audit_font_extensions.py "<原版数据目录>" "<San9PK.exe>" local/generated/verification/font-audit
+python research/scripts/audit_font_extensions.py "<原版数据目录>" "<San9PK.exe>" local/generated/research/unified-text/font-audit
 python -m unittest discover -s research/scripts -p test_audit_font_extensions.py
 ```
 

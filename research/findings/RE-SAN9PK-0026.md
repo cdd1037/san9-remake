@@ -75,10 +75,10 @@ UnresolvedScript
 
 ### 3.2 编码
 
-- 正文主体是 Big5 繁体中文和 ASCII。
-- 少量严格 Big5 无法解码的字节使用 Big5-HKSCS 作为显示回退。
+- 正文主体按Windows CP950恢复繁体中文和ASCII。
+- 扩展字按原字形映射FA40..FA45；撤销早期HKSCS回退建议。已识别的CP932占位记录采用精确来源签名，见RE-0166。
 - `0A` 是资源中明确写入的换行，不是控件根据宽度自动换行。
-- 新引擎应同时保留 `LineBreak` 和 UI 自动换行；二者不能混为一谈。
+- 转换后的BBCode片段保留换行字符，UI另行自动换行；不重复建立LineBreak样式节点。
 
 ### 3.3 `05 05 05` 的双重身份
 
@@ -400,47 +400,11 @@ pair 2 -> #88F880 的 16 级渐变 + #603000 的 16 级渐变
 
 重新按脚本消费长度扫描后，没有确认存在独立的未知 `02` 控制选择器。此前将 `02 02 83` 等重叠字节误报为未知选择器的统计已撤回；其中 `83/91/F7` 等是已知对象选择器下的属性字节。
 
-## 9. 新引擎统一数据模型
+## 9. 现行转换方案与替代关系
 
-建议消息资源先解析成以下中间表示，再交给现代 UI 渲染：
+此前建议的完整样式树、可见控制码投影及最小`index/content`输出已由[BEH-UI-0006](../../specs/behavior/BEH-UI-0006-unified-messages.md)替代：Godot原生BBCode显示片段，加结构化参数、条件、随机、返回调用及尾部转移。唯一转换实现为版本Importer，原字节证据独立保存于诊断；命令见[内容管线](../../docs/client-content.md)。
 
-```text
-Message {
-    nodes: Node[]
-}
-
-Node =
-    Text(text)
-  | LineBreak
-  | ValueRef(category, slot, property)
-  | SubMessage(messageId)
-  | RandomChoice(choices)
-  | Conditional(predicate, branches)
-  | TextStyle(style, children)
-  | UnresolvedScript(raw, reason)
-```
-
-其中：
-
-- `Text`：静态简体中文文本；
-- `LineBreak`：资源明确写入的换行；
-- `ValueRef`：人物、势力、宝物、建筑、部队、数值、字符串、兵法等动态值；
-- `SubMessage`：`01J`；
-- `RandomChoice`：`01S + CA + $`；
-- `Conditional`：`05 05 04` 及其表达式；
-- `TextStyle`：现代 UI 自己定义颜色、强调、头像和布局效果；
-- `UnresolvedScript`：仅用于尚未闭合或截断的原始脚本，不直接显示给玩家。
-
-JSON 展示数据仍可保持最小形式：
-
-```json
-{
-  "index": 7444,
-  "content": "..."
-}
-```
-
-但正式引擎内部应保留上述语义节点，不能只依赖已经拼好的字符串。
+2026-09-11的全量解析和IDA核对补充见[RE-0166](RE-SAN9PK-0166.md)。其中01J为尾部转移、01C才有返回保存；随机选择是排他上界。原作资源末尾容器NUL单独记账；异常脚本尾部不丢弃。扩展字使用原字形逐码映射，撤销旧HKSCS解码建议。上节中已经闭合的调用行为、列传索引和扩展字问题以上述记录及RE-0159为准，尚未确认的属性与宿主控制仍逐记录列出。
 
 ## 10. 证据与范围
 

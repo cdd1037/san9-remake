@@ -64,3 +64,5 @@
 - [BEH-UI-0004：情报目录与详情浏览](BEH-UI-0004-information-browser.md)（已确认）
 
 - [BEH-UI-0005：大地图建筑悬停](BEH-UI-0005-map-building-hover.md)（采用）
+
+- [BEH-UI-0006：统一消息与图文显示](BEH-UI-0006-unified-messages.md)（已确认）

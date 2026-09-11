@@ -55,7 +55,7 @@ public static class TreasureDetails
             .Select((page, index) => (page, index))
             .Single(p => p.page.Columns.Any(c => c.Id == $"tactic.{tacticId}")).index;
         return new(cells[0].Text, $"information-treasure-{id}", cells[6].Text,
-            texts.Resolve(TreasureText.DescriptionKey(id)), cells[1].Text,
+            texts.ResolveRich(TreasureText.DescriptionKey(id)), cells[1].Text,
             cells[5].IsUnavailable ? "" : cells[5].Text, ability, cells[4].Text, group);
     }
 }

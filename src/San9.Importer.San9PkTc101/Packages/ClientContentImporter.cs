@@ -36,9 +36,8 @@ public static class ClientContentImporter
         San9.Content.Text.NameMessages.AddTo(messages);
         text = text with { Messages = messages };
         var roles = InformationArtCompiler.Compile(scenarioBytes, scenario, textures.Library, textures.Portraits);
-        var dependency = new TextureDependency(Path.GetRelativePath(output, textureRoot).Replace('\\','/'),
-            Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(Path.Combine(textureRoot, "textures.json"), token))));
-        var content = new ScenarioContent(22, sources.Distinct().OrderBy(s => s.Name, StringComparer.Ordinal).ToArray(),
+        var dependency = new TextureDependency(Path.GetRelativePath(output, textureRoot).Replace('\\','/'));
+        var content = new ScenarioContent(23, sources.Distinct().OrderBy(s => s.Name, StringComparer.Ordinal).ToArray(),
             dependency, MapInstance.From(map), scenario, text, roles);
         var loaded = ClientContentFiles.Resolve(content, textures, textureRoot);
         Directory.CreateDirectory(output);

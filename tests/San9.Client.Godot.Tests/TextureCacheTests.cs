@@ -6,7 +6,7 @@ namespace San9.Client.Godot.Tests;
 public sealed class TextureCacheTests
 {
     private sealed record Gpu(int Value);
-    private static ImageFile File(string name, int width = 1, int height = 1) => new(name, new string('0', 64), width, height, 4);
+    private static ImageFile File(string name, int width = 1, int height = 1) => new(name, width, height, 4);
     private static PngImage Pixel(byte value = 7) => new(1, 1, 4, [value, 0, 0, 255]);
     private static void Until(TextureCache<Gpu> cache, Func<bool> condition)
     {

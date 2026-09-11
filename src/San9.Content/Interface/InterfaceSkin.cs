@@ -54,7 +54,7 @@ public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dicti
             throw new InvalidDataException("Missing or invalid interface colors.");
         if (RequiredUiAssets.Any(id => !Roles.TryGetValue(id, out var asset) || !assets.ContainsKey(asset)) ||
             Roles.Values.Any(id => !assets.ContainsKey(id)) ||
-            Assets.Any(a => a.Width <= 0 || a.Height <= 0 || a.Sha256.Length != 64))
+            Assets.Any(a => a.Width <= 0 || a.Height <= 0))
             throw new InvalidDataException("Invalid interface skin assets.");
     }
 }

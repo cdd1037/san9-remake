@@ -21,7 +21,7 @@ public sealed record MapInstance(string SourceBuild, string ScenarioId, string I
         { BuildingTypes = BuildingTypes, MinimapColors = r.MinimapColors };
 }
 
-public sealed record TextureDependency(string Path, string Sha256);
+public sealed record TextureDependency(string Path);
 
 public sealed record ScenarioContent(int SchemaVersion, ContentSource[] Sources, TextureDependency Textures,
     MapInstance Map, ScenarioInitialState Scenario, TextCatalog Text, Dictionary<string,string> IllustrationRoles);

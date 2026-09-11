@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using System.Text.Json;
 using San9.Content.Images;
 using San9.Content.Packages;
@@ -9,7 +8,7 @@ namespace San9.Importer.San9PkTc101.Packages;
 
 public static class TexturePackageImporter
 {
-    public const int ConversionVersion = 6;
+    public const int ConversionVersion = 7;
 
     public static async Task<TexturePackage> ImportAsync(string sourceExe, string dataDirectory, string output,
         Action<string>? progress = null, CancellationToken token = default)
@@ -23,7 +22,7 @@ public static class TexturePackageImporter
         if (File.Exists(manifest))
         {
             using var header = JsonDocument.Parse(await File.ReadAllTextAsync(manifest, token));
-            reusable = header.RootElement.GetProperty("schemaVersion").GetInt32() == 2 &&
+            reusable = header.RootElement.GetProperty("schemaVersion").GetInt32() == 3 &&
                 header.RootElement.TryGetProperty("conversionVersion", out var version) && version.GetInt32() == ConversionVersion;
         }
         if (reusable)
@@ -33,7 +32,8 @@ public static class TexturePackageImporter
             foreach (var source in previous.Sources)
             {
                 string path = source.Name == Path.GetFileName(sourceExe) ? sourceExe : Path.Combine(dataDirectory, source.Name);
-                if (!File.Exists(path) || Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(path, token))) != source.Sha256)
+                var info = new FileInfo(path);
+                if (!info.Exists || info.Length != source.Length || info.LastWriteTimeUtc != source.LastWriteTimeUtc)
                 { unchanged = false; break; }
             }
             if (unchanged)
@@ -42,20 +42,25 @@ public static class TexturePackageImporter
                 progress?.Invoke("Reusing verified independent texture package."); return previous;
             }
         }
-        List<ContentSource> sources = [];
+        List<TextureSourceStamp> sources = [];
         byte[] Read(string path)
         {
             token.ThrowIfCancellationRequested(); var bytes = File.ReadAllBytes(path);
-            sources.Add(new(Path.GetFileName(path), Convert.ToHexString(SHA256.HashData(bytes)))); return bytes;
+            var info = new FileInfo(path);
+            sources.Add(new(info.Name, info.Length, info.LastWriteTimeUtc)); return bytes;
         }
         string staging = Path.Combine(output, ".sources");
+        int sourceNumber = 0;
+        Dictionary<string, ImageAsset> sourceImages = new(StringComparer.Ordinal);
         ImageAsset Save(string id, string path, PngImage image)
         {
-            var bytes = image.Encode(); string hash = Convert.ToHexString(SHA256.HashData(bytes));
-            string relative = $".sources/{hash}.png";
+            if (sourceImages.TryGetValue(path, out var existing)) return existing with { Id = id };
+            var bytes = image.Encode();
+            string relative = $".sources/{sourceNumber++}.png";
             string target = PackageFiles.Resolve(output, relative); Directory.CreateDirectory(staging);
-            if (!File.Exists(target)) File.WriteAllBytes(target, bytes);
-            return new(id, relative, hash, image.Width, image.Height, image.Channels);
+            File.WriteAllBytes(target, bytes);
+            var asset = new ImageAsset(id, relative, image.Width, image.Height, image.Channels);
+            sourceImages.Add(path, asset); return asset;
         }
         byte[] exe = Read(sourceExe);
         var map = MapResourceCompiler.Compile(exe, dataDirectory, Read, Save, progress, token);
@@ -106,15 +111,23 @@ public static class TexturePackageImporter
                     ? null : $"{a.Category}/{a.Id}/palette-{v.PaletteIndex}",
                 a.Id == "g_still" && v.ImageIndex is >= 172 and < 272 ? "illustrations/treasures" : a.Category,
                 a.Id == "g_still" && v.ImageIndex is >= 172 and < 272 ? v.ImageIndex - 172 : null)));
-        var packed = TextureAtlasCompiler.Compile(output, mapSources.Concat(uiSources).Concat(landSources).Concat(librarySources)
-            .Concat(portraits.Select(p => new TextureAtlasCompiler.Source(p.Image, null, "portraits", p.Id))), "images", token).ToDictionary(a => a.Id);
+        var requests = mapSources.Concat(uiSources).Concat(landSources).Concat(librarySources)
+            .Concat(portraits.Select(p => new TextureAtlasCompiler.Source(p.Image, null, "portraits", p.Id))).ToArray();
+        // Resolve consumers to their declared source before packing. No pixel comparison occurs.
+        // Display/CPU definitions own placement; the complete library references those definitions.
+        var owners = requests.GroupBy(s => s.Asset.File).Select(g => g
+            .OrderBy(s => s.Asset.Id.StartsWith("library/", StringComparison.Ordinal))
+            .ThenBy(s => s.Asset.Id, StringComparer.Ordinal).First()).ToArray();
+        var pages = TextureAtlasCompiler.Compile(output, owners, "images", token).ToDictionary(a => a.Id);
+        var bySource = owners.ToDictionary(s => s.Asset.File, s => pages[s.Asset.Id]);
+        var packed = requests.ToDictionary(s => s.Asset.Id, s => bySource[s.Asset.File] with { Id = s.Asset.Id });
         map = map with { Assets = map.Assets.Select(a => packed[a.Id]).ToArray(),
             Seasons = map.Seasons.Select(s => s with { Textures = s.Textures.Select(a => packed[$"terrain/{s.Id}/{a.Id}"] with { Id = a.Id }).ToArray() }).ToArray() };
         skin = skin with { Assets = skin.Assets.Select(a => packed[a.Id]).ToArray() };
         library = library with { Archives = library.Archives.Select(a => a with {
             Variants = a.Variants.Select(v => v with { Image = packed[v.Image.Id] }).ToArray() }).ToArray() };
         portraits = portraits.Select(p => p with { Image = packed[p.Image.Id] }).ToArray();
-        var package = new TexturePackage(2, ConversionVersion, San9PkTc101Detector.SourceBuildId,
+        var package = new TexturePackage(3, ConversionVersion, San9PkTc101Detector.SourceBuildId,
             sources.Distinct().OrderBy(s => s.Name, StringComparer.Ordinal).ToArray(), map, skin, library, portraits);
         package.Validate();
         await ImageAssetFiles.VerifyAsync(output, package.Assets, token);

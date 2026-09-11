@@ -10,7 +10,7 @@ public sealed class PortraitViewTests
     public void RelativeAnchorScalesBothCropsAndSharesTheMotherImage(int size,
         int bx, int by, int bw, int bh, int fx, int fy, int fw, int fh)
     {
-        var image = new ImageAsset("portrait/9", "images/portraits/9.png", new string('A', 64), size, size, 3);
+        var image = new ImageAsset("portrait/9", "images/portraits/9.png", size, size, 3);
         var portrait = new PortraitDefinition(9, image, 38d / 240, 0);
         portrait.Validate();
         Assert.Same(image, portrait.GetView(PortraitView.Full));
@@ -27,7 +27,7 @@ public sealed class PortraitViewTests
     [Fact]
     public void InvalidAnchorsCannotProduceOutOfBoundsViews()
     {
-        var image = new ImageAsset("portrait/0", "images/portraits/0.png", new string('A', 64), 240, 240, 3);
+        var image = new ImageAsset("portrait/0", "images/portraits/0.png", 240, 240, 3);
         foreach (double x in new[] { -0.1, 0.4, double.NaN, double.PositiveInfinity })
             Assert.Throws<InvalidDataException>(() => new PortraitDefinition(0, image, x, 0).Validate());
         Assert.Throws<InvalidDataException>(() => new PortraitDefinition(0, image, 0, 0.3).Validate());

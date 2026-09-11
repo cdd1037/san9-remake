@@ -22,8 +22,7 @@ try
         var package = await ClientContentFiles.LoadAsync(root);
         var assets = package.Map.Assets.Concat(package.Map.Seasons.SelectMany(s => s.Textures)).Concat(package.Skin.Assets).Concat(package.Textures.Assets).Distinct().ToArray();
         await ImageAssetFiles.VerifyAsync(package.TextureRoot, assets);
-        foreach (var file in assets.Select(a => a.File).Distinct()) _ = ImageAssetFiles.LoadFile(package.TextureRoot, file);
-        Console.WriteLine($"Verified {assets.Length} logical images, {assets.Select(a => a.File).Distinct().Count()} physical files, all hashes, formats and regions.");
+        Console.WriteLine($"Verified {assets.Length} logical images, {assets.Select(a => a.File).Distinct().Count()} physical files, formats and regions.");
     }
     else if(args[0]=="import-text")
     {
@@ -43,7 +42,6 @@ try
         string root = Required("--texture-package");
         var package = await TexturePackageFiles.LoadAsync(root);
         await ImageAssetFiles.VerifyAsync(root, package.Assets);
-        foreach (var file in package.Assets.Select(a => a.File).Distinct()) _ = ImageAssetFiles.LoadFile(root, file);
         Console.WriteLine($"Verified independent texture package: {package.Assets.Count()} logical images.");
     }
     else if(args[0]=="import-client")

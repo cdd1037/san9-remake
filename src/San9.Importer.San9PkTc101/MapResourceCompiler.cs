@@ -2,7 +2,6 @@ using San9.Importer.San9PkTc101.Images;
 using San9.Content.Packages;
 using San9.Content.Images;
 using System.Buffers.Binary;
-using System.Security.Cryptography;
 using System.Text.Json;
 using San9.Content.Maps;
 
@@ -37,7 +36,7 @@ public static class MapResourceCompiler
             for (int i = 0; i < land.Length; i++)
             {
                 int id = 10006 + i; int p = paletteBindings[id];
-                textures.Add(Save(id.ToString(System.Globalization.CultureInfo.InvariantCulture), $"terrain/{names[s]}/{id}.png", IndexedImageArchive.Decode(land[i], palettes[p], false, false)));
+                textures.Add(Save(id.ToString(System.Globalization.CultureInfo.InvariantCulture), TextureSourcePath.Image("G_LLand", i, p, false, false, "P_Land_" + suffixes[s] + ".s9"), IndexedImageArchive.Decode(land[i], palettes[p], false, false)));
             }
             seasons.Add(new(names[s], textures.ToArray())); progress?.Invoke($"Converted {names[s]}: {textures.Count} RGB textures.");
         }
@@ -50,9 +49,9 @@ public static class MapResourceCompiler
             maskRecords.Add(new(id, weight, coverage));
         }
         var boundaryImages = Images("G_MAPMKR", 12); var boundaryPalette = Palettes("P_MAPMKR", 1)[0];
-        for (int i = 0; i < 12; i++) assets.Add(Save($"boundary-{10794 + i}", $"boundaries/{10794 + i}.png", IndexedImageArchive.Decode(boundaryImages[i], boundaryPalette, true, false)));
+        for (int i = 0; i < 12; i++) assets.Add(Save($"boundary-{10794 + i}", TextureSourcePath.Image("G_MAPMKR", i, 0, true, false, "P_MAPMKR.s9"), IndexedImageArchive.Decode(boundaryImages[i], boundaryPalette, true, false)));
         var bridgeImages = Images("G_LHashi", 2); var additionalLandPalettes = Palettes("P_LndAdd", 2); var bridgePalette = additionalLandPalettes[0];
-        for (int i = 0; i < 2; i++) assets.Add(Save($"bridge-{i}", $"objects/bridge-{i}.png", IndexedImageArchive.Decode(bridgeImages[i], bridgePalette, true, false)));
+        for (int i = 0; i < 2; i++) assets.Add(Save($"bridge-{i}", TextureSourcePath.Image("G_LHashi", i, 0, true, false, "P_LndAdd.s9"), IndexedImageArchive.Decode(bridgeImages[i], bridgePalette, true, false)));
         List<MapComposition> compositions = [];
         foreach (var location in root.GetProperty("compositions").EnumerateArray())
         {
@@ -72,14 +71,14 @@ public static class MapResourceCompiler
         {
             string key = $"building-{id}-{(alpha ? "alpha" : "key")}";
             if (!exported.Add(key)) return key;
-            IndexedImage image; byte[] palette;
-            if (id >= 5947 && id <= 5974) { image = addImages[id - 5947]; palette = addPalettes[(id - 5947) / 4]; }
+            IndexedImage image; byte[] palette; string source;
+            if (id >= 5947 && id <= 5974) { image = addImages[id - 5947]; palette = addPalettes[(id - 5947) / 4]; source = TextureSourcePath.Image("G_LBAdd", id - 5947, (id - 5947) / 4, true, alpha, "P_BAdd.s9"); }
             else
             {
                 int p = id switch { >= 5663 and <= 5673 => 0, >= 5674 and <= 5684 => 1, >= 5685 and <= 5695 => 2, >= 5696 and <= 5737 => 3, >= 5738 and <= 5842 => 4, >= 5843 and <= 5946 => 5, _ => throw new InvalidDataException("Unknown building resource.") };
-                image = buildingImages[id - 5663]; palette = buildingPalettes[p];
+                image = buildingImages[id - 5663]; palette = buildingPalettes[p]; source = TextureSourcePath.Image("G_LBUILD", id - 5663, p, true, alpha, "P_LBUILD.s9");
             }
-            assets.Add(Save(key, $"objects/{key}.png", IndexedImageArchive.Decode(image, palette, true, alpha))); return key;
+            assets.Add(Save(key, source, IndexedImageArchive.Decode(image, palette, true, alpha))); return key;
         }
         // Every decoded building resource has a known palette mapping. Export both supported
         // transparency interpretations; composition metadata selects the required one at runtime.
@@ -95,9 +94,9 @@ public static class MapResourceCompiler
                     BuildingImage(part.ResourceId + variant, part.PaletteAlpha);
         progress?.Invoke($"Exported {exported.Count} building textures for {compositions.Count} confirmed compositions, including all city development variants.");
         var cloudImages = Images("G_LCLOUD", 17); var cloudPalettes = Palettes("P_LCLOUD", 5);
-        assets.Add(Save("cloud-fill", "objects/cloud-fill.png", IndexedImageArchive.Decode(cloudImages[6], cloudPalettes[1], false, false)));
+        assets.Add(Save("cloud-fill", TextureSourcePath.Image("G_LCLOUD", 6, 1, false, false, "P_LCLOUD.s9"), IndexedImageArchive.Decode(cloudImages[6], cloudPalettes[1], false, false)));
         foreach (int id in Enumerable.Range(10777, 6).Concat(Enumerable.Range(10788, 6)))
-            assets.Add(Save($"cloud-{id}", $"objects/cloud-{id}.png", IndexedImageArchive.Decode(cloudImages[id - 10777], cloudPalettes[id < 10783 ? 0 : 4], true, true)));
+            assets.Add(Save($"cloud-{id}", TextureSourcePath.Image("G_LCLOUD", id - 10777, id < 10783 ? 0 : 4, true, true, "P_LCLOUD.s9"), IndexedImageArchive.Decode(cloudImages[id - 10777], cloudPalettes[id < 10783 ? 0 : 4], true, true)));
         var cloudPlacements = root.GetProperty("clouds").EnumerateArray().Select(c =>
         {
             var offsets = c.GetProperty("offsets").EnumerateArray().Select(o => Int(o.GetInt32())).ToArray();

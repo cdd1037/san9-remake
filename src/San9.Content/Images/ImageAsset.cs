@@ -1,24 +1,22 @@
-using System.Security.Cryptography;
 using San9.Content.Packages;
 
 namespace San9.Content.Images;
 
-public sealed record ImageFile(string Path, string Sha256, int Width, int Height, int Channels);
+public sealed record ImageFile(string Path, int Width, int Height, int Channels);
 
 [System.Text.Json.Serialization.JsonUnmappedMemberHandling(System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
 [method: System.Text.Json.Serialization.JsonConstructor]
 public sealed record ImageAsset(string Id, ImageFile File, int X, int Y, int Width, int Height)
 {
-    public ImageAsset(string id, string path, string sha256, int width, int height, int channels = 4)
-        : this(id, new(path, sha256, width, height, channels), 0, 0, width, height) { }
+    public ImageAsset(string id, string path, int width, int height, int channels = 4)
+        : this(id, new(path, width, height, channels), 0, 0, width, height) { }
     [System.Text.Json.Serialization.JsonIgnore] public string Path => File.Path;
-    [System.Text.Json.Serialization.JsonIgnore] public string Sha256 => File.Sha256;
 
     public void Validate()
     {
         if (string.IsNullOrWhiteSpace(Id) || File is null || Width <= 0 || Height <= 0 || X < 0 || Y < 0 || (long)X + Width > File.Width || (long)Y + Height > File.Height ||
             File.Width is <= 0 or > 16384 || File.Height is <= 0 or > 16384 || File.Channels is not (1 or 3 or 4) ||
-            File.Sha256 is null || File.Sha256.Length != 64 || !File.Sha256.All(Uri.IsHexDigit) || string.IsNullOrWhiteSpace(File.Path))
+            string.IsNullOrWhiteSpace(File.Path))
             throw new InvalidDataException($"Invalid image region: {Id}");
     }
 }
@@ -44,12 +42,11 @@ public static class ImageAssetFiles
 
     public static async Task VerifyAsync(string root, IEnumerable<ImageAsset> assets, CancellationToken token = default)
     {
-        await Parallel.ForEachAsync(assets.DistinctBy(a => a.File), new ParallelOptions { MaxDegreeOfParallelism = 4, CancellationToken = token }, async (asset, cancellation) =>
+        await Parallel.ForEachAsync(assets.DistinctBy(a => a.File), new ParallelOptions { MaxDegreeOfParallelism = 4, CancellationToken = token }, (asset, cancellation) =>
         {
-            await using var file = File.OpenRead(PackageFiles.Resolve(root, asset.Path));
-            string hash = Convert.ToHexString(await SHA256.HashDataAsync(file, cancellation));
-            if (!hash.Equals(asset.Sha256, StringComparison.OrdinalIgnoreCase))
-                throw new InvalidDataException($"Image checksum mismatch: {asset.Id}");
+            cancellation.ThrowIfCancellationRequested();
+            _ = LoadFile(root, asset.File);
+            return ValueTask.CompletedTask;
         });
     }
 

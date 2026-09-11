@@ -57,7 +57,7 @@ public static class MapPackageFiles
                 throw new InvalidDataException("Season texture mappings differ.");
         }
         foreach (var asset in map.Assets.Concat(map.Seasons.SelectMany(s => s.Textures)))
-            if (asset.Width is <= 0 or > 4096 || asset.Height is <= 0 or > 4096 || asset.Sha256.Length != 64)
+            if (asset.Width is <= 0 or > 4096 || asset.Height is <= 0 or > 4096)
                 throw new InvalidDataException("Invalid image metadata.");
         var masks = map.Masks.ToDictionary(m => m.Id);
         foreach (var mask in masks.Values)

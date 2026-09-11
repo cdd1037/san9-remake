@@ -18,7 +18,7 @@ public sealed class MapImageTests
                 byte[] png = new PngImage(1, 1, 3, [(byte)i, 42, 255]).Encode();
                 string name = $"{i}.png";
                 File.WriteAllBytes(Path.Combine(root, name), png);
-                return new ImageAsset(i.ToString(), name, Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(png)), 1, 1, 3);
+                return new ImageAsset(i.ToString(), name, 1, 1, 3);
             }).ToArray();
             await ImageAssetFiles.VerifyAsync(root, assets);
             var decoded = ImageAssetFiles.Load(root, assets);
@@ -26,7 +26,8 @@ public sealed class MapImageTests
             var changed = new PngImage(1, 1, 3, [99, 42, 255]);
             File.WriteAllBytes(Path.Combine(root, "5.png"), changed.Encode());
             Assert.Equal(changed.Pixels, ImageAssetFiles.Load(root, assets)["5"].Pixels);
-            await Assert.ThrowsAsync<InvalidDataException>(() => ImageAssetFiles.VerifyAsync(root, assets));
+            await ImageAssetFiles.VerifyAsync(root, assets);
+            await Assert.ThrowsAsync<InvalidDataException>(() => ImageAssetFiles.VerifyAsync(root, [assets[5] with { File = assets[5].File with { Width = 2 } }]));
             Assert.Throws<InvalidDataException>(() => ImageAssetFiles.Load(root, [assets[5] with { Width = 2 }]));
             File.WriteAllBytes(Path.Combine(root, "5.png"), [0, 1, 2]);
             await Assert.ThrowsAsync<InvalidDataException>(() => ImageAssetFiles.VerifyAsync(root, assets));
@@ -40,7 +41,7 @@ public sealed class MapImageTests
     [Fact]
     public void CatalogRejectsOverlapsOutOfBoundsAndConflictingFileMetadata()
     {
-        var file = new ImageFile("atlas.png", new string('0', 64), 16, 16, 4);
+        var file = new ImageFile("atlas.png", 16, 16, 4);
         var a = new ImageAsset("a", file, 2, 2, 4, 4);
         ImageAssetFiles.ValidateCatalog([a, a with { Id = "alias" }, a with { Id = "b", X = 8 }]);
         Assert.Throws<InvalidDataException>(() => ImageAssetFiles.ValidateCatalog([a, a with { Id = "b", X = 4 }]));

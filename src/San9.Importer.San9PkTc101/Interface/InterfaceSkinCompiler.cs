@@ -30,7 +30,7 @@ public static class InterfaceSkinCompiler
                 string key = frame == 0 ? semantic : $"{semantic}-{frame}";
                 string asset = $"ui-{key}";
                 var pixels = columns == 1 ? source : IndexedImageArchive.Frame(source, columns, 1, frame, 0);
-                assets.Add(save(asset, $"ui/{key}.png", IndexedImageArchive.Decode(pixels, archive.Palettes[expectedPalette], true, paletteAlpha)));
+                assets.Add(save(asset, TextureSourcePath.Image("G_Main", index, expectedPalette, true, paletteAlpha, columns: columns, frame: frame), IndexedImageArchive.Decode(pixels, archive.Palettes[expectedPalette], true, paletteAlpha)));
                 ui.Add(key, asset);
             }
         }
@@ -69,7 +69,7 @@ public static class InterfaceSkinCompiler
                     colors = colors.ToArray();
                     colors[52 * 4 + 3] = 72;
                 }
-                assets.Add(save(id, $"ui/{key}.png", IndexedImageArchive.Decode(pixels, colors, true, alpha)));
+                assets.Add(save(id, TextureSourcePath.Image("G_MMap", resource - 999, palette, true, alpha, columns: frames, frame: frame, transform: role == "overview-borders" ? "border-alpha" : null), IndexedImageArchive.Decode(pixels, colors, true, alpha)));
                 ui.Add(key, id);
             }
         }
@@ -104,7 +104,7 @@ public static class InterfaceSkinCompiler
             if (bindings[resource] != palette + paletteBase) throw new InvalidDataException("Unconfirmed interface resource binding.");
             var pack = start == 0 ? common : marker;
             string id = "ui-" + role;
-            assets.Add(save(id, $"ui/{role}.png", IndexedImageArchive.Decode(pack.Images[resource - start], pack.Palettes[palette], true, paletteAlpha)));
+            assets.Add(save(id, TextureSourcePath.Image(start == 0 ? "G_Common" : "G_Marker", resource - start, palette, true, paletteAlpha), IndexedImageArchive.Decode(pack.Images[resource - start], pack.Palettes[palette], true, paletteAlpha)));
             ui.Add(role, id);
         }
         foreach (var (role, resource) in new[] { ("left", 290), ("middle", 291), ("right", 292) })
@@ -115,7 +115,7 @@ public static class InterfaceSkinCompiler
                 string key = "roster-row-" + role + (frame == 0 ? "" : $"-{frame}");
                 string id = "ui-" + key;
                 var pixels = IndexedImageArchive.Frame(common.Images[resource], 4, 1, frame, 0);
-                assets.Add(save(id, $"ui/{key}.png", IndexedImageArchive.Decode(pixels, common.Palettes[34], true, true)));
+                assets.Add(save(id, TextureSourcePath.Image("G_Common", resource, 34, true, true, columns: 4, frame: frame), IndexedImageArchive.Decode(pixels, common.Palettes[34], true, true)));
                 ui.Add(key, id);
             }
         }
@@ -140,7 +140,7 @@ public static class InterfaceSkinCompiler
             {
                 string key = role + (frame == 0 ? "" : $"-{frame}");
                 var pixels = IndexedImageArchive.Frame(common.Images[resource], columns, 1, frame, 0);
-                assets.Add(save("ui-" + key, $"ui/{key}.png", IndexedImageArchive.Decode(pixels, common.Palettes[palette], true, true)));
+                assets.Add(save("ui-" + key, TextureSourcePath.Image("G_Common", resource, palette, true, true, columns: columns, frame: frame), IndexedImageArchive.Decode(pixels, common.Palettes[palette], true, true)));
                 ui.Add(key, "ui-" + key);
             }
         }
@@ -169,7 +169,7 @@ public static class InterfaceSkinCompiler
             {
                 string key = "detail-" + role + (frame == 0 ? "" : $"-{frame}");
                 var pixels = IndexedImageArchive.Frame(common.Images[resource], frames, 1, frame, 0);
-                assets.Add(save("ui-" + key, $"ui/{key}.png", IndexedImageArchive.Decode(pixels, common.Palettes[palette], true, true)));
+                assets.Add(save("ui-" + key, TextureSourcePath.Image("G_Common", resource, palette, true, true, columns: frames, frame: frame), IndexedImageArchive.Decode(pixels, common.Palettes[palette], true, true)));
                 ui.Add(key, "ui-" + key);
             }
         }
@@ -199,7 +199,7 @@ public static class InterfaceSkinCompiler
                 string key = "information-action-" + role + (frame == 0 ? "" : $"-{frame}");
                 string id = "ui-" + key;
                 var pixels = IndexedImageArchive.Frame(common.Images[resource], 4, 1, frame, 0);
-                assets.Add(save(id, $"ui/{key}.png", IndexedImageArchive.Decode(pixels, common.Palettes[42], true, false)));
+                assets.Add(save(id, TextureSourcePath.Image("G_Common", resource, 42, true, false, columns: 4, frame: frame), IndexedImageArchive.Decode(pixels, common.Palettes[42], true, false)));
                 ui.Add(key, id);
             }
         }

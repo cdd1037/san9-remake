@@ -26,7 +26,7 @@ public sealed class MapAnimationTests
     [Fact]
     public void InvalidAnimationReferencesAndDimensionsAreRejected()
     {
-        var a = new ImageAsset("a", "a.png", new string('0', 64), 32, 40);
+        var a = new ImageAsset("a", "a.png", 32, 40);
         var b = a with { Id = "b", Width = 64 };
         var assets = new Dictionary<string, ImageAsset> { ["a"] = a, ["b"] = b };
         var clip = new MapAnimationClip("clip", ["a"], 100, []);

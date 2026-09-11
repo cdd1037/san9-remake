@@ -3,7 +3,6 @@
 python research/scripts/verify_texture_library.py --package local/generated/content/textures-san9pk-tc101 --source private/s9数据文件
 """
 import argparse
-import hashlib
 import io
 import json
 import struct
@@ -33,7 +32,7 @@ def source_images(data):
     return result
 
 
-def verify(package, source, baseline=None, scenario=None):
+def verify(package, source):
     manifest = json.loads((package / "textures.json").read_text(encoding="utf-8"))
 
     @lru_cache(maxsize=8)
@@ -55,7 +54,7 @@ def verify(package, source, baseline=None, scenario=None):
         "g_lcloud": "p_lcloud", "g_mapmkr": "p_mapmkr", "g_mask": "p_mask", "g_mesh": "p_mesh",
         "g_mapcov": "p_mapetc", "g_dyneff": "p_dyneff", "g_ikki": "p_ikki", "g_gaikou": "p_gaikou", "g_zoomin": "p_zoomin"}
     palette_files = {p.stem.lower(): p for p in source.glob("P_*.s9")}
-    counts = {"archives": len(archives), "rgb_variants": 0, "runtime_images": 0}
+    counts = {"archives": len(archives), "rgb_variants": 0}
     for archive in archives:
         assert not {"indices", "palettes", "unresolved"}.intersection(archive), archive["id"]
         data = originals[archive["id"]].read_bytes()
@@ -103,33 +102,6 @@ def verify(package, source, baseline=None, scenario=None):
                 assert abs(portrait["anchorY"] - offsets[i * 2 + 1] / 240) < 1e-12
                 indexed.putpalette(b"".join(palette[n:n + 3] for n in range(0, 1024, 4)))
                 assert region(portrait["image"]).convert("RGB").tobytes() == indexed.convert("RGB").tobytes()
-    if baseline:
-        old = json.loads(baseline.read_text(encoding="utf-8"))
-        groups = {"map": manifest["map"]["assets"], "skin": manifest["skin"]["assets"]}
-        groups.update({s["id"]: s["textures"] for s in manifest["map"]["seasons"]})
-        for key, assets in groups.items():
-            for asset in assets:
-                image = region(asset).convert({1: "L", 3: "RGB", 4: "RGBA"}[old[key][asset["id"]][2]])
-                actual = [image.width, image.height, len(image.getbands()), hashlib.sha256(image.tobytes()).hexdigest()]
-                assert old[key][asset["id"]] == actual, asset["id"]
-                counts["runtime_images"] += 1
-        if scenario:
-            instance = json.loads((scenario / "content.json").read_text(encoding="utf-8"))
-            assert instance["schemaVersion"] == 22
-            assert "assets" not in instance["map"] and "skin" not in instance
-            catalog = {v["image"]["id"]: v["image"] for a in archives for v in a["variants"]}
-            catalog.update({p["image"]["id"]: p["image"] for p in portraits})
-            for role, asset_id in instance["illustrationRoles"].items():
-                if role.startswith("catalog-person-"): continue  # Unified crop intentionally replaces original S pixels.
-                old_id = old["roles"][role]
-                asset = catalog[asset_id]
-                image = region(asset).convert("RGBA")
-                assert old["skin"][old_id] == [image.width, image.height, 4, hashlib.sha256(image.tobytes()).hexdigest()], role
-                counts["runtime_images"] += 1
-            merged_roles = dict(manifest["skin"]["roles"], **instance["illustrationRoles"])
-            assert set(old["roles"]) == set(merged_roles)
-            world = json.dumps(instance["scenario"], sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-            assert old["world"] == hashlib.sha256(world.encode("utf-8")).hexdigest(), "Scenario state changed"
     return counts
 
 
@@ -137,11 +109,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--package", type=Path, required=True)
     parser.add_argument("--source", type=Path, required=True)
-    parser.add_argument("--baseline", type=Path)
-    parser.add_argument("--scenario", type=Path)
     parser.add_argument("--report", type=Path)
     args = parser.parse_args()
-    report = verify(args.package, args.source, args.baseline, args.scenario)
+    report = verify(args.package, args.source)
     if args.report:
         args.report.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

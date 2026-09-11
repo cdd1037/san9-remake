@@ -8,9 +8,26 @@ namespace San9.Content.Tests;
 public sealed class TextureDependencyTests
 {
     [Fact]
+    public void TextureMetadataSerializesWithoutDigests()
+    {
+        var image = new ImageAsset("portrait/0", "images/portraits/0.png", 240, 240, 3);
+        var resources = new MapResources([], [], [], [], [], new int[288], new int[16], [], new byte[32]);
+        var textures = new TexturePackage(3, 7, "source",
+            [new("G_FaceL.s9", 123, new DateTime(2026, 9, 12, 0, 0, 0, DateTimeKind.Utc))],
+            resources, new(16, [], [], []), new(3, [new("portrait", "portraits", [new(0, 0, image)])]),
+            [new(0, image, 0, 0)]);
+        string json = JsonSerializer.Serialize(textures, PackageFiles.JsonOptions);
+        Assert.DoesNotContain("sha256", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("fingerprint", json, StringComparison.OrdinalIgnoreCase);
+        var restored = JsonSerializer.Deserialize<TexturePackage>(json, PackageFiles.JsonOptions)!;
+        Assert.Equal(textures.Sources, restored.Sources);
+        Assert.Equal(image, restored.Portraits[0].Image);
+    }
+
+    [Fact]
     public void DifferentMapInstancesShareTheSameResourceCatalogWithoutSerializingIt()
     {
-        var image = new ImageAsset("building-5663-key", "images/buildings/one.png", new string('A', 64), 1, 1);
+        var image = new ImageAsset("building-5663-key", "images/buildings/one.png", 1, 1);
         var resources = new MapResources([], [image], [], [], [], new int[288], new int[16], [], new byte[32]);
         var first = new MapInstance("source", "first", "spring", 200, 200, 13056, 6656,
             [], [], [new(image.Id, 10, 20)], [], [], [], [], [], [], [], []);
@@ -30,24 +47,25 @@ public sealed class TextureDependencyTests
     }
 
     [Fact]
-    public async Task ChangedTextureDependencyFailsBeforeInstallingContent()
+    public async Task InvalidTextureManifestFailsBeforeInstallingContent()
     {
         string root = Path.Combine(Path.GetTempPath(), "san9-dependency-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Path.Combine(root, "scenario"));
         Directory.CreateDirectory(Path.Combine(root, "textures"));
         try
         {
-            // Dependency checking must reject a changed manifest before any texture or scenario is loaded.
+            // References contain only a directory; malformed dependency content still fails loading.
             await File.WriteAllTextAsync(Path.Combine(root, "textures", "textures.json"), "changed");
             var map = new MapInstance("source", "first", "spring", 200, 200, 13056, 6656,
                 [], [], [], [], [], [], [], [], [], [], []);
             var scenario = new San9.Content.Scenarios.ScenarioInitialState(11, "first", 190, 1, 1, 0, [], [], [], []);
-            var content = new ScenarioContent(22, [], new("../textures", new string('0', 64)), map, scenario,
+            var content = new ScenarioContent(23, [], new("../textures"), map, scenario,
                 new(3, []), []);
             await File.WriteAllTextAsync(Path.Combine(root, "scenario", "content.json"),
                 JsonSerializer.Serialize(content, PackageFiles.JsonOptions));
-            var error = await Assert.ThrowsAsync<InvalidDataException>(() => ClientContentFiles.LoadAsync(Path.Combine(root, "scenario")));
-            Assert.Contains("dependency changed", error.Message);
+            await Assert.ThrowsAsync<JsonException>(() => ClientContentFiles.LoadAsync(Path.Combine(root, "scenario")));
+            using var dependency = JsonDocument.Parse(JsonSerializer.Serialize(content.Textures, PackageFiles.JsonOptions));
+            Assert.Equal("path", Assert.Single(dependency.RootElement.EnumerateObject()).Name);
             Assert.Single(Directory.GetFiles(Path.Combine(root, "textures")));
         }
         finally { Directory.Delete(root, true); }

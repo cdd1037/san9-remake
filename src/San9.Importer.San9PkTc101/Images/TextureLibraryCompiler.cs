@@ -1,5 +1,4 @@
 using System.Buffers.Binary;
-using System.Security.Cryptography;
 using San9.Content.Images;
 using San9.Content.Packages;
 
@@ -9,8 +8,7 @@ public static class TextureLibraryCompiler
 {
     // Offsets identify source data; the loader evidence is recorded in RE-SAN9PK-0169.
     private sealed record Recipe(string Category, string? Palette = null, int Table = 0, int Count = 0,
-        int FirstImage = 0, int FirstPalette = 0,
-        [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] int BindingVersion = 0);
+        int FirstImage = 0, int FirstPalette = 0);
     private static readonly Dictionary<string, Recipe> Recipes = new(StringComparer.OrdinalIgnoreCase)
     {
         ["G_Common"] = new("interface/common", Table: 0x24ea90, Count: 1425, FirstPalette: 200),
@@ -52,7 +50,7 @@ public static class TextureLibraryCompiler
         ["G_MpMkPK"] = new("map/markers"), ["G_LNMASK"] = new("map/unresolved-masks"),
         ["G_LNUKI"] = new("map/unresolved-cutouts", "P_NUKI.s9"),
         ["G_DynEff"] = new("effects/dynamic", "P_DynEff.s9"), ["G_Ikki"] = new("scenes/duel", "P_Ikki.s9"),
-        ["G_Gaikou"] = new("scenes/diplomacy", "P_Gaikou.s9"), ["G_ZoomIn"] = new("scenes/zoom", "P_ZoomIn.s9", BindingVersion: 1),
+        ["G_Gaikou"] = new("scenes/diplomacy", "P_Gaikou.s9"), ["G_ZoomIn"] = new("scenes/zoom", "P_ZoomIn.s9"),
         ["G_Radar"] = new("map/radar"), ["G_RadarM"] = new("map/radar"), ["G_RadarL"] = new("map/radar")
     };
 
@@ -74,16 +72,12 @@ public static class TextureLibraryCompiler
             if (recipe.Palette == "P_Face.s9") continue;
             byte[] bytes = read(Path.Combine(dataDirectory, name + ".s9"));
             byte[]? paletteBytes = recipe.Palette is null ? null : read(Path.Combine(dataDirectory, recipe.Palette));
-            using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-            hash.AppendData(System.Text.Encoding.UTF8.GetBytes($"texture-library-2/keyed-rgba-1/maxrects-{TextureAtlasCompiler.PackingVersion}/" + System.Text.Json.JsonSerializer.Serialize(recipe)));
-            hash.AppendData(exe); hash.AppendData(bytes); if (paletteBytes is not null) hash.AppendData(paletteBytes);
-            string fingerprint = Convert.ToHexString(hash.GetHashAndReset());
             string id = name.ToLowerInvariant();
             ImageAsset Save(string key, PngImage image) => save($"library/{id}/{key}", $"{recipe.Category}/{id}/{key}.png", image);
             if (bytes[0] == 'B' && bytes[1] == 'M')
             {
                 var asset = Save("image/0", DecodeBitmap(bytes));
-                archives.Add(new(id, recipe.Category, fingerprint, [new(0, -1, asset)])); continue;
+                archives.Add(new(id, recipe.Category, [new(0, -1, asset)])); continue;
             }
             var (palettes, images) = IndexedImageArchive.ReadArchive(bytes);
             if (paletteBytes is not null) palettes = IndexedImageArchive.ReadPalettes(paletteBytes, Int(paletteBytes, 0));
@@ -100,13 +94,15 @@ public static class TextureLibraryCompiler
                 .GroupBy(b => b.Palette).OrderBy(g => g.Key))
             {
                 var converted = group.OrderBy(b => b.Image).Select(b => new TextureVariant(b.Image, b.Palette,
-                    Save($"variant-{b.Palette:D3}/{b.Image:D4}", IndexedImageArchive.Decode(images[b.Image], palettes[b.Palette], !opaque, false)))).ToArray();
+                    save($"library/{id}/variant-{b.Palette:D3}/{b.Image:D4}",
+                        TextureSourcePath.Image(name, b.Image, b.Palette, !opaque, false, recipe.Palette),
+                        IndexedImageArchive.Decode(images[b.Image], palettes[b.Palette], !opaque, false)))).ToArray();
                 variants.AddRange(converted);
             }
-            if (variants.Count != 0) archives.Add(new(id, recipe.Category, fingerprint, variants.ToArray()));
+            if (variants.Count != 0) archives.Add(new(id, recipe.Category, variants.ToArray()));
             progress?.Invoke($"Texture catalog {name}: {variants.Count} converted textures.");
         }
-        var library = new TextureLibrary(2, archives.ToArray()); library.Validate(); return library;
+        var library = new TextureLibrary(3, archives.ToArray()); library.Validate(); return library;
     }
 
     private static HashSet<(int Image, int Palette)> Bindings(byte[] exe, string name, Recipe recipe, int images, int palettes)

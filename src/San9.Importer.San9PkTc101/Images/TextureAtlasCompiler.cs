@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using San9.Content.Images;
 using San9.Content.Packages;
 
@@ -8,9 +7,8 @@ public static class TextureAtlasCompiler
 {
     public const int PageSize = 2048;
     public const int Padding = 2;
-    public const int PackingVersion = 3;
     public sealed record Source(ImageAsset Asset, string? Group, string? Category = null, int? FileId = null);
-    private sealed record Item(PngImage Image, Source[] Sources, string Hash, string? Group, string Category);
+    private sealed record Item(PngImage Image, Source Source, string Id, string? Group, string Category);
 
     private readonly record struct Rect(int X, int Y, int W, int H)
     {
@@ -27,51 +25,34 @@ public static class TextureAtlasCompiler
             throw new InvalidDataException("Numbered images require unique nonnegative IDs within a standalone category.");
         var pixels = ImageAssetFiles.Load(root, input.Select(s => s.Asset), token);
         // The final logical image is the boundary for alpha-border preparation. This also covers
-        // derived/composited images, before deduplication and before neighboring atlas regions exist.
+        // derived/composited images, before neighboring atlas regions exist.
         foreach (var image in pixels.Values)
             if (image.Channels == 4) IndexedImageArchive.ExtendTransparentColors(image.Pixels, image.Width, image.Height);
-        var items = input.GroupBy(s =>
-        {
-            var p = pixels[s.Asset.Id];
-            if (p.Channels == 3)
-            {
-                byte[] rgba = new byte[p.Width * p.Height * 4];
-                for (int i = 0; i < p.Width * p.Height; i++)
-                { p.Pixels.AsSpan(i * 3, 3).CopyTo(rgba.AsSpan(i * 4, 3)); rgba[i * 4 + 3] = 255; }
-                return $"{p.Width}x{p.Height}x4-" + Convert.ToHexString(SHA256.HashData(rgba));
-            }
-            return $"{p.Width}x{p.Height}x{p.Channels}-" + Convert.ToHexString(SHA256.HashData(p.Pixels));
-        }).Select(g =>
-        {
-            var entries = g.OrderBy(s => pixels[s.Asset.Id].Channels).ThenBy(s => s.Asset.Id, StringComparer.Ordinal).ToArray();
-            var groups = entries.Select(s => s.Group).Distinct().ToArray();
-            var categories = entries.Select(s => s.Category ?? s.Group ?? "standalone").Distinct().ToArray();
-            return new Item(pixels[entries[0].Asset.Id], entries, g.Key, groups.Length == 1 ? groups[0] : null,
-                categories.Length == 1 ? categories[0] : "shared");
-        }).OrderBy(i => i.Hash, StringComparer.Ordinal).ToArray();
+        var items = input.Select(s => new Item(pixels[s.Asset.Id], s, s.Asset.Id, s.Group,
+            s.Category ?? s.Group ?? "standalone")).OrderBy(i => i.Id, StringComparer.Ordinal).ToArray();
+        Dictionary<(string Category, string Name), int> numbers = [];
         Dictionary<string, ImageAsset> result = [];
         ImageFile Save(string category, string name, PngImage image, int? fileId = null)
         {
             token.ThrowIfCancellationRequested();
             var bytes = image.Encode();
-            string hash = Convert.ToHexString(SHA256.HashData(bytes));
-            string filename = fileId is int id ? id.ToString(System.Globalization.CultureInfo.InvariantCulture) : $"{name}-{hash[..16]}";
+            var key = (category, name);
+            int number = numbers.GetValueOrDefault(key); numbers[key] = number + 1;
+            string filename = fileId is int id ? id.ToString(System.Globalization.CultureInfo.InvariantCulture) : $"{name}-{number}";
             string path = $"{directory}/{category}/{filename}.png";
             string target = PackageFiles.Resolve(root, path);
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
             if (!File.Exists(target) || !File.ReadAllBytes(target).AsSpan().SequenceEqual(bytes)) File.WriteAllBytes(target, bytes);
-            return new(path, hash, image.Width, image.Height, image.Channels);
+            return new(path, image.Width, image.Height, image.Channels);
         }
         void Register(Item item, ImageFile file, int x, int y)
         {
-            foreach (var source in item.Sources) result.Add(source.Asset.Id, new(source.Asset.Id, file, x, y, item.Image.Width, item.Image.Height));
+            result.Add(item.Id, new(item.Id, file, x, y, item.Image.Width, item.Image.Height));
         }
         bool Standalone(Item i) => i.Group is null || i.Image.Width + 2 * Padding > PageSize || i.Image.Height + 2 * Padding > PageSize;
         foreach (var item in items.Where(Standalone))
         {
-            // Equal images within one numbered category share the lowest stable resource ID.
-            int? fileId = item.Category != "shared" ? item.Sources.Where(s => s.FileId is not null).Select(s => s.FileId).Min() : null;
-            Register(item, Save(item.Category, "image", item.Image, fileId), 0, 0);
+            Register(item, Save(item.Category, "image", item.Image, item.Source.FileId), 0, 0);
         }
         foreach (var group in items.Where(i => !Standalone(i)).GroupBy(i => (i.Group, i.Category, i.Image.Channels)).OrderBy(g => g.Key.Group, StringComparer.Ordinal).ThenBy(g => g.Key.Category, StringComparer.Ordinal).ThenBy(g => g.Key.Channels))
         {
@@ -98,7 +79,7 @@ public static class TextureAtlasCompiler
                 page.Clear(); free = [new(0, 0, PageSize, PageSize)]; width = height = 0;
             }
             var remaining = group.OrderByDescending(i => (long)i.Image.Width * i.Image.Height)
-                .ThenByDescending(i => Math.Max(i.Image.Width, i.Image.Height)).ThenBy(i => i.Hash, StringComparer.Ordinal).ToList();
+                .ThenByDescending(i => Math.Max(i.Image.Width, i.Image.Height)).ThenBy(i => i.Id, StringComparer.Ordinal).ToList();
             while (remaining.Count != 0)
             {
                 token.ThrowIfCancellationRequested();

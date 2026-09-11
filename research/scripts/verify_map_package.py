@@ -23,7 +23,7 @@ def main():
     parser.add_argument('exe',type=Path);parser.add_argument('data',type=Path);parser.add_argument('package',type=Path);parser.add_argument('output',type=Path)
     args=parser.parse_args();args.output.mkdir(parents=True,exist_ok=True)
     content=json.loads((args.package/'content.json').read_text(encoding='utf-8'))
-    assert content['schemaVersion']==22
+    assert content['schemaVersion']==23
     texture_root=(args.package/content['textures']['path']).resolve()
     textures=json.loads((texture_root/'textures.json').read_text(encoding='utf-8'))
     package=dict(textures['map'], **content['map'])
@@ -37,7 +37,7 @@ def main():
     pairs=[struct.unpack_from('<2I',raw,0x25cfd0+i*8) for i in range(0x42e)]
     registry={r:p-91 for r,p in pairs if 10006<=r<=10776};assert len(registry)==771
     images=parse_image_stream(args.data/'G_LLand.s9')
-    hashes=[[] for _ in images]
+    season_pixels=[[] for _ in images]
     for season,suffix in zip(['spring','summer','autumn','winter'],'SNAW'):
         palettes=parse_palettes(args.data/f'P_Land_{suffix}.s9')
         for i,image in enumerate(images):
@@ -45,8 +45,8 @@ def main():
             for c in range(3):rgb[c::3]=image.pixels.translate(bytes(p[c] for p in palette))
             actual=image_region(terrain_assets[season][str(10006+i)]).convert('RGB')
             assert actual.size==(image.width,image.height) and actual.tobytes()==rgb
-            hashes[i].append(hashlib.sha256(rgb).hexdigest())
-    assert all(len(set(h))==4 for h in hashes)
+            season_pixels[i].append(bytes(rgb))
+    assert all(len(set(h))==4 for h in season_pixels)
     print('771 textures x 4 seasons: source-decoded RGB identical; every texture has 4 distinct outputs.',flush=True)
     # Preserve full-map equal-key insertion history, then clip drawing to the crop.
     reference.select_bridge_resource=lambda square:None

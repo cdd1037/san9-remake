@@ -235,9 +235,22 @@ public sealed class OriginalMessageParser
                     ("person", 0x39) => "biography-resource", ("person", 0x38) => "portrait",
                     ("person", 0x47) => "status", ("person", 0x91) => "personality",
                     ("person", 0x8F) => "righteousness", ("person", 0x90) => "ambition",
+                    ("person", 0x4D) => "current-leadership", ("person", 0x4E) => "current-war",
+                    ("person", 0x4F) => "current-intelligence", ("person", 0x83) => "current-force-loyalty",
+                    ("person", 0x89) => "injury", ("person", 0xE0) => "reverse-location-id",
+                    ("person", 0xE3) => "office-rank-order",
+                    ("force", 0x32) => "id", ("force", 0x3F) => "peerage-rank",
+                    ("force", 0x7C) => "is-alliance-leader", ("force", 0xBA) => "same-root-corps-count",
+                    ("force", 0xC7) => "country-title-order", ("force", 0xC8) => "reverse-peerage-rank",
+                    ("force", 0xC9) => "reverse-leader-id", ("force", 0xCB) => "reverse-id",
+                    ("force", 0xCE) => "reverse-direct-leader-id",
+                    ("building", 0x3E) => "reverse-fixed-type", ("building", 0x9E or 0x9F or 0xA7 or 0xA8) => "reverse-id",
+                    ("building", 0xA0) => "owner-force-order",
+                    ("treasure", 0x36) => "category", ("treasure", 0x43) => "reverse-id",
                     ("tactic", 0x61) => "name", ("tactic", 0x36) => "system-order",
-                    ("unit", 0x79) => "related-location", _ => null
+                    ("unit", 0x45) => "command-event-type", ("unit", 0x79) => "related-location", _ => null
                 };
+                if (category == "person" && property is 0xDB or 0xDC or 0xDD) return new("constant", Number: -1);
                 if (name is null) { Issue($"Unresolved {category} property {property:X2}."); name = "unresolved-property"; }
                 key += "." + name;
             }
@@ -245,8 +258,9 @@ public sealed class OriginalMessageParser
             return new("binding", key);
         }
         if (selector is 0xC9 or 0xCA) return new(selector == 0xCA ? "random" : "chance", Arguments: [Arithmetic()]);
+        if (selector is 0xCB or 0xDB) return new("constant", Number: 0);
         var arguments = new List<MessageExpression>();
-        int objects = selector switch { 0xCC or 0xCD or 0xCE or 0xCF or 0xD0 or 0xD9 or 0xDA => 2, 0xD1 or 0xD2 or 0xDE or 0xDF => 1, _ => 0 };
+        int objects = selector switch { 0xCC or 0xCD or 0xCE or 0xCF or 0xD0 or 0xD1 or 0xD9 or 0xDA => 2, 0xD2 or 0xD3 or 0xDE or 0xDF => 1, _ => 0 };
         for (int i = 0; i < objects; i++)
         {
             if (Take() != 2) throw new InvalidDataException("Expected object argument marker.");
@@ -255,12 +269,14 @@ public sealed class OriginalMessageParser
             string key = $"{(selector == 0xDA ? "force" : "person")}.{slot}";
             _bindings.Add(key); arguments.Add(new("binding", key));
         }
-        if (selector is 0xD1 or 0xD2 or 0xDD) arguments.Add(Arithmetic());
+        if (selector is 0xD2 or 0xD3 or 0xDD) arguments.Add(Arithmetic());
         string? function = selector switch
         {
-            0xCC => "parent-child", 0xCD => "same-parent", 0xCE => "same-bloodline", 0xD0 => "affinity-distance", 0xD2 => "has-treasure-category",
-            0xD4 => "year", 0xD5 => "season", 0xD6 => "month", 0xD7 => "day", 0xD3 => "scenario",
-            0xDA => "force-relation", 0xDD => "world-flag", _ => null
+            0xCC => "parent-child", 0xCD => "same-parent", 0xCE => "same-bloodline", 0xCF => "senior-kin",
+            0xD0 => "junior-kin", 0xD1 => "affinity-distance", 0xD2 => "has-treasure", 0xD3 => "has-treasure-category",
+            0xD4 => "scenario", 0xD5 => "year", 0xD6 => "season", 0xD7 => "month", 0xD8 => "day",
+            0xD9 => "same-root-force", 0xDA => "force-relation", 0xDC => "scenario-mode", 0xDD => "world-flag",
+            0xDE => "person-unit-command-in-38-52", 0xDF => "person-in-internal-unit", _ => null
         };
         if (function is null)
         {

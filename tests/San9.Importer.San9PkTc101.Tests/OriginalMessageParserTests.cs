@@ -97,4 +97,113 @@ public sealed class OriginalMessageParserTests
         Assert.True(result.FullyParsed); Assert.False(result.Definition.SemanticsConfirmed);
         Assert.Contains(result.Issues, i => i.Reason.Contains("property EE"));
     }
+
+    [Theory]
+    [InlineData(0xD4, "scenario")]
+    [InlineData(0xD5, "year")]
+    [InlineData(0xD6, "season")]
+    [InlineData(0xD7, "month")]
+    [InlineData(0xD8, "day")]
+    [InlineData(0xDC, "scenario-mode")]
+    public void WorldSelectorsUseTheOriginalDispatchSlots(byte selector, string binding)
+    {
+        var result = new OriginalMessageParser().Parse([5,5,4, 2,selector, (byte)'A',5,5,5,(byte)'B',5,5,5]);
+        var condition = Assert.IsType<MessageConditional>(result.Definition.Nodes[0]);
+        Assert.Equal(binding, condition.Predicate.Binding);
+        Assert.True(result.Definition.SemanticsConfirmed);
+    }
+
+    [Theory]
+    [InlineData(0xD2, "has-treasure")]
+    [InlineData(0xD3, "has-treasure-category")]
+    public void TreasurePredicatesConsumeAPersonAndNumericArgument(byte selector, string binding)
+    {
+        var result = new OriginalMessageParser().Parse([5,5,4, 2,selector, 2,1, (byte)'%',(byte)'3', (byte)'A',5,5,5,(byte)'B',5,5,5]);
+        var condition = Assert.IsType<MessageConditional>(result.Definition.Nodes[0]);
+        Assert.Equal(binding, condition.Predicate.Binding);
+        Assert.Equal(2, condition.Predicate.Arguments!.Length);
+        Assert.True(result.Definition.SemanticsConfirmed);
+    }
+
+    [Fact]
+    public void AffinityDistanceConsumesTwoPeopleWithoutAnExtraNumber()
+    {
+        var result = new OriginalMessageParser().Parse([5,5,4, 2,0xD1, 2,1, 2,2, (byte)'A',5,5,5,(byte)'B',5,5,5]);
+        var condition = Assert.IsType<MessageConditional>(result.Definition.Nodes[0]);
+        Assert.Equal("affinity-distance", condition.Predicate.Binding);
+        Assert.Equal(2, condition.Predicate.Arguments!.Length);
+        Assert.True(result.Definition.SemanticsConfirmed);
+    }
+
+    [Theory]
+    [InlineData(0xCF, "senior-kin")]
+    [InlineData(0xD0, "junior-kin")]
+    [InlineData(0xD9, "same-root-force")]
+    public void RecoveredPersonRelationsConsumeTwoPeople(byte selector, string binding)
+    {
+        var result = new OriginalMessageParser().Parse([5,5,4, 2,selector, 2,1, 2,2, (byte)'A',5,5,5,(byte)'B',5,5,5]);
+        var condition = Assert.IsType<MessageConditional>(result.Definition.Nodes[0]);
+        Assert.Equal(binding, condition.Predicate.Binding);
+        Assert.Equal(2, condition.Predicate.Arguments!.Length);
+        Assert.True(result.Definition.SemanticsConfirmed);
+    }
+
+    [Theory]
+    [InlineData(0xDE, "person-unit-command-in-38-52")]
+    [InlineData(0xDF, "person-in-internal-unit")]
+    public void UnitStatePredicatesConsumeOnePerson(byte selector, string binding)
+    {
+        var result = new OriginalMessageParser().Parse([5,5,4, 2,selector, 2,1, (byte)'A',5,5,5,(byte)'B',5,5,5]);
+        var condition = Assert.IsType<MessageConditional>(result.Definition.Nodes[0]);
+        Assert.Equal(binding, condition.Predicate.Binding);
+        Assert.Single(condition.Predicate.Arguments!);
+        Assert.True(result.Definition.SemanticsConfirmed);
+    }
+
+    [Fact]
+    public void ForceRelationConsumesTwoForces()
+    {
+        var result = new OriginalMessageParser().Parse([5,5,4, 2,0xDA, 2,31, 2,32, (byte)'A',5,5,5,(byte)'B',5,5,5]);
+        var condition = Assert.IsType<MessageConditional>(result.Definition.Nodes[0]);
+        Assert.Equal("force-relation", condition.Predicate.Binding);
+        Assert.Equal(["force.0", "force.1"], condition.Predicate.Arguments!.Select(a => a.Binding));
+        Assert.True(result.Definition.SemanticsConfirmed);
+    }
+
+    [Theory]
+    [InlineData(0xCB)]
+    [InlineData(0xDB)]
+    public void ReservedSelectorsAreKnownZeroConstants(byte selector)
+    {
+        var result = new OriginalMessageParser().Parse([5,5,4, 2,selector, (byte)'A',5,5,5,(byte)'B',5,5,5]);
+        var condition = Assert.IsType<MessageConditional>(result.Definition.Nodes[0]);
+        Assert.Equal(0, condition.Predicate.Number);
+        Assert.True(result.Definition.SemanticsConfirmed);
+    }
+
+    [Theory]
+    [InlineData(1, 0x4D, "person.0.current-leadership")]
+    [InlineData(31, 0xBA, "force.0.same-root-corps-count")]
+    [InlineData(41, 0xA0, "building.0.owner-force-order")]
+    [InlineData(21, 0x36, "treasure.0.category")]
+    [InlineData(51, 0x45, "unit.0.command-event-type")]
+    public void CatalogPropertiesUseRecoveredGetterSemantics(byte selector, byte property, string binding)
+    {
+        var result = new OriginalMessageParser().Parse([2,selector,property, (byte)'A',5,5,5]);
+        var expression = Assert.IsType<MessageValue>(result.Definition.Nodes[0]);
+        Assert.Equal(binding, expression.Expression.Binding);
+        Assert.True(result.Definition.SemanticsConfirmed);
+    }
+
+    [Theory]
+    [InlineData(0xDB)]
+    [InlineData(0xDC)]
+    [InlineData(0xDD)]
+    public void InvalidPersonCatalogPropertiesAreKnownMinusOneConstants(byte property)
+    {
+        var result = new OriginalMessageParser().Parse([2,1,property, (byte)'A',5,5,5]);
+        var expression = Assert.IsType<MessageValue>(result.Definition.Nodes[0]);
+        Assert.Equal(-1, expression.Expression.Number);
+        Assert.True(result.Definition.SemanticsConfirmed);
+    }
 }

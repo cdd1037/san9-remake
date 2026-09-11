@@ -26,13 +26,15 @@ public static class ExecutableTextCompiler
             byte[] raw=Convert.FromHexString(item.GetProperty("rawHex").GetString()!);
             var actual=pe.GetSectionData(checked((int)(va-(long)pe.PEHeaders.PEHeader!.ImageBase))).GetContent(0,raw.Length);
             if(!actual.AsSpan().SequenceEqual(raw)) throw new InvalidDataException($"EXE evidence byte mismatch at {address}.");
-            bool formatCandidate=System.Text.RegularExpressions.Regex.IsMatch(Encoding.ASCII.GetString(raw),@"%[-+ #0]*\d*(?:\.\d+)?[sdicuoxXf]");
-            var parsed=parser.Parse(raw,terminated:false,formatString:formatCandidate);
+            string usage=item.GetProperty("usage").GetString()!;
+            bool messageCandidate=usage=="message-candidate";
+            bool formatCandidate=messageCandidate && System.Text.RegularExpressions.Regex.IsMatch(Encoding.ASCII.GetString(raw),@"%[-+ #0]*\d*(?:\.\d+)?[sdicuoxXf]");
+            ParsedMessage? parsed=messageCandidate ? parser.Parse(raw,terminated:false,formatString:formatCandidate) : null;
             rows.Add(new {Address=address,RawHex=Convert.ToHexString(raw),References=item.GetProperty("references").Clone(),
-                FormatCandidate=formatCandidate,Parsed=parsed,
-                SyntaxSupported=parsed.FullyParsed && parsed.Definition.SemanticsConfirmed,
+                Usage=usage,MessageCandidate=messageCandidate,FormatCandidate=formatCandidate,Parsed=parsed,
+                SyntaxSupported=parsed is null ? null : (bool?)(parsed.FullyParsed && parsed.Definition.SemanticsConfirmed),
                 GameplayBound=false,
-                Boundary="Referenced IDA C-string candidate; UI usage is not inferred from string registration."});
+                Boundary=item.GetProperty("boundary").GetString()});
         }
         File.WriteAllText(Path.Combine(output,"executable-audit.json"),JsonSerializer.Serialize(rows,PackageFiles.JsonOptions),Encoding.UTF8);
     }

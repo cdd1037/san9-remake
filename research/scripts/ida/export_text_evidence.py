@@ -13,6 +13,12 @@ import ida_segment
 import idautils
 
 
+NON_MESSAGE_STRINGS = {
+    0x61C258: ("style-control-fragment", "ESC '[%d' is consumed only by emit_text_escape_sequence."),
+    0x620008: ("catalog-row-template", "'%*c%s' is consumed only by format_catalog_row_text for padding."),
+}
+
+
 def export(output: Path):
     source = Path(ida_nalt.get_input_file_path())
     digest = hashlib.sha256(source.read_bytes()).hexdigest()
@@ -31,7 +37,10 @@ def export(output: Path):
         refs = [{"address": hex(x.frm), "function": ida_funcs.get_func_name(x.frm)}
                 for x in idautils.XrefsTo(address)]
         if raw is not None:
-            rows.append({"address": hex(address), "rawHex": bytes(raw).hex(), "references": refs})
+            usage, boundary = NON_MESSAGE_STRINGS.get(
+                address, ("message-candidate", "Registered IDA C-string candidate; UI usage is not inferred from string registration."))
+            rows.append({"address": hex(address), "rawHex": bytes(raw).hex(), "references": refs,
+                         "usage": usage, "boundary": boundary})
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps({"sha256": digest, "strings": rows}, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"Registered string evidence: {len(rows)} -> {output}")

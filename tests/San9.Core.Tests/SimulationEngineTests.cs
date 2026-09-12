@@ -137,7 +137,7 @@ public sealed class SimulationEngineTests
         Assert.Equal(307, accepted.Snapshot.Settlements[0].Commerce);
         Assert.Equal(947u, accepted.Snapshot.Forces[0].Money);
         Assert.Equal(before.Clock, accepted.Snapshot.Clock);
-        Assert.Empty(accepted.Snapshot.Simulation.RandomStreams);
+        Assert.Equal(before.Simulation.RandomStreams, accepted.Snapshot.Simulation.RandomStreams);
         Assert.Equal(CommandRejection.WrongSequence, engine.Execute(new("player"), command).Submission.Rejection);
         Assert.False(engine.Execute(new("player"), command with { CommandId = Id(2), Sequence = 1,
             Development = new(1, 1, [2], DomesticActivity.Cultivation) }).Submission.Accepted);
@@ -191,7 +191,7 @@ public sealed class SimulationEngineTests
         Assert.Empty(actual.Snapshot.Simulation.Tasks);
         Assert.Equal(941u, actual.Snapshot.Forces[0].Money);
         Assert.InRange(actual.Snapshot.Settlements[0].Commerce, 301, 310);
-        Assert.Single(actual.Snapshot.Simulation.RandomStreams);
+        Assert.Single(actual.Snapshot.Simulation.RandomStreams.Where(s => s.Name == "fixture-investment"));
         Assert.Empty(Advance(restored).Events.OfType<TaskCompletedEvent>());
         Assert.Equal(938u, restored.Snapshot.Forces[0].Money);
     }
@@ -224,7 +224,7 @@ public sealed class SimulationEngineTests
         Assert.Empty(result.Events.OfType<TaskCompletedEvent>());
         Assert.Empty(result.Snapshot.Simulation.Tasks);
         Assert.Equal(994u, result.Snapshot.Forces[0].Money);
-        Assert.Empty(result.Snapshot.Simulation.RandomStreams);
+        Assert.DoesNotContain(result.Snapshot.Simulation.RandomStreams, s => s.Name == "fixture-investment");
         Assert.Empty(Advance(engine).Events.OfType<TaskCancelledEvent>());
         engine.EndControl(new("player"));
         Assert.True(engine.Execute(new("ai"), new DevelopCommand(Id(2), 2, 1, new(2, 1, [2], DomesticActivity.Commerce))).Submission.Accepted);
@@ -355,7 +355,7 @@ public sealed class SimulationEngineTests
         Assert.Empty(result.Events.OfType<TaskCompletedEvent>());
         Assert.Equal(46u, result.Snapshot.Forces[0].Money);
         Assert.Equal(300, result.Snapshot.Settlements[0].Commerce);
-        Assert.Empty(result.Snapshot.Simulation.RandomStreams);
+        Assert.DoesNotContain(result.Snapshot.Simulation.RandomStreams, s => s.Name == "fixture-investment");
     }
 
     [Fact]

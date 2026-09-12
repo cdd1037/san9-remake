@@ -64,7 +64,8 @@ public sealed class PersonnelMissionTests
         Submit(loaded, 11);
         var expected = Assert.Single(direct.Snapshot.Simulation.Tasks).Journey!.SuccessRoll;
         Assert.Equal(expected, loaded.Snapshot.Simulation.Tasks.Single(t => t.OfficerId == 11).Journey!.SuccessRoll);
-        Assert.Equal(origin.Simulation.RandomStreams, loaded.Snapshot.Simulation.RandomStreams);
+        Assert.Empty(loaded.Snapshot.Simulation.RandomStreams);
+        Assert.Equal(origin.Simulation.RandomStreams, direct.Snapshot.Simulation.RandomStreams);
         var restored = Engine(WorldState.Restore(loaded.CaptureStableState()));
         Assert.Equal(expected, restored.Snapshot.Simulation.Tasks.Single(t => t.OfficerId == 11).Journey!.SuccessRoll);
     }
@@ -344,16 +345,20 @@ public sealed class PersonnelMissionTests
         Assert.Equal(beforeReward, engine.Snapshot.StateHash);
         Assert.Equal(journey, Assert.Single(engine.Snapshot.Simulation.Tasks));
         var restored = Engine(WorldState.Restore(engine.CaptureStableState()));
-        Assert.Equal(CanonicalJson.Text(Advance(engine)), CanonicalJson.Text(Advance(restored)));
+        int loyaltyBefore = restored.Snapshot.Officers.Single(p => p.Id == 11).Loyalty;
+        var continuedEvents = Advance(engine);
+        Assert.Equal(CanonicalJson.Text(continuedEvents), CanonicalJson.Text(Advance(restored)));
         Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
         var person = restored.Snapshot.Officers.Single(p => p.Id == 11);
         Assert.Equal(OfficerStatus.Strategist, person.Status);
         Assert.Equal(3, person.SettlementId);
-        Assert.Equal(80, person.Loyalty);
+        Assert.Equal(loyaltyBefore + continuedEvents.OfType<OfficerLoyaltyChangedEvent>()
+            .Where(e => e.OfficerId == 11 && e.ForceId == 1 && e.Reason is "paid-salary" or "unpaid-salary")
+            .Sum(e => e.Current - e.Previous), person.Loyalty);
         Assert.Empty(restored.Snapshot.Simulation.Tasks);
         Assert.True(restored.Execute(new("player"), new RewardOfficerCommand(Guid.NewGuid(), 1,
             restored.Snapshot.Simulation.NextSequence, 11)).Submission.Accepted);
-        Assert.Equal(90, restored.Snapshot.Officers.Single(p => p.Id == 11).Loyalty);
+        Assert.Equal(person.Loyalty + 10, restored.Snapshot.Officers.Single(p => p.Id == 11).Loyalty);
     }
 
     [Theory]

@@ -70,7 +70,7 @@ public sealed class RuntimeWorldTests
         var advanced = engine.AdvanceXun();
         Assert.Equal(before.Revision + 1, advanced.Snapshot.Revision);
         Assert.Equal(before.Clock.Advance(), advanced.Snapshot.Clock);
-        Assert.Equal(before.Simulation.RandomStreams, advanced.Snapshot.Simulation.RandomStreams);
+        Assert.DoesNotContain(advanced.Snapshot.Simulation.RandomStreams, s => s.Name == "domestic-combination");
         Assert.False(advanced.Snapshot.Officers.Single(o => o.Id == 1).Acted);
         Assert.False(advanced.Snapshot.Settlements.Single(s => s.Id == 15).CommerceUsed);
         Assert.True(before.Officers.Single(o => o.Id == 1).Acted);

@@ -7,7 +7,7 @@ namespace San9.Application;
 
 public static class SessionProtocol
 {
-    public const string RulesVersion = "san9-core-g04-v17";
+    public const string RulesVersion = "san9-core-g04-v19";
     public const int SaveFormatVersion = 11;
     public const int LogFormatVersion = 9;
 }

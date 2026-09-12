@@ -39,7 +39,8 @@ internal sealed class ScenarioSessionDefinition
     internal ScenarioInitialState Content { get; }
     internal string Fingerprint { get; }
     internal WorldState CreateWorld(ulong seed) => WorldState.Create(new(Content.Year, Content.Month, Content.Day), seed,
-        Forces(), Settlements(), Content.Officers.Select(o => o.State), Content.Units, Content.Information.Corps,
+        Forces().Select(f => f.Id == Content.PlayerForceId ? f with { IsBarbarian = false } : f),
+        Settlements(), Content.Officers.Select(o => o.State), Content.Units, Content.Information.Corps,
         Content.Information.TreasureStates, Content.Information.Relations,
         Content.Forces.OrderBy(f => f.Id == Content.PlayerForceId ? 0 : 1).ThenBy(f => f.Id)
             .Select(f => new ControlSeat(f.Id == Content.PlayerForceId ? "player" : $"ai:{f.Id}", f.Id,

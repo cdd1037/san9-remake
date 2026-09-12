@@ -11,12 +11,49 @@ internal static class EconomicCycle
         if (stage != ResolutionStage.QuarterUpdate || world.Clock.DayNumber - world.Simulation.Started.DayNumber < 30) return;
         Population(world, events);
         UpdateTrust(world, rules, events);
+        Income(world, events);
+    }
+
+    private static void Income(WorldMutation world, List<DomainEvent> events)
+    {
+        HashSet<ResourceAccount> supplied = [];
+        Dictionary<int, long> foodTargets = [];
         foreach (var city in world.Settlements.Values.Where(s => s.Kind == SettlementKind.City && s.OwnerId is not null).OrderBy(s => s.Id))
         {
             var account = ResourceAccounts.Resolve(world, city.OwnerId!.Value, city.CorpsId);
-            ResourceAccounts.Change(world, account, ResourceKind.Money, EconomyMath.Revenue(city), "quarterly-revenue", city.Id, events);
-            if (world.Clock.Month == 7) ResourceAccounts.Change(world, account, ResourceKind.Food, EconomyMath.Harvest(city), "annual-harvest", city.Id, events);
+            if (!world.Forces[city.OwnerId.Value].IsBarbarian)
+            {
+                OrdinaryIncome(world, city, account, events);
+                continue;
+            }
+            if (!supplied.Add(account)) continue;
+            BarbarianSupply(world, city, account, foodTargets, events);
         }
+    }
+
+    private static void OrdinaryIncome(WorldMutation world, SettlementState city, ResourceAccount account, List<DomainEvent> events)
+    {
+        ResourceAccounts.Change(world, account, ResourceKind.Money, EconomyMath.Revenue(city), "quarterly-revenue", city.Id, events);
+        if (world.Clock.Month != 7) return;
+        ResourceAccounts.Change(world, account, ResourceKind.Food, EconomyMath.Harvest(city), "annual-harvest", city.Id, events);
+    }
+
+    private static void BarbarianSupply(WorldMutation world, SettlementState city, ResourceAccount account,
+        Dictionary<int, long> foodTargets, List<DomainEvent> events)
+    {
+        ResourceAccounts.Change(world, account, ResourceKind.Money,
+            EconomyRulebook.BarbarianQuarterlyFunds - ResourceAccounts.Balance(world, account, ResourceKind.Money),
+            "barbarian-quarterly-funds", city.Id, events);
+        if (world.Clock.Month != 7) return;
+        int forceId = city.OwnerId!.Value;
+        if (!foodTargets.TryGetValue(forceId, out long food))
+        {
+            long soldiers = world.Settlements.Values.Where(s => s.OwnerId == forceId).Sum(s => (long)s.Soldiers)
+                + world.Units.Values.Where(u => u.OwnerId == forceId).Sum(u => (long)u.Soldiers);
+            foodTargets.Add(forceId, food = EconomyMath.BarbarianAnnualFood(soldiers));
+        }
+        ResourceAccounts.Change(world, account, ResourceKind.Food,
+            food - ResourceAccounts.Balance(world, account, ResourceKind.Food), "barbarian-annual-food", city.Id, events);
     }
 
     private static void Salaries(WorldMutation world, EconomyRulebook rules, List<DomainEvent> events)
@@ -30,12 +67,16 @@ internal static class EconomicCycle
             int salary = Salary(person);
             bool paid = ResourceAccounts.Balance(world, account, ResourceKind.Money) >= salary;
             ResourceAccounts.Change(world, account, ResourceKind.Money, -salary, "salary", person.Id, events, true);
-            if (!paid && person.Loyalty > 0)
-            {
-                int loyalty = Math.Max(0, person.Loyalty - 1);
-                world.Replace(person.WithLoyalty(person.OwnerId!.Value, loyalty));
-                events.Add(new OfficerLoyaltyChangedEvent(world.Clock, person.Id, person.OwnerId!.Value, person.Loyalty, loyalty, "unpaid-salary"));
-            }
+            var force = world.Forces[person.OwnerId.Value];
+            int distance = force.LeaderId is int ruler ? PersonnelRulebook.AffinityDistance(person, world.Officers[ruler]) : 50;
+            int chance = EconomyMath.SalaryLoyaltyChance(paid, force.Trust, distance, person.Righteousness);
+            int roll = (int)(world.NextRandom("personnel-salary-loyalty") % 100);
+            if (roll >= chance) continue;
+            int loyalty = Math.Clamp(person.Loyalty + (paid ? 1 : -1), 0, 255);
+            if (loyalty == person.Loyalty) continue;
+            world.Replace(person.WithLoyalty(force.Id, loyalty));
+            events.Add(new OfficerLoyaltyChangedEvent(world.Clock, person.Id, force.Id, person.Loyalty, loyalty,
+                paid ? "paid-salary" : "unpaid-salary"));
         }
     }
 

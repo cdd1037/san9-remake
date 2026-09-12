@@ -20,12 +20,16 @@ public sealed class PersonnelLoyaltyCycleTests
         Assert.Equal(49, engine.Snapshot.Officers.Single(p => p.Id == 1).LoyaltyTo(2));
         for (int xun = 0; xun < 8; xun++) engine.AdvanceXun();
         Assert.Equal(49, engine.Snapshot.Officers.Single(p => p.Id == 1).LoyaltyTo(2));
-        var random = engine.Snapshot.Simulation.RandomStreams;
+        var isolated = world.BeginMutation();
+        isolated.SetClock(new(190, 4, 1));
+        var random = isolated.Simulation.RandomStreams;
+        PersonnelLoyaltyCycle.Apply(isolated, []);
+        Assert.Equal(random, isolated.Simulation.RandomStreams);
         var result = engine.AdvanceXun();
         Assert.Equal(50, result.Snapshot.Officers.Single(p => p.Id == 1).LoyaltyTo(2));
         Assert.Equal(75, result.Snapshot.Officers.Single(p => p.Id == 1).LoyaltyTo(1));
         Assert.Equal(50, result.Snapshot.Officers.Single(p => p.Id == 2).LoyaltyTo(2));
-        Assert.Equal(random, result.Snapshot.Simulation.RandomStreams);
+        Assert.Single(result.Snapshot.Simulation.RandomStreams, s => s.Name == "personnel-salary-loyalty");
         Assert.Equal(2, result.Events.OfType<OfficerLoyaltyChangedEvent>().Count(e => e.Reason == "quarterly-affiliation-interest"));
     }
 }

@@ -26,6 +26,7 @@ public sealed class TreasureCommandTests
     {
         var definition = Fixture();
         var session = GameSession.Start(definition, 190);
+        int initialLoyalty = session.Snapshot.Officers.Single(p => p.Id == 2).Loyalty;
         session.BeginRecording();
         var id = Guid.NewGuid();
         Assert.Equal(SessionDisposition.Accepted, session.Apply(session.Request(new CommandOperation(
@@ -42,7 +43,7 @@ public sealed class TreasureCommandTests
         Assert.Equal(SessionDisposition.Accepted, result.Disposition);
         Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.Apply(request).Events));
         Assert.Equal(SaveService.Encode(session), SaveService.Encode(restored));
-        Assert.Equal(94, session.Snapshot.Officers.Single(p => p.Id == 2).Loyalty);
+        Assert.Equal(initialLoyalty + 8 - 12, session.Snapshot.Officers.Single(p => p.Id == 2).Loyalty);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
         Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
         Assert.Equal(1, definition.Information.TreasureStates.Single().HolderId);

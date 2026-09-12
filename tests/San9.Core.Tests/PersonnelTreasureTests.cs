@@ -22,7 +22,11 @@ public sealed class PersonnelTreasureTests
              new(3, 2, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }],
             treasures: [new(10, 1, TreasureDiscovery.Discovered, null), new(11, 1, TreasureDiscovery.Discovered, null),
                 new(12, 2, TreasureDiscovery.Discovered, null)], controls: [new("player", 1, ControllerKind.Player)]);
-        return new(world, new([new(1, 0)], [], 10), Places, Rules(bonus), Governance);
+        var initialized = new SimulationEngine(world, new([new(1, 0)], [], 10), Places, Rules(bonus), Governance);
+        // Set the command boundary input after the independent opening salary cycle.
+        var state = initialized.CaptureStableState();
+        state = state with { Officers = state.Officers.Select(p => p.Id == 2 ? p.WithLoyalty(1, loyalty) : p).ToArray() };
+        return new(WorldState.Restore(state), new([new(1, 0)], [], 10), Places, Rules(bonus), Governance);
     }
 
     private static CommandExecutionResult Grant(SimulationEngine engine, int item = 10, int person = 2) =>

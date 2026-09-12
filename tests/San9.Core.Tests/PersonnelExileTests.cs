@@ -48,7 +48,7 @@ public sealed class PersonnelExileTests
         Assert.Equal(money, engine.Snapshot.Forces.Single(f => f.Id == 1).Money);
         var random = new StableRandom(StableRandom.DeriveSeed(190, "personnel-exile-placement"));
         random.NextUInt64();
-        Assert.Equal(random.State, Assert.Single(engine.Snapshot.Simulation.RandomStreams).State);
+        Assert.Equal(random.State, engine.Snapshot.Simulation.RandomStreams.Single(s => s.Name == "personnel-exile-placement").State);
         Assert.Single(result.Events.OfType<OfficerExiledEvent>());
     }
 

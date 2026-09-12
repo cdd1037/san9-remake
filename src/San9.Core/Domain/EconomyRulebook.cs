@@ -8,6 +8,7 @@ public sealed record EconomyRulebook(ImmutableArray<OfficeSalary> Salaries, Immu
     int? ImperialSealId = null, int? EmperorId = null)
 {
     public static EconomyRulebook Empty { get; } = new([], []);
+    public const long BarbarianQuarterlyFunds = 30000;
 
     public void Validate()
     {
@@ -21,6 +22,10 @@ public sealed record EconomyRulebook(ImmutableArray<OfficeSalary> Salaries, Immu
 
 public static class EconomyMath
 {
+    public static long BarbarianAnnualFood(long soldiers) => Math.Clamp(soldiers, 100000, 1000000);
+    public static int SalaryLoyaltyChance(bool paid, int trust, int affinityDistance, int righteousness) =>
+        paid ? (trust / 10 - affinityDistance + 50) / 20 : 5 * (16 - righteousness);
+
     public static long SquareRoot(long value)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(value);

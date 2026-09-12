@@ -183,13 +183,13 @@ public sealed class PersistenceTests : IDisposable
             if (xun == 10)
             {
                 Assert.Single(resumed.Snapshot.Simulation.Tasks);
-                Assert.Single(resumed.Snapshot.Simulation.RandomStreams);
+                Assert.Single(resumed.Snapshot.Simulation.RandomStreams, s => s.Name == "fixture-investment");
                 Checkpoint();
             }
         }
         Assert.Equal(new GameClock(191, 1, 1), resumed.Snapshot.Clock);
         Assert.Empty(resumed.Snapshot.Simulation.Tasks);
-        Assert.Single(resumed.Snapshot.Simulation.RandomStreams);
+        Assert.Single(resumed.Snapshot.Simulation.RandomStreams, s => s.Name == "fixture-investment");
         Assert.Equal(continuous.Capture().StateHash, resumed.Capture().StateHash);
         Assert.Equal(continuous.Records, resumed.Records);
         CommandLogService.Write(FilePath("commands.jsonl"), continuous);

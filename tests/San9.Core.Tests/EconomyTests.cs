@@ -60,7 +60,7 @@ public sealed class EconomyTests
         Assert.False(Run(engine,DomesticActivity.Cultivation,5).Submission.Accepted);
         Assert.Same(after,engine.Snapshot);
         Assert.Equal(745u,after.Corps.Single(c=>c.Id==2).Treasury!.Money);
-        Assert.Single(after.Simulation.RandomStreams);
+        Assert.Single(after.Simulation.RandomStreams.Where(s => s.Name == "domestic-combination"));
     }
 
     [Fact]
@@ -101,7 +101,7 @@ public sealed class EconomyTests
         var before = engine.Snapshot;
         Assert.Equal(DevelopmentRejection.InsufficientFunds,Run(engine,DomesticActivity.Commerce,1).Development!.Value.Rejection);
         Assert.Same(before,engine.Snapshot);
-        Assert.Empty(before.Simulation.RandomStreams);
+        Assert.DoesNotContain(before.Simulation.RandomStreams, s => s.Name == "domestic-combination");
     }
 
     [Fact]

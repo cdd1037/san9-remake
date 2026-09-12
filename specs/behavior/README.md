@@ -36,7 +36,7 @@
 - [BEH-PERSON-0003：人物召回、移动与行动占用](BEH-PERSON-0003-recall-movement-and-action-reservation.md)（已确认）
 - [BEH-PERSON-LIFECYCLE-0001：能力、熟练度与兵法习得](BEH-PERSON-LIFECYCLE-0001-growth-and-learning.md)（已确认）
 - [BEH-PERSON-LIFECYCLE-0002：登场、伤势与死亡](BEH-PERSON-LIFECYCLE-0002-appearance-injury-and-death.md)（已确认）
-- [BEH-PERSON-LIFECYCLE-0003：培养人物状态机](BEH-PERSON-LIFECYCLE-0003-trainee-development.md)（已确认）
+- [BEH-PERSON-LIFECYCLE-0003：培养人物状态机](BEH-PERSON-LIFECYCLE-0003-trainee-development.md)（草案，独立支线，按需启动）
 - [BEH-STRATEGY-0001：计略提交、军师意见与阶段结算](BEH-STRATEGY-0001-command-advice-and-resolution.md)（已确认）
 - [BEH-STRATEGY-0002：部队计略状态与救援](BEH-STRATEGY-0002-unit-status-and-reinforcement.md)（已确认）
 - [BEH-STRATEGY-0003：人物、建筑与势力计略效果](BEH-STRATEGY-0003-person-building-and-force-effects.md)（已确认）

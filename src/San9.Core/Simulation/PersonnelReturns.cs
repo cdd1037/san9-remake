@@ -62,7 +62,7 @@ internal static class PersonnelReturns
         int days, bool afterDailyCommands, List<DomainEvent> events)
     {
         var due = world.Clock;
-        int offset = afterDailyCommands ? Math.Max(1, days) : Math.Max(0, days - 1);
+        int offset = afterDailyCommands ? days : Math.Max(0, days - 1);
         for (int day = 0; day < offset; day++) due = due.NextDay();
         Guid id = new(Convert.FromHexString(CanonicalJson.Hash(new { previous.Id, OfficerId = officerId,
             ReturnStarted = world.Clock, Destination = destination })).AsSpan(0, 16));
@@ -85,7 +85,7 @@ internal sealed class PersonnelReturnRule(PersonnelRulebook places, GovernanceRu
         places.Places.ContainsKey(journey.DestinationPlaceId) && leg.CountdownDays >= 0 &&
         leg.CountdownDays <= places.JourneyDays(leg.OriginPlaceId, journey.DestinationPlaceId, PersonnelJourneyKind.Move);
     internal override int DurationDays(PersistentTask task) => task.Journey?.ReturnLeg is { } leg
-        ? leg.AfterDailyCommands ? Math.Max(1, leg.CountdownDays) : Math.Max(0, leg.CountdownDays - 1) : -1;
+        ? leg.AfterDailyCommands ? leg.CountdownDays : Math.Max(0, leg.CountdownDays - 1) : -1;
     internal override bool Validate(WorldMutation world, PersistentTask task) => HasValidPayload(task);
     internal override void Complete(WorldMutation world, PersistentTask task, List<DomainEvent> events)
     {

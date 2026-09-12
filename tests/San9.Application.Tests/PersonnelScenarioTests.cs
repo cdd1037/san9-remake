@@ -99,6 +99,43 @@ public sealed class PersonnelScenarioTests
         Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void HomeSearchDiscoveryReturnsBeforeNextOrdersWithIdenticalSaveAndReplay(bool acceptRecruitment)
+    {
+        var baseline = Fixture();
+        var definition = baseline with { Officers = baseline.Officers.Select(p => p.State.Id switch
+        {
+            11 => p with { State = p.State with { BaseAbilities = new(50, 50, 200, 50) } },
+            21 => p with { State = p.State.WithLoyalty(1, 200) with { SettlementId = 1, RegionId = null } },
+            _ => p
+        }).ToArray() };
+        var session = GameSession.Start(definition, 190);
+        session.BeginRecording();
+        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 11, 1)
+            { AcceptRecruitment = acceptRecruitment }).Submission.Accepted);
+        Assert.False(session.View.Officers.Single(p => p.Id == 11).IsAvailable);
+        var restored = SaveService.Decode(SaveService.Encode(session), definition);
+        foreach (var operation in new SessionOperation[] { new EndControlOperation(), new AdvanceOperation() })
+        {
+            var request = session.Request(operation);
+            var first = session.Apply(request);
+            var second = restored.Apply(request);
+            Assert.Equal(SessionDisposition.Accepted, first.Disposition);
+            Assert.Equal(CanonicalJson.Text(first.Events), CanonicalJson.Text(second.Events));
+        }
+        Assert.Equal(SaveService.Encode(session), SaveService.Encode(restored));
+        Assert.Equal(new GameClock(190, 1, 11), session.Snapshot.Clock);
+        Assert.Empty(session.Snapshot.Simulation.Tasks);
+        Assert.True(session.View.Officers.Single(p => p.Id == 11).IsAvailable);
+        Assert.Equal(acceptRecruitment ? OfficerStatus.Serving : OfficerStatus.Free,
+            session.Snapshot.Officers.Single(p => p.Id == 21).Status);
+        if (acceptRecruitment) Assert.True(session.View.Officers.Single(p => p.Id == 21).IsAvailable);
+        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
+        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+    }
+
     [Fact]
     public void RestoredMissionRejectsMalformedPayloadAndUnknownPlace()
     {

@@ -56,7 +56,7 @@ python research/scripts/validate_core_domain_contracts.py --contracts specs/beha
 | 经济 | [BEH-DOMESTIC-0001](behavior/BEH-DOMESTIC-0001-base-development-effect.md)、[RE-0098](../research/findings/RE-SAN9PK-0098.md)、[RE-0067](../research/findings/RE-SAN9PK-0067.md)、[RE-0095](../research/findings/RE-SAN9PK-0095.md) | 数量公式之外的组合/副作用、征兵训练、收支和人口完整输入；账户路由、短缺、饱和损失；9520→9076 是一次俸禄证据，不能硬编码扣444 | G03 |
 | 普通战斗 | [WAR-0002](behavior/BEH-WAR-0002-building-defeat-and-capture.md)、[WAR-0003](behavior/BEH-WAR-0003-unit-return-defeat-and-force-cleanup.md) | 可攻击关系、距离、机会、伤害整数关系、伤兵分配、士气/撤退，以及占领权重输入；现有失守契约不能充当伤害算法 | G06 |
 | 阵型兵法 | IMPORT-0010/0012、人物/势力已有兵法提供记录 | 将支持定义集合映射到移动/战斗/陆水参数与触发连携；禁止未知阵型套默认规则 | G05 移动、G07 战斗 |
-| 俘虏 | WAR-0002/0003、PERSON-0001/0002、DIPLOMACY-0002 | 分清原归属、拘押方与当前位置；被俘/逃脱/死亡一次性结果，宝物和任务清理；后续登用、释放/交换与其他处置共用转换 | G06 产生与清理、G07 处置、G08 交换 |
+| 俘虏 | WAR-0002/0003、PERSON-0001/0002、DIPLOMACY-0002 | 分清原归属、拘押方与当前位置；被俘/逃脱/死亡一次性结果，宝物和任务清理；后续登用、释放/交换与其他处置共用转换；拘押期间周期出逃在旬更新执行，独立于战败逃脱，见[RE-0112](../research/findings/RE-SAN9PK-0112.md#2026-09-12-俘虏出逃旬更新与交付阶段) | G06 产生与清理、G07 处置及周期出逃、G08 交换 |
 | 继承 | [生命周期死亡规格](behavior/BEH-PERSON-LIFECYCLE-0002-appearance-injury-and-death.md)、GOVERNANCE-0003、SCENARIO-0001 | 继承候选资格、稳定择序、无候选结果，以及军团/外交/任务联动；现有 LeaderId 不是继承实现 | G09；G06 先保证灭亡清理 |
 
 跨域研究剩余输入参考[疑点清单](../research/research-open-questions.md)。本轮不新增原作事实或 IDA 标注，也不将范围外疑点作为 G01 阻塞项。

@@ -73,13 +73,21 @@ internal static class PersonnelMissions
         if (!CanAct(world, command.IssuerId, command.OfficerId) || world.Forces[command.IssuerId].LeaderId is null)
             return CommandRejection.PersonUnavailable;
         int origin = world.Officers[command.OfficerId].SettlementId!.Value;
-        if (origin == command.DestinationId || !rules.Places.ContainsKey(origin) || !rules.Places.ContainsKey(command.DestinationId) ||
-            world.Settlements.TryGetValue(command.DestinationId, out var target) && target.OwnerId is int owner && owner != command.IssuerId)
+        if (!rules.Places.ContainsKey(origin) || !CanSearch(world, command.IssuerId, command.DestinationId, rules))
             return CommandRejection.InvalidTask;
         int roll = (int)(world.NextRandom("personnel-search-submission") % 100);
         Add(world, context, command, command.CommandId, command.OfficerId, origin,
             new(command.DestinationId, null, roll) { AcceptRecruitment = command.AcceptRecruitment }, SearchKind, rules, events);
         return CommandRejection.None;
+    }
+
+    internal static bool CanSearch(WorldMutation world, int forceId, int destinationId, PersonnelRulebook rules)
+    {
+        if (!rules.Places.ContainsKey(destinationId)) return false;
+        if (world.Settlements.TryGetValue(destinationId, out var target) && target.OwnerId is int owner)
+            return owner == forceId;
+        return !rules.RegionCities.TryGetValue(destinationId, out int cityId) ||
+            world.Settlements.TryGetValue(cityId, out var city) && (city.OwnerId is null || city.OwnerId == forceId);
     }
 
     internal static CommandRejection StartMove(WorldMutation world, CommandContext context, MoveOfficersCommand command,
@@ -146,7 +154,7 @@ internal sealed class PersonnelMissionRule(PersonnelRulebook rules, EconomyRuleb
         if (task.Journey is not { } journey || DurationDays(task) < 0) return false;
         if (kind == PersonnelMissions.SearchKind)
             return journey.TargetOfficerId is null && journey.SuccessRoll is >= 0 and < 100 && world.Forces[task.ForceId].LeaderId is not null &&
-                (!world.Settlements.TryGetValue(journey.DestinationPlaceId, out var place) || place.OwnerId is null || place.OwnerId == task.ForceId);
+                PersonnelMissions.CanSearch(world, task.ForceId, journey.DestinationPlaceId, rules);
         if (kind == PersonnelMissions.MoveKind)
             return journey.TargetOfficerId is null && journey.SuccessRoll is null &&
                 world.Settlements.TryGetValue(journey.DestinationPlaceId, out var destination) && destination.OwnerId == task.ForceId &&

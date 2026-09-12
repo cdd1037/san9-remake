@@ -62,6 +62,9 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         world.SetSimulation(world.Simulation with { Tasks = world.Simulation.Tasks
             .Select(t => t with { ProgressDays = checked(t.ProgressDays + 1) }).ToImmutableArray() });
         if (!Run(ResolutionStage.DailyMapUpdate, world, events)) return;
+        // The later unit/building phase settles returns already due in the completed day,
+        // including those created by that day's commands. Advancing the date is not another countdown tick.
+        ResolveTasks(world, events, returningAfterDateAdvance: true);
         Run(ResolutionStage.UnitAndBuildingEvents, world, events);
     }
 
@@ -90,9 +93,11 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         return false;
     }
 
-    private void ResolveTasks(WorldMutation world, List<DomainEvent> events)
+    private void ResolveTasks(WorldMutation world, List<DomainEvent> events, bool returningAfterDateAdvance = false)
     {
-        foreach (var task in world.Simulation.Tasks.OrderBy(t => t.Sequence).ThenBy(t => t.OriginSettlementId).ThenBy(t => t.OfficerId).ThenBy(t => t.Id).ToArray())
+        foreach (var task in world.Simulation.Tasks
+            .Where(t => !returningAfterDateAdvance || t.Kind == PersonnelReturns.Kind && t.Due.DayNumber < world.Clock.DayNumber)
+            .OrderBy(t => t.Sequence).ThenBy(t => t.OriginSettlementId).ThenBy(t => t.OfficerId).ThenBy(t => t.Id).ToArray())
         {
             if (!world.Simulation.Tasks.Any(t => t.Id == task.Id)) continue;
             var rule = rules.FindTask(task.Kind) ?? throw new InvalidOperationException($"Unsupported task '{task.Kind}'.");

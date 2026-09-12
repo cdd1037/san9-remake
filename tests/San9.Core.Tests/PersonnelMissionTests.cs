@@ -354,19 +354,101 @@ public sealed class PersonnelMissionTests
     }
 
     [Fact]
-    public void SearchRejectsSamePlaceAndDestroyedOriginWithoutChangingState()
+    public void DestroyedOriginRejectsSearchAndRecruitmentWithoutChangingState()
     {
         var world = World();
         var engine = Engine(world);
-        string before = engine.Snapshot.StateHash;
-        Assert.False(engine.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 11, 1)).Submission.Accepted);
-        Assert.Equal(before, engine.Snapshot.StateHash);
         var mutation = world.BeginMutation();
         mutation.Replace(mutation.Settlements[1] with { Durability = 0 });
         world.Commit(mutation);
-        before = engine.Snapshot.StateHash;
+        string before = engine.Snapshot.StateHash;
+        Assert.False(engine.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 11, 1)).Submission.Accepted);
+        Assert.Equal(before, engine.Snapshot.StateHash);
         Assert.False(Recruit(engine).Submission.Accepted);
         Assert.Equal(before, engine.Snapshot.StateHash);
+    }
+
+    [Theory]
+    [InlineData(1, 0)]
+    [InlineData(30, 0)]
+    [InlineData(30, 30)]
+    [InlineData(30, 300)]
+    public void SearchReturnsBeforeNextOrdersOnlyWhenReturnDistanceIsZero(int destination, int distance)
+    {
+        var places = new PersonnelRulebook([new(1, new(0, 0)), new(2, new(900, 0)),
+            new(3, new(30, 0)), new(30, new(distance, 0))], new Dictionary<int, int> { [30] = 1 });
+        var engine = new SimulationEngine(World(), EconomyRulebook.Empty, places);
+        Assert.True(engine.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 1, destination)
+            { AcceptRecruitment = false }).Submission.Accepted);
+        var restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()), EconomyRulebook.Empty, places);
+        var events = Advance(engine);
+        Assert.Equal(CanonicalJson.Text(events), CanonicalJson.Text(Advance(restored)));
+        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        Assert.Equal(new GameClock(190, 1, 10), Assert.Single(events.OfType<SearchResolvedEvent>()).Clock);
+        Assert.Equal(new GameClock(190, 1, 11), engine.Snapshot.Clock);
+        Assert.False(engine.Snapshot.Officers.Single(p => p.Id == 1).Acted);
+        if (distance == 0)
+        {
+            Assert.Empty(engine.Snapshot.Simulation.Tasks);
+            var arrival = Assert.Single(events.OfType<PersonnelReturnedEvent>());
+            Assert.Equal(new GameClock(190, 1, 11), arrival.Clock);
+            int map = events.ToList().FindIndex(e => e is StageCompletedEvent
+                { Clock: { Day: 11 }, Stage: ResolutionStage.DailyMapUpdate });
+            int units = events.ToList().FindIndex(e => e is StageCompletedEvent
+                { Clock: { Day: 11 }, Stage: ResolutionStage.UnitAndBuildingEvents });
+            Assert.True(map < events.ToList().IndexOf(arrival) && events.ToList().IndexOf(arrival) < units);
+            Assert.True(engine.Snapshot.Officers.Single(p => p.Id == 1).IsCommander);
+        }
+        else
+        {
+            Assert.Single(engine.Snapshot.Simulation.Tasks);
+            Assert.Empty(events.OfType<PersonnelReturnedEvent>());
+        }
+        Assert.Equal(distance == 0, engine.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 1, 1, 1)).Submission.Accepted);
+    }
+
+    [Theory]
+    [InlineData(null, null, true, true)]
+    [InlineData(null, 1, true, true)]
+    [InlineData(null, 2, true, false)]
+    [InlineData(1, 2, true, true)]
+    [InlineData(2, 1, true, false)]
+    [InlineData(null, null, false, true)]
+    [InlineData(null, 1, false, true)]
+    [InlineData(null, 2, false, false)]
+    public void SearchTargetsUseTheirOwnerThenTheUnownedRegionsParentCity(int? targetOwner, int? cityOwner, bool built, bool accepted)
+    {
+        var world = WorldState.Create(new(190, 1, 1), 190,
+            [new(1, 10000, 10000, 0) { LeaderId = 1 }, new(2, 10000, 10000, 0) { LeaderId = 2 }],
+            [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100), new(2, 2, 0, 100, 100, 0, 0, 0, 100, 0, 100),
+             new(3, cityOwner, 0, 100, 100, 0, 0, 0, 100, 0, 100),
+             .. built ? new[] { new SettlementState(30, targetOwner, 0, 100, 100, 0, 0, 0, 100, 0, 100)
+                 { Kind = SettlementKind.Facility } } : []],
+            [new(1, 1, 1, new(50, 50, 1, 50), false) { Status = OfficerStatus.Ruler },
+             new(2, 2, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }],
+            controls: [new("player", 1, ControllerKind.Player)]);
+        var places = new PersonnelRulebook(Places.Places.Values, new Dictionary<int, int> { [30] = 3 });
+        var engine = new SimulationEngine(world, EconomyRulebook.Empty, places);
+        string before = engine.Snapshot.StateHash;
+        Assert.Equal(accepted, engine.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 1, 30)).Submission.Accepted);
+        if (!accepted) Assert.Equal(before, engine.Snapshot.StateHash);
+    }
+
+    [Fact]
+    public void SearchRechecksParentCityOwnershipBeforeResolving()
+    {
+        var world = World();
+        var places = new PersonnelRulebook(Places.Places.Values, new Dictionary<int, int> { [30] = 3 });
+        var engine = new SimulationEngine(world, EconomyRulebook.Empty, places);
+        Assert.True(engine.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 11, 30)).Submission.Accepted);
+        var mutation = world.BeginMutation();
+        mutation.Replace(mutation.Officers[13] with { SettlementId = 1 });
+        mutation.Replace(mutation.Settlements[3] with { OwnerId = 2 });
+        world.Commit(mutation);
+        var events = Advance(engine);
+        Assert.Single(events.OfType<TaskCancelledEvent>());
+        Assert.Empty(events.OfType<SearchResolvedEvent>());
+        Assert.Equal(OfficerStatus.Undiscovered, engine.Snapshot.Officers.Single(p => p.Id == 21).Status);
     }
 
     [Fact]
@@ -384,6 +466,8 @@ public sealed class PersonnelMissionTests
         var events = Advance(engine);
         Assert.Equal(CanonicalJson.Text(events), CanonicalJson.Text(Advance(restored)));
         Assert.Equal(task.Started, Assert.Single(events.OfType<RecruitmentResolvedEvent>()).Clock);
+        Assert.All(events.OfType<PersonnelReturnedEvent>(), e => Assert.Equal(task.Started.NextDay(), e.Clock));
+        Assert.Empty(engine.Snapshot.Simulation.Tasks);
     }
 
     [Theory]

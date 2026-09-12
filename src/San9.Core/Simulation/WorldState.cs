@@ -113,7 +113,7 @@ public sealed class WorldState
         var relations = Array.AsReadOnly(_relations.Values.OrderBy(r => r.FirstId).ThenBy(r => r.SecondId).ToArray());
         var treasures = Array.AsReadOnly(_treasures.Values.OrderBy(t => t.Id).ToArray());
         var units = Array.AsReadOnly(_units.Values.OrderBy(u => u.Id).ToArray());
-        var simulation = Simulation with { Tasks = Simulation.Tasks.OrderBy(t => t.Sequence).ThenBy(t => t.Id).ToImmutableArray() };
+        var simulation = Simulation with { Tasks = Simulation.Tasks.OrderBy(t => t.Sequence).ThenBy(t => t.OriginSettlementId).ThenBy(t => t.OfficerId).ThenBy(t => t.Id).ToImmutableArray() };
         return _snapshot = new WorldSnapshot(Clock, simulation) { Forces = forces, Settlements = settlements, Officers = officers, Units = units, Corps = corps, Treasures = treasures, Relations = relations, Revision = Revision };
     }
 }

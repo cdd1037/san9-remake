@@ -28,7 +28,7 @@ public sealed class PersistenceTests : IDisposable
         var value = G01ScenarioTests.Fixture();
         return value with
         {
-            Units = [new(1, 1, 3, 4, 100)],
+            Units = [new(1, 1, San9.Core.Domain.MapCoordinates.Center(new(3, 4)), 100)],
             Information = new([], [new(1, "office", 1000, 20)], [new(1, "treasure", 0, 10, 5, null)],
                 [new(1, 1, 1, null), new(2, 2, 4, null)], [new(1, 2, TreasureDiscovery.Discovered, null)])
                 { Relations = [new(1, 2, 50)] }
@@ -48,13 +48,13 @@ public sealed class PersistenceTests : IDisposable
         internal override TaskRule? FindTask(string kind) => kind == "fixture-investment" ? new Investment(this) : null;
         private sealed class Investment(FixtureRules owner) : TaskRule
         {
-            internal override int DurationDays => 15;
+            internal override int DurationDays(PersistentTask task) => 15;
             internal override bool Validate(WorldMutation world, PersistentTask task) => world.Forces[task.ForceId].Money >= 50;
             internal override void Complete(WorldMutation world, PersistentTask task, List<DomainEvent> events)
             {
                 world.Replace(world.Forces[task.ForceId] with { Money = world.Forces[task.ForceId].Money - 50 });
                 int increment = 1 + (int)(world.NextRandom("fixture-investment") % 10);
-                world.Replace(world.Settlements[task.TargetId] with { Commerce = owner.Fail ? 9999 : world.Settlements[task.TargetId].Commerce + increment });
+                world.Replace(world.Settlements[task.OriginSettlementId] with { Commerce = owner.Fail ? 9999 : world.Settlements[task.OriginSettlementId].Commerce + increment });
             }
         }
     }
@@ -329,11 +329,41 @@ public sealed class PersistenceTests : IDisposable
     }
 
     [Fact]
+    public void PersonnelRewardPersistsReplaysAndKeepsOtherForceLoyalty()
+    {
+        var initial = Fixture();
+        var definition = initial with
+        {
+            Officers = initial.Officers.Select(o => o.State.Id == 2 ? o with
+            {
+                State = o.State with { Righteousness = 15, ForceLoyalties = ImmutableDictionary<int, int>.Empty.Add(1, 80).Add(2, 255) }
+            } : o).ToArray()
+        };
+        var session = GameSession.Start(definition, 190);
+        session.BeginRecording();
+        var request = session.Request(new CommandOperation(new RewardOfficerCommand(Id(80), 1, 0, 2)), id: Id(80));
+        Assert.Equal(SessionDisposition.Accepted, session.Apply(request).Disposition);
+        var restored = SaveService.Decode(SaveService.Encode(session), definition);
+        var person = restored.Snapshot.Officers.Single(p => p.Id == 2);
+        Assert.Equal(82, person.Loyalty);
+        Assert.Equal(255, person.LoyaltyTo(2));
+        Assert.True(person.RewardedThisXun);
+        var advance = session.Request(new AdvanceOperation());
+        Equal(session.Apply(advance), restored.Apply(advance));
+        var second = session.Request(new CommandOperation(new RewardOfficerCommand(Id(81), 1, session.Snapshot.Simulation.NextSequence, 2)), id: Id(81));
+        Equal(session.Apply(second), restored.Apply(second));
+        Assert.Equal(84, restored.Snapshot.Officers.Single(p => p.Id == 2).Loyalty);
+        var replayed = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
+        Assert.Equal(SaveService.Encode(restored), SaveService.Encode(replayed.Session));
+    }
+
+    [Fact]
     public void DuplicatePropertiesUnknownFieldsAndNullEntriesAreRejected()
     {
         var definition = Fixture();
         byte[] bytes = SaveService.Encode(GameSession.Start(definition, 190));
-        string duplicate = Encoding.UTF8.GetString(bytes).Replace("\"formatVersion\":4", "\"formatVersion\":4,\"formatVersion\":4", StringComparison.Ordinal);
+        string versionProperty = $"\"formatVersion\":{SessionProtocol.SaveFormatVersion}";
+        string duplicate = Encoding.UTF8.GetString(bytes).Replace(versionProperty, $"{versionProperty},{versionProperty}", StringComparison.Ordinal);
         Assert.Equal(SaveFailure.InvalidFormat, Assert.Throws<SaveException>(() => SaveService.Decode(Encoding.UTF8.GetBytes(duplicate), definition)).Failure);
         var root = JsonNode.Parse(bytes)!;
         root["unexpected"] = true;

@@ -187,10 +187,10 @@
       "depends_on": ["simulation"],
       "implementation": {
         "project": "San9.Core",
-        "target_namespace": "San9.Core.Personnel",
-        "target_path": "src/San9.Core/Personnel",
-        "entry_types": ["PersonnelCommandService", "AffiliationTransition", "ActionReservationService"],
-        "existing_anchors": ["src/San9.Core/Domain/OfficerState.cs", "src/San9.Core/Simulation/GameCommand.cs"]
+        "target_namespace": "San9.Core.Simulation",
+        "target_path": "src/San9.Core/Simulation",
+        "entry_types": ["PersonnelMissions", "PersonnelTransitions", "PersonnelAppointments", "PersonnelRewards"],
+        "existing_anchors": ["src/San9.Core/Domain/OfficerState.cs", "src/San9.Core/Simulation/GameCommand.cs", "src/San9.Core/Simulation/PersonnelRewards.cs", "src/San9.Core/Simulation/PersonnelMissions.cs", "src/San9.Core/Simulation/PersonnelTransitions.cs", "src/San9.Core/Simulation/PersonnelAppointments.cs"]
       }
     },
     {

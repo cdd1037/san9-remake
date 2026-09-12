@@ -129,7 +129,7 @@ public partial class StrategyOverviewPanel : Control
         if (State.ShowUnits)
             foreach (var unit in view.World.Units)
             {
-                var p = Origin + new Vector2(2 * (unit.X - unit.Y) + 401, unit.X + unit.Y);
+                var p = Origin + new Vector2(2 * (unit.Cell.X - unit.Cell.Y) + 401, unit.Cell.X + unit.Cell.Y);
                 int color = view.Forces.Single(f => f.Id == unit.OwnerId).ColorCode;
                 if (color < 50) DrawTexture(Textures[$"overview-unit-{color}"],p-new Vector2(4,4));
             }

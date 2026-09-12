@@ -33,8 +33,8 @@ internal static class EconomicCycle
             if (!paid && person.Loyalty > 0)
             {
                 int loyalty = Math.Max(0, person.Loyalty - 1);
-                world.Replace(person with { Loyalty = loyalty });
-                events.Add(new OfficerLoyaltyChangedEvent(world.Clock, person.Id, person.Loyalty, loyalty, "unpaid-salary"));
+                world.Replace(person.WithLoyalty(person.OwnerId!.Value, loyalty));
+                events.Add(new OfficerLoyaltyChangedEvent(world.Clock, person.Id, person.OwnerId!.Value, person.Loyalty, loyalty, "unpaid-salary"));
             }
         }
     }

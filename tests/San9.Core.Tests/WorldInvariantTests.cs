@@ -9,7 +9,7 @@ public sealed class WorldInvariantTests
         [new(1, 100, 100, 50), new(2, 100, 100, 50)],
         [new(1, 1, 100, 10, 100, 50, 500, 10, 100, 10, 100)],
         [new(1, 1, 1, new(), false)],
-        [new(1, 1, 10, 10, 100)], [new(1, 1, 1, null)],
+        [new(1, 1, MapCoordinates.Center(new(10, 10)), 100)], [new(1, 1, 1, null)],
         [new(1, 1, TreasureDiscovery.Discovered, null)], [new(1, 2, 50)]);
 
     private static WorldState Recreate(WorldSnapshot state) => WorldState.Create(state.Clock, state.Simulation.InitialSeed,
@@ -30,7 +30,7 @@ public sealed class WorldInvariantTests
             0 => state with { Forces = [.. state.Forces, different ? state.Forces[0] with { Money = 99 } : state.Forces[0]] },
             1 => state with { Settlements = [.. state.Settlements, different ? state.Settlements[0] with { Commerce = 11 } : state.Settlements[0]] },
             2 => state with { Officers = [.. state.Officers, different ? state.Officers[0] with { Acted = true } : state.Officers[0]] },
-            3 => state with { Units = [.. state.Units, different ? state.Units[0] with { X = 11 } : state.Units[0]] },
+            3 => state with { Units = [.. state.Units, different ? state.Units[0] with { Position = new(11, 10) } : state.Units[0]] },
             4 => state with { Corps = [.. state.Corps, different ? state.Corps[0] with { Treasury = new(10, 10) } : state.Corps[0]] },
             5 => state with { Treasures = [.. state.Treasures, different ? state.Treasures[0] with { HolderId = null } : state.Treasures[0]] },
             _ => state with { Relations = [.. state.Relations, different ? state.Relations[0] with { Value = 51 } : state.Relations[0]] }

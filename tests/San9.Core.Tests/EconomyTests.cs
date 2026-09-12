@@ -11,7 +11,7 @@ public sealed class EconomyTests
         [new(1, 1, 990, 900, 1000, 50, 900, 900, 1000, 900, 1000) { CorpsId = 1, Population = 60000, DraftPopulation = 1000, SoldierCapacity = 1000 },
          new(2, 1, 990, 900, 1000, 50, 900, 900, 1000, 900, 1000) { CorpsId = 2, Population = 60000, DraftPopulation = 1000, SoldierCapacity = 1000 }],
         new[] { new OfficerState(0, 1, 1, new(100,100,100,100), false) { Status = OfficerStatus.Ruler } }
-            .Concat(Enumerable.Range(1,5).Select(id => new OfficerState(id,1,2,new(100,100,100,100),false) { Affinity = id * 10, Loyalty = 90, MasteredCategories = [0,5] })),
+            .Concat(Enumerable.Range(1,5).Select(id => new OfficerState(id,1,2,new(100,100,100,100),false) { Affinity = id * 10, ForceLoyalties = System.Collections.Immutable.ImmutableDictionary<int, int>.Empty.Add(1, 90), MasteredCategories = [0,5] })),
         corps: [new(1,1,0,null),new(2,1,1,new(money,food))], controls: [new("player",1,ControllerKind.Player)]);
 
     private static CommandExecutionResult Run(SimulationEngine engine, DomesticActivity activity, params int[] ids) =>

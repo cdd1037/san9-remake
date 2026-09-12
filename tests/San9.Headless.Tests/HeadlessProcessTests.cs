@@ -35,6 +35,31 @@ public sealed class HeadlessProcessTests : IDisposable
     }
 
     [Fact]
+    public async Task PersonnelCommandsAndReplayReportTheirActualScope()
+    {
+        Assert.Equal(0, (await Run("verify", "--fixture", "--xuns", "1", "--output", _directory)).Code);
+        string header = File.ReadLines(FilePath("commands.jsonl")).First();
+        object Request(int sequence, string type, int officerId)
+        {
+            Guid id = new(sequence + 1, 0, 0, new byte[8]);
+            return new { id, sequence, controllerId = "player", operation = new { type = "command",
+                command = new { type, commandId = id, issuerId = 1, sequence, officerId } } };
+        }
+        File.WriteAllLines(FilePath("personnel.jsonl"), [header,
+            JsonSerializer.Serialize(Request(0, "reward-officer", 2)), JsonSerializer.Serialize(Request(1, "appoint-adviser", 3))], new System.Text.UTF8Encoding(false));
+        var run = await Run("run", "--fixture", "--log", FilePath("personnel.jsonl"), "--report", FilePath("personnel-report.json"),
+            "--record", FilePath("personnel.recording.json"));
+        Assert.Equal(0, run.Code);
+        Assert.Equal("G04", run.Report.GetProperty("goal").GetString());
+        Assert.Equal(1, run.Report.GetProperty("personnelEvents").GetProperty("officer-rewarded").GetInt32());
+        Assert.Equal(1, run.Report.GetProperty("personnelEvents").GetProperty("adviser-appointed").GetInt32());
+        var replay = await Run("replay", "--fixture", "--recording", FilePath("personnel.recording.json"), "--report", FilePath("personnel-replay-report.json"));
+        Assert.Equal(0, replay.Code);
+        Assert.Equal("G04", replay.Report.GetProperty("goal").GetString());
+        Assert.Equal(run.Report.GetProperty("finalHash").GetString(), replay.Report.GetProperty("finalHash").GetString());
+    }
+
+    [Fact]
     public async Task ExecutableRunsCommandsSavesResumesAndSkipsRepeatedPrefix()
     {
         var verification = await Run("verify", "--fixture", "--xuns", "2", "--output", _directory);

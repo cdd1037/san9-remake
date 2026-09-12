@@ -21,10 +21,15 @@ internal static class WorldInvariants
         }
         foreach (var officer in state.Officers.Values)
         {
-            if (!officer.IsValid() || officer.SettlementId is int location && !state.Settlements.ContainsKey(location) ||
+            if (!officer.IsValid() || officer.ForceLoyalties.Keys.Any(id => !state.Forces.ContainsKey(id)) ||
+                officer.SettlementId is int location && !state.Settlements.ContainsKey(location) ||
                 officer.OwnerId is int owner && !state.Forces.ContainsKey(owner) ||
                 officer.IsServing && state.Settlements[officer.SettlementId!.Value].OwnerId != officer.OwnerId) throw new ArgumentException("Invalid officer.");
         }
+        if (state.Forces.Values.Any(f => f.AdviserId is int adviser && (!state.Officers.TryGetValue(adviser, out var p) || p.OwnerId != f.Id || p.Status != San9.Core.Domain.OfficerStatus.Strategist)) ||
+            state.Officers.Values.Any(p => p.Status == San9.Core.Domain.OfficerStatus.Strategist &&
+                (p.OwnerId is not int owner || state.Forces[owner].AdviserId != p.Id)))
+            throw new ArgumentException("Invalid force adviser relationship.");
         if (state.Forces.Values.Any(f => f.LeaderId is int leader &&
                 (!state.Officers.TryGetValue(leader, out var officer) || officer.OwnerId != f.Id)) ||
             state.Settlements.Values.Any(s => s.CorpsId < 0 || s.CorpsId is int corpsId && (!state.Corps.TryGetValue(corpsId, out var corps) || corps.OwnerId != s.OwnerId)) ||
@@ -57,8 +62,7 @@ internal static class WorldInvariants
             !sim.RandomStreams.Select(s => s.Name).SequenceEqual(sim.RandomStreams.Select(s => s.Name).Distinct().Order(StringComparer.Ordinal)))
             throw new ArgumentException("Invalid simulation boundary, control, sequence or random state.");
         if (sim.Tasks.Select(t => t.Id).Distinct().Count() != sim.Tasks.Length ||
-            sim.Tasks.Select(t => t.OfficerId).Distinct().Count() != sim.Tasks.Length ||
-            sim.Tasks.Select(t => t.Sequence).Distinct().Count() != sim.Tasks.Length)
+            sim.Tasks.Select(t => t.OfficerId).Distinct().Count() != sim.Tasks.Length)
             throw new ArgumentException("Duplicate task identity or officer occupation.");
         foreach (var task in sim.Tasks)
         {
@@ -67,11 +71,14 @@ internal static class WorldInvariants
             if (string.IsNullOrWhiteSpace(task.Kind) || task.Id == Guid.Empty ||
                 task.Sequence < 0 || task.Sequence >= sim.NextSequence ||
                 !sim.Controls.Any(c => c.ControllerId == task.ControllerId && c.ForceId == task.ForceId) ||
-                !state.Forces.ContainsKey(task.ForceId) || !state.Officers.ContainsKey(task.OfficerId) || !state.Settlements.ContainsKey(task.TargetId) ||
+                !state.Forces.ContainsKey(task.ForceId) || !state.Officers.ContainsKey(task.OfficerId) || !state.Settlements.ContainsKey(task.OriginSettlementId) ||
                 task.Started.DayNumber < sim.Started.DayNumber || task.Started.DayNumber > state.Clock.DayNumber ||
-                task.Due.DayNumber <= task.Started.DayNumber || task.Due.DayNumber < state.Clock.DayNumber || task.ProgressDays < 0 ||
+                task.Due.DayNumber < task.Started.DayNumber || task.Due.DayNumber < state.Clock.DayNumber || task.ProgressDays < 0 ||
                 task.ProgressDays != state.Clock.DayNumber - task.Started.DayNumber)
                 throw new ArgumentException("Invalid persistent task.");
+            if (task.Journey is { } journey && (journey.DestinationPlaceId < 0 || journey.SuccessRoll is < 0 or > 99 ||
+                journey.TargetOfficerId is int target && !state.Officers.ContainsKey(target)))
+                throw new ArgumentException("Invalid personnel journey.");
         }
     }
 

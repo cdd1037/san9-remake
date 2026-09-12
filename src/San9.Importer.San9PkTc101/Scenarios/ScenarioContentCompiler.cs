@@ -13,6 +13,12 @@ public static class ScenarioContentCompiler
         var header = Read(San9ScenarioArchive.ReadInitialScenario190Header);
         var cities = Read(San9ScenarioCityArchive.ReadKnownRecords);
         var zones = Read(San9ScenarioZoneArchive.ReadKnownRecords);
+        var personPlaces = cities.Select((c, id) => new { Id = id, X = c.X, Y = c.Y })
+            .Concat(zones.Select(z => new { Id = 50 + z.Id, X = z.X, Y = z.Y }))
+            .Where(p => p.X != ushort.MaxValue || p.Y != ushort.MaxValue).ToArray();
+        if (personPlaces.Any(p => p.X >= 200 || p.Y >= 200))
+            throw new InvalidDataException("Invalid configured region coordinates.");
+        var configuredRegionIds = personPlaces.Select(p => p.Id).ToHashSet();
         var forces = Read(San9ScenarioForceArchive.ReadKnownRecords);
         var persons = Read(San9ScenarioPersonArchive.ReadKnownRecords);
         var sourceUnits = Read(San9ScenarioUnitArchive.ReadKnownRecords);
@@ -44,6 +50,7 @@ public static class ScenarioContentCompiler
         Dictionary<int, int> regionCities = [];
         for (int i = 0; i < cities.Count; i++)
         {
+            if (!configuredRegionIds.Contains(i)) continue;
             var c = cities[i]; string key = text.City($"region.{i}", c.AuxiliaryId1); regions.Add(i, key); regionCities.Add(i, i);
             if (c.Durability == ushort.MaxValue || c.MaxDurability == ushort.MaxValue) continue;
             settlements.Add(new(i, key, Root(c.ForceId), c.X, c.Y, c.Soldiers, c.Durability, c.MaxDurability,
@@ -54,11 +61,13 @@ public static class ScenarioContentCompiler
         }
         foreach (var z in zones)
         {
-            int id = 50 + z.Id; if (z.CityId is int city) regionCities.Add(id, city); regions.Add(id, text.Region($"region.{id}", z.NameResourceCode));
+            int id = 50 + z.Id;
+            if (!configuredRegionIds.Contains(id)) continue;
+            if (z.CityId is int city) regionCities.Add(id, city); regions.Add(id, text.Region($"region.{id}", z.NameResourceCode));
             if (z.FixedBuildingId is not int type || z.Durability == ushort.MaxValue) continue;
             string name = text.Settlement($"settlement.{id}", z.NameResourceCode, type);
             settlements.Add(new(id, name, Root(z.ForceId), z.X, z.Y, z.Soldiers, z.Durability, fixedBuildings[type].MaxDurability, Morale(Root(z.ForceId), z.Soldiers), [])
-            { SoldierCapacity = z.SoldierCapacity, ConsumesFood = type is not (>= 7 and <= 10), Kind = San9.Core.Domain.SettlementKind.Facility, CorpsId = z.ForceId, IsFacilityListEntry = fixedBuildings[type].IsFacilityListEntry });
+            { SoldierCapacity = z.SoldierCapacity, ConsumesFood = type is not (>= 7 and <= 10), Kind = San9.Core.Domain.SettlementKind.Facility, CanHostPersons = type < 10, CorpsId = z.ForceId, IsFacilityListEntry = fixedBuildings[type].IsFacilityListEntry });
         }
         var summaries = settlements.Where(s => s.OwnerId is not null).Select(s => s.OwnerId!.Value).Append(5).Distinct().Order().Select(id =>
         {
@@ -68,7 +77,9 @@ public static class ScenarioContentCompiler
             string name = text.Person($"force.{id}", p.FamilyNameResourceCode, p.GivenNameResourceCode);
             return new ForceInitialState(id, name, f.ColorCode, f.Money, f.Food, f.Trust) { BaseTrust = f.BaseTrust, ProvidedTactics = Enumerable.Range(0, San9ScenarioForceArchive.TacticCount).Where(f.HasTactic).ToImmutableArray(), RankId = f.RankGroupId is < 8 ? f.RankGroupId : null, IsBarbarian = f.IsBarbarian || f.CountryTitleId is >= 4 and <= 8, LeaderId = leader, FlagGlyph = f.CountryTitleId is int title ? System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(exe.AsSpan(0x253bb0 + title * 4, 4)) : p.FlagCode < 186 ? p.FlagCode : -1 };
         }).ToArray();
-        var officers = OfficerContentCompiler.Compile(persons, items, offices, settlements, text, new San9MessageTable(biographies));
+        var officers = OfficerContentCompiler.Compile(persons, items, offices, settlements, summaries, text, new San9MessageTable(biographies));
+        summaries = summaries.Select(f => f with { AdviserId = officers.Where(o => o.State.OwnerId == f.Id && o.State.Status == San9.Core.Domain.OfficerStatus.Strategist)
+            .Select(o => (int?)o.State.Id).SingleOrDefault() }).ToArray();
         var treasureStates = TreasureContentCompiler.InitialStates(items);
         var information = new InformationDefinitions(
             ranks.Where(r => r.Id < 8).Select(r => new RankDefinition(r.Id, text.Rank($"rank.{r.Id}", r.Id), r.CommandCapacity, r.PrestigeRequirement, r.PromotionLoyaltyBonus)).ToArray(),
@@ -92,11 +103,12 @@ public static class ScenarioContentCompiler
         {
             if (u.UnitStatus is null || Root(u.ForceId) is not int owner || u.XCoordinate is not int x || u.YCoordinate is not int y)
                 throw new InvalidDataException("Invalid active field unit.");
-            return new San9.Core.Domain.UnitState(u.Id, owner, x, y, (uint)u.LoadedSoldierCount) { CorpsId = u.ForceId };
+            return new San9.Core.Domain.UnitState(u.Id, owner, San9.Core.Domain.MapCoordinates.Center(new(x, y)), (uint)u.LoadedSoldierCount) { CorpsId = u.ForceId };
         }).ToArray();
-        var snapshot = new ScenarioInitialState(12, header.ScenarioId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        var snapshot = new ScenarioInitialState(15, header.ScenarioId.ToString(System.Globalization.CultureInfo.InvariantCulture),
             header.StartDate.Year, header.StartDate.Month, header.StartDate.Day, 5, summaries, settlements.OrderBy(s => s.Id).ToArray(), regions, regionCities)
-        { Officers = officers, Units = units, Information = information, DomesticPairs = DomesticContentCompiler.Compile(persons),
+        { UnbuiltPlaces = personPlaces.Where(p => settlements.All(s => s.Id != p.Id)).Select(p => new San9.Core.Domain.PersonPlace(p.Id, San9.Core.Domain.MapCoordinates.Center(new(p.X, p.Y)))).ToImmutableArray(),
+            Officers = officers, Units = units, Information = information, DomesticPairs = DomesticContentCompiler.Compile(persons),
             ImperialSealId = 79, EmperorId = persons.Take(700).Select((p, id) => (p, id)).Where(v => v.p.BiographyResourceCode is 563 or 564 or 565 && v.p.StatusCode != 8).Select(v => (int?)v.id).FirstOrDefault() };
         snapshot.Validate(); catalog.Validate(); return (snapshot, catalog);
     }

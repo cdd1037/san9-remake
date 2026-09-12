@@ -70,14 +70,18 @@ public sealed class StrategySnapshot
         RegionCityIds = source.RegionCityIds;
         var settlements = world.Settlements.ToDictionary(settlement => settlement.Id);
         var occupied = world.Simulation.Tasks.Select(t => t.OfficerId).ToHashSet();
+        var journeys = world.Simulation.Tasks.Where(t => t.Journey is not null).ToDictionary(t => t.OfficerId);
         Officers = Array.AsReadOnly(world.Officers.Where(o => o.IsVisible).Select(o =>
         {
             var location = o.SettlementId is int id ? settlements[id] : null;
             var definition = source.Officer(o.Id);
+            var task = journeys.GetValueOrDefault(o.Id);
             return new OfficerView(o.Id, definition.NameKey, o.OwnerId, o.IsServing ? location?.CorpsId : null,
                 o.SettlementId, location?.Kind == San9.Core.Domain.SettlementKind.City, o.IsServing && !o.Acted && !occupied.Contains(o.Id), o.Abilities)
             {
                 Status = o.Status,
+                Journey = task is null ? null : new(task.Id, task.Kind, task.OriginSettlementId, task.Journey!.DestinationPlaceId,
+                    task.Journey.TargetOfficerId, task.Due, task.ProgressDays),
                 CourtesyNameKey = definition.CourtesyNameKey,
                 BiographyKey = definition.BiographyKey
             };

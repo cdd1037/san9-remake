@@ -78,7 +78,8 @@ public sealed class GameSession
     {
         var rules = new EconomyRulebook(definition.Information.Offices.Select(o => new OfficeSalary(o.Id, o.Salary)).ToImmutableArray(),
             definition.DomesticPairs, definition.ImperialSealId, definition.EmperorId);
-        return world => new(world, rules);
+        var personnel = new PersonnelRulebook(definition.Settlements.Select(s => new PersonPlace(s.Id, s.Position)).Concat(definition.UnbuiltPlaces));
+        return world => new(world, rules, personnel);
     }
 
     public static string Fingerprint(ScenarioInitialState definition) => new ScenarioSessionDefinition(definition).Fingerprint;

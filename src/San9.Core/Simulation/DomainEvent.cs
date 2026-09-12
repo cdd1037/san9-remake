@@ -1,5 +1,15 @@
 namespace San9.Core.Simulation;
 
+[System.Text.Json.Serialization.JsonDerivedType(typeof(AdviserAppointedEvent), "adviser-appointed")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(PersonSearchResolvedEvent), "person-search-resolved")]
+
+[System.Text.Json.Serialization.JsonDerivedType(typeof(RecruitmentResolvedEvent), "recruitment-resolved")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(PersonAffiliationChangedEvent), "person-affiliation-changed")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(OfficerMovedEvent), "officer-moved")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(ForceRelationChangedEvent), "force-relation-changed")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(OfficerAbilityGrownEvent), "officer-ability-grown")]
+
+[System.Text.Json.Serialization.JsonDerivedType(typeof(OfficerRewardedEvent), "officer-rewarded")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(ResourceChangedEvent), "resource-changed")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(OfficerLoyaltyChangedEvent), "loyalty-changed")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(ForceTrustChangedEvent), "trust-changed")]

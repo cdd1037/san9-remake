@@ -35,13 +35,13 @@ public sealed class SimulationEngineTests
         internal override void ApplyStage(ResolutionStage stage, WorldMutation world, List<DomainEvent> events) => OnStage?.Invoke(stage, world, events);
         private sealed class Investment(FixtureRules owner) : TaskRule
         {
-            internal override int DurationDays => owner.Duration;
+            internal override int DurationDays(PersistentTask task) => owner.Duration;
             internal override bool Validate(WorldMutation world, PersistentTask task) => world.Forces[task.ForceId].Money >= 50;
             internal override void Complete(WorldMutation world, PersistentTask task, List<DomainEvent> events)
             {
                 var force = world.Forces[task.ForceId];
                 world.Replace(force with { Money = force.Money - 50 });
-                var city = world.Settlements[task.TargetId];
+                var city = world.Settlements[task.OriginSettlementId];
                 int increment = 1 + (int)(world.NextRandom("fixture-investment") % 10);
                 world.Replace(city with { Commerce = owner.FailCompletion ? 9999 : city.Commerce + increment });
             }

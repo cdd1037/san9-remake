@@ -29,7 +29,21 @@ public sealed record OfficerState(int Id, int? OwnerId, int? SettlementId, Offic
     public int BirthYear { get; init; }
     public int? OfficeId { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public bool IsCommander { get; init; }
-    public int Loyalty { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public ImmutableDictionary<int, int> ForceLoyalties { get; init; } = ImmutableDictionary<int, int>.Empty;
+    [System.Text.Json.Serialization.JsonRequired] public int Righteousness { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public bool RewardedThisXun { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public bool HasRecruitmentPoliticsBonus { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore] public int Loyalty => OwnerId is int owner ? LoyaltyTo(owner) : 0;
+
+    public int LoyaltyTo(int forceId) => ForceLoyalties.GetValueOrDefault(forceId);
+
+    public OfficerState WithLoyalty(int forceId, int value)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(forceId);
+        ArgumentOutOfRangeException.ThrowIfNegative(value);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(value, 255);
+        return this with { ForceLoyalties = ForceLoyalties.SetItem(forceId, value) };
+    }
     public OfficerAbilities ItemBonuses { get; init; }
     public OfficerAbilities OfficeBonuses { get; init; }
 
@@ -45,6 +59,8 @@ public sealed record OfficerState(int Id, int? OwnerId, int? SettlementId, Offic
 
     public bool IsValid()
     {
+        if (Righteousness is < 0 or > 15 || ForceLoyalties is null ||
+            ForceLoyalties.Any(p => p.Key < 0 || p.Value is < 0 or > 255)) return false;
         if (Affinity is < 0 or >= 150 || MasteredCategories.IsDefault ||
             MasteredCategories.Any(c => c is < 0 or > 8) || MasteredCategories.Distinct().Count() != MasteredCategories.Length) return false;
         if (LearnedTactics.IsDefault || TacticProficiencies.IsDefault || TacticProficiencies.Length != 9 ||

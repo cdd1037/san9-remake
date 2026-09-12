@@ -7,13 +7,17 @@ public sealed record ForceInitialState(int Id, string NameKey, int ColorCode, ui
     [System.Text.Json.Serialization.JsonRequired] public bool IsBarbarian { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public int FlagGlyph { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public int? LeaderId { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public int? AdviserId { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public int? RankId { get; init; }
 }
 public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId, int X, int Y,
     uint Soldiers, int Durability, int MaxDurability, int Morale, string[] Icons)
 {
+    [System.Text.Json.Serialization.JsonIgnore] public San9.Core.Domain.MapCell Cell => new(X, Y);
+    [System.Text.Json.Serialization.JsonIgnore] public San9.Core.Domain.WorldPosition Position => San9.Core.Domain.MapCoordinates.Center(Cell);
     [System.Text.Json.Serialization.JsonRequired] public uint SoldierCapacity { get; init; } = 500000;
     [System.Text.Json.Serialization.JsonRequired] public bool ConsumesFood { get; init; } = true;
+    [System.Text.Json.Serialization.JsonRequired] public bool CanHostPersons { get; init; } = true;
     [System.Text.Json.Serialization.JsonRequired] public San9.Core.Domain.SettlementKind Kind { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public int Appearance { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public int? CorpsId { get; init; }
@@ -29,6 +33,7 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
+    [System.Text.Json.Serialization.JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Domain.PersonPlace> UnbuiltPlaces { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Domain.DomesticPair> DomesticPairs { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public int? ImperialSealId { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public int? EmperorId { get; init; }
@@ -37,15 +42,18 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
     [System.Text.Json.Serialization.JsonRequired] public InformationDefinitions Information { get; init; } = InformationDefinitions.Empty;
     public void Validate()
     {
-        if (SchemaVersion != 12 || string.IsNullOrWhiteSpace(ScenarioId) || Year < 1 || Month is < 1 or > 12 || Day is < 1 or > 30 ||
+        if (SchemaVersion != 15 || string.IsNullOrWhiteSpace(ScenarioId) || Year < 1 || Month is < 1 or > 12 || Day is < 1 or > 30 ||
             Forces.Select(f => f.Id).Distinct().Count() != Forces.Length || !Forces.Any(f => f.Id == PlayerForceId))
             throw new InvalidDataException("Invalid scenario date or player force.");
         Information.Validate(this);
+        if (UnbuiltPlaces.IsDefault || UnbuiltPlaces.Any(p => p is null || !RegionNameKeys.ContainsKey(p.Id) || Settlements.Any(s => s.Id == p.Id)))
+            throw new InvalidDataException("Invalid unbuilt personnel place.");
+        _ = new San9.Core.Domain.PersonnelRulebook(Settlements.Select(s => new San9.Core.Domain.PersonPlace(s.Id, s.Position)).Concat(UnbuiltPlaces));
         new San9.Core.Domain.EconomyRulebook([], DomesticPairs, ImperialSealId, EmperorId).Validate();
         if (DomesticPairs.Any(p => !Officers.Any(o => o.State.Id == p.FirstId) || !Officers.Any(o => o.State.Id == p.SecondId)) ||
             ImperialSealId is int seal && !Information.Treasures.Any(t => t.Id == seal) ||
             EmperorId is int emperor && !Officers.Any(o => o.State.Id == emperor)) throw new InvalidDataException("Invalid economy references.");
-        if (Officers.Any(o => o.State.RegionId is int region && !RegionNameKeys.ContainsKey(region))) throw new InvalidDataException("Invalid officer region.");
+        if (Officers.Any(o => o.State.RegionId is int region && !UnbuiltPlaces.Any(p => p.Id == region))) throw new InvalidDataException("Invalid officer region.");
         var forceIds = Forces.Select(f => f.Id).ToHashSet();
         if (Units.Select(u => u.Id).Distinct().Count() != Units.Length || Units.Any(u => !u.IsValid || !forceIds.Contains(u.OwnerId)))
             throw new InvalidDataException("Invalid field unit initial state.");
@@ -63,12 +71,16 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
         var settlementIds=Settlements.Select(s=>s.Id).ToHashSet();
         if (Officers.Any(o => string.IsNullOrWhiteSpace(o.NameKey) || o.State is null || !o.State.IsValid()) ||
             Officers.Select(o => o.State.Id).Distinct().Count() != Officers.Length || Officers.Any(o =>
+                o.State.ForceLoyalties.Keys.Any(id => !forceIds.Contains(id)) ||
                 o.State.SettlementId is int location && !settlementIds.Contains(location) ||
                 o.State.OwnerId is int owner && !forceIds.Contains(owner) ||
                 o.State.IsServing && Settlements.Single(s => s.Id == o.State.SettlementId).OwnerId != o.State.OwnerId))
             throw new InvalidDataException("Invalid officer initial state.");
         if (Forces.Any(f => f.LeaderId is int leader && !Officers.Any(o => o.State.Id == leader && o.State.OwnerId == f.Id)))
             throw new InvalidDataException("Invalid force leader reference.");
+        if (Forces.Any(f => f.AdviserId is int adviser && !Officers.Any(o => o.State.Id == adviser && o.State.OwnerId == f.Id && o.State.Status == San9.Core.Domain.OfficerStatus.Strategist)) ||
+            Officers.Any(o => o.State.Status == San9.Core.Domain.OfficerStatus.Strategist && !Forces.Any(f => f.Id == o.State.OwnerId && f.AdviserId == o.State.Id)))
+            throw new InvalidDataException("Invalid force adviser reference.");
         if (Settlements.Any(s => s.CorpsId < 0 || s.CorpsId is not null && s.OwnerId is null) ||
             Settlements.Where(s => s.CorpsId is not null).GroupBy(s => s.CorpsId).Any(g => g.Select(s => s.OwnerId).Distinct().Count() != 1))
             throw new InvalidDataException("Invalid direct corps ownership.");

@@ -18,17 +18,19 @@ public sealed record SimulationEndedEvent(GameClock Clock, string Reason) : Doma
 public sealed record ControlEndedEvent(string ControllerId, int ForceId) : DomainEvent;
 
 // Rules are compiled domain code, not callbacks loaded from content or saves.
-// The empty registry intentionally rejects unimplemented gameplay tasks.
 internal class SimulationRules
 {
     internal EconomyRulebook Economy { get; init; } = EconomyRulebook.Empty;
-    internal virtual TaskRule? FindTask(string kind) => null;
+    internal PersonnelRulebook Personnel { get; init; } = PersonnelRulebook.Empty;
+    internal virtual TaskRule? FindTask(string kind) => kind is PersonnelMissions.RecruitKind or PersonnelMissions.MoveKind or PersonnelMissions.SearchKind
+        ? new PersonnelMissionRule(Personnel, Economy, kind) : null;
     internal virtual void ApplyStage(ResolutionStage stage, WorldMutation world, List<DomainEvent> events) { }
 }
 
 internal abstract class TaskRule
 {
-    internal abstract int DurationDays { get; }
+    internal abstract int DurationDays(PersistentTask task);
+    internal virtual bool HasValidPayload(PersistentTask task) => task.Journey is null;
     internal abstract bool Validate(WorldMutation world, PersistentTask task);
     internal abstract void Complete(WorldMutation world, PersistentTask task, List<DomainEvent> events);
 }
@@ -73,7 +75,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
     internal static bool CheckTerminal(WorldMutation world, List<DomainEvent> events)
     {
         if (world.Simulation.TerminalReason is not string reason) return true;
-        foreach (var task in world.Simulation.Tasks.OrderBy(t => t.Sequence).ThenBy(t => t.Id))
+        foreach (var task in world.Simulation.Tasks.OrderBy(t => t.Sequence).ThenBy(t => t.OriginSettlementId).ThenBy(t => t.OfficerId).ThenBy(t => t.Id))
             events.Add(new TaskCancelledEvent(task.Id, world.Clock, "terminal"));
         world.SetSimulation(world.Simulation with { Boundary = SimulationBoundary.Terminal, Tasks = [] });
         if (!events.OfType<SimulationEndedEvent>().Any()) events.Add(new SimulationEndedEvent(world.Clock, reason));
@@ -82,8 +84,9 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
 
     private void ResolveTasks(WorldMutation world, List<DomainEvent> events)
     {
-        foreach (var task in world.Simulation.Tasks.OrderBy(t => t.Sequence).ThenBy(t => t.Id).ToArray())
+        foreach (var task in world.Simulation.Tasks.OrderBy(t => t.Sequence).ThenBy(t => t.OriginSettlementId).ThenBy(t => t.OfficerId).ThenBy(t => t.Id).ToArray())
         {
+            if (!world.Simulation.Tasks.Any(t => t.Id == task.Id)) continue;
             var rule = rules.FindTask(task.Kind) ?? throw new InvalidOperationException($"Unsupported task '{task.Kind}'.");
             bool valid = TaskReferencesValid(world, task) && rule.Validate(world, task);
             if (valid && world.Clock.DayNumber < task.Due.DayNumber) continue;
@@ -103,5 +106,6 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
     internal static bool TaskReferencesValid(WorldMutation world, PersistentTask task) =>
         world.Forces.ContainsKey(task.ForceId) &&
         world.Officers.TryGetValue(task.OfficerId, out var officer) && officer.IsServing && officer.OwnerId == task.ForceId &&
-        officer.SettlementId == task.TargetId && world.Settlements.TryGetValue(task.TargetId, out var target) && target.OwnerId == task.ForceId;
+        officer.SettlementId == task.OriginSettlementId && world.Settlements.TryGetValue(task.OriginSettlementId, out var target) &&
+        target.OwnerId == task.ForceId && target.CanHostPersons && target.Durability > 0;
 }

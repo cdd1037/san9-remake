@@ -98,7 +98,7 @@ public sealed class InformationQuery(GameSession session, TextCatalog texts)
                     return Row(p.Key, [Name(p.Value), Place(city), site is null ? "无" : Name(site.NameKey), Force(site?.OwnerId), site is null ? (CatalogCell)"—" : (CatalogCell)(long)site.Soldiers, site is null ? (CatalogCell)"—" : (CatalogCell)site.Durability], site?.Id ?? city);
                 }).ToArray());
             case InformationCategory.Units:
-                return new("部队一览", ["状态"], ["部队", "势力", "士兵", "位置"], v.World.Units.Where(u => Owner(u.OwnerId)).Select(u => Row(u.Id, [$"{Force(u.OwnerId)}部队", Force(u.OwnerId), (long)u.Soldiers, $"{u.X}, {u.Y}"])).ToArray());
+                return new("部队一览", ["状态"], ["部队", "势力", "士兵", "位置"], v.World.Units.Where(u => Owner(u.OwnerId)).Select(u => Row(u.Id, [$"{Force(u.OwnerId)}部队", Force(u.OwnerId), (long)u.Soldiers, $"{u.Cell.X}, {u.Cell.Y}"])).ToArray());
             case InformationCategory.Officers:
                 return OfficerCatalog.Read(v, texts, page, force, settlement);
             case InformationCategory.Treasures:

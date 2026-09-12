@@ -108,7 +108,7 @@ public sealed class RuntimeWorldTests
             [new(17, 3, 1, 1, 1, 1, 1, 0, 0, 0, 0), new(15, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0),
                 new(16, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0)],
             [new(3, 3, 17, new(), false), new(1, 1, 15, new(), false), new(2, 2, 16, new(), false)],
-            [new(3, 3, 1, 1, 1), new(1, 1, 1, 1, 1), new(2, 2, 1, 1, 1)],
+            [new(3, 3, MapCoordinates.Center(new(1, 1)), 1), new(1, 1, MapCoordinates.Center(new(1, 1)), 1), new(2, 2, MapCoordinates.Center(new(1, 1)), 1)],
             [new(3, 3, 3, null), new(1, 1, 1, null), new(2, 2, 2, null)],
             [new(3, 3, TreasureDiscovery.Discovered, null), new(1, 1, TreasureDiscovery.Discovered, null),
                 new(2, 2, TreasureDiscovery.Discovered, null)],

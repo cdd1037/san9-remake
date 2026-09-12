@@ -9,7 +9,12 @@ public readonly record struct CommandContext(string ControllerId);
 public sealed record RandomStreamState(string Name, ulong State);
 
 public sealed record PersistentTask(Guid Id, string Kind, string ControllerId, int ForceId,
-    int OfficerId, int TargetId, GameClock Started, GameClock Due, int ProgressDays, long Sequence);
+    int OfficerId, int OriginSettlementId, GameClock Started, GameClock Due, int ProgressDays, long Sequence)
+{
+    [System.Text.Json.Serialization.JsonRequired] public PersonnelJourney? Journey { get; init; }
+}
+
+public sealed record PersonnelJourney(int DestinationPlaceId, int? TargetOfficerId, int? SuccessRoll);
 
 /// <summary>Authoritative scheduling state; immutable and included in every world transaction.</summary>
 public sealed record SimulationState(GameClock Started, ulong InitialSeed)

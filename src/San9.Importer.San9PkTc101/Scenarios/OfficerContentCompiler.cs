@@ -9,7 +9,8 @@ public static class OfficerContentCompiler
 {
     public static OfficerInitialState[] Compile(IReadOnlyList<San9ScenarioPersonRecord> people,
         IReadOnlyList<San9ScenarioItemRecord> items, IReadOnlyList<San9ScenarioOfficeRecord> offices,
-        IReadOnlyList<SettlementInitialState> settlements, ScenarioTextReader text, San9MessageTable biographies)
+        IReadOnlyList<SettlementInitialState> settlements, IReadOnlyList<ForceInitialState> forces,
+        ScenarioTextReader text, San9MessageTable biographies)
     {
         var locations = settlements.ToDictionary(s => s.Id);
         var heldItems = items.Where(i => !i.IsInvalid && i.HolderPersonId is not null).ToLookup(i => i.HolderPersonId!.Value);
@@ -42,7 +43,10 @@ public static class OfficerContentCompiler
                 ParentId = person.ParentPersonId, IsFemale = person.GenderFlag != 0, Personality = person.Personality,
                 IsCommander = person.IsOwnerLeader,
                 RegionId = settlement is null ? person.LocationId : null, Injury = person.Health, Status = (OfficerStatus)person.StatusCode, BirthYear = person.BirthYear, OfficeId = person.OfficeRankId,
-                Loyalty = person.StatusCode <= 3 && settlement?.OwnerId is int owner ? person.GetForceLoyalty(owner) : 0,
+                ForceLoyalties = forces.ToImmutableDictionary(f => f.Id, f => (int)person.GetForceLoyalty(f.Id)),
+                Righteousness = person.Righteousness,
+                HasRecruitmentPoliticsBonus = person.BiographyResourceCode == 36,
+                RewardedThisXun = person.WasRewardedThisXun,
                 ItemBonuses = new(ItemBonus(1), ItemBonus(5, 9), ItemBonus(3, 4, 6), ItemBonus(2)),
                 OfficeBonuses = new(OfficeBonus(1), OfficeBonus(2), OfficeBonus(3), OfficeBonus(0))
             };

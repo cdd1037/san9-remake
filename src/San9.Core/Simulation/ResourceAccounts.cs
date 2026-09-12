@@ -7,7 +7,7 @@ public enum ResourceOwnerKind { Force, Corps, Settlement, Unit }
 public sealed record ResourceAccount(ResourceOwnerKind Kind, int Id);
 public sealed record ResourceChangedEvent(GameClock Clock, ResourceAccount Account, ResourceKind Resource,
     string Reason, int? SourceId, long Requested, long Actual, long Shortfall, long SaturationLoss) : DomainEvent;
-public sealed record OfficerLoyaltyChangedEvent(GameClock Clock, int OfficerId, int Previous, int Current, string Reason) : DomainEvent;
+public sealed record OfficerLoyaltyChangedEvent(GameClock Clock, int OfficerId, int ForceId, int Previous, int Current, string Reason) : DomainEvent;
 public sealed record ForceTrustChangedEvent(GameClock Clock, int ForceId, int Previous, int Current) : DomainEvent;
 
 internal static class ResourceAccounts

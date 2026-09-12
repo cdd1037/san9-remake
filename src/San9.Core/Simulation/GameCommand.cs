@@ -2,6 +2,11 @@ namespace San9.Core.Simulation;
 
 [System.Text.Json.Serialization.JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(WaitCommand), "wait")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(AppointAdviserCommand), "appoint-adviser")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(SearchPersonsCommand), "search-persons")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(RecruitOfficerCommand), "recruit-officer")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(MoveOfficersCommand), "move-officers")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(RewardOfficerCommand), "reward-officer")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(DevelopCommand), "develop")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(StartTaskCommand), "start-task")]
 public abstract record GameCommand(
@@ -34,6 +39,11 @@ public enum CommandRejection
     UnsupportedCommand,
     InvalidTask,
     DevelopmentFailed,
+    UnknownPerson,
+    PersonUnavailable,
+    AlreadyRewarded,
+    LoyaltyAtMaximum,
+    InsufficientFunds,
 }
 
 public readonly record struct CommandSubmissionResult(

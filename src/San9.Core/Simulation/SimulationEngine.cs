@@ -10,6 +10,8 @@ public sealed class SimulationEngine
 
     public SimulationEngine(WorldState world) : this(world, new SimulationRules()) { }
     public SimulationEngine(WorldState world, EconomyRulebook economy) : this(world, new SimulationRules { Economy = economy }) { }
+    public SimulationEngine(WorldState world, EconomyRulebook economy, PersonnelRulebook personnel)
+        : this(world, new SimulationRules { Economy = economy, Personnel = personnel }) { }
 
     internal SimulationEngine(WorldState world, SimulationRules rules)
     {
@@ -19,7 +21,7 @@ public sealed class SimulationEngine
         rules.Economy.Validate();
         _pipeline = new(rules);
         foreach (var task in world.Simulation.Tasks)
-            if (rules.FindTask(task.Kind) is not TaskRule rule || rule.DurationDays != task.Due.DayNumber - task.Started.DayNumber)
+            if (rules.FindTask(task.Kind) is not TaskRule rule || !rule.HasValidPayload(task) || rule.DurationDays(task) != task.Due.DayNumber - task.Started.DayNumber)
                 throw new ArgumentException($"Unsupported or invalid task '{task.Kind}'.");
         if (world.Simulation.Boundary == SimulationBoundary.New)
         {
@@ -66,6 +68,26 @@ public sealed class SimulationEngine
             {
                 case WaitCommand:
                     break;
+                case AppointAdviserCommand appoint:
+                    var appointRejection = PersonnelAppointments.Apply(mutation, appoint, events);
+                    if (appointRejection != CommandRejection.None) return Reject(appointRejection);
+                    break;
+                case RewardOfficerCommand reward:
+                    var rewardRejection = PersonnelRewards.Apply(mutation, reward, events);
+                    if (rewardRejection != CommandRejection.None) return Reject(rewardRejection);
+                    break;
+                case SearchPersonsCommand search:
+                    var searchRejection = PersonnelMissions.StartSearch(mutation, context, search, _rules.Personnel, events);
+                    if (searchRejection != CommandRejection.None) return Reject(searchRejection);
+                    break;
+                case RecruitOfficerCommand recruit:
+                    var recruitRejection = PersonnelMissions.StartRecruit(mutation, context, recruit, _rules.Personnel, events);
+                    if (recruitRejection != CommandRejection.None) return Reject(recruitRejection);
+                    break;
+                case MoveOfficersCommand move:
+                    var moveRejection = PersonnelMissions.StartMove(mutation, context, move, _rules.Personnel, events);
+                    if (moveRejection != CommandRejection.None) return Reject(moveRejection);
+                    break;
                 case DevelopCommand develop:
                     if (develop.Development is null || develop.Development.ForceId != command.IssuerId)
                         return Reject(CommandRejection.NotActiveController);
@@ -77,11 +99,13 @@ public sealed class SimulationEngine
                 case StartTaskCommand start:
                     var rule = _rules.FindTask(start.Kind);
                     if (rule is null) return Reject(CommandRejection.UnsupportedCommand);
-                    if (rule.DurationDays <= 0) return Reject(CommandRejection.InvalidTask);
-                    GameClock due = mutation.Clock;
-                    for (int day = 0; day < rule.DurationDays; day++) due = due.NextDay();
                     var task = new PersistentTask(start.CommandId, start.Kind, context.ControllerId, start.IssuerId,
-                        start.OfficerId, start.TargetId, mutation.Clock, due, 0, mutation.Simulation.NextSequence);
+                        start.OfficerId, start.TargetId, mutation.Clock, mutation.Clock, 0, mutation.Simulation.NextSequence);
+                    int duration = rule.DurationDays(task);
+                    if (duration <= 0) return Reject(CommandRejection.InvalidTask);
+                    GameClock due = mutation.Clock;
+                    for (int day = 0; day < duration; day++) due = due.NextDay();
+                    task = task with { Due = due };
                     if (!ResolutionPipeline.TaskReferencesValid(mutation, task) ||
                         mutation.Officers[task.OfficerId].Acted || mutation.Simulation.Tasks.Any(t => t.OfficerId == task.OfficerId) ||
                         !rule.Validate(mutation, task)) return Reject(CommandRejection.InvalidTask);

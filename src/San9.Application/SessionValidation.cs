@@ -28,7 +28,7 @@ internal static class SessionValidation
         if (!content.Information.Relations.Select(r => (r.FirstId, r.SecondId)).Order()
             .SequenceEqual(snapshot.World.Relations.Select(r => (r.FirstId, r.SecondId)).Order()))
             throw new ArgumentException("Scenario relation identity set mismatch.");
-        if (snapshot.World.Officers.Any(o => o.RegionId is int region && !content.RegionNameKeys.ContainsKey(region) ||
+        if (snapshot.World.Officers.Any(o => o.RegionId is int region && !content.UnbuiltPlaces.Any(p => p.Id == region) ||
             o.OfficeId is int office && !content.Information.Offices.Any(d => d.Id == office)) ||
             snapshot.World.Forces.Any(f => f.RankId is int rank && !content.Information.Ranks.Any(r => r.Id == rank)))
             throw new ArgumentException("Unknown content reference.");

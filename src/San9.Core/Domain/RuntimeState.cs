@@ -6,6 +6,7 @@ public sealed record ForceState(int Id, uint Money, uint Food, int Trust)
     public System.Collections.Immutable.ImmutableArray<int> ProvidedTactics { get; init; } = [];
     public bool IsBarbarian { get; init; }
     public int? LeaderId { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public int? AdviserId { get; init; }
     public int? RankId { get; init; }
 }
 
@@ -16,6 +17,7 @@ public sealed record SettlementState(int Id, int? OwnerId, uint Soldiers, int Du
     bool CommerceUsed = false, bool CultivationUsed = false)
 {
     public SettlementKind Kind { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public bool CanHostPersons { get; init; } = true;
     [System.Text.Json.Serialization.JsonRequired] public uint SoldierCapacity { get; init; } = 500000;
     [System.Text.Json.Serialization.JsonRequired] public bool ConsumesFood { get; init; } = true;
     [System.Text.Json.Serialization.JsonRequired] public bool PatrolUsed { get; init; }

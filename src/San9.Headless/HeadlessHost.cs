@@ -75,6 +75,40 @@ public sealed class HeadlessHost
         return exitCode;
     }
 
+    private void SummarizeEvents(IEnumerable<DomainEvent> events)
+    {
+        foreach (var entry in events)
+        {
+            if (entry is DevelopmentCompletedEvent developed)
+            {
+                _report.DevelopmentCommands++;
+                string activity = developed.Command.Activity.ToString();
+                _report.Activities[activity] = _report.Activities.GetValueOrDefault(activity) + 1;
+            }
+            if (entry is ResourceChangedEvent resource)
+            {
+                _report.ResourceShortfall += resource.Shortfall;
+                _report.SaturationLoss += resource.SaturationLoss;
+            }
+            string? personnel = entry switch
+            {
+                TaskStartedEvent { Task.Journey: not null } => "journey-started",
+                PersonSearchResolvedEvent { DiscoveredOfficerId: not null } => "person-discovered",
+                PersonSearchResolvedEvent => "search-no-person",
+                RecruitmentResolvedEvent { Success: true } => "recruitment-success",
+                RecruitmentResolvedEvent => "recruitment-failure",
+                OfficerMovedEvent => "officer-moved",
+                AdviserAppointedEvent => "adviser-appointed",
+                OfficerRewardedEvent => "officer-rewarded",
+                _ => null
+            };
+            if (personnel is null) continue;
+            _report.PersonnelEvents[personnel] = _report.PersonnelEvents.GetValueOrDefault(personnel) + 1;
+            _report.Goal = "G04";
+            _report.Scope = "Personnel discovery, ordinary recruitment, movement, adviser appointment and rewards; incomplete G04 governance, prisoners and treasure operations.";
+        }
+    }
+
     private int Fail(int code, string category, Exception error, int? line = null)
     {
         _report.Success = false;
@@ -95,7 +129,7 @@ public sealed class HeadlessHost
         var result = CommandLogService.Replay(log, _session);
         _report.AcceptedOperations = result.Accepted;
         _report.AlreadyProcessedOperations = result.AlreadyProcessed;
-        _report.DevelopmentCommands = result.Events.OfType<DevelopmentCompletedEvent>().Count();
+        SummarizeEvents(result.Events);
         _report.WaitCommands = result.Attempts.Count(a => a.Disposition == SessionDisposition.Accepted && a.Request?.Operation is CommandOperation { Command: WaitCommand });
         _report.EventLog = Path.ChangeExtension(_reportPath!, ".events.jsonl");
         _report.AttemptLog = Path.ChangeExtension(_reportPath!, ".attempts.jsonl");
@@ -114,6 +148,7 @@ public sealed class HeadlessHost
         _session = replay.Session;
         _started = replay.Started;
         _report.AcceptedOperations = replay.Accepted;
+        SummarizeEvents(replay.Events);
         _report.EventLog = Path.ChangeExtension(_reportPath!, ".events.jsonl");
         WriteLines(_report.EventLog, replay.Events.Select(e => CanonicalJson.Text<DomainEvent>(e)));
         if (options.TryGetValue("save", out string? save)) SaveService.Write(save, _session);
@@ -147,17 +182,7 @@ public sealed class HeadlessHost
                 !a.Events.Select(e => CanonicalJson.Text<DomainEvent>(e)).SequenceEqual(b.Events.Select(e => CanonicalJson.Text<DomainEvent>(e))))
                 throw new VerificationException($"Operation {request.Sequence} diverged or was rejected.");
             _report.AcceptedOperations++;
-            _report.DevelopmentCommands += a.Events.OfType<DevelopmentCompletedEvent>().Count();
-            foreach (var developed in a.Events.OfType<DevelopmentCompletedEvent>())
-            {
-                string key = developed.Command.Activity.ToString();
-                _report.Activities[key] = _report.Activities.GetValueOrDefault(key) + 1;
-            }
-            foreach (var change in a.Events.OfType<ResourceChangedEvent>())
-            {
-                _report.ResourceShortfall += change.Shortfall;
-                _report.SaturationLoss += change.SaturationLoss;
-            }
+            SummarizeEvents(a.Events);
             if (request.Operation is CommandOperation { Command: WaitCommand }) _report.WaitCommands++;
             events.AddRange(a.Events.Select(e => CanonicalJson.Text<DomainEvent>(e)));
         }

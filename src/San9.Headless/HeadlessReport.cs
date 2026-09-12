@@ -5,7 +5,7 @@ public sealed record ContentCoverage(int Forces, int Settlements, int Officers, 
 
 public sealed class HeadlessReport
 {
-    public string Goal { get; init; } = "G03";
+    public string Goal { get; set; } = "G03";
     public string Policy { get; set; } = "replay";
     public Dictionary<string, int> Activities { get; set; } = [];
     public long ResourceShortfall { get; set; }
@@ -30,7 +30,8 @@ public sealed class HeadlessReport
     public long? FailureSequence { get; set; }
     public int DevelopmentCommands { get; set; }
     public int WaitCommands { get; set; }
+    public Dictionary<string, int> PersonnelEvents { get; set; } = [];
     public int RestoreCount { get; set; }
     public ContentCoverage? Coverage { get; set; }
-    public string Scope { get; init; } = "Domestic commands and economic cycles with scripted/simple policy, save and replay; no warfare or complete strategic AI.";
+    public string Scope { get; set; } = "Domestic commands and economic cycles with scripted/simple policy, save and replay; no warfare or complete strategic AI.";
 }

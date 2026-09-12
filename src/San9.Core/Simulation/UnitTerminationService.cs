@@ -61,6 +61,7 @@ internal static class UnitTerminationService
             -(long)defeated.Soldiers, -(long)defeated.Soldiers, events);
         ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, unitId), ResourceKind.Wounded, "unit-defeated", winnerId,
             -(long)defeated.Wounded, -(long)defeated.Wounded, events);
+        FacilityConstruction.Cancel(world, unitId, events);
         world.RemoveUnit(unitId);
         if (repairCorps && defeated.CorpsId is int corps && GovernanceMaintenance.RepairCorps(world, corps, governance, events) != CommandRejection.None)
             throw new InvalidOperationException("Battle transaction cannot settle the defeated corps.");

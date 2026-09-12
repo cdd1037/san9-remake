@@ -55,8 +55,9 @@ public partial class MapAnnotations : Node2D
     {
         DrawCount++;
         if (World.Package is not { } map || !World.HasCompleteView) return;
-        foreach (var b in map.Buildings)
+        foreach (var b in World.RuntimeBuildings)
         {
+            if (_settlements[b.Id].IsDestroyed) continue;
             var anchor = BuildingInfoGeometry.Anchor(b.X, b.Y, b.FixedType, map.Squares[b.Y * 200 + b.X].Elevation);
             var point = World.WorldToViewport(new(anchor.X, anchor.Y));
             float zoom = World.ZoomFactor;

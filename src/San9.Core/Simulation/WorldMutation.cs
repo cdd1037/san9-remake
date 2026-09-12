@@ -83,6 +83,11 @@ internal sealed class WorldMutation
 
     internal void Replace(ForceState value) => Forces = Replace(Forces, value.Id, value);
     internal void Replace(SettlementState value) => Settlements = Replace(Settlements, value.Id, value);
+    internal void AddSettlement(SettlementState value)
+    {
+        EnsureOpen();
+        Settlements = Settlements.Add(value.Id, value);
+    }
     internal void Replace(OfficerState value) => Officers = Replace(Officers, value.Id, value);
     internal void Replace(UnitState value) => Units = Replace(Units, value.Id, value);
     internal void AddUnit(UnitState unit)

@@ -17,7 +17,9 @@ public sealed record SettlementState(int Id, int? OwnerId, uint Soldiers, int Du
     int Morale, int PublicOrder, int Commerce, int MaxCommerce, int Cultivation, int MaxCultivation,
     bool CommerceUsed = false, bool CultivationUsed = false)
 {
+    [System.Text.Json.Serialization.JsonRequired] public FacilityInstance? Facility { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public bool IsDestroyed { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public int ConfusionDaysRemaining { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public uint Wounded { get; init; }
     public SettlementKind Kind { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public bool CanHostPersons { get; init; } = true;

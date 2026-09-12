@@ -4,14 +4,15 @@ namespace San9.Core.Simulation;
 
 internal static class EconomicCycle
 {
-    internal static void Apply(ResolutionStage stage, WorldMutation world, EconomyRulebook rules, List<DomainEvent> events)
+    internal static IReadOnlyList<RationShortage> Apply(ResolutionStage stage, WorldMutation world, EconomyRulebook rules, List<DomainEvent> events)
     {
         if (stage == ResolutionStage.XunUpdate) Salaries(world, rules, events);
-        if (stage == ResolutionStage.BeforeDailyCommands) Food(world, events);
-        if (stage != ResolutionStage.QuarterUpdate || world.Clock.DayNumber - world.Simulation.Started.DayNumber < 30) return;
+        if (stage == ResolutionStage.BeforeDailyCommands) return Food(world, events);
+        if (stage != ResolutionStage.QuarterUpdate || world.Clock.DayNumber - world.Simulation.Started.DayNumber < 30) return [];
         Population(world, events);
         UpdateTrust(world, rules, events);
         Income(world, events);
+        return [];
     }
 
     private static void Income(WorldMutation world, List<DomainEvent> events)
@@ -48,8 +49,8 @@ internal static class EconomicCycle
         int forceId = city.OwnerId!.Value;
         if (!foodTargets.TryGetValue(forceId, out long food))
         {
-            long soldiers = world.Settlements.Values.Where(s => s.OwnerId == forceId).Sum(s => (long)s.Soldiers)
-                + world.Units.Values.Where(u => u.OwnerId == forceId).Sum(u => (long)u.Soldiers);
+            long soldiers = world.Settlements.Values.Where(s => s.OwnerId == forceId).Sum(s => (long)s.Soldiers + s.Wounded)
+                + world.Units.Values.Where(u => u.OwnerId == forceId).Sum(u => (long)u.Soldiers + u.Wounded);
             foodTargets.Add(forceId, food = EconomyMath.BarbarianAnnualFood(soldiers));
         }
         ResourceAccounts.Change(world, account, ResourceKind.Food,
@@ -80,7 +81,7 @@ internal static class EconomicCycle
         }
     }
 
-    private static void Food(WorldMutation world, List<DomainEvent> events)
+    private static IReadOnlyList<RationShortage> Food(WorldMutation world, List<DomainEvent> events)
     {
         Dictionary<ResourceAccount, long> costs = [];
         void Add(int owner, int? corps, long cost)
@@ -89,17 +90,24 @@ internal static class EconomicCycle
             costs[account] = costs.GetValueOrDefault(account) + cost;
         }
         foreach (var city in world.Settlements.Values.Where(s => s.OwnerId is not null && s.ConsumesFood))
-            Add(city.OwnerId!.Value, city.CorpsId, (city.Soldiers + 499L) / 500);
-        foreach (var unit in world.Units.Values) Add(unit.OwnerId, unit.CorpsId, 3 * (unit.Soldiers + 333L) / 1000);
+            Add(city.OwnerId!.Value, city.CorpsId, ((long)city.Soldiers + city.Wounded + 499) / 500);
+        foreach (var unit in world.Units.Values) Add(unit.OwnerId, unit.CorpsId, 3 * ((long)unit.Soldiers + unit.Wounded + 333) / 1000);
+        List<RationShortage> shortages = [];
         foreach (var pair in costs.OrderBy(p => p.Key.Kind).ThenBy(p => p.Key.Id))
-            if (pair.Value > 0) ResourceAccounts.Change(world, pair.Key, ResourceKind.Food, -pair.Value, "daily-rations", null, events);
+        {
+            if (pair.Value <= 0) continue;
+            long missing = Math.Max(0, pair.Value - ResourceAccounts.Balance(world, pair.Key, ResourceKind.Food));
+            ResourceAccounts.Change(world, pair.Key, ResourceKind.Food, -pair.Value, "daily-rations", null, events);
+            if (missing > 0) shortages.Add(new(pair.Key, pair.Value, missing));
+        }
+        return shortages;
     }
 
     private static void Population(WorldMutation world, List<DomainEvent> events)
     {
         var cities = world.Settlements.Values.Where(s => s.Kind == SettlementKind.City).OrderBy(s => s.Id).ToArray();
         long population = cities.Sum(s => (long)s.Population), order = cities.Sum(s => (long)s.PublicOrder);
-        long military = cities.Sum(s => (long)s.DraftPopulation) + world.Settlements.Values.Sum(s => (long)s.Soldiers) + world.Units.Values.Sum(u => (long)u.Soldiers);
+        long military = cities.Sum(s => (long)s.DraftPopulation) + world.Settlements.Values.Sum(s => (long)s.Soldiers + s.Wounded) + world.Units.Values.Sum(u => (long)u.Soldiers + u.Wounded);
         long drafts = Math.Max(0, population - military + 99999) / 100000 * (population / 100) / 10;
         foreach (var city in cities)
         {

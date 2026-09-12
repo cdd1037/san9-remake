@@ -26,6 +26,7 @@ public static class ScenarioContentCompiler
         var ranks = Read(San9ScenarioRankArchive.ReadKnownRecords);
         var offices = Read(San9ScenarioOfficeArchive.ReadKnownRecords);
         var fixedBuildings = Read(San9ScenarioFixedBuildingArchive.ReadKnownRecords);
+        var facilityRules = ConstructionContentCompiler.Facilities(fixedBuildings);
         using var text = new ScenarioTextReader(messages, exe);
         text.ReadStrategyHints();
         int? Root(int? id)
@@ -67,7 +68,7 @@ public static class ScenarioContentCompiler
             if (z.FixedBuildingId is not int type || z.Durability == ushort.MaxValue) continue;
             string name = text.Settlement($"settlement.{id}", z.NameResourceCode, type);
             settlements.Add(new(id, name, Root(z.ForceId), z.X, z.Y, z.Soldiers, z.Durability, fixedBuildings[type].MaxDurability, Morale(Root(z.ForceId), z.Soldiers), [])
-            { SoldierCapacity = z.SoldierCapacity, ConsumesFood = type is not (>= 7 and <= 10), Kind = San9.Core.Domain.SettlementKind.Facility, CanHostPersons = type < 10, CorpsId = z.ForceId, IsFacilityListEntry = fixedBuildings[type].IsFacilityListEntry });
+            { SoldierCapacity = facilityRules[type].SoldierCapacity, ConsumesFood = facilityRules[type].ConsumesFood, Kind = San9.Core.Domain.SettlementKind.Facility, CanHostPersons = facilityRules[type].CanHostPersons, CorpsId = z.ForceId, IsFacilityListEntry = fixedBuildings[type].IsFacilityListEntry });
         }
         var summaries = settlements.Where(s => s.OwnerId is not null).Select(s => s.OwnerId!.Value).Append(5).Distinct().Order().Select(id =>
         {
@@ -113,7 +114,7 @@ public static class ScenarioContentCompiler
                 San9ScenarioSquareArchive.MapWidth, San9ScenarioSquareArchive.MapHeight, regionCities,
                 zones.Where(z => z.FixedBuildingId == 1).Select(z => 50 + z.Id).ToHashSet()),
             Military = MilitaryContentCompiler.Compile(Read(San9ScenarioSquareArchive.ReadKnownRecords), Read(San9ScenarioTerrainArchive.ReadKnownRecords),
-                Read(San9ScenarioFormationArchive.ReadKnownRecords), settlements, zones, fixedBuildings),
+                Read(San9ScenarioFormationArchive.ReadKnownRecords), settlements, zones, fixedBuildings, Read(San9ScenarioTacticArchive.ReadKnownRecords)),
             Officers = officers, Units = units, Information = information, DomesticPairs = DomesticContentCompiler.Compile(persons),
             ImperialSealId = 79, EmperorId = persons.Take(700).Select((p, id) => (p, id)).Where(v => v.p.BiographyResourceCode is 563 or 564 or 565 && v.p.StatusCode != 8).Select(v => (int?)v.id).FirstOrDefault() };
         snapshot.Validate(); catalog.Validate(); return (snapshot, catalog);

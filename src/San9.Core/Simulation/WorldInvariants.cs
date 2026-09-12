@@ -17,8 +17,15 @@ internal static class WorldInvariants
         }
         foreach (var settlement in state.Settlements.Values)
         {
+            if (settlement.Facility is { } facility && (settlement.Kind != San9.Core.Domain.SettlementKind.Facility ||
+                facility.TypeId < 0 || facility.Position.X < 0 || facility.Position.Y < 0 || facility.BuilderUnitId < 0 ||
+                facility.BuilderUnitId is int builder && (settlement.IsDestroyed || settlement.CanHostPersons ||
+                    !state.Units.TryGetValue(builder, out var unit) || unit.OwnerId != settlement.OwnerId ||
+                    unit.Order?.Construction is not { } plan || plan.RegionId != settlement.Id || plan.FacilityTypeId != facility.TypeId || plan.Position != facility.Position)))
+                throw new ArgumentException("Invalid facility instance or construction owner.");
             if (settlement.IsDestroyed && (settlement.OwnerId is not null || settlement.CorpsId is not null || settlement.Durability != 0 ||
-                settlement.Soldiers != 0 || settlement.Wounded != 0)) throw new ArgumentException("Destroyed settlement retains active state.");
+                settlement.Soldiers != 0 || settlement.Wounded != 0 || settlement.ConfusionDaysRemaining != 0)) throw new ArgumentException("Destroyed settlement retains active state.");
+            if (settlement.ConfusionDaysRemaining < 0) throw new ArgumentException("Invalid settlement confusion duration.");
             if (settlement.Wounded > San9.Core.Domain.MilitaryRulebook.WoundedCapacity) throw new ArgumentException("Invalid settlement wounded.");
             if (settlement.Id < 0 || !Enum.IsDefined(settlement.Kind) || settlement.OwnerId is int owner && !state.Forces.ContainsKey(owner) ||
                 settlement.SoldierCapacity is 0 or > 500000 || settlement.Soldiers > settlement.SoldierCapacity || settlement.Population > 1000000 || settlement.DraftPopulation > 500000 || settlement.MaxCommerce > 2500 || settlement.MaxCultivation > 4000 || settlement.MaxDurability <= 0 || settlement.Durability < 0 || settlement.Durability > settlement.MaxDurability ||

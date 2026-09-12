@@ -13,7 +13,7 @@ public sealed record ClientContentPackage(int SchemaVersion, ContentSource[] Sou
 
     public void ValidateLinks()
     {
-        if (SchemaVersion != 27) throw new InvalidDataException("Unsupported client content version.");
+        if (SchemaVersion != ScenarioContent.CurrentSchemaVersion) throw new InvalidDataException("Unsupported client content version.");
         var images = Map.Assets.Concat(Map.Seasons.SelectMany(s => s.Textures)).Concat(Skin.Assets).Concat(Textures.Assets).ToArray();
         San9.Content.Images.ImageAssetFiles.ValidateCatalog(images);
         Scenario.Validate(); Text.Validate(); Skin.Validate(); Textures.Validate();
@@ -50,7 +50,7 @@ public static class ClientContentFiles
     public static async Task<ClientContentPackage> LoadAsync(string root, CancellationToken token = default)
     {
         var instance = await ScenarioContentFiles.LoadAsync(root, token);
-        if (instance.SchemaVersion != 27) throw new InvalidDataException("Unsupported scenario content version; reconvert the package.");
+        if (instance.SchemaVersion != ScenarioContent.CurrentSchemaVersion) throw new InvalidDataException("Unsupported scenario content version; reconvert the package.");
         string textureRoot = Path.GetFullPath(Path.Combine(root, instance.Textures.Path));
         var textures = await TexturePackageFiles.LoadAsync(textureRoot, token);
         return Resolve(instance, textures, textureRoot);
@@ -58,12 +58,12 @@ public static class ClientContentFiles
 
     public static ClientContentPackage Resolve(ScenarioContent instance, TexturePackage textures, string textureRoot)
     {
-        if (instance.SchemaVersion != 27) throw new InvalidDataException("Unsupported scenario content version.");
+        if (instance.SchemaVersion != ScenarioContent.CurrentSchemaVersion) throw new InvalidDataException("Unsupported scenario content version.");
         if (textures.SourceBuild != instance.Map.SourceBuild) throw new InvalidDataException("Texture source build differs.");
         var roles = new Dictionary<string,string>(textures.Skin.Roles);
         foreach (var role in instance.IllustrationRoles) roles.Add(role.Key, role.Value);
         var skin = textures.Skin with { Roles = roles, Assets = textures.Skin.Assets.Concat(textures.Library.Assets).Concat(textures.Portraits.Select(p => p.Image)).ToArray() };
-        var content = new ClientContentPackage(27, instance.Sources, instance.Map.Resolve(textures.Map), instance.Scenario,
+        var content = new ClientContentPackage(ScenarioContent.CurrentSchemaVersion, instance.Sources, instance.Map.Resolve(textures.Map), instance.Scenario,
             instance.Text, skin, textures.Library) { TextureRoot = textureRoot, Portraits = textures.Portraits };
         content.ValidateLinks();
         MapPackageFiles.Validate(content.Map);

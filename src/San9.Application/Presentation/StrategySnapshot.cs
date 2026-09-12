@@ -21,6 +21,8 @@ public sealed record SettlementView(int Id,string NameKey,int? OwnerId,int X,int
     public San9.Core.Domain.SettlementKind Kind { get; init; }
     public int? CorpsId { get; init; }
     public bool IsFacilityListEntry { get; init; }
+    public int? FacilityTypeId { get; init; }
+    public bool IsUnderConstruction { get; init; }
 }
 
 internal sealed class StrategySnapshotSource
@@ -57,8 +59,8 @@ internal sealed class StrategySnapshotSource
 
     public OfficerInitialState Officer(int id) => _officers[id];
     public ForceInitialState Force(int id) => _forces[id];
-    public SettlementInitialState Settlement(int id) => _settlements[id];
-    public IReadOnlyList<string> SettlementIcons(int id) => _settlementIcons[id];
+    public SettlementInitialState? Settlement(int id) => _settlements.GetValueOrDefault(id);
+    public IReadOnlyList<string> SettlementIcons(int id) => _settlementIcons.GetValueOrDefault(id) ?? [];
     public StrategySnapshot Project(WorldSnapshot world) => new(this, world);
 }
 
@@ -120,19 +122,24 @@ public sealed class StrategySnapshot
         Settlements = Array.AsReadOnly(world.Settlements.Select(s =>
         {
             var definition = source.Settlement(s.Id);
+            var cell = s.Facility is { } facility ? MapCoordinates.Cell(facility.Position) :
+                new MapCell(definition!.X, definition.Y);
+            string nameKey = s.Facility is null ? definition!.NameKey : source.RegionNameKeys[s.Id];
             int? markerColor = s.Kind == San9.Core.Domain.SettlementKind.City
                 ? s.OwnerId is int owner ? source.Force(owner).ColorCode : 50
                 : null;
-            return new SettlementView(s.Id, definition.NameKey, s.OwnerId, definition.X, definition.Y, s.Soldiers,
+            return new SettlementView(s.Id, nameKey, s.OwnerId, cell.X, cell.Y, s.Soldiers,
                 s.Durability, s.MaxDurability, s.Morale, availableSettlementIds.Contains((s.Id, s.OwnerId)), markerColor,
-                source.SettlementIcons(s.Id), definition.Appearance, s.PublicOrder, s.Commerce, s.MaxCommerce,
+                source.SettlementIcons(s.Id), definition?.Appearance ?? 0, s.PublicOrder, s.Commerce, s.MaxCommerce,
                 s.Cultivation, s.MaxCultivation)
             {
                 Kind = s.Kind,
                 Wounded = s.Wounded,
                 IsDestroyed = s.IsDestroyed,
                 CorpsId = s.CorpsId,
-                IsFacilityListEntry = definition.IsFacilityListEntry
+                IsFacilityListEntry = !s.IsDestroyed && (s.Facility is null ? definition!.IsFacilityListEntry : s.CanHostPersons),
+                FacilityTypeId = s.Facility?.TypeId,
+                IsUnderConstruction = s.Facility?.BuilderUnitId is not null
             };
         }).ToArray());
     }

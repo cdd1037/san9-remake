@@ -20,6 +20,7 @@ public sealed record UnitState(int Id, int OwnerId, [property: System.Text.Json.
     [System.Text.Json.Serialization.JsonRequired] public bool IsPersonnel { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public UnitOrderClass OrderClass { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public UnitCondition Condition { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public int ConditionDaysRemaining { get; init; }
     [System.Text.Json.Serialization.JsonIgnore]
     public UnitOrderClass EffectiveOrderClass => Condition is UnitCondition.Disguised or UnitCondition.Routed
         ? UnitOrderClass.Military : OrderClass;
@@ -30,7 +31,7 @@ public sealed record UnitState(int Id, int OwnerId, [property: System.Text.Json.
 
     [System.Text.Json.Serialization.JsonIgnore]
     public bool IsValid => Id >= 0 && OwnerId >= 0 && ServicePlaceId is not < 0 && Position.X >= 0 && Position.Y >= 0 && Soldiers > 0 &&
-        Enum.IsDefined(OrderClass) && Enum.IsDefined(Condition) && FormationId is not < 0 && Morale is >= 0 and <= 100 && Wounded <= MilitaryRulebook.WoundedCapacity &&
+        Enum.IsDefined(OrderClass) && Enum.IsDefined(Condition) && ConditionDaysRemaining >= 0 && FormationId is not < 0 && Morale is >= 0 and <= 100 && Wounded <= MilitaryRulebook.WoundedCapacity &&
         MemberRanks is not null && MemberRanks.All(p => p.Key >= 0 && Enum.IsDefined(p.Value)) &&
         (Order is null || FormationId is not null && Order.IsValid);
 }

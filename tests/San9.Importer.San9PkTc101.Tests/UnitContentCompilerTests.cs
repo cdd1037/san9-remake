@@ -8,6 +8,14 @@ public sealed class UnitContentCompilerTests
     private static San9ScenarioUnitRecord Source => new(
         7, 1000, 0, 0, 0, 7, 1, 0, 100, 38, 0, 0, 27, 3, 0, 190, 180);
 
+    [Fact]
+    public void TimedConditionPreservesItsSourceDuration()
+    {
+        var unit = Assert.Single(UnitContentCompiler.Compile([Source with { UnitStatusCode = 6, StatusDurationDays = 13 }], _ => 1));
+        Assert.Equal(UnitCondition.Confused, unit.Condition);
+        Assert.Equal(13, unit.ConditionDaysRemaining);
+    }
+
     [Theory]
     [InlineData(123u, 123u)]
     [InlineData(60000u, 50000u)]

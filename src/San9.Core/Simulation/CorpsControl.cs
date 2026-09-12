@@ -51,8 +51,13 @@ public static class CorpsControl
         bool permitted = command switch
         {
             WaitCommand => true,
+            SelectTacticCommand tactic => world.Officers.FirstOrDefault(p => p.Id == tactic.OfficerId)?.UnitId is int unit
+                ? OwnUnit(unit) : OwnPerson(tactic.OfficerId),
             DeployUnitCommand deploy => OwnPlace(deploy.SettlementId),
+            DemolishFacilityCommand demolish => OwnPlace(demolish.SettlementId),
+            ConstructFacilityCommand construct => OwnPlace(construct.SettlementId),
             OrderUnitCommand order => OwnUnit(order.UnitId),
+            ReformUnitCommand reform => OwnUnit(reform.UnitId),
             DevelopCommand develop => develop.Development is not null && OwnPlace(develop.Development.SettlementId),
             RecruitOfficerCommand recruit => OwnPerson(recruit.OfficerId),
             SearchCommand search => OwnPerson(search.OfficerId),

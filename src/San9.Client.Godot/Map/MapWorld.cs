@@ -361,7 +361,8 @@ public partial class MapWorld : Node2D
         var visuals = BuildingVisuals.Resolve(_map, view.Settlements.Select(s =>
         {
             var force = s.OwnerId is int owner ? forces[owner] : null;
-            return new BuildingVisualState(s.Id,s.Durability,s.Appearance,Math.Max(s.Commerce,s.Cultivation),s.Soldiers,force?.ColorCode??50,force?.FlagGlyph??-1);
+            return new BuildingVisualState(s.Id,s.Durability,s.Appearance,Math.Max(s.Commerce,s.Cultivation),s.Soldiers,force?.ColorCode??50,force?.FlagGlyph??-1)
+                { IsDestroyed = s.IsDestroyed, Placement = s.FacilityTypeId is int type ? new(s.Id, s.X, s.Y, type) : null };
         }).ToArray());
         _runtimeBuildings = visuals.Buildings;
         _buildingAnimations = visuals.Animations.GroupBy(s => s.BuildingId).ToDictionary(g => g.Key,g => g.ToArray());
@@ -370,10 +371,11 @@ public partial class MapWorld : Node2D
         QueueObjects();
     }
     public void PreviewSeason(string season) => BeginLoad(season);
+    public IReadOnlyList<MapBuilding> RuntimeBuildings => _runtimeBuildings;
     public void FocusWorld(Vector2 point) => RequestView(new(point.X, point.Y, RequestedZoom));
     public void FocusBuilding(int id)
     {
-        var b = _map!.Buildings.Single(b => b.Id == id); var c = MapGeometry.Center(b.X, b.Y);
+        var b = Session!.View.Settlements.Single(b => b.Id == id); var c = MapGeometry.Center(b.X, b.Y);
         FocusWorld(new(c.X, c.Y));
     }
     public Vector2 WorldToViewport(Vector2 world) => GetViewport().CanvasTransform * world;

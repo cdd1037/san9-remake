@@ -190,17 +190,18 @@ public sealed class MilitaryMovementTests
     {
         var world = World();
         var mutation = world.BeginMutation();
-        mutation.AddUnit(new(0, 1, new(37, 7), 100) { FormationId = 7 });
-        mutation.SetSimulation(mutation.Simulation with { NextUnitId = 1 });
+        WorldPosition[] entrances = [new(37, 6), new(38, 7), new(37, 8), new(36, 7)];
+        for (int i = 0; i < entrances.Length; i++) mutation.AddUnit(new(i, 1, entrances[i], 100) { FormationId = 7 });
+        mutation.SetSimulation(mutation.Simulation with { NextUnitId = 4 });
         world.Commit(mutation);
         var engine = Engine(world, Rules(10));
         Assert.True(engine.Execute(Player, Deploy()).Submission.Accepted);
-        var departed = engine.Snapshot.Units.Single(u => u.Id == 1).Position;
+        var departed = engine.Snapshot.Units.Single(u => u.Id == 4).Position;
         var blocked = Advance(engine);
-        Assert.Equal(departed, engine.Snapshot.Units.Single(u => u.Id == 1).Position);
-        Assert.Equal(10, blocked.Events.OfType<UnitMovedEvent>().Count(e => e.UnitId == 1 && !e.Reachable));
+        Assert.Equal(departed, engine.Snapshot.Units.Single(u => u.Id == 4).Position);
+        Assert.Equal(10, blocked.Events.OfType<UnitMovedEvent>().Count(e => e.UnitId == 4 && !e.Reachable));
         mutation = world.BeginMutation();
-        mutation.RemoveUnit(0);
+        foreach (int id in Enumerable.Range(0, 4)) mutation.RemoveUnit(id);
         world.Commit(mutation);
         var restored = Engine(WorldState.Restore(engine.CaptureStableState()), Rules(10));
         Assert.Equal(CanonicalJson.Text(Advance(engine).Events), CanonicalJson.Text(Advance(restored).Events));

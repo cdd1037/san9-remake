@@ -189,7 +189,7 @@
         "project": "San9.Core",
         "target_namespace": "San9.Core.Simulation",
         "target_path": "src/San9.Core/Simulation",
-        "entry_types": ["PersonnelMissions", "PersonnelTransitions", "PersonnelAppointments", "PersonnelRewards"],
+        "entry_types": ["PersonnelMissions", "PersonnelTransitions", "PersonnelAppointments", "PersonnelRewards", "PrisonerRelease", "PrisonerEscapeCycle"],
         "existing_anchors": ["src/San9.Core/Domain/OfficerState.cs", "src/San9.Core/Simulation/GameCommand.cs", "src/San9.Core/Simulation/PersonnelRewards.cs", "src/San9.Core/Simulation/PersonnelMissions.cs", "src/San9.Core/Simulation/PersonnelTransitions.cs", "src/San9.Core/Simulation/PersonnelAppointments.cs"]
       }
     },
@@ -272,8 +272,8 @@
     {
       "id": "warfare",
       "classification": "core",
-      "behavior_specs": ["BEH-WAR-0001", "BEH-WAR-0002", "BEH-WAR-0003", "BEH-WAR-0004"],
-        "objects": ["UnitState", "BattlefieldMap", "MilitaryDefinition", "MilitaryOrder", "SettlementState", "CombatProfile", "OrdinaryAttack"],
+      "behavior_specs": ["BEH-WAR-0001", "BEH-WAR-0002", "BEH-WAR-0003", "BEH-WAR-0004", "BEH-WAR-0005", "BEH-WAR-0006"],
+        "objects": ["UnitState", "BattlefieldMap", "MilitaryDefinition", "FacilityRule", "ConstructionSite", "FacilityInstance", "ConstructionPlan", "MilitaryOrder", "SettlementState", "CombatProfile", "OrdinaryAttack"],
       "states": ["planned", "moving", "resolving", "returning", "defeated", "complete"],
       "inputs": ["typed battlefield command", "map occupancy snapshot", "live target", "unit and building state"],
       "outputs": ["validated daily movement", "atomic capture settlement", "unit termination settlement", "force elimination input"],
@@ -284,7 +284,7 @@
         "project": "San9.Core",
           "target_namespace": "San9.Core.Simulation",
           "target_path": "src/San9.Core/Simulation",
-          "entry_types": ["MilitaryMovement", "DeployUnitCommand", "OrderUnitCommand", "MilitaryCombat", "BattleAftermath", "BattlePersonnel", "UnitTerminationService"],
+          "entry_types": ["MilitaryMovement", "DeployUnitCommand", "OrderUnitCommand", "ReformUnitCommand", "UnitReformation", "DemolishFacilityCommand", "FacilityDemolition", "ConstructFacilityCommand", "FacilityConstruction", "FormationEligibility", "MilitaryTactics", "TacticCombat", "IntelligenceTactics", "TacticSupport", "MilitaryConditions", "SelectTacticCommand", "MilitarySupply", "MilitaryCombat", "BattleAftermath", "BattlePersonnel", "UnitTerminationService", "WoundedRecovery"],
           "existing_anchors": ["src/San9.Core/Domain/UnitState.cs", "src/San9.Core/Domain/BattlefieldMap.cs", "src/San9.Core/Domain/MilitaryRulebook.cs", "src/San9.Core/Domain/CombatMath.cs", "src/San9.Core/Simulation/UnitTerminationService.cs", "src/San9.Core/Simulation/MilitaryMovement.cs", "src/San9.Core/Simulation/MilitaryCombat.cs", "src/San9.Core/Simulation/BattleAftermath.cs", "src/San9.Core/Simulation/BattlePersonnel.cs"]
       }
     },

@@ -43,7 +43,7 @@ public sealed class SimulationEngine
             _world.EnterExecution();
             try
             {
-                var mutation = world.BeginMutation();
+                var mutation = world.BeginMutation(rules.Abilities);
                 List<DomainEvent> events = [];
                 _pipeline.Prepare(mutation, events);
                 world.Commit(mutation);
@@ -83,13 +83,29 @@ public sealed class SimulationEngine
             {
                 case WaitCommand:
                     break;
+                case SelectTacticCommand tactic:
+                    var tacticRejection = MilitaryTactics.Select(mutation, tactic, _rules, events);
+                    if (tacticRejection != CommandRejection.None) return Reject(tacticRejection);
+                    break;
                 case DeployUnitCommand deploy:
-                    var deployRejection = MilitaryMovement.Deploy(mutation, deploy, _rules.Military, _rules.Governance, events);
+                    var deployRejection = MilitaryMovement.Deploy(mutation, deploy, _rules.Military, _rules.Governance, _rules.Treasures, events);
                     if (deployRejection != CommandRejection.None) return Reject(deployRejection);
+                    break;
+                case DemolishFacilityCommand demolish:
+                    var demolitionRejection = FacilityDemolition.Apply(mutation, demolish, _rules, events);
+                    if (demolitionRejection != CommandRejection.None) return Reject(demolitionRejection);
+                    break;
+                case ConstructFacilityCommand construct:
+                    var constructionRejection = FacilityConstruction.Start(mutation, construct, _rules, events);
+                    if (constructionRejection != CommandRejection.None) return Reject(constructionRejection);
                     break;
                 case OrderUnitCommand order:
                     var orderRejection = MilitaryMovement.Order(mutation, order, _rules.Military, events);
                     if (orderRejection != CommandRejection.None) return Reject(orderRejection);
+                    break;
+                case ReformUnitCommand reform:
+                    var reformRejection = UnitReformation.Apply(mutation, reform, _rules.Military, _rules.Treasures, events);
+                    if (reformRejection != CommandRejection.None) return Reject(reformRejection);
                     break;
                 case SetCorpsControlCommand control:
                     var controlRejection = CorpsControl.Set(mutation, control, events);

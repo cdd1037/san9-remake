@@ -79,9 +79,19 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
             PrisonerCycle.Apply(world, events);
         }
         if (stage == ResolutionStage.QuarterUpdate) PersonnelLoyaltyCycle.Apply(world, events);
-        EconomicCycle.Apply(stage, world, rules.Economy, events);
+        var shortages = EconomicCycle.Apply(stage, world, rules.Economy, events);
+        if (stage == ResolutionStage.BeforeDailyCommands)
+        {
+            MilitaryTactics.TickCooldowns(world);
+            MilitaryConditions.Tick(world, events);
+            MilitarySupply.Apply(world, shortages, rules, events);
+        }
+        if (stage == ResolutionStage.XunUpdate) WoundedRecovery.Apply(world, rules.Military, events);
+        if (stage == ResolutionStage.XunUpdate) PrisonerEscapeCycle.Apply(world, rules.Personnel, rules.Economy, events);
         if (stage == ResolutionStage.DailyMapUpdate) MilitaryMovement.AdvanceDay(world, rules.Military, rules.Governance, events);
+        if (stage == ResolutionStage.DailyMapUpdate) FacilityConstruction.AdvanceDay(world, rules, events);
         if (stage == ResolutionStage.DailyMapUpdate) MilitaryCombat.AdvanceDay(world, rules, events);
+        if (stage == ResolutionStage.DailyMapUpdate) TacticSupport.AdvanceDay(world, rules, events);
         rules.ApplyStage(stage, world, events);
         events.Add(new StageCompletedEvent(world.Clock, stage));
         return CheckTerminal(world, events);

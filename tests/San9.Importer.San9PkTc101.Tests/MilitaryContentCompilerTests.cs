@@ -13,11 +13,26 @@ public sealed class MilitaryContentCompilerTests
             new San9ScenarioSquareRecord(i, (ushort)i, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0)).ToArray();
         squares[3] = squares[3] with { SquareFlags = 2, TerrainCode = 2 };
         squares[4] = squares[4] with { SquareFlags = 1024, TerrainCode = 15 };
+        for (int i = 0; i < 17; i++) squares[2000 + i * 10] = squares[2000 + i * 10] with { TerrainCode = (byte)i };
+        squares[4000] = squares[4000] with { TerrainCode = 1, OffsetCode = 2 };
+        squares[4002] = squares[4002] with { OffsetCode = 2 };
         var terrains = Enumerable.Range(0, 17).Select(i => new San9ScenarioTerrainRecord(i, (ushort)i, 999, 99)).ToArray();
         var formations = Enumerable.Range(0, 28).Select(i => new San9ScenarioFormationRecord(i, (ushort)i, 0, 0, 0,
             (ushort)(i + 1), (ushort)(i + 2), (ushort)(i + 3), (ushort)(i + 4), 12, 1, 1, 100, 0, new byte[] { 1, 3, 4, 5, 7 }, 0)).ToArray();
         SettlementInitialState[] places = [new(5000, "city", 1, 10, 10, 100, 100, 100, 50, [])];
-        var definition = MilitaryContentCompiler.Compile(squares, terrains, formations, places, [], []);
+        var buildings = Enumerable.Range(0, 17).Select(i => new San9ScenarioFixedBuildingRecord(i, (ushort)i, 0, 0, 0, 600, 100, 5, 5, 0, 15, 0, 0)).ToArray();
+        var tactics = Enumerable.Range(0, 41).Select(i => new San9ScenarioTacticRecord(i, (ushort)i,
+            0, 0, 0, (ushort)(i >= 39 ? 9 : 0), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)).ToArray();
+        tactics[12] = tactics[12] with { CompatibleArrayTypeMaskHigh = (1 << 5) | (1 << 10) };
+        tactics[15] = tactics[15] with { CompatibleArrayTypeMaskLow = 1 << 8 };
+        var definition = MilitaryContentCompiler.Compile(squares, terrains, formations, places, [], buildings, tactics);
+        Assert.Equal(12, definition.Formations.Single(f => f.Id == 21).RequiredTacticId);
+        Assert.Equal(12, definition.Formations.Single(f => f.Id == 26).RequiredTacticId);
+        Assert.Equal(15, definition.Formations.Single(f => f.Id == 8).RequiredTacticId);
+        Assert.Null(definition.Formations.Single(f => f.Id == 20).RequiredTacticId);
+        Assert.Equal(TacticEffect.CounterTrap, definition.Tactics.Single(t => t.Id == 21).Effect);
+        Assert.Equal(TacticEffect.CounterConfusion, definition.Tactics.Single(t => t.Id == 22).Effect);
+        Assert.True(definition.Tactics.Single(t => t.Id == 22).Selectable);
         Assert.Equal(Enumerable.Range(0, 17), definition.Terrains.Select(t => t.Id));
         Assert.Equal(Enumerable.Range(0, 28), definition.Formations.Select(f => f.Id));
         Assert.Equal(new MapCell(3, 0), Assert.Single(definition.BlockedCells));
@@ -35,13 +50,25 @@ public sealed class MilitaryContentCompilerTests
                 new[] { BattleRank.Front, BattleRank.Middle, BattleRank.Middle, BattleRank.Middle, BattleRank.Rear }, formation.CaptureRanks);
         }
         var rules = new MilitaryRulebook(definition);
+        int?[] expectedTraps = [36, null, 35, 35, 35, 35, null, 35, 35, null, 37, null, null, null, null, 37, 37];
+        for (int i = 0; i < 17; i++) Assert.Equal(expectedTraps[i], definition.TrapTacticIds[2000 + i * 10]);
+        Assert.Equal(38, definition.TrapTacticIds[4003]);
+        Assert.Equal(35, definition.TrapTacticIds[4004]);
+        Assert.Equal(38, definition.TrapTacticIds[4203]);
+        Assert.Equal(35, definition.TrapTacticIds[4603]);
+        Assert.Equal(35, definition.TrapTacticIds[4002]);
+        Assert.Equal(38, rules.TrapAt(MapCoordinates.Center(new(3, 20)))!.Id);
+        Assert.Throws<ArgumentException>(() => new MilitaryRulebook(definition with { TrapTacticIds = [] }));
+        Assert.Throws<ArgumentException>(() => new MilitaryRulebook(definition with { TrapTacticIds = definition.TrapTacticIds.SetItem(0, 24) }));
         Assert.Null(rules.Map.PassageCost(MapCoordinates.Center(new(3, 0)), new(1, 1), TravelMode.Land, []));
         Assert.Equal(10, rules.Map.PassageCost(MapCoordinates.Center(new(4, 0)), new(1, 1), TravelMode.Water, []));
         Assert.Null(rules.Map.PassageCost(MapCoordinates.Center(new(4, 0)), new(1, 1), TravelMode.Land, []));
         Assert.Equal(5000, Assert.Single(definition.Places).Id);
         Assert.Equal(new CombatProfile(10, 10, 0, 10, 50), Assert.Single(definition.Places).Combat);
         Assert.False(Assert.Single(definition.Places).DestroyedAtZeroDurability);
-        Assert.Throws<InvalidDataException>(() => MilitaryContentCompiler.Compile(squares, terrains[..16], formations, places, [], []));
-        Assert.Throws<InvalidDataException>(() => MilitaryContentCompiler.Compile(squares, terrains, formations[..27], places, [], []));
+        Assert.Equal(15, Assert.Single(definition.Places).WoundedRecovery);
+        Assert.Throws<InvalidDataException>(() => MilitaryContentCompiler.Compile(squares, terrains[..16], formations, places, [], [], tactics));
+        Assert.Throws<InvalidDataException>(() => MilitaryContentCompiler.Compile(squares, terrains, formations[..27], places, [], [], tactics));
+        Assert.Throws<InvalidDataException>(() => MilitaryContentCompiler.Compile(squares, terrains, formations, places, [], buildings, tactics[..40]));
     }
 }

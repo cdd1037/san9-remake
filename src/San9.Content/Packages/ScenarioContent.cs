@@ -24,4 +24,7 @@ public sealed record MapInstance(string SourceBuild, string ScenarioId, string I
 public sealed record TextureDependency(string Path);
 
 public sealed record ScenarioContent(int SchemaVersion, ContentSource[] Sources, TextureDependency Textures,
-    MapInstance Map, ScenarioInitialState Scenario, TextCatalog Text, Dictionary<string,string> IllustrationRoles);
+    MapInstance Map, ScenarioInitialState Scenario, TextCatalog Text, Dictionary<string,string> IllustrationRoles)
+{
+    public const int CurrentSchemaVersion = 36;
+}

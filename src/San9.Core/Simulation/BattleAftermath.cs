@@ -4,6 +4,7 @@ using San9.Core.Domain;
 namespace San9.Core.Simulation;
 
 public sealed record SettlementCapturedEvent(GameClock Clock, int SettlementId, int? PreviousOwnerId, int WinnerUnitId, bool Destroyed) : DomainEvent;
+public sealed record FacilityDestroyedEvent(GameClock Clock, int SettlementId, int AttackerUnitId) : DomainEvent;
 public sealed record ForceEliminatedEvent(GameClock Clock, int ForceId, bool WasPlayerControlled) : DomainEvent;
 public sealed record ForceLeaderChangedEvent(GameClock Clock, int ForceId, int? PreviousId, int OfficerId) : DomainEvent;
 
@@ -25,14 +26,26 @@ internal static class BattleAftermath
         }
     }
 
-    internal static void CaptureSettlement(WorldMutation world, int id, int winnerId, SimulationRules rules, List<DomainEvent> events)
+    internal static void ResolveSettlementDefeat(WorldMutation world, int id, int winnerId, SimulationRules rules, List<DomainEvent> events)
     {
         var settlement = world.Settlements[id];
-        if (settlement.IsDestroyed || settlement.Soldiers > 0 && settlement.Morale > 0 && settlement.Durability > 0)
+        if (!MilitaryCombat.Defeated(settlement))
             throw new InvalidOperationException("Settlement has not fallen.");
         var winner = world.Units[winnerId];
         if (!MilitaryCombat.Hostile(world, winner.OwnerId, settlement.OwnerId)) throw new InvalidOperationException("Invalid settlement captor.");
-        var definition = rules.Military!.Places[id];
+        var definition = rules.Military!.Place(settlement);
+        if (!settlement.CanHostPersons)
+        {
+            world.Replace(settlement with { IsDestroyed = true, OwnerId = null, CorpsId = null,
+                Soldiers = 0, Wounded = 0, Morale = 0, Durability = 0, ConfusionDaysRemaining = 0 });
+            foreach (var unit in world.Units.Values.Where(u => u.Order?.SettlementId == id).ToArray())
+            {
+                world.Replace(unit with { Order = null });
+                events.Add(new UnitOrderChangedEvent(world.Clock, unit.Id, null, "facility-destroyed"));
+            }
+            events.Add(new FacilityDestroyedEvent(world.Clock, id, winnerId));
+            return;
+        }
         bool destroyed = settlement.Durability == 0 && definition.DestroyedAtZeroDurability;
         if (destroyed)
         {
@@ -61,6 +74,8 @@ internal static class BattleAftermath
             }
         }
         world.Replace(settlement with { OwnerId = destroyed ? null : winner.OwnerId, CorpsId = destroyed ? null : winner.CorpsId,
+            Facility = settlement.Facility is { } instance ? instance with { BuilderUnitId = null } : null,
+            ConfusionDaysRemaining = 0,
             IsDestroyed = destroyed, Soldiers = destroyed ? 0 : settlement.Soldiers, Wounded = destroyed ? 0 : settlement.Wounded,
             Morale = destroyed ? 0 : Math.Max(1, winner.Morale), Durability = destroyed ? 0 :
                 settlement.Durability > 0 ? settlement.Durability : Math.Max(1, settlement.MaxDurability / 4) });
@@ -92,10 +107,11 @@ internal static class BattleAftermath
             var retreatShape = original.UnitId is null ? new Footprint(1, 1) : formation.Footprint;
             var retreatMode = original.UnitId is null ? TravelMode.Land : formation.TravelMode;
             int? retreat = world.Settlements.Values.Where(s => s.OwnerId == original.OwnerId && original.OwnerId is not null && s.CanHostPersons &&
-                    !s.IsDestroyed && s.Durability > 0 && (original.UnitId is not null || s.Id != fallbackPlace) && military.Places.ContainsKey(s.Id))
-                .OrderBy(s => from.DistanceTo(new(military.Places[s.Id].Position, military.Places[s.Id].Footprint))).ThenBy(s => s.Id)
-                .Where(s => military.Map.FindRoute(retreatStart, military.Places[s.Id].Position, retreatShape, retreatMode,
-                    MilitaryMovement.Occupancy(world, military, movement.Id, s.Id).Where(o => !o.Overlaps(from))).Reachable)
+                    !s.IsDestroyed && s.Durability > 0 && (original.UnitId is not null || s.Id != fallbackPlace) && military.TryPlace(s, out _))
+                .OrderBy(s => from.DistanceTo(new(military.Place(s).Position, military.Place(s).Footprint))).ThenBy(s => s.Id)
+                .Where(s => military.Map.AdvanceIntoRange(retreatStart,
+                    new(military.Place(s).Position, military.Place(s).Footprint), retreatShape, retreatMode,
+                    MilitaryMovement.Occupancy(world, military, movement.Id, s.Id).Where(o => !o.Overlaps(from)), 0, 1).Reachable)
                 .Select(s => (int?)s.Id).FirstOrDefault();
             if (original.IsServing && winnerId is int winner)
             {

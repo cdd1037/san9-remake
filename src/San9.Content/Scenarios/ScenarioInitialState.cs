@@ -34,7 +34,7 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 26;
+    public const int CurrentSchemaVersion = 35;
     [System.Text.Json.Serialization.JsonRequired] public San9.Core.Domain.MilitaryDefinition? Military { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Domain.CityConnection> CityConnections { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Domain.PersonPlace> UnbuiltPlaces { get; init; } = [];
@@ -53,6 +53,10 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
         if (Military is { } military)
         {
             var rules = new San9.Core.Domain.MilitaryRulebook(military);
+            if (rules.ConstructionSites.Values.Any(site => !RegionNameKeys.ContainsKey(site.RegionId) || !RegionCityIds.ContainsKey(site.RegionId)))
+                throw new InvalidDataException("Unknown construction region.");
+            if (Officers.Any(o => o.State.EquippedTacticId is int id && !rules.Tactics.ContainsKey(id)))
+                throw new InvalidDataException("Unknown equipped tactic reference.");
             if (!rules.Places.Keys.Order().SequenceEqual(Settlements.Select(s => s.Id).Order()) ||
                 Settlements.Any(s => rules.Places[s.Id].Position != s.Position))
                 throw new InvalidDataException("Military place identities or positions differ from settlements.");

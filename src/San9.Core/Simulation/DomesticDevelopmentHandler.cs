@@ -14,6 +14,7 @@ internal static class DomesticDevelopmentHandler
             command.OfficerIds.Any(id => !world.Officers.ContainsKey(id))) return new(DevelopmentRejection.UnknownObject);
         var people = command.OfficerIds.Select(id => world.Officers[id]).ToArray();
         if (city.OwnerId != force.Id || people.Any(p => p.OwnerId != force.Id)) return new(DevelopmentRejection.WrongOwner);
+        if (city.IsDestroyed || city.Facility?.BuilderUnitId is not null) return new(DevelopmentRejection.UnsupportedActivity);
         if (people.Any(p => !p.IsServing || p.Acted || p.SettlementId != city.Id || world.Simulation.Tasks.Any(t => t.OfficerId == p.Id)))
             return new(DevelopmentRejection.OfficerUnavailable);
         var abilities = world.AbilitiesFor(people);

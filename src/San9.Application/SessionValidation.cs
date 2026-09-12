@@ -21,7 +21,10 @@ internal static class SessionValidation
             if (!a.Order().SequenceEqual(b.Order())) throw new ArgumentException("Scenario identity set mismatch.");
         }
         Same(content.Forces.Select(f => f.Id), snapshot.World.Forces.Select(f => f.Id));
-        Same(content.Settlements.Select(s => s.Id), snapshot.World.Settlements.Select(s => s.Id));
+        if (content.Settlements.Any(s => !snapshot.World.Settlements.Any(current => current.Id == s.Id)) ||
+            snapshot.World.Settlements.Any(s => !content.Settlements.Any(initial => initial.Id == s.Id) &&
+                (s.Facility is null || !content.UnbuiltPlaces.Any(region => region.Id == s.Id))))
+            throw new ArgumentException("Unknown or missing settlement identity.");
         Same(content.Officers.Select(o => o.State.Id), snapshot.World.Officers.Select(o => o.Id));
         // Field units are created and absorbed at runtime; identities are allocated by the world.
         if (snapshot.World.Units.Any(u => u.ServicePlaceId is int home &&

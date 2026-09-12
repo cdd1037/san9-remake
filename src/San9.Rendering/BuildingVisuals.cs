@@ -2,7 +2,11 @@ using San9.Content.Maps;
 
 namespace San9.Rendering;
 
-public sealed record BuildingVisualState(int Id, int Durability, int Appearance, int Development, uint Soldiers, int Color, int Glyph);
+public sealed record BuildingVisualState(int Id, int Durability, int Appearance, int Development, uint Soldiers, int Color, int Glyph)
+{
+    public bool IsDestroyed { get; init; }
+    public MapBuildingPlacement? Placement { get; init; }
+}
 public sealed record BuildingVisuals(MapBuilding[] Buildings, MapAnimatedSprite[] Animations)
 {
     public static BuildingVisuals Resolve(MapPackage map, IReadOnlyList<BuildingVisualState> states)
@@ -13,9 +17,10 @@ public sealed record BuildingVisuals(MapBuilding[] Buildings, MapAnimatedSprite[
         var compositions = map.Compositions.ToDictionary(c => c.Id);
         var types = map.BuildingTypes.ToDictionary(t => t.Id);
         List<MapBuilding> buildings = []; List<MapAnimatedSprite> animations = [];
-        foreach (var b in map.Buildings.OrderBy(b => b.X+b.Y).ThenBy(b => b.X))
+        foreach (var b in states.Select(s => s.Placement ?? map.Buildings.Single(b => b.Id == s.Id)).OrderBy(b => b.X+b.Y).ThenBy(b => b.X))
         {
             var state = input[b.Id]; int type = b.FixedType, maximum = types[type].MaxDurability;
+            if (state.IsDestroyed) continue;
             if (state.Color is < 0 or > 50 || state.Glyph is < -1 or > 185 || state.Durability < 0 || maximum <= 0)
                 throw new InvalidDataException("Invalid runtime building visual state.");
             bool four = type is 0 or 2 or 3 or 4 or 5 or 7 or 9 or 12 or 13 or 16;

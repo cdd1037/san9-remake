@@ -18,6 +18,8 @@ public sealed record OfficerState(int Id, int? OwnerId, int? SettlementId, Offic
     [System.Text.Json.Serialization.JsonRequired] public int Affinity { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<int> MasteredCategories { get; init; } = [];
     public ImmutableArray<int> LearnedTactics { get; init; } = [];
+    [System.Text.Json.Serialization.JsonRequired] public int? EquippedTacticId { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public int TacticCooldown { get; init; }
     public ImmutableArray<int> TacticProficiencies { get; init; } = [0, 0, 0, 0, 0, 0, 0, 0, 0];
     public int? StatusStartYear { get; init; }
     public int? ParentId { get; init; }
@@ -52,7 +54,7 @@ public sealed record OfficerState(int Id, int? OwnerId, int? SettlementId, Offic
             ForceLoyalties.Any(p => p.Key < 0 || p.Value is < 0 or > 255)) return false;
         if (Affinity is < 0 or >= 150 || MasteredCategories.IsDefault ||
             MasteredCategories.Any(c => c is < 0 or > 8) || MasteredCategories.Distinct().Count() != MasteredCategories.Length) return false;
-        if (LearnedTactics.IsDefault || TacticProficiencies.IsDefault || TacticProficiencies.Length != 9 ||
+        if (EquippedTacticId < 0 || TacticCooldown < 0 || LearnedTactics.IsDefault || TacticProficiencies.IsDefault || TacticProficiencies.Length != 9 ||
             TacticProficiencies.Any(v => v < 0) || LearnedTactics.Any(v => v < 0) || LearnedTactics.Distinct().Count() != LearnedTactics.Length ||
             ParentId < 0 || Personality is < 0 or > 3) return false;
         if (Id < 0 || IsServing && SettlementId is null && UnitId is null || UnitId < 0 ||

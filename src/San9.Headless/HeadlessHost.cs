@@ -101,6 +101,7 @@ public sealed class HeadlessHost
                   BattleDamageEvent => "battle-damage",
                   UnitTerminatedEvent => "unit-terminated",
                   SettlementCapturedEvent => "settlement-captured",
+                  FacilityDestroyedEvent => "facility-destroyed",
                   ForceEliminatedEvent => "force-eliminated",
                 _ => null
             };

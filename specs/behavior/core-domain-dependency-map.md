@@ -82,6 +82,8 @@ G01已接入以上模拟内核与现有内政命令，持续任务通过内部�
 
 ## 支撑边界
 
+G07已接入的周期入口：`PrisonerEscapeCycle`在旬更新复用`PrisonerRelease`的安置与归队；`WoundedRecovery`读取`BattlefieldPlace.WoundedRecovery`并等量转换据点伤兵和现役。两者使用独立命名随机流。`MilitarySupply`消费本日账户短缺，统一写士气并复用终止清理；`UnitReformation`处理显式整编及共同可通行地形上的陆水转换，军事进出统一使用建筑边界。结果进入统一世界状态、保存和事件协议；`FormationEligibility`统一出征/整编的成员、势力和持有宝物技术资格；主动兵法、设施建设及综合验收尚未完成。
+
 | 边界 | 规格 | 职责 | 实现入口 |
 | --- | --- | --- | --- |
 | `content-import` | `BEH-IMPORT-0001..0017` | 识别批准样本、无损解码已知/未知字段、生成稳定内容 ID 与规范化内容包；不进入运行时依赖 | `San9.Importer.San9PkTc101` 与 `San9.Content` |

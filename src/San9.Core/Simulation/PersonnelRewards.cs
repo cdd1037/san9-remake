@@ -14,7 +14,8 @@ internal static class PersonnelRewards
         if (!world.Officers.TryGetValue(command.OfficerId, out var person))
             return CommandRejection.UnknownPerson;
         if (!person.IsServing || person.Status == OfficerStatus.Ruler || world.Forces[command.IssuerId].LeaderId == person.Id || person.OwnerId != command.IssuerId ||
-            person.SettlementId is not int location || world.Settlements[location].OwnerId != command.IssuerId)
+            person.SettlementId is not int location || world.Settlements[location].OwnerId != command.IssuerId ||
+            world.Simulation.Tasks.Any(t => t.OfficerId == person.Id && t.Journey is not null))
             return CommandRejection.PersonUnavailable;
         if (person.RewardedThisXun) return CommandRejection.AlreadyRewarded;
         if (person.Loyalty >= 100) return CommandRejection.LoyaltyAtMaximum;

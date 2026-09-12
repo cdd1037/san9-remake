@@ -78,8 +78,12 @@ public sealed class GameSession
     {
         var rules = new EconomyRulebook(definition.Information.Offices.Select(o => new OfficeSalary(o.Id, o.Salary)).ToImmutableArray(),
             definition.DomesticPairs, definition.ImperialSealId, definition.EmperorId);
-        var personnel = new PersonnelRulebook(definition.Settlements.Select(s => new PersonPlace(s.Id, s.Position)).Concat(definition.UnbuiltPlaces));
-        return world => new(world, rules, personnel);
+        var personnel = new PersonnelRulebook(definition.Settlements.Select(s => new PersonPlace(s.Id, s.Position)).Concat(definition.UnbuiltPlaces), definition.RegionCityIds, definition.CityConnections);
+        var treasures = new TreasureRulebook(definition.Information.Treasures.Select(t => new TreasureRule(t.Id, t.AbilityBonuses, t.LoyaltyBonus)));
+        var governance = new GovernanceRulebook(definition.Information.Offices.Select(o => new GovernorOfficeRule(o.Id, o.CommandCapacity, o.GovernorPriority)
+            { AbilityBonuses = o.AbilityBonuses, Salary = o.Salary, RequiredRankId = o.RequiredRankId }),
+            definition.Information.Ranks.ToDictionary(r => r.Id, r => r.RequiredTrust));
+        return world => new(world, rules, personnel, treasures, governance);
     }
 
     public static string Fingerprint(ScenarioInitialState definition) => new ScenarioSessionDefinition(definition).Fingerprint;
@@ -173,6 +177,9 @@ public sealed class GameSession
                     events.AddRange(command.Events);
                     break;
                 case EndControlOperation:
+                    var active = candidate.Snapshot.Simulation;
+                    if (active.ActiveControl < active.Controls.Length && active.Controls[active.ActiveControl].ControllerId == request.ControllerId)
+                        AutomaticCorpsPlanner.Run(candidate, active.Controls[active.ActiveControl], events);
                     events.AddRange(candidate.EndControl(new(request.ControllerId)).Events);
                     break;
                 case AdvanceOperation:
@@ -180,6 +187,7 @@ public sealed class GameSession
                     while (candidate.Snapshot.Simulation.ActiveControl < candidate.Snapshot.Simulation.Controls.Length)
                     {
                         var seat = candidate.Snapshot.Simulation.Controls[candidate.Snapshot.Simulation.ActiveControl];
+                        AutomaticCorpsPlanner.Run(candidate, seat, events);
                         events.AddRange(candidate.EndControl(new(seat.ControllerId)).Events);
                     }
                     events.AddRange(candidate.AdvanceXun().Events);

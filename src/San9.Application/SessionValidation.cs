@@ -8,7 +8,7 @@ internal static class SessionValidation
     internal static void Validate(ScenarioSessionDefinition definition, SessionSnapshot snapshot)
     {
         if (snapshot.Records.IsDefault || snapshot.Chronicle.IsDefault || snapshot.Records.Length > GameSession.RecentRecordLimit ||
-            snapshot.NextOperationSequence < snapshot.World.Simulation.NextSequence)
+            snapshot.NextOperationSequence < 0)
             throw new ArgumentException("Missing session state.");
         var expected = definition.CreateWorld(snapshot.World.Simulation.InitialSeed);
         if (snapshot.World.Simulation.Started != expected.Clock ||
@@ -23,7 +23,15 @@ internal static class SessionValidation
         Same(content.Settlements.Select(s => s.Id), snapshot.World.Settlements.Select(s => s.Id));
         Same(content.Officers.Select(o => o.State.Id), snapshot.World.Officers.Select(o => o.Id));
         Same(content.Units.Select(u => u.Id), snapshot.World.Units.Select(u => u.Id));
-        Same(content.Information.Corps.Select(c => c.Id), snapshot.World.Corps.Select(c => c.Id));
+        if (snapshot.World.Units.Any(u => u.ServicePlaceId is int home &&
+            !content.Settlements.Any(s => s.Id == home) && !content.UnbuiltPlaces.Any(p => p.Id == home)))
+            throw new ArgumentException("Unknown unit service place.");
+        // Corps are runtime entities; only the force treasury anchors survive ordinary reorganization.
+        Same(content.Information.Corps.Where(c => c.Treasury is null).Select(c => c.Id),
+            snapshot.World.Corps.Where(c => c.Treasury is null).Select(c => c.Id));
+        if (content.Information.Corps.Where(c => c.Treasury is null).Any(c =>
+            !snapshot.World.Corps.Any(saved => saved.Id == c.Id && saved.OwnerId == c.OwnerId)))
+            throw new ArgumentException("Primary corps ownership mismatch.");
         Same(content.Information.TreasureStates.Select(t => t.Id), snapshot.World.Treasures.Select(t => t.Id));
         if (!content.Information.Relations.Select(r => (r.FirstId, r.SecondId)).Order()
             .SequenceEqual(snapshot.World.Relations.Select(r => (r.FirstId, r.SecondId)).Order()))

@@ -21,14 +21,17 @@ public sealed record ControlEndedEvent(string ControllerId, int ForceId) : Domai
 internal class SimulationRules
 {
     internal EconomyRulebook Economy { get; init; } = EconomyRulebook.Empty;
+    internal TreasureRulebook Treasures { get; init; } = TreasureRulebook.Empty;
     internal PersonnelRulebook Personnel { get; init; } = PersonnelRulebook.Empty;
+    internal GovernanceRulebook Governance { get; init; } = new([]);
     internal virtual TaskRule? FindTask(string kind) => kind is PersonnelMissions.RecruitKind or PersonnelMissions.MoveKind or PersonnelMissions.SearchKind
-        ? new PersonnelMissionRule(Personnel, Economy, kind) : null;
+        ? new PersonnelMissionRule(Personnel, Economy, Governance, Treasures, kind) : kind == PersonnelReturns.Kind ? new PersonnelReturnRule(Personnel, Governance) : null;
     internal virtual void ApplyStage(ResolutionStage stage, WorldMutation world, List<DomainEvent> events) { }
 }
 
 internal abstract class TaskRule
 {
+    // Calendar-day offset from submission to the daily stage that resolves this task.
     internal abstract int DurationDays(PersistentTask task);
     internal virtual bool HasValidPayload(PersistentTask task) => task.Journey is null;
     internal abstract bool Validate(WorldMutation world, PersistentTask task);
@@ -65,7 +68,12 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
     private bool Run(ResolutionStage stage, WorldMutation world, List<DomainEvent> events)
     {
         if (!CheckTerminal(world, events)) return false;
-        if (stage == ResolutionStage.XunUpdate) XunRecovery.Apply(world);
+        if (stage == ResolutionStage.XunUpdate)
+        {
+            XunRecovery.Apply(world);
+            PrisonerCycle.Apply(world, events);
+        }
+        if (stage == ResolutionStage.QuarterUpdate) PersonnelLoyaltyCycle.Apply(world, events);
         EconomicCycle.Apply(stage, world, rules.Economy, events);
         rules.ApplyStage(stage, world, events);
         events.Add(new StageCompletedEvent(world.Clock, stage));
@@ -98,7 +106,11 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
                 rule.Complete(world, task, events);
                 events.Add(new TaskCompletedEvent(task.Id, world.Clock));
             }
-            else events.Add(new TaskCancelledEvent(task.Id, world.Clock, "invalid-target-or-executor"));
+            else
+            {
+                events.Add(new TaskCancelledEvent(task.Id, world.Clock, "invalid-target-or-executor"));
+                if (task.Journey is not null) PersonnelReturns.Start(world, task, rules.Personnel, events, true);
+            }
             if (!CheckTerminal(world, events)) return;
         }
     }

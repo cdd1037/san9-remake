@@ -3,7 +3,11 @@ namespace San9.Core.Domain;
 public sealed record ForceRelation(int FirstId, int SecondId, int Value);
 
 public sealed record CorpsTreasury(uint Money, uint Food);
-public sealed record CorpsState(int Id, int OwnerId, int LeaderId, CorpsTreasury? Treasury);
+public enum CorpsControlMode { Direct, Automatic }
+public sealed record CorpsState(int Id, int OwnerId, int LeaderId, CorpsTreasury? Treasury)
+{
+    [System.Text.Json.Serialization.JsonRequired] public CorpsControlMode ControlMode { get; init; }
+}
 public enum TreasureDiscovery { Disabled, Buried, Discovered }
 
 public sealed record TreasureState(int Id, int? HolderId, TreasureDiscovery Discovery, int? DiscoveryRegionId)

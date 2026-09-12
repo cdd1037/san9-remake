@@ -1,7 +1,7 @@
 namespace San9.Core.Simulation;
 
 [System.Text.Json.Serialization.JsonDerivedType(typeof(AdviserAppointedEvent), "adviser-appointed")]
-[System.Text.Json.Serialization.JsonDerivedType(typeof(PersonSearchResolvedEvent), "person-search-resolved")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(SearchResolvedEvent), "search-resolved")]
 
 [System.Text.Json.Serialization.JsonDerivedType(typeof(RecruitmentResolvedEvent), "recruitment-resolved")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(PersonAffiliationChangedEvent), "person-affiliation-changed")]
@@ -23,6 +23,18 @@ namespace San9.Core.Simulation;
 [System.Text.Json.Serialization.JsonDerivedType(typeof(TaskCancelledEvent), "task-cancelled")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(SimulationEndedEvent), "simulation-ended")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(ControlEndedEvent), "control-ended")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(TreasureTransferredEvent), "treasure-transferred")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(OfficerExiledEvent), "officer-exiled")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(CorpsDissolvedEvent), "corps-dissolved")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(CorpsCreatedEvent), "corps-created")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(CorpsChangedEvent), "corps-changed")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(PersonnelReturnedEvent), "personnel-returned")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(CommanderChangedEvent), "commander-changed")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(CorpsLeaderChangedEvent), "corps-leader-changed")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(PrisonerReleasedEvent), "prisoner-released")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(OfficeAssignedEvent), "office-assigned")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(CorpsControlChangedEvent), "corps-control-changed")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(PersonnelTerritoryTransferredEvent), "personnel-territory-transferred")]
 public abstract record DomainEvent;
 
 public sealed record DevelopmentCompletedEvent(

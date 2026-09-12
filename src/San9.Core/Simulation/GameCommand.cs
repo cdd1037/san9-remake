@@ -3,12 +3,21 @@ namespace San9.Core.Simulation;
 [System.Text.Json.Serialization.JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(WaitCommand), "wait")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(AppointAdviserCommand), "appoint-adviser")]
-[System.Text.Json.Serialization.JsonDerivedType(typeof(SearchPersonsCommand), "search-persons")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(SearchCommand), "search")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(RecruitOfficerCommand), "recruit-officer")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(MoveOfficersCommand), "move-officers")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(RewardOfficerCommand), "reward-officer")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(DevelopCommand), "develop")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(StartTaskCommand), "start-task")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(GrantTreasureCommand), "grant-treasure")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(ConfiscateTreasureCommand), "confiscate-treasure")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(ExileOfficerCommand), "exile-officer")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(DissolveCorpsCommand), "dissolve-corps")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(CreateCorpsCommand), "create-corps")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(ChangeCorpsCommand), "change-corps")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(ReleasePrisonerCommand), "release-prisoner")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(AssignOfficesCommand), "assign-offices")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(SetCorpsControlCommand), "set-corps-control")]
 public abstract record GameCommand(
     Guid CommandId,
     int IssuerId,
@@ -44,6 +53,12 @@ public enum CommandRejection
     AlreadyRewarded,
     LoyaltyAtMaximum,
     InsufficientFunds,
+    UnknownTreasure,
+    TreasureUnavailable,
+    NoDestination,
+    InvalidCorps,
+    ResourceOverflow,
+    InvalidOffice,
 }
 
 public readonly record struct CommandSubmissionResult(

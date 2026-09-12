@@ -8,9 +8,12 @@ namespace San9.Application;
 public static class DomesticPlanner
 {
     public static GameCommand Choose(GameSession session, ControlSeat seat, Guid commandId, int turn, bool scripted = false)
+        => Choose(session.Snapshot, session.Validate, seat, commandId, turn, scripted);
+
+    internal static GameCommand Choose(WorldSnapshot snapshot, Func<CommandContext, GameCommand, CommandSubmissionResult> validate,
+        ControlSeat seat, Guid commandId, int turn, bool scripted = false, int? corpsId = null)
     {
-        var snapshot = session.Snapshot;
-        foreach (var city in snapshot.Settlements.Where(s => s.OwnerId == seat.ForceId).OrderBy(s => s.Id))
+        foreach (var city in snapshot.Settlements.Where(s => s.OwnerId == seat.ForceId && (corpsId is null || s.CorpsId == corpsId)).OrderBy(s => s.Id))
         {
             var people = snapshot.Officers.Where(p => p.IsServing && !p.Acted && p.OwnerId == seat.ForceId && p.SettlementId == city.Id &&
                 !snapshot.Simulation.Tasks.Any(t => t.OfficerId == p.Id)).OrderBy(p => p.Id).ToArray();
@@ -37,7 +40,7 @@ public static class DomesticPlanner
                     if (activity != DomesticActivity.Train && money < 50 * count + 100) continue;
                     var command = new DevelopCommand(commandId, seat.ForceId, snapshot.Simulation.NextSequence,
                         new(seat.ForceId, city.Id, people.Take(count).Select(p => p.Id).ToImmutableArray(), activity));
-                    if (session.Validate(new(seat.ControllerId), command).Accepted) return command;
+                    if (validate(new(seat.ControllerId), command).Accepted) return command;
                 }
             }
         }

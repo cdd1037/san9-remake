@@ -54,7 +54,7 @@ flowchart LR
 
 实际交付顺序以[路线图](../roadmap.md)为准：先完成时间/命令、保存与经营底座，再接入人事治理和战争，随后补齐其他领域。上图表示契约依赖，不要求一个上游领域全部完成后才开始下游切片。各阶段复用点、缺失输入和代表性场景见[G00实施基线](../roadmap-baseline.md)；逻辑提交顺序仍由模拟流水线串行确定。
 
-G04已分步接入逐势力忠诚、搜索/登用/调动任务、军师任命和褒美。`PersonnelTransitions`拥有当前人事归属/位置转换及任务清理；保存、录像与CLI复用G02链路。宝物、俘虏、负责人带动和军团治理仍待实现，见[G04推进记录](../../docs/g04-verification.md)。
+G04人事与基础治理已接入。`PersonnelTransitions`拥有人物归属/地点和引用任务清理，`PersonnelReturns`拥有归队，`GovernanceMaintenance`拥有负责人/都督修复；`CorpsGovernance`维护辖区与独立账户，`CorpsControl`统一权限。Application的`AutomaticCorpsPlanner`通过同一Core命令执行有限人事/经营；保存、录像与CLI复用G02。内容同步官职能力/爵位、宝物、地点和服务单位分类；证据见[G04验收](../../docs/g04-verification.md)。
 
 验收条款以各BEH原文为准；当前覆盖由领域契约验证器生成，不在此重复维护计数。
 
@@ -65,9 +65,9 @@ G04已分步接入逐势力忠诚、搜索/登用/调动任务、军师任命和
 | 领域 | 已确认规格 | 对象与状态 | 输入 → 输出 | 关键不变量 | 首个实现入口 |
 | --- | --- | --- | --- | --- | --- |
 | `simulation` | `BEH-SIMULATION-0001` | 日历、周期流水线、控制席位、命令序号水位、持续任务和命名随机；稳定/执行/终局 | 命令日志、世界与随机状态 → 快照、领域事件、派生日历 | 单一权威日期；单活动阶段；权限终验；持续占用；拒绝零副作用；稳定快照恢复 | `San9.Core.Simulation`：`SimulationEngine`、`ResolutionPipeline` |
-| `personnel` | `BEH-PERSON-0001..0003` | 人物、归属、忠诚、地点、行动占用 | 人事命令与实时归属 → 原子归属变化、忠诚/宝物转移、占用释放 | 单一归属/地点；失败零写回；宝物唯一；占用必释放 | `San9.Core.Simulation`：`PersonnelMissions`、`PersonnelTransitions`、`PersonnelAppointments`、`PersonnelRewards` |
+| `personnel` | `BEH-PERSON-0001..0003` | 人物、归属、忠诚、地点、行动占用 | 人事命令与实时归属 → 原子归属变化、忠诚/宝物转移、占用释放 | 单一归属/地点；失败零写回；宝物唯一；占用必释放 | `San9.Core.Simulation`：`PersonnelMissions`、`PersonnelTransitions`、`PersonnelReturns`、`PersonnelOffices`、`PersonnelRewards`、`PersonnelTreasures`、忠诚周期 |
 | `person-lifecycle` | `BEH-PERSON-LIFECYCLE-0001..0003` | 成长、伤势、生命、培养记录 | 周期、人物、成长/死亡原因 → 成长、登场/恢复、死亡清理、培养完成 | 成长有界；死亡无活引用；一势力一培养记录 | `San9.Core.Personnel.Lifecycle`：三个专责服务 |
-| `governance` | `BEH-GOVERNANCE-0001..0003` | 势力、军团、辖区、委任、归属事务 | 当前所有权与委任配置 → 自动命令、归属转换、军团清理 | 单一势力根；资源守恒；自动/交互共享终验 | `San9.Core.Governance`：`CorpsService`、`DelegationPlanner`、`TerritorialTransitionService` |
+| `governance` | `BEH-GOVERNANCE-0001..0003` | 势力、军团、辖区、委任、归属事务 | 当前所有权与委任配置 → 自动命令、归属转换、军团清理 | 单一势力根；资源守恒；自动/交互共享终验 | `San9.Core.Simulation`：`CorpsGovernance`、`CorpsControl`、`GovernanceMaintenance`、`PersonnelDefection`；Application：`AutomaticCorpsPlanner`（基础策略） |
 | `diplomacy` | `BEH-DIPLOMACY-0001..0003` | 关系、联盟、外交命令、谈判、计划 | 关系快照、请求、资格、随机流 → 对称关系、守恒结算、联盟、计划 | 关系对称有界；联盟显式；增量规划读取实时状态 | `San9.Core.Diplomacy`：关系、联盟、命令与规划服务 |
 | `warfare` | `BEH-WAR-0001..0003` | 部队、移动计划、战场命令、设施战斗、终止结算 | 命令、地图占用、实时目标 → 日移动、占领、部队/势力清理输入 | 不穿硬阻挡；效果只提交一次；重置后无活引用 | `San9.Core.Warfare`：移动、命令、占领与终止服务 |
 | `ai` | `BEH-AI-0001` | 势力视角观察、确定性预算、计划、诊断 | 不可变观察、命名用途、预算 → 有序命令候选、评分、可选诊断 | 不持有可变世界；分析随机隔离；诊断不改行为；共享命令终验 | `San9.Core.AI`：`AiObservation`、`AiPlanningContext`、`AiPlan`、`IAiPlanner` |

@@ -54,7 +54,7 @@ public static class OfficerCatalog
                         "treasures" => treasures.Length, "status" => new(InformationQuery.Status(o.Status), (int)o.Status),
                         "force" => Person(owner?.LeaderId), "corps" => Person(view.World.Corps.FirstOrDefault(c => c.Id == o.CorpsId)?.LeaderId),
                         "home" => Place(o.IsServing ? o.SettlementId : null), "location" => o.Journey is null ? Place(o.SettlementId ?? person.RegionId) : "出行中",
-                        "order" => o.Journey?.Kind switch { "personnel-search" => "搜索", "personnel-recruit" => "登用", "personnel-move" => "调动", _ => CatalogCell.Unavailable },
+                        "order" => o.Journey?.Kind switch { "personnel-search" => "搜索", "personnel-recruit" => "登用", "personnel-move" => "调动", "personnel-return" => "归队", _ => CatalogCell.Unavailable },
                         "target-person" => o.Journey is null ? CatalogCell.Unavailable : Person(o.Journey.TargetOfficerId),
                         "target-place" => o.Journey is null ? CatalogCell.Unavailable : Place(o.Journey.DestinationPlaceId),
                         "arrival" => o.Journey is null ? CatalogCell.Unavailable : $"{o.Journey.Due.Month}/{o.Journey.Due.Day}",

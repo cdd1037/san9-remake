@@ -14,7 +14,12 @@ public sealed record PersistentTask(Guid Id, string Kind, string ControllerId, i
     [System.Text.Json.Serialization.JsonRequired] public PersonnelJourney? Journey { get; init; }
 }
 
-public sealed record PersonnelJourney(int DestinationPlaceId, int? TargetOfficerId, int? SuccessRoll);
+public sealed record PersonnelJourney(int DestinationPlaceId, int? TargetOfficerId, int? SuccessRoll)
+{
+    public PersonnelReturnLeg? ReturnLeg { get; init; }
+    public bool? AcceptRecruitment { get; init; }
+}
+public sealed record PersonnelReturnLeg(int OriginPlaceId, int CountdownDays, bool AfterDailyCommands);
 
 /// <summary>Authoritative scheduling state; immutable and included in every world transaction.</summary>
 public sealed record SimulationState(GameClock Started, ulong InitialSeed)

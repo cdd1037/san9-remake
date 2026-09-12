@@ -10,7 +10,8 @@ public readonly record struct OfficerAbilities(int War, int Intelligence, int Po
     public bool IsNonnegative => War >= 0 && Intelligence >= 0 && Politics >= 0 && Leadership >= 0;
 }
 
-/// <summary>A person with runtime identity, status and optional location. Names belong to content definitions.</summary>
+/// <summary>A person with runtime identity, allegiance and optional location. Captive allegiance remains the original force;
+/// detention ownership is determined by the location. Names belong to content definitions.</summary>
 public sealed record OfficerState(int Id, int? OwnerId, int? SettlementId, OfficerAbilities BaseAbilities, bool Acted)
 {
     [System.Text.Json.Serialization.JsonRequired] public int Affinity { get; init; }

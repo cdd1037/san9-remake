@@ -8,7 +8,7 @@ namespace San9.Application.Tests;
 
 public sealed class PersonnelScenarioTests
 {
-    private static ScenarioInitialState Fixture() => new(16, "personnel-public", 190, 1, 1, 1,
+    private static ScenarioInitialState Fixture() => new(22, "personnel-public", 190, 1, 1, 1,
         [new(1, "force", 1, 10000, 10000, 1000) { LeaderId = 1, BaseTrust = 1000 }],
         [new(1, "home", 1, 0, 0, 0, 100, 100, 0, []), new(3, "destination", 1, 0, 15, 0, 100, 100, 0, [])],
         new() { [1] = "home", [3] = "destination", [30] = "region" }, new() { [1] = 1, [3] = 3, [30] = 1 })
@@ -42,7 +42,7 @@ public sealed class PersonnelScenarioTests
             bool Available(int id) => !world.Officers.Single(p => p.Id == id).Acted && !world.Simulation.Tasks.Any(t => t.OfficerId == id);
             Guid id = new((int)session.NextOperationSequence + 1, 0, 0, new byte[8]);
             GameCommand? command = target.Status == OfficerStatus.Undiscovered && Available(actor.Id)
-                ? new SearchPersonsCommand(id, 1, world.Simulation.NextSequence, actor.Id, 30)
+                ? new SearchCommand(id, 1, world.Simulation.NextSequence, actor.Id, 30)
                 : target.Status == OfficerStatus.Free && Available(actor.Id)
                 ? new RecruitOfficerCommand(id, 1, world.Simulation.NextSequence, actor.Id, target.Id)
                 : target.OwnerId == 1 && target.SettlementId == 1 && Available(target.Id)
@@ -91,7 +91,7 @@ public sealed class PersonnelScenarioTests
         Assert.Equal(5, commands.Count);
         Assert.True(appointed);
         Assert.Equal(21, session.Snapshot.Forces.Single().AdviserId);
-        Assert.Contains(events, e => e is PersonSearchResolvedEvent { DiscoveredOfficerId: 21, Recruited: false });
+        Assert.Contains(events, e => e is SearchResolvedEvent { DiscoveredOfficerId: 21, Recruited: false });
         Assert.Contains(events, e => e is RecruitmentResolvedEvent { TargetOfficerId: 21, Success: true });
         Assert.Contains(events, e => e is OfficerMovedEvent { OfficerId: 21, DestinationId: 3 });
         Assert.Contains(events, e => e is OfficerRewardedEvent { OfficerId: 21 });
@@ -106,7 +106,7 @@ public sealed class PersonnelScenarioTests
         var session = GameSession.Start(definition, 190);
         Guid id = Guid.NewGuid();
         Assert.Equal(SessionDisposition.Accepted, session.Apply(session.Request(new CommandOperation(
-            new SearchPersonsCommand(id, 1, 0, 11, 30)), id: id)).Disposition);
+            new SearchCommand(id, 1, 0, 11, 30)), id: id)).Disposition);
         var saved = session.Capture();
         var task = Assert.Single(saved.World.Simulation.Tasks);
         foreach (var journey in new PersonnelJourney?[] { null, new(9999, null, 20), new(30, 21, 20), new(30, null, null) })

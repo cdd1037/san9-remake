@@ -7,6 +7,9 @@ namespace San9.Importer.San9PkTc101.Scenarios;
 
 public static class OfficerContentCompiler
 {
+    public static OfficerAbilities OfficeBonuses(San9ScenarioOfficeRecord office) => new(
+        office.HasStrengthBonus ? office.AbilityBonus : 0, office.HasIntelligenceBonus ? office.AbilityBonus : 0,
+        office.HasPoliticsBonus ? office.AbilityBonus : 0, office.HasLeadershipBonus ? office.AbilityBonus : 0);
     public static OfficerInitialState[] Compile(IReadOnlyList<San9ScenarioPersonRecord> people,
         IReadOnlyList<San9ScenarioItemRecord> items, IReadOnlyList<San9ScenarioOfficeRecord> offices,
         IReadOnlyList<SettlementInitialState> settlements, IReadOnlyList<ForceInitialState> forces,
@@ -28,10 +31,6 @@ public static class OfficerContentCompiler
             int? location = settlement?.Id;
             if (person.StatusCode <= 3 && settlement is null)
                 throw new InvalidDataException($"Serving officer {id} has an unsupported initial location.");
-            int ItemBonus(params int[] categories) => heldItems[id].Where(i => categories.Contains(i.CategoryId))
-                .Select(i => (int)i.AbilityBonus).DefaultIfEmpty().Max();
-            int OfficeBonus(int ability) => person.OfficeRankId is int office && offices[office].HasAbilityBonus(ability)
-                ? offices[office].AbilityBonus : 0;
             var state = new OfficerState(id, person.StatusCode <= 3 ? settlement?.OwnerId : null, location,
                 new(person.Strength, person.Intelligence, person.Politics, person.Command), person.IsCommandParticipant)
             {
@@ -47,8 +46,8 @@ public static class OfficerContentCompiler
                 Righteousness = person.Righteousness,
                 HasRecruitmentPoliticsBonus = person.BiographyResourceCode == 36,
                 RewardedThisXun = person.WasRewardedThisXun,
-                ItemBonuses = new(ItemBonus(1), ItemBonus(5, 9), ItemBonus(3, 4, 6), ItemBonus(2)),
-                OfficeBonuses = new(OfficeBonus(1), OfficeBonus(2), OfficeBonus(3), OfficeBonus(0))
+                ItemBonuses = TreasureRulebook.MaximumBonuses(heldItems[id].Select(TreasureContentCompiler.AbilityBonuses)),
+                OfficeBonuses = person.OfficeRankId is int office ? OfficeBonuses(offices[office]) : default
             };
             result.Add(new(text.Person($"officer.{id}", person.FamilyNameResourceCode, person.GivenNameResourceCode), state)
             {

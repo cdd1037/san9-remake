@@ -29,9 +29,10 @@ internal sealed class ScenarioSessionDefinition
             Coordinates = definition.Settlements.OrderBy(s => s.Id).Select(s => new { s.Id, s.X, s.Y }),
             UnbuiltPlaces = definition.UnbuiltPlaces.OrderBy(p => p.Id),
             Regions = definition.RegionNameKeys.Keys.Order(), definition.RegionCityIds,
+            CityConnections = definition.CityConnections.OrderBy(c => c.FromCityId).ThenBy(c => c.ToCityId),
             Ranks = definition.Information.Ranks.OrderBy(r => r.Id).Select(r => new { r.Id, r.CommandCapacity, r.RequiredTrust, r.LoyaltyBonus }),
-            Offices = definition.Information.Offices.OrderBy(o => o.Id).Select(o => new { o.Id, o.CommandCapacity, o.Salary }),
-            TreasureDefinitions = definition.Information.Treasures.OrderBy(t => t.Id).Select(t => new { t.Id, t.Category, t.AbilityBonus, t.LoyaltyBonus, t.TacticId })
+            Offices = definition.Information.Offices.OrderBy(o => o.Id).Select(o => new { o.Id, o.CommandCapacity, o.Salary, o.GovernorPriority, o.AbilityBonuses, o.RequiredRankId }),
+            TreasureDefinitions = definition.Information.Treasures.OrderBy(t => t.Id).Select(t => new { t.Id, t.Category, t.AbilityBonus, t.AbilityBonuses, t.LoyaltyBonus, t.TacticId })
         });
     }
 

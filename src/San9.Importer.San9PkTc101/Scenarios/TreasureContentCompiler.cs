@@ -6,6 +6,12 @@ public static class TreasureContentCompiler
 {
     public const int BuiltInCount = 100;
 
+    public static OfficerAbilities AbilityBonuses(San9ScenarioItemRecord item) => new(
+        item.CategoryId == 1 ? item.AbilityBonus : 0,
+        item.CategoryId is 5 or 9 ? item.AbilityBonus : 0,
+        item.CategoryId is 3 or 4 or 6 ? item.AbilityBonus : 0,
+        item.CategoryId == 2 ? item.AbilityBonus : 0);
+
     public static TreasureState[] InitialStates(IEnumerable<San9ScenarioItemRecord> records) => records.Select(item =>
     {
         if (item.SerializedId >= BuiltInCount && !item.IsInvalid)

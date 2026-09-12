@@ -13,6 +13,19 @@ public sealed class SimulationEngine
     public SimulationEngine(WorldState world, EconomyRulebook economy, PersonnelRulebook personnel)
         : this(world, new SimulationRules { Economy = economy, Personnel = personnel }) { }
 
+    public SimulationEngine(WorldState world, EconomyRulebook economy, PersonnelRulebook personnel, TreasureRulebook treasures,
+        GovernanceRulebook? governance = null)
+        : this(ValidateContent(world, treasures, governance), new SimulationRules
+            { Economy = economy, Personnel = personnel, Treasures = treasures, Governance = governance ?? new([]) }) { }
+
+    private static WorldState ValidateContent(WorldState world, TreasureRulebook treasures, GovernanceRulebook? governance)
+    {
+        var snapshot = world.CreateSnapshot();
+        treasures.ValidateHoldings(snapshot.Treasures, snapshot.Officers);
+        governance?.ValidateOffices(snapshot.Officers);
+        return world;
+    }
+
     internal SimulationEngine(WorldState world, SimulationRules rules)
     {
         ArgumentNullException.ThrowIfNull(world);
@@ -68,25 +81,67 @@ public sealed class SimulationEngine
             {
                 case WaitCommand:
                     break;
+                case SetCorpsControlCommand control:
+                    var controlRejection = CorpsControl.Set(mutation, control, events);
+                    if (controlRejection != CommandRejection.None) return Reject(controlRejection);
+                    break;
+                case DissolveCorpsCommand dissolve:
+                    var dissolveRejection = CorpsGovernance.Dissolve(mutation, dissolve, _rules.Governance, events);
+                    if (dissolveRejection != CommandRejection.None) return Reject(dissolveRejection);
+                    break;
+                case CreateCorpsCommand create:
+                    var createRejection = CorpsGovernance.Create(mutation, create, _rules.Personnel, _rules.Governance, events);
+                    if (createRejection != CommandRejection.None) return Reject(createRejection);
+                    break;
+                case ChangeCorpsCommand change:
+                    var changeRejection = CorpsGovernance.Change(mutation, change, _rules.Personnel, _rules.Governance, events);
+                    if (changeRejection != CommandRejection.None) return Reject(changeRejection);
+                    break;
                 case AppointAdviserCommand appoint:
                     var appointRejection = PersonnelAppointments.Apply(mutation, appoint, events);
                     if (appointRejection != CommandRejection.None) return Reject(appointRejection);
+                    break;
+                case AssignOfficesCommand offices:
+                    var officesRejection = PersonnelOffices.Apply(mutation, offices, _rules.Governance, events);
+                    if (officesRejection != CommandRejection.None) return Reject(officesRejection);
                     break;
                 case RewardOfficerCommand reward:
                     var rewardRejection = PersonnelRewards.Apply(mutation, reward, events);
                     if (rewardRejection != CommandRejection.None) return Reject(rewardRejection);
                     break;
-                case SearchPersonsCommand search:
+                case GrantTreasureCommand grant:
+                    var grantRejection = PersonnelTreasures.Grant(mutation, grant, _rules.Treasures, _rules.Economy, events);
+                    if (grantRejection != CommandRejection.None) return Reject(grantRejection);
+                    break;
+                case ConfiscateTreasureCommand confiscate:
+                    var confiscateRejection = PersonnelTreasures.Confiscate(mutation, confiscate, _rules.Treasures, _rules.Economy, events);
+                    if (confiscateRejection != CommandRejection.None) return Reject(confiscateRejection);
+                    break;
+                case ExileOfficerCommand exile:
+                    var exileRejection = PersonnelExile.Apply(mutation, exile, _rules.Personnel, _rules.Economy, _rules.Governance, events);
+                    if (exileRejection != CommandRejection.None) return Reject(exileRejection);
+                    break;
+                case ReleasePrisonerCommand release:
+                    var releaseRejection = PrisonerRelease.Apply(mutation, release, release.OfficerId, _rules.Personnel, _rules.Economy, events);
+                    if (releaseRejection != CommandRejection.None) return Reject(releaseRejection);
+                    break;
+                case SearchCommand search:
                     var searchRejection = PersonnelMissions.StartSearch(mutation, context, search, _rules.Personnel, events);
                     if (searchRejection != CommandRejection.None) return Reject(searchRejection);
+                    foreach (int origin in new[] { search.OfficerId }.Select(id => mutation.Officers[id].SettlementId!.Value).Distinct())
+                        GovernanceMaintenance.RepairCommander(mutation, origin, _rules.Governance, events);
                     break;
                 case RecruitOfficerCommand recruit:
                     var recruitRejection = PersonnelMissions.StartRecruit(mutation, context, recruit, _rules.Personnel, events);
                     if (recruitRejection != CommandRejection.None) return Reject(recruitRejection);
+                    foreach (int origin in new[] { recruit.OfficerId }.Select(id => mutation.Officers[id].SettlementId!.Value).Distinct())
+                        GovernanceMaintenance.RepairCommander(mutation, origin, _rules.Governance, events);
                     break;
                 case MoveOfficersCommand move:
                     var moveRejection = PersonnelMissions.StartMove(mutation, context, move, _rules.Personnel, events);
                     if (moveRejection != CommandRejection.None) return Reject(moveRejection);
+                    foreach (int origin in move.OfficerIds.Select(id => mutation.Officers[id].SettlementId!.Value).Distinct())
+                        GovernanceMaintenance.RepairCommander(mutation, origin, _rules.Governance, events);
                     break;
                 case DevelopCommand develop:
                     if (develop.Development is null || develop.Development.ForceId != command.IssuerId)
@@ -141,9 +196,7 @@ public sealed class SimulationEngine
         var sim = _world.Simulation;
         if (sim.ActiveControl >= sim.Controls.Length) return CommandRejection.NotActiveController;
         var seat = sim.Controls[sim.ActiveControl];
-        if (seat.ControllerId != context.ControllerId || seat.ForceId != command.IssuerId)
-            return CommandRejection.NotActiveController;
-        return CommandRejection.None;
+        return CorpsControl.Authorize(Snapshot, seat, context, command);
     }
 
     private CommandExecutionResult Reject(CommandRejection rejection, DevelopmentOutcome? development = null) =>

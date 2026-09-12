@@ -33,6 +33,7 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
+    [System.Text.Json.Serialization.JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Domain.CityConnection> CityConnections { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Domain.PersonPlace> UnbuiltPlaces { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Domain.DomesticPair> DomesticPairs { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public int? ImperialSealId { get; init; }
@@ -42,20 +43,25 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
     [System.Text.Json.Serialization.JsonRequired] public InformationDefinitions Information { get; init; } = InformationDefinitions.Empty;
     public void Validate()
     {
-        if (SchemaVersion != 16 || string.IsNullOrWhiteSpace(ScenarioId) || Year < 1 || Month is < 1 or > 12 || Day is < 1 or > 30 ||
+        if (SchemaVersion != 22 || string.IsNullOrWhiteSpace(ScenarioId) || Year < 1 || Month is < 1 or > 12 || Day is < 1 or > 30 ||
             Forces.Select(f => f.Id).Distinct().Count() != Forces.Length || !Forces.Any(f => f.Id == PlayerForceId))
             throw new InvalidDataException("Invalid scenario date or player force.");
         Information.Validate(this);
-        if (UnbuiltPlaces.IsDefault || UnbuiltPlaces.Any(p => p is null || !RegionNameKeys.ContainsKey(p.Id) || Settlements.Any(s => s.Id == p.Id)))
+        if (CityConnections.IsDefault || UnbuiltPlaces.IsDefault || UnbuiltPlaces.Any(p => p is null || !RegionNameKeys.ContainsKey(p.Id) || Settlements.Any(s => s.Id == p.Id)))
             throw new InvalidDataException("Invalid unbuilt personnel place.");
-        _ = new San9.Core.Domain.PersonnelRulebook(Settlements.Select(s => new San9.Core.Domain.PersonPlace(s.Id, s.Position)).Concat(UnbuiltPlaces));
+        try
+        {
+            _ = new San9.Core.Domain.PersonnelRulebook(Settlements.Select(s => new San9.Core.Domain.PersonPlace(s.Id, s.Position)).Concat(UnbuiltPlaces), RegionCityIds, CityConnections);
+        }
+        catch (ArgumentException error) { throw new InvalidDataException("Invalid personnel geography.", error); }
         new San9.Core.Domain.EconomyRulebook([], DomesticPairs, ImperialSealId, EmperorId).Validate();
         if (DomesticPairs.Any(p => !Officers.Any(o => o.State.Id == p.FirstId) || !Officers.Any(o => o.State.Id == p.SecondId)) ||
             ImperialSealId is int seal && !Information.Treasures.Any(t => t.Id == seal) ||
             EmperorId is int emperor && !Officers.Any(o => o.State.Id == emperor)) throw new InvalidDataException("Invalid economy references.");
         if (Officers.Any(o => o.State.RegionId is int region && !UnbuiltPlaces.Any(p => p.Id == region))) throw new InvalidDataException("Invalid officer region.");
         var forceIds = Forces.Select(f => f.Id).ToHashSet();
-        if (Units.Select(u => u.Id).Distinct().Count() != Units.Length || Units.Any(u => !u.IsValid || !forceIds.Contains(u.OwnerId)))
+        if (Units.Select(u => u.Id).Distinct().Count() != Units.Length || Units.Any(u => !u.IsValid || !forceIds.Contains(u.OwnerId) ||
+            u.ServicePlaceId is int home && !Settlements.Any(s => s.Id == home) && !UnbuiltPlaces.Any(p => p.Id == home)))
             throw new InvalidDataException("Invalid field unit initial state.");
         if (Forces.Any(f => f.ProvidedTactics.IsDefault || f.ProvidedTactics.Any(t => t < 0) || f.ProvidedTactics.Distinct().Count() != f.ProvidedTactics.Length || f.Id < 0 || string.IsNullOrWhiteSpace(f.NameKey) || f.Trust is < 0 or > 1000 || f.BaseTrust is < 0 or > 1000 || f.ColorCode is < 0 or > 50 || f.FlagGlyph is < -1 or > 185))
             throw new InvalidDataException("Invalid force snapshot.");

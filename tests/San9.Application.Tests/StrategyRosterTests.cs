@@ -9,7 +9,7 @@ public sealed class StrategyRosterTests
     [Fact]
     public void OfficerPageFiltersCorpsPinsRulerAndKeepsIndependentScrollAndIdentity()
     {
-        var definition = new ScenarioInitialState(16, "roster", 190, 1, 1, 5,
+        var definition = new ScenarioInitialState(22, "roster", 190, 1, 1, 5,
             [new(5, "force", 5, 100, 100, 100) { LeaderId = 15 }],
             Enumerable.Range(0, 40).Select(id => new SettlementInitialState(id, $"city.{id}", 5, id, 1, 1, 1, 1, 50, [])
                 { CorpsId = id == 2 ? 6 : 5, IsFacilityListEntry = true, MaxCommerce = 100 }).ToArray(), [], [])
@@ -41,7 +41,7 @@ public sealed class StrategyRosterTests
 
     private static StrategySnapshot View(int count, int? ruler = 7, int? subcorpsEntry = null, int? hiddenEntry = null)
     {
-        var definition = new ScenarioInitialState(16, "roster", 190, 1, 1, 5,
+        var definition = new ScenarioInitialState(22, "roster", 190, 1, 1, 5,
             [new(5, "force", 5, 100, 100, 100) { LeaderId = ruler is null ? null : 0 }],
             Enumerable.Range(0, count).Select(id => new SettlementInitialState(id, $"city.{id}", 5, id, 1, 1, 1, 1, 50, [])
                 { CorpsId = id == subcorpsEntry ? 6 : 5, IsFacilityListEntry = id != hiddenEntry }).ToArray(), [], [])

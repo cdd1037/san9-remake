@@ -40,7 +40,7 @@ internal static class WorldInvariants
         {
             if (!unit.IsValid || !state.Forces.ContainsKey(unit.OwnerId) || unit.CorpsId is int corpsId && (!state.Corps.TryGetValue(corpsId, out var corps) || corps.OwnerId != unit.OwnerId)) throw new ArgumentException("Invalid unit.");
         }
-        if (state.Corps.Values.Any(c => c.Id < 0 || !state.Forces.ContainsKey(c.OwnerId) ||
+        if (state.Corps.Values.Any(c => c.Id < 0 || !Enum.IsDefined(c.ControlMode) || !state.Forces.ContainsKey(c.OwnerId) ||
                 !state.Officers.TryGetValue(c.LeaderId, out var leader) || !leader.IsServing || leader.OwnerId != c.OwnerId) ||
             state.Treasures.Values.Any(t => !t.IsValid || t.HolderId is int holder && !state.Officers.ContainsKey(holder)) ||
             state.Relations.Values.Any(r => r.FirstId >= r.SecondId || r.Value is < 0 or > 100 || !state.Forces.ContainsKey(r.FirstId) || !state.Forces.ContainsKey(r.SecondId)))
@@ -70,7 +70,7 @@ internal static class WorldInvariants
             _ = new GameClock(task.Due.Year, task.Due.Month, task.Due.Day);
             if (string.IsNullOrWhiteSpace(task.Kind) || task.Id == Guid.Empty ||
                 task.Sequence < 0 || task.Sequence >= sim.NextSequence ||
-                !sim.Controls.Any(c => c.ControllerId == task.ControllerId && c.ForceId == task.ForceId) ||
+                string.IsNullOrWhiteSpace(task.ControllerId) ||
                 !state.Forces.ContainsKey(task.ForceId) || !state.Officers.ContainsKey(task.OfficerId) || !state.Settlements.ContainsKey(task.OriginSettlementId) ||
                 task.Started.DayNumber < sim.Started.DayNumber || task.Started.DayNumber > state.Clock.DayNumber ||
                 task.Due.DayNumber < task.Started.DayNumber || task.Due.DayNumber < state.Clock.DayNumber || task.ProgressDays < 0 ||

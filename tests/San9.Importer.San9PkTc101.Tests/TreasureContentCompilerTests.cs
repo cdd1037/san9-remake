@@ -5,6 +5,26 @@ namespace San9.Importer.San9PkTc101.Tests;
 
 public sealed class TreasureContentCompilerTests
 {
+    [Theory]
+    [InlineData(0, 0, 0, 0, 0)]
+    [InlineData(1, 9, 0, 0, 0)]
+    [InlineData(2, 0, 0, 0, 9)]
+    [InlineData(3, 0, 0, 9, 0)]
+    [InlineData(4, 0, 0, 9, 0)]
+    [InlineData(5, 0, 9, 0, 0)]
+    [InlineData(6, 0, 0, 9, 0)]
+    [InlineData(7, 0, 0, 0, 0)]
+    [InlineData(8, 0, 0, 0, 0)]
+    [InlineData(9, 0, 9, 0, 0)]
+    [InlineData(10, 0, 0, 0, 0)]
+    [InlineData(11, 0, 0, 0, 0)]
+    [InlineData(12, 0, 0, 0, 0)]
+    public void SourceCategoriesBecomeExplicitAbilityBonuses(ushort category, int war, int intelligence, int politics, int leadership)
+    {
+        var item = new San9ScenarioItemRecord(0, 0, 0, 0, category, 8, 9, ushort.MaxValue, 1, 2, ushort.MaxValue);
+        Assert.Equal(new OfficerAbilities(war, intelligence, politics, leadership), TreasureContentCompiler.AbilityBonuses(item));
+    }
+
     [Fact]
     public void InitialStatesKeepBuriedUnownedAndDisabledRecordsAndSourceLocations()
     {

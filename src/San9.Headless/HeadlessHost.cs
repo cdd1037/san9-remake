@@ -93,19 +93,32 @@ public sealed class HeadlessHost
             string? personnel = entry switch
             {
                 TaskStartedEvent { Task.Journey: not null } => "journey-started",
-                PersonSearchResolvedEvent { DiscoveredOfficerId: not null } => "person-discovered",
-                PersonSearchResolvedEvent => "search-no-person",
+                SearchResolvedEvent { DiscoveredOfficerId: not null } => "person-discovered",
+                SearchResolvedEvent => "search-no-person",
                 RecruitmentResolvedEvent { Success: true } => "recruitment-success",
                 RecruitmentResolvedEvent => "recruitment-failure",
                 OfficerMovedEvent => "officer-moved",
                 AdviserAppointedEvent => "adviser-appointed",
                 OfficerRewardedEvent => "officer-rewarded",
+                OfficerExiledEvent => "officer-exiled",
+                CorpsDissolvedEvent => "corps-dissolved",
+                CorpsCreatedEvent => "corps-created",
+                CorpsChangedEvent => "corps-changed",
+                CorpsControlChangedEvent => "corps-control-changed",
+                CorpsLeaderChangedEvent => "corps-leader-changed",
+                CommanderChangedEvent => "commander-changed",
+                PersonnelReturnedEvent => "personnel-returned",
+                PersonnelTerritoryTransferredEvent => "personnel-territory-transferred",
+                PrisonerReleasedEvent => "prisoner-released",
+                OfficeAssignedEvent => "office-assigned",
+                TreasureTransferredEvent { Reason: "grant" } => "treasure-granted",
+                TreasureTransferredEvent { Reason: "confiscate" } => "treasure-confiscated",
                 _ => null
             };
             if (personnel is null) continue;
             _report.PersonnelEvents[personnel] = _report.PersonnelEvents.GetValueOrDefault(personnel) + 1;
             _report.Goal = "G04";
-            _report.Scope = "Personnel discovery, ordinary recruitment, movement, adviser appointment and rewards; incomplete G04 governance, prisoners and treasure operations.";
+            _report.Scope = "Personnel, corps governance and economic cycles; recorded event counts describe exercised paths, not every G04 acceptance case. No warfare or complete strategic AI.";
         }
     }
 

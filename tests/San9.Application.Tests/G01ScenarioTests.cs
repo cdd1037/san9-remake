@@ -12,7 +12,7 @@ namespace San9.Application.Tests;
 
 public sealed class G01ScenarioTests
 {
-    internal static ScenarioInitialState Fixture() => new(16, "g01-public", 190, 1, 1, 1,
+    internal static ScenarioInitialState Fixture() => new(22, "g01-public", 190, 1, 1, 1,
         [new(1, "force.1", 1, 1000, 2000, 50) { LeaderId = 1 }, new(2, "force.2", 2, 1000, 2000, 50) { LeaderId = 4 }],
         [new(1, "city.1", 1, 1, 1, 100, 100, 100, 50, []) { Commerce = 300, MaxCommerce = 500, Cultivation = 200, MaxCultivation = 500 },
          new(2, "city.2", 2, 2, 2, 100, 100, 100, 50, []) { Commerce = 300, MaxCommerce = 500, Cultivation = 200, MaxCultivation = 500 }], [], [])

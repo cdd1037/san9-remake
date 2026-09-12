@@ -5,7 +5,7 @@ namespace San9.Content.Tests;
 
 public sealed class ScenarioIdentityTests
 {
-    private static ScenarioInitialState Fixture() => new(16, "expanded", 190, 1, 1, 9000,
+    private static ScenarioInitialState Fixture() => new(22, "expanded", 190, 1, 1, 9000,
         [new(9000, "force", 0, 100, 100, 0)],
         Enumerable.Range(0, 75).Select(i => new SettlementInitialState(1000 + i, $"city.{i}", 9000,
             i, 0, 0, 100, 100, 0, ["merchant"]) { Kind = SettlementKind.City }).ToArray(),

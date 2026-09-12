@@ -79,6 +79,17 @@ internal sealed class WorldMutation
     internal void Replace(OfficerState value) => Officers = Replace(Officers, value.Id, value);
     internal void Replace(UnitState value) => Units = Replace(Units, value.Id, value);
     internal void Replace(CorpsState value) => Corps = Replace(Corps, value.Id, value);
+    internal void RemoveCorps(int id)
+    {
+        EnsureOpen();
+        if (!Corps.ContainsKey(id)) throw new InvalidOperationException("Unknown corps.");
+        Corps = Corps.Remove(id);
+    }
+    internal void AddCorps(CorpsState corps)
+    {
+        EnsureOpen();
+        Corps = Corps.Add(corps.Id, corps);
+    }
     internal void Replace(TreasureState value) => Treasures = Replace(Treasures, value.Id, value);
     internal void Replace(ForceRelation value) =>
         Relations = Replace(Relations, (value.FirstId, value.SecondId), value);

@@ -20,6 +20,9 @@ public readonly record struct MapOccupancy(WorldPosition Position, Footprint Foo
     public long Bottom => Top + Footprint.Height;
     public bool Overlaps(MapOccupancy other) =>
         Left < other.Right && other.Left < Right && Top < other.Bottom && other.Top < Bottom;
+    public long DistanceTo(MapOccupancy other) =>
+        Math.Max(0, Math.Max(other.Left - Right + 1, Left - other.Right + 1)) +
+        Math.Max(0, Math.Max(other.Top - Bottom + 1, Top - other.Bottom + 1));
 }
 
 public sealed record MovementRoute(bool Reachable, ImmutableArray<WorldPosition> Steps, long Cost);
@@ -61,6 +64,23 @@ public sealed class BattlefieldMap
         ArgumentOutOfRangeException.ThrowIfNegative(budget);
         var occupancy = occupied.ToArray();
         var route = FindRoute(start, destination, footprint, mode, occupancy);
+        return Consume(start, route, footprint, mode, occupancy, budget);
+    }
+
+    public DailyMovement AdvanceIntoRange(WorldPosition start, MapOccupancy target, Footprint footprint,
+        TravelMode mode, IEnumerable<MapOccupancy> occupied, int budget, int range)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(budget);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(range);
+        var occupancy = occupied.Append(target).ToArray();
+        var route = Search(start, footprint, mode, occupancy, p =>
+            new MapOccupancy(p, footprint).DistanceTo(target) <= range);
+        return Consume(start, route, footprint, mode, occupancy, budget);
+    }
+
+    private DailyMovement Consume(WorldPosition start, MovementRoute route, Footprint footprint,
+        TravelMode mode, IReadOnlyList<MapOccupancy> occupancy, int budget)
+    {
         if (!route.Reachable) return new(start, false, false, 0);
         WorldPosition position = start;
         int spent = 0;
@@ -71,7 +91,7 @@ public sealed class BattlefieldMap
             position = step;
             spent += cost;
         }
-        return new(position, true, position == destination, spent);
+        return new(position, true, route.Steps.Length == 0 || position == route.Steps[^1], spent);
     }
 
     public int? PassageCost(WorldPosition position, Footprint footprint, TravelMode mode,
@@ -103,12 +123,18 @@ public sealed class BattlefieldMap
         TravelMode mode, IEnumerable<MapOccupancy> occupied)
     {
         var occupancy = occupied.ToArray();
+        return Search(start, footprint, mode, occupancy, p => p == destination, destination);
+    }
+
+    private MovementRoute Search(WorldPosition start, Footprint footprint, TravelMode mode,
+        IReadOnlyList<MapOccupancy> occupancy, Func<WorldPosition, bool> arrived, WorldPosition? destination = null)
+    {
         if (occupancy.Any(o => !o.Footprint.IsValid || o.Position.X < 0 || o.Position.Y < 0))
             throw new ArgumentException("Invalid battlefield occupancy.");
         var blocks = IndexOccupancy(occupancy);
         if (PassageCost(start, footprint, mode, blocks) is null ||
-            PassageCost(destination, footprint, mode, blocks) is null) return new(false, [], 0);
-        if (start == destination) return new(true, [], 0);
+            destination is WorldPosition end && PassageCost(end, footprint, mode, blocks) is null) return new(false, [], 0);
+        if (arrived(start)) return new(true, [], 0);
 
         var distances = new Dictionary<WorldPosition, long> { [start] = 0 };
         var previous = new Dictionary<WorldPosition, WorldPosition>();
@@ -118,7 +144,7 @@ public sealed class BattlefieldMap
         while (pending.TryDequeue(out var current, out var priority))
         {
             if (distances[current] != priority.Cost) continue;
-            if (current == destination)
+            if (arrived(current))
             {
                 var steps = new List<WorldPosition>();
                 for (var p = current; p != start; p = previous[p]) steps.Add(p);

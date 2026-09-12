@@ -40,7 +40,7 @@ internal static class GovernanceMaintenance
             world.Replace(oldLeader with { Status = OfficerStatus.Serving });
         var force = world.Forces[corps.OwnerId];
         if (force.AdviserId == leader.Id) world.Replace(force with { AdviserId = null });
-        world.Replace(leader with { Status = OfficerStatus.Governor });
+        world.Replace(leader with { Status = leader.Status == OfficerStatus.Ruler ? OfficerStatus.Ruler : OfficerStatus.Governor });
         world.Replace(corps with { LeaderId = leader.Id });
         if (leader.SettlementId is int home) RepairCommander(world, home, rules, events);
         events.Add(new CorpsLeaderChangedEvent(world.Clock, corps.Id, oldLeader.Id, leader.Id));

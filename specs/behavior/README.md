@@ -49,6 +49,7 @@
 - [BEH-WAR-0001：战场移动与命令生命周期](BEH-WAR-0001-movement-and-command-lifecycle.md)（已确认）
 - [BEH-WAR-0002：设施失守、占领与所有权转换](BEH-WAR-0002-building-defeat-and-capture.md)（已确认）
 - [BEH-WAR-0003：部队返城、战败终止与势力清理](BEH-WAR-0003-unit-return-defeat-and-force-cleanup.md)（已确认）
+- [BEH-WAR-0004：普通战斗与兵员损失](BEH-WAR-0004-normal-combat.md)（已确认；G06运行链接入中）
 - [BEH-SCENARIO-0001：旬终局判定与根结果路由](BEH-SCENARIO-0001-terminal-evaluation.md)（已确认）
 - [BEH-SCENARIO-0002：玩家胜利结局解析](BEH-SCENARIO-0002-ending-resolution.md)（已确认）
 - [BEH-SIMULATION-0001：时间推进、周期结算与状态可见性](BEH-SIMULATION-0001-time-progression-and-state-visibility.md)（已确认）

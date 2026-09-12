@@ -8,6 +8,17 @@ public sealed class UnitContentCompilerTests
     private static San9ScenarioUnitRecord Source => new(
         7, 1000, 0, 0, 0, 7, 1, 0, 100, 38, 0, 0, 27, 3, 0, 190, 180);
 
+    [Theory]
+    [InlineData(123u, 123u)]
+    [InlineData(60000u, 50000u)]
+    public void WoundedUsesSourceLoadingRuleAndMoraleIsPreserved(uint source, uint expected)
+    {
+        var unit = Assert.Single(UnitContentCompiler.Compile([Source with { WoundedSoldierCount = source, Morale = 73 }], _ => 1));
+        Assert.Equal(expected, unit.Wounded);
+        Assert.Equal(73, unit.Morale);
+        Assert.Throws<InvalidDataException>(() => UnitContentCompiler.Compile([Source with { Morale = 101 }], _ => 1));
+    }
+
     [Fact]
     public void ServiceBaseSurvivesWhilePositionAndRootOwnershipAreConvertedIndependently()
     {

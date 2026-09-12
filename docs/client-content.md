@@ -7,10 +7,10 @@
 | 模块 | 职责 | 输出 |
 | --- | --- | --- |
 | Content.Maps / MapImporter | 当前地图方格、地貌及对象位置 | `map.json`（无图片文件） |
-| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema24 |
+| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema26 |
 | Content.Text / ScenarioTextReader | 名称与全量消息目录 | `text.json` / `messages.json`，schema3 |
 | Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema16 |
-| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema25 |
+| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema27 |
 | Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema3／转换版本7 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 
@@ -24,9 +24,9 @@
 
 图片契约、静态图集、GPU缓存和资源租约见[纹理资源文档](texture-resources.md)。头像上传后不保留CPU像素，窗口与地图按实际使用异步申请。
 
-清单保留缩进；五个数据文件使用紧凑 JSON，保留完整字段名和内容。仅省略消息表达式及参数中默认值为 null 的可选字段，必填 nullable 状态字段仍显式保存。数据子文件必须位于包内，共享纹理目录允许相对引用包外目录。组合包schema24及更早的包须原位重新转换，不提供兼容读取。导入先校验、暂存全部文件，再替换数据并最后发布清单；不支持导入过程中并发读取。
+清单保留缩进；五个数据文件使用紧凑 JSON，保留完整字段名和内容。仅省略消息表达式及参数中默认值为 null 的可选字段，必填 nullable 状态字段仍显式保存。数据子文件必须位于包内，共享纹理目录允许相对引用包外目录。组合包schema26及更早的包须原位重新转换，不提供兼容读取。导入先校验、暂存全部文件，再替换数据并最后发布清单；不支持导入过程中并发读取。
 
-G05的`MilitaryContentCompiler`将完整地形、硬阻挡、阵型移动预算和据点footprint导入剧本，Core直接消费该规范化规则，不读取`map.json`的显示资源。部队初始态保留完整活动对象，实际出征创建动态单位；成员所在部队与当前命令随世界查询变化。数据核对及仍未接入的战斗/水陆转换见[G05推进记录](g05-verification.md)。
+`MilitaryContentCompiler`将完整地形、硬阻挡、阵型移动预算和据点footprint导入剧本，Core直接消费该规范化规则，不读取`map.json`的显示资源。G06增加普通战斗参数、阵位、据点销毁能力及名马标记；部队成员、伤兵和当前命令随世界查询变化。数据核对见[G05](g05-verification.md)与[G06验收](g06-verification.md)，完整兵法、设施建设及水陆转换仍归G07。
 
 ## 来源边界与统一内容
 
@@ -96,7 +96,7 @@ EXE证据先在项目主IDA库运行`research/scripts/ida/export_text_evidence.p
 
 主题`GameFont.tres`只使用霞鹜文楷等宽GB Lite，按用户决定不增补字体并明确接受四个缺字；来源与许可证见[字体说明](../src/San9.Client.Godot/assets/README.md)。纯文字地图绘制与富文本共用主题字体和角色色彩/字号。原生RichTextLabel承担图文排版；描边和阴影强一致仍为未决项，不自建排版引擎。
 
-F3提供四季预览及单人商业、开垦入口，内政修改当前会话世界。核心旬结算和G05出征/行军已通过无界面API接入，正式界面尚无出征菜单，战斗生命周期仍待G06。全图三个图层按钮的独立文字效果暂缓；目录标题及关闭按钮文字效果仍待核对。
+F3提供四季预览及单人商业、开垦入口，内政修改当前会话世界。核心旬结算和G05出征/行军已通过无界面API接入，正式界面尚无出征菜单，G06普通战斗与占领已通过无界面API验收。全图三个图层按钮的独立文字效果暂缓；目录标题及关闭按钮文字效果仍待核对。
 
 ## 验证与本地产物
 

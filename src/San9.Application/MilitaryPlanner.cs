@@ -3,7 +3,7 @@ using San9.Core.Simulation;
 
 namespace San9.Application;
 
-/// <summary>Bounded reinforcement policy; commands remain subject to the shared world validator.</summary>
+/// <summary>Bounded attack, retreat and reinforcement policy using the shared command validator.</summary>
 public static class MilitaryPlanner
 {
     public static GameCommand Choose(GameSession session, ControlSeat seat, Guid commandId) =>
@@ -15,6 +15,8 @@ public static class MilitaryPlanner
     {
         var wait = new WaitCommand(commandId, seat.ForceId, world.Simulation.NextSequence);
         if (rules is null) return wait;
+        var attack = ChooseAttack(world, validate, rules, seat, commandId, corpsId);
+        if (attack is not null) return attack;
         var own = world.Settlements.Where(s => s.OwnerId == seat.ForceId && s.CanHostPersons && s.Durability > 0)
             .OrderBy(s => s.Id).ToArray();
         var incoming = world.Units.Where(u => u.OwnerId == seat.ForceId &&
@@ -59,5 +61,68 @@ public static class MilitaryPlanner
             }
         }
         return wait;
+    }
+
+    private static GameCommand? ChooseAttack(WorldSnapshot world, Func<CommandContext, GameCommand, CommandSubmissionResult> validate,
+        MilitaryRulebook rules, ControlSeat seat, Guid commandId, int? corpsId)
+    {
+        bool Controlled(int? id) => corpsId is int expected ? id == expected : id is null ||
+            world.Corps.Any(c => c.Id == id && c.ControlMode == CorpsControlMode.Direct);
+        // Public place ownership and topology only: neither enemy strength nor hidden field positions inform this policy.
+        var targets = world.Settlements.Where(s => s.OwnerId != seat.ForceId && !s.IsDestroyed &&
+            rules.Places.TryGetValue(s.Id, out var p) && p.Combat is not null).OrderBy(s => s.Id).ToArray();
+        if (targets.Length == 0) return null;
+        var routes = new Dictionary<(WorldPosition, Footprint, TravelMode, int, int, int?), bool>();
+        foreach (var unit in world.Units.Where(u => u.OwnerId == seat.ForceId && Controlled(u.CorpsId) && u.Order is null).OrderBy(u => u.Id).Take(8))
+        {
+            if (unit.FormationId is not int f || rules.Formations[f].Attack is not { } attack) continue;
+            if (unit.Morale < 30 || unit.Soldiers < 500)
+            {
+                if (unit.ServicePlaceId is int home)
+                {
+                    var retreat = new OrderUnitCommand(commandId, seat.ForceId, world.Simulation.NextSequence, unit.Id, new(MilitaryOrderKind.Return, null, home));
+                    if (validate(new(seat.ControllerId), retreat).Accepted) return retreat;
+                }
+                continue;
+            }
+            foreach (var target in targets.OrderBy(s => MapCoordinates.Distance(unit.Position, rules.Places[s.Id].Position)).ThenBy(s => s.Id).Take(4))
+            {
+                var command = new OrderUnitCommand(commandId, seat.ForceId, world.Simulation.NextSequence, unit.Id, new(MilitaryOrderKind.AttackSettlement, null, target.Id));
+                if (validate(new(seat.ControllerId), command).Accepted && Reachable(unit.Position, rules.Formations[f], target.Id, unit.ServicePlaceId)) return command;
+            }
+        }
+        foreach (var source in world.Settlements.Where(s => s.OwnerId == seat.ForceId && Controlled(s.CorpsId) && s.CanHostPersons &&
+            s.Soldiers >= 6000 && s.Morale >= 65 && rules.Places.ContainsKey(s.Id)).OrderByDescending(s => s.Soldiers).ThenBy(s => s.Id).Take(4))
+        {
+            // Preserve a garrison and one administrator; a single officer is sufficient for this bounded policy.
+            var people = world.Officers.Where(p => p.OwnerId == seat.ForceId && p.IsServing && p.SettlementId == source.Id &&
+                !p.Acted && !world.Simulation.Tasks.Any(t => t.OfficerId == p.Id)).OrderBy(p => p.Status == OfficerStatus.Ruler).ThenBy(p => p.Id).ToArray();
+            if (people.Length < 2) continue;
+            foreach (var target in targets.OrderBy(s => MapCoordinates.Distance(rules.Places[source.Id].Position, rules.Places[s.Id].Position)).ThenBy(s => s.Id).Take(4))
+            {
+                if (world.Units.Any(u => u.OwnerId == seat.ForceId && u.Order is { Kind: MilitaryOrderKind.AttackSettlement } && u.Order.SettlementId == target.Id)) continue;
+                foreach (var formation in rules.Formations.Values.Where(f => f.Attack is not null).OrderBy(f => f.DeploymentCost).ThenBy(f => f.Id).Take(32))
+                {
+                    var command = new DeployUnitCommand(commandId, seat.ForceId, world.Simulation.NextSequence, source.Id,
+                        [people[0].Id], Math.Min(source.Soldiers - 3000, formation.SoldierCapacity), formation.Id,
+                        new(MilitaryOrderKind.AttackSettlement, null, target.Id));
+                    if (validate(new(seat.ControllerId), command).Accepted && Reachable(rules.Places[source.Id].Position, formation, target.Id, source.Id)) return command;
+                }
+            }
+        }
+        return null;
+
+        bool Reachable(WorldPosition from, FormationRule formation, int target, int? source)
+        {
+            var key = (from, formation.Footprint, formation.TravelMode, formation.Attack!.Range, target, source);
+            if (routes.TryGetValue(key, out bool reachable)) return reachable;
+            var place = rules.Places[target];
+            reachable = rules.Map.AdvanceIntoRange(from, new(place.Position, place.Footprint), formation.Footprint,
+                formation.TravelMode, rules.Places.Values.Where(p => p.Id != source && p.Id != target &&
+                    world.Settlements.Any(s => s.Id == p.Id && !s.IsDestroyed)).Select(p => new MapOccupancy(p.Position, p.Footprint)),
+                0, formation.Attack!.Range).Reachable;
+            routes.Add(key, reachable);
+            return reachable;
+        }
     }
 }

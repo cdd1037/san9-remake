@@ -6,6 +6,7 @@ public sealed record RankDefinition(int Id, string NameKey, uint CommandCapacity
 public sealed record TreasureDefinition(int Id, string NameKey, int Category, int AbilityBonus, int LoyaltyBonus, int? TacticId)
 {
     [System.Text.Json.Serialization.JsonRequired] public OfficerAbilities AbilityBonuses { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public bool EscapeMount { get; init; }
 }
 public sealed record OfficeDefinition(int Id, string NameKey, uint CommandCapacity, int Salary)
 {

@@ -9,10 +9,17 @@ internal static class WorldInvariants
         ValidateSimulation(state);
         foreach (var force in state.Forces.Values)
         {
+            if (force.IsEliminated && (force.LeaderId is not null || force.AdviserId is not null || force.Money != 0 || force.Food != 0 ||
+                state.Officers.Values.Any(p => p.OwnerId == force.Id) || state.Settlements.Values.Any(s => s.OwnerId == force.Id) ||
+                state.Units.Values.Any(u => u.OwnerId == force.Id) || state.Corps.Values.Any(c => c.OwnerId == force.Id) ||
+                state.Simulation.Controls.Any(c => c.ForceId == force.Id))) throw new ArgumentException("Eliminated force retains active references.");
             if (force.Id < 0 || force.Trust is < 0 or > 1000 || force.BaseTrust is < 0 or > 1000 || force.ProvidedTactics.IsDefault || force.ProvidedTactics.Any(t => t < 0) || force.ProvidedTactics.Distinct().Count() != force.ProvidedTactics.Length) throw new ArgumentException("Invalid force.");
         }
         foreach (var settlement in state.Settlements.Values)
         {
+            if (settlement.IsDestroyed && (settlement.OwnerId is not null || settlement.CorpsId is not null || settlement.Durability != 0 ||
+                settlement.Soldiers != 0 || settlement.Wounded != 0)) throw new ArgumentException("Destroyed settlement retains active state.");
+            if (settlement.Wounded > San9.Core.Domain.MilitaryRulebook.WoundedCapacity) throw new ArgumentException("Invalid settlement wounded.");
             if (settlement.Id < 0 || !Enum.IsDefined(settlement.Kind) || settlement.OwnerId is int owner && !state.Forces.ContainsKey(owner) ||
                 settlement.SoldierCapacity is 0 or > 500000 || settlement.Soldiers > settlement.SoldierCapacity || settlement.Population > 1000000 || settlement.DraftPopulation > 500000 || settlement.MaxCommerce > 2500 || settlement.MaxCultivation > 4000 || settlement.MaxDurability <= 0 || settlement.Durability < 0 || settlement.Durability > settlement.MaxDurability ||
                 settlement.Morale is < 0 or > 100 || settlement.Commerce < 0 || settlement.Commerce > settlement.MaxCommerce ||
@@ -25,7 +32,7 @@ internal static class WorldInvariants
                 officer.SettlementId is int location && !state.Settlements.ContainsKey(location) ||
                 officer.OwnerId is int owner && !state.Forces.ContainsKey(owner) ||
                 officer.UnitId is int unitId && (!state.Units.TryGetValue(unitId, out var unit) ||
-                    unit.OwnerId != officer.OwnerId) ||
+                    (officer.Status == San9.Core.Domain.OfficerStatus.Captive ? unit.OwnerId == officer.OwnerId : unit.OwnerId != officer.OwnerId)) ||
                 officer.IsServing && officer.SettlementId is int home && state.Settlements[home].OwnerId != officer.OwnerId) throw new ArgumentException("Invalid officer.");
         }
         if (state.Forces.Values.Any(f => f.AdviserId is int adviser && (!state.Officers.TryGetValue(adviser, out var p) || p.OwnerId != f.Id || p.Status != San9.Core.Domain.OfficerStatus.Strategist)) ||
@@ -41,7 +48,9 @@ internal static class WorldInvariants
         foreach (var unit in state.Units.Values)
         {
             if (!unit.IsValid || !state.Forces.ContainsKey(unit.OwnerId) ||
+                unit.MemberRanks.Keys.Any(id => !state.Officers.TryGetValue(id, out var person) || person.UnitId != unit.Id || !person.IsServing) ||
                 unit.Order?.SettlementId is int target && !state.Settlements.ContainsKey(target) ||
+                unit.Order?.UnitId is int targetUnit && !state.Units.ContainsKey(targetUnit) ||
                 unit.CorpsId is int corpsId && (!state.Corps.TryGetValue(corpsId, out var corps) || corps.OwnerId != unit.OwnerId)) throw new ArgumentException("Invalid unit.");
         }
         if (state.Corps.Values.Any(c => c.Id < 0 || !Enum.IsDefined(c.ControlMode) || !state.Forces.ContainsKey(c.OwnerId) ||

@@ -91,7 +91,7 @@ public static class ScenarioContentCompiler
             {
                 text.TreasureDescription(i.SerializedId, i.ResourceId2);
                 return new TreasureDefinition(i.SerializedId, text.Treasure($"treasure.{i.SerializedId}", i.ResourceId1), i.CategoryId, i.AbilityBonus, i.LoyaltyChange, i.TacticId)
-                { AbilityBonuses = TreasureContentCompiler.AbilityBonuses(i) };
+                { AbilityBonuses = TreasureContentCompiler.AbilityBonuses(i), EscapeMount = i.CategoryId == 0 };
             }).ToArray(),
             settlements.Where(s => s.CorpsId is not null).Select(s => s.CorpsId!.Value).Distinct().Order().Select(id =>
                 new San9.Core.Domain.CorpsState(id, Root(id)!.Value, forces[id].LeaderId ?? throw new InvalidDataException("Missing corps leader."),

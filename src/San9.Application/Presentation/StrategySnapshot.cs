@@ -6,6 +6,7 @@ namespace San9.Application.Presentation;
 
 public sealed record ForceView(int Id,string NameKey,int ColorCode,int FlagGlyph,uint Money,uint Food,int Trust)
 {
+    public bool IsEliminated { get; init; }
     public bool IsBarbarian { get; init; }
     public int? LeaderId { get; init; }
     public int? RankId { get; init; }
@@ -15,6 +16,8 @@ public sealed record SettlementView(int Id,string NameKey,int? OwnerId,int X,int
     int Morale,bool HasAvailableOfficer,int? CityMarkerColor,IReadOnlyList<string> Icons,int Appearance,int PublicOrder,
     int Commerce,int MaxCommerce,int Cultivation,int MaxCultivation)
 {
+    public uint Wounded { get; init; }
+    public bool IsDestroyed { get; init; }
     public San9.Core.Domain.SettlementKind Kind { get; init; }
     public int? CorpsId { get; init; }
     public bool IsFacilityListEntry { get; init; }
@@ -104,6 +107,7 @@ public sealed class StrategySnapshot
             return new ForceView(f.Id, definition.NameKey, definition.ColorCode, definition.FlagGlyph, f.Money, f.Food, f.Trust)
             {
                 IsBarbarian = f.IsBarbarian,
+                IsEliminated = f.IsEliminated,
                 LeaderId = f.LeaderId,
                 RankId = f.RankId,
                 LeaderSettlementId = leaderSettlementId
@@ -125,6 +129,8 @@ public sealed class StrategySnapshot
                 s.Cultivation, s.MaxCultivation)
             {
                 Kind = s.Kind,
+                Wounded = s.Wounded,
+                IsDestroyed = s.IsDestroyed,
                 CorpsId = s.CorpsId,
                 IsFacilityListEntry = definition.IsFacilityListEntry
             };

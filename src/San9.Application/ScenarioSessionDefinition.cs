@@ -34,7 +34,7 @@ internal sealed class ScenarioSessionDefinition
             CityConnections = definition.CityConnections.OrderBy(c => c.FromCityId).ThenBy(c => c.ToCityId),
             Ranks = definition.Information.Ranks.OrderBy(r => r.Id).Select(r => new { r.Id, r.CommandCapacity, r.RequiredTrust, r.LoyaltyBonus }),
             Offices = definition.Information.Offices.OrderBy(o => o.Id).Select(o => new { o.Id, o.CommandCapacity, o.Salary, o.GovernorPriority, o.AbilityBonuses, o.RequiredRankId }),
-            TreasureDefinitions = definition.Information.Treasures.OrderBy(t => t.Id).Select(t => new { t.Id, t.Category, t.AbilityBonus, t.AbilityBonuses, t.LoyaltyBonus, t.TacticId })
+            TreasureDefinitions = definition.Information.Treasures.OrderBy(t => t.Id).Select(t => new { t.Id, t.Category, t.AbilityBonus, t.AbilityBonuses, t.LoyaltyBonus, t.TacticId, t.EscapeMount })
         });
     }
 
@@ -59,6 +59,6 @@ internal sealed class ScenarioSessionDefinition
         s.OwnerId, s.Soldiers, s.Durability, s.MaxDurability, s.Morale, s.PublicOrder, s.Commerce, s.MaxCommerce,
         s.Cultivation, s.MaxCultivation)
     {
-        Kind = s.Kind, CorpsId = s.CorpsId, CanHostPersons = s.CanHostPersons, SoldierCapacity = s.SoldierCapacity, ConsumesFood = s.ConsumesFood, Population = s.Population, DraftPopulation = s.DraftPopulation
+        Kind = s.Kind, CorpsId = s.CorpsId, CanHostPersons = s.CanHostPersons, SoldierCapacity = s.SoldierCapacity, ConsumesFood = s.ConsumesFood, Population = s.Population, DraftPopulation = s.DraftPopulation, Wounded = s.Wounded
     });
 }

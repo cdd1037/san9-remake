@@ -2,7 +2,10 @@ using System.Collections.Immutable;
 
 namespace San9.Core.Domain;
 
-public sealed record TreasureRule(int Id, OfficerAbilities AbilityBonuses, int LoyaltyBonus);
+public sealed record TreasureRule(int Id, OfficerAbilities AbilityBonuses, int LoyaltyBonus)
+{
+    public bool EscapeMount { get; init; }
+}
 
 public sealed class TreasureRulebook
 {

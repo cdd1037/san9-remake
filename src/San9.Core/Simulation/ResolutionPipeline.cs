@@ -81,6 +81,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         if (stage == ResolutionStage.QuarterUpdate) PersonnelLoyaltyCycle.Apply(world, events);
         EconomicCycle.Apply(stage, world, rules.Economy, events);
         if (stage == ResolutionStage.DailyMapUpdate) MilitaryMovement.AdvanceDay(world, rules.Military, rules.Governance, events);
+        if (stage == ResolutionStage.DailyMapUpdate) MilitaryCombat.AdvanceDay(world, rules, events);
         rules.ApplyStage(stage, world, events);
         events.Add(new StageCompletedEvent(world.Clock, stage));
         return CheckTerminal(world, events);
@@ -94,6 +95,15 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         world.SetSimulation(world.Simulation with { Boundary = SimulationBoundary.Terminal, Tasks = [] });
         if (!events.OfType<SimulationEndedEvent>().Any()) events.Add(new SimulationEndedEvent(world.Clock, reason));
         return false;
+    }
+
+    internal static void CheckConquest(WorldMutation world, List<DomainEvent> events)
+    {
+        if (!events.OfType<ForceEliminatedEvent>().Any()) return;
+        if (events.OfType<ForceEliminatedEvent>().Any(e => e.WasPlayerControlled))
+            world.SetSimulation(world.Simulation with { TerminalReason = "player-defeated" });
+        else if (world.Forces.Values.Count(f => !f.IsEliminated && !f.IsBarbarian) <= 1)
+            world.SetSimulation(world.Simulation with { TerminalReason = "conquest" });
     }
 
     private void ResolveTasks(WorldMutation world, List<DomainEvent> events, bool returningAfterDateAdvance = false)

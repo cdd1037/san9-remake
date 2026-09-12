@@ -20,20 +20,33 @@ public static class MilitaryContentCompiler
         var places = settlements.Select(s =>
         {
             Footprint shape;
+            bool destroyed = false;
             if (s.Kind == SettlementKind.City) shape = new(5, 5);
             else
             {
                 var zone = zones.Single(z => z.Id + 50 == s.Id);
                 var type = buildings.Single(b => b.Id == zone.FixedBuildingId);
                 shape = new(type.FootprintWidth, type.FootprintHeight);
+                destroyed = type.Id is >= 3 and <= 10;
             }
-            return new BattlefieldPlace(s.Id, s.Position, shape);
+            // G06 ordinary garrison coefficients and melee range are explicit remaster rules.
+            return new BattlefieldPlace(s.Id, s.Position, shape)
+            {
+                Combat = new(10, 10, 0, 10, 50), Attack = new(1, false), DestroyedAtZeroDurability = destroyed
+            };
         }).ToImmutableArray();
         var definition = new MilitaryDefinition(San9ScenarioSquareArchive.MapWidth, San9ScenarioSquareArchive.MapHeight,
             squares.Select(s => s.TerrainId ?? throw new InvalidDataException("Missing battlefield terrain.")).ToImmutableArray(),
             terrains.Select(t => Passage(t.Id)).ToImmutableArray(),
             formations.Select(f => new FormationRule(f.Id, checked(f.Mobility * 25), f.DeploymentCost,
-                100000, 5, new(3, 3), Mode(f.Id))).ToImmutableArray(), places)
+                100000, 5, new(3, 3), Mode(f.Id))
+                { Combat = new(f.AgainstUnits, f.AgainstSoldiers, f.AgainstWalls, f.DefensePower, f.Id == 7 ? 80 : 50),
+                    Attack = f.Id == 27 ? null : new(1, f.AgainstWalls > 0),
+                    CaptureRanks = Enumerable.Range(0, 5).Select(i => f.Id is >= 20 and <= 26 ? BattleRank.Middle : f.GetDeploymentSlotPosition(i)?.Row switch
+                    {
+                        0 => BattleRank.Front, 1 => BattleRank.Middle, 2 => BattleRank.Rear,
+                        _ => throw new InvalidDataException("Missing formation member position.")
+                    }).ToImmutableArray() }).ToImmutableArray(), places)
         {
             BlockedCells = squares.Where(s => s.IsPathBlocked).Select(s => new MapCell(s.GridX, s.GridY)).ToImmutableArray()
         };

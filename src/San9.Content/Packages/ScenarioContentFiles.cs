@@ -36,7 +36,7 @@ public static class ScenarioContentFiles
         await using var stream = File.OpenRead(Path.Combine(root, "content.json"));
         using var document = await JsonDocument.ParseAsync(stream, cancellationToken: token);
         if (!document.RootElement.TryGetProperty("schemaVersion", out var version)
-            || !version.TryGetInt32(out int number) || number != 25)
+            || !version.TryGetInt32(out int number) || number != 27)
             throw new InvalidDataException("Unsupported scenario content version; reconvert the package.");
         var manifest = document.Deserialize<ScenarioContentManifest>(PackageFiles.JsonOptions)
             ?? throw new InvalidDataException("Empty scenario manifest.");
@@ -51,15 +51,15 @@ public static class ScenarioContentFiles
         var text = await Read<StaticTextContent>(manifest.Text);
         var messages = await Read<Dictionary<string, MessageDefinition>>(manifest.Messages);
         var illustrations = await Read<Dictionary<string, string>>(manifest.Illustrations);
-        return new(25, manifest.Sources, manifest.Textures, map, scenario,
+        return new(27, manifest.Sources, manifest.Textures, map, scenario,
             new(text.SchemaVersion, text.Entries) { Messages = messages }, illustrations);
     }
 
     public static async Task WriteAsync(string root, ScenarioContent content, CancellationToken token = default)
     {
-        if (content.SchemaVersion != 25) throw new InvalidDataException("Unsupported scenario content version.");
+        if (content.SchemaVersion != 27) throw new InvalidDataException("Unsupported scenario content version.");
         Directory.CreateDirectory(root);
-        var manifest = new ScenarioContentManifest(25, content.Sources, content.Textures,
+        var manifest = new ScenarioContentManifest(27, content.Sources, content.Textures,
             "map.json", "scenario.json", "text.json", "messages.json", "illustrations.json");
         string manifestPath = Path.Combine(root, "content.json");
         string[] previousFiles = [];
@@ -67,7 +67,7 @@ public static class ScenarioContentFiles
         {
             await using var previousStream = File.OpenRead(manifestPath);
             using var previous = await JsonDocument.ParseAsync(previousStream, cancellationToken: token);
-            if (previous.RootElement.TryGetProperty("schemaVersion", out var version) && version.GetInt32() == 25)
+            if (previous.RootElement.TryGetProperty("schemaVersion", out var version) && version.GetInt32() == 27)
             {
                 var old = previous.Deserialize<ScenarioContentManifest>(PackageFiles.JsonOptions)!;
                 previousFiles = new[] { old.Map, old.Scenario, old.Text, old.Messages, old.Illustrations }

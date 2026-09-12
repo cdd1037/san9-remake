@@ -13,6 +13,7 @@ public sealed record ForceInitialState(int Id, string NameKey, int ColorCode, ui
 public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId, int X, int Y,
     uint Soldiers, int Durability, int MaxDurability, int Morale, string[] Icons)
 {
+    [System.Text.Json.Serialization.JsonRequired] public uint Wounded { get; init; }
     [System.Text.Json.Serialization.JsonIgnore] public San9.Core.Domain.MapCell Cell => new(X, Y);
     [System.Text.Json.Serialization.JsonIgnore] public San9.Core.Domain.WorldPosition Position => San9.Core.Domain.MapCoordinates.Center(Cell);
     [System.Text.Json.Serialization.JsonRequired] public uint SoldierCapacity { get; init; } = 500000;
@@ -33,7 +34,7 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 24;
+    public const int CurrentSchemaVersion = 26;
     [System.Text.Json.Serialization.JsonRequired] public San9.Core.Domain.MilitaryDefinition? Military { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Domain.CityConnection> CityConnections { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Domain.PersonPlace> UnbuiltPlaces { get; init; } = [];
@@ -81,7 +82,7 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
             s.Icons.Distinct().Count() != s.Icons.Length || s.Icons.Any(i => i is not ("merchant" or "training" or "emperor")) ||
             s.Kind != San9.Core.Domain.SettlementKind.City && s.Icons.Length != 0 ||
             s.Appearance is < 0 or > 2 || s.PublicOrder is < 0 or > 1000 || s.Commerce < 0 || s.Commerce > s.MaxCommerce || s.Cultivation < 0 || s.Cultivation > s.MaxCultivation ||
-            s.SoldierCapacity is 0 or > 500000 || s.Soldiers > s.SoldierCapacity || s.Population > 1000000 || s.DraftPopulation > 500000 || s.MaxCommerce > 2500 || s.MaxCultivation > 4000 || s.Soldiers == 0 && s.Morale != 0 || s.MaxDurability <= 0 || s.Durability < 0 || s.Durability > s.MaxDurability))
+            s.SoldierCapacity is 0 or > 500000 || s.Soldiers > s.SoldierCapacity || s.Wounded > San9.Core.Domain.MilitaryRulebook.WoundedCapacity || s.Population > 1000000 || s.DraftPopulation > 500000 || s.MaxCommerce > 2500 || s.MaxCultivation > 4000 || s.Soldiers == 0 && s.Morale != 0 || s.MaxDurability <= 0 || s.Durability < 0 || s.Durability > s.MaxDurability))
             throw new InvalidDataException("Invalid settlement snapshot.");
         var settlementIds=Settlements.Select(s=>s.Id).ToHashSet();
         if (Officers.Any(o => string.IsNullOrWhiteSpace(o.NameKey) || o.State is null || !o.State.IsValid()) ||
@@ -89,7 +90,8 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
                 o.State.ForceLoyalties.Keys.Any(id => !forceIds.Contains(id)) ||
                 o.State.SettlementId is int location && !settlementIds.Contains(location) ||
                 o.State.OwnerId is int owner && !forceIds.Contains(owner) ||
-                o.State.UnitId is int unit && !Units.Any(u => u.Id == unit && u.OwnerId == o.State.OwnerId) ||
+                o.State.UnitId is int unit && !Units.Any(u => u.Id == unit &&
+                    (o.State.Status == San9.Core.Domain.OfficerStatus.Captive ? u.OwnerId != o.State.OwnerId : u.OwnerId == o.State.OwnerId)) ||
                 o.State.IsServing && o.State.SettlementId is int home && Settlements.Single(s => s.Id == home).OwnerId != o.State.OwnerId))
             throw new InvalidDataException("Invalid officer initial state.");
         if (Forces.Any(f => f.LeaderId is int leader && !Officers.Any(o => o.State.Id == leader && o.State.OwnerId == f.Id)))

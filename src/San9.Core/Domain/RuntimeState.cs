@@ -2,6 +2,7 @@ namespace San9.Core.Domain;
 
 public sealed record ForceState(int Id, uint Money, uint Food, int Trust)
 {
+    [System.Text.Json.Serialization.JsonRequired] public bool IsEliminated { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public int BaseTrust { get; init; }
     public System.Collections.Immutable.ImmutableArray<int> ProvidedTactics { get; init; } = [];
     public bool IsBarbarian { get; init; }
@@ -16,6 +17,8 @@ public sealed record SettlementState(int Id, int? OwnerId, uint Soldiers, int Du
     int Morale, int PublicOrder, int Commerce, int MaxCommerce, int Cultivation, int MaxCultivation,
     bool CommerceUsed = false, bool CultivationUsed = false)
 {
+    [System.Text.Json.Serialization.JsonRequired] public bool IsDestroyed { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public uint Wounded { get; init; }
     public SettlementKind Kind { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public bool CanHostPersons { get; init; } = true;
     [System.Text.Json.Serialization.JsonRequired] public uint SoldierCapacity { get; init; } = 500000;

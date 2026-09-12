@@ -17,6 +17,9 @@ internal static class MilitaryMovement
 {
     internal static void Validate(WorldSnapshot world, MilitaryRulebook? rules)
     {
+        if (rules is not null && world.Settlements.Any(s => s.IsDestroyed &&
+            (!rules.Places.TryGetValue(s.Id, out var place) || !place.DestroyedAtZeroDurability)))
+            throw new ArgumentException("Settlement definition does not permit destruction.");
         foreach (var unit in world.Units)
         {
             if (rules is null)
@@ -25,9 +28,11 @@ internal static class MilitaryMovement
                 continue;
             }
             if (unit.FormationId is not int id || !rules.Formations.TryGetValue(id, out var formation) ||
-                unit.Soldiers > formation.SoldierCapacity || world.Officers.Count(p => p.UnitId == unit.Id) > formation.OfficerCapacity ||
+                unit.Soldiers > formation.SoldierCapacity || world.Officers.Count(p => p.UnitId == unit.Id && p.IsServing) > formation.OfficerCapacity ||
                 rules.Map.PassageCost(unit.Position, formation.Footprint, formation.TravelMode, []) is null)
                 throw new ArgumentException("Invalid unit formation, location or capacity.");
+            if (formation.Combat is not null && world.Officers.Any(p => p.IsServing && p.UnitId == unit.Id && !unit.MemberRanks.ContainsKey(p.Id)))
+                throw new ArgumentException("Missing battle member rank.");
         }
     }
 
@@ -60,6 +65,8 @@ internal static class MilitaryMovement
         var unit = new UnitState(id, home.OwnerId!.Value, start.Value, command.Soldiers)
         {
             CorpsId = home.CorpsId, ServicePlaceId = home.Id, FormationId = formation.Id, Morale = home.Morale,
+            MemberRanks = formation.CaptureRanks.IsEmpty ? ImmutableDictionary<int, BattleRank>.Empty : command.OfficerIds
+                .Select((person, index) => (person, rank: formation.CaptureRanks[index])).ToImmutableDictionary(p => p.person, p => p.rank),
             CargoMoney = command.CargoMoney, CargoFood = command.CargoFood, Order = command.Order,
             OrderClass = UnitOrderClass.Military
         };
@@ -95,7 +102,8 @@ internal static class MilitaryMovement
 
     private static bool ValidOrder(WorldMutation world, int owner, MilitaryOrder? order, FormationRule formation, MilitaryRulebook rules)
     {
-        if (order is null || !Enum.IsDefined(order.Kind)) return false;
+        if (order is null || !order.IsValid) return false;
+        if (order.IsAttack) return MilitaryCombat.ValidTarget(world, owner, order, formation, rules);
         if (order.Kind == MilitaryOrderKind.Move)
             return order.SettlementId is null && order.Position is WorldPosition p &&
                 rules.Map.PassageCost(p, formation.Footprint, formation.TravelMode, []) is not null;
@@ -120,6 +128,15 @@ internal static class MilitaryMovement
                 if (!ValidOrder(world, unit.OwnerId, fallback, formation, rules)) fallback = null;
                 world.Replace(unit with { Order = fallback });
                 events.Add(new UnitOrderChangedEvent(world.Clock, id, fallback, "target-invalid"));
+                continue;
+            }
+            if (order.IsAttack)
+            {
+                var targetArea = MilitaryCombat.TargetArea(world, order, rules);
+                var approach = rules.Map.AdvanceIntoRange(unit.Position, targetArea, formation.Footprint,
+                    formation.TravelMode, Occupancy(world, rules, unit.Id, null), formation.MovementBudget, formation.Attack!.Range);
+                world.Replace(unit with { Position = approach.Position });
+                events.Add(new UnitMovedEvent(world.Clock, id, unit.Position, approach.Position, approach.Spent, approach.Reachable));
                 continue;
             }
             WorldPosition target = order.Position ?? rules.Places[order.SettlementId!.Value].Position;
@@ -151,7 +168,10 @@ internal static class MilitaryMovement
         uint accepted = Math.Min(home.SoldierCapacity - home.Soldiers, unit.Soldiers);
         uint total = home.Soldiers + accepted;
         int morale = total == 0 ? 0 : (int)(((long)home.Soldiers * home.Morale + (long)accepted * unit.Morale) / total);
-        world.Replace(home with { Soldiers = total, Morale = morale });
+        uint wounded = Math.Min(MilitaryRulebook.WoundedCapacity - home.Wounded, unit.Wounded);
+        world.Replace(home with { Soldiers = total, Morale = morale, Wounded = home.Wounded + wounded });
+        ResourceAccounts.Report(world, new(ResourceOwnerKind.Settlement, home.Id), ResourceKind.Wounded, "unit-absorbed", unit.Id, unit.Wounded, wounded, events);
+        ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, unit.Id), ResourceKind.Wounded, "unit-absorbed", home.Id, -(long)unit.Wounded, -(long)unit.Wounded, events);
         ResourceAccounts.Report(world, new(ResourceOwnerKind.Settlement, home.Id), ResourceKind.Soldiers, "unit-absorbed", unit.Id, unit.Soldiers, accepted, events);
         ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, unit.Id), ResourceKind.Soldiers, "unit-absorbed", home.Id, -(long)unit.Soldiers, -(long)unit.Soldiers, events);
         var account = ResourceAccounts.Resolve(world, unit.OwnerId, home.CorpsId);
@@ -185,9 +205,9 @@ internal static class MilitaryMovement
         return (ulong)money + treasury.Money <= uint.MaxValue && (ulong)food + treasury.Food <= uint.MaxValue;
     }
 
-    private static IEnumerable<MapOccupancy> Occupancy(WorldMutation world, MilitaryRulebook rules, int? movingUnit, int? entry)
+    internal static IEnumerable<MapOccupancy> Occupancy(WorldMutation world, MilitaryRulebook rules, int? movingUnit, int? entry)
     {
-        foreach (var place in rules.Places.Values.Where(p => p.Id != entry && world.Settlements.ContainsKey(p.Id)))
+        foreach (var place in rules.Places.Values.Where(p => p.Id != entry && world.Settlements.TryGetValue(p.Id, out var s) && !s.IsDestroyed))
             yield return new(place.Position, place.Footprint);
         foreach (var unit in world.Units.Values.Where(u => u.Id != movingUnit))
         {

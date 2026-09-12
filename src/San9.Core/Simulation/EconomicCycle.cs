@@ -116,7 +116,7 @@ internal static class EconomicCycle
 
     internal static void UpdateTrust(WorldMutation world, EconomyRulebook rules, List<DomainEvent> events)
     {
-        foreach (var force in world.Forces.Values.OrderBy(f => f.Id).ToArray())
+        foreach (var force in world.Forces.Values.Where(f => !f.IsEliminated).OrderBy(f => f.Id).ToArray())
         {
             long contribution = world.Settlements.Values.Where(s => s.Kind == SettlementKind.City && s.OwnerId == force.Id)
                 .Sum(s => ((long)s.Population + s.DraftPopulation) * Math.Max(0, s.PublicOrder - 300) / 1000 / 5000);

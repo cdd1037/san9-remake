@@ -97,7 +97,11 @@ public sealed class HeadlessHost
                 UnitMovedEvent => "unit-moved",
                 UnitOrderChangedEvent { Reason: "target-invalid" } => "unit-target-invalid",
                 UnitOrderChangedEvent => "unit-order-changed",
-                UnitAbsorbedEvent => "unit-absorbed",
+                  UnitAbsorbedEvent => "unit-absorbed",
+                  BattleDamageEvent => "battle-damage",
+                  UnitTerminatedEvent => "unit-terminated",
+                  SettlementCapturedEvent => "settlement-captured",
+                  ForceEliminatedEvent => "force-eliminated",
                 _ => null
             };
             if (military is not null)
@@ -136,6 +140,11 @@ public sealed class HeadlessHost
         {
             _report.Goal = "G05";
             _report.Scope = "Military deployment, daily movement and transport/return through public commands; event counts describe exercised paths, not every G05 acceptance case. Combat and complete strategic AI remain pending.";
+        }
+        if (_report.MilitaryEvents.ContainsKey("battle-damage"))
+        {
+            _report.Goal = "G06";
+            _report.Scope = "Ordinary battles, capture, force elimination and deterministic replay; event counts describe exercised paths. Advanced warfare and complete strategic AI remain pending.";
         }
     }
 

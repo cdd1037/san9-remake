@@ -56,7 +56,7 @@ flowchart LR
 
 G04人事与基础治理已接入。`PersonnelTransitions`拥有人物归属/地点和引用任务清理，`PersonnelReturns`拥有归队，`GovernanceMaintenance`拥有负责人/都督修复；`CorpsGovernance`维护辖区与独立账户，`CorpsControl`统一权限。Application的`AutomaticCorpsPlanner`通过同一Core命令执行有限人事/经营；保存、录像与CLI复用G02。内容同步官职能力/爵位、宝物、地点和服务单位分类；证据见[G04验收](../../docs/g04-verification.md)。
 
-G05 移动链已接入：`BattlefieldMap`负责不可变拓扑、矩形和四向路径，`MilitaryRulebook`消费规范化阵型与据点入口，`MilitaryMovement`在候选事务内负责出征、每日命令、载荷和返城吸收。成员位置由`OfficerState.UnitId`唯一引用，俸禄随单位军团账户，查询及保存消费同一状态。Content的`MilitaryDefinition`由版本Importer生成，Core不读取显示地图；现有规则及验证见[G05推进记录](../../docs/g05-verification.md)。战斗、占领和终止清理仍是后续入口，不代表已实现。
+G05 移动链已接入：`BattlefieldMap`负责不可变拓扑、矩形和四向路径，`MilitaryRulebook`消费规范化阵型与据点入口，`MilitaryMovement`在候选事务内负责出征、每日命令、载荷和返城吸收。成员位置由`OfficerState.UnitId`唯一引用，俸禄随单位军团账户，查询及保存消费同一状态。Content的`MilitaryDefinition`由版本Importer生成，Core不读取显示地图；现有规则及验证见[G05推进记录](../../docs/g05-verification.md)。G06已由`MilitaryCombat`接入普通交战，`BattleAftermath`统筹占领和战败，`BattlePersonnel`与`UnitTerminationService`处理人员和兵员/账户，日历流水线消费势力退出事件并判定初步终局；证据见[G06验收](../../docs/g06-verification.md)。
 
 验收条款以各BEH原文为准；当前覆盖由领域契约验证器生成，不在此重复维护计数。
 
@@ -71,7 +71,7 @@ G05 移动链已接入：`BattlefieldMap`负责不可变拓扑、矩形和四向
 | `person-lifecycle` | `BEH-PERSON-LIFECYCLE-0001..0002`；0003为独立支线草案 | 成长、伤势、生命 | 周期、人物、成长/死亡原因 → 成长、登场/恢复、死亡清理 | 成长有界；死亡无活引用 | `San9.Core.Personnel.Lifecycle`；培养按需另行设计，不构成主线依赖 |
 | `governance` | `BEH-GOVERNANCE-0001..0003` | 势力、军团、辖区、委任、归属事务 | 当前所有权与委任配置 → 自动命令、归属转换、军团清理 | 单一势力根；资源守恒；自动/交互共享终验 | `San9.Core.Simulation`：`CorpsGovernance`、`CorpsControl`、`GovernanceMaintenance`、`PersonnelDefection`；Application：`AutomaticCorpsPlanner`（基础策略） |
 | `diplomacy` | `BEH-DIPLOMACY-0001..0003` | 关系、联盟、外交命令、谈判、计划 | 关系快照、请求、资格、随机流 → 对称关系、守恒结算、联盟、计划 | 关系对称有界；联盟显式；增量规划读取实时状态 | `San9.Core.Diplomacy`：关系、联盟、命令与规划服务 |
-| `warfare` | `BEH-WAR-0001..0003` | 部队、移动计划、战场命令、设施战斗、终止结算 | 命令、地图占用、实时目标 → 日移动、占领、部队/势力清理输入 | 不穿硬阻挡；效果只提交一次；重置后无活引用 | `San9.Core.Warfare`：移动、命令、占领与终止服务 |
+| `warfare` | `BEH-WAR-0001..0004` | 部队、移动计划、战场命令、设施战斗、终止结算 | 命令、地图占用、实时目标 → 日移动、占领、部队/势力清理输入 | 不穿硬阻挡；效果只提交一次；重置后无活引用 | `San9.Core.Warfare`：移动、命令、占领与终止服务 |
 | `ai` | `BEH-AI-0001` | 势力视角观察、确定性预算、计划、诊断 | 不可变观察、命名用途、预算 → 有序命令候选、评分、可选诊断 | 不持有可变世界；分析随机隔离；诊断不改行为；共享命令终验 | `San9.Core.AI`：`AiObservation`、`AiPlanningContext`、`AiPlan`、`IAiPlanner` |
 | `strategy` | `BEH-STRATEGY-0001..0003` | 计略命令、目标、意见、部队状态、结果 | 单执行者、类型目标、实时阈值、随机流 → 目标效果、成长、占用释放 | 意见只读；玩家/AI 共用结算；资源与所有权有界 | `San9.Core.Strategy`：命令、意见与效果服务 |
 | `duel` | `BEH-DUEL-0001..0003` | 单挑机会、名单、逐刀、结果、战后结算 | 陆战攻击机会、名单、属性、随机流 → 名单、逐刀结果、人员分区、士气、低武力胜者成长 | 单刀单结果；死亡/俘虏/伤势互斥；表现随机隔离；成长每场至多一次 | `San9.Core.Duels`：触发、解析与战后服务 |

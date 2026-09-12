@@ -56,7 +56,7 @@ public sealed record OfficerState(int Id, int? OwnerId, int? SettlementId, Offic
             TacticProficiencies.Any(v => v < 0) || LearnedTactics.Any(v => v < 0) || LearnedTactics.Distinct().Count() != LearnedTactics.Length ||
             ParentId < 0 || Personality is < 0 or > 3) return false;
         if (Id < 0 || IsServing && SettlementId is null && UnitId is null || UnitId < 0 ||
-            UnitId is not null && (SettlementId is not null || RegionId is not null || !IsServing || IsCommander) ||
+            UnitId is not null && (SettlementId is not null || RegionId is not null || !IsServing && Status != OfficerStatus.Captive || IsCommander) ||
             SettlementId < 0 || OwnerId < 0 || RegionId < 0 || RegionId is not null && SettlementId is not null || !Enum.IsDefined(Status) || Injury is < 0 or > 14 ||
             !BaseAbilities.IsNonnegative) return false;
         return true;

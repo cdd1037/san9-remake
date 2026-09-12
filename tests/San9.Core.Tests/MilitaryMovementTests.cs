@@ -28,6 +28,30 @@ public sealed class MilitaryMovementTests
     }
 
     [Theory]
+    [InlineData(100u, 400u, 500u, 0L)]
+    [InlineData(49900u, 400u, 50000u, 300L)]
+    public void WoundedReturnSurvivesRestoreAndReportsCapacityLoss(uint initial, uint cargo, uint expected, long loss)
+    {
+        var world = World();
+        var engine = Engine(world, Rules(10));
+        Assert.True(engine.Execute(Player, Deploy()).Submission.Accepted);
+        var mutation = world.BeginMutation();
+        var unit = Assert.Single(mutation.Units.Values);
+        mutation.Replace(unit with { Wounded = cargo });
+        mutation.Replace(mutation.Settlements[2] with { Wounded = initial });
+        world.Commit(mutation);
+        var json = CanonicalJson.Text(engine.CaptureStableState());
+        var snapshot = System.Text.Json.JsonSerializer.Deserialize<WorldSnapshot>(json, CanonicalJson.Options)!;
+        var restored = Engine(WorldState.Restore(snapshot), Rules(10));
+        var first = Advance(engine);
+        Assert.Equal(CanonicalJson.Text(first.Events), CanonicalJson.Text(Advance(restored).Events));
+        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        Assert.Equal(expected, engine.Snapshot.Settlements.Single(s => s.Id == 2).Wounded);
+        Assert.Equal(loss, first.Events.OfType<ResourceChangedEvent>().Where(e => e.Resource == ResourceKind.Wounded).Sum(e => e.SaturationLoss));
+        Assert.Empty(Advance(engine).Events.OfType<UnitAbsorbedEvent>());
+    }
+
+    [Theory]
     [InlineData(false, false)]
     [InlineData(true, false)]
     [InlineData(false, true)]

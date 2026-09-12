@@ -272,8 +272,8 @@
     {
       "id": "warfare",
       "classification": "core",
-      "behavior_specs": ["BEH-WAR-0001", "BEH-WAR-0002", "BEH-WAR-0003"],
-        "objects": ["UnitState", "BattlefieldMap", "MilitaryDefinition", "MilitaryOrder", "BuildingCombatState", "UnitSettlement"],
+      "behavior_specs": ["BEH-WAR-0001", "BEH-WAR-0002", "BEH-WAR-0003", "BEH-WAR-0004"],
+        "objects": ["UnitState", "BattlefieldMap", "MilitaryDefinition", "MilitaryOrder", "SettlementState", "CombatProfile", "OrdinaryAttack"],
       "states": ["planned", "moving", "resolving", "returning", "defeated", "complete"],
       "inputs": ["typed battlefield command", "map occupancy snapshot", "live target", "unit and building state"],
       "outputs": ["validated daily movement", "atomic capture settlement", "unit termination settlement", "force elimination input"],
@@ -284,8 +284,8 @@
         "project": "San9.Core",
           "target_namespace": "San9.Core.Simulation",
           "target_path": "src/San9.Core/Simulation",
-          "entry_types": ["MilitaryMovement", "DeployUnitCommand", "OrderUnitCommand", "BuildingCaptureService", "UnitTerminationService"],
-          "existing_anchors": ["src/San9.Core/Domain/UnitState.cs", "src/San9.Core/Domain/BattlefieldMap.cs", "src/San9.Core/Domain/MilitaryRulebook.cs", "src/San9.Core/Simulation/MilitaryMovement.cs"]
+          "entry_types": ["MilitaryMovement", "DeployUnitCommand", "OrderUnitCommand", "MilitaryCombat", "BattleAftermath", "BattlePersonnel", "UnitTerminationService"],
+          "existing_anchors": ["src/San9.Core/Domain/UnitState.cs", "src/San9.Core/Domain/BattlefieldMap.cs", "src/San9.Core/Domain/MilitaryRulebook.cs", "src/San9.Core/Domain/CombatMath.cs", "src/San9.Core/Simulation/UnitTerminationService.cs", "src/San9.Core/Simulation/MilitaryMovement.cs", "src/San9.Core/Simulation/MilitaryCombat.cs", "src/San9.Core/Simulation/BattleAftermath.cs", "src/San9.Core/Simulation/BattlePersonnel.cs"]
       }
     },
     {

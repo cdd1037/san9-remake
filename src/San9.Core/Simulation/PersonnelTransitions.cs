@@ -5,12 +5,34 @@ namespace San9.Core.Simulation;
 /// <summary>Owns personnel changes and the cancellation of missions that refer to the changed person.</summary>
 internal static class PersonnelTransitions
 {
+    internal static void Capture(WorldMutation world, int personId, int? settlementId, int? unitId,
+        PersonnelRulebook places, List<DomainEvent> events)
+    {
+        var person = world.Officers[personId];
+        if (!person.IsServing || person.OwnerId is null || (settlementId is null) == (unitId is null))
+            throw new ArgumentException("Invalid capture participant or detention location.");
+        int? captor = settlementId is int home
+            ? world.Settlements.TryGetValue(home, out var settlement) && settlement.CanHostPersons && settlement.Durability > 0
+                ? settlement.OwnerId : null
+            : world.Units.TryGetValue(unitId!.Value, out var unit) ? unit.OwnerId : null;
+        if (captor is null || captor == person.OwnerId) throw new ArgumentException("Invalid captor.");
+        CancelMissions(world, personId, "person-captured", events, places, true);
+        var force = world.Forces[person.OwnerId.Value];
+        if (force.AdviserId == personId) world.Replace(force with { AdviserId = null });
+        world.Replace(world.Officers[personId] with
+        {
+            Status = OfficerStatus.Captive, SettlementId = settlementId, UnitId = unitId, RegionId = null,
+            OfficeId = null, IsCommander = false, Acted = true, StatusStartYear = world.Clock.Year
+        });
+        events.Add(new OfficerCapturedEvent(world.Clock, personId, captor.Value, settlementId, unitId));
+    }
+
     internal static void DiscoverDetached(WorldMutation world, int personId, int placeId, List<DomainEvent> events)
     {
         var person = world.Officers[personId];
         if (person.OwnerId is int owner && world.Forces[owner].AdviserId == personId)
             world.Replace(world.Forces[owner] with { AdviserId = null });
-        world.Replace(person with { OwnerId = null, Status = OfficerStatus.Free,
+        world.Replace(person with { OwnerId = null, Status = OfficerStatus.Free, UnitId = null,
             SettlementId = world.Settlements.ContainsKey(placeId) ? placeId : null,
             RegionId = world.Settlements.ContainsKey(placeId) ? null : placeId, OfficeId = null,
             IsCommander = false, Acted = true, StatusStartYear = world.Clock.Year });
@@ -26,7 +48,7 @@ internal static class PersonnelTransitions
         RecruitmentRules.SetLoyalty(world, personId, forceId, 45, "exiled", events);
         world.Replace(world.Officers[personId] with
         {
-            OwnerId = null, Status = OfficerStatus.Free, StatusStartYear = world.Clock.Year,
+            OwnerId = null, Status = OfficerStatus.Free, StatusStartYear = world.Clock.Year, UnitId = null,
             SettlementId = world.Settlements.ContainsKey(placeId) ? placeId : null,
             RegionId = world.Settlements.ContainsKey(placeId) ? null : placeId,
             OfficeId = null, IsCommander = false, Acted = true
@@ -41,7 +63,7 @@ internal static class PersonnelTransitions
         CancelMissions(world, personId, "person-discovered", events, places, afterDailyCommands);
         world.Replace(person with
         {
-            OwnerId = null, Status = OfficerStatus.Free, SettlementId = world.Settlements.ContainsKey(placeId) ? placeId : null,
+            OwnerId = null, Status = OfficerStatus.Free, UnitId = null, SettlementId = world.Settlements.ContainsKey(placeId) ? placeId : null,
             RegionId = world.Settlements.ContainsKey(placeId) ? null : placeId, StatusStartYear = world.Clock.Year,
             OfficeId = null, IsCommander = false, Acted = true
         });
@@ -61,7 +83,7 @@ internal static class PersonnelTransitions
         RecruitmentRules.SetLoyalty(world, personId, forceId, loyalty, "recruited", events);
         world.Replace(world.Officers[personId] with
         {
-            OwnerId = forceId, SettlementId = destinationId, RegionId = null, Status = OfficerStatus.Serving,
+            OwnerId = forceId, SettlementId = destinationId, RegionId = null, UnitId = null, Status = OfficerStatus.Serving,
             StatusStartYear = world.Clock.Year, OfficeId = null, IsCommander = false, Acted = true
         });
         events.Add(new PersonAffiliationChangedEvent(world.Clock, personId, person.OwnerId, forceId, destinationId));

@@ -42,7 +42,7 @@ public static class ClientContentImporter
         text = text with { Messages = messages };
         var roles = InformationArtCompiler.Compile(scenarioBytes, scenario, textures.Library, textures.Portraits);
         var dependency = new TextureDependency(Path.GetRelativePath(output, textureRoot).Replace('\\','/'));
-        var content = new ScenarioContent(25, sources.Distinct().OrderBy(s => s.Name, StringComparer.Ordinal).ToArray(),
+        var content = new ScenarioContent(27, sources.Distinct().OrderBy(s => s.Name, StringComparer.Ordinal).ToArray(),
             dependency, MapInstance.From(map), scenario, text, roles);
         var loaded = ClientContentFiles.Resolve(content, textures, textureRoot);
         await ScenarioContentFiles.WriteAsync(output, content, token);

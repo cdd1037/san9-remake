@@ -8,12 +8,13 @@ public static class UnitContentCompiler
     {
         return records.Where(u => u.UnitStatus != San9ScenarioUnitStatus.Invalid).Select(u =>
         {
-            if (u.UnitStatus is null || rootForce(u.ForceId) is not int owner ||
+            if (u.UnitStatus is null || u.Morale > 100 || rootForce(u.ForceId) is not int owner ||
                 u.XCoordinate is not int x || u.YCoordinate is not int y)
                 throw new InvalidDataException("Invalid active field unit.");
             return new UnitState(u.Id, owner, MapCoordinates.Center(new(x, y)), (uint)u.LoadedSoldierCount)
             {
                 CorpsId = u.ForceId, ServicePlaceId = u.HomeBaseId, FormationId = u.FormationId,
+                Wounded = (uint)u.LoadedWoundedSoldierCount, Morale = u.Morale,
                 IsEmbedded = u.HasRuntimeFlagBit(0), IsPersonnel = u.HasRuntimeFlagBit(1),
                 OrderClass = u.LoadedCommandCode switch
                 {

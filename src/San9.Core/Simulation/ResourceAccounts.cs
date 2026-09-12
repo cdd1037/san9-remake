@@ -2,7 +2,7 @@ using San9.Core.Domain;
 
 namespace San9.Core.Simulation;
 
-public enum ResourceKind { Money, Food, Population, DraftPopulation, Soldiers }
+public enum ResourceKind { Money, Food, Population, DraftPopulation, Soldiers, Wounded }
 public enum ResourceOwnerKind { Force, Corps, Settlement, Unit }
 public sealed record ResourceAccount(ResourceOwnerKind Kind, int Id);
 public sealed record ResourceChangedEvent(GameClock Clock, ResourceAccount Account, ResourceKind Resource,

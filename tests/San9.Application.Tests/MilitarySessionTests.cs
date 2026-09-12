@@ -10,7 +10,7 @@ public sealed class MilitarySessionTests
 {
     private static ScenarioInitialState Fixture() => new(ScenarioInitialState.CurrentSchemaVersion, "military-public", 190, 1, 1, 1,
         [new(1, "force", 1, 10000, 10000, 100)],
-        [new(1, "origin", 1, 0, 1, 1000, 100, 100, 70, []), new(2, "destination", 1, 7, 1, 100, 100, 100, 30, [])], [], [])
+        [new(1, "origin", 1, 0, 1, 1000, 100, 100, 70, []) { Wounded = 123 }, new(2, "destination", 1, 7, 1, 100, 100, 100, 30, [])], [], [])
     {
         Officers = [new("officer", new(1, 1, 1, new(70, 70, 70, 70), false))],
         Military = new(8, 3, Enumerable.Repeat(0, 24).ToImmutableArray(), [new(0, 1, null)],
@@ -27,12 +27,14 @@ public sealed class MilitarySessionTests
         var command = new DeployUnitCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence,
             1, [1], 400, 7, new(MilitaryOrderKind.Transport, null, 2), 200, 300);
         Assert.True(session.Execute(new("player"), command).Submission.Accepted);
+        Assert.Equal(123u, session.View.Settlements.Single(s => s.Id == 1).Wounded);
         Assert.NotNull(session.View.Officers[0].UnitId);
         Assert.Null(session.View.Officers[0].SettlementId);
         Assert.False(session.View.Officers[0].IsAvailable);
         session.AdvanceXun();
         Assert.NotEmpty(session.Snapshot.Units);
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
+        Assert.Equal(123u, restored.View.Settlements.Single(s => s.Id == 1).Wounded);
         for (int i = 0; i < 4; i++)
         {
             var first = session.AdvanceXun();

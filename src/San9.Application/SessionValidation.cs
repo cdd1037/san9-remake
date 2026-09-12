@@ -12,7 +12,8 @@ internal static class SessionValidation
             throw new ArgumentException("Missing session state.");
         var expected = definition.CreateWorld(snapshot.World.Simulation.InitialSeed);
         if (snapshot.World.Simulation.Started != expected.Clock ||
-            !snapshot.World.Simulation.Controls.SequenceEqual(expected.Simulation.Controls))
+            !snapshot.World.Simulation.Controls.SequenceEqual(expected.Simulation.Controls.Where(c =>
+                snapshot.World.Forces.Any(f => f.Id == c.ForceId && !f.IsEliminated))))
             throw new ArgumentException("Scenario date or control configuration mismatch.");
         var content = definition.Content;
         static void Same(IEnumerable<int> a, IEnumerable<int> b)
@@ -27,9 +28,9 @@ internal static class SessionValidation
             !content.Settlements.Any(s => s.Id == home) && !content.UnbuiltPlaces.Any(p => p.Id == home)))
             throw new ArgumentException("Unknown unit service place.");
         // Corps are runtime entities; only the force treasury anchors survive ordinary reorganization.
-        Same(content.Information.Corps.Where(c => c.Treasury is null).Select(c => c.Id),
+        Same(content.Information.Corps.Where(c => c.Treasury is null && snapshot.World.Forces.Any(f => f.Id == c.OwnerId && !f.IsEliminated)).Select(c => c.Id),
             snapshot.World.Corps.Where(c => c.Treasury is null).Select(c => c.Id));
-        if (content.Information.Corps.Where(c => c.Treasury is null).Any(c =>
+        if (content.Information.Corps.Where(c => c.Treasury is null && snapshot.World.Forces.Any(f => f.Id == c.OwnerId && !f.IsEliminated)).Any(c =>
             !snapshot.World.Corps.Any(saved => saved.Id == c.Id && saved.OwnerId == c.OwnerId)))
             throw new ArgumentException("Primary corps ownership mismatch.");
         Same(content.Information.TreasureStates.Select(t => t.Id), snapshot.World.Treasures.Select(t => t.Id));

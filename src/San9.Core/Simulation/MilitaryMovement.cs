@@ -134,7 +134,7 @@ internal static class MilitaryMovement
             place.Entrances(formation.Footprint).Any(p => rules.Map.PassageCost(p, formation.Footprint, formation.TravelMode, []) is not null);
     }
 
-    internal static void AdvanceDay(WorldMutation world, MilitaryRulebook? rules, GovernanceRulebook governance, List<DomainEvent> events)
+    internal static void AdvanceDay(WorldMutation world, MilitaryRulebook? rules, GovernanceRulebook governance, PersonnelRulebook geography, List<DomainEvent> events)
     {
         if (rules is null) return;
         foreach (int id in world.Units.Keys.Order().ToArray())
@@ -172,7 +172,7 @@ internal static class MilitaryMovement
             world.Replace(unit);
             events.Add(new UnitMovedEvent(world.Clock, id, from, result.Position, result.Spent, result.Reachable));
             if (!result.Arrived) continue;
-            if (order.SettlementId is int destination) Absorb(world, unit, destination, governance, events);
+            if (order.SettlementId is int destination) Absorb(world, unit, destination, governance, geography, events);
             else
             {
                 world.Replace(unit with { Order = null });
@@ -181,7 +181,7 @@ internal static class MilitaryMovement
         }
     }
 
-    internal static void Absorb(WorldMutation world, UnitState unit, int destinationId, GovernanceRulebook governance, List<DomainEvent> events)
+    internal static void Absorb(WorldMutation world, UnitState unit, int destinationId, GovernanceRulebook governance, PersonnelRulebook geography, List<DomainEvent> events)
     {
         var home = world.Settlements[destinationId];
         if (!CanAbsorb(world, unit, home))
@@ -193,10 +193,18 @@ internal static class MilitaryMovement
         uint total = home.Soldiers + accepted;
         int morale = total == 0 ? 0 : (int)(((long)home.Soldiers * home.Morale + (long)accepted * unit.Morale) / total);
         uint wounded = Math.Min(MilitaryRulebook.WoundedCapacity - home.Wounded, unit.Wounded);
+        long overflow = (long)unit.Soldiers - accepted + unit.Wounded - wounded;
+        int? cityId = Demobilization.City(world, home.Id, geography);
+        if (overflow > 0 && cityId is null)
+        {
+            events.Add(new UnitOrderChangedEvent(world.Clock, unit.Id, unit.Order, "absorption-no-demobilization-city"));
+            return;
+        }
         world.Replace(home with { Soldiers = total, Morale = morale, Wounded = home.Wounded + wounded });
-        ResourceAccounts.Report(world, new(ResourceOwnerKind.Settlement, home.Id), ResourceKind.Wounded, "unit-absorbed", unit.Id, unit.Wounded, wounded, events);
+        if (cityId is int city) Demobilization.Return(world, city, overflow, "unit-absorbed-demobilized", unit.Id, events);
+        ResourceAccounts.Report(world, new(ResourceOwnerKind.Settlement, home.Id), ResourceKind.Wounded, "unit-absorbed", unit.Id, wounded, wounded, events);
         ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, unit.Id), ResourceKind.Wounded, "unit-absorbed", home.Id, -(long)unit.Wounded, -(long)unit.Wounded, events);
-        ResourceAccounts.Report(world, new(ResourceOwnerKind.Settlement, home.Id), ResourceKind.Soldiers, "unit-absorbed", unit.Id, unit.Soldiers, accepted, events);
+        ResourceAccounts.Report(world, new(ResourceOwnerKind.Settlement, home.Id), ResourceKind.Soldiers, "unit-absorbed", unit.Id, accepted, accepted, events);
         ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, unit.Id), ResourceKind.Soldiers, "unit-absorbed", home.Id, -(long)unit.Soldiers, -(long)unit.Soldiers, events);
         var account = ResourceAccounts.Resolve(world, unit.OwnerId, home.CorpsId);
         ResourceAccounts.Change(world, account, ResourceKind.Money, unit.CargoMoney, "transport-unload", unit.Id, events);

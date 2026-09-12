@@ -30,9 +30,9 @@ public sealed class FacilityDemolitionTests
     }
 
     [Theory]
-    [InlineData(1000u, 1100u)]
-    [InlineData(499950u, 500000u)]
-    public void DemolitionReturnsTroopsAndPeopleAndInvalidatesTransportWithoutDeliveringCargo(uint initial, uint expected)
+    [InlineData(1000u)]
+    [InlineData(500000u)]
+    public void DemolitionReturnsSoldiersAndWoundedToDraftPopulationWithoutDeliveringCargo(uint initial)
     {
         var engine = Engine(soldiers: initial);
         var command = new DemolishFacilityCommand(Guid.NewGuid(), 1, 0, 2);
@@ -40,8 +40,10 @@ public sealed class FacilityDemolitionTests
         Assert.True(result.Submission.Accepted);
         Assert.Single(result.Events.OfType<FacilityDemolishedEvent>());
         var city = engine.Snapshot.Settlements.Single(s => s.Id == 1);
-        Assert.Equal(expected, city.Soldiers);
-        Assert.Equal(50000u, city.Wounded);
+        Assert.Equal(initial, city.Soldiers);
+        Assert.Equal(49990u, city.Wounded);
+        Assert.Equal(120u, city.DraftPopulation);
+        Assert.Equal(80, city.Morale);
         Assert.All(engine.Snapshot.Officers.Where(p => p.Id is 11 or 12), p => Assert.Equal(1, p.SettlementId));
         Assert.Equal(OfficerStatus.Captive, engine.Snapshot.Officers.Single(p => p.Id == 12).Status);
         var facility = engine.Snapshot.Settlements.Single(s => s.Id == 2);
@@ -52,7 +54,7 @@ public sealed class FacilityDemolitionTests
         Assert.Null(unit.Order);
         Assert.Equal(100u, unit.CargoFood);
         Assert.DoesNotContain(result.Events, e => e is UnitAbsorbedEvent);
-        Assert.Contains(result.Events.OfType<ResourceChangedEvent>(), e => e.Reason == "facility-demolished" && e.SaturationLoss == 10);
+        Assert.All(result.Events.OfType<ResourceChangedEvent>().Where(e => e.Reason == "facility-demolished"), e => Assert.Equal(0, e.SaturationLoss));
         string hash = engine.Snapshot.StateHash;
         Assert.False(engine.Execute(Player, command).Submission.Accepted);
         Assert.False(engine.Execute(Player, command with { CommandId = Guid.NewGuid(), Sequence = 1 }).Submission.Accepted);

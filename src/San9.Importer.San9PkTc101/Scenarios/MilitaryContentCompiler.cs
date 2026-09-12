@@ -65,6 +65,7 @@ public static class MilitaryContentCompiler
                     }).ToImmutableArray() }).ToImmutableArray(), places)
         {
             Facilities = facilities,
+            RegionIds = squares.Select(s => s.RegionCode).ToImmutableArray(),
             ConstructionSites = ConstructionContentCompiler.Sites(squares, buildings,
                 settlements.Select(s => s.Id).Concat(zones.Where(z => z.XCoordinate is not null && z.YCoordinate is not null).Select(z => z.Id + 50)).ToHashSet()),
             Tactics = CompileTactics(tactics),

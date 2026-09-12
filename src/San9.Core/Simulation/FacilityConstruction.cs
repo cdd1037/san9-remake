@@ -112,7 +112,7 @@ internal static class FacilityConstruction
             if (!complete) continue;
             unit = world.Units[id] with { Order = null };
             world.Replace(unit);
-            if (type.CanHostPersons) MilitaryMovement.Absorb(world, unit, existing.Id, rules.Governance, events);
+            if (type.CanHostPersons) MilitaryMovement.Absorb(world, unit, existing.Id, rules.Governance, rules.Personnel, events);
             else
             {
                 var order = new MilitaryOrder(MilitaryOrderKind.Return, null, unit.ServicePlaceId);

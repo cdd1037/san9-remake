@@ -9,7 +9,7 @@ public sealed class IntelligenceTacticTests
     private static readonly CommandContext Player = new("player");
     private static SimulationEngine Engine(TacticEffect effect, bool settlement = false, bool counter = false,
         bool bypass = false, int formationResistance = 0, bool area = false, uint wounded = 500, Action<MilitaryRulebook>? captureRules = null,
-        int? trap = null, int existingConfusion = 0)
+        int? trap = null, int existingConfusion = 0, int? localCity = 2, int? targetHome = 2)
     {
         bool support = effect is TacticEffect.Heal or TacticEffect.Inspire;
         int targetOwner = support ? 1 : 2;
@@ -22,7 +22,8 @@ public sealed class IntelligenceTacticTests
                 Tactics = new(0, 0, 2, [], []) { BypassesPassiveCounters = bypass, ConfusionResistanceChance = formationResistance } }],
             [new(1, new(2, 2), new(1, 1)) { Combat = combat }, new(2, new(17, 2), new(1, 1)) { Combat = combat },
              new(3, new(27, 2), new(1, 1)) { Combat = combat }])
-        { Tactics = [new(9000, 7, effect, power, 15, 0, true, true, [100]) { EffectRadius = support || area ? 3 : 0 },
+        { RegionIds = Enumerable.Repeat(localCity is int city ? (int?)(city + 100) : null, 6).ToImmutableArray(),
+            Tactics = [new(9000, 7, effect, power, 15, 0, true, true, [100]) { EffectRadius = support || area ? 3 : 0 },
             new(9100, 6, effect == TacticEffect.TrapSelection ? TacticEffect.CounterTrap : TacticEffect.CounterConfusion, 0, 0, 0, true, false, []),
             new(9200, 7, TacticEffect.Trap, 10, 9, 0, false, true, [100])],
             TrapTacticIds = effect == TacticEffect.TrapSelection ? [trap, trap, trap, trap, trap, trap] : [] });
@@ -33,7 +34,7 @@ public sealed class IntelligenceTacticTests
         List<UnitState> units = [new(0, 1, new(settlement ? 16 : 6, 2), 99900) { FormationId = 100, Morale = 100, ServicePlaceId = 1,
             MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(11, BattleRank.Front) }];
         if (!settlement) units.Add(new(1, targetOwner, new(7, 2), support ? 99950u : 10000u) { FormationId = 200,
-            Morale = effect == TacticEffect.Taunt ? 7 : effect == TacticEffect.Inspire ? 79 : 100, ServicePlaceId = 2,
+            Morale = effect == TacticEffect.Taunt ? 7 : effect == TacticEffect.Inspire ? 79 : 100, ServicePlaceId = targetHome,
             Wounded = effect == TacticEffect.Heal ? wounded : 0, Condition = effect == TacticEffect.Heal || existingConfusion > 0 ? UnitCondition.Confused : UnitCondition.Normal,
             ConditionDaysRemaining = effect == TacticEffect.Heal ? 100 : existingConfusion,
             MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(21, BattleRank.Middle) });
@@ -51,7 +52,8 @@ public sealed class IntelligenceTacticTests
             settlements.Add(new(3, 3, 1000, 100, 100, 100, 0, 0, 100, 0, 100));
         }
         var engine = new SimulationEngine(WorldState.Create(new(190, 1, 1), 42, forces, settlements, officers, units: units,
-            controls: [new("player", 1, ControllerKind.Player)]), EconomyRulebook.Empty, PersonnelRulebook.Empty, TreasureRulebook.Empty, military: rules);
+            controls: [new("player", 1, ControllerKind.Player)]), EconomyRulebook.Empty, new PersonnelRulebook([new(1, new(2, 2)), new(2, new(17, 2))],
+                new Dictionary<int, int> { [101] = 1, [102] = 2 }), TreasureRulebook.Empty, military: rules);
         captureRules?.Invoke(rules);
         Assert.True(engine.Execute(Player, new SelectTacticCommand(Guid.NewGuid(), 1, 0, 11, 9000)).Submission.Accepted);
         if (!support)
@@ -125,16 +127,32 @@ public sealed class IntelligenceTacticTests
         if (!succeeds) Assert.Equal(0, engine.Snapshot.Officers.Single(p => p.Id == 11).TacticCooldown);
     }
 
-    [Fact]
-    public void DefectionRemovesFullEnemyAmountEvenWhenReceivingUnitHasOnlyOneHundredSlots()
+    [Theory]
+    [InlineData(false, 2, 1, 2)]
+    [InlineData(false, 1, 2, 1)]
+    [InlineData(false, null, 2, 2)]
+    [InlineData(false, null, null, null)]
+    [InlineData(true, 1, 1, 2)]
+    public void DefectionAccountsForEveryTransferredSoldier(bool settlement, int? localCity, int? targetHome, int? receivingCity)
     {
-        var engine = Engine(TacticEffect.Defection);
+        var engine = Engine(TacticEffect.Defection, settlement: settlement, localCity: localCity, targetHome: targetHome);
         var result = engine.AdvanceXun();
         var added = Assert.Single(result.Events.OfType<ResourceChangedEvent>(), e => e.Reason == "tactic-defection" && e.Actual > 0);
+        var removed = Assert.Single(result.Events.OfType<ResourceChangedEvent>(), e => e.Reason == "tactic-defection" && e.Actual < 0);
         Assert.Equal(100, added.Actual);
-        Assert.True(added.SaturationLoss > 0);
-        Assert.Contains(result.Events.OfType<ResourceChangedEvent>(), e => e.Reason == "tactic-defection" && e.Actual == -added.Requested);
+        var returned = result.Events.OfType<ResourceChangedEvent>().Where(e => e.Reason == "tactic-defection-demobilized").ToArray();
+        if (receivingCity is int city)
+        {
+            var returnedEvent = Assert.Single(returned);
+            Assert.Equal(city, returnedEvent.Account.Id);
+            Assert.True(returnedEvent.Actual > 0);
+            Assert.Equal((uint)returnedEvent.Actual, engine.Snapshot.Settlements.Single(s => s.Id == city).DraftPopulation);
+        }
+        else Assert.Empty(returned);
+        Assert.Equal(-removed.Actual, added.Actual + returned.Sum(e => e.Actual));
+        Assert.Equal(0, added.SaturationLoss);
         Assert.Equal(100000u, engine.Snapshot.Units.Single(u => u.Id == 0).Soldiers);
+        Assert.Equal(0u, engine.Snapshot.Units.Single(u => u.Id == 0).Wounded);
     }
 
     [Fact]

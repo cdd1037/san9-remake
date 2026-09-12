@@ -114,7 +114,7 @@ internal static class EconomicCycle
             long growth = Math.Max(30000L - city.Population, order == 0 ? 0 : city.PublicOrder * (population / 20) / order - city.Population / 20);
             long draft = order == 0 ? 0 : drafts * city.PublicOrder / order;
             uint nextPopulation = (uint)Math.Clamp(city.Population + growth, 0, 1000000);
-            uint nextDraft = (uint)Math.Min(500000, city.DraftPopulation + draft);
+            uint nextDraft = (uint)Math.Min(Math.Max(500000L, city.DraftPopulation), city.DraftPopulation + draft);
             world.Replace(city with { Population = nextPopulation, DraftPopulation = nextDraft });
             var account = new ResourceAccount(ResourceOwnerKind.Settlement, city.Id);
             ResourceAccounts.Report(world, account, ResourceKind.Population, "quarterly-population", city.Id, growth, (long)nextPopulation - city.Population, events);

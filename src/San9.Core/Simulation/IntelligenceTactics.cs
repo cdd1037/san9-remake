@@ -95,11 +95,21 @@ internal static class IntelligenceTactics
                 uint loss = TacticMath.Defection(proficiency, intelligence, tactic.Power, effect, soldiers, target.UnitId is null);
                 var source = world.Units[sourceId];
                 uint accepted = Math.Min(loss, military.Formations[source.FormationId!.Value].SoldierCapacity - source.Soldiers);
+                int? cityId = target.UnitId is int targetUnit
+                    ? military.RegionAt(world.Units[targetUnit].Position) is int region
+                        ? Demobilization.City(world, region, rules.Personnel) : null
+                    : Demobilization.City(world, target.SettlementId!.Value, rules.Personnel);
+                if (cityId is null && target.UnitId is int displaced && world.Units[displaced].ServicePlaceId is int home)
+                    cityId = Demobilization.City(world, home, rules.Personnel);
+                if (cityId is int city)
+                    Demobilization.Return(world, city, loss - accepted, "tactic-defection-demobilized",
+                        target.UnitId ?? target.SettlementId!.Value, events);
+                else loss = accepted;
                 world.Replace(source with { Soldiers = source.Soldiers + accepted });
                 if (target.UnitId is int defected) world.Replace(world.Units[defected] with { Soldiers = soldiers - loss });
                 else world.Replace(world.Settlements[target.SettlementId!.Value] with { Soldiers = soldiers - loss });
                 ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, sourceId), ResourceKind.Soldiers, "tactic-defection",
-                    target.UnitId ?? target.SettlementId, loss, accepted, events);
+                    target.UnitId ?? target.SettlementId, accepted, accepted, events);
                 ResourceAccounts.Report(world, new(target.UnitId is null ? ResourceOwnerKind.Settlement : ResourceOwnerKind.Unit,
                     target.UnitId ?? target.SettlementId!.Value), ResourceKind.Soldiers, "tactic-defection", sourceId, -(long)loss, -(long)loss, events);
                 break;

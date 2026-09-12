@@ -41,11 +41,8 @@ internal static class UnitTerminationService
             {
                 // Home and associated city can be the same object; read its latest state.
                 city = world.Settlements[city.Id];
-                uint accepted = (uint)Math.Min(population, 500000 - city.DraftPopulation);
-                world.Replace(city with { DraftPopulation = city.DraftPopulation + accepted });
-                ResourceAccounts.Report(world, new(ResourceOwnerKind.Settlement, city.Id), ResourceKind.DraftPopulation,
-                    "unit-defeated", unitId, population, accepted, events);
-                recovered += accepted;
+                Demobilization.Return(world, city.Id, population, "unit-defeated", unitId, events);
+                recovered += population;
             }
         }
         foreach (var resource in new[] { ResourceKind.Money, ResourceKind.Food })

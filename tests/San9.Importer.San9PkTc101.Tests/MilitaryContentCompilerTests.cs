@@ -26,6 +26,18 @@ public sealed class MilitaryContentCompilerTests
         tactics[12] = tactics[12] with { CompatibleArrayTypeMaskHigh = (1 << 5) | (1 << 10) };
         tactics[15] = tactics[15] with { CompatibleArrayTypeMaskLow = 1 << 8 };
         var definition = MilitaryContentCompiler.Compile(squares, terrains, formations, places, [], buildings, tactics);
+        Assert.Equal(40000, definition.RegionIds.Length);
+        Assert.All(definition.RegionIds, id => Assert.Equal(0, id));
+        var geographicSquares = squares.ToArray();
+        geographicSquares[1] = geographicSquares[1] with { ZoneCode = 50 };
+        geographicSquares[2] = geographicSquares[2] with { ZoneCode = ushort.MaxValue };
+        San9ScenarioZoneRecord[] geographicZones = [new(0, 0, 0, ushort.MaxValue, 0, 0, ushort.MaxValue, 3, 0, 0, 0, 0)];
+        var geography = MilitaryContentCompiler.Compile(geographicSquares, terrains, formations, places, geographicZones, buildings, tactics);
+        Assert.Equal(50, geography.RegionIds[1]);
+        Assert.Null(geography.RegionIds[2]);
+        var geographicRules = new MilitaryRulebook(geography);
+        Assert.Equal(50, geographicRules.RegionAt(MapCoordinates.Center(new(1, 0))));
+        Assert.Throws<ArgumentException>(() => new MilitaryRulebook(geography with { RegionIds = [0] }));
         Assert.Equal(12, definition.Formations.Single(f => f.Id == 21).RequiredTacticId);
         Assert.Equal(12, definition.Formations.Single(f => f.Id == 26).RequiredTacticId);
         Assert.Equal(15, definition.Formations.Single(f => f.Id == 8).RequiredTacticId);

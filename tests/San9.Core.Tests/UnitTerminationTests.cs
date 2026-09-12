@@ -63,10 +63,10 @@ public sealed class UnitTerminationTests
         world.Commit(mutation);
         var state = world.CreateSnapshot();
         Assert.Equal(50000u, state.Settlements[0].Wounded);
-        Assert.Equal(3, Assert.Single(events.OfType<UnitTerminatedEvent>()).UnrecoveredSoldiers);
+        Assert.Equal(winner ? 3 : 2, Assert.Single(events.OfType<UnitTerminatedEvent>()).UnrecoveredSoldiers);
         Assert.DoesNotContain(state.Units, u => u.Id == 0);
         if (winner) Assert.Equal(50000u, Assert.Single(state.Units).Wounded);
-        else Assert.Equal(500000u, state.Settlements[0].DraftPopulation);
+        else Assert.Equal(500001u, state.Settlements[0].DraftPopulation);
     }
 
     [Fact]

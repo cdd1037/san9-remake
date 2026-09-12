@@ -32,7 +32,9 @@ public sealed class ShoreMilitarySessionTests
         var facility = session.View.Settlements.Single(s => s.Id == 2);
         Assert.True(facility.IsDestroyed);
         Assert.False(facility.IsFacilityListEntry);
-        Assert.Equal(10100u, session.View.Settlements.Single(s => s.Id == 1).Soldiers);
+        Assert.Equal(10000u, session.View.Settlements.Single(s => s.Id == 1).Soldiers);
+        Assert.Equal(original.Settlements.Single(s => s.Id == 1).DraftPopulation + 100u,
+            session.Snapshot.Settlements.Single(s => s.Id == 1).DraftPopulation);
         var restored = GameSession.Restore(definition, session.Capture());
         Assert.Equal(session.Snapshot.StateHash, restored.Snapshot.StateHash);
         Assert.False(restored.View.Settlements.Single(s => s.Id == 2).IsFacilityListEntry);

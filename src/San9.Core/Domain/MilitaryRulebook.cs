@@ -58,6 +58,7 @@ public sealed record MilitaryDefinition(int Width, int Height, ImmutableArray<in
     [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<FacilityRule> Facilities { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<ConstructionSite> ConstructionSites { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<int?> TrapTacticIds { get; init; } = [];
+    [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<int?> RegionIds { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<TacticRule> Tactics { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<MapCell> BlockedCells { get; init; } = [];
 }
@@ -71,6 +72,9 @@ public sealed class MilitaryRulebook
             throw new ArgumentException("Missing military definitions.");
         if (definition.BlockedCells.IsDefault) throw new ArgumentException("Missing battlefield blocking cells.");
         Map = new(definition.Width, definition.Height, definition.TerrainIds, definition.Terrains, definition.BlockedCells);
+        RegionIds = definition.RegionIds;
+        if (RegionIds.IsDefault || !RegionIds.IsEmpty && RegionIds.Length != definition.TerrainIds.Length || RegionIds.Any(id => id < 0))
+            throw new ArgumentException("Invalid battlefield region geography.");
         Formations = definition.Formations.ToImmutableDictionary(f => f.Id);
         if (definition.Tactics.IsDefault) throw new ArgumentException("Missing tactic definitions.");
         Tactics = definition.Tactics.ToImmutableDictionary(t => t.Id);
@@ -126,6 +130,14 @@ public sealed class MilitaryRulebook
     }
 
     public BattlefieldMap Map { get; }
+    public ImmutableArray<int?> RegionIds { get; }
+
+    public int? RegionAt(WorldPosition position)
+    {
+        var cell = MapCoordinates.Cell(position);
+        if (cell.X >= Map.Width || cell.Y >= Map.Height) throw new ArgumentOutOfRangeException(nameof(position));
+        return RegionIds.IsEmpty ? null : RegionIds[cell.Y * Map.Width + cell.X];
+    }
     public ImmutableArray<int?> TrapTacticIds { get; }
 
     public TacticRule? TrapAt(WorldPosition position)

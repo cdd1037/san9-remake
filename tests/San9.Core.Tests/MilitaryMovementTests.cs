@@ -30,7 +30,7 @@ public sealed class MilitaryMovementTests
     [Theory]
     [InlineData(100u, 400u, 500u, 0L)]
     [InlineData(49900u, 400u, 50000u, 300L)]
-    public void WoundedReturnSurvivesRestoreAndReportsCapacityLoss(uint initial, uint cargo, uint expected, long loss)
+    public void WoundedReturnSurvivesRestoreAndDemobilizesOverflow(uint initial, uint cargo, uint expected, long loss)
     {
         var world = World();
         var engine = Engine(world, Rules(10));
@@ -47,7 +47,8 @@ public sealed class MilitaryMovementTests
         Assert.Equal(CanonicalJson.Text(first.Events), CanonicalJson.Text(Advance(restored).Events));
         Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
         Assert.Equal(expected, engine.Snapshot.Settlements.Single(s => s.Id == 2).Wounded);
-        Assert.Equal(loss, first.Events.OfType<ResourceChangedEvent>().Where(e => e.Resource == ResourceKind.Wounded).Sum(e => e.SaturationLoss));
+        Assert.Equal((uint)loss, engine.Snapshot.Settlements.Single(s => s.Id == 2).DraftPopulation);
+        Assert.Equal(0, first.Events.OfType<ResourceChangedEvent>().Where(e => e.Resource == ResourceKind.Wounded).Sum(e => e.SaturationLoss));
         Assert.Empty(Advance(engine).Events.OfType<UnitAbsorbedEvent>());
     }
 
@@ -72,7 +73,7 @@ public sealed class MilitaryMovementTests
         Assert.Equal(CommandRejection.None, GovernanceMaintenance.RepairCorps(mutation, 11, new GovernanceRulebook([]), events));
         Assert.Equal(11, mutation.Corps[11].LeaderId);
         Assert.Empty(events);
-        MilitaryMovement.AdvanceDay(mutation, Rules(10), new GovernanceRulebook([]), events);
+        MilitaryMovement.AdvanceDay(mutation, Rules(10), new GovernanceRulebook([]), PersonnelRulebook.Empty, events);
         world.Commit(mutation);
         var state = world.CreateSnapshot();
         if (overflow)

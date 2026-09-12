@@ -46,7 +46,7 @@ public sealed class BattleCaptureTests
         {
             var candidate = state.BeginMutation();
             var result = new List<DomainEvent>();
-            MilitaryMovement.AdvanceDay(candidate, Rules(), new([]), result);
+            MilitaryMovement.AdvanceDay(candidate, Rules(), new([]), PersonnelRulebook.Empty, result);
             state.Commit(candidate);
             return result;
         }

@@ -27,19 +27,13 @@ internal static class FacilityDemolition
             facility = world.Settlements[facility.Id];
         }
 
-        uint soldiers = Math.Min(facility.Soldiers, city.SoldierCapacity - city.Soldiers);
-        uint wounded = Math.Min(facility.Wounded, MilitaryRulebook.WoundedCapacity - city.Wounded);
-        int morale = city.Soldiers + (ulong)soldiers == 0 ? city.Morale :
-            (int)(((ulong)city.Soldiers * (uint)city.Morale + (ulong)soldiers * (uint)facility.Morale) / (city.Soldiers + (ulong)soldiers));
-        world.Replace(city with { Soldiers = city.Soldiers + soldiers, Wounded = city.Wounded + wounded, Morale = morale });
+        Demobilization.Return(world, cityId, (long)facility.Soldiers + facility.Wounded, "facility-demolished", facility.Id, events);
         world.Replace(facility with { IsDestroyed = true, OwnerId = null, CorpsId = null, Soldiers = 0, Wounded = 0,
             Durability = 0, Morale = 0, ConfusionDaysRemaining = 0 });
-        foreach (var entry in new[] { (ResourceKind.Soldiers, facility.Soldiers, soldiers), (ResourceKind.Wounded, facility.Wounded, wounded) })
+        foreach (var entry in new[] { (ResourceKind.Soldiers, facility.Soldiers), (ResourceKind.Wounded, facility.Wounded) })
         {
             ResourceAccounts.Report(world, new(ResourceOwnerKind.Settlement, facility.Id), entry.Item1,
                 "facility-demolished", cityId, -(long)entry.Item2, -(long)entry.Item2, events);
-            ResourceAccounts.Report(world, new(ResourceOwnerKind.Settlement, cityId), entry.Item1,
-                "facility-demolished", facility.Id, entry.Item2, entry.Item3, events);
         }
 
         var traveling = world.Simulation.Tasks.Where(t => t.Journey is not null).Select(t => t.OfficerId).ToHashSet();

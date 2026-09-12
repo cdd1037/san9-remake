@@ -173,7 +173,8 @@ public sealed class PersonnelMissionTests
     [Fact]
     public void SearchDiscoversOnlyAtDestinationAndCanBeFollowedByRecruitment()
     {
-        var engine = Engine(World());
+        var observer = new DiscoveryObserver { Personnel = Places };
+        var engine = new SimulationEngine(World(), observer);
         bool found = false;
         for (int attempt = 0; attempt < 10 && !found; attempt++)
         {
@@ -190,6 +191,8 @@ public sealed class PersonnelMissionTests
         Assert.Null(target.SettlementId);
         Assert.Equal(30, target.RegionId);
         Assert.Equal(49, target.LoyaltyTo(1));
+        Assert.Equal(190, target.StatusStartYear);
+        Assert.True(observer.DiscoveredWithActionConsumed);
         for (int attempt = 0; attempt < 10 && engine.Snapshot.Officers.Single(p => p.Id == 21).OwnerId is null; attempt++)
         {
             Assert.True(Recruit(engine, target: 21).Submission.Accepted);
@@ -200,6 +203,39 @@ public sealed class PersonnelMissionTests
         Assert.Equal(1, target.OwnerId);
         Assert.Null(target.RegionId);
         Assert.Equal(1, target.SettlementId);
+    }
+
+    private sealed class DiscoveryObserver : SimulationRules
+    {
+        internal bool DiscoveredWithActionConsumed { get; private set; }
+        internal override void ApplyStage(ResolutionStage stage, WorldMutation world, List<DomainEvent> events)
+        {
+            if (stage == ResolutionStage.DailyCommands && world.Officers[21].Status == OfficerStatus.Free)
+                DiscoveredWithActionConsumed |= world.Officers[21].Acted;
+        }
+    }
+
+    [Fact]
+    public void AppointmentAndRewardPreserveAnOngoingJourneyThroughRestoreAndArrival()
+    {
+        var world = World();
+        var mutation = world.BeginMutation();
+        mutation.Replace(mutation.Officers[11].WithLoyalty(1, 80) with { BaseAbilities = new(50, 80, 100, 50) });
+        world.Commit(mutation);
+        var engine = Engine(world);
+        Assert.True(engine.Execute(new("player"), new MoveOfficersCommand(Guid.NewGuid(), 1, 0, [11], 3)).Submission.Accepted);
+        var journey = Assert.Single(engine.Snapshot.Simulation.Tasks);
+        Assert.True(engine.Execute(new("player"), new AppointAdviserCommand(Guid.NewGuid(), 1, 1, 11)).Submission.Accepted);
+        Assert.True(engine.Execute(new("player"), new RewardOfficerCommand(Guid.NewGuid(), 1, 2, 11)).Submission.Accepted);
+        Assert.Equal(journey, Assert.Single(engine.Snapshot.Simulation.Tasks));
+        var restored = Engine(WorldState.Restore(engine.CaptureStableState()));
+        Assert.Equal(CanonicalJson.Text(Advance(engine)), CanonicalJson.Text(Advance(restored)));
+        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        var person = restored.Snapshot.Officers.Single(p => p.Id == 11);
+        Assert.Equal(OfficerStatus.Strategist, person.Status);
+        Assert.Equal(3, person.SettlementId);
+        Assert.Equal(90, person.Loyalty);
+        Assert.Empty(restored.Snapshot.Simulation.Tasks);
     }
 
     [Fact]

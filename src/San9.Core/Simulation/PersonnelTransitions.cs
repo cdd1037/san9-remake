@@ -13,8 +13,8 @@ internal static class PersonnelTransitions
         world.Replace(person with
         {
             OwnerId = null, Status = OfficerStatus.Free, SettlementId = world.Settlements.ContainsKey(placeId) ? placeId : null,
-            RegionId = world.Settlements.ContainsKey(placeId) ? null : placeId, ServiceStartYear = world.Clock.Year,
-            OfficeId = null, OfficeBonuses = default, IsCommander = false
+            RegionId = world.Settlements.ContainsKey(placeId) ? null : placeId, StatusStartYear = world.Clock.Year,
+            OfficeId = null, OfficeBonuses = default, IsCommander = false, Acted = true
         });
         events.Add(new PersonAffiliationChangedEvent(world.Clock, personId, person.OwnerId, null, placeId));
     }
@@ -33,7 +33,7 @@ internal static class PersonnelTransitions
         world.Replace(world.Officers[personId] with
         {
             OwnerId = forceId, SettlementId = destinationId, RegionId = null, Status = OfficerStatus.Serving,
-            ServiceStartYear = world.Clock.Year, OfficeId = null, OfficeBonuses = default, IsCommander = false, Acted = true
+            StatusStartYear = world.Clock.Year, OfficeId = null, OfficeBonuses = default, IsCommander = false, Acted = true
         });
         events.Add(new PersonAffiliationChangedEvent(world.Clock, personId, person.OwnerId, forceId, destinationId));
     }

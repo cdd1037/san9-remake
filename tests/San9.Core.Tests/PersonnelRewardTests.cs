@@ -17,13 +17,14 @@ public sealed class PersonnelRewardTests
              {
                  Righteousness = righteousness,
                  ForceLoyalties = ImmutableDictionary<int, int>.Empty.Add(1, loyalty).Add(9000, 254)
-             }], corps: [new(3, 1, 0, new(money + 1, 1000))], controls: [new("controller", 1, control)]);
+             }], corps: [new(3, 1, 0, new(1001, 1000))], controls: [new("controller", 1, control)]);
         var engine = new SimulationEngine(world);
         // Initial preparation recovers actions. Set the stable boundary used by the scenario explicitly.
         var state = engine.Snapshot;
         return new SimulationEngine(WorldState.Restore(state with
         {
-            Officers = state.Officers.Select(p => p.Id == 1 ? p with { Acted = acted } : p).ToArray()
+            Officers = state.Officers.Select(p => p.Id == 1 ? p with { Acted = acted } : p).ToArray(),
+            Forces = state.Forces.Select(f => f.Id == 1 ? f with { Money = money } : f).ToArray()
         }));
     }
 
@@ -36,7 +37,7 @@ public sealed class PersonnelRewardTests
     [InlineData(14, 80, 3)]
     [InlineData(15, 80, 2)]
     [InlineData(0, 99, 1)]
-    public void RewardUsesCorpsAccountAndOnlyChangesIssuerLoyalty(int righteousness, int loyalty, int gain)
+    public void RewardUsesForceAccountAndOnlyChangesIssuerLoyalty(int righteousness, int loyalty, int gain)
     {
         var engine = Engine(loyalty, righteousness, acted: true);
         var random = CanonicalJson.Text(engine.Snapshot.Simulation.RandomStreams);
@@ -47,9 +48,11 @@ public sealed class PersonnelRewardTests
         Assert.Equal(254, person.LoyaltyTo(9000));
         Assert.True(person.Acted);
         Assert.True(person.RewardedThisXun);
-        Assert.Equal(900u, engine.Snapshot.Corps.Single().Treasury!.Money);
-        Assert.Equal(2000u, engine.Snapshot.Forces.Single(f => f.Id == 1).Money);
-        Assert.Equal(-100, Assert.Single(result.Events.OfType<ResourceChangedEvent>()).Actual);
+        Assert.Equal(1000u, engine.Snapshot.Corps.Single().Treasury!.Money);
+        Assert.Equal(900u, engine.Snapshot.Forces.Single(f => f.Id == 1).Money);
+        var debit = Assert.Single(result.Events.OfType<ResourceChangedEvent>());
+        Assert.Equal(-100, debit.Actual);
+        Assert.Equal(new ResourceAccount(ResourceOwnerKind.Force, 1), debit.Account);
         Assert.Equal(gain, Assert.Single(result.Events.OfType<OfficerRewardedEvent>()).Gain);
         Assert.Equal(random, CanonicalJson.Text(engine.Snapshot.Simulation.RandomStreams));
     }
@@ -112,6 +115,19 @@ public sealed class PersonnelRewardTests
     }
 
     [Fact]
+    public void EmptyCorpsTreasuryDoesNotBlockRewardFromForceFunds()
+    {
+        var state = Engine(money: 100).Snapshot;
+        var engine = new SimulationEngine(WorldState.Restore(state with
+        {
+            Corps = state.Corps.Select(c => c with { Treasury = c.Treasury! with { Money = 0 } }).ToArray()
+        }));
+        Assert.True(Reward(engine).Submission.Accepted);
+        Assert.Equal(0u, engine.Snapshot.Forces.Single(f => f.Id == 1).Money);
+        Assert.Equal(0u, engine.Snapshot.Corps.Single().Treasury!.Money);
+    }
+
+    [Fact]
     public void ValidationDoesNotSpendMoneyOrReserveReward()
     {
         var engine = Engine(money: 100);
@@ -120,6 +136,6 @@ public sealed class PersonnelRewardTests
         Assert.True(engine.Validate(new("controller"), command).Accepted);
         Assert.Equal(before, engine.Snapshot.StateHash);
         Assert.True(engine.Execute(new("controller"), command).Submission.Accepted);
-        Assert.Equal(0u, engine.Snapshot.Corps.Single().Treasury!.Money);
+        Assert.Equal(0u, engine.Snapshot.Forces.Single(f => f.Id == 1).Money);
     }
 }

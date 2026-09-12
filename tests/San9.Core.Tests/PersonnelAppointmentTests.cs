@@ -49,6 +49,23 @@ public sealed class PersonnelAppointmentTests
     }
 
     [Fact]
+    public void ServingCorpsLeaderCanBecomeAdviserWithoutLosingCorpsOrActionState()
+    {
+        var state = Engine(80).Snapshot;
+        var engine = new SimulationEngine(WorldState.Restore(state with
+        {
+            Corps = [new(3, 1, 12, null)],
+            Settlements = state.Settlements.Select(s => s with { CorpsId = 3 }).ToArray(),
+            Officers = state.Officers.Select(p => p.Id == 12 ? p with { Acted = true } : p).ToArray()
+        }));
+        Assert.True(engine.Execute(new("player"), new AppointAdviserCommand(Guid.NewGuid(), 1, 0, 12)).Submission.Accepted);
+        Assert.Equal(12, engine.Snapshot.Forces.Single().AdviserId);
+        Assert.Equal(12, engine.Snapshot.Corps.Single().LeaderId);
+        Assert.True(engine.Snapshot.Officers.Single(p => p.Id == 12).Acted);
+        Assert.Equal(engine.Snapshot.StateHash, WorldState.Restore(engine.CaptureStableState()).CreateSnapshot().StateHash);
+    }
+
+    [Fact]
     public void EqualIntelligenceConsumesExactlyOneRollAndSaturatesOldLoyalty()
     {
         HashSet<int> rolls = [];

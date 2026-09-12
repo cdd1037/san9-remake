@@ -4,7 +4,7 @@ namespace San9.Headless;
 
 internal static class ScenarioFixture
 {
-    internal static ScenarioInitialState Create() => new(15, "headless-public", 190, 1, 1, 1,
+    internal static ScenarioInitialState Create() => new(16, "headless-public", 190, 1, 1, 1,
         [new(1, "force.1", 1, 10000, 20000, 50) { LeaderId = 1 }, new(2, "force.2", 2, 10000, 20000, 50) { LeaderId = 4 }],
         [new(1, "city.1", 1, 1, 1, 100, 50, 100, 50, []) { CorpsId = 1, Population = 60000, DraftPopulation = 10000, PublicOrder = 500, Commerce = 300, MaxCommerce = 500, Cultivation = 200, MaxCultivation = 500 },
          new(2, "city.2", 2, 2, 2, 100, 50, 100, 50, []) { CorpsId = 2, Population = 60000, DraftPopulation = 10000, PublicOrder = 500, Commerce = 300, MaxCommerce = 500, Cultivation = 200, MaxCultivation = 500 }], [], [])

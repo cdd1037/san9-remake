@@ -18,7 +18,7 @@ internal static class PersonnelRewards
             return CommandRejection.PersonUnavailable;
         if (person.RewardedThisXun) return CommandRejection.AlreadyRewarded;
         if (person.Loyalty >= 100) return CommandRejection.LoyaltyAtMaximum;
-        var account = ResourceAccounts.Resolve(world, command.IssuerId, world.Settlements[location].CorpsId);
+        var account = new ResourceAccount(ResourceOwnerKind.Force, command.IssuerId);
         if (ResourceAccounts.Balance(world, account, ResourceKind.Money) < 100)
             return CommandRejection.InsufficientFunds;
 

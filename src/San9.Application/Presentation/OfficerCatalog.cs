@@ -62,7 +62,7 @@ public static class OfficerCatalog
                         "office" => office is null ? "无" : texts.Resolve(office.NameKey),
                         "capacity" => office is null ? CatalogCell.Unavailable : (long)office.CommandCapacity,
                         "salary" => office is null ? CatalogCell.Unavailable : office.Salary,
-                        "service" => o.IsServing && person.ServiceStartYear is int year ? view.Year - year + 1 : CatalogCell.Unavailable,
+                        "service" => o.IsServing && person.StatusStartYear is int year ? view.Year - year + 1 : CatalogCell.Unavailable,
                         "parent" => person.ParentId is null ? "" : Person(person.ParentId),
                         "age" => person.BirthYear > 0 ? view.Year - person.BirthYear + 1 : CatalogCell.Unavailable,
                         "gender" => person.IsFemale ? "女" : "男",

@@ -39,7 +39,7 @@ public static class OfficerContentCompiler
                 MasteredCategories = Enumerable.Range(0, 9).Where(person.HasTacticCategoryMastery).ToImmutableArray(),
                 LearnedTactics = Enumerable.Range(0, San9ScenarioPersonArchive.TacticCount).Where(person.HasLearnedTactic).ToImmutableArray(),
                 TacticProficiencies = person.TacticProficiencies.Select(v => (int)v).ToImmutableArray(),
-                ServiceStartYear = person.EncodedStatusStartYear == 0 ? null : person.StatusStartYear,
+                StatusStartYear = person.EncodedStatusStartYear == 0 ? null : person.StatusStartYear,
                 ParentId = person.ParentPersonId, IsFemale = person.GenderFlag != 0, Personality = person.Personality,
                 IsCommander = person.IsOwnerLeader,
                 RegionId = settlement is null ? person.LocationId : null, Injury = person.Health, Status = (OfficerStatus)person.StatusCode, BirthYear = person.BirthYear, OfficeId = person.OfficeRankId,

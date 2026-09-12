@@ -17,7 +17,7 @@ public sealed record OfficerState(int Id, int? OwnerId, int? SettlementId, Offic
     [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<int> MasteredCategories { get; init; } = [];
     public ImmutableArray<int> LearnedTactics { get; init; } = [];
     public ImmutableArray<int> TacticProficiencies { get; init; } = [0, 0, 0, 0, 0, 0, 0, 0, 0];
-    public int? ServiceStartYear { get; init; }
+    public int? StatusStartYear { get; init; }
     public int? ParentId { get; init; }
     public bool IsFemale { get; init; }
     public int Personality { get; init; }

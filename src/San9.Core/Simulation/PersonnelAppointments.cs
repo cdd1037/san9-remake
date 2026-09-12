@@ -12,7 +12,7 @@ internal static class PersonnelAppointments
     {
         if (!world.Officers.TryGetValue(command.OfficerId, out var candidate)) return CommandRejection.UnknownPerson;
         if (candidate.OwnerId != command.IssuerId || candidate.Status != OfficerStatus.Serving || candidate.Abilities.Intelligence < 70 ||
-            world.Forces[command.IssuerId].LeaderId == candidate.Id || world.Corps.Values.Any(c => c.LeaderId == candidate.Id))
+            world.Forces[command.IssuerId].LeaderId == candidate.Id)
             return CommandRejection.PersonUnavailable;
         var force = world.Forces[command.IssuerId];
         if (force.AdviserId is int oldId)

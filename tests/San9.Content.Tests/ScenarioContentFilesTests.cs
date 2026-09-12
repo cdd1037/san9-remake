@@ -12,7 +12,7 @@ public sealed class ScenarioContentFilesTests : IDisposable
     private static ScenarioContent Fixture() => new(24, [new("fixture", "hash")], new("../textures"),
         new("source", "first", "spring", 200, 200, 13056, 6656,
             [], [], [], [], [], [], [], [], [], [], []),
-        new(15, "first", 190, 1, 1, 0, [], [], [], []),
+        new(16, "first", 190, 1, 1, 0, [], [], [], []),
         new(3, new() { ["name"] = new("简体", "繁體") })
         {
             Messages = new() { ["message"] = new([new MessageValue(new("number", Number: 0))], false, []) }

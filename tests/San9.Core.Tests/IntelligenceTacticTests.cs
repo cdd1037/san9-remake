@@ -26,7 +26,8 @@ public sealed class IntelligenceTacticTests
             Tactics = [new(9000, 7, effect, power, 15, 0, true, true, [100]) { EffectRadius = support || area ? 3 : 0 },
             new(9100, 6, effect == TacticEffect.TrapSelection ? TacticEffect.CounterTrap : TacticEffect.CounterConfusion, 0, 0, 0, true, false, []),
             new(9200, 7, TacticEffect.Trap, 10, 9, 0, false, true, [100])],
-            TrapTacticIds = effect == TacticEffect.TrapSelection ? [trap, trap, trap, trap, trap, trap] : [] });
+            Elevations = [0, 0, 0, 0, 0, 0],
+            TrapTerrains = [new(0, trap, false)] });
         List<OfficerState> officers = [new(11, 1, null, new(70, 200, 70, 70), false) { UnitId = 0, LearnedTactics = [9000],
                 TacticProficiencies = [0, 0, 0, 0, 0, 0, 0, 500, 0] },
             new(21, targetOwner, settlement ? 2 : null, new(70, 0, 70, 70), false) { UnitId = settlement ? null : 1,

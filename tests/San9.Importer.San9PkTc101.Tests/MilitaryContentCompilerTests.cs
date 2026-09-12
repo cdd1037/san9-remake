@@ -63,15 +63,15 @@ public sealed class MilitaryContentCompilerTests
         }
         var rules = new MilitaryRulebook(definition);
         int?[] expectedTraps = [36, null, 35, 35, 35, 35, null, 35, 35, null, 37, null, null, null, null, 37, 37];
-        for (int i = 0; i < 17; i++) Assert.Equal(expectedTraps[i], definition.TrapTacticIds[2000 + i * 10]);
-        Assert.Equal(38, definition.TrapTacticIds[4003]);
-        Assert.Equal(35, definition.TrapTacticIds[4004]);
-        Assert.Equal(38, definition.TrapTacticIds[4203]);
-        Assert.Equal(35, definition.TrapTacticIds[4603]);
-        Assert.Equal(35, definition.TrapTacticIds[4002]);
+        for (int i = 0; i < 17; i++) Assert.Equal(expectedTraps[i], rules.TrapAt(MapCoordinates.Center(new((2000 + i * 10) % 200, (2000 + i * 10) / 200)))?.Id);
+        Assert.Equal(38, rules.TrapAt(MapCoordinates.Center(new(3, 20)))?.Id);
+        Assert.Equal(35, rules.TrapAt(MapCoordinates.Center(new(4, 20)))?.Id);
+        Assert.Equal(38, rules.TrapAt(MapCoordinates.Center(new(3, 21)))?.Id);
+        Assert.Equal(35, rules.TrapAt(MapCoordinates.Center(new(3, 23)))?.Id);
+        Assert.Equal(35, rules.TrapAt(MapCoordinates.Center(new(2, 20)))?.Id);
         Assert.Equal(38, rules.TrapAt(MapCoordinates.Center(new(3, 20)))!.Id);
-        Assert.Throws<ArgumentException>(() => new MilitaryRulebook(definition with { TrapTacticIds = [] }));
-        Assert.Throws<ArgumentException>(() => new MilitaryRulebook(definition with { TrapTacticIds = definition.TrapTacticIds.SetItem(0, 24) }));
+        Assert.Throws<ArgumentException>(() => new MilitaryRulebook(definition with { Elevations = [] }));
+        Assert.Throws<ArgumentException>(() => new MilitaryRulebook(definition with { TrapTerrains = definition.TrapTerrains.SetItem(0, new(0, 24, false)) }));
         Assert.Null(rules.Map.PassageCost(MapCoordinates.Center(new(3, 0)), new(1, 1), TravelMode.Land, []));
         Assert.Equal(10, rules.Map.PassageCost(MapCoordinates.Center(new(4, 0)), new(1, 1), TravelMode.Water, []));
         Assert.Null(rules.Map.PassageCost(MapCoordinates.Center(new(4, 0)), new(1, 1), TravelMode.Land, []));

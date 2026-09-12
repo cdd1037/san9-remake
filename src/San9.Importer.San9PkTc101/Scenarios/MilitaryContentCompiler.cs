@@ -69,7 +69,9 @@ public static class MilitaryContentCompiler
             ConstructionSites = ConstructionContentCompiler.Sites(squares, buildings,
                 settlements.Select(s => s.Id).Concat(zones.Where(z => z.XCoordinate is not null && z.YCoordinate is not null).Select(z => z.Id + 50)).ToHashSet()),
             Tactics = CompileTactics(tactics),
-            TrapTacticIds = CompileTraps(squares),
+            Elevations = squares.Select(s => s.OffsetValue ?? -1).ToImmutableArray(),
+            TrapTerrains = terrains.Select(t => TrapTerrain(t.Id)).ToImmutableArray(),
+            HigherGroundTrap = new(38, 3),
             BlockedCells = squares.Where(s => s.IsPathBlocked).Select(s => new MapCell(s.GridX, s.GridY)).ToImmutableArray()
         };
         _ = new MilitaryRulebook(definition);
@@ -98,31 +100,14 @@ public static class MilitaryContentCompiler
             { EffectRadius = t.Id is 26 or 28 or 29 or 30 ? 3 : 0 }).ToImmutableArray();
     }
 
-    private static ImmutableArray<int?> CompileTraps(IReadOnlyList<San9ScenarioSquareRecord> squares)
+    private static TrapTerrainRule TrapTerrain(int id) => new(id, id switch
     {
-        const int width = San9ScenarioSquareArchive.MapWidth, height = San9ScenarioSquareArchive.MapHeight;
-        return squares.Select(square =>
-        {
-            // SanCalc truncates sqrt to an integer: distance <= 3 includes squared distances below 16.
-            for (int dy = -3; dy <= 3; dy++)
-            for (int dx = -3; dx <= 3; dx++)
-            {
-                int x = square.GridX + dx, y = square.GridY + dy;
-                if (dx * dx + dy * dy >= 16 || x < 0 || y < 0 || x >= width || y >= height) continue;
-                var nearby = squares[y * width + x];
-                if (nearby.TerrainCode is 1 or 13 or 14 && (nearby.OffsetValue ?? -1) > (square.OffsetValue ?? -1))
-                    return (int?)38;
-            }
-            return square.TerrainCode switch
-            {
-                0 => 36,
-                2 or 3 or 4 or 5 or 7 or 8 => 35,
-                10 or 15 or 16 => 37,
-                1 or 6 or 9 or 11 or 12 or 13 or 14 => (int?)null,
-                _ => throw new InvalidDataException("Unknown TC101 trap terrain mapping.")
-            };
-        }).ToImmutableArray();
-    }
+        0 => 36,
+        2 or 3 or 4 or 5 or 7 or 8 => 35,
+        10 or 15 or 16 => 37,
+        1 or 6 or 9 or 11 or 12 or 13 or 14 => (int?)null,
+        _ => throw new InvalidDataException("Unknown TC101 trap terrain mapping.")
+    }, id is 1 or 13 or 14);
 
     private static TravelMode Mode(int sourceId) => sourceId switch
     {

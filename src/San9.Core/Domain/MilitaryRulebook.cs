@@ -51,13 +51,18 @@ public sealed record BattlefieldPlace(int Id, WorldPosition Position, Footprint 
             yield return new((int)area.Left - (footprint.Width + 1) / 2, y);
     }
 }
+public sealed record TrapTerrainRule(int TerrainId, int? BaseTacticId, bool ProvidesHigherGround);
+public sealed record HigherGroundTrapRule(int TacticId, int RadiusCells);
+
 public sealed record MilitaryDefinition(int Width, int Height, ImmutableArray<int> TerrainIds,
     ImmutableArray<TerrainPassage> Terrains, ImmutableArray<FormationRule> Formations,
     ImmutableArray<BattlefieldPlace> Places)
 {
     [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<FacilityRule> Facilities { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<ConstructionSite> ConstructionSites { get; init; } = [];
-    [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<int?> TrapTacticIds { get; init; } = [];
+    [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<int> Elevations { get; init; } = [];
+    [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<TrapTerrainRule> TrapTerrains { get; init; } = [];
+    [System.Text.Json.Serialization.JsonRequired] public HigherGroundTrapRule? HigherGroundTrap { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<int?> RegionIds { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<TacticRule> Tactics { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<MapCell> BlockedCells { get; init; } = [];
@@ -92,12 +97,22 @@ public sealed class MilitaryRulebook
                         (area.Left < 0 || area.Top < 0 || area.Right > Map.FineWidth || area.Bottom > Map.FineHeight)))
                 throw new ArgumentException("Invalid construction site.");
         }
-        if (definition.TrapTacticIds.IsDefault ||
-            definition.TrapTacticIds.Length != 0 && definition.TrapTacticIds.Length != definition.TerrainIds.Length ||
-            Tactics.Values.Any(t => t.Effect == TacticEffect.TrapSelection) && definition.TrapTacticIds.Length != definition.TerrainIds.Length ||
-            definition.TrapTacticIds.Any(id => id is int value && (!Tactics.TryGetValue(value, out var trap) || trap.Effect != TacticEffect.Trap)))
-            throw new ArgumentException("Invalid battlefield trap mapping.");
-        TrapTacticIds = definition.TrapTacticIds;
+        if (definition.Elevations.IsDefault || definition.TrapTerrains.IsDefault)
+            throw new ArgumentException("Missing trap geography.");
+        bool hasSelection = Tactics.Values.Any(t => t.Effect == TacticEffect.TrapSelection);
+        bool hasGeography = !definition.TrapTerrains.IsEmpty || definition.HigherGroundTrap is not null;
+        bool ValidTrap(int? id) => id is null || Tactics.TryGetValue(id.Value, out var tactic) && tactic.Effect == TacticEffect.Trap;
+        if ((!definition.Elevations.IsEmpty || hasSelection || hasGeography) &&
+                definition.Elevations.Length != definition.TerrainIds.Length ||
+            (hasSelection || hasGeography) &&
+                (!definition.TrapTerrains.Select(t => t.TerrainId).Order().SequenceEqual(definition.Terrains.Select(t => t.Id).Order()) ||
+                 definition.TrapTerrains.Any(t => !ValidTrap(t.BaseTacticId))) ||
+            definition.HigherGroundTrap is { } higher && (higher.RadiusCells < 0 || !ValidTrap(higher.TacticId)))
+            throw new ArgumentException("Invalid trap geography or tactic reference.");
+        terrainIds = definition.TerrainIds;
+        elevations = definition.Elevations;
+        trapTerrains = definition.TrapTerrains.ToImmutableDictionary(t => t.TerrainId);
+        higherGroundTrap = definition.HigherGroundTrap;
         foreach (var formation in Formations.Values)
             if (formation.Tactics is { } tactics && (tactics.OpportunityChance is < 0 or > 100 || tactics.CounterChance is < 0 or > 100 ||
                 tactics.ConfusionResistanceChance is < 0 or > 100 || tactics.LinkMultiplier <= 0 || tactics.FavoredCategories.IsDefault || tactics.AutomaticTactics.IsDefault ||
@@ -138,13 +153,36 @@ public sealed class MilitaryRulebook
         if (cell.X >= Map.Width || cell.Y >= Map.Height) throw new ArgumentOutOfRangeException(nameof(position));
         return RegionIds.IsEmpty ? null : RegionIds[cell.Y * Map.Width + cell.X];
     }
-    public ImmutableArray<int?> TrapTacticIds { get; }
+    private readonly ImmutableArray<int> terrainIds;
+    private readonly ImmutableArray<int> elevations;
+    private readonly ImmutableDictionary<int, TrapTerrainRule> trapTerrains;
+    private readonly HigherGroundTrapRule? higherGroundTrap;
 
     public TacticRule? TrapAt(WorldPosition position)
     {
         var cell = MapCoordinates.Cell(position);
         if (cell.X >= Map.Width || cell.Y >= Map.Height) throw new ArgumentOutOfRangeException(nameof(position));
-        return !TrapTacticIds.IsEmpty && TrapTacticIds[cell.Y * Map.Width + cell.X] is int id ? Tactics[id] : null;
+        if (trapTerrains.IsEmpty) return null;
+        int index = cell.Y * Map.Width + cell.X;
+        if (higherGroundTrap is { } higher)
+        {
+            // floor(sqrt(distanceSquared)) <= radius, without computing a square root.
+            long limit = ((long)higher.RadiusCells + 1) * ((long)higher.RadiusCells + 1);
+            int minX = (int)Math.Max(0L, (long)cell.X - higher.RadiusCells);
+            int maxX = (int)Math.Min(Map.Width - 1L, (long)cell.X + higher.RadiusCells);
+            int minY = (int)Math.Max(0L, (long)cell.Y - higher.RadiusCells);
+            int maxY = (int)Math.Min(Map.Height - 1L, (long)cell.Y + higher.RadiusCells);
+            for (int y = minY; y <= maxY; y++)
+            for (int x = minX; x <= maxX; x++)
+            {
+                long dx = x - cell.X, dy = y - cell.Y;
+                int neighbor = y * Map.Width + x;
+                if (dx * dx + dy * dy < limit && elevations[neighbor] > elevations[index] &&
+                    trapTerrains[terrainIds[neighbor]].ProvidesHigherGround)
+                    return Tactics[higher.TacticId];
+            }
+        }
+        return trapTerrains[terrainIds[index]].BaseTacticId is int id ? Tactics[id] : null;
     }
     public ImmutableDictionary<int, FormationRule> Formations { get; }
     public ImmutableDictionary<int, TacticRule> Tactics { get; }

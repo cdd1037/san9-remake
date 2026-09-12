@@ -38,7 +38,7 @@ internal static class PersonnelOffices
             RecruitmentRules.SetLoyalty(world, person.Id, command.IssuerId,
                 Math.Clamp(person.Loyalty + (office?.Salary ?? 0) / 2 - oldSalary / 2, 0, 255), "office-assigned", events);
             events.Add(new OfficeAssignedEvent(world.Clock, command.IssuerId, person.Id, person.OfficeId, assignment.OfficeId));
-            places.Add(person.SettlementId!.Value);
+            if (person.SettlementId is int place) places.Add(place);
         }
         foreach (int place in places.Order()) GovernanceMaintenance.RepairCommander(world, place, rules, events);
         return CommandRejection.None;

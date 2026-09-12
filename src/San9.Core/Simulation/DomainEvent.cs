@@ -1,5 +1,10 @@
 namespace San9.Core.Simulation;
 
+
+[System.Text.Json.Serialization.JsonDerivedType(typeof(UnitDeployedEvent), "unit-deployed")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(UnitOrderChangedEvent), "unit-order-changed")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(UnitMovedEvent), "unit-moved")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(UnitAbsorbedEvent), "unit-absorbed")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(AdviserAppointedEvent), "adviser-appointed")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(SearchResolvedEvent), "search-resolved")]
 

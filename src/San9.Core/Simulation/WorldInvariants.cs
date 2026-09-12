@@ -24,7 +24,9 @@ internal static class WorldInvariants
             if (!officer.IsValid() || officer.ForceLoyalties.Keys.Any(id => !state.Forces.ContainsKey(id)) ||
                 officer.SettlementId is int location && !state.Settlements.ContainsKey(location) ||
                 officer.OwnerId is int owner && !state.Forces.ContainsKey(owner) ||
-                officer.IsServing && state.Settlements[officer.SettlementId!.Value].OwnerId != officer.OwnerId) throw new ArgumentException("Invalid officer.");
+                officer.UnitId is int unitId && (!state.Units.TryGetValue(unitId, out var unit) ||
+                    unit.OwnerId != officer.OwnerId) ||
+                officer.IsServing && officer.SettlementId is int home && state.Settlements[home].OwnerId != officer.OwnerId) throw new ArgumentException("Invalid officer.");
         }
         if (state.Forces.Values.Any(f => f.AdviserId is int adviser && (!state.Officers.TryGetValue(adviser, out var p) || p.OwnerId != f.Id || p.Status != San9.Core.Domain.OfficerStatus.Strategist)) ||
             state.Officers.Values.Any(p => p.Status == San9.Core.Domain.OfficerStatus.Strategist &&
@@ -38,7 +40,9 @@ internal static class WorldInvariants
             throw new ArgumentException("Invalid leader or corps relationship.");
         foreach (var unit in state.Units.Values)
         {
-            if (!unit.IsValid || !state.Forces.ContainsKey(unit.OwnerId) || unit.CorpsId is int corpsId && (!state.Corps.TryGetValue(corpsId, out var corps) || corps.OwnerId != unit.OwnerId)) throw new ArgumentException("Invalid unit.");
+            if (!unit.IsValid || !state.Forces.ContainsKey(unit.OwnerId) ||
+                unit.Order?.SettlementId is int target && !state.Settlements.ContainsKey(target) ||
+                unit.CorpsId is int corpsId && (!state.Corps.TryGetValue(corpsId, out var corps) || corps.OwnerId != unit.OwnerId)) throw new ArgumentException("Invalid unit.");
         }
         if (state.Corps.Values.Any(c => c.Id < 0 || !Enum.IsDefined(c.ControlMode) || !state.Forces.ContainsKey(c.OwnerId) ||
                 !state.Officers.TryGetValue(c.LeaderId, out var leader) || !leader.IsServing || leader.OwnerId != c.OwnerId) ||
@@ -54,6 +58,7 @@ internal static class WorldInvariants
             !Enum.IsDefined(sim.Boundary) || sim.Controls.IsDefault || sim.Tasks.IsDefault ||
             sim.RandomStreams.IsDefault ||
             sim.ActiveControl < 0 || sim.ActiveControl > sim.Controls.Length || sim.NextSequence < 0 ||
+            sim.NextUnitId < 0 || sim.NextUnitId > (long)int.MaxValue + 1 || state.Units.Keys.Any(id => id >= sim.NextUnitId) ||
             sim.Controls.Any(c => string.IsNullOrWhiteSpace(c.ControllerId) || !Enum.IsDefined(c.Kind) || !state.Forces.ContainsKey(c.ForceId)) ||
             sim.Controls.Select(c => c.ForceId).Distinct().Count() != sim.Controls.Length ||
             sim.Boundary != SimulationBoundary.Terminal && (!state.Clock.IsXunBoundary || sim.TerminalReason is not null) ||

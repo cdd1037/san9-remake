@@ -2,6 +2,8 @@ namespace San9.Core.Simulation;
 
 [System.Text.Json.Serialization.JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(WaitCommand), "wait")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(DeployUnitCommand), "deploy-unit")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(OrderUnitCommand), "order-unit")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(AppointAdviserCommand), "appoint-adviser")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(SearchCommand), "search")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(RecruitOfficerCommand), "recruit-officer")]

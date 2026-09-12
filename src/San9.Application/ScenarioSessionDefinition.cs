@@ -18,9 +18,11 @@ internal sealed class ScenarioSessionDefinition
             Settlements = definition.Settlements.Select(s => s with { Icons = s.Icons.ToArray() }).ToArray(),
             RegionNameKeys = new(definition.RegionNameKeys), RegionCityIds = new(definition.RegionCityIds)
         };
+        MilitaryRules = Content.Military is { } military ? new MilitaryRulebook(military) : null;
         Fingerprint = CanonicalJson.Hash(new
         {
             definition.SchemaVersion, definition.ScenarioId, definition.Year, definition.Month, definition.Day, definition.PlayerForceId, definition.DomesticPairs, definition.ImperialSealId, definition.EmperorId,
+            definition.Military,
             Forces = Forces().OrderBy(f => f.Id), Settlements = Settlements().OrderBy(s => s.Id),
             Officers = definition.Officers.Select(o => o.State with { LearnedTactics = o.State.LearnedTactics.Order().ToImmutableArray() }).OrderBy(o => o.Id),
             Units = definition.Units.OrderBy(u => u.Id), Corps = definition.Information.Corps.OrderBy(c => c.Id),
@@ -37,6 +39,7 @@ internal sealed class ScenarioSessionDefinition
     }
 
     internal ScenarioInitialState Content { get; }
+    internal MilitaryRulebook? MilitaryRules { get; }
     internal string Fingerprint { get; }
     internal WorldState CreateWorld(ulong seed) => WorldState.Create(new(Content.Year, Content.Month, Content.Day), seed,
         Forces().Select(f => f.Id == Content.PlayerForceId ? f with { IsBarbarian = false } : f),

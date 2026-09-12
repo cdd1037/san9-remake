@@ -40,9 +40,19 @@ public static class CorpsControl
                 (c.ControlMode == CorpsControlMode.Direct || seat.Kind == ControllerKind.Automatic && c.Treasury is null));
         }
         bool OwnPerson(int id) => world.Officers.FirstOrDefault(p => p.Id == id)?.SettlementId is int home && OwnPlace(home);
+        bool OwnUnit(int id)
+        {
+            var unit = world.Units.FirstOrDefault(u => u.Id == id);
+            if (unit?.OwnerId != command.IssuerId) return false;
+            if (automatic is not null) return unit.CorpsId == automatic.Id;
+            return unit.CorpsId is not int corpsId || world.Corps.Any(c => c.Id == corpsId &&
+                (c.ControlMode == CorpsControlMode.Direct || seat.Kind == ControllerKind.Automatic && c.Treasury is null));
+        }
         bool permitted = command switch
         {
             WaitCommand => true,
+            DeployUnitCommand deploy => OwnPlace(deploy.SettlementId),
+            OrderUnitCommand order => OwnUnit(order.UnitId),
             DevelopCommand develop => develop.Development is not null && OwnPlace(develop.Development.SettlementId),
             RecruitOfficerCommand recruit => OwnPerson(recruit.OfficerId),
             SearchCommand search => OwnPerson(search.OfficerId),

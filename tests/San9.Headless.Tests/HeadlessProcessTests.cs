@@ -16,6 +16,35 @@ public sealed class HeadlessProcessTests : IDisposable
     }
     private string FilePath(string name) => Path.Combine(_directory, name);
 
+    [Fact]
+    public async Task MilitaryRecordingReportsDeploymentMovementAndSingleAbsorption()
+    {
+        var definition = new San9.Content.Scenarios.ScenarioInitialState(San9.Content.Scenarios.ScenarioInitialState.CurrentSchemaVersion,
+            "military-cli", 190, 1, 1, 1, [new(1, "force", 1, 10000, 10000, 100)],
+            [new(1, "home", 1, 0, 0, 1000, 100, 100, 50, []), new(2, "destination", 1, 2, 0, 100, 100, 100, 50, [])], [], [])
+        {
+            Officers = [new("person", new(1, 1, 1, new(60, 60, 60, 60), false))],
+            Military = new(3, 1, [0, 0, 0], [new(0, 1, null)],
+                [new(1, 10, 0, 10000, 5, new(1, 1), San9.Core.Domain.TravelMode.Land)],
+                [new(1, new(2, 2), new(1, 1)), new(2, new(12, 2), new(1, 1))])
+        };
+        var session = San9.Application.GameSession.Start(definition, 190);
+        session.BeginRecording();
+        Assert.True(session.Execute(new("player"), new San9.Core.Simulation.DeployUnitCommand(Guid.NewGuid(), 1, 0,
+            1, [1], 400, 1, new(San9.Core.Domain.MilitaryOrderKind.Transport, null, 2), 20, 30)).Submission.Accepted);
+        session.AdvanceXun();
+        File.WriteAllBytes(FilePath("scenario.json"), San9.Core.Simulation.CanonicalJson.Encode(definition));
+        San9.Application.Persistence.RecordingService.Write(FilePath("military.recording.json"), session.EndRecording());
+        var result = await Run("replay", "--scenario", FilePath("scenario.json"), "--recording", FilePath("military.recording.json"),
+            "--report", FilePath("military-report.json"));
+        Assert.Equal(0, result.Code);
+        Assert.Equal("G05", result.Report.GetProperty("goal").GetString());
+        Assert.Equal(1, result.Report.GetProperty("militaryEvents").GetProperty("unit-deployed").GetInt32());
+        Assert.Equal(1, result.Report.GetProperty("militaryEvents").GetProperty("unit-absorbed").GetInt32());
+        Assert.True(result.Report.GetProperty("militaryEvents").GetProperty("unit-moved").GetInt32() > 0);
+        Assert.Equal(session.Capture().StateHash, result.Report.GetProperty("finalHash").GetString());
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

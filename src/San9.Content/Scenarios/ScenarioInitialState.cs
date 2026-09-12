@@ -33,6 +33,8 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
+    public const int CurrentSchemaVersion = 24;
+    [System.Text.Json.Serialization.JsonRequired] public San9.Core.Domain.MilitaryDefinition? Military { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Domain.CityConnection> CityConnections { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Domain.PersonPlace> UnbuiltPlaces { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Domain.DomesticPair> DomesticPairs { get; init; } = [];
@@ -43,10 +45,17 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
     [System.Text.Json.Serialization.JsonRequired] public InformationDefinitions Information { get; init; } = InformationDefinitions.Empty;
     public void Validate()
     {
-        if (SchemaVersion != 23 || string.IsNullOrWhiteSpace(ScenarioId) || Year < 1 || Month is < 1 or > 12 || Day is < 1 or > 30 ||
+        if (SchemaVersion != CurrentSchemaVersion || string.IsNullOrWhiteSpace(ScenarioId) || Year < 1 || Month is < 1 or > 12 || Day is < 1 or > 30 ||
             Forces.Select(f => f.Id).Distinct().Count() != Forces.Length || !Forces.Any(f => f.Id == PlayerForceId))
             throw new InvalidDataException("Invalid scenario date or player force.");
         Information.Validate(this);
+        if (Military is { } military)
+        {
+            var rules = new San9.Core.Domain.MilitaryRulebook(military);
+            if (!rules.Places.Keys.Order().SequenceEqual(Settlements.Select(s => s.Id).Order()) ||
+                Settlements.Any(s => rules.Places[s.Id].Position != s.Position))
+                throw new InvalidDataException("Military place identities or positions differ from settlements.");
+        }
         if (CityConnections.IsDefault || UnbuiltPlaces.IsDefault || UnbuiltPlaces.Any(p => p is null || !RegionNameKeys.ContainsKey(p.Id) || Settlements.Any(s => s.Id == p.Id)))
             throw new InvalidDataException("Invalid unbuilt personnel place.");
         try
@@ -80,7 +89,8 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
                 o.State.ForceLoyalties.Keys.Any(id => !forceIds.Contains(id)) ||
                 o.State.SettlementId is int location && !settlementIds.Contains(location) ||
                 o.State.OwnerId is int owner && !forceIds.Contains(owner) ||
-                o.State.IsServing && Settlements.Single(s => s.Id == o.State.SettlementId).OwnerId != o.State.OwnerId))
+                o.State.UnitId is int unit && !Units.Any(u => u.Id == unit && u.OwnerId == o.State.OwnerId) ||
+                o.State.IsServing && o.State.SettlementId is int home && Settlements.Single(s => s.Id == home).OwnerId != o.State.OwnerId))
             throw new InvalidDataException("Invalid officer initial state.");
         if (Forces.Any(f => f.LeaderId is int leader && !Officers.Any(o => o.State.Id == leader && o.State.OwnerId == f.Id)))
             throw new InvalidDataException("Invalid force leader reference.");

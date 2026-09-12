@@ -5,6 +5,7 @@ namespace San9.Application.Presentation;
 public sealed record OfficerView(int Id, string NameKey, int? OwnerId, int? CorpsId, int? SettlementId,
     bool HasCityPrefix, bool IsAvailable, OfficerAbilities Abilities)
 {
+    public int? UnitId { get; init; }
     public string? CourtesyNameKey { get; init; }
     public string? BiographyKey { get; init; }
     public OfficerStatus Status { get; init; } = OfficerStatus.Serving;

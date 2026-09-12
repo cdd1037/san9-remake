@@ -45,6 +45,7 @@ public sealed class GameSession
 
     public string InitialDate { get; }
     public string ContentFingerprint => _definition.Fingerprint;
+    internal MilitaryRulebook? MilitaryRules => _definition.MilitaryRules;
     public IReadOnlyList<DomainEvent> InitialEvents => _initialEvents;
     public IReadOnlyList<SessionRecord> Records => _readOnlyRecords;
     public IReadOnlyList<ChronicleEntry> Chronicle => _readOnlyChronicle;
@@ -83,7 +84,8 @@ public sealed class GameSession
         var governance = new GovernanceRulebook(definition.Information.Offices.Select(o => new GovernorOfficeRule(o.Id, o.CommandCapacity, o.GovernorPriority)
             { AbilityBonuses = o.AbilityBonuses, Salary = o.Salary, RequiredRankId = o.RequiredRankId }),
             definition.Information.Ranks.ToDictionary(r => r.Id, r => r.RequiredTrust));
-        return world => new(world, rules, personnel, treasures, governance);
+        var military = definition.Military is { } militaryDefinition ? new MilitaryRulebook(militaryDefinition) : null;
+        return world => new(world, rules, personnel, treasures, governance, military);
     }
 
     public static string Fingerprint(ScenarioInitialState definition) => new ScenarioSessionDefinition(definition).Fingerprint;
@@ -204,7 +206,7 @@ public sealed class GameSession
                 case EndControlOperation:
                     var active = candidate.Snapshot.Simulation;
                     if (active.ActiveControl < active.Controls.Length && active.Controls[active.ActiveControl].ControllerId == request.ControllerId)
-                        AutomaticCorpsPlanner.Run(candidate, active.Controls[active.ActiveControl], events);
+                        AutomaticCorpsPlanner.Run(candidate, active.Controls[active.ActiveControl], MilitaryRules, events);
                     events.AddRange(candidate.EndControl(new(request.ControllerId)).Events);
                     break;
                 case AdvanceOperation:
@@ -212,7 +214,7 @@ public sealed class GameSession
                     while (candidate.Snapshot.Simulation.ActiveControl < candidate.Snapshot.Simulation.Controls.Length)
                     {
                         var seat = candidate.Snapshot.Simulation.Controls[candidate.Snapshot.Simulation.ActiveControl];
-                        AutomaticCorpsPlanner.Run(candidate, seat, events);
+                        AutomaticCorpsPlanner.Run(candidate, seat, MilitaryRules, events);
                         events.AddRange(candidate.EndControl(new(seat.ControllerId)).Events);
                     }
                     events.AddRange(candidate.AdvanceXun().Events);

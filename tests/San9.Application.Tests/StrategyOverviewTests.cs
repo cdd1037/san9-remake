@@ -7,7 +7,7 @@ namespace San9.Application.Tests;
 
 public sealed class StrategyOverviewTests
 {
-    private static ScenarioInitialState Fixture() => new(23,"overview",190,1,1,4,
+    private static ScenarioInitialState Fixture() => new(ScenarioInitialState.CurrentSchemaVersion,"overview",190,1,1,4,
         [new(0,"a",0,0,0,200),new(1,"b",1,0,0,200),new(2,"c",2,0,0,150),new(3,"d",3,0,0,100),new(4,"player",4,0,0,100),new(5,"tribe",5,0,0,999){IsBarbarian=true}],
         [new(0,"city",4,10,20,1000,100,100,50,[]),new(50,"port",4,11,20,200,100,100,50,[]){Kind=SettlementKind.Facility}],[],[])
         { Officers=[new("officer",new(0,4,0,new(50,50,50,50),false))],Units=[new(0,4,MapCoordinates.Center(new(12,20)),300)] };

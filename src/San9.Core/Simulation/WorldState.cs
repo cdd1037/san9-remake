@@ -46,7 +46,8 @@ public sealed class WorldState
         world._corps = IndexUnique(corps ?? [], value => value.Id);
         world._treasures = IndexUnique(treasures ?? [], value => value.Id);
         world._relations = IndexUnique(relations ?? [], value => (value.FirstId, value.SecondId));
-        world.Simulation = world.Simulation with { Controls = (controls ?? []).ToImmutableArray() };
+        world.Simulation = world.Simulation with { Controls = (controls ?? []).ToImmutableArray(),
+            NextUnitId = world._units.Count == 0 ? 0 : (long)world._units.Keys.Max() + 1 };
         WorldInvariants.Validate(world.BeginMutation());
         return world;
     }

@@ -10,7 +10,7 @@ public sealed class InformationBrowserTests
 {
     private static (GameSession Session, InformationQuery Query) Fixture(bool adjusted = false)
     {
-        var scenario = new ScenarioInitialState(23, "information", 190, 1, 1, 5,
+        var scenario = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "information", 190, 1, 1, 5,
             [new(5, "force", 5, 100, 200, 100) { LeaderId = 1, RankId = 0, ProvidedTactics = [1] }],
             [new(15, "city", 5, 80, 60, 1000, 500, 1000, 50, []) { CorpsId = 5, Commerce = 100, MaxCommerce = 1000, Cultivation = 100, MaxCultivation = 1000, Population = 50000 }],
             new() { [15] = "city", [50] = "region" }, new() { [15] = 15, [50] = 15 })

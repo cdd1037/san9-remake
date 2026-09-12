@@ -1,0 +1,142 @@
+using System.Collections.Immutable;
+using San9.Application.Persistence;
+using San9.Content.Scenarios;
+using San9.Core.Domain;
+using San9.Core.Simulation;
+
+namespace San9.Application.Tests;
+
+public sealed class MilitarySessionTests
+{
+    private static ScenarioInitialState Fixture() => new(ScenarioInitialState.CurrentSchemaVersion, "military-public", 190, 1, 1, 1,
+        [new(1, "force", 1, 10000, 10000, 100)],
+        [new(1, "origin", 1, 0, 1, 1000, 100, 100, 70, []), new(2, "destination", 1, 7, 1, 100, 100, 100, 30, [])], [], [])
+    {
+        Officers = [new("officer", new(1, 1, 1, new(70, 70, 70, 70), false))],
+        Military = new(8, 3, Enumerable.Repeat(0, 24).ToImmutableArray(), [new(0, 1, null)],
+            [new(7, 1, 50, 10000, 5, new(1, 1), TravelMode.Land)],
+            [new(1, new(2, 7), new(1, 1)), new(2, new(37, 7), new(1, 1))])
+    };
+
+    [Fact]
+    public void PublicCommandSurvivesSaveAndRecordingWithCurrentLocationQueries()
+    {
+        var definition = Fixture();
+        var session = GameSession.Start(definition, 42);
+        session.BeginRecording();
+        var command = new DeployUnitCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence,
+            1, [1], 400, 7, new(MilitaryOrderKind.Transport, null, 2), 200, 300);
+        Assert.True(session.Execute(new("player"), command).Submission.Accepted);
+        Assert.NotNull(session.View.Officers[0].UnitId);
+        Assert.Null(session.View.Officers[0].SettlementId);
+        Assert.False(session.View.Officers[0].IsAvailable);
+        session.AdvanceXun();
+        Assert.NotEmpty(session.Snapshot.Units);
+        var restored = SaveService.Decode(SaveService.Encode(session), definition);
+        for (int i = 0; i < 4; i++)
+        {
+            var first = session.AdvanceXun();
+            var second = restored.AdvanceXun();
+            Assert.Equal(CanonicalJson.Text(first.Events), CanonicalJson.Text(second.Events));
+            Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        }
+        Assert.Empty(session.Snapshot.Units);
+        Assert.Equal(2, session.View.Officers[0].SettlementId);
+        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
+        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+    }
+
+    [Fact]
+    public void DifferentTopologyRejectsSaveAndUnknownFormationRejectsRestoration()
+    {
+        var definition = Fixture();
+        var session = GameSession.Start(definition, 42);
+        Assert.True(session.Execute(new("player"), new DeployUnitCommand(
+            Guid.NewGuid(), 1, 0, 1, [1], 400, 7, new(MilitaryOrderKind.Return, null, 2))).Submission.Accepted);
+        byte[] saved = SaveService.Encode(session);
+        var changed = definition with { Military = definition.Military! with { Terrains = [new(0, 2, null)] } };
+        Assert.Equal(SaveFailure.ContentMismatch, Assert.Throws<SaveException>(() => SaveService.Decode(saved, changed)).Failure);
+        var capture = session.Capture();
+        var invalid = capture with { World = capture.World with { Units = [capture.World.Units[0] with { FormationId = 900 }] } };
+        Assert.Throws<ArgumentException>(() => GameSession.Restore(definition, invalid));
+    }
+
+    private static ScenarioInitialState ReinforcementFixture()
+    {
+        var baseline = Fixture();
+        return baseline with
+        {
+            Forces = [baseline.Forces[0] with { LeaderId = 1 }],
+            Settlements = [baseline.Settlements[0] with { Soldiers = 10000, CorpsId = 10 }, baseline.Settlements[1] with { CorpsId = 10 }],
+            Officers = [baseline.Officers[0] with { State = baseline.Officers[0].State with { Status = OfficerStatus.Ruler } }],
+            Information = baseline.Information with { Corps = [new(10, 1, 1, null) { ControlMode = CorpsControlMode.Automatic }] }
+        };
+    }
+
+    [Fact]
+    public void AutomaticCorpsReinforcesThroughPublicCommandsAndReplaysInFlight()
+    {
+        var definition = ReinforcementFixture();
+        var session = GameSession.Start(definition, 42);
+        session.BeginRecording();
+        var first = session.AdvanceXun();
+        Assert.Single(first.Events.OfType<UnitDeployedEvent>());
+        Assert.Equal(2900u, Assert.Single(session.Snapshot.Units).Soldiers);
+        Assert.IsType<WaitCommand>(MilitaryPlanner.Choose(session, new("corps:10", 1, ControllerKind.Automatic), Guid.NewGuid()));
+        var restored = SaveService.Decode(SaveService.Encode(session), definition);
+        var events = new List<DomainEvent>();
+        for (int i = 0; i < 4; i++)
+        {
+            var result = session.AdvanceXun();
+            Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+            Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+            events.AddRange(result.Events);
+        }
+        Assert.Empty(events.OfType<UnitDeployedEvent>());
+        Assert.Single(events.OfType<UnitAbsorbedEvent>());
+        Assert.Empty(session.Snapshot.Units);
+        Assert.True(session.Snapshot.Settlements.Single(s => s.Id == 2).Soldiers >= 3000);
+        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
+        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+    }
+
+    [Fact]
+    public void ControlChangeImmediatelyChangesFieldOrderAuthority()
+    {
+        var session = GameSession.Start(ReinforcementFixture(), 42);
+        session.AdvanceXun();
+        int unitId = Assert.Single(session.Snapshot.Units).Id;
+        OrderUnitCommand Order() => new(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence,
+            unitId, new(MilitaryOrderKind.Return, null, 1));
+        string before = session.Capture().StateHash;
+        Assert.False(session.Validate(new("player"), Order()).Accepted);
+        Assert.True(session.Validate(new("corps:10"), Order()).Accepted);
+        Assert.Equal(before, session.Capture().StateHash);
+        Assert.True(session.Execute(new("player"), new SetCorpsControlCommand(Guid.NewGuid(), 1,
+            session.Snapshot.Simulation.NextSequence, 10, CorpsControlMode.Direct)).Submission.Accepted);
+        Assert.False(session.Validate(new("corps:10"), Order()).Accepted);
+        Assert.True(session.Execute(new("player"), Order()).Submission.Accepted);
+        Assert.Equal(1, Assert.Single(session.Snapshot.Units).Order!.SettlementId);
+    }
+
+    [Fact]
+    public void AutomaticForceWithoutCorpsAlsoDeploysAndDisconnectedPolicyIsReadOnly()
+    {
+        var baseline = Fixture();
+        var definition = baseline with
+        {
+            PlayerForceId = 2,
+            Forces = [baseline.Forces[0], new(2, "player-force", 2, 10000, 10000, 100)],
+            Settlements = [baseline.Settlements[0] with { Soldiers = 10000 }, baseline.Settlements[1]]
+        };
+        var session = GameSession.Start(definition, 42);
+        Assert.Single(session.AdvanceXun().Events.OfType<UnitDeployedEvent>());
+        var blocked = definition with { Military = definition.Military! with { BlockedCells = [new(4, 0), new(4, 1), new(4, 2)] } };
+        var waiting = GameSession.Start(blocked, 42);
+        waiting.EndControl(new("player"));
+        string before = waiting.Capture().StateHash;
+        Assert.IsType<WaitCommand>(MilitaryPlanner.Choose(waiting, new("ai:1", 1, ControllerKind.Automatic), Guid.NewGuid()));
+        Assert.Equal(before, waiting.Capture().StateHash);
+        Assert.Empty(waiting.AdvanceXun().Events.OfType<UnitDeployedEvent>());
+    }
+}

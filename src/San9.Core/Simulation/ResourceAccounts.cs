@@ -39,8 +39,7 @@ internal static class ResourceAccounts
         long requested, string reason, int? sourceId, List<DomainEvent> events, bool requireFull = false)
     {
         uint before = Balance(world, account, resource);
-        uint after = requested < 0 && requireFull && before < -requested ? before :
-            (uint)Math.Clamp((long)before + requested, 0, requested > 0 ? Math.Max(before, 1000000L) : uint.MaxValue);
+        uint after = Project(before, requested, requireFull);
         if (account.Kind == ResourceOwnerKind.Corps)
         {
             var corps = world.Corps[account.Id];
@@ -54,6 +53,10 @@ internal static class ResourceAccounts
         Report(world, account, resource, reason, sourceId, requested, (long)after - before, events);
         return after;
     }
+
+    internal static uint Project(uint before, long requested, bool requireFull = false) =>
+        requested < 0 && requireFull && before < -requested ? before :
+            (uint)Math.Clamp((long)before + requested, 0, requested > 0 ? Math.Max(before, 1000000L) : uint.MaxValue);
 
     internal static void Report(WorldMutation world, ResourceAccount account, ResourceKind resource,
         string reason, int? sourceId, long requested, long actual, List<DomainEvent> events) =>

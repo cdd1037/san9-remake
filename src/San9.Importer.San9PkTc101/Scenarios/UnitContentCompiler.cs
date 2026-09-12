@@ -13,7 +13,7 @@ public static class UnitContentCompiler
                 throw new InvalidDataException("Invalid active field unit.");
             return new UnitState(u.Id, owner, MapCoordinates.Center(new(x, y)), (uint)u.LoadedSoldierCount)
             {
-                CorpsId = u.ForceId, ServicePlaceId = u.HomeBaseId,
+                CorpsId = u.ForceId, ServicePlaceId = u.HomeBaseId, FormationId = u.FormationId,
                 IsEmbedded = u.HasRuntimeFlagBit(0), IsPersonnel = u.HasRuntimeFlagBit(1),
                 OrderClass = u.LoadedCommandCode switch
                 {

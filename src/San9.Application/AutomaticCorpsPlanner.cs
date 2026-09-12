@@ -3,16 +3,25 @@ using San9.Core.Simulation;
 
 namespace San9.Application;
 
-/// <summary>Bounded G04 personnel and economic work. Strategic planning remains a separate policy concern.</summary>
+/// <summary>Bounded personnel, reinforcement and economic work for automatic controllers.</summary>
 internal static class AutomaticCorpsPlanner
 {
-    internal static void Run(SimulationEngine engine, ControlSeat active, List<DomainEvent> events)
+    internal static void Run(SimulationEngine engine, ControlSeat active, MilitaryRulebook? military, List<DomainEvent> events)
     {
+        if (active.Kind == ControllerKind.Automatic)
+        {
+            var command = MilitaryPlanner.Choose(engine.Snapshot, engine.Validate, military, active,
+                Id(engine.Snapshot, -1, "military"));
+            if (command is not WaitCommand) events.AddRange(engine.Execute(new(active.ControllerId), command).Events);
+        }
         foreach (var corps in engine.Snapshot.Corps.Where(c => c.OwnerId == active.ForceId &&
             c.ControlMode == CorpsControlMode.Automatic).OrderBy(c => c.Id))
         {
             var seat = active with { ControllerId = CorpsControl.ControllerId(corps.Id), Kind = ControllerKind.Automatic };
             var context = new CommandContext(seat.ControllerId);
+            var reinforcement = MilitaryPlanner.Choose(engine.Snapshot, engine.Validate, military, seat,
+                Id(engine.Snapshot, corps.Id, "military"), corps.Id);
+            if (reinforcement is not WaitCommand) events.AddRange(engine.Execute(context, reinforcement).Events);
             var snapshot = engine.Snapshot;
             var places = snapshot.Settlements.Where(s => s.CorpsId == corps.Id && s.CanHostPersons && s.Durability > 0).Select(s => s.Id).ToHashSet();
             var abilities = engine.GetAbilities(snapshot);

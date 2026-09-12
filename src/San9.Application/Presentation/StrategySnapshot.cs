@@ -82,9 +82,11 @@ public sealed class StrategySnapshot
             var location = o.SettlementId is int id ? settlements[id] : null;
             var definition = source.Officer(o.Id);
             var task = journeys.GetValueOrDefault(o.Id);
-            return new OfficerView(o.Id, definition.NameKey, o.OwnerId, o.IsServing ? location?.CorpsId : null,
-                o.SettlementId, location?.Kind == San9.Core.Domain.SettlementKind.City, o.IsServing && !o.Acted && !occupied.Contains(o.Id), abilities[o.Id])
+            int? corpsId = o.UnitId is int unitId ? world.Units.Single(u => u.Id == unitId).CorpsId : location?.CorpsId;
+            return new OfficerView(o.Id, definition.NameKey, o.OwnerId, o.IsServing ? corpsId : null,
+                o.SettlementId, location?.Kind == San9.Core.Domain.SettlementKind.City, o.IsServing && o.UnitId is null && !o.Acted && !occupied.Contains(o.Id), abilities[o.Id])
             {
+                UnitId = o.UnitId,
                 Status = o.Status,
                 Journey = task is null ? null : new(task.Id, task.Kind, task.OriginSettlementId, task.Journey!.DestinationPlaceId,
                     task.Journey.TargetOfficerId, task.Due, task.ProgressDays),

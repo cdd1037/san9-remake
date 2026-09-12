@@ -22,7 +22,7 @@ internal static class SessionValidation
         Same(content.Forces.Select(f => f.Id), snapshot.World.Forces.Select(f => f.Id));
         Same(content.Settlements.Select(s => s.Id), snapshot.World.Settlements.Select(s => s.Id));
         Same(content.Officers.Select(o => o.State.Id), snapshot.World.Officers.Select(o => o.Id));
-        Same(content.Units.Select(u => u.Id), snapshot.World.Units.Select(u => u.Id));
+        // Field units are created and absorbed at runtime; identities are allocated by the world.
         if (snapshot.World.Units.Any(u => u.ServicePlaceId is int home &&
             !content.Settlements.Any(s => s.Id == home) && !content.UnbuiltPlaces.Any(p => p.Id == home)))
             throw new ArgumentException("Unknown unit service place.");

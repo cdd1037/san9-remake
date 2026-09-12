@@ -62,8 +62,8 @@ internal static class EconomicCycle
         foreach (var person in world.Officers.Values.Where(p => p.IsServing && p.Status != OfficerStatus.Ruler && p.OwnerId is not null)
             .OrderByDescending(Salary).ThenBy(p => p.Id))
         {
-            var city = world.Settlements[person.SettlementId!.Value];
-            var account = ResourceAccounts.Resolve(world, person.OwnerId!.Value, city.CorpsId);
+            int? corpsId = PersonnelLocations.Corps(world, person);
+            var account = ResourceAccounts.Resolve(world, person.OwnerId!.Value, corpsId);
             int salary = Salary(person);
             bool paid = ResourceAccounts.Balance(world, account, ResourceKind.Money) >= salary;
             ResourceAccounts.Change(world, account, ResourceKind.Money, -salary, "salary", person.Id, events, true);

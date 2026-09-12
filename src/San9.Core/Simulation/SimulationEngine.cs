@@ -14,9 +14,9 @@ public sealed class SimulationEngine
         : this(world, new SimulationRules { Economy = economy, Personnel = personnel }) { }
 
     public SimulationEngine(WorldState world, EconomyRulebook economy, PersonnelRulebook personnel, TreasureRulebook treasures,
-        GovernanceRulebook? governance = null)
+        GovernanceRulebook? governance = null, MilitaryRulebook? military = null)
         : this(ValidateContent(world, treasures, governance), new SimulationRules
-            { Economy = economy, Personnel = personnel, Treasures = treasures, Governance = governance ?? new([]) }) { }
+            { Economy = economy, Personnel = personnel, Treasures = treasures, Governance = governance ?? new([]), Military = military }) { }
 
     private static WorldState ValidateContent(WorldState world, TreasureRulebook treasures, GovernanceRulebook? governance)
     {
@@ -32,6 +32,7 @@ public sealed class SimulationEngine
         ArgumentNullException.ThrowIfNull(world);
         _world = world;
         _rules = rules;
+        MilitaryMovement.Validate(world.CreateSnapshot(), rules.Military);
         rules.Economy.Validate();
         _pipeline = new(rules);
         foreach (var task in world.Simulation.Tasks)
@@ -81,6 +82,14 @@ public sealed class SimulationEngine
             switch (command)
             {
                 case WaitCommand:
+                    break;
+                case DeployUnitCommand deploy:
+                    var deployRejection = MilitaryMovement.Deploy(mutation, deploy, _rules.Military, _rules.Governance, events);
+                    if (deployRejection != CommandRejection.None) return Reject(deployRejection);
+                    break;
+                case OrderUnitCommand order:
+                    var orderRejection = MilitaryMovement.Order(mutation, order, _rules.Military, events);
+                    if (orderRejection != CommandRejection.None) return Reject(orderRejection);
                     break;
                 case SetCorpsControlCommand control:
                     var controlRejection = CorpsControl.Set(mutation, control, events);

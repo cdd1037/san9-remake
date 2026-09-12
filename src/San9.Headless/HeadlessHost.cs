@@ -90,6 +90,18 @@ public sealed class HeadlessHost
                 _report.ResourceShortfall += resource.Shortfall;
                 _report.SaturationLoss += resource.SaturationLoss;
             }
+            string? military = entry switch
+            {
+                UnitDeployedEvent => "unit-deployed",
+                UnitMovedEvent { Reachable: false } => "unit-blocked",
+                UnitMovedEvent => "unit-moved",
+                UnitOrderChangedEvent { Reason: "target-invalid" } => "unit-target-invalid",
+                UnitOrderChangedEvent => "unit-order-changed",
+                UnitAbsorbedEvent => "unit-absorbed",
+                _ => null
+            };
+            if (military is not null)
+                _report.MilitaryEvents[military] = _report.MilitaryEvents.GetValueOrDefault(military) + 1;
             string? personnel = entry switch
             {
                 TaskStartedEvent { Task.Journey: not null } => "journey-started",
@@ -119,6 +131,11 @@ public sealed class HeadlessHost
             _report.PersonnelEvents[personnel] = _report.PersonnelEvents.GetValueOrDefault(personnel) + 1;
             _report.Goal = "G04";
             _report.Scope = "Personnel, corps governance and economic cycles; recorded event counts describe exercised paths, not every G04 acceptance case. No warfare or complete strategic AI.";
+        }
+        if (_report.MilitaryEvents.Count > 0)
+        {
+            _report.Goal = "G05";
+            _report.Scope = "Military deployment, daily movement and transport/return through public commands; event counts describe exercised paths, not every G05 acceptance case. Combat and complete strategic AI remain pending.";
         }
     }
 

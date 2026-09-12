@@ -6,6 +6,11 @@ public enum UnitCondition { Normal, Engaged, Trap, Disguised, NoFormation, Confu
 // Active field forces are separate from settlement garrisons. Movement rules are separate use cases.
 public sealed record UnitState(int Id, int OwnerId, [property: System.Text.Json.Serialization.JsonRequired] WorldPosition Position, uint Soldiers)
 {
+    [System.Text.Json.Serialization.JsonRequired] public int? FormationId { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public int Morale { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public uint CargoMoney { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public uint CargoFood { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public MilitaryOrder? Order { get; init; }
     [System.Text.Json.Serialization.JsonIgnore] public MapCell Cell => MapCoordinates.Cell(Position);
     [System.Text.Json.Serialization.JsonRequired] public int? CorpsId { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public int? ServicePlaceId { get; init; }
@@ -23,5 +28,8 @@ public sealed record UnitState(int Id, int OwnerId, [property: System.Text.Json.
 
     [System.Text.Json.Serialization.JsonIgnore]
     public bool IsValid => Id >= 0 && OwnerId >= 0 && ServicePlaceId is not < 0 && Position.X >= 0 && Position.Y >= 0 && Soldiers > 0 &&
-        Enum.IsDefined(OrderClass) && Enum.IsDefined(Condition);
+        Enum.IsDefined(OrderClass) && Enum.IsDefined(Condition) && FormationId is not < 0 && Morale is >= 0 and <= 100 &&
+        (Order is null || FormationId is not null && Enum.IsDefined(Order.Kind) &&
+            (Order.Kind == MilitaryOrderKind.Move ? Order.Position is { X: >= 0, Y: >= 0 } && Order.SettlementId is null :
+                Order.Position is null && Order.SettlementId is >= 0));
 }

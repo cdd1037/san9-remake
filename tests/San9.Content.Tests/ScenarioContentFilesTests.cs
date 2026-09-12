@@ -9,10 +9,10 @@ public sealed class ScenarioContentFilesTests : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), "san9-split-" + Guid.NewGuid().ToString("N"));
 
-    private static ScenarioContent Fixture() => new(24, [new("fixture", "hash")], new("../textures"),
+    private static ScenarioContent Fixture() => new(25, [new("fixture", "hash")], new("../textures"),
         new("source", "first", "spring", 200, 200, 13056, 6656,
             [], [], [], [], [], [], [], [], [], [], []),
-        new(23, "first", 190, 1, 1, 0, [], [], [], []),
+        new(ScenarioInitialState.CurrentSchemaVersion, "first", 190, 1, 1, 0, [], [], [], []),
         new(3, new() { ["name"] = new("简体", "繁體") })
         {
             Messages = new() { ["message"] = new([new MessageValue(new("number", Number: 0))], false, []) }
@@ -52,8 +52,8 @@ public sealed class ScenarioContentFilesTests : IDisposable
     }
 
     [Theory]
-    [InlineData(23)]
-    [InlineData(25)]
+    [InlineData(24)]
+    [InlineData(26)]
     public async Task UnsupportedVersionRequestsReconversion(int version)
     {
         Directory.CreateDirectory(_root);

@@ -14,6 +14,7 @@ public readonly record struct OfficerAbilities(int War, int Intelligence, int Po
 /// detention ownership is determined by the location. Names belong to content definitions.</summary>
 public sealed record OfficerState(int Id, int? OwnerId, int? SettlementId, OfficerAbilities BaseAbilities, bool Acted)
 {
+    [System.Text.Json.Serialization.JsonRequired] public int? UnitId { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public int Affinity { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<int> MasteredCategories { get; init; } = [];
     public ImmutableArray<int> LearnedTactics { get; init; } = [];
@@ -54,7 +55,9 @@ public sealed record OfficerState(int Id, int? OwnerId, int? SettlementId, Offic
         if (LearnedTactics.IsDefault || TacticProficiencies.IsDefault || TacticProficiencies.Length != 9 ||
             TacticProficiencies.Any(v => v < 0) || LearnedTactics.Any(v => v < 0) || LearnedTactics.Distinct().Count() != LearnedTactics.Length ||
             ParentId < 0 || Personality is < 0 or > 3) return false;
-        if (Id < 0 || IsServing && SettlementId is null || SettlementId < 0 || OwnerId < 0 || RegionId < 0 || RegionId is not null && SettlementId is not null || !Enum.IsDefined(Status) || Injury is < 0 or > 14 ||
+        if (Id < 0 || IsServing && SettlementId is null && UnitId is null || UnitId < 0 ||
+            UnitId is not null && (SettlementId is not null || RegionId is not null || !IsServing || IsCommander) ||
+            SettlementId < 0 || OwnerId < 0 || RegionId < 0 || RegionId is not null && SettlementId is not null || !Enum.IsDefined(Status) || Injury is < 0 or > 14 ||
             !BaseAbilities.IsNonnegative) return false;
         return true;
     }

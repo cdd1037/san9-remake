@@ -9,7 +9,7 @@ namespace San9.Application.Tests;
 
 public sealed class TreasureCommandTests
 {
-    private static ScenarioInitialState Fixture() => new(23, "treasure-commands", 190, 1, 1, 1,
+    private static ScenarioInitialState Fixture() => new(ScenarioInitialState.CurrentSchemaVersion, "treasure-commands", 190, 1, 1, 1,
         [new(1, "force", 1, 1000, 1000, 1000) { LeaderId = 1, BaseTrust = 950 }],
         [new(1, "city", 1, 0, 0, 0, 100, 100, 0, [])], new() { [1] = "city" }, new() { [1] = 1 })
     {

@@ -24,7 +24,7 @@ public sealed class PersonnelScenarioTests
         Assert.Equal(SaveService.Encode(loaded), SaveService.Encode(replay.Session));
     }
 
-    private static ScenarioInitialState Fixture() => new(23, "personnel-public", 190, 1, 1, 1,
+    private static ScenarioInitialState Fixture() => new(ScenarioInitialState.CurrentSchemaVersion, "personnel-public", 190, 1, 1, 1,
         [new(1, "force", 1, 10000, 10000, 1000) { LeaderId = 1, BaseTrust = 1000 }],
         [new(1, "home", 1, 0, 0, 0, 100, 100, 0, []), new(3, "destination", 1, 0, 15, 0, 100, 100, 0, [])],
         new() { [1] = "home", [3] = "destination", [30] = "region" }, new() { [1] = 1, [3] = 3, [30] = 1 })

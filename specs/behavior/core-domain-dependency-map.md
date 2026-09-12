@@ -56,6 +56,8 @@ flowchart LR
 
 G04人事与基础治理已接入。`PersonnelTransitions`拥有人物归属/地点和引用任务清理，`PersonnelReturns`拥有归队，`GovernanceMaintenance`拥有负责人/都督修复；`CorpsGovernance`维护辖区与独立账户，`CorpsControl`统一权限。Application的`AutomaticCorpsPlanner`通过同一Core命令执行有限人事/经营；保存、录像与CLI复用G02。内容同步官职能力/爵位、宝物、地点和服务单位分类；证据见[G04验收](../../docs/g04-verification.md)。
 
+G05 移动链已接入：`BattlefieldMap`负责不可变拓扑、矩形和四向路径，`MilitaryRulebook`消费规范化阵型与据点入口，`MilitaryMovement`在候选事务内负责出征、每日命令、载荷和返城吸收。成员位置由`OfficerState.UnitId`唯一引用，俸禄随单位军团账户，查询及保存消费同一状态。Content的`MilitaryDefinition`由版本Importer生成，Core不读取显示地图；现有规则及验证见[G05推进记录](../../docs/g05-verification.md)。战斗、占领和终止清理仍是后续入口，不代表已实现。
+
 验收条款以各BEH原文为准；当前覆盖由领域契约验证器生成，不在此重复维护计数。
 
 ## 核心领域契约

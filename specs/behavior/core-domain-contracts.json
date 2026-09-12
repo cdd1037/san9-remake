@@ -273,19 +273,19 @@
       "id": "warfare",
       "classification": "core",
       "behavior_specs": ["BEH-WAR-0001", "BEH-WAR-0002", "BEH-WAR-0003"],
-      "objects": ["Army", "MovementPlan", "BattlefieldCommand", "BuildingCombatState", "UnitSettlement"],
+        "objects": ["UnitState", "BattlefieldMap", "MilitaryDefinition", "MilitaryOrder", "BuildingCombatState", "UnitSettlement"],
       "states": ["planned", "moving", "resolving", "returning", "defeated", "complete"],
       "inputs": ["typed battlefield command", "map occupancy snapshot", "live target", "unit and building state"],
       "outputs": ["validated daily movement", "atomic capture settlement", "unit termination settlement", "force elimination input"],
-      "invariants": ["hard obstacles are never crossed", "success commits once", "ownership is singular", "reset units retain no live references"],
+        "invariants": ["hard obstacles are never crossed", "success commits once", "ownership is singular", "reset units retain no live references", "officers occupy either a settlement or a unit", "cargo is debited before departure and credited only at exact arrival"],
       "acceptance_gates": ["daily re-path and collision", "command revalidation", "three building defeat gates", "unit and force cleanup"],
       "depends_on": ["simulation", "personnel", "governance"],
       "implementation": {
         "project": "San9.Core",
-        "target_namespace": "San9.Core.Warfare",
-        "target_path": "src/San9.Core/Warfare",
-        "entry_types": ["MovementService", "BattlefieldCommandHandler", "BuildingCaptureService", "UnitTerminationService"],
-        "existing_anchors": ["src/San9.Core/Domain/UnitState.cs", "src/San9.Core/Simulation/SimulationEngine.cs"]
+          "target_namespace": "San9.Core.Simulation",
+          "target_path": "src/San9.Core/Simulation",
+          "entry_types": ["MilitaryMovement", "DeployUnitCommand", "OrderUnitCommand", "BuildingCaptureService", "UnitTerminationService"],
+          "existing_anchors": ["src/San9.Core/Domain/UnitState.cs", "src/San9.Core/Domain/BattlefieldMap.cs", "src/San9.Core/Domain/MilitaryRulebook.cs", "src/San9.Core/Simulation/MilitaryMovement.cs"]
       }
     },
     {

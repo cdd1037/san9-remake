@@ -33,9 +33,9 @@ internal static class CorpsGovernance
                 city.OwnerId != force.Id || city.CorpsId != root.Id && city.CorpsId != corps.Id) ||
             !world.Settlements.Values.Any(s => s.Kind == SettlementKind.City &&
                 (s.CorpsId == root.Id || s.CorpsId == corps.Id) && !cities.Contains(s.Id)) ||
-            ruler.SettlementId is int rulerCity && cities.Contains(rulerCity)) return CommandRejection.InvalidCorps;
+            PersonnelLocations.ServicePlace(world, ruler) is int rulerCity && cities.Contains(rulerCity)) return CommandRejection.InvalidCorps;
         var places = geography.RegionCities.Where(p => cities.Contains(p.Value)).Select(p => p.Key).Concat(cities).ToHashSet();
-        var facilities = world.Settlements.Values.Where(s => places.Contains(s.Id) && s.OwnerId == force.Id && s.Id != ruler.SettlementId).ToArray();
+        var facilities = world.Settlements.Values.Where(s => places.Contains(s.Id) && s.OwnerId == force.Id && s.Id != PersonnelLocations.ServicePlace(world, ruler)).ToArray();
         if (facilities.Any(s => s.CorpsId != root.Id && s.CorpsId != corps.Id)) return CommandRejection.InvalidCorps;
         places = facilities.Select(s => s.Id).ToHashSet();
         var busy = world.Simulation.Tasks.Where(t => t.Journey is not null).Select(t => t.OfficerId).ToHashSet();
@@ -91,14 +91,14 @@ internal static class CorpsGovernance
         if (cities.Any(id => !world.Settlements.TryGetValue(id, out var city) || city.Kind != SettlementKind.City ||
                 city.OwnerId != force.Id || city.CorpsId != root.Id) ||
             !world.Settlements.Values.Any(s => s.Kind == SettlementKind.City && s.CorpsId == root.Id && !cities.Contains(s.Id)) ||
-            ruler.SettlementId is int rulerCity && cities.Contains(rulerCity)) return CommandRejection.InvalidCorps;
+            PersonnelLocations.ServicePlace(world, ruler) is int rulerCity && cities.Contains(rulerCity)) return CommandRejection.InvalidCorps;
         var places = geography.RegionCities.Where(p => cities.Contains(p.Value)).Select(p => p.Key).Concat(cities).ToHashSet();
-        var facilities = world.Settlements.Values.Where(s => places.Contains(s.Id) && s.OwnerId == force.Id && s.Id != ruler.SettlementId).ToArray();
+        var facilities = world.Settlements.Values.Where(s => places.Contains(s.Id) && s.OwnerId == force.Id && s.Id != PersonnelLocations.ServicePlace(world, ruler)).ToArray();
         if (facilities.Any(s => s.CorpsId != root.Id)) return CommandRejection.InvalidCorps;
         places = facilities.Select(s => s.Id).ToHashSet();
         var busy = world.Simulation.Tasks.Where(t => t.Journey is not null).Select(t => t.OfficerId).ToHashSet();
         var leader = rules.SelectGovernor(world.Officers.Values.Where(p => p.OwnerId == force.Id &&
-            p.SettlementId is int home && places.Contains(home) && home != ruler.SettlementId && !busy.Contains(p.Id)), world.AbilitiesFor(world.Officers.Values));
+            p.SettlementId is int home && places.Contains(home) && home != PersonnelLocations.ServicePlace(world, ruler) && !busy.Contains(p.Id)), world.AbilitiesFor(world.Officers.Values));
         if (leader is null) return CommandRejection.PersonUnavailable;
         if (command.Money > force.Money || command.Food > force.Food) return CommandRejection.InsufficientFunds;
         int id = world.Corps.Keys.Max() + 1;

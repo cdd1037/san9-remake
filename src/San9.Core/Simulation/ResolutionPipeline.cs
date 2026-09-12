@@ -24,6 +24,7 @@ internal class SimulationRules
     internal TreasureRulebook Treasures { get; init; } = TreasureRulebook.Empty;
     internal PersonnelRulebook Personnel { get; init; } = PersonnelRulebook.Empty;
     internal GovernanceRulebook Governance { get; init; } = new([]);
+    internal MilitaryRulebook? Military { get; init; }
     internal OfficerAbilityRules Abilities => new(Treasures, Governance);
     internal virtual TaskRule? FindTask(string kind) => kind is PersonnelMissions.RecruitKind or PersonnelMissions.MoveKind or PersonnelMissions.SearchKind
         ? new PersonnelMissionRule(Personnel, Economy, Governance, Treasures, kind) : kind == PersonnelReturns.Kind ? new PersonnelReturnRule(Personnel, Governance) : null;
@@ -79,6 +80,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         }
         if (stage == ResolutionStage.QuarterUpdate) PersonnelLoyaltyCycle.Apply(world, events);
         EconomicCycle.Apply(stage, world, rules.Economy, events);
+        if (stage == ResolutionStage.DailyMapUpdate) MilitaryMovement.AdvanceDay(world, rules.Military, rules.Governance, events);
         rules.ApplyStage(stage, world, events);
         events.Add(new StageCompletedEvent(world.Clock, stage));
         return CheckTerminal(world, events);

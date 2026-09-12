@@ -11,7 +11,7 @@ public sealed class TreasureRuntimeTests
     [Fact]
     public void RuntimeDiscoveryAndHolderVisibilityDoNotDependOnInitialCatalogMembership()
     {
-        var definition = new ScenarioInitialState(23, "runtime-treasures", 190, 1, 1, 5,
+        var definition = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "runtime-treasures", 190, 1, 1, 5,
             [new(5, "force", 5, 100, 100, 100)], [], new() { [15] = "region" }, [])
         {
             UnbuiltPlaces = [new(15, San9.Core.Domain.MapCoordinates.Center(new(10, 10)))],

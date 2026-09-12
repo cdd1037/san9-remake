@@ -71,7 +71,7 @@ internal static class TacticCombat
             p.SettlementId == target.SettlementId && !world.Simulation.Tasks.Any(t => t.OfficerId == p.Id && t.Journey is not null)));
         int resistance = Math.Max(0, (defenders.Select(p => p.TacticProficiencies[category]).DefaultIfEmpty(0).Max() - proficiency) / 20);
         int effect = Roll(world, "military-tactic-resistance", resistance) ? 1 : 10;
-        bool doubled = Roll(world, "military-tactic-double", 1 + participants[^1].Officer.TacticProficiencies[category] / 100);
+        bool doubled = Roll(world, "military-tactic-double", 1 + proficiency / 100);
         foreach (var participant in participants)
             world.Replace(world.Officers[participant.Officer.Id] with
             { TacticCooldown = participant.Officer.Id == primary.Officer.Id ? primary.Tactic.MinimumInterval : participant.Tactic.MinimumInterval / 3 });

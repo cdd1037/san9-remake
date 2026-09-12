@@ -8,7 +8,8 @@ public sealed class TacticCombatTests
 {
     private static readonly CommandContext Player = new("player");
     private static SimulationEngine Engine(int members = 1, bool water = false, bool settlement = false,
-        int power = 13, bool equipped = true, int injury = 0, int cooldown = 0, bool allowedFacility = true, bool counter = false)
+        int power = 13, bool equipped = true, int injury = 0, int cooldown = 0, bool allowedFacility = true, bool counter = false,
+        int primaryProficiency = 0, int linkedProficiency = 0, ulong seed = 42)
     {
         var combat = new CombatProfile(0, 0, 0, 1000, 50);
         var mode = water ? TravelMode.Water : TravelMode.Land;
@@ -21,16 +22,18 @@ public sealed class TacticCombatTests
         { Tactics = [new(9000, 0, TacticEffect.Martial, power, 9, 0, !water, allowedFacility, [100, 200])] });
         List<OfficerState> officers = [new(11, 1, null, new(80, 70, 70, 70), false)
             { UnitId = 0, LearnedTactics = equipped ? [9000] : [], EquippedTacticId = equipped ? 9000 : null,
-                Injury = injury, TacticCooldown = cooldown }];
+                Injury = injury, TacticCooldown = cooldown,
+                TacticProficiencies = [primaryProficiency, 0, 0, 0, 0, 0, 0, 0, 0] }];
         if (members == 2) officers.Add(new(12, 1, null, new(80, 70, 70, 70), false)
-            { UnitId = 0, LearnedTactics = [9000], EquippedTacticId = 9000 });
+            { UnitId = 0, LearnedTactics = [9000], EquippedTacticId = 9000,
+                TacticProficiencies = [linkedProficiency, 0, 0, 0, 0, 0, 0, 0, 0] });
         officers.Add(new(21, 2, settlement ? 2 : null, new(70, 70, 70, 70), false) { UnitId = settlement ? null : 1,
             LearnedTactics = counter ? [9000] : [], EquippedTacticId = counter ? 9000 : null });
         List<UnitState> units = [new(0, 1, new(settlement ? 16 : 6, 2), 100000) { FormationId = 100, Morale = 100, ServicePlaceId = 1,
             MemberRanks = officers.Where(p => p.UnitId == 0).ToImmutableDictionary(p => p.Id, _ => BattleRank.Front) }];
         if (!settlement) units.Add(new(1, 2, new(7, 2), 100000) { FormationId = 200, Morale = 100, ServicePlaceId = 2,
             MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(21, BattleRank.Middle) });
-        var world = WorldState.Create(new(190, 1, 1), 42,
+        var world = WorldState.Create(new(190, 1, 1), seed,
             [new(1, 10000, 10000, 100) { LeaderId = 11 }, new(2, 10000, 10000, 100) { LeaderId = 21 }],
             [new(1, 1, 100, 100, 100, 100, 0, 0, 100, 0, 100), new(2, 2, 1000, 100, 100, 100, 0, 0, 100, 0, 100)],
             officers, units: units, controls: [new("player", 1, ControllerKind.Player)]);
@@ -75,6 +78,32 @@ public sealed class TacticCombatTests
                 Assert.True(e.Clock.DayNumber >= ready.GetValueOrDefault(id));
                 ready[id] = e.Clock.DayNumber + (i == 0 ? 9 : 3);
             }
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1000)]
+    public void LinkedProficiencyDoesNotChangePrimaryDoubleRoll(int primaryProficiency)
+    {
+        int compared = 0;
+        for (ulong seed = 0; seed < 64; seed++)
+        {
+            var solo = Engine(primaryProficiency: primaryProficiency, seed: seed).AdvanceXun()
+                .Events.OfType<TacticActivatedEvent>().First();
+            Assert.Equal(new[] { 11 }, solo.OfficerIds);
+            foreach (int linkedProficiency in new[] { 0, 1000 })
+            {
+                var linked = Engine(members: 2, primaryProficiency: primaryProficiency,
+                    linkedProficiency: linkedProficiency, seed: seed).AdvanceXun()
+                    .Events.OfType<TacticActivatedEvent>().First();
+                Assert.Equal(2, linked.OfficerIds.Length);
+                if (linked.OfficerIds[0] != 11) continue;
+                Assert.Equal(new[] { 11, 12 }, linked.OfficerIds);
+                Assert.Equal(solo.Doubled, linked.Doubled);
+                compared++;
+            }
+        }
+        Assert.True(compared >= 64, "Compare at least 64 activations with officer 11 as the primary.");
     }
 
     [Theory]

@@ -89,7 +89,8 @@ internal static class DomesticDevelopmentHandler
         if (people.Length < 2) return false;
         long Ability(OfficerState p) => activity switch { DomesticActivity.Patrol => abilities[p.Id].Intelligence,
             DomesticActivity.Commerce or DomesticActivity.Cultivation => abilities[p.Id].Politics, _ => abilities[p.Id].Leadership };
-        var sorted = people.OrderByDescending(p => p.Status == OfficerStatus.Ruler ? 200000 : 1000 * Ability(p) + p.Id).ThenBy(p => p.Id).ToArray();
+        var sorted = people.OrderByDescending(p => p.Status == OfficerStatus.Ruler)
+            .ThenByDescending(Ability).ThenByDescending(p => p.Id).ToArray();
         foreach (var first in sorted)
         foreach (var second in sorted)
         {

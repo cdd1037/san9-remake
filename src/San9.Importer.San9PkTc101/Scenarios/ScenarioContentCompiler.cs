@@ -77,7 +77,7 @@ public static class ScenarioContentCompiler
             string name = text.Person($"force.{id}", p.FamilyNameResourceCode, p.GivenNameResourceCode);
             return new ForceInitialState(id, name, f.ColorCode, f.Money, f.Food, f.Trust) { BaseTrust = f.BaseTrust, ProvidedTactics = Enumerable.Range(0, San9ScenarioForceArchive.TacticCount).Where(f.HasTactic).ToImmutableArray(), RankId = f.RankGroupId is < 8 ? f.RankGroupId : null, IsBarbarian = f.IsBarbarian || f.CountryTitleId is >= 4 and <= 8, LeaderId = leader, FlagGlyph = f.CountryTitleId is int title ? System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(exe.AsSpan(0x253bb0 + title * 4, 4)) : p.FlagCode < 186 ? p.FlagCode : -1 };
         }).ToArray();
-        var officers = OfficerContentCompiler.Compile(persons, items, offices, settlements, summaries, text, new San9MessageTable(biographies));
+        var officers = OfficerContentCompiler.Compile(persons, settlements, summaries, text, new San9MessageTable(biographies));
         summaries = summaries.Select(f => f with { AdviserId = officers.Where(o => o.State.OwnerId == f.Id && o.State.Status == San9.Core.Domain.OfficerStatus.Strategist)
             .Select(o => (int?)o.State.Id).SingleOrDefault() }).ToArray();
         var treasureStates = TreasureContentCompiler.InitialStates(items);
@@ -106,7 +106,7 @@ public static class ScenarioContentCompiler
         var catalog = text.Catalog;
         if (catalog.Resolve(summaries.Single(f => f.Id == 5).NameKey) != "董卓") throw new InvalidDataException("Unexpected 190-year player force.");
         var units = UnitContentCompiler.Compile(sourceUnits, Root);
-        var snapshot = new ScenarioInitialState(22, header.ScenarioId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        var snapshot = new ScenarioInitialState(23, header.ScenarioId.ToString(System.Globalization.CultureInfo.InvariantCulture),
             header.StartDate.Year, header.StartDate.Month, header.StartDate.Day, 5, summaries, settlements.OrderBy(s => s.Id).ToArray(), regions, regionCities)
         { UnbuiltPlaces = personPlaces.Where(p => settlements.All(s => s.Id != p.Id)).Select(p => new San9.Core.Domain.PersonPlace(p.Id, San9.Core.Domain.MapCoordinates.Center(new(p.X, p.Y)))).ToImmutableArray(),
             CityConnections = PersonnelGeographyCompiler.CityConnections(Read(San9ScenarioSquareArchive.ReadKnownRecords),

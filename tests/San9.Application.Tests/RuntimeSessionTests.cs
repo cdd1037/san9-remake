@@ -10,7 +10,7 @@ public sealed class RuntimeSessionTests
     [Fact]
     public void SessionOwnsStateAndMetadataAndProjectsCommittedChanges()
     {
-        var initial = new ScenarioInitialState(22,"fixture",190,1,1,5,[new(5,"force",5,100,200,100)],
+        var initial = new ScenarioInitialState(23,"fixture",190,1,1,5,[new(5,"force",5,100,200,100)],
             [new(15,"city",5,89,64,1000,500,1000,50,[]) { CorpsId=5, IsFacilityListEntry=true, Commerce=300,MaxCommerce=1000,Cultivation=100,MaxCultivation=400 }],[],[])
             { Officers=[new("officer.1",new(1,5,15,new(0,0,100,0),false))], Information = new([], [], [], [new(5,5,1,new(100,200))], []) };
         var first=GameSession.Start(initial,1); var second=GameSession.Start(initial,1);

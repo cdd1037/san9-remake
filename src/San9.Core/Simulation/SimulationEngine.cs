@@ -21,8 +21,9 @@ public sealed class SimulationEngine
     private static WorldState ValidateContent(WorldState world, TreasureRulebook treasures, GovernanceRulebook? governance)
     {
         var snapshot = world.CreateSnapshot();
-        treasures.ValidateHoldings(snapshot.Treasures, snapshot.Officers);
-        governance?.ValidateOffices(snapshot.Officers);
+        if (snapshot.Treasures.Any(t => t.Discovery != TreasureDiscovery.Disabled && !treasures.Items.ContainsKey(t.Id)) ||
+            snapshot.Officers.Any(p => p.OfficeId is int id && (governance is null || !governance.Offices.ContainsKey(id))))
+            throw new ArgumentException("Unknown ability source definition.");
         return world;
     }
 
@@ -74,7 +75,7 @@ public sealed class SimulationEngine
         _world.EnterExecution();
         try
         {
-            var mutation = _world.BeginMutation();
+            var mutation = _world.BeginMutation(_rules.Abilities);
             List<DomainEvent> events = [];
             DevelopmentOutcome? development = null;
             switch (command)
@@ -185,6 +186,9 @@ public sealed class SimulationEngine
         finally { _world.ExitExecution(); }
     }
 
+    public System.Collections.Immutable.ImmutableDictionary<int, OfficerAbilities> GetAbilities(WorldSnapshot snapshot) =>
+        _rules.Abilities.EvaluateMany(snapshot.Officers, snapshot.Treasures);
+
     private CommandRejection ValidateEnvelope(CommandContext context, GameCommand command)
     {
         if (command.IssuerId < 0) return CommandRejection.NegativeIssuerId;
@@ -209,7 +213,7 @@ public sealed class SimulationEngine
             throw new InvalidOperationException("No active stable control.");
         var seat = _world.Simulation.Controls[_world.Simulation.ActiveControl];
         if (seat.ControllerId != context.ControllerId) throw new InvalidOperationException("Not the active controller.");
-        var mutation = _world.BeginMutation();
+        var mutation = _world.BeginMutation(_rules.Abilities);
         mutation.SetSimulation(mutation.Simulation with { ActiveControl = mutation.Simulation.ActiveControl + 1 });
         _world.Commit(mutation);
         return new(Array.AsReadOnly<DomainEvent>([new ControlEndedEvent(seat.ControllerId, seat.ForceId)]), Snapshot);
@@ -227,7 +231,7 @@ public sealed class SimulationEngine
         {
             GameClock previous = _world.Clock;
             GameClock next = previous.Advance();
-            var mutation = _world.BeginMutation();
+            var mutation = _world.BeginMutation(_rules.Abilities);
             List<DomainEvent> events = [];
             while (mutation.Clock != next && mutation.Simulation.Boundary != SimulationBoundary.Terminal)
                 _pipeline.AdvanceDay(mutation, events);

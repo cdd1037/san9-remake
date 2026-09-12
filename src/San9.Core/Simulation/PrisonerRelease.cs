@@ -34,7 +34,7 @@ internal static class PrisonerRelease
         {
             world.Replace(world.Officers[personId] with { Status = world.Forces[person.OwnerId!.Value].LeaderId == personId
                 ? OfficerStatus.Ruler : OfficerStatus.Serving, SettlementId = home.Id, RegionId = null,
-                OfficeId = null, OfficeBonuses = default, IsCommander = false, Acted = true, StatusStartYear = world.Clock.Year });
+                OfficeId = null, IsCommander = false, Acted = true, StatusStartYear = world.Clock.Year });
             var previous = new PersistentTask(command.CommandId, PersonnelReturns.Kind, control?.ControllerId ?? "system",
                 person.OwnerId.Value, personId, origin, world.Clock, world.Clock, 0, command.Sequence);
             PersonnelReturns.Schedule(world, previous, personId, origin, home.Id,

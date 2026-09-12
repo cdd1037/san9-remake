@@ -19,7 +19,7 @@ internal static class GovernanceMaintenance
     {
         var people = world.Officers.Values.Where(p => p.SettlementId == placeId && p.IsServing).ToArray();
         var busy = world.Simulation.Tasks.Where(t => t.Journey is not null).Select(t => t.OfficerId).ToHashSet();
-        var selected = rules.SelectCommander(people.Where(p => !busy.Contains(p.Id)));
+        var selected = rules.SelectCommander(people.Where(p => !busy.Contains(p.Id)), world.AbilitiesFor(people));
         var previous = people.Where(p => p.IsCommander).Select(p => p.Id).Order().ToArray();
         foreach (var person in people) world.Replace(person with { IsCommander = person.Id == selected?.Id });
         if (!previous.SequenceEqual(selected is null ? [] : new[] { selected.Id }))
@@ -34,7 +34,7 @@ internal static class GovernanceMaintenance
         if (people.Length == 0 || !world.Settlements.Values.Any(s => s.CorpsId == corps.Id && s.Kind == SettlementKind.City))
             return CorpsGovernance.Dissolve(world, new(Guid.Empty, corps.OwnerId, 0, corps.Id), rules, events);
         if (people.Any(p => p.Id == corps.LeaderId)) return CommandRejection.None;
-        var leader = rules.SelectSuccessor(people, corps.LeaderId)!;
+        var leader = rules.SelectSuccessor(people, corps.LeaderId, world.AbilitiesFor(people))!;
         var oldLeader = world.Officers[corps.LeaderId];
         if (oldLeader.IsServing && oldLeader.Status == OfficerStatus.Governor)
             world.Replace(oldLeader with { Status = OfficerStatus.Serving });

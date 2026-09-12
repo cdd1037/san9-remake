@@ -15,6 +15,7 @@ internal sealed class WorldMutation
 
     internal WorldMutation(
         WorldState owner,
+        OfficerAbilityRules abilityRules,
         long expectedRevision,
         GameClock clock,
         SimulationState simulation,
@@ -27,6 +28,7 @@ internal sealed class WorldMutation
         ImmutableDictionary<(int FirstId, int SecondId), ForceRelation> relations)
     {
         _owner = owner;
+        _abilityRules = abilityRules;
         _expectedRevision = expectedRevision;
         Clock = clock;
         Simulation = simulation;
@@ -48,6 +50,11 @@ internal sealed class WorldMutation
     internal ImmutableDictionary<int, CorpsState> Corps { get; private set; }
     internal ImmutableDictionary<int, TreasureState> Treasures { get; private set; }
     internal ImmutableDictionary<(int FirstId, int SecondId), ForceRelation> Relations { get; private set; }
+
+    internal OfficerAbilities Abilities(OfficerState person) => _abilityRules.Evaluate(person, Treasures.Values);
+    internal ImmutableDictionary<int, OfficerAbilities> AbilitiesFor(IEnumerable<OfficerState> people) =>
+        _abilityRules.EvaluateMany(people, Treasures.Values);
+    private readonly OfficerAbilityRules _abilityRules;
 
     internal void SetClock(GameClock clock)
     {

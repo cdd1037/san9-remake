@@ -30,12 +30,4 @@ public sealed class TreasureRulebook
         MaximumBonuses(treasures.Where(t => t.HolderId == officerId && t.Discovery != TreasureDiscovery.Disabled)
             .Select(t => Items[t.Id].AbilityBonuses));
 
-    public void ValidateHoldings(IEnumerable<TreasureState> treasures, IEnumerable<OfficerState> officers)
-    {
-        var items = treasures.ToArray();
-        if (items.Any(t => t.Discovery != TreasureDiscovery.Disabled && !Items.ContainsKey(t.Id)))
-            throw new ArgumentException("Missing active treasure definition.");
-        if (officers.Any(p => p.ItemBonuses != HeldBonuses(items, p.Id)))
-            throw new ArgumentException("Officer treasure bonuses disagree with current holdings.");
-    }
 }

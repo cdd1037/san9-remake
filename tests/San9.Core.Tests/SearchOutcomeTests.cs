@@ -51,7 +51,7 @@ public sealed class SearchOutcomeTests
         Assert.Equal(SearchResultKind.Treasure, result.Result);
         Assert.Equal(10, result.TreasureId);
         Assert.Equal(1, Assert.Single(engine.Snapshot.Treasures).HolderId);
-        Assert.Equal(new OfficerAbilities(5, 0, 0, 0), engine.Snapshot.Officers.Single(p => p.Id == 1).ItemBonuses);
+        Assert.Equal(engine.Snapshot.Officers.Single(p => p.Id == 1).BaseAbilities.War + 5, engine.GetAbilities(engine.Snapshot)[1].War);
         Assert.DoesNotContain(engine.Snapshot.Simulation.RandomStreams, s => s.Name == "personnel-search-funds");
     }
 

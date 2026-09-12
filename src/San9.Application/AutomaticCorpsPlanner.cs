@@ -15,9 +15,10 @@ internal static class AutomaticCorpsPlanner
             var context = new CommandContext(seat.ControllerId);
             var snapshot = engine.Snapshot;
             var places = snapshot.Settlements.Where(s => s.CorpsId == corps.Id && s.CanHostPersons && s.Durability > 0).Select(s => s.Id).ToHashSet();
+            var abilities = engine.GetAbilities(snapshot);
             var actor = snapshot.Officers.Where(p => p.IsServing && p.OwnerId == corps.OwnerId &&
                 p.SettlementId is int home && places.Contains(home) && !p.Acted && !snapshot.Simulation.Tasks.Any(t => t.OfficerId == p.Id))
-                .OrderByDescending(p => p.Abilities.Politics).ThenBy(p => p.Id).FirstOrDefault();
+                .OrderByDescending(p => abilities[p.Id].Politics).ThenBy(p => p.Id).FirstOrDefault();
             if (actor is not null)
             {
                 foreach (var target in snapshot.Officers.Where(p => p.IsVisible && p.OwnerId != corps.OwnerId &&

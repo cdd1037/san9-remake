@@ -11,12 +11,10 @@ public static class OfficerContentCompiler
         office.HasStrengthBonus ? office.AbilityBonus : 0, office.HasIntelligenceBonus ? office.AbilityBonus : 0,
         office.HasPoliticsBonus ? office.AbilityBonus : 0, office.HasLeadershipBonus ? office.AbilityBonus : 0);
     public static OfficerInitialState[] Compile(IReadOnlyList<San9ScenarioPersonRecord> people,
-        IReadOnlyList<San9ScenarioItemRecord> items, IReadOnlyList<San9ScenarioOfficeRecord> offices,
         IReadOnlyList<SettlementInitialState> settlements, IReadOnlyList<ForceInitialState> forces,
         ScenarioTextReader text, San9MessageTable biographies)
     {
         var locations = settlements.ToDictionary(s => s.Id);
-        var heldItems = items.Where(i => !i.IsInvalid && i.HolderPersonId is not null).ToLookup(i => i.HolderPersonId!.Value);
         List<OfficerInitialState> result = [];
         for (int id = 0; id < people.Count; id++)
         {
@@ -45,9 +43,7 @@ public static class OfficerContentCompiler
                 ForceLoyalties = forces.ToImmutableDictionary(f => f.Id, f => (int)person.GetForceLoyalty(f.Id)),
                 Righteousness = person.Righteousness,
                 HasRecruitmentPoliticsBonus = person.BiographyResourceCode == 36,
-                RewardedThisXun = person.WasRewardedThisXun,
-                ItemBonuses = TreasureRulebook.MaximumBonuses(heldItems[id].Select(TreasureContentCompiler.AbilityBonuses)),
-                OfficeBonuses = person.OfficeRankId is int office ? OfficeBonuses(offices[office]) : default
+                RewardedThisXun = person.WasRewardedThisXun
             };
             result.Add(new(text.Person($"officer.{id}", person.FamilyNameResourceCode, person.GivenNameResourceCode), state)
             {

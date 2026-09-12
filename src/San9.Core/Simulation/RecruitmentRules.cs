@@ -20,7 +20,7 @@ internal static class RecruitmentRules
         int oldAffinity = oldForce?.LeaderId is int oldLeader ? PersonnelRulebook.AffinityDistance(target, world.Officers[oldLeader]) : 50;
         int newAffinity = PersonnelRulebook.AffinityDistance(target, leader);
         int politicsBonus = actor.HasRecruitmentPoliticsBonus ? Math.Max(0, 100 - actor.BaseAbilities.Politics) : 0;
-        long threshold = (long)actor.Abilities.Politics + politicsBonus + (target.Status == OfficerStatus.Captive ? 30 : 0)
+        long threshold = (long)world.Abilities(actor).Politics + politicsBonus + (target.Status == OfficerStatus.Captive ? 30 : 0)
             + (force.Trust - (oldForce?.Trust ?? 0)) / 5 + (oldAffinity - newAffinity) / 5
             - target.Righteousness - currentLoyalty + recruitingLoyalty - 37;
         return (int)Math.Clamp(threshold, int.MinValue, int.MaxValue);

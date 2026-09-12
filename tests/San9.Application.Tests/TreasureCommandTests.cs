@@ -9,13 +9,13 @@ namespace San9.Application.Tests;
 
 public sealed class TreasureCommandTests
 {
-    private static ScenarioInitialState Fixture() => new(22, "treasure-commands", 190, 1, 1, 1,
+    private static ScenarioInitialState Fixture() => new(23, "treasure-commands", 190, 1, 1, 1,
         [new(1, "force", 1, 1000, 1000, 1000) { LeaderId = 1, BaseTrust = 950 }],
         [new(1, "city", 1, 0, 0, 0, 100, 100, 0, [])], new() { [1] = "city" }, new() { [1] = 1 })
     {
         ImperialSealId = 10,
         Officers = [new("ruler", new(1, 1, 1, new(50, 50, 50, 50), false)
-            { Status = OfficerStatus.Ruler, ItemBonuses = new(10, 0, 0, 0) }),
+            { Status = OfficerStatus.Ruler }),
             new("recipient", new OfficerState(2, 1, 1, new(50, 50, 50, 50), false).WithLoyalty(1, 98))],
         Information = new([], [], [new(10, "treasure", 1, 10, 8, null) { AbilityBonuses = new(10, 0, 0, 0) }], [],
             [new(10, 1, TreasureDiscovery.Discovered, null)])
@@ -34,7 +34,7 @@ public sealed class TreasureCommandTests
             .ToDictionary(k => k, k => new TextEntry(k, k)));
         Assert.Empty(TreasureCatalog.Read(session.View, texts, holderId: 1).Rows);
         Assert.Single(TreasureCatalog.Read(session.View, texts, holderId: 2).Rows);
-        Assert.Equal(60, session.Snapshot.Officers.Single(p => p.Id == 2).Abilities.War);
+        Assert.Equal(60, session.View.Officers.Single(p => p.Id == 2).Abilities.War);
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         id = Guid.NewGuid();
         var request = session.Request(new CommandOperation(new ConfiscateTreasureCommand(id, 1, 1, 10)), id: id);
@@ -46,20 +46,21 @@ public sealed class TreasureCommandTests
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
         Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
         Assert.Equal(1, definition.Information.TreasureStates.Single().HolderId);
-        Assert.Equal(default, definition.Officers.Single(p => p.State.Id == 2).State.ItemBonuses);
+        Assert.Equal(50, GameSession.Start(definition, 190).View.Officers.Single(p => p.Id == 2).Abilities.War);
     }
 
     [Fact]
-    public void RestoreRejectsHolderChangesWithoutRecomputedBonuses()
+    public void RestoreAndContentDeriveAbilitiesFromChangedHoldings()
     {
         var definition = Fixture();
         var session = GameSession.Start(definition, 190);
         var state = session.Capture();
-        var invalid = state with { World = state.World with
+        var changed = state with { World = state.World with
         { Treasures = [state.World.Treasures.Single() with { HolderId = 2 }] } };
-        Assert.Throws<ArgumentException>(() => GameSession.Restore(definition, invalid));
+        Assert.Equal(60, GameSession.Restore(definition, changed).View.Officers.Single(p => p.Id == 2).Abilities.War);
         var initial = definition with { Information = definition.Information with
         { TreasureStates = [definition.Information.TreasureStates.Single() with { HolderId = 2 }] } };
-        Assert.Throws<InvalidDataException>(initial.Validate);
+        initial.Validate();
+        Assert.Equal(60, GameSession.Start(initial, 190).View.Officers.Single(p => p.Id == 2).Abilities.War);
     }
 }

@@ -40,7 +40,7 @@ internal static class CorpsGovernance
         places = facilities.Select(s => s.Id).ToHashSet();
         var busy = world.Simulation.Tasks.Where(t => t.Journey is not null).Select(t => t.OfficerId).ToHashSet();
         var leader = rules.SelectGovernor(world.Officers.Values.Where(p => p.OwnerId == force.Id &&
-            p.SettlementId is int home && places.Contains(home) && !busy.Contains(p.Id)));
+            p.SettlementId is int home && places.Contains(home) && !busy.Contains(p.Id)), world.AbilitiesFor(world.Officers.Values));
         if (leader is null) return CommandRejection.PersonUnavailable;
         long moneyDelta = (long)command.Money - corps.Treasury.Money;
         long foodDelta = (long)command.Food - corps.Treasury.Food;
@@ -98,7 +98,7 @@ internal static class CorpsGovernance
         places = facilities.Select(s => s.Id).ToHashSet();
         var busy = world.Simulation.Tasks.Where(t => t.Journey is not null).Select(t => t.OfficerId).ToHashSet();
         var leader = rules.SelectGovernor(world.Officers.Values.Where(p => p.OwnerId == force.Id &&
-            p.SettlementId is int home && places.Contains(home) && home != ruler.SettlementId && !busy.Contains(p.Id)));
+            p.SettlementId is int home && places.Contains(home) && home != ruler.SettlementId && !busy.Contains(p.Id)), world.AbilitiesFor(world.Officers.Values));
         if (leader is null) return CommandRejection.PersonUnavailable;
         if (command.Money > force.Money || command.Food > force.Food) return CommandRejection.InsufficientFunds;
         int id = world.Corps.Keys.Max() + 1;

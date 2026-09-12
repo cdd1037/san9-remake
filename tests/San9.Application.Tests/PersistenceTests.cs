@@ -37,6 +37,7 @@ public sealed class PersistenceTests : IDisposable
 
     private sealed class FixtureRules : SimulationRules
     {
+        internal FixtureRules() { Treasures = new([new(1, default, 5)]); }
         internal int InitialUpdates { get; private set; }
         internal bool Fail { get; set; }
         internal Action? DuringDailyUpdate { get; set; }

@@ -16,6 +16,7 @@ internal static class DomesticDevelopmentHandler
         if (city.OwnerId != force.Id || people.Any(p => p.OwnerId != force.Id)) return new(DevelopmentRejection.WrongOwner);
         if (people.Any(p => !p.IsServing || p.Acted || p.SettlementId != city.Id || world.Simulation.Tasks.Any(t => t.OfficerId == p.Id)))
             return new(DevelopmentRejection.OfficerUnavailable);
+        var abilities = world.AbilitiesFor(people);
         var activity = command.Activity;
         if (city.Kind != SettlementKind.City && activity is not (DomesticActivity.Repair or DomesticActivity.Train)) return new(DevelopmentRejection.UnsupportedActivity);
         bool used = activity switch
@@ -31,7 +32,7 @@ internal static class DomesticDevelopmentHandler
         if (activity == DomesticActivity.Recruit)
         {
             if (city.Soldiers >= city.SoldierCapacity) return new(DevelopmentRejection.AtMaximum);
-            long potential = 3 * (100 * people.Sum(p => (long)p.Abilities.Leadership) / (people.Length + 4)) / 2;
+            long potential = 3 * (100 * people.Sum(p => (long)abilities[p.Id].Leadership) / (people.Length + 4)) / 2;
             increment = (int)Math.Min(Math.Min(potential, city.DraftPopulation), Math.Min(10L * funds, city.SoldierCapacity - city.Soldiers));
             if (increment == 0) return new(DevelopmentRejection.NoRecruits);
             cost = (increment + 9) / 10;
@@ -53,15 +54,15 @@ internal static class DomesticDevelopmentHandler
             {
                 if (city.Soldiers == 0) return new(DevelopmentRejection.NoSoldiers);
                 long scale = 10L * (11 - people.Length) * (EconomyMath.RecruitMorale(force.Trust) - city.Morale + 100) / 100;
-                increment = (int)Math.Min(100 - current, people.Length + people.Sum(p => EconomyMath.ExecutedAbility(p.Abilities.Leadership)) * scale / EconomyMath.SquareRoot(city.Soldiers + 10000L) / 10);
+                increment = (int)Math.Min(100 - current, people.Length + people.Sum(p => EconomyMath.ExecutedAbility(abilities[p.Id].Leadership)) * scale / EconomyMath.SquareRoot(city.Soldiers + 10000L) / 10);
             }
             else
             {
                 cost = people.Length * 50;
                 if (funds < cost) return new(DevelopmentRejection.InsufficientFunds);
-                increment = DomesticDevelopment.CalculateBaseEffect(activity, current, maximum, (int)Math.Min(funds, int.MaxValue), people.Select(p => p.Abilities).ToArray());
+                increment = DomesticDevelopment.CalculateBaseEffect(activity, current, maximum, (int)Math.Min(funds, int.MaxValue), people.Select(p => abilities[p.Id]).ToArray());
             }
-            if (increment < maximum - current && Doubled(world, rules, force, people, activity)) increment = (int)Math.Min(maximum - current, 2L * increment);
+            if (increment < maximum - current && Doubled(world, rules, force, people, abilities, activity)) increment = (int)Math.Min(maximum - current, 2L * increment);
             world.Replace(activity switch
             {
                 DomesticActivity.Patrol => city with { PublicOrder = current + increment, PatrolUsed = true },
@@ -83,11 +84,11 @@ internal static class DomesticDevelopmentHandler
         return new(DevelopmentRejection.None, increment, cost);
     }
 
-    private static bool Doubled(WorldMutation world, EconomyRulebook rules, ForceState force, OfficerState[] people, DomesticActivity activity)
+    private static bool Doubled(WorldMutation world, EconomyRulebook rules, ForceState force, OfficerState[] people, IReadOnlyDictionary<int, OfficerAbilities> abilities, DomesticActivity activity)
     {
         if (people.Length < 2) return false;
-        long Ability(OfficerState p) => activity switch { DomesticActivity.Patrol => p.Abilities.Intelligence,
-            DomesticActivity.Commerce or DomesticActivity.Cultivation => p.Abilities.Politics, _ => p.Abilities.Leadership };
+        long Ability(OfficerState p) => activity switch { DomesticActivity.Patrol => abilities[p.Id].Intelligence,
+            DomesticActivity.Commerce or DomesticActivity.Cultivation => abilities[p.Id].Politics, _ => abilities[p.Id].Leadership };
         var sorted = people.OrderByDescending(p => p.Status == OfficerStatus.Ruler ? 200000 : 1000 * Ability(p) + p.Id).ThenBy(p => p.Id).ToArray();
         foreach (var first in sorted)
         foreach (var second in sorted)

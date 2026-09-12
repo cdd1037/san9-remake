@@ -43,7 +43,7 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
     [System.Text.Json.Serialization.JsonRequired] public InformationDefinitions Information { get; init; } = InformationDefinitions.Empty;
     public void Validate()
     {
-        if (SchemaVersion != 22 || string.IsNullOrWhiteSpace(ScenarioId) || Year < 1 || Month is < 1 or > 12 || Day is < 1 or > 30 ||
+        if (SchemaVersion != 23 || string.IsNullOrWhiteSpace(ScenarioId) || Year < 1 || Month is < 1 or > 12 || Day is < 1 or > 30 ||
             Forces.Select(f => f.Id).Distinct().Count() != Forces.Length || !Forces.Any(f => f.Id == PlayerForceId))
             throw new InvalidDataException("Invalid scenario date or player force.");
         Information.Validate(this);

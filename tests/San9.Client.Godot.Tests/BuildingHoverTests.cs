@@ -29,7 +29,7 @@ public sealed class BuildingHoverTests
     [Fact]
     public void CardUsesCurrentServingPeopleAndIndependentCommanderState()
     {
-        var initial = new ScenarioInitialState(22, "hover", 190, 1, 1, 5,
+        var initial = new ScenarioInitialState(23, "hover", 190, 1, 1, 5,
             [new(5, "force", 5, 500, 100, 100) { LeaderId = 1 }],
             [new(15, "city", 5, 89, 64, 32000, 440, 800, 50, ["merchant", "emperor"])
                 { CorpsId = 5, Commerce = 560, MaxCommerce = 1000, Cultivation = 150, MaxCultivation = 400, PublicOrder = 150 },

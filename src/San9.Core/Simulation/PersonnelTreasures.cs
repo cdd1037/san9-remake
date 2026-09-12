@@ -22,7 +22,7 @@ internal static class PersonnelTreasures
         if (!IsOwnOfficer(recipient, command.IssuerId, ruler.Value) || IsTravelling(world, recipient.Id))
             return CommandRejection.PersonUnavailable;
 
-        Transfer(world, item, recipient.Id, command.IssuerId, "grant", rules, events);
+        Transfer(world, item, recipient.Id, command.IssuerId, "grant", events);
         int loyalty = (int)Math.Min(255L, (long)recipient.Loyalty + rules.Items[item.Id].LoyaltyBonus);
         RecruitmentRules.SetLoyalty(world, recipient.Id, command.IssuerId, loyalty, "treasure-granted", events);
         if (economy.ImperialSealId == item.Id) EconomicCycle.UpdateTrust(world, economy, events);
@@ -43,7 +43,7 @@ internal static class PersonnelTreasures
         if ((!IsOwnOfficer(person, command.IssuerId, ruler.Value) && !detainedHere) || IsTravelling(world, holder))
             return CommandRejection.PersonUnavailable;
 
-        Transfer(world, item, ruler.Value, command.IssuerId, "confiscate", rules, events);
+        Transfer(world, item, ruler.Value, command.IssuerId, "confiscate", events);
         int loyalty = (int)Math.Max(0L, person.LoyaltyTo(command.IssuerId) - 3L * rules.Items[item.Id].LoyaltyBonus / 2);
         RecruitmentRules.SetLoyalty(world, holder, command.IssuerId, loyalty, "treasure-confiscated", events);
         if (economy.ImperialSealId == item.Id) EconomicCycle.UpdateTrust(world, economy, events);
@@ -57,12 +57,10 @@ internal static class PersonnelTreasures
         world.Simulation.Tasks.Any(t => t.OfficerId == officerId && t.Journey is not null);
 
     private static void Transfer(WorldMutation world, TreasureState item, int recipientId, int forceId, string reason,
-        TreasureRulebook rules, List<DomainEvent> events)
+        List<DomainEvent> events)
     {
         int previous = item.HolderId!.Value;
         world.Replace(item with { HolderId = recipientId });
-        foreach (int id in new[] { previous, recipientId })
-            world.Replace(world.Officers[id] with { ItemBonuses = rules.HeldBonuses(world.Treasures.Values, id) });
         events.Add(new TreasureTransferredEvent(world.Clock, forceId, item.Id, previous, recipientId, reason));
     }
 }

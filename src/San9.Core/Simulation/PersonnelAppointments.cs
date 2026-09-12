@@ -11,14 +11,14 @@ internal static class PersonnelAppointments
     internal static CommandRejection Apply(WorldMutation world, AppointAdviserCommand command, List<DomainEvent> events)
     {
         if (!world.Officers.TryGetValue(command.OfficerId, out var candidate)) return CommandRejection.UnknownPerson;
-        if (candidate.OwnerId != command.IssuerId || candidate.Status != OfficerStatus.Serving || candidate.Abilities.Intelligence < 70 ||
+        if (candidate.OwnerId != command.IssuerId || candidate.Status != OfficerStatus.Serving || world.Abilities(candidate).Intelligence < 70 ||
             world.Forces[command.IssuerId].LeaderId == candidate.Id)
             return CommandRejection.PersonUnavailable;
         var force = world.Forces[command.IssuerId];
         if (force.AdviserId is int oldId)
         {
             var old = world.Officers[oldId];
-            if (candidate.Abilities.Intelligence <= old.Abilities.Intelligence)
+            if (world.Abilities(candidate).Intelligence <= world.Abilities(old).Intelligence)
             {
                 int loss = (int)(world.NextRandom("personnel-adviser-replacement") % 3);
                 RecruitmentRules.SetLoyalty(world, oldId, force.Id, Math.Max(0, old.Loyalty - loss), "adviser-replaced", events);

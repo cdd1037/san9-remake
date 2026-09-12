@@ -104,7 +104,7 @@ public partial class ClientVerification : Node
     {
         var session = World.Session;
         var before = session.Snapshot;
-        var officer = before.Officers.Where(o => o.SettlementId == 15 && o.OwnerId == 5 && !o.Acted)
+        var officer = session.View.Officers.Where(o => o.SettlementId == 15 && o.OwnerId == 5 && o.IsAvailable)
             .OrderByDescending(o => o.Abilities.Politics).First();
         if (Options.Screenshot is { } path) await Capture(Path.Combine(Path.GetDirectoryName(path)!, "runtime-before.png"), false);
         var result = session.Develop(new(5, 15, [officer.Id], San9.Core.Domain.DomesticActivity.Commerce));

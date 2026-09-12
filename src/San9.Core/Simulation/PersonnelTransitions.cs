@@ -13,7 +13,7 @@ internal static class PersonnelTransitions
         world.Replace(person with { OwnerId = null, Status = OfficerStatus.Free,
             SettlementId = world.Settlements.ContainsKey(placeId) ? placeId : null,
             RegionId = world.Settlements.ContainsKey(placeId) ? null : placeId, OfficeId = null,
-            OfficeBonuses = default, IsCommander = false, Acted = true, StatusStartYear = world.Clock.Year });
+            IsCommander = false, Acted = true, StatusStartYear = world.Clock.Year });
         events.Add(new PersonAffiliationChangedEvent(world.Clock, personId, person.OwnerId, null, placeId));
     }
     internal static void Exile(WorldMutation world, int personId, int placeId, List<DomainEvent> events, PersonnelRulebook places, bool afterDailyCommands)
@@ -29,7 +29,7 @@ internal static class PersonnelTransitions
             OwnerId = null, Status = OfficerStatus.Free, StatusStartYear = world.Clock.Year,
             SettlementId = world.Settlements.ContainsKey(placeId) ? placeId : null,
             RegionId = world.Settlements.ContainsKey(placeId) ? null : placeId,
-            OfficeId = null, OfficeBonuses = default, IsCommander = false, Acted = true
+            OfficeId = null, IsCommander = false, Acted = true
         });
         events.Add(new PersonAffiliationChangedEvent(world.Clock, personId, forceId, null, placeId));
     }
@@ -43,7 +43,7 @@ internal static class PersonnelTransitions
         {
             OwnerId = null, Status = OfficerStatus.Free, SettlementId = world.Settlements.ContainsKey(placeId) ? placeId : null,
             RegionId = world.Settlements.ContainsKey(placeId) ? null : placeId, StatusStartYear = world.Clock.Year,
-            OfficeId = null, OfficeBonuses = default, IsCommander = false, Acted = true
+            OfficeId = null, IsCommander = false, Acted = true
         });
         events.Add(new PersonAffiliationChangedEvent(world.Clock, personId, person.OwnerId, null, placeId));
     }
@@ -62,7 +62,7 @@ internal static class PersonnelTransitions
         world.Replace(world.Officers[personId] with
         {
             OwnerId = forceId, SettlementId = destinationId, RegionId = null, Status = OfficerStatus.Serving,
-            StatusStartYear = world.Clock.Year, OfficeId = null, OfficeBonuses = default, IsCommander = false, Acted = true
+            StatusStartYear = world.Clock.Year, OfficeId = null, IsCommander = false, Acted = true
         });
         events.Add(new PersonAffiliationChangedEvent(world.Clock, personId, person.OwnerId, forceId, destinationId));
     }

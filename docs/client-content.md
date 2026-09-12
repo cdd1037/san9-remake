@@ -7,7 +7,7 @@
 | 模块 | 职责 | 输出 |
 | --- | --- | --- |
 | Content.Maps / MapImporter | 当前地图方格、地貌及对象位置 | `map.json`（无图片文件） |
-| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态 | `scenario.json`，schema12 |
+| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态 | `scenario.json`，schema23 |
 | Content.Text / ScenarioTextReader | 名称与全量消息目录 | `text.json` / `messages.json`，schema3 |
 | Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema16 |
 | Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema24 |

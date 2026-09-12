@@ -42,14 +42,5 @@ public sealed record InformationDefinitions(RankDefinition[] Ranks, OfficeDefini
                 t.HolderId is int holder && !scenario.Officers.Any(o => o.State.Id == holder)) ||
             Corps.Any(c => !scenario.Forces.Any(f => f.Id == c.OwnerId) || !scenario.Officers.Any(o => o.State.Id == c.LeaderId && o.State.OwnerId == c.OwnerId)))
             throw new InvalidDataException("Invalid information definition or relationship.");
-        try
-        {
-            new TreasureRulebook(Treasures.Select(t => new TreasureRule(t.Id, t.AbilityBonuses, t.LoyaltyBonus)))
-                .ValidateHoldings(TreasureStates, scenario.Officers.Select(o => o.State));
-            new GovernanceRulebook(Offices.Select(o => new GovernorOfficeRule(o.Id, o.CommandCapacity, o.GovernorPriority)
-                { AbilityBonuses = o.AbilityBonuses, Salary = o.Salary, RequiredRankId = o.RequiredRankId }),
-                Ranks.ToDictionary(r => r.Id, r => r.RequiredTrust)).ValidateOffices(scenario.Officers.Select(o => o.State));
-        }
-        catch (ArgumentException error) { throw new InvalidDataException("Invalid item or office ability state.", error); }
     }
 }

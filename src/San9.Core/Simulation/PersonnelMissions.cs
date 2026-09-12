@@ -212,7 +212,7 @@ internal sealed class PersonnelMissionRule(PersonnelRulebook rules, EconomyRuleb
         int destination = task.Journey!.DestinationPlaceId;
         var people = world.Officers.Values.Where(p => p.Status == OfficerStatus.Undiscovered &&
             (p.SettlementId ?? p.RegionId) == destination).OrderBy(p => p.Id).ToArray();
-        int politics = world.Officers[task.OfficerId].Abilities.Politics;
+        int politics = world.Abilities(world.Officers[task.OfficerId]).Politics;
         long score = Math.Max(1, Math.Min(politics, 60) / 2) + Math.Max(0, Math.Min(politics, 80) - 60)
             + 2L * Math.Max(0, Math.Min(politics, 90) - 80) + 3L * Math.Max(0, politics - 90);
         long root = (long)Math.Sqrt(100L * people.Length);
@@ -261,7 +261,6 @@ internal sealed class PersonnelMissionRule(PersonnelRulebook rules, EconomyRuleb
                 var item = items[world.NextRandom("personnel-search-treasure") % (ulong)items.Length];
                 int rulerId = world.Forces[task.ForceId].LeaderId!.Value;
                 world.Replace(item with { Discovery = TreasureDiscovery.Discovered, HolderId = rulerId });
-                world.Replace(world.Officers[rulerId] with { ItemBonuses = treasures.HeldBonuses(world.Treasures.Values, rulerId) });
                 PersonnelMissions.GrowPolitics(world, task.OfficerId, events);
                 EconomicCycle.UpdateTrust(world, economy, events);
                 events.Add(new SearchResolvedEvent(world.Clock, task.OfficerId, destination, null, false)

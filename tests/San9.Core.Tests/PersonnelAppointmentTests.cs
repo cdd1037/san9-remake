@@ -12,9 +12,10 @@ public sealed class PersonnelAppointmentTests
             [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
             [new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
              new OfficerState(11, 1, 1, new(50, oldIntelligence, 50, 50), false) { Status = oldAdviser ? OfficerStatus.Strategist : OfficerStatus.Serving }.WithLoyalty(1, 1),
-             new(12, 1, 1, new(50, intelligence, 50, 50), false) { ItemBonuses = new(0, bonus, 0, 0), OfficeBonuses = new(1, 0, 1, 0) }],
-            controls: [new("player", 1, ControllerKind.Player)]);
-        return new(world);
+             new(12, 1, 1, new(50, intelligence, 50, 50), false) { OfficeId = 1 }],
+            treasures: [new(10, 12, TreasureDiscovery.Discovered, null)], controls: [new("player", 1, ControllerKind.Player)]);
+        return new(world, new([new(1, 0)], []), PersonnelRulebook.Empty, new([new(10, new(0, bonus, 0, 0), 0)]),
+            new([new(1, 10000, 0) { AbilityBonuses = new(1, 0, 1, 0) }]));
     }
 
     [Theory]
@@ -31,7 +32,8 @@ public sealed class PersonnelAppointmentTests
         Assert.Equal(OfficerStatus.Serving, engine.Snapshot.Officers.Single(p => p.Id == 11).Status);
         var appointed = engine.Snapshot.Officers.Single(p => p.Id == 12);
         Assert.Equal(OfficerStatus.Strategist, appointed.Status);
-        Assert.Equal(new OfficerAbilities(1, 0, 1, 0), appointed.OfficeBonuses);
+        Assert.Equal(1, appointed.OfficeId);
+        Assert.Equal(51, engine.GetAbilities(engine.Snapshot)[appointed.Id].War);
         Assert.False(appointed.Acted);
         Assert.Single(result.Events.OfType<AdviserAppointedEvent>());
     }
@@ -57,7 +59,8 @@ public sealed class PersonnelAppointmentTests
             Corps = [new(3, 1, 12, null)],
             Settlements = state.Settlements.Select(s => s with { CorpsId = 3 }).ToArray(),
             Officers = state.Officers.Select(p => p.Id == 12 ? p with { Acted = true } : p).ToArray()
-        }));
+        }), new([new(1, 0)], []), PersonnelRulebook.Empty, new([new(10, new(0, 0, 0, 0), 0)]),
+            new([new(1, 10000, 0) { AbilityBonuses = new(1, 0, 1, 0) }]));
         Assert.True(engine.Execute(new("player"), new AppointAdviserCommand(Guid.NewGuid(), 1, 0, 12)).Submission.Accepted);
         Assert.Equal(12, engine.Snapshot.Forces.Single().AdviserId);
         Assert.Equal(12, engine.Snapshot.Corps.Single().LeaderId);

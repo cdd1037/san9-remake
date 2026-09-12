@@ -1,4 +1,5 @@
 using San9.Content.Scenarios;
+using San9.Core.Domain;
 using San9.Core.Simulation;
 
 namespace San9.Application.Presentation;
@@ -30,6 +31,9 @@ internal sealed class StrategySnapshotSource
     {
         PlayerForceId = definition.PlayerForceId;
         Information = new(definition.Information);
+        Abilities = new(new TreasureRulebook(definition.Information.Treasures.Select(t => new TreasureRule(t.Id, t.AbilityBonuses, t.LoyaltyBonus))),
+            new GovernanceRulebook(definition.Information.Offices.Select(o => new GovernorOfficeRule(o.Id, o.CommandCapacity, o.GovernorPriority)
+                { AbilityBonuses = o.AbilityBonuses })));
         RegionNameKeys = new System.Collections.ObjectModel.ReadOnlyDictionary<int, string>(
             new Dictionary<int, string>(definition.RegionNameKeys));
         RegionCityIds = new System.Collections.ObjectModel.ReadOnlyDictionary<int, int>(
@@ -44,6 +48,7 @@ internal sealed class StrategySnapshotSource
 
     public int PlayerForceId { get; }
     public InformationCatalog Information { get; }
+    internal OfficerAbilityRules Abilities { get; }
     public IReadOnlyDictionary<int, string> RegionNameKeys { get; }
     public IReadOnlyDictionary<int, int> RegionCityIds { get; }
 
@@ -71,13 +76,14 @@ public sealed class StrategySnapshot
         var settlements = world.Settlements.ToDictionary(settlement => settlement.Id);
         var occupied = world.Simulation.Tasks.Select(t => t.OfficerId).ToHashSet();
         var journeys = world.Simulation.Tasks.Where(t => t.Journey is not null).ToDictionary(t => t.OfficerId);
+        var abilities = source.Abilities.EvaluateMany(world.Officers, world.Treasures);
         Officers = Array.AsReadOnly(world.Officers.Where(o => o.IsVisible).Select(o =>
         {
             var location = o.SettlementId is int id ? settlements[id] : null;
             var definition = source.Officer(o.Id);
             var task = journeys.GetValueOrDefault(o.Id);
             return new OfficerView(o.Id, definition.NameKey, o.OwnerId, o.IsServing ? location?.CorpsId : null,
-                o.SettlementId, location?.Kind == San9.Core.Domain.SettlementKind.City, o.IsServing && !o.Acted && !occupied.Contains(o.Id), o.Abilities)
+                o.SettlementId, location?.Kind == San9.Core.Domain.SettlementKind.City, o.IsServing && !o.Acted && !occupied.Contains(o.Id), abilities[o.Id])
             {
                 Status = o.Status,
                 Journey = task is null ? null : new(task.Id, task.Kind, task.OriginSettlementId, task.Journey!.DestinationPlaceId,

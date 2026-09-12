@@ -34,7 +34,7 @@ internal static class PersonnelOffices
             var person = world.Officers[assignment.OfficerId];
             var office = assignment.OfficeId is int id ? rules.Offices[id] : null;
             int oldSalary = person.OfficeId is int oldId ? rules.Offices[oldId].Salary : 0;
-            world.Replace(person with { OfficeId = assignment.OfficeId, OfficeBonuses = office?.AbilityBonuses ?? default });
+            world.Replace(person with { OfficeId = assignment.OfficeId });
             RecruitmentRules.SetLoyalty(world, person.Id, command.IssuerId,
                 Math.Clamp(person.Loyalty + (office?.Salary ?? 0) / 2 - oldSalary / 2, 0, 255), "office-assigned", events);
             events.Add(new OfficeAssignedEvent(world.Clock, command.IssuerId, person.Id, person.OfficeId, assignment.OfficeId));

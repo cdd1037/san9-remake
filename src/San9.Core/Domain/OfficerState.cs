@@ -45,19 +45,6 @@ public sealed record OfficerState(int Id, int? OwnerId, int? SettlementId, Offic
         ArgumentOutOfRangeException.ThrowIfGreaterThan(value, 255);
         return this with { ForceLoyalties = ForceLoyalties.SetItem(forceId, value) };
     }
-    public OfficerAbilities ItemBonuses { get; init; }
-    public OfficerAbilities OfficeBonuses { get; init; }
-
-    [System.Text.Json.Serialization.JsonIgnore]
-    public OfficerAbilities Abilities => new(
-        Current(BaseAbilities.War, ItemBonuses.War, OfficeBonuses.War),
-        Current(BaseAbilities.Intelligence, ItemBonuses.Intelligence, OfficeBonuses.Intelligence),
-        Current(BaseAbilities.Politics, ItemBonuses.Politics, OfficeBonuses.Politics),
-        Current(BaseAbilities.Leadership, ItemBonuses.Leadership, OfficeBonuses.Leadership));
-
-    private int Current(int value, int itemBonus, int officeBonus) =>
-        checked((int)Math.Max(1, (long)value * (10 - Injury) / 10) + itemBonus + officeBonus);
-
     public bool IsValid()
     {
         if (Righteousness is < 0 or > 15 || ForceLoyalties is null ||
@@ -68,8 +55,7 @@ public sealed record OfficerState(int Id, int? OwnerId, int? SettlementId, Offic
             TacticProficiencies.Any(v => v < 0) || LearnedTactics.Any(v => v < 0) || LearnedTactics.Distinct().Count() != LearnedTactics.Length ||
             ParentId < 0 || Personality is < 0 or > 3) return false;
         if (Id < 0 || IsServing && SettlementId is null || SettlementId < 0 || OwnerId < 0 || RegionId < 0 || RegionId is not null && SettlementId is not null || !Enum.IsDefined(Status) || Injury is < 0 or > 14 ||
-            !BaseAbilities.IsNonnegative || !ItemBonuses.IsNonnegative || !OfficeBonuses.IsNonnegative) return false;
-        try { _ = Abilities; return true; }
-        catch (OverflowException) { return false; }
+            !BaseAbilities.IsNonnegative) return false;
+        return true;
     }
 }

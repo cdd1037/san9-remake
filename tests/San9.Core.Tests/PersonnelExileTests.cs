@@ -15,10 +15,10 @@ public sealed class PersonnelExileTests
             [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100), new(2, 2, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
             [new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
              new OfficerState(11, 1, 1, new(50, 70, 50, 50), false)
-             { Status = OfficerStatus.Strategist, OfficeId = 1, OfficeBonuses = new(4, 0, 0, 0), ItemBonuses = new(5, 0, 0, 0),
-               LearnedTactics = [2], RewardedThisXun = true }.WithLoyalty(1, 90).WithLoyalty(2, 177)],
+             { Status = OfficerStatus.Strategist, OfficeId = 1, LearnedTactics = [2], RewardedThisXun = true }.WithLoyalty(1, 90).WithLoyalty(2, 177)],
             treasures: [new(10, 11, TreasureDiscovery.Discovered, null)], controls: [new("player", 1, ControllerKind.Player)]);
-        return new(world, Economy, Geography(connected));
+        return new(world, Economy, Geography(connected), new([new(10, new(5, 0, 0, 0), 0)]),
+            new([new(1, 10000, 0) { AbilityBonuses = new(4, 0, 0, 0) }]));
     }
 
     private static CommandExecutionResult Exile(SimulationEngine engine, int person = 11) => engine.Execute(new("player"),
@@ -38,8 +38,7 @@ public sealed class PersonnelExileTests
         Assert.NotEqual(person.SettlementId is null, person.RegionId is null);
         Assert.Null(engine.Snapshot.Forces.Single(f => f.Id == 1).AdviserId);
         Assert.Null(person.OfficeId);
-        Assert.Equal(default, person.OfficeBonuses);
-        Assert.Equal(new OfficerAbilities(5, 0, 0, 0), person.ItemBonuses);
+        Assert.Equal(new OfficerAbilities(55, 70, 50, 50), engine.GetAbilities(engine.Snapshot)[person.Id]);
         Assert.Equal(11, engine.Snapshot.Treasures.Single().HolderId);
         Assert.Equal(45, person.LoyaltyTo(1));
         Assert.Equal(177, person.LoyaltyTo(2));
@@ -79,7 +78,8 @@ public sealed class PersonnelExileTests
     public void ValidationAndRestorePreservePlacementRandomness()
     {
         var engine = Engine();
-        var restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()), Economy, Geography());
+        var restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()), Economy, Geography(), new([new(10, new(5, 0, 0, 0), 0)]),
+            new([new(1, 10000, 0) { AbilityBonuses = new(4, 0, 0, 0) }]));
         var command = new ExileOfficerCommand(Guid.NewGuid(), 1, 0, 11);
         string before = engine.Snapshot.StateHash;
         Assert.True(engine.Validate(new("player"), command).Accepted);
@@ -103,7 +103,8 @@ public sealed class PersonnelExileTests
             Relations = [new(1, 2, 50)],
             Simulation = state.Simulation with { Controls = [new("enemy", 2, ControllerKind.Player), new("player", 1, ControllerKind.Player)] }
         };
-        var engine = new SimulationEngine(WorldState.Restore(state), Economy, Geography());
+        var engine = new SimulationEngine(WorldState.Restore(state), Economy, Geography(), new([new(10, new(5, 0, 0, 0), 0)]),
+            new([new(1, 10000, 0) { AbilityBonuses = new(4, 0, 0, 0) }]));
         Assert.True(engine.Execute(new("enemy"), new RecruitOfficerCommand(Guid.NewGuid(), 2, 0, 22, 11)).Submission.Accepted);
         var task = Assert.Single(engine.Snapshot.Simulation.Tasks);
         engine.EndControl(new("enemy"));

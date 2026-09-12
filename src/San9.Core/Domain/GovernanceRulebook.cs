@@ -28,32 +28,26 @@ public sealed class GovernanceRulebook
     public bool CanAppoint(int? forceRankId, GovernorOfficeRule office) => office.RequiredRankId is not int required ||
         forceRankId is int rank && RankPrecedence.TryGetValue(rank, out int precedence) && precedence >= RankPrecedence[required];
 
-    public void ValidateOffices(IEnumerable<OfficerState> people)
-    {
-        if (people.Any(p => p.OfficeId is int officeId && !Offices.ContainsKey(officeId) || p.OfficeBonuses != (p.OfficeId is int id && Offices.TryGetValue(id, out var office)
-            ? office.AbilityBonuses : default))) throw new ArgumentException("Invalid office ability state.");
-    }
-
-    public OfficerState? SelectSuccessor(IEnumerable<OfficerState> candidates, int previousLeaderId) => candidates
+    public OfficerState? SelectSuccessor(IEnumerable<OfficerState> candidates, int previousLeaderId, IReadOnlyDictionary<int, OfficerAbilities> abilities) => candidates
         .Where(p => p.IsServing).OrderByDescending(p => p.Status == OfficerStatus.Ruler)
         .ThenByDescending(p => p.Id == previousLeaderId).ThenByDescending(p => p.Status == OfficerStatus.Governor)
         .ThenByDescending(p => Office(p)?.CommandCapacity / 1000 ?? 0)
-        .ThenByDescending(p => Office(p)?.Priority ?? 0).ThenByDescending(p => p.Abilities.Leadership)
+        .ThenByDescending(p => Office(p)?.Priority ?? 0).ThenByDescending(p => abilities[p.Id].Leadership)
         .ThenBy(p => p.Id).FirstOrDefault();
 
-    public OfficerState? SelectCommander(IEnumerable<OfficerState> candidates) => candidates.Where(p => p.IsServing)
+    public OfficerState? SelectCommander(IEnumerable<OfficerState> candidates, IReadOnlyDictionary<int, OfficerAbilities> abilities) => candidates.Where(p => p.IsServing)
         .OrderByDescending(p => p.Status == OfficerStatus.Ruler).ThenByDescending(p => p.Status == OfficerStatus.Governor)
         .ThenByDescending(p => Office(p)?.CommandCapacity / 1000 ?? 10)
         .ThenByDescending(p => Office(p) is { CommandCapacity: > 10000 } office ? office.Priority : 0)
-        .ThenByDescending(p => p.Abilities.Leadership).ThenBy(p => p.Id).FirstOrDefault();
+        .ThenByDescending(p => abilities[p.Id].Leadership).ThenBy(p => p.Id).FirstOrDefault();
 
-    public OfficerState? SelectGovernor(IEnumerable<OfficerState> candidates)
+    public OfficerState? SelectGovernor(IEnumerable<OfficerState> candidates, IReadOnlyDictionary<int, OfficerAbilities> abilities)
     {
         return candidates.Where(p => p.IsServing && p.Status != OfficerStatus.Ruler)
             .OrderByDescending(p => p.Status == OfficerStatus.Governor)
             .ThenByDescending(p => Office(p)?.CommandCapacity / 1000 ?? 10)
             .ThenByDescending(p => Office(p) is { CommandCapacity: > 10000 } office ? office.Priority : 0)
-            .ThenByDescending(p => p.Abilities.Leadership)
+            .ThenByDescending(p => abilities[p.Id].Leadership)
             .ThenBy(p => p.Id).FirstOrDefault();
     }
 

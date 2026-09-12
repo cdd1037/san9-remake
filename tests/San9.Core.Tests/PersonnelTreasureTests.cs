@@ -9,20 +9,20 @@ public sealed class PersonnelTreasureTests
     private static readonly PersonnelRulebook Places = new([new(1, new(0, 0)), new(2, new(300, 0)), new(3, new(0, 300))]);
     private static TreasureRulebook Rules(int loyalty = 8) => new([new(10, new(10, 0, 0, 0), loyalty),
         new(11, new(6, 0, 0, 0), 0), new(12, new(0, 7, 0, 0), 8)]);
+    private static readonly GovernanceRulebook Governance = new([new(1, 10000, 0) { AbilityBonuses = new(2, 3, 4, 5) }]);
     private static SimulationEngine Engine(int loyalty = 98, int bonus = 8, bool captive = false, int location = 1)
     {
         var world = WorldState.Create(new(190, 1, 1), 190,
             [new(1, 1000, 1000, 1000) { LeaderId = 1, BaseTrust = 950 }, new(2, 1000, 1000, 0) { LeaderId = 3 }],
             [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100), new(2, 2, 0, 100, 100, 0, 0, 0, 100, 0, 100),
              new(3, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
-            [new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler, ItemBonuses = new(10, 0, 0, 0) },
+            [new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
              new(2, captive ? null : 1, location, new(50, 50, 50, 50), false)
-             { Status = captive ? OfficerStatus.Captive : OfficerStatus.Serving, Injury = 2, OfficeBonuses = new(2, 3, 4, 5),
-               ItemBonuses = new(0, 7, 0, 0), ForceLoyalties = ImmutableDictionary<int, int>.Empty.Add(1, loyalty).Add(2, 177) },
+             { Status = captive ? OfficerStatus.Captive : OfficerStatus.Serving, Injury = 2, OfficeId = 1, ForceLoyalties = ImmutableDictionary<int, int>.Empty.Add(1, loyalty).Add(2, 177) },
              new(3, 2, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }],
             treasures: [new(10, 1, TreasureDiscovery.Discovered, null), new(11, 1, TreasureDiscovery.Discovered, null),
                 new(12, 2, TreasureDiscovery.Discovered, null)], controls: [new("player", 1, ControllerKind.Player)]);
-        return new(world, new([], [], 10), Places, Rules(bonus));
+        return new(world, new([new(1, 0)], [], 10), Places, Rules(bonus), Governance);
     }
 
     private static CommandExecutionResult Grant(SimulationEngine engine, int item = 10, int person = 2) =>
@@ -44,9 +44,8 @@ public sealed class PersonnelTreasureTests
         Assert.Equal(2, engine.Snapshot.Treasures.Single(t => t.Id == 10).HolderId);
         var ruler = engine.Snapshot.Officers.Single(p => p.Id == 1);
         var person = engine.Snapshot.Officers.Single(p => p.Id == 2);
-        Assert.Equal(new OfficerAbilities(6, 0, 0, 0), ruler.ItemBonuses);
-        Assert.Equal(new OfficerAbilities(10, 7, 0, 0), person.ItemBonuses);
-        Assert.Equal(new OfficerAbilities(52, 50, 44, 45), person.Abilities);
+        Assert.Equal(new OfficerAbilities(56, 50, 50, 50), engine.GetAbilities(engine.Snapshot)[ruler.Id]);
+        Assert.Equal(new OfficerAbilities(52, 50, 44, 45), engine.GetAbilities(engine.Snapshot)[person.Id]);
         Assert.Equal(expected, person.Loyalty);
         Assert.Equal(177, person.LoyaltyTo(2));
         Assert.Equal(before.Officers.Single(p => p.Id == 2).Acted, person.Acted);
@@ -58,7 +57,7 @@ public sealed class PersonnelTreasureTests
             Array.FindIndex(result.Events.ToArray(), e => e is OfficerLoyaltyChangedEvent));
         Assert.True(Confiscate(engine).Submission.Accepted);
         Assert.Equal(1000, engine.Snapshot.Forces.Single(f => f.Id == 1).Trust);
-        Assert.Equal(new OfficerAbilities(0, 7, 0, 0), engine.Snapshot.Officers.Single(p => p.Id == 2).ItemBonuses);
+        Assert.Equal(new OfficerAbilities(42, 50, 44, 45), engine.GetAbilities(engine.Snapshot)[2]);
     }
 
     [Theory]
@@ -71,8 +70,7 @@ public sealed class PersonnelTreasureTests
         var engine = Engine(loyalty, bonus);
         var state = engine.Snapshot;
         state = state with { Treasures = state.Treasures.Select(t => t.Id == 10 ? t with { HolderId = 2 } : t).ToArray() };
-        state = state with { Officers = state.Officers.Select(p => p with { ItemBonuses = Rules(bonus).HeldBonuses(state.Treasures, p.Id) }).ToArray() };
-        engine = new(WorldState.Restore(state), new([], [], 10), Places, Rules(bonus));
+        engine = new(WorldState.Restore(state), new([new(1, 0)], [], 10), Places, Rules(bonus), Governance);
         Assert.True(Confiscate(engine).Submission.Accepted);
         Assert.Equal(expected, engine.Snapshot.Officers.Single(p => p.Id == 2).LoyaltyTo(1));
         Assert.Equal(177, engine.Snapshot.Officers.Single(p => p.Id == 2).LoyaltyTo(2));

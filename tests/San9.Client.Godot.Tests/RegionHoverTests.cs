@@ -11,7 +11,7 @@ public sealed class RegionHoverTests
     [Fact]
     public void RegionAndCityAreIndependentEvenWhenTheyAreTheSame()
     {
-        var scenario = new ScenarioInitialState(22, "fixture", 190, 1, 1, 5, [new(5,"player",5,100,100,100)], [new(15,"city",5,0,0,0,100,100,0,[])],
+        var scenario = new ScenarioInitialState(23, "fixture", 190, 1, 1, 5, [new(5,"player",5,100,100,100)], [new(15,"city",5,0,0,0,100,100,0,[])],
             new() { [15] = "city", [99] = "gate" }, new() { [15] = 15, [99] = 15 });
         var view = San9.Application.GameSession.Start(scenario,1).View;
         var text = new TextCatalog(3, new() { ["city"] = new("洛阳", "洛陽"), ["gate"] = new("虎牢关", "虎牢關") });
@@ -24,7 +24,7 @@ public sealed class RegionHoverTests
     [Fact]
     public void RegionCanReferenceHighCityIdWithoutSharingItsNameEntry()
     {
-        var scenario = new ScenarioInitialState(22, "expanded", 190, 1, 1, 5,
+        var scenario = new ScenarioInitialState(23, "expanded", 190, 1, 1, 5,
             [new(5, "player", 5, 100, 100, 100)], [new(1000, "city", 5, 0, 0, 0, 100, 100, 0, [])],
             new() { [99] = "region" }, new() { [99] = 1000 });
         var view = San9.Application.GameSession.Start(scenario, 1).View;

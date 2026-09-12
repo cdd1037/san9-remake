@@ -5,6 +5,8 @@
 
 执行进度：**G00–G04已完成，下一项G05**。代码基线、各阶段输入见[实施基线](roadmap-baseline.md)；退出证据见[G01](../docs/g01-verification.md)、[G02](../docs/g02-verification.md)、[G03](../docs/g03-verification.md)及[G04验收](../docs/g04-verification.md)。G05–G13尚未完成。
 
+G01–G04审计修复恢复俸禄双向概率忠诚与异族周期补给，移除内政组合排序的编号范围依赖；最新规则和验证见[审计修复验收](../docs/g01-g04-audit-verification.md)。
+
 G04已完成普通探索、登用/归队/调动、任免奖惩、宝物与忠诚周期，以及军团设立/辖区变更/解散和共享控制权限。公开边界与190年一年人事治理、真实经营、保存恢复和重放均通过；原作证据和工程选择见[实现审计](../docs/g04-implementation-audit.md)。战争、完整战略AI和表现层仍按后续阶段推进。
 
 ## 目标与范围

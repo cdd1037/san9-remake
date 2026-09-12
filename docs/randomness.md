@@ -20,6 +20,7 @@
 | 探索发现后的即时招募 | 运行：`personnel-search-recruitment` | 与普通行程登用分开；[RE-0111](../research/findings/RE-SAN9PK-0111.md)及原作`0x494580`执行链确认另抽全局骰 |
 | 探索资金门与金额 | 运行：`personnel-search-funds` | [RE-0112](../research/findings/RE-SAN9PK-0112.md)确认重新抽样，不使用发现提交骰 |
 | 内政特定组合／相性加倍 | 运行：`domestic-combination` | [RE-0095](../research/findings/RE-SAN9PK-0095.md)，用途内保留规则顺序 |
+| 俸禄忠诚反馈 | 运行：`personnel-salary-loyalty` | [RE-0098](../research/findings/RE-SAN9PK-0098.md)，每名有俸禄资格者一次，正常支付与欠薪共用此流；0概率及忠诚饱和仍抽样 |
 | 政治成长 | 运行：`personnel-politics-growth` | 仅成功或规则指定分支调用，不因查询、绘制抽样 |
 | 登用失败忠诚反馈、外交关系损失 | 运行：`personnel-recruit-feedback`、`personnel-recruit-relations` | 固定普通登用成败骰不锁定其后续反馈；[RE-0111](../research/findings/RE-SAN9PK-0111.md) |
 | 负责人归顺带动其他人物 | 运行：`personnel-defection-followers` | 实时候选逐人判定，不与主登用骰合并 |

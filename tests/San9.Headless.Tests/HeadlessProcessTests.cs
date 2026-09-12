@@ -68,12 +68,12 @@ public sealed class HeadlessProcessTests : IDisposable
         Assert.Equal(2, verification.Report.GetProperty("completedXun").GetInt32());
         Assert.Equal(4, verification.Report.GetProperty("developmentCommands").GetInt32());
         string finalHash = verification.Report.GetProperty("finalHash").GetString()!;
-        var replay = await Run("run", "--fixture", "--log", FilePath("commands.jsonl"), "--load", FilePath("initial.save.json"),
+        var replay = await Run("run", "--fixture", "--log", FilePath("commands.jsonl"), "--restore", FilePath("initial.save.json"),
             "--save", FilePath("replay.save.json"), "--report", FilePath("replay-report.json"));
         Assert.Equal(0, replay.Code);
         Assert.Equal(finalHash, replay.Report.GetProperty("finalHash").GetString());
         Assert.Equal(File.ReadAllBytes(FilePath("events.jsonl")), File.ReadAllBytes(FilePath("replay-report.events.jsonl")));
-        var repeated = await Run("run", "--fixture", "--log", FilePath("commands.jsonl"), "--load", FilePath("replay.save.json"),
+        var repeated = await Run("run", "--fixture", "--log", FilePath("commands.jsonl"), "--restore", FilePath("replay.save.json"),
             "--save", FilePath("replay.save.json"), "--report", FilePath("duplicate-report.json"));
         Assert.Equal(0, repeated.Code);
         Assert.Equal(0, repeated.Report.GetProperty("acceptedOperations").GetInt32());
@@ -105,7 +105,12 @@ public sealed class HeadlessProcessTests : IDisposable
         var midPlayback = await Run("replay", "--fixture", "--recording", FilePath("midway.recording.json"), "--report", FilePath("mid-playback-report.json"));
         Assert.Equal(0, midPlayback.Code);
         Assert.Equal(1, midPlayback.Report.GetProperty("completedXun").GetInt32());
-        Assert.Equal(run.Report.GetProperty("finalHash").GetString(), midPlayback.Report.GetProperty("finalHash").GetString());
+        Assert.NotEqual(run.Report.GetProperty("finalHash").GetString(), midway.Report.GetProperty("finalHash").GetString());
+        Assert.Equal(midway.Report.GetProperty("finalHash").GetString(), midPlayback.Report.GetProperty("finalHash").GetString());
+        var mixed = await Run("run", "--fixture", "--log", FilePath("commands.jsonl"),
+            "--load", FilePath("checkpoint.save.json"), "--restore", FilePath("checkpoint.save.json"),
+            "--report", FilePath("mixed-report.json"));
+        Assert.Equal(2, mixed.Code);
         var conflict = await Run("run", "--fixture", "--log", FilePath("commands.jsonl"), "--report", FilePath("conflict.json"), "--record", FilePath("commands.jsonl"));
         Assert.Equal(2, conflict.Code);
         var node = JsonNode.Parse(File.ReadAllBytes(FilePath("debug.recording.json")))!;
@@ -140,7 +145,7 @@ public sealed class HeadlessProcessTests : IDisposable
         var save = JsonNode.Parse(File.ReadAllBytes(FilePath("initial.save.json")))!;
         save["formatVersion"] = 999;
         File.WriteAllText(FilePath("old.save.json"), save.ToJsonString());
-        var result = await Run("run", "--fixture", "--log", FilePath("commands.jsonl"), "--load", FilePath("old.save.json"),
+        var result = await Run("run", "--fixture", "--log", FilePath("commands.jsonl"), "--restore", FilePath("old.save.json"),
             "--report", FilePath("old-report.json"));
         Assert.Equal(4, result.Code);
         Assert.Equal("save-UnsupportedVersion", result.Report.GetProperty("firstFailure").GetProperty("code").GetString());

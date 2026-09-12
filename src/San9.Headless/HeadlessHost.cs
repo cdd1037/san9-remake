@@ -136,7 +136,8 @@ public sealed class HeadlessHost
         string log = Path.GetFullPath(Required(options, "log"));
         _report.CommandLog = log;
         var header = CommandLogService.ReadHeader(log);
-        _session = options.TryGetValue("load", out string? load) ? SaveService.Read(load, definition) : GameSession.Start(definition, header.Seed);
+        _session = options.TryGetValue("load", out string? load) ? SaveService.Load(load, definition) :
+            options.TryGetValue("restore", out string? restore) ? SaveService.Read(restore, definition) : GameSession.Start(definition, header.Seed);
         _started = _session.Snapshot.Clock;
         if (options.ContainsKey("record")) _session.BeginRecording();
         var result = CommandLogService.Replay(log, _session);
@@ -272,9 +273,9 @@ public sealed class HeadlessHost
     private static Dictionary<string, string> Parse(string[] args)
     {
         if (args.Length == 0 || args[0] is not ("run" or "verify" or "replay"))
-            throw new UsageException("Use verify --fixture|--scenario PATH --output DIR [--xuns N] [--seed N], or run --fixture|--scenario PATH --log PATH --report PATH [--load PATH] [--save PATH] [--record PATH], or replay --fixture|--scenario PATH --recording PATH --report PATH [--save PATH].");
+            throw new UsageException("Use verify --fixture|--scenario PATH --output DIR [--xuns N] [--seed N], or run --fixture|--scenario PATH --log PATH --report PATH [--load PATH|--restore PATH] [--save PATH] [--record PATH], or replay --fixture|--scenario PATH --recording PATH --report PATH [--save PATH].");
         var values = new Dictionary<string, string>(StringComparer.Ordinal);
-        string[] allowed = args[0] == "verify" ? ["fixture", "scenario", "output", "xuns", "seed", "strategy"] : args[0] == "run" ? ["fixture", "scenario", "log", "report", "load", "save", "record"] : ["fixture", "scenario", "recording", "report", "save"];
+        string[] allowed = args[0] == "verify" ? ["fixture", "scenario", "output", "xuns", "seed", "strategy"] : args[0] == "run" ? ["fixture", "scenario", "log", "report", "load", "restore", "save", "record"] : ["fixture", "scenario", "recording", "report", "save"];
         for (int i = 1; i < args.Length; i++)
         {
             if (!args[i].StartsWith("--", StringComparison.Ordinal)) throw new UsageException("Expected named option.");
@@ -288,6 +289,7 @@ public sealed class HeadlessHost
             }
         }
         if (values.ContainsKey("fixture") == values.ContainsKey("scenario")) throw new UsageException("Select exactly one scenario source.");
+        if (values.ContainsKey("load") && values.ContainsKey("restore")) throw new UsageException("Select player load or exact restoration, not both.");
         if (args[0] != "verify") ValidatePaths(values);
         return values;
     }
@@ -305,9 +307,9 @@ public sealed class HeadlessHost
             throw new UsageException("Output paths must be distinct.");
         if (options.TryGetValue("record", out var record) && !outputs.TryAdd(Path.GetFullPath(record), "record"))
             throw new UsageException("Recording output must be distinct.");
-        foreach (string key in new[] { "scenario", "log", "load", "recording" })
+        foreach (string key in new[] { "scenario", "log", "load", "restore", "recording" })
             if (options.TryGetValue(key, out var input) && outputs.TryGetValue(Path.GetFullPath(input), out var output) &&
-                !(key == "load" && output == "save"))
+                !(key is "load" or "restore" && output == "save"))
                 throw new UsageException("Output would overwrite an input: " + key);
     }
 

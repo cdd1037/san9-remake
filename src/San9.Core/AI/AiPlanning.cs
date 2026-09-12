@@ -22,7 +22,7 @@ public sealed record AiObservation
     {
         ArgumentOutOfRangeException.ThrowIfNegative(observerId);
         ArgumentNullException.ThrowIfNull(snapshot);
-        ulong seed = StableRandom.DeriveSeed(snapshot.Simulation.InitialSeed,
+        ulong seed = StableRandom.DeriveSeed(snapshot.Simulation.RunSeed,
             FormattableString.Invariant($"ai:{observerId}:{snapshot.Clock.DayNumber}"));
         return new AiObservation(observerId, snapshot.Clock, seed);
     }

@@ -98,6 +98,25 @@ public sealed class GameSession
     public static GameSession Restore(ScenarioInitialState definition, SessionSnapshot snapshot) =>
         Restore(definition, snapshot, EngineFactory(definition));
 
+    // A player load starts a new random run; exact restoration above is used by replay and diagnostics.
+    internal static GameSession Load(ScenarioSessionDefinition owned, SessionSnapshot snapshot,
+        Func<WorldState, SimulationEngine> factory)
+    {
+        _ = WorldState.Restore(snapshot.World);
+        SessionValidation.Validate(owned, snapshot);
+        ulong seed;
+        do
+        {
+            seed = System.Buffers.Binary.BinaryPrimitives.ReadUInt64LittleEndian(
+                System.Security.Cryptography.RandomNumberGenerator.GetBytes(sizeof(ulong)));
+        } while (seed == snapshot.World.Simulation.RunSeed);
+        var next = snapshot with { World = snapshot.World with
+        {
+            Simulation = snapshot.World.Simulation with { RunSeed = seed, RandomStreams = [] }
+        } };
+        return RestoreValidated(owned, next, WorldState.Restore(next.World), factory);
+    }
+
     internal static GameSession Restore(ScenarioInitialState definition, SessionSnapshot snapshot, Func<WorldState, SimulationEngine> factory)
     {
         return Restore(new ScenarioSessionDefinition(definition), snapshot, factory);
@@ -107,6 +126,12 @@ public sealed class GameSession
     {
         var world = WorldState.Restore(snapshot.World);
         SessionValidation.Validate(owned, snapshot);
+        return RestoreValidated(owned, snapshot, world, factory);
+    }
+
+    private static GameSession RestoreValidated(ScenarioSessionDefinition owned, SessionSnapshot snapshot, WorldState world,
+        Func<WorldState, SimulationEngine> factory)
+    {
         var simulation = factory(world);
         var session = new GameSession(owned, simulation, factory);
         session._records.AddRange(snapshot.Records);

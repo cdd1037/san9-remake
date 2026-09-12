@@ -12,6 +12,53 @@ namespace San9.Application.Tests;
 
 public sealed class PersistenceTests : IDisposable
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void MissingRunSeedIsRejectedBeforeExactOrPlayerRestoration(bool playerLoad)
+    {
+        var definition = Fixture();
+        var original = GameSession.Start(definition, 190);
+        var root = JsonNode.Parse(SaveService.Encode(original))!;
+        root["session"]!["world"]!["simulation"]!.AsObject().Remove("runSeed");
+        Assert.Equal(SaveFailure.InvalidFormat, Assert.Throws<SaveException>(() => SaveService.Decode(
+            Encoding.UTF8.GetBytes(root.ToJsonString()), definition, GameSession.EngineFactory(definition), playerLoad)).Failure);
+        Assert.Equal(190UL, original.Snapshot.Simulation.RunSeed);
+    }
+
+    [Fact]
+    public void PlayerLoadStartsNewStreamsAndItsRecordingReplaysExactly()
+    {
+        var definition = Fixture();
+        var rules = new FixtureRules();
+        Func<WorldState, SimulationEngine> factory = w => new(w, rules);
+        var original = GameSession.Start(definition, 190, factory);
+        original.Apply(original.Request(new CommandOperation(new StartTaskCommand(Id(1), 1, 0,
+            "fixture-investment", 2, 1)), id: Id(1)));
+        original.AdvanceXun();
+        byte[] save = SaveService.Encode(original);
+        var loaded = SaveService.Decode(save, definition, factory, playerLoad: true);
+        var again = SaveService.Decode(save, definition, factory, playerLoad: true);
+        Assert.NotEqual(original.Snapshot.Simulation.RunSeed, loaded.Snapshot.Simulation.RunSeed);
+        Assert.NotEqual(loaded.Snapshot.Simulation.RunSeed, again.Snapshot.Simulation.RunSeed);
+        Assert.Equal(original.Snapshot.Simulation.InitialSeed, loaded.Snapshot.Simulation.InitialSeed);
+        Assert.Equal(original.Snapshot.Simulation.Tasks.ToArray(), loaded.Snapshot.Simulation.Tasks.ToArray());
+        Assert.Equal(original.Snapshot.Forces, loaded.Snapshot.Forces);
+        Assert.Equal(original.NextOperationSequence, loaded.NextOperationSequence);
+        Assert.Empty(loaded.Snapshot.Simulation.RandomStreams);
+        Assert.Empty(loaded.InitialEvents);
+        Assert.False(loaded.IsRecording);
+        loaded.BeginRecording();
+        loaded.AdvanceXun();
+        Assert.NotEmpty(loaded.Snapshot.Simulation.RandomStreams);
+        var recording = loaded.EndRecording();
+        Assert.Equal(loaded.Snapshot.Simulation.RunSeed, recording.Initial.World.Simulation.RunSeed);
+        var replay = RecordingService.Replay(RecordingService.Encode(recording), definition, factory);
+        Assert.Equal(SaveService.Encode(loaded), SaveService.Encode(replay.Session));
+        var exact = SaveService.Decode(SaveService.Encode(loaded), definition, factory);
+        Assert.Equal(SaveService.Encode(loaded), SaveService.Encode(exact));
+    }
+
     private readonly string _directory = Path.Combine(Path.GetTempPath(), "san9-g02-" + Guid.NewGuid().ToString("N"));
     public PersistenceTests() => Directory.CreateDirectory(_directory);
     public void Dispose()

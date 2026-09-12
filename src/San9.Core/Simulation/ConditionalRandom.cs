@@ -1,0 +1,20 @@
+namespace San9.Core.Simulation;
+
+internal enum ConditionalRandomPurpose { Recruitment, SearchDiscovery }
+
+/// <summary>Fixed-condition draws do not consume or depend on the current run's streams.</summary>
+internal static class ConditionalRandom
+{
+    internal static int Percentile(ulong initialSeed, ConditionalRandomPurpose purpose, GameClock date, int actorId, int targetId)
+    {
+        string name = purpose switch
+        {
+            ConditionalRandomPurpose.Recruitment => "personnel-recruit-submission",
+            ConditionalRandomPurpose.SearchDiscovery => "personnel-search-submission",
+            _ => throw new ArgumentOutOfRangeException(nameof(purpose))
+        };
+        ulong seed = StableRandom.DeriveSeed(initialSeed,
+            FormattableString.Invariant($"{name}:{date.DayNumber}:{actorId}:{targetId}"));
+        return (int)(new StableRandom(seed).NextUInt64() % 100);
+    }
+}

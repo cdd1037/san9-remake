@@ -8,6 +8,22 @@ namespace San9.Application.Tests;
 
 public sealed class PersonnelScenarioTests
 {
+    [Fact]
+    public void PlayerLoadKeepsPendingDiscoveryRollAndDoesNotReexecutePreparation()
+    {
+        var definition = Fixture();
+        var session = GameSession.Start(definition, 190);
+        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 11, 30)).Submission.Accepted);
+        var task = Assert.Single(session.Snapshot.Simulation.Tasks);
+        var loaded = SaveService.Decode(SaveService.Encode(session), definition, GameSession.EngineFactory(definition), playerLoad: true);
+        Assert.Equal(task, Assert.Single(loaded.Snapshot.Simulation.Tasks));
+        Assert.NotEqual(session.Snapshot.Simulation.RunSeed, loaded.Snapshot.Simulation.RunSeed);
+        loaded.BeginRecording();
+        loaded.AdvanceXun();
+        var replay = RecordingService.Replay(RecordingService.Encode(loaded.EndRecording()), definition, GameSession.EngineFactory(definition));
+        Assert.Equal(SaveService.Encode(loaded), SaveService.Encode(replay.Session));
+    }
+
     private static ScenarioInitialState Fixture() => new(23, "personnel-public", 190, 1, 1, 1,
         [new(1, "force", 1, 10000, 10000, 1000) { LeaderId = 1, BaseTrust = 1000 }],
         [new(1, "home", 1, 0, 0, 0, 100, 100, 0, []), new(3, "destination", 1, 0, 15, 0, 100, 100, 0, [])],

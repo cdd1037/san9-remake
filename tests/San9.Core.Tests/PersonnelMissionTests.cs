@@ -6,6 +6,69 @@ namespace San9.Core.Tests;
 
 public sealed class PersonnelMissionTests
 {
+    [Fact]
+    public void PendingSearchKeepsDiscoveryRollWhileRunSeedCanChangeCandidateAndRestoreRepeatsResult()
+    {
+        var world = World();
+        var mutation = world.BeginMutation();
+        mutation.Replace(mutation.Officers[11] with { BaseAbilities = new(50, 50, 100, 200) });
+        mutation.Replace(mutation.Officers[20] with
+        {
+            OwnerId = null, Status = OfficerStatus.Undiscovered, SettlementId = null, RegionId = 30
+        });
+        world.Commit(mutation);
+        var original = Engine(world);
+        Assert.True(original.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 11, 30)
+            { AcceptRecruitment = false }).Submission.Accepted);
+        var pending = original.CaptureStableState();
+        var task = Assert.Single(pending.Simulation.Tasks);
+        HashSet<int> discovered = [];
+        for (ulong runSeed = 0; runSeed < 16; runSeed++)
+        {
+            var state = pending with { Simulation = pending.Simulation with { RunSeed = runSeed, RandomStreams = [] } };
+            var run = Engine(WorldState.Restore(state));
+            var restored = Engine(WorldState.Restore(state));
+            Assert.Equal(task, Assert.Single(run.Snapshot.Simulation.Tasks));
+            var events = Advance(run);
+            Assert.Equal(CanonicalJson.Text(events), CanonicalJson.Text(Advance(restored)));
+            Assert.Equal(run.Snapshot.StateHash, restored.Snapshot.StateHash);
+            var search = Assert.Single(events.OfType<SearchResolvedEvent>());
+            Assert.NotNull(search.DiscoveredOfficerId);
+            discovered.Add(search.DiscoveredOfficerId.Value);
+        }
+        Assert.Equal(new[] { 20, 21 }, discovered.Order().ToArray());
+    }
+
+    [Theory]
+    [InlineData(false, 0UL)]
+    [InlineData(false, 190UL)]
+    [InlineData(true, 0UL)]
+    [InlineData(true, 190UL)]
+    public void SubmissionRollIgnoresRunSeedCommandIdAndOtherSubmissionOrder(bool search, ulong seed)
+    {
+        var direct = Engine(World(seed));
+        var origin = direct.CaptureStableState();
+        var loaded = Engine(WorldState.Restore(origin with
+        {
+            Simulation = origin.Simulation with { RunSeed = seed + 123, RandomStreams = [] }
+        }));
+        void Submit(SimulationEngine engine, int actor)
+        {
+            GameCommand command = search
+                ? new SearchCommand(Guid.NewGuid(), 1, engine.Snapshot.Simulation.NextSequence, actor, 30)
+                : new RecruitOfficerCommand(Guid.NewGuid(), 1, engine.Snapshot.Simulation.NextSequence, actor, 20);
+            Assert.True(engine.Execute(new("player"), command).Submission.Accepted);
+        }
+        Submit(direct, 11);
+        Submit(loaded, 12);
+        Submit(loaded, 11);
+        var expected = Assert.Single(direct.Snapshot.Simulation.Tasks).Journey!.SuccessRoll;
+        Assert.Equal(expected, loaded.Snapshot.Simulation.Tasks.Single(t => t.OfficerId == 11).Journey!.SuccessRoll);
+        Assert.Equal(origin.Simulation.RandomStreams, loaded.Snapshot.Simulation.RandomStreams);
+        var restored = Engine(WorldState.Restore(loaded.CaptureStableState()));
+        Assert.Equal(expected, restored.Snapshot.Simulation.Tasks.Single(t => t.OfficerId == 11).Journey!.SuccessRoll);
+    }
+
     [Theory]
     [InlineData(1, true)]
     [InlineData(2, false)]

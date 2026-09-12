@@ -73,7 +73,7 @@ internal sealed class WorldMutation
         EnsureOpen();
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         var existing = Simulation.RandomStreams.SingleOrDefault(s => s.Name == name);
-        var random = new StableRandom(existing?.State ?? StableRandom.DeriveSeed(Simulation.InitialSeed, name));
+        var random = new StableRandom(existing?.State ?? StableRandom.DeriveSeed(Simulation.RunSeed, name));
         ulong result = random.NextUInt64();
         SetSimulation(Simulation with { RandomStreams = Simulation.RandomStreams
             .Where(s => s.Name != name).Append(new(name, random.State))

@@ -61,7 +61,8 @@ internal static class PersonnelMissions
         int origin = world.Officers[command.OfficerId].SettlementId!.Value;
         if ((target.SettlementId ?? target.RegionId) is not int destination || !rules.Places.ContainsKey(origin) || !rules.Places.ContainsKey(destination))
             return CommandRejection.InvalidTask;
-        int roll = (int)(world.NextRandom("personnel-recruit-submission") % 100);
+        int roll = ConditionalRandom.Percentile(world.Simulation.InitialSeed, ConditionalRandomPurpose.Recruitment,
+            world.Clock, command.OfficerId, command.TargetOfficerId);
         Add(world, context, command, command.CommandId, command.OfficerId, origin,
             new(destination, target.Id, roll), RecruitKind, rules, events);
         return CommandRejection.None;
@@ -75,7 +76,8 @@ internal static class PersonnelMissions
         int origin = world.Officers[command.OfficerId].SettlementId!.Value;
         if (!rules.Places.ContainsKey(origin) || !CanSearch(world, command.IssuerId, command.DestinationId, rules))
             return CommandRejection.InvalidTask;
-        int roll = (int)(world.NextRandom("personnel-search-submission") % 100);
+        int roll = ConditionalRandom.Percentile(world.Simulation.InitialSeed, ConditionalRandomPurpose.SearchDiscovery,
+            world.Clock, command.OfficerId, command.DestinationId);
         Add(world, context, command, command.CommandId, command.OfficerId, origin,
             new(command.DestinationId, null, roll) { AcceptRecruitment = command.AcceptRecruitment }, SearchKind, rules, events);
         return CommandRejection.None;

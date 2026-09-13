@@ -44,11 +44,11 @@ public sealed class CombatRuleCompletionTests
         m.Replace(m.Units[2] with { Order = null });
         Assert.Equal(1, MilitaryEngagements.Intensity(m, new(1, false), new(2, false), military));
         m.Replace(m.Units[3] with { Order = Attack(1), Position = new(150, 7) });
-        Assert.Empty(MilitaryEngagements.Incoming(m, new(1, false), military));
+        Assert.Equal(0, m.Engagements(military).IncomingCount(new(1, false)));
         m.Replace(m.Units[3] with { Position = new(107, 7), Condition = UnitCondition.Confused });
-        Assert.Empty(MilitaryEngagements.Incoming(m, new(1, false), military));
+        Assert.Equal(0, m.Engagements(military).IncomingCount(new(1, false)));
         m.Replace(m.Units[3] with { Condition = UnitCondition.Normal, OwnerId = 1 });
-        Assert.Empty(MilitaryEngagements.Incoming(m, new(1, false), military));
+        Assert.Equal(0, m.Engagements(military).IncomingCount(new(1, false)));
     }
 
     [Theory]

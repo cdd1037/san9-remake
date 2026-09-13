@@ -16,7 +16,7 @@ public sealed class RecordingException(string message, long? sequence = null, Ex
 /// <summary>Explicit debug recordings are separate artifacts, never part of a player save.</summary>
 public static class RecordingService
 {
-    public const int FormatVersion = 3;
+    public const int FormatVersion = 4;
 
     public static byte[] Encode(SessionRecording recording)
     {
@@ -70,7 +70,7 @@ public static class RecordingService
             try { result = session.Apply(entry.Request); }
             catch (Exception error) when (error is ArgumentException or InvalidOperationException or OverflowException or NotSupportedException)
             { throw new RecordingException("Recorded operation failed during execution.", sequence, error); }
-            if (result.Disposition != SessionDisposition.Accepted || result.Snapshot.StateHash != entry.WorldHash ||
+            if (result.Disposition != SessionDisposition.Accepted ||
                 !result.Events.Select(e => CanonicalJson.Text<DomainEvent>(e)).SequenceEqual(entry.Events.Select(e => CanonicalJson.Text<DomainEvent>(e))))
                 throw new RecordingException("Recorded operation diverged: " + result.Rejection, sequence);
             events.AddRange(result.Events);

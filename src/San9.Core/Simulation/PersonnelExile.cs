@@ -33,7 +33,6 @@ internal static class PersonnelExile
         if (candidates.Length == 0) return CommandRejection.NoDestination;
         int destinationId = candidates[world.NextRandom("personnel-exile-placement") % (ulong)candidates.Length];
         PersonnelTransitions.Exile(world, person.Id, destinationId, events, places, false);
-        GovernanceMaintenance.RepairCommander(world, origin, governance, events);
         if (world.Settlements[origin].CorpsId is int corpsId)
         {
             var rejection = GovernanceMaintenance.RepairCorps(world, corpsId, governance, events);

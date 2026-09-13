@@ -177,7 +177,6 @@ internal static class BattleAftermath
             if (previousLeader.Status == OfficerStatus.Governor) world.Replace(previousLeader with { Status = OfficerStatus.Serving });
             events.Add(new CorpsDissolvedEvent(world.Clock, corps.OwnerId, corps.Id, root ?? -1));
         }
-        foreach (var s in world.Settlements.Values.Where(s => s.OwnerId is not null)) GovernanceMaintenance.RepairCommander(world, s.Id, rules.Governance, events);
     }
 
     private static void Eliminate(WorldMutation world, int forceId, SimulationRules rules, List<DomainEvent> events)

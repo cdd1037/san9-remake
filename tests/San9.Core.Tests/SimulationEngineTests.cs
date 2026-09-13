@@ -49,6 +49,34 @@ public sealed class SimulationEngineTests
     }
 
     [Fact]
+    public void EndingControlsPreservesPublishedRecordsAndRestoresMidRound()
+    {
+        var engine = new SimulationEngine(CreateWorld());
+        var before = engine.Snapshot;
+        Assert.Throws<InvalidOperationException>(() => engine.EndControl(new("ai")));
+        Assert.Same(before, engine.Snapshot);
+        var ended = engine.EndControl(new("player"));
+        var after = ended.Snapshot;
+        Assert.Equal(new ControlEndedEvent("player", 1), Assert.Single(ended.Events));
+        Assert.Equal(before.Revision + 1, after.Revision);
+        Assert.Equal(0, before.Simulation.ActiveControl);
+        Assert.Equal(1, after.Simulation.ActiveControl);
+        Assert.Same(before.Forces, after.Forces);
+        Assert.Same(before.Settlements, after.Settlements);
+        Assert.Same(before.Officers, after.Officers);
+        Assert.Same(before.Units, after.Units);
+        Assert.Same(before.Corps, after.Corps);
+        Assert.Same(before.Treasures, after.Treasures);
+        Assert.Same(before.Relations, after.Relations);
+        var restored = new SimulationEngine(WorldState.Restore(after));
+        Assert.Throws<InvalidOperationException>(() => restored.EndControl(new("player")));
+        engine.EndControl(new("ai"));
+        restored.EndControl(new("ai"));
+        Assert.Throws<InvalidOperationException>(() => engine.EndControl(new("ai")));
+        Assert.Equal(engine.AdvanceXun().Snapshot.StateHash, restored.AdvanceXun().Snapshot.StateHash);
+    }
+
+    [Fact]
     public void NewGamePreparesOnceAndRestoreDoesNotRepeat()
     {
         var rules = new FixtureRules();

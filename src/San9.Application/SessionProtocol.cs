@@ -7,7 +7,7 @@ namespace San9.Application;
 
 public static class SessionProtocol
 {
-    public const string RulesVersion = "san9-core-g08-v4";
+    public const string RulesVersion = "san9-core-g08-v6";
     public const int SaveFormatVersion = 27;
     public const int LogFormatVersion = 27;
 }
@@ -31,7 +31,7 @@ public sealed record SessionResult(SessionDisposition Disposition, SessionReject
     IReadOnlyList<DomainEvent> Events, WorldSnapshot Snapshot,
     CommandRejection CommandRejection = CommandRejection.None, DevelopmentOutcome? Development = null);
 
-public sealed record RecordedOperation(SessionRequest Request, string WorldHash, ImmutableArray<DomainEvent> Events);
+public sealed record RecordedOperation(SessionRequest Request, ImmutableArray<DomainEvent> Events);
 public sealed record SessionRecording(string ContentFingerprint, SessionSnapshot Initial, ImmutableArray<RecordedOperation> Operations, string FinalHash);
 
 public sealed record SessionSnapshot(WorldSnapshot World, ImmutableArray<SessionRecord> Records,

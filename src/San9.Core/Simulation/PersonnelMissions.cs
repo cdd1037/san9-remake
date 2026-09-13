@@ -188,8 +188,6 @@ internal sealed class PersonnelMissionRule(PersonnelRulebook rules, EconomyRuleb
                 if (GovernanceMaintenance.RepairCorps(world, corpsId, governance, events) != CommandRejection.None)
                     throw new InvalidOperationException("Validated corps transfer failed.");
             }
-            GovernanceMaintenance.RepairCommander(world, task.OriginSettlementId, governance, events);
-            GovernanceMaintenance.RepairCommander(world, journey.DestinationPlaceId, governance, events);
             EconomicCycle.UpdateTrust(world, economy, events);
             return;
         }

@@ -91,7 +91,7 @@ public sealed class UnitLeadershipTests
         var unit = Assert.Single(mutation.Units.Values);
         var person = mutation.Officers[70];
         mutation.Replace(person with { UnitId = null, SettlementId = 1 });
-        UnitLeadership.Repair(mutation, governance);
+        mutation.MaintainLeadership([]);
         Assert.Equal(90, mutation.Units[unit.Id].CommanderId);
         Assert.Equal([90, 10], mutation.Units[unit.Id].MemberOrder.ToArray());
         Assert.DoesNotContain(70, mutation.Units[unit.Id].MemberRanks.Keys);
@@ -106,8 +106,21 @@ public sealed class UnitLeadershipTests
         var unit = Assert.Single(mutation.Units.Values);
         mutation.Replace(mutation.Officers[70] with { UnitId = null, SettlementId = 1 });
         mutation.Replace(mutation.Officers[90] with { OfficeId = 8000 });
-        UnitLeadership.Repair(mutation, governance);
+        mutation.MaintainLeadership([]);
         Assert.Equal(90, mutation.Units[unit.Id].CommanderId);
         world.Commit(mutation);
+    }
+    [Fact]
+    public void OfficePromotionReselectsAUnitCommanderWithoutChangingFormationRanks()
+    {
+        var engine = Deploy(out _, out _, Person(90, 90), Person(10, 20));
+        var before = Assert.Single(engine.Snapshot.Units);
+        Assert.Equal(90, before.CommanderId);
+        var result = engine.Execute(new("player"), new AssignOfficesCommand(Guid.NewGuid(), 1,
+            engine.Snapshot.Simulation.NextSequence, [new(10, 9000)]));
+        Assert.True(result.Submission.Accepted);
+        var after = Assert.Single(engine.Snapshot.Units);
+        Assert.Equal(10, after.CommanderId);
+        Assert.Equal(before.MemberRanks, after.MemberRanks);
     }
 }

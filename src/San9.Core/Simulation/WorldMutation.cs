@@ -12,6 +12,42 @@ internal sealed class WorldMutation
     private readonly WorldState _owner;
     private readonly long _expectedRevision;
     private bool _committed;
+    private Dictionary<int, int?>? _leadershipBefore;
+    private EngagementRelations? _engagements;
+    private MilitaryRulebook? _engagementRules;
+
+    internal EngagementRelations Engagements(MilitaryRulebook military)
+    {
+        if (_engagements is null || !ReferenceEquals(_engagementRules, military))
+        {
+            _engagements = MilitaryEngagements.Build(this, military);
+            _engagementRules = military;
+        }
+        return _engagements;
+    }
+
+    private void LeadershipChanged()
+    {
+        _leadershipBefore ??= Officers.Values.Where(p => p.IsCommander && p.IsServing && p.SettlementId is not null)
+            .GroupBy(p => p.SettlementId!.Value).ToDictionary(g => g.Key, g => (int?)g.First().Id);
+    }
+
+    internal void MaintainLeadership(List<DomainEvent> events)
+    {
+        if (_leadershipBefore is not null)
+        {
+            var before = _leadershipBefore;
+            LeadershipMaintenance.Apply(this, _abilityRules.Governance);
+            foreach (int place in before.Keys.Concat(Officers.Values.Where(p => p.IsCommander && p.SettlementId is not null)
+                .Select(p => p.SettlementId!.Value)).Distinct().Order())
+            {
+                int? current = LeadershipMaintenance.Commander(this, place)?.Id;
+                if (before.GetValueOrDefault(place) != current)
+                    events.Add(new CommanderChangedEvent(Clock, place, current));
+            }
+            _leadershipBefore = null;
+        }
+    }
 
     internal WorldMutation(
         WorldState owner,
@@ -65,6 +101,9 @@ internal sealed class WorldMutation
     internal void SetSimulation(SimulationState simulation)
     {
         EnsureOpen();
+        if (simulation.Tasks != Simulation.Tasks && !simulation.Tasks.Where(t => t.Journey is not null).Select(t => t.OfficerId)
+            .SequenceEqual(Simulation.Tasks.Where(t => t.Journey is not null).Select(t => t.OfficerId))) LeadershipChanged();
+        if (simulation.Alliance?.MemberForceIds != Simulation.Alliance?.MemberForceIds) _engagements = null;
         Simulation = simulation;
     }
 
@@ -81,25 +120,57 @@ internal sealed class WorldMutation
         return result;
     }
 
-    internal void Replace(ForceState value) => Forces = Replace(Forces, value.Id, value);
-    internal void Replace(SettlementState value) => Settlements = Replace(Settlements, value.Id, value);
+    internal void Replace(ForceState value)
+    {
+        if (Forces[value.Id].IsEliminated != value.IsEliminated) _engagements = null;
+        Forces = Replace(Forces, value.Id, value);
+    }
+    internal void Replace(SettlementState value)
+    {
+        var previous = Settlements[value.Id];
+        if (previous.OwnerId != value.OwnerId || previous.CanHostPersons != value.CanHostPersons || previous.IsDestroyed != value.IsDestroyed)
+            LeadershipChanged();
+        if (previous.OwnerId != value.OwnerId || previous.CanHostPersons != value.CanHostPersons || previous.IsDestroyed != value.IsDestroyed ||
+            previous.Facility != value.Facility || (previous.Soldiers > 0) != (value.Soldiers > 0) ||
+            (previous.Morale > 0) != (value.Morale > 0) || (previous.Durability > 0) != (value.Durability > 0) ||
+            (previous.ConfusionDaysRemaining == 0) != (value.ConfusionDaysRemaining == 0)) _engagements = null;
+        Settlements = Replace(Settlements, value.Id, value);
+    }
     internal void AddSettlement(SettlementState value)
     {
         EnsureOpen();
         Settlements = Settlements.Add(value.Id, value);
+        _engagements = null;
     }
-    internal void Replace(OfficerState value) => Officers = Replace(Officers, value.Id, value);
-    internal void Replace(UnitState value) => Units = Replace(Units, value.Id, value);
+    internal void Replace(OfficerState value)
+    {
+        var previous = Officers[value.Id];
+        if (previous.OwnerId != value.OwnerId || previous.Status != value.Status || previous.SettlementId != value.SettlementId ||
+            previous.UnitId != value.UnitId || previous.OfficeId != value.OfficeId || previous.Injury != value.Injury ||
+            previous.BaseAbilities.Leadership != value.BaseAbilities.Leadership) LeadershipChanged();
+        Officers = Replace(Officers, value.Id, value);
+    }
+    internal void Replace(UnitState value)
+    {
+        var previous = Units[value.Id];
+        if (previous.OwnerId != value.OwnerId || previous.Position != value.Position || previous.FormationId != value.FormationId ||
+            previous.IsEmbedded != value.IsEmbedded || previous.IsPersonnel != value.IsPersonnel ||
+            previous.Order != value.Order || previous.EngagementTargetId != value.EngagementTargetId || previous.Condition != value.Condition ||
+            (previous.Soldiers > 0) != (value.Soldiers > 0) || (previous.Morale > 0) != (value.Morale > 0)) _engagements = null;
+        Units = Replace(Units, value.Id, value);
+    }
     internal void AddUnit(UnitState unit)
     {
         EnsureOpen();
         Units = Units.Add(unit.Id, unit);
+        _engagements = null;
     }
     internal void RemoveUnit(int id)
     {
         EnsureOpen();
         if (!Units.ContainsKey(id)) throw new InvalidOperationException("Unknown unit.");
         Units = Units.Remove(id);
+        _engagements = null;
     }
     internal void Replace(CorpsState value) => Corps = Replace(Corps, value.Id, value);
     internal void RemoveCorps(int id)
@@ -113,9 +184,18 @@ internal sealed class WorldMutation
         EnsureOpen();
         Corps = Corps.Add(corps.Id, corps);
     }
-    internal void Replace(TreasureState value) => Treasures = Replace(Treasures, value.Id, value);
-    internal void Replace(ForceRelation value) =>
+    internal void Replace(TreasureState value)
+    {
+        var previous = Treasures[value.Id];
+        if (previous.HolderId != value.HolderId || previous.Discovery != value.Discovery) LeadershipChanged();
+        Treasures = Replace(Treasures, value.Id, value);
+    }
+    internal void Replace(ForceRelation value)
+    {
+        var previous = Relations[(value.FirstId, value.SecondId)];
+        if (MilitaryDiplomacy.IsHostileRelation(previous.Value) != MilitaryDiplomacy.IsHostileRelation(value.Value)) _engagements = null;
         Relations = Replace(Relations, (value.FirstId, value.SecondId), value);
+    }
 
     private ImmutableDictionary<TKey, TValue> Replace<TKey, TValue>(
         ImmutableDictionary<TKey, TValue> source,

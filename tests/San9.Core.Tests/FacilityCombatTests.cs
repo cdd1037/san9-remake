@@ -36,7 +36,7 @@ public sealed class FacilityCombatTests
             [new(1, 1, 10000, 100, 100, effect == TacticEffect.Inspire ? 79 : 100, 0, 0, 100, 0, 100) { ConfusionDaysRemaining = confusion },
                 new(2, 2, 10000, 100, 100, 100, 0, 0, 100, 0, 100),
                 ..(area ? new SettlementState[] { new(3, 2, 1, 100, 100, 100, 0, 0, 100, 0, 100) } : [])],
-            [new(11, 1, 1, new(200, 200, 100, 100), false) { Status = OfficerStatus.Ruler, Injury = injury, TacticCooldown = cooldown },
+            [new(11, 1, 1, new(200, 200, 100, 100), false) { Status = OfficerStatus.Ruler, IsCommander = true, Injury = injury, TacticCooldown = cooldown },
                 new(12, 1, 1, new(200, 200, 100, 200), false) { LearnedTactics = [9000], EquippedTacticId = 9000 },
                 new(21, support ? 1 : 2, null, new(0, 0, 0, 0), false) { UnitId = 1, Injury = support ? 3 : 0 },
                 new(22, 2, 2, new(70, 70, 70, 70), false) { Status = OfficerStatus.Ruler }],
@@ -200,5 +200,50 @@ public sealed class FacilityCombatTests
             PersonnelRulebook.Empty, TreasureRulebook.Empty, military: rules);
         Assert.Equal(CanonicalJson.Text(Advance(engine).Events), CanonicalJson.Text(Advance(restored).Events));
         Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+    }
+    [Theory]
+    [InlineData(12, 0, true)]
+    [InlineData(12, 100, false)]
+    [InlineData(null, 0, false)]
+    public void TacticReadsAppointedCommanderWithoutSelectingTheHigherPriorityRuler(int? appointed, int cooldown, bool fires)
+    {
+        MilitaryRulebook military = null!;
+        var engine = Engine(captureRules: rules => military = rules);
+        var snapshot = engine.Snapshot with { Officers = engine.Snapshot.Officers.Select(p => p with
+            { IsCommander = p.Id == appointed, TacticCooldown = p.Id == appointed ? cooldown : 0 }).ToArray() };
+        var mutation = WorldState.Restore(snapshot).BeginMutation();
+        List<DomainEvent> events = [];
+        FacilityCombat.TryTactic(mutation, 1, new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 1 },
+            new SimulationRules { Military = military }, events);
+        var activations = events.OfType<TacticActivatedEvent>().ToArray();
+        if (fires) Assert.Equal(appointed, Assert.Single(Assert.Single(activations).OfficerIds));
+        else Assert.Empty(activations);
+    }
+
+    [Theory]
+    [InlineData("missing")]
+    [InlineData("removed")]
+    [InlineData("range")]
+    [InlineData("friendly")]
+    [InlineData("disabled")]
+    [InlineData("support-empty")]
+    public void UnavailableTacticOrTargetDoesNotConsumeOpportunityOrCooldown(string reason)
+    {
+        MilitaryRulebook military = null!;
+        var engine = Engine(effect: reason == "support-empty" ? TacticEffect.Inspire : TacticEffect.Martial,
+            requiresEnabled: reason == "disabled", enabled: reason != "disabled", captureRules: rules => military = rules);
+        var mutation = WorldState.Restore(engine.Snapshot).BeginMutation();
+        if (reason == "removed") mutation.RemoveUnit(1);
+        if (reason == "range") mutation.Replace(mutation.Units[1] with { Position = new(12, 2) });
+        if (reason == "friendly") mutation.Replace(mutation.Units[1] with { OwnerId = 1 });
+        if (reason == "support-empty") mutation.Replace(mutation.Settlements[1] with { Morale = 100 });
+        var randomBefore = mutation.Simulation.RandomStreams;
+        var officersBefore = mutation.Officers;
+        List<DomainEvent> events = [];
+        FacilityCombat.TryTactic(mutation, 1, reason is "missing" or "support-empty" ? null :
+            new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 1 }, new() { Military = military }, events);
+        Assert.Empty(events);
+        Assert.Equal(randomBefore, mutation.Simulation.RandomStreams);
+        Assert.Same(officersBefore, mutation.Officers);
     }
 }

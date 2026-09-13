@@ -5,7 +5,24 @@ namespace San9.Core.Simulation;
 /// <summary>Directed engagements derived from current orders, ownership and attack reach.</summary>
 internal static class MilitaryEngagements
 {
-    internal static BattleSource? Target(WorldMutation world, UnitState unit, MilitaryRulebook military)
+    internal static EngagementRelations Build(WorldMutation world, MilitaryRulebook military)
+    {
+        Dictionary<BattleSource, BattleSource> targets = [];
+        Dictionary<BattleSource, int> incoming = [];
+        void Add(BattleSource source, BattleSource target)
+        {
+            targets.Add(source, target);
+            incoming[target] = incoming.GetValueOrDefault(target) + 1;
+        }
+        foreach (var unit in world.Units.Values)
+            if (FindTarget(world, unit, military) is { } target) Add(new(unit.Id, false), target);
+        if (world.Units.Count > 0)
+            foreach (var settlement in world.Settlements.Values)
+                if (FindFacilityTarget(world, settlement, military) is { } target) Add(new(settlement.Id, true), new(target.Id, false));
+        return new(targets, incoming);
+    }
+
+    private static BattleSource? FindTarget(WorldMutation world, UnitState unit, MilitaryRulebook military)
     {
         if (unit.IsEmbedded || unit.IsPersonnel || unit.Soldiers == 0 || unit.Morale == 0 ||
             unit.Condition is UnitCondition.Confused or UnitCondition.Routed ||
@@ -16,36 +33,48 @@ internal static class MilitaryEngagements
         return new(order.UnitId ?? order.SettlementId!.Value, order.UnitId is null);
     }
 
-    internal static UnitState? FacilityTarget(WorldMutation world, SettlementState settlement, MilitaryRulebook military)
+    private static UnitState? FindFacilityTarget(WorldMutation world, SettlementState settlement, MilitaryRulebook military)
     {
         if (!FacilityCombat.Active(settlement) || !military.TryPlace(settlement, out _) ||
             military.FacilityAttack(settlement).Attack is null) return null;
         var area = new BattleSource(settlement.Id, true).Area(world, military);
-        return world.Units.Values.Where(u => !u.IsPersonnel && !u.IsEmbedded &&
-            (MilitaryDiplomacy.Work(world, settlement.Id, military) || MilitaryDiplomacy.AutomaticEnemy(world, settlement.OwnerId!.Value, u.OwnerId)) && u.OwnerId != settlement.OwnerId &&
-            u.FormationId is int f && military.Formations[f].Combat is not null &&
-            MilitaryCombat.Area(u, military).IntersectsExpanded(area, MilitaryCombat.FacilityRange(world, settlement, u, military)))
-            .OrderBy(u => MilitaryCombat.Area(u, military).DistanceTo(area)).ThenBy(u => u.Id).FirstOrDefault();
-    }
-
-    internal static HashSet<BattleSource> Incoming(WorldMutation world, BattleSource subject, MilitaryRulebook military)
-    {
-        HashSet<BattleSource> result = [];
+        bool work = MilitaryDiplomacy.Work(world, settlement.Id, military);
+        UnitState? closest = null;
+        long distance = long.MaxValue;
         foreach (var unit in world.Units.Values)
-            if (Target(world, unit, military) == subject) result.Add(new(unit.Id, false));
-        if (!subject.IsSettlement)
-            foreach (var settlement in world.Settlements.Values)
-                if (FacilityTarget(world, settlement, military)?.Id == subject.Id) result.Add(new(settlement.Id, true));
-        return result;
+        {
+            if (unit.IsPersonnel || unit.IsEmbedded || unit.OwnerId == settlement.OwnerId ||
+                !work && !MilitaryDiplomacy.AutomaticEnemy(world, settlement.OwnerId!.Value, unit.OwnerId) ||
+                unit.FormationId is not int formation || military.Formations[formation].Combat is null) continue;
+            var targetArea = MilitaryCombat.Area(unit, military);
+            long candidateDistance = targetArea.DistanceTo(area);
+            if (closest is not null && (candidateDistance > distance || candidateDistance == distance && unit.Id >= closest.Id) ||
+                !targetArea.IntersectsExpanded(area, MilitaryCombat.FacilityRange(world, settlement, unit, military))) continue;
+            closest = unit;
+            distance = candidateDistance;
+        }
+        return closest;
     }
 
-    internal static int Intensity(WorldMutation world, BattleSource subject, BattleSource opponent, MilitaryRulebook military)
+    internal static UnitState? FacilityTarget(WorldMutation world, SettlementState settlement, MilitaryRulebook military)
     {
-        var attackers = Incoming(world, subject, military);
-        attackers.Add(opponent);
-        return attackers.Count;
+        var target = world.Engagements(military).Target(new(settlement.Id, true));
+        return target is { } value ? world.Units[value.Id] : null;
     }
+
+    internal static int Intensity(WorldMutation world, BattleSource subject, BattleSource opponent, MilitaryRulebook military) =>
+        world.Engagements(military).Intensity(subject, opponent);
 
     internal static bool Engaged(WorldMutation world, UnitState unit, MilitaryRulebook military) =>
-        Target(world, unit, military) is not null || Incoming(world, new(unit.Id, false), military).Count > 0;
+        world.Engagements(military).Engaged(new(unit.Id, false));
+}
+
+/// <summary>A derived view owned by one mutation; queries never modify it or enumerate the world.</summary>
+internal sealed class EngagementRelations(Dictionary<BattleSource, BattleSource> targets, Dictionary<BattleSource, int> incoming)
+{
+    internal BattleSource? Target(BattleSource source) => targets.TryGetValue(source, out var target) ? target : null;
+    internal int IncomingCount(BattleSource subject) => incoming.GetValueOrDefault(subject);
+    internal bool Engaged(BattleSource subject) => (!subject.IsSettlement && targets.ContainsKey(subject)) || IncomingCount(subject) > 0;
+    internal int Intensity(BattleSource subject, BattleSource opponent) =>
+        IncomingCount(subject) + (Target(opponent) == subject ? 0 : 1);
 }

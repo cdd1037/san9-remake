@@ -238,7 +238,7 @@ public sealed class GameSession
                     e.Command.Activity, e.Increment, e.Cost)).ToArray();
             var snapshot = candidate.CaptureStableState();
             var publishedEvents = events.ToImmutableArray();
-            var recorded = IsRecording ? new RecordedOperation(request, snapshot.StateHash, publishedEvents) : null;
+            var recorded = IsRecording ? new RecordedOperation(request, publishedEvents) : null;
             _simulation = candidate;
             _records.AddRange(completed);
             if (_records.Count > RecentRecordLimit) _records.RemoveRange(0, _records.Count - RecentRecordLimit);

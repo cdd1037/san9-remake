@@ -15,23 +15,6 @@ internal static class GovernanceMaintenance
         var force = world.Forces[corps.OwnerId];
         return (ulong)force.Money + corps.Treasury.Money <= uint.MaxValue && (ulong)force.Food + corps.Treasury.Food <= uint.MaxValue;
     }
-    internal static void RepairCommander(WorldMutation world, int placeId, GovernanceRulebook rules, List<DomainEvent> events)
-    {
-        var people = world.Officers.Values.Where(p => p.SettlementId == placeId && p.IsServing).ToArray();
-        var selected = Commander(world, placeId, rules);
-        var previous = people.Where(p => p.IsCommander).Select(p => p.Id).Order().ToArray();
-        foreach (var person in people) world.Replace(person with { IsCommander = person.Id == selected?.Id });
-        if (!previous.SequenceEqual(selected is null ? [] : new[] { selected.Id }))
-            events.Add(new CommanderChangedEvent(world.Clock, placeId, selected?.Id));
-    }
-
-    internal static OfficerState? Commander(WorldMutation world, int placeId, GovernanceRulebook rules)
-    {
-        var people = world.Officers.Values.Where(p => p.SettlementId == placeId && p.IsServing &&
-            !world.Simulation.Tasks.Any(t => t.OfficerId == p.Id && t.Journey is not null)).ToArray();
-        return rules.SelectCommander(people, world.AbilitiesFor(people));
-    }
-
     internal static CommandRejection RepairCorps(WorldMutation world, int corpsId, GovernanceRulebook rules, List<DomainEvent> events)
     {
         if (!world.Corps.TryGetValue(corpsId, out var corps) || corps.Treasury is null) return CommandRejection.None;
@@ -48,7 +31,6 @@ internal static class GovernanceMaintenance
         if (force.AdviserId == leader.Id) world.Replace(force with { AdviserId = null });
         world.Replace(leader with { Status = leader.Status == OfficerStatus.Ruler ? OfficerStatus.Ruler : OfficerStatus.Governor });
         world.Replace(corps with { LeaderId = leader.Id });
-        if (leader.SettlementId is int home) RepairCommander(world, home, rules, events);
         events.Add(new CorpsLeaderChangedEvent(world.Clock, corps.Id, oldLeader.Id, leader.Id));
         return CommandRejection.None;
     }

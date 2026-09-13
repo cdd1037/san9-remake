@@ -83,7 +83,7 @@ internal static class PersonnelReturns
     }
 }
 
-internal sealed class PersonnelReturnRule(PersonnelRulebook places, GovernanceRulebook governance, MilitaryRulebook? military) : TaskRule
+internal sealed class PersonnelReturnRule(PersonnelRulebook places, MilitaryRulebook? military) : TaskRule
 {
     internal override bool HasValidPayload(PersistentTask task) => task.Journey is
         { TargetOfficerId: null, SuccessRoll: null, AcceptRecruitment: null, DestinationPosition: null, UnitStrategy: null, ReturnLeg: { } leg } journey &&
@@ -99,7 +99,6 @@ internal sealed class PersonnelReturnRule(PersonnelRulebook places, GovernanceRu
             task.Journey.ReturnLeg.CountdownDays <= BattleRetreat.Days(origin, home.Position));
     internal override void Complete(WorldMutation world, PersistentTask task, List<DomainEvent> events)
     {
-        GovernanceMaintenance.RepairCommander(world, task.OriginSettlementId, governance, events);
         events.Add(new PersonnelReturnedEvent(world.Clock, task.OfficerId, task.OriginSettlementId));
     }
 }

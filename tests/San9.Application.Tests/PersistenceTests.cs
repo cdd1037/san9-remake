@@ -604,15 +604,19 @@ public sealed class PersistenceTests : IDisposable
         root["formatVersion"] = 999;
         Assert.Throws<RecordingException>(() => RecordingService.Replay(Encoding.UTF8.GetBytes(root.ToJsonString()), definition, w => new(w)));
         root = JsonNode.Parse(bytes)!;
-        root["recording"]!["operations"]![0]!["worldHash"] = "tampered";
+        root["recording"]!["finalHash"] = "tampered";
         Assert.Throws<RecordingException>(() => RecordingService.Replay(Encoding.UTF8.GetBytes(root.ToJsonString()), definition, w => new(w)));
         var changed = definition with { Forces = definition.Forces.Select(f => f with { Money = 100 }).ToArray() };
         Assert.Throws<RecordingException>(() => RecordingService.Replay(bytes, changed, w => new(w)));
         var envelope = StrictJson.Deserialize<RecordingEnvelope>(bytes);
-        var operations = envelope.Recording.Operations.SetItem(0, envelope.Recording.Operations[0] with { WorldHash = new string('0', 64) });
+        var operations = envelope.Recording.Operations.SetItem(1, envelope.Recording.Operations[1] with { Events = [] });
         var divergent = envelope with { Recording = envelope.Recording with { Operations = operations } };
         var resigned = CanonicalJson.Encode(divergent with { IntegrityHash = RecordingService.Integrity(divergent) });
-        Assert.Equal(1, Assert.Throws<RecordingException>(() => RecordingService.Replay(resigned, definition, w => new(w))).Sequence);
+        Assert.Equal(2, Assert.Throws<RecordingException>(() => RecordingService.Replay(resigned, definition, w => new(w))).Sequence);
+        var wrongFinal = envelope with { Recording = envelope.Recording with { FinalHash = new string('0', 64) } };
+        resigned = CanonicalJson.Encode(wrongFinal with { IntegrityHash = RecordingService.Integrity(wrongFinal) });
+        Assert.Equal(session.NextOperationSequence, Assert.Throws<RecordingException>(() =>
+            RecordingService.Replay(resigned, definition, w => new(w))).Sequence);
         var outOfOrder = envelope with { Recording = envelope.Recording with { Operations = envelope.Recording.Operations.Reverse().ToImmutableArray() } };
         resigned = CanonicalJson.Encode(outOfOrder with { IntegrityHash = RecordingService.Integrity(outOfOrder) });
         Assert.Equal(2, Assert.Throws<RecordingException>(() => RecordingService.Replay(resigned, definition, w => new(w))).Sequence);

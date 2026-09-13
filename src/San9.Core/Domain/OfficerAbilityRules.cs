@@ -5,6 +5,7 @@ namespace San9.Core.Domain;
 /// <summary>Derives effective abilities from a supplied state. Holds definitions, never mutable world state or cached results.</summary>
 public sealed class OfficerAbilityRules(TreasureRulebook treasures, GovernanceRulebook governance)
 {
+    internal GovernanceRulebook Governance => governance;
     public static OfficerAbilityRules Empty { get; } = new(TreasureRulebook.Empty, new([]));
 
     public OfficerAbilities Evaluate(OfficerState person, IEnumerable<TreasureState> holdings) =>

@@ -54,7 +54,6 @@ internal static class PersonnelDefection
         }
         if (oldCorps is int previousCorps && GovernanceMaintenance.RepairCorps(world, previousCorps, governance, events) != CommandRejection.None)
             throw new InvalidOperationException("Validated affiliation transfer failed.");
-        if (oldHome is int origin) GovernanceMaintenance.RepairCommander(world, origin, governance, events);
         return transfersPlace;
     }
 }

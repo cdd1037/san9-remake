@@ -71,7 +71,6 @@ internal static class CorpsGovernance
             ResourceAccounts.Report(world, new(ResourceOwnerKind.Force, force.Id), resource, "corps-changed", corps.Id, -amount, -amount, events);
             ResourceAccounts.Report(world, new(ResourceOwnerKind.Corps, corps.Id), resource, "corps-changed", root.Id, amount, amount, events);
         }
-        foreach (int place in places.Concat(removed).Order()) GovernanceMaintenance.RepairCommander(world, place, rules, events);
         events.Add(new CorpsChangedEvent(world.Clock, force.Id, corps.Id, leader.Id, cities.Order().ToImmutableArray()));
         return CommandRejection.None;
     }
@@ -116,7 +115,6 @@ internal static class CorpsGovernance
             ResourceAccounts.Report(world, new(ResourceOwnerKind.Force, force.Id), resource, "corps-created", id, -amount, -amount, events);
             ResourceAccounts.Report(world, new(ResourceOwnerKind.Corps, id), resource, "corps-created", root.Id, amount, amount, events);
         }
-        foreach (var facility in facilities) GovernanceMaintenance.RepairCommander(world, facility.Id, rules, events);
         events.Add(new CorpsCreatedEvent(world.Clock, force.Id, id, leader.Id, cities.Order().ToImmutableArray()));
         return CommandRejection.None;
     }
@@ -147,7 +145,6 @@ internal static class CorpsGovernance
             ResourceAccounts.Report(world, new(ResourceOwnerKind.Force, force.Id), resource, "corps-dissolved", source.Id, amount, amount, events);
         }
         world.RemoveCorps(source.Id);
-        if (leader.SettlementId is int home) GovernanceMaintenance.RepairCommander(world, home, rules, events);
         events.Add(new CorpsDissolvedEvent(world.Clock, force.Id, source.Id, root.Id));
         return CommandRejection.None;
     }

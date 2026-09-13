@@ -15,9 +15,11 @@ internal static class MilitaryDiplomacy
         world.Forces.TryGetValue(attacker, out var force) && !force.IsEliminated && attacker != defender &&
         (defender is null || world.Forces.TryGetValue(defender.Value, out var other) && !other.IsEliminated);
 
+    internal static bool IsHostileRelation(int value) => value < 40;
+
     internal static bool AutomaticEnemy(WorldMutation world, int attacker, int? defender) =>
         CanFight(world, attacker, defender) && (defender is null ||
-            world.Simulation.Alliance?.Protects(attacker, defender.Value) != true && Relation(world, attacker, defender.Value) < 40);
+            world.Simulation.Alliance?.Protects(attacker, defender.Value) != true && IsHostileRelation(Relation(world, attacker, defender.Value)));
 
     internal static bool Work(WorldMutation world, int settlementId, MilitaryRulebook rules) =>
         rules.Place(world.Settlements[settlementId]).FacilityTypeId is int type && rules.Facilities[type].IsWork;

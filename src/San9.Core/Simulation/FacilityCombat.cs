@@ -26,15 +26,15 @@ internal static class FacilityCombat
         var military = rules.Military!;
         foreach (int id in world.Settlements.Keys.Order().ToArray())
         {
+            world.MaintainLeadership(events);
             if (world.Simulation.TerminalReason is not null) return;
             var settlement = world.Settlements[id];
             if (settlementsUsed.Contains(id) || !Active(settlement) || !military.TryPlace(settlement, out var place)) continue;
-            var source = new BattleSource(id, true);
-            var area = source.Area(world, military);
-            var capability = military.FacilityAttack(settlement);
             var target = MilitaryEngagements.FacilityTarget(world, settlement, military);
             settlementsUsed.Add(id);
             if (target is null) { TryTactic(world, id, null, rules, events); continue; }
+            var source = new BattleSource(id, true);
+            var area = source.Area(world, military);
             var formation = military.Formations[target.FormationId!.Value];
             MilitaryDiplomacy.CombatOpened(world, settlement.OwnerId!.Value, target.OwnerId, false, events);
             uint outgoing = MilitaryCombat.NormalDamage(world, source, new(target.Id, false), military);
@@ -70,17 +70,17 @@ internal static class FacilityCombat
         var settlement = world.Settlements[settlementId];
         if (!Active(settlement) || !military.TryPlace(settlement, out var place) || place.FacilityTypeId is not int typeId ||
             military.Facilities[typeId].Tactics is not { } profile) return;
-        var actor = GovernanceMaintenance.Commander(world, settlementId, rules.Governance);
-        if (actor is null || actor.Injury > 0 || actor.TacticCooldown > 0) return;
         var selected = military.FacilityTactic(settlement);
         if (selected is null) return;
         var source = new BattleSource(settlementId, true);
-        var members = IntelligenceTactics.Defenders(world, new(MilitaryOrderKind.AttackSettlement, null, settlementId));
         if (selected.Effect is TacticEffect.Heal or TacticEffect.Inspire)
         {
             var targets = TacticSupport.Targets(world, source, selected, military);
-            if (targets.Length > 0 && TacticCombat.Roll(world, "military-facility-tactic-opportunity", profile.OpportunityChance))
-                TacticSupport.Resolve(world, source, actor, selected, targets, members, military, events);
+            if (targets.Length == 0) return;
+            var supportActor = TacticActor(world, settlementId);
+            if (supportActor is null || !TacticCombat.Roll(world, "military-facility-tactic-opportunity", profile.OpportunityChance)) return;
+            TacticSupport.Resolve(world, source, supportActor, selected, targets,
+                IntelligenceTactics.Defenders(world, new(MilitaryOrderKind.AttackSettlement, null, settlementId)), military, events);
             return;
         }
         if (target?.UnitId is not int targetId || !world.Units.TryGetValue(targetId, out var unit) ||
@@ -88,7 +88,9 @@ internal static class FacilityCombat
             military.Formations[f].Combat is null || place.Attack is null ||
             !source.Area(world, military).IntersectsExpanded(MilitaryCombat.Area(unit, military), MilitaryCombat.FacilityRange(world, settlement, unit, military))) return;
         var tactic = selected.Effect == TacticEffect.TrapSelection ? military.TrapAt(unit.Position) : selected;
-        if (tactic is null || !TacticCombat.Roll(world, "military-facility-tactic-opportunity", profile.OpportunityChance)) return;
+        if (tactic is null) return;
+        var actor = TacticActor(world, settlementId);
+        if (actor is null || !TacticCombat.Roll(world, "military-facility-tactic-opportunity", profile.OpportunityChance)) return;
         int proficiency = actor.TacticProficiencies[tactic.Category!.Value];
         int effect;
         bool doubled = false;
@@ -102,6 +104,8 @@ internal static class FacilityCombat
             effect = IntelligenceTactics.Effect(world, actor, tactic, target, rules);
             if (effect == 0) return;
         }
+        var members = tactic.Effect == TacticEffect.Martial
+            ? IntelligenceTactics.Defenders(world, new(MilitaryOrderKind.AttackSettlement, null, settlementId)) : [];
         world.Replace(world.Officers[actor.Id] with { TacticCooldown = tactic.Effect == TacticEffect.Martial ? profile.MartialCooldown : tactic.MinimumInterval });
         events.Add(new TacticActivatedEvent(world.Clock, settlementId, true, targetId, false, tactic.Id, [actor.Id], doubled, effect));
         if (tactic.Effect == TacticEffect.Martial)
@@ -112,5 +116,11 @@ internal static class FacilityCombat
             if (world.Units.ContainsKey(targetId)) BattleLearning.Learn(world, IntelligenceTactics.Defenders(world, target), selected, events);
             TacticCombat.Grow(world, members, [actor.Id], selected, events);
         }
+    }
+
+    private static OfficerState? TacticActor(WorldMutation world, int settlementId)
+    {
+        var actor = LeadershipMaintenance.Commander(world, settlementId);
+        return actor is { Injury: 0, TacticCooldown: 0 } ? actor : null;
     }
 }

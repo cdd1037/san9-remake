@@ -21,9 +21,7 @@ internal static class WoundedRecovery
             var home = world.Settlements[id];
             if (home.IsDestroyed || home.Durability <= 0 || home.Wounded == 0 ||
                 !military.TryPlace(home, out var place) || place.WoundedRecovery is not int coefficient) continue;
-            bool engaged = world.Units.Values.Any(u => u.Order is { Kind: MilitaryOrderKind.AttackSettlement } order &&
-                order.SettlementId == id && MilitaryCombat.ValidTarget(world, u.OwnerId, order, military.Formations[u.FormationId!.Value], military) &&
-                MilitaryCombat.Area(u, military).DistanceTo(new(place.Position, place.Footprint)) <= MilitaryCombat.UnitRange(world, u, order, military));
+            bool engaged = world.Engagements(military).Engaged(new(id, true));
             int roll = (int)(world.NextRandom("military-wounded-recovery") % 100);
             uint recovered = Amount(home.Wounded, home.SoldierCapacity - home.Soldiers, coefficient, roll, engaged);
             if (recovered == 0) continue;

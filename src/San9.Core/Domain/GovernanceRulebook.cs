@@ -36,9 +36,9 @@ public sealed class GovernanceRulebook
         .ThenBy(p => p.Id).FirstOrDefault();
 
     public OfficerState? SelectCommander(IEnumerable<OfficerState> candidates, IReadOnlyDictionary<int, OfficerAbilities> abilities) =>
-        OrderCommanders(candidates, abilities).ThenBy(p => p.Id).FirstOrDefault();
+        OrderCommanders(candidates, abilities).FirstOrDefault();
 
-    // Stable ties retain the supplied member order. Settlement callers explicitly add their identity tie-breaker.
+    // Equal priorities retain the supplied enumeration order; there is no additional identity ranking.
     public IOrderedEnumerable<OfficerState> OrderCommanders(IEnumerable<OfficerState> candidates, IReadOnlyDictionary<int, OfficerAbilities> abilities) => candidates.Where(p => p.IsServing)
         .OrderByDescending(p => p.Status == OfficerStatus.Ruler).ThenByDescending(p => p.Status == OfficerStatus.Governor)
         .ThenByDescending(p => Office(p)?.CommandCapacity / 1000 ?? 10)

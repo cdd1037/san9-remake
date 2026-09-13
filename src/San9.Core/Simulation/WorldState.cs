@@ -85,6 +85,27 @@ public sealed class WorldState
     internal WorldMutation BeginMutation(OfficerAbilityRules? abilities = null) => new(this, abilities ?? OfficerAbilityRules.Empty, Revision, Clock, Simulation, _forces, _settlements,
         _officers, _units, _corps, _treasures, _relations);
 
+    internal ControlSeat EndControl(CommandContext context)
+    {
+        if (IsExecuting || Simulation.Boundary != SimulationBoundary.Stable ||
+            Simulation.ActiveControl >= Simulation.Controls.Length)
+            throw new InvalidOperationException("No active stable control.");
+        var seat = Simulation.Controls[Simulation.ActiveControl];
+        if (seat.ControllerId != context.ControllerId) throw new InvalidOperationException("Not the active controller.");
+
+        // This transition owns only the control cursor. All domain records remain validated and unchanged.
+        long revision = checked(Revision + 1);
+        Simulation = Simulation with { ActiveControl = Simulation.ActiveControl + 1 };
+        Revision = revision;
+        if (_snapshot is not null)
+            _snapshot = _snapshot with
+            {
+                Simulation = _snapshot.Simulation with { ActiveControl = Simulation.ActiveControl },
+                Revision = revision,
+            };
+        return seat;
+    }
+
     internal void Commit(WorldMutation mutation)
     {
         ArgumentNullException.ThrowIfNull(mutation);

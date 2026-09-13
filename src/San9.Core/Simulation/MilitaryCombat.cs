@@ -88,6 +88,7 @@ internal static class MilitaryCombat
         var buildingsUsed = new HashSet<int>();
         foreach (int id in world.Units.Keys.Order().ToArray())
         {
+            world.MaintainLeadership(events);
             if (world.Simulation.TerminalReason is not null) break;
             if (!world.Units.TryGetValue(id, out var attacker) || attacker.EffectiveOrder is not { IsAttack: true } order || attacker.Condition is UnitCondition.Confused or UnitCondition.Routed) continue;
             var formation = military.Formations[attacker.FormationId!.Value];

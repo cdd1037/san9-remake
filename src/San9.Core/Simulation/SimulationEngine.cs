@@ -46,6 +46,7 @@ public sealed class SimulationEngine
                 var mutation = world.BeginMutation(rules.Abilities);
                 List<DomainEvent> events = [];
                 _pipeline.Prepare(mutation, events);
+                mutation.MaintainLeadership(events);
                 world.Commit(mutation);
                 InitialEvents = events.AsReadOnly();
             }
@@ -98,7 +99,6 @@ public sealed class SimulationEngine
                 case UnitStrategyCommand strategy:
                     var strategyRejection = UnitStrategies.Start(mutation, context, strategy, _rules, events);
                     if (strategyRejection != CommandRejection.None) return Reject(strategyRejection);
-                    GovernanceMaintenance.RepairCommander(mutation, mutation.Officers[strategy.OfficerId].SettlementId!.Value, _rules.Governance, events);
                     break;
                 case SelectTacticCommand tactic:
                     var tacticRejection = MilitaryTactics.Select(mutation, tactic, _rules, events);
@@ -175,20 +175,14 @@ public sealed class SimulationEngine
                 case SearchCommand search:
                     var searchRejection = PersonnelMissions.StartSearch(mutation, context, search, _rules.Personnel, events);
                     if (searchRejection != CommandRejection.None) return Reject(searchRejection);
-                    foreach (int origin in new[] { search.OfficerId }.Select(id => mutation.Officers[id].SettlementId!.Value).Distinct())
-                        GovernanceMaintenance.RepairCommander(mutation, origin, _rules.Governance, events);
                     break;
                 case RecruitOfficerCommand recruit:
                     var recruitRejection = PersonnelMissions.StartRecruit(mutation, context, recruit, _rules.Personnel, events);
                     if (recruitRejection != CommandRejection.None) return Reject(recruitRejection);
-                    foreach (int origin in new[] { recruit.OfficerId }.Select(id => mutation.Officers[id].SettlementId!.Value).Distinct())
-                        GovernanceMaintenance.RepairCommander(mutation, origin, _rules.Governance, events);
                     break;
                 case MoveOfficersCommand move:
                     var moveRejection = PersonnelMissions.StartMove(mutation, context, move, _rules.Personnel, events);
                     if (moveRejection != CommandRejection.None) return Reject(moveRejection);
-                    foreach (int origin in move.OfficerIds.Select(id => mutation.Officers[id].SettlementId!.Value).Distinct())
-                        GovernanceMaintenance.RepairCommander(mutation, origin, _rules.Governance, events);
                     break;
                 case DevelopCommand develop:
                     if (develop.Development is null || develop.Development.ForceId != command.IssuerId)
@@ -222,6 +216,7 @@ public sealed class SimulationEngine
             {
                 NextSequence = checked(mutation.Simulation.NextSequence + 1),
             });
+            mutation.MaintainLeadership(events);
             WorldInvariants.Validate(mutation);
             if (!commit) return new(CommandSubmissionResult.Success, [], Snapshot, development);
             _world.Commit(mutation);
@@ -254,14 +249,7 @@ public sealed class SimulationEngine
 
     public AdvanceXunResult EndControl(CommandContext context)
     {
-        if (_world.IsExecuting || _world.Simulation.Boundary != SimulationBoundary.Stable ||
-            _world.Simulation.ActiveControl >= _world.Simulation.Controls.Length)
-            throw new InvalidOperationException("No active stable control.");
-        var seat = _world.Simulation.Controls[_world.Simulation.ActiveControl];
-        if (seat.ControllerId != context.ControllerId) throw new InvalidOperationException("Not the active controller.");
-        var mutation = _world.BeginMutation(_rules.Abilities);
-        mutation.SetSimulation(mutation.Simulation with { ActiveControl = mutation.Simulation.ActiveControl + 1 });
-        _world.Commit(mutation);
+        var seat = _world.EndControl(context);
         return new(Array.AsReadOnly<DomainEvent>([new ControlEndedEvent(seat.ControllerId, seat.ForceId)]), Snapshot);
     }
 
@@ -284,6 +272,7 @@ public sealed class SimulationEngine
                 _pipeline.AdvanceDay(mutation, events);
             if (mutation.Simulation.Boundary != SimulationBoundary.Terminal)
                 _pipeline.Prepare(mutation, events);
+            mutation.MaintainLeadership(events);
             _world.Commit(mutation);
             if (mutation.Clock == next) events.Add(new XunAdvancedEvent(previous, mutation.Clock));
             return new(events.AsReadOnly(), Snapshot);

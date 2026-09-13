@@ -115,7 +115,6 @@ internal static class MilitaryMovement
         ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, unit.Id), ResourceKind.Food, "transport-load", home.Id, unit.CargoFood, unit.CargoFood, events);
         foreach (int officer in command.OfficerIds)
             world.Replace(world.Officers[officer] with { SettlementId = null, UnitId = unit.Id, Acted = true, IsCommander = false });
-        GovernanceMaintenance.RepairCommander(world, home.Id, governance, events);
         events.Add(new UnitDeployedEvent(world.Clock, unit.Id, home.Id, command.OfficerIds));
         return CommandRejection.None;
     }
@@ -238,7 +237,6 @@ internal static class MilitaryMovement
             if (GovernanceMaintenance.RepairCorps(world, previous, governance, events) != CommandRejection.None)
                 throw new InvalidOperationException("Validated unit absorption could not settle previous corps.");
         }
-        GovernanceMaintenance.RepairCommander(world, home.Id, governance, events);
         events.Add(new UnitAbsorbedEvent(world.Clock, unit.Id, home.Id));
     }
 

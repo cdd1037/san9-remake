@@ -28,7 +28,6 @@ internal static class PersonnelOffices
         var finalOffices = world.Officers.Values.Where(p => p.OwnerId == command.IssuerId && p.IsServing)
             .Select(p => assignments.TryGetValue(p.Id, out var office) ? office : p.OfficeId).Where(id => id is not null).ToArray();
         if (finalOffices.Distinct().Count() != finalOffices.Length) return CommandRejection.InvalidOffice;
-        var places = new HashSet<int>();
         foreach (var assignment in command.Assignments.OrderBy(a => a.OfficerId))
         {
             var person = world.Officers[assignment.OfficerId];
@@ -38,9 +37,7 @@ internal static class PersonnelOffices
             RecruitmentRules.SetLoyalty(world, person.Id, command.IssuerId,
                 Math.Clamp(person.Loyalty + (office?.Salary ?? 0) / 2 - oldSalary / 2, 0, 255), "office-assigned", events);
             events.Add(new OfficeAssignedEvent(world.Clock, command.IssuerId, person.Id, person.OfficeId, assignment.OfficeId));
-            if (person.SettlementId is int place) places.Add(place);
         }
-        foreach (int place in places.Order()) GovernanceMaintenance.RepairCommander(world, place, rules, events);
         return CommandRejection.None;
     }
 }

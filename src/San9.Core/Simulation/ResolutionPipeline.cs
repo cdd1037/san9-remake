@@ -27,7 +27,7 @@ internal class SimulationRules
     internal MilitaryRulebook? Military { get; init; }
     internal OfficerAbilityRules Abilities => new(Treasures, Governance);
     internal virtual TaskRule? FindTask(string kind) => kind is PersonnelMissions.RecruitKind or PersonnelMissions.MoveKind or PersonnelMissions.SearchKind
-        ? new PersonnelMissionRule(Personnel, Economy, Governance, Treasures, kind) : kind == PersonnelReturns.Kind ? new PersonnelReturnRule(Personnel, Governance, Military)
+        ? new PersonnelMissionRule(Personnel, Economy, Governance, Treasures, kind) : kind == PersonnelReturns.Kind ? new PersonnelReturnRule(Personnel, Military)
         : kind == UnitStrategies.Kind ? new UnitStrategyRule(this) : null;
     internal virtual void ApplyStage(ResolutionStage stage, WorldMutation world, List<DomainEvent> events) { }
 }
@@ -73,6 +73,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
 
     private bool Run(ResolutionStage stage, WorldMutation world, List<DomainEvent> events)
     {
+        world.MaintainLeadership(events);
         if (!CheckTerminal(world, events)) return false;
         if (stage == ResolutionStage.XunUpdate)
         {
@@ -91,15 +92,14 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         }
         if (stage == ResolutionStage.XunUpdate) WoundedRecovery.Apply(world, rules.Military, events);
         if (stage == ResolutionStage.XunUpdate) PrisonerEscapeCycle.Apply(world, rules.Personnel, rules.Economy, events);
-        if (stage == ResolutionStage.DailyMapUpdate) UnitLeadership.Repair(world, rules.Governance);
-        if (stage == ResolutionStage.DailyMapUpdate) MilitaryPolicies.AdvanceDay(world, rules.Military, events);
-        if (stage == ResolutionStage.DailyMapUpdate) MilitaryMovement.AdvanceDay(world, rules.Military, rules.Governance, rules.Personnel, events);
-        if (stage == ResolutionStage.DailyMapUpdate) FacilityConstruction.AdvanceDay(world, rules, events);
-        if (stage == ResolutionStage.DailyMapUpdate) MilitaryCombat.AdvanceDay(world, rules, events);
-        if (stage == ResolutionStage.DailyMapUpdate) TacticSupport.AdvanceDay(world, rules, events);
-        if (stage == ResolutionStage.DailyMapUpdate) UnitLeadership.Repair(world, rules.Governance);
-        if (stage == ResolutionStage.DailyMapUpdate) MilitaryPolicies.ResolveOrders(world, rules.Military, events);
+        if (stage == ResolutionStage.DailyMapUpdate) { MilitaryPolicies.AdvanceDay(world, rules.Military, events); world.MaintainLeadership(events); }
+        if (stage == ResolutionStage.DailyMapUpdate) { MilitaryMovement.AdvanceDay(world, rules.Military, rules.Governance, rules.Personnel, events); world.MaintainLeadership(events); }
+        if (stage == ResolutionStage.DailyMapUpdate) { FacilityConstruction.AdvanceDay(world, rules, events); world.MaintainLeadership(events); }
+        if (stage == ResolutionStage.DailyMapUpdate) { MilitaryCombat.AdvanceDay(world, rules, events); world.MaintainLeadership(events); }
+        if (stage == ResolutionStage.DailyMapUpdate) { TacticSupport.AdvanceDay(world, rules, events); world.MaintainLeadership(events); }
+        if (stage == ResolutionStage.DailyMapUpdate) { MilitaryPolicies.ResolveOrders(world, rules.Military, events); world.MaintainLeadership(events); }
         rules.ApplyStage(stage, world, events);
+        world.MaintainLeadership(events);
         events.Add(new StageCompletedEvent(world.Clock, stage));
         return CheckTerminal(world, events);
     }
@@ -146,6 +146,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
                 events.Add(new TaskCancelledEvent(task.Id, world.Clock, "invalid-target-or-executor"));
                 if (task.Journey is not null) BattlePersonnel.ResumeReturn(world, task, rules, events);
             }
+            world.MaintainLeadership(events);
             if (!CheckTerminal(world, events)) return;
         }
     }

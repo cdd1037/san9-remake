@@ -47,6 +47,7 @@ public sealed class MilitaryContentCompilerTests
         Assert.Equal(15, definition.Formations.Single(f => f.Id == 8).RequiredTacticId);
         Assert.Null(definition.Formations.Single(f => f.Id == 20).RequiredTacticId);
         Assert.Equal(TacticEffect.CounterTrap, definition.Tactics.Single(t => t.Id == 21).Effect);
+        Assert.All(definition.Tactics, t => Assert.Equal(t.Id is >= 0 and <= 5 ? (int?)5 : null, t.ContactRange));
         Assert.Equal(new FacilityAttackModifier(true, 0), definition.Tactics.Single(t => t.Id == 39).FacilityAttack);
         Assert.Equal(new FacilityAttackModifier(false, 5), definition.Tactics.Single(t => t.Id == 40).FacilityAttack);
         Assert.All(definition.Tactics.Where(t => t.Id < 39), t => Assert.Null(t.FacilityAttack));

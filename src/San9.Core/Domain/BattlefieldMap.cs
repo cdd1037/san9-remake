@@ -24,6 +24,12 @@ public readonly record struct MapOccupancy(WorldPosition Position, Footprint Foo
     public long Bottom => Top + Footprint.Height;
     public bool Overlaps(MapOccupancy other) =>
         Left < other.Right && other.Left < Right && Top < other.Bottom && other.Top < Bottom;
+    public bool IntersectsExpanded(MapOccupancy other, int range)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(range);
+        return Left - range < other.Right && other.Left < Right + range &&
+            Top - range < other.Bottom && other.Top < Bottom + range;
+    }
     public long DistanceTo(MapOccupancy other) =>
         Math.Max(0, Math.Max(other.Left - Right + 1, Left - other.Right + 1)) +
         Math.Max(0, Math.Max(other.Top - Bottom + 1, Top - other.Bottom + 1));

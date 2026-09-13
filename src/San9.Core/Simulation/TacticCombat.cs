@@ -20,7 +20,7 @@ internal static class TacticCombat
             unit.Condition is UnitCondition.Confused or UnitCondition.Routed || unit.IsEmbedded || unit.IsPersonnel ||
             unit.FormationId is not int formationId || military.Formations[formationId] is not { Tactics: { } profile } formation ||
             !MilitaryCombat.ValidTarget(world, unit.OwnerId, target, formation, military) ||
-            MilitaryCombat.Area(unit, military).DistanceTo(MilitaryCombat.TargetArea(world, target, military)) > MilitaryCombat.UnitRange(world, unit, target, military)) return;
+            !MilitaryCombat.Area(unit, military).IntersectsExpanded(MilitaryCombat.TargetArea(world, target, military), MilitaryCombat.UnitRange(world, unit, target, military))) return;
         var members = world.Officers.Values.Where(p => p.IsServing && p.OwnerId == unit.OwnerId && p.UnitId == unit.Id)
             .OrderBy(p => unit.MemberRanks.GetValueOrDefault(p.Id, BattleRank.Middle)).ThenBy(p => p.Id).ToArray();
         var candidates = members.Where(p => p.Injury == 0 && p.TacticCooldown == 0)
@@ -50,7 +50,7 @@ internal static class TacticCombat
         if (primary is null) return;
         if (primary.Tactic.Effect != TacticEffect.Martial)
         {
-            bool canStartChain = primary.Tactic.Effect is TacticEffect.Trap or TacticEffect.Defection ||
+            bool canStartChain = primary.Tactic.Effect is TacticEffect.Trap or TacticEffect.Defection or TacticEffect.Illusion ||
                 primary.Tactic.Effect == TacticEffect.Confusion &&
                 (target.UnitId is int previousTarget ? world.Units[previousTarget].Condition is not (UnitCondition.Confused or UnitCondition.Routed) :
                     world.Settlements[target.SettlementId!.Value].ConfusionDaysRemaining == 0);
@@ -58,9 +58,6 @@ internal static class TacticCombat
             events.Add(new TacticActivatedEvent(world.Clock, unit.Id, false, target.UnitId ?? target.SettlementId!.Value,
                 target.UnitId is null, primary.Tactic.Id, [primary.Officer.Id], false, intelligenceEffect));
             IntelligenceTactics.Resolve(world, new(unit.Id, false), primary.Officer, primary.Tactic, target, intelligenceEffect, rules, events);
-            var learning = primary.Officer.EquippedTacticId is int selected && military.Tactics[selected].Effect == TacticEffect.TrapSelection
-                ? military.Tactics[selected] : primary.Tactic;
-            Grow(world, members, [primary.Officer.Id], learning, events);
             if (canStartChain) TryMartialChain(world, unit.Id, primary, target, rules, events);
             return;
         }
@@ -116,7 +113,13 @@ internal static class TacticCombat
         var damageMembers = participants.Select(p => new MartialTacticMember(p.Tactic.Power,
             p.Officer.TacticProficiencies[category], world.Abilities(p.Officer).War, p.Officer.Id != primary.Officer.Id)).ToArray();
         ResolveMartial(world, new(unit.Id, false), target, damageMembers, doubled, effect, rules, events);
-        Grow(world, members, participants.Select(p => p.Officer.Id).ToArray(), primary.Tactic, events);
+        var learning = primary.Tactic.Selectable ? primary.Tactic :
+            military.Formations[unit.FormationId!.Value].AutomaticTacticLearningId is int related ? military.Tactics[related] : null;
+        if (target.UnitId is int survived ? world.Units.ContainsKey(survived) : world.Settlements[target.SettlementId!.Value].OwnerId != unit.OwnerId)
+        {
+            if (learning is not null) BattleLearning.Learn(world, IntelligenceTactics.Defenders(world, target), learning, events);
+        }
+        Grow(world, members, participants.Select(p => p.Officer.Id).ToArray(), primary.Tactic, events, learning);
     }
 
     internal static void ResolveMartial(WorldMutation world, BattleSource source, MilitaryOrder target,
@@ -185,14 +188,13 @@ internal static class TacticCombat
     internal static bool Roll(WorldMutation world, string stream, int chance) =>
         chance > 0 && (chance >= 100 || world.NextRandom(stream) % 100 < (uint)chance);
 
-    internal static void Grow(WorldMutation world, OfficerState[] members, IReadOnlyList<int> participants, TacticRule tactic, List<DomainEvent> events)
+    internal static void Grow(WorldMutation world, OfficerState[] members, IReadOnlyList<int> participants, TacticRule tactic, List<DomainEvent> events, TacticRule? learning = null)
     {
+        members = members.Where(p => world.Officers.TryGetValue(p.Id, out var current) && current.IsServing &&
+            current.OwnerId == p.OwnerId && current.UnitId == p.UnitId && current.SettlementId == p.SettlementId).ToArray();
+        participants = participants.Where(id => members.Any(p => p.Id == id)).ToArray();
+        if (participants.Count == 0) return;
         int category = tactic.Category!.Value;
-        foreach (var original in members.OrderBy(p => p.Id))
-        {
-            OfficerTacticGrowth.Increase(world, original.Id, category, 3, events);
-            if (tactic.Selectable) OfficerTacticGrowth.TryLearn(world, original.Id, tactic, "military-tactic-learning", events);
-        }
         var actor = world.Officers[participants[(int)(world.NextRandom("military-tactic-growth-member") % (uint)participants.Count)]];
         bool martial = tactic.Effect == TacticEffect.Martial;
         int ability = martial ? actor.BaseAbilities.War : actor.BaseAbilities.Intelligence;
@@ -201,5 +203,8 @@ internal static class TacticCombat
             world.Replace(actor with { BaseAbilities = martial ? actor.BaseAbilities with { War = ability + 1 } : actor.BaseAbilities with { Intelligence = ability + 1 } });
             events.Add(new OfficerAbilityGrownEvent(world.Clock, actor.Id, martial ? "war" : "intelligence", ability, ability + 1));
         }
+        foreach (var original in members.OrderBy(p => p.Id))
+            OfficerTacticGrowth.Increase(world, original.Id, category, 3, events);
+        if (learning is not null || tactic.Selectable) BattleLearning.Learn(world, members, learning ?? tactic, events);
     }
 }

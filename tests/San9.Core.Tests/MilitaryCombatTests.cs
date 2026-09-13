@@ -309,7 +309,7 @@ public sealed class MilitaryCombatTests
     }
 
     [Fact]
-    public void MoraleFallCapturesBeforeSoldiersOrWallsReachZero()
+    public void OrdinaryLossDoesNotCauseProportionalMoraleCapture()
     {
         var world = World(100000);
         var mutation = world.BeginMutation();
@@ -317,7 +317,8 @@ public sealed class MilitaryCombatTests
         world.Commit(mutation);
         var engine = Engine(world);
         var result = engine.AdvanceXun();
-        Assert.Single(result.Events.OfType<SettlementCapturedEvent>());
+        Assert.Empty(result.Events.OfType<SettlementCapturedEvent>());
+        Assert.All(result.Events.OfType<BattleDamageEvent>(), e => Assert.Equal(0, e.MoraleLoss));
         var captured = engine.Snapshot.Settlements.Single(s => s.Id == 2);
         Assert.True(captured.Soldiers > 0);
         Assert.True(captured.Durability > 0);

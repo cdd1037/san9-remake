@@ -164,7 +164,7 @@ internal static class MilitaryMovement
                 var targetArea = MilitaryCombat.TargetArea(world, order, rules);
                 var approach = rules.Map.AdvanceIntoRange(unit.Position, targetArea, formation.Footprint,
                     formation.TravelMode, Occupancy(world, rules, unit.Id, null), formation.MovementBudget,
-                    position => MilitaryCombat.UnitRange(world, unit, order, rules, position));
+                    position => MilitaryCombat.ApproachRange(world, unit, order, rules, position), rectangularReach: true);
                 world.Replace(unit with { Position = approach.Position });
                 events.Add(new UnitMovedEvent(world.Clock, id, unit.Position, approach.Position, approach.Spent, approach.Reachable));
                 continue;

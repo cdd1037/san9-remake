@@ -33,7 +33,7 @@ public sealed class IntelligenceTacticTests
                 TacticProficiencies = [0, 0, 0, 0, 0, 0, 0, 500, 0] },
             new(21, targetOwner, settlement ? 2 : null, new(70, 0, 70, 70), false) { UnitId = settlement ? null : 1,
                 LearnedTactics = counter ? [9100] : [], EquippedTacticId = counter ? 9100 : null, Injury = effect == TacticEffect.Heal ? 7 : 0 }];
-        List<UnitState> units = [new(0, 1, new(settlement ? 16 : 6, 2), 99900) { FormationId = 100, Morale = 100, ServicePlaceId = 1,
+        List<UnitState> units = [new(0, 1, new(settlement ? 16 : 6, 2), 99900) { FormationId = 100, Morale = effect == TacticEffect.Inspire ? 79 : 100, ServicePlaceId = 1,
             MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(11, BattleRank.Front) }];
         if (!settlement) units.Add(new(1, targetOwner, new(7, 2), support ? 99950u : 10000u) { FormationId = 200,
             Morale = effect == TacticEffect.Taunt ? 7 : effect == TacticEffect.Inspire ? 79 : 100, ServicePlaceId = targetHome,
@@ -260,6 +260,6 @@ public sealed class IntelligenceTacticTests
         var result = engine.AdvanceXun();
         Assert.Single(result.Events.OfType<TacticActivatedEvent>());
         Assert.Contains(result.Events.OfType<TacticMoraleChangedEvent>(), e => e.Previous == 78 && e.Current == 100);
-        Assert.Equal(100 - result.Events.OfType<PeriodicMoraleLostEvent>().Where(e => e.UnitId == 1 && e.Clock.DayNumber > result.Events.OfType<TacticMoraleChangedEvent>().Single().Clock.DayNumber).Sum(e => e.PreviousMorale - e.Morale), engine.Snapshot.Units.Single(u => u.Id == 1).Morale);
+        Assert.Equal(100 - result.Events.OfType<PeriodicMoraleLostEvent>().Where(e => e.UnitId == 0 && e.Clock.DayNumber > result.Events.OfType<TacticMoraleChangedEvent>().Single().Clock.DayNumber).Sum(e => e.PreviousMorale - e.Morale), engine.Snapshot.Units.Single(u => u.Id == 0).Morale);
     }
 }

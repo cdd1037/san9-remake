@@ -33,7 +33,7 @@ public sealed class FacilityCombatTests
         });
         var state = WorldState.Create(new(190, 1, 1), 42,
             [new(1, 10000, 100000, 100) { LeaderId = 11 }, new(2, 10000, 100000, 100) { LeaderId = 22 }],
-            [new(1, 1, 10000, 100, 100, 100, 0, 0, 100, 0, 100) { ConfusionDaysRemaining = confusion },
+            [new(1, 1, 10000, 100, 100, effect == TacticEffect.Inspire ? 79 : 100, 0, 0, 100, 0, 100) { ConfusionDaysRemaining = confusion },
                 new(2, 2, 10000, 100, 100, 100, 0, 0, 100, 0, 100),
                 ..(area ? new SettlementState[] { new(3, 2, 1, 100, 100, 100, 0, 0, 100, 0, 100) } : [])],
             [new(11, 1, 1, new(200, 200, 100, 100), false) { Status = OfficerStatus.Ruler, Injury = injury, TacticCooldown = cooldown },
@@ -133,7 +133,14 @@ public sealed class FacilityCombatTests
             Assert.Equal(UnitCondition.Normal, engine.Snapshot.Units.Single().Condition);
             Assert.Equal(0, engine.Snapshot.Officers.Single(p => p.Id == 21).Injury);
         }
-        else Assert.Equal(100 - result.Events.OfType<PeriodicMoraleLostEvent>().Where(e => e.Clock.DayNumber > result.Events.OfType<TacticMoraleChangedEvent>().Single().Clock.DayNumber).Sum(e => e.PreviousMorale - e.Morale), engine.Snapshot.Units.Single().Morale);
+        else
+        {
+            var change = Assert.Single(result.Events.OfType<TacticMoraleChangedEvent>());
+            Assert.True(change.TargetIsSettlement);
+            Assert.Equal(1, change.TargetId);
+            Assert.Equal(100, engine.Snapshot.Settlements.Single(s => s.Id == 1).Morale);
+            Assert.DoesNotContain(result.Events.OfType<TacticMoraleChangedEvent>(), e => !e.TargetIsSettlement);
+        }
     }
 
     [Fact]

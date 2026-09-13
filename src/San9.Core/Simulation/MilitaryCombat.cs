@@ -51,6 +51,40 @@ internal static class MilitaryCombat
 
     internal static MapOccupancy Area(UnitState unit, MilitaryRulebook rules) => new(unit.Position, rules.Formations[unit.FormationId!.Value].Footprint);
 
+    internal static int WallDamage(WorldMutation world, UnitState unit, SettlementState target, MilitaryRulebook rules)
+    {
+        var attack = rules.Formations[unit.FormationId!.Value].Attack;
+        if (attack?.DamagesWalls != true || unit.Condition is not (UnitCondition.Normal or UnitCondition.HighSpirits)) return 0;
+        bool close = Area(unit, rules).IntersectsExpanded(new BattleSource(target.Id, true).Area(world, rules), MapCoordinates.UnitsPerCell);
+        if (!close && !attack.RangedSiege) return 0;
+        int damage = CombatMath.DurabilityDamage(unit.Soldiers, Strength(world, unit).Leadership,
+            rules.CombatFormation(unit)!.AgainstWalls, target.Durability);
+        return close ? damage : Math.Min(damage, Math.Max(0, target.Durability - 1));
+    }
+
+    internal static int ApproachRange(WorldMutation world, UnitState source, MilitaryOrder target, MilitaryRulebook rules, WorldPosition position)
+    {
+        var formation = rules.Formations[source.FormationId!.Value];
+        int reach = UnitRange(world, source, target, rules, position);
+        if (formation.Attack?.RangedSiege != true) return reach;
+        var area = new MapOccupancy(position, formation.Footprint);
+        bool targetCanReply;
+        if (target.SettlementId is int id)
+        {
+            var place = world.Settlements[id];
+            if (place.Soldiers < 1000 || place.Durability < 20) return MapCoordinates.UnitsPerCell;
+            targetCanReply = new BattleSource(id, true).Area(world, rules).IntersectsExpanded(area,
+                FacilityRange(world, place, source with { Position = position }, rules));
+        }
+        else
+        {
+            var unit = world.Units[target.UnitId!.Value];
+            int range = rules.AttackRange(rules.Formations[unit.FormationId!.Value].Attack, unit.Position, position, false, false);
+            targetCanReply = Area(unit, rules).IntersectsExpanded(area, range);
+        }
+        return targetCanReply ? MapCoordinates.UnitsPerCell : reach;
+    }
+
     internal static void AdvanceDay(WorldMutation world, SimulationRules rules, List<DomainEvent> events)
     {
         if (rules.Military is not { } military) return;
@@ -71,7 +105,7 @@ internal static class MilitaryCombat
                 continue;
             }
             var targetArea = TargetArea(world, order, military);
-            if (used.Contains(id) || Area(attacker, military).DistanceTo(targetArea) > UnitRange(world, attacker, order, military)) continue;
+            if (used.Contains(id) || !Area(attacker, military).IntersectsExpanded(targetArea, UnitRange(world, attacker, order, military))) continue;
             used.Add(id);
             var affectedForces = new HashSet<int> { attacker.OwnerId };
             if (order.UnitId is int targetId)
@@ -82,7 +116,7 @@ internal static class MilitaryCombat
                 uint outgoing = NormalDamage(world, new(id, false), new(targetId, false), military);
                 uint incoming = 0;
                 if (!used.Contains(targetId) && defender.Condition is not (UnitCondition.Confused or UnitCondition.Routed) && defense.Attack is not null &&
-                    targetArea.DistanceTo(Area(attacker, military)) <= UnitRange(world, defender, new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = id }, military))
+                    targetArea.IntersectsExpanded(Area(attacker, military), UnitRange(world, defender, new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = id }, military)))
                 {
                     used.Add(targetId);
                     incoming = NormalDamage(world, new(targetId, false), new(id, false), military);
@@ -106,12 +140,11 @@ internal static class MilitaryCombat
                 var capability = military.FacilityAttack(settlement);
                 var defense = GarrisonStrength(world, settlement);
                 uint outgoing = NormalDamage(world, new(id, false), new(settlement.Id, true), military);
-                int walls = formation.Attack!.DamagesWalls ? CombatMath.DurabilityDamage(attacker.Soldiers,
-                    Strength(world, attacker).Leadership, military.CombatFormation(attacker)!.AgainstWalls, settlement.Durability) : 0;
+                int walls = WallDamage(world, attacker, settlement, military);
                 uint incoming = 0;
                 bool retaliated = false;
                 if (settlement.OwnerId is not null && settlement.Morale > 0 && settlement.ConfusionDaysRemaining == 0 && capability.Attack is { } retaliation &&
-                    !buildingsUsed.Contains(settlement.Id) && targetArea.DistanceTo(Area(attacker, military)) <= FacilityRange(world, settlement, attacker, military))
+                    !buildingsUsed.Contains(settlement.Id) && targetArea.IntersectsExpanded(Area(attacker, military), FacilityRange(world, settlement, attacker, military)))
                 {
                     buildingsUsed.Add(settlement.Id);
                     retaliated = true;
@@ -119,6 +152,7 @@ internal static class MilitaryCombat
                 }
                 DamageSettlement(world, settlement, outgoing, definition.Combat!, id, events, walls);
                 DamageUnit(world, attacker, incoming, military.CombatFormation(attacker)!, settlement.Id, events, attackerIsSettlement: true);
+                if (walls > 0 && world.Settlements[settlement.Id].Durability > 0) BattleLearning.Siege(world, id, events);
                 if (walls > 0 && !Defeated(world.Units[id]) && !Defeated(world.Settlements[settlement.Id]) &&
                     definition.FacilityTypeId is int type && military.Facilities[type].Reprisal is { } reprisal)
                     FacilityCombat.ApplyReprisal(world, world.Settlements[settlement.Id], world.Units[id], reprisal, military.CombatFormation(attacker)!, events);
@@ -129,6 +163,7 @@ internal static class MilitaryCombat
                 TacticCombat.TryUnit(world, id, order, rules, events);
                 if (retaliated) FacilityCombat.TryTactic(world, settlement.Id,
                     new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = id }, rules, events);
+                CityBattleEffects.CompleteAttack(world, id, settlement.Id, settlement.OwnerId, events);
             }
             BattleAftermath.Reconcile(world, affectedForces, rules, events);
             ResolutionPipeline.CheckConquest(world, events);
@@ -144,19 +179,17 @@ internal static class MilitaryCombat
     {
         damage = FinalDamage(world, new(attacker, attackerIsSettlement), settlement.OwnerId, damage, settlement.Soldiers);
         var loss = CombatMath.Loss(settlement.Soldiers, damage, profile.WoundedPercent, settlement.Wounded, MilitaryRulebook.WoundedCapacity);
-        int morale = MoraleLoss(settlement.Soldiers, damage, settlement.Morale);
+        int morale = 0;
         world.Replace(settlement with { Soldiers = loss.RemainingSoldiers, Wounded = settlement.Wounded + loss.AddedWounded,
             Morale = settlement.Morale - morale, Durability = settlement.Durability - walls });
         events.Add(new BattleDamageEvent(world.Clock, attacker, null, settlement.Id, settlement.Soldiers - loss.RemainingSoldiers,
             loss.AddedWounded, loss.Dead, walls, morale, attackerIsSettlement));
     }
-    private static int MoraleLoss(uint before, uint loss, int morale) => loss == 0 ? 0 :
-        Math.Min(morale, (int)(((ulong)loss * 100 + before - 1) / before));
     internal static void DamageUnit(WorldMutation world, UnitState unit, uint damage, CombatProfile profile, int attacker, List<DomainEvent> events,
         bool attackerIsSettlement = false)
     {
         damage = FinalDamage(world, new(attacker, attackerIsSettlement), unit.OwnerId, damage, unit.Soldiers);
-        int morale = MoraleLoss(unit.Soldiers, damage, unit.Morale);
+        int morale = 0;
         ApplyUnitLoss(world, unit, damage, morale, profile, new(attacker, attackerIsSettlement), events);
     }
     internal static void ApplyUnitLoss(WorldMutation world, UnitState unit, uint damage, int morale, CombatProfile profile,

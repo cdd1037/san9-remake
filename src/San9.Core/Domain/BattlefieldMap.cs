@@ -92,7 +92,7 @@ public sealed class BattlefieldMap
     }
 
     public DailyMovement AdvanceIntoRange(WorldPosition start, MapOccupancy target, Footprint footprint,
-        TravelMode mode, IEnumerable<MapOccupancy> occupied, int budget, Func<WorldPosition, int> range)
+        TravelMode mode, IEnumerable<MapOccupancy> occupied, int budget, Func<WorldPosition, int> range, bool rectangularReach = false)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(budget);
         ArgumentNullException.ThrowIfNull(range);
@@ -100,7 +100,8 @@ public sealed class BattlefieldMap
         var route = Search(start, footprint, mode, occupancy, p =>
         {
             int available = range(p);
-            return available > 0 && new MapOccupancy(p, footprint).DistanceTo(target) <= available;
+            return available > 0 && (rectangularReach ? new MapOccupancy(p, footprint).IntersectsExpanded(target, available) :
+                new MapOccupancy(p, footprint).DistanceTo(target) <= available);
         });
         return Consume(start, route, footprint, mode, occupancy, budget);
     }

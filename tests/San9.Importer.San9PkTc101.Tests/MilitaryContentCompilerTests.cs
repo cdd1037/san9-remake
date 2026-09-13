@@ -69,7 +69,9 @@ public sealed class MilitaryContentCompilerTests
                 source.DefensePower, source.Id == 7 ? 80 : 50), formation.Combat);
             Assert.Equal(source.Id == 27 ? null : new OrdinaryAttack(source.Id == 10 ? 15 : source.Id is 21 or 26 ? 5 : 10, true)
                 { ElevationBonusPerLevel = source.Id < 20 ? 5 : 0, MaximumElevationBonus = source.Id < 20 ? 10 : 0,
-                    RequiresWaterOrHarbor = source.Id is 21 or 26 }, formation.Attack);
+                    RequiresWaterOrHarbor = source.Id is 21 or 26, RangedSiege = source.Id == 10 }, formation.Attack);
+            Assert.Equal(source.Id is not (13 or 14), formation.GainsDailyCombatProficiency);
+            Assert.Equal(source.Id is >= 21 and <= 23 ? source.Id - 9 : (int?)null, formation.AutomaticTacticLearningId);
             Assert.Equal(source.Id is >= 20 and <= 26 ?
                 [BattleRank.Middle, BattleRank.Middle, BattleRank.Middle, BattleRank.Middle, BattleRank.Middle] :
                 new[] { BattleRank.Front, BattleRank.Middle, BattleRank.Middle, BattleRank.Middle, BattleRank.Rear }, formation.CaptureRanks);
@@ -89,7 +91,8 @@ public sealed class MilitaryContentCompilerTests
         Assert.Equal(10, rules.Map.PassageCost(MapCoordinates.Center(new(4, 0)), new(1, 1), TravelMode.Water, []));
         Assert.Null(rules.Map.PassageCost(MapCoordinates.Center(new(4, 0)), new(1, 1), TravelMode.Land, []));
         Assert.Equal(5000, Assert.Single(definition.Places).Id);
-        Assert.Equal(new CombatProfile(10, 10, 0, 10, 50), Assert.Single(definition.Places).Combat);
+        Assert.Equal(new CombatProfile(13, 14, 0, 16, 50), Assert.Single(definition.Places).Combat);
+        Assert.All(definition.Facilities, facility => Assert.Equal(new CombatProfile(13, 14, 0, 16, 50), facility.Combat));
         Assert.False(Assert.Single(definition.Places).DestroyedAtZeroDurability);
         Assert.Equal(15, Assert.Single(definition.Places).WoundedRecovery);
         Assert.Throws<InvalidDataException>(() => MilitaryContentCompiler.Compile(squares, terrains[..16], formations, places, [], [], tactics, new Dictionary<int, System.Collections.Immutable.ImmutableArray<int>>()));

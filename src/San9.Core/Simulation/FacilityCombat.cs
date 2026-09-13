@@ -40,15 +40,15 @@ internal static class FacilityCombat
             uint incoming = 0;
             int walls = 0;
             if (!unitsUsed.Contains(target.Id) && target.Condition is not (UnitCondition.Confused or UnitCondition.Routed) && formation.Attack is { } retaliation &&
-                MilitaryCombat.Area(target, military).DistanceTo(area) <= MilitaryCombat.UnitRange(world, target, new(MilitaryOrderKind.AttackSettlement, null, id), military))
+                MilitaryCombat.Area(target, military).IntersectsExpanded(area, MilitaryCombat.UnitRange(world, target, new(MilitaryOrderKind.AttackSettlement, null, id), military)))
             {
                 unitsUsed.Add(target.Id);
                 incoming = MilitaryCombat.NormalDamage(world, new(target.Id, false), source, military);
-                if (retaliation.DamagesWalls) walls = CombatMath.DurabilityDamage(target.Soldiers,
-                    MilitaryCombat.Strength(world, target).Leadership, military.CombatFormation(target)!.AgainstWalls, settlement.Durability);
+                walls = MilitaryCombat.WallDamage(world, target, settlement, military);
             }
             MilitaryCombat.DamageUnit(world, target, outgoing, military.CombatFormation(target)!, id, events, true);
             MilitaryCombat.DamageSettlement(world, settlement, incoming, place.Combat!, target.Id, events, walls);
+            if (walls > 0 && world.Settlements[id].Durability > 0) BattleLearning.Siege(world, target.Id, events);
             bool unitLost = world.Units[target.Id].Soldiers == 0 || world.Units[target.Id].Morale == 0;
             bool settlementLost = MilitaryCombat.Defeated(world.Settlements[id]);
             if (unitLost) BattleAftermath.TerminateUnit(world, target.Id, settlementLost ? null : source, rules, events);
@@ -85,7 +85,7 @@ internal static class FacilityCombat
         if (target?.UnitId is not int targetId || !world.Units.TryGetValue(targetId, out var unit) ||
             !MilitaryCombat.Hostile(world, settlement.OwnerId!.Value, unit.OwnerId) || unit.FormationId is not int f ||
             military.Formations[f].Combat is null || place.Attack is null ||
-            source.Area(world, military).DistanceTo(MilitaryCombat.Area(unit, military)) > MilitaryCombat.FacilityRange(world, settlement, unit, military)) return;
+            !source.Area(world, military).IntersectsExpanded(MilitaryCombat.Area(unit, military), MilitaryCombat.FacilityRange(world, settlement, unit, military))) return;
         var tactic = selected.Effect == TacticEffect.TrapSelection ? military.TrapAt(unit.Position) : selected;
         if (tactic is null || !TacticCombat.Roll(world, "military-facility-tactic-opportunity", profile.OpportunityChance)) return;
         int proficiency = actor.TacticProficiencies[tactic.Category!.Value];
@@ -106,6 +106,10 @@ internal static class FacilityCombat
         if (tactic.Effect == TacticEffect.Martial)
             TacticCombat.ResolveMartial(world, source, target, [new(tactic.Power, proficiency, world.Abilities(actor).War, false)], doubled, effect, rules, events);
         else IntelligenceTactics.Resolve(world, source, actor, tactic, target, effect, rules, events);
-        TacticCombat.Grow(world, members, [actor.Id], selected, events);
+        if (tactic.Effect == TacticEffect.Martial)
+        {
+            if (world.Units.ContainsKey(targetId)) BattleLearning.Learn(world, IntelligenceTactics.Defenders(world, target), selected, events);
+            TacticCombat.Grow(world, members, [actor.Id], selected, events);
+        }
     }
 }

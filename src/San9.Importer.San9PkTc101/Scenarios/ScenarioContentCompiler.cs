@@ -26,7 +26,8 @@ public static class ScenarioContentCompiler
         var ranks = Read(San9ScenarioRankArchive.ReadKnownRecords);
         var offices = Read(San9ScenarioOfficeArchive.ReadKnownRecords);
         var fixedBuildings = Read(San9ScenarioFixedBuildingArchive.ReadKnownRecords);
-        var facilityRules = ConstructionContentCompiler.Facilities(fixedBuildings);
+        var formations = Read(San9ScenarioFormationArchive.ReadKnownRecords);
+        var facilityRules = ConstructionContentCompiler.Facilities(fixedBuildings, formations);
         using var text = new ScenarioTextReader(messages, exe);
         text.ReadStrategyHints();
         int? Root(int? id)
@@ -117,7 +118,7 @@ public static class ScenarioContentCompiler
                 San9ScenarioSquareArchive.MapWidth, San9ScenarioSquareArchive.MapHeight, regionCities,
                 zones.Where(z => z.FixedBuildingId == 1).Select(z => 50 + z.Id).ToHashSet()),
             Military = MilitaryContentCompiler.Compile(Read(San9ScenarioSquareArchive.ReadKnownRecords), Read(San9ScenarioTerrainArchive.ReadKnownRecords),
-                Read(San9ScenarioFormationArchive.ReadKnownRecords), settlements, zones, fixedBuildings, Read(San9ScenarioTacticArchive.ReadKnownRecords),
+                formations, settlements, zones, fixedBuildings, Read(San9ScenarioTacticArchive.ReadKnownRecords),
                 settlements.ToDictionary(s => s.Id, s => Enumerable.Range(0, San9ScenarioTacticArchive.RecordCount)
                     .Where(id => s.Kind == San9.Core.Domain.SettlementKind.City ? cities[s.Id].HasTactic(id) : zones[s.Id - 50].HasTactic(id)).ToImmutableArray())) with
                 { LinkRules = TacticLinkContentCompiler.Compile(exe, persons, officers.Select(o => o.State.Id), relationshipsEnabled: true) },

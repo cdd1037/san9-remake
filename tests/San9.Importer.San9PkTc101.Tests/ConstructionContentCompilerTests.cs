@@ -10,14 +10,19 @@ public sealed class ConstructionContentCompilerTests
             (ushort)(i is 10 or 12 or 14 ? 1 : 3), (ushort)(i is 11 or 13 or 15 ? 1 : 3), 0, (ushort)i, 65535,
             i == 8 ? 1UL << 40 : 0)).ToArray();
 
+    private static San9ScenarioFormationRecord[] Formations() => Enumerable.Range(0, 28)
+        .Select(i => new San9ScenarioFormationRecord(i, (ushort)i, 0, 0, 0,
+            17, 23, 31, 41, 12, 1, 1, 100, 0, new byte[] { 1, 3, 4, 5, 7 }, 0)).ToArray();
+
     [Fact]
     public void CompleteFacilityCatalogKeepsSourceValuesAndExplicitConstructionCapabilities()
     {
         var buildings = Buildings();
-        var rules = ConstructionContentCompiler.Facilities(buildings);
+        var rules = ConstructionContentCompiler.Facilities(buildings, Formations());
         Assert.Equal(Enumerable.Range(0, 17), rules.Select(f => f.Id));
         foreach (var rule in rules)
         {
+            Assert.Equal(new CombatProfile(17, 23, 0, 41, 50), rule.Combat);
             Assert.Equal(buildings[rule.Id].ConstructionCost, rule.ConstructionCost);
             Assert.Equal(buildings[rule.Id].MaxDurability, rule.MaxDurability);
             Assert.Equal(rule.Id, rule.WoundedRecovery);
@@ -47,7 +52,7 @@ public sealed class ConstructionContentCompilerTests
         Assert.All(new[] { 1, 6, 10, 11, 12, 13, 14, 15, 16 }, id => Assert.Null(rules[id].Tactics));
         Assert.Equal(new[] { 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 },
             rules.Where(r => r.DestroyedAtZeroDurability).Select(r => r.Id));
-        Assert.Throws<InvalidDataException>(() => ConstructionContentCompiler.Facilities(buildings[..16]));
+        Assert.Throws<InvalidDataException>(() => ConstructionContentCompiler.Facilities(buildings[..16], Formations()));
     }
 
     [Fact]

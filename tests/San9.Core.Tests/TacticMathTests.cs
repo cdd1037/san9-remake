@@ -19,27 +19,27 @@ public sealed class TacticMathTests
     public void MartialMembersTruncateBeforeLinkDoubleAndTargetModifiers()
     {
         MartialTacticMember[] members = [new(13, 501, 80, false), new(16, 300, 60, true)];
-        // 2031 + 1932/2 = 2997; (2997*2+123)*15/10*13/10 = 11927.
-        Assert.Equal(11927u, TacticMath.MartialDamage(members, true, 123, 15, true, 50000));
+        // T(80)=60, T(60)=40: 1706 + 1564/2 = 2488; final result 9942.
+        Assert.Equal(9942u, TacticMath.MartialDamage(members, true, 123, 15, true, 50000));
         Assert.Equal(300u, TacticMath.MartialDamage(members, true, 123, 15, true, 300));
-        Assert.Equal(312u, TacticMath.MartialDamage(members, false, 123, 1, false, 50000));
+        Assert.Equal(261u, TacticMath.MartialDamage(members, false, 123, 1, false, 50000));
     }
 
     [Fact]
     public void IntelligenceEffectsMatchHandCalculatedCases()
     {
-        Assert.Equal(8, TacticMath.ConfusionDays(500, 80, 10));
-        Assert.Equal(3, TacticMath.ConfusionDays(500, 80, 3));
+        Assert.Equal(7, TacticMath.ConfusionDays(500, 80, 10));
+        Assert.Equal(2, TacticMath.ConfusionDays(500, 80, 3));
         Assert.Equal(0, TacticMath.ConfusionDays(500, 80, 0));
-        Assert.Equal(11, TacticMath.TauntMoraleLoss(500, 80, 0, 10, 70));
+        Assert.Equal(9, TacticMath.TauntMoraleLoss(500, 80, 0, 10, 70));
         Assert.Equal(2, TacticMath.TauntMoraleLoss(500, 80, 0, 10, 2));
-        Assert.Equal(1100u, TacticMath.Defection(500, 80, 10, 10, 10000, false));
+        Assert.Equal(1000u, TacticMath.Defection(500, 80, 10, 10, 10000, false));
         Assert.Equal(3000u, TacticMath.Defection(500, 80, 10, 10, 100000, true));
-        Assert.Equal(1400u, TacticMath.IllusionDamage(500, 80, 13, 10, 10000, false));
-        Assert.Equal(1500u, TacticMath.IllusionDamage(500, 80, 14, 10, 10000, true));
-        Assert.Equal(2700u, TacticMath.TrapDamage(500, 80, 10, 10, 10000));
-        Assert.Equal(22, TacticMath.InspireMorale(500, 80, 10));
-        Assert.Equal(4450u, TacticMath.HealSoldiers(500, 80, 19, 5000, 10000));
+        Assert.Equal(1300u, TacticMath.IllusionDamage(500, 80, 13, 10, 10000, false));
+        Assert.Equal(1400u, TacticMath.IllusionDamage(500, 80, 14, 10, 10000, true));
+        Assert.Equal(2500u, TacticMath.TrapDamage(500, 80, 10, 10, 10000));
+        Assert.Equal(18, TacticMath.InspireMorale(500, 80, 10));
+        Assert.Equal(3450u, TacticMath.HealSoldiers(500, 80, 19, 5000, 10000));
     }
 
     [Fact]

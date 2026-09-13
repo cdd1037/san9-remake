@@ -41,25 +41,29 @@ internal static class TacticSupport
         int[] targets, OfficerState[] members, MilitaryRulebook military, List<DomainEvent> events)
     {
         world.Replace(world.Officers[actor.Id] with { TacticCooldown = tactic.MinimumInterval });
-        events.Add(new TacticActivatedEvent(world.Clock, source.Id, source.IsSettlement, targets[0], false, tactic.Id, [actor.Id], false, 10));
+        events.Add(new TacticActivatedEvent(world.Clock, source.Id, source.IsSettlement, targets[0],
+            tactic.Effect == TacticEffect.Inspire && source.IsSettlement, tactic.Id, [actor.Id], false, 10));
         int proficiency = actor.TacticProficiencies[tactic.Category!.Value];
         int intelligence = world.Abilities(actor).Intelligence;
         foreach (int targetId in targets)
         {
-            var target = world.Units[targetId];
             if (tactic.Effect == TacticEffect.Inspire)
             {
-                int morale = Math.Min(100, target.Morale + TacticMath.InspireMorale(proficiency, intelligence, tactic.Power));
-                world.Replace(target with { Morale = morale });
-                events.Add(new TacticMoraleChangedEvent(world.Clock, targetId, false, target.Morale, morale, tactic.Id));
+                int previous = source.Morale(world);
+                int morale = Math.Min(100, previous + TacticMath.InspireMorale(proficiency, intelligence, tactic.Power));
+                source.Reward(world, 0, morale - previous);
+                events.Add(new TacticMoraleChangedEvent(world.Clock, source.Id, source.IsSettlement, previous, morale, tactic.Id));
             }
             else
             {
+                var target = world.Units[targetId];
                 uint recovered = TacticMath.HealSoldiers(proficiency, intelligence, tactic.Power, target.Wounded,
                     military.Formations[target.FormationId!.Value].SoldierCapacity - target.Soldiers);
-                bool clear = target.Condition != UnitCondition.Normal || target.ConditionDaysRemaining > 0;
+                bool highSpirits = target.Condition == UnitCondition.HighSpirits;
+                bool clear = !highSpirits && (target.Condition != UnitCondition.Normal || target.ConditionDaysRemaining > 0);
                 world.Replace(target with { Soldiers = target.Soldiers + recovered, Wounded = target.Wounded - recovered,
-                    Condition = UnitCondition.Normal, ConditionDaysRemaining = 0 });
+                    Condition = highSpirits ? target.Condition : UnitCondition.Normal,
+                    ConditionDaysRemaining = highSpirits ? target.ConditionDaysRemaining : 0, HighSpiritsMoralePenaltyPending = false });
                 var healed = world.Officers.Values.Where(p => p.IsServing && p.UnitId == targetId && p.Injury > 0).OrderBy(p => p.Id).ToArray();
                 foreach (var officer in healed) world.Replace(officer with { Injury = 0 });
                 ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, targetId), ResourceKind.Soldiers, "tactic-healing", source.Id, recovered, recovered, events);
@@ -73,12 +77,12 @@ internal static class TacticSupport
 
     internal static int[] Targets(WorldMutation world, BattleSource source, TacticRule tactic, MilitaryRulebook rules)
     {
+        if (tactic.Effect == TacticEffect.Inspire) return source.Morale(world) < 80 ? [source.Id] : [];
         var area = source.Area(world, rules);
         return world.Units.Values.Where(u => u.OwnerId == source.Owner(world) && u.FormationId is int formation &&
             MilitaryCombat.Area(u, rules).DistanceTo(area) <= tactic.EffectRadius &&
-            (tactic.Effect == TacticEffect.Inspire ? u.Morale < 80 :
-                u.Wounded > 0 && u.Soldiers < rules.Formations[formation].SoldierCapacity || u.Condition != UnitCondition.Normal ||
-                u.ConditionDaysRemaining > 0 || world.Officers.Values.Any(p => p.IsServing && p.UnitId == u.Id && p.Injury > 0)))
+            (u.Wounded > 0 && u.Soldiers < rules.Formations[formation].SoldierCapacity || u.Condition is UnitCondition.Confused or UnitCondition.Routed ||
+                world.Officers.Values.Any(p => p.IsServing && p.UnitId == u.Id && p.Injury > 0)))
             .OrderBy(u => u.Id).Select(u => u.Id).ToArray();
     }
 }

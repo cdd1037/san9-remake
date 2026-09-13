@@ -85,6 +85,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
             MilitaryTactics.TickCooldowns(world);
             MilitaryConditions.Tick(world, events);
             MilitaryDailyCycle.Apply(world, rationAccounts, rules, events);
+            BattleLearning.Daily(world, rules.Military, events);
         }
         if (stage == ResolutionStage.XunUpdate) WoundedRecovery.Apply(world, rules.Military, events);
         if (stage == ResolutionStage.XunUpdate) PrisonerEscapeCycle.Apply(world, rules.Personnel, rules.Economy, events);

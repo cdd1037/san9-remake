@@ -11,8 +11,8 @@ internal static class MilitaryEngagements
             unit.Condition is UnitCondition.Confused or UnitCondition.Routed ||
             unit.FormationId is not int formation || unit.EffectiveOrder is not { IsAttack: true } order ||
             !MilitaryCombat.ValidTarget(world, unit.OwnerId, order, military.Formations[formation], military) ||
-            MilitaryCombat.Area(unit, military).DistanceTo(MilitaryCombat.TargetArea(world, order, military)) >
-                MilitaryCombat.UnitRange(world, unit, order, military)) return null;
+            !MilitaryCombat.Area(unit, military).IntersectsExpanded(MilitaryCombat.TargetArea(world, order, military),
+                MilitaryCombat.UnitRange(world, unit, order, military))) return null;
         return new(order.UnitId ?? order.SettlementId!.Value, order.UnitId is null);
     }
 
@@ -24,7 +24,7 @@ internal static class MilitaryEngagements
         return world.Units.Values.Where(u => !u.IsPersonnel && !u.IsEmbedded &&
             MilitaryCombat.Hostile(world, settlement.OwnerId!.Value, u.OwnerId) &&
             u.FormationId is int f && military.Formations[f].Combat is not null &&
-            MilitaryCombat.Area(u, military).DistanceTo(area) <= MilitaryCombat.FacilityRange(world, settlement, u, military))
+            MilitaryCombat.Area(u, military).IntersectsExpanded(area, MilitaryCombat.FacilityRange(world, settlement, u, military)))
             .OrderBy(u => MilitaryCombat.Area(u, military).DistanceTo(area)).ThenBy(u => u.Id).FirstOrDefault();
     }
 

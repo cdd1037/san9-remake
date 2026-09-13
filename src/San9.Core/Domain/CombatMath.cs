@@ -62,7 +62,7 @@ public static class CombatMath
         ArgumentOutOfRangeException.ThrowIfNegative(wallCoefficient);
         ArgumentOutOfRangeException.ThrowIfNegative(durability);
         if (soldiers == 0 || durability == 0) return 0;
-        long a = (long)(SquareRoot(soldiers) * SquareRoot((ulong)leadership * 100) / 3000);
+        long a = (long)(SquareRoot(soldiers) * SquareRoot((ulong)EconomyMath.ExecutedAbility(leadership) * 100) / 3000);
         long b = a + 3L * ((wallCoefficient - 2L) / 9) + 1;
         return (int)Math.Min(durability, Math.Max(1, b / 3));
     }

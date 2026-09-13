@@ -30,6 +30,7 @@ internal static class BattleAftermath
         var definition = rules.Military!.Place(settlement);
         if (!settlement.CanHostPersons)
         {
+            if (!winner.IsSettlement) BattleLearning.DestroyedWork(world, winner.Id, definition, rules.Military, events);
             world.Replace(settlement with { IsDestroyed = true, OwnerId = null, CorpsId = null,
                 Soldiers = 0, Wounded = 0, Morale = 0, Durability = 0, ConfusionDaysRemaining = 0 });
             MilitaryPolicies.RemoveTarget(world, id, true, events);
@@ -49,26 +50,16 @@ internal static class BattleAftermath
             null, winner, id, rules, events);
         if (settlement.OwnerId is int owner)
         {
-            var source = ResourceAccounts.Resolve(world, owner, settlement.CorpsId);
-            var destination = ResourceAccounts.Resolve(world, winner.Owner(world), winner.Corps(world));
-            long weight = (long)settlement.Soldiers + settlement.Wounded;
-            long total = world.Settlements.Values.Where(s => s.OwnerId == owner && ResourceAccounts.Resolve(world, owner, s.CorpsId) == source)
-                .Sum(s => (long)s.Soldiers + s.Wounded) + world.Units.Values.Where(u => u.OwnerId == owner &&
-                    ResourceAccounts.Resolve(world, owner, u.CorpsId) == source).Sum(u => (long)u.Soldiers + u.Wounded);
-            foreach (var resource in new[] { ResourceKind.Money, ResourceKind.Food })
-            {
-                long amount = total == 0 ? ResourceAccounts.Balance(world, source, resource) :
-                    (long)((System.Numerics.BigInteger)ResourceAccounts.Balance(world, source, resource) * weight / total);
-                ResourceAccounts.Change(world, source, resource, -amount, "settlement-captured", id, events);
-                ResourceAccounts.Change(world, destination, resource, amount, "settlement-captured", id, events);
-            }
+            BattleTreasury.Transfer(world, owner, settlement.CorpsId, BattleTreasury.Weight(settlement), winner, id,
+                "settlement-captured", events);
         }
-        world.Replace(settlement with { OwnerId = destroyed ? null : winner.Owner(world), CorpsId = destroyed ? null : winner.Corps(world),
+        int publicOrder = destroyed ? settlement.PublicOrder : CityBattleEffects.CapturedPublicOrder(world, settlement, winner.Owner(world), events);
+        world.Replace(settlement with { PublicOrder = publicOrder, OwnerId = destroyed ? null : winner.Owner(world), CorpsId = destroyed ? null : winner.Corps(world),
             Facility = settlement.Facility is { } instance ? instance with { BuilderUnitId = null } : null,
             ConfusionDaysRemaining = 0,
             IsDestroyed = destroyed, Soldiers = destroyed ? 0 : settlement.Soldiers, Wounded = destroyed ? 0 : settlement.Wounded,
             Morale = destroyed ? 0 : Math.Max(1, winner.Morale(world)), Durability = destroyed ? 0 :
-                settlement.Durability > 0 ? settlement.Durability : Math.Max(1, settlement.MaxDurability / 4) });
+                Math.Max(settlement.Durability, Math.Max(1, settlement.MaxDurability / 4)) });
         foreach (var task in world.Simulation.Tasks.Where(t => t.OriginSettlementId == id || t.Journey?.DestinationPlaceId == id)
             .OrderBy(t => t.Sequence).ThenBy(t => t.Id).ToArray())
         {

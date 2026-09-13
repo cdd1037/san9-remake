@@ -51,28 +51,30 @@ public sealed class TacticCombatTests
     private static SimulationEngine Engine(int members = 1, bool water = false, bool settlement = false,
         int power = 13, bool equipped = true, int injury = 0, int cooldown = 0, bool allowedFacility = true, bool counter = false,
         int primaryProficiency = 0, int linkedProficiency = 0, ulong seed = 42, int linkMultiplier = 2, TacticLinkRules? links = null,
-        int? vulnerableCategory = null, int defenderProficiency = 0, CityInfluenceRule? influence = null, int opportunityChance = 100, int computerBonus = 0, bool normalPower = false)
+        int? vulnerableCategory = null, int defenderProficiency = 0, CityInfluenceRule? influence = null, int opportunityChance = 100, int computerBonus = 0, bool normalPower = false, bool waterLearning = false)
     {
         var combat = normalPower ? new CombatProfile(10, 10, 0, 10, 50) : new CombatProfile(0, 0, 0, 1000, 50);
         var mode = water ? TravelMode.Water : TravelMode.Land;
         var rules = new MilitaryRulebook(new(4, 1, [0, 0, 0, 0], [new(0, 1, 1)],
             [new(100, 5, 0, 100000, 2, new(1, 1), mode) { Combat = combat, Attack = new(1, false),
+                AutomaticTacticLearningId = waterLearning ? 9020 : null,
                 CaptureRanks = [BattleRank.Front, BattleRank.Front], Tactics = new(opportunityChance, 0, linkMultiplier, [0], water ? [9000] : []) },
              new(200, 5, 0, 100000, 1, new(1, 1), mode) { Combat = combat, CaptureRanks = [BattleRank.Middle],
                 MartialTacticVulnerabilities = vulnerableCategory is int weak ? [weak] : [],
                 Attack = counter ? new(1, false) : null, Tactics = counter ? new(opportunityChance, 100, 2, [0], []) : null }],
             [new(1, new(2, 2), new(1, 1)) { Combat = combat }, new(2, new(17, 2), new(1, 1)) { Combat = combat }])
         { LinkRules = links ?? TacticLinkRules.Empty, CityInfluence = influence,
-            Tactics = [new(9000, 0, TacticEffect.Martial, power, 9, 0, !water, allowedFacility, [100, 200])] });
+            Tactics = [new(9000, 0, TacticEffect.Martial, power, 9, 0, !water, allowedFacility, [100, 200]),
+                new(9020, 4, TacticEffect.FormationTechnology, 0, 0, 0, false, false, [100])] });
         List<OfficerState> officers = [new(11, 1, null, new(80, 70, 70, 70), false)
             { UnitId = 0, LearnedTactics = equipped ? [9000] : [], EquippedTacticId = equipped ? 9000 : null,
                 Injury = injury, TacticCooldown = cooldown,
-                TacticProficiencies = [primaryProficiency, 0, 0, 0, 0, 0, 0, 0, 0] }];
+                TacticProficiencies = [primaryProficiency, 0, 0, 0, waterLearning ? 1000 : 0, 0, 0, 0, 0] }];
         if (members == 2) officers.Add(new(12, 1, null, new(80, 70, 70, 70), false)
             { UnitId = 0, LearnedTactics = [9000], EquippedTacticId = 9000,
                 TacticProficiencies = [linkedProficiency, 0, 0, 0, 0, 0, 0, 0, 0] });
         officers.Add(new(21, 2, settlement ? 2 : null, new(70, 70, 70, 70), false) { UnitId = settlement ? null : 1,
-            TacticProficiencies = [defenderProficiency, 0, 0, 0, 0, 0, 0, 0, 0],
+            TacticProficiencies = [defenderProficiency, 0, 0, 0, waterLearning ? 1000 : 0, 0, 0, 0, 0],
             LearnedTactics = counter ? [9000] : [], EquippedTacticId = counter ? 9000 : null });
         List<UnitState> units = [new(0, 1, new(settlement ? 16 : 6, 2), 100000) { FormationId = 100, Morale = 100, ServicePlaceId = 1,
             MemberRanks = officers.Where(p => p.UnitId == 0).ToImmutableDictionary(p => p.Id, _ => BattleRank.Front) }];
@@ -192,6 +194,16 @@ public sealed class TacticCombatTests
         var engine = Engine(water: true, equipped: false);
         Assert.All(engine.AdvanceXun().Events.OfType<TacticActivatedEvent>(), e => Assert.Equal(9000, e.TacticId));
         Assert.True(engine.Snapshot.Officers.Single(p => p.Id == 11).TacticCooldown > 0);
+    }
+
+    [Fact]
+    public void AutomaticWaterResultTeachesItsFormationTechnologyToBothSides()
+    {
+        var engine = Engine(water: true, equipped: false, waterLearning: true, seed: 1);
+        var result = engine.AdvanceXun();
+        Assert.Contains(result.Events.OfType<TacticLearnedEvent>(), e => e.OfficerId == 11 && e.TacticId == 9020);
+        Assert.Contains(result.Events.OfType<TacticLearnedEvent>(), e => e.OfficerId == 21 && e.TacticId == 9020);
+        Assert.DoesNotContain(result.Events.OfType<TacticLearnedEvent>(), e => e.TacticId == 9000);
     }
 
     [Fact]

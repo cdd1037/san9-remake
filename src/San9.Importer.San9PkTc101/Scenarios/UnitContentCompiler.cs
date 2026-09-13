@@ -16,6 +16,7 @@ public static class UnitContentCompiler
                 CorpsId = u.ForceId, ServicePlaceId = u.HomeBaseId, FormationId = u.FormationId,
                 Policies = new(u.AttacksWhenEnemyApproaches, u.AllowsPursuit, u.AttacksAfterAction, u.AllowsAutonomousRetreat),
                 ConditionDaysRemaining = u.StatusDurationDays,
+                HighSpiritsMoralePenaltyPending = u.UnitStatus == San9ScenarioUnitStatus.HighSpirits && u.StatusDurationDays > 0,
                 Wounded = (uint)u.LoadedWoundedSoldierCount, Morale = u.Morale,
                 IsEmbedded = u.HasRuntimeFlagBit(0), IsPersonnel = u.HasRuntimeFlagBit(1),
                 OrderClass = u.LoadedCommandCode switch

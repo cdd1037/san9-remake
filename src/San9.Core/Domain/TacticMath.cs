@@ -27,7 +27,7 @@ public static class TacticMath
             ArgumentOutOfRangeException.ThrowIfNegative(member.Proficiency);
             ArgumentOutOfRangeException.ThrowIfNegative(member.War);
             BigInteger damage = (BigInteger)member.Power * (member.Proficiency / 2 + 1000L) *
-                BigInteger.Max(70, (BigInteger)member.War + 45) / 1000;
+                BigInteger.Max(70, (BigInteger)EconomyMath.ExecutedAbility(member.War) + 45) / 1000;
             total += member.Linked ? damage / 2 : damage;
         }
         if (doubled) total *= 2;
@@ -37,7 +37,7 @@ public static class TacticMath
     public static int ConfusionDays(int proficiency, int intelligence, int effect)
     {
         Validate(proficiency, intelligence, effect);
-        return effect == 0 ? 0 : (int)(effect * BigInteger.Min(10, Quality(proficiency) + intelligence / 20) / 10 + 1);
+        return effect == 0 ? 0 : (int)(effect * BigInteger.Min(10, Quality(proficiency) + EconomyMath.ExecutedAbility(intelligence) / 20) / 10 + 1);
     }
 
     public static int TauntMoraleLoss(int proficiency, int intelligence, int power, int effect, int morale)
@@ -45,14 +45,14 @@ public static class TacticMath
         Validate(proficiency, intelligence, effect);
         ValidatePower(power, 10);
         if (morale is < 0 or > 100) throw new ArgumentOutOfRangeException(nameof(morale));
-        return (int)BigInteger.Min(morale, effect * BigInteger.Max(3, Quality(proficiency) + intelligence / (10 - power)) / 10);
+        return (int)BigInteger.Min(morale, effect * BigInteger.Max(3, Quality(proficiency) + EconomyMath.ExecutedAbility(intelligence) / (10 - power)) / 10);
     }
 
     public static uint Defection(int proficiency, int intelligence, int power, int effect, uint soldiers, bool garrison)
     {
         Validate(proficiency, intelligence, effect);
         ValidatePower(power, 30);
-        BigInteger amount = effect * ((BigInteger)soldiers * (Quality(proficiency) + intelligence / (30 - power) + 4) / 100) / 10;
+        BigInteger amount = effect * ((BigInteger)soldiers * (Quality(proficiency) + EconomyMath.ExecutedAbility(intelligence) / (30 - power) + 4) / 100) / 10;
         return Cap(amount, garrison ? Math.Min(soldiers, 3000u) : soldiers);
     }
 
@@ -61,7 +61,7 @@ public static class TacticMath
         Validate(proficiency, intelligence, effect);
         ValidatePower(power, 33);
         return Cap(effect * BigInteger.Max(500, (BigInteger)soldiers *
-            (Quality(proficiency) + intelligence / (33 - power) + (sorcery ? 8 : 7)) / 100) / 10, soldiers);
+            (Quality(proficiency) + EconomyMath.ExecutedAbility(intelligence) / (33 - power) + (sorcery ? 8 : 7)) / 100) / 10, soldiers);
     }
 
     public static uint TrapDamage(int proficiency, int intelligence, int power, int effect, uint soldiers)
@@ -69,21 +69,21 @@ public static class TacticMath
         Validate(proficiency, intelligence, effect);
         ValidatePower(power, 20);
         return Cap(effect * BigInteger.Max(500, (BigInteger)soldiers *
-            (2 * Quality(proficiency) + intelligence / (20 - power) + 13) / 100) / 10, soldiers);
+            (2 * Quality(proficiency) + EconomyMath.ExecutedAbility(intelligence) / (20 - power) + 13) / 100) / 10, soldiers);
     }
 
     public static int InspireMorale(int proficiency, int intelligence, int power)
     {
         Validate(proficiency, intelligence, 10);
         ValidatePower(power, 15);
-        return (int)BigInteger.Min(30, BigInteger.Max(6, 2 * Quality(proficiency) + intelligence / (15 - power)));
+        return (int)BigInteger.Min(30, BigInteger.Max(6, 2 * Quality(proficiency) + EconomyMath.ExecutedAbility(intelligence) / (15 - power)));
     }
 
     public static uint HealSoldiers(int proficiency, int intelligence, int power, uint wounded, uint capacity)
     {
         Validate(proficiency, intelligence, 10);
         ValidatePower(power, 20);
-        var percent = BigInteger.Min(100, 3 * Quality(proficiency) + intelligence / (20 - power));
+        var percent = BigInteger.Min(100, 3 * Quality(proficiency) + EconomyMath.ExecutedAbility(intelligence) / (20 - power));
         return Cap(BigInteger.Max(1000, (BigInteger)wounded * percent / 100), Math.Min(wounded, capacity));
     }
 

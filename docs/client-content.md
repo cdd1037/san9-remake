@@ -7,10 +7,10 @@
 | 模块 | 职责 | 输出 |
 | --- | --- | --- |
 | Content.Maps / MapImporter | 当前地图方格、地貌及对象位置 | `map.json`（无图片文件） |
-| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema48 |
+| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema49 |
 | Content.Text / ScenarioTextReader | 名称与全量消息目录 | `text.json` / `messages.json`，schema3 |
 | Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema16 |
-| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema52 |
+| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema53 |
 | Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema3／转换版本8 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 
@@ -58,9 +58,9 @@ TC101剧本导入以源坐标识别地域配置：双坐标均为无效哨兵的
 
 兵法的 ContactRange 为可空的正整数，仅武力兵法可配置。非空时，将来源占地矩形沿两轴外扩该值后与目标部队占地严格相交，边缘相碰不满足；空值表示没有额外近战门。原版导入器为步兵、骑兵六种兵法配置5，其余为空，普通选择与智力后续连锁共用该资格查询。
 
-阵型的 DoublesCapture 为显式捕获加倍能力，TC101仅鹤翼映射true，28阵型完整保留并逐项验证。组合包schema52要求此字段；存档／日志23保存战败返回的起点坐标、原军团与倒计时，规则g07-v29使用动态交战程度、周期士气和独立都市俘虏门。旧包原位重转，旧规则存档明确拒绝。
+阵型的 DoublesCapture 为显式捕获加倍能力，TC101仅鹤翼映射true，28阵型完整保留并逐项验证。组合包schema53要求此字段；存档／日志24保存战败返回的起点坐标、原军团与倒计时，规则g07-v31使用动态交战程度、周期士气和独立都市俘虏门。旧包原位重转，旧规则存档明确拒绝。
 
-组合包schema52新增`MilitaryDefinition.UnformedFormationId`引用；TC101完整保留28项阵型，指定27为异常时有效Combat配置，源攻防参数原值导入。Core使用攻击2K/25、防御2D/15及混乱8／溃败6，通过统一有效配置查询消费攻防、削墙及伤兵比例。自制内容可显式为null表示不替换，否则校验引用存在且具有Combat；不需要重复维护一份无阵属性。规则g07-v29同时采用每日断粮／溃败损失、守军回气和邻城建筑池安置，存档与日志布局仍为23，规则版本拒绝旧语义。
+组合包schema53新增`MilitaryDefinition.UnformedFormationId`引用；TC101完整保留28项阵型，指定27为异常时有效Combat配置，源攻防参数原值导入。Core使用攻击2K/25、防御2D/15及混乱8／溃败6，通过统一有效配置查询消费攻防、削墙及伤兵比例。自制内容可显式为null表示不替换，否则校验引用存在且具有Combat；不需要重复维护一份无阵属性。规则g07-v31同时采用每日断粮／溃败损失、守军回气和邻城建筑池安置，存档与日志布局为24，规则版本拒绝旧语义。
 
 Core按目标格实时选择：范围内更高且具备高处资格的邻格优先触发高处陷阱，否则使用目标地形的基础陷阱。距离定义为向下取整的欧氏格距离不超过 RadiusCells，实际用平方距离小于 (RadiusCells+1)² 比较。Mod只编辑基础属性和规则，不保存或维护逐格选择结果；制作工具可复用查询进行预览。当前修改内容后需要重新加载，尚无游戏中地形编辑功能。旧内容包须重新转换。
 
@@ -130,6 +130,8 @@ G03经济内容保留基础信望、相性、精通类别、军团账户、兵�
 
 G07的`UnitPolicies`保留迎击、追击、事后攻击和自主撤退四项语义字段，源位12至15只在TC101 Importer解释；`MilitaryDefinition.PolicyRadius`以领域细坐标定义邻敌范围，TC101转换10格为50细单位。初始活动单位筛选不变，190年没有初始野战队，因此源四位的独立映射以构造记录测试验证，不能把0活动队误记为实战覆盖。源初始在队人物及其主将/原任务恢复仍不属于当前190年导入范围。
 
-出征和建设命令传入方针，世界部队持有主将、原任务、临时交战目标与一次性事后状态；部队情报方针页读取当前快照。公共改方针命令遵守当前军团权限。存档23、操作日志23和规则g07-v29保存这些字段；初始态schema48、组合包schema52，旧包须原位重新转换。
+出征和建设命令传入方针，世界部队持有主将、原任务、临时交战目标与一次性事后状态；部队情报方针页读取当前快照。公共改方针命令遵守当前军团权限。存档24、操作日志24和规则g07-v31保存这些字段；初始态schema49、组合包schema53，旧包须原位重新转换。
 
 部队的`MemberOrder`保存当前成员稳定顺序，主将在首位；阵位由`MemberRanks`独立表达。出征/整编按身份、官职指挥量级、适用的官职优先级及当前统率排序；原官职顺序已由Importer映射到既有`GovernorPriority`，不在Core按官职身份推断高低。排序分数不持久化，离队继任实时求值，同分保留成员顺序。声明主将时顺序须完整覆盖在职成员、无重复且首项一致，未知/失效成员引用拒绝；未声明主将的初始对象不从ID臆造成员顺序。190年初始野战队仍为0，不扩大源初始在队人物导入范围。
+
+战争规则内容补充：阵型显式保存`OrdinaryAttack.RangedSiege`及`GainsDailyCombatProficiency`；TC101仅发石允许远距削墙，13／14不产生交战逐日熟练度。水战关联学习由阵型可空的`AutomaticTacticLearningId`引用技术，TC101仅21／22／23分别映射12／13／14，须验证引用存在及熟练类别。设施保存可空的`DestructionGrowthTacticId`，引用要学习的技术定义，不从设施名称推断。部队`HighSpiritsMoralePenaltyPending`独立保存高昂到期副作用；正日数高昂导入为true，治疗清除后不能在恢复存档时重新推导。2026-09-13运行包已按schema49／53原位重转，28阵型、41兵法、17设施、94据点、700人物保持完整。

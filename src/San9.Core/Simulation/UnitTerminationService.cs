@@ -77,17 +77,6 @@ internal static class UnitTerminationService
 
     private static void TransferTreasury(WorldMutation world, UnitState defeated, BattleSource winner, long weight, List<DomainEvent> events)
     {
-        var source = ResourceAccounts.Resolve(world, defeated.OwnerId, defeated.CorpsId);
-        var target = ResourceAccounts.Resolve(world, winner.Owner(world), winner.Corps(world));
-        long total = world.Units.Values.Where(u => u.OwnerId == defeated.OwnerId && ResourceAccounts.Resolve(world, u.OwnerId, u.CorpsId) == source)
-            .Sum(u => (long)u.Soldiers + u.Wounded) + world.Settlements.Values.Where(s => s.OwnerId == defeated.OwnerId &&
-                ResourceAccounts.Resolve(world, defeated.OwnerId, s.CorpsId) == source).Sum(s => (long)s.Soldiers + s.Wounded);
-        long ratio = total == 0 ? 250 : weight * 250 / total;
-        foreach (var resource in new[] { ResourceKind.Money, ResourceKind.Food })
-        {
-            long amount = ResourceAccounts.Balance(world, source, resource) * ratio / 500;
-            ResourceAccounts.Change(world, source, resource, -amount, "battle-treasury", defeated.Id, events);
-            ResourceAccounts.Change(world, target, resource, amount, "battle-treasury", defeated.Id, events);
-        }
+        BattleTreasury.Transfer(world, defeated.OwnerId, defeated.CorpsId, weight, winner, defeated.Id, "battle-treasury", events);
     }
 }

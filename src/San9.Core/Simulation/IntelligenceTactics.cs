@@ -38,7 +38,7 @@ internal static class IntelligenceTactics
             Math.Max(0, (proficiency - actor.TacticProficiencies[category]) / 10)) ? 3 : 10;
     }
 
-    internal static void Resolve(WorldMutation world, BattleSource source, OfficerState actor, TacticRule tactic, MilitaryOrder primary,
+    internal static MilitaryOrder Resolve(WorldMutation world, BattleSource source, OfficerState actor, TacticRule tactic, MilitaryOrder primary,
         int primaryEffect, SimulationRules rules, List<DomainEvent> events)
     {
         var military = rules.Military!;
@@ -56,6 +56,9 @@ internal static class IntelligenceTactics
                     .Select(s => new MilitaryOrder(MilitaryOrderKind.AttackSettlement, null, s.Id)));
         }
         HashSet<int> forces = [source.Owner(world)];
+        // Area effects finish on the selected primary target, which owns the subsequent chain request.
+        targets.Remove(primary);
+        targets.Add(primary);
         foreach (var target in targets)
         {
             int? owner = target.UnitId is int enemy ? world.Units[enemy].OwnerId : world.Settlements[target.SettlementId!.Value].OwnerId;
@@ -65,9 +68,30 @@ internal static class IntelligenceTactics
                 target.UnitId is null, tactic.Id, effect));
             if (effect == 0) continue;
             Apply(world, source, actor, tactic, target, effect, rules, events);
+            var learning = tactic.Effect == TacticEffect.Trap
+                ? military.Tactics.Values.FirstOrDefault(t => t.Effect == TacticEffect.TrapSelection) ?? tactic : tactic;
+            var survivors = target.UnitId is int survived ? world.Units.ContainsKey(survived) :
+                world.Settlements[target.SettlementId!.Value].OwnerId == owner;
+            var targetMembers = survivors ? Defenders(world, target) : [];
+            if (learning.Selectable) BattleLearning.Learn(world, targetMembers, learning, events);
+            var sourceMembers = source.Exists(world) ? Defenders(world, source.IsSettlement ?
+                new(MilitaryOrderKind.AttackSettlement, null, source.Id) : new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = source.Id }) : [];
+            if (sourceMembers.Any(p => p.Id == actor.Id)) TacticCombat.Grow(world, sourceMembers, [actor.Id], learning, events);
+            if (tactic.Effect == TacticEffect.Trap)
+            {
+                BattleLearning.Passive(world, targetMembers, TacticEffect.CounterTrap, military, events);
+                BattleLearning.Passive(world, sourceMembers, TacticEffect.CounterTrap, military, events);
+            }
+            if (tactic.Effect is TacticEffect.Confusion or TacticEffect.Illusion &&
+                targetMembers.Any(p => p.EquippedTacticId is int equipped && military.Tactics[equipped].Effect == TacticEffect.CounterConfusion))
+            {
+                BattleLearning.Passive(world, targetMembers, TacticEffect.CounterConfusion, military, events);
+                BattleLearning.Passive(world, sourceMembers, TacticEffect.CounterConfusion, military, events);
+            }
         }
         BattleAftermath.Reconcile(world, forces, rules, events);
         ResolutionPipeline.CheckConquest(world, events);
+        return primary;
     }
 
     private static void Apply(WorldMutation world, BattleSource source, OfficerState actor, TacticRule tactic, MilitaryOrder target,
@@ -82,6 +106,7 @@ internal static class IntelligenceTactics
         {
             case TacticEffect.Confusion:
                 MilitaryConditions.Confuse(world, target, TacticMath.ConfusionDays(proficiency, intelligence, effect), events);
+                BattleLearning.Passive(world, Defenders(world, target), TacticEffect.CounterConfusion, military, events);
                 break;
             case TacticEffect.Taunt:
                 int current = morale - TacticMath.TauntMoraleLoss(proficiency, intelligence, tactic.Power, effect, morale);
@@ -124,10 +149,43 @@ internal static class IntelligenceTactics
             default:
                 throw new InvalidOperationException("Not an offensive intelligence effect.");
         }
+        ApplySecondary(world, source, actor, tactic, target, effect, rules, events);
         if (target.UnitId is int id && world.Units[id] is var victim && (victim.Soldiers == 0 || victim.Morale == 0))
             BattleAftermath.TerminateUnit(world, id, source, rules, events);
         else if (target.UnitId is null && world.Settlements[target.SettlementId!.Value] is var place &&
             MilitaryCombat.Defeated(place))
             BattleAftermath.ResolveSettlementDefeat(world, place.Id, source, rules, events);
+    }
+
+    private static void ApplySecondary(WorldMutation world, BattleSource source, OfficerState actor, TacticRule tactic,
+        MilitaryOrder target, int effect, SimulationRules rules, List<DomainEvent> events)
+    {
+        if (effect < 10 || target.UnitId is not int id || !world.Units.TryGetValue(id, out var unit) ||
+            unit.Soldiers == 0 || unit.Morale == 0 || tactic.Effect is not (TacticEffect.Defection or TacticEffect.Trap or TacticEffect.Illusion)) return;
+        var defenders = Defenders(world, target);
+        if (defenders.Length == 0) return;
+        var military = rules.Military!;
+        var profile = military.Formations[unit.FormationId!.Value].Tactics;
+        int intelligence = world.Abilities(actor).Intelligence;
+        int proficiency = actor.TacticProficiencies[tactic.Category!.Value];
+        int chance = (tactic.Effect == TacticEffect.Illusion ? 150 : 130) -
+            defenders.Max(p => world.Abilities(p).Intelligence);
+        if (unit.Condition == UnitCondition.HighSpirits ||
+            profile?.BypassesPassiveCounters != true && defenders.Any(p => p.EquippedTacticId is int equipped &&
+                military.Tactics[equipped].Effect == TacticEffect.CounterConfusion &&
+                MilitaryTactics.HasTactic(world, unit.OwnerId, [p.Id], equipped, rules.Treasures))) return;
+        if (!TacticCombat.Roll(world, "military-tactic-secondary", chance)) return;
+        if (TacticCombat.Roll(world, "military-tactic-secondary-formation", profile?.ConfusionResistanceChance ?? 0)) return;
+        int quality = (proficiency + 100) / 250 + 1;
+        long executed = EconomyMath.ExecutedAbility(intelligence);
+        if (tactic.Effect == TacticEffect.Defection)
+        {
+            int days = (int)Math.Min(5, quality + executed / 15 + executed);
+            world.Replace(unit with { Condition = UnitCondition.NoFormation, ConditionDaysRemaining = days, HighSpiritsMoralePenaltyPending = false });
+            events.Add(new BattleConditionChangedEvent(world.Clock, id, false, UnitCondition.NoFormation, days));
+        }
+        else MilitaryConditions.Confuse(world, target, tactic.Effect == TacticEffect.Illusion ? (int)Math.Min(5, quality + executed / 15) :
+            TacticMath.ConfusionDays(proficiency, intelligence, effect), events);
+        BattleLearning.Passive(world, defenders, TacticEffect.CounterConfusion, military, events);
     }
 }

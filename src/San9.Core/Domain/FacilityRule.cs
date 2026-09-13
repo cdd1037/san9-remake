@@ -10,6 +10,7 @@ public sealed record FacilityRule(int Id, int ConstructionCost, int MaxDurabilit
     [System.Text.Json.Serialization.JsonRequired] public OrdinaryAttack? Attack { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public bool DestroyedAtZeroDurability { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public int? ConstructionGrowthTacticId { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public int? DestructionGrowthTacticId { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public FacilityTactics? Tactics { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public FacilityAttackModifier? InnateAttack { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public bool IsHarbor { get; init; }
@@ -28,7 +29,8 @@ public sealed record FacilityRule(int Id, int ConstructionCost, int MaxDurabilit
             RequiredTacticId is int required && (!tactics.TryGetValue(required, out var requirement) || requirement.Effect != TacticEffect.StoneFormation) ||
             CostReductionTacticId is int reduction && (!tactics.TryGetValue(reduction, out var discount) || discount.Effect != TacticEffect.Construction) ||
             ConstructionGrowthTacticId is int growth && (!Buildable || !tactics.TryGetValue(growth, out var learning) ||
-                learning.Effect is not (TacticEffect.Construction or TacticEffect.StoneFormation)))
+                learning.Effect is not (TacticEffect.Construction or TacticEffect.StoneFormation)) ||
+            DestructionGrowthTacticId is int destruction && (!tactics.TryGetValue(destruction, out var learned) || learned.Category is null))
             throw new ArgumentException("Invalid facility definition.");
     }
 

@@ -8,10 +8,12 @@ public sealed record FormationRule(int Id, int MovementBudget, int DeploymentCos
     [System.Text.Json.Serialization.JsonRequired] public FormationTactics? Tactics { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<int> MartialTacticVulnerabilities { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public int? RequiredTacticId { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public int? AutomaticTacticLearningId { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public CombatProfile? Combat { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public OrdinaryAttack? Attack { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<BattleRank> CaptureRanks { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public bool DoublesCapture { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public bool GainsDailyCombatProficiency { get; init; } = true;
 }
 
 public sealed record OrdinaryAttack(int Range, bool DamagesWalls)
@@ -19,6 +21,7 @@ public sealed record OrdinaryAttack(int Range, bool DamagesWalls)
     [System.Text.Json.Serialization.JsonRequired] public int ElevationBonusPerLevel { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public int MaximumElevationBonus { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public bool RequiresWaterOrHarbor { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public bool RangedSiege { get; init; }
 }
 
 public sealed record FormationTactics(int OpportunityChance, int CounterChance, int LinkMultiplier,
@@ -182,6 +185,9 @@ public sealed partial class MilitaryRulebook
             attacks.Any(a => a.ElevationBonusPerLevel > 0) && elevations.Length != terrainIds.Length)
             throw new ArgumentException("Invalid attack elevation rules.");
         if (Places.Values.Any(p => p.WoundedRecovery is < 0)) throw new ArgumentException("Invalid wounded recovery definition.");
+        if (Formations.Values.Any(f => f.AutomaticTacticLearningId is int id &&
+            (!Tactics.TryGetValue(id, out var tactic) || tactic.Category is null)))
+            throw new ArgumentException("Invalid automatic tactic learning reference.");
         if (Formations.Values.Any(f => f.Attack is { Range: <= 0 } || f.Attack is not null && f.Combat is null) ||
             Places.Values.Any(p => p.Attack is { Range: <= 0 } || p.Attack is not null && p.Combat is null))
             throw new ArgumentException("Invalid ordinary attack definition.");

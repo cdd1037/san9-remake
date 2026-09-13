@@ -63,10 +63,10 @@ public sealed class IntelligenceMartialChainTests
     [InlineData(TacticEffect.Confusion, UnitCondition.Normal, true)]
     [InlineData(TacticEffect.Confusion, UnitCondition.Confused, false)]
     [InlineData(TacticEffect.Defection, UnitCondition.NoFormation, true)]
-    [InlineData(TacticEffect.Defection, UnitCondition.Normal, false)]
+    [InlineData(TacticEffect.Defection, UnitCondition.Normal, true)]
     [InlineData(TacticEffect.TrapSelection, UnitCondition.Confused, true)]
-    [InlineData(TacticEffect.TrapSelection, UnitCondition.Normal, false)]
-    [InlineData(TacticEffect.Illusion, UnitCondition.Confused, false)]
+    [InlineData(TacticEffect.TrapSelection, UnitCondition.Normal, true)]
+    [InlineData(TacticEffect.Illusion, UnitCondition.Confused, true)]
     [InlineData(TacticEffect.Taunt, UnitCondition.Confused, false)]
     [InlineData(TacticEffect.Sorcery, UnitCondition.Confused, false)]
     public void ResultStateControlsChainAndOnlyOneNewPrimaryCanActivate(TacticEffect effect, UnitCondition condition, bool expected)

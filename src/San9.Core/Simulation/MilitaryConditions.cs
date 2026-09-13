@@ -9,11 +9,17 @@ internal static class MilitaryConditions
 {
     internal static void Tick(WorldMutation world, List<DomainEvent> events)
     {
-        foreach (var unit in world.Units.Values.Where(u => u.ConditionDaysRemaining > 0).OrderBy(u => u.Id).ToArray())
+        foreach (var unit in world.Units.Values.Where(u => u.ConditionDaysRemaining > 0 ||
+            u.Condition is UnitCondition.NoFormation or UnitCondition.Confused or UnitCondition.Routed or UnitCondition.HighSpirits).OrderBy(u => u.Id).ToArray())
         {
-            int days = unit.ConditionDaysRemaining - 1;
+            int days = Math.Max(0, unit.ConditionDaysRemaining - 1);
             var condition = days == 0 ? UnitCondition.Normal : unit.Condition;
-            world.Replace(unit with { Condition = condition, ConditionDaysRemaining = days });
+            int morale = unit.Condition == UnitCondition.HighSpirits && unit.HighSpiritsMoralePenaltyPending &&
+                unit.ConditionDaysRemaining == 1 && unit.EffectiveOrderClass == UnitOrderClass.Military
+                ? Math.Max(1, unit.Morale - 30) : unit.Morale;
+            world.Replace(unit with { Condition = condition, ConditionDaysRemaining = days, Morale = morale,
+                HighSpiritsMoralePenaltyPending = days > 0 && condition == UnitCondition.HighSpirits && unit.HighSpiritsMoralePenaltyPending });
+            if (morale != unit.Morale) events.Add(new HighSpiritsExpiredEvent(world.Clock, unit.Id, unit.Morale, morale));
             if (days == 0) events.Add(new BattleConditionChangedEvent(world.Clock, unit.Id, false, condition, 0));
         }
         foreach (var place in world.Settlements.Values.Where(s => s.ConfusionDaysRemaining > 0).OrderBy(s => s.Id).ToArray())
@@ -31,7 +37,7 @@ internal static class MilitaryConditions
         {
             var unit = world.Units[id];
             if (unit.Condition == UnitCondition.Confused) days = Math.Max(days, unit.ConditionDaysRemaining);
-            world.Replace(unit with { Condition = UnitCondition.Confused, ConditionDaysRemaining = days });
+            world.Replace(unit with { Condition = UnitCondition.Confused, ConditionDaysRemaining = days, HighSpiritsMoralePenaltyPending = false });
         }
         else
         {
@@ -43,3 +49,5 @@ internal static class MilitaryConditions
             target.UnitId is null, UnitCondition.Confused, days));
     }
 }
+
+public sealed record HighSpiritsExpiredEvent(GameClock Clock, int UnitId, int PreviousMorale, int CurrentMorale) : DomainEvent;

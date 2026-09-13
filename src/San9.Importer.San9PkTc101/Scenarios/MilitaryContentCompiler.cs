@@ -19,11 +19,12 @@ public static class MilitaryContentCompiler
             !formations.Select(f => f.Id).SequenceEqual(Enumerable.Range(0, San9ScenarioFormationArchive.RecordCount)) ||
             !tactics.Select(t => t.Id).SequenceEqual(Enumerable.Range(0, San9ScenarioTacticArchive.RecordCount)))
             throw new InvalidDataException("Incomplete military source catalogs.");
-        var facilities = ConstructionContentCompiler.Facilities(buildings);
+        var facilities = ConstructionContentCompiler.Facilities(buildings, formations);
         if (!enabledTactics.Keys.Order().SequenceEqual(settlements.Select(s => s.Id).Order()))
             throw new InvalidDataException("Incomplete settlement tactic identities.");
         var places = settlements.Select(s =>
         {
+            var facility = facilities.Single(f => f.Id == (s.Kind == SettlementKind.City ? 0 : zones.Single(z => z.Id + 50 == s.Id).FixedBuildingId));
             Footprint shape;
             bool destroyed = false;
             bool demolishable = false;
@@ -38,12 +39,11 @@ public static class MilitaryContentCompiler
                 destroyed = facilities.Single(f => f.Id == type.Id).DestroyedAtZeroDurability;
                 demolishable = type.Id is >= 6 and <= 16;
             }
-            // Ordinary coefficients use the adopted remaster scale; garrison range is two terrain cells.
             return new BattlefieldPlace(s.Id, s.Position, shape)
             {
-                FacilityTypeId = s.Kind == SettlementKind.City ? 0 : zones.Single(z => z.Id + 50 == s.Id).FixedBuildingId,
+                FacilityTypeId = facility.Id,
                 EnabledTacticIds = enabledTactics[s.Id],
-                Combat = new(10, 10, 0, 10, 50), Attack = s.CanHostPersons ? new(10, false) { ElevationBonusPerLevel = 5, MaximumElevationBonus = 10 } : null, DestroyedAtZeroDurability = destroyed,
+                Combat = facility.Combat, Attack = s.CanHostPersons ? new(10, false) { ElevationBonusPerLevel = 5, MaximumElevationBonus = 10 } : null, DestroyedAtZeroDurability = destroyed,
                 WoundedRecovery = recovery, CanDemolish = demolishable
             };
         }).ToImmutableArray();
@@ -60,15 +60,17 @@ public static class MilitaryContentCompiler
                         { ConfusionResistanceChance = f.Id == 7 ? 50 : 0, BypassesPassiveCounters = f.Id is 12 or 13 or 14 or 24 or 25 },
                     RequiredTacticId = tactics.Where(t => t.Id is >= 12 and <= 18 && t.SupportsArrayType(f.Id))
                         .Select(t => (int?)t.Id).SingleOrDefault(),
+                    AutomaticTacticLearningId = f.Id is >= 21 and <= 23 ? f.Id - 9 : null,
                     MartialTacticVulnerabilities = f.Id == 11 ? [0] : [],
                     Combat = new(f.AgainstUnits, f.AgainstSoldiers, f.AgainstWalls, f.DefensePower, f.Id == 7 ? 80 : 50),
                     Attack = f.Id == 27 ? null : new(f.Id == 10 ? 15 : f.Id is 21 or 26 ? 5 : 10, f.AgainstWalls > 0)
                     {
                         ElevationBonusPerLevel = Mode(f.Id) == TravelMode.Land ? 5 : 0,
                         MaximumElevationBonus = Mode(f.Id) == TravelMode.Land ? 10 : 0,
-                        RequiresWaterOrHarbor = f.Id is 21 or 26
+                        RequiresWaterOrHarbor = f.Id is 21 or 26, RangedSiege = f.Id == 10
                     },
                     DoublesCapture = f.Id == 1,
+                    GainsDailyCombatProficiency = f.Id is not (13 or 14),
                     CaptureRanks = Enumerable.Range(0, 5).Select(i => f.Id is >= 20 and <= 26 ? BattleRank.Middle : f.GetDeploymentSlotPosition(i)?.Row switch
                     {
                         0 => BattleRank.Front, 1 => BattleRank.Middle, 2 => BattleRank.Rear,
@@ -114,7 +116,7 @@ public static class MilitaryContentCompiler
         }, t.Power, t.MinimumInterval, t.TrainingRequirement, t.Id is <= 11 or >= 21 and <= 30,
             t.AffectsFacilities, Enumerable.Range(0, San9ScenarioFormationArchive.RecordCount)
                 .Where(t.SupportsArrayType).ToImmutableArray())
-            { EffectRadius = t.Id is 26 or 28 or 29 or 30 ? 3 : 0, ContactRange = t.Id is >= 0 and <= 5 ? 5 : null,
+            { EffectRadius = t.Id is 26 or 29 or 30 ? 3 : 0, ContactRange = t.Id is >= 0 and <= 5 ? 5 : null,
                 FacilityAttack = t.Id switch { 39 => new(true, 0), 40 => new(false, 5), _ => null } }).ToImmutableArray();
     }
 

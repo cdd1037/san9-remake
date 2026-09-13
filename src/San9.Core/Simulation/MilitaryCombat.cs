@@ -47,12 +47,15 @@ internal static class MilitaryCombat
         foreach (int id in world.Units.Keys.Order().ToArray())
         {
             if (world.Simulation.TerminalReason is not null) break;
-            if (!world.Units.TryGetValue(id, out var attacker) || attacker.Order is not { IsAttack: true } order || attacker.Condition == UnitCondition.Confused) continue;
+            if (!world.Units.TryGetValue(id, out var attacker) || attacker.EffectiveOrder is not { IsAttack: true } order || attacker.Condition == UnitCondition.Confused) continue;
             var formation = military.Formations[attacker.FormationId!.Value];
             if (!ValidTarget(world, attacker.OwnerId, order, formation, military))
             {
-                world.Replace(attacker with { Order = null });
-                events.Add(new UnitOrderChangedEvent(world.Clock, id, null, "attack-target-invalid"));
+                world.Replace(attacker with { Order = attacker.EngagementTargetId is null ? null : attacker.Order,
+                    AwaitingPostAction = attacker.EngagementTargetId is null, EngagementTargetId = null });
+                if (attacker.EngagementTargetId is not null)
+                    events.Add(new UnitEngagementChangedEvent(world.Clock, id, null, "attack-target-invalid"));
+                else events.Add(new UnitOrderChangedEvent(world.Clock, id, null, "attack-target-invalid"));
                 continue;
             }
             var targetArea = TargetArea(world, order, military);

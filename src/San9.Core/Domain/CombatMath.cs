@@ -16,6 +16,11 @@ public readonly record struct CombatLoss(uint RemainingSoldiers, uint AddedWound
 /// <summary>Exact integer combat arithmetic shared by field troops and garrisons.</summary>
 public static class CombatMath
 {
+    public static long PolicyStrength(CombatStrength value)
+    {
+        value.Validate();
+        return (long)BigInteger.Min(long.MaxValue, BigInteger.Max(1, Power(value) * value.Soldiers / 100));
+    }
     public static uint AdjustComputerDamage(uint damage, uint targetSoldiers, int bonusPercent)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(bonusPercent);

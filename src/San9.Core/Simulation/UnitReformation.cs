@@ -35,7 +35,8 @@ internal static class UnitReformation
         if (ResourceAccounts.Balance(world, account, ResourceKind.Money) < cost) return CommandRejection.InsufficientFunds;
         ResourceAccounts.Change(world, account, ResourceKind.Money, -cost, "unit-reformation", unit.Id, events, true);
         FacilityConstruction.Cancel(world, unit.Id, events);
-        world.Replace(unit with { FormationId = formation.Id, Order = command.Order,
+        world.Replace(unit with { FormationId = formation.Id, Order = command.Order, CommanderId = command.OfficerIds[0],
+            EngagementTargetId = null, AwaitingPostAction = false,
             MemberRanks = formation.CaptureRanks.IsEmpty ? ImmutableDictionary<int, BattleRank>.Empty : command.OfficerIds
                 .Select((id, index) => (id, rank: formation.CaptureRanks[index])).ToImmutableDictionary(p => p.id, p => p.rank) });
         events.Add(new UnitReformedEvent(world.Clock, unit.Id, previous, formation.Id, command.OfficerIds));

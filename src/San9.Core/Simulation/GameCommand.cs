@@ -4,6 +4,7 @@ namespace San9.Core.Simulation;
 [System.Text.Json.Serialization.JsonDerivedType(typeof(WaitCommand), "wait")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(SelectTacticCommand), "select-tactic")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(DeployUnitCommand), "deploy-unit")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(SetUnitPoliciesCommand), "set-unit-policies")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(OrderUnitCommand), "order-unit")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(ReformUnitCommand), "reform-unit")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(DemolishFacilityCommand), "demolish-facility")]

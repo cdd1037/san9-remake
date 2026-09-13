@@ -8,6 +8,17 @@ public sealed class UnitContentCompilerTests
     private static San9ScenarioUnitRecord Source => new(
         7, 1000, 0, 0, 0, 7, 1, 0, 100, 38, 0, 0, 27, 3, 0, 190, 180);
 
+    [Theory]
+    [InlineData(12, true, false, false, false)]
+    [InlineData(13, false, false, false, true)]
+    [InlineData(14, false, true, false, false)]
+    [InlineData(15, false, false, true, false)]
+    public void PolicyFlagsBecomeIndependentSemanticFields(int bit, bool approach, bool pursuit, bool after, bool retreat)
+    {
+        var unit = Assert.Single(UnitContentCompiler.Compile([Source with { RuntimeFlags0C = 1u << bit }], _ => 1));
+        Assert.Equal(new UnitPolicies(approach, pursuit, after, retreat), unit.Policies);
+    }
+
     [Fact]
     public void TimedConditionPreservesItsSourceDuration()
     {

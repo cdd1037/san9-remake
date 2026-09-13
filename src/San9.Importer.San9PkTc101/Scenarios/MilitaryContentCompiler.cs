@@ -86,6 +86,7 @@ public static class MilitaryContentCompiler
             Elevations = squares.Select(s => s.OffsetValue ?? -1).ToImmutableArray(),
             TrapTerrains = terrains.Select(t => TrapTerrain(t.Id)).ToImmutableArray(),
             HigherGroundTrap = new(38, 3),
+            PolicyRadius = 10 * MapCoordinates.UnitsPerCell,
             BlockedCells = squares.Where(s => s.IsPathBlocked).Select(s => new MapCell(s.GridX, s.GridY)).ToImmutableArray()
         };
         _ = new MilitaryRulebook(definition);

@@ -5,7 +5,10 @@ namespace San9.Core.Simulation;
 
 public sealed record ConstructFacilityCommand(Guid CommandId, int IssuerId, long Sequence, int SettlementId,
     ImmutableArray<int> OfficerIds, uint Soldiers, int FormationId, int RegionId, int FacilityTypeId, WorldPosition Position)
-    : GameCommand(CommandId, IssuerId, Sequence);
+    : GameCommand(CommandId, IssuerId, Sequence)
+{
+    [System.Text.Json.Serialization.JsonRequired] public UnitPolicies Policies { get; init; } = new();
+}
 public sealed record FacilityConstructionChangedEvent(GameClock Clock, int SettlementId, int UnitId, string Phase,
     int Durability) : DomainEvent;
 
@@ -33,7 +36,7 @@ internal static class FacilityConstruction
         if (world.Simulation.NextUnitId > int.MaxValue) return CommandRejection.ResourceOverflow;
         int unitId = (int)world.Simulation.NextUnitId;
         var rejection = MilitaryMovement.Deploy(world, new(command.CommandId, command.IssuerId, command.Sequence, home.Id,
-            command.OfficerIds, command.Soldiers, command.FormationId, new(MilitaryOrderKind.Construct, null, null) { Construction = plan }),
+            command.OfficerIds, command.Soldiers, command.FormationId, new(MilitaryOrderKind.Construct, null, null) { Construction = plan }) { Policies = command.Policies },
             military, rules.Governance, rules.Treasures, events, construction: true);
         if (rejection != CommandRejection.None) return rejection;
         if (MilitaryCombat.Area(world.Units[unitId], military).Overlaps(new(command.Position, type.Footprint)))
@@ -52,7 +55,7 @@ internal static class FacilityConstruction
             events.Add(new FacilityConstructionChangedEvent(world.Clock, place.Id, unitId, "cancelled", 0));
             foreach (var other in world.Units.Values.Where(u => u.Order?.SettlementId == place.Id).ToArray())
             {
-                world.Replace(other with { Order = null });
+                world.Replace(other with { Order = null, AwaitingPostAction = other.Order!.IsAttack });
                 events.Add(new UnitOrderChangedEvent(world.Clock, other.Id, null, "construction-cancelled"));
             }
         }

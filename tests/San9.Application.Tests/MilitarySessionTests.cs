@@ -8,6 +8,25 @@ namespace San9.Application.Tests;
 
 public sealed class MilitarySessionTests
 {
+    [Fact]
+    public void TemporaryEngagementAndPendingPostActionSurviveSaveWithStrictFields()
+    {
+        var baseline = Fixture();
+        var definition = baseline with
+        {
+            Forces = [baseline.Forces[0], new(2, "enemy", 2, 10000, 10000, 100)],
+            Units = [new(700, 1, new(10, 7), 400) { FormationId = 7, Morale = 70,
+                EngagementTargetId = 900, Order = new(MilitaryOrderKind.Move, new(20, 7), null), Policies = new(true, true, true, true) },
+                new(900, 2, new(15, 7), 400) { FormationId = 7, Morale = 70, AwaitingPostAction = true }]
+        };
+        var session = GameSession.Start(definition, 42);
+        var restored = SaveService.Decode(SaveService.Encode(session), definition);
+        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        Assert.Equal(900, restored.Snapshot.Units.Single(u => u.Id == 700).EngagementTargetId);
+        Assert.True(restored.Snapshot.Units.Single(u => u.Id == 900).AwaitingPostAction);
+        Assert.Equal(session.Snapshot.Units[0].Policies, restored.Snapshot.Units[0].Policies);
+    }
+
     private static ScenarioInitialState Fixture() => new(ScenarioInitialState.CurrentSchemaVersion, "military-public", 190, 1, 1, 1,
         [new(1, "force", 1, 10000, 10000, 100)],
         [new(1, "origin", 1, 0, 1, 1000, 100, 100, 70, []) { Wounded = 123 }, new(2, "destination", 1, 7, 1, 100, 100, 100, 30, [])], [], [])
@@ -25,8 +44,13 @@ public sealed class MilitarySessionTests
         var session = GameSession.Start(definition, 42);
         session.BeginRecording();
         var command = new DeployUnitCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence,
-            1, [1], 400, 7, new(MilitaryOrderKind.Transport, null, 2), 200, 300);
+            1, [1], 400, 7, new(MilitaryOrderKind.Transport, null, 2), 200, 300) { Policies = new(true, false, true, false) };
         Assert.True(session.Execute(new("player"), command).Submission.Accepted);
+        Assert.Equal(command.Policies, Assert.Single(session.Snapshot.Units).Policies);
+        Assert.Equal(1, Assert.Single(session.Snapshot.Units).CommanderId);
+        var policies = new UnitPolicies(false, true, false, true);
+        Assert.True(session.Execute(new("player"), new SetUnitPoliciesCommand(Guid.NewGuid(), 1,
+            session.Snapshot.Simulation.NextSequence, Assert.Single(session.Snapshot.Units).Id, policies)).Submission.Accepted);
         Assert.Equal(123u, session.View.Settlements.Single(s => s.Id == 1).Wounded);
         Assert.NotNull(session.View.Officers[0].UnitId);
         Assert.Null(session.View.Officers[0].SettlementId);
@@ -34,6 +58,7 @@ public sealed class MilitarySessionTests
         session.AdvanceXun();
         Assert.NotEmpty(session.Snapshot.Units);
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
+        Assert.Equal(policies, Assert.Single(restored.Snapshot.Units).Policies);
         Assert.Equal(123u, restored.View.Settlements.Single(s => s.Id == 1).Wounded);
         for (int i = 0; i < 4; i++)
         {
@@ -110,13 +135,18 @@ public sealed class MilitarySessionTests
         int unitId = Assert.Single(session.Snapshot.Units).Id;
         OrderUnitCommand Order() => new(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence,
             unitId, new(MilitaryOrderKind.Return, null, 1));
+        SetUnitPoliciesCommand Policies() => new(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, unitId, new(true, true, true, true));
         string before = session.Capture().StateHash;
         Assert.False(session.Validate(new("player"), Order()).Accepted);
         Assert.True(session.Validate(new("corps:10"), Order()).Accepted);
+        Assert.False(session.Validate(new("player"), Policies()).Accepted);
+        Assert.True(session.Validate(new("corps:10"), Policies()).Accepted);
         Assert.Equal(before, session.Capture().StateHash);
         Assert.True(session.Execute(new("player"), new SetCorpsControlCommand(Guid.NewGuid(), 1,
             session.Snapshot.Simulation.NextSequence, 10, CorpsControlMode.Direct)).Submission.Accepted);
         Assert.False(session.Validate(new("corps:10"), Order()).Accepted);
+        Assert.False(session.Validate(new("corps:10"), Policies()).Accepted);
+        Assert.True(session.Execute(new("player"), Policies()).Submission.Accepted);
         Assert.True(session.Execute(new("player"), Order()).Submission.Accepted);
         Assert.Equal(1, Assert.Single(session.Snapshot.Units).Order!.SettlementId);
     }

@@ -5,7 +5,10 @@ namespace San9.Core.Simulation;
 
 public sealed record DeployUnitCommand(Guid CommandId, int IssuerId, long Sequence, int SettlementId,
     ImmutableArray<int> OfficerIds, uint Soldiers, int FormationId, MilitaryOrder Order,
-    uint CargoMoney = 0, uint CargoFood = 0) : GameCommand(CommandId, IssuerId, Sequence);
+    uint CargoMoney = 0, uint CargoFood = 0) : GameCommand(CommandId, IssuerId, Sequence)
+{
+    [System.Text.Json.Serialization.JsonRequired] public UnitPolicies Policies { get; init; } = new();
+}
 public sealed record OrderUnitCommand(Guid CommandId, int IssuerId, long Sequence, int UnitId, MilitaryOrder Order)
     : GameCommand(CommandId, IssuerId, Sequence);
 public sealed record UnitDeployedEvent(GameClock Clock, int UnitId, int SettlementId, ImmutableArray<int> OfficerIds) : DomainEvent;
@@ -24,6 +27,8 @@ internal static class MilitaryMovement
             throw new ArgumentException("Settlement definition does not permit destruction.");
         foreach (var unit in world.Units)
         {
+            if (unit.CommanderId is int commander && !world.Officers.Any(p => p.Id == commander && p.IsServing && p.UnitId == unit.Id))
+                throw new ArgumentException("Unit commander is not a serving member.");
             if (rules is null)
             {
                 if (unit.FormationId is not null || unit.Order is not null) throw new ArgumentException("Missing military content.");
@@ -56,7 +61,7 @@ internal static class MilitaryMovement
         if (rules is null || !rules.Formations.TryGetValue(command.FormationId, out var formation))
             return CommandRejection.UnsupportedCommand;
         int deploymentCost = construction ? 0 : formation.DeploymentCost;
-        if (command.Order is null || !construction && command.Order.Kind == MilitaryOrderKind.Construct) return CommandRejection.InvalidTask;
+        if (command.Policies is null || command.Order is null || !construction && command.Order.Kind == MilitaryOrderKind.Construct) return CommandRejection.InvalidTask;
         if (!world.Settlements.TryGetValue(command.SettlementId, out var home) || home.OwnerId != command.IssuerId ||
             !home.CanHostPersons || home.Durability == 0 || !rules.TryPlace(home, out var place))
             return CommandRejection.NoDestination;
@@ -86,6 +91,7 @@ internal static class MilitaryMovement
             MemberRanks = formation.CaptureRanks.IsEmpty ? ImmutableDictionary<int, BattleRank>.Empty : command.OfficerIds
                 .Select((person, index) => (person, rank: formation.CaptureRanks[index])).ToImmutableDictionary(p => p.person, p => p.rank),
             CargoMoney = command.CargoMoney, CargoFood = command.CargoFood, Order = command.Order,
+            Policies = command.Policies, CommanderId = command.OfficerIds[0],
             OrderClass = UnitOrderClass.Military
         };
         world.AddUnit(unit);
@@ -115,7 +121,7 @@ internal static class MilitaryMovement
         if (!ValidOrder(world, unit.OwnerId, command.Order, formation, rules)) return CommandRejection.InvalidTask;
         if (command.Order.Kind == MilitaryOrderKind.Construct) return CommandRejection.InvalidTask;
         FacilityConstruction.Cancel(world, unit.Id, events);
-        world.Replace(unit with { Order = command.Order });
+        world.Replace(unit with { Order = command.Order, EngagementTargetId = null, AwaitingPostAction = false });
         events.Add(new UnitOrderChangedEvent(world.Clock, unit.Id, command.Order, "ordered"));
         return CommandRejection.None;
     }
@@ -140,7 +146,7 @@ internal static class MilitaryMovement
         foreach (int id in world.Units.Keys.Order().ToArray())
         {
             var unit = world.Units[id];
-            if (unit.Order is not { } order || unit.Condition == UnitCondition.Confused) continue;
+            if (unit.EffectiveOrder is not { } order || unit.Condition == UnitCondition.Confused) continue;
             if (order.Kind == MilitaryOrderKind.Construct) continue;
             var formation = rules.Formations[unit.FormationId!.Value];
             if (!ValidOrder(world, unit.OwnerId, order, formation, rules))
@@ -215,6 +221,7 @@ internal static class MilitaryMovement
         foreach (var officer in world.Officers.Values.Where(p => p.UnitId == unit.Id).OrderBy(p => p.Id).ToArray())
             world.Replace(officer with { UnitId = null, SettlementId = home.Id, Acted = true });
         world.RemoveUnit(unit.Id);
+        MilitaryPolicies.RemoveTarget(world, unit.Id, false, events);
         if (unit.CorpsId is int previous && previous != home.CorpsId)
         {
             if (GovernanceMaintenance.RepairCorps(world, previous, governance, events) != CommandRejection.None)

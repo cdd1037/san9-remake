@@ -65,6 +65,7 @@ public sealed record MilitaryDefinition(int Width, int Height, ImmutableArray<in
     ImmutableArray<TerrainPassage> Terrains, ImmutableArray<FormationRule> Formations,
     ImmutableArray<BattlefieldPlace> Places)
 {
+    [System.Text.Json.Serialization.JsonRequired] public int PolicyRadius { get; init; } = 50;
     [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<FacilityRule> Facilities { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<ConstructionSite> ConstructionSites { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<int> Elevations { get; init; } = [];
@@ -84,6 +85,8 @@ public sealed partial class MilitaryRulebook
     public const uint WoundedCapacity = 50000;
     public MilitaryRulebook(MilitaryDefinition definition)
     {
+        ArgumentOutOfRangeException.ThrowIfNegative(definition.PolicyRadius);
+        PolicyRadius = definition.PolicyRadius;
         LinkRules = definition.LinkRules ?? throw new ArgumentException("Missing tactic link rules.");
         LinkRules.Validate();
         if (definition.TerrainIds.IsDefault || definition.Terrains.IsDefault || definition.Formations.IsDefault || definition.Places.IsDefault)
@@ -263,6 +266,7 @@ public sealed partial class MilitaryRulebook
         return false;
     }
     public ImmutableDictionary<int, TacticRule> Tactics { get; }
+    public int PolicyRadius { get; }
     public ImmutableDictionary<int, BattlefieldPlace> Places { get; }
     public ImmutableDictionary<int, FacilityRule> Facilities { get; }
     public ImmutableDictionary<(int RegionId, WorldPosition Position), ConstructionSite> ConstructionSites { get; }

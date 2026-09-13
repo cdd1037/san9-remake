@@ -74,7 +74,8 @@ public sealed class FacilityReprisalTests
         var (engine, _) = Create(durability: durability, walls: walls, enabled: enabled);
         var result = Advance(engine);
         Assert.DoesNotContain(result.Events.OfType<BattleDamageEvent>(), e => e.AttackerIsSettlement && e.SoldierLoss > 0);
-        Assert.Equal(10000u, engine.Snapshot.Units.Single().Soldiers);
+        Assert.Equal(11000L, engine.Snapshot.Units.Where(u => u.OwnerId == 1).Sum(u => (long)u.Soldiers) +
+            engine.Snapshot.Settlements.Where(s => s.OwnerId == 1).Sum(s => (long)s.Soldiers));
         Assert.Equal(durability == 1, engine.Snapshot.Settlements.Single(s => s.Id == 2).IsDestroyed);
     }
 

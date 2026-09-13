@@ -19,11 +19,6 @@ internal static class BattleAftermath
             world.Settlements.GetValueOrDefault(home)?.Kind == SettlementKind.City ? home : rules.Personnel.RegionCities.GetValueOrDefault(home, -1) : null;
         if (city is int cityId && (!world.Settlements.TryGetValue(cityId, out var s) || s.Kind != SettlementKind.City)) city = null;
         UnitTerminationService.Complete(world, id, winner, city, rules.Governance, events, repairCorps: false);
-        foreach (var other in world.Units.Values.Where(u => u.Order?.UnitId == id).ToArray())
-        {
-            world.Replace(other with { Order = null });
-            events.Add(new UnitOrderChangedEvent(world.Clock, other.Id, null, "unit-terminated"));
-        }
     }
 
     internal static void ResolveSettlementDefeat(WorldMutation world, int id, BattleSource winner, SimulationRules rules, List<DomainEvent> events)
@@ -37,11 +32,7 @@ internal static class BattleAftermath
         {
             world.Replace(settlement with { IsDestroyed = true, OwnerId = null, CorpsId = null,
                 Soldiers = 0, Wounded = 0, Morale = 0, Durability = 0, ConfusionDaysRemaining = 0 });
-            foreach (var unit in world.Units.Values.Where(u => u.Order?.SettlementId == id).ToArray())
-            {
-                world.Replace(unit with { Order = null });
-                events.Add(new UnitOrderChangedEvent(world.Clock, unit.Id, null, "facility-destroyed"));
-            }
+            MilitaryPolicies.RemoveTarget(world, id, true, events);
             events.Add(new FacilityDestroyedEvent(world.Clock, id, winner));
             return;
         }
@@ -86,12 +77,7 @@ internal static class BattleAftermath
             if (task.Journey is not null) PersonnelReturns.Start(world, task, rules.Personnel, events, true);
         }
         winner.Reward(world, 0, 10);
-        if (!winner.IsSettlement) world.Replace(world.Units[winner.Id] with { Order = null });
-        foreach (var unit in world.Units.Values.Where(u => u.Order?.SettlementId == id).ToArray())
-        {
-            world.Replace(unit with { Order = null });
-            events.Add(new UnitOrderChangedEvent(world.Clock, unit.Id, null, "settlement-changed-owner"));
-        }
+        MilitaryPolicies.SettlementChanged(world, id, rules.Military!, events);
         events.Add(new SettlementCapturedEvent(world.Clock, id, settlement.OwnerId, winner, destroyed));
     }
 

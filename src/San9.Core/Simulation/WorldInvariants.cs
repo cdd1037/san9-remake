@@ -58,6 +58,8 @@ internal static class WorldInvariants
                 unit.MemberRanks.Keys.Any(id => !state.Officers.TryGetValue(id, out var person) || person.UnitId != unit.Id || !person.IsServing) ||
                 unit.Order?.SettlementId is int target && !state.Settlements.ContainsKey(target) ||
                 unit.Order?.UnitId is int targetUnit && !state.Units.ContainsKey(targetUnit) ||
+                unit.EngagementTargetId is int engagement && !state.Units.ContainsKey(engagement) ||
+                unit.CommanderId is int commander && !state.Officers.ContainsKey(commander) ||
                 unit.CorpsId is int corpsId && (!state.Corps.TryGetValue(corpsId, out var corps) || corps.OwnerId != unit.OwnerId)) throw new ArgumentException("Invalid unit.");
         }
         if (state.Corps.Values.Any(c => c.Id < 0 || !Enum.IsDefined(c.ControlMode) || !state.Forces.ContainsKey(c.OwnerId) ||

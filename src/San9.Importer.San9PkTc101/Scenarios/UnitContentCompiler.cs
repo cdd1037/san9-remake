@@ -14,6 +14,7 @@ public static class UnitContentCompiler
             return new UnitState(u.Id, owner, MapCoordinates.Center(new(x, y)), (uint)u.LoadedSoldierCount)
             {
                 CorpsId = u.ForceId, ServicePlaceId = u.HomeBaseId, FormationId = u.FormationId,
+                Policies = new(u.AttacksWhenEnemyApproaches, u.AllowsPursuit, u.AttacksAfterAction, u.AllowsAutonomousRetreat),
                 ConditionDaysRemaining = u.StatusDurationDays,
                 Wounded = (uint)u.LoadedWoundedSoldierCount, Morale = u.Morale,
                 IsEmbedded = u.HasRuntimeFlagBit(0), IsPersonnel = u.HasRuntimeFlagBit(1),

@@ -48,7 +48,7 @@ internal static class FacilityDemolition
         }
         foreach (var unit in world.Units.Values.Where(u => u.Order?.SettlementId == facility.Id).OrderBy(u => u.Id).ToArray())
         {
-            world.Replace(unit with { Order = null });
+            world.Replace(unit with { Order = null, AwaitingPostAction = unit.Order!.IsAttack });
             events.Add(new UnitOrderChangedEvent(world.Clock, unit.Id, null, "facility-demolished"));
         }
         BattleAftermath.Reconcile(world, new HashSet<int> { command.IssuerId }, rules, events);

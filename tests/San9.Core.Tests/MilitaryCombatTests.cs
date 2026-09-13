@@ -131,7 +131,7 @@ public sealed class MilitaryCombatTests
         world.Commit(mutation);
         var engine = Engine(world);
         Assert.Single(engine.AdvanceXun().Events.OfType<SettlementCapturedEvent>());
-        Assert.Null(engine.Snapshot.Units.Single(u => u.Id == 1).Order);
+        Assert.Equal(new(MilitaryOrderKind.Return, null, 2), engine.Snapshot.Units.Single(u => u.Id == 1).Order);
     }
 
     [Fact]
@@ -352,7 +352,8 @@ public sealed class MilitaryCombatTests
         var result = engine.AdvanceXun();
         Assert.Single(result.Events.OfType<SettlementCapturedEvent>());
         Assert.Equal(1, engine.Snapshot.Settlements.Single(s => s.Id == 2).OwnerId);
-        Assert.DoesNotContain(result.Events.OfType<BattleDamageEvent>(), e => e.AttackerId == 1 && !e.AttackerIsSettlement);
+        var captureDay = Assert.Single(result.Events.OfType<SettlementCapturedEvent>()).Clock;
+        Assert.DoesNotContain(result.Events.OfType<BattleDamageEvent>(), e => e.Clock == captureDay && e.AttackerId == 1 && !e.AttackerIsSettlement);
         Assert.Null(engine.Snapshot.Units.Single(u => u.Id == 1).Order);
     }
 }

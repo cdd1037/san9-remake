@@ -54,6 +54,7 @@ public static class CorpsControl
             SelectTacticCommand tactic => world.Officers.FirstOrDefault(p => p.Id == tactic.OfficerId)?.UnitId is int unit
                 ? OwnUnit(unit) : OwnPerson(tactic.OfficerId),
             DeployUnitCommand deploy => OwnPlace(deploy.SettlementId),
+            SetUnitPoliciesCommand policies => OwnUnit(policies.UnitId),
             DemolishFacilityCommand demolish => OwnPlace(demolish.SettlementId),
             ConstructFacilityCommand construct => OwnPlace(construct.SettlementId),
             OrderUnitCommand order => OwnUnit(order.UnitId),

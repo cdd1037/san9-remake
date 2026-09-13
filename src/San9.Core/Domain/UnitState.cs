@@ -13,6 +13,12 @@ public sealed record UnitState(int Id, int OwnerId, [property: System.Text.Json.
     [System.Text.Json.Serialization.JsonRequired] public uint CargoMoney { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public uint CargoFood { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public MilitaryOrder? Order { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public UnitPolicies Policies { get; init; } = new();
+    [System.Text.Json.Serialization.JsonRequired] public int? CommanderId { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public int? EngagementTargetId { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public bool AwaitingPostAction { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore] public MilitaryOrder? EffectiveOrder => EngagementTargetId is int target
+        ? new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = target } : Order;
     [System.Text.Json.Serialization.JsonIgnore] public MapCell Cell => MapCoordinates.Cell(Position);
     [System.Text.Json.Serialization.JsonRequired] public int? CorpsId { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public int? ServicePlaceId { get; init; }
@@ -32,6 +38,9 @@ public sealed record UnitState(int Id, int OwnerId, [property: System.Text.Json.
     [System.Text.Json.Serialization.JsonIgnore]
     public bool IsValid => Id >= 0 && OwnerId >= 0 && ServicePlaceId is not < 0 && Position.X >= 0 && Position.Y >= 0 && Soldiers > 0 &&
         Enum.IsDefined(OrderClass) && Enum.IsDefined(Condition) && ConditionDaysRemaining >= 0 && FormationId is not < 0 && Morale is >= 0 and <= 100 && Wounded <= MilitaryRulebook.WoundedCapacity &&
+        Policies is not null && CommanderId is not < 0 && EngagementTargetId is not < 0 && EngagementTargetId != Id &&
+        (!AwaitingPostAction || Order is null) &&
+        (FormationId is not null || EngagementTargetId is null && !AwaitingPostAction && CommanderId is null) &&
         MemberRanks is not null && MemberRanks.All(p => p.Key >= 0 && Enum.IsDefined(p.Value)) &&
         (Order is null || FormationId is not null && Order.IsValid);
 }

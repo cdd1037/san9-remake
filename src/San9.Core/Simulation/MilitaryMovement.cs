@@ -164,7 +164,9 @@ internal static class MilitaryMovement
                 var targetArea = MilitaryCombat.TargetArea(world, order, rules);
                 var approach = rules.Map.AdvanceIntoRange(unit.Position, targetArea, formation.Footprint,
                     formation.TravelMode, Occupancy(world, rules, unit.Id, null), formation.MovementBudget,
-                    position => MilitaryCombat.ApproachRange(world, unit, order, rules, position), rectangularReach: true);
+                    position => MilitaryCombat.ApproachRange(world, unit, order, rules, position), rectangularReach: true,
+                    maximumRange: Math.Max(MapCoordinates.UnitsPerCell,
+                        checked((formation.Attack?.Range ?? 0) + (formation.Attack?.MaximumElevationBonus ?? 0))));
                 world.Replace(unit with { Position = approach.Position });
                 events.Add(new UnitMovedEvent(world.Clock, id, unit.Position, approach.Position, approach.Spent, approach.Reachable));
                 continue;

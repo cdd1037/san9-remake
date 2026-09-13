@@ -41,6 +41,7 @@ public sealed record DailyMovement(WorldPosition Position, bool Reachable, bool 
 /// <summary>Immutable domain topology. Neither textures nor source-format identities determine passage.</summary>
 public sealed class BattlefieldMap
 {
+    private readonly BattlefieldPathSearch search;
     private readonly ImmutableArray<int> cells;
     private readonly ImmutableDictionary<int, TerrainPassage> terrains;
     private readonly ImmutableHashSet<MapCell> blocked;
@@ -50,6 +51,7 @@ public sealed class BattlefieldMap
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(height);
+        search = new(this);
         Width = width;
         Height = height;
         FineWidth = checked(width * MapCoordinates.UnitsPerCell);
@@ -88,21 +90,31 @@ public sealed class BattlefieldMap
     {
         ArgumentOutOfRangeException.ThrowIfNegative(budget);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(range);
-        return AdvanceIntoRange(start, target, footprint, mode, occupied, budget, _ => range);
+        return AdvanceIntoRange(start, target, footprint, mode, occupied, budget, _ => range, maximumRange: range);
     }
 
+    /// <param name="maximumRange">Optional upper bound valid at every candidate position; null uses uninformed search.</param>
     public DailyMovement AdvanceIntoRange(WorldPosition start, MapOccupancy target, Footprint footprint,
-        TravelMode mode, IEnumerable<MapOccupancy> occupied, int budget, Func<WorldPosition, int> range, bool rectangularReach = false)
+        TravelMode mode, IEnumerable<MapOccupancy> occupied, int budget, Func<WorldPosition, int> range, bool rectangularReach = false, int? maximumRange = null)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(budget);
         ArgumentNullException.ThrowIfNull(range);
+        if (maximumRange is <= 0) throw new ArgumentOutOfRangeException(nameof(maximumRange));
         var occupancy = occupied.Append(target).ToArray();
         var route = Search(start, footprint, mode, occupancy, p =>
         {
             int available = range(p);
             return available > 0 && (rectangularReach ? new MapOccupancy(p, footprint).IntersectsExpanded(target, available) :
                 new MapOccupancy(p, footprint).DistanceTo(target) <= available);
-        });
+        }, lowerBound: p => maximumRange is int bound ? RangeDistance(p, bound) : 0);
+        long RangeDistance(WorldPosition p, int bound)
+        {
+            var area = new MapOccupancy(p, footprint);
+            long x = Math.Max(0, Math.Max(target.Left - area.Right + 1, area.Left - target.Right + 1));
+            long y = Math.Max(0, Math.Max(target.Top - area.Bottom + 1, area.Top - target.Bottom + 1));
+            // Both reach predicates are bounded by this rectangle; use its Manhattan distance.
+            return Math.Max(0, x - bound) + Math.Max(0, y - bound);
+        }
         return Consume(start, route, footprint, mode, occupancy, budget);
     }
 
@@ -154,74 +166,12 @@ public sealed class BattlefieldMap
         return Search(start, footprint, mode, occupancy, p => p == destination, destination);
     }
 
+    internal int? StaticPassageCost(WorldPosition position, Footprint footprint, TravelMode mode) =>
+        PassageCost(position, footprint, mode, static _ => false);
+
     private MovementRoute Search(WorldPosition start, Footprint footprint, TravelMode mode,
-        IReadOnlyList<MapOccupancy> occupancy, Func<WorldPosition, bool> arrived, WorldPosition? destination = null)
-    {
-        if (occupancy.Any(o => !o.Footprint.IsValid || o.Position.X < 0 || o.Position.Y < 0))
-            throw new ArgumentException("Invalid battlefield occupancy.");
-        var blocks = IndexOccupancy(occupancy);
-        if (PassageCost(start, footprint, mode, blocks) is null ||
-            destination is WorldPosition end && PassageCost(end, footprint, mode, blocks) is null) return new(false, [], 0);
-        if (arrived(start)) return new(true, [], 0);
-
-        var distances = new Dictionary<WorldPosition, long> { [start] = 0 };
-        var previous = new Dictionary<WorldPosition, WorldPosition>();
-        var pending = new PriorityQueue<WorldPosition, (long Cost, long Sequence)>();
-        long sequence = 0;
-        pending.Enqueue(start, (0, sequence++));
-        while (pending.TryDequeue(out var current, out var priority))
-        {
-            if (distances[current] != priority.Cost) continue;
-            if (arrived(current))
-            {
-                var steps = new List<WorldPosition>();
-                for (var p = current; p != start; p = previous[p]) steps.Add(p);
-                steps.Reverse();
-                return new(true, steps.ToImmutableArray(), priority.Cost);
-            }
-            foreach (var next in Neighbors(current))
-            {
-                int? cost = PassageCost(next, footprint, mode, blocks);
-                if (cost is null) continue;
-                long total = checked(priority.Cost + cost.Value);
-                if (distances.TryGetValue(next, out long known) && known <= total) continue;
-                distances[next] = total;
-                previous[next] = current;
-                pending.Enqueue(next, (total, sequence++));
-            }
-        }
-        return new(false, [], 0);
-    }
-
-    // A per-search index of the current snapshot; never retained across simulation days.
-    private Func<MapOccupancy, bool> IndexOccupancy(IEnumerable<MapOccupancy> occupancy)
-    {
-        var buckets = new Dictionary<MapCell, List<MapOccupancy>>();
-        foreach (var area in occupancy)
-        {
-            if (area.Left < 0 || area.Top < 0 || area.Right > FineWidth || area.Bottom > FineHeight)
-                throw new ArgumentException("Occupancy lies outside battlefield.");
-            foreach (var cell in CoveredCells(area))
-            {
-                if (!buckets.TryGetValue(cell, out var list)) buckets[cell] = list = [];
-                list.Add(area);
-            }
-        }
-        return area => CoveredCells(area).Any(cell => buckets.TryGetValue(cell, out var list) && list.Any(area.Overlaps));
-    }
-
-    private static IEnumerable<MapCell> CoveredCells(MapOccupancy area)
-    {
-        for (int y = (int)area.Top / MapCoordinates.UnitsPerCell; y <= (area.Bottom - 1) / MapCoordinates.UnitsPerCell; y++)
-        for (int x = (int)area.Left / MapCoordinates.UnitsPerCell; x <= (area.Right - 1) / MapCoordinates.UnitsPerCell; x++)
-            yield return new(x, y);
-    }
-
-    private static IEnumerable<WorldPosition> Neighbors(WorldPosition position)
-    {
-        yield return new(position.X, position.Y - 1);
-        yield return new(position.X + 1, position.Y);
-        yield return new(position.X, position.Y + 1);
-        yield return new(position.X - 1, position.Y);
-    }
+        IReadOnlyList<MapOccupancy> occupancy, Func<WorldPosition, bool> arrived, WorldPosition? destination = null,
+        Func<WorldPosition, long>? lowerBound = null) =>
+        search.Search(start, footprint, mode, occupancy, arrived, lowerBound ?? (p => destination is { } end ?
+            Math.Abs((long)p.X - end.X) + Math.Abs((long)p.Y - end.Y) : 0), destination);
 }

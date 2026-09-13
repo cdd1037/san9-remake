@@ -235,7 +235,7 @@
       "id": "diplomacy",
       "classification": "core",
       "behavior_specs": ["BEH-DIPLOMACY-0001", "BEH-DIPLOMACY-0002", "BEH-DIPLOMACY-0003"],
-      "objects": ["ForceRelation", "Alliance", "DiplomacyCommand", "Negotiation", "DiplomacyPlan"],
+      "objects": ["ForceRelation", "AllianceState", "DiplomacyCommand", "Negotiation", "DiplomacyPlan"],
       "states": ["eligible", "reserved", "negotiating", "resolved", "allied", "expired"],
       "inputs": ["force relation snapshot", "typed diplomacy request", "current eligibility", "stable diplomacy random streams"],
       "outputs": ["symmetric relation update", "resource-conserving settlement", "alliance transition", "zero or one planned command"],
@@ -244,10 +244,10 @@
       "depends_on": ["simulation", "personnel", "governance"],
       "implementation": {
         "project": "San9.Core",
-        "target_namespace": "San9.Core.Diplomacy",
-        "target_path": "src/San9.Core/Diplomacy",
-        "entry_types": ["RelationService", "AllianceService", "DiplomacyCommandHandler", "DiplomacyPlanner"],
-        "existing_anchors": ["src/San9.Core/Domain/InformationState.cs", "src/San9.Core/Simulation/GameCommand.cs"]
+        "target_namespace": "San9.Core.Simulation",
+        "target_path": "src/San9.Core/Simulation",
+        "entry_types": ["ForceRelations", "AllianceDiplomacy", "DiplomacyMath"],
+        "existing_anchors": ["src/San9.Core/Domain/AllianceState.cs", "src/San9.Core/Simulation/SimulationState.cs", "src/San9.Core/Simulation/GameCommand.cs"]
       }
     },
     {

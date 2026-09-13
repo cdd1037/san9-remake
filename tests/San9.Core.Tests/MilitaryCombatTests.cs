@@ -7,6 +7,23 @@ namespace San9.Core.Tests;
 public sealed class MilitaryCombatTests
 {
     [Fact]
+    public void PublicAttackCannotTargetAllianceMemberButBecomesAvailableWithoutAlliance()
+    {
+        var initial = Engine(World(controlled: true)).CaptureStableState();
+        initial = initial with { Forces = initial.Forces.Append(new ForceState(3, 0, 0, 0)).ToArray() };
+        var allied = Engine(WorldState.Restore(initial with
+        {
+            Simulation = initial.Simulation with { Alliance = new(3, 1, [1, 2], 36) }
+        }));
+        var command = new OrderUnitCommand(Guid.NewGuid(), 1, 0, 0, new(MilitaryOrderKind.AttackSettlement, null, 2));
+        string before = allied.Snapshot.StateHash;
+        Assert.False(allied.Execute(new("player"), command).Submission.Accepted);
+        Assert.Equal(before, allied.Snapshot.StateHash);
+        var expired = Engine(WorldState.Restore(initial));
+        Assert.True(expired.Execute(new("player"), command).Submission.Accepted);
+    }
+
+    [Fact]
     public void PartialMemberRanksAreRejectedEvenForMovementOnlyFormations()
     {
         var definition = new MilitaryDefinition(1, 1, [0], [new(0, 1, null)],

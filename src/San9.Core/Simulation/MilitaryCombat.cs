@@ -21,6 +21,7 @@ internal static class MilitaryCombat
 
     internal static bool Hostile(WorldMutation world, int attacker, int? defender) =>
         world.Forces.TryGetValue(attacker, out var force) && !force.IsEliminated && attacker != defender &&
+        (defender is null || world.Simulation.Alliance?.Protects(attacker, defender.Value) != true) &&
         (defender is null || world.Forces.TryGetValue(defender.Value, out var other) && !other.IsEliminated);
 
     internal static bool ValidTarget(WorldMutation world, int owner, MilitaryOrder order, FormationRule formation, MilitaryRulebook rules)

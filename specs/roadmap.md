@@ -3,13 +3,14 @@
 状态：已采用的正式核心玩法实施路线图；各阶段执行时细化并更新相关 BEH，规划中的具体规则不因此视为已经实现或已经确认的行为。
 最后更新：2026-09-13。
 
-执行进度：**G00–G07已有完成记录，G08尚未启动**。本次文档整理不构成新的代码审计或阶段复验；实际覆盖与限制以对应记录为准，发现范围内缺口按下文完成标准处理。
+执行进度：**G00–G07已有完成记录，G08实施中**。G08已接入初始联盟、禁战、期限与灭亡清理；季度形成、外交命令和计略生命周期仍未完成，详见[G08进度与验证](../docs/g08-verification.md)。实际覆盖与限制以对应记录为准，发现范围内缺口按下文完成标准处理。
 
 | 阶段 | 实现与验收入口 |
 | --- | --- |
 | G01–G03 时间、持久化与经营 | [G01](../docs/g01-verification.md)、[G02](../docs/g02-verification.md)、[G03](../docs/g03-verification.md) |
 | G04 人事与治理 | [G04验收](../docs/g04-verification.md)、[人事依据审计](../docs/g04-implementation-audit.md)、[经营底座审计](../docs/g01-g04-audit-verification.md) |
 | G05–G07 地图与战争 | [G05](../docs/g05-verification.md)、[G06](../docs/g06-verification.md)、[G07](../docs/g07-verification.md) |
+| G08 外交与计略（实施中） | [进度与验证](../docs/g08-verification.md) |
 
 当前能力见[README](../README.md)与[运行时状态](../docs/runtime-state.md)，阶段复用入口和规则核对方法见[实施基线](roadmap-baseline.md)。历史起点、候选方案及逐轮修复交给Git，不作为当前实施要求。
 

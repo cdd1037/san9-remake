@@ -34,7 +34,8 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 49;
+    public const int CurrentSchemaVersion = 50;
+    [System.Text.Json.Serialization.JsonRequired] public San9.Core.Domain.AllianceState? Alliance { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public Dictionary<int, string> FacilityNameSuffixKeys { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public San9.Core.Domain.MilitaryDefinition? Military { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Domain.CityConnection> CityConnections { get; init; } = [];
@@ -51,6 +52,8 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
             Forces.Select(f => f.Id).Distinct().Count() != Forces.Length || !Forces.Any(f => f.Id == PlayerForceId))
             throw new InvalidDataException("Invalid scenario date or player force.");
         Information.Validate(this);
+        try { Alliance?.Validate(Forces.Where(f => !f.IsBarbarian).Select(f => f.Id).ToHashSet()); }
+        catch (ArgumentException error) { throw new InvalidDataException("Invalid initial alliance.", error); }
         if (Military is { } military)
         {
             var rules = new San9.Core.Domain.MilitaryRulebook(military);

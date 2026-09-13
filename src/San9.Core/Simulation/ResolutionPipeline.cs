@@ -75,6 +75,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         if (!CheckTerminal(world, events)) return false;
         if (stage == ResolutionStage.XunUpdate)
         {
+            AllianceDiplomacy.UpdateXun(world, events);
             XunRecovery.Apply(world);
             PrisonerCycle.Apply(world, events);
         }

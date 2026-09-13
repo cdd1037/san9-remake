@@ -182,6 +182,7 @@ internal static class BattleAftermath
 
     private static void Eliminate(WorldMutation world, int forceId, SimulationRules rules, List<DomainEvent> events)
     {
+        AllianceDiplomacy.ForceEliminated(world, forceId, events);
         var force = world.Forces[forceId];
         foreach (var task in world.Simulation.Tasks.Where(t => t.ForceId == forceId).ToArray())
         {

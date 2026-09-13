@@ -53,10 +53,6 @@ internal static class RecruitmentRules
     internal static void ChangeRelation(WorldMutation world, int forceId, int? otherId, int baseLoss, List<DomainEvent> events)
     {
         if (otherId is not int other || other == forceId) return;
-        var key = (Math.Min(forceId, other), Math.Max(forceId, other));
-        if (!world.Relations.TryGetValue(key, out var relation)) throw new InvalidOperationException("Missing recruitment force relation.");
-        int next = Math.Max(0, relation.Value - baseLoss - (int)(world.NextRandom("personnel-recruit-relations") % 3));
-        world.Replace(relation with { Value = next });
-        events.Add(new ForceRelationChangedEvent(world.Clock, key.Item1, key.Item2, relation.Value, next));
+        ForceRelations.Change(world, forceId, other, -baseLoss - (int)(world.NextRandom("personnel-recruit-relations") % 3), events);
     }
 }

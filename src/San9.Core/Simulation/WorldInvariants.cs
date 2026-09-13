@@ -73,6 +73,7 @@ internal static class WorldInvariants
     private static void ValidateSimulation(WorldMutation state)
     {
         var sim = state.Simulation;
+        sim.Alliance?.Validate(state.Forces.Values.Where(f => !f.IsEliminated && !f.IsBarbarian).Select(f => f.Id).ToHashSet());
         _ = new GameClock(sim.Started.Year, sim.Started.Month, sim.Started.Day);
         if (!sim.Started.IsXunBoundary || sim.Started.DayNumber > state.Clock.DayNumber ||
             sim.ComputerDamageBonusPercent < 0 || !Enum.IsDefined(sim.Boundary) || sim.Controls.IsDefault || sim.Tasks.IsDefault ||

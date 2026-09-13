@@ -12,6 +12,35 @@ namespace San9.Application.Tests;
 
 public sealed class PersistenceTests : IDisposable
 {
+    [Fact]
+    public void InitialAllianceSurvivesSaveAndRecordedExpiryWithoutRepeatingInitialUpdates()
+    {
+        var basis = Fixture();
+        var definition = basis with
+        {
+            Forces = basis.Forces.Append(new(3, "target", 3, 0, 0, 0)).ToArray(),
+            Alliance = new(3, 1, [1, 2], 2)
+        };
+        var session = GameSession.Start(definition, 190);
+        Assert.Equal(2, session.Snapshot.Simulation.Alliance!.RemainingXun);
+        session.AdvanceXun();
+        var restored = SaveService.Decode(SaveService.Encode(session), definition, GameSession.EngineFactory(definition));
+        Assert.Equal(1, restored.Snapshot.Simulation.Alliance!.RemainingXun);
+        Assert.Empty(restored.InitialEvents);
+        session.BeginRecording();
+        var expected = session.AdvanceXun();
+        var actual = restored.AdvanceXun();
+        Assert.Null(restored.Snapshot.Simulation.Alliance);
+        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        Assert.Equal(CanonicalJson.Text(expected.Events), CanonicalJson.Text(actual.Events));
+        var replayed = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
+        Assert.Equal(session.Capture().StateHash, replayed.Session.Capture().StateHash);
+        var missing = JsonNode.Parse(SaveService.Encode(session))!;
+        missing["session"]!["world"]!["simulation"]!.AsObject().Remove("alliance");
+        Assert.Equal(SaveFailure.InvalidFormat, Assert.Throws<SaveException>(() => SaveService.Decode(
+            Encoding.UTF8.GetBytes(missing.ToJsonString()), definition, GameSession.EngineFactory(definition))).Failure);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

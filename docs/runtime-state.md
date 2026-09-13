@@ -16,6 +16,8 @@ Application把当前世界与复制后的名称/显示定义组合成`StrategySn
 
 ## 已接入规则
 
+G08实施中：`SimulationState.Alliance`唯一保存当前联盟目标、盟主、成员和剩余旬数，内容初始联盟经Application建局后沿快照、摘要、存档和录像传递。`AllianceDiplomacy`处理旬到期与势力退出，军事公共敌对查询拒绝联盟成员之间攻击；`ForceRelations`统一有界对称关系写回。季度形成和外交/计略命令尚未完成，进度见[G08](g08-verification.md)。
+
 依据[BEH-ECONOMY-0001](../specs/behavior/BEH-ECONOMY-0001-domestic-and-economic-cycle.md)，六项经营命令支持1至5名不同参与者。公共处理器验证当前归属、驻地、行动占用、项目次数与资源，原子提交属性、账户、兵员、熟练度和使用状态；拒绝不改变世界与随机。征兵按实际剩余容量和资金计算，兵役与驻军严格守恒。
 
 `EconomyRulebook`由Application从内容的官职和人物组合定义构建，不保存第二份可写世界。`ResourceAccounts`解析势力/军团账户并报告请求、实际、短缺和饱和；`EconomicCycle`在旬前支付俸禄、每日命令前扣粮、季度更新人口与收入、七月收获。普通存档包含当前状态；完整资源事件属于显式录像。

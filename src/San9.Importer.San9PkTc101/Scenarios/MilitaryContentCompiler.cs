@@ -50,7 +50,7 @@ public static class MilitaryContentCompiler
         var definition = new MilitaryDefinition(San9ScenarioSquareArchive.MapWidth, San9ScenarioSquareArchive.MapHeight,
             squares.Select(s => s.TerrainId ?? throw new InvalidDataException("Missing battlefield terrain.")).ToImmutableArray(),
             terrains.Select(t => Passage(t.Id)).ToImmutableArray(),
-            formations.Select(f => new FormationRule(f.Id, checked(f.Mobility * 25), f.DeploymentCost,
+            formations.Select(f => new FormationRule(f.Id, checked(((f.Mobility + 1) / 2) * 10), f.DeploymentCost,
                 100000, 5, new(3, 3), Mode(f.Id))
                 { Tactics = f.Id == 27 ? null : new(Mode(f.Id) == TravelMode.Water ? 10 : 15,
                         f.Id is 1 or 8 ? 50 : 0, f.Id == 2 ? 3 : 2,

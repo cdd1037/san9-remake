@@ -20,6 +20,9 @@ public sealed class MilitaryContentCompilerTests
         var formations = Enumerable.Range(0, 28).Select(i => new San9ScenarioFormationRecord(i, (ushort)i, 0, 0, 0,
             (ushort)(i + 1), (ushort)(i + 2), (ushort)(i + 3), (ushort)(i + 4), 12, 1, 1, 100, 0, new byte[] { 1, 3, 4, 5, 7 }, 0)).ToArray();
         SettlementInitialState[] places = [new(5000, "city", 1, 10, 10, 100, 100, 100, 50, [])];
+        formations[0] = formations[0] with { Mobility = 10 };
+        formations[1] = formations[1] with { Mobility = 11 };
+        formations[2] = formations[2] with { Mobility = 13 };
         var buildings = Enumerable.Range(0, 17).Select(i => new San9ScenarioFixedBuildingRecord(i, (ushort)i, 0, 0, 0, 600, 100, 5, 5, 0, 15, 0, 0)).ToArray();
         var tactics = Enumerable.Range(0, 41).Select(i => new San9ScenarioTacticRecord(i, (ushort)i,
             0, 0, 0, (ushort)(i >= 39 ? 9 : 0), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)).ToArray();
@@ -59,7 +62,7 @@ public sealed class MilitaryContentCompilerTests
         Assert.Equal(new MapCell(3, 0), Assert.Single(definition.BlockedCells));
         Assert.Equal(2, definition.TerrainIds[3]);
         Assert.Equal(15, definition.TerrainIds[4]);
-        Assert.All(definition.Formations, f => Assert.Equal(300, f.MovementBudget));
+        Assert.All(definition.Formations.Where(f => f.Id >= 3), f => Assert.Equal(60, f.MovementBudget));
         foreach (var formation in definition.Formations)
         {
             var source = formations.Single(f => f.Id == formation.Id);
@@ -79,6 +82,15 @@ public sealed class MilitaryContentCompilerTests
                 new[] { BattleRank.Front, BattleRank.Middle, BattleRank.Middle, BattleRank.Middle, BattleRank.Rear }, formation.CaptureRanks);
         }
         var rules = new MilitaryRulebook(definition);
+        // Imported budgets must produce original ordinary daily distances in fine coordinates.
+        foreach (var (id, distance) in new[] { (0, 5), (1, 6), (2, 7), (3, 6) })
+        {
+            var formation = rules.Formations[id];
+            var movement = rules.Map.Advance(new(100, 100), new(160, 100), formation.Footprint,
+                formation.TravelMode, [], formation.MovementBudget);
+            Assert.Equal(new WorldPosition(100 + distance, 100), movement.Position);
+            Assert.False(movement.Arrived);
+        }
         int?[] expectedTraps = [36, null, 35, 35, 35, 35, null, 35, 35, null, 37, null, null, null, null, 37, 37];
         for (int i = 0; i < 17; i++) Assert.Equal(expectedTraps[i], rules.TrapAt(MapCoordinates.Center(new((2000 + i * 10) % 200, (2000 + i * 10) / 200)))?.Id);
         Assert.Equal(38, rules.TrapAt(MapCoordinates.Center(new(3, 20)))?.Id);

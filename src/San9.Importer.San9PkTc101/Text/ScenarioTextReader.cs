@@ -52,6 +52,7 @@ public sealed class ScenarioTextReader(byte[] messages, byte[] executable) : IDi
     public string Office(string key, int id) => Add(key, _messages.PlainText(5065 + 2 * id));
     public string City(string key, int code) => Add(key, _messages.PlainText(721 + 2 * code));
     public string Region(string key, int code) => Add(key, _messages.PlainText(166 + 2 * code));
+    public string? FacilitySuffix(string key, int type) => AddOptional(key, TypeSuffix(type));
     public string Settlement(string key, int code, int type) => Add(key, [.. _messages.PlainText(166 + 2 * code), .. TypeSuffix(type)]);
     public string Person(string key, int family, int given)
     {

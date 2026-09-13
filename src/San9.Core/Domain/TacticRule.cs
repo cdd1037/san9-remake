@@ -2,6 +2,9 @@ using System.Collections.Immutable;
 
 namespace San9.Core.Domain;
 
+public sealed record FacilityAttackModifier(bool UsesRockfallPower, int RangeBonus);
+public sealed record FacilityAttackProfile(OrdinaryAttack? Attack, bool UsesRockfallPower);
+
 public enum TacticEffect
 {
     Martial, FormationTechnology, Construction, StoneFormation, CounterConfusion, CounterTrap,
@@ -12,6 +15,7 @@ public sealed record TacticRule(int Id, int? Category, TacticEffect Effect, int 
     int TrainingRequirement, bool Selectable, bool AffectsFacilities, ImmutableArray<int> CompatibleFormations)
 {
     [System.Text.Json.Serialization.JsonRequired] public int EffectRadius { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public FacilityAttackModifier? FacilityAttack { get; init; }
     internal void Validate(IReadOnlyDictionary<int, FormationRule> formations)
     {
         if (Id < 0 || EffectRadius < 0 || Category is < 0 or > 8 || !Enum.IsDefined(Effect) || Power < 0 || MinimumInterval < 0 ||
@@ -19,6 +23,7 @@ public sealed record TacticRule(int Id, int? Category, TacticEffect Effect, int 
             CompatibleFormations.Distinct().Count() != CompatibleFormations.Length ||
             CompatibleFormations.Any(id => !formations.ContainsKey(id)) ||
             (Effect == TacticEffect.FacilityAttack) != (Category is null) ||
+            (Effect == TacticEffect.FacilityAttack) != (FacilityAttack is not null) || FacilityAttack is { RangeBonus: < 0 } ||
             Selectable && Effect is not (TacticEffect.Martial or TacticEffect.Confusion or TacticEffect.TrapSelection or
                 TacticEffect.Defection or TacticEffect.Illusion or TacticEffect.Taunt or TacticEffect.Inspire or TacticEffect.Heal or TacticEffect.Sorcery or
                 TacticEffect.CounterConfusion or TacticEffect.CounterTrap))

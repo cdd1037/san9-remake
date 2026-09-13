@@ -9,7 +9,7 @@ public sealed class InformationQuery(GameSession session, TextCatalog texts)
     private string Name(string key) => texts.Resolve(key);
     private string Force(int? id) => View.Forces.FirstOrDefault(f => f.Id == id) is { } f ? Name(f.NameKey) : "无";
     private string Person(int? id) => View.Officers.FirstOrDefault(o => o.Id == id) is { } o ? Name(o.NameKey) : "无";
-    private string Place(int? id) => View.Settlements.FirstOrDefault(s => s.Id == id) is { } s ? Name(s.NameKey)
+    private string Place(int? id) => View.Settlements.FirstOrDefault(s => s.Id == id) is { } s ? s.ResolveName(texts)
         : id is int region && View.RegionNameKeys.TryGetValue(region, out string? key) ? Name(key) : "无";
     private string Rank(int? id) => View.Information.Ranks.FirstOrDefault(r => r.Id == id) is { } r ? Name(r.NameKey) : "无";
     private string Office(int? id) => View.Information.Offices.FirstOrDefault(o => o.Id == id) is { } o ? Name(o.NameKey) : "无";
@@ -81,9 +81,9 @@ public sealed class InformationQuery(GameSession session, TextCatalog texts)
                         var state = v.World.Settlements.Single(c => c.Id == s.Id);
                         return Row(s.Id, page switch
                         {
-                            1 => [Name(s.NameKey), Force(s.OwnerId), s.Commerce, s.MaxCommerce, s.Cultivation, s.MaxCultivation, s.PublicOrder],
-                            2 => [Name(s.NameKey), Force(s.OwnerId), (long)state.Population, (long)state.DraftPopulation],
-                            _ => [Name(s.NameKey), Force(s.OwnerId), (long)s.Soldiers, s.Morale, s.Durability, v.Officers.Count(o => o.IsServing && o.SettlementId == s.Id)]
+                            1 => [s.ResolveName(texts), Force(s.OwnerId), s.Commerce, s.MaxCommerce, s.Cultivation, s.MaxCultivation, s.PublicOrder],
+                            2 => [s.ResolveName(texts), Force(s.OwnerId), (long)state.Population, (long)state.DraftPopulation],
+                            _ => [s.ResolveName(texts), Force(s.OwnerId), (long)s.Soldiers, s.Morale, s.Durability, v.Officers.Count(o => o.IsServing && o.SettlementId == s.Id)]
                         }, s.Id);
                     }).ToArray());
             case InformationCategory.Regions:
@@ -95,7 +95,7 @@ public sealed class InformationQuery(GameSession session, TextCatalog texts)
                 {
                     var site = v.Settlements.FirstOrDefault(s => s.Id == p.Key);
                     int? city = v.RegionCityIds.TryGetValue(p.Key, out int c) ? c : null;
-                    return Row(p.Key, [Name(p.Value), Place(city), site is null ? "无" : Name(site.NameKey), Force(site?.OwnerId), site is null ? (CatalogCell)"—" : (CatalogCell)(long)site.Soldiers, site is null ? (CatalogCell)"—" : (CatalogCell)site.Durability], site?.Id ?? city);
+                    return Row(p.Key, [Name(p.Value), Place(city), site is null ? "无" : site.ResolveName(texts), Force(site?.OwnerId), site is null ? (CatalogCell)"—" : (CatalogCell)(long)site.Soldiers, site is null ? (CatalogCell)"—" : (CatalogCell)site.Durability], site?.Id ?? city);
                 }).ToArray());
             case InformationCategory.Units:
                 return new("部队一览", ["状态"], ["部队", "势力", "士兵", "位置"], v.World.Units.Where(u => Owner(u.OwnerId)).Select(u => Row(u.Id, [$"{Force(u.OwnerId)}部队", Force(u.OwnerId), (long)u.Soldiers, $"{u.Cell.X}, {u.Cell.Y}"])).ToArray());

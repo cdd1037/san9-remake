@@ -104,17 +104,23 @@ public static class ScenarioContentCompiler
             Relations = summaries.SelectMany(a => summaries.Where(b => b.Id > a.Id).Select(b =>
                 new San9.Core.Domain.ForceRelation(a.Id, b.Id, forces[a.Id].DiplomaticRelations[b.Id]))).ToArray()
         };
+        var suffixKeys = fixedBuildings.Select(f => (f.Id, Key: text.FacilitySuffix($"facility-suffix.{f.Id}", f.Id)))
+                .Where(p => p.Key is not null).ToDictionary(p => p.Id, p => p.Key!);
         var catalog = text.Catalog;
         if (catalog.Resolve(summaries.Single(f => f.Id == 5).NameKey) != "董卓") throw new InvalidDataException("Unexpected 190-year player force.");
         var units = UnitContentCompiler.Compile(sourceUnits, Root);
         var snapshot = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, header.ScenarioId.ToString(System.Globalization.CultureInfo.InvariantCulture),
             header.StartDate.Year, header.StartDate.Month, header.StartDate.Day, 5, summaries, settlements.OrderBy(s => s.Id).ToArray(), regions, regionCities)
         { UnbuiltPlaces = personPlaces.Where(p => settlements.All(s => s.Id != p.Id)).Select(p => new San9.Core.Domain.PersonPlace(p.Id, San9.Core.Domain.MapCoordinates.Center(new(p.X, p.Y)))).ToImmutableArray(),
+            FacilityNameSuffixKeys = suffixKeys,
             CityConnections = PersonnelGeographyCompiler.CityConnections(Read(San9ScenarioSquareArchive.ReadKnownRecords),
                 San9ScenarioSquareArchive.MapWidth, San9ScenarioSquareArchive.MapHeight, regionCities,
                 zones.Where(z => z.FixedBuildingId == 1).Select(z => 50 + z.Id).ToHashSet()),
             Military = MilitaryContentCompiler.Compile(Read(San9ScenarioSquareArchive.ReadKnownRecords), Read(San9ScenarioTerrainArchive.ReadKnownRecords),
-                Read(San9ScenarioFormationArchive.ReadKnownRecords), settlements, zones, fixedBuildings, Read(San9ScenarioTacticArchive.ReadKnownRecords)),
+                Read(San9ScenarioFormationArchive.ReadKnownRecords), settlements, zones, fixedBuildings, Read(San9ScenarioTacticArchive.ReadKnownRecords),
+                settlements.ToDictionary(s => s.Id, s => Enumerable.Range(0, San9ScenarioTacticArchive.RecordCount)
+                    .Where(id => s.Kind == San9.Core.Domain.SettlementKind.City ? cities[s.Id].HasTactic(id) : zones[s.Id - 50].HasTactic(id)).ToImmutableArray())) with
+                { LinkRules = TacticLinkContentCompiler.Compile(exe, persons, officers.Select(o => o.State.Id), relationshipsEnabled: true) },
             Officers = officers, Units = units, Information = information, DomesticPairs = DomesticContentCompiler.Compile(persons),
             ImperialSealId = 79, EmperorId = persons.Take(700).Select((p, id) => (p, id)).Where(v => v.p.BiographyResourceCode is 563 or 564 or 565 && v.p.StatusCode != 8).Select(v => (int?)v.id).FirstOrDefault() };
         snapshot.Validate(); catalog.Validate(); return (snapshot, catalog);

@@ -18,12 +18,18 @@ internal static class GovernanceMaintenance
     internal static void RepairCommander(WorldMutation world, int placeId, GovernanceRulebook rules, List<DomainEvent> events)
     {
         var people = world.Officers.Values.Where(p => p.SettlementId == placeId && p.IsServing).ToArray();
-        var busy = world.Simulation.Tasks.Where(t => t.Journey is not null).Select(t => t.OfficerId).ToHashSet();
-        var selected = rules.SelectCommander(people.Where(p => !busy.Contains(p.Id)), world.AbilitiesFor(people));
+        var selected = Commander(world, placeId, rules);
         var previous = people.Where(p => p.IsCommander).Select(p => p.Id).Order().ToArray();
         foreach (var person in people) world.Replace(person with { IsCommander = person.Id == selected?.Id });
         if (!previous.SequenceEqual(selected is null ? [] : new[] { selected.Id }))
             events.Add(new CommanderChangedEvent(world.Clock, placeId, selected?.Id));
+    }
+
+    internal static OfficerState? Commander(WorldMutation world, int placeId, GovernanceRulebook rules)
+    {
+        var people = world.Officers.Values.Where(p => p.SettlementId == placeId && p.IsServing &&
+            !world.Simulation.Tasks.Any(t => t.OfficerId == p.Id && t.Journey is not null)).ToArray();
+        return rules.SelectCommander(people, world.AbilitiesFor(people));
     }
 
     internal static CommandRejection RepairCorps(WorldMutation world, int corpsId, GovernanceRulebook rules, List<DomainEvent> events)

@@ -28,6 +28,39 @@ public sealed class MilitaryMovementTests
     }
 
     [Theory]
+    [InlineData(MilitaryOrderKind.Return)]
+    [InlineData(MilitaryOrderKind.Transport)]
+    public void DeliveryOrdersRevalidateTargetsAndRejectDuplicateSubmissions(MilitaryOrderKind kind)
+    {
+        var world = World();
+        var engine = Engine(world, Rules(10));
+        var deploy = Deploy() with { Order = new(MilitaryOrderKind.Move, new(32, 7), null), CargoMoney = 0, CargoFood = 0 };
+        Assert.True(engine.Execute(Player, deploy).Submission.Accepted);
+        var order = new OrderUnitCommand(Guid.NewGuid(), 1, engine.Snapshot.Simulation.NextSequence, 0, new(kind, null, 2));
+        Assert.True(engine.Validate(Player, order).Accepted);
+        var mutation = world.BeginMutation();
+        mutation.Replace(mutation.Settlements[2] with { OwnerId = null });
+        world.Commit(mutation);
+        var before = engine.Snapshot.StateHash;
+        var rejected = engine.Execute(Player, order);
+        Assert.False(rejected.Submission.Accepted);
+        Assert.Empty(rejected.Events);
+        Assert.Equal(before, engine.Snapshot.StateHash);
+        mutation = world.BeginMutation();
+        mutation.Replace(mutation.Settlements[2] with { OwnerId = 1 });
+        world.Commit(mutation);
+        Assert.True(engine.Execute(Player, order).Submission.Accepted);
+        before = engine.Snapshot.StateHash;
+        rejected = engine.Execute(Player, order);
+        Assert.False(rejected.Submission.Accepted);
+        Assert.Empty(rejected.Events);
+        Assert.Equal(before, engine.Snapshot.StateHash);
+        Assert.Single(Advance(engine).Events.OfType<UnitAbsorbedEvent>());
+        Assert.Empty(Advance(engine).Events.OfType<UnitAbsorbedEvent>());
+        Assert.Equal(500u, engine.Snapshot.Settlements.Single(s => s.Id == 2).Soldiers);
+    }
+
+    [Theory]
     [InlineData(100u, 400u, 500u, 0L)]
     [InlineData(49900u, 400u, 50000u, 300L)]
     public void WoundedReturnSurvivesRestoreAndDemobilizesOverflow(uint initial, uint cargo, uint expected, long loss)

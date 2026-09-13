@@ -47,7 +47,7 @@ public partial class Main : Node
             var initial = content.Scenario;
             // A controlled, in-memory boundary fixture for GPU verification; never changes the content package.
             if (options.RuntimeSmoke) initial = initial with { Settlements = initial.Settlements.Select(s => s.Id == 15 ? s with { Commerce = 300, Cultivation = 150 } : s).ToArray() };
-            var session = San9.Application.GameSession.Start(initial, 190);
+            var session = San9.Application.GameSession.Start(initial, 190, options.ComputerDamageBonusPercent);
             world.Session = session;
             var selection = new StrategySelection(session);
             world.BuildingPicked += selection.SelectBuilding;

@@ -93,6 +93,10 @@ public sealed class HeadlessHost
             string? military = entry switch
             {
                 UnitDeployedEvent => "unit-deployed",
+                FacilityConstructionChangedEvent { Phase: "started" } => "construction-started",
+                FacilityConstructionChangedEvent { Phase: "completed" } => "construction-completed",
+                FacilityConstructionChangedEvent => "construction-changed",
+                TacticActivatedEvent => "tactic-activated",
                 UnitMovedEvent { Reachable: false } => "unit-blocked",
                 UnitMovedEvent => "unit-moved",
                 UnitOrderChangedEvent { Reason: "target-invalid" } => "unit-target-invalid",
@@ -146,6 +150,11 @@ public sealed class HeadlessHost
         {
             _report.Goal = "G06";
             _report.Scope = "Ordinary battles, capture, force elimination and deterministic replay; event counts describe exercised paths. Advanced warfare and complete strategic AI remain pending.";
+        }
+        if (_report.MilitaryEvents.Keys.Any(key => key.StartsWith("construction-", StringComparison.Ordinal) || key == "tactic-activated"))
+        {
+            _report.Goal = "G07";
+            _report.Scope = "Construction or tactics through public simulation and deterministic replay; event counts describe exercised paths, not complete G07 acceptance.";
         }
     }
 

@@ -3,22 +3,22 @@ using San9.Core.Domain;
 
 namespace San9.Core.Simulation;
 
-public sealed record SettlementCapturedEvent(GameClock Clock, int SettlementId, int? PreviousOwnerId, int WinnerUnitId, bool Destroyed) : DomainEvent;
-public sealed record FacilityDestroyedEvent(GameClock Clock, int SettlementId, int AttackerUnitId) : DomainEvent;
+public sealed record SettlementCapturedEvent(GameClock Clock, int SettlementId, int? PreviousOwnerId, BattleSource Winner, bool Destroyed) : DomainEvent;
+public sealed record FacilityDestroyedEvent(GameClock Clock, int SettlementId, BattleSource Attacker) : DomainEvent;
 public sealed record ForceEliminatedEvent(GameClock Clock, int ForceId, bool WasPlayerControlled) : DomainEvent;
 public sealed record ForceLeaderChangedEvent(GameClock Clock, int ForceId, int? PreviousId, int OfficerId) : DomainEvent;
 
 internal static class BattleAftermath
 {
-    internal static void TerminateUnit(WorldMutation world, int id, int? winnerId, SimulationRules rules, List<DomainEvent> events)
+    internal static void TerminateUnit(WorldMutation world, int id, BattleSource? winner, SimulationRules rules, List<DomainEvent> events)
     {
         var unit = world.Units[id];
         var shape = MilitaryCombat.Area(unit, rules.Military!);
-        ResolvePeople(world, p => p.UnitId == id, shape, unit, winnerId, unit.ServicePlaceId, rules, events);
+        ResolvePeople(world, p => p.UnitId == id, shape, unit, winner, unit.ServicePlaceId, rules, events);
         int? city = unit.ServicePlaceId is int home ?
             world.Settlements.GetValueOrDefault(home)?.Kind == SettlementKind.City ? home : rules.Personnel.RegionCities.GetValueOrDefault(home, -1) : null;
         if (city is int cityId && (!world.Settlements.TryGetValue(cityId, out var s) || s.Kind != SettlementKind.City)) city = null;
-        UnitTerminationService.Complete(world, id, winnerId, city, rules.Governance, events, repairCorps: false);
+        UnitTerminationService.Complete(world, id, winner, city, rules.Governance, events, repairCorps: false);
         foreach (var other in world.Units.Values.Where(u => u.Order?.UnitId == id).ToArray())
         {
             world.Replace(other with { Order = null });
@@ -26,13 +26,12 @@ internal static class BattleAftermath
         }
     }
 
-    internal static void ResolveSettlementDefeat(WorldMutation world, int id, int winnerId, SimulationRules rules, List<DomainEvent> events)
+    internal static void ResolveSettlementDefeat(WorldMutation world, int id, BattleSource winner, SimulationRules rules, List<DomainEvent> events)
     {
         var settlement = world.Settlements[id];
         if (!MilitaryCombat.Defeated(settlement))
             throw new InvalidOperationException("Settlement has not fallen.");
-        var winner = world.Units[winnerId];
-        if (!MilitaryCombat.Hostile(world, winner.OwnerId, settlement.OwnerId)) throw new InvalidOperationException("Invalid settlement captor.");
+        if (!winner.Exists(world) || !MilitaryCombat.Hostile(world, winner.Owner(world), settlement.OwnerId)) throw new InvalidOperationException("Invalid settlement captor.");
         var definition = rules.Military!.Place(settlement);
         if (!settlement.CanHostPersons)
         {
@@ -43,24 +42,24 @@ internal static class BattleAftermath
                 world.Replace(unit with { Order = null });
                 events.Add(new UnitOrderChangedEvent(world.Clock, unit.Id, null, "facility-destroyed"));
             }
-            events.Add(new FacilityDestroyedEvent(world.Clock, id, winnerId));
+            events.Add(new FacilityDestroyedEvent(world.Clock, id, winner));
             return;
         }
         bool destroyed = settlement.Durability == 0 && definition.DestroyedAtZeroDurability;
         if (destroyed)
         {
-            ResourceAccounts.Report(world, new(ResourceOwnerKind.Settlement, id), ResourceKind.Soldiers, "settlement-destroyed", winnerId,
+            ResourceAccounts.Report(world, new(ResourceOwnerKind.Settlement, id), ResourceKind.Soldiers, "settlement-destroyed", winner.Id,
                 -(long)settlement.Soldiers, -(long)settlement.Soldiers, events);
-            ResourceAccounts.Report(world, new(ResourceOwnerKind.Settlement, id), ResourceKind.Wounded, "settlement-destroyed", winnerId,
+            ResourceAccounts.Report(world, new(ResourceOwnerKind.Settlement, id), ResourceKind.Wounded, "settlement-destroyed", winner.Id,
                 -(long)settlement.Wounded, -(long)settlement.Wounded, events);
         }
         var traveling = world.Simulation.Tasks.Where(t => t.Journey is not null).Select(t => t.OfficerId).ToHashSet();
         ResolvePeople(world, p => p.SettlementId == id && !traveling.Contains(p.Id), new(definition.Position, definition.Footprint),
-            winner, winnerId, id, rules, events);
+            null, winner, id, rules, events);
         if (settlement.OwnerId is int owner)
         {
             var source = ResourceAccounts.Resolve(world, owner, settlement.CorpsId);
-            var destination = ResourceAccounts.Resolve(world, winner.OwnerId, winner.CorpsId);
+            var destination = ResourceAccounts.Resolve(world, winner.Owner(world), winner.Corps(world));
             long weight = (long)settlement.Soldiers + settlement.Wounded;
             long total = world.Settlements.Values.Where(s => s.OwnerId == owner && ResourceAccounts.Resolve(world, owner, s.CorpsId) == source)
                 .Sum(s => (long)s.Soldiers + s.Wounded) + world.Units.Values.Where(u => u.OwnerId == owner &&
@@ -73,11 +72,11 @@ internal static class BattleAftermath
                 ResourceAccounts.Change(world, destination, resource, amount, "settlement-captured", id, events);
             }
         }
-        world.Replace(settlement with { OwnerId = destroyed ? null : winner.OwnerId, CorpsId = destroyed ? null : winner.CorpsId,
+        world.Replace(settlement with { OwnerId = destroyed ? null : winner.Owner(world), CorpsId = destroyed ? null : winner.Corps(world),
             Facility = settlement.Facility is { } instance ? instance with { BuilderUnitId = null } : null,
             ConfusionDaysRemaining = 0,
             IsDestroyed = destroyed, Soldiers = destroyed ? 0 : settlement.Soldiers, Wounded = destroyed ? 0 : settlement.Wounded,
-            Morale = destroyed ? 0 : Math.Max(1, winner.Morale), Durability = destroyed ? 0 :
+            Morale = destroyed ? 0 : Math.Max(1, winner.Morale(world)), Durability = destroyed ? 0 :
                 settlement.Durability > 0 ? settlement.Durability : Math.Max(1, settlement.MaxDurability / 4) });
         foreach (var task in world.Simulation.Tasks.Where(t => t.OriginSettlementId == id || t.Journey?.DestinationPlaceId == id)
             .OrderBy(t => t.Sequence).ThenBy(t => t.Id).ToArray())
@@ -86,59 +85,60 @@ internal static class BattleAftermath
             events.Add(new TaskCancelledEvent(task.Id, world.Clock, "settlement-captured"));
             if (task.Journey is not null) PersonnelReturns.Start(world, task, rules.Personnel, events, true);
         }
-        winner = world.Units[winnerId];
-        world.Replace(winner with { Morale = Math.Min(100, winner.Morale + 10), Order = null });
+        winner.Reward(world, 0, 10);
+        if (!winner.IsSettlement) world.Replace(world.Units[winner.Id] with { Order = null });
         foreach (var unit in world.Units.Values.Where(u => u.Order?.SettlementId == id).ToArray())
         {
             world.Replace(unit with { Order = null });
             events.Add(new UnitOrderChangedEvent(world.Clock, unit.Id, null, "settlement-changed-owner"));
         }
-        events.Add(new SettlementCapturedEvent(world.Clock, id, settlement.OwnerId, winnerId, destroyed));
+        events.Add(new SettlementCapturedEvent(world.Clock, id, settlement.OwnerId, winner, destroyed));
     }
 
     private static void ResolvePeople(WorldMutation world, Func<OfficerState, bool> located,
-        MapOccupancy from, UnitState movement, int? winnerId, int? fallbackPlace, SimulationRules rules, List<DomainEvent> events)
+        MapOccupancy from, UnitState? defeatedUnit, BattleSource? winner, int? fallbackPlace, SimulationRules rules, List<DomainEvent> events)
     {
         var military = rules.Military!;
-        var formation = military.Formations[movement.FormationId!.Value];
+        var formation = defeatedUnit?.FormationId is int formationId ? military.Formations[formationId] : null;
         foreach (var original in world.Officers.Values.Where(located).OrderBy(p => p.Id).ToArray())
         {
-            var retreatStart = original.UnitId is null ? from.Position : movement.Position;
-            var retreatShape = original.UnitId is null ? new Footprint(1, 1) : formation.Footprint;
-            var retreatMode = original.UnitId is null ? TravelMode.Land : formation.TravelMode;
+            var retreatStart = defeatedUnit?.Position ?? from.Position;
+            var retreatShape = formation?.Footprint ?? new Footprint(1, 1);
+            var retreatMode = formation?.TravelMode ?? TravelMode.Land;
             int? retreat = world.Settlements.Values.Where(s => s.OwnerId == original.OwnerId && original.OwnerId is not null && s.CanHostPersons &&
                     !s.IsDestroyed && s.Durability > 0 && (original.UnitId is not null || s.Id != fallbackPlace) && military.TryPlace(s, out _))
                 .OrderBy(s => from.DistanceTo(new(military.Place(s).Position, military.Place(s).Footprint))).ThenBy(s => s.Id)
                 .Where(s => military.Map.AdvanceIntoRange(retreatStart,
                     new(military.Place(s).Position, military.Place(s).Footprint), retreatShape, retreatMode,
-                    MilitaryMovement.Occupancy(world, military, movement.Id, s.Id).Where(o => !o.Overlaps(from)), 0, 1).Reachable)
+                    MilitaryMovement.Occupancy(world, military, defeatedUnit?.Id, s.Id).Where(o => !o.Overlaps(from)), 0, 1).Reachable)
                 .Select(s => (int?)s.Id).FirstOrDefault();
-            if (original.IsServing && winnerId is int winner)
+            if (original.IsServing && winner is { } captor)
             {
-                int nearby = world.Units.Values.Count(u => u.OwnerId == world.Units[winner].OwnerId && u.Soldiers > 0 &&
+                int nearby = world.Units.Values.Count(u => u.OwnerId == captor.Owner(world) && u.Soldiers > 0 &&
                     MilitaryCombat.Area(u, military).DistanceTo(from) <= military.Formations[u.FormationId!.Value].Attack?.Range);
+                if (captor.IsSettlement) nearby++;
                 bool mount = world.Treasures.Values.Any(t => t.HolderId == original.Id && t.Discovery != TreasureDiscovery.Disabled &&
                     rules.Treasures.Items.TryGetValue(t.Id, out var treasure) && treasure.EscapeMount);
                 var rank = original.UnitId is null ? BattleRank.Middle :
                     world.Units[original.UnitId.Value].MemberRanks.TryGetValue(original.Id, out var memberRank) ? memberRank :
                     throw new InvalidOperationException("Missing field member rank.");
-                BattlePersonnel.Resolve(world, original.Id, winner, retreat, nearby, rank, mount, false,
+                BattlePersonnel.Resolve(world, original.Id, captor, retreat, nearby, rank, mount, false,
                     rules.Personnel, rules.Governance, events);
             }
             else
             {
                 PersonnelTransitions.CancelMissions(world, original.Id, "battle-location-lost", events, rules.Personnel, true);
                 var person = world.Officers[original.Id];
-                if (winnerId is int receivingUnit)
+                if (winner is { } recipient)
                 {
-                    var captor = world.Units[receivingUnit];
-                    if (person.Status == OfficerStatus.Captive && person.OwnerId == captor.OwnerId)
+                    if (person.Status == OfficerStatus.Captive && person.OwnerId == recipient.Owner(world))
                     {
                         if (retreat is int home) BattlePersonnel.Escape(world, person.Id, home, rules.Personnel, rules.Governance, events);
                         else Detach(world, person, fallbackPlace, events);
                     }
                     else if (person.Status == OfficerStatus.Captive)
-                        world.Replace(person with { UnitId = receivingUnit, SettlementId = null, RegionId = null, IsCommander = false });
+                        world.Replace(person with { UnitId = recipient.IsSettlement ? null : recipient.Id,
+                            SettlementId = recipient.IsSettlement ? recipient.Id : null, RegionId = null, IsCommander = false });
                     else Detach(world, person, fallbackPlace, events);
                 }
                 else if (retreat is int home && person.OwnerId is not null && (person.IsServing || person.Status == OfficerStatus.Captive))

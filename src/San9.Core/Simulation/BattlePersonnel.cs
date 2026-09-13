@@ -7,12 +7,12 @@ public sealed record OfficerEscapedBattleEvent(GameClock Clock, int OfficerId, i
 internal static class BattlePersonnel
 {
     // The battle coordinator supplies the reachable retreat destination and nearby capture participants.
-    internal static bool Resolve(WorldMutation world, int officerId, int captorUnitId, int? retreatSettlementId,
+    internal static bool Resolve(WorldMutation world, int officerId, BattleSource captor, int? retreatSettlementId,
         int nearbyAttackers, BattleRank rank, bool hasEscapeMount, bool doublesCapture,
         PersonnelRulebook places, GovernanceRulebook governance, List<DomainEvent> events)
     {
         if (!world.Officers.TryGetValue(officerId, out var person) || !person.IsServing || person.OwnerId is null ||
-            !world.Units.TryGetValue(captorUnitId, out var captor) || captor.OwnerId == person.OwnerId)
+            !captor.Exists(world) || captor.Owner(world) == person.OwnerId)
             throw new ArgumentException("Invalid battle personnel participants.");
         if (retreatSettlementId is int id && (!world.Settlements.TryGetValue(id, out var retreat) ||
             retreat.OwnerId != person.OwnerId || !retreat.CanHostPersons || retreat.Durability <= 0))
@@ -21,7 +21,8 @@ internal static class BattlePersonnel
             retreatSettlementId is not null, hasEscapeMount, doublesCapture);
         bool captured = chance == 100 || chance > 0 && (int)(world.NextRandom("battle-personnel-capture") % 100) < chance;
         if (captured)
-            PersonnelTransitions.Capture(world, officerId, null, captorUnitId, places, events);
+            PersonnelTransitions.Capture(world, officerId, captor.IsSettlement ? captor.Id : null,
+                captor.IsSettlement ? null : captor.Id, places, events);
         else
         {
             int destination = retreatSettlementId ?? throw new InvalidOperationException("Escape requires a retreat destination.");

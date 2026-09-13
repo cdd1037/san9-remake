@@ -71,7 +71,7 @@ internal static class WorldInvariants
         var sim = state.Simulation;
         _ = new GameClock(sim.Started.Year, sim.Started.Month, sim.Started.Day);
         if (!sim.Started.IsXunBoundary || sim.Started.DayNumber > state.Clock.DayNumber ||
-            !Enum.IsDefined(sim.Boundary) || sim.Controls.IsDefault || sim.Tasks.IsDefault ||
+            sim.ComputerDamageBonusPercent < 0 || !Enum.IsDefined(sim.Boundary) || sim.Controls.IsDefault || sim.Tasks.IsDefault ||
             sim.RandomStreams.IsDefault ||
             sim.ActiveControl < 0 || sim.ActiveControl > sim.Controls.Length || sim.NextSequence < 0 ||
             sim.NextUnitId < 0 || sim.NextUnitId > (long)int.MaxValue + 1 || state.Units.Keys.Any(id => id >= sim.NextUnitId) ||

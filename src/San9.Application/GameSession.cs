@@ -35,7 +35,7 @@ public sealed class GameSession
         _simulation = simulation;
         _engineFactory = engineFactory;
         _initialEvents = simulation.InitialEvents;
-        _snapshotSource = new(definition.Content);
+        _snapshotSource = new(definition.Content, definition.MilitaryRules);
         _view = _snapshotSource.Project(simulation.Snapshot);
         _initialView = _view;
         _readOnlyRecords = _records.AsReadOnly();
@@ -89,12 +89,13 @@ public sealed class GameSession
     }
 
     public static string Fingerprint(ScenarioInitialState definition) => new ScenarioSessionDefinition(definition).Fingerprint;
-    public static GameSession Start(ScenarioInitialState definition, ulong seed) => Start(definition, seed, EngineFactory(definition));
+    public static GameSession Start(ScenarioInitialState definition, ulong seed, int computerDamageBonusPercent = 0) =>
+        Start(definition, seed, EngineFactory(definition), computerDamageBonusPercent);
 
-    internal static GameSession Start(ScenarioInitialState definition, ulong seed, Func<WorldState, SimulationEngine> factory)
+    internal static GameSession Start(ScenarioInitialState definition, ulong seed, Func<WorldState, SimulationEngine> factory, int computerDamageBonusPercent = 0)
     {
         var owned = new ScenarioSessionDefinition(definition);
-        return new(owned, factory(owned.CreateWorld(seed)), factory);
+        return new(owned, factory(owned.CreateWorld(seed, computerDamageBonusPercent)), factory);
     }
 
     public static GameSession Restore(ScenarioInitialState definition, SessionSnapshot snapshot) =>

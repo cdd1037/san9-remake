@@ -30,7 +30,7 @@ public partial class MapAnnotations : Node2D
         foreach (var s in Scenario.Settlements)
         {
             string soldiers = s.Soldiers.ToString(System.Globalization.CultureInfo.InvariantCulture);
-            _labels.Add(s.Id, (soldiers, UiFont.GetStringSize(soldiers, fontSize: 16).X, Texts.Resolve(s.NameKey)));
+            _labels.Add(s.Id, (soldiers, UiFont.GetStringSize(soldiers, fontSize: 16).X, s.ResolveName(Texts)));
         }
         _textures = Textures.CreateScope(owner: this);
     }
@@ -44,7 +44,7 @@ public partial class MapAnnotations : Node2D
             foreach (var s in _settlements.Values)
             {
                 string soldiers=s.Soldiers.ToString(System.Globalization.CultureInfo.InvariantCulture);
-                _labels[s.Id]=(soldiers,UiFont.GetStringSize(soldiers,fontSize:16).X,Texts.Resolve(s.NameKey));
+                _labels[s.Id]=(soldiers,UiFont.GetStringSize(soldiers,fontSize:16).X,s.ResolveName(Texts));
             }
             QueueRedraw();
         }

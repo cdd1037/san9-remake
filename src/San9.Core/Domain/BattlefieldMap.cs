@@ -4,7 +4,11 @@ namespace San9.Core.Domain;
 
 public enum TravelMode { Land, Water }
 
-public sealed record TerrainPassage(int Id, int? LandCost, int? WaterCost);
+public sealed record TerrainPassage(int Id, int? LandCost, int? WaterCost)
+{
+    [System.Text.Json.Serialization.JsonRequired] public bool IsWater { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public bool StopsRockfall { get; init; }
+}
 
 public readonly record struct Footprint(int Width, int Height)
 {
@@ -57,6 +61,12 @@ public sealed class BattlefieldMap
     public int Height { get; }
     public int FineWidth { get; }
     public int FineHeight { get; }
+    public bool IsWater(WorldPosition position)
+    {
+        var cell = MapCoordinates.Cell(position);
+        return cell.X < Width && cell.Y < Height && terrains[cells[cell.Y * Width + cell.X]].IsWater;
+    }
+    internal bool StopsRockfall(MapCell cell) => terrains[cells[cell.Y * Width + cell.X]].StopsRockfall;
 
     public DailyMovement Advance(WorldPosition start, WorldPosition destination, Footprint footprint,
         TravelMode mode, IEnumerable<MapOccupancy> occupied, int budget)
@@ -72,9 +82,20 @@ public sealed class BattlefieldMap
     {
         ArgumentOutOfRangeException.ThrowIfNegative(budget);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(range);
+        return AdvanceIntoRange(start, target, footprint, mode, occupied, budget, _ => range);
+    }
+
+    public DailyMovement AdvanceIntoRange(WorldPosition start, MapOccupancy target, Footprint footprint,
+        TravelMode mode, IEnumerable<MapOccupancy> occupied, int budget, Func<WorldPosition, int> range)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(budget);
+        ArgumentNullException.ThrowIfNull(range);
         var occupancy = occupied.Append(target).ToArray();
         var route = Search(start, footprint, mode, occupancy, p =>
-            new MapOccupancy(p, footprint).DistanceTo(target) <= range);
+        {
+            int available = range(p);
+            return available > 0 && new MapOccupancy(p, footprint).DistanceTo(target) <= available;
+        });
         return Consume(start, route, footprint, mode, occupancy, budget);
     }
 

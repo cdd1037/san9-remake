@@ -16,7 +16,7 @@ internal sealed class ScenarioSessionDefinition
             Information = definition.Information.Copy(), Forces = definition.Forces.ToArray(),
             Officers = definition.Officers.ToArray(), Units = definition.Units.ToArray(),
             Settlements = definition.Settlements.Select(s => s with { Icons = s.Icons.ToArray() }).ToArray(),
-            RegionNameKeys = new(definition.RegionNameKeys), RegionCityIds = new(definition.RegionCityIds)
+            FacilityNameSuffixKeys = new(definition.FacilityNameSuffixKeys), RegionNameKeys = new(definition.RegionNameKeys), RegionCityIds = new(definition.RegionCityIds)
         };
         MilitaryRules = Content.Military is { } military ? new MilitaryRulebook(military) : null;
         Fingerprint = CanonicalJson.Hash(new
@@ -41,13 +41,13 @@ internal sealed class ScenarioSessionDefinition
     internal ScenarioInitialState Content { get; }
     internal MilitaryRulebook? MilitaryRules { get; }
     internal string Fingerprint { get; }
-    internal WorldState CreateWorld(ulong seed) => WorldState.Create(new(Content.Year, Content.Month, Content.Day), seed,
+    internal WorldState CreateWorld(ulong seed, int computerDamageBonusPercent = 0) => WorldState.Create(new(Content.Year, Content.Month, Content.Day), seed,
         Forces().Select(f => f.Id == Content.PlayerForceId ? f with { IsBarbarian = false } : f),
         Settlements(), Content.Officers.Select(o => o.State), Content.Units, Content.Information.Corps,
         Content.Information.TreasureStates, Content.Information.Relations,
         Content.Forces.OrderBy(f => f.Id == Content.PlayerForceId ? 0 : 1).ThenBy(f => f.Id)
             .Select(f => new ControlSeat(f.Id == Content.PlayerForceId ? "player" : $"ai:{f.Id}", f.Id,
-                f.Id == Content.PlayerForceId ? ControllerKind.Player : ControllerKind.Automatic)));
+                f.Id == Content.PlayerForceId ? ControllerKind.Player : ControllerKind.Automatic)), computerDamageBonusPercent);
 
     private IEnumerable<ForceState> Forces() => Content.Forces.Select(f => new ForceState(f.Id, f.Money, f.Food, f.Trust)
     {

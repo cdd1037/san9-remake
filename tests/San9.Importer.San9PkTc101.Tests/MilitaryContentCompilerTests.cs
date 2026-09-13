@@ -25,14 +25,18 @@ public sealed class MilitaryContentCompilerTests
             0, 0, 0, (ushort)(i >= 39 ? 9 : 0), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)).ToArray();
         tactics[12] = tactics[12] with { CompatibleArrayTypeMaskHigh = (1 << 5) | (1 << 10) };
         tactics[15] = tactics[15] with { CompatibleArrayTypeMaskLow = 1 << 8 };
-        var definition = MilitaryContentCompiler.Compile(squares, terrains, formations, places, [], buildings, tactics);
+        var definition = MilitaryContentCompiler.Compile(squares, terrains, formations, places, [], buildings, tactics, places.ToDictionary(p => p.Id, _ => System.Collections.Immutable.ImmutableArray<int>.Empty));
+        Assert.Equal(8, definition.CityInfluence!.RadiusCells);
+        Assert.Equal(5, definition.Geography.FootprintScale);
+        Assert.Equal(10, definition.CityInfluence.LandTacticBonus);
+        Assert.Equal(squares.Where(s => s.PathBlockingBits == 0x01fe).Select(s => new MapCell(s.GridX, s.GridY)), definition.Geography.BlockedCells);
         Assert.Equal(40000, definition.RegionIds.Length);
         Assert.All(definition.RegionIds, id => Assert.Equal(0, id));
         var geographicSquares = squares.ToArray();
         geographicSquares[1] = geographicSquares[1] with { ZoneCode = 50 };
         geographicSquares[2] = geographicSquares[2] with { ZoneCode = ushort.MaxValue };
         San9ScenarioZoneRecord[] geographicZones = [new(0, 0, 0, ushort.MaxValue, 0, 0, ushort.MaxValue, 3, 0, 0, 0, 0)];
-        var geography = MilitaryContentCompiler.Compile(geographicSquares, terrains, formations, places, geographicZones, buildings, tactics);
+        var geography = MilitaryContentCompiler.Compile(geographicSquares, terrains, formations, places, geographicZones, buildings, tactics, places.ToDictionary(p => p.Id, _ => System.Collections.Immutable.ImmutableArray<int>.Empty));
         Assert.Equal(50, geography.RegionIds[1]);
         Assert.Null(geography.RegionIds[2]);
         var geographicRules = new MilitaryRulebook(geography);
@@ -43,6 +47,9 @@ public sealed class MilitaryContentCompilerTests
         Assert.Equal(15, definition.Formations.Single(f => f.Id == 8).RequiredTacticId);
         Assert.Null(definition.Formations.Single(f => f.Id == 20).RequiredTacticId);
         Assert.Equal(TacticEffect.CounterTrap, definition.Tactics.Single(t => t.Id == 21).Effect);
+        Assert.Equal(new FacilityAttackModifier(true, 0), definition.Tactics.Single(t => t.Id == 39).FacilityAttack);
+        Assert.Equal(new FacilityAttackModifier(false, 5), definition.Tactics.Single(t => t.Id == 40).FacilityAttack);
+        Assert.All(definition.Tactics.Where(t => t.Id < 39), t => Assert.Null(t.FacilityAttack));
         Assert.Equal(TacticEffect.CounterConfusion, definition.Tactics.Single(t => t.Id == 22).Effect);
         Assert.True(definition.Tactics.Single(t => t.Id == 22).Selectable);
         Assert.Equal(Enumerable.Range(0, 17), definition.Terrains.Select(t => t.Id));
@@ -54,9 +61,12 @@ public sealed class MilitaryContentCompilerTests
         foreach (var formation in definition.Formations)
         {
             var source = formations.Single(f => f.Id == formation.Id);
+            Assert.Equal(source.Id == 11 ? new[] { 0 } : [], formation.MartialTacticVulnerabilities);
             Assert.Equal(new CombatProfile(source.AgainstUnits, source.AgainstSoldiers, source.AgainstWalls,
                 source.DefensePower, source.Id == 7 ? 80 : 50), formation.Combat);
-            Assert.Equal(source.Id == 27 ? null : new OrdinaryAttack(1, true), formation.Attack);
+            Assert.Equal(source.Id == 27 ? null : new OrdinaryAttack(source.Id == 10 ? 15 : source.Id is 21 or 26 ? 5 : 10, true)
+                { ElevationBonusPerLevel = source.Id < 20 ? 5 : 0, MaximumElevationBonus = source.Id < 20 ? 10 : 0,
+                    RequiresWaterOrHarbor = source.Id is 21 or 26 }, formation.Attack);
             Assert.Equal(source.Id is >= 20 and <= 26 ?
                 [BattleRank.Middle, BattleRank.Middle, BattleRank.Middle, BattleRank.Middle, BattleRank.Middle] :
                 new[] { BattleRank.Front, BattleRank.Middle, BattleRank.Middle, BattleRank.Middle, BattleRank.Rear }, formation.CaptureRanks);
@@ -79,8 +89,8 @@ public sealed class MilitaryContentCompilerTests
         Assert.Equal(new CombatProfile(10, 10, 0, 10, 50), Assert.Single(definition.Places).Combat);
         Assert.False(Assert.Single(definition.Places).DestroyedAtZeroDurability);
         Assert.Equal(15, Assert.Single(definition.Places).WoundedRecovery);
-        Assert.Throws<InvalidDataException>(() => MilitaryContentCompiler.Compile(squares, terrains[..16], formations, places, [], [], tactics));
-        Assert.Throws<InvalidDataException>(() => MilitaryContentCompiler.Compile(squares, terrains, formations[..27], places, [], [], tactics));
-        Assert.Throws<InvalidDataException>(() => MilitaryContentCompiler.Compile(squares, terrains, formations, places, [], buildings, tactics[..40]));
+        Assert.Throws<InvalidDataException>(() => MilitaryContentCompiler.Compile(squares, terrains[..16], formations, places, [], [], tactics, new Dictionary<int, System.Collections.Immutable.ImmutableArray<int>>()));
+        Assert.Throws<InvalidDataException>(() => MilitaryContentCompiler.Compile(squares, terrains, formations[..27], places, [], [], tactics, new Dictionary<int, System.Collections.Immutable.ImmutableArray<int>>()));
+        Assert.Throws<InvalidDataException>(() => MilitaryContentCompiler.Compile(squares, terrains, formations, places, [], buildings, tactics[..40], new Dictionary<int, System.Collections.Immutable.ImmutableArray<int>>()));
     }
 }

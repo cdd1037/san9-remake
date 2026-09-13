@@ -7,6 +7,17 @@ public sealed class CombatMathTests
     private static readonly CombatStrength Troops = new(10000, 100, 80, 1, 10);
 
     [Fact]
+    public void RockfallReplacesAttackPowerWithoutReapplyingMoraleIntensityOrCoefficient()
+    {
+        // Rockfall power=164, defense=206, margin=858, a=368, b=685, damage=210.
+        Assert.Equal(210u, CombatMath.TroopDamage(Troops, Troops, 15, 10, 0, usesRockfallPower: true));
+        Assert.Equal(210u, CombatMath.TroopDamage(Troops with { Morale = 10, Intensity = 3, Effect = 5 },
+            Troops, 99, 10, 0, usesRockfallPower: true));
+        Assert.NotEqual(210u, CombatMath.TroopDamage(Troops with { Morale = 10, Intensity = 3, Effect = 5 }, Troops, 99, 10, 0));
+        Assert.Equal(0u, CombatMath.TroopDamage(Troops with { Soldiers = 0 }, Troops, 99, 10, 0, usesRockfallPower: true));
+    }
+
+    [Fact]
     public void ExplicitProfilesSelectTargetCoefficientAndRejectFieldWallDefense()
     {
         var profile = new CombatProfile(15, 10, 20, 10, 50);

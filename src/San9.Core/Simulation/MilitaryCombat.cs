@@ -16,11 +16,22 @@ internal static class MilitaryCombat
         if (formation.Combat is null || formation.Attack is null) return false;
         if (order.Kind == MilitaryOrderKind.AttackUnit)
             return order.UnitId is int id && world.Units.TryGetValue(id, out var unit) && Hostile(world, owner, unit.OwnerId) &&
-                unit.FormationId is int f && rules.Formations[f].Combat is not null;
+                unit.FormationId is int f && rules.Formations[f].Combat is not null && rules.CanAttackTarget(formation.Attack, unit.Position, false, false);
         return order.Kind == MilitaryOrderKind.AttackSettlement && order.SettlementId is int place &&
             world.Settlements.TryGetValue(place, out var settlement) && !settlement.IsDestroyed && settlement.Facility?.BuilderUnitId is null &&
-            Hostile(world, owner, settlement.OwnerId) && rules.TryPlace(settlement, out var definition) && definition.Combat is not null;
+            Hostile(world, owner, settlement.OwnerId) && rules.TryPlace(settlement, out var definition) && definition.Combat is not null &&
+            rules.CanAttackTarget(formation.Attack, definition.Position, true, rules.IsHarbor(settlement));
     }
+
+    internal static int UnitRange(WorldMutation world, UnitState source, MilitaryOrder target, MilitaryRulebook rules, WorldPosition? position = null)
+    {
+        var targetPosition = target.UnitId is int id ? world.Units[id].Position : rules.Place(world.Settlements[target.SettlementId!.Value]).Position;
+        return rules.AttackRange(rules.Formations[source.FormationId!.Value].Attack, position ?? source.Position, targetPosition,
+            target.UnitId is null, target.SettlementId is int place && rules.IsHarbor(world.Settlements[place]));
+    }
+
+    internal static int FacilityRange(WorldMutation world, SettlementState source, UnitState target, MilitaryRulebook rules) =>
+        rules.FacilityAttackRange(source, target.Position, world.Settlements.Values);
 
     internal static MapOccupancy TargetArea(WorldMutation world, MilitaryOrder order, MilitaryRulebook rules) =>
         order.UnitId is int id ? Area(world.Units[id], rules) :
@@ -45,7 +56,7 @@ internal static class MilitaryCombat
                 continue;
             }
             var targetArea = TargetArea(world, order, military);
-            if (used.Contains(id) || Area(attacker, military).DistanceTo(targetArea) > formation.Attack!.Range) continue;
+            if (used.Contains(id) || Area(attacker, military).DistanceTo(targetArea) > UnitRange(world, attacker, order, military)) continue;
             used.Add(id);
             var affectedForces = new HashSet<int> { attacker.OwnerId };
             if (order.UnitId is int targetId)
@@ -55,7 +66,8 @@ internal static class MilitaryCombat
                 var defense = military.Formations[defender.FormationId!.Value];
                 uint outgoing = CombatMath.TroopDamage(Strength(world, attacker), Strength(world, defender), formation.Combat!, defense.Combat!, false, 0);
                 uint incoming = 0;
-                if (!used.Contains(targetId) && defender.Condition != UnitCondition.Confused && defense.Attack is { } retaliation && targetArea.DistanceTo(Area(attacker, military)) <= retaliation.Range)
+                if (!used.Contains(targetId) && defender.Condition != UnitCondition.Confused && defense.Attack is not null &&
+                    targetArea.DistanceTo(Area(attacker, military)) <= UnitRange(world, defender, new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = id }, military))
                 {
                     used.Add(targetId);
                     incoming = CombatMath.TroopDamage(Strength(world, defender), Strength(world, attacker), defense.Combat!, formation.Combat!, false, 0);
@@ -63,8 +75,8 @@ internal static class MilitaryCombat
                 DamageUnit(world, defender, outgoing, defense.Combat!, id, events);
                 DamageUnit(world, attacker, incoming, formation.Combat!, targetId, events);
                 bool attackerLost = Defeated(world.Units[id]), defenderLost = Defeated(world.Units[targetId]);
-                if (defenderLost) BattleAftermath.TerminateUnit(world, targetId, attackerLost ? null : id, rules, events);
-                if (attackerLost) BattleAftermath.TerminateUnit(world, id, defenderLost ? null : targetId, rules, events);
+                if (defenderLost) BattleAftermath.TerminateUnit(world, targetId, attackerLost ? null : new BattleSource(id, false), rules, events);
+                if (attackerLost) BattleAftermath.TerminateUnit(world, id, defenderLost ? null : new BattleSource(targetId, false), rules, events);
                 if (!attackerLost && !defenderLost)
                 {
                     TacticCombat.TryUnit(world, id, order, rules, events);
@@ -76,51 +88,76 @@ internal static class MilitaryCombat
                 var settlement = world.Settlements[order.SettlementId!.Value];
                 if (settlement.OwnerId is int defenderOwner) affectedForces.Add(defenderOwner);
                 var definition = military.Place(settlement);
+                var capability = military.FacilityAttack(settlement);
                 var defense = GarrisonStrength(world, settlement);
                 uint outgoing = CombatMath.TroopDamage(Strength(world, attacker), defense, formation.Combat!, definition.Combat!, true, settlement.Durability);
-                int walls = formation.Attack.DamagesWalls ? CombatMath.DurabilityDamage(attacker.Soldiers,
+                int walls = formation.Attack!.DamagesWalls ? CombatMath.DurabilityDamage(attacker.Soldiers,
                     Strength(world, attacker).Leadership, formation.Combat!.AgainstWalls, settlement.Durability) : 0;
                 uint incoming = 0;
-                if (settlement.OwnerId is not null && settlement.Morale > 0 && settlement.ConfusionDaysRemaining == 0 && definition.Attack is { } retaliation &&
-                    !buildingsUsed.Contains(settlement.Id) && targetArea.DistanceTo(Area(attacker, military)) <= retaliation.Range)
+                bool retaliated = false;
+                if (settlement.OwnerId is not null && settlement.Morale > 0 && settlement.ConfusionDaysRemaining == 0 && capability.Attack is { } retaliation &&
+                    !buildingsUsed.Contains(settlement.Id) && targetArea.DistanceTo(Area(attacker, military)) <= FacilityRange(world, settlement, attacker, military))
                 {
                     buildingsUsed.Add(settlement.Id);
-                    incoming = CombatMath.TroopDamage(defense, Strength(world, attacker), definition.Combat!, formation.Combat!, false, 0);
+                    retaliated = true;
+                    incoming = CombatMath.TroopDamage(defense, Strength(world, attacker), definition.Combat!, formation.Combat!, false, 0, capability.UsesRockfallPower);
                 }
                 DamageSettlement(world, settlement, outgoing, definition.Combat!, id, events, walls);
                 DamageUnit(world, attacker, incoming, formation.Combat!, settlement.Id, events, attackerIsSettlement: true);
-                if (Defeated(world.Units[id])) BattleAftermath.TerminateUnit(world, id, null, rules, events);
+                if (walls > 0 && !Defeated(world.Units[id]) && !Defeated(world.Settlements[settlement.Id]) &&
+                    definition.FacilityTypeId is int type && military.Facilities[type].Reprisal is { } reprisal)
+                    FacilityCombat.ApplyReprisal(world, world.Settlements[settlement.Id], world.Units[id], reprisal, formation.Combat!, events);
+                if (Defeated(world.Units[id])) BattleAftermath.TerminateUnit(world, id,
+                    Defeated(world.Settlements[settlement.Id]) || !settlement.CanHostPersons ? null : new BattleSource(settlement.Id, true), rules, events);
                 else if (Defeated(world.Settlements[settlement.Id]))
-                    BattleAftermath.ResolveSettlementDefeat(world, settlement.Id, id, rules, events);
+                    BattleAftermath.ResolveSettlementDefeat(world, settlement.Id, new(id, false), rules, events);
                 TacticCombat.TryUnit(world, id, order, rules, events);
+                if (retaliated) FacilityCombat.TryTactic(world, settlement.Id,
+                    new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = id }, rules, events);
             }
             BattleAftermath.Reconcile(world, affectedForces, rules, events);
             ResolutionPipeline.CheckConquest(world, events);
         }
+        FacilityCombat.AdvanceDay(world, rules, used, buildingsUsed, events);
     }
 
     private static bool Defeated(UnitState unit) => unit.Soldiers == 0 || unit.Morale == 0;
     internal static bool Defeated(SettlementState settlement) => !settlement.IsDestroyed && settlement.Facility?.BuilderUnitId is null &&
         (settlement.Durability == 0 || settlement.CanHostPersons && (settlement.Soldiers == 0 || settlement.Morale == 0));
     internal static void DamageSettlement(WorldMutation world, SettlementState settlement, uint damage, CombatProfile profile,
-        int attacker, List<DomainEvent> events, int walls = 0)
+        int attacker, List<DomainEvent> events, int walls = 0, bool attackerIsSettlement = false)
     {
+        damage = FinalDamage(world, new(attacker, attackerIsSettlement), settlement.OwnerId, damage, settlement.Soldiers);
         var loss = CombatMath.Loss(settlement.Soldiers, damage, profile.WoundedPercent, settlement.Wounded, MilitaryRulebook.WoundedCapacity);
         int morale = MoraleLoss(settlement.Soldiers, damage, settlement.Morale);
         world.Replace(settlement with { Soldiers = loss.RemainingSoldiers, Wounded = settlement.Wounded + loss.AddedWounded,
             Morale = settlement.Morale - morale, Durability = settlement.Durability - walls });
         events.Add(new BattleDamageEvent(world.Clock, attacker, null, settlement.Id, settlement.Soldiers - loss.RemainingSoldiers,
-            loss.AddedWounded, loss.Dead, walls, morale));
+            loss.AddedWounded, loss.Dead, walls, morale, attackerIsSettlement));
     }
     private static int MoraleLoss(uint before, uint loss, int morale) => loss == 0 ? 0 :
         Math.Min(morale, (int)(((ulong)loss * 100 + before - 1) / before));
     internal static void DamageUnit(WorldMutation world, UnitState unit, uint damage, CombatProfile profile, int attacker, List<DomainEvent> events,
         bool attackerIsSettlement = false)
     {
-        var loss = CombatMath.Loss(unit.Soldiers, damage, profile.WoundedPercent, unit.Wounded, MilitaryRulebook.WoundedCapacity);
+        damage = FinalDamage(world, new(attacker, attackerIsSettlement), unit.OwnerId, damage, unit.Soldiers);
         int morale = MoraleLoss(unit.Soldiers, damage, unit.Morale);
+        ApplyUnitLoss(world, unit, damage, morale, profile, new(attacker, attackerIsSettlement), events);
+    }
+    internal static void ApplyUnitLoss(WorldMutation world, UnitState unit, uint damage, int morale, CombatProfile profile,
+        BattleSource source, List<DomainEvent> events)
+    {
+        damage = Math.Min(damage, unit.Soldiers);
+        var loss = CombatMath.Loss(unit.Soldiers, damage, profile.WoundedPercent, unit.Wounded, MilitaryRulebook.WoundedCapacity);
         world.Replace(unit with { Soldiers = loss.RemainingSoldiers, Wounded = unit.Wounded + loss.AddedWounded, Morale = unit.Morale - morale });
-        events.Add(new BattleDamageEvent(world.Clock, attacker, unit.Id, null, damage, loss.AddedWounded, loss.Dead, 0, morale, attackerIsSettlement));
+        events.Add(new BattleDamageEvent(world.Clock, source.Id, unit.Id, null, damage, loss.AddedWounded, loss.Dead, 0, morale, source.IsSettlement));
+    }
+    private static uint FinalDamage(WorldMutation world, BattleSource source, int? targetOwner, uint damage, uint soldiers)
+    {
+        int? sourceOwner = source.IsSettlement ? world.Settlements[source.Id].OwnerId : world.Units[source.Id].OwnerId;
+        bool Player(int? owner) => owner is int id && world.Simulation.Controls.Any(c => c.ForceId == id && c.Kind == ControllerKind.Player);
+        int bonus = !Player(sourceOwner) && Player(targetOwner) ? world.Simulation.ComputerDamageBonusPercent : 0;
+        return CombatMath.AdjustComputerDamage(damage, soldiers, bonus);
     }
     internal static CombatStrength Strength(WorldMutation world, UnitState unit) => new(unit.Soldiers, unit.Morale,
         Leadership(world, p => p.UnitId == unit.Id), 1, unit.Condition is UnitCondition.Confused or UnitCondition.Routed ? 5 : 10);

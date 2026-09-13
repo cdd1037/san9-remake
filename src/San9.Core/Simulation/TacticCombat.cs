@@ -20,14 +20,16 @@ internal static class TacticCombat
             unit.Condition is UnitCondition.Confused or UnitCondition.Routed || unit.IsEmbedded || unit.IsPersonnel ||
             unit.FormationId is not int formationId || military.Formations[formationId] is not { Tactics: { } profile } formation ||
             !MilitaryCombat.ValidTarget(world, unit.OwnerId, target, formation, military) ||
-            MilitaryCombat.Area(unit, military).DistanceTo(MilitaryCombat.TargetArea(world, target, military)) > formation.Attack!.Range) return;
+            MilitaryCombat.Area(unit, military).DistanceTo(MilitaryCombat.TargetArea(world, target, military)) > MilitaryCombat.UnitRange(world, unit, target, military)) return;
         var members = world.Officers.Values.Where(p => p.IsServing && p.OwnerId == unit.OwnerId && p.UnitId == unit.Id)
             .OrderBy(p => unit.MemberRanks.GetValueOrDefault(p.Id, BattleRank.Middle)).ThenBy(p => p.Id).ToArray();
         var candidates = members.Where(p => p.Injury == 0 && p.TacticCooldown == 0)
             .Select(p => new { Officer = p, Tactic = ChooseTactic(world, p, unit.OwnerId, formation, target, rules) })
             .Where(p => p.Tactic is not null).Select(p => new Participant(p.Officer, p.Tactic!)).ToArray();
         if (candidates.Length == 0 || counter && !Roll(world, "military-tactic-counter", profile.CounterChance)) return;
-        int chance = Math.Min(100, profile.OpportunityChance + (unit.Condition == UnitCondition.HighSpirits ? 5 : 0));
+        int cityBonus = formation.TravelMode == TravelMode.Land && military.HasCityInfluence(unit.OwnerId, unit.Position, world.Settlements.Values)
+            ? military.CityInfluence!.LandTacticBonus : 0;
+        int chance = Math.Min(100, profile.OpportunityChance + cityBonus + (unit.Condition == UnitCondition.HighSpirits ? 5 : 0));
         if (!Roll(world, "military-tactic-opportunity", chance)) return;
         Participant? primary = null;
         int intelligenceEffect = 0;
@@ -51,7 +53,7 @@ internal static class TacticCombat
             world.Replace(world.Officers[primary.Officer.Id] with { TacticCooldown = primary.Tactic.MinimumInterval });
             events.Add(new TacticActivatedEvent(world.Clock, unit.Id, false, target.UnitId ?? target.SettlementId!.Value,
                 target.UnitId is null, primary.Tactic.Id, [primary.Officer.Id], false, intelligenceEffect));
-            IntelligenceTactics.Resolve(world, unit.Id, primary.Officer, primary.Tactic, target, intelligenceEffect, rules, events);
+            IntelligenceTactics.Resolve(world, new(unit.Id, false), primary.Officer, primary.Tactic, target, intelligenceEffect, rules, events);
             var learning = primary.Officer.EquippedTacticId is int selected && military.Tactics[selected].Effect == TacticEffect.TrapSelection
                 ? military.Tactics[selected] : primary.Tactic;
             Grow(world, members, [primary.Officer.Id], learning, events);
@@ -60,17 +62,12 @@ internal static class TacticCombat
         List<Participant> participants = [primary];
         foreach (var other in candidates.Where(p => p.Officer.Id != primary.Officer.Id && p.Tactic.Effect == TacticEffect.Martial && p.Tactic.Category == primary.Tactic.Category))
         {
-            int distance = Math.Abs(primary.Officer.Affinity - other.Officer.Affinity);
-            distance = Math.Min(50, Math.Min(distance, 150 - distance));
-            int linkChance = (25 + Math.Max(0, 5 * (5 - distance))) * profile.LinkMultiplier;
+            int linkChance = military.LinkRules.Chance(primary.Officer, other.Officer, profile);
             if (Roll(world, "military-tactic-link", linkChance)) participants.Add(other);
         }
         int category = primary.Tactic.Category!.Value;
         int proficiency = primary.Officer.TacticProficiencies[category];
-        var defenders = world.Officers.Values.Where(p => p.IsServing && (target.UnitId is int enemy ? p.UnitId == enemy :
-            p.SettlementId == target.SettlementId && !world.Simulation.Tasks.Any(t => t.OfficerId == p.Id && t.Journey is not null)));
-        int resistance = Math.Max(0, (defenders.Select(p => p.TacticProficiencies[category]).DefaultIfEmpty(0).Max() - proficiency) / 20);
-        int effect = Roll(world, "military-tactic-resistance", resistance) ? 1 : 10;
+        int effect = MartialEffect(world, primary.Officer, primary.Tactic, target, military);
         bool doubled = Roll(world, "military-tactic-double", 1 + proficiency / 100);
         foreach (var participant in participants)
             world.Replace(world.Officers[participant.Officer.Id] with
@@ -79,30 +76,51 @@ internal static class TacticCombat
             target.UnitId is null, primary.Tactic.Id, participants.Select(p => p.Officer.Id).ToImmutableArray(), doubled, effect));
         var damageMembers = participants.Select(p => new MartialTacticMember(p.Tactic.Power,
             p.Officer.TacticProficiencies[category], world.Abilities(p.Officer).War, p.Officer.Id != primary.Officer.Id)).ToArray();
+        ResolveMartial(world, new(unit.Id, false), target, damageMembers, doubled, effect, rules, events);
+        Grow(world, members, participants.Select(p => p.Officer.Id).ToArray(), primary.Tactic, events);
+    }
+
+    internal static void ResolveMartial(WorldMutation world, BattleSource source, MilitaryOrder target,
+        MartialTacticMember[] members, bool doubled, int effect, SimulationRules rules, List<DomainEvent> events)
+    {
+        var military = rules.Military!;
+        var strength = source.IsSettlement ? MilitaryCombat.GarrisonStrength(world, world.Settlements[source.Id]) :
+            MilitaryCombat.Strength(world, world.Units[source.Id]);
+        var attack = source.IsSettlement ? military.Place(world.Settlements[source.Id]).Combat! :
+            military.Formations[world.Units[source.Id].FormationId!.Value].Combat!;
         if (target.UnitId is int targetId)
         {
             var defender = world.Units[targetId];
             var defense = military.Formations[defender.FormationId!.Value].Combat!;
-            uint ordinary = CombatMath.TroopDamage(MilitaryCombat.Strength(world, unit), MilitaryCombat.Strength(world, defender),
-                formation.Combat!, defense, false, 0);
-            uint damage = TacticMath.MartialDamage(damageMembers, doubled, ordinary, effect,
+            uint ordinary = CombatMath.TroopDamage(strength, MilitaryCombat.Strength(world, defender), attack, defense, false, 0,
+                source.IsSettlement && military.FacilityAttack(world.Settlements[source.Id]).UsesRockfallPower);
+            uint damage = TacticMath.MartialDamage(members, doubled, ordinary, effect,
                 defender.Condition is UnitCondition.NoFormation or UnitCondition.Confused or UnitCondition.Routed, defender.Soldiers);
-            MilitaryCombat.DamageUnit(world, defender, damage, defense, unit.Id, events);
+            MilitaryCombat.DamageUnit(world, defender, damage, defense, source.Id, events, source.IsSettlement);
             var current = world.Units[targetId];
-            if (current.Soldiers == 0 || current.Morale == 0) BattleAftermath.TerminateUnit(world, targetId, unit.Id, rules, events);
+            if (current.Soldiers == 0 || current.Morale == 0) BattleAftermath.TerminateUnit(world, targetId, source, rules, events);
         }
         else
         {
             var defender = world.Settlements[target.SettlementId!.Value];
             var defense = military.Place(defender).Combat!;
-            uint ordinary = CombatMath.TroopDamage(MilitaryCombat.Strength(world, unit), MilitaryCombat.GarrisonStrength(world, defender),
-                formation.Combat!, defense, true, defender.Durability);
-            uint damage = TacticMath.MartialDamage(damageMembers, doubled, ordinary, effect, false, defender.Soldiers);
-            MilitaryCombat.DamageSettlement(world, defender, damage, defense, unit.Id, events);
+            uint ordinary = CombatMath.TroopDamage(strength, MilitaryCombat.GarrisonStrength(world, defender), attack, defense, true, defender.Durability);
+            uint damage = TacticMath.MartialDamage(members, doubled, ordinary, effect, false, defender.Soldiers);
+            MilitaryCombat.DamageSettlement(world, defender, damage, defense, source.Id, events, attackerIsSettlement: source.IsSettlement);
             var current = world.Settlements[defender.Id];
-            if (MilitaryCombat.Defeated(current)) BattleAftermath.ResolveSettlementDefeat(world, defender.Id, unit.Id, rules, events);
+            if (MilitaryCombat.Defeated(current)) BattleAftermath.ResolveSettlementDefeat(world, defender.Id, source, rules, events);
         }
-        Grow(world, members, participants.Select(p => p.Officer.Id).ToArray(), primary.Tactic, events);
+    }
+
+    internal static int MartialEffect(WorldMutation world, OfficerState actor, TacticRule tactic,
+        MilitaryOrder target, MilitaryRulebook military)
+    {
+        int category = tactic.Category!.Value;
+        if (target.UnitId is int id && world.Units[id].FormationId is int formation &&
+            military.Formations[formation].MartialTacticVulnerabilities.Contains(category)) return 15;
+        int resistance = Math.Max(0, (IntelligenceTactics.Defenders(world, target)
+            .Select(p => p.TacticProficiencies[category]).DefaultIfEmpty(0).Max() - actor.TacticProficiencies[category]) / 20);
+        return Roll(world, "military-tactic-resistance", resistance) ? 1 : 10;
     }
 
     private static TacticRule? ChooseTactic(WorldMutation world, OfficerState officer, int owner, FormationRule formation,
@@ -136,18 +154,8 @@ internal static class TacticCombat
         int category = tactic.Category!.Value;
         foreach (var original in members.OrderBy(p => p.Id))
         {
-            var officer = world.Officers[original.Id];
-            int before = officer.TacticProficiencies[category];
-            int next = before >= 1000 ? before : Math.Min(1000, before + (officer.MasteredCategories.Contains(category) ? 9 : 3));
-            officer = officer with { TacticProficiencies = officer.TacticProficiencies.SetItem(category, next) };
-            if (next != before) events.Add(new TacticProficiencyGrownEvent(world.Clock, officer.Id, category, before, next));
-            if (tactic.Selectable && !officer.LearnedTactics.Contains(tactic.Id) && next >= tactic.TrainingRequirement &&
-                Roll(world, "military-tactic-learning", Math.Min(70, (next - tactic.TrainingRequirement) / 5 + 30)))
-            {
-                officer = officer with { LearnedTactics = officer.LearnedTactics.Add(tactic.Id) };
-                events.Add(new TacticLearnedEvent(world.Clock, officer.Id, tactic.Id));
-            }
-            world.Replace(officer);
+            OfficerTacticGrowth.Increase(world, original.Id, category, 3, events);
+            if (tactic.Selectable) OfficerTacticGrowth.TryLearn(world, original.Id, tactic, "military-tactic-learning", events);
         }
         var actor = world.Officers[participants[(int)(world.NextRandom("military-tactic-growth-member") % (uint)participants.Count)]];
         bool martial = tactic.Effect == TacticEffect.Martial;

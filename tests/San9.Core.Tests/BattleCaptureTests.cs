@@ -26,10 +26,10 @@ public sealed class BattleCaptureTests
         _ = new SimulationEngine(world, EconomyRulebook.Empty, PersonnelRulebook.Empty, TreasureRulebook.Empty, military: Rules());
         var mutation = world.BeginMutation();
         var events = new List<DomainEvent>();
-        Assert.Throws<InvalidOperationException>(() => UnitTerminationService.Complete(mutation, 0, 1, 1, new([]), events));
-        Assert.True(BattlePersonnel.Resolve(mutation, 11, 1, null, 1, BattleRank.Middle, false, false,
+        Assert.Throws<InvalidOperationException>(() => UnitTerminationService.Complete(mutation, 0, new(1, false), 1, new([]), events));
+        Assert.True(BattlePersonnel.Resolve(mutation, 11, new(1, false), null, 1, BattleRank.Middle, false, false,
             PersonnelRulebook.Empty, new([]), events));
-        UnitTerminationService.Complete(mutation, 0, 1, 1, new([]), events);
+        UnitTerminationService.Complete(mutation, 0, new(1, false), 1, new([]), events);
         world.Commit(mutation);
         var captured = world.CreateSnapshot();
         var person = captured.Officers.Single(p => p.Id == 11);
@@ -72,7 +72,7 @@ public sealed class BattleCaptureTests
         Assert.Equal(person, mutation.Officers[11]);
         Assert.Empty(events);
         PersonnelTransitions.Capture(mutation, 11, 2, null, PersonnelRulebook.Empty, events);
-        UnitTerminationService.Complete(mutation, 0, 1, 1, new([]), events);
+        UnitTerminationService.Complete(mutation, 0, new(1, false), 1, new([]), events);
         world.Commit(mutation);
         Assert.Equal(2, world.CreateSnapshot().Officers.Single(p => p.Id == 11).SettlementId);
         Assert.Null(world.CreateSnapshot().Officers.Single(p => p.Id == 11).UnitId);
@@ -84,13 +84,13 @@ public sealed class BattleCaptureTests
         var world = World();
         var mutation = world.BeginMutation();
         var events = new List<DomainEvent>();
-        Assert.Throws<ArgumentException>(() => BattlePersonnel.Resolve(mutation, 11, 1, 2, 1, BattleRank.Front,
+        Assert.Throws<ArgumentException>(() => BattlePersonnel.Resolve(mutation, 11, new(1, false), 2, 1, BattleRank.Front,
             false, false, PersonnelRulebook.Empty, new([]), events));
         Assert.Empty(events);
         Assert.Empty(mutation.Simulation.RandomStreams);
-        Assert.False(BattlePersonnel.Resolve(mutation, 11, 1, 1, 1, BattleRank.Middle, true, false,
+        Assert.False(BattlePersonnel.Resolve(mutation, 11, new(1, false), 1, 1, BattleRank.Middle, true, false,
             PersonnelRulebook.Empty, new([]), events));
-        UnitTerminationService.Complete(mutation, 0, 1, 1, new([]), events);
+        UnitTerminationService.Complete(mutation, 0, new(1, false), 1, new([]), events);
         world.Commit(mutation);
         var person = world.CreateSnapshot().Officers.Single(p => p.Id == 11);
         Assert.Equal(OfficerStatus.Strategist, person.Status);
@@ -111,9 +111,9 @@ public sealed class BattleCaptureTests
         {
             var mutation = state.BeginMutation();
             var events = new List<DomainEvent>();
-            BattlePersonnel.Resolve(mutation, 11, 1, 1, 1, BattleRank.Middle, false, false,
+            BattlePersonnel.Resolve(mutation, 11, new(1, false), 1, 1, BattleRank.Middle, false, false,
                 PersonnelRulebook.Empty, new([]), events);
-            UnitTerminationService.Complete(mutation, 0, 1, 1, new([]), events);
+            UnitTerminationService.Complete(mutation, 0, new(1, false), 1, new([]), events);
             state.Commit(mutation);
             return events;
         }

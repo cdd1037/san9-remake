@@ -10,7 +10,8 @@ public static class MilitaryContentCompiler
     public static MilitaryDefinition Compile(IReadOnlyList<San9ScenarioSquareRecord> squares,
         IReadOnlyList<San9ScenarioTerrainRecord> terrains, IReadOnlyList<San9ScenarioFormationRecord> formations,
         IReadOnlyList<SettlementInitialState> settlements, IReadOnlyList<San9ScenarioZoneRecord> zones,
-        IReadOnlyList<San9ScenarioFixedBuildingRecord> buildings, IReadOnlyList<San9ScenarioTacticRecord> tactics)
+        IReadOnlyList<San9ScenarioFixedBuildingRecord> buildings, IReadOnlyList<San9ScenarioTacticRecord> tactics,
+        IReadOnlyDictionary<int, ImmutableArray<int>> enabledTactics)
     {
         if (squares.Count != San9ScenarioSquareArchive.RecordCount ||
             !squares.Select(s => s.Id).SequenceEqual(Enumerable.Range(0, squares.Count)) ||
@@ -19,6 +20,8 @@ public static class MilitaryContentCompiler
             !tactics.Select(t => t.Id).SequenceEqual(Enumerable.Range(0, San9ScenarioTacticArchive.RecordCount)))
             throw new InvalidDataException("Incomplete military source catalogs.");
         var facilities = ConstructionContentCompiler.Facilities(buildings);
+        if (!enabledTactics.Keys.Order().SequenceEqual(settlements.Select(s => s.Id).Order()))
+            throw new InvalidDataException("Incomplete settlement tactic identities.");
         var places = settlements.Select(s =>
         {
             Footprint shape;
@@ -35,11 +38,12 @@ public static class MilitaryContentCompiler
                 destroyed = facilities.Single(f => f.Id == type.Id).DestroyedAtZeroDurability;
                 demolishable = type.Id is >= 6 and <= 16;
             }
-            // G06 ordinary garrison coefficients and melee range are explicit remaster rules.
+            // Ordinary coefficients use the adopted remaster scale; garrison range is two terrain cells.
             return new BattlefieldPlace(s.Id, s.Position, shape)
             {
                 FacilityTypeId = s.Kind == SettlementKind.City ? 0 : zones.Single(z => z.Id + 50 == s.Id).FixedBuildingId,
-                Combat = new(10, 10, 0, 10, 50), Attack = new(1, false), DestroyedAtZeroDurability = destroyed,
+                EnabledTacticIds = enabledTactics[s.Id],
+                Combat = new(10, 10, 0, 10, 50), Attack = s.CanHostPersons ? new(10, false) { ElevationBonusPerLevel = 5, MaximumElevationBonus = 10 } : null, DestroyedAtZeroDurability = destroyed,
                 WoundedRecovery = recovery, CanDemolish = demolishable
             };
         }).ToImmutableArray();
@@ -56,8 +60,14 @@ public static class MilitaryContentCompiler
                         { ConfusionResistanceChance = f.Id == 7 ? 50 : 0, BypassesPassiveCounters = f.Id is 12 or 13 or 14 or 24 or 25 },
                     RequiredTacticId = tactics.Where(t => t.Id is >= 12 and <= 18 && t.SupportsArrayType(f.Id))
                         .Select(t => (int?)t.Id).SingleOrDefault(),
+                    MartialTacticVulnerabilities = f.Id == 11 ? [0] : [],
                     Combat = new(f.AgainstUnits, f.AgainstSoldiers, f.AgainstWalls, f.DefensePower, f.Id == 7 ? 80 : 50),
-                    Attack = f.Id == 27 ? null : new(1, f.AgainstWalls > 0),
+                    Attack = f.Id == 27 ? null : new(f.Id == 10 ? 15 : f.Id is 21 or 26 ? 5 : 10, f.AgainstWalls > 0)
+                    {
+                        ElevationBonusPerLevel = Mode(f.Id) == TravelMode.Land ? 5 : 0,
+                        MaximumElevationBonus = Mode(f.Id) == TravelMode.Land ? 10 : 0,
+                        RequiresWaterOrHarbor = f.Id is 21 or 26
+                    },
                     CaptureRanks = Enumerable.Range(0, 5).Select(i => f.Id is >= 20 and <= 26 ? BattleRank.Middle : f.GetDeploymentSlotPosition(i)?.Row switch
                     {
                         0 => BattleRank.Front, 1 => BattleRank.Middle, 2 => BattleRank.Rear,
@@ -65,6 +75,10 @@ public static class MilitaryContentCompiler
                     }).ToImmutableArray() }).ToImmutableArray(), places)
         {
             Facilities = facilities,
+            CityInfluence = new(8, 10),
+            Rockfall = new(5, 25),
+            Geography = new(MapCoordinates.UnitsPerCell,
+                squares.Where(s => s.PathBlockingBits == 0x01fe).Select(s => new MapCell(s.GridX, s.GridY)).ToImmutableArray()),
             RegionIds = squares.Select(s => s.RegionCode).ToImmutableArray(),
             ConstructionSites = ConstructionContentCompiler.Sites(squares, buildings,
                 settlements.Select(s => s.Id).Concat(zones.Where(z => z.XCoordinate is not null && z.YCoordinate is not null).Select(z => z.Id + 50)).ToHashSet()),
@@ -97,7 +111,8 @@ public static class MilitaryContentCompiler
         }, t.Power, t.MinimumInterval, t.TrainingRequirement, t.Id is <= 11 or >= 21 and <= 30,
             t.AffectsFacilities, Enumerable.Range(0, San9ScenarioFormationArchive.RecordCount)
                 .Where(t.SupportsArrayType).ToImmutableArray())
-            { EffectRadius = t.Id is 26 or 28 or 29 or 30 ? 3 : 0 }).ToImmutableArray();
+            { EffectRadius = t.Id is 26 or 28 or 29 or 30 ? 3 : 0,
+                FacilityAttack = t.Id switch { 39 => new(true, 0), 40 => new(false, 5), _ => null } }).ToImmutableArray();
     }
 
     private static TrapTerrainRule TrapTerrain(int id) => new(id, id switch
@@ -125,12 +140,16 @@ public static class MilitaryContentCompiler
         _ => false
     };
 
-    private static TerrainPassage Passage(int sourceId) => sourceId switch
+    private static TerrainPassage Passage(int sourceId)
     {
-        0 or 1 or 2 or 3 or 4 or 5 or 11 or 13 or 14 => new(sourceId, 10, null),
-        6 or 7 or 8 => new(sourceId, 12, null),
-        9 or 12 => new(sourceId, 12, 12),
-        10 or 15 or 16 => new(sourceId, null, 10),
-        _ => throw new InvalidDataException("Unknown TC101 terrain movement mapping.")
-    };
+        TerrainPassage result = sourceId switch
+        {
+            0 or 1 or 2 or 3 or 4 or 5 or 11 or 13 or 14 => new(sourceId, 10, null),
+            6 or 7 or 8 => new(sourceId, 12, null),
+            9 or 12 => new(sourceId, 12, 12),
+            10 or 15 or 16 => new(sourceId, null, 10),
+            _ => throw new InvalidDataException("Unknown TC101 terrain movement mapping.")
+        };
+        return result with { IsWater = sourceId is 10 or 15 or 16, StopsRockfall = sourceId == 6 };
+    }
 }

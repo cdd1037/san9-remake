@@ -16,8 +16,14 @@ public readonly record struct CombatLoss(uint RemainingSoldiers, uint AddedWound
 /// <summary>Exact integer combat arithmetic shared by field troops and garrisons.</summary>
 public static class CombatMath
 {
+    public static uint AdjustComputerDamage(uint damage, uint targetSoldiers, int bonusPercent)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(bonusPercent);
+        return (uint)Math.Min(targetSoldiers, (ulong)damage * (100UL + (uint)bonusPercent) / 100);
+    }
+
     public static uint TroopDamage(CombatStrength attacker, CombatStrength defender,
-        CombatProfile attackingFormation, CombatProfile defendingFormation, bool targetIsGarrison, int durability)
+        CombatProfile attackingFormation, CombatProfile defendingFormation, bool targetIsGarrison, int durability, bool usesRockfallPower = false)
     {
         ArgumentNullException.ThrowIfNull(attackingFormation);
         ArgumentNullException.ThrowIfNull(defendingFormation);
@@ -25,11 +31,11 @@ public static class CombatMath
         defendingFormation.Validate();
         if (!targetIsGarrison && durability != 0) throw new ArgumentException("Field troops cannot receive wall defense.");
         return TroopDamage(attacker, defender, targetIsGarrison ? attackingFormation.AgainstGarrison : attackingFormation.AgainstUnits,
-            defendingFormation.Defense, durability);
+            defendingFormation.Defense, durability, usesRockfallPower);
     }
 
     public static uint TroopDamage(CombatStrength attacker, CombatStrength defender,
-        int attackCoefficient, int defenseCoefficient, int durability)
+        int attackCoefficient, int defenseCoefficient, int durability, bool usesRockfallPower = false)
     {
         attacker.Validate();
         defender.Validate();
@@ -37,7 +43,7 @@ public static class CombatMath
         ArgumentOutOfRangeException.ThrowIfNegative(defenseCoefficient);
         ArgumentOutOfRangeException.ThrowIfNegative(durability);
         if (attacker.Soldiers == 0 || defender.Soldiers == 0) return 0;
-        var attack = BigInteger.Max(1, Power(attacker) * attackCoefficient / 10);
+        var attack = BigInteger.Max(1, usesRockfallPower ? RockfallPower(attacker) : Power(attacker) * attackCoefficient / 10);
         var defense = BigInteger.Max(1, Power(defender) * defenseCoefficient / 10 + (long)durability * 2 / 5);
         var margin = BigInteger.Max(0, attack - defense + 900);
         var a = BigInteger.Max(1, margin * margin / 2000);
@@ -68,12 +74,20 @@ public static class CombatMath
 
     private static BigInteger Power(CombatStrength value)
     {
-        var command = (BigInteger)value.Leadership * 5 / 2;
-        uint cap = (uint)BigInteger.Min(value.Soldiers, command * command);
+        uint cap = CommandCappedSoldiers(value);
         var term = SquareRoot(cap / (uint)value.Intensity) / 6 + (BigInteger)value.Leadership * 2 + 30;
         var adjusted = (BigInteger)value.Effect * term / 10;
         return (value.Morale + 100) * (5 * adjusted / ((long)value.Intensity + 4)) / 200;
     }
+
+    private static uint CommandCappedSoldiers(CombatStrength value)
+    {
+        var command = (BigInteger)value.Leadership * 5 / 2;
+        return (uint)BigInteger.Min(value.Soldiers, command * command);
+    }
+
+    private static BigInteger RockfallPower(CombatStrength value) =>
+        4 * (SquareRoot(CommandCappedSoldiers(value)) / 6 + (BigInteger)value.Leadership * 2 + 30) / 5;
 
     private static ulong SquareRoot(ulong value)
     {

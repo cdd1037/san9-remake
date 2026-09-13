@@ -75,7 +75,7 @@ public static class MilitaryPlanner
         var targets = world.Settlements.Where(s => s.OwnerId != seat.ForceId && !s.IsDestroyed &&
             rules.TryPlace(s, out var p) && p.Combat is not null).OrderBy(s => s.Id).ToArray();
         if (targets.Length == 0) return null;
-        var routes = new Dictionary<(WorldPosition, Footprint, TravelMode, int, int, int?), bool>();
+        var routes = new Dictionary<(WorldPosition, Footprint, TravelMode, OrdinaryAttack, int, int?), bool>();
         foreach (var unit in world.Units.Where(u => u.OwnerId == seat.ForceId && Controlled(u.CorpsId) && u.Order is null).OrderBy(u => u.Id).Take(8))
         {
             if (unit.FormationId is not int f || rules.Formations[f].Attack is not { } attack) continue;
@@ -118,13 +118,15 @@ public static class MilitaryPlanner
 
         bool Reachable(WorldPosition from, FormationRule formation, int target, int? source)
         {
-            var key = (from, formation.Footprint, formation.TravelMode, formation.Attack!.Range, target, source);
+            var key = (from, formation.Footprint, formation.TravelMode, formation.Attack!, target, source);
             if (routes.TryGetValue(key, out bool reachable)) return reachable;
-            var place = rules.Place(world.Settlements.Single(s => s.Id == target));
+            var settlement = world.Settlements.Single(s => s.Id == target);
+            var place = rules.Place(settlement);
+            if (!rules.CanAttackTarget(formation.Attack, place.Position, true, rules.IsHarbor(settlement))) return false;
             reachable = rules.Map.AdvanceIntoRange(from, new(place.Position, place.Footprint), formation.Footprint,
                 formation.TravelMode, world.Settlements.Where(s => s.Id != source && s.Id != target && !s.IsDestroyed)
                     .Select(rules.Place).Select(p => new MapOccupancy(p.Position, p.Footprint)),
-                0, formation.Attack!.Range).Reachable;
+                0, position => rules.AttackRange(formation.Attack, position, place.Position, true, rules.IsHarbor(settlement))).Reachable;
             routes.Add(key, reachable);
             return reachable;
         }

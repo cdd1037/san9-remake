@@ -9,7 +9,8 @@ public sealed class IntelligenceTacticTests
     private static readonly CommandContext Player = new("player");
     private static SimulationEngine Engine(TacticEffect effect, bool settlement = false, bool counter = false,
         bool bypass = false, int formationResistance = 0, bool area = false, uint wounded = 500, Action<MilitaryRulebook>? captureRules = null,
-        int? trap = null, int existingConfusion = 0, int? localCity = 2, int? targetHome = 2)
+        int? trap = null, int existingConfusion = 0, int? localCity = 2, int? targetHome = 2,
+        bool unstaffed = false, bool areaSettlement = false)
     {
         bool support = effect is TacticEffect.Heal or TacticEffect.Inspire;
         int targetOwner = support ? 1 : 2;
@@ -21,7 +22,7 @@ public sealed class IntelligenceTacticTests
              new(200, 5, 0, 100000, 1, new(1, 1), TravelMode.Land) { Combat = combat, CaptureRanks = [BattleRank.Middle],
                 Tactics = new(0, 0, 2, [], []) { BypassesPassiveCounters = bypass, ConfusionResistanceChance = formationResistance } }],
             [new(1, new(2, 2), new(1, 1)) { Combat = combat }, new(2, new(17, 2), new(1, 1)) { Combat = combat },
-             new(3, new(27, 2), new(1, 1)) { Combat = combat }])
+             new(3, new(areaSettlement ? 9 : 27, 2), new(1, 1)) { Combat = combat }])
         { RegionIds = Enumerable.Repeat(localCity is int city ? (int?)(city + 100) : null, 6).ToImmutableArray(),
             Tactics = [new(9000, 7, effect, power, 15, 0, true, true, [100]) { EffectRadius = support || area ? 3 : 0 },
             new(9100, 6, effect == TacticEffect.TrapSelection ? TacticEffect.CounterTrap : TacticEffect.CounterConfusion, 0, 0, 0, true, false, []),
@@ -52,6 +53,17 @@ public sealed class IntelligenceTacticTests
             units.Add(new(3, 1, new(8, 3), 10000) { FormationId = 200, Morale = 100 });
             settlements.Add(new(3, 3, 1000, 100, 100, 100, 0, 0, 100, 0, 100));
         }
+        if (unstaffed)
+        {
+            settlements.Add(new(3, targetOwner, 1000, 100, 100, 100, 0, 0, 100, 0, 100));
+            officers[1] = officers[1] with { SettlementId = 3, UnitId = null };
+        }
+        if (areaSettlement)
+        {
+            units.RemoveAll(u => u.Id == 2);
+            officers.RemoveAll(p => p.Id == 31);
+            forces[2] = forces[2] with { LeaderId = null };
+        }
         var engine = new SimulationEngine(WorldState.Create(new(190, 1, 1), 42, forces, settlements, officers, units: units,
             controls: [new("player", 1, ControllerKind.Player)]), EconomyRulebook.Empty, new PersonnelRulebook([new(1, new(2, 2)), new(2, new(17, 2))],
                 new Dictionary<int, int> { [101] = 1, [102] = 2 }), TreasureRulebook.Empty, military: rules);
@@ -65,6 +77,38 @@ public sealed class IntelligenceTacticTests
         }
         engine.EndControl(Player);
         return engine;
+    }
+
+    [Theory]
+    [InlineData(TacticEffect.Confusion)]
+    [InlineData(TacticEffect.Defection)]
+    [InlineData(TacticEffect.Illusion)]
+    [InlineData(TacticEffect.Taunt)]
+    [InlineData(TacticEffect.Sorcery)]
+    public void UnstaffedGarrisonIsNotImmuneToIntelligenceTactics(TacticEffect effect)
+    {
+        var engine = Engine(effect, settlement: true, unstaffed: true, counter: true);
+        Assert.DoesNotContain(engine.Snapshot.Officers, p => p.SettlementId == 2);
+        var result = engine.AdvanceXun();
+        Assert.Contains(result.Events.OfType<IntelligenceEffectResolvedEvent>(),
+            e => e.TargetIsSettlement && e.TargetId == 2 && e.Effect == 10);
+        var target = engine.Snapshot.Settlements.Single(s => s.Id == 2);
+        if (effect == TacticEffect.Confusion) Assert.True(target.ConfusionDaysRemaining > 0);
+        else if (effect == TacticEffect.Taunt) Assert.True(target.Morale < 100);
+        else Assert.True(target.Soldiers < 10000);
+    }
+
+    [Theory]
+    [InlineData(TacticEffect.Illusion)]
+    [InlineData(TacticEffect.Sorcery)]
+    public void UnstaffedGarrisonReceivesAreaEffectsFromAUnitPrimaryTarget(TacticEffect effect)
+    {
+        var engine = Engine(effect, area: true, areaSettlement: true);
+        Assert.DoesNotContain(engine.Snapshot.Officers, p => p.SettlementId == 3);
+        var result = engine.AdvanceXun();
+        Assert.Contains(result.Events.OfType<IntelligenceEffectResolvedEvent>(),
+            e => e.TargetIsSettlement && e.TargetId == 3 && e.Effect == 10);
+        Assert.True(engine.Snapshot.Settlements.Single(s => s.Id == 3).Soldiers < 1000);
     }
 
     [Theory]

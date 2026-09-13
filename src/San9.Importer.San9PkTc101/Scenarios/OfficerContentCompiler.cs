@@ -33,6 +33,7 @@ public static class OfficerContentCompiler
                 new(person.Strength, person.Intelligence, person.Politics, person.Command), person.IsCommandParticipant)
             {
                 Affinity = person.Affinity,
+                TacticLinkBonus = person.BiographyResourceCode == 9 ? 10 : 0,
                 EquippedTacticId = person.EquippedTacticId,
                 TacticCooldown = 0,
                 MasteredCategories = Enumerable.Range(0, 9).Where(person.HasTacticCategoryMastery).ToImmutableArray(),

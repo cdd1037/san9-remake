@@ -21,7 +21,14 @@ public sealed record SettlementView(int Id,string NameKey,int? OwnerId,int X,int
     public San9.Core.Domain.SettlementKind Kind { get; init; }
     public int? CorpsId { get; init; }
     public bool IsFacilityListEntry { get; init; }
+    public string? NameSuffixKey { get; init; }
+    public string ResolveName(San9.Content.Text.TextCatalog texts) => texts.Resolve(NameKey) + (NameSuffixKey is {} key ? texts.Resolve(key) : "");
     public int? FacilityTypeId { get; init; }
+    public IReadOnlyList<int> EnabledTacticIds { get; init; } = [];
+    public int? ConfiguredTacticId { get; init; }
+    public int? BaseAttackRange { get; init; }
+    public bool UsesRockfallPower { get; init; }
+    public FacilityReprisal? Reprisal { get; init; }
     public bool IsUnderConstruction { get; init; }
 }
 
@@ -32,9 +39,11 @@ internal sealed class StrategySnapshotSource
     private readonly IReadOnlyDictionary<int, SettlementInitialState> _settlements;
     private readonly IReadOnlyDictionary<int, IReadOnlyList<string>> _settlementIcons;
 
-    public StrategySnapshotSource(ScenarioInitialState definition)
+    public StrategySnapshotSource(ScenarioInitialState definition, MilitaryRulebook? military)
     {
+        Military = military;
         PlayerForceId = definition.PlayerForceId;
+        FacilityNameSuffixKeys = new System.Collections.ObjectModel.ReadOnlyDictionary<int, string>(new Dictionary<int, string>(definition.FacilityNameSuffixKeys));
         Information = new(definition.Information);
         Abilities = new(new TreasureRulebook(definition.Information.Treasures.Select(t => new TreasureRule(t.Id, t.AbilityBonuses, t.LoyaltyBonus))),
             new GovernanceRulebook(definition.Information.Offices.Select(o => new GovernorOfficeRule(o.Id, o.CommandCapacity, o.GovernorPriority)
@@ -54,6 +63,8 @@ internal sealed class StrategySnapshotSource
     public int PlayerForceId { get; }
     public InformationCatalog Information { get; }
     internal OfficerAbilityRules Abilities { get; }
+    internal MilitaryRulebook? Military { get; }
+    internal IReadOnlyDictionary<int, string> FacilityNameSuffixKeys { get; }
     public IReadOnlyDictionary<int, string> RegionNameKeys { get; }
     public IReadOnlyDictionary<int, int> RegionCityIds { get; }
 
@@ -66,13 +77,15 @@ internal sealed class StrategySnapshotSource
 
 public sealed class StrategySnapshot
 {
+    private readonly MilitaryRulebook? military;
     public StrategySnapshot(ScenarioInitialState definition, WorldSnapshot world)
-        : this(new StrategySnapshotSource(definition), world)
+        : this(new StrategySnapshotSource(definition, definition.Military is { } military ? new(military) : null), world)
     {
     }
 
     internal StrategySnapshot(StrategySnapshotSource source, WorldSnapshot world)
     {
+        military = source.Military;
         Information = source.Information;
         World = world;
         PlayerForceId = source.PlayerForceId;
@@ -122,6 +135,8 @@ public sealed class StrategySnapshot
         Settlements = Array.AsReadOnly(world.Settlements.Select(s =>
         {
             var definition = source.Settlement(s.Id);
+            var militaryPlace = source.Military is { } rules && rules.TryPlace(s, out var place) ? place : null;
+            var attack = militaryPlace is null ? null : source.Military!.FacilityAttack(s);
             var cell = s.Facility is { } facility ? MapCoordinates.Cell(facility.Position) :
                 new MapCell(definition!.X, definition.Y);
             string nameKey = s.Facility is null ? definition!.NameKey : source.RegionNameKeys[s.Id];
@@ -138,7 +153,13 @@ public sealed class StrategySnapshot
                 IsDestroyed = s.IsDestroyed,
                 CorpsId = s.CorpsId,
                 IsFacilityListEntry = !s.IsDestroyed && (s.Facility is null ? definition!.IsFacilityListEntry : s.CanHostPersons),
-                FacilityTypeId = s.Facility?.TypeId,
+                NameSuffixKey = s.Facility is {} built ? source.FacilityNameSuffixKeys.GetValueOrDefault(built.TypeId) : null,
+                FacilityTypeId = militaryPlace?.FacilityTypeId,
+                EnabledTacticIds = militaryPlace?.EnabledTacticIds ?? [],
+                ConfiguredTacticId = source.Military?.FacilityTactic(s)?.Id,
+                BaseAttackRange = attack?.Attack?.Range,
+                UsesRockfallPower = attack?.UsesRockfallPower == true,
+                Reprisal = militaryPlace?.FacilityTypeId is int reprisalType ? source.Military?.Facilities[reprisalType].Reprisal : null,
                 IsUnderConstruction = s.Facility?.BuilderUnitId is not null
             };
         }).ToArray());
@@ -154,6 +175,8 @@ public sealed class StrategySnapshot
     public IReadOnlyList<ForceView> Forces { get; }
     public IReadOnlyList<OfficerView> Officers { get; }
     public IReadOnlyList<SettlementView> Settlements { get; }
+    public bool HasCityInfluence(int forceId, WorldPosition position) =>
+        military?.HasCityInfluence(forceId, position, World.Settlements) == true;
 }
 
 public sealed class InformationCatalog(InformationDefinitions definitions)

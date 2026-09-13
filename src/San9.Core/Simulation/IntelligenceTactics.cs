@@ -2,7 +2,7 @@ using San9.Core.Domain;
 
 namespace San9.Core.Simulation;
 
-public sealed record IntelligenceEffectResolvedEvent(GameClock Clock, int SourceUnitId, int TargetId, bool TargetIsSettlement,
+public sealed record IntelligenceEffectResolvedEvent(GameClock Clock, BattleSource Source, int TargetId, bool TargetIsSettlement,
     int TacticId, int Effect) : DomainEvent;
 public sealed record TacticMoraleChangedEvent(GameClock Clock, int TargetId, bool TargetIsSettlement, int Previous, int Current,
     int TacticId) : DomainEvent;
@@ -38,40 +38,39 @@ internal static class IntelligenceTactics
             Math.Max(0, (proficiency - actor.TacticProficiencies[category]) / 10)) ? 3 : 10;
     }
 
-    internal static void Resolve(WorldMutation world, int sourceId, OfficerState actor, TacticRule tactic, MilitaryOrder primary,
+    internal static void Resolve(WorldMutation world, BattleSource source, OfficerState actor, TacticRule tactic, MilitaryOrder primary,
         int primaryEffect, SimulationRules rules, List<DomainEvent> events)
     {
-        var source = world.Units[sourceId];
         var military = rules.Military!;
         var area = MilitaryCombat.TargetArea(world, primary, military);
         List<MilitaryOrder> targets = [primary];
         if (tactic.EffectRadius > 0 && tactic.Effect is TacticEffect.Illusion or TacticEffect.Sorcery)
         {
-            targets.AddRange(world.Units.Values.Where(u => u.Id != primary.UnitId && MilitaryCombat.Hostile(world, source.OwnerId, u.OwnerId) &&
+            targets.AddRange(world.Units.Values.Where(u => u.Id != primary.UnitId && MilitaryCombat.Hostile(world, source.Owner(world), u.OwnerId) &&
                 u.FormationId is int f && military.Formations[f].Combat is not null && MilitaryCombat.Area(u, military).DistanceTo(area) <= tactic.EffectRadius)
                 .OrderBy(u => u.Id).Select(u => new MilitaryOrder(MilitaryOrderKind.AttackUnit, null, null) { UnitId = u.Id }));
             if (tactic.AffectsFacilities)
                 targets.AddRange(world.Settlements.Values.Where(s => s.Id != primary.SettlementId && !s.IsDestroyed && s.Facility?.BuilderUnitId is null &&
-                    MilitaryCombat.Hostile(world, source.OwnerId, s.OwnerId) && military.TryPlace(s, out var p) && p.Combat is not null &&
+                    MilitaryCombat.Hostile(world, source.Owner(world), s.OwnerId) && military.TryPlace(s, out var p) && p.Combat is not null &&
                     new MapOccupancy(p.Position, p.Footprint).DistanceTo(area) <= tactic.EffectRadius).OrderBy(s => s.Id)
                     .Select(s => new MilitaryOrder(MilitaryOrderKind.AttackSettlement, null, s.Id)));
         }
-        HashSet<int> forces = [source.OwnerId];
+        HashSet<int> forces = [source.Owner(world)];
         foreach (var target in targets)
         {
             int? owner = target.UnitId is int enemy ? world.Units[enemy].OwnerId : world.Settlements[target.SettlementId!.Value].OwnerId;
             if (owner is int force) forces.Add(force);
             int effect = target == primary ? primaryEffect : Effect(world, actor, tactic, target, rules);
-            events.Add(new IntelligenceEffectResolvedEvent(world.Clock, sourceId, target.UnitId ?? target.SettlementId!.Value,
+            events.Add(new IntelligenceEffectResolvedEvent(world.Clock, source, target.UnitId ?? target.SettlementId!.Value,
                 target.UnitId is null, tactic.Id, effect));
             if (effect == 0) continue;
-            Apply(world, sourceId, actor, tactic, target, effect, rules, events);
+            Apply(world, source, actor, tactic, target, effect, rules, events);
         }
         BattleAftermath.Reconcile(world, forces, rules, events);
         ResolutionPipeline.CheckConquest(world, events);
     }
 
-    private static void Apply(WorldMutation world, int sourceId, OfficerState actor, TacticRule tactic, MilitaryOrder target,
+    private static void Apply(WorldMutation world, BattleSource source, OfficerState actor, TacticRule tactic, MilitaryOrder target,
         int effect, SimulationRules rules, List<DomainEvent> events)
     {
         var military = rules.Military!;
@@ -93,8 +92,7 @@ internal static class IntelligenceTactics
                 break;
             case TacticEffect.Defection:
                 uint loss = TacticMath.Defection(proficiency, intelligence, tactic.Power, effect, soldiers, target.UnitId is null);
-                var source = world.Units[sourceId];
-                uint accepted = Math.Min(loss, military.Formations[source.FormationId!.Value].SoldierCapacity - source.Soldiers);
+                uint accepted = Math.Min(loss, source.Capacity(world, military) - source.Soldiers(world));
                 int? cityId = target.UnitId is int targetUnit
                     ? military.RegionAt(world.Units[targetUnit].Position) is int region
                         ? Demobilization.City(world, region, rules.Personnel) : null
@@ -105,13 +103,13 @@ internal static class IntelligenceTactics
                     Demobilization.Return(world, city, loss - accepted, "tactic-defection-demobilized",
                         target.UnitId ?? target.SettlementId!.Value, events);
                 else loss = accepted;
-                world.Replace(source with { Soldiers = source.Soldiers + accepted });
+                source.AddSoldiers(world, accepted);
                 if (target.UnitId is int defected) world.Replace(world.Units[defected] with { Soldiers = soldiers - loss });
                 else world.Replace(world.Settlements[target.SettlementId!.Value] with { Soldiers = soldiers - loss });
-                ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, sourceId), ResourceKind.Soldiers, "tactic-defection",
+                ResourceAccounts.Report(world, source.Account, ResourceKind.Soldiers, "tactic-defection",
                     target.UnitId ?? target.SettlementId, accepted, accepted, events);
                 ResourceAccounts.Report(world, new(target.UnitId is null ? ResourceOwnerKind.Settlement : ResourceOwnerKind.Unit,
-                    target.UnitId ?? target.SettlementId!.Value), ResourceKind.Soldiers, "tactic-defection", sourceId, -(long)loss, -(long)loss, events);
+                    target.UnitId ?? target.SettlementId!.Value), ResourceKind.Soldiers, "tactic-defection", source.Id, -(long)loss, -(long)loss, events);
                 break;
             case TacticEffect.Illusion:
             case TacticEffect.Sorcery:
@@ -119,17 +117,17 @@ internal static class IntelligenceTactics
                 uint damage = tactic.Effect == TacticEffect.Trap ? TacticMath.TrapDamage(proficiency, intelligence, tactic.Power, effect, soldiers) :
                     TacticMath.IllusionDamage(proficiency, intelligence, tactic.Power, effect, soldiers, tactic.Effect == TacticEffect.Sorcery);
                 if (target.UnitId is int damaged)
-                    MilitaryCombat.DamageUnit(world, world.Units[damaged], damage, military.Formations[world.Units[damaged].FormationId!.Value].Combat!, sourceId, events);
+                    MilitaryCombat.DamageUnit(world, world.Units[damaged], damage, military.Formations[world.Units[damaged].FormationId!.Value].Combat!, source.Id, events, source.IsSettlement);
                 else MilitaryCombat.DamageSettlement(world, world.Settlements[target.SettlementId!.Value], damage,
-                    military.Place(world.Settlements[target.SettlementId.Value]).Combat!, sourceId, events);
+                    military.Place(world.Settlements[target.SettlementId.Value]).Combat!, source.Id, events, attackerIsSettlement: source.IsSettlement);
                 break;
             default:
                 throw new InvalidOperationException("Not an offensive intelligence effect.");
         }
         if (target.UnitId is int id && world.Units[id] is var victim && (victim.Soldiers == 0 || victim.Morale == 0))
-            BattleAftermath.TerminateUnit(world, id, sourceId, rules, events);
+            BattleAftermath.TerminateUnit(world, id, source, rules, events);
         else if (target.UnitId is null && world.Settlements[target.SettlementId!.Value] is var place &&
             MilitaryCombat.Defeated(place))
-            BattleAftermath.ResolveSettlementDefeat(world, place.Id, sourceId, rules, events);
+            BattleAftermath.ResolveSettlementDefeat(world, place.Id, source, rules, events);
     }
 }

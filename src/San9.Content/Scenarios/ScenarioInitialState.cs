@@ -34,7 +34,8 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 37;
+    public const int CurrentSchemaVersion = 46;
+    [System.Text.Json.Serialization.JsonRequired] public Dictionary<int, string> FacilityNameSuffixKeys { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public San9.Core.Domain.MilitaryDefinition? Military { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Domain.CityConnection> CityConnections { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Domain.PersonPlace> UnbuiltPlaces { get; init; } = [];
@@ -53,6 +54,9 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
         if (Military is { } military)
         {
             var rules = new San9.Core.Domain.MilitaryRulebook(military);
+            var personIds = Officers.Select(o => o.State.Id).ToHashSet();
+            if (rules.LinkRules.Pairs.Any(p => !personIds.Contains(p.FirstId) || !personIds.Contains(p.SecondId)))
+                throw new InvalidDataException("Unknown tactic relationship person reference.");
             if (rules.RegionIds.OfType<int>().Any(id => !RegionNameKeys.ContainsKey(id)))
                 throw new InvalidDataException("Unknown battlefield region reference.");
             if (rules.ConstructionSites.Values.Any(site => !RegionNameKeys.ContainsKey(site.RegionId) || !RegionCityIds.ContainsKey(site.RegionId)))
@@ -111,6 +115,8 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
         var cityIds = Settlements.Where(s => s.Kind == San9.Core.Domain.SettlementKind.City).Select(s => s.Id).ToHashSet();
         if (RegionCityIds.Any(p => !RegionNameKeys.ContainsKey(p.Key) || !cityIds.Contains(p.Value)))
             throw new InvalidDataException("Invalid region city reference.");
+        if (FacilityNameSuffixKeys is null || FacilityNameSuffixKeys.Any(p => string.IsNullOrWhiteSpace(p.Value) || Military is null || !Military.Facilities.Any(f => f.Id == p.Key)))
+            throw new InvalidDataException("Invalid facility name suffix references.");
         if (RegionNameKeys.Any(p => p.Key < 0 || string.IsNullOrWhiteSpace(p.Value))) throw new InvalidDataException("Invalid region names.");
     }
 }

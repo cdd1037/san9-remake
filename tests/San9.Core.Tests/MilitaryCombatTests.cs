@@ -22,17 +22,68 @@ public sealed class MilitaryCombatTests
          new(2, new(37, 7), new(1, 1)) { Combat = Profile, Attack = new(1, false), DestroyedAtZeroDurability = destroyed },
          new(3, new(37, 2), new(1, 1)) { Combat = Profile, Attack = new(1, false) }]));
 
-    private static WorldState World(uint defenders = 100, int durability = 100) => WorldState.Create(new(190, 1, 1), 42,
+    private static WorldState World(uint defenders = 100, int durability = 100, bool controlled = false) => WorldState.Create(new(190, 1, 1), 42,
         [new(1, 10000, 10000, 100) { LeaderId = 11 }, new(2, 10000, 10000, 100) { LeaderId = 22 }],
         [new(1, 1, 100, 100, 100, 70, 500, 0, 100, 0, 100), new(2, 2, defenders, durability, 100, 70, 500, 0, 100, 0, 100)],
         [new(11, 1, null, new(90, 90, 90, 90), false) { UnitId = 0, Status = OfficerStatus.Ruler },
          new(12, 1, 1, new(70, 70, 70, 70), false), new(22, 2, 2, new(70, 70, 70, 70), false) { Status = OfficerStatus.Ruler }],
         units: [new(0, 1, new(35, 7), 10000) { FormationId = 7, Morale = 90, ServicePlaceId = 1,
             MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(11, BattleRank.Front),
-            Order = new(MilitaryOrderKind.AttackSettlement, null, 2) }]);
+            Order = new(MilitaryOrderKind.AttackSettlement, null, 2) }],
+        controls: controlled ? [new("player", 1, ControllerKind.Player)] : []);
 
     private static SimulationEngine Engine(WorldState world, MilitaryRulebook? rules = null) =>
         new(world, EconomyRulebook.Empty, PersonnelRulebook.Empty, TreasureRulebook.Empty, military: rules ?? Rules());
+
+    [Fact]
+    public void PlannedAttackRechecksOwnershipAndDuplicateSubmissionCannotRepeatCapture()
+    {
+        var world = World(controlled: true);
+        var engine = Engine(world);
+        var player = new CommandContext("player");
+        var command = new OrderUnitCommand(Guid.NewGuid(), 1, 0, 0,
+            new(MilitaryOrderKind.AttackSettlement, null, 2));
+        Assert.True(engine.Validate(player, command).Accepted);
+        var mutation = world.BeginMutation();
+        mutation.AddSettlement(mutation.Settlements[2] with { Id = 3 });
+        mutation.Replace(mutation.Officers[22] with { SettlementId = 3 });
+        mutation.Replace(mutation.Settlements[2] with { OwnerId = 1 });
+        world.Commit(mutation);
+        var before = engine.Snapshot.StateHash;
+        var rejected = engine.Execute(player, command);
+        Assert.False(rejected.Submission.Accepted);
+        Assert.Empty(rejected.Events);
+        Assert.Equal(before, engine.Snapshot.StateHash);
+        mutation = world.BeginMutation();
+        mutation.Replace(mutation.Settlements[2] with { OwnerId = 2 });
+        world.Commit(mutation);
+        Assert.True(engine.Execute(player, command).Submission.Accepted);
+        before = engine.Snapshot.StateHash;
+        rejected = engine.Execute(player, command);
+        Assert.False(rejected.Submission.Accepted);
+        Assert.Empty(rejected.Events);
+        Assert.Equal(before, engine.Snapshot.StateHash);
+        engine.EndControl(player);
+        Assert.Single(engine.AdvanceXun().Events.OfType<SettlementCapturedEvent>());
+        engine.EndControl(player);
+        Assert.Empty(engine.AdvanceXun().Events.OfType<SettlementCapturedEvent>());
+    }
+
+    [Theory]
+    [InlineData(UnitCondition.Normal)]
+    [InlineData(UnitCondition.HighSpirits)]
+    public void NormalAndHighSpiritsAttackersBothDamageWalls(UnitCondition condition)
+    {
+        var state = Engine(World(100000)).CaptureStableState();
+        var engine = Engine(WorldState.Restore(state with
+        {
+            Units = state.Units.Select(u => u with { Condition = condition,
+                ConditionDaysRemaining = condition == UnitCondition.Normal ? 0 : 10 }).ToArray()
+        }));
+        var first = engine.AdvanceXun().Events.OfType<BattleDamageEvent>().First(e => e.AttackerId == 0 && !e.AttackerIsSettlement);
+        Assert.True(first.DurabilityLoss > 0);
+        Assert.Equal(2, first.SettlementId);
+    }
 
     [Fact]
     public void PublicAttackApproachesCapturesEliminatesAndTerminalRestoreIsStable()

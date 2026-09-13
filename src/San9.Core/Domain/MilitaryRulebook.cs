@@ -6,13 +6,19 @@ public sealed record FormationRule(int Id, int MovementBudget, int DeploymentCos
     int OfficerCapacity, Footprint Footprint, TravelMode TravelMode)
 {
     [System.Text.Json.Serialization.JsonRequired] public FormationTactics? Tactics { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<int> MartialTacticVulnerabilities { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public int? RequiredTacticId { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public CombatProfile? Combat { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public OrdinaryAttack? Attack { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<BattleRank> CaptureRanks { get; init; } = [];
 }
 
-public sealed record OrdinaryAttack(int Range, bool DamagesWalls);
+public sealed record OrdinaryAttack(int Range, bool DamagesWalls)
+{
+    [System.Text.Json.Serialization.JsonRequired] public int ElevationBonusPerLevel { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public int MaximumElevationBonus { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public bool RequiresWaterOrHarbor { get; init; }
+}
 
 public sealed record FormationTactics(int OpportunityChance, int CounterChance, int LinkMultiplier,
     ImmutableArray<int> FavoredCategories, ImmutableArray<int> AutomaticTactics)
@@ -31,6 +37,7 @@ public sealed record CombatProfile(int AgainstUnits, int AgainstGarrison, int Ag
 }
 public sealed record BattlefieldPlace(int Id, WorldPosition Position, Footprint Footprint)
 {
+    [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<int> EnabledTacticIds { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public int? FacilityTypeId { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public bool CanDemolish { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public int? WoundedRecovery { get; init; }
@@ -65,18 +72,35 @@ public sealed record MilitaryDefinition(int Width, int Height, ImmutableArray<in
     [System.Text.Json.Serialization.JsonRequired] public HigherGroundTrapRule? HigherGroundTrap { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<int?> RegionIds { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<TacticRule> Tactics { get; init; } = [];
+    [System.Text.Json.Serialization.JsonRequired] public TacticLinkRules LinkRules { get; init; } = TacticLinkRules.Empty;
+    [System.Text.Json.Serialization.JsonRequired] public CityInfluenceRule? CityInfluence { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public BattlefieldGeography Geography { get; init; } = BattlefieldGeography.Empty;
+    [System.Text.Json.Serialization.JsonRequired] public RockfallRule? Rockfall { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<MapCell> BlockedCells { get; init; } = [];
 }
 
-public sealed class MilitaryRulebook
+public sealed partial class MilitaryRulebook
 {
     public const uint WoundedCapacity = 50000;
     public MilitaryRulebook(MilitaryDefinition definition)
     {
+        LinkRules = definition.LinkRules ?? throw new ArgumentException("Missing tactic link rules.");
+        LinkRules.Validate();
         if (definition.TerrainIds.IsDefault || definition.Terrains.IsDefault || definition.Formations.IsDefault || definition.Places.IsDefault)
             throw new ArgumentException("Missing military definitions.");
         if (definition.BlockedCells.IsDefault) throw new ArgumentException("Missing battlefield blocking cells.");
         Map = new(definition.Width, definition.Height, definition.TerrainIds, definition.Terrains, definition.BlockedCells);
+        CityInfluence = definition.CityInfluence;
+        Geography = definition.Geography ?? throw new ArgumentException("Missing battlefield geography.");
+        Rockfall = definition.Rockfall;
+        if (CityInfluence is { } influence && (influence.RadiusCells < 0 || influence.LandTacticBonus is < 0 or > 100) ||
+            Geography.FootprintScale <= 0 || Geography.BlockedCells.IsDefault ||
+            Geography.BlockedCells.Distinct().Count() != Geography.BlockedCells.Length || Geography.BlockedCells.Any(c =>
+                c.X < 0 || c.Y < 0 || c.X >= Map.Width || c.Y >= Map.Height))
+            throw new ArgumentException("Invalid battlefield geography.");
+        if (Rockfall is { } rocks && (rocks.PropagationSteps < 0 || rocks.AttackRange <= 0 || definition.Elevations.Length != definition.TerrainIds.Length))
+            throw new ArgumentException("Invalid rockfall geography.");
+        geographicBlocked = Geography.BlockedCells.ToImmutableHashSet();
         RegionIds = definition.RegionIds;
         if (RegionIds.IsDefault || !RegionIds.IsEmpty && RegionIds.Length != definition.TerrainIds.Length || RegionIds.Any(id => id < 0))
             throw new ArgumentException("Invalid battlefield region geography.");
@@ -126,13 +150,29 @@ public sealed class MilitaryRulebook
             (!Tactics.TryGetValue(id, out var tactic) || tactic.Effect != TacticEffect.FormationTechnology)))
             throw new ArgumentException("Unknown formation technology reference.");
         foreach (var formation in Formations.Values) formation.Combat?.Validate();
+        if (Formations.Values.Any(f => f.MartialTacticVulnerabilities.IsDefault ||
+            f.MartialTacticVulnerabilities.Any(c => c is < 0 or > 8) ||
+            f.MartialTacticVulnerabilities.Distinct().Count() != f.MartialTacticVulnerabilities.Length))
+            throw new ArgumentException("Invalid formation tactic vulnerabilities.");
         if (Formations.Values.Any(f => f.CaptureRanks.IsDefault || f.CaptureRanks.Any(r => !Enum.IsDefined(r)) ||
             (!f.CaptureRanks.IsEmpty || f.Attack is not null) && f.CaptureRanks.Length != f.OfficerCapacity))
             throw new ArgumentException("Missing formation capture ranks.");
         Places = definition.Places.ToImmutableDictionary(p => p.Id);
+        if (Places.Values.Select(p => p.Footprint).Concat(Facilities.Values.Select(f => f.Footprint))
+            .Any(shape => (long)shape.Width * Geography.FootprintScale > int.MaxValue || (long)shape.Height * Geography.FootprintScale > int.MaxValue))
+            throw new ArgumentException("City influence footprint exceeds coordinate capacity.");
+        if (Places.Values.Any(p => p.EnabledTacticIds.IsDefault || p.EnabledTacticIds.Distinct().Count() != p.EnabledTacticIds.Length ||
+            p.EnabledTacticIds.Any(id => !Tactics.ContainsKey(id)))) throw new ArgumentException("Invalid enabled settlement tactics.");
         if (Places.Values.Any(p => p.FacilityTypeId is int id && !Facilities.ContainsKey(id) ||
             !Facilities.IsEmpty && p.FacilityTypeId is null)) throw new ArgumentException("Unknown facility type reference.");
         foreach (var place in Places.Values) place.Combat?.Validate();
+        var attacks = Formations.Values.Select(f => f.Attack).Concat(Places.Values.Select(p => p.Attack))
+            .Concat(Facilities.Values.Select(f => f.Attack)).OfType<OrdinaryAttack>().ToArray();
+        if (attacks.Any(a => a.ElevationBonusPerLevel < 0 || a.MaximumElevationBonus < 0 ||
+            (a.ElevationBonusPerLevel == 0) != (a.MaximumElevationBonus == 0) ||
+            (long)a.Range + a.MaximumElevationBonus > int.MaxValue) ||
+            attacks.Any(a => a.ElevationBonusPerLevel > 0) && elevations.Length != terrainIds.Length)
+            throw new ArgumentException("Invalid attack elevation rules.");
         if (Places.Values.Any(p => p.WoundedRecovery is < 0)) throw new ArgumentException("Invalid wounded recovery definition.");
         if (Formations.Values.Any(f => f.Attack is { Range: <= 0 } || f.Attack is not null && f.Combat is null) ||
             Places.Values.Any(p => p.Attack is { Range: <= 0 } || p.Attack is not null && p.Combat is null))
@@ -185,10 +225,81 @@ public sealed class MilitaryRulebook
         return trapTerrains[terrainIds[index]].BaseTacticId is int id ? Tactics[id] : null;
     }
     public ImmutableDictionary<int, FormationRule> Formations { get; }
+    public TacticLinkRules LinkRules { get; }
+    public CityInfluenceRule? CityInfluence { get; }
+    public BattlefieldGeography Geography { get; }
+    public RockfallRule? Rockfall { get; }
+    private readonly ImmutableHashSet<MapCell> geographicBlocked;
+
+    public bool HasCityInfluence(int ownerId, WorldPosition position, IEnumerable<SettlementState> settlements)
+    {
+        if (CityInfluence is not { } rule || position.X < 0 || position.Y < 0 ||
+            position.X >= Map.FineWidth || position.Y >= Map.FineHeight) return false;
+        var target = MapCoordinates.Cell(position);
+        var buildings = settlements.Where(s => !s.IsDestroyed && s.Facility?.BuilderUnitId is null && TryPlace(s, out _))
+            .Select(s => (State: s, Area: GeographicArea(s)))
+            .ToArray();
+        var seeds = new HashSet<MapCell>();
+        foreach (var building in buildings.Where(b => b.State.Kind == SettlementKind.City && b.State.OwnerId == ownerId))
+            seeds.UnionWith(GeographicCells(building.Area));
+        if (seeds.Contains(target)) return true;
+        bool Blocked(MapCell cell) => geographicBlocked.Contains(cell) || buildings.Any(b => Inside(cell, b.Area));
+        if (seeds.Count == 0 || Blocked(target)) return false;
+        // Reverse search counts the queried cell as the first outside step; entering a seed costs zero.
+        var queue = new Queue<(MapCell Cell, int Distance)>();
+        var visited = new HashSet<MapCell> { target };
+        queue.Enqueue((target, 1));
+        while (queue.TryDequeue(out var current))
+        {
+            if (current.Distance > rule.RadiusCells) continue;
+            foreach (var next in new MapCell[] { new(current.Cell.X, current.Cell.Y - 1), new(current.Cell.X + 1, current.Cell.Y),
+                new(current.Cell.X, current.Cell.Y + 1), new(current.Cell.X - 1, current.Cell.Y) })
+            {
+                if (seeds.Contains(next)) return true;
+                if (next.X < 0 || next.Y < 0 || next.X >= Map.Width || next.Y >= Map.Height || !visited.Add(next) || Blocked(next)) continue;
+                queue.Enqueue((next, current.Distance + 1));
+            }
+        }
+        return false;
+    }
     public ImmutableDictionary<int, TacticRule> Tactics { get; }
     public ImmutableDictionary<int, BattlefieldPlace> Places { get; }
     public ImmutableDictionary<int, FacilityRule> Facilities { get; }
     public ImmutableDictionary<(int RegionId, WorldPosition Position), ConstructionSite> ConstructionSites { get; }
+
+    public TacticRule? FacilityTactic(SettlementState settlement)
+    {
+        if (!TryPlace(settlement, out var place) || place.FacilityTypeId is not int type || Facilities[type].Tactics is not { } profile) return null;
+        return profile.TacticPriority.Where(id => !profile.RequiresEnabledTactic || place.EnabledTacticIds.Contains(id))
+            .Select(id => Tactics[id]).FirstOrDefault();
+    }
+
+    public FacilityAttackProfile FacilityAttack(SettlementState settlement)
+    {
+        var place = Place(settlement);
+        if (settlement.IsDestroyed || settlement.Facility?.BuilderUnitId is not null || place.Attack is null)
+            return new(null, false);
+        var ids = place.EnabledTacticIds.Concat(place.FacilityTypeId is int type ? Facilities[type].TacticIds : []).Distinct();
+        var modifiers = ids.Select(id => Tactics[id].FacilityAttack)
+            .Append(place.FacilityTypeId is int fixedType ? Facilities[fixedType].InnateAttack : null).OfType<FacilityAttackModifier>().ToArray();
+        int bonus = modifiers.Select(m => m.RangeBonus).DefaultIfEmpty(0).Max();
+        return new(place.Attack with { Range = checked(place.Attack.Range + bonus) }, modifiers.Any(m => m.UsesRockfallPower));
+    }
+
+    public bool IsHarbor(SettlementState settlement) => !settlement.IsDestroyed && TryPlace(settlement, out var place) &&
+        place.FacilityTypeId is int type && Facilities[type].IsHarbor;
+
+    public bool CanAttackTarget(OrdinaryAttack? attack, WorldPosition target, bool targetIsSettlement, bool targetIsHarbor) =>
+        attack is not null && (!attack.RequiresWaterOrHarbor || (targetIsSettlement ? targetIsHarbor : Map.IsWater(target)));
+
+    public int AttackRange(OrdinaryAttack? attack, WorldPosition source, WorldPosition target, bool targetIsSettlement, bool targetIsHarbor)
+    {
+        if (!CanAttackTarget(attack, target, targetIsSettlement, targetIsHarbor)) return 0;
+        if (attack!.ElevationBonusPerLevel == 0) return attack.Range;
+        var from = MapCoordinates.Cell(source); var to = MapCoordinates.Cell(target);
+        long difference = (long)elevations[from.Y * Map.Width + from.X] - elevations[to.Y * Map.Width + to.X];
+        return checked(attack.Range + (int)Math.Min(attack.MaximumElevationBonus, Math.Max(0L, difference) * attack.ElevationBonusPerLevel));
+    }
 
     public BattlefieldPlace Place(SettlementState settlement)
     {
@@ -196,7 +307,7 @@ public sealed class MilitaryRulebook
         var type = Facilities[instance.TypeId];
         return new(settlement.Id, instance.Position, type.Footprint)
         {
-            FacilityTypeId = type.Id, CanDemolish = type.Buildable, WoundedRecovery = type.WoundedRecovery,
+            FacilityTypeId = type.Id, CanDemolish = type.Buildable, WoundedRecovery = type.WoundedRecovery, EnabledTacticIds = type.TacticIds,
             Combat = type.Combat, Attack = instance.BuilderUnitId is null ? type.Attack : null,
             DestroyedAtZeroDurability = type.DestroyedAtZeroDurability
         };

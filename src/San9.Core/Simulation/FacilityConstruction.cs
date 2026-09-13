@@ -101,6 +101,7 @@ internal static class FacilityConstruction
                 };
                 if (existing is null) world.AddSettlement(place); else world.Replace(place);
                 events.Add(new FacilityConstructionChangedEvent(world.Clock, place.Id, id, "started", durability));
+                Grow(world, unit, type, military, true, events);
                 continue;
             }
             int next = existing!.Durability + type.DailyProgress(unit.Soldiers, world.Abilities(leader).Leadership,
@@ -109,6 +110,7 @@ internal static class FacilityConstruction
             world.Replace(existing with { Durability = next, CanHostPersons = complete && type.CanHostPersons,
                 Facility = existing.Facility! with { BuilderUnitId = complete ? null : id } });
             events.Add(new FacilityConstructionChangedEvent(world.Clock, existing.Id, id, complete ? "completed" : "progress", next));
+            Grow(world, unit, type, military, complete, events);
             if (!complete) continue;
             unit = world.Units[id] with { Order = null };
             world.Replace(unit);
@@ -120,6 +122,31 @@ internal static class FacilityConstruction
                     world.Replace(unit with { Order = order });
                 events.Add(new UnitOrderChangedEvent(world.Clock, id, world.Units[id].Order, "construction-completed"));
             }
+        }
+    }
+
+    private static void Grow(WorldMutation world, UnitState unit, FacilityRule type, MilitaryRulebook military,
+        bool milestone, List<DomainEvent> events)
+    {
+        if (type.ConstructionGrowthTacticId is not int tacticId) return;
+        var tactic = military.Tactics[tacticId];
+        var members = world.Officers.Values.Where(p => p.IsServing && p.OwnerId == unit.OwnerId && p.UnitId == unit.Id)
+            .OrderBy(p => p.Id).ToArray();
+        if (members.Length == 0) return;
+        if (milestone)
+        {
+            var actor = members[(int)(world.NextRandom("military-construction-growth-member") % (uint)members.Length)];
+            int before = actor.BaseAbilities.Leadership;
+            if (before < 100 && TacticCombat.Roll(world, "military-construction-growth", 3))
+            {
+                world.Replace(actor with { BaseAbilities = actor.BaseAbilities with { Leadership = before + 1 } });
+                events.Add(new OfficerAbilityGrownEvent(world.Clock, actor.Id, "leadership", before, before + 1));
+            }
+        }
+        foreach (var member in members)
+        {
+            OfficerTacticGrowth.Increase(world, member.Id, tactic.Category!.Value, milestone ? 3 : 1, events);
+            if (milestone) OfficerTacticGrowth.TryLearn(world, member.Id, tactic, "military-construction-learning", events);
         }
     }
 }

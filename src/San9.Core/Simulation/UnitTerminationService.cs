@@ -2,18 +2,17 @@ using San9.Core.Domain;
 
 namespace San9.Core.Simulation;
 
-public sealed record UnitTerminatedEvent(GameClock Clock, int UnitId, int? WinnerId, long UnrecoveredSoldiers) : DomainEvent;
+public sealed record UnitTerminatedEvent(GameClock Clock, int UnitId, BattleSource? Winner, long UnrecoveredSoldiers) : DomainEvent;
 
 /// <summary>Final resource and identity commit after personnel outcomes have been settled by the battle transaction.</summary>
 internal static class UnitTerminationService
 {
-    internal static void Complete(WorldMutation world, int unitId, int? winnerId, int? associatedCityId,
+    internal static void Complete(WorldMutation world, int unitId, BattleSource? winner, int? associatedCityId,
         GovernanceRulebook governance, List<DomainEvent> events, bool repairCorps = true)
     {
         if (!world.Units.TryGetValue(unitId, out var defeated) || world.Officers.Values.Any(p => p.UnitId == unitId))
             throw new InvalidOperationException("Unit termination requires resolved personnel and a live unit.");
-        UnitState? winner = winnerId is int id && world.Units.TryGetValue(id, out var found) ? found : null;
-        if (winnerId is not null && (winner is null || winner.OwnerId == defeated.OwnerId))
+        if (winner is { } captor && (!captor.Exists(world) || captor.Owner(world) == defeated.OwnerId))
             throw new ArgumentException("Invalid battle winner.");
         SettlementState? city = associatedCityId is int cityId && world.Settlements.TryGetValue(cityId, out var place) &&
             place.Kind == SettlementKind.City ? place : null;
@@ -22,14 +21,15 @@ internal static class UnitTerminationService
             origin.OwnerId == defeated.OwnerId && origin.CanHostPersons && origin.Durability > 0 ? origin : null;
         long pool = (long)defeated.Soldiers + defeated.Wounded;
         long recovered = 0;
-        if (winner is not null)
+        if (winner is { } victor)
         {
-            TransferTreasury(world, defeated, winner, pool, events);
+            TransferTreasury(world, defeated, victor, pool, events);
             long half = pool / 2;
             if (home is not null) recovered += Wounded(world, home, half, unitId, events);
-            uint accepted = (uint)Math.Min(half, MilitaryRulebook.WoundedCapacity - winner.Wounded);
-            world.Replace(winner with { Wounded = winner.Wounded + accepted, Morale = Math.Min(100, winner.Morale + 10) });
-            ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, winner.Id), ResourceKind.Wounded,
+            uint wounded = victor.IsSettlement ? world.Settlements[victor.Id].Wounded : world.Units[victor.Id].Wounded;
+            uint accepted = (uint)Math.Min(half, MilitaryRulebook.WoundedCapacity - wounded);
+            victor.Reward(world, accepted, 10);
+            ResourceAccounts.Report(world, victor.Account, ResourceKind.Wounded,
                 "unit-defeated", unitId, half, accepted, events);
             recovered += accepted;
         }
@@ -48,21 +48,21 @@ internal static class UnitTerminationService
         foreach (var resource in new[] { ResourceKind.Money, ResourceKind.Food })
         {
             uint cargo = resource == ResourceKind.Money ? defeated.CargoMoney : defeated.CargoFood;
-            if (winner is not null)
-                ResourceAccounts.Change(world, ResourceAccounts.Resolve(world, winner.OwnerId, winner.CorpsId), resource,
+            if (winner is { } recipient)
+                ResourceAccounts.Change(world, ResourceAccounts.Resolve(world, recipient.Owner(world), recipient.Corps(world)), resource,
                     cargo, "defeated-cargo", unitId, events);
-            ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, unitId), resource, "defeated-cargo", winnerId,
+            ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, unitId), resource, "defeated-cargo", winner?.Id,
                 -(long)cargo, -(long)cargo, events);
         }
-        ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, unitId), ResourceKind.Soldiers, "unit-defeated", winnerId,
+        ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, unitId), ResourceKind.Soldiers, "unit-defeated", winner?.Id,
             -(long)defeated.Soldiers, -(long)defeated.Soldiers, events);
-        ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, unitId), ResourceKind.Wounded, "unit-defeated", winnerId,
+        ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, unitId), ResourceKind.Wounded, "unit-defeated", winner?.Id,
             -(long)defeated.Wounded, -(long)defeated.Wounded, events);
         FacilityConstruction.Cancel(world, unitId, events);
         world.RemoveUnit(unitId);
         if (repairCorps && defeated.CorpsId is int corps && GovernanceMaintenance.RepairCorps(world, corps, governance, events) != CommandRejection.None)
             throw new InvalidOperationException("Battle transaction cannot settle the defeated corps.");
-        events.Add(new UnitTerminatedEvent(world.Clock, unitId, winnerId, pool - recovered));
+        events.Add(new UnitTerminatedEvent(world.Clock, unitId, winner, pool - recovered));
     }
 
     private static uint Wounded(WorldMutation world, SettlementState home, long requested, int unitId, List<DomainEvent> events)
@@ -74,10 +74,10 @@ internal static class UnitTerminationService
         return accepted;
     }
 
-    private static void TransferTreasury(WorldMutation world, UnitState defeated, UnitState winner, long weight, List<DomainEvent> events)
+    private static void TransferTreasury(WorldMutation world, UnitState defeated, BattleSource winner, long weight, List<DomainEvent> events)
     {
         var source = ResourceAccounts.Resolve(world, defeated.OwnerId, defeated.CorpsId);
-        var target = ResourceAccounts.Resolve(world, winner.OwnerId, winner.CorpsId);
+        var target = ResourceAccounts.Resolve(world, winner.Owner(world), winner.Corps(world));
         long total = world.Units.Values.Where(u => u.OwnerId == defeated.OwnerId && ResourceAccounts.Resolve(world, u.OwnerId, u.CorpsId) == source)
             .Sum(u => (long)u.Soldiers + u.Wounded) + world.Settlements.Values.Where(s => s.OwnerId == defeated.OwnerId &&
                 ResourceAccounts.Resolve(world, defeated.OwnerId, s.CorpsId) == source).Sum(s => (long)s.Soldiers + s.Wounded);

@@ -79,7 +79,7 @@ public partial class StrategyRosterList : Control
         {
             var entry = i < entries.Length ? entries[i] : null;
             string markup = entry is null ? "" : evaluator.Evaluate(entry.MessageKey,
-                new(new Dictionary<string, MessageBinding> { ["name"] = new(0, Texts.Resolve(entry.NameKey)) },
+                new(new Dictionary<string, MessageBinding> { ["name"] = new(0, entry.ResolveName(Texts)) },
                     (_, _) => throw new InvalidDataException("Name message cannot query world state."),
                     _ => throw new InvalidDataException("Name message cannot draw randomness.")));
             _rows[i].Bind(entry, markup,

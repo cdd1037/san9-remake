@@ -71,7 +71,7 @@ G05 移动链已接入：`BattlefieldMap`负责不可变拓扑、矩形和四向
 | `person-lifecycle` | `BEH-PERSON-LIFECYCLE-0001..0002`；0003为独立支线草案 | 成长、伤势、生命 | 周期、人物、成长/死亡原因 → 成长、登场/恢复、死亡清理 | 成长有界；死亡无活引用 | `San9.Core.Personnel.Lifecycle`；培养按需另行设计，不构成主线依赖 |
 | `governance` | `BEH-GOVERNANCE-0001..0003` | 势力、军团、辖区、委任、归属事务 | 当前所有权与委任配置 → 自动命令、归属转换、军团清理 | 单一势力根；资源守恒；自动/交互共享终验 | `San9.Core.Simulation`：`CorpsGovernance`、`CorpsControl`、`GovernanceMaintenance`、`PersonnelDefection`；Application：`AutomaticCorpsPlanner`（基础策略） |
 | `diplomacy` | `BEH-DIPLOMACY-0001..0003` | 关系、联盟、外交命令、谈判、计划 | 关系快照、请求、资格、随机流 → 对称关系、守恒结算、联盟、计划 | 关系对称有界；联盟显式；增量规划读取实时状态 | `San9.Core.Diplomacy`：关系、联盟、命令与规划服务 |
-| `warfare` | `BEH-WAR-0001..0004` | 部队、移动计划、战场命令、设施战斗、终止结算 | 命令、地图占用、实时目标 → 日移动、占领、部队/势力清理输入 | 不穿硬阻挡；效果只提交一次；重置后无活引用 | `San9.Core.Warfare`：移动、命令、占领与终止服务 |
+| `warfare` | `BEH-WAR-0001..0006` | 部队、移动计划、战场命令、兵法冷却、设施建设与战斗、终止结算 | 命令、地图占用、实时目标 → 日移动、兵法、建设、占领、部队/势力清理输入 | 不穿硬阻挡；效果只提交一次；重置后无活引用 | `San9.Core.Simulation`：移动、兵法、建设、占领与终止服务 |
 | `ai` | `BEH-AI-0001` | 势力视角观察、确定性预算、计划、诊断 | 不可变观察、命名用途、预算 → 有序命令候选、评分、可选诊断 | 不持有可变世界；分析随机隔离；诊断不改行为；共享命令终验 | `San9.Core.AI`：`AiObservation`、`AiPlanningContext`、`AiPlan`、`IAiPlanner` |
 | `strategy` | `BEH-STRATEGY-0001..0003` | 计略命令、目标、意见、部队状态、结果 | 单执行者、类型目标、实时阈值、随机流 → 目标效果、成长、占用释放 | 意见只读；玩家/AI 共用结算；资源与所有权有界 | `San9.Core.Strategy`：命令、意见与效果服务 |
 | `duel` | `BEH-DUEL-0001..0003` | 单挑机会、名单、逐刀、结果、战后结算 | 陆战攻击机会、名单、属性、随机流 → 名单、逐刀结果、人员分区、士气、低武力胜者成长 | 单刀单结果；死亡/俘虏/伤势互斥；表现随机隔离；成长每场至多一次 | `San9.Core.Duels`：触发、解析与战后服务 |
@@ -82,7 +82,7 @@ G01已接入以上模拟内核与现有内政命令，持续任务通过内部�
 
 ## 支撑边界
 
-G07已接入的周期入口：`PrisonerEscapeCycle`在旬更新复用`PrisonerRelease`的安置与归队；`WoundedRecovery`读取`BattlefieldPlace.WoundedRecovery`并等量转换据点伤兵和现役。两者使用独立命名随机流。`MilitarySupply`消费本日账户短缺，统一写士气并复用终止清理；`UnitReformation`处理显式整编及共同可通行地形上的陆水转换，军事进出统一使用建筑边界。结果进入统一世界状态、保存和事件协议；`FormationEligibility`统一出征/整编的成员、势力和持有宝物技术资格；主动兵法、设施建设及综合验收尚未完成。
+G07已接入的周期入口：`PrisonerEscapeCycle`在旬更新复用`PrisonerRelease`的安置与归队；`WoundedRecovery`读取`BattlefieldPlace.WoundedRecovery`并等量转换据点伤兵和现役。两者使用独立命名随机流。`MilitarySupply`消费本日账户短缺，统一写士气并复用终止清理；`UnitReformation`处理显式整编及共同可通行地形上的陆水转换，军事进出统一使用建筑边界。结果进入统一世界状态、保存和事件协议；`FormationEligibility`统一出征/整编的成员、势力和持有宝物技术资格。`TacticCombat`、`IntelligenceTactics`与`FacilityCombat`消费当前成员、命名随机及内容能力，冷却和异常属于权威状态；`FacilityConstruction`持有施工计划和地域实例双向引用。石兵反作用复用兵损与异常写回，地利／落石范围由当前地图和建筑状态查询，不保存第二份人工维护的覆盖集合。G07验收见[完成记录](../../docs/g07-verification.md)。
 
 | 边界 | 规格 | 职责 | 实现入口 |
 | --- | --- | --- | --- |

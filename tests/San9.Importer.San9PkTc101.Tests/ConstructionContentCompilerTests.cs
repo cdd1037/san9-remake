@@ -27,8 +27,24 @@ public sealed class ConstructionContentCompilerTests
             Assert.Equal(rule.Id == 0 ? 500000u : 250000u, rule.SoldierCapacity);
             Assert.Equal(rule.Id == 16 ? 20 : (int?)null, rule.RequiredTacticId);
             Assert.Equal(rule.Id >= 6 ? 19 : (int?)null, rule.CostReductionTacticId);
+            Assert.Equal(rule.Id >= 6 ? rule.Id == 16 ? 20 : 19 : (int?)null, rule.ConstructionGrowthTacticId);
+            Assert.Equal(rule.Id < 10 ? new OrdinaryAttack(10, false) { ElevationBonusPerLevel = 5, MaximumElevationBonus = 10 } : null, rule.Attack);
+            Assert.Equal(rule.Id == 1, rule.IsHarbor);
+            Assert.Equal(rule.Id == 16 ? new FacilityReprisal(6, 1000, 10, 10, 10, 5) : null, rule.Reprisal);
+            Assert.Equal(rule.Id switch { 8 => new FacilityAttackModifier(false, 5), 9 => new(true, 0), _ => null }, rule.InnateAttack);
         }
         Assert.Equal(new[] { 40 }, rules[8].TacticIds);
+        Assert.Equal(new[] { 9, 10, 11, 23, 24, 25, 26, 27, 28, 29, 30 }, rules[0].Tactics!.TacticPriority);
+        Assert.True(rules[0].Tactics!.RequiresEnabledTactic);
+        foreach (int type in new[] { 2, 3, 4, 5, 7, 8, 9 })
+        {
+            var profile = rules[type].Tactics!;
+            Assert.Equal(type < 6 ? 11 : type == 8 ? 10 : 9, Assert.Single(profile.TacticPriority));
+            Assert.False(profile.RequiresEnabledTactic);
+            Assert.Equal(10, profile.OpportunityChance);
+            Assert.Equal(3, profile.MartialCooldown);
+        }
+        Assert.All(new[] { 1, 6, 10, 11, 12, 13, 14, 15, 16 }, id => Assert.Null(rules[id].Tactics));
         Assert.Equal(new[] { 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 },
             rules.Where(r => r.DestroyedAtZeroDurability).Select(r => r.Id));
         Assert.Throws<InvalidDataException>(() => ConstructionContentCompiler.Facilities(buildings[..16]));

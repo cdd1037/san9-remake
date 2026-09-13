@@ -24,6 +24,7 @@ public sealed record PersonnelReturnLeg(int OriginPlaceId, int CountdownDays, bo
 /// <summary>Authoritative scheduling state; immutable and included in every world transaction.</summary>
 public sealed record SimulationState(GameClock Started, ulong InitialSeed)
 {
+    [System.Text.Json.Serialization.JsonRequired] public int ComputerDamageBonusPercent { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public ulong RunSeed { get; init; } = InitialSeed;
     public SimulationBoundary Boundary { get; init; }
     public string? TerminalReason { get; init; }

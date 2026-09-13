@@ -6,20 +6,64 @@ namespace San9.Core.Tests;
 
 public sealed class TacticCombatTests
 {
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ComputerRetaliationScalesTheCombinedDamageExactlyOnce(bool tactics)
+    {
+        var baseline = Engine(counter: true, normalPower: true, opportunityChance: tactics ? 100 : 0).AdvanceXun().Events.OfType<BattleDamageEvent>().ToArray();
+        var harder = Engine(counter: true, normalPower: true, opportunityChance: tactics ? 100 : 0, computerBonus: 100).AdvanceXun().Events.OfType<BattleDamageEvent>().ToArray();
+        var outgoing = baseline.First(e => e.AttackerId == 0);
+        var incoming = baseline.First(e => e.AttackerId == 1);
+        Assert.True(incoming.SoldierLoss > 0);
+        Assert.Equal(outgoing.SoldierLoss, harder.First(e => e.AttackerId == 0).SoldierLoss);
+        var scaled = harder.First(e => e.AttackerId == 1);
+        Assert.Equal(2 * incoming.SoldierLoss, scaled.SoldierLoss);
+        Assert.Equal(scaled.SoldierLoss, scaled.AddedWounded + scaled.Dead);
+    }
+
     private static readonly CommandContext Player = new("player");
+
+    [Theory]
+    [InlineData(2, 22UL, 2)] // Link stream rolls 49: below the ordinary 50% threshold.
+    [InlineData(2, 29UL, 1)] // 50 is outside that threshold.
+    [InlineData(3, 70UL, 2)] // Wedge threshold is 75%.
+    [InlineData(3, 200UL, 1)]
+    public void SameAffinityLinkUsesFormationHalfMultiplier(int multiplier, ulong seed, int participants)
+    {
+        var first = Engine(members: 2, seed: seed, linkMultiplier: multiplier).AdvanceXun()
+            .Events.OfType<TacticActivatedEvent>().First();
+        Assert.Equal(participants, first.OfficerIds.Length);
+    }
+
+    [Theory]
+    [InlineData(false, 217UL, true)] // Opportunity roll 24 is below 15+10.
+    [InlineData(false, 33UL, false)] // Roll 25 is outside that threshold.
+    [InlineData(true, 217UL, false)] // Water formations do not receive the land bonus.
+    public void OwnCityInfluenceAddsTenPointsToLandOpportunityOnly(bool water, ulong seed, bool expected)
+    {
+        bool FirstDay(SimulationEngine engine) => engine.AdvanceXun().Events.OfType<TacticActivatedEvent>().Any(e => e.Clock.Day == 2);
+        Assert.Equal(expected, FirstDay(Engine(water: water, seed: seed, opportunityChance: 15, influence: new(8, 10))));
+        Assert.False(FirstDay(Engine(water: water, seed: seed, opportunityChance: 15)));
+    }
+
     private static SimulationEngine Engine(int members = 1, bool water = false, bool settlement = false,
         int power = 13, bool equipped = true, int injury = 0, int cooldown = 0, bool allowedFacility = true, bool counter = false,
-        int primaryProficiency = 0, int linkedProficiency = 0, ulong seed = 42)
+        int primaryProficiency = 0, int linkedProficiency = 0, ulong seed = 42, int linkMultiplier = 2, TacticLinkRules? links = null,
+        int? vulnerableCategory = null, int defenderProficiency = 0, CityInfluenceRule? influence = null, int opportunityChance = 100, int computerBonus = 0, bool normalPower = false)
     {
-        var combat = new CombatProfile(0, 0, 0, 1000, 50);
+        var combat = normalPower ? new CombatProfile(10, 10, 0, 10, 50) : new CombatProfile(0, 0, 0, 1000, 50);
         var mode = water ? TravelMode.Water : TravelMode.Land;
         var rules = new MilitaryRulebook(new(4, 1, [0, 0, 0, 0], [new(0, 1, 1)],
             [new(100, 5, 0, 100000, 2, new(1, 1), mode) { Combat = combat, Attack = new(1, false),
-                CaptureRanks = [BattleRank.Front, BattleRank.Front], Tactics = new(100, 0, 2, [0], water ? [9000] : []) },
+                CaptureRanks = [BattleRank.Front, BattleRank.Front], Tactics = new(opportunityChance, 0, linkMultiplier, [0], water ? [9000] : []) },
              new(200, 5, 0, 100000, 1, new(1, 1), mode) { Combat = combat, CaptureRanks = [BattleRank.Middle],
-                Attack = counter ? new(1, false) : null, Tactics = counter ? new(100, 100, 2, [0], []) : null }],
+                MartialTacticVulnerabilities = vulnerableCategory is int weak ? [weak] : [],
+                Attack = counter ? new(1, false) : null, Tactics = counter ? new(opportunityChance, 100, 2, [0], []) : null }],
             [new(1, new(2, 2), new(1, 1)) { Combat = combat }, new(2, new(17, 2), new(1, 1)) { Combat = combat }])
-        { Tactics = [new(9000, 0, TacticEffect.Martial, power, 9, 0, !water, allowedFacility, [100, 200])] });
+        { LinkRules = links ?? TacticLinkRules.Empty, CityInfluence = influence,
+            Tactics = [new(9000, 0, TacticEffect.Martial, power, 9, 0, !water, allowedFacility, [100, 200])] });
         List<OfficerState> officers = [new(11, 1, null, new(80, 70, 70, 70), false)
             { UnitId = 0, LearnedTactics = equipped ? [9000] : [], EquippedTacticId = equipped ? 9000 : null,
                 Injury = injury, TacticCooldown = cooldown,
@@ -28,6 +72,7 @@ public sealed class TacticCombatTests
             { UnitId = 0, LearnedTactics = [9000], EquippedTacticId = 9000,
                 TacticProficiencies = [linkedProficiency, 0, 0, 0, 0, 0, 0, 0, 0] });
         officers.Add(new(21, 2, settlement ? 2 : null, new(70, 70, 70, 70), false) { UnitId = settlement ? null : 1,
+            TacticProficiencies = [defenderProficiency, 0, 0, 0, 0, 0, 0, 0, 0],
             LearnedTactics = counter ? [9000] : [], EquippedTacticId = counter ? 9000 : null });
         List<UnitState> units = [new(0, 1, new(settlement ? 16 : 6, 2), 100000) { FormationId = 100, Morale = 100, ServicePlaceId = 1,
             MemberRanks = officers.Where(p => p.UnitId == 0).ToImmutableDictionary(p => p.Id, _ => BattleRank.Front) }];
@@ -36,7 +81,7 @@ public sealed class TacticCombatTests
         var world = WorldState.Create(new(190, 1, 1), seed,
             [new(1, 10000, 10000, 100) { LeaderId = 11 }, new(2, 10000, 10000, 100) { LeaderId = 21 }],
             [new(1, 1, 100, 100, 100, 100, 0, 0, 100, 0, 100), new(2, 2, 1000, 100, 100, 100, 0, 0, 100, 0, 100)],
-            officers, units: units, controls: [new("player", 1, ControllerKind.Player)]);
+            officers, units: units, controls: [new("player", 1, ControllerKind.Player)], computerDamageBonusPercent: computerBonus);
         var engine = new SimulationEngine(world, EconomyRulebook.Empty, PersonnelRulebook.Empty, TreasureRulebook.Empty, military: rules);
         var order = settlement ? new MilitaryOrder(MilitaryOrderKind.AttackSettlement, null, 2) :
             new MilitaryOrder(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 1 };
@@ -62,9 +107,35 @@ public sealed class TacticCombatTests
     }
 
     [Fact]
+    public void AuthoredRelationshipChangesActualLinkOutcome()
+    {
+        var unrelated = Engine(members: 2, seed: 29).AdvanceXun().Events.OfType<TacticActivatedEvent>().First();
+        var related = Engine(members: 2, seed: 29, links: new(true, 20, [new(11, 12, 45, false)]))
+            .AdvanceXun().Events.OfType<TacticActivatedEvent>().First();
+        Assert.Single(unrelated.OfficerIds);
+        Assert.Equal(2, related.OfficerIds.Length);
+    }
+
+    [Theory]
+    [InlineData(null, 0, false, 10)]
+    [InlineData(0, 0, false, 15)]
+    [InlineData(null, 1000, false, 1)]
+    [InlineData(0, 1000, false, 15)]
+    [InlineData(1, 1000, false, 1)]
+    [InlineData(0, 1000, true, 1)]
+    public void TargetCategoryWeaknessPrecedesProficiencyResistance(int? category, int proficiency, bool settlement, int expected)
+    {
+        var engine = Engine(vulnerableCategory: category, defenderProficiency: proficiency, settlement: settlement);
+        var first = engine.AdvanceXun().Events.OfType<TacticActivatedEvent>().First();
+        Assert.Equal(expected, first.Effect);
+        if (expected == 15)
+            Assert.DoesNotContain(engine.Snapshot.Simulation.RandomStreams, s => s.Name == "military-tactic-resistance");
+    }
+
+    [Fact]
     public void LinkedMembersRespectFullAndThirdCooldownAcrossConsecutiveXuns()
     {
-        var engine = Engine(members: 2);
+        var engine = Engine(members: 2, linkMultiplier: 4);
         var first = engine.AdvanceXun();
         engine.EndControl(Player);
         var second = engine.AdvanceXun();
@@ -94,7 +165,7 @@ public sealed class TacticCombatTests
             foreach (int linkedProficiency in new[] { 0, 1000 })
             {
                 var linked = Engine(members: 2, primaryProficiency: primaryProficiency,
-                    linkedProficiency: linkedProficiency, seed: seed).AdvanceXun()
+                    linkedProficiency: linkedProficiency, seed: seed, linkMultiplier: 4).AdvanceXun()
                     .Events.OfType<TacticActivatedEvent>().First();
                 Assert.Equal(2, linked.OfficerIds.Length);
                 if (linked.OfficerIds[0] != 11) continue;

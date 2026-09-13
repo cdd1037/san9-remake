@@ -7,6 +7,39 @@ public sealed class FacilityRuleTests
     private static FacilityRule Rule => new(9000, 1000, 600, new(3, 3), 15, true, true, true, 250000, null, null, null, []);
 
     [Fact]
+    public void ConstructionGrowthRequiresExplicitWorkTacticReference()
+    {
+        var definition = new MilitaryDefinition(1, 1, [0], [new(0, 1, null)], [], [])
+        { Facilities = [Rule with { ConstructionGrowthTacticId = 7000 }],
+            Tactics = [new(7000, 2, TacticEffect.Construction, 0, 0, 100, false, false, [])] };
+        Assert.Equal(7000, new MilitaryRulebook(definition).Facilities[9000].ConstructionGrowthTacticId);
+        Assert.Throws<ArgumentException>(() => new MilitaryRulebook(definition with { Tactics = [] }));
+        Assert.Throws<ArgumentException>(() => new MilitaryRulebook(definition with
+            { Tactics = [definition.Tactics[0] with { Effect = TacticEffect.CounterTrap }] }));
+        Assert.Throws<ArgumentException>(() => new MilitaryRulebook(definition with
+            { Facilities = [definition.Facilities[0] with { Buildable = false }] }));
+    }
+
+    [Fact]
+    public void FacilityTacticProfilesRejectMissingEffectsAndInvalidEnabledReferences()
+    {
+        var definition = new MilitaryDefinition(1, 1, [0], [new(0, 1, null)], [],
+            [new(1, new(2, 2), new(1, 1)) { FacilityTypeId = 9000, EnabledTacticIds = [7000] }])
+        { Facilities = [Rule with { Tactics = new(10, 3, true, [7000]) }],
+            Tactics = [new(7000, 3, TacticEffect.Martial, 1, 9, 0, true, false, [])] };
+        var rules = new MilitaryRulebook(definition);
+        Assert.Equal(7000, rules.FacilityTactic(new(1, 1, 100, 100, 100, 100, 0, 0, 100, 0, 100))!.Id);
+        Assert.Throws<ArgumentException>(() => new MilitaryRulebook(definition with
+            { Places = [definition.Places[0] with { EnabledTacticIds = [7001] }] }));
+        Assert.Throws<ArgumentException>(() => new MilitaryRulebook(definition with
+            { Facilities = [Rule with { Tactics = new(101, 3, true, [7000]) }] }));
+        Assert.Throws<ArgumentException>(() => new MilitaryRulebook(definition with
+            { Facilities = [Rule with { Tactics = new(10, 3, true, [7001]) }] }));
+        Assert.Throws<ArgumentException>(() => new MilitaryRulebook(definition with
+            { Tactics = [definition.Tactics[0] with { Effect = TacticEffect.CounterTrap }] }));
+    }
+
+    [Fact]
     public void ConstructionCostAndProgressPreserveTruncationAndCapacityWithoutOverflow()
     {
         Assert.Equal(1000, Rule.Cost(0));

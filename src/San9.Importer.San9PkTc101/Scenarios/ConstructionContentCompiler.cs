@@ -14,7 +14,19 @@ public static class ConstructionContentCompiler
             b.Id < 10, b.Id < 10, b.Id == 0 ? 500000u : 250000u, b.Id == 16 ? 20 : null,
             b.Id >= 6 ? 19 : null, b.TacticId,
             Enumerable.Range(0, San9ScenarioFixedBuildingArchive.TacticCount).Where(b.HasTactic).ToImmutableArray())
-            { Combat = new(10, 10, 0, 10, 50), Attack = new(1, false), DestroyedAtZeroDurability = b.Id is >= 6 and <= 16 }).ToImmutableArray();
+            { Combat = new(10, 10, 0, 10, 50), Attack = b.Id < 10 ? new(10, false) { ElevationBonusPerLevel = 5, MaximumElevationBonus = 10 } : null, DestroyedAtZeroDurability = b.Id is >= 6 and <= 16,
+                IsHarbor = b.Id == 1,
+                Reprisal = b.Id == 16 ? new(6, 1000, 10, 10, 10, 5) : null,
+                ConstructionGrowthTacticId = b.Id >= 6 ? b.Id == 16 ? 20 : 19 : null,
+                InnateAttack = b.Id switch { 8 => new(false, 5), 9 => new(true, 0), _ => null },
+                Tactics = b.Id switch
+                {
+                    0 => new(10, 3, true, [9, 10, 11, 23, 24, 25, 26, 27, 28, 29, 30]),
+                    2 or 3 or 4 or 5 => new(10, 3, false, [11]),
+                    7 or 9 => new(10, 3, false, [9]),
+                    8 => new(10, 3, false, [10]),
+                    _ => null
+                } }).ToImmutableArray();
     }
 
     public static ImmutableArray<ConstructionSite> Sites(IReadOnlyList<San9ScenarioSquareRecord> squares,

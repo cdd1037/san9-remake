@@ -88,11 +88,13 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         }
         if (stage == ResolutionStage.XunUpdate) WoundedRecovery.Apply(world, rules.Military, events);
         if (stage == ResolutionStage.XunUpdate) PrisonerEscapeCycle.Apply(world, rules.Personnel, rules.Economy, events);
+        if (stage == ResolutionStage.DailyMapUpdate) UnitLeadership.Repair(world, rules.Governance);
         if (stage == ResolutionStage.DailyMapUpdate) MilitaryPolicies.AdvanceDay(world, rules.Military, events);
         if (stage == ResolutionStage.DailyMapUpdate) MilitaryMovement.AdvanceDay(world, rules.Military, rules.Governance, rules.Personnel, events);
         if (stage == ResolutionStage.DailyMapUpdate) FacilityConstruction.AdvanceDay(world, rules, events);
         if (stage == ResolutionStage.DailyMapUpdate) MilitaryCombat.AdvanceDay(world, rules, events);
         if (stage == ResolutionStage.DailyMapUpdate) TacticSupport.AdvanceDay(world, rules, events);
+        if (stage == ResolutionStage.DailyMapUpdate) UnitLeadership.Repair(world, rules.Governance);
         if (stage == ResolutionStage.DailyMapUpdate) MilitaryPolicies.ResolveOrders(world, rules.Military, events);
         rules.ApplyStage(stage, world, events);
         events.Add(new StageCompletedEvent(world.Clock, stage));

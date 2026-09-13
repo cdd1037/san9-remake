@@ -19,9 +19,9 @@ public sealed class UnitPolicyTests
             [new(1, 1, 5000, 100, 100, 80, 500, 0, 100, 0, 100), new(2, 2, 5000, 100, 100, 80, 500, 0, 100, 0, 100)],
             [new(11, 1, null, new(80, 80, 80, 80), false) { UnitId = 1, Personality = personality },
              new(22, 2, null, new(80, 80, 80, 80), false) { UnitId = 2, Personality = 3 }],
-            [new(1, 1, new(20, 10), 5000) { FormationId = 1, CommanderId = 11, ServicePlaceId = 1, Morale = 80,
+            [new(1, 1, new(20, 10), 5000) { FormationId = 1, CommanderId = 11, MemberOrder = [11], ServicePlaceId = 1, Morale = 80,
                 Policies = policies ?? new(), Order = order ?? Mission, MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(11, BattleRank.Front) },
-             new(2, 2, new(25, 10), 5000) { FormationId = 1, CommanderId = 22, ServicePlaceId = 2, Morale = 80,
+             new(2, 2, new(25, 10), 5000) { FormationId = 1, CommanderId = 22, MemberOrder = [22], ServicePlaceId = 2, Morale = 80,
                 MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(22, BattleRank.Front) }],
             controls: [new("player", 1, ControllerKind.Player)]);
 

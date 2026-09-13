@@ -56,6 +56,8 @@ internal static class WorldInvariants
         {
             if (!unit.IsValid || !state.Forces.ContainsKey(unit.OwnerId) ||
                 unit.MemberRanks.Keys.Any(id => !state.Officers.TryGetValue(id, out var person) || person.UnitId != unit.Id || !person.IsServing) ||
+                !unit.MemberOrder.IsEmpty && !unit.MemberOrder.Order().SequenceEqual(state.Officers.Values
+                    .Where(p => p.UnitId == unit.Id && p.IsServing).Select(p => p.Id).Order()) ||
                 unit.Order?.SettlementId is int target && !state.Settlements.ContainsKey(target) ||
                 unit.Order?.UnitId is int targetUnit && !state.Units.ContainsKey(targetUnit) ||
                 unit.EngagementTargetId is int engagement && !state.Units.ContainsKey(engagement) ||

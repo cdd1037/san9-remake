@@ -77,12 +77,6 @@ internal static class MilitaryPolicies
         foreach (int id in world.Units.Keys.Order().ToArray())
         {
             var unit = world.Units[id];
-            if (unit.CommanderId is int commander && (!world.Officers.TryGetValue(commander, out var person) || !person.IsServing || person.UnitId != id))
-            {
-                unit = unit with { CommanderId = world.Officers.Values.Where(p => p.IsServing && p.UnitId == id)
-                    .OrderByDescending(p => world.Abilities(p).Leadership).ThenBy(p => p.Id).Select(p => (int?)p.Id).FirstOrDefault() };
-                world.Replace(unit);
-            }
             if (unit.FormationId is not int formationId) continue;
             var formation = rules.Formations[formationId];
             if (unit.EngagementTargetId is not null && !MilitaryCombat.ValidTarget(world, unit.OwnerId, unit.EffectiveOrder!, formation, rules))

@@ -108,7 +108,7 @@ public sealed class SimulationEngine
                     if (orderRejection != CommandRejection.None) return Reject(orderRejection);
                     break;
                 case ReformUnitCommand reform:
-                    var reformRejection = UnitReformation.Apply(mutation, reform, _rules.Military, _rules.Treasures, events);
+                    var reformRejection = UnitReformation.Apply(mutation, reform, _rules.Military, _rules.Treasures, _rules.Governance, events);
                     if (reformRejection != CommandRejection.None) return Reject(reformRejection);
                     break;
                 case SetCorpsControlCommand control:

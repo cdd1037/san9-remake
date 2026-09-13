@@ -11,7 +11,7 @@ public sealed record UnitReformedEvent(GameClock Clock, int UnitId, int Previous
 internal static class UnitReformation
 {
     internal static CommandRejection Apply(WorldMutation world, ReformUnitCommand command, MilitaryRulebook? rules,
-        TreasureRulebook treasures, List<DomainEvent> events)
+        TreasureRulebook treasures, GovernanceRulebook governance, List<DomainEvent> events)
     {
         if (rules is null || !rules.Formations.TryGetValue(command.FormationId, out var formation))
             return CommandRejection.UnsupportedCommand;
@@ -35,7 +35,8 @@ internal static class UnitReformation
         if (ResourceAccounts.Balance(world, account, ResourceKind.Money) < cost) return CommandRejection.InsufficientFunds;
         ResourceAccounts.Change(world, account, ResourceKind.Money, -cost, "unit-reformation", unit.Id, events, true);
         FacilityConstruction.Cancel(world, unit.Id, events);
-        world.Replace(unit with { FormationId = formation.Id, Order = command.Order, CommanderId = command.OfficerIds[0],
+        var memberOrder = UnitLeadership.Order(world, command.OfficerIds, governance);
+        world.Replace(unit with { FormationId = formation.Id, Order = command.Order, CommanderId = memberOrder[0], MemberOrder = memberOrder,
             EngagementTargetId = null, AwaitingPostAction = false,
             MemberRanks = formation.CaptureRanks.IsEmpty ? ImmutableDictionary<int, BattleRank>.Empty : command.OfficerIds
                 .Select((id, index) => (id, rank: formation.CaptureRanks[index])).ToImmutableDictionary(p => p.id, p => p.rank) });

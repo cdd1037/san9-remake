@@ -85,13 +85,14 @@ internal static class MilitaryMovement
         if (start is null) return CommandRejection.NoDestination;
         if (world.Simulation.NextUnitId > int.MaxValue) return CommandRejection.ResourceOverflow;
         int id = (int)world.Simulation.NextUnitId;
+        var memberOrder = UnitLeadership.Order(world, command.OfficerIds, governance);
         var unit = new UnitState(id, home.OwnerId!.Value, start.Value, command.Soldiers)
         {
             CorpsId = home.CorpsId, ServicePlaceId = home.Id, FormationId = formation.Id, Morale = home.Morale,
             MemberRanks = formation.CaptureRanks.IsEmpty ? ImmutableDictionary<int, BattleRank>.Empty : command.OfficerIds
                 .Select((person, index) => (person, rank: formation.CaptureRanks[index])).ToImmutableDictionary(p => p.person, p => p.rank),
             CargoMoney = command.CargoMoney, CargoFood = command.CargoFood, Order = command.Order,
-            Policies = command.Policies, CommanderId = command.OfficerIds[0],
+            Policies = command.Policies, CommanderId = memberOrder[0], MemberOrder = memberOrder,
             OrderClass = UnitOrderClass.Military
         };
         world.AddUnit(unit);

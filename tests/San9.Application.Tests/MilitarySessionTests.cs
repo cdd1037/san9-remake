@@ -48,6 +48,7 @@ public sealed class MilitarySessionTests
         Assert.True(session.Execute(new("player"), command).Submission.Accepted);
         Assert.Equal(command.Policies, Assert.Single(session.Snapshot.Units).Policies);
         Assert.Equal(1, Assert.Single(session.Snapshot.Units).CommanderId);
+        Assert.Equal([1], Assert.Single(session.Snapshot.Units).MemberOrder.ToArray());
         var policies = new UnitPolicies(false, true, false, true);
         Assert.True(session.Execute(new("player"), new SetUnitPoliciesCommand(Guid.NewGuid(), 1,
             session.Snapshot.Simulation.NextSequence, Assert.Single(session.Snapshot.Units).Id, policies)).Submission.Accepted);
@@ -59,6 +60,7 @@ public sealed class MilitarySessionTests
         Assert.NotEmpty(session.Snapshot.Units);
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         Assert.Equal(policies, Assert.Single(restored.Snapshot.Units).Policies);
+        Assert.Equal([1], Assert.Single(restored.Snapshot.Units).MemberOrder.ToArray());
         Assert.Equal(123u, restored.View.Settlements.Single(s => s.Id == 1).Wounded);
         for (int i = 0; i < 4; i++)
         {

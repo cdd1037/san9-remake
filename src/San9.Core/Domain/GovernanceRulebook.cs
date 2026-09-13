@@ -35,11 +35,15 @@ public sealed class GovernanceRulebook
         .ThenByDescending(p => Office(p)?.Priority ?? 0).ThenByDescending(p => abilities[p.Id].Leadership)
         .ThenBy(p => p.Id).FirstOrDefault();
 
-    public OfficerState? SelectCommander(IEnumerable<OfficerState> candidates, IReadOnlyDictionary<int, OfficerAbilities> abilities) => candidates.Where(p => p.IsServing)
+    public OfficerState? SelectCommander(IEnumerable<OfficerState> candidates, IReadOnlyDictionary<int, OfficerAbilities> abilities) =>
+        OrderCommanders(candidates, abilities).ThenBy(p => p.Id).FirstOrDefault();
+
+    // Stable ties retain the supplied member order. Settlement callers explicitly add their identity tie-breaker.
+    public IOrderedEnumerable<OfficerState> OrderCommanders(IEnumerable<OfficerState> candidates, IReadOnlyDictionary<int, OfficerAbilities> abilities) => candidates.Where(p => p.IsServing)
         .OrderByDescending(p => p.Status == OfficerStatus.Ruler).ThenByDescending(p => p.Status == OfficerStatus.Governor)
         .ThenByDescending(p => Office(p)?.CommandCapacity / 1000 ?? 10)
         .ThenByDescending(p => Office(p) is { CommandCapacity: > 10000 } office ? office.Priority : 0)
-        .ThenByDescending(p => abilities[p.Id].Leadership).ThenBy(p => p.Id).FirstOrDefault();
+        .ThenByDescending(p => abilities[p.Id].Leadership);
 
     public OfficerState? SelectGovernor(IEnumerable<OfficerState> candidates, IReadOnlyDictionary<int, OfficerAbilities> abilities)
     {

@@ -65,8 +65,8 @@
           "ResourceAccounts"
         ],
         "existing_anchors": [
-          "src/San9.Core/Simulation/EconomicCycle.cs",
-          "src/San9.Core/Simulation/DomesticDevelopmentHandler.cs",
+          "src/San9.Core/Simulation/Economy/EconomicCycle.cs",
+          "src/San9.Core/Simulation/Economy/DomesticDevelopmentHandler.cs",
           "src/San9.Application/DomesticPlanner.cs"
         ]
       }
@@ -152,7 +152,7 @@
         "target_namespace": "San9.Core.Domain",
         "target_path": "src/San9.Core/Domain",
         "entry_types": ["DomesticDevelopment"],
-        "existing_anchors": ["src/San9.Core/Domain/DomesticDevelopment.cs", "src/San9.Core/Domain/RuntimeState.cs", "src/San9.Core/Simulation/WorldState.cs"]
+        "existing_anchors": ["src/San9.Core/Domain/Economy/DomesticDevelopment.cs", "src/San9.Core/Domain/RuntimeState.cs", "src/San9.Core/Simulation/WorldState.cs"]
       }
     },
     {
@@ -190,7 +190,7 @@
         "target_namespace": "San9.Core.Simulation",
         "target_path": "src/San9.Core/Simulation",
         "entry_types": ["PersonnelMissions", "PersonnelTransitions", "PersonnelAppointments", "PersonnelRewards", "PrisonerRelease", "PrisonerEscapeCycle"],
-        "existing_anchors": ["src/San9.Core/Domain/OfficerState.cs", "src/San9.Core/Simulation/GameCommand.cs", "src/San9.Core/Simulation/PersonnelRewards.cs", "src/San9.Core/Simulation/PersonnelMissions.cs", "src/San9.Core/Simulation/PersonnelTransitions.cs", "src/San9.Core/Simulation/PersonnelAppointments.cs"]
+        "existing_anchors": ["src/San9.Core/Domain/Governance/OfficerState.cs", "src/San9.Core/Simulation/GameCommand.cs", "src/San9.Core/Simulation/Personnel/PersonnelRewards.cs", "src/San9.Core/Simulation/Personnel/PersonnelMissions.cs", "src/San9.Core/Simulation/Personnel/PersonnelTransitions.cs", "src/San9.Core/Simulation/Personnel/PersonnelAppointments.cs"]
       }
     },
     {
@@ -209,7 +209,7 @@
         "target_namespace": "San9.Core.Personnel.Lifecycle",
         "target_path": "src/San9.Core/Personnel/Lifecycle",
         "entry_types": ["PersonGrowthService", "PersonLifecycleService", "TraineeDevelopmentService"],
-        "existing_anchors": ["src/San9.Core/Domain/OfficerState.cs", "src/San9.Core/Simulation/StableRandom.cs"]
+        "existing_anchors": ["src/San9.Core/Domain/Governance/OfficerState.cs", "src/San9.Core/Simulation/StableRandom.cs"]
       }
     },
     {
@@ -247,7 +247,7 @@
         "target_namespace": "San9.Core.Simulation",
         "target_path": "src/San9.Core/Simulation",
         "entry_types": ["ForceRelations", "AllianceDiplomacy", "DiplomacyMath"],
-        "existing_anchors": ["src/San9.Core/Domain/AllianceState.cs", "src/San9.Core/Simulation/SimulationState.cs", "src/San9.Core/Simulation/GameCommand.cs"]
+        "existing_anchors": ["src/San9.Core/Domain/Diplomacy/AllianceState.cs", "src/San9.Core/Simulation/SimulationState.cs", "src/San9.Core/Simulation/GameCommand.cs"]
       }
     },
     {
@@ -266,7 +266,7 @@
         "target_namespace": "San9.Core.Simulation",
         "target_path": "src/San9.Core/Simulation",
         "entry_types": ["UnitStrategyCommand", "UnitStrategies", "AdviserJudgment"],
-        "existing_anchors": ["src/San9.Core/Simulation/UnitStrategies.cs", "src/San9.Core/Simulation/CommandAdvice.cs", "src/San9.Core/Simulation/SimulationState.cs"]
+        "existing_anchors": ["src/San9.Core/Simulation/Military/UnitStrategies.cs", "src/San9.Core/Simulation/CommandAdvice.cs", "src/San9.Core/Simulation/SimulationState.cs"]
       }
     },
     {
@@ -285,7 +285,7 @@
           "target_namespace": "San9.Core.Simulation",
           "target_path": "src/San9.Core/Simulation",
           "entry_types": ["MilitaryMovement", "DeployUnitCommand", "OrderUnitCommand", "ReformUnitCommand", "UnitReformation", "DemolishFacilityCommand", "FacilityDemolition", "ConstructFacilityCommand", "FacilityConstruction", "FormationEligibility", "MilitaryTactics", "TacticCombat", "IntelligenceTactics", "TacticSupport", "MilitaryConditions", "SelectTacticCommand", "MilitarySupply", "MilitaryCombat", "BattleAftermath", "BattlePersonnel", "UnitTerminationService", "WoundedRecovery"],
-          "existing_anchors": ["src/San9.Core/Domain/UnitState.cs", "src/San9.Core/Domain/BattlefieldMap.cs", "src/San9.Core/Domain/MilitaryRulebook.cs", "src/San9.Core/Domain/CombatMath.cs", "src/San9.Core/Simulation/UnitTerminationService.cs", "src/San9.Core/Simulation/MilitaryMovement.cs", "src/San9.Core/Simulation/MilitaryCombat.cs", "src/San9.Core/Simulation/BattleAftermath.cs", "src/San9.Core/Simulation/BattlePersonnel.cs"]
+          "existing_anchors": ["src/San9.Core/Domain/Military/UnitState.cs", "src/San9.Core/Domain/Navigation/BattlefieldMap.cs", "src/San9.Core/Domain/Military/MilitaryRulebook.cs", "src/San9.Core/Domain/Military/CombatMath.cs", "src/San9.Core/Simulation/Military/UnitTerminationService.cs", "src/San9.Core/Simulation/Movement/MilitaryMovement.cs", "src/San9.Core/Simulation/Combat/MilitaryCombat.cs", "src/San9.Core/Simulation/Combat/BattleAftermath.cs", "src/San9.Core/Simulation/Combat/BattlePersonnel.cs"]
       }
     },
     {
@@ -323,7 +323,7 @@
         "target_namespace": "San9.Core.Duels",
         "target_path": "src/San9.Core/Duels",
         "entry_types": ["DuelTriggerService", "DuelResolver", "DuelAftermathService"],
-        "existing_anchors": ["src/San9.Core/Domain/OfficerState.cs", "src/San9.Core/Simulation/StableRandom.cs"]
+        "existing_anchors": ["src/San9.Core/Domain/Governance/OfficerState.cs", "src/San9.Core/Simulation/StableRandom.cs"]
       }
     },
     {

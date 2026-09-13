@@ -14,6 +14,25 @@ Application把当前世界与复制后的名称/显示定义组合成`StrategySn
 
 当前700名内置人物保存在世界中，只有可见身份进入人物视图；宝物状态保留出土状态、持有人和发现地域，情报查询再筛选已出土且由可见人物持有的宝物。没有进入初始情报的对象仍有定义和资源。数据核对方法见[内容管线](client-content.md#接入前的数据核对)。
 
+## Core代码目录
+
+`src/San9.Core`保留`Domain`（领域状态与基础规则）和`Simulation`（规则执行与世界变更）两层，层内按业务职责分组。子目录用于导航，命名空间仍为`San9.Core.Domain`和`San9.Core.Simulation`；目录本身不新增依赖层或公共接口。
+
+| 层 | 子目录 | 职责 |
+| --- | --- | --- |
+| Domain | Navigation | 领域地图、寻路、静态拓扑、行军计划与搜索诊断 |
+| Domain | Military | 部队、阵型、设施、战斗与兵法基础规则 |
+| Domain | Governance | 人物状态、能力、人事、官职与宝物规则 |
+| Domain | Economy / Diplomacy | 内政经济规则；联盟状态与外交计算 |
+| Simulation | Movement | 日常行军与动态占用缓存 |
+| Simulation | Combat | 交战、伤害、兵法、战后处理与占领 |
+| Simulation | Military | 出征整编、主将、部队生命周期、方针及日级维护 |
+| Simulation | Construction | 设施建设与撤除 |
+| Simulation | Personnel / Governance | 人事与俘虏流转；军团与身份维护 |
+| Simulation | Economy / Diplomacy | 经营与资源结算；势力关系与联盟执行 |
+
+跨业务的世界状态、事务、不变量、命令和事件、随机源及结算总入口留在各层根目录。新增文件优先进入对应业务目录，仅由某个业务维护的缓存与实现细节跟随该业务，不另建通用工具目录。
+
 ## 已接入规则
 
 G08实施中：`SimulationState.Alliance`唯一保存当前联盟目标、盟主、成员和剩余旬数，内容初始联盟经Application建局后沿快照、摘要、存档和录像传递。`AllianceDiplomacy`处理旬到期与势力退出，军事公共敌对查询拒绝联盟成员之间攻击；`ForceRelations`统一有界对称关系写回。`UnitStrategyCommand`已接伪报、扰乱、激励；`PersonnelJourney`保存目标位置和类型化载荷，返程继续使用人物任务。`GetUnitStrategyAdvice`通过Core/Application提供不写状态的意见查询。季度形成、外交命令与其余五类计略尚未完成，进度见[G08](g08-verification.md)。

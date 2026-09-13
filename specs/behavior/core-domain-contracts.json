@@ -263,10 +263,10 @@
       "depends_on": ["simulation", "personnel", "diplomacy", "warfare"],
       "implementation": {
         "project": "San9.Core",
-        "target_namespace": "San9.Core.Strategy",
-        "target_path": "src/San9.Core/Strategy",
-        "entry_types": ["StrategyCommandHandler", "StrategyAdviceService", "StrategyEffectService"],
-        "existing_anchors": ["src/San9.Core/Simulation/GameCommand.cs", "src/San9.Core/Simulation/DomainEvent.cs"]
+        "target_namespace": "San9.Core.Simulation",
+        "target_path": "src/San9.Core/Simulation",
+        "entry_types": ["UnitStrategyCommand", "UnitStrategies", "AdviserJudgment"],
+        "existing_anchors": ["src/San9.Core/Simulation/UnitStrategies.cs", "src/San9.Core/Simulation/CommandAdvice.cs", "src/San9.Core/Simulation/SimulationState.cs"]
       }
     },
     {

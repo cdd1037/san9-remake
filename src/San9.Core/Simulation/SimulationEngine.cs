@@ -65,6 +65,12 @@ public sealed class SimulationEngine
     public CommandSubmissionResult Validate(CommandContext context, GameCommand command) =>
         Evaluate(context, command, commit: false).Submission;
 
+    public CommandAdvice GetUnitStrategyAdvice(int forceId, int officerId, UnitStrategyKind strategy, int targetUnitId)
+    {
+        if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
+        return UnitStrategies.Advice(_world.BeginMutation(_rules.Abilities), forceId, officerId, strategy, targetUnitId, _rules);
+    }
+
     public CommandExecutionResult Execute(CommandContext context, GameCommand command) =>
         Evaluate(context, command, commit: true);
 
@@ -82,6 +88,11 @@ public sealed class SimulationEngine
             switch (command)
             {
                 case WaitCommand:
+                    break;
+                case UnitStrategyCommand strategy:
+                    var strategyRejection = UnitStrategies.Start(mutation, context, strategy, _rules, events);
+                    if (strategyRejection != CommandRejection.None) return Reject(strategyRejection);
+                    GovernanceMaintenance.RepairCommander(mutation, mutation.Officers[strategy.OfficerId].SettlementId!.Value, _rules.Governance, events);
                     break;
                 case SelectTacticCommand tactic:
                     var tacticRejection = MilitaryTactics.Select(mutation, tactic, _rules, events);

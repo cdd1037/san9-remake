@@ -14,6 +14,8 @@ public sealed record FormationRule(int Id, int MovementBudget, int DeploymentCos
     [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<BattleRank> CaptureRanks { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public bool DoublesCapture { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public bool GainsDailyCombatProficiency { get; init; } = true;
+    [System.Text.Json.Serialization.JsonRequired] public bool HalvesHostileStrategyChance { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public bool ImmuneToDisorder { get; init; }
 }
 
 public sealed record OrdinaryAttack(int Range, bool DamagesWalls)

@@ -103,6 +103,8 @@ internal static class WorldInvariants
                 task.ProgressDays != state.Clock.DayNumber - task.Started.DayNumber)
                 throw new ArgumentException("Invalid persistent task.");
             if (task.Journey is { } journey && (journey.DestinationPlaceId < 0 || journey.SuccessRoll is < 0 or > 99 ||
+                journey.DestinationPosition is { X: < 0 } or { Y: < 0 } ||
+                journey.UnitStrategy is { } strategy && (!Enum.IsDefined(strategy.Strategy) || strategy.TargetUnitId < 0 || journey.DestinationPosition is null) ||
                 journey.TargetOfficerId is int target && !state.Officers.ContainsKey(target)))
                 throw new ArgumentException("Invalid personnel journey.");
         }

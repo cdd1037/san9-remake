@@ -71,6 +71,8 @@ public static class MilitaryContentCompiler
                     },
                     DoublesCapture = f.Id == 1,
                     GainsDailyCombatProficiency = f.Id is not (13 or 14),
+                    HalvesHostileStrategyChance = f.Id == 7,
+                    ImmuneToDisorder = f.Id == 27,
                     CaptureRanks = Enumerable.Range(0, 5).Select(i => f.Id is >= 20 and <= 26 ? BattleRank.Middle : f.GetDeploymentSlotPosition(i)?.Row switch
                     {
                         0 => BattleRank.Front, 1 => BattleRank.Middle, 2 => BattleRank.Rear,

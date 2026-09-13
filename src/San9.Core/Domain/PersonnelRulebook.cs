@@ -33,9 +33,12 @@ public sealed class PersonnelRulebook
         if (!Enum.IsDefined(kind)) throw new ArgumentOutOfRangeException(nameof(kind));
         var from = Places[source];
         var to = Places[destination];
-        int days = checked((int)((MapCoordinates.Distance(from.Position, to.Position) + 29) / 30));
+        int days = JourneyDays(from.Position, to.Position);
         return kind == PersonnelJourneyKind.Search ? Math.Max(10, checked((days + 9) / 10 * 10)) : days;
     }
+
+    public static int JourneyDays(WorldPosition source, WorldPosition destination) =>
+        checked((int)((MapCoordinates.Distance(source, destination) + 29) / 30));
 
     /// <summary>Calendar offset of resolution: the first daily stage consumes one countdown day before testing arrival.</summary>
     public int ResolutionDayOffset(int source, int destination, PersonnelJourneyKind kind) =>

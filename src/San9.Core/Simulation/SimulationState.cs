@@ -16,6 +16,8 @@ public sealed record PersistentTask(Guid Id, string Kind, string ControllerId, i
 
 public sealed record PersonnelJourney(int DestinationPlaceId, int? TargetOfficerId, int? SuccessRoll)
 {
+    [System.Text.Json.Serialization.JsonRequired] public San9.Core.Domain.WorldPosition? DestinationPosition { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public UnitStrategyMission? UnitStrategy { get; init; }
     public PersonnelReturnLeg? ReturnLeg { get; init; }
     public bool? AcceptRecruitment { get; init; }
 }

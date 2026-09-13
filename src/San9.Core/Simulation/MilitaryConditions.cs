@@ -10,7 +10,7 @@ internal static class MilitaryConditions
     internal static void Tick(WorldMutation world, List<DomainEvent> events)
     {
         foreach (var unit in world.Units.Values.Where(u => u.ConditionDaysRemaining > 0 ||
-            u.Condition is UnitCondition.NoFormation or UnitCondition.Confused or UnitCondition.Routed or UnitCondition.HighSpirits).OrderBy(u => u.Id).ToArray())
+            u.Condition is UnitCondition.Disguised or UnitCondition.NoFormation or UnitCondition.Confused or UnitCondition.Routed or UnitCondition.HighSpirits).OrderBy(u => u.Id).ToArray())
         {
             int days = Math.Max(0, unit.ConditionDaysRemaining - 1);
             var condition = days == 0 ? UnitCondition.Normal : unit.Condition;

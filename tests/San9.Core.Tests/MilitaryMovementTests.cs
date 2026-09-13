@@ -162,7 +162,7 @@ public sealed class MilitaryMovementTests
         Assert.Equal(2, engine.Snapshot.Officers[0].SettlementId);
         Assert.Null(engine.Snapshot.Officers[0].UnitId);
         Assert.Equal(500u, engine.Snapshot.Settlements.Single(s => s.Id == 2).Soldiers);
-        Assert.Equal(62, engine.Snapshot.Settlements.Single(s => s.Id == 2).Morale);
+        Assert.Equal(60, engine.Snapshot.Settlements.Single(s => s.Id == 2).Morale);
         Assert.Empty(Advance(engine).Events.OfType<UnitAbsorbedEvent>());
     }
 

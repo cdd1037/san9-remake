@@ -7,14 +7,13 @@ namespace San9.Core.Tests;
 public sealed class MilitarySupplyTests
 {
     [Theory]
-    [InlineData(100, 0, 0)]
-    [InlineData(100, 1, 1)]
-    [InlineData(100, 50, 5)]
-    [InlineData(100, 51, 6)]
-    [InlineData(100, 100, 10)]
-    [InlineData(long.MaxValue, long.MaxValue, 10)]
-    public void LossUsesAccountShortageRatioWithoutOverflow(long demand, long missing, int expected) =>
-        Assert.Equal(expected, MilitarySupply.MoraleLoss(demand, missing));
+    [InlineData(0u, 0u)]
+    [InlineData(1u, 1u)]
+    [InlineData(100u, 1u)]
+    [InlineData(101u, 2u)]
+    [InlineData(uint.MaxValue, 42949673u)]
+    public void LossRoundsUpOnePercentWithoutOverflow(uint soldiers, uint expected) =>
+        Assert.Equal(expected, MilitaryDailyCycle.SoldierLoss(soldiers));
 
     private static SimulationRules Rules() => new()
     {
@@ -38,9 +37,9 @@ public sealed class MilitarySupplyTests
         var world = World(2).BeginMutation();
         List<DomainEvent> events = [];
         var shortages = EconomicCycle.Apply(ResolutionStage.BeforeDailyCommands, world, EconomyRulebook.Empty, events);
-        MilitarySupply.Apply(world, shortages, Rules(), events);
-        Assert.Equal(65, world.Units[0].Morale);
-        Assert.Equal(85, world.Settlements[1].Morale);
+        MilitaryDailyCycle.Apply(world, shortages, Rules(), events);
+        Assert.Equal(67, world.Units[0].Morale);
+        Assert.Equal(87, world.Settlements[1].Morale);
         Assert.Equal(90, world.Settlements[2].Morale);
         Assert.Equal(0u, world.Forces[1].Food);
         Assert.Equal(998u, world.Forces[2].Food);
@@ -57,9 +56,9 @@ public sealed class MilitarySupplyTests
         world.Replace(world.Settlements[2] with { OwnerId = 1, CorpsId = 10 });
         List<DomainEvent> events = [];
         var shortages = EconomicCycle.Apply(ResolutionStage.BeforeDailyCommands, world, EconomyRulebook.Empty, events);
-        MilitarySupply.Apply(world, shortages, Rules(), events);
-        Assert.Equal(60, world.Units[0].Morale);
-        Assert.Equal(80, world.Settlements[1].Morale);
+        MilitaryDailyCycle.Apply(world, shortages, Rules(), events);
+        Assert.Equal(67, world.Units[0].Morale);
+        Assert.Equal(87, world.Settlements[1].Morale);
         Assert.Equal(90, world.Settlements[2].Morale);
         Assert.Equal(998u, world.Corps[10].Treasury!.Food);
         WorldInvariants.Validate(world);
@@ -90,16 +89,17 @@ public sealed class MilitarySupplyTests
         var mutation = World(2).BeginMutation();
         List<DomainEvent> events = [];
         var shortages = EconomicCycle.Apply(ResolutionStage.BeforeDailyCommands, mutation, EconomyRulebook.Empty, events);
-        MilitarySupply.Apply(mutation, shortages, Rules(), events);
+        MilitaryDailyCycle.Apply(mutation, shortages, Rules(), events);
         mutation.AddUnit(new(1, 1, new(3, 2), 100) { FormationId = 10, Morale = 70, CargoFood = 100,
             Order = new(MilitaryOrderKind.Transport, null, 1) });
         mutation.SetSimulation(mutation.Simulation with { NextUnitId = 2 });
         MilitaryMovement.AdvanceDay(mutation, Rules().Military, new([]), PersonnelRulebook.Empty, events);
         Assert.Single(events.OfType<UnitAbsorbedEvent>());
         events.Clear();
+        mutation.SetClock(new(190, 1, 2));
         shortages = EconomicCycle.Apply(ResolutionStage.BeforeDailyCommands, mutation, EconomyRulebook.Empty, events);
-        MilitarySupply.Apply(mutation, shortages, Rules(), events);
-        Assert.Empty(events.OfType<SupplyMoraleLostEvent>());
-        Assert.Equal(65, mutation.Units[0].Morale);
+        MilitaryDailyCycle.Apply(mutation, shortages, Rules(), events);
+        Assert.Empty(events.OfType<DailyAttritionEvent>());
+        Assert.Equal(67, mutation.Units[0].Morale);
     }
 }

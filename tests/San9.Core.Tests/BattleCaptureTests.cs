@@ -28,7 +28,7 @@ public sealed class BattleCaptureTests
         var events = new List<DomainEvent>();
         Assert.Throws<InvalidOperationException>(() => UnitTerminationService.Complete(mutation, 0, new(1, false), 1, new([]), events));
         Assert.True(BattlePersonnel.Resolve(mutation, 11, new(1, false), null, 1, BattleRank.Middle, false, false,
-            PersonnelRulebook.Empty, new([]), events));
+            PersonnelRulebook.Empty, events, true, new(2, 7), Rules()));
         UnitTerminationService.Complete(mutation, 0, new(1, false), 1, new([]), events);
         world.Commit(mutation);
         var captured = world.CreateSnapshot();
@@ -85,11 +85,11 @@ public sealed class BattleCaptureTests
         var mutation = world.BeginMutation();
         var events = new List<DomainEvent>();
         Assert.Throws<ArgumentException>(() => BattlePersonnel.Resolve(mutation, 11, new(1, false), 2, 1, BattleRank.Front,
-            false, false, PersonnelRulebook.Empty, new([]), events));
+            false, false, PersonnelRulebook.Empty, events, true, new(2, 7), Rules()));
         Assert.Empty(events);
         Assert.Empty(mutation.Simulation.RandomStreams);
         Assert.False(BattlePersonnel.Resolve(mutation, 11, new(1, false), 1, 1, BattleRank.Middle, true, false,
-            PersonnelRulebook.Empty, new([]), events));
+            PersonnelRulebook.Empty, events, true, new(2, 7), Rules()));
         UnitTerminationService.Complete(mutation, 0, new(1, false), 1, new([]), events);
         world.Commit(mutation);
         var person = world.CreateSnapshot().Officers.Single(p => p.Id == 11);
@@ -112,7 +112,7 @@ public sealed class BattleCaptureTests
             var mutation = state.BeginMutation();
             var events = new List<DomainEvent>();
             BattlePersonnel.Resolve(mutation, 11, new(1, false), 1, 1, BattleRank.Middle, false, false,
-                PersonnelRulebook.Empty, new([]), events);
+                PersonnelRulebook.Empty, events, true, new(2, 7), Rules());
             UnitTerminationService.Complete(mutation, 0, new(1, false), 1, new([]), events);
             state.Commit(mutation);
             return events;

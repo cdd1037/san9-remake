@@ -74,7 +74,7 @@ internal static class BattleAftermath
         {
             world.SetSimulation(world.Simulation with { Tasks = world.Simulation.Tasks.Remove(task) });
             events.Add(new TaskCancelledEvent(task.Id, world.Clock, "settlement-captured"));
-            if (task.Journey is not null) PersonnelReturns.Start(world, task, rules.Personnel, events, true);
+            if (task.Journey is not null) BattlePersonnel.ResumeReturn(world, task, rules, events);
         }
         winner.Reward(world, 0, 10);
         MilitaryPolicies.SettlementChanged(world, id, rules.Military!, events);
@@ -85,31 +85,23 @@ internal static class BattleAftermath
         MapOccupancy from, UnitState? defeatedUnit, BattleSource? winner, int? fallbackPlace, SimulationRules rules, List<DomainEvent> events)
     {
         var military = rules.Military!;
-        var formation = defeatedUnit?.FormationId is int formationId ? military.Formations[formationId] : null;
         foreach (var original in world.Officers.Values.Where(located).OrderBy(p => p.Id).ToArray())
         {
-            var retreatStart = defeatedUnit?.Position ?? from.Position;
-            var retreatShape = formation?.Footprint ?? new Footprint(1, 1);
-            var retreatMode = formation?.TravelMode ?? TravelMode.Land;
-            int? retreat = world.Settlements.Values.Where(s => s.OwnerId == original.OwnerId && original.OwnerId is not null && s.CanHostPersons &&
-                    !s.IsDestroyed && s.Durability > 0 && (original.UnitId is not null || s.Id != fallbackPlace) && military.TryPlace(s, out _))
-                .OrderBy(s => from.DistanceTo(new(military.Place(s).Position, military.Place(s).Footprint))).ThenBy(s => s.Id)
-                .Where(s => military.Map.AdvanceIntoRange(retreatStart,
-                    new(military.Place(s).Position, military.Place(s).Footprint), retreatShape, retreatMode,
-                    MilitaryMovement.Occupancy(world, military, defeatedUnit?.Id, s.Id).Where(o => !o.Overlaps(from)), 0, 1).Reachable)
-                .Select(s => (int?)s.Id).FirstOrDefault();
+            int? excluded = defeatedUnit is null ? fallbackPlace : null;
+            int? retreat = BattleRetreat.Destination(world, original, from.Position, excluded, military)?.Id;
+            bool hasRetreatCity = BattleRetreat.Destination(world, original, from.Position, excluded, military, citiesOnly: true) is not null;
             if (original.IsServing && winner is { } captor)
             {
-                int nearby = world.Units.Values.Count(u => u.OwnerId == captor.Owner(world) && u.Soldiers > 0 &&
-                    MilitaryCombat.Area(u, military).DistanceTo(from) <= military.Formations[u.FormationId!.Value].Attack?.Range);
-                if (captor.IsSettlement) nearby++;
+                int nearby = BattleRetreat.CaptureParticipants(world,
+                    new(defeatedUnit?.Id ?? fallbackPlace!.Value, defeatedUnit is null), captor.Owner(world), from, military);
                 bool mount = world.Treasures.Values.Any(t => t.HolderId == original.Id && t.Discovery != TreasureDiscovery.Disabled &&
                     rules.Treasures.Items.TryGetValue(t.Id, out var treasure) && treasure.EscapeMount);
                 var rank = original.UnitId is null ? BattleRank.Middle :
                     world.Units[original.UnitId.Value].MemberRanks.TryGetValue(original.Id, out var memberRank) ? memberRank :
                     throw new InvalidOperationException("Missing field member rank.");
-                BattlePersonnel.Resolve(world, original.Id, captor, retreat, nearby, rank, mount, false,
-                    rules.Personnel, rules.Governance, events);
+                bool doubles = !captor.IsSettlement && military.Formations[world.Units[captor.Id].FormationId!.Value].DoublesCapture;
+                BattlePersonnel.Resolve(world, original.Id, captor, retreat, nearby, rank, mount, doubles,
+                    rules.Personnel, events, hasRetreatCity, from.Position, military);
             }
             else
             {
@@ -119,8 +111,8 @@ internal static class BattleAftermath
                 {
                     if (person.Status == OfficerStatus.Captive && person.OwnerId == recipient.Owner(world))
                     {
-                        if (retreat is int home) BattlePersonnel.Escape(world, person.Id, home, rules.Personnel, rules.Governance, events);
-                        else Detach(world, person, fallbackPlace, events);
+                        if (retreat is int home) BattlePersonnel.Escape(world, person.Id, home, rules.Personnel, events, from.Position, military);
+                        else BattlePersonnel.Displace(world, person.Id, from.Position, rules.Personnel, military, events);
                     }
                     else if (person.Status == OfficerStatus.Captive)
                         world.Replace(person with { UnitId = recipient.IsSettlement ? null : recipient.Id,
@@ -128,13 +120,15 @@ internal static class BattleAftermath
                     else Detach(world, person, fallbackPlace, events);
                 }
                 else if (retreat is int home && person.OwnerId is not null && (person.IsServing || person.Status == OfficerStatus.Captive))
-                    BattlePersonnel.Escape(world, person.Id, home, rules.Personnel, rules.Governance, events);
+                    BattlePersonnel.Escape(world, person.Id, home, rules.Personnel, events, from.Position, military);
+                else if (person.IsServing || person.Status == OfficerStatus.Captive)
+                    BattlePersonnel.Displace(world, person.Id, from.Position, rules.Personnel, military, events);
                 else Detach(world, person, fallbackPlace, events);
             }
         }
     }
 
-    private static void Detach(WorldMutation world, OfficerState person, int? place, List<DomainEvent> events)
+    internal static void Detach(WorldMutation world, OfficerState person, int? place, List<DomainEvent> events)
     {
         if (person.OwnerId is int owner && world.Forces[owner].AdviserId == person.Id)
             world.Replace(world.Forces[owner] with { AdviserId = null });

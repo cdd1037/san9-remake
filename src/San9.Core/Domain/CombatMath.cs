@@ -48,8 +48,8 @@ public static class CombatMath
         ArgumentOutOfRangeException.ThrowIfNegative(defenseCoefficient);
         ArgumentOutOfRangeException.ThrowIfNegative(durability);
         if (attacker.Soldiers == 0 || defender.Soldiers == 0) return 0;
-        var attack = BigInteger.Max(1, usesRockfallPower ? RockfallPower(attacker) : Power(attacker) * attackCoefficient / 10);
-        var defense = BigInteger.Max(1, Power(defender) * defenseCoefficient / 10 + (long)durability * 2 / 5);
+        var attack = BigInteger.Max(1, usesRockfallPower ? RockfallPower(attacker) : Power(attacker) * 2 * attackCoefficient / 25);
+        var defense = BigInteger.Max(1, Power(defender) * 2 * defenseCoefficient / 15 + (long)durability * 2 / 5);
         var margin = BigInteger.Max(0, attack - defense + 900);
         var a = BigInteger.Max(1, margin * margin / 2000);
         ulong b = ((ulong)attacker.Soldiers + defender.Soldiers) / 70 + 400;

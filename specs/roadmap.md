@@ -134,6 +134,8 @@ G01/G02表明，完成速度主要受范围和状态语义反复调整、重复�
 
 G00–G07已完成。下次开始 **G08** 前先按阶段门整理、验证并提交当前改动，确认Git干净，再读取验收记录并细化外交与计略；当前单阶段G07任务不自动进入G08。无需一次激活整个路线图，也不预设token预算或日历工期。跨大阶段连续推进时，阶段收尾提交属于必要步骤，无需另附提交请求；单阶段任务可另附“完成后提交代码”。提交使用英文`type(scope): summary`，一个逻辑变化一个提交。
 
+2026-09-13战争规则补齐已完成：主将选定与继任、智力到武力连锁、攻防与异常状态、周期士气／后勤、俘虏门与返回安置。已采用规则见[WAR-0001](behavior/BEH-WAR-0001-movement-and-command-lifecycle.md)、[WAR-0002](behavior/BEH-WAR-0002-building-defeat-and-capture.md)、[WAR-0004](behavior/BEH-WAR-0004-normal-combat.md)、[WAR-0005](behavior/BEH-WAR-0005-tactics.md)；验证与剩余画面边界见[G07验收](../docs/g07-verification.md)。
+
 ## 规格入口与调整规则
 
 - 时间/命令/持久化： [BEH-SIMULATION-0001](behavior/BEH-SIMULATION-0001-time-progression-and-state-visibility.md)、[BEH-SAVE-0001](behavior/BEH-SAVE-0001-session-persistence-replay-and-headless.md)、[DEC-SIM-0001](decisions/DEC-SIM-0001-determinism-and-saves.md)。保留当前即时命令与持续任务时机，不回退为所有命令旬末统一生效。

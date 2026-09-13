@@ -4,7 +4,7 @@ namespace San9.Core.Simulation;
 
 internal static class EconomicCycle
 {
-    internal static IReadOnlyList<RationShortage> Apply(ResolutionStage stage, WorldMutation world, EconomyRulebook rules, List<DomainEvent> events)
+    internal static IReadOnlyList<DailyRationAccount> Apply(ResolutionStage stage, WorldMutation world, EconomyRulebook rules, List<DomainEvent> events)
     {
         if (stage == ResolutionStage.XunUpdate) Salaries(world, rules, events);
         if (stage == ResolutionStage.BeforeDailyCommands) return Food(world, events);
@@ -81,7 +81,7 @@ internal static class EconomicCycle
         }
     }
 
-    private static IReadOnlyList<RationShortage> Food(WorldMutation world, List<DomainEvent> events)
+    private static IReadOnlyList<DailyRationAccount> Food(WorldMutation world, List<DomainEvent> events)
     {
         Dictionary<ResourceAccount, long> costs = [];
         void Add(int owner, int? corps, long cost)
@@ -92,15 +92,14 @@ internal static class EconomicCycle
         foreach (var city in world.Settlements.Values.Where(s => s.OwnerId is not null && s.ConsumesFood))
             Add(city.OwnerId!.Value, city.CorpsId, ((long)city.Soldiers + city.Wounded + 499) / 500);
         foreach (var unit in world.Units.Values) Add(unit.OwnerId, unit.CorpsId, 3 * ((long)unit.Soldiers + unit.Wounded + 333) / 1000);
-        List<RationShortage> shortages = [];
+        List<DailyRationAccount> accounts = [];
         foreach (var pair in costs.OrderBy(p => p.Key.Kind).ThenBy(p => p.Key.Id))
         {
             if (pair.Value <= 0) continue;
-            long missing = Math.Max(0, pair.Value - ResourceAccounts.Balance(world, pair.Key, ResourceKind.Food));
             ResourceAccounts.Change(world, pair.Key, ResourceKind.Food, -pair.Value, "daily-rations", null, events);
-            if (missing > 0) shortages.Add(new(pair.Key, pair.Value, missing));
+            accounts.Add(new(pair.Key, ResourceAccounts.Balance(world, pair.Key, ResourceKind.Food) == 0));
         }
-        return shortages;
+        return accounts;
     }
 
     private static void Population(WorldMutation world, List<DomainEvent> events)

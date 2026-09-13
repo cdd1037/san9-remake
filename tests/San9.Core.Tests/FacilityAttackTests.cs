@@ -69,7 +69,7 @@ public sealed class FacilityAttackTests
         if (attacks > 0)
         {
             var strength = new CombatStrength(100000, 100, 80, 1, 10);
-            uint expected = CombatMath.TroopDamage(strength, strength, 10, 10, 0, usesRockfallPower: true);
+            uint expected = CombatMath.TroopDamage(strength, strength with { Morale = 99 }, 10, 10, 0, usesRockfallPower: true);
             if (!sourcePlayer && targetPlayer) expected = expected * (uint)(100 + bonus) / 100;
             Assert.Equal(expected, damage[0].SoldierLoss);
             Assert.Equal(damage[0].SoldierLoss, damage[0].AddedWounded + damage[0].Dead);

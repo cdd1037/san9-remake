@@ -133,7 +133,7 @@ public sealed class FacilityCombatTests
             Assert.Equal(UnitCondition.Normal, engine.Snapshot.Units.Single().Condition);
             Assert.Equal(0, engine.Snapshot.Officers.Single(p => p.Id == 21).Injury);
         }
-        else Assert.Equal(100, engine.Snapshot.Units.Single().Morale);
+        else Assert.Equal(100 - result.Events.OfType<PeriodicMoraleLostEvent>().Where(e => e.Clock.DayNumber > result.Events.OfType<TacticMoraleChangedEvent>().Single().Clock.DayNumber).Sum(e => e.PreviousMorale - e.Morale), engine.Snapshot.Units.Single().Morale);
     }
 
     [Fact]

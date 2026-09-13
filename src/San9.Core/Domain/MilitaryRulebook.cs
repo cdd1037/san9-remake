@@ -11,6 +11,7 @@ public sealed record FormationRule(int Id, int MovementBudget, int DeploymentCos
     [System.Text.Json.Serialization.JsonRequired] public CombatProfile? Combat { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public OrdinaryAttack? Attack { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<BattleRank> CaptureRanks { get; init; } = [];
+    [System.Text.Json.Serialization.JsonRequired] public bool DoublesCapture { get; init; }
 }
 
 public sealed record OrdinaryAttack(int Range, bool DamagesWalls)
@@ -65,6 +66,7 @@ public sealed record MilitaryDefinition(int Width, int Height, ImmutableArray<in
     ImmutableArray<TerrainPassage> Terrains, ImmutableArray<FormationRule> Formations,
     ImmutableArray<BattlefieldPlace> Places)
 {
+    [System.Text.Json.Serialization.JsonRequired] public int? UnformedFormationId { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public int PolicyRadius { get; init; } = 50;
     [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<FacilityRule> Facilities { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<ConstructionSite> ConstructionSites { get; init; } = [];
@@ -108,6 +110,9 @@ public sealed partial class MilitaryRulebook
         if (RegionIds.IsDefault || !RegionIds.IsEmpty && RegionIds.Length != definition.TerrainIds.Length || RegionIds.Any(id => id < 0))
             throw new ArgumentException("Invalid battlefield region geography.");
         Formations = definition.Formations.ToImmutableDictionary(f => f.Id);
+        UnformedFormationId = definition.UnformedFormationId;
+        if (UnformedFormationId is int unformed && (!Formations.TryGetValue(unformed, out var profile) || profile.Combat is null))
+            throw new ArgumentException("Invalid unformed combat formation reference.");
         if (definition.Tactics.IsDefault) throw new ArgumentException("Missing tactic definitions.");
         Tactics = definition.Tactics.ToImmutableDictionary(t => t.Id);
         foreach (var tactic in Tactics.Values) tactic.Validate(Formations);
@@ -227,6 +232,10 @@ public sealed partial class MilitaryRulebook
         }
         return trapTerrains[terrainIds[index]].BaseTacticId is int id ? Tactics[id] : null;
     }
+    public int? UnformedFormationId { get; }
+    public CombatProfile? CombatFormation(UnitState unit) => Formations[
+        unit.Condition is UnitCondition.NoFormation or UnitCondition.Confused or UnitCondition.Routed && UnformedFormationId is int unformed
+            ? unformed : unit.FormationId!.Value].Combat;
     public ImmutableDictionary<int, FormationRule> Formations { get; }
     public TacticLinkRules LinkRules { get; }
     public CityInfluenceRule? CityInfluence { get; }

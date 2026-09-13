@@ -32,27 +32,22 @@ internal static class FacilityCombat
             var source = new BattleSource(id, true);
             var area = source.Area(world, military);
             var capability = military.FacilityAttack(settlement);
-            var target = capability.Attack is { } attack ? world.Units.Values.Where(u => MilitaryCombat.Hostile(world, settlement.OwnerId!.Value, u.OwnerId) &&
-                u.FormationId is int f && military.Formations[f].Combat is not null &&
-                MilitaryCombat.Area(u, military).DistanceTo(area) <= MilitaryCombat.FacilityRange(world, settlement, u, military))
-                .OrderBy(u => MilitaryCombat.Area(u, military).DistanceTo(area)).ThenBy(u => u.Id).FirstOrDefault() : null;
+            var target = MilitaryEngagements.FacilityTarget(world, settlement, military);
             settlementsUsed.Add(id);
             if (target is null) { TryTactic(world, id, null, rules, events); continue; }
             var formation = military.Formations[target.FormationId!.Value];
-            uint outgoing = CombatMath.TroopDamage(MilitaryCombat.GarrisonStrength(world, settlement), MilitaryCombat.Strength(world, target),
-                place.Combat!, formation.Combat!, false, 0, capability.UsesRockfallPower);
+            uint outgoing = MilitaryCombat.NormalDamage(world, source, new(target.Id, false), military);
             uint incoming = 0;
             int walls = 0;
-            if (!unitsUsed.Contains(target.Id) && target.Condition != UnitCondition.Confused && formation.Attack is { } retaliation &&
+            if (!unitsUsed.Contains(target.Id) && target.Condition is not (UnitCondition.Confused or UnitCondition.Routed) && formation.Attack is { } retaliation &&
                 MilitaryCombat.Area(target, military).DistanceTo(area) <= MilitaryCombat.UnitRange(world, target, new(MilitaryOrderKind.AttackSettlement, null, id), military))
             {
                 unitsUsed.Add(target.Id);
-                incoming = CombatMath.TroopDamage(MilitaryCombat.Strength(world, target), MilitaryCombat.GarrisonStrength(world, settlement),
-                    formation.Combat!, place.Combat!, true, settlement.Durability);
+                incoming = MilitaryCombat.NormalDamage(world, new(target.Id, false), source, military);
                 if (retaliation.DamagesWalls) walls = CombatMath.DurabilityDamage(target.Soldiers,
-                    MilitaryCombat.Strength(world, target).Leadership, formation.Combat!.AgainstWalls, settlement.Durability);
+                    MilitaryCombat.Strength(world, target).Leadership, military.CombatFormation(target)!.AgainstWalls, settlement.Durability);
             }
-            MilitaryCombat.DamageUnit(world, target, outgoing, formation.Combat!, id, events, true);
+            MilitaryCombat.DamageUnit(world, target, outgoing, military.CombatFormation(target)!, id, events, true);
             MilitaryCombat.DamageSettlement(world, settlement, incoming, place.Combat!, target.Id, events, walls);
             bool unitLost = world.Units[target.Id].Soldiers == 0 || world.Units[target.Id].Morale == 0;
             bool settlementLost = MilitaryCombat.Defeated(world.Settlements[id]);

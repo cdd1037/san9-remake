@@ -9,11 +9,11 @@ public sealed class CombatMathTests
     [Fact]
     public void RockfallReplacesAttackPowerWithoutReapplyingMoraleIntensityOrCoefficient()
     {
-        // Rockfall power=164, defense=206, margin=858, a=368, b=685, damage=210.
-        Assert.Equal(210u, CombatMath.TroopDamage(Troops, Troops, 15, 10, 0, usesRockfallPower: true));
-        Assert.Equal(210u, CombatMath.TroopDamage(Troops with { Morale = 10, Intensity = 3, Effect = 5 },
+        // Rockfall power=164, defense=floor(206*20/15)=274, margin=790, a=312, b=685, damage=178.
+        Assert.Equal(178u, CombatMath.TroopDamage(Troops, Troops, 15, 10, 0, usesRockfallPower: true));
+        Assert.Equal(178u, CombatMath.TroopDamage(Troops with { Morale = 10, Intensity = 3, Effect = 5 },
             Troops, 99, 10, 0, usesRockfallPower: true));
-        Assert.NotEqual(210u, CombatMath.TroopDamage(Troops with { Morale = 10, Intensity = 3, Effect = 5 }, Troops, 99, 10, 0));
+        Assert.NotEqual(178u, CombatMath.TroopDamage(Troops with { Morale = 10, Intensity = 3, Effect = 5 }, Troops, 99, 10, 0));
         Assert.Equal(0u, CombatMath.TroopDamage(Troops with { Soldiers = 0 }, Troops, 99, 10, 0, usesRockfallPower: true));
     }
 
@@ -21,8 +21,8 @@ public sealed class CombatMathTests
     public void ExplicitProfilesSelectTargetCoefficientAndRejectFieldWallDefense()
     {
         var profile = new CombatProfile(15, 10, 20, 10, 50);
-        Assert.Equal(287u, CombatMath.TroopDamage(Troops, Troops, profile, profile, false, 0));
-        Assert.Equal(231u, CombatMath.TroopDamage(Troops, Troops, profile, profile, true, 0));
+        Assert.Equal(217u, CombatMath.TroopDamage(Troops, Troops, profile, profile, false, 0));
+        Assert.Equal(178u, CombatMath.TroopDamage(Troops, Troops, profile, profile, true, 0));
         Assert.Throws<ArgumentException>(() => CombatMath.TroopDamage(Troops, Troops, profile, profile, false, 100));
         Assert.Throws<ArgumentException>(() => CombatMath.TroopDamage(Troops, Troops, profile with { Defense = -1 }, profile, false, 0));
     }
@@ -30,10 +30,10 @@ public sealed class CombatMathTests
     [Fact]
     public void NormalDamageMatchesIntegerWorkedExampleAndDurabilityProtectsGarrison()
     {
-        // Base 206; attack 309; defense 206; a=503, b=685; loss=287.
-        Assert.Equal(287u, CombatMath.TroopDamage(Troops, Troops, 15, 10, 0));
-        Assert.Equal(231u, CombatMath.TroopDamage(Troops, Troops, 10, 10, 0));
-        Assert.True(CombatMath.TroopDamage(Troops, Troops, 15, 10, 500) < 287);
+        // Base 206; attack=floor(206*30/25)=247; defense=floor(206*20/15)=274; a=381, b=685; loss=217.
+        Assert.Equal(217u, CombatMath.TroopDamage(Troops, Troops, 15, 10, 0));
+        Assert.Equal(178u, CombatMath.TroopDamage(Troops, Troops, 10, 10, 0));
+        Assert.True(CombatMath.TroopDamage(Troops, Troops, 15, 10, 500) < 217);
         Assert.Equal(3, CombatMath.DurabilityDamage(10000, 80, 20, 100));
         Assert.Equal(2, CombatMath.DurabilityDamage(10000, 80, 20, 2));
     }

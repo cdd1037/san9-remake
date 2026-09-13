@@ -123,16 +123,11 @@ internal static class TacticCombat
         MartialTacticMember[] members, bool doubled, int effect, SimulationRules rules, List<DomainEvent> events)
     {
         var military = rules.Military!;
-        var strength = source.IsSettlement ? MilitaryCombat.GarrisonStrength(world, world.Settlements[source.Id]) :
-            MilitaryCombat.Strength(world, world.Units[source.Id]);
-        var attack = source.IsSettlement ? military.Place(world.Settlements[source.Id]).Combat! :
-            military.Formations[world.Units[source.Id].FormationId!.Value].Combat!;
         if (target.UnitId is int targetId)
         {
             var defender = world.Units[targetId];
-            var defense = military.Formations[defender.FormationId!.Value].Combat!;
-            uint ordinary = CombatMath.TroopDamage(strength, MilitaryCombat.Strength(world, defender), attack, defense, false, 0,
-                source.IsSettlement && military.FacilityAttack(world.Settlements[source.Id]).UsesRockfallPower);
+            var defense = military.CombatFormation(defender)!;
+            uint ordinary = MilitaryCombat.NormalDamage(world, source, new(targetId, false), military);
             uint damage = TacticMath.MartialDamage(members, doubled, ordinary, effect,
                 defender.Condition is UnitCondition.NoFormation or UnitCondition.Confused or UnitCondition.Routed, defender.Soldiers);
             MilitaryCombat.DamageUnit(world, defender, damage, defense, source.Id, events, source.IsSettlement);
@@ -143,7 +138,7 @@ internal static class TacticCombat
         {
             var defender = world.Settlements[target.SettlementId!.Value];
             var defense = military.Place(defender).Combat!;
-            uint ordinary = CombatMath.TroopDamage(strength, MilitaryCombat.GarrisonStrength(world, defender), attack, defense, true, defender.Durability);
+            uint ordinary = MilitaryCombat.NormalDamage(world, source, new(defender.Id, true), military);
             uint damage = TacticMath.MartialDamage(members, doubled, ordinary, effect, false, defender.Soldiers);
             MilitaryCombat.DamageSettlement(world, defender, damage, defense, source.Id, events, attackerIsSettlement: source.IsSettlement);
             var current = world.Settlements[defender.Id];

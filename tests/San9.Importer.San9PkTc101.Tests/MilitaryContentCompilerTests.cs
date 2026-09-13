@@ -26,6 +26,7 @@ public sealed class MilitaryContentCompilerTests
         tactics[12] = tactics[12] with { CompatibleArrayTypeMaskHigh = (1 << 5) | (1 << 10) };
         tactics[15] = tactics[15] with { CompatibleArrayTypeMaskLow = 1 << 8 };
         var definition = MilitaryContentCompiler.Compile(squares, terrains, formations, places, [], buildings, tactics, places.ToDictionary(p => p.Id, _ => System.Collections.Immutable.ImmutableArray<int>.Empty));
+        Assert.Equal(27, definition.UnformedFormationId);
         Assert.Equal(8, definition.CityInfluence!.RadiusCells);
         Assert.Equal(5, definition.Geography.FootprintScale);
         Assert.Equal(10, definition.CityInfluence.LandTacticBonus);
@@ -62,6 +63,7 @@ public sealed class MilitaryContentCompilerTests
         foreach (var formation in definition.Formations)
         {
             var source = formations.Single(f => f.Id == formation.Id);
+            Assert.Equal(source.Id == 1, formation.DoublesCapture);
             Assert.Equal(source.Id == 11 ? new[] { 0 } : [], formation.MartialTacticVulnerabilities);
             Assert.Equal(new CombatProfile(source.AgainstUnits, source.AgainstSoldiers, source.AgainstWalls,
                 source.DefensePower, source.Id == 7 ? 80 : 50), formation.Combat);

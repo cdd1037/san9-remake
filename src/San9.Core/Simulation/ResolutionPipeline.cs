@@ -27,7 +27,7 @@ internal class SimulationRules
     internal MilitaryRulebook? Military { get; init; }
     internal OfficerAbilityRules Abilities => new(Treasures, Governance);
     internal virtual TaskRule? FindTask(string kind) => kind is PersonnelMissions.RecruitKind or PersonnelMissions.MoveKind or PersonnelMissions.SearchKind
-        ? new PersonnelMissionRule(Personnel, Economy, Governance, Treasures, kind) : kind == PersonnelReturns.Kind ? new PersonnelReturnRule(Personnel, Governance) : null;
+        ? new PersonnelMissionRule(Personnel, Economy, Governance, Treasures, kind) : kind == PersonnelReturns.Kind ? new PersonnelReturnRule(Personnel, Governance, Military) : null;
     internal virtual void ApplyStage(ResolutionStage stage, WorldMutation world, List<DomainEvent> events) { }
 }
 
@@ -79,12 +79,12 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
             PrisonerCycle.Apply(world, events);
         }
         if (stage == ResolutionStage.QuarterUpdate) PersonnelLoyaltyCycle.Apply(world, events);
-        var shortages = EconomicCycle.Apply(stage, world, rules.Economy, events);
+        var rationAccounts = EconomicCycle.Apply(stage, world, rules.Economy, events);
         if (stage == ResolutionStage.BeforeDailyCommands)
         {
             MilitaryTactics.TickCooldowns(world);
             MilitaryConditions.Tick(world, events);
-            MilitarySupply.Apply(world, shortages, rules, events);
+            MilitaryDailyCycle.Apply(world, rationAccounts, rules, events);
         }
         if (stage == ResolutionStage.XunUpdate) WoundedRecovery.Apply(world, rules.Military, events);
         if (stage == ResolutionStage.XunUpdate) PrisonerEscapeCycle.Apply(world, rules.Personnel, rules.Economy, events);
@@ -141,7 +141,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
             else
             {
                 events.Add(new TaskCancelledEvent(task.Id, world.Clock, "invalid-target-or-executor"));
-                if (task.Journey is not null) PersonnelReturns.Start(world, task, rules.Personnel, events, true);
+                if (task.Journey is not null) BattlePersonnel.ResumeReturn(world, task, rules, events);
             }
             if (!CheckTerminal(world, events)) return;
         }

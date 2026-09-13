@@ -117,7 +117,7 @@ internal static class IntelligenceTactics
                 uint damage = tactic.Effect == TacticEffect.Trap ? TacticMath.TrapDamage(proficiency, intelligence, tactic.Power, effect, soldiers) :
                     TacticMath.IllusionDamage(proficiency, intelligence, tactic.Power, effect, soldiers, tactic.Effect == TacticEffect.Sorcery);
                 if (target.UnitId is int damaged)
-                    MilitaryCombat.DamageUnit(world, world.Units[damaged], damage, military.Formations[world.Units[damaged].FormationId!.Value].Combat!, source.Id, events, source.IsSettlement);
+                    MilitaryCombat.DamageUnit(world, world.Units[damaged], damage, military.CombatFormation(world.Units[damaged])!, source.Id, events, source.IsSettlement);
                 else MilitaryCombat.DamageSettlement(world, world.Settlements[target.SettlementId!.Value], damage,
                     military.Place(world.Settlements[target.SettlementId.Value]).Combat!, source.Id, events, attackerIsSettlement: source.IsSettlement);
                 break;

@@ -259,7 +259,7 @@ public sealed class IntelligenceTacticTests
         var engine = Engine(TacticEffect.Inspire);
         var result = engine.AdvanceXun();
         Assert.Single(result.Events.OfType<TacticActivatedEvent>());
-        Assert.Contains(result.Events.OfType<TacticMoraleChangedEvent>(), e => e.Previous == 79 && e.Current == 100);
-        Assert.Equal(100, engine.Snapshot.Units.Single(u => u.Id == 1).Morale);
+        Assert.Contains(result.Events.OfType<TacticMoraleChangedEvent>(), e => e.Previous == 78 && e.Current == 100);
+        Assert.Equal(100 - result.Events.OfType<PeriodicMoraleLostEvent>().Where(e => e.UnitId == 1 && e.Clock.DayNumber > result.Events.OfType<TacticMoraleChangedEvent>().Single().Clock.DayNumber).Sum(e => e.PreviousMorale - e.Morale), engine.Snapshot.Units.Single(u => u.Id == 1).Morale);
     }
 }

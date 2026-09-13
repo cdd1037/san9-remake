@@ -68,12 +68,14 @@ public static class MilitaryContentCompiler
                         MaximumElevationBonus = Mode(f.Id) == TravelMode.Land ? 10 : 0,
                         RequiresWaterOrHarbor = f.Id is 21 or 26
                     },
+                    DoublesCapture = f.Id == 1,
                     CaptureRanks = Enumerable.Range(0, 5).Select(i => f.Id is >= 20 and <= 26 ? BattleRank.Middle : f.GetDeploymentSlotPosition(i)?.Row switch
                     {
                         0 => BattleRank.Front, 1 => BattleRank.Middle, 2 => BattleRank.Rear,
                         _ => throw new InvalidDataException("Missing formation member position.")
                     }).ToImmutableArray() }).ToImmutableArray(), places)
         {
+            UnformedFormationId = 27,
             Facilities = facilities,
             CityInfluence = new(8, 10),
             Rockfall = new(5, 25),

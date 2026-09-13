@@ -53,7 +53,8 @@ public sealed class FacilityReprisalTests
     public void SurvivingWorkUsesHighestMemberProficiencyWithoutCombatBonusOrMoraleLoss(int proficiency, uint damage)
     {
         var (engine, _) = Create(proficiency);
-        var events = Advance(engine).Events.OfType<BattleDamageEvent>().Where(e => e.AttackerIsSettlement && e.SoldierLoss > 0).ToArray();
+        var result = Advance(engine);
+        var events = result.Events.OfType<BattleDamageEvent>().Where(e => e.AttackerIsSettlement && e.SoldierLoss > 0).ToArray();
         Assert.NotEmpty(events);
         Assert.All(events, e =>
         {
@@ -61,7 +62,7 @@ public sealed class FacilityReprisalTests
             Assert.Equal(damage, e.AddedWounded + e.Dead);
             Assert.Equal(0, e.MoraleLoss);
         });
-        Assert.Equal(100, engine.Snapshot.Units.Single().Morale);
+        Assert.Equal(100 - result.Events.OfType<PeriodicMoraleLostEvent>().Sum(e => e.PreviousMorale - e.Morale), engine.Snapshot.Units.Single().Morale);
         Assert.DoesNotContain(engine.Snapshot.Simulation.RandomStreams, s => s.Name == "military-facility-reprisal");
     }
 

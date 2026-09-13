@@ -277,7 +277,11 @@ public sealed class FacilityConstructionTests
         var engine = Engine();
         Assert.True(engine.Execute(Player, Command()).Submission.Accepted);
         var saved = engine.CaptureStableState();
-        var starving = Engine(WorldState.Restore(saved with { Forces = saved.Forces.Select(f => f with { Food = 0 }).ToImmutableArray() }));
+        var starving = Engine(WorldState.Restore(saved with
+        {
+            Forces = saved.Forces.Select(f => f with { Food = 0 }).ToImmutableArray(),
+            Units = saved.Units.Select(u => u with { Morale = 30 }).ToImmutableArray()
+        }));
         var result = Advance(starving);
         Assert.Empty(starving.Snapshot.Units);
         Assert.Single(result.Events.OfType<FacilityConstructionChangedEvent>(), e => e.Phase == "cancelled");
@@ -475,7 +479,7 @@ public sealed class FacilityConstructionTests
         Assert.Equal(attacksWalls ? 1 : 0, events.OfType<FacilityDestroyedEvent>().Count());
         Assert.Empty(events.OfType<SettlementCapturedEvent>());
         Assert.DoesNotContain(events.OfType<ResourceChangedEvent>(), e => e.Reason == "settlement-captured");
-        Assert.Equal(50, engine.Snapshot.Units.Single().Morale);
+        Assert.Equal(50 - events.OfType<PeriodicMoraleLostEvent>().Sum(e => e.PreviousMorale - e.Morale), engine.Snapshot.Units.Single().Morale);
         Assert.Equal(10000u, engine.Snapshot.Forces.Single(f => f.Id == 2).Money);
         Assert.Equal(8000u, engine.Snapshot.Forces.Single(f => f.Id == 1).Money);
         var restored = Engine(WorldState.Restore(engine.CaptureStableState()), rules);

@@ -170,7 +170,7 @@ public sealed class MilitaryCombatTests
     {
         var world = World();
         var mutation = world.BeginMutation();
-        mutation.Replace(mutation.Units[0] with { Position = new(20, 7), Soldiers = 1, Morale = 1,
+        mutation.Replace(mutation.Units[0] with { Position = new(20, 7), Soldiers = 1, Morale = 100,
             Order = new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 1 } });
         mutation.AddUnit(new(1, 2, new(21, 7), 10000) { FormationId = 7, Morale = 90 });
         mutation.SetSimulation(mutation.Simulation with { NextUnitId = 2 });
@@ -334,7 +334,7 @@ public sealed class MilitaryCombatTests
         engine.AdvanceXun();
         Assert.Equal(OfficerStatus.Dead, engine.Snapshot.Officers.Single(p => p.Id == 30).Status);
         Assert.Null(Assert.Single(engine.Snapshot.Treasures).HolderId);
-        Assert.Equal(OfficerStatus.Captive, engine.Snapshot.Officers.Single(p => p.Id == 22).Status);
+        Assert.Equal(OfficerStatus.Dead, engine.Snapshot.Officers.Single(p => p.Id == 22).Status);
         Assert.Null(engine.Snapshot.Officers.Single(p => p.Id == 22).OwnerId);
     }
 

@@ -19,7 +19,11 @@ public sealed record PersonnelJourney(int DestinationPlaceId, int? TargetOfficer
     public PersonnelReturnLeg? ReturnLeg { get; init; }
     public bool? AcceptRecruitment { get; init; }
 }
-public sealed record PersonnelReturnLeg(int OriginPlaceId, int CountdownDays, bool AfterDailyCommands);
+public sealed record PersonnelReturnLeg(int OriginPlaceId, int CountdownDays, bool AfterDailyCommands)
+{
+    [System.Text.Json.Serialization.JsonRequired] public San9.Core.Domain.WorldPosition? OriginPosition { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public int? CorpsId { get; init; }
+}
 
 /// <summary>Authoritative scheduling state; immutable and included in every world transaction.</summary>
 public sealed record SimulationState(GameClock Started, ulong InitialSeed)

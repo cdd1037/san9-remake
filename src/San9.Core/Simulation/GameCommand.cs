@@ -69,6 +69,7 @@ public enum CommandRejection
     InvalidOffice,
     MissingFormationTactic,
     TacticUnavailable,
+    AttackConfirmationRequired,
 }
 
 public readonly record struct CommandSubmissionResult(

@@ -73,6 +73,8 @@ public static class MilitaryPlanner
             world.Corps.Any(c => c.Id == id && c.ControlMode == CorpsControlMode.Direct);
         // Public place ownership and topology only: neither enemy strength nor hidden field positions inform this policy.
         var targets = world.Settlements.Where(s => s.OwnerId != seat.ForceId && !s.IsDestroyed &&
+            (s.OwnerId is not int other || world.Simulation.Alliance?.Protects(seat.ForceId, other) != true &&
+                (world.Relations.FirstOrDefault(r => r.FirstId == Math.Min(seat.ForceId, other) && r.SecondId == Math.Max(seat.ForceId, other))?.Value ?? 0) < 40) &&
             rules.TryPlace(s, out var p) && p.Combat is not null).OrderBy(s => s.Id).ToArray();
         if (targets.Length == 0) return null;
         var routes = new Dictionary<(WorldPosition, Footprint, TravelMode, OrdinaryAttack, int, int?), bool>();

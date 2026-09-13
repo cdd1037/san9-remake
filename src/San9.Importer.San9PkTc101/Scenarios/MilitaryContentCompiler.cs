@@ -52,7 +52,7 @@ public static class MilitaryContentCompiler
             terrains.Select(t => Passage(t.Id)).ToImmutableArray(),
             formations.Select(f => new FormationRule(f.Id, checked(((f.Mobility + 1) / 2) * 10), f.DeploymentCost,
                 100000, 5, new(3, 3), Mode(f.Id))
-                { Tactics = f.Id == 27 ? null : new(Mode(f.Id) == TravelMode.Water ? 10 : 15,
+                { MovementStepCost = 10, Tactics = f.Id == 27 ? null : new(Mode(f.Id) == TravelMode.Water ? 10 : 15,
                         f.Id is 1 or 8 ? 50 : 0, f.Id == 2 ? 3 : 2,
                         Enumerable.Range(0, 4).Where(category => Favored(f.Id, category)).ToImmutableArray(),
                         Mode(f.Id) == TravelMode.Water ? tactics.Where(t => t.Id is >= 31 and <= 34 && t.SupportsArrayType(f.Id))

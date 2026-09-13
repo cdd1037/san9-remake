@@ -7,18 +7,18 @@
 | 模块 | 职责 | 输出 |
 | --- | --- | --- |
 | Content.Maps / MapImporter | 当前地图方格、地貌及对象位置 | `map.json`（无图片文件） |
-| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema51 |
+| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema52 |
 | Content.Text / ScenarioTextReader | 名称与全量消息目录 | `text.json` / `messages.json`，schema3 |
 | Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema16 |
-| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema55 |
+| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema56 |
 | Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema3／转换版本8 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 
 共享剧本契约不按原版编号区间限制城市或人物身份。城市图标资格由`SettlementKind.City`决定；`RegionCityIds`必须引用真实城市，其城市名从据点定义读取，不要求城市ID同时存在于地域名称表。数量与名称不继承源格式槽位和字节长度；玩法数值上限及显示资源范围独立校验。
 
-G08 的 schema50/54 增加必填可空 `Alliance`：目标、盟主、排序后的成员身份集合与剩余旬数。Importer把源联盟旗标及头部期限转换为同一个语义对象，缺失成员或矛盾状态明确拒绝。190年开局目标5、盟主7、13个成员及36旬完整保留；运行态从初始值独立演进，快照查询当前联盟，恢复不重新导入或重新扣旬。当前规则 `san9-core-g08-v3`，存档/日志26；旧包须原位重转，旧规则存档拒绝加载。
+G08 的 schema50/54 增加必填可空 `Alliance`：目标、盟主、排序后的成员身份集合与剩余旬数。Importer把源联盟旗标及头部期限转换为同一个语义对象，缺失成员或矛盾状态明确拒绝。190年开局目标5、盟主7、13个成员及36旬完整保留；运行态从初始值独立演进，快照查询当前联盟，恢复不重新导入或重新扣旬。当前规则 `san9-core-g08-v4`，存档/日志27；旧包须原位重转，旧规则存档拒绝加载。
 
-G08的schema51/55为阵型增加计略减半与扰乱免疫语义。版本Importer将方圆和不可扰乱阵型转换为属性，Core不比较源编号。任务保存野战目的地细坐标、地域身份和类型化计略载荷；去返程快照使用同一坐标尺度，旧任务布局明确拒绝。
+G08的schema52/55为阵型增加计略减半与扰乱免疫语义。版本Importer将方圆和不可扰乱阵型转换为属性，Core不比较源编号。任务保存野战目的地细坐标、地域身份和类型化计略载荷；去返程快照使用同一坐标尺度，旧任务布局明确拒绝。
 
 地图内容不引用名称、势力摘要或皮肤。剧本和文本可独立于地图校验；组合层检查建筑稳定ID与据点一一对应、坐标一致以及文本键存在。`SourceText`保存繁体显示原文（设施已组合类型后缀）；基础地域名另有文本项。它不是原消息字节的替代归档，原文件以SHA-256追踪。
 
@@ -28,7 +28,7 @@ G08的schema51/55为阵型增加计略减半与扰乱免疫语义。版本Import
 
 图片契约、静态图集、GPU缓存和资源租约见[纹理资源文档](texture-resources.md)。头像上传后不保留CPU像素，窗口与地图按实际使用异步申请。
 
-清单保留缩进；五个数据文件使用紧凑 JSON，保留完整字段名和内容。仅省略消息表达式及参数中默认值为 null 的可选字段，必填 nullable 状态字段仍显式保存。数据子文件必须位于包内，共享纹理目录允许相对引用包外目录。组合包schema51及更早的包须原位重新转换，不提供兼容读取。导入先校验、暂存全部文件，再替换数据并最后发布清单；不支持导入过程中并发读取。
+清单保留缩进；五个数据文件使用紧凑 JSON，保留完整字段名和内容。仅省略消息表达式及参数中默认值为 null 的可选字段，必填 nullable 状态字段仍显式保存。数据子文件必须位于包内，共享纹理目录允许相对引用包外目录。组合包schema52及更早的包须原位重新转换，不提供兼容读取。导入先校验、暂存全部文件，再替换数据并最后发布清单；不支持导入过程中并发读取。
 
 `MilitaryContentCompiler`将完整地形、硬阻挡、阵型移动预算和据点footprint导入剧本，Core直接消费该规范化规则，不读取`map.json`的显示资源。G06增加普通战斗参数、阵位、据点销毁能力及名马标记；部队成员、伤兵和当前命令随世界查询变化。数据核对见[G05](g05-verification.md)与[G06验收](g06-verification.md)，完整兵法、设施建设及水陆转换仍归G07。
 
@@ -139,3 +139,5 @@ G07的`UnitPolicies`保留迎击、追击、事后攻击和自主撤退四项语
 部队的`MemberOrder`保存当前成员稳定顺序，主将在首位；阵位由`MemberRanks`独立表达。出征/整编按身份、官职指挥量级、适用的官职优先级及当前统率排序；原官职顺序已由Importer映射到既有`GovernorPriority`，不在Core按官职身份推断高低。排序分数不持久化，离队继任实时求值，同分保留成员顺序。声明主将时顺序须完整覆盖在职成员、无重复且首项一致，未知/失效成员引用拒绝；未声明主将的初始对象不从ID臆造成员顺序。190年初始野战队仍为0，不扩大源初始在队人物导入范围。
 
 战争规则内容补充：阵型显式保存`OrdinaryAttack.RangedSiege`及`GainsDailyCombatProficiency`；TC101仅发石允许远距削墙，13／14不产生交战逐日熟练度。水战关联学习由阵型可空的`AutomaticTacticLearningId`引用技术，TC101仅21／22／23分别映射12／13／14，须验证引用存在及熟练类别。设施保存可空的`DestructionGrowthTacticId`，引用要学习的技术定义，不从设施名称推断。部队`HighSpiritsMoralePenaltyPending`独立保存高昂到期副作用；正日数高昂导入为true，治疗清除后不能在恢复存档时重新推导。2026-09-13运行包已按schema49／53原位重转，28阵型、41兵法、17设施、94据点、700人物保持完整。
+
+本轮军事外交补齐增加必填 `FacilityRule.IsWork` 和必填可空 `FormationRule.MovementStepCost`：TC101定义10–16为工作物，28阵型全部设置步进费用10。工作物与驻人能力独立；地形选路费用与每日步进扣费独立。源格式编号只留在Importer。旧包原位重转；确认字段随出征、改令、整编命令序列化，旧规则存档/日志拒绝。

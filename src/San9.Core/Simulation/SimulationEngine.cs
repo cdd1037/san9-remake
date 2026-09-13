@@ -71,6 +71,12 @@ public sealed class SimulationEngine
         return UnitStrategies.Advice(_world.BeginMutation(_rules.Abilities), forceId, officerId, strategy, targetUnitId, _rules);
     }
 
+    public AttackWarning GetAttackWarning(int forceId, MilitaryOrder order)
+    {
+        if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
+        return MilitaryDiplomacy.Warning(_world.BeginMutation(_rules.Abilities), forceId, order, _rules.Military);
+    }
+
     public CommandExecutionResult Execute(CommandContext context, GameCommand command) =>
         Evaluate(context, command, commit: true);
 
@@ -273,6 +279,7 @@ public sealed class SimulationEngine
             GameClock next = previous.Advance();
             var mutation = _world.BeginMutation(_rules.Abilities);
             List<DomainEvent> events = [];
+            MilitaryDiplomacy.BeginAdvance(mutation, _rules, events);
             while (mutation.Clock != next && mutation.Simulation.Boundary != SimulationBoundary.Terminal)
                 _pipeline.AdvanceDay(mutation, events);
             if (mutation.Simulation.Boundary != SimulationBoundary.Terminal)

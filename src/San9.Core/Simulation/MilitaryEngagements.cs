@@ -22,7 +22,7 @@ internal static class MilitaryEngagements
             military.FacilityAttack(settlement).Attack is null) return null;
         var area = new BattleSource(settlement.Id, true).Area(world, military);
         return world.Units.Values.Where(u => !u.IsPersonnel && !u.IsEmbedded &&
-            MilitaryCombat.Hostile(world, settlement.OwnerId!.Value, u.OwnerId) &&
+            (MilitaryDiplomacy.Work(world, settlement.Id, military) || MilitaryDiplomacy.AutomaticEnemy(world, settlement.OwnerId!.Value, u.OwnerId)) && u.OwnerId != settlement.OwnerId &&
             u.FormationId is int f && military.Formations[f].Combat is not null &&
             MilitaryCombat.Area(u, military).IntersectsExpanded(area, MilitaryCombat.FacilityRange(world, settlement, u, military)))
             .OrderBy(u => MilitaryCombat.Area(u, military).DistanceTo(area)).ThenBy(u => u.Id).FirstOrDefault();

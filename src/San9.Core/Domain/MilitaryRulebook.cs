@@ -5,6 +5,7 @@ namespace San9.Core.Domain;
 public sealed record FormationRule(int Id, int MovementBudget, int DeploymentCost, uint SoldierCapacity,
     int OfficerCapacity, Footprint Footprint, TravelMode TravelMode)
 {
+    [System.Text.Json.Serialization.JsonRequired] public int? MovementStepCost { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public FormationTactics? Tactics { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<int> MartialTacticVulnerabilities { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public int? RequiredTacticId { get; init; }
@@ -193,7 +194,7 @@ public sealed partial class MilitaryRulebook
         if (Formations.Values.Any(f => f.Attack is { Range: <= 0 } || f.Attack is not null && f.Combat is null) ||
             Places.Values.Any(p => p.Attack is { Range: <= 0 } || p.Attack is not null && p.Combat is null))
             throw new ArgumentException("Invalid ordinary attack definition.");
-        if (Formations.Values.Any(f => f.Id < 0 || f.RequiredTacticId < 0 || f.MovementBudget <= 0 || f.DeploymentCost < 0 || f.SoldierCapacity == 0 ||
+        if (Formations.Values.Any(f => f.Id < 0 || f.RequiredTacticId < 0 || f.MovementBudget <= 0 || f.MovementStepCost is <= 0 || f.DeploymentCost < 0 || f.SoldierCapacity == 0 ||
                 f.OfficerCapacity <= 0 || !f.Footprint.IsValid || !Enum.IsDefined(f.TravelMode)) ||
             Places.Values.Any(p => p.Id < 0 || !p.Footprint.IsValid || new MapOccupancy(p.Position, p.Footprint) is var area &&
                 (area.Left < 0 || area.Top < 0 || area.Right > Map.FineWidth || area.Bottom > Map.FineHeight)))

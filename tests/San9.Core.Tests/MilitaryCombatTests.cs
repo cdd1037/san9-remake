@@ -7,7 +7,7 @@ namespace San9.Core.Tests;
 public sealed class MilitaryCombatTests
 {
     [Fact]
-    public void PublicAttackCannotTargetAllianceMemberButBecomesAvailableWithoutAlliance()
+    public void PublicAttackRequiresConfirmationForAllianceMember()
     {
         var initial = Engine(World(controlled: true)).CaptureStableState();
         initial = initial with { Forces = initial.Forces.Append(new ForceState(3, 0, 0, 0)).ToArray() };
@@ -17,8 +17,9 @@ public sealed class MilitaryCombatTests
         }));
         var command = new OrderUnitCommand(Guid.NewGuid(), 1, 0, 0, new(MilitaryOrderKind.AttackSettlement, null, 2));
         string before = allied.Snapshot.StateHash;
-        Assert.False(allied.Execute(new("player"), command).Submission.Accepted);
+        Assert.Equal(CommandRejection.AttackConfirmationRequired, allied.Execute(new("player"), command).Submission.Rejection);
         Assert.Equal(before, allied.Snapshot.StateHash);
+        Assert.True(allied.Execute(new("player"), command with { ConfirmAttack = true }).Submission.Accepted);
         var expired = Engine(WorldState.Restore(initial));
         Assert.True(expired.Execute(new("player"), command).Submission.Accepted);
     }

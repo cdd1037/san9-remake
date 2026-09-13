@@ -66,6 +66,7 @@ public sealed class MilitaryContentCompilerTests
         foreach (var formation in definition.Formations)
         {
             var source = formations.Single(f => f.Id == formation.Id);
+            Assert.Equal(10, formation.MovementStepCost);
             Assert.Equal(source.Id == 1, formation.DoublesCapture);
             Assert.Equal(source.Id == 11 ? new[] { 0 } : [], formation.MartialTacticVulnerabilities);
             Assert.Equal(new CombatProfile(source.AgainstUnits, source.AgainstSoldiers, source.AgainstWalls,
@@ -87,7 +88,7 @@ public sealed class MilitaryContentCompilerTests
         {
             var formation = rules.Formations[id];
             var movement = rules.Map.Advance(new(100, 100), new(160, 100), formation.Footprint,
-                formation.TravelMode, [], formation.MovementBudget);
+                formation.TravelMode, [], formation.MovementBudget, formation.MovementStepCost);
             Assert.Equal(new WorldPosition(100 + distance, 100), movement.Position);
             Assert.False(movement.Arrived);
         }

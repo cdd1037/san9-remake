@@ -7,10 +7,14 @@ public sealed record DeployUnitCommand(Guid CommandId, int IssuerId, long Sequen
     ImmutableArray<int> OfficerIds, uint Soldiers, int FormationId, MilitaryOrder Order,
     uint CargoMoney = 0, uint CargoFood = 0) : GameCommand(CommandId, IssuerId, Sequence)
 {
+    [System.Text.Json.Serialization.JsonRequired] public bool ConfirmAttack { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public UnitPolicies Policies { get; init; } = new();
 }
 public sealed record OrderUnitCommand(Guid CommandId, int IssuerId, long Sequence, int UnitId, MilitaryOrder Order)
-    : GameCommand(CommandId, IssuerId, Sequence);
+    : GameCommand(CommandId, IssuerId, Sequence)
+{
+    [System.Text.Json.Serialization.JsonRequired] public bool ConfirmAttack { get; init; }
+}
 public sealed record UnitDeployedEvent(GameClock Clock, int UnitId, int SettlementId, ImmutableArray<int> OfficerIds) : DomainEvent;
 public sealed record UnitOrderChangedEvent(GameClock Clock, int UnitId, MilitaryOrder? Order, string Reason) : DomainEvent;
 public sealed record UnitMovedEvent(GameClock Clock, int UnitId, WorldPosition From, WorldPosition To, int Spent, bool Reachable) : DomainEvent;
@@ -74,6 +78,8 @@ internal static class MilitaryMovement
         if (!FormationEligibility.CanUse(world, command.IssuerId, command.OfficerIds, formation, treasures))
             return CommandRejection.MissingFormationTactic;
         if (!ValidOrder(world, command.IssuerId, command.Order, formation, rules)) return CommandRejection.InvalidTask;
+        if (!command.ConfirmAttack && MilitaryDiplomacy.Warning(world, command.IssuerId, command.Order, rules) != AttackWarning.None)
+            return CommandRejection.AttackConfirmationRequired;
         if (command.Order.Kind != MilitaryOrderKind.Transport && (command.CargoMoney != 0 || command.CargoFood != 0))
             return CommandRejection.InvalidTask;
         var account = ResourceAccounts.Resolve(world, command.IssuerId, home.CorpsId);
@@ -121,6 +127,8 @@ internal static class MilitaryMovement
             unit.FormationId is not int id || !rules.Formations.TryGetValue(id, out var formation)) return CommandRejection.InvalidTask;
         if (!ValidOrder(world, unit.OwnerId, command.Order, formation, rules)) return CommandRejection.InvalidTask;
         if (command.Order.Kind == MilitaryOrderKind.Construct) return CommandRejection.InvalidTask;
+        if (!command.ConfirmAttack && MilitaryDiplomacy.Warning(world, command.IssuerId, command.Order, rules) != AttackWarning.None)
+            return CommandRejection.AttackConfirmationRequired;
         FacilityConstruction.Cancel(world, unit.Id, events);
         world.Replace(unit with { Order = command.Order, EngagementTargetId = null, AwaitingPostAction = false });
         events.Add(new UnitOrderChangedEvent(world.Clock, unit.Id, command.Order, "ordered"));
@@ -163,21 +171,21 @@ internal static class MilitaryMovement
             {
                 var targetArea = MilitaryCombat.TargetArea(world, order, rules);
                 var approach = rules.Map.AdvanceIntoRange(unit.Position, targetArea, formation.Footprint,
-                    formation.TravelMode, Occupancy(world, rules, unit.Id, null), formation.MovementBudget,
+                    formation.TravelMode, Occupancy(world, rules, unit.Id, null, movement: true), formation.MovementBudget,
                     position => MilitaryCombat.ApproachRange(world, unit, order, rules, position), rectangularReach: true,
                     maximumRange: Math.Max(MapCoordinates.UnitsPerCell,
-                        checked((formation.Attack?.Range ?? 0) + (formation.Attack?.MaximumElevationBonus ?? 0))));
+                        checked((formation.Attack?.Range ?? 0) + (formation.Attack?.MaximumElevationBonus ?? 0))), movementStepCost: formation.MovementStepCost);
                 world.Replace(unit with { Position = approach.Position });
                 events.Add(new UnitMovedEvent(world.Clock, id, unit.Position, approach.Position, approach.Spent, approach.Reachable));
                 continue;
             }
             WorldPosition from = unit.Position;
-            // The normalized formation budget and terrain costs use the same fine-map units.
+            // Route preference and per-step budget consumption are independent content rules.
             var result = order.SettlementId is int destinationId
                 ? rules.Map.AdvanceIntoRange(unit.Position, new(rules.Place(world.Settlements[destinationId]).Position, rules.Place(world.Settlements[destinationId]).Footprint),
-                    formation.Footprint, formation.TravelMode, Occupancy(world, rules, unit.Id, null), formation.MovementBudget, 1)
+                    formation.Footprint, formation.TravelMode, Occupancy(world, rules, unit.Id, null, movement: true), formation.MovementBudget, 1, formation.MovementStepCost)
                 : rules.Map.Advance(unit.Position, order.Position!.Value, formation.Footprint, formation.TravelMode,
-                    Occupancy(world, rules, unit.Id, null), formation.MovementBudget);
+                    Occupancy(world, rules, unit.Id, null, movement: true), formation.MovementBudget, formation.MovementStepCost);
             unit = unit with { Position = result.Position };
             world.Replace(unit);
             events.Add(new UnitMovedEvent(world.Clock, id, from, result.Position, result.Spent, result.Reachable));
@@ -248,10 +256,16 @@ internal static class MilitaryMovement
         return (ulong)money + treasury.Money <= uint.MaxValue && (ulong)food + treasury.Food <= uint.MaxValue;
     }
 
-    internal static IEnumerable<MapOccupancy> Occupancy(WorldMutation world, MilitaryRulebook rules, int? movingUnit, int? entry)
+    internal static IEnumerable<MapOccupancy> Occupancy(WorldMutation world, MilitaryRulebook rules, int? movingUnit, int? entry, bool movement = false)
     {
         foreach (var settlement in world.Settlements.Values.Where(s => s.Id != entry && !s.IsDestroyed))
-            if (rules.TryPlace(settlement, out var place)) yield return new(place.Position, place.Footprint);
+            if (rules.TryPlace(settlement, out var place))
+            {
+                if (movement && movingUnit is int moving && world.Units.TryGetValue(moving, out var actor) &&
+                    !MilitaryDiplomacy.Work(world, settlement.Id, rules) &&
+                    (settlement.OwnerId is null || !MilitaryDiplomacy.AutomaticEnemy(world, actor.OwnerId, settlement.OwnerId))) continue;
+                yield return new(place.Position, place.Footprint);
+            }
         foreach (var unit in world.Units.Values.Where(u => u.Id != movingUnit))
         {
             if (unit.FormationId is not int formation) continue;

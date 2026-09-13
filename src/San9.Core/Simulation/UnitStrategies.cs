@@ -78,7 +78,7 @@ internal static class UnitStrategies
         if (strategy == UnitStrategyKind.Inspire)
             return target.OwnerId == force && target.Condition != UnitCondition.HighSpirits &&
                 (target.Condition != UnitCondition.Normal || target.Morale < 100);
-        if (!MilitaryCombat.Hostile(world, force, target.OwnerId) ||
+        if (!MilitaryDiplomacy.CanFight(world, force, target.OwnerId) || world.Simulation.Alliance?.Protects(force, target.OwnerId) == true || world.Simulation.Alliance?.Protects(force, target.OwnerId) == true ||
             !world.Relations.ContainsKey((Math.Min(force, target.OwnerId), Math.Max(force, target.OwnerId)))) return false;
         return strategy != UnitStrategyKind.Disorder || !formation.ImmuneToDisorder;
     }

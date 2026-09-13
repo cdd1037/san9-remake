@@ -117,7 +117,10 @@ internal static class MilitaryPolicies
         var candidates = world.Units.Values.Where(u => !u.IsEmbedded && !u.IsPersonnel)
             .Select(u => new MilitaryOrder(MilitaryOrderKind.AttackUnit, null, null) { UnitId = u.Id });
         if (buildings) candidates = candidates.Concat(world.Settlements.Values.Select(s => new MilitaryOrder(MilitaryOrderKind.AttackSettlement, null, s.Id)));
-        return candidates.Where(o => MilitaryCombat.ValidTarget(world, unit.OwnerId, o, formation, rules))
+        return candidates.Where(o => MilitaryDiplomacy.TargetOwner(world, o) is not int owner ||
+                MilitaryDiplomacy.AutomaticEnemy(world, unit.OwnerId, owner) || !buildings &&
+                (MilitaryDiplomacy.TargetOwner(world, unit.Order) == owner || MilitaryDiplomacy.TargetOwner(world, unit.EffectiveOrder) == owner))
+            .Where(o => MilitaryCombat.ValidTarget(world, unit.OwnerId, o, formation, rules))
             .Select(o => (Order: o, Distance: Distance(unit, o, world, rules))).Where(c => c.Distance <= rules.PolicyRadius)
             .OrderBy(c => c.Distance).ThenBy(c => c.Order.UnitId is null).ThenBy(c => c.Order.UnitId ?? c.Order.SettlementId)
             .Select(c => c.Order);
@@ -125,7 +128,7 @@ internal static class MilitaryPolicies
 
     private static IEnumerable<UnitState> NearbyEnemies(WorldMutation world, UnitState unit, MilitaryRulebook rules) =>
         world.Units.Values.Where(u => !u.IsEmbedded && !u.IsPersonnel && u.FormationId is not null &&
-            MilitaryCombat.Hostile(world, unit.OwnerId, u.OwnerId) &&
+            MilitaryDiplomacy.AutomaticEnemy(world, unit.OwnerId, u.OwnerId) &&
             MilitaryCombat.Area(unit, rules).DistanceTo(MilitaryCombat.Area(u, rules)) <= rules.PolicyRadius);
 
     private static long Ratio(WorldMutation world, UnitState unit, MilitaryOrder candidate)

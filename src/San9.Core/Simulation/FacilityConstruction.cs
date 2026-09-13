@@ -89,7 +89,7 @@ internal static class FacilityConstruction
             var formation = military.Formations[unit.FormationId!.Value];
             var target = new MapOccupancy(plan.Position, type.Footprint);
             var movement = military.Map.AdvanceIntoRange(unit.Position, target, formation.Footprint, formation.TravelMode,
-                MilitaryMovement.Occupancy(world, military, id, plan.RegionId).Append(target), formation.MovementBudget, 1);
+                MilitaryMovement.Occupancy(world, military, id, plan.RegionId, movement: true).Append(target), formation.MovementBudget, 1, formation.MovementStepCost);
             world.Replace(unit with { Position = movement.Position });
             events.Add(new UnitMovedEvent(world.Clock, id, unit.Position, movement.Position, movement.Spent, movement.Reachable));
             if (!movement.Arrived || new MapOccupancy(movement.Position, formation.Footprint).Overlaps(target)) continue;

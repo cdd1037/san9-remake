@@ -4,7 +4,10 @@ using San9.Core.Domain;
 namespace San9.Core.Simulation;
 
 public sealed record ReformUnitCommand(Guid CommandId, int IssuerId, long Sequence, int UnitId,
-    int FormationId, ImmutableArray<int> OfficerIds, MilitaryOrder? Order) : GameCommand(CommandId, IssuerId, Sequence);
+    int FormationId, ImmutableArray<int> OfficerIds, MilitaryOrder? Order) : GameCommand(CommandId, IssuerId, Sequence)
+{
+    [System.Text.Json.Serialization.JsonRequired] public bool ConfirmAttack { get; init; }
+}
 public sealed record UnitReformedEvent(GameClock Clock, int UnitId, int PreviousFormationId, int FormationId,
     ImmutableArray<int> OfficerIds) : DomainEvent;
 
@@ -30,6 +33,8 @@ internal static class UnitReformation
         if (command.Order is not null && !MilitaryMovement.ValidOrder(world, unit.OwnerId, command.Order, formation, rules))
             return CommandRejection.InvalidTask;
         if (command.Order?.Kind == MilitaryOrderKind.Construct) return CommandRejection.InvalidTask;
+        if (!command.ConfirmAttack && MilitaryDiplomacy.Warning(world, command.IssuerId, command.Order, rules) != AttackWarning.None)
+            return CommandRejection.AttackConfirmationRequired;
         int cost = previous == formation.Id ? 0 : formation.DeploymentCost;
         var account = ResourceAccounts.Resolve(world, unit.OwnerId, unit.CorpsId);
         if (ResourceAccounts.Balance(world, account, ResourceKind.Money) < cost) return CommandRejection.InsufficientFunds;

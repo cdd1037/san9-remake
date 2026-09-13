@@ -15,9 +15,9 @@ public sealed class AllianceTests
         var world = World();
         var engine = new SimulationEngine(world);
         Assert.Equal(36, engine.Snapshot.Simulation.Alliance!.RemainingXun);
-        Assert.False(MilitaryCombat.Hostile(world.BeginMutation(), 1, 2));
-        Assert.False(MilitaryCombat.Hostile(world.BeginMutation(), 2, 1));
-        Assert.True(MilitaryCombat.Hostile(world.BeginMutation(), 1, 3));
+        Assert.False(MilitaryDiplomacy.AutomaticEnemy(world.BeginMutation(), 1, 2));
+        Assert.False(MilitaryDiplomacy.AutomaticEnemy(world.BeginMutation(), 2, 1));
+        Assert.True(MilitaryDiplomacy.AutomaticEnemy(world.BeginMutation(), 1, 3));
         List<AllianceEndedEvent> ends = [];
         for (int xun = 1; xun <= 36; xun++)
         {
@@ -25,7 +25,7 @@ public sealed class AllianceTests
             Assert.Equal(xun == 36 ? null : 36 - xun, engine.Snapshot.Simulation.Alliance?.RemainingXun);
         }
         Assert.Equal(AllianceEndReason.Expired, Assert.Single(ends).Reason);
-        Assert.True(MilitaryCombat.Hostile(world.BeginMutation(), 1, 2));
+        Assert.True(MilitaryDiplomacy.AutomaticEnemy(world.BeginMutation(), 1, 2));
         Assert.Empty(engine.AdvanceXun().Events.OfType<AllianceEndedEvent>());
     }
 

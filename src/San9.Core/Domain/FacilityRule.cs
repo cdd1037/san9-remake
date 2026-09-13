@@ -13,6 +13,7 @@ public sealed record FacilityRule(int Id, int ConstructionCost, int MaxDurabilit
     [System.Text.Json.Serialization.JsonRequired] public int? DestructionGrowthTacticId { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public FacilityTactics? Tactics { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public FacilityAttackModifier? InnateAttack { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public bool IsWork { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public bool IsHarbor { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public FacilityReprisal? Reprisal { get; init; }
     internal void Validate(IReadOnlyDictionary<int, TacticRule> tactics)

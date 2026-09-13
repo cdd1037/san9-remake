@@ -26,7 +26,7 @@ internal static class BattleAftermath
         var settlement = world.Settlements[id];
         if (!MilitaryCombat.Defeated(settlement))
             throw new InvalidOperationException("Settlement has not fallen.");
-        if (!winner.Exists(world) || !MilitaryCombat.Hostile(world, winner.Owner(world), settlement.OwnerId)) throw new InvalidOperationException("Invalid settlement captor.");
+        if (!winner.Exists(world) || !MilitaryDiplomacy.CanFight(world, winner.Owner(world), settlement.OwnerId)) throw new InvalidOperationException("Invalid settlement captor.");
         var definition = rules.Military!.Place(settlement);
         if (!settlement.CanHostPersons)
         {

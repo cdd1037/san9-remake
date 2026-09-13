@@ -72,6 +72,8 @@ public sealed class GameSession
         return recording;
     }
     public WorldSnapshot Snapshot => _simulation.Snapshot;
+    public AttackWarning GetAttackWarning(int forceId, MilitaryOrder order) => _simulation.GetAttackWarning(forceId, order);
+
     public CommandAdvice GetUnitStrategyAdvice(int forceId, int officerId, UnitStrategyKind strategy, int targetUnitId) =>
         _simulation.GetUnitStrategyAdvice(forceId, officerId, strategy, targetUnitId);
     public StrategySnapshot InitialView => _initialView;

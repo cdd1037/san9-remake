@@ -19,20 +19,15 @@ internal static class MilitaryCombat
             source.IsSettlement && military.FacilityAttack(world.Settlements[source.Id]).UsesRockfallPower);
     }
 
-    internal static bool Hostile(WorldMutation world, int attacker, int? defender) =>
-        world.Forces.TryGetValue(attacker, out var force) && !force.IsEliminated && attacker != defender &&
-        (defender is null || world.Simulation.Alliance?.Protects(attacker, defender.Value) != true) &&
-        (defender is null || world.Forces.TryGetValue(defender.Value, out var other) && !other.IsEliminated);
-
     internal static bool ValidTarget(WorldMutation world, int owner, MilitaryOrder order, FormationRule formation, MilitaryRulebook rules)
     {
         if (formation.Combat is null || formation.Attack is null) return false;
         if (order.Kind == MilitaryOrderKind.AttackUnit)
-            return order.UnitId is int id && world.Units.TryGetValue(id, out var unit) && Hostile(world, owner, unit.OwnerId) &&
+            return order.UnitId is int id && world.Units.TryGetValue(id, out var unit) && MilitaryDiplomacy.CanFight(world, owner, unit.OwnerId) &&
                 unit.FormationId is int f && rules.Formations[f].Combat is not null && rules.CanAttackTarget(formation.Attack, unit.Position, false, false);
         return order.Kind == MilitaryOrderKind.AttackSettlement && order.SettlementId is int place &&
             world.Settlements.TryGetValue(place, out var settlement) && !settlement.IsDestroyed && settlement.Facility?.BuilderUnitId is null &&
-            Hostile(world, owner, settlement.OwnerId) && rules.TryPlace(settlement, out var definition) && definition.Combat is not null &&
+            MilitaryDiplomacy.CanFight(world, owner, settlement.OwnerId) && rules.TryPlace(settlement, out var definition) && definition.Combat is not null &&
             rules.CanAttackTarget(formation.Attack, definition.Position, true, rules.IsHarbor(settlement));
     }
 
@@ -108,6 +103,8 @@ internal static class MilitaryCombat
             var targetArea = TargetArea(world, order, military);
             if (used.Contains(id) || !Area(attacker, military).IntersectsExpanded(targetArea, UnitRange(world, attacker, order, military))) continue;
             used.Add(id);
+            MilitaryDiplomacy.CombatOpened(world, attacker.OwnerId, MilitaryDiplomacy.TargetOwner(world, order),
+                order.SettlementId is int attackedPlace && MilitaryDiplomacy.Work(world, attackedPlace, military), events);
             var affectedForces = new HashSet<int> { attacker.OwnerId };
             if (order.UnitId is int targetId)
             {

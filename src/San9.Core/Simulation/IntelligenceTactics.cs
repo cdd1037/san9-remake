@@ -44,14 +44,16 @@ internal static class IntelligenceTactics
         var military = rules.Military!;
         var area = MilitaryCombat.TargetArea(world, primary, military);
         List<MilitaryOrder> targets = [primary];
+        bool SecondaryOpponent(int? owner) => MilitaryDiplomacy.CanFight(world, source.Owner(world), owner) &&
+            (owner is null || world.Simulation.Alliance?.Protects(source.Owner(world), owner.Value) != true);
         if (tactic.EffectRadius > 0 && tactic.Effect is TacticEffect.Illusion or TacticEffect.Sorcery)
         {
-            targets.AddRange(world.Units.Values.Where(u => u.Id != primary.UnitId && MilitaryCombat.Hostile(world, source.Owner(world), u.OwnerId) &&
+            targets.AddRange(world.Units.Values.Where(u => u.Id != primary.UnitId && SecondaryOpponent(u.OwnerId) &&
                 u.FormationId is int f && military.Formations[f].Combat is not null && MilitaryCombat.Area(u, military).DistanceTo(area) <= tactic.EffectRadius)
                 .OrderBy(u => u.Id).Select(u => new MilitaryOrder(MilitaryOrderKind.AttackUnit, null, null) { UnitId = u.Id }));
             if (tactic.AffectsFacilities)
                 targets.AddRange(world.Settlements.Values.Where(s => s.Id != primary.SettlementId && !s.IsDestroyed && s.Facility?.BuilderUnitId is null &&
-                    MilitaryCombat.Hostile(world, source.Owner(world), s.OwnerId) && military.TryPlace(s, out var p) && p.Combat is not null &&
+                    SecondaryOpponent(s.OwnerId) && military.TryPlace(s, out var p) && p.Combat is not null &&
                     new MapOccupancy(p.Position, p.Footprint).DistanceTo(area) <= tactic.EffectRadius).OrderBy(s => s.Id)
                     .Select(s => new MilitaryOrder(MilitaryOrderKind.AttackSettlement, null, s.Id)));
         }

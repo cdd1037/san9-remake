@@ -15,6 +15,9 @@ internal sealed class WorldMutation
     private Dictionary<int, int?>? _leadershipBefore;
     private EngagementRelations? _engagements;
     private MilitaryRulebook? _engagementRules;
+    private MovementOccupancy? _movementOccupancy;
+    internal IReadOnlyList<MapOccupancy> MovementOccupancy(MilitaryRulebook rules, int unit, int? entry, MapOccupancy area) =>
+        (_movementOccupancy ??= new(this, rules)).Query(this, unit, entry, area);
 
     internal EngagementRelations Engagements(MilitaryRulebook military)
     {
@@ -135,11 +138,13 @@ internal sealed class WorldMutation
             (previous.Morale > 0) != (value.Morale > 0) || (previous.Durability > 0) != (value.Durability > 0) ||
             (previous.ConfusionDaysRemaining == 0) != (value.ConfusionDaysRemaining == 0)) _engagements = null;
         Settlements = Replace(Settlements, value.Id, value);
+        _movementOccupancy?.Set(value);
     }
     internal void AddSettlement(SettlementState value)
     {
         EnsureOpen();
         Settlements = Settlements.Add(value.Id, value);
+        _movementOccupancy?.Set(value);
         _engagements = null;
     }
     internal void Replace(OfficerState value)
@@ -153,16 +158,21 @@ internal sealed class WorldMutation
     internal void Replace(UnitState value)
     {
         var previous = Units[value.Id];
+        if (previous.EffectiveOrder != value.EffectiveOrder || previous.FormationId != value.FormationId || previous.OwnerId != value.OwnerId ||
+            previous.Position != value.Position && ReferenceEquals(previous.MovementPlan, value.MovementPlan))
+            value = value with { MovementPlan = null };
         if (previous.OwnerId != value.OwnerId || previous.Position != value.Position || previous.FormationId != value.FormationId ||
             previous.IsEmbedded != value.IsEmbedded || previous.IsPersonnel != value.IsPersonnel ||
             previous.Order != value.Order || previous.EngagementTargetId != value.EngagementTargetId || previous.Condition != value.Condition ||
             (previous.Soldiers > 0) != (value.Soldiers > 0) || (previous.Morale > 0) != (value.Morale > 0)) _engagements = null;
         Units = Replace(Units, value.Id, value);
+        _movementOccupancy?.Set(value);
     }
     internal void AddUnit(UnitState unit)
     {
         EnsureOpen();
         Units = Units.Add(unit.Id, unit);
+        _movementOccupancy?.Set(unit);
         _engagements = null;
     }
     internal void RemoveUnit(int id)
@@ -170,6 +180,7 @@ internal sealed class WorldMutation
         EnsureOpen();
         if (!Units.ContainsKey(id)) throw new InvalidOperationException("Unknown unit.");
         Units = Units.Remove(id);
+        _movementOccupancy?.RemoveUnit(id);
         _engagements = null;
     }
     internal void Replace(CorpsState value) => Corps = Replace(Corps, value.Id, value);

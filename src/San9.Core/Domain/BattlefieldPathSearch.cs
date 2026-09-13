@@ -2,53 +2,126 @@ using System.Collections.Immutable;
 
 namespace San9.Core.Domain;
 
-/// <summary>Derived topology and serialized reusable search workspace, owned by one immutable map.</summary>
+/// <summary>Reusable search workspace for one map on one execution thread.</summary>
 internal sealed class BattlefieldPathSearch(BattlefieldMap map)
 {
-    private sealed record Topology(Footprint Shape, TravelMode Mode, int[] Costs, int[] Components, int Minimum);
-    private readonly List<Topology> topologies = [];
-    private readonly object gate = new();
-    private int[] seen = [], previous = [], occupied = [];
+    private int[] seen = [], previous = [], occupied = [], closed = [];
     private long[] distances = [];
     private int generation;
     private readonly PriorityQueue<(int Node, long Cost), (long Estimate, long Remaining, long Sequence)> pending = new();
 
     internal MovementRoute Search(WorldPosition start, Footprint shape, TravelMode mode,
         IReadOnlyList<MapOccupancy> objects, Func<WorldPosition, bool> arrived,
-        Func<WorldPosition, long> lowerBound, WorldPosition? destination)
+        Func<WorldPosition, long> lowerBound, WorldPosition? destination) =>
+        Search(start, shape, mode, objects, arrived, lowerBound, destination, null, new MovementRoute(false, [], 0),
+            (source, goal, cost, _) => new(true, Trace(source, goal), cost));
+
+    internal DailyMovement Advance(WorldPosition start, Footprint shape, TravelMode mode,
+        IReadOnlyList<MapOccupancy> objects, Func<WorldPosition, bool> arrived,
+        Func<WorldPosition, long> lowerBound, WorldPosition? destination, int budget, int? movementStepCost, PathGoalBounds? goalBounds = null)
     {
-        lock (gate)
+        if (movementStepCost is <= 0) throw new ArgumentOutOfRangeException(nameof(movementStepCost));
+        return Search(start, shape, mode, objects, arrived, lowerBound, destination, goalBounds, new DailyMovement(start, false, false, 0),
+            (source, goal, _, costs) =>
+            {
+                // Project the selected path onto today's budget without materializing a full route.
+                // Movement speed may use an authored flat cost independent of weighted route preference.
+                long spent = 0;
+                for (int p = goal; p != source; p = previous[p]) spent += movementStepCost ?? costs[p];
+                int position = goal;
+                while (spent > budget)
+                {
+                    spent -= movementStepCost ?? costs[position];
+                    position = previous[position];
+                }
+                return new(Position(position), true, position == goal, (int)spent);
+            });
+    }
+
+    private T Search<T>(WorldPosition start, Footprint shape, TravelMode mode,
+        IReadOnlyList<MapOccupancy> objects, Func<WorldPosition, bool> arrived,
+        Func<WorldPosition, long> lowerBound, WorldPosition? destination, PathGoalBounds? goalBounds, T unreachable,
+        Func<int, int, long, int[], T> complete, Func<T>? limited = null, int horizon = 128, int maximumWork = 8192, int minimumStageDistance = 32)
+    {
+        var diagnostics = PathSearchDiagnostics.Current;
+        if (diagnostics is not null) diagnostics.Queries++;
+        long expanded = 0;
+        if (!shape.IsValid || !Enum.IsDefined(mode)) throw new ArgumentException("Invalid movement shape or mode.");
+        foreach (var area in objects)
+            if (!area.Footprint.IsValid || area.Left < 0 || area.Top < 0 || area.Right > map.FineWidth || area.Bottom > map.FineHeight)
+                throw new ArgumentException("Occupancy lies outside battlefield.");
+        if (!Inside(start) || destination is { } end && !Inside(end)) return unreachable;
+        var topology = map.Topologies.Get(shape, mode);
+        int count = topology.Costs.Length;
+        if (seen.Length != count)
         {
-            if (!shape.IsValid || !Enum.IsDefined(mode)) throw new ArgumentException("Invalid movement shape or mode.");
-            foreach (var area in objects)
-                if (!area.Footprint.IsValid || area.Left < 0 || area.Top < 0 || area.Right > map.FineWidth || area.Bottom > map.FineHeight)
-                    throw new ArgumentException("Occupancy lies outside battlefield.");
-            if (!Inside(start) || destination is { } end && !Inside(end)) return new(false, [], 0);
-            var topology = GetTopology(shape, mode);
-            int count = topology.Costs.Length;
-            if (seen.Length != count)
+            seen = new int[count]; previous = new int[count]; occupied = new int[count]; closed = new int[count]; distances = new long[count];
+        }
+        if (generation >= int.MaxValue - 64) { Array.Clear(seen); Array.Clear(occupied); Array.Clear(closed); generation = 0; }
+        int stamp = ++generation;
+        int occupancyStamp = stamp;
+        pending.Clear();
+        foreach (var area in objects)
+        {
+            int left = (int)Math.Max(0, area.Left - (shape.Width - shape.Width / 2) + 1);
+            int right = (int)Math.Min(map.FineWidth - 1, area.Right + shape.Width / 2 - 1);
+            int top = (int)Math.Max(0, area.Top - (shape.Height - shape.Height / 2) + 1);
+            int bottom = (int)Math.Min(map.FineHeight - 1, area.Bottom + shape.Height / 2 - 1);
+            for (int y = top; y <= bottom; y++)
+                for (int x = left; x <= right; x++) occupied[y * map.FineWidth + x] = stamp;
+        }
+        int source = Index(start);
+        if (!Passable(source)) return limited is not null && topology.Costs[source] > 0 ? limited() : unreachable;
+        if (destination is { } target)
+        {
+            int goal = Index(target);
+            if (topology.Costs[goal] <= 0 || !topology.Regions.Connected(source, goal)) return unreachable;
+            if (!Passable(goal)) return limited is null ? unreachable : limited();
+        }
+        if (arrived(start)) return complete(source, source, 0, topology.Costs);
+        var regionGraph = topology.Regions;
+        var bounds = goalBounds ?? (destination is { } point ? new PathGoalBounds(point.X, point.Y, point.X, point.Y) : null);
+        BattlefieldRegions.Guide? guide = null;
+        bool[]? corridor = null;
+        if (bounds is { } goalRegion)
+        {
+            var goals = new List<int>();
+            CollectGoals(ignoreOccupancy: false);
+            // Remote temporary occupancy must not stop travel toward an otherwise legal approach.
+            if (goals.Count == 0 && limited is not null && lowerBound(start) >= 256)
+                CollectGoals(ignoreOccupancy: true);
+            void CollectGoals(bool ignoreOccupancy)
             {
-                seen = new int[count]; previous = new int[count]; occupied = new int[count]; distances = new long[count];
+                for (int y = (int)Math.Clamp(goalRegion.Top, 0, map.FineHeight); y <= Math.Min(goalRegion.Bottom, map.FineHeight - 1); y++)
+                for (int x = (int)Math.Clamp(goalRegion.Left, 0, map.FineWidth); x <= Math.Min(goalRegion.Right, map.FineWidth - 1); x++)
+                {
+                    int node = y * map.FineWidth + x;
+                    if ((ignoreOccupancy ? topology.Costs[node] <= 0 : !Passable(node)) || !arrived(new(x, y))) continue;
+                    int region = regionGraph.Regions[node];
+                    if (!goals.Contains(region)) goals.Add(region);
+                }
             }
-            if (generation == int.MaxValue) { Array.Clear(seen); Array.Clear(occupied); generation = 0; }
-            int stamp = ++generation;
+            if (goals.Count == 0) return limited is null ? unreachable : limited();
+            goals.Sort();
+            guide = regionGraph.ToGoals(goals.ToArray());
+            int startRegion = regionGraph.Regions[source];
+            if (guide.Costs[startRegion] == long.MaxValue) return unreachable;
+            if (lowerBound(start) >= (limited is null ? 128 : 256)) corridor = regionGraph.Corridor(startRegion, guide);
+            else guide = null;
+        }
+        bool restrictCorridor = corridor is not null;
+        int stage = -1;
+        if (limited is not null && guide is not null)
+        {
+            stage = regionGraph.Regions[source];
+            for (int i = 0; guide.Next[stage] >= 0 && (i < 8 || regionGraph.DistanceToTile(start, stage) < minimumStageDistance); i++)
+                stage = guide.Next[stage];
+            if (stage == regionGraph.Regions[source] || guide.Next[stage] < 0) stage = -1;
+        }
+        while (true)
+        {
+            stamp = ++generation;
             pending.Clear();
-            foreach (var area in objects)
-            {
-                int left = (int)Math.Max(0, area.Left - (shape.Width - shape.Width / 2) + 1);
-                int right = (int)Math.Min(map.FineWidth - 1, area.Right + shape.Width / 2 - 1);
-                int top = (int)Math.Max(0, area.Top - (shape.Height - shape.Height / 2) + 1);
-                int bottom = (int)Math.Min(map.FineHeight - 1, area.Bottom + shape.Height / 2 - 1);
-                for (int y = top; y <= bottom; y++)
-                    for (int x = left; x <= right; x++) occupied[y * map.FineWidth + x] = stamp;
-            }
-            int source = Index(start);
-            if (!Passable(source)) return new(false, [], 0);
-            if (destination is { } target)
-            {
-                int goal = Index(target);
-                if (!Passable(goal) || topology.Components[source] != topology.Components[goal]) return new(false, [], 0);
-            }
             long sequence = 0;
             seen[source] = stamp; distances[source] = 0;
             long initial = Estimate(source);
@@ -56,76 +129,99 @@ internal sealed class BattlefieldPathSearch(BattlefieldMap map)
             while (pending.TryDequeue(out var item, out _))
             {
                 int current = item.Node;
-                if (distances[current] != item.Cost) continue;
-                if (arrived(Position(current)))
+                if (distances[current] != item.Cost || closed[current] == stamp) continue;
+                closed[current] = stamp;
+                expanded++;
+                if (diagnostics is not null)
                 {
-                    var steps = new List<WorldPosition>();
-                    for (int p = current; p != source; p = previous[p]) steps.Add(Position(p));
-                    steps.Reverse();
-                    return new(true, steps.ToImmutableArray(), item.Cost);
+                    diagnostics.Expanded++;
+                    diagnostics.MaximumExpanded = Math.Max(diagnostics.MaximumExpanded, expanded);
                 }
+                if (arrived(Position(current)) || stage >= 0 && guide!.Costs[regionGraph.Regions[current]] <= guide.Costs[stage])
+                    return complete(source, current, item.Cost, topology.Costs);
+                if (limited is not null && expanded > maximumWork) return limited();
                 Visit(current - map.FineWidth);
                 if (current % map.FineWidth < map.FineWidth - 1) Visit(current + 1);
                 Visit(current + map.FineWidth);
                 if (current % map.FineWidth > 0) Visit(current - 1);
                 void Visit(int next)
                 {
-                    if (next < 0 || next >= count || !Passable(next)) return;
+                    if (next < 0 || next >= count || !Passable(next) || closed[next] == stamp) return;
+                    if (limited is not null && (Math.Abs(next % map.FineWidth - start.X) > horizon ||
+                        Math.Abs(next / map.FineWidth - start.Y) > horizon)) return;
+                    int region = regionGraph.Regions[next];
+                    if (corridor is not null && (guide!.Costs[region] == long.MaxValue || restrictCorridor && !corridor[region])) return;
                     long total = checked(item.Cost + topology.Costs[next]);
                     if (seen[next] == stamp && distances[next] <= total) return;
                     seen[next] = stamp; distances[next] = total; previous[next] = current;
                     long h = Estimate(next);
-                    pending.Enqueue((next, total), (checked(total + h), h, sequence++));
+                    pending.Enqueue((next, total), (checked(total + (guide is null || limited is not null ? h : h * 2)), h, sequence++));
                 }
             }
-            return new(false, [], 0);
-            bool Passable(int p) => topology.Costs[p] > 0 && occupied[p] != stamp;
-            long Estimate(int p) => checked(lowerBound(Position(p)) * topology.Minimum);
+            // A corridor is a preference, not a reachability boundary. Eventually search the whole component.
+            if (!restrictCorridor) return limited is null ? unreachable : limited();
+            restrictCorridor = false;
+            if (diagnostics is not null) diagnostics.CorridorRetries++;
         }
+        bool Passable(int p) => topology.Costs[p] > 0 && occupied[p] != occupancyStamp;
+        long Estimate(int p) => Math.Max(checked(lowerBound(Position(p)) * topology.Minimum),
+            guide?.Costs[regionGraph.Regions[p]] ?? 0);
     }
 
-    private Topology GetTopology(Footprint shape, TravelMode mode)
+    internal NavigationStep Navigate(WorldPosition start, WorldPosition target, Footprint shape, TravelMode mode,
+        IReadOnlyList<MapOccupancy> objects, Func<WorldPosition, bool> arrived, Func<WorldPosition, long> lowerBound,
+        WorldPosition? destination, PathGoalBounds bounds, int budget, int? stepCost, MovementPlan? plan)
     {
-        int found = topologies.FindIndex(t => t.Shape == shape && t.Mode == mode);
-        if (found >= 0)
+        if (arrived(start)) return new(start, 0, NavigationStatus.Arrived, null);
+        var topology = map.Topologies.Get(shape, mode);
+        var steps = plan?.Steps ?? [];
+        if (steps.IsEmpty && plan is { RetryDelay: > 0 } && plan.Blockers.SequenceEqual(objects))
+            return new(start, 0, plan.FailureStatus, plan with { RetryDelay = plan.RetryDelay - 1 });
+        bool Legal(WorldPosition p) => Inside(p) && topology.Costs[Index(p)] > 0 &&
+            !objects.Any(o => o.Overlaps(new(p, shape)));
+        if (steps.IsEmpty || !Legal(steps[0]))
         {
-            var cached = topologies[found]; topologies.RemoveAt(found); topologies.Add(cached); return cached;
+            int failures = plan?.BlockedAttempts ?? 0;
+            int horizon = NavigationHorizon(failures, budget);
+            var segment = Search(start, shape, mode, objects, arrived, lowerBound, destination, bounds,
+                new PathSegment([], NavigationStatus.Unreachable),
+                (source, goal, _, _) => new PathSegment(Trace(source, goal), NavigationStatus.Moving), () => new([], NavigationStatus.Waiting), horizon,
+                (int)Math.Min(int.MaxValue, Math.Min((long)map.FineWidth * map.FineHeight * 2, 8192L << Math.Min(failures, 16))),
+                (int)Math.Min(int.MaxValue, (long)budget / (stepCost ?? topology.Minimum) + 16));
+            if (segment.Status != NavigationStatus.Moving)
+                return new(start, 0, segment.Status, new MovementPlan(target, shape, mode, [], Math.Min(failures + 1, 16))
+                { Blockers = objects.ToImmutableArray(), RetryDelay = Math.Min(3, failures / 2), FailureStatus = segment.Status });
+            steps = segment.Steps;
         }
-        int count = checked(map.FineWidth * map.FineHeight);
-        var costs = new int[count]; var components = new int[count];
-        int minimum = int.MaxValue;
-        for (int i = 0; i < count; i++)
+        else if (PathSearchDiagnostics.Current is { } diagnostics) diagnostics.ReusedPlans++;
+        int spent = 0, taken = 0;
+        var position = start;
+        foreach (var next in steps)
         {
-            costs[i] = map.StaticPassageCost(Position(i), shape, mode) ?? 0;
-            if (costs[i] > 0) minimum = Math.Min(minimum, costs[i]);
+            if (!Legal(next)) break;
+            int cost = stepCost ?? topology.Costs[Index(next)];
+            if (cost > budget - spent) break;
+            position = next; spent += cost; taken++;
+            if (arrived(position)) return new(position, spent, NavigationStatus.Arrived, null);
         }
-        var queue = new int[count]; int component = 0;
-        for (int i = 0; i < count; i++)
-        {
-            if (costs[i] == 0 || components[i] != 0) continue;
-            int head = 0, tail = 0; queue[tail++] = i; components[i] = ++component;
-            while (head < tail)
-            {
-                int current = queue[head++];
-                Visit(current - map.FineWidth);
-                if (current % map.FineWidth < map.FineWidth - 1) Visit(current + 1);
-                Visit(current + map.FineWidth);
-                if (current % map.FineWidth > 0) Visit(current - 1);
-                void Visit(int next)
-                {
-                    if (next < 0 || next >= count || costs[next] == 0 || components[next] != 0) return;
-                    components[next] = component; queue[tail++] = next;
-                }
-            }
-        }
-        var result = new Topology(shape, mode, costs, components, minimum == int.MaxValue ? 0 : minimum);
-        // Bound retained topology memory independently of the number of authored formations.
-        if (topologies.Count == 2) topologies.RemoveAt(0);
-        topologies.Add(result);
-        return result;
+        return new(position, spent, spent > 0 ? NavigationStatus.Moving : NavigationStatus.Waiting,
+            new(target, shape, mode, steps.RemoveRange(0, taken)));
+    }
+
+    internal static int NavigationHorizon(int failures, int budget) =>
+        (int)Math.Min(int.MaxValue, Math.Max(256L, (long)budget + 64) << Math.Min(failures, 16));
+
+    private ImmutableArray<WorldPosition> Trace(int source, int goal)
+    {
+        var steps = new List<WorldPosition>();
+        for (int node = goal; node != source; node = previous[node]) steps.Add(Position(node));
+        steps.Reverse();
+        return steps.ToImmutableArray();
     }
 
     private bool Inside(WorldPosition p) => p.X >= 0 && p.Y >= 0 && p.X < map.FineWidth && p.Y < map.FineHeight;
     private int Index(WorldPosition p) => p.Y * map.FineWidth + p.X;
     private WorldPosition Position(int index) => new(index % map.FineWidth, index / map.FineWidth);
 }
+
+internal readonly record struct PathGoalBounds(long Left, long Top, long Right, long Bottom);

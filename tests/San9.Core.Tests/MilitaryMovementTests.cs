@@ -233,7 +233,7 @@ public sealed class MilitaryMovementTests
         var departed = engine.Snapshot.Units.Single(u => u.Id == 4).Position;
         var blocked = Advance(engine);
         Assert.Equal(departed, engine.Snapshot.Units.Single(u => u.Id == 4).Position);
-        Assert.Equal(10, blocked.Events.OfType<UnitMovedEvent>().Count(e => e.UnitId == 4 && !e.Reachable));
+        Assert.Equal(10, blocked.Events.OfType<UnitMovedEvent>().Count(e => e.UnitId == 4 && e.Status == NavigationStatus.Waiting));
         mutation = world.BeginMutation();
         foreach (int id in Enumerable.Range(0, 4)) mutation.RemoveUnit(id);
         world.Commit(mutation);

@@ -5,6 +5,117 @@ namespace San9.Core.Tests;
 public sealed class BattlefieldPathSearchTests
 {
     [Fact]
+    public void DynamicWallOutsidePreferredCorridorStillAllowsDetour()
+    {
+        var map = new BattlefieldMap(80, 70, new int[5600], [new(0, 10, null)]);
+        var start = new WorldPosition(10, 10);
+        var end = new WorldPosition(380, 10);
+        MapOccupancy[] wall = [new(new(200, 150), new(3, 300))];
+        var route = map.FindRoute(start, end, new(3, 3), TravelMode.Land, wall);
+        Assert.True(route.Reachable);
+        Assert.Equal(end, route.Steps[^1]);
+        Assert.Contains(route.Steps, p => p.Y >= 301);
+        Assert.All(route.Steps, p => Assert.NotNull(map.PassageCost(p, new(3, 3), TravelMode.Land, wall)));
+    }
+
+    [Fact]
+    public void DailyRegionalPlanningEventuallyArrivesAroundLongTerrainWall()
+    {
+        var map = new BattlefieldMap(80, 40, new int[3200], [new(0, 10, null)],
+            Enumerable.Range(0, 35).Select(y => new MapCell(40, y)));
+        var position = new WorldPosition(10, 10);
+        var end = new WorldPosition(380, 10);
+        int days = 0;
+        while (position != end && days++ < 160)
+        {
+            var movement = map.Advance(position, end, new(3, 3), TravelMode.Land, [], 60, 10);
+            Assert.True(movement.Reachable);
+            Assert.NotEqual(position, movement.Position);
+            Assert.InRange(movement.Spent, 1, 60);
+            position = movement.Position;
+        }
+        Assert.Equal(end, position);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void RegionalRoutesRemainLegalAndStableAcrossObstaclesAndTopologyChanges(bool rectangular)
+    {
+        BattlefieldMap Create() => new(40, 8, Enumerable.Range(0, 320).Select(i => i % 7 == 0 ? 1 : 0),
+            [new(0, 3, null), new(1, 7, null)]);
+        var map = Create();
+        var start = new WorldPosition(3, 3);
+        var end = new WorldPosition(190, 30);
+        for (int trial = 0; trial < 8; trial++)
+        {
+            MapOccupancy[] objects = trial % 3 == 0 ? [] : [new(new(100, 15), new(3, 25))];
+            var expected = Create().FindRoute(start, end, new(3, 3), TravelMode.Land, objects);
+            var actual = map.FindRoute(start, end, new(3, 3), TravelMode.Land, objects);
+            long optimal = ReferenceCost(map, start, end, new(3, 3), TravelMode.Land, objects)!.Value;
+            Assert.InRange(actual.Cost, optimal, optimal * 5 / 4);
+            var previous = start;
+            foreach (var step in actual.Steps)
+            {
+                Assert.Equal(1, Math.Abs(step.X - previous.X) + Math.Abs(step.Y - previous.Y));
+                Assert.NotNull(map.PassageCost(step, new(3, 3), TravelMode.Land, objects));
+                previous = step;
+            }
+            Assert.Equal(end, previous);
+            Assert.Equal(expected.Cost, actual.Cost);
+            Assert.Equal(expected.Steps.ToArray(), actual.Steps.ToArray());
+            if (trial == 4)
+            {
+                map.FindRoute(start, end, new(1, 1), TravelMode.Land, []);
+                map.FindRoute(start, end, new(2, 2), TravelMode.Land, []);
+            }
+        }
+        Assert.False(map.FindRoute(start, end, new(3, 3), TravelMode.Land,
+            [new(new(100, 20), new(3, 40))]).Reachable);
+        var target = new MapOccupancy(end, new(3, 3));
+        for (int trial = 0; trial < 4; trial++)
+        {
+            var expected = Create().AdvanceIntoRange(start, target, new(3, 3), TravelMode.Land, [], 400,
+                p => p.Y < 20 ? 8 : 3, rectangular, 8);
+            Assert.Equal(expected, map.AdvanceIntoRange(start, target, new(3, 3), TravelMode.Land, [], 400,
+                p => p.Y < 20 ? 8 : 3, rectangular, 8));
+        }
+        var uninformed = Create().AdvanceIntoRange(start, target, new(3, 3), TravelMode.Land, [], 100000,
+            p => p.Y < 20 ? 8 : 3, rectangular);
+        var guided = map.AdvanceIntoRange(start, target, new(3, 3), TravelMode.Land, [], 100000,
+            p => p.Y < 20 ? 8 : 3, rectangular, 8);
+        Assert.True(guided.Arrived);
+        Assert.InRange(guided.Spent, uninformed.Spent, uninformed.Spent * 5 / 4);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData(10)]
+    public void DailyMovementPreservesWeightedRoutePrefixForEveryBudget(int? flatCost)
+    {
+        var map = new BattlefieldMap(3, 2, [0, 1, 0, 0, 0, 0], [new(0, 3, null), new(1, 20, null)]);
+        var start = new WorldPosition(2, 2);
+        var end = new WorldPosition(12, 2);
+        var shape = new Footprint(1, 1);
+        var route = map.FindRoute(start, end, shape, TravelMode.Land, []);
+        Assert.True(route.Reachable);
+        for (int budget = 0; budget <= 200; budget++)
+        {
+            var expected = start;
+            int spent = 0;
+            foreach (var step in route.Steps)
+            {
+                int cost = flatCost ?? map.PassageCost(step, shape, TravelMode.Land, [])!.Value;
+                if (cost > budget - spent) break;
+                spent += cost;
+                expected = step;
+            }
+            Assert.Equal(new DailyMovement(expected, true, expected == end, spent),
+                map.Advance(start, end, shape, TravelMode.Land, [], budget, flatCost));
+        }
+    }
+
+    [Fact]
     public void CachedSearchMatchesIndependentWeightedDistancesAcrossShapesAndDynamicOccupancy()
     {
         var random = new Random(819);

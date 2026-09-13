@@ -17,7 +17,7 @@ public sealed record OrderUnitCommand(Guid CommandId, int IssuerId, long Sequenc
 }
 public sealed record UnitDeployedEvent(GameClock Clock, int UnitId, int SettlementId, ImmutableArray<int> OfficerIds) : DomainEvent;
 public sealed record UnitOrderChangedEvent(GameClock Clock, int UnitId, MilitaryOrder? Order, string Reason) : DomainEvent;
-public sealed record UnitMovedEvent(GameClock Clock, int UnitId, WorldPosition From, WorldPosition To, int Spent, bool Reachable) : DomainEvent;
+public sealed record UnitMovedEvent(GameClock Clock, int UnitId, WorldPosition From, WorldPosition To, int Spent, NavigationStatus Status) : DomainEvent;
 public sealed record UnitAbsorbedEvent(GameClock Clock, int UnitId, int SettlementId) : DomainEvent;
 
 internal static class MilitaryMovement
@@ -169,25 +169,26 @@ internal static class MilitaryMovement
             if (order.IsAttack)
             {
                 var targetArea = MilitaryCombat.TargetArea(world, order, rules);
-                var approach = rules.Map.AdvanceIntoRange(unit.Position, targetArea, formation.Footprint,
-                    formation.TravelMode, Occupancy(world, rules, unit.Id, null, movement: true), formation.MovementBudget,
-                    position => MilitaryCombat.ApproachRange(world, unit, order, rules, position), rectangularReach: true,
+                var approach = rules.Map.Navigate(unit.Position, targetArea, true, formation.Footprint,
+                    formation.TravelMode, area => world.MovementOccupancy(rules, unit.Id, null, area), formation.MovementBudget,
+                    unit.MovementPlan, range: position => MilitaryCombat.ApproachRange(world, unit, order, rules, position), rectangularReach: true,
                     maximumRange: Math.Max(MapCoordinates.UnitsPerCell,
                         checked((formation.Attack?.Range ?? 0) + (formation.Attack?.MaximumElevationBonus ?? 0))), movementStepCost: formation.MovementStepCost);
-                world.Replace(unit with { Position = approach.Position });
-                events.Add(new UnitMovedEvent(world.Clock, id, unit.Position, approach.Position, approach.Spent, approach.Reachable));
+                world.Replace(unit with { Position = approach.Position, MovementPlan = approach.Plan });
+                events.Add(new UnitMovedEvent(world.Clock, id, unit.Position, approach.Position, approach.Spent, approach.Status));
                 continue;
             }
             WorldPosition from = unit.Position;
             // Route preference and per-step budget consumption are independent content rules.
-            var result = order.SettlementId is int destinationId
-                ? rules.Map.AdvanceIntoRange(unit.Position, new(rules.Place(world.Settlements[destinationId]).Position, rules.Place(world.Settlements[destinationId]).Footprint),
-                    formation.Footprint, formation.TravelMode, Occupancy(world, rules, unit.Id, null, movement: true), formation.MovementBudget, 1, formation.MovementStepCost)
-                : rules.Map.Advance(unit.Position, order.Position!.Value, formation.Footprint, formation.TravelMode,
-                    Occupancy(world, rules, unit.Id, null, movement: true), formation.MovementBudget, formation.MovementStepCost);
-            unit = unit with { Position = result.Position };
+            var target = order.SettlementId is int destinationId
+                ? new MapOccupancy(rules.Place(world.Settlements[destinationId]).Position, rules.Place(world.Settlements[destinationId]).Footprint)
+                : new MapOccupancy(order.Position!.Value, new(1, 1));
+            var result = rules.Map.Navigate(unit.Position, target, order.SettlementId is not null,
+                formation.Footprint, formation.TravelMode, area => world.MovementOccupancy(rules, unit.Id, null, area),
+                formation.MovementBudget, unit.MovementPlan, formation.MovementStepCost);
+            unit = unit with { Position = result.Position, MovementPlan = result.Plan };
             world.Replace(unit);
-            events.Add(new UnitMovedEvent(world.Clock, id, from, result.Position, result.Spent, result.Reachable));
+            events.Add(new UnitMovedEvent(world.Clock, id, from, result.Position, result.Spent, result.Status));
             if (!result.Arrived) continue;
             if (order.SettlementId is int destination) Absorb(world, unit, destination, governance, geography, events);
             else

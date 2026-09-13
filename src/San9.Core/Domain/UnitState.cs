@@ -13,6 +13,7 @@ public sealed record UnitState(int Id, int OwnerId, [property: System.Text.Json.
     [System.Text.Json.Serialization.JsonRequired] public uint CargoMoney { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public uint CargoFood { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public MilitaryOrder? Order { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public MovementPlan? MovementPlan { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public UnitPolicies Policies { get; init; } = new();
     [System.Text.Json.Serialization.JsonRequired] public int? CommanderId { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public System.Collections.Immutable.ImmutableArray<int> MemberOrder { get; init; } = [];
@@ -47,5 +48,6 @@ public sealed record UnitState(int Id, int OwnerId, [property: System.Text.Json.
         (!AwaitingPostAction || Order is null) &&
         (FormationId is not null || EngagementTargetId is null && !AwaitingPostAction && CommanderId is null) &&
         MemberRanks is not null && MemberRanks.All(p => p.Key >= 0 && Enum.IsDefined(p.Value)) &&
-        (Order is null || FormationId is not null && Order.IsValid);
+        (Order is null || FormationId is not null && Order.IsValid) &&
+        (MovementPlan is null || MovementPlan.IsValidFrom(Position));
 }

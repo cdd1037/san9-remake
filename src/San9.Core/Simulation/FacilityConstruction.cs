@@ -88,10 +88,10 @@ internal static class FacilityConstruction
             if (unit.Condition is UnitCondition.Confused or UnitCondition.Routed) continue;
             var formation = military.Formations[unit.FormationId!.Value];
             var target = new MapOccupancy(plan.Position, type.Footprint);
-            var movement = military.Map.AdvanceIntoRange(unit.Position, target, formation.Footprint, formation.TravelMode,
-                MilitaryMovement.Occupancy(world, military, id, plan.RegionId, movement: true).Append(target), formation.MovementBudget, 1, formation.MovementStepCost);
-            world.Replace(unit with { Position = movement.Position });
-            events.Add(new UnitMovedEvent(world.Clock, id, unit.Position, movement.Position, movement.Spent, movement.Reachable));
+            var movement = military.Map.Navigate(unit.Position, target, true, formation.Footprint, formation.TravelMode,
+                area => world.MovementOccupancy(military, id, plan.RegionId, area), formation.MovementBudget, unit.MovementPlan, formation.MovementStepCost);
+            world.Replace(unit with { Position = movement.Position, MovementPlan = movement.Plan });
+            events.Add(new UnitMovedEvent(world.Clock, id, unit.Position, movement.Position, movement.Spent, movement.Status));
             if (!movement.Arrived || new MapOccupancy(movement.Position, formation.Footprint).Overlaps(target)) continue;
             if (!building && !ConstructionPlacement.IsAvailable(unit.OwnerId, military.ConstructionSites[(plan.RegionId, plan.Position)],
                 type, military, rules.Personnel.RegionCities, world.Settlements.Values, world.Units.Values.Where(u => u.Id != id))) continue;

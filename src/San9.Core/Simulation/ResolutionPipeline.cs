@@ -29,7 +29,8 @@ internal class SimulationRules
     internal virtual TaskRule? FindTask(string kind) => kind is PersonnelMissions.RecruitKind or PersonnelMissions.MoveKind or PersonnelMissions.SearchKind
         ? new PersonnelMissionRule(Personnel, Economy, Governance, Treasures, kind) : kind == PersonnelReturns.Kind ? new PersonnelReturnRule(Personnel, Military)
         : kind == UnitStrategies.Kind ? new UnitStrategyRule(this) : kind == BurnStrategies.Kind ? new BurnRule(this)
-        : kind == AlienateStrategies.Kind ? new AlienateRule(this) : null;
+        : kind == AlienateStrategies.Kind ? new AlienateRule(this)
+        : kind == SeizeStrategies.Kind ? new SeizeRule(this) : null;
     internal virtual void ApplyStage(ResolutionStage stage, WorldMutation world, List<DomainEvent> events) { }
 }
 

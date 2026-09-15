@@ -77,6 +77,45 @@ public sealed class MilitarySessionTests
     }
 
     [Fact]
+    public void SeizeAdviceAndBothJourneyLegsSurviveSaveAndRecording()
+    {
+        var basis = Fixture();
+        var definition = basis with
+        {
+            Forces = [basis.Forces[0], new(2, "enemy", 2, 10000, 10000, 100)],
+            Settlements = [basis.Settlements[0], basis.Settlements[1] with { OwnerId = 2, X = 66 }],
+            Officers = [basis.Officers[0] with { State = basis.Officers[0].State with
+                { BaseAbilities = new(100, 70, 70, 70) } }],
+            RegionNameKeys = new() { [1] = "origin", [2] = "destination" },
+            RegionCityIds = new() { [1] = 1, [2] = 2 },
+            CityConnections = [new(1, 2)],
+            Information = basis.Information with { Relations = [new(1, 2, 50)] },
+            Military = basis.Military! with { Width = 200, TerrainIds = Enumerable.Repeat(0, 600).ToImmutableArray(),
+                Places = [new(1, new(2, 7), new(1, 1)), new(2, new(332, 7), new(1, 1))] }
+        };
+        var session = GameSession.Start(definition, 42);
+        string before = session.Capture().StateHash;
+        Assert.Equal(AdviserOpinion.NoAdviser, session.GetSeizeAdvice(1, 1, 2).Opinion);
+        Assert.Equal(before, session.Capture().StateHash);
+        session.BeginRecording();
+        Assert.True(session.Execute(new("player"), new SeizeCommand(Guid.NewGuid(), 1, 0, 1, 2)).Submission.Accepted);
+        session.AdvanceXun();
+        Assert.Equal("strategy-seize", Assert.Single(session.Snapshot.Simulation.Tasks).Kind);
+        var restored = SaveService.Decode(SaveService.Encode(session), definition);
+        var result = session.AdvanceXun();
+        Assert.Single(result.Events.OfType<SeizeResolvedEvent>());
+        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+        Assert.Equal("personnel-return", Assert.Single(session.Snapshot.Simulation.Tasks).Kind);
+        restored = SaveService.Decode(SaveService.Encode(session), definition);
+        Assert.Equal(CanonicalJson.Text(session.AdvanceXun().Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+        Assert.Empty(session.Snapshot.Simulation.Tasks);
+        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition,
+            GameSession.EngineFactory(definition));
+        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+    }
+
+    [Fact]
     public void UnitStrategyCommandAdviceAndBothJourneyLegsSurviveSaveAndRecording()
     {
         var basis = Fixture();

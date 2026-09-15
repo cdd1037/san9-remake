@@ -35,6 +35,12 @@ internal static class ResourceAccounts
         return resource == ResourceKind.Money ? force.Money : force.Food;
     }
 
+    internal static uint Receivable(WorldMutation world, ResourceAccount account, ResourceKind resource)
+    {
+        uint balance = Balance(world, account, resource);
+        return balance >= 1000000 ? 0 : 1000000 - balance;
+    }
+
     internal static uint Change(WorldMutation world, ResourceAccount account, ResourceKind resource,
         long requested, string reason, int? sourceId, List<DomainEvent> events, bool requireFull = false)
     {

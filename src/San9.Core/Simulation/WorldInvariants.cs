@@ -107,7 +107,8 @@ internal static class WorldInvariants
                 journey.UnitStrategy is { } strategy && (!Enum.IsDefined(strategy.Strategy) || strategy.TargetUnitId < 0 || journey.DestinationPosition is null ||
                     (strategy.Strategy == UnitStrategyKind.Reinforce
                         ? strategy.ReinforcementSourceMorale is not (>= 0 and <= 100) : strategy.ReinforcementSourceMorale is not null)) ||
-                journey.Burn is { } burn && (burn.TargetSettlementId < 0 || journey.UnitStrategy is not null || journey.DestinationPosition is null) ||
+                journey.Burn is { } burn && (burn.TargetSettlementId < 0 || journey.UnitStrategy is not null || journey.Seize is not null || journey.DestinationPosition is null) ||
+                journey.Seize is { } seize && (seize.TargetSettlementId < 0 || journey.UnitStrategy is not null || journey.Burn is not null || journey.DestinationPosition is null) ||
                 journey.TargetOfficerId is int target && !state.Officers.ContainsKey(target)))
                 throw new ArgumentException("Invalid personnel journey.");
         }

@@ -35,7 +35,8 @@ internal static class PrisonerEscapeCycle
             if (origin is not int from || !places.Places.ContainsKey(from)) continue;
             if (world.NextRandom("personnel-prisoner-escape") % 100 >= (ulong)Threshold(world.Abilities(person).War)) continue;
             var causeId = new Guid(Convert.FromHexString(CanonicalJson.Hash(new { Kind = "prisoner-escape", world.Clock, OfficerId = id })).AsSpan(0, 16));
-            if (PrisonerRelease.Depart(world, id, from, causeId, world.Simulation.NextSequence, null, places, economy, events)
+            if (PrisonerRelease.Depart(world, id, from, causeId, world.Simulation.NextSequence,
+                PrisonerDepartureKind.Escaped, null, places, economy, events)
                 != CommandRejection.None) continue;
             world.SetSimulation(world.Simulation with { NextSequence = checked(world.Simulation.NextSequence + 1) });
             if (--remaining == 0) break;

@@ -63,6 +63,7 @@ public static class CorpsControl
             RecruitOfficerCommand recruit => OwnPerson(recruit.OfficerId),
             BurnCommand burn => OwnPerson(burn.OfficerId),
             AlienateCommand alienate => OwnPerson(alienate.OfficerId),
+            SeizeCommand seize => OwnPerson(seize.OfficerId),
             UnitStrategyCommand strategy => OwnPerson(strategy.OfficerId),
             SearchCommand search => OwnPerson(search.OfficerId),
             MoveOfficersCommand move => !move.OfficerIds.IsDefault && move.OfficerIds.All(OwnPerson) && OwnPlace(move.DestinationId),

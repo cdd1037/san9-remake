@@ -8,10 +8,8 @@ public sealed record BurnMission(int TargetSettlementId);
 public sealed record BurnResolvedEvent(GameClock Clock, int OfficerId, int TargetSettlementId, int Threshold,
     int Roll, bool Success, int DurabilityLoss, uint FoodLoss, int InjuryBefore, int InjuryAfter) : DomainEvent;
 
-internal static class BurnStrategies
+internal static class BuildingStrategyTargets
 {
-    internal const string Kind = "strategy-burn";
-
     internal static bool Eligible(WorldMutation world, int forceId, int origin, int targetId, SimulationRules rules)
     {
         if (rules.Military is not { } military || !world.Settlements.TryGetValue(targetId, out var target) ||
@@ -25,6 +23,14 @@ internal static class BurnStrategies
             !rules.Personnel.RegionCities.TryGetValue(targetId, out int targetCity)) return false;
         return sourceCity == targetCity || rules.Personnel.CityConnections.Any(c => c.FromCityId == sourceCity && c.ToCityId == targetCity);
     }
+}
+
+internal static class BurnStrategies
+{
+    internal const string Kind = "strategy-burn";
+
+    internal static bool Eligible(WorldMutation world, int forceId, int origin, int targetId, SimulationRules rules)
+        => BuildingStrategyTargets.Eligible(world, forceId, origin, targetId, rules);
 
     private static CommandRejection Eligibility(WorldMutation world, int force, int officer, int target, SimulationRules rules)
     {
@@ -117,7 +123,7 @@ internal sealed class BurnRule(SimulationRules rules) : TaskRule
 {
     internal override bool HasValidPayload(PersistentTask task) => task.Journey is
         { TargetOfficerId: null, SuccessRoll: >= 0 and < 100, ReturnLeg: null, AcceptRecruitment: null,
-          UnitStrategy: null, Burn: { TargetSettlementId: >= 0 } burn, DestinationPosition: { } position } journey &&
+          UnitStrategy: null, Burn: { TargetSettlementId: >= 0 } burn, Seize: null, DestinationPosition: { } position } journey &&
         journey.DestinationPlaceId == burn.TargetSettlementId && rules.Personnel.Places.TryGetValue(burn.TargetSettlementId, out var target) &&
         target.Position == position && DurationDays(task) >= 0;
     internal override int DurationDays(PersistentTask task) => task.Journey is { DestinationPosition: { } position } &&

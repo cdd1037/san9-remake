@@ -55,6 +55,20 @@ public static class StrategyMath
         return Signed(Math.Min(25, war - soldiers / 1000L - (2L * commanderLeadership + 30) / 3));
     }
 
+    public static int SeizeItemThreshold(int war, int itemLoyalty, int holderMaximumAbility)
+    {
+        Abilities(war, holderMaximumAbility);
+        ArgumentOutOfRangeException.ThrowIfNegative(itemLoyalty);
+        return Signed((long)war - 2L * itemLoyalty - holderMaximumAbility);
+    }
+
+    public static int SeizePersonThreshold(int war, int candidateCount)
+    {
+        Abilities(war);
+        ArgumentOutOfRangeException.ThrowIfNegative(candidateCount);
+        return candidateCount == 0 ? 0 : Signed((long)candidateCount + war / 20);
+    }
+
     public static int AlienateLoyaltyLoss(int righteousness, int variation)
     {
         Righteousness(righteousness);

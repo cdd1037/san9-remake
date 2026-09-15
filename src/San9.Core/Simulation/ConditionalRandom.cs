@@ -1,6 +1,6 @@
 namespace San9.Core.Simulation;
 
-internal enum ConditionalRandomPurpose { Recruitment, SearchDiscovery, FalseReport, Disorder, Inspire, Reinforcement, Alienate, Burn }
+internal enum ConditionalRandomPurpose { Recruitment, SearchDiscovery, FalseReport, Disorder, Inspire, Reinforcement, Alienate, Burn, Seize }
 
 /// <summary>Fixed-condition draws do not consume or depend on the current run's streams.</summary>
 internal static class ConditionalRandom
@@ -17,6 +17,7 @@ internal static class ConditionalRandom
             ConditionalRandomPurpose.Inspire => "strategy-inspire-unit-submission",
             ConditionalRandomPurpose.Reinforcement => "strategy-reinforcement-unit-submission",
             ConditionalRandomPurpose.Alienate => "strategy-alienate-submission",
+            ConditionalRandomPurpose.Seize => "strategy-seize-submission",
             _ => throw new ArgumentOutOfRangeException(nameof(purpose))
         };
         ulong seed = StableRandom.DeriveSeed(initialSeed,

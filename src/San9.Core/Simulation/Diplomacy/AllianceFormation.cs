@@ -18,7 +18,10 @@ public sealed record AllianceParticipationCommand(Guid CommandId, int IssuerId, 
     [property: JsonRequired] int TargetForceId, [property: JsonRequired] bool Join)
     : GameCommand(CommandId, IssuerId, Sequence);
 public sealed record AllianceOrderConflict(int UnitId, int OwnerId, bool ClearsContact, bool ChangesOrder);
-public sealed record AllianceParticipationPrompt(AllianceProposal Proposal, ImmutableArray<AllianceOrderConflict> PossibleOrderConflicts);
+public sealed record AllianceParticipationPrompt(AllianceProposal Proposal, ImmutableArray<AllianceOrderConflict> PossibleOrderConflicts)
+{
+    public ImmutableArray<AllianceRequestConflict> PossibleRequestConflicts { get; init; } = [];
+}
 public enum AllianceFormationFailure { InsufficientMembers, InvalidatedProposal }
 public sealed record AllianceProposedEvent(GameClock Clock, AllianceProposal Proposal) : DomainEvent;
 public sealed record AllianceParticipationDecidedEvent(GameClock Clock, int ForceId, int TargetForceId, bool Join) : DomainEvent;
@@ -66,7 +69,10 @@ internal static class AllianceFormation
     {
         if (world.Simulation.PendingAlliance is not { } proposal) return null;
         var potential = proposal.KnownMemberForceIds.Concat(proposal.PlayerChoices.Where(p => p.Join is null).Select(p => p.ForceId)).ToHashSet();
-        return new(proposal, Conflicts(world, potential, rules.Military));
+        return new(proposal, Conflicts(world, potential, rules.Military))
+        {
+            PossibleRequestConflicts = AttackRequests.AllianceConflicts(world, proposal.TargetForceId, potential)
+        };
     }
 
     private static void Complete(WorldMutation world, AllianceProposal proposal, SimulationRules rules, List<DomainEvent> events)
@@ -88,7 +94,10 @@ internal static class AllianceFormation
         world.Replace(world.Forces[leader] with { BaseTrust = Math.Min(1000, world.Forces[leader].BaseTrust + 25) });
         ClearConflicts(world, members.ToHashSet(), rules.Military, events);
         foreach (int member in members)
+        {
+            AttackRequests.FormAlliance(world, member, target.Id, members.ToHashSet(), events);
             ForceRelations.Set(world, member, target.Id, DiplomacyMath.AllianceTargetRelation(MilitaryDiplomacy.Relation(world, member, target.Id)), events);
+        }
         for (int first = 0; first < members.Length; first++)
             for (int second = first + 1; second < members.Length; second++)
                 ForceRelations.Set(world, members[first], members[second],

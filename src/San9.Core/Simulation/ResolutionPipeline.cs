@@ -82,6 +82,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         if (!CheckTerminal(world, events)) return false;
         if (stage == ResolutionStage.XunUpdate)
         {
+            AttackRequests.UpdateXun(world, events);
             AllianceDiplomacy.UpdateXun(world, events);
             XunRecovery.Apply(world);
             PrisonerCycle.Apply(world, events);
@@ -105,6 +106,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         if (stage == ResolutionStage.DailyMapUpdate) { TacticSupport.AdvanceDay(world, rules, events); world.MaintainLeadership(events); }
         if (stage == ResolutionStage.DailyMapUpdate) { MilitaryPolicies.ResolveOrders(world, rules.Military, events); world.MaintainLeadership(events); }
         rules.ApplyStage(stage, world, events);
+        AttackRequests.Cleanup(world, events);
         world.MaintainLeadership(events);
         events.Add(new StageCompletedEvent(world.Clock, stage));
         return CheckTerminal(world, events) && world.Simulation.PendingAlliance is null;

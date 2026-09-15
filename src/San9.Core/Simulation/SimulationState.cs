@@ -38,6 +38,7 @@ public sealed record SimulationState(GameClock Started, ulong InitialSeed)
 {
     [System.Text.Json.Serialization.JsonRequired] public San9.Core.Domain.AllianceState? Alliance { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public AllianceProposal? PendingAlliance { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<San9.Core.Domain.AttackRequestState> AttackRequests { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public int ComputerDamageBonusPercent { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public ulong RunSeed { get; init; } = InitialSeed;
     public SimulationBoundary Boundary { get; init; }

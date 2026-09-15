@@ -104,6 +104,8 @@ internal static class MilitaryCombat
             var targetArea = TargetArea(world, order, military);
             if (used.Contains(id) || !Area(attacker, military).IntersectsExpanded(targetArea, UnitRange(world, attacker, order, military))) continue;
             used.Add(id);
+            if (order.SettlementId is int requestTarget && AttackRequests.Fulfill(world, attacker.OwnerId, requestTarget, events))
+                EconomicCycle.UpdateTrust(world, rules.Economy, events);
             MilitaryDiplomacy.CombatOpened(world, attacker.OwnerId, MilitaryDiplomacy.TargetOwner(world, order),
                 order.SettlementId is int attackedPlace && MilitaryDiplomacy.Work(world, attackedPlace, military), events);
             var affectedForces = new HashSet<int> { attacker.OwnerId };

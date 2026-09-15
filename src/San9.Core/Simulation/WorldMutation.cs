@@ -106,7 +106,7 @@ internal sealed class WorldMutation
         EnsureOpen();
         if (simulation.Tasks != Simulation.Tasks && !simulation.Tasks.Where(t => t.Journey is not null).Select(t => t.OfficerId)
             .SequenceEqual(Simulation.Tasks.Where(t => t.Journey is not null).Select(t => t.OfficerId))) LeadershipChanged();
-        if (simulation.Alliance?.MemberForceIds != Simulation.Alliance?.MemberForceIds) _engagements = null;
+        if (simulation.Alliance?.MemberForceIds != Simulation.Alliance?.MemberForceIds || simulation.AttackRequests != Simulation.AttackRequests) _engagements = null;
         Simulation = simulation;
     }
 

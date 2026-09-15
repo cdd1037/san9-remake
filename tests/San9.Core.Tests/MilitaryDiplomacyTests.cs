@@ -49,6 +49,40 @@ public sealed class MilitaryDiplomacyTests
     }
 
     [Fact]
+    public void RequestBreachAtDeclarationExcludesRulerAndChargesOnce()
+    {
+        var world = World(0).BeginMutation();
+        world.AddSettlement(new(3, 3, 1000, 100, 100, 50, 0, 0, 0, 0, 0));
+        List<DomainEvent> events = [];
+        AttackRequests.Establish(world, 1, 2, 3, events);
+        var rules = new SimulationRules { Military = Military() };
+        Assert.Equal(AttackWarning.AttackRequestBreach, MilitaryDiplomacy.Warning(world, 1, world.Units[0].Order, rules.Military));
+        MilitaryDiplomacy.BeginAdvance(world, rules, events);
+        MilitaryDiplomacy.BeginAdvance(world, rules, events);
+        Assert.Equal(80, world.Forces[1].BaseTrust);
+        Assert.Equal(100, world.Officers[11].Loyalty);
+        Assert.Equal(90, world.Officers[12].Loyalty);
+        Assert.Single(events.OfType<AttackRequestEndedEvent>());
+    }
+
+    [Fact]
+    public void RequestFulfillmentRequiresActualInRangeAttackAndIsNotRepeatedNextDay()
+    {
+        var world = World(0).BeginMutation();
+        List<DomainEvent> events = [];
+        AttackRequests.Establish(world, 1, 3, 2, events);
+        var rules = new SimulationRules { Military = Military() };
+        MilitaryCombat.AdvanceDay(world, rules, events);
+        Assert.Single(world.Simulation.AttackRequests);
+        world.Replace(world.Units[0] with { Position = new(46, 10) });
+        MilitaryCombat.AdvanceDay(world, rules, events);
+        Assert.Empty(world.Simulation.AttackRequests);
+        Assert.Equal(110, world.Forces[1].BaseTrust);
+        MilitaryCombat.AdvanceDay(world, rules, events);
+        Assert.Single(events.OfType<AttackRequestEndedEvent>());
+    }
+
+    [Fact]
     public void BetrayalStacksAndRemovesOnlyOrdinaryMember()
     {
         var m = World(70, true).BeginMutation(); List<DomainEvent> events = [];

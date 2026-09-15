@@ -3,7 +3,7 @@ using San9.Core.Domain;
 namespace San9.Core.Simulation;
 
 [Flags]
-public enum AttackWarning { None = 0, FriendlyRelations = 1, AllianceBetrayal = 2 }
+public enum AttackWarning { None = 0, FriendlyRelations = 1, AllianceBetrayal = 2, AttackRequestBreach = 4 }
 public sealed record WarDeclaredEvent(GameClock Clock, int AttackerForceId, int DefenderForceId, bool BetrayedAlliance) : DomainEvent;
 
 internal static class MilitaryDiplomacy
@@ -19,7 +19,8 @@ internal static class MilitaryDiplomacy
 
     internal static bool AutomaticEnemy(WorldMutation world, int attacker, int? defender) =>
         CanFight(world, attacker, defender) && (defender is null ||
-            world.Simulation.Alliance?.Protects(attacker, defender.Value) != true && IsHostileRelation(Relation(world, attacker, defender.Value)));
+            world.Simulation.Alliance?.Protects(attacker, defender.Value) != true && !AttackRequests.Protects(world, attacker, defender.Value) &&
+            IsHostileRelation(Relation(world, attacker, defender.Value)));
 
     internal static bool Work(WorldMutation world, int settlementId, MilitaryRulebook rules) =>
         rules.Place(world.Settlements[settlementId]).FacilityTypeId is int type && rules.Facilities[type].IsWork;
@@ -36,7 +37,8 @@ internal static class MilitaryDiplomacy
         if (rules is null || order?.IsAttack != true || TargetOwner(world, order) is not int other || !CanFight(world, force, other) ||
             order.SettlementId is int place && Work(world, place, rules)) return AttackWarning.None;
         return (Relation(world, force, other) >= 60 ? AttackWarning.FriendlyRelations : AttackWarning.None) |
-            (world.Simulation.Alliance?.Protects(force, other) == true ? AttackWarning.AllianceBetrayal : AttackWarning.None);
+            (world.Simulation.Alliance?.Protects(force, other) == true ? AttackWarning.AllianceBetrayal : AttackWarning.None) |
+            (AttackRequests.Protects(world, force, other) ? AttackWarning.AttackRequestBreach : AttackWarning.None);
     }
 
     internal static void BeginAdvance(WorldMutation world, SimulationRules rules, List<DomainEvent> events)
@@ -64,7 +66,9 @@ internal static class MilitaryDiplomacy
                 }
                 AllianceDiplomacy.Betray(world, unit.OwnerId, events);
             }
-            if (value >= 40 || betrayal) events.Add(new WarDeclaredEvent(world.Clock, unit.OwnerId, other, betrayal));
+            bool brokenRequest = AttackRequests.BreakPair(world, unit.OwnerId, other, events);
+            penalties |= brokenRequest;
+            if (value >= 40 || betrayal || brokenRequest) events.Add(new WarDeclaredEvent(world.Clock, unit.OwnerId, other, betrayal));
         }
         if (penalties) EconomicCycle.UpdateTrust(world, rules.Economy, events);
     }

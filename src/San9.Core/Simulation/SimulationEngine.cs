@@ -46,6 +46,7 @@ public sealed class SimulationEngine
                 var mutation = world.BeginMutation(rules.Abilities);
                 List<DomainEvent> events = [];
                 _pipeline.Prepare(mutation, events);
+                AttackRequests.Cleanup(mutation, events);
                 mutation.MaintainLeadership(events);
                 world.Commit(mutation);
                 InitialEvents = events.AsReadOnly();
@@ -278,6 +279,7 @@ public sealed class SimulationEngine
             {
                 NextSequence = checked(mutation.Simulation.NextSequence + 1),
             });
+            AttackRequests.Cleanup(mutation, events);
             mutation.MaintainLeadership(events);
             WorldInvariants.Validate(mutation);
             if (!commit) return new(CommandSubmissionResult.Success, [], Snapshot, development);
@@ -345,6 +347,7 @@ public sealed class SimulationEngine
                 _pipeline.AdvanceDay(mutation, events);
             if (mutation.Simulation.Boundary != SimulationBoundary.Terminal)
                 _pipeline.Prepare(mutation, events);
+            AttackRequests.Cleanup(mutation, events);
             mutation.MaintainLeadership(events);
             _world.Commit(mutation);
             if (mutation.Clock == next) events.Add(new XunAdvancedEvent(previous, mutation.Clock));

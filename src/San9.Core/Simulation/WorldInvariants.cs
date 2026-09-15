@@ -89,6 +89,7 @@ internal static class WorldInvariants
             !sim.RandomStreams.Select(s => s.Name).SequenceEqual(sim.RandomStreams.Select(s => s.Name).Distinct().Order(StringComparer.Ordinal)))
             throw new ArgumentException("Invalid simulation boundary, control, sequence or random state.");
         AllianceFormation.ValidatePending(state);
+        AttackRequests.Validate(state);
         if (sim.Tasks.Select(t => t.Id).Distinct().Count() != sim.Tasks.Length ||
             sim.Tasks.Select(t => t.OfficerId).Distinct().Count() != sim.Tasks.Length)
             throw new ArgumentException("Duplicate task identity or officer occupation.");

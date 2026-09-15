@@ -37,9 +37,9 @@ internal static class SessionValidation
             !snapshot.World.Corps.Any(saved => saved.Id == c.Id && saved.OwnerId == c.OwnerId)))
             throw new ArgumentException("Primary corps ownership mismatch.");
         Same(content.Information.TreasureStates.Select(t => t.Id), snapshot.World.Treasures.Select(t => t.Id));
-        if (!content.Information.Relations.Select(r => (r.FirstId, r.SecondId)).Order()
-            .SequenceEqual(snapshot.World.Relations.Select(r => (r.FirstId, r.SecondId)).Order()))
-            throw new ArgumentException("Scenario relation identity set mismatch.");
+        if (content.Information.Relations.Any(initial => !snapshot.World.Relations.Any(current =>
+            current.FirstId == initial.FirstId && current.SecondId == initial.SecondId)))
+            throw new ArgumentException("Missing initial relation identity.");
         if (snapshot.World.Officers.Any(o => o.RegionId is int region && !content.UnbuiltPlaces.Any(p => p.Id == region) ||
             o.OfficeId is int office && !content.Information.Offices.Any(d => d.Id == office)) ||
             snapshot.World.Forces.Any(f => f.RankId is int rank && !content.Information.Ranks.Any(r => r.Id == rank)))

@@ -2,6 +2,7 @@ namespace San9.Core.Simulation;
 
 [System.Text.Json.Serialization.JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(WaitCommand), "wait")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(AllianceParticipationCommand), "alliance-participation")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(BurnCommand), "strategy-burn")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(AlienateCommand), "strategy-alienate")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(SeizeCommand), "strategy-seize")]
@@ -74,6 +75,8 @@ public enum CommandRejection
     MissingFormationTactic,
     TacticUnavailable,
     AttackConfirmationRequired,
+    InvalidDecision,
+    DecisionPending,
 }
 
 public readonly record struct CommandSubmissionResult(

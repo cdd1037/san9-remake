@@ -208,6 +208,14 @@ internal sealed class WorldMutation
         Relations = Replace(Relations, (value.FirstId, value.SecondId), value);
     }
 
+    internal void SetRelation(ForceRelation value)
+    {
+        EnsureOpen();
+        int previous = MilitaryDiplomacy.Relation(this, value.FirstId, value.SecondId);
+        if (MilitaryDiplomacy.IsHostileRelation(previous) != MilitaryDiplomacy.IsHostileRelation(value.Value)) _engagements = null;
+        Relations = Relations.SetItem((value.FirstId, value.SecondId), value);
+    }
+
     private ImmutableDictionary<TKey, TValue> Replace<TKey, TValue>(
         ImmutableDictionary<TKey, TValue> source,
         TKey key,

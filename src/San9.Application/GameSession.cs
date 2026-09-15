@@ -73,6 +73,7 @@ public sealed class GameSession
     }
     public WorldSnapshot Snapshot => _simulation.Snapshot;
     public AllianceFormationCandidates GetAllianceCandidates() => _simulation.GetAllianceCandidates();
+    public AllianceParticipationPrompt? GetAllianceParticipationPrompt() => _simulation.GetAllianceParticipationPrompt();
     public AttackWarning GetAttackWarning(int forceId, MilitaryOrder order) => _simulation.GetAttackWarning(forceId, order);
 
     public CommandAdvice GetBurnAdvice(int forceId, int officerId, int targetSettlementId) =>

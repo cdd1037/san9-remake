@@ -507,19 +507,22 @@ public sealed class PersistenceTests : IDisposable
     {
         var definition = Fixture();
         var session = GameSession.Start(definition, 190);
-        byte[] initial = SaveService.Encode(session);
+        byte[]? firstYear = null;
         for (int xun = 0; xun < 40 * 36; xun++)
         {
             var request = session.Request(new EndControlOperation());
             var result = session.Apply(request with { Operation = new CommandOperation(new WaitCommand(request.Id, 1, session.Snapshot.Simulation.NextSequence)) });
             Assert.Equal(SessionDisposition.Accepted, result.Disposition);
             session.AdvanceXun();
+            // Named streams initialize lazily; measure history growth after the first annual cycle.
+            if (xun == 35) firstYear = SaveService.Encode(session);
         }
         Assert.Equal(230, session.Snapshot.Clock.Year);
         Assert.False(session.IsRecording);
         Assert.Throws<InvalidOperationException>(() => session.CaptureRecording());
         byte[] final = SaveService.Encode(session);
-        Assert.InRange(final.Length - initial.Length, 0, 100);
+        Assert.NotNull(firstYear);
+        Assert.InRange(final.Length - firstYear.Length, 0, 100);
         string json = Encoding.UTF8.GetString(final);
         Assert.DoesNotContain("acceptedCommandIds", json);
         Assert.DoesNotContain("journal", json);

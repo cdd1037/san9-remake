@@ -72,6 +72,12 @@ public sealed class SimulationEngine
         return AllianceEligibility.Find(_world.BeginMutation(_rules.Abilities), _rules);
     }
 
+    public AllianceParticipationPrompt? GetAllianceParticipationPrompt()
+    {
+        if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
+        return AllianceFormation.Prompt(_world.BeginMutation(_rules.Abilities), _rules);
+    }
+
     public CommandAdvice GetBurnAdvice(int forceId, int officerId, int targetSettlementId)
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
@@ -128,6 +134,12 @@ public sealed class SimulationEngine
             DevelopmentOutcome? development = null;
             switch (command)
             {
+                case AllianceParticipationCommand participation:
+                    var participationRejection = AllianceFormation.Respond(mutation, participation, _rules, events);
+                    if (participationRejection != CommandRejection.None) return Reject(participationRejection);
+                    if (mutation.Simulation.PendingAlliance is null)
+                        _pipeline.Prepare(mutation, events, ResolutionStage.QuarterEvents);
+                    break;
                 case WaitCommand:
                     break;
                 case BurnCommand burn:
@@ -285,10 +297,21 @@ public sealed class SimulationEngine
         if (command.IssuerId < 0) return CommandRejection.NegativeIssuerId;
         if (command.Sequence < 0) return CommandRejection.NegativeSequence;
         if (command.CommandId == Guid.Empty) return CommandRejection.InvalidCommandId;
-        if (_world.IsExecuting || _world.Simulation.Boundary != SimulationBoundary.Stable) return CommandRejection.NotStable;
+        if (_world.IsExecuting || _world.Simulation.Boundary is not (SimulationBoundary.Stable or SimulationBoundary.AwaitingDecision))
+            return CommandRejection.NotStable;
         if (_world.Simulation.Tasks.Any(t => t.Id == command.CommandId)) return CommandRejection.DuplicateCommandId;
         if (command.Sequence != _world.Simulation.NextSequence) return CommandRejection.WrongSequence;
         var sim = _world.Simulation;
+        if (sim.PendingAlliance is { } proposal)
+        {
+            if (command is not AllianceParticipationCommand) return CommandRejection.DecisionPending;
+            int respondent = proposal.PlayerChoices.First(p => p.Join is null).ForceId;
+            return respondent == command.IssuerId && sim.Controls.Any(c => c.ForceId == respondent &&
+                c.Kind == ControllerKind.Player && c.ControllerId == context.ControllerId)
+                ? CommandRejection.None : CommandRejection.NotActiveController;
+        }
+        if (sim.Boundary != SimulationBoundary.Stable) return CommandRejection.NotStable;
+        if (command is AllianceParticipationCommand) return CommandRejection.InvalidDecision;
         if (sim.ActiveControl >= sim.Controls.Length) return CommandRejection.NotActiveController;
         var seat = sim.Controls[sim.ActiveControl];
         return CorpsControl.Authorize(Snapshot, seat, context, command);

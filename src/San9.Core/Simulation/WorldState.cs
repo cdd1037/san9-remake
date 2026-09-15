@@ -56,7 +56,7 @@ public sealed class WorldState
     public static WorldState Restore(WorldSnapshot snapshot)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
-        if (snapshot.Simulation.Boundary is not (SimulationBoundary.Stable or SimulationBoundary.Terminal))
+        if (snapshot.Simulation.Boundary is not (SimulationBoundary.Stable or SimulationBoundary.Terminal or SimulationBoundary.AwaitingDecision))
             throw new ArgumentException("Only a committed stable boundary can be restored.");
         var world = Create(snapshot.Simulation.Started, snapshot.Simulation.InitialSeed, snapshot.Forces,
             snapshot.Settlements, snapshot.Officers, snapshot.Units, snapshot.Corps, snapshot.Treasures,

@@ -73,7 +73,8 @@ internal static class WorldInvariants
     private static void ValidateSimulation(WorldMutation state)
     {
         var sim = state.Simulation;
-        sim.Alliance?.Validate(state.Forces.Values.Where(f => !f.IsEliminated && !f.IsBarbarian).Select(f => f.Id).ToHashSet());
+        sim.Alliance?.Validate(state.Forces.Values.Where(f => !f.IsEliminated && (!f.IsBarbarian ||
+            sim.Controls.Any(c => c.ForceId == f.Id && c.Kind == ControllerKind.Player))).Select(f => f.Id).ToHashSet());
         _ = new GameClock(sim.Started.Year, sim.Started.Month, sim.Started.Day);
         if (!sim.Started.IsXunBoundary || sim.Started.DayNumber > state.Clock.DayNumber ||
             sim.ComputerDamageBonusPercent < 0 || !Enum.IsDefined(sim.Boundary) || sim.Controls.IsDefault || sim.Tasks.IsDefault ||
@@ -87,6 +88,7 @@ internal static class WorldInvariants
             sim.RandomStreams.Any(s => string.IsNullOrWhiteSpace(s.Name)) ||
             !sim.RandomStreams.Select(s => s.Name).SequenceEqual(sim.RandomStreams.Select(s => s.Name).Distinct().Order(StringComparer.Ordinal)))
             throw new ArgumentException("Invalid simulation boundary, control, sequence or random state.");
+        AllianceFormation.ValidatePending(state);
         if (sim.Tasks.Select(t => t.Id).Distinct().Count() != sim.Tasks.Length ||
             sim.Tasks.Select(t => t.OfficerId).Distinct().Count() != sim.Tasks.Length)
             throw new ArgumentException("Duplicate task identity or officer occupation.");

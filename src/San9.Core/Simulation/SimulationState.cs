@@ -2,7 +2,7 @@ using System.Collections.Immutable;
 
 namespace San9.Core.Simulation;
 
-public enum SimulationBoundary { New, Stable, Terminal }
+public enum SimulationBoundary { New, Stable, Terminal, AwaitingDecision }
 public enum ControllerKind { Player, Automatic }
 public sealed record ControlSeat(string ControllerId, int ForceId, ControllerKind Kind);
 public readonly record struct CommandContext(string ControllerId);
@@ -37,6 +37,7 @@ public sealed record PersonnelReturnLeg(int OriginPlaceId, int CountdownDays, bo
 public sealed record SimulationState(GameClock Started, ulong InitialSeed)
 {
     [System.Text.Json.Serialization.JsonRequired] public San9.Core.Domain.AllianceState? Alliance { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public AllianceProposal? PendingAlliance { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public int ComputerDamageBonusPercent { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public ulong RunSeed { get; init; } = InitialSeed;
     public SimulationBoundary Boundary { get; init; }

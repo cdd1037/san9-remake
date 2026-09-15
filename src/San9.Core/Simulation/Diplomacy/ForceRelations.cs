@@ -10,7 +10,7 @@ internal static class ForceRelations
         if (first == second || !world.Forces.ContainsKey(first) || !world.Forces.ContainsKey(second))
             throw new ArgumentException("A relation requires two different known forces.");
         return world.Relations.TryGetValue((Math.Min(first, second), Math.Max(first, second)), out var relation)
-            ? relation : throw new InvalidOperationException("Missing force relation.");
+            ? relation : new(Math.Min(first, second), Math.Max(first, second), 0);
     }
 
     internal static void Set(WorldMutation world, int first, int second, int value, List<DomainEvent> events)
@@ -18,7 +18,7 @@ internal static class ForceRelations
         _ = DiplomacyMath.RelationBand(value);
         var previous = Get(world, first, second);
         if (previous.Value == value) return;
-        world.Replace(previous with { Value = value });
+        world.SetRelation(previous with { Value = value });
         events.Add(new ForceRelationChangedEvent(world.Clock, previous.FirstId, previous.SecondId, previous.Value, value));
     }
 

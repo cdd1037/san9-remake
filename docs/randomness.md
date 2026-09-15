@@ -27,6 +27,7 @@
 | 放逐／俘虏释放随机安置 | 运行：`personnel-exile-placement` | 有确定原势力驻地时优先采用；仅需要随机选址的分支抽样；[RE-0112](../research/findings/RE-SAN9PK-0112.md) |
 | 替换军师忠诚扣减 | 运行：`personnel-adviser-replacement` | 仅命中替换条件时抽0–2；[RE-0112](../research/findings/RE-SAN9PK-0112.md) |
 | 俘虏旬忠诚扣减 | 运行：`personnel-prisoner-loyalty` | 逐人物稳定顺序；[RE-0112](../research/findings/RE-SAN9PK-0112.md) |
+| 季度联盟形成门与目标选择 | 运行：`alliance-formation`、`alliance-target` | 满360日且无联盟时季度抽1/4；两条候选均有效才二选一；AI不另抽同意骰；[RE-0119](../research/findings/RE-SAN9PK-0119.md) |
 | AI规划分析 | 运行种子派生的独立分析流 | 重制选择；不消耗规则流，预算确定，诊断开关不影响结果；实际下令照常录制 |
 | 消息／动画等表现随机 | 不属于规则随机 | 不改变世界；消息生成时求值并缓存，不在重绘时改变规则骰。当前录像是模拟录像，不是逐帧视频 |
 
@@ -35,6 +36,8 @@
 原作完整调用清查见[RE-0171](../research/findings/RE-SAN9PK-0171.md)：八类计略、赠与、攻击请求和劝降均有固定提交骰，但夺取宝物等分支另有运行随机；俘虏返还保存的骰子未被实际谈判消费，不能为复刻字段而引入概率。军师意见、地点提示也有固定概率组件；培养使用带局部计数器的独立序列，不能整体归为无顺序依赖的固定条件随机。这些尚未接入的系统应按实际判定分别分类。计略和外交的已采用分类见[计略规格](../specs/behavior/BEH-STRATEGY-0001-command-advice-and-resolution.md)与[外交规格](../specs/behavior/BEH-DIPLOMACY-0002-command-negotiation-and-resolution.md)；培养整体归[独立开发支线](../specs/behavior/BEH-PERSON-LIFECYCLE-0003-trainee-development.md)，不纳入主线随机接入要求。
 
 ## 后续接入归属
+
+季度联盟提案一经提交，目标及已有玩家回答作为状态保存。玩家读档虽更换未来运行种子，也不重抽当前提案；录像从待选择边界开始时精确恢复提案及随机状态。
 
 - G06/G07：普通战斗、兵法与战后判定随真实执行器接入运行随机。
 - G08：八类计略均已接固定条件提交骰与各自需要的独立效果随机流，意见查询不消费运行随机；流言固定骰同时包含两个目标势力，成功后的忠诚概率门、忠诚幅度、失败关系幅度和智力成长使用独立运行用途。外交谈判随实现接入。

@@ -46,7 +46,7 @@ internal abstract class TaskRule
 
 internal sealed class ResolutionPipeline(SimulationRules rules)
 {
-    internal void Prepare(WorldMutation world, List<DomainEvent> events)
+    internal void Prepare(WorldMutation world, List<DomainEvent> events, ResolutionStage? after = null)
     {
         var boundary = world.Clock.Boundary;
         List<ResolutionStage> stages = [ResolutionStage.TerminalCheck, ResolutionStage.XunEvents, ResolutionStage.XunUpdate];
@@ -54,7 +54,9 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         stages.Add(ResolutionStage.AppearanceAndIndependence);
         if (boundary.Quarter) stages.AddRange([ResolutionStage.QuarterPrelude, ResolutionStage.QuarterEvents, ResolutionStage.QuarterUpdate]);
         if (boundary.Year) stages.AddRange([ResolutionStage.AnnualAppearance, ResolutionStage.AnnualCleanup]);
-        foreach (var stage in stages)
+        int start = after is { } completed ? stages.IndexOf(completed) + 1 : 0;
+        if (after is not null && start == 0) throw new InvalidOperationException("Invalid preparation continuation.");
+        foreach (var stage in stages.Skip(start))
             if (!Run(stage, world, events)) return;
         world.SetSimulation(world.Simulation with { Boundary = SimulationBoundary.Stable, ActiveControl = 0 });
     }
@@ -84,6 +86,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
             XunRecovery.Apply(world);
             PrisonerCycle.Apply(world, events);
         }
+        if (stage == ResolutionStage.QuarterEvents) AllianceFormation.Begin(world, rules, events);
         if (stage == ResolutionStage.QuarterUpdate) PersonnelLoyaltyCycle.Apply(world, events);
         var rationAccounts = EconomicCycle.Apply(stage, world, rules.Economy, events);
         if (stage == ResolutionStage.BeforeDailyCommands)
@@ -104,7 +107,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         rules.ApplyStage(stage, world, events);
         world.MaintainLeadership(events);
         events.Add(new StageCompletedEvent(world.Clock, stage));
-        return CheckTerminal(world, events);
+        return CheckTerminal(world, events) && world.Simulation.PendingAlliance is null;
     }
 
     internal static bool CheckTerminal(WorldMutation world, List<DomainEvent> events)
@@ -115,7 +118,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
             ReinforcementTransport.Disband(world, task, "terminal", events);
             events.Add(new TaskCancelledEvent(task.Id, world.Clock, "terminal"));
         }
-        world.SetSimulation(world.Simulation with { Boundary = SimulationBoundary.Terminal, Tasks = [] });
+        world.SetSimulation(world.Simulation with { Boundary = SimulationBoundary.Terminal, Tasks = [], PendingAlliance = null });
         if (!events.OfType<SimulationEndedEvent>().Any()) events.Add(new SimulationEndedEvent(world.Clock, reason));
         return false;
     }

@@ -12,7 +12,10 @@ public sealed record PersistentTask(Guid Id, string Kind, string ControllerId, i
     int OfficerId, int OriginSettlementId, GameClock Started, GameClock Due, int ProgressDays, long Sequence)
 {
     [System.Text.Json.Serialization.JsonRequired] public PersonnelJourney? Journey { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public ReinforcementTroops? Reinforcements { get; init; }
 }
+
+public sealed record ReinforcementTroops(uint Soldiers, int Morale, int DemobilizationCityId);
 
 public sealed record PersonnelJourney(int DestinationPlaceId, int? TargetOfficerId, int? SuccessRoll)
 {

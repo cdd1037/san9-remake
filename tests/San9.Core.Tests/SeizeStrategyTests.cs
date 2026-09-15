@@ -159,6 +159,41 @@ public sealed class SeizeStrategyTests
     }
 
     [Fact]
+    public void AdviceUsesTotalProbabilityAndIgnoresExecutionStreamAndRunSeed()
+    {
+        var rules = Rules();
+        var world = World();
+        var state = world.BeginMutation();
+        state.Replace(state.Officers[31] with { SettlementId = 1, Status = OfficerStatus.Strategist,
+            BaseAbilities = new(70, 100, 70, 70) });
+        state.Replace(state.Forces[1] with { AdviserId = 31 });
+        world.Commit(state);
+        var engine = new SimulationEngine(world, rules);
+        // Item threshold 88 with probability 1/2; money threshold 25 always: total 56.5%.
+        var expected = engine.GetSeizeAdvice(1, 11, 2);
+        Assert.Equal(AdviserOpinion.Favorable, expected.Opinion);
+        for (int i = 0; i < 20; i++)
+        {
+            state = world.BeginMutation();
+            state.NextRandom("strategy-seize-item-gate");
+            state.SetSimulation(state.Simulation with { RunSeed = (ulong)i });
+            world.Commit(state);
+            string before = engine.Snapshot.StateHash;
+            Assert.Equal(expected, engine.GetSeizeAdvice(1, 11, 2));
+            Assert.Equal(before, engine.Snapshot.StateHash);
+        }
+        state = world.BeginMutation();
+        state.Replace(state.Officers[11] with { BaseAbilities = new(87, 70, 70, 70) });
+        world.Commit(state);
+        // (75 + 25) / 2 = 50%, exactly uncertain.
+        Assert.Equal(AdviserOpinion.Uncertain, engine.GetSeizeAdvice(1, 11, 2).Opinion);
+        state = world.BeginMutation();
+        state.Replace(state.Officers[11] with { BaseAbilities = new(88, 70, 70, 70) });
+        world.Commit(state);
+        Assert.Equal(AdviserOpinion.Favorable, engine.GetSeizeAdvice(1, 11, 2).Opinion);
+    }
+
+    [Fact]
     public void ZeroTargetFundsOrNonAdjacentTargetIsRejectedAndLiveFundsAreRevalidated()
     {
         var rules = Rules();

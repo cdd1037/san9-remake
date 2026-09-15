@@ -8,7 +8,7 @@ public sealed record CommandAdvice(CommandRejection Rejection, int? AdviserId, A
 internal static class AdviserJudgment
 {
     // The opinion describes the current chance category, never the saved execution draw.
-    internal static CommandAdvice Evaluate(WorldMutation world, int forceId, string purpose, int actorId, int targetId, int threshold)
+    internal static CommandAdvice Evaluate(WorldMutation world, int forceId, string purpose, int actorId, int targetId, double threshold)
         => Evaluate(world, forceId, purpose, actorId, targetId.ToString(System.Globalization.CultureInfo.InvariantCulture), threshold);
 
     internal static CommandAdvice Evaluate(WorldMutation world, int forceId, string purpose, int actorId,
@@ -16,7 +16,7 @@ internal static class AdviserJudgment
         FormattableString.Invariant($"{firstTargetId}:{secondTargetId}"), threshold);
 
     private static CommandAdvice Evaluate(WorldMutation world, int forceId, string purpose, int actorId,
-        string targets, int threshold)
+        string targets, double threshold)
     {
         if (world.Forces[forceId].AdviserId is not int adviserId)
             return new(CommandRejection.None, null, AdviserOpinion.NoAdviser);

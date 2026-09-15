@@ -185,6 +185,7 @@ internal static class BattleAftermath
         var force = world.Forces[forceId];
         foreach (var task in world.Simulation.Tasks.Where(t => t.ForceId == forceId).ToArray())
         {
+            ReinforcementTransport.Disband(world, task, "force-eliminated", events);
             world.SetSimulation(world.Simulation with { Tasks = world.Simulation.Tasks.Remove(task) });
             events.Add(new TaskCancelledEvent(task.Id, world.Clock, "force-eliminated"));
         }

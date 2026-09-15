@@ -89,12 +89,17 @@ internal static class BattlePersonnel
             return;
         }
         var person = world.Officers[task.OfficerId];
-        if (!person.IsServing || person.OwnerId != task.ForceId) return;
+        if (!person.IsServing || person.OwnerId != task.ForceId)
+        {
+            ReinforcementTransport.Disband(world, task, "reinforcement-executor-lost", events);
+            return;
+        }
         var origin = rules.Military!.Place(world.Settlements[task.Journey.DestinationPlaceId]).Position;
         var home = BattleRetreat.Destination(world, person, origin, task.Journey.DestinationPlaceId, rules.Military,
             preferredCorps: task.Journey.ReturnLeg.CorpsId);
         if (home is null)
         {
+            ReinforcementTransport.Disband(world, task, "reinforcement-no-home", events);
             Displace(world, person.Id, origin, rules.Personnel, rules.Military, events);
             return;
         }

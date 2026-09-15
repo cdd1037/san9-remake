@@ -99,7 +99,8 @@ internal static class PersonnelTransitions
         events.Add(new OfficerMovedEvent(world.Clock, personId, person.SettlementId!.Value, destinationId));
     }
 
-    internal static void CancelMissions(WorldMutation world, int personId, string reason, List<DomainEvent> events, PersonnelRulebook places, bool afterDailyCommands)
+    internal static void CancelMissions(WorldMutation world, int personId, string reason, List<DomainEvent> events, PersonnelRulebook places, bool afterDailyCommands,
+        bool preserveReinforcements = false)
     {
         foreach (var task in world.Simulation.Tasks.Where(t => t.OfficerId == personId || t.Journey?.TargetOfficerId == personId)
             .OrderBy(t => t.Sequence).ThenBy(t => t.OriginSettlementId).ThenBy(t => t.OfficerId).ThenBy(t => t.Id).ToArray())
@@ -109,6 +110,8 @@ internal static class PersonnelTransitions
             events.Add(new TaskCancelledEvent(task.Id, world.Clock, reason));
             if (task.OfficerId != personId && task.Journey is not null)
                 PersonnelReturns.Start(world, task, places, events, afterDailyCommands);
+            else if (!preserveReinforcements)
+                ReinforcementTransport.Disband(world, task, reason, events);
         }
     }
 }

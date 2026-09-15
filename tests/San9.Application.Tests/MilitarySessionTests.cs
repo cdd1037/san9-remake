@@ -162,25 +162,29 @@ public sealed class MilitarySessionTests
         Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
     }
 
-    [Fact]
-    public void UnitStrategyCommandAdviceAndBothJourneyLegsSurviveSaveAndRecording()
+    [Theory]
+    [InlineData(UnitStrategyKind.Inspire)]
+    [InlineData(UnitStrategyKind.Reinforce)]
+    public void UnitStrategyCommandAdviceAndBothJourneyLegsSurviveSaveAndRecording(UnitStrategyKind strategy)
     {
         var basis = Fixture();
         var definition = basis with
         {
-            RegionNameKeys = new() { [2] = "destination-region" },
-            Officers = [basis.Officers[0] with { State = basis.Officers[0].State with { BaseAbilities = new(70, 230, 70, 70) } },
+            RegionNameKeys = new() { [1] = "destination-region" },
+            RegionCityIds = new() { [1] = 1 },
+            Settlements = [basis.Settlements[0] with { Soldiers = 10000 }, basis.Settlements[1]],
+            Officers = [basis.Officers[0] with { State = basis.Officers[0].State with { BaseAbilities = new(70, 230, 70, 230) } },
                 new("commander", new(2, 1, null, new(70, 70, 70, 80), false) { UnitId = 10 })],
-            Units = [new(10, 1, new(332, 7), 400) { FormationId = 7, Morale = 70, CommanderId = 2, MemberOrder = [2] }],
+            Units = [new(10, 1, new(332, 7), 9500) { FormationId = 7, Morale = 70, CommanderId = 2, MemberOrder = [2] }],
             Military = basis.Military! with { Width = 200, TerrainIds = Enumerable.Repeat(0, 600).ToImmutableArray(),
-                RegionIds = Enumerable.Repeat<int?>(2, 600).ToImmutableArray() }
+                RegionIds = Enumerable.Repeat<int?>(1, 600).ToImmutableArray() }
         };
         var session = GameSession.Start(definition, 42);
         string before = session.Capture().StateHash;
-        Assert.Equal(AdviserOpinion.NoAdviser, session.GetUnitStrategyAdvice(1, 1, UnitStrategyKind.Inspire, 10).Opinion);
+        Assert.Equal(AdviserOpinion.NoAdviser, session.GetUnitStrategyAdvice(1, 1, strategy, 10).Opinion);
         Assert.Equal(before, session.Capture().StateHash);
         session.BeginRecording();
-        Assert.True(session.Execute(new("player"), new UnitStrategyCommand(Guid.NewGuid(), 1, 0, 1, UnitStrategyKind.Inspire, 10)).Submission.Accepted);
+        Assert.True(session.Execute(new("player"), new UnitStrategyCommand(Guid.NewGuid(), 1, 0, 1, strategy, 10)).Submission.Accepted);
         session.AdvanceXun();
         Assert.Equal("unit-strategy", Assert.Single(session.Snapshot.Simulation.Tasks).Kind);
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
@@ -188,6 +192,9 @@ public sealed class MilitarySessionTests
         Assert.True(Assert.Single(result.Events.OfType<UnitStrategyResolvedEvent>()).Success);
         Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
         Assert.Equal("personnel-return", Assert.Single(session.Snapshot.Simulation.Tasks).Kind);
+        if (strategy == UnitStrategyKind.Reinforce)
+            Assert.Equal(3000u - Assert.Single(result.Events.OfType<UnitStrategyResolvedEvent>()).DeliveredSoldiers,
+                Assert.Single(session.Snapshot.Simulation.Tasks).Reinforcements!.Soldiers);
         restored = SaveService.Decode(SaveService.Encode(session), definition);
         Assert.Equal(CanonicalJson.Text(session.AdvanceXun().Events), CanonicalJson.Text(restored.AdvanceXun().Events));
         Assert.Empty(session.Snapshot.Simulation.Tasks);

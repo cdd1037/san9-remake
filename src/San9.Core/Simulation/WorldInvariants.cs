@@ -102,11 +102,17 @@ internal static class WorldInvariants
                 task.Due.DayNumber < task.Started.DayNumber || task.Due.DayNumber < state.Clock.DayNumber || task.ProgressDays < 0 ||
                 task.ProgressDays != state.Clock.DayNumber - task.Started.DayNumber)
                 throw new ArgumentException("Invalid persistent task.");
+            if (task.Reinforcements is { } troops &&
+                (troops.Soldiers is 0 or > 3000 || troops.Morale is < 0 or > 100 ||
+                 !state.Settlements.TryGetValue(troops.DemobilizationCityId, out var muster) || muster.Kind != San9.Core.Domain.SettlementKind.City ||
+                 !(task.Kind == UnitStrategies.Kind && task.Journey?.UnitStrategy?.Strategy == UnitStrategyKind.Reinforce ||
+                   task.Kind == PersonnelReturns.Kind && task.Journey?.ReturnLeg is not null)))
+                throw new ArgumentException("Invalid reinforcement transport.");
             if (task.Journey is { } journey && (journey.DestinationPlaceId < 0 || journey.SuccessRoll is < 0 or > 99 ||
                 journey.DestinationPosition is { X: < 0 } or { Y: < 0 } ||
                 journey.UnitStrategy is { } strategy && (!Enum.IsDefined(strategy.Strategy) || strategy.TargetUnitId < 0 || journey.DestinationPosition is null ||
                     (strategy.Strategy == UnitStrategyKind.Reinforce
-                        ? strategy.ReinforcementSourceMorale is not (>= 0 and <= 100) : strategy.ReinforcementSourceMorale is not null)) ||
+                        ? task.Reinforcements is not { Soldiers: 3000 } : task.Reinforcements is not null)) ||
                 journey.Burn is { } burn && (burn.TargetSettlementId < 0 || journey.UnitStrategy is not null || journey.Seize is not null || journey.Gossip is not null || journey.DestinationPosition is null) ||
                 journey.Seize is { } seize && (seize.TargetSettlementId < 0 || journey.UnitStrategy is not null || journey.Burn is not null || journey.Gossip is not null || journey.DestinationPosition is null) ||
                 journey.Gossip is { } gossip && (gossip.FirstTargetForceId < 0 || gossip.SecondTargetForceId < 0 ||

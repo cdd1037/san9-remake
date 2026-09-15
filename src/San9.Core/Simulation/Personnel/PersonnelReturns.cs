@@ -11,7 +11,7 @@ internal static class PersonnelReturns
     {
         var person = world.Officers[personId];
         var journey = world.Simulation.Tasks.FirstOrDefault(t => t.OfficerId == personId && t.Journey is not null);
-        PersonnelTransitions.CancelMissions(world, personId, "service-place-lost", events, places, true);
+        PersonnelTransitions.CancelMissions(world, personId, "service-place-lost", events, places, true, preserveReinforcements: true);
         if (journey is not null)
         {
             Start(world, journey, places, events, true);
@@ -29,7 +29,11 @@ internal static class PersonnelReturns
     {
         int officerId = companionId ?? previous.OfficerId;
         var person = world.Officers[officerId];
-        if (!person.IsServing || person.OwnerId != previous.ForceId) return;
+        if (!person.IsServing || person.OwnerId != previous.ForceId)
+        {
+            ReinforcementTransport.Disband(world, previous, "reinforcement-executor-lost", events);
+            return;
+        }
         int from = previous.Journey!.DestinationPlaceId;
         WorldPosition? fieldPosition = previous.Journey.DestinationPosition;
         int DistanceTo(int destination) => fieldPosition is { } position
@@ -42,6 +46,7 @@ internal static class PersonnelReturns
                 .OrderBy(s => DistanceTo(s.Id)).ThenBy(s => s.Id).FirstOrDefault();
         if (home is null)
         {
+            ReinforcementTransport.Disband(world, previous, "reinforcement-no-home", events);
             // No friendly hosting object remains. Preserve a single geographic location, not an invalid service attachment.
             PersonnelTransitions.DiscoverDetached(world, person.Id, from, events);
             return;
@@ -76,7 +81,8 @@ internal static class PersonnelReturns
         var task = new PersistentTask(id, Kind, previous.ControllerId, previous.ForceId, officerId, destination,
             world.Clock, due, 0, previous.Sequence)
         {
-            Journey = new(destination, null, null) { ReturnLeg = new(from, days, afterDailyCommands) { OriginPosition = originPosition, CorpsId = corpsId } }
+            Journey = new(destination, null, null) { ReturnLeg = new(from, days, afterDailyCommands) { OriginPosition = originPosition, CorpsId = corpsId } },
+            Reinforcements = previous.Reinforcements
         };
         world.Replace(world.Officers[officerId] with { SettlementId = destination, RegionId = null, Acted = true, IsCommander = false });
         world.SetSimulation(world.Simulation with { Tasks = world.Simulation.Tasks.Add(task) });
@@ -100,6 +106,7 @@ internal sealed class PersonnelReturnRule(PersonnelRulebook places, MilitaryRule
             task.Journey.ReturnLeg.CountdownDays <= BattleRetreat.Days(origin, home.Position));
     internal override void Complete(WorldMutation world, PersistentTask task, List<DomainEvent> events)
     {
+        ReinforcementTransport.Arrive(world, task, places, events);
         events.Add(new PersonnelReturnedEvent(world.Clock, task.OfficerId, task.OriginSettlementId));
     }
 }

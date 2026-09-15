@@ -19,7 +19,7 @@ public sealed record SeizeResolvedEvent(GameClock Clock, int OfficerId, int Targ
 internal static class SeizeStrategies
 {
     internal const string Kind = "strategy-seize";
-    private sealed record Thresholds(int Item, int Person, int Money, bool ItemGatePassed,
+    private sealed record Thresholds(int Item, int Person, int Money,
         TreasureState? ItemCandidate, OfficerState[] PersonCandidates);
 
     private static bool Eligible(WorldMutation world, int forceId, int origin, int targetId, SimulationRules rules) =>
@@ -53,9 +53,8 @@ internal static class SeizeStrategies
         var actor = world.Officers[officerId];
         int war = world.Abilities(actor).War;
         var item = ItemCandidate(world, targetId, rules.Treasures);
-        bool gate = world.NextRandom("strategy-seize-item-gate") % 100 < 50;
         int itemThreshold = 0;
-        if (gate && item?.HolderId is int holder)
+        if (item?.HolderId is int holder)
         {
             var abilities = world.Abilities(world.Officers[holder]);
             int maximum = Math.Max(Math.Max(abilities.War, abilities.Intelligence),
@@ -67,7 +66,7 @@ internal static class SeizeStrategies
         int commander = LeadershipMaintenance.Commander(world, targetId) is { } leader
             ? world.Abilities(leader).Leadership : 0;
         return new(itemThreshold, StrategyMath.SeizePersonThreshold(war, people.Length),
-            StrategyMath.SeizeMoneyThreshold(war, commander, target.Soldiers), gate, item, people);
+            StrategyMath.SeizeMoneyThreshold(war, commander, target.Soldiers), item, people);
     }
 
     internal static CommandAdvice Advice(WorldMutation world, int forceId, int officerId, int targetId,
@@ -76,8 +75,10 @@ internal static class SeizeStrategies
         var rejection = Eligibility(world, forceId, officerId, targetId, rules);
         if (rejection != CommandRejection.None) return new(rejection, null, AdviserOpinion.Unavailable);
         var thresholds = ComputeThresholds(world, officerId, targetId, rules);
+        int withoutItem = Math.Clamp(Math.Max(thresholds.Person, thresholds.Money), 0, 100);
+        int withItem = Math.Clamp(Math.Max(thresholds.Item, withoutItem), 0, 100);
         return AdviserJudgment.Evaluate(world, forceId, Kind, officerId, targetId,
-            Math.Max(thresholds.Item, Math.Max(thresholds.Person, thresholds.Money)));
+            (withoutItem + withItem) / 2.0);
     }
 
     internal static CommandRejection Start(WorldMutation world, CommandContext context, SeizeCommand command,
@@ -115,6 +116,8 @@ internal static class SeizeStrategies
         var target = world.Settlements[targetId];
         var actor = world.Officers[task.OfficerId];
         var thresholds = ComputeThresholds(world, actor.Id, targetId, rules);
+        bool itemGate = world.NextRandom("strategy-seize-item-gate") % 100 < 50;
+        if (!itemGate) thresholds = thresholds with { Item = 0 };
         int roll = task.Journey.SuccessRoll!.Value;
         int injuryBefore = actor.Injury;
         int? treasureId = null;
@@ -171,7 +174,7 @@ internal static class SeizeStrategies
         OfficerTacticGrowth.Increase(world, actor.Id, 7, 2, events);
         OfficerTacticGrowth.Increase(world, actor.Id, 8, 2, events);
         events.Add(new SeizeResolvedEvent(world.Clock, actor.Id, targetId, roll, thresholds.Item,
-            thresholds.Person, thresholds.Money, thresholds.ItemGatePassed, outcome)
+            thresholds.Person, thresholds.Money, itemGate, outcome)
         {
             TreasureId = treasureId,
             RecoveredOfficerId = recoveredId,

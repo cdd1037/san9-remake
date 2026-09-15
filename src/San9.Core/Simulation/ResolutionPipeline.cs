@@ -111,7 +111,10 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
     {
         if (world.Simulation.TerminalReason is not string reason) return true;
         foreach (var task in world.Simulation.Tasks.OrderBy(t => t.Sequence).ThenBy(t => t.OriginSettlementId).ThenBy(t => t.OfficerId).ThenBy(t => t.Id))
+        {
+            ReinforcementTransport.Disband(world, task, "terminal", events);
             events.Add(new TaskCancelledEvent(task.Id, world.Clock, "terminal"));
+        }
         world.SetSimulation(world.Simulation with { Boundary = SimulationBoundary.Terminal, Tasks = [] });
         if (!events.OfType<SimulationEndedEvent>().Any()) events.Add(new SimulationEndedEvent(world.Clock, reason));
         return false;

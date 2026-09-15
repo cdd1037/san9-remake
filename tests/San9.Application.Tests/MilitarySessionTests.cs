@@ -9,6 +9,37 @@ namespace San9.Application.Tests;
 public sealed class MilitarySessionTests
 {
     [Fact]
+    public void AlienateAdviceMissionSaveAndRecordingUseThePublicCommandPath()
+    {
+        var basis = Fixture();
+        var definition = basis with
+        {
+            Forces = [basis.Forces[0], new(2, "enemy", 2, 10000, 10000, 100)],
+            Settlements = [basis.Settlements[0], basis.Settlements[1] with { OwnerId = 2 }],
+            Officers = [basis.Officers[0] with { State = basis.Officers[0].State with
+                { BaseAbilities = new(70, 100, 70, 70) } },
+                new("target", new OfficerState(2, 2, 2, new(70, 50, 70, 70), false)
+                    { Righteousness = 5 }.WithLoyalty(2, 80))],
+            Information = basis.Information with { Relations = [new(1, 2, 50)] }
+        };
+        var session = GameSession.Start(definition, 42);
+        string before = session.Capture().StateHash;
+        Assert.Equal(AdviserOpinion.NoAdviser, session.GetAlienateAdvice(1, 1, 2).Opinion);
+        Assert.Equal(before, session.Capture().StateHash);
+        session.BeginRecording();
+        Assert.True(session.Execute(new("player"), new AlienateCommand(Guid.NewGuid(), 1, 0, 1, 2)).Submission.Accepted);
+        var restored = SaveService.Decode(SaveService.Encode(session), definition);
+
+        var result = session.AdvanceXun();
+        Assert.Single(result.Events.OfType<AlienateResolvedEvent>());
+        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition,
+            GameSession.EngineFactory(definition));
+        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+    }
+
+    [Fact]
     public void BurnAdviceAndBothJourneyLegsSurviveSaveAndRecording()
     {
         var basis = Fixture();

@@ -79,6 +79,8 @@ public sealed class GameSession
 
     public CommandAdvice GetUnitStrategyAdvice(int forceId, int officerId, UnitStrategyKind strategy, int targetUnitId) =>
         _simulation.GetUnitStrategyAdvice(forceId, officerId, strategy, targetUnitId);
+    public CommandAdvice GetAlienateAdvice(int forceId, int officerId, int targetOfficerId) =>
+        _simulation.GetAlienateAdvice(forceId, officerId, targetOfficerId);
     public StrategySnapshot InitialView => _initialView;
     public StrategySnapshot View => _view.World.Revision == Snapshot.Revision ? _view : _view = _snapshotSource.Project(Snapshot);
 

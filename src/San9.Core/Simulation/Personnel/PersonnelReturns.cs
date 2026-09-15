@@ -51,7 +51,8 @@ internal static class PersonnelReturns
         {
             int outbound = fieldPosition is { } position
                 ? PersonnelRulebook.JourneyDays(places.Places[previous.OriginSettlementId].Position, position)
-                : previous.Journey.ReturnLeg?.CountdownDays ?? places.JourneyDays(previous.OriginSettlementId, from, PersonnelMissions.JourneyKind(previous.Kind));
+                : previous.Journey.ReturnLeg?.CountdownDays ?? places.JourneyDays(previous.OriginSettlementId, from,
+                    previous.Kind == PersonnelMissions.SearchKind ? PersonnelJourneyKind.Search : PersonnelJourneyKind.Move);
             int remaining = Math.Max(0, outbound -
                 previous.ProgressDays - (afterDailyCommands ? 1 : 0));
             if (previous.Kind == PersonnelMissions.SearchKind)

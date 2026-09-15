@@ -72,6 +72,13 @@ public sealed class SimulationEngine
         return BurnStrategies.Advice(_world.BeginMutation(_rules.Abilities), forceId, officerId, targetSettlementId, _rules);
     }
 
+    public CommandAdvice GetAlienateAdvice(int forceId, int officerId, int targetOfficerId)
+    {
+        if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
+        return AlienateStrategies.Advice(_world.BeginMutation(_rules.Abilities), forceId, officerId,
+            targetOfficerId, _rules);
+    }
+
     public CommandAdvice GetUnitStrategyAdvice(int forceId, int officerId, UnitStrategyKind strategy, int targetUnitId)
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
@@ -105,6 +112,10 @@ public sealed class SimulationEngine
                 case BurnCommand burn:
                     var burnRejection = BurnStrategies.Start(mutation, context, burn, _rules, events);
                     if (burnRejection != CommandRejection.None) return Reject(burnRejection);
+                    break;
+                case AlienateCommand alienate:
+                    var alienateRejection = AlienateStrategies.Start(mutation, context, alienate, _rules, events);
+                    if (alienateRejection != CommandRejection.None) return Reject(alienateRejection);
                     break;
                 case UnitStrategyCommand strategy:
                     var strategyRejection = UnitStrategies.Start(mutation, context, strategy, _rules, events);

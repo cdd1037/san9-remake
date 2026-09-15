@@ -35,7 +35,7 @@ Application把当前世界与复制后的名称/显示定义组合成`StrategySn
 
 ## 已接入规则
 
-G08实施中：`SimulationState.Alliance`唯一保存当前联盟目标、盟主、成员和剩余旬数，内容初始联盟经Application建局后沿快照、摘要、存档和录像传递。`AllianceDiplomacy`处理旬到期与势力退出，军事公共敌对查询拒绝联盟成员之间攻击；`ForceRelations`统一有界对称关系写回。`UnitStrategyCommand`已接伪报、扰乱、激励和救援；`PersonnelJourney`保存目标位置和类型化载荷，救援额外保存来源提交时士气，返程继续使用不携兵的人物任务。`GetUnitStrategyAdvice`通过Core/Application提供不写状态的意见查询。`BurnCommand`及`GetBurnAdvice`已接烧夷资格、日级效果与去返程，任务以`PersonnelJourney.Burn`保存类型化目标。季度形成、外交命令与离间、夺取、流言尚未完成，进度见[G08](g08-verification.md)。
+G08实施中：`SimulationState.Alliance`唯一保存当前联盟目标、盟主、成员和剩余旬数，内容初始联盟经Application建局后沿快照、摘要、存档和录像传递。`AllianceDiplomacy`处理旬到期与势力退出，军事公共敌对查询拒绝联盟成员之间攻击；`ForceRelations`统一有界对称关系写回。`UnitStrategyCommand`已接伪报、扰乱、激励和救援；`PersonnelJourney`保存目标位置和类型化载荷，救援额外保存来源提交时士气，返程继续使用不携兵的人物任务。`GetUnitStrategyAdvice`通过Core/Application提供不写状态的意见查询。`BurnCommand`和`AlienateCommand`分别接入烧夷、离间的资格、日级效果、意见及去返程。季度形成、外交命令与夺取、流言尚未完成，进度见[G08](g08-verification.md)。
 
 依据[BEH-ECONOMY-0001](../specs/behavior/BEH-ECONOMY-0001-domestic-and-economic-cycle.md)，六项经营命令支持1至5名不同参与者。公共处理器验证当前归属、驻地、行动占用、项目次数与资源，原子提交属性、账户、兵员、熟练度和使用状态；拒绝不改变世界与随机。征兵按实际剩余容量和资金计算，兵役与驻军严格守恒。
 

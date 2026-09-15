@@ -66,6 +66,12 @@ public sealed class SimulationEngine
     public CommandSubmissionResult Validate(CommandContext context, GameCommand command) =>
         Evaluate(context, command, commit: false).Submission;
 
+    public CommandAdvice GetBurnAdvice(int forceId, int officerId, int targetSettlementId)
+    {
+        if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
+        return BurnStrategies.Advice(_world.BeginMutation(_rules.Abilities), forceId, officerId, targetSettlementId, _rules);
+    }
+
     public CommandAdvice GetUnitStrategyAdvice(int forceId, int officerId, UnitStrategyKind strategy, int targetUnitId)
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
@@ -95,6 +101,10 @@ public sealed class SimulationEngine
             switch (command)
             {
                 case WaitCommand:
+                    break;
+                case BurnCommand burn:
+                    var burnRejection = BurnStrategies.Start(mutation, context, burn, _rules, events);
+                    if (burnRejection != CommandRejection.None) return Reject(burnRejection);
                     break;
                 case UnitStrategyCommand strategy:
                     var strategyRejection = UnitStrategies.Start(mutation, context, strategy, _rules, events);

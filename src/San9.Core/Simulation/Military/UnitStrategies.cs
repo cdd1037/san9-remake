@@ -176,7 +176,7 @@ internal static class UnitStrategies
 internal sealed class UnitStrategyRule(SimulationRules rules) : TaskRule
 {
     internal override bool HasValidPayload(PersistentTask task) => task.Journey is
-        { TargetOfficerId: null, SuccessRoll: >= 0 and < 100, ReturnLeg: null, AcceptRecruitment: null,
+        { TargetOfficerId: null, SuccessRoll: >= 0 and < 100, ReturnLeg: null, AcceptRecruitment: null, Burn: null,
           DestinationPosition: { X: >= 0, Y: >= 0 }, UnitStrategy: { } mission } &&
         Enum.IsDefined(mission.Strategy) && mission.TargetUnitId >= 0 && DurationDays(task) >= 0;
     internal override int DurationDays(PersistentTask task) => rules.Military is not null && task.Journey is

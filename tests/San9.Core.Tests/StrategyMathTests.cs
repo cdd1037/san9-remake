@@ -60,8 +60,8 @@ public sealed class StrategyMathTests
         Assert.Equal(0, StrategyMath.BurnDurabilityLoss(0, 101, 0));
         Assert.Equal(0, StrategyMath.BurnDurabilityLoss(100, 5, 4));
         Assert.Equal(10, StrategyMath.BurnDurabilityLoss(100, 20, 4));
-        Assert.Equal(1549u, StrategyMath.BurnFoodLoss(100, 30000, 2000, 49));
-        Assert.Equal(100u, StrategyMath.BurnFoodLoss(100, 30000, 100, 49));
+        Assert.Equal(1549u, StrategyMath.BurnFoodLoss(100, 30000, 0, 2000, 49));
+        Assert.Equal(100u, StrategyMath.BurnFoodLoss(100, 30000, 0, 100, 49));
         Assert.Equal(484u, StrategyMath.SeizeMoney(30000, 4000, 10000, 49));
         Assert.Equal(100u, StrategyMath.SeizeMoney(30000, 4000, 100, 49));
     }

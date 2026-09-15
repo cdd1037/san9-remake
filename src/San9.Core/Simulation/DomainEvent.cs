@@ -43,6 +43,7 @@ public sealed record OfficerCapturedEvent(GameClock Clock, int OfficerId, int Ca
 [System.Text.Json.Serialization.JsonDerivedType(typeof(ForceRelationChangedEvent), "force-relation-changed")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(WarDeclaredEvent), "war-declared")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(AllianceEndedEvent), "alliance-ended")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(BurnResolvedEvent), "strategy-burn-resolved")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(UnitStrategyResolvedEvent), "unit-strategy-resolved")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(AllianceMemberRemovedEvent), "alliance-member-removed")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(OfficerAbilityGrownEvent), "officer-ability-grown")]

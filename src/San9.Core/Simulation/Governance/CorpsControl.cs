@@ -61,6 +61,7 @@ public static class CorpsControl
             ReformUnitCommand reform => OwnUnit(reform.UnitId),
             DevelopCommand develop => develop.Development is not null && OwnPlace(develop.Development.SettlementId),
             RecruitOfficerCommand recruit => OwnPerson(recruit.OfficerId),
+            BurnCommand burn => OwnPerson(burn.OfficerId),
             UnitStrategyCommand strategy => OwnPerson(strategy.OfficerId),
             SearchCommand search => OwnPerson(search.OfficerId),
             MoveOfficersCommand move => !move.OfficerIds.IsDefault && move.OfficerIds.All(OwnPerson) && OwnPlace(move.DestinationId),

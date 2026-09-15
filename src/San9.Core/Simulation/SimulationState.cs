@@ -18,6 +18,7 @@ public sealed record PersonnelJourney(int DestinationPlaceId, int? TargetOfficer
 {
     [System.Text.Json.Serialization.JsonRequired] public San9.Core.Domain.WorldPosition? DestinationPosition { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public UnitStrategyMission? UnitStrategy { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public BurnMission? Burn { get; init; }
     public PersonnelReturnLeg? ReturnLeg { get; init; }
     public bool? AcceptRecruitment { get; init; }
 }

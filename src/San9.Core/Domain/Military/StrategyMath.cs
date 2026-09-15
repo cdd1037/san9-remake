@@ -72,11 +72,12 @@ public static class StrategyMath
             0, Math.Max(0, durability - 10));
     }
 
-    public static uint BurnFoodLoss(int war, uint soldiers, uint food, int variation)
+    public static uint BurnFoodLoss(int war, uint soldiers, uint wounded, uint food, int variation)
     {
         Abilities(war);
         Roll(variation, 100);
-        return (uint)Math.Min(food, (ulong)soldiers * (ulong)EconomyMath.ExecutedAbility(war) / 2000 + (uint)variation);
+        UInt128 amount = ((UInt128)soldiers + wounded) * (ulong)EconomyMath.ExecutedAbility(war) / 2000 + (uint)variation;
+        return amount > food ? food : (uint)amount;
     }
 
     public static uint SeizeMoney(uint soldiers, uint wounded, uint money, int variation)

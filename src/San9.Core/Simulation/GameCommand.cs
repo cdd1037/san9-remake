@@ -2,6 +2,7 @@ namespace San9.Core.Simulation;
 
 [System.Text.Json.Serialization.JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(WaitCommand), "wait")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(BurnCommand), "strategy-burn")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(UnitStrategyCommand), "unit-strategy")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(SelectTacticCommand), "select-tactic")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(DeployUnitCommand), "deploy-unit")]

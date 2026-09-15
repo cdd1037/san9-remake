@@ -61,9 +61,10 @@ public sealed class UnitStrategyTests
         Assert.Equal(0, state.Units[5].ConditionDaysRemaining);
     }
 
-    private static SimulationRules Rules(bool defensive = false, bool immune = false) => new()
+    private static SimulationRules Rules(bool defensive = false, bool immune = false, bool reinforcementConnection = true) => new()
     {
-        Personnel = new([new(1, new(2, 2)), new(2, new(997, 12))]),
+        Personnel = new([new(1, new(2, 2)), new(2, new(997, 12))],
+            new Dictionary<int, int> { [1] = 1, [2] = 2 }, reinforcementConnection ? [new(1, 2)] : []),
         Military = new(new(200, 3, Enumerable.Repeat(0, 600).ToImmutableArray(), [new(0, 1, null)],
             [new(9, 1, 0, 10000, 5, new(1, 1), TravelMode.Land)
                 { HalvesHostileStrategyChance = defensive, ImmuneToDisorder = immune }],
@@ -236,5 +237,135 @@ public sealed class UnitStrategyTests
         Assert.False(result.Success);
         var immune = new SimulationEngine(World(), Rules(immune: true));
         Assert.False(immune.Execute(new("player"), new UnitStrategyCommand(Guid.NewGuid(), 1, 0, 11, UnitStrategyKind.Disorder, 5)).Submission.Accepted);
+    }
+
+    [Fact]
+    public void ReinforcementPaysAtSubmissionAndOriginalOverflowIsNotReturned()
+    {
+        var rules = Rules();
+        var world = World(friendly: true, distance: 30);
+        var setup = world.BeginMutation();
+        setup.Replace(setup.Units[5] with { Soldiers = 9000, Morale = 40, Wounded = 250,
+            Condition = UnitCondition.Confused, ConditionDaysRemaining = 7 });
+        world.Commit(setup);
+
+        var task = Submit(world, rules, UnitStrategyKind.Reinforce, 0);
+        Assert.Equal(7000u, world.BeginMutation().Settlements[1].Soldiers);
+        Assert.Equal(70, task.Journey!.UnitStrategy!.ReinforcementSourceMorale);
+        string json = CanonicalJson.Text(world.CreateSnapshot());
+        var snapshot = System.Text.Json.JsonSerializer.Deserialize<WorldSnapshot>(json, CanonicalJson.Options)!;
+        var restored = new SimulationEngine(WorldState.Restore(snapshot), rules);
+        Assert.Equal(world.CreateSnapshot().StateHash, restored.Snapshot.StateHash);
+        Assert.Equal(70, Assert.Single(restored.Snapshot.Simulation.Tasks).Journey!.UnitStrategy!.ReinforcementSourceMorale);
+
+        var state = world.BeginMutation(rules.Abilities);
+        state.SetSimulation(state.Simulation with { Tasks = state.Simulation.Tasks.Remove(task) });
+        List<DomainEvent> events = [];
+        UnitStrategies.Resolve(state, task, rules, events);
+
+        var result = Assert.Single(events.OfType<UnitStrategyResolvedEvent>());
+        Assert.True(result.Success);
+        Assert.Equal(50, result.Threshold);
+        Assert.Equal(3000u, result.RequestedSoldiers);
+        Assert.Equal(1000u, result.DeliveredSoldiers);
+        Assert.Equal(10000u, state.Units[5].Soldiers);
+        Assert.Equal(47, state.Units[5].Morale);
+        Assert.Equal(250u, state.Units[5].Wounded);
+        Assert.Equal(UnitCondition.Normal, state.Units[5].Condition);
+        Assert.Equal(0, state.Units[5].ConditionDaysRemaining);
+        Assert.Equal(7000u, state.Settlements[1].Soldiers);
+        Assert.Equal(2, state.Officers[11].TacticProficiencies[7]);
+        Assert.Equal(2, state.Officers[11].TacticProficiencies[8]);
+        Assert.Single(state.Simulation.Tasks, t => t.Kind == PersonnelReturns.Kind);
+    }
+
+    [Fact]
+    public void FailedReinforcementUsesRequestedTroopsForMoraleAndKeepsCondition()
+    {
+        var rules = Rules();
+        var world = World(friendly: true, distance: 30);
+        var setup = world.BeginMutation();
+        setup.Replace(setup.Units[5] with { Soldiers = 9500, Morale = 40, Wounded = 250,
+            Condition = UnitCondition.Confused, ConditionDaysRemaining = 7 });
+        world.Commit(setup);
+        var task = Submit(world, rules, UnitStrategyKind.Reinforce, 99);
+
+        var state = world.BeginMutation(rules.Abilities);
+        state.SetSimulation(state.Simulation with { Tasks = state.Simulation.Tasks.Remove(task) });
+        List<DomainEvent> events = [];
+        UnitStrategies.Resolve(state, task, rules, events);
+
+        var result = Assert.Single(events.OfType<UnitStrategyResolvedEvent>());
+        Assert.False(result.Success);
+        Assert.Equal(750u, result.RequestedSoldiers);
+        Assert.Equal(500u, result.DeliveredSoldiers);
+        Assert.Equal(42, state.Units[5].Morale);
+        Assert.Equal(UnitCondition.Confused, state.Units[5].Condition);
+        Assert.Equal(7, state.Units[5].ConditionDaysRemaining);
+        Assert.Equal(250u, state.Units[5].Wounded);
+        Assert.Equal(7000u, state.Settlements[1].Soldiers);
+        Assert.Equal(2, state.Officers[11].TacticProficiencies[7]);
+        Assert.Equal(2, state.Officers[11].TacticProficiencies[8]);
+    }
+
+    [Fact]
+    public void SuccessfulReinforcementPreservesOnlyNormalAndHighSpiritsConditions()
+    {
+        var rules = Rules();
+        foreach (var condition in Enum.GetValues<UnitCondition>())
+        {
+            var world = World(friendly: true, distance: 30);
+            var task = Submit(world, rules, UnitStrategyKind.Reinforce, 0);
+            var state = world.BeginMutation(rules.Abilities);
+            state.SetSimulation(state.Simulation with { Tasks = state.Simulation.Tasks.Remove(task) });
+            state.Replace(state.Units[5] with { Condition = condition, ConditionDaysRemaining = 7,
+                HighSpiritsMoralePenaltyPending = condition == UnitCondition.HighSpirits });
+            UnitStrategies.Resolve(state, task, rules, []);
+
+            bool preserved = condition is UnitCondition.Normal or UnitCondition.HighSpirits;
+            Assert.Equal(preserved ? condition : UnitCondition.Normal, state.Units[5].Condition);
+            Assert.Equal(preserved ? 7 : 0, state.Units[5].ConditionDaysRemaining);
+            Assert.Equal(condition == UnitCondition.HighSpirits, state.Units[5].HighSpiritsMoralePenaltyPending);
+        }
+    }
+
+    [Fact]
+    public void ReinforcementRequiresCostRangeAndCapacityAtSubmission()
+    {
+        var insufficient = World(friendly: true);
+        var mutation = insufficient.BeginMutation();
+        mutation.Replace(mutation.Settlements[1] with { Soldiers = 2999 });
+        insufficient.Commit(mutation);
+        Assert.False(new SimulationEngine(insufficient, Rules()).Execute(new("player"),
+            new UnitStrategyCommand(Guid.NewGuid(), 1, 0, 11, UnitStrategyKind.Reinforce, 5)).Submission.Accepted);
+
+        var outOfRange = new SimulationEngine(World(friendly: true), Rules(reinforcementConnection: false));
+        Assert.False(outOfRange.Execute(new("player"),
+            new UnitStrategyCommand(Guid.NewGuid(), 1, 0, 11, UnitStrategyKind.Reinforce, 5)).Submission.Accepted);
+
+        var full = World(friendly: true);
+        mutation = full.BeginMutation();
+        mutation.Replace(mutation.Units[5] with { Soldiers = 10000 });
+        full.Commit(mutation);
+        Assert.False(new SimulationEngine(full, Rules()).Execute(new("player"),
+            new UnitStrategyCommand(Guid.NewGuid(), 1, 0, 11, UnitStrategyKind.Reinforce, 5)).Submission.Accepted);
+    }
+
+    [Fact]
+    public void TargetBecomingFullCancelsWithoutRefundingSubmissionCost()
+    {
+        var rules = Rules();
+        var world = World(friendly: true, distance: 30);
+        Submit(world, rules, UnitStrategyKind.Reinforce, 0);
+        var state = world.BeginMutation(rules.Abilities);
+        state.Replace(state.Units[5] with { Soldiers = 10000 });
+
+        var events = Day(state, rules);
+
+        Assert.Single(events.OfType<TaskCancelledEvent>());
+        Assert.Empty(events.OfType<UnitStrategyResolvedEvent>());
+        Assert.Equal(7000u, state.Settlements[1].Soldiers);
+        Assert.Equal(10000u, state.Units[5].Soldiers);
+        Assert.Single(state.Simulation.Tasks, t => t.Kind == PersonnelReturns.Kind);
     }
 }

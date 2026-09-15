@@ -2,12 +2,19 @@ using San9.Core.Domain;
 
 namespace San9.Core.Simulation;
 
-public enum UnitStrategyKind { FalseReport, Disorder, Inspire }
+public enum UnitStrategyKind { FalseReport, Disorder, Inspire, Reinforce }
 public sealed record UnitStrategyCommand(Guid CommandId, int IssuerId, long Sequence, int OfficerId,
     UnitStrategyKind Strategy, int TargetUnitId) : GameCommand(CommandId, IssuerId, Sequence);
-public sealed record UnitStrategyMission(UnitStrategyKind Strategy, int TargetUnitId);
+public sealed record UnitStrategyMission(UnitStrategyKind Strategy, int TargetUnitId)
+{
+    [System.Text.Json.Serialization.JsonRequired] public int? ReinforcementSourceMorale { get; init; }
+}
 public sealed record UnitStrategyResolvedEvent(GameClock Clock, int OfficerId, int TargetUnitId,
-    UnitStrategyKind Strategy, int Threshold, int Roll, bool Success) : DomainEvent;
+    UnitStrategyKind Strategy, int Threshold, int Roll, bool Success) : DomainEvent
+{
+    public uint RequestedSoldiers { get; init; }
+    public uint DeliveredSoldiers { get; init; }
+}
 
 internal static class UnitStrategies
 {
@@ -27,8 +34,20 @@ internal static class UnitStrategies
         if (!PersonnelMissions.CanAct(world, forceId, officerId)) return CommandRejection.PersonUnavailable;
         if (!Eligible(world, forceId, strategy, targetId, rules)) return CommandRejection.InvalidTask;
         int origin = world.Officers[officerId].SettlementId!.Value;
+        if (strategy == UnitStrategyKind.Reinforce &&
+            (world.Settlements[origin].Soldiers < 3000 || !InReinforcementRange(world, origin, targetId, rules)))
+            return CommandRejection.InvalidTask;
         return rules.Personnel.Places.ContainsKey(origin) && rules.Military!.RegionAt(world.Units[targetId].Position) is int region &&
             rules.Personnel.Places.ContainsKey(region) ? CommandRejection.None : CommandRejection.InvalidTask;
+    }
+
+    private static bool InReinforcementRange(WorldMutation world, int origin, int targetId, SimulationRules rules)
+    {
+        if (rules.Military!.RegionAt(world.Units[targetId].Position) is not int targetRegion ||
+            !rules.Personnel.RegionCities.TryGetValue(origin, out int sourceCity) ||
+            !rules.Personnel.RegionCities.TryGetValue(targetRegion, out int targetCity)) return false;
+        return sourceCity == targetCity ||
+            rules.Personnel.CityConnections.Any(c => c.FromCityId == sourceCity && c.ToCityId == targetCity);
     }
 
     internal static CommandRejection Start(WorldMutation world, CommandContext context, UnitStrategyCommand command,
@@ -49,14 +68,30 @@ internal static class UnitStrategies
             UnitStrategyKind.FalseReport => ConditionalRandomPurpose.FalseReport,
             UnitStrategyKind.Disorder => ConditionalRandomPurpose.Disorder,
             UnitStrategyKind.Inspire => ConditionalRandomPurpose.Inspire,
+            UnitStrategyKind.Reinforce => ConditionalRandomPurpose.Reinforcement,
             _ => throw new ArgumentOutOfRangeException(nameof(command))
         };
         int roll = ConditionalRandom.Percentile(world.Simulation.InitialSeed, purpose, world.Clock, actor.Id, target.Id);
         var task = new PersistentTask(command.CommandId, Kind, context.ControllerId, command.IssuerId, actor.Id, origin,
             world.Clock, due, 0, command.Sequence)
         {
-            Journey = new(region, null, roll) { DestinationPosition = target.Position, UnitStrategy = new(command.Strategy, target.Id) }
+            Journey = new(region, null, roll)
+            {
+                DestinationPosition = target.Position,
+                UnitStrategy = new(command.Strategy, target.Id)
+                {
+                    ReinforcementSourceMorale = command.Strategy == UnitStrategyKind.Reinforce
+                        ? world.Settlements[origin].Morale : null
+                }
+            }
         };
+        if (command.Strategy == UnitStrategyKind.Reinforce)
+        {
+            var source = world.Settlements[origin];
+            world.Replace(source with { Soldiers = source.Soldiers - 3000 });
+            ResourceAccounts.Report(world, new(ResourceOwnerKind.Settlement, source.Id), ResourceKind.Soldiers,
+                Kind, target.Id, -3000, -3000, events);
+        }
         world.Replace(actor with { Acted = true });
         world.SetSimulation(world.Simulation with { Tasks = world.Simulation.Tasks.Add(task) });
         events.Add(new TaskStartedEvent(task));
@@ -78,6 +113,8 @@ internal static class UnitStrategies
         if (strategy == UnitStrategyKind.Inspire)
             return target.OwnerId == force && target.Condition != UnitCondition.HighSpirits &&
                 (target.Condition != UnitCondition.Normal || target.Morale < 100);
+        if (strategy == UnitStrategyKind.Reinforce)
+            return target.OwnerId == force && target.Soldiers < formation.SoldierCapacity;
         if (!MilitaryDiplomacy.CanFight(world, force, target.OwnerId) || world.Simulation.Alliance?.Protects(force, target.OwnerId) == true || world.Simulation.Alliance?.Protects(force, target.OwnerId) == true ||
             !world.Relations.ContainsKey((Math.Min(force, target.OwnerId), Math.Max(force, target.OwnerId)))) return false;
         return strategy != UnitStrategyKind.Disorder || !formation.ImmuneToDisorder;
@@ -87,6 +124,9 @@ internal static class UnitStrategies
     {
         var target = world.Units[mission.TargetUnitId];
         var members = Members(world, target);
+        if (mission.Strategy == UnitStrategyKind.Reinforce)
+            return target.Soldiers >= rules.Military!.Formations[target.FormationId!.Value].SoldierCapacity
+                ? 0 : StrategyMath.ReinforcementThreshold(world.Abilities(world.Officers[actorId]).Leadership);
         int intelligence = world.Abilities(world.Officers[actorId]).Intelligence;
         if (mission.Strategy == UnitStrategyKind.Inspire)
             return StrategyMath.InspireThreshold(intelligence, Knows(world, world.Officers[actorId].OwnerId!.Value,
@@ -108,6 +148,11 @@ internal static class UnitStrategies
         int roll = task.Journey.SuccessRoll!.Value;
         bool success = roll < threshold;
         var members = Members(world, target);
+        if (mission.Strategy == UnitStrategyKind.Reinforce)
+        {
+            ResolveReinforcement(world, task, rules, events, target, threshold, roll, success);
+            return;
+        }
         if (success)
         {
             int days;
@@ -171,6 +216,39 @@ internal static class UnitStrategies
         events.Add(new UnitStrategyResolvedEvent(world.Clock, task.OfficerId, target.Id, mission.Strategy, threshold, roll, success));
         PersonnelReturns.Start(world, task, rules.Personnel, events, true);
     }
+
+    private static void ResolveReinforcement(WorldMutation world, PersistentTask task, SimulationRules rules,
+        List<DomainEvent> events, UnitState target, int threshold, int roll, bool success)
+    {
+        var actor = world.Officers[task.OfficerId];
+        uint requested = success ? 3000u : StrategyMath.FailedReinforcement(world.Abilities(actor).Leadership);
+        uint capacity = rules.Military!.Formations[target.FormationId!.Value].SoldierCapacity;
+        uint delivered = Math.Min(requested, capacity - target.Soldiers);
+        int sourceMorale = task.Journey!.UnitStrategy!.ReinforcementSourceMorale!.Value;
+        int morale = (int)(((long)target.Morale * target.Soldiers + (long)sourceMorale * requested) /
+            ((long)target.Soldiers + requested));
+        UnitCondition condition = success && target.Condition is not (UnitCondition.Normal or UnitCondition.HighSpirits)
+            ? UnitCondition.Normal : target.Condition;
+        int days = condition == target.Condition ? target.ConditionDaysRemaining : 0;
+        bool penalty = condition == target.Condition && target.HighSpiritsMoralePenaltyPending;
+        world.Replace(target with { Soldiers = target.Soldiers + delivered, Morale = morale, Condition = condition,
+            ConditionDaysRemaining = days, HighSpiritsMoralePenaltyPending = penalty });
+        ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, target.Id), ResourceKind.Soldiers,
+            Kind, task.OriginSettlementId, delivered, delivered, events);
+        if (success && condition != target.Condition)
+            events.Add(new BattleConditionChangedEvent(world.Clock, target.Id, false, condition, 0));
+        if (success && actor.BaseAbilities.Leadership < 100 && world.NextRandom("strategy-leadership-growth") % 100 < 3)
+        {
+            int next = actor.BaseAbilities.Leadership + 1;
+            world.Replace(actor with { BaseAbilities = actor.BaseAbilities with { Leadership = next } });
+            events.Add(new OfficerAbilityGrownEvent(world.Clock, actor.Id, "leadership", actor.BaseAbilities.Leadership, next));
+        }
+        OfficerTacticGrowth.Increase(world, actor.Id, 7, 2, events);
+        OfficerTacticGrowth.Increase(world, actor.Id, 8, 2, events);
+        events.Add(new UnitStrategyResolvedEvent(world.Clock, actor.Id, target.Id, UnitStrategyKind.Reinforce,
+            threshold, roll, success) { RequestedSoldiers = requested, DeliveredSoldiers = delivered });
+        PersonnelReturns.Start(world, task, rules.Personnel, events, true);
+    }
 }
 
 internal sealed class UnitStrategyRule(SimulationRules rules) : TaskRule
@@ -178,7 +256,10 @@ internal sealed class UnitStrategyRule(SimulationRules rules) : TaskRule
     internal override bool HasValidPayload(PersistentTask task) => task.Journey is
         { TargetOfficerId: null, SuccessRoll: >= 0 and < 100, ReturnLeg: null, AcceptRecruitment: null, Burn: null,
           DestinationPosition: { X: >= 0, Y: >= 0 }, UnitStrategy: { } mission } &&
-        Enum.IsDefined(mission.Strategy) && mission.TargetUnitId >= 0 && DurationDays(task) >= 0;
+        Enum.IsDefined(mission.Strategy) && mission.TargetUnitId >= 0 &&
+        (mission.Strategy == UnitStrategyKind.Reinforce
+            ? mission.ReinforcementSourceMorale is >= 0 and <= 100 : mission.ReinforcementSourceMorale is null) &&
+        DurationDays(task) >= 0;
     internal override int DurationDays(PersistentTask task) => rules.Military is not null && task.Journey is
         { DestinationPosition: { } position } journey && rules.Personnel.Places.TryGetValue(task.OriginSettlementId, out var from) &&
         rules.Personnel.Places.ContainsKey(journey.DestinationPlaceId) && rules.Military.RegionAt(position) == journey.DestinationPlaceId
@@ -189,6 +270,8 @@ internal sealed class UnitStrategyRule(SimulationRules rules) : TaskRule
         {
             UnitStrategyKind.FalseReport => world.Units[task.Journey.UnitStrategy.TargetUnitId].Condition is UnitCondition.Normal or UnitCondition.NoFormation,
             UnitStrategyKind.Disorder => world.Units[task.Journey.UnitStrategy.TargetUnitId].Condition == UnitCondition.Normal,
+            UnitStrategyKind.Reinforce => world.Units[task.Journey.UnitStrategy.TargetUnitId].Soldiers <
+                rules.Military!.Formations[world.Units[task.Journey.UnitStrategy.TargetUnitId].FormationId!.Value].SoldierCapacity,
             _ => true
         });
     internal override void Complete(WorldMutation world, PersistentTask task, List<DomainEvent> events) =>

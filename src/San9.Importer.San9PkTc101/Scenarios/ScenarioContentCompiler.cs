@@ -114,6 +114,8 @@ public static class ScenarioContentCompiler
             header.StartDate.Year, header.StartDate.Month, header.StartDate.Day, 5, summaries, settlements.OrderBy(s => s.Id).ToArray(), regions, regionCities)
         { UnbuiltPlaces = personPlaces.Where(p => settlements.All(s => s.Id != p.Id)).Select(p => new San9.Core.Domain.PersonPlace(p.Id, San9.Core.Domain.MapCoordinates.Center(new(p.X, p.Y)))).ToImmutableArray(),
             FacilityNameSuffixKeys = suffixKeys,
+            CityProvinceIds = settlements.Where(s => s.Kind == San9.Core.Domain.SettlementKind.City)
+                .ToDictionary(s => s.Id, s => (int)cities[s.Id].AreaCode),
             Alliance = DiplomacyContentCompiler.Alliance(header.AllianceDurationTurns, forces,
                 summaries.Where(f => !f.IsBarbarian).Select(f => f.Id).ToHashSet()),
             CityConnections = PersonnelGeographyCompiler.CityConnections(Read(San9ScenarioSquareArchive.ReadKnownRecords),

@@ -80,6 +80,7 @@ public sealed record MilitaryDefinition(int Width, int Height, ImmutableArray<in
     [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<TrapTerrainRule> TrapTerrains { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public HigherGroundTrapRule? HigherGroundTrap { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<int?> RegionIds { get; init; } = [];
+    [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<TerritoryExits> TerritoryExits { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<TacticRule> Tactics { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public TacticLinkRules LinkRules { get; init; } = TacticLinkRules.Empty;
     [System.Text.Json.Serialization.JsonRequired] public CityInfluenceRule? CityInfluence { get; init; }
@@ -115,6 +116,7 @@ public sealed partial class MilitaryRulebook
         RegionIds = definition.RegionIds;
         if (RegionIds.IsDefault || !RegionIds.IsEmpty && RegionIds.Length != definition.TerrainIds.Length || RegionIds.Any(id => id < 0))
             throw new ArgumentException("Invalid battlefield region geography.");
+        territoryBorders = BuildTerritoryBorders(definition.TerritoryExits);
         Formations = definition.Formations.ToImmutableDictionary(f => f.Id);
         UnformedFormationId = definition.UnformedFormationId;
         if (UnformedFormationId is int unformed && (!Formations.TryGetValue(unformed, out var profile) || profile.Combat is null))

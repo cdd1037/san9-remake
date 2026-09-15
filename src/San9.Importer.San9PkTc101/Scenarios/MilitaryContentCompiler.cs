@@ -86,6 +86,7 @@ public static class MilitaryContentCompiler
             Geography = new(MapCoordinates.UnitsPerCell,
                 squares.Where(s => s.PathBlockingBits == 0x01fe).Select(s => new MapCell(s.GridX, s.GridY)).ToImmutableArray()),
             RegionIds = squares.Select(s => s.RegionCode).ToImmutableArray(),
+            TerritoryExits = squares.Select(s => PersonnelGeographyCompiler.TerritoryExits(s.SquareFlags)).ToImmutableArray(),
             ConstructionSites = ConstructionContentCompiler.Sites(squares, buildings,
                 settlements.Select(s => s.Id).Concat(zones.Where(z => z.XCoordinate is not null && z.YCoordinate is not null).Select(z => z.Id + 50)).ToHashSet()),
             Tactics = CompileTactics(tactics),

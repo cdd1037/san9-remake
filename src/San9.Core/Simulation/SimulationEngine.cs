@@ -66,6 +66,12 @@ public sealed class SimulationEngine
     public CommandSubmissionResult Validate(CommandContext context, GameCommand command) =>
         Evaluate(context, command, commit: false).Submission;
 
+    public AllianceFormationCandidates GetAllianceCandidates()
+    {
+        if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
+        return AllianceEligibility.Find(_world.BeginMutation(_rules.Abilities), _rules);
+    }
+
     public CommandAdvice GetBurnAdvice(int forceId, int officerId, int targetSettlementId)
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");

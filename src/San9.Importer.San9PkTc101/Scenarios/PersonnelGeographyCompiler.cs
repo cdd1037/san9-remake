@@ -5,6 +5,12 @@ namespace San9.Importer.San9PkTc101.Scenarios;
 
 public static class PersonnelGeographyCompiler
 {
+    public static TerritoryExits TerritoryExits(ushort sourceFlags) =>
+        ((sourceFlags & 2) == 0 ? San9.Core.Domain.TerritoryExits.North : 0) |
+        ((sourceFlags & 8) == 0 ? San9.Core.Domain.TerritoryExits.East : 0) |
+        ((sourceFlags & 32) == 0 ? San9.Core.Domain.TerritoryExits.South : 0) |
+        ((sourceFlags & 128) == 0 ? San9.Core.Domain.TerritoryExits.West : 0);
+
     public static ImmutableArray<CityConnection> CityConnections(IReadOnlyList<San9ScenarioSquareRecord> squares,
         int width, int height, IReadOnlyDictionary<int, int> regionCities, IReadOnlySet<int> portRegions)
     {

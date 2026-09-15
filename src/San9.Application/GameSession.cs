@@ -72,6 +72,7 @@ public sealed class GameSession
         return recording;
     }
     public WorldSnapshot Snapshot => _simulation.Snapshot;
+    public AllianceFormationCandidates GetAllianceCandidates() => _simulation.GetAllianceCandidates();
     public AttackWarning GetAttackWarning(int forceId, MilitaryOrder order) => _simulation.GetAttackWarning(forceId, order);
 
     public CommandAdvice GetBurnAdvice(int forceId, int officerId, int targetSettlementId) =>
@@ -93,7 +94,7 @@ public sealed class GameSession
     {
         var rules = new EconomyRulebook(definition.Information.Offices.Select(o => new OfficeSalary(o.Id, o.Salary)).ToImmutableArray(),
             definition.DomesticPairs, definition.ImperialSealId, definition.EmperorId);
-        var personnel = new PersonnelRulebook(definition.Settlements.Select(s => new PersonPlace(s.Id, s.Position)).Concat(definition.UnbuiltPlaces), definition.RegionCityIds, definition.CityConnections);
+        var personnel = new PersonnelRulebook(definition.Settlements.Select(s => new PersonPlace(s.Id, s.Position)).Concat(definition.UnbuiltPlaces), definition.RegionCityIds, definition.CityConnections, definition.CityProvinceIds);
         var treasures = new TreasureRulebook(definition.Information.Treasures.Select(t => new TreasureRule(t.Id, t.AbilityBonuses, t.LoyaltyBonus) { EscapeMount = t.EscapeMount, TacticId = t.TacticId }));
         var governance = new GovernanceRulebook(definition.Information.Offices.Select(o => new GovernorOfficeRule(o.Id, o.CommandCapacity, o.GovernorPriority)
             { AbilityBonuses = o.AbilityBonuses, Salary = o.Salary, RequiredRankId = o.RequiredRankId }),

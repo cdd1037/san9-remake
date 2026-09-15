@@ -16,7 +16,8 @@ internal sealed class ScenarioSessionDefinition
             Information = definition.Information.Copy(), Forces = definition.Forces.ToArray(),
             Officers = definition.Officers.ToArray(), Units = definition.Units.ToArray(),
             Settlements = definition.Settlements.Select(s => s with { Icons = s.Icons.ToArray() }).ToArray(),
-            FacilityNameSuffixKeys = new(definition.FacilityNameSuffixKeys), RegionNameKeys = new(definition.RegionNameKeys), RegionCityIds = new(definition.RegionCityIds)
+            FacilityNameSuffixKeys = new(definition.FacilityNameSuffixKeys), RegionNameKeys = new(definition.RegionNameKeys), RegionCityIds = new(definition.RegionCityIds),
+            CityProvinceIds = new(definition.CityProvinceIds)
         };
         MilitaryRules = Content.Military is { } military ? new MilitaryRulebook(military) : null;
         Fingerprint = CanonicalJson.Hash(new
@@ -31,7 +32,7 @@ internal sealed class ScenarioSessionDefinition
             Relations = definition.Information.Relations.OrderBy(r => r.FirstId).ThenBy(r => r.SecondId),
             Coordinates = definition.Settlements.OrderBy(s => s.Id).Select(s => new { s.Id, s.X, s.Y }),
             UnbuiltPlaces = definition.UnbuiltPlaces.OrderBy(p => p.Id),
-            Regions = definition.RegionNameKeys.Keys.Order(), definition.RegionCityIds,
+            Regions = definition.RegionNameKeys.Keys.Order(), definition.RegionCityIds, definition.CityProvinceIds,
             CityConnections = definition.CityConnections.OrderBy(c => c.FromCityId).ThenBy(c => c.ToCityId),
             Ranks = definition.Information.Ranks.OrderBy(r => r.Id).Select(r => new { r.Id, r.CommandCapacity, r.RequiredTrust, r.LoyaltyBonus }),
             Offices = definition.Information.Offices.OrderBy(o => o.Id).Select(o => new { o.Id, o.CommandCapacity, o.Salary, o.GovernorPriority, o.AbilityBonuses, o.RequiredRankId }),

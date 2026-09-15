@@ -34,7 +34,8 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 52;
+    public const int CurrentSchemaVersion = 53;
+    [System.Text.Json.Serialization.JsonRequired] public Dictionary<int, int> CityProvinceIds { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public San9.Core.Domain.AllianceState? Alliance { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public Dictionary<int, string> FacilityNameSuffixKeys { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public San9.Core.Domain.MilitaryDefinition? Military { get; init; }
@@ -116,6 +117,8 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
             Settlements.Where(s => s.CorpsId is not null).GroupBy(s => s.CorpsId).Any(g => g.Select(s => s.OwnerId).Distinct().Count() != 1))
             throw new InvalidDataException("Invalid direct corps ownership.");
         var cityIds = Settlements.Where(s => s.Kind == San9.Core.Domain.SettlementKind.City).Select(s => s.Id).ToHashSet();
+        if (CityProvinceIds is null || CityProvinceIds.Any(p => !cityIds.Contains(p.Key) || p.Value < 0))
+            throw new InvalidDataException("Invalid city province membership.");
         if (RegionCityIds.Any(p => !RegionNameKeys.ContainsKey(p.Key) || !cityIds.Contains(p.Value)))
             throw new InvalidDataException("Invalid region city reference.");
         if (FacilityNameSuffixKeys is null || FacilityNameSuffixKeys.Any(p => string.IsNullOrWhiteSpace(p.Value) || Military is null || !Military.Facilities.Any(f => f.Id == p.Key)))

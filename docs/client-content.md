@@ -7,10 +7,10 @@
 | 模块 | 职责 | 输出 |
 | --- | --- | --- |
 | Content.Maps / MapImporter | 当前地图方格、地貌及对象位置 | `map.json`（无图片文件） |
-| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema52 |
+| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema53 |
 | Content.Text / ScenarioTextReader | 名称与全量消息目录 | `text.json` / `messages.json`，schema3 |
 | Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema16 |
-| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema56 |
+| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema57 |
 | Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema3／转换版本8 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 
@@ -19,6 +19,8 @@
 G08 的 schema50/54增加必填可空`Alliance`：目标、盟主、排序后的成员身份集合与剩余旬数。Importer把源联盟旗标及头部期限转换为同一个语义对象，缺失成员或矛盾状态明确拒绝。190年开局目标5、盟主7、13个成员及36旬完整保留；运行态从初始值独立演进，快照查询当前联盟，恢复不重新导入或重新扣旬。当前规则`san9-core-g08-v14`，存档/日志33；旧包须原位重转，旧规则存档拒绝加载。
 
 G08的schema52/55为阵型增加计略减半与扰乱免疫语义。版本Importer将方圆和不可扰乱阵型转换为属性，Core不比较源编号。任务保存野战目的地细坐标、地域身份和类型化计略载荷；去返程快照使用同一坐标尺度，旧任务布局明确拒绝。
+
+G08的schema53/57增加必填`CityProvinceIds`和`MilitaryDefinition.TerritoryExits`。前者是城市到州的基础分组，可不为某城市指定州，不继承15州上限；后者以行优先顺序保存每格北、东、南、西出口语义，与现有地域、地形及完全阻断格共同推导地域边。非空出口数组必须覆盖整幅地图，空数组明确表示未提供地域邻接。作者不维护逐势力邻接或成员候选表；Core只缓存不可变地图边，按当前据点位置、归属、存续及港口属性生成资格。城市州分组进入内容指纹并由会话独立持有。190年包已原位更新并逐项核对50城、40000格及94据点；具体数据链和736条有向边见G08验证记录。
 
 地图内容不引用名称、势力摘要或皮肤。剧本和文本可独立于地图校验；组合层检查建筑稳定ID与据点一一对应、坐标一致以及文本键存在。`SourceText`保存繁体显示原文（设施已组合类型后缀）；基础地域名另有文本项。它不是原消息字节的替代归档，原文件以SHA-256追踪。
 

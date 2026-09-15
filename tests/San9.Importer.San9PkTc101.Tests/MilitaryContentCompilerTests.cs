@@ -35,6 +35,9 @@ public sealed class MilitaryContentCompilerTests
         Assert.Equal(10, definition.CityInfluence.LandTacticBonus);
         Assert.Equal(squares.Where(s => s.PathBlockingBits == 0x01fe).Select(s => new MapCell(s.GridX, s.GridY)), definition.Geography.BlockedCells);
         Assert.Equal(40000, definition.RegionIds.Length);
+        Assert.Equal(40000, definition.TerritoryExits.Length);
+        Assert.Equal(TerritoryExits.East | TerritoryExits.South | TerritoryExits.West, definition.TerritoryExits[3]);
+        Assert.Equal(TerritoryExits.All, definition.TerritoryExits[4]);
         Assert.All(definition.RegionIds, id => Assert.Equal(0, id));
         var geographicSquares = squares.ToArray();
         geographicSquares[1] = geographicSquares[1] with { ZoneCode = 50 };

@@ -12,13 +12,15 @@ public sealed class PersonnelRulebook
 {
     public static PersonnelRulebook Empty { get; } = new([]);
     public PersonnelRulebook(IEnumerable<PersonPlace> places, IReadOnlyDictionary<int, int>? regionCities = null,
-        IEnumerable<CityConnection>? cityConnections = null)
+        IEnumerable<CityConnection>? cityConnections = null, IReadOnlyDictionary<int, int>? cityProvinces = null)
     {
         Places = places.ToImmutableDictionary(p => p.Id);
         RegionCities = (regionCities ?? ImmutableDictionary<int, int>.Empty).ToImmutableDictionary();
         CityConnections = (cityConnections ?? []).ToImmutableArray();
+        CityProvinces = (cityProvinces ?? ImmutableDictionary<int, int>.Empty).ToImmutableDictionary();
         if (Places.Values.Any(p => p.Id < 0 || p.Position.X < 0 || p.Position.Y < 0)) throw new ArgumentException("Invalid personnel place.");
-        if (RegionCities.Any(p => p.Key < 0 || !Places.ContainsKey(p.Value)) ||
+        if (CityProvinces.Any(p => !Places.ContainsKey(p.Key) || p.Value < 0) ||
+            RegionCities.Any(p => p.Key < 0 || !Places.ContainsKey(p.Value)) ||
             CityConnections.Any(c => c.FromCityId == c.ToCityId || !RegionCities.Values.Contains(c.FromCityId) || !RegionCities.Values.Contains(c.ToCityId)) ||
             CityConnections.Distinct().Count() != CityConnections.Length)
             throw new ArgumentException("Invalid personnel geography.");
@@ -27,6 +29,7 @@ public sealed class PersonnelRulebook
     public ImmutableDictionary<int, PersonPlace> Places { get; }
     public ImmutableDictionary<int, int> RegionCities { get; }
     public ImmutableArray<CityConnection> CityConnections { get; }
+    public ImmutableDictionary<int, int> CityProvinces { get; }
 
     public int JourneyDays(int source, int destination, PersonnelJourneyKind kind)
     {

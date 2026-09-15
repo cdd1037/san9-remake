@@ -115,7 +115,7 @@ internal static class UnitStrategies
                 (target.Condition != UnitCondition.Normal || target.Morale < 100);
         if (strategy == UnitStrategyKind.Reinforce)
             return target.OwnerId == force && target.Soldiers < formation.SoldierCapacity;
-        if (!MilitaryDiplomacy.CanFight(world, force, target.OwnerId) || world.Simulation.Alliance?.Protects(force, target.OwnerId) == true || world.Simulation.Alliance?.Protects(force, target.OwnerId) == true ||
+        if (!MilitaryDiplomacy.CanFight(world, force, target.OwnerId) || world.Simulation.Alliance?.Protects(force, target.OwnerId) == true ||
             !world.Relations.ContainsKey((Math.Min(force, target.OwnerId), Math.Max(force, target.OwnerId)))) return false;
         return strategy != UnitStrategyKind.Disorder || !formation.ImmuneToDisorder;
     }

@@ -19,8 +19,9 @@ public sealed record UnitState(int Id, int OwnerId, [property: System.Text.Json.
     [System.Text.Json.Serialization.JsonRequired] public System.Collections.Immutable.ImmutableArray<int> MemberOrder { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public int? EngagementTargetId { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public bool AwaitingPostAction { get; init; }
-    [System.Text.Json.Serialization.JsonIgnore] public MilitaryOrder? EffectiveOrder => EngagementTargetId is int target
-        ? new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = target } : Order;
+    [System.Text.Json.Serialization.JsonIgnore] public MilitaryOrder? EffectiveOrder => Condition == UnitCondition.Disguised
+        ? ServicePlaceId is int home ? new(MilitaryOrderKind.Return, null, home) : null
+        : EngagementTargetId is int target ? new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = target } : Order;
     [System.Text.Json.Serialization.JsonIgnore] public MapCell Cell => MapCoordinates.Cell(Position);
     [System.Text.Json.Serialization.JsonRequired] public int? CorpsId { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public int? ServicePlaceId { get; init; }

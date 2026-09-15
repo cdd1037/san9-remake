@@ -384,6 +384,88 @@ public sealed class UnitStrategyTests
     }
 
     [Fact]
+    public void FalseReportForcesMovementHomeUntilExpiryAndPreservesNewOrders()
+    {
+        var rules = Rules();
+        var world = World(distance: 30);
+        var setup = world.BeginMutation();
+        setup.Replace(setup.Units[5] with { ServicePlaceId = 2,
+            Order = new(MilitaryOrderKind.Move, new(20, 2), null) });
+        world.Commit(setup);
+        var task = Submit(world, rules, UnitStrategyKind.FalseReport, 0);
+        var state = world.BeginMutation(rules.Abilities);
+        state.SetSimulation(state.Simulation with { Tasks = state.Simulation.Tasks.Remove(task) });
+        UnitStrategies.Resolve(state, task, rules, []);
+        Assert.Null(state.Units[5].Order);
+        Assert.Null(state.Units[5].MovementPlan);
+        Assert.Equal(2, state.Units[5].EffectiveOrder!.SettlementId);
+        Assert.Equal(CommandRejection.None, MilitaryMovement.Order(state,
+            new(Guid.NewGuid(), 2, 0, 5, new(MilitaryOrderKind.Move, new(20, 2), null)), rules.Military, []));
+        var before = state.Units[5].Position;
+        MilitaryMovement.AdvanceDay(state, rules.Military, rules.Governance, rules.Personnel, []);
+        Assert.True(state.Units[5].Position.X > before.X);
+        Assert.Equal(MilitaryOrderKind.Return, state.Units[5].EffectiveOrder!.Kind);
+        state.Replace(state.Units[5] with { ConditionDaysRemaining = 1 });
+        MilitaryConditions.Tick(state, []);
+        Assert.Equal(MilitaryOrderKind.Move, state.Units[5].EffectiveOrder!.Kind);
+        before = state.Units[5].Position;
+        MilitaryMovement.AdvanceDay(state, rules.Military, rules.Governance, rules.Personnel, []);
+        Assert.True(state.Units[5].Position.X < before.X);
+    }
+
+    [Fact]
+    public void FalseReportEffectiveReturnSurvivesSaveAndDailyContinuation()
+    {
+        var rules = Rules();
+        var world = World();
+        var state = world.BeginMutation(rules.Abilities);
+        state.Replace(state.Units[5] with { ServicePlaceId = 2,
+            Condition = UnitCondition.Disguised, ConditionDaysRemaining = 5,
+            Order = new(MilitaryOrderKind.Move, new(20, 2), null) });
+        world.Commit(state);
+        var first = new SimulationEngine(world, rules);
+        var snapshot = System.Text.Json.JsonSerializer.Deserialize<WorldSnapshot>(
+            CanonicalJson.Text(world.CreateSnapshot()), CanonicalJson.Options)!;
+        var restored = WorldState.Restore(snapshot);
+        var second = new SimulationEngine(restored, rules);
+        Assert.Equal(MilitaryOrderKind.Return, second.Snapshot.Units.Single().EffectiveOrder!.Kind);
+        first.EndControl(new("player"));
+        second.EndControl(new("player"));
+        Assert.Equal(CanonicalJson.Text(first.AdvanceXun().Events), CanonicalJson.Text(second.AdvanceXun().Events));
+        Assert.Equal(first.Snapshot.StateHash, second.Snapshot.StateHash);
+    }
+
+    [Fact]
+    public void FalseReportWithoutServicePlaceCannotExecuteStoredAttack()
+    {
+        var rules = Rules();
+        var world = World();
+        var state = world.BeginMutation(rules.Abilities);
+        state.Replace(state.Units[5] with { Condition = UnitCondition.Disguised, ConditionDaysRemaining = 5,
+            ServicePlaceId = null, Order = new(MilitaryOrderKind.Move, new(50, 2), null) });
+        var before = state.Units[5].Position;
+        Assert.Null(state.Units[5].EffectiveOrder);
+        MilitaryMovement.AdvanceDay(state, rules.Military, rules.Governance, rules.Personnel, []);
+        Assert.Equal(before, state.Units[5].Position);
+    }
+
+    [Fact]
+    public void FalseReportReturnsIntoServicePlaceWithTroopsAndOfficers()
+    {
+        var rules = Rules();
+        var world = World();
+        var state = world.BeginMutation(rules.Abilities);
+        state.Replace(state.Units[5] with { Position = new(995, 12), ServicePlaceId = 2,
+            Condition = UnitCondition.Disguised, ConditionDaysRemaining = 7 });
+        for (int day = 0; day < 5 && state.Units.ContainsKey(5); day++)
+            MilitaryMovement.AdvanceDay(state, rules.Military, rules.Governance, rules.Personnel, []);
+        Assert.False(state.Units.ContainsKey(5));
+        Assert.Equal(15000u, state.Settlements[2].Soldiers);
+        Assert.Equal(2, state.Officers[22].SettlementId);
+        Assert.Null(state.Officers[22].UnitId);
+    }
+
+    [Fact]
     public void TemporaryFullTargetBeforeArrivalDoesNotCancelReinforcement()
     {
         var rules = Rules();

@@ -123,7 +123,7 @@ internal sealed class BurnRule(SimulationRules rules) : TaskRule
 {
     internal override bool HasValidPayload(PersistentTask task) => task.Journey is
         { TargetOfficerId: null, SuccessRoll: >= 0 and < 100, ReturnLeg: null, AcceptRecruitment: null,
-          UnitStrategy: null, Burn: { TargetSettlementId: >= 0 } burn, Seize: null, DestinationPosition: { } position } journey &&
+          UnitStrategy: null, Burn: { TargetSettlementId: >= 0 } burn, Seize: null, Gossip: null, DestinationPosition: { } position } journey &&
         journey.DestinationPlaceId == burn.TargetSettlementId && rules.Personnel.Places.TryGetValue(burn.TargetSettlementId, out var target) &&
         target.Position == position && DurationDays(task) >= 0;
     internal override int DurationDays(PersistentTask task) => task.Journey is { DestinationPosition: { } position } &&

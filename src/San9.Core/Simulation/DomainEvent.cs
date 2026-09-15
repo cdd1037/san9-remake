@@ -46,6 +46,7 @@ public sealed record OfficerCapturedEvent(GameClock Clock, int OfficerId, int Ca
 [System.Text.Json.Serialization.JsonDerivedType(typeof(BurnResolvedEvent), "strategy-burn-resolved")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(AlienateResolvedEvent), "strategy-alienate-resolved")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(SeizeResolvedEvent), "strategy-seize-resolved")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(GossipResolvedEvent), "strategy-gossip-resolved")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(PrisonerRecoveredEvent), "prisoner-recovered")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(UnitStrategyResolvedEvent), "unit-strategy-resolved")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(AllianceMemberRemovedEvent), "alliance-member-removed")]

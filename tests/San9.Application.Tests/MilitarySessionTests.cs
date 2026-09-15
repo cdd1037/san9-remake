@@ -40,6 +40,53 @@ public sealed class MilitarySessionTests
     }
 
     [Fact]
+    public void GossipAdviceMissionSaveAndRecordingUseThePublicCommandPath()
+    {
+        var basis = Fixture();
+        var definition = basis with
+        {
+            Forces = [basis.Forces[0] with { LeaderId = 1 },
+                new ForceInitialState(2, "first-target", 2, 10000, 10000, 100) { LeaderId = 2, AdviserId = 3 },
+                new ForceInitialState(3, "second-target", 3, 10000, 10000, 100) { LeaderId = 5 }],
+            Settlements = [basis.Settlements[0], basis.Settlements[1] with { OwnerId = 2 },
+                basis.Settlements[1] with { Id = 3, NameKey = "second-target", OwnerId = 3, X = 12 }],
+            Officers = [basis.Officers[0] with { State = basis.Officers[0].State with
+                { Status = OfficerStatus.Ruler, BaseAbilities = new(70, 100, 70, 70) } },
+                new("first-ruler", new OfficerState(2, 2, 2, new(70, 40, 70, 70), false)
+                    { Status = OfficerStatus.Ruler }),
+                new("first-adviser", new OfficerState(3, 2, 2, new(70, 20, 70, 70), false)
+                    { Status = OfficerStatus.Strategist }.WithLoyalty(2, 80)),
+                new("first-officer", new OfficerState(4, 2, 2, new(70, 0, 70, 70), false).WithLoyalty(2, 20)),
+                new("second-ruler", new OfficerState(5, 3, 3, new(70, 60, 70, 70), false)
+                    { Status = OfficerStatus.Ruler })],
+            Information = basis.Information with { Relations = [new(1, 2, 50), new(1, 3, 50), new(2, 3, 90)] },
+            Military = basis.Military! with
+            {
+                Width = 20,
+                TerrainIds = Enumerable.Repeat(0, 60).ToImmutableArray(),
+                Places = [new(1, new(2, 7), new(1, 1)), new(2, new(37, 7), new(1, 1)),
+                    new(3, new(62, 7), new(1, 1))]
+            }
+        };
+        var session = GameSession.Start(definition, 42);
+        string before = session.Capture().StateHash;
+        Assert.Equal(AdviserOpinion.NoAdviser, session.GetGossipAdvice(1, 1, 2, 3).Opinion);
+        Assert.Equal(before, session.Capture().StateHash);
+        session.BeginRecording();
+        Assert.True(session.Execute(new("player"), new GossipCommand(Guid.NewGuid(), 1, 0, 1, 2, 3))
+            .Submission.Accepted);
+        var restored = SaveService.Decode(SaveService.Encode(session), definition);
+
+        var result = session.AdvanceXun();
+        Assert.Single(result.Events.OfType<GossipResolvedEvent>());
+        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition,
+            GameSession.EngineFactory(definition));
+        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+    }
+
+    [Fact]
     public void BurnAdviceAndBothJourneyLegsSurviveSaveAndRecording()
     {
         var basis = Fixture();

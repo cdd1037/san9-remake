@@ -86,6 +86,14 @@ public sealed class SimulationEngine
             targetSettlementId, _rules);
     }
 
+    public CommandAdvice GetGossipAdvice(int forceId, int officerId, int firstTargetForceId,
+        int secondTargetForceId)
+    {
+        if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
+        return GossipStrategies.Advice(_world.BeginMutation(_rules.Abilities), forceId, officerId,
+            firstTargetForceId, secondTargetForceId, _rules);
+    }
+
     public CommandAdvice GetUnitStrategyAdvice(int forceId, int officerId, UnitStrategyKind strategy, int targetUnitId)
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
@@ -127,6 +135,10 @@ public sealed class SimulationEngine
                 case SeizeCommand seize:
                     var seizeRejection = SeizeStrategies.Start(mutation, context, seize, _rules, events);
                     if (seizeRejection != CommandRejection.None) return Reject(seizeRejection);
+                    break;
+                case GossipCommand gossip:
+                    var gossipRejection = GossipStrategies.Start(mutation, context, gossip, _rules, events);
+                    if (gossipRejection != CommandRejection.None) return Reject(gossipRejection);
                     break;
                 case UnitStrategyCommand strategy:
                     var strategyRejection = UnitStrategies.Start(mutation, context, strategy, _rules, events);

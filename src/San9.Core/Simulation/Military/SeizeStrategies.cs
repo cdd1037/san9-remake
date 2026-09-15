@@ -187,7 +187,7 @@ internal sealed class SeizeRule(SimulationRules rules) : TaskRule
 {
     internal override bool HasValidPayload(PersistentTask task) => task.Journey is
         { TargetOfficerId: null, SuccessRoll: >= 0 and < 100, ReturnLeg: null, AcceptRecruitment: null,
-          UnitStrategy: null, Burn: null, Seize: { TargetSettlementId: >= 0 } seize,
+          UnitStrategy: null, Burn: null, Seize: { TargetSettlementId: >= 0 } seize, Gossip: null,
           DestinationPosition: { } position } journey &&
         journey.DestinationPlaceId == seize.TargetSettlementId &&
         rules.Personnel.Places.TryGetValue(seize.TargetSettlementId, out var target) &&

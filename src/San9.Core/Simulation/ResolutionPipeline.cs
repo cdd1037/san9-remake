@@ -30,7 +30,8 @@ internal class SimulationRules
         ? new PersonnelMissionRule(Personnel, Economy, Governance, Treasures, kind) : kind == PersonnelReturns.Kind ? new PersonnelReturnRule(Personnel, Military)
         : kind == UnitStrategies.Kind ? new UnitStrategyRule(this) : kind == BurnStrategies.Kind ? new BurnRule(this)
         : kind == AlienateStrategies.Kind ? new AlienateRule(this)
-        : kind == SeizeStrategies.Kind ? new SeizeRule(this) : null;
+        : kind == SeizeStrategies.Kind ? new SeizeRule(this)
+        : kind == GossipStrategies.Kind ? new GossipRule(this) : null;
     internal virtual void ApplyStage(ResolutionStage stage, WorldMutation world, List<DomainEvent> events) { }
 }
 

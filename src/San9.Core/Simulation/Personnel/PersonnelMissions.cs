@@ -142,7 +142,7 @@ internal static class PersonnelMissions
 internal sealed class PersonnelMissionRule(PersonnelRulebook rules, EconomyRulebook economy, GovernanceRulebook governance,
     TreasureRulebook treasures, string kind) : TaskRule
 {
-    internal override bool HasValidPayload(PersistentTask task) => task.Journey is { ReturnLeg: null, DestinationPosition: null, UnitStrategy: null, Burn: null, Seize: null } journey && DurationDays(task) >= 0 &&
+    internal override bool HasValidPayload(PersistentTask task) => task.Journey is { ReturnLeg: null, DestinationPosition: null, UnitStrategy: null, Burn: null, Seize: null, Gossip: null } journey && DurationDays(task) >= 0 &&
         (kind == PersonnelMissions.MoveKind ? journey.TargetOfficerId is null && journey.SuccessRoll is null && journey.AcceptRecruitment is null :
          kind == PersonnelMissions.SearchKind ? journey.TargetOfficerId is null && journey.SuccessRoll is >= 0 and < 100 && journey.AcceptRecruitment is not null :
          journey.TargetOfficerId is >= 0 && journey.SuccessRoll is >= 0 and < 100 && journey.AcceptRecruitment is null);

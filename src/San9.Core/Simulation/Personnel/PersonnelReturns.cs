@@ -87,7 +87,7 @@ internal static class PersonnelReturns
 internal sealed class PersonnelReturnRule(PersonnelRulebook places, MilitaryRulebook? military) : TaskRule
 {
     internal override bool HasValidPayload(PersistentTask task) => task.Journey is
-        { TargetOfficerId: null, SuccessRoll: null, AcceptRecruitment: null, DestinationPosition: null, UnitStrategy: null, Burn: null, Seize: null, ReturnLeg: { } leg } journey &&
+        { TargetOfficerId: null, SuccessRoll: null, AcceptRecruitment: null, DestinationPosition: null, UnitStrategy: null, Burn: null, Seize: null, Gossip: null, ReturnLeg: { } leg } journey &&
         journey.DestinationPlaceId == task.OriginSettlementId && leg.CountdownDays >= 0 && leg.CorpsId is not < 0 &&
         (leg.OriginPosition is { X: >= 0, Y: >= 0 } ? military is not null : leg.OriginPosition is null &&
             places.Places.ContainsKey(leg.OriginPlaceId) && places.Places.ContainsKey(journey.DestinationPlaceId) &&

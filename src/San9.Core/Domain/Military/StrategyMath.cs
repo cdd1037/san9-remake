@@ -35,11 +35,13 @@ public static class StrategyMath
         return Signed(Math.Min(40, (long)intelligence + 5 * (7 - righteousness) - targetIntelligence));
     }
 
-    public static int GossipThreshold(int intelligence, int rulerIntelligence, int? adviserIntelligence)
+    public static int GossipThreshold(int intelligence, int rulerIntelligence, int? adviserIntelligence,
+        bool bothTargetsPlayerControlled = false)
     {
         Abilities(intelligence, rulerIntelligence);
         if (adviserIntelligence is int adviser) Abilities(adviser);
-        return Signed(Math.Min(40, intelligence - ((long)rulerIntelligence + (adviserIntelligence ?? 60)) / 2));
+        return bothTargetsPlayerControlled ? 0 : Signed(Math.Min(40,
+            intelligence - ((long)rulerIntelligence + (adviserIntelligence ?? 60)) / 2));
     }
 
     public static int BurnThreshold(int war, int commanderLeadership, int durability)
@@ -67,6 +69,13 @@ public static class StrategyMath
         Abilities(war);
         ArgumentOutOfRangeException.ThrowIfNegative(candidateCount);
         return candidateCount == 0 ? 0 : Signed((long)candidateCount + war / 20);
+    }
+
+    public static int GossipRelationLoss(int relation)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(relation);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(relation, 100);
+        return Math.Min(20, 100 - relation);
     }
 
     public static int AlienateLoyaltyLoss(int righteousness, int variation)

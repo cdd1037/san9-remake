@@ -20,6 +20,7 @@ public sealed record PersonnelJourney(int DestinationPlaceId, int? TargetOfficer
     [System.Text.Json.Serialization.JsonRequired] public UnitStrategyMission? UnitStrategy { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public BurnMission? Burn { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public SeizeMission? Seize { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public GossipMission? Gossip { get; init; }
     public PersonnelReturnLeg? ReturnLeg { get; init; }
     public bool? AcceptRecruitment { get; init; }
 }

@@ -41,11 +41,21 @@ internal abstract class TaskRule
     // Calendar-day offset from submission to the daily stage that resolves this task.
     internal abstract int DurationDays(PersistentTask task);
     internal virtual bool HasValidPayload(PersistentTask task) => task.Journey is null;
+    internal virtual bool SupportsResolutionStep(int step) => step == 0;
     internal abstract bool Validate(WorldMutation world, PersistentTask task);
     internal virtual int? DecisionRecipient(WorldMutation world, PersistentTask task) => null;
     internal virtual void CompleteDecision(WorldMutation world, PersistentTask task, bool accept, List<DomainEvent> events) =>
         throw new InvalidOperationException("Task does not accept a decision.");
-    internal abstract void Complete(WorldMutation world, PersistentTask task, List<DomainEvent> events);
+    // The pipeline owns task lifetime. A returned task retains the mission and advances
+    // to its next resolution step; null finishes it. Automatic and player steps share this path.
+    internal virtual PersistentTask? Resolve(WorldMutation world, PersistentTask task, bool? accept, List<DomainEvent> events)
+    {
+        if (accept is bool answer) CompleteDecision(world, task, answer, events);
+        else Complete(world, task, events);
+        return null;
+    }
+    internal virtual void Complete(WorldMutation world, PersistentTask task, List<DomainEvent> events) =>
+        throw new InvalidOperationException("Task requires staged resolution.");
 }
 
 internal sealed class ResolutionPipeline(SimulationRules rules)
@@ -152,9 +162,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         if (world.Officers.TryGetValue(task.OfficerId, out var officer)) world.Replace(officer with { Acted = true });
         if (TaskReferencesValid(world, task) && rule.Validate(world, task))
         {
-            world.SetSimulation(world.Simulation with { Tasks = world.Simulation.Tasks.Remove(task) });
-            rule.CompleteDecision(world, task, accept, events);
-            events.Add(new TaskCompletedEvent(task.Id, world.Clock));
+            ResolveStep(world, task, rule, accept, events);
         }
         else
         {
@@ -162,7 +170,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
             if (task.Journey is not null) BattlePersonnel.ResumeReturn(world, task, rules, events);
         }
         world.MaintainLeadership(events);
-        if (CheckTerminal(world, events)) AdvanceDay(world, events, pending.XunStarted, pending.RemainingTaskIds.RemoveAt(0));
+        if (CheckTerminal(world, events)) AdvanceDay(world, events, pending.XunStarted, pending.RemainingTaskIds);
     }
 
     private void ResolveTasks(WorldMutation world, List<DomainEvent> events, GameClock xunStarted,
@@ -190,9 +198,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
                 world.Replace(officer with { Acted = true });
             if (valid)
             {
-                world.SetSimulation(world.Simulation with { Tasks = world.Simulation.Tasks.Remove(task) });
-                rule.Complete(world, task, events);
-                events.Add(new TaskCompletedEvent(task.Id, world.Clock));
+                if (ResolveStep(world, task, rule, null, events)) index--;
             }
             else
             {
@@ -202,6 +208,27 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
             world.MaintainLeadership(events);
             if (!CheckTerminal(world, events)) return;
         }
+    }
+
+    private static bool ResolveStep(WorldMutation world, PersistentTask task, TaskRule rule, bool? accept, List<DomainEvent> events)
+    {
+        world.SetSimulation(world.Simulation with { Tasks = world.Simulation.Tasks.Remove(task) });
+        var next = rule.Resolve(world, task, accept, events);
+        if (next is null)
+        {
+            events.Add(new TaskCompletedEvent(task.Id, world.Clock));
+            return false;
+        }
+        if (next.Id != task.Id || next.Kind != task.Kind || next.ControllerId != task.ControllerId ||
+            next.ForceId != task.ForceId || next.OfficerId != task.OfficerId || next.OriginSettlementId != task.OriginSettlementId ||
+            next.Started != task.Started || next.Due != task.Due || next.ProgressDays != task.ProgressDays || next.Sequence != task.Sequence ||
+            next.ResolutionStep != task.ResolutionStep)
+            throw new InvalidOperationException("A task transition must preserve mission identity and travel schedule.");
+        next = next with { ResolutionStep = checked(task.ResolutionStep + 1) };
+        if (!rule.SupportsResolutionStep(next.ResolutionStep) || !rule.HasValidPayload(next))
+            throw new InvalidOperationException("Invalid next task resolution step or payload.");
+        world.SetSimulation(world.Simulation with { Tasks = world.Simulation.Tasks.Add(next) });
+        return true;
     }
 
     internal static bool TaskReferencesValid(WorldMutation world, PersistentTask task) =>

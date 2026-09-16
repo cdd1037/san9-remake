@@ -17,6 +17,7 @@ public sealed record DailyTaskDecision(
 public sealed record PersistentTask(Guid Id, string Kind, string ControllerId, int ForceId,
     int OfficerId, int OriginSettlementId, GameClock Started, GameClock Due, int ProgressDays, long Sequence)
 {
+    [JsonRequired] public int ResolutionStep { get; init; }
     [JsonRequired] public PersonnelJourney? Journey { get; init; }
     [JsonRequired] public ReinforcementTroops? Reinforcements { get; init; }
     [JsonRequired] public GiftMission? Gift { get; init; }

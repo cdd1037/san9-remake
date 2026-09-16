@@ -36,7 +36,8 @@ public sealed class SimulationEngine
         rules.Economy.Validate();
         _pipeline = new(rules);
         foreach (var task in world.Simulation.Tasks)
-            if (rules.FindTask(task.Kind) is not TaskRule rule || !rule.HasValidPayload(task) || rule.DurationDays(task) != task.Due.DayNumber - task.Started.DayNumber)
+            if (rules.FindTask(task.Kind) is not TaskRule rule || !rule.SupportsResolutionStep(task.ResolutionStep) ||
+                !rule.HasValidPayload(task) || rule.DurationDays(task) != task.Due.DayNumber - task.Started.DayNumber)
                 throw new ArgumentException($"Unsupported or invalid task '{task.Kind}'.");
         if (world.Simulation.PendingDailyTask is { } pending)
         {
@@ -153,7 +154,9 @@ public sealed class SimulationEngine
                     break;
                 case RespondDailyTaskCommand response:
                     var waiting = mutation.Simulation.PendingDailyTask!;
-                    if (waiting.RemainingTaskIds[0] != response.TaskId) return Reject(CommandRejection.InvalidDecision);
+                    if (waiting.RemainingTaskIds[0] != response.TaskId || response.Step !=
+                        mutation.Simulation.Tasks.Single(t => t.Id == response.TaskId).ResolutionStep)
+                        return Reject(CommandRejection.InvalidDecision);
                     _pipeline.Respond(mutation, response.Accept, events);
                     ContinueXun(mutation, waiting.XunStarted, events);
                     break;

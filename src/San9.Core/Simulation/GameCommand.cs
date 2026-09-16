@@ -1,6 +1,9 @@
+using System.Text.Json.Serialization;
+
 namespace San9.Core.Simulation;
 
-public sealed record RespondDailyTaskCommand(Guid CommandId, int IssuerId, long Sequence, Guid TaskId, bool Accept)
+public sealed record RespondDailyTaskCommand(Guid CommandId, int IssuerId, long Sequence, Guid TaskId,
+    [property: JsonRequired] int Step, bool Accept)
     : GameCommand(CommandId, IssuerId, Sequence);
 
 [System.Text.Json.Serialization.JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]

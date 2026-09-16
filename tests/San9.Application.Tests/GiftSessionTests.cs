@@ -73,7 +73,7 @@ public sealed class GiftSessionTests
         Assert.Equal(AdviserOpinion.Unavailable, session.GetGiftAdvice(2, 21, 1, new(GiftKind.Money, 1000, null)).Opinion);
         var restored = SaveService.Decode(SaveService.Encode(session), content);
         var response = new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence,
-            pending.RemainingTaskIds[0], accept);
+            pending.RemainingTaskIds[0], 0, accept);
         var result = session.Execute(new("player"), response);
         Assert.True(result.Submission.Accepted);
         Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.Execute(new("player"), response).Events));

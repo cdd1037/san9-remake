@@ -64,7 +64,7 @@ public sealed class DailyTaskDecisionTests
         {
             var pending = session.Snapshot.Simulation.PendingDailyTask!;
             var command = new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence,
-                pending.RemainingTaskIds[0], answer == 0);
+                pending.RemainingTaskIds[0], 0, answer == 0);
             string beforeAnswer = session.Capture().StateHash;
             Assert.True(session.Validate(new("player"), command).Accepted);
             Assert.Equal(beforeAnswer, session.Capture().StateHash);
@@ -128,7 +128,7 @@ public sealed class DailyTaskDecisionTests
         var pending = session.Snapshot.Simulation.PendingDailyTask!;
         string before = session.Capture().StateHash;
         var response = new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence,
-            pending.RemainingTaskIds[0], true);
+            pending.RemainingTaskIds[0], 0, true);
         Assert.Equal(CommandRejection.NotActiveController, session.Execute(new("other"), response).Submission.Rejection);
         Assert.Equal(CommandRejection.InvalidDecision, session.Execute(new("player"), response with { TaskId = Guid.NewGuid() }).Submission.Rejection);
         Assert.Equal(CommandRejection.DecisionPending, session.Execute(new("player"),

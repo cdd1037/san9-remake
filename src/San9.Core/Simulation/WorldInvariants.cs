@@ -111,6 +111,9 @@ internal static class WorldInvariants
             throw new ArgumentException("Duplicate task identity or officer occupation.");
         foreach (var task in sim.Tasks)
         {
+            if (task.ResolutionStep < 0 || task.ResolutionStep > 0 &&
+                (sim.PendingDailyTask is not { } active || active.RemainingTaskIds[0] != task.Id || task.Due != state.Clock))
+                throw new ArgumentException("Invalid task resolution step.");
             if (task.Gift is { } gift && (task.Kind != GiftDiplomacy.Kind || gift.Offer?.IsValid != true ||
                 gift.TargetForceId == task.ForceId || !state.Forces.ContainsKey(gift.TargetForceId)))
                 throw new ArgumentException("Invalid gift mission.");

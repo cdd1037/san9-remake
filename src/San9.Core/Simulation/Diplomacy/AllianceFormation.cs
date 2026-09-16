@@ -141,7 +141,8 @@ internal static class AllianceFormation
     internal static void ValidatePending(WorldMutation world)
     {
         var sim = world.Simulation;
-        if ((sim.Boundary == SimulationBoundary.AwaitingDecision) != (sim.PendingAlliance is not null))
+        if ((sim.Boundary == SimulationBoundary.AwaitingDecision) != (sim.PendingAlliance is not null || sim.PendingDailyTask is not null) ||
+            sim.PendingAlliance is not null && sim.PendingDailyTask is not null)
             throw new ArgumentException("Decision boundary requires a pending proposal.");
         if (sim.PendingAlliance is not { } proposal) return;
         bool Alive(int id) => world.Forces.TryGetValue(id, out var force) && !force.IsEliminated;

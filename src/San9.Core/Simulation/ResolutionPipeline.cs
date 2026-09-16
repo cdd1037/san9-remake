@@ -41,6 +41,9 @@ internal abstract class TaskRule
     internal abstract int DurationDays(PersistentTask task);
     internal virtual bool HasValidPayload(PersistentTask task) => task.Journey is null;
     internal abstract bool Validate(WorldMutation world, PersistentTask task);
+    internal virtual int? DecisionRecipient(WorldMutation world, PersistentTask task) => null;
+    internal virtual void CompleteDecision(WorldMutation world, PersistentTask task, bool accept, List<DomainEvent> events) =>
+        throw new InvalidOperationException("Task does not accept a decision.");
     internal abstract void Complete(WorldMutation world, PersistentTask task, List<DomainEvent> events);
 }
 
@@ -61,10 +64,15 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         world.SetSimulation(world.Simulation with { Boundary = SimulationBoundary.Stable, ActiveControl = 0 });
     }
 
-    internal void AdvanceDay(WorldMutation world, List<DomainEvent> events)
+    internal void AdvanceDay(WorldMutation world, List<DomainEvent> events) =>
+        AdvanceDay(world, events, new(world.Clock.Year, world.Clock.Month, world.Clock.Xun));
+
+    internal void AdvanceDay(WorldMutation world, List<DomainEvent> events, GameClock xunStarted,
+        ImmutableArray<Guid>? remainingTasks = null)
     {
-        if (!Run(ResolutionStage.BeforeDailyCommands, world, events)) return;
-        ResolveTasks(world, events);
+        if (remainingTasks is null && !Run(ResolutionStage.BeforeDailyCommands, world, events)) return;
+        ResolveTasks(world, events, xunStarted, remainingTasks: remainingTasks);
+        if (world.Simulation.PendingDailyTask is not null) return;
         if (!CheckTerminal(world, events) || !Run(ResolutionStage.DailyCommands, world, events)) return;
         world.SetClock(world.Clock.NextDay());
         world.SetSimulation(world.Simulation with { Tasks = world.Simulation.Tasks
@@ -72,7 +80,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         if (!Run(ResolutionStage.DailyMapUpdate, world, events)) return;
         // The later unit/building phase settles returns already due in the completed day,
         // including those created by that day's commands. Advancing the date is not another countdown tick.
-        ResolveTasks(world, events, returningAfterDateAdvance: true);
+        ResolveTasks(world, events, xunStarted, returningAfterDateAdvance: true);
         Run(ResolutionStage.UnitAndBuildingEvents, world, events);
     }
 
@@ -120,7 +128,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
             ReinforcementTransport.Disband(world, task, "terminal", events);
             events.Add(new TaskCancelledEvent(task.Id, world.Clock, "terminal"));
         }
-        world.SetSimulation(world.Simulation with { Boundary = SimulationBoundary.Terminal, Tasks = [], PendingAlliance = null });
+        world.SetSimulation(world.Simulation with { Boundary = SimulationBoundary.Terminal, Tasks = [], PendingAlliance = null, PendingDailyTask = null });
         if (!events.OfType<SimulationEndedEvent>().Any()) events.Add(new SimulationEndedEvent(world.Clock, reason));
         return false;
     }
@@ -134,16 +142,49 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
             world.SetSimulation(world.Simulation with { TerminalReason = "conquest" });
     }
 
-    private void ResolveTasks(WorldMutation world, List<DomainEvent> events, bool returningAfterDateAdvance = false)
+    internal void Respond(WorldMutation world, bool accept, List<DomainEvent> events)
     {
-        foreach (var task in world.Simulation.Tasks
-            .Where(t => !returningAfterDateAdvance || t.Kind == PersonnelReturns.Kind && t.Due.DayNumber < world.Clock.DayNumber)
-            .OrderBy(t => t.Sequence).ThenBy(t => t.OriginSettlementId).ThenBy(t => t.OfficerId).ThenBy(t => t.Id).ToArray())
+        var pending = world.Simulation.PendingDailyTask!;
+        var task = world.Simulation.Tasks.Single(t => t.Id == pending.RemainingTaskIds[0]);
+        var rule = rules.FindTask(task.Kind)!;
+        world.SetSimulation(world.Simulation with { PendingDailyTask = null, Boundary = SimulationBoundary.Stable,
+            Tasks = world.Simulation.Tasks.Remove(task) });
+        if (world.Officers.TryGetValue(task.OfficerId, out var officer)) world.Replace(officer with { Acted = true });
+        if (TaskReferencesValid(world, task) && rule.Validate(world, task))
         {
-            if (!world.Simulation.Tasks.Any(t => t.Id == task.Id)) continue;
+            rule.CompleteDecision(world, task, accept, events);
+            events.Add(new TaskCompletedEvent(task.Id, world.Clock));
+        }
+        else
+        {
+            events.Add(new TaskCancelledEvent(task.Id, world.Clock, "invalid-target-or-executor"));
+            if (task.Journey is not null) BattlePersonnel.ResumeReturn(world, task, rules, events);
+        }
+        world.MaintainLeadership(events);
+        if (CheckTerminal(world, events)) AdvanceDay(world, events, pending.XunStarted, pending.RemainingTaskIds.RemoveAt(0));
+    }
+
+    private void ResolveTasks(WorldMutation world, List<DomainEvent> events, GameClock xunStarted,
+        bool returningAfterDateAdvance = false, ImmutableArray<Guid>? remainingTasks = null)
+    {
+        var queue = remainingTasks ?? world.Simulation.Tasks
+            .Where(t => !returningAfterDateAdvance || t.Kind == PersonnelReturns.Kind && t.Due.DayNumber < world.Clock.DayNumber)
+            .OrderBy(t => t.Sequence).ThenBy(t => t.OriginSettlementId).ThenBy(t => t.OfficerId).ThenBy(t => t.Id)
+            .Select(t => t.Id).ToImmutableArray();
+        for (int index = 0; index < queue.Length; index++)
+        {
+            var task = world.Simulation.Tasks.FirstOrDefault(t => t.Id == queue[index]);
+            if (task is null) continue;
             var rule = rules.FindTask(task.Kind) ?? throw new InvalidOperationException($"Unsupported task '{task.Kind}'.");
             bool valid = TaskReferencesValid(world, task) && rule.Validate(world, task);
             if (valid && world.Clock.DayNumber < task.Due.DayNumber) continue;
+            if (valid && !returningAfterDateAdvance && rule.DecisionRecipient(world, task) is int recipient)
+            {
+                world.SetSimulation(world.Simulation with { Boundary = SimulationBoundary.AwaitingDecision,
+                    PendingDailyTask = new(xunStarted, recipient, queue.Skip(index)
+                        .Where(id => world.Simulation.Tasks.Any(t => t.Id == id)).ToImmutableArray()) });
+                return;
+            }
             world.SetSimulation(world.Simulation with { Tasks = world.Simulation.Tasks.Remove(task) });
             if (world.Officers.TryGetValue(task.OfficerId, out var officer))
                 world.Replace(officer with { Acted = true });

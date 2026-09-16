@@ -38,6 +38,13 @@ public sealed class SimulationEngine
         foreach (var task in world.Simulation.Tasks)
             if (rules.FindTask(task.Kind) is not TaskRule rule || !rule.HasValidPayload(task) || rule.DurationDays(task) != task.Due.DayNumber - task.Started.DayNumber)
                 throw new ArgumentException($"Unsupported or invalid task '{task.Kind}'.");
+        if (world.Simulation.PendingDailyTask is { } pending)
+        {
+            var task = world.Simulation.Tasks.Single(t => t.Id == pending.RemainingTaskIds[0]);
+            var mutation = world.BeginMutation(rules.Abilities);
+            if (rules.FindTask(task.Kind)!.DecisionRecipient(mutation, task) != pending.RespondingForceId)
+                throw new ArgumentException("Invalid daily task respondent.");
+        }
         if (world.Simulation.Boundary == SimulationBoundary.New)
         {
             _world.EnterExecution();
@@ -135,6 +142,12 @@ public sealed class SimulationEngine
             DevelopmentOutcome? development = null;
             switch (command)
             {
+                case RespondDailyTaskCommand response:
+                    var waiting = mutation.Simulation.PendingDailyTask!;
+                    if (waiting.RemainingTaskIds[0] != response.TaskId) return Reject(CommandRejection.InvalidDecision);
+                    _pipeline.Respond(mutation, response.Accept, events);
+                    ContinueXun(mutation, waiting.XunStarted, events);
+                    break;
                 case AllianceParticipationCommand participation:
                     var participationRejection = AllianceFormation.Respond(mutation, participation, _rules, events);
                     if (participationRejection != CommandRejection.None) return Reject(participationRejection);
@@ -304,6 +317,13 @@ public sealed class SimulationEngine
         if (_world.Simulation.Tasks.Any(t => t.Id == command.CommandId)) return CommandRejection.DuplicateCommandId;
         if (command.Sequence != _world.Simulation.NextSequence) return CommandRejection.WrongSequence;
         var sim = _world.Simulation;
+        if (sim.PendingDailyTask is { } daily)
+        {
+            if (command is not RespondDailyTaskCommand) return CommandRejection.DecisionPending;
+            return daily.RespondingForceId == command.IssuerId && sim.Controls.Any(c => c.ForceId == daily.RespondingForceId &&
+                c.Kind == ControllerKind.Player && c.ControllerId == context.ControllerId)
+                ? CommandRejection.None : CommandRejection.NotActiveController;
+        }
         if (sim.PendingAlliance is { } proposal)
         {
             if (command is not AllianceParticipationCommand) return CommandRejection.DecisionPending;
@@ -313,7 +333,7 @@ public sealed class SimulationEngine
                 ? CommandRejection.None : CommandRejection.NotActiveController;
         }
         if (sim.Boundary != SimulationBoundary.Stable) return CommandRejection.NotStable;
-        if (command is AllianceParticipationCommand) return CommandRejection.InvalidDecision;
+        if (command is AllianceParticipationCommand or RespondDailyTaskCommand) return CommandRejection.InvalidDecision;
         if (sim.ActiveControl >= sim.Controls.Length) return CommandRejection.NotActiveController;
         var seat = sim.Controls[sim.ActiveControl];
         return CorpsControl.Authorize(Snapshot, seat, context, command);
@@ -339,21 +359,27 @@ public sealed class SimulationEngine
         try
         {
             GameClock previous = _world.Clock;
-            GameClock next = previous.Advance();
             var mutation = _world.BeginMutation(_rules.Abilities);
             List<DomainEvent> events = [];
             MilitaryDiplomacy.BeginAdvance(mutation, _rules, events);
-            while (mutation.Clock != next && mutation.Simulation.Boundary != SimulationBoundary.Terminal)
-                _pipeline.AdvanceDay(mutation, events);
-            if (mutation.Simulation.Boundary != SimulationBoundary.Terminal)
-                _pipeline.Prepare(mutation, events);
+            ContinueXun(mutation, previous, events);
             AttackRequests.Cleanup(mutation, events);
             mutation.MaintainLeadership(events);
             _world.Commit(mutation);
-            if (mutation.Clock == next) events.Add(new XunAdvancedEvent(previous, mutation.Clock));
             return new(events.AsReadOnly(), Snapshot);
         }
         finally { _world.ExitExecution(); }
+    }
+
+    private void ContinueXun(WorldMutation mutation, GameClock previous, List<DomainEvent> events)
+    {
+        GameClock next = previous.Advance();
+        while (mutation.Clock != next && mutation.Simulation.Boundary != SimulationBoundary.Terminal &&
+            mutation.Simulation.PendingDailyTask is null)
+            _pipeline.AdvanceDay(mutation, events, previous);
+        if (mutation.Simulation.Boundary != SimulationBoundary.Terminal && mutation.Simulation.PendingDailyTask is null)
+            _pipeline.Prepare(mutation, events);
+        if (mutation.Clock == next) events.Add(new XunAdvancedEvent(previous, mutation.Clock));
     }
 }
 

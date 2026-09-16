@@ -9,6 +9,11 @@ public sealed record ControlSeat(string ControllerId, int ForceId, ControllerKin
 public readonly record struct CommandContext(string ControllerId);
 public sealed record RandomStreamState(string Name, ulong State);
 
+public sealed record DailyTaskDecision(
+    [property: JsonRequired] GameClock XunStarted,
+    [property: JsonRequired] int RespondingForceId,
+    [property: JsonRequired] ImmutableArray<Guid> RemainingTaskIds);
+
 public sealed record PersistentTask(Guid Id, string Kind, string ControllerId, int ForceId,
     int OfficerId, int OriginSettlementId, GameClock Started, GameClock Due, int ProgressDays, long Sequence)
 {
@@ -39,6 +44,7 @@ public sealed record SimulationState(GameClock Started, ulong InitialSeed)
 {
     [JsonRequired] public San9.Core.Domain.AllianceState? Alliance { get; init; }
     [JsonRequired] public AllianceProposal? PendingAlliance { get; init; }
+    [JsonRequired] public DailyTaskDecision? PendingDailyTask { get; init; }
     [JsonRequired] public ImmutableArray<San9.Core.Domain.AttackRequestState> AttackRequests { get; init; } = [];
     [JsonRequired] public int ComputerDamageBonusPercent { get; init; }
     [JsonRequired] public ulong RunSeed { get; init; } = InitialSeed;

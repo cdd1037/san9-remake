@@ -83,12 +83,28 @@ internal static class WorldInvariants
             sim.NextUnitId < 0 || sim.NextUnitId > (long)int.MaxValue + 1 || state.Units.Keys.Any(id => id >= sim.NextUnitId) ||
             sim.Controls.Any(c => string.IsNullOrWhiteSpace(c.ControllerId) || !Enum.IsDefined(c.Kind) || !state.Forces.ContainsKey(c.ForceId)) ||
             sim.Controls.Select(c => c.ForceId).Distinct().Count() != sim.Controls.Length ||
-            sim.Boundary != SimulationBoundary.Terminal && (!state.Clock.IsXunBoundary || sim.TerminalReason is not null) ||
+            sim.Boundary != SimulationBoundary.Terminal && (!state.Clock.IsXunBoundary && sim.PendingDailyTask is null || sim.TerminalReason is not null) ||
             sim.Boundary == SimulationBoundary.Terminal && (string.IsNullOrWhiteSpace(sim.TerminalReason) || !sim.Tasks.IsEmpty) ||
             sim.RandomStreams.Any(s => string.IsNullOrWhiteSpace(s.Name)) ||
             !sim.RandomStreams.Select(s => s.Name).SequenceEqual(sim.RandomStreams.Select(s => s.Name).Distinct().Order(StringComparer.Ordinal)))
             throw new ArgumentException("Invalid simulation boundary, control, sequence or random state.");
         AllianceFormation.ValidatePending(state);
+        if (sim.PendingDailyTask is { } pending)
+        {
+            _ = new GameClock(pending.XunStarted.Year, pending.XunStarted.Month, pending.XunStarted.Day);
+            if (!pending.XunStarted.IsXunBoundary || pending.XunStarted.DayNumber < sim.Started.DayNumber ||
+                state.Clock.DayNumber < pending.XunStarted.DayNumber || state.Clock.DayNumber >= pending.XunStarted.Advance().DayNumber ||
+                sim.ActiveControl != sim.Controls.Length || pending.RemainingTaskIds.IsDefaultOrEmpty ||
+                pending.RemainingTaskIds.Distinct().Count() != pending.RemainingTaskIds.Length ||
+                !sim.Tasks.Any(t => t.Id == pending.RemainingTaskIds[0] && t.Due.DayNumber <= state.Clock.DayNumber) ||
+                !sim.Controls.Any(c => c.ForceId == pending.RespondingForceId && c.Kind == ControllerKind.Player))
+                throw new ArgumentException("Invalid daily task decision.");
+            var ordered = sim.Tasks.Where(t => pending.RemainingTaskIds.Contains(t.Id))
+                .OrderBy(t => t.Sequence).ThenBy(t => t.OriginSettlementId).ThenBy(t => t.OfficerId).ThenBy(t => t.Id)
+                .Select(t => t.Id);
+            if (!ordered.SequenceEqual(pending.RemainingTaskIds))
+                throw new ArgumentException("Invalid remaining daily task order.");
+        }
         AttackRequests.Validate(state);
         if (sim.Tasks.Select(t => t.Id).Distinct().Count() != sim.Tasks.Length ||
             sim.Tasks.Select(t => t.OfficerId).Distinct().Count() != sim.Tasks.Length)

@@ -111,6 +111,12 @@ internal static class WorldInvariants
             throw new ArgumentException("Duplicate task identity or officer occupation.");
         foreach (var task in sim.Tasks)
         {
+            if (task.PrisonerReturn is { } mission && (task.Kind != PrisonerReturnDiplomacy.Kind || task.Gift is not null ||
+                !state.Forces.ContainsKey(mission.TargetForceId) || mission.TargetForceId == task.ForceId ||
+                !state.Officers.ContainsKey(mission.PrisonerId) || mission.Offer is { IsValid: false } ||
+                mission.Offer?.PrisonerId is int exchange && !state.Officers.ContainsKey(exchange) ||
+                mission.Offer?.TreasureId is int item && !state.Treasures.ContainsKey(item)))
+                throw new ArgumentException("Invalid prisoner return mission.");
             if (task.ResolutionStep < 0 || task.ResolutionStep > 0 &&
                 (sim.PendingDailyTask is not { } active || active.RemainingTaskIds[0] != task.Id || task.Due != state.Clock))
                 throw new ArgumentException("Invalid task resolution step.");

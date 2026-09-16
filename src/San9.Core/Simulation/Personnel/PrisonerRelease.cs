@@ -28,12 +28,13 @@ internal static class PrisonerRelease
 
     internal static CommandRejection Depart(WorldMutation world, int personId, int origin, Guid causeId, long sequence,
         PrisonerDepartureKind departure, int? releasingCaptor, PersonnelRulebook places, EconomyRulebook economy,
-        List<DomainEvent> events)
+        List<DomainEvent> events, WorldPosition? originPosition = null)
     {
         var person = world.Officers[personId];
         var home = person.OwnerId is int forceId ? world.Settlements.Values.Where(s => s.OwnerId == forceId &&
             s.CanHostPersons && s.Durability > 0 && places.Places.ContainsKey(s.Id))
-            .OrderBy(s => places.JourneyDays(origin, s.Id, PersonnelJourneyKind.Move)).ThenBy(s => s.Id).FirstOrDefault() : null;
+            .OrderBy(s => originPosition is { } position ? PersonnelRulebook.JourneyDays(position, places.Places[s.Id].Position)
+                : places.JourneyDays(origin, s.Id, PersonnelJourneyKind.Move)).ThenBy(s => s.Id).FirstOrDefault() : null;
         if (home is null && world.Forces.Values.Any(f => f.LeaderId == personId)) return CommandRejection.NoDestination;
         var destinations = home is null ? PersonnelExile.Destinations(world, origin, places) : [];
         if (home is null && destinations.Length == 0) return CommandRejection.NoDestination;
@@ -62,7 +63,8 @@ internal static class PrisonerRelease
             var previous = new PersistentTask(causeId, PersonnelReturns.Kind, control?.ControllerId ?? "system",
                 person.OwnerId.Value, personId, origin, world.Clock, world.Clock, 0, sequence);
             PersonnelReturns.Schedule(world, previous, personId, origin, home.Id,
-                places.JourneyDays(origin, home.Id, PersonnelJourneyKind.Move), false, events);
+                originPosition is { } field ? PersonnelRulebook.JourneyDays(field, places.Places[home.Id].Position)
+                    : places.JourneyDays(origin, home.Id, PersonnelJourneyKind.Move), false, events, originPosition);
         }
         EconomicCycle.UpdateTrust(world, economy, events);
         events.Add(departure switch

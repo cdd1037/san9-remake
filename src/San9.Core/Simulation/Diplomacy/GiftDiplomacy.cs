@@ -30,11 +30,11 @@ internal static class GiftDiplomacy
     private static ResourceKind Resource(GiftOffer offer) => offer.Kind == GiftKind.Money ? ResourceKind.Money : ResourceKind.Food;
     private static ResourceAccount Account(int force) => new(ResourceOwnerKind.Force, force);
 
-    private static bool Target(WorldMutation world, int force, int target) => force != target &&
+    internal static bool Target(WorldMutation world, int force, int target) => force != target &&
         world.Forces.TryGetValue(target, out var other) && !other.IsEliminated && other.LeaderId is int leader &&
         world.Officers.TryGetValue(leader, out var ruler) && ruler.IsServing && ruler.OwnerId == target;
 
-    private static bool Destination(WorldMutation world, int target, SimulationRules rules, out int placeId, out WorldPosition? position)
+    internal static bool Destination(WorldMutation world, int target, SimulationRules rules, out int placeId, out WorldPosition? position)
     {
         position = null;
         var ruler = world.Officers[world.Forces[target].LeaderId!.Value];

@@ -32,7 +32,8 @@ internal class SimulationRules
         : kind == AlienateStrategies.Kind ? new AlienateRule(this)
         : kind == SeizeStrategies.Kind ? new SeizeRule(this)
         : kind == GossipStrategies.Kind ? new GossipRule(this)
-        : kind == GiftDiplomacy.Kind ? new GiftRule(this) : null;
+        : kind == GiftDiplomacy.Kind ? new GiftRule(this)
+        : kind == PrisonerReturnDiplomacy.Kind ? new PrisonerReturnRule(this) : null;
     internal virtual void ApplyStage(ResolutionStage stage, WorldMutation world, List<DomainEvent> events) { }
 }
 
@@ -44,6 +45,9 @@ internal abstract class TaskRule
     internal virtual bool SupportsResolutionStep(int step) => step == 0;
     internal abstract bool Validate(WorldMutation world, PersistentTask task);
     internal virtual int? DecisionRecipient(WorldMutation world, PersistentTask task) => null;
+    internal virtual bool AcceptsResponse(WorldMutation world, PersistentTask task, RespondDailyTaskCommand response) => response.Offer is null;
+    internal virtual PersistentTask? ResolveResponse(WorldMutation world, PersistentTask task, RespondDailyTaskCommand response,
+        List<DomainEvent> events) => Resolve(world, task, response.Accept, events);
     internal virtual void CompleteDecision(WorldMutation world, PersistentTask task, bool accept, List<DomainEvent> events) =>
         throw new InvalidOperationException("Task does not accept a decision.");
     // The pipeline owns task lifetime. A returned task retains the mission and advances
@@ -153,7 +157,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
             world.SetSimulation(world.Simulation with { TerminalReason = "conquest" });
     }
 
-    internal void Respond(WorldMutation world, bool accept, List<DomainEvent> events)
+    internal void Respond(WorldMutation world, RespondDailyTaskCommand response, List<DomainEvent> events)
     {
         var pending = world.Simulation.PendingDailyTask!;
         var task = world.Simulation.Tasks.Single(t => t.Id == pending.RemainingTaskIds[0]);
@@ -162,7 +166,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         if (world.Officers.TryGetValue(task.OfficerId, out var officer)) world.Replace(officer with { Acted = true });
         if (TaskReferencesValid(world, task) && rule.Validate(world, task))
         {
-            ResolveStep(world, task, rule, accept, events);
+            ResolveStep(world, task, rule, response, events);
         }
         else
         {
@@ -210,10 +214,10 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         }
     }
 
-    private static bool ResolveStep(WorldMutation world, PersistentTask task, TaskRule rule, bool? accept, List<DomainEvent> events)
+    private static bool ResolveStep(WorldMutation world, PersistentTask task, TaskRule rule, RespondDailyTaskCommand? response, List<DomainEvent> events)
     {
         world.SetSimulation(world.Simulation with { Tasks = world.Simulation.Tasks.Remove(task) });
-        var next = rule.Resolve(world, task, accept, events);
+        var next = response is null ? rule.Resolve(world, task, null, events) : rule.ResolveResponse(world, task, response, events);
         if (next is null)
         {
             events.Add(new TaskCompletedEvent(task.Id, world.Clock));

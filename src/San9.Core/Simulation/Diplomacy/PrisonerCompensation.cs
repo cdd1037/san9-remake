@@ -53,6 +53,15 @@ internal static class PrisonerCompensation
         if (exchange is null && MilitaryDiplomacy.Relation(world, requester, target) >= 80)
             return new(CompensationKind.Free, 0, null, null);
         if (exchange is int id) return new(CompensationKind.Prisoner, 0, id, null);
+        return PaymentQuote(world, requester, envoy, target, prisoner, treasures);
+    }
+
+    internal static CompensationOffer PaymentQuote(WorldMutation world, int requester, int envoy, int target, int prisoner,
+        TreasureRulebook treasures)
+    {
+        var source = world.Forces[requester];
+        var other = world.Forces[target];
+        var refused = new CompensationOffer(CompensationKind.Refuse, 0, null, null);
         uint amount = Value(world, requester, envoy, target, prisoner);
         if (DiplomacyMath.CanQuotePrisonerRansom(source.Money, amount))
             return new(CompensationKind.Money, amount, null, null);

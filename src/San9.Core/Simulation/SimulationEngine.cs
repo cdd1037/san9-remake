@@ -66,6 +66,19 @@ public sealed class SimulationEngine
 
     public IReadOnlyList<DomainEvent> InitialEvents { get; } = Array.Empty<DomainEvent>();
     public WorldSnapshot Snapshot => _world.CreateSnapshot();
+    public PrisonerReturnPrompt? GetPrisonerReturnPrompt()
+    {
+        if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
+        if (_world.Simulation.PendingDailyTask is not { } waiting) return null;
+        var task = _world.Simulation.Tasks.Single(t => t.Id == waiting.RemainingTaskIds[0]);
+        return task.PrisonerReturn is { } mission ? new(task.Id, task.ResolutionStep, waiting.RespondingForceId,
+            task.ForceId, mission.TargetForceId, mission.PrisonerId, mission.Offer) : null;
+    }
+    public CommandAdvice GetPrisonerReturnAdvice(int forceId, int officerId, int targetForceId, int prisonerId)
+    {
+        if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
+        return PrisonerReturnDiplomacy.Advice(_world.BeginMutation(_rules.Abilities), forceId, officerId, targetForceId, prisonerId, _rules);
+    }
     public CommandAdvice GetGiftAdvice(int forceId, int officerId, int targetForceId, GiftOffer offer)
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
@@ -149,6 +162,10 @@ public sealed class SimulationEngine
             DevelopmentOutcome? development = null;
             switch (command)
             {
+                case ReturnPrisonerCommand prisonerReturn:
+                    var prisonerRejection = PrisonerReturnDiplomacy.Start(mutation, context, prisonerReturn, _rules, events);
+                    if (prisonerRejection != CommandRejection.None) return Reject(prisonerRejection);
+                    break;
                 case GiftCommand gift:
                     var giftRejection = GiftDiplomacy.Start(mutation, context, gift, _rules, events);
                     if (giftRejection != CommandRejection.None) return Reject(giftRejection);
@@ -158,7 +175,10 @@ public sealed class SimulationEngine
                     if (waiting.RemainingTaskIds[0] != response.TaskId || response.Step !=
                         mutation.Simulation.Tasks.Single(t => t.Id == response.TaskId).ResolutionStep)
                         return Reject(CommandRejection.InvalidDecision);
-                    _pipeline.Respond(mutation, response.Accept, events);
+                    var respondingTask = mutation.Simulation.Tasks.Single(t => t.Id == response.TaskId);
+                    if (!_rules.FindTask(respondingTask.Kind)!.AcceptsResponse(mutation, respondingTask, response))
+                        return Reject(CommandRejection.InvalidDecision);
+                    _pipeline.Respond(mutation, response, events);
                     ContinueXun(mutation, waiting.XunStarted, events);
                     break;
                 case AllianceParticipationCommand participation:

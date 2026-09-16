@@ -4,12 +4,16 @@ namespace San9.Core.Simulation;
 
 public sealed record RespondDailyTaskCommand(Guid CommandId, int IssuerId, long Sequence, Guid TaskId,
     [property: JsonRequired] int Step, bool Accept)
-    : GameCommand(CommandId, IssuerId, Sequence);
+    : GameCommand(CommandId, IssuerId, Sequence)
+{
+    [JsonRequired] public CompensationOffer? Offer { get; init; }
+}
 
 [System.Text.Json.Serialization.JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(WaitCommand), "wait")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(RespondDailyTaskCommand), "respond-daily-task")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(GiftCommand), "gift")]
+[JsonDerivedType(typeof(ReturnPrisonerCommand), "return-prisoner")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(AllianceParticipationCommand), "alliance-participation")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(BurnCommand), "strategy-burn")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(AlienateCommand), "strategy-alienate")]

@@ -72,6 +72,9 @@ public sealed class GameSession
         return recording;
     }
     public WorldSnapshot Snapshot => _simulation.Snapshot;
+    public PrisonerReturnPrompt? GetPrisonerReturnPrompt() => _simulation.GetPrisonerReturnPrompt();
+    public CommandAdvice GetPrisonerReturnAdvice(int forceId, int officerId, int targetForceId, int prisonerId) =>
+        _simulation.GetPrisonerReturnAdvice(forceId, officerId, targetForceId, prisonerId);
     public CommandAdvice GetGiftAdvice(int forceId, int officerId, int targetForceId, GiftOffer offer) =>
         _simulation.GetGiftAdvice(forceId, officerId, targetForceId, offer);
     public AllianceFormationCandidates GetAllianceCandidates() => _simulation.GetAllianceCandidates();

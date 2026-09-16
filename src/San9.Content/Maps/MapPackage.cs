@@ -1,12 +1,13 @@
 using San9.Content.Packages;
 using San9.Content.Images;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace San9.Content.Maps;
 
 public sealed record MapSquare(int Terrain, int Elevation, int ElevationMask, int RegionId)
 {
-    [System.Text.Json.Serialization.JsonRequired]
+    [JsonRequired]
     public bool HideRegionName { get; init; }
 }
 public sealed record MapSeason(string Id, ImageAsset[] Textures);
@@ -20,8 +21,8 @@ public sealed record MapFlag(int X, int Y);
 public sealed record MapBuilding(int Id, int X, int Y, int FixedType, int CompositionId, MapSprite[] Sprites);
 public sealed record MapComposition(int Id, MapCompositionPart[] Parts)
 {
-    [System.Text.Json.Serialization.JsonRequired] public MapGuard[] Guards { get; init; } = [];
-    [System.Text.Json.Serialization.JsonRequired] public MapFlag[] Flags { get; init; } = [];
+    [JsonRequired] public MapGuard[] Guards { get; init; } = [];
+    [JsonRequired] public MapFlag[] Flags { get; init; } = [];
 }
 public sealed record MapCompositionPart(bool PaletteAlpha, bool DevelopmentVariant, int ResourceId, int X, int Y);
 public sealed record MapAnimationClip(string Id, string[] Frames, int FrameMilliseconds, Dictionary<string, string[]> SeasonFrames);
@@ -36,7 +37,7 @@ public sealed record MapPackage(
     ContentSource[] Sources, MapAnimations Animations, MapSprite[] Boundaries)
 {
     public byte[] MinimapColors { get; init; } = new byte[32];
-    [System.Text.Json.Serialization.JsonRequired] public MapBuildingType[] BuildingTypes { get; init; } = [];
+    [JsonRequired] public MapBuildingType[] BuildingTypes { get; init; } = [];
 }
 
 public static class MapPackageFiles

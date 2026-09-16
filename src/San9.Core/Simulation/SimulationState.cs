@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Text.Json.Serialization;
 
 namespace San9.Core.Simulation;
 
@@ -11,42 +12,42 @@ public sealed record RandomStreamState(string Name, ulong State);
 public sealed record PersistentTask(Guid Id, string Kind, string ControllerId, int ForceId,
     int OfficerId, int OriginSettlementId, GameClock Started, GameClock Due, int ProgressDays, long Sequence)
 {
-    [System.Text.Json.Serialization.JsonRequired] public PersonnelJourney? Journey { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public ReinforcementTroops? Reinforcements { get; init; }
+    [JsonRequired] public PersonnelJourney? Journey { get; init; }
+    [JsonRequired] public ReinforcementTroops? Reinforcements { get; init; }
 }
 
 public sealed record ReinforcementTroops(uint Soldiers, int Morale, int DemobilizationCityId);
 
 public sealed record PersonnelJourney(int DestinationPlaceId, int? TargetOfficerId, int? SuccessRoll)
 {
-    [System.Text.Json.Serialization.JsonRequired] public San9.Core.Domain.WorldPosition? DestinationPosition { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public UnitStrategyMission? UnitStrategy { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public BurnMission? Burn { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public SeizeMission? Seize { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public GossipMission? Gossip { get; init; }
+    [JsonRequired] public San9.Core.Domain.WorldPosition? DestinationPosition { get; init; }
+    [JsonRequired] public UnitStrategyMission? UnitStrategy { get; init; }
+    [JsonRequired] public BurnMission? Burn { get; init; }
+    [JsonRequired] public SeizeMission? Seize { get; init; }
+    [JsonRequired] public GossipMission? Gossip { get; init; }
     public PersonnelReturnLeg? ReturnLeg { get; init; }
     public bool? AcceptRecruitment { get; init; }
 }
 public sealed record PersonnelReturnLeg(int OriginPlaceId, int CountdownDays, bool AfterDailyCommands)
 {
-    [System.Text.Json.Serialization.JsonRequired] public San9.Core.Domain.WorldPosition? OriginPosition { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public int? CorpsId { get; init; }
+    [JsonRequired] public San9.Core.Domain.WorldPosition? OriginPosition { get; init; }
+    [JsonRequired] public int? CorpsId { get; init; }
 }
 
 /// <summary>Authoritative scheduling state; immutable and included in every world transaction.</summary>
 public sealed record SimulationState(GameClock Started, ulong InitialSeed)
 {
-    [System.Text.Json.Serialization.JsonRequired] public San9.Core.Domain.AllianceState? Alliance { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public AllianceProposal? PendingAlliance { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<San9.Core.Domain.AttackRequestState> AttackRequests { get; init; } = [];
-    [System.Text.Json.Serialization.JsonRequired] public int ComputerDamageBonusPercent { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public ulong RunSeed { get; init; } = InitialSeed;
+    [JsonRequired] public San9.Core.Domain.AllianceState? Alliance { get; init; }
+    [JsonRequired] public AllianceProposal? PendingAlliance { get; init; }
+    [JsonRequired] public ImmutableArray<San9.Core.Domain.AttackRequestState> AttackRequests { get; init; } = [];
+    [JsonRequired] public int ComputerDamageBonusPercent { get; init; }
+    [JsonRequired] public ulong RunSeed { get; init; } = InitialSeed;
     public SimulationBoundary Boundary { get; init; }
     public string? TerminalReason { get; init; }
     public ImmutableArray<ControlSeat> Controls { get; init; } = [];
     public int ActiveControl { get; init; }
     public long NextSequence { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public long NextUnitId { get; init; }
+    [JsonRequired] public long NextUnitId { get; init; }
     public ImmutableArray<PersistentTask> Tasks { get; init; } = [];
     public ImmutableArray<RandomStreamState> RandomStreams { get; init; } = [];
 }

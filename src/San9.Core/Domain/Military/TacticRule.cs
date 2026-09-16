@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Text.Json.Serialization;
 
 namespace San9.Core.Domain;
 
@@ -14,9 +15,9 @@ public enum TacticEffect
 public sealed record TacticRule(int Id, int? Category, TacticEffect Effect, int Power, int MinimumInterval,
     int TrainingRequirement, bool Selectable, bool AffectsFacilities, ImmutableArray<int> CompatibleFormations)
 {
-    [System.Text.Json.Serialization.JsonRequired] public int EffectRadius { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public int? ContactRange { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public FacilityAttackModifier? FacilityAttack { get; init; }
+    [JsonRequired] public int EffectRadius { get; init; }
+    [JsonRequired] public int? ContactRange { get; init; }
+    [JsonRequired] public FacilityAttackModifier? FacilityAttack { get; init; }
     internal void Validate(IReadOnlyDictionary<int, FormationRule> formations)
     {
         if (Id < 0 || EffectRadius < 0 || ContactRange is <= 0 || ContactRange is not null && Effect != TacticEffect.Martial || Category is < 0 or > 8 || !Enum.IsDefined(Effect) || Power < 0 || MinimumInterval < 0 ||

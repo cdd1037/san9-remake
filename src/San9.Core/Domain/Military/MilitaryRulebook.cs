@@ -1,37 +1,38 @@
 using System.Collections.Immutable;
+using System.Text.Json.Serialization;
 
 namespace San9.Core.Domain;
 
 public sealed record FormationRule(int Id, int MovementBudget, int DeploymentCost, uint SoldierCapacity,
     int OfficerCapacity, Footprint Footprint, TravelMode TravelMode)
 {
-    [System.Text.Json.Serialization.JsonRequired] public int? MovementStepCost { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public FormationTactics? Tactics { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<int> MartialTacticVulnerabilities { get; init; } = [];
-    [System.Text.Json.Serialization.JsonRequired] public int? RequiredTacticId { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public int? AutomaticTacticLearningId { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public CombatProfile? Combat { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public OrdinaryAttack? Attack { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<BattleRank> CaptureRanks { get; init; } = [];
-    [System.Text.Json.Serialization.JsonRequired] public bool DoublesCapture { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public bool GainsDailyCombatProficiency { get; init; } = true;
-    [System.Text.Json.Serialization.JsonRequired] public bool HalvesHostileStrategyChance { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public bool ImmuneToDisorder { get; init; }
+    [JsonRequired] public int? MovementStepCost { get; init; }
+    [JsonRequired] public FormationTactics? Tactics { get; init; }
+    [JsonRequired] public ImmutableArray<int> MartialTacticVulnerabilities { get; init; } = [];
+    [JsonRequired] public int? RequiredTacticId { get; init; }
+    [JsonRequired] public int? AutomaticTacticLearningId { get; init; }
+    [JsonRequired] public CombatProfile? Combat { get; init; }
+    [JsonRequired] public OrdinaryAttack? Attack { get; init; }
+    [JsonRequired] public ImmutableArray<BattleRank> CaptureRanks { get; init; } = [];
+    [JsonRequired] public bool DoublesCapture { get; init; }
+    [JsonRequired] public bool GainsDailyCombatProficiency { get; init; } = true;
+    [JsonRequired] public bool HalvesHostileStrategyChance { get; init; }
+    [JsonRequired] public bool ImmuneToDisorder { get; init; }
 }
 
 public sealed record OrdinaryAttack(int Range, bool DamagesWalls)
 {
-    [System.Text.Json.Serialization.JsonRequired] public int ElevationBonusPerLevel { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public int MaximumElevationBonus { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public bool RequiresWaterOrHarbor { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public bool RangedSiege { get; init; }
+    [JsonRequired] public int ElevationBonusPerLevel { get; init; }
+    [JsonRequired] public int MaximumElevationBonus { get; init; }
+    [JsonRequired] public bool RequiresWaterOrHarbor { get; init; }
+    [JsonRequired] public bool RangedSiege { get; init; }
 }
 
 public sealed record FormationTactics(int OpportunityChance, int CounterChance, int LinkMultiplier,
     ImmutableArray<int> FavoredCategories, ImmutableArray<int> AutomaticTactics)
 {
-    [System.Text.Json.Serialization.JsonRequired] public int ConfusionResistanceChance { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public bool BypassesPassiveCounters { get; init; }
+    [JsonRequired] public int ConfusionResistanceChance { get; init; }
+    [JsonRequired] public bool BypassesPassiveCounters { get; init; }
 }
 
 public sealed record CombatProfile(int AgainstUnits, int AgainstGarrison, int AgainstWalls, int Defense, int WoundedPercent)
@@ -44,13 +45,13 @@ public sealed record CombatProfile(int AgainstUnits, int AgainstGarrison, int Ag
 }
 public sealed record BattlefieldPlace(int Id, WorldPosition Position, Footprint Footprint)
 {
-    [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<int> EnabledTacticIds { get; init; } = [];
-    [System.Text.Json.Serialization.JsonRequired] public int? FacilityTypeId { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public bool CanDemolish { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public int? WoundedRecovery { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public CombatProfile? Combat { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public OrdinaryAttack? Attack { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public bool DestroyedAtZeroDurability { get; init; }
+    [JsonRequired] public ImmutableArray<int> EnabledTacticIds { get; init; } = [];
+    [JsonRequired] public int? FacilityTypeId { get; init; }
+    [JsonRequired] public bool CanDemolish { get; init; }
+    [JsonRequired] public int? WoundedRecovery { get; init; }
+    [JsonRequired] public CombatProfile? Combat { get; init; }
+    [JsonRequired] public OrdinaryAttack? Attack { get; init; }
+    [JsonRequired] public bool DestroyedAtZeroDurability { get; init; }
 
     public IEnumerable<WorldPosition> Entrances(Footprint footprint)
     {
@@ -72,21 +73,21 @@ public sealed record MilitaryDefinition(int Width, int Height, ImmutableArray<in
     ImmutableArray<TerrainPassage> Terrains, ImmutableArray<FormationRule> Formations,
     ImmutableArray<BattlefieldPlace> Places)
 {
-    [System.Text.Json.Serialization.JsonRequired] public int? UnformedFormationId { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public int PolicyRadius { get; init; } = 50;
-    [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<FacilityRule> Facilities { get; init; } = [];
-    [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<ConstructionSite> ConstructionSites { get; init; } = [];
-    [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<int> Elevations { get; init; } = [];
-    [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<TrapTerrainRule> TrapTerrains { get; init; } = [];
-    [System.Text.Json.Serialization.JsonRequired] public HigherGroundTrapRule? HigherGroundTrap { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<int?> RegionIds { get; init; } = [];
-    [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<TerritoryExits> TerritoryExits { get; init; } = [];
-    [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<TacticRule> Tactics { get; init; } = [];
-    [System.Text.Json.Serialization.JsonRequired] public TacticLinkRules LinkRules { get; init; } = TacticLinkRules.Empty;
-    [System.Text.Json.Serialization.JsonRequired] public CityInfluenceRule? CityInfluence { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public BattlefieldGeography Geography { get; init; } = BattlefieldGeography.Empty;
-    [System.Text.Json.Serialization.JsonRequired] public RockfallRule? Rockfall { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<MapCell> BlockedCells { get; init; } = [];
+    [JsonRequired] public int? UnformedFormationId { get; init; }
+    [JsonRequired] public int PolicyRadius { get; init; } = 50;
+    [JsonRequired] public ImmutableArray<FacilityRule> Facilities { get; init; } = [];
+    [JsonRequired] public ImmutableArray<ConstructionSite> ConstructionSites { get; init; } = [];
+    [JsonRequired] public ImmutableArray<int> Elevations { get; init; } = [];
+    [JsonRequired] public ImmutableArray<TrapTerrainRule> TrapTerrains { get; init; } = [];
+    [JsonRequired] public HigherGroundTrapRule? HigherGroundTrap { get; init; }
+    [JsonRequired] public ImmutableArray<int?> RegionIds { get; init; } = [];
+    [JsonRequired] public ImmutableArray<TerritoryExits> TerritoryExits { get; init; } = [];
+    [JsonRequired] public ImmutableArray<TacticRule> Tactics { get; init; } = [];
+    [JsonRequired] public TacticLinkRules LinkRules { get; init; } = TacticLinkRules.Empty;
+    [JsonRequired] public CityInfluenceRule? CityInfluence { get; init; }
+    [JsonRequired] public BattlefieldGeography Geography { get; init; } = BattlefieldGeography.Empty;
+    [JsonRequired] public RockfallRule? Rockfall { get; init; }
+    [JsonRequired] public ImmutableArray<MapCell> BlockedCells { get; init; } = [];
 }
 
 public sealed partial class MilitaryRulebook
@@ -350,8 +351,8 @@ public enum MilitaryOrderKind { Move, Return, Transport, AttackUnit, AttackSettl
 public sealed record ConstructionPlan(int RegionId, int FacilityTypeId, WorldPosition Position, int LeaderId);
 public sealed record MilitaryOrder(MilitaryOrderKind Kind, WorldPosition? Position, int? SettlementId)
 {
-    [System.Text.Json.Serialization.JsonRequired] public ConstructionPlan? Construction { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public int? UnitId { get; init; }
+    [JsonRequired] public ConstructionPlan? Construction { get; init; }
+    [JsonRequired] public int? UnitId { get; init; }
     [System.Text.Json.Serialization.JsonIgnore] public bool IsAttack => Kind is MilitaryOrderKind.AttackUnit or MilitaryOrderKind.AttackSettlement;
     [System.Text.Json.Serialization.JsonIgnore] public bool IsValid => Enum.IsDefined(Kind) && (Kind == MilitaryOrderKind.Construct || Construction is null) && (Kind switch
     {

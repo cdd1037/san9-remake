@@ -1,53 +1,55 @@
+using System.Text.Json.Serialization;
+
 namespace San9.Content.Scenarios;
 
 public sealed record ForceInitialState(int Id, string NameKey, int ColorCode, uint Money, uint Food, int Trust)
 {
-    [System.Text.Json.Serialization.JsonRequired] public int BaseTrust { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public System.Collections.Immutable.ImmutableArray<int> ProvidedTactics { get; init; } = [];
-    [System.Text.Json.Serialization.JsonRequired] public bool IsBarbarian { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public int FlagGlyph { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public int? LeaderId { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public int? AdviserId { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public int? RankId { get; init; }
+    [JsonRequired] public int BaseTrust { get; init; }
+    [JsonRequired] public System.Collections.Immutable.ImmutableArray<int> ProvidedTactics { get; init; } = [];
+    [JsonRequired] public bool IsBarbarian { get; init; }
+    [JsonRequired] public int FlagGlyph { get; init; }
+    [JsonRequired] public int? LeaderId { get; init; }
+    [JsonRequired] public int? AdviserId { get; init; }
+    [JsonRequired] public int? RankId { get; init; }
 }
 public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId, int X, int Y,
     uint Soldiers, int Durability, int MaxDurability, int Morale, string[] Icons)
 {
-    [System.Text.Json.Serialization.JsonRequired] public uint Wounded { get; init; }
+    [JsonRequired] public uint Wounded { get; init; }
     [System.Text.Json.Serialization.JsonIgnore] public San9.Core.Domain.MapCell Cell => new(X, Y);
     [System.Text.Json.Serialization.JsonIgnore] public San9.Core.Domain.WorldPosition Position => San9.Core.Domain.MapCoordinates.Center(Cell);
-    [System.Text.Json.Serialization.JsonRequired] public uint SoldierCapacity { get; init; } = 500000;
-    [System.Text.Json.Serialization.JsonRequired] public bool ConsumesFood { get; init; } = true;
-    [System.Text.Json.Serialization.JsonRequired] public bool CanHostPersons { get; init; } = true;
-    [System.Text.Json.Serialization.JsonRequired] public San9.Core.Domain.SettlementKind Kind { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public int Appearance { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public int? CorpsId { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public bool IsFacilityListEntry { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public int PublicOrder { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public int Commerce { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public int MaxCommerce { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public int Cultivation { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public int MaxCultivation { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public uint Population { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public uint DraftPopulation { get; init; }
+    [JsonRequired] public uint SoldierCapacity { get; init; } = 500000;
+    [JsonRequired] public bool ConsumesFood { get; init; } = true;
+    [JsonRequired] public bool CanHostPersons { get; init; } = true;
+    [JsonRequired] public San9.Core.Domain.SettlementKind Kind { get; init; }
+    [JsonRequired] public int Appearance { get; init; }
+    [JsonRequired] public int? CorpsId { get; init; }
+    [JsonRequired] public bool IsFacilityListEntry { get; init; }
+    [JsonRequired] public int PublicOrder { get; init; }
+    [JsonRequired] public int Commerce { get; init; }
+    [JsonRequired] public int MaxCommerce { get; init; }
+    [JsonRequired] public int Cultivation { get; init; }
+    [JsonRequired] public int MaxCultivation { get; init; }
+    [JsonRequired] public uint Population { get; init; }
+    [JsonRequired] public uint DraftPopulation { get; init; }
 }
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
     public const int CurrentSchemaVersion = 54;
-    [System.Text.Json.Serialization.JsonRequired] public System.Collections.Immutable.ImmutableArray<AttackRequestInitialState> AttackRequests { get; init; } = [];
-    [System.Text.Json.Serialization.JsonRequired] public Dictionary<int, int> CityProvinceIds { get; init; } = [];
-    [System.Text.Json.Serialization.JsonRequired] public San9.Core.Domain.AllianceState? Alliance { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public Dictionary<int, string> FacilityNameSuffixKeys { get; init; } = [];
-    [System.Text.Json.Serialization.JsonRequired] public San9.Core.Domain.MilitaryDefinition? Military { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Domain.CityConnection> CityConnections { get; init; } = [];
-    [System.Text.Json.Serialization.JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Domain.PersonPlace> UnbuiltPlaces { get; init; } = [];
-    [System.Text.Json.Serialization.JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Domain.DomesticPair> DomesticPairs { get; init; } = [];
-    [System.Text.Json.Serialization.JsonRequired] public int? ImperialSealId { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public int? EmperorId { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public OfficerInitialState[] Officers { get; init; } = [];
-    [System.Text.Json.Serialization.JsonRequired] public San9.Core.Domain.UnitState[] Units { get; init; } = [];
-    [System.Text.Json.Serialization.JsonRequired] public InformationDefinitions Information { get; init; } = InformationDefinitions.Empty;
+    [JsonRequired] public System.Collections.Immutable.ImmutableArray<AttackRequestInitialState> AttackRequests { get; init; } = [];
+    [JsonRequired] public Dictionary<int, int> CityProvinceIds { get; init; } = [];
+    [JsonRequired] public San9.Core.Domain.AllianceState? Alliance { get; init; }
+    [JsonRequired] public Dictionary<int, string> FacilityNameSuffixKeys { get; init; } = [];
+    [JsonRequired] public San9.Core.Domain.MilitaryDefinition? Military { get; init; }
+    [JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Domain.CityConnection> CityConnections { get; init; } = [];
+    [JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Domain.PersonPlace> UnbuiltPlaces { get; init; } = [];
+    [JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Domain.DomesticPair> DomesticPairs { get; init; } = [];
+    [JsonRequired] public int? ImperialSealId { get; init; }
+    [JsonRequired] public int? EmperorId { get; init; }
+    [JsonRequired] public OfficerInitialState[] Officers { get; init; } = [];
+    [JsonRequired] public San9.Core.Domain.UnitState[] Units { get; init; } = [];
+    [JsonRequired] public InformationDefinitions Information { get; init; } = InformationDefinitions.Empty;
     public void Validate()
     {
         if (SchemaVersion != CurrentSchemaVersion || string.IsNullOrWhiteSpace(ScenarioId) || Year < 1 || Month is < 1 or > 12 || Day is < 1 or > 30 ||

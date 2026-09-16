@@ -1,7 +1,9 @@
+using System.Text.Json.Serialization;
+
 namespace San9.Content.Scenarios;
 
 public sealed record AttackRequestInitialState(
-    [property: System.Text.Json.Serialization.JsonRequired] int RequestedForceId,
-    [property: System.Text.Json.Serialization.JsonRequired] int RequesterForceId,
-    [property: System.Text.Json.Serialization.JsonRequired] int TargetSettlementId,
-    [property: System.Text.Json.Serialization.JsonRequired] int RemainingXun);
+    [property: JsonRequired] int RequestedForceId,
+    [property: JsonRequired] int RequesterForceId,
+    [property: JsonRequired] int TargetSettlementId,
+    [property: JsonRequired] int RemainingXun);

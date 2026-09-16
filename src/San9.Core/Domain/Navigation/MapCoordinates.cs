@@ -1,14 +1,16 @@
+using System.Text.Json.Serialization;
+
 namespace San9.Core.Domain;
 
 /// <summary>A terrain cell, independent of map dimensions and display pixels.</summary>
 public readonly record struct MapCell(
-    [property: System.Text.Json.Serialization.JsonRequired] int X,
-    [property: System.Text.Json.Serialization.JsonRequired] int Y);
+    [property: JsonRequired] int X,
+    [property: JsonRequired] int Y);
 
 /// <summary>A position measured in fine map units, not terrain cells or pixels.</summary>
 public readonly record struct WorldPosition(
-    [property: System.Text.Json.Serialization.JsonRequired] int X,
-    [property: System.Text.Json.Serialization.JsonRequired] int Y);
+    [property: JsonRequired] int X,
+    [property: JsonRequired] int Y);
 
 public static class MapCoordinates
 {

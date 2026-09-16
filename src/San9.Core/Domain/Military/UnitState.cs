@@ -1,36 +1,38 @@
+using System.Text.Json.Serialization;
+
 namespace San9.Core.Domain;
 
 public enum UnitOrderClass { None, NonMilitary, Military }
 public enum UnitCondition { Normal, Engaged, Trap, Disguised, NoFormation, Confused, Routed, HighSpirits }
 
 // Active field forces are separate from settlement garrisons. Movement rules are separate use cases.
-public sealed record UnitState(int Id, int OwnerId, [property: System.Text.Json.Serialization.JsonRequired] WorldPosition Position, uint Soldiers)
+public sealed record UnitState(int Id, int OwnerId, [property: JsonRequired] WorldPosition Position, uint Soldiers)
 {
-    [System.Text.Json.Serialization.JsonRequired] public System.Collections.Immutable.ImmutableDictionary<int, BattleRank> MemberRanks { get; init; } = System.Collections.Immutable.ImmutableDictionary<int, BattleRank>.Empty;
-    [System.Text.Json.Serialization.JsonRequired] public int? FormationId { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public int Morale { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public uint Wounded { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public uint CargoMoney { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public uint CargoFood { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public MilitaryOrder? Order { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public MovementPlan? MovementPlan { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public UnitPolicies Policies { get; init; } = new();
-    [System.Text.Json.Serialization.JsonRequired] public int? CommanderId { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public System.Collections.Immutable.ImmutableArray<int> MemberOrder { get; init; } = [];
-    [System.Text.Json.Serialization.JsonRequired] public int? EngagementTargetId { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public bool AwaitingPostAction { get; init; }
+    [JsonRequired] public System.Collections.Immutable.ImmutableDictionary<int, BattleRank> MemberRanks { get; init; } = System.Collections.Immutable.ImmutableDictionary<int, BattleRank>.Empty;
+    [JsonRequired] public int? FormationId { get; init; }
+    [JsonRequired] public int Morale { get; init; }
+    [JsonRequired] public uint Wounded { get; init; }
+    [JsonRequired] public uint CargoMoney { get; init; }
+    [JsonRequired] public uint CargoFood { get; init; }
+    [JsonRequired] public MilitaryOrder? Order { get; init; }
+    [JsonRequired] public MovementPlan? MovementPlan { get; init; }
+    [JsonRequired] public UnitPolicies Policies { get; init; } = new();
+    [JsonRequired] public int? CommanderId { get; init; }
+    [JsonRequired] public System.Collections.Immutable.ImmutableArray<int> MemberOrder { get; init; } = [];
+    [JsonRequired] public int? EngagementTargetId { get; init; }
+    [JsonRequired] public bool AwaitingPostAction { get; init; }
     [System.Text.Json.Serialization.JsonIgnore] public MilitaryOrder? EffectiveOrder => Condition == UnitCondition.Disguised
         ? ServicePlaceId is int home ? new(MilitaryOrderKind.Return, null, home) : null
         : EngagementTargetId is int target ? new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = target } : Order;
     [System.Text.Json.Serialization.JsonIgnore] public MapCell Cell => MapCoordinates.Cell(Position);
-    [System.Text.Json.Serialization.JsonRequired] public int? CorpsId { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public int? ServicePlaceId { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public bool IsEmbedded { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public bool IsPersonnel { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public UnitOrderClass OrderClass { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public UnitCondition Condition { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public int ConditionDaysRemaining { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public bool HighSpiritsMoralePenaltyPending { get; init; }
+    [JsonRequired] public int? CorpsId { get; init; }
+    [JsonRequired] public int? ServicePlaceId { get; init; }
+    [JsonRequired] public bool IsEmbedded { get; init; }
+    [JsonRequired] public bool IsPersonnel { get; init; }
+    [JsonRequired] public UnitOrderClass OrderClass { get; init; }
+    [JsonRequired] public UnitCondition Condition { get; init; }
+    [JsonRequired] public int ConditionDaysRemaining { get; init; }
+    [JsonRequired] public bool HighSpiritsMoralePenaltyPending { get; init; }
     [System.Text.Json.Serialization.JsonIgnore]
     public UnitOrderClass EffectiveOrderClass => Condition is UnitCondition.Disguised or UnitCondition.Routed
         ? UnitOrderClass.Military : OrderClass;

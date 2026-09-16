@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Text.Json.Serialization;
 
 namespace San9.Core.Domain;
 
@@ -14,13 +15,13 @@ public readonly record struct OfficerAbilities(int War, int Intelligence, int Po
 /// detention ownership is determined by the location. Names belong to content definitions.</summary>
 public sealed record OfficerState(int Id, int? OwnerId, int? SettlementId, OfficerAbilities BaseAbilities, bool Acted)
 {
-    [System.Text.Json.Serialization.JsonRequired] public int? UnitId { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public int Affinity { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public int TacticLinkBonus { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<int> MasteredCategories { get; init; } = [];
+    [JsonRequired] public int? UnitId { get; init; }
+    [JsonRequired] public int Affinity { get; init; }
+    [JsonRequired] public int TacticLinkBonus { get; init; }
+    [JsonRequired] public ImmutableArray<int> MasteredCategories { get; init; } = [];
     public ImmutableArray<int> LearnedTactics { get; init; } = [];
-    [System.Text.Json.Serialization.JsonRequired] public int? EquippedTacticId { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public int TacticCooldown { get; init; }
+    [JsonRequired] public int? EquippedTacticId { get; init; }
+    [JsonRequired] public int TacticCooldown { get; init; }
     public ImmutableArray<int> TacticProficiencies { get; init; } = [0, 0, 0, 0, 0, 0, 0, 0, 0];
     public int? StatusStartYear { get; init; }
     public int? ParentId { get; init; }
@@ -33,11 +34,11 @@ public sealed record OfficerState(int Id, int? OwnerId, int? SettlementId, Offic
     public int? RegionId { get; init; }
     public int BirthYear { get; init; }
     public int? OfficeId { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public bool IsCommander { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public ImmutableDictionary<int, int> ForceLoyalties { get; init; } = ImmutableDictionary<int, int>.Empty;
-    [System.Text.Json.Serialization.JsonRequired] public int Righteousness { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public bool RewardedThisXun { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public bool HasRecruitmentPoliticsBonus { get; init; }
+    [JsonRequired] public bool IsCommander { get; init; }
+    [JsonRequired] public ImmutableDictionary<int, int> ForceLoyalties { get; init; } = ImmutableDictionary<int, int>.Empty;
+    [JsonRequired] public int Righteousness { get; init; }
+    [JsonRequired] public bool RewardedThisXun { get; init; }
+    [JsonRequired] public bool HasRecruitmentPoliticsBonus { get; init; }
     [System.Text.Json.Serialization.JsonIgnore] public int Loyalty => OwnerId is int owner ? LoyaltyTo(owner) : 0;
 
     public int LoyaltyTo(int forceId) => ForceLoyalties.GetValueOrDefault(forceId);

@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using San9.Core.Domain;
 
 namespace San9.Content.Scenarios;
@@ -5,19 +6,19 @@ namespace San9.Content.Scenarios;
 public sealed record RankDefinition(int Id, string NameKey, uint CommandCapacity, int RequiredTrust, int LoyaltyBonus);
 public sealed record TreasureDefinition(int Id, string NameKey, int Category, int AbilityBonus, int LoyaltyBonus, int? TacticId)
 {
-    [System.Text.Json.Serialization.JsonRequired] public OfficerAbilities AbilityBonuses { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public bool EscapeMount { get; init; }
+    [JsonRequired] public OfficerAbilities AbilityBonuses { get; init; }
+    [JsonRequired] public bool EscapeMount { get; init; }
 }
 public sealed record OfficeDefinition(int Id, string NameKey, uint CommandCapacity, int Salary)
 {
-    [System.Text.Json.Serialization.JsonRequired] public int GovernorPriority { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public OfficerAbilities AbilityBonuses { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public int? RequiredRankId { get; init; }
+    [JsonRequired] public int GovernorPriority { get; init; }
+    [JsonRequired] public OfficerAbilities AbilityBonuses { get; init; }
+    [JsonRequired] public int? RequiredRankId { get; init; }
 }
 public sealed record InformationDefinitions(RankDefinition[] Ranks, OfficeDefinition[] Offices, TreasureDefinition[] Treasures,
     CorpsState[] Corps, TreasureState[] TreasureStates)
 {
-    [System.Text.Json.Serialization.JsonRequired] public ForceRelation[] Relations { get; init; } = [];
+    [JsonRequired] public ForceRelation[] Relations { get; init; } = [];
     public static InformationDefinitions Empty => new([], [], [], [], []);
     public InformationDefinitions Copy() => new(Ranks.ToArray(), Offices.ToArray(), Treasures.ToArray(), Corps.ToArray(), TreasureStates.ToArray()) { Relations = Relations.ToArray() };
     public void Validate(ScenarioInitialState scenario)

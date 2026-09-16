@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Text.Json.Serialization;
 
 namespace San9.Core.Domain;
 
@@ -6,16 +7,16 @@ public sealed record FacilityRule(int Id, int ConstructionCost, int MaxDurabilit
     int WoundedRecovery, bool Buildable, bool CanHostPersons, bool ConsumesFood, uint SoldierCapacity,
     int? RequiredTacticId, int? CostReductionTacticId, int? SelectedTacticId, ImmutableArray<int> TacticIds)
 {
-    [System.Text.Json.Serialization.JsonRequired] public CombatProfile? Combat { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public OrdinaryAttack? Attack { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public bool DestroyedAtZeroDurability { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public int? ConstructionGrowthTacticId { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public int? DestructionGrowthTacticId { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public FacilityTactics? Tactics { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public FacilityAttackModifier? InnateAttack { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public bool IsWork { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public bool IsHarbor { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public FacilityReprisal? Reprisal { get; init; }
+    [JsonRequired] public CombatProfile? Combat { get; init; }
+    [JsonRequired] public OrdinaryAttack? Attack { get; init; }
+    [JsonRequired] public bool DestroyedAtZeroDurability { get; init; }
+    [JsonRequired] public int? ConstructionGrowthTacticId { get; init; }
+    [JsonRequired] public int? DestructionGrowthTacticId { get; init; }
+    [JsonRequired] public FacilityTactics? Tactics { get; init; }
+    [JsonRequired] public FacilityAttackModifier? InnateAttack { get; init; }
+    [JsonRequired] public bool IsWork { get; init; }
+    [JsonRequired] public bool IsHarbor { get; init; }
+    [JsonRequired] public FacilityReprisal? Reprisal { get; init; }
     internal void Validate(IReadOnlyDictionary<int, TacticRule> tactics)
     {
         Combat?.Validate();
@@ -92,4 +93,4 @@ public sealed record FacilityTactics(int OpportunityChance, int MartialCooldown,
 public sealed record ConstructionSite(int RegionId, WorldPosition Position, ImmutableArray<int> FacilityIds);
 
 public sealed record FacilityInstance(int TypeId, WorldPosition Position,
-    [property: System.Text.Json.Serialization.JsonRequired] int? BuilderUnitId = null);
+    [property: JsonRequired] int? BuilderUnitId = null);

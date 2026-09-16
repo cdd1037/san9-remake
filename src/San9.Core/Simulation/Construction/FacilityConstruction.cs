@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Text.Json.Serialization;
 using San9.Core.Domain;
 
 namespace San9.Core.Simulation;
@@ -7,7 +8,7 @@ public sealed record ConstructFacilityCommand(Guid CommandId, int IssuerId, long
     ImmutableArray<int> OfficerIds, uint Soldiers, int FormationId, int RegionId, int FacilityTypeId, WorldPosition Position)
     : GameCommand(CommandId, IssuerId, Sequence)
 {
-    [System.Text.Json.Serialization.JsonRequired] public UnitPolicies Policies { get; init; } = new();
+    [JsonRequired] public UnitPolicies Policies { get; init; } = new();
 }
 public sealed record FacilityConstructionChangedEvent(GameClock Clock, int SettlementId, int UnitId, string Phase,
     int Durability) : DomainEvent;

@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Text.Json.Serialization;
 
 namespace San9.Core.Domain;
 
@@ -6,8 +7,8 @@ public enum TravelMode { Land, Water }
 
 public sealed record TerrainPassage(int Id, int? LandCost, int? WaterCost)
 {
-    [System.Text.Json.Serialization.JsonRequired] public bool IsWater { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public bool StopsRockfall { get; init; }
+    [JsonRequired] public bool IsWater { get; init; }
+    [JsonRequired] public bool StopsRockfall { get; init; }
 }
 
 public readonly record struct Footprint(int Width, int Height)

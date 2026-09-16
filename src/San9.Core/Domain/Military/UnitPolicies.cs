@@ -1,10 +1,12 @@
+using System.Text.Json.Serialization;
+
 namespace San9.Core.Domain;
 
 public sealed record UnitPolicies(
-    [property: System.Text.Json.Serialization.JsonRequired] bool AttackApproachingEnemies = false,
-    [property: System.Text.Json.Serialization.JsonRequired] bool Pursue = false,
-    [property: System.Text.Json.Serialization.JsonRequired] bool AttackAfterAction = false,
-    [property: System.Text.Json.Serialization.JsonRequired] bool AutonomousRetreat = false);
+    [property: JsonRequired] bool AttackApproachingEnemies = false,
+    [property: JsonRequired] bool Pursue = false,
+    [property: JsonRequired] bool AttackAfterAction = false,
+    [property: JsonRequired] bool AutonomousRetreat = false);
 
 public static class UnitPolicyDecisions
 {

@@ -1,13 +1,15 @@
+using System.Text.Json.Serialization;
+
 namespace San9.Core.Domain;
 
 public sealed record ForceState(int Id, uint Money, uint Food, int Trust)
 {
-    [System.Text.Json.Serialization.JsonRequired] public bool IsEliminated { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public int BaseTrust { get; init; }
+    [JsonRequired] public bool IsEliminated { get; init; }
+    [JsonRequired] public int BaseTrust { get; init; }
     public System.Collections.Immutable.ImmutableArray<int> ProvidedTactics { get; init; } = [];
     public bool IsBarbarian { get; init; }
     public int? LeaderId { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public int? AdviserId { get; init; }
+    [JsonRequired] public int? AdviserId { get; init; }
     public int? RankId { get; init; }
 }
 
@@ -17,18 +19,18 @@ public sealed record SettlementState(int Id, int? OwnerId, uint Soldiers, int Du
     int Morale, int PublicOrder, int Commerce, int MaxCommerce, int Cultivation, int MaxCultivation,
     bool CommerceUsed = false, bool CultivationUsed = false)
 {
-    [System.Text.Json.Serialization.JsonRequired] public FacilityInstance? Facility { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public bool IsDestroyed { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public int ConfusionDaysRemaining { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public uint Wounded { get; init; }
+    [JsonRequired] public FacilityInstance? Facility { get; init; }
+    [JsonRequired] public bool IsDestroyed { get; init; }
+    [JsonRequired] public int ConfusionDaysRemaining { get; init; }
+    [JsonRequired] public uint Wounded { get; init; }
     public SettlementKind Kind { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public bool CanHostPersons { get; init; } = true;
-    [System.Text.Json.Serialization.JsonRequired] public uint SoldierCapacity { get; init; } = 500000;
-    [System.Text.Json.Serialization.JsonRequired] public bool ConsumesFood { get; init; } = true;
-    [System.Text.Json.Serialization.JsonRequired] public bool PatrolUsed { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public bool RepairUsed { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public bool RecruitUsed { get; init; }
-    [System.Text.Json.Serialization.JsonRequired] public bool TrainUsed { get; init; }
+    [JsonRequired] public bool CanHostPersons { get; init; } = true;
+    [JsonRequired] public uint SoldierCapacity { get; init; } = 500000;
+    [JsonRequired] public bool ConsumesFood { get; init; } = true;
+    [JsonRequired] public bool PatrolUsed { get; init; }
+    [JsonRequired] public bool RepairUsed { get; init; }
+    [JsonRequired] public bool RecruitUsed { get; init; }
+    [JsonRequired] public bool TrainUsed { get; init; }
     public int? CorpsId { get; init; }
     public uint Population { get; init; }
     public uint DraftPopulation { get; init; }

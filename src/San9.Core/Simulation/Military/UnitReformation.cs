@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Text.Json.Serialization;
 using San9.Core.Domain;
 
 namespace San9.Core.Simulation;
@@ -6,7 +7,7 @@ namespace San9.Core.Simulation;
 public sealed record ReformUnitCommand(Guid CommandId, int IssuerId, long Sequence, int UnitId,
     int FormationId, ImmutableArray<int> OfficerIds, MilitaryOrder? Order) : GameCommand(CommandId, IssuerId, Sequence)
 {
-    [System.Text.Json.Serialization.JsonRequired] public bool ConfirmAttack { get; init; }
+    [JsonRequired] public bool ConfirmAttack { get; init; }
 }
 public sealed record UnitReformedEvent(GameClock Clock, int UnitId, int PreviousFormationId, int FormationId,
     ImmutableArray<int> OfficerIds) : DomainEvent;

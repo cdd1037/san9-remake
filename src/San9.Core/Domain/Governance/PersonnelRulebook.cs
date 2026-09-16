@@ -1,8 +1,9 @@
 using System.Collections.Immutable;
+using System.Text.Json.Serialization;
 
 namespace San9.Core.Domain;
 
-public sealed record PersonPlace(int Id, [property: System.Text.Json.Serialization.JsonRequired] WorldPosition Position);
+public sealed record PersonPlace(int Id, [property: JsonRequired] WorldPosition Position);
 public sealed record CityConnection(int FromCityId, int ToCityId);
 
 public enum PersonnelJourneyKind { Recruit, Move, Search }

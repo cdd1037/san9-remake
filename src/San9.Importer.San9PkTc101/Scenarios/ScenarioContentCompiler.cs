@@ -83,6 +83,8 @@ public static class ScenarioContentCompiler
         summaries = summaries.Select(f => f with { AdviserId = officers.Where(o => o.State.OwnerId == f.Id && o.State.Status == San9.Core.Domain.OfficerStatus.Strategist)
             .Select(o => (int?)o.State.Id).SingleOrDefault() }).ToArray();
         var treasureStates = TreasureContentCompiler.InitialStates(items);
+        var treasureDiplomacy = TreasureContentCompiler.DiplomacyPreferences(exe, persons, officers.Select(o => o.State.Id),
+            items.Where(i => i.SerializedId < TreasureContentCompiler.BuiltInCount).Select(i => (int)i.SerializedId));
         var information = new InformationDefinitions(
             ranks.Where(r => r.Id < 8).Select(r => new RankDefinition(r.Id, text.Rank($"rank.{r.Id}", r.Id), r.CommandCapacity, r.PrestigeRequirement, r.PromotionLoyaltyBonus)).ToArray(),
             offices.Where(o => o.IsAssignable).Select(o => new OfficeDefinition(o.Id, text.Office($"office.{o.Id}", o.Id), o.CommandCapacity, o.Salary)
@@ -93,7 +95,9 @@ public static class ScenarioContentCompiler
             {
                 text.TreasureDescription(i.SerializedId, i.ResourceId2);
                 return new TreasureDefinition(i.SerializedId, text.Treasure($"treasure.{i.SerializedId}", i.ResourceId1), i.CategoryId, i.AbilityBonus, i.LoyaltyChange, i.TacticId)
-                { AbilityBonuses = TreasureContentCompiler.AbilityBonuses(i), EscapeMount = i.CategoryId == 0 };
+                { AbilityBonuses = TreasureContentCompiler.AbilityBonuses(i), EscapeMount = i.CategoryId == 0,
+                  AutomaticDiplomacyOfferAllowed = treasureDiplomacy[i.SerializedId].AutomaticOfferAllowed,
+                  FavoredOwnerIds = treasureDiplomacy[i.SerializedId].FavoredOwnerIds };
             }).ToArray(),
             settlements.Where(s => s.CorpsId is not null).Select(s => s.CorpsId!.Value).Distinct().Order().Select(id =>
                 new San9.Core.Domain.CorpsState(id, Root(id)!.Value, forces[id].LeaderId ?? throw new InvalidDataException("Missing corps leader."),

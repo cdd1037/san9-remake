@@ -45,7 +45,7 @@ internal sealed class StrategySnapshotSource
         PlayerForceId = definition.PlayerForceId;
         FacilityNameSuffixKeys = new System.Collections.ObjectModel.ReadOnlyDictionary<int, string>(new Dictionary<int, string>(definition.FacilityNameSuffixKeys));
         Information = new(definition.Information);
-        Abilities = new(new TreasureRulebook(definition.Information.Treasures.Select(t => new TreasureRule(t.Id, t.AbilityBonuses, t.LoyaltyBonus))),
+        Abilities = new(new TreasureRulebook(definition.Information.Treasures.Select(t => t.ToRule())),
             new GovernanceRulebook(definition.Information.Offices.Select(o => new GovernorOfficeRule(o.Id, o.CommandCapacity, o.GovernorPriority)
                 { AbilityBonuses = o.AbilityBonuses })));
         RegionNameKeys = new System.Collections.ObjectModel.ReadOnlyDictionary<int, string>(

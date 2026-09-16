@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using System.Collections.Immutable;
 using San9.Core.Domain;
 
 namespace San9.Content.Scenarios;
@@ -8,6 +9,14 @@ public sealed record TreasureDefinition(int Id, string NameKey, int Category, in
 {
     [JsonRequired] public OfficerAbilities AbilityBonuses { get; init; }
     [JsonRequired] public bool EscapeMount { get; init; }
+    [JsonRequired] public bool AutomaticDiplomacyOfferAllowed { get; init; } = true;
+    [JsonRequired] public ImmutableArray<int> FavoredOwnerIds { get; init; } = [];
+
+    public TreasureRule ToRule() => new(Id, AbilityBonuses, LoyaltyBonus)
+    {
+        EscapeMount = EscapeMount, TacticId = TacticId,
+        AutomaticDiplomacyOfferAllowed = AutomaticDiplomacyOfferAllowed, FavoredOwnerIds = FavoredOwnerIds
+    };
 }
 public sealed record OfficeDefinition(int Id, string NameKey, uint CommandCapacity, int Salary)
 {
@@ -36,7 +45,9 @@ public sealed record InformationDefinitions(RankDefinition[] Ranks, OfficeDefini
         if (Ranks.Any(r => string.IsNullOrWhiteSpace(r.NameKey) || r.RequiredTrust < 0 || r.LoyaltyBonus < 0) ||
             Offices.Any(o => string.IsNullOrWhiteSpace(o.NameKey) || o.Salary < 0 || o.GovernorPriority < 0 ||
                 !o.AbilityBonuses.IsNonnegative || o.RequiredRankId is int rank && !Ranks.Any(r => r.Id == rank)) ||
-            Treasures.Any(t => string.IsNullOrWhiteSpace(t.NameKey) || t.Category is < 0 or > 12 || t.AbilityBonus < 0 || !t.AbilityBonuses.IsNonnegative || t.LoyaltyBonus < 0) ||
+            Treasures.Any(t => string.IsNullOrWhiteSpace(t.NameKey) || t.Category is < 0 or > 12 || t.AbilityBonus < 0 || !t.AbilityBonuses.IsNonnegative || t.LoyaltyBonus < 0 ||
+                t.FavoredOwnerIds.IsDefault || t.FavoredOwnerIds.Distinct().Count() != t.FavoredOwnerIds.Length ||
+                t.FavoredOwnerIds.Any(id => !scenario.Officers.Any(o => o.State.Id == id))) ||
             Treasures.Any(t => !TreasureStates.Any(state => state.Id == t.Id)) ||
             TreasureStates.Any(t => t.Discovery != TreasureDiscovery.Disabled && !Treasures.Any(d => d.Id == t.Id)) ||
             TreasureStates.Any(t => !t.IsValid ||

@@ -22,6 +22,7 @@ public sealed class SimulationEngine
     {
         var snapshot = world.CreateSnapshot();
         if (snapshot.Treasures.Any(t => t.Discovery != TreasureDiscovery.Disabled && !treasures.Items.ContainsKey(t.Id)) ||
+            treasures.Items.Values.Any(t => t.FavoredOwnerIds.Any(id => !snapshot.Officers.Any(o => o.Id == id))) ||
             snapshot.Officers.Any(p => p.OfficeId is int id && (governance is null || !governance.Offices.ContainsKey(id))))
             throw new ArgumentException("Unknown ability source definition.");
         return world;

@@ -8,6 +8,41 @@ namespace San9.Application.Tests;
 
 public sealed class GiftSessionTests
 {
+    [Fact]
+    public void AuthoredDiplomacyPreferencesAreValidatedMappedAndFingerprintRelevant()
+    {
+        var content = Content();
+        var treasure = content.Information.Treasures[0] with { FavoredOwnerIds = [21, 11], AutomaticDiplomacyOfferAllowed = false };
+        var modified = content with { Information = content.Information with { Treasures = [treasure] } };
+        var original = GameSession.Start(content, 42);
+        foreach (var changed in new[] { content.Information.Treasures[0] with { FavoredOwnerIds = [11] },
+            content.Information.Treasures[0] with { AutomaticDiplomacyOfferAllowed = false } })
+            Assert.NotEqual(original.ContentFingerprint, GameSession.Start(content with
+                { Information = content.Information with { Treasures = [changed] } }, 42).ContentFingerprint);
+        var session = GameSession.Start(modified, 42);
+        Assert.NotEqual(original.ContentFingerprint, session.ContentFingerprint);
+        var reordered = modified with { Information = modified.Information with { Treasures = [treasure with { FavoredOwnerIds = [11, 21] }] } };
+        Assert.Equal(session.ContentFingerprint, GameSession.Start(reordered, 42).ContentFingerprint);
+        var rule = treasure.ToRule();
+        Assert.False(rule.AutomaticDiplomacyOfferAllowed);
+        Assert.Equal(treasure.FavoredOwnerIds, rule.FavoredOwnerIds);
+        foreach (var ids in new System.Collections.Immutable.ImmutableArray<int>[] { [999], [11, 11], default })
+            Assert.Throws<InvalidDataException>(() => (modified with { Information = modified.Information with
+                { Treasures = [treasure with { FavoredOwnerIds = ids }] } }).Validate());
+        Assert.Throws<SaveException>(() => SaveService.Decode(SaveService.Encode(original), modified));
+    }
+
+    [Theory]
+    [InlineData("favoredOwnerIds")]
+    [InlineData("automaticDiplomacyOfferAllowed")]
+    public void TreasureDiplomacyFieldsCannotBeSilentlyDefaultedWhenMissing(string field)
+    {
+        var json = System.Text.Json.Nodes.JsonNode.Parse(CanonicalJson.Text(Content().Information.Treasures[0]))!;
+        Assert.True(json.AsObject().Remove(field));
+        Assert.Throws<System.Text.Json.JsonException>(() => System.Text.Json.JsonSerializer.Deserialize<TreasureDefinition>(
+            json.ToJsonString(), CanonicalJson.Options));
+    }
+
     private static ScenarioInitialState Content() => new(ScenarioInitialState.CurrentSchemaVersion, "gifts", 190, 1, 1, 1,
         [new(1, "first", 1, 100000, 100000, 100) { LeaderId = 11 },
          new(2, "second", 2, 100000, 100000, 100) { LeaderId = 21 }],

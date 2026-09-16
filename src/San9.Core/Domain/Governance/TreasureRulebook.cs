@@ -6,6 +6,8 @@ public sealed record TreasureRule(int Id, OfficerAbilities AbilityBonuses, int L
 {
     public bool EscapeMount { get; init; }
     public int? TacticId { get; init; }
+    public bool AutomaticDiplomacyOfferAllowed { get; init; } = true;
+    public ImmutableArray<int> FavoredOwnerIds { get; init; } = [];
 }
 
 public sealed class TreasureRulebook
@@ -15,7 +17,8 @@ public sealed class TreasureRulebook
     public TreasureRulebook(IEnumerable<TreasureRule> items)
     {
         Items = items.ToImmutableDictionary(i => i.Id);
-        if (Items.Values.Any(i => i.Id < 0 || i.TacticId < 0 || !i.AbilityBonuses.IsNonnegative || i.LoyaltyBonus < 0))
+        if (Items.Values.Any(i => i.Id < 0 || i.TacticId < 0 || !i.AbilityBonuses.IsNonnegative || i.LoyaltyBonus < 0 ||
+            i.FavoredOwnerIds.IsDefault || i.FavoredOwnerIds.Any(id => id < 0) || i.FavoredOwnerIds.Distinct().Count() != i.FavoredOwnerIds.Length))
             throw new ArgumentException("Invalid treasure rule.");
     }
 

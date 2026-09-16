@@ -71,6 +71,9 @@ public static class MilitaryPlanner
     {
         bool Controlled(int? id) => corpsId is int expected ? id == expected : id is null ||
             world.Corps.Any(c => c.Id == id && c.ControlMode == CorpsControlMode.Direct);
+        var obligation = world.Simulation.AttackRequests.SingleOrDefault(r => r.RequestedForceId == seat.ForceId &&
+            r.RemainingXun > 0 && world.Forces.Any(f => f.Id == r.RequesterForceId && !f.IsEliminated) &&
+            world.Settlements.Any(s => s.Id == r.TargetSettlementId && !s.IsDestroyed && s.OwnerId == r.TargetForceId));
         // Public place ownership and topology only: neither enemy strength nor hidden field positions inform this policy.
         var targets = world.Settlements.Where(s => s.OwnerId != seat.ForceId && !s.IsDestroyed &&
             (s.OwnerId is not int other || world.Simulation.Alliance?.Protects(seat.ForceId, other) != true &&
@@ -91,7 +94,7 @@ public static class MilitaryPlanner
                 }
                 continue;
             }
-            foreach (var target in targets.OrderBy(s => MapCoordinates.Distance(unit.Position, rules.Place(s).Position)).ThenBy(s => s.Id).Take(4))
+            foreach (var target in PrioritizeTargets(unit.Position))
             {
                 var command = new OrderUnitCommand(commandId, seat.ForceId, world.Simulation.NextSequence, unit.Id, new(MilitaryOrderKind.AttackSettlement, null, target.Id));
                 if (validate(new(seat.ControllerId), command).Accepted && Reachable(unit.Position, rules.Formations[f], target.Id, unit.ServicePlaceId)) return command;
@@ -104,7 +107,7 @@ public static class MilitaryPlanner
             var people = world.Officers.Where(p => p.OwnerId == seat.ForceId && p.IsServing && p.SettlementId == source.Id &&
                 !p.Acted && !world.Simulation.Tasks.Any(t => t.OfficerId == p.Id)).OrderBy(p => p.Status == OfficerStatus.Ruler).ThenBy(p => p.Id).ToArray();
             if (people.Length < 2) continue;
-            foreach (var target in targets.OrderBy(s => MapCoordinates.Distance(rules.Place(source).Position, rules.Place(s).Position)).ThenBy(s => s.Id).Take(4))
+            foreach (var target in PrioritizeTargets(rules.Place(source).Position))
             {
                 if (world.Units.Any(u => u.OwnerId == seat.ForceId && u.Order is { Kind: MilitaryOrderKind.AttackSettlement } && u.Order.SettlementId == target.Id)) continue;
                 foreach (var formation in rules.Formations.Values.Where(f => f.Attack is not null).OrderBy(f => f.DeploymentCost).ThenBy(f => f.Id).Take(32))
@@ -118,6 +121,10 @@ public static class MilitaryPlanner
             }
         }
         return null;
+
+        IEnumerable<SettlementState> PrioritizeTargets(WorldPosition from) => targets
+            .OrderBy(s => s.Id == obligation?.TargetSettlementId ? 0 : 1)
+            .ThenBy(s => MapCoordinates.Distance(from, rules.Place(s).Position)).ThenBy(s => s.Id).Take(4);
 
         bool Reachable(WorldPosition from, FormationRule formation, int target, int? source)
         {

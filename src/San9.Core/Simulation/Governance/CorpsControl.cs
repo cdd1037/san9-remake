@@ -67,6 +67,7 @@ public static class CorpsControl
             GossipCommand gossip => OwnPerson(gossip.OfficerId),
             GiftCommand gift => OwnPerson(gift.OfficerId),
             ReturnPrisonerCommand prisoner => OwnPerson(prisoner.OfficerId),
+            RequestAttackCommand request => OwnPerson(request.OfficerId),
             UnitStrategyCommand strategy => OwnPerson(strategy.OfficerId),
             SearchCommand search => OwnPerson(search.OfficerId),
             MoveOfficersCommand move => !move.OfficerIds.IsDefault && move.OfficerIds.All(OwnPerson) && OwnPlace(move.DestinationId),

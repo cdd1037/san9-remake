@@ -33,7 +33,8 @@ internal class SimulationRules
         : kind == SeizeStrategies.Kind ? new SeizeRule(this)
         : kind == GossipStrategies.Kind ? new GossipRule(this)
         : kind == GiftDiplomacy.Kind ? new GiftRule(this)
-        : kind == PrisonerReturnDiplomacy.Kind ? new PrisonerReturnRule(this) : null;
+        : kind == PrisonerReturnDiplomacy.Kind ? new PrisonerReturnRule(this)
+        : kind == AttackRequestDiplomacy.Kind ? new AttackRequestRule(this) : null;
     internal virtual void ApplyStage(ResolutionStage stage, WorldMutation world, List<DomainEvent> events) { }
 }
 

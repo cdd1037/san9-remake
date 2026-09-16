@@ -66,6 +66,19 @@ public sealed class SimulationEngine
 
     public IReadOnlyList<DomainEvent> InitialEvents { get; } = Array.Empty<DomainEvent>();
     public WorldSnapshot Snapshot => _world.CreateSnapshot();
+    public AttackRequestPrompt? GetAttackRequestPrompt()
+    {
+        if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
+        if (_world.Simulation.PendingDailyTask is not { } waiting) return null;
+        var task = _world.Simulation.Tasks.Single(t => t.Id == waiting.RemainingTaskIds[0]);
+        return task.AttackRequest is { } mission ? new(task.Id, task.ResolutionStep, waiting.RespondingForceId,
+            task.ForceId, mission.TargetForceId, mission.TargetSettlementId, mission.Offer) : null;
+    }
+    public CommandAdvice GetAttackRequestAdvice(int forceId, int officerId, int targetForceId, int targetSettlementId)
+    {
+        if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
+        return AttackRequestDiplomacy.Advice(_world.BeginMutation(_rules.Abilities), forceId, officerId, targetForceId, targetSettlementId, _rules);
+    }
     public PrisonerReturnPrompt? GetPrisonerReturnPrompt()
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
@@ -162,6 +175,10 @@ public sealed class SimulationEngine
             DevelopmentOutcome? development = null;
             switch (command)
             {
+                case RequestAttackCommand attackRequest:
+                    var requestRejection = AttackRequestDiplomacy.Start(mutation, context, attackRequest, _rules, events);
+                    if (requestRejection != CommandRejection.None) return Reject(requestRejection);
+                    break;
                 case ReturnPrisonerCommand prisonerReturn:
                     var prisonerRejection = PrisonerReturnDiplomacy.Start(mutation, context, prisonerReturn, _rules, events);
                     if (prisonerRejection != CommandRejection.None) return Reject(prisonerRejection);

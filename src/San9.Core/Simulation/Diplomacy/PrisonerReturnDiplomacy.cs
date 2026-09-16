@@ -111,48 +111,21 @@ internal static class PrisonerReturnDiplomacy
         if (accepted)
         {
             // All destinations and ownership were revalidated before entering the effect path.
-            Recover(mission.PrisonerId);
-            if (offer.PrisonerId is int exchange) Recover(exchange);
-            if (offer.Kind == CompensationKind.Money)
-            {
-                var source = new ResourceAccount(ResourceOwnerKind.Force, task.ForceId);
-                var target = new ResourceAccount(ResourceOwnerKind.Force, mission.TargetForceId);
-                received = Math.Min(offer.Money, ResourceAccounts.Receivable(world, target, ResourceKind.Money));
-                ResourceAccounts.Change(world, source, ResourceKind.Money, -(long)offer.Money, "prisoner-compensation", task.OfficerId, events, true);
-                ResourceAccounts.Change(world, target, ResourceKind.Money, offer.Money, "prisoner-compensation", task.OfficerId, events);
-            }
-            if (offer.Kind == CompensationKind.Treasure)
-            {
-                var item = world.Treasures[offer.TreasureId!.Value];
-                PersonnelTreasures.Transfer(world, item, world.Forces[mission.TargetForceId].LeaderId!.Value,
-                    task.ForceId, "prisoner-compensation", events);
-            }
+            DiplomacySettlement.Recover(world, task, mission.PrisonerId, rules, events);
+            (received, _) = DiplomacySettlement.Pay(world, task, mission.TargetForceId, offer, rules, "prisoner-compensation", events);
             if (offer.Kind == CompensationKind.Free)
             {
                 var force = world.Forces[mission.TargetForceId];
                 world.Replace(force with { BaseTrust = Math.Min(1000, force.BaseTrust + 2) });
             }
             EconomicCycle.UpdateTrust(world, rules.Economy, events);
-            var actor = world.Officers[task.OfficerId];
-            if (actor.BaseAbilities.Politics < 100 && world.NextRandom("diplomacy-politics-growth") % 100 < 3)
-            {
-                world.Replace(actor with { BaseAbilities = actor.BaseAbilities with { Politics = actor.BaseAbilities.Politics + 1 } });
-                events.Add(new OfficerAbilityGrownEvent(world.Clock, actor.Id, "politics", actor.BaseAbilities.Politics, actor.BaseAbilities.Politics + 1));
-            }
+            DiplomacySettlement.Grow(world, task.OfficerId, events);
         }
         else ForceRelations.Change(world, task.ForceId, mission.TargetForceId, -5, events);
         events.Add(new PrisonerReturnResolvedEvent(world.Clock, task.Id, mission.PrisonerId, offer, accepted,
             received, accepted ? offer.Money - received : 0));
         PersonnelReturns.Start(world, task, rules.Personnel, events, true);
 
-        void Recover(int id)
-        {
-            var person = world.Officers[id];
-            var position = person.UnitId is int unit ? world.Units[unit].Position : (WorldPosition?)null;
-            var result = PrisonerRelease.Depart(world, id, Origin(world, person, rules)!.Value, task.Id, task.Sequence,
-                PrisonerDepartureKind.Recovered, null, rules.Personnel, rules.Economy, events, position);
-            if (result != CommandRejection.None) throw new InvalidOperationException("Prisoner recovery failed after validation.");
-        }
     }
 }
 

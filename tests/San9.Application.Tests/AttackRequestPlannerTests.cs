@@ -8,6 +8,51 @@ namespace San9.Application.Tests;
 
 public sealed class AttackRequestPlannerTests
 {
+    [Theory]
+    [InlineData("general", 2)]
+    [InlineData("domestic", 0)]
+    [InlineData("force", 4)]
+    [InlineData("settlement", 3)]
+    public void AutomaticCorpsUsesItsDelegationAndRestoresTheSamePlan(string policy, int expectedTarget)
+    {
+        var basis = Fixture();
+        var home = basis.Settlements[0] with { Id = 5, NameKey = "root-home", X = 1, Y = 2, Soldiers = 100, CorpsId = 10 };
+        var content = basis with
+        {
+            AttackRequests = [],
+            Settlements = [.. basis.Settlements.Select(s => s.Id == 1 ? s with { CorpsId = 20 } : s), home],
+            Officers = [.. basis.Officers.Select(p => p.State.Id == 11 ? p with { State = p.State with { SettlementId = 5 } } : p),
+                new("helper", new(13, 1, 1, new(50, 50, 50, 50), false))],
+            Information = basis.Information with { Corps = [new(10, 1, 11, null),
+                new(20, 1, 12, new(10000, 10000)) { ControlMode = CorpsControlMode.Automatic }] },
+            Military = basis.Military! with { Places = basis.Military.Places.Add(new(5, home.Position, new(1, 1))
+                { Combat = new(10, 10, 0, 10, 50), Attack = new(1, false) }) }
+        };
+        CorpsDelegation delegation = policy switch
+        {
+            "domestic" => new DomesticDelegation(), "force" => new DefeatForceDelegation(2),
+            "settlement" => new CaptureSettlementDelegation(3), _ => new GeneralDelegation()
+        };
+        var session = GameSession.Start(content, 42);
+        session.BeginRecording();
+        Assert.True(session.Execute(new("player"), new SetCorpsDelegationCommand(Guid.NewGuid(), 1, 0, 20, delegation)).Submission.Accepted);
+        var restored = SaveService.Decode(SaveService.Encode(session), content);
+        var request = session.Request(new EndControlOperation());
+        var result = session.Apply(request);
+        Assert.Equal(SessionDisposition.Accepted, result.Disposition);
+        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.Apply(request).Events));
+        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        if (expectedTarget == 0) Assert.Equal(MilitaryOrderKind.Transport, Assert.Single(session.Snapshot.Units).Order!.Kind);
+        else Assert.Equal(expectedTarget, Assert.Single(session.Snapshot.Units).Order!.SettlementId);
+        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
+        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        var authored = content with { Information = content.Information with { Corps = content.Information.Corps.Select(c =>
+            c.Id == 20 ? c with { Delegation = delegation } : c).ToArray() } };
+        authored.Validate();
+        if (policy != "general") Assert.NotEqual(GameSession.Fingerprint(content), GameSession.Fingerprint(authored));
+        Assert.Equal(delegation, GameSession.Start(authored, 42).Snapshot.Corps.Single(c => c.Id == 20).Delegation);
+    }
+
     private static ScenarioInitialState Fixture() => new(ScenarioInitialState.CurrentSchemaVersion, "request-planner", 190, 1, 1, 1,
         [new(1, "holder", 1, 100000, 100000, 100) { LeaderId = 11 },
          new(2, "requester", 2, 1000, 1000, 100) { LeaderId = 21 }, new(3, "enemy", 3, 1000, 1000, 100) { LeaderId = 31 }],

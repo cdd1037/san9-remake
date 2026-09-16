@@ -36,6 +36,9 @@ public sealed class SimulationEngine
         MilitaryMovement.Validate(world.CreateSnapshot(), rules.Military);
         rules.Economy.Validate();
         _pipeline = new(rules);
+        var initial = world.BeginMutation(rules.Abilities);
+        if (initial.Corps.Values.Any(c => !CorpsDelegations.Valid(initial, c, rules.Military)))
+            throw new ArgumentException("Invalid corps delegation target.");
         foreach (var task in world.Simulation.Tasks)
             if (rules.FindTask(task.Kind) is not TaskRule rule || !rule.SupportsResolutionStep(task.ResolutionStep) ||
                 !rule.HasValidPayload(task) || rule.DurationDays(task) != task.Due.DayNumber - task.Started.DayNumber)
@@ -57,6 +60,7 @@ public sealed class SimulationEngine
                 List<DomainEvent> events = [];
                 _pipeline.Prepare(mutation, events);
                 AttackRequests.Cleanup(mutation, events);
+                CorpsDelegations.Cleanup(mutation, _rules.Military, events);
                 mutation.MaintainLeadership(events);
                 world.Commit(mutation);
                 InitialEvents = events.AsReadOnly();
@@ -268,6 +272,10 @@ public sealed class SimulationEngine
                     var controlRejection = CorpsControl.Set(mutation, control, events);
                     if (controlRejection != CommandRejection.None) return Reject(controlRejection);
                     break;
+                case SetCorpsDelegationCommand delegation:
+                    var delegationRejection = CorpsDelegations.Set(mutation, delegation, _rules.Military, events);
+                    if (delegationRejection != CommandRejection.None) return Reject(delegationRejection);
+                    break;
                 case DissolveCorpsCommand dissolve:
                     var dissolveRejection = CorpsGovernance.Dissolve(mutation, dissolve, _rules.Governance, events);
                     if (dissolveRejection != CommandRejection.None) return Reject(dissolveRejection);
@@ -353,6 +361,7 @@ public sealed class SimulationEngine
                 NextSequence = checked(mutation.Simulation.NextSequence + 1),
             });
             AttackRequests.Cleanup(mutation, events);
+            CorpsDelegations.Cleanup(mutation, _rules.Military, events);
             mutation.MaintainLeadership(events);
             WorldInvariants.Validate(mutation);
             if (!commit) return new(CommandSubmissionResult.Success, [], Snapshot, development);
@@ -424,6 +433,7 @@ public sealed class SimulationEngine
             MilitaryDiplomacy.BeginAdvance(mutation, _rules, events);
             ContinueXun(mutation, previous, events);
             AttackRequests.Cleanup(mutation, events);
+            CorpsDelegations.Cleanup(mutation, _rules.Military, events);
             mutation.MaintainLeadership(events);
             _world.Commit(mutation);
             return new(events.AsReadOnly(), Snapshot);

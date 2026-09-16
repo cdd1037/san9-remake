@@ -145,6 +145,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         if (stage == ResolutionStage.DailyMapUpdate) { MilitaryPolicies.ResolveOrders(world, rules.Military, events); world.MaintainLeadership(events); }
         rules.ApplyStage(stage, world, events);
         AttackRequests.Cleanup(world, events);
+        CorpsDelegations.Cleanup(world, rules.Military, events);
         world.MaintainLeadership(events);
         events.Add(new StageCompletedEvent(world.Clock, stage));
         return CheckTerminal(world, events) && world.Simulation.PendingAlliance is null;
@@ -188,6 +189,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
             TaskCancellation.Apply(world, task, "invalid-target-or-executor", events);
             if (task.Journey is not null) BattlePersonnel.ResumeReturn(world, task, rules, events);
         }
+        CorpsDelegations.Cleanup(world, rules.Military, events);
         world.MaintainLeadership(events);
         if (!CheckTerminal(world, events)) return;
         if (pending.Phase == TaskResolutionPhase.XunBoundary)
@@ -231,6 +233,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
                 TaskCancellation.Apply(world, task, "invalid-target-or-executor", events);
                 if (task.Journey is not null) BattlePersonnel.ResumeReturn(world, task, rules, events);
             }
+            CorpsDelegations.Cleanup(world, rules.Military, events);
             world.MaintainLeadership(events);
             if (!CheckTerminal(world, events)) return;
         }

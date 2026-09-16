@@ -39,6 +39,13 @@ public sealed record InformationDefinitions(RankDefinition[] Ranks, OfficeDefini
             throw new InvalidDataException("Invalid force relations.");
         Unique(Ranks.Select(r => r.Id)); Unique(Offices.Select(o => o.Id)); Unique(Treasures.Select(t => t.Id));
         Unique(Corps.Select(c => c.Id)); Unique(TreasureStates.Select(t => t.Id));
+        if (Corps.Any(c => c.Treasury is null ? c.Delegation is not GeneralDelegation : c.Delegation switch
+            {
+                GeneralDelegation or DomesticDelegation => false,
+                DefeatForceDelegation target => target.ForceId == c.OwnerId || !scenario.Forces.Any(f => f.Id == target.ForceId),
+                CaptureSettlementDelegation target => !scenario.Settlements.Any(s => s.Id == target.SettlementId),
+                _ => true
+            })) throw new InvalidDataException("Invalid corps delegation.");
         if (scenario.Forces.Any(f => f.RankId is int rank && !Ranks.Any(r => r.Id == rank)) ||
             scenario.Officers.Any(o => o.State.OfficeId is int office && !Offices.Any(d => d.Id == office)) ||
             Corps.Any(c => (c.Treasury is null) != (scenario.Forces.SingleOrDefault(f => f.Id == c.OwnerId)?.LeaderId == c.LeaderId)))

@@ -71,11 +71,19 @@ public static class MilitaryPlanner
     {
         bool Controlled(int? id) => corpsId is int expected ? id == expected : id is null ||
             world.Corps.Any(c => c.Id == id && c.ControlMode == CorpsControlMode.Direct);
+        var delegation = corpsId is int corps ? world.Corps.Single(c => c.Id == corps).Delegation : new GeneralDelegation();
+        if (delegation is DomesticDelegation) return null;
+        bool MatchesDelegation(SettlementState target) => delegation switch
+        {
+            DefeatForceDelegation force => target.OwnerId == force.ForceId,
+            CaptureSettlementDelegation place => target.Id == place.SettlementId,
+            _ => true
+        };
         var obligation = world.Simulation.AttackRequests.SingleOrDefault(r => r.RequestedForceId == seat.ForceId &&
             r.RemainingXun > 0 && world.Forces.Any(f => f.Id == r.RequesterForceId && !f.IsEliminated) &&
             world.Settlements.Any(s => s.Id == r.TargetSettlementId && !s.IsDestroyed && s.OwnerId == r.TargetForceId));
         // Public place ownership and topology only: neither enemy strength nor hidden field positions inform this policy.
-        var targets = world.Settlements.Where(s => s.OwnerId != seat.ForceId && !s.IsDestroyed &&
+        var targets = world.Settlements.Where(s => MatchesDelegation(s) && s.OwnerId != seat.ForceId && !s.IsDestroyed &&
             (s.OwnerId is not int other || world.Simulation.Alliance?.Protects(seat.ForceId, other) != true &&
                 !world.Simulation.AttackRequests.Any(r => r.Connects(seat.ForceId, other)) &&
                 (world.Relations.FirstOrDefault(r => r.FirstId == Math.Min(seat.ForceId, other) && r.SecondId == Math.Max(seat.ForceId, other))?.Value ?? 0) < 40) &&

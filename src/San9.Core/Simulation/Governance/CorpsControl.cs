@@ -26,7 +26,7 @@ public static class CorpsControl
             c.ControlMode == CorpsControlMode.Automatic && ControllerId(c.Id) == context.ControllerId);
         if (automatic is null && seat.ControllerId != context.ControllerId) return CommandRejection.NotActiveController;
         if (automatic is null && !world.Corps.Any(c => c.OwnerId == command.IssuerId)) return CommandRejection.None;
-        if (command is SetCorpsControlCommand)
+        if (command is SetCorpsControlCommand or SetCorpsDelegationCommand)
             return automatic is null ? CommandRejection.None : CommandRejection.NotActiveController;
         if (automatic is null && seat.Kind == ControllerKind.Player &&
             world.Corps.Any(c => c.OwnerId == seat.ForceId && c.Treasury is null && c.ControlMode == CorpsControlMode.Automatic))

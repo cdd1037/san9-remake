@@ -45,6 +45,7 @@ public sealed record RespondDailyTaskCommand(Guid CommandId, int IssuerId, long 
 [System.Text.Json.Serialization.JsonDerivedType(typeof(ReleasePrisonerCommand), "release-prisoner")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(AssignOfficesCommand), "assign-offices")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(SetCorpsControlCommand), "set-corps-control")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(SetCorpsDelegationCommand), "set-corps-delegation")]
 public abstract record GameCommand(
     Guid CommandId,
     int IssuerId,

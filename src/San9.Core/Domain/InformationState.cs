@@ -9,6 +9,7 @@ public enum CorpsControlMode { Direct, Automatic }
 public sealed record CorpsState(int Id, int OwnerId, int LeaderId, CorpsTreasury? Treasury)
 {
     [JsonRequired] public CorpsControlMode ControlMode { get; init; }
+    [JsonRequired] public CorpsDelegation Delegation { get; init; } = new GeneralDelegation();
 }
 public enum TreasureDiscovery { Disabled, Buried, Discovered }
 

@@ -64,12 +64,21 @@ internal static class WorldInvariants
                 unit.CommanderId is int commander && !state.Officers.ContainsKey(commander) ||
                 unit.CorpsId is int corpsId && (!state.Corps.TryGetValue(corpsId, out var corps) || corps.OwnerId != unit.OwnerId)) throw new ArgumentException("Invalid unit.");
         }
-        if (state.Corps.Values.Any(c => c.Id < 0 || !Enum.IsDefined(c.ControlMode) || !state.Forces.ContainsKey(c.OwnerId) ||
+        if (state.Corps.Values.Any(c => c.Id < 0 || !Enum.IsDefined(c.ControlMode) || !ValidDelegation(state, c) || !state.Forces.ContainsKey(c.OwnerId) ||
                 !state.Officers.TryGetValue(c.LeaderId, out var leader) || !leader.IsServing || leader.OwnerId != c.OwnerId) ||
             state.Treasures.Values.Any(t => !t.IsValid || t.HolderId is int holder && !state.Officers.ContainsKey(holder)) ||
             state.Relations.Values.Any(r => r.FirstId >= r.SecondId || r.Value is < 0 or > 100 || !state.Forces.ContainsKey(r.FirstId) || !state.Forces.ContainsKey(r.SecondId)))
             throw new ArgumentException("Invalid information state relationships.");
     }
+    private static bool ValidDelegation(WorldMutation state, San9.Core.Domain.CorpsState corps) =>
+        corps.Treasury is null ? corps.Delegation is San9.Core.Domain.GeneralDelegation : corps.Delegation switch
+        {
+            San9.Core.Domain.GeneralDelegation or San9.Core.Domain.DomesticDelegation => true,
+            San9.Core.Domain.DefeatForceDelegation target => target.ForceId != corps.OwnerId &&
+                state.Forces.TryGetValue(target.ForceId, out var force) && !force.IsEliminated,
+            San9.Core.Domain.CaptureSettlementDelegation target => state.Settlements.TryGetValue(target.SettlementId, out var place) && !place.IsDestroyed,
+            _ => false
+        };
     private static void ValidateSimulation(WorldMutation state)
     {
         var sim = state.Simulation;

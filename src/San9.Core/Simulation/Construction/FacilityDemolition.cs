@@ -42,8 +42,7 @@ internal static class FacilityDemolition
         foreach (var task in world.Simulation.Tasks.Where(t => t.OriginSettlementId == facility.Id || t.Journey?.DestinationPlaceId == facility.Id)
             .OrderBy(t => t.Sequence).ThenBy(t => t.Id).ToArray())
         {
-            world.SetSimulation(world.Simulation with { Tasks = world.Simulation.Tasks.Remove(task) });
-            events.Add(new TaskCancelledEvent(task.Id, world.Clock, "facility-demolished"));
+            TaskCancellation.Apply(world, task, "facility-demolished", events);
             if (task.Journey is not null) PersonnelReturns.Start(world, task, rules.Personnel, events, false);
         }
         foreach (var unit in world.Units.Values.Where(u => u.Order?.SettlementId == facility.Id).OrderBy(u => u.Id).ToArray())

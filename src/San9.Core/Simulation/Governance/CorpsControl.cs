@@ -65,6 +65,7 @@ public static class CorpsControl
             AlienateCommand alienate => OwnPerson(alienate.OfficerId),
             SeizeCommand seize => OwnPerson(seize.OfficerId),
             GossipCommand gossip => OwnPerson(gossip.OfficerId),
+            GiftCommand gift => OwnPerson(gift.OfficerId),
             UnitStrategyCommand strategy => OwnPerson(strategy.OfficerId),
             SearchCommand search => OwnPerson(search.OfficerId),
             MoveOfficersCommand move => !move.OfficerIds.IsDefault && move.OfficerIds.All(OwnPerson) && OwnPlace(move.DestinationId),

@@ -72,6 +72,8 @@ public sealed class GameSession
         return recording;
     }
     public WorldSnapshot Snapshot => _simulation.Snapshot;
+    public CommandAdvice GetGiftAdvice(int forceId, int officerId, int targetForceId, GiftOffer offer) =>
+        _simulation.GetGiftAdvice(forceId, officerId, targetForceId, offer);
     public AllianceFormationCandidates GetAllianceCandidates() => _simulation.GetAllianceCandidates();
     public AllianceParticipationPrompt? GetAllianceParticipationPrompt() => _simulation.GetAllianceParticipationPrompt();
     public AttackWarning GetAttackWarning(int forceId, MilitaryOrder order) => _simulation.GetAttackWarning(forceId, order);

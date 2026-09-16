@@ -105,9 +105,8 @@ internal static class PersonnelTransitions
         foreach (var task in world.Simulation.Tasks.Where(t => t.OfficerId == personId || t.Journey?.TargetOfficerId == personId)
             .OrderBy(t => t.Sequence).ThenBy(t => t.OriginSettlementId).ThenBy(t => t.OfficerId).ThenBy(t => t.Id).ToArray())
         {
-            world.SetSimulation(world.Simulation with { Tasks = world.Simulation.Tasks.Remove(task) });
             world.Replace(world.Officers[task.OfficerId] with { Acted = true });
-            events.Add(new TaskCancelledEvent(task.Id, world.Clock, reason));
+            TaskCancellation.Apply(world, task, reason, events);
             if (task.OfficerId != personId && task.Journey is not null)
                 PersonnelReturns.Start(world, task, places, events, afterDailyCommands);
             else if (!preserveReinforcements)

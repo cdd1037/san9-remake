@@ -65,8 +65,7 @@ internal static class BattleAftermath
         foreach (var task in world.Simulation.Tasks.Where(t => t.OriginSettlementId == id || t.Journey?.DestinationPlaceId == id)
             .OrderBy(t => t.Sequence).ThenBy(t => t.Id).ToArray())
         {
-            world.SetSimulation(world.Simulation with { Tasks = world.Simulation.Tasks.Remove(task) });
-            events.Add(new TaskCancelledEvent(task.Id, world.Clock, "settlement-captured"));
+            TaskCancellation.Apply(world, task, "settlement-captured", events);
             if (task.Journey is not null) BattlePersonnel.ResumeReturn(world, task, rules, events);
         }
         winner.Reward(world, 0, 10);
@@ -188,8 +187,7 @@ internal static class BattleAftermath
         foreach (var task in world.Simulation.Tasks.Where(t => t.ForceId == forceId).ToArray())
         {
             ReinforcementTransport.Disband(world, task, "force-eliminated", events);
-            world.SetSimulation(world.Simulation with { Tasks = world.Simulation.Tasks.Remove(task) });
-            events.Add(new TaskCancelledEvent(task.Id, world.Clock, "force-eliminated"));
+            TaskCancellation.Apply(world, task, "force-eliminated", events);
         }
         foreach (var person in world.Officers.Values.Where(p => p.OwnerId == forceId).ToArray())
         {

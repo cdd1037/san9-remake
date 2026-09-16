@@ -64,6 +64,11 @@ public sealed class SimulationEngine
 
     public IReadOnlyList<DomainEvent> InitialEvents { get; } = Array.Empty<DomainEvent>();
     public WorldSnapshot Snapshot => _world.CreateSnapshot();
+    public CommandAdvice GetGiftAdvice(int forceId, int officerId, int targetForceId, GiftOffer offer)
+    {
+        if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
+        return GiftDiplomacy.Advice(_world.BeginMutation(_rules.Abilities), forceId, officerId, targetForceId, offer, _rules);
+    }
     public WorldSnapshot CaptureStableState()
     {
         if (_world.IsExecuting || _world.Simulation.Boundary == SimulationBoundary.New)
@@ -142,6 +147,10 @@ public sealed class SimulationEngine
             DevelopmentOutcome? development = null;
             switch (command)
             {
+                case GiftCommand gift:
+                    var giftRejection = GiftDiplomacy.Start(mutation, context, gift, _rules, events);
+                    if (giftRejection != CommandRejection.None) return Reject(giftRejection);
+                    break;
                 case RespondDailyTaskCommand response:
                     var waiting = mutation.Simulation.PendingDailyTask!;
                     if (waiting.RemainingTaskIds[0] != response.TaskId) return Reject(CommandRejection.InvalidDecision);

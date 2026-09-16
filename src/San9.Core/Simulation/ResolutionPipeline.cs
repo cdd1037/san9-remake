@@ -31,7 +31,8 @@ internal class SimulationRules
         : kind == UnitStrategies.Kind ? new UnitStrategyRule(this) : kind == BurnStrategies.Kind ? new BurnRule(this)
         : kind == AlienateStrategies.Kind ? new AlienateRule(this)
         : kind == SeizeStrategies.Kind ? new SeizeRule(this)
-        : kind == GossipStrategies.Kind ? new GossipRule(this) : null;
+        : kind == GossipStrategies.Kind ? new GossipRule(this)
+        : kind == GiftDiplomacy.Kind ? new GiftRule(this) : null;
     internal virtual void ApplyStage(ResolutionStage stage, WorldMutation world, List<DomainEvent> events) { }
 }
 
@@ -126,7 +127,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         foreach (var task in world.Simulation.Tasks.OrderBy(t => t.Sequence).ThenBy(t => t.OriginSettlementId).ThenBy(t => t.OfficerId).ThenBy(t => t.Id))
         {
             ReinforcementTransport.Disband(world, task, "terminal", events);
-            events.Add(new TaskCancelledEvent(task.Id, world.Clock, "terminal"));
+            TaskCancellation.Apply(world, task, "terminal", events);
         }
         world.SetSimulation(world.Simulation with { Boundary = SimulationBoundary.Terminal, Tasks = [], PendingAlliance = null, PendingDailyTask = null });
         if (!events.OfType<SimulationEndedEvent>().Any()) events.Add(new SimulationEndedEvent(world.Clock, reason));
@@ -147,17 +148,17 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         var pending = world.Simulation.PendingDailyTask!;
         var task = world.Simulation.Tasks.Single(t => t.Id == pending.RemainingTaskIds[0]);
         var rule = rules.FindTask(task.Kind)!;
-        world.SetSimulation(world.Simulation with { PendingDailyTask = null, Boundary = SimulationBoundary.Stable,
-            Tasks = world.Simulation.Tasks.Remove(task) });
+        world.SetSimulation(world.Simulation with { PendingDailyTask = null, Boundary = SimulationBoundary.Stable });
         if (world.Officers.TryGetValue(task.OfficerId, out var officer)) world.Replace(officer with { Acted = true });
         if (TaskReferencesValid(world, task) && rule.Validate(world, task))
         {
+            world.SetSimulation(world.Simulation with { Tasks = world.Simulation.Tasks.Remove(task) });
             rule.CompleteDecision(world, task, accept, events);
             events.Add(new TaskCompletedEvent(task.Id, world.Clock));
         }
         else
         {
-            events.Add(new TaskCancelledEvent(task.Id, world.Clock, "invalid-target-or-executor"));
+            TaskCancellation.Apply(world, task, "invalid-target-or-executor", events);
             if (task.Journey is not null) BattlePersonnel.ResumeReturn(world, task, rules, events);
         }
         world.MaintainLeadership(events);
@@ -185,17 +186,17 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
                         .Where(id => world.Simulation.Tasks.Any(t => t.Id == id)).ToImmutableArray()) });
                 return;
             }
-            world.SetSimulation(world.Simulation with { Tasks = world.Simulation.Tasks.Remove(task) });
             if (world.Officers.TryGetValue(task.OfficerId, out var officer))
                 world.Replace(officer with { Acted = true });
             if (valid)
             {
+                world.SetSimulation(world.Simulation with { Tasks = world.Simulation.Tasks.Remove(task) });
                 rule.Complete(world, task, events);
                 events.Add(new TaskCompletedEvent(task.Id, world.Clock));
             }
             else
             {
-                events.Add(new TaskCancelledEvent(task.Id, world.Clock, "invalid-target-or-executor"));
+                TaskCancellation.Apply(world, task, "invalid-target-or-executor", events);
                 if (task.Journey is not null) BattlePersonnel.ResumeReturn(world, task, rules, events);
             }
             world.MaintainLeadership(events);

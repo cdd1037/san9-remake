@@ -34,7 +34,8 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 53;
+    public const int CurrentSchemaVersion = 54;
+    [System.Text.Json.Serialization.JsonRequired] public System.Collections.Immutable.ImmutableArray<AttackRequestInitialState> AttackRequests { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public Dictionary<int, int> CityProvinceIds { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public San9.Core.Domain.AllianceState? Alliance { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public Dictionary<int, string> FacilityNameSuffixKeys { get; init; } = [];
@@ -84,6 +85,12 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
             EmperorId is int emperor && !Officers.Any(o => o.State.Id == emperor)) throw new InvalidDataException("Invalid economy references.");
         if (Officers.Any(o => o.State.RegionId is int region && !UnbuiltPlaces.Any(p => p.Id == region))) throw new InvalidDataException("Invalid officer region.");
         var forceIds = Forces.Select(f => f.Id).ToHashSet();
+        if (AttackRequests.IsDefault || AttackRequests.Any(r => r is null || r.RemainingXun <= 0 ||
+            r.RequestedForceId == r.RequesterForceId || !forceIds.Contains(r.RequestedForceId) || !forceIds.Contains(r.RequesterForceId) ||
+            !Settlements.Any(s => s.Id == r.TargetSettlementId && s.OwnerId is int owner && forceIds.Contains(owner) &&
+                owner != r.RequestedForceId && owner != r.RequesterForceId)) ||
+            AttackRequests.Select(r => r.RequestedForceId).Distinct().Count() != AttackRequests.Length)
+            throw new InvalidDataException("Invalid initial attack requests.");
         if (Units.Select(u => u.Id).Distinct().Count() != Units.Length || Units.Any(u => !u.IsValid || !forceIds.Contains(u.OwnerId) ||
             u.ServicePlaceId is int home && !Settlements.Any(s => s.Id == home) && !UnbuiltPlaces.Any(p => p.Id == home)))
             throw new InvalidDataException("Invalid field unit initial state.");

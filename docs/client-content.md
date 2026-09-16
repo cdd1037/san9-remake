@@ -7,10 +7,10 @@
 | 模块 | 职责 | 输出 |
 | --- | --- | --- |
 | Content.Maps / MapImporter | 当前地图方格、地貌及对象位置 | `map.json`（无图片文件） |
-| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema53 |
+| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema54 |
 | Content.Text / ScenarioTextReader | 名称与全量消息目录 | `text.json` / `messages.json`，schema3 |
 | Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema16 |
-| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema57 |
+| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema58 |
 | Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema3／转换版本8 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 
@@ -148,4 +148,4 @@ G07的`UnitPolicies`保留迎击、追击、事后攻击和自主撤退四项语
 
 季度联盟形成仅增加运行态提案与选择，不改变剧本schema53／组合57，不需为此重转内容包。
 
-攻击请求生命周期当前规则为`san9-core-g08-v16`、存档/日志35，旧规则文件明确拒绝。只增加运行态有向约定，内容schema53／组合57仍不变。TC101剧本没有请求元组，原版存档不在导入范围；独立内容的初始请求创作入口仍待接入。
+攻击请求生命周期当前规则为`san9-core-g08-v16`、存档/日志35。剧本schema54／组合58增加必填`AttackRequests`集合：作者填写受请求方、请求方、目标据点与正的剩余旬数，不手工维护目标归属；Application建局时根据初始据点归属生成签约条件，按持有人排序。集合进入内容指纹，运行态独立演进，恢复不重新应用初始约定。开局旬更新也递减期限，不使用联盟的开局豁免。缺字段、重复持有人、无效身份、无主或属于任一签约方的目标均拒绝。TC101剧本没有请求元组，导入明确输出空集合，原版存档不在导入范围；190年转换包已原位更新。旧包须重转，内容指纹拒绝旧内容存档与日志。

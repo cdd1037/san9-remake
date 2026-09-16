@@ -17,6 +17,11 @@ internal static class MilitaryDiplomacy
 
     internal static bool IsHostileRelation(int value) => value < 40;
 
+    internal static bool CanUseHostileStrategy(WorldMutation world, int source, int target) =>
+        CanFight(world, source, target) && world.Simulation.Alliance?.Protects(source, target) != true &&
+        !AttackRequests.Protects(world, source, target) &&
+        world.Relations.ContainsKey((Math.Min(source, target), Math.Max(source, target)));
+
     internal static bool AutomaticEnemy(WorldMutation world, int attacker, int? defender) =>
         CanFight(world, attacker, defender) && (defender is null ||
             world.Simulation.Alliance?.Protects(attacker, defender.Value) != true && !AttackRequests.Protects(world, attacker, defender.Value) &&

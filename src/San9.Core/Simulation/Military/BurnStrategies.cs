@@ -14,9 +14,8 @@ internal static class BuildingStrategyTargets
     {
         if (rules.Military is not { } military || !world.Settlements.TryGetValue(targetId, out var target) ||
             target.IsDestroyed || target.Durability <= 0 || target.Facility?.BuilderUnitId is not null ||
-            target.OwnerId is not int owner || !MilitaryDiplomacy.CanFight(world, forceId, owner) ||
-            world.Forces[owner].IsBarbarian || world.Simulation.Alliance?.Protects(forceId, owner) == true ||
-            !world.Relations.ContainsKey((Math.Min(forceId, owner), Math.Max(forceId, owner))) ||
+            target.OwnerId is not int owner || !MilitaryDiplomacy.CanUseHostileStrategy(world, forceId, owner) ||
+            world.Forces[owner].IsBarbarian ||
             MilitaryDiplomacy.Work(world, targetId, military) || !rules.Personnel.Places.ContainsKey(origin) ||
             !rules.Personnel.Places.ContainsKey(targetId) ||
             !rules.Personnel.RegionCities.TryGetValue(origin, out int sourceCity) ||

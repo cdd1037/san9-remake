@@ -16,9 +16,8 @@ internal static class AlienateStrategies
         if (!world.Officers.TryGetValue(targetId, out var target) || !target.IsServing ||
             target.Status == OfficerStatus.Ruler || target.OwnerId is not int owner || owner == forceId ||
             target.Loyalty <= 0 || world.Forces[owner].IsBarbarian ||
-            world.Simulation.Alliance?.Protects(forceId, owner) == true) return false;
-        return TryDestination(world, target, rules, out _, out _) &&
-            world.Relations.ContainsKey((Math.Min(forceId, owner), Math.Max(forceId, owner)));
+            !MilitaryDiplomacy.CanUseHostileStrategy(world, forceId, owner)) return false;
+        return TryDestination(world, target, rules, out _, out _);
     }
 
     private static CommandRejection Eligibility(WorldMutation world, int forceId, int officerId, int targetId,

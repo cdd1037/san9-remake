@@ -33,11 +33,9 @@ internal static class GossipStrategies
         if (!ValidForce(world, firstTargetForceId) || !ValidForce(world, secondTargetForceId) ||
             actorForceId == firstTargetForceId || actorForceId == secondTargetForceId ||
             firstTargetForceId == secondTargetForceId ||
-            world.Simulation.Alliance?.Protects(actorForceId, firstTargetForceId) == true ||
+            !MilitaryDiplomacy.CanUseHostileStrategy(world, actorForceId, firstTargetForceId) ||
             MemberCount(world, firstTargetForceId) <= 1 || Targets(world, firstTargetForceId).Length == 0) return false;
-        return world.Relations.ContainsKey((Math.Min(actorForceId, firstTargetForceId),
-                   Math.Max(actorForceId, firstTargetForceId))) &&
-               world.Relations.ContainsKey((Math.Min(firstTargetForceId, secondTargetForceId),
+        return world.Relations.ContainsKey((Math.Min(firstTargetForceId, secondTargetForceId),
                    Math.Max(firstTargetForceId, secondTargetForceId)));
     }
 

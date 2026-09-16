@@ -16,10 +16,10 @@ public static class DiplomacyMath
     public static int GiftFoodThreshold(int politics, int relation, uint food) =>
         GiftBase(politics, relation) + (int)(food / 2000);
 
-    public static int GiftTreasureThreshold(int politics, int relation, int value)
+    public static int GiftTreasureThreshold(int politics, int relation, int loyaltyBonus)
     {
-        ArgumentOutOfRangeException.ThrowIfNegative(value);
-        return Signed((long)GiftBase(politics, relation) + 2L * value);
+        ArgumentOutOfRangeException.ThrowIfNegative(loyaltyBonus);
+        return Signed((long)GiftBase(politics, relation) + 2L * loyaltyBonus);
     }
 
     private static int GiftBase(int politics, int relation)

@@ -36,6 +36,62 @@ public sealed class DiplomacyMathTests
         Assert.Equal(2500u, DiplomacyMath.PrisonerCompensation(new(100, 100, 10, 20), 0, 0));
     }
 
+    [Theory]
+    [InlineData(499u, 500u, false)]
+    [InlineData(500u, 500u, false)]
+    [InlineData(501u, 500u, true)]
+    public void RansomQuotationRequiresMoreThanTheCompensation(uint money, uint compensation, bool expected) =>
+        Assert.Equal(expected, DiplomacyMath.CanQuotePrisonerRansom(money, compensation));
+
+    [Theory]
+    [InlineData(499u, 500u, 1000u, 0L, true)]
+    [InlineData(500u, 500u, 1000u, 0L, false)]
+    [InlineData(500u, 500u, 1001u, 0L, false)]
+    [InlineData(500u, 500u, 1002u, 0L, true)]
+    [InlineData(501u, 500u, 10000u, 0L, false)]
+    [InlineData(500u, 500u, 10000u, 9499L, true)]
+    [InlineData(500u, 500u, 10000u, 9500L, false)]
+    [InlineData(500u, 500u, 10000u, 10001L, false)]
+    [InlineData(1u, 500u, 10000u, long.MaxValue, false)]
+    [InlineData(0u, 500u, 10000u, 0L, false)]
+    public void RansomAcceptanceSeparatesValuationHalfTreasuryAndReserveLimits(uint quote, uint compensation,
+        uint money, long reserve, bool expected) =>
+        Assert.Equal(expected, DiplomacyMath.AcceptPrisonerRansom(quote, compensation, money, reserve));
+
+    [Theory]
+    [InlineData(4, 500u, true)]
+    [InlineData(5, 500u, false)]
+    [InlineData(5, 599u, false)]
+    [InlineData(5, 600u, true)]
+    [InlineData(28, 10000u, true)]
+    [InlineData(29, 10000u, false)]
+    public void TreasureAcceptanceUsesStrictLoyaltyLimitAndIntegerCompensation(int bonus, uint compensation, bool expected) =>
+        Assert.Equal(expected, DiplomacyMath.AcceptPrisonerTreasure(bonus, compensation));
+
+    [Theory]
+    [InlineData(1, 1, 9)]
+    [InlineData(1, 9, 9)]
+    [InlineData(1, 10, 8)]
+    [InlineData(1, 11, 8)]
+    [InlineData(2, 20, 4)]
+    [InlineData(3, 21, 1)]
+    [InlineData(3, 30, 0)]
+    [InlineData(4, 1, 9)]
+    [InlineData(12, 30, 0)]
+    public void SalaryHorizonUsesCalendarTenDayBlocks(int month, int day, int expected) =>
+        Assert.Equal(expected, DiplomacyMath.PrisonerSalaryReserveXuns(month, day));
+
+    [Fact]
+    public void InvalidNegotiationArithmeticInputsAreRejected()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => DiplomacyMath.AcceptPrisonerRansom(1, 500, 1000, -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => DiplomacyMath.AcceptPrisonerTreasure(-1, 500));
+        Assert.Throws<ArgumentOutOfRangeException>(() => DiplomacyMath.PrisonerSalaryReserveXuns(0, 1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => DiplomacyMath.PrisonerSalaryReserveXuns(13, 1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => DiplomacyMath.PrisonerSalaryReserveXuns(1, 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => DiplomacyMath.PrisonerSalaryReserveXuns(1, 31));
+    }
+
     [Fact]
     public void AcceptedAndRejectedRelationsRespectTheirDifferentFloors()
     {

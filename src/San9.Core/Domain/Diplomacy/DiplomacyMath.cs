@@ -47,6 +47,28 @@ public static class DiplomacyMath
         return (uint)Math.Clamp(average * average / 4 - 8L * ((long)envoyPolitics + relation), 500, uint.MaxValue);
     }
 
+    public static bool CanQuotePrisonerRansom(uint money, uint compensation) => money > compensation;
+
+    public static bool AcceptPrisonerRansom(uint quote, uint compensation, uint money, long salaryReserve)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(salaryReserve);
+        // A reserve larger than the treasury must remain a deficit, not unsigned wraparound.
+        return quote > 0 && quote <= compensation && quote < money / 2 && (long)quote < (long)money - salaryReserve;
+    }
+
+    public static bool AcceptPrisonerTreasure(int loyaltyBonus, uint compensation)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(loyaltyBonus);
+        return loyaltyBonus < Math.Min(29u, compensation / 100);
+    }
+
+    public static int PrisonerSalaryReserveXuns(int month, int day)
+    {
+        if (month is < 1 or > 12) throw new ArgumentOutOfRangeException(nameof(month));
+        if (day is < 1 or > 30) throw new ArgumentOutOfRangeException(nameof(day));
+        return 3 * (2 - (month - 1) % 3) + 3 - day / 10;
+    }
+
     public static int GiftAcceptedRelation(int relation)
     {
         Relation(relation);

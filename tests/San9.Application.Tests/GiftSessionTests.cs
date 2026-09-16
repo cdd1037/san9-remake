@@ -85,8 +85,14 @@ public sealed class GiftSessionTests
         Assert.Equal(amount, gift.Received);
         Assert.Equal(0u, gift.Spent);
         Assert.Equal(60, Assert.Single(session.Snapshot.Relations).Value);
-        Assert.Empty(session.Snapshot.Simulation.Tasks);
+        Assert.All(session.Snapshot.Simulation.Tasks, t => Assert.NotNull(t.Journey!.ReturnLeg));
         if (kind == GiftKind.Treasure) Assert.Equal(21, session.Snapshot.Treasures[0].HolderId);
+        var returning = SaveService.Decode(SaveService.Encode(session), content);
+        var next = session.AdvanceXun();
+        Assert.Equal(CanonicalJson.Text(next.Events), CanonicalJson.Text(returning.AdvanceXun().Events));
+        Assert.Contains(next.Events.OfType<PersonnelReturnedEvent>(), e => e.OfficerId == 12 && e.Clock == new GameClock(190, 1, 14));
+        Assert.DoesNotContain(session.Snapshot.Simulation.Tasks, t => t.OfficerId == 12);
+        Assert.Equal(session.Capture().StateHash, returning.Capture().StateHash);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
         Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
     }
@@ -103,9 +109,11 @@ public sealed class GiftSessionTests
         Assert.True(session.Execute(new("ai:2"), new GiftCommand(Guid.NewGuid(), 2, 0, 22, 1,
             new(GiftKind.Money, 1000, null))).Submission.Accepted);
         var arriving = session.AdvanceXun();
-        Assert.Equal(3, session.Snapshot.Clock.Day);
+        Assert.Equal(11, session.Snapshot.Clock.Day);
+        Assert.DoesNotContain(arriving.Events, e => e is XunAdvancedEvent);
         Assert.Empty(arriving.Events.OfType<GiftResolvedEvent>());
         var pending = session.Snapshot.Simulation.PendingDailyTask!;
+        Assert.Equal(TaskResolutionPhase.XunBoundary, pending.Phase);
         Assert.Equal(1, pending.RespondingForceId);
         Assert.Equal(AdviserOpinion.Unavailable, session.GetGiftAdvice(2, 21, 1, new(GiftKind.Money, 1000, null)).Opinion);
         var restored = SaveService.Decode(SaveService.Encode(session), content);
@@ -119,9 +127,40 @@ public sealed class GiftSessionTests
         Assert.Equal(accept, gift.Accepted);
         Assert.Equal(accept ? 1000u : 0, gift.Received);
         Assert.Equal(accept ? 0u : 1000u, gift.Spent);
-        Assert.Empty(session.Snapshot.Simulation.Tasks);
+        Assert.All(session.Snapshot.Simulation.Tasks, t => Assert.NotNull(t.Journey!.ReturnLeg));
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
         Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+    }
+
+    [Fact]
+    public void BoundaryContinuationRejectsMissingWrongOrUnknownPhaseAndNonXunTravel()
+    {
+        var content = Content();
+        var session = GameSession.Start(content, 42);
+        session.EndControl(new("player"));
+        Assert.True(session.Execute(new("ai:2"), new GiftCommand(Guid.NewGuid(), 2, 0, 22, 1,
+            new(GiftKind.Money, 1000, null))).Submission.Accepted);
+        session.AdvanceXun();
+        var snapshot = session.Capture();
+        var pending = snapshot.World.Simulation.PendingDailyTask!;
+        foreach (var phase in new[] { TaskResolutionPhase.DailyCommands, (TaskResolutionPhase)99 })
+        {
+            var changed = snapshot with { World = snapshot.World with { Simulation = snapshot.World.Simulation with
+                { PendingDailyTask = pending with { Phase = phase, XunStarted = snapshot.World.Clock } } } };
+            Assert.Throws<ArgumentException>(() => GameSession.Restore(content, changed));
+        }
+        var json = System.Text.Json.Nodes.JsonNode.Parse(SaveService.Encode(session))!;
+        Assert.True(json["session"]!["world"]!["simulation"]!["pendingDailyTask"]!.AsObject().Remove("phase"));
+        Assert.Equal(SaveFailure.InvalidFormat, Assert.Throws<SaveException>(() => SaveService.Decode(
+            System.Text.Encoding.UTF8.GetBytes(json.ToJsonString()), content)).Failure);
+
+        var fresh = GameSession.Start(content, 42);
+        Assert.True(fresh.Execute(new("player"), new GiftCommand(Guid.NewGuid(), 1, 0, 12, 2,
+            new(GiftKind.Money, 1000, null))).Submission.Accepted);
+        var outbound = fresh.Capture();
+        var task = Assert.Single(outbound.World.Simulation.Tasks);
+        Assert.Throws<ArgumentException>(() => GameSession.Restore(content, outbound with { World = outbound.World with
+            { Simulation = outbound.World.Simulation with { Tasks = [task with { Due = new(190, 1, 3) }] } } }));
     }
 
     [Fact]
@@ -222,7 +261,7 @@ public sealed class GiftSessionTests
         Assert.Empty(result.Events.OfType<GiftResolvedEvent>());
         var refund = Assert.Single(result.Events.OfType<ResourceChangedEvent>(), e => e.Reason == "gift-cancelled");
         Assert.Equal(5000, refund.Actual);
-        Assert.Empty(session.Snapshot.Simulation.Tasks);
+        Assert.All(session.Snapshot.Simulation.Tasks, t => Assert.NotNull(t.Journey!.ReturnLeg));
         Assert.DoesNotContain(session.AdvanceXun().Events.OfType<ResourceChangedEvent>(), e => e.Reason == "gift-cancelled");
     }
 }

@@ -42,7 +42,7 @@ public sealed class PrisonerReturnSessionTests
         var arrived = session.AdvanceXun();
         Assert.Equal(CanonicalJson.Text(arrived.Events), CanonicalJson.Text(outbound.AdvanceXun().Events));
         var task = Assert.Single(session.Snapshot.Simulation.Tasks, t => t.ForceId == 1);
-        Assert.Equal(3, session.Snapshot.Clock.Day);
+        Assert.Equal(11, session.Snapshot.Clock.Day);
         Assert.Equal(1, task.ResolutionStep);
         Assert.Equal(exchange ? CompensationKind.Prisoner : CompensationKind.Money, task.PrisonerReturn!.Offer!.Kind);
         Assert.Single(arrived.Events.OfType<CompensationQuotedEvent>());
@@ -58,7 +58,7 @@ public sealed class PrisonerReturnSessionTests
         Assert.Equal(accept && !exchange ? 500u : 0u, resolved.Received);
         Assert.Equal(accept ? exchange ? 2 : 1 : 0, result.Events.OfType<PrisonerRecoveredEvent>().Count());
         Assert.Equal(accept ? OfficerStatus.Serving : OfficerStatus.Captive, session.Snapshot.Officers.Single(p => p.Id == 13).Status);
-        Assert.Empty(session.Snapshot.Simulation.Tasks);
+        Assert.All(session.Snapshot.Simulation.Tasks, t => Assert.NotNull(t.Journey!.ReturnLeg));
         Assert.Single(result.Events.OfType<XunAdvancedEvent>());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
         Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);

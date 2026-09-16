@@ -70,8 +70,8 @@ internal static class SurrenderDiplomacy
         var actor = world.Officers[command.OfficerId];
         int origin = actor.SettlementId!.Value;
         GiftDiplomacy.Destination(world, command.TargetForceId, rules, out int destination, out var position);
-        int days = position is { } field ? Math.Max(0, PersonnelRulebook.JourneyDays(rules.Personnel.Places[origin].Position, field) - 1)
-            : rules.Personnel.ResolutionDayOffset(origin, destination, PersonnelJourneyKind.Move);
+        int days = DiplomacyJourney.Days(rules.Personnel.Places[origin].Position,
+            position ?? rules.Personnel.Places[destination].Position);
         var due = world.Clock;
         for (int i = 0; i < days; i++) due = due.NextDay();
         var task = new PersistentTask(command.CommandId, Kind, context.ControllerId, command.IssuerId, actor.Id, origin,
@@ -106,11 +106,12 @@ internal static class SurrenderDiplomacy
 
 internal sealed class SurrenderRule(SimulationRules rules) : TaskRule
 {
+    internal override TaskResolutionPhase Phase => TaskResolutionPhase.XunBoundary;
     internal override bool HasValidPayload(PersistentTask task) => task.Gift is null && task.PrisonerReturn is null && task.AttackRequest is null &&
         task.Reinforcements is null && task.Surrender is { TargetForceId: >= 0 } mission && mission.TargetForceId != task.ForceId && task.Journey is
         { TargetOfficerId: null, SuccessRoll: >= 0 and < 100, ReturnLeg: null, AcceptRecruitment: null,
           UnitStrategy: null, Burn: null, Seize: null, Gossip: null } && DurationDays(task) >= 0;
-    internal override int DurationDays(PersistentTask task) => new GiftRule(rules).DurationDays(task);
+    internal override int DurationDays(PersistentTask task) => DiplomacyJourney.Duration(task, rules);
     internal override bool Validate(WorldMutation world, PersistentTask task) => HasValidPayload(task) &&
         SurrenderDiplomacy.Target(world, task.ForceId, task.Surrender!.TargetForceId);
     internal override int? DecisionRecipient(WorldMutation world, PersistentTask task) =>

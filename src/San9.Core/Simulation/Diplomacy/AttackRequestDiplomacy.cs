@@ -139,8 +139,8 @@ internal static class AttackRequestDiplomacy
         var actor = world.Officers[command.OfficerId];
         int origin = actor.SettlementId!.Value;
         GiftDiplomacy.Destination(world, command.TargetForceId, rules, out int destination, out var position);
-        int days = position is { } field ? Math.Max(0, PersonnelRulebook.JourneyDays(rules.Personnel.Places[origin].Position, field) - 1)
-            : rules.Personnel.ResolutionDayOffset(origin, destination, PersonnelJourneyKind.Move);
+        int days = DiplomacyJourney.Days(rules.Personnel.Places[origin].Position,
+            position ?? rules.Personnel.Places[destination].Position);
         var due = world.Clock;
         for (int i = 0; i < days; i++) due = due.NextDay();
         var task = new PersistentTask(command.CommandId, Kind, context.ControllerId, command.IssuerId, actor.Id, origin, world.Clock, due, 0, command.Sequence)
@@ -187,13 +187,14 @@ internal static class AttackRequestDiplomacy
 
 internal sealed class AttackRequestRule(SimulationRules rules) : TaskRule
 {
+    internal override TaskResolutionPhase Phase => TaskResolutionPhase.XunBoundary;
     internal override bool SupportsResolutionStep(int step) => step is 0 or 1;
     internal override bool HasValidPayload(PersistentTask task) => task.Gift is null && task.PrisonerReturn is null && task.Reinforcements is null &&
         task.AttackRequest is { TargetForceId: >= 0, TargetSettlementId: >= 0 } mission && mission.TargetForceId != task.ForceId &&
         (task.ResolutionStep == 0 ? mission.Offer is null : mission.Offer is { IsValid: true }) && task.Journey is
         { TargetOfficerId: null, SuccessRoll: >= 0 and < 100, ReturnLeg: null, AcceptRecruitment: null,
           UnitStrategy: null, Burn: null, Seize: null, Gossip: null } && DurationDays(task) >= 0;
-    internal override int DurationDays(PersistentTask task) => new GiftRule(rules).DurationDays(task);
+    internal override int DurationDays(PersistentTask task) => DiplomacyJourney.Duration(task, rules);
     internal override bool Validate(WorldMutation world, PersistentTask task) => HasValidPayload(task) &&
         AttackRequestDiplomacy.Target(world, task.ForceId, task.AttackRequest!.TargetForceId, task.AttackRequest.TargetSettlementId) &&
         (AttackRequestDiplomacy.Duplicate(world, task.ForceId, task.AttackRequest.TargetForceId, task.AttackRequest.TargetSettlementId) ||

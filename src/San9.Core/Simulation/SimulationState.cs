@@ -8,11 +8,15 @@ public enum ControllerKind { Player, Automatic }
 public sealed record ControlSeat(string ControllerId, int ForceId, ControllerKind Kind);
 public readonly record struct CommandContext(string ControllerId);
 public sealed record RandomStreamState(string Name, ulong State);
+public enum TaskResolutionPhase { DailyCommands, XunBoundary }
 
 public sealed record DailyTaskDecision(
     [property: JsonRequired] GameClock XunStarted,
     [property: JsonRequired] int RespondingForceId,
-    [property: JsonRequired] ImmutableArray<Guid> RemainingTaskIds);
+    [property: JsonRequired] ImmutableArray<Guid> RemainingTaskIds)
+{
+    [JsonRequired] public TaskResolutionPhase Phase { get; init; }
+}
 
 public sealed record PersistentTask(Guid Id, string Kind, string ControllerId, int ForceId,
     int OfficerId, int OriginSettlementId, GameClock Started, GameClock Due, int ProgressDays, long Sequence)

@@ -41,7 +41,8 @@ internal class SimulationRules
 
 internal abstract class TaskRule
 {
-    // Calendar-day offset from submission to the daily stage that resolves this task.
+    internal virtual TaskResolutionPhase Phase => TaskResolutionPhase.DailyCommands;
+    // Calendar-day offset from submission to this rule's resolution phase.
     internal abstract int DurationDays(PersistentTask task);
     internal virtual bool HasValidPayload(PersistentTask task) => task.Journey is null;
     internal virtual bool SupportsResolutionStep(int step) => step == 0;
@@ -95,8 +96,20 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         world.SetSimulation(world.Simulation with { Tasks = world.Simulation.Tasks
             .Select(t => t with { ProgressDays = checked(t.ProgressDays + 1) }).ToImmutableArray() });
         if (!Run(ResolutionStage.DailyMapUpdate, world, events)) return;
+        FinishDay(world, events, xunStarted);
+    }
+
+    private void FinishDay(WorldMutation world, List<DomainEvent> events, GameClock xunStarted,
+        ImmutableArray<Guid>? remainingTasks = null)
+    {
+        if (world.Clock.IsXunBoundary)
+        {
+            ResolveTasks(world, events, xunStarted, phase: TaskResolutionPhase.XunBoundary, remainingTasks: remainingTasks);
+            if (world.Simulation.PendingDailyTask is not null || !CheckTerminal(world, events)) return;
+        }
         // The later unit/building phase settles returns already due in the completed day,
         // including those created by that day's commands. Advancing the date is not another countdown tick.
+        // A zero-distance return created by boundary diplomacy can also settle immediately.
         ResolveTasks(world, events, xunStarted, returningAfterDateAdvance: true);
         Run(ResolutionStage.UnitAndBuildingEvents, world, events);
     }
@@ -176,14 +189,21 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
             if (task.Journey is not null) BattlePersonnel.ResumeReturn(world, task, rules, events);
         }
         world.MaintainLeadership(events);
-        if (CheckTerminal(world, events)) AdvanceDay(world, events, pending.XunStarted, pending.RemainingTaskIds);
+        if (!CheckTerminal(world, events)) return;
+        if (pending.Phase == TaskResolutionPhase.XunBoundary)
+            FinishDay(world, events, pending.XunStarted, pending.RemainingTaskIds);
+        else AdvanceDay(world, events, pending.XunStarted, pending.RemainingTaskIds);
     }
 
     private void ResolveTasks(WorldMutation world, List<DomainEvent> events, GameClock xunStarted,
-        bool returningAfterDateAdvance = false, ImmutableArray<Guid>? remainingTasks = null)
+        bool returningAfterDateAdvance = false, ImmutableArray<Guid>? remainingTasks = null,
+        TaskResolutionPhase phase = TaskResolutionPhase.DailyCommands)
     {
         var queue = remainingTasks ?? world.Simulation.Tasks
-            .Where(t => !returningAfterDateAdvance || t.Kind == PersonnelReturns.Kind && t.Due.DayNumber < world.Clock.DayNumber)
+            .Where(t => returningAfterDateAdvance
+                ? t.Kind == PersonnelReturns.Kind && (t.Due.DayNumber < world.Clock.DayNumber ||
+                    world.Clock.IsXunBoundary && t.Due == world.Clock && t.Journey?.ReturnLeg?.CountdownDays == 0)
+                : rules.FindTask(t.Kind)?.Phase == phase)
             .OrderBy(t => t.Sequence).ThenBy(t => t.OriginSettlementId).ThenBy(t => t.OfficerId).ThenBy(t => t.Id)
             .Select(t => t.Id).ToImmutableArray();
         for (int index = 0; index < queue.Length; index++)
@@ -197,7 +217,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
             {
                 world.SetSimulation(world.Simulation with { Boundary = SimulationBoundary.AwaitingDecision,
                     PendingDailyTask = new(xunStarted, recipient, queue.Skip(index)
-                        .Where(id => world.Simulation.Tasks.Any(t => t.Id == id)).ToImmutableArray()) });
+                        .Where(id => world.Simulation.Tasks.Any(t => t.Id == id)).ToImmutableArray()) { Phase = phase } });
                 return;
             }
             if (world.Officers.TryGetValue(task.OfficerId, out var officer))

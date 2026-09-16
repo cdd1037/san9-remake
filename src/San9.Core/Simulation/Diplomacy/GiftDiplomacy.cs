@@ -95,8 +95,8 @@ internal static class GiftDiplomacy
         var actor = world.Officers[command.OfficerId];
         int origin = actor.SettlementId!.Value;
         Destination(world, command.TargetForceId, rules, out int destination, out var position);
-        int days = position is { } field ? Math.Max(0, PersonnelRulebook.JourneyDays(rules.Personnel.Places[origin].Position, field) - 1)
-            : rules.Personnel.ResolutionDayOffset(origin, destination, PersonnelJourneyKind.Move);
+        int days = DiplomacyJourney.Days(rules.Personnel.Places[origin].Position,
+            position ?? rules.Personnel.Places[destination].Position);
         var due = world.Clock;
         for (int i = 0; i < days; i++) due = due.NextDay();
         var task = new PersistentTask(command.CommandId, Kind, context.ControllerId, command.IssuerId, actor.Id, origin,
@@ -165,15 +165,12 @@ internal static class GiftDiplomacy
 
 internal sealed class GiftRule(SimulationRules rules) : TaskRule
 {
+    internal override TaskResolutionPhase Phase => TaskResolutionPhase.XunBoundary;
     internal override bool HasValidPayload(PersistentTask task) => task.Gift is { TargetForceId: >= 0, Offer.IsValid: true } &&
         task.Gift.TargetForceId != task.ForceId && task.Reinforcements is null && task.Journey is
         { TargetOfficerId: null, SuccessRoll: >= 0 and < 100, ReturnLeg: null, AcceptRecruitment: null,
           UnitStrategy: null, Burn: null, Seize: null, Gossip: null } && DurationDays(task) >= 0;
-    internal override int DurationDays(PersistentTask task) => task.Journey is { } journey &&
-        rules.Personnel.Places.TryGetValue(task.OriginSettlementId, out var origin) && rules.Personnel.Places.ContainsKey(journey.DestinationPlaceId) &&
-        (journey.DestinationPosition is not { } position || rules.Military?.RegionAt(position) == journey.DestinationPlaceId)
-        ? journey.DestinationPosition is { } field ? Math.Max(0, PersonnelRulebook.JourneyDays(origin.Position, field) - 1)
-            : rules.Personnel.ResolutionDayOffset(task.OriginSettlementId, journey.DestinationPlaceId, PersonnelJourneyKind.Move) : -1;
+    internal override int DurationDays(PersistentTask task) => DiplomacyJourney.Duration(task, rules);
     internal override bool Validate(WorldMutation world, PersistentTask task) => HasValidPayload(task) && GiftDiplomacy.Valid(world, task, rules);
     internal override int? DecisionRecipient(WorldMutation world, PersistentTask task) => world.Simulation.Controls.Any(c =>
         c.ForceId == task.Gift!.TargetForceId && c.Kind == ControllerKind.Player) ? task.Gift!.TargetForceId : null;

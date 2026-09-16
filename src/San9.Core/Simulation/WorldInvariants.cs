@@ -92,8 +92,9 @@ internal static class WorldInvariants
         if (sim.PendingDailyTask is { } pending)
         {
             _ = new GameClock(pending.XunStarted.Year, pending.XunStarted.Month, pending.XunStarted.Day);
-            if (!pending.XunStarted.IsXunBoundary || pending.XunStarted.DayNumber < sim.Started.DayNumber ||
-                state.Clock.DayNumber < pending.XunStarted.DayNumber || state.Clock.DayNumber >= pending.XunStarted.Advance().DayNumber ||
+            if (!Enum.IsDefined(pending.Phase) || !pending.XunStarted.IsXunBoundary || pending.XunStarted.DayNumber < sim.Started.DayNumber ||
+                (pending.Phase == TaskResolutionPhase.XunBoundary ? state.Clock != pending.XunStarted.Advance() :
+                    state.Clock.DayNumber < pending.XunStarted.DayNumber || state.Clock.DayNumber >= pending.XunStarted.Advance().DayNumber) ||
                 sim.ActiveControl != sim.Controls.Length || pending.RemainingTaskIds.IsDefaultOrEmpty ||
                 pending.RemainingTaskIds.Distinct().Count() != pending.RemainingTaskIds.Length ||
                 !sim.Tasks.Any(t => t.Id == pending.RemainingTaskIds[0] && t.Due.DayNumber <= state.Clock.DayNumber) ||

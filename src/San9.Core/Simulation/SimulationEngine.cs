@@ -44,8 +44,9 @@ public sealed class SimulationEngine
         {
             var task = world.Simulation.Tasks.Single(t => t.Id == pending.RemainingTaskIds[0]);
             var mutation = world.BeginMutation(rules.Abilities);
-            if (rules.FindTask(task.Kind)!.DecisionRecipient(mutation, task) != pending.RespondingForceId)
-                throw new ArgumentException("Invalid daily task respondent.");
+            if (pending.RemainingTaskIds.Any(id => rules.FindTask(world.Simulation.Tasks.Single(t => t.Id == id).Kind)!.Phase != pending.Phase) ||
+                rules.FindTask(task.Kind)!.DecisionRecipient(mutation, task) != pending.RespondingForceId)
+                throw new ArgumentException("Invalid task continuation phase or respondent.");
         }
         if (world.Simulation.Boundary == SimulationBoundary.New)
         {
@@ -438,7 +439,8 @@ public sealed class SimulationEngine
             _pipeline.AdvanceDay(mutation, events, previous);
         if (mutation.Simulation.Boundary != SimulationBoundary.Terminal && mutation.Simulation.PendingDailyTask is null)
             _pipeline.Prepare(mutation, events);
-        if (mutation.Clock == next) events.Add(new XunAdvancedEvent(previous, mutation.Clock));
+        if (mutation.Clock == next && mutation.Simulation.PendingDailyTask is null)
+            events.Add(new XunAdvancedEvent(previous, mutation.Clock));
     }
 }
 

@@ -32,6 +32,7 @@ public sealed class HeadlessReport
     public int WaitCommands { get; set; }
     public Dictionary<string, int> PersonnelEvents { get; set; } = [];
     public Dictionary<string, int> MilitaryEvents { get; set; } = [];
+    public Dictionary<string, int> DiplomacyStrategyEvents { get; set; } = [];
     public int RestoreCount { get; set; }
     public ContentCoverage? Coverage { get; set; }
     public string Scope { get; set; } = "Domestic commands and economic cycles with scripted/simple policy, save and replay; no warfare or complete strategic AI.";

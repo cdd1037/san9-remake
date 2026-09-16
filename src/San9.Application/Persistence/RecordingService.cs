@@ -68,7 +68,7 @@ public static class RecordingService
                 throw new RecordingException("Recording sequence or events invalid.", sequence);
             SessionResult result;
             try { result = session.Apply(entry.Request); }
-            catch (Exception error) when (error is ArgumentException or InvalidOperationException or OverflowException or NotSupportedException)
+            catch (Exception error) when (error is ArgumentException or InvalidOperationException or OverflowException or NotSupportedException or KeyNotFoundException)
             { throw new RecordingException("Recorded operation failed during execution.", sequence, error); }
             if (result.Disposition != SessionDisposition.Accepted ||
                 !result.Events.Select(e => CanonicalJson.Text<DomainEvent>(e)).SequenceEqual(entry.Events.Select(e => CanonicalJson.Text<DomainEvent>(e))))

@@ -29,6 +29,14 @@ public sealed class PrisonerCycleTests
             escapes.AddRange(result.Events.OfType<PrisonerEscapedEvent>());
             Assert.Equal(SessionDisposition.Accepted, result.Disposition);
             Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.Apply(request).Events));
+            while (session.Snapshot.Simulation.Boundary == SimulationBoundary.AwaitingDecision)
+            {
+                var answer = DecisionResponses.Decline(session);
+                var answered = session.Apply(answer);
+                Assert.Equal(SessionDisposition.Accepted, answered.Disposition);
+                escapes.AddRange(answered.Events.OfType<PrisonerEscapedEvent>());
+                Assert.Equal(CanonicalJson.Text(answered.Events), CanonicalJson.Text(restored.Apply(answer).Events));
+            }
             restored = SaveService.Decode(SaveService.Encode(restored), definition);
             Assert.Equal(SaveService.Encode(session), SaveService.Encode(restored));
         }

@@ -72,6 +72,7 @@ public sealed class GameSession
         return recording;
     }
     public WorldSnapshot Snapshot => _simulation.Snapshot;
+    internal GameCommand ChooseDiplomacy(ControlSeat seat, Guid commandId) => DiplomacyPlanner.Choose(_simulation, seat, commandId);
     public CommandAdvice GetSurrenderAdvice(int forceId, int officerId, int targetForceId) =>
         _simulation.GetSurrenderAdvice(forceId, officerId, targetForceId);
     public AttackRequestPrompt? GetAttackRequestPrompt() => _simulation.GetAttackRequestPrompt();

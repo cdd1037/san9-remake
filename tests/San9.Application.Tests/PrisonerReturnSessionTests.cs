@@ -41,7 +41,7 @@ public sealed class PrisonerReturnSessionTests
         var outbound = SaveService.Decode(SaveService.Encode(session), content);
         var arrived = session.AdvanceXun();
         Assert.Equal(CanonicalJson.Text(arrived.Events), CanonicalJson.Text(outbound.AdvanceXun().Events));
-        var task = Assert.Single(session.Snapshot.Simulation.Tasks);
+        var task = Assert.Single(session.Snapshot.Simulation.Tasks, t => t.ForceId == 1);
         Assert.Equal(3, session.Snapshot.Clock.Day);
         Assert.Equal(1, task.ResolutionStep);
         Assert.Equal(exchange ? CompensationKind.Prisoner : CompensationKind.Money, task.PrisonerReturn!.Offer!.Kind);

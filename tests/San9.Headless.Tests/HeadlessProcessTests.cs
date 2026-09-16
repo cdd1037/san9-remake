@@ -17,6 +17,32 @@ public sealed class HeadlessProcessTests : IDisposable
     private string FilePath(string name) => Path.Combine(_directory, name);
 
     [Fact]
+    public async Task AutomaticDiplomacyPausesRestoresAndRecordsExplicitPlayerAnswers()
+    {
+        var definition = new San9.Content.Scenarios.ScenarioInitialState(San9.Content.Scenarios.ScenarioInitialState.CurrentSchemaVersion,
+            "diplomacy-cli", 190, 1, 1, 1,
+            [new(1, "player", 1, 10000, 10000, 100) { LeaderId = 1 }, new(2, "neighbor", 2, 30000, 10000, 100) { LeaderId = 3 }],
+            [new(1, "home", 1, 0, 0, 100, 100, 100, 50, []) { Commerce = 100, MaxCommerce = 500 },
+                new(2, "away", 2, 2, 0, 100, 100, 100, 50, []) { Commerce = 100, MaxCommerce = 500 }], [], [])
+        {
+            Officers = [new("ruler", new(1, 1, 1, new(50, 50, 50, 50), false)),
+                new("worker", new(2, 1, 1, new(50, 50, 100, 50), false)),
+                new("ruler2", new(3, 2, 2, new(50, 50, 50, 50), false)),
+                new("envoy", new(4, 2, 2, new(50, 50, 100, 50), false))],
+            Information = San9.Content.Scenarios.InformationDefinitions.Empty with { Relations = [new(1, 2, 60)] }
+        };
+        File.WriteAllBytes(FilePath("scenario.json"), San9.Core.Simulation.CanonicalJson.Encode(definition));
+        var result = await Run("verify", "--scenario", FilePath("scenario.json"), "--xuns", "2", "--output", _directory);
+        Assert.Equal(0, result.Code);
+        Assert.Equal(2, result.Report.GetProperty("completedXun").GetInt32());
+        Assert.Equal("G08", result.Report.GetProperty("goal").GetString());
+        Assert.True(result.Report.GetProperty("diplomacyStrategyEvents").GetProperty("gift-resolved").GetInt32() > 0);
+        Assert.Contains("player-decision", File.ReadAllText(FilePath("checkpoints.json")));
+        Assert.Contains("respond-daily-task", File.ReadAllText(FilePath("commands.jsonl")));
+        Assert.Equal(File.ReadAllBytes(FilePath("continuous.save.json")), File.ReadAllBytes(FilePath("restored.save.json")));
+    }
+
+    [Fact]
     public async Task MilitaryRecordingReportsDeploymentMovementAndSingleAbsorption()
     {
         var definition = new San9.Content.Scenarios.ScenarioInitialState(San9.Content.Scenarios.ScenarioInitialState.CurrentSchemaVersion,

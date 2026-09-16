@@ -514,6 +514,7 @@ public sealed class PersistenceTests : IDisposable
             var result = session.Apply(request with { Operation = new CommandOperation(new WaitCommand(request.Id, 1, session.Snapshot.Simulation.NextSequence)) });
             Assert.Equal(SessionDisposition.Accepted, result.Disposition);
             session.AdvanceXun();
+            DecisionResponses.DeclineAll(session);
             // Named streams initialize lazily; measure history growth after the first annual cycle.
             if (xun == 35) firstYear = SaveService.Encode(session);
         }
@@ -545,6 +546,7 @@ public sealed class PersistenceTests : IDisposable
         {
             Assert.True(session.Develop(new(1, 1, [2], DomesticActivity.Commerce)).Accepted);
             session.AdvanceXun();
+            DecisionResponses.DeclineAll(session);
         }
         Assert.Equal(GameSession.RecentRecordLimit, session.Records.Count);
         Assert.Equal(new GameClock(190, 4, 11), session.Records[0].Clock);
@@ -602,27 +604,27 @@ public sealed class PersistenceTests : IDisposable
         session.AddChronicleNote("recorded");
         session.AdvanceXun();
         byte[] bytes = RecordingService.Encode(session.CaptureRecording());
-        Assert.Throws<RecordingException>(() => RecordingService.Replay(bytes[..^5], definition, w => new(w)));
+        Assert.Throws<RecordingException>(() => RecordingService.Replay(bytes[..^5], definition, GameSession.EngineFactory(definition)));
         var root = JsonNode.Parse(bytes)!;
         root["formatVersion"] = 999;
-        Assert.Throws<RecordingException>(() => RecordingService.Replay(Encoding.UTF8.GetBytes(root.ToJsonString()), definition, w => new(w)));
+        Assert.Throws<RecordingException>(() => RecordingService.Replay(Encoding.UTF8.GetBytes(root.ToJsonString()), definition, GameSession.EngineFactory(definition)));
         root = JsonNode.Parse(bytes)!;
         root["recording"]!["finalHash"] = "tampered";
-        Assert.Throws<RecordingException>(() => RecordingService.Replay(Encoding.UTF8.GetBytes(root.ToJsonString()), definition, w => new(w)));
+        Assert.Throws<RecordingException>(() => RecordingService.Replay(Encoding.UTF8.GetBytes(root.ToJsonString()), definition, GameSession.EngineFactory(definition)));
         var changed = definition with { Forces = definition.Forces.Select(f => f with { Money = 100 }).ToArray() };
-        Assert.Throws<RecordingException>(() => RecordingService.Replay(bytes, changed, w => new(w)));
+        Assert.Throws<RecordingException>(() => RecordingService.Replay(bytes, changed, GameSession.EngineFactory(definition)));
         var envelope = StrictJson.Deserialize<RecordingEnvelope>(bytes);
         var operations = envelope.Recording.Operations.SetItem(1, envelope.Recording.Operations[1] with { Events = [] });
         var divergent = envelope with { Recording = envelope.Recording with { Operations = operations } };
         var resigned = CanonicalJson.Encode(divergent with { IntegrityHash = RecordingService.Integrity(divergent) });
-        Assert.Equal(2, Assert.Throws<RecordingException>(() => RecordingService.Replay(resigned, definition, w => new(w))).Sequence);
+        Assert.Equal(2, Assert.Throws<RecordingException>(() => RecordingService.Replay(resigned, definition, GameSession.EngineFactory(definition))).Sequence);
         var wrongFinal = envelope with { Recording = envelope.Recording with { FinalHash = new string('0', 64) } };
         resigned = CanonicalJson.Encode(wrongFinal with { IntegrityHash = RecordingService.Integrity(wrongFinal) });
         Assert.Equal(session.NextOperationSequence, Assert.Throws<RecordingException>(() =>
-            RecordingService.Replay(resigned, definition, w => new(w))).Sequence);
+            RecordingService.Replay(resigned, definition, GameSession.EngineFactory(definition))).Sequence);
         var outOfOrder = envelope with { Recording = envelope.Recording with { Operations = envelope.Recording.Operations.Reverse().ToImmutableArray() } };
         resigned = CanonicalJson.Encode(outOfOrder with { IntegrityHash = RecordingService.Integrity(outOfOrder) });
-        Assert.Equal(2, Assert.Throws<RecordingException>(() => RecordingService.Replay(resigned, definition, w => new(w))).Sequence);
+        Assert.Equal(2, Assert.Throws<RecordingException>(() => RecordingService.Replay(resigned, definition, GameSession.EngineFactory(definition))).Sequence);
     }
 
     private static void Equal(SessionResult a, SessionResult b)

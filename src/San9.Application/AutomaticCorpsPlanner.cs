@@ -10,6 +10,8 @@ internal static class AutomaticCorpsPlanner
     {
         if (active.Kind == ControllerKind.Automatic)
         {
+            var diplomacy = DiplomacyPlanner.Choose(engine, active, Id(engine.Snapshot, -1, "diplomacy"));
+            if (diplomacy is not WaitCommand) events.AddRange(engine.Execute(new(active.ControllerId), diplomacy).Events);
             var command = MilitaryPlanner.Choose(engine.Snapshot, engine.Validate, military, active,
                 Id(engine.Snapshot, -1, "military"));
             if (command is not WaitCommand) events.AddRange(engine.Execute(new(active.ControllerId), command).Events);

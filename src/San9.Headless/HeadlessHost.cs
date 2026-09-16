@@ -79,6 +79,28 @@ public sealed class HeadlessHost
     {
         foreach (var entry in events)
         {
+            string? diplomacyStrategy = entry switch
+            {
+                GiftResolvedEvent => "gift-resolved",
+                PrisonerReturnResolvedEvent => "prisoner-return-resolved",
+                CompensationQuotedEvent => "compensation-quoted",
+                AttackRequestResolvedEvent => "attack-request-resolved",
+                AttackRequestEstablishedEvent => "attack-request-established",
+                AttackRequestEndedEvent => "attack-request-ended",
+                SurrenderResolvedEvent => "surrender-resolved",
+                ForceSurrenderedEvent => "force-surrendered",
+                AllianceFormedEvent => "alliance-formed",
+                AllianceEndedEvent => "alliance-ended",
+                AllianceParticipationDecidedEvent => "alliance-participation",
+                UnitStrategyResolvedEvent strategy => "unit-strategy-" + strategy.Strategy.ToString().ToLowerInvariant(),
+                BurnResolvedEvent => "burn-resolved",
+                AlienateResolvedEvent => "alienate-resolved",
+                SeizeResolvedEvent => "seize-resolved",
+                GossipResolvedEvent => "gossip-resolved",
+                _ => null
+            };
+            if (diplomacyStrategy is not null)
+                _report.DiplomacyStrategyEvents[diplomacyStrategy] = _report.DiplomacyStrategyEvents.GetValueOrDefault(diplomacyStrategy) + 1;
             if (entry is DevelopmentCompletedEvent developed)
             {
                 _report.DevelopmentCommands++;
@@ -156,6 +178,11 @@ public sealed class HeadlessHost
         {
             _report.Goal = "G07";
             _report.Scope = "Construction or tactics through public simulation and deterministic replay; event counts describe exercised paths, not complete G07 acceptance.";
+        }
+        if (_report.DiplomacyStrategyEvents.Count > 0)
+        {
+            _report.Goal = "G08";
+            _report.Scope = "Diplomacy or strategies through public commands, explicit player decisions, save and replay; event counts describe exercised paths, not complete G08 acceptance or full strategic AI.";
         }
     }
 
@@ -253,12 +280,33 @@ public sealed class HeadlessHost
         {
             foreach (var seat in _session.Snapshot.Simulation.Controls)
             {
+                var diplomacyRequest = _session.Request(new EndControlOperation(), seat.ControllerId);
+                var diplomacy = DiplomacyPlanner.Choose(_session, seat, diplomacyRequest.Id);
+                if (diplomacy is not WaitCommand)
+                    Compare(diplomacyRequest with { Operation = new CommandOperation(diplomacy) });
                 var planned = _session.Request(new EndControlOperation(), seat.ControllerId);
                 Compare(planned with { Operation = new CommandOperation(DomesticPlanner.Choose(_session, seat, planned.Id, xun, !options.ContainsKey("strategy"))) });
                 if (firstCommand) { Checkpoint("first-command"); firstCommand = false; }
                 Compare(_session.Request(new EndControlOperation(), seat.ControllerId));
             }
             Compare(_session.Request(new AdvanceOperation()));
+            while (_session.Snapshot.Simulation.Boundary == SimulationBoundary.AwaitingDecision)
+            {
+                Checkpoint("player-decision");
+                var state = _session.Snapshot.Simulation;
+                int force = state.PendingDailyTask?.RespondingForceId ?? state.PendingAlliance!.RespondingForceId!.Value;
+                var seat = state.Controls.Single(c => c.ForceId == force);
+                var request = _session.Request(new EndControlOperation(), seat.ControllerId);
+                GameCommand answer;
+                if (state.PendingDailyTask is { } daily)
+                {
+                    var task = state.Tasks.Single(t => t.Id == daily.RemainingTaskIds[0]);
+                    // The verification policy explicitly declines negotiations; the session never answers for a player.
+                    answer = new RespondDailyTaskCommand(request.Id, force, state.NextSequence, task.Id, task.ResolutionStep, false);
+                }
+                else answer = new AllianceParticipationCommand(request.Id, force, state.NextSequence, state.PendingAlliance!.TargetForceId, true);
+                Compare(request with { Operation = new CommandOperation(answer) });
+            }
             if (xun % 5 == 0 || _session.Snapshot.Clock is { Month: 12, Day: 21 }) Checkpoint("stable-period");
             if (_session.View.Year != restored.View.Year || _session.View.Day != restored.View.Day ||
                 !_session.Records.SequenceEqual(restored.Records) || !_session.Chronicle.SequenceEqual(restored.Chronicle))

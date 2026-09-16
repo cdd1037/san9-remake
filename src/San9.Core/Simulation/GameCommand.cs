@@ -14,6 +14,7 @@ public sealed record RespondDailyTaskCommand(Guid CommandId, int IssuerId, long 
 [System.Text.Json.Serialization.JsonDerivedType(typeof(RespondDailyTaskCommand), "respond-daily-task")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(GiftCommand), "gift")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(RequestAttackCommand), "request-attack")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(DemandSurrenderCommand), "demand-surrender")]
 [JsonDerivedType(typeof(ReturnPrisonerCommand), "return-prisoner")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(AllianceParticipationCommand), "alliance-participation")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(BurnCommand), "strategy-burn")]

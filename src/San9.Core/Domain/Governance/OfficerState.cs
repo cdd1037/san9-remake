@@ -37,6 +37,8 @@ public sealed record OfficerState(int Id, int? OwnerId, int? SettlementId, Offic
     [JsonRequired] public bool IsCommander { get; init; }
     [JsonRequired] public ImmutableDictionary<int, int> ForceLoyalties { get; init; } = ImmutableDictionary<int, int>.Empty;
     [JsonRequired] public int Righteousness { get; init; }
+    [JsonRequired] public int Ambition { get; init; }
+    [JsonRequired] public bool AutomaticSurrenderAllowed { get; init; } = true;
     [JsonRequired] public bool RewardedThisXun { get; init; }
     [JsonRequired] public bool HasRecruitmentPoliticsBonus { get; init; }
     [System.Text.Json.Serialization.JsonIgnore] public int Loyalty => OwnerId is int owner ? LoyaltyTo(owner) : 0;
@@ -52,7 +54,7 @@ public sealed record OfficerState(int Id, int? OwnerId, int? SettlementId, Offic
     }
     public bool IsValid()
     {
-        if (Righteousness is < 0 or > 15 || ForceLoyalties is null ||
+        if (Ambition is < 0 or > 15 || Righteousness is < 0 or > 15 || ForceLoyalties is null ||
             ForceLoyalties.Any(p => p.Key < 0 || p.Value is < 0 or > 255)) return false;
         if (Affinity is < 0 or >= 150 || TacticLinkBonus is < 0 or > 100 || MasteredCategories.IsDefault ||
             MasteredCategories.Any(c => c is < 0 or > 8) || MasteredCategories.Distinct().Count() != MasteredCategories.Length) return false;

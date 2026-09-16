@@ -111,6 +111,9 @@ internal static class WorldInvariants
             throw new ArgumentException("Duplicate task identity or officer occupation.");
         foreach (var task in sim.Tasks)
         {
+            if (task.Surrender is { } surrender && (task.Kind != SurrenderDiplomacy.Kind || task.Gift is not null ||
+                task.PrisonerReturn is not null || task.AttackRequest is not null || !state.Forces.ContainsKey(surrender.TargetForceId) ||
+                surrender.TargetForceId == task.ForceId)) throw new ArgumentException("Invalid surrender mission.");
             if (task.AttackRequest is { } request && (task.Kind != AttackRequestDiplomacy.Kind || task.Gift is not null ||
                 task.PrisonerReturn is not null || !state.Forces.ContainsKey(request.TargetForceId) || request.TargetForceId == task.ForceId ||
                 !state.Settlements.ContainsKey(request.TargetSettlementId) || request.Offer is { IsValid: false } ||

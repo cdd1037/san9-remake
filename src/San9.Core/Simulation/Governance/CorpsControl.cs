@@ -68,6 +68,7 @@ public static class CorpsControl
             GiftCommand gift => OwnPerson(gift.OfficerId),
             ReturnPrisonerCommand prisoner => OwnPerson(prisoner.OfficerId),
             RequestAttackCommand request => OwnPerson(request.OfficerId),
+            DemandSurrenderCommand surrender => OwnPerson(surrender.OfficerId),
             UnitStrategyCommand strategy => OwnPerson(strategy.OfficerId),
             SearchCommand search => OwnPerson(search.OfficerId),
             MoveOfficersCommand move => !move.OfficerIds.IsDefault && move.OfficerIds.All(OwnPerson) && OwnPlace(move.DestinationId),

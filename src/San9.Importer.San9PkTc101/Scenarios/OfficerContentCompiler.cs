@@ -45,6 +45,8 @@ public static class OfficerContentCompiler
                 RegionId = settlement is null ? person.LocationId : null, Injury = person.Health, Status = (OfficerStatus)person.StatusCode, BirthYear = person.BirthYear, OfficeId = person.OfficeRankId,
                 ForceLoyalties = forces.ToImmutableDictionary(f => f.Id, f => (int)person.GetForceLoyalty(f.Id)),
                 Righteousness = person.Righteousness,
+                Ambition = person.Ambition,
+                AutomaticSurrenderAllowed = person.BiographyResourceCode != 36 && person.BiographyResourceCode is not (>= 59 and <= 64),
                 HasRecruitmentPoliticsBonus = person.BiographyResourceCode == 36,
                 RewardedThisXun = person.WasRewardedThisXun
             };

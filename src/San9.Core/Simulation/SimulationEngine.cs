@@ -66,6 +66,11 @@ public sealed class SimulationEngine
 
     public IReadOnlyList<DomainEvent> InitialEvents { get; } = Array.Empty<DomainEvent>();
     public WorldSnapshot Snapshot => _world.CreateSnapshot();
+    public CommandAdvice GetSurrenderAdvice(int forceId, int officerId, int targetForceId)
+    {
+        if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
+        return SurrenderDiplomacy.Advice(_world.BeginMutation(_rules.Abilities), forceId, officerId, targetForceId, _rules);
+    }
     public AttackRequestPrompt? GetAttackRequestPrompt()
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
@@ -175,6 +180,10 @@ public sealed class SimulationEngine
             DevelopmentOutcome? development = null;
             switch (command)
             {
+                case DemandSurrenderCommand surrender:
+                    var surrenderRejection = SurrenderDiplomacy.Start(mutation, context, surrender, _rules, events);
+                    if (surrenderRejection != CommandRejection.None) return Reject(surrenderRejection);
+                    break;
                 case RequestAttackCommand attackRequest:
                     var requestRejection = AttackRequestDiplomacy.Start(mutation, context, attackRequest, _rules, events);
                     if (requestRejection != CommandRejection.None) return Reject(requestRejection);

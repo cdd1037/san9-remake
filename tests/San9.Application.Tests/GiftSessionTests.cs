@@ -16,6 +16,7 @@ public sealed class GiftSessionTests
         var modified = content with { Information = content.Information with { Treasures = [treasure] } };
         var original = GameSession.Start(content, 42);
         foreach (var changed in new[] { content.Information.Treasures[0] with { FavoredOwnerIds = [11] },
+            content.Information.Treasures[0] with { RetentionGroup = TreasureRetentionGroup.War },
             content.Information.Treasures[0] with { AutomaticDiplomacyOfferAllowed = false } })
             Assert.NotEqual(original.ContentFingerprint, GameSession.Start(content with
                 { Information = content.Information with { Treasures = [changed] } }, 42).ContentFingerprint);
@@ -35,6 +36,7 @@ public sealed class GiftSessionTests
     [Theory]
     [InlineData("favoredOwnerIds")]
     [InlineData("automaticDiplomacyOfferAllowed")]
+    [InlineData("retentionGroup")]
     public void TreasureDiplomacyFieldsCannotBeSilentlyDefaultedWhenMissing(string field)
     {
         var json = System.Text.Json.Nodes.JsonNode.Parse(CanonicalJson.Text(Content().Information.Treasures[0]))!;

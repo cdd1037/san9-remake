@@ -8,6 +8,15 @@ public static class TreasureContentCompiler
 {
     public const int BuiltInCount = 100;
 
+    public static TreasureRetentionGroup RetentionGroup(San9ScenarioItemRecord item) => item.CategoryId switch
+    {
+        1 => TreasureRetentionGroup.War,
+        2 => TreasureRetentionGroup.Leadership,
+        3 or 4 or 6 => TreasureRetentionGroup.Politics,
+        5 or 9 => TreasureRetentionGroup.Intelligence,
+        _ => TreasureRetentionGroup.Other
+    };
+
     public sealed record DiplomacyPreference(bool AutomaticOfferAllowed, ImmutableArray<int> FavoredOwnerIds);
 
     // RE-0118: source item/biography pairs are converted to retained scenario identities.

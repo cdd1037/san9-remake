@@ -73,6 +73,10 @@ public sealed class TreasureContentCompilerTests
     {
         var item = new San9ScenarioItemRecord(0, 0, 0, 0, category, 8, 9, ushort.MaxValue, 1, 2, ushort.MaxValue);
         Assert.Equal(new OfficerAbilities(war, intelligence, politics, leadership), TreasureContentCompiler.AbilityBonuses(item));
+        var expected = war > 0 ? TreasureRetentionGroup.War : intelligence > 0 ? TreasureRetentionGroup.Intelligence :
+            politics > 0 ? TreasureRetentionGroup.Politics : leadership > 0 ? TreasureRetentionGroup.Leadership : TreasureRetentionGroup.Other;
+        Assert.Equal(expected, TreasureContentCompiler.RetentionGroup(item));
+        Assert.Equal(expected, TreasureContentCompiler.RetentionGroup(item with { AbilityBonus = 0 }));
     }
 
     [Fact]

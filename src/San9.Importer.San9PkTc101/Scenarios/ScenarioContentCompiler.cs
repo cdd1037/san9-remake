@@ -96,6 +96,7 @@ public static class ScenarioContentCompiler
                 text.TreasureDescription(i.SerializedId, i.ResourceId2);
                 return new TreasureDefinition(i.SerializedId, text.Treasure($"treasure.{i.SerializedId}", i.ResourceId1), i.CategoryId, i.AbilityBonus, i.LoyaltyChange, i.TacticId)
                 { AbilityBonuses = TreasureContentCompiler.AbilityBonuses(i), EscapeMount = i.CategoryId == 0,
+                  RetentionGroup = TreasureContentCompiler.RetentionGroup(i),
                   AutomaticDiplomacyOfferAllowed = treasureDiplomacy[i.SerializedId].AutomaticOfferAllowed,
                   FavoredOwnerIds = treasureDiplomacy[i.SerializedId].FavoredOwnerIds };
             }).ToArray(),

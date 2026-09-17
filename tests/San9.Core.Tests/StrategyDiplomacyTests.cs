@@ -6,6 +6,110 @@ namespace San9.Core.Tests;
 
 public sealed class StrategyDiplomacyTests
 {
+    [Theory]
+    [InlineData(0)] [InlineData(1)] [InlineData(2)] [InlineData(3)] [InlineData(4)] [InlineData(5)]
+    public void BarbarianClassificationDoesNotReplaceAllianceProtection(int kind)
+    {
+        var world = World();
+        var engine = new SimulationEngine(world, Rules());
+        var mutation = world.BeginMutation();
+        mutation.Replace(mutation.Forces[2] with { IsBarbarian = true });
+        world.Commit(mutation);
+        string before = engine.Snapshot.StateHash;
+        Assert.Equal(kind < 2, engine.Validate(new("player"), Command(kind)).Accepted);
+        Assert.Equal(before, engine.Snapshot.StateHash);
+        mutation = world.BeginMutation();
+        mutation.Replace(mutation.Forces[2] with { IsBarbarian = false });
+        mutation.SetSimulation(mutation.Simulation with { Alliance = new(3, 1, [1, 2], 36) });
+        world.Commit(mutation);
+        before = engine.Snapshot.StateHash;
+        Assert.False(engine.Execute(new("player"), Command(kind)).Submission.Accepted);
+        Assert.Equal(before, engine.Snapshot.StateHash);
+    }
+
+    [Theory]
+    [InlineData(0)] [InlineData(1)] [InlineData(2)] [InlineData(3)]
+    [InlineData(4)] [InlineData(5)] [InlineData(6)] [InlineData(7)]
+    public void GrowthRequiresSuccessUsesStrictThreePercentGateAndStopsAtOneHundred(int kind)
+    {
+        foreach (var sample in new[] { (Roll: 0, Seed: 52UL, Ability: 99, Grows: true),
+            (Roll: 0, Seed: 56UL, Ability: 99, Grows: false), (Roll: 99, Seed: 52UL, Ability: 99, Grows: false),
+            (Roll: 0, Seed: 52UL, Ability: 100, Grows: false) })
+        {
+            // Independent SplitMix64 vectors: state 52 yields percentile 2; state 56 yields 3.
+            Assert.Equal(sample.Seed == 52 ? 2UL : 3UL, new StableRandom(sample.Seed).NextUInt64() % 100);
+            var rules = Rules();
+            var world = World();
+            var mutation = world.BeginMutation();
+            mutation.Replace(mutation.Officers[11] with { BaseAbilities = new(sample.Ability, sample.Ability, 90, sample.Ability) });
+            mutation.Replace(mutation.Settlements[2] with { Durability = 300, MaxDurability = 300 });
+            if (kind >= 6)
+            {
+                mutation.Replace(mutation.Units[5] with { OwnerId = 1 });
+                mutation.Replace(mutation.Officers[22] with { OwnerId = 1 });
+            }
+            world.Commit(mutation);
+            var engine = new SimulationEngine(world, rules);
+            GameCommand command = kind < 6 ? Command(kind) : new UnitStrategyCommand(Guid.NewGuid(), 1, 0, 11,
+                kind == 6 ? UnitStrategyKind.Inspire : UnitStrategyKind.Reinforce, 5);
+            Assert.True(engine.Execute(new("player"), command).Submission.Accepted);
+            mutation = world.BeginMutation(rules.Abilities);
+            var task = Assert.Single(mutation.Simulation.Tasks);
+            string ability = kind is 2 or 3 ? "war" : kind == 7 ? "leadership" : "intelligence";
+            string stream = "strategy-" + ability + "-growth";
+            mutation.SetSimulation(mutation.Simulation with
+            {
+                Tasks = [task with { Journey = task.Journey! with { SuccessRoll = sample.Roll } }],
+                RandomStreams = [new(stream, sample.Seed)]
+            });
+            List<DomainEvent> events = [];
+            // All targets are within two daily command stages; no intervening automatic planner is involved.
+            for (int day = 0; day < 2; day++) new ResolutionPipeline(rules).AdvanceDay(mutation, events);
+            var growth = events.OfType<OfficerAbilityGrownEvent>().Where(e => e.OfficerId == 11).ToArray();
+            if (sample.Grows)
+            {
+                var actual = Assert.Single(growth);
+                Assert.Equal(ability, actual.Ability);
+                Assert.Equal(99, actual.Previous);
+                Assert.Equal(100, actual.Current);
+            }
+            else Assert.Empty(growth);
+            Assert.Equal(2, mutation.Officers[11].TacticProficiencies[7]);
+            Assert.Equal(2, mutation.Officers[11].TacticProficiencies[8]);
+            if (sample.Roll == 99 || sample.Ability == 100)
+                Assert.Equal(sample.Seed, mutation.Simulation.RandomStreams.Single(s => s.Name == stream).State);
+        }
+    }
+
+    [Theory]
+    [InlineData(0)] [InlineData(1)] [InlineData(2)] [InlineData(3)] [InlineData(4)] [InlineData(5)]
+    public void OmittedZeroRelationsAndExplicitZerosHaveIdenticalEligibilityAndEffects(int kind)
+    {
+        var initial = new SimulationEngine(World(), Rules()).Snapshot;
+        var sparse = WorldState.Restore(initial with { Relations = [] });
+        var explicitZeros = WorldState.Restore(initial with
+        { Relations = initial.Relations.Select(r => r with { Value = 0 }).ToImmutableArray() });
+        var rules = Rules();
+        var command = Command(kind);
+        IReadOnlyList<DomainEvent> Run(WorldState world)
+        {
+            var engine = new SimulationEngine(world, rules);
+            Assert.True(engine.Execute(new("player"), command).Submission.Accepted);
+            var mutation = world.BeginMutation();
+            var task = Assert.Single(mutation.Simulation.Tasks);
+            mutation.SetSimulation(mutation.Simulation with { Tasks = [task with
+                { Journey = task.Journey! with { SuccessRoll = 0 } }] });
+            world.Commit(mutation);
+            engine.EndControl(new("player"));
+            return engine.AdvanceXun().Events;
+        }
+        var a = Run(sparse);
+        var b = Run(explicitZeros);
+        Assert.Equal(CanonicalJson.Text(a), CanonicalJson.Text(b));
+        Assert.DoesNotContain(a, e => e is TaskCancelledEvent);
+        Assert.Equal(CanonicalJson.Text(sparse.CreateSnapshot().Officers), CanonicalJson.Text(explicitZeros.CreateSnapshot().Officers));
+    }
+
     private static SimulationRules Rules() => new()
     {
         Personnel = new([new(1, new(2, 2)), new(2, new(32, 2)), new(3, new(62, 2))],

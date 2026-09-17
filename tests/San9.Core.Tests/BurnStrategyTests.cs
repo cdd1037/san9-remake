@@ -6,6 +6,25 @@ namespace San9.Core.Tests;
 
 public sealed class BurnStrategyTests
 {
+    [Theory]
+    [InlineData(52UL, true)] // SplitMix64 percentile 2.
+    [InlineData(56UL, false)] // SplitMix64 percentile 3.
+    public void FoodGateHasStrictThreePercentBoundaryWithoutChangingMainDamage(ulong state, bool hits)
+    {
+        var rules = Rules(30);
+        var world = World();
+        var task = Submit(world, rules, 0);
+        var mutation = world.BeginMutation(rules.Abilities);
+        mutation.SetSimulation(mutation.Simulation with { RandomStreams = [new("strategy-burn-food-gate", state)] });
+        List<DomainEvent> events = [];
+        BurnStrategies.Resolve(mutation, task, rules, events);
+        var result = Assert.Single(events.OfType<BurnResolvedEvent>());
+        Assert.True(result.Success);
+        Assert.True(result.DurabilityLoss > 0);
+        Assert.Equal(hits, result.FoodLoss > 0);
+        Assert.Equal(10000u - result.FoodLoss, mutation.Forces[2].Food);
+    }
+
     private static SimulationRules Rules(int distance = 31) => new()
     {
         Personnel = new([new(1, new(2, 2)), new(2, new(2 + distance, 2)), new(3, new(900, 2))],

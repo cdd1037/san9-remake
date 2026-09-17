@@ -108,8 +108,8 @@ internal static class AlienateStrategies
             int targetForce = target.OwnerId!.Value;
             relationForce = world.Forces.Values
                 .Where(force => !force.IsEliminated && !force.IsBarbarian && force.Id != task.ForceId &&
-                    force.Id != targetForce && world.Relations.ContainsKey((Math.Min(force.Id, targetForce), Math.Max(force.Id, targetForce))))
-                .OrderByDescending(force => world.Relations[(Math.Min(force.Id, targetForce), Math.Max(force.Id, targetForce))].Value)
+                    force.Id != targetForce)
+                .OrderByDescending(force => ForceRelations.Get(world, force.Id, targetForce).Value)
                 .ThenBy(force => force.Id)
                 .Select(force => force.Id)
                 .FirstOrDefault(task.ForceId);

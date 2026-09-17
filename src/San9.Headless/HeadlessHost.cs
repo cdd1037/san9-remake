@@ -284,6 +284,10 @@ public sealed class HeadlessHost
                 var diplomacy = DiplomacyPlanner.Choose(_session, seat, diplomacyRequest.Id);
                 if (diplomacy is not WaitCommand)
                     Compare(diplomacyRequest with { Operation = new CommandOperation(diplomacy) });
+                var strategyRequest = _session.Request(new EndControlOperation(), seat.ControllerId);
+                var strategyCommand = StrategyPlanner.Choose(_session, seat, strategyRequest.Id);
+                if (strategyCommand is not WaitCommand)
+                    Compare(strategyRequest with { Operation = new CommandOperation(strategyCommand) });
                 var planned = _session.Request(new EndControlOperation(), seat.ControllerId);
                 Compare(planned with { Operation = new CommandOperation(DomesticPlanner.Choose(_session, seat, planned.Id, xun, !options.ContainsKey("strategy"))) });
                 if (firstCommand) { Checkpoint("first-command"); firstCommand = false; }

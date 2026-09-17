@@ -35,8 +35,7 @@ internal static class GossipStrategies
             firstTargetForceId == secondTargetForceId ||
             !MilitaryDiplomacy.CanUseHostileStrategy(world, actorForceId, firstTargetForceId) ||
             MemberCount(world, firstTargetForceId) <= 1 || Targets(world, firstTargetForceId).Length == 0) return false;
-        return world.Relations.ContainsKey((Math.Min(firstTargetForceId, secondTargetForceId),
-                   Math.Max(firstTargetForceId, secondTargetForceId)));
+        return true;
     }
 
     private static bool TryDestination(WorldMutation world, int firstTargetForceId, SimulationRules rules,
@@ -142,8 +141,7 @@ internal static class GossipStrategies
         int loyaltyLoss = 0;
         if (success)
         {
-            int current = world.Relations[(Math.Min(mission.FirstTargetForceId, mission.SecondTargetForceId),
-                Math.Max(mission.FirstTargetForceId, mission.SecondTargetForceId))].Value;
+            int current = ForceRelations.Get(world, mission.FirstTargetForceId, mission.SecondTargetForceId).Value;
             relationLoss = StrategyMath.GossipRelationLoss(current);
             ForceRelations.Change(world, mission.FirstTargetForceId, mission.SecondTargetForceId,
                 -relationLoss, events);

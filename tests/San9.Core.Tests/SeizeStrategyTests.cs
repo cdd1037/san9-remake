@@ -6,6 +6,25 @@ namespace San9.Core.Tests;
 
 public sealed class SeizeStrategyTests
 {
+    [Theory]
+    [InlineData(156UL, SeizeOutcomeKind.Item)] // SplitMix64 percentile 49.
+    [InlineData(72UL, SeizeOutcomeKind.Person)] // SplitMix64 percentile 50.
+    public void HalfChanceItemGateSelectsExactlyOneBranchWithSameMainDraw(ulong state, SeizeOutcomeKind outcome)
+    {
+        var rules = Rules();
+        var world = World();
+        var task = Submit(world, rules, 0);
+        var mutation = world.BeginMutation(rules.Abilities);
+        mutation.SetSimulation(mutation.Simulation with { RandomStreams = [new("strategy-seize-item-gate", state)] });
+        List<DomainEvent> events = [];
+        SeizeStrategies.Resolve(mutation, task, rules, events);
+        var result = Assert.Single(events.OfType<SeizeResolvedEvent>());
+        Assert.Equal(outcome, result.Outcome);
+        Assert.Equal(0u, result.Money);
+        Assert.Equal(outcome == SeizeOutcomeKind.Item, result.TreasureId is not null);
+        Assert.Equal(outcome == SeizeOutcomeKind.Person, result.RecoveredOfficerId is not null);
+    }
+
     private static SimulationRules Rules(int distance = 30) => new()
     {
         Personnel = new([new(1, new(2, 2)), new(2, new(2 + distance, 2)), new(3, new(900, 2))],

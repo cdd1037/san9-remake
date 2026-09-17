@@ -5,6 +5,27 @@ namespace San9.Core.Tests;
 
 public sealed class GossipStrategyTests
 {
+    [Theory]
+    [InlineData(156UL, true)] // SplitMix64 percentile 49.
+    [InlineData(72UL, false)] // SplitMix64 percentile 50.
+    public void LoyaltyGateIsStrictAndCannotUndoTheSuccessfulRelationEffect(ulong state, bool hits)
+    {
+        var rules = Rules();
+        var world = World();
+        var task = Submit(world, rules, 0);
+        var mutation = world.BeginMutation(rules.Abilities);
+        mutation.Replace(mutation.Officers[23] with { BaseAbilities = new(70, 50, 70, 70) });
+        mutation.SetSimulation(mutation.Simulation with { RandomStreams = [new("strategy-gossip-loyalty-gate", state)] });
+        List<DomainEvent> events = [];
+        GossipStrategies.Resolve(mutation, task, rules.Personnel, events);
+        var result = Assert.Single(events.OfType<GossipResolvedEvent>());
+        Assert.True(result.Success);
+        Assert.Equal(10, result.RelationLoss);
+        Assert.Equal(80, mutation.Relations[(2, 3)].Value);
+        Assert.Equal(hits, result.LoyaltyGatePassed);
+        Assert.Equal(hits, result.LoyaltyLoss > 0);
+    }
+
     private static SimulationRules Rules() => new()
     {
         Personnel = new([new(1, new(2, 2)), new(2, new(32, 2)), new(3, new(62, 2))],

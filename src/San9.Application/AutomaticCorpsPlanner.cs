@@ -15,6 +15,9 @@ internal static class AutomaticCorpsPlanner
             var command = MilitaryPlanner.Choose(engine.Snapshot, engine.Validate, military, active,
                 Id(engine.Snapshot, -1, "military"));
             if (command is not WaitCommand) events.AddRange(engine.Execute(new(active.ControllerId), command).Events);
+            var strategy = StrategyPlanner.Choose(engine.Snapshot, engine.Validate, military, active,
+                Id(engine.Snapshot, -1, "strategy"));
+            if (strategy is not WaitCommand) events.AddRange(engine.Execute(new(active.ControllerId), strategy).Events);
         }
         foreach (var corps in engine.Snapshot.Corps.Where(c => c.OwnerId == active.ForceId &&
             c.ControlMode == CorpsControlMode.Automatic).OrderBy(c => c.Id))
@@ -24,6 +27,9 @@ internal static class AutomaticCorpsPlanner
             var reinforcement = MilitaryPlanner.Choose(engine.Snapshot, engine.Validate, military, seat,
                 Id(engine.Snapshot, corps.Id, "military"), corps.Id);
             if (reinforcement is not WaitCommand) events.AddRange(engine.Execute(context, reinforcement).Events);
+            var strategy = StrategyPlanner.Choose(engine.Snapshot, engine.Validate, military, seat,
+                Id(engine.Snapshot, corps.Id, "strategy"), corps.Id);
+            if (strategy is not WaitCommand) events.AddRange(engine.Execute(context, strategy).Events);
             var snapshot = engine.Snapshot;
             var places = snapshot.Settlements.Where(s => s.CorpsId == corps.Id && s.CanHostPersons && s.Durability > 0).Select(s => s.Id).ToHashSet();
             var abilities = engine.GetAbilities(snapshot);

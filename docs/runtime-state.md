@@ -127,3 +127,11 @@ G06的`MilitaryOrder`分别引用部队或据点，失效目标在战后事务�
 ## 交战关系查询
 
 `WorldMutation`拥有当前事务的`EngagementRelations`派生视图，记录来源到目标及目标的攻击者数量，消费者不各自扫描世界。位置、目标、归属、资格、设施形态和外交等相关状态通过统一写入口使视图失效，按需重建；普通兵损/士气/耐久变动未跨有效门槛时可复用。视图保存对象引用的身份而非对象状态副本，设施选敌返回事务中的最新单位状态。定义引用变化也会重建；不跨事务共享、不持久化、不计算输入哈希。具体行为与验收见[战斗规格](../specs/behavior/BEH-WAR-0004-normal-combat.md#交战关系的统一维护)。
+
+## G08任务与结算契约
+
+`PersonnelJourney.Route`必填，保存出发、目的坐标与野战目的标记。新任务读取当前设施坐标，恢复与计时使用历史快照。`PersonnelReturnLeg`显式保存野战返还语义和外交使者身份，返程重定向保留身份；已结算谈判载荷不随返程重复携带。
+
+人事、八类计略与四类外交使用互斥的类型化任务载荷。外交去程按整旬取整、旬边界谈判，正常返程使用普通距离天数。待决状态的`Phase`区分日内与旬边界续行；谈判报价和阶段持久化，恢复或重复回答不得重复结算。具体公式见[人事行程](../specs/behavior/BEH-PERSON-0003-recall-movement-and-action-reservation.md#行程位置与返还不变量)。
+
+`GiftResolvedEvent`区分`Received`、`Refunded`、`Spent`，资金／兵粮预扣量等于三者之和。拒收结算时退回来源主账户，容量溢出计入损耗，返程不再退款。外交业务规则见[外交规格](../specs/behavior/BEH-DIPLOMACY-0002-command-negotiation-and-resolution.md)。当前协议版本见[内容契约](client-content.md#g08内容与运行契约)。

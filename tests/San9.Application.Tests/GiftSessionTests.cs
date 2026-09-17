@@ -84,6 +84,7 @@ public sealed class GiftSessionTests
         Assert.True(gift.Accepted);
         Assert.Equal(amount, gift.Received);
         Assert.Equal(0u, gift.Spent);
+        Assert.Equal(0u, gift.Refunded);
         Assert.Equal(60, Assert.Single(session.Snapshot.Relations).Value);
         Assert.All(session.Snapshot.Simulation.Tasks, t => Assert.NotNull(t.Journey!.ReturnLeg));
         if (kind == GiftKind.Treasure) Assert.Equal(21, session.Snapshot.Treasures[0].HolderId);
@@ -98,16 +99,23 @@ public sealed class GiftSessionTests
     }
 
     [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public void PlayerAcceptsOrRejectsAtArrivalAndDecisionSurvivesSaving(bool accept)
+    [InlineData(true, GiftKind.Money)]
+    [InlineData(false, GiftKind.Money)]
+    [InlineData(true, GiftKind.Food)]
+    [InlineData(false, GiftKind.Food)]
+    [InlineData(true, GiftKind.Treasure)]
+    [InlineData(false, GiftKind.Treasure)]
+    public void PlayerAcceptsOrRejectsAtArrivalAndDecisionSurvivesSaving(bool accept, GiftKind kind)
     {
         var content = Content();
+        content = content with { Information = content.Information with
+            { TreasureStates = [new(9, 21, TreasureDiscovery.Discovered, null)] } };
+        uint amount = kind == GiftKind.Treasure ? 0u : 1000u;
         var session = GameSession.Start(content, 42);
         session.BeginRecording();
         session.EndControl(new("player"));
         Assert.True(session.Execute(new("ai:2"), new GiftCommand(Guid.NewGuid(), 2, 0, 22, 1,
-            new(GiftKind.Money, 1000, null))).Submission.Accepted);
+            new(kind, amount, kind == GiftKind.Treasure ? 9 : null))).Submission.Accepted);
         var arriving = session.AdvanceXun();
         Assert.Equal(11, session.Snapshot.Clock.Day);
         Assert.DoesNotContain(arriving.Events, e => e is XunAdvancedEvent);
@@ -125,9 +133,34 @@ public sealed class GiftSessionTests
         Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
         var gift = Assert.Single(result.Events.OfType<GiftResolvedEvent>());
         Assert.Equal(accept, gift.Accepted);
-        Assert.Equal(accept ? 1000u : 0, gift.Received);
-        Assert.Equal(accept ? 0u : 1000u, gift.Spent);
+        Assert.Equal(accept ? amount : 0, gift.Received);
+        Assert.Equal(accept ? 0 : amount, gift.Refunded);
+        Assert.Equal(0u, gift.Spent);
+        Assert.Equal(amount, gift.Received + gift.Refunded + gift.Spent);
+        if (kind == GiftKind.Treasure)
+        {
+            Assert.Equal(accept ? 11 : 22, session.Snapshot.Treasures.Single().HolderId);
+            Assert.DoesNotContain(result.Events.OfType<ResourceChangedEvent>(), e => e.Reason == "gift-refused");
+        }
+        else if (!accept)
+        {
+            var refund = Assert.Single(result.Events.OfType<ResourceChangedEvent>(), e => e.Reason == "gift-refused");
+            Assert.Equal(new ResourceAccount(ResourceOwnerKind.Force, 2), refund.Account);
+            Assert.Equal(kind == GiftKind.Money ? ResourceKind.Money : ResourceKind.Food, refund.Resource);
+            Assert.Equal(amount, refund.Actual);
+            Assert.Equal(0, refund.SaturationLoss);
+            Assert.DoesNotContain(result.Events.OfType<OfficerAbilityGrownEvent>(), e => e.OfficerId == 22);
+        }
         Assert.All(session.Snapshot.Simulation.Tasks, t => Assert.NotNull(t.Journey!.ReturnLeg));
+        var settled = session.Capture().StateHash;
+        var repeated = response with { CommandId = Guid.NewGuid(), Sequence = session.Snapshot.Simulation.NextSequence };
+        Assert.False(session.Execute(new("player"), repeated).Submission.Accepted);
+        Assert.Equal(settled, session.Capture().StateHash);
+        var returning = SaveService.Decode(SaveService.Encode(session), content);
+        var home = session.AdvanceXun();
+        Assert.Equal(CanonicalJson.Text(home.Events), CanonicalJson.Text(returning.AdvanceXun().Events));
+        Assert.DoesNotContain(home.Events.OfType<ResourceChangedEvent>(), e => e.Reason is "gift-refused" or "gift-cancelled");
+        Assert.DoesNotContain(session.Snapshot.Simulation.Tasks, t => t.OfficerId == 22);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
         Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
     }
@@ -198,7 +231,12 @@ public sealed class GiftSessionTests
                 { BaseAbilities = o.BaseAbilities with { Politics = politics } } : o).ToImmutableArray(),
             Simulation = snapshot.World.Simulation with { Tasks = [task with { Journey = task.Journey! with { SuccessRoll = roll } }] }
         } });
-        Assert.Equal(accepted, Assert.Single(session.AdvanceXun().Events.OfType<GiftResolvedEvent>()).Accepted);
+        var result = session.AdvanceXun();
+        var gift = Assert.Single(result.Events.OfType<GiftResolvedEvent>());
+        Assert.Equal(accepted, gift.Accepted);
+        Assert.Equal(accepted ? 0u : 1000u, gift.Refunded);
+        Assert.Equal(0u, gift.Spent);
+        Assert.Equal(accepted ? 0 : 1, result.Events.OfType<ResourceChangedEvent>().Count(e => e.Reason == "gift-refused"));
     }
 
     [Fact]
@@ -214,6 +252,43 @@ public sealed class GiftSessionTests
         Assert.True(result.Accepted);
         Assert.Equal(room, result.Received);
         Assert.Equal(20000u, result.Received + result.Spent);
+    }
+
+    [Theory]
+    [InlineData(GiftKind.Money)]
+    [InlineData(GiftKind.Food)]
+    public void RefusalRefundHonorsSourceCapacityAndReportsOnlyOverflowAsSpent(GiftKind kind)
+    {
+        var content = Content();
+        var session = GameSession.Start(content, 42);
+        session.EndControl(new("player"));
+        Assert.True(session.Execute(new("ai:2"), new GiftCommand(Guid.NewGuid(), 2, 0, 22, 1,
+            new(kind, 1000, null))).Submission.Accepted);
+        session.AdvanceXun();
+        var saved = session.Capture();
+        session = GameSession.Restore(content, saved with { World = saved.World with
+        {
+            Forces = saved.World.Forces.Select(f => f.Id != 2 ? f : kind == GiftKind.Money
+                ? f with { Money = 999900 } : f with { Food = 999900 }).ToArray()
+        } });
+        var pending = session.Snapshot.Simulation.PendingDailyTask!;
+        var result = session.Execute(new("player"), new RespondDailyTaskCommand(Guid.NewGuid(), 1,
+            session.Snapshot.Simulation.NextSequence, pending.RemainingTaskIds[0], 0, false));
+        Assert.True(result.Submission.Accepted);
+        var gift = Assert.Single(result.Events.OfType<GiftResolvedEvent>());
+        Assert.False(gift.Accepted);
+        Assert.Equal(0u, gift.Received);
+        Assert.Equal(100u, gift.Refunded);
+        Assert.Equal(900u, gift.Spent);
+        Assert.Equal(gift.Offer.Amount, gift.Received + gift.Refunded + gift.Spent);
+        var refund = Assert.Single(result.Events.OfType<ResourceChangedEvent>(), e => e.Reason == "gift-refused");
+        Assert.Equal(100, refund.Actual);
+        Assert.Equal(900, refund.SaturationLoss);
+        var world = WorldState.Restore(session.Snapshot).BeginMutation();
+        List<DomainEvent> cancelled = [];
+        var returning = Assert.Single(world.Simulation.Tasks, t => t.OfficerId == 22);
+        TaskCancellation.Apply(world, returning, "test-return-cancel", cancelled);
+        Assert.DoesNotContain(cancelled.OfType<ResourceChangedEvent>(), e => e.Reason is "gift-refused" or "gift-cancelled");
     }
 
     [Fact]

@@ -127,7 +127,28 @@ public sealed class PrisonerReturnTests
     }
 
     [Fact]
-    public void AdviceIsReadOnlyAndPredictsCompensationAvailabilityRatherThanFreeReturn()
+    public void FreeReturnAdviceStillRespectsPlayerChoiceAndAdviserAvailability()
+    {
+        var snapshot = new SimulationEngine(World(), Rules()).Snapshot;
+        snapshot = snapshot with { Relations = [new(1, 2, 100)] };
+        var engine = new SimulationEngine(WorldState.Restore(snapshot), Rules());
+        Assert.Equal(AdviserOpinion.Unavailable, engine.GetPrisonerReturnAdvice(1, 12, 2, 13).Opinion);
+        snapshot = snapshot with
+        {
+            Forces = snapshot.Forces.Select(f => f.Id == 1 ? f with { AdviserId = null } : f).ToArray(),
+            Officers = snapshot.Officers.Select(p => p.Id == 14 ? p with { Status = OfficerStatus.Serving } : p).ToArray(),
+            Simulation = snapshot.Simulation with { Controls = [new("first", 1, ControllerKind.Player), new("ai:2", 2, ControllerKind.Automatic)] }
+        };
+        engine = new(WorldState.Restore(snapshot), Rules());
+        Assert.Equal(AdviserOpinion.NoAdviser, engine.GetPrisonerReturnAdvice(1, 12, 2, 13).Opinion);
+        Assert.Equal(AdviserOpinion.Unavailable, engine.GetPrisonerReturnAdvice(1, 12, 2, 999).Opinion);
+    }
+
+    [Theory]
+    [InlineData(79, false)]
+    [InlineData(80, true)]
+    [InlineData(100, true)]
+    public void AdviceIncludesFreeReturnWithoutAnyCompensationAndMatchesAutomaticQuote(int relation, bool free)
     {
         var snapshot = new SimulationEngine(World(), Rules()).Snapshot;
         snapshot = snapshot with { Simulation = snapshot.Simulation with { Controls = [new("first", 1, ControllerKind.Player), new("ai:2", 2, ControllerKind.Automatic)] } };
@@ -138,12 +159,16 @@ public sealed class PrisonerReturnTests
         Assert.Equal(advice, engine.GetPrisonerReturnAdvice(1, 12, 2, 13));
         Assert.Equal(before.StateHash, engine.Snapshot.StateHash);
         snapshot = engine.Snapshot with { Forces = engine.Snapshot.Forces.Select(f => f.Id == 1 ? f with { Money = 0 } : f).ToArray(),
-            Relations = [new(1, 2, 100)] };
+            Relations = [new(1, 2, relation)] };
         engine = new(WorldState.Restore(snapshot), Rules());
-        Assert.Equal(AdviserOpinion.Unfavorable, engine.GetPrisonerReturnAdvice(1, 12, 2, 13).Opinion);
-        // Free return remains possible although the original advice specifically predicts compensation availability.
+        string beforeFreeAdvice = engine.Snapshot.StateHash;
+        Assert.Equal(free ? AdviserOpinion.Favorable : AdviserOpinion.Unfavorable,
+            engine.GetPrisonerReturnAdvice(1, 12, 2, 13).Opinion);
+        Assert.Equal(beforeFreeAdvice, engine.Snapshot.StateHash);
         Assert.True(engine.Execute(new("first"), new ReturnPrisonerCommand(Guid.NewGuid(), 1, 0, 12, 2, 13)).Submission.Accepted);
         engine.EndControl(new("first")); engine.EndControl(new("ai:2"));
-        Assert.True(Assert.Single(engine.AdvanceXun().Events.OfType<PrisonerReturnResolvedEvent>()).Accepted);
+        var resolved = Assert.Single(engine.AdvanceXun().Events.OfType<PrisonerReturnResolvedEvent>());
+        Assert.Equal(free, resolved.Accepted);
+        Assert.Equal(free ? CompensationKind.Free : CompensationKind.Refuse, resolved.Offer.Kind);
     }
 }

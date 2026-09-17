@@ -22,7 +22,7 @@ public sealed record GiftMission(
     [property: JsonRequired] int TargetForceId,
     [property: JsonRequired] GiftOffer Offer);
 public sealed record GiftResolvedEvent(GameClock Clock, Guid TaskId, int OfficerId, int TargetForceId,
-    GiftOffer Offer, bool Accepted, uint Received, uint Spent) : DomainEvent;
+    GiftOffer Offer, bool Accepted, uint Received, uint Refunded, uint Spent) : DomainEvent;
 
 internal static class GiftDiplomacy
 {
@@ -124,16 +124,24 @@ internal static class GiftDiplomacy
         world.Treasures.TryGetValue(gift.Offer.TreasureId!.Value, out var item) && item.Discovered && item.HolderId == task.OfficerId &&
         rules.Treasures.Items.ContainsKey(item.Id));
 
-    internal static void Cancel(WorldMutation world, PersistentTask task, List<DomainEvent> events)
+    internal static void Cancel(WorldMutation world, PersistentTask task, List<DomainEvent> events) =>
+        Refund(world, task, "gift-cancelled", events);
+
+    private static uint Refund(WorldMutation world, PersistentTask task, string reason, List<DomainEvent> events)
     {
-        if (task.Gift is not { } gift || gift.Offer.Kind == GiftKind.Treasure) return;
-        ResourceAccounts.Change(world, Account(task.ForceId), Resource(gift.Offer), gift.Offer.Amount, "gift-cancelled", task.OfficerId, events);
+        if (task.Gift is not { } gift || gift.Offer.Kind == GiftKind.Treasure) return 0;
+        var account = Account(task.ForceId);
+        var resource = Resource(gift.Offer);
+        uint refunded = Math.Min(gift.Offer.Amount, ResourceAccounts.Receivable(world, account, resource));
+        ResourceAccounts.Change(world, account, resource, gift.Offer.Amount, reason, task.OfficerId, events);
+        return refunded;
     }
 
     internal static void Resolve(WorldMutation world, PersistentTask task, SimulationRules rules, bool accepted, List<DomainEvent> events)
     {
         var gift = task.Gift!;
         uint received = 0;
+        uint refunded = 0;
         if (accepted)
         {
             if (gift.Offer.Kind == GiftKind.Treasure)
@@ -156,9 +164,13 @@ internal static class GiftDiplomacy
                 events.Add(new OfficerAbilityGrownEvent(world.Clock, actor.Id, "politics", actor.BaseAbilities.Politics, actor.BaseAbilities.Politics + 1));
             }
         }
-        else ForceRelations.Change(world, task.ForceId, gift.TargetForceId, -5, events);
+        else
+        {
+            refunded = Refund(world, task, "gift-refused", events);
+            ForceRelations.Change(world, task.ForceId, gift.TargetForceId, -5, events);
+        }
         events.Add(new GiftResolvedEvent(world.Clock, task.Id, task.OfficerId, gift.TargetForceId, gift.Offer, accepted,
-            received, gift.Offer.Amount - received));
+            received, refunded, gift.Offer.Amount - received - refunded));
         PersonnelReturns.Start(world, task, rules.Personnel, events, true);
     }
 }

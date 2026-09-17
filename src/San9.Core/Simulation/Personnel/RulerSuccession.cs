@@ -1,0 +1,60 @@
+using System.Collections.Immutable;
+using San9.Core.Domain;
+
+namespace San9.Core.Simulation;
+
+internal static class RulerSuccession
+{
+    internal static OfficerState? Automatic(WorldMutation world, int forceId, OfficerState previous) => world.Officers.Values
+        .Where(p => p.OwnerId == forceId && p.IsServing && p.Id != previous.Id)
+        .OrderByDescending(p => (p.ParentId == previous.Id || previous.ParentId == p.Id) && p.BirthYear > previous.BirthYear)
+        .ThenByDescending(p => p.ParentId is not null && p.ParentId == previous.ParentId)
+        .ThenByDescending(p => p.BloodlineId is not null && p.BloodlineId == previous.BloodlineId ? (long)world.Clock.Year + 1 - p.BirthYear : 0)
+        .ThenByDescending(p => p.SuccessionPriority)
+        .ThenByDescending(p => Sum(world.Abilities(p)))
+        .ThenBy(p => p.Id).FirstOrDefault();
+
+    private static long Sum(OfficerAbilities abilities) => (long)abilities.War + abilities.Intelligence + abilities.Politics + abilities.Leadership;
+
+    internal static void Commit(WorldMutation world, int forceId, int previousId, int successorId, List<DomainEvent> events)
+    {
+        var successor = world.Officers[successorId];
+        if (!successor.IsServing || successor.OwnerId != forceId || successorId == previousId)
+            throw new InvalidOperationException("Invalid ruler successor.");
+        int? corpsId = PersonnelLocations.Corps(world, successor);
+        var force = world.Forces[forceId];
+        world.Replace(force with { LeaderId = successorId, AdviserId = force.AdviserId == successorId ? null : force.AdviserId });
+        world.Replace(successor with { Status = OfficerStatus.Ruler, OfficeId = null, StatusStartYear = world.Clock.Year });
+        if (corpsId is int id)
+        {
+            var corps = world.Corps[id];
+            if (corps.LeaderId != successorId && corps.LeaderId != previousId && world.Officers[corps.LeaderId].Status == OfficerStatus.Governor)
+                world.Replace(world.Officers[corps.LeaderId] with { Status = OfficerStatus.Serving });
+            var root = world.Corps.Values.SingleOrDefault(c => c.OwnerId == forceId && c.Treasury is null);
+            if (corps.Treasury is not null)
+            {
+                foreach (var resource in new[] { ResourceKind.Money, ResourceKind.Food })
+                {
+                    long amount = ResourceAccounts.Balance(world, new(ResourceOwnerKind.Corps, id), resource);
+                    ResourceAccounts.Change(world, new(ResourceOwnerKind.Corps, id), resource, -amount, "ruler-succession", previousId, events);
+                    ResourceAccounts.Change(world, new(ResourceOwnerKind.Force, forceId), resource, amount, "ruler-succession", previousId, events);
+                }
+            }
+            world.Replace(world.Corps[id] with { LeaderId = successorId, Treasury = null, ControlMode = CorpsControlMode.Direct, Delegation = new GeneralDelegation() });
+            if (root is not null && root.Id != id)
+            {
+                foreach (var place in world.Settlements.Values.Where(s => s.CorpsId == root.Id).ToArray()) world.Replace(place with { CorpsId = id });
+                foreach (var unit in world.Units.Values.Where(u => u.CorpsId == root.Id).ToArray()) world.Replace(unit with { CorpsId = id });
+                world.SetSimulation(world.Simulation with { Tasks = world.Simulation.Tasks.Select(t =>
+                    t.Journey?.ReturnLeg is { } leg && leg.CorpsId == root.Id
+                        ? t with { Journey = t.Journey with { ReturnLeg = leg with { CorpsId = id } } } : t).ToImmutableArray() });
+                world.RemoveCorps(root.Id);
+                events.Add(new CorpsDissolvedEvent(world.Clock, forceId, root.Id, id));
+            }
+        }
+        foreach (var person in world.Officers.Values.Where(p => p.OwnerId == forceId && p.Id != successorId).OrderBy(p => p.Id).ToArray())
+            RecruitmentRules.SetLoyalty(world, person.Id, forceId,
+                Math.Max(0, person.LoyaltyTo(forceId) - PersonnelRulebook.AffinityDistance(person, successor) / 2), "ruler-succession", events);
+        events.Add(new ForceLeaderChangedEvent(world.Clock, forceId, previousId, successorId));
+    }
+}

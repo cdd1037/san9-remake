@@ -60,6 +60,8 @@ public sealed record PersonnelReturnLeg(int OriginPlaceId, int CountdownDays, bo
 /// <summary>Authoritative scheduling state; immutable and included in every world transaction.</summary>
 public sealed record SimulationState(GameClock Started, ulong InitialSeed)
 {
+    [JsonRequired] public bool AnnualAppearancesEnabled { get; init; } = true;
+    [JsonRequired] public bool NaturalDeathsEnabled { get; init; } = true;
     [JsonRequired] public San9.Core.Domain.AllianceState? Alliance { get; init; }
     [JsonRequired] public AllianceProposal? PendingAlliance { get; init; }
     [JsonRequired] public DailyTaskDecision? PendingDailyTask { get; init; }

@@ -142,7 +142,8 @@ internal static class BattleAftermath
                 Eliminate(world, force.Id, rules, events);
                 continue;
             }
-            if (force.LeaderId is not int leader || !serving.Any(p => p.Id == leader))
+            if (force.LeaderId is not int leader || !world.Officers.TryGetValue(leader, out var ruler) ||
+                ruler.OwnerId != force.Id || !ruler.IsServing && ruler.Status != OfficerStatus.Captive)
             {
                 var successor = rules.Governance.SelectSuccessor(serving, force.LeaderId ?? serving[0].Id, world.AbilitiesFor(serving)) ?? serving[0];
                 world.Replace(world.Forces[force.Id] with { LeaderId = successor.Id, AdviserId = force.AdviserId == successor.Id ? null : world.Forces[force.Id].AdviserId });
@@ -190,14 +191,16 @@ internal static class BattleAftermath
         }
         foreach (var person in world.Officers.Values.Where(p => p.OwnerId == forceId).ToArray())
         {
+            if (force.IsBarbarian && person.Status != OfficerStatus.Captive)
+            {
+                OfficerDeath.Remove(world, person.Id, OfficerDeathCause.ForceEliminated, rules.Personnel, events, true);
+                OfficerDeath.SettleTreasures(world, person.Id, null, events);
+                continue;
+            }
             PersonnelTransitions.CancelMissions(world, person.Id, "force-eliminated", events, rules.Personnel, true);
             var p = world.Officers[person.Id];
-            bool dead = force.IsBarbarian && p.Status != OfficerStatus.Captive;
-            world.Replace(p with { OwnerId = null, Status = p.Status == OfficerStatus.Captive ? OfficerStatus.Captive : dead ? OfficerStatus.Dead : OfficerStatus.Free,
+            world.Replace(p with { OwnerId = null, Status = p.Status == OfficerStatus.Captive ? OfficerStatus.Captive : OfficerStatus.Free,
                 UnitId = p.Status == OfficerStatus.Captive ? p.UnitId : null, OfficeId = null, IsCommander = false, Acted = true });
-            if (dead)
-                foreach (var treasure in world.Treasures.Values.Where(t => t.HolderId == p.Id).ToArray())
-                    world.Replace(treasure with { HolderId = null, Discovery = TreasureDiscovery.Discovered });
         }
         foreach (var unit in world.Units.Values.Where(u => u.OwnerId == forceId).ToArray())
         {

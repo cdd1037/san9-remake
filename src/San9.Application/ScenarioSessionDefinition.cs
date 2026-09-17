@@ -25,6 +25,8 @@ internal sealed class ScenarioSessionDefinition
             definition.SchemaVersion, definition.ScenarioId, definition.Year, definition.Month, definition.Day, definition.PlayerForceId, definition.DomesticPairs, definition.ImperialSealId, definition.EmperorId,
             definition.Military,
             definition.Alliance,
+            definition.AnnualAppearancesEnabled,
+            definition.NaturalDeathsEnabled,
             AttackRequests = definition.AttackRequests.OrderBy(r => r.RequestedForceId),
             Forces = Forces().OrderBy(f => f.Id), Settlements = Settlements().OrderBy(s => s.Id),
             Officers = definition.Officers.Select(o => o.State with { LearnedTactics = o.State.LearnedTactics.Order().ToImmutableArray() }).OrderBy(o => o.Id),
@@ -53,7 +55,7 @@ internal sealed class ScenarioSessionDefinition
             .Select(f => new ControlSeat(f.Id == Content.PlayerForceId ? "player" : $"ai:{f.Id}", f.Id,
                 f.Id == Content.PlayerForceId ? ControllerKind.Player : ControllerKind.Automatic)), computerDamageBonusPercent, Content.Alliance,
         Content.AttackRequests.Select(r => new AttackRequestState(r.RequestedForceId, r.RequesterForceId, r.TargetSettlementId,
-            Content.Settlements.Single(s => s.Id == r.TargetSettlementId).OwnerId!.Value, r.RemainingXun)));
+            Content.Settlements.Single(s => s.Id == r.TargetSettlementId).OwnerId!.Value, r.RemainingXun)), Content.AnnualAppearancesEnabled, Content.NaturalDeathsEnabled);
 
     private IEnumerable<ForceState> Forces() => Content.Forces.Select(f => new ForceState(f.Id, f.Money, f.Food, f.Trust)
     {

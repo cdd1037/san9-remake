@@ -12,6 +12,8 @@ internal static class SessionValidation
             throw new ArgumentException("Missing session state.");
         var expected = definition.CreateWorld(snapshot.World.Simulation.InitialSeed);
         if (snapshot.World.Simulation.Started != expected.Clock ||
+            snapshot.World.Simulation.AnnualAppearancesEnabled != expected.Simulation.AnnualAppearancesEnabled ||
+            snapshot.World.Simulation.NaturalDeathsEnabled != expected.Simulation.NaturalDeathsEnabled ||
             !snapshot.World.Simulation.Controls.SequenceEqual(expected.Simulation.Controls.Where(c =>
                 snapshot.World.Forces.Any(f => f.Id == c.ForceId && !f.IsEliminated))))
             throw new ArgumentException("Scenario date or control configuration mismatch.");

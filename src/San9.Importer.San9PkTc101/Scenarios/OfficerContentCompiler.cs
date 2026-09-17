@@ -33,6 +33,10 @@ public static class OfficerContentCompiler
                 new(person.Strength, person.Intelligence, person.Politics, person.Command), person.IsCommandParticipant)
             {
                 Affinity = person.Affinity,
+                AppearanceYear = person.AppearanceYear,
+                LifespanTier = person.LifespanTier,
+                SuccessionPriority = SuccessionPriority(person.BiographyResourceCode),
+                BloodlineId = person.BloodlineRootPersonId,
                 TacticLinkBonus = person.BiographyResourceCode == 9 ? 10 : 0,
                 EquippedTacticId = person.EquippedTacticId,
                 TacticCooldown = 0,
@@ -58,4 +62,14 @@ public static class OfficerContentCompiler
         }
         return result.ToArray();
     }
+
+    // TC101 biography identities are translated here; runtime ordering uses authored semantics.
+    internal static int SuccessionPriority(int biographyId) => biographyId switch
+    {
+        3 or 4 or 66 => 1,
+        36 or 61 or 64 => 2,
+        5 or 27 or 32 or 38 or 60 or 62 or 63 or 74 => 3,
+        68 or 520 or 530 => 4,
+        _ => 0
+    };
 }

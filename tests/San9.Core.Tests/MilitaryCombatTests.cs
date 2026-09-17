@@ -192,9 +192,12 @@ public sealed class MilitaryCombatTests
             Order = new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 1 } });
         mutation.AddUnit(new(1, 2, new(21, 7), 10000) { FormationId = 7, Morale = 90 });
         mutation.SetSimulation(mutation.Simulation with { NextUnitId = 2 });
+        mutation.AddCorps(new(10, 1, 11, null));
+        mutation.Replace(mutation.Settlements[1] with { CorpsId = 10 });
+        mutation.Replace(mutation.Units[0] with { CorpsId = 10 });
         if (loseHome)
         {
-            mutation.Replace(mutation.Settlements[1] with { OwnerId = 2 });
+            mutation.Replace(mutation.Settlements[1] with { OwnerId = 2, CorpsId = null });
             mutation.Replace(mutation.Officers[12] with { OwnerId = 2 });
         }
         world.Commit(mutation);
@@ -210,7 +213,39 @@ public sealed class MilitaryCombatTests
             Assert.True(engine.Snapshot.Forces.Single(f => f.Id == 1).IsEliminated);
             Assert.Equal(OfficerStatus.Captive, engine.Snapshot.Officers.Single(p => p.Id == 11).Status);
         }
-        else Assert.False(engine.Snapshot.Forces.Single(f => f.Id == 1).IsEliminated);
+        else
+        {
+            Assert.False(engine.Snapshot.Forces.Single(f => f.Id == 1).IsEliminated);
+            Assert.Equal(11, engine.Snapshot.Forces.Single(f => f.Id == 1).LeaderId);
+            Assert.Equal(11, engine.Snapshot.Corps.Single(c => c.Id == 10).LeaderId);
+            Assert.DoesNotContain(result.Events.OfType<ForceLeaderChangedEvent>(), e => e.ForceId == 1);
+        }
+    }
+
+    [Fact]
+    public void CapturedRulerRetainsForceAndRootCorpsUntilRecovered()
+    {
+        var world = World();
+        var engine = Engine(world);
+        var mutation = world.BeginMutation();
+        mutation.AddCorps(new(10, 1, 11, null));
+        mutation.Replace(mutation.Settlements[1] with { CorpsId = 10 });
+        mutation.Replace(mutation.Units[0] with { CorpsId = 10 });
+        var events = new List<DomainEvent>();
+        PersonnelTransitions.Capture(mutation, 11, 2, null, PersonnelRulebook.Empty, events);
+        UnitTerminationService.Complete(mutation, 0, null, 1, new([]), events);
+        BattleAftermath.Reconcile(mutation, new HashSet<int> { 1 }, new() { Military = Rules() }, events);
+        world.Commit(mutation);
+        Assert.Equal(11, engine.Snapshot.Forces.Single(f => f.Id == 1).LeaderId);
+        Assert.Equal(11, engine.Snapshot.Corps.Single().LeaderId);
+        Assert.Equal(OfficerStatus.Captive, engine.Snapshot.Officers.Single(p => p.Id == 11).Status);
+        Assert.DoesNotContain(events, e => e is ForceLeaderChangedEvent);
+        var restored = WorldState.Restore(engine.CaptureStableState());
+        mutation = restored.BeginMutation();
+        BattlePersonnel.Escape(mutation, 11, 1, PersonnelRulebook.Empty, events, new(37, 7), Rules());
+        restored.Commit(mutation);
+        Assert.Equal(OfficerStatus.Ruler, restored.CreateSnapshot().Officers.Single(p => p.Id == 11).Status);
+        Assert.Equal(11, restored.CreateSnapshot().Forces.Single(f => f.Id == 1).LeaderId);
     }
 
     [Fact]
@@ -276,7 +311,7 @@ public sealed class MilitaryCombatTests
         var world = WorldState.Create(baseline.Clock, 42, baseline.Forces, baseline.Settlements,
             baseline.Officers.Concat(new[] {
                 new OfficerState(30, null, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Undiscovered },
-                new OfficerState(31, null, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.NotAppeared }
+                new OfficerState(31, null, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.NotAppeared, AppearanceYear = 200 }
             }), baseline.Units);
         var engine = Engine(world);
         engine.AdvanceXun();
@@ -350,11 +385,16 @@ public sealed class MilitaryCombatTests
             baseline.Settlements, baseline.Officers.Append(new OfficerState(30, 2, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Special }),
             baseline.Units, treasures: [new(7, 30, TreasureDiscovery.Discovered, null)]);
         var engine = new SimulationEngine(world, EconomyRulebook.Empty, PersonnelRulebook.Empty, new TreasureRulebook([new(7, default, 0)]), military: Rules());
-        engine.AdvanceXun();
+        var result = engine.AdvanceXun();
         Assert.Equal(OfficerStatus.Dead, engine.Snapshot.Officers.Single(p => p.Id == 30).Status);
         Assert.Null(Assert.Single(engine.Snapshot.Treasures).HolderId);
         Assert.Equal(OfficerStatus.Dead, engine.Snapshot.Officers.Single(p => p.Id == 22).Status);
         Assert.Null(engine.Snapshot.Officers.Single(p => p.Id == 22).OwnerId);
+        Assert.Null(engine.Snapshot.Officers.Single(p => p.Id == 30).SettlementId);
+        Assert.Null(engine.Snapshot.Officers.Single(p => p.Id == 22).SettlementId);
+        Assert.Equal(OfficerDeathCause.ForceEliminated, Assert.Single(result.Events.OfType<OfficerDiedEvent>(), e => e.OfficerId == 30).Cause);
+        Assert.Equal(OfficerDeathCause.NoRetreat, Assert.Single(result.Events.OfType<OfficerDiedEvent>(), e => e.OfficerId == 22).Cause);
+        Assert.Single(result.Events.OfType<TreasureDroppedEvent>());
     }
 
     [Fact]

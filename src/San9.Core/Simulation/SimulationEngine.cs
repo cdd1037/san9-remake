@@ -58,6 +58,7 @@ public sealed class SimulationEngine
             {
                 var mutation = world.BeginMutation(rules.Abilities);
                 List<DomainEvent> events = [];
+                OfficerAppearance.Initialize(mutation, events);
                 _pipeline.Prepare(mutation, events);
                 AttackRequests.Cleanup(mutation, events);
                 CorpsDelegations.Cleanup(mutation, _rules.Military, events);

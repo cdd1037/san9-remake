@@ -1,5 +1,7 @@
 # 客户端内容与主界面
 
+G09人物生命周期新增必填`lifespanTier`、`successionPriority`及场景`naturalDeathsEnabled`。寿命档与继任优先值为非负数；优先值由作者直接维护，TC101仅在Importer根据列传资源号转换，运行时不读取原作编号。字段进入内容指纹与保存状态，旧包须重转；当前schema以代码常量及[G09验证](g09-verification.md)为准。
+
 本页维护当前能力与使用入口，不累计已解决问题的阶段验收。原版依据见[主界面规格](../specs/behavior/BEH-UI-0001-initial-strategy-screen.md)，地图与运行态见[地图文档](map-import.md)和[运行时架构](runtime-state.md)。
 
 ## 职责与文件
@@ -46,6 +48,8 @@ G08的schema53/57增加必填`CityProvinceIds`和`MilitaryDefinition.TerritoryEx
 TC101剧本导入以源坐标识别地域配置：双坐标均为无效哨兵的槽不生成地域、名称文本或城市归属映射；单轴无效或越界坐标直接报错。有效但尚未建造的地域完整保留，稳定ID不重排。人物和宝物引用由转换后的契约校验，不能通过丢弃引用对象掩盖错误。
 
 ## 接入前的数据核对
+
+G09登场接入将剧本schema提升为59、组合63：人物必填`AppearanceYear`和可空`BloodlineId`，后者是无源编号上限的家族标识；场景必填`AnnualAppearancesEnabled`。190年包已原位重转，700名支持人物逐身份核对源字段、转换和世界，397名未登场者完整保留，初始可见查询210人；没有改变对象、文本和显示资源覆盖范围。具体证据见[RE-0133](../research/findings/RE-SAN9PK-0133.md#2026-09-18g09登场分支与数据核对)，当前验证见[G09](g09-verification.md)。
 
 当前G08宝物保留类别契约为剧本schema56、组合60：必填`RetentionGroup`为其他、武力、智力、政治、统率之一。即使相应能力增量为零也保存明确类别，多个能力加成的独立创作宝物可指定其保留类别；报价比较值直接读取该能力或忠诚增量。190年包已原位更新，源100件宝物按类别逐项核对一致；规则版本与存档格式仍为v20／38。
 

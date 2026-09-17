@@ -122,11 +122,18 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         {
             AttackRequests.UpdateXun(world, events);
             AllianceDiplomacy.UpdateXun(world, events);
+            OfficerInjuryRecovery.Apply(world, events);
             XunRecovery.Apply(world);
             PrisonerCycle.Apply(world, events);
         }
         if (stage == ResolutionStage.QuarterEvents) AllianceFormation.Begin(world, rules, events);
-        if (stage == ResolutionStage.QuarterUpdate) PersonnelLoyaltyCycle.Apply(world, events);
+        if (stage == ResolutionStage.QuarterUpdate)
+        {
+            PersonnelLoyaltyCycle.Apply(world, events);
+            NaturalMortality.Apply(world, rules, events);
+            if (!CheckTerminal(world, events)) return false;
+        }
+        if (stage == ResolutionStage.AnnualAppearance) OfficerAppearance.AdvanceYear(world, rules.Personnel, events);
         var rationAccounts = EconomicCycle.Apply(stage, world, rules.Economy, events);
         if (stage == ResolutionStage.BeforeDailyCommands)
         {

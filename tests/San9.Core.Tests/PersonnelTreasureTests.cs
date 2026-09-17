@@ -23,9 +23,9 @@ public sealed class PersonnelTreasureTests
             treasures: [new(10, 1, TreasureDiscovery.Discovered, null), new(11, 1, TreasureDiscovery.Discovered, null),
                 new(12, 2, TreasureDiscovery.Discovered, null)], controls: [new("player", 1, ControllerKind.Player)]);
         var initialized = new SimulationEngine(world, new([new(1, 0)], [], 10), Places, Rules(bonus), Governance);
-        // Set the command boundary input after the independent opening salary cycle.
+        // Set the command boundary input after opening salary and injury recovery.
         var state = initialized.CaptureStableState();
-        state = state with { Officers = state.Officers.Select(p => p.Id == 2 ? p.WithLoyalty(1, loyalty) : p).ToArray() };
+        state = state with { Officers = state.Officers.Select(p => p.Id == 2 ? p.WithLoyalty(1, loyalty) with { Injury = 2 } : p).ToArray() };
         return new(WorldState.Restore(state), new([new(1, 0)], [], 10), Places, Rules(bonus), Governance);
     }
 

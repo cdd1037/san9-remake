@@ -44,21 +44,23 @@ internal static class BattlePersonnel
         var person = world.Officers[officerId];
         int? originPlace = person.UnitId is null ? person.SettlementId ?? person.RegionId : military.RegionAt(origin);
         bool dead = person.OwnerId is int owner && world.Forces[owner].IsBarbarian;
-        var candidates = !dead && originPlace is int place ? PersonnelExile.Destinations(world, place, places) : [];
+        if (dead)
+        {
+            OfficerDeath.Remove(world, officerId, OfficerDeathCause.NoRetreat, places, events, true);
+            OfficerDeath.SettleTreasures(world, officerId, null, events);
+            return;
+        }
+        var candidates = originPlace is int place ? PersonnelExile.Destinations(world, place, places) : [];
         int? destination = candidates.Length == 0 ? null : candidates[world.NextRandom("battle-personnel-placement") % (ulong)candidates.Length];
         PersonnelTransitions.CancelMissions(world, officerId, "battle-no-return-home", events, places, true);
-        if (!dead && destination is not null && person.OwnerId is int previousOwner)
+        if (destination is not null && person.OwnerId is int previousOwner)
             RecruitmentRules.SetLoyalty(world, officerId, previousOwner, Math.Min(45, person.LoyaltyTo(previousOwner)), "battle-displacement", events);
         // An empty geographic pool has no random destination. Retain the last geographic location
         // while clearing references to the disappearing army; never invent a nearest-world teleport.
         int? location = destination ?? originPlace;
         if (location is int id) PersonnelTransitions.DiscoverDetached(world, officerId, id, events);
         else BattleAftermath.Detach(world, world.Officers[officerId], null, events);
-        world.Replace(world.Officers[officerId] with { TacticCooldown = 0,
-            Status = dead ? OfficerStatus.Dead : OfficerStatus.Free });
-        if (dead)
-            foreach (var treasure in world.Treasures.Values.Where(t => t.HolderId == officerId).ToArray())
-                world.Replace(treasure with { HolderId = null, Discovery = TreasureDiscovery.Discovered });
+        world.Replace(world.Officers[officerId] with { TacticCooldown = 0, Status = OfficerStatus.Free });
     }
 
     internal static void Escape(WorldMutation world, int officerId, int destination, PersonnelRulebook places,
@@ -70,7 +72,9 @@ internal static class BattlePersonnel
             home.IsDestroyed || !home.CanHostPersons || home.Durability == 0) throw new ArgumentException("Invalid escape destination.");
         PersonnelTransitions.CancelMissions(world, officerId, "person-escaped-battle", events, places, true);
         world.Replace(world.Officers[officerId] with { UnitId = null, SettlementId = destination, RegionId = null,
-            Status = person.Status == OfficerStatus.Captive ? OfficerStatus.Serving : person.Status, Acted = true, IsCommander = false,
+            Status = person.Status == OfficerStatus.Captive
+                ? world.Forces[person.OwnerId!.Value].LeaderId == person.Id ? OfficerStatus.Ruler : OfficerStatus.Serving
+                : person.Status, Acted = true, IsCommander = false,
             TacticCooldown = 0 });
         var cause = new PersistentTask(new Guid(Convert.FromHexString(CanonicalJson.Hash(new { OfficerId = officerId,
             world.Clock, Origin = origin, Destination = destination })).AsSpan(0, 16)), PersonnelReturns.Kind, "system",

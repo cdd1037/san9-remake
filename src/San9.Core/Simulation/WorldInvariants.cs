@@ -65,7 +65,9 @@ internal static class WorldInvariants
                 unit.CorpsId is int corpsId && (!state.Corps.TryGetValue(corpsId, out var corps) || corps.OwnerId != unit.OwnerId)) throw new ArgumentException("Invalid unit.");
         }
         if (state.Corps.Values.Any(c => c.Id < 0 || !Enum.IsDefined(c.ControlMode) || !ValidDelegation(state, c) || !state.Forces.ContainsKey(c.OwnerId) ||
-                !state.Officers.TryGetValue(c.LeaderId, out var leader) || !leader.IsServing || leader.OwnerId != c.OwnerId) ||
+                !state.Officers.TryGetValue(c.LeaderId, out var leader) || leader.OwnerId != c.OwnerId ||
+                !leader.IsServing && !(c.Treasury is null && leader.Status == San9.Core.Domain.OfficerStatus.Captive &&
+                    state.Forces[c.OwnerId].LeaderId == leader.Id)) ||
             state.Treasures.Values.Any(t => !t.IsValid || t.HolderId is int holder && !state.Officers.ContainsKey(holder)) ||
             state.Relations.Values.Any(r => r.FirstId >= r.SecondId || r.Value is < 0 or > 100 || !state.Forces.ContainsKey(r.FirstId) || !state.Forces.ContainsKey(r.SecondId)))
             throw new ArgumentException("Invalid information state relationships.");

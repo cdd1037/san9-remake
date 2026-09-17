@@ -36,7 +36,7 @@ public sealed class WorldState
     public static WorldState Create(GameClock clock, ulong seed) => Create(clock, seed, [], [], []);
 
     public static WorldState Create(GameClock clock, ulong seed, IEnumerable<ForceState> forces,
-        IEnumerable<SettlementState> settlements, IEnumerable<OfficerState> officers, IEnumerable<UnitState>? units = null, IEnumerable<CorpsState>? corps = null, IEnumerable<TreasureState>? treasures = null, IEnumerable<ForceRelation>? relations = null, IEnumerable<ControlSeat>? controls = null, int computerDamageBonusPercent = 0, AllianceState? alliance = null, IEnumerable<AttackRequestState>? attackRequests = null)
+        IEnumerable<SettlementState> settlements, IEnumerable<OfficerState> officers, IEnumerable<UnitState>? units = null, IEnumerable<CorpsState>? corps = null, IEnumerable<TreasureState>? treasures = null, IEnumerable<ForceRelation>? relations = null, IEnumerable<ControlSeat>? controls = null, int computerDamageBonusPercent = 0, AllianceState? alliance = null, IEnumerable<AttackRequestState>? attackRequests = null, bool annualAppearancesEnabled = true, bool naturalDeathsEnabled = true)
     {
         var world = new WorldState(clock, seed);
         world._forces = IndexUnique(forces, value => value.Id);
@@ -47,6 +47,7 @@ public sealed class WorldState
         world._treasures = IndexUnique(treasures ?? [], value => value.Id);
         world._relations = IndexUnique(relations ?? [], value => (value.FirstId, value.SecondId));
         world.Simulation = world.Simulation with { Controls = (controls ?? []).ToImmutableArray(), ComputerDamageBonusPercent = computerDamageBonusPercent, Alliance = alliance,
+            AnnualAppearancesEnabled = annualAppearancesEnabled, NaturalDeathsEnabled = naturalDeathsEnabled,
             AttackRequests = (attackRequests ?? []).OrderBy(r => r.RequestedForceId).ToImmutableArray(),
             NextUnitId = world._units.Count == 0 ? 0 : (long)world._units.Keys.Max() + 1 };
         WorldInvariants.Validate(world.BeginMutation());

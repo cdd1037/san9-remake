@@ -3,7 +3,7 @@
 状态：已采用的正式核心玩法实施路线图；各阶段执行时细化并更新相关 BEH，规划中的具体规则不因此视为已经实现或已经确认的行为。
 最后更新：2026-09-18。
 
-执行进度：**G00–G08已完成，G09尚未启动**。G08包含联盟、四类外交、八类计略、有限自动规划及军团方针。当前测试与历史CLI基线见[G08验收](../docs/g08-verification.md)，保留疑点见[研究清单](../research/research-open-questions.md#g08保留疑点与证据边界)。
+执行进度：**G00–G08已完成，G09进行中**。G09已接入人物旬伤势恢复、登场数据及年度亲属安置，季度自然死亡和自动继任已接入，完整成长、处决及玩家继任选择、单挑尚未完成，见[G09实施与验证](../docs/g09-verification.md)。G08包含联盟、四类外交、八类计略、有限自动规划及军团方针。前置测试与历史CLI基线见[G08验收](../docs/g08-verification.md)，保留疑点见[研究清单](../research/research-open-questions.md#g08保留疑点与证据边界)。
 
 | 阶段 | 实现与验收入口 |
 | --- | --- |
@@ -11,6 +11,7 @@
 | G04 人事与治理 | [G04验收](../docs/g04-verification.md)、[人事依据审计](../docs/g04-implementation-audit.md)、[经营底座审计](../docs/g01-g04-audit-verification.md) |
 | G05–G07 地图与战争 | [G05](../docs/g05-verification.md)、[G06](../docs/g06-verification.md)、[G07](../docs/g07-verification.md) |
 | G08 外交与计略 | [验收](../docs/g08-verification.md) |
+| G09 人物生命周期与单挑（进行中） | [实施与验证](../docs/g09-verification.md) |
 
 当前能力见[README](../README.md)与[运行时状态](../docs/runtime-state.md)，阶段复用入口和规则核对方法见[实施基线](roadmap-baseline.md)。历史起点、候选方案及逐轮修复交给Git，不作为当前实施要求。
 

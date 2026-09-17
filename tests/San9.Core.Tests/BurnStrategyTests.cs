@@ -123,7 +123,8 @@ public sealed class BurnStrategyTests
     {
         var rules = Rules(30); var world = World(10); Submit(world, rules, 99);
         var result = Assert.Single(Day(world.BeginMutation(rules.Abilities), rules).OfType<BurnResolvedEvent>());
-        Assert.Equal(10, result.InjuryAfter);
+        Assert.Equal(9, result.InjuryBefore); // The opening xun already recovered one point.
+        Assert.Equal(result.InjuryBefore, result.InjuryAfter);
     }
 
     [Fact]

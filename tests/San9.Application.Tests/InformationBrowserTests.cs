@@ -142,8 +142,8 @@ public sealed class InformationBrowserTests
         var detail = OfficerDetails.Read(session.View, texts, 1);
         Assert.Equal(new[] { 6, 4, 5, 6 }, detail.Fields.Select(c => c.Length));
         Assert.Equal(session.View.Officers.Single(o => o.Id == 1).Abilities, detail.RadarAbilities);
-        Assert.Equal(80, detail.RadarAbilities.War);
-        Assert.Equal("90-10", detail.AbilityValues[1]);
+        Assert.Equal(89, detail.RadarAbilities.War); // Injury 2 recovers to 1 at the opening xun.
+        Assert.Equal("90-1", detail.AbilityValues[1]);
         Assert.Equal(9, detail.Tactics.Length);
         Assert.All(detail.Tactics[0].Tactics, t => Assert.True(t.Available));
         Assert.Equal(session.View.World.Treasures.Where(t => t.Discovered && t.HolderId == 1).Select(t => t.Id), detail.Treasures);

@@ -35,6 +35,8 @@ Application把当前世界与复制后的名称/显示定义组合成`StrategySn
 
 ## 已接入规则
 
+G09进行中：`OfficerInjuryRecovery`在旬世界更新中将人物非零伤势减1，输出`OfficerInjuryRecoveredEvent`。`OfficerAppearance`区分新局到年隐藏安置与年度亲代／血缘归属，使用`AppearanceYear`、`BloodlineId`及模拟状态的`AnnualAppearancesEnabled`，输出`OfficerAppearedEvent`。稳定边界恢复不重复执行；有效能力与人物可见性沿原有查询更新。战争中的异民族死亡已复用`OfficerDeath`统一人员移除与宝物结算，并发出死亡／掉落事件。`NaturalMortality`接入季度自然死亡，`RulerSuccession`处理自动继任及子军团转直属；寿命、继任优先值及自然死亡开关贯通内容与保存。处决、玩家继任选择、完整成长和单挑尚未完成，当前范围与验证见[G09](g09-verification.md)。
+
 G08已接入：`SimulationState.Alliance`唯一保存当前联盟目标、盟主、成员和剩余旬数，内容初始联盟经Application建局后沿快照、摘要、存档和录像传递。`AllianceDiplomacy`处理旬到期与势力退出，军事公共敌对查询拒绝联盟成员之间攻击；`ForceRelations`统一有界对称关系写回。八类计略均已接入公共命令、只读意见、类型化任务、日级效果和返程；`PersonnelJourney`保存目标位置及各命令载荷，流言额外保存两个目标势力身份。`PersistentTask.Reinforcements`保存救援在途兵数、士气与遣散城市，去返程之间转移唯一载荷；到达入库、返城超额及任务失效由运输与遣散服务结清。夺取复用宝物转移、俘虏恢复和资源账户服务，流言复用关系与忠诚服务。季度形成以`PendingAlliance`保存玩家回答；四类外交使用`PendingDailyTask`及任务阶段号保存旬边界谈判和剩余队列。赠与预付款、俘虏补偿、请求期限与劝降归并均由Core清算；`DiplomacyPlanner`与`StrategyPlanner`只生成公共命令，自动军团使用本军团控制权限。完整覆盖与实际验证见[G08](g08-verification.md)。
 
 依据[BEH-ECONOMY-0001](../specs/behavior/BEH-ECONOMY-0001-domestic-and-economic-cycle.md)，六项经营命令支持1至5名不同参与者。公共处理器验证当前归属、驻地、行动占用、项目次数与资源，原子提交属性、账户、兵员、熟练度和使用状态；拒绝不改变世界与随机。征兵按实际剩余容量和资金计算，兵役与驻军严格守恒。

@@ -120,6 +120,8 @@ public static class ScenarioContentCompiler
             header.StartDate.Year, header.StartDate.Month, header.StartDate.Day, 5, summaries, settlements.OrderBy(s => s.Id).ToArray(), regions, regionCities)
         { UnbuiltPlaces = personPlaces.Where(p => settlements.All(s => s.Id != p.Id)).Select(p => new San9.Core.Domain.PersonPlace(p.Id, San9.Core.Domain.MapCoordinates.Center(new(p.X, p.Y)))).ToImmutableArray(),
             FacilityNameSuffixKeys = suffixKeys,
+            AnnualAppearancesEnabled = header.ScenarioModeCode is not (2 or 9),
+            NaturalDeathsEnabled = header.ScenarioModeCode is not (1 or 2 or 9),
             CityProvinceIds = settlements.Where(s => s.Kind == San9.Core.Domain.SettlementKind.City)
                 .ToDictionary(s => s.Id, s => (int)cities[s.Id].AreaCode),
             AttackRequests = [], // TC101 scenarios contain no active request tuples; original saves are not imported.

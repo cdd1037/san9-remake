@@ -17,11 +17,11 @@ internal static class GossipStrategies
         world.Simulation.Controls.Any(control => control.ForceId == forceId && control.Kind == ControllerKind.Player);
 
     private static OfficerState[] Targets(WorldMutation world, int forceId) => world.Officers.Values
-        .Where(person => person.OwnerId == forceId && person.IsVisible && person.Status != OfficerStatus.Ruler)
+        .Where(person => person.OwnerId == forceId && person.IsServing && person.Status != OfficerStatus.Ruler)
         .OrderBy(person => person.Loyalty).ThenBy(person => person.Id).ToArray();
 
     private static int MemberCount(WorldMutation world, int forceId) => world.Officers.Values.Count(person =>
-        person.OwnerId == forceId && person.IsVisible);
+        person.OwnerId == forceId && person.IsServing);
 
     private static bool ValidForce(WorldMutation world, int forceId) =>
         world.Forces.TryGetValue(forceId, out var force) && !force.IsEliminated && !force.IsBarbarian &&
@@ -87,7 +87,7 @@ internal static class GossipStrategies
     {
         var rejection = Eligibility(world, forceId, officerId, firstTargetForceId, secondTargetForceId, rules);
         return rejection == CommandRejection.None
-            ? AdviserJudgment.Evaluate(world, forceId, Kind, officerId, firstTargetForceId,
+            ? AdviserJudgment.Evaluate(world, forceId, ConditionalRandomPurpose.Gossip, officerId, firstTargetForceId,
                 secondTargetForceId, Threshold(world, officerId, firstTargetForceId, secondTargetForceId))
             : new(rejection, null, AdviserOpinion.Unavailable);
     }
@@ -102,9 +102,8 @@ internal static class GossipStrategies
         int origin = actor.SettlementId!.Value;
         _ = TryDestination(world, command.FirstTargetForceId, rules, out int destination,
             out WorldPosition? position);
-        int offset = position is { } field
-            ? Math.Max(0, PersonnelRulebook.JourneyDays(rules.Personnel.Places[origin].Position, field) - 1)
-            : rules.Personnel.ResolutionDayOffset(origin, destination, PersonnelJourneyKind.Move);
+        var route = PersonnelLocations.Route(world, rules.Personnel, origin, destination, position);
+        int offset = Math.Max(0, route.Days - 1);
         var due = world.Clock;
         for (int day = 0; day < offset; day++) due = due.NextDay();
         int roll = ConditionalRandom.Percentile(world.Simulation.InitialSeed, ConditionalRandomPurpose.Gossip,
@@ -114,7 +113,7 @@ internal static class GossipStrategies
         {
             Journey = new(destination, null, roll)
             {
-                DestinationPosition = position,
+                Route = route,
                 Gossip = new(command.FirstTargetForceId, command.SecondTargetForceId)
             }
         };
@@ -181,20 +180,15 @@ internal sealed class GossipRule(SimulationRules rules) : TaskRule
     internal override bool HasValidPayload(PersistentTask task) => task.Journey is
         { TargetOfficerId: null, SuccessRoll: >= 0 and < 100, ReturnLeg: null, AcceptRecruitment: null,
           UnitStrategy: null, Burn: null, Seize: null,
-          Gossip: { FirstTargetForceId: >= 0, SecondTargetForceId: >= 0 } gossip, DestinationPosition: var position } &&
+          Gossip: { FirstTargetForceId: >= 0, SecondTargetForceId: >= 0 } gossip } &&
         gossip.FirstTargetForceId != gossip.SecondTargetForceId &&
-        (position is not null || rules.Personnel.Places.ContainsKey(task.Journey.DestinationPlaceId)) &&
         DurationDays(task) >= 0;
 
-    internal override int DurationDays(PersistentTask task) => task.Journey is { } journey &&
-        rules.Personnel.Places.TryGetValue(task.OriginSettlementId, out var origin) &&
+    internal override int DurationDays(PersistentTask task) => task.Journey is { Route: { } route } journey &&
+        rules.Personnel.Places.ContainsKey(task.OriginSettlementId) &&
         rules.Personnel.Places.ContainsKey(journey.DestinationPlaceId) &&
-        (journey.DestinationPosition is not { } position || rules.Military?.RegionAt(position) == journey.DestinationPlaceId)
-        ? journey.DestinationPosition is { } field
-            ? Math.Max(0, PersonnelRulebook.JourneyDays(origin.Position, field) - 1)
-            : rules.Personnel.ResolutionDayOffset(task.OriginSettlementId, journey.DestinationPlaceId,
-                PersonnelJourneyKind.Move)
-        : -1;
+        (!route.FieldDestination || rules.Military?.RegionAt(route.Destination) == journey.DestinationPlaceId)
+        ? Math.Max(0, route.Days - 1) : -1;
 
     internal override bool Validate(WorldMutation world, PersistentTask task) => HasValidPayload(task) &&
         GossipStrategies.EligibleForTask(world, task);

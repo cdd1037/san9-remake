@@ -62,7 +62,7 @@ internal static class AlienateStrategies
     {
         var rejection = Eligibility(world, forceId, officerId, targetId, rules);
         return rejection == CommandRejection.None
-            ? AdviserJudgment.Evaluate(world, forceId, Kind, officerId, targetId, Threshold(world, officerId, targetId))
+            ? AdviserJudgment.Evaluate(world, forceId, ConditionalRandomPurpose.Alienate, officerId, targetId, Threshold(world, officerId, targetId))
             : new(rejection, null, AdviserOpinion.Unavailable);
     }
 
@@ -75,9 +75,8 @@ internal static class AlienateStrategies
         int origin = actor.SettlementId!.Value;
         _ = TryDestination(world, world.Officers[command.TargetOfficerId], rules, out int destination,
             out WorldPosition? position);
-        int offset = position is { } field
-            ? Math.Max(0, PersonnelRulebook.JourneyDays(rules.Personnel.Places[origin].Position, field) - 1)
-            : rules.Personnel.ResolutionDayOffset(origin, destination, PersonnelJourneyKind.Move);
+        var route = PersonnelLocations.Route(world, rules.Personnel, origin, destination, position);
+        int offset = Math.Max(0, route.Days - 1);
         var due = world.Clock;
         for (int day = 0; day < offset; day++) due = due.NextDay();
         int roll = ConditionalRandom.Percentile(world.Simulation.InitialSeed, ConditionalRandomPurpose.Alienate,
@@ -85,7 +84,7 @@ internal static class AlienateStrategies
         var task = new PersistentTask(command.CommandId, Kind, context.ControllerId, command.IssuerId, actor.Id,
             origin, world.Clock, due, 0, command.Sequence)
         {
-            Journey = new(destination, command.TargetOfficerId, roll) { DestinationPosition = position }
+            Journey = new(destination, command.TargetOfficerId, roll) { Route = route }
         };
         world.Replace(actor with { Acted = true });
         world.SetSimulation(world.Simulation with { Tasks = world.Simulation.Tasks.Add(task) });
@@ -143,14 +142,11 @@ internal sealed class AlienateRule(SimulationRules rules) : TaskRule
           UnitStrategy: null, Burn: null, Seize: null, Gossip: null, ReturnLeg: null, AcceptRecruitment: null } &&
         DurationDays(task) >= 0;
 
-    internal override int DurationDays(PersistentTask task) => task.Journey is { } journey &&
-        rules.Personnel.Places.TryGetValue(task.OriginSettlementId, out var origin) &&
+    internal override int DurationDays(PersistentTask task) => task.Journey is { Route: { } route } journey &&
+        rules.Personnel.Places.ContainsKey(task.OriginSettlementId) &&
         rules.Personnel.Places.ContainsKey(journey.DestinationPlaceId) &&
-        (journey.DestinationPosition is not { } position || rules.Military?.RegionAt(position) == journey.DestinationPlaceId)
-        ? journey.DestinationPosition is { } field
-            ? Math.Max(0, PersonnelRulebook.JourneyDays(origin.Position, field) - 1)
-            : rules.Personnel.ResolutionDayOffset(task.OriginSettlementId, journey.DestinationPlaceId, PersonnelJourneyKind.Move)
-        : -1;
+        (!route.FieldDestination || rules.Military?.RegionAt(route.Destination) == journey.DestinationPlaceId)
+        ? Math.Max(0, route.Days - 1) : -1;
 
     internal override bool Validate(WorldMutation world, PersistentTask task) => HasValidPayload(task) &&
         AlienateStrategies.EligibleTarget(world, task.ForceId, task.Journey!.TargetOfficerId!.Value, rules);

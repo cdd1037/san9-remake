@@ -47,7 +47,7 @@ internal static class BurnStrategies
     {
         var rejection = Eligibility(world, force, officer, target, rules);
         return rejection == CommandRejection.None
-            ? AdviserJudgment.Evaluate(world, force, Kind, officer, target, Threshold(world, officer, target))
+            ? AdviserJudgment.Evaluate(world, force, ConditionalRandomPurpose.Burn, officer, target, Threshold(world, officer, target))
             : new(rejection, null, AdviserOpinion.Unavailable);
     }
 
@@ -58,8 +58,8 @@ internal static class BurnStrategies
         if (rejection != CommandRejection.None) return rejection;
         var actor = world.Officers[command.OfficerId];
         int origin = actor.SettlementId!.Value;
-        var position = rules.Personnel.Places[command.TargetSettlementId].Position;
-        int offset = Math.Max(0, PersonnelRulebook.JourneyDays(rules.Personnel.Places[origin].Position, position) - 1);
+        var route = PersonnelLocations.Route(world, rules.Personnel, origin, command.TargetSettlementId);
+        int offset = Math.Max(0, route.Days - 1);
         var due = world.Clock;
         for (int day = 0; day < offset; day++) due = due.NextDay();
         int roll = ConditionalRandom.Percentile(world.Simulation.InitialSeed, ConditionalRandomPurpose.Burn,
@@ -68,7 +68,7 @@ internal static class BurnStrategies
             origin, world.Clock, due, 0, command.Sequence)
         {
             Journey = new(command.TargetSettlementId, null, roll)
-                { DestinationPosition = position, Burn = new(command.TargetSettlementId) }
+                { Route = route, Burn = new(command.TargetSettlementId) }
         };
         world.Replace(actor with { Acted = true });
         world.SetSimulation(world.Simulation with { Tasks = world.Simulation.Tasks.Add(task) });
@@ -122,12 +122,15 @@ internal sealed class BurnRule(SimulationRules rules) : TaskRule
 {
     internal override bool HasValidPayload(PersistentTask task) => task.Journey is
         { TargetOfficerId: null, SuccessRoll: >= 0 and < 100, ReturnLeg: null, AcceptRecruitment: null,
-          UnitStrategy: null, Burn: { TargetSettlementId: >= 0 } burn, Seize: null, Gossip: null, DestinationPosition: { } position } journey &&
+          UnitStrategy: null, Burn: { TargetSettlementId: >= 0 } burn, Seize: null, Gossip: null, Route: { FieldDestination: false } } journey &&
         journey.DestinationPlaceId == burn.TargetSettlementId && rules.Personnel.Places.TryGetValue(burn.TargetSettlementId, out var target) &&
-        target.Position == position && DurationDays(task) >= 0;
-    internal override int DurationDays(PersistentTask task) => task.Journey is { DestinationPosition: { } position } &&
-        rules.Personnel.Places.TryGetValue(task.OriginSettlementId, out var origin)
-        ? Math.Max(0, PersonnelRulebook.JourneyDays(origin.Position, position) - 1) : -1;
+        DurationDays(task) >= 0;
+    internal override int DurationDays(PersistentTask task) => task.Journey is { Route: { } route } journey &&
+        rules.Personnel.Places.ContainsKey(task.OriginSettlementId) &&
+        rules.Personnel.Places.ContainsKey(journey.DestinationPlaceId) &&
+        (!route.FieldDestination || rules.Military?.RegionAt(route.Destination) == journey.DestinationPlaceId)
+        ? Math.Max(0, route.Days - 1) : -1;
+
     internal override bool Validate(WorldMutation world, PersistentTask task) => HasValidPayload(task) &&
         BurnStrategies.Eligible(world, task.ForceId, task.OriginSettlementId, task.Journey!.Burn!.TargetSettlementId, rules);
     internal override void Complete(WorldMutation world, PersistentTask task, List<DomainEvent> events) =>

@@ -154,7 +154,7 @@ public sealed class AlienateStrategyTests
         var task = Submit(world, rules, 0);
 
         Assert.Equal(2, task.Journey!.DestinationPlaceId);
-        Assert.Equal(new WorldPosition(32, 2), task.Journey.DestinationPosition);
+        Assert.Equal(new WorldPosition(32, 2), task.Journey.Route.Destination);
         var state = world.BeginMutation(rules.Abilities);
         state.Replace(state.Units[5] with { Position = new(62, 2) });
         Assert.Single(Day(state, rules).OfType<AlienateResolvedEvent>());

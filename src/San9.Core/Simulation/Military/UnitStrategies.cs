@@ -21,9 +21,18 @@ internal static class UnitStrategies
     {
         var rejection = SubmissionEligibility(world, forceId, officerId, strategy, targetId, rules);
         if (rejection != CommandRejection.None) return new(rejection, null, AdviserOpinion.Unavailable);
-        return AdviserJudgment.Evaluate(world, forceId, $"unit-strategy-{strategy}", officerId, targetId,
+        return AdviserJudgment.Evaluate(world, forceId, Purpose(strategy), officerId, targetId,
             Threshold(world, officerId, new(strategy, targetId), rules));
     }
+
+    private static ConditionalRandomPurpose Purpose(UnitStrategyKind strategy) => strategy switch
+    {
+        UnitStrategyKind.FalseReport => ConditionalRandomPurpose.FalseReport,
+        UnitStrategyKind.Disorder => ConditionalRandomPurpose.Disorder,
+        UnitStrategyKind.Inspire => ConditionalRandomPurpose.Inspire,
+        UnitStrategyKind.Reinforce => ConditionalRandomPurpose.Reinforcement,
+        _ => throw new ArgumentOutOfRangeException(nameof(strategy))
+    };
 
     private static CommandRejection SubmissionEligibility(WorldMutation world, int forceId, int officerId,
         UnitStrategyKind strategy, int targetId, SimulationRules rules)
@@ -57,26 +66,19 @@ internal static class UnitStrategies
         var actor = world.Officers[command.OfficerId];
         int origin = actor.SettlementId!.Value;
         var target = world.Units[command.TargetUnitId];
-        var from = rules.Personnel.Places[origin];
         int region = rules.Military!.RegionAt(target.Position)!.Value;
-        int days = PersonnelRulebook.JourneyDays(from.Position, target.Position);
+        var route = PersonnelLocations.Route(world, rules.Personnel, origin, region, target.Position);
+        int days = route.Days;
         var due = world.Clock;
         for (int day = 0; day < Math.Max(0, days - 1); day++) due = due.NextDay();
-        var purpose = command.Strategy switch
-        {
-            UnitStrategyKind.FalseReport => ConditionalRandomPurpose.FalseReport,
-            UnitStrategyKind.Disorder => ConditionalRandomPurpose.Disorder,
-            UnitStrategyKind.Inspire => ConditionalRandomPurpose.Inspire,
-            UnitStrategyKind.Reinforce => ConditionalRandomPurpose.Reinforcement,
-            _ => throw new ArgumentOutOfRangeException(nameof(command))
-        };
+        var purpose = Purpose(command.Strategy);
         int roll = ConditionalRandom.Percentile(world.Simulation.InitialSeed, purpose, world.Clock, actor.Id, target.Id);
         var task = new PersistentTask(command.CommandId, Kind, context.ControllerId, command.IssuerId, actor.Id, origin,
             world.Clock, due, 0, command.Sequence)
         {
             Journey = new(region, null, roll)
             {
-                DestinationPosition = target.Position,
+                Route = route,
                 UnitStrategy = new(command.Strategy, target.Id)
             },
             Reinforcements = command.Strategy == UnitStrategyKind.Reinforce
@@ -258,16 +260,18 @@ internal sealed class UnitStrategyRule(SimulationRules rules) : TaskRule
 {
     internal override bool HasValidPayload(PersistentTask task) => task.Journey is
         { TargetOfficerId: null, SuccessRoll: >= 0 and < 100, ReturnLeg: null, AcceptRecruitment: null, Burn: null, Seize: null, Gossip: null,
-          DestinationPosition: { X: >= 0, Y: >= 0 }, UnitStrategy: { } mission } &&
+          Route: { FieldDestination: true }, UnitStrategy: { } mission } &&
         Enum.IsDefined(mission.Strategy) && mission.TargetUnitId >= 0 &&
         (mission.Strategy == UnitStrategyKind.Reinforce
             ? task.Reinforcements is { Soldiers: 3000, Morale: >= 0 and <= 100 }
             : task.Reinforcements is null) &&
         DurationDays(task) >= 0;
-    internal override int DurationDays(PersistentTask task) => rules.Military is not null && task.Journey is
-        { DestinationPosition: { } position } journey && rules.Personnel.Places.TryGetValue(task.OriginSettlementId, out var from) &&
-        rules.Personnel.Places.ContainsKey(journey.DestinationPlaceId) && rules.Military.RegionAt(position) == journey.DestinationPlaceId
-        ? Math.Max(0, PersonnelRulebook.JourneyDays(from.Position, position) - 1) : -1;
+    internal override int DurationDays(PersistentTask task) => task.Journey is { Route: { } route } journey &&
+        rules.Personnel.Places.ContainsKey(task.OriginSettlementId) &&
+        rules.Personnel.Places.ContainsKey(journey.DestinationPlaceId) &&
+        (!route.FieldDestination || rules.Military?.RegionAt(route.Destination) == journey.DestinationPlaceId)
+        ? Math.Max(0, route.Days - 1) : -1;
+
     internal override bool Validate(WorldMutation world, PersistentTask task) => HasValidPayload(task) &&
         UnitStrategies.Eligible(world, task.ForceId, task.Journey!.UnitStrategy!.Strategy, task.Journey.UnitStrategy.TargetUnitId, rules) &&
         (task.Journey.UnitStrategy.Strategy switch

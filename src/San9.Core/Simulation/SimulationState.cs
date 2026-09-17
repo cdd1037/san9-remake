@@ -34,7 +34,7 @@ public sealed record ReinforcementTroops(uint Soldiers, int Morale, int Demobili
 
 public sealed record PersonnelJourney(int DestinationPlaceId, int? TargetOfficerId, int? SuccessRoll)
 {
-    [JsonRequired] public San9.Core.Domain.WorldPosition? DestinationPosition { get; init; }
+    [JsonRequired] public PersonnelRoute Route { get; init; } = null!;
     [JsonRequired] public UnitStrategyMission? UnitStrategy { get; init; }
     [JsonRequired] public BurnMission? Burn { get; init; }
     [JsonRequired] public SeizeMission? Seize { get; init; }
@@ -42,9 +42,18 @@ public sealed record PersonnelJourney(int DestinationPlaceId, int? TargetOfficer
     public PersonnelReturnLeg? ReturnLeg { get; init; }
     public bool? AcceptRecruitment { get; init; }
 }
+public sealed record PersonnelRoute(
+    [property: JsonRequired] San9.Core.Domain.WorldPosition Origin,
+    [property: JsonRequired] San9.Core.Domain.WorldPosition Destination,
+    [property: JsonRequired] bool FieldDestination)
+{
+    [JsonIgnore] public int Days => San9.Core.Domain.PersonnelRulebook.JourneyDays(Origin, Destination);
+    [JsonIgnore] public int XunRoundedDays => Math.Max(10, checked((Days + 9) / 10 * 10));
+}
 public sealed record PersonnelReturnLeg(int OriginPlaceId, int CountdownDays, bool AfterDailyCommands)
 {
-    [JsonRequired] public San9.Core.Domain.WorldPosition? OriginPosition { get; init; }
+    [JsonRequired] public bool FieldTravel { get; init; }
+    [JsonRequired] public bool DiplomaticEnvoy { get; init; }
     [JsonRequired] public int? CorpsId { get; init; }
 }
 

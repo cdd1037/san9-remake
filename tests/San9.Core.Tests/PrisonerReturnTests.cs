@@ -15,7 +15,7 @@ public sealed class PrisonerReturnTests
         state.Replace(state.Officers[13] with { SettlementId = null, UnitId = 30 });
         var pending = new PersistentTask(Guid.NewGuid(), PrisonerReturnDiplomacy.Kind, "first", 1, 12, 1,
             state.Clock, state.Clock, 0, 0)
-        { Journey = new(2, null, null), PrisonerReturn = new(2, 13, null) };
+        { Journey = new(2, null, null) { Route = new(new(0, 0), new(300, 0), false) }, PrisonerReturn = new(2, 13, null) };
         state.SetSimulation(state.Simulation with { Tasks = [pending] });
         List<DomainEvent> events = [];
         Assert.Equal(CommandRejection.None, PrisonerRelease.Depart(state, 13, 2, Guid.NewGuid(), 1,
@@ -25,8 +25,9 @@ public sealed class PrisonerReturnTests
         Assert.Equal(1, recovered.SettlementId);
         Assert.Equal(OfficerStatus.Serving, recovered.Status);
         var returning = Assert.Single(state.Simulation.Tasks, t => t.OfficerId == 13);
-        Assert.Equal(new WorldPosition(180, 0), returning.Journey!.ReturnLeg!.OriginPosition);
-        Assert.Equal(PersonnelRulebook.JourneyDays(new(180, 0), new(0, 0)), returning.Journey.ReturnLeg.CountdownDays);
+        Assert.Equal(new WorldPosition(180, 0), returning.Journey!.Route.Origin);
+        Assert.Equal(PersonnelRulebook.JourneyDays(new(180, 0), new(0, 0)), returning.Journey.ReturnLeg!.CountdownDays);
+        Assert.False(returning.Journey.ReturnLeg.DiplomaticEnvoy);
         Assert.Contains(events, e => e is TaskCancelledEvent cancelled && cancelled.TaskId == pending.Id);
         Assert.All(state.Simulation.Tasks, t => Assert.Equal(PersonnelReturns.Kind, t.Kind));
     }

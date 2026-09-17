@@ -31,12 +31,6 @@ internal static class PersonnelMissions
     internal const string MoveKind = "personnel-move";
     internal const string SearchKind = "personnel-search";
 
-    internal static PersonnelJourneyKind JourneyKind(string kind) => kind switch
-    {
-        RecruitKind => PersonnelJourneyKind.Recruit, MoveKind => PersonnelJourneyKind.Move, SearchKind => PersonnelJourneyKind.Search,
-        _ => throw new ArgumentOutOfRangeException(nameof(kind))
-    };
-
     internal static bool CanAct(WorldMutation world, int force, int id) =>
         world.Officers.TryGetValue(id, out var person) && person.IsServing && person.OwnerId == force &&
         person.SettlementId is int origin && world.Settlements.TryGetValue(origin, out var home) && home.OwnerId == force && home.CanHostPersons && home.Durability > 0 &&
@@ -119,8 +113,10 @@ internal static class PersonnelMissions
     private static void Add(WorldMutation world, CommandContext context, GameCommand command, Guid id, int officer, int origin,
         PersonnelJourney journey, string kind, PersonnelRulebook rules, List<DomainEvent> events)
     {
+        journey = journey with { Route = PersonnelLocations.Route(world, rules, origin, journey.DestinationPlaceId) };
+        int days = kind == SearchKind ? journey.Route.XunRoundedDays : journey.Route.Days;
         var due = world.Clock;
-        for (int day = 0; day < rules.ResolutionDayOffset(origin, journey.DestinationPlaceId, JourneyKind(kind)); day++) due = due.NextDay();
+        for (int day = 0; day < Math.Max(0, days - 1); day++) due = due.NextDay();
         var task = new PersistentTask(id, kind, context.ControllerId, command.IssuerId, officer, origin,
             world.Clock, due, 0, command.Sequence) { Journey = journey };
         world.Replace(world.Officers[officer] with { Acted = true });
@@ -142,14 +138,14 @@ internal static class PersonnelMissions
 internal sealed class PersonnelMissionRule(PersonnelRulebook rules, EconomyRulebook economy, GovernanceRulebook governance,
     TreasureRulebook treasures, string kind) : TaskRule
 {
-    internal override bool HasValidPayload(PersistentTask task) => task.Journey is { ReturnLeg: null, DestinationPosition: null, UnitStrategy: null, Burn: null, Seize: null, Gossip: null } journey && DurationDays(task) >= 0 &&
+    internal override bool HasValidPayload(PersistentTask task) => task.Journey is { ReturnLeg: null, Route: { FieldDestination: false }, UnitStrategy: null, Burn: null, Seize: null, Gossip: null } journey && DurationDays(task) >= 0 &&
         (kind == PersonnelMissions.MoveKind ? journey.TargetOfficerId is null && journey.SuccessRoll is null && journey.AcceptRecruitment is null :
          kind == PersonnelMissions.SearchKind ? journey.TargetOfficerId is null && journey.SuccessRoll is >= 0 and < 100 && journey.AcceptRecruitment is not null :
          journey.TargetOfficerId is >= 0 && journey.SuccessRoll is >= 0 and < 100 && journey.AcceptRecruitment is null);
 
-    internal override int DurationDays(PersistentTask task) => task.Journey is { } journey &&
+    internal override int DurationDays(PersistentTask task) => task.Journey is { Route: { } route } journey &&
         rules.Places.ContainsKey(task.OriginSettlementId) && rules.Places.ContainsKey(journey.DestinationPlaceId)
-        ? rules.ResolutionDayOffset(task.OriginSettlementId, journey.DestinationPlaceId, PersonnelMissions.JourneyKind(kind)) : -1;
+        ? Math.Max(0, (kind == PersonnelMissions.SearchKind ? route.XunRoundedDays : route.Days) - 1) : -1;
 
     internal override bool Validate(WorldMutation world, PersistentTask task)
     {

@@ -16,7 +16,8 @@ public static class DiplomacyPlanner
         var wait = new WaitCommand(commandId, seat.ForceId, sequence);
         var force = world.Forces.SingleOrDefault(f => f.Id == seat.ForceId && !f.IsEliminated);
         if (force is null || world.Simulation.Tasks.Any(t => t.ForceId == force.Id &&
-            (t.Gift is not null || t.PrisonerReturn is not null || t.AttackRequest is not null || t.Surrender is not null))) return wait;
+            (t.Gift is not null || t.PrisonerReturn is not null || t.AttackRequest is not null || t.Surrender is not null ||
+             t.Journey?.ReturnLeg?.DiplomaticEnvoy == true))) return wait;
         var abilities = engine.GetAbilities(world);
         var actors = world.Officers.Where(p => p.OwnerId == force.Id && p.IsServing && p.SettlementId is not null && !p.Acted &&
             !world.Simulation.Tasks.Any(t => t.OfficerId == p.Id)).OrderByDescending(p => abilities[p.Id].Politics).ThenBy(p => p.Id).Take(8).ToArray();

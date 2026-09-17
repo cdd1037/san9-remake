@@ -1,16 +1,14 @@
-using San9.Core.Domain;
-
 namespace San9.Core.Simulation;
 
 internal static class DiplomacyJourney
 {
-    internal static int Days(WorldPosition source, WorldPosition destination) =>
-        Math.Max(10, checked((PersonnelRulebook.JourneyDays(source, destination) + 9) / 10 * 10));
+    internal static bool IsDiplomatic(PersistentTask task) => task.Gift is not null || task.PrisonerReturn is not null ||
+        task.AttackRequest is not null || task.Surrender is not null;
 
     internal static int Duration(PersistentTask task, SimulationRules rules) =>
-        task.Started.IsXunBoundary && task.Journey is { } journey &&
-        rules.Personnel.Places.TryGetValue(task.OriginSettlementId, out var origin) &&
-        rules.Personnel.Places.TryGetValue(journey.DestinationPlaceId, out var destination) &&
-        (journey.DestinationPosition is not { } position || rules.Military?.RegionAt(position) == journey.DestinationPlaceId)
-            ? Days(origin.Position, journey.DestinationPosition ?? destination.Position) : -1;
+        task.Started.IsXunBoundary && task.Journey is { Route: { } route } journey &&
+        rules.Personnel.Places.ContainsKey(task.OriginSettlementId) &&
+        rules.Personnel.Places.ContainsKey(journey.DestinationPlaceId) &&
+        (!route.FieldDestination || rules.Military?.RegionAt(route.Destination) == journey.DestinationPlaceId)
+            ? route.XunRoundedDays : -1;
 }

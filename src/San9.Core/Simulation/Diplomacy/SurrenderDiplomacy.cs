@@ -59,7 +59,7 @@ internal static class SurrenderDiplomacy
         var rejection = Eligibility(world, source, actor, target, rules);
         if (rejection != CommandRejection.None) return new(rejection, null, AdviserOpinion.Unavailable);
         return PrisonerReturnDiplomacy.Player(world, target) ? new(CommandRejection.None, null, AdviserOpinion.Unavailable) :
-            AdviserJudgment.Evaluate(world, source, Kind, actor, target, Threshold(world, source, actor, target, rules));
+            AdviserJudgment.Evaluate(world, source, ConditionalRandomPurpose.Surrender, actor, target, Threshold(world, source, actor, target, rules));
     }
 
     internal static CommandRejection Start(WorldMutation world, CommandContext context, DemandSurrenderCommand command,
@@ -70,15 +70,15 @@ internal static class SurrenderDiplomacy
         var actor = world.Officers[command.OfficerId];
         int origin = actor.SettlementId!.Value;
         GiftDiplomacy.Destination(world, command.TargetForceId, rules, out int destination, out var position);
-        int days = DiplomacyJourney.Days(rules.Personnel.Places[origin].Position,
-            position ?? rules.Personnel.Places[destination].Position);
+        var route = PersonnelLocations.Route(world, rules.Personnel, origin, destination, position);
+        int days = route.XunRoundedDays;
         var due = world.Clock;
         for (int i = 0; i < days; i++) due = due.NextDay();
         var task = new PersistentTask(command.CommandId, Kind, context.ControllerId, command.IssuerId, actor.Id, origin,
             world.Clock, due, 0, command.Sequence)
         {
             Journey = new(destination, null, ConditionalRandom.Percentile(world.Simulation.InitialSeed,
-                ConditionalRandomPurpose.Surrender, world.Clock, actor.Id, command.TargetForceId)) { DestinationPosition = position },
+                ConditionalRandomPurpose.Surrender, world.Clock, actor.Id, command.TargetForceId)) { Route = route },
             Surrender = new(command.TargetForceId)
         };
         world.Replace(actor with { Acted = true });

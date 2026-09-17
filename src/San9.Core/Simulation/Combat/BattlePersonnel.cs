@@ -77,13 +77,13 @@ internal static class BattlePersonnel
             person.OwnerId!.Value, officerId, destination, world.Clock, world.Clock, 0, world.Simulation.NextSequence);
         world.SetSimulation(world.Simulation with { NextSequence = checked(world.Simulation.NextSequence + 1) });
         PersonnelReturns.Schedule(world, cause, officerId, destination, destination,
-            BattleRetreat.Days(origin, military.Place(home).Position), true, events, origin, corps);
+            BattleRetreat.Days(origin, military.Place(home).Position), true, events, new(origin, military.Place(home).Position, false), true, corps);
         events.Add(new OfficerEscapedBattleEvent(world.Clock, officerId, person.UnitId, destination));
     }
 
     internal static void ResumeReturn(WorldMutation world, PersistentTask task, SimulationRules rules, List<DomainEvent> events)
     {
-        if (task.Journey?.ReturnLeg?.OriginPosition is null)
+        if (task.Journey?.ReturnLeg?.FieldTravel != true)
         {
             PersonnelReturns.Start(world, task, rules.Personnel, events, true);
             return;
@@ -94,19 +94,20 @@ internal static class BattlePersonnel
             ReinforcementTransport.Disband(world, task, "reinforcement-executor-lost", events);
             return;
         }
-        var origin = rules.Military!.Place(world.Settlements[task.Journey.DestinationPlaceId]).Position;
-        var home = BattleRetreat.Destination(world, person, origin, task.Journey.DestinationPlaceId, rules.Military,
+        var origin = task.Journey.Route.Destination;
+        var home = BattleRetreat.Destination(world, person, origin, task.Journey.DestinationPlaceId, rules.Military!,
             preferredCorps: task.Journey.ReturnLeg.CorpsId);
         if (home is null)
         {
             ReinforcementTransport.Disband(world, task, "reinforcement-no-home", events);
-            Displace(world, person.Id, origin, rules.Personnel, rules.Military, events);
+            Displace(world, person.Id, origin, rules.Personnel, rules.Military!, events);
             return;
         }
-        int days = BattleRetreat.Days(origin, rules.Military.Place(home).Position);
+        int days = BattleRetreat.Days(origin, rules.Military!.Place(home).Position);
         int remaining = Math.Max(0, task.Journey.ReturnLeg.CountdownDays - task.ProgressDays - 1);
         if (days >= remaining) days -= remaining;
-        PersonnelReturns.Schedule(world, task, person.Id, task.Journey.DestinationPlaceId, home.Id, days, true, events, origin,
+        PersonnelReturns.Schedule(world, task, person.Id, task.Journey.DestinationPlaceId, home.Id, days, true, events,
+            new(origin, rules.Military.Place(home).Position, false), true,
             task.Journey.ReturnLeg.CorpsId);
     }
 }

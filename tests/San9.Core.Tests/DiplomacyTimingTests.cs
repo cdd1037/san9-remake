@@ -130,6 +130,87 @@ public sealed class DiplomacyTimingTests
             ResolutionStage.BeforeDailyCommands or ResolutionStage.DailyCommands or ResolutionStage.DailyMapUpdate);
         Assert.DoesNotContain(engine.Snapshot.Simulation.Tasks, t => t.Id == task.Id);
         if (distance == 0) Assert.Empty(engine.Snapshot.Simulation.Tasks);
+        else
+        {
+            var returning = Assert.Single(engine.Snapshot.Simulation.Tasks);
+            Assert.Equal((distance + 29) / 30, returning.Journey!.ReturnLeg!.CountdownDays);
+            Assert.True(returning.Journey.ReturnLeg.DiplomaticEnvoy);
+            Assert.Null(returning.Gift);
+            Assert.Null(returning.PrisonerReturn);
+            Assert.Null(returning.AttackRequest);
+            Assert.Null(returning.Surrender);
+            _ = new SimulationEngine(WorldState.Restore(JsonSerializer.Deserialize<WorldSnapshot>(
+                CanonicalJson.Text(engine.Snapshot), CanonicalJson.Options)!), rules);
+        }
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void InterruptedOutboundAndSubsequentReturnRerouteUseDifferentCorrections(int kind)
+    {
+        var rules = new SimulationRules { Personnel = new([new(1, new(0, 0)), new(2, new(330, 0)), new(3, new(690, 0))]) };
+        var engine = new SimulationEngine(World(new(190, 1, 1)), rules);
+        Assert.True(engine.Execute(new("first"), Command(kind)).Submission.Accepted);
+        var state = WorldState.Restore(engine.Snapshot).BeginMutation();
+        var outgoing = Assert.Single(state.Simulation.Tasks) with { ProgressDays = 1 };
+        state.Replace(state.Settlements[1] with { OwnerId = 2 });
+        state.Replace(state.Settlements[3] with { OwnerId = 1 });
+        state.SetSimulation(state.Simulation with { Tasks = [] });
+        List<DomainEvent> events = [];
+        PersonnelReturns.Start(state, outgoing, rules.Personnel, events, false);
+        var returning = Assert.Single(state.Simulation.Tasks);
+        Assert.Equal(1, returning.Journey!.ReturnLeg!.CountdownDays);
+        Assert.True(returning.Journey.ReturnLeg.DiplomaticEnvoy);
+
+        // The new return is type 37: D=23 and R=1 produce 22, not a diplomatic rounded correction.
+        state.Replace(state.Settlements[3] with { OwnerId = 3 });
+        state.Replace(state.Settlements[1] with { OwnerId = 1 });
+        state.SetSimulation(state.Simulation with { Tasks = [] });
+        PersonnelReturns.Start(state, returning, rules.Personnel, events, false);
+        var rerouted = Assert.Single(state.Simulation.Tasks);
+        Assert.Equal(22, rerouted.Journey!.ReturnLeg!.CountdownDays);
+        Assert.True(rerouted.Journey.ReturnLeg.DiplomaticEnvoy);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void AllDiplomacyFreezesLiveSourceAndDestinationCoordinates(int kind)
+    {
+        var rules = new SimulationRules
+        {
+            Personnel = Rules(30).Personnel,
+            Military = new(new MilitaryDefinition(200, 1, Enumerable.Repeat(0, 200).ToImmutableArray(),
+                [new(0, 1, null)], [], [])
+            {
+                Facilities = [new(1, 100, 100, new(1, 1), 0, true, true, true, 500000, null, null, null, [])],
+                ConstructionSites = [new(1, new(60, 0), [1]), new(1, new(90, 0), [1]),
+                    new(2, new(390, 0), [1]), new(2, new(690, 0), [1])]
+            })
+        };
+        var world = World(new(190, 1, 1));
+        var state = world.BeginMutation();
+        state.Replace(state.Settlements[1] with { Kind = SettlementKind.Facility, Facility = new(1, new(60, 0)) });
+        state.Replace(state.Settlements[2] with { Kind = SettlementKind.Facility, Facility = new(1, new(390, 0)) });
+        world.Commit(state);
+        var engine = new SimulationEngine(world, rules);
+        Assert.True(engine.Execute(new("first"), Command(kind)).Submission.Accepted);
+        var outgoing = Assert.Single(engine.Snapshot.Simulation.Tasks);
+        Assert.Equal(new WorldPosition(60, 0), outgoing.Journey!.Route.Origin);
+        Assert.Equal(new WorldPosition(390, 0), outgoing.Journey.Route.Destination);
+        Assert.Equal(20, outgoing.Due.DayNumber - outgoing.Started.DayNumber);
+        state = world.BeginMutation();
+        state.Replace(state.Settlements[1] with { Facility = new(1, new(90, 0)) });
+        state.Replace(state.Settlements[2] with { Facility = new(1, new(690, 0)) });
+        world.Commit(state);
+        var saved = JsonSerializer.Deserialize<WorldSnapshot>(CanonicalJson.Text(world.CreateSnapshot()), CanonicalJson.Options)!;
+        var restored = new SimulationEngine(WorldState.Restore(saved), rules);
+        Assert.Equal(outgoing.Journey.Route, Assert.Single(restored.Snapshot.Simulation.Tasks).Journey!.Route);
     }
 
     [Fact]
@@ -187,7 +268,7 @@ public sealed class DiplomacyTimingTests
         };
         Assert.Equal(CommandRejection.None, rejection);
         var task = Assert.Single(world.Simulation.Tasks);
-        Assert.Equal(position, task.Journey!.DestinationPosition);
+        Assert.Equal(position, task.Journey!.Route.Destination);
         Assert.Equal(new GameClock(190, 1, 21), task.Due);
         Assert.True(rules.FindTask(task.Kind)!.HasValidPayload(task));
         Assert.Equal(20, rules.FindTask(task.Kind)!.DurationDays(task));

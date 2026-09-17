@@ -162,7 +162,9 @@ public sealed class PersonnelScenarioTests
             new SearchCommand(id, 1, 0, 11, 30)), id: id)).Disposition);
         var saved = session.Capture();
         var task = Assert.Single(saved.World.Simulation.Tasks);
-        foreach (var journey in new PersonnelJourney?[] { null, new(9999, null, 20), new(30, 21, 20), new(30, null, null) })
+        foreach (var journey in new PersonnelJourney?[] { null, task.Journey! with { Route = null! },
+            task.Journey! with { DestinationPlaceId = 9999 }, task.Journey! with { TargetOfficerId = 21 },
+            task.Journey! with { SuccessRoll = null } })
         {
             var invalid = saved with { World = saved.World with { Simulation = saved.World.Simulation with { Tasks = [task with { Journey = journey }] } } };
             Assert.Throws<ArgumentException>(() => GameSession.Restore(definition, invalid));

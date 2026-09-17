@@ -23,7 +23,7 @@ internal static class PrisonerReturnDiplomacy
         if (Player(world, target)) return new(CommandRejection.None, null, AdviserOpinion.Unavailable);
         bool available = PrisonerCompensation.ExchangeCandidate(world, force, target) is not null ||
             PrisonerCompensation.PaymentQuote(world, force, actor, target, prisoner, rules.Treasures).Kind != CompensationKind.Refuse;
-        return AdviserJudgment.Evaluate(world, force, Kind, actor, target, prisoner, available ? 100 : 0);
+        return AdviserJudgment.Evaluate(world, force, ConditionalRandomPurpose.PrisonerReturn, actor, target, prisoner, available ? 100 : 0);
     }
     internal static bool Player(WorldMutation world, int force) => world.Simulation.Controls.Any(c =>
         c.ForceId == force && c.Kind == ControllerKind.Player);
@@ -48,14 +48,14 @@ internal static class PrisonerReturnDiplomacy
         var actor = world.Officers[command.OfficerId];
         int origin = actor.SettlementId!.Value;
         GiftDiplomacy.Destination(world, command.TargetForceId, rules, out int destination, out var position);
-        int days = DiplomacyJourney.Days(rules.Personnel.Places[origin].Position,
-            position ?? rules.Personnel.Places[destination].Position);
+        var route = PersonnelLocations.Route(world, rules.Personnel, origin, destination, position);
+        int days = route.XunRoundedDays;
         var due = world.Clock;
         for (int i = 0; i < days; i++) due = due.NextDay();
         var task = new PersistentTask(command.CommandId, Kind, context.ControllerId, command.IssuerId,
             actor.Id, origin, world.Clock, due, 0, command.Sequence)
         {
-            Journey = new(destination, null, null) { DestinationPosition = position },
+            Journey = new(destination, null, null) { Route = route },
             PrisonerReturn = new(command.TargetForceId, command.PrisonerId, null)
         };
         world.Replace(actor with { Acted = true });

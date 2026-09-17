@@ -129,7 +129,7 @@ internal static class AttackRequestDiplomacy
         if (PrisonerReturnDiplomacy.Player(world, target)) return new(CommandRejection.None, null, AdviserOpinion.Unavailable);
         int threshold = Math.Max(FreeThreshold(world, force, actor, target, place, rules), PrisonerThreshold(world, force, actor, target, place, rules));
         if (PaymentQuote(world, force, actor, target, place, rules).Kind != CompensationKind.Refuse) threshold = 100;
-        return AdviserJudgment.Evaluate(world, force, Kind, actor, target, place, threshold);
+        return AdviserJudgment.Evaluate(world, force, ConditionalRandomPurpose.AttackRequest, actor, target, place, threshold);
     }
 
     internal static CommandRejection Start(WorldMutation world, CommandContext context, RequestAttackCommand command, SimulationRules rules, List<DomainEvent> events)
@@ -139,14 +139,14 @@ internal static class AttackRequestDiplomacy
         var actor = world.Officers[command.OfficerId];
         int origin = actor.SettlementId!.Value;
         GiftDiplomacy.Destination(world, command.TargetForceId, rules, out int destination, out var position);
-        int days = DiplomacyJourney.Days(rules.Personnel.Places[origin].Position,
-            position ?? rules.Personnel.Places[destination].Position);
+        var route = PersonnelLocations.Route(world, rules.Personnel, origin, destination, position);
+        int days = route.XunRoundedDays;
         var due = world.Clock;
         for (int i = 0; i < days; i++) due = due.NextDay();
         var task = new PersistentTask(command.CommandId, Kind, context.ControllerId, command.IssuerId, actor.Id, origin, world.Clock, due, 0, command.Sequence)
         {
             Journey = new(destination, null, ConditionalRandom.Percentile(world.Simulation.InitialSeed, ConditionalRandomPurpose.AttackRequest,
-                world.Clock, actor.Id, command.TargetForceId, command.TargetSettlementId)) { DestinationPosition = position },
+                world.Clock, actor.Id, command.TargetForceId, command.TargetSettlementId)) { Route = route },
             AttackRequest = new(command.TargetForceId, command.TargetSettlementId, null)
         };
         world.Replace(actor with { Acted = true });

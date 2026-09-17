@@ -204,8 +204,8 @@ public sealed class SeizeStrategyTests
         state = world.BeginMutation();
         state.Replace(state.Officers[11] with { BaseAbilities = new(87, 70, 70, 70) });
         world.Commit(state);
-        // (75 + 25) / 2 = 50%, exactly uncertain.
-        Assert.Equal(AdviserOpinion.Uncertain, engine.GetSeizeAdvice(1, 11, 2).Opinion);
+        // (75 + 25) / 2 = 50%; the fixed draw still predicts a success, without a special midpoint category.
+        Assert.Equal(AdviserOpinion.Favorable, engine.GetSeizeAdvice(1, 11, 2).Opinion);
         state = world.BeginMutation();
         state.Replace(state.Officers[11] with { BaseAbilities = new(88, 70, 70, 70) });
         world.Commit(state);

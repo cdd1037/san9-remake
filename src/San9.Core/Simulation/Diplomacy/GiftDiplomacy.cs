@@ -85,7 +85,7 @@ internal static class GiftDiplomacy
         if (rejection != CommandRejection.None) return new(rejection, null, AdviserOpinion.Unavailable);
         if (world.Simulation.Controls.Any(c => c.ForceId == target && c.Kind == ControllerKind.Player))
             return new(CommandRejection.None, null, AdviserOpinion.Unavailable);
-        return AdviserJudgment.Evaluate(world, forceId, Kind, actor, target, Threshold(world, forceId, actor, target, offer, rules));
+        return AdviserJudgment.Evaluate(world, forceId, ConditionalRandomPurpose.Gift, actor, target, Threshold(world, forceId, actor, target, offer, rules));
     }
 
     internal static CommandRejection Start(WorldMutation world, CommandContext context, GiftCommand command, SimulationRules rules, List<DomainEvent> events)
@@ -95,15 +95,15 @@ internal static class GiftDiplomacy
         var actor = world.Officers[command.OfficerId];
         int origin = actor.SettlementId!.Value;
         Destination(world, command.TargetForceId, rules, out int destination, out var position);
-        int days = DiplomacyJourney.Days(rules.Personnel.Places[origin].Position,
-            position ?? rules.Personnel.Places[destination].Position);
+        var route = PersonnelLocations.Route(world, rules.Personnel, origin, destination, position);
+        int days = route.XunRoundedDays;
         var due = world.Clock;
         for (int i = 0; i < days; i++) due = due.NextDay();
         var task = new PersistentTask(command.CommandId, Kind, context.ControllerId, command.IssuerId, actor.Id, origin,
             world.Clock, due, 0, command.Sequence)
         {
             Journey = new(destination, null, ConditionalRandom.Percentile(world.Simulation.InitialSeed,
-                ConditionalRandomPurpose.Gift, world.Clock, actor.Id, command.TargetForceId)) { DestinationPosition = position },
+                ConditionalRandomPurpose.Gift, world.Clock, actor.Id, command.TargetForceId)) { Route = route },
             Gift = new(command.TargetForceId, command.Offer)
         };
         if (command.Offer.Kind == GiftKind.Treasure)

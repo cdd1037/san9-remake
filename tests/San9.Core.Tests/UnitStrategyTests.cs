@@ -13,6 +13,7 @@ public sealed class UnitStrategyTests
         var world = World(friendly: true);
         var mutation = world.BeginMutation();
         mutation.Replace(mutation.Forces[1] with { AdviserId = 12 });
+        mutation.Replace(mutation.Officers[11] with { BaseAbilities = new(70, 0, 70, 70) });
         mutation.Replace(mutation.Officers[12] with { Status = OfficerStatus.Strategist, BaseAbilities = new(70, 100, 70, 70) });
         world.Commit(mutation);
         var engine = new SimulationEngine(world, rules);
@@ -117,7 +118,7 @@ public sealed class UnitStrategyTests
         var world = World(distance: distance);
         var task = Submit(world, rules, UnitStrategyKind.FalseReport, 0);
         var state = world.BeginMutation(rules.Abilities);
-        Assert.Equal(new WorldPosition(2 + distance, 2), task.Journey!.DestinationPosition);
+        Assert.Equal(new WorldPosition(2 + distance, 2), task.Journey!.Route.Destination);
         Assert.Equal(UnitCondition.Normal, Assert.Single(state.Units.Values).Condition);
         Assert.Equal(10000u, state.Settlements.Values.Single(s => s.Id == 1).Soldiers);
         for (int day = 1; day < processingDay; day++) Assert.Empty(Day(state, rules).OfType<UnitStrategyResolvedEvent>());
@@ -162,7 +163,7 @@ public sealed class UnitStrategyTests
         Assert.Equal(0, state.Officers.Values.Single(p => p.Id == 22).TacticCooldown);
         var returning = Assert.Single(state.Simulation.Tasks);
         Assert.Equal("personnel-return", returning.Kind);
-        Assert.Equal(new WorldPosition(33, 2), returning.Journey!.ReturnLeg!.OriginPosition);
+        Assert.Equal(new WorldPosition(33, 2), returning.Journey!.Route.Origin);
         Assert.Null(returning.Journey.UnitStrategy);
         Day(state, rules);
         Assert.Single(Day(state, rules).OfType<PersonnelReturnedEvent>());

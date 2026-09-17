@@ -18,10 +18,11 @@ internal static class PersonnelReturns
             return;
         }
         var home = world.Settlements.Values.Where(s => s.OwnerId == person.OwnerId && s.CanHostPersons && s.Durability > 0 &&
-                places.Places.ContainsKey(s.Id)).OrderBy(s => places.JourneyDays(origin, s.Id, PersonnelJourneyKind.Move)).ThenBy(s => s.Id).FirstOrDefault();
+                places.Places.ContainsKey(s.Id)).OrderBy(s => PersonnelLocations.Route(world, places, origin, s.Id).Days).ThenBy(s => s.Id).FirstOrDefault();
         if (home is null) { PersonnelTransitions.DiscoverDetached(world, personId, origin, events); return; }
         var previous = cause with { ForceId = person.OwnerId!.Value, ControllerId = "system" };
-        Schedule(world, previous, personId, origin, home.Id, places.JourneyDays(origin, home.Id, PersonnelJourneyKind.Move), true, events);
+        var route = PersonnelLocations.Route(world, places, origin, home.Id);
+        Schedule(world, previous, personId, origin, home.Id, route.Days, true, events, route);
     }
 
     internal static void Start(WorldMutation world, PersistentTask previous, PersonnelRulebook places,
@@ -35,10 +36,8 @@ internal static class PersonnelReturns
             return;
         }
         int from = previous.Journey!.DestinationPlaceId;
-        WorldPosition? fieldPosition = previous.Journey.DestinationPosition;
-        int DistanceTo(int destination) => fieldPosition is { } position
-            ? PersonnelRulebook.JourneyDays(position, places.Places[destination].Position)
-            : places.JourneyDays(from, destination, PersonnelJourneyKind.Move);
+        var origin = previous.Journey.Route.Destination;
+        int DistanceTo(int destination) => PersonnelRulebook.JourneyDays(origin, PersonnelLocations.Position(world, places, destination));
         bool ValidHome(SettlementState home) => home.OwnerId == person.OwnerId && home.CanHostPersons &&
             home.Durability > 0 && places.Places.ContainsKey(home.Id);
         var home = person.SettlementId is int id && world.Settlements.TryGetValue(id, out var current) && ValidHome(current)
@@ -54,24 +53,25 @@ internal static class PersonnelReturns
         int days = DistanceTo(home.Id);
         if (companionId is null)
         {
-            int outbound = fieldPosition is { } position
-                ? PersonnelRulebook.JourneyDays(places.Places[previous.OriginSettlementId].Position, position)
-                : previous.Journey.ReturnLeg?.CountdownDays ?? places.JourneyDays(previous.OriginSettlementId, from,
-                    previous.Kind == PersonnelMissions.SearchKind ? PersonnelJourneyKind.Search : PersonnelJourneyKind.Move);
+            bool roundedOutbound = previous.Kind == PersonnelMissions.SearchKind || DiplomacyJourney.IsDiplomatic(previous);
+            int outbound = previous.Journey.ReturnLeg?.CountdownDays ?? (roundedOutbound
+                ? previous.Journey.Route.XunRoundedDays : previous.Journey.Route.Days);
             int remaining = Math.Max(0, outbound -
                 previous.ProgressDays - (afterDailyCommands ? 1 : 0));
-            if (previous.Kind == PersonnelMissions.SearchKind)
+            if (roundedOutbound)
             {
                 int rounded = Math.Max(10, (days + 9) / 10 * 10);
                 if (rounded >= remaining) days = Math.Max(0, rounded - Math.Max(remaining, rounded - days));
             }
             else if (days >= remaining) days -= remaining;
         }
-        Schedule(world, previous, person.Id, from, home.Id, days, afterDailyCommands, events, fieldPosition);
+        Schedule(world, previous, person.Id, from, home.Id, days, afterDailyCommands, events,
+            new(origin, PersonnelLocations.Position(world, places, home.Id), false),
+            previous.Journey.Route.FieldDestination || previous.Journey.ReturnLeg?.FieldTravel == true);
     }
 
     internal static void Schedule(WorldMutation world, PersistentTask previous, int officerId, int from, int destination,
-        int days, bool afterDailyCommands, List<DomainEvent> events, WorldPosition? originPosition = null, int? corpsId = null)
+        int days, bool afterDailyCommands, List<DomainEvent> events, PersonnelRoute route, bool fieldTravel = false, int? corpsId = null)
     {
         var due = world.Clock;
         int offset = afterDailyCommands ? days : Math.Max(0, days - 1);
@@ -81,7 +81,16 @@ internal static class PersonnelReturns
         var task = new PersistentTask(id, Kind, previous.ControllerId, previous.ForceId, officerId, destination,
             world.Clock, due, 0, previous.Sequence)
         {
-            Journey = new(destination, null, null) { ReturnLeg = new(from, days, afterDailyCommands) { OriginPosition = originPosition, CorpsId = corpsId } },
+            Journey = new(destination, null, null)
+            {
+                Route = route,
+                ReturnLeg = new(from, days, afterDailyCommands)
+                {
+                    FieldTravel = fieldTravel, CorpsId = corpsId,
+                    DiplomaticEnvoy = officerId == previous.OfficerId &&
+                        (DiplomacyJourney.IsDiplomatic(previous) || previous.Journey?.ReturnLeg?.DiplomaticEnvoy == true)
+                }
+            },
             Reinforcements = previous.Reinforcements
         };
         world.Replace(world.Officers[officerId] with { SettlementId = destination, RegionId = null, Acted = true, IsCommander = false });
@@ -93,17 +102,15 @@ internal static class PersonnelReturns
 internal sealed class PersonnelReturnRule(PersonnelRulebook places, MilitaryRulebook? military) : TaskRule
 {
     internal override bool HasValidPayload(PersistentTask task) => task.Journey is
-        { TargetOfficerId: null, SuccessRoll: null, AcceptRecruitment: null, DestinationPosition: null, UnitStrategy: null, Burn: null, Seize: null, Gossip: null, ReturnLeg: { } leg } journey &&
+        { TargetOfficerId: null, SuccessRoll: null, AcceptRecruitment: null, Route: { FieldDestination: false } route,
+          UnitStrategy: null, Burn: null, Seize: null, Gossip: null, ReturnLeg: { } leg } journey &&
         journey.DestinationPlaceId == task.OriginSettlementId && leg.CountdownDays >= 0 && leg.CorpsId is not < 0 &&
-        (leg.OriginPosition is { X: >= 0, Y: >= 0 } ? military is not null : leg.OriginPosition is null &&
-            places.Places.ContainsKey(leg.OriginPlaceId) && places.Places.ContainsKey(journey.DestinationPlaceId) &&
-            leg.CountdownDays <= places.JourneyDays(leg.OriginPlaceId, journey.DestinationPlaceId, PersonnelJourneyKind.Move));
+        (leg.FieldTravel ? military is not null :
+            places.Places.ContainsKey(leg.OriginPlaceId) && places.Places.ContainsKey(journey.DestinationPlaceId)) &&
+        leg.CountdownDays <= (leg.FieldTravel ? BattleRetreat.Days(route.Origin, route.Destination) : route.Days);
     internal override int DurationDays(PersistentTask task) => task.Journey?.ReturnLeg is { } leg
         ? leg.AfterDailyCommands ? leg.CountdownDays : Math.Max(0, leg.CountdownDays - 1) : -1;
-    internal override bool Validate(WorldMutation world, PersistentTask task) => HasValidPayload(task) &&
-        (task.Journey!.ReturnLeg!.OriginPosition is not { } origin ||
-            military!.TryPlace(world.Settlements[task.OriginSettlementId], out var home) &&
-            task.Journey.ReturnLeg.CountdownDays <= BattleRetreat.Days(origin, home.Position));
+    internal override bool Validate(WorldMutation world, PersistentTask task) => HasValidPayload(task);
     internal override void Complete(WorldMutation world, PersistentTask task, List<DomainEvent> events)
     {
         ReinforcementTransport.Arrive(world, task, places, events);

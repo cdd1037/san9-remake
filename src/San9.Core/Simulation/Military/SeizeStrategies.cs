@@ -77,7 +77,7 @@ internal static class SeizeStrategies
         var thresholds = ComputeThresholds(world, officerId, targetId, rules);
         int withoutItem = Math.Clamp(Math.Max(thresholds.Person, thresholds.Money), 0, 100);
         int withItem = Math.Clamp(Math.Max(thresholds.Item, withoutItem), 0, 100);
-        return AdviserJudgment.Evaluate(world, forceId, Kind, officerId, targetId,
+        return AdviserJudgment.Evaluate(world, forceId, ConditionalRandomPurpose.Seize, officerId, targetId,
             (withoutItem + withItem) / 2.0);
     }
 
@@ -88,8 +88,8 @@ internal static class SeizeStrategies
         if (rejection != CommandRejection.None) return rejection;
         var actor = world.Officers[command.OfficerId];
         int origin = actor.SettlementId!.Value;
-        var position = rules.Personnel.Places[command.TargetSettlementId].Position;
-        int offset = Math.Max(0, PersonnelRulebook.JourneyDays(rules.Personnel.Places[origin].Position, position) - 1);
+        var route = PersonnelLocations.Route(world, rules.Personnel, origin, command.TargetSettlementId);
+        int offset = Math.Max(0, route.Days - 1);
         var due = world.Clock;
         for (int day = 0; day < offset; day++) due = due.NextDay();
         int roll = ConditionalRandom.Percentile(world.Simulation.InitialSeed, ConditionalRandomPurpose.Seize,
@@ -99,7 +99,7 @@ internal static class SeizeStrategies
         {
             Journey = new(command.TargetSettlementId, null, roll)
             {
-                DestinationPosition = position,
+                Route = route,
                 Seize = new(command.TargetSettlementId)
             }
         };
@@ -191,14 +191,16 @@ internal sealed class SeizeRule(SimulationRules rules) : TaskRule
     internal override bool HasValidPayload(PersistentTask task) => task.Journey is
         { TargetOfficerId: null, SuccessRoll: >= 0 and < 100, ReturnLeg: null, AcceptRecruitment: null,
           UnitStrategy: null, Burn: null, Seize: { TargetSettlementId: >= 0 } seize, Gossip: null,
-          DestinationPosition: { } position } journey &&
+          Route: { FieldDestination: false } } journey &&
         journey.DestinationPlaceId == seize.TargetSettlementId &&
         rules.Personnel.Places.TryGetValue(seize.TargetSettlementId, out var target) &&
-        target.Position == position && DurationDays(task) >= 0;
+        DurationDays(task) >= 0;
 
-    internal override int DurationDays(PersistentTask task) => task.Journey is { DestinationPosition: { } position } &&
-        rules.Personnel.Places.TryGetValue(task.OriginSettlementId, out var origin)
-        ? Math.Max(0, PersonnelRulebook.JourneyDays(origin.Position, position) - 1) : -1;
+    internal override int DurationDays(PersistentTask task) => task.Journey is { Route: { } route } journey &&
+        rules.Personnel.Places.ContainsKey(task.OriginSettlementId) &&
+        rules.Personnel.Places.ContainsKey(journey.DestinationPlaceId) &&
+        (!route.FieldDestination || rules.Military?.RegionAt(route.Destination) == journey.DestinationPlaceId)
+        ? Math.Max(0, route.Days - 1) : -1;
 
     internal override bool Validate(WorldMutation world, PersistentTask task) => HasValidPayload(task) &&
         SeizeStrategies.EligibleForTask(world, task, rules);

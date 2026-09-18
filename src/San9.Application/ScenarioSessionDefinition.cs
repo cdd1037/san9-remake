@@ -49,7 +49,7 @@ internal sealed class ScenarioSessionDefinition
     internal ScenarioInitialState Content { get; }
     internal MilitaryRulebook? MilitaryRules { get; }
     internal string Fingerprint { get; }
-    internal WorldState CreateWorld(ulong seed, int computerDamageBonusPercent = 0) => WorldState.Create(new(Content.Year, Content.Month, Content.Day), seed,
+    internal WorldState CreateWorld(ulong seed, int computerDamageBonusPercent = 0, bool battleDeathsEnabled = false) => WorldState.Create(new(Content.Year, Content.Month, Content.Day), seed,
         Forces().Select(f => f.Id == Content.PlayerForceId ? f with { IsBarbarian = false } : f),
         Settlements(), Content.Officers.Select(o => o.State), Content.Units, Content.Information.Corps,
         Content.Information.TreasureStates, Content.Information.Relations,
@@ -57,7 +57,7 @@ internal sealed class ScenarioSessionDefinition
             .Select(f => new ControlSeat(f.Id == Content.PlayerForceId ? "player" : $"ai:{f.Id}", f.Id,
                 f.Id == Content.PlayerForceId ? ControllerKind.Player : ControllerKind.Automatic)), computerDamageBonusPercent, Content.Alliance,
         Content.AttackRequests.Select(r => new AttackRequestState(r.RequestedForceId, r.RequesterForceId, r.TargetSettlementId,
-            Content.Settlements.Single(s => s.Id == r.TargetSettlementId).OwnerId!.Value, r.RemainingXun)), Content.AnnualAppearancesEnabled, Content.NaturalDeathsEnabled, Content.FreeOfficerMigrationEnabled);
+            Content.Settlements.Single(s => s.Id == r.TargetSettlementId).OwnerId!.Value, r.RemainingXun)), Content.AnnualAppearancesEnabled, Content.NaturalDeathsEnabled, Content.FreeOfficerMigrationEnabled, battleDeathsEnabled);
 
     private IEnumerable<ForceState> Forces() => Content.Forces.Select(f => new ForceState(f.Id, f.Money, f.Food, f.Trust)
     {

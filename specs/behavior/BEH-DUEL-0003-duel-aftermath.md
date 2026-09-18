@@ -2,7 +2,7 @@
 
 - 状态：已确认（参战者间隔、阵亡、俘虏、重伤、士气与战后低武力胜者成长）
 - 负责人：项目开发者
-- 最后更新：2026-09-11
+- 最后更新：2026-09-19
 - 关联证据：[RE-SAN9PK-0068](../../research/findings/RE-SAN9PK-0068.md)、[RE-SAN9PK-0105](../../research/findings/RE-SAN9PK-0105.md)、[RE-SAN9PK-0107](../../research/findings/RE-SAN9PK-0107.md)、[RE-SAN9PK-0108](../../research/findings/RE-SAN9PK-0108.md)、[RE-SAN9PK-0165](../../research/findings/RE-SAN9PK-0165.md)
 - 关联决策：[DEC-SIM-0001](../decisions/DEC-SIM-0001-determinism-and-saves.md)、[DEC-PROJECT-0002](../decisions/DEC-PROJECT-0002-selective-inheritance.md)、[DEC-DUEL-0001](../decisions/DEC-DUEL-0001-duel-low-martial-winner-growth.md)
 - 继承方式：关系保留（战后成长门按攻略书与非 PK 版裁决）
@@ -60,6 +60,8 @@ morale_delta = trunc0(survivor_hp/5) + 10
 
 ## 状态与不变量
 
+战斗阵亡会话选项`BattleDeathsEnabled`默认关闭，证据见[RE-0071](../../research/findings/RE-SAN9PK-0071.md)。剧本军事规则独立保存`BattleDeathsAllowed`与`DuelCapturesAllowed`，版本Importer分别转换模式非2／9与非9的限制；领域不读取源模式。选项不控制自然死亡或处决，保存、录像及命令重放必须保持相同值。玩家君主命中单挑阵亡后须先等待继任选择，再执行死亡事务并继续原日结算，不能默认代选，也不能重复阵亡骰或已完成的战斗阶段。
+
 - 输入与前置条件：已结束的单挑、稳定的双方参战名单和配对败者名单、双方当前部队士气、胜方、存活者 HP、场景规则与人物/势力状态。
 - 状态变化：全部参战人物写回兵法间隔；失败侧人物进入死亡、俘虏或至少重伤之一；双方士气写回；临时单挑状态清空。
 - 成长状态变化：单挑开始时当前有效武力严格低于配对败者的分组胜者基础武力加 `1`，饱和到 `100`。
@@ -82,11 +84,11 @@ morale_delta = trunc0(survivor_hp/5) + 10
 - [ ] 80 点四能力门、30% 阵亡上限和 60% 俘虏上限由边界测试证明。
 - [ ] 阵亡、俘虏、重伤互斥分区及临时状态清理由状态机测试证明。
 - [ ] 双方参战人物按各自部队士气写回 `5..10` 间隔，被俘者随后清零。
-- [ ] 士气在 `1..100` 内写回且使用存活 HP 派生幅度。
+- [x] 士气在 `1..100` 内写回且使用存活 HP 派生幅度（`DuelAftermathTests`）。
 - [ ] 同一显式种子与名单产生相同结果和状态哈希。
 - [ ] 测试夹具不依赖原版文件或研究工具。
 - [ ] 只有分组胜者的单挑开始时当前有效武力严格低于配对败者时基础武力加 `1`，相等或更高时不成长。
-- [ ] 同一人物在单挑内至多成长一次，重复成为分组胜者不重复判定。
+- [x] 同一人物在单挑内至多成长一次，重复成为分组胜者不重复判定（`DuelAftermathTests`）。
 - [ ] 成长饱和到 `100`，且不消费随机、不改变人物结果分区与士气写回。
 - [x] 相对 PK 基线的成长差异已由 `DEC-DUEL-0001` 说明，最终行为与验收在本规格定义。
 

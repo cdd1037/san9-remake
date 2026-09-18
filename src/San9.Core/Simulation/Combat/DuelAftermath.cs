@@ -1,0 +1,102 @@
+using System.Collections.Immutable;
+using San9.Core.Domain;
+
+namespace San9.Core.Simulation;
+
+public sealed record DuelAftermathProgress(DuelOutcome Outcome, int NextDeathIndex, int? PendingRulerId);
+public sealed record DuelSuccessionRequestedEvent(GameClock Clock, int RulerId, int RespondingForceId) : DomainEvent;
+public sealed record DuelCompletedEvent(GameClock Clock, int WinningUnitId, int LosingUnitId, int SurvivorId, int SurvivorHitPoints) : DomainEvent;
+
+internal static class DuelAftermath
+{
+    internal static int Interval(int morale) => (int)Math.Min(10, (100 - DuelStrike.Score(morale)) / 10 + 5);
+    internal static long DeathChance(int martial) => Math.Min(30, 80L - martial);
+    internal static long CaptureChance(int martial) => Math.Min(60, 120 - DuelStrike.Score(martial));
+
+    internal static ImmutableArray<int> Successors(WorldMutation world, int rulerId)
+    {
+        int? owner = world.Officers[rulerId].OwnerId;
+        return world.Officers.Values.Where(p => p.Id != rulerId && p.IsServing && p.OwnerId == owner)
+            .OrderBy(p => p.Id).Select(p => p.Id).ToImmutableArray();
+    }
+
+    internal static DuelAftermathProgress Begin(WorldMutation world, DuelOutcome outcome)
+    {
+        void SetIntervals(int unitId, ImmutableArray<int> people)
+        {
+            if (!world.Units.TryGetValue(unitId, out var unit)) return;
+            foreach (int id in people)
+                world.Replace(world.Officers[id] with { TacticCooldown = Interval(unit.Morale) });
+        }
+        SetIntervals(outcome.Roster.AttackingUnitId, outcome.Roster.Attackers);
+        SetIntervals(outcome.Roster.DefendingUnitId, outcome.Roster.Defenders);
+        return new(outcome, 0, null);
+    }
+
+    // Returns only when a player must select a successor. A null result means all aftermath stages completed.
+    internal static DuelAftermathProgress? Advance(WorldMutation world, DuelAftermathProgress progress, SimulationRules rules,
+        List<DomainEvent> events, int? successorId = null)
+    {
+        var outcome = progress.Outcome;
+        int loserUnit = outcome.WinningUnitId == outcome.Roster.AttackingUnitId ? outcome.Roster.DefendingUnitId : outcome.Roster.AttackingUnitId;
+        var losers = loserUnit == outcome.Roster.AttackingUnitId ? outcome.Roster.Attackers : outcome.Roster.Defenders;
+        var priorWinners = outcome.Pairs.Select(p => p.WinnerId).ToHashSet();
+        if (progress.PendingRulerId is int ruler)
+        {
+            if (successorId is not int successor || !Successors(world, ruler).Contains(successor))
+                throw new ArgumentException("Invalid duel successor.", nameof(successorId));
+            OfficerDeath.Resolve(world, ruler, OfficerDeathCause.Duel, rules, events, successor);
+        }
+        else if (successorId is not null) throw new ArgumentException("No duel succession is pending.", nameof(successorId));
+
+        bool Roll(string stream, long chance) => chance > 0 && (chance >= 100 || (long)(world.NextRandom(stream) % 100) < chance);
+        bool Candidate(int id) => world.Officers[id] is { IsServing: true, OwnerId: int owner, UnitId: int unit } &&
+            unit == loserUnit && !world.Forces[owner].IsBarbarian && !priorWinners.Contains(id) &&
+            world.Units.TryGetValue(unit, out var current) && current.CommanderId != id;
+        bool CanKill() => world.Simulation.BattleDeathsEnabled && rules.Military!.BattleDeathsAllowed &&
+            world.Units.TryGetValue(outcome.Roster.AttackingUnitId, out var attacker) &&
+            world.Units.TryGetValue(outcome.Roster.DefendingUnitId, out var defender) &&
+            world.Simulation.Controls.Any(c => c.Kind == ControllerKind.Player && (c.ForceId == attacker.OwnerId || c.ForceId == defender.OwnerId));
+
+        for (int i = progress.NextDeathIndex; i < losers.Length && CanKill(); i++)
+        {
+            int id = losers[i];
+            var person = world.Officers[id];
+            var abilities = person.BaseAbilities;
+            if (!Candidate(id) || Math.Max(Math.Max(abilities.War, abilities.Intelligence), Math.Max(abilities.Politics, abilities.Leadership)) >= 80 ||
+                !Roll("duel-death", DeathChance(world.Abilities(person).War))) continue;
+            if (person.OwnerId is int owner && world.Forces[owner].LeaderId == id &&
+                world.Simulation.Controls.Any(c => c.ForceId == owner && c.Kind == ControllerKind.Player) && !Successors(world, id).IsEmpty)
+            {
+                events.Add(new DuelSuccessionRequestedEvent(world.Clock, id, owner));
+                return new(outcome, i + 1, id);
+            }
+            OfficerDeath.Resolve(world, id, OfficerDeathCause.Duel, rules, events);
+        }
+        if (rules.Military!.DuelCapturesAllowed && world.Units.TryGetValue(outcome.WinningUnitId, out var winner) && !world.Forces[winner.OwnerId].IsBarbarian)
+        {
+            foreach (int id in losers)
+            {
+                if (!Candidate(id) || world.Treasures.Values.Any(t => t.HolderId == id && t.Discovery != TreasureDiscovery.Disabled && rules.Treasures.Items[t.Id].EscapeMount) ||
+                    !Roll("duel-capture", CaptureChance(world.Abilities(world.Officers[id]).War))) continue;
+                PersonnelTransitions.Capture(world, id, null, outcome.WinningUnitId, rules.Personnel, events);
+                world.Replace(world.Officers[id] with { TacticCooldown = 0 });
+            }
+        }
+        foreach (int id in outcome.Pairs.Select(p => p.LoserId).Distinct())
+            if (world.Officers[id].Status is not (OfficerStatus.Dead or OfficerStatus.Captive))
+                world.Replace(world.Officers[id] with { Injury = Math.Max(7, world.Officers[id].Injury) });
+        int change = outcome.SurvivorHitPoints / 5 + 10;
+        if (world.Units.TryGetValue(outcome.WinningUnitId, out var winningUnit))
+            world.Replace(winningUnit with { Morale = Math.Min(100, winningUnit.Morale + change) });
+        if (world.Units.TryGetValue(loserUnit, out var losingUnit))
+            world.Replace(losingUnit with { Morale = losingUnit.Morale == 0 ? 0 : Math.Max(1, losingUnit.Morale - change) });
+        var rewarded = new HashSet<int>();
+        foreach (var pair in outcome.Pairs)
+            if (rewarded.Add(pair.WinnerId) && pair.WinnerInitialMartial < pair.LoserInitialMartial)
+                OfficerAbilityGrowth.Increase(world, pair.WinnerId, OfficerAbility.War, 1, events);
+        world.MaintainLeadership(events);
+        events.Add(new DuelCompletedEvent(world.Clock, outcome.WinningUnitId, loserUnit, outcome.SurvivorId, outcome.SurvivorHitPoints));
+        return null;
+    }
+}

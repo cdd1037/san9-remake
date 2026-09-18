@@ -5,7 +5,10 @@ using San9.Core.Simulation;
 
 namespace San9.Application.Persistence;
 
-public sealed record CommandLogHeader(int FormatVersion, string RulesVersion, int HashVersion, string ContentFingerprint, ulong Seed);
+public sealed record CommandLogHeader(int FormatVersion, string RulesVersion, int HashVersion, string ContentFingerprint, ulong Seed)
+{
+    [System.Text.Json.Serialization.JsonRequired] public bool BattleDeathsEnabled { get; init; }
+}
 public sealed record ReplayAttempt(int Line, SessionRequest? Request, SessionDisposition Disposition, SessionRejection Rejection);
 public sealed record ReplayResult(int Accepted, int AlreadyProcessed, ReplayAttempt? FirstFailure,
     ImmutableArray<DomainEvent> Events, ImmutableArray<ReplayAttempt> Attempts);
@@ -21,7 +24,8 @@ public static class CommandLogService
     {
         var recording = session.CaptureRecording();
         Write(path, new(SessionProtocol.LogFormatVersion, SessionProtocol.RulesVersion, CanonicalJson.Version,
-            session.ContentFingerprint, recording.Initial.World.Simulation.InitialSeed),
+            session.ContentFingerprint, recording.Initial.World.Simulation.InitialSeed)
+            { BattleDeathsEnabled = recording.Initial.World.Simulation.BattleDeathsEnabled },
             recording.Operations.Select(e => e.Request));
     }
 
@@ -44,7 +48,7 @@ public static class CommandLogService
         var header = Parse<CommandLogHeader>(reader.ReadLine(), 1);
         if (header.FormatVersion != SessionProtocol.LogFormatVersion || header.RulesVersion != SessionProtocol.RulesVersion ||
             header.HashVersion != CanonicalJson.Version || header.ContentFingerprint != session.ContentFingerprint ||
-            header.Seed != session.Snapshot.Simulation.InitialSeed)
+            header.Seed != session.Snapshot.Simulation.InitialSeed || header.BattleDeathsEnabled != session.Snapshot.Simulation.BattleDeathsEnabled)
             throw new CommandLogException(1, "Log version, content or seed mismatch.");
         int line = 1, accepted = 0, alreadyProcessed = 0;
         var events = ImmutableArray.CreateBuilder<DomainEvent>();

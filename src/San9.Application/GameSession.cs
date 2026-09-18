@@ -119,13 +119,13 @@ public sealed class GameSession
     }
 
     public static string Fingerprint(ScenarioInitialState definition) => new ScenarioSessionDefinition(definition).Fingerprint;
-    public static GameSession Start(ScenarioInitialState definition, ulong seed, int computerDamageBonusPercent = 0) =>
-        Start(definition, seed, EngineFactory(definition), computerDamageBonusPercent);
+    public static GameSession Start(ScenarioInitialState definition, ulong seed, int computerDamageBonusPercent = 0, bool battleDeathsEnabled = false) =>
+        Start(definition, seed, EngineFactory(definition), computerDamageBonusPercent, battleDeathsEnabled);
 
-    internal static GameSession Start(ScenarioInitialState definition, ulong seed, Func<WorldState, SimulationEngine> factory, int computerDamageBonusPercent = 0)
+    internal static GameSession Start(ScenarioInitialState definition, ulong seed, Func<WorldState, SimulationEngine> factory, int computerDamageBonusPercent = 0, bool battleDeathsEnabled = false)
     {
         var owned = new ScenarioSessionDefinition(definition);
-        return new(owned, factory(owned.CreateWorld(seed, computerDamageBonusPercent)), factory);
+        return new(owned, factory(owned.CreateWorld(seed, computerDamageBonusPercent, battleDeathsEnabled)), factory);
     }
 
     public static GameSession Restore(ScenarioInitialState definition, SessionSnapshot snapshot) =>

@@ -71,6 +71,7 @@ public static class MilitaryContentCompiler
                         RequiresWaterOrHarbor = f.Id is 21 or 26, RangedSiege = f.Id == 10
                     },
                     DoublesCapture = f.Id == 1,
+                    DoublesDuelChance = f.Id == 3,
                     GainsDailyCombatProficiency = f.Id is not (13 or 14),
                     HalvesHostileStrategyChance = f.Id == 7,
                     ImmuneToDisorder = f.Id == 27,

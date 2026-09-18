@@ -17,7 +17,9 @@ public sealed record TacticLinkRules(bool RelationshipsEnabled, int KinshipBonus
             throw new ArgumentException("Invalid tactic link relationships.");
     }
 
-    public int Chance(OfficerState source, OfficerState partner, FormationTactics formation)
+    public int Chance(OfficerState source, OfficerState partner, FormationTactics formation) => Chance(source, partner, formation.LinkMultiplier);
+
+    public int Chance(OfficerState source, OfficerState partner, int multiplier)
     {
         int bonus = 0;
         if (RelationshipsEnabled)
@@ -30,6 +32,6 @@ public sealed record TacticLinkRules(bool RelationshipsEnabled, int KinshipBonus
                 bonus = KinshipBonus;
         }
         int affinity = PersonnelRulebook.AffinityDistance(source, partner);
-        return bonus + partner.TacticLinkBonus + (25 + Math.Max(0, 5 * (5 - affinity))) * formation.LinkMultiplier / 2;
+        return bonus + partner.TacticLinkBonus + (25 + Math.Max(0, 5 * (5 - affinity))) * multiplier / 2;
     }
 }

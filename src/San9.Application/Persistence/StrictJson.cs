@@ -65,15 +65,22 @@ public static class StrictJson
 
     private sealed class DefinedEnumConverter<T> : JsonConverter<T> where T : struct, Enum
     {
+        private static readonly bool IsFlags = typeof(T).IsDefined(typeof(FlagsAttribute), false);
+        private static readonly int KnownBits = Enum.GetValues<T>().Aggregate(0, (bits, value) =>
+            bits | Convert.ToInt32(value, System.Globalization.CultureInfo.InvariantCulture));
+        private static bool IsValid(T value) => IsFlags
+            ? (Convert.ToInt32(value, System.Globalization.CultureInfo.InvariantCulture) & ~KnownBits) == 0
+            : Enum.IsDefined(value);
+
         public override T Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
             if (reader.TokenType != JsonTokenType.Number || !reader.TryGetInt32(out int number)) throw new JsonException("Expected integer enum.");
             var value = (T)Enum.ToObject(typeof(T), number);
-            return Enum.IsDefined(value) ? value : throw new JsonException("Unknown enum value.");
+            return IsValid(value) ? value : throw new JsonException("Unknown enum value.");
         }
         public override void Write(Utf8JsonWriter writer, T value, JsonSerializerOptions options)
         {
-            if (!Enum.IsDefined(value)) throw new JsonException("Unknown enum value.");
+            if (!IsValid(value)) throw new JsonException("Unknown enum value.");
             writer.WriteNumberValue(Convert.ToInt32(value, System.Globalization.CultureInfo.InvariantCulture));
         }
     }

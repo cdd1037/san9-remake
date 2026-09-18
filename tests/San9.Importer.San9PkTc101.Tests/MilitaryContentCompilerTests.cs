@@ -71,6 +71,7 @@ public sealed class MilitaryContentCompilerTests
             var source = formations.Single(f => f.Id == formation.Id);
             Assert.Equal(10, formation.MovementStepCost);
             Assert.Equal(source.Id == 1, formation.DoublesCapture);
+            Assert.Equal(source.Id == 3, formation.DoublesDuelChance);
             Assert.Equal(source.Id == 11 ? new[] { 0 } : [], formation.MartialTacticVulnerabilities);
             Assert.Equal(new CombatProfile(source.AgainstUnits, source.AgainstSoldiers, source.AgainstWalls,
                 source.DefensePower, source.Id == 7 ? 80 : 50), formation.Combat);

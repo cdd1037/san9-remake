@@ -18,6 +18,7 @@ public sealed record OfficerState(int Id, int? OwnerId, int? SettlementId, Offic
     [JsonRequired] public int? UnitId { get; init; }
     [JsonRequired] public int Affinity { get; init; }
     [JsonRequired] public int TacticLinkBonus { get; init; }
+    [JsonRequired] public DuelAdvantages DuelAdvantages { get; init; }
     [JsonRequired] public ImmutableArray<int> MasteredCategories { get; init; } = [];
     public ImmutableArray<int> LearnedTactics { get; init; } = [];
     [JsonRequired] public int? EquippedTacticId { get; init; }
@@ -59,6 +60,7 @@ public sealed record OfficerState(int Id, int? OwnerId, int? SettlementId, Offic
     }
     public bool IsValid()
     {
+        if ((DuelAdvantages & ~(DuelAdvantages.DominantParry | DuelAdvantages.DominantAttack | DuelAdvantages.DominantDoubleStrike)) != 0) return false;
         if (Status == OfficerStatus.NotAppeared && SettlementId is null && RegionId is null) return false;
         if (Ambition is < 0 or > 15 || Righteousness is < 0 or > 15 || ForceLoyalties is null ||
             ForceLoyalties.Any(p => p.Key < 0 || p.Value is < 0 or > 255)) return false;

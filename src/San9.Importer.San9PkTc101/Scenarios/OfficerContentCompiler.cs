@@ -38,6 +38,7 @@ public static class OfficerContentCompiler
                 SuccessionPriority = SuccessionPriority(person.BiographyResourceCode),
                 BloodlineId = person.BloodlineRootPersonId,
                 TacticLinkBonus = person.BiographyResourceCode == 9 ? 10 : 0,
+                DuelAdvantages = DuelTraits(person.BiographyResourceCode),
                 EquippedTacticId = person.EquippedTacticId,
                 TacticCooldown = 0,
                 MasteredCategories = Enumerable.Range(0, 9).Where(person.HasTacticCategoryMastery).ToImmutableArray(),
@@ -64,6 +65,14 @@ public static class OfficerContentCompiler
     }
 
     // TC101 biography identities are translated here; runtime ordering uses authored semantics.
+    public static DuelAdvantages DuelTraits(int biographyId) => biographyId switch
+    {
+        3 => DuelAdvantages.DominantParry | DuelAdvantages.DominantAttack,
+        9 => DuelAdvantages.DominantParry,
+        4 => DuelAdvantages.DominantDoubleStrike,
+        _ => DuelAdvantages.None
+    };
+
     internal static int SuccessionPriority(int biographyId) => biographyId switch
     {
         3 or 4 or 66 => 1,

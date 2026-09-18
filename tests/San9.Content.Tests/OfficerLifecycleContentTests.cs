@@ -8,6 +8,28 @@ namespace San9.Content.Tests;
 
 public sealed class OfficerLifecycleContentTests
 {
+    [Theory]
+    [InlineData("battleDeathsAllowed")]
+    [InlineData("duelCapturesAllowed")]
+    public void MilitaryDeathAndCapturePoliciesAreRequired(string property)
+    {
+        var definition = new MilitaryDefinition(1, 1, [0], [new(0, 1, null)], [], []);
+        var root = JsonNode.Parse(JsonSerializer.Serialize(definition, ScenarioContentFiles.DataJsonOptions))!.AsObject();
+        root.Remove(property);
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<MilitaryDefinition>(root.ToJsonString(), ScenarioContentFiles.DataJsonOptions));
+    }
+
+    [Fact]
+    public void DuelFormationTraitIsRequiredAndRoundTrips()
+    {
+        var formation = new FormationRule(9000, 10, 0, 10000, 10, new(1, 1), TravelMode.Land) { DoublesDuelChance = true };
+        var json = JsonSerializer.Serialize(formation, ScenarioContentFiles.DataJsonOptions);
+        Assert.True(JsonSerializer.Deserialize<FormationRule>(json, ScenarioContentFiles.DataJsonOptions)!.DoublesDuelChance);
+        var root = JsonNode.Parse(json)!.AsObject();
+        root.Remove("doublesDuelChance");
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<FormationRule>(root.ToJsonString(), ScenarioContentFiles.DataJsonOptions));
+    }
+
     private static ScenarioInitialState Scenario() => new(ScenarioInitialState.CurrentSchemaVersion, "appearance", 190, 1, 1, 9000,
         [new(9000, "force", 0, 100, 100, 0)],
         [new(1000, "city", 9000, 0, 0, 0, 100, 100, 0, [])], [], [])
@@ -45,6 +67,7 @@ public sealed class OfficerLifecycleContentTests
     [InlineData("freeOfficerMigrationEnabled")]
     [InlineData("lifespanTier")]
     [InlineData("successionPriority")]
+    [InlineData("duelAdvantages")]
     public void MissingAppearanceInputsRejectOldOrIncompleteContent(string property)
     {
         var root = JsonNode.Parse(JsonSerializer.Serialize(Scenario(), ScenarioContentFiles.DataJsonOptions))!;
@@ -72,6 +95,17 @@ public sealed class OfficerLifecycleContentTests
         var scenario = Scenario();
         scenario = scenario with { Officers = [scenario.Officers[0] with
             { State = scenario.Officers[0].State with { LifespanTier = lifespan, SuccessionPriority = priority } }] };
+        Assert.Throws<InvalidDataException>(scenario.Validate);
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(8)]
+    public void UndefinedDuelAdvantagesAreRejected(int flags)
+    {
+        var scenario = Scenario();
+        scenario = scenario with { Officers = [scenario.Officers[0] with
+            { State = scenario.Officers[0].State with { DuelAdvantages = (DuelAdvantages)flags } }] };
         Assert.Throws<InvalidDataException>(scenario.Validate);
     }
 }

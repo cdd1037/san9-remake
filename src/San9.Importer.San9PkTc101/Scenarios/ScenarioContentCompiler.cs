@@ -136,7 +136,8 @@ public static class ScenarioContentCompiler
                 formations, settlements, zones, fixedBuildings, Read(San9ScenarioTacticArchive.ReadKnownRecords),
                 settlements.ToDictionary(s => s.Id, s => Enumerable.Range(0, San9ScenarioTacticArchive.RecordCount)
                     .Where(id => s.Kind == San9.Core.Domain.SettlementKind.City ? cities[s.Id].HasTactic(id) : zones[s.Id - 50].HasTactic(id)).ToImmutableArray())) with
-                { LinkRules = TacticLinkContentCompiler.Compile(exe, persons, officers.Select(o => o.State.Id), relationshipsEnabled: true) },
+                { LinkRules = TacticLinkContentCompiler.Compile(exe, persons, officers.Select(o => o.State.Id), relationshipsEnabled: true),
+                    BattleDeathsAllowed = header.ScenarioModeCode is not (2 or 9), DuelCapturesAllowed = header.ScenarioModeCode != 9 },
             Officers = officers, Units = units, Information = information, DomesticPairs = DomesticContentCompiler.Compile(persons),
             ImperialSealId = 79, EmperorId = persons.Take(700).Select((p, id) => (p, id)).Where(v => v.p.BiographyResourceCode is 563 or 564 or 565 && v.p.StatusCode != 8).Select(v => (int?)v.id).FirstOrDefault() };
         snapshot.Validate(); catalog.Validate(); return (snapshot, catalog);

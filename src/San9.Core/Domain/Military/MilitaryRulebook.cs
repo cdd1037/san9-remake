@@ -16,6 +16,7 @@ public sealed record FormationRule(int Id, int MovementBudget, int DeploymentCos
     [JsonRequired] public OrdinaryAttack? Attack { get; init; }
     [JsonRequired] public ImmutableArray<BattleRank> CaptureRanks { get; init; } = [];
     [JsonRequired] public bool DoublesCapture { get; init; }
+    [JsonRequired] public bool DoublesDuelChance { get; init; }
     [JsonRequired] public bool GainsDailyCombatProficiency { get; init; } = true;
     [JsonRequired] public bool HalvesHostileStrategyChance { get; init; }
     [JsonRequired] public bool ImmuneToDisorder { get; init; }
@@ -75,6 +76,8 @@ public sealed record MilitaryDefinition(int Width, int Height, ImmutableArray<in
     ImmutableArray<BattlefieldPlace> Places)
 {
     [JsonRequired] public int? UnformedFormationId { get; init; }
+    [JsonRequired] public bool BattleDeathsAllowed { get; init; } = true;
+    [JsonRequired] public bool DuelCapturesAllowed { get; init; } = true;
     [JsonRequired] public int PolicyRadius { get; init; } = 50;
     [JsonRequired] public ImmutableArray<FacilityRule> Facilities { get; init; } = [];
     [JsonRequired] public ImmutableArray<ConstructionSite> ConstructionSites { get; init; } = [];
@@ -94,8 +97,12 @@ public sealed record MilitaryDefinition(int Width, int Height, ImmutableArray<in
 public sealed partial class MilitaryRulebook
 {
     public const uint WoundedCapacity = 50000;
+    public bool BattleDeathsAllowed { get; }
+    public bool DuelCapturesAllowed { get; }
     public MilitaryRulebook(MilitaryDefinition definition)
     {
+        BattleDeathsAllowed = definition.BattleDeathsAllowed;
+        DuelCapturesAllowed = definition.DuelCapturesAllowed;
         ArgumentOutOfRangeException.ThrowIfNegative(definition.PolicyRadius);
         PolicyRadius = definition.PolicyRadius;
         LinkRules = definition.LinkRules ?? throw new ArgumentException("Missing tactic link rules.");

@@ -99,7 +99,12 @@ internal static class WorldInvariants
             sim.RandomStreams.Any(s => string.IsNullOrWhiteSpace(s.Name)) ||
             !sim.RandomStreams.Select(s => s.Name).SequenceEqual(sim.RandomStreams.Select(s => s.Name).Distinct().Order(StringComparer.Ordinal)))
             throw new ArgumentException("Invalid simulation boundary, control, sequence or random state.");
+        int pendingDecisions = (sim.PendingAlliance is null ? 0 : 1) + (sim.PendingDailyTask is null ? 0 : 1) +
+            (sim.PendingExecutionSuccession is null ? 0 : 1);
+        if (pendingDecisions > 1 || (sim.Boundary == SimulationBoundary.AwaitingDecision) != (pendingDecisions == 1))
+            throw new ArgumentException("Decision boundary requires exactly one pending decision.");
         AllianceFormation.ValidatePending(state);
+        PrisonerExecution.ValidatePending(state);
         if (sim.PendingDailyTask is { } pending)
         {
             _ = new GameClock(pending.XunStarted.Year, pending.XunStarted.Month, pending.XunStarted.Day);

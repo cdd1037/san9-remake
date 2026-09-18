@@ -65,6 +65,7 @@ public sealed record SimulationState(GameClock Started, ulong InitialSeed)
     [JsonRequired] public San9.Core.Domain.AllianceState? Alliance { get; init; }
     [JsonRequired] public AllianceProposal? PendingAlliance { get; init; }
     [JsonRequired] public DailyTaskDecision? PendingDailyTask { get; init; }
+    [JsonRequired] public ExecutionSuccessionDecision? PendingExecutionSuccession { get; init; }
     [JsonRequired] public ImmutableArray<San9.Core.Domain.AttackRequestState> AttackRequests { get; init; } = [];
     [JsonRequired] public int ComputerDamageBonusPercent { get; init; }
     [JsonRequired] public ulong RunSeed { get; init; } = InitialSeed;

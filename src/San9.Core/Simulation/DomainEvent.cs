@@ -27,6 +27,8 @@ public sealed record OfficerCapturedEvent(GameClock Clock, int OfficerId, int Ca
 [System.Text.Json.Serialization.JsonDerivedType(typeof(OfficerInjuryRecoveredEvent), "officer-injury-recovered")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(OfficerAppearedEvent), "officer-appeared")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(OfficerDiedEvent), "officer-died")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(PrisonerExecutedEvent), "prisoner-executed")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(ExecutionSuccessionRequestedEvent), "execution-succession-requested")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(TreasureDroppedEvent), "treasure-dropped")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(UnitTerminatedEvent), "unit-terminated")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(OfficerEscapedBattleEvent), "officer-escaped-battle")]

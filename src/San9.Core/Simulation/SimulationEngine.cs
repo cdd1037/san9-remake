@@ -72,6 +72,13 @@ public sealed class SimulationEngine
 
     public IReadOnlyList<DomainEvent> InitialEvents { get; } = Array.Empty<DomainEvent>();
     public WorldSnapshot Snapshot => _world.CreateSnapshot();
+    public ExecutionSuccessionPrompt? GetExecutionSuccessionPrompt()
+    {
+        if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
+        return _world.Simulation.PendingExecutionSuccession is { } pending
+            ? new(pending.ExecutingForceId, pending.RulerId, pending.RespondingForceId,
+                PrisonerExecution.Candidates(_world.BeginMutation(_rules.Abilities), pending.RespondingForceId)) : null;
+    }
     public CommandAdvice GetSurrenderAdvice(int forceId, int officerId, int targetForceId)
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
@@ -186,6 +193,14 @@ public sealed class SimulationEngine
             DevelopmentOutcome? development = null;
             switch (command)
             {
+                case ExecutePrisonerCommand execution:
+                    var executionRejection = PrisonerExecution.Start(mutation, execution, _rules, events);
+                    if (executionRejection != CommandRejection.None) return Reject(executionRejection);
+                    break;
+                case ChooseExecutionSuccessorCommand successor:
+                    var successionRejection = PrisonerExecution.Respond(mutation, successor, _rules, events);
+                    if (successionRejection != CommandRejection.None) return Reject(successionRejection);
+                    break;
                 case DemandSurrenderCommand surrender:
                     var surrenderRejection = SurrenderDiplomacy.Start(mutation, context, surrender, _rules, events);
                     if (surrenderRejection != CommandRejection.None) return Reject(surrenderRejection);
@@ -387,6 +402,13 @@ public sealed class SimulationEngine
         if (_world.Simulation.Tasks.Any(t => t.Id == command.CommandId)) return CommandRejection.DuplicateCommandId;
         if (command.Sequence != _world.Simulation.NextSequence) return CommandRejection.WrongSequence;
         var sim = _world.Simulation;
+        if (sim.PendingExecutionSuccession is { } succession)
+        {
+            if (command is not ChooseExecutionSuccessorCommand) return CommandRejection.DecisionPending;
+            return succession.RespondingForceId == command.IssuerId && sim.Controls.Any(c => c.ForceId == command.IssuerId &&
+                c.Kind == ControllerKind.Player && c.ControllerId == context.ControllerId)
+                ? CommandRejection.None : CommandRejection.NotActiveController;
+        }
         if (sim.PendingDailyTask is { } daily)
         {
             if (command is not RespondDailyTaskCommand) return CommandRejection.DecisionPending;
@@ -403,7 +425,7 @@ public sealed class SimulationEngine
                 ? CommandRejection.None : CommandRejection.NotActiveController;
         }
         if (sim.Boundary != SimulationBoundary.Stable) return CommandRejection.NotStable;
-        if (command is AllianceParticipationCommand or RespondDailyTaskCommand) return CommandRejection.InvalidDecision;
+        if (command is AllianceParticipationCommand or RespondDailyTaskCommand or ChooseExecutionSuccessorCommand) return CommandRejection.InvalidDecision;
         if (sim.ActiveControl >= sim.Controls.Length) return CommandRejection.NotActiveController;
         var seat = sim.Controls[sim.ActiveControl];
         return CorpsControl.Authorize(Snapshot, seat, context, command);

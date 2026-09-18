@@ -32,12 +32,10 @@ internal static class SessionValidation
         if (snapshot.World.Units.Any(u => u.ServicePlaceId is int home &&
             !content.Settlements.Any(s => s.Id == home) && !content.UnbuiltPlaces.Any(p => p.Id == home)))
             throw new ArgumentException("Unknown unit service place.");
-        // Corps are runtime entities; only the force treasury anchors survive ordinary reorganization.
-        Same(content.Information.Corps.Where(c => c.Treasury is null && snapshot.World.Forces.Any(f => f.Id == c.OwnerId && !f.IsEliminated)).Select(c => c.Id),
-            snapshot.World.Corps.Where(c => c.Treasury is null).Select(c => c.Id));
-        if (content.Information.Corps.Where(c => c.Treasury is null && snapshot.World.Forces.Any(f => f.Id == c.OwnerId && !f.IsEliminated)).Any(c =>
-            !snapshot.World.Corps.Any(saved => saved.Id == c.Id && saved.OwnerId == c.OwnerId)))
-            throw new ArgumentException("Primary corps ownership mismatch.");
+        // Succession can promote a child corps to the ruler's corps. The treasury belongs to the force,
+        // so validate its surviving owner rather than requiring the initial corps identity.
+        Same(content.Information.Corps.Where(c => c.Treasury is null && snapshot.World.Forces.Any(f => f.Id == c.OwnerId && !f.IsEliminated)).Select(c => c.OwnerId),
+            snapshot.World.Corps.Where(c => c.Treasury is null).Select(c => c.OwnerId));
         Same(content.Information.TreasureStates.Select(t => t.Id), snapshot.World.Treasures.Select(t => t.Id));
         if (content.Information.Relations.Any(initial => !snapshot.World.Relations.Any(current =>
             current.FirstId == initial.FirstId && current.SecondId == initial.SecondId)))

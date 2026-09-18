@@ -51,6 +51,8 @@ public static class CorpsControl
         bool permitted = command switch
         {
             WaitCommand => true,
+            ExecutePrisonerCommand execute => world.Officers.FirstOrDefault(p => p.Id == execute.OfficerId)?.UnitId is int detention
+                ? OwnUnit(detention) : OwnPerson(execute.OfficerId),
             SelectTacticCommand tactic => world.Officers.FirstOrDefault(p => p.Id == tactic.OfficerId)?.UnitId is int unit
                 ? OwnUnit(unit) : OwnPerson(tactic.OfficerId),
             DeployUnitCommand deploy => OwnPlace(deploy.SettlementId),

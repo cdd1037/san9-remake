@@ -2,7 +2,7 @@ using San9.Core.Domain;
 
 namespace San9.Core.Simulation;
 
-public enum OfficerDeathCause { NoRetreat, ForceEliminated, Natural }
+public enum OfficerDeathCause { NoRetreat, ForceEliminated, Natural, Execution }
 
 public sealed record OfficerDiedEvent(GameClock Clock, int OfficerId, OfficerDeathCause Cause,
     OfficerStatus PreviousStatus, int? PreviousForceId, int? PreviousSettlementId, int? PreviousRegionId,
@@ -13,7 +13,8 @@ public sealed record TreasureDroppedEvent(GameClock Clock, int TreasureId, int P
 /// The caller must settle succession, remaining unit occupants and force assets before committing.</summary>
 internal static class OfficerDeath
 {
-    internal static void Resolve(WorldMutation world, int officerId, OfficerDeathCause cause, SimulationRules rules, List<DomainEvent> events)
+    internal static void Resolve(WorldMutation world, int officerId, OfficerDeathCause cause, SimulationRules rules, List<DomainEvent> events,
+        int? successorId = null, bool afterDailyCommands = true)
     {
         var previous = world.Officers[officerId];
         int? recipientForce = previous.Status == OfficerStatus.Captive
@@ -21,13 +22,13 @@ internal static class OfficerDeath
                 : previous.SettlementId is int prison ? world.Settlements[prison].OwnerId : null
             : previous.OwnerId;
         bool ruler = previous.OwnerId is int owner && world.Forces[owner].LeaderId == officerId;
-        if (!Remove(world, officerId, cause, rules.Personnel, events, true)) return;
+        if (!Remove(world, officerId, cause, rules.Personnel, events, afterDailyCommands)) return;
         if (previous.UnitId is int unit && world.Units.ContainsKey(unit) &&
             !world.Officers.Values.Any(p => p.UnitId == unit && p.IsServing))
             BattleAftermath.TerminateUnit(world, unit, null, rules, events);
         if (ruler && previous.OwnerId is int force &&
             (world.Settlements.Values.Any(s => s.OwnerId == force && !s.IsDestroyed) || world.Units.Values.Any(u => u.OwnerId == force)) &&
-            RulerSuccession.Automatic(world, force, previous) is { } successor)
+            (successorId is int chosen ? world.Officers[chosen] : RulerSuccession.Automatic(world, force, previous)) is { } successor)
             RulerSuccession.Commit(world, force, previous.Id, successor.Id, events);
         if (previous.OwnerId is int affected) BattleAftermath.Reconcile(world, new HashSet<int> { affected }, rules, events);
         int? recipient = recipientForce is int recipientOwner && !world.Forces[recipientOwner].IsEliminated

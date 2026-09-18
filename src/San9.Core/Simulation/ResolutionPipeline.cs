@@ -166,7 +166,8 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
             ReinforcementTransport.Disband(world, task, "terminal", events);
             TaskCancellation.Apply(world, task, "terminal", events);
         }
-        world.SetSimulation(world.Simulation with { Boundary = SimulationBoundary.Terminal, Tasks = [], PendingAlliance = null, PendingDailyTask = null });
+        world.SetSimulation(world.Simulation with { Boundary = SimulationBoundary.Terminal, Tasks = [], PendingAlliance = null, PendingDailyTask = null,
+            PendingExecutionSuccession = null });
         if (!events.OfType<SimulationEndedEvent>().Any()) events.Add(new SimulationEndedEvent(world.Clock, reason));
         return false;
     }

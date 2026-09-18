@@ -7,6 +7,8 @@ internal static class SessionValidation
 {
     internal static void Validate(ScenarioSessionDefinition definition, SessionSnapshot snapshot)
     {
+        if (!snapshot.World.Simulation.CanPersist)
+            throw new ArgumentException("Session is not at a save boundary.");
         if (snapshot.Records.IsDefault || snapshot.Chronicle.IsDefault || snapshot.Records.Length > GameSession.RecentRecordLimit ||
             snapshot.NextOperationSequence < 0)
             throw new ArgumentException("Missing session state.");

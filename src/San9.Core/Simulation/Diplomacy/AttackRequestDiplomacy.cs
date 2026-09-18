@@ -6,7 +6,10 @@ namespace San9.Core.Simulation;
 public sealed record RequestAttackCommand(Guid CommandId, int IssuerId, long Sequence, int OfficerId,
     int TargetForceId, int TargetSettlementId) : GameCommand(CommandId, IssuerId, Sequence);
 public sealed record AttackRequestMission([property: JsonRequired] int TargetForceId,
-    [property: JsonRequired] int TargetSettlementId, [property: JsonRequired] CompensationOffer? Offer);
+    [property: JsonRequired] int TargetSettlementId)
+{
+    [JsonIgnore] public CompensationOffer? Offer { get; init; }
+}
 public sealed record AttackRequestPrompt(Guid TaskId, int Step, int RespondingForceId, int RequesterForceId,
     int TargetForceId, int TargetSettlementId, CompensationOffer? Offer);
 public enum AttackRequestOutcome { Accepted, Refused, AlreadyAgreed }
@@ -147,7 +150,7 @@ internal static class AttackRequestDiplomacy
         {
             Journey = new(destination, null, ConditionalRandom.Percentile(world.Simulation.InitialSeed, ConditionalRandomPurpose.AttackRequest,
                 world.Clock, actor.Id, command.TargetForceId, command.TargetSettlementId)) { Route = route },
-            AttackRequest = new(command.TargetForceId, command.TargetSettlementId, null)
+            AttackRequest = new(command.TargetForceId, command.TargetSettlementId)
         };
         world.Replace(actor with { Acted = true });
         world.SetSimulation(world.Simulation with { Tasks = world.Simulation.Tasks.Add(task) });

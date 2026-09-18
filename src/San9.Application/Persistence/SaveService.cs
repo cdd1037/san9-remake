@@ -23,12 +23,14 @@ public static class SaveService
     {
         SessionSnapshot snapshot;
         try { snapshot = session.Capture(); }
-        catch (InvalidOperationException error) { throw new SaveException(SaveFailure.NotStable, "Cannot save during execution.", error); }
+        catch (InvalidOperationException error) { throw new SaveException(SaveFailure.NotStable, "Cannot save before the current interaction and xun resolution finish.", error); }
         return EncodeSnapshot(snapshot, session.ContentFingerprint);
     }
 
     internal static byte[] EncodeSnapshot(SessionSnapshot snapshot, string contentFingerprint)
     {
+        if (!snapshot.World.Simulation.CanPersist)
+            throw new SaveException(SaveFailure.NotStable, "Session is not at a save boundary.");
         var envelope = new SaveEnvelope(SessionProtocol.SaveFormatVersion, SessionProtocol.RulesVersion,
             CanonicalJson.Version, contentFingerprint, snapshot, "");
         return CanonicalJson.Encode(envelope with { IntegrityHash = Integrity(envelope) });

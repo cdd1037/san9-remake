@@ -56,7 +56,7 @@ public sealed class HeadlessHost
             {
                 _report.ContentFingerprint = _session.ContentFingerprint;
                 _report.Seed = _session.Snapshot.Simulation.InitialSeed;
-                _report.FinalHash = _session.Capture().StateHash;
+                _report.FinalHash = _session.Snapshot.Simulation.CanPersist ? _session.Capture().StateHash : null;
                 _report.WorldHash = _session.Snapshot.StateHash;
                 _report.CompletedXun = (_session.Snapshot.Clock.DayNumber - _started.DayNumber) / 10;
                 _report.Coverage = new(_session.Snapshot.Forces.Count, _session.Snapshot.Settlements.Count,
@@ -294,9 +294,10 @@ public sealed class HeadlessHost
                 Compare(_session.Request(new EndControlOperation(), seat.ControllerId));
             }
             Compare(_session.Request(new AdvanceOperation()));
+            bool answeredDecision = false;
             while (_session.Snapshot.Simulation.Boundary == SimulationBoundary.AwaitingDecision)
             {
-                Checkpoint("player-decision");
+                answeredDecision = true;
                 var state = _session.Snapshot.Simulation;
                 int force = state.PendingTacticStudy?.RespondingForceId ?? state.PendingExecutionSuccession?.RespondingForceId ?? state.PendingDailyTask?.RespondingForceId ?? state.PendingAlliance!.RespondingForceId!.Value;
                 var seat = state.Controls.Single(c => c.ForceId == force);
@@ -315,6 +316,7 @@ public sealed class HeadlessHost
                 else answer = new AllianceParticipationCommand(request.Id, force, state.NextSequence, state.PendingAlliance!.TargetForceId, true);
                 Compare(request with { Operation = new CommandOperation(answer) });
             }
+            if (answeredDecision) Checkpoint("after-player-decisions");
             if (xun % 5 == 0 || _session.Snapshot.Clock is { Month: 12, Day: 21 }) Checkpoint("stable-period");
             if (_session.View.Year != restored.View.Year || _session.View.Day != restored.View.Day ||
                 !_session.Records.SequenceEqual(restored.Records) || !_session.Chronicle.SequenceEqual(restored.Chronicle))

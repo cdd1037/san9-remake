@@ -47,12 +47,13 @@ public sealed class PrisonerReturnSessionTests
         Assert.Equal(exchange ? CompensationKind.Prisoner : CompensationKind.Money, task.PrisonerReturn!.Offer!.Kind);
         Assert.Single(arrived.Events.OfType<CompensationQuotedEvent>());
         Assert.DoesNotContain(arrived.Events, e => e is PrisonerReturnResolvedEvent);
-        var restored = SaveService.Decode(SaveService.Encode(session), content);
+        Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
+        var restored = outbound;
         var response = new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, task.Id, 1, accept);
         var result = session.Execute(new("player"), response);
         Assert.True(result.Submission.Accepted);
         Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.Execute(new("player"), response).Events));
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        Assert.Equal(session.Snapshot.StateHash, restored.Snapshot.StateHash);
         var resolved = Assert.Single(result.Events.OfType<PrisonerReturnResolvedEvent>());
         Assert.Equal(accept, resolved.Accepted);
         Assert.Equal(accept && !exchange ? 500u : 0u, resolved.Received);
@@ -61,7 +62,7 @@ public sealed class PrisonerReturnSessionTests
         Assert.All(session.Snapshot.Simulation.Tasks, t => Assert.NotNull(t.Journey!.ReturnLeg));
         Assert.Single(result.Events.OfType<XunAdvancedEvent>());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        Assert.Equal(session.Snapshot.StateHash, replay.Session.Snapshot.StateHash);
     }
 
     [Fact]
@@ -94,19 +95,22 @@ public sealed class PrisonerReturnSessionTests
         session.BeginRecording();
         session.EndControl(new("player"));
         Assert.True(session.Execute(new("ai:2"), new ReturnPrisonerCommand(Guid.NewGuid(), 2, 0, 22, 1, 23)).Submission.Accepted);
+        var outbound = SaveService.Decode(SaveService.Encode(session), content);
+        outbound.AdvanceXun();
         session.AdvanceXun();
         var task = Assert.Single(session.Snapshot.Simulation.Tasks);
         Assert.Equal(0, task.ResolutionStep);
         var offer = new CompensationOffer(kind, kind == CompensationKind.Money ? 500u : 0u, null, kind == CompensationKind.Treasure ? 9 : null);
         var response = new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, task.Id, 0, true) { Offer = offer };
-        var restored = SaveService.Decode(SaveService.Encode(session), content);
+        Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
+        var restored = outbound;
         var result = session.Execute(new("player"), response);
         Assert.True(result.Submission.Accepted);
         Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.Execute(new("player"), response).Events));
         Assert.Equal(kind != CompensationKind.Refuse, Assert.Single(result.Events.OfType<PrisonerReturnResolvedEvent>()).Accepted);
         if (kind == CompensationKind.Treasure) Assert.Equal(11, session.Snapshot.Treasures.Single().HolderId);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        Assert.Equal(session.Snapshot.StateHash, replay.Session.Snapshot.StateHash);
     }
 
     [Fact]
@@ -118,15 +122,15 @@ public sealed class PrisonerReturnSessionTests
         Assert.True(session.Execute(new("ai:2"), new ReturnPrisonerCommand(Guid.NewGuid(), 2, 0, 22, 1, 23)).Submission.Accepted);
         session.AdvanceXun();
         var task = Assert.Single(session.Snapshot.Simulation.Tasks);
-        string before = session.Capture().StateHash;
+        string before = session.Snapshot.StateHash;
         var response = new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, task.Id, 0, true)
             { Offer = new(CompensationKind.Money, 1000000, null, null) };
         Assert.Equal(CommandRejection.InvalidDecision, session.Execute(new("player"), response).Submission.Rejection);
-        Assert.Equal(before, session.Capture().StateHash);
-        var captured = session.Capture();
-        var changed = captured with { World = captured.World with { Officers = captured.World.Officers.Select(p =>
-            p.Id == 23 ? p with { Status = OfficerStatus.Serving, SettlementId = 2 } : p).ToArray() } };
-        var restored = GameSession.Restore(content, changed, GameSession.EngineFactory(content));
+        Assert.Equal(before, session.Snapshot.StateHash);
+        var captured = session.Snapshot;
+        var changed = captured with { Officers = captured.Officers.Select(p =>
+            p.Id == 23 ? p with { Status = OfficerStatus.Serving, SettlementId = 2 } : p).ToArray() };
+        var restored = GameSession.EngineFactory(content)(WorldState.Restore(changed));
         var result = restored.Execute(new("player"), response with { Offer = new(CompensationKind.Free, 0, null, null) });
         Assert.True(result.Submission.Accepted);
         Assert.Contains(result.Events, e => e is TaskCancelledEvent cancelled && cancelled.TaskId == task.Id);

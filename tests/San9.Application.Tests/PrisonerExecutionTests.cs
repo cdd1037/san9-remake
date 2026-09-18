@@ -124,13 +124,16 @@ public sealed class PrisonerExecutionTests
     }
 
     [Fact]
-    public void PlayerRulerExecutionWaitsForOwnPlayersChoiceAndResumesOriginalControllerAfterRestore()
+    public void PlayerRulerExecutionWaitsInMemoryAndReplaysChoiceFromStableState()
     {
         var definition = Fixture(playerRuler: true);
         var session = GameSession.Start(definition, 190);
         session.BeginRecording();
         session.Apply(session.Request(new EndControlOperation(), "player"));
-        var execution = session.Execute(new("ai:2"), new ExecutePrisonerCommand(Guid.NewGuid(), 2, 0, 1));
+        var restored = SaveService.Decode(SaveService.Encode(session), definition);
+        var execute = new ExecutePrisonerCommand(Guid.NewGuid(), 2, 0, 1);
+        restored.Execute(new("ai:2"), execute);
+        var execution = session.Execute(new("ai:2"), execute);
         Assert.True(execution.Submission.Accepted);
         Assert.Equal(SimulationBoundary.AwaitingDecision, session.Snapshot.Simulation.Boundary);
         Assert.Empty(execution.Events.OfType<OfficerDiedEvent>());
@@ -145,7 +148,7 @@ public sealed class PrisonerExecutionTests
         Assert.Equal(CommandRejection.InvalidDecision, session.Execute(new("player"),
             new ChooseExecutionSuccessorCommand(Guid.NewGuid(), 1, 1, 1, 4)).Submission.Rejection);
         Assert.Equal(pendingHash, session.Snapshot.StateHash);
-        var restored = SaveService.Decode(SaveService.Encode(session), definition);
+        Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
         Assert.Equal(CanonicalJson.Text(prompt), CanonicalJson.Text(restored.GetExecutionSuccessionPrompt()));
         var response = new ChooseExecutionSuccessorCommand(Guid.NewGuid(), 1, 1, 1, 3);
         var request = session.Request(new CommandOperation(response), "player", response.CommandId);
@@ -193,22 +196,21 @@ public sealed class PrisonerExecutionTests
     }
 
     [Fact]
-    public void PendingSuccessionRejectsForgedStateAndMissingSaveField()
+    public void PendingSuccessionCannotBePersistedOrUsedAsReplayStart()
     {
         var definition = Fixture(playerRuler: true);
         var session = GameSession.Start(definition, 190);
         session.Apply(session.Request(new EndControlOperation(), "player"));
         Assert.True(session.Execute(new("ai:2"), new ExecutePrisonerCommand(Guid.NewGuid(), 2, 0, 1)).Submission.Accepted);
-        var snapshot = session.Capture();
+        var snapshot = new SessionSnapshot(session.Snapshot, [], [], session.NextOperationSequence);
+        Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
+        Assert.Throws<InvalidOperationException>(() => session.BeginRecording());
         var sim = snapshot.World.Simulation;
         foreach (var invalid in new[] { sim with { PendingExecutionSuccession = null },
             sim with { PendingExecutionSuccession = sim.PendingExecutionSuccession! with { ExecutingForceId = 1 } },
             sim with { PendingExecutionSuccession = sim.PendingExecutionSuccession! with { RulerId = 2 } },
             sim with { Boundary = SimulationBoundary.Stable } })
             Assert.Throws<ArgumentException>(() => GameSession.Restore(definition, snapshot with { World = snapshot.World with { Simulation = invalid } }));
-        var json = JsonNode.Parse(SaveService.Encode(session))!;
-        Assert.True(json["session"]!["world"]!["simulation"]!.AsObject().Remove("pendingExecutionSuccession"));
-        Assert.Equal(SaveFailure.InvalidFormat, Assert.Throws<SaveException>(() => SaveService.Decode(
-            System.Text.Encoding.UTF8.GetBytes(json.ToJsonString()), definition)).Failure);
+
     }
 }

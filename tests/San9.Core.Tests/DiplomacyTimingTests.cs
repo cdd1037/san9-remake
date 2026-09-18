@@ -116,7 +116,7 @@ public sealed class DiplomacyTimingTests
             e is StageCompletedEvent { Stage: ResolutionStage.XunUpdate });
         Assert.Equal(10, arrived.Events.OfType<StageCompletedEvent>().Count(e => e.Stage == ResolutionStage.BeforeDailyCommands));
         Assert.Equal(10, arrived.Events.OfType<StageCompletedEvent>().Count(e => e.Stage == ResolutionStage.DailyMapUpdate));
-        var saved = JsonSerializer.Deserialize<WorldSnapshot>(CanonicalJson.Text(engine.Snapshot), CanonicalJson.Options)!;
+        var saved = engine.Snapshot;
         var restored = new SimulationEngine(WorldState.Restore(saved), rules);
         var response = new RespondDailyTaskCommand(Guid.NewGuid(), 2, 1, task.Id, 0, false);
         var answered = engine.Execute(new("second"), response);

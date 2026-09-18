@@ -36,20 +36,22 @@ public sealed class DiplomacyPlannerTests
     }
 
     [Fact]
-    public void AutomaticEnvoyPausesForPlayerAndContinuesExactlyAfterSaveAndReplay()
+    public void AutomaticEnvoyPausesInMemoryAndReplaysFromStableSave()
     {
         var content = G01ScenarioTests.Fixture();
         content = content with { Forces = content.Forces.Select(f => f.Id == 2 ? f with { Money = 30000 } : f).ToArray(),
             Information = content.Information with { Relations = [new(1, 2, 60)] } };
         var session = GameSession.Start(content, 42);
         session.BeginRecording();
+        var restored = SaveService.Decode(SaveService.Encode(session), content);
+        restored.AdvanceXun();
         var result = session.AdvanceXun();
         var dispatched = Assert.Single(result.Events.OfType<TaskStartedEvent>());
         Assert.NotNull(dispatched.Task.Gift);
         Assert.Equal(2, dispatched.Task.ForceId);
         Assert.Equal(SimulationBoundary.AwaitingDecision, session.Snapshot.Simulation.Boundary);
         Assert.Equal(1, session.Snapshot.Simulation.PendingDailyTask!.RespondingForceId);
-        var restored = SaveService.Decode(SaveService.Encode(session), content);
+        Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
         var request = DecisionResponses.Decline(session);
         var answered = session.Apply(request);
         Assert.Equal(SessionDisposition.Accepted, answered.Disposition);

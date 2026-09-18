@@ -50,7 +50,7 @@ public sealed class StagedDailyTaskTests
     [InlineData(false, true)]
     [InlineData(false, false)]
     [InlineData(true, true)]
-    public void RetainsTaskAcrossDecisionsAndSavesEachStepWithoutRepeatingDailyWork(bool automaticFinal, bool accept)
+    public void RetainsTaskAcrossInMemoryDecisionsAndReplaysWithoutRepeatingDailyWork(bool automaticFinal, bool accept)
     {
         var content = Content();
         SimulationEngine Factory(WorldState world) => new(world, new Rules(automaticFinal));
@@ -58,33 +58,35 @@ public sealed class StagedDailyTaskTests
         session.BeginRecording();
         Guid taskId = Guid.NewGuid();
         Assert.True(session.Execute(new("player"), new StartTaskCommand(taskId, 1, 0, "staged-fixture", 1, 1)).Submission.Accepted);
+        var restored = SaveService.Decode(SaveService.Encode(session), content, Factory);
+        restored.AdvanceXun();
         uint beforeMoney = session.Snapshot.Forces[0].Money;
         var advance = session.AdvanceXun();
         Assert.Equal(3, session.Snapshot.Clock.Day);
         Assert.Equal(1, Assert.Single(session.Snapshot.Simulation.Tasks).ResolutionStep);
         Assert.DoesNotContain(advance.Events, e => e is TaskCompletedEvent);
         var first = new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, taskId, 1, true);
-        var restored = SaveService.Decode(SaveService.Encode(session), content, Factory);
+        Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
         var answered = session.Execute(new("player"), first);
         Assert.True(answered.Submission.Accepted);
         Assert.Equal(CanonicalJson.Text(answered.Events), CanonicalJson.Text(restored.Execute(new("player"), first).Events));
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        Assert.Equal(session.Snapshot.StateHash, restored.Snapshot.StateHash);
         if (!automaticFinal)
         {
             Assert.Equal(3, session.Snapshot.Clock.Day);
             Assert.Equal(2, Assert.Single(session.Snapshot.Simulation.Tasks).ResolutionStep);
             Assert.DoesNotContain(answered.Events, e => e is TaskCompletedEvent or XunAdvancedEvent or StageCompletedEvent);
             Assert.Equal(beforeMoney, session.Snapshot.Forces[0].Money);
-            string beforeInvalid = session.Capture().StateHash;
+            string beforeInvalid = session.Snapshot.StateHash;
             var stale = first with { CommandId = Guid.NewGuid(), Sequence = session.Snapshot.Simulation.NextSequence };
             Assert.Equal(CommandRejection.InvalidDecision, session.Execute(new("player"), stale).Submission.Rejection);
-            Assert.Equal(beforeInvalid, session.Capture().StateHash);
-            restored = SaveService.Decode(SaveService.Encode(session), content, Factory);
+            Assert.Equal(beforeInvalid, session.Snapshot.StateHash);
+            Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
             var final = stale with { CommandId = Guid.NewGuid(), Step = 2, Accept = accept };
             answered = session.Execute(new("player"), final);
             Assert.True(answered.Submission.Accepted);
             Assert.Equal(CanonicalJson.Text(answered.Events), CanonicalJson.Text(restored.Execute(new("player"), final).Events));
-            Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+            Assert.Equal(session.Snapshot.StateHash, restored.Snapshot.StateHash);
         }
         Assert.Single(answered.Events.OfType<TaskCompletedEvent>(), e => e.TaskId == taskId);
         Assert.Single(answered.Events.OfType<XunAdvancedEvent>());
@@ -92,7 +94,7 @@ public sealed class StagedDailyTaskTests
         // The two ordinary officers also receive their next-xun salary after continuation.
         Assert.Equal(beforeMoney - 2 - (accept ? 100u : 0u), session.Snapshot.Forces[0].Money);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, Factory);
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        Assert.Equal(session.Snapshot.StateHash, replay.Session.Snapshot.StateHash);
         Assert.Equal(10, replay.Events.OfType<StageCompletedEvent>().Count(e => e.Stage == ResolutionStage.BeforeDailyCommands));
         Assert.Single(replay.Events.OfType<TaskCompletedEvent>(), e => e.TaskId == taskId);
     }
@@ -116,7 +118,7 @@ public sealed class StagedDailyTaskTests
         string before = engine.Snapshot.StateHash;
         Assert.Equal(CommandRejection.NotActiveController, engine.Execute(new("first"), response).Submission.Rejection);
         Assert.Equal(before, engine.Snapshot.StateHash);
-        var snapshot = JsonSerializer.Deserialize<WorldSnapshot>(CanonicalJson.Text(engine.Snapshot), CanonicalJson.Options)!;
+        var snapshot = engine.Snapshot;
         snapshot = snapshot with { Settlements = snapshot.Settlements.Select(s => s with { PublicOrder = 100 }).ToArray() };
         engine = new(WorldState.Restore(snapshot), new Rules(switchRespondent: true));
         var cancelled = engine.Execute(new("second"), response);
@@ -155,17 +157,16 @@ public sealed class StagedDailyTaskTests
     }
 
     [Fact]
-    public void SaveRequiresResolutionStepAndCompiledRuleRejectsUnknownSteps()
+    public void SaveOmitsResolutionCursorAndCompiledRuleRejectsUnknownRuntimeSteps()
     {
         var content = Content();
         SimulationEngine Factory(WorldState world) => new(world, new Rules());
         var session = GameSession.Start(content, 42, Factory);
         Assert.True(session.Execute(new("player"), new StartTaskCommand(Guid.NewGuid(), 1, 0, "staged-fixture", 1, 1)).Submission.Accepted);
-        session.AdvanceXun();
         var json = System.Text.Json.Nodes.JsonNode.Parse(SaveService.Encode(session))!;
-        Assert.True(json["session"]!["world"]!["simulation"]!["tasks"]![0]!.AsObject().Remove("resolutionStep"));
-        Assert.Equal(SaveFailure.InvalidFormat, Assert.Throws<SaveException>(() => SaveService.Decode(
-            System.Text.Encoding.UTF8.GetBytes(json.ToJsonString()), content, Factory)).Failure);
+        Assert.False(json["session"]!["world"]!["simulation"]!["tasks"]![0]!.AsObject().ContainsKey("resolutionStep"));
+        session.AdvanceXun();
+        Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
         var snapshot = session.Snapshot;
         snapshot = snapshot with { Simulation = snapshot.Simulation with
             { Tasks = [snapshot.Simulation.Tasks[0] with { ResolutionStep = 3 }] } };

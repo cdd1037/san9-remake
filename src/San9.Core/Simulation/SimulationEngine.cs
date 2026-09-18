@@ -128,8 +128,8 @@ public sealed class SimulationEngine
     }
     public WorldSnapshot CaptureStableState()
     {
-        if (_world.IsExecuting || _world.Simulation.Boundary == SimulationBoundary.New)
-            throw new InvalidOperationException("Simulation is executing.");
+        if (_world.IsExecuting || !_world.Simulation.CanPersist)
+            throw new InvalidOperationException("Simulation is not at a save boundary.");
         return Snapshot;
     }
 

@@ -219,7 +219,7 @@ public sealed class GameSession
         try
         {
             // One operation can close several controls and advance. Publish only after all validation succeeds.
-            var candidate = _engineFactory(WorldState.Restore(_simulation.CaptureStableState()));
+            var candidate = _engineFactory(WorldState.Restore(_simulation.Snapshot));
             List<DomainEvent> events = [];
             DevelopmentOutcome? development = null;
             ChronicleEntry? note = null;
@@ -262,7 +262,7 @@ public sealed class GameSession
             var completed = events.OfType<DevelopmentCompletedEvent>().Select(e =>
                 new SessionRecord(e.Clock, e.Command.ForceId, e.Command.SettlementId, e.Command.OfficerIds[0],
                     e.Command.Activity, e.Increment, e.Cost)).ToArray();
-            var snapshot = candidate.CaptureStableState();
+            var snapshot = candidate.Snapshot;
             var publishedEvents = events.ToImmutableArray();
             var recorded = IsRecording ? new RecordedOperation(request, publishedEvents) : null;
             _simulation = candidate;

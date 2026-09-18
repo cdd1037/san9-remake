@@ -76,7 +76,7 @@ public sealed class AllianceFormationTests
     }
 
     [Fact]
-    public void PlayerOutsideAutomaticEligibilityCanJoinAndDecisionIsACommittedSaveBoundary()
+    public void PlayerOutsideAutomaticEligibilityCanJoinAtAnInMemoryDecisionBoundary()
     {
         var engine = Ready(5, 5);
         var arrival = engine.AdvanceXun();
@@ -88,7 +88,7 @@ public sealed class AllianceFormationTests
         Assert.DoesNotContain(arrival.Events.OfType<StageCompletedEvent>(), e => e.Stage == ResolutionStage.QuarterUpdate);
         Assert.Single(arrival.Events.OfType<XunAdvancedEvent>());
         string before = engine.Snapshot.StateHash;
-        var restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()), Rules());
+        var restored = new SimulationEngine(WorldState.Restore(engine.Snapshot), Rules());
         Assert.Empty(restored.InitialEvents);
         var command = new AllianceParticipationCommand(Guid.NewGuid(), 5, engine.Snapshot.Simulation.NextSequence, 1, true);
         Assert.True(engine.Validate(new("controller:5"), command).Accepted);
@@ -114,12 +114,12 @@ public sealed class AllianceFormationTests
     {
         var engine = Ready(5, 2, 3, 4);
         engine.AdvanceXun();
-        var before = engine.CaptureStableState();
+        var before = engine.Snapshot;
         Assert.False(Answer(engine, 3, true).Submission.Accepted);
         Assert.Equal(before.StateHash, engine.Snapshot.StateHash);
         Assert.True(Answer(engine, 2, firstJoins).Submission.Accepted);
         Assert.Equal(3, engine.GetAllianceParticipationPrompt()!.Proposal.RespondingForceId);
-        engine = new(WorldState.Restore(engine.CaptureStableState()), Rules());
+        engine = new(WorldState.Restore(engine.Snapshot), Rules());
         Assert.True(Answer(engine, 3, false).Submission.Accepted);
         var last = Answer(engine, 4, false);
         Assert.True(last.Submission.Accepted);
@@ -179,7 +179,7 @@ public sealed class AllianceFormationTests
     {
         var engine = Ready(5, 2, 3, 4);
         engine.AdvanceXun();
-        var valid = engine.CaptureStableState();
+        var valid = engine.Snapshot;
         var proposal = valid.Simulation.PendingAlliance!;
         foreach (var invalid in new AllianceProposal[]
         {

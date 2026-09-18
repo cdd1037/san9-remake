@@ -56,7 +56,7 @@ public sealed class SurrenderDiplomacyTests
         engine.EndControl(new("first")); engine.EndControl(new("second")); engine.EndControl(new("third"));
         engine.AdvanceXun();
         var task = Assert.Single(engine.Snapshot.Simulation.Tasks);
-        var saved = JsonSerializer.Deserialize<WorldSnapshot>(CanonicalJson.Text(engine.Snapshot), CanonicalJson.Options)!;
+        var saved = engine.Snapshot;
         var restored = new SimulationEngine(WorldState.Restore(saved), Rules());
         var response = new RespondDailyTaskCommand(Guid.NewGuid(), 2, 1, task.Id, 0, true);
         var result = engine.Execute(new("second"), response);

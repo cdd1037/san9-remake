@@ -22,7 +22,7 @@ public sealed record PersistentTask(Guid Id, string Kind, string ControllerId, i
     int OfficerId, int OriginSettlementId, GameClock Started, GameClock Due, int ProgressDays, long Sequence)
 {
     [JsonRequired] public int? StudyTacticId { get; init; }
-    [JsonRequired] public int ResolutionStep { get; init; }
+    [JsonIgnore] public int ResolutionStep { get; init; }
     [JsonRequired] public PersonnelJourney? Journey { get; init; }
     [JsonRequired] public ReinforcementTroops? Reinforcements { get; init; }
     [JsonRequired] public GiftMission? Gift { get; init; }
@@ -66,14 +66,19 @@ public sealed record SimulationState(GameClock Started, ulong InitialSeed)
     [JsonRequired] public bool NaturalDeathsEnabled { get; init; } = true;
     [JsonRequired] public bool BattleDeathsEnabled { get; init; }
     [JsonRequired] public San9.Core.Domain.AllianceState? Alliance { get; init; }
-    [JsonRequired] public AllianceProposal? PendingAlliance { get; init; }
-    [JsonRequired] public DailyTaskDecision? PendingDailyTask { get; init; }
-    [JsonRequired] public TacticStudyDecision? PendingTacticStudy { get; init; }
-    [JsonRequired] public ExecutionSuccessionDecision? PendingExecutionSuccession { get; init; }
+    [JsonIgnore] public AllianceProposal? PendingAlliance { get; init; }
+    [JsonIgnore] public DailyTaskDecision? PendingDailyTask { get; init; }
+    [JsonIgnore] public TacticStudyDecision? PendingTacticStudy { get; init; }
+    [JsonIgnore] public ExecutionSuccessionDecision? PendingExecutionSuccession { get; init; }
     [JsonRequired] public ImmutableArray<San9.Core.Domain.AttackRequestState> AttackRequests { get; init; } = [];
     [JsonRequired] public int ComputerDamageBonusPercent { get; init; }
     [JsonRequired] public ulong RunSeed { get; init; } = InitialSeed;
     public SimulationBoundary Boundary { get; init; }
+    [JsonIgnore]
+    public bool CanPersist => (Boundary is SimulationBoundary.Stable or SimulationBoundary.Terminal) &&
+        PendingAlliance is null && PendingDailyTask is null && PendingTacticStudy is null &&
+        PendingExecutionSuccession is null && Tasks.All(t => t.ResolutionStep == 0 &&
+            t.AttackRequest?.Offer is null && t.PrisonerReturn?.Offer is null);
     public string? TerminalReason { get; init; }
     public ImmutableArray<ControlSeat> Controls { get; init; } = [];
     public int ActiveControl { get; init; }

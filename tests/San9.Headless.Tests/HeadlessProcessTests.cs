@@ -17,7 +17,7 @@ public sealed class HeadlessProcessTests : IDisposable
     private string FilePath(string name) => Path.Combine(_directory, name);
 
     [Fact]
-    public async Task AutomaticDiplomacyPausesRestoresAndRecordsExplicitPlayerAnswers()
+    public async Task AutomaticDiplomacyRecordsAnswersAndSavesAfterResolution()
     {
         var definition = new San9.Content.Scenarios.ScenarioInitialState(San9.Content.Scenarios.ScenarioInitialState.CurrentSchemaVersion,
             "diplomacy-cli", 190, 1, 1, 1,
@@ -37,7 +37,7 @@ public sealed class HeadlessProcessTests : IDisposable
         Assert.Equal(2, result.Report.GetProperty("completedXun").GetInt32());
         Assert.Equal("G08", result.Report.GetProperty("goal").GetString());
         Assert.True(result.Report.GetProperty("diplomacyStrategyEvents").GetProperty("gift-resolved").GetInt32() > 0);
-        Assert.Contains("player-decision", File.ReadAllText(FilePath("checkpoints.json")));
+        Assert.Contains("after-player-decisions", File.ReadAllText(FilePath("checkpoints.json")));
         Assert.Contains("respond-daily-task", File.ReadAllText(FilePath("commands.jsonl")));
         Assert.Equal(File.ReadAllBytes(FilePath("continuous.save.json")), File.ReadAllBytes(FilePath("restored.save.json")));
     }

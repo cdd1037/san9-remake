@@ -6,7 +6,10 @@ namespace San9.Core.Simulation;
 public sealed record ReturnPrisonerCommand(Guid CommandId, int IssuerId, long Sequence, int OfficerId,
     int TargetForceId, int PrisonerId) : GameCommand(CommandId, IssuerId, Sequence);
 public sealed record PrisonerReturnMission([property: JsonRequired] int TargetForceId,
-    [property: JsonRequired] int PrisonerId, [property: JsonRequired] CompensationOffer? Offer);
+    [property: JsonRequired] int PrisonerId)
+{
+    [JsonIgnore] public CompensationOffer? Offer { get; init; }
+}
 public sealed record PrisonerReturnPrompt(Guid TaskId, int Step, int RespondingForceId, int RequesterForceId,
     int TargetForceId, int PrisonerId, CompensationOffer? Offer);
 public sealed record CompensationQuotedEvent(GameClock Clock, Guid TaskId, CompensationOffer Offer) : DomainEvent;
@@ -55,7 +58,7 @@ internal static class PrisonerReturnDiplomacy
             actor.Id, origin, world.Clock, due, 0, command.Sequence)
         {
             Journey = new(destination, null, null) { Route = route },
-            PrisonerReturn = new(command.TargetForceId, command.PrisonerId, null)
+            PrisonerReturn = new(command.TargetForceId, command.PrisonerId)
         };
         world.Replace(actor with { Acted = true });
         world.SetSimulation(world.Simulation with { Tasks = world.Simulation.Tasks.Add(task) });

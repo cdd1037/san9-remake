@@ -35,7 +35,7 @@ public sealed class AttackRequestDiplomacyTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public void PlayerCounterofferSurvivesBothStageRestoresAndSettlesOnce(bool accept)
+    public void PlayerCounterofferContinuesBothStagesInMemoryAndSettlesOnce(bool accept)
     {
         var engine = Arrive();
         var prompt = engine.GetAttackRequestPrompt()!;
@@ -138,7 +138,7 @@ public sealed class AttackRequestDiplomacyTests
         state.Replace(state.Forces[1] with { Money = money });
         var task = new PersistentTask(Guid.NewGuid(), AttackRequestDiplomacy.Kind, "first", 1, 12, 1,
             state.Clock, state.Clock, 0, 0) { ResolutionStep = 1, Journey = new(2, null, 99),
-            AttackRequest = new(2, 3, new(CompensationKind.Money, quote, null, null)) };
+            AttackRequest = new(2, 3) { Offer = new(CompensationKind.Money, quote, null, null) } };
         Assert.Equal(expected, AttackRequestDiplomacy.Accept(state, task, Rules()));
     }
 
@@ -158,5 +158,5 @@ public sealed class AttackRequestDiplomacyTests
     }
 
     private static SimulationEngine Restore(SimulationEngine engine) => new(WorldState.Restore(
-        JsonSerializer.Deserialize<WorldSnapshot>(CanonicalJson.Text(engine.Snapshot), CanonicalJson.Options)!), Rules());
+        engine.Snapshot), Rules());
 }

@@ -15,7 +15,7 @@ public sealed class PrisonerReturnTests
         state.Replace(state.Officers[13] with { SettlementId = null, UnitId = 30 });
         var pending = new PersistentTask(Guid.NewGuid(), PrisonerReturnDiplomacy.Kind, "first", 1, 12, 1,
             state.Clock, state.Clock, 0, 0)
-        { Journey = new(2, null, null) { Route = new(new(0, 0), new(300, 0), false) }, PrisonerReturn = new(2, 13, null) };
+        { Journey = new(2, null, null) { Route = new(new(0, 0), new(300, 0), false) }, PrisonerReturn = new(2, 13) };
         state.SetSimulation(state.Simulation with { Tasks = [pending] });
         List<DomainEvent> events = [];
         Assert.Equal(CommandRejection.None, PrisonerRelease.Depart(state, 13, 2, Guid.NewGuid(), 1,
@@ -74,7 +74,7 @@ public sealed class PrisonerReturnTests
     }
 
     [Fact]
-    public void TwoPlayersSaveBothStagesRejectStaleAnswersAndPayExactlyOnceWithOverflowAccounted()
+    public void TwoPlayersContinueBothStagesInMemoryRejectStaleAnswersAndPayExactlyOnceWithOverflowAccounted()
     {
         var engine = Arrive();
         var prompt = engine.GetPrisonerReturnPrompt()!;
@@ -82,7 +82,7 @@ public sealed class PrisonerReturnTests
         Assert.Equal(0, prompt.Step);
         var response = new RespondDailyTaskCommand(Guid.NewGuid(), 2, 1, prompt.TaskId, 0, true)
             { Offer = new(CompensationKind.Money, 500, null, null) };
-        var snapshot = JsonSerializer.Deserialize<WorldSnapshot>(CanonicalJson.Text(engine.Snapshot), CanonicalJson.Options)!;
+        var snapshot = engine.Snapshot;
         var restored = new SimulationEngine(WorldState.Restore(snapshot), Rules());
         var quoted = engine.Execute(new("second"), response);
         Assert.True(quoted.Submission.Accepted);
@@ -96,7 +96,7 @@ public sealed class PrisonerReturnTests
         Assert.Equal(CommandRejection.InvalidDecision, engine.Execute(new("first"), final with { Step = 0 }).Submission.Rejection);
         Assert.Equal(CommandRejection.NotActiveController, engine.Execute(new("second"), final).Submission.Rejection);
         Assert.Equal(before, engine.Snapshot.StateHash);
-        snapshot = JsonSerializer.Deserialize<WorldSnapshot>(CanonicalJson.Text(engine.Snapshot), CanonicalJson.Options)!;
+        snapshot = engine.Snapshot;
         restored = new(WorldState.Restore(snapshot), Rules());
         var result = engine.Execute(new("first"), final);
         Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.Execute(new("first"), final).Events));

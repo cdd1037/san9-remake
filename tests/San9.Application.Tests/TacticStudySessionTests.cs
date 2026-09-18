@@ -45,19 +45,23 @@ public sealed class TacticStudySessionTests
     }
 
     [Fact]
-    public void MultipleOffersSaveAndReplayThenGrantAtNextQuarterWithoutImmediateReenrollment()
+    public void MultipleOffersContinueInMemoryAndStudySavesAndReplaysAcrossQuarters()
     {
         var definition = Scenario();
         var session = GameSession.Start(definition, 190);
         Assert.Null(session.GetTacticStudyPrompt());
+        session.BeginRecording();
+        var restored = SaveService.Decode(SaveService.Encode(session), definition);
+        ReachQuarter(restored);
         ReachQuarter(session);
         Assert.Equal(new[] { 2 }, session.GetTacticStudyPrompt()!.CandidateIds);
         Assert.Equal(CommandRejection.NotActiveController, Choose(session, 1, 2, "ai:2", 2).Submission.Rejection);
         Assert.Equal(CommandRejection.InvalidDecision, Choose(session, 1, 1).Submission.Rejection);
-        Assert.True(Choose(session, 1, 2).Submission.Accepted);
+        var firstChoice = new ChooseTacticStudentCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, 1, 2);
+        Assert.True(session.Execute(new("player"), firstChoice).Submission.Accepted);
+        Assert.True(restored.Execute(new("player"), firstChoice).Submission.Accepted);
         Assert.Equal(2, session.GetTacticStudyPrompt()!.CityId);
-        var restored = SaveService.Decode(SaveService.Encode(session), definition, GameSession.EngineFactory(definition));
-        session.BeginRecording();
+        Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
         var command = new ChooseTacticStudentCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, 2, 3);
         var result = session.Execute(new("player"), command);
         Assert.True(result.Submission.Accepted);
@@ -165,12 +169,9 @@ public sealed class TacticStudySessionTests
         var definition = Scenario();
         var session = GameSession.Start(definition, 3);
         ReachQuarter(session);
-        var waiting = session.Capture();
-        Assert.Throws<ArgumentException>(() => GameSession.Restore(definition, waiting with
-        { World = waiting.World with { Simulation = waiting.World.Simulation with { PendingTacticStudy = new(3, 2) } } }));
-        var json = JsonNode.Parse(JsonSerializer.Serialize(waiting.World, CanonicalJson.Options))!;
-        json["simulation"]!.AsObject().Remove("pendingTacticStudy");
-        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<WorldSnapshot>(json.ToJsonString(), CanonicalJson.Options));
+        var waiting = new SessionSnapshot(session.Snapshot, [], [], session.NextOperationSequence);
+        Assert.Throws<ArgumentException>(() => GameSession.Restore(definition, waiting));
+        Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
         Assert.True(Choose(session, 1, 2).Submission.Accepted);
         Assert.True(Choose(session, 2, null).Submission.Accepted);
         var studying = session.Capture();

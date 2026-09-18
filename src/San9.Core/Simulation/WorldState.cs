@@ -56,7 +56,7 @@ public sealed class WorldState
         return world;
     }
 
-    /// <summary>Restores authoritative stable state; disk/content validation belongs to Application.</summary>
+    /// <summary>Clones committed runtime state, including pending interactions; save validation belongs to Application.</summary>
     public static WorldState Restore(WorldSnapshot snapshot)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
@@ -158,6 +158,10 @@ public sealed record WorldSnapshot(
     // Diagnostics are derived on demand, never persisted or required for normal play/restore.
     [System.Text.Json.Serialization.JsonIgnore]
     public string StateHash => CanonicalJson.Hash(new { version = CanonicalJson.Version, clock = Clock, simulation = Simulation,
-        forces = Forces, settlements = Settlements, officers = Officers, units = Units, corps = Corps, treasures = Treasures, relations = Relations });
+        forces = Forces, settlements = Settlements, officers = Officers, units = Units, corps = Corps, treasures = Treasures, relations = Relations,
+        interaction = new { Simulation.PendingAlliance, Simulation.PendingDailyTask, Simulation.PendingTacticStudy,
+            Simulation.PendingExecutionSuccession, tasks = Simulation.Tasks.Where(t => t.ResolutionStep != 0 ||
+                t.AttackRequest?.Offer is not null || t.PrisonerReturn?.Offer is not null)
+                .Select(t => new { t.Id, t.ResolutionStep, attackOffer = t.AttackRequest?.Offer, prisonerOffer = t.PrisonerReturn?.Offer }) } });
     public long Revision { get; init; }
 }

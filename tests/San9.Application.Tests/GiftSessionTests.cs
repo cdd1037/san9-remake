@@ -93,6 +93,8 @@ public sealed class GiftSessionTests
         Assert.Equal(CanonicalJson.Text(next.Events), CanonicalJson.Text(returning.AdvanceXun().Events));
         Assert.Contains(next.Events.OfType<PersonnelReturnedEvent>(), e => e.OfficerId == 12 && e.Clock == new GameClock(190, 1, 14));
         Assert.DoesNotContain(session.Snapshot.Simulation.Tasks, t => t.OfficerId == 12);
+        DecisionResponses.DeclineAll(session);
+        DecisionResponses.DeclineAll(returning);
         Assert.Equal(session.Capture().StateHash, returning.Capture().StateHash);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
         Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
@@ -105,7 +107,7 @@ public sealed class GiftSessionTests
     [InlineData(false, GiftKind.Food)]
     [InlineData(true, GiftKind.Treasure)]
     [InlineData(false, GiftKind.Treasure)]
-    public void PlayerAcceptsOrRejectsAtArrivalAndDecisionSurvivesSaving(bool accept, GiftKind kind)
+    public void PlayerAcceptsOrRejectsInMemoryAndReplaysFromOutboundSave(bool accept, GiftKind kind)
     {
         var content = Content();
         content = content with { Information = content.Information with
@@ -116,6 +118,8 @@ public sealed class GiftSessionTests
         session.EndControl(new("player"));
         Assert.True(session.Execute(new("ai:2"), new GiftCommand(Guid.NewGuid(), 2, 0, 22, 1,
             new(kind, amount, kind == GiftKind.Treasure ? 9 : null))).Submission.Accepted);
+        var restored = SaveService.Decode(SaveService.Encode(session), content);
+        restored.AdvanceXun();
         var arriving = session.AdvanceXun();
         Assert.Equal(11, session.Snapshot.Clock.Day);
         Assert.DoesNotContain(arriving.Events, e => e is XunAdvancedEvent);
@@ -124,7 +128,7 @@ public sealed class GiftSessionTests
         Assert.Equal(TaskResolutionPhase.XunBoundary, pending.Phase);
         Assert.Equal(1, pending.RespondingForceId);
         Assert.Equal(AdviserOpinion.Unavailable, session.GetGiftAdvice(2, 21, 1, new(GiftKind.Money, 1000, null)).Opinion);
-        var restored = SaveService.Decode(SaveService.Encode(session), content);
+        Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
         var response = new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence,
             pending.RemainingTaskIds[0], 0, accept);
         var result = session.Execute(new("player"), response);
@@ -174,7 +178,7 @@ public sealed class GiftSessionTests
         Assert.True(session.Execute(new("ai:2"), new GiftCommand(Guid.NewGuid(), 2, 0, 22, 1,
             new(GiftKind.Money, 1000, null))).Submission.Accepted);
         session.AdvanceXun();
-        var snapshot = session.Capture();
+        var snapshot = new SessionSnapshot(session.Snapshot, [], [], session.NextOperationSequence);
         var pending = snapshot.World.Simulation.PendingDailyTask!;
         foreach (var phase in new[] { TaskResolutionPhase.DailyCommands, (TaskResolutionPhase)99 })
         {
@@ -182,10 +186,7 @@ public sealed class GiftSessionTests
                 { PendingDailyTask = pending with { Phase = phase, XunStarted = snapshot.World.Clock } } } };
             Assert.Throws<ArgumentException>(() => GameSession.Restore(content, changed));
         }
-        var json = System.Text.Json.Nodes.JsonNode.Parse(SaveService.Encode(session))!;
-        Assert.True(json["session"]!["world"]!["simulation"]!["pendingDailyTask"]!.AsObject().Remove("phase"));
-        Assert.Equal(SaveFailure.InvalidFormat, Assert.Throws<SaveException>(() => SaveService.Decode(
-            System.Text.Encoding.UTF8.GetBytes(json.ToJsonString()), content)).Failure);
+        Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
 
         var fresh = GameSession.Start(content, 42);
         Assert.True(fresh.Execute(new("player"), new GiftCommand(Guid.NewGuid(), 1, 0, 12, 2,
@@ -265,15 +266,15 @@ public sealed class GiftSessionTests
         Assert.True(session.Execute(new("ai:2"), new GiftCommand(Guid.NewGuid(), 2, 0, 22, 1,
             new(kind, 1000, null))).Submission.Accepted);
         session.AdvanceXun();
-        var saved = session.Capture();
-        session = GameSession.Restore(content, saved with { World = saved.World with
+        var saved = session.Snapshot;
+        var engine = GameSession.EngineFactory(content)(WorldState.Restore(saved with
         {
-            Forces = saved.World.Forces.Select(f => f.Id != 2 ? f : kind == GiftKind.Money
+            Forces = saved.Forces.Select(f => f.Id != 2 ? f : kind == GiftKind.Money
                 ? f with { Money = 999900 } : f with { Food = 999900 }).ToArray()
-        } });
-        var pending = session.Snapshot.Simulation.PendingDailyTask!;
-        var result = session.Execute(new("player"), new RespondDailyTaskCommand(Guid.NewGuid(), 1,
-            session.Snapshot.Simulation.NextSequence, pending.RemainingTaskIds[0], 0, false));
+        }));
+        var pending = engine.Snapshot.Simulation.PendingDailyTask!;
+        var result = engine.Execute(new("player"), new RespondDailyTaskCommand(Guid.NewGuid(), 1,
+            engine.Snapshot.Simulation.NextSequence, pending.RemainingTaskIds[0], 0, false));
         Assert.True(result.Submission.Accepted);
         var gift = Assert.Single(result.Events.OfType<GiftResolvedEvent>());
         Assert.False(gift.Accepted);
@@ -284,7 +285,7 @@ public sealed class GiftSessionTests
         var refund = Assert.Single(result.Events.OfType<ResourceChangedEvent>(), e => e.Reason == "gift-refused");
         Assert.Equal(100, refund.Actual);
         Assert.Equal(900, refund.SaturationLoss);
-        var world = WorldState.Restore(session.Snapshot).BeginMutation();
+        var world = WorldState.Restore(engine.Snapshot).BeginMutation();
         List<DomainEvent> cancelled = [];
         var returning = Assert.Single(world.Simulation.Tasks, t => t.OfficerId == 22);
         TaskCancellation.Apply(world, returning, "test-return-cancel", cancelled);

@@ -25,20 +25,22 @@ public sealed class AllianceFormationSessionTests
     }
 
     [Fact]
-    public void ChoiceSuspendsQuarterAndSurvivesSaveRestoreAndCompleteRecording()
+    public void ChoiceSuspendsQuarterInMemoryAndReplaysFromStableSave()
     {
         var definition = Definition();
         var session = Ready(definition);
         session.BeginRecording();
+        var restored = SaveService.Decode(SaveService.Encode(session), definition);
+        restored.AdvanceXun();
         uint draftPopulation = session.Snapshot.Settlements.Single(s => s.Id == 100).DraftPopulation;
         session.AdvanceXun();
         Assert.Equal(draftPopulation, session.Snapshot.Settlements.Single(s => s.Id == 100).DraftPopulation);
         Assert.Equal(5, session.GetAllianceParticipationPrompt()!.Proposal.RespondingForceId);
-        string pendingHash = session.Capture().StateHash;
+        string pendingHash = session.Snapshot.StateHash;
         Assert.Equal(SessionRejection.NotStable, session.Apply(session.Request(new AdvanceOperation())).Rejection);
-        Assert.Equal(pendingHash, session.Capture().StateHash);
-        var restored = SaveService.Decode(SaveService.Encode(session), definition);
-        Assert.Equal(pendingHash, restored.Capture().StateHash);
+        Assert.Equal(pendingHash, session.Snapshot.StateHash);
+        Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
+        Assert.Equal(pendingHash, restored.Snapshot.StateHash);
         var command = new AllianceParticipationCommand(Guid.NewGuid(), 5, session.Snapshot.Simulation.NextSequence, 1, true);
         Assert.True(session.Execute(new("player"), command).Submission.Accepted);
         Assert.True(restored.Execute(new("player"), command).Submission.Accepted);
@@ -56,34 +58,13 @@ public sealed class AllianceFormationSessionTests
     }
 
     [Fact]
-    public void PlayerLoadPreservesTheChosenTargetAndRecordingCanStartWhileAwaitingAnAnswer()
+    public void PendingSaveAndRecordingStartAndImplicitJoinValueAreRejected()
     {
         var definition = Definition();
         var session = Ready(definition);
         session.AdvanceXun();
-        var loaded = SaveService.Decode(SaveService.Encode(session), definition, GameSession.EngineFactory(definition), playerLoad: true);
-        Assert.NotEqual(session.Snapshot.Simulation.RunSeed, loaded.Snapshot.Simulation.RunSeed);
-        Assert.Equal(CanonicalJson.Text(session.GetAllianceParticipationPrompt()), CanonicalJson.Text(loaded.GetAllianceParticipationPrompt()));
-        loaded.BeginRecording();
-        Assert.True(loaded.Execute(new("player"), new AllianceParticipationCommand(Guid.NewGuid(), 5,
-            loaded.Snapshot.Simulation.NextSequence, 1, false)).Submission.Accepted);
-        Assert.Equal(new[] { 2, 3, 4 }, loaded.Snapshot.Simulation.Alliance!.MemberForceIds);
-        var replayed = RecordingService.Replay(RecordingService.Encode(loaded.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(loaded.Capture().StateHash, replayed.Session.Capture().StateHash);
-        Assert.Empty(replayed.Events.OfType<AllianceProposedEvent>());
-        Assert.Single(replayed.Events.OfType<AllianceFormedEvent>());
-    }
-
-    [Fact]
-    public void MissingDecisionPayloadAndImplicitJoinValueAreRejected()
-    {
-        var definition = Definition();
-        var session = Ready(definition);
-        session.AdvanceXun();
-        var document = JsonNode.Parse(SaveService.Encode(session))!;
-        document["session"]!["world"]!["simulation"]!.AsObject().Remove("pendingAlliance");
-        Assert.Equal(SaveFailure.InvalidFormat, Assert.Throws<SaveException>(() => SaveService.Decode(
-            Encoding.UTF8.GetBytes(document.ToJsonString()), definition)).Failure);
+        Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
+        Assert.Throws<InvalidOperationException>(() => session.BeginRecording());
         var command = JsonNode.Parse(CanonicalJson.Text<GameCommand>(new AllianceParticipationCommand(Guid.NewGuid(), 5, 0, 1, false)))!;
         command.AsObject().Remove("join");
         Assert.Throws<System.Text.Json.JsonException>(() => System.Text.Json.JsonSerializer.Deserialize<GameCommand>(command.ToJsonString(),

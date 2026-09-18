@@ -27,7 +27,7 @@ public sealed class SurrenderSessionTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public void PlayerDecisionOverridesAutomaticExclusionAndSurvivesOutboundAndWaitingSaves(bool accept)
+    public void PlayerDecisionOverridesAutomaticExclusionAndReplaysFromOutboundSave(bool accept)
     {
         var content = Content();
         var session = GameSession.Start(content, 42);
@@ -37,7 +37,8 @@ public sealed class SurrenderSessionTests
         var outbound = SaveService.Decode(SaveService.Encode(session), content);
         Assert.Equal(CanonicalJson.Text(session.AdvanceXun().Events), CanonicalJson.Text(outbound.AdvanceXun().Events));
         var task = Assert.Single(session.Snapshot.Simulation.Tasks);
-        var restored = SaveService.Decode(SaveService.Encode(session), content);
+        Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
+        var restored = outbound;
         var response = new RespondDailyTaskCommand(Guid.NewGuid(), 1, 1, task.Id, 0, accept);
         var result = session.Execute(new("player"), response);
         Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.Execute(new("player"), response).Events));

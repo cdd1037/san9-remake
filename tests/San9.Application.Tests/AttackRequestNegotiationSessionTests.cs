@@ -36,12 +36,14 @@ public sealed class AttackRequestNegotiationSessionTests
         var prompt = session.GetAttackRequestPrompt()!;
         Assert.Equal(CompensationKind.Money, prompt.Offer!.Kind);
         Assert.Equal(1400u, prompt.Offer.Money);
-        var restored = SaveService.Decode(SaveService.Encode(session), content);
+        Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
+        var restored = outbound;
         var response = new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, prompt.TaskId, prompt.Step, accept);
         var result = session.Execute(new("player"), response);
         Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.Execute(new("player"), response).Events));
         Assert.Equal(accept ? AttackRequestOutcome.Accepted : AttackRequestOutcome.Refused,
             Assert.Single(result.Events.OfType<AttackRequestResolvedEvent>()).Outcome);
+        DecisionResponses.DeclineAll(session);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
         Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
     }

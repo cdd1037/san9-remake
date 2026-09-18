@@ -96,7 +96,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         world.SetClock(world.Clock.NextDay());
         world.SetSimulation(world.Simulation with { Tasks = world.Simulation.Tasks
             .Select(t => t with { ProgressDays = checked(t.ProgressDays + 1) }).ToImmutableArray() });
-        if (!Run(ResolutionStage.DailyMapUpdate, world, events)) return;
+        if (!Run(ResolutionStage.DailyMapUpdate, world, events, xunStarted)) return;
         FinishDay(world, events, xunStarted);
     }
 
@@ -115,7 +115,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         Run(ResolutionStage.UnitAndBuildingEvents, world, events);
     }
 
-    private bool Run(ResolutionStage stage, WorldMutation world, List<DomainEvent> events)
+    private bool Run(ResolutionStage stage, WorldMutation world, List<DomainEvent> events, GameClock? xunStarted = null)
     {
         world.MaintainLeadership(events);
         if (!CheckTerminal(world, events)) return false;
@@ -151,7 +151,26 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         if (stage == ResolutionStage.DailyMapUpdate) { MilitaryPolicies.AdvanceDay(world, rules.Military, events); world.MaintainLeadership(events); }
         if (stage == ResolutionStage.DailyMapUpdate) { MilitaryMovement.AdvanceDay(world, rules.Military, rules.Governance, rules.Personnel, events); world.MaintainLeadership(events); }
         if (stage == ResolutionStage.DailyMapUpdate) { FacilityConstruction.AdvanceDay(world, rules, events); world.MaintainLeadership(events); }
-        if (stage == ResolutionStage.DailyMapUpdate) { MilitaryCombat.AdvanceDay(world, rules, events); world.MaintainLeadership(events); }
+        if (stage == ResolutionStage.DailyMapUpdate)
+        {
+            MilitaryCombat.AdvanceDay(world, rules, events, xunStarted);
+            world.MaintainLeadership(events);
+            if (world.Simulation.PendingDuel is not null || !CheckTerminal(world, events)) return false;
+        }
+        return CompleteStage(stage, world, events);
+    }
+
+    internal void ResumeDuel(WorldMutation world, List<DomainEvent> events, int successorId)
+    {
+        var xunStarted = world.Simulation.PendingDuel!.XunStarted;
+        MilitaryCombat.ResumeDuel(world, rules, events, successorId);
+        if (world.Simulation.PendingDuel is not null || !CheckTerminal(world, events)) return;
+        if (!CompleteStage(ResolutionStage.DailyMapUpdate, world, events)) return;
+        FinishDay(world, events, xunStarted);
+    }
+
+    private bool CompleteStage(ResolutionStage stage, WorldMutation world, List<DomainEvent> events)
+    {
         if (stage == ResolutionStage.DailyMapUpdate) { TacticSupport.AdvanceDay(world, rules, events); world.MaintainLeadership(events); }
         if (stage == ResolutionStage.DailyMapUpdate) { MilitaryPolicies.ResolveOrders(world, rules.Military, events); world.MaintainLeadership(events); }
         rules.ApplyStage(stage, world, events);
@@ -171,7 +190,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
             TaskCancellation.Apply(world, task, "terminal", events);
         }
         world.SetSimulation(world.Simulation with { Boundary = SimulationBoundary.Terminal, Tasks = [], PendingAlliance = null, PendingDailyTask = null,
-            PendingExecutionSuccession = null, PendingTacticStudy = null });
+            PendingExecutionSuccession = null, PendingTacticStudy = null, PendingDuel = null });
         if (!events.OfType<SimulationEndedEvent>().Any()) events.Add(new SimulationEndedEvent(world.Clock, reason));
         return false;
     }

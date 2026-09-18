@@ -31,6 +31,7 @@ public sealed class HeadlessReport
     public int DevelopmentCommands { get; set; }
     public int WaitCommands { get; set; }
     public Dictionary<string, int> PersonnelEvents { get; set; } = [];
+    public Dictionary<string, int> LifecycleEvents { get; set; } = [];
     public Dictionary<string, int> MilitaryEvents { get; set; } = [];
     public Dictionary<string, int> DiplomacyStrategyEvents { get; set; } = [];
     public int RestoreCount { get; set; }

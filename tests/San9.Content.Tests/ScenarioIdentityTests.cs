@@ -5,6 +5,20 @@ namespace San9.Content.Tests;
 
 public sealed class ScenarioIdentityTests
 {
+    [Fact]
+    public void OldMemberOrderContentRequiresReconversion()
+    {
+        var options = San9.Content.Packages.ScenarioContentFiles.DataJsonOptions;
+        var scenario = Fixture() with { Units = [new(1, 9000, new(2, 2), 100)] };
+        var json = System.Text.Json.JsonSerializer.SerializeToNode(scenario, options)!;
+        var unit = json["units"]![0]!.AsObject();
+        Assert.False(unit.ContainsKey("memberOrder"));
+        unit["memberOrder"] = System.Text.Json.JsonSerializer.SerializeToNode(new[] { 10 });
+        json["schemaVersion"] = ScenarioInitialState.CurrentSchemaVersion - 1;
+        var previous = System.Text.Json.JsonSerializer.Deserialize<ScenarioInitialState>(json.ToJsonString(), options)!;
+        Assert.Throws<InvalidDataException>(() => previous.Validate());
+    }
+
     private static ScenarioInitialState Fixture() => new(ScenarioInitialState.CurrentSchemaVersion, "expanded", 190, 1, 1, 9000,
         [new(9000, "force", 0, 100, 100, 0)],
         Enumerable.Range(0, 75).Select(i => new SettlementInitialState(1000 + i, $"city.{i}", 9000,

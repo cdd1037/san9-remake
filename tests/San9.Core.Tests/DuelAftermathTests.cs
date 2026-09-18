@@ -83,7 +83,7 @@ public sealed class DuelAftermathTests
         var rules = new SimulationRules { Military = Rules() };
         var progress = DuelAftermath.Advance(world, DuelAftermath.Begin(world, Outcome()), rules, events)!;
         Assert.Equal(22, progress.PendingRulerId);
-        Assert.Equal(1, progress.NextDeathIndex);
+        Assert.Equal(2, progress.NextDeathIndex); // Commander 21 was skipped before ruler 22 in identity order.
         Assert.Equal(OfficerStatus.Ruler, world.Officers[22].Status);
         Assert.Empty(events.OfType<OfficerDiedEvent>());
         Assert.Empty(events.OfType<OfficerCapturedEvent>());

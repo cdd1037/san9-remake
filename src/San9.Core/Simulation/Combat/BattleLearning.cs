@@ -15,7 +15,7 @@ internal static class BattleLearning
     {
         if (winner.IsSettlement) return;
         var unit = world.Units[winner.Id];
-        var members = unit.MemberOrder.Select(id => world.Officers[id]).Where(p => p.IsServing && p.UnitId == unit.Id).ToArray();
+        var members = world.Officers.Values.Where(p => p.IsServing && p.UnitId == unit.Id).OrderBy(p => p.Id).ToArray();
         if (members.Length == 0) return;
         int actor = members[(int)(world.NextRandom("military-capture-growth-member") % (uint)members.Length)].Id;
         OfficerAbilityGrowth.TryIncrease(world, actor, OfficerAbility.Leadership, "military-capture-growth", events);

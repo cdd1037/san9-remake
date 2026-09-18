@@ -7,6 +7,52 @@ namespace San9.Core.Tests;
 public sealed class MilitaryCombatTests
 {
     [Theory]
+    [InlineData(99)]
+    [InlineData(100)]
+    public void WorkDestructionUsesIdentityOrderAndDoesNotReselectCappedMember(int leadership)
+    {
+        var world = World(defenders: 0, durability: 1);
+        var mutation = world.BeginMutation();
+        mutation.Replace(mutation.Officers[11] with { Status = OfficerStatus.Serving, BaseAbilities = new(70, 70, 70, leadership) });
+        mutation.Replace(mutation.Officers[12] with { UnitId = 0, SettlementId = null,
+            Personality = 3, BaseAbilities = new(70, 70, 70, 120), TacticProficiencies = [0, 0, 0, 0, 0, 0, 3, 0, 0] });
+        mutation.Replace(mutation.Officers[11] with { TacticProficiencies = [0, 0, 0, 0, 0, 0, 3, 0, 0] });
+        mutation.Replace(mutation.Units[0] with { CommanderId = 12,
+            MemberRanks = mutation.Units[0].MemberRanks.Add(12, BattleRank.Middle) });
+        mutation.AddSettlement(mutation.Settlements[2] with { Id = 3, Durability = 100 });
+        mutation.Replace(mutation.Officers[22] with { SettlementId = 3 });
+        mutation.Replace(mutation.Settlements[2] with { Kind = SettlementKind.Facility, CanHostPersons = false });
+        mutation.SetSimulation(mutation.Simulation with { RandomStreams =
+            [new("military-destruction-growth", 52), new("military-destruction-growth-member", 52), new("military-destruction-learning", 52)] });
+        world.Commit(mutation);
+        var baseline = Rules();
+        var military = new MilitaryRulebook(new(8, 3, Enumerable.Repeat(0, 24).ToImmutableArray(), [new(0, 1, null)],
+            [baseline.Formations[7]], baseline.Places.Values.OrderBy(p => p.Id)
+                .Select(p => p with { FacilityTypeId = p.Id == 2 ? 9000 : 0 }).ToImmutableArray())
+        {
+            Facilities = [new(0, 0, 100, new(1, 1), 0, false, true, true, 100000, null, null, null, []) { Combat = Profile }, new(9000, 0, 100, new(1, 1), 0, false, false, false, 100000, null, null, null, [])
+                { Combat = Profile, IsWork = true, DestroyedAtZeroDurability = true, DestructionGrowthTacticId = 19000 }],
+            Tactics = [new(19000, 6, TacticEffect.Construction, 0, 0, 3, false, false, [])]
+        });
+        var engine = Engine(world, military);
+        var restored = Engine(WorldState.Restore(engine.CaptureStableState()), military);
+        var result = engine.AdvanceXun();
+        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        Assert.Single(result.Events.OfType<FacilityDestroyedEvent>());
+        Assert.Equal(11, Assert.Single(result.Events.OfType<TacticLearnedEvent>()).OfficerId);
+        Assert.Equal(new[] { 11, 12 }, result.Events.OfType<TacticProficiencyGrownEvent>()
+            .Where(e => e.Category == 5 && e.Current - e.Previous == 3).Select(e => e.OfficerId));
+        var growth = result.Events.OfType<OfficerAbilityGrownEvent>().ToArray();
+        if (leadership == 99) Assert.Equal(11, Assert.Single(growth).OfficerId);
+        else
+        {
+            Assert.Empty(growth);
+            Assert.Equal(52UL, engine.Snapshot.Simulation.RandomStreams.Single(s => s.Name == "military-destruction-growth").State);
+        }
+    }
+
+    [Theory]
     [InlineData(true)]
     [InlineData(false)]
     public void RealCaptureGrowsRandomMemberAndTeachesFormationTechniqueOnlyForOwnedTarget(bool owned)
@@ -14,7 +60,7 @@ public sealed class MilitaryCombatTests
         var world = World(defenders: 0, controlled: true);
         var mutation = world.BeginMutation();
         mutation.Replace(mutation.Officers[12] with { UnitId = 0, SettlementId = null });
-        mutation.Replace(mutation.Units[0] with { CommanderId = 11, MemberOrder = [11, 12],
+        mutation.Replace(mutation.Units[0] with { CommanderId = 11,
             MemberRanks = mutation.Units[0].MemberRanks.Add(12, BattleRank.Middle) });
         if (!owned)
         {

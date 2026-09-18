@@ -135,7 +135,7 @@ public sealed class StrategyDiplomacyTests
             new OfficerState(21, 2, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
             new OfficerState(22, 2, null, new(50, 50, 50, 50), false) { UnitId = 5 }.WithLoyalty(2, 80),
             new OfficerState(31, 3, 3, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }],
-        units: [new UnitState(5, 2, new(37, 2), 5000) { FormationId = 9, CommanderId = 22, MemberOrder = [22], Morale = 70 }],
+        units: [new UnitState(5, 2, new(37, 2), 5000) { FormationId = 9, CommanderId = 22, Morale = 70 }],
         relations: [new(1, 2, 30), new(1, 3, 30), new(2, 3, 80)],
         controls: [new("player", 1, ControllerKind.Player)]);
 

@@ -82,6 +82,61 @@ public sealed class OfficerGrowthTests
     }
 
     [Fact]
+    public void BatchLearningCanonicalizesCallerOrderAndSkipsIneligibleMembersWithoutDrawing()
+    {
+        var world = WorldState.Create(new(190, 1, 1), 42,
+            [new(1, 1000, 1000, 0)],
+            [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
+            [.. new[] { 10, 20, 30, 40 }.Select(id => new OfficerState(id, 1, 1, new(80, 80, 80, 80), false)
+            {
+                TacticProficiencies = [id == 20 ? 99 : 100, 0, 0, 0, 0, 0, 0, 0, 0],
+                LearnedTactics = id == 30 ? [10001] : []
+            })]).BeginMutation();
+        world.SetSimulation(world.Simulation with { RandomStreams = [new("military-tactic-learning", 52)] });
+        var tactic = new TacticRule(10001, 0, TacticEffect.Martial, 1, 1, 100, true, false, []);
+        List<DomainEvent> events = [];
+        var members = new[] { 40, 30, 20, 10 }.Select(id => world.Officers[id]).ToArray();
+
+        // Rolls are 2, 88, 14: 10 learns first, 40 fails; 20 and 30 consume nothing.
+        BattleLearning.Learn(world, members, tactic, events);
+
+        Assert.Equal(10, Assert.IsType<TacticLearnedEvent>(Assert.Single(events)).OfficerId);
+        Assert.Empty(world.Officers[40].LearnedTactics);
+        Assert.Empty(world.Officers[20].LearnedTactics);
+        var random = new StableRandom(52);
+        random.NextUInt64();
+        random.NextUInt64();
+        Assert.Equal(random.State, Assert.Single(world.Simulation.RandomStreams).State);
+        // Reusing the original snapshots must still use current eligibility for the next attempt.
+        BattleLearning.Learn(world, members, tactic, events);
+        Assert.Equal(new[] { 10, 40 }, events.OfType<TacticLearnedEvent>().Select(e => e.OfficerId));
+    }
+
+    [Theory]
+    [InlineData(100, 65UL, true)]
+    [InlineData(100, 270UL, false)]
+    [InlineData(104, 270UL, false)]
+    [InlineData(105, 270UL, true)]
+    [InlineData(300, 182UL, true)]
+    [InlineData(300, 18UL, false)]
+    [InlineData(1000, 18UL, false)]
+    public void OrdinaryLearningUsesStrictThirtyToSeventyPercentAndFivePointSteps(int proficiency, ulong seed, bool learns)
+    {
+        var world = World(seed: seed);
+        world.Replace(world.Officers[1] with { TacticProficiencies = [proficiency, 0, 0, 0, 0, 0, 0, 0, 0] });
+        var tactic = new TacticRule(10001, 0, TacticEffect.Martial, 1, 1, 100, true, false, []);
+        List<DomainEvent> events = [];
+
+        OfficerTacticGrowth.TryLearn(world, 1, tactic, "growth", events);
+
+        Assert.Equal(learns, world.Officers[1].LearnedTactics.Contains(tactic.Id));
+        Assert.Equal(learns ? 1 : 0, events.OfType<TacticLearnedEvent>().Count());
+        var random = new StableRandom(seed);
+        random.NextUInt64();
+        Assert.Equal(random.State, Assert.Single(world.Simulation.RandomStreams).State);
+    }
+
+    [Fact]
     public void DirectTeachingBypassesOrdinaryGateAndIsIdempotent()
     {
         var world = World();

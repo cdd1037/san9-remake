@@ -71,8 +71,8 @@ internal static class SurrenderMerge
         {
             FacilityConstruction.Cancel(world, original.Id, events);
             var unit = world.Units[original.Id];
-            var members = unit.MemberOrder.Where(joined.Contains).Concat(world.Officers.Values.Where(p => p.UnitId == unit.Id && p.IsServing)
-                .Select(p => p.Id).Order()).Distinct().ToImmutableArray();
+            var members = world.Officers.Values.Where(p => p.UnitId == unit.Id && p.IsServing)
+                .Select(p => p.Id).Order().ToArray();
             if (members.Length == 0)
             {
                 foreach (var prisoner in world.Officers.Values.Where(p => p.UnitId == unit.Id).OrderBy(p => p.Id).ToArray())
@@ -104,7 +104,7 @@ internal static class SurrenderMerge
             else
             {
                 world.Replace(unit with { OwnerId = recipient, CorpsId = root,
-                    MemberOrder = unit.FormationId is null ? [] : members, CommanderId = unit.FormationId is null ? null : members[0],
+                    CommanderId = unit.FormationId is null ? null : LeadershipMaintenance.SelectUnitCommander(world, members, rules.Governance),
                     MemberRanks = unit.MemberRanks.Where(p => joined.Contains(p.Key)).ToImmutableDictionary(),
                     Order = null, MovementPlan = null, EngagementTargetId = null, AwaitingPostAction = false });
                 events.Add(new UnitTransferredEvent(world.Clock, unit.Id, force, recipient));

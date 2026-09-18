@@ -51,7 +51,7 @@ public sealed class TacticCombatTests
     private static SimulationEngine Engine(int members = 1, bool water = false, bool settlement = false,
         int power = 13, bool equipped = true, int injury = 0, int cooldown = 0, bool allowedFacility = true, bool counter = false,
         int primaryProficiency = 0, int linkedProficiency = 0, ulong seed = 42, int linkMultiplier = 2, TacticLinkRules? links = null,
-        int? vulnerableCategory = null, int defenderProficiency = 0, CityInfluenceRule? influence = null, int opportunityChance = 100, int computerBonus = 0, bool normalPower = false, bool waterLearning = false)
+        int? vulnerableCategory = null, int defenderProficiency = 0, CityInfluenceRule? influence = null, int opportunityChance = 100, int computerBonus = 0, bool normalPower = false, bool waterLearning = false, bool differentCommander = false, WorldSnapshot? restoredState = null)
     {
         var combat = normalPower ? new CombatProfile(10, 10, 0, 10, 50) : new CombatProfile(0, 0, 0, 1000, 50);
         var mode = water ? TravelMode.Water : TravelMode.Land;
@@ -72,7 +72,7 @@ public sealed class TacticCombatTests
                 TacticProficiencies = [primaryProficiency, 0, 0, 0, waterLearning ? 1000 : 0, 0, 0, 0, 0] }];
         if (members == 2) officers.Add(new(12, 1, null, new(80, 70, 70, 70), false)
             { UnitId = 0, LearnedTactics = [9000], EquippedTacticId = 9000,
-                TacticProficiencies = [linkedProficiency, 0, 0, 0, 0, 0, 0, 0, 0] });
+                TacticProficiencies = [linkedProficiency, 0, 0, 0, waterLearning ? 1000 : 0, 0, 0, 0, 0] });
         officers.Add(new(21, 2, settlement ? 2 : null, new(70, 70, 70, 70), false) { UnitId = settlement ? null : 1,
             TacticProficiencies = [defenderProficiency, 0, 0, 0, waterLearning ? 1000 : 0, 0, 0, 0, 0],
             LearnedTactics = counter ? [9000] : [], EquippedTacticId = counter ? 9000 : null });
@@ -80,10 +80,13 @@ public sealed class TacticCombatTests
             MemberRanks = officers.Where(p => p.UnitId == 0).ToImmutableDictionary(p => p.Id, _ => BattleRank.Front) }];
         if (!settlement) units.Add(new(1, 2, new(7, 2), 100000) { FormationId = 200, Morale = 100, ServicePlaceId = 2,
             MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(21, BattleRank.Middle) });
+        if (differentCommander)
+            units[0] = units[0] with { CommanderId = 12, };
         var world = WorldState.Create(new(190, 1, 1), seed,
             [new(1, 10000, 10000, 100) { LeaderId = 11 }, new(2, 10000, 10000, 100) { LeaderId = 21 }],
             [new(1, 1, 100, 100, 100, 100, 0, 0, 100, 0, 100), new(2, 2, 1000, 100, 100, 100, 0, 0, 100, 0, 100)],
             officers, units: units, controls: [new("player", 1, ControllerKind.Player)], computerDamageBonusPercent: computerBonus);
+        if (restoredState is not null) return new SimulationEngine(WorldState.Restore(restoredState), EconomyRulebook.Empty, PersonnelRulebook.Empty, TreasureRulebook.Empty, military: rules);
         var engine = new SimulationEngine(world, EconomyRulebook.Empty, PersonnelRulebook.Empty, TreasureRulebook.Empty, military: rules);
         var order = settlement ? new MilitaryOrder(MilitaryOrderKind.AttackSettlement, null, 2) :
             new MilitaryOrder(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 1 };
@@ -204,6 +207,20 @@ public sealed class TacticCombatTests
         Assert.Contains(result.Events.OfType<TacticLearnedEvent>(), e => e.OfficerId == 11 && e.TacticId == 9020);
         Assert.Contains(result.Events.OfType<TacticLearnedEvent>(), e => e.OfficerId == 21 && e.TacticId == 9020);
         Assert.DoesNotContain(result.Events.OfType<TacticLearnedEvent>(), e => e.TacticId == 9000);
+    }
+
+    [Fact]
+    public void WaterLearningUsesIdentityOrderOnBothSidesAcrossRestore()
+    {
+        var engine = Engine(members: 2, water: true, waterLearning: true, differentCommander: true, seed: 1);
+        var restored = Engine(members: 2, water: true, waterLearning: true, differentCommander: true, seed: 1, restoredState: engine.CaptureStableState());
+        var result = engine.AdvanceXun();
+        var repeated = restored.AdvanceXun();
+        var firstDay = result.Events;
+        Assert.Equal(new[] { 21, 12 }, firstDay.OfType<TacticLearnedEvent>().Where(e => e.Clock.Day == 2).Select(e => e.OfficerId));
+        Assert.Equal(new[] { 11, 12 }, firstDay.OfType<TacticProficiencyGrownEvent>().Where(e => e.Clock.Day == 2).Select(e => e.OfficerId));
+        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(result.Events), System.Text.Json.JsonSerializer.Serialize(repeated.Events));
+        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
     }
 
     [Fact]

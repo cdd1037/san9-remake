@@ -26,7 +26,7 @@ public sealed class AlienateStrategyTests
             { UnitId = fieldTarget ? 5 : null, Righteousness = 5,
               ForceLoyalties = ImmutableDictionary<int, int>.Empty.Add(2, 80) }],
         units: fieldTarget ? [new UnitState(5, 2, new(32, 2), 5000)
-            { FormationId = 9, Morale = 70, CommanderId = 21, MemberOrder = [21], OrderClass = UnitOrderClass.Military }] : [],
+            { FormationId = 9, Morale = 70, CommanderId = 21, OrderClass = UnitOrderClass.Military }] : [],
         relations: [new(1, 2, 50), new(1, 3, 30), new(2, 3, 80)],
         controls: [new("player", 1, ControllerKind.Player)]);
 

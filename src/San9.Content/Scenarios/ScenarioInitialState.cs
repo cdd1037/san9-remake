@@ -36,7 +36,7 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 64;
+    public const int CurrentSchemaVersion = 65;
     [JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Domain.CityTacticCourse> TacticCourses { get; init; } = [];
     [JsonRequired] public bool FreeOfficerMigrationEnabled { get; init; } = true;
     [JsonRequired] public bool AnnualAppearancesEnabled { get; init; } = true;

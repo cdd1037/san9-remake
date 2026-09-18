@@ -12,7 +12,7 @@ internal static class DomesticDevelopmentHandler
             return new(DevelopmentRejection.InvalidParticipants);
         if (!world.Forces.TryGetValue(command.ForceId, out var force) || !world.Settlements.TryGetValue(command.SettlementId, out var city) ||
             command.OfficerIds.Any(id => !world.Officers.ContainsKey(id))) return new(DevelopmentRejection.UnknownObject);
-        var people = command.OfficerIds.Select(id => world.Officers[id]).ToArray();
+        var people = command.OfficerIds.Order().Select(id => world.Officers[id]).ToArray();
         if (city.OwnerId != force.Id || people.Any(p => p.OwnerId != force.Id)) return new(DevelopmentRejection.WrongOwner);
         if (city.IsDestroyed || city.Facility?.BuilderUnitId is not null) return new(DevelopmentRejection.UnsupportedActivity);
         if (people.Any(p => !p.IsServing || p.Acted || p.SettlementId != city.Id || world.Simulation.Tasks.Any(t => t.OfficerId == p.Id)))
@@ -91,7 +91,7 @@ internal static class DomesticDevelopmentHandler
         long Ability(OfficerState p) => activity switch { DomesticActivity.Patrol => abilities[p.Id].Intelligence,
             DomesticActivity.Commerce or DomesticActivity.Cultivation => abilities[p.Id].Politics, _ => abilities[p.Id].Leadership };
         var sorted = people.OrderByDescending(p => p.Status == OfficerStatus.Ruler)
-            .ThenByDescending(Ability).ThenByDescending(p => p.Id).ToArray();
+            .ThenByDescending(Ability).ThenBy(p => p.Id).ToArray();
         foreach (var first in sorted)
         foreach (var second in sorted)
         {

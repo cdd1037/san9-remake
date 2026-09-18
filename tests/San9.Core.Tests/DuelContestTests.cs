@@ -14,7 +14,7 @@ public sealed class DuelContestTests
     {
         var units = new[] { 1, 2 }.Select(id => new UnitState(id, id, new(5 + id, 2), 10000)
         {
-            FormationId = 1, Morale = 100, MemberOrder = people.Where(p => p.UnitId == id).Select(p => p.Id).ToImmutableArray(),
+            FormationId = 1, Morale = 100,
             CommanderId = people.First(p => p.UnitId == id).Id,
             MemberRanks = people.Where(p => p.UnitId == id).ToImmutableDictionary(p => p.Id, _ => BattleRank.Front)
         });
@@ -76,7 +76,7 @@ public sealed class DuelContestTests
     }
 
     [Fact]
-    public void TiedInitialsAndSupportersUseMemberOrderAndActedExcludesAttackerButNotDefender()
+    public void TiedInitialsAndSupportersUseIdentityOrderAndActedExcludesAttackerButNotDefender()
     {
         var world = World([Person(19, 1) with { Acted = true }, Person(11, 1) with { TacticLinkBonus = 100 },
             Person(15, 1) with { TacticLinkBonus = 100 }, Person(13, 1) with { Acted = true, TacticLinkBonus = 100 },
@@ -98,7 +98,7 @@ public sealed class DuelContestTests
     }
 
     [Fact]
-    public void SupportsDrawInAttackingThenDefendingMemberOrder()
+    public void SupportsDrawInAttackingThenDefendingIdentityOrder()
     {
         ulong seed = 0;
         for (; seed < 100000; seed++)
@@ -112,8 +112,8 @@ public sealed class DuelContestTests
         var world = World([Person(11, 1, 100), Person(19, 1), Person(12, 1),
             Person(21, 2, 100), Person(29, 2), Person(22, 2)], seed).BeginMutation();
         var roster = DuelParticipants.Select(world, world.Units[1], world.Units[2], Rules())!;
-        Assert.Equal(new[] { 11, 19 }, roster.Attackers);
-        Assert.Equal(new[] { 21, 22 }, roster.Defenders);
+        Assert.Equal(new[] { 11, 12 }, roster.Attackers);
+        Assert.Equal(new[] { 21, 29 }, roster.Defenders);
         var expected = new StableRandom(StableRandom.DeriveSeed(seed, "duel-support"));
         for (int i = 0; i < 4; i++) expected.NextUInt64();
         Assert.Equal(expected.State, world.Simulation.RandomStreams.Single(s => s.Name == "duel-support").State);

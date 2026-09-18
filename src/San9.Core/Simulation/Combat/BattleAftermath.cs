@@ -193,7 +193,7 @@ internal static class BattleAftermath
             ReinforcementTransport.Disband(world, task, "force-eliminated", events);
             TaskCancellation.Apply(world, task, "force-eliminated", events);
         }
-        foreach (var person in world.Officers.Values.Where(p => p.OwnerId == forceId).ToArray())
+        foreach (var person in world.Officers.Values.Where(p => p.OwnerId == forceId).OrderBy(p => p.Id).ToArray())
         {
             if (force.IsBarbarian && person.Status != OfficerStatus.Captive)
             {
@@ -208,7 +208,7 @@ internal static class BattleAftermath
         }
         foreach (var unit in world.Units.Values.Where(u => u.OwnerId == forceId).ToArray())
         {
-            foreach (var person in world.Officers.Values.Where(p => p.UnitId == unit.Id).ToArray()) Detach(world, person, unit.ServicePlaceId, events);
+            foreach (var person in world.Officers.Values.Where(p => p.UnitId == unit.Id).OrderBy(p => p.Id).ToArray()) Detach(world, person, unit.ServicePlaceId, events);
             TerminateUnit(world, unit.Id, null, rules, events);
         }
         foreach (var settlement in world.Settlements.Values.Where(s => s.OwnerId == forceId).ToArray())

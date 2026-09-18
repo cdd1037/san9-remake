@@ -79,7 +79,7 @@ public sealed class UnitStrategyTests
         [new(11, 1, 1, new(70, intelligence, 70, 70), false), new(12, 1, 1, new(70, 70, 70, 70), false),
          new(22, friendly ? 1 : 2, null, new(70, 70, 70, 80), false) { UnitId = 5, TacticCooldown = 20 }],
         units: [new(5, friendly ? 1 : 2, new(2 + distance, 2), 5000) { FormationId = 9, Morale = 70,
-            CommanderId = 22, MemberOrder = [22], OrderClass = UnitOrderClass.Military }],
+            CommanderId = 22, OrderClass = UnitOrderClass.Military }],
         relations: [new(1, 2, 50)], controls: [new("player", 1, ControllerKind.Player)]);
 
     private static PersistentTask Submit(WorldState world, SimulationRules rules, UnitStrategyKind strategy, int? forcedRoll = null)

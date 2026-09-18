@@ -56,12 +56,11 @@ internal static class WorldInvariants
         {
             if (!unit.IsValid || !state.Forces.ContainsKey(unit.OwnerId) ||
                 unit.MemberRanks.Keys.Any(id => !state.Officers.TryGetValue(id, out var person) || person.UnitId != unit.Id || !person.IsServing) ||
-                !unit.MemberOrder.IsEmpty && !unit.MemberOrder.Order().SequenceEqual(state.Officers.Values
-                    .Where(p => p.UnitId == unit.Id && p.IsServing).Select(p => p.Id).Order()) ||
                 unit.Order?.SettlementId is int target && !state.Settlements.ContainsKey(target) ||
                 unit.Order?.UnitId is int targetUnit && !state.Units.ContainsKey(targetUnit) ||
                 unit.EngagementTargetId is int engagement && !state.Units.ContainsKey(engagement) ||
-                unit.CommanderId is int commander && !state.Officers.ContainsKey(commander) ||
+                unit.CommanderId is int commander && (!state.Officers.TryGetValue(commander, out var leader) ||
+                    !leader.IsServing || leader.UnitId != unit.Id || leader.OwnerId != unit.OwnerId) ||
                 unit.CorpsId is int corpsId && (!state.Corps.TryGetValue(corpsId, out var corps) || corps.OwnerId != unit.OwnerId)) throw new ArgumentException("Invalid unit.");
         }
         if (state.Corps.Values.Any(c => c.Id < 0 || !Enum.IsDefined(c.ControlMode) || !ValidDelegation(state, c) || !state.Forces.ContainsKey(c.OwnerId) ||
@@ -94,17 +93,18 @@ internal static class WorldInvariants
             sim.NextUnitId < 0 || sim.NextUnitId > (long)int.MaxValue + 1 || state.Units.Keys.Any(id => id >= sim.NextUnitId) ||
             sim.Controls.Any(c => string.IsNullOrWhiteSpace(c.ControllerId) || !Enum.IsDefined(c.Kind) || !state.Forces.ContainsKey(c.ForceId)) ||
             sim.Controls.Select(c => c.ForceId).Distinct().Count() != sim.Controls.Length ||
-            sim.Boundary != SimulationBoundary.Terminal && (!state.Clock.IsXunBoundary && sim.PendingDailyTask is null || sim.TerminalReason is not null) ||
+            sim.Boundary != SimulationBoundary.Terminal && (!state.Clock.IsXunBoundary && sim.PendingDailyTask is null && sim.PendingDuel is null || sim.TerminalReason is not null) ||
             sim.Boundary == SimulationBoundary.Terminal && (string.IsNullOrWhiteSpace(sim.TerminalReason) || !sim.Tasks.IsEmpty) ||
             sim.RandomStreams.Any(s => string.IsNullOrWhiteSpace(s.Name)) ||
             !sim.RandomStreams.Select(s => s.Name).SequenceEqual(sim.RandomStreams.Select(s => s.Name).Distinct().Order(StringComparer.Ordinal)))
             throw new ArgumentException("Invalid simulation boundary, control, sequence or random state.");
         int pendingDecisions = (sim.PendingAlliance is null ? 0 : 1) + (sim.PendingDailyTask is null ? 0 : 1) +
-            (sim.PendingExecutionSuccession is null ? 0 : 1) + (sim.PendingTacticStudy is null ? 0 : 1);
+            (sim.PendingDuel is null ? 0 : 1) + (sim.PendingExecutionSuccession is null ? 0 : 1) + (sim.PendingTacticStudy is null ? 0 : 1);
         if (pendingDecisions > 1 || (sim.Boundary == SimulationBoundary.AwaitingDecision) != (pendingDecisions == 1))
             throw new ArgumentException("Decision boundary requires exactly one pending decision.");
         AllianceFormation.ValidatePending(state);
         PrisonerExecution.ValidatePending(state);
+        DuelCombat.ValidatePending(state);
         TacticStudy.ValidatePending(state);
         if (sim.PendingDailyTask is { } pending)
         {

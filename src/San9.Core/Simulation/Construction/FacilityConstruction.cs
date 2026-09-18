@@ -33,9 +33,9 @@ internal static class FacilityConstruction
         int cost = type.Cost(qualified);
         var account = ResourceAccounts.Resolve(world, command.IssuerId, home.CorpsId);
         if (ResourceAccounts.Balance(world, account, ResourceKind.Money) < cost) return CommandRejection.InsufficientFunds;
-        var members = UnitLeadership.Order(world, command.OfficerIds, rules.Governance);
-        if (members.IsEmpty) return CommandRejection.PersonUnavailable;
-        var plan = new ConstructionPlan(command.RegionId, type.Id, command.Position, members[0]);
+        if (LeadershipMaintenance.SelectUnitCommander(world, command.OfficerIds, rules.Governance) is not int commander)
+            return CommandRejection.PersonUnavailable;
+        var plan = new ConstructionPlan(command.RegionId, type.Id, command.Position, commander);
         if (world.Simulation.NextUnitId > int.MaxValue) return CommandRejection.ResourceOverflow;
         int unitId = (int)world.Simulation.NextUnitId;
         var rejection = MilitaryMovement.Deploy(world, new(command.CommandId, command.IssuerId, command.Sequence, home.Id,

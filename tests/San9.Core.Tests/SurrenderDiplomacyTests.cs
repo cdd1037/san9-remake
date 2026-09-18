@@ -7,6 +7,50 @@ namespace San9.Core.Tests;
 
 public sealed class SurrenderDiplomacyTests
 {
+    [Theory]
+    [InlineData(true, 99)]
+    [InlineData(false, 99)]
+    [InlineData(true, 100)]
+    [InlineData(true, 120)]
+    public void SurrenderGrowsOnlySuccessfulEnvoyAndSkipsCappedAbility(bool accept, int politics)
+    {
+        var world = World();
+        var mutation = world.BeginMutation();
+        mutation.Replace(mutation.Officers[12] with
+        { BaseAbilities = mutation.Officers[12].BaseAbilities with { Politics = politics } });
+        mutation.SetSimulation(mutation.Simulation with { RandomStreams = [new("diplomacy-politics-growth", 52)] });
+        world.Commit(mutation);
+        var engine = new SimulationEngine(world, Rules());
+        Assert.True(engine.Execute(new("first"), new DemandSurrenderCommand(Guid.NewGuid(), 1, 0, 12, 2)).Submission.Accepted);
+        var before = engine.CaptureStableState();
+        var restored = new SimulationEngine(WorldState.Restore(before), Rules());
+        var responseId = Guid.NewGuid();
+
+        IReadOnlyList<DomainEvent> Resolve(SimulationEngine current)
+        {
+            current.EndControl(new("first")); current.EndControl(new("second")); current.EndControl(new("third"));
+            current.AdvanceXun();
+            var task = Assert.Single(current.Snapshot.Simulation.Tasks);
+            var result = current.Execute(new("second"), new RespondDailyTaskCommand(responseId, 2, 1, task.Id, 0, accept));
+            Assert.True(result.Submission.Accepted);
+            return result.Events;
+        }
+
+        var events = Resolve(engine);
+        Assert.Equal(CanonicalJson.Text(events), CanonicalJson.Text(Resolve(restored)));
+        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        bool grows = accept && politics < 100;
+        var growth = events.OfType<OfficerAbilityGrownEvent>().ToArray();
+        if (grows)
+            Assert.Equal(new OfficerAbilityGrownEvent(growth.Single().Clock, 12, "politics", 99, 100), Assert.Single(growth));
+        else Assert.Empty(growth);
+        Assert.Equal(grows ? 100 : politics, engine.Snapshot.Officers.Single(p => p.Id == 12).BaseAbilities.Politics);
+        var random = new StableRandom(52);
+        random.NextUInt64();
+        Assert.Equal(grows ? random.State : 52UL,
+            engine.Snapshot.Simulation.RandomStreams.Single(s => s.Name == "diplomacy-politics-growth").State);
+    }
+
     private static SimulationRules Rules() => new()
     {
         Personnel = new([new(1, new(2, 2)), new(2, new(92, 2)), new(3, new(182, 2)), new(4, new(112, 2))],
@@ -33,7 +77,7 @@ public sealed class SurrenderDiplomacyTests
          Person(24, 2, 4, OfficerStatus.Governor), Person(25, 2, 3, OfficerStatus.Captive), Person(31, 3, 3, OfficerStatus.Ruler),
          Person(33, 3, units ? null : 2, OfficerStatus.Captive) with { UnitId = units ? 50 : null }],
         units: units ? [new UnitState(50, 2, new(102, 2), 1000) { FormationId = 9, Morale = 70, CorpsId = 20,
-            ServicePlaceId = 2, MemberOrder = [22, 23], CommanderId = 22, MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(22, BattleRank.Front).Add(23, BattleRank.Rear) }] : [],
+            ServicePlaceId = 2, CommanderId = 22, MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(22, BattleRank.Front).Add(23, BattleRank.Rear) }] : [],
         corps: [new(10, 1, 11, null), new(20, 2, 21, null), new(21, 2, 24, new(1000, 2000))],
         relations: [new(1, 2, 80), new(1, 3, 0), new(2, 3, 0)],
         controls: [new("first", 1, ControllerKind.Player), new("second", 2, ControllerKind.Player), new("third", 3, ControllerKind.Automatic)]);
@@ -85,7 +129,7 @@ public sealed class SurrenderDiplomacyTests
         {
             var unit = Assert.Single(engine.Snapshot.Units);
             Assert.Equal(1, unit.OwnerId);
-            Assert.Equal(new[] { 22 }, unit.MemberOrder);
+            Assert.Equal(22, unit.CommanderId);
             Assert.Equal(50, engine.Snapshot.Officers.Single(p => p.Id == 33).UnitId);
         }
         Assert.Equal("player-defeated", engine.Snapshot.Simulation.TerminalReason);

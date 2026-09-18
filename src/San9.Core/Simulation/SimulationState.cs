@@ -66,6 +66,7 @@ public sealed record SimulationState(GameClock Started, ulong InitialSeed)
     [JsonRequired] public bool NaturalDeathsEnabled { get; init; } = true;
     [JsonRequired] public bool BattleDeathsEnabled { get; init; }
     [JsonRequired] public San9.Core.Domain.AllianceState? Alliance { get; init; }
+    [JsonIgnore] public DuelCombatDecision? PendingDuel { get; init; }
     [JsonIgnore] public AllianceProposal? PendingAlliance { get; init; }
     [JsonIgnore] public DailyTaskDecision? PendingDailyTask { get; init; }
     [JsonIgnore] public TacticStudyDecision? PendingTacticStudy { get; init; }
@@ -76,7 +77,7 @@ public sealed record SimulationState(GameClock Started, ulong InitialSeed)
     public SimulationBoundary Boundary { get; init; }
     [JsonIgnore]
     public bool CanPersist => (Boundary is SimulationBoundary.Stable or SimulationBoundary.Terminal) &&
-        PendingAlliance is null && PendingDailyTask is null && PendingTacticStudy is null &&
+        PendingDuel is null && PendingAlliance is null && PendingDailyTask is null && PendingTacticStudy is null &&
         PendingExecutionSuccession is null && Tasks.All(t => t.ResolutionStep == 0 &&
             t.AttackRequest?.Offer is null && t.PrisonerReturn?.Offer is null);
     public string? TerminalReason { get; init; }

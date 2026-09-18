@@ -25,7 +25,7 @@ internal static class DuelAftermath
         void SetIntervals(int unitId, ImmutableArray<int> people)
         {
             if (!world.Units.TryGetValue(unitId, out var unit)) return;
-            foreach (int id in people)
+            foreach (int id in people.Order())
                 world.Replace(world.Officers[id] with { TacticCooldown = Interval(unit.Morale) });
         }
         SetIntervals(outcome.Roster.AttackingUnitId, outcome.Roster.Attackers);
@@ -39,7 +39,7 @@ internal static class DuelAftermath
     {
         var outcome = progress.Outcome;
         int loserUnit = outcome.WinningUnitId == outcome.Roster.AttackingUnitId ? outcome.Roster.DefendingUnitId : outcome.Roster.AttackingUnitId;
-        var losers = loserUnit == outcome.Roster.AttackingUnitId ? outcome.Roster.Attackers : outcome.Roster.Defenders;
+        var losers = (loserUnit == outcome.Roster.AttackingUnitId ? outcome.Roster.Attackers : outcome.Roster.Defenders).Order().ToArray();
         var priorWinners = outcome.Pairs.Select(p => p.WinnerId).ToHashSet();
         if (progress.PendingRulerId is int ruler)
         {
@@ -83,7 +83,7 @@ internal static class DuelAftermath
                 world.Replace(world.Officers[id] with { TacticCooldown = 0 });
             }
         }
-        foreach (int id in outcome.Pairs.Select(p => p.LoserId).Distinct())
+        foreach (int id in outcome.Pairs.Select(p => p.LoserId).Distinct().Order())
             if (world.Officers[id].Status is not (OfficerStatus.Dead or OfficerStatus.Captive))
                 world.Replace(world.Officers[id] with { Injury = Math.Max(7, world.Officers[id].Injury) });
         int change = outcome.SurvivorHitPoints / 5 + 10;
@@ -91,9 +91,8 @@ internal static class DuelAftermath
             world.Replace(winningUnit with { Morale = Math.Min(100, winningUnit.Morale + change) });
         if (world.Units.TryGetValue(loserUnit, out var losingUnit))
             world.Replace(losingUnit with { Morale = losingUnit.Morale == 0 ? 0 : Math.Max(1, losingUnit.Morale - change) });
-        var rewarded = new HashSet<int>();
-        foreach (var pair in outcome.Pairs)
-            if (rewarded.Add(pair.WinnerId) && pair.WinnerInitialMartial < pair.LoserInitialMartial)
+        foreach (var pair in outcome.Pairs.GroupBy(p => p.WinnerId).OrderBy(g => g.Key).Select(g => g.First()))
+            if (pair.WinnerInitialMartial < pair.LoserInitialMartial)
                 OfficerAbilityGrowth.Increase(world, pair.WinnerId, OfficerAbility.War, 1, events);
         world.MaintainLeadership(events);
         events.Add(new DuelCompletedEvent(world.Clock, outcome.WinningUnitId, loserUnit, outcome.SurvivorId, outcome.SurvivorHitPoints));

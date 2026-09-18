@@ -79,6 +79,25 @@ public sealed class HeadlessHost
     {
         foreach (var entry in events)
         {
+            string? lifecycle = entry switch
+            {
+                OfficerAppearedEvent => "officer-appeared",
+                OfficerDiedEvent e => "officer-died-" + e.Cause.ToString().ToLowerInvariant(),
+                OfficerInjuryRecoveredEvent => "injury-recovered",
+                FreeOfficerMigratedEvent => "free-officer-migrated",
+                OfficerAbilityGrownEvent => "ability-grown",
+                TacticProficiencyGrownEvent => "proficiency-grown",
+                TacticLearnedEvent => "tactic-learned",
+                TacticStudyOfferedEvent => "study-offered",
+                TacticStudyDecidedEvent => "study-decided",
+                DuelStartedEvent => "duel-started",
+                DuelStrikeEvent => "duel-strike",
+                DuelCompletedEvent => "duel-completed",
+                DuelSuccessionRequestedEvent => "duel-succession-requested",
+                _ => null
+            };
+            if (lifecycle is not null)
+                _report.LifecycleEvents[lifecycle] = _report.LifecycleEvents.GetValueOrDefault(lifecycle) + 1;
             string? diplomacyStrategy = entry switch
             {
                 GiftResolvedEvent => "gift-resolved",
@@ -119,6 +138,9 @@ public sealed class HeadlessHost
                 FacilityConstructionChangedEvent { Phase: "completed" } => "construction-completed",
                 FacilityConstructionChangedEvent => "construction-changed",
                 TacticActivatedEvent => "tactic-activated",
+                DuelStartedEvent => "duel-started",
+                DuelCompletedEvent => "duel-completed",
+                DuelSuccessionRequestedEvent => "duel-succession-requested",
                 UnitMovedEvent { Status: NavigationStatus.Unreachable } => "unit-blocked",
                 UnitMovedEvent { Status: NavigationStatus.Waiting } => "unit-waiting",
                 UnitMovedEvent => "unit-moved",
@@ -183,6 +205,11 @@ public sealed class HeadlessHost
         {
             _report.Goal = "G08";
             _report.Scope = "Diplomacy or strategies through public commands, explicit player decisions, save and replay; event counts describe exercised paths, not complete G08 acceptance or full strategic AI.";
+        }
+        if (_report.LifecycleEvents.Count > 0)
+        {
+            _report.Goal = "G09";
+            _report.Scope = "Lifecycle and duel event counts describe exercised paths through public simulation, save and replay; they do not imply every lifecycle branch or full strategic AI was exercised.";
         }
     }
 
@@ -299,11 +326,13 @@ public sealed class HeadlessHost
             {
                 answeredDecision = true;
                 var state = _session.Snapshot.Simulation;
-                int force = state.PendingTacticStudy?.RespondingForceId ?? state.PendingExecutionSuccession?.RespondingForceId ?? state.PendingDailyTask?.RespondingForceId ?? state.PendingAlliance!.RespondingForceId!.Value;
+                int force = state.PendingDuel?.RespondingForceId ?? state.PendingTacticStudy?.RespondingForceId ?? state.PendingExecutionSuccession?.RespondingForceId ?? state.PendingDailyTask?.RespondingForceId ?? state.PendingAlliance!.RespondingForceId!.Value;
                 var seat = state.Controls.Single(c => c.ForceId == force);
                 var request = _session.Request(new EndControlOperation(), seat.ControllerId);
                 GameCommand answer;
-                if (_session.GetTacticStudyPrompt() is { } study)
+                if (_session.GetDuelSuccessionPrompt() is { } duel)
+                    answer = new ChooseDuelSuccessorCommand(request.Id, force, state.NextSequence, duel.RulerId, duel.CandidateIds[0]);
+                else if (_session.GetTacticStudyPrompt() is { } study)
                     answer = new ChooseTacticStudentCommand(request.Id, force, state.NextSequence, study.CityId, study.CandidateIds[0]);
                 else if (_session.GetExecutionSuccessionPrompt() is { } succession)
                     answer = new ChooseExecutionSuccessorCommand(request.Id, force, state.NextSequence, succession.RulerId, succession.CandidateIds[0]);

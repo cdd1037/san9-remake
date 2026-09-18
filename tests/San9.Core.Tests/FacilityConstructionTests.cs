@@ -10,9 +10,9 @@ public sealed class FacilityConstructionTests
     private static readonly PersonnelRulebook Geography = new([new(1, new(2, 2)), new(8000, new(17, 2))],
         new Dictionary<int, int> { [1] = 1, [8000] = 1 });
     private static readonly MilitaryRulebook Military = CreateMilitary();
-    private static MilitaryRulebook CreateMilitary(bool hostsPeople = true, bool needsTechnology = false, bool attacksWalls = false) => new(new(6, 1, [0, 0, 0, 0, 0, 0], [new(0, 1, null)],
-        [new(1, 5, 50, 100000, 1, new(1, 1), TravelMode.Land)
-            { Combat = new(10, 10, 1000, 10, 50), Attack = new(1, attacksWalls), CaptureRanks = [BattleRank.Front] }],
+    private static MilitaryRulebook CreateMilitary(bool hostsPeople = true, bool needsTechnology = false, bool attacksWalls = false, int members = 1) => new(new(6, 1, [0, 0, 0, 0, 0, 0], [new(0, 1, null)],
+        [new(1, 5, 50, 100000, members, new(1, 1), TravelMode.Land)
+            { Combat = new(10, 10, 1000, 10, 50), Attack = new(1, attacksWalls), CaptureRanks = [.. Enumerable.Repeat(BattleRank.Front, members)] }],
         [new(1, new(2, 2), new(1, 1)) { FacilityTypeId = 0 }])
     {
         Facilities = [new(0, 0, 600, new(1, 1), 15, false, true, true, 500000, null, null, null, []),
@@ -144,6 +144,51 @@ public sealed class FacilityConstructionTests
             e => e.Clock == learned.Clock && e.Phase is "started" or "completed");
         Assert.Contains(19, engine.Snapshot.Officers.Single().LearnedTactics);
         Assert.Null(engine.Snapshot.Officers.Single().EquippedTacticId);
+    }
+
+    [Theory]
+    [InlineData(99)]
+    [InlineData(100)]
+    public void ConstructionGrowthUsesIdentityOrderWithoutReselectingCappedMember(int leadership)
+    {
+        var world = WorldState.Create(new(190, 1, 1), 42,
+            [new(1, 10000, 1000000, 100) { LeaderId = 22 }],
+            [new(1, 1, 20000, 600, 600, 100, 0, 0, 100, 0, 100)],
+            [new(11, 1, 1, new(80, 80, 80, leadership), false),
+             new(22, 1, 1, new(80, 80, 80, 99), false) { Status = OfficerStatus.Ruler }],
+            controls: [new("player", 1, ControllerKind.Player)]);
+        var military = CreateMilitary(members: 2);
+        var engine = Engine(world, military);
+        Assert.True(engine.Execute(Player, Command() with { OfficerIds = [22, 11] }).Submission.Accepted);
+        var before = engine.CaptureStableState();
+        Assert.Equal(22, Assert.Single(before.Units).CommanderId);
+        before = before with { Simulation = before.Simulation with { RandomStreams =
+        [
+            new("military-construction-growth", 52),
+            new("military-construction-growth-member", 52),
+            new("military-construction-learning", 52)
+        ] } };
+        engine = Engine(WorldState.Restore(before), military);
+        var restored = Engine(WorldState.Restore(before), military);
+
+        var result = Advance(engine);
+        var replayed = Advance(restored);
+
+        Assert.Single(result.Events.OfType<FacilityConstructionChangedEvent>(), e => e.Phase == "started");
+        Assert.DoesNotContain(result.Events.OfType<FacilityConstructionChangedEvent>(), e => e.Phase == "completed");
+        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(result.Events), System.Text.Json.JsonSerializer.Serialize(replayed.Events));
+        Assert.Equal(11, Assert.Single(result.Events.OfType<TacticLearnedEvent>()).OfficerId);
+        var growth = result.Events.OfType<OfficerAbilityGrownEvent>().ToArray();
+        if (leadership == 99) Assert.Equal(11, Assert.Single(growth).OfficerId);
+        else Assert.Empty(growth);
+        Assert.Equal(99, engine.Snapshot.Officers.Single(p => p.Id == 22).BaseAbilities.Leadership);
+        var random = new StableRandom(52);
+        random.NextUInt64();
+        Assert.Equal(leadership == 100 ? 52UL : random.State,
+            engine.Snapshot.Simulation.RandomStreams.Single(s => s.Name == "military-construction-growth").State);
+        random.NextUInt64();
+        Assert.Equal(random.State, engine.Snapshot.Simulation.RandomStreams.Single(s => s.Name == "military-construction-learning").State);
     }
 
     [Theory]

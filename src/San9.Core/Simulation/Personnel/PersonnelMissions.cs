@@ -99,7 +99,7 @@ internal static class PersonnelMissions
             world.Corps.Values.Any(c => c.LeaderId == id && c.Treasury is null && destination.CorpsId != c.Id) ||
             !GovernanceMaintenance.CanRemove(world, id)))
             return CommandRejection.PersonUnavailable;
-        var ids = command.OfficerIds.OrderBy(id => world.Officers[id].SettlementId).ThenBy(id => id).ToArray();
+        var ids = command.OfficerIds.Order().ToArray();
         for (int index = 0; index < ids.Length; index++)
         {
             int id = ids[index];

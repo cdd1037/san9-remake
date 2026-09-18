@@ -175,7 +175,7 @@ public sealed class MilitarySessionTests
             Settlements = [basis.Settlements[0] with { Soldiers = 10000 }, basis.Settlements[1]],
             Officers = [basis.Officers[0] with { State = basis.Officers[0].State with { BaseAbilities = new(70, 230, 70, 230) } },
                 new("commander", new(2, 1, null, new(70, 70, 70, 80), false) { UnitId = 10 })],
-            Units = [new(10, 1, new(332, 7), 9500) { FormationId = 7, Morale = 70, CommanderId = 2, MemberOrder = [2] }],
+            Units = [new(10, 1, new(332, 7), 9500) { FormationId = 7, Morale = 70, CommanderId = 2, }],
             Military = basis.Military! with { Width = 200, TerrainIds = Enumerable.Repeat(0, 600).ToImmutableArray(),
                 RegionIds = Enumerable.Repeat<int?>(1, 600).ToImmutableArray() }
         };
@@ -243,7 +243,12 @@ public sealed class MilitarySessionTests
         Assert.True(session.Execute(new("player"), command).Submission.Accepted);
         Assert.Equal(command.Policies, Assert.Single(session.Snapshot.Units).Policies);
         Assert.Equal(1, Assert.Single(session.Snapshot.Units).CommanderId);
-        Assert.Equal([1], Assert.Single(session.Snapshot.Units).MemberOrder.ToArray());
+        var save = System.Text.Json.Nodes.JsonNode.Parse(SaveService.Encode(session))!;
+        var savedUnit = save["session"]!["world"]!["units"]![0]!.AsObject();
+        Assert.False(savedUnit.ContainsKey("memberOrder"));
+        savedUnit["memberOrder"] = System.Text.Json.JsonSerializer.SerializeToNode(new[] { 1 });
+        Assert.Equal(SaveFailure.InvalidFormat, Assert.Throws<SaveException>(() =>
+            SaveService.Decode(System.Text.Encoding.UTF8.GetBytes(save.ToJsonString()), definition)).Failure);
         var policies = new UnitPolicies(false, true, false, true);
         Assert.True(session.Execute(new("player"), new SetUnitPoliciesCommand(Guid.NewGuid(), 1,
             session.Snapshot.Simulation.NextSequence, Assert.Single(session.Snapshot.Units).Id, policies)).Submission.Accepted);
@@ -255,7 +260,7 @@ public sealed class MilitarySessionTests
         Assert.NotEmpty(session.Snapshot.Units);
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         Assert.Equal(policies, Assert.Single(restored.Snapshot.Units).Policies);
-        Assert.Equal([1], Assert.Single(restored.Snapshot.Units).MemberOrder.ToArray());
+        Assert.Equal(1, Assert.Single(restored.Snapshot.Units).CommanderId);
         Assert.Equal(123u, restored.View.Settlements.Single(s => s.Id == 1).Wounded);
         for (int i = 0; i < 4; i++)
         {

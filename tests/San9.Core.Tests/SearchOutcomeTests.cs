@@ -6,7 +6,8 @@ namespace San9.Core.Tests;
 
 public sealed class SearchOutcomeTests
 {
-    private static SimulationEngine Engine(bool person, bool item, bool automatic = false, int politics = 500, ulong seed = 190)
+    private static SimulationEngine Engine(bool person, bool item, bool automatic = false, int politics = 500, ulong seed = 190,
+        bool probeGrowth = false, ulong fundsSeed = 52)
     {
         var world = WorldState.Create(new(190, 1, 1), seed,
             [new(1, 10000, 10000, 0) { LeaderId = 1 }],
@@ -17,6 +18,13 @@ public sealed class SearchOutcomeTests
                  RegionId = 30, ForceLoyalties = ImmutableDictionary<int, int>.Empty.Add(1, 40) }],
             treasures: item ? [new(10, null, TreasureDiscovery.Buried, 30)] : [],
             controls: [new("player", 1, automatic ? ControllerKind.Automatic : ControllerKind.Player)]);
+        if (probeGrowth)
+        {
+            var mutation = world.BeginMutation();
+            mutation.SetSimulation(mutation.Simulation with { RandomStreams =
+                [new("personnel-politics-growth", 52), new("personnel-search-funds", fundsSeed)] });
+            world.Commit(mutation);
+        }
         return new(world, EconomyRulebook.Empty, new([new(1, new(0, 0)), new(30, new(300, 0))]),
             item ? new([new(10, new(5, 0, 0, 0), 0)]) : TreasureRulebook.Empty);
     }
@@ -76,5 +84,30 @@ public sealed class SearchOutcomeTests
         Assert.Equal(SearchResultKind.None, Search(engine).Result);
         Assert.Equal(before - 1, Assert.Single(engine.Snapshot.Forces).Money);
         Assert.Single(engine.Snapshot.Simulation.Tasks);
+    }
+
+    [Theory]
+    [InlineData(SearchResultKind.Person, 99)]
+    [InlineData(SearchResultKind.Treasure, 99)]
+    [InlineData(SearchResultKind.Money, 99)]
+    [InlineData(SearchResultKind.None, 99)]
+    [InlineData(SearchResultKind.Person, 100)]
+    [InlineData(SearchResultKind.Treasure, 120)]
+    public void SearchPoliticsGrowthBelongsOnlyToPersonAndTreasureResults(SearchResultKind expected, int politics)
+    {
+        ulong seed = Enumerable.Range(0, 1000).Select(value => (ulong)value).First(value =>
+            ConditionalRandom.Percentile(value, ConditionalRandomPurpose.SearchDiscovery, new(190, 1, 1), 2, 30) == 0);
+        var engine = Engine(expected == SearchResultKind.Person, expected == SearchResultKind.Treasure,
+            politics: politics, seed: seed, probeGrowth: true, fundsSeed: expected == SearchResultKind.None ? 18UL : 52UL);
+
+        Assert.Equal(expected, Search(engine).Result);
+
+        bool grows = politics < 100 && expected is SearchResultKind.Person or SearchResultKind.Treasure;
+        Assert.Equal(grows ? 100 : politics, engine.Snapshot.Officers.Single(p => p.Id == 2).BaseAbilities.Politics);
+        var random = new StableRandom(52);
+        random.NextUInt64();
+        Assert.Equal(grows ? random.State : 52UL,
+            engine.Snapshot.Simulation.RandomStreams.Single(s => s.Name == "personnel-politics-growth").State);
+        Assert.Equal(50, engine.Snapshot.Officers.Single(p => p.Id == 1).BaseAbilities.Politics);
     }
 }

@@ -83,6 +83,14 @@ public sealed class SimulationEngine
         return TacticStudy.Prompt(_world.BeginMutation(_rules.Abilities), _rules);
     }
 
+    public DuelSuccessionPrompt? GetDuelSuccessionPrompt()
+    {
+        if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
+        return _world.Simulation.PendingDuel is { } pending
+            ? new(pending.Aftermath.PendingRulerId!.Value, pending.RespondingForceId,
+                DuelAftermath.Successors(_world.BeginMutation(_rules.Abilities), pending.Aftermath.PendingRulerId.Value)) : null;
+    }
+
     public ExecutionSuccessionPrompt? GetExecutionSuccessionPrompt()
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
@@ -213,6 +221,14 @@ public sealed class SimulationEngine
                 case ExecutePrisonerCommand execution:
                     var executionRejection = PrisonerExecution.Start(mutation, execution, _rules, events);
                     if (executionRejection != CommandRejection.None) return Reject(executionRejection);
+                    break;
+                case ChooseDuelSuccessorCommand duelSuccessor:
+                    var duel = mutation.Simulation.PendingDuel!;
+                    if (duel.Aftermath.PendingRulerId != duelSuccessor.RulerId ||
+                        !DuelAftermath.Successors(mutation, duelSuccessor.RulerId).Contains(duelSuccessor.SuccessorId))
+                        return Reject(CommandRejection.InvalidDecision);
+                    _pipeline.ResumeDuel(mutation, events, duelSuccessor.SuccessorId);
+                    ContinueXun(mutation, duel.XunStarted, events);
                     break;
                 case ChooseExecutionSuccessorCommand successor:
                     var successionRejection = PrisonerExecution.Respond(mutation, successor, _rules, events);
@@ -419,6 +435,13 @@ public sealed class SimulationEngine
         if (_world.Simulation.Tasks.Any(t => t.Id == command.CommandId)) return CommandRejection.DuplicateCommandId;
         if (command.Sequence != _world.Simulation.NextSequence) return CommandRejection.WrongSequence;
         var sim = _world.Simulation;
+        if (sim.PendingDuel is { } duel)
+        {
+            if (command is not ChooseDuelSuccessorCommand) return CommandRejection.DecisionPending;
+            return duel.RespondingForceId == command.IssuerId && sim.Controls.Any(c => c.ForceId == command.IssuerId &&
+                c.Kind == ControllerKind.Player && c.ControllerId == context.ControllerId)
+                ? CommandRejection.None : CommandRejection.NotActiveController;
+        }
         if (sim.PendingTacticStudy is { } study)
         {
             if (command is not ChooseTacticStudentCommand) return CommandRejection.DecisionPending;
@@ -449,7 +472,7 @@ public sealed class SimulationEngine
                 ? CommandRejection.None : CommandRejection.NotActiveController;
         }
         if (sim.Boundary != SimulationBoundary.Stable) return CommandRejection.NotStable;
-        if (command is AllianceParticipationCommand or RespondDailyTaskCommand or ChooseExecutionSuccessorCommand or ChooseTacticStudentCommand) return CommandRejection.InvalidDecision;
+        if (command is ChooseDuelSuccessorCommand or AllianceParticipationCommand or RespondDailyTaskCommand or ChooseExecutionSuccessorCommand or ChooseTacticStudentCommand) return CommandRejection.InvalidDecision;
         if (sim.ActiveControl >= sim.Controls.Length) return CommandRejection.NotActiveController;
         var seat = sim.Controls[sim.ActiveControl];
         return CorpsControl.Authorize(Snapshot, seat, context, command);
@@ -492,11 +515,11 @@ public sealed class SimulationEngine
     {
         GameClock next = previous.Advance();
         while (mutation.Clock != next && mutation.Simulation.Boundary != SimulationBoundary.Terminal &&
-            mutation.Simulation.PendingDailyTask is null)
+            mutation.Simulation.PendingDailyTask is null && mutation.Simulation.PendingDuel is null)
             _pipeline.AdvanceDay(mutation, events, previous);
-        if (mutation.Simulation.Boundary != SimulationBoundary.Terminal && mutation.Simulation.PendingDailyTask is null)
+        if (mutation.Simulation.Boundary != SimulationBoundary.Terminal && mutation.Simulation.PendingDailyTask is null && mutation.Simulation.PendingDuel is null)
             _pipeline.Prepare(mutation, events);
-        if (mutation.Clock == next && mutation.Simulation.PendingDailyTask is null)
+        if (mutation.Clock == next && mutation.Simulation.PendingDailyTask is null && mutation.Simulation.PendingDuel is null)
             events.Add(new XunAdvancedEvent(previous, mutation.Clock));
     }
 }

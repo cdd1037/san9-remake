@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using San9.Core.Domain;
 
 namespace San9.Core.Simulation;
@@ -81,13 +82,16 @@ internal static class MilitaryCombat
         return targetCanReply ? MapCoordinates.UnitsPerCell : reach;
     }
 
-    internal static void AdvanceDay(WorldMutation world, SimulationRules rules, List<DomainEvent> events)
+    internal static void AdvanceDay(WorldMutation world, SimulationRules rules, List<DomainEvent> events,
+        GameClock? xunStarted = null, CombatDayContinuation? continuation = null)
     {
         if (rules.Military is not { } military) return;
-        var used = new HashSet<int>();
-        var buildingsUsed = new HashSet<int>();
-        foreach (int id in world.Units.Keys.Order().ToArray())
+        var used = (continuation?.UsedUnits ?? []).ToHashSet();
+        var buildingsUsed = (continuation?.UsedBuildings ?? []).ToHashSet();
+        var units = continuation?.RemainingUnits ?? world.Units.Keys.Order().ToImmutableArray();
+        for (int index = 0; index < units.Length; index++)
         {
+            int id = units[index];
             world.MaintainLeadership(events);
             if (world.Simulation.TerminalReason is not null) break;
             if (!world.Units.TryGetValue(id, out var attacker) || attacker.EffectiveOrder is not { IsAttack: true } order || attacker.Condition is UnitCondition.Confused or UnitCondition.Routed) continue;
@@ -129,8 +133,10 @@ internal static class MilitaryCombat
                 if (attackerLost) BattleAftermath.TerminateUnit(world, id, defenderLost ? null : new BattleSource(targetId, false), rules, events);
                 if (!attackerLost && !defenderLost)
                 {
-                    TacticCombat.TryUnit(world, id, order, rules, events);
-                    TacticCombat.TryUnit(world, targetId, new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = id }, rules, events, counter: true);
+                    CombatDayContinuation CaptureDay() => new(units.Skip(index + 1).ToImmutableArray(),
+                        used.Order().ToImmutableArray(), buildingsUsed.Order().ToImmutableArray());
+                    if (!FinishOpportunities(world, rules, events, xunStarted ?? world.Clock, CaptureDay, id, targetId,
+                        affectedForces.Order().ToImmutableArray())) return;
                 }
             }
             else
@@ -170,6 +176,46 @@ internal static class MilitaryCombat
             ResolutionPipeline.CheckConquest(world, events);
         }
         FacilityCombat.AdvanceDay(world, rules, used, buildingsUsed, events);
+    }
+
+    private static bool FinishOpportunities(WorldMutation world, SimulationRules rules, List<DomainEvent> events,
+        GameClock xunStarted, Func<CombatDayContinuation> captureDay, int attacker, int defender, ImmutableArray<int> affectedForces,
+        bool counterOnly = false)
+    {
+        for (int opportunity = counterOnly ? 1 : 0; opportunity < 2 && world.Simulation.TerminalReason is null; opportunity++)
+        {
+            bool counter = opportunity == 1;
+            var paused = DuelCombat.TryOpportunity(world, counter ? defender : attacker, counter ? attacker : defender, rules, events, counter);
+            if (paused is not { } waiting) continue;
+            int owner = world.Officers[waiting.Progress.PendingRulerId!.Value].OwnerId!.Value;
+            world.SetSimulation(world.Simulation with { Boundary = SimulationBoundary.AwaitingDecision,
+                PendingDuel = new(xunStarted, captureDay(), attacker, defender, affectedForces, counter,
+                    waiting.TacticReady, waiting.Progress, owner) });
+            return false;
+        }
+        return true;
+    }
+
+    internal static void ResumeDuel(WorldMutation world, SimulationRules rules, List<DomainEvent> events, int successorId)
+    {
+        var pending = world.Simulation.PendingDuel!;
+        var progress = DuelAftermath.Advance(world, pending.Aftermath, rules, events, successorId);
+        if (progress is not null)
+        {
+            world.SetSimulation(world.Simulation with { PendingDuel = pending with { Aftermath = progress,
+                RespondingForceId = world.Officers[progress.PendingRulerId!.Value].OwnerId!.Value } });
+            return;
+        }
+        world.SetSimulation(world.Simulation with { PendingDuel = null, Boundary = SimulationBoundary.Stable });
+        int source = pending.Counter ? pending.DefendingUnitId : pending.AttackingUnitId;
+        int target = pending.Counter ? pending.AttackingUnitId : pending.DefendingUnitId;
+        if (pending.TacticReady) TacticCombat.ResolveOpportunity(world, source,
+            new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = target }, rules, events);
+        if (!pending.Counter && !FinishOpportunities(world, rules, events, pending.XunStarted, () => pending.Day,
+            pending.AttackingUnitId, pending.DefendingUnitId, pending.AffectedForces, counterOnly: true)) return;
+        BattleAftermath.Reconcile(world, pending.AffectedForces.ToHashSet(), rules, events);
+        ResolutionPipeline.CheckConquest(world, events);
+        AdvanceDay(world, rules, events, pending.XunStarted, pending.Day);
     }
 
     private static bool Defeated(UnitState unit) => unit.Soldiers == 0 || unit.Morale == 0;

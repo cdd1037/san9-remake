@@ -15,26 +15,48 @@ internal static class TacticCombat
     internal static void TryUnit(WorldMutation world, int sourceId, MilitaryOrder target, SimulationRules rules,
         List<DomainEvent> events, bool counter = false)
     {
+        if (PrepareOpportunity(world, sourceId, target, rules, counter) == true)
+            ResolveOpportunity(world, sourceId, target, rules, events);
+    }
+
+    // The ordinary tactic roll precedes the independent duel attempt. Passive equipment is eligible here.
+    internal static bool? PrepareOpportunity(WorldMutation world, int sourceId, MilitaryOrder target, SimulationRules rules, bool counter)
+    {
+        var military = rules.Military!;
+        if (!world.Units.TryGetValue(sourceId, out var unit) || unit.Soldiers == 0 || unit.Morale == 0 ||
+            unit.Condition is UnitCondition.Confused or UnitCondition.Routed || unit.IsEmbedded || unit.IsPersonnel ||
+            unit.FormationId is not int formationId || military.Formations[formationId] is not { Tactics: { } profile } formation ||
+            !MilitaryCombat.ValidTarget(world, unit.OwnerId, target, formation, military) ||
+            !MilitaryCombat.Area(unit, military).IntersectsExpanded(MilitaryCombat.TargetArea(world, target, military), MilitaryCombat.UnitRange(world, unit, target, military))) return null;
+        if (!world.Officers.Values.Any(p => p.IsServing && p.OwnerId == unit.OwnerId && p.UnitId == sourceId &&
+            p.Injury == 0 && p.TacticCooldown == 0 && !p.Acted)) return null;
+        if (counter && !Roll(world, "military-tactic-counter", profile.CounterChance)) return null;
+        int cityBonus = formation.TravelMode == TravelMode.Land && military.HasCityInfluence(unit.OwnerId, unit.Position, world.Settlements.Values)
+            ? military.CityInfluence!.LandTacticBonus : 0;
+        return Roll(world, "military-tactic-opportunity", Math.Min(100, profile.OpportunityChance + cityBonus +
+            (unit.Condition == UnitCondition.HighSpirits ? 5 : 0)));
+    }
+
+    internal static void ResolveOpportunity(WorldMutation world, int sourceId, MilitaryOrder target, SimulationRules rules,
+        List<DomainEvent> events)
+    {
         var military = rules.Military!;
         if (!world.Units.TryGetValue(sourceId, out var unit) || unit.Soldiers == 0 || unit.Morale == 0 ||
             unit.Condition is UnitCondition.Confused or UnitCondition.Routed || unit.IsEmbedded || unit.IsPersonnel ||
             unit.FormationId is not int formationId || military.Formations[formationId] is not { Tactics: { } profile } formation ||
             !MilitaryCombat.ValidTarget(world, unit.OwnerId, target, formation, military) ||
             !MilitaryCombat.Area(unit, military).IntersectsExpanded(MilitaryCombat.TargetArea(world, target, military), MilitaryCombat.UnitRange(world, unit, target, military))) return;
-        var members = world.Officers.Values.Where(p => p.IsServing && p.OwnerId == unit.OwnerId && p.UnitId == unit.Id)
-            .OrderBy(p => unit.MemberRanks.GetValueOrDefault(p.Id, BattleRank.Middle)).ThenBy(p => p.Id).ToArray();
-        var candidates = members.Where(p => p.Injury == 0 && p.TacticCooldown == 0)
+        if (world.Simulation.TerminalReason is not null) return;
+        var members = IntelligenceTactics.Defenders(world, new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = unit.Id });
+        var candidates = members.OrderBy(p => unit.MemberRanks.GetValueOrDefault(p.Id, BattleRank.Middle)).ThenBy(p => p.Id)
+            .Where(p => p.Injury == 0 && p.TacticCooldown == 0 && !p.Acted)
             .Select(p => new { Officer = p, Tactic = ChooseTactic(world, p, unit.OwnerId, formation, target, rules) })
             .Where(p => p.Tactic is not null).Select(p => new Participant(p.Officer, p.Tactic!)).ToArray();
-        if (candidates.Length == 0 || counter && !Roll(world, "military-tactic-counter", profile.CounterChance)) return;
-        int cityBonus = formation.TravelMode == TravelMode.Land && military.HasCityInfluence(unit.OwnerId, unit.Position, world.Settlements.Values)
-            ? military.CityInfluence!.LandTacticBonus : 0;
-        int chance = Math.Min(100, profile.OpportunityChance + cityBonus + (unit.Condition == UnitCondition.HighSpirits ? 5 : 0));
-        if (!Roll(world, "military-tactic-opportunity", chance)) return;
+        if (candidates.Length == 0) return;
         Participant? primary = null;
         int intelligenceEffect = 0;
         var selection = !profile.AutomaticTactics.IsEmpty
-            ? new[] { candidates[(int)(world.NextRandom("military-tactic-member") % (uint)candidates.Length)] } : candidates;
+            ? new[] { candidates.OrderBy(p => p.Officer.Id).ElementAt((int)(world.NextRandom("military-tactic-member") % (uint)candidates.Length)) } : candidates;
         foreach (var candidate in selection)
         {
             if (profile.AutomaticTactics.IsEmpty && !Roll(world, "military-tactic-member", AllocationChance(unit.MemberRanks[candidate.Officer.Id],
@@ -78,8 +100,7 @@ internal static class TacticCombat
             : original.Tactic.Effect != TacticEffect.Defection && world.Settlements[target.SettlementId!.Value] is var place &&
                 place.Soldiers > 0 && place.Morale > 0 && place.ConfusionDaysRemaining > 0;
         if (!triggered) return;
-        var members = world.Officers.Values.Where(p => p.IsServing && p.OwnerId == unit.OwnerId && p.UnitId == unit.Id)
-            .OrderBy(p => p.Id).ToArray();
+        var members = IntelligenceTactics.Defenders(world, new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = unit.Id });
         var candidates = members.Where(p => p.Id != original.Officer.Id && p.Injury == 0 && p.TacticCooldown == 0)
             .Select(p => new { Officer = p, Tactic = ChooseTactic(world, p, unit.OwnerId, formation, target, rules, equippedOnly: true) })
             .Where(p => p.Tactic?.Effect == TacticEffect.Martial).Select(p => new Participant(p.Officer, p.Tactic!)).ToArray();
@@ -96,7 +117,7 @@ internal static class TacticCombat
         var military = rules.Military!;
         var profile = military.Formations[unit.FormationId!.Value].Tactics!;
         List<Participant> participants = [primary];
-        foreach (var other in candidates.Where(p => p.Officer.Id != primary.Officer.Id && p.Tactic.Effect == TacticEffect.Martial && p.Tactic.Category == primary.Tactic.Category))
+        foreach (var other in candidates.OrderBy(p => p.Officer.Id).Where(p => p.Officer.Id != primary.Officer.Id && p.Tactic.Effect == TacticEffect.Martial && p.Tactic.Category == primary.Tactic.Category))
         {
             int linkChance = military.LinkRules.Chance(primary.Officer, other.Officer, profile);
             if (Roll(world, "military-tactic-link", linkChance)) participants.Add(other);
@@ -191,15 +212,15 @@ internal static class TacticCombat
     internal static void Grow(WorldMutation world, OfficerState[] members, IReadOnlyList<int> participants, TacticRule tactic, List<DomainEvent> events, TacticRule? learning = null)
     {
         members = members.Where(p => world.Officers.TryGetValue(p.Id, out var current) && current.IsServing &&
-            current.OwnerId == p.OwnerId && current.UnitId == p.UnitId && current.SettlementId == p.SettlementId).ToArray();
-        participants = participants.Where(id => members.Any(p => p.Id == id)).ToArray();
+            current.OwnerId == p.OwnerId && current.UnitId == p.UnitId && current.SettlementId == p.SettlementId).OrderBy(p => p.Id).ToArray();
+        participants = participants.Where(id => members.Any(p => p.Id == id)).Distinct().Order().ToArray();
         if (participants.Count == 0) return;
         int category = tactic.Category!.Value;
         var actor = world.Officers[participants[(int)(world.NextRandom("military-tactic-growth-member") % (uint)participants.Count)]];
         OfficerAbilityGrowth.TryIncrease(world, actor.Id,
             category is 7 or 8 ? OfficerAbility.Intelligence : OfficerAbility.War,
             "military-tactic-growth", events);
-        foreach (var original in members.OrderBy(p => p.Id))
+        foreach (var original in members)
             OfficerTacticGrowth.Increase(world, original.Id, category, 3, events);
         if (learning is not null || tactic.Selectable) BattleLearning.Learn(world, members, learning ?? tactic, events);
     }

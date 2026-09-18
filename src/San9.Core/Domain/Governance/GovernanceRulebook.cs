@@ -38,12 +38,12 @@ public sealed class GovernanceRulebook
     public OfficerState? SelectCommander(IEnumerable<OfficerState> candidates, IReadOnlyDictionary<int, OfficerAbilities> abilities) =>
         OrderCommanders(candidates, abilities).FirstOrDefault();
 
-    // Equal priorities retain the supplied enumeration order; there is no additional identity ranking.
+    // Stable identity breaks ties independently of collection or command input order.
     public IOrderedEnumerable<OfficerState> OrderCommanders(IEnumerable<OfficerState> candidates, IReadOnlyDictionary<int, OfficerAbilities> abilities) => candidates.Where(p => p.IsServing)
         .OrderByDescending(p => p.Status == OfficerStatus.Ruler).ThenByDescending(p => p.Status == OfficerStatus.Governor)
         .ThenByDescending(p => Office(p)?.CommandCapacity / 1000 ?? 10)
         .ThenByDescending(p => Office(p) is { CommandCapacity: > 10000 } office ? office.Priority : 0)
-        .ThenByDescending(p => abilities[p.Id].Leadership);
+        .ThenByDescending(p => abilities[p.Id].Leadership).ThenBy(p => p.Id);
 
     public OfficerState? SelectGovernor(IEnumerable<OfficerState> candidates, IReadOnlyDictionary<int, OfficerAbilities> abilities)
     {

@@ -40,9 +40,9 @@ public sealed class WarfareAuditAlignmentTests
         [new(11, 1, null, new(80, 80, 80, 80), false) { UnitId = 1 },
          new(21, 2, null, new(80, 80, 80, 80), false) { UnitId = 2 }],
         units: [new(1, 1, new(22, 7), 10000) { FormationId = 101, Morale = 100,
-                    OrderClass = UnitOrderClass.Military, MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(11, BattleRank.Middle) },
+                    CommanderId = 11, OrderClass = UnitOrderClass.Military, MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(11, BattleRank.Middle) },
                 new(2, 2, new(52, 7), 10000) { FormationId = 101, Morale = 100,
-                    MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(21, BattleRank.Middle) }]).BeginMutation();
+                    CommanderId = 21, MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(21, BattleRank.Middle) }]).BeginMutation();
 
     [Theory]
     [InlineData(100, 1, UnitOrderClass.Military, true, 70)]

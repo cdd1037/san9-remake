@@ -18,7 +18,6 @@ public sealed record UnitState(int Id, int OwnerId, [property: JsonRequired] Wor
     [JsonRequired] public MovementPlan? MovementPlan { get; init; }
     [JsonRequired] public UnitPolicies Policies { get; init; } = new();
     [JsonRequired] public int? CommanderId { get; init; }
-    [JsonRequired] public System.Collections.Immutable.ImmutableArray<int> MemberOrder { get; init; } = [];
     [JsonRequired] public int? EngagementTargetId { get; init; }
     [JsonRequired] public bool AwaitingPostAction { get; init; }
     [System.Text.Json.Serialization.JsonIgnore] public MilitaryOrder? EffectiveOrder => Condition == UnitCondition.Disguised
@@ -46,8 +45,6 @@ public sealed record UnitState(int Id, int OwnerId, [property: JsonRequired] Wor
         Enum.IsDefined(OrderClass) && Enum.IsDefined(Condition) && ConditionDaysRemaining >= 0 && FormationId is not < 0 && Morale is >= 0 and <= 100 && Wounded <= MilitaryRulebook.WoundedCapacity &&
         (!HighSpiritsMoralePenaltyPending || Condition == UnitCondition.HighSpirits) &&
         Policies is not null && CommanderId is not < 0 && EngagementTargetId is not < 0 && EngagementTargetId != Id &&
-        !MemberOrder.IsDefault && MemberOrder.All(id => id >= 0) && MemberOrder.Distinct().Count() == MemberOrder.Length &&
-        (MemberOrder.IsEmpty ? CommanderId is null : CommanderId == MemberOrder[0]) &&
         (!AwaitingPostAction || Order is null) &&
         (FormationId is not null || EngagementTargetId is null && !AwaitingPostAction && CommanderId is null) &&
         MemberRanks is not null && MemberRanks.All(p => p.Key >= 0 && Enum.IsDefined(p.Value)) &&

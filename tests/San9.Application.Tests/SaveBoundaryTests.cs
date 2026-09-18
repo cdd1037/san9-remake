@@ -13,7 +13,7 @@ public sealed class SaveBoundaryTests
         var session = GameSession.Start(definition, 42);
         var bytes = SaveService.Encode(session);
         var simulation = JsonNode.Parse(bytes)!["session"]!["world"]!["simulation"]!.AsObject();
-        foreach (string field in new[] { "pendingAlliance", "pendingDailyTask", "pendingTacticStudy", "pendingExecutionSuccession" })
+        foreach (string field in new[] { "pendingDuel", "pendingAlliance", "pendingDailyTask", "pendingTacticStudy", "pendingExecutionSuccession" })
             Assert.False(simulation.ContainsKey(field));
         Assert.Equal(session.Capture().StateHash, SaveService.Decode(bytes, definition).Capture().StateHash);
 
@@ -26,6 +26,7 @@ public sealed class SaveBoundaryTests
     }
 
     [Theory]
+    [InlineData("pendingDuel")]
     [InlineData("pendingAlliance")]
     [InlineData("pendingDailyTask")]
     [InlineData("pendingTacticStudy")]

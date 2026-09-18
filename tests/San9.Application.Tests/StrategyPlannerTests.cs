@@ -55,9 +55,9 @@ public sealed class StrategyPlannerTests
                 new("enemy-officer", new OfficerState(22, 2, 2, new(50, 50, 50, 50), false).WithLoyalty(2, 80)),
                 new("enemy-commander", new(23, 2, null, new(50, 50, 50, 50), false) { UnitId = 20 }),
                 new("third-ruler", new(31, 3, 3, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler })],
-            Units = [new(10, 1, new(12, 7), 5000) { FormationId = 7, Morale = 70, CommanderId = 3, MemberOrder = [3],
+            Units = [new(10, 1, new(12, 7), 5000) { FormationId = 7, Morale = 70, CommanderId = 3,
                     Order = new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 20 } },
-                new(20, 2, new(42, 7), 5000) { FormationId = 7, Morale = 70, CommanderId = 23, MemberOrder = [23] }],
+                new(20, 2, new(42, 7), 5000) { FormationId = 7, Morale = 70, CommanderId = 23, }],
             Military = new(30, 3, Enumerable.Repeat(0, 90).ToImmutableArray(), [new(0, 1, null)],
                 [new(7, 1, 0, 10000, 5, new(1, 1), TravelMode.Land)],
                 [new(1, new(2, 7), new(1, 1)), new(2, new(52, 7), new(1, 1)), new(3, new(102, 7), new(1, 1))])

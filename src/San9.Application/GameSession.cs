@@ -74,6 +74,8 @@ public sealed class GameSession
     public WorldSnapshot Snapshot => _simulation.Snapshot;
     public TacticStudyPrompt? GetTacticStudyPrompt() => _simulation.GetTacticStudyPrompt();
 
+    public DuelSuccessionPrompt? GetDuelSuccessionPrompt() => _simulation.GetDuelSuccessionPrompt();
+
     public ExecutionSuccessionPrompt? GetExecutionSuccessionPrompt() => _simulation.GetExecutionSuccessionPrompt();
     internal GameCommand ChooseDiplomacy(ControlSeat seat, Guid commandId) => DiplomacyPlanner.Choose(_simulation, seat, commandId);
     public CommandAdvice GetSurrenderAdvice(int forceId, int officerId, int targetForceId) =>

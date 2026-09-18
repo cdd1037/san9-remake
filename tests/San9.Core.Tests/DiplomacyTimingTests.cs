@@ -41,6 +41,69 @@ public sealed class DiplomacyTimingTests
         return engine.AdvanceXun();
     }
 
+    public static IEnumerable<object[]> GrowthCases()
+    {
+        for (int kind = 0; kind < 3; kind++)
+        {
+            yield return [kind, true, 99];
+            yield return [kind, false, 99];
+            yield return [kind, true, 100];
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(GrowthCases))]
+    public void DiplomacyGrowthOccursOnlyAtSuccessfulSettlement(int kind, bool accept, int politics)
+    {
+        var world = World(new(190, 1, 1));
+        var mutation = world.BeginMutation();
+        mutation.Replace(mutation.Officers[12] with
+        { BaseAbilities = mutation.Officers[12].BaseAbilities with { Politics = politics } });
+        mutation.SetSimulation(mutation.Simulation with { RandomStreams = [new("diplomacy-politics-growth", 52)] });
+        world.Commit(mutation);
+        var rules = Rules(90);
+        var engine = new SimulationEngine(world, rules);
+        Assert.True(engine.Execute(new("first"), Command(kind)).Submission.Accepted);
+        var restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()), rules);
+        var quoteId = Guid.NewGuid();
+        var answerId = Guid.NewGuid();
+
+        IReadOnlyList<DomainEvent> Settle(SimulationEngine current)
+        {
+            Assert.DoesNotContain(Advance(current).Events, e => e is OfficerAbilityGrownEvent);
+            var task = Assert.Single(current.Snapshot.Simulation.Tasks);
+            var response = new RespondDailyTaskCommand(quoteId, 2, 1, task.Id, 0, kind == 0 ? accept : true)
+                { Offer = kind == 0 ? null : new(CompensationKind.Money, 100, null, null) };
+            var result = current.Execute(new("second"), response);
+            Assert.True(result.Submission.Accepted);
+            if (kind != 0)
+            {
+                Assert.DoesNotContain(result.Events, e => e is OfficerAbilityGrownEvent);
+                Assert.Equal(52UL, current.Snapshot.Simulation.RandomStreams.Single(s => s.Name == "diplomacy-politics-growth").State);
+                result = current.Execute(new("first"), new RespondDailyTaskCommand(answerId, 1, 2, task.Id, 1, accept));
+                Assert.True(result.Submission.Accepted);
+            }
+            return result.Events;
+        }
+
+        var events = Settle(engine);
+        Assert.Equal(CanonicalJson.Text(events), CanonicalJson.Text(Settle(restored)));
+        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        bool grows = accept && politics < 100;
+        var growth = events.OfType<OfficerAbilityGrownEvent>().ToArray();
+        if (grows)
+        {
+            var actual = Assert.Single(growth);
+            Assert.Equal(new OfficerAbilityGrownEvent(actual.Clock, 12, "politics", 99, 100), actual);
+        }
+        else Assert.Empty(growth);
+        Assert.Equal(grows ? 100 : politics, engine.Snapshot.Officers.Single(p => p.Id == 12).BaseAbilities.Politics);
+        var random = new StableRandom(52);
+        random.NextUInt64();
+        Assert.Equal(grows ? random.State : 52UL,
+            engine.Snapshot.Simulation.RandomStreams.Single(s => s.Name == "diplomacy-politics-growth").State);
+    }
+
     private sealed class DialogRules : SimulationRules
     {
         internal override TaskRule? FindTask(string kind) => kind == "dialog-fixture" ? new DialogRule() : base.FindTask(kind);

@@ -35,9 +35,9 @@ public sealed class UnitLeadershipTests
     }
 
     [Fact]
-    public void EqualKeysPreserveInputOrderRatherThanOfficerIdentity()
+    public void EqualKeysUseIdentityRegardlessOfInputOrder()
     {
-        Assert.Equal([90, 10, 50], Ordered(new([]), Person(90, 70), Person(10, 70), Person(50, 70)));
+        Assert.Equal([10, 50, 90], Ordered(new([]), Person(90, 70), Person(10, 70), Person(50, 70)));
     }
 
     private static MilitaryRulebook Military() => new(new(4, 2, Enumerable.Repeat(0, 8).ToImmutableArray(),
@@ -64,7 +64,6 @@ public sealed class UnitLeadershipTests
         var engine = Deploy(out _, out _, Person(90, 70, 9000), Person(10, 60, 8000));
         var unit = Assert.Single(engine.Snapshot.Units);
         Assert.Equal(10, unit.CommanderId);
-        Assert.Equal([10, 90], unit.MemberOrder.ToArray());
         Assert.Equal(BattleRank.Front, unit.MemberRanks[90]);
         Assert.Equal(BattleRank.Middle, unit.MemberRanks[10]);
     }
@@ -83,7 +82,7 @@ public sealed class UnitLeadershipTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void LostCommanderUsesOfficePriorityAndStableMemberOrderAfterRestore(bool restore)
+    public void LostCommanderUsesOfficePriorityAndIdentityTieBreakAfterRestore(bool restore)
     {
         var engine = Deploy(out var world, out var governance, Person(70, 95, 9000), Person(90, 60, 9000), Person(10, 60, 9000));
         if (restore) world = WorldState.Restore(engine.CaptureStableState());
@@ -92,8 +91,7 @@ public sealed class UnitLeadershipTests
         var person = mutation.Officers[70];
         mutation.Replace(person with { UnitId = null, SettlementId = 1 });
         mutation.MaintainLeadership([]);
-        Assert.Equal(90, mutation.Units[unit.Id].CommanderId);
-        Assert.Equal([90, 10], mutation.Units[unit.Id].MemberOrder.ToArray());
+        Assert.Equal(10, mutation.Units[unit.Id].CommanderId);
         Assert.DoesNotContain(70, mutation.Units[unit.Id].MemberRanks.Keys);
         world.Commit(mutation);
     }

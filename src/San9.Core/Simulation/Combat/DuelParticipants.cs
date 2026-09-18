@@ -13,13 +13,13 @@ internal static class DuelParticipants
             attacker.FormationId is not int attackFormation || defender.FormationId is not int defenseFormation ||
             rules.Formations[attackFormation].TravelMode != TravelMode.Land || rules.Formations[defenseFormation].TravelMode != TravelMode.Land ||
             rules.Map.IsWater(attacker.Position) || rules.Map.IsWater(defender.Position)) return null;
-        OfficerState[] Front(UnitState unit) => unit.MemberOrder.Select(id => world.Officers[id])
-            .Where(p => p.IsServing && p.OwnerId == unit.OwnerId && p.UnitId == unit.Id && unit.MemberRanks[p.Id] == BattleRank.Front).ToArray();
+        OfficerState[] Front(UnitState unit) => world.Officers.Values
+            .Where(p => p.IsServing && p.OwnerId == unit.OwnerId && p.UnitId == unit.Id && unit.MemberRanks[p.Id] == BattleRank.Front).OrderBy(p => p.Id).ToArray();
         var attackFront = Front(attacker);
         var defenseFront = Front(defender);
         var first = attackFront.Where(p => p.Injury == 0 && p.TacticCooldown == 0 && !p.Acted && p.Personality != 3)
-            .OrderByDescending(p => world.Abilities(p).War).FirstOrDefault();
-        var second = defenseFront.Where(p => p.Injury == 0).OrderByDescending(p => world.Abilities(p).War).FirstOrDefault();
+            .OrderByDescending(p => world.Abilities(p).War).ThenBy(p => p.Id).FirstOrDefault();
+        var second = defenseFront.Where(p => p.Injury == 0).OrderByDescending(p => world.Abilities(p).War).ThenBy(p => p.Id).FirstOrDefault();
         if (first is null || second is null) return null;
         long chance = 3L * (rules.Formations[attackFormation].DoublesDuelChance ? 2 : 1) * attackFront.Length;
         if (chance < 100 && world.NextRandom("duel-trigger") % 100 >= (ulong)chance) return null;
@@ -34,7 +34,7 @@ internal static class DuelParticipants
                 int support = rules.LinkRules.Chance(initial, candidate, formation.Tactics?.LinkMultiplier ?? 2);
                 if (support > 0 && (support >= 100 || world.NextRandom("duel-support") % 100 < (uint)support)) selected.Add(candidate);
             }
-            return selected.OrderByDescending(p => world.Abilities(p).War).Select(p => p.Id).Prepend(initial.Id).ToImmutableArray();
+            return selected.OrderByDescending(p => world.Abilities(p).War).ThenBy(p => p.Id).Select(p => p.Id).Prepend(initial.Id).ToImmutableArray();
         }
         return new(attacker.Id, defender.Id, Roster(first, attackFront, rules.Formations[attackFormation]),
             Roster(second, defenseFront, rules.Formations[defenseFormation]));

@@ -40,7 +40,7 @@ public sealed class PrisonerExecutionRulesTests
         Assert.Equal(OfficerStatus.Dead, dead.Status);
         Assert.Null(dead.UnitId);
         Assert.Null(dead.SettlementId);
-        Assert.Equal(new[] { 4 }, Assert.Single(engine.Snapshot.Units).MemberOrder);
+        Assert.Equal(4, Assert.Single(engine.Snapshot.Units).CommanderId);
         Assert.NotNull(WorldState.Restore(engine.CaptureStableState()));
     }
 }

@@ -36,6 +36,9 @@ public sealed class SimulationEngine
         MilitaryMovement.Validate(world.CreateSnapshot(), rules.Military);
         rules.Economy.Validate();
         _pipeline = new(rules);
+        if (rules.Personnel.TacticCourses.Any(c => !world.CreateSnapshot().Settlements.Any(s => s.Id == c.Key && s.Kind == SettlementKind.City) ||
+            rules.Military is null || !rules.Military.Tactics.TryGetValue(c.Value, out var tactic) || tactic.Category is not (>= 0 and <= 8)))
+            throw new ArgumentException("Invalid tactic study course.");
         var initial = world.BeginMutation(rules.Abilities);
         if (initial.Corps.Values.Any(c => !CorpsDelegations.Valid(initial, c, rules.Military)))
             throw new ArgumentException("Invalid corps delegation target.");
@@ -43,6 +46,8 @@ public sealed class SimulationEngine
             if (rules.FindTask(task.Kind) is not TaskRule rule || !rule.SupportsResolutionStep(task.ResolutionStep) ||
                 !rule.HasValidPayload(task) || rule.DurationDays(task) != task.Due.DayNumber - task.Started.DayNumber)
                 throw new ArgumentException($"Unsupported or invalid task '{task.Kind}'.");
+        if (world.Simulation.PendingTacticStudy is { } study && TacticStudy.Candidates(initial, rules, study.CityId).IsEmpty)
+            throw new ArgumentException("Invalid tactic study candidates.");
         if (world.Simulation.PendingDailyTask is { } pending)
         {
             var task = world.Simulation.Tasks.Single(t => t.Id == pending.RemainingTaskIds[0]);
@@ -72,6 +77,12 @@ public sealed class SimulationEngine
 
     public IReadOnlyList<DomainEvent> InitialEvents { get; } = Array.Empty<DomainEvent>();
     public WorldSnapshot Snapshot => _world.CreateSnapshot();
+    public TacticStudyPrompt? GetTacticStudyPrompt()
+    {
+        if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
+        return TacticStudy.Prompt(_world.BeginMutation(_rules.Abilities), _rules);
+    }
+
     public ExecutionSuccessionPrompt? GetExecutionSuccessionPrompt()
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
@@ -193,6 +204,12 @@ public sealed class SimulationEngine
             DevelopmentOutcome? development = null;
             switch (command)
             {
+                case ChooseTacticStudentCommand student:
+                    var studyRejection = TacticStudy.Respond(mutation, student, _rules, events);
+                    if (studyRejection != CommandRejection.None) return Reject(studyRejection);
+                    if (mutation.Simulation.PendingTacticStudy is null)
+                        _pipeline.Prepare(mutation, events, ResolutionStage.QuarterStudyOffers);
+                    break;
                 case ExecutePrisonerCommand execution:
                     var executionRejection = PrisonerExecution.Start(mutation, execution, _rules, events);
                     if (executionRejection != CommandRejection.None) return Reject(executionRejection);
@@ -402,6 +419,13 @@ public sealed class SimulationEngine
         if (_world.Simulation.Tasks.Any(t => t.Id == command.CommandId)) return CommandRejection.DuplicateCommandId;
         if (command.Sequence != _world.Simulation.NextSequence) return CommandRejection.WrongSequence;
         var sim = _world.Simulation;
+        if (sim.PendingTacticStudy is { } study)
+        {
+            if (command is not ChooseTacticStudentCommand) return CommandRejection.DecisionPending;
+            return study.RespondingForceId == command.IssuerId && sim.Controls.Any(c => c.ForceId == command.IssuerId &&
+                c.Kind == ControllerKind.Player && c.ControllerId == context.ControllerId)
+                ? CommandRejection.None : CommandRejection.NotActiveController;
+        }
         if (sim.PendingExecutionSuccession is { } succession)
         {
             if (command is not ChooseExecutionSuccessorCommand) return CommandRejection.DecisionPending;
@@ -425,7 +449,7 @@ public sealed class SimulationEngine
                 ? CommandRejection.None : CommandRejection.NotActiveController;
         }
         if (sim.Boundary != SimulationBoundary.Stable) return CommandRejection.NotStable;
-        if (command is AllianceParticipationCommand or RespondDailyTaskCommand or ChooseExecutionSuccessorCommand) return CommandRejection.InvalidDecision;
+        if (command is AllianceParticipationCommand or RespondDailyTaskCommand or ChooseExecutionSuccessorCommand or ChooseTacticStudentCommand) return CommandRejection.InvalidDecision;
         if (sim.ActiveControl >= sim.Controls.Length) return CommandRejection.NotActiveController;
         var seat = sim.Controls[sim.ActiveControl];
         return CorpsControl.Authorize(Snapshot, seat, context, command);

@@ -35,7 +35,7 @@ Application把当前世界与复制后的名称/显示定义组合成`StrategySn
 
 ## 已接入规则
 
-G09进行中：`OfficerInjuryRecovery`在旬世界更新中将人物非零伤势减1，输出`OfficerInjuryRecoveredEvent`。`OfficerAppearance`区分新局到年隐藏安置与年度亲代／血缘归属，使用`AppearanceYear`、`BloodlineId`及模拟状态的`AnnualAppearancesEnabled`，输出`OfficerAppearedEvent`。稳定边界恢复不重复执行；有效能力与人物可见性沿原有查询更新。战争中的异民族死亡已复用`OfficerDeath`统一人员移除与宝物结算，并发出死亡／掉落事件。`NaturalMortality`接入季度自然死亡，`RulerSuccession`处理自动继任及子军团转直属；寿命、继任优先值及自然死亡开关贯通内容与保存。`PrisonerExecution`接入处决与可保存的玩家继任选择，响应后原子结算并返回执行方轮次；完整成长、单挑及其玩家继任选择尚未完成，当前范围与验证见[G09](g09-verification.md)。
+G09进行中：`OfficerInjuryRecovery`在旬世界更新中将人物非零伤势减1，输出`OfficerInjuryRecoveredEvent`。`OfficerAppearance`区分新局到年隐藏安置与年度亲代／血缘归属，使用`AppearanceYear`、`BloodlineId`及模拟状态的`AnnualAppearancesEnabled`，输出`OfficerAppearedEvent`。稳定边界恢复不重复执行；有效能力与人物可见性沿原有查询更新。战争中的异民族死亡已复用`OfficerDeath`统一人员移除与宝物结算，并发出死亡／掉落事件。`NaturalMortality`接入季度自然死亡，`RulerSuccession`处理自动继任及子军团转直属；寿命、继任优先值及自然死亡开关贯通内容与保存。`PrisonerExecution`接入处决与可保存的玩家继任选择，响应后原子结算并返回执行方轮次；`FreeOfficerMigration`在经过30日后逐旬处理在野迁移，地点变化同步取消失效任务，恢复不重复执行；`TacticStudy`通过可保存的季度报名选择创建90日人员任务，在下季报名之后、自然死亡之前直接授予；完整成长、单挑及其玩家继任选择尚未完成，当前范围与验证见[G09](g09-verification.md)。
 
 G08已接入：`SimulationState.Alliance`唯一保存当前联盟目标、盟主、成员和剩余旬数，内容初始联盟经Application建局后沿快照、摘要、存档和录像传递。`AllianceDiplomacy`处理旬到期与势力退出，军事公共敌对查询拒绝联盟成员之间攻击；`ForceRelations`统一有界对称关系写回。八类计略均已接入公共命令、只读意见、类型化任务、日级效果和返程；`PersonnelJourney`保存目标位置及各命令载荷，流言额外保存两个目标势力身份。`PersistentTask.Reinforcements`保存救援在途兵数、士气与遣散城市，去返程之间转移唯一载荷；到达入库、返城超额及任务失效由运输与遣散服务结清。夺取复用宝物转移、俘虏恢复和资源账户服务，流言复用关系与忠诚服务。季度形成以`PendingAlliance`保存玩家回答；四类外交使用`PendingDailyTask`及任务阶段号保存旬边界谈判和剩余队列。赠与预付款、俘虏补偿、请求期限与劝降归并均由Core清算；`DiplomacyPlanner`与`StrategyPlanner`只生成公共命令，自动军团使用本军团控制权限。完整覆盖与实际验证见[G08](g08-verification.md)。
 

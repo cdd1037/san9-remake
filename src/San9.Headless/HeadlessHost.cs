@@ -298,11 +298,13 @@ public sealed class HeadlessHost
             {
                 Checkpoint("player-decision");
                 var state = _session.Snapshot.Simulation;
-                int force = state.PendingExecutionSuccession?.RespondingForceId ?? state.PendingDailyTask?.RespondingForceId ?? state.PendingAlliance!.RespondingForceId!.Value;
+                int force = state.PendingTacticStudy?.RespondingForceId ?? state.PendingExecutionSuccession?.RespondingForceId ?? state.PendingDailyTask?.RespondingForceId ?? state.PendingAlliance!.RespondingForceId!.Value;
                 var seat = state.Controls.Single(c => c.ForceId == force);
                 var request = _session.Request(new EndControlOperation(), seat.ControllerId);
                 GameCommand answer;
-                if (_session.GetExecutionSuccessionPrompt() is { } succession)
+                if (_session.GetTacticStudyPrompt() is { } study)
+                    answer = new ChooseTacticStudentCommand(request.Id, force, state.NextSequence, study.CityId, study.CandidateIds[0]);
+                else if (_session.GetExecutionSuccessionPrompt() is { } succession)
                     answer = new ChooseExecutionSuccessorCommand(request.Id, force, state.NextSequence, succession.RulerId, succession.CandidateIds[0]);
                 else if (state.PendingDailyTask is { } daily)
                 {

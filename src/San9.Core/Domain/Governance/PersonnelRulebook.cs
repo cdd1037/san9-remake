@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 namespace San9.Core.Domain;
 
 public sealed record PersonPlace(int Id, [property: JsonRequired] WorldPosition Position);
+public sealed record CityTacticCourse([property: JsonRequired] int CityId, [property: JsonRequired] int TacticId);
 public sealed record CityConnection(int FromCityId, int ToCityId);
 
 public enum PersonnelJourneyKind { Recruit, Move, Search }
@@ -13,9 +14,11 @@ public sealed class PersonnelRulebook
 {
     public static PersonnelRulebook Empty { get; } = new([]);
     public PersonnelRulebook(IEnumerable<PersonPlace> places, IReadOnlyDictionary<int, int>? regionCities = null,
-        IEnumerable<CityConnection>? cityConnections = null, IReadOnlyDictionary<int, int>? cityProvinces = null)
+        IEnumerable<CityConnection>? cityConnections = null, IReadOnlyDictionary<int, int>? cityProvinces = null, IEnumerable<CityTacticCourse>? tacticCourses = null)
     {
         Places = places.ToImmutableDictionary(p => p.Id);
+        TacticCourses = (tacticCourses ?? []).ToImmutableDictionary(c => c.CityId, c => c.TacticId);
+        if (TacticCourses.Any(c => !Places.ContainsKey(c.Key) || c.Value < 0)) throw new ArgumentException("Invalid tactic course.");
         RegionCities = (regionCities ?? ImmutableDictionary<int, int>.Empty).ToImmutableDictionary();
         CityConnections = (cityConnections ?? []).ToImmutableArray();
         CityProvinces = (cityProvinces ?? ImmutableDictionary<int, int>.Empty).ToImmutableDictionary();
@@ -27,6 +30,7 @@ public sealed class PersonnelRulebook
             throw new ArgumentException("Invalid personnel geography.");
     }
 
+    public ImmutableDictionary<int, int> TacticCourses { get; }
     public ImmutableDictionary<int, PersonPlace> Places { get; }
     public ImmutableDictionary<int, int> RegionCities { get; }
     public ImmutableArray<CityConnection> CityConnections { get; }

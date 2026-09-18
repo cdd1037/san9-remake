@@ -37,7 +37,7 @@ internal static class PrisonerRelease
             .OrderBy(s => PersonnelRulebook.JourneyDays(position, PersonnelLocations.Position(world, places, s.Id)))
             .ThenBy(s => s.Id).FirstOrDefault() : null;
         if (home is null && world.Forces.Values.Any(f => f.LeaderId == personId)) return CommandRejection.NoDestination;
-        var destinations = home is null ? PersonnelExile.Destinations(world, origin, places) : [];
+        var destinations = home is null ? PersonnelRelocation.Destinations(world, origin, places) : [];
         if (home is null && destinations.Length == 0) return CommandRejection.NoDestination;
         var control = home is null ? null : world.Simulation.Controls.FirstOrDefault(c => c.ForceId == person.OwnerId);
         string reason = departure switch

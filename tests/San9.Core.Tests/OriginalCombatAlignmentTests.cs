@@ -152,7 +152,7 @@ public sealed class OriginalCombatAlignmentTests
     {
         var state = World(); var rules = Rules(); var m = state.BeginMutation(); List<DomainEvent> events = [];
         m.Replace(m.Officers[11].WithLoyalty(1, loyalty));
-        Assert.Equal(new[] { 2, 4, 5 }, PersonnelExile.Destinations(m, 1, rules.Personnel));
+        Assert.Equal(new[] { 2, 4, 5 }, PersonnelRelocation.Destinations(m, 1, rules.Personnel));
         state.Commit(m);
         var saved = new SimulationEngine(state, rules).CaptureStableState();
         var first = WorldState.Restore(saved).BeginMutation();

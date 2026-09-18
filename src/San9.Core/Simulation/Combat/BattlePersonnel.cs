@@ -50,7 +50,7 @@ internal static class BattlePersonnel
             OfficerDeath.SettleTreasures(world, officerId, null, events);
             return;
         }
-        var candidates = originPlace is int place ? PersonnelExile.Destinations(world, place, places) : [];
+        var candidates = originPlace is int place ? PersonnelRelocation.Destinations(world, place, places) : [];
         int? destination = candidates.Length == 0 ? null : candidates[world.NextRandom("battle-personnel-placement") % (ulong)candidates.Length];
         PersonnelTransitions.CancelMissions(world, officerId, "battle-no-return-home", events, places, true);
         if (destination is not null && person.OwnerId is int previousOwner)

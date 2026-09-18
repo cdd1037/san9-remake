@@ -36,7 +36,9 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 61;
+    public const int CurrentSchemaVersion = 63;
+    [JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Domain.CityTacticCourse> TacticCourses { get; init; } = [];
+    [JsonRequired] public bool FreeOfficerMigrationEnabled { get; init; } = true;
     [JsonRequired] public bool AnnualAppearancesEnabled { get; init; } = true;
     [JsonRequired] public bool NaturalDeathsEnabled { get; init; } = true;
     [JsonRequired] public System.Collections.Immutable.ImmutableArray<AttackRequestInitialState> AttackRequests { get; init; } = [];
@@ -127,6 +129,11 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
         if (Settlements.Any(s => s.CorpsId < 0 || s.CorpsId is not null && s.OwnerId is null) ||
             Settlements.Where(s => s.CorpsId is not null).GroupBy(s => s.CorpsId).Any(g => g.Select(s => s.OwnerId).Distinct().Count() != 1))
             throw new InvalidDataException("Invalid direct corps ownership.");
+        if (TacticCourses.IsDefault || TacticCourses.Any(c => c is null ||
+            !Settlements.Any(s => s.Id == c.CityId && s.Kind == San9.Core.Domain.SettlementKind.City) ||
+            Military?.Tactics.Any(t => t.Id == c.TacticId && t.Category is >= 0 and <= 8) != true) ||
+            TacticCourses.Select(c => c.CityId).Distinct().Count() != TacticCourses.Length)
+            throw new InvalidDataException("Invalid city tactic courses.");
         var cityIds = Settlements.Where(s => s.Kind == San9.Core.Domain.SettlementKind.City).Select(s => s.Id).ToHashSet();
         if (CityProvinceIds is null || CityProvinceIds.Any(p => !cityIds.Contains(p.Key) || p.Value < 0))
             throw new InvalidDataException("Invalid city province membership.");

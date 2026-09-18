@@ -70,7 +70,7 @@ internal static class PrisonerReturnDiplomacy
         world.Officers.TryGetValue(id, out var person) && Origin(world, person, rules) is int origin &&
         rules.Personnel.Places.ContainsKey(origin) && (world.Settlements.Values.Any(s => s.OwnerId == person.OwnerId &&
             s.CanHostPersons && s.Durability > 0 && rules.Personnel.Places.ContainsKey(s.Id)) ||
-            !world.Forces.Values.Any(f => f.LeaderId == id) && PersonnelExile.Destinations(world, origin, rules.Personnel).Length > 0);
+            !world.Forces.Values.Any(f => f.LeaderId == id) && PersonnelRelocation.Destinations(world, origin, rules.Personnel).Length > 0);
 
     internal static bool Valid(WorldMutation world, PersistentTask task, SimulationRules rules) =>
         task.PrisonerReturn is { } mission && GiftDiplomacy.Target(world, task.ForceId, mission.TargetForceId) &&

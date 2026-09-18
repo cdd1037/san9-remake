@@ -100,11 +100,12 @@ internal static class WorldInvariants
             !sim.RandomStreams.Select(s => s.Name).SequenceEqual(sim.RandomStreams.Select(s => s.Name).Distinct().Order(StringComparer.Ordinal)))
             throw new ArgumentException("Invalid simulation boundary, control, sequence or random state.");
         int pendingDecisions = (sim.PendingAlliance is null ? 0 : 1) + (sim.PendingDailyTask is null ? 0 : 1) +
-            (sim.PendingExecutionSuccession is null ? 0 : 1);
+            (sim.PendingExecutionSuccession is null ? 0 : 1) + (sim.PendingTacticStudy is null ? 0 : 1);
         if (pendingDecisions > 1 || (sim.Boundary == SimulationBoundary.AwaitingDecision) != (pendingDecisions == 1))
             throw new ArgumentException("Decision boundary requires exactly one pending decision.");
         AllianceFormation.ValidatePending(state);
         PrisonerExecution.ValidatePending(state);
+        TacticStudy.ValidatePending(state);
         if (sim.PendingDailyTask is { } pending)
         {
             _ = new GameClock(pending.XunStarted.Year, pending.XunStarted.Month, pending.XunStarted.Day);
@@ -126,8 +127,12 @@ internal static class WorldInvariants
         if (sim.Tasks.Select(t => t.Id).Distinct().Count() != sim.Tasks.Length ||
             sim.Tasks.Select(t => t.OfficerId).Distinct().Count() != sim.Tasks.Length)
             throw new ArgumentException("Duplicate task identity or officer occupation.");
+        if (sim.Tasks.Where(t => t.Kind == TacticStudy.Kind).Select(t => t.OriginSettlementId).Distinct().Count() !=
+            sim.Tasks.Count(t => t.Kind == TacticStudy.Kind)) throw new ArgumentException("Duplicate city study.");
         foreach (var task in sim.Tasks)
         {
+            if ((task.Kind == TacticStudy.Kind) != (task.StudyTacticId is not null) || task.StudyTacticId < 0 || task.Kind == TacticStudy.Kind && task.Started.DayNumber - sim.Started.DayNumber < 30)
+                throw new ArgumentException("Invalid study task payload.");
             if (task.Surrender is { } surrender && (task.Kind != SurrenderDiplomacy.Kind || task.Gift is not null ||
                 task.PrisonerReturn is not null || task.AttackRequest is not null || !state.Forces.ContainsKey(surrender.TargetForceId) ||
                 surrender.TargetForceId == task.ForceId)) throw new ArgumentException("Invalid surrender mission.");

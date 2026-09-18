@@ -46,7 +46,7 @@ public static class ScenarioContentCompiler
         int Morale(int? owner, uint soldiers) => owner is int f && soldiers > 0 ? Math.Clamp((int)Math.Sqrt(forces[f].Trust) + 40, 0, 100) : 0;
         int? emperorCity = new ushort[] { 563, 564, 565 }.Select(code => persons.FirstOrDefault(p => p.BiographyResourceCode == code && p.StatusCode != 8))
             .FirstOrDefault(p => p is not null)?.LocationId;
-        int[] trainingCities = [0, 3, 8, 14, 17, 20, 25, 36, 42];
+        var trainingCities = TacticStudyContentCompiler.Compile(configuredRegionIds).Select(c => c.CityId).ToHashSet();
         List<SettlementInitialState> settlements = [];
         Dictionary<int, string> regions = [];
         Dictionary<int, int> regionCities = [];
@@ -121,6 +121,8 @@ public static class ScenarioContentCompiler
         { UnbuiltPlaces = personPlaces.Where(p => settlements.All(s => s.Id != p.Id)).Select(p => new San9.Core.Domain.PersonPlace(p.Id, San9.Core.Domain.MapCoordinates.Center(new(p.X, p.Y)))).ToImmutableArray(),
             FacilityNameSuffixKeys = suffixKeys,
             AnnualAppearancesEnabled = header.ScenarioModeCode is not (2 or 9),
+            FreeOfficerMigrationEnabled = header.ScenarioModeCode is not (2 or 9),
+            TacticCourses = header.ScenarioModeCode is 2 or 9 ? [] : TacticStudyContentCompiler.Compile(settlements.Select(s => s.Id).ToHashSet()),
             NaturalDeathsEnabled = header.ScenarioModeCode is not (1 or 2 or 9),
             CityProvinceIds = settlements.Where(s => s.Kind == San9.Core.Domain.SettlementKind.City)
                 .ToDictionary(s => s.Id, s => (int)cities[s.Id].AreaCode),

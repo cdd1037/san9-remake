@@ -128,7 +128,7 @@ public sealed class SimulationEngineTests
         List<ResolutionStage> expected = [ResolutionStage.TerminalCheck, ResolutionStage.XunEvents, ResolutionStage.XunUpdate];
         if (monthly) expected.Add(ResolutionStage.MonthEvents);
         expected.Add(ResolutionStage.AppearanceAndIndependence);
-        if (quarterly) expected.AddRange([ResolutionStage.QuarterPrelude, ResolutionStage.QuarterEvents, ResolutionStage.QuarterUpdate]);
+        if (quarterly) expected.AddRange([ResolutionStage.QuarterPrelude, ResolutionStage.QuarterEvents, ResolutionStage.QuarterStudyOffers, ResolutionStage.QuarterUpdate]);
         if (annual) expected.AddRange([ResolutionStage.AnnualAppearance, ResolutionStage.AnnualCleanup]);
         Assert.Equal(expected, stages.Skip(40).Select(s => s.Stage));
     }

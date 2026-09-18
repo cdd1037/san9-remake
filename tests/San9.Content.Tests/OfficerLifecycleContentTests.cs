@@ -42,12 +42,13 @@ public sealed class OfficerLifecycleContentTests
     [InlineData("bloodlineId")]
     [InlineData("annualAppearancesEnabled")]
     [InlineData("naturalDeathsEnabled")]
+    [InlineData("freeOfficerMigrationEnabled")]
     [InlineData("lifespanTier")]
     [InlineData("successionPriority")]
     public void MissingAppearanceInputsRejectOldOrIncompleteContent(string property)
     {
         var root = JsonNode.Parse(JsonSerializer.Serialize(Scenario(), ScenarioContentFiles.DataJsonOptions))!;
-        if (property is "annualAppearancesEnabled" or "naturalDeathsEnabled") root.AsObject().Remove(property);
+        if (property is "annualAppearancesEnabled" or "naturalDeathsEnabled" or "freeOfficerMigrationEnabled") root.AsObject().Remove(property);
         else root["officers"]![0]!["state"]!.AsObject().Remove(property);
         Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<ScenarioInitialState>(root.ToJsonString(), ScenarioContentFiles.DataJsonOptions));
     }

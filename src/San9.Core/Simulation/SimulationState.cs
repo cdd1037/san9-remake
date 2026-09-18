@@ -21,6 +21,7 @@ public sealed record DailyTaskDecision(
 public sealed record PersistentTask(Guid Id, string Kind, string ControllerId, int ForceId,
     int OfficerId, int OriginSettlementId, GameClock Started, GameClock Due, int ProgressDays, long Sequence)
 {
+    [JsonRequired] public int? StudyTacticId { get; init; }
     [JsonRequired] public int ResolutionStep { get; init; }
     [JsonRequired] public PersonnelJourney? Journey { get; init; }
     [JsonRequired] public ReinforcementTroops? Reinforcements { get; init; }
@@ -60,11 +61,13 @@ public sealed record PersonnelReturnLeg(int OriginPlaceId, int CountdownDays, bo
 /// <summary>Authoritative scheduling state; immutable and included in every world transaction.</summary>
 public sealed record SimulationState(GameClock Started, ulong InitialSeed)
 {
+    [JsonRequired] public bool FreeOfficerMigrationEnabled { get; init; } = true;
     [JsonRequired] public bool AnnualAppearancesEnabled { get; init; } = true;
     [JsonRequired] public bool NaturalDeathsEnabled { get; init; } = true;
     [JsonRequired] public San9.Core.Domain.AllianceState? Alliance { get; init; }
     [JsonRequired] public AllianceProposal? PendingAlliance { get; init; }
     [JsonRequired] public DailyTaskDecision? PendingDailyTask { get; init; }
+    [JsonRequired] public TacticStudyDecision? PendingTacticStudy { get; init; }
     [JsonRequired] public ExecutionSuccessionDecision? PendingExecutionSuccession { get; init; }
     [JsonRequired] public ImmutableArray<San9.Core.Domain.AttackRequestState> AttackRequests { get; init; } = [];
     [JsonRequired] public int ComputerDamageBonusPercent { get; init; }

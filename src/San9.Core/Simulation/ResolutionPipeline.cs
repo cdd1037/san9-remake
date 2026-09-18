@@ -7,7 +7,7 @@ public enum ResolutionStage
 {
     TerminalCheck, XunEvents, XunUpdate, MonthEvents, AppearanceAndIndependence,
     QuarterPrelude, QuarterEvents, QuarterUpdate, AnnualAppearance, AnnualCleanup,
-    BeforeDailyCommands, DailyCommands, DailyMapUpdate, UnitAndBuildingEvents,
+    BeforeDailyCommands, DailyCommands, DailyMapUpdate, UnitAndBuildingEvents, QuarterStudyOffers,
 }
 
 public sealed record StageCompletedEvent(GameClock Clock, ResolutionStage Stage) : DomainEvent;
@@ -35,7 +35,8 @@ internal class SimulationRules
         : kind == GiftDiplomacy.Kind ? new GiftRule(this)
         : kind == PrisonerReturnDiplomacy.Kind ? new PrisonerReturnRule(this)
         : kind == AttackRequestDiplomacy.Kind ? new AttackRequestRule(this)
-        : kind == SurrenderDiplomacy.Kind ? new SurrenderRule(this) : null;
+        : kind == SurrenderDiplomacy.Kind ? new SurrenderRule(this)
+        : kind == TacticStudy.Kind ? new TacticStudyRule(this) : null;
     internal virtual void ApplyStage(ResolutionStage stage, WorldMutation world, List<DomainEvent> events) { }
 }
 
@@ -73,7 +74,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         List<ResolutionStage> stages = [ResolutionStage.TerminalCheck, ResolutionStage.XunEvents, ResolutionStage.XunUpdate];
         if (boundary.Month) stages.Add(ResolutionStage.MonthEvents);
         stages.Add(ResolutionStage.AppearanceAndIndependence);
-        if (boundary.Quarter) stages.AddRange([ResolutionStage.QuarterPrelude, ResolutionStage.QuarterEvents, ResolutionStage.QuarterUpdate]);
+        if (boundary.Quarter) stages.AddRange([ResolutionStage.QuarterPrelude, ResolutionStage.QuarterEvents, ResolutionStage.QuarterStudyOffers, ResolutionStage.QuarterUpdate]);
         if (boundary.Year) stages.AddRange([ResolutionStage.AnnualAppearance, ResolutionStage.AnnualCleanup]);
         int start = after is { } completed ? stages.IndexOf(completed) + 1 : 0;
         if (after is not null && start == 0) throw new InvalidOperationException("Invalid preparation continuation.");
@@ -125,13 +126,16 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
             OfficerInjuryRecovery.Apply(world, events);
             XunRecovery.Apply(world);
             PrisonerCycle.Apply(world, events);
+            FreeOfficerMigration.Apply(world, rules.Personnel, events);
         }
         if (stage == ResolutionStage.QuarterEvents) AllianceFormation.Begin(world, rules, events);
+        if (stage == ResolutionStage.QuarterStudyOffers) TacticStudy.Offer(world, rules, events);
         if (stage == ResolutionStage.QuarterUpdate)
         {
-            PersonnelLoyaltyCycle.Apply(world, events);
+            TacticStudy.CompleteQuarter(world, rules, events);
             NaturalMortality.Apply(world, rules, events);
             if (!CheckTerminal(world, events)) return false;
+            PersonnelLoyaltyCycle.Apply(world, events);
         }
         if (stage == ResolutionStage.AnnualAppearance) OfficerAppearance.AdvanceYear(world, rules.Personnel, events);
         var rationAccounts = EconomicCycle.Apply(stage, world, rules.Economy, events);
@@ -155,7 +159,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         CorpsDelegations.Cleanup(world, rules.Military, events);
         world.MaintainLeadership(events);
         events.Add(new StageCompletedEvent(world.Clock, stage));
-        return CheckTerminal(world, events) && world.Simulation.PendingAlliance is null;
+        return CheckTerminal(world, events) && world.Simulation.PendingAlliance is null && world.Simulation.PendingTacticStudy is null;
     }
 
     internal static bool CheckTerminal(WorldMutation world, List<DomainEvent> events)
@@ -167,7 +171,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
             TaskCancellation.Apply(world, task, "terminal", events);
         }
         world.SetSimulation(world.Simulation with { Boundary = SimulationBoundary.Terminal, Tasks = [], PendingAlliance = null, PendingDailyTask = null,
-            PendingExecutionSuccession = null });
+            PendingExecutionSuccession = null, PendingTacticStudy = null });
         if (!events.OfType<SimulationEndedEvent>().Any()) events.Add(new SimulationEndedEvent(world.Clock, reason));
         return false;
     }

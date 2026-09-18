@@ -8,15 +8,6 @@ public sealed record OfficerExiledEvent(GameClock Clock, int ForceId, int Office
 
 internal static class PersonnelExile
 {
-    internal static int[] Destinations(WorldMutation world, int origin, PersonnelRulebook places)
-    {
-        if (!places.RegionCities.TryGetValue(origin, out int city)) return [];
-        var cities = places.CityConnections.Where(c => c.FromCityId == city).Select(c => c.ToCityId)
-            .Where(id => world.Settlements.TryGetValue(id, out var destination) &&
-                (destination.OwnerId is not int owner || !world.Forces[owner].IsBarbarian)).ToHashSet();
-        return places.RegionCities.Where(p => cities.Contains(p.Value) && places.Places.ContainsKey(p.Key)).Select(p => p.Key).Order().ToArray();
-    }
-
     internal static CommandRejection Apply(WorldMutation world, ExileOfficerCommand command, PersonnelRulebook places,
         EconomyRulebook economy, GovernanceRulebook governance, List<DomainEvent> events)
     {
@@ -29,7 +20,7 @@ internal static class PersonnelExile
             return CommandRejection.PersonUnavailable;
         if (person.SettlementId is not int origin || !places.RegionCities.ContainsKey(origin))
             return CommandRejection.InvalidTask;
-        var candidates = Destinations(world, origin, places);
+        var candidates = PersonnelRelocation.Destinations(world, origin, places);
         if (candidates.Length == 0) return CommandRejection.NoDestination;
         int destinationId = candidates[world.NextRandom("personnel-exile-placement") % (ulong)candidates.Length];
         PersonnelTransitions.Exile(world, person.Id, destinationId, events, places, false);

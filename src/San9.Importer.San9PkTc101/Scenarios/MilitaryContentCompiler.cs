@@ -61,6 +61,7 @@ public static class MilitaryContentCompiler
                     RequiredTacticId = tactics.Where(t => t.Id is >= 12 and <= 18 && t.SupportsArrayType(f.Id))
                         .Select(t => (int?)t.Id).SingleOrDefault(),
                     AutomaticTacticLearningId = f.Id is >= 21 and <= 23 ? f.Id - 9 : null,
+                    CaptureTacticLearningId = f.Id is >= 8 and <= 11 ? f.Id + 7 : null,
                     MartialTacticVulnerabilities = f.Id == 11 ? [0] : [],
                     Combat = new(f.AgainstUnits, f.AgainstSoldiers, f.AgainstWalls, f.DefensePower, f.Id == 7 ? 80 : 50),
                     Attack = f.Id == 27 ? null : new(f.Id == 10 ? 15 : f.Id is 21 or 26 ? 5 : 10, f.AgainstWalls > 0)

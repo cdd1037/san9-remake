@@ -164,13 +164,8 @@ internal static class SeizeStrategies
                 -1 - (int)(world.NextRandom("strategy-seize-failure-relations") % 3), events);
             outcome = SeizeOutcomeKind.Failure;
         }
-        if (outcome != SeizeOutcomeKind.Failure && actor.BaseAbilities.War < 100 &&
-            world.NextRandom("strategy-war-growth") % 100 < 3)
-        {
-            world.Replace(actor with { BaseAbilities = actor.BaseAbilities with { War = actor.BaseAbilities.War + 1 } });
-            events.Add(new OfficerAbilityGrownEvent(world.Clock, actor.Id, "war", actor.BaseAbilities.War,
-                actor.BaseAbilities.War + 1));
-        }
+        if (outcome != SeizeOutcomeKind.Failure)
+            OfficerAbilityGrowth.TryIncrease(world, actor.Id, OfficerAbility.War, "strategy-war-growth", events);
         OfficerTacticGrowth.Increase(world, actor.Id, 7, 2, events);
         OfficerTacticGrowth.Increase(world, actor.Id, 8, 2, events);
         events.Add(new SeizeResolvedEvent(world.Clock, actor.Id, targetId, roll, thresholds.Item,

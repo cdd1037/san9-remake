@@ -97,11 +97,7 @@ internal static class BurnStrategies
                     ResourceAccounts.Balance(world, account, ResourceKind.Food), (int)(world.NextRandom("strategy-burn-food-amount") % 100));
                 ResourceAccounts.Change(world, account, ResourceKind.Food, -(long)food, Kind, target.Id, events);
             }
-            if (actor.BaseAbilities.War < 100 && world.NextRandom("strategy-war-growth") % 100 < 3)
-            {
-                world.Replace(actor with { BaseAbilities = actor.BaseAbilities with { War = actor.BaseAbilities.War + 1 } });
-                events.Add(new OfficerAbilityGrownEvent(world.Clock, actor.Id, "war", actor.BaseAbilities.War, actor.BaseAbilities.War + 1));
-            }
+            OfficerAbilityGrowth.TryIncrease(world, actor.Id, OfficerAbility.War, "strategy-war-growth", events);
         }
         else
         {

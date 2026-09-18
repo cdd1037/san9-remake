@@ -36,10 +36,6 @@ internal static class DiplomacySettlement
     internal static void Grow(WorldMutation world, int officer, List<DomainEvent> events)
     {
         var actor = world.Officers[officer];
-        if (actor.BaseAbilities.Politics < 100 && world.NextRandom("diplomacy-politics-growth") % 100 < 3)
-        {
-            world.Replace(actor with { BaseAbilities = actor.BaseAbilities with { Politics = actor.BaseAbilities.Politics + 1 } });
-            events.Add(new OfficerAbilityGrownEvent(world.Clock, actor.Id, "politics", actor.BaseAbilities.Politics, actor.BaseAbilities.Politics + 1));
-        }
+        OfficerAbilityGrowth.TryIncrease(world, actor.Id, OfficerAbility.Politics, "diplomacy-politics-growth", events);
     }
 }

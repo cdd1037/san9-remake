@@ -81,6 +81,7 @@ public sealed class MilitaryContentCompilerTests
             Assert.Equal(source.Id == 7, formation.HalvesHostileStrategyChance);
             Assert.Equal(source.Id == 27, formation.ImmuneToDisorder);
             Assert.Equal(source.Id is >= 21 and <= 23 ? source.Id - 9 : (int?)null, formation.AutomaticTacticLearningId);
+            Assert.Equal(source.Id is >= 8 and <= 11 ? source.Id + 7 : (int?)null, formation.CaptureTacticLearningId);
             Assert.Equal(source.Id is >= 20 and <= 26 ?
                 [BattleRank.Middle, BattleRank.Middle, BattleRank.Middle, BattleRank.Middle, BattleRank.Middle] :
                 new[] { BattleRank.Front, BattleRank.Middle, BattleRank.Middle, BattleRank.Middle, BattleRank.Rear }, formation.CaptureRanks);

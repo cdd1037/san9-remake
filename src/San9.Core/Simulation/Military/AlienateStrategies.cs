@@ -116,14 +116,7 @@ internal static class AlienateStrategies
                 (int)(world.NextRandom("strategy-alienate-loyalty") % 3));
             RecruitmentRules.SetLoyalty(world, target.Id, target.OwnerId!.Value,
                 Math.Max(0, target.Loyalty - loyaltyLoss), Kind, events);
-            if (actor.BaseAbilities.Intelligence < 100 &&
-                world.NextRandom("strategy-intelligence-growth") % 100 < 3)
-            {
-                int next = actor.BaseAbilities.Intelligence + 1;
-                world.Replace(actor with { BaseAbilities = actor.BaseAbilities with { Intelligence = next } });
-                events.Add(new OfficerAbilityGrownEvent(world.Clock, actor.Id, "intelligence",
-                    actor.BaseAbilities.Intelligence, next));
-            }
+            OfficerAbilityGrowth.TryIncrease(world, actor.Id, OfficerAbility.Intelligence, "strategy-intelligence-growth", events);
         }
         ForceRelations.Change(world, relationForce, target.OwnerId!.Value,
             -1 - (int)(world.NextRandom("strategy-alienate-relations") % 3), events);

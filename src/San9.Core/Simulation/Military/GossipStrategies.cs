@@ -152,14 +152,7 @@ internal static class GossipStrategies
                 RecruitmentRules.SetLoyalty(world, target.Id, mission.FirstTargetForceId,
                     Math.Max(0, target.Loyalty - loyaltyLoss), Kind, events);
             }
-            if (actor.BaseAbilities.Intelligence < 100 &&
-                world.NextRandom("strategy-intelligence-growth") % 100 < 3)
-            {
-                int next = actor.BaseAbilities.Intelligence + 1;
-                world.Replace(actor with { BaseAbilities = actor.BaseAbilities with { Intelligence = next } });
-                events.Add(new OfficerAbilityGrownEvent(world.Clock, actor.Id, "intelligence",
-                    actor.BaseAbilities.Intelligence, next));
-            }
+            OfficerAbilityGrowth.TryIncrease(world, actor.Id, OfficerAbility.Intelligence, "strategy-intelligence-growth", events);
         }
         else
         {

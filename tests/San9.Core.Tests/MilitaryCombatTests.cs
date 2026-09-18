@@ -6,6 +6,59 @@ namespace San9.Core.Tests;
 
 public sealed class MilitaryCombatTests
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void RealCaptureGrowsRandomMemberAndTeachesFormationTechniqueOnlyForOwnedTarget(bool owned)
+    {
+        var world = World(defenders: 0, controlled: true);
+        var mutation = world.BeginMutation();
+        mutation.Replace(mutation.Officers[12] with { UnitId = 0, SettlementId = null });
+        mutation.Replace(mutation.Units[0] with { CommanderId = 11, MemberOrder = [11, 12],
+            MemberRanks = mutation.Units[0].MemberRanks.Add(12, BattleRank.Middle) });
+        if (!owned)
+        {
+            mutation.Replace(mutation.Settlements[2] with { OwnerId = null });
+            mutation.AddSettlement(mutation.Settlements[2] with { Id = 3, OwnerId = 2 });
+            mutation.Replace(mutation.Officers[22] with { SettlementId = 3 });
+        }
+        mutation.SetSimulation(mutation.Simulation with { RandomStreams =
+            [new("military-capture-growth", 52), new("military-capture-growth-member", 0), new("military-capture-learning", 52)] });
+        world.Commit(mutation);
+        var baseline = Rules();
+        var military = new MilitaryRulebook(new(8, 3, Enumerable.Repeat(0, 24).ToImmutableArray(), [new(0, 1, null)],
+            [baseline.Formations[7] with { CaptureTacticLearningId = 15000 }], baseline.Places.Values.OrderBy(p => p.Id).ToImmutableArray())
+        { Tactics = [new(15000, 5, TacticEffect.FormationTechnology, 0, 0, 3, false, false, [])] });
+        var engine = Engine(world, military);
+        var restored = Engine(WorldState.Restore(engine.CaptureStableState()), military);
+        var context = new CommandContext("player");
+        engine.EndControl(context);
+        restored.EndControl(context);
+        var result = engine.AdvanceXun();
+        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        Assert.Single(result.Events.OfType<SettlementCapturedEvent>());
+        if (owned)
+        {
+            // State zero selects index one, so a non-commander receives the capability reward.
+            Assert.Equal(1UL, new StableRandom(0).NextUInt64() % 2);
+            var growth = Assert.Single(result.Events.OfType<OfficerAbilityGrownEvent>());
+            Assert.Equal(12, growth.OfficerId);
+            Assert.Equal("leadership", growth.Ability);
+            Assert.Equal(71, growth.Current);
+            Assert.All(engine.Snapshot.Officers.Where(p => p.Id is 11 or 12), p => Assert.Equal(4, p.TacticProficiencies[5]));
+            Assert.Equal(2, result.Events.OfType<TacticProficiencyGrownEvent>().Count(e => e.Category == 5 && e.Current - e.Previous == 3));
+            Assert.Contains(result.Events.OfType<TacticLearnedEvent>(), e => e.OfficerId == 11 && e.TacticId == 15000);
+        }
+        else
+        {
+            Assert.Empty(result.Events.OfType<OfficerAbilityGrownEvent>());
+            Assert.Empty(result.Events.OfType<TacticLearnedEvent>());
+            Assert.All(engine.Snapshot.Officers.Where(p => p.Id is 11 or 12), p => Assert.Equal(1, p.TacticProficiencies[5]));
+            Assert.Equal(52UL, engine.Snapshot.Simulation.RandomStreams.Single(s => s.Name == "military-capture-growth").State);
+        }
+    }
+
     [Fact]
     public void PublicAttackRequiresConfirmationForAllianceMember()
     {

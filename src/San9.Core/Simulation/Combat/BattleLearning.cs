@@ -4,6 +4,29 @@ namespace San9.Core.Simulation;
 
 internal static class BattleLearning
 {
+    internal static void DefeatedUnit(WorldMutation world, BattleSource winner, List<DomainEvent> events)
+    {
+        int? commander = winner.IsSettlement ? LeadershipMaintenance.Commander(world, winner.Id)?.Id : world.Units[winner.Id].CommanderId;
+        if (commander is int officer)
+            OfficerAbilityGrowth.TryIncrease(world, officer, OfficerAbility.Leadership, "military-defeat-growth", events);
+    }
+
+    internal static void CapturedSettlement(WorldMutation world, BattleSource winner, MilitaryRulebook military, List<DomainEvent> events)
+    {
+        if (winner.IsSettlement) return;
+        var unit = world.Units[winner.Id];
+        var members = unit.MemberOrder.Select(id => world.Officers[id]).Where(p => p.IsServing && p.UnitId == unit.Id).ToArray();
+        if (members.Length == 0) return;
+        int actor = members[(int)(world.NextRandom("military-capture-growth-member") % (uint)members.Length)].Id;
+        OfficerAbilityGrowth.TryIncrease(world, actor, OfficerAbility.Leadership, "military-capture-growth", events);
+        foreach (var person in members) OfficerTacticGrowth.Increase(world, person.Id, 5, 3, events);
+        int formation = unit.Condition is UnitCondition.NoFormation or UnitCondition.Confused or UnitCondition.Routed && military.UnformedFormationId is int unformed
+            ? unformed : unit.FormationId!.Value;
+        if (military.Formations[formation].CaptureTacticLearningId is int tactic)
+            foreach (var person in members)
+                OfficerTacticGrowth.TryLearn(world, person.Id, military.Tactics[tactic], "military-capture-learning", events);
+    }
+
     internal static void Learn(WorldMutation world, IEnumerable<OfficerState> members, TacticRule tactic, List<DomainEvent> events)
     {
         foreach (var officer in members.OrderBy(p => p.Id))
@@ -46,12 +69,7 @@ internal static class BattleLearning
         var members = world.Officers.Values.Where(p => p.IsServing && p.UnitId == unitId).OrderBy(p => p.Id).ToArray();
         if (members.Length == 0) return;
         var actor = members[(int)(world.NextRandom("military-destruction-growth-member") % (uint)members.Length)];
-        int before = actor.BaseAbilities.Leadership;
-        if (before < 100 && TacticCombat.Roll(world, "military-destruction-growth", 3))
-        {
-            world.Replace(actor with { BaseAbilities = actor.BaseAbilities with { Leadership = before + 1 } });
-            events.Add(new OfficerAbilityGrownEvent(world.Clock, actor.Id, "leadership", before, before + 1));
-        }
+        OfficerAbilityGrowth.TryIncrease(world, actor.Id, OfficerAbility.Leadership, "military-destruction-growth", events);
         int? learning = place.FacilityTypeId is int type ? military.Facilities[type].DestructionGrowthTacticId : null;
         foreach (var member in members)
         {

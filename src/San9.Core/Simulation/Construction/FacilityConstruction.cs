@@ -142,12 +142,7 @@ internal static class FacilityConstruction
         if (milestone)
         {
             var actor = members[(int)(world.NextRandom("military-construction-growth-member") % (uint)members.Length)];
-            int before = actor.BaseAbilities.Leadership;
-            if (before < 100 && TacticCombat.Roll(world, "military-construction-growth", 3))
-            {
-                world.Replace(actor with { BaseAbilities = actor.BaseAbilities with { Leadership = before + 1 } });
-                events.Add(new OfficerAbilityGrownEvent(world.Clock, actor.Id, "leadership", before, before + 1));
-            }
+            OfficerAbilityGrowth.TryIncrease(world, actor.Id, OfficerAbility.Leadership, "military-construction-growth", events);
         }
         foreach (var member in members)
         {

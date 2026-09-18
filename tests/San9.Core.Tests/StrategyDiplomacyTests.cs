@@ -76,8 +76,14 @@ public sealed class StrategyDiplomacyTests
             else Assert.Empty(growth);
             Assert.Equal(2, mutation.Officers[11].TacticProficiencies[7]);
             Assert.Equal(2, mutation.Officers[11].TacticProficiencies[8]);
-            if (sample.Roll == 99 || sample.Ability == 100)
+            if (sample.Roll == 99 || sample.Ability >= 100)
                 Assert.Equal(sample.Seed, mutation.Simulation.RandomStreams.Single(s => s.Name == stream).State);
+            else
+            {
+                var random = new StableRandom(sample.Seed);
+                random.NextUInt64();
+                Assert.Equal(random.State, mutation.Simulation.RandomStreams.Single(s => s.Name == stream).State);
+            }
         }
     }
 

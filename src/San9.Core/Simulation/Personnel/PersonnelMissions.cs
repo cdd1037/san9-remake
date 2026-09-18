@@ -126,12 +126,7 @@ internal static class PersonnelMissions
 
     internal static void GrowPolitics(WorldMutation world, int officerId, List<DomainEvent> events)
     {
-        if (world.NextRandom("personnel-politics-growth") % 100 >= 3) return;
-        var person = world.Officers[officerId];
-        if (person.BaseAbilities.Politics >= 100) return;
-        int next = person.BaseAbilities.Politics + 1;
-        world.Replace(person with { BaseAbilities = person.BaseAbilities with { Politics = next } });
-        events.Add(new OfficerAbilityGrownEvent(world.Clock, person.Id, "politics", person.BaseAbilities.Politics, next));
+        OfficerAbilityGrowth.TryIncrease(world, officerId, OfficerAbility.Politics, "personnel-politics-growth", events);
     }
 }
 

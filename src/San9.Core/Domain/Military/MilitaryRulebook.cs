@@ -11,6 +11,7 @@ public sealed record FormationRule(int Id, int MovementBudget, int DeploymentCos
     [JsonRequired] public ImmutableArray<int> MartialTacticVulnerabilities { get; init; } = [];
     [JsonRequired] public int? RequiredTacticId { get; init; }
     [JsonRequired] public int? AutomaticTacticLearningId { get; init; }
+    [JsonRequired] public int? CaptureTacticLearningId { get; init; }
     [JsonRequired] public CombatProfile? Combat { get; init; }
     [JsonRequired] public OrdinaryAttack? Attack { get; init; }
     [JsonRequired] public ImmutableArray<BattleRank> CaptureRanks { get; init; } = [];
@@ -194,6 +195,9 @@ public sealed partial class MilitaryRulebook
         if (Formations.Values.Any(f => f.AutomaticTacticLearningId is int id &&
             (!Tactics.TryGetValue(id, out var tactic) || tactic.Category is null)))
             throw new ArgumentException("Invalid automatic tactic learning reference.");
+        if (Formations.Values.Any(f => f.CaptureTacticLearningId is int id &&
+            (!Tactics.TryGetValue(id, out var tactic) || tactic.Category is null)))
+            throw new ArgumentException("Invalid capture tactic learning reference.");
         if (Formations.Values.Any(f => f.Attack is { Range: <= 0 } || f.Attack is not null && f.Combat is null) ||
             Places.Values.Any(p => p.Attack is { Range: <= 0 } || p.Attack is not null && p.Combat is null))
             throw new ArgumentException("Invalid ordinary attack definition.");

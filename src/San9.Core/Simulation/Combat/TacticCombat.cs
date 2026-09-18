@@ -196,13 +196,9 @@ internal static class TacticCombat
         if (participants.Count == 0) return;
         int category = tactic.Category!.Value;
         var actor = world.Officers[participants[(int)(world.NextRandom("military-tactic-growth-member") % (uint)participants.Count)]];
-        bool martial = tactic.Effect == TacticEffect.Martial;
-        int ability = martial ? actor.BaseAbilities.War : actor.BaseAbilities.Intelligence;
-        if (ability < 100 && Roll(world, "military-tactic-growth", 3))
-        {
-            world.Replace(actor with { BaseAbilities = martial ? actor.BaseAbilities with { War = ability + 1 } : actor.BaseAbilities with { Intelligence = ability + 1 } });
-            events.Add(new OfficerAbilityGrownEvent(world.Clock, actor.Id, martial ? "war" : "intelligence", ability, ability + 1));
-        }
+        OfficerAbilityGrowth.TryIncrease(world, actor.Id,
+            category is 7 or 8 ? OfficerAbility.Intelligence : OfficerAbility.War,
+            "military-tactic-growth", events);
         foreach (var original in members.OrderBy(p => p.Id))
             OfficerTacticGrowth.Increase(world, original.Id, category, 3, events);
         if (learning is not null || tactic.Selectable) BattleLearning.Learn(world, members, learning ?? tactic, events);

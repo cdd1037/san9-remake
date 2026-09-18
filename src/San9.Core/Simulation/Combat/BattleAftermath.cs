@@ -13,6 +13,8 @@ internal static class BattleAftermath
     internal static void TerminateUnit(WorldMutation world, int id, BattleSource? winner, SimulationRules rules, List<DomainEvent> events)
     {
         var unit = world.Units[id];
+        if (winner is { } victor && !world.Forces[unit.OwnerId].IsEliminated)
+            BattleLearning.DefeatedUnit(world, victor, events);
         var shape = MilitaryCombat.Area(unit, rules.Military!);
         ResolvePeople(world, p => p.UnitId == id, shape, unit, winner, unit.ServicePlaceId, rules, events);
         int? city = unit.ServicePlaceId is int home ?
@@ -40,6 +42,8 @@ internal static class BattleAftermath
             return;
         }
         bool destroyed = settlement.Durability == 0 && definition.DestroyedAtZeroDurability;
+        if (settlement.OwnerId is int previousOwner && !world.Forces[previousOwner].IsEliminated)
+            BattleLearning.CapturedSettlement(world, winner, rules.Military, events);
         if (destroyed)
         {
             ResourceAccounts.Report(world, new(ResourceOwnerKind.Settlement, id), ResourceKind.Soldiers, "settlement-destroyed", winner.Id,

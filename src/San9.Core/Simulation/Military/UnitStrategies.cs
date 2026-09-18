@@ -200,12 +200,7 @@ internal static class UnitStrategies
             events.Add(new BattleConditionChangedEvent(world.Clock, target.Id, false, condition, days));
             BattleLearning.Passive(world, members, TacticEffect.CounterConfusion, rules.Military!, events);
             var actor = world.Officers[task.OfficerId];
-            if (actor.BaseAbilities.Intelligence < 100 && world.NextRandom("strategy-intelligence-growth") % 100 < 3)
-            {
-                int next = actor.BaseAbilities.Intelligence + 1;
-                world.Replace(actor with { BaseAbilities = actor.BaseAbilities with { Intelligence = next } });
-                events.Add(new OfficerAbilityGrownEvent(world.Clock, actor.Id, "intelligence", actor.BaseAbilities.Intelligence, next));
-            }
+            OfficerAbilityGrowth.TryIncrease(world, actor.Id, OfficerAbility.Intelligence, "strategy-intelligence-growth", events);
         }
         else if (mission.Strategy == UnitStrategyKind.Inspire)
             world.Replace(target with { Morale = Math.Max(1, target.Morale - 1 - (int)(world.NextRandom("strategy-inspire-failure-morale") % 5)) });
@@ -236,12 +231,8 @@ internal static class UnitStrategies
             Kind, task.OriginSettlementId, delivered, delivered, events);
         if (success && condition != target.Condition)
             events.Add(new BattleConditionChangedEvent(world.Clock, target.Id, false, condition, 0));
-        if (success && actor.BaseAbilities.Leadership < 100 && world.NextRandom("strategy-leadership-growth") % 100 < 3)
-        {
-            int next = actor.BaseAbilities.Leadership + 1;
-            world.Replace(actor with { BaseAbilities = actor.BaseAbilities with { Leadership = next } });
-            events.Add(new OfficerAbilityGrownEvent(world.Clock, actor.Id, "leadership", actor.BaseAbilities.Leadership, next));
-        }
+        if (success)
+            OfficerAbilityGrowth.TryIncrease(world, actor.Id, OfficerAbility.Leadership, "strategy-leadership-growth", events);
         OfficerTacticGrowth.Increase(world, actor.Id, 7, 2, events);
         OfficerTacticGrowth.Increase(world, actor.Id, 8, 2, events);
         events.Add(new UnitStrategyResolvedEvent(world.Clock, actor.Id, target.Id, UnitStrategyKind.Reinforce,

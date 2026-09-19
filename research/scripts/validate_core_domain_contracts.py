@@ -101,6 +101,20 @@ def validate_contracts(
         for path in sorted(decision_dir.glob("DEC-*.md"))
         if (decision_id := document_id(path, DECISION_ID_PATTERN))
     }
+    behavior_texts = {
+        spec_id: path.read_text(encoding="utf-8")
+        for spec_id, path in behavior_by_id.items()
+    }
+    behavior_statuses = {}
+    for spec_id, text in behavior_texts.items():
+        status = re.search(r"(?m)^- 状态：(已确认|草案|验证中|已废弃)(?:[（\s]|$)", text)
+        if status is None:
+            issue("invalid_behavior_status", spec_id)
+        else:
+            behavior_statuses[spec_id] = status.group(1)
+    confirmed_specs = {
+        spec_id for spec_id, status in behavior_statuses.items() if status == "已确认"
+    }
 
     domains = contracts.get("domains", [])
     if not isinstance(domains, list):
@@ -158,8 +172,8 @@ def validate_contracts(
             if path is None:
                 issue("missing_behavior_spec", {"domain": domain_id, "spec": spec_id})
                 continue
-            text = path.read_text(encoding="utf-8")
-            if not re.search(r"(?m)^- 状态：已确认", text):
+            text = behavior_texts[str(spec_id)]
+            if spec_id not in confirmed_specs:
                 issue("unconfirmed_behavior_spec", spec_id)
             if classification == "core" and not re.search(r"(?m)^- 关联决策：", text):
                 issue("missing_decision_metadata", spec_id)
@@ -187,7 +201,7 @@ def validate_contracts(
         issue("duplicate_domains", duplicate_domains)
     if duplicate_specs:
         issue("duplicate_behavior_specs", duplicate_specs)
-    missing_manifest_specs = sorted(set(behavior_by_id) - set(listed_specs))
+    missing_manifest_specs = sorted(confirmed_specs - set(listed_specs))
     extra_manifest_specs = sorted(set(listed_specs) - set(behavior_by_id))
     if missing_manifest_specs:
         issue("unclassified_behavior_specs", missing_manifest_specs)
@@ -233,6 +247,8 @@ def validate_contracts(
         for spec_id in gate.get("behavior_specs", []):
             if spec_id not in behavior_by_id:
                 issue("decision_gate_unknown_spec", {"gate": gate_id, "spec": spec_id})
+            elif spec_id not in listed_specs:
+                issue("decision_gate_unclassified_spec", {"gate": gate_id, "spec": spec_id})
             elif decision not in decisions_by_spec.get(str(spec_id), set()):
                 issue("decision_gate_unlinked_spec", {"gate": gate_id, "spec": spec_id, "decision": decision})
 
@@ -281,6 +297,11 @@ def validate_contracts(
         "domain_count": len(domains),
         "domain_classification_counts": dict(sorted(classifications.items())),
         "behavior_spec_count": len(behavior_by_id),
+        "confirmed_behavior_spec_count": len(confirmed_specs),
+        "non_contract_behavior_specs": {
+            spec_id: status for spec_id, status in sorted(behavior_statuses.items())
+            if status != "已确认"
+        },
         "behavior_spec_classification_counts": dict(sorted(spec_classifications.items())),
         "acceptance_criteria_count": sum(acceptance_by_domain.values()),
         "acceptance_criteria_by_domain": dict(sorted(acceptance_by_domain.items())),

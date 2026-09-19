@@ -196,13 +196,13 @@
     {
       "id": "person-lifecycle",
       "classification": "core",
-      "behavior_specs": ["BEH-PERSON-LIFECYCLE-0001", "BEH-PERSON-LIFECYCLE-0002", "BEH-PERSON-LIFECYCLE-0003"],
-      "objects": ["PersonGrowth", "InjuryState", "LifeState", "TraineeRecord", "ExecutionSuccessionDecision"],
-      "states": ["not-appeared", "active", "injured", "dead", "trainee-waiting", "trainee-active", "trainee-complete", "execution-succession-pending"],
+      "behavior_specs": ["BEH-PERSON-LIFECYCLE-0001", "BEH-PERSON-LIFECYCLE-0002"],
+      "objects": ["PersonGrowth", "InjuryState", "LifeState", "ExecutionSuccessionDecision"],
+      "states": ["not-appeared", "active", "injured", "dead", "execution-succession-pending"],
       "inputs": ["period boundary", "person snapshot", "growth cause", "death cause", "stable lifecycle random stream"],
-      "outputs": ["bounded growth", "appearance or recovery", "atomic death cleanup", "completed trainee person", "OfficerInjuryRecoveredEvent", "OfficerAppearedEvent", "ExecutionSuccessionRequestedEvent", "PrisonerExecutedEvent", "FreeOfficerMigratedEvent"],
-      "invariants": ["base and effective ability are distinct", "growth is bounded", "death removes every live reference", "one trainee record per force", "injury recovers once per xun and never during stable restore"],
-      "acceptance_gates": ["growth and learning bounds", "appearance and death curve", "death reference cleanup", "nine-xun trainee state machine", "injury recovery and restored continuation", "execution authority and atomic cleanup", "player execution succession save and replay"],
+      "outputs": ["bounded growth", "appearance or recovery", "atomic death cleanup", "OfficerInjuryRecoveredEvent", "OfficerAppearedEvent", "ExecutionSuccessionRequestedEvent", "PrisonerExecutedEvent", "FreeOfficerMigratedEvent"],
+      "invariants": ["base and effective ability are distinct", "growth is bounded", "death removes every live reference", "injury recovers once per xun and never during stable restore"],
+      "acceptance_gates": ["growth and learning bounds", "appearance and death curve", "death reference cleanup", "injury recovery and restored continuation", "execution authority and atomic cleanup", "player execution succession save and replay"],
       "depends_on": ["simulation", "personnel"],
       "implementation": {
         "project": "San9.Core",
@@ -386,7 +386,7 @@
     {
       "id": "presentation",
       "classification": "boundary",
-      "behavior_specs": ["BEH-RENDER-0001", "BEH-RENDER-0002", "BEH-RENDER-0003", "BEH-RENDER-0004", "BEH-UI-0001"],
+      "behavior_specs": ["BEH-RENDER-0001", "BEH-RENDER-0002", "BEH-RENDER-0003", "BEH-RENDER-0004", "BEH-UI-0001", "BEH-UI-0002", "BEH-UI-0003", "BEH-UI-0004", "BEH-UI-0005", "BEH-UI-0006"],
       "objects": ["read-only world snapshot", "static map snapshot", "calendar view model", "requested and presented viewport", "presentation clock", "strategy selection"],
       "states": ["unbound", "rendering", "presented"],
       "inputs": ["application snapshot", "validated content assets"],
@@ -449,7 +449,7 @@
     {
       "id": "deterministic-resolution",
       "kind": "system-redesign",
-      "behavior_specs": ["BEH-SIMULATION-0001", "BEH-PERSON-0001", "BEH-PERSON-0002", "BEH-PERSON-0003", "BEH-PERSON-LIFECYCLE-0001", "BEH-PERSON-LIFECYCLE-0002", "BEH-PERSON-LIFECYCLE-0003", "BEH-GOVERNANCE-0002", "BEH-GOVERNANCE-0003", "BEH-DIPLOMACY-0001", "BEH-DIPLOMACY-0002", "BEH-DIPLOMACY-0003", "BEH-STRATEGY-0001", "BEH-STRATEGY-0002", "BEH-STRATEGY-0003", "BEH-WAR-0001", "BEH-DUEL-0001", "BEH-DUEL-0002", "BEH-DUEL-0003", "BEH-EVENT-0001", "BEH-EVENT-0002"],
+      "behavior_specs": ["BEH-SIMULATION-0001", "BEH-PERSON-0001", "BEH-PERSON-0002", "BEH-PERSON-0003", "BEH-PERSON-LIFECYCLE-0001", "BEH-PERSON-LIFECYCLE-0002", "BEH-GOVERNANCE-0002", "BEH-GOVERNANCE-0003", "BEH-DIPLOMACY-0001", "BEH-DIPLOMACY-0002", "BEH-DIPLOMACY-0003", "BEH-STRATEGY-0001", "BEH-STRATEGY-0002", "BEH-STRATEGY-0003", "BEH-WAR-0001", "BEH-DUEL-0001", "BEH-DUEL-0002", "BEH-DUEL-0003", "BEH-EVENT-0001", "BEH-EVENT-0002"],
       "decision": "DEC-SIM-0001",
       "disposition": "typed commands, named stable random streams, explicit save state and deterministic commit order"
     },

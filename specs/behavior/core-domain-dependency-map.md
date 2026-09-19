@@ -7,7 +7,7 @@
 
 ## 契约边界
 
-本图只聚合状态为“已确认”的行为规格。`objects`、`states`、`inputs`、`outputs`、`invariants` 和验收门是产品实现入口；原版地址、任务码、固定数组、反编译符号和未确认字段不是产品契约。计划路径表示首个实现落点，不表示功能已经完成。
+本图只聚合状态为“已确认”的行为规格。验证器要求全部已确认规格归入核心或支撑边界；草案、验证中和已废弃规格单独列入报告，不成为正式契约，误列入领域或决策门仍报错。培养支线草案不进入主线对象、状态和验收门。`objects`、`states`、`inputs`、`outputs`、`invariants` 和验收门是产品实现入口；原版地址、任务码、固定数组、反编译符号和未确认字段不是产品契约。计划路径表示首个实现落点，不表示功能已经完成。
 
 规则只存在于 `San9.Core`。`San9.Application` 组合用例和领域服务；`San9.Content` 提供规范化内容；导入器只在离线转换时运行；Godot 客户端只提交请求并消费只读快照。
 
@@ -91,7 +91,7 @@ G07已接入的周期入口：`PrisonerEscapeCycle`在旬更新复用`PrisonerRe
 | 边界 | 规格 | 职责 | 实现入口 |
 | --- | --- | --- | --- |
 | `content-import` | `BEH-IMPORT-0001..0017` | 识别批准样本、无损解码已知/未知字段、生成稳定内容 ID 与规范化内容包；不进入运行时依赖 | `San9.Importer.San9PkTc101` 与 `San9.Content` |
-| `presentation` | `BEH-RENDER-0001..0004`、`BEH-UI-0001` | 消费只读快照和内容资产，组织地图、动画、完整视野提交、选择与固定UI；不拥有规则真值或玩法随机 | `San9.Rendering`、`San9.Application` 与 `San9.Client.Godot` |
+| `presentation` | `BEH-RENDER-0001..0004`、`BEH-UI-0001..0006` | 消费只读快照和内容资产，组织地图、动画、完整视野提交、选择与固定UI；不拥有规则真值或玩法随机 | `San9.Rendering`、`San9.Application` 与 `San9.Client.Godot` |
 
 ## 决策门
 

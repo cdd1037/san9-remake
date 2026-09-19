@@ -1,6 +1,7 @@
 # BEH-WAR-0006：设施内容、选址与建设
 
 - 状态：已确认
+- 关联决策：无独立专项决策；重制选择及其验收在本规格中说明。
 - 负责人：项目开发者
 - 最后更新：2026-09-13
 - 关联证据：[RE-0014](../../research/findings/RE-SAN9PK-0014.md)、[RE-0019](../../research/findings/RE-SAN9PK-0019.md)、[RE-0084](../../research/findings/RE-SAN9PK-0084.md)、[RE-0137](../../research/findings/RE-SAN9PK-0137.md)、[RE-0158](../../research/findings/RE-SAN9PK-0158.md)

@@ -104,6 +104,37 @@ class ValidateCoreDomainContractsTests(unittest.TestCase):
             )
         self.assertIn("dependency_cycle", result["validation"]["issues"])
 
+    def test_non_contract_statuses_are_reported_but_cannot_enter_contract(self):
+        for status in ("草案", "验证中", "已废弃"):
+            with self.subTest(status=status), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                contracts, behavior_dir, decision_dir = self.make_fixture(root)
+                spec_id = "BEH-EVENT-0001"
+                (behavior_dir / f"{spec_id}-draft.md").write_text(
+                    f"# draft\n\n- 状态：{status}\n", encoding="utf-8"
+                )
+                result = validate_contracts(contracts, behavior_dir, decision_dir, root, {"simulation"})
+                self.assertTrue(result["validation"]["valid"])
+                self.assertEqual(result["non_contract_behavior_specs"], {spec_id: status})
+                self.assertEqual(result["confirmed_behavior_spec_count"], 1)
+                contracts["decision_gates"][0]["behavior_specs"].append(spec_id)
+                result = validate_contracts(contracts, behavior_dir, decision_dir, root, {"simulation"})
+                self.assertIn("decision_gate_unclassified_spec", result["validation"]["issues"])
+                contracts["domains"][0]["behavior_specs"].append(spec_id)
+                result = validate_contracts(contracts, behavior_dir, decision_dir, root, {"simulation"})
+                self.assertIn("unconfirmed_behavior_spec", result["validation"]["issues"])
+
+    def test_missing_or_unknown_status_is_not_silently_excluded(self):
+        for metadata in ("", "- 状态：采用", "- 状态：已确认错误"):
+            with self.subTest(metadata=metadata), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                contracts, behavior_dir, decision_dir = self.make_fixture(root)
+                (behavior_dir / "BEH-EVENT-0001-extra.md").write_text(
+                    f"# extra\n\n{metadata}\n", encoding="utf-8"
+                )
+                result = validate_contracts(contracts, behavior_dir, decision_dir, root, {"simulation"})
+                self.assertIn("invalid_behavior_status", result["validation"]["issues"])
+
 
 if __name__ == "__main__":
     unittest.main()

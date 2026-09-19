@@ -73,6 +73,8 @@ public sealed record SimulationState(GameClock Started, ulong InitialSeed)
     [JsonIgnore] public TacticStudyDecision? PendingTacticStudy { get; init; }
     [JsonIgnore] public ExecutionSuccessionDecision? PendingExecutionSuccession { get; init; }
     [JsonRequired] public ImmutableArray<San9.Core.Domain.AttackRequestState> AttackRequests { get; init; } = [];
+    /// <summary>Consumed authored-event keys. This is authoritative world state, not a UI/session cache.</summary>
+    [JsonRequired] public ImmutableArray<PersistentEventKey> ConsumedEventKeys { get; init; } = [];
     [JsonRequired] public int ComputerDamageBonusPercent { get; init; }
     [JsonRequired] public ulong RunSeed { get; init; } = InitialSeed;
     public SimulationBoundary Boundary { get; init; }

@@ -110,6 +110,13 @@ internal sealed class WorldMutation
         Simulation = simulation;
     }
 
+    internal void ConsumeEvent(EventCandidate candidate, EventOutcome outcome)
+    {
+        EnsureOpen();
+        var keys = EventSelection.AddConsumedKey(Simulation.ConsumedEventKeys, candidate, outcome);
+        SetSimulation(Simulation with { ConsumedEventKeys = keys });
+    }
+
     internal ulong NextRandom(string name)
     {
         EnsureOpen();

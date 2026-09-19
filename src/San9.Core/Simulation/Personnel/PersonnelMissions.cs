@@ -9,7 +9,12 @@ public sealed record MoveOfficersCommand(Guid CommandId, int IssuerId, long Sequ
     : GameCommand(CommandId, IssuerId, Sequence);
 public sealed record SearchCommand(Guid CommandId, int IssuerId, long Sequence, int OfficerId, int DestinationId)
     : GameCommand(CommandId, IssuerId, Sequence);
-public sealed record SearchEncounter(int OfficerId);
+[System.Text.Json.Serialization.JsonPolymorphic(TypeDiscriminatorPropertyName = "kind")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(PersonSearchEncounter), "person")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(BeastSearchEncounter), "beast")]
+public abstract record SearchEncounter;
+public sealed record PersonSearchEncounter(int OfficerId) : SearchEncounter;
+public sealed record BeastSearchEncounter(string EventId) : SearchEncounter;
 public sealed record SearchRecruitmentPrompt(Guid TaskId, int Step, int ForceId, int SearchingOfficerId, int DiscoveredOfficerId, int PlaceId);
 public enum SearchResultKind { None, Person, Treasure, Money }
 public sealed record SearchResolvedEvent(GameClock Clock, int OfficerId, int PlaceId, int? DiscoveredOfficerId, bool Recruited) : DomainEvent
@@ -134,7 +139,9 @@ internal sealed class PersonnelMissionRule(PersonnelRulebook rules, EconomyRuleb
 {
     internal override bool SupportsResolutionStep(int step) => step == 0 || kind == PersonnelMissions.SearchKind && step == 1;
     internal override bool HasValidPayload(PersistentTask task) => task.Journey is { ReturnLeg: null, Route: { FieldDestination: false }, UnitStrategy: null, Burn: null, Seize: null, Gossip: null } journey && DurationDays(task) >= 0 &&
-        (task.ResolutionStep == 0 ? task.SearchEncounter is null : kind == PersonnelMissions.SearchKind && task.SearchEncounter is { OfficerId: >= 0 }) &&
+        (task.ResolutionStep == 0 ? task.SearchEncounter is null : kind == PersonnelMissions.SearchKind &&
+            (task.SearchEncounter is PersonSearchEncounter { OfficerId: >= 0 } ||
+                task.SearchEncounter is BeastSearchEncounter beast && rules.SearchEvents.GetValueOrDefault(beast.EventId) is BeastSearchEventDefinition)) &&
         (kind == PersonnelMissions.MoveKind ? journey.TargetOfficerId is null && journey.SuccessRoll is null :
          kind == PersonnelMissions.SearchKind ? journey.TargetOfficerId is null && journey.SuccessRoll is >= 0 and < 100 :
          journey.TargetOfficerId is >= 0 && journey.SuccessRoll is >= 0 and < 100);
@@ -149,12 +156,20 @@ internal sealed class PersonnelMissionRule(PersonnelRulebook rules, EconomyRuleb
     internal override PersistentTask? Resolve(WorldMutation world, PersistentTask task, bool? accept, List<DomainEvent> events)
     {
         if (kind != PersonnelMissions.SearchKind) { Complete(world, task, events); return null; }
-        if (task.SearchEncounter is { } encounter)
+        if (task.SearchEncounter is PersonSearchEncounter encounter)
             ResolvePerson(world, task, encounter.OfficerId, accept ?? true, events);
+        else if (task.SearchEncounter is BeastSearchEncounter beast)
+            SearchEvents.ResolveBeast(world, task, rules, economy, beast, accept ?? true, events);
         else
         {
+            if (Direct(world, task) && SearchEvents.Prepare(world, task, rules, events, out var special))
+            {
+                if (special is not null) return task with { SearchEncounter = special };
+                PersonnelReturns.Start(world, task, rules, events, true);
+                return null;
+            }
             var candidate = SelectPerson(world, task, out long score);
-            if (candidate is not null) return task with { SearchEncounter = new(candidate.Id) };
+            if (candidate is not null) return task with { SearchEncounter = new PersonSearchEncounter(candidate.Id) };
             ResolveOtherSearchResults(world, task, score, events);
         }
         PersonnelReturns.Start(world, task, rules, events, true);
@@ -170,8 +185,14 @@ internal sealed class PersonnelMissionRule(PersonnelRulebook rules, EconomyRuleb
         if (task.Journey is not { } journey || DurationDays(task) < 0) return false;
         if (kind == PersonnelMissions.SearchKind)
             return journey.TargetOfficerId is null && journey.SuccessRoll is >= 0 and < 100 && world.Forces[task.ForceId].LeaderId is not null &&
-                (task.SearchEncounter is null || world.Officers.TryGetValue(task.SearchEncounter.OfficerId, out var discovered) &&
-                    discovered.Status == OfficerStatus.Undiscovered && (discovered.SettlementId ?? discovered.RegionId) == journey.DestinationPlaceId) &&
+                (task.SearchEncounter switch
+                {
+                    null => true,
+                    PersonSearchEncounter person => world.Officers.TryGetValue(person.OfficerId, out var discovered) &&
+                        discovered.Status == OfficerStatus.Undiscovered && (discovered.SettlementId ?? discovered.RegionId) == journey.DestinationPlaceId,
+                    BeastSearchEncounter beast => SearchEvents.CanResolveBeast(world, task, rules, beast),
+                    _ => false
+                }) &&
                 PersonnelMissions.CanSearch(world, task.ForceId, journey.DestinationPlaceId, rules);
         if (kind == PersonnelMissions.MoveKind)
             return journey.TargetOfficerId is null && journey.SuccessRoll is null &&

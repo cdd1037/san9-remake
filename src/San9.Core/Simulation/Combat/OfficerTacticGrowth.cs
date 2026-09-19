@@ -28,9 +28,14 @@ internal static class OfficerTacticGrowth
     internal static void Grant(WorldMutation world, int officerId, TacticRule tactic, List<DomainEvent> events)
     {
         if (tactic.Category is not (>= 0 and <= 8)) return;
+        Grant(world, officerId, tactic.Id, events);
+    }
+
+    internal static void Grant(WorldMutation world, int officerId, int tacticId, List<DomainEvent> events)
+    {
         var officer = world.Officers[officerId];
-        if (officer.LearnedTactics.Contains(tactic.Id)) return;
-        world.Replace(officer with { LearnedTactics = officer.LearnedTactics.Add(tactic.Id) });
-        events.Add(new TacticLearnedEvent(world.Clock, officer.Id, tactic.Id));
+        if (officer.LearnedTactics.Contains(tacticId)) return;
+        world.Replace(officer with { LearnedTactics = officer.LearnedTactics.Add(tacticId) });
+        events.Add(new TacticLearnedEvent(world.Clock, officer.Id, tacticId));
     }
 }

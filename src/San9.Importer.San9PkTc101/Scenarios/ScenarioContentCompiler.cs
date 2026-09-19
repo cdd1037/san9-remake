@@ -130,6 +130,8 @@ public static class ScenarioContentCompiler
             CityProvinceIds = settlements.Where(s => s.Kind == San9.Core.Domain.SettlementKind.City)
                 .ToDictionary(s => s.Id, s => (int)cities[s.Id].AreaCode),
             AttackRequests = [], // TC101 scenarios contain no active request tuples; original saves are not imported.
+            ConsumedEventKeys = EventContentCompiler.ConsumedKeys(header.ScenarioWorldFlagWords),
+            SearchEvents = EventContentCompiler.SearchEvents(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id), configuredRegionIds),
             Alliance = DiplomacyContentCompiler.Alliance(header.AllianceDurationTurns, forces,
                 summaries.Where(f => !f.IsBarbarian).Select(f => f.Id).ToHashSet()),
             CityConnections = PersonnelGeographyCompiler.CityConnections(Read(San9ScenarioSquareArchive.ReadKnownRecords),

@@ -163,8 +163,19 @@ public sealed class SimulationEngine
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
         if (_world.Simulation.PendingDailyTask is not { } pending) return null;
         var task = _world.Simulation.Tasks.Single(t => t.Id == pending.RemainingTaskIds[0]);
-        return task.Kind == PersonnelMissions.SearchKind && task.SearchEncounter is { } encounter
+        return task.Kind == PersonnelMissions.SearchKind && task.SearchEncounter is PersonSearchEncounter encounter
             ? new(task.Id, task.ResolutionStep, task.ForceId, task.OfficerId, encounter.OfficerId, task.Journey!.DestinationPlaceId) : null;
+    }
+
+    public BeastSearchPrompt? GetBeastSearchPrompt()
+    {
+        if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
+        if (_world.Simulation.PendingDailyTask is not { } pending) return null;
+        var task = _world.Simulation.Tasks.Single(t => t.Id == pending.RemainingTaskIds[0]);
+        return task.SearchEncounter is BeastSearchEncounter encounter &&
+            _rules.Personnel.SearchEvents.GetValueOrDefault(encounter.EventId) is BeastSearchEventDefinition definition
+            ? new(task.Id, task.ResolutionStep, encounter.EventId, task.ForceId, task.OfficerId, task.Journey!.DestinationPlaceId,
+                SearchEvents.BattleChance(_world.BeginMutation(_rules.Abilities), task.OfficerId, definition)) : null;
     }
 
     public AllianceParticipationPrompt? GetAllianceParticipationPrompt()

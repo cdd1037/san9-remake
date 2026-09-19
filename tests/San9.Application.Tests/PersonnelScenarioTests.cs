@@ -9,6 +9,54 @@ namespace San9.Application.Tests;
 public sealed class PersonnelScenarioTests
 {
     [Fact]
+    public void SearchContentRejectsUnknownPeopleAndInvalidProbabilityBeforeStarting()
+    {
+        var basis = Fixture();
+        var valid = new HealingSearchEventDefinition(21, [11], 6) { Id = "physician" };
+        foreach (var invalid in new[]
+        {
+            valid with { HealerOfficerId = 9999 }, valid with { ExcludedSearchingOfficerIds = [9999] },
+            valid with { WarChanceDivisor = 0 }, valid with { ExcludedSearchingOfficerIds = [11, 11] }
+        }) Assert.Throws<InvalidDataException>(() => (basis with { SearchEvents = [invalid] }).Validate());
+        var first = basis with { SearchEvents = [valid] };
+        var second = basis with { SearchEvents = [valid with { WarChanceDivisor = 7 }] };
+        Assert.NotEqual(GameSession.Fingerprint(first), GameSession.Fingerprint(second));
+    }
+
+    [Fact]
+    public void HealingSearchRunsThroughSessionSaveAndReplayWithoutOrdinaryReward()
+    {
+        var basis = Fixture();
+        var definition = basis with
+        {
+            SearchEvents = [new HealingSearchEventDefinition(21, [], 6) { Id = "physician" }],
+            Officers = basis.Officers.Select(p => p.State.Id switch
+            {
+                1 => p with { State = p.State with { Injury = 7, LifespanTier = 3 } },
+                11 => p with { State = p.State with { BaseAbilities = new(600, 50, 100, 50) } },
+                _ => p
+            }).ToArray()
+        };
+        var session = GameSession.Start(definition, 190);
+        session.BeginRecording();
+        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 11, 1)).Submission.Accepted);
+        var restored = SaveService.Decode(SaveService.Encode(session), definition);
+        var expected = session.AdvanceXun();
+        var actual = restored.AdvanceXun();
+        Assert.Equal(CanonicalJson.Text(expected.Events), CanonicalJson.Text(actual.Events));
+        Assert.Equal(1, Assert.Single(Assert.Single(expected.Events.OfType<SearchHealingResolvedEvent>()).HealedOfficerIds));
+        Assert.DoesNotContain(expected.Events, e => e is SearchResolvedEvent);
+        Assert.Null(session.GetSearchRecruitmentPrompt());
+        var ruler = session.Snapshot.Officers.Single(p => p.Id == 1);
+        Assert.Equal(0, ruler.Injury);
+        Assert.Equal(3, ruler.LifespanTier);
+        Assert.Empty(session.Snapshot.Simulation.ConsumedEventKeys);
+        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
+        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+    }
+
+    [Fact]
     public void PlayerLoadKeepsPendingDiscoveryRollAndDoesNotReexecutePreparation()
     {
         var definition = Fixture();

@@ -39,6 +39,15 @@ internal sealed class ScenarioSessionDefinition
             definition.OfficeRequestsEnabled,
             TacticCourses = definition.TacticCourses.OrderBy(c => c.CityId),
             AttackRequests = definition.AttackRequests.OrderBy(r => r.RequestedForceId),
+            ConsumedEventKeys = definition.ConsumedEventKeys.OrderBy(k => k.Value, StringComparer.Ordinal),
+            SearchEvents = definition.SearchEvents.OrderBy(e => e.Id, StringComparer.Ordinal).Select(e => e switch
+            {
+                HealingSearchEventDefinition healing => (SearchEventDefinition)(healing with
+                    { ExcludedSearchingOfficerIds = healing.ExcludedSearchingOfficerIds.Order().ToImmutableArray() }),
+                BeastSearchEventDefinition beast => beast with { Sites = beast.Sites.OrderBy(s => s.PlaceId).ToImmutableArray(),
+                    BattleTacticIds = beast.BattleTacticIds.Order().ToImmutableArray() },
+                _ => e
+            }),
             Forces = Forces().OrderBy(f => f.Id), Settlements = Settlements().OrderBy(s => s.Id),
             Officers = definition.Officers.Select(o => o.State with { LearnedTactics = o.State.LearnedTactics.Order().ToImmutableArray() }).OrderBy(o => o.Id),
             Units = definition.Units.OrderBy(u => u.Id), Corps = definition.Information.Corps.OrderBy(c => c.Id),
@@ -66,7 +75,7 @@ internal sealed class ScenarioSessionDefinition
             .Select(f => new ControlSeat(f.Id == Content.PlayerForceId ? "player" : $"ai:{f.Id}", f.Id,
                 f.Id == Content.PlayerForceId ? ControllerKind.Player : ControllerKind.Automatic)), computerDamageBonusPercent, Content.Alliance,
         Content.AttackRequests.Select(r => new AttackRequestState(r.RequestedForceId, r.RequesterForceId, r.TargetSettlementId,
-            Content.Settlements.Single(s => s.Id == r.TargetSettlementId).OwnerId!.Value, r.RemainingXun)), Content.AnnualAppearancesEnabled, Content.NaturalDeathsEnabled, Content.FreeOfficerMigrationEnabled, battleDeathsEnabled, Content.OfficeRequestsEnabled);
+            Content.Settlements.Single(s => s.Id == r.TargetSettlementId).OwnerId!.Value, r.RemainingXun)), Content.AnnualAppearancesEnabled, Content.NaturalDeathsEnabled, Content.FreeOfficerMigrationEnabled, battleDeathsEnabled, Content.OfficeRequestsEnabled, Content.ConsumedEventKeys);
 
     private IEnumerable<ForceState> Forces() => Content.Forces.Select(f => new ForceState(f.Id, f.Money, f.Food, f.Trust)
     {

@@ -62,6 +62,8 @@ public sealed record OfficerCapturedEvent(GameClock Clock, int OfficerId, int Ca
 [System.Text.Json.Serialization.JsonDerivedType(typeof(UnitAbsorbedEvent), "unit-absorbed")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(AdviserAppointedEvent), "adviser-appointed")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(SearchResolvedEvent), "search-resolved")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(SearchHealingResolvedEvent), "search-healing-resolved")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(BeastSearchResolvedEvent), "beast-search-resolved")]
 
 [System.Text.Json.Serialization.JsonDerivedType(typeof(RecruitmentResolvedEvent), "recruitment-resolved")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(PersonAffiliationChangedEvent), "person-affiliation-changed")]

@@ -104,6 +104,11 @@ internal static class WorldInvariants
             throw new ArgumentException("Decision boundary requires exactly one pending decision.");
         AllianceFormation.ValidatePending(state);
         OfficeRequests.ValidatePending(state);
+        if (state.Simulation.ConsumedEventKeys.IsDefault ||
+            state.Simulation.ConsumedEventKeys.Any(k => string.IsNullOrWhiteSpace(k.Value)) ||
+            !state.Simulation.ConsumedEventKeys.Select(k => k.Value).SequenceEqual(
+                state.Simulation.ConsumedEventKeys.Select(k => k.Value).Distinct().Order(StringComparer.Ordinal)))
+            throw new ArgumentException("Invalid consumed event keys.");
         if (sim.PendingEvent is not (null or AllianceEventSession or OfficeRequestEventSession))
             throw new ArgumentException("Unknown event session.");
         PrisonerExecution.ValidatePending(state);
@@ -137,7 +142,13 @@ internal static class WorldInvariants
             if ((task.Kind == PersonnelMissions.SearchKind && task.ResolutionStep == 1) != (task.SearchEncounter is not null))
                 throw new ArgumentException("Search resolution step requires its selected encounter.");
             if (task.SearchEncounter is { } encounter &&
-                (task.Kind != PersonnelMissions.SearchKind || task.ResolutionStep != 1 || encounter.OfficerId < 0 || !state.Officers.ContainsKey(encounter.OfficerId) ||
+                (task.Kind != PersonnelMissions.SearchKind || task.ResolutionStep != 1 ||
+                    (encounter switch
+                    {
+                        PersonSearchEncounter person => person.OfficerId < 0 || !state.Officers.ContainsKey(person.OfficerId),
+                        BeastSearchEncounter beast => string.IsNullOrWhiteSpace(beast.EventId),
+                        _ => true
+                    }) ||
                     sim.PendingDailyTask is not { } pendingSearch || pendingSearch.RemainingTaskIds[0] != task.Id))
                 throw new ArgumentException("Invalid search encounter context.");
             if ((task.Kind == TacticStudy.Kind) != (task.StudyTacticId is not null) || task.StudyTacticId < 0 || task.Kind == TacticStudy.Kind && task.Started.DayNumber - sim.Started.DayNumber < 30)

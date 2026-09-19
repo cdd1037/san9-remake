@@ -14,9 +14,31 @@ public sealed class PersonnelRulebook
 {
     public static PersonnelRulebook Empty { get; } = new([]);
     public PersonnelRulebook(IEnumerable<PersonPlace> places, IReadOnlyDictionary<int, int>? regionCities = null,
-        IEnumerable<CityConnection>? cityConnections = null, IReadOnlyDictionary<int, int>? cityProvinces = null, IEnumerable<CityTacticCourse>? tacticCourses = null)
+        IEnumerable<CityConnection>? cityConnections = null, IReadOnlyDictionary<int, int>? cityProvinces = null, IEnumerable<CityTacticCourse>? tacticCourses = null,
+        IEnumerable<SearchEventDefinition>? searchEvents = null)
     {
         Places = places.ToImmutableDictionary(p => p.Id);
+        SearchEvents = (searchEvents ?? []).ToImmutableDictionary(e => e.Id, StringComparer.Ordinal);
+        foreach (var entry in SearchEvents.Values)
+        {
+            if (entry is HealingSearchEventDefinition healing)
+            {
+                _ = healing.Candidate(healing.ConsumptionKey);
+                if (healing.HealerOfficerId < 0 || healing.WarChanceDivisor <= 0 ||
+                    !ValidIds(healing.ExcludedSearchingOfficerIds)) throw new ArgumentException("Invalid healing event definition.");
+            }
+            else if (entry is BeastSearchEventDefinition beast)
+            {
+                if (beast.Sites.IsDefaultOrEmpty || beast.Sites.Any(s => s is null || !Places.ContainsKey(s.PlaceId) || !ValidIds(s.RewardTacticIds)) ||
+                    beast.Sites.Select(s => s.PlaceId).Distinct().Count() != beast.Sites.Length ||
+                    !ValidIds(beast.BattleTacticIds) || beast.WarChanceDivisor <= 0 || beast.WarReward < 0 ||
+                    beast.BaseTrustReward < 0 || beast.DefeatInjury is < 0 or > 14)
+                    throw new ArgumentException("Invalid beast event definition.");
+                foreach (var site in beast.Sites) _ = beast.Candidate(site.ConsumptionKey);
+            }
+            else
+                throw new ArgumentException("Invalid search event definition.");
+        }
         TacticCourses = (tacticCourses ?? []).ToImmutableDictionary(c => c.CityId, c => c.TacticId);
         if (TacticCourses.Any(c => !Places.ContainsKey(c.Key) || c.Value < 0)) throw new ArgumentException("Invalid tactic course.");
         RegionCities = (regionCities ?? ImmutableDictionary<int, int>.Empty).ToImmutableDictionary();
@@ -31,10 +53,14 @@ public sealed class PersonnelRulebook
     }
 
     public ImmutableDictionary<int, int> TacticCourses { get; }
+    public ImmutableDictionary<string, SearchEventDefinition> SearchEvents { get; }
     public ImmutableDictionary<int, PersonPlace> Places { get; }
     public ImmutableDictionary<int, int> RegionCities { get; }
     public ImmutableArray<CityConnection> CityConnections { get; }
     public ImmutableDictionary<int, int> CityProvinces { get; }
+
+    private static bool ValidIds(ImmutableArray<int> values) => !values.IsDefault &&
+        values.All(id => id >= 0) && values.Distinct().Count() == values.Length;
 
     public int JourneyDays(int source, int destination, PersonnelJourneyKind kind)
     {

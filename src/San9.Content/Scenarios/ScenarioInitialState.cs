@@ -36,7 +36,9 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 67;
+    public const int CurrentSchemaVersion = 68;
+    [JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Simulation.PersistentEventKey> ConsumedEventKeys { get; init; } = [];
+    [JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Domain.SearchEventDefinition> SearchEvents { get; init; } = [];
     [JsonRequired] public San9.Core.Domain.TerminalDefinition? Terminal { get; init; }
     [JsonRequired] public San9.Core.Domain.EndingDefinition? Ending { get; init; }
     [JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Domain.CityTacticCourse> TacticCourses { get; init; } = [];
@@ -85,7 +87,16 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
             throw new InvalidDataException("Invalid unbuilt personnel place.");
         try
         {
-            _ = new San9.Core.Domain.PersonnelRulebook(Settlements.Select(s => new San9.Core.Domain.PersonPlace(s.Id, s.Position)).Concat(UnbuiltPlaces), RegionCityIds, CityConnections);
+            if (SearchEvents.IsDefault || SearchEvents.Any(e => e is null)) throw new InvalidDataException("Invalid search event collection.");
+            _ = new San9.Core.Domain.PersonnelRulebook(Settlements.Select(s => new San9.Core.Domain.PersonPlace(s.Id, s.Position)).Concat(UnbuiltPlaces), RegionCityIds, CityConnections, searchEvents: SearchEvents);
+            var ids = Officers.Select(o => o.State.Id).ToHashSet();
+            foreach (var healing in SearchEvents.OfType<San9.Core.Domain.HealingSearchEventDefinition>())
+                if (!ids.Contains(healing.HealerOfficerId) || healing.ExcludedSearchingOfficerIds.Any(id => !ids.Contains(id)))
+                    throw new InvalidDataException("Unknown search event officer reference.");
+            var tactics = Military?.Tactics.Where(t => t.Category is >= 0 and <= 8).Select(t => t.Id).ToHashSet() ?? [];
+            foreach (var beast in SearchEvents.OfType<San9.Core.Domain.BeastSearchEventDefinition>())
+                if (beast.BattleTacticIds.Concat(beast.Sites.SelectMany(s => s.RewardTacticIds)).Any(id => !tactics.Contains(id)))
+                    throw new InvalidDataException("Unknown or unlearnable search event tactic reference.");
         }
         catch (ArgumentException error) { throw new InvalidDataException("Invalid personnel geography.", error); }
         new San9.Core.Domain.EconomyRulebook([], DomesticPairs, ImperialSealId, EmperorId).Validate();
@@ -93,6 +104,9 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
             ImperialSealId is int seal && !Information.Treasures.Any(t => t.Id == seal) ||
             EmperorId is int emperor && !Officers.Any(o => o.State.Id == emperor)) throw new InvalidDataException("Invalid economy references.");
         if (Officers.Any(o => o.State.RegionId is int region && !UnbuiltPlaces.Any(p => p.Id == region))) throw new InvalidDataException("Invalid officer region.");
+        if (ConsumedEventKeys.IsDefault || ConsumedEventKeys.Any(k => string.IsNullOrWhiteSpace(k.Value)) ||
+            ConsumedEventKeys.Distinct().Count() != ConsumedEventKeys.Length)
+            throw new InvalidDataException("Invalid initial consumed event keys.");
         var forceIds = Forces.Select(f => f.Id).ToHashSet();
         if (AttackRequests.IsDefault || AttackRequests.Any(r => r is null || r.RemainingXun <= 0 ||
             r.RequestedForceId == r.RequesterForceId || !forceIds.Contains(r.RequestedForceId) || !forceIds.Contains(r.RequesterForceId) ||

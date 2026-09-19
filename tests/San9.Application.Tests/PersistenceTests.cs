@@ -13,6 +13,40 @@ namespace San9.Application.Tests;
 public sealed class PersistenceTests : IDisposable
 {
     [Fact]
+    public void ConsumedEventKeysSurviveSaveAndRecordingAndOldFormatsAreRejected()
+    {
+        var definition = Fixture() with { ConsumedEventKeys = [new("history")] };
+        var session = GameSession.Start(definition, 190);
+        var restored = SaveService.Decode(SaveService.Encode(session), definition);
+        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        Assert.Equal("history", Assert.Single(restored.Snapshot.Simulation.ConsumedEventKeys).Value);
+        restored.BeginRecording();
+        restored.AdvanceXun();
+        var replay = RecordingService.Replay(RecordingService.Encode(restored.EndRecording()), definition, GameSession.EngineFactory(definition));
+        Assert.Equal(restored.Capture().StateHash, replay.Session.Capture().StateHash);
+        var old = JsonNode.Parse(SaveService.Encode(session))!;
+        old["formatVersion"] = 58;
+        old["session"]!["world"]!["simulation"]!.AsObject().Remove("consumedEventKeys");
+        Assert.Equal(SaveFailure.UnsupportedVersion, Assert.Throws<SaveException>(() =>
+            SaveService.Decode(Encoding.UTF8.GetBytes(old.ToJsonString()), definition)).Failure);
+    }
+
+    [Fact]
+    public void InitialEventConsumptionAffectsContentIdentityButInputOrderDoesNot()
+    {
+        var basis = Fixture();
+        var definition = basis with { ConsumedEventKeys = [new("z"), new("a")] };
+        var session = GameSession.Start(definition, 190);
+        var reordered = GameSession.Start(definition with { ConsumedEventKeys = [new("a"), new("z")] }, 190);
+        Assert.Equal(session.ContentFingerprint, reordered.ContentFingerprint);
+        Assert.Equal(session.Capture().StateHash, reordered.Capture().StateHash);
+        Assert.Equal(["a", "z"], session.Snapshot.Simulation.ConsumedEventKeys.Select(k => k.Value));
+        Assert.NotEqual(session.ContentFingerprint, GameSession.Start(basis, 190).ContentFingerprint);
+        Assert.Throws<InvalidDataException>(() => (basis with { ConsumedEventKeys = [default] }).Validate());
+        Assert.Throws<InvalidDataException>(() => (basis with { ConsumedEventKeys = [new("a"), new("a")] }).Validate());
+    }
+
+    [Fact]
     public void InitialAllianceSurvivesSaveAndRecordedExpiryWithoutRepeatingInitialUpdates()
     {
         var basis = Fixture();

@@ -330,7 +330,7 @@
       "id": "event",
       "classification": "core",
       "behavior_specs": ["BEH-EVENT-0001", "BEH-EVENT-0002"],
-      "objects": ["EventCandidate", "EventSession", "EventOutcome", "PersistentEventKey", "EventTrigger"],
+      "objects": ["EventCandidate", "EventSession", "EventOutcome", "PersistentEventKey", "EventTrigger", "SearchEventDefinition", "SearchEncounter"],
       "states": ["eligible", "skipped", "presenting", "cancelled", "committed"],
       "inputs": ["named trigger", "stable candidate catalog", "read-only world snapshot", "stable event random streams"],
       "outputs": ["zero or one active event", "atomic world effect", "persistent consumption key", "domain event"],
@@ -341,8 +341,8 @@
         "project": "San9.Core",
         "target_namespace": "San9.Core.Simulation",
         "target_path": "src/San9.Core/Simulation",
-        "entry_types": ["EventSession", "OfficeRequests", "AllianceFormation"],
-        "existing_anchors": ["src/San9.Core/Simulation/EventSession.cs", "src/San9.Core/Simulation/Personnel/OfficeRequests.cs", "src/San9.Core/Simulation/Diplomacy/AllianceFormation.cs", "src/San9.Core/Simulation/ResolutionPipeline.cs"]
+        "entry_types": ["EventSelection", "EventSession", "SearchEvents", "OfficeRequests", "AllianceFormation"],
+        "existing_anchors": ["src/San9.Core/Simulation/EventSelection.cs", "src/San9.Core/Domain/Governance/SearchEventDefinition.cs", "src/San9.Core/Simulation/Personnel/SearchEvents.cs", "src/San9.Core/Simulation/EventSession.cs", "src/San9.Core/Simulation/Personnel/OfficeRequests.cs", "src/San9.Core/Simulation/Diplomacy/AllianceFormation.cs", "src/San9.Core/Simulation/ResolutionPipeline.cs"]
       }
     },
     {

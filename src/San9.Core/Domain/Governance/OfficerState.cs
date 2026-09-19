@@ -44,6 +44,7 @@ public sealed record OfficerState(int Id, int? OwnerId, int? SettlementId, Offic
     [JsonRequired] public ImmutableDictionary<int, int> ForceLoyalties { get; init; } = ImmutableDictionary<int, int>.Empty;
     [JsonRequired] public int Righteousness { get; init; }
     [JsonRequired] public int Ambition { get; init; }
+    [JsonRequired] public int ForceFounderPriority { get; init; }
     [JsonRequired] public bool PrefersConsolidationLeadership { get; init; }
     [JsonRequired] public bool AutomaticSurrenderAllowed { get; init; } = true;
     [JsonRequired] public bool RewardedThisXun { get; init; }
@@ -63,7 +64,7 @@ public sealed record OfficerState(int Id, int? OwnerId, int? SettlementId, Offic
     {
         if ((DuelAdvantages & ~(DuelAdvantages.DominantParry | DuelAdvantages.DominantAttack | DuelAdvantages.DominantDoubleStrike)) != 0) return false;
         if (Status == OfficerStatus.NotAppeared && SettlementId is null && RegionId is null) return false;
-        if (Ambition is < 0 or > 15 || Righteousness is < 0 or > 15 || ForceLoyalties is null ||
+        if (ForceFounderPriority < 0 || Ambition is < 0 or > 15 || Righteousness is < 0 or > 15 || ForceLoyalties is null ||
             ForceLoyalties.Any(p => p.Key < 0 || p.Value is < 0 or > 255)) return false;
         if (Affinity is < 0 or >= 150 || TacticLinkBonus is < 0 or > 100 || MasteredCategories.IsDefault ||
             MasteredCategories.Any(c => c is < 0 or > 8) || MasteredCategories.Distinct().Count() != MasteredCategories.Length) return false;

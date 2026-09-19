@@ -9,6 +9,15 @@ internal static class WorldInvariants
         ValidateSimulation(state);
         foreach (var force in state.Forces.Values)
         {
+            if (force.Origin is { } origin)
+            {
+                _ = new GameClock(origin.Clock.Year, origin.Clock.Month, origin.Clock.Day);
+                if (!Enum.IsDefined(origin.Kind) || !origin.Clock.IsXunBoundary ||
+                    !state.Officers.ContainsKey(origin.FounderId) ||
+                    !state.Settlements.TryGetValue(origin.SettlementId, out var foundingCity) ||
+                    foundingCity.Kind != San9.Core.Domain.SettlementKind.City)
+                    throw new ArgumentException("Invalid force origin.");
+            }
             if (force.IsEliminated && (force.LeaderId is not null || force.AdviserId is not null || force.Money != 0 || force.Food != 0 ||
                 state.Officers.Values.Any(p => p.OwnerId == force.Id) || state.Settlements.Values.Any(s => s.OwnerId == force.Id) ||
                 state.Units.Values.Any(u => u.OwnerId == force.Id) || state.Corps.Values.Any(c => c.OwnerId == force.Id) ||

@@ -2,8 +2,16 @@ using System.Text.Json.Serialization;
 
 namespace San9.Core.Domain;
 
+public enum ForceCreationKind { EmptyCityUprising }
+public sealed record ForceOrigin(
+    [property: JsonRequired] ForceCreationKind Kind,
+    [property: JsonRequired] int FounderId,
+    [property: JsonRequired] int SettlementId,
+    [property: JsonRequired] San9.Core.Simulation.GameClock Clock);
+
 public sealed record ForceState(int Id, uint Money, uint Food, int Trust)
 {
+    [JsonRequired] public ForceOrigin? Origin { get; init; }
     [JsonRequired] public bool IsEliminated { get; init; }
     [JsonRequired] public int BaseTrust { get; init; }
     public System.Collections.Immutable.ImmutableArray<int> ProvidedTactics { get; init; } = [];

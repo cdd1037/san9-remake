@@ -13,14 +13,28 @@ internal static class SessionValidation
             snapshot.NextOperationSequence < 0)
             throw new ArgumentException("Missing session state.");
         var expected = definition.CreateWorld(snapshot.World.Simulation.InitialSeed);
+        var generated = snapshot.World.Forces.Where(f => f.Origin is not null).OrderBy(f => f.Id).ToArray();
+        long nextForceId = (long)definition.Content.Forces.Max(f => f.Id) + 1;
+        foreach (var force in generated)
+        {
+            var origin = force.Origin!;
+            if (!snapshot.World.Simulation.ForceEmergenceEnabled || force.Id != nextForceId++ ||
+                origin.Kind != ForceCreationKind.EmptyCityUprising || force.IsBarbarian ||
+                !definition.Content.Officers.Any(o => o.State.Id == origin.FounderId) ||
+                !definition.Content.Settlements.Any(s => s.Id == origin.SettlementId && s.Kind == SettlementKind.City) ||
+                origin.Clock.DayNumber < expected.Clock.DayNumber + 30 || origin.Clock.DayNumber > snapshot.World.Clock.DayNumber)
+                throw new ArgumentException("Invalid runtime force provenance.");
+        }
+        var expectedControls = expected.Simulation.Controls.Concat(generated.Select(f => new ControlSeat($"ai:{f.Id}", f.Id, ControllerKind.Automatic)))
+            .Where(c => snapshot.World.Forces.Any(f => f.Id == c.ForceId && !f.IsEliminated));
         if (snapshot.World.Simulation.Started != expected.Clock ||
             snapshot.World.Simulation.AnnualAppearancesEnabled != expected.Simulation.AnnualAppearancesEnabled ||
             snapshot.World.Simulation.FreeOfficerMigrationEnabled != expected.Simulation.FreeOfficerMigrationEnabled ||
             snapshot.World.Simulation.OfficeRequestsEnabled != expected.Simulation.OfficeRequestsEnabled ||
             snapshot.World.Simulation.ForceConsolidationEnabled != expected.Simulation.ForceConsolidationEnabled ||
+            snapshot.World.Simulation.ForceEmergenceEnabled != expected.Simulation.ForceEmergenceEnabled ||
             snapshot.World.Simulation.NaturalDeathsEnabled != expected.Simulation.NaturalDeathsEnabled ||
-            !snapshot.World.Simulation.Controls.SequenceEqual(expected.Simulation.Controls.Where(c =>
-                snapshot.World.Forces.Any(f => f.Id == c.ForceId && !f.IsEliminated))))
+            !snapshot.World.Simulation.Controls.SequenceEqual(expectedControls))
             throw new ArgumentException("Scenario date or control configuration mismatch.");
         var content = definition.Content;
         if (snapshot.World.Simulation.Boundary == SimulationBoundary.Terminal)
@@ -35,7 +49,7 @@ internal static class SessionValidation
         {
             if (!a.Order().SequenceEqual(b.Order())) throw new ArgumentException("Scenario identity set mismatch.");
         }
-        Same(content.Forces.Select(f => f.Id), snapshot.World.Forces.Select(f => f.Id));
+        Same(content.Forces.Select(f => f.Id), snapshot.World.Forces.Where(f => f.Origin is null).Select(f => f.Id));
         if (content.Settlements.Any(s => !snapshot.World.Settlements.Any(current => current.Id == s.Id)) ||
             snapshot.World.Settlements.Any(s => !content.Settlements.Any(initial => initial.Id == s.Id) &&
                 (s.Facility is null || !content.UnbuiltPlaces.Any(region => region.Id == s.Id))))
@@ -47,7 +61,7 @@ internal static class SessionValidation
             throw new ArgumentException("Unknown unit service place.");
         // Succession can promote a child corps to the ruler's corps. The treasury belongs to the force,
         // so validate its surviving owner rather than requiring the initial corps identity.
-        Same(content.Information.Corps.Where(c => c.Treasury is null && snapshot.World.Forces.Any(f => f.Id == c.OwnerId && !f.IsEliminated)).Select(c => c.OwnerId),
+        Same(content.Information.Corps.Where(c => c.Treasury is null && snapshot.World.Forces.Any(f => f.Id == c.OwnerId && !f.IsEliminated)).Select(c => c.OwnerId).Concat(generated.Where(f => !f.IsEliminated).Select(f => f.Id)),
             snapshot.World.Corps.Where(c => c.Treasury is null).Select(c => c.OwnerId));
         Same(content.Information.TreasureStates.Select(t => t.Id), snapshot.World.Treasures.Select(t => t.Id));
         if (content.Information.Relations.Any(initial => !snapshot.World.Relations.Any(current =>

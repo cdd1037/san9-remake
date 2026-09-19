@@ -200,6 +200,16 @@ internal sealed class WorldMutation
         if (!Corps.ContainsKey(id)) throw new InvalidOperationException("Unknown corps.");
         Corps = Corps.Remove(id);
     }
+    // Retired forces remain in the world, so allocation never reuses a previous identity.
+    internal void AddForce(ForceState force)
+    {
+        EnsureOpen();
+        if (force.Origin is null || force.Id != checked(Forces.Keys.DefaultIfEmpty(-1).Max() + 1))
+            throw new ArgumentException("Invalid generated force identity or origin.");
+        Forces = Forces.Add(force.Id, force);
+        _engagements = null;
+    }
+
     internal void AddCorps(CorpsState corps)
     {
         EnsureOpen();

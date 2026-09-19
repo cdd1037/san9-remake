@@ -51,6 +51,7 @@ public static class OfficerContentCompiler
                 ForceLoyalties = forces.ToImmutableDictionary(f => f.Id, f => (int)person.GetForceLoyalty(f.Id)),
                 Righteousness = person.Righteousness,
                 Ambition = person.Ambition,
+                ForceFounderPriority = FounderPriority(person.BiographyResourceCode),
                 PrefersConsolidationLeadership = ConsolidationLeadership(person.BiographyResourceCode),
                 AutomaticSurrenderAllowed = person.BiographyResourceCode != 36 && person.BiographyResourceCode is not (>= 59 and <= 64),
                 HasRecruitmentPoliticsBonus = person.BiographyResourceCode == 36,
@@ -72,6 +73,12 @@ public static class OfficerContentCompiler
         9 => DuelAdvantages.DominantParry,
         4 => DuelAdvantages.DominantDoubleStrike,
         _ => DuelAdvantages.None
+    };
+
+    public static int FounderPriority(int biographyId) => biographyId switch
+    {
+        32 => 15, 5 => 14, 60 => 13, 38 => 12, 61 => 11, 62 => 10, 63 => 9, 64 => 8,
+        520 => 7, 66 => 6, 68 => 5, 74 => 4, 36 => 3, 3 => 2, 27 => 1, _ => 0
     };
 
     public static bool ConsolidationLeadership(int biographyId) => biographyId is 36 or 60 or 61 or 59 or 62 or 63 or 64 or 68 or 3 or 5 or 520;

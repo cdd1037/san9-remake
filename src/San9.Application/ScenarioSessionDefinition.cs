@@ -38,6 +38,7 @@ internal sealed class ScenarioSessionDefinition
             definition.FreeOfficerMigrationEnabled,
             definition.OfficeRequestsEnabled,
             definition.ForceConsolidationEnabled,
+            definition.ForceEmergenceEnabled,
             TacticCourses = definition.TacticCourses.OrderBy(c => c.CityId),
             AttackRequests = definition.AttackRequests.OrderBy(r => r.RequestedForceId),
             ConsumedEventKeys = definition.ConsumedEventKeys.OrderBy(k => k.Value, StringComparer.Ordinal),
@@ -76,7 +77,7 @@ internal sealed class ScenarioSessionDefinition
             .Select(f => new ControlSeat(f.Id == Content.PlayerForceId ? "player" : $"ai:{f.Id}", f.Id,
                 f.Id == Content.PlayerForceId ? ControllerKind.Player : ControllerKind.Automatic)), computerDamageBonusPercent, Content.Alliance,
         Content.AttackRequests.Select(r => new AttackRequestState(r.RequestedForceId, r.RequesterForceId, r.TargetSettlementId,
-            Content.Settlements.Single(s => s.Id == r.TargetSettlementId).OwnerId!.Value, r.RemainingXun)), Content.AnnualAppearancesEnabled, Content.NaturalDeathsEnabled, Content.FreeOfficerMigrationEnabled, battleDeathsEnabled, Content.OfficeRequestsEnabled, Content.ConsumedEventKeys, Content.ForceConsolidationEnabled);
+            Content.Settlements.Single(s => s.Id == r.TargetSettlementId).OwnerId!.Value, r.RemainingXun)), Content.AnnualAppearancesEnabled, Content.NaturalDeathsEnabled, Content.FreeOfficerMigrationEnabled, battleDeathsEnabled, Content.OfficeRequestsEnabled, Content.ConsumedEventKeys, Content.ForceConsolidationEnabled, Content.ForceEmergenceEnabled);
 
     private IEnumerable<ForceState> Forces() => Content.Forces.Select(f => new ForceState(f.Id, f.Money, f.Food, f.Trust)
     {

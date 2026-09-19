@@ -36,7 +36,8 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 69;
+    public const int CurrentSchemaVersion = 70;
+    [JsonRequired] public bool ForceEmergenceEnabled { get; init; } = true;
     [JsonRequired] public bool ForceConsolidationEnabled { get; init; } = true;
     [JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Simulation.PersistentEventKey> ConsumedEventKeys { get; init; } = [];
     [JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Domain.SearchEventDefinition> SearchEvents { get; init; } = [];

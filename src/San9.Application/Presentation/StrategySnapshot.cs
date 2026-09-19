@@ -69,7 +69,17 @@ internal sealed class StrategySnapshotSource
     public IReadOnlyDictionary<int, int> RegionCityIds { get; }
 
     public OfficerInitialState Officer(int id) => _officers[id];
-    public ForceInitialState Force(int id) => _forces[id];
+    public (string NameKey, int ColorCode, int FlagGlyph) Force(ForceState force)
+    {
+        if (force.Origin is { } origin)
+        {
+            // Fifty authored color resources can be reused; they do not bound force identities.
+            // No family flag glyph is authored for this runtime force, so use the supported empty glyph.
+            return (_officers[origin.FounderId].NameKey, force.Id % 50, -1);
+        }
+        var initial = _forces[force.Id];
+        return (initial.NameKey, initial.ColorCode, initial.FlagGlyph);
+    }
     public SettlementInitialState? Settlement(int id) => _settlements.GetValueOrDefault(id);
     public IReadOnlyList<string> SettlementIcons(int id) => _settlementIcons.GetValueOrDefault(id) ?? [];
     public StrategySnapshot Project(WorldSnapshot world) => new(this, world);
@@ -115,7 +125,7 @@ public sealed class StrategySnapshot
         var officerLocations = world.Officers.ToDictionary(officer => officer.Id, officer => officer.SettlementId);
         Forces = Array.AsReadOnly(world.Forces.Select(f =>
         {
-            var definition = source.Force(f.Id);
+            var definition = source.Force(f);
             int? leaderSettlementId = f.LeaderId is int leader && officerLocations.TryGetValue(leader, out int? location)
                 ? location
                 : null;
@@ -141,7 +151,7 @@ public sealed class StrategySnapshot
                 new MapCell(definition!.X, definition.Y);
             string nameKey = s.Facility is null ? definition!.NameKey : source.RegionNameKeys[s.Id];
             int? markerColor = s.Kind == San9.Core.Domain.SettlementKind.City
-                ? s.OwnerId is int owner ? source.Force(owner).ColorCode : 50
+                ? s.OwnerId is int owner ? Forces.Single(f => f.Id == owner).ColorCode : 50
                 : null;
             return new SettlementView(s.Id, nameKey, s.OwnerId, cell.X, cell.Y, s.Soldiers,
                 s.Durability, s.MaxDurability, s.Morale, availableSettlementIds.Contains((s.Id, s.OwnerId)), markerColor,

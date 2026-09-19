@@ -171,7 +171,7 @@ internal static class GossipStrategies
 internal sealed class GossipRule(SimulationRules rules) : TaskRule
 {
     internal override bool HasValidPayload(PersistentTask task) => task.Journey is
-        { TargetOfficerId: null, SuccessRoll: >= 0 and < 100, ReturnLeg: null, AcceptRecruitment: null,
+        { TargetOfficerId: null, SuccessRoll: >= 0 and < 100, ReturnLeg: null,
           UnitStrategy: null, Burn: null, Seize: null,
           Gossip: { FirstTargetForceId: >= 0, SecondTargetForceId: >= 0 } gossip } &&
         gossip.FirstTargetForceId != gossip.SecondTargetForceId &&

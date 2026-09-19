@@ -7,9 +7,9 @@ namespace San9.Application;
 
 public static class SessionProtocol
 {
-    public const string RulesVersion = "san9-core-g09-v14";
-    public const int SaveFormatVersion = 55;
-    public const int LogFormatVersion = 55;
+    public const string RulesVersion = "san9-core-g10-v2";
+    public const int SaveFormatVersion = 57;
+    public const int LogFormatVersion = 57;
 }
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
@@ -17,11 +17,14 @@ public static class SessionProtocol
 [JsonDerivedType(typeof(EndControlOperation), "end-control")]
 [JsonDerivedType(typeof(AdvanceOperation), "advance-xun")]
 [JsonDerivedType(typeof(ChronicleOperation), "chronicle-note")]
+[JsonDerivedType(typeof(EndingOperation), "ending")]
 public abstract record SessionOperation;
 public sealed record CommandOperation(GameCommand Command) : SessionOperation;
 public sealed record EndControlOperation : SessionOperation;
 public sealed record AdvanceOperation : SessionOperation;
 public sealed record ChronicleOperation(string Text) : SessionOperation;
+public sealed record EndingSelection([property: JsonRequired] EndingPolicy Policy, [property: JsonRequired] EndingOfficeholders? Officeholders);
+public sealed record EndingOperation(EndingSelection Selection) : SessionOperation;
 
 public sealed record SessionRequest(Guid Id, long Sequence, string ControllerId, SessionOperation Operation);
 public enum SessionDisposition { Accepted, AlreadyProcessed, Rejected }
@@ -37,7 +40,8 @@ public sealed record SessionRecording(string ContentFingerprint, SessionSnapshot
 public sealed record SessionSnapshot(WorldSnapshot World, ImmutableArray<SessionRecord> Records,
     ImmutableArray<ChronicleEntry> Chronicle, long NextOperationSequence)
 {
+    [JsonRequired] public EndingSelection? Ending { get; init; }
     [JsonIgnore]
     public string StateHash => CanonicalJson.Hash(new { version = CanonicalJson.Version,
-        world = World.StateHash, records = Records, chronicle = Chronicle, nextOperationSequence = NextOperationSequence });
+        world = World.StateHash, records = Records, chronicle = Chronicle, ending = Ending, nextOperationSequence = NextOperationSequence });
 }

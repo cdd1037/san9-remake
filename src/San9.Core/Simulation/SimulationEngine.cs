@@ -14,9 +14,9 @@ public sealed class SimulationEngine
         : this(world, new SimulationRules { Economy = economy, Personnel = personnel }) { }
 
     public SimulationEngine(WorldState world, EconomyRulebook economy, PersonnelRulebook personnel, TreasureRulebook treasures,
-        GovernanceRulebook? governance = null, MilitaryRulebook? military = null)
+        GovernanceRulebook? governance = null, MilitaryRulebook? military = null, TerminalDefinition? terminal = null)
         : this(ValidateContent(world, treasures, governance), new SimulationRules
-            { Economy = economy, Personnel = personnel, Treasures = treasures, Governance = governance ?? new([]), Military = military }) { }
+            { Economy = economy, Personnel = personnel, Treasures = treasures, Governance = governance ?? new([]), Military = military, Terminal = terminal }) { }
 
     private static WorldState ValidateContent(WorldState world, TreasureRulebook treasures, GovernanceRulebook? governance)
     {
@@ -30,6 +30,7 @@ public sealed class SimulationEngine
 
     internal SimulationEngine(WorldState world, SimulationRules rules)
     {
+        rules.Terminal?.Validate(world.CreateSnapshot().Settlements.Where(s => s.Kind == SettlementKind.City).Select(s => s.Id).ToHashSet());
         ArgumentNullException.ThrowIfNull(world);
         _world = world;
         _rules = rules;
@@ -148,6 +149,15 @@ public sealed class SimulationEngine
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
         return AllianceEligibility.Find(_world.BeginMutation(_rules.Abilities), _rules);
+    }
+
+    public SearchRecruitmentPrompt? GetSearchRecruitmentPrompt()
+    {
+        if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
+        if (_world.Simulation.PendingDailyTask is not { } pending) return null;
+        var task = _world.Simulation.Tasks.Single(t => t.Id == pending.RemainingTaskIds[0]);
+        return task.Kind == PersonnelMissions.SearchKind && task.SearchEncounter is { } encounter
+            ? new(task.Id, task.ResolutionStep, task.ForceId, task.OfficerId, encounter.OfficerId, task.Journey!.DestinationPlaceId) : null;
     }
 
     public AllianceParticipationPrompt? GetAllianceParticipationPrompt()

@@ -162,6 +162,6 @@ public sealed record WorldSnapshot(
         interaction = new { Simulation.PendingDuel, Simulation.PendingAlliance, Simulation.PendingDailyTask, Simulation.PendingTacticStudy,
             Simulation.PendingExecutionSuccession, tasks = Simulation.Tasks.Where(t => t.ResolutionStep != 0 ||
                 t.AttackRequest?.Offer is not null || t.PrisonerReturn?.Offer is not null)
-                .Select(t => new { t.Id, t.ResolutionStep, attackOffer = t.AttackRequest?.Offer, prisonerOffer = t.PrisonerReturn?.Offer }) } });
+                .Select(t => new { t.Id, t.ResolutionStep, t.SearchEncounter, attackOffer = t.AttackRequest?.Offer, prisonerOffer = t.PrisonerReturn?.Offer }) } });
     public long Revision { get; init; }
 }

@@ -24,6 +24,14 @@ internal sealed class ScenarioSessionDefinition
         {
             definition.SchemaVersion, definition.ScenarioId, definition.Year, definition.Month, definition.Day, definition.PlayerForceId, definition.DomesticPairs, definition.ImperialSealId, definition.EmperorId,
             definition.Military,
+            Terminal = definition.Terminal is { } terminal ? new { Cities = terminal.CoreCityIds.Order(), terminal.EndYear } : null,
+            Ending = definition.Ending is { } ending ? new
+            {
+                ExpansionOrder = ending.ExpansionPublicOrderCityIds.Order(), ExpansionGateways = ending.ExpansionGatewayCityIds.Order(),
+                ExpansionCommerce = ending.ExpansionCommerceCityIds.Order(), DomesticDurability = ending.DomesticDurabilityCityIds.Order(),
+                DomesticGateways = ending.DomesticGatewayCityIds.Order(), DomesticOrder = ending.DomesticPublicOrderCityIds.Order(),
+                Treasures = ending.CulturalTreasureIds.Order()
+            } : null,
             definition.Alliance,
             definition.AnnualAppearancesEnabled,
             definition.NaturalDeathsEnabled,

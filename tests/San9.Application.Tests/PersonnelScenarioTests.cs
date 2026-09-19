@@ -99,6 +99,7 @@ public sealed class PersonnelScenarioTests
             Assert.Equal(SessionDisposition.Accepted, first.Disposition);
             Assert.Equal(CanonicalJson.Text(first.Events), CanonicalJson.Text(other.Events));
             events.AddRange(first.Events);
+            RespondSearch(session, resumed, true, events);
             Assert.Equal(SaveService.Encode(session), SaveService.Encode(resumed));
         }
         Assert.Equal(12, checkpoints);
@@ -129,8 +130,7 @@ public sealed class PersonnelScenarioTests
         }).ToArray() };
         var session = GameSession.Start(definition, 190);
         session.BeginRecording();
-        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 11, 1)
-            { AcceptRecruitment = acceptRecruitment }).Submission.Accepted);
+        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 11, 1)).Submission.Accepted);
         Assert.False(session.View.Officers.Single(p => p.Id == 11).IsAvailable);
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         foreach (var operation in new SessionOperation[] { new EndControlOperation(), new AdvanceOperation() })
@@ -141,6 +141,10 @@ public sealed class PersonnelScenarioTests
             Assert.Equal(SessionDisposition.Accepted, first.Disposition);
             Assert.Equal(CanonicalJson.Text(first.Events), CanonicalJson.Text(second.Events));
         }
+        Assert.NotNull(session.GetSearchRecruitmentPrompt());
+        Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
+        Assert.Throws<InvalidOperationException>(() => session.CaptureRecording());
+        RespondSearch(session, restored, acceptRecruitment);
         Assert.Equal(SaveService.Encode(session), SaveService.Encode(restored));
         Assert.Equal(new GameClock(190, 1, 11), session.Snapshot.Clock);
         Assert.Empty(session.Snapshot.Simulation.Tasks);
@@ -168,6 +172,22 @@ public sealed class PersonnelScenarioTests
         {
             var invalid = saved with { World = saved.World with { Simulation = saved.World.Simulation with { Tasks = [task with { Journey = journey }] } } };
             Assert.Throws<ArgumentException>(() => GameSession.Restore(definition, invalid));
+        }
+    }
+
+    private static void RespondSearch(GameSession first, GameSession second, bool accept, List<DomainEvent>? events = null)
+    {
+        while (first.GetSearchRecruitmentPrompt() is { } prompt)
+        {
+            var id = Guid.NewGuid();
+            var request = first.Request(new CommandOperation(new RespondDailyTaskCommand(id, prompt.ForceId,
+                first.Snapshot.Simulation.NextSequence, prompt.TaskId, prompt.Step, accept)), id: id);
+            var result = first.Apply(request);
+            Assert.Equal(SessionDisposition.Accepted, result.Disposition);
+            var other = second.Apply(request);
+            Assert.Equal(SessionDisposition.Accepted, other.Disposition);
+            Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(other.Events));
+            events?.AddRange(result.Events);
         }
     }
 }

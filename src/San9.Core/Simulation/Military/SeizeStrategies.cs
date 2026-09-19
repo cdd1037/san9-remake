@@ -184,7 +184,7 @@ internal static class SeizeStrategies
 internal sealed class SeizeRule(SimulationRules rules) : TaskRule
 {
     internal override bool HasValidPayload(PersistentTask task) => task.Journey is
-        { TargetOfficerId: null, SuccessRoll: >= 0 and < 100, ReturnLeg: null, AcceptRecruitment: null,
+        { TargetOfficerId: null, SuccessRoll: >= 0 and < 100, ReturnLeg: null,
           UnitStrategy: null, Burn: null, Seize: { TargetSettlementId: >= 0 } seize, Gossip: null,
           Route: { FieldDestination: false } } journey &&
         journey.DestinationPlaceId == seize.TargetSettlementId &&

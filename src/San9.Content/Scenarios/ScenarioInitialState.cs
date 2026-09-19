@@ -36,7 +36,9 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 65;
+    public const int CurrentSchemaVersion = 66;
+    [JsonRequired] public San9.Core.Domain.TerminalDefinition? Terminal { get; init; }
+    [JsonRequired] public San9.Core.Domain.EndingDefinition? Ending { get; init; }
     [JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Domain.CityTacticCourse> TacticCourses { get; init; } = [];
     [JsonRequired] public bool FreeOfficerMigrationEnabled { get; init; } = true;
     [JsonRequired] public bool AnnualAppearancesEnabled { get; init; } = true;
@@ -135,6 +137,13 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
             TacticCourses.Select(c => c.CityId).Distinct().Count() != TacticCourses.Length)
             throw new InvalidDataException("Invalid city tactic courses.");
         var cityIds = Settlements.Where(s => s.Kind == San9.Core.Domain.SettlementKind.City).Select(s => s.Id).ToHashSet();
+        try
+        {
+            Terminal?.Validate(cityIds);
+            Ending?.Validate(cityIds, Information.Treasures.Select(t => t.Id).ToHashSet());
+            if (Ending is not null && Terminal is null) throw new ArgumentException("Ending content requires campaign victory rules.");
+        }
+        catch (ArgumentException error) { throw new InvalidDataException("Invalid terminal or ending content.", error); }
         if (CityProvinceIds is null || CityProvinceIds.Any(p => !cityIds.Contains(p.Key) || p.Value < 0))
             throw new InvalidDataException("Invalid city province membership.");
         if (RegionCityIds.Any(p => !RegionNameKeys.ContainsKey(p.Key) || !cityIds.Contains(p.Value)))

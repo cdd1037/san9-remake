@@ -23,6 +23,7 @@ public sealed record PersistentTask(Guid Id, string Kind, string ControllerId, i
 {
     [JsonRequired] public int? StudyTacticId { get; init; }
     [JsonIgnore] public int ResolutionStep { get; init; }
+    [JsonIgnore] public SearchEncounter? SearchEncounter { get; init; }
     [JsonRequired] public PersonnelJourney? Journey { get; init; }
     [JsonRequired] public ReinforcementTroops? Reinforcements { get; init; }
     [JsonRequired] public GiftMission? Gift { get; init; }
@@ -41,7 +42,6 @@ public sealed record PersonnelJourney(int DestinationPlaceId, int? TargetOfficer
     [JsonRequired] public SeizeMission? Seize { get; init; }
     [JsonRequired] public GossipMission? Gossip { get; init; }
     public PersonnelReturnLeg? ReturnLeg { get; init; }
-    public bool? AcceptRecruitment { get; init; }
 }
 public sealed record PersonnelRoute(
     [property: JsonRequired] San9.Core.Domain.WorldPosition Origin,
@@ -78,7 +78,7 @@ public sealed record SimulationState(GameClock Started, ulong InitialSeed)
     [JsonIgnore]
     public bool CanPersist => (Boundary is SimulationBoundary.Stable or SimulationBoundary.Terminal) &&
         PendingDuel is null && PendingAlliance is null && PendingDailyTask is null && PendingTacticStudy is null &&
-        PendingExecutionSuccession is null && Tasks.All(t => t.ResolutionStep == 0 &&
+        PendingExecutionSuccession is null && Tasks.All(t => t.ResolutionStep == 0 && t.SearchEncounter is null &&
             t.AttackRequest?.Offer is null && t.PrisonerReturn?.Offer is null);
     public string? TerminalReason { get; init; }
     public ImmutableArray<ControlSeat> Controls { get; init; } = [];

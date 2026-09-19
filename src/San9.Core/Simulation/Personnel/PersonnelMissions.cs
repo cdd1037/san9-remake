@@ -8,10 +8,9 @@ public sealed record RecruitOfficerCommand(Guid CommandId, int IssuerId, long Se
 public sealed record MoveOfficersCommand(Guid CommandId, int IssuerId, long Sequence, ImmutableArray<int> OfficerIds, int DestinationId)
     : GameCommand(CommandId, IssuerId, Sequence);
 public sealed record SearchCommand(Guid CommandId, int IssuerId, long Sequence, int OfficerId, int DestinationId)
-    : GameCommand(CommandId, IssuerId, Sequence)
-{
-    public bool AcceptRecruitment { get; init; } = true;
-}
+    : GameCommand(CommandId, IssuerId, Sequence);
+public sealed record SearchEncounter(int OfficerId);
+public sealed record SearchRecruitmentPrompt(Guid TaskId, int Step, int ForceId, int SearchingOfficerId, int DiscoveredOfficerId, int PlaceId);
 public enum SearchResultKind { None, Person, Treasure, Money }
 public sealed record SearchResolvedEvent(GameClock Clock, int OfficerId, int PlaceId, int? DiscoveredOfficerId, bool Recruited) : DomainEvent
 {
@@ -73,7 +72,7 @@ internal static class PersonnelMissions
         int roll = ConditionalRandom.Percentile(world.Simulation.InitialSeed, ConditionalRandomPurpose.SearchDiscovery,
             world.Clock, command.OfficerId, command.DestinationId);
         Add(world, context, command, command.CommandId, command.OfficerId, origin,
-            new(command.DestinationId, null, roll) { AcceptRecruitment = command.AcceptRecruitment }, SearchKind, rules, events);
+            new(command.DestinationId, null, roll), SearchKind, rules, events);
         return CommandRejection.None;
     }
 
@@ -133,10 +132,34 @@ internal static class PersonnelMissions
 internal sealed class PersonnelMissionRule(PersonnelRulebook rules, EconomyRulebook economy, GovernanceRulebook governance,
     TreasureRulebook treasures, string kind) : TaskRule
 {
+    internal override bool SupportsResolutionStep(int step) => step == 0 || kind == PersonnelMissions.SearchKind && step == 1;
     internal override bool HasValidPayload(PersistentTask task) => task.Journey is { ReturnLeg: null, Route: { FieldDestination: false }, UnitStrategy: null, Burn: null, Seize: null, Gossip: null } journey && DurationDays(task) >= 0 &&
-        (kind == PersonnelMissions.MoveKind ? journey.TargetOfficerId is null && journey.SuccessRoll is null && journey.AcceptRecruitment is null :
-         kind == PersonnelMissions.SearchKind ? journey.TargetOfficerId is null && journey.SuccessRoll is >= 0 and < 100 && journey.AcceptRecruitment is not null :
-         journey.TargetOfficerId is >= 0 && journey.SuccessRoll is >= 0 and < 100 && journey.AcceptRecruitment is null);
+        (task.ResolutionStep == 0 ? task.SearchEncounter is null : kind == PersonnelMissions.SearchKind && task.SearchEncounter is { OfficerId: >= 0 }) &&
+        (kind == PersonnelMissions.MoveKind ? journey.TargetOfficerId is null && journey.SuccessRoll is null :
+         kind == PersonnelMissions.SearchKind ? journey.TargetOfficerId is null && journey.SuccessRoll is >= 0 and < 100 :
+         journey.TargetOfficerId is >= 0 && journey.SuccessRoll is >= 0 and < 100);
+
+    private static bool Direct(WorldMutation world, PersistentTask task) =>
+        world.Simulation.Controls.Any(c => c.ForceId == task.ForceId && c.Kind == ControllerKind.Player) &&
+        (world.Settlements[task.OriginSettlementId].CorpsId is not int corpsId || world.Corps[corpsId].ControlMode == CorpsControlMode.Direct);
+
+    internal override int? DecisionRecipient(WorldMutation world, PersistentTask task) =>
+        task.SearchEncounter is not null && Direct(world, task) ? task.ForceId : null;
+
+    internal override PersistentTask? Resolve(WorldMutation world, PersistentTask task, bool? accept, List<DomainEvent> events)
+    {
+        if (kind != PersonnelMissions.SearchKind) { Complete(world, task, events); return null; }
+        if (task.SearchEncounter is { } encounter)
+            ResolvePerson(world, task, encounter.OfficerId, accept ?? true, events);
+        else
+        {
+            var candidate = SelectPerson(world, task, out long score);
+            if (candidate is not null) return task with { SearchEncounter = new(candidate.Id) };
+            ResolveOtherSearchResults(world, task, score, events);
+        }
+        PersonnelReturns.Start(world, task, rules, events, true);
+        return null;
+    }
 
     internal override int DurationDays(PersistentTask task) => task.Journey is { Route: { } route } journey &&
         rules.Places.ContainsKey(task.OriginSettlementId) && rules.Places.ContainsKey(journey.DestinationPlaceId)
@@ -147,6 +170,8 @@ internal sealed class PersonnelMissionRule(PersonnelRulebook rules, EconomyRuleb
         if (task.Journey is not { } journey || DurationDays(task) < 0) return false;
         if (kind == PersonnelMissions.SearchKind)
             return journey.TargetOfficerId is null && journey.SuccessRoll is >= 0 and < 100 && world.Forces[task.ForceId].LeaderId is not null &&
+                (task.SearchEncounter is null || world.Officers.TryGetValue(task.SearchEncounter.OfficerId, out var discovered) &&
+                    discovered.Status == OfficerStatus.Undiscovered && (discovered.SettlementId ?? discovered.RegionId) == journey.DestinationPlaceId) &&
                 PersonnelMissions.CanSearch(world, task.ForceId, journey.DestinationPlaceId, rules);
         if (kind == PersonnelMissions.MoveKind)
             return journey.TargetOfficerId is null && journey.SuccessRoll is null &&
@@ -162,12 +187,6 @@ internal sealed class PersonnelMissionRule(PersonnelRulebook rules, EconomyRuleb
     internal override void Complete(WorldMutation world, PersistentTask task, List<DomainEvent> events)
     {
         var journey = task.Journey!;
-        if (kind == PersonnelMissions.SearchKind)
-        {
-            Search(world, task, events);
-            PersonnelReturns.Start(world, task, rules, events, true);
-            return;
-        }
         if (kind == PersonnelMissions.MoveKind)
         {
             int? oldCorpsId = world.Settlements[task.OriginSettlementId].CorpsId;
@@ -198,27 +217,30 @@ internal sealed class PersonnelMissionRule(PersonnelRulebook rules, EconomyRuleb
         PersonnelReturns.Start(world, task, rules, events, true);
     }
 
-    private void Search(WorldMutation world, PersistentTask task, List<DomainEvent> events)
+    private static OfficerState? SelectPerson(WorldMutation world, PersistentTask task, out long score)
     {
         int destination = task.Journey!.DestinationPlaceId;
         var people = world.Officers.Values.Where(p => p.Status == OfficerStatus.Undiscovered &&
             (p.SettlementId ?? p.RegionId) == destination).OrderBy(p => p.Id).ToArray();
         int politics = world.Abilities(world.Officers[task.OfficerId]).Politics;
-        long score = Math.Max(1, Math.Min(politics, 60) / 2) + Math.Max(0, Math.Min(politics, 80) - 60)
+        score = Math.Max(1, Math.Min(politics, 60) / 2) + Math.Max(0, Math.Min(politics, 80) - 60)
             + 2L * Math.Max(0, Math.Min(politics, 90) - 80) + 3L * Math.Max(0, politics - 90);
         long root = (long)Math.Sqrt(100L * people.Length);
         long threshold = 2 * score * root / 30;
         if (people.Length == 0 || task.Journey.SuccessRoll >= threshold)
-        {
-            ResolveOtherSearchResults(world, task, score, events);
-            return;
-        }
-        var target = people[(int)(world.NextRandom("personnel-search-candidate") % (ulong)people.Length)];
+            return null;
+        return people[(int)(world.NextRandom("personnel-search-candidate") % (ulong)people.Length)];
+    }
+
+    private void ResolvePerson(WorldMutation world, PersistentTask task, int personId, bool accept, List<DomainEvent> events)
+    {
+        int destination = task.Journey!.DestinationPlaceId;
+        var target = world.Officers[personId];
         var leader = world.Officers[world.Forces[task.ForceId].LeaderId!.Value];
         int loyaltyGain = 10 + (50 - PersonnelRulebook.AffinityDistance(target, leader)) / 5;
         RecruitmentRules.SetLoyalty(world, target.Id, task.ForceId, Math.Min(255, target.LoyaltyTo(task.ForceId) + loyaltyGain), "search-recruit-interest", events);
         int recruitThreshold = RecruitmentRules.Threshold(world, task.OfficerId, target.Id);
-        bool recruited = task.Journey.AcceptRecruitment == true &&
+        bool recruited = accept &&
             (int)(world.NextRandom("personnel-search-recruitment") % 100) < recruitThreshold;
         if (recruited)
         {
@@ -229,7 +251,7 @@ internal sealed class PersonnelMissionRule(PersonnelRulebook rules, EconomyRuleb
         else
         {
             PersonnelTransitions.Discover(world, target.Id, destination, events, rules, true);
-            if (task.Journey.AcceptRecruitment == true)
+            if (accept)
                 RecruitmentRules.SetLoyalty(world, target.Id, task.ForceId, 49, "search-recruit-failed", events);
         }
         PersonnelMissions.GrowPolitics(world, task.OfficerId, events);
@@ -240,9 +262,7 @@ internal sealed class PersonnelMissionRule(PersonnelRulebook rules, EconomyRuleb
     {
         int destination = task.Journey!.DestinationPlaceId;
         int? corpsId = world.Settlements[task.OriginSettlementId].CorpsId;
-        bool direct = world.Simulation.Controls.Any(c => c.ForceId == task.ForceId && c.Kind == ControllerKind.Player) &&
-            (corpsId is null || world.Corps[corpsId.Value].ControlMode == CorpsControlMode.Direct);
-        if (direct)
+        if (Direct(world, task))
         {
             var items = world.Treasures.Values.Where(t => t.Discovery == TreasureDiscovery.Buried && t.HolderId is null &&
                 t.DiscoveryRegionId == destination && treasures.Items.ContainsKey(t.Id)).OrderBy(t => t.Id).ToArray();

@@ -18,8 +18,7 @@ public sealed class PersonnelMissionTests
         });
         world.Commit(mutation);
         var original = Engine(world);
-        Assert.True(original.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 11, 30)
-            { AcceptRecruitment = false }).Submission.Accepted);
+        Assert.True(original.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 11, 30)).Submission.Accepted);
         var pending = original.CaptureStableState();
         var task = Assert.Single(pending.Simulation.Tasks);
         HashSet<int> discovered = [];
@@ -130,10 +129,19 @@ public sealed class PersonnelMissionTests
     private static SimulationEngine Engine(WorldState world) => new(world, EconomyRulebook.Empty, Places);
     private static CommandExecutionResult Recruit(SimulationEngine engine, int actor = 11, int target = 20) =>
         engine.Execute(new("player"), new RecruitOfficerCommand(Guid.NewGuid(), 1, engine.Snapshot.Simulation.NextSequence, actor, target));
-    private static IReadOnlyList<DomainEvent> Advance(SimulationEngine engine)
+    private static IReadOnlyList<DomainEvent> Advance(SimulationEngine engine, bool acceptSearchRecruitment = true)
     {
         engine.EndControl(new("player"));
-        return engine.AdvanceXun().Events;
+        List<DomainEvent> events = [.. engine.AdvanceXun().Events];
+        while (engine.GetSearchRecruitmentPrompt() is { } prompt)
+        {
+            var response = new RespondDailyTaskCommand(SimulationEngineTests.Id(100000 + (int)engine.Snapshot.Simulation.NextSequence),
+                prompt.ForceId, engine.Snapshot.Simulation.NextSequence, prompt.TaskId, prompt.Step, acceptSearchRecruitment);
+            var result = engine.Execute(new("player"), response);
+            Assert.True(result.Submission.Accepted);
+            events.AddRange(result.Events);
+        }
+        return events;
     }
 
     [Fact]
@@ -446,8 +454,7 @@ public sealed class PersonnelMissionTests
         var places = new PersonnelRulebook([new(1, new(0, 0)), new(2, new(900, 0)),
             new(3, new(30, 0)), new(30, new(distance, 0))], new Dictionary<int, int> { [30] = 1 });
         var engine = new SimulationEngine(World(), EconomyRulebook.Empty, places);
-        Assert.True(engine.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 1, destination)
-            { AcceptRecruitment = false }).Submission.Accepted);
+        Assert.True(engine.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 1, destination)).Submission.Accepted);
         var restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()), EconomyRulebook.Empty, places);
         var events = Advance(engine);
         Assert.Equal(CanonicalJson.Text(events), CanonicalJson.Text(Advance(restored)));

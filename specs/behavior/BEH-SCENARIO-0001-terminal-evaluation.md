@@ -2,7 +2,7 @@
 
 - 状态：已确认
 - 负责人：项目开发者
-- 最后更新：2026-08-26
+- 最后更新：2026-09-19
 - 关联证据：[RE-SAN9PK-0139](../../research/findings/RE-SAN9PK-0139.md)、[RE-SAN9PK-0142](../../research/findings/RE-SAN9PK-0142.md)、[RE-SAN9PK-0143](../../research/findings/RE-SAN9PK-0143.md)
 - 关联决策：[DEC-PROJECT-0002](../decisions/DEC-PROJECT-0002-selective-inheritance.md)
 - 继承方式：关系保留、领域模型现代化
@@ -18,6 +18,14 @@
 ## 重制行为
 
 重制版以纯 `TerminalEvaluation` 表达输入快照和互斥输出。战争、人物死亡、势力删除和日期推进只提交状态，不直接创建结局或标题界面。根调度层消费 `Continue`、`PlayerVictoryEnding`、`ReturnToTitle` 或 `SpecialModeTerminal`。
+
+### G10普通场景接入
+
+普通场景使用`TerminalDefinition`声明核心都市引用及可空结束年。空都市集合表示关闭领土胜利替代条件，不按空集合全称判断产生胜利；无结束年表示不设年份门。原版Importer转换45个核心都市和350年，Core不依赖源编号区间。内容中`Terminal=null`明确表示不运行周期胜利／年份规则，供独立规则场景使用；势力退出仍按既有即时终止协议处理。
+
+旬前置`TerminalCheck`在任何经济、恢复和事件更新之前检查现有终局原因、唯一普通势力／全部核心都市、年份门。原G06退出协议保留即时短路，修正为最后一个玩家势力退出才判全局败北；仍有其他玩家势力时继续，已有终局原因不能被同事务后续事件覆盖。玩家胜利由控制席位而非势力编号确定。公开查询`GameSession.GetTerminalResult()`只在世界确已终止时返回终局结果。
+
+教学／挑战等特殊模式不属于当前路线图，`SpecialModeTerminal`仅保留为该模式日后的规格边界，当前普通场景API不暴露未实现的特殊路由。终局世界可稳定保存；恢复不重跑终局流水线，后续玩法命令仍被拒绝。玩家胜利后只接受独立的结局选择会话，详见[结局规格](BEH-SCENARIO-0002-ending-resolution.md)。
 
 ## 状态与不变量
 

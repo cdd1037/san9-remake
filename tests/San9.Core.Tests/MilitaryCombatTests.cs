@@ -447,7 +447,7 @@ public sealed class MilitaryCombatTests
         Guid taskId = Guid.NewGuid();
         mutation.SetSimulation(mutation.Simulation with { NextSequence = 1,
             Tasks = [new(taskId, "personnel-search", "system", 2, 22, 2, new(190, 1, 1), new(190, 1, 10), 0, 0)
-            { Journey = new(3, null, 99) { AcceptRecruitment = false, Route = new(new(37, 7), new(37, 2), false) } }] });
+            { Journey = new(3, null, 99) { Route = new(new(37, 7), new(37, 2), false) } }] });
         world.Commit(mutation);
         var geography = new PersonnelRulebook([new(1, new(2, 7)), new(2, new(37, 7)), new(3, new(37, 2))]);
         var engine = new SimulationEngine(world, EconomyRulebook.Empty, geography, TreasureRulebook.Empty, military: Rules());

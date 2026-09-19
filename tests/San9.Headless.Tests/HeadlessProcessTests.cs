@@ -17,6 +17,69 @@ public sealed class HeadlessProcessTests : IDisposable
     private string FilePath(string name) => Path.Combine(_directory, name);
 
     [Fact]
+    public async Task SearchDiscoveryRecordsRealAnswerAndResumesBeforeSaving()
+    {
+        var content = new San9.Content.Scenarios.ScenarioInitialState(San9.Content.Scenarios.ScenarioInitialState.CurrentSchemaVersion,
+            "search-choice-cli", 190, 1, 1, 1, [new(1, "force", 0, 10000, 10000, 100) { LeaderId = 1 }],
+            [new(101, "city", 1, 0, 0, 0, 100, 100, 0, [])], [], [])
+        {
+            Officers = [new("ruler", new(1, 1, 101, new(80, 80, 80, 80), false)),
+                new("searcher", new(2, 1, 101, new(50, 50, 500, 50), false)),
+                new("hidden", new(3, null, 101, new(50, 50, 50, 50), false)
+                { Status = San9.Core.Domain.OfficerStatus.Undiscovered })]
+        };
+        string scenario = FilePath("search-scenario.json"), log = FilePath("search.commands.jsonl"), recording = FilePath("search.recording.json");
+        File.WriteAllBytes(scenario, San9.Core.Simulation.CanonicalJson.Encode(content));
+        var session = San9.Application.GameSession.Start(content, 190);
+        session.BeginRecording();
+        Assert.True(session.Execute(new("player"), new San9.Core.Simulation.SearchCommand(Guid.NewGuid(), 1, 0, 2, 101)).Submission.Accepted);
+        session.AdvanceXun();
+        var prompt = session.GetSearchRecruitmentPrompt()!;
+        Assert.NotNull(prompt);
+        Assert.True(session.Execute(new("player"), new San9.Core.Simulation.RespondDailyTaskCommand(Guid.NewGuid(), 1,
+            session.Snapshot.Simulation.NextSequence, prompt.TaskId, prompt.Step, false)).Submission.Accepted);
+        San9.Application.Persistence.CommandLogService.Write(log, session);
+        var executed = await Run("run", "--scenario", scenario, "--log", log, "--report", FilePath("search-run.json"),
+            "--save", FilePath("search.save.json"), "--record", recording);
+        Assert.Equal(0, executed.Code);
+        Assert.Equal(session.Capture().StateHash, executed.Report.GetProperty("finalHash").GetString());
+        var restored = San9.Application.Persistence.SaveService.Read(FilePath("search.save.json"), content);
+        Assert.Equal(San9.Core.Domain.OfficerStatus.Free, restored.Snapshot.Officers.Single(o => o.Id == 3).Status);
+        Assert.Equal(new San9.Core.Simulation.GameClock(190, 1, 11), restored.Snapshot.Clock);
+        var replay = await Run("replay", "--scenario", scenario, "--recording", recording, "--report", FilePath("search-replay.json"));
+        Assert.Equal(0, replay.Code);
+        Assert.Equal(session.Capture().StateHash, replay.Report.GetProperty("finalHash").GetString());
+    }
+
+    [Fact]
+    public async Task VictoryEndingCanBeSelectedSavedAndReplayedByStandaloneCli()
+    {
+        var content = new San9.Content.Scenarios.ScenarioInitialState(San9.Content.Scenarios.ScenarioInitialState.CurrentSchemaVersion,
+            "ending-cli", 220, 1, 1, 9, [new(9, "force", 0, 1000, 1000, 500) { LeaderId = 17 }],
+            [new(101, "city", 9, 0, 0, 1000, 100, 100, 50, [])], [], [])
+        {
+            Officers = [new("ruler", new(17, 9, 101, new(80, 80, 80, 80), false))],
+            Terminal = new([101], 350), Ending = new([101], [101], [101], [101], [101], [101], [])
+        };
+        string scenario = FilePath("ending-scenario.json"), log = FilePath("ending.commands.jsonl"), recording = FilePath("ending.recording.json");
+        File.WriteAllBytes(scenario, San9.Core.Simulation.CanonicalJson.Encode(content));
+        var session = San9.Application.GameSession.Start(content, 1);
+        session.BeginRecording();
+        var request = session.Request(new San9.Application.EndingOperation(new(San9.Core.Domain.EndingPolicy.DomesticProsperity, null)));
+        Assert.Equal(San9.Application.SessionDisposition.Accepted, session.Apply(request).Disposition);
+        San9.Application.Persistence.CommandLogService.Write(log, session);
+        var executed = await Run("run", "--scenario", scenario, "--log", log, "--report", FilePath("ending-run.json"),
+            "--save", FilePath("ending.save.json"), "--record", recording);
+        Assert.Equal(0, executed.Code);
+        Assert.Equal(session.Capture().StateHash, executed.Report.GetProperty("finalHash").GetString());
+        Assert.Equal((int)San9.Core.Domain.EndingOutcome.FallenState, executed.Report.GetProperty("ending").GetProperty("outcome").GetInt32());
+        var replay = await Run("replay", "--scenario", scenario, "--recording", recording, "--report", FilePath("ending-replay.json"));
+        Assert.Equal(0, replay.Code);
+        Assert.Equal(session.Capture().StateHash, replay.Report.GetProperty("finalHash").GetString());
+        Assert.Equal(session.Ending, San9.Application.Persistence.SaveService.Read(FilePath("ending.save.json"), content).Ending);
+    }
+
+    [Fact]
     public async Task AutomaticDiplomacyRecordsAnswersAndSavesAfterResolution()
     {
         var definition = new San9.Content.Scenarios.ScenarioInitialState(San9.Content.Scenarios.ScenarioInitialState.CurrentSchemaVersion,

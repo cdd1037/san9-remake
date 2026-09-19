@@ -120,6 +120,8 @@ public static class ScenarioContentCompiler
             header.StartDate.Year, header.StartDate.Month, header.StartDate.Day, 5, summaries, settlements.OrderBy(s => s.Id).ToArray(), regions, regionCities)
         { UnbuiltPlaces = personPlaces.Where(p => settlements.All(s => s.Id != p.Id)).Select(p => new San9.Core.Domain.PersonPlace(p.Id, San9.Core.Domain.MapCoordinates.Center(new(p.X, p.Y)))).ToImmutableArray(),
             FacilityNameSuffixKeys = suffixKeys,
+            Terminal = EndingContentCompiler.Terminal(),
+            Ending = EndingContentCompiler.Ending(information.Treasures),
             AnnualAppearancesEnabled = header.ScenarioModeCode is not (2 or 9),
             FreeOfficerMigrationEnabled = header.ScenarioModeCode is not (2 or 9),
             TacticCourses = header.ScenarioModeCode is 2 or 9 ? [] : TacticStudyContentCompiler.Compile(settlements.Select(s => s.Id).ToHashSet()),

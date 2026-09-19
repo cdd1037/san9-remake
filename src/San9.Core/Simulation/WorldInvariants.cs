@@ -131,6 +131,12 @@ internal static class WorldInvariants
             sim.Tasks.Count(t => t.Kind == TacticStudy.Kind)) throw new ArgumentException("Duplicate city study.");
         foreach (var task in sim.Tasks)
         {
+            if ((task.Kind == PersonnelMissions.SearchKind && task.ResolutionStep == 1) != (task.SearchEncounter is not null))
+                throw new ArgumentException("Search resolution step requires its selected encounter.");
+            if (task.SearchEncounter is { } encounter &&
+                (task.Kind != PersonnelMissions.SearchKind || task.ResolutionStep != 1 || encounter.OfficerId < 0 || !state.Officers.ContainsKey(encounter.OfficerId) ||
+                    sim.PendingDailyTask is not { } pendingSearch || pendingSearch.RemainingTaskIds[0] != task.Id))
+                throw new ArgumentException("Invalid search encounter context.");
             if ((task.Kind == TacticStudy.Kind) != (task.StudyTacticId is not null) || task.StudyTacticId < 0 || task.Kind == TacticStudy.Kind && task.Started.DayNumber - sim.Started.DayNumber < 30)
                 throw new ArgumentException("Invalid study task payload.");
             if (task.Surrender is { } surrender && (task.Kind != SurrenderDiplomacy.Kind || task.Gift is not null ||

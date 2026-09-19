@@ -57,6 +57,8 @@ public sealed class HeadlessHost
                 _report.ContentFingerprint = _session.ContentFingerprint;
                 _report.Seed = _session.Snapshot.Simulation.InitialSeed;
                 _report.FinalHash = _session.Snapshot.Simulation.CanPersist ? _session.Capture().StateHash : null;
+                _report.Terminal = _session.GetTerminalResult();
+                _report.Ending = _session.Ending;
                 _report.WorldHash = _session.Snapshot.StateHash;
                 _report.CompletedXun = (_session.Snapshot.Clock.DayNumber - _started.DayNumber) / 10;
                 _report.Coverage = new(_session.Snapshot.Forces.Count, _session.Snapshot.Settlements.Count,

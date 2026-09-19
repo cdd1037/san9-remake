@@ -250,7 +250,7 @@ internal static class UnitStrategies
 internal sealed class UnitStrategyRule(SimulationRules rules) : TaskRule
 {
     internal override bool HasValidPayload(PersistentTask task) => task.Journey is
-        { TargetOfficerId: null, SuccessRoll: >= 0 and < 100, ReturnLeg: null, AcceptRecruitment: null, Burn: null, Seize: null, Gossip: null,
+        { TargetOfficerId: null, SuccessRoll: >= 0 and < 100, ReturnLeg: null, Burn: null, Seize: null, Gossip: null,
           Route: { FieldDestination: true }, UnitStrategy: { } mission } &&
         Enum.IsDefined(mission.Strategy) && mission.TargetUnitId >= 0 &&
         (mission.Strategy == UnitStrategyKind.Reinforce

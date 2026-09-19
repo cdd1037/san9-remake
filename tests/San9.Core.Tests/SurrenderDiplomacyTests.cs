@@ -132,7 +132,10 @@ public sealed class SurrenderDiplomacyTests
             Assert.Equal(22, unit.CommanderId);
             Assert.Equal(50, engine.Snapshot.Officers.Single(p => p.Id == 33).UnitId);
         }
-        Assert.Equal("player-defeated", engine.Snapshot.Simulation.TerminalReason);
+        // The first player force survives; surrender of the second player does not end the whole session.
+        Assert.Null(engine.Snapshot.Simulation.TerminalReason);
+        Assert.Contains(engine.Snapshot.Simulation.Controls, c => c.ForceId == 1 && c.Kind == ControllerKind.Player);
+        Assert.Equal(SimulationBoundary.Stable, engine.Snapshot.Simulation.Boundary);
         _ = new SimulationEngine(WorldState.Restore(engine.Snapshot), Rules());
     }
 

@@ -109,7 +109,7 @@ internal sealed class SurrenderRule(SimulationRules rules) : TaskRule
     internal override TaskResolutionPhase Phase => TaskResolutionPhase.XunBoundary;
     internal override bool HasValidPayload(PersistentTask task) => task.Gift is null && task.PrisonerReturn is null && task.AttackRequest is null &&
         task.Reinforcements is null && task.Surrender is { TargetForceId: >= 0 } mission && mission.TargetForceId != task.ForceId && task.Journey is
-        { TargetOfficerId: null, SuccessRoll: >= 0 and < 100, ReturnLeg: null, AcceptRecruitment: null,
+        { TargetOfficerId: null, SuccessRoll: >= 0 and < 100, ReturnLeg: null,
           UnitStrategy: null, Burn: null, Seize: null, Gossip: null } && DurationDays(task) >= 0;
     internal override int DurationDays(PersistentTask task) => DiplomacyJourney.Duration(task, rules);
     internal override bool Validate(WorldMutation world, PersistentTask task) => HasValidPayload(task) &&

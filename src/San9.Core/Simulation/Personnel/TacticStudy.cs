@@ -112,7 +112,7 @@ internal sealed class TacticStudyRule(SimulationRules rules) : TaskRule
     internal override bool HasValidPayload(PersistentTask task) => task.Kind == TacticStudy.Kind && task.Started.Boundary.Quarter &&
         task.StudyTacticId is int tactic && rules.Personnel.TacticCourses.TryGetValue(task.OriginSettlementId, out int course) && tactic == course &&
         rules.Military?.Tactics.ContainsKey(tactic) == true && task.Journey is { TargetOfficerId: null, SuccessRoll: null, ReturnLeg: null,
-            UnitStrategy: null, Burn: null, Seize: null, Gossip: null, AcceptRecruitment: null, Route.FieldDestination: false } journey &&
+            UnitStrategy: null, Burn: null, Seize: null, Gossip: null, Route.FieldDestination: false } journey &&
         journey.DestinationPlaceId == task.OriginSettlementId && journey.Route.Origin == journey.Route.Destination &&
         journey.Route.Origin == rules.Personnel.Places[task.OriginSettlementId].Position &&
         task.Gift is null && task.PrisonerReturn is null && task.AttackRequest is null && task.Surrender is null && task.Reinforcements is null;

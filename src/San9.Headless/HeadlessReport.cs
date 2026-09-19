@@ -23,6 +23,8 @@ public sealed class HeadlessReport
     public string TerminationReason { get; set; } = "failure";
     public string? FinalHash { get; set; }
     public string? WorldHash { get; set; }
+    public Core.Simulation.TerminalResult? Terminal { get; set; }
+    public Core.Domain.EndingResult? Ending { get; set; }
     public HeadlessFailure? FirstFailure { get; set; }
     public long ElapsedMilliseconds { get; set; }
     public int AcceptedOperations { get; set; }

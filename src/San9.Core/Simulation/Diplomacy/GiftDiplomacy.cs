@@ -176,7 +176,7 @@ internal sealed class GiftRule(SimulationRules rules) : TaskRule
     internal override TaskResolutionPhase Phase => TaskResolutionPhase.XunBoundary;
     internal override bool HasValidPayload(PersistentTask task) => task.Gift is { TargetForceId: >= 0, Offer.IsValid: true } &&
         task.Gift.TargetForceId != task.ForceId && task.Reinforcements is null && task.Journey is
-        { TargetOfficerId: null, SuccessRoll: >= 0 and < 100, ReturnLeg: null, AcceptRecruitment: null,
+        { TargetOfficerId: null, SuccessRoll: >= 0 and < 100, ReturnLeg: null,
           UnitStrategy: null, Burn: null, Seize: null, Gossip: null } && DurationDays(task) >= 0;
     internal override int DurationDays(PersistentTask task) => DiplomacyJourney.Duration(task, rules);
     internal override bool Validate(WorldMutation world, PersistentTask task) => HasValidPayload(task) && GiftDiplomacy.Valid(world, task, rules);

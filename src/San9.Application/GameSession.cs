@@ -26,6 +26,7 @@ public sealed class GameSession
     private StrategySnapshot _view;
     private SessionSnapshot? _capture;
     private bool _executing;
+    private EndingSelection? _ending;
     public event Action? Changed;
 
     private GameSession(ScenarioSessionDefinition definition, SimulationEngine simulation,
@@ -72,6 +73,11 @@ public sealed class GameSession
         return recording;
     }
     public WorldSnapshot Snapshot => _simulation.Snapshot;
+    public SearchRecruitmentPrompt? GetSearchRecruitmentPrompt() => _simulation.GetSearchRecruitmentPrompt();
+    public TerminalResult GetTerminalResult() => Snapshot.Simulation.Boundary == SimulationBoundary.Terminal
+        ? TerminalEvaluation.Evaluate(Snapshot, _definition.Content.Terminal) : new(TerminalRoute.Continue, null, null);
+    public EndingSnapshot? GetEndingPrompt() => _ending is null ? EndingSession.Create(_definition.Content, Snapshot) : null;
+    public EndingResult? Ending => _ending is null ? null : EndingSession.Resolve(_definition.Content, Snapshot, _ending);
     public TacticStudyPrompt? GetTacticStudyPrompt() => _simulation.GetTacticStudyPrompt();
 
     public DuelSuccessionPrompt? GetDuelSuccessionPrompt() => _simulation.GetDuelSuccessionPrompt();
@@ -117,7 +123,7 @@ public sealed class GameSession
             { AbilityBonuses = o.AbilityBonuses, Salary = o.Salary, RequiredRankId = o.RequiredRankId }),
             definition.Information.Ranks.ToDictionary(r => r.Id, r => r.RequiredTrust));
         var military = definition.Military is { } militaryDefinition ? new MilitaryRulebook(militaryDefinition) : null;
-        return world => new(world, rules, personnel, treasures, governance, military);
+        return world => new(world, rules, personnel, treasures, governance, military, definition.Terminal);
     }
 
     public static string Fingerprint(ScenarioInitialState definition) => new ScenarioSessionDefinition(definition).Fingerprint;
@@ -172,6 +178,7 @@ public sealed class GameSession
         session._records.AddRange(snapshot.Records);
         session._chronicle.AddRange(snapshot.Chronicle);
         session.NextOperationSequence = snapshot.NextOperationSequence;
+        session._ending = snapshot.Ending;
         return session;
     }
 
@@ -187,7 +194,7 @@ public sealed class GameSession
         if (_capture is not null && ReferenceEquals(_capture.World, world)) return _capture;
         var records = _records.ToImmutableArray();
         var chronicle = _chronicle.ToImmutableArray();
-        return _capture = new(world, records, chronicle, NextOperationSequence);
+        return _capture = new(world, records, chronicle, NextOperationSequence) { Ending = _ending };
     }
 
     public SessionRequest Request(SessionOperation operation, string controllerId = "player", Guid? id = null)
@@ -215,7 +222,8 @@ public sealed class GameSession
             return new(SessionDisposition.AlreadyProcessed, SessionRejection.None, [], Snapshot);
         if (request.Sequence != NextOperationSequence || NextOperationSequence == long.MaxValue)
             return Rejected(SessionRejection.OutOfOrder);
-        if (Snapshot.Simulation.Boundary == SimulationBoundary.Terminal) return Rejected(SessionRejection.Terminal);
+        if (Snapshot.Simulation.Boundary == SimulationBoundary.Terminal && request.Operation is not EndingOperation)
+            return Rejected(SessionRejection.Terminal);
         _executing = true;
         SessionResult result;
         try
@@ -225,8 +233,15 @@ public sealed class GameSession
             List<DomainEvent> events = [];
             DevelopmentOutcome? development = null;
             ChronicleEntry? note = null;
+            var ending = _ending;
             switch (request.Operation)
             {
+                case EndingOperation selection:
+                    if (request.ControllerId != "player" || ending is not null) return Rejected(SessionRejection.InvalidRequest);
+                    try { _ = EndingSession.Resolve(_definition.Content, candidate.Snapshot, selection.Selection); }
+                    catch (ArgumentException) { return Rejected(SessionRejection.InvalidRequest); }
+                    ending = selection.Selection;
+                    break;
                 case CommandOperation execute:
                     if (execute.Command is null || execute.Command.CommandId != request.Id)
                         return Rejected(SessionRejection.InvalidRequest);
@@ -268,6 +283,7 @@ public sealed class GameSession
             var publishedEvents = events.ToImmutableArray();
             var recorded = IsRecording ? new RecordedOperation(request, publishedEvents) : null;
             _simulation = candidate;
+            _ending = ending;
             _records.AddRange(completed);
             if (_records.Count > RecentRecordLimit) _records.RemoveRange(0, _records.Count - RecentRecordLimit);
             if (note is not null) _chronicle.Add(note);

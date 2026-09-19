@@ -31,10 +31,17 @@ public sealed class SearchOutcomeTests
 
     private static SearchResolvedEvent Search(SimulationEngine engine)
     {
-        Assert.True(engine.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 2, 30)
-            { AcceptRecruitment = false }).Submission.Accepted);
+        Assert.True(engine.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 2, 30)).Submission.Accepted);
         engine.EndControl(new("player"));
-        return Assert.Single(engine.AdvanceXun().Events.OfType<SearchResolvedEvent>());
+        List<DomainEvent> events = [.. engine.AdvanceXun().Events];
+        if (engine.GetSearchRecruitmentPrompt() is { } prompt)
+        {
+            var result = engine.Execute(new("player"), new RespondDailyTaskCommand(Guid.NewGuid(), prompt.ForceId,
+                engine.Snapshot.Simulation.NextSequence, prompt.TaskId, prompt.Step, false));
+            Assert.True(result.Submission.Accepted);
+            events.AddRange(result.Events);
+        }
+        return Assert.Single(events.OfType<SearchResolvedEvent>());
     }
 
     [Fact]

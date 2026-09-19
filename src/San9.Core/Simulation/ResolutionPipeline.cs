@@ -20,6 +20,7 @@ public sealed record ControlEndedEvent(string ControllerId, int ForceId) : Domai
 // Rules are compiled domain code, not callbacks loaded from content or saves.
 internal class SimulationRules
 {
+    internal TerminalDefinition? Terminal { get; init; }
     internal EconomyRulebook Economy { get; init; } = EconomyRulebook.Empty;
     internal TreasureRulebook Treasures { get; init; } = TreasureRulebook.Empty;
     internal PersonnelRulebook Personnel { get; init; } = PersonnelRulebook.Empty;
@@ -118,6 +119,11 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
     private bool Run(ResolutionStage stage, WorldMutation world, List<DomainEvent> events, GameClock? xunStarted = null)
     {
         world.MaintainLeadership(events);
+        if (stage == ResolutionStage.TerminalCheck && rules.Terminal is not null)
+        {
+            var result = TerminalEvaluation.Evaluate(world.Clock, world.Simulation, world.Forces.Values, world.Settlements.Values, rules.Terminal);
+            if (result.Route != TerminalRoute.Continue) world.SetSimulation(world.Simulation with { TerminalReason = result.Reason });
+        }
         if (!CheckTerminal(world, events)) return false;
         if (stage == ResolutionStage.XunUpdate)
         {
@@ -201,9 +207,11 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
     internal static void CheckConquest(WorldMutation world, List<DomainEvent> events)
     {
         if (!events.OfType<ForceEliminatedEvent>().Any()) return;
-        if (events.OfType<ForceEliminatedEvent>().Any(e => e.WasPlayerControlled))
+        if (world.Simulation.TerminalReason is not null) return;
+        if (events.OfType<ForceEliminatedEvent>().Any(e => e.WasPlayerControlled) &&
+            !world.Simulation.Controls.Any(c => c.Kind == ControllerKind.Player))
             world.SetSimulation(world.Simulation with { TerminalReason = "player-defeated" });
-        else if (world.Forces.Values.Count(f => !f.IsEliminated && !f.IsBarbarian) <= 1)
+        else if (world.Forces.Values.Count(f => !f.IsEliminated && !f.IsBarbarian) == 1)
             world.SetSimulation(world.Simulation with { TerminalReason = "conquest" });
     }
 

@@ -132,7 +132,7 @@ internal sealed class AlienateRule(SimulationRules rules) : TaskRule
 {
     internal override bool HasValidPayload(PersistentTask task) => task.Journey is
         { DestinationPlaceId: >= 0, TargetOfficerId: >= 0, SuccessRoll: >= 0 and < 100,
-          UnitStrategy: null, Burn: null, Seize: null, Gossip: null, ReturnLeg: null, AcceptRecruitment: null } &&
+          UnitStrategy: null, Burn: null, Seize: null, Gossip: null, ReturnLeg: null } &&
         DurationDays(task) >= 0;
 
     internal override int DurationDays(PersistentTask task) => task.Journey is { Route: { } route } journey &&

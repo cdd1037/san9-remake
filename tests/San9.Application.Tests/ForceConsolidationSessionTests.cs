@@ -1,0 +1,74 @@
+using System.Collections.Immutable;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using San9.Application.Persistence;
+using San9.Content.Scenarios;
+using San9.Core.Domain;
+using San9.Core.Simulation;
+
+namespace San9.Application.Tests;
+
+public sealed class ForceConsolidationSessionTests
+{
+    private static ScenarioInitialState Scenario() => new(ScenarioInitialState.CurrentSchemaVersion, "consolidation", 190, 1, 1, 1,
+        Enumerable.Range(1, 3).Select(i => new ForceInitialState(i, $"force.{i}", i, 1000, 1000, 100) { LeaderId = i }).ToArray(),
+        Enumerable.Range(1, 4).Select(i => new SettlementInitialState(i, $"city.{i}", i <= 2 ? 1 : i - 1, i - 1, 0,
+            i <= 2 ? 50000u : 10000u, 100, 100, 50, []) { ConsumesFood = false }).ToArray(),
+        new() { [1] = "region.1", [2] = "region.2", [3] = "region.3", [4] = "region.4" },
+        new() { [1] = 1, [2] = 2, [3] = 3, [4] = 4 })
+    {
+        AnnualAppearancesEnabled = false, NaturalDeathsEnabled = false, FreeOfficerMigrationEnabled = false, OfficeRequestsEnabled = false,
+        Officers = Enumerable.Range(1, 3).Select(i => new OfficerInitialState($"person.{i}",
+            new OfficerState(i, i, i == 1 ? 1 : i + 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler })).ToArray(),
+        Military = new(4, 1, [0, 0, 0, 0], [new(0, 1, null)], [],
+            Enumerable.Range(1, 4).Select(i => new BattlefieldPlace(i, new(5 * (i - 1) + 2, 2), new(1, 1))).ToImmutableArray())
+            { RegionIds = [1, 2, 3, 4], TerritoryExits = [TerritoryExits.All, TerritoryExits.All, TerritoryExits.All, TerritoryExits.All] },
+        Information = new([], [], [], [], []) { Relations = [new(1, 2, 0), new(1, 3, 0), new(2, 3, 100)] }
+    };
+
+    [Fact]
+    public void PendingEventSurvivesSaveAndPublicXunMergesOnceWithCompleteReplay()
+    {
+        var scenario = Scenario();
+        var initial = GameSession.Start(scenario, 17).Capture();
+        var session = GameSession.Restore(scenario, initial with
+        { World = initial.World with { Simulation = initial.World.Simulation with { ForceConsolidationPending = true } } });
+        var restored = SaveService.Decode(SaveService.Encode(session), scenario, GameSession.EngineFactory(scenario));
+        Assert.True(restored.Snapshot.Simulation.ForceConsolidationPending);
+        session.BeginRecording();
+        var result = session.AdvanceXun();
+        Assert.Single(result.Events.OfType<ForcesConsolidatedEvent>());
+        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+        Assert.False(session.Snapshot.Simulation.ForceConsolidationPending);
+        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        Assert.Empty(session.AdvanceXun().Events.OfType<ForcesConsolidatedEvent>());
+        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), scenario, GameSession.EngineFactory(scenario));
+        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        var saved = SaveService.Decode(SaveService.Encode(session), scenario, GameSession.EngineFactory(scenario));
+        Assert.Equal(session.Capture().StateHash, saved.Capture().StateHash);
+        Assert.Empty(saved.InitialEvents);
+    }
+
+    [Fact]
+    public void ContentFlagAndLeadershipTraitAffectFingerprintAndFlagIsCheckedOnRestore()
+    {
+        var scenario = Scenario();
+        var session = GameSession.Start(scenario, 17);
+        Assert.NotEqual(session.ContentFingerprint, GameSession.Fingerprint(scenario with { ForceConsolidationEnabled = false }));
+        Assert.NotEqual(session.ContentFingerprint, GameSession.Fingerprint(scenario with
+        { Officers = scenario.Officers.Select(o => o.State.Id == 2 ? o with { State = o.State with { PrefersConsolidationLeadership = true } } : o).ToArray() }));
+        var snapshot = session.Capture();
+        Assert.Throws<ArgumentException>(() => GameSession.Restore(scenario, snapshot with
+        { World = snapshot.World with { Simulation = snapshot.World.Simulation with { ForceConsolidationEnabled = false } } }));
+    }
+
+    [Theory]
+    [InlineData("forceConsolidationEnabled")]
+    [InlineData("forceConsolidationPending")]
+    public void MissingSavedStateIsRejected(string field)
+    {
+        var json = JsonNode.Parse(CanonicalJson.Text(GameSession.Start(Scenario(), 17).Snapshot.Simulation))!.AsObject();
+        Assert.True(json.Remove(field));
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<SimulationState>(json.ToJsonString(), CanonicalJson.Options));
+    }
+}

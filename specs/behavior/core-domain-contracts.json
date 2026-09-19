@@ -217,11 +217,11 @@
       "classification": "core",
       "behavior_specs": ["BEH-GOVERNANCE-0001", "BEH-GOVERNANCE-0002", "BEH-GOVERNANCE-0003"],
       "objects": ["Polity", "Corps", "TerritoryAssignment", "DelegationPolicy", "TerritorialTransition"],
-      "states": ["direct-control", "delegated-control", "planned-command", "territorial-transition", "dissolved"],
+      "states": ["direct-control", "delegated-control", "planned-command", "territorial-transition", "consolidation-pending", "dissolved"],
       "inputs": ["current corps ownership", "delegation configuration", "direct territory snapshot", "stable planning order"],
       "outputs": ["validated automatic command", "atomic ownership transition", "dissolved corps cleanup", "updated delegation target"],
       "invariants": ["one polity root per corps", "territory ownership is consistent", "resources are conserved", "automatic and interactive commands share final validation"],
-      "acceptance_gates": ["corps create change and dissolve", "control and ownership separation", "deterministic work table", "cross-polity transaction rollback"],
+      "acceptance_gates": ["corps create change and dissolve", "control and ownership separation", "deterministic work table", "cross-polity transaction rollback", "consolidation retries until one successful merge", "consolidation prisoners and treasury saturation"],
       "depends_on": ["simulation", "personnel"],
       "implementation": {
         "project": "San9.Core",

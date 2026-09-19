@@ -17,6 +17,7 @@ internal static class SessionValidation
             snapshot.World.Simulation.AnnualAppearancesEnabled != expected.Simulation.AnnualAppearancesEnabled ||
             snapshot.World.Simulation.FreeOfficerMigrationEnabled != expected.Simulation.FreeOfficerMigrationEnabled ||
             snapshot.World.Simulation.OfficeRequestsEnabled != expected.Simulation.OfficeRequestsEnabled ||
+            snapshot.World.Simulation.ForceConsolidationEnabled != expected.Simulation.ForceConsolidationEnabled ||
             snapshot.World.Simulation.NaturalDeathsEnabled != expected.Simulation.NaturalDeathsEnabled ||
             !snapshot.World.Simulation.Controls.SequenceEqual(expected.Simulation.Controls.Where(c =>
                 snapshot.World.Forces.Any(f => f.Id == c.ForceId && !f.IsEliminated))))

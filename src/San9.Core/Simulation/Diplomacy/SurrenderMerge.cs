@@ -14,15 +14,7 @@ internal static class SurrenderMerge
     {
         int recipient = cause.ForceId;
         int? root = world.Corps.Values.Where(c => c.OwnerId == recipient && c.Treasury is null).Select(c => (int?)c.Id).SingleOrDefault();
-        // Settle mission reservations before taking the surrender treasury totals.
-        foreach (var task in world.Simulation.Tasks.Where(t => t.ForceId == force || t.Gift?.TargetForceId == force ||
-            t.PrisonerReturn?.TargetForceId == force || t.AttackRequest?.TargetForceId == force || t.Surrender?.TargetForceId == force)
-            .OrderBy(t => t.Sequence).ThenBy(t => t.Id).ToArray())
-        {
-            TaskCancellation.Apply(world, task, "force-surrendered", events);
-            if (task.ForceId == force) ReinforcementTransport.Disband(world, task, "force-surrendered", events);
-            else if (task.Journey is not null) PersonnelReturns.Start(world, task, rules.Personnel, events, true);
-        }
+        ForceTransfer.CancelTasks(world, force, rules, "force-surrendered", events);
         var oldUnits = world.Units.Values.Where(u => u.OwnerId == force).OrderBy(u => u.Id).ToArray();
         int Place(OfficerState person) => person.SettlementId ?? (person.UnitId is int unit &&
             rules.Military?.RegionAt(world.Units[unit].Position) is int region ? region :
@@ -33,14 +25,13 @@ internal static class SurrenderMerge
         var departed = people.Where(p => p.IsServing && !joined.Contains(p.Id)).Select(p => p.Id).ToImmutableArray();
         foreach (var person in people)
         {
-            PersonnelTransitions.CancelMissions(world, person.Id, "force-surrendered", events, rules.Personnel, true);
+            if (!joined.Contains(person.Id))
+                PersonnelTransitions.CancelMissions(world, person.Id, "force-surrendered", events, rules.Personnel, true);
             if (joined.Contains(person.Id))
             {
                 int loyalty = 75 + (50 - PersonnelRulebook.AffinityDistance(person, world.Officers[world.Forces[recipient].LeaderId!.Value])) / 2;
-                RecruitmentRules.SetLoyalty(world, person.Id, recipient, loyalty, "force-surrendered", events);
-                world.Replace(world.Officers[person.Id] with { OwnerId = recipient, Status = OfficerStatus.Serving,
-                    OfficeId = null, TacticCooldown = 0, IsCommander = false, Acted = true, StatusStartYear = world.Clock.Year });
-                events.Add(new PersonAffiliationChangedEvent(world.Clock, person.Id, force, recipient, Place(person)));
+                PersonnelTransitions.TransferAllegiance(world, person.Id, recipient, loyalty, Place(person),
+                    "force-surrendered", rules.Personnel, events);
             }
             else if (person.Status == OfficerStatus.Captive)
             {
@@ -62,11 +53,7 @@ internal static class SurrenderMerge
             }
         }
         world.Replace(world.Forces[force] with { LeaderId = null, AdviserId = null });
-        foreach (var place in world.Settlements.Values.Where(s => s.OwnerId == force).OrderBy(s => s.Id).ToArray())
-        {
-            world.Replace(place with { OwnerId = recipient, CorpsId = root });
-            events.Add(new SettlementTransferredEvent(world.Clock, place.Id, force, recipient));
-        }
+        ForceTransfer.Settlements(world, force, recipient, root, events);
         foreach (var original in oldUnits)
         {
             FacilityConstruction.Cancel(world, original.Id, events);
@@ -123,31 +110,12 @@ internal static class SurrenderMerge
             events.Add(new CorpsDissolvedEvent(world.Clock, force, c.Id, root ?? -1));
         }
         ForceLifecycle.Retire(world, force, events);
-        // Clear attacks that became attacks on the unit's own force. Normal enemy orders remain intact.
-        foreach (var unit in world.Units.Values.OrderBy(u => u.Id).ToArray())
-        {
-            bool main = unit.Order?.IsAttack == true && MilitaryDiplomacy.TargetOwner(world, unit.Order) == unit.OwnerId;
-            bool temporary = unit.EngagementTargetId is int other && world.Units[other].OwnerId == unit.OwnerId;
-            if (main || temporary) world.Replace(unit with { Order = main ? null : unit.Order, MovementPlan = main ? null : unit.MovementPlan,
-                EngagementTargetId = temporary ? null : unit.EngagementTargetId, AwaitingPostAction = false });
-            if (main) events.Add(new UnitOrderChangedEvent(world.Clock, unit.Id, null, "force-surrendered"));
-            if (temporary) events.Add(new UnitEngagementChangedEvent(world.Clock, unit.Id, null, "force-surrendered"));
-        }
+        ForceTransfer.ClearFriendlyOrders(world, "force-surrendered", events);
         EconomicCycle.UpdateTrust(world, rules.Economy, events);
         events.Add(new ForceSurrenderedEvent(world.Clock, force, recipient, money, receivedMoney, food, receivedFood,
             joined.Order().ToImmutableArray(), departed));
 
-        (long, uint) Transfer(ResourceKind resource)
-        {
-            var accounts = new[] { new ResourceAccount(ResourceOwnerKind.Force, force) }
-                .Concat(corps.Where(c => c.Treasury is not null).Select(c => new ResourceAccount(ResourceOwnerKind.Corps, c.Id))).ToArray();
-            long total = accounts.Sum(a => (long)ResourceAccounts.Balance(world, a, resource));
-            foreach (var account in accounts) ResourceAccounts.Change(world, account, resource,
-                -(long)ResourceAccounts.Balance(world, account, resource), "force-surrendered", cause.OfficerId, events);
-            var target = new ResourceAccount(ResourceOwnerKind.Force, recipient);
-            uint received = (uint)Math.Min(total / 2, ResourceAccounts.Receivable(world, target, resource));
-            ResourceAccounts.Change(world, target, resource, total / 2, "force-surrendered", cause.OfficerId, events);
-            return (total, received);
-        }
+        (long, uint) Transfer(ResourceKind resource) =>
+            ForceTransfer.Treasury(world, force, recipient, resource, 2, "force-surrendered", cause.OfficerId, events);
     }
 }

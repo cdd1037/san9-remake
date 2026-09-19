@@ -5,6 +5,20 @@ namespace San9.Core.Simulation;
 /// <summary>Owns personnel changes and the cancellation of missions that refer to the changed person.</summary>
 internal static class PersonnelTransitions
 {
+    internal static void TransferAllegiance(WorldMutation world, int personId, int recipient, int loyalty, int place,
+        string reason, PersonnelRulebook places, List<DomainEvent> events)
+    {
+        var person = world.Officers[personId];
+        CancelMissions(world, personId, reason, events, places, true);
+        if (person.OwnerId is int previous && world.Forces[previous].AdviserId == personId)
+            world.Replace(world.Forces[previous] with { AdviserId = null });
+        RecruitmentRules.SetLoyalty(world, personId, recipient, loyalty, reason, events);
+        world.Replace(world.Officers[personId] with { OwnerId = recipient,
+            Status = person.IsServing ? OfficerStatus.Serving : person.Status,
+            OfficeId = null, TacticCooldown = 0, IsCommander = false, Acted = true, StatusStartYear = world.Clock.Year });
+        events.Add(new PersonAffiliationChangedEvent(world.Clock, personId, person.OwnerId, recipient, place));
+    }
+
     internal static void Capture(WorldMutation world, int personId, int? settlementId, int? unitId,
         PersonnelRulebook places, List<DomainEvent> events)
     {

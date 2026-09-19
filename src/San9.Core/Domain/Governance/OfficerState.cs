@@ -44,6 +44,7 @@ public sealed record OfficerState(int Id, int? OwnerId, int? SettlementId, Offic
     [JsonRequired] public ImmutableDictionary<int, int> ForceLoyalties { get; init; } = ImmutableDictionary<int, int>.Empty;
     [JsonRequired] public int Righteousness { get; init; }
     [JsonRequired] public int Ambition { get; init; }
+    [JsonRequired] public bool PrefersConsolidationLeadership { get; init; }
     [JsonRequired] public bool AutomaticSurrenderAllowed { get; init; } = true;
     [JsonRequired] public bool RewardedThisXun { get; init; }
     [JsonRequired] public bool HasRecruitmentPoliticsBonus { get; init; }

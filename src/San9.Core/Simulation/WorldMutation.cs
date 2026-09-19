@@ -145,6 +145,9 @@ internal sealed class WorldMutation
             (previous.Morale > 0) != (value.Morale > 0) || (previous.Durability > 0) != (value.Durability > 0) ||
             (previous.ConfusionDaysRemaining == 0) != (value.ConfusionDaysRemaining == 0)) _engagements = null;
         Settlements = Replace(Settlements, value.Id, value);
+        if (previous.OwnerId != value.OwnerId && value.Kind == SettlementKind.City && !value.IsDestroyed &&
+            value.OwnerId is int owner && Simulation.Controls.Any(c => c.ForceId == owner && c.Kind == ControllerKind.Player))
+            SetSimulation(Simulation with { ForceConsolidationPending = true });
         _movementOccupancy?.Set(value);
     }
     internal void AddSettlement(SettlementState value)

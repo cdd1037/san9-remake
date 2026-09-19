@@ -14,6 +14,7 @@
 
 | 判定 | 分类及固定条件 | 依据与边界 |
 | --- | --- | --- |
+| 电脑势力合并 | 运行：`event-force-consolidation` | 玩家／电脑按稳定ID顺序，硬条件通过的配对各抽一次，概率失败不消费待触发标记；见[RE-0071](../research/findings/RE-SAN9PK-0071.md) |
 | 普通登用提交骰 | 固定：下令日期、执行者、目标人物 | [RE-0111](../research/findings/RE-SAN9PK-0111.md)提交保存骰、到达重算阈值；不按全局流垫骰 |
 | 探索人物／宝物发现门 | 固定：下令日期、探索者、目标地点 | 两门共用保存骰，阈值各自计算；[RE-0110](../research/findings/RE-SAN9PK-0110.md) |
 | 探索选中人物、选中宝物 | 运行：`personnel-search-candidate`、`personnel-search-treasure` | 候选集合稳定排序；“是否有发现机会”固定不等于“发现谁”固定 |

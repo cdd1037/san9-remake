@@ -51,6 +51,7 @@ public static class OfficerContentCompiler
                 ForceLoyalties = forces.ToImmutableDictionary(f => f.Id, f => (int)person.GetForceLoyalty(f.Id)),
                 Righteousness = person.Righteousness,
                 Ambition = person.Ambition,
+                PrefersConsolidationLeadership = ConsolidationLeadership(person.BiographyResourceCode),
                 AutomaticSurrenderAllowed = person.BiographyResourceCode != 36 && person.BiographyResourceCode is not (>= 59 and <= 64),
                 HasRecruitmentPoliticsBonus = person.BiographyResourceCode == 36,
                 RewardedThisXun = person.WasRewardedThisXun
@@ -72,6 +73,8 @@ public static class OfficerContentCompiler
         4 => DuelAdvantages.DominantDoubleStrike,
         _ => DuelAdvantages.None
     };
+
+    public static bool ConsolidationLeadership(int biographyId) => biographyId is 36 or 60 or 61 or 59 or 62 or 63 or 64 or 68 or 3 or 5 or 520;
 
     internal static int SuccessionPriority(int biographyId) => biographyId switch
     {

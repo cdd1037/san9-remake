@@ -14,7 +14,7 @@ public sealed record TreasureDroppedEvent(GameClock Clock, int TreasureId, int P
 internal static class OfficerDeath
 {
     internal static void Resolve(WorldMutation world, int officerId, OfficerDeathCause cause, SimulationRules rules, List<DomainEvent> events,
-        int? successorId = null, bool afterDailyCommands = true)
+        bool afterDailyCommands, int? successorId = null)
     {
         var previous = world.Officers[officerId];
         int? recipientForce = previous.Status == OfficerStatus.Captive

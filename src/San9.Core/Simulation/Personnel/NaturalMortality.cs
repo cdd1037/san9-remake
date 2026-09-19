@@ -20,7 +20,7 @@ internal static class NaturalMortality
                 person.OwnerId is int owner && (world.Forces[owner].IsBarbarian || world.Forces[owner].LeaderId == id &&
                     world.Simulation.Controls.Any(c => c.ForceId == owner && c.Kind == ControllerKind.Player))) continue;
             if (world.NextRandom("personnel-natural-death") % 100 >= (ulong)Chance(world.Clock.Year, person)) continue;
-            OfficerDeath.Resolve(world, id, OfficerDeathCause.Natural, rules, events);
+            OfficerDeath.Resolve(world, id, OfficerDeathCause.Natural, rules, events, afterDailyCommands: false);
             if (!ResolutionPipeline.CheckTerminal(world, events)) return;
         }
     }

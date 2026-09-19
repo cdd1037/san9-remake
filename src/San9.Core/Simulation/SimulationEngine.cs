@@ -225,9 +225,11 @@ public sealed class SimulationEngine
                 case ChooseDuelSuccessorCommand duelSuccessor:
                     var duel = mutation.Simulation.PendingDuel!;
                     if (duel.Aftermath.PendingRulerId != duelSuccessor.RulerId ||
-                        !DuelAftermath.Successors(mutation, duelSuccessor.RulerId).Contains(duelSuccessor.SuccessorId))
+                        duelSuccessor.SuccessorId is int selected && !DuelAftermath.Successors(mutation, duelSuccessor.RulerId).Contains(selected))
                         return Reject(CommandRejection.InvalidDecision);
-                    _pipeline.ResumeDuel(mutation, events, duelSuccessor.SuccessorId);
+                    int duelHeir = duelSuccessor.SuccessorId ?? RulerSuccession.Automatic(mutation,
+                        duel.RespondingForceId, mutation.Officers[duelSuccessor.RulerId])!.Id;
+                    _pipeline.ResumeDuel(mutation, events, duelHeir);
                     ContinueXun(mutation, duel.XunStarted, events);
                     break;
                 case ChooseExecutionSuccessorCommand successor:

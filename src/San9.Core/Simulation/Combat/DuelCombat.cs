@@ -1,9 +1,10 @@
 using System.Collections.Immutable;
+using System.Text.Json.Serialization;
 using San9.Core.Domain;
 
 namespace San9.Core.Simulation;
 
-public sealed record ChooseDuelSuccessorCommand(Guid CommandId, int IssuerId, long Sequence, int RulerId, int SuccessorId)
+public sealed record ChooseDuelSuccessorCommand(Guid CommandId, int IssuerId, long Sequence, int RulerId, [property: JsonRequired] int? SuccessorId)
     : GameCommand(CommandId, IssuerId, Sequence);
 public sealed record DuelSuccessionPrompt(int RulerId, int RespondingForceId, ImmutableArray<int> CandidateIds);
 public sealed record CombatDayContinuation(ImmutableArray<int> RemainingUnits, ImmutableArray<int> UsedUnits,

@@ -7,6 +7,19 @@ namespace San9.Core.Tests;
 public sealed class DuelAftermathTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ComputerOnlyDuelsRespectDeathOptionWithoutPlayerGate(bool enabled)
+    {
+        var world = Mutation(enabled);
+        world.SetSimulation(world.Simulation with { Controls = [] });
+        DuelAftermath.Advance(world, DuelAftermath.Begin(world, SingleLoser()),
+            new() { Military = Policy(true, false) }, []);
+        Assert.Equal(enabled, world.Officers[22].Status == OfficerStatus.Dead);
+        Assert.Equal(enabled, world.Simulation.RandomStreams.Any(s => s.Name == "duel-death"));
+    }
+
+    [Theory]
     [InlineData(80, 10)]
     [InlineData(100, 5)]
     [InlineData(0, 10)]
@@ -115,7 +128,6 @@ public sealed class DuelAftermathTests
 
     [Theory]
     [InlineData("scenario")]
-    [InlineData("no-player")]
     [InlineData("barbarian")]
     [InlineData("commander")]
     [InlineData("war")]
@@ -125,7 +137,6 @@ public sealed class DuelAftermathTests
     public void DeathExemptionsConsumeNoDeathRandom(string exemption)
     {
         var world = Mutation();
-        if (exemption == "no-player") world.SetSimulation(world.Simulation with { Controls = [] });
         if (exemption == "barbarian") world.Replace(world.Forces[2] with { IsBarbarian = true });
         if (exemption == "commander") world.Replace(world.Units[2] with { CommanderId = 22 });
         var abilities = world.Officers[22].BaseAbilities;

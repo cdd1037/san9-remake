@@ -30,7 +30,7 @@ public sealed class TacticStudyInterruptionTests
         Assert.True(engine.Execute(new("player"), new ChooseTacticStudentCommand(Guid.NewGuid(), 1, 0, 1, 2)).Submission.Accepted);
         var mutation = world.BeginMutation();
         List<DomainEvent> changes = [];
-        if (interruption == "death") OfficerDeath.Resolve(mutation, 2, OfficerDeathCause.Natural, rules, changes);
+        if (interruption == "death") OfficerDeath.Resolve(mutation, 2, OfficerDeathCause.Natural, rules, changes, afterDailyCommands: false);
         else if (interruption == "capture") PersonnelTransitions.Capture(mutation, 2, 3, null, places, changes);
         else
         {

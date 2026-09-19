@@ -141,8 +141,10 @@ public sealed class DuelCombatIntegrationTests
         Assert.Equal(new(190, 1, 11), engine.CaptureStableState().Clock);
     }
 
-    [Fact]
-    public void PlayerSuccessionResumesSameDayWithoutRepeatingDamageOrDuelRandom()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void PlayerSuccessionResumesSameDayWithoutRepeatingDamageOrDuelRandom(bool automatic)
     {
         var engine = Engine(deaths: true);
         var arrival = engine.AdvanceXun();
@@ -156,7 +158,7 @@ public sealed class DuelCombatIntegrationTests
         Assert.Throws<InvalidOperationException>(() => engine.AdvanceXun());
         Assert.Equal(CommandRejection.DecisionPending, engine.Execute(new("player"),
             new WaitCommand(Guid.NewGuid(), 2, engine.Snapshot.Simulation.NextSequence)).Submission.Rejection);
-        var answer = new ChooseDuelSuccessorCommand(Guid.NewGuid(), 2, engine.Snapshot.Simulation.NextSequence, 22, 21);
+        var answer = new ChooseDuelSuccessorCommand(Guid.NewGuid(), 2, engine.Snapshot.Simulation.NextSequence, 22, automatic ? null : 21);
         Assert.Equal(CommandRejection.NotActiveController, engine.Execute(new("other"), answer).Submission.Rejection);
         Assert.Equal(CommandRejection.InvalidDecision, engine.Execute(new("player"), answer with { SuccessorId = 11 }).Submission.Rejection);
         Assert.Equal(before, engine.Snapshot.StateHash);
@@ -164,7 +166,7 @@ public sealed class DuelCombatIntegrationTests
         var result = engine.Execute(new("player"), answer);
         Assert.True(result.Submission.Accepted);
         Assert.Null(engine.GetDuelSuccessionPrompt());
-        Assert.Equal(21, engine.Snapshot.Forces.Single(f => f.Id == 2).LeaderId);
+        Assert.Equal(automatic ? 23 : 21, engine.Snapshot.Forces.Single(f => f.Id == 2).LeaderId);
         Assert.Equal(OfficerStatus.Dead, engine.Snapshot.Officers.Single(p => p.Id == 22).Status);
         Assert.Equal(deathRandom, engine.Snapshot.Simulation.RandomStreams.Single(s => s.Name == "duel-death"));
         Assert.DoesNotContain(result.Events.OfType<BattleDamageEvent>(), e => e.Clock.Day == 2);

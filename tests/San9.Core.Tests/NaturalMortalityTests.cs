@@ -132,7 +132,7 @@ public sealed class NaturalMortalityTests
         mutation.Replace(mutation.Officers[11] with { Status = OfficerStatus.Governor, OfficeId = 5 });
         mutation.Replace(mutation.Officers[12].WithLoyalty(1, 90));
         var events = new List<DomainEvent>();
-        OfficerDeath.Resolve(mutation, 1, OfficerDeathCause.Natural, rules, events);
+        OfficerDeath.Resolve(mutation, 1, OfficerDeathCause.Natural, rules, events, afterDailyCommands: false);
         world.Commit(mutation);
         var snapshot = world.CreateSnapshot();
         Assert.Equal(200, Assert.Single(snapshot.Corps).Id);

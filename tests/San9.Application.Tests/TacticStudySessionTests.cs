@@ -11,6 +11,31 @@ namespace San9.Application.Tests;
 
 public sealed class TacticStudySessionTests
 {
+    [Fact]
+    public void CompletedCityCanEnrollNextStudentWithoutRepeatingCompletionAcrossAnswers()
+    {
+        var definition = Scenario();
+        definition = definition with { Officers = definition.Officers.Append(Person(5, 1, 1, 100)).ToArray() };
+        var session = GameSession.Start(definition, 190);
+        session.BeginRecording();
+        ReachQuarter(session);
+        Assert.True(Choose(session, 1, 2).Submission.Accepted);
+        Assert.True(Choose(session, 2, 3).Submission.Accepted);
+        for (int i = 0; i < 8; i++) session.AdvanceXun();
+        var completion = session.AdvanceXun();
+        Assert.Equal(2, completion.Events.OfType<TacticLearnedEvent>().Count());
+        Assert.Equal(new[] { 5 }, session.GetTacticStudyPrompt()!.CandidateIds);
+        Assert.Equal(new GameClock(190, 7, 1), session.Snapshot.Clock);
+        var response = Choose(session, 1, 5);
+        Assert.True(response.Submission.Accepted);
+        Assert.Empty(response.Events.OfType<TacticLearnedEvent>());
+        Assert.Equal(new GameClock(190, 10, 1), Assert.Single(session.Snapshot.Simulation.Tasks).Due);
+        var restored = SaveService.Decode(SaveService.Encode(session), definition);
+        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
+        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+    }
+
     private static ScenarioInitialState Scenario() => new(ScenarioInitialState.CurrentSchemaVersion, "study", 190, 1, 1, 1,
         [new(1, "force.1", 1, 10000, 100000, 100) { LeaderId = 1 }, new(2, "force.2", 2, 10000, 100000, 100) { LeaderId = 4 }],
         [new(1, "city.1", 1, 0, 0, 100, 600, 600, 100, []), new(2, "city.2", 1, 2, 0, 100, 600, 600, 100, []),

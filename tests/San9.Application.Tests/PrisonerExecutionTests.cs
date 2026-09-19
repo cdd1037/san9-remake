@@ -123,10 +123,14 @@ public sealed class PrisonerExecutionTests
         Assert.Equal(1, Assert.Single(session.Snapshot.Treasures).HolderId);
     }
 
-    [Fact]
-    public void PlayerRulerExecutionWaitsInMemoryAndReplaysChoiceFromStableState()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void PlayerRulerExecutionWaitsInMemoryAndReplaysChoiceFromStableState(bool automatic)
     {
         var definition = Fixture(playerRuler: true);
+        definition = definition with { Officers = definition.Officers.Select(p => p.State.Id == 3
+            ? p with { State = p.State with { SuccessionPriority = 100 } } : p).ToArray() };
         var session = GameSession.Start(definition, 190);
         session.BeginRecording();
         session.Apply(session.Request(new EndControlOperation(), "player"));
@@ -150,7 +154,7 @@ public sealed class PrisonerExecutionTests
         Assert.Equal(pendingHash, session.Snapshot.StateHash);
         Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
         Assert.Equal(CanonicalJson.Text(prompt), CanonicalJson.Text(restored.GetExecutionSuccessionPrompt()));
-        var response = new ChooseExecutionSuccessorCommand(Guid.NewGuid(), 1, 1, 1, 3);
+        var response = new ChooseExecutionSuccessorCommand(Guid.NewGuid(), 1, 1, 1, automatic ? null : 3);
         var request = session.Request(new CommandOperation(response), "player", response.CommandId);
         var result = session.Apply(request);
         Assert.Equal(SessionDisposition.Accepted, result.Disposition);

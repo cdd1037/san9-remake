@@ -6,7 +6,7 @@ namespace San9.Core.Simulation;
 
 public sealed record ExecutePrisonerCommand(Guid CommandId, int IssuerId, long Sequence, int OfficerId)
     : GameCommand(CommandId, IssuerId, Sequence);
-public sealed record ChooseExecutionSuccessorCommand(Guid CommandId, int IssuerId, long Sequence, int RulerId, int SuccessorId)
+public sealed record ChooseExecutionSuccessorCommand(Guid CommandId, int IssuerId, long Sequence, int RulerId, [property: JsonRequired] int? SuccessorId)
     : GameCommand(CommandId, IssuerId, Sequence);
 public sealed record ExecutionSuccessionDecision([property: JsonRequired] int ExecutingForceId,
     [property: JsonRequired] int RulerId, [property: JsonRequired] int RespondingForceId);
@@ -46,7 +46,7 @@ internal static class PrisonerExecution
     internal static CommandRejection Respond(WorldMutation world, ChooseExecutionSuccessorCommand command, SimulationRules rules, List<DomainEvent> events)
     {
         if (world.Simulation.PendingExecutionSuccession is not { } pending || pending.RulerId != command.RulerId ||
-            pending.RespondingForceId != command.IssuerId || !Candidates(world, command.IssuerId).Contains(command.SuccessorId))
+            pending.RespondingForceId != command.IssuerId || command.SuccessorId is int chosen && !Candidates(world, command.IssuerId).Contains(chosen))
             return CommandRejection.InvalidDecision;
         world.SetSimulation(world.Simulation with { PendingExecutionSuccession = null, Boundary = SimulationBoundary.Stable });
         Complete(world, pending.ExecutingForceId, pending.RulerId, command.SuccessorId, rules, events);
@@ -68,7 +68,7 @@ internal static class PrisonerExecution
                     Math.Max(0, person.LoyaltyTo(executingForceId) - loss), "prisoner-executed", events);
             }
         }
-        OfficerDeath.Resolve(world, prisonerId, OfficerDeathCause.Execution, rules, events, successorId, afterDailyCommands: false);
+        OfficerDeath.Resolve(world, prisonerId, OfficerDeathCause.Execution, rules, events, afterDailyCommands: false, successorId: successorId);
         events.Add(new PrisonerExecutedEvent(world.Clock, executingForceId, prisonerId));
         ResolutionPipeline.CheckTerminal(world, events);
     }

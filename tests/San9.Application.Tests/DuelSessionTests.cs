@@ -32,8 +32,10 @@ public sealed class DuelSessionTests
         };
     }
 
-    [Fact]
-    public void DuelSuccessionIsTransientAndReplaysFromStableStart()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void DuelSuccessionIsTransientAndReplaysFromStableStart(bool automatic)
     {
         ulong seed = 0;
         while (new StableRandom(StableRandom.DeriveSeed(seed, "duel-trigger")).NextUInt64() % 100 >= 3 ||
@@ -48,7 +50,7 @@ public sealed class DuelSessionTests
         Assert.Equal(22, prompt.RulerId);
         Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
         Assert.Throws<InvalidOperationException>(() => session.CaptureRecording());
-        var answer = new ChooseDuelSuccessorCommand(Guid.NewGuid(), 2, session.Snapshot.Simulation.NextSequence, 22, 21);
+        var answer = new ChooseDuelSuccessorCommand(Guid.NewGuid(), 2, session.Snapshot.Simulation.NextSequence, 22, automatic ? null : 21);
         var result = session.Execute(new("player"), answer);
         Assert.True(result.Submission.Accepted);
         Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.Execute(new("player"), answer).Events));
@@ -59,7 +61,7 @@ public sealed class DuelSessionTests
         Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
         Assert.Single(replay.Events.OfType<OfficerDiedEvent>(), e => e.OfficerId == 22);
         Assert.Single(replay.Events.OfType<DuelStartedEvent>(), e => e.Clock.Day == 2);
-        if (Environment.GetEnvironmentVariable("SAN9_G09_REPORT_DIR") is { Length: > 0 } output)
+        if (!automatic && Environment.GetEnvironmentVariable("SAN9_G09_REPORT_DIR") is { Length: > 0 } output)
         {
             Directory.CreateDirectory(output);
             File.WriteAllBytes(Path.Combine(output, "duel-scenario.json"), CanonicalJson.Encode(scenario));

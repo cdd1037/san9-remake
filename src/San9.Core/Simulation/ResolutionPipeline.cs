@@ -129,10 +129,13 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
             FreeOfficerMigration.Apply(world, rules.Personnel, events);
         }
         if (stage == ResolutionStage.QuarterEvents) AllianceFormation.Begin(world, rules, events);
-        if (stage == ResolutionStage.QuarterStudyOffers) TacticStudy.Offer(world, rules, events);
-        if (stage == ResolutionStage.QuarterUpdate)
+        if (stage == ResolutionStage.QuarterStudyOffers)
         {
             TacticStudy.CompleteQuarter(world, rules, events);
+            TacticStudy.Offer(world, rules, events);
+        }
+        if (stage == ResolutionStage.QuarterUpdate)
+        {
             NaturalMortality.Apply(world, rules, events);
             if (!CheckTerminal(world, events)) return false;
             PersonnelLoyaltyCycle.Apply(world, events);

@@ -2,7 +2,17 @@
 
 状态：已完成，2026-09-19。范围与退出条件见[路线图](../specs/roadmap.md)。人才提拔培养是独立支线；事件生产者的接入仍按G10执行，不能将共享成长函数视为事件已经实现。
 
-当前规则`san9-core-g09-v13`，保存／日志54，剧本schema65／组合69。190年运行包已原位重转；旧规则存档／录像明确拒绝。本阶段未启动Godot，交互验收使用公共会话API和独立Headless进程，画面留到表现阶段。
+当前规则`san9-core-g09-v14`，保存／日志55，剧本schema65／组合69。190年运行包已原位重转；旧规则存档／录像明确拒绝。本阶段未启动Godot，交互验收使用公共会话API和独立Headless进程，画面留到表现阶段。
+
+## v14审计修复与规则裁决
+
+2026-09-19：自然死亡清理显式使用命令前阶段，修正登用目标死亡时执行人返程多计两日的反例。处决与单挑继任命令支持显式null自动回退，按实时继任排序选人，权限、原子死亡与同日续行保持。
+
+原版先报名后结业，导致同城修行空等一季；重制经用户确认改为结业后同季招收下一人。原版单挑阵亡要求玩家参战；重制经用户确认取消该门，电脑双方也服从相同阵亡选项与资格规则。以上是明确的重制差异，不更改RE原作事实。内容schema65／组合69不变，无需重转资源；规则版本及保存／日志升至55，拒绝旧规则存档与录像。
+
+验收覆盖季度死亡返程日期、两种继任回答、自动回退录像、同季续招及多城市续行不重复结业、电脑双方阵亡开关。历史v13的全年报告与哈希仅作为旧基线，不代表v14重跑结果。
+
+实际验证：执行`dotnet test San9Remake.slnx --no-restore --verbosity quiet`后修正新增单挑自动继任测试的预期（按能力排序应选23，而非候选首项21），重跑Core全部1383项通过；补充自动继任录像用例后Application全部241项通过。其余项目在相同产品代码版本通过：Content62、Importer260、Client97、Headless11，合计2054项。`git diff --check`通过。未重跑190年全年场景，未启动Godot；交互以公开会话、保存与录像验证，画面待表现阶段验收。
 
 ## 生命周期与状态所有权
 
@@ -10,7 +20,7 @@
 - `OfficerInjuryRecovery`在旬更新中先对非零伤势减1，再恢复行动与褒美等状态；不修改基础能力、不消费随机。`FreeOfficerMigration`经过30日后逐人物执行50%旬迁移，使用有效邻接地域，取消以迁走人物为目标的任务并安排返程。
 - `NaturalMortality`按季度执行360日门、寿命曲线与豁免；`OfficerDeath`统一自然死亡、处决、单挑及既有战争死亡的人员、任务、治理和宝物事务。保留人物身份与家谱，死亡清理和宝物结算幂等。自动继任按关系与优先级排序，子军团继任合并原直属引用及资金，按新君主亲和调整忠诚。证据见[RE-0132](../research/findings/RE-SAN9PK-0132.md)、[RE-0141](../research/findings/RE-SAN9PK-0141.md#2026-09-18g09继任规则复核)。
 - `ExecutePrisonerCommand`验证据点／部队拘押及军团权限；被俘玩家君主死亡前以`GetExecutionSuccessionPrompt`／`ChooseExecutionSuccessorCommand`选择继任者。不提前死亡、转移宝物或投外交骰；无候选时完成势力退出及终局。
-- 季度课程来自必填`TacticCourses`城市／兵法引用。报名经过30日门，先报名、后完成上期90日修行，再执行自然死亡。修行是正式人员任务，直接授予不投普通学习骰；死亡、被俘、改属及课程城市失效通过共享取消处理。证据见[RE-0131季度修行](../research/findings/RE-SAN9PK-0131.md#quarterly-study-enrollment)。
+- 季度课程来自必填`TacticCourses`城市／兵法引用。报名经过30日门，先完成上期90日修行、后报名，再执行自然死亡。修行是正式人员任务，直接授予不投普通学习骰；死亡、被俘、改属及课程城市失效通过共享取消处理。证据见[RE-0131季度修行](../research/findings/RE-SAN9PK-0131.md#quarterly-study-enrollment)。
 
 `OfficerAppearanceTests`、`OfficerInjuryRecoveryTests`、`NaturalMortalityTests`、`OfficerDeathTests`、`NaturalDeathLocationTests`以及对应Application测试覆盖新局／跨年、未知年龄／特殊身份／玩家君主／异民族豁免、0与100概率的消费、死亡幂等和恢复。自然死亡通过实际年度推进覆盖驻城、野战主将、野战最后一员、旅行途中、据点俘虏及部队俘虏，验证任务、主将／成员、宝物及保存恢复。处决测试包含无归属、玩家选择、子军团继承、忠诚、玉玺及最终势力退出。
 
@@ -44,7 +54,7 @@
 
 玩家君主阵亡通过`GetDuelSuccessionPrompt`／`ChooseDuelSuccessorCommand`等待选择。仅在确需回答时保存内存中的战后游标、剩余单位和已攻击集合；响应后继续同日战斗及余下日阶段，不重新移动、伤害、投阵亡骰或提前完成旬。`DuelCombatIntegrationTests`覆盖正反机会、权限／无效响应、同日剩余战斗、旬末最后一天，以及选择另一个参败人物继任后重新检查其君主／主将资格。`DuelSessionTests`验证公开会话、稳定起点恢复和完整录像；独立CLI结果见下文。
 
-外交谈判、联盟邀请、修行报名、处决及单挑继任等待只在内存续行。普通存档、录像起点及导出要求完整结算边界；Application事务复制使用运行时快照，诊断哈希仍包含待答进度。正式旅行、货物、已建立协议及90日课程可跨旬保存；保存／日志54拒绝旧交互字段及成员排序状态。对应约定见[SAVE-0001](../specs/behavior/BEH-SAVE-0001-session-persistence-replay-and-headless.md)和[哈希约定](hash-and-fingerprint.md)。
+外交谈判、联盟邀请、修行报名、处决及单挑继任等待只在内存续行。普通存档、录像起点及导出要求完整结算边界；Application事务复制使用运行时快照，诊断哈希仍包含待答进度。正式旅行、货物、已建立协议及90日课程可跨旬保存；保存／日志55拒绝旧交互字段及成员排序状态。对应约定见[SAVE-0001](../specs/behavior/BEH-SAVE-0001-session-persistence-replay-and-headless.md)和[哈希约定](hash-and-fingerprint.md)。
 
 ## 数据、查询与命令
 
@@ -56,7 +66,7 @@
 
 当前可见查询210人，与世界可见身份集合完全相同；隐藏与未来人物仍在世界，登场后由现有查询和资格生效。周期登场、迁移、自然死亡没有伪造玩家命令；教学和继任使用上述公共响应命令。报告为`local/generated/verification/officer-order/data.json`，核对程序为`local/generated/verification/g09-data-audit/`。
 
-## 当前v13统一人物顺序验证
+## v13统一人物顺序历史验证
 
 全量`dotnet test San9Remake.slnx --no-restore --verbosity quiet`2047项通过：Core1379、Content62、Importer260、Application238、Client97、Headless11。保存字段删除及旧内容版本拒绝已覆盖，无兼容分支。700人物与九组课程已重新核对，数据覆盖和当前可见210人物保持完整。产物位于`local/generated/verification/officer-order/`。
 

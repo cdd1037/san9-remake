@@ -45,7 +45,7 @@ internal static class DuelAftermath
         {
             if (successorId is not int successor || !Successors(world, ruler).Contains(successor))
                 throw new ArgumentException("Invalid duel successor.", nameof(successorId));
-            OfficerDeath.Resolve(world, ruler, OfficerDeathCause.Duel, rules, events, successor);
+            OfficerDeath.Resolve(world, ruler, OfficerDeathCause.Duel, rules, events, afterDailyCommands: true, successorId: successor);
         }
         else if (successorId is not null) throw new ArgumentException("No duel succession is pending.", nameof(successorId));
 
@@ -54,9 +54,8 @@ internal static class DuelAftermath
             unit == loserUnit && !world.Forces[owner].IsBarbarian && !priorWinners.Contains(id) &&
             world.Units.TryGetValue(unit, out var current) && current.CommanderId != id;
         bool CanKill() => world.Simulation.BattleDeathsEnabled && rules.Military!.BattleDeathsAllowed &&
-            world.Units.TryGetValue(outcome.Roster.AttackingUnitId, out var attacker) &&
-            world.Units.TryGetValue(outcome.Roster.DefendingUnitId, out var defender) &&
-            world.Simulation.Controls.Any(c => c.Kind == ControllerKind.Player && (c.ForceId == attacker.OwnerId || c.ForceId == defender.OwnerId));
+            world.Units.ContainsKey(outcome.Roster.AttackingUnitId) &&
+            world.Units.ContainsKey(outcome.Roster.DefendingUnitId);
 
         for (int i = progress.NextDeathIndex; i < losers.Length && CanKill(); i++)
         {
@@ -71,7 +70,7 @@ internal static class DuelAftermath
                 events.Add(new DuelSuccessionRequestedEvent(world.Clock, id, owner));
                 return new(outcome, i + 1, id);
             }
-            OfficerDeath.Resolve(world, id, OfficerDeathCause.Duel, rules, events);
+            OfficerDeath.Resolve(world, id, OfficerDeathCause.Duel, rules, events, afterDailyCommands: true);
         }
         if (rules.Military!.DuelCapturesAllowed && world.Units.TryGetValue(outcome.WinningUnitId, out var winner) && !world.Forces[winner.OwnerId].IsBarbarian)
         {

@@ -77,7 +77,7 @@ public static class ScenarioContentCompiler
             if (f.LeaderId is not int leader || leader >= persons.Count) throw new InvalidDataException("Missing force leader.");
             var p = persons[leader];
             string name = text.Person($"force.{id}", p.FamilyNameResourceCode, p.GivenNameResourceCode);
-            return new ForceInitialState(id, name, f.ColorCode, f.Money, f.Food, f.Trust) { BaseTrust = f.BaseTrust, ProvidedTactics = Enumerable.Range(0, San9ScenarioForceArchive.TacticCount).Where(f.HasTactic).ToImmutableArray(), RankId = f.RankGroupId is < 8 ? f.RankGroupId : null, IsBarbarian = f.IsBarbarian || f.CountryTitleId is >= 4 and <= 8, LeaderId = leader, FlagGlyph = f.CountryTitleId is int title ? System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(exe.AsSpan(0x253bb0 + title * 4, 4)) : p.FlagCode < 186 ? p.FlagCode : -1 };
+            return new ForceInitialState(id, name, f.ColorCode, f.Money, f.Food, f.Trust) { BaseTrust = f.BaseTrust, ProvidedTactics = Enumerable.Range(0, San9ScenarioForceArchive.TacticCount).Where(f.HasTactic).ToImmutableArray(), RankId = f.RankGroupId, IsBarbarian = f.IsBarbarian || f.CountryTitleId is >= 4 and <= 8, LeaderId = leader, FlagGlyph = f.CountryTitleId is int title ? System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(exe.AsSpan(0x253bb0 + title * 4, 4)) : p.FlagCode < 186 ? p.FlagCode : -1 };
         }).ToArray();
         var officers = OfficerContentCompiler.Compile(persons, settlements, summaries, text, new San9MessageTable(biographies));
         summaries = summaries.Select(f => f with { AdviserId = officers.Where(o => o.State.OwnerId == f.Id && o.State.Status == San9.Core.Domain.OfficerStatus.Strategist)
@@ -86,11 +86,11 @@ public static class ScenarioContentCompiler
         var treasureDiplomacy = TreasureContentCompiler.DiplomacyPreferences(exe, persons, officers.Select(o => o.State.Id),
             items.Where(i => i.SerializedId < TreasureContentCompiler.BuiltInCount).Select(i => (int)i.SerializedId));
         var information = new InformationDefinitions(
-            ranks.Where(r => r.Id < 8).Select(r => new RankDefinition(r.Id, text.Rank($"rank.{r.Id}", r.Id), r.CommandCapacity, r.PrestigeRequirement, r.PromotionLoyaltyBonus)).ToArray(),
+            RankContentCompiler.Compile(ranks, id => text.Rank($"rank.{id}", id)),
             offices.Where(o => o.IsAssignable).Select(o => new OfficeDefinition(o.Id, text.Office($"office.{o.Id}", o.Id), o.CommandCapacity, o.Salary)
                 { GovernorPriority = San9ScenarioOfficeArchive.RecordCount - o.Id,
                   AbilityBonuses = OfficerContentCompiler.OfficeBonuses(o),
-                  RequiredRankId = o.RankGroupId is int rank && rank < 8 ? rank : null }).ToArray(),
+                  RequiredRankId = o.RankGroupId }).ToArray(),
             items.Where(i => i.SerializedId < TreasureContentCompiler.BuiltInCount).Select(i =>
             {
                 text.TreasureDescription(i.SerializedId, i.ResourceId2);

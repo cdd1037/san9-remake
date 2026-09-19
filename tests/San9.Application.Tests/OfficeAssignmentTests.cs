@@ -7,6 +7,35 @@ namespace San9.Application.Tests;
 
 public sealed class OfficeAssignmentTests
 {
+    [Theory]
+    [InlineData(8, true)]
+    [InlineData(null, false)]
+    public void LowestDefinedRankIsNotAnAbsentRank(int? rankId, bool allowed)
+    {
+        var baseline = G01ScenarioTests.Fixture();
+        var definition = baseline with
+        {
+            Information = baseline.Information with
+            {
+                Ranks = [new(8, "rank.lowest", 20000, 0, 0)],
+                Offices = [new(400, "office", 10000, 0) { RequiredRankId = 8 }]
+            },
+            Forces = baseline.Forces.Select(f => f with { RankId = rankId }).ToArray()
+        };
+        var session = GameSession.Start(definition, 190);
+        Assert.Equal(rankId, session.View.Forces.Single(f => f.Id == 1).RankId);
+        Assert.Equal(8, Assert.Single(session.View.Information.Ranks).Id);
+        session.BeginRecording();
+        var result = session.Execute(new("player"), new AssignOfficesCommand(Guid.NewGuid(), 1, 0, [new(2, 400)]));
+        Assert.Equal(allowed, result.Submission.Accepted);
+        var restored = SaveService.Decode(SaveService.Encode(session), definition);
+        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
+        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        Assert.NotEqual(GameSession.Fingerprint(definition), GameSession.Fingerprint(definition with
+        { Forces = definition.Forces.Select(f => f with { RankId = allowed ? null : 8 }).ToArray() }));
+    }
+
     [Fact]
     public void RankGateRemovalAndUnknownOfficeUseContentRules()
     {

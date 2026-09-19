@@ -14,9 +14,9 @@ public sealed class SimulationEngine
         : this(world, new SimulationRules { Economy = economy, Personnel = personnel }) { }
 
     public SimulationEngine(WorldState world, EconomyRulebook economy, PersonnelRulebook personnel, TreasureRulebook treasures,
-        GovernanceRulebook? governance = null, MilitaryRulebook? military = null, TerminalDefinition? terminal = null)
+        GovernanceRulebook? governance = null, MilitaryRulebook? military = null, TerminalDefinition? terminal = null, PoliticalRulebook? politics = null)
         : this(ValidateContent(world, treasures, governance), new SimulationRules
-            { Economy = economy, Personnel = personnel, Treasures = treasures, Governance = governance ?? new([]), Military = military, Terminal = terminal }) { }
+            { Economy = economy, Personnel = personnel, Treasures = treasures, Governance = governance ?? new([]), Military = military, Terminal = terminal, Politics = politics ?? PoliticalRulebook.Empty }) { }
 
     private static WorldState ValidateContent(WorldState world, TreasureRulebook treasures, GovernanceRulebook? governance)
     {
@@ -42,6 +42,7 @@ public sealed class SimulationEngine
             rules.Military is null || !rules.Military.Tactics.TryGetValue(c.Value, out var tactic) || tactic.Category is not (>= 0 and <= 8)))
             throw new ArgumentException("Invalid tactic study course.");
         var initial = world.BeginMutation(rules.Abilities);
+        PoliticalEvents.ValidateRules(initial, rules);
         if (initial.Corps.Values.Any(c => !CorpsDelegations.Valid(initial, c, rules.Military)))
             throw new ArgumentException("Invalid corps delegation target.");
         foreach (var task in world.Simulation.Tasks)
@@ -150,6 +151,12 @@ public sealed class SimulationEngine
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
         return AllianceEligibility.Find(_world.BeginMutation(_rules.Abilities), _rules);
+    }
+
+    public CountryTitlePrompt? GetCountryTitlePrompt()
+    {
+        if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
+        return _world.Simulation.PendingEvent is CountryTitleEventSession pending ? new(pending.ForceId, pending.ChangeKind, pending.CandidateIds) : null;
     }
 
     public OfficeRequestPrompt? GetOfficeRequestPrompt()
@@ -291,6 +298,11 @@ public sealed class SimulationEngine
                         return Reject(CommandRejection.InvalidDecision);
                     _pipeline.Respond(mutation, response, events);
                     ContinueXun(mutation, waiting.XunStarted, events);
+                    break;
+                case ChooseCountryTitleCommand countryTitle:
+                    var titleRejection = PoliticalEvents.Respond(mutation, _rules, countryTitle, events);
+                    if (titleRejection != CommandRejection.None) return Reject(titleRejection);
+                    _pipeline.Prepare(mutation, events, ResolutionStage.QuarterPolitics);
                     break;
                 case RespondOfficeRequestCommand officeRequest:
                     var officeRejection = OfficeRequests.Respond(mutation, _rules, officeRequest, events);
@@ -500,6 +512,13 @@ public sealed class SimulationEngine
                 c.Kind == ControllerKind.Player && c.ControllerId == context.ControllerId)
                 ? CommandRejection.None : CommandRejection.NotActiveController;
         }
+        if (sim.PendingEvent is CountryTitleEventSession title)
+        {
+            if (command is not ChooseCountryTitleCommand) return CommandRejection.DecisionPending;
+            return title.ForceId == command.IssuerId && sim.Controls.Any(c => c.ForceId == command.IssuerId &&
+                c.Kind == ControllerKind.Player && c.ControllerId == context.ControllerId)
+                ? CommandRejection.None : CommandRejection.NotActiveController;
+        }
         if (sim.PendingEvent is OfficeRequestEventSession officeRequest)
         {
             if (command is not RespondOfficeRequestCommand) return CommandRejection.DecisionPending;
@@ -516,7 +535,7 @@ public sealed class SimulationEngine
                 ? CommandRejection.None : CommandRejection.NotActiveController;
         }
         if (sim.Boundary != SimulationBoundary.Stable) return CommandRejection.NotStable;
-        if (command is RespondOfficeRequestCommand or ChooseDuelSuccessorCommand or AllianceParticipationCommand or RespondDailyTaskCommand or ChooseExecutionSuccessorCommand or ChooseTacticStudentCommand) return CommandRejection.InvalidDecision;
+        if (command is ChooseCountryTitleCommand or RespondOfficeRequestCommand or ChooseDuelSuccessorCommand or AllianceParticipationCommand or RespondDailyTaskCommand or ChooseExecutionSuccessorCommand or ChooseTacticStudentCommand) return CommandRejection.InvalidDecision;
         if (sim.ActiveControl >= sim.Controls.Length) return CommandRejection.NotActiveController;
         var seat = sim.Controls[sim.ActiveControl];
         return CorpsControl.Authorize(Snapshot, seat, context, command);

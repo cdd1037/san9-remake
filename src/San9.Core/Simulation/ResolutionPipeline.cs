@@ -7,7 +7,7 @@ public enum ResolutionStage
 {
     TerminalCheck, XunEvents, XunUpdate, MonthEvents, AppearanceAndIndependence,
     QuarterPrelude, QuarterEvents, QuarterUpdate, AnnualAppearance, AnnualCleanup,
-    BeforeDailyCommands, DailyCommands, DailyMapUpdate, UnitAndBuildingEvents, QuarterStudyOffers,
+    BeforeDailyCommands, DailyCommands, DailyMapUpdate, UnitAndBuildingEvents, QuarterStudyOffers, QuarterPolitics,
 }
 
 public sealed record StageCompletedEvent(GameClock Clock, ResolutionStage Stage) : DomainEvent;
@@ -20,6 +20,7 @@ public sealed record ControlEndedEvent(string ControllerId, int ForceId) : Domai
 // Rules are compiled domain code, not callbacks loaded from content or saves.
 internal class SimulationRules
 {
+    internal PoliticalRulebook Politics { get; init; } = PoliticalRulebook.Empty;
     internal TerminalDefinition? Terminal { get; init; }
     internal EconomyRulebook Economy { get; init; } = EconomyRulebook.Empty;
     internal TreasureRulebook Treasures { get; init; } = TreasureRulebook.Empty;
@@ -77,6 +78,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         stages.Add(ResolutionStage.AppearanceAndIndependence);
         if (boundary.Quarter) stages.AddRange([ResolutionStage.QuarterPrelude, ResolutionStage.QuarterEvents, ResolutionStage.QuarterStudyOffers, ResolutionStage.QuarterUpdate]);
         if (boundary.Year) stages.AddRange([ResolutionStage.AnnualAppearance, ResolutionStage.AnnualCleanup]);
+        if (boundary.Quarter) stages.Add(ResolutionStage.QuarterPolitics);
         int start = after is { } completed ? stages.IndexOf(completed) + 1 : 0;
         if (after is not null && start == 0) throw new InvalidOperationException("Invalid preparation continuation.");
         foreach (var stage in stages.Skip(start))
@@ -140,6 +142,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
             ForceEmergence.Apply(world, rules, events);
             CityIndependence.Apply(world, rules, events);
         }
+        if (stage == ResolutionStage.QuarterPolitics) PoliticalEvents.Begin(world, rules, events);
         if (stage == ResolutionStage.QuarterEvents) AllianceFormation.Begin(world, rules, events);
         if (stage == ResolutionStage.QuarterStudyOffers)
         {

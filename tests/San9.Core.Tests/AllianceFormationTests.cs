@@ -100,7 +100,7 @@ public sealed class AllianceFormationTests
         Assert.Equal(CanonicalJson.Text(expected.Events), CanonicalJson.Text(actual.Events));
         Assert.Equal(new[] { 2, 3, 4, 5 }, expected.Snapshot.Simulation.Alliance!.MemberForceIds);
         Assert.Equal(5, expected.Snapshot.Simulation.Alliance.LeaderForceId);
-        Assert.Equal(new[] { ResolutionStage.QuarterStudyOffers, ResolutionStage.QuarterUpdate, ResolutionStage.AnnualAppearance, ResolutionStage.AnnualCleanup },
+        Assert.Equal(new[] { ResolutionStage.QuarterStudyOffers, ResolutionStage.QuarterUpdate, ResolutionStage.AnnualAppearance, ResolutionStage.AnnualCleanup, ResolutionStage.QuarterPolitics },
             expected.Events.OfType<StageCompletedEvent>().Select(e => e.Stage));
         Assert.Empty(expected.Events.OfType<XunAdvancedEvent>());
         Assert.Equal(SimulationBoundary.Stable, expected.Snapshot.Simulation.Boundary);

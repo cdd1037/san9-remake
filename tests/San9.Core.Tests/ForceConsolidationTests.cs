@@ -41,8 +41,12 @@ public sealed class ForceConsolidationTests
     {
         var world = World();
         var mutation = Pending(world);
+        mutation.Replace(mutation.Forces[2] with { CountryTitleId = 900 });
+        mutation.Replace(mutation.Forces[3] with { CountryTitleId = 500 });
         List<DomainEvent> events = [];
         ForceConsolidation.Apply(mutation, Rules(), events);
+        Assert.Null(mutation.Forces[2].CountryTitleId);
+        Assert.Equal(500, mutation.Forces[3].CountryTitleId);
         var result = Assert.Single(events.OfType<ForcesConsolidatedEvent>());
         Assert.Equal((3, 2, 200L, 200u, 300L, 300u),
             (result.SurvivorId, result.AbsorbedId, result.MoneyRemoved, result.MoneyReceived, result.FoodRemoved, result.FoodReceived));

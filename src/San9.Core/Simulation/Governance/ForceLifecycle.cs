@@ -12,7 +12,7 @@ internal static class ForceLifecycle
         foreach (var resource in new[] { ResourceKind.Money, ResourceKind.Food })
             ResourceAccounts.Change(world, new(ResourceOwnerKind.Force, forceId), resource,
                 -(long)ResourceAccounts.Balance(world, new(ResourceOwnerKind.Force, forceId), resource), "force-eliminated", null, events);
-        world.Replace(world.Forces[forceId] with { IsEliminated = true, LeaderId = null, AdviserId = null });
+        world.Replace(world.Forces[forceId] with { IsEliminated = true, LeaderId = null, AdviserId = null, CountryTitleId = null });
         var controls = world.Simulation.Controls.Where(c => c.ForceId != forceId).ToImmutableArray();
         bool playerControlled = world.Simulation.Controls.Any(c => c.ForceId == forceId && c.Kind == ControllerKind.Player);
         foreach (var seat in world.Simulation.Controls.Where(c => c.ForceId == forceId))

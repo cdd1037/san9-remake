@@ -40,6 +40,7 @@ public sealed class EventContentCompilerTests
     }
 
     [Theory]
+    [InlineData(9, "shanyang-gong")]
     [InlineData(17, "shenshou.xihe")]
     [InlineData(18, "shenshou.wanwen")]
     [InlineData(19, "shenshou.jianan")]
@@ -51,7 +52,7 @@ public sealed class EventContentCompilerTests
     [Fact]
     public void UnrelatedFlagsDoNotBecomeAuthoredEventKeys()
     {
-        Assert.Empty(EventContentCompiler.ConsumedKeys([~(7u << 17), uint.MaxValue, uint.MaxValue, uint.MaxValue]));
+        Assert.Empty(EventContentCompiler.ConsumedKeys([~((7u << 17) | (1u << 9)), uint.MaxValue, uint.MaxValue, uint.MaxValue]));
         Assert.Equal(["shenshou.jianan", "shenshou.wanwen", "shenshou.xihe"],
             EventContentCompiler.ConsumedKeys([7u << 17, 0, 0, 0]).Select(k => k.Value));
     }

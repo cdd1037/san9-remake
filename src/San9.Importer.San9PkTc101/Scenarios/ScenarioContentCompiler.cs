@@ -23,6 +23,7 @@ public static class ScenarioContentCompiler
         var persons = Read(San9ScenarioPersonArchive.ReadKnownRecords);
         var sourceUnits = Read(San9ScenarioUnitArchive.ReadKnownRecords);
         var items = Read(San9ScenarioItemArchive.ReadKnownRecords);
+        var countryTitles = Read(San9ScenarioCountryTitleArchive.ReadKnownRecords);
         var ranks = Read(San9ScenarioRankArchive.ReadKnownRecords);
         var offices = Read(San9ScenarioOfficeArchive.ReadKnownRecords);
         var fixedBuildings = Read(San9ScenarioFixedBuildingArchive.ReadKnownRecords);
@@ -74,7 +75,7 @@ public static class ScenarioContentCompiler
             if (f.LeaderId is not int leader || leader >= persons.Count) throw new InvalidDataException("Missing force leader.");
             var p = persons[leader];
             string name = text.Person($"force.{id}", p.FamilyNameResourceCode, p.GivenNameResourceCode);
-            return new ForceInitialState(id, name, f.ColorCode, f.Money, f.Food, f.Trust) { BaseTrust = f.BaseTrust, ProvidedTactics = Enumerable.Range(0, San9ScenarioForceArchive.TacticCount).Where(f.HasTactic).ToImmutableArray(), RankId = f.RankGroupId, IsBarbarian = f.IsBarbarian || f.CountryTitleId is >= 4 and <= 8, LeaderId = leader, FlagGlyph = f.CountryTitleId is int title ? System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(exe.AsSpan(0x253bb0 + title * 4, 4)) : p.FlagCode < 186 ? p.FlagCode : -1 };
+            return new ForceInitialState(id, name, f.ColorCode, f.Money, f.Food, f.Trust) { BaseTrust = f.BaseTrust, ProvidedTactics = Enumerable.Range(0, San9ScenarioForceArchive.TacticCount).Where(f.HasTactic).ToImmutableArray(), RankId = f.RankGroupId, CountryTitleId = f.CountryTitleId, IsBarbarian = f.IsBarbarian || f.CountryTitleId is >= 4 and <= 8, LeaderId = leader, FlagGlyph = p.FlagCode < 186 ? p.FlagCode : -1 };
         }).ToArray();
         var officers = OfficerContentCompiler.Compile(persons, settlements, summaries, text, new San9MessageTable(biographies));
         summaries = summaries.Select(f => f with { AdviserId = officers.Where(o => o.State.OwnerId == f.Id && o.State.Status == San9.Core.Domain.OfficerStatus.Strategist)
@@ -105,6 +106,9 @@ public static class ScenarioContentCompiler
                     ? San9.Core.Domain.CorpsControlMode.Direct : San9.Core.Domain.CorpsControlMode.Automatic }).ToArray(),
             treasureStates)
         {
+            CountryTitles = PoliticalContentCompiler.Titles(countryTitles, persons, officers.Select(o => o.State.Id),
+                id => text.CountryTitle($"country-title.{id}", id),
+                id => System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(exe.AsSpan(0x253bb0 + id * 4, 4))),
             Relations = summaries.SelectMany(a => summaries.Where(b => b.Id > a.Id).Select(b =>
                 new San9.Core.Domain.ForceRelation(a.Id, b.Id, forces[a.Id].DiplomaticRelations[b.Id]))).ToArray()
         };
@@ -117,6 +121,8 @@ public static class ScenarioContentCompiler
             header.StartDate.Year, header.StartDate.Month, header.StartDate.Day, 5, summaries, settlements.OrderBy(s => s.Id).ToArray(), regions, regionCities)
         { UnbuiltPlaces = personPlaces.Where(p => settlements.All(s => s.Id != p.Id)).Select(p => new San9.Core.Domain.PersonPlace(p.Id, San9.Core.Domain.MapCoordinates.Center(new(p.X, p.Y)))).ToImmutableArray(),
             FacilityNameSuffixKeys = suffixKeys,
+            PoliticalEvents = PoliticalContentCompiler.Events(header.ScenarioModeCode),
+            ProvinceCountryTitleIds = PoliticalContentCompiler.ProvinceTitles(countryTitles),
             Terminal = EndingContentCompiler.Terminal(),
             Ending = EndingContentCompiler.Ending(information.Treasures),
             AnnualAppearancesEnabled = header.ScenarioModeCode is not (2 or 9),

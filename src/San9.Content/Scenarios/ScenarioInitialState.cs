@@ -11,6 +11,7 @@ public sealed record ForceInitialState(int Id, string NameKey, int ColorCode, ui
     [JsonRequired] public int? LeaderId { get; init; }
     [JsonRequired] public int? AdviserId { get; init; }
     [JsonRequired] public int? RankId { get; init; }
+    [JsonRequired] public int? CountryTitleId { get; init; }
 }
 public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId, int X, int Y,
     uint Soldiers, int Durability, int MaxDurability, int Morale, string[] Icons)
@@ -36,7 +37,9 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 73;
+    public const int CurrentSchemaVersion = 74;
+    [JsonRequired] public San9.Core.Domain.PoliticalEventsDefinition? PoliticalEvents { get; init; }
+    [JsonRequired] public System.Collections.Immutable.ImmutableDictionary<int, int> ProvinceCountryTitleIds { get; init; } = System.Collections.Immutable.ImmutableDictionary<int, int>.Empty;
     [JsonRequired] public bool CityIndependenceEnabled { get; init; } = true;
     [JsonRequired] public bool ForceEmergenceEnabled { get; init; } = true;
     [JsonRequired] public bool ForceConsolidationEnabled { get; init; } = true;

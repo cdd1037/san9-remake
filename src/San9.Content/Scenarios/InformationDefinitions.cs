@@ -29,15 +29,31 @@ public sealed record OfficeDefinition(int Id, string NameKey, uint CommandCapaci
 public sealed record InformationDefinitions(RankDefinition[] Ranks, OfficeDefinition[] Offices, TreasureDefinition[] Treasures,
     CorpsState[] Corps, TreasureState[] TreasureStates)
 {
+    [JsonRequired] public CountryTitleDefinition[] CountryTitles { get; init; } = [];
     [JsonRequired] public ForceRelation[] Relations { get; init; } = [];
     public static InformationDefinitions Empty => new([], [], [], [], []);
-    public InformationDefinitions Copy() => new(Ranks.ToArray(), Offices.ToArray(), Treasures.ToArray(), Corps.ToArray(), TreasureStates.ToArray()) { Relations = Relations.ToArray() };
+    public InformationDefinitions Copy() => new(Ranks.ToArray(), Offices.ToArray(), Treasures.ToArray(), Corps.ToArray(), TreasureStates.ToArray()) { Relations = Relations.ToArray(), CountryTitles = CountryTitles.ToArray() };
     public void Validate(ScenarioInitialState scenario)
     {
         static void Unique(IEnumerable<int> ids)
         { var values = ids.ToArray(); if (values.Any(i => i < 0) || values.Distinct().Count() != values.Length) throw new InvalidDataException("Invalid information identities."); }
         if (Relations.Any(r => r.FirstId >= r.SecondId || r.Value is < 0 or > 100 || !scenario.Forces.Any(f => f.Id == r.FirstId) || !scenario.Forces.Any(f => f.Id == r.SecondId)) || Relations.Select(r => (r.FirstId, r.SecondId)).Distinct().Count() != Relations.Length)
             throw new InvalidDataException("Invalid force relations.");
+        if (CountryTitles is null || CountryTitles.Any(t => t is null || t.Rule is null || string.IsNullOrWhiteSpace(t.NameKey) || t.FlagGlyph is < -1 or > 185))
+            throw new InvalidDataException("Invalid country title definition.");
+        Unique(CountryTitles.Select(t => t.Id));
+        var occupied = scenario.Forces.Where(f => f.CountryTitleId is not null).Select(f => f.CountryTitleId!.Value).ToArray();
+        if (occupied.Distinct().Count() != occupied.Length || occupied.Any(id => !CountryTitles.Any(t => t.Id == id)))
+            throw new InvalidDataException("Invalid initial country title ownership.");
+        try
+        {
+            _ = new PoliticalRulebook(scenario.PoliticalEvents, Ranks.Select(r => new PeerageRule(r.Id, r.Precedence, r.RequiredTrust, r.LoyaltyBonus)),
+                CountryTitles.Select(t => t.Rule), scenario.ProvinceCountryTitleIds);
+            if (CountryTitles.Any(t => t.Rule.PreferredRulerIds.Any(id => !scenario.Officers.Any(p => p.State.Id == id))) ||
+                scenario.ProvinceCountryTitleIds.Keys.Any(id => !scenario.CityProvinceIds.ContainsValue(id)))
+                throw new ArgumentException("Unknown political reference.");
+        }
+        catch (ArgumentException error) { throw new InvalidDataException("Invalid political content.", error); }
         Unique(Ranks.Select(r => r.Id)); Unique(Offices.Select(o => o.Id)); Unique(Treasures.Select(t => t.Id));
         Unique(Corps.Select(c => c.Id)); Unique(TreasureStates.Select(t => t.Id));
         if (Corps.Any(c => c.Treasury is null ? c.Delegation is not GeneralDelegation : c.Delegation switch

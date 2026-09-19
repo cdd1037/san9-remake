@@ -90,6 +90,11 @@ public sealed class ClientContentPackageTests
             var entries = new Dictionary<string, TextEntry>(text.Entries); entries.Remove(key);
             Assert.Throws<InvalidDataException>(() => (p with { Text = new(3, entries) }).ValidateLinks());
         }
+        var titled = p with { Scenario = p.Scenario with { Information = p.Scenario.Information with
+        { CountryTitles = [new(new(5000, true, true, false, [], []), "country-title", 30)] } }, Text = new(3, new(text.Entries)) };
+        Assert.Throws<InvalidDataException>(titled.ValidateLinks);
+        titled.Text.Entries.Add("country-title", new("国号", "國號"));
+        titled.ValidateLinks(); // Unclaimed definitions must also retain a valid display name.
         var translated = text with { Entries = text.Entries.ToDictionary(kv => kv.Key, kv => kv.Value with { Text = "中文" }) };
         var changed = p with { Text = translated }; changed.ValidateLinks();
         var treasurePackage = p with { Scenario = p.Scenario with

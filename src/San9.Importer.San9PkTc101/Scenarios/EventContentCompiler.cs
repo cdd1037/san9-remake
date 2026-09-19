@@ -23,12 +23,12 @@ public static class EventContentCompiler
             { Id = "shenshou", Priority = -28, Consumption = EventConsumption.OnPresentation }];
     }
 
-    // RE-SAN9PK-0130: these independent scenario bits record a presented beast encounter,
-    // including escape. Source bit positions remain private to this version importer.
+    // RE-SAN9PK-0130/0141: retain independent beast encounters (including escape) and
+    // the Shanyanggong consumption bit also set by abdication. Source bits stay in this importer.
     public static ImmutableArray<PersistentEventKey> ConsumedKeys(IReadOnlyList<uint> flagWords)
     {
         if (flagWords.Count != 4) throw new InvalidDataException("Expected four scenario flag words.");
-        (int Bit, string Key)[] events = [(17, "shenshou.xihe"), (18, "shenshou.wanwen"), (19, "shenshou.jianan")];
+        (int Bit, string Key)[] events = [(9, PoliticalContentCompiler.CourtEndedKey.Value), (17, "shenshou.xihe"), (18, "shenshou.wanwen"), (19, "shenshou.jianan")];
         return events.Where(e => (flagWords[e.Bit / 32] & (1u << (e.Bit % 32))) != 0)
             .Select(e => new PersistentEventKey(e.Key)).OrderBy(k => k.Value, StringComparer.Ordinal).ToImmutableArray();
     }

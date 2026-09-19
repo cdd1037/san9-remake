@@ -23,7 +23,9 @@ internal sealed class ScenarioSessionDefinition
         Fingerprint = CanonicalJson.Hash(new
         {
             definition.SchemaVersion, definition.ScenarioId, definition.Year, definition.Month, definition.Day, definition.PlayerForceId, definition.DomesticPairs, definition.ImperialSealId, definition.ImperialCourt, definition.ImperialCourtEnded,
-            definition.Military,
+            definition.Military, definition.PoliticalEvents, definition.ProvinceCountryTitleIds,
+            CountryTitles = definition.Information.CountryTitles.OrderBy(t => t.Id).Select(t => t.Rule with
+                { PreferredRulerIds = t.Rule.PreferredRulerIds.Order().ToImmutableArray(), PreferredBloodlineIds = t.Rule.PreferredBloodlineIds.Order().ToImmutableArray() }),
             Terminal = definition.Terminal is { } terminal ? new { Cities = terminal.CoreCityIds.Order(), terminal.EndYear } : null,
             Ending = definition.Ending is { } ending ? new
             {
@@ -83,7 +85,7 @@ internal sealed class ScenarioSessionDefinition
     private IEnumerable<ForceState> Forces() => Content.Forces.Select(f => new ForceState(f.Id, f.Money, f.Food, f.Trust)
     {
         ProvidedTactics = f.ProvidedTactics.Order().ToImmutableArray(), IsBarbarian = f.IsBarbarian,
-        LeaderId = f.LeaderId, AdviserId = f.AdviserId, RankId = f.RankId, BaseTrust = f.BaseTrust
+        LeaderId = f.LeaderId, AdviserId = f.AdviserId, RankId = f.RankId, CountryTitleId = f.CountryTitleId, BaseTrust = f.BaseTrust
     });
 
     private IEnumerable<SettlementState> Settlements() => Content.Settlements.Select(s => new SettlementState(s.Id,

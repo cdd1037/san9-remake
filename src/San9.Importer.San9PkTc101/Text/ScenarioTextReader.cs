@@ -42,6 +42,7 @@ public sealed class ScenarioTextReader(byte[] messages, byte[] executable) : IDi
         var source = biographies.MultilineText(code >= 570 ? code - 7 : code);
         return AddOptional(key, source);
     }
+    public string CountryTitle(string key, int id) => Add(key, _messages.PlainText(San9ScenarioCountryTitleArchive.GetNameMessageId(id)));
     public string Rank(string key, int id) => Add(key, _messages.PlainText(1652 + 2 * id));
     public string TreasureDescription(int id, int resourceId)
     {

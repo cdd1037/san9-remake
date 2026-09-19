@@ -66,6 +66,33 @@ public sealed class ForceEmergenceSessionTests
         Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
     }
 
+    [Fact]
+    public void RuntimeFoundedForceCanPromoteProclaimAndAcquireDynamicCountryGlyph()
+    {
+        var scenario = Scenario() with
+        {
+            PoliticalEvents = new(0, new("historical.ended")), ImperialCourtEnded = true,
+            CityProvinceIds = new() { [1] = 101, [2] = 202 },
+            Information = InformationDefinitions.Empty with
+            {
+                Ranks = [new(7000, "entry", 10000, 0, 0, 0), new(5, "king", 20000, 0, 3, 10), new(99, "emperor", 30000, 0, 5, 20)],
+                CountryTitles = [new(new(5000, true, true, false, [], []), "title", 37)]
+            }
+        };
+        var session = GameSession.Start(scenario, 17); session.BeginRecording();
+        for (int i = 0; i < 9; i++) session.AdvanceXun();
+        Assert.Equal(5, session.View.Forces.Single(f => f.Id == 81).RankId);
+        Assert.Equal(-1, session.View.Forces.Single(f => f.Id == 81).FlagGlyph);
+        for (int i = 0; i < 9; i++) session.AdvanceXun();
+        var force = session.View.Forces.Single(f => f.Id == 81);
+        Assert.Equal(99, force.RankId); Assert.Equal(5000, force.CountryTitleId); Assert.Equal(37, force.FlagGlyph);
+        Assert.Null(session.GetCountryTitlePrompt());
+        var restored = SaveService.Decode(SaveService.Encode(session), scenario);
+        Assert.Equal(force, restored.View.Forces.Single(f => f.Id == 81));
+        Assert.Equal(session.Capture().StateHash, RecordingService.Replay(RecordingService.Encode(session.EndRecording()), scenario,
+            GameSession.EngineFactory(scenario)).Session.Capture().StateHash);
+    }
+
     [Theory]
     [InlineData("missing-origin")]
     [InlineData("early-origin")]

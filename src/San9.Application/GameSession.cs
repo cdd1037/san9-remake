@@ -73,6 +73,7 @@ public sealed class GameSession
         return recording;
     }
     public WorldSnapshot Snapshot => _simulation.Snapshot;
+    public CountryTitlePrompt? GetCountryTitlePrompt() => _simulation.GetCountryTitlePrompt();
     public OfficeRequestPrompt? GetOfficeRequestPrompt() => _simulation.GetOfficeRequestPrompt();
     public SearchRecruitmentPrompt? GetSearchRecruitmentPrompt() => _simulation.GetSearchRecruitmentPrompt();
     public BeastSearchPrompt? GetBeastSearchPrompt() => _simulation.GetBeastSearchPrompt();
@@ -126,7 +127,10 @@ public sealed class GameSession
             { AbilityBonuses = o.AbilityBonuses, Salary = o.Salary, RequiredRankId = o.RequiredRankId }),
             definition.Information.Ranks.ToDictionary(r => r.Id, r => r.Precedence));
         var military = definition.Military is { } militaryDefinition ? new MilitaryRulebook(militaryDefinition) : null;
-        return world => new(world, rules, personnel, treasures, governance, military, definition.Terminal);
+        var politics = new PoliticalRulebook(definition.PoliticalEvents,
+            definition.Information.Ranks.Select(r => new PeerageRule(r.Id, r.Precedence, r.RequiredTrust, r.LoyaltyBonus)),
+            definition.Information.CountryTitles.Select(t => t.Rule), definition.ProvinceCountryTitleIds);
+        return world => new(world, rules, personnel, treasures, governance, military, definition.Terminal, politics);
     }
 
     public static string Fingerprint(ScenarioInitialState definition) => new ScenarioSessionDefinition(definition).Fingerprint;

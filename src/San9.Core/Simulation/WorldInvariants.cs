@@ -7,6 +7,8 @@ internal static class WorldInvariants
     {
         _ = new GameClock(state.Clock.Year, state.Clock.Month, state.Clock.Day);
         ValidateSimulation(state);
+        var titles = state.Forces.Values.Where(f => f.CountryTitleId is not null).Select(f => f.CountryTitleId!.Value).ToArray();
+        if (titles.Any(id => id < 0) || titles.Distinct().Count() != titles.Length) throw new ArgumentException("Invalid country title ownership.");
         foreach (var force in state.Forces.Values)
         {
             if (force.Origin is { } origin)
@@ -20,7 +22,7 @@ internal static class WorldInvariants
                     foundingCity.Kind != San9.Core.Domain.SettlementKind.City)
                     throw new ArgumentException("Invalid force origin.");
             }
-            if (force.IsEliminated && (force.LeaderId is not null || force.AdviserId is not null || force.Money != 0 || force.Food != 0 ||
+            if (force.IsEliminated && (force.CountryTitleId is not null || force.LeaderId is not null || force.AdviserId is not null || force.Money != 0 || force.Food != 0 ||
                 state.Officers.Values.Any(p => p.OwnerId == force.Id) || state.Settlements.Values.Any(s => s.OwnerId == force.Id) ||
                 state.Units.Values.Any(u => u.OwnerId == force.Id) || state.Corps.Values.Any(c => c.OwnerId == force.Id) ||
                 state.Simulation.Controls.Any(c => c.ForceId == force.Id))) throw new ArgumentException("Eliminated force retains active references.");
@@ -115,12 +117,13 @@ internal static class WorldInvariants
             throw new ArgumentException("Decision boundary requires exactly one pending decision.");
         AllianceFormation.ValidatePending(state);
         OfficeRequests.ValidatePending(state);
+        PoliticalEvents.ValidatePending(state);
         if (state.Simulation.ConsumedEventKeys.IsDefault ||
             state.Simulation.ConsumedEventKeys.Any(k => string.IsNullOrWhiteSpace(k.Value)) ||
             !state.Simulation.ConsumedEventKeys.Select(k => k.Value).SequenceEqual(
                 state.Simulation.ConsumedEventKeys.Select(k => k.Value).Distinct().Order(StringComparer.Ordinal)))
             throw new ArgumentException("Invalid consumed event keys.");
-        if (sim.PendingEvent is not (null or AllianceEventSession or OfficeRequestEventSession))
+        if (sim.PendingEvent is not (null or AllianceEventSession or OfficeRequestEventSession or CountryTitleEventSession))
             throw new ArgumentException("Unknown event session.");
         PrisonerExecution.ValidatePending(state);
         DuelCombat.ValidatePending(state);

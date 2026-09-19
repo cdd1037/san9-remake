@@ -10,6 +10,7 @@ public enum EventChoice { Accept, Reject }
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "kind")]
 [JsonDerivedType(typeof(AllianceEventSession), "alliance")]
 [JsonDerivedType(typeof(OfficeRequestEventSession), "office-request")]
+[JsonDerivedType(typeof(CountryTitleEventSession), "country-title")]
 public abstract record EventSession
 {
     public abstract ResolutionStage Stage { get; }

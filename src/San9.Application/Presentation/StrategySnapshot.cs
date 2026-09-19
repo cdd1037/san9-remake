@@ -10,6 +10,7 @@ public sealed record ForceView(int Id,string NameKey,int ColorCode,int FlagGlyph
     public bool IsBarbarian { get; init; }
     public int? LeaderId { get; init; }
     public int? RankId { get; init; }
+    public int? CountryTitleId { get; init; }
     public int? LeaderSettlementId { get; init; }
 }
 public sealed record SettlementView(int Id,string NameKey,int? OwnerId,int X,int Y,uint Soldiers,int Durability,int MaxDurability,
@@ -73,14 +74,15 @@ internal sealed class StrategySnapshotSource
     public OfficerInitialState Officer(int id) => _officers[id];
     public (string NameKey, int ColorCode, int FlagGlyph) Force(ForceState force)
     {
+        int? titleGlyph = force.CountryTitleId is int title ? Information.CountryTitles.Single(t => t.Id == title).FlagGlyph : null;
         if (force.Origin is { } origin)
         {
             // Fifty authored color resources can be reused; they do not bound force identities.
-            // No family flag glyph is authored for this runtime force, so use the supported empty glyph.
-            return (_officers[origin.FounderId].NameKey, force.Id % 50, -1);
+            // Runtime forces have no family glyph; an acquired country title supplies its own glyph.
+            return (_officers[origin.FounderId].NameKey, force.Id % 50, titleGlyph ?? -1);
         }
         var initial = _forces[force.Id];
-        return (initial.NameKey, initial.ColorCode, initial.FlagGlyph);
+        return (initial.NameKey, initial.ColorCode, titleGlyph ?? initial.FlagGlyph);
     }
     public SettlementInitialState? Settlement(int id) => _settlements.GetValueOrDefault(id);
     public IReadOnlyList<string> SettlementIcons(int id) => _settlementIcons.GetValueOrDefault(id) ?? [];
@@ -140,7 +142,7 @@ public sealed class StrategySnapshot
                 IsBarbarian = f.IsBarbarian,
                 IsEliminated = f.IsEliminated,
                 LeaderId = f.LeaderId,
-                RankId = f.RankId,
+                RankId = f.RankId, CountryTitleId = f.CountryTitleId,
                 LeaderSettlementId = leaderSettlementId
             };
         }).ToArray());
@@ -201,6 +203,7 @@ public sealed class StrategySnapshot
 
 public sealed class InformationCatalog(InformationDefinitions definitions)
 {
+    public IReadOnlyList<CountryTitleDefinition> CountryTitles { get; } = Array.AsReadOnly(definitions.CountryTitles.ToArray());
     public IReadOnlyList<RankDefinition> Ranks { get; } = Array.AsReadOnly(definitions.Ranks.ToArray());
     public IReadOnlyList<OfficeDefinition> Offices { get; } = Array.AsReadOnly(definitions.Offices.ToArray());
     public IReadOnlyList<TreasureDefinition> Treasures { get; } = Array.AsReadOnly(definitions.Treasures.ToArray());

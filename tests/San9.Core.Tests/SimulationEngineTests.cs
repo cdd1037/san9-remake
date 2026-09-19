@@ -130,6 +130,7 @@ public sealed class SimulationEngineTests
         expected.Add(ResolutionStage.AppearanceAndIndependence);
         if (quarterly) expected.AddRange([ResolutionStage.QuarterPrelude, ResolutionStage.QuarterEvents, ResolutionStage.QuarterStudyOffers, ResolutionStage.QuarterUpdate]);
         if (annual) expected.AddRange([ResolutionStage.AnnualAppearance, ResolutionStage.AnnualCleanup]);
+        if (quarterly) expected.Add(ResolutionStage.QuarterPolitics);
         Assert.Equal(expected, stages.Skip(40).Select(s => s.Stage));
     }
 

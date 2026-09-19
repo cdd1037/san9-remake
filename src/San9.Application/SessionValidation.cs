@@ -77,7 +77,8 @@ internal static class SessionValidation
             throw new ArgumentException("Missing initial relation identity.");
         if (snapshot.World.Officers.Any(o => o.RegionId is int region && !content.UnbuiltPlaces.Any(p => p.Id == region) ||
             o.OfficeId is int office && !content.Information.Offices.Any(d => d.Id == office)) ||
-            snapshot.World.Forces.Any(f => f.RankId is int rank && !content.Information.Ranks.Any(r => r.Id == rank)))
+            snapshot.World.Forces.Any(f => f.RankId is int rank && !content.Information.Ranks.Any(r => r.Id == rank) ||
+                f.CountryTitleId is int title && !content.Information.CountryTitles.Any(t => t.Id == title)))
             throw new ArgumentException("Unknown content reference.");
 
         long previousDay = snapshot.World.Simulation.Started.DayNumber;

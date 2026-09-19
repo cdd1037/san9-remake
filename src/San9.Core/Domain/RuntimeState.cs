@@ -22,6 +22,7 @@ public sealed record ForceState(int Id, uint Money, uint Food, int Trust)
     public int? LeaderId { get; init; }
     [JsonRequired] public int? AdviserId { get; init; }
     public int? RankId { get; init; }
+    [JsonRequired] public int? CountryTitleId { get; init; }
 }
 
 public enum SettlementKind { City, Facility }

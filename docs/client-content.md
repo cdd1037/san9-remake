@@ -9,10 +9,10 @@ G09人物生命周期新增必填`lifespanTier`、`successionPriority`及场景`
 | 模块 | 职责 | 输出 |
 | --- | --- | --- |
 | Content.Maps / MapImporter | 当前地图方格、地貌及对象位置 | `map.json`（无图片文件） |
-| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema73 |
+| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema74 |
 | Content.Text / ScenarioTextReader | 名称与全量消息目录 | `text.json` / `messages.json`，schema3 |
 | Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema16 |
-| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema77 |
+| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema78 |
 | Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema3／转换版本8 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 
@@ -48,6 +48,10 @@ G08的schema53/57增加必填`CityProvinceIds`和`MilitaryDefinition.TerritoryEx
 TC101剧本导入以源坐标识别地域配置：双坐标均为无效哨兵的槽不生成地域、名称文本或城市归属映射；单轴无效或越界坐标直接报错。有效但尚未建造的地域完整保留，稳定ID不重排。人物和宝物引用由转换后的契约校验，不能通过丢弃引用对象掩盖错误。
 
 ## 接入前的数据核对
+
+G10季度政治表使用剧本schema74／组合78、规则`san9-core-g10-v11`、保存／日志64。必填可空`PoliticalEvents`控制生产，声明称帝信望与制度终止消费键；从官爵`Precedence`导出最高／次高／最低角色，不另存作者维护的派生引用。`Information.CountryTitles`保留全部20项源国号的语义规则、名称键和旗字，`ProvinceCountryTitleIds`是唯一的州到国号映射，Importer按源记录顺序处理后写覆盖。势力初始／运行时必填可空`CountryTitleId`，活跃国号唯一、退出清空；旗字据当前国号动态覆盖基础家族旗字，新创立势力同样可称帝并取得国号旗字。
+
+源国号数据链按RE-0016补齐：手选／自动资格、阻止册授、列传解析的君主偏好、家族身份偏好与州域反向引用；不把原始君主元数据错误当作血缘谓词。模式2／9关闭政治生产但保留全部定义与初始国号；虚拟模式仍可称帝。源世界位9转换为`shanyang-gong`消费键，与禅让提交共用语义键。新增国号文本引用纳入整包校验，政治规则／引用和当前国号进入内容指纹及保存；旧包需重转，旧版本保存／录像拒绝。定向核对原EXE全部20项国号旗字，均落在现有资源范围；未执行190年整包转换，最终内容、文本与画面核对仍留在G10收口。公开夹具验证待答查询、确认命令、原子效果、保存／录像与动态起兵后称帝，不将这些测试称作图形界面验收。
 
 G10政治链接入前的官爵等级修正使用剧本schema73／组合77、规则`san9-core-g10-v10`；保存／日志结构仍为63。官爵新增必填、非负且唯一的`Precedence`，独立于信望门槛和身份；Importer按源爵位顺序生成，任官、结局任官和动态势力初始化使用同一等级。等级参与内容指纹，旧包需重转，旧规则存档／录像明确拒绝；不要求作者以调整信望维持排序。九爵位、名称和原有数值／引用覆盖不变，190年整包转换仍留待阶段收口。
 

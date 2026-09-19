@@ -33,7 +33,7 @@ internal static class AllianceFormation
     internal static void Begin(WorldMutation world, SimulationRules rules, List<DomainEvent> events)
     {
         if (!world.Clock.Boundary.Quarter || world.Clock.DayNumber - world.Simulation.Started.DayNumber < 360 ||
-            world.Simulation.Alliance is not null || world.Simulation.PendingAlliance is not null) return;
+            world.Simulation.Alliance is not null || world.Simulation.PendingEvent is not null) return;
         if (world.NextRandom("alliance-formation") % 4 != 0) return;
         var candidates = AllianceEligibility.Find(world, rules);
         var target = candidates.LargestRealm is { } largest && candidates.LowPrestige is { } lowest
@@ -47,27 +47,27 @@ internal static class AllianceFormation
             players.Select(id => new AllianceParticipation(id, null)).ToImmutableArray());
         events.Add(new AllianceProposedEvent(world.Clock, proposal));
         if (proposal.RespondingForceId is null) Complete(world, proposal, rules, events);
-        else world.SetSimulation(world.Simulation with { Boundary = SimulationBoundary.AwaitingDecision, PendingAlliance = proposal });
+        else world.SetSimulation(world.Simulation with { Boundary = SimulationBoundary.AwaitingDecision, PendingEvent = new AllianceEventSession(proposal) });
     }
 
     internal static CommandRejection Respond(WorldMutation world, AllianceParticipationCommand command, SimulationRules rules, List<DomainEvent> events)
     {
-        if (world.Simulation.PendingAlliance is not { } proposal || proposal.TargetForceId != command.TargetForceId ||
+        if (world.Simulation.PendingEvent is not AllianceEventSession { Proposal: var proposal } || proposal.TargetForceId != command.TargetForceId ||
             proposal.RespondingForceId != command.IssuerId) return CommandRejection.InvalidDecision;
         proposal = proposal with { PlayerChoices = proposal.PlayerChoices.Select(p => p.ForceId == command.IssuerId ? p with { Join = command.Join } : p).ToImmutableArray() };
         events.Add(new AllianceParticipationDecidedEvent(world.Clock, command.IssuerId, proposal.TargetForceId, command.Join));
         if (proposal.RespondingForceId is null)
         {
-            world.SetSimulation(world.Simulation with { PendingAlliance = null });
+            world.SetSimulation(world.Simulation with { PendingEvent = null });
             Complete(world, proposal, rules, events);
         }
-        else world.SetSimulation(world.Simulation with { PendingAlliance = proposal });
+        else world.SetSimulation(world.Simulation with { PendingEvent = new AllianceEventSession(proposal) });
         return CommandRejection.None;
     }
 
     internal static AllianceParticipationPrompt? Prompt(WorldMutation world, SimulationRules rules)
     {
-        if (world.Simulation.PendingAlliance is not { } proposal) return null;
+        if (world.Simulation.PendingEvent is not AllianceEventSession { Proposal: var proposal }) return null;
         var potential = proposal.KnownMemberForceIds.Concat(proposal.PlayerChoices.Where(p => p.Join is null).Select(p => p.ForceId)).ToHashSet();
         return new(proposal, Conflicts(world, potential, rules.Military))
         {
@@ -141,7 +141,7 @@ internal static class AllianceFormation
     internal static void ValidatePending(WorldMutation world)
     {
         var sim = world.Simulation;
-        if (sim.PendingAlliance is not { } proposal) return;
+        if (sim.PendingEvent is not AllianceEventSession { Proposal: var proposal }) return;
         bool Alive(int id) => world.Forces.TryGetValue(id, out var force) && !force.IsEliminated;
         if (!world.Clock.Boundary.Quarter || world.Clock.DayNumber - sim.Started.DayNumber < 360 || sim.Alliance is not null ||
             sim.ActiveControl != sim.Controls.Length ||

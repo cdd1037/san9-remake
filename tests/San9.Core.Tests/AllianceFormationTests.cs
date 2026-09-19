@@ -54,7 +54,7 @@ public sealed class AllianceFormationTests
         var engine = Ready(0);
         var result = engine.AdvanceXun();
         Assert.Null(result.Snapshot.Simulation.Alliance);
-        Assert.Null(result.Snapshot.Simulation.PendingAlliance);
+        Assert.Null(result.Snapshot.Simulation.PendingEvent);
         Assert.Single(result.Snapshot.Simulation.RandomStreams.Where(r => r.Name == "alliance-formation"));
         Assert.DoesNotContain(result.Snapshot.Simulation.RandomStreams, r => r.Name == "alliance-target");
         var beforeYear = new SimulationEngine(WorldState.Restore(Ready().Snapshot with { Clock = new(190, 3, 21) }), Rules());
@@ -125,7 +125,7 @@ public sealed class AllianceFormationTests
         Assert.True(last.Submission.Accepted);
         Assert.Equal(AllianceFormationFailure.InsufficientMembers, Assert.Single(last.Events.OfType<AllianceFormationFailedEvent>()).Reason);
         Assert.Null(last.Snapshot.Simulation.Alliance);
-        Assert.Null(last.Snapshot.Simulation.PendingAlliance);
+        Assert.Null(last.Snapshot.Simulation.PendingEvent);
         Assert.Empty(last.Events.OfType<ForceRelationChangedEvent>());
         Assert.All(last.Snapshot.Forces, f => Assert.Equal(50, f.BaseTrust));
         Assert.Equal(SimulationBoundary.Stable, last.Snapshot.Simulation.Boundary);
@@ -180,15 +180,15 @@ public sealed class AllianceFormationTests
         var engine = Ready(5, 2, 3, 4);
         engine.AdvanceXun();
         var valid = engine.Snapshot;
-        var proposal = valid.Simulation.PendingAlliance!;
+        var proposal = ((AllianceEventSession)valid.Simulation.PendingEvent!).Proposal;
         foreach (var invalid in new AllianceProposal[]
         {
             proposal with { TargetForceId = 999 }, proposal with { AutomaticMemberForceIds = [2] },
             proposal with { PlayerChoices = [] }, proposal with { PlayerChoices = [new(2, null), new(3, true), new(4, null)] },
             proposal with { PlayerChoices = [new(2, true), new(3, false), new(4, false)] },
             proposal with { PlayerChoices = [new(2, null), new(3, null)] }
-        }) Assert.Throws<ArgumentException>(() => WorldState.Restore(valid with { Simulation = valid.Simulation with { PendingAlliance = invalid } }));
-        Assert.Throws<ArgumentException>(() => WorldState.Restore(valid with { Simulation = valid.Simulation with { PendingAlliance = null } }));
+        }) Assert.Throws<ArgumentException>(() => WorldState.Restore(valid with { Simulation = valid.Simulation with { PendingEvent = new AllianceEventSession(invalid) } }));
+        Assert.Throws<ArgumentException>(() => WorldState.Restore(valid with { Simulation = valid.Simulation with { PendingEvent = null } }));
         Assert.Throws<ArgumentException>(() => WorldState.Restore(valid with { Simulation = valid.Simulation with { Boundary = SimulationBoundary.Stable } }));
         Assert.Throws<ArgumentException>(() => WorldState.Restore(valid with { Clock = new(191, 1, 11) }));
         Assert.Throws<ArgumentException>(() => WorldState.Restore(valid with

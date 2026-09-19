@@ -151,6 +151,13 @@ public sealed class SimulationEngine
         return AllianceEligibility.Find(_world.BeginMutation(_rules.Abilities), _rules);
     }
 
+    public OfficeRequestPrompt? GetOfficeRequestPrompt()
+    {
+        if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
+        return _world.Simulation.PendingEvent is OfficeRequestEventSession session
+            ? new(session.OfficerId, session.ForceId, session.SettlementId) : null;
+    }
+
     public SearchRecruitmentPrompt? GetSearchRecruitmentPrompt()
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
@@ -273,10 +280,16 @@ public sealed class SimulationEngine
                     _pipeline.Respond(mutation, response, events);
                     ContinueXun(mutation, waiting.XunStarted, events);
                     break;
+                case RespondOfficeRequestCommand officeRequest:
+                    var officeRejection = OfficeRequests.Respond(mutation, _rules, officeRequest, events);
+                    if (officeRejection != CommandRejection.None) return Reject(officeRejection);
+                    if (mutation.Simulation.PendingEvent is null)
+                        _pipeline.Prepare(mutation, events, ResolutionStage.XunUpdate);
+                    break;
                 case AllianceParticipationCommand participation:
                     var participationRejection = AllianceFormation.Respond(mutation, participation, _rules, events);
                     if (participationRejection != CommandRejection.None) return Reject(participationRejection);
-                    if (mutation.Simulation.PendingAlliance is null)
+                    if (mutation.Simulation.PendingEvent is null)
                         _pipeline.Prepare(mutation, events, ResolutionStage.QuarterEvents);
                     break;
                 case WaitCommand:
@@ -475,7 +488,14 @@ public sealed class SimulationEngine
                 c.Kind == ControllerKind.Player && c.ControllerId == context.ControllerId)
                 ? CommandRejection.None : CommandRejection.NotActiveController;
         }
-        if (sim.PendingAlliance is { } proposal)
+        if (sim.PendingEvent is OfficeRequestEventSession officeRequest)
+        {
+            if (command is not RespondOfficeRequestCommand) return CommandRejection.DecisionPending;
+            return officeRequest.RespondingForceId == command.IssuerId && sim.Controls.Any(c => c.ForceId == command.IssuerId &&
+                c.Kind == ControllerKind.Player && c.ControllerId == context.ControllerId)
+                ? CommandRejection.None : CommandRejection.NotActiveController;
+        }
+        if (sim.PendingEvent is AllianceEventSession { Proposal: var proposal })
         {
             if (command is not AllianceParticipationCommand) return CommandRejection.DecisionPending;
             int respondent = proposal.PlayerChoices.First(p => p.Join is null).ForceId;
@@ -484,7 +504,7 @@ public sealed class SimulationEngine
                 ? CommandRejection.None : CommandRejection.NotActiveController;
         }
         if (sim.Boundary != SimulationBoundary.Stable) return CommandRejection.NotStable;
-        if (command is ChooseDuelSuccessorCommand or AllianceParticipationCommand or RespondDailyTaskCommand or ChooseExecutionSuccessorCommand or ChooseTacticStudentCommand) return CommandRejection.InvalidDecision;
+        if (command is RespondOfficeRequestCommand or ChooseDuelSuccessorCommand or AllianceParticipationCommand or RespondDailyTaskCommand or ChooseExecutionSuccessorCommand or ChooseTacticStudentCommand) return CommandRejection.InvalidDecision;
         if (sim.ActiveControl >= sim.Controls.Length) return CommandRejection.NotActiveController;
         var seat = sim.Controls[sim.ActiveControl];
         return CorpsControl.Authorize(Snapshot, seat, context, command);

@@ -2,7 +2,7 @@
 
 ## 当前结构
 
-G10进行中：普通场景终局和八类结局已接入。`TerminalDefinition`／`EndingDefinition`是内容输入，`TerminalEvaluation`在旬前置检查，`EndingSnapshotFactory`从终局世界产生只读汇总。`GameSession.GetEndingPrompt`提供责任者候选，`EndingOperation`提交选择，`Ending`查询结果；Application保存选择并录入录像，世界状态和日期不变。普通探索通过`GetSearchRecruitmentPrompt`查询发现人物后的实时选择，复用逐日任务响应继续推进；待答期间禁止保存和导出录像，回答后回到稳定边界即可保存，实际回答随录像重放。特殊探索和其他事件族尚未接入，见[G10验证](g10-verification.md)。
+G10进行中：普通场景终局和八类结局已接入。`TerminalDefinition`／`EndingDefinition`是内容输入，`TerminalEvaluation`在旬前置检查，`EndingSnapshotFactory`从终局世界产生只读汇总。`GameSession.GetEndingPrompt`提供责任者候选，`EndingOperation`提交选择，`Ending`查询结果；Application保存选择并录入录像，世界状态和日期不变。普通探索通过`GetSearchRecruitmentPrompt`查询发现人物后的实时选择，复用逐日任务响应继续推进；待答期间禁止保存和导出录像，回答后回到稳定边界即可保存，实际回答随录像重放。主动求官由`GetOfficeRequestPrompt`查询、`RespondOfficeRequestCommand`回答，与联盟共用日历拥有的`EventSession`；人物及资源效果只在提交时写回，候选游标续行不重跑旬更新。特殊探索和其余事件族尚未接入，见[G10验证](g10-verification.md)。
 
 内容包提供支持范围内的完整定义、资源和初始状态，不按首屏或初始可见性删减对象。`GameSession.Start`复制初始记录，创建独立的`WorldState`；Core持有势力、据点、人物、宝物等当前状态。两个会话互不影响，改变导入对象也不会改变已启动会话。Core不依赖内容包、Godot或原版格式。
 

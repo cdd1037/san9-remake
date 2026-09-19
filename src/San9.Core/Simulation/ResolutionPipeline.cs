@@ -166,6 +166,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
             world.MaintainLeadership(events);
             if (world.Simulation.PendingDuel is not null || !CheckTerminal(world, events)) return false;
         }
+        if (stage == ResolutionStage.XunUpdate) OfficeRequests.Begin(world, rules, events);
         return CompleteStage(stage, world, events);
     }
 
@@ -187,7 +188,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         CorpsDelegations.Cleanup(world, rules.Military, events);
         world.MaintainLeadership(events);
         events.Add(new StageCompletedEvent(world.Clock, stage));
-        return CheckTerminal(world, events) && world.Simulation.PendingAlliance is null && world.Simulation.PendingTacticStudy is null;
+        return CheckTerminal(world, events) && world.Simulation.PendingEvent is null && world.Simulation.PendingTacticStudy is null;
     }
 
     internal static bool CheckTerminal(WorldMutation world, List<DomainEvent> events)
@@ -198,7 +199,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
             ReinforcementTransport.Disband(world, task, "terminal", events);
             TaskCancellation.Apply(world, task, "terminal", events);
         }
-        world.SetSimulation(world.Simulation with { Boundary = SimulationBoundary.Terminal, Tasks = [], PendingAlliance = null, PendingDailyTask = null,
+        world.SetSimulation(world.Simulation with { Boundary = SimulationBoundary.Terminal, Tasks = [], PendingEvent = null, PendingDailyTask = null,
             PendingExecutionSuccession = null, PendingTacticStudy = null, PendingDuel = null });
         if (!events.OfType<SimulationEndedEvent>().Any()) events.Add(new SimulationEndedEvent(world.Clock, reason));
         return false;

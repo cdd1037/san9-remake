@@ -40,6 +40,8 @@ flowchart LR
   Duel --> Simulation
   Event[event] --> Personnel
   Event --> Simulation
+  Event --> Diplomacy
+  Event --> Warfare
   Scenario[scenario] --> Warfare
   Scenario --> Governance
   Scenario --> Personnel
@@ -59,6 +61,8 @@ G04人事与基础治理已接入。`PersonnelTransitions`拥有人物归属/地
 G05 移动链已接入：`BattlefieldMap`负责不可变拓扑、矩形和四向路径，`MilitaryRulebook`消费规范化阵型与据点入口，`MilitaryMovement`在候选事务内负责出征、每日命令、载荷和返城吸收。成员位置由`OfficerState.UnitId`唯一引用，俸禄随单位军团账户，查询及保存消费同一状态。Content的`MilitaryDefinition`由版本Importer生成，Core不读取显示地图；现有规则及验证见[G05推进记录](../../docs/g05-verification.md)。G06已由`MilitaryCombat`接入普通交战，`BattleAftermath`统筹占领和战败，`BattlePersonnel`与`UnitTerminationService`处理人员和兵员/账户，日历流水线消费势力退出事件并判定初步终局；证据见[G06验收](../../docs/g06-verification.md)。
 
 验收条款以各BEH原文为准；当前覆盖由领域契约验证器生成，不在此重复维护计数。
+
+G10事件接入中：日历拥有唯一活动`EventSession`，`OfficeRequests`和`AllianceFormation`提供各自资格与提交；求官拒绝选址消费MilitaryRulebook的当前地域邻接，人员变化复用`PersonnelTransitions`。活动选择只驻留内存，稳定保存及录像由既有Application服务组织；内容候选目录与持久消费键尚待接入，不将当前单槽视为整个事件引擎完成。
 
 ## 核心领域契约
 

@@ -336,13 +336,13 @@
       "outputs": ["zero or one active event", "atomic world effect", "persistent consumption key", "domain event"],
       "invariants": ["one active event", "candidate cursor is monotonic", "presentation cannot write world state", "effect and consumption key commit together"],
       "acceptance_gates": ["candidate order and failure continuation", "three consumption policies", "atomic invalid-reference rejection", "approved Shenshou probability adjustment"],
-      "depends_on": ["simulation", "personnel"],
+      "depends_on": ["simulation", "personnel", "diplomacy", "warfare"],
       "implementation": {
         "project": "San9.Core",
-        "target_namespace": "San9.Core.Events",
-        "target_path": "src/San9.Core/Events",
-        "entry_types": ["EventSelector", "EventSessionService", "EventCommitService"],
-        "existing_anchors": ["src/San9.Core/Simulation/DomainEvent.cs", "src/San9.Core/Simulation/StableRandom.cs"]
+        "target_namespace": "San9.Core.Simulation",
+        "target_path": "src/San9.Core/Simulation",
+        "entry_types": ["EventSession", "OfficeRequests", "AllianceFormation"],
+        "existing_anchors": ["src/San9.Core/Simulation/EventSession.cs", "src/San9.Core/Simulation/Personnel/OfficeRequests.cs", "src/San9.Core/Simulation/Diplomacy/AllianceFormation.cs", "src/San9.Core/Simulation/ResolutionPipeline.cs"]
       }
     },
     {

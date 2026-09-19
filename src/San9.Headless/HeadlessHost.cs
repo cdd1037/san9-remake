@@ -328,7 +328,7 @@ public sealed class HeadlessHost
             {
                 answeredDecision = true;
                 var state = _session.Snapshot.Simulation;
-                int force = state.PendingDuel?.RespondingForceId ?? state.PendingTacticStudy?.RespondingForceId ?? state.PendingExecutionSuccession?.RespondingForceId ?? state.PendingDailyTask?.RespondingForceId ?? state.PendingAlliance!.RespondingForceId!.Value;
+                int force = state.PendingDuel?.RespondingForceId ?? state.PendingTacticStudy?.RespondingForceId ?? state.PendingExecutionSuccession?.RespondingForceId ?? state.PendingDailyTask?.RespondingForceId ?? state.PendingEvent!.RespondingForceId;
                 var seat = state.Controls.Single(c => c.ForceId == force);
                 var request = _session.Request(new EndControlOperation(), seat.ControllerId);
                 GameCommand answer;
@@ -344,7 +344,9 @@ public sealed class HeadlessHost
                     // The verification policy explicitly declines negotiations; the session never answers for a player.
                     answer = new RespondDailyTaskCommand(request.Id, force, state.NextSequence, task.Id, task.ResolutionStep, false);
                 }
-                else answer = new AllianceParticipationCommand(request.Id, force, state.NextSequence, state.PendingAlliance!.TargetForceId, true);
+                else if (_session.GetOfficeRequestPrompt() is { } officeRequest)
+                    answer = new RespondOfficeRequestCommand(request.Id, force, state.NextSequence, officeRequest.OfficerId, EventChoice.Accept);
+                else answer = new AllianceParticipationCommand(request.Id, force, state.NextSequence, ((AllianceEventSession)state.PendingEvent!).Proposal.TargetForceId, true);
                 Compare(request with { Operation = new CommandOperation(answer) });
             }
             if (answeredDecision) Checkpoint("after-player-decisions");

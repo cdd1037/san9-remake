@@ -17,6 +17,9 @@ public sealed class GovernanceRulebook
     {
         Offices = offices.ToImmutableDictionary(o => o.OfficeId);
         RankPrecedence = (rankPrecedence ?? ImmutableDictionary<int, int>.Empty).ToImmutableDictionary();
+        if (RankPrecedence.Any(r => r.Key < 0 || r.Value < 0) ||
+            RankPrecedence.Values.Distinct().Count() != RankPrecedence.Count)
+            throw new ArgumentException("Invalid rank precedence.");
         if (Offices.Values.Any(o => o.OfficeId < 0 || o.Priority < 0 || o.Salary < 0 || !o.AbilityBonuses.IsNonnegative ||
             o.RequiredRankId is int rank && !RankPrecedence.ContainsKey(rank)))
             throw new ArgumentException("Invalid governor office rule.");

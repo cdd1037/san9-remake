@@ -124,7 +124,7 @@ public sealed class GameSession
         var treasures = new TreasureRulebook(definition.Information.Treasures.Select(t => t.ToRule()));
         var governance = new GovernanceRulebook(definition.Information.Offices.Select(o => new GovernorOfficeRule(o.Id, o.CommandCapacity, o.GovernorPriority)
             { AbilityBonuses = o.AbilityBonuses, Salary = o.Salary, RequiredRankId = o.RequiredRankId }),
-            definition.Information.Ranks.ToDictionary(r => r.Id, r => r.RequiredTrust));
+            definition.Information.Ranks.ToDictionary(r => r.Id, r => r.Precedence));
         var military = definition.Military is { } militaryDefinition ? new MilitaryRulebook(militaryDefinition) : null;
         return world => new(world, rules, personnel, treasures, governance, military, definition.Terminal);
     }

@@ -9,10 +9,10 @@ G09人物生命周期新增必填`lifespanTier`、`successionPriority`及场景`
 | 模块 | 职责 | 输出 |
 | --- | --- | --- |
 | Content.Maps / MapImporter | 当前地图方格、地貌及对象位置 | `map.json`（无图片文件） |
-| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema72 |
+| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema73 |
 | Content.Text / ScenarioTextReader | 名称与全量消息目录 | `text.json` / `messages.json`，schema3 |
 | Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema16 |
-| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema76 |
+| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema77 |
 | Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema3／转换版本8 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 
@@ -48,6 +48,8 @@ G08的schema53/57增加必填`CityProvinceIds`和`MilitaryDefinition.TerritoryEx
 TC101剧本导入以源坐标识别地域配置：双坐标均为无效哨兵的槽不生成地域、名称文本或城市归属映射；单轴无效或越界坐标直接报错。有效但尚未建造的地域完整保留，稳定ID不重排。人物和宝物引用由转换后的契约校验，不能通过丢弃引用对象掩盖错误。
 
 ## 接入前的数据核对
+
+G10政治链接入前的官爵等级修正使用剧本schema73／组合77、规则`san9-core-g10-v10`；保存／日志结构仍为63。官爵新增必填、非负且唯一的`Precedence`，独立于信望门槛和身份；Importer按源爵位顺序生成，任官、结局任官和动态势力初始化使用同一等级。等级参与内容指纹，旧包需重转，旧规则存档／录像明确拒绝；不要求作者以调整信望维持排序。九爵位、名称和原有数值／引用覆盖不变，190年整包转换仍留待阶段收口。
 
 G10皇帝死亡的首个成功短路修正将规则升为`san9-core-g10-v9`；结构未变，剧本schema72／组合76、保存／日志63保持不变。旧规则存档及录像明确拒绝，不把旧版同季多次死亡结果按新规则继续；本次不要求因结构变化重转内容，此前尚未重转的旧schema包仍需更新。
 

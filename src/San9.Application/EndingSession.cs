@@ -14,7 +14,7 @@ internal static class EndingSession
         var treasures = new TreasureRulebook(content.Information.Treasures.Select(t => t.ToRule()));
         var governance = new GovernanceRulebook(content.Information.Offices.Select(o => new GovernorOfficeRule(o.Id, o.CommandCapacity, o.GovernorPriority)
             { AbilityBonuses = o.AbilityBonuses, Salary = o.Salary, RequiredRankId = o.RequiredRankId }),
-            content.Information.Ranks.ToDictionary(r => r.Id, r => r.RequiredTrust));
+            content.Information.Ranks.ToDictionary(r => r.Id, r => r.Precedence));
         return EndingSnapshotFactory.Create(world, winner, content.Ending, new(treasures, governance));
     }
 

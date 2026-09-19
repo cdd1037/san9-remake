@@ -50,6 +50,22 @@ public sealed class ForceEmergenceSessionTests
         Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
     }
 
+    [Fact]
+    public void NewForceUsesLowestExplicitRankRatherThanLowestTrustThreshold()
+    {
+        var scenario = Scenario();
+        scenario = scenario with { Information = scenario.Information with
+        { Ranks = [new(9000, "rank.low", 10000, 900, 0, 3), new(1, "rank.high", 30000, 100, 0, 20)] } };
+        var session = GameSession.Start(scenario, 17);
+        session.BeginRecording();
+        for (int i = 0; i < 3; i++) session.AdvanceXun();
+        Assert.Equal(9000, session.View.Forces.Single(f => f.Id == 81).RankId);
+        var restored = SaveService.Decode(SaveService.Encode(session), scenario);
+        Assert.Equal(9000, restored.View.Forces.Single(f => f.Id == 81).RankId);
+        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), scenario, GameSession.EngineFactory(scenario));
+        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+    }
+
     [Theory]
     [InlineData("missing-origin")]
     [InlineData("early-origin")]

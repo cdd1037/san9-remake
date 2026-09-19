@@ -17,7 +17,7 @@ public sealed class OfficeAssignmentTests
         {
             Information = baseline.Information with
             {
-                Ranks = [new(8, "rank.lowest", 20000, 0, 0)],
+                Ranks = [new(8, "rank.lowest", 20000, 0, 0, 0)],
                 Offices = [new(400, "office", 10000, 0) { RequiredRankId = 8 }]
             },
             Forces = baseline.Forces.Select(f => f with { RankId = rankId }).ToArray()
@@ -37,14 +37,16 @@ public sealed class OfficeAssignmentTests
     }
 
     [Fact]
-    public void RankGateRemovalAndUnknownOfficeUseContentRules()
+    public void RankGateUsesExplicitPrecedenceEvenWhenTrustThresholdsRunInOppositeOrder()
     {
         var baseline = G01ScenarioTests.Fixture();
         var definition = baseline with { Information = baseline.Information with
         {
-            Ranks = [new(9000, "rank.low", 10000, 100, 0), new(3, "rank.high", 20000, 500, 0)],
+            Ranks = [new(9000, "rank.low", 10000, 900, 0, 10), new(3, "rank.high", 20000, 100, 0, 30)],
             Offices = [new(400, "office", 20000, 9) { RequiredRankId = 3, AbilityBonuses = new(0, 0, 7, 0) }]
         }, Forces = baseline.Forces.Select(f => f with { RankId = 9000 }).ToArray() };
+        Assert.NotEqual(GameSession.Fingerprint(definition), GameSession.Fingerprint(definition with
+        { Information = definition.Information with { Ranks = definition.Information.Ranks.Select(r => r with { Precedence = r.Precedence + 1 }).ToArray() } }));
         var session = GameSession.Start(definition, 190);
         string before = session.Snapshot.StateHash;
         Assert.False(session.Execute(new("player"), new AssignOfficesCommand(Guid.NewGuid(), 1, 0, [new(2, 400)])).Submission.Accepted);

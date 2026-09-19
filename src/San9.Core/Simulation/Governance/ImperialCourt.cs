@@ -27,7 +27,9 @@ internal static class ImperialCourt
             int? previous = court.Resolve(false, world.Officers.Values)?.Id;
             OfficerDeath.Resolve(world, death.OfficerId, OfficerDeathCause.HistoricalEvent, rules, events, afterDailyCommands: false);
             events.Add(new EmperorDeathEvent(world.Clock, death.OfficerId, previous, court.Resolve(false, world.Officers.Values)?.Id));
-            if (world.Simulation.TerminalReason is not null) return;
+            // The quarterly prelude selects its first successful event, rather than
+            // applying the entire death catalog. Later candidates retry next quarter.
+            return;
         }
     }
 }

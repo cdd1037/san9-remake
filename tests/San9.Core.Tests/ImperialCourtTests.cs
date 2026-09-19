@@ -78,7 +78,7 @@ public sealed class ImperialCourtTests
     }
 
     [Fact]
-    public void AuthoredOrderSupportsMultipleDeathsAndCaptiveEmperorWithoutRankDependency()
+    public void FirstSuccessfulDeathStopsQuarterPreludeAndNextQuarterResumesEligibility()
     {
         var state = World(); var world = Due(state);
         world.Replace(world.Officers[12] with { Status = OfficerStatus.Captive, OwnerId = 2 });
@@ -86,7 +86,18 @@ public sealed class ImperialCourtTests
             new(12, new(191, 1, 1), new(190, 4, 1), 0), new(11, new(191, 1, 1), new(190, 4, 1), 0)] };
         Assert.Equal(12, definition.Resolve(false, world.Officers.Values)!.Id);
         List<DomainEvent> events = []; ImperialCourt.ApplyDeaths(world, Rules(definition), events);
-        Assert.Equal(new[] { 12, 11 }, events.OfType<EmperorDeathEvent>().Select(e => e.OfficerId));
+        Assert.Equal(12, Assert.Single(events.OfType<EmperorDeathEvent>()).OfficerId);
+        Assert.Equal(OfficerStatus.Free, world.Officers[11].Status);
+        Assert.Equal(11, definition.Resolve(false, world.Officers.Values)!.Id);
+        var expected = Due(World());
+        expected.NextRandom("event-emperor-death");
+        Assert.Equal(expected.Simulation.RandomStreams.ToArray(), world.Simulation.RandomStreams.ToArray());
+        events.Clear(); world.SetClock(new(190, 7, 1));
+        ImperialCourt.ApplyDeaths(world, Rules(definition), events);
+        Assert.Equal(11, Assert.Single(events.OfType<EmperorDeathEvent>()).OfficerId);
+        expected.NextRandom("event-emperor-death"); // Already-dead first entry still tests its probability.
+        expected.NextRandom("event-emperor-death");
+        Assert.Equal(expected.Simulation.RandomStreams.ToArray(), world.Simulation.RandomStreams.ToArray());
         Assert.Equal(13, definition.Resolve(false, world.Officers.Values)!.Id);
         Assert.All(world.Forces.Values, f => Assert.Null(f.RankId)); state.Commit(world);
     }

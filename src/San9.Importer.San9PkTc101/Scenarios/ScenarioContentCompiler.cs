@@ -44,8 +44,6 @@ public static class ScenarioContentCompiler
             }
         }
         int Morale(int? owner, uint soldiers) => owner is int f && soldiers > 0 ? Math.Clamp((int)Math.Sqrt(forces[f].Trust) + 40, 0, 100) : 0;
-        int? emperorCity = new ushort[] { 563, 564, 565 }.Select(code => persons.FirstOrDefault(p => p.BiographyResourceCode == code && p.StatusCode != 8))
-            .FirstOrDefault(p => p is not null)?.LocationId;
         var trainingCities = TacticStudyContentCompiler.Compile(configuredRegionIds).Select(c => c.CityId).ToHashSet();
         List<SettlementInitialState> settlements = [];
         Dictionary<int, string> regions = [];
@@ -57,8 +55,7 @@ public static class ScenarioContentCompiler
             if (c.Durability == ushort.MaxValue || c.MaxDurability == ushort.MaxValue) continue;
             settlements.Add(new(i, key, Root(c.ForceId), c.X, c.Y, c.Soldiers, c.Durability, c.MaxDurability,
                 Morale(Root(c.ForceId), c.Soldiers),
-                (c.HasTrader ? new[] { "merchant" } : trainingCities.Contains(i) ? ["training"] : Array.Empty<string>())
-                    .Concat(emperorCity == i ? ["emperor"] : Array.Empty<string>()).ToArray())
+                c.HasTrader ? ["merchant"] : trainingCities.Contains(i) ? ["training"] : [])
             { SoldierCapacity = San9ScenarioZoneArchive.CitySoldierCapacity, Population = c.Population, DraftPopulation = c.DraftPopulation, CorpsId = c.ForceId, IsFacilityListEntry = true, Appearance = c.TerrainCode, PublicOrder = c.PublicOrder, Commerce = c.Income, MaxCommerce = c.MaxIncome, Cultivation = c.Harvest, MaxCultivation = c.MaxHarvest });
         }
         foreach (var z in zones)
@@ -147,7 +144,8 @@ public static class ScenarioContentCompiler
                 { LinkRules = TacticLinkContentCompiler.Compile(exe, persons, officers.Select(o => o.State.Id), relationshipsEnabled: true),
                     BattleDeathsAllowed = header.ScenarioModeCode is not (2 or 9), DuelCapturesAllowed = header.ScenarioModeCode != 9 },
             Officers = officers, Units = units, Information = information, DomesticPairs = DomesticContentCompiler.Compile(persons),
-            ImperialSealId = 79, EmperorId = persons.Take(700).Select((p, id) => (p, id)).Where(v => v.p.BiographyResourceCode is 563 or 564 or 565 && v.p.StatusCode != 8).Select(v => (int?)v.id).FirstOrDefault() };
+            ImperialSealId = 79, ImperialCourt = ImperialCourtContentCompiler.Compile(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id)),
+            ImperialCourtEnded = (header.ScenarioWorldFlagWords[0] & 1) != 0 };
         snapshot.Validate(); catalog.Validate(); return (snapshot, catalog);
     }
 }

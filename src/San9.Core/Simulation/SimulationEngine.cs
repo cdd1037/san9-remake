@@ -36,6 +36,7 @@ public sealed class SimulationEngine
         _rules = rules;
         MilitaryMovement.Validate(world.CreateSnapshot(), rules.Military);
         rules.Economy.Validate();
+        rules.Economy.ImperialCourt.Validate(world.CreateSnapshot().Officers.Select(p => p.Id).ToHashSet());
         _pipeline = new(rules);
         if (rules.Personnel.TacticCourses.Any(c => !world.CreateSnapshot().Settlements.Any(s => s.Id == c.Key && s.Kind == SettlementKind.City) ||
             rules.Military is null || !rules.Military.Tactics.TryGetValue(c.Value, out var tactic) || tactic.Category is not (>= 0 and <= 8)))

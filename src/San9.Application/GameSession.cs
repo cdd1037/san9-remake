@@ -118,7 +118,8 @@ public sealed class GameSession
     internal static Func<WorldState, SimulationEngine> EngineFactory(ScenarioInitialState definition)
     {
         var rules = new EconomyRulebook(definition.Information.Offices.Select(o => new OfficeSalary(o.Id, o.Salary)).ToImmutableArray(),
-            definition.DomesticPairs, definition.ImperialSealId, definition.EmperorId);
+            definition.DomesticPairs, definition.ImperialSealId)
+        { ImperialCourt = definition.ImperialCourt, RegionCityIds = definition.RegionCityIds.ToImmutableDictionary() };
         var personnel = new PersonnelRulebook(definition.Settlements.Select(s => new PersonPlace(s.Id, s.Position)).Concat(definition.UnbuiltPlaces), definition.RegionCityIds, definition.CityConnections, definition.CityProvinceIds, definition.TacticCourses, definition.SearchEvents);
         var treasures = new TreasureRulebook(definition.Information.Treasures.Select(t => t.ToRule()));
         var governance = new GovernanceRulebook(definition.Information.Offices.Select(o => new GovernorOfficeRule(o.Id, o.CommandCapacity, o.GovernorPriority)

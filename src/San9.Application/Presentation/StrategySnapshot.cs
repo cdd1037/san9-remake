@@ -42,6 +42,7 @@ internal sealed class StrategySnapshotSource
     public StrategySnapshotSource(ScenarioInitialState definition, MilitaryRulebook? military)
     {
         Military = military;
+        ImperialCourt = definition.ImperialCourt;
         PlayerForceId = definition.PlayerForceId;
         FacilityNameSuffixKeys = new System.Collections.ObjectModel.ReadOnlyDictionary<int, string>(new Dictionary<int, string>(definition.FacilityNameSuffixKeys));
         Information = new(definition.Information);
@@ -64,6 +65,7 @@ internal sealed class StrategySnapshotSource
     public InformationCatalog Information { get; }
     internal OfficerAbilityRules Abilities { get; }
     internal MilitaryRulebook? Military { get; }
+    internal ImperialCourtDefinition ImperialCourt { get; }
     internal IReadOnlyDictionary<int, string> FacilityNameSuffixKeys { get; }
     public IReadOnlyDictionary<int, string> RegionNameKeys { get; }
     public IReadOnlyDictionary<int, int> RegionCityIds { get; }
@@ -102,6 +104,10 @@ public sealed class StrategySnapshot
         RegionNameKeys = source.RegionNameKeys;
         RegionCityIds = source.RegionCityIds;
         var settlements = world.Settlements.ToDictionary(settlement => settlement.Id);
+        var emperor = source.ImperialCourt.Resolve(world.Simulation.ImperialCourtEnded, world.Officers);
+        EmperorId = emperor?.Id;
+        EmperorCityId = ImperialCourtDefinition.City(emperor, world.Settlements, source.RegionCityIds,
+            emperor is not null && world.Simulation.Tasks.Any(t => t.OfficerId == emperor.Id && t.Journey is not null));
         var occupied = world.Simulation.Tasks.Select(t => t.OfficerId).ToHashSet();
         var journeys = world.Simulation.Tasks.Where(t => t.Journey is not null).ToDictionary(t => t.OfficerId);
         var abilities = source.Abilities.EvaluateMany(world.Officers, world.Treasures);
@@ -155,7 +161,8 @@ public sealed class StrategySnapshot
                 : null;
             return new SettlementView(s.Id, nameKey, s.OwnerId, cell.X, cell.Y, s.Soldiers,
                 s.Durability, s.MaxDurability, s.Morale, availableSettlementIds.Contains((s.Id, s.OwnerId)), markerColor,
-                source.SettlementIcons(s.Id), definition?.Appearance ?? 0, s.PublicOrder, s.Commerce, s.MaxCommerce,
+                Array.AsReadOnly(source.SettlementIcons(s.Id).Where(icon => icon != "emperor")
+                    .Concat(EmperorCityId == s.Id ? ["emperor"] : Array.Empty<string>()).ToArray()), definition?.Appearance ?? 0, s.PublicOrder, s.Commerce, s.MaxCommerce,
                 s.Cultivation, s.MaxCultivation)
             {
                 Kind = s.Kind,
@@ -176,6 +183,9 @@ public sealed class StrategySnapshot
     }
     public InformationCatalog Information { get; }
     public WorldSnapshot World { get; }
+    public int? EmperorId { get; }
+    public int? EmperorCityId { get; }
+    public bool ImperialCourtEnded => World.Simulation.ImperialCourtEnded;
     public int Year => World.Clock.Year;
     public int Month => World.Clock.Month;
     public int Day => World.Clock.Day;

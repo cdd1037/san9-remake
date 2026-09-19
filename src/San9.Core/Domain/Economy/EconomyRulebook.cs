@@ -5,17 +5,21 @@ namespace San9.Core.Domain;
 public sealed record DomesticPair(DomesticActivity Project, int FirstId, int SecondId, bool FirstRequiresRuler, bool SecondRequiresRuler);
 public sealed record OfficeSalary(int OfficeId, int Amount);
 public sealed record EconomyRulebook(ImmutableArray<OfficeSalary> Salaries, ImmutableArray<DomesticPair> Pairs,
-    int? ImperialSealId = null, int? EmperorId = null)
+    int? ImperialSealId = null)
 {
+    public ImperialCourtDefinition ImperialCourt { get; init; } = ImperialCourtDefinition.Empty;
+    public ImmutableDictionary<int, int> RegionCityIds { get; init; } = ImmutableDictionary<int, int>.Empty;
     public static EconomyRulebook Empty { get; } = new([], []);
     public const long BarbarianQuarterlyFunds = 30000;
 
     public void Validate()
     {
+        ArgumentNullException.ThrowIfNull(ImperialCourt);
+        ImperialCourt.Validate();
         if (Salaries.IsDefault || Pairs.IsDefault || Salaries.Any(s => s.OfficeId < 0 || s.Amount < 0) ||
             Salaries.Select(s => s.OfficeId).Distinct().Count() != Salaries.Length ||
             Pairs.Any(p => !Enum.IsDefined(p.Project) || p.Project == DomesticActivity.Recruit || p.FirstId < 0 || p.SecondId < 0 || p.FirstId == p.SecondId) ||
-            Pairs.Select(p => (p.Project, p.FirstId, p.SecondId)).Distinct().Count() != Pairs.Length || ImperialSealId < 0 || EmperorId < 0)
+            Pairs.Select(p => (p.Project, p.FirstId, p.SecondId)).Distinct().Count() != Pairs.Length || ImperialSealId < 0)
             throw new ArgumentException("Invalid economy definitions.");
     }
 }

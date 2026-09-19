@@ -123,14 +123,14 @@ internal static class EconomicCycle
 
     internal static void UpdateTrust(WorldMutation world, EconomyRulebook rules, List<DomainEvent> events)
     {
+        int? emperorCity = ImperialCourt.City(world, rules);
         foreach (var force in world.Forces.Values.Where(f => !f.IsEliminated).OrderBy(f => f.Id).ToArray())
         {
             long contribution = world.Settlements.Values.Where(s => s.Kind == SettlementKind.City && s.OwnerId == force.Id)
                 .Sum(s => ((long)s.Population + s.DraftPopulation) * Math.Max(0, s.PublicOrder - 300) / 1000 / 5000);
             bool seal = rules.ImperialSealId is int item && world.Treasures.TryGetValue(item, out var treasure) &&
                 force.LeaderId is not null && treasure.HolderId == force.LeaderId && treasure.Discovered;
-            bool emperor = rules.EmperorId is int id && world.Officers.TryGetValue(id, out var person) &&
-                person.SettlementId is int city && world.Settlements[city].OwnerId == force.Id && person.Status != OfficerStatus.Dead;
+            bool emperor = emperorCity is int city && world.Settlements[city].OwnerId == force.Id;
             int trust = (int)Math.Clamp(force.BaseTrust + contribution + (seal ? 100 : 0) + (emperor ? 100 : 0), 0, 1000);
             if (trust == force.Trust) continue;
             world.Replace(force with { Trust = trust });

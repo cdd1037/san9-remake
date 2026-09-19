@@ -146,6 +146,11 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
             TacticStudy.CompleteQuarter(world, rules, events);
             TacticStudy.Offer(world, rules, events);
         }
+        if (stage == ResolutionStage.QuarterPrelude)
+        {
+            ImperialCourt.ApplyDeaths(world, rules, events);
+            if (!CheckTerminal(world, events)) return false;
+        }
         if (stage == ResolutionStage.QuarterUpdate)
         {
             NaturalMortality.Apply(world, rules, events);

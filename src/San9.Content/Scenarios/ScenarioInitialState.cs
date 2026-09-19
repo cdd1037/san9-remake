@@ -36,7 +36,7 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 71;
+    public const int CurrentSchemaVersion = 72;
     [JsonRequired] public bool CityIndependenceEnabled { get; init; } = true;
     [JsonRequired] public bool ForceEmergenceEnabled { get; init; } = true;
     [JsonRequired] public bool ForceConsolidationEnabled { get; init; } = true;
@@ -58,7 +58,8 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
     [JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Domain.PersonPlace> UnbuiltPlaces { get; init; } = [];
     [JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Domain.DomesticPair> DomesticPairs { get; init; } = [];
     [JsonRequired] public int? ImperialSealId { get; init; }
-    [JsonRequired] public int? EmperorId { get; init; }
+    [JsonRequired] public San9.Core.Domain.ImperialCourtDefinition ImperialCourt { get; init; } = San9.Core.Domain.ImperialCourtDefinition.Empty;
+    [JsonRequired] public bool ImperialCourtEnded { get; init; }
     [JsonRequired] public OfficerInitialState[] Officers { get; init; } = [];
     [JsonRequired] public San9.Core.Domain.UnitState[] Units { get; init; } = [];
     [JsonRequired] public InformationDefinitions Information { get; init; } = InformationDefinitions.Empty;
@@ -102,10 +103,12 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
                     throw new InvalidDataException("Unknown or unlearnable search event tactic reference.");
         }
         catch (ArgumentException error) { throw new InvalidDataException("Invalid personnel geography.", error); }
-        new San9.Core.Domain.EconomyRulebook([], DomesticPairs, ImperialSealId, EmperorId).Validate();
+        new San9.Core.Domain.EconomyRulebook([], DomesticPairs, ImperialSealId).Validate();
+        if (ImperialCourt is null) throw new InvalidDataException("Missing imperial court definition.");
+        try { ImperialCourt.Validate(Officers.Select(o => o.State.Id).ToHashSet()); }
+        catch (ArgumentException error) { throw new InvalidDataException("Invalid imperial court references.", error); }
         if (DomesticPairs.Any(p => !Officers.Any(o => o.State.Id == p.FirstId) || !Officers.Any(o => o.State.Id == p.SecondId)) ||
-            ImperialSealId is int seal && !Information.Treasures.Any(t => t.Id == seal) ||
-            EmperorId is int emperor && !Officers.Any(o => o.State.Id == emperor)) throw new InvalidDataException("Invalid economy references.");
+            ImperialSealId is int seal && !Information.Treasures.Any(t => t.Id == seal)) throw new InvalidDataException("Invalid economy references.");
         if (Officers.Any(o => o.State.RegionId is int region && !UnbuiltPlaces.Any(p => p.Id == region))) throw new InvalidDataException("Invalid officer region.");
         if (ConsumedEventKeys.IsDefault || ConsumedEventKeys.Any(k => string.IsNullOrWhiteSpace(k.Value)) ||
             ConsumedEventKeys.Distinct().Count() != ConsumedEventKeys.Length)

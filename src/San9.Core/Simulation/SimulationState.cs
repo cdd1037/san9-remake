@@ -61,6 +61,7 @@ public sealed record PersonnelReturnLeg(int OriginPlaceId, int CountdownDays, bo
 /// <summary>Authoritative scheduling state; immutable and included in every world transaction.</summary>
 public sealed record SimulationState(GameClock Started, ulong InitialSeed)
 {
+    [JsonRequired] public bool CityIndependenceEnabled { get; init; } = true;
     [JsonRequired] public bool ForceEmergenceEnabled { get; init; } = true;
     [JsonRequired] public bool ForceConsolidationEnabled { get; init; } = true;
     [JsonRequired] public bool ForceConsolidationPending { get; init; }

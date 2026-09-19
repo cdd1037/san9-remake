@@ -9,10 +9,10 @@ G09人物生命周期新增必填`lifespanTier`、`successionPriority`及场景`
 | 模块 | 职责 | 输出 |
 | --- | --- | --- |
 | Content.Maps / MapImporter | 当前地图方格、地貌及对象位置 | `map.json`（无图片文件） |
-| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema70 |
+| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema71 |
 | Content.Text / ScenarioTextReader | 名称与全量消息目录 | `text.json` / `messages.json`，schema3 |
 | Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema16 |
-| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema74 |
+| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema75 |
 | Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema3／转换版本8 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 
@@ -48,6 +48,8 @@ G08的schema53/57增加必填`CityProvinceIds`和`MilitaryDefinition.TerritoryEx
 TC101剧本导入以源坐标识别地域配置：双坐标均为无效哨兵的槽不生成地域、名称文本或城市归属映射；单轴无效或越界坐标直接报错。有效但尚未建造的地域完整保留，稳定ID不重排。人物和宝物引用由转换后的契约校验，不能通过丢弃引用对象掩盖错误。
 
 ## 接入前的数据核对
+
+G10城市自立／失败下野当前使用剧本schema71／组合75、规则`san9-core-g10-v7`、保存／日志62。新增必填`CityIndependenceEnabled`，Importer按模式非2／9转换，独立于空城起兵开关。`ForceOrigin`增加必填可空前身引用：空城起兵为null，自立为已存在的旧根势力身份，旧势力退出后仍保留引用；恢复按创立种类分别检查开关与引用，不能把自立伪装成空城起兵。初始对象、文本、图像覆盖不变；不生成新的原作势力槽或替换初始内容。公开夹具已覆盖当前世界、查询、成功／失败下野、存档及完整录像；旧包须重转，真实190年包仍在完整G10阶段收口原位更新，未启动游戏。
 
 G10空城起兵当前使用剧本schema70／组合74、规则`san9-core-g10-v6`、保存／日志61。新增必填场景`ForceEmergenceEnabled`及人物非负`ForceFounderPriority`；Importer把模式2／9排除和15项列传优先次序转换为语义字段，不改变初始对象、名称、位置或图像覆盖。运行时按包含已退出势力的完整集合递增分配身份；`ForceOrigin`保存创立事件、人物、城市和时间，不伪造初始内容记录。新势力同时获得根军团和电脑控制席位，动态查询使用创立者姓名、重复使用既有50种颜色资源、明确使用空旗字；颜色资源范围不限制势力数量。没有新增图像或虚构家族旗字，画面尚未验收。存档检查保留初始集合并验证新增身份连续性、来源、控制和根军团，公开推进／查询／存档／录像通过；旧包须重转，190年包仍留至完整G10阶段收口原位更新。
 

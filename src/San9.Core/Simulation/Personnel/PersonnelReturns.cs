@@ -7,14 +7,14 @@ internal static class PersonnelReturns
     internal const string Kind = "personnel-return";
 
     internal static void Repatriate(WorldMutation world, int personId, int origin, PersistentTask cause,
-        PersonnelRulebook places, List<DomainEvent> events)
+        PersonnelRulebook places, List<DomainEvent> events, bool afterDailyCommands = true)
     {
         var person = world.Officers[personId];
         var journey = world.Simulation.Tasks.FirstOrDefault(t => t.OfficerId == personId && t.Journey is not null);
-        PersonnelTransitions.CancelMissions(world, personId, "service-place-lost", events, places, true, preserveReinforcements: true);
+        PersonnelTransitions.CancelMissions(world, personId, "service-place-lost", events, places, afterDailyCommands, preserveReinforcements: true);
         if (journey is not null)
         {
-            Start(world, journey, places, events, true);
+            Start(world, journey, places, events, afterDailyCommands);
             return;
         }
         var home = world.Settlements.Values.Where(s => s.OwnerId == person.OwnerId && s.CanHostPersons && s.Durability > 0 &&
@@ -22,7 +22,7 @@ internal static class PersonnelReturns
         if (home is null) { PersonnelTransitions.DiscoverDetached(world, personId, origin, events); return; }
         var previous = cause with { ForceId = person.OwnerId!.Value, ControllerId = "system" };
         var route = PersonnelLocations.Route(world, places, origin, home.Id);
-        Schedule(world, previous, personId, origin, home.Id, route.Days, true, events, route);
+        Schedule(world, previous, personId, origin, home.Id, route.Days, afterDailyCommands, events, route);
     }
 
     internal static void Start(WorldMutation world, PersistentTask previous, PersonnelRulebook places,

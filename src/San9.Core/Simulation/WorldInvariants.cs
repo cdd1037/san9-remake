@@ -13,6 +13,8 @@ internal static class WorldInvariants
             {
                 _ = new GameClock(origin.Clock.Year, origin.Clock.Month, origin.Clock.Day);
                 if (!Enum.IsDefined(origin.Kind) || !origin.Clock.IsXunBoundary ||
+                    (origin.Kind == San9.Core.Domain.ForceCreationKind.EmptyCityUprising) != (origin.PredecessorId is null) ||
+                    origin.PredecessorId is int predecessor && (!state.Forces.ContainsKey(predecessor) || predecessor >= force.Id) ||
                     !state.Officers.ContainsKey(origin.FounderId) ||
                     !state.Settlements.TryGetValue(origin.SettlementId, out var foundingCity) ||
                     foundingCity.Kind != San9.Core.Domain.SettlementKind.City)

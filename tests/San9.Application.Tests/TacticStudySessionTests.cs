@@ -41,7 +41,7 @@ public sealed class TacticStudySessionTests
         [new(1, "city.1", 1, 0, 0, 100, 600, 600, 100, []), new(2, "city.2", 1, 2, 0, 100, 600, 600, 100, []),
          new(3, "city.3", 2, 4, 0, 100, 600, 600, 100, [])], [], [])
     {
-        NaturalDeathsEnabled = false,
+        NaturalDeathsEnabled = false, CityIndependenceEnabled = false,
         Officers = [Person(1, 1, 1, 0, OfficerStatus.Ruler), Person(2, 1, 1, 100), Person(3, 1, 2, 100), Person(4, 2, 3, 0, OfficerStatus.Ruler)],
         TacticCourses = [new(1, 9000), new(2, 9001)],
         Military = new(6, 1, [0, 0, 0, 0, 0, 0], [new(0, 1, null)], [],

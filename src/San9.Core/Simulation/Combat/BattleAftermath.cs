@@ -135,7 +135,7 @@ internal static class BattleAftermath
         events.Add(new PersonAffiliationChangedEvent(world.Clock, person.Id, person.OwnerId, null, place ?? -1));
     }
 
-    internal static void Reconcile(WorldMutation world, IReadOnlySet<int> affectedForces, SimulationRules rules, List<DomainEvent> events)
+    internal static void Reconcile(WorldMutation world, IReadOnlySet<int> affectedForces, SimulationRules rules, List<DomainEvent> events, string reason = "battle")
     {
         foreach (var force in world.Forces.Values.Where(f => !f.IsEliminated && affectedForces.Contains(f.Id)).OrderBy(f => f.Id).ToArray())
         {
@@ -175,9 +175,12 @@ internal static class BattleAftermath
             foreach (var resource in new[] { ResourceKind.Money, ResourceKind.Food })
             {
                 long amount = ResourceAccounts.Balance(world, new(ResourceOwnerKind.Corps, corps.Id), resource);
-                ResourceAccounts.Change(world, new(ResourceOwnerKind.Corps, corps.Id), resource, -amount, "battle-corps-dissolved", null, events);
-                ResourceAccounts.Change(world, new(ResourceOwnerKind.Force, corps.OwnerId), resource, amount, "battle-corps-dissolved", null, events);
+                ResourceAccounts.Change(world, new(ResourceOwnerKind.Corps, corps.Id), resource, -amount, $"{reason}-corps-dissolved", null, events);
+                ResourceAccounts.Change(world, new(ResourceOwnerKind.Force, corps.OwnerId), resource, amount, $"{reason}-corps-dissolved", null, events);
             }
+            world.SetSimulation(world.Simulation with { Tasks = world.Simulation.Tasks.Select(t =>
+                t.Journey?.ReturnLeg is { } leg && leg.CorpsId == corps.Id
+                    ? t with { Journey = t.Journey with { ReturnLeg = leg with { CorpsId = root } } } : t).ToImmutableArray() });
             world.RemoveCorps(corps.Id);
             var previousLeader = world.Officers[corps.LeaderId];
             if (previousLeader.Status == OfficerStatus.Governor) world.Replace(previousLeader with { Status = OfficerStatus.Serving });
@@ -188,11 +191,7 @@ internal static class BattleAftermath
     private static void Eliminate(WorldMutation world, int forceId, SimulationRules rules, List<DomainEvent> events)
     {
         var force = world.Forces[forceId];
-        foreach (var task in world.Simulation.Tasks.Where(t => t.ForceId == forceId).ToArray())
-        {
-            ReinforcementTransport.Disband(world, task, "force-eliminated", events);
-            TaskCancellation.Apply(world, task, "force-eliminated", events);
-        }
+        ForceTransfer.CancelTasks(world, forceId, rules, "force-eliminated", events);
         foreach (var person in world.Officers.Values.Where(p => p.OwnerId == forceId).OrderBy(p => p.Id).ToArray())
         {
             if (force.IsBarbarian && person.Status != OfficerStatus.Captive)

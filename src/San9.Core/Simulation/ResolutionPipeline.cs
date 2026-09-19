@@ -135,7 +135,11 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
             PrisonerCycle.Apply(world, events);
             FreeOfficerMigration.Apply(world, rules.Personnel, events);
         }
-        if (stage == ResolutionStage.AppearanceAndIndependence) ForceEmergence.Apply(world, rules, events);
+        if (stage == ResolutionStage.AppearanceAndIndependence)
+        {
+            ForceEmergence.Apply(world, rules, events);
+            CityIndependence.Apply(world, rules, events);
+        }
         if (stage == ResolutionStage.QuarterEvents) AllianceFormation.Begin(world, rules, events);
         if (stage == ResolutionStage.QuarterStudyOffers)
         {

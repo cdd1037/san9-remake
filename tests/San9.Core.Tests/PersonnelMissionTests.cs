@@ -125,7 +125,7 @@ public sealed class PersonnelMissionTests
          new(13, 1, 3, new(50, 50, 100, 50), false),
          new(20, 2, 2, new(50, 50, 50, 50), false) { ForceLoyalties = ImmutableDictionary<int, int>.Empty.Add(1, 50).Add(2, 90), Righteousness = 5 },
          new(21, null, null, new(50, 50, 50, 50), false) { Status = OfficerStatus.Undiscovered, RegionId = 30, ForceLoyalties = ImmutableDictionary<int, int>.Empty.Add(1, 0) }],
-        relations: [new(1, 2, 80)], controls: [new("player", 1, ControllerKind.Player)]);
+        relations: [new(1, 2, 80)], controls: [new("player", 1, ControllerKind.Player)], cityIndependenceEnabled: false);
     private static SimulationEngine Engine(WorldState world) => new(world, EconomyRulebook.Empty, Places);
     private static CommandExecutionResult Recruit(SimulationEngine engine, int actor = 11, int target = 20) =>
         engine.Execute(new("player"), new RecruitOfficerCommand(Guid.NewGuid(), 1, engine.Snapshot.Simulation.NextSequence, actor, target));

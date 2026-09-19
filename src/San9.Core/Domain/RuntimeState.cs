@@ -2,12 +2,15 @@ using System.Text.Json.Serialization;
 
 namespace San9.Core.Domain;
 
-public enum ForceCreationKind { EmptyCityUprising }
+public enum ForceCreationKind { EmptyCityUprising, CityIndependence }
 public sealed record ForceOrigin(
     [property: JsonRequired] ForceCreationKind Kind,
     [property: JsonRequired] int FounderId,
     [property: JsonRequired] int SettlementId,
-    [property: JsonRequired] San9.Core.Simulation.GameClock Clock);
+    [property: JsonRequired] San9.Core.Simulation.GameClock Clock)
+{
+    [JsonRequired] public int? PredecessorId { get; init; }
+}
 
 public sealed record ForceState(int Id, uint Money, uint Food, int Trust)
 {

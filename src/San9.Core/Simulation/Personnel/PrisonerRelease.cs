@@ -6,7 +6,8 @@ public sealed record ReleasePrisonerCommand(Guid CommandId, int IssuerId, long S
     : GameCommand(CommandId, IssuerId, Sequence);
 public sealed record PrisonerReleasedEvent(GameClock Clock, int CaptorId, int OfficerId, int? ForceId, int DestinationId) : DomainEvent;
 public sealed record PrisonerRecoveredEvent(GameClock Clock, int OfficerId, int ForceId, int DestinationId) : DomainEvent;
-internal enum PrisonerDepartureKind { Released, Escaped, Recovered }
+public sealed record PrisonerDisplacedEvent(GameClock Clock, int OfficerId, int? ForceId, int OriginId, int DestinationId) : DomainEvent;
+internal enum PrisonerDepartureKind { Released, Escaped, Recovered, Displaced }
 
 internal static class PrisonerRelease
 {
@@ -28,11 +29,11 @@ internal static class PrisonerRelease
 
     internal static CommandRejection Depart(WorldMutation world, int personId, int origin, Guid causeId, long sequence,
         PrisonerDepartureKind departure, int? releasingCaptor, PersonnelRulebook places, EconomyRulebook economy,
-        List<DomainEvent> events, WorldPosition? originPosition = null)
+        List<DomainEvent> events, WorldPosition? originPosition = null, int? excludedHomeId = null)
     {
         var person = world.Officers[personId];
         var position = originPosition ?? PersonnelLocations.Position(world, places, origin);
-        var home = person.OwnerId is int forceId ? world.Settlements.Values.Where(s => s.OwnerId == forceId &&
+        var home = person.OwnerId is int forceId ? world.Settlements.Values.Where(s => s.Id != excludedHomeId && s.OwnerId == forceId &&
             s.CanHostPersons && s.Durability > 0 && places.Places.ContainsKey(s.Id))
             .OrderBy(s => PersonnelRulebook.JourneyDays(position, PersonnelLocations.Position(world, places, s.Id)))
             .ThenBy(s => s.Id).FirstOrDefault() : null;
@@ -45,6 +46,7 @@ internal static class PrisonerRelease
             PrisonerDepartureKind.Released => "prisoner-released",
             PrisonerDepartureKind.Escaped => "prisoner-escaped",
             PrisonerDepartureKind.Recovered => "prisoner-recovered",
+            PrisonerDepartureKind.Displaced => "prisoner-displaced",
             _ => throw new ArgumentOutOfRangeException(nameof(departure))
         };
         PersonnelTransitions.CancelMissions(world, personId, reason, events, places, false);
@@ -74,6 +76,8 @@ internal static class PrisonerRelease
                 new PrisonerReleasedEvent(world.Clock, releasedBy, personId, home?.OwnerId, destinationId),
             PrisonerDepartureKind.Escaped =>
                 new PrisonerEscapedEvent(world.Clock, personId, person.SettlementId, person.UnitId, destinationId),
+            PrisonerDepartureKind.Displaced =>
+                new PrisonerDisplacedEvent(world.Clock, personId, home?.OwnerId, origin, destinationId),
             PrisonerDepartureKind.Recovered =>
                 new PrisonerRecoveredEvent(world.Clock, personId, person.OwnerId!.Value, destinationId),
             _ => throw new InvalidOperationException("Invalid prisoner departure context.")

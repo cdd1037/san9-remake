@@ -217,11 +217,11 @@
       "classification": "core",
       "behavior_specs": ["BEH-GOVERNANCE-0001", "BEH-GOVERNANCE-0002", "BEH-GOVERNANCE-0003"],
       "objects": ["Polity", "ForceOrigin", "Corps", "TerritoryAssignment", "DelegationPolicy", "TerritorialTransition"],
-      "states": ["direct-control", "delegated-control", "planned-command", "territorial-transition", "consolidation-pending", "runtime-founded", "dissolved"],
+      "states": ["direct-control", "delegated-control", "planned-command", "territorial-transition", "consolidation-pending", "runtime-founded", "independence-selection", "voluntary-departure", "dissolved"],
       "inputs": ["current corps ownership", "delegation configuration", "direct territory snapshot", "stable planning order"],
       "outputs": ["validated automatic command", "atomic ownership transition", "dissolved corps cleanup", "updated delegation target"],
       "invariants": ["one polity root per corps", "territory ownership is consistent", "resource transfers and event grants are accounted", "runtime polity identities never reuse retired identities", "automatic and interactive commands share final validation"],
-      "acceptance_gates": ["corps create change and dissolve", "control and ownership separation", "deterministic work table", "cross-polity transaction rollback", "consolidation retries until one successful merge", "consolidation prisoners and treasury saturation", "empty city founder and directed neighbor supporter ordering", "runtime polity controls query save and replay"],
+      "acceptance_gates": ["corps create change and dissolve", "control and ownership separation", "deterministic work table", "cross-polity transaction rollback", "consolidation retries until one successful merge", "consolidation prisoners and treasury saturation", "empty city founder and directed neighbor supporter ordering", "runtime polity controls query save and replay", "independence uses present non-ruler and commander snapshot", "loyal direct-corps returns and displaced prisoners", "failed departure with no destination changes no affiliation"],
       "depends_on": ["simulation", "personnel"],
       "implementation": {
         "project": "San9.Core",

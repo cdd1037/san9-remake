@@ -6,10 +6,10 @@ namespace San9.Core.Simulation;
 internal static class PersonnelTransitions
 {
     internal static void TransferAllegiance(WorldMutation world, int personId, int recipient, int loyalty, int place,
-        string reason, PersonnelRulebook places, List<DomainEvent> events)
+        string reason, PersonnelRulebook places, List<DomainEvent> events, bool afterDailyCommands = true)
     {
         var person = world.Officers[personId];
-        CancelMissions(world, personId, reason, events, places, true);
+        CancelMissions(world, personId, reason, events, places, afterDailyCommands);
         if (person.OwnerId is int previous && world.Forces[previous].AdviserId == personId)
             world.Replace(world.Forces[previous] with { AdviserId = null });
         RecruitmentRules.SetLoyalty(world, personId, recipient, loyalty, reason, events);

@@ -18,8 +18,14 @@ internal static class SessionValidation
         foreach (var force in generated)
         {
             var origin = force.Origin!;
-            if (!snapshot.World.Simulation.ForceEmergenceEnabled || force.Id != nextForceId++ ||
-                origin.Kind != ForceCreationKind.EmptyCityUprising || force.IsBarbarian ||
+            if (force.Id != nextForceId++ || force.IsBarbarian ||
+                (origin.Kind switch
+                {
+                    ForceCreationKind.EmptyCityUprising => !snapshot.World.Simulation.ForceEmergenceEnabled || origin.PredecessorId is not null,
+                    ForceCreationKind.CityIndependence => !snapshot.World.Simulation.CityIndependenceEnabled ||
+                        origin.PredecessorId is not int previous || previous >= force.Id || !snapshot.World.Forces.Any(f => f.Id == previous),
+                    _ => true
+                }) ||
                 !definition.Content.Officers.Any(o => o.State.Id == origin.FounderId) ||
                 !definition.Content.Settlements.Any(s => s.Id == origin.SettlementId && s.Kind == SettlementKind.City) ||
                 origin.Clock.DayNumber < expected.Clock.DayNumber + 30 || origin.Clock.DayNumber > snapshot.World.Clock.DayNumber)
@@ -33,6 +39,7 @@ internal static class SessionValidation
             snapshot.World.Simulation.OfficeRequestsEnabled != expected.Simulation.OfficeRequestsEnabled ||
             snapshot.World.Simulation.ForceConsolidationEnabled != expected.Simulation.ForceConsolidationEnabled ||
             snapshot.World.Simulation.ForceEmergenceEnabled != expected.Simulation.ForceEmergenceEnabled ||
+            snapshot.World.Simulation.CityIndependenceEnabled != expected.Simulation.CityIndependenceEnabled ||
             snapshot.World.Simulation.NaturalDeathsEnabled != expected.Simulation.NaturalDeathsEnabled ||
             !snapshot.World.Simulation.Controls.SequenceEqual(expectedControls))
             throw new ArgumentException("Scenario date or control configuration mismatch.");

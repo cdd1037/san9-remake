@@ -124,6 +124,7 @@ public static class ScenarioContentCompiler
             Ending = EndingContentCompiler.Ending(information.Treasures),
             AnnualAppearancesEnabled = header.ScenarioModeCode is not (2 or 9),
             OfficeRequestsEnabled = header.ScenarioModeCode is not (2 or 9),
+            CityIndependenceEnabled = header.ScenarioModeCode is not (2 or 9),
             ForceEmergenceEnabled = header.ScenarioModeCode is not (2 or 9),
             ForceConsolidationEnabled = header.ScenarioModeCode is not (2 or 9),
             FreeOfficerMigrationEnabled = header.ScenarioModeCode is not (2 or 9),

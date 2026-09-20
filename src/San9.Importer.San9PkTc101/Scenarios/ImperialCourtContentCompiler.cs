@@ -15,6 +15,6 @@ public static class ImperialCourtContentCompiler
         var candidates = new[] { Person(563), Person(564), Person(565) }.ToImmutableArray();
         return new(candidates, mode is 2 or 9 ? [] :
             [new(candidates[0], new(189, 4, 1), new(189, 4, 1), 60),
-             new(candidates[1], new(189, 8, 1), new(197, 4, 1), 60)]);
+             new(candidates[1], new(189, 8, 1), new(197, 4, 1), 60)]) { TransferEvent = mode is 2 or 9 ? null : new(11, 15, 5) };
     }
 }

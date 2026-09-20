@@ -16,6 +16,7 @@ public sealed record RespondDailyTaskCommand(Guid CommandId, int IssuerId, long 
 [System.Text.Json.Serialization.JsonDerivedType(typeof(GiftCommand), "gift")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(RequestAttackCommand), "request-attack")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(DemandSurrenderCommand), "demand-surrender")]
+[JsonDerivedType(typeof(RespondEmperorTransferCommand), "respond-emperor-transfer")]
 [JsonDerivedType(typeof(ChooseCountryTitleCommand), "choose-country-title")]
 [JsonDerivedType(typeof(RespondOfficeRequestCommand), "respond-office-request")]
 [JsonDerivedType(typeof(ReturnPrisonerCommand), "return-prisoner")]

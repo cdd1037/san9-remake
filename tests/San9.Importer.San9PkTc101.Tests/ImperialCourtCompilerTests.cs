@@ -18,6 +18,7 @@ public sealed class ImperialCourtCompilerTests
     {
         var court = ImperialCourtContentCompiler.Compile(mode, [Person(565), Person(564), Person(563)], [0, 1, 2]);
         Assert.Equal(new[] { 2, 1, 0 }, court.SuccessionOrder); Assert.Equal(count, court.DeathEvents.Length);
+        Assert.Equal(mode is 2 or 9 ? null : new San9.Core.Domain.EmperorTransferDefinition(11, 15, 5), court.TransferEvent);
         if (count == 0) return;
         Assert.Equal(new GameClock(189, 4, 1), court.DeathEvents[0].ScenarioStartsBefore);
         Assert.Equal(new GameClock(189, 4, 1), court.DeathEvents[0].EarliestDate);

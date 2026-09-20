@@ -74,6 +74,7 @@ public sealed class GameSession
     }
     public WorldSnapshot Snapshot => _simulation.Snapshot;
     public CountryTitlePrompt? GetCountryTitlePrompt() => _simulation.GetCountryTitlePrompt();
+    public EmperorTransferPrompt? GetEmperorTransferPrompt() => _simulation.GetEmperorTransferPrompt();
     public OfficeRequestPrompt? GetOfficeRequestPrompt() => _simulation.GetOfficeRequestPrompt();
     public SearchRecruitmentPrompt? GetSearchRecruitmentPrompt() => _simulation.GetSearchRecruitmentPrompt();
     public ShanyangGongPrompt? GetShanyangGongPrompt() => _simulation.GetShanyangGongPrompt();

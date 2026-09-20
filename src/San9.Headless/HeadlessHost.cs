@@ -344,6 +344,9 @@ public sealed class HeadlessHost
                     // The verification policy explicitly declines negotiations; the session never answers for a player.
                     answer = new RespondDailyTaskCommand(request.Id, force, state.NextSequence, task.Id, task.ResolutionStep, false);
                 }
+                else if (_session.GetEmperorTransferPrompt() is { } emperor)
+                    answer = new RespondEmperorTransferCommand(request.Id, force, state.NextSequence,
+                        emperor.EmperorId, emperor.CityId, EmperorTransferChoice.Support);
                 else if (_session.GetCountryTitlePrompt() is { } title)
                     answer = new ChooseCountryTitleCommand(request.Id, force, state.NextSequence, title.CandidateIds[0]);
                 else if (_session.GetOfficeRequestPrompt() is { } officeRequest)

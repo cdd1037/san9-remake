@@ -43,8 +43,9 @@ public sealed class SimulationEngine
         if (rules.Personnel.TacticCourses.Any(c => !world.CreateSnapshot().Settlements.Any(s => s.Id == c.Key && s.Kind == SettlementKind.City) ||
             rules.Military is null || !rules.Military.Tactics.TryGetValue(c.Value, out var tactic) || tactic.Category is not (>= 0 and <= 8)))
             throw new ArgumentException("Invalid tactic study course.");
-        var initial = world.BeginMutation(rules.Abilities);
+        var initial = world.BeginMutation(rules.Abilities, rules.Economy);
         PoliticalEvents.ValidateRules(initial, rules);
+        EmperorTransfer.ValidateRules(initial, rules);
         rules.QiaoMarriage?.Validate(world.CreateSnapshot().Officers.Select(p => p.Id).ToHashSet(), rules.Personnel.CityProvinces);
         rules.SunMarriage?.Validate(world.CreateSnapshot().Officers.Select(p => p.Id).ToHashSet(),
             rules.Military?.Tactics.Values.Where(t => t.Category is >= 0 and <= 8).Select(t => t.Id).ToHashSet() ?? []);
@@ -89,7 +90,7 @@ public sealed class SimulationEngine
         if (world.Simulation.PendingDailyTask is { } pending)
         {
             var task = world.Simulation.Tasks.Single(t => t.Id == pending.RemainingTaskIds[0]);
-            var mutation = world.BeginMutation(rules.Abilities);
+            var mutation = world.BeginMutation(rules.Abilities, rules.Economy);
             if (pending.RemainingTaskIds.Any(id => rules.FindTask(world.Simulation.Tasks.Single(t => t.Id == id).Kind)!.Phase != pending.Phase) ||
                 rules.FindTask(task.Kind)!.DecisionRecipient(mutation, task) != pending.RespondingForceId)
                 throw new ArgumentException("Invalid task continuation phase or respondent.");
@@ -99,7 +100,7 @@ public sealed class SimulationEngine
             _world.EnterExecution();
             try
             {
-                var mutation = world.BeginMutation(rules.Abilities);
+                var mutation = world.BeginMutation(rules.Abilities, rules.Economy);
                 List<DomainEvent> events = [];
                 OfficerAppearance.Initialize(mutation, events);
                 _pipeline.Prepare(mutation, events);
@@ -118,7 +119,7 @@ public sealed class SimulationEngine
     public TacticStudyPrompt? GetTacticStudyPrompt()
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
-        return TacticStudy.Prompt(_world.BeginMutation(_rules.Abilities), _rules);
+        return TacticStudy.Prompt(_world.BeginMutation(_rules.Abilities, _rules.Economy), _rules);
     }
 
     public DuelSuccessionPrompt? GetDuelSuccessionPrompt()
@@ -126,7 +127,7 @@ public sealed class SimulationEngine
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
         return _world.Simulation.PendingDuel is { } pending
             ? new(pending.Aftermath.PendingRulerId!.Value, pending.RespondingForceId,
-                DuelAftermath.Successors(_world.BeginMutation(_rules.Abilities), pending.Aftermath.PendingRulerId.Value)) : null;
+                DuelAftermath.Successors(_world.BeginMutation(_rules.Abilities, _rules.Economy), pending.Aftermath.PendingRulerId.Value)) : null;
     }
 
     public ExecutionSuccessionPrompt? GetExecutionSuccessionPrompt()
@@ -134,12 +135,12 @@ public sealed class SimulationEngine
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
         return _world.Simulation.PendingExecutionSuccession is { } pending
             ? new(pending.ExecutingForceId, pending.RulerId, pending.RespondingForceId,
-                PrisonerExecution.Candidates(_world.BeginMutation(_rules.Abilities), pending.RespondingForceId)) : null;
+                PrisonerExecution.Candidates(_world.BeginMutation(_rules.Abilities, _rules.Economy), pending.RespondingForceId)) : null;
     }
     public CommandAdvice GetSurrenderAdvice(int forceId, int officerId, int targetForceId)
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
-        return SurrenderDiplomacy.Advice(_world.BeginMutation(_rules.Abilities), forceId, officerId, targetForceId, _rules);
+        return SurrenderDiplomacy.Advice(_world.BeginMutation(_rules.Abilities, _rules.Economy), forceId, officerId, targetForceId, _rules);
     }
     public AttackRequestPrompt? GetAttackRequestPrompt()
     {
@@ -152,7 +153,7 @@ public sealed class SimulationEngine
     public CommandAdvice GetAttackRequestAdvice(int forceId, int officerId, int targetForceId, int targetSettlementId)
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
-        return AttackRequestDiplomacy.Advice(_world.BeginMutation(_rules.Abilities), forceId, officerId, targetForceId, targetSettlementId, _rules);
+        return AttackRequestDiplomacy.Advice(_world.BeginMutation(_rules.Abilities, _rules.Economy), forceId, officerId, targetForceId, targetSettlementId, _rules);
     }
     public PrisonerReturnPrompt? GetPrisonerReturnPrompt()
     {
@@ -165,12 +166,12 @@ public sealed class SimulationEngine
     public CommandAdvice GetPrisonerReturnAdvice(int forceId, int officerId, int targetForceId, int prisonerId)
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
-        return PrisonerReturnDiplomacy.Advice(_world.BeginMutation(_rules.Abilities), forceId, officerId, targetForceId, prisonerId, _rules);
+        return PrisonerReturnDiplomacy.Advice(_world.BeginMutation(_rules.Abilities, _rules.Economy), forceId, officerId, targetForceId, prisonerId, _rules);
     }
     public CommandAdvice GetGiftAdvice(int forceId, int officerId, int targetForceId, GiftOffer offer)
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
-        return GiftDiplomacy.Advice(_world.BeginMutation(_rules.Abilities), forceId, officerId, targetForceId, offer, _rules);
+        return GiftDiplomacy.Advice(_world.BeginMutation(_rules.Abilities, _rules.Economy), forceId, officerId, targetForceId, offer, _rules);
     }
     public WorldSnapshot CaptureStableState()
     {
@@ -185,13 +186,19 @@ public sealed class SimulationEngine
     public AllianceFormationCandidates GetAllianceCandidates()
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
-        return AllianceEligibility.Find(_world.BeginMutation(_rules.Abilities), _rules);
+        return AllianceEligibility.Find(_world.BeginMutation(_rules.Abilities, _rules.Economy), _rules);
     }
 
     public CountryTitlePrompt? GetCountryTitlePrompt()
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
         return _world.Simulation.PendingEvent is CountryTitleEventSession pending ? new(pending.ForceId, pending.ChangeKind, pending.CandidateIds) : null;
+    }
+
+    public EmperorTransferPrompt? GetEmperorTransferPrompt()
+    {
+        if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
+        return _world.Simulation.PendingEvent is EmperorTransferEventSession s ? new(s.ForceId, s.EmperorId, s.CityId) : null;
     }
 
     public OfficeRequestPrompt? GetOfficeRequestPrompt()
@@ -218,7 +225,7 @@ public sealed class SimulationEngine
         return task.SearchEncounter is ShanyangGongEncounter encounter && _rules.ShanyangGong is { } definition
             ? new(task.Id, task.ResolutionStep, task.ForceId, task.OfficerId, definition.EmperorId, definition.PlaceId,
                 encounter.ChoosingCountryTitle, encounter.ChoosingCountryTitle
-                    ? ShanyangGong.Candidates(_world.BeginMutation(_rules.Abilities), _rules, task.ForceId) : []) : null;
+                    ? ShanyangGong.Candidates(_world.BeginMutation(_rules.Abilities, _rules.Economy), _rules, task.ForceId) : []) : null;
     }
 
     public TreasureMonumentPrompt? GetTreasureMonumentPrompt()
@@ -250,32 +257,32 @@ public sealed class SimulationEngine
         return task.SearchEncounter is BeastSearchEncounter encounter &&
             _rules.Personnel.SearchEvents.GetValueOrDefault(encounter.EventId) is BeastSearchEventDefinition definition
             ? new(task.Id, task.ResolutionStep, encounter.EventId, task.ForceId, task.OfficerId, task.Journey!.DestinationPlaceId,
-                SearchEvents.BattleChance(_world.BeginMutation(_rules.Abilities), task.OfficerId, definition)) : null;
+                SearchEvents.BattleChance(_world.BeginMutation(_rules.Abilities, _rules.Economy), task.OfficerId, definition)) : null;
     }
 
     public AllianceParticipationPrompt? GetAllianceParticipationPrompt()
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
-        return AllianceFormation.Prompt(_world.BeginMutation(_rules.Abilities), _rules);
+        return AllianceFormation.Prompt(_world.BeginMutation(_rules.Abilities, _rules.Economy), _rules);
     }
 
     public CommandAdvice GetBurnAdvice(int forceId, int officerId, int targetSettlementId)
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
-        return BurnStrategies.Advice(_world.BeginMutation(_rules.Abilities), forceId, officerId, targetSettlementId, _rules);
+        return BurnStrategies.Advice(_world.BeginMutation(_rules.Abilities, _rules.Economy), forceId, officerId, targetSettlementId, _rules);
     }
 
     public CommandAdvice GetAlienateAdvice(int forceId, int officerId, int targetOfficerId)
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
-        return AlienateStrategies.Advice(_world.BeginMutation(_rules.Abilities), forceId, officerId,
+        return AlienateStrategies.Advice(_world.BeginMutation(_rules.Abilities, _rules.Economy), forceId, officerId,
             targetOfficerId, _rules);
     }
 
     public CommandAdvice GetSeizeAdvice(int forceId, int officerId, int targetSettlementId)
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
-        return SeizeStrategies.Advice(_world.BeginMutation(_rules.Abilities), forceId, officerId,
+        return SeizeStrategies.Advice(_world.BeginMutation(_rules.Abilities, _rules.Economy), forceId, officerId,
             targetSettlementId, _rules);
     }
 
@@ -283,20 +290,20 @@ public sealed class SimulationEngine
         int secondTargetForceId)
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
-        return GossipStrategies.Advice(_world.BeginMutation(_rules.Abilities), forceId, officerId,
+        return GossipStrategies.Advice(_world.BeginMutation(_rules.Abilities, _rules.Economy), forceId, officerId,
             firstTargetForceId, secondTargetForceId, _rules);
     }
 
     public CommandAdvice GetUnitStrategyAdvice(int forceId, int officerId, UnitStrategyKind strategy, int targetUnitId)
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
-        return UnitStrategies.Advice(_world.BeginMutation(_rules.Abilities), forceId, officerId, strategy, targetUnitId, _rules);
+        return UnitStrategies.Advice(_world.BeginMutation(_rules.Abilities, _rules.Economy), forceId, officerId, strategy, targetUnitId, _rules);
     }
 
     public AttackWarning GetAttackWarning(int forceId, MilitaryOrder order)
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
-        return MilitaryDiplomacy.Warning(_world.BeginMutation(_rules.Abilities), forceId, order, _rules.Military);
+        return MilitaryDiplomacy.Warning(_world.BeginMutation(_rules.Abilities, _rules.Economy), forceId, order, _rules.Military);
     }
 
     public CommandExecutionResult Execute(CommandContext context, GameCommand command) =>
@@ -310,7 +317,7 @@ public sealed class SimulationEngine
         _world.EnterExecution();
         try
         {
-            var mutation = _world.BeginMutation(_rules.Abilities);
+            var mutation = _world.BeginMutation(_rules.Abilities, _rules.Economy);
             List<DomainEvent> events = [];
             DevelopmentOutcome? development = null;
             switch (command)
@@ -366,6 +373,11 @@ public sealed class SimulationEngine
                         return Reject(CommandRejection.InvalidDecision);
                     _pipeline.Respond(mutation, response, events);
                     ContinueXun(mutation, waiting.XunStarted, events);
+                    break;
+                case RespondEmperorTransferCommand emperorTransfer:
+                    var emperorRejection = EmperorTransfer.Respond(mutation, _rules, emperorTransfer, events);
+                    if (emperorRejection != CommandRejection.None) return Reject(emperorRejection);
+                    _pipeline.Prepare(mutation, events, ResolutionStage.XunCleanup);
                     break;
                 case ChooseCountryTitleCommand countryTitle:
                     var titleRejection = PoliticalEvents.Respond(mutation, _rules, countryTitle, events);
@@ -580,6 +592,13 @@ public sealed class SimulationEngine
                 c.Kind == ControllerKind.Player && c.ControllerId == context.ControllerId)
                 ? CommandRejection.None : CommandRejection.NotActiveController;
         }
+        if (sim.PendingEvent is EmperorTransferEventSession emperor)
+        {
+            if (command is not RespondEmperorTransferCommand) return CommandRejection.DecisionPending;
+            return emperor.ForceId == command.IssuerId && sim.Controls.Any(c => c.ForceId == command.IssuerId &&
+                c.Kind == ControllerKind.Player && c.ControllerId == context.ControllerId)
+                ? CommandRejection.None : CommandRejection.NotActiveController;
+        }
         if (sim.PendingEvent is CountryTitleEventSession title)
         {
             if (command is not ChooseCountryTitleCommand) return CommandRejection.DecisionPending;
@@ -603,7 +622,7 @@ public sealed class SimulationEngine
                 ? CommandRejection.None : CommandRejection.NotActiveController;
         }
         if (sim.Boundary != SimulationBoundary.Stable) return CommandRejection.NotStable;
-        if (command is ChooseCountryTitleCommand or RespondOfficeRequestCommand or ChooseDuelSuccessorCommand or AllianceParticipationCommand or RespondDailyTaskCommand or ChooseExecutionSuccessorCommand or ChooseTacticStudentCommand) return CommandRejection.InvalidDecision;
+        if (command is RespondEmperorTransferCommand or ChooseCountryTitleCommand or RespondOfficeRequestCommand or ChooseDuelSuccessorCommand or AllianceParticipationCommand or RespondDailyTaskCommand or ChooseExecutionSuccessorCommand or ChooseTacticStudentCommand) return CommandRejection.InvalidDecision;
         if (sim.ActiveControl >= sim.Controls.Length) return CommandRejection.NotActiveController;
         var seat = sim.Controls[sim.ActiveControl];
         return CorpsControl.Authorize(Snapshot, seat, context, command);
@@ -622,7 +641,7 @@ public sealed class SimulationEngine
         _world.EnterExecution();
         try
         {
-            var mutation = _world.BeginMutation(_rules.Abilities);
+            var mutation = _world.BeginMutation(_rules.Abilities, _rules.Economy);
             List<DomainEvent> events = [new ControlEndedEvent(seat.ControllerId, seat.ForceId)];
             mutation.SetSimulation(simulation with { ActiveControl = simulation.ActiveControl + 1 });
             ThreeVisits.EnterControl(mutation, _rules, events);
@@ -643,7 +662,7 @@ public sealed class SimulationEngine
         try
         {
             GameClock previous = _world.Clock;
-            var mutation = _world.BeginMutation(_rules.Abilities);
+            var mutation = _world.BeginMutation(_rules.Abilities, _rules.Economy);
             List<DomainEvent> events = [];
             MilitaryDiplomacy.BeginAdvance(mutation, _rules, events);
             ContinueXun(mutation, previous, events);

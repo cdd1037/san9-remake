@@ -7,7 +7,7 @@ public enum ResolutionStage
 {
     TerminalCheck, XunEvents, XunUpdate, MonthEvents, AppearanceAndIndependence,
     QuarterPrelude, QuarterEvents, QuarterUpdate, AnnualAppearance, AnnualCleanup,
-    BeforeDailyCommands, DailyCommands, DailyMapUpdate, UnitAndBuildingEvents, QuarterStudyOffers, QuarterPolitics,
+    BeforeDailyCommands, DailyCommands, DailyMapUpdate, UnitAndBuildingEvents, QuarterStudyOffers, QuarterPolitics, XunCleanup,
 }
 
 public sealed record StageCompletedEvent(GameClock Clock, ResolutionStage Stage) : DomainEvent;
@@ -88,6 +88,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         stages.Add(ResolutionStage.AppearanceAndIndependence);
         if (boundary.Quarter) stages.AddRange([ResolutionStage.QuarterPrelude, ResolutionStage.QuarterEvents, ResolutionStage.QuarterStudyOffers, ResolutionStage.QuarterUpdate]);
         if (boundary.Year) stages.AddRange([ResolutionStage.AnnualAppearance, ResolutionStage.AnnualCleanup]);
+        stages.Add(ResolutionStage.XunCleanup);
         if (boundary.Quarter) stages.Add(ResolutionStage.QuarterPolitics);
         int start = after is { } completed ? stages.IndexOf(completed) + 1 : 0;
         if (after is not null && start == 0) throw new InvalidOperationException("Invalid preparation continuation.");
@@ -155,6 +156,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
             ForceEmergence.Apply(world, rules, events);
             CityIndependence.Apply(world, rules, events);
         }
+        if (stage == ResolutionStage.XunCleanup) EmperorTransfer.Begin(world, rules, events);
         if (stage == ResolutionStage.QuarterPolitics) PoliticalEvents.Begin(world, rules, events);
         if (stage == ResolutionStage.QuarterEvents) QuarterHistoricalEvents.Begin(world, rules, events);
         if (stage == ResolutionStage.QuarterStudyOffers)

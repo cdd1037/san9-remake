@@ -55,6 +55,7 @@ internal sealed class WorldMutation
     internal WorldMutation(
         WorldState owner,
         OfficerAbilityRules abilityRules,
+        EconomyRulebook economy,
         long expectedRevision,
         GameClock clock,
         SimulationState simulation,
@@ -68,6 +69,7 @@ internal sealed class WorldMutation
     {
         _owner = owner;
         _abilityRules = abilityRules;
+        _economy = economy;
         _expectedRevision = expectedRevision;
         Clock = clock;
         Simulation = simulation;
@@ -117,6 +119,7 @@ internal sealed class WorldMutation
     internal ImmutableDictionary<int, OfficerAbilities> AbilitiesFor(IEnumerable<OfficerState> people) =>
         _abilityRules.EvaluateMany(people, Treasures.Values);
     private readonly OfficerAbilityRules _abilityRules;
+    private readonly EconomyRulebook _economy;
 
     internal void SetClock(GameClock clock)
     {
@@ -164,6 +167,7 @@ internal sealed class WorldMutation
     internal void Replace(SettlementState value)
     {
         var previous = AllSettlements[value.Id];
+        EmperorTransfer.Observe(this, _economy, previous, value);
         if (previous.IsDormant != value.IsDormant || previous.OwnerId != value.OwnerId || previous.CanHostPersons != value.CanHostPersons || previous.IsDestroyed != value.IsDestroyed)
             LeadershipChanged();
         if (previous.OwnerId != value.OwnerId || previous.CanHostPersons != value.CanHostPersons || previous.IsDestroyed != value.IsDestroyed ||

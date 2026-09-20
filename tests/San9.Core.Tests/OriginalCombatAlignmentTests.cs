@@ -24,7 +24,7 @@ public sealed class OriginalCombatAlignmentTests
     };
 
     private static WorldState World(uint food = 1000000) => WorldState.Create(new(190, 1, 1), 42,
-        [new(1, 10000, food, 100) { LeaderId = 11 }, new(2, 10000, 1000000, 100) { LeaderId = 21 },
+        [new(1, 10000, food, 100) { LeaderId = 11, BaseTrust = 100 }, new(2, 10000, 1000000, 100) { LeaderId = 21, BaseTrust = 100 },
          new(3, 10000, 1000000, 100) { IsBarbarian = true, LeaderId = 31 }],
         [new(1, 1, 1000, 100, 100, 45, 0, 0, 100, 0, 100),
          new(2, 2, 1000, 100, 100, 50, 0, 0, 100, 0, 100),

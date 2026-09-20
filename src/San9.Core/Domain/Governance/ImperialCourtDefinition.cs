@@ -10,14 +10,24 @@ public sealed record EmperorDeathDefinition(
     [property: JsonRequired] GameClock EarliestDate,
     [property: JsonRequired] int SurvivalChancePercent);
 
+public sealed record EmperorTransferDefinition(
+    [property: JsonRequired] int MinimumRighteousness,
+    [property: JsonRequired] int MaximumRighteousness,
+    [property: JsonRequired] int LoyaltyChange);
+
 public sealed record ImperialCourtDefinition(
     [property: JsonRequired] ImmutableArray<int> SuccessionOrder,
     [property: JsonRequired] ImmutableArray<EmperorDeathDefinition> DeathEvents)
 {
+    [JsonRequired] public EmperorTransferDefinition? TransferEvent { get; init; }
+
     public static ImperialCourtDefinition Empty { get; } = new([], []);
 
     public void Validate(IReadOnlySet<int>? officers = null)
     {
+        if (TransferEvent is { } transfer && (transfer.MinimumRighteousness < 0 ||
+            transfer.MaximumRighteousness > 15 || transfer.MaximumRighteousness < transfer.MinimumRighteousness || transfer.LoyaltyChange is < 0 or > 255))
+            throw new ArgumentException("Invalid emperor transfer event definition.");
         if (SuccessionOrder.IsDefault || DeathEvents.IsDefault || SuccessionOrder.Any(id => id < 0) ||
             SuccessionOrder.Distinct().Count() != SuccessionOrder.Length ||
             officers is not null && SuccessionOrder.Any(id => !officers.Contains(id)) ||

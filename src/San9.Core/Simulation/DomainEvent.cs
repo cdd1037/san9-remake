@@ -2,6 +2,8 @@ namespace San9.Core.Simulation;
 
 public sealed record OfficerCapturedEvent(GameClock Clock, int OfficerId, int CaptorId, int? SettlementId, int? UnitId) : DomainEvent;
 
+[System.Text.Json.Serialization.JsonDerivedType(typeof(EmperorTransferOfferedEvent), "emperor-transfer-offered")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(EmperorTransferResolvedEvent), "emperor-transfer-resolved")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(SunMarriageEvent), "sun-marriage")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(FiveTigersRecognizedEvent), "five-tigers")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(ExpeditionMemorialEvent), "expedition-memorial")]

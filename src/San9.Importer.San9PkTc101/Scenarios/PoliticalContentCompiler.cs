@@ -19,7 +19,7 @@ public static class PoliticalContentCompiler
         var preferredRulers = retained.Where(id => people[id].BiographyResourceCode == 32).Order().ToImmutableArray();
         return records.Select(r => new CountryTitleDefinition(new(r.Id, r.Id is <= 3 or >= 10 and <= 18,
             r.Id is not (>= 4 and <= 8), r.Id == 9, r.Id == 3 ? preferredRulers : [],
-            r.Id switch { 0 => [326], 1 => [621], 2 => [347], 19 => [213], _ => [] }), nameKey(r.Id), flagGlyph(r.Id))).ToArray();
+            r.Id switch { 0 => [326], 1 => [621], 2 => [347], 19 => [213], _ => [] }) { ForcesEmperorDeposition = r.Id == 9 }, nameKey(r.Id), flagGlyph(r.Id))).ToArray();
     }
 
     public static ImmutableDictionary<int, int> ProvinceTitles(IEnumerable<San9ScenarioCountryTitleRecord> records)

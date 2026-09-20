@@ -150,13 +150,14 @@ internal static class WorldInvariants
             throw new ArgumentException("Decision boundary requires exactly one pending decision.");
         AllianceFormation.ValidatePending(state);
         OfficeRequests.ValidatePending(state);
+        EmperorTransfer.ValidateState(state);
         PoliticalEvents.ValidatePending(state);
         if (state.Simulation.ConsumedEventKeys.IsDefault ||
             state.Simulation.ConsumedEventKeys.Any(k => string.IsNullOrWhiteSpace(k.Value)) ||
             !state.Simulation.ConsumedEventKeys.Select(k => k.Value).SequenceEqual(
                 state.Simulation.ConsumedEventKeys.Select(k => k.Value).Distinct().Order(StringComparer.Ordinal)))
             throw new ArgumentException("Invalid consumed event keys.");
-        if (sim.PendingEvent is not (null or AllianceEventSession or OfficeRequestEventSession or CountryTitleEventSession))
+        if (sim.PendingEvent is not (null or AllianceEventSession or OfficeRequestEventSession or CountryTitleEventSession or EmperorTransferEventSession))
             throw new ArgumentException("Unknown event session.");
         PrisonerExecution.ValidatePending(state);
         DuelCombat.ValidatePending(state);

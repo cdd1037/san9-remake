@@ -16,7 +16,10 @@ public sealed record CountryTitleRule(
     [property: JsonRequired] bool AutomaticSelectionAllowed,
     [property: JsonRequired] bool PreventsInvestiture,
     [property: JsonRequired] ImmutableArray<int> PreferredRulerIds,
-    [property: JsonRequired] ImmutableArray<int> PreferredBloodlineIds);
+    [property: JsonRequired] ImmutableArray<int> PreferredBloodlineIds)
+{
+    [JsonRequired] public bool ForcesEmperorDeposition { get; init; }
+}
 
 public sealed class PoliticalRulebook
 {

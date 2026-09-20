@@ -89,7 +89,7 @@ public sealed class WorldState
         return builder.ToImmutable();
     }
 
-    internal WorldMutation BeginMutation(OfficerAbilityRules? abilities = null) => new(this, abilities ?? OfficerAbilityRules.Empty, Revision, Clock, Simulation, _forces, _settlements,
+    internal WorldMutation BeginMutation(OfficerAbilityRules? abilities = null, EconomyRulebook? economy = null) => new(this, abilities ?? OfficerAbilityRules.Empty, economy ?? EconomyRulebook.Empty, Revision, Clock, Simulation, _forces, _settlements,
         _officers, _units, _corps, _treasures, _relations);
 
     internal void Commit(WorldMutation mutation)

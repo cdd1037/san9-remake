@@ -30,6 +30,7 @@ public sealed class PoliticalContentCompilerTests
         Assert.Equal(new[] { 0, 1, 2, 3, 10, 11, 12, 13, 14, 15, 16, 17, 18 }, titles.Where(t => t.Rule.ManualSelectionAllowed).Select(t => t.Id));
         Assert.Equal(Enumerable.Range(4, 5), titles.Where(t => !t.Rule.AutomaticSelectionAllowed).Select(t => t.Id));
         Assert.Equal(9, Assert.Single(titles, t => t.Rule.PreventsInvestiture).Id);
+        Assert.Equal(9, Assert.Single(titles, t => t.Rule.ForcesEmperorDeposition).Id);
         Assert.Equal(1, Assert.Single(titles.Single(t => t.Id == 3).Rule.PreferredRulerIds));
         Assert.Equal(326, Assert.Single(titles.Single(t => t.Id == 0).Rule.PreferredBloodlineIds));
         Assert.Equal(621, Assert.Single(titles.Single(t => t.Id == 1).Rule.PreferredBloodlineIds));

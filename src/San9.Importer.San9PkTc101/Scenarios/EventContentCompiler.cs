@@ -144,6 +144,25 @@ public static class EventContentCompiler
     public static ImmutableArray<PersistentEventKey> ForceEventHistory(San9ScenarioForceRecord force) =>
         force.HasEventHistoryMarker(6) ? [new("cai-yan.returned")] : [];
 
+    public static ImmutableArray<SearchEventDefinition> WomenVisits(byte scenarioMode,
+        IReadOnlyList<San9ScenarioPersonRecord> people, IEnumerable<int> retainedOfficerIds, IReadOnlySet<int> configuredRegions)
+    {
+        if (scenarioMode is 2 or 9) return [];
+        var retained = retainedOfficerIds.ToHashSet();
+        if (retained.Any(id => id < 0 || id >= people.Count)) throw new InvalidDataException("Invalid retained officer identity.");
+        int Person(int biography) => HistoricalPerson(people, retained, biography);
+        WomenVisitSite[] sites =
+        [
+            new(11, Person(566), [12, 11, 24, 22], [], null, null, null),
+            new(15, Person(569), [23, 10, 24, 17], [], null, new(208, 1, 1), new("cai-yan.returned")),
+            new(23, Person(567), [13, 27, 24, 21], [Person(63), Person(64)], new("qiao-marriage"), new(200, 1, 1), null),
+            new(26, Person(568), [15, 19, 24, 28], [Person(63), Person(64)], new("qiao-marriage"), new(200, 1, 1), null)
+        ];
+        if (sites.Any(s => !configuredRegions.Contains(s.PlaceId))) throw new InvalidDataException("Missing women visit site.");
+        return [new WomenVisitSearchEventDefinition(sites.ToImmutableArray(), 8, 50, 1000)
+            { Id = "women-visit", Priority = -10, Consumption = EventConsumption.None }];
+    }
+
     public static ImmutableArray<SearchEventDefinition> SearchEvents(byte scenarioMode,
         IReadOnlyList<San9ScenarioPersonRecord> people, IEnumerable<int> retainedOfficerIds, IReadOnlySet<int> configuredRegions)
     {

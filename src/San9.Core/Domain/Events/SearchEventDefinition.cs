@@ -11,6 +11,7 @@ namespace San9.Core.Domain;
 [JsonDerivedType(typeof(ImperialCeremonySearchEventDefinition), "imperial-ceremony")]
 [JsonDerivedType(typeof(TreasureMonumentSearchEventDefinition), "treasure-monument")]
 [JsonDerivedType(typeof(ForceActivationSearchEventDefinition), "force-activation")]
+[JsonDerivedType(typeof(WomenVisitSearchEventDefinition), "women-visit")]
 public abstract record SearchEventDefinition
 {
     [JsonRequired] public string Id { get; init; } = "";

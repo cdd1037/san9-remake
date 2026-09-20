@@ -6,6 +6,40 @@ namespace San9.Importer.San9PkTc101.Tests;
 
 public sealed class EventContentCompilerTests
 {
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public void WomenVisitsBindFourSitesAndDistinctDateHistoryPrerequisites(byte mode)
+    {
+        var people = new[] { Person(569), Person(568), Person(64), Person(566), Person(63), Person(567) };
+        var retained = Enumerable.Range(0, people.Length).ToArray();
+        var places = new HashSet<int> { 11, 15, 23, 26 };
+        var d = Assert.IsType<WomenVisitSearchEventDefinition>(Assert.Single(EventContentCompiler.WomenVisits(mode, people, retained, places)));
+        Assert.Equal((-10, 8, 50, 1000, EventConsumption.None), (d.Priority, d.PoliticsChanceDivisor,
+            d.MinimumBaseTrustExclusive, d.MaximumTrustExclusive, d.Consumption));
+        Assert.Equal(new[] { 3, 0, 5, 1 }, d.Sites.Select(s => s.VisitorOfficerId));
+        Assert.Equal(new[] { 12, 11, 24, 22 }, d.Sites[0].RewardTacticIds);
+        Assert.Equal(new[] { 23, 10, 24, 17 }, d.Sites[1].RewardTacticIds);
+        Assert.Equal(new[] { 13, 27, 24, 21 }, d.Sites[2].RewardTacticIds);
+        Assert.Equal(new[] { 15, 19, 24, 28 }, d.Sites[3].RewardTacticIds);
+        Assert.Null(d.Sites[0].EarliestScenarioStart);
+        Assert.Equal(new GameClock(208, 1, 1), d.Sites[1].EarliestScenarioStart);
+        Assert.Equal(new PersistentEventKey("cai-yan.returned"), d.Sites[1].AlternativeForceHistoryKey);
+        Assert.Null(d.Sites[1].RequiredWorldKey);
+        foreach (var qiao in d.Sites.Skip(2))
+        {
+            Assert.Equal(new[] { 4, 2 }, qiao.RequiredLeaderIds);
+            Assert.Equal(new GameClock(200, 1, 1), qiao.EarliestScenarioStart);
+            Assert.Equal(new PersistentEventKey("qiao-marriage"), qiao.RequiredWorldKey);
+            Assert.Null(qiao.AlternativeForceHistoryKey);
+        }
+        Assert.Empty(EventContentCompiler.WomenVisits(2, [], [], new HashSet<int>()));
+        Assert.Empty(EventContentCompiler.WomenVisits(9, [], [], new HashSet<int>()));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.WomenVisits(mode, people, retained.Skip(1), places));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.WomenVisits(mode, [.. people, Person(569)], [.. retained, 6], places));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.WomenVisits(mode, people, retained, new HashSet<int> { 11, 15, 23 }));
+    }
+
     [Fact]
     public void GuanduBindsDistinctHistoricalRolesRegionsAndStartDateConsumption()
     {

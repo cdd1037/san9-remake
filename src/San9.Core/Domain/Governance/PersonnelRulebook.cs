@@ -22,7 +22,21 @@ public sealed class PersonnelRulebook
         SearchEvents = (searchEvents ?? []).ToImmutableDictionary(e => e.Id, StringComparer.Ordinal);
         foreach (var entry in SearchEvents.Values)
         {
-            if (entry is HealingSearchEventDefinition healing)
+            if (entry is WomenVisitSearchEventDefinition visit)
+            {
+                _ = visit.Candidate(null);
+                if (visit.Consumption != EventConsumption.None || visit.PoliticsChanceDivisor <= 0 ||
+                    visit.MinimumBaseTrustExclusive is < 0 or > 1000 || visit.MaximumTrustExclusive is < 1 or > 1001 ||
+                    visit.Sites.IsDefaultOrEmpty || visit.Sites.Any(s => s is null || !Places.ContainsKey(s.PlaceId) ||
+                        s.VisitorOfficerId < 0 || !ValidIds(s.RewardTacticIds) || s.RewardTacticIds.IsEmpty || !ValidIds(s.RequiredLeaderIds) ||
+                        s.RequiredWorldKey is PersistentEventKey worldKey && string.IsNullOrWhiteSpace(worldKey.Value) ||
+                        s.EarliestScenarioStart is GameClock start && start.Year < 1 ||
+                        s.AlternativeForceHistoryKey is PersistentEventKey history &&
+                            (string.IsNullOrWhiteSpace(history.Value) || s.EarliestScenarioStart is null)) ||
+                    visit.Sites.Select(s => s.PlaceId).Distinct().Count() != visit.Sites.Length)
+                    throw new ArgumentException("Invalid women visit event definition.");
+            }
+            else if (entry is HealingSearchEventDefinition healing)
             {
                 _ = healing.Candidate(healing.ConsumptionKey);
                 if (healing.HealerOfficerId < 0 || healing.WarChanceDivisor <= 0 ||

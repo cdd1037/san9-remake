@@ -41,7 +41,7 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 87;
+    public const int CurrentSchemaVersion = 88;
     [JsonRequired] public San9.Core.Domain.HanzhongKingDefinition? HanzhongKing { get; init; }
     [JsonRequired] public San9.Core.Domain.FiveTigersDefinition? FiveTigers { get; init; }
     [JsonRequired] public San9.Core.Domain.ExpeditionMemorialDefinition? ExpeditionMemorial { get; init; }
@@ -122,6 +122,10 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
                     throw new InvalidDataException("Unknown search event officer reference.");
             SunMarriage?.Validate(ids, Military?.Tactics.Where(t => t.Category is >= 0 and <= 8).Select(t => t.Id).ToHashSet() ?? []);
             var tactics = Military?.Tactics.Where(t => t.Category is >= 0 and <= 8).Select(t => t.Id).ToHashSet() ?? [];
+            foreach (var visit in SearchEvents.OfType<San9.Core.Domain.WomenVisitSearchEventDefinition>())
+                if (visit.Sites.Any(s => !ids.Contains(s.VisitorOfficerId) || s.RequiredLeaderIds.Any(id => !ids.Contains(id)) ||
+                    s.RewardTacticIds.Any(id => !tactics.Contains(id))))
+                    throw new InvalidDataException("Unknown women visit reference.");
             var historicalCities = Settlements.Where(s => s.Kind == San9.Core.Domain.SettlementKind.City).Select(s => s.Id).ToHashSet();
             foreach (var activation in SearchEvents.OfType<San9.Core.Domain.ForceActivationSearchEventDefinition>())
             {

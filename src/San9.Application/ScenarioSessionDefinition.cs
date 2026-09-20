@@ -65,6 +65,8 @@ internal sealed class ScenarioSessionDefinition
                     BattleTacticIds = beast.BattleTacticIds.Order().ToImmutableArray() },
                 ForceActivationSearchEventDefinition activation => activation with
                     { AttachedSettlementIds = activation.AttachedSettlementIds.Order().ToImmutableArray(), OfficerIds = activation.OfficerIds.Order().ToImmutableArray() },
+                WomenVisitSearchEventDefinition visit => visit with { Sites = visit.Sites.OrderBy(s => s.PlaceId)
+                    .Select(s => s with { RequiredLeaderIds = s.RequiredLeaderIds.Order().ToImmutableArray() }).ToImmutableArray() },
                 _ => e
             }),
             Forces = Forces().OrderBy(f => f.Id), Settlements = Settlements().OrderBy(s => s.Id),

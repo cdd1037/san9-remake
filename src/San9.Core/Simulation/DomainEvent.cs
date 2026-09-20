@@ -143,6 +143,8 @@ public sealed record OfficerCapturedEvent(GameClock Clock, int OfficerId, int Ca
 [System.Text.Json.Serialization.JsonDerivedType(typeof(FoodExchangeRateChangedEvent), "food-exchange-rate")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(CityMerchantChangedEvent), "city-merchant")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(FoodTradeCompletedEvent), "food-trade")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(SearchConflictResolvedEvent), "search-conflict")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(OfficerWithdrawnEvent), "officer-withdrawn")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(TigerSearchResolvedEvent), "tiger")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(ScholarInsultResolvedEvent), "scholar-insult")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(MysticBookOfferResolvedEvent), "mystic-book-offer")]

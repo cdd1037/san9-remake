@@ -150,10 +150,11 @@ internal sealed class PrisonerReturnRule(SimulationRules rules) : TaskRule
         return PrisonerReturnDiplomacy.Player(world, respondent) ? respondent : null;
     }
     internal override bool AcceptsResponse(WorldMutation world, PersistentTask task, RespondDailyTaskCommand response) =>
+        response.SearchConflict is null && (
         task.ResolutionStep == 1 ? response.Offer is null : !response.Accept ? response.Offer is null :
         response.Offer is { IsValid: true } offer && (offer.Kind == CompensationKind.Refuse ||
             PrisonerCompensation.Payable(world, task.ForceId, task.PrisonerReturn!.TargetForceId, offer, rules.Treasures) &&
-            (offer.PrisonerId is not int prisoner || PrisonerReturnDiplomacy.CanRecover(world, prisoner, rules)));
+            (offer.PrisonerId is not int prisoner || PrisonerReturnDiplomacy.CanRecover(world, prisoner, rules))));
     internal override PersistentTask? ResolveResponse(WorldMutation world, PersistentTask task, RespondDailyTaskCommand response,
         List<DomainEvent> events) => task.ResolutionStep == 0
         ? Quote(world, task, response.Accept ? response.Offer! : new(CompensationKind.Refuse, 0, null, null), events)

@@ -211,8 +211,9 @@ internal sealed class AttackRequestRule(SimulationRules rules) : TaskRule
         return PrisonerReturnDiplomacy.Player(world, force) ? force : null;
     }
     internal override bool AcceptsResponse(WorldMutation world, PersistentTask task, RespondDailyTaskCommand response) =>
+        response.SearchConflict is null && (
         task.ResolutionStep == 1 ? response.Offer is null : !response.Accept ? response.Offer is null :
-        response.Offer is { } offer && AttackRequestDiplomacy.OfferValid(world, task, offer, rules);
+        response.Offer is { } offer && AttackRequestDiplomacy.OfferValid(world, task, offer, rules));
     internal override PersistentTask? ResolveResponse(WorldMutation world, PersistentTask task, RespondDailyTaskCommand response, List<DomainEvent> events) =>
         task.ResolutionStep == 0 ? Quote(task, response.Accept ? response.Offer! : new(CompensationKind.Refuse, 0, null, null), world.Clock, events)
             : Resolve(world, task, response.Accept, events);

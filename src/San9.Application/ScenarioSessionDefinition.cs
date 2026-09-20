@@ -64,6 +64,10 @@ internal sealed class ScenarioSessionDefinition
                     { ExcludedSearchingOfficerIds = healing.ExcludedSearchingOfficerIds.Order().ToImmutableArray() }),
                 MerchantInvestmentDefinition merchant => merchant with { Categories = merchant.Categories.OrderBy(c => c.Id, StringComparer.Ordinal)
                     .Select(c => c with { PlaceIds = c.PlaceIds.Order().ToImmutableArray() }).ToImmutableArray() },
+                MoneyDemandSearchEventDefinition demand => demand with { Months = demand.Months.Order().ToImmutableArray(), DemandingOfficerIds = demand.DemandingOfficerIds.Order().ToImmutableArray() },
+                ScholarPunishmentSearchEventDefinition scholar => scholar with { Months = scholar.Months.Order().ToImmutableArray(), Sites = scholar.Sites.OrderBy(s => s.PlaceId).ToImmutableArray() },
+                BanditMediationSearchEventDefinition mediation => mediation with { Months = mediation.Months.Order().ToImmutableArray(), Sites = mediation.Sites.OrderBy(s => s.PlaceId).ToImmutableArray(), GuaranteedOfficerIds = mediation.GuaranteedOfficerIds.Order().ToImmutableArray() },
+                ConflictSearchEventDefinition conflict => conflict with { Months = conflict.Months.Order().ToImmutableArray() },
                 TigerSearchEventDefinition tiger => tiger with { ProvinceIds = tiger.ProvinceIds.Order().ToImmutableArray() },
                 BeastSearchEventDefinition beast => beast with { Sites = beast.Sites.OrderBy(s => s.PlaceId).ToImmutableArray(),
                     BattleTacticIds = beast.BattleTacticIds.Order().ToImmutableArray() },

@@ -200,6 +200,8 @@ internal static class WorldInvariants
                         PersonSearchEncounter person => person.OfficerId < 0 || !state.Officers.ContainsKey(person.OfficerId),
                         ShanyangGongEncounter => false,
                         MerchantInvestmentEncounter merchant => string.IsNullOrWhiteSpace(merchant.EventId),
+                        ConflictSearchEncounter conflict => string.IsNullOrWhiteSpace(conflict.EventId) || conflict.OtherOfficerId < 0 ||
+                            conflict.OtherOfficerId is int conflictOfficer && !state.AllOfficers.ContainsKey(conflictOfficer),
                         TigerSearchEncounter tiger => string.IsNullOrWhiteSpace(tiger.EventId),
                         BeastSearchEncounter beast => string.IsNullOrWhiteSpace(beast.EventId),
                         ScholarReturnEncounter scholar => string.IsNullOrWhiteSpace(scholar.EventId),

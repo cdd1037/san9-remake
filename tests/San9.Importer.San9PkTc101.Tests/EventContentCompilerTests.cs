@@ -7,6 +7,37 @@ namespace San9.Importer.San9PkTc101.Tests;
 public sealed class EventContentCompilerTests
 {
     [Theory]
+    [InlineData(0)] [InlineData(1)]
+    public void ConflictEventsBindSemanticActorsSitesRewardsAndHistory(byte mode)
+    {
+        var people = new ushort[] { 296, 500, 496, 497, 3, 4, 36, 62 }.Select(Person).ToArray();
+        var places = new HashSet<int> { 13, 23, 29, 40, 70, 90, 115, 122 };
+        var definitions = EventContentCompiler.Conflicts(mode, people, Enumerable.Range(0, people.Length), places);
+        Assert.Equal(7, definitions.Length);
+        Assert.Equal(new[] { -5, -12, -19, -23, -24, -25, -26 }, definitions.Select(d => d.Priority));
+        var demand = Assert.IsType<MoneyDemandSearchEventDefinition>(definitions[0]);
+        Assert.Equal(new[] { 0, 1 }, demand.DemandingOfficerIds); Assert.Equal(20, demand.ChanceDivisor);
+        var scholar = Assert.IsType<ScholarPunishmentSearchEventDefinition>(definitions[1]);
+        Assert.Equal(new[] { 23, 29, 13, 40 }, scholar.Sites.Select(s => s.PlaceId));
+        Assert.Equal(new[] { 23, 14, 26, 30 }, scholar.Sites[0].RewardTacticIds);
+        Assert.Equal(new[] { 21, 22, 29, 25 }, scholar.Sites[1].RewardTacticIds);
+        Assert.Equal(new[] { 27, 24, 19, 22 }, scholar.Sites[2].RewardTacticIds);
+        Assert.Equal(new[] { 20, 23, 26, 30 }, scholar.Sites[3].RewardTacticIds);
+        for (int i = 0; i < scholar.Sites.Length; i++)
+        {
+            var force = new San9ScenarioForceRecord(1, 0, 0, 1u << (18 + i), 1, 1, 1, 1, 100, 100, 0, 0, 0, 0, []);
+            Assert.Equal(scholar.Sites[i].HistoryKey, Assert.Single(EventContentCompiler.ForceEventHistory(force)));
+        }
+        var mediation = Assert.IsType<BanditMediationSearchEventDefinition>(definitions[6]);
+        Assert.Equal(new[] { 4, 5, 6, 7 }, mediation.GuaranteedOfficerIds);
+        Assert.Equal(new[] { 70, 115, 90, 122 }, mediation.Sites.Select(s => s.PlaceId));
+        Assert.All(definitions.Cast<ConflictSearchEventDefinition>(), d => { d.Validate(places); d.ValidateReferences(Enumerable.Range(0, people.Length).ToHashSet(), Enumerable.Range(0, 41).ToHashSet()); });
+        Assert.Empty(EventContentCompiler.Conflicts(2, [], [], new HashSet<int>())); Assert.Empty(EventContentCompiler.Conflicts(9, [], [], new HashSet<int>()));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.Conflicts(mode, people, Enumerable.Range(0, people.Length), new HashSet<int>()));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.Conflicts(mode, people, [0, 1], places));
+    }
+
+    [Theory]
     [InlineData(0)]
     [InlineData(1)]
     public void MerchantCategoriesKeepAllLocationsResourcesAndForceBanMarkers(byte mode)

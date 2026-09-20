@@ -6,6 +6,7 @@ public sealed record RespondDailyTaskCommand(Guid CommandId, int IssuerId, long 
     [property: JsonRequired] int Step, bool Accept)
     : GameCommand(CommandId, IssuerId, Sequence)
 {
+    [JsonRequired] public SearchConflictChoice? SearchConflict { get; init; }
     [JsonRequired] public MerchantInvestmentResponse? MerchantInvestment { get; init; }
     [JsonRequired] public CompensationOffer? Offer { get; init; }
     [JsonRequired] public int? CountryTitleId { get; init; }

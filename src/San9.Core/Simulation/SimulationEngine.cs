@@ -312,6 +312,18 @@ public sealed class SimulationEngine
             MerchantInvestment.SuccessChance(world, task, d), world.Simulation.FoodExchangeRate);
     }
 
+    public SearchConflictPrompt? GetSearchConflictPrompt()
+    {
+        if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
+        if (_world.Simulation.PendingDailyTask is not { } pending) return null;
+        var task = _world.Simulation.Tasks.Single(t => t.Id == pending.RemainingTaskIds[0]);
+        if (task.SearchEncounter is not ConflictSearchEncounter encounter ||
+            _rules.Personnel.SearchEvents.GetValueOrDefault(encounter.EventId) is not ConflictSearchEventDefinition d) return null;
+        var world = _world.BeginMutation(_rules.Abilities, _rules.Economy);
+        return new(task.Id, task.ResolutionStep, d.Id, task.ForceId, task.OfficerId, task.Journey!.DestinationPlaceId,
+            encounter.OtherOfficerId, SearchEventResources.Account(world, task), SearchConflicts.Options(world, task, d));
+    }
+
     public TigerSearchPrompt? GetTigerSearchPrompt()
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");

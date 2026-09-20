@@ -21,6 +21,12 @@ internal static class SearchEvents
         foreach (var candidate in EventSelection.Order(rules.SearchEvents.Values.Select(e => new EventCandidate(e.Id, EventTrigger.Search, e.Priority)),
             EventTrigger.Search))
         {
+            if (rules.SearchEvents[candidate.Id] is ConflictSearchEventDefinition conflict &&
+                SearchConflicts.Prepare(world, task, rules, conflict, out var prepared))
+            {
+                encounter = prepared;
+                return true;
+            }
             if (rules.SearchEvents[candidate.Id] is MysticBookOfferSearchEventDefinition offer && MysticBook.Prepare(world, task, offer))
             {
                 encounter = new MysticBookOfferEncounter(offer.Id);

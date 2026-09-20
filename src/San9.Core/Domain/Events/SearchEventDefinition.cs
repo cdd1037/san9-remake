@@ -21,6 +21,13 @@ namespace San9.Core.Domain;
 [JsonDerivedType(typeof(ScholarInsultSearchEventDefinition), "scholar-insult")]
 [JsonDerivedType(typeof(MysticBookOfferSearchEventDefinition), "mystic-book-offer")]
 [JsonDerivedType(typeof(MysticBookReturnSearchEventDefinition), "mystic-book-return")]
+[JsonDerivedType(typeof(MoneyDemandSearchEventDefinition), "money-demand")]
+[JsonDerivedType(typeof(ScholarPunishmentSearchEventDefinition), "scholar-punishment")]
+[JsonDerivedType(typeof(EvildoerSearchEventDefinition), "evildoer")]
+[JsonDerivedType(typeof(LandSpiritSearchEventDefinition), "land-spirit")]
+[JsonDerivedType(typeof(BanditSuppressionSearchEventDefinition), "bandit-suppression")]
+[JsonDerivedType(typeof(TravelerRescueSearchEventDefinition), "traveler-rescue")]
+[JsonDerivedType(typeof(BanditMediationSearchEventDefinition), "bandit-mediation")]
 public abstract record SearchEventDefinition
 {
     [JsonRequired] public string Id { get; init; } = "";

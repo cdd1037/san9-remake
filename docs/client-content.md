@@ -49,7 +49,10 @@ TC101剧本导入以源坐标识别地域配置：双坐标均为无效哨兵的
 
 ## 接入前的数据核对
 
-当前城市商人／买卖使用剧本schema98／组合102、规则`san9-core-g10-v36`、保存／日志76。城市内容必填`MerchantPresenceChance`，Importer把常驻标志转换100、其他城市20；设施为0。运行时保存`MerchantPresent`和`FoodTradeUsed`，旬恢复与刷新贯通新局、保存及录像；静态`Icons`不再允许商人图标，显示从当前状态派生。真实190源25势力／94据点／700人物完整保留，50城市逐项核对7常驻／43流动。查询`GetFoodTradeQuote`与命令`FoodTradeCommand`已接入实际军团账户、权限及整数交易，真实洛阳买粮、保存及录像验证通过。完整运行包仍须原位重转，买卖菜单与画面待界面阶段，详见[G03补齐](g03-verification.md#2026-09-20城市商人与粮食买卖补齐)。
+当前遭遇与冲突批次为剧本schema99／组合103、规则`san9-core-g10-v37`、保存／日志77。七种类型化定义共享探索资格与选项协议，人物／地点／兵法引用完整校验，集合规范化保留兵法池次序。`GetSearchConflictPrompt`返回目标、实际账户、合法选项、费用与概率；`RespondDailyTaskCommand.SearchConflict`提交明确枚举，支付／容许／主动解决时`Accept=true`，处斩／拒绝时false。名士离场保留人物定义、清理参与引用并停用，按人物身份派生全局离场键用于恢复校验；源势力历史位2–5另存四个地点历史。真实190数据保持25势力／94据点／700人物，七定义与初始保存恢复通过，完整旧包仍须原位重转，专用图形交互待表现阶段。
+
+
+城市商人／买卖接入批次使用剧本schema98／组合102、规则`san9-core-g10-v36`、保存／日志76。城市内容必填`MerchantPresenceChance`，Importer把常驻标志转换100、其他城市20；设施为0。运行时保存`MerchantPresent`和`FoodTradeUsed`，旬恢复与刷新贯通新局、保存及录像；静态`Icons`不再允许商人图标，显示从当前状态派生。真实190源25势力／94据点／700人物完整保留，50城市逐项核对7常驻／43流动。查询`GetFoodTradeQuote`与命令`FoodTradeCommand`已接入实际军团账户、权限及整数交易，真实洛阳买粮、保存及录像验证通过。完整运行包仍须原位重转，买卖菜单与画面待界面阶段，详见[G03补齐](g03-verification.md#2026-09-20城市商人与粮食买卖补齐)。
 
 探索商人接入批次使用剧本schema97／组合101、规则`san9-core-g10-v34`、保存／日志75。`MerchantInvestmentDefinition`维护可扩展类别、地点集合、收益资源和势力封禁键；Importer转换八类67地点及初始势力历史。`FoodMarketDefinition`保留12个月有序粮价池和重复权重，当前正整数粮价进入世界保存；新局旬准备刷新，恢复不重抽。真实190源完整内存编译与校验保留25势力／94据点／700人物，67地点引用完整。`GetMerchantInvestmentPrompt`查询金额范围、账户、概率和粮价；`RespondDailyTaskCommand.MerchantInvestment`提交投资／拒绝／处斩与整数金额，投资时`Accept=true`，其他两项为false且金额为0。公开会话、稳定保存及录像通过，完整运行包原位重转及画面仍待G10收尾。
 

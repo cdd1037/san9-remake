@@ -42,7 +42,7 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 98;
+    public const int CurrentSchemaVersion = 99;
     [JsonRequired] public int FoodExchangeRate { get; init; } = 1;
     [JsonRequired] public San9.Core.Domain.FoodMarketDefinition? FoodMarket { get; init; }
     [JsonRequired] public San9.Core.Domain.HanzhongKingDefinition? HanzhongKing { get; init; }
@@ -140,6 +140,7 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
                     throw new InvalidDataException("Unknown search event officer reference.");
             SunMarriage?.Validate(ids, Military?.Tactics.Where(t => t.Category is >= 0 and <= 8).Select(t => t.Id).ToHashSet() ?? []);
             var tactics = Military?.Tactics.Where(t => t.Category is >= 0 and <= 8).Select(t => t.Id).ToHashSet() ?? [];
+            foreach (var conflict in SearchEvents.OfType<San9.Core.Domain.ConflictSearchEventDefinition>()) conflict.ValidateReferences(ids, tactics);
             foreach (var bookReturn in SearchEvents.OfType<San9.Core.Domain.MysticBookReturnSearchEventDefinition>())
                 if (!ids.Contains(bookReturn.MysticOfficerId) || !Information.Treasures.Any(t => t.Id == bookReturn.TreasureId) ||
                     bookReturn.RewardTacticIds.Any(id => !tactics.Contains(id))) throw new InvalidDataException("Unknown mystic book return reference.");

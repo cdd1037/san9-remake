@@ -53,10 +53,12 @@ internal static class SessionValidation
         var activatedForces = activated.Select(d => d.ForceId).ToHashSet();
         var activatedSettlements = activated.SelectMany(d => d.AttachedSettlementIds.Prepend(d.CityId)).ToHashSet();
         var activatedOfficers = activated.SelectMany(d => d.OfficerIds).ToHashSet();
+        var withdrawnOfficers = content.SearchEvents.OfType<ScholarPunishmentSearchEventDefinition>().SelectMany(d => d.Sites)
+            .Where(s => snapshot.World.Simulation.ConsumedEventKeys.Contains(s.WithdrawalKey)).Select(s => s.ScholarOfficerId).ToHashSet();
         if (snapshot.World.Forces.Any(f => f.IsDormant != (content.Forces.Any(i => i.Id == f.Id && i.IsDormant) && !activatedForces.Contains(f.Id))) ||
             snapshot.World.Settlements.Any(s => s.IsDormant != (content.Settlements.Any(i => i.Id == s.Id && i.IsDormant) && !activatedSettlements.Contains(s.Id))) ||
-            snapshot.World.Officers.Any(p => p.IsDormant != (content.Officers.Any(i => i.State.Id == p.Id && i.State.IsDormant) && !activatedOfficers.Contains(p.Id))))
-            throw new ArgumentException("Dormant state does not match initial content and completed activation events.");
+            snapshot.World.Officers.Any(p => p.IsDormant != (withdrawnOfficers.Contains(p.Id) || content.Officers.Any(i => i.State.Id == p.Id && i.State.IsDormant) && !activatedOfficers.Contains(p.Id))))
+            throw new ArgumentException("Dormant state does not match initial content and completed participation events.");
         if (snapshot.World.Simulation.Boundary == SimulationBoundary.Terminal)
         {
             _ = TerminalEvaluation.Evaluate(snapshot.World, content.Terminal);

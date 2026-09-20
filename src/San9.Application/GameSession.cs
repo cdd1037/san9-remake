@@ -87,6 +87,7 @@ public sealed class GameSession
     public FoodTradeQuote GetFoodTradeQuote(int forceId, int settlementId, ImmutableArray<int> officerIds, FoodTradeDirection direction) =>
         _simulation.GetFoodTradeQuote(forceId, settlementId, officerIds, direction);
     public MerchantInvestmentPrompt? GetMerchantInvestmentPrompt() => _simulation.GetMerchantInvestmentPrompt();
+    public SearchConflictPrompt? GetSearchConflictPrompt() => _simulation.GetSearchConflictPrompt();
     public TigerSearchPrompt? GetTigerSearchPrompt() => _simulation.GetTigerSearchPrompt();
     public BeastSearchPrompt? GetBeastSearchPrompt() => _simulation.GetBeastSearchPrompt();
     public TerminalResult GetTerminalResult() => Snapshot.Simulation.Boundary == SimulationBoundary.Terminal

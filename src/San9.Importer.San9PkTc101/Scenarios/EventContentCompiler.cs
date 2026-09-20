@@ -142,7 +142,9 @@ public static class EventContentCompiler
     }
 
     public static ImmutableArray<PersistentEventKey> ForceEventHistory(San9ScenarioForceRecord force) =>
-        new[] { (Marker: 1, Key: "guan-lu.visited"), (Marker: 6, Key: "cai-yan.returned") }
+        new[] { (Marker: 1, Key: "guan-lu.visited"), (Marker: 2, Key: "scholar-punishment.yu-ji"),
+            (Marker: 3, Key: "scholar-punishment.hua-tuo"), (Marker: 4, Key: "scholar-punishment.ni-heng"),
+            (Marker: 5, Key: "scholar-punishment.zuo-ci"), (Marker: 6, Key: "cai-yan.returned") }
             .Concat(MerchantCategories().Select((c, i) => (Marker: i + 7, Key: c.BanHistoryKey.Value)))
             .Where(e => force.HasEventHistoryMarker(e.Marker)).Select(e => new PersistentEventKey(e.Key))
             .OrderBy(k => k.Value, StringComparer.Ordinal).ToImmutableArray();
@@ -170,6 +172,45 @@ public static class EventContentCompiler
         return [new MerchantInvestmentDefinition(categories, 12, 50, 1000, 100, 5, 20, 3, 2, 4, 5)
             { Id = "merchant-investment", Priority = -33, Consumption = EventConsumption.None }];
 
+    }
+
+    public static ImmutableArray<SearchEventDefinition> Conflicts(byte mode, IReadOnlyList<San9ScenarioPersonRecord> people,
+        IEnumerable<int> retainedOfficerIds, IReadOnlySet<int> places)
+    {
+        if (mode is 2 or 9) return [];
+        var retained = retainedOfficerIds.ToHashSet();
+        int Person(int biography) => HistoricalPerson(people, retained, biography);
+        if (new[] { 13, 23, 29, 40, 70, 90, 115, 122 }.Any(id => !places.Contains(id)))
+            throw new InvalidDataException("Missing conflict event site.");
+        return [
+            new MoneyDemandSearchEventDefinition([Person(296), Person(500)], 100, 2, 100)
+            { Id = "money-demand", Priority = -5, ChanceAbility = ConflictChanceAbility.Intelligence, ChanceDivisor = 20,
+                MaximumBaseTrustExclusive = 300, MaximumInjuryExclusive = 5, MinimumMoneyExclusive = 3000 },
+            new ScholarPunishmentSearchEventDefinition([
+                new(23, Person(496), [23, 14, 26, 30], new("scholar-punishment.yu-ji")),
+                new(29, Person(497), [21, 22, 29, 25], new("scholar-punishment.hua-tuo")),
+                new(13, Person(296), [27, 24, 19, 22], new("scholar-punishment.ni-heng")),
+                new(40, Person(500), [20, 23, 26, 30], new("scholar-punishment.zuo-ci"))], 1)
+            { Id = "scholar-punishment", Priority = -12, ChanceAbility = ConflictChanceAbility.Politics, ChanceDivisor = 6,
+                MinimumBaseTrustExclusive = 70, MaximumInjuryExclusive = 5, TrustReward = 3 },
+            new EvildoerSearchEventDefinition(50)
+            { Id = "evildoer", Priority = -19, ChanceAbility = ConflictChanceAbility.Politics, ChanceDivisor = 15,
+                RequiresOwnedPlace = true, MaximumBaseTrustExclusive = 200, Months = [4, 5, 6, 10, 11, 12] },
+            new LandSpiritSearchEventDefinition(50, 200)
+            { Id = "land-spirit", Priority = -23, ChanceAbility = ConflictChanceAbility.Politics, ChanceDivisor = 8,
+                RequiresOwnedPlace = true, MaximumBaseTrustExclusive = 260, MaximumInjuryExclusive = 5,
+                RequiresMoneyCapacity = true, Months = [4, 5, 6, 10, 11, 12] },
+            new BanditSuppressionSearchEventDefinition(50, 6, 120, 1)
+            { Id = "bandit-suppression", Priority = -24, ChanceAbility = ConflictChanceAbility.Leadership, ChanceDivisor = 25,
+                RequiresOwnedPlace = true, MaximumBaseTrustExclusive = 260, MaximumInjuryExclusive = 5, MinimumMoneyExclusive = 2000 },
+            new TravelerRescueSearchEventDefinition(2, 50)
+            { Id = "traveler-rescue", Priority = -25, ChanceAbility = ConflictChanceAbility.Leadership, ChanceDivisor = 34,
+                RequiresOwnedPlace = true, MaximumInjuryExclusive = 5, RequiresMoneyCapacity = true, TrustReward = 0 },
+            new BanditMediationSearchEventDefinition([new(70, Person(3)), new(115, Person(4)), new(90, Person(36)), new(122, Person(62))],
+                [Person(3), Person(4), Person(36), Person(62)], 50, 60000, 15, 25, 1000)
+            { Id = "bandit-mediation", Priority = -26, ChanceAbility = ConflictChanceAbility.War, ChanceDivisor = 4,
+                RequiresOwnedPlace = true, MaximumBaseTrustExclusive = 260, MaximumInjuryExclusive = 5, RequiresMoneyCapacity = true }
+        ];
     }
 
     public static ImmutableArray<SearchEventDefinition> Tigers(byte scenarioMode) => scenarioMode is 2 or 9 ? [] :

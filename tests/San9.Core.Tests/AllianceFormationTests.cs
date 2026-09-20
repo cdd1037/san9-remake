@@ -6,6 +6,37 @@ namespace San9.Core.Tests;
 
 public sealed class AllianceFormationTests
 {
+    [Fact]
+    public void PresentedAllianceWithAllPlayersDecliningStillEndsQuarterlyHistoricalSelection()
+    {
+        var snapshot = Ready(5, 2, 3, 4, 5).Snapshot;
+        snapshot = snapshot with
+        {
+            Forces = snapshot.Forces.Select(f => f with { LeaderId = f.Id == 5 ? 11 : null }).ToImmutableArray(),
+            Officers = [new(11, 5, 500, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
+                new(12, 5, 500, new(50, 50, 50, 50), false),
+                new(31, null, null, new(50, 50, 50, 50), false) { Status = OfficerStatus.Special }]
+        };
+        var engine = new SimulationEngine(WorldState.Restore(snapshot), new SimulationRules
+        {
+            Personnel = Rules().Personnel,
+            QiaoMarriage = new(11, 12, [31], 31, 10, [100, 200, 300, 400], new(199, 12, 30), new(209, 12, 30),
+                3, 7, 20, 25, new("qiao-marriage"))
+        });
+        Assert.Empty(engine.AdvanceXun().Events.OfType<QiaoMarriageEvent>());
+        for (int player = 2; player <= 5; player++)
+        {
+            var response = Answer(engine, player, false);
+            Assert.True(response.Submission.Accepted);
+            Assert.Empty(response.Events.OfType<QiaoMarriageEvent>());
+            if (player == 5) Assert.Equal(AllianceFormationFailure.InsufficientMembers,
+                Assert.Single(response.Events.OfType<AllianceFormationFailedEvent>()).Reason);
+        }
+        Assert.Null(engine.Snapshot.Simulation.Alliance);
+        Assert.DoesNotContain(new PersistentEventKey("qiao-marriage"), engine.Snapshot.Simulation.ConsumedEventKeys);
+        Assert.Equal(SimulationBoundary.Stable, engine.Snapshot.Simulation.Boundary);
+    }
+
     private static SimulationRules Rules() => new()
     {
         Personnel = new(Enumerable.Range(1, 5).Select(id => new PersonPlace(id * 100, new(id, 0))),

@@ -9,6 +9,50 @@ namespace San9.Application.Tests;
 
 public sealed class AllianceFormationSessionTests
 {
+    [Theory]
+    [InlineData(5UL, true)]
+    [InlineData(0UL, false)]
+    public void AlliancePresentationStopsHistoricalTableWhileFailedQualificationContinues(ulong seed, bool offered)
+    {
+        var definition = Definition() with
+        {
+            Month = 3, Day = 21,
+            Officers = [new("ruler", new(11, 5, 500, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }),
+                new("companion", new(12, 5, 500, new(50, 50, 50, 50), false)),
+                new("rival", new(21, 1, 100, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }),
+                new("participant", new(31, null, null, new(50, 50, 50, 50), false) { Status = OfficerStatus.Special })],
+            QiaoMarriage = new(11, 12, [31], 21, 1, [100, 200, 300, 400], new(199, 12, 30), new(209, 12, 30), 3, 7, 20, 25, new("qiao-marriage")),
+            AnnualAppearancesEnabled = false, NaturalDeathsEnabled = false, CityIndependenceEnabled = false,
+            FreeOfficerMigrationEnabled = false, ForceEmergenceEnabled = false, OfficeRequestsEnabled = false
+        };
+        definition = definition with { Forces = definition.Forces.Select(f => f with { LeaderId = f.Id switch { 5 => 11, 1 => 21, _ => null } }).ToArray() };
+        var initial = GameSession.Start(definition, seed).Capture();
+        var session = GameSession.Restore(definition, initial with { World = initial.World with
+        { Clock = new(191, 3, 21) } });
+        session.BeginRecording();
+        var arrival = session.AdvanceXun();
+        Assert.Equal(offered, arrival.Events.OfType<AllianceProposedEvent>().Any());
+        if (offered)
+        {
+            Assert.Empty(arrival.Events.OfType<QiaoMarriageEvent>());
+            while (session.GetAllianceParticipationPrompt() is { } prompt)
+            {
+                int player = prompt.Proposal.RespondingForceId!.Value;
+                var seat = session.Snapshot.Simulation.Controls.Single(c => c.ForceId == player);
+                var answer = session.Execute(new(seat.ControllerId), new AllianceParticipationCommand(Guid.NewGuid(), player,
+                    session.Snapshot.Simulation.NextSequence, prompt.Proposal.TargetForceId, false));
+                Assert.True(answer.Submission.Accepted);
+                Assert.Empty(answer.Events.OfType<QiaoMarriageEvent>());
+            }
+            Assert.NotNull(session.Snapshot.Simulation.Alliance);
+            Assert.DoesNotContain(new PersistentEventKey("qiao-marriage"), session.Snapshot.Simulation.ConsumedEventKeys);
+        }
+        else Assert.Single(arrival.Events.OfType<QiaoMarriageEvent>());
+        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
+        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        Assert.Equal(offered ? 0 : 1, replay.Events.OfType<QiaoMarriageEvent>().Count());
+    }
+
     private static ScenarioInitialState Definition() => new(ScenarioInitialState.CurrentSchemaVersion, "alliance-choice", 190, 1, 1, 5,
         Enumerable.Range(1, 5).Select(id => new ForceInitialState(id, $"force.{id}", id, 10000, 100000, 50) { BaseTrust = 50 }).ToArray(),
         Enumerable.Range(1, 5).Select(id => new SettlementInitialState(id * 100, $"city.{id}", id, id, 0, 0, 100, 100, 0, [])

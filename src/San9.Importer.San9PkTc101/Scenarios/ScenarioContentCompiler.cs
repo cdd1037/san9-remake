@@ -122,6 +122,8 @@ public static class ScenarioContentCompiler
         { UnbuiltPlaces = personPlaces.Where(p => settlements.All(s => s.Id != p.Id)).Select(p => new San9.Core.Domain.PersonPlace(p.Id, San9.Core.Domain.MapCoordinates.Center(new(p.X, p.Y)))).ToImmutableArray(),
             FacilityNameSuffixKeys = suffixKeys,
             PoliticalEvents = PoliticalContentCompiler.Events(header.ScenarioModeCode),
+            SunMarriage = EventContentCompiler.SunMarriage(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id)),
+            QiaoMarriage = EventContentCompiler.QiaoMarriage(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id)),
             ProvinceCountryTitleIds = PoliticalContentCompiler.ProvinceTitles(countryTitles),
             Terminal = EndingContentCompiler.Terminal(),
             Ending = EndingContentCompiler.Ending(information.Treasures),

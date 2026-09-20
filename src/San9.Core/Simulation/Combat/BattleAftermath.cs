@@ -169,22 +169,7 @@ internal static class BattleAftermath
                     throw new InvalidOperationException("Cannot repair surviving battle corps.");
                 continue;
             }
-            int? root = world.Corps.Values.Where(c => c.OwnerId == corps.OwnerId && c.Treasury is null).Select(c => (int?)c.Id).SingleOrDefault();
-            foreach (var s in world.Settlements.Values.Where(s => s.CorpsId == corps.Id).ToArray()) world.Replace(s with { CorpsId = root });
-            foreach (var u in world.Units.Values.Where(u => u.CorpsId == corps.Id).ToArray()) world.Replace(u with { CorpsId = root });
-            foreach (var resource in new[] { ResourceKind.Money, ResourceKind.Food })
-            {
-                long amount = ResourceAccounts.Balance(world, new(ResourceOwnerKind.Corps, corps.Id), resource);
-                ResourceAccounts.Change(world, new(ResourceOwnerKind.Corps, corps.Id), resource, -amount, $"{reason}-corps-dissolved", null, events);
-                ResourceAccounts.Change(world, new(ResourceOwnerKind.Force, corps.OwnerId), resource, amount, $"{reason}-corps-dissolved", null, events);
-            }
-            world.SetSimulation(world.Simulation with { Tasks = world.Simulation.Tasks.Select(t =>
-                t.Journey?.ReturnLeg is { } leg && leg.CorpsId == corps.Id
-                    ? t with { Journey = t.Journey with { ReturnLeg = leg with { CorpsId = root } } } : t).ToImmutableArray() });
-            world.RemoveCorps(corps.Id);
-            var previousLeader = world.Officers[corps.LeaderId];
-            if (previousLeader.Status == OfficerStatus.Governor) world.Replace(previousLeader with { Status = OfficerStatus.Serving });
-            events.Add(new CorpsDissolvedEvent(world.Clock, corps.OwnerId, corps.Id, root ?? -1));
+            GovernanceMaintenance.DissolveForced(world, corps.Id, reason, events);
         }
     }
 

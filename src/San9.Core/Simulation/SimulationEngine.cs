@@ -14,9 +14,9 @@ public sealed class SimulationEngine
         : this(world, new SimulationRules { Economy = economy, Personnel = personnel }) { }
 
     public SimulationEngine(WorldState world, EconomyRulebook economy, PersonnelRulebook personnel, TreasureRulebook treasures,
-        GovernanceRulebook? governance = null, MilitaryRulebook? military = null, TerminalDefinition? terminal = null, PoliticalRulebook? politics = null)
+        GovernanceRulebook? governance = null, MilitaryRulebook? military = null, TerminalDefinition? terminal = null, PoliticalRulebook? politics = null, QiaoMarriageDefinition? qiaoMarriage = null, SunMarriageDefinition? sunMarriage = null)
         : this(ValidateContent(world, treasures, governance), new SimulationRules
-            { Economy = economy, Personnel = personnel, Treasures = treasures, Governance = governance ?? new([]), Military = military, Terminal = terminal, Politics = politics ?? PoliticalRulebook.Empty }) { }
+            { Economy = economy, Personnel = personnel, Treasures = treasures, Governance = governance ?? new([]), Military = military, Terminal = terminal, Politics = politics ?? PoliticalRulebook.Empty, QiaoMarriage = qiaoMarriage, SunMarriage = sunMarriage }) { }
 
     private static WorldState ValidateContent(WorldState world, TreasureRulebook treasures, GovernanceRulebook? governance)
     {
@@ -43,6 +43,9 @@ public sealed class SimulationEngine
             throw new ArgumentException("Invalid tactic study course.");
         var initial = world.BeginMutation(rules.Abilities);
         PoliticalEvents.ValidateRules(initial, rules);
+        rules.QiaoMarriage?.Validate(world.CreateSnapshot().Officers.Select(p => p.Id).ToHashSet(), rules.Personnel.CityProvinces);
+        rules.SunMarriage?.Validate(world.CreateSnapshot().Officers.Select(p => p.Id).ToHashSet(),
+            rules.Military?.Tactics.Values.Where(t => t.Category is >= 0 and <= 8).Select(t => t.Id).ToHashSet() ?? []);
         if (initial.Corps.Values.Any(c => !CorpsDelegations.Valid(initial, c, rules.Military)))
             throw new ArgumentException("Invalid corps delegation target.");
         foreach (var task in world.Simulation.Tasks)

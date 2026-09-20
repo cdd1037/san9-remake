@@ -5,6 +5,41 @@ namespace San9.Core.Simulation;
 /// <summary>Owns personnel changes and the cancellation of missions that refer to the changed person.</summary>
 internal static class PersonnelTransitions
 {
+    internal static void RelocateAllegiance(WorldMutation world, int personId, int recipient, int loyalty,
+        int? settlementId, int? unitId, SimulationRules rules, List<DomainEvent> events, string reason, bool afterDailyCommands)
+    {
+        if ((settlementId is null) == (unitId is null)) throw new ArgumentException("Expected one personnel destination.");
+        var person = world.Officers[personId];
+        int geographicPlace;
+        if (settlementId is int destination)
+        {
+            var place = world.Settlements[destination];
+            if (place.OwnerId != recipient || place.IsDestroyed || !place.CanHostPersons || place.Durability <= 0)
+                throw new ArgumentException("Invalid personnel destination.");
+            geographicPlace = destination;
+        }
+        else
+        {
+            var unit = world.Units[unitId!.Value];
+            if (unit.OwnerId != recipient) throw new ArgumentException("Invalid personnel destination.");
+            geographicPlace = rules.Military?.RegionAt(unit.Position) ?? rules.Personnel.Places.Values
+                .OrderBy(p => MapCoordinates.Distance(unit.Position, p.Position)).ThenBy(p => p.Id).First().Id;
+        }
+        int? previousCorps = PersonnelLocations.Corps(world, person);
+        TransferAllegiance(world, personId, recipient, loyalty, geographicPlace, reason, rules.Personnel, events, afterDailyCommands);
+        world.Replace(world.Officers[personId] with { SettlementId = settlementId, UnitId = unitId, RegionId = null });
+        if (person.UnitId is int previousUnit && world.Units.ContainsKey(previousUnit) &&
+            !world.Officers.Values.Any(p => p.UnitId == previousUnit && p.IsServing))
+            BattleAftermath.TerminateUnit(world, previousUnit, null, rules, events);
+        if (person.Status == OfficerStatus.Governor && previousCorps is int corpsId &&
+            world.Corps.TryGetValue(corpsId, out var corps) && corps.Treasury is not null)
+            GovernanceMaintenance.DissolveForced(world, corpsId, reason, events);
+        if (person.OwnerId is int previousForce) BattleAftermath.Reconcile(world, new HashSet<int> { previousForce }, rules, events, reason);
+        world.MaintainLeadership(events);
+        EconomicCycle.UpdateTrust(world, rules.Economy, events);
+        ResolutionPipeline.CheckConquest(world, events);
+    }
+
     internal static void TransferAllegiance(WorldMutation world, int personId, int recipient, int loyalty, int place,
         string reason, PersonnelRulebook places, List<DomainEvent> events, bool afterDailyCommands = true)
     {

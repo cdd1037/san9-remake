@@ -130,7 +130,7 @@ public sealed class GameSession
         var politics = new PoliticalRulebook(definition.PoliticalEvents,
             definition.Information.Ranks.Select(r => new PeerageRule(r.Id, r.Precedence, r.RequiredTrust, r.LoyaltyBonus)),
             definition.Information.CountryTitles.Select(t => t.Rule), definition.ProvinceCountryTitleIds);
-        return world => new(world, rules, personnel, treasures, governance, military, definition.Terminal, politics);
+        return world => new(world, rules, personnel, treasures, governance, military, definition.Terminal, politics, definition.QiaoMarriage, definition.SunMarriage);
     }
 
     public static string Fingerprint(ScenarioInitialState definition) => new ScenarioSessionDefinition(definition).Fingerprint;

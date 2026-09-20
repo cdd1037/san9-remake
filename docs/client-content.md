@@ -9,10 +9,10 @@ G09人物生命周期新增必填`lifespanTier`、`successionPriority`及场景`
 | 模块 | 职责 | 输出 |
 | --- | --- | --- |
 | Content.Maps / MapImporter | 当前地图方格、地貌及对象位置 | `map.json`（无图片文件） |
-| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema74 |
+| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema76 |
 | Content.Text / ScenarioTextReader | 名称与全量消息目录 | `text.json` / `messages.json`，schema3 |
 | Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema16 |
-| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema78 |
+| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema80 |
 | Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema3／转换版本8 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 
@@ -48,6 +48,10 @@ G08的schema53/57增加必填`CityProvinceIds`和`MilitaryDefinition.TerritoryEx
 TC101剧本导入以源坐标识别地域配置：双坐标均为无效哨兵的槽不生成地域、名称文本或城市归属映射；单轴无效或越界坐标直接报错。有效但尚未建造的地域完整保留，稳定ID不重排。人物和宝物引用由转换后的契约校验，不能通过丢弃引用对象掩盖错误。
 
 ## 接入前的数据核对
+
+当前孙尚香接入使用剧本schema76／组合80、规则`san9-core-g10-v13`，保存／日志64。必填可空`SunMarriage`声明接收君主、转属人物、捐出方家族、资格及奖励；Importer解析列传36／538／62为既有身份和家族，兵法13／1转为既有学习引用，源位13转为`sun-marriage`。模式2／9关闭，模式1保留；人物、势力、兵法、文本和图片集合不筛减。运行时查询当前家族势力及地点，转属和消费进入稳定保存／录像，无新增命令或显示资源。字段、引用、初始消费及内容指纹已由公开夹具验证；旧包须原位重转，190年整包仍留待阶段收口。
+
+G10二乔使用剧本schema75／组合79、规则`san9-core-g10-v12`，保存／日志结构仍64。必填可空`QiaoMarriage`声明人物、州、排除城市、日期上限、奖励与消费键；受控城市从`CityProvinceIds`推导，不维护第二份完整城市清单。Importer按列传解析五名既有人物（含特殊／死亡人物），保留模式1候选、排除模式2／9；源世界位12转换为`qiao-marriage`。引用、参数与消费键进入校验和内容指纹，运行时直接查询当前归属及人物状态并发布结构化结果，没有新增命令或选择面板。新增内容不筛除人物、势力、城市、文本或图像，不需要额外原版图片。公开夹具已核对定义→当前世界→查询、稳定保存及录像；190年包仍待阶段收口原位重转，旧包／旧规则不可直接使用。
 
 G10季度政治表使用剧本schema74／组合78、规则`san9-core-g10-v11`、保存／日志64。必填可空`PoliticalEvents`控制生产，声明称帝信望与制度终止消费键；从官爵`Precedence`导出最高／次高／最低角色，不另存作者维护的派生引用。`Information.CountryTitles`保留全部20项源国号的语义规则、名称键和旗字，`ProvinceCountryTitleIds`是唯一的州到国号映射，Importer按源记录顺序处理后写覆盖。势力初始／运行时必填可空`CountryTitleId`，活跃国号唯一、退出清空；旗字据当前国号动态覆盖基础家族旗字，新创立势力同样可称帝并取得国号旗字。
 

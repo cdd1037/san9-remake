@@ -20,6 +20,8 @@ public sealed record ControlEndedEvent(string ControllerId, int ForceId) : Domai
 // Rules are compiled domain code, not callbacks loaded from content or saves.
 internal class SimulationRules
 {
+    internal SunMarriageDefinition? SunMarriage { get; init; }
+    internal QiaoMarriageDefinition? QiaoMarriage { get; init; }
     internal PoliticalRulebook Politics { get; init; } = PoliticalRulebook.Empty;
     internal TerminalDefinition? Terminal { get; init; }
     internal EconomyRulebook Economy { get; init; } = EconomyRulebook.Empty;
@@ -143,7 +145,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
             CityIndependence.Apply(world, rules, events);
         }
         if (stage == ResolutionStage.QuarterPolitics) PoliticalEvents.Begin(world, rules, events);
-        if (stage == ResolutionStage.QuarterEvents) AllianceFormation.Begin(world, rules, events);
+        if (stage == ResolutionStage.QuarterEvents) QuarterHistoricalEvents.Begin(world, rules, events);
         if (stage == ResolutionStage.QuarterStudyOffers)
         {
             TacticStudy.CompleteQuarter(world, rules, events);

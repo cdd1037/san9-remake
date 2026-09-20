@@ -37,7 +37,9 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 74;
+    public const int CurrentSchemaVersion = 76;
+    [JsonRequired] public San9.Core.Domain.SunMarriageDefinition? SunMarriage { get; init; }
+    [JsonRequired] public San9.Core.Domain.QiaoMarriageDefinition? QiaoMarriage { get; init; }
     [JsonRequired] public San9.Core.Domain.PoliticalEventsDefinition? PoliticalEvents { get; init; }
     [JsonRequired] public System.Collections.Immutable.ImmutableDictionary<int, int> ProvinceCountryTitleIds { get; init; } = System.Collections.Immutable.ImmutableDictionary<int, int>.Empty;
     [JsonRequired] public bool CityIndependenceEnabled { get; init; } = true;
@@ -100,6 +102,7 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
             foreach (var healing in SearchEvents.OfType<San9.Core.Domain.HealingSearchEventDefinition>())
                 if (!ids.Contains(healing.HealerOfficerId) || healing.ExcludedSearchingOfficerIds.Any(id => !ids.Contains(id)))
                     throw new InvalidDataException("Unknown search event officer reference.");
+            SunMarriage?.Validate(ids, Military?.Tactics.Where(t => t.Category is >= 0 and <= 8).Select(t => t.Id).ToHashSet() ?? []);
             var tactics = Military?.Tactics.Where(t => t.Category is >= 0 and <= 8).Select(t => t.Id).ToHashSet() ?? [];
             foreach (var beast in SearchEvents.OfType<San9.Core.Domain.BeastSearchEventDefinition>())
                 if (beast.BattleTacticIds.Concat(beast.Sites.SelectMany(s => s.RewardTacticIds)).Any(id => !tactics.Contains(id)))
@@ -107,6 +110,8 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
         }
         catch (ArgumentException error) { throw new InvalidDataException("Invalid personnel geography.", error); }
         new San9.Core.Domain.EconomyRulebook([], DomesticPairs, ImperialSealId).Validate();
+        try { QiaoMarriage?.Validate(Officers.Select(o => o.State.Id).ToHashSet(), CityProvinceIds); }
+        catch (ArgumentException e) { throw new InvalidDataException("Invalid historical event definition.", e); }
         if (ImperialCourt is null) throw new InvalidDataException("Missing imperial court definition.");
         try { ImperialCourt.Validate(Officers.Select(o => o.State.Id).ToHashSet()); }
         catch (ArgumentException error) { throw new InvalidDataException("Invalid imperial court references.", error); }

@@ -5,6 +5,37 @@ namespace San9.Importer.San9PkTc101.Tests;
 
 public sealed class EventContentCompilerTests
 {
+    [Fact]
+    public void SunMarriageUsesSourceFamilyRatherThanHardcodedDonorRulerAndKeepsExactUpperDate()
+    {
+        var people = new[] { Person(538), Person(62) with { BloodlineRootPersonCode = 613 }, Person(36) };
+        var definition = EventContentCompiler.SunMarriage(0, people, [0, 1, 2])!;
+        Assert.Equal((2, 0, 613), (definition.RecipientRulerId, definition.BrideId, definition.DonorBloodlineId));
+        Assert.Equal((3, 70, 20, 150), (definition.MinimumActiveForces, definition.RequiredRelationExclusive, definition.RelationBonus, definition.Loyalty));
+        Assert.Equal(new San9.Core.Simulation.GameClock(209, 12, 30), definition.LatestDate);
+        Assert.Equal(new[] { 13, 1 }, definition.GrantedTacticIds);
+        Assert.NotNull(EventContentCompiler.SunMarriage(1, people, [0, 1, 2]));
+        Assert.Null(EventContentCompiler.SunMarriage(2, people, [])); Assert.Null(EventContentCompiler.SunMarriage(9, people, []));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.SunMarriage(0, people, [0, 2]));
+    }
+
+    [Fact]
+    public void QiaoMarriageConvertsBiographiesAndKeepsScenarioModeSeparateFromHistoricalSetting()
+    {
+        var people = new[] { Person(568), Person(63), Person(60), Person(91), Person(567) };
+        var definition = EventContentCompiler.QiaoMarriage(0, people, [0, 1, 2, 3, 4])!;
+        Assert.Equal((1, 3, 2), (definition.RulerId, definition.CompanionId, definition.RivalRulerId));
+        Assert.Equal(new[] { 4, 0 }, definition.RequiredLivingOfficerIds);
+        Assert.Equal(10, definition.ProvinceId); Assert.Equal(21, Assert.Single(definition.ExcludedCityIds));
+        Assert.Equal(new San9.Core.Simulation.GameClock(199, 12, 30), definition.LatestScenarioStart);
+        Assert.Equal(new San9.Core.Simulation.GameClock(209, 12, 30), definition.LatestDate);
+        Assert.Equal((3, 7, 20, 25), (definition.LifespanBonus, definition.LifespanCap, definition.BaseTrustBonus, definition.RelationPenalty));
+        Assert.NotNull(EventContentCompiler.QiaoMarriage(1, people, [0, 1, 2, 3, 4]));
+        Assert.Null(EventContentCompiler.QiaoMarriage(2, people, []));
+        Assert.Null(EventContentCompiler.QiaoMarriage(9, people, []));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.QiaoMarriage(0, people, [0, 1, 2, 3]));
+    }
+
     private static San9ScenarioPersonRecord Person(ushort biography) => new(
         0, 6000, 0, 0, 0, 0, 0, biography, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         [], 0, 0, [], 0);
@@ -41,6 +72,8 @@ public sealed class EventContentCompilerTests
 
     [Theory]
     [InlineData(9, "shanyang-gong")]
+    [InlineData(12, "qiao-marriage")]
+    [InlineData(13, "sun-marriage")]
     [InlineData(17, "shenshou.xihe")]
     [InlineData(18, "shenshou.wanwen")]
     [InlineData(19, "shenshou.jianan")]
@@ -52,7 +85,7 @@ public sealed class EventContentCompilerTests
     [Fact]
     public void UnrelatedFlagsDoNotBecomeAuthoredEventKeys()
     {
-        Assert.Empty(EventContentCompiler.ConsumedKeys([~((7u << 17) | (1u << 9)), uint.MaxValue, uint.MaxValue, uint.MaxValue]));
+        Assert.Empty(EventContentCompiler.ConsumedKeys([~((7u << 17) | (1u << 9) | (1u << 12) | (1u << 13)), uint.MaxValue, uint.MaxValue, uint.MaxValue]));
         Assert.Equal(["shenshou.jianan", "shenshou.wanwen", "shenshou.xihe"],
             EventContentCompiler.ConsumedKeys([7u << 17, 0, 0, 0]).Select(k => k.Value));
     }

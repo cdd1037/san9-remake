@@ -30,16 +30,16 @@ public sealed record AllianceFormationFailedEvent(GameClock Clock, int TargetFor
 
 internal static class AllianceFormation
 {
-    internal static void Begin(WorldMutation world, SimulationRules rules, List<DomainEvent> events)
+    internal static bool Begin(WorldMutation world, SimulationRules rules, List<DomainEvent> events)
     {
         if (!world.Clock.Boundary.Quarter || world.Clock.DayNumber - world.Simulation.Started.DayNumber < 360 ||
-            world.Simulation.Alliance is not null || world.Simulation.PendingEvent is not null) return;
-        if (world.NextRandom("alliance-formation") % 4 != 0) return;
+            world.Simulation.Alliance is not null || world.Simulation.PendingEvent is not null) return false;
+        if (world.NextRandom("alliance-formation") % 4 != 0) return false;
         var candidates = AllianceEligibility.Find(world, rules);
         var target = candidates.LargestRealm is { } largest && candidates.LowPrestige is { } lowest
             ? (world.NextRandom("alliance-target") % 2 == 0 ? largest : lowest)
             : candidates.LargestRealm ?? candidates.LowPrestige;
-        if (target is null) return;
+        if (target is null) return false;
         EconomicCycle.UpdateTrust(world, rules.Economy, events);
         var players = world.Simulation.Controls.Where(c => c.Kind == ControllerKind.Player && c.ForceId != target.ForceId &&
                 !world.Forces[c.ForceId].IsEliminated).Select(c => c.ForceId).Order().ToArray();
@@ -48,6 +48,7 @@ internal static class AllianceFormation
         events.Add(new AllianceProposedEvent(world.Clock, proposal));
         if (proposal.RespondingForceId is null) Complete(world, proposal, rules, events);
         else world.SetSimulation(world.Simulation with { Boundary = SimulationBoundary.AwaitingDecision, PendingEvent = new AllianceEventSession(proposal) });
+        return true;
     }
 
     internal static CommandRejection Respond(WorldMutation world, AllianceParticipationCommand command, SimulationRules rules, List<DomainEvent> events)

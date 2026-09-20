@@ -62,7 +62,7 @@ G05 移动链已接入：`BattlefieldMap`负责不可变拓扑、矩形和四向
 
 验收条款以各BEH原文为准；当前覆盖由领域契约验证器生成，不在此重复维护计数。
 
-G10事件接入中：日历拥有唯一活动`EventSession`，`OfficeRequests`和`AllianceFormation`提供各自资格与提交；求官拒绝选址消费MilitaryRulebook的当前地域邻接，人员变化复用`PersonnelTransitions`。活动选择只驻留内存，稳定保存及录像由既有Application服务组织；华佗／神兽内容候选与持久消费键已接入；`ForceConsolidation`消费玩家取得都市的待触发状态，资格与奖励独立，资产迁移复用`ForceTransfer`，人物改属复用`PersonnelTransitions`、退出复用`ForceLifecycle`。不将已接入样例或当前单槽视为整个事件引擎完成。
+G10事件接入中：日历拥有唯一活动`EventSession`，`OfficeRequests`和`AllianceFormation`提供各自资格与提交；求官拒绝选址消费MilitaryRulebook的当前地域邻接，人员变化复用`PersonnelTransitions`。活动选择只驻留内存，稳定保存及录像由既有Application服务组织；华佗／神兽内容候选与持久消费键已接入；`ForceConsolidation`消费玩家取得都市的待触发状态，资格与奖励独立，资产迁移复用`ForceTransfer`，人物改属复用`PersonnelTransitions`、退出复用`ForceLifecycle`。`QuarterHistoricalEvents`保持联盟优先及呈现完成短路，二乔消费`QiaoMarriageDefinition`与当前州／人物状态，统一提交寿命、信望、关系和消费键。孙尚香消费`SunMarriageDefinition`，转属复用`PersonnelTransitions`、空部队复用`BattleAftermath`、强制军团解散复用`GovernanceMaintenance`，奖励及消费统一提交。不将已接入样例或当前单槽视为整个事件引擎完成。
 
 ## 核心领域契约
 

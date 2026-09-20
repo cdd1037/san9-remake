@@ -150,7 +150,7 @@ internal sealed class PrisonerReturnRule(SimulationRules rules) : TaskRule
         return PrisonerReturnDiplomacy.Player(world, respondent) ? respondent : null;
     }
     internal override bool AcceptsResponse(WorldMutation world, PersistentTask task, RespondDailyTaskCommand response) =>
-        response.SearchConflict is null && (
+        response.CommunitySearch is null && response.SearchConflict is null && (
         task.ResolutionStep == 1 ? response.Offer is null : !response.Accept ? response.Offer is null :
         response.Offer is { IsValid: true } offer && (offer.Kind == CompensationKind.Refuse ||
             PrisonerCompensation.Payable(world, task.ForceId, task.PrisonerReturn!.TargetForceId, offer, rules.Treasures) &&

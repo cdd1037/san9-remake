@@ -61,7 +61,7 @@ internal abstract class TaskRule
     internal virtual bool SupportsResolutionStep(int step) => step == 0;
     internal abstract bool Validate(WorldMutation world, PersistentTask task);
     internal virtual int? DecisionRecipient(WorldMutation world, PersistentTask task) => null;
-    internal virtual bool AcceptsResponse(WorldMutation world, PersistentTask task, RespondDailyTaskCommand response) => response.Offer is null && response.SearchConflict is null;
+    internal virtual bool AcceptsResponse(WorldMutation world, PersistentTask task, RespondDailyTaskCommand response) => response.Offer is null && response.CommunitySearch is null && response.SearchConflict is null;
     internal virtual PersistentTask? ResolveResponse(WorldMutation world, PersistentTask task, RespondDailyTaskCommand response,
         List<DomainEvent> events) => Resolve(world, task, response.Accept, events);
     internal virtual void CompleteDecision(WorldMutation world, PersistentTask task, bool accept, List<DomainEvent> events) =>

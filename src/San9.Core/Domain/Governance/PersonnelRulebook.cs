@@ -131,6 +131,13 @@ public sealed class PersonnelRulebook
                     string.IsNullOrWhiteSpace(scholar.SuccessHistoryKey.Value))
                     throw new ArgumentException("Invalid scholar return event definition.");
             }
+            else if (entry is CommunitySearchEventDefinition community)
+            {
+                community.Validate(Places.Keys.ToHashSet());
+                if (community is CommemorationSearchEventDefinition memorial)
+                    foreach (var site in memorial.Sites) _ = community.Candidate(site.ConsumptionKey);
+                else _ = community.Candidate(null);
+            }
             else if (entry is ConflictSearchEventDefinition conflict)
             {
                 _ = conflict.Candidate(null);

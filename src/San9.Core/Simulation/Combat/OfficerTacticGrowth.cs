@@ -8,8 +8,15 @@ internal static class OfficerTacticGrowth
     {
         if (category is < 0 or > 8 || amount <= 0) return;
         var officer = world.Officers[officerId];
+        IncreaseRaw(world, officerId, category, (int)Math.Min(int.MaxValue, (long)amount * (officer.MasteredCategories.Contains(category) ? 3 : 1)), events);
+    }
+
+    internal static void IncreaseRaw(WorldMutation world, int officerId, int category, int amount, List<DomainEvent> events)
+    {
+        if (category is < 0 or > 8 || amount <= 0) return;
+        var officer = world.Officers[officerId];
         int before = officer.TacticProficiencies[category];
-        int next = before >= 1000 ? before : (int)Math.Min(1000L, before + (long)amount * (officer.MasteredCategories.Contains(category) ? 3 : 1));
+        int next = before >= 1000 ? before : (int)Math.Min(1000L, before + (long)amount);
         if (next == before) return;
         world.Replace(officer with { TacticProficiencies = officer.TacticProficiencies.SetItem(category, next) });
         events.Add(new TacticProficiencyGrownEvent(world.Clock, officerId, category, before, next));

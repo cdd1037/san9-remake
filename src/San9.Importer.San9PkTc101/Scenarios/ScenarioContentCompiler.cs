@@ -156,6 +156,7 @@ public static class ScenarioContentCompiler
                 .AddRange(EventContentCompiler.PhysicianVisits(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id), configuredRegionIds))
                 .AddRange(EventContentCompiler.MerchantInvestments(header.ScenarioModeCode, configuredRegionIds))
                 .AddRange(EventContentCompiler.Conflicts(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id), configuredRegionIds))
+                .AddRange(EventContentCompiler.CommunitySearches(header.ScenarioModeCode, configuredRegionIds))
                 .AddRange(EventContentCompiler.Tigers(header.ScenarioModeCode))
                 .AddRange(EventContentCompiler.MysticBooks(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id), configuredRegionIds))
                 .AddRange(EventContentCompiler.ScholarInsults(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id)))

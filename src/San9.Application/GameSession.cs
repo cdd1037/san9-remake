@@ -87,6 +87,7 @@ public sealed class GameSession
     public FoodTradeQuote GetFoodTradeQuote(int forceId, int settlementId, ImmutableArray<int> officerIds, FoodTradeDirection direction) =>
         _simulation.GetFoodTradeQuote(forceId, settlementId, officerIds, direction);
     public MerchantInvestmentPrompt? GetMerchantInvestmentPrompt() => _simulation.GetMerchantInvestmentPrompt();
+    public CommunitySearchPrompt? GetCommunitySearchPrompt() => _simulation.GetCommunitySearchPrompt();
     public SearchConflictPrompt? GetSearchConflictPrompt() => _simulation.GetSearchConflictPrompt();
     public TigerSearchPrompt? GetTigerSearchPrompt() => _simulation.GetTigerSearchPrompt();
     public BeastSearchPrompt? GetBeastSearchPrompt() => _simulation.GetBeastSearchPrompt();

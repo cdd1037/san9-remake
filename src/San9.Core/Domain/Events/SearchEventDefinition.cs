@@ -28,6 +28,9 @@ namespace San9.Core.Domain;
 [JsonDerivedType(typeof(BanditSuppressionSearchEventDefinition), "bandit-suppression")]
 [JsonDerivedType(typeof(TravelerRescueSearchEventDefinition), "traveler-rescue")]
 [JsonDerivedType(typeof(BanditMediationSearchEventDefinition), "bandit-mediation")]
+[JsonDerivedType(typeof(CivicSearchEventDefinition), "civic")]
+[JsonDerivedType(typeof(CommemorationSearchEventDefinition), "commemoration")]
+[JsonDerivedType(typeof(TrainingSiteSearchEventDefinition), "training-site")]
 public abstract record SearchEventDefinition
 {
     [JsonRequired] public string Id { get; init; } = "";

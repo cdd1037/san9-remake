@@ -21,6 +21,11 @@ internal static class SearchEvents
         foreach (var candidate in EventSelection.Order(rules.SearchEvents.Values.Select(e => new EventCandidate(e.Id, EventTrigger.Search, e.Priority)),
             EventTrigger.Search))
         {
+            if (rules.SearchEvents[candidate.Id] is CommunitySearchEventDefinition community && CommunitySearch.Prepare(world, task, rules, community))
+            {
+                encounter = new CommunitySearchEncounter(community.Id);
+                return true;
+            }
             if (rules.SearchEvents[candidate.Id] is ConflictSearchEventDefinition conflict &&
                 SearchConflicts.Prepare(world, task, rules, conflict, out var prepared))
             {

@@ -174,6 +174,51 @@ public static class EventContentCompiler
 
     }
 
+    private static readonly int[] MonumentPlaces = [110, 12, 98, 30, 150, 89, 73, 120, 182, 69, 75, 77];
+    private static readonly int[] SacrificePlaces = [30, 113, 80, 110, 11, 77, 9, 5, 78, 76, 105, 16, 21, 82, 15, 85];
+
+    public static ImmutableArray<SearchEventDefinition> CommunitySearches(byte mode, IReadOnlySet<int> places)
+    {
+        if (mode is 2 or 9) return [];
+        ImmutableArray<int>[] monumentPools = [[29, 22, 21, 25, 23], [20, 15, 18, 13, 29], [1, 4, 8, 9, 10], [24, 3, 22, 16, 28]];
+        CommunityAbility[] monumentAbilities = [CommunityAbility.Intelligence, CommunityAbility.Politics, CommunityAbility.War, CommunityAbility.Leadership];
+        int[] treasures = [28, 29, 36, 32, 33, 34, 35, 37, 41, 42, 43, 52, 54, 55, 60, 61];
+        int[] groups = [0, 0, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3];
+        ImmutableArray<int>[] sacrificePools = [[8, 11, 10, 15, 14], [22, 4, 27, 24, 28], [13, 20, 17, 22, 29], [21, 23, 24, 16, 29]];
+        CommunityAbility[] sacrificeAbilities = [CommunityAbility.War, CommunityAbility.Leadership, CommunityAbility.Politics, CommunityAbility.Intelligence];
+        SearchEventDefinition[] definitions = [
+            new CivicSearchEventDefinition(CivicSearchKind.DisasterRelief)
+            { Id = "disaster-relief", Priority = -17, ChanceAbility = CommunityAbility.Politics, ChanceDivisor = 20,
+                MaximumTrustExclusive = 250, MinimumMoneyExclusive = 3000, MinimumFoodExclusive = 3000,
+                CostAbilityCeiling = 120, MoneyCostMultiplier = 4, FoodCostMultiplier = 6, TrustReward = 2, TrustPenalty = 2 },
+            new CivicSearchEventDefinition(CivicSearchKind.Volunteers)
+            { Id = "volunteers", Priority = -18, ChanceAbility = CommunityAbility.Leadership, ChanceDivisor = 6,
+                MaximumTrustExclusive = 300, MaximumDeployedSoldiersExclusive = 20000, SoldierMultiplier = 20, Months = [1, 2, 3, 7, 8, 9] },
+            new CivicSearchEventDefinition(CivicSearchKind.Bribe)
+            { Id = "bribe", Priority = -20, ChanceAbility = CommunityAbility.Intelligence, ChanceDivisor = 15,
+                MaximumTrustExclusive = 70, BaseMoneyReward = 50, MoneyAbilityMultiplier = 2, TrustReward = 2, TrustPenalty = 2 },
+            new CivicSearchEventDefinition(CivicSearchKind.TravelPermit)
+            { Id = "travel-permit", Priority = -21, ChanceAbility = CommunityAbility.Politics, ChanceDivisor = 15,
+                MaximumTrustExclusive = 250, BaseMoneyReward = 10, MoneyAbilityMultiplier = 2, TrustReward = 2, TrustPenalty = 2 },
+            new CivicSearchEventDefinition(CivicSearchKind.Festival)
+            { Id = "festival", Priority = -22, ChanceAbility = CommunityAbility.Politics, ChanceDivisor = 34,
+                MaximumTrustExclusive = 250, Months = [1, 2, 3, 7, 8, 9], TrustReward = 2, ExecutionTrustPenalty = 4 },
+            new CommemorationSearchEventDefinition(MonumentPlaces.Select((place, i) => new CommemorationSite(place, null,
+                monumentAbilities[i / 3], monumentPools[i / 3], new($"monument.{place}"))).Where(s => places.Contains(s.PlaceId)).ToImmutableArray(), 1500, 2, 2)
+            { Id = "monument", Priority = -30, Consumption = EventConsumption.OnSuccess, ChanceAbility = CommunityAbility.Intelligence,
+                ChanceDivisor = 4, MinimumMoneyExclusive = 4000, MinimumTrustExclusive = 80, MaximumTrustExclusive = 1000 },
+            new CommemorationSearchEventDefinition(SacrificePlaces.Select((place, i) => new CommemorationSite(place, treasures[i],
+                sacrificeAbilities[groups[i]], sacrificePools[groups[i]], new($"homecoming-sacrifice.{place}"))).Where(s => places.Contains(s.PlaceId)).ToImmutableArray(), 1000, 1, 2)
+            { Id = "homecoming-sacrifice", Priority = -31, Consumption = EventConsumption.OnSuccess,
+                MinimumMoneyExclusive = 3500, MaximumTrustExclusive = 1000 },
+            new TrainingSiteSearchEventDefinition(new TrainingSearchSite[] { new(50, 4), new(54, 4), new(53, 2), new(55, 2), new(56, 2), new(57, 2) }
+                .Where(s => places.Contains(s.PlaceId)).ToImmutableArray(), 500, 10000, 600, 4)
+            { Id = "training-site", Priority = -32, ChanceAbility = CommunityAbility.Leadership, ChanceDivisor = 5, MinimumMoneyExclusive = 2500 }
+        ];
+        return definitions.Where(d => d is not CommemorationSearchEventDefinition { Sites.IsEmpty: true } &&
+            d is not TrainingSiteSearchEventDefinition { Sites.IsEmpty: true }).ToImmutableArray();
+    }
+
     public static ImmutableArray<SearchEventDefinition> Conflicts(byte mode, IReadOnlyList<San9ScenarioPersonRecord> people,
         IEnumerable<int> retainedOfficerIds, IReadOnlySet<int> places)
     {
@@ -340,7 +385,9 @@ public static class EventContentCompiler
         (int Bit, string Key)[] events = [(1, "chained-plot.started"), (2, "chained-plot.completed"), (3, "three-visits.started"), (4, "three-visits.first-visit"), (5, "three-visits.completed"), (7, "fengshan"), (8, "hanzhong-king"), (10, "expedition-memorial"), (11, "five-tigers"), (9, PoliticalContentCompiler.CourtEndedKey.Value), (12, "qiao-marriage"), (13, "sun-marriage"), (14, "guandu"), (15, "red-cliffs"), (16, "cai-yan"), (17, "shenshou.xihe"), (18, "shenshou.wanwen"), (19, "shenshou.jianan"), (20, "tongque-tower")];
         long start = new GameClock(startDate.Year, startDate.Month, startDate.Day).DayNumber;
         bool visitsCompleted = start >= new GameClock(207, 10, 1).DayNumber;
-        return events.Where(e => (flagWords[e.Bit / 32] & (1u << (e.Bit % 32))) != 0 || visitsCompleted && e.Bit is >= 3 and <= 5 ||
+        var siteEvents = MonumentPlaces.Select((place, i) => (Bit: 21 + i, Key: $"monument.{place}"))
+            .Concat(SacrificePlaces.Select((place, i) => (Bit: 33 + i, Key: $"homecoming-sacrifice.{place}")));
+        return events.Concat(siteEvents).Where(e => (flagWords[e.Bit / 32] & (1u << (e.Bit % 32))) != 0 || visitsCompleted && e.Bit is >= 3 and <= 5 ||
             e.Bit == 1 && start >= new GameClock(192, 4, 1).DayNumber || e.Bit == 2 && start >= new GameClock(192, 5, 1).DayNumber ||
             e.Bit == 9 && start >= new GameClock(234, 9, 1).DayNumber ||
             e.Bit == 14 && start >= new GameClock(200, 11, 1).DayNumber ||

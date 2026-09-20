@@ -21,6 +21,8 @@ internal static class SearchEvents
         foreach (var candidate in EventSelection.Order(rules.SearchEvents.Values.Select(e => new EventCandidate(e.Id, EventTrigger.Search, e.Priority)),
             EventTrigger.Search))
         {
+            if (rules.SearchEvents[candidate.Id] is SageVisitSearchEventDefinition sage &&
+                SageVisit.TryResolve(world, task, sage, events)) return true;
             if (rules.SearchEvents[candidate.Id] is WomenVisitSearchEventDefinition visit &&
                 WomenVisit.TryResolve(world, task, visit, events)) return true;
             if (rules.SearchEvents[candidate.Id] is ForceActivationSearchEventDefinition activation &&

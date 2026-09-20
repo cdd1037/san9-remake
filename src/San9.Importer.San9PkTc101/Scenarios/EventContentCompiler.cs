@@ -163,6 +163,19 @@ public static class EventContentCompiler
             { Id = "women-visit", Priority = -10, Consumption = EventConsumption.None }];
     }
 
+    public static ImmutableArray<SearchEventDefinition> SageVisits(byte scenarioMode,
+        IReadOnlyList<San9ScenarioPersonRecord> people, IEnumerable<int> retainedOfficerIds, IReadOnlySet<int> configuredRegions)
+    {
+        if (scenarioMode is 2 or 9) return [];
+        var retained = retainedOfficerIds.ToHashSet();
+        if (retained.Any(id => id < 0 || id >= people.Count)) throw new InvalidDataException("Invalid retained officer identity.");
+        if (!configuredRegions.Contains(29)) throw new InvalidDataException("Missing sage visit site.");
+        int[] biographies = [45, 114, 39, 298, 353, 250, 243];
+        return [new SageVisitSearchEventDefinition(29, HistoricalPerson(people, retained, 501),
+            biographies.Select(b => HistoricalPerson(people, retained, b)).ToImmutableArray(), 6, 75, 80, 3)
+            { Id = "sima-hui.visit", Priority = -8, Consumption = EventConsumption.None }];
+    }
+
     public static ImmutableArray<SearchEventDefinition> SearchEvents(byte scenarioMode,
         IReadOnlyList<San9ScenarioPersonRecord> people, IEnumerable<int> retainedOfficerIds, IReadOnlySet<int> configuredRegions)
     {

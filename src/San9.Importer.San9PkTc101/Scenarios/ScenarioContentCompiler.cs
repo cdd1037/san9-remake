@@ -150,6 +150,7 @@ public static class ScenarioContentCompiler
             ConsumedEventKeys = EventContentCompiler.ConsumedKeys(header.ScenarioWorldFlagWords, header.StartDate),
             SearchEvents = EventContentCompiler.SearchEvents(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id), configuredRegionIds)
                 .AddRange(EventContentCompiler.WomenVisits(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id), configuredRegionIds))
+                .AddRange(EventContentCompiler.SageVisits(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id), configuredRegionIds))
                 .AddRange(penglai is null ? [] : new San9.Core.Domain.SearchEventDefinition[] { penglai }),
             Alliance = DiplomacyContentCompiler.Alliance(header.AllianceDurationTurns, forces,
                 summaries.Where(f => !f.IsBarbarian).Select(f => f.Id).ToHashSet()),

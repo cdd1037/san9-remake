@@ -67,6 +67,7 @@ internal sealed class ScenarioSessionDefinition
                     { AttachedSettlementIds = activation.AttachedSettlementIds.Order().ToImmutableArray(), OfficerIds = activation.OfficerIds.Order().ToImmutableArray() },
                 WomenVisitSearchEventDefinition visit => visit with { Sites = visit.Sites.OrderBy(s => s.PlaceId)
                     .Select(s => s with { RequiredLeaderIds = s.RequiredLeaderIds.Order().ToImmutableArray() }).ToImmutableArray() },
+                SageVisitSearchEventDefinition sage => sage with { RecommendedOfficerIds = sage.RecommendedOfficerIds.Order().ToImmutableArray() },
                 _ => e
             }),
             Forces = Forces().OrderBy(f => f.Id), Settlements = Settlements().OrderBy(s => s.Id),

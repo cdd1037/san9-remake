@@ -22,7 +22,15 @@ public sealed class PersonnelRulebook
         SearchEvents = (searchEvents ?? []).ToImmutableDictionary(e => e.Id, StringComparer.Ordinal);
         foreach (var entry in SearchEvents.Values)
         {
-            if (entry is WomenVisitSearchEventDefinition visit)
+            if (entry is SageVisitSearchEventDefinition sage)
+            {
+                _ = sage.Candidate(null);
+                if (sage.Consumption != EventConsumption.None || !Places.ContainsKey(sage.PlaceId) || sage.SageOfficerId < 0 ||
+                    !ValidIds(sage.RecommendedOfficerIds) || sage.RecommendedOfficerIds.IsEmpty || sage.PoliticsChanceDivisor <= 0 ||
+                    sage.MinimumBaseTrustExclusive is < 0 or > 1000 || sage.MaximumRecipientLoyaltyInclusive is < 0 or > 255 ||
+                    sage.LoyaltyReward <= 0) throw new ArgumentException("Invalid sage visit definition.");
+            }
+            else if (entry is WomenVisitSearchEventDefinition visit)
             {
                 _ = visit.Candidate(null);
                 if (visit.Consumption != EventConsumption.None || visit.PoliticsChanceDivisor <= 0 ||

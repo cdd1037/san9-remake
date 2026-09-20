@@ -9,6 +9,27 @@ public sealed class EventContentCompilerTests
     [Theory]
     [InlineData(0)]
     [InlineData(1)]
+    public void SageVisitsBindTheMentorAndEveryRecommendedBiography(byte mode)
+    {
+        var people = new[] { Person(243), Person(501), Person(45), Person(114), Person(39), Person(298), Person(353), Person(250) };
+        var retained = Enumerable.Range(0, people.Length).ToArray();
+        var places = new HashSet<int> { 29 };
+        var d = Assert.IsType<SageVisitSearchEventDefinition>(Assert.Single(EventContentCompiler.SageVisits(mode, people, retained, places)));
+        Assert.Equal((29, 1, 6, 75, 80, 3, -8), (d.PlaceId, d.SageOfficerId, d.PoliticsChanceDivisor,
+            d.MinimumBaseTrustExclusive, d.MaximumRecipientLoyaltyInclusive, d.LoyaltyReward, d.Priority));
+        Assert.Equal(new[] { 2, 3, 4, 5, 6, 7, 0 }, d.RecommendedOfficerIds);
+        Assert.Equal(EventConsumption.None, d.Consumption);
+        Assert.Empty(EventContentCompiler.SageVisits(2, [], [], new HashSet<int>()));
+        Assert.Empty(EventContentCompiler.SageVisits(9, [], [], new HashSet<int>()));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.SageVisits(mode, people, retained.Skip(1), places));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.SageVisits(mode, people, retained.Where(id => id != 1), places));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.SageVisits(mode, [.. people, Person(501)], [.. retained, 8], places));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.SageVisits(mode, people, retained, new HashSet<int>()));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
     public void WomenVisitsBindFourSitesAndDistinctDateHistoryPrerequisites(byte mode)
     {
         var people = new[] { Person(569), Person(568), Person(64), Person(566), Person(63), Person(567) };

@@ -6,6 +6,24 @@ namespace San9.Importer.San9PkTc101.Tests;
 
 public sealed class EventContentCompilerTests
 {
+    [Fact]
+    public void GuanduBindsDistinctHistoricalRolesRegionsAndStartDateConsumption()
+    {
+        var people = new[] { Person(177), Person(5), Person(60) };
+        var d = EventContentCompiler.Guandu(0, people, [0, 1, 2])!;
+        Assert.Equal((2, 1, 0, 98), (d.PatronId, d.OpponentId, d.RecruitId, d.RequiredPlaceId));
+        Assert.Equal(new[] { 69, 98 }, d.PatronRegionIds);
+        Assert.Equal(new[] { 69, 98, 9, 65, 80 }, d.EnemyRegionIds);
+        Assert.Equal((90, 20, 30000L, 90, 70), (d.LoyaltyExclusive, d.RelationExclusive, d.MinimumEnemySoldiers, d.SoldierLossPercent, d.FoodLossPercent));
+        Assert.NotNull(EventContentCompiler.Guandu(1, people, [0, 1, 2]));
+        Assert.Null(EventContentCompiler.Guandu(2, people, [])); Assert.Null(EventContentCompiler.Guandu(9, people, []));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.Guandu(0, people, [0, 1]));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.Guandu(0, [.. people, Person(60)], [0, 1, 2, 3]));
+        Assert.DoesNotContain(d.ConsumptionKey, EventContentCompiler.ConsumedKeys([0, 0, 0, 0], new(200, 10, 30)));
+        Assert.Contains(d.ConsumptionKey, EventContentCompiler.ConsumedKeys([0, 0, 0, 0], new(200, 11, 1)));
+        Assert.Contains(d.ConsumptionKey, EventContentCompiler.ConsumedKeys([1u << 14, 0, 0, 0], new(190, 1, 1)));
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(1)]
@@ -272,6 +290,7 @@ public sealed class EventContentCompilerTests
     [InlineData(12, "qiao-marriage")]
     [InlineData(13, "sun-marriage")]
     [InlineData(15, "red-cliffs")]
+    [InlineData(14, "guandu")]
     [InlineData(16, "cai-yan")]
     [InlineData(17, "shenshou.xihe")]
     [InlineData(18, "shenshou.wanwen")]
@@ -285,14 +304,14 @@ public sealed class EventContentCompilerTests
     public void LateScenarioStartPresetsThreeVisitsCompletionWithoutClearingFileFlags()
     {
         Assert.DoesNotContain(EventContentCompiler.ConsumedKeys([0, 0, 0, 0], new(207, 9, 30)), k => k.Value.StartsWith("three-visits.", StringComparison.Ordinal));
-        Assert.Equal(new[] { "chained-plot.completed", "chained-plot.started", "shenshou.xihe", "three-visits.completed", "three-visits.first-visit", "three-visits.started" },
+        Assert.Equal(new[] { "chained-plot.completed", "chained-plot.started", "guandu", "shenshou.xihe", "three-visits.completed", "three-visits.first-visit", "three-visits.started" },
             EventContentCompiler.ConsumedKeys([1u << 17, 0, 0, 0], new(207, 10, 1)).Select(k => k.Value));
     }
 
     [Fact]
     public void UnrelatedFlagsDoNotBecomeAuthoredEventKeys()
     {
-        Assert.Empty(EventContentCompiler.ConsumedKeys([~((3u << 1) | (7u << 3) | (7u << 17) | (1u << 7) | (1u << 8) | (1u << 10) | (1u << 11) | (1u << 9) | (1u << 12) | (1u << 13) | (1u << 15) | (1u << 16) | (1u << 20)), uint.MaxValue, uint.MaxValue, uint.MaxValue], new(190, 1, 1)));
+        Assert.Empty(EventContentCompiler.ConsumedKeys([~((3u << 1) | (7u << 3) | (7u << 17) | (1u << 7) | (1u << 8) | (1u << 10) | (1u << 11) | (1u << 9) | (1u << 12) | (1u << 13) | (1u << 14) | (1u << 15) | (1u << 16) | (1u << 20)), uint.MaxValue, uint.MaxValue, uint.MaxValue], new(190, 1, 1)));
         Assert.Equal(["shenshou.jianan", "shenshou.wanwen", "shenshou.xihe"],
             EventContentCompiler.ConsumedKeys([7u << 17, 0, 0, 0], new(190, 1, 1)).Select(k => k.Value));
     }

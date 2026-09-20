@@ -6,6 +6,15 @@ namespace San9.Importer.San9PkTc101.Scenarios;
 
 public static class EventContentCompiler
 {
+    public static GuanduDefinition? Guandu(byte scenarioMode,
+        IReadOnlyList<San9ScenarioPersonRecord> people, IEnumerable<int> retainedOfficerIds)
+    {
+        if (scenarioMode is 2 or 9) return null;
+        var retained = retainedOfficerIds.ToArray();
+        return new(HistoricalPerson(people, retained, 60), HistoricalPerson(people, retained, 5),
+            HistoricalPerson(people, retained, 177), 98, [69, 98], [69, 98, 9, 65, 80],
+            90, 20, 30000, 90, 70, 50, 15, 15, new("guandu"));
+    }
     public static ForceActivationSearchEventDefinition? Penglai(byte scenarioMode,
         IReadOnlyList<San9ScenarioPersonRecord> people, IEnumerable<int> retainedOfficerIds,
         IEnumerable<San9.Content.Scenarios.ForceInitialState> forces)
@@ -165,12 +174,13 @@ public static class EventContentCompiler
     public static ImmutableArray<PersistentEventKey> ConsumedKeys(IReadOnlyList<uint> flagWords, San9ScenarioDate startDate)
     {
         if (flagWords.Count != 4) throw new InvalidDataException("Expected four scenario flag words.");
-        (int Bit, string Key)[] events = [(1, "chained-plot.started"), (2, "chained-plot.completed"), (3, "three-visits.started"), (4, "three-visits.first-visit"), (5, "three-visits.completed"), (7, "fengshan"), (8, "hanzhong-king"), (10, "expedition-memorial"), (11, "five-tigers"), (9, PoliticalContentCompiler.CourtEndedKey.Value), (12, "qiao-marriage"), (13, "sun-marriage"), (15, "red-cliffs"), (16, "cai-yan"), (17, "shenshou.xihe"), (18, "shenshou.wanwen"), (19, "shenshou.jianan"), (20, "tongque-tower")];
+        (int Bit, string Key)[] events = [(1, "chained-plot.started"), (2, "chained-plot.completed"), (3, "three-visits.started"), (4, "three-visits.first-visit"), (5, "three-visits.completed"), (7, "fengshan"), (8, "hanzhong-king"), (10, "expedition-memorial"), (11, "five-tigers"), (9, PoliticalContentCompiler.CourtEndedKey.Value), (12, "qiao-marriage"), (13, "sun-marriage"), (14, "guandu"), (15, "red-cliffs"), (16, "cai-yan"), (17, "shenshou.xihe"), (18, "shenshou.wanwen"), (19, "shenshou.jianan"), (20, "tongque-tower")];
         long start = new GameClock(startDate.Year, startDate.Month, startDate.Day).DayNumber;
         bool visitsCompleted = start >= new GameClock(207, 10, 1).DayNumber;
         return events.Where(e => (flagWords[e.Bit / 32] & (1u << (e.Bit % 32))) != 0 || visitsCompleted && e.Bit is >= 3 and <= 5 ||
             e.Bit == 1 && start >= new GameClock(192, 4, 1).DayNumber || e.Bit == 2 && start >= new GameClock(192, 5, 1).DayNumber ||
             e.Bit == 9 && start >= new GameClock(234, 9, 1).DayNumber ||
+            e.Bit == 14 && start >= new GameClock(200, 11, 1).DayNumber ||
             e.Bit == 15 && start >= new GameClock(209, 1, 1).DayNumber)
             .Select(e => new PersistentEventKey(e.Key)).OrderBy(k => k.Value, StringComparer.Ordinal).ToImmutableArray();
     }

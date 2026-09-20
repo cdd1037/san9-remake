@@ -24,7 +24,7 @@ public sealed class RecruitmentRuleTests
     {
         var state = World().BeginMutation();
         state.Replace(state.Officers[20].WithLoyalty(1, incoming).WithLoyalty(2, current));
-        Assert.Equal(expected, RecruitmentRules.Threshold(state, 10, 20));
+        Assert.Equal(expected, RecruitmentRules.Threshold(state, 10, 20, new()));
     }
 
     [Fact]
@@ -33,9 +33,9 @@ public sealed class RecruitmentRuleTests
         var state = World().BeginMutation();
         state.Replace(state.Officers[10] with { BaseAbilities = new(50, 50, 60, 50), Injury = 5, HasRecruitmentPoliticsBonus = true });
         state.Replace(state.Forces[1] with { Trust = 96 });
-        Assert.Equal(-2, RecruitmentRules.Threshold(state, 10, 20));
+        Assert.Equal(-2, RecruitmentRules.Threshold(state, 10, 20, new()));
         state.Replace(state.Forces[1] with { Trust = 95 });
-        Assert.Equal(-3, RecruitmentRules.Threshold(state, 10, 20));
+        Assert.Equal(-3, RecruitmentRules.Threshold(state, 10, 20, new()));
     }
 
     [Fact]

@@ -260,7 +260,8 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
             return;
         }
         var target = world.Officers[journey.TargetOfficerId!.Value];
-        int threshold = RecruitmentRules.Threshold(world, task.OfficerId, target.Id);
+        bool historicalSuccess = Guandu.Apply(world, task.OfficerId, target.Id, simulationRules, events);
+        int threshold = historicalSuccess ? 100 : RecruitmentRules.Threshold(world, task.OfficerId, target.Id, simulationRules);
         int roll = journey.SuccessRoll!.Value;
         bool success = roll < threshold;
         if (success)
@@ -297,7 +298,7 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
         var leader = world.Officers[world.Forces[task.ForceId].LeaderId!.Value];
         int loyaltyGain = 10 + (50 - PersonnelRulebook.AffinityDistance(target, leader)) / 5;
         RecruitmentRules.SetLoyalty(world, target.Id, task.ForceId, Math.Min(255, target.LoyaltyTo(task.ForceId) + loyaltyGain), "search-recruit-interest", events);
-        int recruitThreshold = RecruitmentRules.Threshold(world, task.OfficerId, target.Id);
+        int recruitThreshold = RecruitmentRules.Threshold(world, task.OfficerId, target.Id, simulationRules);
         bool recruited = accept &&
             (int)(world.NextRandom("personnel-search-recruitment") % 100) < recruitThreshold;
         if (recruited)

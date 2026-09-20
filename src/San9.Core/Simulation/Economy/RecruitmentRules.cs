@@ -4,8 +4,9 @@ namespace San9.Core.Simulation;
 
 internal static class RecruitmentRules
 {
-    internal static int Threshold(WorldMutation world, int actorId, int targetId)
+    internal static int Threshold(WorldMutation world, int actorId, int targetId, SimulationRules rules)
     {
+        if (Guandu.Eligible(world, actorId, targetId, rules)) return 100;
         var actor = world.Officers[actorId];
         var target = world.Officers[targetId];
         var force = world.Forces[actor.OwnerId!.Value];

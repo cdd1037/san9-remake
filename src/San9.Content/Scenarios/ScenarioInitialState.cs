@@ -41,13 +41,14 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 85;
+    public const int CurrentSchemaVersion = 86;
     [JsonRequired] public San9.Core.Domain.HanzhongKingDefinition? HanzhongKing { get; init; }
     [JsonRequired] public San9.Core.Domain.FiveTigersDefinition? FiveTigers { get; init; }
     [JsonRequired] public San9.Core.Domain.ExpeditionMemorialDefinition? ExpeditionMemorial { get; init; }
     [JsonRequired] public San9.Core.Domain.SunMarriageDefinition? SunMarriage { get; init; }
     [JsonRequired] public San9.Core.Domain.ShanyangGongDefinition? ShanyangGong { get; init; }
     [JsonRequired] public San9.Core.Domain.RedCliffsDefinition? RedCliffs { get; init; }
+    [JsonRequired] public San9.Core.Domain.GuanduDefinition? Guandu { get; init; }
     [JsonRequired] public San9.Core.Domain.ChainedPlotDefinition? ChainedPlot { get; init; }
     [JsonRequired] public San9.Core.Domain.ThreeVisitsDefinition? ThreeVisits { get; init; }
     [JsonRequired] public San9.Core.Simulation.GameClock? ThreeVisitsStarted { get; init; }
@@ -140,6 +141,7 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
             }
             ShanyangGong?.Validate(ids, Settlements.Select(s => s.Id).Concat(UnbuiltPlaces.Select(p => p.Id)).ToHashSet(), Information.Ranks.Length > 0);
             RedCliffs?.Validate(ids, historicalCities, Settlements.Select(s => s.Id).Concat(UnbuiltPlaces.Select(p => p.Id)).ToHashSet(), Military?.RegionIds.IsEmpty == false);
+            Guandu?.Validate(ids, Settlements.Select(s => s.Id).Concat(UnbuiltPlaces.Select(p => p.Id)).ToHashSet(), Military?.RegionIds.IsEmpty == false);
             HanzhongKing?.Validate(ids, historicalCities, Information.Ranks.Select(r => r.Id).ToHashSet());
             FiveTigers?.Validate(ids, tactics);
             ExpeditionMemorial?.Validate(ids, CityProvinceIds, historicalCities, Information.CountryTitles.Select(t => t.Id).ToHashSet(), tactics);

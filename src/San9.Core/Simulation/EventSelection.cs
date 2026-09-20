@@ -28,6 +28,7 @@ public enum EventTrigger
     Month,
     Quarter,
     Year,
+    Recruitment,
 }
 
 /// <summary>Candidate selected before any event effect is committed.</summary>

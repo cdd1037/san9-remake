@@ -15,10 +15,10 @@ public sealed class SimulationEngine
 
     public SimulationEngine(WorldState world, EconomyRulebook economy, PersonnelRulebook personnel, TreasureRulebook treasures,
         GovernanceRulebook? governance = null, MilitaryRulebook? military = null, TerminalDefinition? terminal = null, PoliticalRulebook? politics = null, QiaoMarriageDefinition? qiaoMarriage = null, SunMarriageDefinition? sunMarriage = null,
-        HanzhongKingDefinition? hanzhongKing = null, FiveTigersDefinition? fiveTigers = null, ExpeditionMemorialDefinition? expeditionMemorial = null, ThreeVisitsDefinition? threeVisits = null, ChainedPlotDefinition? chainedPlot = null, RedCliffsDefinition? redCliffs = null, ShanyangGongDefinition? shanyangGong = null)
+        HanzhongKingDefinition? hanzhongKing = null, FiveTigersDefinition? fiveTigers = null, ExpeditionMemorialDefinition? expeditionMemorial = null, ThreeVisitsDefinition? threeVisits = null, ChainedPlotDefinition? chainedPlot = null, RedCliffsDefinition? redCliffs = null, ShanyangGongDefinition? shanyangGong = null, GuanduDefinition? guandu = null)
         : this(ValidateContent(world, treasures, governance), new SimulationRules
             { Economy = economy, Personnel = personnel, Treasures = treasures, Governance = governance ?? new([]), Military = military, Terminal = terminal, Politics = politics ?? PoliticalRulebook.Empty, QiaoMarriage = qiaoMarriage, SunMarriage = sunMarriage,
-                ShanyangGong = shanyangGong, RedCliffs = redCliffs, ChainedPlot = chainedPlot, ThreeVisits = threeVisits, HanzhongKing = hanzhongKing, FiveTigers = fiveTigers, ExpeditionMemorial = expeditionMemorial }) { }
+                Guandu = guandu, ShanyangGong = shanyangGong, RedCliffs = redCliffs, ChainedPlot = chainedPlot, ThreeVisits = threeVisits, HanzhongKing = hanzhongKing, FiveTigers = fiveTigers, ExpeditionMemorial = expeditionMemorial }) { }
 
     private static WorldState ValidateContent(WorldState world, TreasureRulebook treasures, GovernanceRulebook? governance)
     {
@@ -72,6 +72,7 @@ public sealed class SimulationEngine
                 throw new ArgumentException("Invalid dormant force activation state.");
         }
         rules.ShanyangGong?.Validate(officerIds, rules.Personnel.Places.Keys.ToHashSet(), rules.Politics.ImperialRankId is not null);
+        rules.Guandu?.Validate(officerIds, rules.Personnel.Places.Keys.ToHashSet(), rules.Military?.RegionIds.IsEmpty == false);
         rules.RedCliffs?.Validate(officerIds, cityIds, rules.Personnel.Places.Keys.ToHashSet(), rules.Military?.RegionIds.IsEmpty == false);
         var tacticIds = rules.Military?.Tactics.Values.Where(t => t.Category is >= 0 and <= 8).Select(t => t.Id).ToHashSet() ?? [];
         rules.HanzhongKing?.Validate(officerIds, cityIds, rules.Politics.Ranks.Keys.ToHashSet());

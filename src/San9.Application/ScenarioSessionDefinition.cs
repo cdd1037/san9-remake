@@ -25,6 +25,8 @@ internal sealed class ScenarioSessionDefinition
         {
             definition.SchemaVersion, definition.ScenarioId, definition.Year, definition.Month, definition.Day, definition.PlayerForceId, definition.DomesticPairs, definition.ImperialSealId, definition.ImperialCourt, definition.ImperialCourtEnded,
             definition.ShanyangGong,
+            Guandu = definition.Guandu is { } guandu ? guandu with
+                { PatronRegionIds = guandu.PatronRegionIds.Order().ToImmutableArray(), EnemyRegionIds = guandu.EnemyRegionIds.Order().ToImmutableArray() } : null,
             RedCliffs = definition.RedCliffs is { } battle ? battle with
                 { ExcludedRulerIds = battle.ExcludedRulerIds.Order().ToImmutableArray(), RegionIds = battle.RegionIds.Order().ToImmutableArray() } : null,
             ChainedPlot = definition.ChainedPlot is { } plot ? plot with

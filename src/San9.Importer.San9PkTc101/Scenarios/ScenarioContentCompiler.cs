@@ -129,6 +129,7 @@ public static class ScenarioContentCompiler
             ExpeditionMemorial = EventContentCompiler.ExpeditionMemorial(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id)),
             ShanyangGong = EventContentCompiler.ShanyangGong(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id)),
             RedCliffs = EventContentCompiler.RedCliffs(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id)),
+            Guandu = EventContentCompiler.Guandu(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id)),
             ChainedPlot = EventContentCompiler.ChainedPlot(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id)),
             ThreeVisits = EventContentCompiler.ThreeVisits(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id)),
             QiaoMarriage = EventContentCompiler.QiaoMarriage(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id)),

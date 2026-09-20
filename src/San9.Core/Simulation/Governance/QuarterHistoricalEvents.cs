@@ -11,7 +11,9 @@ internal static class QuarterHistoricalEvents
     {
         // An alliance proposal owns this table even when all players decline it.
         if (AllianceFormation.Begin(world, rules, events)) return;
-        if (!ApplyQiaoMarriage(world, rules, events)) SunMarriage.Apply(world, rules, events);
+        if (ApplyQiaoMarriage(world, rules, events) || SunMarriage.Apply(world, rules, events) ||
+            HistoricalRecognition.ApplyHanzhongKing(world, rules, events) || HistoricalRecognition.ApplyFiveTigers(world, rules, events)) return;
+        HistoricalRecognition.ApplyExpeditionMemorial(world, rules, events);
     }
 
     internal static bool ApplyQiaoMarriage(WorldMutation world, SimulationRules rules, List<DomainEvent> events)

@@ -14,9 +14,11 @@ public sealed class SimulationEngine
         : this(world, new SimulationRules { Economy = economy, Personnel = personnel }) { }
 
     public SimulationEngine(WorldState world, EconomyRulebook economy, PersonnelRulebook personnel, TreasureRulebook treasures,
-        GovernanceRulebook? governance = null, MilitaryRulebook? military = null, TerminalDefinition? terminal = null, PoliticalRulebook? politics = null, QiaoMarriageDefinition? qiaoMarriage = null, SunMarriageDefinition? sunMarriage = null)
+        GovernanceRulebook? governance = null, MilitaryRulebook? military = null, TerminalDefinition? terminal = null, PoliticalRulebook? politics = null, QiaoMarriageDefinition? qiaoMarriage = null, SunMarriageDefinition? sunMarriage = null,
+        HanzhongKingDefinition? hanzhongKing = null, FiveTigersDefinition? fiveTigers = null, ExpeditionMemorialDefinition? expeditionMemorial = null)
         : this(ValidateContent(world, treasures, governance), new SimulationRules
-            { Economy = economy, Personnel = personnel, Treasures = treasures, Governance = governance ?? new([]), Military = military, Terminal = terminal, Politics = politics ?? PoliticalRulebook.Empty, QiaoMarriage = qiaoMarriage, SunMarriage = sunMarriage }) { }
+            { Economy = economy, Personnel = personnel, Treasures = treasures, Governance = governance ?? new([]), Military = military, Terminal = terminal, Politics = politics ?? PoliticalRulebook.Empty, QiaoMarriage = qiaoMarriage, SunMarriage = sunMarriage,
+                HanzhongKing = hanzhongKing, FiveTigers = fiveTigers, ExpeditionMemorial = expeditionMemorial }) { }
 
     private static WorldState ValidateContent(WorldState world, TreasureRulebook treasures, GovernanceRulebook? governance)
     {
@@ -46,6 +48,12 @@ public sealed class SimulationEngine
         rules.QiaoMarriage?.Validate(world.CreateSnapshot().Officers.Select(p => p.Id).ToHashSet(), rules.Personnel.CityProvinces);
         rules.SunMarriage?.Validate(world.CreateSnapshot().Officers.Select(p => p.Id).ToHashSet(),
             rules.Military?.Tactics.Values.Where(t => t.Category is >= 0 and <= 8).Select(t => t.Id).ToHashSet() ?? []);
+        var officerIds = initial.Officers.Keys.ToHashSet();
+        var cityIds = initial.Settlements.Values.Where(s => s.Kind == SettlementKind.City).Select(s => s.Id).ToHashSet();
+        var tacticIds = rules.Military?.Tactics.Values.Where(t => t.Category is >= 0 and <= 8).Select(t => t.Id).ToHashSet() ?? [];
+        rules.HanzhongKing?.Validate(officerIds, cityIds, rules.Politics.Ranks.Keys.ToHashSet());
+        rules.FiveTigers?.Validate(officerIds, tacticIds);
+        rules.ExpeditionMemorial?.Validate(officerIds, rules.Personnel.CityProvinces, cityIds, rules.Politics.Titles.Keys.ToHashSet(), tacticIds);
         if (initial.Corps.Values.Any(c => !CorpsDelegations.Valid(initial, c, rules.Military)))
             throw new ArgumentException("Invalid corps delegation target.");
         foreach (var task in world.Simulation.Tasks)

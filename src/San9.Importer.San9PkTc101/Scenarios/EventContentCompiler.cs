@@ -6,6 +6,31 @@ namespace San9.Importer.San9PkTc101.Scenarios;
 
 public static class EventContentCompiler
 {
+    private static int HistoricalPerson(IReadOnlyList<San9ScenarioPersonRecord> people, IEnumerable<int> retainedOfficerIds, int biography)
+    {
+        var retained = retainedOfficerIds.ToArray();
+        if (retained.Any(id => id < 0 || id >= people.Count)) throw new InvalidDataException("Invalid retained officer identity.");
+        var matches = retained.Where(id => people[id].BiographyResourceCode == biography).ToArray();
+        return matches.Length == 1 ? matches[0] : throw new InvalidDataException("Expected one historical person identity.");
+    }
+
+    public static HanzhongKingDefinition? HanzhongKing(byte scenarioMode,
+        IReadOnlyList<San9ScenarioPersonRecord> people, IEnumerable<int> retainedOfficerIds) => scenarioMode is 2 or 9 ? null :
+        new(HistoricalPerson(people, retainedOfficerIds, 36), 38, 1, 30, 600, 20, new("hanzhong-king"));
+
+    public static FiveTigersDefinition? FiveTigers(byte scenarioMode,
+        IReadOnlyList<San9ScenarioPersonRecord> people, IEnumerable<int> retainedOfficerIds)
+    {
+        if (scenarioMode is 2 or 9) return null;
+        var retained = retainedOfficerIds.ToArray();
+        return new(new[] { 2, 1, 9, 4, 23 }.Select(b => HistoricalPerson(people, retained, b)).ToImmutableArray(),
+            30, 15, 200, [21, 28], new("five-tigers"));
+    }
+
+    public static ExpeditionMemorialDefinition? ExpeditionMemorial(byte scenarioMode,
+        IReadOnlyList<San9ScenarioPersonRecord> people, IEnumerable<int> retainedOfficerIds) => scenarioMode is 2 or 9 ? null :
+        new(HistoricalPerson(people, retainedOfficerIds, 45), 1, 12, 15, 10, 15, [11, 15], new("expedition-memorial"));
+
     public static SunMarriageDefinition? SunMarriage(byte scenarioMode,
         IReadOnlyList<San9ScenarioPersonRecord> people, IEnumerable<int> retainedOfficerIds)
     {
@@ -55,12 +80,12 @@ public static class EventContentCompiler
             { Id = "shenshou", Priority = -28, Consumption = EventConsumption.OnPresentation }];
     }
 
-    // RE-SAN9PK-0130/0141: preserve beast encounters, Qiao marriage, and
+    // RE-SAN9PK-0130/0141: preserve supported historical events, beast encounters, and
     // Shanyanggong consumption also set by abdication. Source bits stay in this importer.
     public static ImmutableArray<PersistentEventKey> ConsumedKeys(IReadOnlyList<uint> flagWords)
     {
         if (flagWords.Count != 4) throw new InvalidDataException("Expected four scenario flag words.");
-        (int Bit, string Key)[] events = [(9, PoliticalContentCompiler.CourtEndedKey.Value), (12, "qiao-marriage"), (13, "sun-marriage"), (17, "shenshou.xihe"), (18, "shenshou.wanwen"), (19, "shenshou.jianan")];
+        (int Bit, string Key)[] events = [(8, "hanzhong-king"), (10, "expedition-memorial"), (11, "five-tigers"), (9, PoliticalContentCompiler.CourtEndedKey.Value), (12, "qiao-marriage"), (13, "sun-marriage"), (17, "shenshou.xihe"), (18, "shenshou.wanwen"), (19, "shenshou.jianan")];
         return events.Where(e => (flagWords[e.Bit / 32] & (1u << (e.Bit % 32))) != 0)
             .Select(e => new PersistentEventKey(e.Key)).OrderBy(k => k.Value, StringComparer.Ordinal).ToImmutableArray();
     }

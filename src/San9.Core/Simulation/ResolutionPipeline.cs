@@ -20,6 +20,9 @@ public sealed record ControlEndedEvent(string ControllerId, int ForceId) : Domai
 // Rules are compiled domain code, not callbacks loaded from content or saves.
 internal class SimulationRules
 {
+    internal HanzhongKingDefinition? HanzhongKing { get; init; }
+    internal FiveTigersDefinition? FiveTigers { get; init; }
+    internal ExpeditionMemorialDefinition? ExpeditionMemorial { get; init; }
     internal SunMarriageDefinition? SunMarriage { get; init; }
     internal QiaoMarriageDefinition? QiaoMarriage { get; init; }
     internal PoliticalRulebook Politics { get; init; } = PoliticalRulebook.Empty;

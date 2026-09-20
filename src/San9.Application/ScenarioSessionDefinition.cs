@@ -23,7 +23,7 @@ internal sealed class ScenarioSessionDefinition
         Fingerprint = CanonicalJson.Hash(new
         {
             definition.SchemaVersion, definition.ScenarioId, definition.Year, definition.Month, definition.Day, definition.PlayerForceId, definition.DomesticPairs, definition.ImperialSealId, definition.ImperialCourt, definition.ImperialCourtEnded,
-            definition.Military, definition.SunMarriage, definition.PoliticalEvents, definition.ProvinceCountryTitleIds,
+            definition.Military, definition.HanzhongKing, definition.FiveTigers, definition.ExpeditionMemorial, definition.SunMarriage, definition.PoliticalEvents, definition.ProvinceCountryTitleIds,
             QiaoMarriage = definition.QiaoMarriage is { } qiao ? qiao with
                 { RequiredLivingOfficerIds = qiao.RequiredLivingOfficerIds.Order().ToImmutableArray(), ExcludedCityIds = qiao.ExcludedCityIds.Order().ToImmutableArray() } : null,
             CountryTitles = definition.Information.CountryTitles.OrderBy(t => t.Id).Select(t => t.Rule with

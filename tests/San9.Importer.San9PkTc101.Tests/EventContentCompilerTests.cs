@@ -36,6 +36,35 @@ public sealed class EventContentCompilerTests
         Assert.Throws<InvalidDataException>(() => EventContentCompiler.QiaoMarriage(0, people, [0, 1, 2, 3]));
     }
 
+    [Fact]
+    public void HistoricalRecognitionConvertsReferencesAndExactRewardsWithoutFilteringPeople()
+    {
+        var people = new[] { Person(45), Person(23), Person(9), Person(36), Person(1), Person(4), Person(2) };
+        int[] retained = [0, 1, 2, 3, 4, 5, 6];
+        var king = EventContentCompiler.HanzhongKing(0, people, retained)!;
+        Assert.Equal((3, 38, 1, 30, 600, 20), (king.RulerId, king.CityId, king.RankId, king.MinimumElapsedDays, king.RequiredTrust, king.BaseTrustBonus));
+        var tigers = EventContentCompiler.FiveTigers(0, people, retained)!;
+        Assert.Equal(new[] { 6, 4, 2, 5, 1 }, tigers.OfficerIds);
+        Assert.Equal((30, 15, 200), (tigers.MinimumElapsedDays, tigers.BaseTrustBonus, tigers.LoyaltyBonus));
+        Assert.Equal(new[] { 21, 28 }, tigers.GrantedTacticIds);
+        var memorial = EventContentCompiler.ExpeditionMemorial(0, people, retained)!;
+        Assert.Equal((0, 1, 12, 15, 10, 15), (memorial.OfficerId, memorial.CountryTitleId, memorial.ProvinceId,
+            memorial.OpposingCityId, memorial.BaseTrustBonus, memorial.LoyaltyBonus));
+        Assert.Equal(new[] { 11, 15 }, memorial.GrantedTacticIds);
+        Assert.NotNull(EventContentCompiler.HanzhongKing(1, people, retained));
+        Assert.NotNull(EventContentCompiler.FiveTigers(1, people, retained));
+        Assert.NotNull(EventContentCompiler.ExpeditionMemorial(1, people, retained));
+        foreach (byte mode in new byte[] { 2, 9 })
+        {
+            Assert.Null(EventContentCompiler.HanzhongKing(mode, people, []));
+            Assert.Null(EventContentCompiler.FiveTigers(mode, people, []));
+            Assert.Null(EventContentCompiler.ExpeditionMemorial(mode, people, []));
+        }
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.HanzhongKing(0, people, [0]));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.FiveTigers(0, people, [0]));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.ExpeditionMemorial(0, people, [1]));
+    }
+
     private static San9ScenarioPersonRecord Person(ushort biography) => new(
         0, 6000, 0, 0, 0, 0, 0, biography, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         [], 0, 0, [], 0);
@@ -71,6 +100,9 @@ public sealed class EventContentCompilerTests
     }
 
     [Theory]
+    [InlineData(8, "hanzhong-king")]
+    [InlineData(10, "expedition-memorial")]
+    [InlineData(11, "five-tigers")]
     [InlineData(9, "shanyang-gong")]
     [InlineData(12, "qiao-marriage")]
     [InlineData(13, "sun-marriage")]
@@ -85,7 +117,7 @@ public sealed class EventContentCompilerTests
     [Fact]
     public void UnrelatedFlagsDoNotBecomeAuthoredEventKeys()
     {
-        Assert.Empty(EventContentCompiler.ConsumedKeys([~((7u << 17) | (1u << 9) | (1u << 12) | (1u << 13)), uint.MaxValue, uint.MaxValue, uint.MaxValue]));
+        Assert.Empty(EventContentCompiler.ConsumedKeys([~((7u << 17) | (1u << 8) | (1u << 10) | (1u << 11) | (1u << 9) | (1u << 12) | (1u << 13)), uint.MaxValue, uint.MaxValue, uint.MaxValue]));
         Assert.Equal(["shenshou.jianan", "shenshou.wanwen", "shenshou.xihe"],
             EventContentCompiler.ConsumedKeys([7u << 17, 0, 0, 0]).Select(k => k.Value));
     }

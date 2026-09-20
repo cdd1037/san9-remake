@@ -37,7 +37,10 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 76;
+    public const int CurrentSchemaVersion = 77;
+    [JsonRequired] public San9.Core.Domain.HanzhongKingDefinition? HanzhongKing { get; init; }
+    [JsonRequired] public San9.Core.Domain.FiveTigersDefinition? FiveTigers { get; init; }
+    [JsonRequired] public San9.Core.Domain.ExpeditionMemorialDefinition? ExpeditionMemorial { get; init; }
     [JsonRequired] public San9.Core.Domain.SunMarriageDefinition? SunMarriage { get; init; }
     [JsonRequired] public San9.Core.Domain.QiaoMarriageDefinition? QiaoMarriage { get; init; }
     [JsonRequired] public San9.Core.Domain.PoliticalEventsDefinition? PoliticalEvents { get; init; }
@@ -104,6 +107,10 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
                     throw new InvalidDataException("Unknown search event officer reference.");
             SunMarriage?.Validate(ids, Military?.Tactics.Where(t => t.Category is >= 0 and <= 8).Select(t => t.Id).ToHashSet() ?? []);
             var tactics = Military?.Tactics.Where(t => t.Category is >= 0 and <= 8).Select(t => t.Id).ToHashSet() ?? [];
+            var historicalCities = Settlements.Where(s => s.Kind == San9.Core.Domain.SettlementKind.City).Select(s => s.Id).ToHashSet();
+            HanzhongKing?.Validate(ids, historicalCities, Information.Ranks.Select(r => r.Id).ToHashSet());
+            FiveTigers?.Validate(ids, tactics);
+            ExpeditionMemorial?.Validate(ids, CityProvinceIds, historicalCities, Information.CountryTitles.Select(t => t.Id).ToHashSet(), tactics);
             foreach (var beast in SearchEvents.OfType<San9.Core.Domain.BeastSearchEventDefinition>())
                 if (beast.BattleTacticIds.Concat(beast.Sites.SelectMany(s => s.RewardTacticIds)).Any(id => !tactics.Contains(id)))
                     throw new InvalidDataException("Unknown or unlearnable search event tactic reference.");

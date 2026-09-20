@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Text.Json.Serialization;
+using San9.Core.Simulation;
 
 namespace San9.Core.Domain;
 
@@ -26,6 +27,13 @@ public sealed class PersonnelRulebook
                 _ = healing.Candidate(healing.ConsumptionKey);
                 if (healing.HealerOfficerId < 0 || healing.WarChanceDivisor <= 0 ||
                     !ValidIds(healing.ExcludedSearchingOfficerIds)) throw new ArgumentException("Invalid healing event definition.");
+            }
+            else if (entry is TreasureMonumentSearchEventDefinition monument)
+            {
+                _ = monument.Candidate(monument.ConsumptionKey);
+                if (!Places.ContainsKey(monument.PlaceId) || monument.TreasureId < 0 || monument.MinimumRankId < 0 ||
+                    monument.Cost == 0 || monument.BaseTrustReward < 0 || monument.Consumption != EventConsumption.OnSuccess)
+                    throw new ArgumentException("Invalid treasure monument definition.");
             }
             else if (entry is ImperialCeremonySearchEventDefinition ceremony)
             {

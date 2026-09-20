@@ -13,11 +13,13 @@ public sealed record SearchCommand(Guid CommandId, int IssuerId, long Sequence, 
 [System.Text.Json.Serialization.JsonDerivedType(typeof(PersonSearchEncounter), "person")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(BeastSearchEncounter), "beast")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(ScholarReturnEncounter), "scholar-return")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(TreasureMonumentEncounter), "treasure-monument")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(ShanyangGongEncounter), "shanyang-gong")]
 public abstract record SearchEncounter;
 public sealed record PersonSearchEncounter(int OfficerId) : SearchEncounter;
 public sealed record BeastSearchEncounter(string EventId) : SearchEncounter;
 public sealed record ScholarReturnEncounter(string EventId) : SearchEncounter;
+public sealed record TreasureMonumentEncounter(string EventId) : SearchEncounter;
 public sealed record ShanyangGongEncounter(bool ChoosingCountryTitle = false) : SearchEncounter;
 public sealed record SearchRecruitmentPrompt(Guid TaskId, int Step, int ForceId, int SearchingOfficerId, int DiscoveredOfficerId, int PlaceId);
 public enum SearchResultKind { None, Person, Treasure, Money }
@@ -149,6 +151,7 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
         (task.ResolutionStep == 0 ? task.SearchEncounter is null : kind == PersonnelMissions.SearchKind &&
             (task.ResolutionStep == 1 && (task.SearchEncounter is PersonSearchEncounter { OfficerId: >= 0 } ||
                 task.SearchEncounter is ScholarReturnEncounter scholar && rules.SearchEvents.GetValueOrDefault(scholar.EventId) is ScholarReturnSearchEventDefinition ||
+                task.SearchEncounter is TreasureMonumentEncounter monument && rules.SearchEvents.GetValueOrDefault(monument.EventId) is TreasureMonumentSearchEventDefinition ||
                 task.SearchEncounter is BeastSearchEncounter beast && rules.SearchEvents.GetValueOrDefault(beast.EventId) is BeastSearchEventDefinition) ||
              simulationRules.ShanyangGong is not null && task.SearchEncounter is ShanyangGongEncounter encounter &&
                 task.ResolutionStep == (encounter.ChoosingCountryTitle ? 2 : 1))) &&
@@ -182,6 +185,8 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
             return ShanyangGong.Resolve(world, task, simulationRules, accept ?? true, null, events);
         if (task.SearchEncounter is PersonSearchEncounter encounter)
             ResolvePerson(world, task, encounter.OfficerId, accept ?? true, events);
+        else if (task.SearchEncounter is TreasureMonumentEncounter monument)
+            TreasureMonument.Resolve(world, task, simulationRules, monument, accept ?? true, events);
         else if (task.SearchEncounter is ScholarReturnEncounter scholar)
             ScholarReturn.Resolve(world, task, rules, economy, scholar, accept ?? true, events);
         else if (task.SearchEncounter is BeastSearchEncounter beast)
@@ -221,6 +226,7 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
                         discovered.Status == OfficerStatus.Undiscovered && (discovered.SettlementId ?? discovered.RegionId) == journey.DestinationPlaceId,
                     ShanyangGongEncounter => ShanyangGong.Eligible(world, task, simulationRules),
                     ScholarReturnEncounter scholar => ScholarReturn.CanResolve(world, task, rules, scholar),
+                    TreasureMonumentEncounter monument => TreasureMonument.CanResolve(world, task, simulationRules, monument),
                     BeastSearchEncounter beast => SearchEvents.CanResolveBeast(world, task, rules, beast),
                     _ => false
                 }) &&

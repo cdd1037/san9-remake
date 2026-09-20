@@ -9,6 +9,7 @@ namespace San9.Core.Domain;
 [JsonDerivedType(typeof(BeastSearchEventDefinition), "beast")]
 [JsonDerivedType(typeof(ScholarReturnSearchEventDefinition), "scholar-return")]
 [JsonDerivedType(typeof(ImperialCeremonySearchEventDefinition), "imperial-ceremony")]
+[JsonDerivedType(typeof(TreasureMonumentSearchEventDefinition), "treasure-monument")]
 public abstract record SearchEventDefinition
 {
     [JsonRequired] public string Id { get; init; } = "";
@@ -62,4 +63,13 @@ public sealed record ImperialCeremonySearchEventDefinition(
     [property: JsonRequired] int AbilityReward,
     [property: JsonRequired] int BaseTrustReward,
     [property: JsonRequired] int LoyaltyReward,
+    [property: JsonRequired] PersistentEventKey ConsumptionKey) : SearchEventDefinition;
+
+public sealed record TreasureMonumentSearchEventDefinition(
+    [property: JsonRequired] int PlaceId,
+    [property: JsonRequired] int TreasureId,
+    [property: JsonRequired] int MinimumRankId,
+    [property: JsonRequired] uint MinimumMoneyExclusive,
+    [property: JsonRequired] uint Cost,
+    [property: JsonRequired] int BaseTrustReward,
     [property: JsonRequired] PersistentEventKey ConsumptionKey) : SearchEventDefinition;

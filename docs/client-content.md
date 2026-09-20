@@ -9,7 +9,7 @@ G09人物生命周期新增必填`lifespanTier`、`successionPriority`及场景`
 | 模块 | 职责 | 输出 |
 | --- | --- | --- |
 | Content.Maps / MapImporter | 当前地图方格、地貌及对象位置 | `map.json`（无图片文件） |
-| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema83 |
+| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema84 |
 | Content.Text / ScenarioTextReader | 名称与全量消息目录 | `text.json` / `messages.json`，schema3 |
 | Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema16 |
 | Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema87 |
@@ -48,6 +48,9 @@ G08的schema53/57增加必填`CityProvinceIds`和`MilitaryDefinition.TerritoryEx
 TC101剧本导入以源坐标识别地域配置：双坐标均为无效哨兵的槽不生成地域、名称文本或城市归属映射；单轴无效或越界坐标直接报错。有效但尚未建造的地域完整保留，稳定ID不重排。人物和宝物引用由转换后的契约校验，不能通过丢弃引用对象掩盖错误。
 
 ## 接入前的数据核对
+
+铜雀台使用剧本schema84／组合88、规则`san9-core-g10-v21`，保存／日志仍67。`SearchEvents`新增`TreasureMonumentSearchEventDefinition`，Importer绑定邺5、铜雀81、公爵2及世界位20；共享契约保存语义引用与费用／奖励，运行时按官爵`Precedence`、当前持有者原属及当前账户余额判断，不维护派生资格名单。人物、宝物、城市和显示资源均完整保留；模式1启用，2／9关闭事件生产。原位旧包核对确认邺及铜雀身份与初始埋藏状态，真实新包重转留待阶段收口。内容校验／指纹、只读`GetTreasureMonumentPrompt()`、现有回答命令、结构化结果、稳定保存及录像已贯通；不新增地图设施或图片资源，剧情画面未验收。
+
 
 当前山阳公使用剧本schema81／组合85、规则`san9-core-g10-v18`，保存／日志66。必填可空`ShanyangGong`声明献帝、探索地点、皇族姓氏及门槛／奖励；人物新增必填`Surname`，势力初始与运行时新增必填`HasDeposedEmperor`。Importer从姓氏资源解码独立姓氏，解析唯一列传565、地点95、源势力事件位0、世界消费位9及234-09-01起的初始预置；源编号不进入运行时判断。人物／势力／地域／官爵／国号／文本与图像集合均不缩减；不维护按姓氏派生的君主名单。模式1保留事件、2／9关闭定义，基础人物和势力状态仍完整导入。
 

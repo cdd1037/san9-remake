@@ -7,33 +7,49 @@ namespace San9.Importer.San9PkTc101.Tests;
 public sealed class EventContentCompilerTests
 {
     [Fact]
+    public void TongqueTowerBindsTreasureRankAndSuccessOnlyConsumption()
+    {
+        foreach (byte mode in new byte[] { 0, 1 })
+        {
+            var events = EventContentCompiler.SearchEvents(mode, [Person(497), Person(569)], [0, 1], new HashSet<int> { 5, 73, 178, 128, 96, 82 });
+            var d = Assert.Single(events.OfType<TreasureMonumentSearchEventDefinition>());
+            Assert.Equal((5, 81, 2, 25000u, 10000u, 5), (d.PlaceId, d.TreasureId, d.MinimumRankId, d.MinimumMoneyExclusive, d.Cost, d.BaseTrustReward));
+            Assert.Equal(EventConsumption.OnSuccess, d.Consumption);
+            Assert.True(Assert.Single(events.OfType<BeastSearchEventDefinition>()).Priority > d.Priority);
+            Assert.Contains(d.ConsumptionKey, EventContentCompiler.ConsumedKeys([1u << 20, 0, 0, 0], new(190, 1, 1)));
+            Assert.DoesNotContain(d.ConsumptionKey, EventContentCompiler.ConsumedKeys([0, 0, 0, 0], new(300, 1, 1)));
+        }
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.SearchEvents(0, [Person(497), Person(569)], [0, 1], new HashSet<int> { 73, 178, 128, 96, 82 }));
+    }
+
+    [Fact]
     public void FengshanConvertsSiteRankAndGlobalConsumptionWithoutDatePreset()
     {
         foreach (byte mode in new byte[] { 0, 1 })
         {
-            var events = EventContentCompiler.SearchEvents(mode, [Person(497), Person(569)], [0, 1], new HashSet<int> { 73, 178, 128, 96, 82 });
+            var events = EventContentCompiler.SearchEvents(mode, [Person(497), Person(569)], [0, 1], new HashSet<int> { 5, 73, 178, 128, 96, 82 });
             var d = Assert.Single(events.OfType<ImperialCeremonySearchEventDefinition>());
             Assert.Equal((82, 0, 5, 50, 10), (d.PlaceId, d.RequiredRankId, d.AbilityReward, d.BaseTrustReward, d.LoyaltyReward));
             Assert.Equal(d, events.OrderByDescending(e => e.Priority).First());
             Assert.Contains(d.ConsumptionKey, EventContentCompiler.ConsumedKeys([1u << 7, 0, 0, 0], new(190, 1, 1)));
             Assert.DoesNotContain(d.ConsumptionKey, EventContentCompiler.ConsumedKeys([0, 0, 0, 0], new(300, 1, 1)));
         }
-        Assert.Throws<InvalidDataException>(() => EventContentCompiler.SearchEvents(0, [Person(497), Person(569)], [0, 1], new HashSet<int> { 73, 178, 128, 96 }));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.SearchEvents(0, [Person(497), Person(569)], [0, 1], new HashSet<int> { 5, 73, 178, 128, 96 }));
     }
 
     [Fact]
     public void ScholarReturnBindsRetainedIdentityOrderedRewardsAndIndependentForceHistory()
     {
         var people = new[] { Person(569), Person(497) };
-        var definitions = EventContentCompiler.SearchEvents(0, people, [0, 1], new HashSet<int> { 73, 178, 128, 96, 82 });
+        var definitions = EventContentCompiler.SearchEvents(0, people, [0, 1], new HashSet<int> { 5, 73, 178, 128, 96, 82 });
         var d = Assert.Single(definitions.OfType<ScholarReturnSearchEventDefinition>());
         Assert.Equal((0, 96, 115, 3, 300, 1000, 3000u), (d.ScholarOfficerId, d.PlaceId, d.MaximumBaseAbilityExclusive,
             d.PoliticsChanceDivisor, d.MinimumTrustExclusive, d.MaximumBaseTrustExclusive, d.MinimumMoneyExclusive));
         Assert.Equal(new GameClock(195, 1, 1), d.EarliestDate); Assert.Equal(new GameClock(207, 12, 30), d.LatestDate);
         Assert.Equal(new[] { 10, 25, 22, 29 }, d.RewardTacticIds);
-        Assert.Equal(new[] { "fengshan", "hua-tuo.healing", "cai-yan", "shenshou" }, definitions.OrderByDescending(e => e.Priority).Select(e => e.Id));
-        Assert.Throws<InvalidDataException>(() => EventContentCompiler.SearchEvents(0, people, [1], new HashSet<int> { 73, 178, 128, 96, 82 }));
-        Assert.Throws<InvalidDataException>(() => EventContentCompiler.SearchEvents(0, [.. people, Person(569)], [0, 1, 2], new HashSet<int> { 73, 178, 128, 96, 82 }));
+        Assert.Equal(new[] { "fengshan", "hua-tuo.healing", "cai-yan", "shenshou", "tongque-tower" }, definitions.OrderByDescending(e => e.Priority).Select(e => e.Id));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.SearchEvents(0, people, [1], new HashSet<int> { 5, 73, 178, 128, 96, 82 }));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.SearchEvents(0, [.. people, Person(569)], [0, 1, 2], new HashSet<int> { 5, 73, 178, 128, 96, 82 }));
         Assert.Throws<InvalidDataException>(() => EventContentCompiler.SearchEvents(0, people, [0, 1], new HashSet<int> { 73, 178, 128 }));
         var force = new San9ScenarioForceRecord(0, 0, 0, 1u << 22, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, []);
         Assert.Equal(d.SuccessHistoryKey, Assert.Single(EventContentCompiler.ForceEventHistory(force)));
@@ -174,13 +190,13 @@ public sealed class EventContentCompilerTests
     public void HealingReferencesUseRetainedPersonIdentityAndModesExcludeTheCandidate()
     {
         var people = new[] { Person(60), Person(497), Person(60), Person(569) };
-        var definition = Assert.Single(EventContentCompiler.SearchEvents(0, people, [1, 2, 3], new HashSet<int> { 73, 178, 128, 96, 82 }).OfType<HealingSearchEventDefinition>());
+        var definition = Assert.Single(EventContentCompiler.SearchEvents(0, people, [1, 2, 3], new HashSet<int> { 5, 73, 178, 128, 96, 82 }).OfType<HealingSearchEventDefinition>());
         Assert.Equal(1, definition.HealerOfficerId);
         Assert.Equal(2, Assert.Single(definition.ExcludedSearchingOfficerIds));
         Assert.Equal(6, definition.WarChanceDivisor);
-        Assert.Empty(EventContentCompiler.SearchEvents(2, people, [1, 2, 3], new HashSet<int> { 73, 178, 128, 96, 82 }));
-        Assert.Empty(EventContentCompiler.SearchEvents(9, people, [1, 2, 3], new HashSet<int> { 73, 178, 128, 96, 82 }));
-        Assert.Throws<InvalidDataException>(() => EventContentCompiler.SearchEvents(0, people, [0, 2], new HashSet<int> { 73, 178, 128, 96, 82 }));
+        Assert.Empty(EventContentCompiler.SearchEvents(2, people, [1, 2, 3], new HashSet<int> { 5, 73, 178, 128, 96, 82 }));
+        Assert.Empty(EventContentCompiler.SearchEvents(9, people, [1, 2, 3], new HashSet<int> { 5, 73, 178, 128, 96, 82 }));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.SearchEvents(0, people, [0, 2], new HashSet<int> { 5, 73, 178, 128, 96, 82 }));
     }
 
     [Theory]
@@ -188,7 +204,7 @@ public sealed class EventContentCompilerTests
     [InlineData(1, false)]
     public void BeastSitesKeepSourceRewardOrderIndependentKeysAndModeLifespanRule(byte mode, bool loseLifespan)
     {
-        var definitions = EventContentCompiler.SearchEvents(mode, [Person(497), Person(569)], [0, 1], new HashSet<int> { 73, 178, 128, 96, 82 });
+        var definitions = EventContentCompiler.SearchEvents(mode, [Person(497), Person(569)], [0, 1], new HashSet<int> { 5, 73, 178, 128, 96, 82 });
         var beast = Assert.Single(definitions.OfType<BeastSearchEventDefinition>());
         Assert.Equal(loseLifespan, beast.ReduceLifespanOnDefeat);
         Assert.True(Assert.Single(definitions.OfType<HealingSearchEventDefinition>()).Priority > beast.Priority);
@@ -207,6 +223,7 @@ public sealed class EventContentCompilerTests
     [InlineData(4, "three-visits.first-visit")]
     [InlineData(5, "three-visits.completed")]
     [InlineData(7, "fengshan")]
+    [InlineData(20, "tongque-tower")]
     [InlineData(8, "hanzhong-king")]
     [InlineData(10, "expedition-memorial")]
     [InlineData(11, "five-tigers")]
@@ -234,7 +251,7 @@ public sealed class EventContentCompilerTests
     [Fact]
     public void UnrelatedFlagsDoNotBecomeAuthoredEventKeys()
     {
-        Assert.Empty(EventContentCompiler.ConsumedKeys([~((3u << 1) | (7u << 3) | (7u << 17) | (1u << 7) | (1u << 8) | (1u << 10) | (1u << 11) | (1u << 9) | (1u << 12) | (1u << 13) | (1u << 15) | (1u << 16)), uint.MaxValue, uint.MaxValue, uint.MaxValue], new(190, 1, 1)));
+        Assert.Empty(EventContentCompiler.ConsumedKeys([~((3u << 1) | (7u << 3) | (7u << 17) | (1u << 7) | (1u << 8) | (1u << 10) | (1u << 11) | (1u << 9) | (1u << 12) | (1u << 13) | (1u << 15) | (1u << 16) | (1u << 20)), uint.MaxValue, uint.MaxValue, uint.MaxValue], new(190, 1, 1)));
         Assert.Equal(["shenshou.jianan", "shenshou.wanwen", "shenshou.xihe"],
             EventContentCompiler.ConsumedKeys([7u << 17, 0, 0, 0], new(190, 1, 1)).Select(k => k.Value));
     }

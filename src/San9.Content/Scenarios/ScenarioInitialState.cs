@@ -39,7 +39,7 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 83;
+    public const int CurrentSchemaVersion = 84;
     [JsonRequired] public San9.Core.Domain.HanzhongKingDefinition? HanzhongKing { get; init; }
     [JsonRequired] public San9.Core.Domain.FiveTigersDefinition? FiveTigers { get; init; }
     [JsonRequired] public San9.Core.Domain.ExpeditionMemorialDefinition? ExpeditionMemorial { get; init; }
@@ -124,6 +124,10 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
             HanzhongKing?.Validate(ids, historicalCities, Information.Ranks.Select(r => r.Id).ToHashSet());
             FiveTigers?.Validate(ids, tactics);
             ExpeditionMemorial?.Validate(ids, CityProvinceIds, historicalCities, Information.CountryTitles.Select(t => t.Id).ToHashSet(), tactics);
+            foreach (var monument in SearchEvents.OfType<San9.Core.Domain.TreasureMonumentSearchEventDefinition>())
+                if (!Settlements.Any(s => s.Id == monument.PlaceId) || !Information.Ranks.Any(r => r.Id == monument.MinimumRankId) ||
+                    !Information.Treasures.Any(t => t.Id == monument.TreasureId))
+                    throw new InvalidDataException("Unknown treasure monument reference.");
             foreach (var ceremony in SearchEvents.OfType<San9.Core.Domain.ImperialCeremonySearchEventDefinition>())
                 if (!Information.Ranks.Any(r => r.Id == ceremony.RequiredRankId)) throw new InvalidDataException("Unknown ceremony rank reference.");
             foreach (var scholar in SearchEvents.OfType<San9.Core.Domain.ScholarReturnSearchEventDefinition>())

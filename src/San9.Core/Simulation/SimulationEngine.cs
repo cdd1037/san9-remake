@@ -206,6 +206,17 @@ public sealed class SimulationEngine
                     ? ShanyangGong.Candidates(_world.BeginMutation(_rules.Abilities), _rules, task.ForceId) : []) : null;
     }
 
+    public TreasureMonumentPrompt? GetTreasureMonumentPrompt()
+    {
+        if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
+        if (_world.Simulation.PendingDailyTask is not { } pending) return null;
+        var task = _world.Simulation.Tasks.Single(t => t.Id == pending.RemainingTaskIds[0]);
+        return task.SearchEncounter is TreasureMonumentEncounter encounter &&
+            _rules.Personnel.SearchEvents.GetValueOrDefault(encounter.EventId) is TreasureMonumentSearchEventDefinition definition
+            ? new(task.Id, task.ResolutionStep, encounter.EventId, task.ForceId, task.OfficerId, definition.PlaceId,
+                definition.TreasureId, definition.Cost) : null;
+    }
+
     public ScholarReturnPrompt? GetScholarReturnPrompt()
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");

@@ -21,6 +21,12 @@ internal static class SearchEvents
         foreach (var candidate in EventSelection.Order(rules.SearchEvents.Values.Select(e => new EventCandidate(e.Id, EventTrigger.Search, e.Priority)),
             EventTrigger.Search))
         {
+            if (rules.SearchEvents[candidate.Id] is TreasureMonumentSearchEventDefinition monument &&
+                TreasureMonument.Eligible(world, task, simulationRules, monument))
+            {
+                encounter = new TreasureMonumentEncounter(monument.Id);
+                return true;
+            }
             if (rules.SearchEvents[candidate.Id] is ImperialCeremonySearchEventDefinition ceremony &&
                 ImperialCeremony.TryResolve(world, task, ceremony, simulationRules.Economy, events)) return true;
             if (rules.SearchEvents[candidate.Id] is HealingSearchEventDefinition healing &&

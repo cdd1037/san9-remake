@@ -172,6 +172,7 @@ internal static class WorldInvariants
                         ShanyangGongEncounter => false,
                         BeastSearchEncounter beast => string.IsNullOrWhiteSpace(beast.EventId),
                         ScholarReturnEncounter scholar => string.IsNullOrWhiteSpace(scholar.EventId),
+                        TreasureMonumentEncounter monument => string.IsNullOrWhiteSpace(monument.EventId),
                         _ => true
                     }) ||
                     sim.PendingDailyTask is not { } pendingSearch || pendingSearch.RemainingTaskIds[0] != task.Id))

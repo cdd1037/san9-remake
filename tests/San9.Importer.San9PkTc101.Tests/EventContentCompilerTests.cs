@@ -9,6 +9,23 @@ public sealed class EventContentCompilerTests
     [Theory]
     [InlineData(0)]
     [InlineData(1)]
+    public void PhysicianVisitsBindTwoDistinctDoctorsSitesAndBooks(byte mode)
+    {
+        var people = new[] { Person(497), Person(496) }; var places = new HashSet<int> { 124, 125 };
+        var d = Assert.IsType<PhysicianVisitSearchEventDefinition>(Assert.Single(EventContentCompiler.PhysicianVisits(mode, people, [0, 1], places)));
+        Assert.Equal((6, 75, -9, EventConsumption.None), (d.PoliticsChanceDivisor, d.MinimumBaseTrustExclusive, d.Priority, d.Consumption));
+        Assert.Equal(new PhysicianVisitSite(124, 1, 73), d.Sites[0]);
+        Assert.Equal(new PhysicianVisitSite(125, 0, 74), d.Sites[1]);
+        Assert.Empty(EventContentCompiler.PhysicianVisits(2, [], [], new HashSet<int>()));
+        Assert.Empty(EventContentCompiler.PhysicianVisits(9, [], [], new HashSet<int>()));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.PhysicianVisits(mode, people, [0], places));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.PhysicianVisits(mode, [.. people, Person(497)], [0, 1, 2], places));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.PhysicianVisits(mode, people, [0, 1], new HashSet<int> { 124 }));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
     public void SageVisitsBindTheMentorAndEveryRecommendedBiography(byte mode)
     {
         var people = new[] { Person(243), Person(501), Person(45), Person(114), Person(39), Person(298), Person(353), Person(250) };

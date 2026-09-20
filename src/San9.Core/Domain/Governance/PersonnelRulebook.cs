@@ -22,7 +22,16 @@ public sealed class PersonnelRulebook
         SearchEvents = (searchEvents ?? []).ToImmutableDictionary(e => e.Id, StringComparer.Ordinal);
         foreach (var entry in SearchEvents.Values)
         {
-            if (entry is SageVisitSearchEventDefinition sage)
+            if (entry is PhysicianVisitSearchEventDefinition physician)
+            {
+                _ = physician.Candidate(null);
+                if (physician.Consumption != EventConsumption.None || physician.PoliticsChanceDivisor <= 0 ||
+                    physician.MinimumBaseTrustExclusive is < 0 or > 1000 || physician.Sites.IsDefaultOrEmpty ||
+                    physician.Sites.Any(s => s is null || !Places.ContainsKey(s.PlaceId) || s.PhysicianOfficerId < 0 || s.TreasureId < 0) ||
+                    physician.Sites.Select(s => s.PlaceId).Distinct().Count() != physician.Sites.Length)
+                    throw new ArgumentException("Invalid physician visit definition.");
+            }
+            else if (entry is SageVisitSearchEventDefinition sage)
             {
                 _ = sage.Candidate(null);
                 if (sage.Consumption != EventConsumption.None || !Places.ContainsKey(sage.PlaceId) || sage.SageOfficerId < 0 ||

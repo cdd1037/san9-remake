@@ -176,6 +176,18 @@ public static class EventContentCompiler
             { Id = "sima-hui.visit", Priority = -8, Consumption = EventConsumption.None }];
     }
 
+    public static ImmutableArray<SearchEventDefinition> PhysicianVisits(byte scenarioMode,
+        IReadOnlyList<San9ScenarioPersonRecord> people, IEnumerable<int> retainedOfficerIds, IReadOnlySet<int> configuredRegions)
+    {
+        if (scenarioMode is 2 or 9) return [];
+        var retained = retainedOfficerIds.ToHashSet();
+        if (retained.Any(id => id < 0 || id >= people.Count)) throw new InvalidDataException("Invalid retained officer identity.");
+        if (!configuredRegions.Contains(124) || !configuredRegions.Contains(125)) throw new InvalidDataException("Missing physician visit site.");
+        return [new PhysicianVisitSearchEventDefinition(
+            [new(124, HistoricalPerson(people, retained, 496), 73), new(125, HistoricalPerson(people, retained, 497), 74)], 6, 75)
+            { Id = "physician-visit", Priority = -9, Consumption = EventConsumption.None }];
+    }
+
     public static ImmutableArray<SearchEventDefinition> SearchEvents(byte scenarioMode,
         IReadOnlyList<San9ScenarioPersonRecord> people, IEnumerable<int> retainedOfficerIds, IReadOnlySet<int> configuredRegions)
     {

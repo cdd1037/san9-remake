@@ -25,6 +25,7 @@ Application把当前世界与复制后的名称/显示定义组合成`StrategySn
 | Domain | Navigation | 领域地图、寻路、静态拓扑、行军计划与搜索诊断 |
 | Domain | Military | 部队、阵型、设施、战斗与兵法基础规则 |
 | Domain | Governance | 人物状态、能力、人事、官职与宝物规则 |
+| Domain | Events | 历史剧情与特殊探索的内容定义；皇帝制度与官爵／国号规则仍归Governance |
 | Domain | Economy / Diplomacy | 内政经济规则；联盟状态与外交计算 |
 | Simulation | Movement | 日常行军与动态占用缓存 |
 | Simulation | Combat | 交战、伤害、兵法、战后处理与占领 |
@@ -32,8 +33,14 @@ Application把当前世界与复制后的名称/显示定义组合成`StrategySn
 | Simulation | Construction | 设施建设与撤除 |
 | Simulation | Personnel / Governance | 人事与俘虏流转；军团与身份维护 |
 | Simulation | Economy / Diplomacy | 经营与资源结算；势力关系与联盟执行 |
+| Simulation | Events | 剧情候选选择、消费键与待答会话 |
+| Simulation | Events/Historical | 历史剧情及季度历史表；包含通过登用或探索触发的官渡、山阳公与三顾 |
+| Simulation | Events/Search | 特殊探索分支与探索事件调度 |
+| Simulation | Events/Politics | 拥立／废帝及官爵／国号事件执行 |
 
-跨业务的世界状态、事务、不变量、命令和事件、随机源及结算总入口留在各层根目录。新增文件优先进入对应业务目录，仅由某个业务维护的缓存与实现细节跟随该业务，不另建通用工具目录。
+跨业务的世界状态、事务、不变量、命令与领域事件基类、随机源及结算总入口留在各层根目录。新增文件优先进入对应业务目录，仅由某个业务维护的缓存与实现细节跟随该业务，不另建通用工具目录。
+
+剧情按业务含义归档，不按调用入口机械分类；例如官渡由登用触发，仍归历史剧情。皇帝解析、人员转属、势力生命周期、日常人事与联盟规则继续由各领域目录维护，不因会产生领域事件就全部迁入`Events`。目录整理不改变命名空间、内容／保存契约或调用关系；通用事件插槽和内容模型仍按[后续重构计划](../specs/roadmap.md#原作事件解析后的系统重构后续计划)统一评估。
 
 ## 已接入规则
 

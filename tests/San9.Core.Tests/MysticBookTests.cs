@@ -73,7 +73,7 @@ public sealed class MysticBookTests
     [InlineData(false, 0)]
     [InlineData(false, 50)]
     [InlineData(false, 500)]
-    public void OfferChargesTheRootAccountEvenOnRefusalAndSaturatesShortfalls(bool accept, uint rootMoney)
+    public void OfferChargesTheQualifyingCorpsForAcceptanceAndRefusal(bool accept, uint rootMoney)
     {
         var (world, task) = Create();
         world.AddCorps(new(7, 1, 2, new(1501, 0)) { ControlMode = CorpsControlMode.Direct });
@@ -82,10 +82,11 @@ public sealed class MysticBookTests
         MysticBook.Resolve(world, task, Rules, new MysticBookOfferEncounter(Offer.Id), accept, events);
         long cost = accept ? 500 : 100;
         var payment = Assert.Single(events.OfType<ResourceChangedEvent>());
-        Assert.Equal(new ResourceAccount(ResourceOwnerKind.Force, 1), payment.Account);
-        Assert.Equal(-Math.Min(rootMoney, cost), payment.Actual); Assert.Equal(Math.Max(0, cost - rootMoney), payment.Shortfall);
+        Assert.Equal(new ResourceAccount(ResourceOwnerKind.Corps, 7), payment.Account);
+        Assert.Equal(-cost, payment.Actual); Assert.Equal(0L, payment.Shortfall);
+        Assert.Equal(rootMoney, world.Forces[1].Money);
         Assert.Equal(accept ? 2 : 3, world.Treasures[500].HolderId);
-        Assert.Equal(1501u, world.Corps[7].Treasury!.Money); Assert.Empty(world.Simulation.ConsumedEventKeys);
+        Assert.Equal((uint)(1501 - cost), world.Corps[7].Treasury!.Money); Assert.Empty(world.Simulation.ConsumedEventKeys);
     }
 
     [Fact]

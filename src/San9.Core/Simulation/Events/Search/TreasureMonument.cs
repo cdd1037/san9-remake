@@ -3,7 +3,7 @@ using San9.Core.Domain;
 namespace San9.Core.Simulation;
 
 public sealed record TreasureMonumentPrompt(Guid TaskId, int Step, string EventId, int ForceId,
-    int SearchingOfficerId, int PlaceId, int TreasureId, uint Cost);
+    int SearchingOfficerId, int PlaceId, int TreasureId, uint Cost, ResourceAccount Account);
 public sealed record TreasureMonumentResolvedEvent(GameClock Clock, string EventId, int ForceId,
     int SearchingOfficerId, int PlaceId, bool Accepted) : DomainEvent;
 
@@ -17,8 +17,7 @@ internal static class TreasureMonument
         world.Settlements.TryGetValue(d.PlaceId, out var place) && !place.IsDestroyed && place.OwnerId == force.Id &&
         force.RankId is int rank && rules.Politics.Ranks.TryGetValue(rank, out var currentRank) &&
         rules.Politics.Ranks.TryGetValue(d.MinimumRankId, out var minimumRank) && currentRank.Precedence >= minimumRank.Precedence &&
-        ResourceAccounts.Balance(world, ResourceAccounts.Resolve(world, force.Id,
-            world.Settlements[task.OriginSettlementId].CorpsId), ResourceKind.Money) > d.MinimumMoneyExclusive && force.Money >= d.Cost &&
+        SearchEventResources.HasFunds(world, task, d.MinimumMoneyExclusive, d.Cost) &&
         world.Treasures.TryGetValue(d.TreasureId, out var item) && item.HolderId is int holderId &&
         world.Officers.TryGetValue(holderId, out var holder) && holder.OwnerId == force.Id &&
         (holder.IsServing || holder.Status == OfficerStatus.Captive);
@@ -33,7 +32,7 @@ internal static class TreasureMonument
         var d = (TreasureMonumentSearchEventDefinition)rules.Personnel.SearchEvents[encounter.EventId];
         if (accept)
         {
-            ResourceAccounts.Change(world, new(ResourceOwnerKind.Force, task.ForceId), ResourceKind.Money,
+            ResourceAccounts.Change(world, SearchEventResources.Account(world, task), ResourceKind.Money,
                 -(long)d.Cost, "treasure-monument", task.OfficerId, events, requireFull: true);
             var force = world.Forces[task.ForceId];
             world.Replace(force with { BaseTrust = (int)Math.Min(1000L, (long)force.BaseTrust + d.BaseTrustReward) });

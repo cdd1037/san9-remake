@@ -236,7 +236,7 @@ public sealed class SimulationEngine
         return task.SearchEncounter is MysticBookOfferEncounter encounter &&
             _rules.Personnel.SearchEvents.GetValueOrDefault(encounter.EventId) is MysticBookOfferSearchEventDefinition d
             ? new(task.Id, task.ResolutionStep, d.Id, task.ForceId, task.OfficerId, d.MysticOfficerId, d.PlaceId,
-                d.TreasureId, d.AcceptCost, d.DeclineCost) : null;
+                d.TreasureId, d.AcceptCost, d.DeclineCost, SearchEventResources.Account(_world.BeginMutation(_rules.Abilities, _rules.Economy), task)) : null;
     }
 
     public MysticBookReturnPrompt? GetMysticBookReturnPrompt()
@@ -269,7 +269,7 @@ public sealed class SimulationEngine
         return task.SearchEncounter is LongevityEncounter encounter &&
             _rules.Personnel.SearchEvents.GetValueOrDefault(encounter.EventId) is LongevitySearchEventDefinition definition
             ? new(task.Id, task.ResolutionStep, encounter.EventId, task.ForceId, task.OfficerId, definition.PlaceId,
-                definition.Cost, definition.MinimumLifespanTier) : null;
+                definition.Cost, definition.MinimumLifespanTier, SearchEventResources.Account(_world.BeginMutation(_rules.Abilities, _rules.Economy), task)) : null;
     }
 
     public TreasureMonumentPrompt? GetTreasureMonumentPrompt()
@@ -280,7 +280,7 @@ public sealed class SimulationEngine
         return task.SearchEncounter is TreasureMonumentEncounter encounter &&
             _rules.Personnel.SearchEvents.GetValueOrDefault(encounter.EventId) is TreasureMonumentSearchEventDefinition definition
             ? new(task.Id, task.ResolutionStep, encounter.EventId, task.ForceId, task.OfficerId, definition.PlaceId,
-                definition.TreasureId, definition.Cost) : null;
+                definition.TreasureId, definition.Cost, SearchEventResources.Account(_world.BeginMutation(_rules.Abilities, _rules.Economy), task)) : null;
     }
 
     public ScholarReturnPrompt? GetScholarReturnPrompt()

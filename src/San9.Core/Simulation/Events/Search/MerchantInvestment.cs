@@ -15,8 +15,7 @@ public sealed record MerchantInvestmentResolvedEvent(GameClock Clock, string Eve
 
 internal static class MerchantInvestment
 {
-    internal static ResourceAccount Account(WorldMutation world, PersistentTask task) => ResourceAccounts.Resolve(world,
-        task.ForceId, world.Settlements[task.OriginSettlementId].CorpsId);
+    internal static ResourceAccount Account(WorldMutation world, PersistentTask task) => SearchEventResources.Account(world, task);
     internal static MerchantTradeCategory? Category(PersistentTask task, MerchantInvestmentDefinition d) =>
         d.Categories.SingleOrDefault(c => c.PlaceIds.Contains(task.Journey!.DestinationPlaceId));
     private static bool BeforeChance(WorldMutation world, PersistentTask task) => task.Journey is not null &&

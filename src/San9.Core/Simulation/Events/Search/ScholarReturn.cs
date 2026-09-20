@@ -22,8 +22,7 @@ internal static class ScholarReturn
         world.Clock.DayNumber >= d.EarliestDate.DayNumber && world.Clock.DayNumber <= d.LatestDate.DayNumber &&
         world.Forces[task.ForceId].Trust > d.MinimumTrustExclusive &&
         world.Forces[task.ForceId].BaseTrust < d.MaximumBaseTrustExclusive &&
-        ResourceAccounts.Balance(world, ResourceAccounts.Resolve(world, task.ForceId,
-            world.Settlements[task.OriginSettlementId].CorpsId), ResourceKind.Money) > d.MinimumMoneyExclusive &&
+        ResourceAccounts.Balance(world, SearchEventResources.Account(world, task), ResourceKind.Money) > d.MinimumMoneyExclusive &&
         world.Officers.TryGetValue(d.ScholarOfficerId, out var scholar) && scholar.Status != OfficerStatus.Dead;
 
     internal static bool Prepare(WorldMutation world, PersistentTask task, ScholarReturnSearchEventDefinition d)

@@ -97,17 +97,18 @@ public sealed class TreasureMonumentTests
     }
 
     [Fact]
-    public void IndependentCorpsQualificationCannotCausePartialRootPayment()
+    public void IndependentCorpsQualifiesAndPaysWithoutRootFunds()
     {
         var m = World(9999); var rules = Rules();
         m.Replace(new CorpsState(7, 1, 2, new(50000, 0)) { ControlMode = CorpsControlMode.Direct });
         m.Replace(m.Settlements[1] with { CorpsId = 7 });
-        Assert.False(TreasureMonument.Eligible(m, Task(), rules, Definition));
-        m.Replace(m.Forces[1] with { Money = 10000 });
+        Assert.True(TreasureMonument.Eligible(m, Task(), rules, Definition));
+        m.Replace(m.Forces[1] with { Money = 0 });
         Assert.True(TreasureMonument.Eligible(m, Task(), rules, Definition));
         List<DomainEvent> events = [];
         TreasureMonument.Resolve(m, Task(), rules, new("tower"), true, events);
-        Assert.Equal(0u, m.Forces[1].Money); Assert.Equal(50000u, m.Corps[7].Treasury!.Money);
+        Assert.Equal(0u, m.Forces[1].Money); Assert.Equal(40000u, m.Corps[7].Treasury!.Money);
+        Assert.Equal(new ResourceAccount(ResourceOwnerKind.Corps, 7), Assert.Single(events.OfType<ResourceChangedEvent>()).Account);
     }
 
     [Theory]

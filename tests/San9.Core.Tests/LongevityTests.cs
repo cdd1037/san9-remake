@@ -100,7 +100,7 @@ public sealed class LongevityTests
     [InlineData(0)]
     [InlineData(100)]
     [InlineData(500)]
-    public void IndependentCorpsQualifiesButPaymentSaturatesTheRootAccount(uint rootMoney)
+    public void IndependentCorpsQualifiesAndPaysWithoutUsingRootFunds(uint rootMoney)
     {
         var (world, task) = Create();
         world.AddCorps(new CorpsState(7, 1, 2, new(2501, 0)) { ControlMode = CorpsControlMode.Direct });
@@ -109,10 +109,23 @@ public sealed class LongevityTests
         Assert.True(Longevity.Prepare(world, task, Definition)); List<DomainEvent> events = [];
         Longevity.Resolve(world, task, Rules(), new(Definition.Id), true, events);
         var payment = Assert.Single(events.OfType<ResourceChangedEvent>());
-        Assert.Equal(new ResourceAccount(ResourceOwnerKind.Force, 1), payment.Account);
-        Assert.Equal((-(long)rootMoney, 500L - rootMoney), (payment.Actual, payment.Shortfall));
-        Assert.Equal(0u, world.Forces[1].Money); Assert.Equal(2501u, world.Corps[7].Treasury!.Money);
+        Assert.Equal(new ResourceAccount(ResourceOwnerKind.Corps, 7), payment.Account);
+        Assert.Equal((-500L, 0L), (payment.Actual, payment.Shortfall));
+        Assert.Equal(rootMoney, world.Forces[1].Money); Assert.Equal(2001u, world.Corps[7].Treasury!.Money);
         Assert.Equal(7, world.Officers[2].LifespanTier);
+    }
+
+    [Fact]
+    public void AuthoredCostAboveThresholdRequiresFullFundsBeforeAnyReward()
+    {
+        var (world, task) = Create();
+        var d = Definition with { Cost = 3000 };
+        List<DomainEvent> events = [];
+        Assert.False(Longevity.Prepare(world, task, d));
+        Assert.Throws<InvalidOperationException>(() => Longevity.Resolve(world, task, Rules(d), new(d.Id), true, events));
+        Assert.Empty(events);
+        Assert.Equal(2501u, world.Forces[1].Money);
+        Assert.Equal(0, world.Officers[2].LifespanTier);
     }
 
     [Fact]

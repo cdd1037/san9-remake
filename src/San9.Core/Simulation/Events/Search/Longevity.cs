@@ -3,7 +3,7 @@ using San9.Core.Domain;
 namespace San9.Core.Simulation;
 
 public sealed record LongevityPrompt(Guid TaskId, int Step, string EventId, int ForceId,
-    int SearchingOfficerId, int PlaceId, uint Cost, int MinimumLifespanTier);
+    int SearchingOfficerId, int PlaceId, uint Cost, int MinimumLifespanTier, ResourceAccount Account);
 public sealed record LongevityResolvedEvent(GameClock Clock, string EventId, int ForceId,
     int SearchingOfficerId, int PlaceId, bool Accepted, int PreviousLifespanTier, int LifespanTier) : DomainEvent;
 
@@ -15,8 +15,7 @@ internal static class Longevity
         force.EventHistory.Contains(d.RequiredHistoryKey) && task.Journey?.DestinationPlaceId == d.PlaceId;
 
     private static bool AfterChance(WorldMutation world, PersistentTask task, LongevitySearchEventDefinition d) =>
-        ResourceAccounts.Balance(world, ResourceAccounts.Resolve(world, task.ForceId,
-            world.Settlements[task.OriginSettlementId].CorpsId), ResourceKind.Money) > d.MinimumMoneyExclusive &&
+        SearchEventResources.HasFunds(world, task, d.MinimumMoneyExclusive, d.Cost) &&
         world.Officers.TryGetValue(d.DivinerOfficerId, out var diviner) && diviner.Status == OfficerStatus.Special &&
         d.LifespanChangesAllowed;
 
@@ -39,8 +38,8 @@ internal static class Longevity
         if (accept)
         {
             world.Replace(actor with { LifespanTier = lifespan });
-            ResourceAccounts.Change(world, new(ResourceOwnerKind.Force, task.ForceId), ResourceKind.Money,
-                -(long)d.Cost, "longevity", actor.Id, events);
+            ResourceAccounts.Change(world, SearchEventResources.Account(world, task), ResourceKind.Money,
+                -(long)d.Cost, "longevity", actor.Id, events, requireFull: true);
         }
         events.Add(new LongevityResolvedEvent(world.Clock, d.Id, task.ForceId, actor.Id, d.PlaceId,
             accept, actor.LifespanTier, lifespan));

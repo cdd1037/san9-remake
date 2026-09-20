@@ -3,7 +3,7 @@ using San9.Core.Domain;
 namespace San9.Core.Simulation;
 
 public sealed record MysticBookOfferPrompt(Guid TaskId, int Step, string EventId, int ForceId,
-    int SearchingOfficerId, int MysticOfficerId, int PlaceId, int TreasureId, uint AcceptCost, uint DeclineCost);
+    int SearchingOfficerId, int MysticOfficerId, int PlaceId, int TreasureId, uint AcceptCost, uint DeclineCost, ResourceAccount Account);
 public sealed record MysticBookReturnPrompt(Guid TaskId, int Step, string EventId, int ForceId,
     int SearchingOfficerId, int MysticOfficerId, int PlaceId, int TreasureId, int? DeclineRewardTacticId);
 public sealed record MysticBookOfferResolvedEvent(GameClock Clock, string EventId, int ForceId,
@@ -26,8 +26,7 @@ internal static class MysticBook
         world.NextRandom("event-search-eligibility") % 100 < (ulong)(world.Abilities(world.Officers[task.OfficerId]).Leadership / divisor);
 
     private static bool AfterChance(WorldMutation world, PersistentTask task, MysticBookOfferSearchEventDefinition d) =>
-        ResourceAccounts.Balance(world, ResourceAccounts.Resolve(world, task.ForceId,
-            world.Settlements[task.OriginSettlementId].CorpsId), ResourceKind.Money) > d.MinimumMoneyExclusive &&
+        SearchEventResources.HasFunds(world, task, d.MinimumMoneyExclusive, Math.Max(d.AcceptCost, d.DeclineCost)) &&
         Special(world, d.MysticOfficerId) && Holds(world, d.MysticOfficerId, d.TreasureId);
     private static bool AfterChance(WorldMutation world, PersistentTask task, MysticBookReturnSearchEventDefinition d) =>
         Special(world, d.MysticOfficerId) && FirstUnknown(world.Officers[task.OfficerId], d) is not null &&
@@ -54,8 +53,8 @@ internal static class MysticBook
         if (!CanResolve(world, task, rules, encounter)) throw new InvalidOperationException("Mystic book offer is no longer valid.");
         var d = (MysticBookOfferSearchEventDefinition)rules.Personnel.SearchEvents[encounter.EventId];
         if (accept) PersonnelTreasures.Transfer(world, world.Treasures[d.TreasureId], task.OfficerId, task.ForceId, "mystic-book-offer", events);
-        ResourceAccounts.Change(world, new(ResourceOwnerKind.Force, task.ForceId), ResourceKind.Money,
-            -(long)(accept ? d.AcceptCost : d.DeclineCost), "mystic-book-offer", task.OfficerId, events);
+        ResourceAccounts.Change(world, SearchEventResources.Account(world, task), ResourceKind.Money,
+            -(long)(accept ? d.AcceptCost : d.DeclineCost), "mystic-book-offer", task.OfficerId, events, requireFull: true);
         if (accept && rules.Economy.ImperialSealId == d.TreasureId) EconomicCycle.UpdateTrust(world, rules.Economy, events);
         events.Add(new MysticBookOfferResolvedEvent(world.Clock, d.Id, task.ForceId, task.OfficerId, d.MysticOfficerId, d.TreasureId, accept));
     }

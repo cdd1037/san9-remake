@@ -22,7 +22,21 @@ public sealed class PersonnelRulebook
         SearchEvents = (searchEvents ?? []).ToImmutableDictionary(e => e.Id, StringComparer.Ordinal);
         foreach (var entry in SearchEvents.Values)
         {
-            if (entry is ScholarInsultSearchEventDefinition insult)
+            if (entry is MysticBookOfferSearchEventDefinition offer)
+            {
+                _ = offer.Candidate(null);
+                if (offer.Consumption != EventConsumption.None || !Places.ContainsKey(offer.PlaceId) || offer.MysticOfficerId < 0 ||
+                    offer.TreasureId < 0 || offer.LeadershipChanceDivisor <= 0)
+                    throw new ArgumentException("Invalid mystic book offer definition.");
+            }
+            else if (entry is MysticBookReturnSearchEventDefinition bookReturn)
+            {
+                _ = bookReturn.Candidate(null);
+                if (bookReturn.Consumption != EventConsumption.None || !Places.ContainsKey(bookReturn.PlaceId) || bookReturn.MysticOfficerId < 0 ||
+                    bookReturn.TreasureId < 0 || bookReturn.LeadershipChanceDivisor <= 0 || !ValidIds(bookReturn.RewardTacticIds) || bookReturn.RewardTacticIds.IsEmpty)
+                    throw new ArgumentException("Invalid mystic book return definition.");
+            }
+            else if (entry is ScholarInsultSearchEventDefinition insult)
             {
                 _ = insult.Candidate(null);
                 if (insult.Consumption != EventConsumption.None || insult.ScholarOfficerId < 0 || insult.IntelligenceChanceDivisor <= 0 ||

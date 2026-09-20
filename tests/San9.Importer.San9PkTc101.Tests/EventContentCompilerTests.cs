@@ -9,6 +9,26 @@ public sealed class EventContentCompilerTests
     [Theory]
     [InlineData(0)]
     [InlineData(1)]
+    public void MysticBooksBindBothBranchesAndPreserveTheirDistinctRules(byte mode)
+    {
+        var people = new[] { Person(1), Person(500) }; var places = new HashSet<int> { 172 };
+        var definitions = EventContentCompiler.MysticBooks(mode, people, [0, 1], places);
+        var offer = Assert.IsType<MysticBookOfferSearchEventDefinition>(definitions[0]);
+        var bookReturn = Assert.IsType<MysticBookReturnSearchEventDefinition>(definitions[1]);
+        Assert.Equal((172, 1, 76, 3, 1500u, 500u, 100u, -13),
+            (offer.PlaceId, offer.MysticOfficerId, offer.TreasureId, offer.LeadershipChanceDivisor, offer.MinimumMoneyExclusive, offer.AcceptCost, offer.DeclineCost, offer.Priority));
+        Assert.Equal((172, 1, 76, 6, -14), (bookReturn.PlaceId, bookReturn.MysticOfficerId, bookReturn.TreasureId, bookReturn.LeadershipChanceDivisor, bookReturn.Priority));
+        Assert.Equal(new[] { 26, 30, 29, 22 }, bookReturn.RewardTacticIds);
+        Assert.All(definitions, d => Assert.Equal(EventConsumption.None, d.Consumption));
+        Assert.Empty(EventContentCompiler.MysticBooks(2, [], [], new HashSet<int>())); Assert.Empty(EventContentCompiler.MysticBooks(9, [], [], new HashSet<int>()));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.MysticBooks(mode, people, [0], places));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.MysticBooks(mode, [.. people, Person(500)], [0, 1, 2], places));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.MysticBooks(mode, people, [0, 1], new HashSet<int>()));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
     public void ScholarInsultBindsNiHengWithoutRequiringSpecialStatus(byte mode)
     {
         var people = new[] { Person(1), Person(296) };

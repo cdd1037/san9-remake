@@ -21,6 +21,16 @@ internal static class SearchEvents
         foreach (var candidate in EventSelection.Order(rules.SearchEvents.Values.Select(e => new EventCandidate(e.Id, EventTrigger.Search, e.Priority)),
             EventTrigger.Search))
         {
+            if (rules.SearchEvents[candidate.Id] is MysticBookOfferSearchEventDefinition offer && MysticBook.Prepare(world, task, offer))
+            {
+                encounter = new MysticBookOfferEncounter(offer.Id);
+                return true;
+            }
+            if (rules.SearchEvents[candidate.Id] is MysticBookReturnSearchEventDefinition bookReturn && MysticBook.Prepare(world, task, bookReturn))
+            {
+                encounter = new MysticBookReturnEncounter(bookReturn.Id);
+                return true;
+            }
             if (rules.SearchEvents[candidate.Id] is ScholarInsultSearchEventDefinition insult && ScholarInsult.Prepare(world, task, rules, insult))
             {
                 encounter = new ScholarInsultEncounter(insult.Id);

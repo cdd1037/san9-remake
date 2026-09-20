@@ -197,6 +197,8 @@ internal static class WorldInvariants
                         ShanyangGongEncounter => false,
                         BeastSearchEncounter beast => string.IsNullOrWhiteSpace(beast.EventId),
                         ScholarReturnEncounter scholar => string.IsNullOrWhiteSpace(scholar.EventId),
+                        MysticBookOfferEncounter offer => string.IsNullOrWhiteSpace(offer.EventId),
+                        MysticBookReturnEncounter bookReturn => string.IsNullOrWhiteSpace(bookReturn.EventId),
                         ScholarInsultEncounter insult => string.IsNullOrWhiteSpace(insult.EventId),
                         LongevityEncounter longevity => string.IsNullOrWhiteSpace(longevity.EventId),
                         TreasureMonumentEncounter monument => string.IsNullOrWhiteSpace(monument.EventId),

@@ -78,6 +78,8 @@ public sealed class GameSession
     public OfficeRequestPrompt? GetOfficeRequestPrompt() => _simulation.GetOfficeRequestPrompt();
     public SearchRecruitmentPrompt? GetSearchRecruitmentPrompt() => _simulation.GetSearchRecruitmentPrompt();
     public ShanyangGongPrompt? GetShanyangGongPrompt() => _simulation.GetShanyangGongPrompt();
+    public MysticBookOfferPrompt? GetMysticBookOfferPrompt() => _simulation.GetMysticBookOfferPrompt();
+    public MysticBookReturnPrompt? GetMysticBookReturnPrompt() => _simulation.GetMysticBookReturnPrompt();
     public ScholarInsultPrompt? GetScholarInsultPrompt() => _simulation.GetScholarInsultPrompt();
     public LongevityPrompt? GetLongevityPrompt() => _simulation.GetLongevityPrompt();
     public TreasureMonumentPrompt? GetTreasureMonumentPrompt() => _simulation.GetTreasureMonumentPrompt();

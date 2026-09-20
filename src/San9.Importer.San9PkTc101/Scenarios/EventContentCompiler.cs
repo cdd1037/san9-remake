@@ -146,6 +146,20 @@ public static class EventContentCompiler
             .Where(e => force.HasEventHistoryMarker(e.Marker)).Select(e => new PersistentEventKey(e.Key))
             .OrderBy(k => k.Value, StringComparer.Ordinal).ToImmutableArray();
 
+    public static ImmutableArray<SearchEventDefinition> MysticBooks(byte scenarioMode,
+        IReadOnlyList<San9ScenarioPersonRecord> people, IEnumerable<int> retainedOfficerIds, IReadOnlySet<int> configuredRegions)
+    {
+        if (scenarioMode is 2 or 9) return [];
+        var retained = retainedOfficerIds.ToHashSet();
+        if (retained.Any(id => id < 0 || id >= people.Count)) throw new InvalidDataException("Invalid retained officer identity.");
+        if (!configuredRegions.Contains(172)) throw new InvalidDataException("Missing mystic book site.");
+        int mystic = HistoricalPerson(people, retained, 500);
+        return [new MysticBookOfferSearchEventDefinition(172, mystic, 76, 3, 1500, 500, 100)
+            { Id = "zuo-ci.book-offer", Priority = -13, Consumption = EventConsumption.None },
+            new MysticBookReturnSearchEventDefinition(172, mystic, 76, 6, [26, 30, 29, 22])
+            { Id = "zuo-ci.book-return", Priority = -14, Consumption = EventConsumption.None }];
+    }
+
     public static ImmutableArray<SearchEventDefinition> ScholarInsults(byte scenarioMode,
         IReadOnlyList<San9ScenarioPersonRecord> people, IEnumerable<int> retainedOfficerIds)
     {

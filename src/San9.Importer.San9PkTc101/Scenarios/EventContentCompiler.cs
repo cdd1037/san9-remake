@@ -146,6 +146,17 @@ public static class EventContentCompiler
             .Where(e => force.HasEventHistoryMarker(e.Marker)).Select(e => new PersistentEventKey(e.Key))
             .OrderBy(k => k.Value, StringComparer.Ordinal).ToImmutableArray();
 
+    public static ImmutableArray<SearchEventDefinition> Longevity(byte scenarioMode,
+        IReadOnlyList<San9ScenarioPersonRecord> people, IEnumerable<int> retainedOfficerIds, IReadOnlySet<int> configuredRegions)
+    {
+        if (scenarioMode is 2 or 9) return [];
+        var retained = retainedOfficerIds.ToHashSet();
+        if (retained.Any(id => id < 0 || id >= people.Count)) throw new InvalidDataException("Invalid retained officer identity.");
+        if (!configuredRegions.Contains(34)) throw new InvalidDataException("Missing longevity site.");
+        return [new LongevitySearchEventDefinition(34, HistoricalPerson(people, retained, 498), new("guan-lu.visited"),
+            3, 2500, 500, 7, scenarioMode != 1) { Id = "longevity", Priority = -11, Consumption = EventConsumption.None }];
+    }
+
     public static ImmutableArray<SearchEventDefinition> DivinerVisits(byte scenarioMode,
         IReadOnlyList<San9ScenarioPersonRecord> people, IEnumerable<int> retainedOfficerIds, IReadOnlySet<int> configuredRegions)
     {

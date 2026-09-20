@@ -15,6 +15,7 @@ namespace San9.Core.Domain;
 [JsonDerivedType(typeof(SageVisitSearchEventDefinition), "sage-visit")]
 [JsonDerivedType(typeof(PhysicianVisitSearchEventDefinition), "physician-visit")]
 [JsonDerivedType(typeof(DivinerVisitSearchEventDefinition), "diviner-visit")]
+[JsonDerivedType(typeof(LongevitySearchEventDefinition), "longevity")]
 public abstract record SearchEventDefinition
 {
     [JsonRequired] public string Id { get; init; } = "";

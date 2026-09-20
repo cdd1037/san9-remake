@@ -138,6 +138,7 @@ public sealed record OfficerCapturedEvent(GameClock Clock, int OfficerId, int Ca
 [System.Text.Json.Serialization.JsonDerivedType(typeof(CorpsDelegationChangedEvent), "corps-delegation-changed")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(PersonnelTerritoryTransferredEvent), "personnel-territory-transferred")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(ForcesConsolidatedEvent), "forces-consolidated")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(LongevityResolvedEvent), "longevity")]
 public abstract record DomainEvent;
 
 public sealed record DevelopmentCompletedEvent(

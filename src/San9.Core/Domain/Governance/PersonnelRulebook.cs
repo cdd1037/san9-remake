@@ -22,7 +22,14 @@ public sealed class PersonnelRulebook
         SearchEvents = (searchEvents ?? []).ToImmutableDictionary(e => e.Id, StringComparer.Ordinal);
         foreach (var entry in SearchEvents.Values)
         {
-            if (entry is DivinerVisitSearchEventDefinition diviner)
+            if (entry is LongevitySearchEventDefinition longevity)
+            {
+                _ = longevity.Candidate(null);
+                if (longevity.Consumption != EventConsumption.None || !Places.ContainsKey(longevity.PlaceId) || longevity.DivinerOfficerId < 0 ||
+                    longevity.WarChanceDivisor <= 0 || longevity.Cost == 0 || longevity.MinimumLifespanTier < 0 ||
+                    string.IsNullOrWhiteSpace(longevity.RequiredHistoryKey.Value)) throw new ArgumentException("Invalid longevity definition.");
+            }
+            else if (entry is DivinerVisitSearchEventDefinition diviner)
             {
                 _ = diviner.Candidate(null);
                 if (diviner.Consumption != EventConsumption.None || !Places.ContainsKey(diviner.PlaceId) || diviner.DivinerOfficerId < 0 ||

@@ -7,6 +7,23 @@ namespace San9.Importer.San9PkTc101.Tests;
 public sealed class EventContentCompilerTests
 {
     [Theory]
+    [InlineData(0, true)]
+    [InlineData(1, false)]
+    public void LongevityBindsHistoryAccountThresholdAndModeGate(byte mode, bool enabled)
+    {
+        var people = new[] { Person(1), Person(498) }; var places = new HashSet<int> { 34 };
+        var d = Assert.IsType<LongevitySearchEventDefinition>(Assert.Single(EventContentCompiler.Longevity(mode, people, [0, 1], places)));
+        Assert.Equal((34, 1, 3, 2500u, 500u, 7, -11), (d.PlaceId, d.DivinerOfficerId, d.WarChanceDivisor, d.MinimumMoneyExclusive, d.Cost, d.MinimumLifespanTier, d.Priority));
+        Assert.Equal(enabled, d.LifespanChangesAllowed); Assert.Equal(new PersistentEventKey("guan-lu.visited"), d.RequiredHistoryKey);
+        Assert.Equal(EventConsumption.None, d.Consumption);
+        Assert.Empty(EventContentCompiler.Longevity(2, [], [], new HashSet<int>()));
+        Assert.Empty(EventContentCompiler.Longevity(9, [], [], new HashSet<int>()));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.Longevity(mode, people, [0], places));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.Longevity(mode, [.. people, Person(498)], [0, 1, 2], places));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.Longevity(mode, people, [0, 1], new HashSet<int>()));
+    }
+
+    [Theory]
     [InlineData(0)]
     [InlineData(1)]
     public void DivinerVisitPreservesModeOneAndIndependentForceHistory(byte mode)

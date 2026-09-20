@@ -15,6 +15,7 @@ public readonly record struct OfficerAbilities(int War, int Intelligence, int Po
 /// detention ownership is determined by the location. Names belong to content definitions.</summary>
 public sealed record OfficerState(int Id, int? OwnerId, int? SettlementId, OfficerAbilities BaseAbilities, bool Acted)
 {
+    [JsonRequired] public bool IsDormant { get; init; }
     [JsonRequired] public int? UnitId { get; init; }
     [JsonRequired] public int Affinity { get; init; }
     [JsonRequired] public int TacticLinkBonus { get; init; }

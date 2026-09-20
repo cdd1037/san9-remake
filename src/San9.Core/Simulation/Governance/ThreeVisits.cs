@@ -12,7 +12,7 @@ internal static class ThreeVisits
         world.ConsumeEvent(new(key.Value, trigger, 0, EventConsumption.OnSuccess, key),
             new(key.Value, EventOutcomeKind.Completed, false, EventResult.Succeeded));
     private static bool CompanionsPresent(WorldMutation world, ThreeVisitsDefinition definition, int force) =>
-        definition.CompanionIds.All(id => world.Officers[id].IsServing && world.Officers[id].OwnerId == force);
+        definition.CompanionIds.All(id => world.Officers.TryGetValue(id, out var person) && person.IsServing && person.OwnerId == force);
     private static void Emit(WorldMutation world, ThreeVisitsDefinition definition, ThreeVisitsStep step, List<DomainEvent> events) =>
         events.Add(new ThreeVisitsEvent(world.Clock, step, definition.RulerId, definition.RecruitId, definition.PlaceId));
 
@@ -22,8 +22,8 @@ internal static class ThreeVisits
             world.Simulation.ActiveControl >= world.Simulation.Controls.Length || Consumed(world, definition.StartedKey)) return;
         var seat = world.Simulation.Controls[world.Simulation.ActiveControl];
         if (seat.Kind != ControllerKind.Player || world.Forces[seat.ForceId].LeaderId != definition.RulerId ||
-            world.Officers[definition.RecruitId].Status != OfficerStatus.Undiscovered) return;
-        var recommender = world.Officers[definition.RecommenderId];
+            !world.Officers.TryGetValue(definition.RecruitId, out var recruit) || recruit.Status != OfficerStatus.Undiscovered ||
+            !world.Officers.TryGetValue(definition.RecommenderId, out var recommender)) return;
         int? placeOwner = world.Settlements.TryGetValue(definition.PlaceId, out var place) ? place.OwnerId :
             rules.Personnel.RegionCities.TryGetValue(definition.PlaceId, out int city) && world.Settlements.TryGetValue(city, out var related) ? related.OwnerId : null;
         if (placeOwner != seat.ForceId || !CompanionsPresent(world, definition, seat.ForceId) ||
@@ -37,7 +37,7 @@ internal static class ThreeVisits
     internal static bool Expire(WorldMutation world, SimulationRules rules, List<DomainEvent> events)
     {
         if (rules.ThreeVisits is not { } definition || !Consumed(world, definition.StartedKey) || Consumed(world, definition.CompletedKey) ||
-            world.Officers[definition.RecruitId].Status != OfficerStatus.Special ||
+            !world.Officers.TryGetValue(definition.RecruitId, out var recruit) || recruit.Status != OfficerStatus.Special ||
             world.Simulation.ThreeVisitsStarted is { } started && world.Clock.DayNumber - started.DayNumber < definition.DurationDays) return false;
         world.Replace(world.Officers[definition.RecruitId] with { Status = OfficerStatus.Undiscovered });
         Consume(world, definition.FirstVisitKey, EventTrigger.Xun);
@@ -52,7 +52,7 @@ internal static class ThreeVisits
     {
         if (definition is null || task.OfficerId != definition.RulerId || task.Journey!.DestinationPlaceId != definition.PlaceId ||
             world.Officers[task.OfficerId].Status != OfficerStatus.Ruler ||
-            world.Officers[definition.RecruitId].Status != OfficerStatus.Special || !CompanionsPresent(world, definition, task.ForceId)) return false;
+            !world.Officers.TryGetValue(definition.RecruitId, out var recruit) || recruit.Status != OfficerStatus.Special || !CompanionsPresent(world, definition, task.ForceId)) return false;
         bool first = !Consumed(world, definition.FirstVisitKey);
         if (first ? !Consumed(world, definition.StartedKey) : Consumed(world, definition.CompletedKey)) return false;
         if (first)

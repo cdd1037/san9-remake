@@ -6,6 +6,40 @@ namespace San9.Importer.San9PkTc101.Scenarios;
 
 public static class EventContentCompiler
 {
+    public static ForceActivationSearchEventDefinition? Penglai(byte scenarioMode,
+        IReadOnlyList<San9ScenarioPersonRecord> people, IEnumerable<int> retainedOfficerIds,
+        IEnumerable<San9.Content.Scenarios.ForceInitialState> forces)
+    {
+        if (scenarioMode is 2 or 9) return null;
+        var retained = retainedOfficerIds.ToArray();
+        if (retained.Any(id => id < 0 || id >= people.Count)) throw new InvalidDataException("Invalid retained officer identity.");
+        var force = forces.SingleOrDefault(f => f.CountryTitleId == 4)
+            ?? throw new InvalidDataException("Missing Wa force.");
+        var participants = retained.Where(id => people[id].BiographyResourceCode is 675 or 676 or 677).Order().ToImmutableArray();
+        if (force.LeaderId != HistoricalPerson(people, retained, 675) ||
+            !participants.Any(id => people[id].BiographyResourceCode == 676) || !participants.Any(id => people[id].BiographyResourceCode == 677))
+            throw new InvalidDataException("Missing Wa participants.");
+        return new(86, force.Id, 45, [184], participants, 700, 2, 500000, 10, new("penglai"))
+            { Id = "penglai", Priority = -3, Consumption = EventConsumption.OnSuccess };
+    }
+
+    public static San9.Content.Scenarios.ScenarioInitialState InitializePenglai(San9.Content.Scenarios.ScenarioInitialState initial)
+    {
+        var activation = initial.SearchEvents.OfType<ForceActivationSearchEventDefinition>().SingleOrDefault(d => d.Id == "penglai");
+        if (activation is null) return initial;
+        bool dormant = initial.PlayerForceId != activation.ForceId;
+        return initial with
+        {
+            Forces = initial.Forces.Select(f => f.Id == activation.ForceId ? f with { IsDormant = dormant } : f).ToArray(),
+            Settlements = initial.Settlements.Select(s => s.Id == activation.CityId || activation.AttachedSettlementIds.Contains(s.Id)
+                ? s with { IsDormant = dormant } : s).ToArray(),
+            Officers = initial.Officers.Select(o => activation.OfficerIds.Contains(o.State.Id)
+                ? o with { State = o.State with { IsDormant = dormant } } : o).ToArray(),
+            ConsumedEventKeys = initial.ConsumedEventKeys.Where(k => k != activation.ConsumptionKey)
+                .Concat(dormant ? [] : new[] { activation.ConsumptionKey }).OrderBy(k => k.Value, StringComparer.Ordinal).ToImmutableArray()
+        };
+    }
+
     private static int HistoricalPerson(IReadOnlyList<San9ScenarioPersonRecord> people, IEnumerable<int> retainedOfficerIds, int biography)
     {
         var retained = retainedOfficerIds.ToArray();

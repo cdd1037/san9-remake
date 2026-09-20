@@ -117,6 +117,7 @@ public static class ScenarioContentCompiler
         var catalog = text.Catalog;
         if (catalog.Resolve(summaries.Single(f => f.Id == 5).NameKey) != "董卓") throw new InvalidDataException("Unexpected 190-year player force.");
         var units = UnitContentCompiler.Compile(sourceUnits, Root);
+        var penglai = EventContentCompiler.Penglai(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id), summaries);
         var snapshot = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, header.ScenarioId.ToString(System.Globalization.CultureInfo.InvariantCulture),
             header.StartDate.Year, header.StartDate.Month, header.StartDate.Day, 5, summaries, settlements.OrderBy(s => s.Id).ToArray(), regions, regionCities)
         { UnbuiltPlaces = personPlaces.Where(p => settlements.All(s => s.Id != p.Id)).Select(p => new San9.Core.Domain.PersonPlace(p.Id, San9.Core.Domain.MapCoordinates.Center(new(p.X, p.Y)))).ToImmutableArray(),
@@ -146,7 +147,8 @@ public static class ScenarioContentCompiler
                 .ToDictionary(s => s.Id, s => (int)cities[s.Id].AreaCode),
             AttackRequests = [], // TC101 scenarios contain no active request tuples; original saves are not imported.
             ConsumedEventKeys = EventContentCompiler.ConsumedKeys(header.ScenarioWorldFlagWords, header.StartDate),
-            SearchEvents = EventContentCompiler.SearchEvents(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id), configuredRegionIds),
+            SearchEvents = EventContentCompiler.SearchEvents(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id), configuredRegionIds)
+                .AddRange(penglai is null ? [] : new San9.Core.Domain.SearchEventDefinition[] { penglai }),
             Alliance = DiplomacyContentCompiler.Alliance(header.AllianceDurationTurns, forces,
                 summaries.Where(f => !f.IsBarbarian).Select(f => f.Id).ToHashSet()),
             CityConnections = PersonnelGeographyCompiler.CityConnections(Read(San9ScenarioSquareArchive.ReadKnownRecords),
@@ -161,6 +163,7 @@ public static class ScenarioContentCompiler
             Officers = officers, Units = units, Information = information, DomesticPairs = DomesticContentCompiler.Compile(persons),
             ImperialSealId = 79, ImperialCourt = ImperialCourtContentCompiler.Compile(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id)),
             ImperialCourtEnded = (header.ScenarioWorldFlagWords[0] & 1) != 0 };
+        snapshot = EventContentCompiler.InitializePenglai(snapshot);
         snapshot.Validate(); catalog.Validate(); return (snapshot, catalog);
     }
 }

@@ -11,10 +11,9 @@ internal static class ChainedPlot
 {
     internal static bool Apply(WorldMutation world, SimulationRules rules, List<DomainEvent> events)
     {
-        if (rules.ChainedPlot is not { } definition) return false;
-        var ruler = world.Officers[definition.RulerId];
-        var successor = world.Officers[definition.SuccessorId];
-        var instigator = world.Officers[definition.InstigatorId];
+        if (rules.ChainedPlot is not { } definition || !world.Officers.TryGetValue(definition.RulerId, out var ruler) ||
+            !world.Officers.TryGetValue(definition.SuccessorId, out var successor) ||
+            !world.Officers.TryGetValue(definition.InstigatorId, out var instigator)) return false;
         int? force = ruler.OwnerId;
         bool ruling = ruler.Status == OfficerStatus.Ruler && force is int owner && world.Forces[owner].LeaderId == ruler.Id;
         bool conspirators = ruling && successor.IsServing && successor.OwnerId == force && instigator.IsServing && instigator.OwnerId == force;

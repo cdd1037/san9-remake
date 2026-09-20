@@ -6,32 +6,33 @@ internal static class WorldInvariants
     internal static void Validate(WorldMutation state)
     {
         _ = new GameClock(state.Clock.Year, state.Clock.Month, state.Clock.Day);
+        ValidateParticipation(state);
         ValidateSimulation(state);
-        var titles = state.Forces.Values.Where(f => f.CountryTitleId is not null).Select(f => f.CountryTitleId!.Value).ToArray();
+        var titles = state.AllForces.Values.Where(f => f.CountryTitleId is not null).Select(f => f.CountryTitleId!.Value).ToArray();
         if (titles.Any(id => id < 0) || titles.Distinct().Count() != titles.Length) throw new ArgumentException("Invalid country title ownership.");
-        foreach (var force in state.Forces.Values)
+        foreach (var force in state.AllForces.Values)
         {
             if (force.Origin is { } origin)
             {
                 _ = new GameClock(origin.Clock.Year, origin.Clock.Month, origin.Clock.Day);
                 if (!Enum.IsDefined(origin.Kind) || !origin.Clock.IsXunBoundary ||
                     (origin.Kind == San9.Core.Domain.ForceCreationKind.EmptyCityUprising) != (origin.PredecessorId is null) ||
-                    origin.PredecessorId is int predecessor && (!state.Forces.ContainsKey(predecessor) || predecessor >= force.Id) ||
-                    !state.Officers.ContainsKey(origin.FounderId) ||
-                    !state.Settlements.TryGetValue(origin.SettlementId, out var foundingCity) ||
+                    origin.PredecessorId is int predecessor && (!state.AllForces.ContainsKey(predecessor) || predecessor >= force.Id) ||
+                    !state.AllOfficers.ContainsKey(origin.FounderId) ||
+                    !state.AllSettlements.TryGetValue(origin.SettlementId, out var foundingCity) ||
                     foundingCity.Kind != San9.Core.Domain.SettlementKind.City)
                     throw new ArgumentException("Invalid force origin.");
             }
             if (force.IsEliminated && (force.CountryTitleId is not null || force.LeaderId is not null || force.AdviserId is not null || force.Money != 0 || force.Food != 0 ||
-                state.Officers.Values.Any(p => p.OwnerId == force.Id) || state.Settlements.Values.Any(s => s.OwnerId == force.Id) ||
-                state.Units.Values.Any(u => u.OwnerId == force.Id) || state.Corps.Values.Any(c => c.OwnerId == force.Id) ||
+                state.AllOfficers.Values.Any(p => p.OwnerId == force.Id) || state.AllSettlements.Values.Any(s => s.OwnerId == force.Id) ||
+                state.Units.Values.Any(u => u.OwnerId == force.Id) || state.AllCorps.Values.Any(c => c.OwnerId == force.Id) ||
                 state.Simulation.Controls.Any(c => c.ForceId == force.Id))) throw new ArgumentException("Eliminated force retains active references.");
             if (force.EventHistory.IsDefault || force.EventHistory.Any(k => string.IsNullOrWhiteSpace(k.Value)) ||
                 !force.EventHistory.Select(k => k.Value).SequenceEqual(force.EventHistory.Select(k => k.Value).Distinct().Order(StringComparer.Ordinal)))
                 throw new ArgumentException("Invalid force event history.");
             if (force.Id < 0 || force.Trust is < 0 or > 1000 || force.BaseTrust is < 0 or > 1000 || force.ProvidedTactics.IsDefault || force.ProvidedTactics.Any(t => t < 0) || force.ProvidedTactics.Distinct().Count() != force.ProvidedTactics.Length) throw new ArgumentException("Invalid force.");
         }
-        foreach (var settlement in state.Settlements.Values)
+        foreach (var settlement in state.AllSettlements.Values)
         {
             if (settlement.Facility is { } facility && (settlement.Kind != San9.Core.Domain.SettlementKind.Facility ||
                 facility.TypeId < 0 || facility.Position.X < 0 || facility.Position.Y < 0 || facility.BuilderUnitId < 0 ||
@@ -43,57 +44,80 @@ internal static class WorldInvariants
                 settlement.Soldiers != 0 || settlement.Wounded != 0 || settlement.ConfusionDaysRemaining != 0)) throw new ArgumentException("Destroyed settlement retains active state.");
             if (settlement.ConfusionDaysRemaining < 0) throw new ArgumentException("Invalid settlement confusion duration.");
             if (settlement.Wounded > San9.Core.Domain.MilitaryRulebook.WoundedCapacity) throw new ArgumentException("Invalid settlement wounded.");
-            if (settlement.Id < 0 || !Enum.IsDefined(settlement.Kind) || settlement.OwnerId is int owner && !state.Forces.ContainsKey(owner) ||
+            if (settlement.Id < 0 || !Enum.IsDefined(settlement.Kind) || settlement.OwnerId is int owner && !state.AllForces.ContainsKey(owner) ||
                 settlement.SoldierCapacity is 0 or > 500000 || settlement.Soldiers > settlement.SoldierCapacity || settlement.Population > 1000000 || settlement.MaxCommerce > 2500 || settlement.MaxCultivation > 4000 || settlement.MaxDurability <= 0 || settlement.Durability < 0 || settlement.Durability > settlement.MaxDurability ||
                 settlement.Morale is < 0 or > 100 || settlement.Commerce < 0 || settlement.Commerce > settlement.MaxCommerce ||
                 settlement.Cultivation < 0 || settlement.Cultivation > settlement.MaxCultivation || settlement.PublicOrder is < 0 or > 1000)
                 throw new ArgumentException("Invalid settlement.");
         }
-        foreach (var officer in state.Officers.Values)
+        foreach (var officer in state.AllOfficers.Values)
         {
-            if (!officer.IsValid() || officer.ForceLoyalties.Keys.Any(id => !state.Forces.ContainsKey(id)) ||
-                officer.SettlementId is int location && !state.Settlements.ContainsKey(location) ||
-                officer.OwnerId is int owner && !state.Forces.ContainsKey(owner) ||
+            if (!officer.IsValid() || officer.ForceLoyalties.Keys.Any(id => !state.AllForces.ContainsKey(id)) ||
+                officer.SettlementId is int location && !state.AllSettlements.ContainsKey(location) ||
+                officer.OwnerId is int owner && !state.AllForces.ContainsKey(owner) ||
                 officer.UnitId is int unitId && (!state.Units.TryGetValue(unitId, out var unit) ||
                     (officer.Status == San9.Core.Domain.OfficerStatus.Captive ? unit.OwnerId == officer.OwnerId : unit.OwnerId != officer.OwnerId)) ||
-                officer.IsServing && officer.SettlementId is int home && state.Settlements[home].OwnerId != officer.OwnerId) throw new ArgumentException("Invalid officer.");
+                officer.IsServing && officer.SettlementId is int home && state.AllSettlements[home].OwnerId != officer.OwnerId) throw new ArgumentException("Invalid officer.");
         }
-        if (state.Forces.Values.Any(f => f.AdviserId is int adviser && (!state.Officers.TryGetValue(adviser, out var p) || p.OwnerId != f.Id || p.Status != San9.Core.Domain.OfficerStatus.Strategist)) ||
-            state.Officers.Values.Any(p => p.Status == San9.Core.Domain.OfficerStatus.Strategist &&
-                (p.OwnerId is not int owner || state.Forces[owner].AdviserId != p.Id)))
+        if (state.AllForces.Values.Any(f => f.AdviserId is int adviser && (!state.AllOfficers.TryGetValue(adviser, out var p) || p.OwnerId != f.Id || p.Status != San9.Core.Domain.OfficerStatus.Strategist)) ||
+            state.AllOfficers.Values.Any(p => p.Status == San9.Core.Domain.OfficerStatus.Strategist &&
+                (p.OwnerId is not int owner || state.AllForces[owner].AdviserId != p.Id)))
             throw new ArgumentException("Invalid force adviser relationship.");
-        if (state.Forces.Values.Any(f => f.LeaderId is int leader &&
-                (!state.Officers.TryGetValue(leader, out var officer) || officer.OwnerId != f.Id)) ||
-            state.Settlements.Values.Any(s => s.CorpsId < 0 || s.CorpsId is int corpsId && (!state.Corps.TryGetValue(corpsId, out var corps) || corps.OwnerId != s.OwnerId)) ||
-            state.Settlements.Values.Where(s => s.CorpsId is not null).GroupBy(s => s.CorpsId)
+        if (state.AllForces.Values.Any(f => f.LeaderId is int leader &&
+                (!state.AllOfficers.TryGetValue(leader, out var officer) || officer.OwnerId != f.Id)) ||
+            state.AllSettlements.Values.Any(s => s.CorpsId < 0 || s.CorpsId is int corpsId && (!state.AllCorps.TryGetValue(corpsId, out var corps) || corps.OwnerId != s.OwnerId)) ||
+            state.AllSettlements.Values.Where(s => s.CorpsId is not null).GroupBy(s => s.CorpsId)
                 .Any(g => g.Select(s => s.OwnerId).Distinct().Count() != 1))
             throw new ArgumentException("Invalid leader or corps relationship.");
         foreach (var unit in state.Units.Values)
         {
-            if (!unit.IsValid || !state.Forces.ContainsKey(unit.OwnerId) ||
-                unit.MemberRanks.Keys.Any(id => !state.Officers.TryGetValue(id, out var person) || person.UnitId != unit.Id || !person.IsServing) ||
-                unit.Order?.SettlementId is int target && !state.Settlements.ContainsKey(target) ||
+            if (!unit.IsValid || !state.AllForces.ContainsKey(unit.OwnerId) ||
+                unit.MemberRanks.Keys.Any(id => !state.AllOfficers.TryGetValue(id, out var person) || person.UnitId != unit.Id || !person.IsServing) ||
+                unit.Order?.SettlementId is int target && !state.AllSettlements.ContainsKey(target) ||
                 unit.Order?.UnitId is int targetUnit && !state.Units.ContainsKey(targetUnit) ||
                 unit.EngagementTargetId is int engagement && !state.Units.ContainsKey(engagement) ||
-                unit.CommanderId is int commander && (!state.Officers.TryGetValue(commander, out var leader) ||
+                unit.CommanderId is int commander && (!state.AllOfficers.TryGetValue(commander, out var leader) ||
                     !leader.IsServing || leader.UnitId != unit.Id || leader.OwnerId != unit.OwnerId) ||
-                unit.CorpsId is int corpsId && (!state.Corps.TryGetValue(corpsId, out var corps) || corps.OwnerId != unit.OwnerId)) throw new ArgumentException("Invalid unit.");
+                unit.CorpsId is int corpsId && (!state.AllCorps.TryGetValue(corpsId, out var corps) || corps.OwnerId != unit.OwnerId)) throw new ArgumentException("Invalid unit.");
         }
-        if (state.Corps.Values.Any(c => c.Id < 0 || !Enum.IsDefined(c.ControlMode) || !ValidDelegation(state, c) || !state.Forces.ContainsKey(c.OwnerId) ||
-                !state.Officers.TryGetValue(c.LeaderId, out var leader) || leader.OwnerId != c.OwnerId ||
+        if (state.AllCorps.Values.Any(c => c.Id < 0 || !Enum.IsDefined(c.ControlMode) || !ValidDelegation(state, c) || !state.AllForces.ContainsKey(c.OwnerId) ||
+                !state.AllOfficers.TryGetValue(c.LeaderId, out var leader) || leader.OwnerId != c.OwnerId ||
                 !leader.IsServing && !(c.Treasury is null && leader.Status == San9.Core.Domain.OfficerStatus.Captive &&
-                    state.Forces[c.OwnerId].LeaderId == leader.Id)) ||
-            state.Treasures.Values.Any(t => !t.IsValid || t.HolderId is int holder && !state.Officers.ContainsKey(holder)) ||
-            state.Relations.Values.Any(r => r.FirstId >= r.SecondId || r.Value is < 0 or > 100 || !state.Forces.ContainsKey(r.FirstId) || !state.Forces.ContainsKey(r.SecondId)))
+                    state.AllForces[c.OwnerId].LeaderId == leader.Id)) ||
+            state.AllTreasures.Values.Any(t => !t.IsValid || t.HolderId is int holder && !state.AllOfficers.ContainsKey(holder)) ||
+            state.AllRelations.Values.Any(r => r.FirstId >= r.SecondId || r.Value is < 0 or > 100 || !state.AllForces.ContainsKey(r.FirstId) || !state.AllForces.ContainsKey(r.SecondId)))
             throw new ArgumentException("Invalid information state relationships.");
     }
+    private static void ValidateParticipation(WorldMutation state)
+    {
+        if (state.AllForces.Values.Any(f => f.IsDormant && f.IsEliminated) ||
+            state.AllSettlements.Values.Any(s => s.IsDormant && s.IsDestroyed ||
+                s.OwnerId is int owner && state.AllForces.TryGetValue(owner, out var force) && force.IsDormant && !s.IsDormant) ||
+            state.AllOfficers.Values.Any(p => p.IsDormant && p.UnitId is not null ||
+                !p.IsDormant && (p.OwnerId is int owner && state.AllForces.TryGetValue(owner, out var force) && force.IsDormant ||
+                    p.SettlementId is int place && state.AllSettlements.TryGetValue(place, out var settlement) && settlement.IsDormant)) ||
+            state.AllForces.Values.Any(f => !f.IsDormant &&
+                (f.LeaderId is int leader && state.AllOfficers.TryGetValue(leader, out var p) && p.IsDormant ||
+                 f.AdviserId is int adviser && state.AllOfficers.TryGetValue(adviser, out var a) && a.IsDormant)) ||
+            state.Units.Values.Any(u => !state.Forces.ContainsKey(u.OwnerId) ||
+                u.MemberRanks.Keys.Any(id => !state.Officers.ContainsKey(id)) ||
+                u.CommanderId is int commander && !state.Officers.ContainsKey(commander) ||
+                u.Order?.SettlementId is int target && !state.Settlements.ContainsKey(target) ||
+                u.ServicePlaceId is int home && state.AllSettlements.TryGetValue(home, out var place) && place.IsDormant) ||
+            state.Corps.Values.Any(c => !state.Officers.ContainsKey(c.LeaderId)) ||
+            state.Simulation.Controls.Any(c => !state.Forces.ContainsKey(c.ForceId)) ||
+            state.Simulation.Tasks.Any(t => !state.Forces.ContainsKey(t.ForceId) ||
+                !state.Officers.ContainsKey(t.OfficerId) || !state.Settlements.ContainsKey(t.OriginSettlementId)))
+            throw new ArgumentException("Dormant objects cannot participate in the active world.");
+    }
+
     private static bool ValidDelegation(WorldMutation state, San9.Core.Domain.CorpsState corps) =>
         corps.Treasury is null ? corps.Delegation is San9.Core.Domain.GeneralDelegation : corps.Delegation switch
         {
             San9.Core.Domain.GeneralDelegation or San9.Core.Domain.DomesticDelegation => true,
             San9.Core.Domain.DefeatForceDelegation target => target.ForceId != corps.OwnerId &&
-                state.Forces.TryGetValue(target.ForceId, out var force) && !force.IsEliminated,
-            San9.Core.Domain.CaptureSettlementDelegation target => state.Settlements.TryGetValue(target.SettlementId, out var place) && !place.IsDestroyed,
+                state.AllForces.TryGetValue(target.ForceId, out var force) && !force.IsEliminated,
+            San9.Core.Domain.CaptureSettlementDelegation target => state.AllSettlements.TryGetValue(target.SettlementId, out var place) && !place.IsDestroyed,
             _ => false
         };
     private static void ValidateSimulation(WorldMutation state)

@@ -28,6 +28,16 @@ public sealed class PersonnelRulebook
                 if (healing.HealerOfficerId < 0 || healing.WarChanceDivisor <= 0 ||
                     !ValidIds(healing.ExcludedSearchingOfficerIds)) throw new ArgumentException("Invalid healing event definition.");
             }
+            else if (entry is ForceActivationSearchEventDefinition activation)
+            {
+                _ = activation.Candidate(activation.ConsumptionKey);
+                if (!Places.ContainsKey(activation.PlaceId) || !Places.ContainsKey(activation.CityId) || activation.ForceId < 0 ||
+                    !ValidIds(activation.AttachedSettlementIds) || activation.AttachedSettlementIds.Any(id => id == activation.CityId || !Places.ContainsKey(id)) ||
+                    !ValidIds(activation.OfficerIds) || activation.OfficerIds.IsEmpty || activation.MinimumTrust is < 0 or > 1000 ||
+                    activation.MinimumProvinces < 0 || activation.CitySoldiers == 0 || activation.BaseTrustReward < 0 ||
+                    activation.Consumption != EventConsumption.OnSuccess)
+                    throw new ArgumentException("Invalid force activation definition.");
+            }
             else if (entry is TreasureMonumentSearchEventDefinition monument)
             {
                 _ = monument.Candidate(monument.ConsumptionKey);

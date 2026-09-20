@@ -6,6 +6,47 @@ namespace San9.Importer.San9PkTc101.Tests;
 
 public sealed class EventContentCompilerTests
 {
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public void PenglaiRetainsEveryBiographyGroupMemberAndUsesSemanticForceIdentity(byte mode)
+    {
+        var people = new[] { Person(675), Person(676), Person(677), Person(677), Person(677), Person(677), Person(1) };
+        var forces = new[] { new San9.Content.Scenarios.ForceInitialState(99, "wa", 0, 10000, 300000, 100)
+            { LeaderId = 0, CountryTitleId = 4 } };
+        var definition = EventContentCompiler.Penglai(mode, people, Enumerable.Range(0, people.Length), forces)!;
+        Assert.Equal(99, definition.ForceId);
+        Assert.Equal(Enumerable.Range(0, 6), definition.OfficerIds);
+        Assert.Equal((86, 45, 700, 2, 500000u, 10), (definition.PlaceId, definition.CityId,
+            definition.MinimumTrust, definition.MinimumProvinces, definition.CitySoldiers, definition.BaseTrustReward));
+        Assert.Equal(184, Assert.Single(definition.AttachedSettlementIds));
+        Assert.Equal(-3, definition.Priority);
+        Assert.Null(EventContentCompiler.Penglai(2, people, Enumerable.Range(0, people.Length), forces));
+        Assert.Null(EventContentCompiler.Penglai(9, people, Enumerable.Range(0, people.Length), forces));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.Penglai(0, people, [0, 1], forces));
+    }
+
+    [Theory]
+    [InlineData(1, true)]
+    [InlineData(2, false)]
+    public void PenglaiNewGameInitializationPreservesDefinitionsAndResources(int player, bool dormant)
+    {
+        var activation = new ForceActivationSearchEventDefinition(86, 2, 45, [184], [5], 700, 2, 500000, 10, new("penglai"))
+            { Id = "penglai", Consumption = EventConsumption.OnSuccess };
+        var initial = new San9.Content.Scenarios.ScenarioInitialState(San9.Content.Scenarios.ScenarioInitialState.CurrentSchemaVersion,
+            "fixture", 190, 1, 1, player, [new(1, "force", 1, 10, 10, 10), new(2, "wa", 2, 10000, 300000, 100)],
+            [new(45, "city", 2, 1, 1, 100000, 450, 700, 60, []), new(184, "port", null, 2, 2, 0, 300, 300, 0, [])], [], [])
+        {
+            Officers = [new("ruler", new(5, 2, 45, new(10, 20, 30, 40), false) { Status = OfficerStatus.Ruler })],
+            SearchEvents = [activation], ConsumedEventKeys = [activation.ConsumptionKey]
+        };
+        var result = EventContentCompiler.InitializePenglai(initial);
+        Assert.Equal(initial.Forces[1] with { IsDormant = dormant }, result.Forces[1]);
+        Assert.Equal(initial.Settlements.Select(s => s with { IsDormant = dormant }), result.Settlements);
+        Assert.Equal(initial.Officers[0].State with { IsDormant = dormant }, result.Officers[0].State);
+        Assert.Equal(!dormant, result.ConsumedEventKeys.Contains(activation.ConsumptionKey));
+    }
+
     [Fact]
     public void TongqueTowerBindsTreasureRankAndSuccessOnlyConsumption()
     {

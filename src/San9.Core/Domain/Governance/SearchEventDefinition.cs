@@ -10,6 +10,7 @@ namespace San9.Core.Domain;
 [JsonDerivedType(typeof(ScholarReturnSearchEventDefinition), "scholar-return")]
 [JsonDerivedType(typeof(ImperialCeremonySearchEventDefinition), "imperial-ceremony")]
 [JsonDerivedType(typeof(TreasureMonumentSearchEventDefinition), "treasure-monument")]
+[JsonDerivedType(typeof(ForceActivationSearchEventDefinition), "force-activation")]
 public abstract record SearchEventDefinition
 {
     [JsonRequired] public string Id { get; init; } = "";
@@ -73,3 +74,24 @@ public sealed record TreasureMonumentSearchEventDefinition(
     [property: JsonRequired] uint Cost,
     [property: JsonRequired] int BaseTrustReward,
     [property: JsonRequired] PersistentEventKey ConsumptionKey) : SearchEventDefinition;
+
+public sealed record ForceActivationSearchEventDefinition(
+    [property: JsonRequired] int PlaceId,
+    [property: JsonRequired] int ForceId,
+    [property: JsonRequired] int CityId,
+    [property: JsonRequired] ImmutableArray<int> AttachedSettlementIds,
+    [property: JsonRequired] ImmutableArray<int> OfficerIds,
+    [property: JsonRequired] int MinimumTrust,
+    [property: JsonRequired] int MinimumProvinces,
+    [property: JsonRequired] uint CitySoldiers,
+    [property: JsonRequired] int BaseTrustReward,
+    [property: JsonRequired] PersistentEventKey ConsumptionKey) : SearchEventDefinition
+{
+    public void ValidateReferences(IReadOnlySet<int> forces, IReadOnlySet<int> cities, IReadOnlySet<int> settlements,
+        IReadOnlySet<int> officers, bool hasRegions)
+    {
+        if (!forces.Contains(ForceId) || !cities.Contains(CityId) || AttachedSettlementIds.Any(id => !settlements.Contains(id)) ||
+            OfficerIds.Any(id => !officers.Contains(id)) || !hasRegions)
+            throw new ArgumentException("Unknown force activation reference or missing geographic regions.");
+    }
+}

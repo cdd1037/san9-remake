@@ -17,7 +17,7 @@ public sealed record BuildingHoverInfo(int Id, string Name, BuildingHoverTheme T
         if (s is null) return null;
         var force = view.Forces.SingleOrDefault(f => f.Id == s.OwnerId);
         var corps = view.World.Corps.SingleOrDefault(c => c.Id == s.CorpsId);
-        var people = view.World.Officers.Where(o => o.SettlementId == id && o.IsServing && o.OwnerId == s.OwnerId).ToArray();
+        var people = view.World.Officers.Where(o => !o.IsDormant && o.SettlementId == id && o.IsServing && o.OwnerId == s.OwnerId).ToArray();
         string Person(int? person) => view.Officers.SingleOrDefault(o => o.Id == person) is { } o ? texts.Resolve(o.NameKey) : "----";
         int relation = view.World.Relations.SingleOrDefault(r =>
             r.FirstId == view.PlayerForceId && r.SecondId == s.OwnerId || r.SecondId == view.PlayerForceId && r.FirstId == s.OwnerId)?.Value ?? 0;

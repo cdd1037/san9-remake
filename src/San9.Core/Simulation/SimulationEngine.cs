@@ -50,13 +50,27 @@ public sealed class SimulationEngine
             rules.Military?.Tactics.Values.Where(t => t.Category is >= 0 and <= 8).Select(t => t.Id).ToHashSet() ?? []);
         foreach (var ceremony in rules.Personnel.SearchEvents.Values.OfType<ImperialCeremonySearchEventDefinition>())
             if (!rules.Politics.Ranks.ContainsKey(ceremony.RequiredRankId)) throw new ArgumentException("Unknown ceremony rank reference.");
-        var officerIds = initial.Officers.Keys.ToHashSet();
+        var officerIds = initial.AllOfficers.Keys.ToHashSet();
         rules.ChainedPlot?.Validate(officerIds);
         rules.ThreeVisits?.Validate(officerIds, rules.Personnel.Places.Keys.ToHashSet());
         rules.ThreeVisits?.ValidateStarted(initial.Simulation.ThreeVisitsStarted, initial.Clock, initial.Simulation.ConsumedEventKeys);
         if (rules.ThreeVisits is null && initial.Simulation.ThreeVisitsStarted is not null)
             throw new ArgumentException("Three Visits state requires a definition.");
-        var cityIds = initial.Settlements.Values.Where(s => s.Kind == SettlementKind.City).Select(s => s.Id).ToHashSet();
+        var cityIds = initial.AllSettlements.Values.Where(s => s.Kind == SettlementKind.City).Select(s => s.Id).ToHashSet();
+        foreach (var activation in rules.Personnel.SearchEvents.Values.OfType<ForceActivationSearchEventDefinition>())
+        {
+            activation.ValidateReferences(initial.AllForces.Keys.ToHashSet(), cityIds, initial.AllSettlements.Keys.ToHashSet(),
+                officerIds, rules.Military?.RegionIds.IsEmpty == false);
+            var city = initial.AllSettlements[activation.CityId];
+            var force = initial.AllForces[activation.ForceId];
+            if (city.SoldierCapacity < activation.CitySoldiers || force.IsDormant &&
+                (!city.IsDormant || city.OwnerId != force.Id || force.LeaderId is not int leader || !activation.OfficerIds.Contains(leader) ||
+                 force.AdviserId is int adviser && !activation.OfficerIds.Contains(adviser) ||
+                 activation.AttachedSettlementIds.Any(id => !initial.AllSettlements[id].IsDormant) ||
+                 activation.OfficerIds.Any(id => !initial.AllOfficers[id].IsDormant || initial.AllOfficers[id].OwnerId != force.Id ||
+                     initial.AllOfficers[id].SettlementId != city.Id)))
+                throw new ArgumentException("Invalid dormant force activation state.");
+        }
         rules.ShanyangGong?.Validate(officerIds, rules.Personnel.Places.Keys.ToHashSet(), rules.Politics.ImperialRankId is not null);
         rules.RedCliffs?.Validate(officerIds, cityIds, rules.Personnel.Places.Keys.ToHashSet(), rules.Military?.RegionIds.IsEmpty == false);
         var tacticIds = rules.Military?.Tactics.Values.Where(t => t.Category is >= 0 and <= 8).Select(t => t.Id).ToHashSet() ?? [];

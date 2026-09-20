@@ -31,8 +31,11 @@ internal static class SessionValidation
                 origin.Clock.DayNumber < expected.Clock.DayNumber + 30 || origin.Clock.DayNumber > snapshot.World.Clock.DayNumber)
                 throw new ArgumentException("Invalid runtime force provenance.");
         }
-        var expectedControls = expected.Simulation.Controls.Concat(generated.Select(f => new ControlSeat($"ai:{f.Id}", f.Id, ControllerKind.Automatic)))
-            .Where(c => snapshot.World.Forces.Any(f => f.Id == c.ForceId && !f.IsEliminated));
+        var expectedControls = definition.Content.Forces.OrderBy(f => f.Id == definition.Content.PlayerForceId ? 0 : 1).ThenBy(f => f.Id)
+            .Select(f => new ControlSeat(f.Id == definition.Content.PlayerForceId ? "player" : $"ai:{f.Id}", f.Id,
+                f.Id == definition.Content.PlayerForceId ? ControllerKind.Player : ControllerKind.Automatic))
+            .Concat(generated.Select(f => new ControlSeat($"ai:{f.Id}", f.Id, ControllerKind.Automatic)))
+            .Where(c => snapshot.World.Forces.Any(f => f.Id == c.ForceId && !f.IsDormant && !f.IsEliminated));
         if (snapshot.World.Simulation.Started != expected.Clock ||
             snapshot.World.Simulation.AnnualAppearancesEnabled != expected.Simulation.AnnualAppearancesEnabled ||
             snapshot.World.Simulation.FreeOfficerMigrationEnabled != expected.Simulation.FreeOfficerMigrationEnabled ||
@@ -45,6 +48,15 @@ internal static class SessionValidation
             !snapshot.World.Simulation.Controls.SequenceEqual(expectedControls))
             throw new ArgumentException("Scenario date or control configuration mismatch.");
         var content = definition.Content;
+        var activated = content.SearchEvents.OfType<ForceActivationSearchEventDefinition>()
+            .Where(d => snapshot.World.Simulation.ConsumedEventKeys.Contains(d.ConsumptionKey)).ToArray();
+        var activatedForces = activated.Select(d => d.ForceId).ToHashSet();
+        var activatedSettlements = activated.SelectMany(d => d.AttachedSettlementIds.Prepend(d.CityId)).ToHashSet();
+        var activatedOfficers = activated.SelectMany(d => d.OfficerIds).ToHashSet();
+        if (snapshot.World.Forces.Any(f => f.IsDormant != (content.Forces.Any(i => i.Id == f.Id && i.IsDormant) && !activatedForces.Contains(f.Id))) ||
+            snapshot.World.Settlements.Any(s => s.IsDormant != (content.Settlements.Any(i => i.Id == s.Id && i.IsDormant) && !activatedSettlements.Contains(s.Id))) ||
+            snapshot.World.Officers.Any(p => p.IsDormant != (content.Officers.Any(i => i.State.Id == p.Id && i.State.IsDormant) && !activatedOfficers.Contains(p.Id))))
+            throw new ArgumentException("Dormant state does not match initial content and completed activation events.");
         if (snapshot.World.Simulation.Boundary == SimulationBoundary.Terminal)
         {
             _ = TerminalEvaluation.Evaluate(snapshot.World, content.Terminal);

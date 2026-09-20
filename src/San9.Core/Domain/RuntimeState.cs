@@ -14,6 +14,7 @@ public sealed record ForceOrigin(
 
 public sealed record ForceState(int Id, uint Money, uint Food, int Trust)
 {
+    [JsonRequired] public bool IsDormant { get; init; }
     [JsonRequired] public ForceOrigin? Origin { get; init; }
     [JsonRequired] public bool IsEliminated { get; init; }
     [JsonRequired] public bool HasDeposedEmperor { get; init; }
@@ -33,6 +34,7 @@ public sealed record SettlementState(int Id, int? OwnerId, uint Soldiers, int Du
     int Morale, int PublicOrder, int Commerce, int MaxCommerce, int Cultivation, int MaxCultivation,
     bool CommerceUsed = false, bool CultivationUsed = false)
 {
+    [JsonRequired] public bool IsDormant { get; init; }
     [JsonRequired] public FacilityInstance? Facility { get; init; }
     [JsonRequired] public bool IsDestroyed { get; init; }
     [JsonRequired] public int ConfusionDaysRemaining { get; init; }

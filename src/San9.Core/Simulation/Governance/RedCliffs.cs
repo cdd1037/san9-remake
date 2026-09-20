@@ -13,7 +13,7 @@ internal static class RedCliffs
     {
         if (rules.RedCliffs is not { } definition || rules.Military is not { } military ||
             world.Simulation.ConsumedEventKeys.Contains(definition.ConsumptionKey)) return false;
-        var person = world.Officers[definition.OfficerId];
+        if (!world.Officers.TryGetValue(definition.OfficerId, out var person)) return false;
         if (person.OwnerId is not int owner || !world.Forces.TryGetValue(owner, out var force) || force.IsEliminated ||
             !world.Simulation.Controls.Any(c => c.ForceId == owner && c.Kind == ControllerKind.Player) ||
             !world.Settlements.TryGetValue(definition.OpposingCityId, out var city) || city.IsDestroyed ||

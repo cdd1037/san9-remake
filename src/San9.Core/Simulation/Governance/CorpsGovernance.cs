@@ -81,7 +81,7 @@ internal static class CorpsGovernance
         var roots = world.Corps.Values.Where(c => c.OwnerId == command.IssuerId && c.Treasury is null).ToArray();
         if (roots.Length != 1 || command.CityIds.IsDefaultOrEmpty || command.CityIds.Distinct().Count() != command.CityIds.Length ||
             world.Corps.Values.Count(c => c.OwnerId == command.IssuerId) >= GovernanceRulebook.MaximumCorpsPerForce ||
-            world.Corps.Count != 0 && world.Corps.Keys.Max() == int.MaxValue) return CommandRejection.InvalidCorps;
+            world.AllCorps.Count != 0 && world.AllCorps.Keys.Max() == int.MaxValue) return CommandRejection.InvalidCorps;
         var root = roots[0];
         var force = world.Forces[command.IssuerId];
         if (force.LeaderId is not int rulerId || !world.Officers.TryGetValue(rulerId, out var ruler))
@@ -100,7 +100,7 @@ internal static class CorpsGovernance
             p.SettlementId is int home && places.Contains(home) && home != PersonnelLocations.ServicePlace(world, ruler) && !busy.Contains(p.Id)), world.AbilitiesFor(world.Officers.Values));
         if (leader is null) return CommandRejection.PersonUnavailable;
         if (command.Money > force.Money || command.Food > force.Food) return CommandRejection.InsufficientFunds;
-        int id = world.Corps.Keys.Max() + 1;
+        int id = world.AllCorps.Keys.Max() + 1;
         if (force.AdviserId == leader.Id) world.Replace(force = force with { AdviserId = null });
         world.Replace(leader with { Status = OfficerStatus.Governor });
         world.AddCorps(new(id, force.Id, leader.Id, new(command.Money, command.Food)) { ControlMode = CorpsControlMode.Automatic });

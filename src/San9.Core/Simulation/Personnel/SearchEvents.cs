@@ -21,6 +21,8 @@ internal static class SearchEvents
         foreach (var candidate in EventSelection.Order(rules.SearchEvents.Values.Select(e => new EventCandidate(e.Id, EventTrigger.Search, e.Priority)),
             EventTrigger.Search))
         {
+            if (rules.SearchEvents[candidate.Id] is ForceActivationSearchEventDefinition activation &&
+                ForceActivationSearch.TryResolve(world, task, activation, simulationRules, events)) return true;
             if (rules.SearchEvents[candidate.Id] is TreasureMonumentSearchEventDefinition monument &&
                 TreasureMonument.Eligible(world, task, simulationRules, monument))
             {

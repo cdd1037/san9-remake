@@ -14,7 +14,7 @@ internal static class ShanyangGong
     {
         if (rules.ShanyangGong is not { } d || task.Journey?.DestinationPlaceId != d.PlaceId ||
             !world.Simulation.ImperialCourtEnded || world.Simulation.ConsumedEventKeys.Contains(d.ConsumptionKey) ||
-            world.Officers[d.EmperorId].Status == OfficerStatus.Dead ||
+            !world.Officers.TryGetValue(d.EmperorId, out var emperor) || emperor.Status == OfficerStatus.Dead ||
             !world.Forces.TryGetValue(task.ForceId, out var force) || force.IsEliminated || force.HasDeposedEmperor ||
             force.LeaderId is not int leader || force.Trust < d.MinimumTrust ||
             !world.Simulation.Controls.Any(c => c.ForceId == force.Id && c.Kind == ControllerKind.Player) ||
@@ -24,7 +24,7 @@ internal static class ShanyangGong
     }
 
     internal static ImmutableArray<int> Candidates(WorldMutation world, SimulationRules rules, int forceId) =>
-        world.Forces[forceId].CountryTitleId is not null ? [] : rules.Politics.ManualCandidates(world.Forces.Values
+        world.Forces[forceId].CountryTitleId is not null ? [] : rules.Politics.ManualCandidates(world.AllForces.Values
             .Where(f => !f.IsEliminated && f.CountryTitleId is not null).Select(f => f.CountryTitleId!.Value).ToHashSet());
 
     internal static PersistentTask? Resolve(WorldMutation world, PersistentTask task, SimulationRules rules,

@@ -5,6 +5,37 @@ namespace San9.Client.Godot.Tests;
 
 public sealed class BuildingVisualTests
 {
+    [Fact]
+    public void DormantWorldProjectionDrivesBuildingsAndMinimapWithoutRemovingDefinitions()
+    {
+        var definition = new San9.Content.Scenarios.ScenarioInitialState(
+            San9.Content.Scenarios.ScenarioInitialState.CurrentSchemaVersion, "dormant", 190, 1, 1, 5,
+            [new(5, "active", 5, 0, 0, 0), new(6, "reserved", 6, 0, 0, 0) { IsDormant = true }],
+            [new(0, "city", 6, 89, 64, 1000, 1000, 1000, 60, []) { IsDormant = true, Appearance = 2 }], [], []);
+        var date = new San9.Core.Simulation.GameClock(190, 1, 1);
+        var snapshot = new San9.Core.Simulation.WorldSnapshot(date, new(date, 17))
+        {
+            Forces = [new(5, 0, 0, 0), new(6, 0, 0, 0) { IsDormant = true }],
+            Settlements = [new(0, 6, 1000, 1000, 1000, 60, 0, 0, 100, 0, 100) { IsDormant = true }]
+        };
+        var map = Map(); var hash = snapshot.StateHash;
+        BuildingVisuals Render(San9.Application.Presentation.StrategySnapshot view) => BuildingVisuals.Resolve(map,
+            view.Settlements.Select(s => new BuildingVisualState(s.Id, s.Durability, s.Appearance, s.Commerce,
+                s.Soldiers, s.CityMarkerColor ?? 50, -1)).ToArray());
+        var hidden = new San9.Application.Presentation.StrategySnapshot(definition, snapshot);
+        Assert.Empty(Render(hidden).Buildings); Assert.Empty(Render(hidden).Animations);
+        Assert.DoesNotContain(hidden.Settlements, s => s.CityMarkerColor is not null);
+        var activated = new San9.Application.Presentation.StrategySnapshot(definition, snapshot with
+        {
+            Forces = snapshot.Forces.Select(f => f with { IsDormant = false }).ToArray(),
+            Settlements = snapshot.Settlements.Select(s => s with { IsDormant = false }).ToArray()
+        });
+        Assert.Single(Render(activated).Buildings);
+        Assert.Single(activated.Settlements, s => s.CityMarkerColor is not null);
+        Assert.Single(map.Buildings); Assert.Single(definition.Settlements);
+        Assert.Equal(hash, snapshot.StateHash);
+    }
+
     private static MapPackage Map() => new(9,"fixture","fixture","spring",200,200,13056,6656,
         Enumerable.Repeat(new MapSquare(0,1,0,0),40000).ToArray(),[],[],[],[],[],[new(0,89,64,0)],
         Enumerable.Range(1,14).Select(id=>new MapComposition(id,[new(false,true,100,0,0)])

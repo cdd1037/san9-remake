@@ -71,24 +71,47 @@ internal sealed class WorldMutation
         _expectedRevision = expectedRevision;
         Clock = clock;
         Simulation = simulation;
-        Forces = forces;
-        Settlements = settlements;
-        Officers = officers;
+        AllForces = forces;
+        AllSettlements = settlements;
+        AllOfficers = officers;
         Units = units;
-        Corps = corps;
-        Treasures = treasures;
-        Relations = relations;
+        AllCorps = corps;
+        AllTreasures = treasures;
+        AllRelations = relations;
+        RebuildActiveRecords();
     }
 
     internal GameClock Clock { get; private set; }
     internal SimulationState Simulation { get; private set; }
-    internal ImmutableDictionary<int, ForceState> Forces { get; private set; }
-    internal ImmutableDictionary<int, SettlementState> Settlements { get; private set; }
-    internal ImmutableDictionary<int, OfficerState> Officers { get; private set; }
+    internal ImmutableDictionary<int, ForceState> AllForces { get; private set; }
+    internal ImmutableDictionary<int, SettlementState> AllSettlements { get; private set; }
+    internal ImmutableDictionary<int, OfficerState> AllOfficers { get; private set; }
     internal ImmutableDictionary<int, UnitState> Units { get; private set; }
-    internal ImmutableDictionary<int, CorpsState> Corps { get; private set; }
-    internal ImmutableDictionary<int, TreasureState> Treasures { get; private set; }
-    internal ImmutableDictionary<(int FirstId, int SecondId), ForceRelation> Relations { get; private set; }
+    internal ImmutableDictionary<int, CorpsState> AllCorps { get; private set; }
+    internal ImmutableDictionary<int, TreasureState> AllTreasures { get; private set; }
+    internal ImmutableDictionary<(int FirstId, int SecondId), ForceRelation> AllRelations { get; private set; }
+
+    // Complete registries own state. These derived indices expose only participating objects to rules.
+    // Rebuilt on activation changes; ordinary replacements update the relevant immutable index.
+    internal ImmutableDictionary<int, ForceState> Forces { get; private set; } = ImmutableDictionary<int, ForceState>.Empty;
+    internal ImmutableDictionary<int, SettlementState> Settlements { get; private set; } = ImmutableDictionary<int, SettlementState>.Empty;
+    internal ImmutableDictionary<int, OfficerState> Officers { get; private set; } = ImmutableDictionary<int, OfficerState>.Empty;
+    internal ImmutableDictionary<int, CorpsState> Corps => _activeCorps ??= AllCorps.RemoveRange(AllCorps.Values.Where(c => IsDormantForce(c.OwnerId)).Select(c => c.Id));
+    internal ImmutableDictionary<int, TreasureState> Treasures => _activeTreasures ??= AllTreasures.RemoveRange(AllTreasures.Values.Where(t => t.HolderId is int id && AllOfficers.TryGetValue(id, out var holder) && holder.IsDormant).Select(t => t.Id));
+    internal ImmutableDictionary<(int FirstId, int SecondId), ForceRelation> Relations => _activeRelations ??= AllRelations.RemoveRange(AllRelations.Keys.Where(k => IsDormantForce(k.FirstId) || IsDormantForce(k.SecondId)));
+    private ImmutableDictionary<int, CorpsState>? _activeCorps;
+    private ImmutableDictionary<int, TreasureState>? _activeTreasures;
+    private ImmutableDictionary<(int FirstId, int SecondId), ForceRelation>? _activeRelations;
+    private bool IsDormantForce(int id) => AllForces.TryGetValue(id, out var force) && force.IsDormant;
+
+    private void RebuildActiveRecords()
+    {
+        Forces = AllForces.RemoveRange(AllForces.Values.Where(f => f.IsDormant).Select(f => f.Id));
+        Settlements = AllSettlements.RemoveRange(AllSettlements.Values.Where(s => s.IsDormant).Select(s => s.Id));
+        Officers = AllOfficers.RemoveRange(AllOfficers.Values.Where(p => p.IsDormant).Select(p => p.Id));
+        _activeCorps = null; _activeTreasures = null; _activeRelations = null;
+        _engagements = null; _movementOccupancy = null;
+    }
 
     internal OfficerAbilities Abilities(OfficerState person) => _abilityRules.Evaluate(person, Treasures.Values);
     internal ImmutableDictionary<int, OfficerAbilities> AbilitiesFor(IEnumerable<OfficerState> people) =>
@@ -132,38 +155,46 @@ internal sealed class WorldMutation
 
     internal void Replace(ForceState value)
     {
-        if (Forces[value.Id].IsEliminated != value.IsEliminated) _engagements = null;
-        Forces = Replace(Forces, value.Id, value);
+        if (AllForces[value.Id].IsEliminated != value.IsEliminated) _engagements = null;
+        bool activationChanged = AllForces[value.Id].IsDormant != value.IsDormant;
+        AllForces = Replace(AllForces, value.Id, value);
+        if (activationChanged) RebuildActiveRecords();
+        else if (!value.IsDormant) Forces = Forces.SetItem(value.Id, value);
     }
     internal void Replace(SettlementState value)
     {
-        var previous = Settlements[value.Id];
-        if (previous.OwnerId != value.OwnerId || previous.CanHostPersons != value.CanHostPersons || previous.IsDestroyed != value.IsDestroyed)
+        var previous = AllSettlements[value.Id];
+        if (previous.IsDormant != value.IsDormant || previous.OwnerId != value.OwnerId || previous.CanHostPersons != value.CanHostPersons || previous.IsDestroyed != value.IsDestroyed)
             LeadershipChanged();
         if (previous.OwnerId != value.OwnerId || previous.CanHostPersons != value.CanHostPersons || previous.IsDestroyed != value.IsDestroyed ||
             previous.Facility != value.Facility || (previous.Soldiers > 0) != (value.Soldiers > 0) ||
             (previous.Morale > 0) != (value.Morale > 0) || (previous.Durability > 0) != (value.Durability > 0) ||
             (previous.ConfusionDaysRemaining == 0) != (value.ConfusionDaysRemaining == 0)) _engagements = null;
-        Settlements = Replace(Settlements, value.Id, value);
+        AllSettlements = Replace(AllSettlements, value.Id, value);
+        if (previous.IsDormant != value.IsDormant) RebuildActiveRecords();
+        else if (!value.IsDormant) Settlements = Settlements.SetItem(value.Id, value);
         if (previous.OwnerId != value.OwnerId && value.Kind == SettlementKind.City && !value.IsDestroyed &&
             value.OwnerId is int owner && Simulation.Controls.Any(c => c.ForceId == owner && c.Kind == ControllerKind.Player))
             SetSimulation(Simulation with { ForceConsolidationPending = true });
-        _movementOccupancy?.Set(value);
+        if (!value.IsDormant) _movementOccupancy?.Set(value);
     }
     internal void AddSettlement(SettlementState value)
     {
         EnsureOpen();
-        Settlements = Settlements.Add(value.Id, value);
-        _movementOccupancy?.Set(value);
+        AllSettlements = AllSettlements.Add(value.Id, value);
+        if (!value.IsDormant) Settlements = Settlements.Add(value.Id, value);
+        if (!value.IsDormant) _movementOccupancy?.Set(value);
         _engagements = null;
     }
     internal void Replace(OfficerState value)
     {
-        var previous = Officers[value.Id];
-        if (previous.OwnerId != value.OwnerId || previous.Status != value.Status || previous.SettlementId != value.SettlementId ||
+        var previous = AllOfficers[value.Id];
+        if (previous.IsDormant != value.IsDormant || previous.OwnerId != value.OwnerId || previous.Status != value.Status || previous.SettlementId != value.SettlementId ||
             previous.UnitId != value.UnitId || previous.OfficeId != value.OfficeId || previous.Injury != value.Injury ||
             previous.BaseAbilities.Leadership != value.BaseAbilities.Leadership) LeadershipChanged();
-        Officers = Replace(Officers, value.Id, value);
+        AllOfficers = Replace(AllOfficers, value.Id, value);
+        if (previous.IsDormant != value.IsDormant) RebuildActiveRecords();
+        else if (!value.IsDormant) Officers = Officers.SetItem(value.Id, value);
     }
     internal void Replace(UnitState value)
     {
@@ -193,39 +224,44 @@ internal sealed class WorldMutation
         _movementOccupancy?.RemoveUnit(id);
         _engagements = null;
     }
-    internal void Replace(CorpsState value) => Corps = Replace(Corps, value.Id, value);
+    internal void Replace(CorpsState value)
+    {
+        AllCorps = Replace(AllCorps, value.Id, value);
+        _activeCorps = null;
+    }
     internal void RemoveCorps(int id)
     {
         EnsureOpen();
-        if (!Corps.ContainsKey(id)) throw new InvalidOperationException("Unknown corps.");
-        Corps = Corps.Remove(id);
+        if (!AllCorps.ContainsKey(id)) throw new InvalidOperationException("Unknown corps.");
+        AllCorps = AllCorps.Remove(id); _activeCorps = null;
     }
     // Retired forces remain in the world, so allocation never reuses a previous identity.
     internal void AddForce(ForceState force)
     {
         EnsureOpen();
-        if (force.Origin is null || force.Id != checked(Forces.Keys.DefaultIfEmpty(-1).Max() + 1))
+        if (force.Origin is null || force.Id != checked(AllForces.Keys.DefaultIfEmpty(-1).Max() + 1))
             throw new ArgumentException("Invalid generated force identity or origin.");
-        Forces = Forces.Add(force.Id, force);
+        AllForces = AllForces.Add(force.Id, force);
+        RebuildActiveRecords();
         _engagements = null;
     }
 
     internal void AddCorps(CorpsState corps)
     {
         EnsureOpen();
-        Corps = Corps.Add(corps.Id, corps);
+        AllCorps = AllCorps.Add(corps.Id, corps); _activeCorps = null;
     }
     internal void Replace(TreasureState value)
     {
-        var previous = Treasures[value.Id];
+        var previous = AllTreasures[value.Id];
         if (previous.HolderId != value.HolderId || previous.Discovery != value.Discovery) LeadershipChanged();
-        Treasures = Replace(Treasures, value.Id, value);
+        AllTreasures = Replace(AllTreasures, value.Id, value); _activeTreasures = null;
     }
     internal void Replace(ForceRelation value)
     {
-        var previous = Relations[(value.FirstId, value.SecondId)];
+        var previous = AllRelations[(value.FirstId, value.SecondId)];
         if (MilitaryDiplomacy.IsHostileRelation(previous.Value) != MilitaryDiplomacy.IsHostileRelation(value.Value)) _engagements = null;
-        Relations = Replace(Relations, (value.FirstId, value.SecondId), value);
+        AllRelations = Replace(AllRelations, (value.FirstId, value.SecondId), value); _activeRelations = null;
     }
 
     internal void SetRelation(ForceRelation value)
@@ -233,7 +269,7 @@ internal sealed class WorldMutation
         EnsureOpen();
         int previous = MilitaryDiplomacy.Relation(this, value.FirstId, value.SecondId);
         if (MilitaryDiplomacy.IsHostileRelation(previous) != MilitaryDiplomacy.IsHostileRelation(value.Value)) _engagements = null;
-        Relations = Relations.SetItem((value.FirstId, value.SecondId), value);
+        AllRelations = AllRelations.SetItem((value.FirstId, value.SecondId), value); _activeRelations = null;
     }
 
     private ImmutableDictionary<TKey, TValue> Replace<TKey, TValue>(

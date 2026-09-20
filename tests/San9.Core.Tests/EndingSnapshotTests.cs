@@ -32,6 +32,24 @@ public sealed class EndingSnapshotTests
         new(901, default, 0), new(902, new(5, 0, 0, 0), 0)]), new([]));
 
     [Fact]
+    public void DormantPeopleCitiesAndForcesDoNotContributeToEndingRequirements()
+    {
+        var before = World();
+        var world = before with
+        {
+            Forces = before.Forces.Select(f => f.Id == 9 ? f with { IsDormant = true } : f).ToArray(),
+            Settlements = before.Settlements.Select(s => s.Id == 102 ? s with { IsDormant = true } : s).ToArray(),
+            Officers = before.Officers.Select(p => p.Id is 401 or 405 ? p with { IsDormant = true } : p).ToArray()
+        };
+        var result = EndingSnapshotFactory.Create(world, 8, Definition, Abilities);
+        Assert.False(result.HasLivingBarbarianForce);
+        Assert.Equal(4, result.Officers.Length);
+        Assert.Equal(0, result.CulturalTreasureCount);
+        Assert.Equal(0, result.DomesticPublicOrder);
+        Assert.False(result.OwnsExpansionGateways);
+    }
+
+    [Fact]
     public void ProjectionUsesCurrentOwnershipAndCountsEachResourceAccountOnce()
     {
         var world = World();

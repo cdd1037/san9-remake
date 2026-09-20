@@ -113,7 +113,7 @@ public sealed class StrategySnapshot
         var occupied = world.Simulation.Tasks.Select(t => t.OfficerId).ToHashSet();
         var journeys = world.Simulation.Tasks.Where(t => t.Journey is not null).ToDictionary(t => t.OfficerId);
         var abilities = source.Abilities.EvaluateMany(world.Officers, world.Treasures);
-        Officers = Array.AsReadOnly(world.Officers.Where(o => o.IsVisible).Select(o =>
+        Officers = Array.AsReadOnly(world.Officers.Where(o => !o.IsDormant && o.IsVisible).Select(o =>
         {
             var location = o.SettlementId is int id ? settlements[id] : null;
             var definition = source.Officer(o.Id);
@@ -131,7 +131,7 @@ public sealed class StrategySnapshot
             };
         }).ToArray());
         var officerLocations = world.Officers.ToDictionary(officer => officer.Id, officer => officer.SettlementId);
-        Forces = Array.AsReadOnly(world.Forces.Select(f =>
+        Forces = Array.AsReadOnly(world.Forces.Where(f => !f.IsDormant).Select(f =>
         {
             var definition = source.Force(f);
             int? leaderSettlementId = f.LeaderId is int leader && officerLocations.TryGetValue(leader, out int? location)
@@ -147,10 +147,10 @@ public sealed class StrategySnapshot
             };
         }).ToArray());
         var availableSettlementIds = world.Officers
-            .Where(officer => officer.IsServing && !officer.Acted && !occupied.Contains(officer.Id) && officer.SettlementId is not null)
+            .Where(officer => !officer.IsDormant && officer.IsServing && !officer.Acted && !occupied.Contains(officer.Id) && officer.SettlementId is not null)
             .Select(officer => (officer.SettlementId!.Value, officer.OwnerId))
             .ToHashSet();
-        Settlements = Array.AsReadOnly(world.Settlements.Select(s =>
+        Settlements = Array.AsReadOnly(world.Settlements.Where(s => !s.IsDormant).Select(s =>
         {
             var definition = source.Settlement(s.Id);
             var militaryPlace = source.Military is { } rules && rules.TryPlace(s, out var place) ? place : null;

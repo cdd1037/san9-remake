@@ -23,13 +23,13 @@ internal static class QuarterHistoricalEvents
             world.Simulation.Started.DayNumber > definition.LatestScenarioStart.DayNumber ||
             world.Clock.DayNumber > definition.LatestDate.DayNumber ||
             world.Simulation.ConsumedEventKeys.Contains(definition.ConsumptionKey)) return false;
-        var ruler = world.Officers[definition.RulerId];
-        var companion = world.Officers[definition.CompanionId];
+        if (!world.Officers.TryGetValue(definition.RulerId, out var ruler) ||
+            !world.Officers.TryGetValue(definition.CompanionId, out var companion)) return false;
         if (ruler.Status != OfficerStatus.Ruler || ruler.OwnerId is not int owner ||
             !world.Forces.TryGetValue(owner, out var force) || force.IsEliminated || force.LeaderId != ruler.Id ||
             !world.Simulation.Controls.Any(c => c.ForceId == owner && c.Kind == ControllerKind.Player) ||
             !companion.IsServing || companion.OwnerId != owner ||
-            definition.RequiredLivingOfficerIds.Any(id => world.Officers[id].Status == OfficerStatus.Dead)) return false;
+            definition.RequiredLivingOfficerIds.Any(id => !world.Officers.TryGetValue(id, out var person) || person.Status == OfficerStatus.Dead)) return false;
         var cities = rules.Personnel.CityProvinces.Where(p => p.Value == definition.ProvinceId &&
             !definition.ExcludedCityIds.Contains(p.Key)).Select(p => p.Key).ToArray();
         if (cities.Length == 0 || cities.Any(id => !world.Settlements.TryGetValue(id, out var city) ||
@@ -39,8 +39,8 @@ internal static class QuarterHistoricalEvents
         int Gain(int current) => (int)Math.Min(definition.LifespanBonus, Math.Max(0L, (long)definition.LifespanCap - current));
         int rulerGain = Gain(ruler.LifespanTier), companionGain = Gain(companion.LifespanTier);
         int trustGain = (int)Math.Min(definition.BaseTrustBonus, Math.Max(0L, 1000L - force.BaseTrust));
-        var rival = world.Officers[definition.RivalRulerId];
-        int? rivalForce = rival.Status == OfficerStatus.Ruler && rival.OwnerId is int other && other != owner &&
+        var rival = world.Officers.GetValueOrDefault(definition.RivalRulerId);
+        int? rivalForce = rival?.Status == OfficerStatus.Ruler && rival.OwnerId is int other && other != owner &&
             world.Forces.TryGetValue(other, out var rivalRealm) && !rivalRealm.IsEliminated && rivalRealm.LeaderId == rival.Id ? other : null;
         world.Replace(ruler with { LifespanTier = ruler.LifespanTier + rulerGain });
         world.Replace(companion with { LifespanTier = companion.LifespanTier + companionGain });

@@ -20,7 +20,7 @@ internal static class ImperialCourt
         foreach (var death in court.DeathEvents)
         {
             if (world.Simulation.Started.DayNumber >= death.ScenarioStartsBefore.DayNumber ||
-                world.Clock.DayNumber < death.EarliestDate.DayNumber) continue;
+                world.Clock.DayNumber < death.EarliestDate.DayNumber || !world.Officers.ContainsKey(death.OfficerId)) continue;
             // Original eligibility consumes its survival draw before testing the person's death state.
             if (world.NextRandom("event-emperor-death") % 100 < (ulong)death.SurvivalChancePercent ||
                 world.Officers[death.OfficerId].Status == OfficerStatus.Dead) continue;

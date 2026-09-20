@@ -16,11 +16,11 @@ public static class TerminalEvaluation
         // Once a non-victory reason is set, neither victory nor the year limit can replace it.
         if (simulation.TerminalReason is string reason && reason != "conquest")
             return new(TerminalRoute.ReturnToTitle, reason, null);
-        var ordinary = forces.Where(f => !f.IsEliminated && !f.IsBarbarian).OrderBy(f => f.Id).ToArray();
+        var ordinary = forces.Where(f => !f.IsDormant && !f.IsEliminated && !f.IsBarbarian).OrderBy(f => f.Id).ToArray();
         ForceState? winner = ordinary.Length == 1 ? ordinary[0] : null;
         if (winner is null && definition is { CoreCityIds.IsEmpty: false })
         {
-            var cities = settlements.Where(s => s.Kind == SettlementKind.City && !s.IsDestroyed).ToDictionary(s => s.Id);
+            var cities = settlements.Where(s => !s.IsDormant && s.Kind == SettlementKind.City && !s.IsDestroyed).ToDictionary(s => s.Id);
             winner = ordinary.FirstOrDefault(f => definition.CoreCityIds.All(id => cities.TryGetValue(id, out var city) && city.OwnerId == f.Id));
         }
         if (winner is not null)

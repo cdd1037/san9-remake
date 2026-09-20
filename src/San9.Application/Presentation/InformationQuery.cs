@@ -58,7 +58,7 @@ public sealed class InformationQuery(GameSession session, TextCatalog texts)
                     {
                         4 => [Name(f.NameKey), comparison, relation is null ? (CatalogCell)"—" : (CatalogCell)relation.Value],
                         1 => [Name(f.NameKey), cities.Length, people.Length, soldiers, v.World.Units.Count(u => u.OwnerId == f.Id)],
-                        2 => [Name(f.NameKey), (long)f.Money, v.World.Settlements.Where(s => s.OwnerId == f.Id).Sum(s => (long)s.Population), cities.Sum(s => s.Commerce)],
+                        2 => [Name(f.NameKey), (long)f.Money, v.World.Settlements.Where(s => !s.IsDormant && s.OwnerId == f.Id).Sum(s => (long)s.Population), cities.Sum(s => s.Commerce)],
                         3 => [Name(f.NameKey), (long)f.Food, soldiers, cities.Sum(s => s.Cultivation)],
                         _ => [Name(f.NameKey), Rank(f.RankId), f.IsBarbarian ? (CatalogCell)"****" : (CatalogCell)f.Trust, Person(people.FirstOrDefault(o => o.Status == OfficerStatus.Strategist)?.Id), v.World.Corps.Count(c => c.OwnerId == f.Id), cities.Length, people.Length]
                     };
@@ -68,7 +68,7 @@ public sealed class InformationQuery(GameSession session, TextCatalog texts)
             }
             case InformationCategory.Corps:
                 return new("军团一览", ["状态", "物资"], page == 0 ? ["军团", "势力", "都督", "都市", "武将", "士兵"] : ["军团", "势力", "资金", "兵粮"],
-                    v.World.Corps.Where(c => Owner(c.OwnerId)).Select(c =>
+                    v.World.Corps.Where(c => Owner(c.OwnerId) && v.Forces.Any(f => f.Id == c.OwnerId)).Select(c =>
                     {
                         var places = v.Settlements.Where(s => s.CorpsId == c.Id).ToArray();
                         return Row(c.Id, page == 0 ? [Person(c.LeaderId) + "军", Force(c.OwnerId), Person(c.LeaderId), places.Count(s => s.Kind == SettlementKind.City), v.Officers.Count(o => o.IsServing && o.CorpsId == c.Id), places.Sum(s => (long)s.Soldiers)]
@@ -95,7 +95,7 @@ public sealed class InformationQuery(GameSession session, TextCatalog texts)
                 {
                     var site = v.Settlements.FirstOrDefault(s => s.Id == p.Key);
                     int? city = v.RegionCityIds.TryGetValue(p.Key, out int c) ? c : null;
-                    return Row(p.Key, [Name(p.Value), Place(city), site is null ? "无" : site.ResolveName(texts), Force(site?.OwnerId), site is null ? (CatalogCell)"—" : (CatalogCell)(long)site.Soldiers, site is null ? (CatalogCell)"—" : (CatalogCell)site.Durability], site?.Id ?? city);
+                    return Row(p.Key, [Name(p.Value), Place(city), site is null ? "无" : site.ResolveName(texts), Force(site?.OwnerId), site is null ? (CatalogCell)"—" : (CatalogCell)(long)site.Soldiers, site is null ? (CatalogCell)"—" : (CatalogCell)site.Durability], site?.Id ?? (v.Settlements.Any(s => s.Id == city) ? city : null));
                 }).ToArray());
             case InformationCategory.Units:
                 return page == 1

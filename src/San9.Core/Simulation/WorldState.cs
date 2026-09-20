@@ -97,16 +97,16 @@ public sealed class WorldState
         ArgumentNullException.ThrowIfNull(mutation);
         mutation.VerifyCommit(this, Revision);
         WorldInvariants.Validate(mutation);
-        bool recordsUnchanged = ReferenceEquals(_forces, mutation.Forces) && ReferenceEquals(_settlements, mutation.Settlements) &&
-            ReferenceEquals(_officers, mutation.Officers) && ReferenceEquals(_units, mutation.Units) &&
-            ReferenceEquals(_corps, mutation.Corps) && ReferenceEquals(_treasures, mutation.Treasures) && ReferenceEquals(_relations, mutation.Relations);
-        _forces = mutation.Forces;
-        _settlements = mutation.Settlements;
-        _officers = mutation.Officers;
+        bool recordsUnchanged = ReferenceEquals(_forces, mutation.AllForces) && ReferenceEquals(_settlements, mutation.AllSettlements) &&
+            ReferenceEquals(_officers, mutation.AllOfficers) && ReferenceEquals(_units, mutation.Units) &&
+            ReferenceEquals(_corps, mutation.AllCorps) && ReferenceEquals(_treasures, mutation.AllTreasures) && ReferenceEquals(_relations, mutation.AllRelations);
+        _forces = mutation.AllForces;
+        _settlements = mutation.AllSettlements;
+        _officers = mutation.AllOfficers;
         _units = mutation.Units;
-        _corps = mutation.Corps;
-        _treasures = mutation.Treasures;
-        _relations = mutation.Relations;
+        _corps = mutation.AllCorps;
+        _treasures = mutation.AllTreasures;
+        _relations = mutation.AllRelations;
         Clock = mutation.Clock;
         Simulation = mutation.Simulation;
         Revision++;

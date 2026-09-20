@@ -17,7 +17,7 @@ internal static class HistoricalRecognition
     {
         if (rules.HanzhongKing is not { } definition || !Ready(world, definition.ConsumptionKey, definition.MinimumElapsedDays) ||
             world.Simulation.ImperialCourtEnded) return false;
-        var ruler = world.Officers[definition.RulerId];
+        if (!world.Officers.TryGetValue(definition.RulerId, out var ruler)) return false;
         if (ruler.Status != OfficerStatus.Ruler || ruler.OwnerId is not int owner ||
             !world.Forces.TryGetValue(owner, out var force) || force.IsEliminated || force.LeaderId != ruler.Id ||
             force.Trust < definition.RequiredTrust || force.RankId is not int current ||
@@ -32,6 +32,7 @@ internal static class HistoricalRecognition
     internal static bool ApplyFiveTigers(WorldMutation world, SimulationRules rules, List<DomainEvent> events)
     {
         if (rules.FiveTigers is not { } definition || !Ready(world, definition.ConsumptionKey, definition.MinimumElapsedDays)) return false;
+        if (definition.OfficerIds.Any(id => !world.Officers.ContainsKey(id))) return false;
         var officers = definition.OfficerIds.Select(id => world.Officers[id]).ToArray();
         if (officers[0].OwnerId is not int owner || !world.Forces.TryGetValue(owner, out var force) || force.IsEliminated ||
             !world.Simulation.Controls.Any(c => c.ForceId == owner && c.Kind == ControllerKind.Player) ||
@@ -51,7 +52,7 @@ internal static class HistoricalRecognition
     internal static bool ApplyExpeditionMemorial(WorldMutation world, SimulationRules rules, List<DomainEvent> events)
     {
         if (rules.ExpeditionMemorial is not { } definition || !Ready(world, definition.ConsumptionKey)) return false;
-        var author = world.Officers[definition.OfficerId];
+        if (!world.Officers.TryGetValue(definition.OfficerId, out var author)) return false;
         if (!author.IsServing || author.Status == OfficerStatus.Ruler || author.OwnerId is not int owner ||
             !world.Forces.TryGetValue(owner, out var force) || force.IsEliminated || force.CountryTitleId != definition.CountryTitleId ||
             !world.Settlements.TryGetValue(definition.OpposingCityId, out var opposing) || opposing.IsDestroyed ||

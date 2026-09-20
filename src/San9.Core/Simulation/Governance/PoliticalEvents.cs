@@ -27,7 +27,7 @@ internal static class PoliticalEvents
         force.RankId == rules.Politics.ProclamationRankId && force.Trust >= definition.ProclamationTrust &&
         (world.Simulation.ImperialCourtEnded || ImperialCourt.City(world, rules.Economy) is int city && world.Settlements[city].OwnerId == force.Id);
 
-    private static HashSet<int> Occupied(WorldMutation world) => world.Forces.Values
+    private static HashSet<int> Occupied(WorldMutation world) => world.AllForces.Values
         .Where(f => !f.IsEliminated && f.CountryTitleId is not null).Select(f => f.CountryTitleId!.Value).ToHashSet();
 
     internal static void Begin(WorldMutation world, SimulationRules rules, List<DomainEvent> events)
@@ -118,9 +118,9 @@ internal static class PoliticalEvents
 
     internal static void ValidateRules(WorldMutation world, SimulationRules rules)
     {
-        if (world.Forces.Values.Any(f => f.CountryTitleId is int title && !rules.Politics.Titles.ContainsKey(title) ||
+        if (world.AllForces.Values.Any(f => f.CountryTitleId is int title && !rules.Politics.Titles.ContainsKey(title) ||
                 (rules.Politics.Events is not null || rules.HanzhongKing is not null || rules.ShanyangGong is not null) && f.RankId is int rank && !rules.Politics.Ranks.ContainsKey(rank)) ||
-            rules.Politics.Titles.Values.Any(t => t.PreferredRulerIds.Any(id => !world.Officers.ContainsKey(id))) ||
+            rules.Politics.Titles.Values.Any(t => t.PreferredRulerIds.Any(id => !world.AllOfficers.ContainsKey(id))) ||
             rules.Politics.ProvinceTitles.Keys.Any(id => !rules.Personnel.CityProvinces.ContainsValue(id)))
             throw new ArgumentException("Unknown political content reference.");
         if (world.Simulation.PendingEvent is CountryTitleEventSession pending &&

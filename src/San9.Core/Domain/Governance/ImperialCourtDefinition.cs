@@ -35,7 +35,7 @@ public sealed record ImperialCourtDefinition(
     {
         if (ended || SuccessionOrder.IsEmpty) return null;
         var people = officers.ToDictionary(p => p.Id);
-        return SuccessionOrder.Select(id => people.GetValueOrDefault(id)).FirstOrDefault(p => p is not null && p.Status != OfficerStatus.Dead);
+        return SuccessionOrder.Select(id => people.GetValueOrDefault(id)).FirstOrDefault(p => p is not null && !p.IsDormant && p.Status != OfficerStatus.Dead);
     }
 
     public static int? City(OfficerState? emperor, IEnumerable<SettlementState> settlements,
@@ -44,7 +44,7 @@ public sealed record ImperialCourtDefinition(
         if (emperor is null || emperor.UnitId is not null || traveling) return null;
         int? location = emperor.SettlementId ?? emperor.RegionId;
         if (location is not int place) return null;
-        var cities = settlements.Where(s => s.Kind == SettlementKind.City && !s.IsDestroyed).ToDictionary(s => s.Id);
+        var cities = settlements.Where(s => !s.IsDormant && s.Kind == SettlementKind.City && !s.IsDestroyed).ToDictionary(s => s.Id);
         if (cities.ContainsKey(place)) return place;
         return regionCities.TryGetValue(place, out int city) && cities.ContainsKey(city) ? city : null;
     }

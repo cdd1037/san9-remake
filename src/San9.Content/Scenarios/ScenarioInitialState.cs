@@ -4,6 +4,7 @@ namespace San9.Content.Scenarios;
 
 public sealed record ForceInitialState(int Id, string NameKey, int ColorCode, uint Money, uint Food, int Trust)
 {
+    [JsonRequired] public bool IsDormant { get; init; }
     [JsonRequired] public bool HasDeposedEmperor { get; init; }
     [JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Simulation.PersistentEventKey> EventHistory { get; init; } = [];
     [JsonRequired] public int BaseTrust { get; init; }
@@ -18,6 +19,7 @@ public sealed record ForceInitialState(int Id, string NameKey, int ColorCode, ui
 public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId, int X, int Y,
     uint Soldiers, int Durability, int MaxDurability, int Morale, string[] Icons)
 {
+    [JsonRequired] public bool IsDormant { get; init; }
     [JsonRequired] public uint Wounded { get; init; }
     [System.Text.Json.Serialization.JsonIgnore] public San9.Core.Domain.MapCell Cell => new(X, Y);
     [System.Text.Json.Serialization.JsonIgnore] public San9.Core.Domain.WorldPosition Position => San9.Core.Domain.MapCoordinates.Center(Cell);
@@ -39,7 +41,7 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 84;
+    public const int CurrentSchemaVersion = 85;
     [JsonRequired] public San9.Core.Domain.HanzhongKingDefinition? HanzhongKing { get; init; }
     [JsonRequired] public San9.Core.Domain.FiveTigersDefinition? FiveTigers { get; init; }
     [JsonRequired] public San9.Core.Domain.ExpeditionMemorialDefinition? ExpeditionMemorial { get; init; }
@@ -81,10 +83,11 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
     public void Validate()
     {
         if (SchemaVersion != CurrentSchemaVersion || string.IsNullOrWhiteSpace(ScenarioId) || Year < 1 || Month is < 1 or > 12 || Day is < 1 or > 30 ||
-            Forces.Select(f => f.Id).Distinct().Count() != Forces.Length || !Forces.Any(f => f.Id == PlayerForceId))
+            SearchEvents.IsDefault || Forces.Select(f => f.Id).Distinct().Count() != Forces.Length ||
+            !Forces.Any(f => f.Id == PlayerForceId && (!f.IsDormant || SearchEvents.OfType<San9.Core.Domain.ForceActivationSearchEventDefinition>().Any(d => d.ForceId == f.Id))))
             throw new InvalidDataException("Invalid scenario date or player force.");
         Information.Validate(this);
-        try { Alliance?.Validate(Forces.Where(f => !f.IsBarbarian).Select(f => f.Id).ToHashSet()); }
+        try { Alliance?.Validate(Forces.Where(f => !f.IsDormant && !f.IsBarbarian).Select(f => f.Id).ToHashSet()); }
         catch (ArgumentException error) { throw new InvalidDataException("Invalid initial alliance.", error); }
         if (Military is { } military)
         {
@@ -119,6 +122,22 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
             SunMarriage?.Validate(ids, Military?.Tactics.Where(t => t.Category is >= 0 and <= 8).Select(t => t.Id).ToHashSet() ?? []);
             var tactics = Military?.Tactics.Where(t => t.Category is >= 0 and <= 8).Select(t => t.Id).ToHashSet() ?? [];
             var historicalCities = Settlements.Where(s => s.Kind == San9.Core.Domain.SettlementKind.City).Select(s => s.Id).ToHashSet();
+            foreach (var activation in SearchEvents.OfType<San9.Core.Domain.ForceActivationSearchEventDefinition>())
+            {
+                activation.ValidateReferences(Forces.Select(f => f.Id).ToHashSet(), historicalCities,
+                    Settlements.Select(s => s.Id).ToHashSet(), ids, Military?.RegionIds.IsEmpty == false);
+                var city = Settlements.Single(s => s.Id == activation.CityId);
+                var force = Forces.Single(f => f.Id == activation.ForceId);
+                if (city.SoldierCapacity < activation.CitySoldiers)
+                    throw new InvalidDataException("Activation troops exceed the city's capacity.");
+                if (force.IsDormant && (!city.IsDormant || city.OwnerId != force.Id ||
+                    force.LeaderId is not int leader || !activation.OfficerIds.Contains(leader) ||
+                    force.AdviserId is int adviser && !activation.OfficerIds.Contains(adviser) ||
+                    activation.AttachedSettlementIds.Any(id => !Settlements.Single(s => s.Id == id).IsDormant) ||
+                    activation.OfficerIds.Any(id => !Officers.Any(p => p.State.Id == id && p.State.IsDormant &&
+                        p.State.OwnerId == force.Id && p.State.SettlementId == city.Id))))
+                    throw new InvalidDataException("Invalid dormant force activation group.");
+            }
             ShanyangGong?.Validate(ids, Settlements.Select(s => s.Id).Concat(UnbuiltPlaces.Select(p => p.Id)).ToHashSet(), Information.Ranks.Length > 0);
             RedCliffs?.Validate(ids, historicalCities, Settlements.Select(s => s.Id).Concat(UnbuiltPlaces.Select(p => p.Id)).ToHashSet(), Military?.RegionIds.IsEmpty == false);
             HanzhongKing?.Validate(ids, historicalCities, Information.Ranks.Select(r => r.Id).ToHashSet());
@@ -174,6 +193,12 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
             s.SoldierCapacity is 0 or > 500000 || s.Soldiers > s.SoldierCapacity || s.Wounded > San9.Core.Domain.MilitaryRulebook.WoundedCapacity || s.Population > 1000000 || s.MaxCommerce > 2500 || s.MaxCultivation > 4000 || s.Soldiers == 0 && s.Morale != 0 || s.MaxDurability <= 0 || s.Durability < 0 || s.Durability > s.MaxDurability))
             throw new InvalidDataException("Invalid settlement snapshot.");
         var settlementIds=Settlements.Select(s=>s.Id).ToHashSet();
+        if (Settlements.Any(s => !s.IsDormant && Forces.Any(f => f.Id == s.OwnerId && f.IsDormant)) ||
+            Officers.Any(o => o.State.IsDormant && o.State.UnitId is not null || !o.State.IsDormant &&
+                (Forces.Any(f => f.Id == o.State.OwnerId && f.IsDormant) || Settlements.Any(s => s.Id == o.State.SettlementId && s.IsDormant))) ||
+            Forces.Any(f => !f.IsDormant && Officers.Any(o => o.State.IsDormant && (o.State.Id == f.LeaderId || o.State.Id == f.AdviserId))) ||
+            Units.Any(u => Forces.Any(f => f.Id == u.OwnerId && f.IsDormant)))
+            throw new InvalidDataException("Dormant initial objects cannot participate in the active world.");
         if (Officers.Any(o => string.IsNullOrWhiteSpace(o.NameKey) || o.State is null || !o.State.IsValid()) ||
             Officers.Select(o => o.State.Id).Distinct().Count() != Officers.Length || Officers.Any(o =>
                 o.State.ForceLoyalties.Keys.Any(id => !forceIds.Contains(id)) ||

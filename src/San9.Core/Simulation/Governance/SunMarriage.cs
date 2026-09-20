@@ -12,8 +12,8 @@ internal static class SunMarriage
         if (rules.SunMarriage is not { } definition || !world.Clock.Boundary.Quarter ||
             world.Simulation.PendingEvent is not null || world.Simulation.TerminalReason is not null ||
             world.Clock.DayNumber > definition.LatestDate.DayNumber || world.Simulation.ConsumedEventKeys.Contains(definition.ConsumptionKey)) return false;
-        var ruler = world.Officers[definition.RecipientRulerId];
-        var bride = world.Officers[definition.BrideId];
+        if (!world.Officers.TryGetValue(definition.RecipientRulerId, out var ruler) ||
+            !world.Officers.TryGetValue(definition.BrideId, out var bride)) return false;
         var forces = world.Forces.Values.Where(f => !f.IsEliminated).OrderBy(f => f.Id).ToArray();
         var donor = forces.FirstOrDefault(f => f.LeaderId is int leader && world.Officers[leader].BloodlineId == definition.DonorBloodlineId);
         if (forces.Length < definition.MinimumActiveForces || donor is null || ruler.Status != OfficerStatus.Ruler ||

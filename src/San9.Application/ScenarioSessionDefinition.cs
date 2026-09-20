@@ -10,6 +10,7 @@ internal sealed class ScenarioSessionDefinition
     internal ScenarioSessionDefinition(ScenarioInitialState definition)
     {
         definition.Validate();
+        definition = InitializePlayerActivation(definition);
         if (definition.Day is not (1 or 11 or 21)) throw new ArgumentException("Expected a stable xun boundary.");
         Content = definition with
         {
@@ -60,6 +61,8 @@ internal sealed class ScenarioSessionDefinition
                     { ExcludedSearchingOfficerIds = healing.ExcludedSearchingOfficerIds.Order().ToImmutableArray() }),
                 BeastSearchEventDefinition beast => beast with { Sites = beast.Sites.OrderBy(s => s.PlaceId).ToImmutableArray(),
                     BattleTacticIds = beast.BattleTacticIds.Order().ToImmutableArray() },
+                ForceActivationSearchEventDefinition activation => activation with
+                    { AttachedSettlementIds = activation.AttachedSettlementIds.Order().ToImmutableArray(), OfficerIds = activation.OfficerIds.Order().ToImmutableArray() },
                 _ => e
             }),
             Forces = Forces().OrderBy(f => f.Id), Settlements = Settlements().OrderBy(s => s.Id),
@@ -79,13 +82,31 @@ internal sealed class ScenarioSessionDefinition
     }
 
     internal ScenarioInitialState Content { get; }
+
+    private static ScenarioInitialState InitializePlayerActivation(ScenarioInitialState definition)
+    {
+        var activation = definition.SearchEvents.OfType<ForceActivationSearchEventDefinition>()
+            .SingleOrDefault(d => d.ForceId == definition.PlayerForceId);
+        if (activation is null || !definition.Forces.Any(f => f.Id == activation.ForceId && f.IsDormant)) return definition;
+        // Selecting a reserved force starts with its authored resources, without the exploration reward.
+        return definition with
+        {
+            Forces = definition.Forces.Select(f => f.Id == activation.ForceId ? f with { IsDormant = false } : f).ToArray(),
+            Settlements = definition.Settlements.Select(s => s.Id == activation.CityId || activation.AttachedSettlementIds.Contains(s.Id)
+                ? s with { IsDormant = false } : s).ToArray(),
+            Officers = definition.Officers.Select(o => activation.OfficerIds.Contains(o.State.Id)
+                ? o with { State = o.State with { IsDormant = false } } : o).ToArray(),
+            ConsumedEventKeys = definition.ConsumedEventKeys.Append(activation.ConsumptionKey).Distinct()
+                .OrderBy(k => k.Value, StringComparer.Ordinal).ToImmutableArray()
+        };
+    }
     internal MilitaryRulebook? MilitaryRules { get; }
     internal string Fingerprint { get; }
     internal WorldState CreateWorld(ulong seed, int computerDamageBonusPercent = 0, bool battleDeathsEnabled = false) => WorldState.Create(new(Content.Year, Content.Month, Content.Day), seed,
         Forces().Select(f => f.Id == Content.PlayerForceId ? f with { IsBarbarian = false } : f),
         Settlements(), Content.Officers.Select(o => o.State), Content.Units, Content.Information.Corps,
         Content.Information.TreasureStates, Content.Information.Relations,
-        Content.Forces.OrderBy(f => f.Id == Content.PlayerForceId ? 0 : 1).ThenBy(f => f.Id)
+        Content.Forces.Where(f => !f.IsDormant).OrderBy(f => f.Id == Content.PlayerForceId ? 0 : 1).ThenBy(f => f.Id)
             .Select(f => new ControlSeat(f.Id == Content.PlayerForceId ? "player" : $"ai:{f.Id}", f.Id,
                 f.Id == Content.PlayerForceId ? ControllerKind.Player : ControllerKind.Automatic)), computerDamageBonusPercent, Content.Alliance,
         Content.AttackRequests.Select(r => new AttackRequestState(r.RequestedForceId, r.RequesterForceId, r.TargetSettlementId,
@@ -93,7 +114,7 @@ internal sealed class ScenarioSessionDefinition
 
     private IEnumerable<ForceState> Forces() => Content.Forces.Select(f => new ForceState(f.Id, f.Money, f.Food, f.Trust)
     {
-        ProvidedTactics = f.ProvidedTactics.Order().ToImmutableArray(), IsBarbarian = f.IsBarbarian,
+        ProvidedTactics = f.ProvidedTactics.Order().ToImmutableArray(), IsBarbarian = f.IsBarbarian, IsDormant = f.IsDormant,
         EventHistory = f.EventHistory.OrderBy(k => k.Value, StringComparer.Ordinal).ToImmutableArray(), HasDeposedEmperor = f.HasDeposedEmperor, LeaderId = f.LeaderId, AdviserId = f.AdviserId, RankId = f.RankId, CountryTitleId = f.CountryTitleId, BaseTrust = f.BaseTrust
     });
 
@@ -101,6 +122,6 @@ internal sealed class ScenarioSessionDefinition
         s.OwnerId, s.Soldiers, s.Durability, s.MaxDurability, s.Morale, s.PublicOrder, s.Commerce, s.MaxCommerce,
         s.Cultivation, s.MaxCultivation)
     {
-        Kind = s.Kind, CorpsId = s.CorpsId, CanHostPersons = s.CanHostPersons, SoldierCapacity = s.SoldierCapacity, ConsumesFood = s.ConsumesFood, Population = s.Population, DraftPopulation = s.DraftPopulation, Wounded = s.Wounded
+        IsDormant = s.IsDormant, Kind = s.Kind, CorpsId = s.CorpsId, CanHostPersons = s.CanHostPersons, SoldierCapacity = s.SoldierCapacity, ConsumesFood = s.ConsumesFood, Population = s.Population, DraftPopulation = s.DraftPopulation, Wounded = s.Wounded
     });
 }

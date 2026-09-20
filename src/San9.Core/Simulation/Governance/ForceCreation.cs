@@ -8,8 +8,8 @@ internal static class ForceCreation
         ForceCreationKind kind, SimulationRules rules, List<DomainEvent> events)
     {
         // Validate/allocate before staging any change; identities are unrelated to display resources.
-        int forceId = checked(world.Forces.Keys.DefaultIfEmpty(-1).Max() + 1);
-        int corpsId = checked(world.Corps.Keys.DefaultIfEmpty(-1).Max() + 1);
+        int forceId = checked(world.AllForces.Keys.DefaultIfEmpty(-1).Max() + 1);
+        int corpsId = checked(world.AllCorps.Keys.DefaultIfEmpty(-1).Max() + 1);
         var city = world.Settlements[cityId];
         int? predecessor = city.OwnerId;
         string reason = kind == ForceCreationKind.EmptyCityUprising ? "empty-city-uprising" : "city-independence";

@@ -22,6 +22,7 @@ internal static class FacilityConstruction
             !military.ConstructionSites.TryGetValue((command.RegionId, command.Position), out var site) ||
             !military.Formations.TryGetValue(command.FormationId, out var formation) || formation.TravelMode != TravelMode.Land ||
             !world.Settlements.TryGetValue(command.SettlementId, out var home) || home.OwnerId != command.IssuerId ||
+            world.AllSettlements.TryGetValue(command.RegionId, out var reserved) && reserved.IsDormant ||
             command.OfficerIds.IsDefaultOrEmpty || command.OfficerIds.Any(id => !world.Officers.ContainsKey(id)) ||
             !ConstructionPlacement.IsAvailable(command.IssuerId, site, type, military, rules.Personnel.RegionCities,
                 world.Settlements.Values, world.Units.Values) || world.Units.Values.Any(u => u.Order?.Construction?.RegionId == command.RegionId))

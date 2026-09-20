@@ -49,7 +49,7 @@ TC101剧本导入以源坐标识别地域配置：双坐标均为无效哨兵的
 
 ## 接入前的数据核对
 
-当前八项民间事务与修学批次为剧本schema100／组合104、规则`san9-core-g10-v38`、保存／日志78。`CivicSearchEventDefinition`描述五种民间事务，`CommemorationSearchEventDefinition`声明碑文／持物祭祀的地点、奖励与全局消费键，`TrainingSiteSearchEventDefinition`声明类别成长；地点集合按ID规范化，兵法池保留次序。`GetCommunitySearchPrompt`只读返回季节、账户、资源费用及物品／类别，`RespondDailyTaskCommand.CommunitySearch`提交合法枚举，拒绝／处斩的`Accept=false`，其余true。真实190全量内存编译保持25势力／94据点／700人物，12／16／6地点全部保留并完成引用、保存校验。源位21–48由Importer转换语义键。旧内容包需原位重转，专用菜单与画面待表现阶段。
+当前八项民间事务与修学批次为剧本schema100／组合104、规则`san9-core-g10-v38`、保存／日志78。`CivicSearchEventDefinition`描述五种民间事务，`CommemorationSearchEventDefinition`声明碑文／持物祭祀的地点、奖励与全局消费键，`TrainingSiteSearchEventDefinition`声明类别成长；地点集合按ID规范化，兵法池保留次序。`GetCommunitySearchPrompt`只读返回季节、账户、资源费用及物品／类别，`RespondDailyTaskCommand.CommunitySearch`提交合法枚举，拒绝／处斩的`Accept=false`，其余true。真实190全量内存编译保持25势力／94据点／700人物，12／16／6地点全部保留并完成引用、保存校验。源位21–48由Importer转换语义键。2026-09-21已完成当前190运行包原位重转、完整引用及13,487项图像校验；当前本地包可用，其他旧版本包仍须重转。专用菜单与画面待表现阶段。
 
 遭遇与冲突批次为剧本schema99／组合103、规则`san9-core-g10-v37`、保存／日志77。七种类型化定义共享探索资格与选项协议，人物／地点／兵法引用完整校验，集合规范化保留兵法池次序。`GetSearchConflictPrompt`返回目标、实际账户、合法选项、费用与概率；`RespondDailyTaskCommand.SearchConflict`提交明确枚举，支付／容许／主动解决时`Accept=true`，处斩／拒绝时false。名士离场保留人物定义、清理参与引用并停用，按人物身份派生全局离场键用于恢复校验；源势力历史位2–5另存四个地点历史。真实190数据保持25势力／94据点／700人物，七定义与初始保存恢复通过，完整旧包仍须原位重转，专用图形交互待表现阶段。
 

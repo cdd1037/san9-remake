@@ -1,3 +1,8 @@
+using San9.Application;
+using San9.Application.Persistence;
+using San9.Content.Scenarios;
+using San9.Core.Domain;
+using San9.Core.Simulation;
 using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -49,6 +54,51 @@ public sealed class HeadlessProcessTests : IDisposable
         var replay = await Run("replay", "--scenario", scenario, "--recording", recording, "--report", FilePath("search-replay.json"));
         Assert.Equal(0, replay.Code);
         Assert.Equal(session.Capture().StateHash, replay.Report.GetProperty("finalHash").GetString());
+    }
+
+    [Theory]
+    [InlineData("community")] [InlineData("conflict")] [InlineData("merchant")]
+    public async Task TypedExplorationChoicesRunFromExactSaveAndReplayInSeparateProcesses(string kind)
+    {
+        SearchEventDefinition rule = kind switch
+        {
+            "community" => new CommemorationSearchEventDefinition([new(101, null, CommunityAbility.Intelligence, [], new("memorial.101"))], 1500, 2, 2)
+                { Id = "memorial", Consumption = EventConsumption.OnSuccess, ChanceAbility = CommunityAbility.Politics, ChanceDivisor = 1 },
+            "conflict" => new MoneyDemandSearchEventDefinition([3], 100, 2, 100)
+                { Id = "demand", ChanceAbility = ConflictChanceAbility.Politics, ChanceDivisor = 1 },
+            _ => new MerchantInvestmentDefinition([new("trade", [101], ResourceKind.Money, new("trade.banned"))], 1, 50, 1000, 100, 5, 20, 3, 2, 4, 5)
+                { Id = "merchant" }
+        };
+        var d = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "g10-choice-cli", 190, 1, 1, 1,
+            [new(1, "force", 0, 10000, 10000, 100) { LeaderId = 1, BaseTrust = 100 }],
+            [new(101, "city", 1, 0, 0, 1000, 100, 100, 50, [])], [], [])
+        {
+            Officers = [new("ruler", new(1, 1, 101, new(80, 80, 80, 80), false) { Status = OfficerStatus.Ruler }),
+                new("actor", new(2, 1, 101, new(50, 50, 100, 50), false)),
+                new("visitor", new(3, null, null, default, false) { Status = OfficerStatus.Special })],
+            SearchEvents = [rule]
+        };
+        string scenario = FilePath("g10.json"), log = FilePath("g10.commands.jsonl"), initial = FilePath("g10.initial.json"), record = FilePath("g10.recording.json");
+        File.WriteAllBytes(scenario, JsonSerializer.SerializeToUtf8Bytes(d, San9.Content.Packages.ScenarioContentFiles.DataJsonOptions));
+        var session = GameSession.Start(d, 190);
+        SaveService.Write(initial, session); session.BeginRecording();
+        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 2, 101)).Submission.Accepted);
+        session.AdvanceXun();
+        var task = session.Snapshot.Simulation.Tasks.Single(t => t.Id == session.Snapshot.Simulation.PendingDailyTask!.RemainingTaskIds[0]);
+        var answer = new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, task.Id, task.ResolutionStep, true);
+        answer = kind switch
+        {
+            "community" => answer with { CommunitySearch = CommunitySearchChoice.Accept },
+            "conflict" => answer with { SearchConflict = SearchConflictChoice.Pay },
+            _ => answer with { MerchantInvestment = new(MerchantInvestmentChoice.Invest, 100) }
+        };
+        Assert.True(session.Execute(new("player"), answer).Submission.Accepted);
+        CommandLogService.Write(log, session);
+        var executed = await Run("run", "--scenario", scenario, "--restore", initial, "--log", log,
+            "--report", FilePath("g10-run.json"), "--save", FilePath("g10-final.json"), "--record", record);
+        Assert.True(executed.Code == 0, executed.Report.ToString()); Assert.Equal(session.Capture().StateHash, executed.Report.GetProperty("finalHash").GetString());
+        var replay = await Run("replay", "--scenario", scenario, "--recording", record, "--report", FilePath("g10-replay.json"));
+        Assert.Equal(0, replay.Code); Assert.Equal(session.Capture().StateHash, replay.Report.GetProperty("finalHash").GetString());
     }
 
     [Fact]

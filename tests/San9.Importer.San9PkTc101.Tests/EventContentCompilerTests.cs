@@ -6,6 +6,20 @@ namespace San9.Importer.San9PkTc101.Tests;
 public sealed class EventContentCompilerTests
 {
     [Fact]
+    public void ThreeVisitsResolvesBiographiesToReferencesWithoutAssumingPersonSlots()
+    {
+        var people = new[] { Person(45), Person(1), Person(39), Person(36), Person(2) };
+        var definition = EventContentCompiler.ThreeVisits(0, people, [0, 1, 2, 3, 4])!;
+        Assert.Equal((3, 0, 2, 138, 95, 360, 150, 10), (definition.RulerId, definition.RecruitId, definition.RecommenderId,
+            definition.PlaceId, definition.RequiredLoyaltyExclusive, definition.DurationDays, definition.RecruitmentLoyalty, definition.BaseTrustBonus));
+        Assert.Equal(new[] { 4, 1 }, definition.CompanionIds);
+        Assert.NotNull(EventContentCompiler.ThreeVisits(1, people, [0, 1, 2, 3, 4]));
+        Assert.Null(EventContentCompiler.ThreeVisits(2, people, [])); Assert.Null(EventContentCompiler.ThreeVisits(9, people, []));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.ThreeVisits(0, people, [0, 1, 2, 3]));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.ThreeVisits(0, [.. people, Person(36)], [0, 1, 2, 3, 4, 5]));
+    }
+
+    [Fact]
     public void SunMarriageUsesSourceFamilyRatherThanHardcodedDonorRulerAndKeepsExactUpperDate()
     {
         var people = new[] { Person(538), Person(62) with { BloodlineRootPersonCode = 613 }, Person(36) };
@@ -95,11 +109,14 @@ public sealed class EventContentCompilerTests
         Assert.Equal(new[] { 11, 24, 22, 30, 26 }, beast.Sites.Single(s => s.PlaceId == 73).RewardTacticIds);
         Assert.Equal(new[] { 10, 23, 18, 26, 29 }, beast.Sites.Single(s => s.PlaceId == 178).RewardTacticIds);
         Assert.Equal(new[] { 13, 24, 8, 29, 30 }, beast.Sites.Single(s => s.PlaceId == 128).RewardTacticIds);
-        Assert.Equal(EventContentCompiler.ConsumedKeys([7u << 17, 0, 0, 0]).Select(k => k.Value),
+        Assert.Equal(EventContentCompiler.ConsumedKeys([7u << 17, 0, 0, 0], new(190, 1, 1)).Select(k => k.Value),
             beast.Sites.Select(s => s.ConsumptionKey!.Value.Value).Order(StringComparer.Ordinal));
     }
 
     [Theory]
+    [InlineData(3, "three-visits.started")]
+    [InlineData(4, "three-visits.first-visit")]
+    [InlineData(5, "three-visits.completed")]
     [InlineData(8, "hanzhong-king")]
     [InlineData(10, "expedition-memorial")]
     [InlineData(11, "five-tigers")]
@@ -111,14 +128,22 @@ public sealed class EventContentCompilerTests
     [InlineData(19, "shenshou.jianan")]
     public void BeastSitesRetainIndependentInitialConsumption(int bit, string key)
     {
-        Assert.Equal(key, Assert.Single(EventContentCompiler.ConsumedKeys([1u << bit, 0, 0, 0])).Value);
+        Assert.Equal(key, Assert.Single(EventContentCompiler.ConsumedKeys([1u << bit, 0, 0, 0], new(190, 1, 1))).Value);
+    }
+
+    [Fact]
+    public void LateScenarioStartPresetsThreeVisitsCompletionWithoutClearingFileFlags()
+    {
+        Assert.Empty(EventContentCompiler.ConsumedKeys([0, 0, 0, 0], new(207, 9, 30)));
+        Assert.Equal(new[] { "shenshou.xihe", "three-visits.completed", "three-visits.first-visit", "three-visits.started" },
+            EventContentCompiler.ConsumedKeys([1u << 17, 0, 0, 0], new(207, 10, 1)).Select(k => k.Value));
     }
 
     [Fact]
     public void UnrelatedFlagsDoNotBecomeAuthoredEventKeys()
     {
-        Assert.Empty(EventContentCompiler.ConsumedKeys([~((7u << 17) | (1u << 8) | (1u << 10) | (1u << 11) | (1u << 9) | (1u << 12) | (1u << 13)), uint.MaxValue, uint.MaxValue, uint.MaxValue]));
+        Assert.Empty(EventContentCompiler.ConsumedKeys([~((7u << 3) | (7u << 17) | (1u << 8) | (1u << 10) | (1u << 11) | (1u << 9) | (1u << 12) | (1u << 13)), uint.MaxValue, uint.MaxValue, uint.MaxValue], new(190, 1, 1)));
         Assert.Equal(["shenshou.jianan", "shenshou.wanwen", "shenshou.xihe"],
-            EventContentCompiler.ConsumedKeys([7u << 17, 0, 0, 0]).Select(k => k.Value));
+            EventContentCompiler.ConsumedKeys([7u << 17, 0, 0, 0], new(190, 1, 1)).Select(k => k.Value));
     }
 }

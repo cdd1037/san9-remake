@@ -119,7 +119,7 @@ internal static class PersonnelTransitions
         events.Add(new PersonAffiliationChangedEvent(world.Clock, personId, person.OwnerId, null, placeId));
     }
 
-    internal static void Recruit(WorldMutation world, int personId, int forceId, int destinationId, List<DomainEvent> events, PersonnelRulebook places, bool afterDailyCommands)
+    internal static void Recruit(WorldMutation world, int personId, int forceId, int destinationId, List<DomainEvent> events, PersonnelRulebook places, bool afterDailyCommands, int? recruitmentLoyalty = null)
     {
         var person = world.Officers[personId];
         var destination = world.Settlements[destinationId];
@@ -128,7 +128,7 @@ internal static class PersonnelTransitions
         if (person.OwnerId is int previous && world.Forces[previous].AdviserId == personId)
             world.Replace(world.Forces[previous] with { AdviserId = null });
         if (person.OwnerId is int oldForce) RecruitmentRules.SetLoyalty(world, personId, oldForce, 45, "recruited-away", events);
-        int loyalty = 75 + (50 - PersonnelRulebook.AffinityDistance(person, world.Officers[world.Forces[forceId].LeaderId!.Value])) / 2;
+        int loyalty = recruitmentLoyalty ?? 75 + (50 - PersonnelRulebook.AffinityDistance(person, world.Officers[world.Forces[forceId].LeaderId!.Value])) / 2;
         RecruitmentRules.SetLoyalty(world, personId, forceId, loyalty, "recruited", events);
         world.Replace(world.Officers[personId] with
         {

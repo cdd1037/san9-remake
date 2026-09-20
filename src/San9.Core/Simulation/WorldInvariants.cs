@@ -111,6 +111,12 @@ internal static class WorldInvariants
             sim.RandomStreams.Any(s => string.IsNullOrWhiteSpace(s.Name)) ||
             !sim.RandomStreams.Select(s => s.Name).SequenceEqual(sim.RandomStreams.Select(s => s.Name).Distinct().Order(StringComparer.Ordinal)))
             throw new ArgumentException("Invalid simulation boundary, control, sequence or random state.");
+        if (sim.ThreeVisitsStarted is { } started)
+        {
+            _ = new GameClock(started.Year, started.Month, started.Day);
+            if (!started.IsXunBoundary || started.DayNumber > state.Clock.DayNumber)
+                throw new ArgumentException("Invalid Three Visits starting date.");
+        }
         int pendingDecisions = (sim.PendingEvent is null ? 0 : 1) + (sim.PendingDailyTask is null ? 0 : 1) +
             (sim.PendingDuel is null ? 0 : 1) + (sim.PendingExecutionSuccession is null ? 0 : 1) + (sim.PendingTacticStudy is null ? 0 : 1);
         if (pendingDecisions > 1 || (sim.Boundary == SimulationBoundary.AwaitingDecision) != (pendingDecisions == 1))

@@ -131,7 +131,7 @@ public sealed class GameSession
             definition.Information.Ranks.Select(r => new PeerageRule(r.Id, r.Precedence, r.RequiredTrust, r.LoyaltyBonus)),
             definition.Information.CountryTitles.Select(t => t.Rule), definition.ProvinceCountryTitleIds);
         return world => new(world, rules, personnel, treasures, governance, military, definition.Terminal, politics, definition.QiaoMarriage, definition.SunMarriage,
-            definition.HanzhongKing, definition.FiveTigers, definition.ExpeditionMemorial);
+            definition.HanzhongKing, definition.FiveTigers, definition.ExpeditionMemorial, definition.ThreeVisits);
     }
 
     public static string Fingerprint(ScenarioInitialState definition) => new ScenarioSessionDefinition(definition).Fingerprint;

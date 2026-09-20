@@ -36,7 +36,7 @@ public sealed class WorldState
     public static WorldState Create(GameClock clock, ulong seed) => Create(clock, seed, [], [], []);
 
     public static WorldState Create(GameClock clock, ulong seed, IEnumerable<ForceState> forces,
-        IEnumerable<SettlementState> settlements, IEnumerable<OfficerState> officers, IEnumerable<UnitState>? units = null, IEnumerable<CorpsState>? corps = null, IEnumerable<TreasureState>? treasures = null, IEnumerable<ForceRelation>? relations = null, IEnumerable<ControlSeat>? controls = null, int computerDamageBonusPercent = 0, AllianceState? alliance = null, IEnumerable<AttackRequestState>? attackRequests = null, bool annualAppearancesEnabled = true, bool naturalDeathsEnabled = true, bool freeOfficerMigrationEnabled = true, bool battleDeathsEnabled = false, bool officeRequestsEnabled = true, IEnumerable<PersistentEventKey>? consumedEventKeys = null, bool forceConsolidationEnabled = true, bool forceEmergenceEnabled = true, bool cityIndependenceEnabled = true, bool imperialCourtEnded = false)
+        IEnumerable<SettlementState> settlements, IEnumerable<OfficerState> officers, IEnumerable<UnitState>? units = null, IEnumerable<CorpsState>? corps = null, IEnumerable<TreasureState>? treasures = null, IEnumerable<ForceRelation>? relations = null, IEnumerable<ControlSeat>? controls = null, int computerDamageBonusPercent = 0, AllianceState? alliance = null, IEnumerable<AttackRequestState>? attackRequests = null, bool annualAppearancesEnabled = true, bool naturalDeathsEnabled = true, bool freeOfficerMigrationEnabled = true, bool battleDeathsEnabled = false, bool officeRequestsEnabled = true, IEnumerable<PersistentEventKey>? consumedEventKeys = null, bool forceConsolidationEnabled = true, bool forceEmergenceEnabled = true, bool cityIndependenceEnabled = true, bool imperialCourtEnded = false, GameClock? threeVisitsStarted = null)
     {
         var world = new WorldState(clock, seed);
         world._forces = IndexUnique(forces, value => value.Id);
@@ -47,7 +47,7 @@ public sealed class WorldState
         world._treasures = IndexUnique(treasures ?? [], value => value.Id);
         world._relations = IndexUnique(relations ?? [], value => (value.FirstId, value.SecondId));
         world.Simulation = world.Simulation with { Controls = (controls ?? []).ToImmutableArray(), ComputerDamageBonusPercent = computerDamageBonusPercent, Alliance = alliance,
-            ImperialCourtEnded = imperialCourtEnded,
+            ThreeVisitsStarted = threeVisitsStarted, ImperialCourtEnded = imperialCourtEnded,
             AnnualAppearancesEnabled = annualAppearancesEnabled, NaturalDeathsEnabled = naturalDeathsEnabled,
             OfficeRequestsEnabled = officeRequestsEnabled, ForceEmergenceEnabled = forceEmergenceEnabled, CityIndependenceEnabled = cityIndependenceEnabled, ForceConsolidationEnabled = forceConsolidationEnabled,
             ConsumedEventKeys = (consumedEventKeys ?? []).OrderBy(k => k.Value, StringComparer.Ordinal).ToImmutableArray(),
@@ -92,32 +92,14 @@ public sealed class WorldState
     internal WorldMutation BeginMutation(OfficerAbilityRules? abilities = null) => new(this, abilities ?? OfficerAbilityRules.Empty, Revision, Clock, Simulation, _forces, _settlements,
         _officers, _units, _corps, _treasures, _relations);
 
-    internal ControlSeat EndControl(CommandContext context)
-    {
-        if (IsExecuting || Simulation.Boundary != SimulationBoundary.Stable ||
-            Simulation.ActiveControl >= Simulation.Controls.Length)
-            throw new InvalidOperationException("No active stable control.");
-        var seat = Simulation.Controls[Simulation.ActiveControl];
-        if (seat.ControllerId != context.ControllerId) throw new InvalidOperationException("Not the active controller.");
-
-        // This transition owns only the control cursor. All domain records remain validated and unchanged.
-        long revision = checked(Revision + 1);
-        Simulation = Simulation with { ActiveControl = Simulation.ActiveControl + 1 };
-        Revision = revision;
-        if (_snapshot is not null)
-            _snapshot = _snapshot with
-            {
-                Simulation = _snapshot.Simulation with { ActiveControl = Simulation.ActiveControl },
-                Revision = revision,
-            };
-        return seat;
-    }
-
     internal void Commit(WorldMutation mutation)
     {
         ArgumentNullException.ThrowIfNull(mutation);
         mutation.VerifyCommit(this, Revision);
         WorldInvariants.Validate(mutation);
+        bool recordsUnchanged = ReferenceEquals(_forces, mutation.Forces) && ReferenceEquals(_settlements, mutation.Settlements) &&
+            ReferenceEquals(_officers, mutation.Officers) && ReferenceEquals(_units, mutation.Units) &&
+            ReferenceEquals(_corps, mutation.Corps) && ReferenceEquals(_treasures, mutation.Treasures) && ReferenceEquals(_relations, mutation.Relations);
         _forces = mutation.Forces;
         _settlements = mutation.Settlements;
         _officers = mutation.Officers;
@@ -128,7 +110,8 @@ public sealed class WorldState
         Clock = mutation.Clock;
         Simulation = mutation.Simulation;
         Revision++;
-        _snapshot = null;
+        // Scheduling-only transactions can share all immutable published domain records.
+        _snapshot = recordsUnchanged && _snapshot is not null ? _snapshot with { Clock = Clock, Simulation = Simulation, Revision = Revision } : null;
         mutation.MarkCommitted();
     }
 

@@ -15,10 +15,10 @@ public sealed class SimulationEngine
 
     public SimulationEngine(WorldState world, EconomyRulebook economy, PersonnelRulebook personnel, TreasureRulebook treasures,
         GovernanceRulebook? governance = null, MilitaryRulebook? military = null, TerminalDefinition? terminal = null, PoliticalRulebook? politics = null, QiaoMarriageDefinition? qiaoMarriage = null, SunMarriageDefinition? sunMarriage = null,
-        HanzhongKingDefinition? hanzhongKing = null, FiveTigersDefinition? fiveTigers = null, ExpeditionMemorialDefinition? expeditionMemorial = null)
+        HanzhongKingDefinition? hanzhongKing = null, FiveTigersDefinition? fiveTigers = null, ExpeditionMemorialDefinition? expeditionMemorial = null, ThreeVisitsDefinition? threeVisits = null)
         : this(ValidateContent(world, treasures, governance), new SimulationRules
             { Economy = economy, Personnel = personnel, Treasures = treasures, Governance = governance ?? new([]), Military = military, Terminal = terminal, Politics = politics ?? PoliticalRulebook.Empty, QiaoMarriage = qiaoMarriage, SunMarriage = sunMarriage,
-                HanzhongKing = hanzhongKing, FiveTigers = fiveTigers, ExpeditionMemorial = expeditionMemorial }) { }
+                ThreeVisits = threeVisits, HanzhongKing = hanzhongKing, FiveTigers = fiveTigers, ExpeditionMemorial = expeditionMemorial }) { }
 
     private static WorldState ValidateContent(WorldState world, TreasureRulebook treasures, GovernanceRulebook? governance)
     {
@@ -49,6 +49,10 @@ public sealed class SimulationEngine
         rules.SunMarriage?.Validate(world.CreateSnapshot().Officers.Select(p => p.Id).ToHashSet(),
             rules.Military?.Tactics.Values.Where(t => t.Category is >= 0 and <= 8).Select(t => t.Id).ToHashSet() ?? []);
         var officerIds = initial.Officers.Keys.ToHashSet();
+        rules.ThreeVisits?.Validate(officerIds, rules.Personnel.Places.Keys.ToHashSet());
+        rules.ThreeVisits?.ValidateStarted(initial.Simulation.ThreeVisitsStarted, initial.Clock, initial.Simulation.ConsumedEventKeys);
+        if (rules.ThreeVisits is null && initial.Simulation.ThreeVisitsStarted is not null)
+            throw new ArgumentException("Three Visits state requires a definition.");
         var cityIds = initial.Settlements.Values.Where(s => s.Kind == SettlementKind.City).Select(s => s.Id).ToHashSet();
         var tacticIds = rules.Military?.Tactics.Values.Where(t => t.Category is >= 0 and <= 8).Select(t => t.Id).ToHashSet() ?? [];
         rules.HanzhongKing?.Validate(officerIds, cityIds, rules.Politics.Ranks.Keys.ToHashSet());
@@ -557,8 +561,22 @@ public sealed class SimulationEngine
 
     public AdvanceXunResult EndControl(CommandContext context)
     {
-        var seat = _world.EndControl(context);
-        return new(Array.AsReadOnly<DomainEvent>([new ControlEndedEvent(seat.ControllerId, seat.ForceId)]), Snapshot);
+        var simulation = _world.Simulation;
+        if (_world.IsExecuting || simulation.Boundary != SimulationBoundary.Stable || simulation.ActiveControl >= simulation.Controls.Length)
+            throw new InvalidOperationException("No active stable control.");
+        var seat = simulation.Controls[simulation.ActiveControl];
+        if (seat.ControllerId != context.ControllerId) throw new InvalidOperationException("Not the active controller.");
+        _world.EnterExecution();
+        try
+        {
+            var mutation = _world.BeginMutation(_rules.Abilities);
+            List<DomainEvent> events = [new ControlEndedEvent(seat.ControllerId, seat.ForceId)];
+            mutation.SetSimulation(simulation with { ActiveControl = simulation.ActiveControl + 1 });
+            ThreeVisits.EnterControl(mutation, _rules, events);
+            _world.Commit(mutation);
+            return new(events.AsReadOnly(), Snapshot);
+        }
+        finally { _world.ExitExecution(); }
     }
 
     public AdvanceXunResult AdvanceXun()

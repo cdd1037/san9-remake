@@ -135,7 +135,7 @@ internal static class PersonnelMissions
 }
 
 internal sealed class PersonnelMissionRule(PersonnelRulebook rules, EconomyRulebook economy, GovernanceRulebook governance,
-    TreasureRulebook treasures, string kind) : TaskRule
+    TreasureRulebook treasures, string kind, ThreeVisitsDefinition? threeVisits = null) : TaskRule
 {
     internal override bool SupportsResolutionStep(int step) => step == 0 || kind == PersonnelMissions.SearchKind && step == 1;
     internal override bool HasValidPayload(PersistentTask task) => task.Journey is { ReturnLeg: null, Route: { FieldDestination: false }, UnitStrategy: null, Burn: null, Seize: null, Gossip: null } journey && DurationDays(task) >= 0 &&
@@ -162,6 +162,7 @@ internal sealed class PersonnelMissionRule(PersonnelRulebook rules, EconomyRuleb
             SearchEvents.ResolveBeast(world, task, rules, economy, beast, accept ?? true, events);
         else
         {
+            if (Direct(world, task) && ThreeVisits.Search(world, task, threeVisits, rules, economy, events)) return null;
             if (Direct(world, task) && SearchEvents.Prepare(world, task, rules, events, out var special))
             {
                 if (special is not null) return task with { SearchEncounter = special };

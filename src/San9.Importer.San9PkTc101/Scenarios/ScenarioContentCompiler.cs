@@ -126,6 +126,7 @@ public static class ScenarioContentCompiler
             HanzhongKing = EventContentCompiler.HanzhongKing(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id)),
             FiveTigers = EventContentCompiler.FiveTigers(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id)),
             ExpeditionMemorial = EventContentCompiler.ExpeditionMemorial(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id)),
+            ThreeVisits = EventContentCompiler.ThreeVisits(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id)),
             QiaoMarriage = EventContentCompiler.QiaoMarriage(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id)),
             ProvinceCountryTitleIds = PoliticalContentCompiler.ProvinceTitles(countryTitles),
             Terminal = EndingContentCompiler.Terminal(),
@@ -141,7 +142,7 @@ public static class ScenarioContentCompiler
             CityProvinceIds = settlements.Where(s => s.Kind == San9.Core.Domain.SettlementKind.City)
                 .ToDictionary(s => s.Id, s => (int)cities[s.Id].AreaCode),
             AttackRequests = [], // TC101 scenarios contain no active request tuples; original saves are not imported.
-            ConsumedEventKeys = EventContentCompiler.ConsumedKeys(header.ScenarioWorldFlagWords),
+            ConsumedEventKeys = EventContentCompiler.ConsumedKeys(header.ScenarioWorldFlagWords, header.StartDate),
             SearchEvents = EventContentCompiler.SearchEvents(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id), configuredRegionIds),
             Alliance = DiplomacyContentCompiler.Alliance(header.AllianceDurationTurns, forces,
                 summaries.Where(f => !f.IsBarbarian).Select(f => f.Id).ToHashSet()),

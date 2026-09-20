@@ -20,6 +20,7 @@ public sealed record ControlEndedEvent(string ControllerId, int ForceId) : Domai
 // Rules are compiled domain code, not callbacks loaded from content or saves.
 internal class SimulationRules
 {
+    internal ThreeVisitsDefinition? ThreeVisits { get; init; }
     internal HanzhongKingDefinition? HanzhongKing { get; init; }
     internal FiveTigersDefinition? FiveTigers { get; init; }
     internal ExpeditionMemorialDefinition? ExpeditionMemorial { get; init; }
@@ -34,7 +35,7 @@ internal class SimulationRules
     internal MilitaryRulebook? Military { get; init; }
     internal OfficerAbilityRules Abilities => new(Treasures, Governance);
     internal virtual TaskRule? FindTask(string kind) => kind is PersonnelMissions.RecruitKind or PersonnelMissions.MoveKind or PersonnelMissions.SearchKind
-        ? new PersonnelMissionRule(Personnel, Economy, Governance, Treasures, kind) : kind == PersonnelReturns.Kind ? new PersonnelReturnRule(Personnel, Military)
+        ? new PersonnelMissionRule(Personnel, Economy, Governance, Treasures, kind, ThreeVisits) : kind == PersonnelReturns.Kind ? new PersonnelReturnRule(Personnel, Military)
         : kind == UnitStrategies.Kind ? new UnitStrategyRule(this) : kind == BurnStrategies.Kind ? new BurnRule(this)
         : kind == AlienateStrategies.Kind ? new AlienateRule(this)
         : kind == SeizeStrategies.Kind ? new SeizeRule(this)
@@ -89,6 +90,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         foreach (var stage in stages.Skip(start))
             if (!Run(stage, world, events)) return;
         world.SetSimulation(world.Simulation with { Boundary = SimulationBoundary.Stable, ActiveControl = 0 });
+        ThreeVisits.EnterControl(world, rules, events);
     }
 
     internal void AdvanceDay(WorldMutation world, List<DomainEvent> events) =>
@@ -132,6 +134,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
             if (result.Route != TerminalRoute.Continue) world.SetSimulation(world.Simulation with { TerminalReason = result.Reason });
         }
         if (!CheckTerminal(world, events)) return false;
+        if (stage == ResolutionStage.XunEvents) ThreeVisits.Expire(world, rules, events);
         if (stage == ResolutionStage.XunUpdate)
         {
             ForceConsolidation.Apply(world, rules, events);

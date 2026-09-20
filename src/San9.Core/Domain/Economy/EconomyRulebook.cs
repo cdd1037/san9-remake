@@ -7,6 +7,7 @@ public sealed record OfficeSalary(int OfficeId, int Amount);
 public sealed record EconomyRulebook(ImmutableArray<OfficeSalary> Salaries, ImmutableArray<DomesticPair> Pairs,
     int? ImperialSealId = null)
 {
+    public FoodMarketDefinition? FoodMarket { get; init; }
     public ImperialCourtDefinition ImperialCourt { get; init; } = ImperialCourtDefinition.Empty;
     public ImmutableDictionary<int, int> RegionCityIds { get; init; } = ImmutableDictionary<int, int>.Empty;
     public static EconomyRulebook Empty { get; } = new([], []);
@@ -16,6 +17,7 @@ public sealed record EconomyRulebook(ImmutableArray<OfficeSalary> Salaries, Immu
     {
         ArgumentNullException.ThrowIfNull(ImperialCourt);
         ImperialCourt.Validate();
+        FoodMarket?.Validate();
         if (Salaries.IsDefault || Pairs.IsDefault || Salaries.Any(s => s.OfficeId < 0 || s.Amount < 0) ||
             Salaries.Select(s => s.OfficeId).Distinct().Count() != Salaries.Length ||
             Pairs.Any(p => !Enum.IsDefined(p.Project) || p.Project == DomesticActivity.Recruit || p.FirstId < 0 || p.SecondId < 0 || p.FirstId == p.SecondId) ||

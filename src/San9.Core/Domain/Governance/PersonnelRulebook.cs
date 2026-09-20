@@ -131,6 +131,20 @@ public sealed class PersonnelRulebook
                     string.IsNullOrWhiteSpace(scholar.SuccessHistoryKey.Value))
                     throw new ArgumentException("Invalid scholar return event definition.");
             }
+            else if (entry is MerchantInvestmentDefinition merchant)
+            {
+                _ = merchant.Candidate(null);
+                if (merchant.Consumption != EventConsumption.None || merchant.Categories.IsDefaultOrEmpty ||
+                    merchant.Categories.Any(c => c is null || string.IsNullOrWhiteSpace(c.Id) || c.PlaceIds.IsDefaultOrEmpty || !ValidIds(c.PlaceIds) ||
+                        c.PlaceIds.Any(id => !Places.ContainsKey(id)) || c.RewardResource is not (ResourceKind.Money or ResourceKind.Food) || string.IsNullOrWhiteSpace(c.BanHistoryKey.Value)) ||
+                    merchant.Categories.Select(c => c.Id).Distinct().Count() != merchant.Categories.Length ||
+                    merchant.Categories.Select(c => c.BanHistoryKey).Distinct().Count() != merchant.Categories.Length ||
+                    merchant.Categories.SelectMany(c => c.PlaceIds).Distinct().Count() != merchant.Categories.Sum(c => c.PlaceIds.Length) ||
+                    merchant.PoliticsChanceDivisor <= 0 || merchant.MinimumBaseTrustExclusive is < 0 or >= 1000 || merchant.MinimumInvestment == 0 ||
+                    merchant.InvestmentBalanceDivisor == 0 || merchant.MinimumSuccessChance is < 0 or > 100 ||
+                    merchant.ReturnNumerator < 0 || merchant.ReturnDenominator <= 0 || merchant.PoliticsReturnMultiplier < 0 || merchant.ExecutionTrustPenalty < 0)
+                    throw new ArgumentException("Invalid merchant investment definition.");
+            }
             else if (entry is TigerSearchEventDefinition tiger)
             {
                 _ = tiger.Candidate(null);

@@ -49,6 +49,7 @@ internal sealed class ScenarioSessionDefinition
             definition.Alliance,
             definition.AnnualAppearancesEnabled,
             definition.NaturalDeathsEnabled,
+            definition.FoodExchangeRate, definition.FoodMarket,
             definition.FreeOfficerMigrationEnabled,
             definition.OfficeRequestsEnabled,
             definition.ForceConsolidationEnabled,
@@ -61,6 +62,8 @@ internal sealed class ScenarioSessionDefinition
             {
                 HealingSearchEventDefinition healing => (SearchEventDefinition)(healing with
                     { ExcludedSearchingOfficerIds = healing.ExcludedSearchingOfficerIds.Order().ToImmutableArray() }),
+                MerchantInvestmentDefinition merchant => merchant with { Categories = merchant.Categories.OrderBy(c => c.Id, StringComparer.Ordinal)
+                    .Select(c => c with { PlaceIds = c.PlaceIds.Order().ToImmutableArray() }).ToImmutableArray() },
                 TigerSearchEventDefinition tiger => tiger with { ProvinceIds = tiger.ProvinceIds.Order().ToImmutableArray() },
                 BeastSearchEventDefinition beast => beast with { Sites = beast.Sites.OrderBy(s => s.PlaceId).ToImmutableArray(),
                     BattleTacticIds = beast.BattleTacticIds.Order().ToImmutableArray() },
@@ -117,7 +120,7 @@ internal sealed class ScenarioSessionDefinition
             .Select(f => new ControlSeat(f.Id == Content.PlayerForceId ? "player" : $"ai:{f.Id}", f.Id,
                 f.Id == Content.PlayerForceId ? ControllerKind.Player : ControllerKind.Automatic)), computerDamageBonusPercent, Content.Alliance,
         Content.AttackRequests.Select(r => new AttackRequestState(r.RequestedForceId, r.RequesterForceId, r.TargetSettlementId,
-            Content.Settlements.Single(s => s.Id == r.TargetSettlementId).OwnerId!.Value, r.RemainingXun)), Content.AnnualAppearancesEnabled, Content.NaturalDeathsEnabled, Content.FreeOfficerMigrationEnabled, battleDeathsEnabled, Content.OfficeRequestsEnabled, Content.ConsumedEventKeys, Content.ForceConsolidationEnabled, Content.ForceEmergenceEnabled, Content.CityIndependenceEnabled, Content.ImperialCourtEnded, Content.ThreeVisitsStarted);
+            Content.Settlements.Single(s => s.Id == r.TargetSettlementId).OwnerId!.Value, r.RemainingXun)), Content.AnnualAppearancesEnabled, Content.NaturalDeathsEnabled, Content.FreeOfficerMigrationEnabled, battleDeathsEnabled, Content.OfficeRequestsEnabled, Content.ConsumedEventKeys, Content.ForceConsolidationEnabled, Content.ForceEmergenceEnabled, Content.CityIndependenceEnabled, Content.ImperialCourtEnded, Content.ThreeVisitsStarted, Content.FoodExchangeRate);
 
     private IEnumerable<ForceState> Forces() => Content.Forces.Select(f => new ForceState(f.Id, f.Money, f.Food, f.Trust)
     {

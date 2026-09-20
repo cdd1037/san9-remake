@@ -62,7 +62,7 @@ internal static class ResourceAccounts
 
     internal static uint Project(uint before, long requested, bool requireFull = false) =>
         requested < 0 && requireFull && before < -requested ? before :
-            (uint)Math.Clamp((long)before + requested, 0, requested > 0 ? Math.Max(before, 1000000L) : uint.MaxValue);
+            (uint)(requested > 0 ? before + Math.Min(requested, Math.Max(0, 1000000L - before)) : Math.Max(0, (long)before + requested));
 
     internal static void Report(WorldMutation world, ResourceAccount account, ResourceKind resource,
         string reason, int? sourceId, long requested, long actual, List<DomainEvent> events) =>

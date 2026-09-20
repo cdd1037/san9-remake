@@ -143,6 +143,8 @@ public static class ScenarioContentCompiler
             ForceConsolidationEnabled = header.ScenarioModeCode is not (2 or 9),
             FreeOfficerMigrationEnabled = header.ScenarioModeCode is not (2 or 9),
             TacticCourses = header.ScenarioModeCode is 2 or 9 ? [] : TacticStudyContentCompiler.Compile(settlements.Select(s => s.Id).ToHashSet()),
+            FoodExchangeRate = 1, // Reset value; initial xun preparation draws the current monthly rate.
+            FoodMarket = EventContentCompiler.FoodMarket(),
             NaturalDeathsEnabled = header.ScenarioModeCode is not (1 or 2 or 9),
             CityProvinceIds = settlements.Where(s => s.Kind == San9.Core.Domain.SettlementKind.City)
                 .ToDictionary(s => s.Id, s => (int)cities[s.Id].AreaCode),
@@ -152,6 +154,7 @@ public static class ScenarioContentCompiler
                 .AddRange(EventContentCompiler.WomenVisits(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id), configuredRegionIds))
                 .AddRange(EventContentCompiler.SageVisits(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id), configuredRegionIds))
                 .AddRange(EventContentCompiler.PhysicianVisits(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id), configuredRegionIds))
+                .AddRange(EventContentCompiler.MerchantInvestments(header.ScenarioModeCode, configuredRegionIds))
                 .AddRange(EventContentCompiler.Tigers(header.ScenarioModeCode))
                 .AddRange(EventContentCompiler.MysticBooks(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id), configuredRegionIds))
                 .AddRange(EventContentCompiler.ScholarInsults(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id)))

@@ -6,7 +6,11 @@ internal static class EconomicCycle
 {
     internal static IReadOnlyList<DailyRationAccount> Apply(ResolutionStage stage, WorldMutation world, EconomyRulebook rules, List<DomainEvent> events)
     {
-        if (stage == ResolutionStage.XunUpdate) Salaries(world, rules, events);
+        if (stage == ResolutionStage.XunUpdate)
+        {
+            Salaries(world, rules, events);
+            FoodMarket.Refresh(world, rules.FoodMarket, events);
+        }
         if (stage == ResolutionStage.BeforeDailyCommands) return Food(world, events);
         if (stage != ResolutionStage.QuarterUpdate || world.Clock.DayNumber - world.Simulation.Started.DayNumber < 30) return [];
         Population(world, events);

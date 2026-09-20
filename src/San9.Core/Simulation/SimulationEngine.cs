@@ -293,6 +293,19 @@ public sealed class SimulationEngine
             ? new(task.Id, task.ResolutionStep, encounter.EventId, task.ForceId, task.OfficerId, definition.ScholarOfficerId, definition.PlaceId) : null;
     }
 
+    public MerchantInvestmentPrompt? GetMerchantInvestmentPrompt()
+    {
+        if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
+        if (_world.Simulation.PendingDailyTask is not { } pending) return null;
+        var task = _world.Simulation.Tasks.Single(t => t.Id == pending.RemainingTaskIds[0]);
+        if (task.SearchEncounter is not MerchantInvestmentEncounter encounter ||
+            _rules.Personnel.SearchEvents.GetValueOrDefault(encounter.EventId) is not MerchantInvestmentDefinition d) return null;
+        var world = _world.BeginMutation(_rules.Abilities, _rules.Economy); var category = MerchantInvestment.Category(task, d)!;
+        return new(task.Id, task.ResolutionStep, d.Id, task.ForceId, task.OfficerId, task.Journey!.DestinationPlaceId, category.Id,
+            MerchantInvestment.Account(world, task), category.RewardResource, d.MinimumInvestment, MerchantInvestment.MaximumInvestment(world, task, d),
+            MerchantInvestment.SuccessChance(world, task, d), world.Simulation.FoodExchangeRate);
+    }
+
     public TigerSearchPrompt? GetTigerSearchPrompt()
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
@@ -423,7 +436,8 @@ public sealed class SimulationEngine
                         mutation.Simulation.Tasks.Single(t => t.Id == response.TaskId).ResolutionStep)
                         return Reject(CommandRejection.InvalidDecision);
                     var respondingTask = mutation.Simulation.Tasks.Single(t => t.Id == response.TaskId);
-                    if (response.CountryTitleId is not null && respondingTask.SearchEncounter is not ShanyangGongEncounter ||
+                    if (response.MerchantInvestment is not null && respondingTask.SearchEncounter is not MerchantInvestmentEncounter ||
+                        response.CountryTitleId is not null && respondingTask.SearchEncounter is not ShanyangGongEncounter ||
                         !_rules.FindTask(respondingTask.Kind)!.AcceptsResponse(mutation, respondingTask, response))
                         return Reject(CommandRejection.InvalidDecision);
                     _pipeline.Respond(mutation, response, events);

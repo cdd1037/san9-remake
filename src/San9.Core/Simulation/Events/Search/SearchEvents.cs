@@ -71,6 +71,11 @@ internal static class SearchEvents
                 encounter = new ScholarReturnEncounter(scholar.Id);
                 return true;
             }
+            if (rules.SearchEvents[candidate.Id] is MerchantInvestmentDefinition merchant && MerchantInvestment.Prepare(world, task, merchant))
+            {
+                encounter = new MerchantInvestmentEncounter(merchant.Id);
+                return true;
+            }
             if (rules.SearchEvents[candidate.Id] is TigerSearchEventDefinition tiger && TigerSearch.Prepare(world, task, rules, tiger))
             {
                 encounter = new TigerSearchEncounter(tiger.Id);

@@ -66,7 +66,7 @@ G10事件接入中：日历拥有唯一活动`EventSession`，`OfficeRequests`�
 
 ## 核心领域契约
 
-`domestic-development` 是四项内政随机加倍前的纯计算入口，已由 `San9.Core.Domain.DomesticDevelopment` 实现；它没有模拟调度依赖。`economy`依赖该计算与`simulation`，由BEH-ECONOMY-0001定义多人六项命令、共享资源账户及周期经济；Application通过`DomesticPlanner`和公共命令运行确定性简单策略。经济状态、名义规则输入及事件同步存档、内容指纹和录像。
+`domestic-development` 是四项内政随机加倍前的纯计算入口，已由 `San9.Core.Domain.DomesticDevelopment` 实现；它没有模拟调度依赖。`economy`依赖该计算与`simulation`，由BEH-ECONOMY-0001定义多人六项命令、共享资源账户及周期经济；Application通过`DomesticPlanner`和公共命令运行确定性简单策略。`FoodMarket`按内容月份池每旬刷新当前粮价，重复值保留权重，稳定恢复不重抽。经济状态、名义规则输入及事件同步存档、内容指纹和录像。
 
 | 领域 | 已确认规格 | 对象与状态 | 输入 → 输出 | 关键不变量 | 首个实现入口 |
 | --- | --- | --- | --- | --- | --- |
@@ -79,7 +79,7 @@ G10事件接入中：日历拥有唯一活动`EventSession`，`OfficeRequests`�
 | `ai` | `BEH-AI-0001` | 势力视角观察、确定性预算、计划、诊断 | 不可变观察、命名用途、预算 → 有序命令候选、评分、可选诊断 | 不持有可变世界；分析随机隔离；诊断不改行为；共享命令终验 | `San9.Core.AI`：`AiObservation`、`AiPlanningContext`、`AiPlan`、`IAiPlanner` |
 | `strategy` | `BEH-STRATEGY-0001..0003` | 计略命令、目标、意见、部队状态、结果 | 单执行者、类型目标、实时阈值、随机流 → 目标效果、成长、占用释放 | 意见只读；玩家/AI 共用结算；资源与所有权有界 | `San9.Core.Simulation.UnitStrategies/AlienateStrategies/BurnStrategies/SeizeStrategies/GossipStrategies/AdviserJudgment`：八类计略命令、意见、效果与返程均已接入；Application `StrategyPlanner`复用公共验证，阶段审计及保存／重放已验收 |
 | `duel` | `BEH-DUEL-0001..0003` | 单挑机会、名单、逐刀、结果、战后结算 | 陆战攻击机会、名单、属性、随机流 → 名单、逐刀结果、人员分区、士气、低武力胜者成长 | 单刀单结果；死亡/俘虏/伤势互斥；表现随机隔离；成长每场至多一次 | `San9.Core.Duels`：触发、解析与战后服务 |
-| `event` | `BEH-EVENT-0001..0002` | 候选、会话、结果、持久键、触发器 | 命名触发、候选表、只读世界、随机流 → 活动事件、原子效果、消费键 | 单活动事件；游标单调；效果与消费键同批提交 | `San9.Core.Simulation`：`EventSelection`、`EventSession`；`SearchEvents`接入华佗、神兽、蔡琰、封禅、铜雀台、女性访问、司马徽访问、于吉／华佗赠书、管辂访问、延命、祢衡遭遇、左慈授书／索还及猛虎讨伐，`ForceActivationSearch`接入望蓬莱及整组未启用→活动状态，`Guandu`接入登用前资格与原子效果；`OfficeRequests`和`AllianceFormation`接入日历活动槽；其余事件族仍在G10接入 |
+| `event` | `BEH-EVENT-0001..0002` | 候选、会话、结果、持久键、触发器 | 命名触发、候选表、只读世界、随机流 → 活动事件、原子效果、消费键 | 单活动事件；游标单调；效果与消费键同批提交 | `San9.Core.Simulation`：`EventSelection`、`EventSession`；`SearchEvents`接入华佗、神兽、蔡琰、封禅、铜雀台、女性访问、司马徽访问、于吉／华佗赠书、管辂访问、延命、祢衡遭遇、左慈授书／索还、猛虎讨伐及商人投资（`MerchantInvestment`），`ForceActivationSearch`接入望蓬莱及整组未启用→活动状态，`Guandu`接入登用前资格与原子效果；`OfficeRequests`和`AllianceFormation`接入日历活动槽；其余事件族仍在G10接入 |
 | `scenario` | `BEH-SCENARIO-0001..0002` | 终局判定、终局结果、结局快照、责任者、结局结果 | 不可变世界/结局快照 → 唯一终局结果与唯一结局 | 终局互斥；战争不创建 UI 结局；结局解析为纯函数 | `San9.Core.Scenarios`：`TerminalEvaluator`、`EndingResolver` |
 
 G01已接入以上模拟内核与现有内政命令，持续任务通过内部领域规则夹具验收；尚未实现人事/战争任务、实际终局条件或磁盘存档。证据与运行入口见[G01验收](../../docs/g01-verification.md)。

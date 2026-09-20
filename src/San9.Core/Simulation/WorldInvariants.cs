@@ -123,6 +123,7 @@ internal static class WorldInvariants
     private static void ValidateSimulation(WorldMutation state)
     {
         var sim = state.Simulation;
+        if (sim.FoodExchangeRate <= 0) throw new ArgumentException("Invalid food exchange rate.");
         sim.Alliance?.Validate(state.Forces.Values.Where(f => !f.IsEliminated && (!f.IsBarbarian ||
             sim.Controls.Any(c => c.ForceId == f.Id && c.Kind == ControllerKind.Player))).Select(f => f.Id).ToHashSet());
         _ = new GameClock(sim.Started.Year, sim.Started.Month, sim.Started.Day);
@@ -195,6 +196,7 @@ internal static class WorldInvariants
                     {
                         PersonSearchEncounter person => person.OfficerId < 0 || !state.Officers.ContainsKey(person.OfficerId),
                         ShanyangGongEncounter => false,
+                        MerchantInvestmentEncounter merchant => string.IsNullOrWhiteSpace(merchant.EventId),
                         TigerSearchEncounter tiger => string.IsNullOrWhiteSpace(tiger.EventId),
                         BeastSearchEncounter beast => string.IsNullOrWhiteSpace(beast.EventId),
                         ScholarReturnEncounter scholar => string.IsNullOrWhiteSpace(scholar.EventId),

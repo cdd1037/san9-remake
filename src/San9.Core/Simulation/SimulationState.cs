@@ -61,6 +61,7 @@ public sealed record PersonnelReturnLeg(int OriginPlaceId, int CountdownDays, bo
 /// <summary>Authoritative scheduling state; immutable and included in every world transaction.</summary>
 public sealed record SimulationState(GameClock Started, ulong InitialSeed)
 {
+    [JsonRequired] public int FoodExchangeRate { get; init; } = 1;
     [JsonRequired] public GameClock? ThreeVisitsStarted { get; init; }
     [JsonRequired] public EmperorTransferPending? EmperorTransfer { get; init; }
     [JsonRequired] public bool ImperialCourtEnded { get; init; }

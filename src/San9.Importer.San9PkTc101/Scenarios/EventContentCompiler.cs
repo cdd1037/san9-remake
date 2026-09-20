@@ -143,8 +143,34 @@ public static class EventContentCompiler
 
     public static ImmutableArray<PersistentEventKey> ForceEventHistory(San9ScenarioForceRecord force) =>
         new[] { (Marker: 1, Key: "guan-lu.visited"), (Marker: 6, Key: "cai-yan.returned") }
+            .Concat(MerchantCategories().Select((c, i) => (Marker: i + 7, Key: c.BanHistoryKey.Value)))
             .Where(e => force.HasEventHistoryMarker(e.Marker)).Select(e => new PersistentEventKey(e.Key))
             .OrderBy(k => k.Value, StringComparer.Ordinal).ToImmutableArray();
+
+    public static FoodMarketDefinition FoodMarket() => new([
+        [10, 8, 9, 6, 7], [9, 8, 6, 5, 7], [8, 7, 5, 6, 7], [7, 6, 5, 6, 5],
+        [6, 5, 6, 5, 6], [6, 5, 5, 5, 6], [15, 13, 11, 14, 12], [15, 10, 12, 11, 9],
+        [14, 10, 12, 11, 9], [13, 10, 11, 12, 9], [12, 10, 11, 9, 8], [11, 8, 7, 10, 9]]);
+
+    private static ImmutableArray<MerchantTradeCategory> MerchantCategories() => [
+        new("salt", [53, 57, 61, 76, 79, 85, 97, 125, 126], ResourceKind.Money, new("merchant.salt.banned")),
+        new("textiles", [9, 39, 59, 80, 167, 170, 175], ResourceKind.Money, new("merchant.textiles.banned")),
+        new("distribution", [5, 10, 13, 15, 22, 27, 31, 37, 95], ResourceKind.Money, new("merchant.distribution.banned")),
+        new("trade", [0, 16, 44, 115, 117, 118, 132, 181], ResourceKind.Money, new("merchant.trade.banned")),
+        new("livestock", [20, 58, 70, 71, 72, 103, 114, 116], ResourceKind.Money, new("merchant.livestock.banned")),
+        new("iron", [6, 32, 34, 109, 124, 127, 133, 157, 160], ResourceKind.Money, new("merchant.iron.banned")),
+        new("farmland", [8, 11, 18, 21, 30, 38, 65, 67, 83], ResourceKind.Food, new("merchant.farmland.banned")),
+        new("orchard", [176, 177, 178, 179, 180, 182, 183, 186], ResourceKind.Food, new("merchant.orchard.banned"))];
+
+    public static ImmutableArray<SearchEventDefinition> MerchantInvestments(byte mode, IReadOnlySet<int> places)
+    {
+        if (mode is 2 or 9) return [];
+        var categories = MerchantCategories();
+        if (categories.SelectMany(c => c.PlaceIds).Any(id => !places.Contains(id))) throw new InvalidDataException("Missing merchant investment site.");
+        return [new MerchantInvestmentDefinition(categories, 12, 50, 1000, 100, 5, 20, 3, 2, 4, 5)
+            { Id = "merchant-investment", Priority = -33, Consumption = EventConsumption.None }];
+
+    }
 
     public static ImmutableArray<SearchEventDefinition> Tigers(byte scenarioMode) => scenarioMode is 2 or 9 ? [] :
         [new TigerSearchEventDefinition([0, 1, 2, 4, 9, 11, 12, 13], 20, 260, 5, 20, 1, 1, 2, 7)

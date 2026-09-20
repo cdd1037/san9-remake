@@ -41,7 +41,9 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 96;
+    public const int CurrentSchemaVersion = 97;
+    [JsonRequired] public int FoodExchangeRate { get; init; } = 1;
+    [JsonRequired] public San9.Core.Domain.FoodMarketDefinition? FoodMarket { get; init; }
     [JsonRequired] public San9.Core.Domain.HanzhongKingDefinition? HanzhongKing { get; init; }
     [JsonRequired] public San9.Core.Domain.FiveTigersDefinition? FiveTigers { get; init; }
     [JsonRequired] public San9.Core.Domain.ExpeditionMemorialDefinition? ExpeditionMemorial { get; init; }
@@ -181,6 +183,9 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
                     throw new InvalidDataException("Unknown or unlearnable search event tactic reference.");
         }
         catch (ArgumentException error) { throw new InvalidDataException("Invalid personnel geography.", error); }
+        if (FoodExchangeRate <= 0) throw new InvalidDataException("Invalid food exchange rate.");
+        try { FoodMarket?.Validate(); }
+        catch (ArgumentException error) { throw new InvalidDataException("Invalid food market.", error); }
         new San9.Core.Domain.EconomyRulebook([], DomesticPairs, ImperialSealId).Validate();
         try { QiaoMarriage?.Validate(Officers.Select(o => o.State.Id).ToHashSet(), CityProvinceIds); }
         catch (ArgumentException e) { throw new InvalidDataException("Invalid historical event definition.", e); }

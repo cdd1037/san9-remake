@@ -9,6 +9,31 @@ public sealed class EventContentCompilerTests
     [Theory]
     [InlineData(0)]
     [InlineData(1)]
+    public void MerchantCategoriesKeepAllLocationsResourcesAndForceBanMarkers(byte mode)
+    {
+        var d = Assert.IsType<MerchantInvestmentDefinition>(Assert.Single(EventContentCompiler.MerchantInvestments(mode, Enumerable.Range(0, 200).ToHashSet())));
+        Assert.Equal(8, d.Categories.Length); Assert.Equal(67, d.Categories.Sum(c => c.PlaceIds.Length));
+        Assert.Equal(new[] { "salt", "textiles", "distribution", "trade", "livestock", "iron", "farmland", "orchard" }, d.Categories.Select(c => c.Id));
+        Assert.All(d.Categories.Take(6), c => Assert.Equal(ResourceKind.Money, c.RewardResource));
+        Assert.All(d.Categories.Skip(6), c => Assert.Equal(ResourceKind.Food, c.RewardResource));
+        Assert.Equal((12, 50, 1000u, 100u, 5u, 20, 3, 2, 4, 5, -33), (d.PoliticsChanceDivisor, d.MinimumBaseTrustExclusive,
+            d.MinimumMoneyExclusive, d.MinimumInvestment, d.InvestmentBalanceDivisor, d.MinimumSuccessChance, d.ReturnNumerator,
+            d.ReturnDenominator, d.PoliticsReturnMultiplier, d.ExecutionTrustPenalty, d.Priority));
+        for (int i = 0; i < 8; i++)
+        {
+            var force = new San9ScenarioForceRecord(1, 0, 0, 1u << (23 + i), 1, 1, 1, 1, 100, 100, 0, 0, 0, 0, []);
+            Assert.Equal(d.Categories[i].BanHistoryKey, Assert.Single(EventContentCompiler.ForceEventHistory(force)));
+        }
+        Assert.Empty(EventContentCompiler.MerchantInvestments(2, new HashSet<int>())); Assert.Empty(EventContentCompiler.MerchantInvestments(9, new HashSet<int>()));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.MerchantInvestments(mode, new HashSet<int>()));
+        var market = EventContentCompiler.FoodMarket(); market.Validate();
+        Assert.Equal(new[] { 10, 8, 9, 6, 7 }, market.MonthlyRates[0]); Assert.Equal(new[] { 15, 13, 11, 14, 12 }, market.MonthlyRates[6]);
+        Assert.Equal(new[] { 6, 5, 5, 5, 6 }, market.MonthlyRates[5]);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
     public void TigerPreservesProvinceGateAndIsOrderedBeforeBeast(byte mode)
     {
         var tiger = Assert.IsType<TigerSearchEventDefinition>(Assert.Single(EventContentCompiler.Tigers(mode)));

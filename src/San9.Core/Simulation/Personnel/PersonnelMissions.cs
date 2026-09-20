@@ -11,6 +11,7 @@ public sealed record SearchCommand(Guid CommandId, int IssuerId, long Sequence, 
     : GameCommand(CommandId, IssuerId, Sequence);
 [System.Text.Json.Serialization.JsonPolymorphic(TypeDiscriminatorPropertyName = "kind")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(PersonSearchEncounter), "person")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(MerchantInvestmentEncounter), "merchant-investment")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(TigerSearchEncounter), "tiger")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(BeastSearchEncounter), "beast")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(ScholarReturnEncounter), "scholar-return")]
@@ -26,6 +27,7 @@ public sealed record MysticBookReturnEncounter(string EventId) : SearchEncounter
 public sealed record ScholarInsultEncounter(string EventId) : SearchEncounter;
 public sealed record LongevityEncounter(string EventId) : SearchEncounter;
 public sealed record PersonSearchEncounter(int OfficerId) : SearchEncounter;
+public sealed record MerchantInvestmentEncounter(string EventId) : SearchEncounter;
 public sealed record TigerSearchEncounter(string EventId) : SearchEncounter;
 public sealed record BeastSearchEncounter(string EventId) : SearchEncounter;
 public sealed record ScholarReturnEncounter(string EventId) : SearchEncounter;
@@ -166,6 +168,7 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
                 task.SearchEncounter is ScholarInsultEncounter insult && rules.SearchEvents.GetValueOrDefault(insult.EventId) is ScholarInsultSearchEventDefinition ||
                 task.SearchEncounter is LongevityEncounter longevity && rules.SearchEvents.GetValueOrDefault(longevity.EventId) is LongevitySearchEventDefinition ||
                 task.SearchEncounter is TreasureMonumentEncounter monument && rules.SearchEvents.GetValueOrDefault(monument.EventId) is TreasureMonumentSearchEventDefinition ||
+                task.SearchEncounter is MerchantInvestmentEncounter merchant && rules.SearchEvents.GetValueOrDefault(merchant.EventId) is MerchantInvestmentDefinition ||
                 task.SearchEncounter is TigerSearchEncounter tiger && rules.SearchEvents.GetValueOrDefault(tiger.EventId) is TigerSearchEventDefinition ||
                 task.SearchEncounter is BeastSearchEncounter beast && rules.SearchEvents.GetValueOrDefault(beast.EventId) is BeastSearchEventDefinition) ||
              simulationRules.ShanyangGong is not null && task.SearchEncounter is ShanyangGongEncounter encounter &&
@@ -182,16 +185,29 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
         task.SearchEncounter is not null && Direct(world, task) ? task.ForceId : null;
 
     internal override bool AcceptsResponse(WorldMutation world, PersistentTask task, RespondDailyTaskCommand response) =>
-        response.Offer is null && (task.SearchEncounter is ShanyangGongEncounter encounter
+        response.Offer is null && (task.SearchEncounter is MerchantInvestmentEncounter merchant
+            ? response.CountryTitleId is null && response.MerchantInvestment is { } choice && response.Accept == (choice.Choice == MerchantInvestmentChoice.Invest) &&
+                MerchantInvestment.ValidResponse(world, task, (MerchantInvestmentDefinition)rules.SearchEvents[merchant.EventId], choice)
+            : response.MerchantInvestment is null && (task.SearchEncounter is ShanyangGongEncounter encounter
             ? (encounter.ChoosingCountryTitle
                 ? response.Accept && response.CountryTitleId is int title && ShanyangGong.Candidates(world, simulationRules, task.ForceId).Contains(title)
                 : response.CountryTitleId is null)
-            : response.CountryTitleId is null);
+            : response.CountryTitleId is null));
 
     internal override PersistentTask? ResolveResponse(WorldMutation world, PersistentTask task, RespondDailyTaskCommand response,
         List<DomainEvent> events) => task.SearchEncounter is ShanyangGongEncounter
         ? ShanyangGong.Resolve(world, task, simulationRules, response.Accept, response.CountryTitleId, events)
-        : Resolve(world, task, response.Accept, events);
+        : task.SearchEncounter is MerchantInvestmentEncounter merchant
+            ? ResolveMerchant(world, task, merchant, response.MerchantInvestment!, events)
+            : Resolve(world, task, response.Accept, events);
+
+    private PersistentTask? ResolveMerchant(WorldMutation world, PersistentTask task, MerchantInvestmentEncounter encounter,
+        MerchantInvestmentResponse response, List<DomainEvent> events)
+    {
+        MerchantInvestment.Resolve(world, task, simulationRules, encounter, response, events);
+        PersonnelReturns.Start(world, task, rules, events, true);
+        return null;
+    }
 
     internal override PersistentTask? Resolve(WorldMutation world, PersistentTask task, bool? accept, List<DomainEvent> events)
     {
@@ -212,6 +228,8 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
             TreasureMonument.Resolve(world, task, simulationRules, monument, accept ?? true, events);
         else if (task.SearchEncounter is ScholarReturnEncounter scholar)
             ScholarReturn.Resolve(world, task, rules, economy, scholar, accept ?? true, events);
+        else if (task.SearchEncounter is MerchantInvestmentEncounter merchant)
+            MerchantInvestment.Resolve(world, task, simulationRules, merchant, new(MerchantInvestmentChoice.Decline, 0), events);
         else if (task.SearchEncounter is TigerSearchEncounter tiger)
             TigerSearch.Resolve(world, task, simulationRules, tiger, accept ?? false, events);
         else if (task.SearchEncounter is BeastSearchEncounter beast)
@@ -256,6 +274,7 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
                     ScholarInsultEncounter insult => ScholarInsult.CanResolve(world, task, simulationRules, insult),
                     LongevityEncounter longevity => Longevity.CanResolve(world, task, simulationRules, longevity),
                     TreasureMonumentEncounter monument => TreasureMonument.CanResolve(world, task, simulationRules, monument),
+                    MerchantInvestmentEncounter merchant => MerchantInvestment.CanResolve(world, task, simulationRules, merchant),
                     TigerSearchEncounter tiger => TigerSearch.CanResolve(world, task, simulationRules, tiger),
                     BeastSearchEncounter beast => SearchEvents.CanResolveBeast(world, task, rules, beast),
                     _ => false

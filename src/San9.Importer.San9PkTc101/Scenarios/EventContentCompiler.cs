@@ -98,6 +98,9 @@ public static class EventContentCompiler
             new(199, 12, 30), new(209, 12, 30), 3, 7, 20, 25, new("qiao-marriage"));
     }
 
+    public static ImmutableArray<PersistentEventKey> ForceEventHistory(San9ScenarioForceRecord force) =>
+        force.HasEventHistoryMarker(6) ? [new("cai-yan.returned")] : [];
+
     public static ImmutableArray<SearchEventDefinition> SearchEvents(byte scenarioMode,
         IReadOnlyList<San9ScenarioPersonRecord> people, IEnumerable<int> retainedOfficerIds, IReadOnlySet<int> configuredRegions)
     {
@@ -108,8 +111,12 @@ public static class EventContentCompiler
         if (healers.Length != 1) throw new InvalidDataException("Expected one retained physician identity.");
         BeastSearchSite[] sites = [new(73, new("shenshou.xihe"), [11, 24, 22, 30, 26]),
             new(178, new("shenshou.wanwen"), [10, 23, 18, 26, 29]), new(128, new("shenshou.jianan"), [13, 24, 8, 29, 30])];
-        if (sites.Any(s => !configuredRegions.Contains(s.PlaceId))) throw new InvalidDataException("Missing beast search site.");
-        return [new HealingSearchEventDefinition(healers[0], retained.Where(id => people[id].BiographyResourceCode == 60).Order().ToImmutableArray(), 6)
+        if (!configuredRegions.Contains(96) || sites.Any(s => !configuredRegions.Contains(s.PlaceId))) throw new InvalidDataException("Missing beast search site.");
+        return [new ScholarReturnSearchEventDefinition(HistoricalPerson(people, retained, 569), 96,
+                new(195, 1, 1), new(207, 12, 30), 115, 3, 300, 1000, 3000, 2, 2, 2,
+                [10, 25, 22, 29], new("cai-yan"), new("cai-yan.returned"))
+            { Id = "cai-yan", Priority = -16, Consumption = EventConsumption.OnPresentation },
+            new HealingSearchEventDefinition(healers[0], retained.Where(id => people[id].BiographyResourceCode == 60).Order().ToImmutableArray(), 6)
             { Id = "hua-tuo.healing", Priority = -7, Consumption = EventConsumption.None },
             new BeastSearchEventDefinition(sites.ToImmutableArray(), [1, 28], 8, 2, 2, 7, scenarioMode != 1)
             { Id = "shenshou", Priority = -28, Consumption = EventConsumption.OnPresentation }];
@@ -120,7 +127,7 @@ public static class EventContentCompiler
     public static ImmutableArray<PersistentEventKey> ConsumedKeys(IReadOnlyList<uint> flagWords, San9ScenarioDate startDate)
     {
         if (flagWords.Count != 4) throw new InvalidDataException("Expected four scenario flag words.");
-        (int Bit, string Key)[] events = [(1, "chained-plot.started"), (2, "chained-plot.completed"), (3, "three-visits.started"), (4, "three-visits.first-visit"), (5, "three-visits.completed"), (8, "hanzhong-king"), (10, "expedition-memorial"), (11, "five-tigers"), (9, PoliticalContentCompiler.CourtEndedKey.Value), (12, "qiao-marriage"), (13, "sun-marriage"), (15, "red-cliffs"), (17, "shenshou.xihe"), (18, "shenshou.wanwen"), (19, "shenshou.jianan")];
+        (int Bit, string Key)[] events = [(1, "chained-plot.started"), (2, "chained-plot.completed"), (3, "three-visits.started"), (4, "three-visits.first-visit"), (5, "three-visits.completed"), (8, "hanzhong-king"), (10, "expedition-memorial"), (11, "five-tigers"), (9, PoliticalContentCompiler.CourtEndedKey.Value), (12, "qiao-marriage"), (13, "sun-marriage"), (15, "red-cliffs"), (16, "cai-yan"), (17, "shenshou.xihe"), (18, "shenshou.wanwen"), (19, "shenshou.jianan")];
         long start = new GameClock(startDate.Year, startDate.Month, startDate.Day).DayNumber;
         bool visitsCompleted = start >= new GameClock(207, 10, 1).DayNumber;
         return events.Where(e => (flagWords[e.Bit / 32] & (1u << (e.Bit % 32))) != 0 || visitsCompleted && e.Bit is >= 3 and <= 5 ||

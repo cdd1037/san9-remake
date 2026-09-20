@@ -106,7 +106,7 @@ public sealed class PersistenceTests : IDisposable
         Assert.NotEqual(loaded.Snapshot.Simulation.RunSeed, again.Snapshot.Simulation.RunSeed);
         Assert.Equal(original.Snapshot.Simulation.InitialSeed, loaded.Snapshot.Simulation.InitialSeed);
         Assert.Equal(original.Snapshot.Simulation.Tasks.ToArray(), loaded.Snapshot.Simulation.Tasks.ToArray());
-        Assert.Equal(original.Snapshot.Forces, loaded.Snapshot.Forces);
+        Assert.Equal(CanonicalJson.Text(original.Snapshot.Forces), CanonicalJson.Text(loaded.Snapshot.Forces));
         Assert.Equal(original.NextOperationSequence, loaded.NextOperationSequence);
         Assert.Empty(loaded.Snapshot.Simulation.RandomStreams);
         Assert.Empty(loaded.InitialEvents);

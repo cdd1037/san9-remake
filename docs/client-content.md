@@ -9,10 +9,10 @@ G09人物生命周期新增必填`lifespanTier`、`successionPriority`及场景`
 | 模块 | 职责 | 输出 |
 | --- | --- | --- |
 | Content.Maps / MapImporter | 当前地图方格、地貌及对象位置 | `map.json`（无图片文件） |
-| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema81 |
+| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema82 |
 | Content.Text / ScenarioTextReader | 名称与全量消息目录 | `text.json` / `messages.json`，schema3 |
 | Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema16 |
-| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema85 |
+| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema86 |
 | Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema3／转换版本8 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 
@@ -217,3 +217,6 @@ G07的`UnitPolicies`保留迎击、追击、事后攻击和自主撤退四项语
 剧本schema63／组合67新增必填`TacticCourses`集合，每项保存城市与兵法引用；不存在城市、非城市对象、未知／无熟练类别兵法及重复城市均拒绝，集合进入内容指纹。Importer将TC101九组配对转换为共享引用，显示training城市集合从同一表推导，Core不读取图标或源编号。人物、地图地点、文本和图像支持范围保持不变。原版特殊模式关闭课程时输出空集合；独立作者可任意配置有效课程。当前190年运行包已原位重转，九组课程引用与源表一致。
 
 报名通过`GetTacticStudyPrompt`和`ChooseTacticStudentCommand`消费；修行保存为人员任务及`StudyTacticId`，使用现有人员占用、取消和查询链，协议v9／保存及日志50。报名等待、90日修行、到期直接授予、失效取消与录像验证见[G09](g09-verification.md)。
+
+
+G10蔡琰归还使用剧本schema82／组合86、规则`san9-core-g10-v19`、保存／日志67。`SearchEvents`新增学者归还定义，明确角色、地点、日期、资格和有序兵法池；全部人物、地域、兵法、文本和图像保留，TC101按列传569、地域96、世界位16和势力历史位6转换。新增势力必填`EventHistory`是可扩展语义键集合，与世界消费键分开，初始与动态创建势力均支持保存；相同历史集合的输入顺序不改变指纹。公开查询`GetScholarReturnPrompt`与既有`RespondDailyTaskCommand`驱动选择，回答前不发奖励、不消费，回答后结束本次搜索。旧包须原位重转，190年整包核对留待完整G10收口，本批不增加图形对话或原版图片读取。

@@ -27,6 +27,17 @@ public sealed class PersonnelRulebook
                 if (healing.HealerOfficerId < 0 || healing.WarChanceDivisor <= 0 ||
                     !ValidIds(healing.ExcludedSearchingOfficerIds)) throw new ArgumentException("Invalid healing event definition.");
             }
+            else if (entry is ScholarReturnSearchEventDefinition scholar)
+            {
+                _ = scholar.Candidate(scholar.ConsumptionKey);
+                if (scholar.ScholarOfficerId < 0 || !Places.ContainsKey(scholar.PlaceId) || scholar.EarliestDate.Year < 1 || scholar.LatestDate.Year < 1 ||
+                    scholar.EarliestDate.DayNumber > scholar.LatestDate.DayNumber || scholar.MaximumBaseAbilityExclusive <= 0 ||
+                    scholar.PoliticsChanceDivisor <= 0 || scholar.MinimumTrustExclusive is < 0 or > 1000 ||
+                    scholar.MaximumBaseTrustExclusive is < 1 or > 1001 || scholar.IntelligenceReward < 0 ||
+                    scholar.FallbackPoliticsReward < 0 || scholar.BaseTrustReward < 0 || !ValidIds(scholar.RewardTacticIds) ||
+                    string.IsNullOrWhiteSpace(scholar.SuccessHistoryKey.Value))
+                    throw new ArgumentException("Invalid scholar return event definition.");
+            }
             else if (entry is BeastSearchEventDefinition beast)
             {
                 if (beast.Sites.IsDefaultOrEmpty || beast.Sites.Any(s => s is null || !Places.ContainsKey(s.PlaceId) || !ValidIds(s.RewardTacticIds)) ||

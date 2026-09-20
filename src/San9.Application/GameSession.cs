@@ -77,6 +77,7 @@ public sealed class GameSession
     public OfficeRequestPrompt? GetOfficeRequestPrompt() => _simulation.GetOfficeRequestPrompt();
     public SearchRecruitmentPrompt? GetSearchRecruitmentPrompt() => _simulation.GetSearchRecruitmentPrompt();
     public ShanyangGongPrompt? GetShanyangGongPrompt() => _simulation.GetShanyangGongPrompt();
+    public ScholarReturnPrompt? GetScholarReturnPrompt() => _simulation.GetScholarReturnPrompt();
     public BeastSearchPrompt? GetBeastSearchPrompt() => _simulation.GetBeastSearchPrompt();
     public TerminalResult GetTerminalResult() => Snapshot.Simulation.Boundary == SimulationBoundary.Terminal
         ? TerminalEvaluation.Evaluate(Snapshot, _definition.Content.Terminal) : new(TerminalRoute.Continue, null, null);

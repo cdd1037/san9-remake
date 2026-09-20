@@ -17,6 +17,7 @@ public sealed record ForceState(int Id, uint Money, uint Food, int Trust)
     [JsonRequired] public ForceOrigin? Origin { get; init; }
     [JsonRequired] public bool IsEliminated { get; init; }
     [JsonRequired] public bool HasDeposedEmperor { get; init; }
+    [JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Simulation.PersistentEventKey> EventHistory { get; init; } = [];
     [JsonRequired] public int BaseTrust { get; init; }
     public System.Collections.Immutable.ImmutableArray<int> ProvidedTactics { get; init; } = [];
     public bool IsBarbarian { get; init; }

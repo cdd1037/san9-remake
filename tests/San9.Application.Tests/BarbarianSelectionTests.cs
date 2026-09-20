@@ -32,7 +32,7 @@ public sealed class BarbarianSelectionTests
         {
             resources.AddRange(session.AdvanceXun().Events.OfType<ResourceChangedEvent>());
             ordinary.AdvanceXun();
-            Assert.Equal(ordinary.Snapshot.Forces, session.Snapshot.Forces);
+            Assert.Equal(CanonicalJson.Text(ordinary.Snapshot.Forces), CanonicalJson.Text(session.Snapshot.Forces));
             if (xun == 8)
             {
                 var restored = SaveService.Decode(SaveService.Encode(session), definition);

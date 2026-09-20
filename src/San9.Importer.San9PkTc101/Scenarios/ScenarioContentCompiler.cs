@@ -75,7 +75,7 @@ public static class ScenarioContentCompiler
             if (f.LeaderId is not int leader || leader >= persons.Count) throw new InvalidDataException("Missing force leader.");
             var p = persons[leader];
             string name = text.Person($"force.{id}", p.FamilyNameResourceCode, p.GivenNameResourceCode);
-            return new ForceInitialState(id, name, f.ColorCode, f.Money, f.Food, f.Trust) { HasDeposedEmperor = f.HasEventHistoryMarker(0), BaseTrust = f.BaseTrust, ProvidedTactics = Enumerable.Range(0, San9ScenarioForceArchive.TacticCount).Where(f.HasTactic).ToImmutableArray(), RankId = f.RankGroupId, CountryTitleId = f.CountryTitleId, IsBarbarian = f.IsBarbarian || f.CountryTitleId is >= 4 and <= 8, LeaderId = leader, FlagGlyph = p.FlagCode < 186 ? p.FlagCode : -1 };
+            return new ForceInitialState(id, name, f.ColorCode, f.Money, f.Food, f.Trust) { EventHistory = EventContentCompiler.ForceEventHistory(f), HasDeposedEmperor = f.HasEventHistoryMarker(0), BaseTrust = f.BaseTrust, ProvidedTactics = Enumerable.Range(0, San9ScenarioForceArchive.TacticCount).Where(f.HasTactic).ToImmutableArray(), RankId = f.RankGroupId, CountryTitleId = f.CountryTitleId, IsBarbarian = f.IsBarbarian || f.CountryTitleId is >= 4 and <= 8, LeaderId = leader, FlagGlyph = p.FlagCode < 186 ? p.FlagCode : -1 };
         }).ToArray();
         var officers = OfficerContentCompiler.Compile(persons, settlements, summaries, text, new San9MessageTable(biographies));
         summaries = summaries.Select(f => f with { AdviserId = officers.Where(o => o.State.OwnerId == f.Id && o.State.Status == San9.Core.Domain.OfficerStatus.Strategist)

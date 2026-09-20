@@ -5,6 +5,7 @@ namespace San9.Content.Scenarios;
 public sealed record ForceInitialState(int Id, string NameKey, int ColorCode, uint Money, uint Food, int Trust)
 {
     [JsonRequired] public bool HasDeposedEmperor { get; init; }
+    [JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Simulation.PersistentEventKey> EventHistory { get; init; } = [];
     [JsonRequired] public int BaseTrust { get; init; }
     [JsonRequired] public System.Collections.Immutable.ImmutableArray<int> ProvidedTactics { get; init; } = [];
     [JsonRequired] public bool IsBarbarian { get; init; }
@@ -38,7 +39,7 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 81;
+    public const int CurrentSchemaVersion = 82;
     [JsonRequired] public San9.Core.Domain.HanzhongKingDefinition? HanzhongKing { get; init; }
     [JsonRequired] public San9.Core.Domain.FiveTigersDefinition? FiveTigers { get; init; }
     [JsonRequired] public San9.Core.Domain.ExpeditionMemorialDefinition? ExpeditionMemorial { get; init; }
@@ -123,6 +124,9 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
             HanzhongKing?.Validate(ids, historicalCities, Information.Ranks.Select(r => r.Id).ToHashSet());
             FiveTigers?.Validate(ids, tactics);
             ExpeditionMemorial?.Validate(ids, CityProvinceIds, historicalCities, Information.CountryTitles.Select(t => t.Id).ToHashSet(), tactics);
+            foreach (var scholar in SearchEvents.OfType<San9.Core.Domain.ScholarReturnSearchEventDefinition>())
+                if (!ids.Contains(scholar.ScholarOfficerId) || scholar.RewardTacticIds.Any(id => !tactics.Contains(id)))
+                    throw new InvalidDataException("Unknown scholar return reference.");
             foreach (var beast in SearchEvents.OfType<San9.Core.Domain.BeastSearchEventDefinition>())
                 if (beast.BattleTacticIds.Concat(beast.Sites.SelectMany(s => s.RewardTacticIds)).Any(id => !tactics.Contains(id)))
                     throw new InvalidDataException("Unknown or unlearnable search event tactic reference.");
@@ -150,6 +154,8 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
         if (Units.Select(u => u.Id).Distinct().Count() != Units.Length || Units.Any(u => !u.IsValid || !forceIds.Contains(u.OwnerId) ||
             u.ServicePlaceId is int home && !Settlements.Any(s => s.Id == home) && !UnbuiltPlaces.Any(p => p.Id == home)))
             throw new InvalidDataException("Invalid field unit initial state.");
+        if (Forces.Any(f => f.EventHistory.IsDefault || f.EventHistory.Any(k => string.IsNullOrWhiteSpace(k.Value)) ||
+            f.EventHistory.Distinct().Count() != f.EventHistory.Length)) throw new InvalidDataException("Invalid force event history.");
         if (Forces.Any(f => f.ProvidedTactics.IsDefault || f.ProvidedTactics.Any(t => t < 0) || f.ProvidedTactics.Distinct().Count() != f.ProvidedTactics.Length || f.Id < 0 || string.IsNullOrWhiteSpace(f.NameKey) || f.Trust is < 0 or > 1000 || f.BaseTrust is < 0 or > 1000 || f.ColorCode is < 0 or > 50 || f.FlagGlyph is < -1 or > 185))
             throw new InvalidDataException("Invalid force snapshot.");
         if (Settlements.Select(s => s.Id).Distinct().Count() != Settlements.Length || Settlements.Any(s =>

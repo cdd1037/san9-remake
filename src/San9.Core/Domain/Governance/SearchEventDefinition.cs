@@ -7,6 +7,7 @@ namespace San9.Core.Domain;
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "kind")]
 [JsonDerivedType(typeof(HealingSearchEventDefinition), "healing")]
 [JsonDerivedType(typeof(BeastSearchEventDefinition), "beast")]
+[JsonDerivedType(typeof(ScholarReturnSearchEventDefinition), "scholar-return")]
 public abstract record SearchEventDefinition
 {
     [JsonRequired] public string Id { get; init; } = "";
@@ -36,3 +37,20 @@ public sealed record BeastSearchEventDefinition(
     [property: JsonRequired] int BaseTrustReward,
     [property: JsonRequired] int DefeatInjury,
     [property: JsonRequired] bool ReduceLifespanOnDefeat) : SearchEventDefinition;
+
+public sealed record ScholarReturnSearchEventDefinition(
+    [property: JsonRequired] int ScholarOfficerId,
+    [property: JsonRequired] int PlaceId,
+    [property: JsonRequired] GameClock EarliestDate,
+    [property: JsonRequired] GameClock LatestDate,
+    [property: JsonRequired] int MaximumBaseAbilityExclusive,
+    [property: JsonRequired] int PoliticsChanceDivisor,
+    [property: JsonRequired] int MinimumTrustExclusive,
+    [property: JsonRequired] int MaximumBaseTrustExclusive,
+    [property: JsonRequired] uint MinimumMoneyExclusive,
+    [property: JsonRequired] int IntelligenceReward,
+    [property: JsonRequired] int FallbackPoliticsReward,
+    [property: JsonRequired] int BaseTrustReward,
+    [property: JsonRequired] ImmutableArray<int> RewardTacticIds,
+    [property: JsonRequired] PersistentEventKey ConsumptionKey,
+    [property: JsonRequired] PersistentEventKey SuccessHistoryKey) : SearchEventDefinition;

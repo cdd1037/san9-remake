@@ -26,6 +26,9 @@ internal static class WorldInvariants
                 state.Officers.Values.Any(p => p.OwnerId == force.Id) || state.Settlements.Values.Any(s => s.OwnerId == force.Id) ||
                 state.Units.Values.Any(u => u.OwnerId == force.Id) || state.Corps.Values.Any(c => c.OwnerId == force.Id) ||
                 state.Simulation.Controls.Any(c => c.ForceId == force.Id))) throw new ArgumentException("Eliminated force retains active references.");
+            if (force.EventHistory.IsDefault || force.EventHistory.Any(k => string.IsNullOrWhiteSpace(k.Value)) ||
+                !force.EventHistory.Select(k => k.Value).SequenceEqual(force.EventHistory.Select(k => k.Value).Distinct().Order(StringComparer.Ordinal)))
+                throw new ArgumentException("Invalid force event history.");
             if (force.Id < 0 || force.Trust is < 0 or > 1000 || force.BaseTrust is < 0 or > 1000 || force.ProvidedTactics.IsDefault || force.ProvidedTactics.Any(t => t < 0) || force.ProvidedTactics.Distinct().Count() != force.ProvidedTactics.Length) throw new ArgumentException("Invalid force.");
         }
         foreach (var settlement in state.Settlements.Values)
@@ -168,6 +171,7 @@ internal static class WorldInvariants
                         PersonSearchEncounter person => person.OfficerId < 0 || !state.Officers.ContainsKey(person.OfficerId),
                         ShanyangGongEncounter => false,
                         BeastSearchEncounter beast => string.IsNullOrWhiteSpace(beast.EventId),
+                        ScholarReturnEncounter scholar => string.IsNullOrWhiteSpace(scholar.EventId),
                         _ => true
                     }) ||
                     sim.PendingDailyTask is not { } pendingSearch || pendingSearch.RemainingTaskIds[0] != task.Id))

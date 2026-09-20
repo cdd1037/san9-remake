@@ -13,7 +13,7 @@ public sealed record BeastSearchResolvedEvent(GameClock Clock, string EventId, i
 internal static class SearchEvents
 {
     internal static bool Prepare(WorldMutation world, PersistentTask task, PersonnelRulebook rules, List<DomainEvent> events,
-        out BeastSearchEncounter? encounter)
+        out SearchEncounter? encounter)
     {
         encounter = null;
         // Eligibility owns the position of its probability gate relative to site/consumption checks.
@@ -25,6 +25,11 @@ internal static class SearchEvents
                 TryHeal(world, task, rules, healing, events))
             {
                 world.ConsumeEvent(healing.Candidate(healing.ConsumptionKey), new(candidate.Id, EventOutcomeKind.Completed, false, EventResult.Succeeded));
+                return true;
+            }
+            if (rules.SearchEvents[candidate.Id] is ScholarReturnSearchEventDefinition scholar && ScholarReturn.Prepare(world, task, scholar))
+            {
+                encounter = new ScholarReturnEncounter(scholar.Id);
                 return true;
             }
             if (rules.SearchEvents[candidate.Id] is BeastSearchEventDefinition beast)

@@ -204,6 +204,16 @@ public sealed class SimulationEngine
                     ? ShanyangGong.Candidates(_world.BeginMutation(_rules.Abilities), _rules, task.ForceId) : []) : null;
     }
 
+    public ScholarReturnPrompt? GetScholarReturnPrompt()
+    {
+        if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
+        if (_world.Simulation.PendingDailyTask is not { } pending) return null;
+        var task = _world.Simulation.Tasks.Single(t => t.Id == pending.RemainingTaskIds[0]);
+        return task.SearchEncounter is ScholarReturnEncounter encounter &&
+            _rules.Personnel.SearchEvents.GetValueOrDefault(encounter.EventId) is ScholarReturnSearchEventDefinition definition
+            ? new(task.Id, task.ResolutionStep, encounter.EventId, task.ForceId, task.OfficerId, definition.ScholarOfficerId, definition.PlaceId) : null;
+    }
+
     public BeastSearchPrompt? GetBeastSearchPrompt()
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");

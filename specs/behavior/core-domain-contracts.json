@@ -62,12 +62,16 @@
         "entry_types": [
           "EconomicCycle",
           "FoodMarket",
+          "CityMerchants",
+          "FoodTrade",
           "DomesticDevelopmentHandler",
           "ResourceAccounts"
         ],
         "existing_anchors": [
           "src/San9.Core/Simulation/Economy/EconomicCycle.cs",
           "src/San9.Core/Simulation/Economy/FoodMarket.cs",
+          "src/San9.Core/Simulation/Economy/CityMerchants.cs",
+          "src/San9.Core/Simulation/Economy/FoodTrade.cs",
           "src/San9.Core/Simulation/Economy/DomesticDevelopmentHandler.cs",
           "src/San9.Application/DomesticPlanner.cs"
         ]

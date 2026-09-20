@@ -7,9 +7,9 @@ namespace San9.Application;
 
 public static class SessionProtocol
 {
-    public const string RulesVersion = "san9-core-g10-v34";
-    public const int SaveFormatVersion = 75;
-    public const int LogFormatVersion = 75;
+    public const string RulesVersion = "san9-core-g10-v35";
+    public const int SaveFormatVersion = 76;
+    public const int LogFormatVersion = 76;
 }
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]

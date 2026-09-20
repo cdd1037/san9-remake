@@ -31,8 +31,8 @@ public sealed class BuildingHoverTests
     {
         var initial = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "hover", 190, 1, 1, 5,
             [new(5, "force", 5, 500, 100, 100) { LeaderId = 1 }],
-            [new(15, "city", 5, 89, 64, 32000, 440, 800, 50, ["merchant", "emperor"])
-                { CorpsId = 5, Commerce = 560, MaxCommerce = 1000, Cultivation = 150, MaxCultivation = 400, PublicOrder = 150 },
+            [new(15, "city", 5, 89, 64, 32000, 440, 800, 50, ["emperor"])
+                { MerchantPresenceChance = 100, CorpsId = 5, Commerce = 560, MaxCommerce = 1000, Cultivation = 150, MaxCultivation = 400, PublicOrder = 150 },
              new(99, "gate", null, 90, 64, 0, 900, 1000, 0, []) { Kind = SettlementKind.Facility }], [], [])
         {
             Officers = [new("leader", new(1, 5, 15, new(1, 1, 100, 1), false) { IsCommander = true }),

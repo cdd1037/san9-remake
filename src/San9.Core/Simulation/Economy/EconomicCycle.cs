@@ -9,6 +9,7 @@ internal static class EconomicCycle
         if (stage == ResolutionStage.XunUpdate)
         {
             Salaries(world, rules, events);
+            CityMerchants.Refresh(world, events);
             FoodMarket.Refresh(world, rules.FoodMarket, events);
         }
         if (stage == ResolutionStage.BeforeDailyCommands) return Food(world, events);

@@ -56,8 +56,8 @@ public static class ScenarioContentCompiler
             if (c.Durability == ushort.MaxValue || c.MaxDurability == ushort.MaxValue) continue;
             settlements.Add(new(i, key, Root(c.ForceId), c.X, c.Y, c.Soldiers, c.Durability, c.MaxDurability,
                 Morale(Root(c.ForceId), c.Soldiers),
-                c.HasTrader ? ["merchant"] : trainingCities.Contains(i) ? ["training"] : [])
-            { SoldierCapacity = San9ScenarioZoneArchive.CitySoldierCapacity, Population = c.Population, DraftPopulation = c.DraftPopulation, CorpsId = c.ForceId, IsFacilityListEntry = true, Appearance = c.TerrainCode, PublicOrder = c.PublicOrder, Commerce = c.Income, MaxCommerce = c.MaxIncome, Cultivation = c.Harvest, MaxCultivation = c.MaxHarvest });
+                trainingCities.Contains(i) ? ["training"] : [])
+            { MerchantPresenceChance = c.HasTrader ? 100 : 20, SoldierCapacity = San9ScenarioZoneArchive.CitySoldierCapacity, Population = c.Population, DraftPopulation = c.DraftPopulation, CorpsId = c.ForceId, IsFacilityListEntry = true, Appearance = c.TerrainCode, PublicOrder = c.PublicOrder, Commerce = c.Income, MaxCommerce = c.MaxIncome, Cultivation = c.Harvest, MaxCultivation = c.MaxHarvest });
         }
         foreach (var z in zones)
         {

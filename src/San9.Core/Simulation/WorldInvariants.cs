@@ -42,6 +42,9 @@ internal static class WorldInvariants
                 throw new ArgumentException("Invalid facility instance or construction owner.");
             if (settlement.IsDestroyed && (settlement.OwnerId is not null || settlement.CorpsId is not null || settlement.Durability != 0 ||
                 settlement.Soldiers != 0 || settlement.Wounded != 0 || settlement.ConfusionDaysRemaining != 0)) throw new ArgumentException("Destroyed settlement retains active state.");
+            if (settlement.MerchantPresenceChance is < 0 or > 100 ||
+                settlement.Kind != San9.Core.Domain.SettlementKind.City && (settlement.MerchantPresenceChance != 0 || settlement.MerchantPresent || settlement.FoodTradeUsed))
+                throw new ArgumentException("Invalid city merchant state.");
             if (settlement.ConfusionDaysRemaining < 0) throw new ArgumentException("Invalid settlement confusion duration.");
             if (settlement.Wounded > San9.Core.Domain.MilitaryRulebook.WoundedCapacity) throw new ArgumentException("Invalid settlement wounded.");
             if (settlement.Id < 0 || !Enum.IsDefined(settlement.Kind) || settlement.OwnerId is int owner && !state.AllForces.ContainsKey(owner) ||

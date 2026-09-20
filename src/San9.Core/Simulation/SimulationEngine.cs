@@ -293,6 +293,12 @@ public sealed class SimulationEngine
             ? new(task.Id, task.ResolutionStep, encounter.EventId, task.ForceId, task.OfficerId, definition.ScholarOfficerId, definition.PlaceId) : null;
     }
 
+    public FoodTradeQuote GetFoodTradeQuote(int forceId, int settlementId, System.Collections.Immutable.ImmutableArray<int> officerIds, FoodTradeDirection direction)
+    {
+        if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
+        return FoodTrade.Quote(_world.BeginMutation(_rules.Abilities, _rules.Economy), forceId, settlementId, officerIds, direction);
+    }
+
     public MerchantInvestmentPrompt? GetMerchantInvestmentPrompt()
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
@@ -574,6 +580,9 @@ public sealed class SimulationEngine
                 case MoveOfficersCommand move:
                     var moveRejection = PersonnelMissions.StartMove(mutation, context, move, _rules.Personnel, events);
                     if (moveRejection != CommandRejection.None) return Reject(moveRejection);
+                    break;
+                case FoodTradeCommand trade:
+                    if (!FoodTrade.Apply(mutation, trade, events)) return Reject(CommandRejection.FoodTradeFailed);
                     break;
                 case DevelopCommand develop:
                     if (develop.Development is null || develop.Development.ForceId != command.IssuerId)

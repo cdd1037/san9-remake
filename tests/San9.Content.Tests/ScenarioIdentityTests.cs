@@ -22,7 +22,7 @@ public sealed class ScenarioIdentityTests
     private static ScenarioInitialState Fixture() => new(ScenarioInitialState.CurrentSchemaVersion, "expanded", 190, 1, 1, 9000,
         [new(9000, "force", 0, 100, 100, 0)],
         Enumerable.Range(0, 75).Select(i => new SettlementInitialState(1000 + i, $"city.{i}", 9000,
-            i, 0, 0, 100, 100, 0, ["merchant"]) { Kind = SettlementKind.City }).ToArray(),
+            i, 0, 0, 100, 100, 0, []) { Kind = SettlementKind.City, MerchantPresenceChance = 100 }).ToArray(),
         new() { [2000] = "region" }, new() { [2000] = 1074 });
 
     [Fact]

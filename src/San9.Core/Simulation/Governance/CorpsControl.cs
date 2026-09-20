@@ -61,6 +61,7 @@ public static class CorpsControl
             ConstructFacilityCommand construct => OwnPlace(construct.SettlementId),
             OrderUnitCommand order => OwnUnit(order.UnitId),
             ReformUnitCommand reform => OwnUnit(reform.UnitId),
+            FoodTradeCommand trade => OwnPlace(trade.SettlementId),
             DevelopCommand develop => develop.Development is not null && OwnPlace(develop.Development.SettlementId),
             RecruitOfficerCommand recruit => OwnPerson(recruit.OfficerId),
             BurnCommand burn => OwnPerson(burn.OfficerId),

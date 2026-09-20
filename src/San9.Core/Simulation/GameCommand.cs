@@ -39,6 +39,7 @@ public sealed record RespondDailyTaskCommand(Guid CommandId, int IssuerId, long 
 [System.Text.Json.Serialization.JsonDerivedType(typeof(RecruitOfficerCommand), "recruit-officer")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(MoveOfficersCommand), "move-officers")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(RewardOfficerCommand), "reward-officer")]
+[JsonDerivedType(typeof(FoodTradeCommand), "food-trade")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(DevelopCommand), "develop")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(StartTaskCommand), "start-task")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(GrantTreasureCommand), "grant-treasure")]
@@ -85,6 +86,7 @@ public enum CommandRejection
     UnsupportedCommand,
     InvalidTask,
     DevelopmentFailed,
+    FoodTradeFailed,
     UnknownPerson,
     PersonUnavailable,
     AlreadyRewarded,

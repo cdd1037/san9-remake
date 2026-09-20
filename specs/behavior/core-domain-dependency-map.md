@@ -66,7 +66,7 @@ G10事件接入中：日历拥有唯一活动`EventSession`，`OfficeRequests`�
 
 ## 核心领域契约
 
-`domestic-development` 是四项内政随机加倍前的纯计算入口，已由 `San9.Core.Domain.DomesticDevelopment` 实现；它没有模拟调度依赖。`economy`依赖该计算与`simulation`，由BEH-ECONOMY-0001定义多人六项命令、共享资源账户及周期经济；Application通过`DomesticPlanner`和公共命令运行确定性简单策略。`FoodMarket`按内容月份池每旬刷新当前粮价，重复值保留权重，稳定恢复不重抽。经济状态、名义规则输入及事件同步存档、内容指纹和录像。
+`domestic-development` 是四项内政随机加倍前的纯计算入口，已由 `San9.Core.Domain.DomesticDevelopment` 实现；它没有模拟调度依赖。`economy`依赖该计算与`simulation`，由BEH-ECONOMY-0001定义多人六项命令、共享资源账户、城市商人和粮食买卖及周期经济；Application通过`DomesticPlanner`和公共命令运行确定性简单策略。`CityMerchants`每旬刷新城市在场状态，`FoodTrade`共用只读报价与提交复验、实际军团账户及同城旬次数。`FoodMarket`按内容月份池每旬刷新当前粮价，重复值保留权重，稳定恢复不重抽。经济状态、名义规则输入及事件同步存档、内容指纹和录像。
 
 | 领域 | 已确认规格 | 对象与状态 | 输入 → 输出 | 关键不变量 | 首个实现入口 |
 | --- | --- | --- | --- | --- | --- |

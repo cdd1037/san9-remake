@@ -12,7 +12,7 @@ public sealed class ImperialCourtSessionTests
     private static ScenarioInitialState Scenario() => new(ScenarioInitialState.CurrentSchemaVersion, "court", 190, 3, 21, 1,
         [new(1, "force.1", 1, 10000, 10000, 100) { BaseTrust = 100, LeaderId = 1 },
          new(2, "force.2", 2, 10000, 10000, 100) { BaseTrust = 100, LeaderId = 2 }],
-        [new(1, "city.1", 1, 0, 0, 100, 100, 100, 50, ["emperor", "merchant"]) { Kind = SettlementKind.City, ConsumesFood = false },
+        [new(1, "city.1", 1, 0, 0, 100, 100, 100, 50, ["emperor"]) { MerchantPresenceChance = 100, Kind = SettlementKind.City, ConsumesFood = false },
          new(2, "city.2", 2, 1, 0, 100, 100, 100, 50, []) { Kind = SettlementKind.City, ConsumesFood = false }],
         new() { [1] = "city.1", [2] = "city.2" }, [])
     {

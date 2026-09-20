@@ -47,6 +47,9 @@ public sealed record SettlementState(int Id, int? OwnerId, uint Soldiers, int Du
     [JsonRequired] public bool RepairUsed { get; init; }
     [JsonRequired] public bool RecruitUsed { get; init; }
     [JsonRequired] public bool TrainUsed { get; init; }
+    [JsonRequired] public int MerchantPresenceChance { get; init; }
+    [JsonRequired] public bool MerchantPresent { get; init; }
+    [JsonRequired] public bool FoodTradeUsed { get; init; }
     public int? CorpsId { get; init; }
     public uint Population { get; init; }
     public uint DraftPopulation { get; init; }

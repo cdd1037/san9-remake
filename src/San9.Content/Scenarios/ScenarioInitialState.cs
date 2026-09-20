@@ -28,6 +28,7 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
     [JsonRequired] public bool CanHostPersons { get; init; } = true;
     [JsonRequired] public San9.Core.Domain.SettlementKind Kind { get; init; }
     [JsonRequired] public int Appearance { get; init; }
+    [JsonRequired] public int MerchantPresenceChance { get; init; }
     [JsonRequired] public int? CorpsId { get; init; }
     [JsonRequired] public bool IsFacilityListEntry { get; init; }
     [JsonRequired] public int PublicOrder { get; init; }
@@ -41,7 +42,7 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 97;
+    public const int CurrentSchemaVersion = 98;
     [JsonRequired] public int FoodExchangeRate { get; init; } = 1;
     [JsonRequired] public San9.Core.Domain.FoodMarketDefinition? FoodMarket { get; init; }
     [JsonRequired] public San9.Core.Domain.HanzhongKingDefinition? HanzhongKing { get; init; }
@@ -215,8 +216,8 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
         if (Settlements.Select(s => s.Id).Distinct().Count() != Settlements.Length || Settlements.Any(s =>
             s.Id < 0 || !Enum.IsDefined(s.Kind) || string.IsNullOrWhiteSpace(s.NameKey) || s.OwnerId is int owner && !forceIds.Contains(owner) ||
             s.X < 0 || s.Y < 0 || s.Morale is < 0 or > 100 ||
-            s.Icons.Contains("merchant") && s.Icons.Contains("training") ||
-            s.Icons.Distinct().Count() != s.Icons.Length || s.Icons.Any(i => i is not ("merchant" or "training" or "emperor")) ||
+            s.MerchantPresenceChance is < 0 or > 100 || s.Kind != San9.Core.Domain.SettlementKind.City && s.MerchantPresenceChance != 0 ||
+            s.Icons.Distinct().Count() != s.Icons.Length || s.Icons.Any(i => i is not ("training" or "emperor")) ||
             s.Kind != San9.Core.Domain.SettlementKind.City && s.Icons.Length != 0 ||
             s.Appearance is < 0 or > 2 || s.PublicOrder is < 0 or > 1000 || s.Commerce < 0 || s.Commerce > s.MaxCommerce || s.Cultivation < 0 || s.Cultivation > s.MaxCultivation ||
             s.SoldierCapacity is 0 or > 500000 || s.Soldiers > s.SoldierCapacity || s.Wounded > San9.Core.Domain.MilitaryRulebook.WoundedCapacity || s.Population > 1000000 || s.MaxCommerce > 2500 || s.MaxCultivation > 4000 || s.Soldiers == 0 && s.Morale != 0 || s.MaxDurability <= 0 || s.Durability < 0 || s.Durability > s.MaxDurability))

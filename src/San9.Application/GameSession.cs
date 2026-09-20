@@ -84,6 +84,8 @@ public sealed class GameSession
     public LongevityPrompt? GetLongevityPrompt() => _simulation.GetLongevityPrompt();
     public TreasureMonumentPrompt? GetTreasureMonumentPrompt() => _simulation.GetTreasureMonumentPrompt();
     public ScholarReturnPrompt? GetScholarReturnPrompt() => _simulation.GetScholarReturnPrompt();
+    public FoodTradeQuote GetFoodTradeQuote(int forceId, int settlementId, ImmutableArray<int> officerIds, FoodTradeDirection direction) =>
+        _simulation.GetFoodTradeQuote(forceId, settlementId, officerIds, direction);
     public MerchantInvestmentPrompt? GetMerchantInvestmentPrompt() => _simulation.GetMerchantInvestmentPrompt();
     public TigerSearchPrompt? GetTigerSearchPrompt() => _simulation.GetTigerSearchPrompt();
     public BeastSearchPrompt? GetBeastSearchPrompt() => _simulation.GetBeastSearchPrompt();

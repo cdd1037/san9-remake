@@ -32,6 +32,7 @@ public static class OfficerContentCompiler
             var state = new OfficerState(id, person.StatusCode <= 3 ? settlement?.OwnerId : null, location,
                 new(person.Strength, person.Intelligence, person.Politics, person.Command), person.IsCommandParticipant)
             {
+                Surname = text.Surname(person.FamilyNameResourceCode),
                 Affinity = person.Affinity,
                 AppearanceYear = person.AppearanceYear,
                 LifespanTier = person.LifespanTier,

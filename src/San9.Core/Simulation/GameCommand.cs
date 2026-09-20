@@ -7,6 +7,7 @@ public sealed record RespondDailyTaskCommand(Guid CommandId, int IssuerId, long 
     : GameCommand(CommandId, IssuerId, Sequence)
 {
     [JsonRequired] public CompensationOffer? Offer { get; init; }
+    [JsonRequired] public int? CountryTitleId { get; init; }
 }
 
 [System.Text.Json.Serialization.JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]

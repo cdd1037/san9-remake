@@ -12,9 +12,11 @@ public sealed record SearchCommand(Guid CommandId, int IssuerId, long Sequence, 
 [System.Text.Json.Serialization.JsonPolymorphic(TypeDiscriminatorPropertyName = "kind")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(PersonSearchEncounter), "person")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(BeastSearchEncounter), "beast")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(ShanyangGongEncounter), "shanyang-gong")]
 public abstract record SearchEncounter;
 public sealed record PersonSearchEncounter(int OfficerId) : SearchEncounter;
 public sealed record BeastSearchEncounter(string EventId) : SearchEncounter;
+public sealed record ShanyangGongEncounter(bool ChoosingCountryTitle = false) : SearchEncounter;
 public sealed record SearchRecruitmentPrompt(Guid TaskId, int Step, int ForceId, int SearchingOfficerId, int DiscoveredOfficerId, int PlaceId);
 public enum SearchResultKind { None, Person, Treasure, Money }
 public sealed record SearchResolvedEvent(GameClock Clock, int OfficerId, int PlaceId, int? DiscoveredOfficerId, bool Recruited) : DomainEvent
@@ -134,14 +136,19 @@ internal static class PersonnelMissions
     }
 }
 
-internal sealed class PersonnelMissionRule(PersonnelRulebook rules, EconomyRulebook economy, GovernanceRulebook governance,
-    TreasureRulebook treasures, string kind, ThreeVisitsDefinition? threeVisits = null) : TaskRule
+internal sealed class PersonnelMissionRule(SimulationRules simulationRules, string kind) : TaskRule
 {
-    internal override bool SupportsResolutionStep(int step) => step == 0 || kind == PersonnelMissions.SearchKind && step == 1;
+    private readonly PersonnelRulebook rules = simulationRules.Personnel;
+    private readonly EconomyRulebook economy = simulationRules.Economy;
+    private readonly GovernanceRulebook governance = simulationRules.Governance;
+    private readonly TreasureRulebook treasures = simulationRules.Treasures;
+    internal override bool SupportsResolutionStep(int step) => step == 0 || kind == PersonnelMissions.SearchKind && step is 1 or 2;
     internal override bool HasValidPayload(PersistentTask task) => task.Journey is { ReturnLeg: null, Route: { FieldDestination: false }, UnitStrategy: null, Burn: null, Seize: null, Gossip: null } journey && DurationDays(task) >= 0 &&
         (task.ResolutionStep == 0 ? task.SearchEncounter is null : kind == PersonnelMissions.SearchKind &&
-            (task.SearchEncounter is PersonSearchEncounter { OfficerId: >= 0 } ||
-                task.SearchEncounter is BeastSearchEncounter beast && rules.SearchEvents.GetValueOrDefault(beast.EventId) is BeastSearchEventDefinition)) &&
+            (task.ResolutionStep == 1 && (task.SearchEncounter is PersonSearchEncounter { OfficerId: >= 0 } ||
+                task.SearchEncounter is BeastSearchEncounter beast && rules.SearchEvents.GetValueOrDefault(beast.EventId) is BeastSearchEventDefinition) ||
+             simulationRules.ShanyangGong is not null && task.SearchEncounter is ShanyangGongEncounter encounter &&
+                task.ResolutionStep == (encounter.ChoosingCountryTitle ? 2 : 1))) &&
         (kind == PersonnelMissions.MoveKind ? journey.TargetOfficerId is null && journey.SuccessRoll is null :
          kind == PersonnelMissions.SearchKind ? journey.TargetOfficerId is null && journey.SuccessRoll is >= 0 and < 100 :
          journey.TargetOfficerId is >= 0 && journey.SuccessRoll is >= 0 and < 100);
@@ -153,16 +160,32 @@ internal sealed class PersonnelMissionRule(PersonnelRulebook rules, EconomyRuleb
     internal override int? DecisionRecipient(WorldMutation world, PersistentTask task) =>
         task.SearchEncounter is not null && Direct(world, task) ? task.ForceId : null;
 
+    internal override bool AcceptsResponse(WorldMutation world, PersistentTask task, RespondDailyTaskCommand response) =>
+        response.Offer is null && (task.SearchEncounter is ShanyangGongEncounter encounter
+            ? (encounter.ChoosingCountryTitle
+                ? response.Accept && response.CountryTitleId is int title && ShanyangGong.Candidates(world, simulationRules, task.ForceId).Contains(title)
+                : response.CountryTitleId is null)
+            : response.CountryTitleId is null);
+
+    internal override PersistentTask? ResolveResponse(WorldMutation world, PersistentTask task, RespondDailyTaskCommand response,
+        List<DomainEvent> events) => task.SearchEncounter is ShanyangGongEncounter
+        ? ShanyangGong.Resolve(world, task, simulationRules, response.Accept, response.CountryTitleId, events)
+        : Resolve(world, task, response.Accept, events);
+
     internal override PersistentTask? Resolve(WorldMutation world, PersistentTask task, bool? accept, List<DomainEvent> events)
     {
         if (kind != PersonnelMissions.SearchKind) { Complete(world, task, events); return null; }
+        if (task.SearchEncounter is ShanyangGongEncounter)
+            return ShanyangGong.Resolve(world, task, simulationRules, accept ?? true, null, events);
         if (task.SearchEncounter is PersonSearchEncounter encounter)
             ResolvePerson(world, task, encounter.OfficerId, accept ?? true, events);
         else if (task.SearchEncounter is BeastSearchEncounter beast)
             SearchEvents.ResolveBeast(world, task, rules, economy, beast, accept ?? true, events);
         else
         {
-            if (Direct(world, task) && ThreeVisits.Search(world, task, threeVisits, rules, economy, events)) return null;
+            if (Direct(world, task) && ThreeVisits.Search(world, task, simulationRules.ThreeVisits, rules, economy, events)) return null;
+            if (Direct(world, task) && ShanyangGong.Eligible(world, task, simulationRules))
+                return task with { SearchEncounter = new ShanyangGongEncounter() };
             if (Direct(world, task) && SearchEvents.Prepare(world, task, rules, events, out var special))
             {
                 if (special is not null) return task with { SearchEncounter = special };
@@ -191,6 +214,7 @@ internal sealed class PersonnelMissionRule(PersonnelRulebook rules, EconomyRuleb
                     null => true,
                     PersonSearchEncounter person => world.Officers.TryGetValue(person.OfficerId, out var discovered) &&
                         discovered.Status == OfficerStatus.Undiscovered && (discovered.SettlementId ?? discovered.RegionId) == journey.DestinationPlaceId,
+                    ShanyangGongEncounter => ShanyangGong.Eligible(world, task, simulationRules),
                     BeastSearchEncounter beast => SearchEvents.CanResolveBeast(world, task, rules, beast),
                     _ => false
                 }) &&

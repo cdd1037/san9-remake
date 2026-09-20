@@ -14,6 +14,10 @@ public static class EventContentCompiler
         return matches.Length == 1 ? matches[0] : throw new InvalidDataException("Expected one historical person identity.");
     }
 
+    public static ShanyangGongDefinition? ShanyangGong(byte scenarioMode,
+        IReadOnlyList<San9ScenarioPersonRecord> people, IEnumerable<int> retainedOfficerIds) => scenarioMode is 2 or 9 ? null :
+        new(HistoricalPerson(people, retainedOfficerIds, 565), 95, "刘", 700, 2, 20, 10, 11, 20, 40, PoliticalContentCompiler.CourtEndedKey);
+
     public static RedCliffsDefinition? RedCliffs(byte scenarioMode,
         IReadOnlyList<San9ScenarioPersonRecord> people, IEnumerable<int> retainedOfficerIds)
     {
@@ -121,6 +125,7 @@ public static class EventContentCompiler
         bool visitsCompleted = start >= new GameClock(207, 10, 1).DayNumber;
         return events.Where(e => (flagWords[e.Bit / 32] & (1u << (e.Bit % 32))) != 0 || visitsCompleted && e.Bit is >= 3 and <= 5 ||
             e.Bit == 1 && start >= new GameClock(192, 4, 1).DayNumber || e.Bit == 2 && start >= new GameClock(192, 5, 1).DayNumber ||
+            e.Bit == 9 && start >= new GameClock(234, 9, 1).DayNumber ||
             e.Bit == 15 && start >= new GameClock(209, 1, 1).DayNumber)
             .Select(e => new PersistentEventKey(e.Key)).OrderBy(k => k.Value, StringComparer.Ordinal).ToImmutableArray();
     }

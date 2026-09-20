@@ -159,13 +159,14 @@ internal static class WorldInvariants
             sim.Tasks.Count(t => t.Kind == TacticStudy.Kind)) throw new ArgumentException("Duplicate city study.");
         foreach (var task in sim.Tasks)
         {
-            if ((task.Kind == PersonnelMissions.SearchKind && task.ResolutionStep == 1) != (task.SearchEncounter is not null))
+            if ((task.Kind == PersonnelMissions.SearchKind && task.ResolutionStep > 0) != (task.SearchEncounter is not null))
                 throw new ArgumentException("Search resolution step requires its selected encounter.");
             if (task.SearchEncounter is { } encounter &&
-                (task.Kind != PersonnelMissions.SearchKind || task.ResolutionStep != 1 ||
+                (task.Kind != PersonnelMissions.SearchKind || task.ResolutionStep != (encounter is ShanyangGongEncounter { ChoosingCountryTitle: true } ? 2 : 1) ||
                     (encounter switch
                     {
                         PersonSearchEncounter person => person.OfficerId < 0 || !state.Officers.ContainsKey(person.OfficerId),
+                        ShanyangGongEncounter => false,
                         BeastSearchEncounter beast => string.IsNullOrWhiteSpace(beast.EventId),
                         _ => true
                     }) ||

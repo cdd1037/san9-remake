@@ -6,6 +6,7 @@ public sealed record OfficerCapturedEvent(GameClock Clock, int OfficerId, int Ca
 [System.Text.Json.Serialization.JsonDerivedType(typeof(FiveTigersRecognizedEvent), "five-tigers")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(ExpeditionMemorialEvent), "expedition-memorial")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(ChainedPlotEvent), "chained-plot")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(ShanyangGongEvent), "shanyang-gong")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(RedCliffsEvent), "red-cliffs")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(ThreeVisitsEvent), "three-visits")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(QiaoMarriageEvent), "qiao-marriage")]

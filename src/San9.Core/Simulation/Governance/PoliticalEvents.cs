@@ -3,8 +3,8 @@ using San9.Core.Domain;
 
 namespace San9.Core.Simulation;
 
-public enum PeerageChangeKind { Investiture, Promotion, Abdication, Proclamation, HanzhongKing }
-public sealed record PeerageChangedEvent(GameClock Clock, int ForceId, int PreviousRankId, int RankId,
+public enum PeerageChangeKind { Investiture, Promotion, Abdication, Proclamation, HanzhongKing, ShanyangGong }
+public sealed record PeerageChangedEvent(GameClock Clock, int ForceId, int? PreviousRankId, int RankId,
     PeerageChangeKind Kind, int? CountryTitleId) : DomainEvent;
 public sealed record CountryTitleOfferedEvent(GameClock Clock, int ForceId, ImmutableArray<int> CandidateIds) : DomainEvent;
 public sealed record CountryTitlePrompt(int ForceId, PeerageChangeKind Kind, ImmutableArray<int> CandidateIds);
@@ -104,21 +104,22 @@ internal static class PoliticalEvents
     }
 
     internal static void GrantRank(WorldMutation world, SimulationRules rules, int forceId, int rankId, int? titleId,
-        PeerageChangeKind kind, int baseTrustBonus, List<DomainEvent> events)
+        PeerageChangeKind kind, int baseTrustBonus, List<DomainEvent> events, IReadOnlySet<int>? loyaltyRecipients = null)
     {
         var force = world.Forces[forceId];
-        world.Replace(force with { RankId = rankId, CountryTitleId = titleId, BaseTrust = Math.Min(1000, force.BaseTrust + baseTrustBonus) });
-        foreach (var person in world.Officers.Values.Where(p => p.OwnerId == forceId && p.Status != OfficerStatus.Ruler).OrderBy(p => p.Id).ToArray())
+        world.Replace(force with { RankId = rankId, CountryTitleId = titleId, BaseTrust = (int)Math.Min(1000L, (long)force.BaseTrust + baseTrustBonus) });
+        foreach (var person in world.Officers.Values.Where(p => p.OwnerId == forceId && p.Status != OfficerStatus.Ruler &&
+            (loyaltyRecipients is null || loyaltyRecipients.Contains(p.Id))).OrderBy(p => p.Id).ToArray())
             RecruitmentRules.SetLoyalty(world, person.Id, forceId,
                 (int)Math.Min(255, (long)person.LoyaltyTo(forceId) + rules.Politics.Ranks[rankId].LoyaltyBonus), "peerage", events);
         EconomicCycle.UpdateTrust(world, rules.Economy, events);
-        events.Add(new PeerageChangedEvent(world.Clock, forceId, force.RankId!.Value, rankId, kind, titleId));
+        events.Add(new PeerageChangedEvent(world.Clock, forceId, force.RankId, rankId, kind, titleId));
     }
 
     internal static void ValidateRules(WorldMutation world, SimulationRules rules)
     {
         if (world.Forces.Values.Any(f => f.CountryTitleId is int title && !rules.Politics.Titles.ContainsKey(title) ||
-                (rules.Politics.Events is not null || rules.HanzhongKing is not null) && f.RankId is int rank && !rules.Politics.Ranks.ContainsKey(rank)) ||
+                (rules.Politics.Events is not null || rules.HanzhongKing is not null || rules.ShanyangGong is not null) && f.RankId is int rank && !rules.Politics.Ranks.ContainsKey(rank)) ||
             rules.Politics.Titles.Values.Any(t => t.PreferredRulerIds.Any(id => !world.Officers.ContainsKey(id))) ||
             rules.Politics.ProvinceTitles.Keys.Any(id => !rules.Personnel.CityProvinces.ContainsValue(id)))
             throw new ArgumentException("Unknown political content reference.");

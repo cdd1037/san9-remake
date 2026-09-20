@@ -39,6 +39,7 @@ public sealed record OfficerState(int Id, int? OwnerId, int? SettlementId, Offic
     [JsonRequired] public int AppearanceYear { get; init; }
     // A family identity, not a reference to a required living officer.
     [JsonRequired] public int? BloodlineId { get; init; }
+    [JsonRequired] public string Surname { get; init; } = "";
     public int? OfficeId { get; init; }
     [JsonRequired] public bool IsCommander { get; init; }
     [JsonRequired] public ImmutableDictionary<int, int> ForceLoyalties { get; init; } = ImmutableDictionary<int, int>.Empty;
@@ -71,7 +72,7 @@ public sealed record OfficerState(int Id, int? OwnerId, int? SettlementId, Offic
         if (EquippedTacticId < 0 || TacticCooldown < 0 || LearnedTactics.IsDefault || TacticProficiencies.IsDefault || TacticProficiencies.Length != 9 ||
             TacticProficiencies.Any(v => v < 0) || LearnedTactics.Any(v => v < 0) || LearnedTactics.Distinct().Count() != LearnedTactics.Length ||
             ParentId < 0 || BloodlineId < 0 || AppearanceYear < 0 || LifespanTier < 0 || SuccessionPriority < 0 || Personality is < 0 or > 3) return false;
-        if (Id < 0 || IsServing && SettlementId is null && UnitId is null || UnitId < 0 ||
+        if (Surname is null || Id < 0 || IsServing && SettlementId is null && UnitId is null || UnitId < 0 ||
             UnitId is not null && (SettlementId is not null || RegionId is not null || !IsServing && Status != OfficerStatus.Captive || IsCommander) ||
             SettlementId < 0 || OwnerId < 0 || RegionId < 0 || RegionId is not null && SettlementId is not null || !Enum.IsDefined(Status) || Injury is < 0 or > 14 ||
             !BaseAbilities.IsNonnegative) return false;

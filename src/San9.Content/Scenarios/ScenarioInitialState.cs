@@ -4,6 +4,7 @@ namespace San9.Content.Scenarios;
 
 public sealed record ForceInitialState(int Id, string NameKey, int ColorCode, uint Money, uint Food, int Trust)
 {
+    [JsonRequired] public bool HasDeposedEmperor { get; init; }
     [JsonRequired] public int BaseTrust { get; init; }
     [JsonRequired] public System.Collections.Immutable.ImmutableArray<int> ProvidedTactics { get; init; } = [];
     [JsonRequired] public bool IsBarbarian { get; init; }
@@ -37,11 +38,12 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 80;
+    public const int CurrentSchemaVersion = 81;
     [JsonRequired] public San9.Core.Domain.HanzhongKingDefinition? HanzhongKing { get; init; }
     [JsonRequired] public San9.Core.Domain.FiveTigersDefinition? FiveTigers { get; init; }
     [JsonRequired] public San9.Core.Domain.ExpeditionMemorialDefinition? ExpeditionMemorial { get; init; }
     [JsonRequired] public San9.Core.Domain.SunMarriageDefinition? SunMarriage { get; init; }
+    [JsonRequired] public San9.Core.Domain.ShanyangGongDefinition? ShanyangGong { get; init; }
     [JsonRequired] public San9.Core.Domain.RedCliffsDefinition? RedCliffs { get; init; }
     [JsonRequired] public San9.Core.Domain.ChainedPlotDefinition? ChainedPlot { get; init; }
     [JsonRequired] public San9.Core.Domain.ThreeVisitsDefinition? ThreeVisits { get; init; }
@@ -116,6 +118,7 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
             SunMarriage?.Validate(ids, Military?.Tactics.Where(t => t.Category is >= 0 and <= 8).Select(t => t.Id).ToHashSet() ?? []);
             var tactics = Military?.Tactics.Where(t => t.Category is >= 0 and <= 8).Select(t => t.Id).ToHashSet() ?? [];
             var historicalCities = Settlements.Where(s => s.Kind == San9.Core.Domain.SettlementKind.City).Select(s => s.Id).ToHashSet();
+            ShanyangGong?.Validate(ids, Settlements.Select(s => s.Id).Concat(UnbuiltPlaces.Select(p => p.Id)).ToHashSet(), Information.Ranks.Length > 0);
             RedCliffs?.Validate(ids, historicalCities, Settlements.Select(s => s.Id).Concat(UnbuiltPlaces.Select(p => p.Id)).ToHashSet(), Military?.RegionIds.IsEmpty == false);
             HanzhongKing?.Validate(ids, historicalCities, Information.Ranks.Select(r => r.Id).ToHashSet());
             FiveTigers?.Validate(ids, tactics);

@@ -35,7 +35,7 @@ public sealed class SearchHealingTests
         var mutation = world.BeginMutation();
         mutation.SetSimulation(mutation.Simulation with { NextSequence = 1 });
         List<DomainEvent> events = [];
-        var rule = new PersonnelMissionRule(Rules(Definition), EconomyRulebook.Empty, new([]), TreasureRulebook.Empty, "personnel-search");
+        var rule = new PersonnelMissionRule(new() { Personnel = Rules(Definition) }, "personnel-search");
         Assert.Null(rule.Resolve(mutation, Task(), null, events));
         var healed = Assert.Single(events.OfType<SearchHealingResolvedEvent>());
         Assert.Equal(new[] { 3, 4 }, healed.HealedOfficerIds);
@@ -86,7 +86,7 @@ public sealed class SearchHealingTests
     {
         var mutation = World(automatic: true).BeginMutation();
         List<DomainEvent> events = [];
-        var rule = new PersonnelMissionRule(Rules(Definition), EconomyRulebook.Empty, new([]), TreasureRulebook.Empty, "personnel-search");
+        var rule = new PersonnelMissionRule(new() { Personnel = Rules(Definition) }, "personnel-search");
         Assert.NotNull(rule.Resolve(mutation, Task(), null, events));
         Assert.DoesNotContain(mutation.Simulation.RandomStreams, s => s.Name == "event-search-eligibility");
         Assert.DoesNotContain(events, e => e is SearchHealingResolvedEvent);
@@ -104,7 +104,7 @@ public sealed class SearchHealingTests
         });
         var mutation = delegated.BeginMutation();
         List<DomainEvent> events = [];
-        var rule = new PersonnelMissionRule(Rules(Definition), EconomyRulebook.Empty, new([]), TreasureRulebook.Empty, "personnel-search");
+        var rule = new PersonnelMissionRule(new() { Personnel = Rules(Definition) }, "personnel-search");
         Assert.NotNull(rule.Resolve(mutation, Task(), null, events));
         Assert.DoesNotContain(mutation.Simulation.RandomStreams, s => s.Name == "event-search-eligibility");
         Assert.DoesNotContain(events, e => e is SearchHealingResolvedEvent);
@@ -130,8 +130,7 @@ public sealed class SearchHealingTests
     {
         var mutation = World().BeginMutation();
         List<DomainEvent> events = [];
-        var rule = new PersonnelMissionRule(Rules(Definition with { WarChanceDivisor = 1000 }),
-            EconomyRulebook.Empty, new([]), TreasureRulebook.Empty, "personnel-search");
+        var rule = new PersonnelMissionRule(new() { Personnel = Rules(Definition with { WarChanceDivisor = 1000 }) }, "personnel-search");
         Assert.NotNull(rule.Resolve(mutation, Task(), null, events));
         Assert.Equal(3, mutation.Officers[3].Injury);
         Assert.DoesNotContain(events, e => e is SearchHealingResolvedEvent);

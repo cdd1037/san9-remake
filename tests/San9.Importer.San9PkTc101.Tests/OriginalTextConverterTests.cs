@@ -16,6 +16,7 @@ public sealed class OriginalTextConverterTests
     }
 
     [Theory]
+    [InlineData("劉", "刘")]
     [InlineData("魏續 高順 胡車兒 胡軫 徐榮 宋憲", "魏续 高顺 胡车儿 胡轸 徐荣 宋宪")]
     [InlineData("乾隆 乾坤 乾燥", "乾隆 乾坤 干燥")]
     public void PreservesDecodedSourceAndConvertsDisplay(string source, string expected)

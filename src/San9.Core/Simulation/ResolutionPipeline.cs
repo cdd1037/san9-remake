@@ -20,6 +20,7 @@ public sealed record ControlEndedEvent(string ControllerId, int ForceId) : Domai
 // Rules are compiled domain code, not callbacks loaded from content or saves.
 internal class SimulationRules
 {
+    internal ShanyangGongDefinition? ShanyangGong { get; init; }
     internal RedCliffsDefinition? RedCliffs { get; init; }
     internal ChainedPlotDefinition? ChainedPlot { get; init; }
     internal ThreeVisitsDefinition? ThreeVisits { get; init; }
@@ -37,7 +38,7 @@ internal class SimulationRules
     internal MilitaryRulebook? Military { get; init; }
     internal OfficerAbilityRules Abilities => new(Treasures, Governance);
     internal virtual TaskRule? FindTask(string kind) => kind is PersonnelMissions.RecruitKind or PersonnelMissions.MoveKind or PersonnelMissions.SearchKind
-        ? new PersonnelMissionRule(Personnel, Economy, Governance, Treasures, kind, ThreeVisits) : kind == PersonnelReturns.Kind ? new PersonnelReturnRule(Personnel, Military)
+        ? new PersonnelMissionRule(this, kind) : kind == PersonnelReturns.Kind ? new PersonnelReturnRule(Personnel, Military)
         : kind == UnitStrategies.Kind ? new UnitStrategyRule(this) : kind == BurnStrategies.Kind ? new BurnRule(this)
         : kind == AlienateStrategies.Kind ? new AlienateRule(this)
         : kind == SeizeStrategies.Kind ? new SeizeRule(this)

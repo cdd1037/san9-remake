@@ -23,6 +23,7 @@ internal sealed class ScenarioSessionDefinition
         Fingerprint = CanonicalJson.Hash(new
         {
             definition.SchemaVersion, definition.ScenarioId, definition.Year, definition.Month, definition.Day, definition.PlayerForceId, definition.DomesticPairs, definition.ImperialSealId, definition.ImperialCourt, definition.ImperialCourtEnded,
+            definition.ShanyangGong,
             RedCliffs = definition.RedCliffs is { } battle ? battle with
                 { ExcludedRulerIds = battle.ExcludedRulerIds.Order().ToImmutableArray(), RegionIds = battle.RegionIds.Order().ToImmutableArray() } : null,
             ChainedPlot = definition.ChainedPlot is { } plot ? plot with
@@ -93,7 +94,7 @@ internal sealed class ScenarioSessionDefinition
     private IEnumerable<ForceState> Forces() => Content.Forces.Select(f => new ForceState(f.Id, f.Money, f.Food, f.Trust)
     {
         ProvidedTactics = f.ProvidedTactics.Order().ToImmutableArray(), IsBarbarian = f.IsBarbarian,
-        LeaderId = f.LeaderId, AdviserId = f.AdviserId, RankId = f.RankId, CountryTitleId = f.CountryTitleId, BaseTrust = f.BaseTrust
+        HasDeposedEmperor = f.HasDeposedEmperor, LeaderId = f.LeaderId, AdviserId = f.AdviserId, RankId = f.RankId, CountryTitleId = f.CountryTitleId, BaseTrust = f.BaseTrust
     });
 
     private IEnumerable<SettlementState> Settlements() => Content.Settlements.Select(s => new SettlementState(s.Id,

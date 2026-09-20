@@ -55,6 +55,11 @@ public sealed class ScenarioTextReader(byte[] messages, byte[] executable) : IDi
     public string Region(string key, int code) => Add(key, _messages.PlainText(166 + 2 * code));
     public string? FacilitySuffix(string key, int type) => AddOptional(key, TypeSuffix(type));
     public string Settlement(string key, int code, int type) => Add(key, [.. _messages.PlainText(166 + 2 * code), .. TypeSuffix(type)]);
+    public string Surname(int family)
+    {
+        if (family >= 700) throw new InvalidDataException("Unsupported generated surname.");
+        return _converter.Convert(_messages.PlainText(1678 + 4 * family)).Text;
+    }
     public string Person(string key, int family, int given)
     {
         if (family >= 700 || given >= 700) throw new InvalidDataException("Unsupported generated person name.");

@@ -15,10 +15,10 @@ public sealed class SimulationEngine
 
     public SimulationEngine(WorldState world, EconomyRulebook economy, PersonnelRulebook personnel, TreasureRulebook treasures,
         GovernanceRulebook? governance = null, MilitaryRulebook? military = null, TerminalDefinition? terminal = null, PoliticalRulebook? politics = null, QiaoMarriageDefinition? qiaoMarriage = null, SunMarriageDefinition? sunMarriage = null,
-        HanzhongKingDefinition? hanzhongKing = null, FiveTigersDefinition? fiveTigers = null, ExpeditionMemorialDefinition? expeditionMemorial = null, ThreeVisitsDefinition? threeVisits = null, ChainedPlotDefinition? chainedPlot = null, RedCliffsDefinition? redCliffs = null)
+        HanzhongKingDefinition? hanzhongKing = null, FiveTigersDefinition? fiveTigers = null, ExpeditionMemorialDefinition? expeditionMemorial = null, ThreeVisitsDefinition? threeVisits = null, ChainedPlotDefinition? chainedPlot = null, RedCliffsDefinition? redCliffs = null, ShanyangGongDefinition? shanyangGong = null)
         : this(ValidateContent(world, treasures, governance), new SimulationRules
             { Economy = economy, Personnel = personnel, Treasures = treasures, Governance = governance ?? new([]), Military = military, Terminal = terminal, Politics = politics ?? PoliticalRulebook.Empty, QiaoMarriage = qiaoMarriage, SunMarriage = sunMarriage,
-                RedCliffs = redCliffs, ChainedPlot = chainedPlot, ThreeVisits = threeVisits, HanzhongKing = hanzhongKing, FiveTigers = fiveTigers, ExpeditionMemorial = expeditionMemorial }) { }
+                ShanyangGong = shanyangGong, RedCliffs = redCliffs, ChainedPlot = chainedPlot, ThreeVisits = threeVisits, HanzhongKing = hanzhongKing, FiveTigers = fiveTigers, ExpeditionMemorial = expeditionMemorial }) { }
 
     private static WorldState ValidateContent(WorldState world, TreasureRulebook treasures, GovernanceRulebook? governance)
     {
@@ -55,6 +55,7 @@ public sealed class SimulationEngine
         if (rules.ThreeVisits is null && initial.Simulation.ThreeVisitsStarted is not null)
             throw new ArgumentException("Three Visits state requires a definition.");
         var cityIds = initial.Settlements.Values.Where(s => s.Kind == SettlementKind.City).Select(s => s.Id).ToHashSet();
+        rules.ShanyangGong?.Validate(officerIds, rules.Personnel.Places.Keys.ToHashSet(), rules.Politics.ImperialRankId is not null);
         rules.RedCliffs?.Validate(officerIds, cityIds, rules.Personnel.Places.Keys.ToHashSet(), rules.Military?.RegionIds.IsEmpty == false);
         var tacticIds = rules.Military?.Tactics.Values.Where(t => t.Category is >= 0 and <= 8).Select(t => t.Id).ToHashSet() ?? [];
         rules.HanzhongKing?.Validate(officerIds, cityIds, rules.Politics.Ranks.Keys.ToHashSet());
@@ -192,6 +193,17 @@ public sealed class SimulationEngine
             ? new(task.Id, task.ResolutionStep, task.ForceId, task.OfficerId, encounter.OfficerId, task.Journey!.DestinationPlaceId) : null;
     }
 
+    public ShanyangGongPrompt? GetShanyangGongPrompt()
+    {
+        if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
+        if (_world.Simulation.PendingDailyTask is not { } pending) return null;
+        var task = _world.Simulation.Tasks.Single(t => t.Id == pending.RemainingTaskIds[0]);
+        return task.SearchEncounter is ShanyangGongEncounter encounter && _rules.ShanyangGong is { } definition
+            ? new(task.Id, task.ResolutionStep, task.ForceId, task.OfficerId, definition.EmperorId, definition.PlaceId,
+                encounter.ChoosingCountryTitle, encounter.ChoosingCountryTitle
+                    ? ShanyangGong.Candidates(_world.BeginMutation(_rules.Abilities), _rules, task.ForceId) : []) : null;
+    }
+
     public BeastSearchPrompt? GetBeastSearchPrompt()
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
@@ -311,7 +323,8 @@ public sealed class SimulationEngine
                         mutation.Simulation.Tasks.Single(t => t.Id == response.TaskId).ResolutionStep)
                         return Reject(CommandRejection.InvalidDecision);
                     var respondingTask = mutation.Simulation.Tasks.Single(t => t.Id == response.TaskId);
-                    if (!_rules.FindTask(respondingTask.Kind)!.AcceptsResponse(mutation, respondingTask, response))
+                    if (response.CountryTitleId is not null && respondingTask.SearchEncounter is not ShanyangGongEncounter ||
+                        !_rules.FindTask(respondingTask.Kind)!.AcceptsResponse(mutation, respondingTask, response))
                         return Reject(CommandRejection.InvalidDecision);
                     _pipeline.Respond(mutation, response, events);
                     ContinueXun(mutation, waiting.XunStarted, events);

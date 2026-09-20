@@ -7,6 +7,21 @@ namespace San9.Importer.San9PkTc101.Tests;
 public sealed class EventContentCompilerTests
 {
     [Fact]
+    public void ShanyangGongUsesUniqueBiographyAndInitialDateConsumption()
+    {
+        var people = new[] { Person(36), Person(565), Person(3) };
+        var d = EventContentCompiler.ShanyangGong(0, people, [0, 1, 2])!;
+        Assert.Equal(1, d.EmperorId); Assert.Equal(95, d.PlaceId); Assert.Equal("刘", d.ImperialSurname);
+        Assert.NotNull(EventContentCompiler.ShanyangGong(1, people, [0, 1, 2]));
+        Assert.Null(EventContentCompiler.ShanyangGong(2, people, [])); Assert.Null(EventContentCompiler.ShanyangGong(9, people, []));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.ShanyangGong(0, people, [0, 2]));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.ShanyangGong(0, [.. people, Person(565)], [0, 1, 2, 3]));
+        Assert.DoesNotContain(d.ConsumptionKey, EventContentCompiler.ConsumedKeys([0, 0, 0, 0], new(234, 8, 30)));
+        Assert.Contains(d.ConsumptionKey, EventContentCompiler.ConsumedKeys([0, 0, 0, 0], new(234, 9, 1)));
+        Assert.Contains(d.ConsumptionKey, EventContentCompiler.ConsumedKeys([1u << 9, 0, 0, 0], new(190, 1, 1)));
+    }
+
+    [Fact]
     public void RedCliffsBindsOfficerAndExcludedRulerAndPreservesTheRegionSet()
     {
         var people = new[] { Person(36), Person(1), Person(91) };

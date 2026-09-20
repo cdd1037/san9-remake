@@ -7,6 +7,21 @@ namespace San9.Importer.San9PkTc101.Tests;
 public sealed class EventContentCompilerTests
 {
     [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public void ScholarInsultBindsNiHengWithoutRequiringSpecialStatus(byte mode)
+    {
+        var people = new[] { Person(1), Person(296) };
+        var d = Assert.IsType<ScholarInsultSearchEventDefinition>(Assert.Single(EventContentCompiler.ScholarInsults(mode, people, [0, 1])));
+        Assert.Equal((1, 30, 200, 5, 115, 2, 2, 7, 2, -15), (d.ScholarOfficerId, d.IntelligenceChanceDivisor, d.MaximumBaseTrustExclusive,
+            d.MaximumInjuryExclusive, d.TrustRewardIntelligenceThreshold, d.IntelligenceReward, d.BaseTrustReward, d.RetaliationInjury, d.BaseTrustPenalty, d.Priority));
+        Assert.Equal(EventConsumption.None, d.Consumption);
+        Assert.Empty(EventContentCompiler.ScholarInsults(2, [], [])); Assert.Empty(EventContentCompiler.ScholarInsults(9, [], []));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.ScholarInsults(mode, people, [0]));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.ScholarInsults(mode, [.. people, Person(296)], [0, 1, 2]));
+    }
+
+    [Theory]
     [InlineData(0, true)]
     [InlineData(1, false)]
     public void LongevityBindsHistoryAccountThresholdAndModeGate(byte mode, bool enabled)

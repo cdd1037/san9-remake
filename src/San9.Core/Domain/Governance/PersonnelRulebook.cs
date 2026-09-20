@@ -22,7 +22,16 @@ public sealed class PersonnelRulebook
         SearchEvents = (searchEvents ?? []).ToImmutableDictionary(e => e.Id, StringComparer.Ordinal);
         foreach (var entry in SearchEvents.Values)
         {
-            if (entry is LongevitySearchEventDefinition longevity)
+            if (entry is ScholarInsultSearchEventDefinition insult)
+            {
+                _ = insult.Candidate(null);
+                if (insult.Consumption != EventConsumption.None || insult.ScholarOfficerId < 0 || insult.IntelligenceChanceDivisor <= 0 ||
+                    insult.MaximumBaseTrustExclusive is < 1 or > 1001 || insult.MaximumInjuryExclusive is < 1 or > 15 ||
+                    insult.TrustRewardIntelligenceThreshold < 0 || insult.IntelligenceReward < 0 || insult.BaseTrustReward < 0 ||
+                    insult.RetaliationInjury is < 0 or > 14 || insult.BaseTrustPenalty < 0)
+                    throw new ArgumentException("Invalid scholar insult definition.");
+            }
+            else if (entry is LongevitySearchEventDefinition longevity)
             {
                 _ = longevity.Candidate(null);
                 if (longevity.Consumption != EventConsumption.None || !Places.ContainsKey(longevity.PlaceId) || longevity.DivinerOfficerId < 0 ||

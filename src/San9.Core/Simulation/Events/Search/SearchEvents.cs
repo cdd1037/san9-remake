@@ -21,6 +21,11 @@ internal static class SearchEvents
         foreach (var candidate in EventSelection.Order(rules.SearchEvents.Values.Select(e => new EventCandidate(e.Id, EventTrigger.Search, e.Priority)),
             EventTrigger.Search))
         {
+            if (rules.SearchEvents[candidate.Id] is ScholarInsultSearchEventDefinition insult && ScholarInsult.Prepare(world, task, rules, insult))
+            {
+                encounter = new ScholarInsultEncounter(insult.Id);
+                return true;
+            }
             if (rules.SearchEvents[candidate.Id] is LongevitySearchEventDefinition longevity && Longevity.Prepare(world, task, longevity))
             {
                 encounter = new LongevityEncounter(longevity.Id);

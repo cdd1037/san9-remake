@@ -146,6 +146,16 @@ public static class EventContentCompiler
             .Where(e => force.HasEventHistoryMarker(e.Marker)).Select(e => new PersistentEventKey(e.Key))
             .OrderBy(k => k.Value, StringComparer.Ordinal).ToImmutableArray();
 
+    public static ImmutableArray<SearchEventDefinition> ScholarInsults(byte scenarioMode,
+        IReadOnlyList<San9ScenarioPersonRecord> people, IEnumerable<int> retainedOfficerIds)
+    {
+        if (scenarioMode is 2 or 9) return [];
+        var retained = retainedOfficerIds.ToHashSet();
+        if (retained.Any(id => id < 0 || id >= people.Count)) throw new InvalidDataException("Invalid retained officer identity.");
+        return [new ScholarInsultSearchEventDefinition(HistoricalPerson(people, retained, 296), 30, 200, 5, 115, 2, 2, 7, 2)
+            { Id = "ni-heng.insult", Priority = -15, Consumption = EventConsumption.None }];
+    }
+
     public static ImmutableArray<SearchEventDefinition> Longevity(byte scenarioMode,
         IReadOnlyList<San9ScenarioPersonRecord> people, IEnumerable<int> retainedOfficerIds, IReadOnlySet<int> configuredRegions)
     {

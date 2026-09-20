@@ -152,6 +152,7 @@ public static class ScenarioContentCompiler
                 .AddRange(EventContentCompiler.WomenVisits(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id), configuredRegionIds))
                 .AddRange(EventContentCompiler.SageVisits(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id), configuredRegionIds))
                 .AddRange(EventContentCompiler.PhysicianVisits(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id), configuredRegionIds))
+                .AddRange(EventContentCompiler.ScholarInsults(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id)))
                 .AddRange(EventContentCompiler.Longevity(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id), configuredRegionIds))
                 .AddRange(EventContentCompiler.DivinerVisits(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id), configuredRegionIds))
                 .AddRange(penglai is null ? [] : new San9.Core.Domain.SearchEventDefinition[] { penglai }),

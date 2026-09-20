@@ -142,7 +142,20 @@ public static class EventContentCompiler
     }
 
     public static ImmutableArray<PersistentEventKey> ForceEventHistory(San9ScenarioForceRecord force) =>
-        force.HasEventHistoryMarker(6) ? [new("cai-yan.returned")] : [];
+        new[] { (Marker: 1, Key: "guan-lu.visited"), (Marker: 6, Key: "cai-yan.returned") }
+            .Where(e => force.HasEventHistoryMarker(e.Marker)).Select(e => new PersistentEventKey(e.Key))
+            .OrderBy(k => k.Value, StringComparer.Ordinal).ToImmutableArray();
+
+    public static ImmutableArray<SearchEventDefinition> DivinerVisits(byte scenarioMode,
+        IReadOnlyList<San9ScenarioPersonRecord> people, IEnumerable<int> retainedOfficerIds, IReadOnlySet<int> configuredRegions)
+    {
+        if (scenarioMode is 2 or 9) return [];
+        var retained = retainedOfficerIds.ToHashSet();
+        if (retained.Any(id => id < 0 || id >= people.Count)) throw new InvalidDataException("Invalid retained officer identity.");
+        if (!configuredRegions.Contains(65)) throw new InvalidDataException("Missing diviner visit site.");
+        return [new DivinerVisitSearchEventDefinition(65, HistoricalPerson(people, retained, 498), 3, 50, new("guan-lu.visited"))
+            { Id = "guan-lu.visit", Priority = -6, Consumption = EventConsumption.None }];
+    }
 
     public static ImmutableArray<SearchEventDefinition> WomenVisits(byte scenarioMode,
         IReadOnlyList<San9ScenarioPersonRecord> people, IEnumerable<int> retainedOfficerIds, IReadOnlySet<int> configuredRegions)

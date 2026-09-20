@@ -21,6 +21,8 @@ internal static class SearchEvents
         foreach (var candidate in EventSelection.Order(rules.SearchEvents.Values.Select(e => new EventCandidate(e.Id, EventTrigger.Search, e.Priority)),
             EventTrigger.Search))
         {
+            if (rules.SearchEvents[candidate.Id] is DivinerVisitSearchEventDefinition diviner &&
+                DivinerVisit.TryResolve(world, task, diviner, events)) return true;
             if (rules.SearchEvents[candidate.Id] is PhysicianVisitSearchEventDefinition physician &&
                 PhysicianVisit.TryResolve(world, task, physician, simulationRules.Economy, events)) return true;
             if (rules.SearchEvents[candidate.Id] is SageVisitSearchEventDefinition sage &&

@@ -22,7 +22,14 @@ public sealed class PersonnelRulebook
         SearchEvents = (searchEvents ?? []).ToImmutableDictionary(e => e.Id, StringComparer.Ordinal);
         foreach (var entry in SearchEvents.Values)
         {
-            if (entry is PhysicianVisitSearchEventDefinition physician)
+            if (entry is DivinerVisitSearchEventDefinition diviner)
+            {
+                _ = diviner.Candidate(null);
+                if (diviner.Consumption != EventConsumption.None || !Places.ContainsKey(diviner.PlaceId) || diviner.DivinerOfficerId < 0 ||
+                    diviner.PoliticsChanceDivisor <= 0 || diviner.MinimumTrustExclusive is < 0 or > 1000 ||
+                    string.IsNullOrWhiteSpace(diviner.HistoryKey.Value)) throw new ArgumentException("Invalid diviner visit definition.");
+            }
+            else if (entry is PhysicianVisitSearchEventDefinition physician)
             {
                 _ = physician.Candidate(null);
                 if (physician.Consumption != EventConsumption.None || physician.PoliticsChanceDivisor <= 0 ||

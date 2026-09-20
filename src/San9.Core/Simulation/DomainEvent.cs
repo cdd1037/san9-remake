@@ -13,6 +13,7 @@ public sealed record OfficerCapturedEvent(GameClock Clock, int OfficerId, int Ca
 [System.Text.Json.Serialization.JsonDerivedType(typeof(WomenVisitResolvedEvent), "women-visit")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(SageVisitResolvedEvent), "sage-visit")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(PhysicianVisitResolvedEvent), "physician-visit")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(DivinerVisitResolvedEvent), "diviner-visit")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(ImperialCeremonyResolvedEvent), "imperial-ceremony")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(ForceActivatedBySearchEvent), "force-activated-by-search")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(TreasureMonumentResolvedEvent), "treasure-monument")]

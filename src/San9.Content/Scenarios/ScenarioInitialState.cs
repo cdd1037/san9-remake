@@ -41,7 +41,7 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 90;
+    public const int CurrentSchemaVersion = 91;
     [JsonRequired] public San9.Core.Domain.HanzhongKingDefinition? HanzhongKing { get; init; }
     [JsonRequired] public San9.Core.Domain.FiveTigersDefinition? FiveTigers { get; init; }
     [JsonRequired] public San9.Core.Domain.ExpeditionMemorialDefinition? ExpeditionMemorial { get; init; }
@@ -113,6 +113,8 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
             if (SearchEvents.IsDefault || SearchEvents.Any(e => e is null)) throw new InvalidDataException("Invalid search event collection.");
             _ = new San9.Core.Domain.PersonnelRulebook(Settlements.Select(s => new San9.Core.Domain.PersonPlace(s.Id, s.Position)).Concat(UnbuiltPlaces), RegionCityIds, CityConnections, searchEvents: SearchEvents);
             var ids = Officers.Select(o => o.State.Id).ToHashSet();
+            foreach (var diviner in SearchEvents.OfType<San9.Core.Domain.DivinerVisitSearchEventDefinition>())
+                if (!ids.Contains(diviner.DivinerOfficerId)) throw new InvalidDataException("Unknown diviner visit reference.");
             foreach (var physician in SearchEvents.OfType<San9.Core.Domain.PhysicianVisitSearchEventDefinition>())
                 if (physician.Sites.Any(s => !ids.Contains(s.PhysicianOfficerId) || !Information.Treasures.Any(t => t.Id == s.TreasureId)))
                     throw new InvalidDataException("Unknown physician visit reference.");

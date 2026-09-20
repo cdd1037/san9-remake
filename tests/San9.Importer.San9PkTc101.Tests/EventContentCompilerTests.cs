@@ -9,6 +9,26 @@ public sealed class EventContentCompilerTests
     [Theory]
     [InlineData(0)]
     [InlineData(1)]
+    public void DivinerVisitPreservesModeOneAndIndependentForceHistory(byte mode)
+    {
+        var people = new[] { Person(1), Person(498) }; var places = new HashSet<int> { 65 };
+        var d = Assert.IsType<DivinerVisitSearchEventDefinition>(Assert.Single(EventContentCompiler.DivinerVisits(mode, people, [0, 1], places)));
+        Assert.Equal((65, 1, 3, 50, -6), (d.PlaceId, d.DivinerOfficerId, d.PoliticsChanceDivisor, d.MinimumTrustExclusive, d.Priority));
+        Assert.Equal(EventConsumption.None, d.Consumption);
+        var force = new San9ScenarioForceRecord(0, 0, 0, 1u << 17, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, []);
+        Assert.Equal(d.HistoryKey, Assert.Single(EventContentCompiler.ForceEventHistory(force)));
+        Assert.Equal(new[] { "cai-yan.returned", "guan-lu.visited" }, EventContentCompiler.ForceEventHistory(force with { Flags = (1u << 17) | (1u << 22) }).Select(k => k.Value));
+        Assert.Empty(EventContentCompiler.ForceEventHistory(force with { Flags = 0 }));
+        Assert.Empty(EventContentCompiler.DivinerVisits(2, [], [], new HashSet<int>()));
+        Assert.Empty(EventContentCompiler.DivinerVisits(9, [], [], new HashSet<int>()));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.DivinerVisits(mode, people, [0], places));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.DivinerVisits(mode, [.. people, Person(498)], [0, 1, 2], places));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.DivinerVisits(mode, people, [0, 1], new HashSet<int>()));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
     public void PhysicianVisitsBindTwoDistinctDoctorsSitesAndBooks(byte mode)
     {
         var people = new[] { Person(497), Person(496) }; var places = new HashSet<int> { 124, 125 };
@@ -184,7 +204,7 @@ public sealed class EventContentCompilerTests
         Assert.Throws<InvalidDataException>(() => EventContentCompiler.SearchEvents(0, people, [0, 1], new HashSet<int> { 73, 178, 128 }));
         var force = new San9ScenarioForceRecord(0, 0, 0, 1u << 22, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, []);
         Assert.Equal(d.SuccessHistoryKey, Assert.Single(EventContentCompiler.ForceEventHistory(force)));
-        Assert.Empty(EventContentCompiler.ForceEventHistory(force with { Flags = ~(1u << 22) }));
+        Assert.DoesNotContain(d.SuccessHistoryKey, EventContentCompiler.ForceEventHistory(force with { Flags = ~(1u << 22) }));
         Assert.Contains(d.ConsumptionKey, EventContentCompiler.ConsumedKeys([1u << 16, 0, 0, 0], new(195, 1, 1)));
     }
 

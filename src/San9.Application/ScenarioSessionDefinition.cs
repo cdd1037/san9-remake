@@ -61,6 +61,7 @@ internal sealed class ScenarioSessionDefinition
             {
                 HealingSearchEventDefinition healing => (SearchEventDefinition)(healing with
                     { ExcludedSearchingOfficerIds = healing.ExcludedSearchingOfficerIds.Order().ToImmutableArray() }),
+                TigerSearchEventDefinition tiger => tiger with { ProvinceIds = tiger.ProvinceIds.Order().ToImmutableArray() },
                 BeastSearchEventDefinition beast => beast with { Sites = beast.Sites.OrderBy(s => s.PlaceId).ToImmutableArray(),
                     BattleTacticIds = beast.BattleTacticIds.Order().ToImmutableArray() },
                 ForceActivationSearchEventDefinition activation => activation with

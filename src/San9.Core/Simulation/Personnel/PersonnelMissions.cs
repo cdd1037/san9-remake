@@ -11,6 +11,7 @@ public sealed record SearchCommand(Guid CommandId, int IssuerId, long Sequence, 
     : GameCommand(CommandId, IssuerId, Sequence);
 [System.Text.Json.Serialization.JsonPolymorphic(TypeDiscriminatorPropertyName = "kind")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(PersonSearchEncounter), "person")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(TigerSearchEncounter), "tiger")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(BeastSearchEncounter), "beast")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(ScholarReturnEncounter), "scholar-return")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(TreasureMonumentEncounter), "treasure-monument")]
@@ -25,6 +26,7 @@ public sealed record MysticBookReturnEncounter(string EventId) : SearchEncounter
 public sealed record ScholarInsultEncounter(string EventId) : SearchEncounter;
 public sealed record LongevityEncounter(string EventId) : SearchEncounter;
 public sealed record PersonSearchEncounter(int OfficerId) : SearchEncounter;
+public sealed record TigerSearchEncounter(string EventId) : SearchEncounter;
 public sealed record BeastSearchEncounter(string EventId) : SearchEncounter;
 public sealed record ScholarReturnEncounter(string EventId) : SearchEncounter;
 public sealed record TreasureMonumentEncounter(string EventId) : SearchEncounter;
@@ -164,6 +166,7 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
                 task.SearchEncounter is ScholarInsultEncounter insult && rules.SearchEvents.GetValueOrDefault(insult.EventId) is ScholarInsultSearchEventDefinition ||
                 task.SearchEncounter is LongevityEncounter longevity && rules.SearchEvents.GetValueOrDefault(longevity.EventId) is LongevitySearchEventDefinition ||
                 task.SearchEncounter is TreasureMonumentEncounter monument && rules.SearchEvents.GetValueOrDefault(monument.EventId) is TreasureMonumentSearchEventDefinition ||
+                task.SearchEncounter is TigerSearchEncounter tiger && rules.SearchEvents.GetValueOrDefault(tiger.EventId) is TigerSearchEventDefinition ||
                 task.SearchEncounter is BeastSearchEncounter beast && rules.SearchEvents.GetValueOrDefault(beast.EventId) is BeastSearchEventDefinition) ||
              simulationRules.ShanyangGong is not null && task.SearchEncounter is ShanyangGongEncounter encounter &&
                 task.ResolutionStep == (encounter.ChoosingCountryTitle ? 2 : 1))) &&
@@ -209,6 +212,8 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
             TreasureMonument.Resolve(world, task, simulationRules, monument, accept ?? true, events);
         else if (task.SearchEncounter is ScholarReturnEncounter scholar)
             ScholarReturn.Resolve(world, task, rules, economy, scholar, accept ?? true, events);
+        else if (task.SearchEncounter is TigerSearchEncounter tiger)
+            TigerSearch.Resolve(world, task, simulationRules, tiger, accept ?? false, events);
         else if (task.SearchEncounter is BeastSearchEncounter beast)
             SearchEvents.ResolveBeast(world, task, rules, economy, beast, accept ?? true, events);
         else
@@ -251,6 +256,7 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
                     ScholarInsultEncounter insult => ScholarInsult.CanResolve(world, task, simulationRules, insult),
                     LongevityEncounter longevity => Longevity.CanResolve(world, task, simulationRules, longevity),
                     TreasureMonumentEncounter monument => TreasureMonument.CanResolve(world, task, simulationRules, monument),
+                    TigerSearchEncounter tiger => TigerSearch.CanResolve(world, task, simulationRules, tiger),
                     BeastSearchEncounter beast => SearchEvents.CanResolveBeast(world, task, rules, beast),
                     _ => false
                 }) &&

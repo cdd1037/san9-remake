@@ -9,6 +9,25 @@ public sealed class EventContentCompilerTests
     [Theory]
     [InlineData(0)]
     [InlineData(1)]
+    public void TigerPreservesProvinceGateAndIsOrderedBeforeBeast(byte mode)
+    {
+        var tiger = Assert.IsType<TigerSearchEventDefinition>(Assert.Single(EventContentCompiler.Tigers(mode)));
+        Assert.Equal(new[] { 0, 1, 2, 4, 9, 11, 12, 13 }, tiger.ProvinceIds);
+        Assert.Equal((20, 260, 5, 20, 1, 1, 2, 7, -27), (tiger.WarChanceDivisor, tiger.MaximumBaseTrustExclusive,
+            tiger.MaximumInjuryExclusive, tiger.MinimumBattleChance, tiger.WarReward, tiger.BaseTrustReward,
+            tiger.BaseTrustPenalty, tiger.DefeatInjury, tiger.Priority));
+        Assert.Equal(EventConsumption.None, tiger.Consumption);
+        var events = EventContentCompiler.SearchEvents(mode, [Person(497), Person(569)], [0, 1], new HashSet<int> { 5, 82, 96, 73, 178, 128 });
+        var beast = Assert.Single(events.OfType<BeastSearchEventDefinition>());
+        Assert.True(tiger.Priority > beast.Priority); Assert.Equal(mode != 1, beast.ReduceLifespanOnDefeat);
+        Assert.Equal(new[] { 73, 178, 128 }, beast.Sites.Select(s => s.PlaceId));
+        Assert.Equal(3, beast.Sites.Select(s => s.ConsumptionKey).Distinct().Count());
+        Assert.Empty(EventContentCompiler.Tigers(2)); Assert.Empty(EventContentCompiler.Tigers(9));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
     public void MysticBooksBindBothBranchesAndPreserveTheirDistinctRules(byte mode)
     {
         var people = new[] { Person(1), Person(500) }; var places = new HashSet<int> { 172 };

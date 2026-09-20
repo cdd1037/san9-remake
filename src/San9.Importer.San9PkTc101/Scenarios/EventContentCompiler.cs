@@ -146,6 +146,10 @@ public static class EventContentCompiler
             .Where(e => force.HasEventHistoryMarker(e.Marker)).Select(e => new PersistentEventKey(e.Key))
             .OrderBy(k => k.Value, StringComparer.Ordinal).ToImmutableArray();
 
+    public static ImmutableArray<SearchEventDefinition> Tigers(byte scenarioMode) => scenarioMode is 2 or 9 ? [] :
+        [new TigerSearchEventDefinition([0, 1, 2, 4, 9, 11, 12, 13], 20, 260, 5, 20, 1, 1, 2, 7)
+            { Id = "tiger", Priority = -27, Consumption = EventConsumption.None }];
+
     public static ImmutableArray<SearchEventDefinition> MysticBooks(byte scenarioMode,
         IReadOnlyList<San9ScenarioPersonRecord> people, IEnumerable<int> retainedOfficerIds, IReadOnlySet<int> configuredRegions)
     {

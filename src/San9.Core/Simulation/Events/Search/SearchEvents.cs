@@ -71,6 +71,11 @@ internal static class SearchEvents
                 encounter = new ScholarReturnEncounter(scholar.Id);
                 return true;
             }
+            if (rules.SearchEvents[candidate.Id] is TigerSearchEventDefinition tiger && TigerSearch.Prepare(world, task, rules, tiger))
+            {
+                encounter = new TigerSearchEncounter(tiger.Id);
+                return true;
+            }
             if (rules.SearchEvents[candidate.Id] is BeastSearchEventDefinition beast)
             {
                 int chance = world.Abilities(world.Officers[task.OfficerId]).War / beast.WarChanceDivisor;

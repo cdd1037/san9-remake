@@ -195,6 +195,7 @@ internal static class WorldInvariants
                     {
                         PersonSearchEncounter person => person.OfficerId < 0 || !state.Officers.ContainsKey(person.OfficerId),
                         ShanyangGongEncounter => false,
+                        TigerSearchEncounter tiger => string.IsNullOrWhiteSpace(tiger.EventId),
                         BeastSearchEncounter beast => string.IsNullOrWhiteSpace(beast.EventId),
                         ScholarReturnEncounter scholar => string.IsNullOrWhiteSpace(scholar.EventId),
                         MysticBookOfferEncounter offer => string.IsNullOrWhiteSpace(offer.EventId),

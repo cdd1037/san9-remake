@@ -131,6 +131,16 @@ public sealed class PersonnelRulebook
                     string.IsNullOrWhiteSpace(scholar.SuccessHistoryKey.Value))
                     throw new ArgumentException("Invalid scholar return event definition.");
             }
+            else if (entry is TigerSearchEventDefinition tiger)
+            {
+                _ = tiger.Candidate(null);
+                if (tiger.Consumption != EventConsumption.None || !ValidIds(tiger.ProvinceIds) || tiger.ProvinceIds.IsEmpty ||
+                    tiger.ProvinceIds.Any(id => cityProvinces is null || !cityProvinces.Values.Contains(id)) ||
+                    tiger.WarChanceDivisor <= 0 || tiger.MaximumBaseTrustExclusive is < 1 or > 1001 ||
+                    tiger.MaximumInjuryExclusive is < 1 or > 15 || tiger.MinimumBattleChance is < 0 or > 100 ||
+                    tiger.WarReward < 0 || tiger.BaseTrustReward < 0 || tiger.BaseTrustPenalty < 0 || tiger.DefeatInjury is < 0 or > 14)
+                    throw new ArgumentException("Invalid tiger event definition.");
+            }
             else if (entry is BeastSearchEventDefinition beast)
             {
                 if (beast.Sites.IsDefaultOrEmpty || beast.Sites.Any(s => s is null || !Places.ContainsKey(s.PlaceId) || !ValidIds(s.RewardTacticIds)) ||

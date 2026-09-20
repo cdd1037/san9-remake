@@ -84,6 +84,7 @@ public sealed class GameSession
     public LongevityPrompt? GetLongevityPrompt() => _simulation.GetLongevityPrompt();
     public TreasureMonumentPrompt? GetTreasureMonumentPrompt() => _simulation.GetTreasureMonumentPrompt();
     public ScholarReturnPrompt? GetScholarReturnPrompt() => _simulation.GetScholarReturnPrompt();
+    public TigerSearchPrompt? GetTigerSearchPrompt() => _simulation.GetTigerSearchPrompt();
     public BeastSearchPrompt? GetBeastSearchPrompt() => _simulation.GetBeastSearchPrompt();
     public TerminalResult GetTerminalResult() => Snapshot.Simulation.Boundary == SimulationBoundary.Terminal
         ? TerminalEvaluation.Evaluate(Snapshot, _definition.Content.Terminal) : new(TerminalRoute.Continue, null, null);

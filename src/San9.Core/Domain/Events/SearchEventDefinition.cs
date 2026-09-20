@@ -7,6 +7,7 @@ namespace San9.Core.Domain;
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "kind")]
 [JsonDerivedType(typeof(HealingSearchEventDefinition), "healing")]
 [JsonDerivedType(typeof(BeastSearchEventDefinition), "beast")]
+[JsonDerivedType(typeof(TigerSearchEventDefinition), "tiger")]
 [JsonDerivedType(typeof(ScholarReturnSearchEventDefinition), "scholar-return")]
 [JsonDerivedType(typeof(ImperialCeremonySearchEventDefinition), "imperial-ceremony")]
 [JsonDerivedType(typeof(TreasureMonumentSearchEventDefinition), "treasure-monument")]

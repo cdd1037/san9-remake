@@ -43,7 +43,9 @@ public sealed class ScenarioTextReader(byte[] messages, byte[] executable) : IDi
         return AddOptional(key, source);
     }
     public string CountryTitle(string key, int id) => Add(key, _messages.PlainText(San9ScenarioCountryTitleArchive.GetNameMessageId(id)));
-    public string Rank(string key, int id) => Add(key, _messages.PlainText(1652 + 2 * id));
+    // Rank 8 is the valid lowest rank, but its name resource 1668 is empty.
+    // Reuse the source's explicit "none" label (5217) for this semantic state.
+    public string Rank(string key, int id) => Add(key, _messages.PlainText(id == 8 ? 5217 : 1652 + 2 * id));
     public string TreasureDescription(int id, int resourceId)
     {
         if ((uint)resourceId >= 100) throw new InvalidDataException("Unsupported expansion treasure description.");

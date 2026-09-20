@@ -58,8 +58,8 @@ public sealed class SearchHealingTests
         var unavailable = excluded ? Definition with { ExcludedSearchingOfficerIds = [2] } : Definition with { HealerOfficerId = 6 };
         if (!excluded) mutation.Replace(mutation.Officers[6] with { Status = OfficerStatus.Dead });
         List<DomainEvent> events = [];
-        Assert.True(SearchEvents.Prepare(mutation, Task(), Rules(unavailable,
-            Definition with { Id = "next", Priority = 0 }), events, out _));
+        Assert.True(SearchEvents.Prepare(mutation, Task(), new() { Personnel = Rules(unavailable,
+            Definition with { Id = "next", Priority = 0 }) }, events, out _));
         Assert.Equal("next", Assert.Single(events.OfType<SearchHealingResolvedEvent>()).EventId);
         var random = new StableRandom(StableRandom.DeriveSeed(1, "event-search-eligibility"));
         random.NextUInt64(); random.NextUInt64();
@@ -71,11 +71,11 @@ public sealed class SearchHealingTests
     {
         var mutation = World().BeginMutation();
         List<DomainEvent> events = [];
-        Assert.False(SearchEvents.Prepare(mutation, Task(2), Rules(Definition), events, out _));
+        Assert.False(SearchEvents.Prepare(mutation, Task(2), new() { Personnel = Rules(Definition) }, events, out _));
         Assert.Empty(mutation.Simulation.RandomStreams);
         foreach (var person in mutation.Officers.Values.ToArray()) mutation.Replace(person with { Injury = 0 });
-        Assert.False(SearchEvents.Prepare(mutation, Task(), Rules(Definition with
-            { Consumption = EventConsumption.OnSuccess, ConsumptionKey = new("healing") }), events, out _));
+        Assert.False(SearchEvents.Prepare(mutation, Task(), new() { Personnel = Rules(Definition with
+            { Consumption = EventConsumption.OnSuccess, ConsumptionKey = new("healing") }) }, events, out _));
         Assert.Empty(events);
         Assert.Empty(mutation.Simulation.ConsumedEventKeys);
         Assert.Single(mutation.Simulation.RandomStreams);
@@ -116,12 +116,12 @@ public sealed class SearchHealingTests
         var mutation = World().BeginMutation();
         var rules = Rules(Definition with { Consumption = EventConsumption.OnSuccess, ConsumptionKey = new("once") });
         List<DomainEvent> events = [];
-        Assert.True(SearchEvents.Prepare(mutation, Task(), rules, events, out _));
+        Assert.True(SearchEvents.Prepare(mutation, Task(), new() { Personnel = rules }, events, out _));
         Assert.Equal("once", Assert.Single(mutation.Simulation.ConsumedEventKeys).Value);
         mutation.Replace(mutation.Officers[3] with { Injury = 2 });
-        Assert.False(SearchEvents.Prepare(mutation, Task(), rules, events, out _));
+        Assert.False(SearchEvents.Prepare(mutation, Task(), new() { Personnel = rules }, events, out _));
         Assert.Equal(2, mutation.Officers[3].Injury);
-        Assert.True(SearchEvents.Prepare(mutation, Task(), Rules(Definition), events, out _));
+        Assert.True(SearchEvents.Prepare(mutation, Task(), new() { Personnel = Rules(Definition) }, events, out _));
         Assert.Equal(0, mutation.Officers[3].Injury);
     }
 

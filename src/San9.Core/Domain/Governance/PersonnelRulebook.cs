@@ -27,6 +27,13 @@ public sealed class PersonnelRulebook
                 if (healing.HealerOfficerId < 0 || healing.WarChanceDivisor <= 0 ||
                     !ValidIds(healing.ExcludedSearchingOfficerIds)) throw new ArgumentException("Invalid healing event definition.");
             }
+            else if (entry is ImperialCeremonySearchEventDefinition ceremony)
+            {
+                _ = ceremony.Candidate(ceremony.ConsumptionKey);
+                if (!Places.ContainsKey(ceremony.PlaceId) || ceremony.RequiredRankId < 0 || ceremony.AbilityReward < 0 ||
+                    ceremony.BaseTrustReward < 0 || ceremony.LoyaltyReward < 0)
+                    throw new ArgumentException("Invalid imperial ceremony definition.");
+            }
             else if (entry is ScholarReturnSearchEventDefinition scholar)
             {
                 _ = scholar.Candidate(scholar.ConsumptionKey);

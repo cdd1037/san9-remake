@@ -39,7 +39,7 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 82;
+    public const int CurrentSchemaVersion = 83;
     [JsonRequired] public San9.Core.Domain.HanzhongKingDefinition? HanzhongKing { get; init; }
     [JsonRequired] public San9.Core.Domain.FiveTigersDefinition? FiveTigers { get; init; }
     [JsonRequired] public San9.Core.Domain.ExpeditionMemorialDefinition? ExpeditionMemorial { get; init; }
@@ -124,6 +124,8 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
             HanzhongKing?.Validate(ids, historicalCities, Information.Ranks.Select(r => r.Id).ToHashSet());
             FiveTigers?.Validate(ids, tactics);
             ExpeditionMemorial?.Validate(ids, CityProvinceIds, historicalCities, Information.CountryTitles.Select(t => t.Id).ToHashSet(), tactics);
+            foreach (var ceremony in SearchEvents.OfType<San9.Core.Domain.ImperialCeremonySearchEventDefinition>())
+                if (!Information.Ranks.Any(r => r.Id == ceremony.RequiredRankId)) throw new InvalidDataException("Unknown ceremony rank reference.");
             foreach (var scholar in SearchEvents.OfType<San9.Core.Domain.ScholarReturnSearchEventDefinition>())
                 if (!ids.Contains(scholar.ScholarOfficerId) || scholar.RewardTacticIds.Any(id => !tactics.Contains(id)))
                     throw new InvalidDataException("Unknown scholar return reference.");

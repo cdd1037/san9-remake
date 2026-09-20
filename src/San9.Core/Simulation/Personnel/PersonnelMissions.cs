@@ -191,7 +191,7 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
             if (Direct(world, task) && ThreeVisits.Search(world, task, simulationRules.ThreeVisits, rules, economy, events)) return null;
             if (Direct(world, task) && ShanyangGong.Eligible(world, task, simulationRules))
                 return task with { SearchEncounter = new ShanyangGongEncounter() };
-            if (Direct(world, task) && SearchEvents.Prepare(world, task, rules, events, out var special))
+            if (Direct(world, task) && SearchEvents.Prepare(world, task, simulationRules, events, out var special))
             {
                 if (special is not null) return task with { SearchEncounter = special };
                 PersonnelReturns.Start(world, task, rules, events, true);

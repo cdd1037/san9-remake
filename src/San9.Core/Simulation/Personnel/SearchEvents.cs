@@ -12,14 +12,17 @@ public sealed record BeastSearchResolvedEvent(GameClock Clock, string EventId, i
 
 internal static class SearchEvents
 {
-    internal static bool Prepare(WorldMutation world, PersistentTask task, PersonnelRulebook rules, List<DomainEvent> events,
+    internal static bool Prepare(WorldMutation world, PersistentTask task, SimulationRules simulationRules, List<DomainEvent> events,
         out SearchEncounter? encounter)
     {
         encounter = null;
+        var rules = simulationRules.Personnel;
         // Eligibility owns the position of its probability gate relative to site/consumption checks.
         foreach (var candidate in EventSelection.Order(rules.SearchEvents.Values.Select(e => new EventCandidate(e.Id, EventTrigger.Search, e.Priority)),
             EventTrigger.Search))
         {
+            if (rules.SearchEvents[candidate.Id] is ImperialCeremonySearchEventDefinition ceremony &&
+                ImperialCeremony.TryResolve(world, task, ceremony, simulationRules.Economy, events)) return true;
             if (rules.SearchEvents[candidate.Id] is HealingSearchEventDefinition healing &&
                 !Consumed(world, healing.ConsumptionKey) &&
                 TryHeal(world, task, rules, healing, events))

@@ -9,10 +9,10 @@ G09人物生命周期新增必填`lifespanTier`、`successionPriority`及场景`
 | 模块 | 职责 | 输出 |
 | --- | --- | --- |
 | Content.Maps / MapImporter | 当前地图方格、地貌及对象位置 | `map.json`（无图片文件） |
-| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema82 |
+| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema83 |
 | Content.Text / ScenarioTextReader | 名称与全量消息目录 | `text.json` / `messages.json`，schema3 |
 | Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema16 |
-| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema86 |
+| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema87 |
 | Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema3／转换版本8 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 
@@ -220,3 +220,6 @@ G07的`UnitPolicies`保留迎击、追击、事后攻击和自主撤退四项语
 
 
 G10蔡琰归还使用剧本schema82／组合86、规则`san9-core-g10-v19`、保存／日志67。`SearchEvents`新增学者归还定义，明确角色、地点、日期、资格和有序兵法池；全部人物、地域、兵法、文本和图像保留，TC101按列传569、地域96、世界位16和势力历史位6转换。新增势力必填`EventHistory`是可扩展语义键集合，与世界消费键分开，初始与动态创建势力均支持保存；相同历史集合的输入顺序不改变指纹。公开查询`GetScholarReturnPrompt`与既有`RespondDailyTaskCommand`驱动选择，回答前不发奖励、不消费，回答后结束本次搜索。旧包须原位重转，190年整包核对留待完整G10收口，本批不增加图形对话或原版图片读取。
+
+
+G10封禅使用剧本schema83／组合87、规则`san9-core-g10-v20`；保存／日志仍67。`SearchEvents`新增皇帝仪式定义，保存地点、所需官爵引用、奖励与消费键；TC101绑定泰山地域82、皇帝官爵0及世界位7，模式2／9关闭生产、模式1保留，不删人物或资源。内容校验要求地点及官爵引用闭合，Core依据当前世界资格提交并发布`ImperialCeremonyResolvedEvent`，没有新增选择命令或待答状态；保存／录像包含奖励与消费。旧内容需原位重转，190年真实整包仍待完整G10收口。

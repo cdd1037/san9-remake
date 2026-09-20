@@ -48,6 +48,8 @@ public sealed class SimulationEngine
         rules.QiaoMarriage?.Validate(world.CreateSnapshot().Officers.Select(p => p.Id).ToHashSet(), rules.Personnel.CityProvinces);
         rules.SunMarriage?.Validate(world.CreateSnapshot().Officers.Select(p => p.Id).ToHashSet(),
             rules.Military?.Tactics.Values.Where(t => t.Category is >= 0 and <= 8).Select(t => t.Id).ToHashSet() ?? []);
+        foreach (var ceremony in rules.Personnel.SearchEvents.Values.OfType<ImperialCeremonySearchEventDefinition>())
+            if (!rules.Politics.Ranks.ContainsKey(ceremony.RequiredRankId)) throw new ArgumentException("Unknown ceremony rank reference.");
         var officerIds = initial.Officers.Keys.ToHashSet();
         rules.ChainedPlot?.Validate(officerIds);
         rules.ThreeVisits?.Validate(officerIds, rules.Personnel.Places.Keys.ToHashSet());

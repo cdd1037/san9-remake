@@ -1,10 +1,27 @@
 using San9.Importer.San9PkTc101.Scenarios;
 using San9.Core.Domain;
+using San9.Core.Simulation;
 
 namespace San9.Importer.San9PkTc101.Tests;
 
 public sealed class EventContentCompilerTests
 {
+    [Fact]
+    public void RedCliffsBindsOfficerAndExcludedRulerAndPreservesTheRegionSet()
+    {
+        var people = new[] { Person(36), Person(1), Person(91) };
+        var definition = EventContentCompiler.RedCliffs(0, people, [0, 1, 2])!;
+        Assert.Equal((2, 29, 134), (definition.OfficerId, definition.OpposingCityId, definition.OfficerRegionId));
+        Assert.Equal(0, Assert.Single(definition.ExcludedRulerIds));
+        Assert.Equal(new[] { 143, 32, 134, 139, 142, 31, 149, 130 }, definition.RegionIds);
+        Assert.Equal((20, 1, 30000L, 90, 50, 15, 15), (definition.RequiredRelationExclusive, definition.MinimumFriendlyWaterUnits,
+            definition.MinimumEnemySoldiers, definition.SoldierLossPercent, definition.BaseTrustBonus, definition.EnemyBaseTrustPenalty, definition.LoyaltyBonus));
+        Assert.NotNull(EventContentCompiler.RedCliffs(1, people, [0, 1, 2]));
+        Assert.Null(EventContentCompiler.RedCliffs(2, people, [])); Assert.Null(EventContentCompiler.RedCliffs(9, people, []));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.RedCliffs(0, people, [0, 1]));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.RedCliffs(0, [.. people, Person(91)], [0, 1, 2, 3]));
+    }
+
     [Fact]
     public void ChainedPlotBindsRolesAndExpandableLoyaltyListsByBiography()
     {
@@ -145,6 +162,7 @@ public sealed class EventContentCompilerTests
     [InlineData(9, "shanyang-gong")]
     [InlineData(12, "qiao-marriage")]
     [InlineData(13, "sun-marriage")]
+    [InlineData(15, "red-cliffs")]
     [InlineData(17, "shenshou.xihe")]
     [InlineData(18, "shenshou.wanwen")]
     [InlineData(19, "shenshou.jianan")]
@@ -164,7 +182,7 @@ public sealed class EventContentCompilerTests
     [Fact]
     public void UnrelatedFlagsDoNotBecomeAuthoredEventKeys()
     {
-        Assert.Empty(EventContentCompiler.ConsumedKeys([~((3u << 1) | (7u << 3) | (7u << 17) | (1u << 8) | (1u << 10) | (1u << 11) | (1u << 9) | (1u << 12) | (1u << 13)), uint.MaxValue, uint.MaxValue, uint.MaxValue], new(190, 1, 1)));
+        Assert.Empty(EventContentCompiler.ConsumedKeys([~((3u << 1) | (7u << 3) | (7u << 17) | (1u << 8) | (1u << 10) | (1u << 11) | (1u << 9) | (1u << 12) | (1u << 13) | (1u << 15)), uint.MaxValue, uint.MaxValue, uint.MaxValue], new(190, 1, 1)));
         Assert.Equal(["shenshou.jianan", "shenshou.wanwen", "shenshou.xihe"],
             EventContentCompiler.ConsumedKeys([7u << 17, 0, 0, 0], new(190, 1, 1)).Select(k => k.Value));
     }
@@ -180,5 +198,14 @@ public sealed class EventContentCompilerTests
         Assert.Equal(started, keys.Contains(new("chained-plot.started")));
         Assert.Equal(completed, keys.Contains(new("chained-plot.completed")));
         Assert.Contains(new("chained-plot.completed"), EventContentCompiler.ConsumedKeys([1u << 2, 0, 0, 0], new(190, 1, 1)));
+    }
+
+    [Fact]
+    public void RedCliffsInitialCutoffStartsAt209AndDoesNotClearAnEarlierFileFlag()
+    {
+        var key = new PersistentEventKey("red-cliffs");
+        Assert.DoesNotContain(key, EventContentCompiler.ConsumedKeys([0, 0, 0, 0], new(208, 12, 30)));
+        Assert.Contains(key, EventContentCompiler.ConsumedKeys([0, 0, 0, 0], new(209, 1, 1)));
+        Assert.Contains(key, EventContentCompiler.ConsumedKeys([1u << 15, 0, 0, 0], new(190, 1, 1)));
     }
 }

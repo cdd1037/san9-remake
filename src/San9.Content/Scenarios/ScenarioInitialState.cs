@@ -37,11 +37,12 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 79;
+    public const int CurrentSchemaVersion = 80;
     [JsonRequired] public San9.Core.Domain.HanzhongKingDefinition? HanzhongKing { get; init; }
     [JsonRequired] public San9.Core.Domain.FiveTigersDefinition? FiveTigers { get; init; }
     [JsonRequired] public San9.Core.Domain.ExpeditionMemorialDefinition? ExpeditionMemorial { get; init; }
     [JsonRequired] public San9.Core.Domain.SunMarriageDefinition? SunMarriage { get; init; }
+    [JsonRequired] public San9.Core.Domain.RedCliffsDefinition? RedCliffs { get; init; }
     [JsonRequired] public San9.Core.Domain.ChainedPlotDefinition? ChainedPlot { get; init; }
     [JsonRequired] public San9.Core.Domain.ThreeVisitsDefinition? ThreeVisits { get; init; }
     [JsonRequired] public San9.Core.Simulation.GameClock? ThreeVisitsStarted { get; init; }
@@ -115,6 +116,7 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
             SunMarriage?.Validate(ids, Military?.Tactics.Where(t => t.Category is >= 0 and <= 8).Select(t => t.Id).ToHashSet() ?? []);
             var tactics = Military?.Tactics.Where(t => t.Category is >= 0 and <= 8).Select(t => t.Id).ToHashSet() ?? [];
             var historicalCities = Settlements.Where(s => s.Kind == San9.Core.Domain.SettlementKind.City).Select(s => s.Id).ToHashSet();
+            RedCliffs?.Validate(ids, historicalCities, Settlements.Select(s => s.Id).Concat(UnbuiltPlaces.Select(p => p.Id)).ToHashSet(), Military?.RegionIds.IsEmpty == false);
             HanzhongKing?.Validate(ids, historicalCities, Information.Ranks.Select(r => r.Id).ToHashSet());
             FiveTigers?.Validate(ids, tactics);
             ExpeditionMemorial?.Validate(ids, CityProvinceIds, historicalCities, Information.CountryTitles.Select(t => t.Id).ToHashSet(), tactics);

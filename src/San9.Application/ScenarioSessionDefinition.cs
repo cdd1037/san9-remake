@@ -23,6 +23,8 @@ internal sealed class ScenarioSessionDefinition
         Fingerprint = CanonicalJson.Hash(new
         {
             definition.SchemaVersion, definition.ScenarioId, definition.Year, definition.Month, definition.Day, definition.PlayerForceId, definition.DomesticPairs, definition.ImperialSealId, definition.ImperialCourt, definition.ImperialCourtEnded,
+            RedCliffs = definition.RedCliffs is { } battle ? battle with
+                { ExcludedRulerIds = battle.ExcludedRulerIds.Order().ToImmutableArray(), RegionIds = battle.RegionIds.Order().ToImmutableArray() } : null,
             ChainedPlot = definition.ChainedPlot is { } plot ? plot with
                 { SupporterIds = plot.SupporterIds.Order().ToImmutableArray(), OpponentIds = plot.OpponentIds.Order().ToImmutableArray() } : null,
             definition.Military, definition.ThreeVisitsStarted,

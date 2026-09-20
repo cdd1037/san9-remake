@@ -139,7 +139,7 @@ internal static class MilitaryPolicies
         return (long)System.Numerics.BigInteger.Min(long.MaxValue - 25, (System.Numerics.BigInteger)own * 100 / enemy);
     }
 
-    private static bool Return(WorldMutation world, UnitState unit, MilitaryRulebook rules, List<DomainEvent> events, string reason)
+    internal static bool Return(WorldMutation world, UnitState unit, MilitaryRulebook rules, List<DomainEvent> events, string reason)
     {
         var order = unit.ServicePlaceId is int home ? new MilitaryOrder(MilitaryOrderKind.Return, null, home) : null;
         if (!MilitaryMovement.ValidOrder(world, unit.OwnerId, order, rules.Formations[unit.FormationId!.Value], rules)) return false;
@@ -155,7 +155,7 @@ internal static class MilitaryPolicies
         if (unit.EngagementTargetId is not null) events.Add(new UnitEngagementChangedEvent(world.Clock, unit.Id, null, reason));
     }
 
-    private static void Engage(WorldMutation world, UnitState unit, int? target, List<DomainEvent> events, string reason)
+    internal static void Engage(WorldMutation world, UnitState unit, int? target, List<DomainEvent> events, string reason)
     {
         world.Replace(unit with { EngagementTargetId = target });
         events.Add(new UnitEngagementChangedEvent(world.Clock, unit.Id, target, reason));

@@ -20,6 +20,7 @@ public sealed record ControlEndedEvent(string ControllerId, int ForceId) : Domai
 // Rules are compiled domain code, not callbacks loaded from content or saves.
 internal class SimulationRules
 {
+    internal RedCliffsDefinition? RedCliffs { get; init; }
     internal ChainedPlotDefinition? ChainedPlot { get; init; }
     internal ThreeVisitsDefinition? ThreeVisits { get; init; }
     internal HanzhongKingDefinition? HanzhongKing { get; init; }
@@ -135,7 +136,8 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
             if (result.Route != TerminalRoute.Continue) world.SetSimulation(world.Simulation with { TerminalReason = result.Reason });
         }
         if (!CheckTerminal(world, events)) return false;
-        if (stage == ResolutionStage.XunEvents && !ChainedPlot.Apply(world, rules, events)) ThreeVisits.Expire(world, rules, events);
+        if (stage == ResolutionStage.XunEvents && !ChainedPlot.Apply(world, rules, events) && !ThreeVisits.Expire(world, rules, events))
+            RedCliffs.Apply(world, rules, events);
         if (stage == ResolutionStage.XunUpdate)
         {
             ForceConsolidation.Apply(world, rules, events);

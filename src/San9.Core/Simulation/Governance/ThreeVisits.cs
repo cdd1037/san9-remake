@@ -34,15 +34,16 @@ internal static class ThreeVisits
         Emit(world, definition, ThreeVisitsStep.Recommendation, events);
     }
 
-    internal static void Expire(WorldMutation world, SimulationRules rules, List<DomainEvent> events)
+    internal static bool Expire(WorldMutation world, SimulationRules rules, List<DomainEvent> events)
     {
         if (rules.ThreeVisits is not { } definition || !Consumed(world, definition.StartedKey) || Consumed(world, definition.CompletedKey) ||
             world.Officers[definition.RecruitId].Status != OfficerStatus.Special ||
-            world.Simulation.ThreeVisitsStarted is { } started && world.Clock.DayNumber - started.DayNumber < definition.DurationDays) return;
+            world.Simulation.ThreeVisitsStarted is { } started && world.Clock.DayNumber - started.DayNumber < definition.DurationDays) return false;
         world.Replace(world.Officers[definition.RecruitId] with { Status = OfficerStatus.Undiscovered });
         Consume(world, definition.FirstVisitKey, EventTrigger.Xun);
         Consume(world, definition.CompletedKey, EventTrigger.Xun);
         Emit(world, definition, ThreeVisitsStep.Expired, events);
+        return true;
     }
 
     // Called only for a player-controlled direct search, before the remaining search candidates.

@@ -15,10 +15,10 @@ public sealed class SimulationEngine
 
     public SimulationEngine(WorldState world, EconomyRulebook economy, PersonnelRulebook personnel, TreasureRulebook treasures,
         GovernanceRulebook? governance = null, MilitaryRulebook? military = null, TerminalDefinition? terminal = null, PoliticalRulebook? politics = null, QiaoMarriageDefinition? qiaoMarriage = null, SunMarriageDefinition? sunMarriage = null,
-        HanzhongKingDefinition? hanzhongKing = null, FiveTigersDefinition? fiveTigers = null, ExpeditionMemorialDefinition? expeditionMemorial = null, ThreeVisitsDefinition? threeVisits = null)
+        HanzhongKingDefinition? hanzhongKing = null, FiveTigersDefinition? fiveTigers = null, ExpeditionMemorialDefinition? expeditionMemorial = null, ThreeVisitsDefinition? threeVisits = null, ChainedPlotDefinition? chainedPlot = null)
         : this(ValidateContent(world, treasures, governance), new SimulationRules
             { Economy = economy, Personnel = personnel, Treasures = treasures, Governance = governance ?? new([]), Military = military, Terminal = terminal, Politics = politics ?? PoliticalRulebook.Empty, QiaoMarriage = qiaoMarriage, SunMarriage = sunMarriage,
-                ThreeVisits = threeVisits, HanzhongKing = hanzhongKing, FiveTigers = fiveTigers, ExpeditionMemorial = expeditionMemorial }) { }
+                ChainedPlot = chainedPlot, ThreeVisits = threeVisits, HanzhongKing = hanzhongKing, FiveTigers = fiveTigers, ExpeditionMemorial = expeditionMemorial }) { }
 
     private static WorldState ValidateContent(WorldState world, TreasureRulebook treasures, GovernanceRulebook? governance)
     {
@@ -49,6 +49,7 @@ public sealed class SimulationEngine
         rules.SunMarriage?.Validate(world.CreateSnapshot().Officers.Select(p => p.Id).ToHashSet(),
             rules.Military?.Tactics.Values.Where(t => t.Category is >= 0 and <= 8).Select(t => t.Id).ToHashSet() ?? []);
         var officerIds = initial.Officers.Keys.ToHashSet();
+        rules.ChainedPlot?.Validate(officerIds);
         rules.ThreeVisits?.Validate(officerIds, rules.Personnel.Places.Keys.ToHashSet());
         rules.ThreeVisits?.ValidateStarted(initial.Simulation.ThreeVisitsStarted, initial.Clock, initial.Simulation.ConsumedEventKeys);
         if (rules.ThreeVisits is null && initial.Simulation.ThreeVisitsStarted is not null)

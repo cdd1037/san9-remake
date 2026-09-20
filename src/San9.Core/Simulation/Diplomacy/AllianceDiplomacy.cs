@@ -2,7 +2,7 @@ using San9.Core.Domain;
 
 namespace San9.Core.Simulation;
 
-public enum AllianceEndReason { Expired, TargetEliminated, LeaderEliminated, InsufficientMembers, Betrayal }
+public enum AllianceEndReason { Expired, TargetEliminated, LeaderEliminated, InsufficientMembers, Betrayal, LeaderDied, TargetDied }
 public sealed record AllianceEndedEvent(GameClock Clock, int TargetForceId, AllianceEndReason Reason) : DomainEvent;
 public sealed record AllianceMemberRemovedEvent(GameClock Clock, int ForceId) : DomainEvent;
 
@@ -13,6 +13,13 @@ internal static class AllianceDiplomacy
         if (world.Simulation.Alliance is not { } alliance || world.Clock == world.Simulation.Started) return;
         if (alliance.RemainingXun == 1) End(world, AllianceEndReason.Expired, events);
         else world.SetSimulation(world.Simulation with { Alliance = alliance with { RemainingXun = alliance.RemainingXun - 1 } });
+    }
+
+    internal static void RulerDied(WorldMutation world, int forceId, List<DomainEvent> events)
+    {
+        if (world.Simulation.Alliance is not { } alliance) return;
+        if (alliance.LeaderForceId == forceId) End(world, AllianceEndReason.LeaderDied, events);
+        else if (alliance.TargetForceId == forceId) End(world, AllianceEndReason.TargetDied, events);
     }
 
     internal static void ForceEliminated(WorldMutation world, int forceId, List<DomainEvent> events)

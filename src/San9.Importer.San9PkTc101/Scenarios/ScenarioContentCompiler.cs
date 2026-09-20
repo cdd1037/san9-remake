@@ -126,6 +126,7 @@ public static class ScenarioContentCompiler
             HanzhongKing = EventContentCompiler.HanzhongKing(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id)),
             FiveTigers = EventContentCompiler.FiveTigers(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id)),
             ExpeditionMemorial = EventContentCompiler.ExpeditionMemorial(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id)),
+            ChainedPlot = EventContentCompiler.ChainedPlot(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id)),
             ThreeVisits = EventContentCompiler.ThreeVisits(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id)),
             QiaoMarriage = EventContentCompiler.QiaoMarriage(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id)),
             ProvinceCountryTitleIds = PoliticalContentCompiler.ProvinceTitles(countryTitles),

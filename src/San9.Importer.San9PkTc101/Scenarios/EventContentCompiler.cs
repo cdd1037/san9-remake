@@ -14,6 +14,18 @@ public static class EventContentCompiler
         return matches.Length == 1 ? matches[0] : throw new InvalidDataException("Expected one historical person identity.");
     }
 
+    public static ChainedPlotDefinition? ChainedPlot(byte scenarioMode,
+        IReadOnlyList<San9ScenarioPersonRecord> people, IEnumerable<int> retainedOfficerIds)
+    {
+        if (scenarioMode is 2 or 9) return null;
+        var retained = retainedOfficerIds.ToArray();
+        int Person(int biography) => HistoricalPerson(people, retained, biography);
+        return new(Person(68), Person(3), Person(171), new(192, 4, 1), 95, 1000,
+            new[] { 171, 266 }.Select(Person).ToImmutableArray(),
+            new[] { 69, 236, 392, 160, 417, 42, 292 }.Select(Person).ToImmutableArray(),
+            96, 80, 2, new("chained-plot.started"), new("chained-plot.completed"));
+    }
+
     public static ThreeVisitsDefinition? ThreeVisits(byte scenarioMode,
         IReadOnlyList<San9ScenarioPersonRecord> people, IEnumerable<int> retainedOfficerIds)
     {
@@ -95,9 +107,11 @@ public static class EventContentCompiler
     public static ImmutableArray<PersistentEventKey> ConsumedKeys(IReadOnlyList<uint> flagWords, San9ScenarioDate startDate)
     {
         if (flagWords.Count != 4) throw new InvalidDataException("Expected four scenario flag words.");
-        (int Bit, string Key)[] events = [(3, "three-visits.started"), (4, "three-visits.first-visit"), (5, "three-visits.completed"), (8, "hanzhong-king"), (10, "expedition-memorial"), (11, "five-tigers"), (9, PoliticalContentCompiler.CourtEndedKey.Value), (12, "qiao-marriage"), (13, "sun-marriage"), (17, "shenshou.xihe"), (18, "shenshou.wanwen"), (19, "shenshou.jianan")];
-        bool visitsCompleted = new GameClock(startDate.Year, startDate.Month, startDate.Day).DayNumber >= new GameClock(207, 10, 1).DayNumber;
-        return events.Where(e => (flagWords[e.Bit / 32] & (1u << (e.Bit % 32))) != 0 || visitsCompleted && e.Bit is >= 3 and <= 5)
+        (int Bit, string Key)[] events = [(1, "chained-plot.started"), (2, "chained-plot.completed"), (3, "three-visits.started"), (4, "three-visits.first-visit"), (5, "three-visits.completed"), (8, "hanzhong-king"), (10, "expedition-memorial"), (11, "five-tigers"), (9, PoliticalContentCompiler.CourtEndedKey.Value), (12, "qiao-marriage"), (13, "sun-marriage"), (17, "shenshou.xihe"), (18, "shenshou.wanwen"), (19, "shenshou.jianan")];
+        long start = new GameClock(startDate.Year, startDate.Month, startDate.Day).DayNumber;
+        bool visitsCompleted = start >= new GameClock(207, 10, 1).DayNumber;
+        return events.Where(e => (flagWords[e.Bit / 32] & (1u << (e.Bit % 32))) != 0 || visitsCompleted && e.Bit is >= 3 and <= 5 ||
+            e.Bit == 1 && start >= new GameClock(192, 4, 1).DayNumber || e.Bit == 2 && start >= new GameClock(192, 5, 1).DayNumber)
             .Select(e => new PersistentEventKey(e.Key)).OrderBy(k => k.Value, StringComparer.Ordinal).ToImmutableArray();
     }
 }

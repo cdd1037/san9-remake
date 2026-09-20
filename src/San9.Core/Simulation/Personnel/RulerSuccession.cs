@@ -18,6 +18,16 @@ internal static class RulerSuccession
 
     internal static void Commit(WorldMutation world, int forceId, int previousId, int successorId, List<DomainEvent> events)
     {
+        Appoint(world, forceId, previousId, successorId, events);
+        var successor = world.Officers[successorId];
+        foreach (var person in world.Officers.Values.Where(p => p.OwnerId == forceId && p.Id != successorId).OrderBy(p => p.Id).ToArray())
+            RecruitmentRules.SetLoyalty(world, person.Id, forceId,
+                Math.Max(0, person.LoyaltyTo(forceId) - PersonnelRulebook.AffinityDistance(person, successor) / 2), "ruler-succession", events);
+    }
+
+    // Leadership and administrative succession are shared; historical events can own a different loyalty policy.
+    internal static void Appoint(WorldMutation world, int forceId, int previousId, int successorId, List<DomainEvent> events)
+    {
         var successor = world.Officers[successorId];
         if (!successor.IsServing || successor.OwnerId != forceId || successorId == previousId)
             throw new InvalidOperationException("Invalid ruler successor.");
@@ -52,9 +62,6 @@ internal static class RulerSuccession
                 events.Add(new CorpsDissolvedEvent(world.Clock, forceId, root.Id, id));
             }
         }
-        foreach (var person in world.Officers.Values.Where(p => p.OwnerId == forceId && p.Id != successorId).OrderBy(p => p.Id).ToArray())
-            RecruitmentRules.SetLoyalty(world, person.Id, forceId,
-                Math.Max(0, person.LoyaltyTo(forceId) - PersonnelRulebook.AffinityDistance(person, successor) / 2), "ruler-succession", events);
         events.Add(new ForceLeaderChangedEvent(world.Clock, forceId, previousId, successorId));
     }
 }

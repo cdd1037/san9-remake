@@ -6,6 +6,26 @@ namespace San9.Importer.San9PkTc101.Tests;
 public sealed class EventContentCompilerTests
 {
     [Fact]
+    public void ChainedPlotBindsRolesAndExpandableLoyaltyListsByBiography()
+    {
+        ushort[] biographies = [3, 171, 68, 266, 292, 42, 417, 160, 392, 236, 69];
+        var people = biographies.Select(Person).ToArray();
+        var retained = Enumerable.Range(0, people.Length).ToArray();
+        var plot = EventContentCompiler.ChainedPlot(0, people, retained)!;
+        Assert.Equal((2, 0, 1), (plot.RulerId, plot.SuccessorId, plot.InstigatorId));
+        Assert.Equal(new[] { 1, 3 }, plot.SupporterIds);
+        Assert.Equal(new[] { 10, 9, 8, 7, 6, 5, 4 }, plot.OpponentIds);
+        Assert.Equal(new San9.Core.Simulation.GameClock(192, 4, 1), plot.EarliestDate);
+        Assert.Equal((95, 1000, 96, 80, 2), (plot.LoyaltyThreshold, plot.TrustThreshold,
+            plot.SupporterMinimumLoyalty, plot.OpponentMaximumLoyalty, plot.AffinityDivisor));
+        Assert.NotNull(EventContentCompiler.ChainedPlot(1, people, retained));
+        Assert.Null(EventContentCompiler.ChainedPlot(2, people, []));
+        Assert.Null(EventContentCompiler.ChainedPlot(9, people, []));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.ChainedPlot(0, people, retained.Skip(1)));
+        Assert.Throws<InvalidDataException>(() => EventContentCompiler.ChainedPlot(0, [.. people, Person(68)], [.. retained, 11]));
+    }
+
+    [Fact]
     public void ThreeVisitsResolvesBiographiesToReferencesWithoutAssumingPersonSlots()
     {
         var people = new[] { Person(45), Person(1), Person(39), Person(36), Person(2) };
@@ -114,6 +134,8 @@ public sealed class EventContentCompilerTests
     }
 
     [Theory]
+    [InlineData(1, "chained-plot.started")]
+    [InlineData(2, "chained-plot.completed")]
     [InlineData(3, "three-visits.started")]
     [InlineData(4, "three-visits.first-visit")]
     [InlineData(5, "three-visits.completed")]
@@ -134,16 +156,29 @@ public sealed class EventContentCompilerTests
     [Fact]
     public void LateScenarioStartPresetsThreeVisitsCompletionWithoutClearingFileFlags()
     {
-        Assert.Empty(EventContentCompiler.ConsumedKeys([0, 0, 0, 0], new(207, 9, 30)));
-        Assert.Equal(new[] { "shenshou.xihe", "three-visits.completed", "three-visits.first-visit", "three-visits.started" },
+        Assert.DoesNotContain(EventContentCompiler.ConsumedKeys([0, 0, 0, 0], new(207, 9, 30)), k => k.Value.StartsWith("three-visits.", StringComparison.Ordinal));
+        Assert.Equal(new[] { "chained-plot.completed", "chained-plot.started", "shenshou.xihe", "three-visits.completed", "three-visits.first-visit", "three-visits.started" },
             EventContentCompiler.ConsumedKeys([1u << 17, 0, 0, 0], new(207, 10, 1)).Select(k => k.Value));
     }
 
     [Fact]
     public void UnrelatedFlagsDoNotBecomeAuthoredEventKeys()
     {
-        Assert.Empty(EventContentCompiler.ConsumedKeys([~((7u << 3) | (7u << 17) | (1u << 8) | (1u << 10) | (1u << 11) | (1u << 9) | (1u << 12) | (1u << 13)), uint.MaxValue, uint.MaxValue, uint.MaxValue], new(190, 1, 1)));
+        Assert.Empty(EventContentCompiler.ConsumedKeys([~((3u << 1) | (7u << 3) | (7u << 17) | (1u << 8) | (1u << 10) | (1u << 11) | (1u << 9) | (1u << 12) | (1u << 13)), uint.MaxValue, uint.MaxValue, uint.MaxValue], new(190, 1, 1)));
         Assert.Equal(["shenshou.jianan", "shenshou.wanwen", "shenshou.xihe"],
             EventContentCompiler.ConsumedKeys([7u << 17, 0, 0, 0], new(190, 1, 1)).Select(k => k.Value));
+    }
+
+    [Theory]
+    [InlineData(3, 30, false, false)]
+    [InlineData(4, 1, true, false)]
+    [InlineData(4, 30, true, false)]
+    [InlineData(5, 1, true, true)]
+    public void ChainedPlotInitialDatePresetsStagesIndependently(int month, int day, bool started, bool completed)
+    {
+        var keys = EventContentCompiler.ConsumedKeys([0, 0, 0, 0], new(192, (byte)month, (byte)day));
+        Assert.Equal(started, keys.Contains(new("chained-plot.started")));
+        Assert.Equal(completed, keys.Contains(new("chained-plot.completed")));
+        Assert.Contains(new("chained-plot.completed"), EventContentCompiler.ConsumedKeys([1u << 2, 0, 0, 0], new(190, 1, 1)));
     }
 }

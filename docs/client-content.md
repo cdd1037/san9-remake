@@ -9,10 +9,10 @@ G09人物生命周期新增必填`lifespanTier`、`successionPriority`及场景`
 | 模块 | 职责 | 输出 |
 | --- | --- | --- |
 | Content.Maps / MapImporter | 当前地图方格、地貌及对象位置 | `map.json`（无图片文件） |
-| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema78 |
+| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema79 |
 | Content.Text / ScenarioTextReader | 名称与全量消息目录 | `text.json` / `messages.json`，schema3 |
 | Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema16 |
-| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema82 |
+| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema83 |
 | Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema3／转换版本8 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 
@@ -48,6 +48,8 @@ G08的schema53/57增加必填`CityProvinceIds`和`MilitaryDefinition.TerritoryEx
 TC101剧本导入以源坐标识别地域配置：双坐标均为无效哨兵的槽不生成地域、名称文本或城市归属映射；单轴无效或越界坐标直接报错。有效但尚未建造的地域完整保留，稳定ID不重排。人物和宝物引用由转换后的契约校验，不能通过丢弃引用对象掩盖错误。
 
 ## 接入前的数据核对
+
+当前连环计使用剧本schema79／组合83、规则`san9-core-g10-v16`，保存／日志仍65。必填可空`ChainedPlot`声明三名角色、支持／反对名单、日期与数值门槛、忠诚政策及两项消费键；Importer把列传68／3／171及名单转换为唯一已保留人物引用，位1／2转换为语义消费，并在初始日期不早于192年4月1日／5月1日时分别预置。运行时不依赖源列传号，也不增加五月后段门；同处亲族从基础血缘、当前在职归属与位置推导。人物／地点／势力／资源集合不缩减，模式1保留、2／9关闭生产。定义与进度进入指纹、稳定保存及录像，当前世界和结构化事件反映死亡、继任、联盟与忠诚变化，无新增命令或图片资源。公开夹具覆盖唯一绑定、初始消费、世界查询和回放；旧包须原位重转，190年整包核对仍留待阶段收口。
 
 当前三顾之礼使用剧本schema78／组合82、规则`san9-core-g10-v15`、保存／日志65。必填可空`ThreeVisits`保存明确人物／地点引用、可扩展同行人、门槛与奖励以及三个消费键；必填可空`ThreeVisitsStarted`保存推荐起点。Importer解析列传36／45／39／2／1，保留地域138，转换位3／4／5并应用207-10-1起的初始日期预置。未发现→特殊→入仕／超时未发现由运行时维护，空地域归属从关联城市派生，已建建筑使用自身归属。目标地理引用保留；源位置列表不进入内容契约。模式2／9关闭生产、模式1保留，不缩减人物、地点或资源集合。定义、日期、进度进入指纹与稳定保存／录像；现有探索命令即可完成，无新增选项或显示资源。公开夹具覆盖数据引用、当前状态、搜索结果和归队；旧包须原位重转，190年整包及画面核对留待阶段收口。
 

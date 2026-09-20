@@ -37,11 +37,12 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 78;
+    public const int CurrentSchemaVersion = 79;
     [JsonRequired] public San9.Core.Domain.HanzhongKingDefinition? HanzhongKing { get; init; }
     [JsonRequired] public San9.Core.Domain.FiveTigersDefinition? FiveTigers { get; init; }
     [JsonRequired] public San9.Core.Domain.ExpeditionMemorialDefinition? ExpeditionMemorial { get; init; }
     [JsonRequired] public San9.Core.Domain.SunMarriageDefinition? SunMarriage { get; init; }
+    [JsonRequired] public San9.Core.Domain.ChainedPlotDefinition? ChainedPlot { get; init; }
     [JsonRequired] public San9.Core.Domain.ThreeVisitsDefinition? ThreeVisits { get; init; }
     [JsonRequired] public San9.Core.Simulation.GameClock? ThreeVisitsStarted { get; init; }
     [JsonRequired] public San9.Core.Domain.QiaoMarriageDefinition? QiaoMarriage { get; init; }
@@ -104,6 +105,7 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
             if (SearchEvents.IsDefault || SearchEvents.Any(e => e is null)) throw new InvalidDataException("Invalid search event collection.");
             _ = new San9.Core.Domain.PersonnelRulebook(Settlements.Select(s => new San9.Core.Domain.PersonPlace(s.Id, s.Position)).Concat(UnbuiltPlaces), RegionCityIds, CityConnections, searchEvents: SearchEvents);
             var ids = Officers.Select(o => o.State.Id).ToHashSet();
+            ChainedPlot?.Validate(ids);
             ThreeVisits?.Validate(ids, Settlements.Select(s => s.Id).Concat(UnbuiltPlaces.Select(p => p.Id)).ToHashSet());
             ThreeVisits?.ValidateStarted(ThreeVisitsStarted, new(Year, Month, Day), ConsumedEventKeys);
             if (ThreeVisits is null && ThreeVisitsStarted is not null) throw new InvalidDataException("Three Visits state requires a definition.");

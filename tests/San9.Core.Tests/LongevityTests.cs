@@ -14,9 +14,9 @@ public sealed class LongevityTests
             [new(1, 2501, 0, 51) { LeaderId = 1, BaseTrust = 0, EventHistory = [new("visited")] }, new(2, 0, 0, 51) { LeaderId = 4, BaseTrust = 0 }],
             [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100), new(2, 2, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
             [new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
-             new(2, 1, 1, new(99, 50, 50, 50), false),
+             new(2, 1, 1, new(0, 99, 0, 0), false),
              new(3, null, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Special },
-             new(4, 2, 2, new(99, 50, 50, 50), false) { Status = OfficerStatus.Ruler }],
+             new(4, 2, 2, new(0, 99, 0, 0), false) { Status = OfficerStatus.Ruler }],
             controls: [new("first", 1, ControllerKind.Player), new("second", 2, ControllerKind.Player)]).BeginMutation();
         ulong seed = Enumerable.Range(1, 10000).Select(i => (ulong)i).First(s => new StableRandom(s).NextUInt64() % 100 == (ulong)roll);
         world.SetSimulation(world.Simulation with { RandomStreams = [new("event-search-eligibility", seed)] });
@@ -26,6 +26,17 @@ public sealed class LongevityTests
 
     private static SimulationRules Rules(LongevitySearchEventDefinition? d = null) => new()
         { Personnel = new([new(1, new(0, 0)), new(2, new(0, 0))], searchEvents: [d ?? Definition]) };
+
+    [Theory]
+    [InlineData(0, 99, 0, true)]
+    [InlineData(999, 0, 0, false)]
+    [InlineData(999, 99, 1, false)]
+    public void ProbabilityUsesEffectiveIntelligenceRatherThanWarOrBaseIntelligence(int war, int intelligence, int injury, bool expected)
+    {
+        var (world, task) = Create(32);
+        world.Replace(world.Officers[2] with { BaseAbilities = new(war, intelligence, 999, 999), Injury = injury });
+        Assert.Equal(expected, Longevity.Prepare(world, task, Definition));
+    }
 
     [Theory]
     [InlineData("eligible", true, true)]

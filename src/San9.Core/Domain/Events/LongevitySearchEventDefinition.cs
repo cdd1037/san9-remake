@@ -7,7 +7,7 @@ public sealed record LongevitySearchEventDefinition(
     [property: JsonRequired] int PlaceId,
     [property: JsonRequired] int DivinerOfficerId,
     [property: JsonRequired] PersistentEventKey RequiredHistoryKey,
-    [property: JsonRequired] int WarChanceDivisor,
+    [property: JsonRequired] int IntelligenceChanceDivisor,
     [property: JsonRequired] uint MinimumMoneyExclusive,
     [property: JsonRequired] uint Cost,
     [property: JsonRequired] int MinimumLifespanTier,

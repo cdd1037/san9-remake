@@ -13,7 +13,7 @@ public sealed class EventContentCompilerTests
     {
         var people = new[] { Person(1), Person(498) }; var places = new HashSet<int> { 34 };
         var d = Assert.IsType<LongevitySearchEventDefinition>(Assert.Single(EventContentCompiler.Longevity(mode, people, [0, 1], places)));
-        Assert.Equal((34, 1, 3, 2500u, 500u, 7, -11), (d.PlaceId, d.DivinerOfficerId, d.WarChanceDivisor, d.MinimumMoneyExclusive, d.Cost, d.MinimumLifespanTier, d.Priority));
+        Assert.Equal((34, 1, 3, 2500u, 500u, 7, -11), (d.PlaceId, d.DivinerOfficerId, d.IntelligenceChanceDivisor, d.MinimumMoneyExclusive, d.Cost, d.MinimumLifespanTier, d.Priority));
         Assert.Equal(enabled, d.LifespanChangesAllowed); Assert.Equal(new PersistentEventKey("guan-lu.visited"), d.RequiredHistoryKey);
         Assert.Equal(EventConsumption.None, d.Consumption);
         Assert.Empty(EventContentCompiler.Longevity(2, [], [], new HashSet<int>()));

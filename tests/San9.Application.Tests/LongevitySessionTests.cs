@@ -14,8 +14,8 @@ public sealed class LongevitySessionTests
         [new(1, "force", 1, 50000, 10000, 100) { LeaderId = 1, BaseTrust = 100, EventHistory = [new("visited")] }],
         [new(1, "home", 1, 0, 0, 0, 100, 100, 0, [])], new() { [1] = "home" }, new() { [1] = 1 })
     {
-        Officers = [new("ruler", new(1, 1, 1, new(100, 50, 50, 50), false) { Status = OfficerStatus.Ruler }),
-            new("first", new(2, 1, 1, new(100, 50, 50, 50), false)), new("second", new(3, 1, 1, new(100, 50, 50, 50), false)),
+        Officers = [new("ruler", new(1, 1, 1, new(0, 100, 0, 0), false) { Status = OfficerStatus.Ruler }),
+            new("first", new(2, 1, 1, new(0, 100, 0, 0), false)), new("second", new(3, 1, 1, new(0, 100, 0, 0), false)),
             new("diviner", new(4, null, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Special })],
         SearchEvents = [new LongevitySearchEventDefinition(1, 4, new("visited"), 1, 2500, 500, 7, true)
             { Id = "longevity", Consumption = EventConsumption.None }]
@@ -95,7 +95,7 @@ public sealed class LongevitySessionTests
     public void ContentReferencesConsumptionPolicyAndCostAreValidatedAndFingerprinted()
     {
         var d = Definition(); var longevity = (LongevitySearchEventDefinition)d.SearchEvents[0];
-        foreach (var bad in new[] { longevity with { WarChanceDivisor = 0 }, longevity with { PlaceId = 999 }, longevity with { DivinerOfficerId = 999 },
+        foreach (var bad in new[] { longevity with { IntelligenceChanceDivisor = 0 }, longevity with { PlaceId = 999 }, longevity with { DivinerOfficerId = 999 },
             longevity with { Cost = 0 }, longevity with { MinimumLifespanTier = -1 }, longevity with { RequiredHistoryKey = default },
             longevity with { Consumption = EventConsumption.OnPresentation } })
             Assert.Throws<InvalidDataException>(() => (d with { SearchEvents = [bad] }).Validate());

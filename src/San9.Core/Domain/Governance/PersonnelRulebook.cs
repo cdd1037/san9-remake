@@ -26,7 +26,7 @@ public sealed class PersonnelRulebook
             {
                 _ = longevity.Candidate(null);
                 if (longevity.Consumption != EventConsumption.None || !Places.ContainsKey(longevity.PlaceId) || longevity.DivinerOfficerId < 0 ||
-                    longevity.WarChanceDivisor <= 0 || longevity.Cost == 0 || longevity.MinimumLifespanTier < 0 ||
+                    longevity.IntelligenceChanceDivisor <= 0 || longevity.Cost == 0 || longevity.MinimumLifespanTier < 0 ||
                     string.IsNullOrWhiteSpace(longevity.RequiredHistoryKey.Value)) throw new ArgumentException("Invalid longevity definition.");
             }
             else if (entry is DivinerVisitSearchEventDefinition diviner)

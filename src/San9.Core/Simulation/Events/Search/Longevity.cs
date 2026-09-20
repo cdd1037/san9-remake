@@ -22,7 +22,7 @@ internal static class Longevity
 
     internal static bool Prepare(WorldMutation world, PersistentTask task, LongevitySearchEventDefinition d) =>
         BeforeChance(world, task, d) &&
-        world.NextRandom("event-search-eligibility") % 100 < (ulong)(world.Abilities(world.Officers[task.OfficerId]).War / d.WarChanceDivisor) &&
+        world.NextRandom("event-search-eligibility") % 100 < (ulong)(world.Abilities(world.Officers[task.OfficerId]).Intelligence / d.IntelligenceChanceDivisor) &&
         AfterChance(world, task, d);
 
     internal static bool CanResolve(WorldMutation world, PersistentTask task, SimulationRules rules, LongevityEncounter encounter) =>

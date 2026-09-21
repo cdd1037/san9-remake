@@ -344,3 +344,20 @@ dotnet test tests/San9.Headless.Tests --filter FullyQualifiedName~TypedExplorati
 贼归顺改为整个势力现役兵力严格小于60000，训练所改为整个势力严格大于10000；军团拆分、合并及服务据点改址不再改变兵力资格。内容字段改为MaximumForceSoldiersExclusive／MinimumForceSoldiersExclusive，规则版本v42，初始状态schema104，内容包schema108。原作军团口径作为设计差异保留。
 
 验证：`dotnet test San9Remake.slnx --no-restore --verbosity quiet`全量3108项通过，包含跨军团驻军、在途救援、归属调整与严格边界。领域契约校验通过。原位重建scenario-190-live并经verify-client验证13487个逻辑图像／5128个物理文件。
+
+## 2026-09-21设施自行归附补齐
+
+已完成有人据点主动归附与无人无现役兵设施随关联城市改属。`SettlementDefections`仅在旬开始`XunUpdate`的势力合并之后运行，保留30日门；没有每日生产器。有人规则覆盖地域孤立与围攻、外交保护、野心及君主所在最后据点；无人规则不掷概率骰，检查同辖域原势力其他据点及实时野外部队，不以服务据点代替地理位置。野外部队自身投靠仍未接入，不计入本次两场景交付。
+
+`SettlementAffiliation`统一提交设施、内嵌单位、追随者、忠诚及官职变化、拒绝者／在途人员返程、俘虏安置、金粮份额、旧军团／势力清理与友军攻击解除。事件`SettlementDefectedEvent`区分空设施、地域孤立和围攻，并保存大将与追随名单；界面查询直接读取当前归属，无新增玩家命令或选择等待。与原作临时信望变量及无目的地俘虏行为的差异见[RE-0124](../research/findings/RE-SAN9PK-0124.md#2026-09-21固定据点两类归附接入补证)。
+
+独立必填开关`SettlementDefectionsEnabled`贯穿Importer、内容指纹、世界、保存与恢复校验。规则`san9-core-g10-v43`，保存／日志79、剧本105／组合109，旧包须重转，旧存档／录像由版本拒绝。190年完整包已原位重转；25势力、94据点、700人物、0初始部队逐身份对照不变，地图／文本／消息／插图文件哈希相同，开关为true。数据报告`local/generated/verification/settlement-defection-data.json`。
+
+实际验证：
+
+- `SettlementDefectionTests`27项，覆盖30日门、独立开关、无将有兵拒绝、都市／中立／特殊势力／同辖域其他资产阻止、人事单位排除、野外实时地理、有人概率49／50边界、关系39／40、兵力／伤兵保留、追随／拒绝与在途分流、俘虏回归、子军团解散、围攻人数及援军、玩家君主保护和电脑末据点势力退出。
+- `SettlementDefectionSessionTests`3项，覆盖两种场景公开旬入口、实时归属查询、前后保存恢复、无重复事件、完整录像、必填内容／保存字段及篡改拒绝。
+- `dotnet test San9Remake.slnx --no-restore`删除专门的日结算测试前全部3139项通过（删除后保留3138项），包含Godot项目编译；日志`local/generated/verification/settlement-defection-tests.log`。
+- 新190年包、种子190运行4旬：292操作、86经营命令、2次恢复；连续／恢复、日志重放、重复前缀和完整录像一致，`success=true`、`firstFailure=null`。报告`local/generated/verification/settlement-defection-190/report.json`；最终哈希`3186A20CA4098B9AABDED5ABD733A2EEBF603A14626B1A290599CEF2C9219E9C`。自然运行未触发归附，两类归附由定向公开会话测试覆盖。
+
+本次未启动游戏，实际画面待验收。

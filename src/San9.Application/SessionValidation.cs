@@ -43,6 +43,7 @@ internal static class SessionValidation
             snapshot.World.Simulation.ForceConsolidationEnabled != expected.Simulation.ForceConsolidationEnabled ||
             snapshot.World.Simulation.ForceEmergenceEnabled != expected.Simulation.ForceEmergenceEnabled ||
             snapshot.World.Simulation.CityIndependenceEnabled != expected.Simulation.CityIndependenceEnabled ||
+            snapshot.World.Simulation.SettlementDefectionsEnabled != expected.Simulation.SettlementDefectionsEnabled ||
             snapshot.World.Simulation.NaturalDeathsEnabled != expected.Simulation.NaturalDeathsEnabled ||
             expected.Simulation.ImperialCourtEnded && !snapshot.World.Simulation.ImperialCourtEnded ||
             !snapshot.World.Simulation.Controls.SequenceEqual(expectedControls))

@@ -10,9 +10,13 @@ internal static class BattleTreasury
 
     internal static void Transfer(WorldMutation world, int owner, int? corps, long weight,
         BattleSource winner, int defeatedId, string reason, List<DomainEvent> events)
+        => TransferTo(world, owner, corps, weight, ResourceAccounts.Resolve(world, winner.Owner(world), winner.Corps(world)),
+            defeatedId, reason, events);
+
+    internal static void TransferTo(WorldMutation world, int owner, int? corps, long weight,
+        ResourceAccount target, int defeatedId, string reason, List<DomainEvent> events)
     {
         var source = ResourceAccounts.Resolve(world, owner, corps);
-        var target = ResourceAccounts.Resolve(world, winner.Owner(world), winner.Corps(world));
         long total = world.Settlements.Values.Where(s => s.OwnerId == owner && !s.IsDestroyed &&
                 ResourceAccounts.Resolve(world, owner, s.CorpsId) == source).Sum(Weight) +
             world.Units.Values.Where(u => u.OwnerId == owner && !u.IsEmbedded && !u.IsPersonnel &&

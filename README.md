@@ -109,6 +109,8 @@ dotnet run --project src/San9.Tools -- import-client --source-exe "<San9PK.exe�
 
 文字显示通过[统一文字样式](docs/text-styles.md)复用角色与状态，消息正文遵循[原生 BBCode 约定](docs/messages.md)。
 
+旬开始已支持有人据点自行归附与无人无兵设施随关联城市改属，包含人员、金粮及旧军团清理；条件和验证见[G10验收](docs/g10-verification.md#2026-09-21设施自行归附补齐)。
+
 独立无界面入口：`dotnet run --project src/San9.Headless -- verify --fixture --xuns 36 --output local/generated/verification/roadmap-g02/public`。支持轻量玩家存档、严格恢复、序号水位和当前用于验证的独立录像、JSONL命令重放与机器报告；用法、失败码和190年验证见[G02验收与使用说明](docs/g02-verification.md)。
 
 本轮先对齐已有军事规则：强攻确认与设施宣战/背盟、野战实战关系下降、自动选敌与反击分离、普通设施外交通行及固定步进费用；A*优化和确定性速度保留。公共接口与验证边界见[军事外交补齐验收](docs/military-diplomacy-verification.md)。

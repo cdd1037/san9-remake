@@ -65,6 +65,7 @@ public sealed record SimulationState(GameClock Started, ulong InitialSeed)
     [JsonRequired] public GameClock? ThreeVisitsStarted { get; init; }
     [JsonRequired] public EmperorTransferPending? EmperorTransfer { get; init; }
     [JsonRequired] public bool ImperialCourtEnded { get; init; }
+    [JsonRequired] public bool SettlementDefectionsEnabled { get; init; } = true;
     [JsonRequired] public bool CityIndependenceEnabled { get; init; } = true;
     [JsonRequired] public bool ForceEmergenceEnabled { get; init; } = true;
     [JsonRequired] public bool ForceConsolidationEnabled { get; init; } = true;

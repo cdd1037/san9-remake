@@ -396,3 +396,9 @@ dotnet test tests/San9.Headless.Tests --filter FullyQualifiedName~TypedExplorati
 - 内容：schema108／组合112、规则v50，保存／日志81。190运行包原位重转；25势力、94据点、700人物、41兵法、28阵形未减少；兵法6–11、31、32共8项均映射类别3，唯一阵形5加30。
 - 验证：`dotnet test San9Remake.slnx --no-restore --verbosity quiet`共3256项通过（Core 2280、Content 74、Importer 343、Application 445、Client 98、Headless 16）；其中31项狙击专项覆盖日级入口、连携／设施来源、同次击破／占领、恢复确定性和事件序列化。
 - 包校验：`verify-client`通过13,487项逻辑图像／5,128物理文件、格式及区域校验。新增效果没有玩家命令，既有伤势查询读取权威状态；未启动游戏，专用动画／消息画面未验收。
+
+## 2026-09-22 混乱据点出阵
+
+依据RE-0150的日版最终提交门，共享`MilitaryMovement.Deploy`在任何资源／人物／单位写入前检查来源混乱，统一拒绝普通、输送及建设出阵。新增`SettlementConfused`拒绝原因，规则v51；内容与保存结构不变，现有108／112运行包无需重转。
+
+`dotnet test San9Remake.slnx --no-restore --verbosity quiet`共3264项通过（Core 2286、Application 447，其余531）。新增8项专项覆盖都市／设施、普通／输送、建设、过期候选、拒绝状态哈希不变、保存恢复与自然到期、电脑／委任公共规划；另外确认混乱目的地及已出阵部队改令不被扩大限制。未启动游戏；本批按命令、会话与模拟日推进验证，无画面验收。

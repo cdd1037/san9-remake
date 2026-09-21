@@ -105,6 +105,7 @@ public enum CommandRejection
     AttackConfirmationRequired,
     InvalidDecision,
     DecisionPending,
+    SettlementConfused,
 }
 
 public readonly record struct CommandSubmissionResult(

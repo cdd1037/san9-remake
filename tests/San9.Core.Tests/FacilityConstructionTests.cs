@@ -71,6 +71,24 @@ public sealed class FacilityConstructionTests
         Assert.Equal(9000u, engine.Snapshot.Forces.Single().Money);
     }
 
+    [Fact]
+    public void ConfusedConstructionSourceRejectsWithoutReservingOrSpending()
+    {
+        var engine = Engine(); var command = Command();
+        Assert.True(engine.Validate(Player, command).Accepted);
+        var initial = engine.CaptureStableState();
+        var confused = Engine(WorldState.Restore(initial with { Settlements = initial.Settlements
+            .Select(s => s.Id == 1 ? s with { ConfusionDaysRemaining = 12 } : s).ToArray() }));
+        string before = confused.Snapshot.StateHash;
+        Assert.Equal(CommandRejection.SettlementConfused, confused.Validate(Player, command).Rejection);
+        var rejected = confused.Execute(Player, command);
+        Assert.Equal(CommandRejection.SettlementConfused, rejected.Submission.Rejection);
+        Assert.Empty(rejected.Events); Assert.Equal(before, confused.Snapshot.StateHash);
+        Advance(confused); Advance(confused);
+        Assert.True(confused.Execute(Player, command with { Sequence = confused.Snapshot.Simulation.NextSequence }).Submission.Accepted);
+        Assert.Single(confused.Snapshot.Units);
+    }
+
     private static AdvanceXunResult Advance(SimulationEngine engine)
     {
         engine.EndControl(Player);

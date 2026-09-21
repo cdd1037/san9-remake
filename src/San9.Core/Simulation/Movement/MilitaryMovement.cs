@@ -70,6 +70,7 @@ internal static class MilitaryMovement
         if (!world.Settlements.TryGetValue(command.SettlementId, out var home) || home.OwnerId != command.IssuerId ||
             !home.CanHostPersons || home.Durability == 0 || !rules.TryPlace(home, out var place))
             return CommandRejection.NoDestination;
+        if (home.ConfusionDaysRemaining > 0) return CommandRejection.SettlementConfused;
         if (command.Soldiers == 0 || command.Soldiers > home.Soldiers || command.Soldiers > formation.SoldierCapacity ||
             command.OfficerIds.IsDefaultOrEmpty || command.OfficerIds.Length > formation.OfficerCapacity ||
             command.OfficerIds.Distinct().Count() != command.OfficerIds.Length)

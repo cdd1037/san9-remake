@@ -302,6 +302,34 @@ public sealed class MilitarySessionTests
         };
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ConfusionBlocksAutomaticAndDelegatedDeploymentThroughSharedValidation(bool delegated)
+    {
+        var baseline = Fixture();
+        var definition = delegated ? ReinforcementFixture() : baseline with
+        {
+            PlayerForceId = 2,
+            Forces = [baseline.Forces[0], new(2, "player-force", 2, 10000, 10000, 100)],
+            Settlements = [baseline.Settlements[0] with { Soldiers = 10000 }, baseline.Settlements[1]]
+        };
+        var session = GameSession.Start(definition, 42);
+        var snapshot = session.Capture();
+        session = GameSession.Restore(definition, snapshot with { World = snapshot.World with
+        {
+            Settlements = snapshot.World.Settlements.Select(s => s.Id == 1 ? s with { ConfusionDaysRemaining = 12 } : s).ToArray()
+        } });
+        if (!delegated) session.EndControl(new("player"));
+        var seat = new ControlSeat(delegated ? "corps:10" : "ai:1", 1, ControllerKind.Automatic);
+        var hash = session.Capture().StateHash;
+        Assert.IsType<WaitCommand>(MilitaryPlanner.Choose(session, seat, Guid.NewGuid()));
+        Assert.Equal(hash, session.Capture().StateHash);
+        Assert.Empty(session.AdvanceXun().Events.OfType<UnitDeployedEvent>());
+        Assert.Empty(session.AdvanceXun().Events.OfType<UnitDeployedEvent>());
+        Assert.Single(session.AdvanceXun().Events.OfType<UnitDeployedEvent>());
+    }
+
     [Fact]
     public void AutomaticCorpsReinforcesThroughPublicCommandsAndReplaysInFlight()
     {

@@ -21,6 +21,61 @@ public sealed class MilitaryMovementTests
     private static DeployUnitCommand Deploy(long sequence = 0, uint soldiers = 400, MilitaryOrder? order = null) =>
         new(Guid.NewGuid(), 1, sequence, 1, [11], soldiers, 7, order ?? new(MilitaryOrderKind.Transport, null, 2), 200, 300);
 
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void ConfusedSourceRevalidatesDeploymentWithoutSideEffectsAndRecovers(bool facility, bool transport)
+    {
+        var world = World();
+        if (facility)
+        {
+            var setup = world.BeginMutation();
+            setup.Replace(setup.Settlements[1] with { Kind = SettlementKind.Facility });
+            world.Commit(setup);
+        }
+        var rules = Rules(); var engine = Engine(world, rules);
+        var command = transport ? Deploy() : Deploy() with
+            { Order = new(MilitaryOrderKind.Move, new(32, 7), null), CargoMoney = 0, CargoFood = 0 };
+        Assert.True(engine.Validate(Player, command).Accepted);
+        var mutation = world.BeginMutation();
+        MilitaryConditions.Confuse(mutation, new(MilitaryOrderKind.AttackSettlement, null, 1), 12, []);
+        world.Commit(mutation);
+        var restored = Engine(WorldState.Restore(engine.CaptureStableState()), rules);
+        foreach (var current in new[] { engine, restored })
+        {
+            var before = current.Snapshot.StateHash;
+            Assert.Equal(CommandRejection.SettlementConfused, current.Validate(Player, command).Rejection);
+            var result = current.Execute(Player, command);
+            Assert.Equal(CommandRejection.SettlementConfused, result.Submission.Rejection);
+            Assert.Empty(result.Events); Assert.Equal(before, current.Snapshot.StateHash);
+            Advance(current);
+            Assert.Equal(2, current.Snapshot.Settlements.Single(s => s.Id == 1).ConfusionDaysRemaining);
+            Assert.Equal(CommandRejection.SettlementConfused, current.Validate(Player, command with
+                { Sequence = current.Snapshot.Simulation.NextSequence }).Rejection);
+            Advance(current);
+            Assert.Equal(0, current.Snapshot.Settlements.Single(s => s.Id == 1).ConfusionDaysRemaining);
+            Assert.True(current.Execute(Player, command with { Sequence = current.Snapshot.Simulation.NextSequence }).Submission.Accepted);
+            Assert.Single(current.Snapshot.Units);
+        }
+        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+    }
+
+    [Fact]
+    public void ConfusedDestinationDoesNotPreventTransportOrExistingUnitOrders()
+    {
+        var world = World(); var engine = Engine(world, Rules());
+        var mutation = world.BeginMutation();
+        mutation.Replace(mutation.Settlements[2] with { ConfusionDaysRemaining = 12 }); world.Commit(mutation);
+        Assert.True(engine.Execute(Player, Deploy()).Submission.Accepted);
+        mutation = world.BeginMutation();
+        mutation.Replace(mutation.Settlements[1] with { ConfusionDaysRemaining = 12 }); world.Commit(mutation);
+        var unit = Assert.Single(engine.Snapshot.Units);
+        Assert.True(engine.Execute(Player, new OrderUnitCommand(Guid.NewGuid(), 1,
+            engine.Snapshot.Simulation.NextSequence, unit.Id, new(MilitaryOrderKind.Return, null, 1))).Submission.Accepted);
+    }
+
     private static AdvanceXunResult Advance(SimulationEngine engine)
     {
         engine.EndControl(Player);

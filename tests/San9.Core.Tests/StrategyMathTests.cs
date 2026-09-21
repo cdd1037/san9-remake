@@ -33,14 +33,35 @@ public sealed class StrategyMathTests
     [Fact]
     public void AlienateUsesRighteousnessAndGossipOnlyDefaultsWhenAdviserAbsent()
     {
-        Assert.Equal(40, StrategyMath.AlienateThreshold(100, 70, 0));
-        Assert.Equal(-10, StrategyMath.AlienateThreshold(100, 70, 15));
+        Assert.Equal(30, StrategyMath.AlienateThreshold(100, 70, 0, 0));
+        Assert.Equal(-14, StrategyMath.AlienateThreshold(100, 70, 15, 0));
         Assert.Equal(1, StrategyMath.AlienateLoyaltyLoss(15, 0));
         Assert.Equal(6, StrategyMath.AlienateLoyaltyLoss(0, 2));
         Assert.Equal(20, StrategyMath.GossipThreshold(100, 100, null));
         Assert.Equal(40, StrategyMath.GossipThreshold(100, 100, 10));
         Assert.Equal(-10, StrategyMath.GossipThreshold(80, 100, 80));
     }
+
+    [Theory]
+    [InlineData(100, 70, 5, 0, 16)]
+    [InlineData(100, 70, 5, 50, 26)]
+    [InlineData(70, 71, 7, 0, 0)]
+    [InlineData(70, 74, 7, 0, -1)]
+    [InlineData(100, 70, 5, 4, 16)]
+    [InlineData(100, 70, 5, 5, 17)]
+    [InlineData(1000, 0, 15, 50, 10)]
+    [InlineData(int.MaxValue, 0, 0, 50, 40)]
+    [InlineData(0, int.MaxValue, 15, 0, -715827906)]
+    public void JapaneseAlienateUsesBothBranchesAndTruncatesSignedDifference(int actor, int target, int righteousness, int distance, int expected)
+    {
+        Assert.Equal(expected, StrategyMath.AlienateThreshold(actor, target, righteousness, distance));
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(51)]
+    public void AlienateRejectsInvalidAffinityDistance(int distance) =>
+        Assert.Throws<ArgumentOutOfRangeException>(() => StrategyMath.AlienateThreshold(100, 70, 5, distance));
 
     [Fact]
     public void BuildingThresholdsRetainDistinctIntegerOperationOrder()

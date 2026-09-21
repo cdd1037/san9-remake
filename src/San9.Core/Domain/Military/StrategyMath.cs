@@ -28,11 +28,14 @@ public static class StrategyMath
         return Signed(5L * (leadership - 30) / 4);
     }
 
-    public static int AlienateThreshold(int intelligence, int targetIntelligence, int righteousness)
+    public static int AlienateThreshold(int intelligence, int targetIntelligence, int righteousness, int rulerAffinityDistance)
     {
         Abilities(intelligence, targetIntelligence);
         Righteousness(righteousness);
-        return Signed(Math.Min(40, (long)intelligence + 5 * (7 - righteousness) - targetIntelligence));
+        if (rulerAffinityDistance is < 0 or > 50) throw new ArgumentOutOfRangeException(nameof(rulerAffinityDistance));
+        int affinity = rulerAffinityDistance / 5;
+        return Signed(Math.Min(affinity + 2 * (15 - righteousness),
+            affinity + ((long)intelligence - targetIntelligence) / 3 + 3 * (7 - righteousness)));
     }
 
     public static int GossipThreshold(int intelligence, int rulerIntelligence, int? adviserIntelligence,

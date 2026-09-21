@@ -402,3 +402,9 @@ dotnet test tests/San9.Headless.Tests --filter FullyQualifiedName~TypedExplorati
 依据RE-0150的日版最终提交门，共享`MilitaryMovement.Deploy`在任何资源／人物／单位写入前检查来源混乱，统一拒绝普通、输送及建设出阵。新增`SettlementConfused`拒绝原因，规则v51；内容与保存结构不变，现有108／112运行包无需重转。
 
 `dotnet test San9Remake.slnx --no-restore --verbosity quiet`共3264项通过（Core 2286、Application 447，其余531）。新增8项专项覆盖都市／设施、普通／输送、建设、过期候选、拒绝状态哈希不变、保存恢复与自然到期、电脑／委任公共规划；另外确认混乱目的地及已出阵部队改令不被扩大限制。未启动游戏；本批按命令、会话与模拟日推进验证，无画面验收。
+
+## 2026-09-22 日版离间公式
+
+按用户裁决采用RE-0150核实的日版1.3成功率，以目标与当前所属君主的相性环距参与计算；军师建议和到达结算共享公式，到达时重新读取当前状态。保留负阈值和有符号整数向零截断。AI候选门、配对筛选留待后续阶段，本轮不改变命令资格。规则v52，内容及保存结构不变，运行包无需重转。
+
+验证：`dotnet test San9Remake.slnx --no-restore --verbosity quiet`全部3281项通过（Core 2303、Application 447、Content 74、Importer 343、Client 98、Headless 16）。新增17项覆盖两分支、负差截断、整数极值、相性环绕／封顶、执行者相性及地图位置无关、途中更换君主、准确军师建议与每日结算及恢复一致；既有无君主目标沿用帮助函数距离50。未启动游戏，本轮按领域与公开会话接口验证，无新增界面交互。

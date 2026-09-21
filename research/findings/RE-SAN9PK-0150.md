@@ -21,18 +21,20 @@
 繁中 `compute_alienate_success_threshold(0x4934C0)` 为：
 
 ```text
-min(40, actor_int + 5*(7-target_raw_0x70) - target_int)
+min(40, actor_int + 5*(7-target_righteousness) - target_int)
 ```
 
 日版 `compute_alienate_success_threshold(0x49A9E0)` 改为：
 
 ```text
-d = derived_person_distance(target)
-min(d/5 + 2*(15-target_raw_0x70),
-    d/5 + (actor_int-target_int)/3 + 3*(7-target_raw_0x70))
+d = affinity_distance(target, ruler_of_target_force)  # 150环距，上限50
+min(d/5 + 2*(15-target_righteousness),
+    d/5 + (actor_int-target_int)/3 + 3*(7-target_righteousness))
 ```
 
-整数除法向零截断。日版不再使用旧式固定上限 40，并新增由目标人物关联对象计算的距离量；`target_raw_0x70` 的完整领域名仍未独立确认，故保留字段表达。
+整数除法向零截断。日版不再使用旧式固定上限40；`d`是目标人物与其当前所属根势力君主的相性差，不是地图距离，也不是执行者与目标的相性差。相性按150环计算最短差，再封顶50，因此`d/5`贡献0–10点。目标人物`+0x70`是义理，已由RE-0090及RE-0115闭合。君主引用无效时，相性差函数返回50；这只是帮助函数的边界，不能据此宣称无君主目标可通过离间命令资格。
+
+2026-09-22定向补证（事实，高置信）：直接读取已登记日版干净EXE，文件2,711,552字节，SHA-256与本记录一致，PE32/i386、映像基址0x400000；使用Capstone静态反汇编。日版`49A9E0`以目标人物调用`44F1A0`，该函数经所属势力虚槽和`4419E0`取得根势力君主；随后目标人物调用`44FD70`，参数为该君主。后者比较双方人物`+0x6C`，超过75取150减差，最终min(50,差)，无效参数返回50。TC主库的`get_object_force_leader(45E0D0)`、`get_force_leader(43FDE0)`与`compute_person_affinity_distance(44CEC0)`提供同语义交叉核对；人物字段见[RE-0009](RE-SAN9PK-0009.md)、[RE-0090](RE-SAN9PK-0090.md)。这纠正此前“derived person distance”未明确相性语义的表述。
 
 ### 自动离间增加候选门和按阈值区间筛选
 
@@ -124,3 +126,5 @@ ceil(10 * normal_tile_count / max(1, normal_rate))
 ## 原版数据库同步
 
 本次对照反向补强繁中原版主库 `San9PK-TC-101.i64`：第一批为自动调动目的地收集器，以及“有/无当前皇帝”两组称帝候选、谓词和执行函数写入 7 个高置信名称与 8 条事实注释；第二批为打包目标到地域建筑解析、目标失效共用解析及其三条分派入口写入 6 个高置信名称与 6 条事实注释；第三批在两条既有自动晋爵执行函数追加 2 条事实注释，明确势力爵位对象和日版派生信望重算边界；第四批在离间阈值、自动目标收集和行动组装函数追加 3 条事实注释，记录日版公式、目标门及执行人物—目标配对角色。前两批不覆盖 dry-run 分别为 7/7、6/6，通过后原位保存；四批均已回读确认名称或注释可见。未修改程序字节、函数边界或尚未闭合的类型。
+
+2026-09-22主库同步：在繁中`4934C0`追加一条纠正注释，明确日版d的相性差对象、150环距／50上限及义理字段；已原位保存TC101主库，并回读确认。日版本次仅直接只读分析原EXE，没有新建或修改日版数据库。

@@ -51,8 +51,8 @@ public sealed class AlienateStrategyTests
     }
 
     [Theory]
-    [InlineData(39, true)]
-    [InlineData(40, false)]
+    [InlineData(29, true)]
+    [InlineData(30, false)]
     public void StrictThresholdChangesLoyaltyOnlyOnSuccessAndAlwaysPaysRelationCost(int roll, bool success)
     {
         var rules = Rules();
@@ -63,7 +63,7 @@ public sealed class AlienateStrategyTests
         var events = Day(state, rules);
 
         var result = Assert.Single(events.OfType<AlienateResolvedEvent>());
-        Assert.Equal(40, result.Threshold);
+        Assert.Equal(30, result.Threshold);
         Assert.Equal(success, result.Success);
         Assert.Equal(success ? 80 - result.LoyaltyLoss : 80, state.Officers[21].Loyalty);
         Assert.InRange(result.LoyaltyLoss, success ? 3 : 0, success ? 5 : 0);
@@ -113,7 +113,7 @@ public sealed class AlienateStrategyTests
         var state = world.BeginMutation(rules.Abilities);
         state.Replace(state.Officers[21] with { BaseAbilities = new(70, 100, 70, 70) });
         var resolved = Assert.Single(Day(state, rules).OfType<AlienateResolvedEvent>());
-        Assert.Equal(10, resolved.Threshold);
+        Assert.Equal(16, resolved.Threshold);
         Assert.False(resolved.Success);
 
         world = World();
@@ -158,6 +158,71 @@ public sealed class AlienateStrategyTests
         var state = world.BeginMutation(rules.Abilities);
         state.Replace(state.Units[5] with { Position = new(62, 2) });
         Assert.Single(Day(state, rules).OfType<AlienateResolvedEvent>());
+    }
+
+    private static WorldState WithRulers(ulong seed = 42)
+    {
+        var world = World(seed); _ = new SimulationEngine(world, Rules());
+        var snapshot = world.CreateSnapshot();
+        return WorldState.Restore(snapshot with
+        {
+            Forces = snapshot.Forces.Select(f => f.Id == 2 ? f with { LeaderId = 22 } :
+                f.Id == 1 ? f with { AdviserId = 11 } : f).ToArray(),
+            Officers = [.. snapshot.Officers.Select(p => p.Id == 11 ? p with { Status = OfficerStatus.Strategist } : p),
+                new(22, 2, 2, new(70, 70, 70, 70), false) { Status = OfficerStatus.Ruler, Affinity = 50 },
+                new(23, 2, 2, new(70, 70, 70, 70), false) { Affinity = 0 }]
+        });
+    }
+
+    [Theory]
+    [InlineData(0, 0, 20)]
+    [InlineData(149, 1, 20)]
+    [InlineData(145, 5, 22)]
+    [InlineData(0, 75, 30)]
+    public void ThresholdUsesTargetRulerRingDistanceNotActorOrGeographicDistance(int targetAffinity, int rulerAffinity, int expected)
+    {
+        var world = WithRulers(); var m = world.BeginMutation();
+        m.Replace(m.Officers[21] with { Affinity = targetAffinity });
+        m.Replace(m.Officers[22] with { Affinity = rulerAffinity });
+        Assert.Equal(expected, AlienateStrategies.Threshold(m, 11, 21));
+        m.Replace(m.Officers[11] with { Affinity = 90 });
+        m.Replace(m.Officers[21] with { SettlementId = 3 });
+        Assert.Equal(expected, AlienateStrategies.Threshold(m, 11, 21));
+    }
+
+    [Fact]
+    public void ArrivalUsesTheCurrentRulerRatherThanTheDepartureAffinity()
+    {
+        var rules = Rules(); var world = WithRulers();
+        Assert.Equal(30, AlienateStrategies.Threshold(world.BeginMutation(), 11, 21));
+        Submit(world, rules, 25);
+        var m = world.BeginMutation(rules.Abilities);
+        m.Replace(m.Forces[2] with { LeaderId = 23 });
+        m.Replace(m.Officers[22] with { Status = OfficerStatus.Serving });
+        m.Replace(m.Officers[23] with { Status = OfficerStatus.Ruler });
+        var result = Assert.Single(Day(m, rules).OfType<AlienateResolvedEvent>());
+        Assert.Equal(20, result.Threshold); Assert.False(result.Success);
+    }
+
+    [Fact]
+    public void PerfectAdviserAndRestoredDailyResolutionUseTheSameJapaneseThreshold()
+    {
+        for (ulong seed = 1; seed <= 8; seed++)
+        {
+            var rules = Rules(); var world = WithRulers(seed); var engine = new SimulationEngine(world, rules);
+            var before = engine.Snapshot.StateHash;
+            var advice = engine.GetAlienateAdvice(1, 11, 21);
+            Assert.Equal(before, engine.Snapshot.StateHash);
+            var command = new AlienateCommand(Guid.NewGuid(), 1, engine.Snapshot.Simulation.NextSequence, 11, 21);
+            Assert.True(engine.Execute(new("player"), command).Submission.Accepted);
+            var restored = WorldState.Restore(engine.CaptureStableState());
+            var first = Day(world.BeginMutation(rules.Abilities), rules);
+            var second = Day(restored.BeginMutation(rules.Abilities), rules);
+            var result = Assert.Single(first.OfType<AlienateResolvedEvent>());
+            Assert.Equal(30, result.Threshold);
+            Assert.Equal(result.Success ? AdviserOpinion.Favorable : AdviserOpinion.Unfavorable, advice.Opinion);
+            Assert.Equal(CanonicalJson.Text(first), CanonicalJson.Text(second));
+        }
     }
 
     [Theory]

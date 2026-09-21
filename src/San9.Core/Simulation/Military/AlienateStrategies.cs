@@ -52,10 +52,15 @@ internal static class AlienateStrategies
         return false;
     }
 
-    internal static int Threshold(WorldMutation world, int officerId, int targetId) => StrategyMath.AlienateThreshold(
-        world.Abilities(world.Officers[officerId]).Intelligence,
-        world.Abilities(world.Officers[targetId]).Intelligence,
-        world.Officers[targetId].Righteousness);
+    internal static int Threshold(WorldMutation world, int officerId, int targetId)
+    {
+        var target = world.Officers[targetId];
+        int distance = target.OwnerId is int owner && world.Forces[owner].LeaderId is int rulerId &&
+            world.Officers.TryGetValue(rulerId, out var ruler) && ruler.Status != OfficerStatus.Dead
+            ? PersonnelRulebook.AffinityDistance(target, ruler) : 50;
+        return StrategyMath.AlienateThreshold(world.Abilities(world.Officers[officerId]).Intelligence,
+            world.Abilities(target).Intelligence, target.Righteousness, distance);
+    }
 
     internal static CommandAdvice Advice(WorldMutation world, int forceId, int officerId, int targetId,
         SimulationRules rules)

@@ -145,6 +145,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         {
             ForceConsolidation.Apply(world, rules, events);
             SettlementDefections.Apply(world, rules, events);
+            UnitDefections.Apply(world, rules, events);
             if (!CheckTerminal(world, events)) return false;
             AttackRequests.UpdateXun(world, events);
             AllianceDiplomacy.UpdateXun(world, events);

@@ -42,7 +42,7 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 106;
+    public const int CurrentSchemaVersion = 107;
     [JsonRequired] public int FoodExchangeRate { get; init; } = 1;
     [JsonRequired] public San9.Core.Domain.FoodMarketDefinition? FoodMarket { get; init; }
     [JsonRequired] public San9.Core.Domain.HanzhongKingDefinition? HanzhongKing { get; init; }
@@ -58,6 +58,7 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
     [JsonRequired] public San9.Core.Domain.QiaoMarriageDefinition? QiaoMarriage { get; init; }
     [JsonRequired] public San9.Core.Domain.PoliticalEventsDefinition? PoliticalEvents { get; init; }
     [JsonRequired] public System.Collections.Immutable.ImmutableDictionary<int, int> ProvinceCountryTitleIds { get; init; } = System.Collections.Immutable.ImmutableDictionary<int, int>.Empty;
+    [JsonRequired] public bool UnitDefectionsEnabled { get; init; } = true;
     [JsonRequired] public bool SettlementDefectionsEnabled { get; init; } = true;
     [JsonRequired] public bool CityIndependenceEnabled { get; init; } = true;
     [JsonRequired] public bool ForceEmergenceEnabled { get; init; } = true;

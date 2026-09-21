@@ -36,6 +36,7 @@ public sealed record ReinforcementTroops(uint Soldiers, int Morale, int Demobili
 
 public sealed record PersonnelJourney(int DestinationPlaceId, int? TargetOfficerId, int? SuccessRoll)
 {
+    [JsonRequired] public int? RecruitmentUnitId { get; init; }
     [JsonRequired] public PersonnelRoute Route { get; init; } = null!;
     [JsonRequired] public UnitStrategyMission? UnitStrategy { get; init; }
     [JsonRequired] public BurnMission? Burn { get; init; }
@@ -65,6 +66,7 @@ public sealed record SimulationState(GameClock Started, ulong InitialSeed)
     [JsonRequired] public GameClock? ThreeVisitsStarted { get; init; }
     [JsonRequired] public EmperorTransferPending? EmperorTransfer { get; init; }
     [JsonRequired] public bool ImperialCourtEnded { get; init; }
+    [JsonRequired] public bool UnitDefectionsEnabled { get; init; } = true;
     [JsonRequired] public bool SettlementDefectionsEnabled { get; init; } = true;
     [JsonRequired] public bool CityIndependenceEnabled { get; init; } = true;
     [JsonRequired] public bool ForceEmergenceEnabled { get; init; } = true;

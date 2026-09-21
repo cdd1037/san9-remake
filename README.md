@@ -111,7 +111,9 @@ dotnet run --project src/San9.Tools -- import-client --source-exe "<San9PK.exe�
 
 文字显示通过[统一文字样式](docs/text-styles.md)复用角色与状态，消息正文遵循[原生 BBCode 约定](docs/messages.md)。
 
-旬开始已支持有人据点自行归附与无人无兵设施随关联城市改属，包含人员、金粮及旧军团清理；条件和验证见[G10验收](docs/g10-verification.md#2026-09-21设施自行归附补齐)。
+普通登用已支持城市／设施大将带据点归顺，以及野外大将带部队归顺；普通部队成员只迁移本人，追随／拒绝、返程及保存录像均按显式归属处理，见[人事规格](specs/behavior/BEH-PERSON-0001-discovery-recruitment-and-affiliation.md#野外部队登用)。
+
+旬开始已支持有人据点自行归附、无人无兵设施随关联城市改属及[被围野外部队自行归附](docs/g10-verification.md#2026-09-21野外部队自行归附)，包含人员、金粮及旧军团清理；野外归附明确修复原作将自身计为援军的阻断bug。条件和验证见[G10验收](docs/g10-verification.md#2026-09-21设施自行归附补齐)。
 
 独立无界面入口：`dotnet run --project src/San9.Headless -- verify --fixture --xuns 36 --output local/generated/verification/roadmap-g02/public`。支持轻量玩家存档、严格恢复、序号水位和当前用于验证的独立录像、JSONL命令重放与机器报告；用法、失败码和190年验证见[G02验收与使用说明](docs/g02-verification.md)。
 

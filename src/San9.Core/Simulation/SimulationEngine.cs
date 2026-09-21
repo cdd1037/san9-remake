@@ -601,7 +601,7 @@ public sealed class SimulationEngine
                     if (searchRejection != CommandRejection.None) return Reject(searchRejection);
                     break;
                 case RecruitOfficerCommand recruit:
-                    var recruitRejection = PersonnelMissions.StartRecruit(mutation, context, recruit, _rules.Personnel, events);
+                    var recruitRejection = PersonnelMissions.StartRecruit(mutation, context, recruit, _rules, events);
                     if (recruitRejection != CommandRejection.None) return Reject(recruitRejection);
                     break;
                 case MoveOfficersCommand move:

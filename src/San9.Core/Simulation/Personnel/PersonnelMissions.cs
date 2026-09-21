@@ -70,8 +70,9 @@ internal static class PersonnelMissions
         !world.Simulation.Tasks.Any(t => t.OfficerId == target.Id && t.Journey is not null);
 
     internal static CommandRejection StartRecruit(WorldMutation world, CommandContext context, RecruitOfficerCommand command,
-        PersonnelRulebook rules, List<DomainEvent> events)
+        SimulationRules simulationRules, List<DomainEvent> events)
     {
+        var rules = simulationRules.Personnel;
         if (!CanAct(world, command.IssuerId, command.OfficerId)) return CommandRejection.PersonUnavailable;
         if (!world.Officers.TryGetValue(command.TargetOfficerId, out var target)) return CommandRejection.UnknownPerson;
         if (!Recruitable(world, command.IssuerId, target)) return CommandRejection.PersonUnavailable;
@@ -79,12 +80,16 @@ internal static class PersonnelMissions
         if (target.OwnerId is int other && !world.Relations.ContainsKey((Math.Min(other, command.IssuerId), Math.Max(other, command.IssuerId))))
             return CommandRejection.InvalidTask;
         int origin = world.Officers[command.OfficerId].SettlementId!.Value;
-        if ((target.SettlementId ?? target.RegionId) is not int destination || !rules.Places.ContainsKey(origin) || !rules.Places.ContainsKey(destination))
+        UnitState? unit = null;
+        if (target.UnitId is int unitId && (!world.Units.TryGetValue(unitId, out unit) ||
+            unit.IsEmbedded || unit.IsPersonnel || unit.FormationId is null || !target.IsServing)) return CommandRejection.PersonUnavailable;
+        int? targetPlace = unit is null ? target.SettlementId ?? target.RegionId : simulationRules.Military?.RegionAt(unit.Position);
+        if (targetPlace is not int destination || !rules.Places.ContainsKey(origin) || !rules.Places.ContainsKey(destination))
             return CommandRejection.InvalidTask;
         int roll = ConditionalRandom.Percentile(world.Simulation.InitialSeed, ConditionalRandomPurpose.Recruitment,
             world.Clock, command.OfficerId, command.TargetOfficerId);
         Add(world, context, command, command.CommandId, command.OfficerId, origin,
-            new(destination, target.Id, roll), RecruitKind, rules, events);
+            new(destination, target.Id, roll) { RecruitmentUnitId = unit?.Id }, RecruitKind, rules, events, unit?.Position);
         return CommandRejection.None;
     }
 
@@ -137,9 +142,9 @@ internal static class PersonnelMissions
     }
 
     private static void Add(WorldMutation world, CommandContext context, GameCommand command, Guid id, int officer, int origin,
-        PersonnelJourney journey, string kind, PersonnelRulebook rules, List<DomainEvent> events)
+        PersonnelJourney journey, string kind, PersonnelRulebook rules, List<DomainEvent> events, WorldPosition? fieldDestination = null)
     {
-        journey = journey with { Route = PersonnelLocations.Route(world, rules, origin, journey.DestinationPlaceId) };
+        journey = journey with { Route = PersonnelLocations.Route(world, rules, origin, journey.DestinationPlaceId, fieldDestination) };
         int days = kind == SearchKind ? journey.Route.XunRoundedDays : journey.Route.Days;
         var due = world.Clock;
         for (int day = 0; day < Math.Max(0, days - 1); day++) due = due.NextDay();
@@ -163,7 +168,9 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
     private readonly GovernanceRulebook governance = simulationRules.Governance;
     private readonly TreasureRulebook treasures = simulationRules.Treasures;
     internal override bool SupportsResolutionStep(int step) => step == 0 || kind == PersonnelMissions.SearchKind && step is 1 or 2;
-    internal override bool HasValidPayload(PersistentTask task) => task.Journey is { ReturnLeg: null, Route: { FieldDestination: false }, UnitStrategy: null, Burn: null, Seize: null, Gossip: null } journey && DurationDays(task) >= 0 &&
+    internal override bool HasValidPayload(PersistentTask task) => task.Journey is { ReturnLeg: null, Route: { } route, UnitStrategy: null, Burn: null, Seize: null, Gossip: null } journey && DurationDays(task) >= 0 &&
+        (journey.RecruitmentUnitId is int unit ? unit >= 0 && kind == PersonnelMissions.RecruitKind && route.FieldDestination &&
+            simulationRules.Military?.RegionAt(route.Destination) == journey.DestinationPlaceId : !route.FieldDestination) &&
         (task.ResolutionStep == 0 ? task.SearchEncounter is null : kind == PersonnelMissions.SearchKind &&
             (task.ResolutionStep == 1 && (task.SearchEncounter is PersonSearchEncounter { OfficerId: >= 0 } ||
                 task.SearchEncounter is ScholarReturnEncounter scholar && rules.SearchEvents.GetValueOrDefault(scholar.EventId) is ScholarReturnSearchEventDefinition ||
@@ -329,7 +336,11 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
                 GovernanceMaintenance.CanRemove(world, task.OfficerId);
         return journey.SuccessRoll is >= 0 and < 100 && journey.TargetOfficerId is int targetId &&
             world.Forces[task.ForceId].LeaderId is not null && world.Officers.TryGetValue(targetId, out var target) &&
-            PersonnelMissions.Recruitable(world, task.ForceId, target) && (target.SettlementId ?? target.RegionId) == journey.DestinationPlaceId;
+            PersonnelMissions.Recruitable(world, task.ForceId, target) &&
+            (journey.RecruitmentUnitId is int unitId ? target.UnitId == unitId && target.IsServing &&
+                world.Units.TryGetValue(unitId, out var unit) && !unit.IsEmbedded && !unit.IsPersonnel && unit.FormationId is not null &&
+                simulationRules.Military?.RegionAt(unit.Position) is int region && rules.Places.ContainsKey(region) :
+                target.UnitId is null && (target.SettlementId ?? target.RegionId) == journey.DestinationPlaceId);
     }
 
     internal override void Complete(WorldMutation world, PersistentTask task, List<DomainEvent> events)
@@ -350,20 +361,27 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
             return;
         }
         var target = world.Officers[journey.TargetOfficerId!.Value];
+        if (journey.RecruitmentUnitId is int fieldUnit)
+        {
+            var position = world.Units[fieldUnit].Position;
+            journey = journey with { DestinationPlaceId = simulationRules.Military!.RegionAt(position)!.Value,
+                Route = journey.Route with { Destination = position } };
+            task = task with { Journey = journey };
+        }
         bool historicalSuccess = Guandu.Apply(world, task.OfficerId, target.Id, simulationRules, events);
         int threshold = historicalSuccess ? 100 : RecruitmentRules.Threshold(world, task.OfficerId, target.Id, simulationRules);
         int roll = journey.SuccessRoll!.Value;
         bool success = roll < threshold;
         if (success)
         {
-            bool transferredPlace = PersonnelDefection.Recruit(world, task, rules, governance, events);
-            if (!transferredPlace) PersonnelReturns.Start(world, task, rules, events, true, target.Id);
+            bool transferredObject = PersonnelDefection.Recruit(world, task, simulationRules, events);
+            if (!transferredObject) PersonnelReturns.Start(world, task, rules, events, true, target.Id);
             PersonnelMissions.GrowPolitics(world, task.OfficerId, events);
             EconomicCycle.UpdateTrust(world, economy, events);
         }
         else RecruitmentRules.Failure(world, task.ForceId, target.Id, threshold, events);
         events.Add(new RecruitmentResolvedEvent(world.Clock, task.OfficerId, target.Id, threshold, roll, success));
-        PersonnelReturns.Start(world, task, rules, events, true);
+        PersonnelReturns.Start(world, task, rules, events, true, arrived: journey.RecruitmentUnitId is not null);
     }
 
     private static OfficerState? SelectPerson(WorldMutation world, PersistentTask task, out long score)

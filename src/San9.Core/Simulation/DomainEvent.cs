@@ -24,6 +24,7 @@ public sealed record OfficerCapturedEvent(GameClock Clock, int OfficerId, int Ca
 [System.Text.Json.Serialization.JsonDerivedType(typeof(PeerageChangedEvent), "peerage-changed")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(CountryTitleOfferedEvent), "country-title-offered")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(EmperorDeathEvent), "emperor-death")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(UnitDefectedEvent), "unit-defected")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(SettlementDefectedEvent), "settlement-defected")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(CityIndependenceEvent), "city-independence")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(OfficerDepartedEvent), "officer-departed")]

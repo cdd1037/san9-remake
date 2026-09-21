@@ -347,7 +347,7 @@ dotnet test tests/San9.Headless.Tests --filter FullyQualifiedName~TypedExplorati
 
 ## 2026-09-21设施自行归附补齐
 
-已完成有人据点主动归附与无人无现役兵设施随关联城市改属。`SettlementDefections`仅在旬开始`XunUpdate`的势力合并之后运行，保留30日门；没有每日生产器。有人规则覆盖地域孤立与围攻、外交保护、野心及君主所在最后据点；无人规则不掷概率骰，检查同辖域原势力其他据点及实时野外部队，不以服务据点代替地理位置。野外部队自身投靠仍未接入，不计入本次两场景交付。
+已完成有人据点主动归附与无人无现役兵设施随关联城市改属。`SettlementDefections`仅在旬开始`XunUpdate`的势力合并之后运行，保留30日门；没有每日生产器。有人规则覆盖地域孤立与围攻、外交保护、野心及君主所在最后据点；无人规则不掷概率骰，检查同辖域原势力其他据点及实时野外部队，不以服务据点代替地理位置。野外部队自身投靠另见下文野外归附批次，不计入固定据点两场景。
 
 `SettlementAffiliation`统一提交设施、内嵌单位、追随者、忠诚及官职变化、拒绝者／在途人员返程、俘虏安置、金粮份额、旧军团／势力清理与友军攻击解除。事件`SettlementDefectedEvent`区分空设施、地域孤立和围攻，并保存大将与追随名单；界面查询直接读取当前归属，无新增玩家命令或选择等待。与原作临时信望变量及无目的地俘虏行为的差异见[RE-0124](../research/findings/RE-SAN9PK-0124.md#2026-09-21固定据点两类归附接入补证)。
 
@@ -361,3 +361,22 @@ dotnet test tests/San9.Headless.Tests --filter FullyQualifiedName~TypedExplorati
 - 新190年包、种子190运行4旬：292操作、86经营命令、2次恢复；连续／恢复、日志重放、重复前缀和完整录像一致，`success=true`、`firstFailure=null`。报告`local/generated/verification/settlement-defection-190/report.json`；最终哈希`3186A20CA4098B9AABDED5ABD733A2EEBF603A14626B1A290599CEF2C9219E9C`。自然运行未触发归附，两类归附由定向公开会话测试覆盖。
 
 本次未启动游戏，实际画面待验收。
+
+## 2026-09-21野外大将登用带队归顺
+
+普通登用命令已覆盖野外部队成员。大将以单位当前CommanderId判断，成功时保留部队身份／位置／兵员／状态／携行资源并改属；原服务据点不随队转移。非大将只迁移本人，拒绝者从当前位置返程，俘虏独立安置，旧军团及友军攻击引用同步修复。目标移动仍按同一部队身份到期结算，离队／消失则失效；自行投靠另见下文独立旬级生产器。
+
+数据链路：沿用已有UnitState、OfficerState.UnitId及CommanderId，没有新增或筛掉导入对象；公开RecruitOfficerCommand接通野外目标，当前单位／人物查询直接反映新归属。任务新增必填可空RecruitmentUnitId及野外路线校验。单独的登用接入不新增内容字段；与下述自行归附修复合并交付后，统一使用规则v45、保存／日志81及剧本schema107／组合111，旧包须重转，旧存档／录像不能与新规则混用。没有另加客户端登用菜单，本批通过公开命令与会话查询验证，不能将此视为新增UI验收。
+
+验证：新增Core9项、Application3项，覆盖大将／普通成员、现场大将变化、追随／拒绝、君主保护、移动／离队失效、俘虏、旧军团解散与返程引用、公开成功／失败、往返途中保存恢复、严格载荷及完整录像。执行`dotnet test San9Remake.slnx --no-restore --verbosity quiet`，补充移动目标返程时长断言后修正其xUnit分析器语法，并单独复跑Core全项目；最终合计3162项通过：Core2189、Application442、Content74、Importer343、Godot98、Headless16。日志`local/generated/verification/field-recruitment-tests.log`及`field-recruitment-core-tests.log`。未启动游戏，画面待验收。
+
+
+## 2026-09-21野外部队自行归附
+
+已接入旬开始的独立`UnitDefections`，固定据点归附之后运行，开局至少30日。只检查被近距围攻的真实野外部队，没有无人随城或地域孤立分支。至少两支有效敌军、最高信望目标、其他友军10格保护、野心门、玩家君主保护与电脑最后资产限制共同决定资格。按用户裁决明确修复原作“自身计为援军”的归附阻断bug，排除目标自身；专用投降消息6175及执行分支已确认存在，正常可达性未做原版动态验证，静态自身阻断证据与重制差异见[RE-0124续核](../research/findings/RE-SAN9PK-0124.md#2026-09-21野外自行归附续核分支存在与可达性分开)。
+
+转属与野外登用共享`UnitAffiliation`，但自行归附不写旧忠诚45、不扣登用外交关系，拒绝者按旬边界计时返程。兵员／伤兵／位置／状态／携行资源保留，旧服务据点不随队转移，清理旧行动、军团及友军攻击引用，俘虏独立安置。`UnitDefectedEvent`提供结构化结果；当前单位、人物查询反映新归属，无新增玩家命令或菜单。
+
+数据链路新增必填`UnitDefectionsEnabled`，独立于固定据点开关，TC101模式2／9关闭；参与内容指纹、世界保存与恢复一致性校验。剧本schema107／组合111，规则v45，保存／日志81；旧包须重转，旧存档／录像不兼容。真实190包已原位重转，25势力／94据点／700人物／0初始野外部队的身份列表逐项不变，非剧本数据文件哈希不变，13,487项图像及5,128实体文件完整校验通过。当前开关true；没有新加、删减或改变筛选对象集合。
+
+验证：新增Core14项、Application2项，覆盖资格拒绝与不耗骰、自身排除、援军边界、概率49／50、君主保护与退出、保留部队和拒绝者返程、独立开关、缺失字段／篡改拒绝、公开旬推进、保存及录像。全解决方案先通过3176项；随后仅新增两项严格概率测试并重跑完整Core，最终合计3178项（Core2203、Application444、Content74、Importer343、Godot98、Headless16）。日志为`local/generated/unit-defection-tests.log`及`unit-defection-core-tests.log`，数据核对为`unit-defection-content-audit.json`，重转／校验日志为`unit-defection-import.log`与`unit-defection-verify.log`。没有每日生产器或额外每日生产器测试；未启动游戏、未作画面验收。

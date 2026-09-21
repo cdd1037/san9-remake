@@ -139,6 +139,7 @@ public static class ScenarioContentCompiler
             AnnualAppearancesEnabled = header.ScenarioModeCode is not (2 or 9),
             OfficeRequestsEnabled = header.ScenarioModeCode is not (2 or 9),
             CityIndependenceEnabled = header.ScenarioModeCode is not (2 or 9),
+            UnitDefectionsEnabled = header.ScenarioModeCode is not (2 or 9),
             SettlementDefectionsEnabled = header.ScenarioModeCode is not (2 or 9),
             ForceEmergenceEnabled = header.ScenarioModeCode is not (2 or 9),
             ForceConsolidationEnabled = header.ScenarioModeCode is not (2 or 9),

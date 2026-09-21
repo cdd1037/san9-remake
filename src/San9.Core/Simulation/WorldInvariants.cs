@@ -255,6 +255,8 @@ internal static class WorldInvariants
                    task.Kind == PersonnelReturns.Kind && task.Journey?.ReturnLeg is not null)))
                 throw new ArgumentException("Invalid reinforcement transport.");
             if (task.Journey is { } journey && (journey.DestinationPlaceId < 0 || journey.SuccessRoll is < 0 or > 99 ||
+                journey.RecruitmentUnitId is int recruitmentUnit && (recruitmentUnit < 0 || task.Kind != PersonnelMissions.RecruitKind ||
+                    journey.TargetOfficerId is null || journey.ReturnLeg is not null || journey.Route is not { FieldDestination: true }) ||
                 journey.Route is null || journey.Route.Origin is { X: < 0 } or { Y: < 0 } ||
                 journey.Route.Destination is { X: < 0 } or { Y: < 0 } ||
                 journey.UnitStrategy is { } strategy && (!Enum.IsDefined(strategy.Strategy) || strategy.TargetUnitId < 0 ||

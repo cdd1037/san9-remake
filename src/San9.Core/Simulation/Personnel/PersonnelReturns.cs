@@ -6,6 +6,28 @@ internal static class PersonnelReturns
 {
     internal const string Kind = "personnel-return";
 
+    internal static void FromField(WorldMutation world, int personId, WorldPosition origin, SimulationRules rules,
+        List<DomainEvent> events, bool afterDailyCommands = true)
+    {
+        var person = world.Officers[personId];
+        var home = BattleRetreat.Destination(world, person, origin, null, rules.Military!);
+        if (home is null)
+        {
+            BattlePersonnel.Displace(world, personId, origin, rules.Personnel, rules.Military!, events);
+            return;
+        }
+        PersonnelTransitions.CancelMissions(world, personId, "unit-defected", events, rules.Personnel, afterDailyCommands);
+        world.Replace(world.Officers[personId] with { UnitId = null, SettlementId = home.Id, RegionId = null, TacticCooldown = 0 });
+        long sequence = world.Simulation.NextSequence;
+        Guid id = new(Convert.FromHexString(CanonicalJson.Hash(new { Kind = "unit-defection-return", world.Clock, OfficerId = personId,
+            Sequence = sequence })).AsSpan(0, 16));
+        var cause = new PersistentTask(id, Kind, "system", person.OwnerId!.Value, personId, home.Id,
+            world.Clock, world.Clock, 0, sequence);
+        world.SetSimulation(world.Simulation with { NextSequence = checked(sequence + 1) });
+        Schedule(world, cause, personId, home.Id, home.Id, BattleRetreat.Days(origin, rules.Military!.Place(home).Position),
+            afterDailyCommands, events, new(origin, rules.Military.Place(home).Position, false), true, home.CorpsId);
+    }
+
     internal static void Repatriate(WorldMutation world, int personId, int origin, PersistentTask cause,
         PersonnelRulebook places, List<DomainEvent> events, bool afterDailyCommands = true)
     {
@@ -26,7 +48,7 @@ internal static class PersonnelReturns
     }
 
     internal static void Start(WorldMutation world, PersistentTask previous, PersonnelRulebook places,
-        List<DomainEvent> events, bool afterDailyCommands, int? companionId = null)
+        List<DomainEvent> events, bool afterDailyCommands, int? companionId = null, bool arrived = false)
     {
         int officerId = companionId ?? previous.OfficerId;
         var person = world.Officers[officerId];
@@ -51,7 +73,8 @@ internal static class PersonnelReturns
             return;
         }
         int days = DistanceTo(home.Id);
-        if (companionId is null)
+        // A completed visit to a moving target has no remaining outbound leg to deduct from the return.
+        if (companionId is null && !arrived)
         {
             bool roundedOutbound = previous.Kind == PersonnelMissions.SearchKind || DiplomacyJourney.IsDiplomatic(previous);
             int outbound = previous.Journey.ReturnLeg?.CountdownDays ?? (roundedOutbound

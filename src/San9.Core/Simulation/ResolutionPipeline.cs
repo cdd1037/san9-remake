@@ -181,6 +181,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
             NaturalMortality.Apply(world, rules, events);
             if (!CheckTerminal(world, events)) return false;
             PersonnelLoyaltyCycle.Apply(world, events);
+            ForceRelations.AdvanceQuarter(world, events);
         }
         if (stage == ResolutionStage.AnnualAppearance) OfficerAppearance.AdvanceYear(world, rules.Personnel, events);
         var rationAccounts = EconomicCycle.Apply(stage, world, rules.Economy, events);

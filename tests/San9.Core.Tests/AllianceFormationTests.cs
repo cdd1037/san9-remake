@@ -100,9 +100,13 @@ public sealed class AllianceFormationTests
         Assert.Equal(4, formed.Alliance.LeaderForceId);
         Assert.Equal(36, formed.Alliance.RemainingXun);
         Assert.Equal(75, result.Snapshot.Forces.Single(f => f.Id == 4).BaseTrust);
-        Assert.Equal(20, result.Snapshot.Relations.Single(r => r.FirstId == 1 && r.SecondId == 2).Value);
-        Assert.Equal(60, result.Snapshot.Relations.Single(r => r.FirstId == 2 && r.SecondId == 3).Value);
-        Assert.Equal(80, result.Snapshot.Relations.Single(r => r.FirstId == 1 && r.SecondId == 5).Value);
+        Assert.Equal(new[] { (40, 20), (20, 21) }, result.Events.OfType<ForceRelationChangedEvent>()
+            .Where(e => e.FirstId == 1 && e.SecondId == 2).Select(e => (e.Previous, e.Current)));
+        Assert.Equal(new[] { (40, 60), (60, 59) }, result.Events.OfType<ForceRelationChangedEvent>()
+            .Where(e => e.FirstId == 2 && e.SecondId == 3).Select(e => (e.Previous, e.Current)));
+        Assert.Equal(21, result.Snapshot.Relations.Single(r => r.FirstId == 1 && r.SecondId == 2).Value);
+        Assert.Equal(59, result.Snapshot.Relations.Single(r => r.FirstId == 2 && r.SecondId == 3).Value);
+        Assert.Equal(79, result.Snapshot.Relations.Single(r => r.FirstId == 1 && r.SecondId == 5).Value);
         Assert.Equal(SimulationBoundary.Stable, result.Snapshot.Simulation.Boundary);
         foreach (var control in engine.Snapshot.Simulation.Controls) engine.EndControl(new(control.ControllerId));
         Assert.Equal(35, engine.AdvanceXun().Snapshot.Simulation.Alliance!.RemainingXun);
@@ -186,7 +190,8 @@ public sealed class AllianceFormationTests
         Assert.Equal(AllianceFormationFailure.InsufficientMembers, Assert.Single(last.Events.OfType<AllianceFormationFailedEvent>()).Reason);
         Assert.Null(last.Snapshot.Simulation.Alliance);
         Assert.Null(last.Snapshot.Simulation.PendingEvent);
-        Assert.Empty(last.Events.OfType<ForceRelationChangedEvent>());
+        Assert.Equal(new ForceRelationChangedEvent(new(191, 1, 1), 1, 5, 80, 79),
+            Assert.Single(last.Events.OfType<ForceRelationChangedEvent>()));
         Assert.All(last.Snapshot.Forces, f => Assert.Equal(50, f.BaseTrust));
         Assert.Equal(SimulationBoundary.Stable, last.Snapshot.Simulation.Boundary);
     }
@@ -200,7 +205,7 @@ public sealed class AllianceFormationTests
         Assert.True(result.Submission.Accepted);
         Assert.Equal(new[] { 2, 3, 4 }, result.Snapshot.Simulation.Alliance!.MemberForceIds);
         Assert.Equal(4, result.Snapshot.Simulation.Alliance.LeaderForceId);
-        Assert.Equal(80, result.Snapshot.Relations.Single(r => r.FirstId == 1 && r.SecondId == 5).Value);
+        Assert.Equal(79, result.Snapshot.Relations.Single(r => r.FirstId == 1 && r.SecondId == 5).Value);
     }
 
     [Theory]

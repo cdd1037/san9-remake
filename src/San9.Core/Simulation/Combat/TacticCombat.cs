@@ -133,7 +133,7 @@ internal static class TacticCombat
             target.UnitId is null, primary.Tactic.Id, participants.Select(p => p.Officer.Id).ToImmutableArray(), doubled, effect));
         var damageMembers = participants.Select(p => new MartialTacticMember(p.Tactic.Power,
             p.Officer.TacticProficiencies[category], world.Abilities(p.Officer).War, p.Officer.Id != primary.Officer.Id)).ToArray();
-        ResolveMartial(world, new(unit.Id, false), target, damageMembers, doubled, effect, rules, events);
+        ResolveMartial(world, new(unit.Id, false), primary.Officer.Id, primary.Tactic, target, damageMembers, doubled, effect, rules, events);
         var learning = primary.Tactic.Selectable ? primary.Tactic :
             military.Formations[unit.FormationId!.Value].AutomaticTacticLearningId is int related ? military.Tactics[related] : null;
         if (target.UnitId is int survived ? world.Units.ContainsKey(survived) : world.Settlements[target.SettlementId!.Value].OwnerId != unit.OwnerId)
@@ -143,10 +143,13 @@ internal static class TacticCombat
         Grow(world, members, participants.Select(p => p.Officer.Id).ToArray(), primary.Tactic, events, learning);
     }
 
-    internal static void ResolveMartial(WorldMutation world, BattleSource source, MilitaryOrder target,
+    internal static void ResolveMartial(WorldMutation world, BattleSource source, int actorId, TacticRule tactic, MilitaryOrder target,
         MartialTacticMember[] members, bool doubled, int effect, SimulationRules rules, List<DomainEvent> events)
     {
         var military = rules.Military!;
+        int? rescued = TacticRescue.Select(world, source, tactic, target, effect, military);
+        if (rescued is int selected)
+            events.Add(new TacticPrisonerRescuedEvent(world.Clock, source, actorId, tactic.Id, target.UnitId!.Value, selected));
         if (target.UnitId is int targetId)
         {
             var defender = world.Units[targetId];
@@ -157,6 +160,8 @@ internal static class TacticCombat
             MilitaryCombat.DamageUnit(world, defender, damage, defense, source.Id, events, source.IsSettlement);
             var current = world.Units[targetId];
             if (current.Soldiers == 0 || current.Morale == 0) BattleAftermath.TerminateUnit(world, targetId, source, rules, events);
+            else if (rescued is int prisonerId)
+                TacticRescue.Release(world, targetId, prisonerId, rules, events);
         }
         else
         {

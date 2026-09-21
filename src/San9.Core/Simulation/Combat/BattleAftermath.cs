@@ -105,7 +105,7 @@ internal static class BattleAftermath
                 var person = world.Officers[original.Id];
                 if (winner is { } recipient)
                 {
-                    if (person.Status == OfficerStatus.Captive && person.OwnerId == recipient.Owner(world))
+                    if (person.Status == OfficerStatus.Captive && (defeatedUnit is not null || person.OwnerId == recipient.Owner(world)))
                     {
                         if (retreat is int home) BattlePersonnel.Escape(world, person.Id, home, rules.Personnel, events, from.Position, military);
                         else BattlePersonnel.Displace(world, person.Id, from.Position, rules.Personnel, military, events);

@@ -71,6 +71,7 @@ public sealed class MilitaryContentCompilerTests
             var source = formations.Single(f => f.Id == formation.Id);
             Assert.Equal(10, formation.MovementStepCost);
             Assert.Equal(source.Id == 1, formation.DoublesCapture);
+            Assert.Equal(source.Id == 1, formation.PreventsTacticRescue);
             Assert.Equal(source.Id == 3, formation.DoublesDuelChance);
             Assert.Equal(source.Id == 11 ? new[] { 0 } : [], formation.MartialTacticVulnerabilities);
             Assert.Equal(new CombatProfile(source.AgainstUnits, source.AgainstSoldiers, source.AgainstWalls,
@@ -88,6 +89,7 @@ public sealed class MilitaryContentCompilerTests
                 new[] { BattleRank.Front, BattleRank.Middle, BattleRank.Middle, BattleRank.Middle, BattleRank.Rear }, formation.CaptureRanks);
         }
         var rules = new MilitaryRulebook(definition);
+        Assert.Equal(new[] { 0, 1, 2, 3, 4, 5, 33, 34 }, definition.Tactics.Where(t => t.CanRescuePrisoners).Select(t => t.Id));
         // Imported budgets must produce original ordinary daily distances in fine coordinates.
         foreach (var (id, distance) in new[] { (0, 5), (1, 6), (2, 7), (3, 6) })
         {

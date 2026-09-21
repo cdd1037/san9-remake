@@ -71,6 +71,7 @@ public static class MilitaryContentCompiler
                         RequiresWaterOrHarbor = f.Id is 21 or 26, RangedSiege = f.Id == 10
                     },
                     DoublesCapture = f.Id == 1,
+                    PreventsTacticRescue = f.Id == 1,
                     DoublesDuelChance = f.Id == 3,
                     GainsDailyCombatProficiency = f.Id is not (13 or 14),
                     HalvesHostileStrategyChance = f.Id == 7,
@@ -122,6 +123,7 @@ public static class MilitaryContentCompiler
             t.AffectsFacilities, Enumerable.Range(0, San9ScenarioFormationArchive.RecordCount)
                 .Where(t.SupportsArrayType).ToImmutableArray())
             { EffectRadius = t.Id is 26 or 29 or 30 ? 3 : 0, ContactRange = t.Id is >= 0 and <= 5 ? 5 : null,
+                CanRescuePrisoners = t.Id is >= 0 and <= 5 or 33 or 34,
                 FacilityAttack = t.Id switch { 39 => new(true, 0), 40 => new(false, 5), _ => null } }).ToImmutableArray();
     }
 

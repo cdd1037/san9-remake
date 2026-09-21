@@ -7,6 +7,35 @@ namespace San9.Core.Tests;
 public sealed class AllianceFormationTests
 {
     [Fact]
+    public void NewForceBeforeAllianceChoicePreservesCompletedControlRound()
+    {
+        var snapshot = Ready(5, 5).Snapshot;
+        var state = WorldState.Restore(snapshot with
+        {
+            Settlements = snapshot.Settlements.Append(new SettlementState(600, null, 0, 100, 100, 0, 0, 0, 100, 0, 100)).ToArray(),
+            Officers = Enumerable.Range(601, 3).Select(id => new OfficerState(id, null, 600, new(50, 50, 50, 50), false)
+                { Status = OfficerStatus.Free, Ambition = 11 }).ToArray()
+        });
+        var rules = new SimulationRules { Personnel = new(Rules().Personnel.Places.Values.Append(new(600, new(6, 0))),
+            cityProvinces: Rules().Personnel.CityProvinces) };
+        var world = state.BeginMutation();
+        world.SetClock(new(191, 1, 1));
+        List<DomainEvent> events = [];
+        ForceEmergence.Apply(world, rules, events);
+        Assert.Single(events.OfType<ForceFoundedEvent>());
+        Assert.True(AllianceFormation.Begin(world, rules, events));
+        Assert.IsType<AllianceEventSession>(world.Simulation.PendingEvent);
+        state.Commit(world);
+        var engine = new SimulationEngine(state, rules);
+        var answer = Answer(engine, 5, true);
+        Assert.True(answer.Submission.Accepted);
+        Assert.Equal(SimulationBoundary.Stable, answer.Snapshot.Simulation.Boundary);
+        Assert.Single(answer.Events.OfType<AllianceFormedEvent>());
+        Assert.DoesNotContain(answer.Events, e => e is ForceFoundedEvent);
+        Assert.NotNull(WorldState.Restore(engine.CaptureStableState()));
+    }
+
+    [Fact]
     public void PresentedAllianceWithAllPlayersDecliningStillEndsQuarterlyHistoricalSelection()
     {
         var snapshot = Ready(5, 2, 3, 4, 5).Snapshot;

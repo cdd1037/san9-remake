@@ -139,6 +139,9 @@ public sealed class OfficeRequestTests
         Assert.True(last.Submission.Accepted);
         Assert.Equal(new GameClock(190, 2, 1), last.Snapshot.Clock);
         Assert.Equal(SimulationBoundary.Stable, last.Snapshot.Simulation.Boundary);
+        Assert.All(last.Snapshot.Officers.Where(p => p.Id is 10 or 11), p => Assert.False(p.Acted));
+        Assert.True(engine.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1,
+            engine.Snapshot.Simulation.NextSequence, 10, 1)).Submission.Accepted);
         Assert.DoesNotContain(last.Events.OfType<StageCompletedEvent>(), e => e.Stage == ResolutionStage.XunUpdate);
         var restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()), Rules);
         Assert.Empty(restored.InitialEvents);

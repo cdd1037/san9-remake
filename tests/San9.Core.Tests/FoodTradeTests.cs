@@ -33,7 +33,8 @@ public sealed class FoodTradeTests
         Assert.Equal(FoodTradeRejection.AlreadyUsed, FoodTrade.Quote(world, 1, 1, [3], FoodTradeDirection.Buy).Rejection);
         Assert.Equal(FoodTradeRejection.AlreadyUsed, FoodTrade.Quote(world, 1, 1, [3], FoodTradeDirection.Sell).Rejection);
         Assert.Empty(world.Simulation.RandomStreams);
-        XunRecovery.Apply(world);
+        XunRecovery.Settlements(world);
+        XunRecovery.Personnel(world);
         Assert.True(FoodTrade.Quote(world, 1, 1, [1], direction).Available);
     }
 

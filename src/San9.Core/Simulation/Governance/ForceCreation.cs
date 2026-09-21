@@ -23,7 +23,7 @@ internal static class ForceCreation
         });
         world.AddCorps(new(corpsId, forceId, founder.Id, null) { ControlMode = CorpsControlMode.Automatic });
         world.Replace(city with { OwnerId = forceId, CorpsId = corpsId });
-        world.SetSimulation(world.Simulation with { Controls = world.Simulation.Controls.Add(new($"ai:{forceId}", forceId, ControllerKind.Automatic)) });
+        ControlRotation.Replace(world, world.Simulation.Controls.Add(new($"ai:{forceId}", forceId, ControllerKind.Automatic)));
         foreach (var person in members.OrderBy(p => p.Id))
         {
             int loyalty = person.Id == founder.Id ? 100 : 95 - PersonnelRulebook.AffinityDistance(person, founder) / 2 +

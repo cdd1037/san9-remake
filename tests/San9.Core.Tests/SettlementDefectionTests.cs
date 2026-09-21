@@ -6,6 +6,44 @@ namespace San9.Core.Tests;
 
 public sealed class SettlementDefectionTests
 {
+    [Theory]
+    [InlineData(false, 3)]
+    [InlineData(true, 2)]
+    public void EliminatedArmyMembersUsePhysicalRegionAndPreserveEnemyDetention(bool neighbors, int destination)
+    {
+        var world = World(true);
+        world.Replace(world.Settlements[3] with { Kind = SettlementKind.Facility });
+        foreach (int id in new[] { 1, 11 })
+            world.Replace(world.Officers[id] with { SettlementId = null, UnitId = 200, IsCommander = false });
+        world.Replace(world.Officers[12] with { Status = OfficerStatus.Captive, SettlementId = 2, StatusStartYear = 180 });
+        world.Replace(world.Officers[30] with { OwnerId = 2, Status = OfficerStatus.Captive, SettlementId = null, UnitId = 200 });
+        world.AddUnit(new(200, 1, new(302, 2), 10000) { FormationId = 1, CorpsId = 10, ServicePlaceId = 10,
+            CommanderId = 1, MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(1, BattleRank.Front).Add(11, BattleRank.Middle) });
+        var baseline = Rules();
+        var rules = new SimulationRules { Military = baseline.Military,
+            Personnel = new(baseline.Personnel.Places.Values, new Dictionary<int, int> { [3] = 10, [2] = 2 },
+                neighbors ? [new(10, 2)] : []) };
+        List<DomainEvent> events = [];
+        BattleAftermath.Reconcile(world, new HashSet<int> { 1 }, rules, events);
+        ResolutionPipeline.CheckConquest(world, events);
+        ResolutionPipeline.CheckTerminal(world, events);
+        WorldInvariants.Validate(world);
+        foreach (int id in new[] { 1, 11 })
+        {
+            Assert.Equal(OfficerStatus.Free, world.Officers[id].Status);
+            Assert.Equal(destination, world.Officers[id].SettlementId);
+            Assert.Equal(190, world.Officers[id].StatusStartYear);
+        }
+        Assert.Null(world.Officers[12].OwnerId);
+        Assert.Equal(OfficerStatus.Captive, world.Officers[12].Status);
+        Assert.Equal(2, world.Officers[12].SettlementId);
+        Assert.Equal(180, world.Officers[12].StatusStartYear);
+        Assert.Equal(OfficerStatus.Serving, world.Officers[30].Status);
+        Assert.Equal(2, world.Officers[30].OwnerId);
+        Assert.Equal(2, world.Officers[30].SettlementId);
+        Assert.Empty(world.Units);
+    }
+
     private static SettlementState Place(int id, int owner, uint soldiers = 1000) =>
         new(id, owner, soldiers, 100, 100, 70, 500, 100, 1000, 100, 1000)
         { Kind = id == 10 ? SettlementKind.Facility : SettlementKind.City, CorpsId = owner * 10, ConsumesFood = false };
@@ -294,5 +332,7 @@ public sealed class SettlementDefectionTests
         Assert.Null(world.Settlements[3].OwnerId);
         Assert.False(world.Units.ContainsKey(200));
         Assert.Null(world.Officers[1].OwnerId);
+        Assert.Equal(3, world.Officers[1].SettlementId);
+        Assert.Equal(world.Clock.Year, world.Officers[1].StatusStartYear);
     }
 }

@@ -28,7 +28,7 @@ internal static class TacticStudy
             world.Simulation.Tasks.Any(t => t.Kind == Kind && t.OriginSettlementId == cityId)) return [];
         int owner = world.Settlements[cityId].OwnerId!.Value;
         return world.Officers.Values.Where(p => p.IsServing && p.OwnerId == owner && p.SettlementId == cityId && p.UnitId is null &&
-            !p.Acted && !p.LearnedTactics.Contains(tacticId) && p.TacticProficiencies[category] >= tactic.TrainingRequirement / 2 &&
+            !p.LearnedTactics.Contains(tacticId) && p.TacticProficiencies[category] >= tactic.TrainingRequirement / 2 &&
             !world.Simulation.Tasks.Any(t => t.OfficerId == p.Id)).OrderBy(p => p.Id).Select(p => p.Id).ToImmutableArray();
     }
 

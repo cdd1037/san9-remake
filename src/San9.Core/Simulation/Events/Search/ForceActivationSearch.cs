@@ -29,12 +29,9 @@ internal static class ForceActivationSearch
             world.Replace(world.AllOfficers[id] with { IsDormant = false });
 
         var simulation = world.Simulation;
-        int? currentForce = simulation.ActiveControl < simulation.Controls.Length
-            ? simulation.Controls[simulation.ActiveControl].ForceId : null;
         var controls = simulation.Controls.Add(new($"ai:{force.Id}", force.Id, ControllerKind.Automatic))
             .OrderBy(c => c.Kind == ControllerKind.Player ? 0 : 1).ThenBy(c => c.ForceId).ToImmutableArray();
-        world.SetSimulation(simulation with { Controls = controls,
-            ActiveControl = currentForce is int current ? controls.IndexOf(controls.Single(c => c.ForceId == current)) : controls.Length });
+        ControlRotation.Replace(world, controls);
         world.Replace(searching with { BaseTrust = (int)Math.Min(1000L, (long)searching.BaseTrust + d.BaseTrustReward) });
         EconomicCycle.UpdateTrust(world, rules.Economy, events);
         world.ConsumeEvent(d.Candidate(d.ConsumptionKey), new(d.Id, EventOutcomeKind.Completed, false, EventResult.Succeeded));

@@ -150,7 +150,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
             AttackRequests.UpdateXun(world, events);
             AllianceDiplomacy.UpdateXun(world, events);
             OfficerInjuryRecovery.Apply(world, events);
-            XunRecovery.Apply(world);
+            XunRecovery.Settlements(world);
             PrisonerCycle.Apply(world, events);
             FreeOfficerMigration.Apply(world, rules.Personnel, events);
         }
@@ -159,7 +159,11 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
             ForceEmergence.Apply(world, rules, events);
             CityIndependence.Apply(world, rules, events);
         }
-        if (stage == ResolutionStage.XunCleanup) EmperorTransfer.Begin(world, rules, events);
+        if (stage == ResolutionStage.XunCleanup)
+        {
+            XunRecovery.Personnel(world);
+            EmperorTransfer.Begin(world, rules, events);
+        }
         if (stage == ResolutionStage.QuarterPolitics) PoliticalEvents.Begin(world, rules, events);
         if (stage == ResolutionStage.QuarterEvents) QuarterHistoricalEvents.Begin(world, rules, events);
         if (stage == ResolutionStage.QuarterStudyOffers)

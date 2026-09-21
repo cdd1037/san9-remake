@@ -6,6 +6,28 @@ namespace San9.Core.Tests;
 
 public sealed class PoliticalEventsTests
 {
+    [Fact]
+    public void NewIndependentForceDoesNotInvalidateSubsequentCountryTitleChoice()
+    {
+        var state = World(5, true);
+        var world = Due(state);
+        var rules = Rules();
+        List<DomainEvent> events = [];
+        ForceCreation.Found(world, 4, world.Officers[12], [world.Officers[12]], ForceCreationKind.CityIndependence, rules, events);
+        world.Replace(world.Forces[1] with { BaseTrust = 1000, Trust = 1000 });
+        PoliticalEvents.Begin(world, rules, events);
+        Assert.IsType<CountryTitleEventSession>(world.Simulation.PendingEvent);
+        state.Commit(world);
+        var engine = new SimulationEngine(state, rules);
+        var answer = engine.Execute(new("player"), new ChooseCountryTitleCommand(Guid.NewGuid(), 1,
+            engine.Snapshot.Simulation.NextSequence, 41));
+        Assert.True(answer.Submission.Accepted);
+        Assert.Equal(SimulationBoundary.Stable, answer.Snapshot.Simulation.Boundary);
+        Assert.Equal(41, answer.Snapshot.Forces.Single(f => f.Id == 1).CountryTitleId);
+        Assert.Equal(3, answer.Snapshot.Simulation.Controls.Length);
+        Assert.NotNull(WorldState.Restore(engine.CaptureStableState()));
+    }
+
     private static SettlementState City(int id, int owner) => new(id, owner, 1000, 100, 100, 50, 500, 100, 1000, 100, 1000)
         { Kind = SettlementKind.City, ConsumesFood = false };
     private static WorldState World(int rank = 700, bool ended = false) => WorldState.Create(new(190, 1, 1), 17,

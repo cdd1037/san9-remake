@@ -242,8 +242,12 @@ public sealed class MilitaryCombatTests
             MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(22, BattleRank.Front) });
         mutation.SetSimulation(mutation.Simulation with { NextUnitId = 2 });
         world.Commit(mutation);
-        var engine = Engine(world);
-        var restored = Engine(WorldState.Restore(engine.CaptureStableState()));
+        var baseline = Rules();
+        var military = new MilitaryRulebook(new(8, 3, Enumerable.Repeat(0, 24).ToImmutableArray(), [new(0, 1, null)],
+            baseline.Formations.Values.ToImmutableArray(), baseline.Places.Values.ToImmutableArray())
+            { RegionIds = Enumerable.Repeat<int?>(3, 24).ToImmutableArray() });
+        var engine = Engine(world, military);
+        var restored = Engine(WorldState.Restore(engine.CaptureStableState()), military);
         var result = engine.AdvanceXun();
         Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
         Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
@@ -262,6 +266,7 @@ public sealed class MilitaryCombatTests
             Assert.DoesNotContain(engine.Snapshot.Corps, c => c.OwnerId == 2);
             Assert.DoesNotContain(engine.Snapshot.Officers, p => p.OwnerId == 2);
             Assert.Null(engine.Snapshot.Settlements.Single(s => s.Id == 3).OwnerId);
+            Assert.Equal(3, engine.Snapshot.Officers.Single(p => p.Id == 22).SettlementId);
         }
         Assert.NotNull(WorldState.Restore(engine.CaptureStableState()));
     }

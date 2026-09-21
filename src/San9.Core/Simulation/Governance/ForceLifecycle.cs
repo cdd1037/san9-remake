@@ -21,7 +21,7 @@ internal static class ForceLifecycle
         bool playerControlled = world.Simulation.Controls.Any(c => c.ForceId == forceId && c.Kind == ControllerKind.Player);
         foreach (var seat in world.Simulation.Controls.Where(c => c.ForceId == forceId))
             events.Add(new ControlEndedEvent(seat.ControllerId, forceId));
-        world.SetSimulation(world.Simulation with { Controls = controls, ActiveControl = Math.Min(controls.Length, world.Simulation.ActiveControl) });
+        ControlRotation.Replace(world, controls);
         events.Add(new ForceEliminatedEvent(world.Clock, forceId, playerControlled));
         AttackRequests.Cleanup(world, events);
     }

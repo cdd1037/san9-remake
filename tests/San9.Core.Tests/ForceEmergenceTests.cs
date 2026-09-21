@@ -6,6 +6,50 @@ namespace San9.Core.Tests;
 
 public sealed class ForceEmergenceTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void QuarterFoundingCanWaitForStudyAndResumeWithoutRepeatingUpdates(bool independence)
+    {
+        var state = World();
+        var baseline = Rules();
+        var rules = new SimulationRules
+        {
+            Personnel = new(baseline.Personnel.Places.Values, baseline.Personnel.RegionCities,
+                baseline.Personnel.CityConnections, tacticCourses: [new(2, 9000)]),
+            Military = new(new(6, 2, Enumerable.Repeat(0, 12).ToImmutableArray(), [new(0, 1, null)], [], [])
+                { Tactics = [new(9000, 0, TacticEffect.CounterConfusion, 0, 0, 0, false, false, [])] }),
+            Governance = baseline.Governance
+        };
+        var world = state.BeginMutation(rules.Abilities);
+        world.SetClock(new(190, 4, 1));
+        world.SetSimulation(world.Simulation with { ActiveControl = world.Simulation.Controls.Length });
+        if (independence)
+        {
+            world.Replace(world.Settlements[1] with { OwnerId = 7 });
+            world.Replace(world.Officers[1] with { OwnerId = 7, Status = OfficerStatus.Serving, Ambition = 15 });
+        }
+        // A last-xun action must not exclude a physically present person from the new quarter's course.
+        world.Replace(world.Officers[70] with { Acted = true });
+        List<DomainEvent> events = [];
+        new ResolutionPipeline(rules).Prepare(world, events);
+        Assert.Single(events, e => e is ForceFoundedEvent or CityIndependenceEvent);
+        Assert.NotNull(world.Simulation.PendingTacticStudy);
+        state.Commit(world);
+        var engine = new SimulationEngine(state, rules);
+        var answer = engine.Execute(new("player"), new ChooseTacticStudentCommand(Guid.NewGuid(), 7,
+            engine.Snapshot.Simulation.NextSequence, 2, 70));
+        Assert.True(answer.Submission.Accepted);
+        Assert.Equal(SimulationBoundary.Stable, answer.Snapshot.Simulation.Boundary);
+        Assert.DoesNotContain(answer.Events, e => e is ForceFoundedEvent or CityIndependenceEvent);
+        Assert.All(answer.Snapshot.Officers.Where(p => p.IsServing), p => Assert.False(p.Acted));
+        Assert.Equal(70, Assert.Single(answer.Snapshot.Simulation.Tasks).OfficerId);
+        Assert.False(engine.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 7,
+            engine.Snapshot.Simulation.NextSequence, 70, 2)).Submission.Accepted);
+        var restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()), rules);
+        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+    }
+
     private static OfficerState Free(int id, int place, int ambition = 0, int affinity = 0) =>
         new(id, null, place, new(50, 50, 50, 50), false)
         { Status = OfficerStatus.Free, Ambition = ambition, Affinity = affinity };

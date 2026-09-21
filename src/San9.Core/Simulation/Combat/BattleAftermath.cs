@@ -184,14 +184,21 @@ internal static class BattleAftermath
                 OfficerDeath.SettleTreasures(world, person.Id, null, events);
                 continue;
             }
+            if (person.IsServing && person.UnitId is int fieldUnit)
+            {
+                BattlePersonnel.Displace(world, person.Id, world.Units[fieldUnit].Position, rules.Personnel, rules.Military!, events);
+                continue;
+            }
             PersonnelTransitions.CancelMissions(world, person.Id, "force-eliminated", events, rules.Personnel, true);
             var p = world.Officers[person.Id];
             world.Replace(p with { OwnerId = null, Status = p.Status == OfficerStatus.Captive ? OfficerStatus.Captive : OfficerStatus.Free,
-                UnitId = p.Status == OfficerStatus.Captive ? p.UnitId : null, OfficeId = null, IsCommander = false, Acted = true });
+                UnitId = p.Status == OfficerStatus.Captive ? p.UnitId : null, OfficeId = null, IsCommander = false, Acted = true,
+                StatusStartYear = p.Status == OfficerStatus.Captive ? p.StatusStartYear : world.Clock.Year });
         }
         foreach (var unit in world.Units.Values.Where(u => u.OwnerId == forceId).ToArray())
         {
-            foreach (var person in world.Officers.Values.Where(p => p.UnitId == unit.Id).OrderBy(p => p.Id).ToArray()) Detach(world, person, unit.ServicePlaceId, events);
+            // Remaining occupants are prisoners; the shared defeat path releases and places them
+            // by their own allegiance before deleting the detention unit.
             TerminateUnit(world, unit.Id, null, rules, events);
         }
         foreach (var settlement in world.Settlements.Values.Where(s => s.OwnerId == forceId).ToArray())

@@ -232,7 +232,10 @@ public sealed class TacticCombatTests
         Assert.Single(result.Events.OfType<SettlementCapturedEvent>());
         Assert.Single(result.Events.OfType<ForceEliminatedEvent>());
         Assert.Equal(1, engine.Snapshot.Settlements.Single(s => s.Id == 2).OwnerId);
-        Assert.Equal(new(MilitaryOrderKind.Return, null, 2), engine.Snapshot.Units.Single(u => u.Id == 0).Order);
+        Assert.DoesNotContain(engine.Snapshot.Units, u => u.Id == 0);
+        Assert.Equal(Assert.Single(result.Events.OfType<SettlementCapturedEvent>()).Clock,
+            Assert.Single(result.Events.OfType<UnitAbsorbedEvent>()).Clock);
+        Assert.Contains(result.Events.OfType<TacticProficiencyGrownEvent>(), e => e.OfficerId == 11 && e.Category == 0 && e.Current - e.Previous == 3);
     }
 
     [Fact]

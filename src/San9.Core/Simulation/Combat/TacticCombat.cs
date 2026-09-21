@@ -133,17 +133,20 @@ internal static class TacticCombat
             target.UnitId is null, primary.Tactic.Id, participants.Select(p => p.Officer.Id).ToImmutableArray(), doubled, effect));
         var damageMembers = participants.Select(p => new MartialTacticMember(p.Tactic.Power,
             p.Officer.TacticProficiencies[category], world.Abilities(p.Officer).War, p.Officer.Id != primary.Officer.Id)).ToArray();
-        ResolveMartial(world, new(unit.Id, false), primary.Officer.Id, primary.Tactic, target, damageMembers, doubled, effect, rules, events);
+        int? captured = ResolveMartial(world, new(unit.Id, false), primary.Officer.Id, primary.Tactic, target, damageMembers, doubled, effect, rules, events);
         var learning = primary.Tactic.Selectable ? primary.Tactic :
             military.Formations[unit.FormationId!.Value].AutomaticTacticLearningId is int related ? military.Tactics[related] : null;
-        if (target.UnitId is int survived ? world.Units.ContainsKey(survived) : world.Settlements[target.SettlementId!.Value].OwnerId != unit.OwnerId)
+        if (target.UnitId is int survived ? world.Units.ContainsKey(survived) : captured is null)
         {
             if (learning is not null) BattleLearning.Learn(world, IntelligenceTactics.Defenders(world, target), learning, events);
         }
         Grow(world, members, participants.Select(p => p.Officer.Id).ToArray(), primary.Tactic, events, learning);
+        if (captured is int settlementId)
+            BattleAftermath.ResolveSettlementDefeat(world, settlementId, new(unit.Id, false), rules, events);
     }
 
-    internal static void ResolveMartial(WorldMutation world, BattleSource source, int actorId, TacticRule tactic, MilitaryOrder target,
+    // Returns a defeated settlement for the caller to capture after tactic growth, before source absorption.
+    internal static int? ResolveMartial(WorldMutation world, BattleSource source, int actorId, TacticRule tactic, MilitaryOrder target,
         MartialTacticMember[] members, bool doubled, int effect, SimulationRules rules, List<DomainEvent> events)
     {
         var military = rules.Military!;
@@ -171,8 +174,9 @@ internal static class TacticCombat
             uint damage = TacticMath.MartialDamage(members, doubled, ordinary, effect, false, defender.Soldiers);
             MilitaryCombat.DamageSettlement(world, defender, damage, defense, source.Id, events, attackerIsSettlement: source.IsSettlement);
             var current = world.Settlements[defender.Id];
-            if (MilitaryCombat.Defeated(current)) BattleAftermath.ResolveSettlementDefeat(world, defender.Id, source, rules, events);
+            if (MilitaryCombat.Defeated(current)) return defender.Id;
         }
+        return null;
     }
 
     internal static int MartialEffect(WorldMutation world, OfficerState actor, TacticRule tactic,

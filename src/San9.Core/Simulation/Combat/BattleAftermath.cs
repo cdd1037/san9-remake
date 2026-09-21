@@ -24,6 +24,35 @@ internal static class BattleAftermath
     }
 
     internal static void ResolveSettlementDefeat(WorldMutation world, int id, BattleSource winner, SimulationRules rules, List<DomainEvent> events)
+        => ResolveSettlementDefeats(world, [id], winner, rules, events);
+
+    internal static void ResolveSettlementDefeats(WorldMutation world, IReadOnlyList<int> ids, BattleSource winner,
+        SimulationRules rules, List<DomainEvent> events)
+    {
+        // Keep the source alive until every target of one combat effect has settled.
+        var captures = ids.Select(id => (Id: id, Units: CaptureUnits(world, id, winner, rules.Military!))).ToArray();
+        foreach (var capture in captures)
+            CaptureSettlement(world, capture.Id, winner, capture.Units, rules, events);
+        foreach (var capture in captures.Where(c => !world.Settlements[c.Id].IsDestroyed))
+            foreach (int unitId in capture.Units)
+                if (world.Units.TryGetValue(unitId, out var unit))
+                    MilitaryMovement.Absorb(world, unit, capture.Id, rules.Governance, rules.Personnel, events);
+    }
+
+    private static int[] CaptureUnits(WorldMutation world, int id, BattleSource winner, MilitaryRulebook military)
+    {
+        var area = new BattleSource(id, true).Area(world, military);
+        int owner = winner.Owner(world);
+        int? corps = winner.Corps(world);
+        var candidates = world.Units.Values.Where(u => u.OwnerId == owner && u.CorpsId == corps &&
+            !u.IsEmbedded && !u.IsPersonnel && u.Soldiers > 0 && u.Morale > 0 &&
+            u.EffectiveOrder is { Kind: MilitaryOrderKind.AttackSettlement } order && order.SettlementId == id &&
+            MilitaryCombat.Area(u, military).IntersectsExpanded(area, 5)).OrderBy(u => u.Id).Select(u => u.Id).ToArray();
+        return candidates.Length == 0 && !winner.IsSettlement ? [winner.Id] : candidates;
+    }
+
+    private static void CaptureSettlement(WorldMutation world, int id, BattleSource winner, int[] candidates,
+        SimulationRules rules, List<DomainEvent> events)
     {
         var settlement = world.Settlements[id];
         if (!MilitaryCombat.Defeated(settlement))
@@ -46,6 +75,16 @@ internal static class BattleAftermath
             BattleLearning.CapturedSettlement(world, winner, rules.Military, events);
         if (destroyed)
         {
+            if (candidates.Length > 0)
+            {
+                int recipient = candidates.Length == 1 ? candidates[0] :
+                    candidates[(int)(world.NextRandom("battle-capture-wounded") % (uint)candidates.Length)];
+                long pool = (long)settlement.Soldiers + settlement.Wounded;
+                uint accepted = (uint)Math.Min(pool, MilitaryRulebook.WoundedCapacity - world.Units[recipient].Wounded);
+                new BattleSource(recipient, false).Reward(world, accepted, 0);
+                ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, recipient), ResourceKind.Wounded,
+                    "settlement-destroyed-recovery", id, pool, accepted, events);
+            }
             ResourceAccounts.Report(world, new(ResourceOwnerKind.Settlement, id), ResourceKind.Soldiers, "settlement-destroyed", winner.Id,
                 -(long)settlement.Soldiers, -(long)settlement.Soldiers, events);
             ResourceAccounts.Report(world, new(ResourceOwnerKind.Settlement, id), ResourceKind.Wounded, "settlement-destroyed", winner.Id,
@@ -64,7 +103,7 @@ internal static class BattleAftermath
             Facility = settlement.Facility is { } instance ? instance with { BuilderUnitId = null } : null,
             ConfusionDaysRemaining = 0,
             IsDestroyed = destroyed, Soldiers = destroyed ? 0 : settlement.Soldiers, Wounded = destroyed ? 0 : settlement.Wounded,
-            Morale = destroyed ? 0 : Math.Max(1, winner.Morale(world)), Durability = destroyed ? 0 :
+            Morale = destroyed ? 0 : settlement.Morale, Durability = destroyed ? 0 :
                 Math.Max(settlement.Durability, Math.Max(1, settlement.MaxDurability / 4)) });
         foreach (var task in world.Simulation.Tasks.Where(t => t.OriginSettlementId == id || t.Journey?.DestinationPlaceId == id)
             .OrderBy(t => t.Sequence).ThenBy(t => t.Id).ToArray())

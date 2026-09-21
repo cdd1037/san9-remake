@@ -218,7 +218,9 @@ public sealed class MilitaryCombatTests
         var prisoner = engine.Snapshot.Officers.Single(p => p.Id == 22);
         Assert.Equal(OfficerStatus.Captive, prisoner.Status);
         Assert.Null(prisoner.OwnerId);
-        Assert.Equal(0, prisoner.UnitId);
+        Assert.Null(prisoner.UnitId);
+        Assert.Equal(2, prisoner.SettlementId);
+        Assert.Contains(result.Events.OfType<UnitAbsorbedEvent>(), e => e.UnitId == 0 && e.SettlementId == 2);
         Assert.Empty(engine.AdvanceXun().Events);
         Assert.Equal(engine.Snapshot.StateHash, Engine(WorldState.Restore(engine.CaptureStableState())).Snapshot.StateHash);
     }
@@ -295,8 +297,10 @@ public sealed class MilitaryCombatTests
         mutation.SetSimulation(mutation.Simulation with { NextUnitId = 2 });
         world.Commit(mutation);
         var engine = Engine(world);
-        Assert.Single(engine.AdvanceXun().Events.OfType<SettlementCapturedEvent>());
-        Assert.Equal(new(MilitaryOrderKind.Return, null, 2), engine.Snapshot.Units.Single(u => u.Id == 1).Order);
+        var result = engine.AdvanceXun();
+        var capture = Assert.Single(result.Events.OfType<SettlementCapturedEvent>());
+        Assert.Equal(2, result.Events.OfType<UnitAbsorbedEvent>().Count(e => e.Clock == capture.Clock && e.SettlementId == 2));
+        Assert.Empty(engine.Snapshot.Units);
     }
 
     [Fact]

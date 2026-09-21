@@ -8,6 +8,145 @@ namespace San9.Core.Tests;
 public sealed class WarfareAuditAlignmentTests
 {
     [Theory]
+    [InlineData(1000u, 20, 60, 45)]
+    [InlineData(1000u, 0, 60, 35)]
+    [InlineData(0u, 20, 60, 70)]
+    [InlineData(0u, 20, 95, 100)]
+    public void CaptureImmediatelyBlendsOriginalGarrisonWithRewardedAttacker(uint defenders, int morale, int attackerMorale, int expected)
+    {
+        var m = World(); List<DomainEvent> events = [];
+        m.Replace(m.Settlements[2] with { Soldiers = defenders, Morale = morale, Durability = 0, Wounded = 30 });
+        m.Replace(m.Units[1] with { Soldiers = 1000, Morale = attackerMorale, Wounded = 20 });
+        BattleAftermath.ResolveSettlementDefeat(m, 2, new(1, false), new() { Military = Rules() }, events);
+        Assert.Equal(expected, m.Settlements[2].Morale);
+        Assert.Equal(defenders + 1000, m.Settlements[2].Soldiers);
+        Assert.Equal(50u, m.Settlements[2].Wounded);
+        Assert.False(m.Units.ContainsKey(1));
+        Assert.Null(m.Officers[11].UnitId);
+        Assert.Equal(2, m.Officers[11].SettlementId);
+        Assert.Single(events.OfType<UnitAbsorbedEvent>());
+    }
+
+    [Fact]
+    public void CaptureOnlyImmediatelyAbsorbsNearbyAttackersOfReceivingCorps()
+    {
+        var m = World(); List<DomainEvent> events = [];
+        var attack = new MilitaryOrder(MilitaryOrderKind.AttackSettlement, null, 2);
+        m.Replace(m.Settlements[2] with { Soldiers = 0 });
+        m.Replace(m.Units[1] with { Position = new(30, 7), Order = attack, Morale = 60 });
+        m.AddUnit(new(3, 1, new(32, 5), 1000) { FormationId = 101, Morale = 40, Order = attack });
+        m.AddUnit(new(4, 1, new(10, 7), 1000) { FormationId = 101, Morale = 40, Order = attack });
+        m.AddUnit(new(5, 1, new(32, 9), 1000) { FormationId = 101, Morale = 40 });
+        m.AddCorps(new(99, 1, 11, null));
+        m.AddUnit(new(6, 1, new(32, 10), 1000) { FormationId = 101, Morale = 40, Order = attack, CorpsId = 99 });
+        m.Replace(m.Units[2] with { Position = new(34, 7), Order = attack });
+        BattleAftermath.ResolveSettlementDefeat(m, 2, new(1, false), new() { Military = Rules() }, events);
+        Assert.Equal(new[] { 1, 3 }, events.OfType<UnitAbsorbedEvent>().Select(e => e.UnitId));
+        Assert.Equal(67, m.Settlements[2].Morale);
+        Assert.Equal(new[] { 2, 4, 5, 6 }, m.Units.Keys.Order());
+        Assert.Equal(MilitaryOrderKind.Return, m.Units[4].Order!.Kind);
+        Assert.Equal(40, m.Units[4].Morale);
+    }
+
+    [Fact]
+    public void ImmediateCaptureAbsorptionUsesActualCapacityAndDemobilizesOverflow()
+    {
+        var m = World(); List<DomainEvent> events = [];
+        m.Replace(m.Settlements[2] with { Soldiers = 1000, SoldierCapacity = 1500, Morale = 20,
+            Durability = 0, Wounded = 49990, DraftPopulation = 0 });
+        m.Replace(m.Units[1] with { Soldiers = 1000, Morale = 60, Wounded = 20 });
+        BattleAftermath.ResolveSettlementDefeat(m, 2, new(1, false), new() { Military = Rules() }, events);
+        Assert.Equal(1500u, m.Settlements[2].Soldiers);
+        Assert.Equal(50000u, m.Settlements[2].Wounded);
+        Assert.Equal(36, m.Settlements[2].Morale);
+        Assert.Equal(510u, m.Settlements[2].DraftPopulation);
+        Assert.False(m.Units.ContainsKey(1));
+    }
+
+    [Theory]
+    [InlineData(0u, 3000u)]
+    [InlineData(49000u, 50000u)]
+    public void DestroyedGarrisonTransfersSurvivorsAsWounded(uint existing, uint expected)
+    {
+        var m = World(); List<DomainEvent> events = [];
+        m.Replace(m.Settlements[2] with { Soldiers = 1000, Wounded = 2000, Durability = 0 });
+        m.Replace(m.Units[1] with { Wounded = existing, Morale = 60 });
+        BattleAftermath.ResolveSettlementDefeat(m, 2, new(1, false), new() { Military = Rules(destroyed: true) }, events);
+        Assert.Equal(expected, m.Units[1].Wounded);
+        Assert.Equal(70, m.Units[1].Morale);
+        Assert.True(m.Settlements[2].IsDestroyed);
+        Assert.Equal(0u, m.Settlements[2].Soldiers + m.Settlements[2].Wounded);
+        Assert.Empty(events.OfType<UnitAbsorbedEvent>());
+        var recovery = Assert.Single(events.OfType<ResourceChangedEvent>(), e => e.Reason == "settlement-destroyed-recovery");
+        Assert.Equal(3000, recovery.Requested);
+        Assert.Equal(expected - existing, recovery.Actual);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void FacilityCaptureDoesNotInventAnIncomingOrRecoveryUnit(bool destroyed)
+    {
+        var m = World(); List<DomainEvent> events = [];
+        m.Replace(m.Settlements[1] with { Morale = 60 });
+        m.Replace(m.Settlements[2] with { Soldiers = 1000, Morale = 20, Durability = 0 });
+        BattleAftermath.ResolveSettlementDefeat(m, 2, new(1, true), new() { Military = Rules(destroyed: destroyed) }, events);
+        Assert.Equal(70, m.Settlements[1].Morale);
+        Assert.Equal(destroyed ? 0 : 20, m.Settlements[2].Morale);
+        Assert.Equal(destroyed ? 0u : 1000u, m.Settlements[2].Soldiers);
+        Assert.Equal(0u, m.Settlements[1].Wounded);
+        Assert.Equal(100, m.Units[1].Morale);
+        Assert.Empty(events.OfType<UnitAbsorbedEvent>());
+    }
+
+    [Fact]
+    public void DestroyedGarrisonRecipientAndRecoverySurviveRestore()
+    {
+        var world = InitialWorld();
+        var m = world.BeginMutation();
+        var attack = new MilitaryOrder(MilitaryOrderKind.AttackSettlement, null, 2);
+        m.Replace(m.Settlements[2] with { Durability = 0, Soldiers = 1000, Wounded = 2000 });
+        m.Replace(m.Units[1] with { Position = new(30, 7), Order = attack });
+        m.AddUnit(new(3, 1, new(32, 5), 1000) { FormationId = 101, Morale = 40, Order = attack });
+        m.SetSimulation(m.Simulation with { Boundary = SimulationBoundary.Stable, NextUnitId = 4,
+            RandomStreams = [new("battle-capture-wounded", 0)] });
+        world.Commit(m);
+        var restored = WorldState.Restore(world.CreateSnapshot());
+        List<DomainEvent> first = [], second = [];
+        var rules = new SimulationRules { Military = Rules(destroyed: true) };
+        m = world.BeginMutation();
+        BattleAftermath.ResolveSettlementDefeat(m, 2, new(1, false), rules, first);
+        world.Commit(m);
+        var other = restored.BeginMutation();
+        BattleAftermath.ResolveSettlementDefeat(other, 2, new(1, false), rules, second);
+        restored.Commit(other);
+        Assert.Equal(3000u, m.Units[3].Wounded);
+        Assert.Equal(0u, m.Units[1].Wounded);
+        Assert.Equal(CanonicalJson.Text(first), CanonicalJson.Text(second));
+        Assert.Equal(world.CreateSnapshot().StateHash, restored.CreateSnapshot().StateHash);
+        Assert.NotEqual(0UL, m.Simulation.RandomStreams.Single(s => s.Name == "battle-capture-wounded").State);
+    }
+
+    [Fact]
+    public void AreaTacticCapturesAllTargetsBeforeAbsorbingItsSource()
+    {
+        var m = World(); List<DomainEvent> events = [];
+        m.Replace(m.Settlements[2] with { Soldiers = 1 });
+        m.AddSettlement(m.Settlements[2] with { Id = 3 });
+        var baseline = Rules();
+        var military = new MilitaryRulebook(new(20, 3, [.. Enumerable.Repeat(0, 60)], [new(0, 1, 1)],
+            [baseline.Formations[101]], [.. baseline.Places.Values, new(3, new(37, 7), new(1, 1)) { Combat = new(10, 10, 0, 10, 50) }]));
+        var tactic = new TacticRule(999, 7, TacticEffect.Illusion, 13, 10, 0, true, true, [101]) { EffectRadius = 10 };
+        IntelligenceTactics.Resolve(m, new(1, false), m.Officers[11], tactic,
+            new(MilitaryOrderKind.AttackSettlement, null, 2), 10, new() { Military = military }, events);
+        Assert.Equal(new[] { 3, 2 }, events.OfType<SettlementCapturedEvent>().Select(e => e.SettlementId));
+        Assert.Equal(1, m.Settlements[2].OwnerId);
+        Assert.Equal(1, m.Settlements[3].OwnerId);
+        Assert.Single(events.OfType<UnitAbsorbedEvent>());
+        Assert.False(m.Units.ContainsKey(1));
+    }
+
+    [Theory]
     [InlineData(0, 1000u, 100, 600, 150)]
     [InlineData(20, 0u, 100, 600, 150)]
     [InlineData(20, 1000u, 0, 600, 150)]
@@ -24,16 +163,18 @@ public sealed class WarfareAuditAlignmentTests
         Assert.False(Assert.Single(events.OfType<SettlementCapturedEvent>()).Destroyed);
     }
 
-    private static MilitaryRulebook Rules(bool ranged = true) => new(new(20, 3,
+    private static MilitaryRulebook Rules(bool ranged = true, bool destroyed = false) => new(new(20, 3,
         [.. Enumerable.Repeat(0, 60)], [new(0, 1, 1)],
         [new(101, 5, 0, 100000, 1, new(1, 1), TravelMode.Land)
             { Combat = new(10, 10, 100, 10, 50), Attack = new(15, true) { RangedSiege = ranged },
                 CaptureRanks = [BattleRank.Middle] }],
         [new(1, new(2, 7), new(1, 1)) { Combat = new(10, 10, 0, 10, 50) },
-         new(2, new(32, 7), new(1, 1)) { Combat = new(10, 10, 0, 10, 50) }])
+         new(2, new(32, 7), new(1, 1)) { Combat = new(10, 10, 0, 10, 50), DestroyedAtZeroDurability = destroyed }])
         { Tactics = [new(901, 8, TacticEffect.Heal, 19, 10, 0, true, false, [101]) { EffectRadius = 20 }] });
 
-    private static WorldMutation World() => WorldState.Create(new(190, 1, 1), 42,
+    private static WorldMutation World() => InitialWorld().BeginMutation();
+
+    private static WorldState InitialWorld() => WorldState.Create(new(190, 1, 1), 42,
         [new(1, 100000, 100000, 500), new(2, 100000, 100000, 400)],
         [new(1, 1, 1000, 100, 100, 100, 500, 100, 100, 100, 100),
          new(2, 2, 1000, 100, 100, 100, 500, 100, 100, 100, 100)],
@@ -42,7 +183,7 @@ public sealed class WarfareAuditAlignmentTests
         units: [new(1, 1, new(22, 7), 10000) { FormationId = 101, Morale = 100,
                     CommanderId = 11, OrderClass = UnitOrderClass.Military, MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(11, BattleRank.Middle) },
                 new(2, 2, new(52, 7), 10000) { FormationId = 101, Morale = 100,
-                    CommanderId = 21, MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(21, BattleRank.Middle) }]).BeginMutation();
+                    CommanderId = 21, MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(21, BattleRank.Middle) }]);
 
     [Theory]
     [InlineData(100, 1, UnitOrderClass.Military, true, 70)]

@@ -108,14 +108,16 @@ internal static class FacilityCombat
             ? IntelligenceTactics.Defenders(world, new(MilitaryOrderKind.AttackSettlement, null, settlementId)) : [];
         world.Replace(world.Officers[actor.Id] with { TacticCooldown = tactic.Effect == TacticEffect.Martial ? profile.MartialCooldown : tactic.MinimumInterval });
         events.Add(new TacticActivatedEvent(world.Clock, settlementId, true, targetId, false, tactic.Id, [actor.Id], doubled, effect));
+        int? captured = null;
         if (tactic.Effect == TacticEffect.Martial)
-            TacticCombat.ResolveMartial(world, source, actor.Id, tactic, target, [new(tactic.Power, proficiency, world.Abilities(actor).War, false)], doubled, effect, rules, events);
+            captured = TacticCombat.ResolveMartial(world, source, actor.Id, tactic, target, [new(tactic.Power, proficiency, world.Abilities(actor).War, false)], doubled, effect, rules, events);
         else IntelligenceTactics.Resolve(world, source, actor, tactic, target, effect, rules, events);
         if (tactic.Effect == TacticEffect.Martial)
         {
             if (world.Units.ContainsKey(targetId)) BattleLearning.Learn(world, IntelligenceTactics.Defenders(world, target), selected, events);
             TacticCombat.Grow(world, members, [actor.Id], selected, events);
         }
+        if (captured is int capturedId) BattleAftermath.ResolveSettlementDefeat(world, capturedId, source, rules, events);
     }
 
     private static OfficerState? TacticActor(WorldMutation world, int settlementId)

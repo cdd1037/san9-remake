@@ -62,6 +62,7 @@ internal static class IntelligenceTactics
         // Area effects finish on the selected primary target, which owns the subsequent chain request.
         targets.Remove(primary);
         targets.Add(primary);
+        List<int> defeatedSettlements = [];
         foreach (var target in targets)
         {
             int? owner = target.UnitId is int enemy ? world.Units[enemy].OwnerId : world.Settlements[target.SettlementId!.Value].OwnerId;
@@ -70,11 +71,11 @@ internal static class IntelligenceTactics
             events.Add(new IntelligenceEffectResolvedEvent(world.Clock, source, target.UnitId ?? target.SettlementId!.Value,
                 target.UnitId is null, tactic.Id, effect));
             if (effect == 0) continue;
-            Apply(world, source, actor, tactic, target, effect, rules, events);
+            Apply(world, source, actor, tactic, target, effect, rules, events, defeatedSettlements);
             var learning = tactic.Effect == TacticEffect.Trap
                 ? military.Tactics.Values.FirstOrDefault(t => t.Effect == TacticEffect.TrapSelection) ?? tactic : tactic;
             var survivors = target.UnitId is int survived ? world.Units.ContainsKey(survived) :
-                world.Settlements[target.SettlementId!.Value].OwnerId == owner;
+                !MilitaryCombat.Defeated(world.Settlements[target.SettlementId!.Value]);
             var targetMembers = survivors ? Defenders(world, target) : [];
             if (learning.Selectable) BattleLearning.Learn(world, targetMembers, learning, events);
             var sourceMembers = source.Exists(world) ? Defenders(world, source.IsSettlement ?
@@ -92,13 +93,14 @@ internal static class IntelligenceTactics
                 BattleLearning.Passive(world, sourceMembers, TacticEffect.CounterConfusion, military, events);
             }
         }
+        BattleAftermath.ResolveSettlementDefeats(world, defeatedSettlements, source, rules, events);
         BattleAftermath.Reconcile(world, forces, rules, events);
         ResolutionPipeline.CheckConquest(world, events);
         return primary;
     }
 
     private static void Apply(WorldMutation world, BattleSource source, OfficerState actor, TacticRule tactic, MilitaryOrder target,
-        int effect, SimulationRules rules, List<DomainEvent> events)
+        int effect, SimulationRules rules, List<DomainEvent> events, List<int> defeatedSettlements)
     {
         var military = rules.Military!;
         int proficiency = actor.TacticProficiencies[tactic.Category!.Value];
@@ -157,7 +159,7 @@ internal static class IntelligenceTactics
             BattleAftermath.TerminateUnit(world, id, source, rules, events);
         else if (target.UnitId is null && world.Settlements[target.SettlementId!.Value] is var place &&
             MilitaryCombat.Defeated(place))
-            BattleAftermath.ResolveSettlementDefeat(world, place.Id, source, rules, events);
+            defeatedSettlements.Add(place.Id);
     }
 
     private static void ApplySecondary(WorldMutation world, BattleSource source, OfficerState actor, TacticRule tactic,

@@ -77,7 +77,11 @@ public sealed class AttackRequestPlannerTests
     [Fact]
     public void RequestedTargetPrecedesNearerTargetWithoutFulfillingOnSubmission()
     {
-        var content = Fixture();
+        var basis = Fixture();
+        // A counterattack capture now absorbs the army immediately. Keep the transit city passive
+        // so this scenario measures requested-target planning and fulfillment, not a new deployment.
+        var content = basis with { Military = basis.Military! with
+            { Places = basis.Military.Places.Select(p => p.Id == 2 ? p with { Attack = null } : p).ToImmutableArray() } };
         var session = GameSession.Start(content, 42);
         string before = session.Capture().StateHash;
         var command = Assert.IsType<DeployUnitCommand>(MilitaryPlanner.Choose(session, new("player", 1, ControllerKind.Player), Guid.NewGuid()));

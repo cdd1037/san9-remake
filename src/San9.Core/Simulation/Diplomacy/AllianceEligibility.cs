@@ -15,9 +15,8 @@ internal static class AllianceEligibility
         var forces = world.Forces.Values.Where(f => !f.IsEliminated && (!f.IsBarbarian || players.Contains(f.Id))).OrderBy(f => f.Id).ToArray();
         var places = world.Settlements.Values.Where(s => !s.IsDestroyed).ToArray();
         var militaryPopulation = forces.ToDictionary(f => f.Id, f =>
-            places.Where(s => s.OwnerId == f.Id).Sum(s => (long)s.Soldiers + (s.Kind == SettlementKind.City ? s.DraftPopulation : 0)) +
-            world.Units.Values.Where(u => u.OwnerId == f.Id).Sum(u => (long)u.Soldiers) +
-            world.Simulation.Tasks.Where(t => t.ForceId == f.Id).Sum(t => (long)(t.Reinforcements?.Soldiers ?? 0)));
+            SoldierTotals.Force(world, f.Id) +
+            places.Where(s => s.OwnerId == f.Id && s.Kind == SettlementKind.City).Sum(s => (long)s.DraftPopulation));
         var cities = forces.ToDictionary(f => f.Id, f => places.Count(s => s.OwnerId == f.Id && s.Kind == SettlementKind.City));
         var largest = forces.Where(f => militaryPopulation[f.Id] > 300000 && cities[f.Id] > 0)
             .OrderByDescending(f => cities[f.Id]).ThenBy(f => f.Id).FirstOrDefault();

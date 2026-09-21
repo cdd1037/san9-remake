@@ -28,9 +28,9 @@ internal static class SurrenderDiplomacy
     }
 
     internal static long Strength(WorldMutation world, int force) =>
-        world.Settlements.Values.Where(s => s.OwnerId == force && !s.IsDestroyed).Sum(s => (long)s.Soldiers + s.Wounded) +
-        world.Units.Values.Where(u => u.OwnerId == force).Sum(u => (long)u.Soldiers + u.Wounded) +
-        world.Simulation.Tasks.Where(t => t.ForceId == force).Sum(t => (long)(t.Reinforcements?.Soldiers ?? 0));
+        SoldierTotals.Force(world, force) +
+        world.Settlements.Values.Where(s => s.OwnerId == force && !s.IsDestroyed).Sum(s => (long)s.Wounded) +
+        world.Units.Values.Where(u => u.OwnerId == force).Sum(u => (long)u.Wounded);
 
     internal static bool Neighbors(WorldMutation world, int first, int second, SimulationRules rules)
     {

@@ -34,12 +34,6 @@ internal static class CommunitySearch
         d.Sites.SingleOrDefault(s => s.PlaceId == task.Journey!.DestinationPlaceId);
     internal static TrainingSearchSite? Site(PersistentTask task, TrainingSiteSearchEventDefinition d) =>
         d.Sites.SingleOrDefault(s => s.PlaceId == task.Journey!.DestinationPlaceId);
-    private static long CorpsSoldiers(WorldMutation world, PersistentTask task)
-    {
-        int? corps = world.Settlements[task.OriginSettlementId].CorpsId;
-        return world.Settlements.Values.Where(s => s.OwnerId == task.ForceId && s.CorpsId == corps).Sum(s => (long)s.Soldiers) +
-            world.Units.Values.Where(u => u.OwnerId == task.ForceId && u.CorpsId == corps).Sum(u => (long)u.Soldiers);
-    }
     private static bool AfterChance(WorldMutation world, PersistentTask task, PersonnelRulebook rules, CommunitySearchEventDefinition d)
     {
         int trust = world.Forces[task.ForceId].BaseTrust;
@@ -50,13 +44,14 @@ internal static class CommunitySearch
         bool eligible = d switch
         {
             CivicSearchEventDefinition { Activity: CivicSearchKind.DisasterRelief } civic => ResourceAccounts.Balance(world, account, ResourceKind.Food) > civic.MinimumFoodExclusive,
-            CivicSearchEventDefinition { Activity: CivicSearchKind.Volunteers } civic => world.Units.Values.Where(u => u.OwnerId == task.ForceId).Sum(u => (long)u.Soldiers) < civic.MaximumDeployedSoldiersExclusive,
+            CivicSearchEventDefinition { Activity: CivicSearchKind.Volunteers } civic => SoldierTotals.Force(world, task.ForceId) < civic.MaximumForceSoldiersExclusive,
             CivicSearchEventDefinition { Activity: CivicSearchKind.TravelPermit } => Owned(world, task, rules),
             CivicSearchEventDefinition => true,
             CommemorationSearchEventDefinition memorial => Site(task, memorial) is { } site && !world.Simulation.ConsumedEventKeys.Contains(site.ConsumptionKey) &&
                 (site.RequiredTreasureId is not int itemId || world.Treasures.TryGetValue(itemId, out var item) && item.Discovered && item.HolderId == task.OfficerId),
-            TrainingSiteSearchEventDefinition training => Site(task, training) is { } site && CorpsSoldiers(world, task) > training.MinimumCorpsSoldiersExclusive &&
-                world.Officers[task.OfficerId].TacticProficiencies[site.Category] < training.MaximumProficiencyExclusive,
+            TrainingSiteSearchEventDefinition training => Site(task, training) is { } site &&
+                world.Officers[task.OfficerId].TacticProficiencies[site.Category] < training.MaximumProficiencyExclusive &&
+                SoldierTotals.Force(world, task.ForceId) > training.MinimumForceSoldiersExclusive,
             _ => false
         };
         return eligible && Options(world, task, d).All(o => ResourceAccounts.Balance(world, account, o.Resource) >= o.Cost);

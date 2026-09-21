@@ -9,7 +9,7 @@ public sealed class CommunitySearchTests
     {
         "relief" => (CommunitySearchEventDefinition)new CivicSearchEventDefinition(CivicSearchKind.DisasterRelief)
             { MinimumMoneyExclusive = 3000, MinimumFoodExclusive = 3000, CostAbilityCeiling = 120, MoneyCostMultiplier = 4, FoodCostMultiplier = 6, TrustReward = 2, TrustPenalty = 2 },
-        "volunteers" => new CivicSearchEventDefinition(CivicSearchKind.Volunteers) { SoldierMultiplier = 20, MaximumDeployedSoldiersExclusive = 20000, Months = [1, 2, 3, 7, 8, 9] },
+        "volunteers" => new CivicSearchEventDefinition(CivicSearchKind.Volunteers) { SoldierMultiplier = 20, MaximumForceSoldiersExclusive = 20000, Months = [1, 2, 3, 7, 8, 9] },
         "bribe" => new CivicSearchEventDefinition(CivicSearchKind.Bribe) { BaseMoneyReward = 50, MoneyAbilityMultiplier = 2, TrustReward = 2, TrustPenalty = 2 },
         "permit" => new CivicSearchEventDefinition(CivicSearchKind.TravelPermit) { BaseMoneyReward = 10, MoneyAbilityMultiplier = 2, TrustReward = 2, TrustPenalty = 2 },
         "festival" => new CivicSearchEventDefinition(CivicSearchKind.Festival) { TrustReward = 2, ExecutionTrustPenalty = 4, Months = [1, 2, 3, 7, 8, 9] },
@@ -161,9 +161,83 @@ public sealed class CommunitySearchTests
     public void VolunteerHomeCapacityCapsSoldierReward()
     {
         var (world, task, rules, encounter) = Create("volunteers");
-        var home = world.Settlements[1]; world.Replace(home with { Soldiers = home.SoldierCapacity - 10 });
+        var home = world.Settlements[1] with { SoldierCapacity = 11010 };
+        world.Replace(home);
         List<DomainEvent> events = []; CommunitySearch.Resolve(world, task, rules, encounter, CommunitySearchChoice.Accept, events);
         Assert.Equal(10u, Assert.Single(events.OfType<CommunitySearchResolvedEvent>()).Soldiers);
         Assert.Equal(home.SoldierCapacity, world.Settlements[1].Soldiers);
+    }
+
+    [Theory]
+    [InlineData(19999, true)] [InlineData(20000, false)] [InlineData(20001, false)]
+    public void VolunteersUseWholeForceGarrisonsAndStrictTotal(uint soldiers, bool eligible)
+    {
+        var (world, task, rules, encounter) = Create("volunteers");
+        world.Replace(world.Settlements[1] with { Soldiers = soldiers - 10000, Wounded = 100, DraftPopulation = 50000 });
+        world.AddSettlement(new(2, 1, 10000, 100, 100, 50, 0, 0, 0, 0, 0)
+            { Kind = SettlementKind.Facility });
+        Assert.Equal(eligible, CommunitySearch.CanResolve(world, task, rules, encounter));
+        world.SetSimulation(world.Simulation with { RandomStreams = [new("event-search-eligibility",
+            Enumerable.Range(1, 10000).Select(i => (ulong)i).First(s => new StableRandom(s).NextUInt64() % 100 == 0))] });
+        Assert.Equal(eligible, CommunitySearch.Prepare(world, task, rules.Personnel, Definition("volunteers")));
+    }
+
+    [Theory]
+    [InlineData("volunteers", 17000, false)]
+    [InlineData("training", 7000, false)]
+    [InlineData("training", 7001, true)]
+    public void GatesIncludeTroopsCurrentlyCarriedByTasks(string kind, uint garrison, bool eligible)
+    {
+        var (world, task, rules, encounter) = Create(kind);
+        world.Replace(world.Settlements[1] with { Soldiers = garrison });
+        var escort = new PersistentTask(Guid.NewGuid(), PersonnelReturns.Kind, "player", 1, 1, 1,
+            world.Clock, world.Clock.NextDay(), 0, 0) { Reinforcements = new(3000, 50, 1) };
+        world.SetSimulation(world.Simulation with { Tasks = [escort] });
+        Assert.Equal(eligible, CommunitySearch.CanResolve(world, task, rules, encounter));
+        if (eligible)
+        {
+            CommunitySearch.Resolve(world, task, rules, encounter, CommunitySearchChoice.Accept, []);
+            Assert.Equal(17, world.Officers[2].TacticProficiencies[2]);
+        }
+    }
+
+    [Theory]
+    [InlineData(10000, false)] [InlineData(10001, true)]
+    public void TrainingCountsGarrisonsAcrossCorpsWithoutChangingEligibilityWhenReassigned(uint soldiers, bool eligible)
+    {
+        var (world, task, rules, encounter) = Create("training");
+        world.Replace(world.Settlements[1] with { Soldiers = 5000 });
+        world.AddSettlement(new(2, 1, soldiers - 5000, 100, 100, 50, 0, 0, 0, 0, 0));
+        Assert.Equal(eligible, CommunitySearch.CanResolve(world, task, rules, encounter));
+        world.Replace(world.Settlements[2] with { CorpsId = 7 });
+        Assert.Equal(eligible, CommunitySearch.CanResolve(world, task, rules, encounter));
+    }
+
+    [Fact]
+    public void TrainingUsesWholeForceRegardlessOfCorpsOrReturnServiceChanges()
+    {
+        var (world, task, rules, encounter) = Create("training");
+        world.Replace(world.Settlements[1] with { Soldiers = 8000 });
+        world.AddSettlement(new(2, 1, 0, 100, 100, 50, 0, 0, 0, 0, 0));
+        var escort = new PersistentTask(Guid.NewGuid(), PersonnelReturns.Kind, "player", 1, 1, 2,
+            world.Clock, world.Clock.NextDay(), 0, 0) { Reinforcements = new(3000, 50, 1) };
+        world.SetSimulation(world.Simulation with { Tasks = [escort] });
+        Assert.Equal(11000, SoldierTotals.Force(world, 1));
+        Assert.True(CommunitySearch.CanResolve(world, task, rules, encounter));
+
+        world.Replace(world.Settlements[2] with { CorpsId = 7 });
+        Assert.True(CommunitySearch.CanResolve(world, task, rules, encounter));
+        world.Replace(world.Settlements[2] with { OwnerId = null });
+        Assert.True(CommunitySearch.CanResolve(world, task, rules, encounter));
+        Assert.Equal(11000, SoldierTotals.Force(world, 1));
+
+        // Rerouting the return does not change force eligibility.
+        world.SetSimulation(world.Simulation with { Tasks = [escort with { OriginSettlementId = 1 }] });
+        Assert.True(CommunitySearch.CanResolve(world, task, rules, encounter));
+        // Dissolving the corps also preserves eligibility.
+        world.Replace(world.Forces[1] with { Money = 5000 });
+        world.Replace(world.Settlements[1] with { CorpsId = null });
+        Assert.True(CommunitySearch.CanResolve(world, task, rules, encounter));
+        Assert.Equal(11000, SoldierTotals.Corps(world, 1, null));
     }
 }

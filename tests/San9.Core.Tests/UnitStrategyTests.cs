@@ -477,10 +477,18 @@ public sealed class UnitStrategyTests
         Assert.Empty(Day(state, rules).OfType<TaskCancelledEvent>());
         Assert.Equal(task.Id, Assert.Single(state.Simulation.Tasks).Id);
         state.Replace(state.Units[5] with { Soldiers = 9000 });
+        long total = SoldierTotals.Force(state, 1);
+        Assert.Equal(total, SoldierTotals.Corps(state, 1, null));
         Day(state, rules);
         var result = Assert.Single(Day(state, rules).OfType<UnitStrategyResolvedEvent>());
         Assert.Equal(1000u, result.DeliveredSoldiers);
         Assert.Equal(2000u, Assert.Single(state.Simulation.Tasks).Reinforcements!.Soldiers);
+        Assert.Equal(total, SoldierTotals.Force(state, 1));
+        Assert.Equal(total, SoldierTotals.Corps(state, 1, null));
+        for (int i = 0; i < 40 && state.Simulation.Tasks.Length > 0; i++) Day(state, rules);
+        Assert.Empty(state.Simulation.Tasks);
+        Assert.Equal(total, SoldierTotals.Force(state, 1));
+        Assert.Equal(total, SoldierTotals.Corps(state, 1, null));
     }
 
     [Fact]

@@ -93,20 +93,23 @@ public sealed class SearchConflictTests
     }
 
     [Theory]
-    [InlineData(0, true)] [InlineData(99, false)]
-    public void FavoredLeaderTakesPrecedenceButFailedRollNeverAddsUninitializedSoldiers(int roll, bool won)
+    [InlineData(0, true, SearchConflictChoice.Fight)] [InlineData(99, false, SearchConflictChoice.Fight)]
+    [InlineData(0, true, SearchConflictChoice.MediatePeace)] [InlineData(99, false, SearchConflictChoice.MediatePeace)]
+    public void FavoredLeaderRewardsOnlySuccessfulMediation(int roll, bool won, SearchConflictChoice choice)
     {
         var (world, task, rules, encounter) = Create("mediation", roll);
         world.Replace(world.Forces[1] with { LeaderId = 4 });
-        List<DomainEvent> events = []; SearchConflicts.Resolve(world, task, rules, encounter, SearchConflictChoice.MediatePeace, events);
+        List<DomainEvent> events = []; SearchConflicts.Resolve(world, task, rules, encounter, choice, events);
         var result = Assert.Single(events.OfType<SearchConflictResolvedEvent>());
-        Assert.Equal(102, result.BaseTrust); Assert.Equal(0, result.Injury); Assert.Equal(6000u, world.Corps[7].Treasury!.Money);
+        Assert.Equal(won ? 102 : 98, result.BaseTrust); Assert.Equal(won ? 0 : 7, result.Injury);
+        Assert.Equal(won ? 6000u : 5000u, world.Corps[7].Treasury!.Money);
+        Assert.Equal(won ? 1000 : 0, result.MoneyReward);
         Assert.Equal(won ? 1500u : 0u, result.Soldiers); Assert.Equal(won ? EventResult.Succeeded : EventResult.Defeated, result.Result);
     }
 
     [Theory]
     [InlineData("evil", "season", true)] [InlineData("spirit", "full", true)] [InlineData("bandit", "money", true)]
-    [InlineData("demand", "dead", true)] [InlineData("scholar", "history", true)] [InlineData("mediation", "soldiers", true)]
+    [InlineData("demand", "dead", true)] [InlineData("scholar", "history", true)]
     [InlineData("rescue", "foreign", false)] [InlineData("evil", "ai", false)]
     public void InvalidQualificationPreservesRandomGateOrder(string kind, string reason, bool draws)
     {
@@ -119,7 +122,6 @@ public sealed class SearchConflictTests
             case "money": world.Replace(world.Corps[7] with { Treasury = new(2000, 0) }); break;
             case "dead": world.Replace(world.Officers[3] with { Status = OfficerStatus.Dead }); world.Replace(world.Officers[4] with { Status = OfficerStatus.Dead }); break;
             case "history": world.Replace(world.Forces[1] with { EventHistory = [new("scholar.visited")] }); break;
-            case "soldiers": world.Replace(world.Settlements[1] with { Soldiers = 60000 }); break;
             case "foreign": world.Replace(world.Settlements[1] with { OwnerId = null }); break;
             case "ai": world.SetSimulation(world.Simulation with { Controls = [new("ai", 1, ControllerKind.Automatic)] }); break;
         }
@@ -130,12 +132,48 @@ public sealed class SearchConflictTests
     }
 
     [Theory]
-    [InlineData(59999, true)] [InlineData(60000, false)] [InlineData(60001, true)]
-    public void MediationRetainsExactExcludedCorpsTotal(uint soldiers, bool eligible)
+    [InlineData(59999, true)] [InlineData(60000, false)] [InlineData(60001, false)]
+    public void MediationRequiresForceSoldiersStrictlyBelowLimit(uint soldiers, bool eligible)
     {
         var (world, task, rules, encounter) = Create("mediation");
-        world.Replace(world.Settlements[1] with { Soldiers = soldiers });
+        world.Replace(world.Settlements[1] with { Soldiers = soldiers - 5000 });
+        world.AddSettlement(new(2, 1, 5000, 100, 100, 50, 0, 0, 0, 0, 0));
+        world.SetSimulation(world.Simulation with { RandomStreams = [new("event-search-eligibility", Seed(0)), new("event-search-conflict", Seed(0))] });
+        Assert.Equal(eligible, SearchConflicts.Prepare(world, task, rules.Personnel,
+            (ConflictSearchEventDefinition)rules.Personnel.SearchEvents["mediation"], out _));
         Assert.Equal(eligible, SearchConflicts.CanResolve(world, task, rules, encounter));
+        if (eligible)
+        {
+            SearchConflicts.Resolve(world, task, rules, encounter, SearchConflictChoice.Fight, []);
+            Assert.Equal(soldiers - 5000u + 900u, world.Settlements[1].Soldiers);
+        }
+        else
+        {
+            string before = CanonicalJson.Text(world.Simulation);
+            List<DomainEvent> events = [];
+            Assert.Throws<InvalidOperationException>(() => SearchConflicts.Resolve(world, task, rules, encounter, SearchConflictChoice.Fight, events));
+            Assert.Empty(events); Assert.Equal(before, CanonicalJson.Text(world.Simulation));
+            Assert.Equal(soldiers - 5000u, world.Settlements[1].Soldiers);
+        }
+    }
+
+    [Fact]
+    public void MediationIncludesInTransitTroopsAcrossCorps()
+    {
+        var (world, task, rules, encounter) = Create("mediation");
+        world.Replace(world.Settlements[1] with { Soldiers = 57000 });
+        var escort = new PersistentTask(Guid.NewGuid(), PersonnelReturns.Kind, "player", 1, 1, 1,
+            world.Clock, world.Clock.NextDay(), 0, 0) { Reinforcements = new(3000, 50, 1) };
+        world.SetSimulation(world.Simulation with { Tasks = [escort] });
+        Assert.False(SearchConflicts.CanResolve(world, task, rules, encounter));
+        world.Replace(world.Settlements[1] with { Soldiers = 56999 });
+        Assert.True(SearchConflicts.CanResolve(world, task, rules, encounter));
+        world.AddSettlement(new(2, 1, 0, 100, 100, 50, 0, 0, 0, 0, 0));
+        world.SetSimulation(world.Simulation with { Tasks = [escort with { OriginSettlementId = 2 }] });
+        world.Replace(world.Settlements[1] with { Soldiers = 59999 });
+        Assert.False(SearchConflicts.CanResolve(world, task, rules, encounter));
+        world.Replace(world.Settlements[2] with { CorpsId = 7 });
+        Assert.False(SearchConflicts.CanResolve(world, task, rules, encounter));
     }
 
     [Fact]

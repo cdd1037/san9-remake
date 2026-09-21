@@ -26,14 +26,14 @@ public abstract record CommunitySearchEventDefinition : SearchEventDefinition
         {
             CivicSearchEventDefinition d => Consumption == EventConsumption.None && Enum.IsDefined(d.Activity) &&
                 d.CostAbilityCeiling >= 0 && d.SoldierMultiplier >= 0 && d.MoneyAbilityMultiplier >= 0 &&
-                d.MaximumDeployedSoldiersExclusive > 0 && d.TrustReward >= 0 && d.TrustPenalty >= 0 && d.ExecutionTrustPenalty >= 0,
+                d.MaximumForceSoldiersExclusive > 0 && d.TrustReward >= 0 && d.TrustPenalty >= 0 && d.ExecutionTrustPenalty >= 0,
             CommemorationSearchEventDefinition d => Consumption == EventConsumption.OnSuccess && !d.Sites.IsDefaultOrEmpty &&
                 d.TrustReward >= 0 && d.AbilityReward >= 0 && d.Sites.All(s => s is not null && places.Contains(s.PlaceId) &&
                     s.RequiredTreasureId is not < 0 && Enum.IsDefined(s.RewardAbility) && !string.IsNullOrWhiteSpace(s.ConsumptionKey.Value) &&
                     !s.RewardTacticIds.IsDefault && s.RewardTacticIds.All(t => t >= 0) && s.RewardTacticIds.Distinct().Count() == s.RewardTacticIds.Length) &&
                 d.Sites.Select(s => s.PlaceId).Distinct().Count() == d.Sites.Length && d.Sites.Select(s => s.ConsumptionKey).Distinct().Count() == d.Sites.Length,
             TrainingSiteSearchEventDefinition d => Consumption == EventConsumption.None && !d.Sites.IsDefaultOrEmpty &&
-                d.MinimumCorpsSoldiersExclusive >= 0 && d.MaximumProficiencyExclusive is > 0 and <= 1000 && d.LeadershipRewardDivisor > 0 &&
+                d.MinimumForceSoldiersExclusive >= 0 && d.MaximumProficiencyExclusive is > 0 and <= 1000 && d.LeadershipRewardDivisor > 0 &&
                 d.Sites.All(s => s is not null && places.Contains(s.PlaceId) && s.Category is >= 0 and <= 8) &&
                 d.Sites.Select(s => s.PlaceId).Distinct().Count() == d.Sites.Length,
             _ => false
@@ -48,7 +48,7 @@ public sealed record CivicSearchEventDefinition([property: JsonRequired] CivicSe
     [JsonRequired] public int CostAbilityCeiling { get; init; }
     [JsonRequired] public uint MoneyCostMultiplier { get; init; }
     [JsonRequired] public uint FoodCostMultiplier { get; init; }
-    [JsonRequired] public int MaximumDeployedSoldiersExclusive { get; init; } = int.MaxValue;
+    [JsonRequired] public int MaximumForceSoldiersExclusive { get; init; } = int.MaxValue;
     [JsonRequired] public int SoldierMultiplier { get; init; }
     [JsonRequired] public uint BaseMoneyReward { get; init; }
     [JsonRequired] public int MoneyAbilityMultiplier { get; init; }
@@ -65,6 +65,6 @@ public sealed record CommemorationSearchEventDefinition([property: JsonRequired]
     [property: JsonRequired] int AbilityReward) : CommunitySearchEventDefinition;
 public sealed record TrainingSearchSite([property: JsonRequired] int PlaceId, [property: JsonRequired] int Category);
 public sealed record TrainingSiteSearchEventDefinition([property: JsonRequired] ImmutableArray<TrainingSearchSite> Sites,
-    [property: JsonRequired] uint Cost, [property: JsonRequired] int MinimumCorpsSoldiersExclusive,
+    [property: JsonRequired] uint Cost, [property: JsonRequired] int MinimumForceSoldiersExclusive,
     [property: JsonRequired] int MaximumProficiencyExclusive,
     [property: JsonRequired] int LeadershipRewardDivisor) : CommunitySearchEventDefinition;

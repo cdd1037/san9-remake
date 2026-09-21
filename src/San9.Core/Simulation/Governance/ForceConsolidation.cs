@@ -9,10 +9,7 @@ internal static class ForceConsolidation
 {
     private const string Reason = "force-consolidated";
 
-    internal static long Strength(WorldMutation world, int force) =>
-        world.Settlements.Values.Where(s => s.OwnerId == force && !s.IsDestroyed).Sum(s => (long)s.Soldiers) +
-        world.Units.Values.Where(u => u.OwnerId == force).Sum(u => (long)u.Soldiers) +
-        world.Simulation.Tasks.Where(t => t.ForceId == force).Sum(t => (long)(t.Reinforcements?.Soldiers ?? 0));
+    internal static long Strength(WorldMutation world, int force) => SoldierTotals.Force(world, force);
 
     internal static void Apply(WorldMutation world, SimulationRules rules, List<DomainEvent> events)
     {

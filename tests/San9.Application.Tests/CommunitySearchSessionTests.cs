@@ -106,4 +106,31 @@ public sealed class CommunitySearchSessionTests
         var json = JsonNode.Parse(CanonicalJson.Encode(d))!; json["searchEvents"]![0]!.AsObject().Remove("chanceDivisor");
         Assert.Throws<JsonException>(() => StrictJson.Deserialize<ScenarioInitialState>(Encoding.UTF8.GetBytes(json.ToJsonString())));
     }
+
+    [Theory]
+    [InlineData(19999, true)] [InlineData(20000, false)]
+    public void VolunteerGarrisonBoundarySurvivesSaveAndReplay(uint soldiers, bool eligible)
+    {
+        var d = Definition("volunteers");
+        d = d with { Settlements = [d.Settlements[0] with { Soldiers = soldiers }],
+            SearchEvents = [(CivicSearchEventDefinition)Event("volunteers") with { MaximumForceSoldiersExclusive = 20000 }] };
+        var session = GameSession.Start(d, 20);
+        session.BeginRecording();
+        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 2, 1)).Submission.Accepted);
+        var restored = SaveService.Decode(SaveService.Encode(session), d);
+        session.AdvanceXun(); restored.AdvanceXun();
+        Assert.Equal(eligible, session.GetCommunitySearchPrompt() is not null);
+        Assert.Equal(CanonicalJson.Text(session.GetCommunitySearchPrompt()), CanonicalJson.Text(restored.GetCommunitySearchPrompt()));
+        if (session.GetCommunitySearchPrompt() is { } prompt)
+        {
+            var command = new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence,
+                prompt.TaskId, prompt.Step, true) { CommunitySearch = CommunitySearchChoice.Accept };
+            var request = session.Request(new CommandOperation(command), id: command.CommandId);
+            Assert.Equal(SessionDisposition.Accepted, session.Apply(request).Disposition);
+            Assert.Equal(SessionDisposition.Accepted, restored.Apply(request).Disposition);
+        }
+        Assert.Equal(SaveService.Encode(session), SaveService.Encode(restored));
+        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), d, GameSession.EngineFactory(d));
+        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+    }
 }

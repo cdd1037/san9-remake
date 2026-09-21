@@ -193,7 +193,7 @@ public static class EventContentCompiler
                 CostAbilityCeiling = 120, MoneyCostMultiplier = 4, FoodCostMultiplier = 6, TrustReward = 2, TrustPenalty = 2 },
             new CivicSearchEventDefinition(CivicSearchKind.Volunteers)
             { Id = "volunteers", Priority = -18, ChanceAbility = CommunityAbility.Leadership, ChanceDivisor = 6,
-                MaximumTrustExclusive = 300, MaximumDeployedSoldiersExclusive = 20000, SoldierMultiplier = 20, Months = [1, 2, 3, 7, 8, 9] },
+                MaximumTrustExclusive = 300, MaximumForceSoldiersExclusive = 20000, SoldierMultiplier = 20, Months = [1, 2, 3, 7, 8, 9] },
             new CivicSearchEventDefinition(CivicSearchKind.Bribe)
             { Id = "bribe", Priority = -20, ChanceAbility = CommunityAbility.Intelligence, ChanceDivisor = 15,
                 MaximumTrustExclusive = 70, BaseMoneyReward = 50, MoneyAbilityMultiplier = 2, TrustReward = 2, TrustPenalty = 2 },

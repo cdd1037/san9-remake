@@ -136,4 +136,45 @@ public sealed class SearchConflictSessionTests
         json["searchEvents"]![0]!.AsObject().Remove("chanceDivisor");
         Assert.Throws<JsonException>(() => StrictJson.Deserialize<ScenarioInitialState>(Encoding.UTF8.GetBytes(json.ToJsonString())));
     }
+
+    [Theory]
+    [InlineData(SearchConflictChoice.Fight)] [InlineData(SearchConflictChoice.MediatePeace)]
+    public void FavoredLeaderFailureHasNormalPenaltiesAfterSaveAndReplay(SearchConflictChoice choice)
+    {
+        var d = Definition("mediation");
+        var e = (BanditMediationSearchEventDefinition)d.SearchEvents.Single();
+        d = d with { SearchEvents = [e with { Sites = [new(1, 1)], MinimumSuccessChance = 0 }],
+            Officers = d.Officers.Select(o => o.State.Id == 2
+                ? o with { State = o.State with { BaseAbilities = o.State.BaseAbilities with { War = 0 } } } : o).ToArray() };
+        var session = GameSession.Start(d, 20); session.BeginRecording();
+        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 2, 1)).Submission.Accepted);
+        var restored = SaveService.Decode(SaveService.Encode(session), d);
+        session.AdvanceXun(); restored.AdvanceXun();
+        var prompt = Assert.IsType<SearchConflictPrompt>(session.GetSearchConflictPrompt());
+        var command = new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence,
+            prompt.TaskId, prompt.Step, true) { SearchConflict = choice };
+        var request = session.Request(new CommandOperation(command), id: command.CommandId);
+        var result = session.Apply(request);
+        Assert.Equal(SessionDisposition.Accepted, result.Disposition);
+        var resolved = Assert.Single(result.Events.OfType<SearchConflictResolvedEvent>());
+        Assert.True(resolved.FavoredLeader); Assert.Equal(EventResult.Defeated, resolved.Result);
+        Assert.Equal(98, resolved.BaseTrust); Assert.Equal(7, resolved.Injury);
+        Assert.Equal(0, resolved.MoneyReward); Assert.Equal(0u, resolved.Soldiers);
+        Assert.DoesNotContain(result.Events.OfType<ResourceChangedEvent>(), e => e.Reason == "search-conflict");
+        Assert.Equal(SessionDisposition.Accepted, restored.Apply(request).Disposition);
+        Assert.Equal(SaveService.Encode(session), SaveService.Encode(restored));
+        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), d, GameSession.EngineFactory(d));
+        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+    }
+
+    [Fact]
+    public void MediationRequiresPositiveSerializedForceLimit()
+    {
+        var d = Definition("mediation"); var e = (BanditMediationSearchEventDefinition)d.SearchEvents.Single();
+        Assert.Throws<InvalidDataException>(() => (d with { SearchEvents = [e with { MaximumForceSoldiersExclusive = 0 }] }).Validate());
+        Assert.NotEqual(GameSession.Fingerprint(d), GameSession.Fingerprint(d with { SearchEvents = [e with { MaximumForceSoldiersExclusive = 50000 }] }));
+        var json = JsonNode.Parse(CanonicalJson.Encode(d))!;
+        json["searchEvents"]![0]!.AsObject().Remove("maximumForceSoldiersExclusive");
+        Assert.Throws<JsonException>(() => StrictJson.Deserialize<ScenarioInitialState>(Encoding.UTF8.GetBytes(json.ToJsonString())));
+    }
 }

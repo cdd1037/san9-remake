@@ -41,7 +41,8 @@ public abstract record ConflictSearchEventDefinition : SearchEventDefinition
             TravelerRescueSearchEventDefinition => true,
             BanditMediationSearchEventDefinition d => !d.Sites.IsDefaultOrEmpty &&
                 d.Sites.All(s => s is not null && places.Contains(s.PlaceId) && s.FavoredLeaderId >= 0) &&
-                d.Sites.Select(s => s.PlaceId).Distinct().Count() == d.Sites.Length && ValidIds(d.GuaranteedOfficerIds) && d.MinimumSuccessChance is >= 0 and <= 100,
+                d.Sites.Select(s => s.PlaceId).Distinct().Count() == d.Sites.Length && ValidIds(d.GuaranteedOfficerIds) &&
+                d.MinimumSuccessChance is >= 0 and <= 100 && d.MaximumForceSoldiersExclusive > 0,
             _ => false
         };
         if (!valid) throw new ArgumentException("Invalid search conflict parameters.");
@@ -97,7 +98,7 @@ public sealed record BanditMediationSearchEventDefinition(
     [property: JsonRequired] ImmutableArray<BanditMediationSite> Sites,
     [property: JsonRequired] ImmutableArray<int> GuaranteedOfficerIds,
     [property: JsonRequired] int MinimumSuccessChance,
-    [property: JsonRequired] uint IneligibleCorpsSoldierTotal,
+    [property: JsonRequired] uint MaximumForceSoldiersExclusive,
     [property: JsonRequired] uint SoldierMultiplier,
     [property: JsonRequired] uint FavoredSoldierMultiplier,
     [property: JsonRequired] uint FavoredMoneyReward) : ConflictSearchEventDefinition;

@@ -35,12 +35,6 @@ internal static class SearchConflicts
         d.Sites.SingleOrDefault(s => s.PlaceId == task.Journey!.DestinationPlaceId);
     private static BanditMediationSite? MediationSite(PersistentTask task, BanditMediationSearchEventDefinition d) =>
         d.Sites.SingleOrDefault(s => s.PlaceId == task.Journey!.DestinationPlaceId);
-    private static long CorpsSoldiers(WorldMutation world, PersistentTask task)
-    {
-        int? corps = world.Settlements[task.OriginSettlementId].CorpsId;
-        return world.Settlements.Values.Where(s => s.OwnerId == task.ForceId && s.CorpsId == corps).Sum(s => (long)s.Soldiers) +
-            world.Units.Values.Where(u => u.OwnerId == task.ForceId && u.CorpsId == corps).Sum(u => (long)u.Soldiers);
-    }
     private static bool AfterChance(WorldMutation world, PersistentTask task, ConflictSearchEventDefinition d)
     {
         int trust = world.Forces[task.ForceId].BaseTrust;
@@ -55,7 +49,8 @@ internal static class SearchConflicts
             MoneyDemandSearchEventDefinition demand => demand.DemandingOfficerIds.Any(id => Living(world, id)),
             ScholarPunishmentSearchEventDefinition scholar => ScholarSite(task, scholar) is { } site && Living(world, site.ScholarOfficerId) &&
                 site.ScholarOfficerId != task.OfficerId && !world.Forces[task.ForceId].EventHistory.Contains(site.HistoryKey),
-            BanditMediationSearchEventDefinition mediation => MediationSite(task, mediation) is not null && CorpsSoldiers(world, task) != mediation.IneligibleCorpsSoldierTotal,
+            BanditMediationSearchEventDefinition mediation => MediationSite(task, mediation) is not null &&
+                SoldierTotals.Force(world, task.ForceId) < mediation.MaximumForceSoldiersExclusive,
             _ => true
         };
     }
@@ -169,17 +164,14 @@ internal static class SearchConflicts
                 break;
             case BanditMediationSearchEventDefinition mediation:
                 favored = world.Forces[task.ForceId].LeaderId == MediationSite(task, mediation)!.FavoredLeaderId;
-                if (!refused && (won || favored))
+                if (won)
                 {
                     trust = d.TrustReward;
                     if (favored) money = mediation.FavoredMoneyReward;
-                    if (won)
-                    {
-                        var home = world.Settlements[task.OriginSettlementId];
-                        soldiers = (uint)Math.Min(home.SoldierCapacity - home.Soldiers,
-                            (long)(favored ? mediation.FavoredSoldierMultiplier : mediation.SoldierMultiplier) * abilities.War);
-                        world.Replace(home with { Soldiers = home.Soldiers + soldiers });
-                    }
+                    var home = world.Settlements[task.OriginSettlementId];
+                    soldiers = (uint)Math.Min(home.SoldierCapacity - home.Soldiers,
+                        (long)(favored ? mediation.FavoredSoldierMultiplier : mediation.SoldierMultiplier) * abilities.War);
+                    world.Replace(home with { Soldiers = home.Soldiers + soldiers });
                 }
                 else if (!refused) world.Replace(actor with { Injury = d.DefeatInjury });
                 break;

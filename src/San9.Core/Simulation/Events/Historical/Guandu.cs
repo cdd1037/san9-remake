@@ -39,10 +39,10 @@ internal static class Guandu
     private static bool HasAffiliation(OfficerState person) => person.IsServing || person.Status == OfficerStatus.Captive;
     private static bool IsGarrison(SettlementState s) => !s.IsDestroyed && s.CanHostPersons && s.Facility?.BuilderUnitId is null;
     private static IEnumerable<SettlementState> Garrisons(WorldMutation world, GuanduDefinition d, int rival) =>
-        world.Settlements.Values.Where(s => s.OwnerId == rival && IsGarrison(s) && d.EnemyRegionIds.Contains(s.Id)).OrderBy(s => s.Id);
+        world.Settlements.Values.Where(s => s.OwnerId == rival && IsGarrison(s) && d.EnemyRegionIds.Contains(s.Id));
     private static IEnumerable<UnitState> Targets(WorldMutation world, GuanduDefinition d, MilitaryRulebook military, int rival) =>
         world.Units.Values.Where(u => u.OwnerId == rival && !u.IsEmbedded && !u.IsPersonnel &&
-            military.RegionAt(u.Position) is int region && d.EnemyRegionIds.Contains(region)).OrderBy(u => u.Id);
+            military.RegionAt(u.Position) is int region && d.EnemyRegionIds.Contains(region));
 
     internal static bool Apply(WorldMutation world, int actorId, int targetId, SimulationRules rules, List<DomainEvent> events)
     {
@@ -50,8 +50,8 @@ internal static class Guandu
         var d = rules.Guandu!;
         var military = rules.Military!;
         int owner = world.Officers[actorId].OwnerId!.Value, rival = world.Officers[d.OpponentId].OwnerId!.Value;
-        var targets = Targets(world, d, military, rival).ToArray();
-        var garrisons = Garrisons(world, d, rival).ToArray();
+        var targets = Targets(world, d, military, rival).OrderBy(u => u.Id).ToArray();
+        var garrisons = Garrisons(world, d, rival).OrderBy(s => s.Id).ToArray();
         long lost = 0;
         bool terminated = false;
         foreach (var place in garrisons)

@@ -25,7 +25,8 @@ internal static class RedCliffs
         if (location != definition.OfficerRegionId) return false;
 
         var regions = definition.RegionIds.ToHashSet();
-        var fleets = world.Units.Values.Where(u => !u.IsEmbedded && !u.IsPersonnel && military.Map.IsWater(u.Position) &&
+        var fleets = world.Units.Values.Where(u => (u.OwnerId == owner || u.OwnerId == rival) &&
+            !u.IsEmbedded && !u.IsPersonnel && military.Map.IsWater(u.Position) &&
             military.RegionAt(u.Position) is int region && regions.Contains(region)).OrderBy(u => u.Id).ToArray();
         if (fleets.Count(u => u.OwnerId == owner) < definition.MinimumFriendlyWaterUnits) return false;
         var targets = fleets.Where(u => u.OwnerId == rival).ToArray();

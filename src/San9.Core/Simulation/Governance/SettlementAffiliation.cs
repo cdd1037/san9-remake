@@ -13,12 +13,11 @@ internal static class SettlementAffiliation
     {
         int owner = place.OwnerId!.Value;
         var leader = world.Officers[world.Forces[recipient].LeaderId!.Value];
-        bool rulerPresent = present.Any(p => p.Id == world.Forces[owner].LeaderId);
         var followers = new HashSet<int>();
         if (commander is not null) followers.Add(commander.Id);
         foreach (var person in present.Where(p => p.Id != commander?.Id))
         {
-            int chance = rulerPresent ? person.LoyaltyTo(owner) : person.LoyaltyTo(owner) >= 100 ? 0 :
+            int chance = person.LoyaltyTo(owner) >= 100 ? 0 :
                 (16 - person.Righteousness) * ((world.Forces[recipient].Trust - world.Forces[owner].Trust) / 50 - person.LoyaltyTo(owner) + 100) / 2;
             if ((int)(world.NextRandom("event-settlement-defection-followers") % 100) < chance) followers.Add(person.Id);
         }

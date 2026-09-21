@@ -81,9 +81,9 @@ internal static class PersonnelDefection
     }
 
     internal static bool Follows(WorldMutation world, OfficerState person, int recipient,
-        string stream = "personnel-defection-followers", bool rulerPresent = false)
+        string stream = "personnel-defection-followers")
     {
-        int chance = rulerPresent ? person.Loyalty : person.Loyalty >= 100 ? 0 : (16 - person.Righteousness) *
+        int chance = person.Loyalty >= 100 ? 0 : (16 - person.Righteousness) *
             ((world.Forces[recipient].Trust - world.Forces[person.OwnerId!.Value].Trust) / 50 - person.Loyalty + 100) / 2;
         return (int)(world.NextRandom(stream) % 100) < chance;
     }

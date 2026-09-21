@@ -249,20 +249,50 @@ public sealed class SettlementDefectionTests
         Assert.Single(Apply(empty).OfType<SettlementDefectedEvent>());
     }
 
-    [Fact]
-    public void RulerInPlayerLastCityDoesNotSurrenderButAutomaticRulerCan()
+    [Theory]
+    [InlineData(false, false)] [InlineData(true, false)]
+    [InlineData(false, true)] [InlineData(true, true)]
+    public void RulerInLastCityNeverDefectsThroughIsolationOrSiege(bool player, bool siege)
     {
         var world = World(true);
         world.Replace(world.Settlements[3] with { OwnerId = 2, CorpsId = 20 });
+        world.Replace(world.Settlements[10] with { Kind = SettlementKind.City });
         world.Replace(world.Officers[1] with { SettlementId = 10, IsCommander = true, Ambition = 0 });
         world.Replace(world.Officers[10] with { IsCommander = false });
         world.Replace(world.Forces[2] with { Trust = 1000 });
-        Assert.Empty(Apply(world).OfType<SettlementDefectedEvent>());
-        world.SetSimulation(world.Simulation with { Controls = [new("ai:1", 1, ControllerKind.Automatic), new("player", 2, ControllerKind.Player)] });
-        var result = Assert.Single(Apply(world).OfType<SettlementDefectedEvent>());
-        Assert.Equal(1, result.CommanderId);
-        Assert.True(world.Forces[1].IsEliminated);
-        Assert.Equal(OfficerStatus.Serving, world.Officers[1].Status);
-        Assert.Equal(2, world.Officers[1].OwnerId);
+        world.SetSimulation(world.Simulation with { Controls = [new("owner", 1, player ? ControllerKind.Player : ControllerKind.Automatic),
+            new("other", 2, ControllerKind.Player)] });
+        Attackers(world, 2);
+        if (siege) world.Replace(world.Settlements[3] with { OwnerId = null, CorpsId = null });
+        world.AddSettlement(Place(11, 2, 200000) with { Kind = SettlementKind.Facility });
+        var baseline = Rules();
+        var rules = new SimulationRules { Military = baseline.Military, Personnel = new(baseline.Personnel.Places.Values.Append(new(11, new(62, 2))),
+            new Dictionary<int, int> { [2] = 2, [3] = 3, [10] = 10, [11] = 10 }, siege ? [new(10, 3)] : []) };
+        Assert.Empty(Apply(world, rules).OfType<SettlementDefectedEvent>());
+        Assert.Equal(1, world.Settlements[10].OwnerId);
+        Assert.False(world.Forces[1].IsEliminated);
+        Assert.Empty(world.Simulation.RandomStreams);
+    }
+
+    [Fact]
+    public void OrdinaryCommanderDefectingWithLastCityEliminatesRulersRemainingArmyAndFacility()
+    {
+        var world = World(true);
+        world.Replace(world.Settlements[10] with { Kind = SettlementKind.City });
+        world.Replace(world.Settlements[3] with { Kind = SettlementKind.Facility });
+        world.Replace(world.Officers[1] with { SettlementId = null, UnitId = 200, IsCommander = false });
+        world.AddUnit(new(200, 1, new(302, 2), 10000) { FormationId = 1, CorpsId = 10, ServicePlaceId = 3,
+            CommanderId = 1, MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(1, BattleRank.Front) });
+        world.AddSettlement(Place(11, 2, 200000) with { Kind = SettlementKind.Facility });
+        var baseline = Rules();
+        var rules = new SimulationRules { Military = baseline.Military, Personnel = new(baseline.Personnel.Places.Values.Append(new(11, new(62, 2))),
+            new Dictionary<int, int> { [2] = 2, [3] = 3, [10] = 10, [11] = 10 }) };
+        var events = Apply(world, rules);
+        Assert.Equal(10, Assert.Single(events.OfType<SettlementDefectedEvent>()).CommanderId);
+        Assert.Equal(1, Assert.Single(events.OfType<ForceEliminatedEvent>()).ForceId);
+        Assert.Equal(2, world.Settlements[10].OwnerId);
+        Assert.Null(world.Settlements[3].OwnerId);
+        Assert.False(world.Units.ContainsKey(200));
+        Assert.Null(world.Officers[1].OwnerId);
     }
 }

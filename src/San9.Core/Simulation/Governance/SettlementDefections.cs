@@ -32,17 +32,12 @@ internal static class SettlementDefections
             }
             else if (commander is not null)
             {
-                bool rulerPresent = present.Any(p => p.Id == world.Forces[owner].LeaderId);
-                var deciding = rulerPresent ? world.Officers[world.Forces[owner].LeaderId!.Value] : commander;
-                if (deciding.Ambition >= 15 || rulerPresent &&
-                    (world.Simulation.Controls.Any(c => c.ForceId == owner && c.Kind == ControllerKind.Player) ||
-                     world.Settlements.Values.Any(s => s.Id != id && s.OwnerId == owner && Active(s)) ||
-                     DefectionPressure.FieldUnits(world).Any(u => u.OwnerId == owner))) continue;
-                int? recipient = IsolatedRecipient(world, place, city, deciding, rulerPresent, rules);
+                if (commander.Ambition >= 15 || present.Any(p => p.Id == world.Forces[owner].LeaderId)) continue;
+                int? recipient = IsolatedRecipient(world, place, city, commander, rules);
                 var kind = SettlementDefectionKind.Isolated;
                 if (recipient is null)
                 {
-                    recipient = DefectionPressure.BesiegedRecipient(world, new(place.Id, true), deciding, rulerPresent, rules, RandomStream);
+                    recipient = DefectionPressure.BesiegedRecipient(world, new(place.Id, true), commander, rules, RandomStream);
                     kind = SettlementDefectionKind.Besieged;
                 }
                 if (recipient is int target)
@@ -75,7 +70,7 @@ internal static class SettlementDefections
         .OrderByDescending(id => world.Forces[id].Trust).ThenBy(id => id).Select(id => (int?)id).FirstOrDefault();
 
     private static int? IsolatedRecipient(WorldMutation world, SettlementState place, int city, OfficerState deciding,
-        bool rulerPresent, SimulationRules rules)
+        SimulationRules rules)
     {
         int owner = place.OwnerId!.Value;
         bool Enemy(int? other) => other is int id && MilitaryDiplomacy.AutomaticEnemy(world, owner, id);
@@ -88,7 +83,7 @@ internal static class SettlementDefections
         long Strength(int force) => holdings.Where(s => s.OwnerId == force).Sum(s => (long)s.Soldiers + s.Wounded) +
             units.Where(u => u.OwnerId == force).Sum(u => (long)u.Soldiers + u.Wounded) +
             (world.Settlements[city].OwnerId == force ? world.Settlements[city].DraftPopulation : 0);
-        return DefectionPressure.Roll(world, deciding, rulerPresent, owner, target, Strength(owner), Strength(target), RandomStream) ? target : null;
+        return DefectionPressure.Roll(world, deciding, owner, target, Strength(owner), Strength(target), RandomStream) ? target : null;
     }
 
 }

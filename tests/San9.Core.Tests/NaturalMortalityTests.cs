@@ -119,6 +119,31 @@ public sealed class NaturalMortalityTests
         Assert.Single(events.OfType<SimulationEndedEvent>());
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void RulerDeathWithoutCitiesDoesNotOfferOrCommitSuccession(bool execution)
+    {
+        var world = World();
+        var mutation = world.BeginMutation();
+        foreach (int id in new[] { 10, 20 })
+            mutation.Replace(mutation.Settlements[id] with { Kind = SettlementKind.Facility });
+        mutation.SetSimulation(mutation.Simulation with { Controls = [new("player", 1, ControllerKind.Player)] });
+        List<DomainEvent> events = [];
+        if (execution)
+        {
+            mutation.Replace(mutation.Officers[1] with { Status = OfficerStatus.Captive, SettlementId = 30, IsCommander = false });
+            Assert.Equal(CommandRejection.None, PrisonerExecution.Start(mutation,
+                new(Guid.NewGuid(), 2, 0, 1), new(), events));
+        }
+        else OfficerDeath.Resolve(mutation, 1, OfficerDeathCause.Natural, new(), events, false);
+        Assert.Null(mutation.Simulation.PendingExecutionSuccession);
+        Assert.DoesNotContain(events, e => e is ExecutionSuccessionRequestedEvent or ForceLeaderChangedEvent);
+        Assert.Equal(1, Assert.Single(events.OfType<ForceEliminatedEvent>()).ForceId);
+        ResolutionPipeline.CheckTerminal(mutation, events);
+        world.Commit(mutation);
+    }
+
     [Fact]
     public void ChildCorpsSucceedsAndInheritsAssetsTreasuresAndLoyaltyAdjustment()
     {

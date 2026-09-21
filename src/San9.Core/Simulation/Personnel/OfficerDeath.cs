@@ -27,7 +27,7 @@ internal static class OfficerDeath
             !world.Officers.Values.Any(p => p.UnitId == unit && p.IsServing))
             BattleAftermath.TerminateUnit(world, unit, null, rules, events);
         if (ruler && previous.OwnerId is int force &&
-            (world.Settlements.Values.Any(s => s.OwnerId == force && !s.IsDestroyed) || world.Units.Values.Any(u => u.OwnerId == force)) &&
+            ForceLifecycle.HasCity(world, force) &&
             (successorId is int chosen ? world.Officers[chosen] : RulerSuccession.Automatic(world, force, previous)) is { } successor)
             RulerSuccession.Commit(world, force, previous.Id, successor.Id, events);
         if (previous.OwnerId is int affected) BattleAftermath.Reconcile(world, new HashSet<int> { affected }, rules, events);

@@ -103,7 +103,7 @@ public sealed class UnitDefectionTests
 
     [Theory]
     [InlineData(false)] [InlineData(true)]
-    public void OnlyAnAiRulersLastAssetCanDefect(bool player)
+    public void RulerArmyNeverDefectsRegardlessOfControllerOrRemainingCity(bool player)
     {
         var world = World();
         world.Replace(world.Officers[2] with { SettlementId = null, UnitId = 100, Ambition = 0 });
@@ -115,7 +115,8 @@ public sealed class UnitDefectionTests
         if (player) world.SetSimulation(world.Simulation with
             { Controls = world.Simulation.Controls.Add(new("other", 2, ControllerKind.Player)) });
         var events = Apply(world);
-        Assert.Equal(!player, events.OfType<UnitDefectedEvent>().Any());
-        Assert.Equal(!player, world.Forces[2].IsEliminated);
+        Assert.Empty(events.OfType<UnitDefectedEvent>());
+        Assert.Equal(2, world.Units[100].OwnerId);
+        Assert.Empty(world.Simulation.RandomStreams);
     }
 }

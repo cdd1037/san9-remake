@@ -10,7 +10,7 @@ internal static class DefectionPressure
     internal static IEnumerable<UnitState> FieldUnits(WorldMutation world) => world.Units.Values.Where(u => !u.IsEmbedded && !u.IsPersonnel);
 
     internal static int? BesiegedRecipient(WorldMutation world, BattleSource defender, OfficerState deciding,
-        bool rulerPresent, SimulationRules rules, string stream)
+        SimulationRules rules, string stream)
     {
         if (rules.Military is not { } military) return null;
         if (defender.IsSettlement && !military.TryPlace(world.Settlements[defender.Id], out _)) return null;
@@ -34,7 +34,7 @@ internal static class DefectionPressure
         if (FieldUnits(world).Any(u => u.OwnerId == owner && (defender.IsSettlement || u.Id != defender.Id) &&
             CellDistance(u.Position, area.Position) <= 10)) return null;
         long strength = attackers.Where(u => u.OwnerId == target).Sum(u => (long)u.Soldiers);
-        return Roll(world, deciding, rulerPresent, owner, target, defender.Soldiers(world), strength, stream) ? target : null;
+        return Roll(world, deciding, owner, target, defender.Soldiers(world), strength, stream) ? target : null;
     }
 
     private static long CellDistance(WorldPosition first, WorldPosition second)
@@ -44,11 +44,11 @@ internal static class DefectionPressure
         return MapCoordinates.Distance(new(a.X, a.Y), new(b.X, b.Y));
     }
 
-    internal static bool Roll(WorldMutation world, OfficerState deciding, bool rulerPresent, int owner, int target,
+    internal static bool Roll(WorldMutation world, OfficerState deciding, int owner, int target,
         long ownStrength, long targetStrength, string stream)
     {
-        int loyalty = rulerPresent ? 255 : deciding.LoyaltyTo(owner);
-        int willingness = rulerPresent ? 0 : deciding.LoyaltyTo(target);
+        int loyalty = deciding.LoyaltyTo(owner);
+        int willingness = deciding.LoyaltyTo(target);
         long chance = targetStrength / Math.Max(1000, ownStrength) + (willingness - loyalty) / 2 +
             (19 - deciding.Ambition) / 5 * (world.Forces[target].Trust - world.Forces[owner].Trust) / 50;
         return (long)(world.NextRandom(stream) % 100) < chance;

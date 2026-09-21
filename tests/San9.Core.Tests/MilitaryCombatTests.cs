@@ -226,6 +226,49 @@ public sealed class MilitaryCombatTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public void CapturedCityRequiresAnotherCityEvenWithRulerArmyAndSubcorpsHolding(bool remainingCity)
+    {
+        var world = World();
+        var mutation = world.BeginMutation();
+        mutation.AddCorps(new(20, 2, 22, null));
+        mutation.AddCorps(new(21, 2, 12, new(500, 500)));
+        mutation.Replace(mutation.Settlements[2] with { CorpsId = 20 });
+        mutation.AddSettlement(mutation.Settlements[2] with { Id = 3, CorpsId = 21,
+            Kind = remainingCity ? SettlementKind.City : SettlementKind.Facility });
+        mutation.Replace(mutation.Officers[12] with { OwnerId = 2, SettlementId = 3 });
+        mutation.Replace(mutation.Officers[22] with { SettlementId = null, UnitId = 1 });
+        mutation.AddUnit(new(1, 2, new(17, 2), 10000) { FormationId = 7, ServicePlaceId = 3,
+            CorpsId = 20, CommanderId = 22,
+            MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(22, BattleRank.Front) });
+        mutation.SetSimulation(mutation.Simulation with { NextUnitId = 2 });
+        world.Commit(mutation);
+        var engine = Engine(world);
+        var restored = Engine(WorldState.Restore(engine.CaptureStableState()));
+        var result = engine.AdvanceXun();
+        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        var capture = Assert.Single(result.Events.OfType<SettlementCapturedEvent>());
+        Assert.Equal(!remainingCity, engine.Snapshot.Forces.Single(f => f.Id == 2).IsEliminated);
+        if (remainingCity)
+        {
+            Assert.DoesNotContain(result.Events, e => e is ForceEliminatedEvent);
+            Assert.Equal(2, engine.Snapshot.Settlements.Single(s => s.Id == 3).OwnerId);
+            Assert.Contains(engine.Snapshot.Units, u => u.Id == 1 && u.OwnerId == 2);
+        }
+        else
+        {
+            Assert.Equal(capture.Clock, Assert.Single(result.Events.OfType<ForceEliminatedEvent>()).Clock);
+            Assert.DoesNotContain(engine.Snapshot.Units, u => u.OwnerId == 2);
+            Assert.DoesNotContain(engine.Snapshot.Corps, c => c.OwnerId == 2);
+            Assert.DoesNotContain(engine.Snapshot.Officers, p => p.OwnerId == 2);
+            Assert.Null(engine.Snapshot.Settlements.Single(s => s.Id == 3).OwnerId);
+        }
+        Assert.NotNull(WorldState.Restore(engine.CaptureStableState()));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public void ZeroWallsRebuildOrDestroyAccordingToDefinition(bool destroyed)
     {
         var engine = Engine(World(100000, 1), Rules(destroyed: destroyed));

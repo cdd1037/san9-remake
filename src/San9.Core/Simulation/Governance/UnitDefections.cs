@@ -22,13 +22,10 @@ internal static class UnitDefections
                 !commander.IsServing || commander.UnitId != id || commander.OwnerId != unit.OwnerId || commander.Ambition >= 15 ||
                 military.RegionAt(unit.Position) is not int region || !rules.Personnel.Places.ContainsKey(region)) continue;
             int owner = unit.OwnerId;
-            bool ruler = world.Forces[owner].LeaderId == commanderId;
-            if (ruler && (world.Simulation.Controls.Any(c => c.ForceId == owner && c.Kind == ControllerKind.Player) ||
-                world.Settlements.Values.Any(s => s.OwnerId == owner && SettlementDefections.Active(s)) ||
-                DefectionPressure.FieldUnits(world).Any(u => u.OwnerId == owner && u.Id != id))) continue;
-            if (DefectionPressure.BesiegedRecipient(world, new(id, false), commander, ruler, rules, RandomStream) is not int recipient) continue;
+            if (world.Forces[owner].LeaderId == commanderId) continue;
+            if (DefectionPressure.BesiegedRecipient(world, new(id, false), commander, rules, RandomStream) is not int recipient) continue;
             var followers = world.Officers.Values.Where(p => p.IsServing && p.OwnerId == owner && p.UnitId == id).OrderBy(p => p.Id)
-                .Where(p => p.Id == commanderId || PersonnelDefection.Follows(world, p, recipient, "event-unit-defection-followers", ruler))
+                .Where(p => p.Id == commanderId || PersonnelDefection.Follows(world, p, recipient, "event-unit-defection-followers"))
                 .Select(p => p.Id).ToImmutableArray();
             int? home = world.Settlements.Values.Where(s => s.OwnerId == recipient && s.CanHostPersons &&
                     SettlementDefections.Active(s) && s.Facility?.BuilderUnitId is null && military.TryPlace(s, out _))

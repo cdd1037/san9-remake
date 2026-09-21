@@ -1,10 +1,14 @@
 using System.Collections.Immutable;
+using San9.Core.Domain;
 
 namespace San9.Core.Simulation;
 
-/// <summary>Closes a force identity after its personnel, assets and corps have been settled.</summary>
+/// <summary>Defines territorial survival and closes force identities after their personnel, assets and corps are settled.</summary>
 internal static class ForceLifecycle
 {
+    internal static bool HasCity(WorldMutation world, int forceId) => world.Settlements.Values.Any(s =>
+        s.OwnerId == forceId && s.Kind == SettlementKind.City && !s.IsDestroyed && !s.IsDormant);
+
     internal static void Retire(WorldMutation world, int forceId, List<DomainEvent> events)
     {
         AllianceDiplomacy.ForceEliminated(world, forceId, events);

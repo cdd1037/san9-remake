@@ -140,8 +140,7 @@ internal static class BattleAftermath
         foreach (var force in world.Forces.Values.Where(f => !f.IsEliminated && affectedForces.Contains(f.Id)).OrderBy(f => f.Id).ToArray())
         {
             var serving = world.Officers.Values.Where(p => p.OwnerId == force.Id && p.IsServing).OrderBy(p => p.Id).ToArray();
-            bool assets = world.Settlements.Values.Any(s => s.OwnerId == force.Id && !s.IsDestroyed) || world.Units.Values.Any(u => u.OwnerId == force.Id);
-            if (!assets || serving.Length == 0)
+            if (!ForceLifecycle.HasCity(world, force.Id) || serving.Length == 0)
             {
                 Eliminate(world, force.Id, rules, events);
                 continue;

@@ -7,13 +7,14 @@ namespace San9.Core.Tests;
 public sealed class FacilityConstructionTests
 {
     private static readonly CommandContext Player = new("player");
-    private static readonly PersonnelRulebook Geography = new([new(1, new(2, 2)), new(8000, new(17, 2))],
-        new Dictionary<int, int> { [1] = 1, [8000] = 1 });
+    private static readonly PersonnelRulebook Geography = new([new(1, new(2, 2)), new(2, new(27, 2)), new(8000, new(17, 2))],
+        new Dictionary<int, int> { [1] = 1, [2] = 2, [8000] = 1 });
     private static readonly MilitaryRulebook Military = CreateMilitary();
     private static MilitaryRulebook CreateMilitary(bool hostsPeople = true, bool needsTechnology = false, bool attacksWalls = false, int members = 1) => new(new(6, 1, [0, 0, 0, 0, 0, 0], [new(0, 1, null)],
         [new(1, 5, 50, 100000, members, new(1, 1), TravelMode.Land)
             { Combat = new(10, 10, 1000, 10, 50), Attack = new(1, attacksWalls), CaptureRanks = [.. Enumerable.Repeat(BattleRank.Front, members)] }],
-        [new(1, new(2, 2), new(1, 1)) { FacilityTypeId = 0 }])
+        [new(1, new(2, 2), new(1, 1)) { FacilityTypeId = 0 },
+         new(2, new(27, 2), new(1, 1)) { FacilityTypeId = 0 }])
     {
         Facilities = [new(0, 0, 600, new(1, 1), 15, false, true, true, 500000, null, null, null, []),
             new(9000, 1000, 600, new(3, 3), 15, true, hostsPeople, hostsPeople, 250000,
@@ -462,6 +463,7 @@ public sealed class FacilityConstructionTests
         engine = Engine(WorldState.Restore(saved with
         {
             Forces = saved.Forces.ToImmutableArray().Add(new(2, 10000, 1000000, 100) { LeaderId = 21 }),
+            Settlements = saved.Settlements.ToImmutableArray().Add(new(2, 2, 0, 600, 600, 100, 0, 0, 100, 0, 100)),
             Officers = saved.Officers.ToImmutableArray().Add(new(21, 2, null, new(100, 100, 100, 100), false)
                 { UnitId = 1, Status = OfficerStatus.Ruler }),
             Units = saved.Units.Select(u => u with { Condition = UnitCondition.Confused, ConditionDaysRemaining = 100 }).ToImmutableArray()
@@ -508,6 +510,7 @@ public sealed class FacilityConstructionTests
         engine = Engine(WorldState.Restore(saved with
         {
             Forces = saved.Forces.ToImmutableArray().Add(new(2, 10000, 1000000, 100) { LeaderId = 21 }),
+            Settlements = saved.Settlements.ToImmutableArray().Add(new(2, 2, 0, 600, 600, 100, 0, 0, 100, 0, 100)),
             Officers = saved.Officers.ToImmutableArray().Add(new(21, 2, null, new(100, 100, 100, 100), false)
                 { UnitId = 1, Status = OfficerStatus.Ruler }),
             Units = [new(1, 2, new(19, 2), 10000) { FormationId = 1, Morale = 50,
@@ -541,6 +544,7 @@ public sealed class FacilityConstructionTests
         engine = Engine(WorldState.Restore(saved with
         {
             Forces = saved.Forces.ToImmutableArray().Add(new(2, 10000, 1000000, 100) { LeaderId = 21 }),
+            Settlements = saved.Settlements.ToImmutableArray().Add(new(2, 2, 0, 600, 600, 100, 0, 0, 100, 0, 100)),
             Officers = saved.Officers.ToImmutableArray().Add(new(21, 2, null, new(100, 100, 100, 100), false)
                 { UnitId = 1, Status = OfficerStatus.Ruler }),
             Units = saved.Units.Select(u => u with { Soldiers = 1, Condition = UnitCondition.Confused, ConditionDaysRemaining = 100 }).ToImmutableArray()

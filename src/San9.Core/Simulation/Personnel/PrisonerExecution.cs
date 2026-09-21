@@ -33,7 +33,7 @@ internal static class PrisonerExecution
         if (prisoner.OwnerId is int owner && world.Forces[owner].LeaderId == prisoner.Id &&
             world.Simulation.Controls.Any(c => c.ForceId == owner && c.Kind == ControllerKind.Player) &&
             !Candidates(world, owner).IsEmpty &&
-            (world.Settlements.Values.Any(s => s.OwnerId == owner && !s.IsDestroyed) || world.Units.Values.Any(u => u.OwnerId == owner)))
+            ForceLifecycle.HasCity(world, owner))
         {
             world.SetSimulation(world.Simulation with { Boundary = SimulationBoundary.AwaitingDecision,
                 PendingExecutionSuccession = new(command.IssuerId, prisoner.Id, owner) });
@@ -84,8 +84,7 @@ internal static class PrisonerExecution
             !world.Forces.TryGetValue(pending.RespondingForceId, out var force) || force.LeaderId != person.Id || force.IsEliminated ||
             !sim.Controls.Any(c => c.ForceId == pending.RespondingForceId && c.Kind == ControllerKind.Player) ||
             Candidates(world, pending.RespondingForceId).IsEmpty ||
-            !world.Settlements.Values.Any(s => s.OwnerId == pending.RespondingForceId && !s.IsDestroyed) &&
-            !world.Units.Values.Any(u => u.OwnerId == pending.RespondingForceId))
+            !ForceLifecycle.HasCity(world, pending.RespondingForceId))
             throw new ArgumentException("Invalid pending execution succession.");
     }
 }

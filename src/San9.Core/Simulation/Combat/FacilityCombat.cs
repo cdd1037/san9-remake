@@ -109,9 +109,12 @@ internal static class FacilityCombat
         world.Replace(world.Officers[actor.Id] with { TacticCooldown = tactic.Effect == TacticEffect.Martial ? profile.MartialCooldown : tactic.MinimumInterval });
         events.Add(new TacticActivatedEvent(world.Clock, settlementId, true, targetId, false, tactic.Id, [actor.Id], doubled, effect));
         int? captured = null;
+        var sniping = tactic.Effect == TacticEffect.Martial
+            ? TacticSniping.Select(world, source, tactic, target, [actor.Id], effect, military) : null;
         if (tactic.Effect == TacticEffect.Martial)
             captured = TacticCombat.ResolveMartial(world, source, actor.Id, tactic, target, [new(tactic.Power, proficiency, world.Abilities(actor).War, false)], doubled, effect, rules, events);
         else IntelligenceTactics.Resolve(world, source, actor, tactic, target, effect, rules, events);
+        TacticSniping.Apply(world, sniping, !world.Units.ContainsKey(targetId), rules, events);
         if (tactic.Effect == TacticEffect.Martial)
         {
             if (world.Units.ContainsKey(targetId)) BattleLearning.Learn(world, IntelligenceTactics.Defenders(world, target), selected, events);

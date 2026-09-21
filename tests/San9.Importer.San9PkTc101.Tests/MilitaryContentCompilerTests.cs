@@ -72,6 +72,7 @@ public sealed class MilitaryContentCompilerTests
             Assert.Equal(10, formation.MovementStepCost);
             Assert.Equal(source.Id == 1, formation.DoublesCapture);
             Assert.Equal(source.Id == 1, formation.PreventsTacticRescue);
+            Assert.Equal(source.Id == 5 ? 30 : 0, formation.SnipingChanceBonus);
             Assert.Equal(source.Id == 3, formation.DoublesDuelChance);
             Assert.Equal(source.Id == 11 ? new[] { 0 } : [], formation.MartialTacticVulnerabilities);
             Assert.Equal(new CombatProfile(source.AgainstUnits, source.AgainstSoldiers, source.AgainstWalls,
@@ -90,6 +91,8 @@ public sealed class MilitaryContentCompilerTests
         }
         var rules = new MilitaryRulebook(definition);
         Assert.Equal(new[] { 0, 1, 2, 3, 4, 5, 33, 34 }, definition.Tactics.Where(t => t.CanRescuePrisoners).Select(t => t.Id));
+        Assert.Equal(new[] { 6, 7, 8, 9, 10, 11, 31, 32 }, definition.Tactics.Where(t => t.SnipingProficiencyCategory == 3).Select(t => t.Id));
+        Assert.All(definition.Tactics.Where(t => t.SnipingProficiencyCategory is not null), t => Assert.Equal(3, t.SnipingProficiencyCategory));
         // Imported budgets must produce original ordinary daily distances in fine coordinates.
         foreach (var (id, distance) in new[] { (0, 5), (1, 6), (2, 7), (3, 6) })
         {

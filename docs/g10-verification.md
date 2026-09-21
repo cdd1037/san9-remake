@@ -389,3 +389,10 @@ dotnet test tests/San9.Headless.Tests --filter FullyQualifiedName~TypedExplorati
 本次仅更新领域规则，规则版本升至`san9-core-g10-v46`；内容schema、保存／日志结构未变，无需重转内容包。旧规则存档、命令日志及录像按现有版本校验拒绝，不混用新旧规则。
 
 验证：执行全解决方案测试后，修正新增测试的结算边界调用并完整复跑Core；最终合计3186项通过（Core2211、Application444、Content74、Importer343、Godot98、Headless16）。覆盖最后一城占领时仍有君主部队／设施、其他军团仍有城市、普通大将带走最后一城、无城市时君主死亡／处决不产生继任选择、玩家／电脑君主不主动归附及不耗骰；既有公开会话、保存与录像回归通过。建设测试中原先无城市的敌方夹具补齐城市，不改变建设规则。日志为`local/generated/force-lifecycle-tests.log`及最终Core复测`local/generated/force-lifecycle-core-tests.log`。未启动游戏；本次通过领域、会话与持久化测试验证，无新增界面交互。
+
+## 2026-09-22 狙击
+
+- 实现：部队、设施及真实连携参与者的狙击；目标资格、概率、伤势与受保护人物免死；采用日版同次击破／占领后仍写伤势。狙击阵亡不依赖玩家消息可见性。
+- 内容：schema108／组合112、规则v50，保存／日志81。190运行包原位重转；25势力、94据点、700人物、41兵法、28阵形未减少；兵法6–11、31、32共8项均映射类别3，唯一阵形5加30。
+- 验证：`dotnet test San9Remake.slnx --no-restore --verbosity quiet`共3256项通过（Core 2280、Content 74、Importer 343、Application 445、Client 98、Headless 16）；其中31项狙击专项覆盖日级入口、连携／设施来源、同次击破／占领、恢复确定性和事件序列化。
+- 包校验：`verify-client`通过13,487项逻辑图像／5,128物理文件、格式及区域校验。新增效果没有玩家命令，既有伤势查询读取权威状态；未启动游戏，专用动画／消息画面未验收。

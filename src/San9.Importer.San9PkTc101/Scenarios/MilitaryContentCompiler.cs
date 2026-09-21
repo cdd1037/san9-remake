@@ -72,6 +72,7 @@ public static class MilitaryContentCompiler
                     },
                     DoublesCapture = f.Id == 1,
                     PreventsTacticRescue = f.Id == 1,
+                    SnipingChanceBonus = f.Id == 5 ? 30 : 0,
                     DoublesDuelChance = f.Id == 3,
                     GainsDailyCombatProficiency = f.Id is not (13 or 14),
                     HalvesHostileStrategyChance = f.Id == 7,
@@ -124,6 +125,7 @@ public static class MilitaryContentCompiler
                 .Where(t.SupportsArrayType).ToImmutableArray())
             { EffectRadius = t.Id is 26 or 29 or 30 ? 3 : 0, ContactRange = t.Id is >= 0 and <= 5 ? 5 : null,
                 CanRescuePrisoners = t.Id is >= 0 and <= 5 or 33 or 34,
+                SnipingProficiencyCategory = t.Id is >= 6 and <= 11 or 31 or 32 ? 3 : null,
                 FacilityAttack = t.Id switch { 39 => new(true, 0), 40 => new(false, 5), _ => null } }).ToImmutableArray();
     }
 

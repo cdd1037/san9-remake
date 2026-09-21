@@ -17,10 +17,13 @@ public sealed record TacticRule(int Id, int? Category, TacticEffect Effect, int 
 {
     [JsonRequired] public int EffectRadius { get; init; }
     [JsonRequired] public bool CanRescuePrisoners { get; init; }
+    [JsonRequired] public int? SnipingProficiencyCategory { get; init; }
     [JsonRequired] public int? ContactRange { get; init; }
     [JsonRequired] public FacilityAttackModifier? FacilityAttack { get; init; }
     internal void Validate(IReadOnlyDictionary<int, FormationRule> formations)
     {
+        if (SnipingProficiencyCategory is < 0 or > 8 || SnipingProficiencyCategory is not null && Effect != TacticEffect.Martial)
+            throw new ArgumentException("Invalid sniping proficiency category.");
         if (Id < 0 || EffectRadius < 0 || CanRescuePrisoners && Effect != TacticEffect.Martial || ContactRange is <= 0 || ContactRange is not null && Effect != TacticEffect.Martial || Category is < 0 or > 8 || !Enum.IsDefined(Effect) || Power < 0 || MinimumInterval < 0 ||
             TrainingRequirement < 0 || CompatibleFormations.IsDefault ||
             CompatibleFormations.Distinct().Count() != CompatibleFormations.Length ||

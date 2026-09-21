@@ -133,7 +133,11 @@ internal static class TacticCombat
             target.UnitId is null, primary.Tactic.Id, participants.Select(p => p.Officer.Id).ToImmutableArray(), doubled, effect));
         var damageMembers = participants.Select(p => new MartialTacticMember(p.Tactic.Power,
             p.Officer.TacticProficiencies[category], world.Abilities(p.Officer).War, p.Officer.Id != primary.Officer.Id)).ToArray();
+        var sniping = TacticSniping.Select(world, new(unit.Id, false), primary.Tactic, target,
+            participants.Select(p => p.Officer.Id), effect, military);
         int? captured = ResolveMartial(world, new(unit.Id, false), primary.Officer.Id, primary.Tactic, target, damageMembers, doubled, effect, rules, events);
+        if (captured is null)
+            TacticSniping.Apply(world, sniping, target.UnitId is int defeated && !world.Units.ContainsKey(defeated), rules, events);
         var learning = primary.Tactic.Selectable ? primary.Tactic :
             military.Formations[unit.FormationId!.Value].AutomaticTacticLearningId is int related ? military.Tactics[related] : null;
         if (target.UnitId is int survived ? world.Units.ContainsKey(survived) : captured is null)
@@ -142,7 +146,10 @@ internal static class TacticCombat
         }
         Grow(world, members, participants.Select(p => p.Officer.Id).ToArray(), primary.Tactic, events, learning);
         if (captured is int settlementId)
+        {
             BattleAftermath.ResolveSettlementDefeat(world, settlementId, new(unit.Id, false), rules, events);
+            TacticSniping.Apply(world, sniping, true, rules, events);
+        }
     }
 
     // Returns a defeated settlement for the caller to capture after tactic growth, before source absorption.

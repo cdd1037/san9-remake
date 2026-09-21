@@ -17,6 +17,7 @@ public sealed record FormationRule(int Id, int MovementBudget, int DeploymentCos
     [JsonRequired] public ImmutableArray<BattleRank> CaptureRanks { get; init; } = [];
     [JsonRequired] public bool DoublesCapture { get; init; }
     [JsonRequired] public bool PreventsTacticRescue { get; init; }
+    [JsonRequired] public int SnipingChanceBonus { get; init; }
     [JsonRequired] public bool DoublesDuelChance { get; init; }
     [JsonRequired] public bool GainsDailyCombatProficiency { get; init; } = true;
     [JsonRequired] public bool HalvesHostileStrategyChance { get; init; }
@@ -128,6 +129,8 @@ public sealed partial class MilitaryRulebook
             throw new ArgumentException("Invalid battlefield region geography.");
         territoryBorders = BuildTerritoryBorders(definition.TerritoryExits);
         Formations = definition.Formations.ToImmutableDictionary(f => f.Id);
+        if (Formations.Values.Any(f => f.SnipingChanceBonus is < 0 or > 100))
+            throw new ArgumentException("Invalid sniping formation bonus.");
         UnformedFormationId = definition.UnformedFormationId;
         if (UnformedFormationId is int unformed && (!Formations.TryGetValue(unformed, out var profile) || profile.Combat is null))
             throw new ArgumentException("Invalid unformed combat formation reference.");

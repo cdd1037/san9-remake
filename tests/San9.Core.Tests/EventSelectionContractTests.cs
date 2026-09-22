@@ -94,7 +94,7 @@ public sealed class EventSelectionContractTests
         var mutation = world.BeginMutation();
         mutation.ConsumeEvent(new("history", EventTrigger.Search, 1, EventConsumption.OnSuccess, new("history")),
             new("history", EventOutcomeKind.Completed, false, EventResult.Succeeded));
-        mutation.Replace(mutation.Forces[1] with { Trust = -1 });
+        mutation.Replace(mutation.Forces[1] with { BaseTrust = -1 });
         Assert.Throws<ArgumentException>(() => world.Commit(mutation));
         Assert.Empty(world.Simulation.ConsumedEventKeys);
         Assert.Equal(before, world.CreateSnapshot().StateHash);

@@ -42,7 +42,6 @@ internal static class ForceCreation
             !world.Forces.Values.Any(f => f.LeaderId == p.Id)).OrderBy(p => p.Id).ToArray())
             RecruitmentRules.SetLoyalty(world, person.Id, forceId, predecessor is int old && person.OwnerId == old ? 45 : 50, reason, events);
 
-        EconomicCycle.UpdateTrust(world, rules.Economy, events);
         var account = new ResourceAccount(ResourceOwnerKind.Force, forceId);
         ResourceAccounts.Change(world, account, ResourceKind.Money, 2 * EconomyMath.Revenue(city) + 3000, reason, cityId, events);
         ResourceAccounts.Change(world, account, ResourceKind.Food, 2 * EconomyMath.Harvest(city) + 30000, reason, cityId, events);

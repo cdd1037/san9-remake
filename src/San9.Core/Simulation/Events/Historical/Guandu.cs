@@ -94,7 +94,6 @@ internal static class Guandu
         world.Replace(enemy with { BaseTrust = enemy.BaseTrust - penalty });
         foreach (var person in world.Officers.Values.Where(p => p.OwnerId == owner && p.IsServing && p.Status != OfficerStatus.Ruler).OrderBy(p => p.Id).ToArray())
             RecruitmentRules.SetLoyalty(world, person.Id, owner, (int)Math.Min(255L, person.LoyaltyTo(owner) + (long)d.LoyaltyBonus), "guandu", events);
-        EconomicCycle.UpdateTrust(world, rules.Economy, events);
         var candidate = new EventCandidate(d.ConsumptionKey.Value, EventTrigger.Recruitment, 0, EventConsumption.OnSuccess, d.ConsumptionKey);
         world.ConsumeEvent(candidate, new(candidate.Id, EventOutcomeKind.Completed, false, EventResult.Succeeded));
         events.Add(new GuanduEvent(world.Clock, owner, rival, actorId, targetId, targets.Select(u => u.Id).ToImmutableArray(),

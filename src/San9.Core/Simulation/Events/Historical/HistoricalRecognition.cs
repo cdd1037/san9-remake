@@ -44,7 +44,6 @@ internal static class HistoricalRecognition
             foreach (int tactic in definition.GrantedTacticIds) OfficerTacticGrowth.Grant(world, person.Id, tactic, events);
         }
         Complete(world, definition.Candidate());
-        EconomicCycle.UpdateTrust(world, rules.Economy, events);
         events.Add(new FiveTigersRecognizedEvent(world.Clock, owner, definition.OfficerIds, trustGain));
         return true;
     }
@@ -68,7 +67,6 @@ internal static class HistoricalRecognition
                 foreach (int tactic in definition.GrantedTacticIds) OfficerTacticGrowth.Grant(world, person.Id, tactic, events);
         }
         Complete(world, definition.Candidate());
-        EconomicCycle.UpdateTrust(world, rules.Economy, events);
         events.Add(new ExpeditionMemorialEvent(world.Clock, owner, author.Id, officers.Select(p => p.Id).ToImmutableArray(), trustGain, grants));
         return true;
     }

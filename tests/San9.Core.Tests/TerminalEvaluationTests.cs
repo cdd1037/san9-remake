@@ -53,6 +53,9 @@ public sealed class TerminalEvaluationTests
     public void TerminalCheckStopsBeforeWorldUpdatesAndRestoreDoesNotRepeat()
     {
         var world = SimulationEngineTests.CreateWorld(new(350, 1, 1));
+        var initial = world.BeginMutation();
+        initial.RebuildForceTrust();
+        world.RestoreDerivedTrust(initial);
         var before = world.CreateSnapshot();
         var rules = new SimulationEngineTests.FixtureRules { Terminal = new([1, 2], 350),
             OnStage = (_, _, _) => throw new Exception("No stage may run after the terminal gate.") };

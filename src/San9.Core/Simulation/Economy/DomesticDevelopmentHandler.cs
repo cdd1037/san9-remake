@@ -81,7 +81,6 @@ internal static class DomesticDevelopmentHandler
             foreach (int category in categories) proficiency[category] = Math.Min(1000, proficiency[category] + (person.MasteredCategories.Contains(category) ? 3 : 1));
             world.Replace(person with { Acted = true, TacticProficiencies = proficiency.ToImmutable() });
         }
-        if (activity == DomesticActivity.Patrol) EconomicCycle.UpdateTrust(world, rules, events);
         return new(DevelopmentRejection.None, increment, cost);
     }
 

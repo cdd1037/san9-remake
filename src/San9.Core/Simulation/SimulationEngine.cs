@@ -44,6 +44,7 @@ public sealed class SimulationEngine
             rules.Military is null || !rules.Military.Tactics.TryGetValue(c.Value, out var tactic) || tactic.Category is not (>= 0 and <= 8)))
             throw new ArgumentException("Invalid tactic study course.");
         var initial = world.BeginMutation(rules.Abilities, rules.Economy);
+        initial.RebuildForceTrust();
         PoliticalEvents.ValidateRules(initial, rules);
         EmperorTransfer.ValidateRules(initial, rules);
         rules.QiaoMarriage?.Validate(world.CreateSnapshot().Officers.Select(p => p.Id).ToHashSet(), rules.Personnel.CityProvinces);
@@ -100,18 +101,19 @@ public sealed class SimulationEngine
             _world.EnterExecution();
             try
             {
-                var mutation = world.BeginMutation(rules.Abilities, rules.Economy);
+                var mutation = initial;
                 List<DomainEvent> events = [];
                 OfficerAppearance.Initialize(mutation, events);
                 _pipeline.Prepare(mutation, events);
                 AttackRequests.Cleanup(mutation, events);
                 CorpsDelegations.Cleanup(mutation, _rules.Military, events);
-                mutation.MaintainLeadership(events);
+                mutation.MaintainDerivedState(events);
                 world.Commit(mutation);
                 InitialEvents = events.AsReadOnly();
             }
             finally { _world.ExitExecution(); }
         }
+        else world.RestoreDerivedTrust(initial);
     }
 
     public IReadOnlyList<DomainEvent> InitialEvents { get; } = Array.Empty<DomainEvent>();
@@ -645,7 +647,7 @@ public sealed class SimulationEngine
             });
             AttackRequests.Cleanup(mutation, events);
             CorpsDelegations.Cleanup(mutation, _rules.Military, events);
-            mutation.MaintainLeadership(events);
+            mutation.MaintainDerivedState(events);
             WorldInvariants.Validate(mutation);
             if (!commit) return new(CommandSubmissionResult.Success, [], Snapshot, development);
             _world.Commit(mutation);
@@ -750,6 +752,7 @@ public sealed class SimulationEngine
             List<DomainEvent> events = [new ControlEndedEvent(seat.ControllerId, seat.ForceId)];
             mutation.SetSimulation(simulation with { ActiveControl = simulation.ActiveControl + 1 });
             ThreeVisits.EnterControl(mutation, _rules, events);
+            mutation.MaintainDerivedState(events);
             _world.Commit(mutation);
             return new(events.AsReadOnly(), Snapshot);
         }
@@ -773,7 +776,7 @@ public sealed class SimulationEngine
             ContinueXun(mutation, previous, events);
             AttackRequests.Cleanup(mutation, events);
             CorpsDelegations.Cleanup(mutation, _rules.Military, events);
-            mutation.MaintainLeadership(events);
+            mutation.MaintainDerivedState(events);
             _world.Commit(mutation);
             return new(events.AsReadOnly(), Snapshot);
         }

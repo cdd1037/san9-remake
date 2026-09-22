@@ -47,7 +47,6 @@ internal static class QuarterHistoricalEvents
         world.Replace(force with { BaseTrust = force.BaseTrust + trustGain });
         if (rivalForce is int target) ForceRelations.Change(world, owner, target, -definition.RelationPenalty, events);
         world.ConsumeEvent(definition.Candidate(), new("qiao-marriage", EventOutcomeKind.Completed, false, EventResult.Succeeded));
-        EconomicCycle.UpdateTrust(world, rules.Economy, events);
         events.Add(new QiaoMarriageEvent(world.Clock, owner, ruler.Id, companion.Id, rulerGain, companionGain, trustGain, rivalForce));
         return true;
     }

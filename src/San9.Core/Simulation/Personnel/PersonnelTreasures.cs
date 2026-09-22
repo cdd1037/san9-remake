@@ -25,7 +25,6 @@ internal static class PersonnelTreasures
         Transfer(world, item, recipient.Id, command.IssuerId, "grant", events);
         int loyalty = (int)Math.Min(255L, (long)recipient.Loyalty + rules.Items[item.Id].LoyaltyBonus);
         RecruitmentRules.SetLoyalty(world, recipient.Id, command.IssuerId, loyalty, "treasure-granted", events);
-        if (economy.ImperialSealId == item.Id) EconomicCycle.UpdateTrust(world, economy, events);
         return CommandRejection.None;
     }
 
@@ -46,7 +45,6 @@ internal static class PersonnelTreasures
         Transfer(world, item, ruler.Value, command.IssuerId, "confiscate", events);
         int loyalty = (int)Math.Max(0L, person.LoyaltyTo(command.IssuerId) - 3L * rules.Items[item.Id].LoyaltyBonus / 2);
         RecruitmentRules.SetLoyalty(world, holder, command.IssuerId, loyalty, "treasure-confiscated", events);
-        if (economy.ImperialSealId == item.Id) EconomicCycle.UpdateTrust(world, economy, events);
         return CommandRejection.None;
     }
 

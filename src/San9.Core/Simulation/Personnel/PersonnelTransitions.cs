@@ -36,7 +36,6 @@ internal static class PersonnelTransitions
             GovernanceMaintenance.DissolveForced(world, corpsId, reason, events);
         if (person.OwnerId is int previousForce) BattleAftermath.Reconcile(world, new HashSet<int> { previousForce }, rules, events, reason);
         world.MaintainLeadership(events);
-        EconomicCycle.UpdateTrust(world, rules.Economy, events);
         ResolutionPipeline.CheckConquest(world, events);
     }
 

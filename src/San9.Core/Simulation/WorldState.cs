@@ -92,6 +92,18 @@ public sealed class WorldState
     internal WorldMutation BeginMutation(OfficerAbilityRules? abilities = null, EconomyRulebook? economy = null) => new(this, abilities ?? OfficerAbilityRules.Empty, economy ?? EconomyRulebook.Empty, Revision, Clock, Simulation, _forces, _settlements,
         _officers, _units, _corps, _treasures, _relations);
 
+    // Loading reconstructs derived totals without creating another gameplay transaction or revision.
+    internal void RestoreDerivedTrust(WorldMutation mutation)
+    {
+        mutation.VerifyCommit(this, Revision);
+        if (!ReferenceEquals(_forces, mutation.AllForces))
+        {
+            _forces = mutation.AllForces;
+            _snapshot = null;
+        }
+        mutation.MarkCommitted();
+    }
+
     internal void Commit(WorldMutation mutation)
     {
         ArgumentNullException.ThrowIfNull(mutation);

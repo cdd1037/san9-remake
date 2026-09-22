@@ -357,7 +357,6 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
                 if (GovernanceMaintenance.RepairCorps(world, corpsId, governance, events) != CommandRejection.None)
                     throw new InvalidOperationException("Validated corps transfer failed.");
             }
-            EconomicCycle.UpdateTrust(world, economy, events);
             return;
         }
         var target = world.Officers[journey.TargetOfficerId!.Value];
@@ -377,7 +376,6 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
             bool transferredObject = PersonnelDefection.Recruit(world, task, simulationRules, events);
             if (!transferredObject) PersonnelReturns.Start(world, task, rules, events, true, target.Id);
             PersonnelMissions.GrowPolitics(world, task.OfficerId, events);
-            EconomicCycle.UpdateTrust(world, economy, events);
         }
         else RecruitmentRules.Failure(world, task.ForceId, target.Id, threshold, events);
         events.Add(new RecruitmentResolvedEvent(world.Clock, task.OfficerId, target.Id, threshold, roll, success));
@@ -413,7 +411,6 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
         {
             PersonnelTransitions.Recruit(world, target.Id, task.ForceId, task.OriginSettlementId, events, rules, true);
             PersonnelReturns.Start(world, task, rules, events, true, target.Id);
-            EconomicCycle.UpdateTrust(world, economy, events);
         }
         else
         {
@@ -440,7 +437,6 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
                 int rulerId = world.Forces[task.ForceId].LeaderId!.Value;
                 world.Replace(item with { Discovery = TreasureDiscovery.Discovered, HolderId = rulerId });
                 PersonnelMissions.GrowPolitics(world, task.OfficerId, events);
-                EconomicCycle.UpdateTrust(world, economy, events);
                 events.Add(new SearchResolvedEvent(world.Clock, task.OfficerId, destination, null, false)
                     { Result = SearchResultKind.Treasure, TreasureId = item.Id });
                 return;

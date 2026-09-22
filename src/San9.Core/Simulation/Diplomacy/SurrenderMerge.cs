@@ -111,7 +111,6 @@ internal static class SurrenderMerge
         }
         ForceLifecycle.Retire(world, force, events);
         ForceTransfer.ClearFriendlyOrders(world, "force-surrendered", events);
-        EconomicCycle.UpdateTrust(world, rules.Economy, events);
         events.Add(new ForceSurrenderedEvent(world.Clock, force, recipient, money, receivedMoney, food, receivedFood,
             joined.Order().ToImmutableArray(), departed));
 

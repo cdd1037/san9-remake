@@ -120,7 +120,6 @@ internal static class PrisonerReturnDiplomacy
                 var force = world.Forces[mission.TargetForceId];
                 world.Replace(force with { BaseTrust = Math.Min(1000, force.BaseTrust + 2) });
             }
-            EconomicCycle.UpdateTrust(world, rules.Economy, events);
             DiplomacySettlement.Grow(world, task.OfficerId, events);
         }
         else ForceRelations.Change(world, task.ForceId, mission.TargetForceId, -5, events);

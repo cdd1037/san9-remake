@@ -108,7 +108,6 @@ internal static class ForceConsolidation
             world.Replace(unit with { Morale = 100 });
         CorpsDelegations.Cleanup(world, rules.Military, events);
         world.MaintainLeadership(events);
-        EconomicCycle.UpdateTrust(world, rules.Economy, events);
         events.Add(new ForcesConsolidatedEvent(world.Clock, survivor, absorbed, money.Removed, money.Received, food.Removed, food.Received));
     }
 

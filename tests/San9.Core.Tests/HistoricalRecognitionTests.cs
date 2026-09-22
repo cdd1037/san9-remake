@@ -62,7 +62,7 @@ public sealed class HistoricalRecognitionTests
             case "early": world.SetSimulation(world.Simulation with { Started = new(190, 3, 2) }); break;
             case "court-ended": world.SetSimulation(world.Simulation with { ImperialCourtEnded = true }); break;
             case "not-ruler": world.Replace(world.Officers[11] with { Status = OfficerStatus.Serving }); break;
-            case "trust": world.Replace(world.Forces[1] with { Trust = 599 }); break;
+            case "trust": world.Replace(world.Forces[1] with { BaseTrust = 599 }); break;
             case "equal-rank": world.Replace(world.Forces[1] with { RankId = 200 }); break;
             case "higher-rank": world.Replace(world.Forces[1] with { RankId = 100 }); break;
             case "lost-city": world.Replace(world.Settlements[1] with { OwnerId = 2 }); break;

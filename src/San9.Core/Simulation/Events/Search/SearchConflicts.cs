@@ -179,7 +179,6 @@ internal static class SearchConflicts
         if (money > 0) ResourceAccounts.Change(world, account, ResourceKind.Money, money, "search-conflict", actor.Id, events);
         var force = world.Forces[task.ForceId];
         world.Replace(force with { BaseTrust = (int)Math.Clamp((long)force.BaseTrust + trust, 0, 1000) });
-        EconomicCycle.UpdateTrust(world, rules.Economy, events);
         var after = world.Officers[task.OfficerId];
         events.Add(new SearchConflictResolvedEvent(world.Clock, d.Id, task.ForceId, task.OfficerId, task.Journey!.DestinationPlaceId,
             encounter.OtherOfficerId, choice, refused ? EventResult.Declined : won ? EventResult.Succeeded : EventResult.Defeated,

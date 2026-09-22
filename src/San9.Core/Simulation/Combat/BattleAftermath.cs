@@ -59,8 +59,7 @@ internal static class BattleAftermath
             throw new InvalidOperationException("Settlement has not fallen.");
         if (!winner.Exists(world) || !MilitaryDiplomacy.CanFight(world, winner.Owner(world), settlement.OwnerId)) throw new InvalidOperationException("Invalid settlement captor.");
         var definition = rules.Military!.Place(settlement);
-        if (AttackRequests.Fulfill(world, winner.Owner(world), id, events))
-            EconomicCycle.UpdateTrust(world, rules.Economy, events);
+        AttackRequests.Fulfill(world, winner.Owner(world), id, events);
         if (!settlement.CanHostPersons)
         {
             if (!winner.IsSettlement) BattleLearning.DestroyedWork(world, winner.Id, definition, rules.Military, events);

@@ -40,7 +40,6 @@ internal static class AllianceFormation
             ? (world.NextRandom("alliance-target") % 2 == 0 ? largest : lowest)
             : candidates.LargestRealm ?? candidates.LowPrestige;
         if (target is null) return false;
-        EconomicCycle.UpdateTrust(world, rules.Economy, events);
         var players = world.Simulation.Controls.Where(c => c.Kind == ControllerKind.Player && c.ForceId != target.ForceId &&
                 !world.Forces[c.ForceId].IsEliminated).Select(c => c.ForceId).Order().ToArray();
         var proposal = new AllianceProposal(target.ForceId, target.EligibleMemberForceIds.Where(id => !players.Contains(id)).ToImmutableArray(),
@@ -103,7 +102,6 @@ internal static class AllianceFormation
             for (int second = first + 1; second < members.Length; second++)
                 ForceRelations.Set(world, members[first], members[second],
                     DiplomacyMath.AllianceMemberRelation(MilitaryDiplomacy.Relation(world, members[first], members[second])), events);
-        EconomicCycle.UpdateTrust(world, rules.Economy, events);
         events.Add(new AllianceFormedEvent(world.Clock, alliance));
     }
 

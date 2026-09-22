@@ -23,7 +23,6 @@ internal static class ImperialCeremony
             RecruitmentRules.SetLoyalty(world, person.Id, force.Id,
                 (int)Math.Min(255L, (long)person.LoyaltyTo(force.Id) + d.LoyaltyReward), "imperial-ceremony", events);
         world.Replace(force with { BaseTrust = (int)Math.Min(1000L, (long)force.BaseTrust + d.BaseTrustReward) });
-        EconomicCycle.UpdateTrust(world, economy, events);
         world.ConsumeEvent(d.Candidate(d.ConsumptionKey), new(d.Id, EventOutcomeKind.Completed, false, EventResult.Succeeded));
         events.Add(new ImperialCeremonyResolvedEvent(world.Clock, d.Id, force.Id, task.OfficerId, d.PlaceId,
             recipients.Select(p => p.Id).ToImmutableArray()));

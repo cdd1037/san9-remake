@@ -129,7 +129,6 @@ internal static class SeizeStrategies
             var item = thresholds.ItemCandidate!;
             treasureId = item.Id;
             PersonnelTreasures.Transfer(world, item, actor.Id, task.ForceId, Kind, events);
-            if (rules.Economy.ImperialSealId == item.Id) EconomicCycle.UpdateTrust(world, rules.Economy, events);
             outcome = SeizeOutcomeKind.Item;
         }
         else if (roll < thresholds.Person)

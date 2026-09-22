@@ -73,7 +73,6 @@ internal static class ChainedPlot
             RecruitmentRules.SetLoyalty(world, person.Id, forceId, loyalty, "chained-plot", events);
         }
         world.MaintainLeadership(events);
-        EconomicCycle.UpdateTrust(world, rules.Economy, events);
         ResolutionPipeline.CheckConquest(world, events);
         return relatives.Add(ruler.Id);
     }

@@ -253,8 +253,8 @@ public sealed class WarfareAuditAlignmentTests
     public void CaptureUsesTrustDifferenceRandomCeilingAndThreeHundredCap(int publicOrder, int newTrust, int oldTrust, int min, int max)
     {
         var m = World(); List<DomainEvent> events = [];
-        m.Replace(m.Forces[1] with { Trust = newTrust });
-        m.Replace(m.Forces[2] with { Trust = oldTrust });
+        m.Replace(m.Forces[1] with { BaseTrust = newTrust });
+        m.Replace(m.Forces[2] with { BaseTrust = oldTrust });
         Assert.InRange(CityBattleEffects.CapturedPublicOrder(m, m.Settlements[2] with { PublicOrder = publicOrder }, 1, events), min, max);
         Assert.Equal(publicOrder, CityBattleEffects.CapturedPublicOrder(m, m.Settlements[2] with { PublicOrder = publicOrder }, 2, events));
         Assert.Single(events);

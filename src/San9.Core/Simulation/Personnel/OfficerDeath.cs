@@ -35,7 +35,6 @@ internal static class OfficerDeath
             ? world.Forces[recipientOwner].LeaderId : null;
         SettleTreasures(world, officerId, recipient, events);
         world.MaintainLeadership(events);
-        EconomicCycle.UpdateTrust(world, rules.Economy, events);
         ResolutionPipeline.CheckConquest(world, events);
     }
 

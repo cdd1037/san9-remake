@@ -42,7 +42,7 @@ public sealed class WomenVisitTests
             case "wrong-place": task = task with { Journey = new(2, null, 0) }; break;
             case "computer": world.SetSimulation(world.Simulation with { Controls = [new("ai", 1, ControllerKind.Automatic)] }); break;
             case "base-trust": world.Replace(world.Forces[1] with { BaseTrust = 50 }); break;
-            case "current-trust": world.Replace(world.Forces[1] with { Trust = 1000 }); break;
+            case "current-trust": world.Replace(world.Forces[1] with { BaseTrust = 1000 }); break;
             case "dead": world.Replace(world.Officers[3] with { Status = OfficerStatus.Dead }); break;
             case "known": world.Replace(world.Officers[2] with { LearnedTactics = [101, 102] }); break;
         }

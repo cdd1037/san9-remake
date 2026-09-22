@@ -6,11 +6,22 @@ public sealed record EmperorDeathEvent(GameClock Clock, int OfficerId, int? Prev
 
 internal static class ImperialCourt
 {
+    internal static int? CurrentId(WorldMutation world, EconomyRulebook rules)
+    {
+        if (world.Simulation.ImperialCourtEnded) return null;
+        foreach (int id in rules.ImperialCourt.SuccessionOrder)
+            if (world.Officers.TryGetValue(id, out var person) && person.Status != OfficerStatus.Dead) return id;
+        return null;
+    }
+
     internal static int? City(WorldMutation world, EconomyRulebook rules)
     {
-        var emperor = rules.ImperialCourt.Resolve(world.Simulation.ImperialCourtEnded, world.Officers.Values);
-        return ImperialCourtDefinition.City(emperor, world.Settlements.Values, rules.RegionCityIds,
-            emperor is not null && world.Simulation.Tasks.Any(t => t.OfficerId == emperor.Id && t.Journey is not null));
+        if (CurrentId(world, rules) is not int id) return null;
+        var emperor = world.Officers[id];
+        if (emperor.UnitId is not null || world.Simulation.Tasks.Any(t => t.OfficerId == id && t.Journey is not null) ||
+            (emperor.SettlementId ?? emperor.RegionId) is not int place) return null;
+        bool City(int location) => world.Settlements.TryGetValue(location, out var city) && city.Kind == SettlementKind.City && !city.IsDestroyed;
+        return City(place) ? place : rules.RegionCityIds.TryGetValue(place, out int parent) && City(parent) ? parent : null;
     }
 
     internal static void ApplyDeaths(WorldMutation world, SimulationRules rules, List<DomainEvent> events)

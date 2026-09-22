@@ -76,7 +76,6 @@ internal static class RedCliffs
         world.Replace(world.Forces[rival] with { BaseTrust = enemy.BaseTrust - penalty });
         foreach (var officer in world.Officers.Values.Where(p => p.OwnerId == owner && p.IsServing && p.Status != OfficerStatus.Ruler).OrderBy(p => p.Id).ToArray())
             RecruitmentRules.SetLoyalty(world, officer.Id, owner, (int)Math.Min(255L, (long)officer.LoyaltyTo(owner) + definition.LoyaltyBonus), "red-cliffs", events);
-        EconomicCycle.UpdateTrust(world, rules.Economy, events);
         var candidate = new EventCandidate(definition.ConsumptionKey.Value, EventTrigger.Xun, 0, EventConsumption.OnSuccess, definition.ConsumptionKey);
         world.ConsumeEvent(candidate, new(candidate.Id, EventOutcomeKind.Completed, false, EventResult.Succeeded));
         events.Add(new RedCliffsEvent(world.Clock, owner, rival, targets.Select(u => u.Id).ToImmutableArray(),

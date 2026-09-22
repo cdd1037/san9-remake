@@ -69,7 +69,6 @@ internal static class MerchantInvestment
             var force = world.Forces[task.ForceId];
             world.Replace(force with { BaseTrust = Math.Max(0, force.BaseTrust - d.ExecutionTrustPenalty),
                 EventHistory = force.EventHistory.Append(category.BanHistoryKey).OrderBy(k => k.Value, StringComparer.Ordinal).ToImmutableArray() });
-            EconomicCycle.UpdateTrust(world, rules.Economy, events);
         }
         events.Add(new MerchantInvestmentResolvedEvent(world.Clock, d.Id, task.ForceId, task.OfficerId, category.Id,
             response.Choice, response.Amount, account, category.RewardResource, chance, roll, won, gross, world.Forces[task.ForceId].BaseTrust));

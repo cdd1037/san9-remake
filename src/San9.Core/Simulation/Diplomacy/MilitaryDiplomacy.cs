@@ -48,7 +48,6 @@ internal static class MilitaryDiplomacy
     internal static void BeginAdvance(WorldMutation world, SimulationRules rules, List<DomainEvent> events)
     {
         if (rules.Military is not { } military) return;
-        bool penalties = false;
         foreach (var unit in world.Units.Values.OrderBy(u => u.Id).ToArray())
         {
             if (unit.IsEmbedded || unit.IsPersonnel || unit.Order is not { Kind: MilitaryOrderKind.AttackSettlement, SettlementId: int id } order ||
@@ -57,7 +56,6 @@ internal static class MilitaryDiplomacy
             int value = Relation(world, unit.OwnerId, other);
             bool betrayal = world.Simulation.Alliance?.Protects(unit.OwnerId, other) == true;
             if (value >= 40) ForceRelations.Set(world, unit.OwnerId, other, 35, events);
-            penalties |= value >= 60 || betrayal;
             if (value >= 60) Penalize(world, unit.OwnerId, value >= 80 ? 20 : 10, value >= 80 ? 1 : 2, false, events);
             if (betrayal)
             {
@@ -71,10 +69,8 @@ internal static class MilitaryDiplomacy
                 AllianceDiplomacy.Betray(world, unit.OwnerId, events);
             }
             bool brokenRequest = AttackRequests.BreakPair(world, unit.OwnerId, other, events);
-            penalties |= brokenRequest;
             if (value >= 40 || betrayal || brokenRequest) events.Add(new WarDeclaredEvent(world.Clock, unit.OwnerId, other, betrayal));
         }
-        if (penalties) EconomicCycle.UpdateTrust(world, rules.Economy, events);
     }
 
     private static void Penalize(WorldMutation world, int forceId, int trustLoss, int divisor, bool excludeRuler, List<DomainEvent> events)

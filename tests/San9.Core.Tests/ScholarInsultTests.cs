@@ -47,8 +47,12 @@ public sealed class ScholarInsultTests
             case "enemy-place": task = task with { Journey = new(2, null, 0) }; break;
             case "unbuilt-region": task = task with { Journey = new(9, null, 0) }; break;
             case "automatic": world.SetSimulation(world.Simulation with { Controls = [new("ai", 1, ControllerKind.Automatic)] }); break;
-            case "high-base-trust": world.Replace(world.Forces[1] with { BaseTrust = 200, Trust = 0 }); break;
-            case "high-current-trust": world.Replace(world.Forces[1] with { BaseTrust = 199, Trust = 1000 }); break;
+            case "high-base-trust": world.Replace(world.Forces[1] with { BaseTrust = 200 }); break;
+            case "high-current-trust":
+                world.Replace(world.Forces[1] with { BaseTrust = 199 });
+                world.Replace(world.Settlements[1] with { Population = 8010000, PublicOrder = 800 });
+                Assert.Equal(1000, world.Forces[1].Trust);
+                break;
             case "severe-injury": world.Replace(world.Officers[2] with { Injury = 5 }); break;
             case "dead": world.Replace(world.Officers[3] with { Status = OfficerStatus.Dead }); break;
             case "free": world.Replace(world.Officers[3] with { Status = OfficerStatus.Free }); break;

@@ -29,7 +29,6 @@ internal static class PersonnelExile
             var rejection = GovernanceMaintenance.RepairCorps(world, corpsId, governance, events);
             if (rejection != CommandRejection.None) return rejection;
         }
-        EconomicCycle.UpdateTrust(world, economy, events);
         events.Add(new OfficerExiledEvent(world.Clock, command.IssuerId, person.Id, destinationId));
         return CommandRejection.None;
     }

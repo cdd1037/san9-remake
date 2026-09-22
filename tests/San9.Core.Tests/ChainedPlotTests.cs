@@ -43,7 +43,7 @@ public sealed class ChainedPlotTests
     public void PreludeUsesStrictLoyaltyConjunctionOrTrustThreshold(int trust, int first, int second, bool expected)
     {
         var world = World().BeginMutation(Rules().Abilities);
-        world.Replace(world.Forces[1] with { Trust = trust });
+        world.Replace(world.Forces[1] with { BaseTrust = trust });
         world.Replace(world.Officers[12].WithLoyalty(1, first)); world.Replace(world.Officers[13].WithLoyalty(1, second));
         List<DomainEvent> events = []; Assert.Equal(expected, ChainedPlot.Apply(world, Rules(), events));
         Assert.Equal(expected ? 1 : 0, events.Count); Assert.Equal(expected ? 1 : 0, world.Simulation.ConsumedEventKeys.Length);
@@ -176,7 +176,7 @@ public sealed class ChainedPlotTests
     public void StartedPlotIgnoresRestoredTrustAndLoyaltyAndSparesAnAuthoredSameFamilySuccessor()
     {
         var state = World(true); var world = state.BeginMutation(Rules().Abilities);
-        world.Replace(world.Forces[1] with { Trust = 1000 });
+        world.Replace(world.Forces[1] with { BaseTrust = 1000 });
         world.Replace(world.Officers[12].WithLoyalty(1, 255) with { BloodlineId = 700 });
         world.Replace(world.Officers[13].WithLoyalty(1, 255));
         List<DomainEvent> events = []; Assert.True(ChainedPlot.Apply(world, Rules(), events));

@@ -55,7 +55,6 @@ internal static class MysticBook
         if (accept) PersonnelTreasures.Transfer(world, world.Treasures[d.TreasureId], task.OfficerId, task.ForceId, "mystic-book-offer", events);
         ResourceAccounts.Change(world, SearchEventResources.Account(world, task), ResourceKind.Money,
             -(long)(accept ? d.AcceptCost : d.DeclineCost), "mystic-book-offer", task.OfficerId, events, requireFull: true);
-        if (accept && rules.Economy.ImperialSealId == d.TreasureId) EconomicCycle.UpdateTrust(world, rules.Economy, events);
         events.Add(new MysticBookOfferResolvedEvent(world.Clock, d.Id, task.ForceId, task.OfficerId, d.MysticOfficerId, d.TreasureId, accept));
     }
 
@@ -68,7 +67,6 @@ internal static class MysticBook
         if (accept)
         {
             PersonnelTreasures.Transfer(world, world.Treasures[d.TreasureId], d.MysticOfficerId, task.ForceId, "mystic-book-return", events);
-            if (rules.Economy.ImperialSealId == d.TreasureId) EconomicCycle.UpdateTrust(world, rules.Economy, events);
         }
         else
         {

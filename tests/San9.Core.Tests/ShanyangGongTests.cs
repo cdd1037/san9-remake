@@ -75,7 +75,7 @@ public sealed class ShanyangGongTests
         Assert.True(ShanyangGong.Eligible(world, task, Rules));
         switch (failure)
         {
-            case "trust": world.Replace(world.Forces[1] with { Trust = 699 }); break;
+            case "trust": world.Replace(world.Forces[1] with { BaseTrust = 699 }); break;
             case "province": world.Replace(world.Settlements[2] with { OwnerId = 2 }); break;
             case "dead": world.Replace(world.Officers[99] with { Status = OfficerStatus.Dead }); break;
             case "court": world.SetSimulation(world.Simulation with { ImperialCourtEnded = false }); break;

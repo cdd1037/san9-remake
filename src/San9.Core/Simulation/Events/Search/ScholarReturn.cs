@@ -54,7 +54,6 @@ internal static class ScholarReturn
                 BaseTrust = (int)Math.Min(1000L, (long)force.BaseTrust + d.BaseTrustReward),
                 EventHistory = force.EventHistory.Append(d.SuccessHistoryKey).Distinct().OrderBy(k => k.Value, StringComparer.Ordinal).ToImmutableArray()
             });
-            EconomicCycle.UpdateTrust(world, economy, events);
         }
         world.ConsumeEvent(d.Candidate(d.ConsumptionKey), new(d.Id, EventOutcomeKind.Completed, false,
             accept ? EventResult.Succeeded : EventResult.Declined));

@@ -27,7 +27,7 @@ public sealed class ScholarReturnTests
         var rules = new PersonnelRulebook([new(1, new(0, 0)), new(30, new(0, 0))], searchEvents: [Definition]);
         var engine = new SimulationEngine(world, EconomyRulebook.Empty, rules);
         mutation = world.BeginMutation();
-        mutation.Replace(mutation.Forces[1] with { Money = money, Trust = trust, BaseTrust = trust });
+        mutation.Replace(mutation.Forces[1] with { Money = money, BaseTrust = trust });
         world.Commit(mutation);
         return (world, engine, rules);
     }
@@ -124,7 +124,7 @@ public sealed class ScholarReturnTests
             case "place": place = 30; break;
             case "early": m.SetClock(new(194, 12, 30)); break;
             case "late": m.SetClock(new(208, 1, 1)); break;
-            case "trust": m.Replace(m.Forces[1] with { Trust = 300 }); break;
+            case "trust": m.Replace(m.Forces[1] with { BaseTrust = 300 }); break;
             case "base-trust": m.Replace(m.Forces[1] with { BaseTrust = 1000 }); break;
             case "money": m.Replace(m.Forces[1] with { Money = 3000 }); break;
             case "dead": m.Replace(m.Officers[3] with { Status = OfficerStatus.Dead }); break;

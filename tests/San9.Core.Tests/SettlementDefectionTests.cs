@@ -297,7 +297,7 @@ public sealed class SettlementDefectionTests
         world.Replace(world.Settlements[10] with { Kind = SettlementKind.City });
         world.Replace(world.Officers[1] with { SettlementId = 10, IsCommander = true, Ambition = 0 });
         world.Replace(world.Officers[10] with { IsCommander = false });
-        world.Replace(world.Forces[2] with { Trust = 1000 });
+        world.Replace(world.Forces[2] with { BaseTrust = 1000 });
         world.SetSimulation(world.Simulation with { Controls = [new("owner", 1, player ? ControllerKind.Player : ControllerKind.Automatic),
             new("other", 2, ControllerKind.Player)] });
         Attackers(world, 2);

@@ -177,7 +177,6 @@ internal static class AttackRequestDiplomacy
                 (received, spent) = DiplomacySettlement.Pay(world, task, mission.TargetForceId, mission.Offer!, rules, "attack-request-compensation", events);
                 ForceRelations.Set(world, task.ForceId, mission.TargetForceId,
                     DiplomacyMath.AttackRequestAcceptedRelation(MilitaryDiplomacy.Relation(world, task.ForceId, mission.TargetForceId)), events);
-                EconomicCycle.UpdateTrust(world, rules.Economy, events);
                 DiplomacySettlement.Grow(world, task.OfficerId, events);
             }
             else ForceRelations.Change(world, task.ForceId, mission.TargetForceId, -5, events);

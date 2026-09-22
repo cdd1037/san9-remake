@@ -64,7 +64,6 @@ internal static class CityIndependence
             BattleAftermath.Reconcile(world, new HashSet<int> { owner }, rules, events, Reason);
             CorpsDelegations.Cleanup(world, rules.Military, events);
             world.MaintainLeadership(events);
-            EconomicCycle.UpdateTrust(world, rules.Economy, events);
             ResolutionPipeline.CheckConquest(world, events);
             if (world.Simulation.TerminalReason is not null) return;
         }

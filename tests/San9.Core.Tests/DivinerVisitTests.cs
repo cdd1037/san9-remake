@@ -41,7 +41,7 @@ public sealed class DivinerVisitTests
             case "place": task = task with { Journey = new(2, null, 0) }; break;
             case "automatic": world.SetSimulation(world.Simulation with { Controls = [new("ai", 1, ControllerKind.Automatic)] }); break;
             case "visited": world.Replace(world.Forces[1] with { EventHistory = [Definition.HistoryKey] }); break;
-            case "trust": world.Replace(world.Forces[1] with { Trust = 50, BaseTrust = 1000 }); break;
+            case "trust": world.Replace(world.Forces[1] with { BaseTrust = 50 }); break;
             case "dead": world.Replace(world.Officers[3] with { Status = OfficerStatus.Dead }); break;
             case "free": world.Replace(world.Officers[3] with { Status = OfficerStatus.Free }); break;
         }

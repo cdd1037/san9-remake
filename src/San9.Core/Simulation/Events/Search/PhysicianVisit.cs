@@ -20,7 +20,6 @@ internal static class PhysicianVisit
             !world.Treasures.TryGetValue(site.TreasureId, out var treasure) || !treasure.Discovered || treasure.HolderId != physician.Id)
             return false;
         PersonnelTreasures.Transfer(world, treasure, task.OfficerId, force.Id, "physician-visit", events);
-        if (economy.ImperialSealId == treasure.Id) EconomicCycle.UpdateTrust(world, economy, events);
         events.Add(new PhysicianVisitResolvedEvent(world.Clock, d.Id, force.Id, task.OfficerId, physician.Id, site.PlaceId, treasure.Id));
         return true;
     }

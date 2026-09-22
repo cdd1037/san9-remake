@@ -15,7 +15,6 @@ internal static class EconomicCycle
         if (stage == ResolutionStage.BeforeDailyCommands) return Food(world, events);
         if (stage != ResolutionStage.QuarterUpdate || world.Clock.DayNumber - world.Simulation.Started.DayNumber < 30) return [];
         Population(world, events);
-        UpdateTrust(world, rules, events);
         Income(world, events);
         return [];
     }
@@ -123,23 +122,6 @@ internal static class EconomicCycle
             var account = new ResourceAccount(ResourceOwnerKind.Settlement, city.Id);
             ResourceAccounts.Report(world, account, ResourceKind.Population, "quarterly-population", city.Id, growth, (long)nextPopulation - city.Population, events);
             ResourceAccounts.Report(world, account, ResourceKind.DraftPopulation, "quarterly-draft-population", city.Id, draft, (long)nextDraft - city.DraftPopulation, events);
-        }
-    }
-
-    internal static void UpdateTrust(WorldMutation world, EconomyRulebook rules, List<DomainEvent> events)
-    {
-        int? emperorCity = ImperialCourt.City(world, rules);
-        foreach (var force in world.Forces.Values.Where(f => !f.IsEliminated).OrderBy(f => f.Id).ToArray())
-        {
-            long contribution = world.Settlements.Values.Where(s => s.Kind == SettlementKind.City && s.OwnerId == force.Id)
-                .Sum(s => ((long)s.Population + s.DraftPopulation) * Math.Max(0, s.PublicOrder - 300) / 1000 / 5000);
-            bool seal = rules.ImperialSealId is int item && world.Treasures.TryGetValue(item, out var treasure) &&
-                force.LeaderId is not null && treasure.HolderId == force.LeaderId && treasure.Discovered;
-            bool emperor = emperorCity is int city && world.Settlements[city].OwnerId == force.Id;
-            int trust = (int)Math.Clamp(force.BaseTrust + contribution + (seal ? 100 : 0) + (emperor ? 100 : 0), 0, 1000);
-            if (trust == force.Trust) continue;
-            world.Replace(force with { Trust = trust });
-            events.Add(new ForceTrustChangedEvent(world.Clock, force.Id, force.Trust, trust));
         }
     }
 }

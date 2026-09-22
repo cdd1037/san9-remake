@@ -72,7 +72,7 @@ public sealed class ForceActivationSearchTests
         var m = World().BeginMutation(); var task = Task();
         switch (failure)
         {
-            case "trust": m.Replace(m.Forces[1] with { Trust = 699 }); break;
+            case "trust": m.Replace(m.Forces[1] with { BaseTrust = 699 }); break;
             case "province": m.Replace(m.Settlements[2] with { OwnerId = 3 }); break;
             case "place": task = task with { Journey = task.Journey! with { DestinationPlaceId = 1 } }; break;
             case "control": m.SetSimulation(m.Simulation with { Controls = [new("ai:1", 1, ControllerKind.Automatic)] }); break;

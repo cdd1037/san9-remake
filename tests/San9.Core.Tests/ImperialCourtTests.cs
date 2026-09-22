@@ -18,7 +18,7 @@ public sealed class ImperialCourtTests
         [new(12, new(190, 2, 1), new(190, 4, 1), survival)]);
     private static SimulationRules Rules(ImperialCourtDefinition? definition = null) => new()
     { Economy = new([], []) { ImperialCourt = definition ?? Definition() } };
-    private static WorldMutation Due(WorldState state) { var w = state.BeginMutation(); w.SetClock(new(190, 4, 1)); return w; }
+    private static WorldMutation Due(WorldState state) { var w = state.BeginMutation(economy: Rules().Economy); w.RebuildForceTrust(); w.SetClock(new(190, 4, 1)); return w; }
     private static ulong Seed(int roll)
     {
         for (ulong seed = 0; seed < 100000; seed++)
@@ -32,7 +32,6 @@ public sealed class ImperialCourtTests
     public void SurvivalBoundaryAndDynamicSuccessionRefreshBothForcesTrust(int roll, bool dies)
     {
         var state = World(Seed(roll)); var world = Due(state); var rules = Rules(); List<DomainEvent> events = [];
-        EconomicCycle.UpdateTrust(world, rules.Economy, events);
         Assert.Equal(200, world.Forces[1].Trust);
         events.Clear(); ImperialCourt.ApplyDeaths(world, rules, events);
         Assert.Equal(dies ? 11 : 12, rules.Economy.ImperialCourt.Resolve(false, world.Officers.Values)!.Id);

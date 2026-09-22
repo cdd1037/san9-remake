@@ -69,7 +69,6 @@ internal static class PrisonerRelease
             PersonnelReturns.Schedule(world, previous, personId, origin, home.Id,
                 route.Days, false, events, route, originPosition is not null);
         }
-        EconomicCycle.UpdateTrust(world, economy, events);
         events.Add(departure switch
         {
             PrisonerDepartureKind.Released when releasingCaptor is int releasedBy =>

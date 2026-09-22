@@ -63,7 +63,6 @@ internal static class SettlementAffiliation
         ForceTransfer.ClearFriendlyOrders(world, Reason, events);
         CorpsDelegations.Cleanup(world, rules.Military, events);
         world.MaintainLeadership(events);
-        EconomicCycle.UpdateTrust(world, rules.Economy, events);
         events.Add(new SettlementDefectedEvent(world.Clock, place.Id, owner, recipient, kind, commander?.Id, followers.Order().ToImmutableArray()));
         ResolutionPipeline.CheckConquest(world, events);
     }

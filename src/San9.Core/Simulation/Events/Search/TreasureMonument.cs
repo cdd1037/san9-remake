@@ -36,7 +36,6 @@ internal static class TreasureMonument
                 -(long)d.Cost, "treasure-monument", task.OfficerId, events, requireFull: true);
             var force = world.Forces[task.ForceId];
             world.Replace(force with { BaseTrust = (int)Math.Min(1000L, (long)force.BaseTrust + d.BaseTrustReward) });
-            EconomicCycle.UpdateTrust(world, rules.Economy, events);
         }
         world.ConsumeEvent(d.Candidate(d.ConsumptionKey), new(d.Id, EventOutcomeKind.Completed, false,
             accept ? EventResult.Succeeded : EventResult.Declined));

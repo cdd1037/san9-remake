@@ -48,7 +48,6 @@ internal static class ScholarInsult
         else if (actor.BaseAbilities.Intelligence >= d.TrustRewardIntelligenceThreshold)
             world.Replace(force with { BaseTrust = (int)Math.Min(1000L, (long)force.BaseTrust + d.BaseTrustReward) });
         else OfficerAbilityGrowth.Increase(world, actor.Id, OfficerAbility.Intelligence, d.IntelligenceReward, events);
-        EconomicCycle.UpdateTrust(world, rules.Economy, events);
         var after = world.Officers[actor.Id];
         events.Add(new ScholarInsultResolvedEvent(world.Clock, d.Id, force.Id, actor.Id, d.ScholarOfficerId,
             task.Journey!.DestinationPlaceId, attemptExecution, after.BaseAbilities.Intelligence, after.Injury, world.Forces[force.Id].BaseTrust));

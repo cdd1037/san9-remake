@@ -7,7 +7,7 @@ namespace San9.Core.Simulation;
 /// Stages one atomic world change. Handlers validate business preconditions; the engine
 /// coordinates execution and the world validates invariants before publishing the final state.
 /// </summary>
-internal sealed class WorldMutation
+internal sealed partial class WorldMutation
 {
     private readonly WorldState _owner;
     private readonly long _expectedRevision;
@@ -130,10 +130,18 @@ internal sealed class WorldMutation
     internal void SetSimulation(SimulationState simulation)
     {
         EnsureOpen();
+        bool courtChanged = simulation.ImperialCourtEnded != Simulation.ImperialCourtEnded ||
+            simulation.Tasks != Simulation.Tasks && !_economy.ImperialCourt.SuccessionOrder.IsEmpty;
+        int? previousEmperorOwner = courtChanged ? ForceTrust.EmperorOwner(this, _economy) : null;
         if (simulation.Tasks != Simulation.Tasks && !simulation.Tasks.Where(t => t.Journey is not null).Select(t => t.OfficerId)
             .SequenceEqual(Simulation.Tasks.Where(t => t.Journey is not null).Select(t => t.OfficerId))) LeadershipChanged();
         if (simulation.Alliance?.MemberForceIds != Simulation.Alliance?.MemberForceIds || simulation.AttackRequests != Simulation.AttackRequests) _engagements = null;
         Simulation = simulation;
+        if (courtChanged)
+        {
+            int? emperorOwner = ForceTrust.EmperorOwner(this, _economy);
+            if (previousEmperorOwner != emperorOwner) RefreshForceTrust(previousEmperorOwner, emperorOwner);
+        }
     }
 
     internal void ConsumeEvent(EventCandidate candidate, EventOutcome outcome)
@@ -158,15 +166,23 @@ internal sealed class WorldMutation
 
     internal void Replace(ForceState value)
     {
-        if (AllForces[value.Id].IsEliminated != value.IsEliminated) _engagements = null;
-        bool activationChanged = AllForces[value.Id].IsDormant != value.IsDormant;
+        var previous = AllForces[value.Id];
+        if (previous.IsEliminated != value.IsEliminated) _engagements = null;
+        bool activationChanged = previous.IsDormant != value.IsDormant;
+        // Callers may hold a record from before another input changed. Its derived total is not an input.
+        if (value.Trust != previous.Trust) value = value with { Trust = previous.Trust };
         AllForces = Replace(AllForces, value.Id, value);
         if (activationChanged) RebuildActiveRecords();
         else if (!value.IsDormant) Forces = Forces.SetItem(value.Id, value);
+        if (activationChanged || previous.IsEliminated != value.IsEliminated ||
+            previous.BaseTrust != value.BaseTrust || previous.LeaderId != value.LeaderId) RefreshForceTrust(value.Id);
     }
     internal void Replace(SettlementState value)
     {
         var previous = AllSettlements[value.Id];
+        bool courtChanged = !_economy.ImperialCourt.SuccessionOrder.IsEmpty &&
+            (previous.OwnerId != value.OwnerId || previous.Kind != value.Kind || previous.IsDormant != value.IsDormant || previous.IsDestroyed != value.IsDestroyed);
+        int? previousEmperorOwner = courtChanged ? ForceTrust.EmperorOwner(this, _economy) : null;
         EmperorTransfer.Observe(this, _economy, previous, value);
         if (previous.IsDormant != value.IsDormant || previous.OwnerId != value.OwnerId || previous.CanHostPersons != value.CanHostPersons || previous.IsDestroyed != value.IsDestroyed)
             LeadershipChanged();
@@ -181,24 +197,50 @@ internal sealed class WorldMutation
             value.OwnerId is int owner && Simulation.Controls.Any(c => c.ForceId == owner && c.Kind == ControllerKind.Player))
             SetSimulation(Simulation with { ForceConsolidationPending = true });
         if (!value.IsDormant) _movementOccupancy?.Set(value);
+        if ((previous.Kind == SettlementKind.City || value.Kind == SettlementKind.City) &&
+            (previous.OwnerId != value.OwnerId || previous.Kind != value.Kind || previous.IsDormant != value.IsDormant ||
+             previous.Population != value.Population || previous.DraftPopulation != value.DraftPopulation || previous.PublicOrder != value.PublicOrder))
+            RefreshForceTrust(previous.OwnerId, value.OwnerId);
+        if (courtChanged)
+        {
+            int? emperorOwner = ForceTrust.EmperorOwner(this, _economy);
+            if (previousEmperorOwner != emperorOwner) RefreshForceTrust(previousEmperorOwner, emperorOwner);
+        }
     }
     internal void AddSettlement(SettlementState value)
     {
         EnsureOpen();
+        int? previousEmperorOwner = ForceTrust.EmperorOwner(this, _economy);
         AllSettlements = AllSettlements.Add(value.Id, value);
         if (!value.IsDormant) Settlements = Settlements.Add(value.Id, value);
         if (!value.IsDormant) _movementOccupancy?.Set(value);
         _engagements = null;
+        if (value.Kind == SettlementKind.City) RefreshForceTrust(value.OwnerId);
+        int? emperorOwner = ForceTrust.EmperorOwner(this, _economy);
+        if (previousEmperorOwner != emperorOwner) RefreshForceTrust(previousEmperorOwner, emperorOwner);
     }
     internal void Replace(OfficerState value)
     {
         var previous = AllOfficers[value.Id];
+        bool courtChanged = _economy.ImperialCourt.SuccessionOrder.Contains(value.Id) &&
+            (previous.IsDormant != value.IsDormant || previous.Status != value.Status ||
+             previous.SettlementId != value.SettlementId || previous.RegionId != value.RegionId || previous.UnitId != value.UnitId);
+        int? previousEmperorOwner = courtChanged ? ForceTrust.EmperorOwner(this, _economy) : null;
+        bool sealChanged = previous.IsDormant != value.IsDormant && _economy.ImperialSealId is int seal &&
+            AllTreasures.TryGetValue(seal, out var item) && item.HolderId == value.Id;
+        int? previousSealOwner = sealChanged ? ForceTrust.SealOwner(this, _economy) : null;
         if (previous.IsDormant != value.IsDormant || previous.OwnerId != value.OwnerId || previous.Status != value.Status || previous.SettlementId != value.SettlementId ||
             previous.UnitId != value.UnitId || previous.OfficeId != value.OfficeId || previous.Injury != value.Injury ||
             previous.BaseAbilities.Leadership != value.BaseAbilities.Leadership) LeadershipChanged();
         AllOfficers = Replace(AllOfficers, value.Id, value);
         if (previous.IsDormant != value.IsDormant) RebuildActiveRecords();
         else if (!value.IsDormant) Officers = Officers.SetItem(value.Id, value);
+        if (courtChanged)
+        {
+            int? emperorOwner = ForceTrust.EmperorOwner(this, _economy);
+            if (previousEmperorOwner != emperorOwner) RefreshForceTrust(previousEmperorOwner, emperorOwner);
+        }
+        if (sealChanged) RefreshForceTrust(previousSealOwner, ForceTrust.SealOwner(this, _economy));
     }
     internal void Replace(UnitState value)
     {
@@ -247,6 +289,7 @@ internal sealed class WorldMutation
             throw new ArgumentException("Invalid generated force identity or origin.");
         AllForces = AllForces.Add(force.Id, force);
         RebuildActiveRecords();
+        RefreshForceTrust(force.Id);
         _engagements = null;
     }
 
@@ -258,8 +301,12 @@ internal sealed class WorldMutation
     internal void Replace(TreasureState value)
     {
         var previous = AllTreasures[value.Id];
+        bool sealChanged = value.Id == _economy.ImperialSealId &&
+            (previous.HolderId != value.HolderId || previous.Discovery != value.Discovery);
+        int? previousSealOwner = sealChanged ? ForceTrust.SealOwner(this, _economy) : null;
         if (previous.HolderId != value.HolderId || previous.Discovery != value.Discovery) LeadershipChanged();
         AllTreasures = Replace(AllTreasures, value.Id, value); _activeTreasures = null;
+        if (sealChanged) RefreshForceTrust(previousSealOwner, ForceTrust.SealOwner(this, _economy));
     }
     internal void Replace(ForceRelation value)
     {

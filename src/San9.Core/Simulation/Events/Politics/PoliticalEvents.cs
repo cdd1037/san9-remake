@@ -112,7 +112,6 @@ internal static class PoliticalEvents
             (loyaltyRecipients is null || loyaltyRecipients.Contains(p.Id))).OrderBy(p => p.Id).ToArray())
             RecruitmentRules.SetLoyalty(world, person.Id, forceId,
                 (int)Math.Min(255, (long)person.LoyaltyTo(forceId) + rules.Politics.Ranks[rankId].LoyaltyBonus), "peerage", events);
-        EconomicCycle.UpdateTrust(world, rules.Economy, events);
         events.Add(new PeerageChangedEvent(world.Clock, forceId, force.RankId, rankId, kind, titleId));
     }
 

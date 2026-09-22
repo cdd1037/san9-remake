@@ -42,7 +42,6 @@ internal static class EmperorTransfer
             }
             Apply(world, rules, candidate, forced ? EmperorTransferChoice.Depose : EmperorTransferChoice.Support, forced, events);
         }
-        EconomicCycle.UpdateTrust(world, rules.Economy, events);
     }
 
     private static EmperorTransferEventSession? Candidate(WorldMutation world, SimulationRules rules)
@@ -70,7 +69,6 @@ internal static class EmperorTransfer
         if (valid) Apply(world, rules, session, forced ? EmperorTransferChoice.Depose : command.Choice, forced, events);
         else events.Add(new EmperorTransferResolvedEvent(world.Clock, session.ForceId, session.EmperorId, session.CityId,
             command.Choice, false, true));
-        EconomicCycle.UpdateTrust(world, rules.Economy, events);
         return CommandRejection.None;
     }
 

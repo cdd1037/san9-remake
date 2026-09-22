@@ -134,7 +134,6 @@ internal static class SearchEvents
             if (learned is int tactic) OfficerTacticGrowth.Grant(world, task.OfficerId, tactic, events);
             var force = world.Forces[task.ForceId];
             world.Replace(force with { BaseTrust = (int)Math.Min(1000L, (long)force.BaseTrust + definition.BaseTrustReward) });
-            EconomicCycle.UpdateTrust(world, economy, events);
         }
         else if (result == EventResult.Defeated)
         {

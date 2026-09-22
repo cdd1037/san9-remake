@@ -33,7 +33,6 @@ internal static class ForceActivationSearch
             .OrderBy(c => c.Kind == ControllerKind.Player ? 0 : 1).ThenBy(c => c.ForceId).ToImmutableArray();
         ControlRotation.Replace(world, controls);
         world.Replace(searching with { BaseTrust = (int)Math.Min(1000L, (long)searching.BaseTrust + d.BaseTrustReward) });
-        EconomicCycle.UpdateTrust(world, rules.Economy, events);
         world.ConsumeEvent(d.Candidate(d.ConsumptionKey), new(d.Id, EventOutcomeKind.Completed, false, EventResult.Succeeded));
         events.Add(new ForceActivatedBySearchEvent(world.Clock, d.Id, task.ForceId, task.OfficerId, force.Id, city.Id,
             d.AttachedSettlementIds.Prepend(city.Id).Order().ToImmutableArray(), d.OfficerIds.Order().ToImmutableArray()));

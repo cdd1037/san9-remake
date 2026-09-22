@@ -57,7 +57,7 @@ public sealed class WorldInvariantTests
         mutation.Replace(before.Forces[0] with { Money = 1 });
         switch (violation)
         {
-            case 0: mutation.Replace(before.Forces[0] with { Trust = -1 }); break;
+            case 0: mutation.Replace(before.Forces[0] with { BaseTrust = -1 }); break;
             case 1: mutation.Replace(before.Settlements[0] with { Commerce = 101 }); break;
             case 2: mutation.Replace(before.Officers[0] with { OwnerId = 2 }); break;
             case 3: mutation.Replace(before.Units[0] with { OwnerId = 99 }); break;

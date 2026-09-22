@@ -157,7 +157,6 @@ internal static class CommunitySearch
         {
             var force = world.Forces[task.ForceId];
             world.Replace(force with { BaseTrust = (int)Math.Clamp((long)force.BaseTrust + trust, 0, 1000) });
-            EconomicCycle.UpdateTrust(world, rules.Economy, events);
         }
         events.Add(new CommunitySearchResolvedEvent(world.Clock, d.Id, task.ForceId, task.OfficerId, task.Journey!.DestinationPlaceId,
             choice, account, option.Resource, option.Cost, money, soldiers, learned, world.Forces[task.ForceId].BaseTrust));

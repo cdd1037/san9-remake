@@ -88,7 +88,7 @@ public sealed class UnitDefectionTests
     public void SiegeUsesStrictProbabilityBoundary(int roll, bool defects)
     {
         var world = World();
-        world.Replace(world.Forces[1] with { Trust = 0 });
+        world.Replace(world.Forces[1] with { BaseTrust = 0 });
         world.Replace(world.Units[100] with { Soldiers = 20000 });
         world.Replace(world.Officers[20].WithLoyalty(1, 100));
         for (ulong seed = 0; ; seed++)

@@ -148,7 +148,6 @@ internal static class GiftDiplomacy
             {
                 var item = world.Treasures[gift.Offer.TreasureId!.Value];
                 PersonnelTreasures.Transfer(world, item, world.Forces[gift.TargetForceId].LeaderId!.Value, task.ForceId, "gift-accepted", events);
-                if (rules.Economy.ImperialSealId == item.Id) EconomicCycle.UpdateTrust(world, rules.Economy, events);
             }
             else
             {

@@ -108,7 +108,7 @@ public sealed class OriginalCombatAlignmentTests
     {
         var m = World().BeginMutation(); List<DomainEvent> events = [];
         m.SetClock(new(190, 1, day));
-        m.Replace(m.Forces[1] with { Trust = trust, IsBarbarian = barbarian });
+        m.Replace(m.Forces[1] with { BaseTrust = trust, IsBarbarian = barbarian });
         m.AddCorps(new(77, 1, 11, new(1000, 1000)));
         m.Replace(m.Settlements[1] with { Morale = morale, ConfusionDaysRemaining = 5, CorpsId = 77 });
         m.Replace(m.Units[2] with { Order = new(MilitaryOrderKind.AttackSettlement, null, 1), Position = new(7, 2) });

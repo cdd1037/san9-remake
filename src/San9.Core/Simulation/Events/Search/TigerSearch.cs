@@ -51,7 +51,6 @@ internal static class TigerSearch
             world.Replace(force with { BaseTrust = Math.Max(0, force.BaseTrust - d.BaseTrustPenalty) });
             if (accept) world.Replace(world.Officers[task.OfficerId] with { Injury = d.DefeatInjury });
         }
-        EconomicCycle.UpdateTrust(world, rules.Economy, events);
         var actor = world.Officers[task.OfficerId];
         events.Add(new TigerSearchResolvedEvent(world.Clock, d.Id, task.ForceId, actor.Id, task.Journey!.DestinationPlaceId,
             accept, won ? EventResult.Succeeded : accept ? EventResult.Defeated : EventResult.Declined, chance, roll,

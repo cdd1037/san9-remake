@@ -38,7 +38,6 @@ internal static class UnitDefections
             ForceTransfer.ClearFriendlyOrders(world, "unit-defected", events);
             CorpsDelegations.Cleanup(world, military, events);
             world.MaintainLeadership(events);
-            EconomicCycle.UpdateTrust(world, rules.Economy, events);
             events.Add(new UnitDefectedEvent(world.Clock, id, owner, recipient, commanderId, followers));
             ResolutionPipeline.CheckConquest(world, events);
             if (world.Simulation.TerminalReason is not null) return;

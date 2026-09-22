@@ -64,7 +64,6 @@ internal static class ThreeVisits
             PersonnelReturns.Start(world, task, personnel, events, true, definition.RecruitId);
             var force = world.Forces[task.ForceId];
             world.Replace(force with { BaseTrust = (int)Math.Min(1000L, (long)force.BaseTrust + definition.BaseTrustBonus) });
-            EconomicCycle.UpdateTrust(world, economy, events);
             Consume(world, definition.CompletedKey, EventTrigger.Search);
         }
         Emit(world, definition, first ? ThreeVisitsStep.FirstVisit : ThreeVisitsStep.Recruitment, events);

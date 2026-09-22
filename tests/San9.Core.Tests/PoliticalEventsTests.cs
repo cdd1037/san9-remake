@@ -31,7 +31,7 @@ public sealed class PoliticalEventsTests
     private static SettlementState City(int id, int owner) => new(id, owner, 1000, 100, 100, 50, 500, 100, 1000, 100, 1000)
         { Kind = SettlementKind.City, ConsumesFood = false };
     private static WorldState World(int rank = 700, bool ended = false) => WorldState.Create(new(190, 1, 1), 17,
-        [new(1, 10000, 10000, 1000) { LeaderId = 11, RankId = rank, BaseTrust = 900 },
+        [new(1, 10000, 10000, 1000) { LeaderId = 11, RankId = rank, BaseTrust = ended ? 1000 : 900 },
          new(2, 10000, 10000, 500) { LeaderId = 21, RankId = 700, BaseTrust = 300 }],
         [City(1, 1), City(2, 2), City(3, 2), City(4, 1)],
         [new(11, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
@@ -55,7 +55,7 @@ public sealed class PoliticalEventsTests
     };
     private static WorldMutation Due(WorldState state)
     {
-        var world = state.BeginMutation(); world.SetClock(new(190, 4, 1));
+        var world = state.BeginMutation(economy: Rules().Economy); world.RebuildForceTrust(); world.SetClock(new(190, 4, 1));
         world.SetSimulation(world.Simulation with { ActiveControl = world.Simulation.Controls.Length }); return world;
     }
 
@@ -63,7 +63,6 @@ public sealed class PoliticalEventsTests
     public void InvestitureRequiresWholeNonemptyProvinceAndPromotesAllEligibleForcesOnlyOnce()
     {
         var state = World(); var world = Due(state);
-        world.Replace(world.Forces[1] with { Trust = 0 }); // Entry gate is territorial, not next-rank trust.
         List<DomainEvent> events = []; PoliticalEvents.Begin(world, Rules(), events);
         Assert.Equal(new[] { 1, 2 }, events.OfType<PeerageChangedEvent>().Select(e => e.ForceId));
         Assert.All(world.Forces.Values, f => Assert.Equal(300, f.RankId));
@@ -81,7 +80,7 @@ public sealed class PoliticalEventsTests
     [InlineData(400, true)]
     public void HigherRankUsesNextThresholdRatherThanCurrentRankOrIdentity(int trust, bool promoted)
     {
-        var world = Due(World(300)); world.Replace(world.Forces[1] with { Trust = trust });
+        var world = Due(World(300)); world.Replace(world.Forces[1] with { BaseTrust = trust - 100 });
         List<DomainEvent> events = []; PoliticalEvents.Begin(world, Rules(), events);
         Assert.Equal(promoted ? 5 : 300, world.Forces[1].RankId);
     }
@@ -110,7 +109,7 @@ public sealed class PoliticalEventsTests
 
     [Theory]
     [InlineData(false, 1000)]
-    [InlineData(true, 900)]
+    [InlineData(true, 1000)]
     public void ExistingTitleSkipsChoiceAndProclamationStopsLaterPromotion(bool ended, int expectedBase)
     {
         var state = World(5, ended); var world = Due(state); world.Replace(world.Forces[1] with { CountryTitleId = 91 });
@@ -159,7 +158,7 @@ public sealed class PoliticalEventsTests
         List<DomainEvent> events = []; PoliticalEvents.Begin(world, Rules(), events);
         Assert.Equal(1, Assert.Single(events.OfType<PeerageChangedEvent>()).ForceId);
         Assert.Equal(5, world.Forces[2].RankId); state.Commit(world);
-        world = state.BeginMutation(); world.SetClock(new(190, 7, 1)); events.Clear();
+        world = state.BeginMutation(economy: Rules().Economy); world.RebuildForceTrust(); world.SetClock(new(190, 7, 1)); events.Clear();
         PoliticalEvents.Begin(world, Rules(), events);
         Assert.Equal(2, Assert.Single(events.OfType<PeerageChangedEvent>()).ForceId);
         Assert.Equal(99, world.Forces[2].RankId); state.Commit(world);
@@ -202,6 +201,11 @@ public sealed class PoliticalEventsTests
         PoliticalEvents.Begin(world, Rules(), events); state.Commit(world);
         var snapshot = state.CreateSnapshot();
         var pending = (CountryTitleEventSession)snapshot.Simulation.PendingEvent!;
+        var staleTrust = snapshot with { Forces = snapshot.Forces.Select(f => f with { Trust = 1 }).ToArray() };
+        var restored = new SimulationEngine(WorldState.Restore(staleTrust), Rules());
+        Assert.Equal(snapshot.StateHash, restored.Snapshot.StateHash);
+        var invalidInput = snapshot with { Forces = snapshot.Forces.Select(f => f with { BaseTrust = 0 }).ToArray() };
+        Assert.Throws<ArgumentException>(() => new SimulationEngine(WorldState.Restore(invalidInput), Rules()));
         var changed = snapshot with { Simulation = snapshot.Simulation with { PendingEvent = pending with { CandidateIds = [123456] } } };
         Assert.Throws<ArgumentException>(() => new SimulationEngine(WorldState.Restore(changed), Rules()));
         changed = snapshot with { Forces = snapshot.Forces.Select(f => f.Id == 1 ? f with { RankId = 700 } : f).ToArray() };

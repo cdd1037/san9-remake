@@ -137,7 +137,7 @@ internal static class WorldInvariants
             sim.NextUnitId < 0 || sim.NextUnitId > (long)int.MaxValue + 1 || state.Units.Keys.Any(id => id >= sim.NextUnitId) ||
             sim.Controls.Any(c => string.IsNullOrWhiteSpace(c.ControllerId) || !Enum.IsDefined(c.Kind) || !state.Forces.ContainsKey(c.ForceId)) ||
             sim.Controls.Select(c => c.ForceId).Distinct().Count() != sim.Controls.Length ||
-            sim.Boundary != SimulationBoundary.Terminal && (!state.Clock.IsXunBoundary && sim.PendingDailyTask is null && sim.PendingDuel is null || sim.TerminalReason is not null) ||
+            sim.Boundary != SimulationBoundary.Terminal && (!state.Clock.IsXunBoundary && !sim.HasPendingDailyResolution || sim.TerminalReason is not null) ||
             sim.Boundary == SimulationBoundary.Terminal && (string.IsNullOrWhiteSpace(sim.TerminalReason) || !sim.Tasks.IsEmpty) ||
             sim.RandomStreams.Any(s => string.IsNullOrWhiteSpace(s.Name)) ||
             !sim.RandomStreams.Select(s => s.Name).SequenceEqual(sim.RandomStreams.Select(s => s.Name).Distinct().Order(StringComparer.Ordinal)))
@@ -148,7 +148,7 @@ internal static class WorldInvariants
             if (!started.IsXunBoundary || started.DayNumber > state.Clock.DayNumber)
                 throw new ArgumentException("Invalid Three Visits starting date.");
         }
-        int pendingDecisions = (sim.PendingEvent is null ? 0 : 1) + (sim.PendingDailyTask is null ? 0 : 1) +
+        int pendingDecisions = (sim.PendingCapturedRuler is null ? 0 : 1) + (sim.PendingEvent is null ? 0 : 1) + (sim.PendingDailyTask is null ? 0 : 1) +
             (sim.PendingDuel is null ? 0 : 1) + (sim.PendingExecutionSuccession is null ? 0 : 1) + (sim.PendingTacticStudy is null ? 0 : 1);
         if (pendingDecisions > 1 || (sim.Boundary == SimulationBoundary.AwaitingDecision) != (pendingDecisions == 1))
             throw new ArgumentException("Decision boundary requires exactly one pending decision.");
@@ -163,6 +163,7 @@ internal static class WorldInvariants
             throw new ArgumentException("Invalid consumed event keys.");
         if (sim.PendingEvent is not (null or AllianceEventSession or OfficeRequestEventSession or CountryTitleEventSession or EmperorTransferEventSession))
             throw new ArgumentException("Unknown event session.");
+        CapturedRulerDisposition.ValidatePending(state);
         PrisonerExecution.ValidatePending(state);
         DuelCombat.ValidatePending(state);
         TacticStudy.ValidatePending(state);

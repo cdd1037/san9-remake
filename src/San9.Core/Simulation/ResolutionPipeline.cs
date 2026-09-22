@@ -123,9 +123,17 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
             ResolveTasks(world, events, xunStarted, phase: TaskResolutionPhase.XunBoundary, remainingTasks: remainingTasks);
             if (world.Simulation.PendingDailyTask is not null || !CheckTerminal(world, events)) return;
         }
+        FinishUnitAndBuildingEvents(world, events, xunStarted);
+    }
+
+    internal void FinishUnitAndBuildingEvents(WorldMutation world, List<DomainEvent> events, GameClock xunStarted, int? afterRuler = null)
+    {
+        if (!CheckTerminal(world, events)) return;
+        CapturedRulerDisposition.Apply(world, rules, events, xunStarted, afterRuler);
+        if (world.Simulation.HasPendingDailyResolution || !CheckTerminal(world, events)) return;
         // The later unit/building phase settles returns already due in the completed day,
         // including those created by that day's commands. Advancing the date is not another countdown tick.
-        // A zero-distance return created by boundary diplomacy can also settle immediately.
+        // A zero-distance return created by diplomacy or a captured ruler disposition can also settle immediately.
         ResolveTasks(world, events, xunStarted, returningAfterDateAdvance: true);
         Run(ResolutionStage.UnitAndBuildingEvents, world, events);
     }
@@ -237,7 +245,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
             TaskCancellation.Apply(world, task, "terminal", events);
         }
         world.SetSimulation(world.Simulation with { Boundary = SimulationBoundary.Terminal, Tasks = [], PendingEvent = null, PendingDailyTask = null,
-            PendingExecutionSuccession = null, PendingTacticStudy = null, PendingDuel = null });
+            PendingCapturedRuler = null, PendingExecutionSuccession = null, PendingTacticStudy = null, PendingDuel = null });
         if (!events.OfType<SimulationEndedEvent>().Any()) events.Add(new SimulationEndedEvent(world.Clock, reason));
         return false;
     }
@@ -284,7 +292,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         var queue = remainingTasks ?? world.Simulation.Tasks
             .Where(t => returningAfterDateAdvance
                 ? t.Kind == PersonnelReturns.Kind && (t.Due.DayNumber < world.Clock.DayNumber ||
-                    world.Clock.IsXunBoundary && t.Due == world.Clock && t.Journey?.ReturnLeg?.CountdownDays == 0)
+                    t.Due == world.Clock && t.Journey?.ReturnLeg?.CountdownDays == 0)
                 : rules.FindTask(t.Kind)?.Phase == phase)
             .OrderBy(t => t.Sequence).ThenBy(t => t.OriginSettlementId).ThenBy(t => t.OfficerId).ThenBy(t => t.Id)
             .Select(t => t.Id).ToImmutableArray();

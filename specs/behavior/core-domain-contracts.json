@@ -203,18 +203,18 @@
       "id": "person-lifecycle",
       "classification": "core",
       "behavior_specs": ["BEH-PERSON-LIFECYCLE-0001", "BEH-PERSON-LIFECYCLE-0002"],
-      "objects": ["PersonGrowth", "InjuryState", "LifeState", "ExecutionSuccessionDecision"],
-      "states": ["not-appeared", "active", "injured", "dead", "execution-succession-pending"],
+      "objects": ["PersonGrowth", "InjuryState", "LifeState", "ExecutionSuccessionDecision", "CapturedRulerDecision"],
+      "states": ["not-appeared", "active", "injured", "dead", "execution-succession-pending", "captured-ruler-disposition-pending"],
       "inputs": ["period boundary", "person snapshot", "growth cause", "death cause", "stable lifecycle random stream"],
-      "outputs": ["bounded growth", "appearance or recovery", "atomic death cleanup", "OfficerInjuryRecoveredEvent", "OfficerAppearedEvent", "ExecutionSuccessionRequestedEvent", "PrisonerExecutedEvent", "FreeOfficerMigratedEvent"],
+      "outputs": ["bounded growth", "appearance or recovery", "atomic death cleanup", "OfficerInjuryRecoveredEvent", "OfficerAppearedEvent", "CapturedRulerDispositionRequestedEvent", "ExecutionSuccessionRequestedEvent", "PrisonerExecutedEvent", "FreeOfficerMigratedEvent"],
       "invariants": ["base and effective ability are distinct", "growth is bounded", "death removes every live reference", "injury recovers once per xun and never during stable restore"],
-      "acceptance_gates": ["growth and learning bounds", "appearance and death curve", "death reference cleanup", "injury recovery and restored continuation", "execution authority and atomic cleanup", "player execution succession save and replay"],
+      "acceptance_gates": ["growth and learning bounds", "appearance and death curve", "death reference cleanup", "injury recovery and restored continuation", "execution authority and atomic cleanup", "player execution succession save and replay", "daily captured ruler disposition and same-day continuation"],
       "depends_on": ["simulation", "personnel"],
       "implementation": {
         "project": "San9.Core",
         "target_namespace": "San9.Core.Simulation",
         "target_path": "src/San9.Core/Simulation/Personnel",
-        "entry_types": ["OfficerInjuryRecovery", "OfficerAppearance", "OfficerDeath", "NaturalMortality", "RulerSuccession", "PrisonerExecution", "FreeOfficerMigration", "TacticStudy"],
+        "entry_types": ["OfficerInjuryRecovery", "OfficerAppearance", "OfficerDeath", "NaturalMortality", "RulerSuccession", "PrisonerExecution", "CapturedRulerDisposition", "FreeOfficerMigration", "TacticStudy"],
         "existing_anchors": ["src/San9.Core/Domain/Governance/OfficerState.cs", "src/San9.Core/Simulation/Personnel/OfficerInjuryRecovery.cs", "src/San9.Core/Simulation/Personnel/OfficerAppearance.cs", "src/San9.Core/Simulation/ResolutionPipeline.cs"]
       }
     },

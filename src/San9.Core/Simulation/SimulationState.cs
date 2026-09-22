@@ -81,6 +81,9 @@ public sealed record SimulationState(GameClock Started, ulong InitialSeed)
     [JsonRequired] public bool NaturalDeathsEnabled { get; init; } = true;
     [JsonRequired] public bool BattleDeathsEnabled { get; init; }
     [JsonRequired] public San9.Core.Domain.AllianceState? Alliance { get; init; }
+    [JsonIgnore] public CapturedRulerDecision? PendingCapturedRuler { get; init; }
+    [JsonIgnore] public bool HasPendingDailyResolution => PendingDailyTask is not null || PendingDuel is not null ||
+        PendingCapturedRuler is not null || PendingExecutionSuccession?.XunStarted is not null;
     [JsonIgnore] public DuelCombatDecision? PendingDuel { get; init; }
     [JsonIgnore] public EventSession? PendingEvent { get; init; }
     [JsonIgnore] public DailyTaskDecision? PendingDailyTask { get; init; }
@@ -95,7 +98,7 @@ public sealed record SimulationState(GameClock Started, ulong InitialSeed)
     [JsonIgnore]
     public bool CanPersist => (Boundary is SimulationBoundary.Stable or SimulationBoundary.Terminal) &&
         PendingDuel is null && PendingEvent is null && PendingDailyTask is null && PendingTacticStudy is null &&
-        PendingExecutionSuccession is null && Tasks.All(t => t.ResolutionStep == 0 && t.SearchEncounter is null &&
+        PendingExecutionSuccession is null && PendingCapturedRuler is null && Tasks.All(t => t.ResolutionStep == 0 && t.SearchEncounter is null &&
             t.AttackRequest?.Offer is null && t.PrisonerReturn?.Offer is null);
     public string? TerminalReason { get; init; }
     public ImmutableArray<ControlSeat> Controls { get; init; } = [];

@@ -99,6 +99,7 @@ public sealed class GameSession
 
     public DuelSuccessionPrompt? GetDuelSuccessionPrompt() => _simulation.GetDuelSuccessionPrompt();
 
+    public CapturedRulerPrompt? GetCapturedRulerPrompt() => _simulation.GetCapturedRulerPrompt();
     public ExecutionSuccessionPrompt? GetExecutionSuccessionPrompt() => _simulation.GetExecutionSuccessionPrompt();
     internal GameCommand ChooseDiplomacy(ControlSeat seat, Guid commandId) => DiplomacyPlanner.Choose(_simulation, seat, commandId);
     public CommandAdvice GetSurrenderAdvice(int forceId, int officerId, int targetForceId) =>

@@ -328,7 +328,7 @@ public sealed class HeadlessHost
             {
                 answeredDecision = true;
                 var state = _session.Snapshot.Simulation;
-                int force = state.PendingDuel?.RespondingForceId ?? state.PendingTacticStudy?.RespondingForceId ?? state.PendingExecutionSuccession?.RespondingForceId ?? state.PendingDailyTask?.RespondingForceId ?? state.PendingEvent!.RespondingForceId;
+                int force = state.PendingCapturedRuler?.CaptorId ?? state.PendingDuel?.RespondingForceId ?? state.PendingTacticStudy?.RespondingForceId ?? state.PendingExecutionSuccession?.RespondingForceId ?? state.PendingDailyTask?.RespondingForceId ?? state.PendingEvent!.RespondingForceId;
                 var seat = state.Controls.Single(c => c.ForceId == force);
                 var request = _session.Request(new EndControlOperation(), seat.ControllerId);
                 GameCommand answer;
@@ -336,6 +336,9 @@ public sealed class HeadlessHost
                     answer = new ChooseDuelSuccessorCommand(request.Id, force, state.NextSequence, duel.RulerId, duel.CandidateIds[0]);
                 else if (_session.GetTacticStudyPrompt() is { } study)
                     answer = new ChooseTacticStudentCommand(request.Id, force, state.NextSequence, study.CityId, study.CandidateIds[0]);
+                else if (_session.GetCapturedRulerPrompt() is { } captive)
+                    // This is the verification policy, not an implicit answer on behalf of a player.
+                    answer = new ChooseCapturedRulerDispositionCommand(request.Id, force, state.NextSequence, captive.RulerId, CapturedRulerAction.Release);
                 else if (_session.GetExecutionSuccessionPrompt() is { } succession)
                     answer = new ChooseExecutionSuccessorCommand(request.Id, force, state.NextSequence, succession.RulerId, succession.CandidateIds[0]);
                 else if (state.PendingDailyTask is { } daily)

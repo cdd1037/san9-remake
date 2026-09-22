@@ -132,6 +132,13 @@ public sealed class SimulationEngine
                 DuelAftermath.Successors(_world.BeginMutation(_rules.Abilities, _rules.Economy), pending.Aftermath.PendingRulerId.Value)) : null;
     }
 
+    public CapturedRulerPrompt? GetCapturedRulerPrompt()
+    {
+        if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
+        return _world.Simulation.PendingCapturedRuler is { } pending
+            ? new(pending.RulerId, pending.CaptorId, Snapshot.Officers.Single(p => p.Id == pending.RulerId).OwnerId!.Value) : null;
+    }
+
     public ExecutionSuccessionPrompt? GetExecutionSuccessionPrompt()
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
@@ -445,9 +452,24 @@ public sealed class SimulationEngine
                     _pipeline.ResumeDuel(mutation, events, duelHeir);
                     ContinueXun(mutation, duel.XunStarted, events);
                     break;
+                case ChooseCapturedRulerDispositionCommand disposition:
+                    var captive = mutation.Simulation.PendingCapturedRuler!;
+                    if (disposition.RulerId != captive.RulerId || !Enum.IsDefined(disposition.Action)) return Reject(CommandRejection.InvalidDecision);
+                    mutation.SetSimulation(mutation.Simulation with { PendingCapturedRuler = null, Boundary = SimulationBoundary.Stable });
+                    CapturedRulerDisposition.Resolve(mutation, _rules, events, captive, disposition.Action);
+                    if (!mutation.Simulation.HasPendingDailyResolution)
+                        _pipeline.FinishUnitAndBuildingEvents(mutation, events, captive.XunStarted, captive.RulerId);
+                    ContinueXun(mutation, captive.XunStarted, events);
+                    break;
                 case ChooseExecutionSuccessorCommand successor:
+                    var executionPending = mutation.Simulation.PendingExecutionSuccession!;
                     var successionRejection = PrisonerExecution.Respond(mutation, successor, _rules, events);
                     if (successionRejection != CommandRejection.None) return Reject(successionRejection);
+                    if (executionPending.XunStarted is { } executionStart)
+                    {
+                        _pipeline.FinishUnitAndBuildingEvents(mutation, events, executionStart, executionPending.RulerId);
+                        ContinueXun(mutation, executionStart, events);
+                    }
                     break;
                 case DemandSurrenderCommand surrender:
                     var surrenderRejection = SurrenderDiplomacy.Start(mutation, context, surrender, _rules, events);
@@ -685,6 +707,13 @@ public sealed class SimulationEngine
                 c.Kind == ControllerKind.Player && c.ControllerId == context.ControllerId)
                 ? CommandRejection.None : CommandRejection.NotActiveController;
         }
+        if (sim.PendingCapturedRuler is { } captive)
+        {
+            if (command is not ChooseCapturedRulerDispositionCommand) return CommandRejection.DecisionPending;
+            return captive.CaptorId == command.IssuerId && sim.Controls.Any(c => c.ForceId == command.IssuerId &&
+                c.Kind == ControllerKind.Player && c.ControllerId == context.ControllerId)
+                ? CommandRejection.None : CommandRejection.NotActiveController;
+        }
         if (sim.PendingExecutionSuccession is { } succession)
         {
             if (command is not ChooseExecutionSuccessorCommand) return CommandRejection.DecisionPending;
@@ -729,7 +758,7 @@ public sealed class SimulationEngine
                 ? CommandRejection.None : CommandRejection.NotActiveController;
         }
         if (sim.Boundary != SimulationBoundary.Stable) return CommandRejection.NotStable;
-        if (command is RespondEmperorTransferCommand or ChooseCountryTitleCommand or RespondOfficeRequestCommand or ChooseDuelSuccessorCommand or AllianceParticipationCommand or RespondDailyTaskCommand or ChooseExecutionSuccessorCommand or ChooseTacticStudentCommand) return CommandRejection.InvalidDecision;
+        if (command is ChooseCapturedRulerDispositionCommand or RespondEmperorTransferCommand or ChooseCountryTitleCommand or RespondOfficeRequestCommand or ChooseDuelSuccessorCommand or AllianceParticipationCommand or RespondDailyTaskCommand or ChooseExecutionSuccessorCommand or ChooseTacticStudentCommand) return CommandRejection.InvalidDecision;
         if (sim.ActiveControl >= sim.Controls.Length) return CommandRejection.NotActiveController;
         var seat = sim.Controls[sim.ActiveControl];
         return CorpsControl.Authorize(Snapshot, seat, context, command);
@@ -787,11 +816,11 @@ public sealed class SimulationEngine
     {
         GameClock next = previous.Advance();
         while (mutation.Clock != next && mutation.Simulation.Boundary != SimulationBoundary.Terminal &&
-            mutation.Simulation.PendingDailyTask is null && mutation.Simulation.PendingDuel is null)
+            !mutation.Simulation.HasPendingDailyResolution)
             _pipeline.AdvanceDay(mutation, events, previous);
-        if (mutation.Simulation.Boundary != SimulationBoundary.Terminal && mutation.Simulation.PendingDailyTask is null && mutation.Simulation.PendingDuel is null)
+        if (mutation.Simulation.Boundary != SimulationBoundary.Terminal && !mutation.Simulation.HasPendingDailyResolution)
             _pipeline.Prepare(mutation, events);
-        if (mutation.Clock == next && mutation.Simulation.PendingDailyTask is null && mutation.Simulation.PendingDuel is null)
+        if (mutation.Clock == next && !mutation.Simulation.HasPendingDailyResolution)
             events.Add(new XunAdvancedEvent(previous, mutation.Clock));
     }
 }

@@ -22,6 +22,7 @@ public sealed record RespondDailyTaskCommand(Guid CommandId, int IssuerId, long 
 [JsonDerivedType(typeof(RespondEmperorTransferCommand), "respond-emperor-transfer")]
 [JsonDerivedType(typeof(ChooseCountryTitleCommand), "choose-country-title")]
 [JsonDerivedType(typeof(RespondOfficeRequestCommand), "respond-office-request")]
+[JsonDerivedType(typeof(ChooseCapturedRulerDispositionCommand), "choose-captured-ruler-disposition")]
 [JsonDerivedType(typeof(ReturnPrisonerCommand), "return-prisoner")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(AllianceParticipationCommand), "alliance-participation")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(BurnCommand), "strategy-burn")]

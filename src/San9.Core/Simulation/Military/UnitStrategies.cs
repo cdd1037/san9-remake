@@ -237,7 +237,7 @@ internal static class UnitStrategies
         OfficerTacticGrowth.Increase(world, actor.Id, 8, 2, events);
         events.Add(new UnitStrategyResolvedEvent(world.Clock, actor.Id, target.Id, UnitStrategyKind.Reinforce,
             threshold, roll, success) { RequestedSoldiers = requested, DeliveredSoldiers = delivered });
-        var returning = task with { Reinforcements = delivered == troops.Soldiers ? null : troops with
+        var returning = task with { Reinforcements = delivered == troops.Soldiers && troops.Wounded == 0 ? null : troops with
         {
             Soldiers = troops.Soldiers - delivered,
             DemobilizationCityId = Demobilization.City(world, task.Journey!.DestinationPlaceId, rules.Personnel)
@@ -254,7 +254,7 @@ internal sealed class UnitStrategyRule(SimulationRules rules) : TaskRule
           Route: { FieldDestination: true }, UnitStrategy: { } mission } &&
         Enum.IsDefined(mission.Strategy) && mission.TargetUnitId >= 0 &&
         (mission.Strategy == UnitStrategyKind.Reinforce
-            ? task.Reinforcements is { Soldiers: 3000, Morale: >= 0 and <= 100 }
+            ? task.Reinforcements is { Soldiers: > 0 and <= 3000, Morale: >= 0 and <= 100 } troops && (ulong)troops.Soldiers + troops.Wounded <= 3000
             : task.Reinforcements is null) &&
         DurationDays(task) >= 0;
     internal override int DurationDays(PersistentTask task) => task.Journey is { Route: { } route } journey &&

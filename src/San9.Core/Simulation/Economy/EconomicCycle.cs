@@ -93,14 +93,18 @@ internal static class EconomicCycle
             costs[account] = costs.GetValueOrDefault(account) + cost;
         }
         foreach (var city in world.Settlements.Values.Where(s => s.OwnerId is not null && s.ConsumesFood))
-            Add(city.OwnerId!.Value, city.CorpsId, ((long)city.Soldiers + city.Wounded + 499) / 500);
-        foreach (var unit in world.Units.Values) Add(unit.OwnerId, unit.CorpsId, 3 * ((long)unit.Soldiers + unit.Wounded + 333) / 1000);
+            Add(city.OwnerId!.Value, city.CorpsId, DailyRations.Garrison(city.Soldiers, city.Wounded));
+        foreach (var unit in world.Units.Values) Add(unit.OwnerId, unit.CorpsId, DailyRations.Field(unit.Soldiers, unit.Wounded));
+        foreach (var task in world.Simulation.Tasks)
+            if (task.Reinforcements is { } troops)
+                Add(task.ForceId, ReinforcementTransport.Corps(world, task), DailyRations.Field(troops.Soldiers, troops.Wounded));
         List<DailyRationAccount> accounts = [];
         foreach (var pair in costs.OrderBy(p => p.Key.Kind).ThenBy(p => p.Key.Id))
         {
             if (pair.Value <= 0) continue;
+            bool shortage = ResourceAccounts.Balance(world, pair.Key, ResourceKind.Food) < pair.Value;
             ResourceAccounts.Change(world, pair.Key, ResourceKind.Food, -pair.Value, "daily-rations", null, events);
-            accounts.Add(new(pair.Key, ResourceAccounts.Balance(world, pair.Key, ResourceKind.Food) == 0));
+            accounts.Add(new(pair.Key, shortage));
         }
         return accounts;
     }

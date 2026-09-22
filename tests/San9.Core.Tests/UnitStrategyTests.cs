@@ -102,7 +102,7 @@ public sealed class UnitStrategyTests
         Assert.Equal(0, state.Units[5].ConditionDaysRemaining);
     }
 
-    private static SimulationRules Rules(bool defensive = false, bool immune = false, bool reinforcementConnection = true) => new()
+    internal static SimulationRules Rules(bool defensive = false, bool immune = false, bool reinforcementConnection = true) => new()
     {
         Personnel = new([new(1, new(2, 2)), new(2, new(997, 12))],
             new Dictionary<int, int> { [1] = 1, [2] = 2 }, reinforcementConnection ? [new(1, 2)] : []),
@@ -113,7 +113,7 @@ public sealed class UnitStrategyTests
             { RegionIds = Enumerable.Repeat<int?>(2, 600).ToImmutableArray() })
     };
 
-    private static WorldState World(bool friendly = false, int distance = 31, int intelligence = 99) => WorldState.Create(new(190, 1, 1), 42,
+    internal static WorldState World(bool friendly = false, int distance = 31, int intelligence = 99) => WorldState.Create(new(190, 1, 1), 42,
         [new(1, 10000, 10000, 100), new(2, 10000, 10000, 100)],
         [new(1, 1, 10000, 100, 100, 70, 500, 0, 100, 0, 100), new(2, 2, 10000, 100, 100, 70, 500, 0, 100, 0, 100)],
         [new(11, 1, 1, new(70, intelligence, 70, 70), false), new(12, 1, 1, new(70, 70, 70, 70), false),
@@ -122,7 +122,7 @@ public sealed class UnitStrategyTests
             CommanderId = 22, OrderClass = UnitOrderClass.Military }],
         relations: [new(1, 2, 50)], controls: [new("player", 1, ControllerKind.Player)]);
 
-    private static PersistentTask Submit(WorldState world, SimulationRules rules, UnitStrategyKind strategy, int? forcedRoll = null)
+    internal static PersistentTask Submit(WorldState world, SimulationRules rules, UnitStrategyKind strategy, int? forcedRoll = null)
     {
         var engine = new SimulationEngine(world, rules);
         var command = new UnitStrategyCommand(Guid.NewGuid(), 1, world.Simulation.NextSequence, 11, strategy, 5);
@@ -140,7 +140,7 @@ public sealed class UnitStrategyTests
         return Assert.Single(world.Simulation.Tasks);
     }
 
-    private static List<DomainEvent> Day(WorldMutation mutation, SimulationRules rules)
+    internal static List<DomainEvent> Day(WorldMutation mutation, SimulationRules rules)
     {
         List<DomainEvent> events = [];
         new ResolutionPipeline(rules).AdvanceDay(mutation, events);

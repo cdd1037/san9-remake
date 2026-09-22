@@ -23,9 +23,8 @@ internal static class SoldierTotals
             if (forceId is not null && task.ForceId != forceId || task.Reinforcements is not { } troops) continue;
             // Return tasks use their current destination as OriginSettlementId. Reassignment and corps
             // changes therefore take effect without persisting a second ownership field on the payload.
-            if (!restrictCorps || world.Settlements.TryGetValue(task.OriginSettlementId, out var home) &&
-                !home.IsDestroyed && home.OwnerId == forceId && home.CorpsId == corpsId)
-                total += troops.Soldiers;
+            if (!restrictCorps || ReinforcementTransport.Corps(world, task) == corpsId)
+                total += (long)troops.Soldiers + (includeWounded ? troops.Wounded : 0);
         }
         return total;
     }

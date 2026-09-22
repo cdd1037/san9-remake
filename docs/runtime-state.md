@@ -46,7 +46,7 @@ Application把当前世界与复制后的名称/显示定义组合成`StrategySn
 
 G09已完成：人物登场、成长、伤势恢复、自然死亡、处决、继任、迁移、季度修行和单挑已接入。继任及修行报名等待仅在内存续行，拒绝存档；正式90日修行任务可保存。v14支持继任自动回退、修行结业后同季续招及电脑双方单挑阵亡，季度自然死亡使用命令前返程时序。原版差异与实际验证见[G09](g09-verification.md)。
 
-G08已接入：`SimulationState.Alliance`唯一保存当前联盟目标、盟主、成员和剩余旬数，内容初始联盟经Application建局后沿快照、摘要、存档和录像传递。`AllianceDiplomacy`处理旬到期与势力退出，军事公共敌对查询拒绝联盟成员之间攻击；`ForceRelations`统一有界对称关系写回。八类计略均已接入公共命令、只读意见、类型化任务、日级效果和返程；`PersonnelJourney`保存目标位置及各命令载荷，流言额外保存两个目标势力身份。`PersistentTask.Reinforcements`保存救援在途兵数、士气与遣散城市，去返程之间转移唯一载荷；到达入库、返城超额及任务失效由运输与遣散服务结清。夺取复用宝物转移、俘虏恢复和资源账户服务，流言复用关系与忠诚服务。季度形成以`PendingAlliance`保存玩家回答；四类外交使用`PendingDailyTask`及任务阶段号保存旬边界谈判和剩余队列。赠与预付款、俘虏补偿、请求期限与劝降归并均由Core清算；`DiplomacyPlanner`与`StrategyPlanner`只生成公共命令，自动军团使用本军团控制权限。完整覆盖与实际验证见[G08](g08-verification.md)。
+G08已接入：`SimulationState.Alliance`唯一保存当前联盟目标、盟主、成员和剩余旬数，内容初始联盟经Application建局后沿快照、摘要、存档和录像传递。`AllianceDiplomacy`处理旬到期与势力退出，军事公共敌对查询拒绝联盟成员之间攻击；`ForceRelations`统一有界对称关系写回。八类计略均已接入公共命令、只读意见、类型化任务、日级效果和返程；`PersonnelJourney`保存目标位置及各命令载荷，流言额外保存两个目标势力身份。`PersistentTask.Reinforcements`保存救援在途现役、伤兵、当前士气与遣散城市，去返程之间转移唯一载荷；日粮耗和断粮损失与其他兵员载体共用账户结算；到达入库、伤兵返程、返城超额及任务失效由运输与遣散服务结清。夺取复用宝物转移、俘虏恢复和资源账户服务，流言复用关系与忠诚服务。季度形成以`PendingAlliance`保存玩家回答；四类外交使用`PendingDailyTask`及任务阶段号保存旬边界谈判和剩余队列。赠与预付款、俘虏补偿、请求期限与劝降归并均由Core清算；`DiplomacyPlanner`与`StrategyPlanner`只生成公共命令，自动军团使用本军团控制权限。完整覆盖与实际验证见[G08](g08-verification.md)。
 
 依据[BEH-ECONOMY-0001](../specs/behavior/BEH-ECONOMY-0001-domestic-and-economic-cycle.md)，六项经营命令支持1至5名不同参与者。公共处理器验证当前归属、驻地、行动占用、项目次数与资源，原子提交属性、账户、兵员、熟练度和使用状态；拒绝不改变世界与随机。征兵按实际剩余容量和资金计算，兵役与驻军严格守恒。
 

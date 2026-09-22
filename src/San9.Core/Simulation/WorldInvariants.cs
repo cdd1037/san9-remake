@@ -249,7 +249,7 @@ internal static class WorldInvariants
                 task.ProgressDays != state.Clock.DayNumber - task.Started.DayNumber)
                 throw new ArgumentException("Invalid persistent task.");
             if (task.Reinforcements is { } troops &&
-                (troops.Soldiers is 0 or > 3000 || troops.Morale is < 0 or > 100 ||
+                ((ulong)troops.Soldiers + troops.Wounded is 0 or > 3000 || troops.Morale is < 0 or > 100 ||
                  !state.Settlements.TryGetValue(troops.DemobilizationCityId, out var muster) || muster.Kind != San9.Core.Domain.SettlementKind.City ||
                  !(task.Kind == UnitStrategies.Kind && task.Journey?.UnitStrategy?.Strategy == UnitStrategyKind.Reinforce ||
                    task.Kind == PersonnelReturns.Kind && task.Journey?.ReturnLeg is not null)))
@@ -261,7 +261,7 @@ internal static class WorldInvariants
                 journey.Route.Destination is { X: < 0 } or { Y: < 0 } ||
                 journey.UnitStrategy is { } strategy && (!Enum.IsDefined(strategy.Strategy) || strategy.TargetUnitId < 0 ||
                     (strategy.Strategy == UnitStrategyKind.Reinforce
-                        ? task.Reinforcements is not { Soldiers: 3000 } : task.Reinforcements is not null)) ||
+                        ? task.Reinforcements is not { Soldiers: > 0 } : task.Reinforcements is not null)) ||
                 journey.Burn is { } burn && (burn.TargetSettlementId < 0 || journey.UnitStrategy is not null || journey.Seize is not null || journey.Gossip is not null) ||
                 journey.Seize is { } seize && (seize.TargetSettlementId < 0 || journey.UnitStrategy is not null || journey.Burn is not null || journey.Gossip is not null) ||
                 journey.Gossip is { } gossip && (gossip.FirstTargetForceId < 0 || gossip.SecondTargetForceId < 0 ||

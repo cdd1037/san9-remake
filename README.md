@@ -4,7 +4,7 @@
 
 ## 当前能力与边界
 
-战场支持[混战阵亡](specs/behavior/BEH-WAR-0005-tactics.md#混战阵亡)：双倍武力兵法击破野外部队后，在俘获前判定阵亡；玩家直属、委任与电脑采用相同规则。救援去返程兵员纳入[周期经济统计](specs/behavior/BEH-ECONOMY-0001-domestic-and-economic-cycle.md#在途救援的军事人口)，[途中后勤](specs/behavior/BEH-STRATEGY-0002-unit-status-and-reinforcement.md#未决问题)仍待确定。
+战场支持[混战阵亡](specs/behavior/BEH-WAR-0005-tactics.md#混战阵亡)：双倍武力兵法击破野外部队后，在俘获前判定阵亡；玩家直属、委任与电脑采用相同规则。救援去返程兵员纳入[周期经济统计](specs/behavior/BEH-ECONOMY-0001-domestic-and-economic-cycle.md#在途救援的军事人口)，[途中后勤](specs/behavior/BEH-STRATEGY-0002-unit-status-and-reinforcement.md#在途补给与兵员损耗)按军团账户结算粮耗、断粮损失和伤兵返程。
 
 战场已支持[狙击](specs/behavior/BEH-WAR-0005-tactics.md#2026-09-21-狙击)：部队／设施兵法可造成武将伤势及受规则约束的阵亡，同次击破仍保留伤势。
 

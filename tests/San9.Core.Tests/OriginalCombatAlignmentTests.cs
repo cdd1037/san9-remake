@@ -41,9 +41,9 @@ public sealed class OriginalCombatAlignmentTests
     [Theory]
     [InlineData(0u, true)]
     [InlineData(2u, true)]
-    [InlineData(4u, true)]
+    [InlineData(4u, false)]
     [InlineData(5u, false)]
-    public void ExactExhaustionAndPartialShortageHaveTheSameDailyLoss(uint food, bool starved)
+    public void OnlyInsufficientDailyRationsCauseStarvation(uint food, bool starved)
     {
         var m = World(food).BeginMutation(); var rules = Rules(); List<DomainEvent> events = [];
         var accounts = EconomicCycle.Apply(ResolutionStage.BeforeDailyCommands, m, rules.Economy, events);

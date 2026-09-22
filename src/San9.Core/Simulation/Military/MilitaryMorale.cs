@@ -11,7 +11,7 @@ internal static class MilitaryMorale
     internal static void Apply(WorldMutation world, IReadOnlyList<DailyRationAccount> accounts, SimulationRules rules, List<DomainEvent> events)
     {
         if (rules.Military is not { } military) return;
-        var supplied = accounts.Where(s => !s.Exhausted).Select(s => s.Account).ToHashSet();
+        var supplied = accounts.Where(s => !s.Shortage).Select(s => s.Account).ToHashSet();
         if (world.Clock.Day % 3 == 0)
             foreach (var home in world.Settlements.Values.Where(s => s.OwnerId is not null && s.ConsumesFood && s.Soldiers > 0).OrderBy(s => s.Id).ToArray())
             {

@@ -32,7 +32,10 @@ public sealed record PersistentTask(Guid Id, string Kind, string ControllerId, i
     [JsonRequired] public SurrenderMission? Surrender { get; init; }
 }
 
-public sealed record ReinforcementTroops(uint Soldiers, int Morale, int DemobilizationCityId);
+public sealed record ReinforcementTroops(uint Soldiers, int Morale, int DemobilizationCityId)
+{
+    [JsonRequired] public uint Wounded { get; init; }
+}
 
 public sealed record PersonnelJourney(int DestinationPlaceId, int? TargetOfficerId, int? SuccessRoll)
 {

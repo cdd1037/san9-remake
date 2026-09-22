@@ -53,7 +53,7 @@ internal static class DuelAftermath
         bool Candidate(int id) => world.Officers[id] is { IsServing: true, OwnerId: int owner, UnitId: int unit } &&
             unit == loserUnit && !world.Forces[owner].IsBarbarian && !priorWinners.Contains(id) &&
             world.Units.TryGetValue(unit, out var current) && current.CommanderId != id;
-        bool CanKill() => world.Simulation.BattleDeathsEnabled && rules.Military!.BattleDeathsAllowed &&
+        bool CanKill() => BattleDeathRules.Enabled(world, rules.Military!) &&
             world.Units.ContainsKey(outcome.Roster.AttackingUnitId) &&
             world.Units.ContainsKey(outcome.Roster.DefendingUnitId);
 
@@ -61,8 +61,8 @@ internal static class DuelAftermath
         {
             int id = losers[i];
             var person = world.Officers[id];
-            var abilities = person.BaseAbilities;
-            if (!Candidate(id) || Math.Max(Math.Max(abilities.War, abilities.Intelligence), Math.Max(abilities.Politics, abilities.Leadership)) >= 80 ||
+            if (!Candidate(id) || BattleDeathRules.IsProtected(world, person,
+                    world.Units[loserUnit].CommanderId == id, OfficerDeathCause.Duel) ||
                 !Roll("duel-death", DeathChance(world.Abilities(person).War))) continue;
             if (person.OwnerId is int owner && world.Forces[owner].LeaderId == id &&
                 world.Simulation.Controls.Any(c => c.ForceId == owner && c.Kind == ControllerKind.Player) && !Successors(world, id).IsEmpty)

@@ -2,7 +2,7 @@ using San9.Core.Domain;
 
 namespace San9.Core.Simulation;
 
-public enum OfficerDeathCause { NoRetreat, ForceEliminated, Natural, Execution, Duel, HistoricalEvent, Sniping }
+public enum OfficerDeathCause { NoRetreat, ForceEliminated, Natural, Execution, Duel, HistoricalEvent, Sniping, Melee }
 
 public sealed record OfficerDiedEvent(GameClock Clock, int OfficerId, OfficerDeathCause Cause,
     OfficerStatus PreviousStatus, int? PreviousForceId, int? PreviousSettlementId, int? PreviousRegionId,

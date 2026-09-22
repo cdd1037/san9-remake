@@ -73,6 +73,7 @@ public static class MilitaryContentCompiler
                     DoublesCapture = f.Id == 1,
                     PreventsTacticRescue = f.Id == 1,
                     SnipingChanceBonus = f.Id == 5 ? 30 : 0,
+                    MeleeDeathUsesRanks = f.Id is not (12 or 13 or 14 or 24 or 25 or 27),
                     DoublesDuelChance = f.Id == 3,
                     GainsDailyCombatProficiency = f.Id is not (13 or 14),
                     HalvesHostileStrategyChance = f.Id == 7,

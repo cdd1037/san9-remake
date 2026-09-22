@@ -8,13 +8,18 @@ public sealed record FacilityDestroyedEvent(GameClock Clock, int SettlementId, B
 public sealed record ForceEliminatedEvent(GameClock Clock, int ForceId, bool WasPlayerControlled) : DomainEvent;
 public sealed record ForceLeaderChangedEvent(GameClock Clock, int ForceId, int? PreviousId, int OfficerId) : DomainEvent;
 
+internal enum UnitDefeatCause { Other, DoubledMartialTactic }
+
 internal static class BattleAftermath
 {
-    internal static void TerminateUnit(WorldMutation world, int id, BattleSource? winner, SimulationRules rules, List<DomainEvent> events)
+    internal static void TerminateUnit(WorldMutation world, int id, BattleSource? winner, SimulationRules rules, List<DomainEvent> events,
+        UnitDefeatCause cause = UnitDefeatCause.Other)
     {
         var unit = world.Units[id];
         if (winner is { } victor && !world.Forces[unit.OwnerId].IsEliminated)
             BattleLearning.DefeatedUnit(world, victor, events);
+        if (cause == UnitDefeatCause.DoubledMartialTactic && winner is { } source && source.Exists(world))
+            MeleeDeaths.Apply(world, unit, rules, events);
         var shape = MilitaryCombat.Area(unit, rules.Military!);
         ResolvePeople(world, p => p.UnitId == id, shape, unit, winner, unit.ServicePlaceId, rules, events);
         int? city = unit.ServicePlaceId is int home ?

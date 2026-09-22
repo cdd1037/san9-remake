@@ -32,10 +32,9 @@ internal static class TacticSniping
         int chance = (int)Math.Clamp(attack < defense ? delta + 70 : delta, 0, 100);
         bool severe = TacticCombat.Roll(world, "military-sniping-injury", chance);
         int injury = attack < defense ? severe ? 4 : 1 : severe ? 7 : 4;
-        var abilities = person.BaseAbilities;
-        bool protectedFromDeath = person.OwnerId is not int owner || world.Forces[owner].IsBarbarian ||
-            Math.Max(Math.Max(abilities.War, abilities.Intelligence), Math.Max(abilities.Politics, abilities.Leadership)) >= 80 ||
-            (target.UnitId is int targetUnit ? world.Units[targetUnit].CommanderId == person.Id : person.IsCommander);
+        bool protectedFromDeath = BattleDeathRules.IsProtected(world, person,
+            target.UnitId is int targetUnit ? world.Units[targetUnit].CommanderId == person.Id : person.IsCommander,
+            OfficerDeathCause.Sniping);
         return new(source, new(target.UnitId ?? target.SettlementId!.Value, target.UnitId is null),
             tactic.Id, actor.Id, person.Id, injury, protectedFromDeath);
     }
@@ -51,7 +50,7 @@ internal static class TacticSniping
         // Injury belongs to the pre-loss result even if capture, escape or destruction removed its carrier.
         // Subsequent death remains a surviving-combatant effect, independent of message visibility.
         if (targetDefeated || outcome.ProtectedFromDeath || !person.IsServing ||
-            !world.Simulation.BattleDeathsEnabled || !rules.Military!.BattleDeathsAllowed ||
+            !BattleDeathRules.Enabled(world, rules.Military!) ||
             !outcome.Source.Exists(world) || !outcome.Target.Exists(world)) return;
         if (TacticCombat.Roll(world, "military-sniping-death", outcome.Injury * outcome.Injury))
             OfficerDeath.Resolve(world, person.Id, OfficerDeathCause.Sniping, rules, events, afterDailyCommands: true);

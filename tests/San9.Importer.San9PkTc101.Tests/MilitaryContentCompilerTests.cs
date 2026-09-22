@@ -73,6 +73,7 @@ public sealed class MilitaryContentCompilerTests
             Assert.Equal(source.Id == 1, formation.DoublesCapture);
             Assert.Equal(source.Id == 1, formation.PreventsTacticRescue);
             Assert.Equal(source.Id == 5 ? 30 : 0, formation.SnipingChanceBonus);
+            Assert.Equal(source.Id is not (12 or 13 or 14 or 24 or 25 or 27), formation.MeleeDeathUsesRanks);
             Assert.Equal(source.Id == 3, formation.DoublesDuelChance);
             Assert.Equal(source.Id == 11 ? new[] { 0 } : [], formation.MartialTacticVulnerabilities);
             Assert.Equal(new CombatProfile(source.AgainstUnits, source.AgainstSoldiers, source.AgainstWalls,

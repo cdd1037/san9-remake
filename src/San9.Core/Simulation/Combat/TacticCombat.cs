@@ -169,7 +169,9 @@ internal static class TacticCombat
                 defender.Condition is UnitCondition.NoFormation or UnitCondition.Confused or UnitCondition.Routed, defender.Soldiers);
             MilitaryCombat.DamageUnit(world, defender, damage, defense, source.Id, events, source.IsSettlement);
             var current = world.Units[targetId];
-            if (current.Soldiers == 0 || current.Morale == 0) BattleAftermath.TerminateUnit(world, targetId, source, rules, events);
+            if (current.Soldiers == 0 || current.Morale == 0)
+                BattleAftermath.TerminateUnit(world, targetId, source, rules, events,
+                    doubled ? UnitDefeatCause.DoubledMartialTactic : UnitDefeatCause.Other);
             else if (rescued is int prisonerId)
                 TacticRescue.Release(world, targetId, prisonerId, rules, events);
         }

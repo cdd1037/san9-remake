@@ -13,12 +13,7 @@ internal static class DuelAftermath
     internal static long DeathChance(int martial) => Math.Min(30, 80L - martial);
     internal static long CaptureChance(int martial) => Math.Min(60, 120 - DuelStrike.Score(martial));
 
-    internal static ImmutableArray<int> Successors(WorldMutation world, int rulerId)
-    {
-        int? owner = world.Officers[rulerId].OwnerId;
-        return world.Officers.Values.Where(p => p.Id != rulerId && p.IsServing && p.OwnerId == owner)
-            .OrderBy(p => p.Id).Select(p => p.Id).ToImmutableArray();
-    }
+    internal static ImmutableArray<int> Successors(WorldMutation world, int rulerId) => RulerSuccession.Candidates(world, rulerId);
 
     internal static DuelAftermathProgress Begin(WorldMutation world, DuelOutcome outcome)
     {

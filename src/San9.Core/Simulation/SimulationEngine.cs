@@ -132,6 +132,14 @@ public sealed class SimulationEngine
                 DuelAftermath.Successors(_world.BeginMutation(_rules.Abilities, _rules.Economy), pending.Aftermath.PendingRulerId.Value)) : null;
     }
 
+    public SnipingSuccessionPrompt? GetSnipingSuccessionPrompt()
+    {
+        if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
+        return _world.Simulation.PendingSniping is { } pending
+            ? new(pending.RulerId, pending.RespondingForceId,
+                RulerSuccession.Candidates(_world.BeginMutation(_rules.Abilities, _rules.Economy), pending.RulerId)) : null;
+    }
+
     public CapturedRulerPrompt? GetCapturedRulerPrompt()
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
@@ -442,6 +450,15 @@ public sealed class SimulationEngine
                     var executionRejection = PrisonerExecution.Start(mutation, execution, _rules, events);
                     if (executionRejection != CommandRejection.None) return Reject(executionRejection);
                     break;
+                case ChooseSnipingSuccessorCommand snipingSuccessor:
+                    var sniping = mutation.Simulation.PendingSniping!;
+                    if (sniping.RulerId != snipingSuccessor.RulerId || snipingSuccessor.SuccessorId is int heir &&
+                        !RulerSuccession.Candidates(mutation, sniping.RulerId).Contains(heir)) return Reject(CommandRejection.InvalidDecision);
+                    int snipingHeir = snipingSuccessor.SuccessorId ?? RulerSuccession.Automatic(mutation,
+                        sniping.RespondingForceId, mutation.Officers[sniping.RulerId])!.Id;
+                    _pipeline.ResumeSniping(mutation, events, snipingHeir);
+                    ContinueXun(mutation, sniping.Exchange!.XunStarted, events);
+                    break;
                 case ChooseDuelSuccessorCommand duelSuccessor:
                     var duel = mutation.Simulation.PendingDuel!;
                     if (duel.Aftermath.PendingRulerId != duelSuccessor.RulerId ||
@@ -693,6 +710,13 @@ public sealed class SimulationEngine
         if (_world.Simulation.Tasks.Any(t => t.Id == command.CommandId)) return CommandRejection.DuplicateCommandId;
         if (command.Sequence != _world.Simulation.NextSequence) return CommandRejection.WrongSequence;
         var sim = _world.Simulation;
+        if (sim.PendingSniping is { } sniping)
+        {
+            if (command is not ChooseSnipingSuccessorCommand) return CommandRejection.DecisionPending;
+            return sniping.RespondingForceId == command.IssuerId && sim.Controls.Any(c => c.ForceId == command.IssuerId &&
+                c.Kind == ControllerKind.Player && c.ControllerId == context.ControllerId)
+                ? CommandRejection.None : CommandRejection.NotActiveController;
+        }
         if (sim.PendingDuel is { } duel)
         {
             if (command is not ChooseDuelSuccessorCommand) return CommandRejection.DecisionPending;
@@ -758,7 +782,7 @@ public sealed class SimulationEngine
                 ? CommandRejection.None : CommandRejection.NotActiveController;
         }
         if (sim.Boundary != SimulationBoundary.Stable) return CommandRejection.NotStable;
-        if (command is ChooseCapturedRulerDispositionCommand or RespondEmperorTransferCommand or ChooseCountryTitleCommand or RespondOfficeRequestCommand or ChooseDuelSuccessorCommand or AllianceParticipationCommand or RespondDailyTaskCommand or ChooseExecutionSuccessorCommand or ChooseTacticStudentCommand) return CommandRejection.InvalidDecision;
+        if (command is ChooseSnipingSuccessorCommand or ChooseCapturedRulerDispositionCommand or RespondEmperorTransferCommand or ChooseCountryTitleCommand or RespondOfficeRequestCommand or ChooseDuelSuccessorCommand or AllianceParticipationCommand or RespondDailyTaskCommand or ChooseExecutionSuccessorCommand or ChooseTacticStudentCommand) return CommandRejection.InvalidDecision;
         if (sim.ActiveControl >= sim.Controls.Length) return CommandRejection.NotActiveController;
         var seat = sim.Controls[sim.ActiveControl];
         return CorpsControl.Authorize(Snapshot, seat, context, command);

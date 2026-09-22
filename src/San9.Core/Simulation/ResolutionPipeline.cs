@@ -209,7 +209,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         {
             MilitaryCombat.AdvanceDay(world, rules, events, xunStarted);
             world.MaintainDerivedState(events);
-            if (world.Simulation.PendingDuel is not null || !CheckTerminal(world, events)) return false;
+            if (world.Simulation.PendingDuel is not null || world.Simulation.PendingSniping is not null || !CheckTerminal(world, events)) return false;
         }
         if (stage == ResolutionStage.XunUpdate) OfficeRequests.Begin(world, rules, events);
         return CompleteStage(stage, world, events);
@@ -219,7 +219,16 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
     {
         var xunStarted = world.Simulation.PendingDuel!.XunStarted;
         MilitaryCombat.ResumeDuel(world, rules, events, successorId);
-        if (world.Simulation.PendingDuel is not null || !CheckTerminal(world, events)) return;
+        if (world.Simulation.PendingDuel is not null || world.Simulation.PendingSniping is not null || !CheckTerminal(world, events)) return;
+        if (!CompleteStage(ResolutionStage.DailyMapUpdate, world, events)) return;
+        FinishDay(world, events, xunStarted);
+    }
+
+    internal void ResumeSniping(WorldMutation world, List<DomainEvent> events, int successorId)
+    {
+        var xunStarted = world.Simulation.PendingSniping!.Exchange!.XunStarted;
+        MilitaryCombat.ResumeSniping(world, rules, events, successorId);
+        if (world.Simulation.PendingSniping is not null || world.Simulation.PendingDuel is not null || !CheckTerminal(world, events)) return;
         if (!CompleteStage(ResolutionStage.DailyMapUpdate, world, events)) return;
         FinishDay(world, events, xunStarted);
     }
@@ -245,7 +254,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
             TaskCancellation.Apply(world, task, "terminal", events);
         }
         world.SetSimulation(world.Simulation with { Boundary = SimulationBoundary.Terminal, Tasks = [], PendingEvent = null, PendingDailyTask = null,
-            PendingCapturedRuler = null, PendingExecutionSuccession = null, PendingTacticStudy = null, PendingDuel = null });
+            PendingSniping = null, PendingCapturedRuler = null, PendingExecutionSuccession = null, PendingTacticStudy = null, PendingDuel = null });
         if (!events.OfType<SimulationEndedEvent>().Any()) events.Add(new SimulationEndedEvent(world.Clock, reason));
         return false;
     }

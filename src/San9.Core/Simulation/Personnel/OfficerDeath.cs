@@ -56,6 +56,8 @@ internal static class OfficerDeath
         });
         events.Add(new OfficerDiedEvent(world.Clock, officerId, cause, previous.Status, previous.OwnerId,
             previous.SettlementId, previous.RegionId, previous.UnitId));
+        if (previous.OwnerId is int owner && world.Forces[owner].LeaderId == officerId)
+            AllianceDiplomacy.RulerDied(world, owner, events);
         return true;
     }
 

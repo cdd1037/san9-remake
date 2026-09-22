@@ -5,6 +5,10 @@ namespace San9.Core.Simulation;
 
 internal static class RulerSuccession
 {
+    internal static ImmutableArray<int> Candidates(WorldMutation world, int rulerId) => world.Officers.Values
+        .Where(p => p.Id != rulerId && p.IsServing && p.OwnerId == world.Officers[rulerId].OwnerId)
+        .OrderBy(p => p.Id).Select(p => p.Id).ToImmutableArray();
+
     internal static OfficerState? Automatic(WorldMutation world, int forceId, OfficerState previous) => world.Officers.Values
         .Where(p => p.OwnerId == forceId && p.IsServing && p.Id != previous.Id)
         .OrderByDescending(p => (p.ParentId == previous.Id || previous.ParentId == p.Id) && p.BirthYear > previous.BirthYear)

@@ -136,6 +136,7 @@ public sealed record OfficerCapturedEvent(GameClock Clock, int OfficerId, int Ca
 [System.Text.Json.Serialization.JsonDerivedType(typeof(PersonnelReturnedEvent), "personnel-returned")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(CommanderChangedEvent), "commander-changed")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(CorpsLeaderChangedEvent), "corps-leader-changed")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(SnipingSuccessionRequestedEvent), "sniping-succession-requested")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(CapturedRulerDispositionRequestedEvent), "captured-ruler-disposition-requested")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(PrisonerReleasedEvent), "prisoner-released")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(OfficeAssignedEvent), "office-assigned")]

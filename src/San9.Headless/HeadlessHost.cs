@@ -328,11 +328,13 @@ public sealed class HeadlessHost
             {
                 answeredDecision = true;
                 var state = _session.Snapshot.Simulation;
-                int force = state.PendingCapturedRuler?.CaptorId ?? state.PendingDuel?.RespondingForceId ?? state.PendingTacticStudy?.RespondingForceId ?? state.PendingExecutionSuccession?.RespondingForceId ?? state.PendingDailyTask?.RespondingForceId ?? state.PendingEvent!.RespondingForceId;
+                int force = state.PendingSniping?.RespondingForceId ?? state.PendingCapturedRuler?.CaptorId ?? state.PendingDuel?.RespondingForceId ?? state.PendingTacticStudy?.RespondingForceId ?? state.PendingExecutionSuccession?.RespondingForceId ?? state.PendingDailyTask?.RespondingForceId ?? state.PendingEvent!.RespondingForceId;
                 var seat = state.Controls.Single(c => c.ForceId == force);
                 var request = _session.Request(new EndControlOperation(), seat.ControllerId);
                 GameCommand answer;
-                if (_session.GetDuelSuccessionPrompt() is { } duel)
+                if (_session.GetSnipingSuccessionPrompt() is { } sniping)
+                    answer = new ChooseSnipingSuccessorCommand(request.Id, force, state.NextSequence, sniping.RulerId, sniping.CandidateIds[0]);
+                else if (_session.GetDuelSuccessionPrompt() is { } duel)
                     answer = new ChooseDuelSuccessorCommand(request.Id, force, state.NextSequence, duel.RulerId, duel.CandidateIds[0]);
                 else if (_session.GetTacticStudyPrompt() is { } study)
                     answer = new ChooseTacticStudentCommand(request.Id, force, state.NextSequence, study.CityId, study.CandidateIds[0]);

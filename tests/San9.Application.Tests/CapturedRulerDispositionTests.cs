@@ -109,7 +109,8 @@ public sealed class CapturedRulerDispositionTests
         Assert.Equal(10, answer.Events.OfType<StageCompletedEvent>().Count(e => e.Stage == ResolutionStage.UnitAndBuildingEvents));
         Assert.Equal(4, Assert.Single(session.Snapshot.Treasures).HolderId);
         Assert.Equal(SimulationBoundary.Stable, session.Snapshot.Simulation.Boundary);
-        Assert.Equal(9, session.Snapshot.Simulation.Alliance!.RemainingXun);
+        Assert.Null(session.Snapshot.Simulation.Alliance);
+        Assert.Single(answer.Events.OfType<AllianceEndedEvent>());
         Assert.Equal(session.Capture().StateHash, SaveService.Decode(SaveService.Encode(session), definition).Capture().StateHash);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
         Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);

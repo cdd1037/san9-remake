@@ -97,6 +97,8 @@ public sealed class GameSession
     public EndingResult? Ending => _ending is null ? null : EndingSession.Resolve(_definition.Content, Snapshot, _ending);
     public TacticStudyPrompt? GetTacticStudyPrompt() => _simulation.GetTacticStudyPrompt();
 
+    public SnipingSuccessionPrompt? GetSnipingSuccessionPrompt() => _simulation.GetSnipingSuccessionPrompt();
+
     public DuelSuccessionPrompt? GetDuelSuccessionPrompt() => _simulation.GetDuelSuccessionPrompt();
 
     public CapturedRulerPrompt? GetCapturedRulerPrompt() => _simulation.GetCapturedRulerPrompt();

@@ -9,14 +9,14 @@ public sealed class TacticSnipingTests
 {
     private static readonly MilitaryOrder UnitTarget = new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 2 };
     private static readonly MilitaryOrder PlaceTarget = new(MilitaryOrderKind.AttackSettlement, null, 2);
-    internal static (WorldState World, SimulationRules Rules, TacticRule Tactic) Create(bool settlement = false, int bonus = 100, bool deathsAllowed = true, bool meleeRanks = true)
+    internal static (WorldState World, SimulationRules Rules, TacticRule Tactic) Create(bool settlement = false, int bonus = 100, bool deathsAllowed = true, bool meleeRanks = true, int counterChance = 0)
     {
         var tactic = new TacticRule(9000, 3, TacticEffect.Martial, 1, 9, 0, true, true, [100]) { SnipingProficiencyCategory = 3 };
         var combat = new CombatProfile(0, 0, 0, 1000, 50);
         var military = new MilitaryRulebook(new(100, 3, [.. Enumerable.Repeat(0, 300)], [new(0, 1, 1)],
             [new(100, 5, 0, 100000, 2, new(1, 1), TravelMode.Land)
                 { Combat = combat, Attack = new(10, false), SnipingChanceBonus = bonus, MeleeDeathUsesRanks = meleeRanks,
-                    CaptureRanks = [BattleRank.Front, BattleRank.Middle], Tactics = new(100, 0, 2, [3], []) }],
+                    CaptureRanks = [BattleRank.Front, BattleRank.Middle], Tactics = new(100, counterChance, 2, [3], []) }],
             [new(1, new(2, 7), new(1, 1)) { Combat = combat, FacilityTypeId = 8000, Attack = new(10, false) },
                 new(2, new(107, 7), new(1, 1)) { Combat = combat, FacilityTypeId = 8000 }, new(3, new(497, 7), new(1, 1)) { Combat = combat, FacilityTypeId = 8000 }])
             { BattleDeathsAllowed = deathsAllowed, Tactics = [tactic], Geography = new(5, []),

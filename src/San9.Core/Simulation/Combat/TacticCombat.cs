@@ -136,10 +136,15 @@ internal static class TacticCombat
         var sniping = TacticSniping.Select(world, new(unit.Id, false), primary.Tactic, target,
             participants.Select(p => p.Officer.Id), effect, military);
         int? captured = ResolveMartial(world, new(unit.Id, false), primary.Officer.Id, primary.Tactic, target, damageMembers, doubled, effect, rules, events);
-        if (captured is null)
-            TacticSniping.Apply(world, sniping, target.UnitId is int defeated && !world.Units.ContainsKey(defeated), rules, events);
         var learning = primary.Tactic.Selectable ? primary.Tactic :
             military.Formations[unit.FormationId!.Value].AutomaticTacticLearningId is int related ? military.Tactics[related] : null;
+        if (captured is null && !TacticSniping.Apply(world, sniping,
+            target.UnitId is int defeated && !world.Units.ContainsKey(defeated), rules, events))
+        {
+            SnipingSuccession.CaptureTactic(world, new(new(unit.Id, false), target, primary.Tactic.Id, learning?.Id,
+                members.ToImmutableArray(), participants.Select(p => p.Officer.Id).ToImmutableArray()));
+            return;
+        }
         if (target.UnitId is int survived ? world.Units.ContainsKey(survived) : captured is null)
         {
             if (learning is not null) BattleLearning.Learn(world, IntelligenceTactics.Defenders(world, target), learning, events);
@@ -150,6 +155,18 @@ internal static class TacticCombat
             BattleAftermath.ResolveSettlementDefeat(world, settlementId, new(unit.Id, false), rules, events);
             TacticSniping.Apply(world, sniping, true, rules, events);
         }
+    }
+
+    internal static void ResumeAfterSniping(WorldMutation world, TacticAftermathContinuation pending,
+        SimulationRules rules, List<DomainEvent> events)
+    {
+        var tactic = rules.Military!.Tactics[pending.TacticId];
+        var learning = pending.LearningTacticId is int id ? rules.Military.Tactics[id] : null;
+        bool survived = pending.Target.UnitId is int unit ? world.Units.ContainsKey(unit) :
+            pending.Target.SettlementId is int place && !world.Settlements[place].IsDestroyed;
+        if (survived && learning is not null)
+            BattleLearning.Learn(world, IntelligenceTactics.Defenders(world, pending.Target), learning, events);
+        Grow(world, pending.Members.ToArray(), pending.Participants, tactic, events, pending.Source.IsSettlement ? null : learning);
     }
 
     // Returns a defeated settlement for the caller to capture after tactic growth, before source absorption.

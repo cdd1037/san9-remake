@@ -158,7 +158,7 @@ public sealed record WorldSnapshot(
     public string StateHash => CanonicalJson.Hash(new { version = CanonicalJson.Version, clock = Clock, simulation = Simulation,
         forces = Forces, settlements = Settlements, officers = Officers, units = Units, corps = Corps, treasures = Treasures, relations = Relations,
         interaction = new { Simulation.PendingDuel, Simulation.PendingEvent, Simulation.PendingDailyTask, Simulation.PendingTacticStudy,
-            Simulation.PendingCapturedRuler, Simulation.PendingExecutionSuccession, tasks = Simulation.Tasks.Where(t => t.ResolutionStep != 0 ||
+            Simulation.PendingSniping, Simulation.PendingCapturedRuler, Simulation.PendingExecutionSuccession, tasks = Simulation.Tasks.Where(t => t.ResolutionStep != 0 ||
                 t.AttackRequest?.Offer is not null || t.PrisonerReturn?.Offer is not null)
                 .Select(t => new { t.Id, t.ResolutionStep, t.SearchEncounter, attackOffer = t.AttackRequest?.Offer, prisonerOffer = t.PrisonerReturn?.Offer }) } });
     public long Revision { get; init; }

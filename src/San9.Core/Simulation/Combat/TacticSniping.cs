@@ -39,10 +39,10 @@ internal static class TacticSniping
             tactic.Id, actor.Id, person.Id, injury, protectedFromDeath);
     }
 
-    internal static void Apply(WorldMutation world, SnipingOutcome? outcome, bool targetDefeated,
+    internal static bool Apply(WorldMutation world, SnipingOutcome? outcome, bool targetDefeated,
         SimulationRules rules, List<DomainEvent> events)
     {
-        if (outcome is null || !world.Officers.TryGetValue(outcome.OfficerId, out var person) || person.Status == OfficerStatus.Dead) return;
+        if (outcome is null || !world.Officers.TryGetValue(outcome.OfficerId, out var person) || person.Status == OfficerStatus.Dead) return true;
         int injury = Math.Max(person.Injury, outcome.Injury);
         world.Replace(person with { Injury = injury });
         events.Add(new TacticSnipingResolvedEvent(world.Clock, outcome.Source, outcome.Target, outcome.TacticId,
@@ -51,8 +51,18 @@ internal static class TacticSniping
         // Subsequent death remains a surviving-combatant effect, independent of message visibility.
         if (targetDefeated || outcome.ProtectedFromDeath || !person.IsServing ||
             !BattleDeathRules.Enabled(world, rules.Military!) ||
-            !outcome.Source.Exists(world) || !outcome.Target.Exists(world)) return;
-        if (TacticCombat.Roll(world, "military-sniping-death", outcome.Injury * outcome.Injury))
-            OfficerDeath.Resolve(world, person.Id, OfficerDeathCause.Sniping, rules, events, afterDailyCommands: true);
+            !outcome.Source.Exists(world) || !outcome.Target.Exists(world)) return true;
+        if (!TacticCombat.Roll(world, "military-sniping-death", outcome.Injury * outcome.Injury)) return true;
+        if (person.OwnerId is int owner && world.Forces[owner].LeaderId == person.Id && ForceLifecycle.HasCity(world, owner) &&
+            world.Simulation.Controls.Any(c => c.ForceId == owner && c.Kind == ControllerKind.Player) &&
+            !RulerSuccession.Candidates(world, person.Id).IsEmpty)
+        {
+            world.SetSimulation(world.Simulation with { Boundary = SimulationBoundary.AwaitingDecision,
+                PendingSniping = new(person.Id, owner) });
+            events.Add(new SnipingSuccessionRequestedEvent(world.Clock, person.Id, owner));
+            return false;
+        }
+        OfficerDeath.Resolve(world, person.Id, OfficerDeathCause.Sniping, rules, events, afterDailyCommands: true);
+        return true;
     }
 }

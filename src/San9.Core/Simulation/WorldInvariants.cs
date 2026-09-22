@@ -148,7 +148,7 @@ internal static class WorldInvariants
             if (!started.IsXunBoundary || started.DayNumber > state.Clock.DayNumber)
                 throw new ArgumentException("Invalid Three Visits starting date.");
         }
-        int pendingDecisions = (sim.PendingCapturedRuler is null ? 0 : 1) + (sim.PendingEvent is null ? 0 : 1) + (sim.PendingDailyTask is null ? 0 : 1) +
+        int pendingDecisions = (sim.PendingSniping is null ? 0 : 1) + (sim.PendingCapturedRuler is null ? 0 : 1) + (sim.PendingEvent is null ? 0 : 1) + (sim.PendingDailyTask is null ? 0 : 1) +
             (sim.PendingDuel is null ? 0 : 1) + (sim.PendingExecutionSuccession is null ? 0 : 1) + (sim.PendingTacticStudy is null ? 0 : 1);
         if (pendingDecisions > 1 || (sim.Boundary == SimulationBoundary.AwaitingDecision) != (pendingDecisions == 1))
             throw new ArgumentException("Decision boundary requires exactly one pending decision.");
@@ -166,6 +166,7 @@ internal static class WorldInvariants
         CapturedRulerDisposition.ValidatePending(state);
         PrisonerExecution.ValidatePending(state);
         DuelCombat.ValidatePending(state);
+        SnipingSuccession.ValidatePending(state);
         TacticStudy.ValidatePending(state);
         if (sim.PendingDailyTask is { } pending)
         {

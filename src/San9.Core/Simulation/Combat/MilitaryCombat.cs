@@ -166,15 +166,20 @@ internal static class MilitaryCombat
                     Defeated(world.Settlements[settlement.Id]) || !settlement.CanHostPersons ? null : new BattleSource(settlement.Id, true), rules, events);
                 else if (Defeated(world.Settlements[settlement.Id]))
                     BattleAftermath.ResolveSettlementDefeat(world, settlement.Id, new(id, false), rules, events);
+                CombatExchangeContinuation CaptureAssault(bool counterPending) => new(xunStarted ?? world.Clock,
+                    new(units.Skip(index + 1).ToImmutableArray(), used.Order().ToImmutableArray(), buildingsUsed.Order().ToImmutableArray()),
+                    new(id, false), new(settlement.Id, true), affectedForces.Order().ToImmutableArray(), counterPending, settlement.OwnerId);
                 TacticCombat.TryUnit(world, id, order, rules, events);
+                if (world.Simulation.PendingSniping is not null && SnipingSuccession.CaptureExchange(world, CaptureAssault(retaliated))) return;
                 if (retaliated) FacilityCombat.TryTactic(world, settlement.Id,
                     new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = id }, rules, events);
+                if (world.Simulation.PendingSniping is not null && SnipingSuccession.CaptureExchange(world, CaptureAssault(false))) return;
                 CityBattleEffects.CompleteAttack(world, id, settlement.Id, settlement.OwnerId, events);
             }
             BattleAftermath.Reconcile(world, affectedForces, rules, events);
             ResolutionPipeline.CheckConquest(world, events);
         }
-        FacilityCombat.AdvanceDay(world, rules, used, buildingsUsed, events);
+        FacilityCombat.AdvanceDay(world, rules, used, buildingsUsed, events, xunStarted, continuation?.RemainingBuildings);
     }
 
     private static bool FinishOpportunities(WorldMutation world, SimulationRules rules, List<DomainEvent> events,
@@ -185,6 +190,8 @@ internal static class MilitaryCombat
         {
             bool counter = opportunity == 1;
             var paused = DuelCombat.TryOpportunity(world, counter ? defender : attacker, counter ? attacker : defender, rules, events, counter);
+            if (world.Simulation.PendingSniping is not null && SnipingSuccession.CaptureExchange(world,
+                new(xunStarted, captureDay(), new(attacker, false), new(defender, false), affectedForces, !counter))) return false;
             if (paused is not { } waiting) continue;
             int owner = world.Officers[waiting.Progress.PendingRulerId!.Value].OwnerId!.Value;
             world.SetSimulation(world.Simulation with { Boundary = SimulationBoundary.AwaitingDecision,
@@ -210,11 +217,44 @@ internal static class MilitaryCombat
         int target = pending.Counter ? pending.AttackingUnitId : pending.DefendingUnitId;
         if (pending.TacticReady) TacticCombat.ResolveOpportunity(world, source,
             new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = target }, rules, events);
+        if (world.Simulation.PendingSniping is not null && SnipingSuccession.CaptureExchange(world, new(pending.XunStarted, pending.Day,
+            new(pending.AttackingUnitId, false), new(pending.DefendingUnitId, false), pending.AffectedForces, !pending.Counter))) return;
         if (!pending.Counter && !FinishOpportunities(world, rules, events, pending.XunStarted, () => pending.Day,
             pending.AttackingUnitId, pending.DefendingUnitId, pending.AffectedForces, counterOnly: true)) return;
         BattleAftermath.Reconcile(world, pending.AffectedForces.ToHashSet(), rules, events);
         ResolutionPipeline.CheckConquest(world, events);
         AdvanceDay(world, rules, events, pending.XunStarted, pending.Day);
+    }
+
+    internal static void ResumeSniping(WorldMutation world, SimulationRules rules, List<DomainEvent> events, int successorId)
+    {
+        var pending = world.Simulation.PendingSniping!;
+        var exchange = pending.Exchange!;
+        world.SetSimulation(world.Simulation with { PendingSniping = null, Boundary = SimulationBoundary.Stable });
+        OfficerDeath.Resolve(world, pending.RulerId, OfficerDeathCause.Sniping, rules, events,
+            afterDailyCommands: true, successorId: successorId);
+        if (!ResolutionPipeline.CheckTerminal(world, events)) return;
+        TacticCombat.ResumeAfterSniping(world, pending.Tactic!, rules, events);
+        if (exchange.CounterPending)
+        {
+            if (!exchange.Source.IsSettlement && !exchange.Target.IsSettlement)
+            {
+                if (!FinishOpportunities(world, rules, events, exchange.XunStarted, () => exchange.Day,
+                    exchange.Source.Id, exchange.Target.Id, exchange.AffectedForces, counterOnly: true)) return;
+            }
+            else if (exchange.Source.IsSettlement)
+                TacticCombat.TryUnit(world, exchange.Target.Id, new(MilitaryOrderKind.AttackSettlement, null, exchange.Source.Id),
+                    rules, events, counter: true);
+            else FacilityCombat.TryTactic(world, exchange.Target.Id,
+                new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = exchange.Source.Id }, rules, events);
+            if (world.Simulation.PendingSniping is not null && SnipingSuccession.CaptureExchange(world, exchange with { CounterPending = false })) return;
+        }
+        if (exchange.Target.IsSettlement)
+            CityBattleEffects.CompleteAttack(world, exchange.Source.Id, exchange.Target.Id, exchange.PreviousSettlementOwnerId, events);
+        BattleAftermath.Reconcile(world, exchange.AffectedForces.ToHashSet(), rules, events);
+        ResolutionPipeline.CheckConquest(world, events);
+        if (!ResolutionPipeline.CheckTerminal(world, events)) return;
+        AdvanceDay(world, rules, events, exchange.XunStarted, exchange.Day);
     }
 
     private static bool Defeated(UnitState unit) => unit.Soldiers == 0 || unit.Morale == 0;

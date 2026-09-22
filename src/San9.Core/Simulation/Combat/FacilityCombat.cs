@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using San9.Core.Domain;
 
 namespace San9.Core.Simulation;
@@ -21,11 +22,14 @@ internal static class FacilityCombat
         settlement.Durability > 0 && settlement.Morale > 0 && settlement.ConfusionDaysRemaining == 0;
 
     internal static void AdvanceDay(WorldMutation world, SimulationRules rules, HashSet<int> unitsUsed,
-        HashSet<int> settlementsUsed, List<DomainEvent> events)
+        HashSet<int> settlementsUsed, List<DomainEvent> events, GameClock? xunStarted = null,
+        ImmutableArray<int>? remainingBuildings = null)
     {
         var military = rules.Military!;
-        foreach (int id in world.Settlements.Keys.Order().ToArray())
+        var buildings = remainingBuildings ?? world.Settlements.Keys.Order().ToImmutableArray();
+        for (int index = 0; index < buildings.Length; index++)
         {
+            int id = buildings[index];
             world.MaintainLeadership(events);
             if (world.Simulation.TerminalReason is not null) return;
             var settlement = world.Settlements[id];
@@ -56,8 +60,14 @@ internal static class FacilityCombat
             if (!unitLost && settlementLost) BattleAftermath.ResolveSettlementDefeat(world, id, new(target.Id, false), rules, events);
             if (!unitLost && !settlementLost)
             {
+                CombatExchangeContinuation CaptureExchange(bool counterPending) => new(xunStarted ?? world.Clock,
+                    new([], unitsUsed.Order().ToImmutableArray(), settlementsUsed.Order().ToImmutableArray())
+                        { RemainingBuildings = buildings.Skip(index + 1).ToImmutableArray() },
+                    source, new(target.Id, false), new[] { settlement.OwnerId!.Value, target.OwnerId }.Distinct().Order().ToImmutableArray(), counterPending);
                 TryTactic(world, id, new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = target.Id }, rules, events);
+                if (world.Simulation.PendingSniping is not null && SnipingSuccession.CaptureExchange(world, CaptureExchange(true))) return;
                 TacticCombat.TryUnit(world, target.Id, new(MilitaryOrderKind.AttackSettlement, null, id), rules, events, true);
+                if (world.Simulation.PendingSniping is not null && SnipingSuccession.CaptureExchange(world, CaptureExchange(false))) return;
             }
             BattleAftermath.Reconcile(world, new HashSet<int> { settlement.OwnerId!.Value, target.OwnerId }, rules, events);
             ResolutionPipeline.CheckConquest(world, events);
@@ -114,7 +124,12 @@ internal static class FacilityCombat
         if (tactic.Effect == TacticEffect.Martial)
             captured = TacticCombat.ResolveMartial(world, source, actor.Id, tactic, target, [new(tactic.Power, proficiency, world.Abilities(actor).War, false)], doubled, effect, rules, events);
         else IntelligenceTactics.Resolve(world, source, actor, tactic, target, effect, rules, events);
-        TacticSniping.Apply(world, sniping, !world.Units.ContainsKey(targetId), rules, events);
+        if (!TacticSniping.Apply(world, sniping, !world.Units.ContainsKey(targetId), rules, events))
+        {
+            SnipingSuccession.CaptureTactic(world, new(source, target, selected.Id, selected.Id,
+                members.ToImmutableArray(), [actor.Id]));
+            return;
+        }
         if (tactic.Effect == TacticEffect.Martial)
         {
             if (world.Units.ContainsKey(targetId)) BattleLearning.Learn(world, IntelligenceTactics.Defenders(world, target), selected, events);

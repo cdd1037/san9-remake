@@ -8,7 +8,10 @@ public sealed record ChooseDuelSuccessorCommand(Guid CommandId, int IssuerId, lo
     : GameCommand(CommandId, IssuerId, Sequence);
 public sealed record DuelSuccessionPrompt(int RulerId, int RespondingForceId, ImmutableArray<int> CandidateIds);
 public sealed record CombatDayContinuation(ImmutableArray<int> RemainingUnits, ImmutableArray<int> UsedUnits,
-    ImmutableArray<int> UsedBuildings);
+    ImmutableArray<int> UsedBuildings)
+{
+    public ImmutableArray<int>? RemainingBuildings { get; init; }
+}
 public sealed record DuelCombatDecision(GameClock XunStarted, CombatDayContinuation Day, int AttackingUnitId,
     int DefendingUnitId, ImmutableArray<int> AffectedForces, bool Counter, bool TacticReady,
     DuelAftermathProgress Aftermath, int RespondingForceId);

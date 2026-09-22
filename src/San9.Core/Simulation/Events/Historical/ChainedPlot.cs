@@ -55,7 +55,6 @@ internal static class ChainedPlot
             .OrderBy(p => p.Id).Select(p => p.Id).ToImmutableArray();
         foreach (int relative in relatives)
             OfficerDeath.Resolve(world, relative, OfficerDeathCause.HistoricalEvent, rules, events, afterDailyCommands: false);
-        AllianceDiplomacy.RulerDied(world, forceId, events);
         OfficerDeath.Remove(world, ruler.Id, OfficerDeathCause.HistoricalEvent, rules.Personnel, events, afterDailyCommands: false);
         RulerSuccession.Appoint(world, forceId, ruler.Id, definition.SuccessorId, events);
         OfficerDeath.SettleTreasures(world, ruler.Id, definition.SuccessorId, events);

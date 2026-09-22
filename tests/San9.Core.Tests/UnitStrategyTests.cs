@@ -6,6 +6,46 @@ namespace San9.Core.Tests;
 
 public sealed class UnitStrategyTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void QuarterlyPopulationCountsOutboundAndReturningReinforcements(bool returning)
+    {
+        var rules = Rules();
+        var world = World(friendly: true, distance: 300);
+        var task = Submit(world, rules, UnitStrategyKind.Reinforce, 0);
+        var state = world.BeginMutation(rules.Abilities);
+        foreach (var city in state.Settlements.Values.ToArray())
+            state.Replace(city with { Population = 112000, DraftPopulation = 0 });
+        if (returning)
+        {
+            state.SetSimulation(state.Simulation with { Tasks = [] });
+            PersonnelReturns.Start(state, task, rules.Personnel, [], afterDailyCommands: false, arrived: true);
+            Assert.Equal(PersonnelReturns.Kind, Assert.Single(state.Simulation.Tasks).Kind);
+        }
+        Assert.Equal(25000, SoldierTotals.Living(state));
+        Assert.Equal(15000, SoldierTotals.Living(state, 1));
+        state.SetClock(new(190, 4, 1));
+        EconomicCycle.Apply(ResolutionStage.QuarterUpdate, state, EconomyRulebook.Empty, []);
+        Assert.All(state.Settlements.Values, city => Assert.Equal(224u, city.DraftPopulation));
+    }
+
+    [Fact]
+    public void AnnualBarbarianSupplyCountsTaskTroopsAndWoundedOnce()
+    {
+        var rules = Rules(); var world = World(friendly: true, distance: 300);
+        Submit(world, rules, UnitStrategyKind.Reinforce, 0);
+        var state = world.BeginMutation(rules.Abilities);
+        state.Replace(state.Forces[1] with { IsBarbarian = true });
+        state.Replace(state.Settlements[1] with { Soldiers = 95000, Wounded = 1000 });
+        state.Replace(state.Units[5] with { Wounded = 2000 });
+        Assert.Equal(103000, SoldierTotals.Force(state, 1));
+        Assert.Equal(106000, SoldierTotals.Living(state, 1));
+        state.SetClock(new(190, 7, 1));
+        EconomicCycle.Apply(ResolutionStage.QuarterUpdate, state, EconomyRulebook.Empty, []);
+        Assert.Equal(106000u, state.Forces[1].Food);
+    }
+
     [Fact]
     public void AdviceIsStableDoesNotAdvanceRandomnessAndChangesWithRelevantAbility()
     {

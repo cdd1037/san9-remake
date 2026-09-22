@@ -53,8 +53,7 @@ internal static class EconomicCycle
         int forceId = city.OwnerId!.Value;
         if (!foodTargets.TryGetValue(forceId, out long food))
         {
-            long soldiers = world.Settlements.Values.Where(s => s.OwnerId == forceId).Sum(s => (long)s.Soldiers + s.Wounded)
-                + world.Units.Values.Where(u => u.OwnerId == forceId).Sum(u => (long)u.Soldiers + u.Wounded);
+            long soldiers = SoldierTotals.Living(world, forceId);
             foodTargets.Add(forceId, food = EconomyMath.BarbarianAnnualFood(soldiers));
         }
         ResourceAccounts.Change(world, account, ResourceKind.Food,
@@ -110,7 +109,7 @@ internal static class EconomicCycle
     {
         var cities = world.Settlements.Values.Where(s => s.Kind == SettlementKind.City).OrderBy(s => s.Id).ToArray();
         long population = cities.Sum(s => (long)s.Population), order = cities.Sum(s => (long)s.PublicOrder);
-        long military = cities.Sum(s => (long)s.DraftPopulation) + world.Settlements.Values.Sum(s => (long)s.Soldiers + s.Wounded) + world.Units.Values.Sum(u => (long)u.Soldiers + u.Wounded);
+        long military = cities.Sum(s => (long)s.DraftPopulation) + SoldierTotals.Living(world);
         long drafts = Math.Max(0, population - military + 99999) / 100000 * (population / 100) / 10;
         foreach (var city in cities)
         {

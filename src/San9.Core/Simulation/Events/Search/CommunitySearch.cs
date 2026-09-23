@@ -88,7 +88,7 @@ internal static class CommunitySearch
     private static uint Cost(uint multiplier, int ceiling, int ability) => (uint)Math.Min(uint.MaxValue, (long)multiplier * Math.Max(0L, (long)ceiling - ability));
     internal static bool IsAcceptance(CommunitySearchChoice choice) => choice is not (CommunitySearchChoice.Decline or CommunitySearchChoice.Execute);
     internal static bool ValidResponse(WorldMutation world, PersistentTask task, CommunitySearchEventDefinition d, CommunitySearchChoice choice) =>
-        Enum.IsDefined(choice) && Options(world, task, d).Any(o => o.Choice == choice);
+        Options(world, task, d).Any(o => o.Choice == choice);
 
     internal static void Resolve(WorldMutation world, PersistentTask task, SimulationRules rules, CommunitySearchEncounter encounter,
         CommunitySearchChoice choice, List<DomainEvent> events)

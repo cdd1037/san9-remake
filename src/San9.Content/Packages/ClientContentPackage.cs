@@ -50,7 +50,6 @@ public static class ClientContentFiles
     public static async Task<ClientContentPackage> LoadAsync(string root, CancellationToken token = default)
     {
         var instance = await ScenarioContentFiles.LoadAsync(root, token);
-        if (instance.SchemaVersion != ScenarioContent.CurrentSchemaVersion) throw new InvalidDataException("Unsupported scenario content version; reconvert the package.");
         string textureRoot = Path.GetFullPath(Path.Combine(root, instance.Textures.Path));
         var textures = await TexturePackageFiles.LoadAsync(textureRoot, token);
         return Resolve(instance, textures, textureRoot);

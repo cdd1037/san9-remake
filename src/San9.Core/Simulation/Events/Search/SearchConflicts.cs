@@ -111,7 +111,7 @@ internal static class SearchConflicts
     }
     internal static bool IsAcceptance(SearchConflictChoice choice) => choice is not (SearchConflictChoice.Decline or SearchConflictChoice.Execute);
     internal static bool ValidResponse(WorldMutation world, PersistentTask task, ConflictSearchEventDefinition d, SearchConflictChoice choice) =>
-        Enum.IsDefined(choice) && Options(world, task, d).Any(o => o.Choice == choice);
+        Options(world, task, d).Any(o => o.Choice == choice);
 
     internal static void Resolve(WorldMutation world, PersistentTask task, SimulationRules rules, ConflictSearchEncounter encounter,
         SearchConflictChoice choice, List<DomainEvent> events)

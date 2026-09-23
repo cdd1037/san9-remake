@@ -1,7 +1,7 @@
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
-namespace San9.Core.AI;
+namespace San9.Application.AI;
 
 public sealed record AiObservation
 {

@@ -73,7 +73,7 @@
           "src/San9.Core/Simulation/Economy/CityMerchants.cs",
           "src/San9.Core/Simulation/Economy/FoodTrade.cs",
           "src/San9.Core/Simulation/Economy/DomesticDevelopmentHandler.cs",
-          "src/San9.Application/DomesticPlanner.cs"
+          "src/San9.Application/AI/DomesticPlanner.cs"
         ]
       }
     },
@@ -306,11 +306,11 @@
       "acceptance_gates": ["stable analysis seed", "fixed-budget repeatability", "diagnostic independence", "shared command rejection without partial writeback"],
       "depends_on": ["simulation", "personnel", "governance", "diplomacy", "strategy", "warfare"],
       "implementation": {
-        "project": "San9.Core",
-        "target_namespace": "San9.Core.AI",
-        "target_path": "src/San9.Core/AI",
+        "project": "San9.Application",
+        "target_namespace": "San9.Application.AI",
+        "target_path": "src/San9.Application/AI",
         "entry_types": ["AiObservation", "AiPlanningContext", "AiPlan", "IAiPlanner"],
-        "existing_anchors": ["src/San9.Core/AI/AiPlanning.cs", "src/San9.Core/Simulation/SimulationEngine.cs"]
+        "existing_anchors": ["src/San9.Application/AI/AiPlanning.cs", "src/San9.Core/Simulation/SimulationEngine.cs"]
       }
     },
     {

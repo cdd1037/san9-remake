@@ -20,12 +20,14 @@
 
 以下是当前代码事实，不等同于完整能力已经具备。
 
+AI 初步工程整理已将规划协议、现有阶段策略及自动工作调度统一归入 `San9.Application.AI`，协议测试迁入 Application 测试项目。Core 继续提供规则和命令执行，未新增 AI 工程或兼容入口，未改变策略行为；该整理不计为 G11a 完成。目录职责见[AI 工程边界](../src/San9.Application/AI/README.md)。
+
 | 入口 | 已有能力 | G11 需要补齐的部分 |
 | --- | --- | --- |
-| [AiPlanning.cs](../src/San9.Core/AI/AiPlanning.cs) | 不可变规划协议、独立分析随机、工作预算和诊断类型 | `AiObservation` 只有观察势力、日期、种子；没有城市、人物、部队和关系等决策输入，预算类型也不等于所有算法已计量 |
+| [AiPlanning.cs](../src/San9.Application/AI/AiPlanning.cs) | 不可变规划协议、独立分析随机、工作预算和诊断类型 | `AiObservation` 只有观察势力、日期、种子；没有城市、人物、部队和关系等决策输入，预算类型也不等于所有算法已计量 |
 | [GameSession.cs](../src/San9.Application/GameSession.cs) | 结束控制和推进时在候选世界中执行自动工作，成功后发布 | 接入统一规划生命周期，并使新增策略记忆与世界状态一起提交或回滚 |
-| [AutomaticCorpsPlanner.cs](../src/San9.Application/AutomaticCorpsPlanner.cs) | 有限军事、计略、外交、军团登用和经营调度 | 当前按固定顺序分别取命令，没有跨领域目标、统一预算和多旬计划 |
-| [DomesticPlanner.cs](../src/San9.Application/DomesticPlanner.cs)、[MilitaryPlanner.cs](../src/San9.Application/MilitaryPlanner.cs)、[DiplomacyPlanner.cs](../src/San9.Application/DiplomacyPlanner.cs)、[StrategyPlanner.cs](../src/San9.Application/StrategyPlanner.cs) | 经公共验证器执行有限策略，可支撑已有阶段回归 | 多处直接消费完整快照，采用局部阈值、固定枚举与候选截断；尚非统一势力视角决策 |
+| [AutomaticCorpsPlanner.cs](../src/San9.Application/AI/AutomaticCorpsPlanner.cs) | 有限军事、计略、外交、军团登用和经营调度 | 当前按固定顺序分别取命令，没有跨领域目标、统一预算和多旬计划 |
+| [DomesticPlanner.cs](../src/San9.Application/AI/DomesticPlanner.cs)、[MilitaryPlanner.cs](../src/San9.Application/AI/MilitaryPlanner.cs)、[DiplomacyPlanner.cs](../src/San9.Application/AI/DiplomacyPlanner.cs)、[StrategyPlanner.cs](../src/San9.Application/AI/StrategyPlanner.cs) | 经公共验证器执行有限策略，可支撑已有阶段回归 | 多处直接消费完整快照，采用局部阈值、固定枚举与候选截断；尚非统一势力视角决策 |
 | [HeadlessHost.cs](../src/San9.Headless/HeadlessHost.cs) | 无界面运行、简单策略调用和重放核验 | 区分脚本玩家与自主 AI，避免 CLI 与会话各规划一次；增加行为和工作量报告 |
 | [SimulationEngine.cs](../src/San9.Core/Simulation/SimulationEngine.cs)、[ResolutionPipeline.cs](../src/San9.Core/Simulation/ResolutionPipeline.cs) | 日内暂停续行、公共响应命令和已有自动分支 | 多种待决响应当前限定玩家控制者，不能只在 Application 添加选择器就覆盖电脑；需区分规则结果与可替换的策略选择 |
 

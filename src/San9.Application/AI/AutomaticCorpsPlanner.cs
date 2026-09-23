@@ -1,7 +1,7 @@
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
-namespace San9.Application;
+namespace San9.Application.AI;
 
 /// <summary>Bounded personnel, reinforcement and economic work for automatic controllers.</summary>
 internal static class AutomaticCorpsPlanner

@@ -1,3 +1,4 @@
+using San9.Application.AI;
 using System.Collections.Immutable;
 using San9.Content.Scenarios;
 using San9.Core.Domain;

@@ -1,7 +1,7 @@
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
-namespace San9.Application;
+namespace San9.Application.AI;
 
 /// <summary>Bounded stage policy. Planning reads identities and own resources; execution owns all effects.</summary>
 public static class StrategyPlanner

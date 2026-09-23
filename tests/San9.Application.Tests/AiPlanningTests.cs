@@ -1,8 +1,8 @@
-using San9.Core.AI;
+using San9.Application.AI;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
-namespace San9.Core.Tests;
+namespace San9.Application.Tests;
 
 public sealed class AiPlanningTests
 {

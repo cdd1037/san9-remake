@@ -1,7 +1,7 @@
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
-namespace San9.Application;
+namespace San9.Application.AI;
 
 /// <summary>Bounded stage policy; every proposal uses the public command validator.</summary>
 public static class DiplomacyPlanner

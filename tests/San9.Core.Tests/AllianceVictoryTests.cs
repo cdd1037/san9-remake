@@ -49,7 +49,7 @@ public sealed class AllianceVictoryTests
         if (remainingCity) Assert.NotNull(m.Simulation.Alliance);
         else Assert.Null(m.Simulation.Alliance);
         int count = events.Count;
-        BattleAftermath.Reconcile(m, new HashSet<int> { 3 }, rules, events);
+        BattleAftermath.Reconcile(m, new HashSet<int> { 3 }, rules, events, true);
         Assert.Equal(count, events.Count);
         m.MaintainDerivedState(events);
         world.Commit(m);

@@ -176,7 +176,7 @@ internal static class MilitaryCombat
                 if (world.Simulation.PendingSniping is not null && SnipingSuccession.CaptureExchange(world, CaptureAssault(false))) return;
                 CityBattleEffects.CompleteAttack(world, id, settlement.Id, settlement.OwnerId, events);
             }
-            BattleAftermath.Reconcile(world, affectedForces, rules, events);
+            BattleAftermath.Reconcile(world, affectedForces, rules, events, true);
             ResolutionPipeline.CheckConquest(world, events);
         }
         FacilityCombat.AdvanceDay(world, rules, used, buildingsUsed, events, xunStarted, continuation?.RemainingBuildings);
@@ -221,7 +221,7 @@ internal static class MilitaryCombat
             new(pending.AttackingUnitId, false), new(pending.DefendingUnitId, false), pending.AffectedForces, !pending.Counter))) return;
         if (!pending.Counter && !FinishOpportunities(world, rules, events, pending.XunStarted, () => pending.Day,
             pending.AttackingUnitId, pending.DefendingUnitId, pending.AffectedForces, counterOnly: true)) return;
-        BattleAftermath.Reconcile(world, pending.AffectedForces.ToHashSet(), rules, events);
+        BattleAftermath.Reconcile(world, pending.AffectedForces.ToHashSet(), rules, events, true);
         ResolutionPipeline.CheckConquest(world, events);
         AdvanceDay(world, rules, events, pending.XunStarted, pending.Day);
     }
@@ -251,7 +251,7 @@ internal static class MilitaryCombat
         }
         if (exchange.Target.IsSettlement)
             CityBattleEffects.CompleteAttack(world, exchange.Source.Id, exchange.Target.Id, exchange.PreviousSettlementOwnerId, events);
-        BattleAftermath.Reconcile(world, exchange.AffectedForces.ToHashSet(), rules, events);
+        BattleAftermath.Reconcile(world, exchange.AffectedForces.ToHashSet(), rules, events, true);
         ResolutionPipeline.CheckConquest(world, events);
         if (!ResolutionPipeline.CheckTerminal(world, events)) return;
         AdvanceDay(world, rules, events, exchange.XunStarted, exchange.Day);

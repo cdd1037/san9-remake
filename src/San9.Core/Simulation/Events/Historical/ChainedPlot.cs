@@ -61,7 +61,7 @@ internal static class ChainedPlot
         if (ruler.UnitId is int previousUnit && world.Units.ContainsKey(previousUnit) &&
             !world.Officers.Values.Any(p => p.UnitId == previousUnit && p.IsServing))
             BattleAftermath.TerminateUnit(world, previousUnit, null, rules, events);
-        BattleAftermath.Reconcile(world, new HashSet<int> { forceId }, rules, events, "chained-plot");
+        BattleAftermath.Reconcile(world, new HashSet<int> { forceId }, rules, events, false, "chained-plot");
         var successor = world.Officers[definition.SuccessorId];
         foreach (var person in world.Officers.Values.Where(p => p.OwnerId == forceId).OrderBy(p => p.Id).ToArray())
         {

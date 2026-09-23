@@ -385,7 +385,7 @@ public sealed class MilitaryCombatTests
         var events = new List<DomainEvent>();
         PersonnelTransitions.Capture(mutation, 11, 2, null, PersonnelRulebook.Empty, events);
         UnitTerminationService.Complete(mutation, 0, null, 1, new([]), events);
-        BattleAftermath.Reconcile(mutation, new HashSet<int> { 1 }, new() { Military = Rules() }, events);
+        BattleAftermath.Reconcile(mutation, new HashSet<int> { 1 }, new() { Military = Rules() }, events, true);
         world.Commit(mutation);
         Assert.Equal(11, engine.Snapshot.Forces.Single(f => f.Id == 1).LeaderId);
         Assert.Equal(11, engine.Snapshot.Corps.Single().LeaderId);

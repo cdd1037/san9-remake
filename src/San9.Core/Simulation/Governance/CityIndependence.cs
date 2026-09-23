@@ -61,7 +61,7 @@ internal static class CityIndependence
             else
                 foreach (int person in marked.Order()) changed |= Detach(world, person, id, rules.Personnel, events, false);
             if (!changed) continue;
-            BattleAftermath.Reconcile(world, new HashSet<int> { owner }, rules, events, Reason);
+            BattleAftermath.Reconcile(world, new HashSet<int> { owner }, rules, events, false, Reason);
             CorpsDelegations.Cleanup(world, rules.Military, events);
             world.MaintainLeadership(events);
             ResolutionPipeline.CheckConquest(world, events);

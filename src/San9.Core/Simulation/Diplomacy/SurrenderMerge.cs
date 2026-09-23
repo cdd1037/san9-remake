@@ -14,7 +14,7 @@ internal static class SurrenderMerge
     {
         int recipient = cause.ForceId;
         int? root = world.Corps.Values.Where(c => c.OwnerId == recipient && c.Treasury is null).Select(c => (int?)c.Id).SingleOrDefault();
-        ForceTransfer.CancelTasks(world, force, rules, "force-surrendered", events);
+        ForceTransfer.CancelTasks(world, force, rules, "force-surrendered", events, true);
         var oldUnits = world.Units.Values.Where(u => u.OwnerId == force).OrderBy(u => u.Id).ToArray();
         int Place(OfficerState person) => person.SettlementId ?? (person.UnitId is int unit &&
             rules.Military?.RegionAt(world.Units[unit].Position) is int region ? region :

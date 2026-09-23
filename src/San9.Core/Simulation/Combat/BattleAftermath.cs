@@ -27,7 +27,7 @@ internal static class BattleAftermath
             world.Settlements.GetValueOrDefault(home)?.Kind == SettlementKind.City ? home : rules.Personnel.RegionCities.GetValueOrDefault(home, -1) : null;
         if (city is int cityId && (!world.Settlements.TryGetValue(cityId, out var s) || s.Kind != SettlementKind.City)) city = null;
         UnitTerminationService.Complete(world, id, winner, city, rules.Governance, events, repairCorps: false);
-        if (victorForce is int victorId) EliminateIfDefeated(world, unit.OwnerId, rules, events, victorId);
+        if (victorForce is int victorId) EliminateIfDefeated(world, unit.OwnerId, rules, events, true, victorId);
     }
 
     internal static void ResolveSettlementDefeat(WorldMutation world, int id, BattleSource winner, SimulationRules rules, List<DomainEvent> events)
@@ -43,7 +43,7 @@ internal static class BattleAftermath
         var captures = ids.Select(id => (Id: id, Units: CaptureUnits(world, id, winner, rules.Military!))).ToArray();
         foreach (var capture in captures)
             CaptureSettlement(world, capture.Id, winner, capture.Units, rules, events);
-        foreach (int owner in previousOwners) EliminateIfDefeated(world, owner, rules, events, victor);
+        foreach (int owner in previousOwners) EliminateIfDefeated(world, owner, rules, events, true, victor);
         foreach (var capture in captures.Where(c => !world.Settlements[c.Id].IsDestroyed))
             foreach (int unitId in capture.Units)
                 if (world.Units.TryGetValue(unitId, out var unit))
@@ -184,12 +184,12 @@ internal static class BattleAftermath
         events.Add(new PersonAffiliationChangedEvent(world.Clock, person.Id, person.OwnerId, null, place ?? -1));
     }
 
-    internal static void Reconcile(WorldMutation world, IReadOnlySet<int> affectedForces, SimulationRules rules, List<DomainEvent> events, string reason = "battle")
+    internal static void Reconcile(WorldMutation world, IReadOnlySet<int> affectedForces, SimulationRules rules, List<DomainEvent> events, bool afterDailyCommands, string reason = "battle")
     {
         foreach (var force in world.Forces.Values.Where(f => !f.IsEliminated && affectedForces.Contains(f.Id)).OrderBy(f => f.Id).ToArray())
         {
             var serving = world.Officers.Values.Where(p => p.OwnerId == force.Id && p.IsServing).OrderBy(p => p.Id).ToArray();
-            if (EliminateIfDefeated(world, force.Id, rules, events)) continue;
+            if (EliminateIfDefeated(world, force.Id, rules, events, afterDailyCommands)) continue;
             if (force.LeaderId is not int leader || !world.Officers.TryGetValue(leader, out var ruler) ||
                 ruler.OwnerId != force.Id || !ruler.IsServing && ruler.Status != OfficerStatus.Captive)
             {
@@ -218,25 +218,25 @@ internal static class BattleAftermath
     }
 
     private static bool EliminateIfDefeated(WorldMutation world, int forceId, SimulationRules rules,
-        List<DomainEvent> events, int? victorForceId = null)
+        List<DomainEvent> events, bool afterDailyCommands, int? victorForceId = null)
     {
         if (world.Forces[forceId].IsEliminated) return true;
         if (ForceLifecycle.HasCity(world, forceId) && world.Officers.Values.Any(p => p.OwnerId == forceId && p.IsServing)) return false;
-        Eliminate(world, forceId, rules, events, victorForceId);
+        Eliminate(world, forceId, rules, events, afterDailyCommands, victorForceId);
         return true;
     }
 
-    private static void Eliminate(WorldMutation world, int forceId, SimulationRules rules, List<DomainEvent> events, int? victorForceId)
+    private static void Eliminate(WorldMutation world, int forceId, SimulationRules rules, List<DomainEvent> events, bool afterDailyCommands, int? victorForceId)
     {
         var force = world.Forces[forceId];
         if (victorForceId is int victor)
             AllianceDiplomacy.CompleteSubjugation(world, forceId, victor, AllianceVictoryCause.ForceDefeated, events);
-        ForceTransfer.CancelTasks(world, forceId, rules, "force-eliminated", events);
+        ForceTransfer.CancelTasks(world, forceId, rules, "force-eliminated", events, afterDailyCommands);
         foreach (var person in world.Officers.Values.Where(p => p.OwnerId == forceId).OrderBy(p => p.Id).ToArray())
         {
             if (force.IsBarbarian && person.Status != OfficerStatus.Captive)
             {
-                OfficerDeath.Remove(world, person.Id, OfficerDeathCause.ForceEliminated, rules.Personnel, events, true);
+                OfficerDeath.Remove(world, person.Id, OfficerDeathCause.ForceEliminated, rules.Personnel, events, afterDailyCommands);
                 OfficerDeath.SettleTreasures(world, person.Id, null, events);
                 continue;
             }
@@ -245,7 +245,7 @@ internal static class BattleAftermath
                 BattlePersonnel.Displace(world, person.Id, world.Units[fieldUnit].Position, rules.Personnel, rules.Military!, events);
                 continue;
             }
-            PersonnelTransitions.CancelMissions(world, person.Id, "force-eliminated", events, rules.Personnel, true);
+            PersonnelTransitions.CancelMissions(world, person.Id, "force-eliminated", events, rules.Personnel, afterDailyCommands);
             var p = world.Officers[person.Id];
             world.Replace(p with { OwnerId = null, Status = p.Status == OfficerStatus.Captive ? OfficerStatus.Captive : OfficerStatus.Free,
                 UnitId = p.Status == OfficerStatus.Captive ? p.UnitId : null, OfficeId = null, IsCommander = false, Acted = true,

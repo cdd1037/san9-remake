@@ -34,7 +34,7 @@ internal static class UnitDefections
             Guid cause = new(Convert.FromHexString(CanonicalJson.Hash(new { Kind = "unit-defected", world.Clock, UnitId = id,
                 world.Simulation.NextSequence })).AsSpan(0, 16));
             UnitAffiliation.Transfer(world, unit, recipient, home, followers, region, cause, false, rules, events);
-            BattleAftermath.Reconcile(world, new HashSet<int> { owner }, rules, events, "unit-defected");
+            BattleAftermath.Reconcile(world, new HashSet<int> { owner }, rules, events, false, "unit-defected");
             ForceTransfer.ClearFriendlyOrders(world, "unit-defected", events);
             CorpsDelegations.Cleanup(world, military, events);
             world.MaintainLeadership(events);

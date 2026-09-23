@@ -104,6 +104,44 @@ public sealed class DiplomacyTimingTests
             engine.Snapshot.Simulation.RandomStreams.Single(s => s.Name == "diplomacy-politics-growth").State);
     }
 
+    [Fact]
+    public void QuarterlyRulerDeathReturnsEnvoyBeforeDailyCommandsAcrossRestore()
+    {
+        var world = World(new(190, 1, 1));
+        var mutation = world.BeginMutation();
+        mutation.SetClock(new(190, 12, 21));
+        mutation.Replace(mutation.Officers[21] with { BirthYear = 90 });
+        foreach (var home in mutation.Settlements.Values.ToArray())
+            mutation.Replace(home with { Durability = 100 });
+        mutation.SetSimulation(mutation.Simulation with
+        {
+            NaturalDeathsEnabled = true,
+            Controls = [new("first", 1, ControllerKind.Player),
+                new("second", 2, ControllerKind.Automatic), new("third", 3, ControllerKind.Automatic)]
+        });
+        world.Commit(mutation);
+        var rules = Rules(600);
+        var engine = new SimulationEngine(world, rules);
+        Assert.True(engine.Execute(new("first"), Command(0)).Submission.Accepted);
+        var restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()), rules);
+
+        var events = Advance(engine).Events;
+        Assert.Equal(CanonicalJson.Text(events), CanonicalJson.Text(Advance(restored).Events));
+        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        Assert.Equal(2, Assert.Single(events.OfType<ForceEliminatedEvent>()).ForceId);
+        var returning = Assert.Single(engine.Snapshot.Simulation.Tasks);
+        Assert.Equal(PersonnelReturns.Kind, returning.Kind);
+        Assert.False(returning.Journey!.ReturnLeg!.AfterDailyCommands);
+        Assert.True(returning.Journey.ReturnLeg.DiplomaticEnvoy);
+        Assert.Equal(10, returning.Journey.ReturnLeg.CountdownDays);
+        Assert.Equal(new GameClock(191, 1, 10), returning.Due);
+        restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()), rules);
+        var completion = Advance(engine).Events;
+        Assert.Equal(CanonicalJson.Text(completion), CanonicalJson.Text(Advance(restored).Events));
+        Assert.Equal(new GameClock(191, 1, 10), Assert.Single(completion.OfType<PersonnelReturnedEvent>()).Clock);
+        Assert.Empty(engine.Snapshot.Simulation.Tasks);
+    }
+
     private sealed class DialogRules : SimulationRules
     {
         internal override TaskRule? FindTask(string kind) => kind == "dialog-fixture" ? new DialogRule() : base.FindTask(kind);

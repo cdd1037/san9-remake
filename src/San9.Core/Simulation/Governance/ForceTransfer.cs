@@ -6,7 +6,7 @@ namespace San9.Core.Simulation;
 // remain with their rule; callers publish the complete change in one world transaction.
 internal static class ForceTransfer
 {
-    internal static void CancelTasks(WorldMutation world, int force, SimulationRules rules, string reason, List<DomainEvent> events)
+    internal static void CancelTasks(WorldMutation world, int force, SimulationRules rules, string reason, List<DomainEvent> events, bool afterDailyCommands)
     {
         foreach (var task in world.Simulation.Tasks.Where(t => t.ForceId == force || t.Gift?.TargetForceId == force ||
             t.PrisonerReturn?.TargetForceId == force || t.AttackRequest?.TargetForceId == force || t.Surrender?.TargetForceId == force)
@@ -14,7 +14,7 @@ internal static class ForceTransfer
         {
             TaskCancellation.Apply(world, task, reason, events);
             if (task.ForceId == force) ReinforcementTransport.Disband(world, task, reason, events);
-            else if (task.Journey is not null) PersonnelReturns.Start(world, task, rules.Personnel, events, true);
+            else if (task.Journey is not null) PersonnelReturns.Start(world, task, rules.Personnel, events, afterDailyCommands);
         }
     }
 

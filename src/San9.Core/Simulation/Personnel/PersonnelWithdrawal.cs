@@ -27,7 +27,7 @@ internal static class PersonnelWithdrawal
         {
             if (world.Forces[owner].LeaderId == officerId && RulerSuccession.Automatic(world, owner, previous) is { } successor)
                 RulerSuccession.Commit(world, owner, officerId, successor.Id, events);
-            BattleAftermath.Reconcile(world, new HashSet<int> { owner }, rules, events, "person-withdrawn");
+            BattleAftermath.Reconcile(world, new HashSet<int> { owner }, rules, events, true, "person-withdrawn");
         }
         world.MaintainLeadership(events);
         world.Replace(world.Officers[officerId] with { IsDormant = true });

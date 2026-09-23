@@ -39,7 +39,7 @@ internal static class MilitaryMorale
         foreach (var unit in world.Units.Values.Where(u => u.Morale == 0 && affected.Contains(u.OwnerId)).OrderBy(u => u.Id).ToArray())
             BattleAftermath.TerminateUnit(world, unit.Id, null, rules, events);
         if (affected.Count == 0) return;
-        BattleAftermath.Reconcile(world, affected, rules, events);
+        BattleAftermath.Reconcile(world, affected, rules, events, false);
         ResolutionPipeline.CheckConquest(world, events);
     }
 }

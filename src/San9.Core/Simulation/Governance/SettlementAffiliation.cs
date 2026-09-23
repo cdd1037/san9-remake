@@ -59,7 +59,7 @@ internal static class SettlementAffiliation
             if (task.Journey is not null) PersonnelReturns.Start(world, task, rules.Personnel, events, false);
         }
         events.Add(new SettlementTransferredEvent(world.Clock, place.Id, owner, recipient));
-        BattleAftermath.Reconcile(world, new HashSet<int> { owner }, rules, events, Reason);
+        BattleAftermath.Reconcile(world, new HashSet<int> { owner }, rules, events, false, Reason);
         ForceTransfer.ClearFriendlyOrders(world, Reason, events);
         CorpsDelegations.Cleanup(world, rules.Military, events);
         world.MaintainLeadership(events);

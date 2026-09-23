@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using San9.Client.Godot.Persistence;
 
 namespace San9.Client.Godot.Settings;
 
@@ -52,21 +53,7 @@ public sealed class UserSettingsStore
             Settings = settings,
         };
         byte[] bytes = Utf8.GetBytes(JsonSerializer.Serialize(document, JsonOptions) + "\n");
-        Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-        string temporary = _path + "." + Guid.NewGuid().ToString("N") + ".tmp";
-        try
-        {
-            using (var stream = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
-            {
-                stream.Write(bytes);
-                stream.Flush(flushToDisk: true);
-            }
-            File.Move(temporary, _path, overwrite: true);
-        }
-        finally
-        {
-            if (File.Exists(temporary)) File.Delete(temporary);
-        }
+        AtomicUserFile.Write(_path, bytes);
     }
 
     private sealed class SettingsDocument

@@ -1,5 +1,7 @@
 # 用户设置基础
 
+跨局通关、教学等完成事实不属于设置，独立保存在[玩家档案](player-profile.md)中。
+
 设置属于客户端本地偏好，与内容包、剧本存档、Core 世界状态和规则随机无关。当前仅提供 `San9.Client.Godot.Settings` 下的不可变 `UserSettings` 和显式 `UserSettingsStore.Load/Save`；尚未接入启动流程、设置窗口或播放消费者，不表示选项已经影响游戏。
 
 | 设置 | 取值 | 首版默认 |

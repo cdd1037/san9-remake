@@ -1,5 +1,7 @@
 # 行为规格目录
 
+- [BEH-PROFILE-0001：跨局玩家进度基础](BEH-PROFILE-0001-player-progress.md)（已确认）
+
 本目录保存可供实现与测试直接使用的 `BEH-*` 文档。
 
 跨领域实现从[核心领域依赖图与实现入口](core-domain-dependency-map.md)开始；其机器可校验源为 [`core-domain-contracts.json`](core-domain-contracts.json)。

@@ -23,6 +23,8 @@ public sealed record OfficerState(int Id, int? OwnerId, int? SettlementId, Offic
     [JsonRequired] public ImmutableArray<int> MasteredCategories { get; init; } = [];
     public ImmutableArray<int> LearnedTactics { get; init; } = [];
     [JsonRequired] public int? EquippedTacticId { get; init; }
+    /// <summary>兵法与单挑共用的剩余冷却天数；限制兵法发动、单挑发起及追加参战，
+    /// 不限制单挑首发接受者或普通攻击。</summary>
     [JsonRequired] public int TacticCooldown { get; init; }
     public ImmutableArray<int> TacticProficiencies { get; init; } = [0, 0, 0, 0, 0, 0, 0, 0, 0];
     public int? StatusStartYear { get; init; }

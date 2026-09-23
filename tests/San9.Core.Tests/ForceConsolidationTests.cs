@@ -37,6 +37,50 @@ public sealed class ForceConsolidationTests
     }
 
     [Fact]
+    public void MergeReturnsForeignEnvoyBeforeDailyCommandsAcrossRestore()
+    {
+        var world = World();
+        var mutation = world.BeginMutation();
+        mutation.SetClock(new(190, 12, 21));
+        world.Commit(mutation);
+        var rules = new SimulationRules
+        {
+            Military = Rules().Military,
+            Personnel = new([new(1, new(0, 0)), new(2, new(5, 0)),
+                new(3, new(600, 0)), new(4, new(605, 0))])
+        };
+        var engine = new SimulationEngine(world, rules);
+        Assert.True(engine.Execute(new("player"), new GiftCommand(Guid.NewGuid(), 1, 0, 11, 2,
+            new(GiftKind.Money, 10, null))).Submission.Accepted);
+        mutation = Pending(world);
+        world.Commit(mutation);
+        var restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()), rules);
+
+        AdvanceXunResult Advance(SimulationEngine current)
+        {
+            foreach (var control in current.Snapshot.Simulation.Controls) current.EndControl(new(control.ControllerId));
+            return current.AdvanceXun();
+        }
+
+        var events = Advance(engine).Events;
+        Assert.Equal(CanonicalJson.Text(events), CanonicalJson.Text(Advance(restored).Events));
+        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        Assert.Equal(2, Assert.Single(events.OfType<ForcesConsolidatedEvent>()).AbsorbedId);
+        var returning = Assert.Single(engine.Snapshot.Simulation.Tasks);
+        Assert.False(returning.Journey!.ReturnLeg!.AfterDailyCommands);
+        Assert.True(returning.Journey.ReturnLeg.DiplomaticEnvoy);
+        Assert.Equal(10, returning.Journey.ReturnLeg.CountdownDays);
+        Assert.Equal(new GameClock(191, 1, 10), returning.Due);
+        Assert.DoesNotContain(events, e => e is GiftResolvedEvent);
+        restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()), rules);
+        var completion = Advance(engine).Events;
+        Assert.Equal(CanonicalJson.Text(completion), CanonicalJson.Text(Advance(restored).Events));
+        Assert.Equal(new GameClock(191, 1, 10), Assert.Single(completion.OfType<PersonnelReturnedEvent>()).Clock);
+        Assert.Empty(engine.Snapshot.Simulation.Tasks);
+        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+    }
+
+    [Fact]
     public void SuccessfulMergeMovesAllPeopleAssetsRewardsAndConsumesOnce()
     {
         var world = World();

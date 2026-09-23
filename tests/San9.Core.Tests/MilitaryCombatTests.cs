@@ -225,6 +225,52 @@ public sealed class MilitaryCombatTests
         Assert.Equal(engine.Snapshot.StateHash, Engine(WorldState.Restore(engine.CaptureStableState())).Snapshot.StateHash);
     }
 
+    [Fact]
+    public void BattleEliminationReturnsEnvoyAfterDailyCommandsAcrossRestore()
+    {
+        var initial = World(defenders: 0, controlled: true).CreateSnapshot();
+        var world = WorldState.Create(initial.Clock, 42,
+            initial.Forces.Append(new ForceState(3, 10000, 10000, 100) { LeaderId = 31 }),
+            initial.Settlements.Append(initial.Settlements[0] with { Id = 3, OwnerId = 3 }),
+            initial.Officers.Append(new OfficerState(31, 3, 3, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }),
+            units: initial.Units.Select(u => u with { Order = null }), controls: initial.Simulation.Controls,
+            naturalDeathsEnabled: false, annualAppearancesEnabled: false);
+        var rules = new SimulationRules
+        {
+            Military = Rules(),
+            Personnel = new([new(1, new(0, 0)), new(2, new(600, 0)), new(3, new(900, 0))])
+        };
+        var engine = new SimulationEngine(world, rules);
+        Assert.True(engine.Execute(new("player"), new GiftCommand(Guid.NewGuid(), 1, 0, 12, 2,
+            new(GiftKind.Money, 100, null))).Submission.Accepted);
+        engine.EndControl(new("player"));
+        engine.AdvanceXun();
+        Assert.True(engine.Execute(new("player"), new OrderUnitCommand(Guid.NewGuid(), 1, 1, 0,
+            new(MilitaryOrderKind.AttackSettlement, null, 2))).Submission.Accepted);
+        var restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()), rules);
+        List<DomainEvent> all = [];
+        for (int i = 0; i < 2; i++)
+        {
+            engine.EndControl(new("player"));
+            restored.EndControl(new("player"));
+            var events = engine.AdvanceXun().Events;
+            Assert.Equal(CanonicalJson.Text(events), CanonicalJson.Text(restored.AdvanceXun().Events));
+            all.AddRange(events);
+            if (i == 0)
+            {
+                Assert.Equal(new GameClock(190, 1, 12), Assert.Single(events.OfType<ForceEliminatedEvent>()).Clock);
+                var returning = Assert.Single(engine.Snapshot.Simulation.Tasks.Where(t => t.OfficerId == 12));
+                Assert.True(returning.Journey!.ReturnLeg!.AfterDailyCommands);
+                Assert.True(returning.Journey.ReturnLeg.DiplomaticEnvoy);
+                Assert.Equal(12, returning.Journey.ReturnLeg.CountdownDays);
+                Assert.Equal(new GameClock(190, 1, 24), returning.Due);
+                restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()), rules);
+            }
+        }
+        Assert.Equal(new GameClock(190, 1, 24), Assert.Single(all.OfType<PersonnelReturnedEvent>(), e => e.OfficerId == 12).Clock);
+        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

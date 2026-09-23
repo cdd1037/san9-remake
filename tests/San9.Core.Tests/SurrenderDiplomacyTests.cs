@@ -7,6 +7,48 @@ namespace San9.Core.Tests;
 
 public sealed class SurrenderDiplomacyTests
 {
+    [Fact]
+    public void SurrenderReturnsForeignEnvoyAfterDailyCommandsAcrossRestore()
+    {
+        var rules = new SimulationRules
+        {
+            Military = Rules().Military,
+            Personnel = new([new(1, new(2, 2)), new(2, new(92, 2)),
+                new(3, new(692, 2)), new(4, new(112, 2))])
+        };
+        var engine = new SimulationEngine(World(), rules);
+        var surrenderId = Guid.NewGuid();
+        Assert.True(engine.Execute(new("first"), new DemandSurrenderCommand(surrenderId, 1, 0, 12, 2)).Submission.Accepted);
+        engine.EndControl(new("first"));
+        engine.EndControl(new("second"));
+        Assert.True(engine.Execute(new("third"), new GiftCommand(Guid.NewGuid(), 3, 1, 31, 2,
+            new(GiftKind.Money, 100, null))).Submission.Accepted);
+        engine.EndControl(new("third"));
+        engine.AdvanceXun();
+        var restored = new SimulationEngine(WorldState.Restore(engine.Snapshot), rules);
+        var answer = new RespondDailyTaskCommand(Guid.NewGuid(), 2, 2, surrenderId, 0, true);
+        var events = engine.Execute(new("second"), answer).Events;
+        Assert.Equal(CanonicalJson.Text(events), CanonicalJson.Text(restored.Execute(new("second"), answer).Events));
+        Assert.Single(events.OfType<ForceSurrenderedEvent>());
+        var returning = Assert.Single(engine.Snapshot.Simulation.Tasks.Where(t => t.OfficerId == 31));
+        Assert.True(returning.Journey!.ReturnLeg!.AfterDailyCommands);
+        Assert.True(returning.Journey.ReturnLeg.DiplomaticEnvoy);
+        Assert.Equal(11, returning.Journey.ReturnLeg.CountdownDays);
+        Assert.Equal(new GameClock(190, 1, 22), returning.Due);
+        restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()), rules);
+        List<DomainEvent> completion = [];
+        for (int i = 0; i < 2; i++)
+        {
+            foreach (var current in new[] { engine, restored })
+                foreach (var control in current.Snapshot.Simulation.Controls) current.EndControl(new(control.ControllerId));
+            var next = engine.AdvanceXun().Events;
+            Assert.Equal(CanonicalJson.Text(next), CanonicalJson.Text(restored.AdvanceXun().Events));
+            completion.AddRange(next);
+        }
+        Assert.Equal(new GameClock(190, 1, 22), Assert.Single(completion.OfType<PersonnelReturnedEvent>(), e => e.OfficerId == 31).Clock);
+        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+    }
+
     [Theory]
     [InlineData(true, 99)]
     [InlineData(false, 99)]

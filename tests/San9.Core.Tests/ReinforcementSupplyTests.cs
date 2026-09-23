@@ -7,6 +7,41 @@ namespace San9.Core.Tests;
 
 public sealed class ReinforcementSupplyTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ForceExitCancelsLoadedTasksExactlyOnceWithoutChangingTreasury(bool returning)
+    {
+        var (world, rules, task) = Create();
+        var mutation = world.BeginMutation(rules.Abilities);
+        task = task with { Reinforcements = task.Reinforcements! with { Soldiers = 2000, Wounded = 1000 } };
+        mutation.SetSimulation(mutation.Simulation with { Tasks = [task] });
+        if (returning)
+        {
+            mutation.SetSimulation(mutation.Simulation with { Tasks = [] });
+            PersonnelReturns.Start(mutation, task, rules.Personnel, [], false, arrived: true);
+        }
+        mutation.Replace(mutation.Settlements[1] with { DraftPopulation = 499990 });
+        uint soldiers = mutation.Settlements[1].Soldiers, wounded = mutation.Settlements[1].Wounded;
+        var treasury = mutation.Forces[1];
+        List<DomainEvent> events = [];
+        ForceTransfer.CancelTasks(mutation, 1, rules, "force-exit", events, false);
+        ForceTransfer.CancelTasks(mutation, 1, rules, "force-exit", events, false);
+        Assert.Empty(mutation.Simulation.Tasks);
+        Assert.Single(events.OfType<TaskCancelledEvent>());
+        Assert.Equal(502990u, mutation.Settlements[1].DraftPopulation);
+        Assert.Equal(soldiers, mutation.Settlements[1].Soldiers);
+        Assert.Equal(wounded, mutation.Settlements[1].Wounded);
+        Assert.Equal(treasury.Money, mutation.Forces[1].Money);
+        Assert.Equal(treasury.Food, mutation.Forces[1].Food);
+        var returned = Assert.Single(events.OfType<ResourceChangedEvent>());
+        Assert.Equal(ResourceKind.DraftPopulation, returned.Resource);
+        Assert.Equal(3000, returned.Actual);
+        world.Commit(mutation);
+        var saved = world.CreateSnapshot();
+        Assert.Equal(saved.StateHash, WorldState.Restore(saved).CreateSnapshot().StateHash);
+    }
+
     private static (WorldState World, SimulationRules Rules, PersistentTask Task) Create(int distance = 300)
     {
         var rules = UnitStrategyTests.Rules();

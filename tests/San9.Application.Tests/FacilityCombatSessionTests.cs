@@ -63,5 +63,28 @@ public sealed class FacilityCombatSessionTests
         var replay = RecordingService.Replay(RecordingService.Encode(session.CaptureRecording()), definition, GameSession.EngineFactory(definition));
         Assert.Equal(100, replay.Session.Snapshot.Simulation.ComputerDamageBonusPercent);
         Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        string log = Path.Combine(Path.GetTempPath(), $"san9-bonus-{Guid.NewGuid():N}.jsonl");
+        try
+        {
+            CommandLogService.Write(log, session);
+            var header = CommandLogService.ReadHeader(log);
+            Assert.Equal(100, header.ComputerDamageBonusPercent);
+            var mismatch = GameSession.Start(definition, header.Seed);
+            string unchanged = mismatch.Capture().StateHash;
+            Assert.Equal(1, Assert.Throws<CommandLogException>(() => CommandLogService.Replay(log, mismatch)).Line);
+            Assert.Equal(unchanged, mismatch.Capture().StateHash);
+            var logReplay = GameSession.Start(definition, header.Seed, header.ComputerDamageBonusPercent,
+                header.BattleDeathsEnabled);
+            Assert.Null(CommandLogService.Replay(log, logReplay).FirstFailure);
+            Assert.Equal(session.Capture().StateHash, logReplay.Capture().StateHash);
+            Assert.Equal(session.Snapshot.Units.Single().Soldiers, logReplay.Snapshot.Units.Single().Soldiers);
+            var lines = File.ReadAllLines(log);
+            var missing = System.Text.Json.Nodes.JsonNode.Parse(lines[0])!;
+            missing.AsObject().Remove("computerDamageBonusPercent");
+            lines[0] = missing.ToJsonString();
+            File.WriteAllLines(log, lines);
+            Assert.Equal(1, Assert.Throws<CommandLogException>(() => CommandLogService.ReadHeader(log)).Line);
+        }
+        finally { File.Delete(log); }
     }
 }

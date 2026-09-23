@@ -9,7 +9,7 @@ public static class SessionProtocol
 {
     public const string RulesVersion = "san9-core-g10-v60";
     public const int SaveFormatVersion = 82;
-    public const int LogFormatVersion = 84;
+    public const int LogFormatVersion = 85;
 }
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]

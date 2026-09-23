@@ -22,6 +22,23 @@ public sealed class HeadlessProcessTests : IDisposable
     private string FilePath(string name) => Path.Combine(_directory, name);
 
     [Fact]
+    public async Task CommandLogCreatesReplayWithRecordedComputerDamageBonus()
+    {
+        var content = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "bonus-cli", 190, 1, 1, 1,
+            [new(1, "force", 0, 10000, 10000, 100) { LeaderId = 1 }],
+            [new(101, "city", 1, 0, 0, 0, 100, 100, 0, [])], [], [])
+        { Officers = [new("ruler", new(1, 1, 101, new(80, 80, 80, 80), false) { Status = OfficerStatus.Ruler })] };
+        string scenario = FilePath("bonus-scenario.json"), log = FilePath("bonus.commands.jsonl");
+        File.WriteAllBytes(scenario, CanonicalJson.Encode(content));
+        var session = GameSession.Start(content, 190, 100);
+        session.BeginRecording();
+        session.AdvanceXun();
+        CommandLogService.Write(log, session);
+        var result = await Run("run", "--scenario", scenario, "--log", log, "--report", FilePath("bonus-report.json"));
+        Assert.Equal(0, result.Code);
+        Assert.Equal(session.Capture().StateHash, result.Report.GetProperty("finalHash").GetString());
+    }
+    [Fact]
     public async Task SearchDiscoveryRecordsRealAnswerAndResumesBeforeSaving()
     {
         var content = new San9.Content.Scenarios.ScenarioInitialState(San9.Content.Scenarios.ScenarioInitialState.CurrentSchemaVersion,

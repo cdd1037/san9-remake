@@ -231,7 +231,7 @@ public sealed class HeadlessHost
         _report.CommandLog = log;
         var header = CommandLogService.ReadHeader(log);
         _session = options.TryGetValue("load", out string? load) ? SaveService.Load(load, definition) :
-            options.TryGetValue("restore", out string? restore) ? SaveService.Read(restore, definition) : GameSession.Start(definition, header.Seed, battleDeathsEnabled: header.BattleDeathsEnabled);
+            options.TryGetValue("restore", out string? restore) ? SaveService.Read(restore, definition) : GameSession.Start(definition, header.Seed, header.ComputerDamageBonusPercent, battleDeathsEnabled: header.BattleDeathsEnabled);
         _started = _session.Snapshot.Clock;
         if (options.ContainsKey("record")) _session.BeginRecording();
         var result = CommandLogService.Replay(log, _session);

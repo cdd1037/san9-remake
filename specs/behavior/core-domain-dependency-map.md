@@ -62,7 +62,7 @@ G05 移动链已接入：`BattlefieldMap`负责不可变拓扑、矩形和四向
 
 验收条款以各BEH原文为准；当前覆盖由领域契约验证器生成，不在此重复维护计数。
 
-G10事件接入中：日历拥有唯一活动`EventSession`，`OfficeRequests`和`AllianceFormation`提供各自资格与提交；求官拒绝选址消费MilitaryRulebook的当前地域邻接，人员变化复用`PersonnelTransitions`。活动选择只驻留内存，稳定保存及录像由既有Application服务组织；华佗／神兽内容候选与持久消费键已接入；`ForceConsolidation`消费玩家取得都市的待触发状态，资格与奖励独立，资产迁移复用`ForceTransfer`，人物改属复用`PersonnelTransitions`、退出复用`ForceLifecycle`。`QuarterHistoricalEvents`保持联盟优先及呈现完成短路，二乔消费`QiaoMarriageDefinition`与当前州／人物状态，统一提交寿命、信望、关系和消费键。孙尚香消费`SunMarriageDefinition`，转属复用`PersonnelTransitions`、空部队复用`BattleAftermath`、强制军团解散复用`GovernanceMaintenance`，奖励及消费统一提交。`HistoricalRecognition`接入汉中王、五虎将及出师表，爵位复用`PoliticalEvents.GrantRank`，忠诚与学习复用既有转换；主表首成功短路不阻止独立政治收尾。不将已接入样例或当前单槽视为整个事件引擎完成。
+G10支持范围内事件已接入：日历拥有唯一活动`EventSession`，`OfficeRequests`和`AllianceFormation`提供各自资格与提交；求官拒绝选址消费MilitaryRulebook的当前地域邻接，人员变化复用`PersonnelTransitions`。活动选择只驻留内存，稳定保存及录像由既有Application服务组织；华佗／神兽内容候选与持久消费键已接入；`ForceConsolidation`消费玩家取得都市的待触发状态，资格与奖励独立，资产迁移复用`ForceTransfer`，人物改属复用`PersonnelTransitions`、退出复用`ForceLifecycle`。`QuarterHistoricalEvents`保持联盟优先及呈现完成短路，二乔消费`QiaoMarriageDefinition`与当前州／人物状态，统一提交寿命、信望、关系和消费键。孙尚香消费`SunMarriageDefinition`，转属复用`PersonnelTransitions`、空部队复用`BattleAftermath`、强制军团解散复用`GovernanceMaintenance`，奖励及消费统一提交。`HistoricalRecognition`接入汉中王、五虎将及出师表，爵位复用`PoliticalEvents.GrantRank`，忠诚与学习复用既有转换；主表首成功短路不阻止独立政治收尾。完整支持目录与验收范围见[G10事件覆盖](../../docs/g10-event-coverage.md)。
 
 ## 核心领域契约
 
@@ -79,10 +79,10 @@ G10事件接入中：日历拥有唯一活动`EventSession`，`OfficeRequests`�
 | `ai` | `BEH-AI-0001` | 势力视角观察、确定性预算、计划、诊断 | 不可变观察、命名用途、预算 → 有序命令候选、评分、可选诊断 | 不持有可变世界；分析随机隔离；诊断不改行为；共享命令终验 | `San9.Core.AI`：`AiObservation`、`AiPlanningContext`、`AiPlan`、`IAiPlanner` |
 | `strategy` | `BEH-STRATEGY-0001..0003` | 计略命令、目标、意见、部队状态、结果 | 单执行者、类型目标、实时阈值、随机流 → 目标效果、成长、占用释放 | 意见只读；玩家/AI 共用结算；资源与所有权有界 | `San9.Core.Simulation.UnitStrategies/AlienateStrategies/BurnStrategies/SeizeStrategies/GossipStrategies/AdviserJudgment`：八类计略命令、意见、效果与返程均已接入；Application `StrategyPlanner`复用公共验证，阶段审计及保存／重放已验收 |
 | `duel` | `BEH-DUEL-0001..0003` | 单挑机会、名单、逐刀、结果、战后结算 | 陆战攻击机会、名单、属性、随机流 → 名单、逐刀结果、人员分区、士气、低武力胜者成长 | 单刀单结果；死亡/俘虏/伤势互斥；表现随机隔离；成长每场至多一次 | `San9.Core.Duels`：触发、解析与战后服务 |
-| `event` | `BEH-EVENT-0001..0002` | 候选、会话、结果、持久键、触发器 | 命名触发、候选表、只读世界、随机流 → 活动事件、原子效果、消费键 | 单活动事件；游标单调；效果与消费键同批提交 | `San9.Core.Simulation`：`EventSelection`、`EventSession`；`SearchEvents`接入华佗、神兽、蔡琰、封禅、铜雀台、女性访问、司马徽访问、于吉／华佗赠书、管辂访问、延命、祢衡遭遇、左慈授书／索还、猛虎讨伐及商人投资（`MerchantInvestment`），`ForceActivationSearch`接入望蓬莱及整组未启用→活动状态，`Guandu`接入登用前资格与原子效果；`OfficeRequests`和`AllianceFormation`接入日历活动槽；其余事件族仍在G10接入 |
+| `event` | `BEH-EVENT-0001..0002` | 候选、会话、结果、持久键、触发器 | 命名触发、候选表、只读世界、随机流 → 活动事件、原子效果、消费键 | 单活动事件；游标单调；效果与消费键同批提交 | `San9.Core.Simulation`：`EventSelection`、`EventSession`；`SearchEvents`接入华佗、神兽、蔡琰、封禅、铜雀台、女性访问、司马徽访问、于吉／华佗赠书、管辂访问、延命、祢衡遭遇、左慈授书／索还、猛虎讨伐及商人投资（`MerchantInvestment`），`ForceActivationSearch`接入望蓬莱及整组未启用→活动状态，`Guandu`接入登用前资格与原子效果；`OfficeRequests`和`AllianceFormation`接入日历活动槽；完整事件族覆盖见[G10事件覆盖](../../docs/g10-event-coverage.md) |
 | `scenario` | `BEH-SCENARIO-0001..0002` | 终局判定、终局结果、结局快照、责任者、结局结果 | 不可变世界/结局快照 → 唯一终局结果与唯一结局 | 终局互斥；战争不创建 UI 结局；结局解析为纯函数 | `San9.Core.Scenarios`：`TerminalEvaluator`、`EndingResolver` |
 
-G01已接入以上模拟内核与现有内政命令，持续任务通过内部领域规则夹具验收；尚未实现人事/战争任务、实际终局条件或磁盘存档。证据与运行入口见[G01验收](../../docs/g01-verification.md)。
+以上模拟内核在G01接入，后续G02–G10已补齐磁盘存档、人事／战争任务及实际终局条件。当前领域入口见上表，各阶段证据见[路线图](../roadmap.md)；[G01验收](../../docs/g01-verification.md)仅记录该阶段的验证范围。
 
 ## 支撑边界
 

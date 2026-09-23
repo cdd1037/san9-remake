@@ -106,7 +106,7 @@ ScenarioInitialState Populate(ScenarioInitialState source, int number, bool batt
         int id = units.Count;
         units.Add(new(id, owner, position.Value, 5000)
         {
-            FormationId = formation.Id, Morale = 90, CommanderId = person.Id, MemberOrder = [person.Id],
+            FormationId = formation.Id, Morale = 90, CommanderId = person.Id,
             MemberRanks = System.Collections.Immutable.ImmutableDictionary<int, BattleRank>.Empty.Add(person.Id, formation.CaptureRanks[0]),
             ServicePlaceId = home.Id, CorpsId = home.CorpsId, OrderClass = UnitOrderClass.Military,
             Order = new(MilitaryOrderKind.AttackSettlement, null, target.Id)

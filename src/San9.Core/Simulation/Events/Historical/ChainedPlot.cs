@@ -11,22 +11,24 @@ internal static class ChainedPlot
 {
     internal static bool Apply(WorldMutation world, SimulationRules rules, List<DomainEvent> events)
     {
-        if (rules.ChainedPlot is not { } definition || !world.Officers.TryGetValue(definition.RulerId, out var ruler) ||
-            !world.Officers.TryGetValue(definition.SuccessorId, out var successor) ||
-            !world.Officers.TryGetValue(definition.InstigatorId, out var instigator)) return false;
-        int? force = ruler.OwnerId;
-        bool ruling = ruler.Status == OfficerStatus.Ruler && force is int owner && world.Forces[owner].LeaderId == ruler.Id;
-        bool conspirators = ruling && successor.IsServing && successor.OwnerId == force && instigator.IsServing && instigator.OwnerId == force;
+        if (rules.ChainedPlot is not { } definition) return false;
+        world.Officers.TryGetValue(definition.RulerId, out var ruler);
+        world.Officers.TryGetValue(definition.SuccessorId, out var successor);
+        world.Officers.TryGetValue(definition.InstigatorId, out var instigator);
+        int? force = ruler?.OwnerId;
+        bool ruling = ruler?.Status == OfficerStatus.Ruler && force is int owner && world.Forces[owner].LeaderId == ruler.Id;
+        bool conspirators = ruling && successor?.IsServing == true && successor.OwnerId == force &&
+            instigator?.IsServing == true && instigator.OwnerId == force;
         bool court = !world.Simulation.ImperialCourtEnded && ImperialCourt.City(world, rules.Economy) is int city &&
             force is int controller && world.Settlements[city].OwnerId == controller;
         bool started = world.Simulation.ConsumedEventKeys.Contains(definition.StartedKey);
         if (!started)
         {
             if (!ruling || !conspirators || !court || world.Clock.DayNumber < definition.EarliestDate.DayNumber ||
-                !(successor.Loyalty < definition.LoyaltyThreshold && instigator.Loyalty < definition.LoyaltyThreshold ||
+                !(successor!.Loyalty < definition.LoyaltyThreshold && instigator!.Loyalty < definition.LoyaltyThreshold ||
                     world.Forces[force!.Value].Trust < definition.TrustThreshold)) return false;
             Consume(world, definition.StartedKey);
-            events.Add(new ChainedPlotEvent(world.Clock, ChainedPlotStep.Prelude, force, ruler.Id, successor.Id, []));
+            events.Add(new ChainedPlotEvent(world.Clock, ChainedPlotStep.Prelude, force, definition.RulerId, definition.SuccessorId, []));
             return true;
         }
         if (world.Simulation.ConsumedEventKeys.Contains(definition.CompletedKey)) return false;
@@ -35,7 +37,7 @@ internal static class ChainedPlot
             !court ? ChainedPlotStep.CourtUnavailable : ChainedPlotStep.Coup;
         var victims = step == ChainedPlotStep.Coup ? Coup(world, rules, definition, force!.Value, events) : [];
         Consume(world, definition.CompletedKey);
-        events.Add(new ChainedPlotEvent(world.Clock, step, force, ruler.Id, successor.Id, victims));
+        events.Add(new ChainedPlotEvent(world.Clock, step, force, definition.RulerId, definition.SuccessorId, victims));
         return true;
     }
 

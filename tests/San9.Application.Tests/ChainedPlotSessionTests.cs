@@ -25,6 +25,42 @@ public sealed class ChainedPlotSessionTests
         ChainedPlot = new(11, 12, 13, new(192, 4, 1), 95, 1000, [13, 14], [15], 96, 80, 2, new("plot.start"), new("plot.end"))
     };
 
+    [Theory]
+    [InlineData(12)]
+    [InlineData(13)]
+    public void WithdrawnConspiratorCompletesStartedPlotOnceAcrossSaveAndReplay(int withdrawnId)
+    {
+        var original = Definition();
+        var definition = original with
+        {
+            Officers = original.Officers.Select(p => p.State.Id == 14
+                ? p with { State = p.State with { BaseAbilities = new(100, 100, 100, 100) } } : p).ToArray(),
+            SearchEvents = [new ScholarPunishmentSearchEventDefinition([new(1, withdrawnId, [], new("scholar.visited"))], 1)
+                { Id = "withdraw-conspirator", ChanceAbility = ConflictChanceAbility.Politics, ChanceDivisor = 1 }]
+        };
+        var session = GameSession.Start(definition, 17);
+        session.BeginRecording();
+        Assert.Equal(ChainedPlotStep.Prelude, Assert.Single(session.AdvanceXun().Events.OfType<ChainedPlotEvent>()).Step);
+        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1,
+            session.Snapshot.Simulation.NextSequence, 14, 1)).Submission.Accepted);
+        session.AdvanceXun();
+        var prompt = Assert.IsType<SearchConflictPrompt>(session.GetSearchConflictPrompt());
+        var answer = session.Execute(new("player"), new RespondDailyTaskCommand(Guid.NewGuid(), 1,
+            session.Snapshot.Simulation.NextSequence, prompt.TaskId, prompt.Step, false) { SearchConflict = SearchConflictChoice.Execute });
+        Assert.True(answer.Submission.Accepted);
+        Assert.True(session.Snapshot.Officers.Single(p => p.Id == withdrawnId).IsDormant);
+        var later = session.AdvanceXun();
+        Assert.Equal(ChainedPlotStep.ConspiratorsUnavailable,
+            Assert.Single(answer.Events.Concat(later.Events).OfType<ChainedPlotEvent>()).Step);
+        Assert.Contains(definition.ChainedPlot!.CompletedKey, session.Snapshot.Simulation.ConsumedEventKeys);
+        var restored = SaveService.Decode(SaveService.Encode(session), definition);
+        Assert.Empty(restored.InitialEvents.OfType<ChainedPlotEvent>());
+        Assert.Empty(session.AdvanceXun().Events.OfType<ChainedPlotEvent>());
+        Assert.Empty(restored.AdvanceXun().Events.OfType<ChainedPlotEvent>());
+        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
+        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+    }
     [Fact]
     public void PreludeAndCoupSaveAndReplayAtStableBoundariesWithoutRepeatingDeaths()
     {

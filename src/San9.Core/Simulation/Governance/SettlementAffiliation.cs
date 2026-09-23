@@ -40,16 +40,7 @@ internal static class SettlementAffiliation
             world.Replace(world.Officers[person.Id] with { TacticCooldown = 0 });
             AdvanceSequence(world);
         }
-        foreach (var prisoner in world.Officers.Values.Where(p => p.Status == OfficerStatus.Captive && p.SettlementId == place.Id)
-            .OrderBy(p => p.Id).ToArray())
-        {
-            var cause = Cause(world, prisoner.Id, owner, place.Id);
-            if (PrisonerRelease.Depart(world, prisoner.Id, place.Id, cause.Id, cause.Sequence,
-                PrisonerDepartureKind.Displaced, null, rules.Personnel, rules.Economy, events) == CommandRejection.None)
-                AdvanceSequence(world);
-            // No geographic destination: an unrelated captive retains custody in the transferred facility.
-            // A recovered captive can always use this now-friendly facility as a valid destination.
-        }
+        DisplacePrisoners(world, place.Id, owner, rules, events);
         foreach (var task in world.Simulation.Tasks.Where(t => t.OriginSettlementId == place.Id && t.ForceId != recipient ||
             t.Journey is { } journey && journey.DestinationPlaceId == place.Id && t.ForceId != recipient)
             .OrderBy(t => t.Sequence).ThenBy(t => t.Id).ToArray())
@@ -65,6 +56,21 @@ internal static class SettlementAffiliation
         world.MaintainLeadership(events);
         events.Add(new SettlementDefectedEvent(world.Clock, place.Id, owner, recipient, kind, commander?.Id, followers.Order().ToImmutableArray()));
         ResolutionPipeline.CheckConquest(world, events);
+    }
+
+    internal static void DisplacePrisoners(WorldMutation world, int placeId, int previousOwner,
+        SimulationRules rules, List<DomainEvent> events)
+    {
+        foreach (var prisoner in world.Officers.Values.Where(p => p.Status == OfficerStatus.Captive && p.SettlementId == placeId)
+            .OrderBy(p => p.Id).ToArray())
+        {
+            var cause = Cause(world, prisoner.Id, previousOwner, placeId);
+            if (PrisonerRelease.Depart(world, prisoner.Id, placeId, cause.Id, cause.Sequence,
+                PrisonerDepartureKind.Displaced, null, rules.Personnel, rules.Economy, events) == CommandRejection.None)
+                AdvanceSequence(world);
+            // No geographic destination: an unrelated captive retains custody in the transferred facility.
+            // A recovered captive can always use this now-friendly facility as a valid destination.
+        }
     }
 
     private static PersistentTask Cause(WorldMutation world, int person, int owner, int place) => new(

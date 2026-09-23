@@ -66,11 +66,12 @@ internal static class PersonnelDefection
                 if (followers.Contains(person.Id)) PersonnelTransitions.Recruit(world, person.Id, task.ForceId, source.Id, events, places, true);
                 else PersonnelReturns.Repatriate(world, person.Id, source.Id, task, places, events);
             }
+            SettlementAffiliation.DisplacePrisoners(world, source.Id, owner, rules, events);
             events.Add(new PersonnelTerritoryTransferredEvent(world.Clock, source.Id, owner, task.ForceId, target.Id));
         }
         if (oldCorps is int previousCorps && GovernanceMaintenance.RepairCorps(world, previousCorps, governance, events) != CommandRejection.None)
             throw new InvalidOperationException("Validated affiliation transfer failed.");
-        if (target.UnitId is not null)
+        if (transfersPlace || target.UnitId is not null)
         {
             BattleAftermath.Reconcile(world, new HashSet<int> { target.OwnerId!.Value }, rules, events, true, "personnel-recruited");
             ForceTransfer.ClearFriendlyOrders(world, "personnel-recruited", events);

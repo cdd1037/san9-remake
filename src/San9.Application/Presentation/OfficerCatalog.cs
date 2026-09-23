@@ -25,17 +25,24 @@ public static class OfficerCatalog
     public static InformationTable Read(StrategySnapshot view, TextCatalog texts, int page, int? force, int? settlement, int? officerId = null)
     {
         if ((uint)page >= Pages.Count) throw new ArgumentOutOfRangeException(nameof(page));
-        string Person(int? id) => view.Officers.FirstOrDefault(o => o.Id == id) is { } p ? texts.Resolve(p.NameKey) : "";
+        var officers = view.Officers.ToDictionary(o => o.Id);
+        var people = view.World.Officers.ToDictionary(o => o.Id);
+        var forces = view.World.Forces.ToDictionary(f => f.Id);
+        var offices = view.Information.Offices.ToDictionary(o => o.Id);
+        var corps = view.World.Corps.ToDictionary(c => c.Id);
+        var treasuresByHolder = view.World.Treasures.Where(t => t.Discovered).ToLookup(t => t.HolderId);
+        var treasureDefinitions = view.Information.Treasures.ToDictionary(t => t.Id);
+        string Person(int? id) => id is int key && officers.TryGetValue(key, out var p) ? texts.Resolve(p.NameKey) : "";
         string Place(int? id) => id is int key && view.RegionNameKeys.TryGetValue(key, out var name) ? texts.Resolve(name) : "";
         var columns = Pages[page].Columns;
         var rows = view.Officers.Where(o => (officerId is null || o.Id == officerId) && (force is null || o.OwnerId == force) && (settlement is null || o.SettlementId == settlement))
             .OrderBy(o => texts.Resolve(o.NameKey), StringComparer.Create(System.Globalization.CultureInfo.GetCultureInfo("zh-CN"), false))
             .Select(o =>
             {
-                var person = view.World.Officers.Single(p => p.Id == o.Id);
-                var owner = view.World.Forces.FirstOrDefault(f => f.Id == o.OwnerId);
-                var office = view.Information.Offices.FirstOrDefault(f => f.Id == person.OfficeId);
-                var treasures = view.World.Treasures.Where(t => t.HolderId == o.Id && t.Discovered).ToArray();
+                var person = people[o.Id];
+                var owner = o.OwnerId is int forceId ? forces.GetValueOrDefault(forceId) : null;
+                var office = person.OfficeId is int officeId ? offices.GetValueOrDefault(officeId) : null;
+                var treasures = treasuresByHolder[o.Id].ToArray();
                 CatalogCell Cell(string id)
                 {
                     if (id.StartsWith("proficiency.", StringComparison.Ordinal)) return person.TacticProficiencies[int.Parse(id.AsSpan(12))];
@@ -43,7 +50,7 @@ public static class OfficerCatalog
                     {
                         int tactic = int.Parse(id.AsSpan(7));
                         bool learned = person.LearnedTactics.Contains(tactic);
-                        bool provided = owner?.ProvidedTactics.Contains(tactic) == true || treasures.Any(t => view.Information.Treasures.Single(d => d.Id == t.Id).TacticId == tactic);
+                        bool provided = owner?.ProvidedTactics.Contains(tactic) == true || treasures.Any(t => treasureDefinitions[t.Id].TacticId == tactic);
                         return new(learned ? "○" : provided ? "△" : "", learned ? 2 : provided ? 1 : 0);
                     }
                     return id switch
@@ -52,7 +59,7 @@ public static class OfficerCatalog
                         "intelligence" => o.Abilities.Intelligence, "politics" => o.Abilities.Politics,
                         "learned" => person.LearnedTactics.Length, "health" => new(person.Injury == 0 ? "良" : person.Injury <= 4 ? "轻伤" : "重伤", person.Injury),
                         "treasures" => treasures.Length, "status" => new(InformationQuery.Status(o.Status), (int)o.Status),
-                        "force" => Person(owner?.LeaderId), "corps" => Person(view.World.Corps.FirstOrDefault(c => c.Id == o.CorpsId)?.LeaderId),
+                        "force" => Person(owner?.LeaderId), "corps" => Person(o.CorpsId is int corpsId ? corps.GetValueOrDefault(corpsId)?.LeaderId : null),
                         "home" => Place(o.IsServing ? o.SettlementId : null), "location" => o.Journey is null ? Place(o.SettlementId ?? person.RegionId) : o.Journey.Kind == "tactic-study" ? "兵法修行中" : "出行中",
                         "order" => o.Journey?.Kind switch { "personnel-search" => "搜索", "personnel-recruit" => "登用", "personnel-move" => "调动", "personnel-return" => "归队", "tactic-study" => "兵法修行", _ => CatalogCell.Unavailable },
                         "target-person" => o.Journey is null ? CatalogCell.Unavailable : Person(o.Journey.TargetOfficerId),

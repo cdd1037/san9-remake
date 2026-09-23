@@ -35,6 +35,8 @@ public partial class CatalogView : Control
     private Vector2 _tableOrigin;
     private int _page;
     private bool _refreshing;
+    private CatalogRow[]? _boundRows;
+    private int _boundOffset = -1;
     private Label? _help;
 
     public override void _Ready()
@@ -89,6 +91,7 @@ public partial class CatalogView : Control
         bool descending = _state.Descending;
         if (_grid is not null) { RemoveChild(_grid); _grid.QueueFree(); }
         _headers.Clear(); _cells.Clear();
+        _boundRows = null;
         current ??= _state.Current?.Id;
         _page = page; _state.SetRows(ReadRows(page), current, offset);
         if (restoreSort && sortColumn >= 0 && sortColumn < Pages[page].Columns.Length)
@@ -129,11 +132,16 @@ public partial class CatalogView : Control
     private void RefreshRows()
     {
         _refreshing = true;
-        for (int r = 0; r < _cells.Count; r++)
+        // Selection changes do not rebind cell text. Sorting/reloading replaces Rows.
+        if (!ReferenceEquals(_boundRows, _state.Rows) || _boundOffset != _state.Offset)
         {
-            int index = _state.Offset + r;
-            for (int c = 0; c < _cells[r].Length; c++)
-                _cells[r][c].Text = index < _state.Rows.Length ? _state.Rows[index].Cells[c].Text : "";
+            for (int r = 0; r < _cells.Count; r++)
+            {
+                int index = _state.Offset + r;
+                for (int c = 0; c < _cells[r].Length; c++)
+                    _cells[r][c].Text = index < _state.Rows.Length ? _state.Rows[index].Cells[c].Text : "";
+            }
+            _boundRows = _state.Rows; _boundOffset = _state.Offset;
         }
         for (int c = 0; c < _headers.Count; c++) _headers[c].SortDirection = _state.SortColumn == c ? _state.Descending ? -1 : 1 : 0;
         _scroll.Range.Value = _state.Offset; _scroll.UpdateArrows();

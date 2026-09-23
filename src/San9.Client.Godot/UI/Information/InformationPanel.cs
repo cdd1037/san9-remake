@@ -19,7 +19,8 @@ public partial class InformationPanel : Control
     private SkinnedScrollBar? _scroll;
     private InformationTable? _table;
     private InformationRow[] _rows = [];
-    private readonly List<Control> _rowControls = [];
+    private readonly List<(InformationRowButton Button, Label[] Cells)> _rowControls = [];
+    private readonly List<Button> _columnHeaders = [];
     private readonly Rect2 _body = new(200, 104, 648, 576);
     private readonly Rect2 _menu = new(842, 47, 104, 272);
     public InformationMenuButton? HoverMenuButton => State.IsMenu
@@ -53,7 +54,7 @@ public partial class InformationPanel : Control
         if (_content is not null) { RemoveChild(_content); _content.QueueFree(); }
         Textures?.Dispose(); Textures = Service.CreateScope(owner: this);
         _content = new Control { Size = Size, MouseFilter = MouseFilterEnum.Ignore }; AddChild(_content);
-        _catalog = null; _officerDetail = null; _treasureDetail = null; _scroll = null; _rowControls.Clear(); _note = null; _mapButton = null;
+        _catalog = null; _officerDetail = null; _treasureDetail = null; _scroll = null; _rowControls.Clear(); _columnHeaders.Clear(); _note = null; _mapButton = null;
         if (!Visible) return;
         if (State.IsMenu)
         {
@@ -89,7 +90,8 @@ public partial class InformationPanel : Control
                 },
                 ViewChanged = (page, offset, selected) =>
                 {
-                    State.SelectPage(page, OfficerCatalog.Pages.Count); State.Scroll(offset, _query.Read(State).Rows.Length);
+                    if (State.Page != page) State.SelectPage(page, OfficerCatalog.Pages.Count);
+                    State.Scroll(offset, _officerCatalogState.Rows.Length);
                     if (selected is int id) State.Select(id);
                 }
             };
@@ -194,10 +196,12 @@ public partial class InformationPanel : Control
         {
             int column = c;
             string arrow = State.SortColumn == c ? State.Descending ? " ▾" : " ▴" : "";
-            var header = PlainButton(_table.Columns[c] + arrow, new(x, 216), new(widths[c], 24), () => { State.Sort(column, _table.Columns.Length); Rebuild(); });
+            var header = PlainButton(_table.Columns[c] + arrow, new(x, 216), new(widths[c], 24), () => { State.Sort(column, _table.Columns.Length); _rows = State.Order(_table); DrawRows(); });
             header.AddThemeStyleboxOverride("normal", new StyleBoxFlat { BgColor = new Color("14573d"), BorderColor = new Color("547060"), BorderWidthBottom = 2, BorderWidthRight = 1, BorderWidthTop = 1 });
+            _columnHeaders.Add(header);
             x += widths[c];
         }
+        BuildRows(widths);
         _scroll = new SkinnedScrollBar { Skin = ScrollBarSkin.FromInterface(Textures), Position = new(814, 240), Size = new(18, 360) };
         _content.AddChild(_scroll);
         _scroll.Range.MaxValue = Math.Max(InformationBrowser.PageSize, _rows.Length); _scroll.Range.Page = InformationBrowser.PageSize;
@@ -222,30 +226,64 @@ public partial class InformationPanel : Control
         float width = 590f / _table.Columns.Length;
         return Enumerable.Repeat(width, _table.Columns.Length).ToArray();
     }
-    private void DrawRows()
+    private void BuildRows(float[] widths)
     {
-        foreach (var control in _rowControls) { _content.RemoveChild(control); control.QueueFree(); }
-        _rowControls.Clear();
-        float[] widths = ColumnWidths();
-        for (int index = State.Offset; index < Math.Min(_rows.Length, State.Offset + InformationBrowser.PageSize); index++)
+        for (int slot = 0; slot < InformationBrowser.PageSize; slot++)
         {
-            var row = _rows[index];
-            var button = new InformationRowButton { Textures = Textures, Position = new(224, 240 + (index - State.Offset) * 24), Size = new(590, 24), Selected = State.SelectedId == row.Key.Id };
-            _content.AddChild(button); _rowControls.Add(button);
-            button.MouseEntered += () => { State.Select(row.Key.Id); UpdateMapButton(); foreach (var item in _rowControls.OfType<InformationRowButton>()) item.Selected = item == button; };
+            int visibleRow = slot;
+            var button = new InformationRowButton { Textures = Textures, Position = new(224, 240 + slot * 24), Size = new(590, 24) };
+            _content.AddChild(button);
+            button.MouseEntered += () =>
+            {
+                int index = State.Offset + visibleRow;
+                if (index >= _rows.Length) return;
+                State.Select(_rows[index].Key.Id);
+                RefreshSelection();
+            };
             button.Pressed += () =>
             {
-                if (State.Category is InformationCategory.Ranks or InformationCategory.Records or InformationCategory.Chronicle) return;
-                State.ShowDetail(row.Key.Id); Rebuild();
+                int index = State.Offset + visibleRow;
+                if (index >= _rows.Length || State.Category is InformationCategory.Ranks or InformationCategory.Records or InformationCategory.Chronicle) return;
+                State.ShowDetail(_rows[index].Key.Id); Rebuild();
             };
+            var cells = new Label[widths.Length];
             float x = 0;
-            for (int c = 0; c < row.Cells.Length; c++)
+            for (int c = 0; c < cells.Length; c++)
             {
-                var label = LabelAt(row.Cells[c].Text, new(x + 4, 0), new(widths[c] - 8, 24), 16, parent: button);
-                if (row.Cells[c].Number is not null) label.HorizontalAlignment = HorizontalAlignment.Right;
+                cells[c] = LabelAt("", new(x + 4, 0), new(widths[c] - 8, 24), 16, parent: button);
                 x += widths[c];
             }
+            _rowControls.Add((button, cells));
         }
+    }
+    private void DrawRows()
+    {
+        for (int slot = 0; slot < _rowControls.Count; slot++)
+        {
+            var (button, cells) = _rowControls[slot];
+            int index = State.Offset + slot;
+            button.Visible = index < _rows.Length;
+            if (!button.Visible) continue;
+            var row = _rows[index];
+            for (int c = 0; c < cells.Length; c++)
+            {
+                cells[c].Text = row.Cells[c].Text;
+                cells[c].HorizontalAlignment = row.Cells[c].Number is not null ? HorizontalAlignment.Right : HorizontalAlignment.Left;
+            }
+        }
+        for (int c = 0; c < _columnHeaders.Count; c++)
+            _columnHeaders[c].Text = _table!.Columns[c] + (State.SortColumn == c ? State.Descending ? " ▾" : " ▴" : "");
+        if (_scroll is not null) { _scroll.Range.SetValueNoSignal(State.Offset); _scroll.UpdateArrows(); }
+        RefreshSelection();
+    }
+    private void RefreshSelection()
+    {
+        for (int slot = 0; slot < _rowControls.Count; slot++)
+        {
+            int index = State.Offset + slot;
+            _rowControls[slot].Button.Selected = index < _rows.Length && State.SelectedId == _rows[index].Key.Id;
+        }
+        UpdateMapButton();
     }
     private void BuildDetail()
     {
@@ -312,8 +350,11 @@ public partial class InformationPanel : Control
             if (target != i && _rows.Length > 0)
             {
                 target = Math.Clamp(target, 0, _rows.Length - 1); State.Select(_rows[target].Key.Id);
-                if (target < State.Offset || target >= State.Offset + 15) State.Scroll(target < State.Offset ? target : target - 14, _rows.Length);
-                Rebuild(); GetViewport().SetInputAsHandled();
+                int previousOffset = State.Offset;
+                if (target < State.Offset || target >= State.Offset + InformationBrowser.PageSize)
+                    State.Scroll(target < State.Offset ? target : target - InformationBrowser.PageSize + 1, _rows.Length);
+                if (State.Offset != previousOffset) DrawRows(); else RefreshSelection();
+                GetViewport().SetInputAsHandled();
             }
             else if (key.Keycode == Key.Enter && _rows.Length > 0 && State.Category is not (InformationCategory.Ranks or InformationCategory.Records or InformationCategory.Chronicle))
             { State.ShowDetail(_rows[i].Key.Id); Rebuild(); GetViewport().SetInputAsHandled(); }

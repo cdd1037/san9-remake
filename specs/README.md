@@ -14,6 +14,7 @@
 ## 规范文件
 
 - [整体路线图](roadmap.md)
+- [电脑 AI 实现规划](ai-implementation-plan.md)（G11 草案）
 - [路线图实施基线与规则核对](roadmap-baseline.md)
 - [项目与文档约定](project-conventions.md)
 - [研究与证据规范](research-method.md)

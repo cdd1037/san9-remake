@@ -112,6 +112,7 @@ public sealed class HeadlessHost
                 ForceSurrenderedEvent => "force-surrendered",
                 AllianceFormedEvent => "alliance-formed",
                 AllianceEndedEvent => "alliance-ended",
+                AllianceVictoryEvent => "alliance-victory",
                 AllianceParticipationDecidedEvent => "alliance-participation",
                 UnitStrategyResolvedEvent strategy => "unit-strategy-" + strategy.Strategy.ToString().ToLowerInvariant(),
                 BurnResolvedEvent => "burn-resolved",

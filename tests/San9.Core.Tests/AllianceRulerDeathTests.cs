@@ -25,6 +25,7 @@ public sealed class AllianceRulerDeathTests
         Assert.Equal(OfficerStatus.Dead,m.Officers[victim].Status);
         Assert.Equal(victimForce * 10 + 2,m.Forces[victimForce].LeaderId);
         Assert.False(m.Forces[victimForce].IsEliminated);
+        Assert.Empty(events.OfType<AllianceVictoryEvent>());
         if (victimForce == 2)
         {
             Assert.NotNull(m.Simulation.Alliance);

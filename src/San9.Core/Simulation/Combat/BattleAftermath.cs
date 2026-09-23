@@ -16,6 +16,7 @@ internal static class BattleAftermath
         UnitDefeatCause cause = UnitDefeatCause.Other)
     {
         var unit = world.Units[id];
+        int? victorForce = winner is { } winningSource ? winningSource.Owner(world) : null;
         if (winner is { } victor && !world.Forces[unit.OwnerId].IsEliminated)
             BattleLearning.DefeatedUnit(world, victor, events);
         if (cause == UnitDefeatCause.DoubledMartialTactic && winner is { } source && source.Exists(world))
@@ -26,6 +27,7 @@ internal static class BattleAftermath
             world.Settlements.GetValueOrDefault(home)?.Kind == SettlementKind.City ? home : rules.Personnel.RegionCities.GetValueOrDefault(home, -1) : null;
         if (city is int cityId && (!world.Settlements.TryGetValue(cityId, out var s) || s.Kind != SettlementKind.City)) city = null;
         UnitTerminationService.Complete(world, id, winner, city, rules.Governance, events, repairCorps: false);
+        if (victorForce is int victorId) EliminateIfDefeated(world, unit.OwnerId, rules, events, victorId);
     }
 
     internal static void ResolveSettlementDefeat(WorldMutation world, int id, BattleSource winner, SimulationRules rules, List<DomainEvent> events)
@@ -34,10 +36,14 @@ internal static class BattleAftermath
     internal static void ResolveSettlementDefeats(WorldMutation world, IReadOnlyList<int> ids, BattleSource winner,
         SimulationRules rules, List<DomainEvent> events)
     {
+        if (ids.Count == 0) return;
         // Keep the source alive until every target of one combat effect has settled.
+        int victor = winner.Owner(world);
+        var previousOwners = ids.Select(id => world.Settlements[id].OwnerId).OfType<int>().Distinct().Order().ToArray();
         var captures = ids.Select(id => (Id: id, Units: CaptureUnits(world, id, winner, rules.Military!))).ToArray();
         foreach (var capture in captures)
             CaptureSettlement(world, capture.Id, winner, capture.Units, rules, events);
+        foreach (int owner in previousOwners) EliminateIfDefeated(world, owner, rules, events, victor);
         foreach (var capture in captures.Where(c => !world.Settlements[c.Id].IsDestroyed))
             foreach (int unitId in capture.Units)
                 if (world.Units.TryGetValue(unitId, out var unit))
@@ -183,11 +189,7 @@ internal static class BattleAftermath
         foreach (var force in world.Forces.Values.Where(f => !f.IsEliminated && affectedForces.Contains(f.Id)).OrderBy(f => f.Id).ToArray())
         {
             var serving = world.Officers.Values.Where(p => p.OwnerId == force.Id && p.IsServing).OrderBy(p => p.Id).ToArray();
-            if (!ForceLifecycle.HasCity(world, force.Id) || serving.Length == 0)
-            {
-                Eliminate(world, force.Id, rules, events);
-                continue;
-            }
+            if (EliminateIfDefeated(world, force.Id, rules, events)) continue;
             if (force.LeaderId is not int leader || !world.Officers.TryGetValue(leader, out var ruler) ||
                 ruler.OwnerId != force.Id || !ruler.IsServing && ruler.Status != OfficerStatus.Captive)
             {
@@ -215,9 +217,20 @@ internal static class BattleAftermath
         }
     }
 
-    private static void Eliminate(WorldMutation world, int forceId, SimulationRules rules, List<DomainEvent> events)
+    private static bool EliminateIfDefeated(WorldMutation world, int forceId, SimulationRules rules,
+        List<DomainEvent> events, int? victorForceId = null)
+    {
+        if (world.Forces[forceId].IsEliminated) return true;
+        if (ForceLifecycle.HasCity(world, forceId) && world.Officers.Values.Any(p => p.OwnerId == forceId && p.IsServing)) return false;
+        Eliminate(world, forceId, rules, events, victorForceId);
+        return true;
+    }
+
+    private static void Eliminate(WorldMutation world, int forceId, SimulationRules rules, List<DomainEvent> events, int? victorForceId)
     {
         var force = world.Forces[forceId];
+        if (victorForceId is int victor)
+            AllianceDiplomacy.CompleteSubjugation(world, forceId, victor, AllianceVictoryCause.ForceDefeated, events);
         ForceTransfer.CancelTasks(world, forceId, rules, "force-eliminated", events);
         foreach (var person in world.Officers.Values.Where(p => p.OwnerId == forceId).OrderBy(p => p.Id).ToArray())
         {

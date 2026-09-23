@@ -76,6 +76,8 @@ internal static class PrisonerExecution
                     Math.Max(0, person.LoyaltyTo(executingForceId) - loss), "prisoner-executed", events);
             }
         }
+        if (dailyDisposition && prisoner.OwnerId is int target && world.Forces[target].LeaderId == prisonerId)
+            AllianceDiplomacy.CompleteSubjugation(world, target, executingForceId, AllianceVictoryCause.CapturedRulerExecuted, events);
         OfficerDeath.Resolve(world, prisonerId, OfficerDeathCause.Execution, rules, events, afterDailyCommands: false, successorId: successorId);
         if (dailyDisposition && prisoner.OwnerId is int original && !world.Forces[original].IsEliminated)
             foreach (var person in world.Officers.Values.Where(p => p.OwnerId == original).OrderBy(p => p.Id).ToArray())

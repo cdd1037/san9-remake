@@ -2,12 +2,27 @@ using San9.Core.Domain;
 
 namespace San9.Core.Simulation;
 
-public enum AllianceEndReason { Expired, TargetEliminated, LeaderEliminated, InsufficientMembers, Betrayal, LeaderDied, TargetDied }
+public enum AllianceEndReason { Expired, TargetEliminated, LeaderEliminated, InsufficientMembers, Betrayal, LeaderDied, TargetDied, SubjugationSucceeded }
+public enum AllianceVictoryCause { ForceDefeated, CapturedRulerExecuted }
+public sealed record AllianceVictoryEvent(GameClock Clock, int TargetForceId, int VictorForceId,
+    AllianceVictoryCause Cause, int BaseTrustGained) : DomainEvent;
 public sealed record AllianceEndedEvent(GameClock Clock, int TargetForceId, AllianceEndReason Reason) : DomainEvent;
 public sealed record AllianceMemberRemovedEvent(GameClock Clock, int ForceId) : DomainEvent;
 
 internal static class AllianceDiplomacy
 {
+    internal static void CompleteSubjugation(WorldMutation world, int targetForceId, int victorForceId,
+        AllianceVictoryCause cause, List<DomainEvent> events)
+    {
+        if (world.Simulation.Alliance is not { } alliance || alliance.TargetForceId != targetForceId ||
+            !alliance.MemberForceIds.Contains(victorForceId) ||
+            !world.Forces.TryGetValue(victorForceId, out var victor) || victor.IsEliminated) return;
+        int trust = Math.Min(1000, victor.BaseTrust + 15);
+        world.Replace(victor with { BaseTrust = trust });
+        events.Add(new AllianceVictoryEvent(world.Clock, targetForceId, victorForceId, cause, trust - victor.BaseTrust));
+        End(world, AllianceEndReason.SubjugationSucceeded, events);
+    }
+
     internal static void UpdateXun(WorldMutation world, List<DomainEvent> events)
     {
         if (world.Simulation.Alliance is not { } alliance || world.Clock == world.Simulation.Started) return;

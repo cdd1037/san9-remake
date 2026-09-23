@@ -31,6 +31,8 @@ public sealed class WarfareAuditAlignmentTests
     public void CaptureOnlyImmediatelyAbsorbsNearbyAttackersOfReceivingCorps()
     {
         var m = World(); List<DomainEvent> events = [];
+        // Keep the defender alive: this test isolates absorption, not last-city elimination.
+        m.AddSettlement(m.Settlements[2] with { Id = 99 });
         var attack = new MilitaryOrder(MilitaryOrderKind.AttackSettlement, null, 2);
         m.Replace(m.Settlements[2] with { Soldiers = 0 });
         m.Replace(m.Units[1] with { Position = new(30, 7), Order = attack, Morale = 60 });
@@ -104,6 +106,7 @@ public sealed class WarfareAuditAlignmentTests
     {
         var world = InitialWorld();
         var m = world.BeginMutation();
+        m.AddSettlement(m.Settlements[2] with { Id = 99 });
         var attack = new MilitaryOrder(MilitaryOrderKind.AttackSettlement, null, 2);
         m.Replace(m.Settlements[2] with { Durability = 0, Soldiers = 1000, Wounded = 2000 });
         m.Replace(m.Units[1] with { Position = new(30, 7), Order = attack });
@@ -169,7 +172,8 @@ public sealed class WarfareAuditAlignmentTests
             { Combat = new(10, 10, 100, 10, 50), Attack = new(15, true) { RangedSiege = ranged },
                 CaptureRanks = [BattleRank.Middle] }],
         [new(1, new(2, 7), new(1, 1)) { Combat = new(10, 10, 0, 10, 50) },
-         new(2, new(32, 7), new(1, 1)) { Combat = new(10, 10, 0, 10, 50), DestroyedAtZeroDurability = destroyed }])
+         new(2, new(32, 7), new(1, 1)) { Combat = new(10, 10, 0, 10, 50), DestroyedAtZeroDurability = destroyed },
+         new(99, new(92, 7), new(1, 1)) { Combat = new(10, 10, 0, 10, 50) }])
         { Tactics = [new(901, 8, TacticEffect.Heal, 19, 10, 0, true, false, [101]) { EffectRadius = 20 }] });
 
     private static WorldMutation World() => InitialWorld().BeginMutation();

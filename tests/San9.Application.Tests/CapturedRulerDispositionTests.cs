@@ -95,6 +95,8 @@ public sealed class CapturedRulerDispositionTests
         session.BeginRecording();
         var result = session.AdvanceXun();
         Assert.Null(session.GetCapturedRulerPrompt());
+        Assert.Empty(result.Events.OfType<AllianceVictoryEvent>());
+        int initialTrust = session.Snapshot.Forces.Single(f => f.Id == 2).BaseTrust;
         var pending = Assert.IsType<ExecutionSuccessionPrompt>(session.GetExecutionSuccessionPrompt());
         Assert.Equal(1, pending.RulerId);
         Assert.Equal(new GameClock(190, 1, 2), session.Snapshot.Clock);
@@ -110,7 +112,53 @@ public sealed class CapturedRulerDispositionTests
         Assert.Equal(4, Assert.Single(session.Snapshot.Treasures).HolderId);
         Assert.Equal(SimulationBoundary.Stable, session.Snapshot.Simulation.Boundary);
         Assert.Null(session.Snapshot.Simulation.Alliance);
-        Assert.Single(answer.Events.OfType<AllianceEndedEvent>());
+        Assert.Equal(AllianceEndReason.SubjugationSucceeded, Assert.Single(answer.Events.OfType<AllianceEndedEvent>()).Reason);
+        var victory = Assert.Single(answer.Events.OfType<AllianceVictoryEvent>());
+        Assert.Equal((1, 2, AllianceVictoryCause.CapturedRulerExecuted, 15),
+            (victory.TargetForceId, victory.VictorForceId, victory.Cause, victory.BaseTrustGained));
+        Assert.Equal(initialTrust + 15, session.Snapshot.Forces.Single(f => f.Id == 2).BaseTrust);
+        Assert.Equal(session.Capture().StateHash, SaveService.Decode(SaveService.Encode(session), definition).Capture().StateHash);
+        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
+        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+    }
+
+    [Theory]
+    [InlineData(CapturedRulerAction.Execute, true, false)]
+    [InlineData(CapturedRulerAction.Execute, true, true)]
+    [InlineData(CapturedRulerAction.Release, true, false)]
+    [InlineData(CapturedRulerAction.Execute, false, false)]
+    public void AllianceDispositionCreditsExecutionButNotReleaseOrAnOutsideCaptor(CapturedRulerAction action, bool allied, bool noHeir)
+    {
+        var definition = AddThirdForce(Fixture()) with { Alliance = new(2, 3, [1, 3], 10) };
+        if (!allied) definition = definition with
+        {
+            Alliance = new(2, 3, [3, 4], 10),
+            Forces = [.. definition.Forces, definition.Forces[2] with { Id = 4, NameKey = "force.4", LeaderId = 9 }],
+            Settlements = [.. definition.Settlements, definition.Settlements[2] with { Id = 4, NameKey = "city.4", OwnerId = 4, X = 4, Y = 4 }],
+            Officers = [.. definition.Officers, new("officer.9", new(9, 4, 4, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler })]
+        };
+        if (noHeir) definition = definition with { Officers = definition.Officers.Where(p => p.State.OwnerId != 2 || p.State.Id == 4).ToArray() };
+        var session = GameSession.Start(definition, 190);
+        int initialTrust = session.Snapshot.Forces.Single(f => f.Id == 1).BaseTrust;
+        session.BeginRecording();
+        var saved = SaveService.Encode(session);
+        session.AdvanceXun();
+        var command = new ChooseCapturedRulerDispositionCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, 4, action);
+        var result = session.Execute(new("player"), command);
+        Assert.True(result.Submission.Accepted);
+        bool success = allied && action == CapturedRulerAction.Execute;
+        Assert.Equal(success ? initialTrust + 15 : initialTrust, session.Snapshot.Forces.Single(f => f.Id == 1).BaseTrust);
+        if (success)
+        {
+            var victory = Assert.Single(result.Events.OfType<AllianceVictoryEvent>());
+            Assert.Equal((2, 1, 15), (victory.TargetForceId, victory.VictorForceId, victory.BaseTrustGained));
+            Assert.Equal(AllianceEndReason.SubjugationSucceeded, Assert.Single(result.Events.OfType<AllianceEndedEvent>()).Reason);
+            Assert.Equal(noHeir, session.Snapshot.Forces.Single(f => f.Id == 2).IsEliminated);
+        }
+        else Assert.Empty(result.Events.OfType<AllianceVictoryEvent>());
+        var restored = SaveService.Decode(saved, definition);
+        restored.AdvanceXun();
+        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.Execute(new("player"), command).Events));
         Assert.Equal(session.Capture().StateHash, SaveService.Decode(SaveService.Encode(session), definition).Capture().StateHash);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
         Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);

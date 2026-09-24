@@ -30,6 +30,53 @@ public sealed class CatalogTableTests
     }
 
     [Fact]
+    public void ChangingColumnsPreservesSortedOrderSelectionAndViewport()
+    {
+        var model = new CatalogTableState();
+        var firstPage = Enumerable.Range(0, 20).Select(id => new CatalogRow(id, [id])).ToArray();
+        model.SetRows(firstPage);
+        model.Sort(0);
+        model.Scroll(4);
+        model.PointAt(8);
+        int[] expected = Enumerable.Range(0, 20).Reverse().ToArray();
+        var nextPage = firstPage.Select(row => new CatalogRow(row.Id, [$"next-{row.Id}", 1])).ToArray();
+
+        model.RefreshRows(nextPage, columnsChanged: true);
+
+        Assert.Equal(expected, model.Rows.Select(row => row.Id));
+        Assert.Equal("next-11", model.Current!.Cells[0].Text);
+        Assert.Equal(8, model.CurrentIndex);
+        Assert.Equal(4, model.Offset);
+        Assert.Equal(-1, model.SortColumn);
+        model.Sort(1); // Equal values keep the ordering carried from the previous page.
+        Assert.Equal(expected, model.Rows.Select(row => row.Id));
+        model.RefreshRows(firstPage, columnsChanged: true);
+        model.RefreshRows(firstPage); // Recreating the view after closing a detail must not reset order.
+        Assert.Equal(expected, model.Rows.Select(row => row.Id));
+        Assert.Equal(11, model.Current!.Id);
+        Assert.Equal(4, model.Offset);
+    }
+
+    [Fact]
+    public void RefreshKeepsStableSortTiesAndReconcilesChangedCandidates()
+    {
+        var model = new CatalogTableState();
+        model.SetRows([new(1, [10, 1]), new(2, [20, 1]), new(3, [30, 2])]);
+        model.Sort(0);
+        model.Sort(1);
+        Assert.Equal([3, 2, 1], model.Rows.Select(row => row.Id));
+        model.RefreshRows([new(1, [11, 1]), new(2, [21, 1]), new(3, [31, 2])]);
+        Assert.Equal([3, 2, 1], model.Rows.Select(row => row.Id));
+        Assert.Equal(1, model.SortColumn);
+        model.RefreshRows([new(1, [12, 1]), new(4, [40, 3]), new(3, [32, 2])]);
+        Assert.Equal([3, 1, 4], model.Rows.Select(row => row.Id));
+        Assert.Equal("32", model.Rows[0].Cells[0].Text);
+        model.RefreshRows([]);
+        Assert.Null(model.Current);
+        Assert.Equal(0, model.Offset);
+    }
+
+    [Fact]
     public void NavigationClampsScrollAndEmptyDataHasNoCurrentRow()
     {
         var model = new CatalogTableState();

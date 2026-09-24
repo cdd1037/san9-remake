@@ -41,6 +41,18 @@ public sealed class CatalogTableState
         CurrentIndex = rows.Length == 0 ? -1 : Math.Max(0, Array.FindIndex(rows, r => r.Id == currentId));
         Scroll(offset);
     }
+    /// <summary>Reprojects cells without replacing the shared row order or viewport.</summary>
+    public void RefreshRows(CatalogRow[] rows, bool columnsChanged = false)
+    {
+        var byId = rows.ToDictionary(row => row.Id);
+        int? currentId = Current?.Id;
+        var retained = Rows.Where(row => byId.ContainsKey(row.Id)).Select(row => byId[row.Id]).ToArray();
+        var retainedIds = retained.Select(row => row.Id).ToHashSet();
+        Rows = retained.Concat(rows.Where(row => !retainedIds.Contains(row.Id))).ToArray();
+        CurrentIndex = Rows.Length == 0 ? -1 : Math.Max(0, Array.FindIndex(Rows, row => row.Id == currentId));
+        Scroll(Offset);
+        if (columnsChanged) { SortColumn = -1; Descending = false; }
+    }
     public void Scroll(int offset) => Offset = Math.Clamp(offset, 0, Math.Max(0, Rows.Length - VisibleRows));
     public void PointAt(int index)
     { if ((uint)index < Rows.Length) CurrentIndex = index; }

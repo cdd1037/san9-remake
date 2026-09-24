@@ -86,19 +86,18 @@ public partial class CatalogView : Control
     }
     private void ChangePage(int page, int? current = null, int offset = 0)
     {
-        bool restoreSort = _grid is null;
-        int sortColumn = _state.SortColumn;
-        bool descending = _state.Descending;
+        bool opening = _grid is null;
+        if (!opening && page == _page) return;
+        _state.RefreshRows(ReadRows(page), columnsChanged: !opening);
+        if (opening)
+        {
+            if (current is int id) _state.PointAt(Array.FindIndex(_state.Rows, row => row.Id == id));
+            _state.Scroll(offset);
+        }
         if (_grid is not null) { RemoveChild(_grid); _grid.QueueFree(); }
         _headers.Clear(); _cells.Clear();
         _boundRows = null;
-        current ??= _state.Current?.Id;
-        _page = page; _state.SetRows(ReadRows(page), current, offset);
-        if (restoreSort && sortColumn >= 0 && sortColumn < Pages[page].Columns.Length)
-        {
-            _state.Sort(sortColumn); if (!descending) _state.Sort(sortColumn);
-            if (current is int id) _state.PointAt(Array.FindIndex(_state.Rows, row => row.Id == id));
-        }
+        _page = page;
         _grid = new Control { Position = _tableOrigin, MouseFilter = MouseFilterEnum.Ignore }; AddChild(_grid);
         var columns = Pages[page].Columns;
         int width = columns.Sum(c => c.Width), x = 0;

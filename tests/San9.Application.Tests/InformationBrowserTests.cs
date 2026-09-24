@@ -189,6 +189,38 @@ public sealed class InformationBrowserTests
     }
 
     [Fact]
+    public void PageChangesAndRelatedNavigationKeepTheLastSortedListOrder()
+    {
+        var browser = new InformationBrowser();
+        browser.Open(InformationCategory.Forces);
+        InformationTable Table(bool secondPage) => new("forces", ["first", "second"], ["value"],
+            Enumerable.Range(0, 20).Select(id => new InformationRow(new(InformationCategory.Forces, id),
+                [secondPage ? 1 : id])).ToArray());
+        browser.Sort(0, 1);
+        int[] expected = Enumerable.Range(0, 20).Reverse().ToArray();
+        Assert.Equal(expected, browser.Order(Table(false)).Select(row => row.Key.Id));
+        browser.Scroll(4, 20);
+        browser.Select(11);
+        browser.SelectPage(1, 2);
+        Assert.Equal(expected, browser.Order(Table(true)).Select(row => row.Key.Id));
+        Assert.Equal(4, browser.Offset);
+        Assert.Equal(11, browser.SelectedId);
+        Assert.Equal(-1, browser.SortColumn);
+        browser.Sort(0, 1);
+        Assert.Equal(expected, browser.Order(Table(true)).Select(row => row.Key.Id));
+        browser.SelectPage(0, 2);
+        Assert.Equal(expected, browser.Order(Table(false)).Select(row => row.Key.Id));
+        browser.ShowDetail(11);
+        browser.Navigate(new("related", InformationCategory.Cities));
+        browser.Order(new("cities", ["page"], ["value"], [new(new(InformationCategory.Cities, 99), [0])]));
+        browser.Back();
+        browser.Back();
+        Assert.Equal(expected, browser.Order(Table(false)).Select(row => row.Key.Id));
+        browser.Open(InformationCategory.Forces);
+        Assert.Equal(Enumerable.Range(0, 20), browser.Order(Table(false)).Select(row => row.Key.Id));
+    }
+
+    [Fact]
     public void NumericSortAndRelatedDetailReturnPreserveIndependentListState()
     {
         var browser = new InformationBrowser(); browser.Open(InformationCategory.Officers);

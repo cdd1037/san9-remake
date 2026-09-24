@@ -14,7 +14,8 @@ public sealed record InformationDetail(string Title, InformationField[] Fields, 
 /// <summary>Modal navigation state; no map selection or world mutations.</summary>
 public sealed class InformationBrowser
 {
-    private readonly Stack<(InformationCategory Category, int Page, int Offset, int Sort, bool Descending, int? Selected, bool Detail, int? Force, int? Settlement, int? Holder)> _history = [];
+    private readonly Stack<(InformationCategory Category, int Page, int Offset, int Sort, bool Descending, int? Selected, bool Detail, int? Force, int? Settlement, int? Holder, int[] RowOrder)> _history = [];
+    private int[] _rowOrder = [];
     public bool IsOpen { get; private set; }
     public bool IsMenu { get; private set; }
     public bool IsDetail { get; private set; }
@@ -34,10 +35,11 @@ public sealed class InformationBrowser
         if (!Enum.IsDefined(category)) throw new ArgumentOutOfRangeException(nameof(category));
         IsOpen = true; IsMenu = IsDetail = false; Category = category; Page = Offset = 0;
         SortColumn = -1; Descending = false; SelectedId = null; ForceFilter = force; SettlementFilter = settlement; HolderFilter = holder;
+        _rowOrder = [];
     }
     public void Navigate(InformationLink link)
     {
-        _history.Push((Category, Page, Offset, SortColumn, Descending, SelectedId, IsDetail, ForceFilter, SettlementFilter, HolderFilter));
+        _history.Push((Category, Page, Offset, SortColumn, Descending, SelectedId, IsDetail, ForceFilter, SettlementFilter, HolderFilter, _rowOrder));
         Open(link.Category, link.ForceId, link.SettlementId, link.HolderId);
     }
     public void Close() { IsOpen = IsMenu = IsDetail = false; _history.Clear(); }
@@ -46,13 +48,17 @@ public sealed class InformationBrowser
         if (IsDetail) { IsDetail = false; return; }
         if (_history.TryPop(out var previous))
         {
-            (Category, Page, Offset, SortColumn, Descending, SelectedId, IsDetail, ForceFilter, SettlementFilter, HolderFilter) = previous;
+            (Category, Page, Offset, SortColumn, Descending, SelectedId, IsDetail, ForceFilter, SettlementFilter, HolderFilter, _rowOrder) = previous;
             return;
         }
         Close();
     }
     public void SelectPage(int page, int count)
-    { if (page < 0 || page >= count) throw new ArgumentOutOfRangeException(nameof(page)); Page = page; Offset = 0; SortColumn = -1; }
+    {
+        if (page < 0 || page >= count) throw new ArgumentOutOfRangeException(nameof(page));
+        if (Page == page) return;
+        Page = page; SortColumn = -1; Descending = false;
+    }
     public void Sort(int column, int count)
     {
         if (column < 0 || column >= count) throw new ArgumentOutOfRangeException(nameof(column));
@@ -63,19 +69,17 @@ public sealed class InformationBrowser
     public void ShowDetail(int id) { SelectedId = id; IsDetail = true; }
     public InformationRow[] Order(InformationTable table)
     {
-        IEnumerable<InformationRow> rows = table.Rows;
+        var positions = _rowOrder.Select((id, index) => (id, index)).ToDictionary(pair => pair.id, pair => pair.index);
+        IEnumerable<InformationRow> rows = table.Rows.OrderBy(row => row.Key.Id)
+            .OrderBy(row => positions.GetValueOrDefault(row.Key.Id, int.MaxValue));
         if (SortColumn >= 0 && SortColumn < table.Columns.Length)
         {
             var comparer = Comparer<CatalogCell>.Create((a, b) => a.Number is long x && b.Number is long y
                 ? x.CompareTo(y) : StringComparer.Ordinal.Compare(a.Text, b.Text));
             rows = Descending ? rows.OrderByDescending(r => r.Cells[SortColumn], comparer) : rows.OrderBy(r => r.Cells[SortColumn], comparer);
         }
-        return rows.ThenByIdentity().ToArray();
+        var ordered = rows.ToArray();
+        _rowOrder = ordered.Select(row => row.Key.Id).ToArray();
+        return ordered;
     }
-}
-
-internal static class InformationOrdering
-{
-    public static IEnumerable<InformationRow> ThenByIdentity(this IEnumerable<InformationRow> rows) =>
-        rows is IOrderedEnumerable<InformationRow> ordered ? ordered.ThenBy(r => r.Key.Id) : rows.OrderBy(r => r.Key.Id);
 }

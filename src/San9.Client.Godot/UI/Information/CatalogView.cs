@@ -278,13 +278,14 @@ public partial class CatalogView : Control
         if(current>=0 && current<15)
         {
             var point=_tableOrigin+new Vector2(0,28+current*24);
-            var left = Textures["catalog-row-left-2"];
-            var rightCap = Textures["catalog-row-right-2"];
+            // Frame 1 is hover/current-row gold; frame 2 is the brighter pressed state (RE-0151).
+            var left = Textures["catalog-row-left-1"];
+            var rightCap = Textures["catalog-row-right-1"];
             DrawTexture(left,point);
             DrawTexture(rightCap,point+new Vector2(width-rightCap.GetWidth(),0));
             // The source left cap ends in a transparent column; the middle covers it (RE-0151).
             int middleStart = left.GetWidth() - 1;
-            Tile("catalog-row-middle-2",new(point+new Vector2(middleStart,0),new(width-rightCap.GetWidth()-middleStart,left.GetHeight())));
+            Tile("catalog-row-middle-1",new(point+new Vector2(middleStart,0),new(width-rightCap.GetWidth()-middleStart,left.GetHeight())));
         }
         if(_portrait is { Visible: true }) DrawTextureRect(Textures["catalog-portrait-frame"], new(_portrait.Position - new Vector2(12,12), PortraitSize + new Vector2(24,24)), false);
     }

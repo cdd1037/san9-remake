@@ -101,6 +101,7 @@ public sealed class StrategySnapshot
     {
         military = source.Military;
         Information = source.Information;
+        FacilityNameSuffixKeys = source.FacilityNameSuffixKeys;
         World = world;
         PlayerForceId = source.PlayerForceId;
         RegionNameKeys = source.RegionNameKeys;
@@ -198,6 +199,8 @@ public sealed class StrategySnapshot
     public IReadOnlyList<ForceView> Forces { get; }
     public IReadOnlyList<OfficerView> Officers { get; }
     public IReadOnlyList<SettlementView> Settlements { get; }
+    internal IReadOnlyDictionary<int, string> FacilityNameSuffixKeys { get; }
+    internal int? RegionAt(WorldPosition position) => military?.RegionAt(position);
     public bool HasCityInfluence(int forceId, WorldPosition position) =>
         military?.HasCityInfluence(forceId, position, World.Settlements) == true;
 }

@@ -31,6 +31,7 @@ public static class OfficerCatalog
         var offices = view.Information.Offices.ToDictionary(o => o.Id);
         var corps = view.World.Corps.ToDictionary(c => c.Id);
         var units = view.World.Units.ToDictionary(u => u.Id);
+        var commands = page == 2 ? new OfficerCommands(view, texts) : null;
         var treasuresByHolder = view.World.Treasures.Where(t => t.Discovered).ToLookup(t => t.HolderId);
         var treasureRules = new TreasureRulebook(view.Information.Treasures.Select(t => t.ToRule()));
         string Person(int? id) => id is int key && officers.TryGetValue(key, out var p) ? texts.Resolve(p.NameKey) : "";
@@ -41,6 +42,7 @@ public static class OfficerCatalog
             .Select(o =>
             {
                 var person = people[o.Id];
+                var command = commands?.Read(person);
                 var owner = o.OwnerId is int forceId ? forces.GetValueOrDefault(forceId) : null;
                 var office = person.OfficeId is int officeId ? offices.GetValueOrDefault(officeId) : null;
                 var treasures = treasuresByHolder[o.Id].ToArray();
@@ -74,10 +76,8 @@ public static class OfficerCatalog
                         "force" => Person(owner?.LeaderId), "corps" => Person(o.CorpsId is int corpsId ? corps.GetValueOrDefault(corpsId)?.LeaderId : null),
                         "commander" => Commander(),
                         "home" => Place(o.IsServing ? o.SettlementId : null), "location" => o.Journey is null ? Place(o.SettlementId ?? person.RegionId) : o.Journey.Kind == "tactic-study" ? "兵法修行中" : "出行中",
-                        "order" => o.Journey?.Kind switch { "personnel-search" => "搜索", "personnel-recruit" => "登用", "personnel-move" => "调动", "personnel-return" => "归队", "tactic-study" => "兵法修行", _ => CatalogCell.Unavailable },
-                        "target-person" => o.Journey is null ? CatalogCell.Unavailable : Person(o.Journey.TargetOfficerId),
-                        "target-place" => o.Journey is null ? CatalogCell.Unavailable : Place(o.Journey.DestinationPlaceId),
-                        "arrival" => o.Journey is null ? CatalogCell.Unavailable : $"{o.Journey.Due.Month}/{o.Journey.Due.Day}",
+                        "order" => command!.Order, "target-person" => command!.Object, "target-place" => command!.Target,
+                        "arrival" => command!.Arrival, "formation" => command!.Rank, "equipped-tactic" => command!.Tactic,
                         "loyalty" => o.IsServing ? person.Loyalty : CatalogCell.Unavailable,
                         "office" => office is null ? "无" : texts.Resolve(office.NameKey),
                         "capacity" => office is null ? CatalogCell.Unavailable : (long)office.CommandCapacity,

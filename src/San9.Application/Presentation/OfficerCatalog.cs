@@ -30,6 +30,7 @@ public static class OfficerCatalog
         var forces = view.World.Forces.ToDictionary(f => f.Id);
         var offices = view.Information.Offices.ToDictionary(o => o.Id);
         var corps = view.World.Corps.ToDictionary(c => c.Id);
+        var units = view.World.Units.ToDictionary(u => u.Id);
         var treasuresByHolder = view.World.Treasures.Where(t => t.Discovered).ToLookup(t => t.HolderId);
         var treasureRules = new TreasureRulebook(view.Information.Treasures.Select(t => t.ToRule()));
         string Person(int? id) => id is int key && officers.TryGetValue(key, out var p) ? texts.Resolve(p.NameKey) : "";
@@ -44,6 +45,15 @@ public static class OfficerCatalog
                 var office = person.OfficeId is int officeId ? offices.GetValueOrDefault(officeId) : null;
                 var treasures = treasuresByHolder[o.Id].ToArray();
                 var tactics = page == 0 || page >= 4 ? TacticAvailability.ForOfficer(person, owner, treasures, treasureRules) : null;
+                CatalogCell Commander()
+                {
+                    if (person.Status == OfficerStatus.Free ||
+                        person.SettlementId is null && person.UnitId is null && o.Journey is null)
+                        return CatalogCell.Unavailable;
+                    bool commander = o.Journey is null && (person.UnitId is int unitId
+                        ? units[unitId].CommanderId == person.Id : person.IsCommander);
+                    return new(commander ? "○" : "", commander ? 1 : 0);
+                }
                 CatalogCell Cell(string id)
                 {
                     if (id.StartsWith("proficiency.", StringComparison.Ordinal)) return person.TacticProficiencies[int.Parse(id.AsSpan(12))];
@@ -62,6 +72,7 @@ public static class OfficerCatalog
                         "learned" => tactics!.Count, "health" => new(person.Injury == 0 ? "良" : person.Injury <= 4 ? "轻伤" : "重伤", person.Injury),
                         "treasures" => treasures.Length, "status" => new(InformationQuery.Status(o.Status), (int)o.Status),
                         "force" => Person(owner?.LeaderId), "corps" => Person(o.CorpsId is int corpsId ? corps.GetValueOrDefault(corpsId)?.LeaderId : null),
+                        "commander" => Commander(),
                         "home" => Place(o.IsServing ? o.SettlementId : null), "location" => o.Journey is null ? Place(o.SettlementId ?? person.RegionId) : o.Journey.Kind == "tactic-study" ? "兵法修行中" : "出行中",
                         "order" => o.Journey?.Kind switch { "personnel-search" => "搜索", "personnel-recruit" => "登用", "personnel-move" => "调动", "personnel-return" => "归队", "tactic-study" => "兵法修行", _ => CatalogCell.Unavailable },
                         "target-person" => o.Journey is null ? CatalogCell.Unavailable : Person(o.Journey.TargetOfficerId),

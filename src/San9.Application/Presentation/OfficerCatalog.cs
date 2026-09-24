@@ -78,7 +78,9 @@ public static class OfficerCatalog
                         "home" => Place(o.IsServing ? o.SettlementId : null), "location" => o.Journey is null ? Place(o.SettlementId ?? person.RegionId) : o.Journey.Kind == "tactic-study" ? "兵法修行中" : "出行中",
                         "order" => command!.Order, "target-person" => command!.Object, "target-place" => command!.Target,
                         "arrival" => command!.Arrival, "formation" => command!.Rank, "equipped-tactic" => command!.Tactic,
-                        "loyalty" => o.IsServing ? person.Loyalty : CatalogCell.Unavailable,
+                        // A ruler's dash has a highest-value sort key, not unavailable-value ordering.
+                        "loyalty" => o.Status == OfficerStatus.Ruler ? new("—", long.MaxValue)
+                            : o.IsServing ? person.Loyalty : CatalogCell.Unavailable,
                         "office" => office is null ? "无" : texts.Resolve(office.NameKey),
                         "capacity" => office is null ? CatalogCell.Unavailable : (long)office.CommandCapacity,
                         "salary" => office is null ? CatalogCell.Unavailable : office.Salary,

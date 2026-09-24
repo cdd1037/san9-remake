@@ -8,6 +8,42 @@ namespace San9.Application.Tests;
 
 public sealed class InformationBrowserTests
 {
+    [Theory]
+    [InlineData(OfficerStatus.Ruler, false)]
+    [InlineData(OfficerStatus.Governor, true)]
+    [InlineData(OfficerStatus.Strategist, true)]
+    [InlineData(OfficerStatus.Serving, true)]
+    public void LoyaltyApplicabilityFollowsCurrentStatusInCatalogAndDetail(OfficerStatus status, bool applicable)
+    {
+        var definition = G01ScenarioTests.Fixture();
+        var original = GameSession.Start(definition, 1).Snapshot;
+        var world = original with { Officers = original.Officers.Select(o => o.Id == 1 ? o with { Status = status } : o).ToArray() };
+        var view = new StrategySnapshot(definition, world);
+        var texts = new TextCatalog(3, definition.Officers.Select(o => o.NameKey).Concat(definition.Settlements.Select(s => s.NameKey))
+            .ToDictionary(key => key, key => new TextEntry(key, key)));
+        var table = OfficerCatalog.Read(view, texts, 1, null, null, 1);
+        var cell = Assert.Single(table.Rows).Cells[Array.IndexOf(table.Columns, "忠诚")];
+        CatalogCell expected = applicable ? world.Officers.Single(o => o.Id == 1).Loyalty : new CatalogCell("—", long.MaxValue);
+        Assert.Equal(expected, cell);
+        Assert.Equal(expected.Text, OfficerDetails.Read(view, texts, 1).Fields.SelectMany(f => f).Single(f => f.Label == "忠诚").Value);
+        Assert.Equal(original.Officers.Single(o => o.Id == 1).Loyalty, world.Officers.Single(o => o.Id == 1).Loyalty);
+    }
+
+    [Fact]
+    public void RulerLoyaltyDashSortsAboveNumericLoyaltyAndReversesWithDirection()
+    {
+        var (_, query) = Fixture();
+        var table = query.Read(InformationCategory.Officers, 1);
+        var ruler = table.Rows.Single(r => r.Key.Id == 1).Cells[Array.IndexOf(table.Columns, "忠诚")];
+        var state = new CatalogTableState();
+        state.SetRows([new(2, [100]), new(3, [0]), new(1, [ruler]), new(4, [CatalogCell.Unavailable])]);
+        state.Sort(0);
+        Assert.Equal(new[] { 1, 2, 3, 4 }, state.Rows.Select(r => r.Id));
+        state.Sort(0);
+        Assert.Equal(new[] { 3, 2, 1, 4 }, state.Rows.Select(r => r.Id));
+        Assert.Equal("—", ruler.Text);
+    }
+
     private static (GameSession Session, InformationQuery Query) Fixture(bool adjusted = false)
     {
         var scenario = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "information", 190, 1, 1, 5,

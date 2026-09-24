@@ -169,13 +169,11 @@ public partial class CatalogView : Control
     }
     public override void _GuiInput(InputEvent input)
     {
-        if (input is InputEventMouseButton { Pressed: true } mouse)
+        if (input is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: false } mouse &&
+            RowAt(mouse.Position) is int index)
         {
-            if (mouse.ButtonIndex == MouseButton.Right) { AcceptEvent(); Closed?.Invoke(); return; }
-            if (mouse.ButtonIndex is MouseButton.WheelDown or MouseButton.WheelUp)
-            { AcceptEvent(); _state.Scroll(_state.Offset + (mouse.ButtonIndex == MouseButton.WheelDown ? 1 : -1)); RefreshRows(); return; }
-            if (mouse.ButtonIndex == MouseButton.Left && RowAt(mouse.Position) is int index)
-            { AcceptEvent(); _state.PointAt(index); RefreshRows(); Activated?.Invoke(_state.Current!.Id); }
+            AcceptEvent(); _state.PointAt(index); RefreshRows();
+            Activated?.Invoke(_state.Current!.Id);
         }
         if (input is InputEventMouseMotion motion && RowAt(motion.Position) is int hovered && hovered != _state.CurrentIndex)
         { _state.PointAt(hovered); RefreshRows(); }

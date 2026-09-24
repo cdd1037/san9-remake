@@ -13,6 +13,7 @@ public partial class Main : Node
     public override void _ExitTree() => _startupTextures?.Dispose();
     public override async void _Ready()
     {
+        WindowStartup.Apply(GetWindow());
         var world = GetNode<MapWorld>("MapWorld");
         var ui = GetNode<Control>("UiLayer/UiRoot");
         try

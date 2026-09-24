@@ -133,7 +133,7 @@ public partial class InformationPanel : Control
                 InitialCurrentId = State.SelectedId, InitialOffset = State.Offset,
                 ReadRows = _ => TreasureCatalog.Read(Session.View, Texts, State.HolderFilter, State.ForceFilter, State.SettlementFilter)
                     .Rows.Select(row => new CatalogRow(row.Key.Id, row.Cells)).ToArray(),
-                Portrait = id => $"information-treasure-{id}", PortraitSize = new(128, 128),
+                Portrait = id => $"information-treasure-{id}", PortraitSize = new(120, 120),
                 Closed = Back, Activated = id =>
                 {
                     _treasureDetailState.Open(_treasureCatalogState.Rows.Select(row => row.Id), id);

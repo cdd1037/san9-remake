@@ -63,7 +63,7 @@ public partial class CatalogView : Control
         if (Portrait is not null)
         {
             _portrait = new AsyncPortrait { Service = Service, View = San9.Content.Images.PortraitView.Face,
-                IsDeceased = () => _state.Current is { } current && (PortraitDeceased?.Invoke(current.Id) ?? false), Position = new(_body.Position.X + 28 - PortraitSize.X, _tableOrigin.Y + 42), Size = PortraitSize,
+                IsDeceased = () => _state.Current is { } current && (PortraitDeceased?.Invoke(current.Id) ?? false), Size = PortraitSize,
                 ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.Scale, MouseFilter = MouseFilterEnum.Ignore };
             AddChild(_portrait);
         }
@@ -145,7 +145,18 @@ public partial class CatalogView : Control
         }
         for (int c = 0; c < _headers.Count; c++) _headers[c].SortDirection = _state.SortColumn == c ? _state.Descending ? -1 : 1 : 0;
         _scroll.Range.Value = _state.Offset; _scroll.UpdateArrows();
-        if (_portrait is not null) _portrait.Role = _state.Current is { } selected ? Portrait!(selected.Id) : null;
+        if (_portrait is not null)
+        {
+            int visibleRow = _state.CurrentIndex - _state.Offset;
+            _portrait.Visible = _state.Current is not null && visibleRow >= 0 && visibleRow < CatalogTableState.VisibleRows;
+            if (_portrait.Visible)
+            {
+                // Anchor the frame to the highlighted row and keep its bottom above the footer (RE-0151).
+                float frameTop = Math.Min(_tableOrigin.Y + 28 + visibleRow * 24, 704 - PortraitSize.Y - 24);
+                _portrait.Position = new(_tableOrigin.X - PortraitSize.X - 12, frameTop + 12);
+            }
+            _portrait.Role = _portrait.Visible ? Portrait!(_state.Current!.Id) : null;
+        }
         if (_state.Current is { } row) CurrentChanged?.Invoke(row.Id);
         ViewChanged?.Invoke(_page, _state.Offset, _state.Current?.Id);
         _refreshing = false; QueueRedraw();
@@ -276,7 +287,7 @@ public partial class CatalogView : Control
             int middleStart = left.GetWidth() - 1;
             Tile("catalog-row-middle-2",new(point+new Vector2(middleStart,0),new(width-rightCap.GetWidth()-middleStart,left.GetHeight())));
         }
-        if(_portrait is not null) DrawTextureRect(Textures["catalog-portrait-frame"], new(_portrait.Position - new Vector2(10,12), PortraitSize + new Vector2(20,24)), false);
+        if(_portrait is { Visible: true }) DrawTextureRect(Textures["catalog-portrait-frame"], new(_portrait.Position - new Vector2(12,12), PortraitSize + new Vector2(24,24)), false);
     }
     private void DrawTableFrame(int width)
     {

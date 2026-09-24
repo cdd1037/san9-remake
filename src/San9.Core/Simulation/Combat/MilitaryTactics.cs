@@ -9,13 +9,8 @@ public sealed record TacticSelectedEvent(GameClock Clock, int OfficerId, int? Ta
 internal static class MilitaryTactics
 {
     internal static bool HasTactic(WorldMutation world, int owner, IEnumerable<int> members, int required, TreasureRulebook treasures)
-    {
-        if (world.Forces[owner].ProvidedTactics.Contains(required)) return true;
-        var people = members.ToHashSet();
-        return people.Any(id => world.Officers[id].LearnedTactics.Contains(required)) ||
-            world.Treasures.Values.Any(t => t.Discovered && t.HolderId is int holder && people.Contains(holder) &&
-                treasures.Items.TryGetValue(t.Id, out var definition) && definition.TacticId == required);
-    }
+        => TacticAvailability.HasForMembers(required, members.Select(id => world.Officers[id]),
+            world.Forces[owner], world.Treasures.Values, treasures);
 
     internal static CommandRejection Select(WorldMutation world, SelectTacticCommand command, SimulationRules rules, List<DomainEvent> events)
     {

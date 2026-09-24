@@ -118,7 +118,7 @@ public sealed class InformationBrowserTests
         var before = session.Snapshot.StateHash;
         var ability = query.Read(InformationCategory.Officers);
         Assert.Equal(13, ability.Pages.Length);
-        Assert.Equal(1, ability.Rows.Single(r => r.Key.Id == 1).Cells[5].Number);
+        Assert.Equal(3, ability.Rows.Single(r => r.Key.Id == 1).Cells[5].Number);
         Assert.Equal("良", ability.Rows.Single(r => r.Key.Id == 1).Cells[6].Text);
         var infantry = query.Read(InformationCategory.Officers, 4);
         var cells = infantry.Rows.Single(r => r.Key.Id == 1).Cells;

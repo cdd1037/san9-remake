@@ -20,6 +20,28 @@ public sealed class EndingSessionTests
     };
 
     [Fact]
+    public void VictoryPromptIncludesForceAndTreasureTacticsAfterSaveRestore()
+    {
+        var original = Fixture();
+        var content = original with
+        {
+            Forces = original.Forces.Select(f => f with { ProvidedTactics = [0, 1] }).ToArray(),
+            Officers = original.Officers.Select(o => o with { State = o.State with { LearnedTactics = [0] } }).ToArray(),
+            Information = new([], [], [new(900, "treasure", 0, 0, 0, 2)], [],
+                [new(900, 2, TreasureDiscovery.Discovered, null)])
+        };
+        var session = GameSession.Start(content, 1);
+        string hash = session.Capture().StateHash;
+        var prompt = session.GetEndingPrompt()!;
+        Assert.Equal(3, prompt.Officers.Single(o => o.Id == 2).LearnedTacticCount);
+        Assert.All(prompt.Officers.Where(o => o.Id != 2), o => Assert.Equal(2, o.LearnedTacticCount));
+        var restored = SaveService.Decode(SaveService.Encode(session), content);
+        Assert.Equal(prompt.Officers.ToArray(), restored.GetEndingPrompt()!.Officers.ToArray());
+        Assert.All(restored.Snapshot.Officers, o => Assert.Equal([0], o.LearnedTactics.ToArray()));
+        Assert.Equal(hash, session.Capture().StateHash);
+    }
+
+    [Fact]
     public void VictoryChoicePersistsAndReplaysWithoutAdvancingWorld()
     {
         var content = Fixture();

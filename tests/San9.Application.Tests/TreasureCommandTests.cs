@@ -51,6 +51,41 @@ public sealed class TreasureCommandTests
     }
 
     [Fact]
+    public void TacticCountsAndMarksFollowGrantConfiscationAndSaveRestore()
+    {
+        var source = Fixture();
+        var definition = source with
+        {
+            Forces = source.Forces.Select(f => f with { ProvidedTactics = [1] }).ToArray(),
+            Officers = source.Officers.Select(p => p with { State = p.State with { LearnedTactics = [1] } }).ToArray(),
+            Information = source.Information with { Treasures = [source.Information.Treasures[0] with { TacticId = 0 }] }
+        };
+        var session = GameSession.Start(definition, 190);
+        var texts = new TextCatalog(3, new[] { "treasure", "recipient", "ruler" }.ToDictionary(k => k, k => new TextEntry(k, k)));
+        long Count(StrategySnapshot view, int id) => OfficerCatalog.Read(view, texts, 0, null, null, id).Rows.Single().Cells[5].Number!.Value;
+        string[] Marks(StrategySnapshot view, int id) => OfficerCatalog.Read(view, texts, 4, null, null, id).Rows.Single().Cells.Skip(2).Select(c => c.Text).ToArray();
+        var before = session.View;
+        Assert.Equal(2, Count(before, 1));
+        Assert.Equal(1, Count(before, 2));
+        Assert.Equal(["△", "○", ""], Marks(before, 1));
+        Assert.Equal(["", "○", ""], Marks(before, 2));
+
+        Assert.True(session.Execute(new("player"), new GrantTreasureCommand(Guid.NewGuid(), 1, 0, 10, 2)).Submission.Accepted);
+        Assert.Equal(1, Count(session.View, 1));
+        Assert.Equal(2, Count(session.View, 2));
+        Assert.Equal(["△", "○", ""], Marks(session.View, 2));
+        var restored = SaveService.Decode(SaveService.Encode(session), definition);
+        Assert.Equal(2, Count(restored.View, 2));
+        Assert.True(session.Execute(new("player"), new ConfiscateTreasureCommand(Guid.NewGuid(), 1, 1, 10)).Submission.Accepted);
+        Assert.Equal(2, Count(session.View, 1));
+        Assert.Equal(1, Count(session.View, 2));
+        Assert.Equal(["", "○", ""], Marks(session.View, 2));
+        Assert.All(session.Snapshot.Officers, p => Assert.Equal([1], p.LearnedTactics.ToArray()));
+        Assert.Equal(2, Count(before, 1));
+        Assert.Equal(1, Count(before, 2));
+    }
+
+    [Fact]
     public void RestoreAndContentDeriveAbilitiesFromChangedHoldings()
     {
         var definition = Fixture();

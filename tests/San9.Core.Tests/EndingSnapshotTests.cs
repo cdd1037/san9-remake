@@ -28,8 +28,9 @@ public sealed class EndingSnapshotTests
         };
     }
 
-    private static OfficerAbilityRules Abilities => new(new([
-        new(901, default, 0), new(902, new(5, 0, 0, 0), 0)]), new([]));
+    private static TreasureRulebook Treasures => new([
+        new(901, default, 0), new(902, new(5, 0, 0, 0), 0)]);
+    private static OfficerAbilityRules Abilities => new(Treasures, new([]));
 
     [Fact]
     public void DormantPeopleCitiesAndForcesDoNotContributeToEndingRequirements()
@@ -41,7 +42,7 @@ public sealed class EndingSnapshotTests
             Settlements = before.Settlements.Select(s => s.Id == 102 ? s with { IsDormant = true } : s).ToArray(),
             Officers = before.Officers.Select(p => p.Id is 401 or 405 ? p with { IsDormant = true } : p).ToArray()
         };
-        var result = EndingSnapshotFactory.Create(world, 8, Definition, Abilities);
+        var result = EndingSnapshotFactory.Create(world, 8, Definition, Abilities, Treasures);
         Assert.False(result.HasLivingBarbarianForce);
         Assert.Equal(4, result.Officers.Length);
         Assert.Equal(0, result.CulturalTreasureCount);
@@ -54,7 +55,7 @@ public sealed class EndingSnapshotTests
     {
         var world = World();
         string before = world.StateHash;
-        var snapshot = EndingSnapshotFactory.Create(world, 8, Definition, Abilities);
+        var snapshot = EndingSnapshotFactory.Create(world, 8, Definition, Abilities, Treasures);
         Assert.Equal(5, snapshot.Officers.Length);
         Assert.DoesNotContain(snapshot.Officers, o => o.Id == 405);
         Assert.Equal(6600, snapshot.SoldiersAndWounded);
@@ -79,14 +80,14 @@ public sealed class EndingSnapshotTests
     public void CapturesEliminationAndTreasureTransfersChangeDerivedSnapshot()
     {
         var world = World();
-        var old = EndingSnapshotFactory.Create(world, 8, Definition, Abilities);
+        var old = EndingSnapshotFactory.Create(world, 8, Definition, Abilities, Treasures);
         world = world with
         {
             Forces = world.Forces.Select(f => f.Id == 9 ? f with { IsEliminated = true } : f).ToArray(),
             Settlements = world.Settlements.Select(s => s.Id == 102 ? s with { OwnerId = 8 } : s).ToArray(),
             Treasures = world.Treasures.Select(t => t.Id == 901 ? t with { HolderId = null } : t).ToArray(),
         };
-        var current = EndingSnapshotFactory.Create(world, 8, Definition, Abilities);
+        var current = EndingSnapshotFactory.Create(world, 8, Definition, Abilities, Treasures);
         Assert.True(current.OwnsExpansionGateways);
         Assert.False(current.HasLivingBarbarianForce);
         Assert.Equal(16599, current.SoldiersAndWounded);
@@ -96,14 +97,44 @@ public sealed class EndingSnapshotTests
     }
 
     [Fact]
+    public void ContinentalEndingCountsEachMinistersCurrentTacticsAtTheSixtyThreshold()
+    {
+        var original = World();
+        var world = original with
+        {
+            Forces = original.Forces.Select(f => f.Id == 8 ? f with { ProvidedTactics = [5, 9000] }
+                : f with { IsEliminated = true }).ToArray(),
+            Officers = original.Officers.Select(o => o with { LearnedTactics = Enumerable.Range(0, 18).ToImmutableArray() }).ToArray(),
+            Treasures = [new(901, 401, TreasureDiscovery.Discovered, null),
+                new(902, 402, TreasureDiscovery.Discovered, null), new(903, 403, TreasureDiscovery.Discovered, null),
+                new(904, 401, TreasureDiscovery.Discovered, null)]
+        };
+        var treasures = new TreasureRulebook(Enumerable.Range(901, 4).Select(id =>
+            new TreasureRule(id, default, 0) { TacticId = 9001 }));
+        var abilities = new OfficerAbilityRules(treasures, new([]));
+        EndingSnapshot Project(WorldSnapshot state) => EndingSnapshotFactory.Create(state, 8, Definition, abilities, treasures)
+            with { SoldiersAndWounded = 300000, ExpansionPublicOrder = 2000, OwnsExpansionGateways = true };
+        var sixty = Project(world);
+        var court = new EndingOfficeholders(401, 402, 403, 404);
+        Assert.All(sixty.Officers.Where(o => o.Id is 401 or 402 or 403), o => Assert.Equal(20, o.LearnedTacticCount));
+        Assert.Equal(EndingOutcome.GreatEmpire, EndingResolution.Resolve(sixty, court, EndingPolicy.ContinentalExpansion).Outcome);
+        var removed = world with { Treasures = world.Treasures.Select(t => t.Id == 903 ? t with { HolderId = 400 } : t).ToArray() };
+        var fiftyNine = Project(removed);
+        Assert.Equal(19, fiftyNine.Officers.Single(o => o.Id == 403).LearnedTacticCount);
+        Assert.Equal(EndingOutcome.CommercialPower, EndingResolution.Resolve(fiftyNine, court, EndingPolicy.ContinentalExpansion).Outcome);
+        Assert.Equal(20, sixty.Officers.Single(o => o.Id == 403).LearnedTacticCount);
+        Assert.All(world.Officers, o => Assert.Equal(18, o.LearnedTactics.Length));
+    }
+
+    [Fact]
     public void InvalidContentGroupsAndIneligibleWinnerAreRejected()
     {
         var world = World();
         foreach (var definition in new[] { Definition with { ExpansionGatewayCityIds = [] },
             Definition with { ExpansionGatewayCityIds = [101, 101] }, Definition with { ExpansionGatewayCityIds = [103] },
             Definition with { CulturalTreasureIds = [999] } })
-            Assert.Throws<ArgumentException>(() => EndingSnapshotFactory.Create(world, 8, definition, Abilities));
-        Assert.Throws<ArgumentException>(() => EndingSnapshotFactory.Create(world, 9, Definition, Abilities));
-        Assert.Throws<ArgumentException>(() => EndingSnapshotFactory.Create(world, 99, Definition, Abilities));
+            Assert.Throws<ArgumentException>(() => EndingSnapshotFactory.Create(world, 8, definition, Abilities, Treasures));
+        Assert.Throws<ArgumentException>(() => EndingSnapshotFactory.Create(world, 9, Definition, Abilities, Treasures));
+        Assert.Throws<ArgumentException>(() => EndingSnapshotFactory.Create(world, 99, Definition, Abilities, Treasures));
     }
 }

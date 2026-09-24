@@ -5,11 +5,13 @@ namespace San9.Core.Simulation;
 
 public static class EndingSnapshotFactory
 {
-    public static EndingSnapshot Create(WorldSnapshot world, int winningForceId, EndingDefinition definition, OfficerAbilityRules abilities)
+    public static EndingSnapshot Create(WorldSnapshot world, int winningForceId, EndingDefinition definition,
+        OfficerAbilityRules abilities, TreasureRulebook treasures)
     {
         ArgumentNullException.ThrowIfNull(world);
         ArgumentNullException.ThrowIfNull(definition);
         ArgumentNullException.ThrowIfNull(abilities);
+        ArgumentNullException.ThrowIfNull(treasures);
         var force = world.Forces.SingleOrDefault(f => f.Id == winningForceId && !f.IsDormant && !f.IsEliminated && !f.IsBarbarian)
             ?? throw new ArgumentException("The winning force must be an active ordinary force.", nameof(winningForceId));
         var cities = world.Settlements.Where(s => s.Kind == SettlementKind.City).ToDictionary(s => s.Id);
@@ -18,8 +20,10 @@ public static class EndingSnapshotFactory
         if (force.LeaderId is not int rulerId || !members.Any(o => o.Id == rulerId))
             throw new ArgumentException("The winning force must have a serving ruler.", nameof(world));
         var currentAbilities = abilities.EvaluateMany(members, world.Treasures);
+        var holdingsByOfficer = world.Treasures.ToLookup(t => t.HolderId);
         var officers = members.Select(o => new EndingOfficer(o.Id, currentAbilities[o.Id], o.Affinity, o.BloodlineId,
-            o.TacticProficiencies[4], o.TacticProficiencies[6], o.LearnedTactics.Length)).ToImmutableArray();
+            o.TacticProficiencies[4], o.TacticProficiencies[6],
+            TacticAvailability.ForOfficer(o, force, holdingsByOfficer[o.Id], treasures).Count)).ToImmutableArray();
         var treasuries = world.Corps.Where(c => c.OwnerId == winningForceId && c.Treasury is not null).Select(c => c.Treasury!).ToArray();
         var holdings = world.Settlements.Where(s => !s.IsDormant && s.OwnerId == winningForceId && !s.IsDestroyed);
         var units = world.Units.Where(u => u.OwnerId == winningForceId);

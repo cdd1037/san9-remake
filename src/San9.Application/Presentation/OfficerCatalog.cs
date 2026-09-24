@@ -31,7 +31,7 @@ public static class OfficerCatalog
         var offices = view.Information.Offices.ToDictionary(o => o.Id);
         var corps = view.World.Corps.ToDictionary(c => c.Id);
         var treasuresByHolder = view.World.Treasures.Where(t => t.Discovered).ToLookup(t => t.HolderId);
-        var treasureDefinitions = view.Information.Treasures.ToDictionary(t => t.Id);
+        var treasureRules = new TreasureRulebook(view.Information.Treasures.Select(t => t.ToRule()));
         string Person(int? id) => id is int key && officers.TryGetValue(key, out var p) ? texts.Resolve(p.NameKey) : "";
         string Place(int? id) => id is int key && view.RegionNameKeys.TryGetValue(key, out var name) ? texts.Resolve(name) : "";
         var columns = Pages[page].Columns;
@@ -43,21 +43,23 @@ public static class OfficerCatalog
                 var owner = o.OwnerId is int forceId ? forces.GetValueOrDefault(forceId) : null;
                 var office = person.OfficeId is int officeId ? offices.GetValueOrDefault(officeId) : null;
                 var treasures = treasuresByHolder[o.Id].ToArray();
+                var tactics = page == 0 || page >= 4 ? TacticAvailability.ForOfficer(person, owner, treasures, treasureRules) : null;
                 CatalogCell Cell(string id)
                 {
                     if (id.StartsWith("proficiency.", StringComparison.Ordinal)) return person.TacticProficiencies[int.Parse(id.AsSpan(12))];
                     if (id.StartsWith("tactic.", StringComparison.Ordinal))
                     {
                         int tactic = int.Parse(id.AsSpan(7));
-                        bool learned = person.LearnedTactics.Contains(tactic);
-                        bool provided = owner?.ProvidedTactics.Contains(tactic) == true || treasures.Any(t => treasureDefinitions[t.Id].TacticId == tactic);
+                        var sources = tactics!.GetValueOrDefault(tactic);
+                        bool learned = (sources & TacticSource.Learned) != 0;
+                        bool provided = sources != TacticSource.None;
                         return new(learned ? "○" : provided ? "△" : "", learned ? 2 : provided ? 1 : 0);
                     }
                     return id switch
                     {
                         "name" => texts.Resolve(o.NameKey), "leadership" => o.Abilities.Leadership, "war" => o.Abilities.War,
                         "intelligence" => o.Abilities.Intelligence, "politics" => o.Abilities.Politics,
-                        "learned" => person.LearnedTactics.Length, "health" => new(person.Injury == 0 ? "良" : person.Injury <= 4 ? "轻伤" : "重伤", person.Injury),
+                        "learned" => tactics!.Count, "health" => new(person.Injury == 0 ? "良" : person.Injury <= 4 ? "轻伤" : "重伤", person.Injury),
                         "treasures" => treasures.Length, "status" => new(InformationQuery.Status(o.Status), (int)o.Status),
                         "force" => Person(owner?.LeaderId), "corps" => Person(o.CorpsId is int corpsId ? corps.GetValueOrDefault(corpsId)?.LeaderId : null),
                         "home" => Place(o.IsServing ? o.SettlementId : null), "location" => o.Journey is null ? Place(o.SettlementId ?? person.RegionId) : o.Journey.Kind == "tactic-study" ? "兵法修行中" : "出行中",

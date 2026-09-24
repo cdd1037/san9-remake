@@ -28,7 +28,8 @@ public partial class Main : Node
             var textures = new TextureService(); textures.Initialize(loaded.Content, loaded.Content.TextureRoot); AddChild(textures);
             world.Textures = textures;
             _startupTextures = textures.CreateScope();
-            _startupTextures.Request(textures.Roles.Keys.Where(k => TextureGroups.Interface(k) == "hud"));
+            // Keep shared UI skins resident; portraits and map resources remain demand-loaded.
+            _startupTextures.Request(textures.Roles.Keys.Where(k => !TextureGroups.IsPortrait(k)));
             while (!_startupTextures.IsReady)
             {
                 if (_startupTextures.Error is { } error) throw error;

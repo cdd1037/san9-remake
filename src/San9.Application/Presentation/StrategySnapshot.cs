@@ -17,6 +17,8 @@ public sealed record SettlementView(int Id,string NameKey,int? OwnerId,int X,int
     int Morale,bool HasAvailableOfficer,int? CityMarkerColor,IReadOnlyList<string> Icons,int Appearance,int PublicOrder,
     int Commerce,int MaxCommerce,int Cultivation,int MaxCultivation)
 {
+    public int? WoundedRecovery { get; init; }
+    public bool HasRangeBonus { get; init; }
     public uint Wounded { get; init; }
     public bool IsDestroyed { get; init; }
     public San9.Core.Domain.SettlementKind Kind { get; init; }
@@ -50,6 +52,10 @@ internal sealed class StrategySnapshotSource
         Abilities = new(new TreasureRulebook(definition.Information.Treasures.Select(t => t.ToRule())),
             new GovernanceRulebook(definition.Information.Offices.Select(o => new GovernorOfficeRule(o.Id, o.CommandCapacity, o.GovernorPriority)
                 { AbilityBonuses = o.AbilityBonuses })));
+        TacticCourses = Array.AsReadOnly(definition.TacticCourses.ToArray());
+        ProvinceNameKeys = new System.Collections.ObjectModel.ReadOnlyDictionary<int, string>(new Dictionary<int, string>(definition.ProvinceNameKeys));
+        CityConnections = Array.AsReadOnly(definition.CityConnections.ToArray());
+        CityProvinceIds = new System.Collections.ObjectModel.ReadOnlyDictionary<int, int>(new Dictionary<int, int>(definition.CityProvinceIds));
         RegionNameKeys = new System.Collections.ObjectModel.ReadOnlyDictionary<int, string>(
             new Dictionary<int, string>(definition.RegionNameKeys));
         RegionCityIds = new System.Collections.ObjectModel.ReadOnlyDictionary<int, int>(
@@ -68,6 +74,10 @@ internal sealed class StrategySnapshotSource
     internal MilitaryRulebook? Military { get; }
     internal ImperialCourtDefinition ImperialCourt { get; }
     internal IReadOnlyDictionary<int, string> FacilityNameSuffixKeys { get; }
+    public IReadOnlyList<CityTacticCourse> TacticCourses { get; }
+    public IReadOnlyDictionary<int, string> ProvinceNameKeys { get; }
+    public IReadOnlyList<CityConnection> CityConnections { get; }
+    public IReadOnlyDictionary<int, int> CityProvinceIds { get; }
     public IReadOnlyDictionary<int, string> RegionNameKeys { get; }
     public IReadOnlyDictionary<int, int> RegionCityIds { get; }
 
@@ -104,6 +114,9 @@ public sealed class StrategySnapshot
         FacilityNameSuffixKeys = source.FacilityNameSuffixKeys;
         World = world;
         PlayerForceId = source.PlayerForceId;
+        TacticCourses = source.TacticCourses;
+        ProvinceNameKeys = source.ProvinceNameKeys;
+        CityConnections = source.CityConnections; CityProvinceIds = source.CityProvinceIds;
         RegionNameKeys = source.RegionNameKeys;
         RegionCityIds = source.RegionCityIds;
         var settlements = world.Settlements.ToDictionary(settlement => settlement.Id);
@@ -170,7 +183,8 @@ public sealed class StrategySnapshot
                 s.Cultivation, s.MaxCultivation)
             {
                 Kind = s.Kind,
-                Wounded = s.Wounded,
+                Wounded = s.Wounded, WoundedRecovery = militaryPlace?.WoundedRecovery,
+                HasRangeBonus = attack?.Attack is { } enhanced && militaryPlace?.Attack is { } original && enhanced.Range > original.Range,
                 IsDestroyed = s.IsDestroyed,
                 CorpsId = s.CorpsId,
                 IsFacilityListEntry = !s.IsDestroyed && (s.Facility is null ? definition!.IsFacilityListEntry : s.CanHostPersons),
@@ -194,12 +208,18 @@ public sealed class StrategySnapshot
     public int Month => World.Clock.Month;
     public int Day => World.Clock.Day;
     public int PlayerForceId { get; }
+    public IReadOnlyList<CityTacticCourse> TacticCourses { get; }
+    public IReadOnlyDictionary<int, string> ProvinceNameKeys { get; }
+    public IReadOnlyList<CityConnection> CityConnections { get; }
+    public IReadOnlyDictionary<int, int> CityProvinceIds { get; }
     public IReadOnlyDictionary<int,string> RegionNameKeys { get; }
     public IReadOnlyDictionary<int,int> RegionCityIds { get; }
     public IReadOnlyList<ForceView> Forces { get; }
     public IReadOnlyList<OfficerView> Officers { get; }
     public IReadOnlyList<SettlementView> Settlements { get; }
     internal IReadOnlyDictionary<int, string> FacilityNameSuffixKeys { get; }
+    internal IReadOnlyList<TerritoryConnection> TerritoryConnections() => military?.TerritoryConnections(World.Settlements) ?? [];
+    internal int? TacticCategory(int id) => military?.Tactics.GetValueOrDefault(id)?.Category;
     internal int? RegionAt(WorldPosition position) => military?.RegionAt(position);
     public bool HasCityInfluence(int forceId, WorldPosition position) =>
         military?.HasCityInfluence(forceId, position, World.Settlements) == true;

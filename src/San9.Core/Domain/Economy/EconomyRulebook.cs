@@ -48,6 +48,8 @@ public static class EconomyMath
         Math.Max(0, Math.Min(ability, 80) - 60) + Math.Max(0, 2L * ability - 160);
     public static int AffinityDistance(int first, int second) => Math.Min(Math.Abs(first - second), 150 - Math.Abs(first - second));
     public static int RecruitMorale(int trust) => (int)Math.Min(100, SquareRoot(trust) + 40);
+    public static long DraftIncrease(long population, long militaryPopulation, long totalOrder, int cityOrder) =>
+        totalOrder == 0 ? 0 : (Math.Max(0, population - militaryPopulation + 99999) / 100000 * (population / 100) / 10) * cityOrder / totalOrder;
     public static long Revenue(SettlementState city) =>
         ((SquareRoot((long)city.Population + city.DraftPopulation) + 600) * city.Commerce * 6 / 1000) * (2500 - city.Commerce) / 2500;
     public static long Harvest(SettlementState city) =>

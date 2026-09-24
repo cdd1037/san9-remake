@@ -7,7 +7,7 @@ public sealed class TreasureDetailTests
     [Fact]
     public void ScrollingKeepsFocusedRowSeparateFromDisplayedTreasure()
     {
-        var state = new TreasureDetailState();
+        var state = new DetailSelectionState();
         state.Open(Enumerable.Range(0, 40), 0);
         state.MoveFocus(1);
         Assert.Null(state.FocusedId);
@@ -25,7 +25,7 @@ public sealed class TreasureDetailTests
     public void FocusDoesNotActivateAndCandidateOrderControlsScrolling()
     {
         var ids = Enumerable.Range(0, 26).Reverse().ToArray();
-        var state = new TreasureDetailState(); state.Open(ids, 25);
+        var state = new DetailSelectionState(); state.Open(ids, 25);
         ids[0] = 99;
         Assert.Equal(25, state.Candidates[0]);
         state.PointAt(25);
@@ -44,7 +44,7 @@ public sealed class TreasureDetailTests
     [Fact]
     public void EmptyInvalidAndSingleItemCandidatesHaveExplicitBoundaries()
     {
-        var state = new TreasureDetailState();
+        var state = new DetailSelectionState();
         Assert.Throws<ArgumentException>(() => state.Open([], 0));
         Assert.Throws<ArgumentException>(() => state.Open([1, 1], 1));
         Assert.Throws<ArgumentException>(() => state.Open([1], 0));

@@ -213,7 +213,7 @@ public sealed class InformationBrowserTests
         string initial = query.Read(InformationCategory.Chronicle).Rows[0].Cells[1].Text;
         Assert.True(session.Develop(new(5, 15, [1], DomesticActivity.Commerce)).Accepted);
         Assert.Equal(50, query.Read(InformationCategory.Forces, 2).Rows[0].Cells[1].Number);
-        Assert.Equal(50, query.Read(InformationCategory.Corps, 1).Rows[0].Cells[2].Number);
+        Assert.Equal(50, query.Read(InformationCategory.Corps, 2).Rows[0].Cells[1].Number);
         Assert.Single(query.Read(InformationCategory.Records).Rows);
         Assert.False(session.Develop(new(5, 15, [1], DomesticActivity.Commerce)).Accepted);
         Assert.Single(session.Records);

@@ -18,6 +18,8 @@ public sealed class RankContentCompilerTests
         {
             var rank = ranks.Single(r => r.Id == original.Id);
             Assert.Equal(8 - original.Id, rank.Precedence);
+            Assert.Equal(original.Id == 8, rank.IsUnranked);
+            Assert.Equal(original.Id == 8 ? null : $"rank-description.{original.Id}", rank.DescriptionKey);
             Assert.Equal(original.CommandCapacity, rank.CommandCapacity);
             Assert.Equal(original.PrestigeRequirement, rank.RequiredTrust);
             Assert.Equal(original.PromotionLoyaltyBonus, rank.LoyaltyBonus);

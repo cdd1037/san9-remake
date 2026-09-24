@@ -9,10 +9,10 @@ G09人物生命周期新增必填`lifespanTier`、`successionPriority`及场景`
 | 模块 | 职责 | 输出 |
 | --- | --- | --- |
 | Content.Maps / MapImporter | 当前地图方格、地貌及对象位置 | `map.json`（无图片文件） |
-| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema84 |
+| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema110 |
 | Content.Text / ScenarioTextReader | 名称与全量消息目录 | `text.json` / `messages.json`，schema3 |
 | Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema16 |
-| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema87 |
+| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema114 |
 | Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema3／转换版本8 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 
@@ -281,3 +281,9 @@ G10封禅使用剧本schema83／组合87、规则`san9-core-g10-v20`；保存／
 ## 设施归附开关
 
 剧本105／组合109新增必填`SettlementDefectionsEnabled`，独立控制旬开始的有人据点归附及无人无现役兵设施改属。TC101模式2／9关闭，其余开启；开关参与内容指纹、世界初始化、保存与恢复校验，不借用城市自立开关。规则`san9-core-g10-v43`、保存／日志79；190年包已原位增量更新，人物／设施身份集合和地图／文本／消息／插图哈希保持不变。定义和资源保留，归属查询读取当前快照，无新命令。验证与差异见[G10验收](g10-verification.md#2026-09-21设施自行归附补齐)。
+
+## 情报显示元数据
+
+场景schema110／组合包schema114增加必填ProvinceNameKeys及官爵IsUnranked、可空DescriptionKey。州名映射允许作者省略，缺失显示“—”；非空文本引用由组合包校验，无官爵标记至多一个。Importer将源州消息和官爵说明转换为语义文本键，运行时不依赖原版州／官爵编号；旧包须重转，不提供兼容分支。这些显示元数据不额外加入规则字段投影。
+
+都市初始兵法包含剧本位域与TC101新局初始化追加的兵法，后者由CityTacticContentCompiler转换，合并去重且保留落石／射台。城市编号映射仅存在于Importer；共享内容继续使用EnabledTacticIds。修正前生成包须重转；数据进入既有内容指纹，旧会话须重新开局，不能只刷新情报窗口。

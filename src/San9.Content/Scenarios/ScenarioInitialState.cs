@@ -42,7 +42,7 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 109;
+    public const int CurrentSchemaVersion = 110;
     [JsonRequired] public int FoodExchangeRate { get; init; } = 1;
     [JsonRequired] public San9.Core.Domain.FoodMarketDefinition? FoodMarket { get; init; }
     [JsonRequired] public San9.Core.Domain.HanzhongKingDefinition? HanzhongKing { get; init; }
@@ -73,6 +73,7 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
     [JsonRequired] public bool AnnualAppearancesEnabled { get; init; } = true;
     [JsonRequired] public bool NaturalDeathsEnabled { get; init; } = true;
     [JsonRequired] public System.Collections.Immutable.ImmutableArray<AttackRequestInitialState> AttackRequests { get; init; } = [];
+    [JsonRequired] public Dictionary<int, string> ProvinceNameKeys { get; init; } = [];
     [JsonRequired] public Dictionary<int, int> CityProvinceIds { get; init; } = [];
     [JsonRequired] public San9.Core.Domain.AllianceState? Alliance { get; init; }
     [JsonRequired] public Dictionary<int, string> FacilityNameSuffixKeys { get; init; } = [];
@@ -266,6 +267,7 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
             if (Ending is not null && Terminal is null) throw new ArgumentException("Ending content requires campaign victory rules.");
         }
         catch (ArgumentException error) { throw new InvalidDataException("Invalid terminal or ending content.", error); }
+        if (ProvinceNameKeys is null || ProvinceNameKeys.Any(p => p.Key < 0 || string.IsNullOrWhiteSpace(p.Value))) throw new InvalidDataException("Invalid province names.");
         if (CityProvinceIds is null || CityProvinceIds.Any(p => !cityIds.Contains(p.Key) || p.Value < 0))
             throw new InvalidDataException("Invalid city province membership.");
         if (RegionCityIds.Any(p => !RegionNameKeys.ContainsKey(p.Key) || !cityIds.Contains(p.Value)))

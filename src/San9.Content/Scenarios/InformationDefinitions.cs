@@ -5,7 +5,11 @@ using San9.Core.Domain;
 namespace San9.Content.Scenarios;
 
 public sealed record RankDefinition(int Id, string NameKey, uint CommandCapacity, int RequiredTrust, int LoyaltyBonus,
-    [property: JsonRequired] int Precedence);
+    [property: JsonRequired] int Precedence)
+{
+    [JsonRequired] public bool IsUnranked { get; init; }
+    [JsonRequired] public string? DescriptionKey { get; init; }
+}
 public sealed record TreasureDefinition(int Id, string NameKey, int Category, int AbilityBonus, int LoyaltyBonus, int? TacticId)
 {
     [JsonRequired] public OfficerAbilities AbilityBonuses { get; init; }
@@ -67,6 +71,8 @@ public sealed record InformationDefinitions(RankDefinition[] Ranks, OfficeDefini
             scenario.Officers.Any(o => o.State.OfficeId is int office && !Offices.Any(d => d.Id == office)) ||
             Corps.Any(c => (c.Treasury is null) != (scenario.Forces.SingleOrDefault(f => f.Id == c.OwnerId)?.LeaderId == c.LeaderId)))
             throw new InvalidDataException("Invalid rank, office or corps treasury reference.");
+        if (Ranks.Count(r => r.IsUnranked) > 1 || Ranks.Any(r => r.DescriptionKey is not null && string.IsNullOrWhiteSpace(r.DescriptionKey)))
+            throw new InvalidDataException("Invalid rank presentation metadata.");
         if (Ranks.Select(r => r.Precedence).Distinct().Count() != Ranks.Length)
             throw new InvalidDataException("Rank precedence must be unique.");
         if (Ranks.Any(r => string.IsNullOrWhiteSpace(r.NameKey) || r.RequiredTrust < 0 || r.LoyaltyBonus < 0 || r.Precedence < 0) ||

@@ -18,7 +18,7 @@ internal sealed class ScenarioSessionDefinition
             Officers = definition.Officers.ToArray(), Units = definition.Units.ToArray(),
             Settlements = definition.Settlements.Select(s => s with { Icons = s.Icons.ToArray() }).ToArray(),
             FacilityNameSuffixKeys = new(definition.FacilityNameSuffixKeys), RegionNameKeys = new(definition.RegionNameKeys), RegionCityIds = new(definition.RegionCityIds),
-            CityProvinceIds = new(definition.CityProvinceIds)
+            ProvinceNameKeys = new(definition.ProvinceNameKeys), CityProvinceIds = new(definition.CityProvinceIds)
         };
         MilitaryRules = Content.Military is { } military ? new MilitaryRulebook(military) : null;
         Fingerprint = CanonicalJson.Hash(new

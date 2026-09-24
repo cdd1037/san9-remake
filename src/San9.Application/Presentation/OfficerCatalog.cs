@@ -22,7 +22,7 @@ public static class OfficerCatalog
         T("智略", 6, "营造", "石兵", "破陷", "教谕"), T("谋略", 7, "混乱", "陷阱", "攻心", "幻术"), T("策略", 8, "辱骂", "鼓舞", "治疗", "妖术")
     });
 
-    public static InformationTable Read(StrategySnapshot view, TextCatalog texts, int page, int? force, int? settlement, int? officerId = null)
+    public static InformationTable Read(StrategySnapshot view, TextCatalog texts, int page, int? force, int? settlement, int? officerId = null, int? corpsId = null, int? regionId = null)
     {
         if ((uint)page >= Pages.Count) throw new ArgumentOutOfRangeException(nameof(page));
         var officers = view.Officers.ToDictionary(o => o.Id);
@@ -37,7 +37,8 @@ public static class OfficerCatalog
         string Person(int? id) => id is int key && officers.TryGetValue(key, out var p) ? texts.Resolve(p.NameKey) : "";
         string Place(int? id) => id is int key && view.RegionNameKeys.TryGetValue(key, out var name) ? texts.Resolve(name) : "";
         var columns = Pages[page].Columns;
-        var rows = view.Officers.Where(o => (officerId is null || o.Id == officerId) && (force is null || o.OwnerId == force) && (settlement is null || o.SettlementId == settlement))
+        var local = regionId is not null ? new AdministrativeCatalog(view, texts) : null;
+        var rows = view.Officers.Where(o => (corpsId is null || o.CorpsId == corpsId) && (regionId is null || local!.PersonInRegion(o, regionId.Value)) && (officerId is null || o.Id == officerId) && (force is null || o.OwnerId == force) && (settlement is null || o.SettlementId == settlement))
             .OrderBy(o => texts.Resolve(o.NameKey), StringComparer.Create(System.Globalization.CultureInfo.GetCultureInfo("zh-CN"), false))
             .Select(o =>
             {
@@ -73,7 +74,7 @@ public static class OfficerCatalog
                         "intelligence" => o.Abilities.Intelligence, "politics" => o.Abilities.Politics,
                         "learned" => tactics!.Count, "health" => new(person.Injury == 0 ? "良" : person.Injury <= 4 ? "轻伤" : "重伤", person.Injury),
                         "treasures" => treasures.Length, "status" => new(InformationQuery.Status(o.Status), (int)o.Status),
-                        "force" => Person(owner?.LeaderId), "corps" => Person(o.CorpsId is int corpsId ? corps.GetValueOrDefault(corpsId)?.LeaderId : null),
+                        "force" => Person(owner?.LeaderId), "corps" => Person(o.CorpsId is int currentCorpsId ? corps.GetValueOrDefault(currentCorpsId)?.LeaderId : null),
                         "commander" => Commander(),
                         "home" => Place(o.IsServing ? o.SettlementId : null), "location" => o.Journey is null ? Place(o.SettlementId ?? person.RegionId) : o.Journey.Kind == "tactic-study" ? "兵法修行中" : "出行中",
                         "order" => command!.Order, "target-person" => command!.Object, "target-place" => command!.Target,

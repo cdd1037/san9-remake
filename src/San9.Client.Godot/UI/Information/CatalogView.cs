@@ -34,6 +34,8 @@ public partial class CatalogView : Control
     private Rect2 _body;
     private Vector2 _tableOrigin;
     private int _page;
+    private int _visibleRows;
+    private bool _needsScroll;
     private bool _refreshing;
     private CatalogRow[]? _boundRows;
     private int _boundOffset = -1;
@@ -42,8 +44,12 @@ public partial class CatalogView : Control
     public override void _Ready()
     {
         Size = new(1024, 768); MouseFilter = MouseFilterEnum.Stop;
-        int width = Math.Max(Pages.Max(p => p.Columns.Sum(c => c.Width)) + 16, 7 * 62 + 52) + 80;
-        int height = 226 + 24 * CatalogTableState.VisibleRows + (Pages.Count > 7 ? 32 : 0);
+        var rows = ReadRows(InitialPage);
+        _visibleRows = Math.Clamp(rows.Length, 9, CatalogTableState.VisibleRows);
+        _needsScroll = rows.Length > CatalogTableState.VisibleRows;
+        int width = Math.Max(Pages.Max(p => p.Columns.Sum(c => c.Width)) + (_needsScroll ? 16 : 0),
+            Math.Min(Pages.Count, 7) * 62 + 52) + 80;
+        int height = 226 + 24 * _visibleRows + (Pages.Count > 7 ? 32 : 0);
         _body = new((1024 - width) / 2, (768 - height) / 2, width, height);
         _tableOrigin = _body.Position + new Vector2(40, Pages.Count > 7 ? 148 : 116);
         var title = LabelAt(Title, _body.Position + new Vector2(-16, -8), new(248, 56), 24);
@@ -68,7 +74,7 @@ public partial class CatalogView : Control
             AddChild(_portrait);
         }
         AddChild(new GameMessageBar { Textures = Textures, Text = HintText });
-        ChangePage(InitialPage, InitialCurrentId, InitialOffset);
+        ChangePage(InitialPage, InitialCurrentId, InitialOffset, rows);
     }
 
     private void IconButton(string role, Vector2 position, Action action)
@@ -84,11 +90,11 @@ public partial class CatalogView : Control
         _text.Apply(label, GameTextStyles.For(GameTextRole.Resource) with { FontSize = fontSize });
         return label;
     }
-    private void ChangePage(int page, int? current = null, int offset = 0)
+    private void ChangePage(int page, int? current = null, int offset = 0, CatalogRow[]? rows = null)
     {
         bool opening = _grid is null;
         if (!opening && page == _page) return;
-        _state.RefreshRows(ReadRows(page), columnsChanged: !opening);
+        _state.RefreshRows(rows ?? ReadRows(page), columnsChanged: !opening);
         if (opening)
         {
             if (current is int id) _state.PointAt(Array.FindIndex(_state.Rows, row => row.Id == id));
@@ -109,7 +115,7 @@ public partial class CatalogView : Control
             header.Pressed += () => { _state.Sort(column); RefreshRows(); };
             _grid.AddChild(header); _headers.Add(header); x += columns[i].Width;
         }
-        for (int row = 0; row < CatalogTableState.VisibleRows; row++)
+        for (int row = 0; row < _visibleRows; row++)
         {
             var labels = new Label[columns.Length]; x = 0;
             for (int c = 0; c < columns.Length; c++)
@@ -121,7 +127,7 @@ public partial class CatalogView : Control
             }
             _cells.Add(labels);
         }
-        _scroll = new SkinnedScrollBar { Skin = ScrollBarSkin.FromCatalog(Textures), Position = new(width, 24), Size = new(16, 360), ContextRequested = Closed };
+        _scroll = new SkinnedScrollBar { Skin = ScrollBarSkin.FromCatalog(Textures), Position = new(width, 24), Size = new(16, _visibleRows * 24), Visible = _needsScroll, ContextRequested = Closed };
         _grid.AddChild(_scroll);
         _scroll.Range.MaxValue = Math.Max(CatalogTableState.VisibleRows, _state.Rows.Length); _scroll.Range.Page = CatalogTableState.VisibleRows;
         _scroll.Range.ValueChanged += value => { if (!_refreshing) { _state.Scroll((int)value); RefreshRows(); } };
@@ -147,7 +153,7 @@ public partial class CatalogView : Control
         if (_portrait is not null)
         {
             int visibleRow = _state.CurrentIndex - _state.Offset;
-            _portrait.Visible = _state.Current is not null && visibleRow >= 0 && visibleRow < CatalogTableState.VisibleRows;
+            _portrait.Visible = _state.Current is not null && visibleRow >= 0 && visibleRow < _visibleRows;
             if (_portrait.Visible)
             {
                 // Anchor the frame to the highlighted row and keep its bottom above the footer (RE-0151).
@@ -180,7 +186,7 @@ public partial class CatalogView : Control
     }
     private int? RowAt(Vector2 position)
     {
-        var rect = new Rect2(_tableOrigin + new Vector2(0, 24), new(Pages[_page].Columns.Sum(c => c.Width), 360));
+        var rect = new Rect2(_tableOrigin + new Vector2(0, 24), new(Pages[_page].Columns.Sum(c => c.Width), _visibleRows * 24));
         if (!rect.HasPoint(position)) return null;
         int index = _state.Offset + (int)((position.Y - rect.Position.Y) / 24);
         return index < _state.Rows.Length ? index : null;
@@ -271,9 +277,9 @@ public partial class CatalogView : Control
         DrawTexture(Textures["catalog-tabs-top-left"],tabs.Position); DrawTexture(Textures["catalog-tabs-top-right"],new(tabs.End.X-12,tabs.Position.Y));
         DrawTexture(Textures["catalog-tabs-bottom-left"],new(tabs.Position.X,tabs.End.Y-24)); DrawTexture(Textures["catalog-tabs-bottom-right"],tabs.End-new Vector2(12,24));
         int width=Pages[_page].Columns.Sum(c=>c.Width);
-        DrawTableFrame(width + 18);
+        DrawTableFrame(width + 2 + (_needsScroll ? 16 : 0));
         int current=_state.CurrentIndex-_state.Offset;
-        if(current>=0 && current<15)
+        if(current>=0 && current<_visibleRows)
         {
             var point=_tableOrigin+new Vector2(0,28+current*24);
             // Frame 1 is hover/current-row gold; frame 2 is the brighter pressed state (RE-0151).
@@ -290,7 +296,7 @@ public partial class CatalogView : Control
     private void DrawTableFrame(int width)
     {
         Vector2 origin = _tableOrigin - Vector2.One;
-        const int height = 390;
+        int height = 30 + 24 * _visibleRows;
         foreach (string edge in new[] { "top", "bottom" })
         {
             bool bottom = edge == "bottom";

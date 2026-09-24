@@ -114,6 +114,7 @@ public static class ScenarioContentCompiler
         };
         var suffixKeys = fixedBuildings.Select(f => (f.Id, Key: text.FacilitySuffix($"facility-suffix.{f.Id}", f.Id)))
                 .Where(p => p.Key is not null).ToDictionary(p => p.Id, p => p.Key!);
+        var provinceNames = settlements.Where(s => s.Kind == San9.Core.Domain.SettlementKind.City).Select(s => (int)cities[s.Id].AreaCode).Distinct().ToDictionary(id => id, text.Province);
         var catalog = text.Catalog;
         if (catalog.Resolve(summaries.Single(f => f.Id == 5).NameKey) != "董卓") throw new InvalidDataException("Unexpected 190-year player force.");
         var units = UnitContentCompiler.Compile(sourceUnits, Root);
@@ -148,6 +149,7 @@ public static class ScenarioContentCompiler
             FoodExchangeRate = 1, // Reset value; initial xun preparation draws the current monthly rate.
             FoodMarket = EventContentCompiler.FoodMarket(),
             NaturalDeathsEnabled = header.ScenarioModeCode is not (1 or 2 or 9),
+            ProvinceNameKeys = provinceNames,
             CityProvinceIds = settlements.Where(s => s.Kind == San9.Core.Domain.SettlementKind.City)
                 .ToDictionary(s => s.Id, s => (int)cities[s.Id].AreaCode),
             AttackRequests = [], // TC101 scenarios contain no active request tuples; original saves are not imported.
@@ -172,8 +174,9 @@ public static class ScenarioContentCompiler
                 zones.Where(z => z.FixedBuildingId == 1).Select(z => 50 + z.Id).ToHashSet()),
             Military = MilitaryContentCompiler.Compile(Read(San9ScenarioSquareArchive.ReadKnownRecords), Read(San9ScenarioTerrainArchive.ReadKnownRecords),
                 formations, settlements, zones, fixedBuildings, Read(San9ScenarioTacticArchive.ReadKnownRecords),
-                settlements.ToDictionary(s => s.Id, s => Enumerable.Range(0, San9ScenarioTacticArchive.RecordCount)
-                    .Where(id => s.Kind == San9.Core.Domain.SettlementKind.City ? cities[s.Id].HasTactic(id) : zones[s.Id - 50].HasTactic(id)).ToImmutableArray())) with
+                settlements.ToDictionary(s => s.Id, s => s.Kind == San9.Core.Domain.SettlementKind.City
+                    ? CityTacticContentCompiler.Compile(s.Id, Enumerable.Range(0, San9ScenarioTacticArchive.RecordCount).Where(cities[s.Id].HasTactic))
+                    : Enumerable.Range(0, San9ScenarioTacticArchive.RecordCount).Where(zones[s.Id - 50].HasTactic).ToImmutableArray())) with
                 { LinkRules = TacticLinkContentCompiler.Compile(exe, persons, officers.Select(o => o.State.Id), relationshipsEnabled: true),
                     BattleDeathsAllowed = header.ScenarioModeCode is not (2 or 9), DuelCapturesAllowed = header.ScenarioModeCode != 9 },
             Officers = officers, Units = units, Information = information, DomesticPairs = DomesticContentCompiler.Compile(persons),

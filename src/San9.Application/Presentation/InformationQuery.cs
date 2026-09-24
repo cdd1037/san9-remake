@@ -32,80 +32,24 @@ public sealed class InformationQuery(GameSession session, TextCatalog texts)
         (!Available(category) ? "-empty" : ""));
     public InformationTable Read(InformationBrowser browser) => browser.Category == InformationCategory.Treasures
         ? TreasureCatalog.Read(View, texts, browser.HolderFilter, browser.ForceFilter, browser.SettlementFilter)
-        : Read(browser.Category, browser.Page, browser.ForceFilter, browser.SettlementFilter);
-    public InformationTable Read(InformationCategory category, int page = 0, int? force = null, int? settlement = null)
+        : Read(browser.Category, browser.Page, browser.ForceFilter, browser.SettlementFilter, browser.CorpsFilter, browser.RegionFilter, browser.OfficerFilter);
+    public InformationTable Read(InformationCategory category, int page = 0, int? force = null, int? settlement = null, int? corps = null, int? region = null, int? officer = null)
     {
         var v = View;
+        if (AdministrativeCatalog.Supports(category)) return new AdministrativeCatalog(v, texts).Read(category, page, force, settlement, corps, region);
         InformationRow Row(int id, CatalogCell[] cells, int? location = null) => new(new(category, id), cells, location);
         bool Owner(int? id) => force is null || force == id;
         switch (category)
         {
-            case InformationCategory.Ranks:
-                return new("官爵一览", ["就任"], ["官爵", "指挥", "信望", "就任势力"], v.Information.Ranks.Select(r => Row(r.Id,
-                    [Name(r.NameKey), (long)r.CommandCapacity, r.RequiredTrust, string.Join("、", v.Forces.Where(f => f.RankId == r.Id).Select(f => Name(f.NameKey)))] )).ToArray());
-            case InformationCategory.Forces:
-            {
-                string[] pages = ["状态", "战力", "资金", "兵粮", "外交"];
-                string[] columns = page switch { 1 => ["势力", "都市", "武将", "士兵", "部队"], 2 => ["势力", "资金", "人口", "商业"], 3 => ["势力", "兵粮", "士兵", "开垦"], 4 => ["势力", "比较对象", "关系值"], _ => ["势力", "官爵", "信望", "军师", "军团", "都市", "武将"] };
-                var rows = v.Forces.Where(f => Owner(f.Id)).Select(f =>
-                {
-                    var cities = v.Settlements.Where(s => s.OwnerId == f.Id && s.Kind == SettlementKind.City).ToArray();
-                    var people = v.Officers.Where(o => o.IsServing && o.OwnerId == f.Id).ToArray();
-                    long soldiers = v.Settlements.Where(s => s.OwnerId == f.Id).Sum(s => (long)s.Soldiers) + v.World.Units.Where(u => u.OwnerId == f.Id).Sum(u => (long)u.Soldiers);
-                    var relation = v.World.Relations.FirstOrDefault(r => r.FirstId == Math.Min(f.Id, v.PlayerForceId) && r.SecondId == Math.Max(f.Id, v.PlayerForceId));
-                    string comparison = Force(v.PlayerForceId);
-                    CatalogCell[] cells = page switch
-                    {
-                        4 => [Name(f.NameKey), comparison, relation is null ? (CatalogCell)"—" : (CatalogCell)relation.Value],
-                        1 => [Name(f.NameKey), cities.Length, people.Length, soldiers, v.World.Units.Count(u => u.OwnerId == f.Id)],
-                        2 => [Name(f.NameKey), (long)f.Money, v.World.Settlements.Where(s => !s.IsDormant && s.OwnerId == f.Id).Sum(s => (long)s.Population), cities.Sum(s => s.Commerce)],
-                        3 => [Name(f.NameKey), (long)f.Food, soldiers, cities.Sum(s => s.Cultivation)],
-                        _ => [Name(f.NameKey), Rank(f.RankId), f.IsBarbarian ? (CatalogCell)"****" : (CatalogCell)f.Trust, Person(people.FirstOrDefault(o => o.Status == OfficerStatus.Strategist)?.Id), v.World.Corps.Count(c => c.OwnerId == f.Id), cities.Length, people.Length]
-                    };
-                    return Row(f.Id, cells, f.LeaderSettlementId);
-                }).ToArray();
-                return new("势力一览", pages, columns, rows);
-            }
-            case InformationCategory.Corps:
-                return new("军团一览", ["状态", "物资"], page == 0 ? ["军团", "势力", "都督", "都市", "武将", "士兵"] : ["军团", "势力", "资金", "兵粮"],
-                    v.World.Corps.Where(c => Owner(c.OwnerId) && v.Forces.Any(f => f.Id == c.OwnerId)).Select(c =>
-                    {
-                        var places = v.Settlements.Where(s => s.CorpsId == c.Id).ToArray();
-                        return Row(c.Id, page == 0 ? [Person(c.LeaderId) + "军", Force(c.OwnerId), Person(c.LeaderId), places.Count(s => s.Kind == SettlementKind.City), v.Officers.Count(o => o.IsServing && o.CorpsId == c.Id), places.Sum(s => (long)s.Soldiers)]
-                            : [Person(c.LeaderId) + "军", Force(c.OwnerId), (long)(c.Treasury?.Money ?? v.Forces.Single(f => f.Id == c.OwnerId).Money), (long)(c.Treasury?.Food ?? v.Forces.Single(f => f.Id == c.OwnerId).Food)], v.Officers.FirstOrDefault(o => o.Id == c.LeaderId)?.SettlementId);
-                    }).ToArray());
-            case InformationCategory.Cities:
-                return new("都市一览", ["状态", "内政", "人口"], page switch { 1 => ["都市", "势力", "商业", "最大", "开垦", "最大", "治安"], 2 => ["都市", "势力", "人口", "兵役人口"], _ => ["都市", "势力", "士兵", "士气", "耐久", "武将"] },
-                    v.Settlements.Where(s => s.Kind == SettlementKind.City && Owner(s.OwnerId) && (settlement is null || settlement == s.Id)).Select(s =>
-                    {
-                        var state = v.World.Settlements.Single(c => c.Id == s.Id);
-                        return Row(s.Id, page switch
-                        {
-                            1 => [s.ResolveName(texts), Force(s.OwnerId), s.Commerce, s.MaxCommerce, s.Cultivation, s.MaxCultivation, s.PublicOrder],
-                            2 => [s.ResolveName(texts), Force(s.OwnerId), (long)state.Population, (long)state.DraftPopulation],
-                            _ => [s.ResolveName(texts), Force(s.OwnerId), (long)s.Soldiers, s.Morale, s.Durability, v.Officers.Count(o => o.IsServing && o.SettlementId == s.Id)]
-                        }, s.Id);
-                    }).ToArray());
-            case InformationCategory.Regions:
-                return new("地域一览", ["状态"], ["地域", "都市", "设施", "势力", "士兵", "耐久"], v.RegionNameKeys.OrderBy(p => p.Key).Where(p =>
-                {
-                    int? city = v.RegionCityIds.TryGetValue(p.Key, out int c) ? c : null;
-                    return (settlement is null || city == settlement) && (force is null || v.Settlements.Any(s => s.Id == city && s.OwnerId == force));
-                }).Select(p =>
-                {
-                    var site = v.Settlements.FirstOrDefault(s => s.Id == p.Key);
-                    int? city = v.RegionCityIds.TryGetValue(p.Key, out int c) ? c : null;
-                    return Row(p.Key, [Name(p.Value), Place(city), site is null ? "无" : site.ResolveName(texts), Force(site?.OwnerId), site is null ? (CatalogCell)"—" : (CatalogCell)(long)site.Soldiers, site is null ? (CatalogCell)"—" : (CatalogCell)site.Durability], site?.Id ?? (v.Settlements.Any(s => s.Id == city) ? city : null));
-                }).ToArray());
             case InformationCategory.Units:
                 return page == 1
                     ? new("部队一览", ["状态", "方针"], ["部队", "敌接近时", "追击", "事后命令", "自主撤退"],
-                        v.World.Units.Where(u => Owner(u.OwnerId)).Select(u => Row(u.Id, [$"{Force(u.OwnerId)}部队",
+                        v.World.Units.Where(u => Owner(u.OwnerId) && (corps is null || u.CorpsId == corps) && (region is null || v.RegionAt(u.Position) == region)).Select(u => Row(u.Id, [$"{Force(u.OwnerId)}部队",
                             u.Policies.AttackApproachingEnemies ? "迎击" : "继续任务", u.Policies.Pursue ? "许可" : "禁止",
                             u.Policies.AttackAfterAction ? "攻击" : "返城", u.Policies.AutonomousRetreat ? "许可" : "禁止"])).ToArray())
-                    : new("部队一览", ["状态", "方针"], ["部队", "势力", "士兵", "位置"], v.World.Units.Where(u => Owner(u.OwnerId)).Select(u => Row(u.Id, [$"{Force(u.OwnerId)}部队", Force(u.OwnerId), (long)u.Soldiers, $"{u.Cell.X}, {u.Cell.Y}"])).ToArray());
+                    : new("部队一览", ["状态", "方针"], ["部队", "势力", "士兵", "位置"], v.World.Units.Where(u => Owner(u.OwnerId) && (corps is null || u.CorpsId == corps) && (region is null || v.RegionAt(u.Position) == region)).Select(u => Row(u.Id, [$"{Force(u.OwnerId)}部队", Force(u.OwnerId), (long)u.Soldiers, $"{u.Cell.X}, {u.Cell.Y}"])).ToArray());
             case InformationCategory.Officers:
-                return OfficerCatalog.Read(v, texts, page, force, settlement);
+                return OfficerCatalog.Read(v, texts, page, force, settlement, officer, corps, region);
             case InformationCategory.Treasures:
                 return TreasureCatalog.Read(v, texts, force: force, settlement: settlement);
             case InformationCategory.Records:
@@ -130,6 +74,11 @@ public sealed class InformationQuery(GameSession session, TextCatalog texts)
 
     public InformationDetail Detail(InformationKey key)
     {
+        if (AdministrativeCatalog.Supports(key.Category))
+        {
+            var detail = AdministrativeDetails.Read(View, texts, key);
+            return new(detail.Name + "情报", detail.Sections.SelectMany(s => s.Fields).ToArray(), detail.Links, detail.MapSettlementId) { ImageRole = detail.PortraitRole };
+        }
         var table = Read(key.Category);
         var row = table.Rows.Single(r => r.Key == key);
         List<InformationField> fields = [];

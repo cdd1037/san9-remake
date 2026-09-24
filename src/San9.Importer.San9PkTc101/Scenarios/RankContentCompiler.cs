@@ -7,5 +7,6 @@ public static class RankContentCompiler
     // The lowest rank is a real definition, not an absent rank reference.
     public static RankDefinition[] Compile(IEnumerable<San9ScenarioRankRecord> records, Func<int, string> nameKey) =>
         records.Select(r => new RankDefinition(r.Id, nameKey(r.Id), r.CommandCapacity,
-            r.PrestigeRequirement, r.PromotionLoyaltyBonus, San9ScenarioRankArchive.RecordCount - 1 - r.Id)).ToArray();
+            r.PrestigeRequirement, r.PromotionLoyaltyBonus, San9ScenarioRankArchive.RecordCount - 1 - r.Id)
+            { IsUnranked = r.Id == 8, DescriptionKey = r.Id == 8 ? null : $"rank-description.{r.Id}" }).ToArray();
 }

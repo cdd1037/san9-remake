@@ -6,7 +6,7 @@ namespace San9.Client.Godot;
 
 public partial class TreasureDetailView : Control
 {
-    public TreasureDetailState State { get; init; } = null!;
+    public DetailSelectionState State { get; init; } = null!;
     public Func<int, TreasureDetailData> Read { get; init; } = null!;
     public Func<int, string> ReadName { get; init; } = null!;
     public TextureService Service { get; init; } = null!;
@@ -26,7 +26,7 @@ public partial class TreasureDetailView : Control
     {
         Size = new(1024, 768); MouseFilter = MouseFilterEnum.Stop;
         _body = new Control { MouseFilter = MouseFilterEnum.Ignore }; AddChild(_body);
-        for (int row = 0; row < TreasureDetailState.VisibleRows; row++)
+        for (int row = 0; row < DetailSelectionState.VisibleRows; row++)
         {
             int slot = row;
             var button = new DetailNameButton { Textures = Textures, Position = new(890, 124 + row * 20), Size = new(96, 16) };
@@ -36,8 +36,8 @@ public partial class TreasureDetailView : Control
         }
         _scroll = new SkinnedScrollBar { Skin = ScrollBarSkin.FromCatalog(Textures), Position = new(990,124),
             Size = new(16,498), ContextRequested = Closed };
-        AddChild(_scroll); _scroll.Range.Page = TreasureDetailState.VisibleRows;
-        _scroll.Range.MaxValue = Math.Max(TreasureDetailState.VisibleRows, State.Candidates.Count);
+        AddChild(_scroll); _scroll.Range.Page = DetailSelectionState.VisibleRows;
+        _scroll.Range.MaxValue = Math.Max(DetailSelectionState.VisibleRows, State.Candidates.Count);
         _scroll.Range.ValueChanged += value => { if (!_refreshing) { State.Scroll((int)value); RefreshNames(); } };
         _message = new GameMessageBar { Textures = Textures }; AddChild(_message);
         SetHint("treasure-detail");
@@ -75,7 +75,7 @@ public partial class TreasureDetailView : Control
             _names[row].Visible = index < State.Candidates.Count;
             if (_names[row].Visible) _names[row].Bind(ReadName(State.Candidates[index]), State.FocusedId == State.Candidates[index]);
         }
-        _scroll.Visible = State.Candidates.Count > TreasureDetailState.VisibleRows;
+        _scroll.Visible = State.Candidates.Count > DetailSelectionState.VisibleRows;
         _scroll.Range.Value = State.Offset; _scroll.UpdateArrows(); _refreshing = false; QueueRedraw();
     }
     private void RefreshBody()

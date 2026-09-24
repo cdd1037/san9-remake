@@ -114,11 +114,10 @@ internal static class EconomicCycle
         var cities = world.Settlements.Values.Where(s => s.Kind == SettlementKind.City).OrderBy(s => s.Id).ToArray();
         long population = cities.Sum(s => (long)s.Population), order = cities.Sum(s => (long)s.PublicOrder);
         long military = cities.Sum(s => (long)s.DraftPopulation) + SoldierTotals.Living(world);
-        long drafts = Math.Max(0, population - military + 99999) / 100000 * (population / 100) / 10;
         foreach (var city in cities)
         {
             long growth = Math.Max(30000L - city.Population, order == 0 ? 0 : city.PublicOrder * (population / 20) / order - city.Population / 20);
-            long draft = order == 0 ? 0 : drafts * city.PublicOrder / order;
+            long draft = EconomyMath.DraftIncrease(population, military, order, city.PublicOrder);
             uint nextPopulation = (uint)Math.Clamp(city.Population + growth, 0, 1000000);
             uint nextDraft = (uint)Math.Min(Math.Max(500000L, city.DraftPopulation), city.DraftPopulation + draft);
             world.Replace(city with { Population = nextPopulation, DraftPopulation = nextDraft });

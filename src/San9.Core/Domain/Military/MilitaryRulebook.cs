@@ -6,6 +6,7 @@ namespace San9.Core.Domain;
 public sealed record FormationRule(int Id, int MovementBudget, int DeploymentCost, uint SoldierCapacity,
     int OfficerCapacity, Footprint Footprint, TravelMode TravelMode)
 {
+    [JsonRequired] public int? DefaultNavalFormationId { get; init; }
     [JsonRequired] public FormationTactics? Tactics { get; init; }
     [JsonRequired] public ImmutableArray<int> MartialTacticVulnerabilities { get; init; } = [];
     [JsonRequired] public int? RequiredTacticId { get; init; }
@@ -131,6 +132,8 @@ public sealed partial class MilitaryRulebook
         Formations = definition.Formations.ToImmutableDictionary(f => f.Id);
         if (Formations.Values.Any(f => f.SnipingChanceBonus is < 0 or > 100))
             throw new ArgumentException("Invalid sniping formation bonus.");
+        if (Formations.Values.Any(f => !ValidFormationPair(f.Id, f.DefaultNavalFormationId)))
+            throw new ArgumentException("Invalid default naval formation.");
         UnformedFormationId = definition.UnformedFormationId;
         if (UnformedFormationId is int unformed && (!Formations.TryGetValue(unformed, out var profile) || profile.Combat is null))
             throw new ArgumentException("Invalid unformed combat formation reference.");
@@ -262,7 +265,7 @@ public sealed partial class MilitaryRulebook
     public int? UnformedFormationId { get; }
     public CombatProfile? CombatFormation(UnitState unit) => Formations[
         unit.Condition is UnitCondition.NoFormation or UnitCondition.Confused or UnitCondition.Routed && UnformedFormationId is int unformed
-            ? unformed : unit.FormationId!.Value].Combat;
+            ? unformed : Formation(unit).Id].Combat;
     public ImmutableDictionary<int, FormationRule> Formations { get; }
     public TacticLinkRules LinkRules { get; }
     public CityInfluenceRule? CityInfluence { get; }

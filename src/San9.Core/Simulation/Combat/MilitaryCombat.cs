@@ -25,7 +25,7 @@ internal static class MilitaryCombat
         if (formation.Combat is null || formation.Attack is null) return false;
         if (order.Kind == MilitaryOrderKind.AttackUnit)
             return order.UnitId is int id && world.Units.TryGetValue(id, out var unit) && MilitaryDiplomacy.CanFight(world, owner, unit.OwnerId) &&
-                unit.FormationId is int f && rules.Formations[f].Combat is not null && rules.CanAttackTarget(formation.Attack, unit.Position, false, false);
+                unit.FormationId is int f && rules.Formation(unit).Combat is not null && rules.CanAttackTarget(formation.Attack, unit.Position, false, false);
         return order.Kind == MilitaryOrderKind.AttackSettlement && order.SettlementId is int place &&
             world.Settlements.TryGetValue(place, out var settlement) && !settlement.IsDestroyed && settlement.Facility?.BuilderUnitId is null &&
             MilitaryDiplomacy.CanFight(world, owner, settlement.OwnerId) && rules.TryPlace(settlement, out var definition) && definition.Combat is not null &&
@@ -35,7 +35,7 @@ internal static class MilitaryCombat
     internal static int UnitRange(WorldMutation world, UnitState source, MilitaryOrder target, MilitaryRulebook rules, WorldPosition? position = null)
     {
         var targetPosition = target.UnitId is int id ? world.Units[id].Position : rules.Place(world.Settlements[target.SettlementId!.Value]).Position;
-        return rules.AttackRange(rules.Formations[source.FormationId!.Value].Attack, position ?? source.Position, targetPosition,
+        return rules.AttackRange(rules.Formation(source, position).Attack, position ?? source.Position, targetPosition,
             target.UnitId is null, target.SettlementId is int place && rules.IsHarbor(world.Settlements[place]));
     }
 
@@ -46,11 +46,11 @@ internal static class MilitaryCombat
         order.UnitId is int id ? Area(world.Units[id], rules) :
         new(rules.Place(world.Settlements[order.SettlementId!.Value]).Position, rules.Place(world.Settlements[order.SettlementId.Value]).Footprint);
 
-    internal static MapOccupancy Area(UnitState unit, MilitaryRulebook rules) => new(unit.Position, rules.Formations[unit.FormationId!.Value].Footprint);
+    internal static MapOccupancy Area(UnitState unit, MilitaryRulebook rules) => new(unit.Position, rules.Formation(unit).Footprint);
 
     internal static int WallDamage(WorldMutation world, UnitState unit, SettlementState target, MilitaryRulebook rules)
     {
-        var attack = rules.Formations[unit.FormationId!.Value].Attack;
+        var attack = rules.Formation(unit).Attack;
         if (attack?.DamagesWalls != true || unit.Condition is not (UnitCondition.Normal or UnitCondition.HighSpirits)) return 0;
         bool close = Area(unit, rules).IntersectsExpanded(new BattleSource(target.Id, true).Area(world, rules), MapCoordinates.UnitsPerCell);
         if (!close && !attack.RangedSiege) return 0;
@@ -61,7 +61,7 @@ internal static class MilitaryCombat
 
     internal static int ApproachRange(WorldMutation world, UnitState source, MilitaryOrder target, MilitaryRulebook rules, WorldPosition position)
     {
-        var formation = rules.Formations[source.FormationId!.Value];
+        var formation = rules.Formation(source, position);
         int reach = UnitRange(world, source, target, rules, position);
         if (formation.Attack?.RangedSiege != true) return reach;
         var area = new MapOccupancy(position, formation.Footprint);
@@ -76,7 +76,7 @@ internal static class MilitaryCombat
         else
         {
             var unit = world.Units[target.UnitId!.Value];
-            int range = rules.AttackRange(rules.Formations[unit.FormationId!.Value].Attack, unit.Position, position, false, false);
+            int range = rules.AttackRange(rules.Formation(unit).Attack, unit.Position, position, false, false);
             targetCanReply = Area(unit, rules).IntersectsExpanded(area, range);
         }
         return targetCanReply ? MapCoordinates.UnitsPerCell : reach;
@@ -95,7 +95,7 @@ internal static class MilitaryCombat
             world.MaintainLeadership(events);
             if (world.Simulation.TerminalReason is not null) break;
             if (!world.Units.TryGetValue(id, out var attacker) || attacker.EffectiveOrder is not { IsAttack: true } order || attacker.Condition is UnitCondition.Confused or UnitCondition.Routed) continue;
-            var formation = military.Formations[attacker.FormationId!.Value];
+            var formation = military.Formation(attacker);
             if (!ValidTarget(world, attacker.OwnerId, order, formation, military))
             {
                 world.Replace(attacker with { Order = attacker.EngagementTargetId is null ? null : attacker.Order,
@@ -116,7 +116,7 @@ internal static class MilitaryCombat
             {
                 var defender = world.Units[targetId];
                 affectedForces.Add(defender.OwnerId);
-                var defense = military.Formations[defender.FormationId!.Value];
+                var defense = military.Formation(defender);
                 uint outgoing = NormalDamage(world, new(id, false), new(targetId, false), military);
                 uint incoming = 0;
                 if (!used.Contains(targetId) && defender.Condition is not (UnitCondition.Confused or UnitCondition.Routed) && defense.Attack is not null &&

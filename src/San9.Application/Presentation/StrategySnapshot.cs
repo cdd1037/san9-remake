@@ -105,6 +105,9 @@ internal sealed class StrategySnapshotSource
 public sealed class StrategySnapshot
 {
     private readonly MilitaryRulebook? military;
+    public int? FormationId(UnitState unit) => unit.FormationId is null ? null : military!.Formation(unit).Id;
+    public BattleRank? FormationRank(UnitState unit, int officerId) => unit.FormationId is null || !unit.MemberRanks.TryGetValue(officerId, out var rank)
+        ? null : unit.NavalFormationId is null ? rank : military!.Rank(unit, officerId);
     private MilitaryArrivalForecast? arrivalForecast;
     private readonly TreasureRulebook arrivalTreasures;
     private readonly Dictionary<int, ArrivalEstimate> arrivals = [];

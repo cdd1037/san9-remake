@@ -66,7 +66,8 @@ internal sealed class BattlefieldPathSearch(BattlefieldMap map)
             int top = (int)Math.Max(0, area.Top - (shape.Height - shape.Height / 2) + 1);
             int bottom = (int)Math.Min(map.FineHeight - 1, area.Bottom + shape.Height / 2 - 1);
             for (int y = top; y <= bottom; y++)
-                for (int x = left; x <= right; x++) occupied[y * map.FineWidth + x] = stamp;
+                for (int x = left; x <= right; x++)
+                    if (area.Overlaps(new(new(x, y), map.ShapeAt(new(x, y), shape)))) occupied[y * map.FineWidth + x] = stamp;
         }
         int source = Index(start);
         if (!Passable(source)) return limited is not null && topology.Costs[source] > 0 ? (blocked ?? limited)() : unreachable;
@@ -178,7 +179,7 @@ internal sealed class BattlefieldPathSearch(BattlefieldMap map)
         if (steps.IsEmpty && plan is { RetryDelay: > 0 } && plan.Blockers.SequenceEqual(objects))
             return new(start, 0, plan.FailureStatus, plan with { RetryDelay = plan.RetryDelay - 1 });
         bool Legal(WorldPosition p) => Inside(p) && topology.Costs[Index(p)] > 0 &&
-            !objects.Any(o => o.Overlaps(new(p, shape)));
+            !objects.Any(o => o.Overlaps(new(p, map.ShapeAt(p, shape))));
         if (steps.IsEmpty || !Legal(steps[0]))
         {
             int failures = plan?.BlockedAttempts ?? 0;

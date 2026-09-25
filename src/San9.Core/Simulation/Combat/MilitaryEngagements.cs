@@ -27,7 +27,7 @@ internal static class MilitaryEngagements
         if (unit.IsEmbedded || unit.IsPersonnel || unit.Soldiers == 0 || unit.Morale == 0 ||
             unit.Condition is UnitCondition.Confused or UnitCondition.Routed ||
             unit.FormationId is not int formation || unit.EffectiveOrder is not { IsAttack: true } order ||
-            !MilitaryCombat.ValidTarget(world, unit.OwnerId, order, military.Formations[formation], military) ||
+            !MilitaryCombat.ValidTarget(world, unit.OwnerId, order, military.Formation(unit), military) ||
             !MilitaryCombat.Area(unit, military).IntersectsExpanded(MilitaryCombat.TargetArea(world, order, military),
                 MilitaryCombat.UnitRange(world, unit, order, military))) return null;
         return new(order.UnitId ?? order.SettlementId!.Value, order.UnitId is null);
@@ -45,7 +45,7 @@ internal static class MilitaryEngagements
         {
             if (unit.IsPersonnel || unit.IsEmbedded || unit.OwnerId == settlement.OwnerId ||
                 !work && !MilitaryDiplomacy.AutomaticEnemy(world, settlement.OwnerId!.Value, unit.OwnerId) ||
-                unit.FormationId is not int formation || military.Formations[formation].Combat is null) continue;
+                unit.FormationId is not int formation || military.Formation(unit).Combat is null) continue;
             var targetArea = MilitaryCombat.Area(unit, military);
             long candidateDistance = targetArea.DistanceTo(area);
             if (closest is not null && (candidateDistance > distance || candidateDistance == distance && unit.Id >= closest.Id) ||

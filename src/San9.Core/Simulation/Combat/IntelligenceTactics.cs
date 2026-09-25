@@ -21,7 +21,7 @@ internal static class IntelligenceTactics
     {
         var military = rules.Military!;
         var defenders = Defenders(world, target);
-        var formation = target.UnitId is int id ? military.Formations[world.Units[id].FormationId!.Value].Tactics : null;
+        var formation = target.UnitId is int id ? military.Formation(world.Units[id]).Tactics : null;
         bool confused = tactic.Effect == TacticEffect.Confusion;
         if (confused && target.UnitId is int enemy && world.Units[enemy].Condition == UnitCondition.HighSpirits) return 0;
         TacticEffect? counter = confused ? TacticEffect.CounterConfusion : tactic.Effect == TacticEffect.Trap ? TacticEffect.CounterTrap : null;
@@ -50,7 +50,7 @@ internal static class IntelligenceTactics
         if (tactic.EffectRadius > 0 && tactic.Effect is TacticEffect.Illusion or TacticEffect.Sorcery)
         {
             targets.AddRange(world.Units.Values.Where(u => u.Id != primary.UnitId && SecondaryOpponent(u.OwnerId) &&
-                u.FormationId is int f && military.Formations[f].Combat is not null && MilitaryCombat.Area(u, military).DistanceTo(area) <= tactic.EffectRadius)
+                u.FormationId is int f && military.Formation(u).Combat is not null && MilitaryCombat.Area(u, military).DistanceTo(area) <= tactic.EffectRadius)
                 .OrderBy(u => u.Id).Select(u => new MilitaryOrder(MilitaryOrderKind.AttackUnit, null, null) { UnitId = u.Id }));
             if (tactic.AffectsFacilities)
                 targets.AddRange(world.Settlements.Values.Where(s => s.Id != primary.SettlementId && !s.IsDestroyed && s.Facility?.BuilderUnitId is null &&
@@ -170,7 +170,7 @@ internal static class IntelligenceTactics
         var defenders = Defenders(world, target);
         if (defenders.Length == 0) return;
         var military = rules.Military!;
-        var profile = military.Formations[unit.FormationId!.Value].Tactics;
+        var profile = military.Formation(unit).Tactics;
         int intelligence = world.Abilities(actor).Intelligence;
         int proficiency = actor.TacticProficiencies[tactic.Category!.Value];
         int chance = (tactic.Effect == TacticEffect.Illusion ? 150 : 130) -

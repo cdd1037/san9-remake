@@ -19,6 +19,18 @@ public sealed class UnitContentCompilerTests
         Assert.Equal(new UnitPolicies(approach, pursuit, after, retreat), unit.Policies);
     }
 
+    [Theory]
+    [InlineData(0, 20)]
+    [InlineData(15, 26)]
+    [InlineData(20, null)]
+    [InlineData(27, 20)]
+    public void ScenarioDefaultsPreserveLandAndIndependentNavalChoices(int land, int? naval)
+    {
+        var unit = Assert.Single(UnitContentCompiler.Compile([Source with { FormationCode = (ushort)land }], _ => 1));
+        Assert.Equal(land, unit.FormationId);
+        Assert.Equal(naval, unit.NavalFormationId);
+    }
+
     [Fact]
     public void TimedConditionPreservesItsSourceDuration()
     {

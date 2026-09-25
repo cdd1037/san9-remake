@@ -30,6 +30,9 @@ public sealed class MilitaryContentCompilerTests
         tactics[15] = tactics[15] with { CompatibleArrayTypeMaskLow = 1 << 8 };
         var definition = MilitaryContentCompiler.Compile(squares, terrains, formations, places, [], buildings, tactics, places.ToDictionary(p => p.Id, _ => System.Collections.Immutable.ImmutableArray<int>.Empty));
         Assert.Equal(27, definition.UnformedFormationId);
+        Assert.Equal(20, definition.Formations.Single(f => f.Id == 0).DefaultNavalFormationId);
+        Assert.Equal(26, definition.Formations.Single(f => f.Id == 15).DefaultNavalFormationId);
+        Assert.Null(definition.Formations.Single(f => f.Id == 20).DefaultNavalFormationId);
         Assert.Equal(8, definition.CityInfluence!.RadiusCells);
         Assert.Equal(5, definition.Geography.FootprintScale);
         Assert.Equal(10, definition.CityInfluence.LandTacticBonus);

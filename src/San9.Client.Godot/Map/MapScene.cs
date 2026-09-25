@@ -60,7 +60,7 @@ internal sealed class MapScene
                 return UnitVisuals.Resolve(new(u.Id,
                     (u.Position.X - MapCoordinates.UnitsPerCell / 2) / (double)MapCoordinates.UnitsPerCell,
                     (u.Position.Y - MapCoordinates.UnitsPerCell / 2) / (double)MapCoordinates.UnitsPerCell,
-                    map.Squares[u.Cell.Y * map.Width + u.Cell.X].Elevation, u.Soldiers, u.FormationId!.Value,
+                    map.Squares[u.Cell.Y * map.Width + u.Cell.X].Elevation, u.Soldiers, state.FormationId(u)!.Value,
                     u.Condition, UnitVisuals.Direction(u.Position, target),
                     u.EffectiveOrderClass == UnitOrderClass.Military && state.HasCityInfluence(u.OwnerId, u.Position),
                     force.ColorCode, commander?.FlagGlyph ?? -1)

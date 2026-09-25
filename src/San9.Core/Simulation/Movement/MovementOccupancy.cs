@@ -16,7 +16,7 @@ internal sealed class MovementOccupancy
     }
 
     internal void Set(UnitState unit) => Set((true, unit.Id), unit.FormationId is int id
-        ? new(unit.Position, rules.Formations[id].Footprint) : null);
+        ? new(unit.Position, rules.Formation(unit).Footprint) : null);
     internal void Set(SettlementState place) => Set((false, place.Id), !place.IsDestroyed && rules.TryPlace(place, out var p)
         ? new(p.Position, p.Footprint) : null);
     internal void RemoveUnit(int id) => Set((true, id), null);

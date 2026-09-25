@@ -25,7 +25,7 @@ internal static class TacticCombat
         var military = rules.Military!;
         if (!world.Units.TryGetValue(sourceId, out var unit) || unit.Soldiers == 0 || unit.Morale == 0 ||
             unit.Condition is UnitCondition.Confused or UnitCondition.Routed || unit.IsEmbedded || unit.IsPersonnel ||
-            unit.FormationId is not int formationId || military.Formations[formationId] is not { Tactics: { } profile } formation ||
+            unit.FormationId is not int formationId || military.Formation(unit) is not { Tactics: { } profile } formation ||
             !MilitaryCombat.ValidTarget(world, unit.OwnerId, target, formation, military) ||
             !MilitaryCombat.Area(unit, military).IntersectsExpanded(MilitaryCombat.TargetArea(world, target, military), MilitaryCombat.UnitRange(world, unit, target, military))) return null;
         if (!world.Officers.Values.Any(p => p.IsServing && p.OwnerId == unit.OwnerId && p.UnitId == sourceId &&
@@ -43,12 +43,12 @@ internal static class TacticCombat
         var military = rules.Military!;
         if (!world.Units.TryGetValue(sourceId, out var unit) || unit.Soldiers == 0 || unit.Morale == 0 ||
             unit.Condition is UnitCondition.Confused or UnitCondition.Routed || unit.IsEmbedded || unit.IsPersonnel ||
-            unit.FormationId is not int formationId || military.Formations[formationId] is not { Tactics: { } profile } formation ||
+            unit.FormationId is not int formationId || military.Formation(unit) is not { Tactics: { } profile } formation ||
             !MilitaryCombat.ValidTarget(world, unit.OwnerId, target, formation, military) ||
             !MilitaryCombat.Area(unit, military).IntersectsExpanded(MilitaryCombat.TargetArea(world, target, military), MilitaryCombat.UnitRange(world, unit, target, military))) return;
         if (world.Simulation.TerminalReason is not null) return;
         var members = IntelligenceTactics.Defenders(world, new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = unit.Id });
-        var candidates = members.OrderBy(p => unit.MemberRanks.GetValueOrDefault(p.Id, BattleRank.Middle)).ThenBy(p => p.Id)
+        var candidates = members.OrderBy(p => military.Rank(unit, p.Id)).ThenBy(p => p.Id)
             .Where(p => p.Injury == 0 && p.TacticCooldown == 0 && !p.Acted)
             .Select(p => new { Officer = p, Tactic = ChooseTactic(world, p, unit.OwnerId, formation, target, rules) })
             .Where(p => p.Tactic is not null).Select(p => new Participant(p.Officer, p.Tactic!)).ToArray();
@@ -59,7 +59,7 @@ internal static class TacticCombat
             ? new[] { candidates.OrderBy(p => p.Officer.Id).ElementAt((int)(world.NextRandom("military-tactic-member") % (uint)candidates.Length)) } : candidates;
         foreach (var candidate in selection)
         {
-            if (profile.AutomaticTactics.IsEmpty && !Roll(world, "military-tactic-member", AllocationChance(unit.MemberRanks[candidate.Officer.Id],
+            if (profile.AutomaticTactics.IsEmpty && !Roll(world, "military-tactic-member", AllocationChance(military.Rank(unit, candidate.Officer.Id),
                 members.Length, candidate.Tactic.Effect == TacticEffect.Martial && profile.FavoredCategories.Contains(candidate.Tactic.Category!.Value)))) continue;
             if (candidate.Tactic.Effect != TacticEffect.Martial)
             {
@@ -92,7 +92,7 @@ internal static class TacticCombat
         var military = rules.Military!;
         if (world.Simulation.TerminalReason is not null || !world.Units.TryGetValue(sourceId, out var unit) ||
             unit.Soldiers == 0 || unit.Morale == 0 || unit.Condition is UnitCondition.Confused or UnitCondition.Routed ||
-            unit.FormationId is not int formationId || military.Formations[formationId] is not { Tactics: { } profile } formation ||
+            unit.FormationId is not int formationId || military.Formation(unit) is not { Tactics: { } profile } formation ||
             formation.TravelMode != TravelMode.Land || !MilitaryCombat.ValidTarget(world, unit.OwnerId, target, formation, military)) return;
         bool triggered = target.UnitId is int id
             ? world.Units[id].Soldiers > 0 && world.Units[id].Morale > 0 && world.Units[id].Condition ==
@@ -106,7 +106,7 @@ internal static class TacticCombat
             .Where(p => p.Tactic?.Effect == TacticEffect.Martial).Select(p => new Participant(p.Officer, p.Tactic!)).ToArray();
         if (candidates.Length == 0) return;
         var primary = candidates[(int)(world.NextRandom("military-tactic-chain-member") % (uint)candidates.Length)];
-        if (!Roll(world, "military-tactic-chain-allocation", AllocationChance(unit.MemberRanks[primary.Officer.Id], members.Length,
+        if (!Roll(world, "military-tactic-chain-allocation", AllocationChance(military.Rank(unit, primary.Officer.Id), members.Length,
             profile.FavoredCategories.Contains(primary.Tactic.Category!.Value)))) return;
         ActivateMartial(world, unit, members, candidates, primary, target, rules, events);
     }
@@ -115,7 +115,7 @@ internal static class TacticCombat
         Participant primary, MilitaryOrder target, SimulationRules rules, List<DomainEvent> events)
     {
         var military = rules.Military!;
-        var profile = military.Formations[unit.FormationId!.Value].Tactics!;
+        var profile = military.Formation(unit).Tactics!;
         List<Participant> participants = [primary];
         foreach (var other in candidates.OrderBy(p => p.Officer.Id).Where(p => p.Officer.Id != primary.Officer.Id && p.Tactic.Effect == TacticEffect.Martial && p.Tactic.Category == primary.Tactic.Category))
         {
@@ -137,7 +137,7 @@ internal static class TacticCombat
             participants.Select(p => p.Officer.Id), effect, military);
         int? captured = ResolveMartial(world, new(unit.Id, false), primary.Officer.Id, primary.Tactic, target, damageMembers, doubled, effect, rules, events);
         var learning = primary.Tactic.Selectable ? primary.Tactic :
-            military.Formations[unit.FormationId!.Value].AutomaticTacticLearningId is int related ? military.Tactics[related] : null;
+            military.Formation(unit).AutomaticTacticLearningId is int related ? military.Tactics[related] : null;
         if (captured is null && !TacticSniping.Apply(world, sniping,
             target.UnitId is int defeated && !world.Units.ContainsKey(defeated), rules, events))
         {
@@ -210,7 +210,7 @@ internal static class TacticCombat
     {
         int category = tactic.Category!.Value;
         if (target.UnitId is int id && world.Units[id].FormationId is int formation &&
-            military.Formations[formation].MartialTacticVulnerabilities.Contains(category)) return 15;
+            military.Formation(world.Units[id]).MartialTacticVulnerabilities.Contains(category)) return 15;
         int resistance = Math.Max(0, (IntelligenceTactics.Defenders(world, target)
             .Select(p => p.TacticProficiencies[category]).DefaultIfEmpty(0).Max() - actor.TacticProficiencies[category]) / 20);
         return Roll(world, "military-tactic-resistance", resistance) ? 1 : 10;

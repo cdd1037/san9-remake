@@ -12,7 +12,7 @@ internal static class TacticRescue
     {
         if (!tactic.CanRescuePrisoners || effect < 10 || target.UnitId is not int id ||
             !world.Units.TryGetValue(id, out var unit) || unit.IsEmbedded ||
-            unit.FormationId is not int formation || military.Formations[formation].PreventsTacticRescue)
+            unit.FormationId is not int formation || military.Formation(unit).PreventsTacticRescue)
             return null;
         var captives = world.Officers.Values.Where(p => p.UnitId == id && p.Status == OfficerStatus.Captive)
             .OrderBy(p => p.Id).ToArray();

@@ -142,9 +142,8 @@ internal static class BattleAftermath
                 bool mount = world.Treasures.Values.Any(t => t.HolderId == original.Id && t.Discovery != TreasureDiscovery.Disabled &&
                     rules.Treasures.Items.TryGetValue(t.Id, out var treasure) && treasure.EscapeMount);
                 var rank = original.UnitId is null ? BattleRank.Middle :
-                    world.Units[original.UnitId.Value].MemberRanks.TryGetValue(original.Id, out var memberRank) ? memberRank :
-                    throw new InvalidOperationException("Missing field member rank.");
-                bool doubles = !captor.IsSettlement && military.Formations[world.Units[captor.Id].FormationId!.Value].DoublesCapture;
+                    military.Rank(world.Units[original.UnitId.Value], original.Id);
+                bool doubles = !captor.IsSettlement && military.Formation(world.Units[captor.Id]).DoublesCapture;
                 BattlePersonnel.Resolve(world, original.Id, captor, retreat, nearby, rank, mount, doubles,
                     rules.Personnel, events, hasRetreatCity, from.Position, military);
             }

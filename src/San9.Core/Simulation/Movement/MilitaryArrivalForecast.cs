@@ -54,5 +54,5 @@ public sealed class MilitaryArrivalForecast(WorldSnapshot snapshot, MilitaryRule
     private bool Valid(UnitState unit) => unit.EffectiveOrder is { } order &&
         (order.Construction is not null
             ? regionCities is not null && treasures is not null && FacilityConstruction.CanContinue(world!, unit, rules, regionCities, treasures)
-            : MilitaryMovement.ValidOrder(world!, unit.OwnerId, order, rules.Formations[unit.FormationId!.Value], rules));
+            : MilitaryMovement.ValidOrder(world!, unit.OwnerId, order, rules.Formations[unit.FormationId!.Value], rules, unit.NavalFormationId));
 }

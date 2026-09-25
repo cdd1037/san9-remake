@@ -42,7 +42,7 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 117;
+    public const int CurrentSchemaVersion = 118;
     [JsonRequired] public int FoodExchangeRate { get; init; } = 1;
     [JsonRequired] public San9.Core.Domain.FoodMarketDefinition? FoodMarket { get; init; }
     [JsonRequired] public San9.Core.Domain.HanzhongKingDefinition? HanzhongKing { get; init; }
@@ -99,6 +99,8 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
         if (Military is { } military)
         {
             var rules = new San9.Core.Domain.MilitaryRulebook(military);
+            if (Units.Any(u => u.FormationId is int id && !rules.ValidFormationPair(id, u.NavalFormationId)))
+                throw new InvalidDataException("Invalid initial unit formation pair.");
             var personIds = Officers.Select(o => o.State.Id).ToHashSet();
             if (rules.LinkRules.Pairs.Any(p => !personIds.Contains(p.FirstId) || !personIds.Contains(p.SecondId)))
                 throw new InvalidDataException("Unknown tactic relationship person reference.");

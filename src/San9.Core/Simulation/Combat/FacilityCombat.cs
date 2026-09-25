@@ -39,7 +39,7 @@ internal static class FacilityCombat
             if (target is null) { TryTactic(world, id, null, rules, events); continue; }
             var source = new BattleSource(id, true);
             var area = source.Area(world, military);
-            var formation = military.Formations[target.FormationId!.Value];
+            var formation = military.Formation(target);
             MilitaryDiplomacy.CombatOpened(world, settlement.OwnerId!.Value, target.OwnerId, false, events);
             uint outgoing = MilitaryCombat.NormalDamage(world, source, new(target.Id, false), military);
             uint incoming = 0;
@@ -95,7 +95,7 @@ internal static class FacilityCombat
         }
         if (target?.UnitId is not int targetId || !world.Units.TryGetValue(targetId, out var unit) ||
             !MilitaryDiplomacy.CanFight(world, settlement.OwnerId!.Value, unit.OwnerId) || unit.FormationId is not int f ||
-            military.Formations[f].Combat is null || place.Attack is null ||
+            military.Formation(unit).Combat is null || place.Attack is null ||
             !source.Area(world, military).IntersectsExpanded(MilitaryCombat.Area(unit, military), MilitaryCombat.FacilityRange(world, settlement, unit, military))) return;
         var tactic = selected.Effect == TacticEffect.TrapSelection ? military.TrapAt(unit.Position) : selected;
         if (tactic is null) return;

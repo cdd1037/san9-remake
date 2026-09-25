@@ -21,7 +21,7 @@ internal static class BattleLearning
         OfficerAbilityGrowth.TryIncrease(world, actor, OfficerAbility.Leadership, "military-capture-growth", events);
         foreach (var person in members) OfficerTacticGrowth.Increase(world, person.Id, 5, 3, events);
         int formation = unit.Condition is UnitCondition.NoFormation or UnitCondition.Confused or UnitCondition.Routed && military.UnformedFormationId is int unformed
-            ? unformed : unit.FormationId!.Value;
+            ? unformed : military.Formation(unit).Id;
         if (military.Formations[formation].CaptureTacticLearningId is int tactic)
             foreach (var person in members)
                 OfficerTacticGrowth.TryLearn(world, person.Id, military.Tactics[tactic], "military-capture-learning", events);
@@ -46,11 +46,11 @@ internal static class BattleLearning
         if (military is null) return;
         foreach (var unit in world.Units.Values.OrderBy(u => u.Id))
         {
-            if (unit.FormationId is not int id || !military.Formations[id].GainsDailyCombatProficiency ||
+            if (unit.FormationId is not int id || !military.Formation(unit).GainsDailyCombatProficiency ||
                 unit.EffectiveOrderClass != UnitOrderClass.Military || !MilitaryEngagements.Engaged(world, unit, military)) continue;
             foreach (var officer in world.Officers.Values.Where(p => p.IsServing && p.UnitId == unit.Id).OrderBy(p => p.Id).ToArray())
             {
-                int? category = military.Formations[id].TravelMode == TravelMode.Water ? 4 :
+                int? category = military.Formation(unit).TravelMode == TravelMode.Water ? 4 :
                     officer.EquippedTacticId is int tactic ? military.Tactics[tactic].Category : null;
                 if (category is int value) OfficerTacticGrowth.Increase(world, officer.Id, value, 1, events);
             }

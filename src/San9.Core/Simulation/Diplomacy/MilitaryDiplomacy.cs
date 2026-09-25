@@ -51,7 +51,7 @@ internal static class MilitaryDiplomacy
         foreach (var unit in world.Units.Values.OrderBy(u => u.Id).ToArray())
         {
             if (unit.IsEmbedded || unit.IsPersonnel || unit.Order is not { Kind: MilitaryOrderKind.AttackSettlement, SettlementId: int id } order ||
-                unit.FormationId is not int formation || !MilitaryCombat.ValidTarget(world, unit.OwnerId, order, military.Formations[formation], military) ||
+                unit.FormationId is not int formation || !MilitaryCombat.ValidTarget(world, unit.OwnerId, order, military.Formation(unit), military) ||
                 Work(world, id, military) || world.Settlements[id].OwnerId is not int other) continue;
             int value = Relation(world, unit.OwnerId, other);
             bool betrayal = world.Simulation.Alliance?.Protects(unit.OwnerId, other) == true;

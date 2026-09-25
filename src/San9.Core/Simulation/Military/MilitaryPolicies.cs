@@ -62,7 +62,7 @@ internal static class MilitaryPolicies
             if (!Active(unit) || resumed.Contains(id) || unit.EngagementTargetId is not null || unit.Order is null ||
                 unit.Order.Kind is MilitaryOrderKind.Construct or MilitaryOrderKind.Transport or MilitaryOrderKind.Return ||
                 Commander(world, unit) is not { } leader) continue;
-            if (unit.Order.IsAttack && MilitaryCombat.ValidTarget(world, unit.OwnerId, unit.Order, rules.Formations[unit.FormationId!.Value], rules) &&
+            if (unit.Order.IsAttack && MilitaryCombat.ValidTarget(world, unit.OwnerId, unit.Order, rules.Formation(unit), rules) &&
                 Distance(unit, unit.Order, world, rules) <= rules.PolicyRadius) continue;
             var candidate = Nearby(world, unit, rules, false).FirstOrDefault();
             if (candidate is not null && UnitPolicyDecisions.Attack(unit.Policies.AttackApproachingEnemies, leader.Personality,
@@ -78,7 +78,7 @@ internal static class MilitaryPolicies
         {
             var unit = world.Units[id];
             if (unit.FormationId is not int formationId) continue;
-            var formation = rules.Formations[formationId];
+            var formation = rules.Formation(unit);
             if (unit.EngagementTargetId is not null && !MilitaryCombat.ValidTarget(world, unit.OwnerId, unit.EffectiveOrder!, formation, rules))
             {
                 Engage(world, unit, null, events, "engagement-target-invalid");
@@ -113,7 +113,7 @@ internal static class MilitaryPolicies
 
     private static IEnumerable<MilitaryOrder> Nearby(WorldMutation world, UnitState unit, MilitaryRulebook rules, bool buildings)
     {
-        var formation = rules.Formations[unit.FormationId!.Value];
+        var formation = rules.Formation(unit);
         var candidates = world.Units.Values.Where(u => !u.IsEmbedded && !u.IsPersonnel)
             .Select(u => new MilitaryOrder(MilitaryOrderKind.AttackUnit, null, null) { UnitId = u.Id });
         if (buildings) candidates = candidates.Concat(world.Settlements.Values.Select(s => new MilitaryOrder(MilitaryOrderKind.AttackSettlement, null, s.Id)));
@@ -142,7 +142,7 @@ internal static class MilitaryPolicies
     internal static bool Return(WorldMutation world, UnitState unit, MilitaryRulebook rules, List<DomainEvent> events, string reason)
     {
         var order = unit.ServicePlaceId is int home ? new MilitaryOrder(MilitaryOrderKind.Return, null, home) : null;
-        if (!MilitaryMovement.ValidOrder(world, unit.OwnerId, order, rules.Formations[unit.FormationId!.Value], rules)) return false;
+        if (!MilitaryMovement.ValidOrder(world, unit.OwnerId, order, rules.Formations[unit.FormationId!.Value], rules, unit.NavalFormationId)) return false;
         FacilityConstruction.Cancel(world, unit.Id, events);
         ChangeOrder(world, world.Units[unit.Id], order, events, reason);
         return true;
@@ -181,7 +181,7 @@ internal static class MilitaryPolicies
         foreach (var unit in world.Units.Values.Where(u => u.Order?.SettlementId == id).OrderBy(u => u.Id).ToArray())
         {
             var enter = new MilitaryOrder(MilitaryOrderKind.Return, null, id);
-            if (MilitaryMovement.ValidOrder(world, unit.OwnerId, enter, rules.Formations[unit.FormationId!.Value], rules))
+            if (MilitaryMovement.ValidOrder(world, unit.OwnerId, enter, rules.Formations[unit.FormationId!.Value], rules, unit.NavalFormationId))
                 ChangeOrder(world, unit, enter, events, "target-captured-entry");
             else
             {

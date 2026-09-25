@@ -34,8 +34,8 @@ internal sealed class OfficerCommands(StrategySnapshot view, TextCatalog texts)
     {
         var task = tasks.GetValueOrDefault(person.Id);
         var unit = person.UnitId is int unitId ? units[unitId] : null;
-        BattleRank? rank = person.IsServing && unit is { FormationId: not null, IsEmbedded: false, IsPersonnel: false } &&
-            unit.MemberRanks.TryGetValue(person.Id, out var memberRank) ? memberRank : null;
+        BattleRank? rank = person.IsServing && unit is { FormationId: not null, IsEmbedded: false, IsPersonnel: false }
+            ? view.FormationRank(unit, person.Id) : null;
         CatalogCell rankCell = rank is { } row
             ? new(row switch { BattleRank.Front => "前锋", BattleRank.Middle => "中锋", _ => "后卫" }, 3 - (int)row)
             : CatalogCell.Unavailable;

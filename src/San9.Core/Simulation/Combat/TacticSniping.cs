@@ -17,13 +17,12 @@ internal static class TacticSniping
         var actors = participants.Distinct().Order().Select(id => world.Officers[id])
             .Where(p => p.IsServing && p.TacticProficiencies[category] > 300).ToArray();
         var targets = IntelligenceTactics.Defenders(world, target).Where(p => p.Injury == 0 &&
-            (target.UnitId is int unit ? world.Units[unit].MemberRanks.TryGetValue(p.Id, out var rank) &&
-                rank is BattleRank.Front or BattleRank.Middle : !p.Acted && !world.Simulation.Tasks.Any(t => t.OfficerId == p.Id)))
+            (target.UnitId is int unit ? rules.Rank(world.Units[unit], p.Id) is BattleRank.Front or BattleRank.Middle : !p.Acted && !world.Simulation.Tasks.Any(t => t.OfficerId == p.Id)))
             .ToArray();
         if (actors.Length == 0 || targets.Length == 0) return null;
         var actor = actors[(int)(world.NextRandom("military-sniping-actor") % (uint)actors.Length)];
         int bonus = !source.IsSettlement && world.Units[source.Id].FormationId is int formation
-            ? rules.Formations[formation].SnipingChanceBonus : 0;
+            ? rules.Formation(world.Units[source.Id]).SnipingChanceBonus : 0;
         long proficiency = actor.TacticProficiencies[category] / 100;
         if (!TacticCombat.Roll(world, "military-sniping", (int)Math.Min(100, bonus + proficiency * proficiency / 2))) return null;
         var person = targets[(int)(world.NextRandom("military-sniping-target") % (uint)targets.Length)];

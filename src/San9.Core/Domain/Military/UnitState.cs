@@ -10,6 +10,7 @@ public sealed record UnitState(int Id, int OwnerId, [property: JsonRequired] Wor
 {
     [JsonRequired] public System.Collections.Immutable.ImmutableDictionary<int, BattleRank> MemberRanks { get; init; } = System.Collections.Immutable.ImmutableDictionary<int, BattleRank>.Empty;
     [JsonRequired] public int? FormationId { get; init; }
+    [JsonRequired] public int? NavalFormationId { get; init; }
     [JsonRequired] public int Morale { get; init; }
     [JsonRequired] public uint Wounded { get; init; }
     [JsonRequired] public uint CargoMoney { get; init; }
@@ -43,7 +44,7 @@ public sealed record UnitState(int Id, int OwnerId, [property: JsonRequired] Wor
 
     [System.Text.Json.Serialization.JsonIgnore]
     public bool IsValid => Id >= 0 && OwnerId >= 0 && ServicePlaceId is not < 0 && Position.X >= 0 && Position.Y >= 0 && Soldiers > 0 &&
-        Enum.IsDefined(OrderClass) && Enum.IsDefined(Condition) && ConditionDaysRemaining >= 0 && FormationId is not < 0 && MovementRemainder >= 0 && Morale is >= 0 and <= 100 && Wounded <= MilitaryRulebook.WoundedCapacity &&
+        Enum.IsDefined(OrderClass) && Enum.IsDefined(Condition) && ConditionDaysRemaining >= 0 && FormationId is not < 0 && NavalFormationId is not < 0 && (NavalFormationId is null || FormationId is not null) && MovementRemainder >= 0 && Morale is >= 0 and <= 100 && Wounded <= MilitaryRulebook.WoundedCapacity &&
         (!HighSpiritsMoralePenaltyPending || Condition == UnitCondition.HighSpirits) &&
         Policies is not null && CommanderId is not < 0 && EngagementTargetId is not < 0 && EngagementTargetId != Id &&
         (!AwaitingPostAction || Order is null) &&

@@ -48,6 +48,24 @@ public sealed class BattlefieldMap
     private readonly ImmutableArray<int> cells;
     private readonly ImmutableDictionary<int, TerrainPassage> terrains;
     private readonly ImmutableHashSet<MapCell> blocked;
+    private readonly FormationRule? landFormation, navalFormation;
+    private readonly int travelBudget;
+
+    private BattlefieldMap(BattlefieldMap source, FormationRule land, FormationRule naval, int budget)
+    {
+        Width = source.Width; Height = source.Height; FineWidth = source.FineWidth; FineHeight = source.FineHeight;
+        cells = source.cells; terrains = source.terrains; blocked = source.blocked;
+        landFormation = land; navalFormation = naval; travelBudget = budget;
+        Topologies = new(this);
+    }
+
+    internal BattlefieldMap ForTravel(FormationRule land, FormationRule naval, int budget) => new(this, land, naval, budget);
+    internal IEnumerable<WorldPosition> Entrances(BattlefieldPlace place, Footprint fallback) =>
+        (landFormation is null ? new[] { fallback } : new[] { landFormation.Footprint, navalFormation!.Footprint })
+            .Distinct().SelectMany(shape => place.Entrances(shape).Where(p => ShapeAt(p, fallback) == shape)).Distinct();
+
+    internal Footprint ShapeAt(WorldPosition position, Footprint fallback) =>
+        landFormation is null ? fallback : (IsWater(position) ? navalFormation! : landFormation).Footprint;
 
     public BattlefieldMap(int width, int height, IEnumerable<int> terrainIds, IEnumerable<TerrainPassage> terrainRules,
         IEnumerable<MapCell>? blockedCells = null)
@@ -69,7 +87,8 @@ public sealed class BattlefieldMap
     }
 
     internal int MaximumStepCost(TravelMode mode) => Math.Max(1, terrains.Values.Max(t =>
-        (mode == TravelMode.Land ? t.LandCost : t.WaterCost) ?? 0));
+        landFormation is null ? ((mode == TravelMode.Land ? t.LandCost : t.WaterCost) ?? 0) :
+            checked(((t.IsWater ? t.WaterCost : t.LandCost) ?? 0) * (travelBudget / (t.IsWater ? navalFormation! : landFormation).MovementBudget))));
 
     public int Width { get; }
     public int Height { get; }
@@ -114,10 +133,10 @@ public sealed class BattlefieldMap
         bool Arrived(WorldPosition p)
         {
             if (!intoRange) return p == target.Position;
-            if (Distance(p) > 0 || new MapOccupancy(p, footprint).Overlaps(target)) return false;
+            if (Distance(p) > 0 || new MapOccupancy(p, ShapeAt(p, footprint)).Overlaps(target)) return false;
             int available = range?.Invoke(p) ?? maximumRange;
-            return available > 0 && (rectangularReach ? new MapOccupancy(p, footprint).IntersectsExpanded(target, available) :
-                new MapOccupancy(p, footprint).DistanceTo(target) <= available);
+            return available > 0 && (rectangularReach ? new MapOccupancy(p, ShapeAt(p, footprint)).IntersectsExpanded(target, available) :
+                new MapOccupancy(p, ShapeAt(p, footprint)).DistanceTo(target) <= available);
         }
         var bounds = intoRange ? new PathGoalBounds(target.Left - footprint.Width - maximumRange,
             target.Top - footprint.Height - maximumRange, target.Right + footprint.Width + maximumRange,
@@ -149,7 +168,7 @@ public sealed class BattlefieldMap
     public bool IsWater(WorldPosition position)
     {
         var cell = MapCoordinates.Cell(position);
-        return cell.X < Width && cell.Y < Height && terrains[cells[cell.Y * Width + cell.X]].IsWater;
+        return position.X >= 0 && position.Y >= 0 && cell.X < Width && cell.Y < Height && terrains[cells[cell.Y * Width + cell.X]].IsWater;
     }
     internal bool StopsRockfall(MapCell cell) => terrains[cells[cell.Y * Width + cell.X]].StopsRockfall;
 
@@ -183,8 +202,8 @@ public sealed class BattlefieldMap
             // Exact range can depend on elevation, weapons and the opponent. Only nearby nodes need it.
             if (maximumRange is int bound && RangeDistance(p, footprint, target, bound) > 0) return false;
             int available = range(p);
-            return available > 0 && (rectangularReach ? new MapOccupancy(p, footprint).IntersectsExpanded(target, available) :
-                new MapOccupancy(p, footprint).DistanceTo(target) <= available);
+            return available > 0 && (rectangularReach ? new MapOccupancy(p, ShapeAt(p, footprint)).IntersectsExpanded(target, available) :
+                new MapOccupancy(p, ShapeAt(p, footprint)).DistanceTo(target) <= available);
         }, p => maximumRange is int bound ? RangeDistance(p, footprint, target, bound) : 0, null, budget,
             maximumRange is int reach ? new PathGoalBounds(
                 target.Left - (footprint.Width - footprint.Width / 2) + 1 - reach,
@@ -195,6 +214,7 @@ public sealed class BattlefieldMap
 
     private static long RangeDistance(WorldPosition p, Footprint footprint, MapOccupancy target, int bound)
     {
+        // Use the maximum travel shape so a larger shape beyond the shore cannot invalidate the lower bound.
         var area = new MapOccupancy(p, footprint);
         long x = Math.Max(0, Math.Max(target.Left - area.Right + 1, area.Left - target.Right + 1));
         long y = Math.Max(0, Math.Max(target.Top - area.Bottom + 1, area.Top - target.Bottom + 1));
@@ -209,7 +229,7 @@ public sealed class BattlefieldMap
         Func<MapOccupancy, bool> occupied)
     {
         if (!footprint.IsValid || !Enum.IsDefined(mode)) throw new ArgumentException("Invalid movement shape or mode.");
-        var area = new MapOccupancy(position, footprint);
+        var area = new MapOccupancy(position, ShapeAt(position, footprint));
         if (area.Left < 0 || area.Top < 0 || area.Right > FineWidth || area.Bottom > FineHeight) return null;
         if (occupied(area)) return null;
         int cost = 0;
@@ -220,7 +240,10 @@ public sealed class BattlefieldMap
         {
             if (blocked.Contains(new(x, y))) return null;
             var terrain = terrains[cells[y * Width + x]];
-            int? step = mode == TravelMode.Land ? terrain.LandCost : terrain.WaterCost;
+            int? step = landFormation is null ? (mode == TravelMode.Land ? terrain.LandCost : terrain.WaterCost) :
+                terrain.IsWater ? terrain.WaterCost : terrain.LandCost;
+            if (step is int raw && landFormation is not null)
+                step = checked(raw * (travelBudget / (terrain.IsWater ? navalFormation! : landFormation).MovementBudget));
             if (step is null) return null;
             cost = Math.Max(cost, step.Value);
         }

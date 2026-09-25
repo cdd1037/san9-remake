@@ -60,7 +60,7 @@ public static class StrategyPlanner
                     if (strategy == UnitStrategyKind.Reinforce &&
                         (homes[actor.SettlementId!.Value].Soldiers < 6000 || target.FormationId is not int formation ||
                          !rules.Formations.TryGetValue(formation, out var definition) ||
-                         (long)definition.SoldierCapacity - target.Soldiers < 1000)) continue;
+                         (long)rules.Capacity(target) - target.Soldiers < 1000)) continue;
                     yield return new UnitStrategyCommand(commandId, seat.ForceId, sequence, actor.Id, strategy, target.Id);
                 }
             }

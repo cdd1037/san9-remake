@@ -85,7 +85,8 @@ internal sealed class ScenarioSessionDefinition
                 _ => e
             }),
             Forces = Forces().OrderBy(f => f.Id), Settlements = Settlements().OrderBy(s => s.Id),
-            Officers = definition.Officers.Select(o => o.State with { LearnedTactics = o.State.LearnedTactics.Order().ToImmutableArray() }).OrderBy(o => o.Id),
+            Officers = definition.Officers.OrderBy(o => o.State.Id).Select(o => new
+                { State = o.State with { LearnedTactics = o.State.LearnedTactics.Order().ToImmutableArray() }, o.AgeAtScenarioStart }),
             Units = definition.Units.OrderBy(u => u.Id), Corps = definition.Information.Corps.OrderBy(c => c.Id),
             Treasures = definition.Information.TreasureStates.OrderBy(t => t.Id),
             Relations = definition.Information.Relations.OrderBy(r => r.FirstId).ThenBy(r => r.SecondId),
@@ -122,8 +123,9 @@ internal sealed class ScenarioSessionDefinition
     internal MilitaryRulebook? MilitaryRules { get; }
     internal string Fingerprint { get; }
     internal WorldState CreateWorld(ulong seed, int computerDamageBonusPercent = 0, bool battleDeathsEnabled = false) => WorldState.Create(new(Content.Year, Content.Month, Content.Day), seed,
-        Forces().Select(f => f.Id == Content.PlayerForceId ? f with { IsBarbarian = false } : f),
-        Settlements(), Content.Officers.Select(o => o.State), Content.Units, Content.Information.Corps,
+        Forces(),
+        BarbarianStartup.CreateSettlements(Forces(), Settlements(), Content.Officers.Select(o => o.State)),
+        Content.Officers.Select(o => o.CreateState(Content.Year)), Content.Units, Content.Information.Corps,
         Content.Information.TreasureStates, Content.Information.Relations,
         Content.Forces.Where(f => !f.IsDormant).OrderBy(f => f.Id == Content.PlayerForceId ? 0 : 1).ThenBy(f => f.Id)
             .Select(f => new ControlSeat(f.Id == Content.PlayerForceId ? "player" : $"ai:{f.Id}", f.Id,
@@ -133,7 +135,7 @@ internal sealed class ScenarioSessionDefinition
 
     private IEnumerable<ForceState> Forces() => Content.Forces.Select(f => new ForceState(f.Id, f.Money, f.Food, f.Trust)
     {
-        ProvidedTactics = f.ProvidedTactics.Order().ToImmutableArray(), IsBarbarian = f.IsBarbarian, IsDormant = f.IsDormant,
+        ProvidedTactics = f.ProvidedTactics.Order().ToImmutableArray(), IsBarbarian = f.Id != Content.PlayerForceId && f.IsBarbarian, IsDormant = f.IsDormant,
         EventHistory = f.EventHistory.OrderBy(k => k.Value, StringComparer.Ordinal).ToImmutableArray(), HasDeposedEmperor = f.HasDeposedEmperor, LeaderId = f.LeaderId, AdviserId = f.AdviserId, RankId = f.RankId, CountryTitleId = f.CountryTitleId, BaseTrust = f.BaseTrust
     });
 

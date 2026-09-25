@@ -48,7 +48,8 @@ public static class OfficerContentCompiler
                 StatusStartYear = person.EncodedStatusStartYear == 0 ? null : person.StatusStartYear,
                 ParentId = person.ParentPersonId, IsFemale = person.GenderFlag != 0, Personality = person.Personality,
                 IsCommander = person.IsOwnerLeader,
-                RegionId = settlement is null ? person.LocationId : null, Injury = person.Health, Status = (OfficerStatus)person.StatusCode, BirthYear = person.BirthYear, OfficeId = person.OfficeRankId,
+                RegionId = settlement is null ? person.LocationId : null, Injury = person.Health, Status = (OfficerStatus)person.StatusCode,
+                BirthYear = StartingAge(person.BiographyResourceCode) is null ? person.BirthYear : 0, OfficeId = person.OfficeRankId,
                 ForceLoyalties = forces.ToImmutableDictionary(f => f.Id, f => (int)person.GetForceLoyalty(f.Id)),
                 Righteousness = person.Righteousness,
                 Ambition = person.Ambition,
@@ -60,12 +61,20 @@ public static class OfficerContentCompiler
             };
             result.Add(new(text.Person($"officer.{id}", person.FamilyNameResourceCode, person.GivenNameResourceCode), state)
             {
+                AgeAtScenarioStart = StartingAge(person.BiographyResourceCode),
                 CourtesyNameKey = text.Courtesy($"officer-courtesy.{id}", person.CourtesyNameResourceCode),
                 BiographyKey = text.Biography($"officer-biography.{id}", person.BiographyResourceCode, biographies)
             });
         }
         return result.ToArray();
     }
+
+    public static int? StartingAge(int biographyId) => biographyId switch
+    {
+        675 or 678 or 680 or 682 or 684 => 34,
+        >= 675 and <= 685 => 19,
+        _ => null
+    };
 
     // TC101 biography identities are translated here; runtime ordering uses authored semantics.
     public static DuelAdvantages DuelTraits(int biographyId) => biographyId switch

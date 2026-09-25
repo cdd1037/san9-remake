@@ -42,7 +42,7 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 110;
+    public const int CurrentSchemaVersion = 111;
     [JsonRequired] public int FoodExchangeRate { get; init; } = 1;
     [JsonRequired] public San9.Core.Domain.FoodMarketDefinition? FoodMarket { get; init; }
     [JsonRequired] public San9.Core.Domain.HanzhongKingDefinition? HanzhongKing { get; init; }
@@ -246,6 +246,7 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
                     (o.State.Status == San9.Core.Domain.OfficerStatus.Captive ? u.OwnerId != o.State.OwnerId : u.OwnerId == o.State.OwnerId)) ||
                 o.State.IsServing && o.State.SettlementId is int home && Settlements.Single(s => s.Id == home).OwnerId != o.State.OwnerId))
             throw new InvalidDataException("Invalid officer initial state.");
+        foreach (var officer in Officers) _ = officer.CreateState(Year);
         if (Forces.Any(f => f.LeaderId is int leader && !Officers.Any(o => o.State.Id == leader && o.State.OwnerId == f.Id)))
             throw new InvalidDataException("Invalid force leader reference.");
         if (Forces.Any(f => f.AdviserId is int adviser && !Officers.Any(o => o.State.Id == adviser && o.State.OwnerId == f.Id && o.State.Status == San9.Core.Domain.OfficerStatus.Strategist)) ||

@@ -8,6 +8,20 @@ namespace San9.Content.Tests;
 
 public sealed class OfficerLifecycleContentTests
 {
+    [Fact]
+    public void RelativeBirthInputRoundTripsAndIsRequiredEvenWhenNull()
+    {
+        var person = new OfficerInitialState("person", new(1, null, null, new(50, 50, 50, 50), false)
+            { Status = OfficerStatus.Special }) { AgeAtScenarioStart = 34 };
+        var json = JsonSerializer.Serialize(person, ScenarioContentFiles.DataJsonOptions);
+        var restored = JsonSerializer.Deserialize<OfficerInitialState>(json, ScenarioContentFiles.DataJsonOptions)!;
+        Assert.Equal(156, restored.CreateState(190).BirthYear);
+        Assert.Equal(0, restored.State.BirthYear);
+        var root = JsonNode.Parse(json)!.AsObject();
+        root.Remove("ageAtScenarioStart");
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<OfficerInitialState>(root.ToJsonString(), ScenarioContentFiles.DataJsonOptions));
+    }
+
     [Theory]
     [InlineData("battleDeathsAllowed")]
     [InlineData("duelCapturesAllowed")]

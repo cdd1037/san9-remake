@@ -59,7 +59,7 @@ public partial class Main : Node
             var center = MapGeometry.Center(options.CenterX, options.CenterY);
             world.FocusWorld(new(center.X, center.Y)); world.SetZoom(options.Zoom);
             world.LoadMap(content.Map, content.TextureRoot, options.Season, options.AnimationTime);
-            ui.AddChild(new MapAnnotations { World = world, Selection = selection, Session = session, Texts = content.Text, UiFont = ui.GetThemeFont("font"), Skin = content.Skin, Textures = textures });
+            ui.AddChild(new MapAnnotations { World = world, Texts = content.Text, UiFont = ui.GetThemeFont("font") });
             var hud = new StrategyHud { World = world, Selection = selection, Session = session, Texts = content.Text, Skin = content.Skin, Textures = textures };
             ui.AddChild(hud);
             var debug = new DebugPanel { World = world, Session = session, Selection = selection }; ui.AddChild(debug);

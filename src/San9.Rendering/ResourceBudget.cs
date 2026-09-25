@@ -38,6 +38,11 @@ public sealed class ResourceBudget<TKey, TValue>(long budget, Action<TValue> rel
             bytes -= pair.Value.Bytes; _entries.Remove(pair.Key); release(pair.Value.Value); Evictions++;
         }
     }
+    public void RemoveUnused(Func<TKey, bool> predicate)
+    {
+        foreach (var pair in _entries.Where(p => p.Value.Pins == 0 && predicate(p.Key)).ToArray())
+        { _entries.Remove(pair.Key); release(pair.Value.Value); Evictions++; }
+    }
     public void Dispose() { foreach (var e in _entries.Values) release(e.Value); _entries.Clear(); }
     private sealed class PinLease(Action release) : IDisposable
     {

@@ -18,13 +18,13 @@ public sealed class TacticStudyInterruptionTests
         { Tactics = [new(9000, 0, TacticEffect.CounterConfusion, 0, 0, 0, false, false, [])] });
         var rules = new SimulationRules { Personnel = places, Military = military };
         var world = WorldState.Create(new(190, 1, 1), 10,
-            [new(1, 10000, 100000, 100) { LeaderId = 1 }, new(2, 10000, 100000, 100) { LeaderId = 3 }],
+            [new(1, 100) { LeaderId = 1 }, new(2, 100) { LeaderId = 3 }],
             [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100), new(2, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100),
              new(3, 2, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
             [new(1, 1, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
              new(2, 1, 1, new(50, 50, 50, 50), false),
              new(3, 2, 3, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }],
-            controls: [new("player", 1, ControllerKind.Player)]);
+            controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 100000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 3, new(10000, 100000)) { IsRoot = true }]);
         var engine = new SimulationEngine(world, rules);
         for (int i = 0; i < 9; i++) { engine.EndControl(new("player")); engine.AdvanceXun(); }
         Assert.True(engine.Execute(new("player"), new ChooseTacticStudentCommand(Guid.NewGuid(), 1, 0, 1, 2)).Submission.Accepted);

@@ -10,9 +10,9 @@ public sealed class MapNavigationTests
     [Fact]
     public void SelectionAndFilteredFacilitiesUseBuildingIdentityNotRegionMembership()
     {
-        var presentation = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "fixture", 190, 1, 1, 5, [new(5,"player",5,100,100,100),new(6,"enemy",6,100,100,100)],
+        var presentation = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "fixture", 190, 1, 1, 5, [new(5,"player",5,100),new(6,"enemy",6,100)],
             [new(100, "port", 5, 80, 65, 1000, 300, 300, 50, []), new(15, "city", 5, 89, 64, 32000, 500, 1000, 50, []),
-                new(16, "enemy", 6, 90, 60, 9000, 400, 600, 50, []), new(17, "empty", null, 88, 60, 0, 300, 600, 0, [])], [], []);
+                new(16, "enemy", 6, 90, 60, 9000, 400, 600, 50, []), new(17, "empty", null, 88, 60, 0, 300, 600, 0, [])], [], []) { Information = new([], [], [], [new San9.Core.Domain.CorpsState(5, 5, null, new(100, 100)) { IsRoot = true }, new San9.Core.Domain.CorpsState(6, 6, null, new(100, 100)) { IsRoot = true }], []) };
         var selection = new StrategySelection(San9.Application.GameSession.Start(presentation,1)); int changes = 0; selection.Changed += () => changes++;
         selection.SelectBuilding(100); Assert.Equal((80, 65), selection.Square); Assert.Equal(100, selection.BuildingId);
         selection.SelectSquare(89, 64); Assert.Equal(15, selection.BuildingId);

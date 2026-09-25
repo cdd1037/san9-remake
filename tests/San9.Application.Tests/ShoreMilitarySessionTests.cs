@@ -56,7 +56,7 @@ public sealed class ShoreMilitarySessionTests
             Military = original.Military! with { Tactics = [new(8000, 4, TacticEffect.FormationTechnology, 0, 0, 0, false, false, [20])],
                 Formations = original.Military.Formations
                 .Select(f => f.TravelMode == TravelMode.Water ? f with { RequiredTacticId = 8000 } : f).ToImmutableArray() },
-            Information = new([], [], [new(99, "treasure", 0, 0, 0, 8000)], [],
+            Information = new([], [], [new(99, "treasure", 0, 0, 0, 8000)], original.Information.Corps,
                 [new(99, hasTreasure ? 1 : null, TreasureDiscovery.Discovered, null)])
         };
         var session = GameSession.Start(definition, 42);
@@ -70,14 +70,14 @@ public sealed class ShoreMilitarySessionTests
     }
 
     private static ScenarioInitialState Fixture() => new(ScenarioInitialState.CurrentSchemaVersion, "shore-public", 190, 1, 1, 1,
-        [new(1, "force", 1, 10000, 10000, 100)],
+        [new(1, "force", 1, 100)],
         [new(1, "origin", 1, 0, 0, 10000, 100, 100, 70, []), new(2, "destination", 1, 5, 0, 100, 100, 100, 30, [])], [], [])
     {
         Officers = [new("officer", new(1, 1, 1, new(70, 70, 70, 70), false))],
         Military = new(6, 1, [0, 2, 1, 1, 2, 0], [new(0, 1, null), new(1, null, 1), new(2, 1, 1)],
             [new(10, 5, 0, 10000, 1, new(1, 1), TravelMode.Land), new(20, 5, 50, 10000, 1, new(1, 1), TravelMode.Water)],
             [new(1, new(2, 2), new(5, 5)), new(2, new(27, 2), new(5, 5))])
-    };
+    , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, null, new(10000, 10000)) { IsRoot = true }], []) };
 
     [Fact]
     public void PlannerChoosesReachableWaterEntrancesAndActualCommandDeliversReinforcements()

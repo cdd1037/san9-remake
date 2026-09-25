@@ -12,8 +12,8 @@ public sealed class EndingSnapshotTests
         var date = new GameClock(220, 1, 1);
         return new(date, new(date, 1))
         {
-            Forces = [new(8, 100, 200, 950) { LeaderId = 400 }, new(9, 900, 900, 0) { IsBarbarian = true }],
-            Corps = [new(10, 8, 400, null), new(11, 8, 401, new(300, 400)), new(12, 9, 900, new(900, 900))],
+            Forces = [new(8, 950) { LeaderId = 400 }, new(9, 0) { IsBarbarian = true }],
+            Corps = [new(10, 8, 400, new(100, 200)) { IsRoot = true }, new(11, 8, 401, new(300, 400)), new(12, 9, 900, new(900, 900))],
             Settlements = [
                 new(101, 8, 1000, 100, 100, 0, 600, 400, 400, 0, 0) { Wounded = 100 },
                 new(102, 9, 9999, 200, 200, 0, 700, 500, 500, 0, 0),

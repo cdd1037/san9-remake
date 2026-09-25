@@ -11,8 +11,8 @@ namespace San9.Application.Tests;
 public sealed class ShanyangGongSessionTests
 {
     private static ScenarioInitialState Definition() => new(ScenarioInitialState.CurrentSchemaVersion, "shanyang", 230, 2, 1, 1,
-        [new(1, "force.1", 1, 10000, 10000, 700) { LeaderId = 11, RankId = 7, BaseTrust = 700 },
-         new(2, "force.2", 2, 10000, 10000, 100) { LeaderId = 21, RankId = 7, BaseTrust = 100 }],
+        [new(1, "force.1", 1, 700) { LeaderId = 11, RankId = 7, BaseTrust = 700 },
+         new(2, "force.2", 2, 100) { LeaderId = 21, RankId = 7, BaseTrust = 100 }],
         Enumerable.Range(1, 3).Select(id => new SettlementInitialState(id, $"city.{id}", id < 3 ? 1 : 2, id, 0, 100, 100, 100, 50, [])
             { Kind = SettlementKind.City, ConsumesFood = false }).ToArray(),
         new() { [1] = "city.1", [2] = "city.2", [3] = "city.3" }, new() { [1] = 1, [2] = 2, [3] = 3 })
@@ -28,6 +28,7 @@ public sealed class ShanyangGongSessionTests
         ShanyangGong = new(99, 1, "刘", 700, 2, 20, 10, 11, 20, 40, new("shanyang")),
         Information = InformationDefinitions.Empty with
         {
+            Corps = [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 10000)) { IsRoot = true }],
             Ranks = [new(7, "rank.entry", 10000, 0, 0, 0), new(9, "rank.king", 20000, 500, 5, 50), new(12, "rank.emperor", 30000, 1000, 10, 100)],
             CountryTitles = [new(new(101, true, true, false, [], []), "title.a", 37)]
         }

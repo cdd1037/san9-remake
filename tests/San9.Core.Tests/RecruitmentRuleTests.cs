@@ -7,13 +7,13 @@ namespace San9.Core.Tests;
 public sealed class RecruitmentRuleTests
 {
     private static WorldState World(ulong seed = 0) => WorldState.Create(new(190, 1, 1), seed,
-        [new(1, 1000, 1000, 100) { LeaderId = 1 }, new(2, 1000, 1000, 100) { LeaderId = 2 }],
+        [new(1, 100) { LeaderId = 1 }, new(2, 100) { LeaderId = 2 }],
         [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100), new(2, 2, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
         [new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
          new(2, 2, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler, Affinity = 50 },
          new(10, 1, 1, new(50, 50, 100, 50), false) { Affinity = 50 },
          new(20, 2, 2, new(50, 50, 50, 50), false) { Righteousness = 5, ForceLoyalties = ImmutableDictionary<int, int>.Empty.Add(1, 50).Add(2, 90) }],
-        relations: [new(1, 2, 80)]);
+        relations: [new(1, 2, 80)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(1000, 1000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 2, new(1000, 1000)) { IsRoot = true }]);
 
     [Theory]
     [InlineData(49, 90, 0)]

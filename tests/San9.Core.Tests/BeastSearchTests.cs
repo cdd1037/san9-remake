@@ -1,9 +1,7 @@
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
-
 namespace San9.Core.Tests;
-
 public sealed class BeastSearchTests
 {
     internal static BeastSearchEventDefinition Definition => new(
@@ -18,13 +16,13 @@ public sealed class BeastSearchTests
         int lifespan = 3, bool loseLifespan = true)
     {
         var world = WorldState.Create(new(190, 1, 1), 123,
-            [new(1, 10000, 10000, 999) { LeaderId = 1, BaseTrust = 999 }],
+            [new(1, 999) { LeaderId = 1, BaseTrust = 999 }],
             [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
             [new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
              new(2, 1, 1, new(war, 50, 500, 50), false) { LifespanTier = lifespan, LearnedTactics = knows ? [1, 9] : [] },
              new(4, 1, 1, new(war, 50, 500, 50), false),
              new(3, null, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Undiscovered }],
-            controls: [new("player", 1, ControllerKind.Player)]);
+            controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }]);
         var mutation = world.BeginMutation();
         mutation.SetSimulation(mutation.Simulation with { RandomStreams =
             [new("event-beast-battle", SeedForRoll(battleRoll)), new("event-search-eligibility", SeedForRoll(0))] });
@@ -45,7 +43,6 @@ public sealed class BeastSearchTests
         var prompt = engine.GetBeastSearchPrompt()!;
         return new(Guid.NewGuid(), prompt.ForceId, engine.Snapshot.Simulation.NextSequence, prompt.TaskId, prompt.Step, fight);
     }
-
     [Fact]
     public void EscapeConsumesOnlySelectedSiteWithoutBattleOrOrdinarySearchAndAnswersOnlyOnce()
     {
@@ -76,7 +73,6 @@ public sealed class BeastSearchTests
         Assert.False(engine.Execute(new("player"), answer).Submission.Accepted);
         Assert.Equal(after, engine.Snapshot.StateHash);
     }
-
     [Theory]
     [InlineData(18, EventResult.Succeeded)]
     [InlineData(19, EventResult.Defeated)]
@@ -111,7 +107,6 @@ public sealed class BeastSearchTests
         Assert.Single(engine.Snapshot.Simulation.ConsumedEventKeys);
         Assert.DoesNotContain(response.Events, e => e is SearchResolvedEvent);
     }
-
     [Theory]
     [InlineData(true, 3, 2)]
     [InlineData(true, 0, 0)]
@@ -126,7 +121,6 @@ public sealed class BeastSearchTests
         Assert.Equal(0, result.Roll);
         Assert.Equal(expected, result.LifespanTier);
     }
-
     [Theory]
     [InlineData(0, 10)]
     [InlineData(9, 10)]
@@ -140,7 +134,6 @@ public sealed class BeastSearchTests
         var (world, _) = Create(war: war);
         Assert.Equal(expected, SearchEvents.BattleChance(world.BeginMutation(), 2, Definition));
     }
-
     [Fact]
     public void ConsumedSiteStillDrawsOneEligibilityRollThenContinuesOrdinarySearch()
     {
@@ -156,7 +149,6 @@ public sealed class BeastSearchTests
         var random = new StableRandom(SeedForRoll(0)); random.NextUInt64();
         Assert.Equal(random.State, engine.Snapshot.Simulation.RandomStreams.Single(s => s.Name == "event-search-eligibility").State);
     }
-
     [Fact]
     public void KnownRewardPoolStillGrantsWarAndTrustWithoutDuplicateTactic()
     {
@@ -171,7 +163,6 @@ public sealed class BeastSearchTests
         Assert.Equal(100, engine.Snapshot.Officers.Single(p => p.Id == 2).BaseAbilities.War);
         Assert.Equal(1000, Assert.Single(engine.Snapshot.Forces).BaseTrust);
     }
-
     [Fact]
     public void SameDaySecondSearchCannotPresentAlreadyConsumedSite()
     {
@@ -187,7 +178,6 @@ public sealed class BeastSearchTests
         Assert.Equal(4, engine.GetSearchRecruitmentPrompt()!.SearchingOfficerId);
         Assert.Single(engine.Snapshot.Simulation.ConsumedEventKeys);
     }
-
     [Fact]
     public void InvalidatedPreparedSiteCancelsWithoutRerollingOrPartialEffect()
     {

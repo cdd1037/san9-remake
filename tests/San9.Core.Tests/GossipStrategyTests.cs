@@ -38,10 +38,10 @@ public sealed class GossipStrategyTests
     {
         var forces = new[]
         {
-            new ForceState(1, 10000, 10000, 100) { LeaderId = 11 },
-            new ForceState(2, 10000, 10000, 100) { LeaderId = 21,
+            new ForceState(1, 100) { LeaderId = 11 },
+            new ForceState(2, 100) { LeaderId = 21,
                 AdviserId = firstOnlyRuler ? null : 22, IsBarbarian = firstBarbarian },
-            new ForceState(3, 10000, 10000, 100) { LeaderId = 31 }
+            new ForceState(3, 100) { LeaderId = 31 }
         };
         List<OfficerState> officers =
         [
@@ -65,7 +65,7 @@ public sealed class GossipStrategyTests
             [new(1, 1, 10000, 300, 300, 70, 500, 0, 100, 0, 100),
              new(2, 2, 10000, 300, 300, 70, 500, 0, 100, 0, 100),
              new(3, 3, 10000, 300, 300, 70, 500, 0, 100, 0, 100)],
-            officers, relations: [new(1, 2, 50), new(1, 3, 50), new(2, 3, 90)], controls: controls);
+            officers, relations: [new(1, 2, 50), new(1, 3, 50), new(2, 3, 90)], controls: controls, corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, 31, new(10000, 10000)) { IsRoot = true }]);
     }
 
     private static PersistentTask Submit(WorldState world, SimulationRules rules, int? roll)
@@ -150,7 +150,7 @@ public sealed class GossipStrategyTests
         var world = World();
         var engine = new SimulationEngine(world, rules);
         string before = engine.Snapshot.StateHash;
-        uint money = engine.Snapshot.Forces.Single(force => force.Id == 1).Money;
+        uint money = engine.Snapshot.Corps.Single(force => force.IsRoot && force.OwnerId == 1).Treasury.Money;
 
         Assert.Equal(AdviserOpinion.NoAdviser, engine.GetGossipAdvice(1, 11, 2, 3).Opinion);
         Assert.Equal(before, engine.Snapshot.StateHash);
@@ -158,7 +158,7 @@ public sealed class GossipStrategyTests
         Assert.Equal(new GossipMission(2, 3), task.Journey!.Gossip);
         Assert.Equal(ConditionalRandom.Percentile(42, ConditionalRandomPurpose.Gossip,
             new(190, 1, 1), 11, 2, 3), task.Journey.SuccessRoll);
-        Assert.Equal(money, engine.Snapshot.Forces.Single(force => force.Id == 1).Money);
+        Assert.Equal(money, engine.Snapshot.Corps.Single(force => force.IsRoot && force.OwnerId == 1).Treasury.Money);
     }
 
     [Fact]

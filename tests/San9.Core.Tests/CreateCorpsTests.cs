@@ -8,14 +8,14 @@ public sealed class CreateCorpsTests
     private static SimulationEngine Engine(bool rulerAtFacility = false)
     {
         var world = WorldState.Create(new(190, 1, 1), 1,
-            [new(1, 1000, 1000, 0) { LeaderId = 1 }],
+            [new(1, 0) { LeaderId = 1 }],
             [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100) { CorpsId = 10 },
              new(2, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100) { CorpsId = 10 },
              new(20, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100) { CorpsId = 10, Kind = SettlementKind.Facility }],
             [new(1, 1, rulerAtFacility ? 20 : 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
              new(2, 1, 2, new(50, 50, 50, 50), false),
              new(3, 1, 20, new(50, 50, 50, 100), false)],
-            corps: [new(10, 1, 1, null)], controls: [new("player", 1, ControllerKind.Player)]);
+            corps: [new(10, 1, 1, new(1000, 1000)) { IsRoot = true }], controls: [new("player", 1, ControllerKind.Player)]);
         return new(world, EconomyRulebook.Empty, new PersonnelRulebook(
             [new(1, new(0, 0)), new(2, new(100, 100)), new(20, new(110, 110))],
             new Dictionary<int,int> { [1] = 1, [2] = 2, [20] = 2 }));

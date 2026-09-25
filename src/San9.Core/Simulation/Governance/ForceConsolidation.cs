@@ -53,7 +53,7 @@ internal static class ForceConsolidation
         var source = world.Forces[absorbed];
         var target = world.Forces[survivor];
         var leader = world.Officers[target.LeaderId!.Value];
-        int? root = world.Corps.Values.Where(c => c.OwnerId == survivor && c.Treasury is null).Select(c => (int?)c.Id).SingleOrDefault();
+        int? root = world.Corps.Values.Where(c => c.OwnerId == survivor && c.IsRoot).Select(c => (int?)c.Id).SingleOrDefault();
         ForceTransfer.CancelTasks(world, absorbed, rules, Reason, events, false);
         foreach (var person in world.Officers.Values.Where(p => p.OwnerId == absorbed).OrderBy(p => p.Id).ToArray())
         {

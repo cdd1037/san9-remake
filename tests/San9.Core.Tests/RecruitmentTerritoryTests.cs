@@ -19,14 +19,14 @@ public sealed class RecruitmentTerritoryTests
         static SettlementState Place(int id, int owner) => new(id, owner, 1000, 100, 100, 70, 500, 100, 1000, 100, 1000)
             { CorpsId = owner, ConsumesFood = false };
         var world = WorldState.Create(new(190, 1, 1), 190,
-            [new(1, 10000, 10000, 1000) { LeaderId = 1, BaseTrust = 1000 },
-             new(2, 10000, 10000, 0) { LeaderId = 2 }],
+            [new(1, 1000) { LeaderId = 1, BaseTrust = 1000 },
+             new(2, 0) { LeaderId = 2 }],
             [Place(1, 1), Place(2, 2), Place(3, 2) with { Kind = keepCity ? SettlementKind.City : SettlementKind.Facility }],
             [Person(1, 1, 1, true), Person(2, 2, 3, true), Person(11, 1, 1),
              Person(20, 2, 2) with { IsCommander = true },
              Person(30, 1, 2) with { Status = OfficerStatus.Captive },
              Person(31, 2, 2) with { Status = OfficerStatus.Captive }],
-            corps: [new(1, 1, 1, null), new(2, 2, 2, null)], relations: [new(1, 2, 50)],
+            corps: [new(1, 1, 1, new(10000, 10000)) { IsRoot = true }, new(2, 2, 2, new(10000, 10000)) { IsRoot = true }], relations: [new(1, 2, 50)],
             controls: [new("player", 1, ControllerKind.Player), new("ai:2", 2, ControllerKind.Automatic)],
             naturalDeathsEnabled: false, forceEmergenceEnabled: false, cityIndependenceEnabled: false,
             forceConsolidationEnabled: false, settlementDefectionsEnabled: false, unitDefectionsEnabled: false);

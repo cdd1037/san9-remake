@@ -63,7 +63,7 @@ internal static class PrisonerCompensation
         var other = world.Forces[target];
         var refused = new CompensationOffer(CompensationKind.Refuse, 0, null, null);
         uint amount = Value(world, requester, envoy, target, prisoner);
-        if (DiplomacyMath.CanQuotePrisonerRansom(source.Money, amount))
+        if (DiplomacyMath.CanQuotePrisonerRansom(ResourceAccounts.Root(world, source.Id).Treasury.Money, amount))
             return new(CompensationKind.Money, amount, null, null);
         if (source.LeaderId is not int sourceRuler || other.LeaderId is not int targetRuler ||
             !world.Officers[sourceRuler].IsServing || !world.Officers[targetRuler].IsServing) return refused;
@@ -82,7 +82,7 @@ internal static class PrisonerCompensation
         {
             CompensationKind.Free => true,
             CompensationKind.Prisoner => IsHeld(world, offer.PrisonerId!.Value, target, requester),
-            CompensationKind.Money => source.Money >= offer.Money,
+            CompensationKind.Money => ResourceAccounts.Root(world, source.Id).Treasury.Money >= offer.Money,
             CompensationKind.Treasure => source.LeaderId is int ruler && recipient.LeaderId is int targetRuler &&
                 world.Officers[ruler].IsServing && world.Officers[targetRuler].IsServing &&
                 world.Treasures.TryGetValue(offer.TreasureId!.Value, out var item) && item.Discovered && item.HolderId == ruler &&

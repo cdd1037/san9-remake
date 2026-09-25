@@ -11,14 +11,14 @@ public sealed class ForceConsolidationTests
     private static OfficerState Person(int id, int owner, int place, OfficerStatus status = OfficerStatus.Serving) =>
         new OfficerState(id, owner, place, new(50, 50, 50, 50), false) { Status = status }.WithLoyalty(owner, 60);
     private static WorldState World() => WorldState.Create(new(190, 1, 1), 17,
-        [new(1, 100, 100, 100) { LeaderId = 11 }, new(2, 200, 300, 100) { LeaderId = 21, BaseTrust = 100 },
-         new(3, 400, 500, 100) { LeaderId = 31, BaseTrust = 200 }],
+        [new(1, 100) { LeaderId = 11 }, new(2, 100) { LeaderId = 21, BaseTrust = 100 },
+         new(3, 100) { LeaderId = 31, BaseTrust = 200 }],
         [City(1, 1, 50000), City(2, 1, 50000), City(3, 2, 10000), City(4, 3, 10000)],
         [Person(11, 1, 1, OfficerStatus.Ruler), Person(21, 2, 3, OfficerStatus.Ruler), Person(22, 2, 3),
          Person(31, 3, 4, OfficerStatus.Ruler), Person(32, 3, 4)],
         relations: [new(1, 2, 0), new(1, 3, 0), new(2, 3, 100)],
         controls: [new("player", 1, ControllerKind.Player), new("ai:2", 2, ControllerKind.Automatic), new("ai:3", 3, ControllerKind.Automatic)],
-        annualAppearancesEnabled: false, naturalDeathsEnabled: false, freeOfficerMigrationEnabled: false, officeRequestsEnabled: false);
+        annualAppearancesEnabled: false, naturalDeathsEnabled: false, freeOfficerMigrationEnabled: false, officeRequestsEnabled: false, corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(100, 100)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(200, 300)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, 31, new(400, 500)) { IsRoot = true }]);
 
     private static SimulationRules Rules(TerritoryExits exits = TerritoryExits.All) => new()
     {
@@ -97,8 +97,8 @@ public sealed class ForceConsolidationTests
         Assert.False(mutation.Simulation.ForceConsolidationPending);
         Assert.True(mutation.Forces[2].IsEliminated);
         Assert.Equal(260, mutation.Forces[3].BaseTrust);
-        Assert.Equal(600u, mutation.Forces[3].Money);
-        Assert.Equal(800u, mutation.Forces[3].Food);
+        Assert.Equal(600u, mutation.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 3).Treasury.Money);
+        Assert.Equal(800u, mutation.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 3).Treasury.Food);
         Assert.Equal(100, mutation.Officers[21].Loyalty);
         Assert.Equal(85, mutation.Officers[22].Loyalty);
         Assert.Equal(20000u, mutation.Settlements[3].Soldiers);
@@ -221,7 +221,7 @@ public sealed class ForceConsolidationTests
         var world = WorldState.Create(initial.Clock, 17, initial.Forces, initial.Settlements,
             initial.Officers.Concat([Person(23, 2, 1, OfficerStatus.Captive), Person(24, 2, 4, OfficerStatus.Captive),
                 Person(33, 3, 3, OfficerStatus.Captive), Person(12, 1, 3, OfficerStatus.Captive)]),
-            relations: initial.Relations, controls: initial.Simulation.Controls);
+            relations: initial.Relations, controls: initial.Simulation.Controls, corps: initial.Corps);
         var mutation = Pending(world);
         List<DomainEvent> events = [];
         ForceConsolidation.Apply(mutation, Rules(), events);
@@ -242,13 +242,13 @@ public sealed class ForceConsolidationTests
     {
         var initial = World().CreateSnapshot();
         var world = WorldState.Create(initial.Clock, 17,
-            initial.Forces.Select(f => f.Id == 3 ? f with { Money = 999900 } : f),
+            initial.Forces,
             initial.Settlements.Select(s => s.Id == 3 ? s with { CorpsId = 21 } : s.Id == 4 ? s with { CorpsId = 30, SoldierCapacity = 15000 } : s),
             initial.Officers.Concat([Person(23, 2, 3) with { SettlementId = null, UnitId = 50 }]),
             units: [new(50, 2, new(12, 2), 1000) { FormationId = 9, ServicePlaceId = 3, CorpsId = 21, Morale = 70,
                 CommanderId = 23, CargoMoney = 99, CargoFood = 88,
                 MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(23, BattleRank.Front) }],
-            corps: [new(20, 2, 21, null), new(21, 2, 22, new(2000, 3000)), new(30, 3, 31, null)],
+            corps: [..initial.Corps.Where(c => c.OwnerId == 1), new(20, 2, 21, new(200, 300)) { IsRoot = true }, new(21, 2, 22, new(2000, 3000)), new(30, 3, 31, new(999900, 500)) { IsRoot = true }],
             relations: initial.Relations, controls: initial.Simulation.Controls);
         var mutation = Pending(world);
         // Keep force 3 as survivor despite force 2's additional field troops.
@@ -281,8 +281,8 @@ public sealed class ForceConsolidationTests
     {
         var world = World();
         var engine = new SimulationEngine(world, Rules());
-        uint sourceMoney = engine.Snapshot.Forces.Single(f => f.Id == 2).Money;
-        uint targetMoney = engine.Snapshot.Forces.Single(f => f.Id == 3).Money;
+        uint sourceMoney = engine.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 2).Treasury.Money;
+        uint targetMoney = engine.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 3).Treasury.Money;
         engine.EndControl(new("player"));
         var outgoing = new GiftCommand(Guid.NewGuid(), 2, 0, 22, 1, new(GiftKind.Money, 100, null));
         Assert.True(engine.Execute(new("ai:2"), outgoing).Submission.Accepted);
@@ -293,7 +293,7 @@ public sealed class ForceConsolidationTests
         List<DomainEvent> events = [];
         ForceConsolidation.Apply(mutation, Rules(), events);
         Assert.Equal(sourceMoney, Assert.Single(events.OfType<ForcesConsolidatedEvent>()).MoneyRemoved);
-        Assert.Equal(sourceMoney + targetMoney, mutation.Forces[3].Money);
+        Assert.Equal(sourceMoney + targetMoney, mutation.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 3).Treasury.Money);
         Assert.Equal(new[] { outgoing.CommandId, incoming.CommandId }.Order(),
             events.OfType<TaskCancelledEvent>().Select(e => e.TaskId).Order());
         Assert.DoesNotContain(mutation.Simulation.Tasks, t => t.Gift is not null || t.ForceId == 2);

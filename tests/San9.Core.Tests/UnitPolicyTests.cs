@@ -15,7 +15,7 @@ public sealed class UnitPolicyTests
          new(2, new(95, 2), new(1, 1)) { Combat = new(10, 10, 10, 10, 50) }]) { PolicyRadius = 10 });
 
     private static WorldState World(int personality = 1, UnitPolicies? policies = null, MilitaryOrder? order = null) =>
-        WorldState.Create(new(190, 1, 1), 42, [new(1, 10000, 10000, 100), new(2, 10000, 10000, 100)],
+        WorldState.Create(new(190, 1, 1), 42, [new(1, 100), new(2, 100)],
             [new(1, 1, 5000, 100, 100, 80, 500, 0, 100, 0, 100), new(2, 2, 5000, 100, 100, 80, 500, 0, 100, 0, 100)],
             [new(11, 1, null, new(80, 80, 80, 80), false) { UnitId = 1, Personality = personality },
              new(22, 2, null, new(80, 80, 80, 80), false) { UnitId = 2, Personality = 3 }],
@@ -23,7 +23,7 @@ public sealed class UnitPolicyTests
                 Policies = policies ?? new(), Order = order ?? Mission, MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(11, BattleRank.Front) },
              new(2, 2, new(25, 10), 5000) { FormationId = 1, CommanderId = 22, ServicePlaceId = 2, Morale = 80,
                 MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(22, BattleRank.Front) }],
-            controls: [new("player", 1, ControllerKind.Player)]);
+            controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, null, new(10000, 10000)) { IsRoot = true }]);
 
     [Theory]
     [InlineData(true, 0, 0, true)]

@@ -18,11 +18,11 @@ public sealed class TigerSearchTests
     private static (WorldMutation World, PersistentTask Task) Create(int eligibilityRoll = 0, int battleRoll = 0)
     {
         var world = WorldState.Create(new(190, 2, 1), 123,
-            [new(1, 10000, 10000, 100) { LeaderId = 1, BaseTrust = 100 }],
+            [new(1, 100) { LeaderId = 1, BaseTrust = 100 }],
             [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
             [new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
              new(2, 1, 1, new(99, 0, 0, 0), false) { LifespanTier = 3 }],
-            controls: [new("player", 1, ControllerKind.Player)]).BeginMutation();
+            controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }]).BeginMutation();
         world.SetSimulation(world.Simulation with { RandomStreams =
             [new("event-search-eligibility", Seed(eligibilityRoll)), new("event-tiger-battle", Seed(battleRoll))] });
         return (world, new(Guid.NewGuid(), "personnel-search", "player", 1, 2, 1, world.Clock, world.Clock, 0, 0)
@@ -128,9 +128,9 @@ public sealed class TigerSearchTests
     public void InjuryAndTreasureBonusesAffectTigerAndBeastBattleChancesButTreasureTacticsDoNotQualifyForBeast()
     {
         var book = new TreasureRulebook([new(50, new(20, 0, 0, 0), 0) { TacticId = 1 }]);
-        var state = WorldState.Create(new(190, 2, 1), 1, [new(1, 100, 100, 100)], [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
+        var state = WorldState.Create(new(190, 2, 1), 1, [new(1, 100)], [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
             [new(2, 1, 1, new(60, 0, 0, 0), false) { Injury = 3 }],
-            treasures: [new(50, 2, TreasureDiscovery.Discovered, null)]);
+            treasures: [new(50, 2, TreasureDiscovery.Discovered, null)], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(100, 100)) { IsRoot = true }]);
         var world = state.BeginMutation(new(book, new([])));
         int effective = world.Abilities(world.Officers[2]).War;
         Assert.NotEqual(60, effective); Assert.Equal(Math.Max(20, effective), TigerSearch.BattleChance(world, 2, Definition));

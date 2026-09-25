@@ -41,6 +41,7 @@ public sealed class AllianceFormationTests
         var snapshot = Ready(5, 2, 3, 4, 5).Snapshot;
         snapshot = snapshot with
         {
+            Corps = snapshot.Corps.Select(c => c with { LeaderId = c.OwnerId == 5 ? 11 : null }).ToArray(),
             Forces = snapshot.Forces.Select(f => f with { LeaderId = f.Id == 5 ? 11 : null }).ToImmutableArray(),
             Officers = [new(11, 5, 500, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
                 new(12, 5, 500, new(50, 50, 50, 50), false),
@@ -77,11 +78,11 @@ public sealed class AllianceFormationTests
         var controls = Enumerable.Range(1, 5).Select(id => new ControlSeat($"controller:{id}", id,
             players.Contains(id) ? ControllerKind.Player : ControllerKind.Automatic)).ToImmutableArray();
         var world = WorldState.Create(new(190, 1, 1), seed,
-            Enumerable.Range(1, 5).Select(id => new ForceState(id, 0, 100000, 50) { BaseTrust = 50 }),
+            Enumerable.Range(1, 5).Select(id => new ForceState(id, 50) { BaseTrust = 50 }),
             Enumerable.Range(1, 5).Select(id => new SettlementState(id * 100, id, 0, 100, 100, 0, 500, 0, 0, 0, 0)
                 { Population = 100000, DraftPopulation = id == 1 ? 400001u : 0 }), [],
             relations: Enumerable.Range(1, 5).SelectMany(first => Enumerable.Range(first + 1, 5 - first)
-                .Select(second => new ForceRelation(first, second, first == 1 && second == 5 ? 80 : 40))), controls: controls);
+                .Select(second => new ForceRelation(first, second, first == 1 && second == 5 ? 80 : 40))), controls: controls, corps: [.. Enumerable.Range(1, 5).Select(id => new San9.Core.Domain.CorpsState(id, id, null, new(0, 100000)) { IsRoot = true })]);
         var initial = new SimulationEngine(world, Rules()).CaptureStableState();
         return new(WorldState.Restore(initial with { Clock = new(190, 12, 21),
             Simulation = initial.Simulation with { ActiveControl = controls.Length } }), Rules());
@@ -278,8 +279,8 @@ public sealed class AllianceFormationTests
             new(201, 2, new(2, 0), 100) { FormationId = 0, Order = attackOutside, EngagementTargetId = 101 },
             new(301, 3, new(4, 0), 100) { FormationId = 0, Order = new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 101 } }
         };
-        var world = WorldState.Create(new(190, 1, 1), 5, [new(1, 0, 0, 0), new(2, 0, 0, 0), new(3, 0, 0, 0)],
-            [new(100, 1, 0, 100, 100, 0, 0, 0, 0, 0, 0)], [], units).BeginMutation();
+        var world = WorldState.Create(new(190, 1, 1), 5, [new(1, 0), new(2, 0), new(3, 0)],
+            [new(100, 1, 0, 100, 100, 0, 0, 0, 0, 0, 0)], [], units, corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(0, 0)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, null, new(0, 0)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, null, new(0, 0)) { IsRoot = true }]).BeginMutation();
         List<DomainEvent> events = [];
         AllianceFormation.ClearConflicts(world, new HashSet<int> { 1, 2 }, null, events);
         Assert.Equal(new MilitaryOrder(MilitaryOrderKind.Return, null, 100), world.Units[101].Order);
@@ -299,7 +300,7 @@ public sealed class AllianceFormationTests
     [Fact]
     public void SparseRelationsCanBeEstablishedSymmetricallyWithoutInventingZeroChangeEvents()
     {
-        var world = WorldState.Create(new(190, 1, 1), 1, [new(1, 0, 0, 0), new(2, 0, 0, 0)], [], []).BeginMutation();
+        var world = WorldState.Create(new(190, 1, 1), 1, [new(1, 0), new(2, 0)], [], [], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(0, 0)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, null, new(0, 0)) { IsRoot = true }]).BeginMutation();
         List<DomainEvent> events = [];
         ForceRelations.Set(world, 2, 1, 0, events);
         Assert.Empty(events);

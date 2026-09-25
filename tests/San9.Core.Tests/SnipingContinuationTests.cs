@@ -23,7 +23,7 @@ public sealed class SnipingContinuationTests
             initial.Forces.Select(f => f.Id == 2 ? f with { LeaderId = 22 } : f), initial.Settlements, people,
             units: initial.Units.Select(u => u.Id == 1 ? u with { CommanderId = 12,
                 MemberRanks = u.MemberRanks.Add(12, BattleRank.Rear) } : u),
-            controls: [new("first", 1, ControllerKind.Player), new("second", 2, ControllerKind.Player)], battleDeathsEnabled: true);
+            controls: [new("first", 1, ControllerKind.Player), new("second", 2, ControllerKind.Player)], battleDeathsEnabled: true, corps: initial.Corps);
         var m = world.BeginMutation();
         ulong seed = 1;
         for (;; seed++)

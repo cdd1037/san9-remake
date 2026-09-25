@@ -40,13 +40,13 @@ public sealed class IntelligenceTacticTests
             Wounded = effect == TacticEffect.Heal ? wounded : 0, Condition = effect == TacticEffect.Heal || existingConfusion > 0 ? UnitCondition.Confused : UnitCondition.Normal,
             ConditionDaysRemaining = effect == TacticEffect.Heal ? 100 : existingConfusion,
             MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(21, BattleRank.Middle) });
-        List<ForceState> forces = [new(1, 10000, 10000, 100) { LeaderId = 11 }];
-        if (!support) forces.Add(new(2, 10000, 10000, 100) { LeaderId = 21 });
+        List<ForceState> forces = [new(1, 100) { LeaderId = 11 }];
+        if (!support) forces.Add(new(2, 100) { LeaderId = 21 });
         List<SettlementState> settlements = [new(1, 1, 1000, 100, 100, 100, 0, 0, 100, 0, 100),
             new(2, targetOwner, 10000, 100, 100, 100, 0, 0, 100, 0, 100) { ConfusionDaysRemaining = existingConfusion }];
         if (area)
         {
-            forces.Add(new(3, 10000, 10000, 100) { LeaderId = 31 });
+            forces.Add(new(3, 100) { LeaderId = 31 });
             officers.Add(new(31, 3, null, new(70, 0, 70, 70), false) { UnitId = 2 });
             units.Add(new(2, 3, new(9, 2), 10000) { FormationId = 200, Morale = 100, ServicePlaceId = 3,
                 MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(31, BattleRank.Middle) });
@@ -65,7 +65,7 @@ public sealed class IntelligenceTacticTests
             forces[2] = forces[2] with { LeaderId = null };
         }
         var engine = new SimulationEngine(WorldState.Create(new(190, 1, 1), 42, forces, settlements, officers, units: units,
-            controls: [new("player", 1, ControllerKind.Player)]), EconomyRulebook.Empty, new PersonnelRulebook([new(1, new(2, 2)), new(2, new(17, 2))],
+            controls: [new("player", 1, ControllerKind.Player)], corps: forces.Select(f => new CorpsState(f.Id, f.Id, f.LeaderId, new(10000, 10000)) { IsRoot = true })), EconomyRulebook.Empty, new PersonnelRulebook([new(1, new(2, 2)), new(2, new(17, 2))],
                 new Dictionary<int, int> { [101] = 1, [102] = 2 }), TreasureRulebook.Empty, military: rules);
         captureRules?.Invoke(rules);
         Assert.True(engine.Execute(Player, new SelectTacticCommand(Guid.NewGuid(), 1, 0, 11, 9000)).Submission.Accepted);

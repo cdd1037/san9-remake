@@ -10,14 +10,14 @@ public sealed class SearchOutcomeTests
         bool probeGrowth = false, ulong fundsSeed = 52)
     {
         var world = WorldState.Create(new(190, 1, 1), seed,
-            [new(1, 10000, 10000, 0) { LeaderId = 1 }],
+            [new(1, 0) { LeaderId = 1 }],
             [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
             [new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
              new(2, 1, 1, new(50, 50, politics, 50), false),
              new(3, null, null, new(50, 50, 50, 50), false) { Status = person ? OfficerStatus.Undiscovered : OfficerStatus.Dead,
                  RegionId = 30, ForceLoyalties = ImmutableDictionary<int, int>.Empty.Add(1, 40) }],
             treasures: item ? [new(10, null, TreasureDiscovery.Buried, 30)] : [],
-            controls: [new("player", 1, automatic ? ControllerKind.Automatic : ControllerKind.Player)]);
+            controls: [new("player", 1, automatic ? ControllerKind.Automatic : ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }]);
         if (probeGrowth)
         {
             var mutation = world.BeginMutation();
@@ -74,11 +74,11 @@ public sealed class SearchOutcomeTests
     public void AutomaticSearchUsesLimitedResultsAndCreditsFundsWithoutPoliticsGrowth()
     {
         var engine = Engine(false, true, true);
-        uint before = Assert.Single(engine.Snapshot.Forces).Money;
+        uint before = engine.Snapshot.Corps.Single(c => c.IsRoot).Treasury.Money;
         var result = Search(engine);
         Assert.Equal(SearchResultKind.Money, result.Result);
         Assert.True(result.Money > 0);
-        Assert.Equal((long)before + result.Money - 1, Assert.Single(engine.Snapshot.Forces).Money); // Normal xun salary remains payable.
+        Assert.Equal((long)before + result.Money - 1, engine.Snapshot.Corps.Single(c => c.IsRoot).Treasury.Money); // Normal xun salary remains payable.
         Assert.Null(Assert.Single(engine.Snapshot.Treasures).HolderId);
         Assert.DoesNotContain(engine.Snapshot.Simulation.RandomStreams, s => s.Name is "personnel-search-treasure" or "personnel-politics-growth");
     }
@@ -87,9 +87,9 @@ public sealed class SearchOutcomeTests
     public void EmptySearchCanFinishWithoutRewardAndStillReturn()
     {
         var engine = Engine(false, false, politics: 1);
-        uint before = Assert.Single(engine.Snapshot.Forces).Money;
+        uint before = engine.Snapshot.Corps.Single(c => c.IsRoot).Treasury.Money;
         Assert.Equal(SearchResultKind.None, Search(engine).Result);
-        Assert.Equal(before - 1, Assert.Single(engine.Snapshot.Forces).Money);
+        Assert.Equal(before - 1, engine.Snapshot.Corps.Single(c => c.IsRoot).Treasury.Money);
         Assert.Single(engine.Snapshot.Simulation.Tasks);
     }
 

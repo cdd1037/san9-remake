@@ -125,7 +125,7 @@ public partial class StrategyHud
             San9.Application.Presentation.RosterPage.Officers, leaderId), "Officer ruler shortcut mismatch.");
         var officerEntry = _rosterList.Roster.Current.Visible.First();
         await Click(_rosterList.Rows[1].GetGlobalRect().GetCenter());
-        var officerLocation = Scenario.Settlements.Single(s => s.Id == officerEntry.SettlementId);
+        var officerLocation = Scenario.Settlements.Single(s => s.Id == ((San9.Application.Presentation.RosterSettlementLocation)officerEntry.Location).Id);
         var officerCenter = San9.Rendering.MapGeometry.Center(officerLocation.X, officerLocation.Y);
         Check(World.CameraPosition.DistanceTo(new(officerCenter.X, officerCenter.Y)) < .01f && Selection.BuildingId == oldSelection,
             "Officer activation did not navigate independently of map selection.");

@@ -12,12 +12,12 @@ public sealed class NaturalDeathReturnTimingTests
     {
         var places = new PersonnelRulebook([new(10, new(0, 0)), new(20, new(1000, 0))]);
         var world = WorldState.Create(new(190, 1, 1), 42,
-            [new(1, 1000, 1000, 0) { LeaderId = 1 }, new(2, 1000, 1000, 0) { LeaderId = 2 }],
+            [new(1, 0) { LeaderId = 1 }, new(2, 0) { LeaderId = 2 }],
             [new(10, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100), new(20, 2, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
             [new(1, 1, 10, new(70, 70, 70, 70), false) { Status = OfficerStatus.Ruler },
              new(2, 2, 20, new(70, 70, 70, 70), false) { Status = OfficerStatus.Ruler },
              new(3, 1, 10, new(70, 70, 70, 70), false),
-             new(4, null, 20, new(70, 70, 70, 70), false) { Status = OfficerStatus.Free, BirthYear = 90 }]);
+             new(4, null, 20, new(70, 70, 70, 70), false) { Status = OfficerStatus.Free, BirthYear = 90 }], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(1000, 1000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 2, new(1000, 1000)) { IsRoot = true }]);
         var mutation = world.BeginMutation();
         mutation.SetClock(new(191, 1, 1));
         var mission = new PersistentTask(Guid.NewGuid(), PersonnelMissions.RecruitKind, "system", 1, 3, 10,

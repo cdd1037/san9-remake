@@ -42,19 +42,19 @@ internal static class RulerSuccession
         if (corpsId is int id)
         {
             var corps = world.Corps[id];
-            if (corps.LeaderId != successorId && corps.LeaderId != previousId && world.Officers[corps.LeaderId].Status == OfficerStatus.Governor)
-                world.Replace(world.Officers[corps.LeaderId] with { Status = OfficerStatus.Serving });
-            var root = world.Corps.Values.SingleOrDefault(c => c.OwnerId == forceId && c.Treasury is null);
-            if (corps.Treasury is not null)
+            if (corps.LeaderId is int corpsLeader && corpsLeader != successorId && corps.LeaderId != previousId && world.Officers[corpsLeader].Status == OfficerStatus.Governor)
+                world.Replace(world.Officers[corpsLeader] with { Status = OfficerStatus.Serving });
+            var root = world.Corps.Values.SingleOrDefault(c => c.OwnerId == forceId && c.IsRoot);
+            if (root is not null && root.Id != id)
             {
                 foreach (var resource in new[] { ResourceKind.Money, ResourceKind.Food })
                 {
-                    long amount = ResourceAccounts.Balance(world, new(ResourceOwnerKind.Corps, id), resource);
-                    ResourceAccounts.Change(world, new(ResourceOwnerKind.Corps, id), resource, -amount, "ruler-succession", previousId, events);
-                    ResourceAccounts.Change(world, new(ResourceOwnerKind.Force, forceId), resource, amount, "ruler-succession", previousId, events);
+                    long amount = ResourceAccounts.Balance(world, new(ResourceOwnerKind.Corps, root.Id), resource);
+                    ResourceAccounts.Change(world, new(ResourceOwnerKind.Corps, root.Id), resource, -amount, "ruler-succession", previousId, events);
+                    ResourceAccounts.Change(world, new(ResourceOwnerKind.Corps, id), resource, amount, "ruler-succession", previousId, events);
                 }
             }
-            world.Replace(world.Corps[id] with { LeaderId = successorId, Treasury = null, ControlMode = CorpsControlMode.Direct, Delegation = new GeneralDelegation() });
+            world.Replace(world.Corps[id] with { LeaderId = successorId, IsRoot = true, ControlMode = CorpsControlMode.Direct, Delegation = new GeneralDelegation() });
             if (root is not null && root.Id != id)
             {
                 foreach (var place in world.Settlements.Values.Where(s => s.CorpsId == root.Id).ToArray()) world.Replace(place with { CorpsId = id });

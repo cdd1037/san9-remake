@@ -6,14 +6,14 @@ namespace San9.Core.Tests;
 public sealed class HistoricalRecognitionTests
 {
     private static WorldState World() => WorldState.Create(new(190, 1, 1), 17,
-        [new(1, 10000, 10000, 600) { LeaderId = 11, BaseTrust = 600, RankId = 500, CountryTitleId = 42 },
-         new(2, 10000, 10000, 100) { LeaderId = 21, BaseTrust = 100, RankId = 500 }],
+        [new(1, 600) { LeaderId = 11, BaseTrust = 600, RankId = 500, CountryTitleId = 42 },
+         new(2, 100) { LeaderId = 21, BaseTrust = 100, RankId = 500 }],
         Enumerable.Range(1, 3).Select(id => new SettlementState(id, id == 3 ? 2 : 1, 100, 100, 100, 50, 100, 100, 100, 100, 100)
             { Kind = SettlementKind.City, ConsumesFood = false }),
         Enumerable.Range(11, 8).Select(id => new OfficerState(id, 1, id == 18 ? 3 : 1, new(50, 50, 50, 50), false)
             { Status = id == 11 ? OfficerStatus.Ruler : id == 18 ? OfficerStatus.Captive : OfficerStatus.Serving }.WithLoyalty(1, 40))
             .Append(new(21, 2, 3, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }),
-        controls: [new("player", 1, ControllerKind.Player), new("ai", 2, ControllerKind.Automatic)]);
+        controls: [new("player", 1, ControllerKind.Player), new("ai", 2, ControllerKind.Automatic)], corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 10000)) { IsRoot = true }]);
     private static WorldMutation Quarter(WorldState? state = null)
     { var world = (state ?? World()).BeginMutation(); world.SetClock(new(190, 4, 1)); return world; }
     private static SimulationRules Rules() => new()

@@ -8,7 +8,7 @@ public sealed class TacticAvailabilityTests
     public void SourcesAreCombinedByIdentityWithoutLosingOverlappingGrants()
     {
         var person = new OfficerState(1, 10, 1, default, false) { LearnedTactics = [9000, 9001] };
-        var force = new ForceState(10, 0, 0, 0) { ProvidedTactics = [9001, 9002] };
+        var force = new ForceState(10, 0) { ProvidedTactics = [9001, 9002] };
         var rules = new TreasureRulebook([new(20, default, 0) { TacticId = 9001 },
             new(21, default, 0) { TacticId = 9003 }, new(22, default, 0) { TacticId = 9003 }]);
         TreasureState[] holdings = [new(20, 1, TreasureDiscovery.Discovered, null),
@@ -31,7 +31,7 @@ public sealed class TacticAvailabilityTests
     {
         var person = new OfficerState(1, 10, 1, default, false);
         var other = person with { Id = 2, LearnedTactics = [99] };
-        var force = new ForceState(10, 0, 0, 0);
+        var force = new ForceState(10, 0);
         var rules = new TreasureRulebook(Enumerable.Range(20, 4).Select(id => new TreasureRule(id, default, 0) { TacticId = id }));
         TreasureState[] holdings = [new(20, 1, TreasureDiscovery.Buried, 1), new(21, 1, TreasureDiscovery.Disabled, null),
             new(22, 2, TreasureDiscovery.Discovered, null), new(23, null, TreasureDiscovery.Discovered, null)];
@@ -46,8 +46,8 @@ public sealed class TacticAvailabilityTests
     public void ForceChangeAndTreasureTransferRecomputeSourcesWithoutChangingLearningOrOldResults()
     {
         var person = new OfficerState(1, 10, 1, default, false) { LearnedTactics = [90] };
-        var first = new ForceState(10, 0, 0, 0) { ProvidedTactics = [91] };
-        var second = new ForceState(11, 0, 0, 0) { ProvidedTactics = [92] };
+        var first = new ForceState(10, 0) { ProvidedTactics = [91] };
+        var second = new ForceState(11, 0) { ProvidedTactics = [92] };
         var rules = new TreasureRulebook([new(20, default, 0) { TacticId = 93 }]);
         var item = new TreasureState(20, 1, TreasureDiscovery.Discovered, null);
         var before = TacticAvailability.ForOfficer(person, first, [item], rules);

@@ -45,11 +45,11 @@ public sealed class IntelligenceMartialChainTests
                 ConditionDaysRemaining = condition == UnitCondition.Normal ? 0 : 30,
                 MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(21, BattleRank.Middle) });
         var state = WorldState.Create(new(190, 1, 1), seed,
-            [new(1, 10000, 1000000, 100) { LeaderId = 11 }, new(2, 10000, 1000000, 100) { LeaderId = 21 }],
+            [new(1, 100) { LeaderId = 11 }, new(2, 100) { LeaderId = 21 }],
             [new(1, 1, 1000, 100, 100, 100, 0, 0, 100, 0, 100),
              new(2, 2, targetSoldiers, 100, 100, 100, 0, 0, 100, 0, 100)
                 { ConfusionDaysRemaining = condition == UnitCondition.Confused ? 30 : 0 }],
-            officers, units: units, controls: [new("player", 1, ControllerKind.Player)]);
+            officers, units: units, controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 1000000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 1000000)) { IsRoot = true }]);
         var engine = new SimulationEngine(state, EconomyRulebook.Empty, PersonnelRulebook.Empty, TreasureRulebook.Empty, military: rules);
         var order = settlement ? new MilitaryOrder(MilitaryOrderKind.AttackSettlement, null, 2) :
             new MilitaryOrder(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 1 };

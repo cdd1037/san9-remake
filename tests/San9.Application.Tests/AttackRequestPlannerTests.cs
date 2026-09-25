@@ -24,7 +24,7 @@ public sealed class AttackRequestPlannerTests
             Settlements = [.. basis.Settlements.Select(s => s.Id == 1 ? s with { CorpsId = 20 } : s), home],
             Officers = [.. basis.Officers.Select(p => p.State.Id == 11 ? p with { State = p.State with { SettlementId = 5 } } : p),
                 new("helper", new(13, 1, 1, new(50, 50, 50, 50), false))],
-            Information = basis.Information with { Corps = [new(10, 1, 11, null),
+            Information = basis.Information with { Corps = [..basis.Information.Corps.Where(c => c.OwnerId != 1), new(10, 1, 11, new(100000, 100000)) { IsRoot = true },
                 new(20, 1, 12, new(10000, 10000)) { ControlMode = CorpsControlMode.Automatic }] },
             Military = basis.Military! with { Places = basis.Military.Places.Add(new(5, home.Position, new(1, 1))
                 { Combat = new(10, 10, 0, 10, 50), Attack = new(1, false) }) }
@@ -55,8 +55,8 @@ public sealed class AttackRequestPlannerTests
     }
 
     private static ScenarioInitialState Fixture() => new(ScenarioInitialState.CurrentSchemaVersion, "request-planner", 190, 1, 1, 1,
-        [new(1, "holder", 1, 100000, 100000, 100) { LeaderId = 11 },
-         new(2, "requester", 2, 1000, 1000, 100) { LeaderId = 21 }, new(3, "enemy", 3, 1000, 1000, 100) { LeaderId = 31 }],
+        [new(1, "holder", 1, 100) { LeaderId = 11 },
+         new(2, "requester", 2, 100) { LeaderId = 21 }, new(3, "enemy", 3, 100) { LeaderId = 31 }],
         [new(1, "origin", 1, 0, 1, 10000, 100, 100, 90, []),
          new(2, "near", 3, 3, 1, 100, 100, 100, 30, []),
          new(3, "requested", 3, 10, 1, 100, 100, 100, 30, []),
@@ -73,7 +73,7 @@ public sealed class AttackRequestPlannerTests
                     CaptureRanks = [BattleRank.Middle, BattleRank.Middle, BattleRank.Middle, BattleRank.Middle, BattleRank.Middle] }],
             Enumerable.Range(1, 4).Select(id => new BattlefieldPlace(id, new(id == 1 ? 2 : id == 2 ? 17 : id == 3 ? 52 : 57, id == 4 ? 12 : 7), new(1, 1))
                 { Combat = new(10, 10, 0, 10, 50), Attack = new(1, false) }).ToImmutableArray())
-    };
+    , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 11, new(100000, 100000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(1000, 1000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, 31, new(1000, 1000)) { IsRoot = true }], []) };
 
     [Fact]
     public void RequestedTargetPrecedesNearerTargetWithoutFulfillingOnSubmission()

@@ -9,8 +9,8 @@ namespace San9.Application.Tests;
 public sealed class G10StageSessionTests
 {
     private static ScenarioInitialState Scenario() => new(ScenarioInitialState.CurrentSchemaVersion, "g10-stage", 192, 12, 1, 1,
-        [new(1, "force", 1, 10000, 10000, 500) { LeaderId = 11, BaseTrust = 500 },
-         new(2, "enemy", 2, 10000, 10000, 100) { LeaderId = 21, BaseTrust = 100 }],
+        [new(1, "force", 1, 500) { LeaderId = 11, BaseTrust = 500 },
+         new(2, "enemy", 2, 100) { LeaderId = 21, BaseTrust = 100 }],
         [new(1, "home", 1, 0, 0, 1000, 100, 100, 50, []) { ConsumesFood = false },
          new(2, "away", 2, 100, 0, 1000, 100, 100, 50, []) { ConsumesFood = false }],
         new() { [1] = "home", [2] = "away" }, new() { [1] = 1, [2] = 2 })
@@ -25,7 +25,7 @@ public sealed class G10StageSessionTests
         Terminal = new([1, 2], 193),
         SearchEvents = [new CommemorationSearchEventDefinition([new(1, null, CommunityAbility.Intelligence, [], new("memorial.1"))], 1500, 2, 2)
             { Id = "memorial", ChanceAbility = CommunityAbility.Politics, ChanceDivisor = 1, Consumption = EventConsumption.OnSuccess }]
-    };
+    , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 10000)) { IsRoot = true }], []) };
     private static OfficerState Person(int id, int force, int home, OfficerStatus status = OfficerStatus.Serving) =>
         new OfficerState(id, force, home, new(50, 50, 100, 50), false) { Status = status }.WithLoyalty(force, 100);
 

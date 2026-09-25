@@ -33,7 +33,7 @@ public sealed class ScenarioContentFilesTests : IDisposable
         Assert.DoesNotContain("\"binding\"", messages);
         Assert.Contains("\"number\":0", messages);
         Assert.Contains("\"semanticsConfirmed\":false", messages);
-        string force = JsonSerializer.Serialize(new ForceInitialState(1, "name", 0, 0, 0, 0), ScenarioContentFiles.DataJsonOptions);
+        string force = JsonSerializer.Serialize(new ForceInitialState(1, "name", 0, 0), ScenarioContentFiles.DataJsonOptions);
         Assert.Contains("\"leaderId\":null", force);
         Assert.NotNull(JsonSerializer.Deserialize<ForceInitialState>(force, ScenarioContentFiles.DataJsonOptions));
         Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<ForceInitialState>(

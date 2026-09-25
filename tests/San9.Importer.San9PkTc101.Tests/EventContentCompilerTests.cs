@@ -249,7 +249,7 @@ public sealed class EventContentCompilerTests
     public void PenglaiRetainsEveryBiographyGroupMemberAndUsesSemanticForceIdentity(byte mode)
     {
         var people = new[] { Person(675), Person(676), Person(677), Person(677), Person(677), Person(677), Person(1) };
-        var forces = new[] { new San9.Content.Scenarios.ForceInitialState(99, "wa", 0, 10000, 300000, 100)
+        var forces = new[] { new San9.Content.Scenarios.ForceInitialState(99, "wa", 0, 100)
             { LeaderId = 0, CountryTitleId = 4 } };
         var definition = EventContentCompiler.Penglai(mode, people, Enumerable.Range(0, people.Length), forces)!;
         Assert.Equal(99, definition.ForceId);
@@ -271,12 +271,12 @@ public sealed class EventContentCompilerTests
         var activation = new ForceActivationSearchEventDefinition(86, 2, 45, [184], [5], 700, 2, 500000, 10, new("penglai"))
             { Id = "penglai", Consumption = EventConsumption.OnSuccess };
         var initial = new San9.Content.Scenarios.ScenarioInitialState(San9.Content.Scenarios.ScenarioInitialState.CurrentSchemaVersion,
-            "fixture", 190, 1, 1, player, [new(1, "force", 1, 10, 10, 10), new(2, "wa", 2, 10000, 300000, 100)],
+            "fixture", 190, 1, 1, player, [new(1, "force", 1, 10), new(2, "wa", 2, 100)],
             [new(45, "city", 2, 1, 1, 100000, 450, 700, 60, []), new(184, "port", null, 2, 2, 0, 300, 300, 0, [])], [], [])
         {
             Officers = [new("ruler", new(5, 2, 45, new(10, 20, 30, 40), false) { Status = OfficerStatus.Ruler })],
             SearchEvents = [activation], ConsumedEventKeys = [activation.ConsumptionKey]
-        };
+        , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, null, new(10, 10)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, null, new(10000, 300000)) { IsRoot = true }], []) };
         var result = EventContentCompiler.InitializePenglai(initial);
         Assert.Equal(initial.Forces[1] with { IsDormant = dormant }, result.Forces[1]);
         Assert.Equal(initial.Settlements.Select(s => s with { IsDormant = dormant }), result.Settlements);

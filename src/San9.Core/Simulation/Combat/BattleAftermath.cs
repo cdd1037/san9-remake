@@ -202,7 +202,7 @@ internal static class BattleAftermath
         foreach (var corps in world.Corps.Values.OrderBy(c => c.Id).ToArray())
         {
             var people = world.Officers.Values.Where(p => p.OwnerId == corps.OwnerId && p.IsServing && PersonnelLocations.Corps(world, p) == corps.Id).ToArray();
-            if (corps.Treasury is null)
+            if (corps.IsRoot)
             {
                 if (world.Forces[corps.OwnerId].LeaderId is int ruler) world.Replace(corps with { LeaderId = ruler });
                 continue;
@@ -261,8 +261,7 @@ internal static class BattleAftermath
             world.Replace(settlement with { OwnerId = null, CorpsId = null });
         foreach (var corps in world.Corps.Values.Where(c => c.OwnerId == forceId).ToArray())
         {
-            if (corps.Treasury is not null)
-                foreach (var resource in new[] { ResourceKind.Money, ResourceKind.Food })
+            foreach (var resource in new[] { ResourceKind.Money, ResourceKind.Food })
                     ResourceAccounts.Change(world, new(ResourceOwnerKind.Corps, corps.Id), resource,
                         -(long)ResourceAccounts.Balance(world, new(ResourceOwnerKind.Corps, corps.Id), resource), "force-eliminated", null, events);
             world.RemoveCorps(corps.Id);

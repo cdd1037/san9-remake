@@ -22,7 +22,7 @@ public sealed class SearchConflictSessionTests
         _ => throw new ArgumentException()
     }) with { Id = kind, ChanceAbility = ConflictChanceAbility.Politics, ChanceDivisor = 1 };
     private static ScenarioInitialState Definition(string kind) => new(ScenarioInitialState.CurrentSchemaVersion, "conflicts", 190, 4, 1, 1,
-        [new(1, "force", 1, 10000, 10000, 100) { LeaderId = 1, BaseTrust = 100 }],
+        [new(1, "force", 1, 100) { LeaderId = 1, BaseTrust = 100 }],
         [new(1, "home", 1, 0, 0, 0, 100, 100, 0, [])], new() { [1] = "home" }, new() { [1] = 1 })
     {
         Officers = [new("ruler", new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }),
@@ -30,7 +30,7 @@ public sealed class SearchConflictSessionTests
             new("scholar", new(3, null, null, default, false) { Status = OfficerStatus.Special }),
             new("other", new(4, null, null, default, false) { Status = OfficerStatus.Special })],
         SearchEvents = [Event(kind)]
-    };
+    , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }], []) };
     public static IEnumerable<object[]> Choices()
     {
         yield return ["demand", SearchConflictChoice.Pay]; yield return ["demand", SearchConflictChoice.Execute];
@@ -104,6 +104,7 @@ public sealed class SearchConflictSessionTests
     {
         var d = Definition("scholar");
         d = d with { Forces = [d.Forces.Single() with { LeaderId = 3 }],
+            Information = d.Information with { Corps = d.Information.Corps.Select(c => c with { LeaderId = 3 }).ToArray() },
             Officers = d.Officers.Select(o => o.State.Id switch
             {
                 1 => o with { State = o.State with { Status = OfficerStatus.Serving } },

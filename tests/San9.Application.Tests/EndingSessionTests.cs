@@ -27,7 +27,7 @@ public sealed class EndingSessionTests
         {
             Forces = original.Forces.Select(f => f with { ProvidedTactics = [0, 1] }).ToArray(),
             Officers = original.Officers.Select(o => o with { State = o.State with { LearnedTactics = [0] } }).ToArray(),
-            Information = new([], [], [new(900, "treasure", 0, 0, 0, 2)], [],
+            Information = new([], [], [new(900, "treasure", 0, 0, 0, 2)], original.Information.Corps,
                 [new(900, 2, TreasureDiscovery.Discovered, null)])
         };
         var session = GameSession.Start(content, 1);

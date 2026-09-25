@@ -20,9 +20,9 @@ internal static class CorpsGovernance
         GovernanceRulebook rules, List<DomainEvent> events)
     {
         if (!world.Corps.TryGetValue(command.CorpsId, out var corps) || corps.OwnerId != command.IssuerId ||
-            corps.Treasury is null || command.CityIds.IsDefaultOrEmpty ||
+            corps.IsRoot || command.CityIds.IsDefaultOrEmpty ||
             command.CityIds.Distinct().Count() != command.CityIds.Length) return CommandRejection.InvalidCorps;
-        var roots = world.Corps.Values.Where(c => c.OwnerId == command.IssuerId && c.Treasury is null).ToArray();
+        var roots = world.Corps.Values.Where(c => c.OwnerId == command.IssuerId && c.IsRoot).ToArray();
         if (roots.Length != 1) return CommandRejection.InvalidCorps;
         var root = roots[0];
         var force = world.Forces[command.IssuerId];
@@ -44,8 +44,8 @@ internal static class CorpsGovernance
         if (leader is null) return CommandRejection.PersonUnavailable;
         long moneyDelta = (long)command.Money - corps.Treasury.Money;
         long foodDelta = (long)command.Food - corps.Treasury.Food;
-        if (moneyDelta > force.Money || foodDelta > force.Food) return CommandRejection.InsufficientFunds;
-        if ((long)force.Money - moneyDelta > uint.MaxValue || (long)force.Food - foodDelta > uint.MaxValue)
+        if (moneyDelta > root.Treasury.Money || foodDelta > root.Treasury.Food) return CommandRejection.InsufficientFunds;
+        if ((long)root.Treasury.Money - moneyDelta > uint.MaxValue || (long)root.Treasury.Food - foodDelta > uint.MaxValue)
             return CommandRejection.ResourceOverflow;
 
         var removed = world.Settlements.Values.Where(s => s.CorpsId == corps.Id && !places.Contains(s.Id)).Select(s => s.Id).ToHashSet();
@@ -58,17 +58,17 @@ internal static class CorpsGovernance
             if (places.Contains(unit.ServicePlaceId!.Value)) world.Replace(unit with { CorpsId = corps.Id });
             else if (removed.Contains(unit.ServicePlaceId.Value)) world.Replace(unit with { CorpsId = root.Id });
         }
-        var oldLeader = world.Officers[corps.LeaderId];
+        var oldLeader = world.Officers[corps.LeaderId!.Value];
         if (oldLeader.Id != leader.Id && oldLeader.Status == OfficerStatus.Governor)
             world.Replace(oldLeader with { Status = OfficerStatus.Serving });
         world.Replace(leader with { Status = OfficerStatus.Governor });
         world.Replace(corps with { LeaderId = leader.Id, Treasury = new(command.Money, command.Food) });
-        world.Replace(force with { AdviserId = force.AdviserId == leader.Id ? null : force.AdviserId,
-            Money = (uint)(force.Money - moneyDelta), Food = (uint)(force.Food - foodDelta) });
+        world.Replace(force with { AdviserId = force.AdviserId == leader.Id ? null : force.AdviserId });
+        world.Replace(root with { Treasury = new((uint)(root.Treasury.Money - moneyDelta), (uint)(root.Treasury.Food - foodDelta)) });
         foreach (var resource in new[] { ResourceKind.Money, ResourceKind.Food })
         {
             long amount = resource == ResourceKind.Money ? moneyDelta : foodDelta;
-            ResourceAccounts.Report(world, new(ResourceOwnerKind.Force, force.Id), resource, "corps-changed", corps.Id, -amount, -amount, events);
+            ResourceAccounts.Report(world, ResourceAccounts.Resolve(world, force.Id, null), resource, "corps-changed", corps.Id, -amount, -amount, events);
             ResourceAccounts.Report(world, new(ResourceOwnerKind.Corps, corps.Id), resource, "corps-changed", root.Id, amount, amount, events);
         }
         events.Add(new CorpsChangedEvent(world.Clock, force.Id, corps.Id, leader.Id, cities.Order().ToImmutableArray()));
@@ -78,7 +78,7 @@ internal static class CorpsGovernance
     internal static CommandRejection Create(WorldMutation world, CreateCorpsCommand command, PersonnelRulebook geography,
         GovernanceRulebook rules, List<DomainEvent> events)
     {
-        var roots = world.Corps.Values.Where(c => c.OwnerId == command.IssuerId && c.Treasury is null).ToArray();
+        var roots = world.Corps.Values.Where(c => c.OwnerId == command.IssuerId && c.IsRoot).ToArray();
         if (roots.Length != 1 || command.CityIds.IsDefaultOrEmpty || command.CityIds.Distinct().Count() != command.CityIds.Length ||
             world.Corps.Values.Count(c => c.OwnerId == command.IssuerId) >= GovernanceRulebook.MaximumCorpsPerForce ||
             world.AllCorps.Count != 0 && world.AllCorps.Keys.Max() == int.MaxValue) return CommandRejection.InvalidCorps;
@@ -99,7 +99,7 @@ internal static class CorpsGovernance
         var leader = rules.SelectGovernor(world.Officers.Values.Where(p => p.OwnerId == force.Id &&
             p.SettlementId is int home && places.Contains(home) && home != PersonnelLocations.ServicePlace(world, ruler) && !busy.Contains(p.Id)), world.AbilitiesFor(world.Officers.Values));
         if (leader is null) return CommandRejection.PersonUnavailable;
-        if (command.Money > force.Money || command.Food > force.Food) return CommandRejection.InsufficientFunds;
+        if (command.Money > root.Treasury.Money || command.Food > root.Treasury.Food) return CommandRejection.InsufficientFunds;
         int id = world.AllCorps.Keys.Max() + 1;
         if (force.AdviserId == leader.Id) world.Replace(force = force with { AdviserId = null });
         world.Replace(leader with { Status = OfficerStatus.Governor });
@@ -108,11 +108,11 @@ internal static class CorpsGovernance
         foreach (var unit in world.Units.Values.Where(u => u.OwnerId == force.Id && u.CorpsId == root.Id &&
             u.ServicePlaceId is int home && places.Contains(home) && u.FollowsServicePlace(true)).ToArray())
             world.Replace(unit with { CorpsId = id });
-        world.Replace(force with { Money = force.Money - command.Money, Food = force.Food - command.Food });
+        world.Replace(root with { Treasury = new(root.Treasury.Money - command.Money, root.Treasury.Food - command.Food) });
         foreach (var resource in new[] { ResourceKind.Money, ResourceKind.Food })
         {
             long amount = resource == ResourceKind.Money ? command.Money : command.Food;
-            ResourceAccounts.Report(world, new(ResourceOwnerKind.Force, force.Id), resource, "corps-created", id, -amount, -amount, events);
+            ResourceAccounts.Report(world, ResourceAccounts.Resolve(world, force.Id, null), resource, "corps-created", id, -amount, -amount, events);
             ResourceAccounts.Report(world, new(ResourceOwnerKind.Corps, id), resource, "corps-created", root.Id, amount, amount, events);
         }
         events.Add(new CorpsCreatedEvent(world.Clock, force.Id, id, leader.Id, cities.Order().ToImmutableArray()));
@@ -122,27 +122,27 @@ internal static class CorpsGovernance
     internal static CommandRejection Dissolve(WorldMutation world, DissolveCorpsCommand command, GovernanceRulebook rules, List<DomainEvent> events)
     {
         if (!world.Corps.TryGetValue(command.CorpsId, out var source) || source.OwnerId != command.IssuerId ||
-            source.Treasury is null) return CommandRejection.InvalidCorps;
-        var roots = world.Corps.Values.Where(c => c.OwnerId == command.IssuerId && c.Treasury is null).ToArray();
+            source.IsRoot) return CommandRejection.InvalidCorps;
+        var roots = world.Corps.Values.Where(c => c.OwnerId == command.IssuerId && c.IsRoot).ToArray();
         if (roots.Length != 1 || source.LeaderId == world.Forces[command.IssuerId].LeaderId)
             return CommandRejection.InvalidCorps;
         var root = roots[0];
         var force = world.Forces[command.IssuerId];
-        if ((ulong)force.Money + source.Treasury.Money > uint.MaxValue ||
-            (ulong)force.Food + source.Treasury.Food > uint.MaxValue) return CommandRejection.ResourceOverflow;
+        if ((ulong)root.Treasury.Money + source.Treasury.Money > uint.MaxValue ||
+            (ulong)root.Treasury.Food + source.Treasury.Food > uint.MaxValue) return CommandRejection.ResourceOverflow;
 
         foreach (var settlement in world.Settlements.Values.Where(s => s.CorpsId == source.Id).OrderBy(s => s.Id).ToArray())
             world.Replace(settlement with { CorpsId = root.Id });
         foreach (var unit in world.Units.Values.Where(u => u.CorpsId == source.Id).OrderBy(u => u.Id).ToArray())
             world.Replace(unit with { CorpsId = root.Id });
-        var leader = world.Officers[source.LeaderId];
+        var leader = world.Officers[source.LeaderId!.Value];
         if (leader.Status == OfficerStatus.Governor) world.Replace(leader with { Status = OfficerStatus.Serving });
-        world.Replace(force with { Money = force.Money + source.Treasury.Money, Food = force.Food + source.Treasury.Food });
+        world.Replace(root with { Treasury = new(root.Treasury.Money + source.Treasury.Money, root.Treasury.Food + source.Treasury.Food) });
         foreach (var resource in new[] { ResourceKind.Money, ResourceKind.Food })
         {
             long amount = resource == ResourceKind.Money ? source.Treasury.Money : source.Treasury.Food;
             ResourceAccounts.Report(world, new(ResourceOwnerKind.Corps, source.Id), resource, "corps-dissolved", root.Id, -amount, -amount, events);
-            ResourceAccounts.Report(world, new(ResourceOwnerKind.Force, force.Id), resource, "corps-dissolved", source.Id, amount, amount, events);
+            ResourceAccounts.Report(world, ResourceAccounts.Resolve(world, force.Id, null), resource, "corps-dissolved", source.Id, amount, amount, events);
         }
         world.RemoveCorps(source.Id);
         events.Add(new CorpsDissolvedEvent(world.Clock, force.Id, source.Id, root.Id));

@@ -26,6 +26,7 @@ public sealed class AllianceFormationSessionTests
             FreeOfficerMigrationEnabled = false, ForceEmergenceEnabled = false, OfficeRequestsEnabled = false
         };
         definition = definition with { Forces = definition.Forces.Select(f => f with { LeaderId = f.Id switch { 5 => 11, 1 => 21, _ => null } }).ToArray() };
+        definition = definition with { Information = definition.Information with { Corps = definition.Information.Corps.Select(c => c with { LeaderId = definition.Forces.Single(f => f.Id == c.OwnerId).LeaderId }).ToArray() } };
         var initial = GameSession.Start(definition, seed).Capture();
         var session = GameSession.Restore(definition, initial with { World = initial.World with
         { Clock = new(191, 3, 21) } });
@@ -54,12 +55,12 @@ public sealed class AllianceFormationSessionTests
     }
 
     private static ScenarioInitialState Definition() => new(ScenarioInitialState.CurrentSchemaVersion, "alliance-choice", 190, 1, 1, 5,
-        Enumerable.Range(1, 5).Select(id => new ForceInitialState(id, $"force.{id}", id, 10000, 100000, 50) { BaseTrust = 50 }).ToArray(),
+        Enumerable.Range(1, 5).Select(id => new ForceInitialState(id, $"force.{id}", id, 50) { BaseTrust = 50 }).ToArray(),
         Enumerable.Range(1, 5).Select(id => new SettlementInitialState(id * 100, $"city.{id}", id, id, 0, 0, 100, 100, 0, [])
             { Population = 100000, DraftPopulation = id == 1 ? 400001u : 0, PublicOrder = 500 }).ToArray(), [], [])
     {
         CityProvinceIds = Enumerable.Range(1, 5).ToDictionary(id => id * 100, _ => 1),
-        Information = InformationDefinitions.Empty with { Relations = [new(1, 5, 80)] }
+        Information = InformationDefinitions.Empty with { Corps = [.. Enumerable.Range(1, 5).Select(id => new San9.Core.Domain.CorpsState(id, id, null, new(10000, 100000)) { IsRoot = true })], Relations = [new(1, 5, 80)] }
     };
 
     private static GameSession Ready(ScenarioInitialState definition)

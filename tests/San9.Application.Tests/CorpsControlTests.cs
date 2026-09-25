@@ -18,7 +18,7 @@ public sealed class CorpsControlTests
             Officers = baseline.Officers.Select(p => p.State.Id is 2 or 3 ? p with { State = p.State with { SettlementId = 3 } } : p)
                 .Append(new OfficerInitialState("free", new OfficerState(7, null, 3, new(30, 30, 30, 30), false)
                     { Status = OfficerStatus.Free }.WithLoyalty(1, 100))).ToArray(),
-            Information = baseline.Information with { Corps = [new(10, 1, 1, null), new(11, 1, 2, new(1000, 2000))] }
+            Information = baseline.Information with { Corps = [.. baseline.Information.Corps.Where(c => c.OwnerId != 1), new(10, 1, 1, new(1000, 2000)) { IsRoot = true }, new(11, 1, 2, new(1000, 2000))] }
         };
         var session = GameSession.Start(definition, 190);
         session.BeginRecording();

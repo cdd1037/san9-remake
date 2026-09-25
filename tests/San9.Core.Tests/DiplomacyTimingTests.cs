@@ -13,9 +13,9 @@ public sealed class DiplomacyTimingTests
     };
 
     private static WorldState World(GameClock clock) => WorldState.Create(clock, 42,
-        [new ForceState(1, 10000, 10000, 100) { LeaderId = 11 },
-         new ForceState(2, 10000, 10000, 100) { LeaderId = 21 },
-         new ForceState(3, 10000, 10000, 100) { LeaderId = 31 }],
+        [new ForceState(1, 100) { LeaderId = 11 },
+         new ForceState(2, 100) { LeaderId = 21 },
+         new ForceState(3, 100) { LeaderId = 31 }],
         [new(1, 1, 10000, 100, 100, 0, 0, 0, 0, 0, 0),
          new(2, 2, 10000, 100, 100, 0, 0, 0, 0, 0, 0),
          new(3, 3, 10000, 100, 100, 0, 0, 0, 0, 0, 0)],
@@ -25,7 +25,7 @@ public sealed class DiplomacyTimingTests
          new OfficerState(21, 2, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
          new OfficerState(31, 3, 3, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }],
         controls: [new("first", 1, ControllerKind.Player), new("second", 2, ControllerKind.Player),
-            new("third", 3, ControllerKind.Automatic)]);
+            new("third", 3, ControllerKind.Automatic)], corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, 31, new(10000, 10000)) { IsRoot = true }]);
 
     private static GameCommand Command(int kind) => kind switch
     {

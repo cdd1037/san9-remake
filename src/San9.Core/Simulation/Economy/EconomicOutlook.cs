@@ -12,19 +12,19 @@ public sealed record EconomicOutlook(ResourceOutlook Money, ResourceOutlook Food
     /// Each account retains its own capacity and shortage floor. No simulation or RNG is advanced.</summary>
     public static EconomicOutlook Read(WorldSnapshot world, IReadOnlyDictionary<int, int> salaries, int forceId, int? corpsId = null)
     {
-        var force = world.Forces.Single(f => f.Id == forceId);
+        _ = world.Forces.Single(f => f.Id == forceId);
         var corps = world.Corps.Where(c => c.OwnerId == forceId).ToDictionary(c => c.Id);
         if (corpsId is int requested && !corps.ContainsKey(requested)) throw new ArgumentOutOfRangeException(nameof(corpsId));
-        int? Account(int? id) => id is int key && corps.TryGetValue(key, out var c) && c.Treasury is not null ? key : null;
+        int Account(int? id) => id ?? corps.Values.Single(c => c.IsRoot).Id;
         var officerCorps = world.Officers.ToDictionary(o => o.Id, o => o.UnitId is int unit ? world.Units.Single(u => u.Id == unit).CorpsId
             : o.SettlementId is int place ? world.Settlements.Single(s => s.Id == place).CorpsId : null);
-        int?[] accounts = corpsId is not null ? [Account(corpsId)] : [null, .. corps.Values.Where(c => c.Treasury is not null).Select(c => (int?)c.Id)];
+        int[] accounts = corpsId is int selected ? [selected] : [.. corps.Keys];
         int dayOfYear = (world.Clock.Month - 1) * 30 + world.Clock.Day - 1;
         int moneyDays = 90 - dayOfYear % 90;
         int foodDays = (180 - dayOfYear + 359) % 360 + 1;
         int salaryPayments = (moneyDays + 9) / 10;
         List<ResourceOutlook> money = [], food = [];
-        foreach (int? account in accounts)
+        foreach (int account in accounts)
         {
             bool Own(int? owner, int? id) => owner == forceId && Account(id) == account;
             var places = world.Settlements.Where(s => !s.IsDormant && !s.IsDestroyed && Own(s.OwnerId,s.CorpsId)).ToArray();
@@ -38,9 +38,9 @@ public sealed record EconomicOutlook(ResourceOutlook Money, ResourceOutlook Food
                 var origin = world.Settlements.FirstOrDefault(s => s.Id == task.OriginSettlementId && !s.IsDestroyed && s.OwnerId == forceId);
                 if (Account(origin?.CorpsId) == account) rations += DailyRations.Field(task.Reinforcements!.Soldiers, task.Reinforcements.Wounded);
             }
-            var treasury = account is int id ? corps[id].Treasury : null;
-            money.Add(Project(treasury?.Money ?? force.Money, salary * salaryPayments, cities.Sum(EconomyMath.Revenue)));
-            food.Add(Project(treasury?.Food ?? force.Food, rations * foodDays, cities.Sum(EconomyMath.Harvest)));
+            var treasury = corps[account].Treasury;
+            money.Add(Project(treasury.Money, salary * salaryPayments, cities.Sum(EconomyMath.Revenue)));
+            food.Add(Project(treasury.Food, rations * foodDays, cities.Sum(EconomyMath.Harvest)));
         }
         return new(Sum(money), Sum(food));
     }

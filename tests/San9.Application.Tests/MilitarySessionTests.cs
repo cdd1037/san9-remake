@@ -15,13 +15,13 @@ public sealed class MilitarySessionTests
         var basis = Fixture();
         var definition = basis with
         {
-            Forces = [basis.Forces[0], new(2, "enemy", 2, 10000, 10000, 100)],
+            Forces = [basis.Forces[0], new(2, "enemy", 2, 100)],
             Settlements = [basis.Settlements[0], basis.Settlements[1] with { OwnerId = 2 }],
             Officers = [basis.Officers[0] with { State = basis.Officers[0].State with
                 { BaseAbilities = new(70, 100, 70, 70) } },
                 new("target", new OfficerState(2, 2, 2, new(70, 50, 70, 70), false)
                     { Righteousness = 5 }.WithLoyalty(2, 80))],
-            Information = basis.Information with { Relations = [new(1, 2, 50)] }
+            Information = basis.Information with { Corps = [..basis.Information.Corps, new(2, 2, null, new(10000, 10000)) { IsRoot = true }], Relations = [new(1, 2, 50)] }
         };
         var session = GameSession.Start(definition, 42);
         string before = session.Capture().StateHash;
@@ -47,8 +47,8 @@ public sealed class MilitarySessionTests
         var definition = basis with
         {
             Forces = [basis.Forces[0] with { LeaderId = 1 },
-                new ForceInitialState(2, "first-target", 2, 10000, 10000, 100) { LeaderId = 2, AdviserId = 3 },
-                new ForceInitialState(3, "second-target", 3, 10000, 10000, 100) { LeaderId = 5 }],
+                new ForceInitialState(2, "first-target", 2, 100) { LeaderId = 2, AdviserId = 3 },
+                new ForceInitialState(3, "second-target", 3, 100) { LeaderId = 5 }],
             Settlements = [basis.Settlements[0], basis.Settlements[1] with { OwnerId = 2 },
                 basis.Settlements[1] with { Id = 3, NameKey = "second-target", OwnerId = 3, X = 12 }],
             Officers = [basis.Officers[0] with { State = basis.Officers[0].State with
@@ -60,7 +60,7 @@ public sealed class MilitarySessionTests
                 new("first-officer", new OfficerState(4, 2, 2, new(70, 0, 70, 70), false).WithLoyalty(2, 20)),
                 new("second-ruler", new OfficerState(5, 3, 3, new(70, 60, 70, 70), false)
                     { Status = OfficerStatus.Ruler })],
-            Information = basis.Information with { Relations = [new(1, 2, 50), new(1, 3, 50), new(2, 3, 90)] },
+            Information = basis.Information with { Corps = [basis.Information.Corps[0] with { LeaderId = 1 }, new(2, 2, 2, new(10000, 10000)) { IsRoot = true }, new(3, 3, 5, new(10000, 10000)) { IsRoot = true }], Relations = [new(1, 2, 50), new(1, 3, 50), new(2, 3, 90)] },
             Military = basis.Military! with
             {
                 Width = 20,
@@ -93,13 +93,13 @@ public sealed class MilitarySessionTests
         var basis = Fixture();
         var definition = basis with
         {
-            Forces = [basis.Forces[0], new(2, "enemy", 2, 10000, 10000, 100)],
+            Forces = [basis.Forces[0], new(2, "enemy", 2, 100)],
             Settlements = [basis.Settlements[0], basis.Settlements[1] with
                 { OwnerId = 2, X = 66, Durability = 300, MaxDurability = 300 }],
             RegionNameKeys = new() { [1] = "origin", [2] = "destination" },
             RegionCityIds = new() { [1] = 1, [2] = 2 },
             CityConnections = [new(1, 2)],
-            Information = basis.Information with { Relations = [new(1, 2, 50)] },
+            Information = basis.Information with { Corps = [..basis.Information.Corps, new(2, 2, null, new(10000, 10000)) { IsRoot = true }], Relations = [new(1, 2, 50)] },
             Military = basis.Military! with { Width = 200, TerrainIds = Enumerable.Repeat(0, 600).ToImmutableArray(),
                 Places = [new(1, new(2, 7), new(1, 1)), new(2, new(332, 7), new(1, 1))] }
         };
@@ -130,14 +130,14 @@ public sealed class MilitarySessionTests
         var basis = Fixture();
         var definition = basis with
         {
-            Forces = [basis.Forces[0], new(2, "enemy", 2, 10000, 10000, 100)],
+            Forces = [basis.Forces[0], new(2, "enemy", 2, 100)],
             Settlements = [basis.Settlements[0], basis.Settlements[1] with { OwnerId = 2, X = 66 }],
             Officers = [basis.Officers[0] with { State = basis.Officers[0].State with
                 { BaseAbilities = new(100, 70, 70, 70) } }],
             RegionNameKeys = new() { [1] = "origin", [2] = "destination" },
             RegionCityIds = new() { [1] = 1, [2] = 2 },
             CityConnections = [new(1, 2)],
-            Information = basis.Information with { Relations = [new(1, 2, 50)] },
+            Information = basis.Information with { Corps = [..basis.Information.Corps, new(2, 2, null, new(10000, 10000)) { IsRoot = true }], Relations = [new(1, 2, 50)] },
             Military = basis.Military! with { Width = 200, TerrainIds = Enumerable.Repeat(0, 600).ToImmutableArray(),
                 Places = [new(1, new(2, 7), new(1, 1)), new(2, new(332, 7), new(1, 1))] }
         };
@@ -210,7 +210,8 @@ public sealed class MilitarySessionTests
         var baseline = Fixture();
         var definition = baseline with
         {
-            Forces = [baseline.Forces[0], new(2, "enemy", 2, 10000, 10000, 100)],
+            Forces = [baseline.Forces[0], new(2, "enemy", 2, 100)],
+            Information = baseline.Information with { Corps = [..baseline.Information.Corps, new(2, 2, null, new(10000, 10000)) { IsRoot = true }] },
             Units = [new(700, 1, new(10, 7), 400) { FormationId = 7, Morale = 70,
                 EngagementTargetId = 900, Order = new(MilitaryOrderKind.Move, new(20, 7), null), Policies = new(true, true, true, true) },
                 new(900, 2, new(15, 7), 400) { FormationId = 7, Morale = 70, AwaitingPostAction = true }]
@@ -276,14 +277,14 @@ public sealed class MilitarySessionTests
     }
 
     private static ScenarioInitialState Fixture() => new(ScenarioInitialState.CurrentSchemaVersion, "military-public", 190, 1, 1, 1,
-        [new(1, "force", 1, 10000, 10000, 100)],
+        [new(1, "force", 1, 100)],
         [new(1, "origin", 1, 0, 1, 1000, 100, 100, 70, []) { Wounded = 123 }, new(2, "destination", 1, 7, 1, 100, 100, 100, 30, [])], [], [])
     {
         Officers = [new("officer", new(1, 1, 1, new(70, 70, 70, 70), false))],
         Military = new(8, 3, Enumerable.Repeat(0, 24).ToImmutableArray(), [new(0, 1, null)],
             [new(7, 1, 50, 10000, 5, new(1, 1), TravelMode.Land)],
             [new(1, new(2, 7), new(1, 1)), new(2, new(37, 7), new(1, 1))])
-    };
+    , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, null, new(10000, 10000)) { IsRoot = true }], []) };
 
     [Fact]
     public void PublicCommandSurvivesSaveAndRecordingWithCurrentLocationQueries()
@@ -351,7 +352,7 @@ public sealed class MilitarySessionTests
             Forces = [baseline.Forces[0] with { LeaderId = 1 }],
             Settlements = [baseline.Settlements[0] with { Soldiers = 10000, CorpsId = 10 }, baseline.Settlements[1] with { CorpsId = 10 }],
             Officers = [baseline.Officers[0] with { State = baseline.Officers[0].State with { Status = OfficerStatus.Ruler } }],
-            Information = baseline.Information with { Corps = [new(10, 1, 1, null) { ControlMode = CorpsControlMode.Automatic }] }
+            Information = baseline.Information with { Corps = [new(10, 1, 1, new(10000, 10000)) { ControlMode = CorpsControlMode.Automatic , IsRoot = true }] }
         };
     }
 
@@ -364,7 +365,8 @@ public sealed class MilitarySessionTests
         var definition = delegated ? ReinforcementFixture() : baseline with
         {
             PlayerForceId = 2,
-            Forces = [baseline.Forces[0], new(2, "player-force", 2, 10000, 10000, 100)],
+            Forces = [baseline.Forces[0], new(2, "player-force", 2, 100)],
+            Information = baseline.Information with { Corps = [..baseline.Information.Corps, new(2, 2, null, new(10000, 10000)) { IsRoot = true }] },
             Settlements = [baseline.Settlements[0] with { Soldiers = 10000 }, baseline.Settlements[1]]
         };
         var session = GameSession.Start(definition, 42);
@@ -435,13 +437,14 @@ public sealed class MilitarySessionTests
     }
 
     [Fact]
-    public void AutomaticForceWithoutCorpsAlsoDeploysAndDisconnectedPolicyIsReadOnly()
+    public void AutomaticForceWithoutDelegatedCorpsAlsoDeploysAndDisconnectedPolicyIsReadOnly()
     {
         var baseline = Fixture();
         var definition = baseline with
         {
             PlayerForceId = 2,
-            Forces = [baseline.Forces[0], new(2, "player-force", 2, 10000, 10000, 100)],
+            Forces = [baseline.Forces[0], new(2, "player-force", 2, 100)],
+            Information = baseline.Information with { Corps = [..baseline.Information.Corps, new(2, 2, null, new(10000, 10000)) { IsRoot = true }] },
             Settlements = [baseline.Settlements[0] with { Soldiers = 10000 }, baseline.Settlements[1]]
         };
         var session = GameSession.Start(definition, 42);

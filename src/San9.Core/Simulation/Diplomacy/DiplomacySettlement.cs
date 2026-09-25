@@ -11,8 +11,8 @@ internal static class DiplomacySettlement
         if (offer.PrisonerId is int prisoner) Recover(world, task, prisoner, rules, events);
         if (offer.Kind == CompensationKind.Money)
         {
-            var source = new ResourceAccount(ResourceOwnerKind.Force, task.ForceId);
-            var target = new ResourceAccount(ResourceOwnerKind.Force, targetForce);
+            var source = ResourceAccounts.Resolve(world, task.ForceId, null);
+            var target = ResourceAccounts.Resolve(world, targetForce, null);
             received = Math.Min(offer.Money, ResourceAccounts.Receivable(world, target, ResourceKind.Money));
             ResourceAccounts.Change(world, source, ResourceKind.Money, -(long)offer.Money, reason, task.OfficerId, events, true);
             ResourceAccounts.Change(world, target, ResourceKind.Money, offer.Money, reason, task.OfficerId, events);

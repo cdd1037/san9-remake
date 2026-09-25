@@ -29,10 +29,10 @@ public sealed class OfficerAbilityRulesTests
     [Fact]
     public void TransactionReadsChangedSourcesWithoutPublishingOrRefreshingOfficerBonuses()
     {
-        var world = WorldState.Create(new(190, 1, 1), 190, [new(1, 100, 100, 0)],
+        var world = WorldState.Create(new(190, 1, 1), 190, [new(1, 0)],
             [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
             [new(1, 1, 1, new(50, 50, 50, 50), false), new(2, 1, 1, new(50, 50, 50, 50), false)],
-            treasures: [new(10, 1, TreasureDiscovery.Discovered, null)]);
+            treasures: [new(10, 1, TreasureDiscovery.Discovered, null)], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(100, 100)) { IsRoot = true }]);
         var before = world.CreateSnapshot();
         var mutation = world.BeginMutation(Rules);
         mutation.Replace(mutation.Treasures[10] with { HolderId = 2 });

@@ -23,8 +23,8 @@ public sealed class RedCliffsTests
     private static OfficerState Officer(int id, int owner, int? home, int? unit = null, OfficerStatus status = OfficerStatus.Serving) =>
         new OfficerState(id, owner, home, new(50, 50, 50, 50), false) { Status = status, UnitId = unit }.WithLoyalty(owner, 100);
     private static WorldState World() => WorldState.Create(new(190, 2, 1), 17,
-        [new(1, 10000, 10000, 980) { BaseTrust = 980, LeaderId = 11 }, new(2, 10000, 10000, 10) { BaseTrust = 10, LeaderId = 21 },
-         new(3, 10000, 10000, 100) { BaseTrust = 100, LeaderId = 31 }],
+        [new(1, 980) { BaseTrust = 980, LeaderId = 11 }, new(2, 10) { BaseTrust = 10, LeaderId = 21 },
+         new(3, 100) { BaseTrust = 100, LeaderId = 31 }],
         Places.Select(p => new SettlementState(p.Id, p.Id is 2 or 4 ? 2 : p.Id == 5 ? 3 : 1,
             p.Id == 4 ? 9999u : 1000u, 100, 100, 60, 100, 100, 100, 100, 100)
             { Kind = p.Id <= 2 || p.Id == 5 ? SettlementKind.City : SettlementKind.Facility, ConsumesFood = false, Wounded = 20 }),
@@ -36,7 +36,7 @@ public sealed class RedCliffsTests
             Unit(21, 2, 17, 7, 10000, 23, 2), Unit(22, 2, 37, 12, 10000, 24, 2), Unit(30, 3, 22, 7, 10000, 32, 5)],
         controls: [new("player", 1, ControllerKind.Player), new("enemy", 2, ControllerKind.Automatic), new("third", 3, ControllerKind.Automatic)],
         relations: [new(1, 2, 19)], annualAppearancesEnabled: false, naturalDeathsEnabled: false, officeRequestsEnabled: false,
-        freeOfficerMigrationEnabled: false, forceConsolidationEnabled: false, forceEmergenceEnabled: false, cityIndependenceEnabled: false);
+        freeOfficerMigrationEnabled: false, forceConsolidationEnabled: false, forceEmergenceEnabled: false, cityIndependenceEnabled: false, corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, 31, new(10000, 10000)) { IsRoot = true }]);
     private static UnitState Unit(int id, int owner, int x, int y, uint soldiers, int commander, int home) =>
         new(id, owner, new(x, y), soldiers) { FormationId = 1, ServicePlaceId = home, CommanderId = commander, Morale = 60,
             OrderClass = UnitOrderClass.Military };

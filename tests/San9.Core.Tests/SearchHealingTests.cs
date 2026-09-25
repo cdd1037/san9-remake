@@ -12,7 +12,7 @@ public sealed class SearchHealingTests
         [new(1, new(0, 0)), new(2, new(100, 0)), new(3, new(200, 0))],
         new Dictionary<int, int> { [1] = 1, [2] = 2, [3] = 3 }, searchEvents: entries);
     private static WorldState World(bool automatic = false) => WorldState.Create(new(190, 1, 1), 1,
-        [new(1, 10000, 10000, 100) { LeaderId = 1 }, new(2, 10000, 10000, 100) { LeaderId = 10 }],
+        [new(1, 100) { LeaderId = 1 }, new(2, 100) { LeaderId = 10 }],
         [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100), new(2, 2, 0, 100, 100, 0, 0, 0, 100, 0, 100),
          new(3, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
         [new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
@@ -23,7 +23,7 @@ public sealed class SearchHealingTests
          new(6, null, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Undiscovered },
          new(10, 2, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
          new(99, null, null, default, false) { Status = OfficerStatus.Special }],
-        controls: [new("player", 1, automatic ? ControllerKind.Automatic : ControllerKind.Player)]);
+        controls: [new("player", 1, automatic ? ControllerKind.Automatic : ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 10, new(10000, 10000)) { IsRoot = true }]);
     private static PersistentTask Task(int destination = 1) => new(Guid.NewGuid(), "personnel-search", "player", 1, 2, 1,
         new(190, 1, 1), new(190, 1, 10), 9, 0)
         { Journey = new(destination, null, 0) { Route = new(new(0, 0), new(0, 0), false) } };
@@ -99,7 +99,7 @@ public sealed class SearchHealingTests
         var original = new SimulationEngine(world).CaptureStableState();
         var delegated = WorldState.Restore(original with
         {
-            Corps = [new(7, 1, 1, new(1000, 1000)) { ControlMode = CorpsControlMode.Automatic, Delegation = new GeneralDelegation() }],
+            Corps = [..original.Corps.Where(c => c.OwnerId != 1), new(7, 1, 1, new(1000, 1000)) { IsRoot = true, ControlMode = CorpsControlMode.Automatic, Delegation = new GeneralDelegation() }],
             Settlements = original.Settlements.Select(s => s.Id == 1 ? s with { CorpsId = 7 } : s).ToImmutableArray()
         });
         var mutation = delegated.BeginMutation();

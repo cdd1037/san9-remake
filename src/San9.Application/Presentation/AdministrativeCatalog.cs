@@ -112,7 +112,7 @@ public sealed class AdministrativeCatalog(StrategySnapshot view, TextCatalog tex
     internal int? MapTarget(InformationCategory category, int id) => category switch
     {
         InformationCategory.Forces => _forces[id].LeaderSettlementId,
-        InformationCategory.Corps => _people.GetValueOrDefault(_corps[id].LeaderId)?.SettlementId,
+        InformationCategory.Corps => _corps[id].LeaderId is int leader ? _people.GetValueOrDefault(leader)?.SettlementId : null,
         InformationCategory.Cities => id,
         InformationCategory.Regions => _places.ContainsKey(id) ? id : City(id),
         _ => null
@@ -173,11 +173,11 @@ public sealed class AdministrativeCatalog(StrategySnapshot view, TextCatalog tex
             case "soldiers": return places.Sum(s => (long)s.Soldiers) + units.Sum(u => (long)u.Soldiers) + travelingSoldiers;
             case "wounded": return places.Sum(s => (long)s.Wounded) + units.Sum(u => (long)u.Wounded) + travelingWounded;
             case "tactics": return Tactics(view.World.Forces.Single(f => f.Id == owner).ProvidedTactics);
-            case "money": return corps is null ? (long)force.Money + view.World.Corps.Where(c => c.OwnerId == owner).Sum(c => (long)(c.Treasury?.Money ?? 0)) : (long)(corps.Treasury?.Money ?? force.Money);
-            case "food": return corps is null ? (long)force.Food + view.World.Corps.Where(c => c.OwnerId == owner).Sum(c => (long)(c.Treasury?.Food ?? 0)) : (long)(corps.Treasury?.Food ?? force.Food);
+            case "money": return corps is null ? force.Money : corps.Treasury.Money;
+            case "food": return corps is null ? force.Food : corps.Treasury.Food;
             case "policy":
             case "target":
-                if (corps is null || corps.Treasury is null) return CatalogCell.Unavailable;
+                if (corps is null || corps.IsRoot) return CatalogCell.Unavailable;
                 if (owner != view.PlayerForceId) return Hidden;
                 if (field == "policy") return corps.Delegation switch { GeneralDelegation => "全权", DomesticDelegation => "内政", DefeatForceDelegation => "势力攻略", CaptureSettlementDelegation => "都市攻略", _ => throw new InvalidOperationException("Unknown delegation.") };
                 return corps.Delegation switch { DefeatForceDelegation d => Force(d.ForceId), CaptureSettlementDelegation c => Place(c.SettlementId), _ => CatalogCell.Unavailable };

@@ -7,12 +7,12 @@ namespace San9.Core.Tests;
 public sealed class BattleCaptureTests
 {
     private static WorldState World() => WorldState.Create(new(190, 1, 1), 42,
-        [new(1, 10000, 10000, 100) { AdviserId = 11 }, new(2, 10000, 10000, 100)],
+        [new(1, 100) { AdviserId = 11 }, new(2, 100)],
         [new(1, 1, 100, 100, 100, 70, 500, 0, 100, 0, 100), new(2, 2, 100, 100, 100, 70, 500, 0, 100, 0, 100)],
         [new(11, 1, null, new(70, 70, 70, 70), false) { Status = OfficerStatus.Strategist, UnitId = 0 },
          new(22, 2, null, new(70, 70, 70, 70), false) { UnitId = 1 }],
         units: [new(0, 1, new(2, 7), 100) { FormationId = 7 },
-            new(1, 2, new(36, 7), 100) { FormationId = 7, Order = new(MilitaryOrderKind.Return, null, 2) }]);
+            new(1, 2, new(36, 7), 100) { FormationId = 7, Order = new(MilitaryOrderKind.Return, null, 2) }], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, null, new(10000, 10000)) { IsRoot = true }]);
 
     private static MilitaryRulebook Rules() => new(new(8, 3,
         Enumerable.Repeat(0, 24).ToImmutableArray(), [new(0, 1, null)],

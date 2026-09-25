@@ -17,7 +17,7 @@ public sealed class TacticRescueTests
             [new(1, new(2, 7), new(1, 1)), new(2, new(497, 7), new(1, 1)), new(3, new(402, 7), new(1, 1))])
             { Tactics = [tactic], Geography = new(5, []) });
         var world = WorldState.Create(new(190, 1, 1), 42,
-            [new(1, 10000, 10000, 100), new(2, 10000, 10000, 100), new(3, 10000, 10000, 100)],
+            [new(1, 100), new(2, 100), new(3, 100)],
             [new(1, 1, 10000, 100, 100, 100, 0, 0, 100, 0, 100),
                 new(2, 2, 10000, 100, 100, 100, 0, 0, 100, 0, 100),
                 new(3, 3, 10000, 100, 100, 100, 0, 0, 100, 0, 100)],
@@ -29,7 +29,7 @@ public sealed class TacticRescueTests
             units: [new(1, 1, new(102, 7), 100000) { FormationId = 100, Morale = 100, ServicePlaceId = 1, Order = Target,
                     MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(11, BattleRank.Front) },
                 new(2, 2, new(106, 7), 100000) { FormationId = 100, Morale = 100, ServicePlaceId = 2,
-                    MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(21, BattleRank.Front) }]);
+                    MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(21, BattleRank.Front) }], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, null, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, null, new(10000, 10000)) { IsRoot = true }]);
         return (world, new() { Military = military }, tactic);
     }
 

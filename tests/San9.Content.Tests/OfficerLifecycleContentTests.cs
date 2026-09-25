@@ -45,12 +45,12 @@ public sealed class OfficerLifecycleContentTests
     }
 
     private static ScenarioInitialState Scenario() => new(ScenarioInitialState.CurrentSchemaVersion, "appearance", 190, 1, 1, 9000,
-        [new(9000, "force", 0, 100, 100, 0)],
+        [new(9000, "force", 0, 0)],
         [new(1000, "city", 9000, 0, 0, 0, 100, 100, 0, [])], [], [])
     {
         Officers = [new("future", new(80000, null, 1000, new(50, 50, 50, 50), false)
         { Status = OfficerStatus.NotAppeared, BirthYear = 190, AppearanceYear = 222, BloodlineId = 100000 })]
-    };
+    , Information = new([], [], [], [new San9.Core.Domain.CorpsState(9000, 9000, null, new(100, 100)) { IsRoot = true }], []) };
 
     [Fact]
     public void FamilyIdentityIsNotLimitedToOfficerIdsAndAppearanceIsIndependentOfBirth()

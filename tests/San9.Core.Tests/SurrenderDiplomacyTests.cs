@@ -106,9 +106,9 @@ public sealed class SurrenderDiplomacyTests
     private static OfficerState Person(int id, int force, int? home, OfficerStatus status = OfficerStatus.Serving, int loyalty = 255) =>
         new(id, force, home, new(50, 50, 100, 50), false) { Status = status, ForceLoyalties = ImmutableDictionary<int, int>.Empty.Add(force, loyalty) };
     private static WorldState World(bool units = false) => WorldState.Create(new(190, 1, 1), 42,
-        [new ForceState(1, 10000, 10000, 900) { LeaderId = 11, BaseTrust = 900 },
-         new ForceState(2, 2000, 4000, 100) { LeaderId = 21, BaseTrust = 100 },
-         new ForceState(3, 10000, 10000, 100) { LeaderId = 31 }],
+        [new ForceState(1, 900) { LeaderId = 11, BaseTrust = 900 },
+         new ForceState(2, 100) { LeaderId = 21, BaseTrust = 100 },
+         new ForceState(3, 100) { LeaderId = 31 }],
         [new(1, 1, 200000, 100, 100, 70, 0, 0, 0, 0, 0) { CorpsId = 10 },
          new(2, 2, 10000, 100, 100, 70, 0, 0, 0, 0, 0) { CorpsId = 20 },
          new(3, 3, 10000, 100, 100, 70, 0, 0, 0, 0, 0),
@@ -120,7 +120,7 @@ public sealed class SurrenderDiplomacyTests
          Person(33, 3, units ? null : 2, OfficerStatus.Captive) with { UnitId = units ? 50 : null }],
         units: units ? [new UnitState(50, 2, new(102, 2), 1000) { FormationId = 9, Morale = 70, CorpsId = 20,
             ServicePlaceId = 2, CommanderId = 22, MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(22, BattleRank.Front).Add(23, BattleRank.Rear) }] : [],
-        corps: [new(10, 1, 11, null), new(20, 2, 21, null), new(21, 2, 24, new(1000, 2000))],
+        corps: [new(10, 1, 11, new(10000, 10000)) { IsRoot = true }, new(20, 2, 21, new(2000, 4000)) { IsRoot = true }, new(21, 2, 24, new(1000, 2000)), new San9.Core.Domain.CorpsState(3, 3, 31, new(10000, 10000)) { IsRoot = true }],
         relations: [new(1, 2, 80), new(1, 3, 0), new(2, 3, 0)],
         controls: [new("first", 1, ControllerKind.Player), new("second", 2, ControllerKind.Player), new("third", 3, ControllerKind.Automatic)]);
 
@@ -149,7 +149,7 @@ public sealed class SurrenderDiplomacyTests
         Assert.True(result.Submission.Accepted);
         Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.Execute(new("second"), response).Events));
         var surrendered = Assert.Single(result.Events.OfType<ForceSurrenderedEvent>());
-        long funds = saved.Forces.Single(f => f.Id == 2).Money + saved.Corps.Where(c => c.OwnerId == 2).Sum(c => (long)(c.Treasury?.Money ?? 0));
+        long funds = saved.Corps.Where(c => c.OwnerId == 2).Sum(c => (long)(c.Treasury?.Money ?? 0));
         Assert.Equal(funds, surrendered.MoneyRemoved);
         Assert.Equal((uint)(funds / 2), surrendered.MoneyReceived);
         Assert.Contains(21, surrendered.JoinedOfficerIds);
@@ -230,7 +230,7 @@ public sealed class SurrenderDiplomacyTests
         Assert.True(engine.Execute(new("second"), new GiftCommand(giftId, 2, 1, 22, 3, new(GiftKind.Money, 500, null))).Submission.Accepted);
         engine.EndControl(new("second")); engine.EndControl(new("third")); engine.AdvanceXun();
         var task = engine.Snapshot.Simulation.Tasks.Single(t => t.Surrender is not null);
-        long funds = engine.Snapshot.Forces.Single(f => f.Id == 2).Money + engine.Snapshot.Corps.Where(c => c.OwnerId == 2)
+        long funds = engine.Snapshot.Corps.Where(c => c.OwnerId == 2)
             .Sum(c => (long)(c.Treasury?.Money ?? 0));
         var result = engine.Execute(new("second"), new RespondDailyTaskCommand(Guid.NewGuid(), 2, 2, task.Id, 0, true));
         Assert.Contains(result.Events, e => e is TaskCancelledEvent cancelled && cancelled.TaskId == giftId);

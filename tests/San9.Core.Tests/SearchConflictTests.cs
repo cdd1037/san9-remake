@@ -20,14 +20,14 @@ public sealed class SearchConflictTests
     private static (WorldMutation World, PersistentTask Task, SimulationRules Rules, ConflictSearchEncounter Encounter) Create(string kind, int roll = 0)
     {
         var world = WorldState.Create(new(190, 4, 1), 1,
-            [new(1, 0, 0, 100) { LeaderId = 1, BaseTrust = 100 }],
+            [new(1, 100) { LeaderId = 1, BaseTrust = 100 }],
             [new(1, 1, 1000, 100, 100, 0, 0, 0, 100, 0, 100) { CorpsId = 7 }],
             [new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
              new(2, 1, 1, new(60, 30, 80, 70), false) { LifespanTier = 5 },
              new(3, null, null, default, false) { Status = OfficerStatus.Special },
              new(4, null, null, default, false) { Status = OfficerStatus.Special }],
             treasures: [new(50, 3, TreasureDiscovery.Discovered, null)],
-            corps: [new(7, 1, 2, new(5000, 0)) { ControlMode = CorpsControlMode.Direct }],
+            corps: [new(7, 1, 2, new(5000, 0)) { ControlMode = CorpsControlMode.Direct }, new San9.Core.Domain.CorpsState(1, 1, 1, new(0, 0)) { IsRoot = true }],
             controls: [new("player", 1, ControllerKind.Player)]).BeginMutation();
         world.SetSimulation(world.Simulation with { RandomStreams = [new("event-search-eligibility", Seed(0)), new("event-search-conflict", Seed(roll))] });
         var task = new PersistentTask(Guid.NewGuid(), "personnel-search", "player", 1, 2, 1, world.Clock, world.Clock, 0, 0) { Journey = new(1, null, 0) };
@@ -64,7 +64,7 @@ public sealed class SearchConflictTests
         SearchConflicts.Resolve(world, task, rules, encounter, choice, events);
         var result = Assert.Single(events.OfType<SearchConflictResolvedEvent>());
         Assert.Equal((trust, injury, lifespan), (result.BaseTrust, result.Injury, result.LifespanTier));
-        Assert.Equal((uint)(5000 + funds), world.Corps[7].Treasury!.Money); Assert.Equal(0u, world.Forces[1].Money);
+        Assert.Equal((uint)(5000 + funds), world.Corps[7].Treasury!.Money); Assert.Equal(0u, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money);
         Assert.Equal(new ResourceAccount(ResourceOwnerKind.Corps, 7), result.Account);
         Assert.Equal(new OfficerAbilities(60, 30, 80, 70), world.Officers[2].BaseAbilities);
         if (kind == "scholar")
@@ -98,7 +98,7 @@ public sealed class SearchConflictTests
     public void FavoredLeaderRewardsOnlySuccessfulMediation(int roll, bool won, SearchConflictChoice choice)
     {
         var (world, task, rules, encounter) = Create("mediation", roll);
-        world.Replace(world.Forces[1] with { LeaderId = 4 });
+        world.Replace(world.Forces[1] with { LeaderId = 4 }); world.Replace(ResourceAccounts.Root(world, 1) with { LeaderId = 4 });
         List<DomainEvent> events = []; SearchConflicts.Resolve(world, task, rules, encounter, choice, events);
         var result = Assert.Single(events.OfType<SearchConflictResolvedEvent>());
         Assert.Equal(won ? 102 : 98, result.BaseTrust); Assert.Equal(won ? 0 : 7, result.Injury);
@@ -209,9 +209,9 @@ public sealed class SearchConflictTests
     public void MissingFundsCannotPayFromRichRootOrPartiallyCommit()
     {
         var (world, task, rules, encounter) = Create("demand");
-        world.Replace(world.Corps[7] with { Treasury = new(100, 0) }); world.Replace(world.Forces[1] with { Money = 10000 });
+        world.Replace(world.Corps[7] with { Treasury = new(100, 0) }); world.Replace(ResourceAccounts.Root(world, 1) with { Treasury = ResourceAccounts.Root(world, 1).Treasury with { Money = 10000 } });
         List<DomainEvent> events = [];
         Assert.Throws<InvalidOperationException>(() => SearchConflicts.Resolve(world, task, rules, encounter, SearchConflictChoice.Pay, events));
-        Assert.Empty(events); Assert.Equal(10000u, world.Forces[1].Money); Assert.Equal(100, world.Forces[1].BaseTrust);
+        Assert.Empty(events); Assert.Equal(10000u, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money); Assert.Equal(100, world.Forces[1].BaseTrust);
     }
 }

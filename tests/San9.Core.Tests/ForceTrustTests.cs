@@ -13,11 +13,11 @@ public sealed class ForceTrustTests
         ulong seed = Enumerable.Range(1, 10000).Select(i => (ulong)i).First(i =>
             new StableRandom(StableRandom.DeriveSeed(i, "personnel-salary-loyalty")).NextUInt64() % 100 == 2);
         var state = WorldState.Create(new(190, 2, 1), seed,
-            [new(1, 1000, 1000, 100) { BaseTrust = 100, LeaderId = 1 }, new(2, 1000, 1000, 100), new(3, 1000, 1000, 100)],
+            [new(1, 100) { BaseTrust = 100, LeaderId = 1 }, new(2, 100), new(3, 100)],
             [City(10, 1), City(20, 2), City(30, 3)],
             [new(1, 1, 10, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
              new(11, 1, 10, new(50, 50, 50, 50), false) { ForceLoyalties = System.Collections.Immutable.ImmutableDictionary<int, int>.Empty.Add(1, 70) }],
-            attackRequests: [new(1, 2, 30, 3, 1)]);
+            attackRequests: [new(1, 2, 30, 3, 1)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(1000, 1000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, null, new(1000, 1000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, null, new(1000, 1000)) { IsRoot = true }]);
         var engine = new SimulationEngine(state);
         Assert.Equal(80, engine.Snapshot.Forces.Single(f => f.Id == 1).Trust);
         Assert.Equal(70, engine.Snapshot.Officers.Single(p => p.Id == 11).Loyalty);
@@ -27,9 +27,9 @@ public sealed class ForceTrustTests
     public void ExpiredAttackRequestMustChangeEffectiveTrustAtStableXunBoundary()
     {
         var state = WorldState.Create(new(190, 2, 1), 42,
-            [new(1, 1000, 1000, 100) { BaseTrust = 100 }, new(2, 1000, 1000, 100), new(3, 1000, 1000, 100)],
+            [new(1, 100) { BaseTrust = 100 }, new(2, 100), new(3, 100)],
             [City(10, 1), City(20, 2), City(30, 3)], [],
-            attackRequests: [new(1, 2, 30, 3, 1)]);
+            attackRequests: [new(1, 2, 30, 3, 1)], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(1000, 1000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, null, new(1000, 1000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, null, new(1000, 1000)) { IsRoot = true }]);
         var engine = new SimulationEngine(state);
         Assert.Empty(engine.Snapshot.Simulation.AttackRequests);
         Assert.Equal(80, engine.Snapshot.Forces.Single(f => f.Id == 1).BaseTrust);
@@ -51,9 +51,9 @@ public sealed class ForceTrustTests
     public void ExpiredRequestMustAffectTrustBeforeSalaryAndOfficeRequestPhaseEnds()
     {
         var state = WorldState.Create(new(190, 2, 1), 42,
-            [new(1, 1000, 1000, 100) { BaseTrust = 100 }, new(2, 1000, 1000, 100), new(3, 1000, 1000, 100)],
+            [new(1, 100) { BaseTrust = 100 }, new(2, 100), new(3, 100)],
             [City(10, 1), City(20, 2), City(30, 3)], [],
-            attackRequests: [new(1, 2, 30, 3, 1)]);
+            attackRequests: [new(1, 2, 30, 3, 1)], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(1000, 1000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, null, new(1000, 1000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, null, new(1000, 1000)) { IsRoot = true }]);
         var rules = new ObserveXunRules();
         var engine = new SimulationEngine(state, rules);
         Assert.Equal(80, engine.Snapshot.Forces.Single(f => f.Id == 1).Trust);
@@ -64,9 +64,9 @@ public sealed class ForceTrustTests
     public void CompletedCityAttackMustUpdateTrustBeforeNextXunConsumers()
     {
         var state = WorldState.Create(new(190, 2, 1), 42,
-            [new(1, 1000, 1000, 100) { BaseTrust = 100 }, new(2, 1000, 1000, 200) { BaseTrust = 100 }],
+            [new(1, 100) { BaseTrust = 100 }, new(2, 200) { BaseTrust = 100 }],
             [City(10, 1), City(20, 2) with { Population = 1000000 }], [],
-            units: [new(1, 1, new(2, 2), 1000) { Morale = 100 }]);
+            units: [new(1, 1, new(2, 2), 1000) { Morale = 100 }], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(1000, 1000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, null, new(1000, 1000)) { IsRoot = true }]);
         var world = state.BeginMutation();
         List<DomainEvent> events = [];
         world.RebuildForceTrust();
@@ -96,14 +96,14 @@ public sealed class ForceTrustTests
     };
 
     private static WorldState Assets() => WorldState.Create(new(190, 2, 1), 42,
-        [new(1, 1000, 1000, 0) { BaseTrust = 100, LeaderId = 1 },
-         new(2, 1000, 1000, 0) { BaseTrust = 200, LeaderId = 2 }],
+        [new(1, 0) { BaseTrust = 100, LeaderId = 1 },
+         new(2, 0) { BaseTrust = 200, LeaderId = 2 }],
         [City(10, 1) with { Population = 1000000 }, City(20, 2)],
         [new(1, 1, 10, new(), false) { Status = OfficerStatus.Ruler },
          new(2, 2, 20, new(), false) { Status = OfficerStatus.Ruler },
          new(3, null, 10, new(), false) { Status = OfficerStatus.Free },
          new(4, null, 20, new(), false) { Status = OfficerStatus.Free }],
-        treasures: [new(5, 1, TreasureDiscovery.Discovered, null)]);
+        treasures: [new(5, 1, TreasureDiscovery.Discovered, null)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(1000, 1000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 2, new(1000, 1000)) { IsRoot = true }]);
 
     [Fact]
     public void CityInputsTransferAndDormancyImmediatelyAffectBothOwners()
@@ -144,7 +144,7 @@ public sealed class ForceTrustTests
         Assert.Equal(200, world.Forces[2].Trust);
         world.Replace(world.AllOfficers[2] with { IsDormant = false });
         Assert.Equal(300, world.Forces[2].Trust);
-        world.Replace(world.Forces[2] with { LeaderId = null });
+        world.Replace(world.Forces[2] with { LeaderId = null }); world.Replace(ResourceAccounts.Root(world, 2) with { LeaderId = null });
         Assert.Equal(200, world.Forces[2].Trust);
     }
 
@@ -181,7 +181,7 @@ public sealed class ForceTrustTests
         var snapshot = state.CreateSnapshot();
         var world = state.BeginMutation(); var old = world.Forces[1];
         world.Replace(world.Settlements[10] with { PublicOrder = 300 });
-        world.Replace(old with { Money = 50 });
+        world.Replace(old with { RankId = 50 });
         Assert.Equal(100, world.Forces[1].Trust);
         world.Replace(world.Forces[1] with { BaseTrust = 120 });
         Assert.Equal(120, world.Forces[1].Trust);

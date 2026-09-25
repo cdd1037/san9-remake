@@ -11,8 +11,8 @@ namespace San9.Application.Tests;
 public sealed class EmperorTransferSessionTests
 {
     private static ScenarioInitialState Content() => new(ScenarioInitialState.CurrentSchemaVersion, "emperor-transfer", 190, 3, 21, 1,
-        [new(1, "force.1", 1, 10000, 10000, 100) { BaseTrust = 100, LeaderId = 1 },
-         new(2, "force.2", 2, 10000, 10000, 100) { BaseTrust = 100, LeaderId = 2 }],
+        [new(1, "force.1", 1, 100) { BaseTrust = 100, LeaderId = 1 },
+         new(2, "force.2", 2, 100) { BaseTrust = 100, LeaderId = 2 }],
         [new(1, "city.1", 1, 0, 0, 100, 100, 100, 50, []) { Kind = SettlementKind.City, ConsumesFood = false },
          new(2, "city.2", 2, 1, 0, 100, 100, 100, 50, []) { Kind = SettlementKind.City, ConsumesFood = false }],
         new() { [1] = "city.1", [2] = "city.2" }, [])
@@ -26,7 +26,7 @@ public sealed class EmperorTransferSessionTests
             new("loyal", new(11, 1, 1, new(50, 50, 50, 50), false) { Righteousness = 11,
                 ForceLoyalties = ImmutableDictionary<int, int>.Empty.Add(1, 100) })],
         ImperialCourt = new([99], []) { TransferEvent = new(11, 15, 5) }
-    };
+    , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 2, new(10000, 10000)) { IsRoot = true }], []) };
 
     private static GameSession Pending(ScenarioInitialState content)
     {

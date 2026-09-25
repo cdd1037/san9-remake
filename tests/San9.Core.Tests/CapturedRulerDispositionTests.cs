@@ -8,12 +8,12 @@ public sealed class CapturedRulerDispositionTests
     private static (WorldMutation World, SimulationRules Rules) Fixture(ControllerKind control = ControllerKind.Automatic)
     {
         var world = WorldState.Create(new(190, 1, 1), 42,
-            [new(1, 10000, 100000, 100) { LeaderId = 11 }, new(2, 10000, 100000, 1000) { LeaderId = 21, BaseTrust = 1000 }],
+            [new(1, 100) { LeaderId = 11 }, new(2, 1000) { LeaderId = 21, BaseTrust = 1000 }],
             [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100), new(2, 2, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
             [new(11, 1, 2, new(100, 100, 100, 100), false) { Status = OfficerStatus.Captive, Righteousness = 15, BloodlineId = 7 },
              new(12, 1, 1, new(50, 50, 50, 50), false),
              new(21, 2, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }],
-            controls: [new("captor", 2, control)]);
+            controls: [new("captor", 2, control)], corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 100000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 100000)) { IsRoot = true }]);
         var mutation = world.BeginMutation();
         mutation.SetSimulation(mutation.Simulation with { ActiveControl = mutation.Simulation.Controls.Length });
         return (mutation, new SimulationRules { Personnel = new([new(1, new(2, 2)), new(2, new(12, 2))]) });
@@ -116,7 +116,7 @@ public sealed class CapturedRulerDispositionTests
     public void OrdinaryAndUnaffiliatedPrisonersDoNotEnterRulerDisposition(bool unaffiliated)
     {
         var (world, rules) = Fixture(ControllerKind.Player);
-        world.Replace(world.Forces[1] with { LeaderId = 12 });
+        world.Replace(world.Forces[1] with { LeaderId = 12 }); world.Replace(ResourceAccounts.Root(world, 1) with { LeaderId = 12 });
         world.Replace(world.Officers[11] with { OwnerId = unaffiliated ? null : 1 });
         new ResolutionPipeline(rules).AdvanceDay(world, []);
         Assert.Null(world.Simulation.PendingCapturedRuler);
@@ -145,11 +145,11 @@ public sealed class CapturedRulerDispositionTests
     public void FieldCaptiveReturnsFromActualUnitPositionAndRetainsValidTask()
     {
         var state = WorldState.Create(new(190, 1, 1), 42,
-            [new(1, 10000, 100000, 100) { LeaderId = 11 }, new(2, 10000, 100000, 1000) { LeaderId = 21, BaseTrust = 1000 }],
+            [new(1, 100) { LeaderId = 11 }, new(2, 1000) { LeaderId = 21, BaseTrust = 1000 }],
             [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100), new(2, 2, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
             [new(11, 1, null, new(100, 100, 100, 100), false) { Status = OfficerStatus.Captive, UnitId = 10 },
              new(12, 1, 1, new(50, 50, 50, 50), false), new(21, 2, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }],
-            units: [new(10, 2, new(37, 7), 100)]);
+            units: [new(10, 2, new(37, 7), 100)], corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 100000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 100000)) { IsRoot = true }]);
         var world = state.BeginMutation();
         world.SetClock(world.Clock.NextDay());
         var places = new PersonnelRulebook([new(1, new(2, 7)), new(2, new(12, 7))]);

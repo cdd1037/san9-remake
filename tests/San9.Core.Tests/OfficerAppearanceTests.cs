@@ -15,14 +15,14 @@ public sealed class OfficerAppearanceTests
 
     private static WorldState World(OfficerState child, bool enabled = true, IEnumerable<OfficerState>? others = null,
         GameClock? clock = null) => WorldState.Create(clock ?? new(190, 12, 21), 190,
-        [new(1, 1000, 1000, 0) { LeaderId = 1 }, new(2, 1000, 1000, 0) { LeaderId = 2 }],
+        [new(1, 0) { LeaderId = 1 }, new(2, 0) { LeaderId = 2 }],
         [new(10, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100), new(20, 2, 0, 100, 100, 0, 0, 0, 100, 0, 100),
          new(30, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100), new(40, 2, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
         new OfficerState[]
         {
             new(1, 1, 10, new(70, 70, 70, 70), false) { Status = OfficerStatus.Ruler, BloodlineId = 8, BirthYear = 150 },
             new(2, 2, 20, new(70, 70, 70, 70), false) { Status = OfficerStatus.Ruler, BloodlineId = 8, BirthYear = 160 }, child
-        }.Concat(others ?? []), annualAppearancesEnabled: enabled);
+        }.Concat(others ?? []), annualAppearancesEnabled: enabled, corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(1000, 1000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 2, new(1000, 1000)) { IsRoot = true }]);
 
     [Theory]
     [InlineData(189, OfficerStatus.Undiscovered)]
@@ -146,7 +146,7 @@ public sealed class OfficerAppearanceTests
         { UnitId = 5000, Status = captive ? OfficerStatus.Captive : OfficerStatus.Serving };
         var world = WorldState.Create(original.Clock, 190, original.Forces, original.Settlements,
             original.Officers.Append(parent), [new(5000, captive ? 2 : 1, new(100, 0), 1000)
-            { ServicePlaceId = captive ? 20 : 10 }]);
+            { ServicePlaceId = captive ? 20 : 10 }], corps: original.Corps);
         var mutation = world.BeginMutation();
         mutation.SetClock(new(191, 1, 1));
         OfficerAppearance.AdvanceYear(mutation, Places, []);

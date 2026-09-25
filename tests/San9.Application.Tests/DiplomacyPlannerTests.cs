@@ -40,8 +40,7 @@ public sealed class DiplomacyPlannerTests
     public void AutomaticEnvoyPausesInMemoryAndReplaysFromStableSave()
     {
         var content = G01ScenarioTests.Fixture();
-        content = content with { Forces = content.Forces.Select(f => f.Id == 2 ? f with { Money = 30000 } : f).ToArray(),
-            Information = content.Information with { Relations = [new(1, 2, 60)] } };
+        content = content with { Information = content.Information with { Corps = content.Information.Corps.Select(f => f.IsRoot && f.OwnerId == 2 ? f with { Treasury = f.Treasury with { Money = 30000 } } : f).ToArray(), Relations = [new(1, 2, 60)] } };
         var session = GameSession.Start(content, 42);
         session.BeginRecording();
         var restored = SaveService.Decode(SaveService.Encode(session), content);
@@ -69,13 +68,13 @@ public sealed class DiplomacyPlannerTests
         var basis = G01ScenarioTests.Fixture();
         var content = basis with
         {
-            Forces = [basis.Forces[0] with { Money = 10000, AdviserId = 3 }, basis.Forces[1],
-                new(3, "enemy", 3, 1000, 1000, 100) { LeaderId = 7 }],
+            Forces = [basis.Forces[0] with { AdviserId = 3 }, basis.Forces[1],
+                new(3, "enemy", 3, 100) { LeaderId = 7 }],
             Settlements = [.. basis.Settlements, basis.Settlements[1] with { Id = 3, OwnerId = 3, NameKey = "third" }],
             Officers = [.. basis.Officers.Select(o => o.State.Id == 3 ? o with { State = o.State with
                 { Status = OfficerStatus.Strategist, BaseAbilities = new(50, 100, 50, 50) } } : o),
                 new("enemy-ruler", new(7, 3, 3, new(50, 50, 50, 50), false))],
-            Information = basis.Information with { Relations = [new(1, 2, 60), new(1, 3, 0), new(2, 3, 0)] }
+            Information = basis.Information with { Corps = [.. basis.Information.Corps.Select(c => c.IsRoot && c.OwnerId == 1 ? c with { Treasury = c.Treasury with { Money = 10000 } } : c), new(3, 3, 7, new(10000, 10000)) { IsRoot = true }], Relations = [new(1, 2, 60), new(1, 3, 0), new(2, 3, 0)] }
         };
         var session = GameSession.Start(content, 42);
         var seat = session.Snapshot.Simulation.Controls[0];
@@ -109,14 +108,13 @@ public sealed class DiplomacyPlannerTests
     public void GiftBudgetPreservesReserveAndTargetsOnlyRelationsWorthImproving()
     {
         var content = G01ScenarioTests.Fixture();
-        content = content with { Forces = content.Forces.Select(f => f.Id == 1 ? f with { Money = 30000 } : f).ToArray(),
-            Information = content.Information with { Relations = [new(1, 2, 60)] } };
+        content = content with { Information = content.Information with { Corps = content.Information.Corps.Select(f => f.IsRoot && f.OwnerId == 1 ? f with { Treasury = f.Treasury with { Money = 30000 } } : f).ToArray(), Relations = [new(1, 2, 60)] } };
         var session = GameSession.Start(content, 42);
         var seat = session.Snapshot.Simulation.Controls[0];
         var gift = Assert.IsType<GiftCommand>(DiplomacyPlanner.Choose(session, seat, Guid.NewGuid()));
         Assert.Equal(2000u, gift.Offer.Amount);
         Assert.True(session.Execute(new(seat.ControllerId), gift).Submission.Accepted);
-        content = content with { Forces = content.Forces.Select(f => f.Id == 1 ? f with { Money = 19999 } : f).ToArray() };
+        content = content with { Information = content.Information with { Corps = content.Information.Corps.Select(f => f.IsRoot && f.OwnerId == 1 ? f with { Treasury = f.Treasury with { Money = 19999 } } : f).ToArray() } };
         session = GameSession.Start(content, 42);
         Assert.IsType<WaitCommand>(DiplomacyPlanner.Choose(session, seat, Guid.NewGuid()));
     }

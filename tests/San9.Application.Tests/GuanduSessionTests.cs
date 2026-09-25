@@ -14,8 +14,8 @@ public sealed class GuanduSessionTests
     private static OfficerState Person(int id, int owner, int home, OfficerStatus status = OfficerStatus.Serving) =>
         new OfficerState(id, owner, home, new(50, 50, 50, 50), false) { Status = status }.WithLoyalty(owner, 89);
     private static ScenarioInitialState Definition() => new(ScenarioInitialState.CurrentSchemaVersion, "guandu", 190, 2, 1, 1,
-        [new(1, "force.1", 1, 10000, 10000, 100) { LeaderId = 11, BaseTrust = 100 },
-         new(2, "force.2", 2, 10000, 10001, 100) { LeaderId = 21, BaseTrust = 100 }],
+        [new(1, "force.1", 1, 100) { LeaderId = 11, BaseTrust = 100 },
+         new(2, "force.2", 2, 100) { LeaderId = 21, BaseTrust = 100 }],
         [new(1, "home", 1, 0, 0, 1000, 100, 100, 60, []) { Kind = SettlementKind.City, ConsumesFood = false },
          new(2, "enemy", 2, 7, 0, 1000, 100, 100, 60, []) { Kind = SettlementKind.City, ConsumesFood = false },
          new(3, "guandu", 1, 1, 0, 1000, 100, 100, 60, []) { Kind = SettlementKind.Facility, ConsumesFood = false },
@@ -24,7 +24,7 @@ public sealed class GuanduSessionTests
         new() { [1] = 1, [2] = 2, [3] = 1, [4] = 2 })
     {
         AnnualAppearancesEnabled = false, NaturalDeathsEnabled = false, OfficeRequestsEnabled = false,
-        Information = new([], [], [], [], []) { Relations = [new(1, 2, 19)] },
+        Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 10001)) { IsRoot = true }], []) { Relations = [new(1, 2, 19)] },
         FreeOfficerMigrationEnabled = false, ForceEmergenceEnabled = false, CityIndependenceEnabled = false, ForceConsolidationEnabled = false,
         Officers = [new("cao", Person(11, 1, 3, OfficerStatus.Ruler)), new("actor", Person(12, 1, 1)),
             new("yuan", Person(21, 2, 2, OfficerStatus.Ruler)),
@@ -49,7 +49,7 @@ public sealed class GuanduSessionTests
         Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
         Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
         Assert.Equal(3000u, session.Snapshot.Settlements.Single(s => s.Id == 4).Soldiers);
-        Assert.Equal(3001u, session.Snapshot.Forces.Single(f => f.Id == 2).Food);
+        Assert.Equal(3001u, session.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 2).Treasury.Food);
         Assert.Equal(150, session.Snapshot.Forces.Single(f => f.Id == 1).BaseTrust);
         Assert.Equal(85, session.Snapshot.Forces.Single(f => f.Id == 2).BaseTrust);
         var recruit = session.Snapshot.Officers.Single(o => o.Id == 23);

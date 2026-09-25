@@ -9,12 +9,12 @@ namespace San9.Application.Tests;
 public sealed class StagedDailyTaskTests
 {
     private static ScenarioInitialState Content() => new(ScenarioInitialState.CurrentSchemaVersion, "staged-decisions", 190, 1, 1, 1,
-        [new(1, "first", 1, 1000, 1000, 100)],
+        [new(1, "first", 1, 100)],
         [new(1, "home", 1, 0, 0, 0, 100, 100, 0, [])], [], [])
     {
         Officers = [new("first", new(1, 1, 1, new(50, 50, 50, 50), false)),
             new("second", new(2, 1, 1, new(50, 50, 50, 50), false))]
-    };
+    , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, null, new(1000, 1000)) { IsRoot = true }], []) };
 
     // A scheduling fixture: automatic preparation, first decision, final decision/payment.
     // Actual diplomacy offer eligibility and settlement belong to production-command tests.
@@ -39,7 +39,7 @@ public sealed class StagedDailyTaskTests
                 world.NextRandom("staged-fixture");
                 if (accept == false) return null;
                 if (task.ResolutionStep < 2) return task;
-                ResourceAccounts.Change(world, new(ResourceOwnerKind.Force, 1), ResourceKind.Money, -100,
+                ResourceAccounts.Change(world, new(ResourceOwnerKind.Corps, 1), ResourceKind.Money, -100,
                     "fixture-settlement", task.OfficerId, events, true);
                 return null;
             }
@@ -60,7 +60,7 @@ public sealed class StagedDailyTaskTests
         Assert.True(session.Execute(new("player"), new StartTaskCommand(taskId, 1, 0, "staged-fixture", 1, 1)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), content, Factory);
         restored.AdvanceXun();
-        uint beforeMoney = session.Snapshot.Forces[0].Money;
+        uint beforeMoney = session.Snapshot.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Money;
         var advance = session.AdvanceXun();
         Assert.Equal(3, session.Snapshot.Clock.Day);
         Assert.Equal(1, Assert.Single(session.Snapshot.Simulation.Tasks).ResolutionStep);
@@ -76,7 +76,7 @@ public sealed class StagedDailyTaskTests
             Assert.Equal(3, session.Snapshot.Clock.Day);
             Assert.Equal(2, Assert.Single(session.Snapshot.Simulation.Tasks).ResolutionStep);
             Assert.DoesNotContain(answered.Events, e => e is TaskCompletedEvent or XunAdvancedEvent or StageCompletedEvent);
-            Assert.Equal(beforeMoney, session.Snapshot.Forces[0].Money);
+            Assert.Equal(beforeMoney, session.Snapshot.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Money);
             string beforeInvalid = session.Snapshot.StateHash;
             var stale = first with { CommandId = Guid.NewGuid(), Sequence = session.Snapshot.Simulation.NextSequence };
             Assert.Equal(CommandRejection.InvalidDecision, session.Execute(new("player"), stale).Submission.Rejection);
@@ -92,7 +92,7 @@ public sealed class StagedDailyTaskTests
         Assert.Single(answered.Events.OfType<XunAdvancedEvent>());
         Assert.Empty(session.Snapshot.Simulation.Tasks);
         // The two ordinary officers also receive their next-xun salary after continuation.
-        Assert.Equal(beforeMoney - 2 - (accept ? 100u : 0u), session.Snapshot.Forces[0].Money);
+        Assert.Equal(beforeMoney - 2 - (accept ? 100u : 0u), session.Snapshot.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Money);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, Factory);
         Assert.Equal(session.Snapshot.StateHash, replay.Session.Snapshot.StateHash);
         Assert.Equal(10, replay.Events.OfType<StageCompletedEvent>().Count(e => e.Stage == ResolutionStage.BeforeDailyCommands));
@@ -103,9 +103,9 @@ public sealed class StagedDailyTaskTests
     public void RespondentChangesBetweenStepsAndInvalidatedMissionCancelsWithoutPayment()
     {
         var world = WorldState.Create(new(190, 1, 1), 42,
-            [new(1, 1000, 1000, 100), new(2, 1000, 1000, 100)],
+            [new(1, 100), new(2, 100)],
             [new(1, 1, 0, 100, 100, 0, 0, 0, 0, 0, 0)], [new(1, 1, 1, new(50, 50, 50, 50), false)],
-            controls: [new("first", 1, ControllerKind.Player), new("second", 2, ControllerKind.Player)]);
+            controls: [new("first", 1, ControllerKind.Player), new("second", 2, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(1000, 1000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, null, new(1000, 1000)) { IsRoot = true }]);
         var engine = new SimulationEngine(world, new Rules(switchRespondent: true));
         Guid id = Guid.NewGuid();
         Assert.True(engine.Execute(new("first"), new StartTaskCommand(id, 1, 0, "staged-fixture", 1, 1)).Submission.Accepted);
@@ -125,7 +125,7 @@ public sealed class StagedDailyTaskTests
         Assert.True(cancelled.Submission.Accepted);
         Assert.Single(cancelled.Events.OfType<TaskCancelledEvent>(), e => e.TaskId == id);
         Assert.DoesNotContain(cancelled.Events, e => e is TaskCompletedEvent done && done.TaskId == id);
-        Assert.Equal(998u, engine.Snapshot.Forces.Single(f => f.Id == 1).Money);
+        Assert.Equal(998u, engine.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 1).Treasury.Money);
         Assert.Empty(engine.Snapshot.Simulation.Tasks);
     }
 

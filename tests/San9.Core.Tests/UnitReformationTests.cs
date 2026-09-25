@@ -30,13 +30,13 @@ public sealed class UnitReformationTests
         [new(1, new(4, 2), new(1, 1)), new(2, new(25, 2), new(1, 1))]));
 
     private static WorldState World(int x = 7, bool deployed = true) => WorldState.Create(new(190, 1, 1), 42,
-        [new(1, 1000, 10000, 0)],
+        [new(1, 0)],
         [new(1, 1, 1000, 100, 100, 70, 0, 0, 100, 0, 100), new(2, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
         [new(11, 1, deployed ? null : 1, new(70, 70, 70, 70), false) { UnitId = deployed ? 0 : null },
          new(12, 1, deployed ? null : 1, new(70, 70, 70, 70), false) { UnitId = deployed ? 0 : null }],
         units: deployed ? [new(0, 1, new(x, 2), 500) { FormationId = 10, Morale = 70, Wounded = 80, CargoFood = 100,
             MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(11, BattleRank.Front).Add(12, BattleRank.Rear) }] : [],
-        controls: [new("player", 1, ControllerKind.Player)]);
+        controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(1000, 10000)) { IsRoot = true }]);
 
     private static SimulationEngine Engine(WorldState world) => new(world, EconomyRulebook.Empty,
         PersonnelRulebook.Empty, TreasureRulebook.Empty, military: Rules());
@@ -47,11 +47,11 @@ public sealed class UnitReformationTests
     public void EmbarkCrossWaterAndDisembarkPreservesMembersWoundedAndCargo()
     {
         var engine = Engine(World());
-        uint money = engine.Snapshot.Forces[0].Money;
+        uint money = engine.Snapshot.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Money;
         Assert.True(engine.Execute(Player, Reform(engine, 20, order: new(MilitaryOrderKind.Move, new(22, 2), null))).Submission.Accepted);
         var boat = Assert.Single(engine.Snapshot.Units);
         Assert.All(boat.MemberRanks.Values, rank => Assert.Equal(BattleRank.Middle, rank));
-        Assert.Equal(money - 50, engine.Snapshot.Forces[0].Money);
+        Assert.Equal(money - 50, engine.Snapshot.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Money);
         Assert.Equal(80u, boat.Wounded);
         Assert.Equal(100u, boat.CargoFood);
         engine.EndControl(Player);

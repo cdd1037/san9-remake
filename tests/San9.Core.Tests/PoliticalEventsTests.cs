@@ -31,8 +31,8 @@ public sealed class PoliticalEventsTests
     private static SettlementState City(int id, int owner) => new(id, owner, 1000, 100, 100, 50, 500, 100, 1000, 100, 1000)
         { Kind = SettlementKind.City, ConsumesFood = false };
     private static WorldState World(int rank = 700, bool ended = false) => WorldState.Create(new(190, 1, 1), 17,
-        [new(1, 10000, 10000, 1000) { LeaderId = 11, RankId = rank, BaseTrust = ended ? 1000 : 900 },
-         new(2, 10000, 10000, 500) { LeaderId = 21, RankId = 700, BaseTrust = 300 }],
+        [new(1, 1000) { LeaderId = 11, RankId = rank, BaseTrust = ended ? 1000 : 900 },
+         new(2, 500) { LeaderId = 21, RankId = 700, BaseTrust = 300 }],
         [City(1, 1), City(2, 2), City(3, 2), City(4, 1)],
         [new(11, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
          new OfficerState(12, 1, 1, new(50, 50, 50, 50), false).WithLoyalty(1, 254),
@@ -40,7 +40,7 @@ public sealed class PoliticalEventsTests
          new(21, 2, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
          new(22, 2, 3, new(50, 50, 50, 50), false),
          new(31, null, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Free }],
-        controls: [new("player", 1, ControllerKind.Player), new("ai", 2, ControllerKind.Automatic)], imperialCourtEnded: ended);
+        controls: [new("player", 1, ControllerKind.Player), new("ai", 2, ControllerKind.Automatic)], imperialCourtEnded: ended, corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 10000)) { IsRoot = true }]);
     private static PoliticalRulebook Politics(CountryTitleRule[]? titles = null) => new(new(1000, new("court-ended")),
         [new(700, 0, 0, 0), new(300, 10, 100, 4), new(5, 20, 400, 5), new(99, 30, 1000, 6)],
         titles ?? [new(41, true, true, false, [], []), new(91, true, true, false, [], []), new(111, false, true, true, [], [])],

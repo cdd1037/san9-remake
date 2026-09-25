@@ -11,7 +11,7 @@ namespace San9.Application.Tests;
 public sealed class MysticBookSessionTests
 {
     private static ScenarioInitialState Definition(bool returning = false) => new(ScenarioInitialState.CurrentSchemaVersion, "mystic", 190, 2, 1, 1,
-        [new(1, "force", 1, 50000, 10000, 100) { LeaderId = 1, BaseTrust = 100, EventHistory = [new("visited")] }],
+        [new(1, "force", 1, 100) { LeaderId = 1, BaseTrust = 100, EventHistory = [new("visited")] }],
         [new(1, "home", 1, 0, 0, 0, 100, 100, 0, [])], new() { [1] = "home" }, new() { [1] = 1 })
     {
         Officers = [new("ruler", new(1, 1, 1, new(0, 0, 0, 100), false) { Status = OfficerStatus.Ruler }),
@@ -28,6 +28,7 @@ public sealed class MysticBookSessionTests
             new(22, 7, TacticEffect.CounterConfusion, 0, 0, 0, false, false, [])] },
         Information = InformationDefinitions.Empty with
         {
+            Corps = [new San9.Core.Domain.CorpsState(1, 1, 1, new(50000, 10000)) { IsRoot = true }],
             Treasures = [new(500, "book", 2, 10, 50, 29)],
             TreasureStates = [new(500, returning ? 2 : 4, TreasureDiscovery.Discovered, null)]
         }

@@ -49,9 +49,9 @@ public sealed class UnitLeadershipTests
     {
         governance = new([new(9000, 15000, 10), new(8000, 15000, 10)
             { AbilityBonuses = new(0, 0, 0, 20) }]);
-        world = WorldState.Create(new(190, 1, 1), 42, [new(1, 10000, 10000, 100)],
+        world = WorldState.Create(new(190, 1, 1), 42, [new(1, 100)],
             [new(1, 1, 5000, 100, 100, 80, 100, 0, 100, 0, 100)], people,
-            controls: [new("player", 1, ControllerKind.Player)]);
+            controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(10000, 10000)) { IsRoot = true }]);
         var engine = new SimulationEngine(world, new([new(9000, 0), new(8000, 0)], []), PersonnelRulebook.Empty, TreasureRulebook.Empty, governance, Military());
         Assert.True(engine.Execute(new("player"), new DeployUnitCommand(Guid.NewGuid(), 1, 0, 1,
             people.Select(p => p.Id).ToImmutableArray(), 2000, 1, new(MilitaryOrderKind.Move, new(17, 7), null))).Submission.Accepted);

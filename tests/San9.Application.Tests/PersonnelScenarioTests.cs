@@ -73,7 +73,7 @@ public sealed class PersonnelScenarioTests
     }
 
     private static ScenarioInitialState Fixture() => new(ScenarioInitialState.CurrentSchemaVersion, "personnel-public", 190, 1, 1, 1,
-        [new(1, "force", 1, 10000, 10000, 1000) { LeaderId = 1, BaseTrust = 1000 }],
+        [new(1, "force", 1, 1000) { LeaderId = 1, BaseTrust = 1000 }],
         [new(1, "home", 1, 0, 0, 0, 100, 100, 0, []), new(3, "destination", 1, 0, 15, 0, 100, 100, 0, [])],
         new() { [1] = "home", [3] = "destination", [30] = "region" }, new() { [1] = 1, [3] = 3, [30] = 1 })
     {
@@ -83,7 +83,7 @@ public sealed class PersonnelScenarioTests
          new("actor", new(11, 1, 1, new(50, 50, 100, 50), false)),
          new("hidden", new(21, null, null, new(50, 80, 50, 50), false)
          { Status = OfficerStatus.Undiscovered, RegionId = 30, Affinity = 50, ForceLoyalties = ImmutableDictionary<int, int>.Empty.Add(1, 0) })]
-    };
+    , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }], []) };
 
     [Fact]
     public void YearOfSearchRecruitMoveAndRewardKeepsSavesQueriesAndReplayConsistent()

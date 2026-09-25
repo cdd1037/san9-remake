@@ -9,8 +9,8 @@ public sealed class PrisonerReturnSessionTests
 {
     private static ScenarioInitialState Content(int relation = 0, bool exchange = false) => new(
         ScenarioInitialState.CurrentSchemaVersion, "prisoner-diplomacy", 190, 1, 1, 1,
-        [new(1, "first", 1, 100000, 100000, 100) { LeaderId = 11, BaseTrust = 100 },
-         new(2, "second", 2, 100000, 100000, 100) { LeaderId = 21, BaseTrust = 100 }],
+        [new(1, "first", 1, 100) { LeaderId = 11, BaseTrust = 100 },
+         new(2, "second", 2, 100) { LeaderId = 21, BaseTrust = 100 }],
         [new(1, "home", 1, 0, 0, 0, 100, 100, 0, []), new(2, "away", 2, 18, 0, 0, 100, 100, 0, [])], [], [])
     {
         Officers = [new("ruler", new(11, 1, 1, new(50, 50, 100, 50), false) { Status = OfficerStatus.Ruler }),
@@ -20,7 +20,7 @@ public sealed class PrisonerReturnSessionTests
             new("prisoner", new(13, 1, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Captive }),
             new("exchange", new(23, 2, exchange ? 1 : 2, new(50, 50, 50, 50), false)
                 { Status = exchange ? OfficerStatus.Captive : OfficerStatus.Serving })],
-        Information = new([], [], [new(9, "treasure", 0, 0, 1, null)], [], [new(9, 11, TreasureDiscovery.Discovered, null)])
+        Information = new([], [], [new(9, "treasure", 0, 0, 1, null)], [new San9.Core.Domain.CorpsState(1, 1, 11, new(100000, 100000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(100000, 100000)) { IsRoot = true }], [new(9, 11, TreasureDiscovery.Discovered, null)])
             { Relations = [new(1, 2, relation)] }
     };
 
@@ -34,9 +34,9 @@ public sealed class PrisonerReturnSessionTests
         var session = GameSession.Start(content, 42);
         session.BeginRecording();
         var command = new ReturnPrisonerCommand(Guid.NewGuid(), 1, 0, 12, 2, 13);
-        uint initialMoney = session.Snapshot.Forces[0].Money;
+        uint initialMoney = session.Snapshot.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Money;
         Assert.True(session.Execute(new("player"), command).Submission.Accepted);
-        Assert.Equal(initialMoney, session.Snapshot.Forces[0].Money);
+        Assert.Equal(initialMoney, session.Snapshot.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Money);
         Assert.Null(Assert.Single(session.Snapshot.Simulation.Tasks).Journey!.SuccessRoll);
         var outbound = SaveService.Decode(SaveService.Encode(session), content);
         var arrived = session.AdvanceXun();

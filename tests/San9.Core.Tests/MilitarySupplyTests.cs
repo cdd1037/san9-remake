@@ -24,12 +24,12 @@ public sealed class MilitarySupplyTests
     };
 
     private static WorldState World(uint food, int morale = 70) => WorldState.Create(new(190, 1, 1), 42,
-        [new(1, 1000, food, 0) { LeaderId = 11 }, new(2, 1000, 1000, 0) { LeaderId = 22 }],
+        [new(1, 0) { LeaderId = 11 }, new(2, 0) { LeaderId = 22 }],
         [new(1, 1, 1000, 100, 100, 90, 0, 0, 100, 0, 100), new(2, 2, 1000, 100, 100, 90, 0, 0, 100, 0, 100)],
         [new(11, 1, null, new(70, 70, 70, 70), false) { UnitId = 0, Status = OfficerStatus.Ruler },
          new(22, 2, 2, new(70, 70, 70, 70), false) { Status = OfficerStatus.Ruler }],
         units: [new(0, 1, new(7, 2), 500) { Morale = morale, FormationId = 10, ServicePlaceId = 1,
-            MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(11, BattleRank.Front) }]);
+            MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(11, BattleRank.Front) }], corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(1000, food)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 22, new(1000, 1000)) { IsRoot = true }]);
 
     [Fact]
     public void PartialSupplyAffectsOnlyTheDebitedAccountAndDoesNotDrawRandom()
@@ -41,8 +41,8 @@ public sealed class MilitarySupplyTests
         Assert.Equal(67, world.Units[0].Morale);
         Assert.Equal(87, world.Settlements[1].Morale);
         Assert.Equal(90, world.Settlements[2].Morale);
-        Assert.Equal(0u, world.Forces[1].Food);
-        Assert.Equal(998u, world.Forces[2].Food);
+        Assert.Equal(0u, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Food);
+        Assert.Equal(998u, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 2).Treasury.Food);
         Assert.Empty(world.Simulation.RandomStreams);
     }
 
@@ -50,7 +50,7 @@ public sealed class MilitarySupplyTests
     public void IndependentCorpsFoodCannotCoverAnotherAccountShortage()
     {
         var world = World(0).BeginMutation();
-        world.Replace(world.Forces[2] with { LeaderId = null });
+        world.Replace(world.Forces[2] with { LeaderId = null }); world.Replace(ResourceAccounts.Root(world, 2) with { LeaderId = null });
         world.Replace(world.Officers[22] with { OwnerId = 1, Status = OfficerStatus.Governor });
         world.AddCorps(new(10, 1, 22, new(1000, 1000)));
         world.Replace(world.Settlements[2] with { OwnerId = 1, CorpsId = 10 });
@@ -61,6 +61,7 @@ public sealed class MilitarySupplyTests
         Assert.Equal(87, world.Settlements[1].Morale);
         Assert.Equal(90, world.Settlements[2].Morale);
         Assert.Equal(998u, world.Corps[10].Treasury!.Food);
+        world.Replace(ResourceAccounts.Root(world, 2) with { LeaderId = null });
         WorldInvariants.Validate(world);
     }
 

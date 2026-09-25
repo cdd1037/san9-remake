@@ -21,7 +21,7 @@ internal static class SettlementAffiliation
                 (16 - person.Righteousness) * ((world.Forces[recipient].Trust - world.Forces[owner].Trust) / 50 - person.LoyaltyTo(owner) + 100) / 2;
             if ((int)(world.NextRandom("event-settlement-defection-followers") % 100) < chance) followers.Add(person.Id);
         }
-        int? root = world.Corps.Values.SingleOrDefault(c => c.OwnerId == recipient && c.Treasury is null)?.Id;
+        int? root = world.Corps.Values.SingleOrDefault(c => c.OwnerId == recipient && c.IsRoot)?.Id;
         BattleTreasury.TransferTo(world, owner, place.CorpsId, BattleTreasury.Weight(place),
             ResourceAccounts.Resolve(world, recipient, root), place.Id, Reason, events);
         world.Replace(place with { OwnerId = recipient, CorpsId = root });

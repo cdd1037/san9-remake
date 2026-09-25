@@ -15,7 +15,7 @@ public sealed class FacilityDemolitionTests
         var geography = new PersonnelRulebook([new(1, new(2, 2)), new(2, new(12, 2)), new(3, new(27, 2))],
             new Dictionary<int, int> { [1] = 1, [2] = 1, [3] = 3 });
         return new(WorldState.Create(new(190, 1, 1), 42,
-            [new(1, 10000, 10000, 100) { LeaderId = 11 }, new(2, 10000, 10000, 100) { LeaderId = 21 }],
+            [new(1, 100) { LeaderId = 11 }, new(2, 100) { LeaderId = 21 }],
             [new(1, friendlyCity ? 1 : 2, soldiers, 100, 100, 80, 0, 0, 100, 0, 100) { Wounded = 49990 },
                 new(2, 1, 100, 100, 100, 50, 0, 0, 100, 0, 100) { Kind = SettlementKind.Facility, Wounded = 20 },
                 new(3, 2, 100, 100, 100, 100, 0, 0, 100, 0, 100)],
@@ -25,7 +25,7 @@ public sealed class FacilityDemolitionTests
                 new(13, 1, null, new(70, 70, 70, 70), false) { UnitId = 0 }],
             units: [new(0, 1, new(7, 2), 100) { FormationId = 1, Morale = 100, ServicePlaceId = 2,
                 CargoFood = 100, Order = new(MilitaryOrderKind.Transport, null, 2) }],
-            controls: [new("player", 1, ControllerKind.Player)]), EconomyRulebook.Empty, geography,
+            controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 10000)) { IsRoot = true }]), EconomyRulebook.Empty, geography,
             TreasureRulebook.Empty, military: military);
     }
 

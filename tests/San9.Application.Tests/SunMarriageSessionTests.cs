@@ -10,8 +10,8 @@ namespace San9.Application.Tests;
 public sealed class SunMarriageSessionTests
 {
     private static ScenarioInitialState Definition() => new(ScenarioInitialState.CurrentSchemaVersion, "sun", 190, 3, 21, 1,
-        [new(1, "force.1", 1, 10000, 10000, 100) { LeaderId = 11 }, new(2, "force.2", 2, 10000, 10000, 100) { LeaderId = 21 },
-         new(3, "force.3", 3, 10000, 10000, 100) { LeaderId = 31 }],
+        [new(1, "force.1", 1, 100) { LeaderId = 11 }, new(2, "force.2", 2, 100) { LeaderId = 21 },
+         new(3, "force.3", 3, 100) { LeaderId = 31 }],
         [new(1, "city.1", 1, 0, 0, 100, 100, 100, 50, []) { Kind = SettlementKind.City, ConsumesFood = false },
          new(2, "city.2", 2, 1, 0, 100, 100, 100, 50, []) { Kind = SettlementKind.City, ConsumesFood = false },
          new(3, "city.3", 3, 2, 0, 100, 100, 100, 50, []) { Kind = SettlementKind.City, ConsumesFood = false }],
@@ -23,7 +23,7 @@ public sealed class SunMarriageSessionTests
             new("ruler.2", new(21, 2, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler, BloodlineId = 900 }),
             new("bride", new(22, 2, 2, new(50, 50, 50, 50), false)),
             new("ruler.3", new(31, 3, 3, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler })],
-        Information = InformationDefinitions.Empty with { Relations = [new(1, 2, 80), new(1, 3, 50), new(2, 3, 50)] },
+        Information = InformationDefinitions.Empty with { Corps = [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, 31, new(10000, 10000)) { IsRoot = true }], Relations = [new(1, 2, 80), new(1, 3, 50), new(2, 3, 50)] },
         SunMarriage = new(11, 22, 900, 3, new(209, 12, 30), 70, 20, 150, [101, 102], new("sun-marriage")),
         Military = new(4, 1, [0, 0, 0, 0], [new(0, 1, null)], [],
             [new(1, new(2, 2), new(1, 1)), new(2, new(7, 2), new(1, 1)), new(3, new(12, 2), new(1, 1))])

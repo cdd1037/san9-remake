@@ -26,7 +26,7 @@ public sealed class FacilityReprisalTests
                 new(8001, 0, 600, new(1, 1), 0, false, true, true, 100000, null, null, null, []) { Combat = combat }]
         });
         var world = WorldState.Create(new(190, 1, 1), seed,
-            [new(1, 10000, 100000, 100) { LeaderId = 11 }, new(2, 10000, 100000, 100) { LeaderId = 21 }],
+            [new(1, 100) { LeaderId = 11 }, new(2, 100) { LeaderId = 21 }],
             [new(1, 1, 1000, 600, 600, 100, 0, 0, 100, 0, 100),
              new(2, 2, 0, durability, 600, 0, 0, 0, 100, 0, 100) { CanHostPersons = false, ConsumesFood = false },
              new(3, 2, 1000, 600, 600, 100, 0, 0, 100, 0, 100)],
@@ -36,7 +36,7 @@ public sealed class FacilityReprisalTests
              new(21, 2, 3, new(10, 10, 10, 10), false) { Status = OfficerStatus.Ruler }],
             units: [new(0, 1, new(6, 2), soldiers) { FormationId = 700, Morale = 100, Wounded = wounded, ServicePlaceId = 1,
                 MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(11, BattleRank.Front).Add(12, BattleRank.Rear) }],
-            controls: [new("player", 1, ControllerKind.Player)], computerDamageBonusPercent: 100);
+            controls: [new("player", 1, ControllerKind.Player)], computerDamageBonusPercent: 100, corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 100000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 100000)) { IsRoot = true }]);
         var engine = new SimulationEngine(world, EconomyRulebook.Empty, PersonnelRulebook.Empty, TreasureRulebook.Empty, military: military);
         Assert.True(engine.Execute(Player, new OrderUnitCommand(Guid.NewGuid(), 1, 0, 0,
             new(MilitaryOrderKind.AttackSettlement, null, 2))).Submission.Accepted);

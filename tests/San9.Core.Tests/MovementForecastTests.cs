@@ -15,8 +15,8 @@ public sealed class MovementForecastTests
     private static WorldState World(UnitState? unit = null)
     {
         var world = WorldState.Create(new(190, 1, 1), 42,
-        [new(1, 0, 10000, 100)], [new(1, 1, 0, 100, 100, 70, 0, 0, 0, 0, 0)], [],
-        [unit ?? new(0, 1, new(2, 2), 100) { FormationId = 0, Order = new(MilitaryOrderKind.Move, new(402, 2), null) }]);
+        [new(1, 100)], [new(1, 1, 0, 100, 100, 70, 0, 0, 0, 0, 0)], [],
+        [unit ?? new(0, 1, new(2, 2), 100) { FormationId = 0, Order = new(MilitaryOrderKind.Move, new(402, 2), null) }], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(0, 10000)) { IsRoot = true }]);
         var setup = world.BeginMutation();
         setup.SetSimulation(setup.Simulation with { Boundary = SimulationBoundary.Stable });
         world.Commit(setup);
@@ -139,9 +139,9 @@ public sealed class MovementForecastTests
     {
         var rules = new MilitaryRulebook(new(100, 1, Enumerable.Repeat(0, 100).ToImmutableArray(), [new(0, 10, null)],
             [new(0, 95, 0, 10000, 1, new(1, 1), TravelMode.Land) { Combat = new(10, 10, 10, 10, 50), Attack = new(5, true), CaptureRanks = [BattleRank.Front] }], []));
-        var world = WorldState.Create(new(190, 1, 1), 42, [new(1, 0, 0, 100), new(2, 0, 0, 100)], [], [],
+        var world = WorldState.Create(new(190, 1, 1), 42, [new(1, 100), new(2, 100)], [], [],
             [new(0, 1, new(2, 2), 100) { FormationId = 0, Order = new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 1 } },
-             new(1, 2, new(26, 2), 100) { FormationId = 0 }]);
+             new(1, 2, new(26, 2), 100) { FormationId = 0 }], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(0, 0)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, null, new(0, 0)) { IsRoot = true }]);
         var setup = world.BeginMutation();
         setup.SetSimulation(setup.Simulation with { Boundary = SimulationBoundary.Stable });
         world.Commit(setup);

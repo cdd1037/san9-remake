@@ -7,9 +7,9 @@ namespace San9.Core.Tests;
 public sealed class G08RegressionTests
 {
     private static WorldState World() => WorldState.Create(new(190, 1, 1), 42,
-        [new ForceState(1, 30000, 30000, 100) { LeaderId = 11, AdviserId = 12 },
-         new ForceState(2, 30000, 30000, 100) { LeaderId = 21 },
-         new ForceState(3, 30000, 30000, 100) { LeaderId = 31 }],
+        [new ForceState(1, 100) { LeaderId = 11, AdviserId = 12 },
+         new ForceState(2, 100) { LeaderId = 21 },
+         new ForceState(3, 100) { LeaderId = 31 }],
         [new(1, 1, 10000, 300, 300, 70, 0, 0, 0, 0, 0),
          new(2, 2, 10000, 300, 300, 70, 0, 0, 0, 0, 0),
          new(3, 3, 10000, 300, 300, 70, 0, 0, 0, 0, 0)],
@@ -19,7 +19,7 @@ public sealed class G08RegressionTests
          new OfficerState(22, 2, 2, new(50, 0, 50, 50), false).WithLoyalty(2, 80),
          new OfficerState(23, 2, 3, new(50, 0, 50, 50), false) { Status = OfficerStatus.Captive }.WithLoyalty(2, 1),
          new OfficerState(31, 3, 3, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }],
-        controls: [new("first", 1, ControllerKind.Player), new("second", 2, ControllerKind.Automatic), new("third", 3, ControllerKind.Automatic)]);
+        controls: [new("first", 1, ControllerKind.Player), new("second", 2, ControllerKind.Automatic), new("third", 3, ControllerKind.Automatic)], corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(30000, 30000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(30000, 30000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, 31, new(30000, 30000)) { IsRoot = true }]);
 
     [Fact]
     public void GossipSelectsServingOfficerAndLeavesCaptiveLoyaltyUntouched()

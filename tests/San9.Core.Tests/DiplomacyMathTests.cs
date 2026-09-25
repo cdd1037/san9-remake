@@ -112,8 +112,8 @@ public sealed class DiplomacyMathTests
     [Fact]
     public void OnePairOwnsBothDirectionsAndEmitsOnlyActualChanges()
     {
-        var world = WorldState.Create(new(190, 1, 1), 1, [new(3, 0, 0, 0), new(900, 0, 0, 0)], [], [],
-            relations: [new(3, 900, 99)]);
+        var world = WorldState.Create(new(190, 1, 1), 1, [new(3, 0), new(900, 0)], [], [],
+            relations: [new(3, 900, 99)], corps: [new San9.Core.Domain.CorpsState(3, 3, null, new(0, 0)) { IsRoot = true }, new San9.Core.Domain.CorpsState(900, 900, null, new(0, 0)) { IsRoot = true }]);
         var mutation = world.BeginMutation();
         List<DomainEvent> events = [];
         ForceRelations.Change(mutation, 900, 3, 15, events);

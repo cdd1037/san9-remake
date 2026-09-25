@@ -11,7 +11,7 @@ namespace San9.Application.Tests;
 public sealed class ForceConsolidationSessionTests
 {
     private static ScenarioInitialState Scenario() => new(ScenarioInitialState.CurrentSchemaVersion, "consolidation", 190, 1, 1, 1,
-        Enumerable.Range(1, 3).Select(i => new ForceInitialState(i, $"force.{i}", i, 1000, 1000, 100) { LeaderId = i }).ToArray(),
+        Enumerable.Range(1, 3).Select(i => new ForceInitialState(i, $"force.{i}", i, 100) { LeaderId = i }).ToArray(),
         Enumerable.Range(1, 4).Select(i => new SettlementInitialState(i, $"city.{i}", i <= 2 ? 1 : i - 1, i - 1, 0,
             i <= 2 ? 50000u : 10000u, 100, 100, 50, []) { ConsumesFood = false }).ToArray(),
         new() { [1] = "region.1", [2] = "region.2", [3] = "region.3", [4] = "region.4" },
@@ -23,7 +23,7 @@ public sealed class ForceConsolidationSessionTests
         Military = new(4, 1, [0, 0, 0, 0], [new(0, 1, null)], [],
             Enumerable.Range(1, 4).Select(i => new BattlefieldPlace(i, new(5 * (i - 1) + 2, 2), new(1, 1))).ToImmutableArray())
             { RegionIds = [1, 2, 3, 4], TerritoryExits = [TerritoryExits.All, TerritoryExits.All, TerritoryExits.All, TerritoryExits.All] },
-        Information = new([], [], [], [], []) { Relations = [new(1, 2, 0), new(1, 3, 0), new(2, 3, 100)] }
+        Information = new([], [], [], Enumerable.Range(1, 3).Select(i => new San9.Core.Domain.CorpsState(i, i, i, new(1000, 1000)) { IsRoot = true }).ToArray(), []) { Relations = [new(1, 2, 0), new(1, 3, 0), new(2, 3, 100)] }
     };
 
     [Fact]

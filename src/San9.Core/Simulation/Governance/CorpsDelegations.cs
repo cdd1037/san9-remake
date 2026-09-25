@@ -10,7 +10,7 @@ public sealed record CorpsDelegationChangedEvent(GameClock Clock, int ForceId, i
 internal static class CorpsDelegations
 {
     internal static bool Valid(WorldMutation world, CorpsState corps, MilitaryRulebook? military) =>
-        corps.Treasury is null ? corps.Delegation is GeneralDelegation : corps.Delegation switch
+        corps.IsRoot ? corps.Delegation is GeneralDelegation : corps.Delegation switch
         {
             GeneralDelegation or DomesticDelegation => true,
             DefeatForceDelegation target => MilitaryDiplomacy.AutomaticEnemy(world, corps.OwnerId, target.ForceId),
@@ -27,7 +27,7 @@ internal static class CorpsDelegations
         MilitaryRulebook? military, List<DomainEvent> events)
     {
         if (!world.Corps.TryGetValue(command.CorpsId, out var corps) || corps.OwnerId != command.IssuerId ||
-            corps.Treasury is null || !Valid(world, corps with { Delegation = command.Delegation }, military))
+            corps.IsRoot || !Valid(world, corps with { Delegation = command.Delegation }, military))
             return CommandRejection.InvalidCorps;
         Change(world, corps, command.Delegation, "ordered", events);
         return CommandRejection.None;

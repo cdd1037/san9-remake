@@ -7,8 +7,8 @@ namespace San9.Core.Tests;
 public sealed class OfficerDeathTests
 {
     private static WorldState World() => WorldState.Create(new(190, 1, 1), 42,
-        [new(1, 1000, 1000, 0) { LeaderId = 1, AdviserId = 11 },
-         new(2, 1000, 1000, 0) { LeaderId = 2 }],
+        [new(1, 0) { LeaderId = 1, AdviserId = 11 },
+         new(2, 0) { LeaderId = 2 }],
         [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100), new(2, 2, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
         [new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
          new(2, 2, 2, new(50, 50, 100, 50), false) { Status = OfficerStatus.Ruler },
@@ -16,7 +16,7 @@ public sealed class OfficerDeathTests
          { Status = OfficerStatus.Strategist, ParentId = 1, BloodlineId = 9000, LearnedTactics = [2],
              TacticCooldown = 3, RewardedThisXun = true }],
         treasures: [new(8, 11, TreasureDiscovery.Discovered, null), new(7, 11, TreasureDiscovery.Discovered, null)],
-        controls: [new("enemy", 2, ControllerKind.Player)], relations: [new(1, 2, 50)]);
+        controls: [new("enemy", 2, ControllerKind.Player)], relations: [new(1, 2, 50)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(1000, 1000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 2, new(1000, 1000)) { IsRoot = true }]);
 
     [Theory]
     [InlineData(null)]

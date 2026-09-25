@@ -14,13 +14,13 @@ public sealed class OfficeRequestTests
     };
 
     private static WorldState World(ulong seed = 0, bool player = true, int count = 1, bool enabled = true) => WorldState.Create(new(190, 1, 1), seed,
-        [new(1, 10000, 10000, 1000) { LeaderId = 1, BaseTrust = 1000 }],
+        [new(1, 1000) { LeaderId = 1, BaseTrust = 1000 }],
         [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
         new[] { new OfficerState(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler } }
             .Concat(Enumerable.Range(10, count).Select(id => new OfficerState(id, null, 1, new(50, 50, 50, 50), false)
                 { Status = OfficerStatus.Free, BirthYear = 170, StatusStartYear = 180 }.WithLoyalty(1, 100))),
         controls: [new("player", 1, player ? ControllerKind.Player : ControllerKind.Automatic)],
-        freeOfficerMigrationEnabled: false, officeRequestsEnabled: enabled);
+        freeOfficerMigrationEnabled: false, officeRequestsEnabled: enabled, corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }]);
 
     private static WorldMutation Mature(WorldState world)
     {

@@ -7,9 +7,9 @@ public sealed class TacticSelectionTests
 {
     private static readonly CommandContext Player = new("player");
     private static SimulationEngine Engine() => new(WorldState.Create(new(190, 1, 1), 42,
-        [new(1, 1000, 10000, 0)], [new(1, 1, 1000, 100, 100, 70, 0, 0, 100, 0, 100)],
+        [new(1, 0)], [new(1, 1, 1000, 100, 100, 70, 0, 0, 100, 0, 100)],
         [new(1, 1, 1, new(70, 70, 70, 70), true) { LearnedTactics = [8000, 8001, 8003], TacticCooldown = 13 }],
-        controls: [new("player", 1, ControllerKind.Player)]), EconomyRulebook.Empty, PersonnelRulebook.Empty,
+        controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(1000, 10000)) { IsRoot = true }]), EconomyRulebook.Empty, PersonnelRulebook.Empty,
         TreasureRulebook.Empty, military: new(new(1, 1, [0], [new(0, 1, null)], [], [new(1, new(2, 2), new(1, 1))])
         {
             Tactics = [new(8000, 0, TacticEffect.Martial, 13, 9, 100, true, false, []),

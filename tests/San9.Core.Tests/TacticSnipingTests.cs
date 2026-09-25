@@ -23,7 +23,7 @@ public sealed class TacticSnipingTests
                 Facilities = [new(8000, 0, 100, new(1, 1), 0, false, true, true, 100000, null, null, null, [])
                     { Combat = combat, Attack = new(10, false), Tactics = new(100, 3, false, [9000]) }] });
         var world = WorldState.Create(new(190, 1, 1), 42,
-            [new(1, 10000, 10000, 100) { LeaderId = 11 }, new(2, 10000, 10000, 100) { LeaderId = 21 }],
+            [new(1, 100) { LeaderId = 11 }, new(2, 100) { LeaderId = 21 }],
             [new(1, 1, 10000, 100, 100, 100, 0, 0, 100, 0, 100),
                 new(2, 2, 10000, 100, 100, 100, 0, 0, 100, 0, 100), new(3, 2, 10000, 100, 100, 100, 0, 0, 100, 0, 100)],
             [new(11, 1, null, new(100, 70, 70, 100), false) { UnitId = 1, Status = OfficerStatus.Ruler,
@@ -37,7 +37,7 @@ public sealed class TacticSnipingTests
                 ..(settlement ? Array.Empty<UnitState>() : [new(2, 2, new(106, 7), 100000) { FormationId = 100,
                     CommanderId = 21, Morale = 100, ServicePlaceId = 3,
                     MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(21, BattleRank.Rear).Add(22, BattleRank.Middle) }])],
-            controls: [new("player", 1, ControllerKind.Player)]);
+            controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 10000)) { IsRoot = true }]);
         return (world, new() { Military = military }, tactic);
     }
 

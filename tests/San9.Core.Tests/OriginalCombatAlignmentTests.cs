@@ -24,8 +24,8 @@ public sealed class OriginalCombatAlignmentTests
     };
 
     private static WorldState World(uint food = 1000000) => WorldState.Create(new(190, 1, 1), 42,
-        [new(1, 10000, food, 100) { LeaderId = 11, BaseTrust = 100 }, new(2, 10000, 1000000, 100) { LeaderId = 21, BaseTrust = 100 },
-         new(3, 10000, 1000000, 100) { IsBarbarian = true, LeaderId = 31 }],
+        [new(1, 100) { LeaderId = 11, BaseTrust = 100 }, new(2, 100) { LeaderId = 21, BaseTrust = 100 },
+         new(3, 100) { IsBarbarian = true, LeaderId = 31 }],
         [new(1, 1, 1000, 100, 100, 45, 0, 0, 100, 0, 100),
          new(2, 2, 1000, 100, 100, 50, 0, 0, 100, 0, 100),
          new(3, 3, 1000, 100, 100, 45, 0, 0, 100, 0, 100),
@@ -36,7 +36,7 @@ public sealed class OriginalCombatAlignmentTests
         units: [new(1, 1, new(12, 2), 500) { FormationId = 101, Morale = 70, ServicePlaceId = 1,
                     MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(11, BattleRank.Middle) },
                 new(2, 2, new(17, 2), 500) { FormationId = 101, Morale = 70, ServicePlaceId = 2,
-                    MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(21, BattleRank.Middle) }]);
+                    MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(21, BattleRank.Middle) }], corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, food)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 1000000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, 31, new(10000, 1000000)) { IsRoot = true }]);
 
     [Theory]
     [InlineData(0u, true)]
@@ -69,7 +69,7 @@ public sealed class OriginalCombatAlignmentTests
         var m = World().BeginMutation(); var rules = Rules(); List<DomainEvent> events = [];
         m.Replace(m.Forces[1] with { IsBarbarian = barbarian });
         m.Replace(m.Units[1] with { Soldiers = 1001, Condition = UnitCondition.Routed, ConditionDaysRemaining = 15 });
-        DailyRationAccount[] accounts = [new(new(ResourceOwnerKind.Force, 1), starved)];
+        DailyRationAccount[] accounts = [new(new(ResourceOwnerKind.Corps, 1), starved)];
         MilitaryDailyCycle.Apply(m, accounts, rules, events);
         var loss = Assert.Single(events.OfType<DailyAttritionEvent>(), e => e.UnitId == 1);
         Assert.Equal(starved, loss.Starved);
@@ -89,7 +89,7 @@ public sealed class OriginalCombatAlignmentTests
         MilitaryDailyCycle.Apply(m, [], rules, events);
         MilitaryMorale.Apply(m, [], rules, events);
         Assert.Empty(events);
-        MilitaryDailyCycle.Apply(m, [new(new(ResourceOwnerKind.Force, 1), false)], rules, events);
+        MilitaryDailyCycle.Apply(m, [new(new(ResourceOwnerKind.Corps, 1), false)], rules, events);
         var loss = Assert.Single(events.OfType<DailyAttritionEvent>());
         Assert.Equal(0u, loss.AddedWounded);
         Assert.Equal(5u, loss.Dead);

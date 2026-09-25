@@ -8,8 +8,8 @@ public sealed class DemobilizationTests
     [Fact]
     public void ReturnedPopulationSurvivesGrowthAndSaveRestoreAboveGrowthLimit()
     {
-        var world = WorldState.Create(new(190, 4, 1), 42, [new(1, 100000, 100000, 0)],
-            [new(1, 1, 0, 100, 100, 0, 100, 0, 100, 0, 100) { DraftPopulation = 499990, Population = 1000000 }], []);
+        var world = WorldState.Create(new(190, 4, 1), 42, [new(1, 0)],
+            [new(1, 1, 0, 100, 100, 0, 100, 0, 100, 0, 100) { DraftPopulation = 499990, Population = 1000000 }], [], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(100000, 100000)) { IsRoot = true }]);
         var engine = new SimulationEngine(world, EconomyRulebook.Empty);
         var mutation = world.BeginMutation();
         mutation.Replace(mutation.Settlements[1] with { DraftPopulation = 499990 });
@@ -31,12 +31,12 @@ public sealed class DemobilizationTests
     [InlineData(false)]
     public void FullFacilityAbsorptionDemobilizesOverflowOrKeepsTheUnitWhenGeographyIsMissing(bool mapped)
     {
-        var world = WorldState.Create(new(190, 1, 1), 42, [new(1, 1000, 1000, 0)],
+        var world = WorldState.Create(new(190, 1, 1), 42, [new(1, 0)],
             [new(1, 1, 100, 100, 100, 50, 0, 0, 100, 0, 100) { DraftPopulation = 500000 },
                 new(2, 1, 90, 100, 100, 50, 0, 0, 100, 0, 100)
                     { Kind = SettlementKind.Facility, SoldierCapacity = 100, Wounded = 49990 }],
             [new(11, 1, null, new(70, 70, 70, 70), false) { UnitId = 0 }],
-            units: [new(0, 1, new(7, 2), 40) { Wounded = 20, Morale = 100 }]);
+            units: [new(0, 1, new(7, 2), 40) { Wounded = 20, Morale = 100 }], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(1000, 1000)) { IsRoot = true }]);
         var geography = new PersonnelRulebook([new(1, new(2, 2)), new(2, new(7, 2))],
             mapped ? new Dictionary<int, int> { [2] = 1 } : null);
         var mutation = world.BeginMutation();

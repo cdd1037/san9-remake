@@ -12,7 +12,7 @@ namespace San9.Application.Tests;
 public sealed class SageVisitSessionTests
 {
     private static ScenarioInitialState Definition() => new(ScenarioInitialState.CurrentSchemaVersion, "sage", 190, 2, 1, 1,
-        [new(1, "force", 1, 10000, 10000, 500) { LeaderId = 1, BaseTrust = 500 }],
+        [new(1, "force", 1, 500) { LeaderId = 1, BaseTrust = 500 }],
         [new(1, "home", 1, 0, 0, 0, 100, 100, 0, [])], new() { [1] = "home" }, new() { [1] = 1 })
     {
         Officers = [new("ruler", new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }),
@@ -21,7 +21,7 @@ public sealed class SageVisitSessionTests
             new("target", new OfficerState(4, null, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Undiscovered }.WithLoyalty(1, 80))],
         SearchEvents = [new SageVisitSearchEventDefinition(1, 3, [4], 6, 75, 80, 3)
             { Id = "sage", Consumption = EventConsumption.None }]
-    };
+    , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }], []) };
 
     private static ulong Seed() => Enumerable.Range(1, 10000).Select(i => (ulong)i).First(seed =>
     {

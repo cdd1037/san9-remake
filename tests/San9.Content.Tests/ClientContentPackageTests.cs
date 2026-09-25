@@ -32,9 +32,9 @@ public sealed class ClientContentPackageTests
     private static readonly MapBuildingPlacement[] Buildings = [new(15, 89, 64, 0), new(100, 86, 65, 1)];
     private static readonly ImageAsset Asset = new("ui", "ui/frame.png", 32, 32);
     private static ScenarioInitialState Fixture() => new(ScenarioInitialState.CurrentSchemaVersion, "fixture", 190, 1, 1, 5,
-        [new(5, "player", 2, 9520, 73200, 100)],
+        [new(5, "player", 2, 100)],
         [new(15, "city", 5, 89, 64, 32000, 500, 1000, 50, []), new(100, "port", null, 86, 65, 1000, 200, 300, 50, []) { Kind = San9.Core.Domain.SettlementKind.Facility }],
-        new() { [15] = "city" }, []);
+        new() { [15] = "city" }, []) { Information = new([], [], [], [new San9.Core.Domain.CorpsState(5, 5, null, new(9520, 73200)) { IsRoot = true }], []) };
 
     [Fact]
     public void ScenarioValidatesOwnershipWithoutMapOrSkin()
@@ -99,7 +99,7 @@ public sealed class ClientContentPackageTests
         var changed = p with { Text = translated }; changed.ValidateLinks();
         var treasurePackage = p with { Scenario = p.Scenario with
         {
-            Information = new([], [], [new(0, "treasure", 0, 0, 0, null)], [], [new(0, null, San9.Core.Domain.TreasureDiscovery.Discovered, 15)])
+            Information = new([], [], [new(0, "treasure", 0, 0, 0, null)], p.Scenario.Information.Corps, [new(0, null, San9.Core.Domain.TreasureDiscovery.Discovered, 15)])
         }, Text = new(3, new(text.Entries)), Skin = skin with { Roles = new(skin.Roles) } };
         treasurePackage.Skin.Roles.Add("information-treasure-0", "ui");
         treasurePackage.Text.Entries.Add("treasure", new("Treasure", "Treasure"));

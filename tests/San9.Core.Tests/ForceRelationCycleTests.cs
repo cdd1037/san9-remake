@@ -23,9 +23,9 @@ public sealed class ForceRelationCycleTests
         foreach (bool firstIsBarbarian in new[] { false, true })
         {
             var state = WorldState.Create(new(190, 3, 1), 7,
-                [new(101, 0, 0, 0) { IsBarbarian = barbarian && firstIsBarbarian },
-                 new(205, 0, 0, 0) { IsBarbarian = barbarian && !firstIsBarbarian }], [], [],
-                relations: before == 0 ? [] : [new(101, 205, before)]);
+                [new(101, 0) { IsBarbarian = barbarian && firstIsBarbarian },
+                 new(205, 0) { IsBarbarian = barbarian && !firstIsBarbarian }], [], [],
+                relations: before == 0 ? [] : [new(101, 205, before)], corps: [new San9.Core.Domain.CorpsState(101, 101, null, new(0, 0)) { IsRoot = true }, new San9.Core.Domain.CorpsState(205, 205, null, new(0, 0)) { IsRoot = true }]);
             var world = state.BeginMutation();
             world.SetClock(new(190, 4, 1));
             var random = world.Simulation.RandomStreams;
@@ -44,9 +44,9 @@ public sealed class ForceRelationCycleTests
     public void ElapsedGateAndAllianceDoNotChangePairEligibility(int elapsed, int expected)
     {
         var state = WorldState.Create(new(190, 3, 1), 7,
-            [new(1, 0, 0, 0), new(2, 0, 0, 0), new(3, 0, 0, 0),
-             new(4, 0, 0, 0) { IsEliminated = true }, new(5, 0, 0, 0) { IsDormant = true }], [], [],
-            relations: [new(1, 2, 80)], alliance: new(3, 1, [1, 2], 36));
+            [new(1, 0), new(2, 0), new(3, 0),
+             new(4, 0) { IsEliminated = true }, new(5, 0) { IsDormant = true }], [], [],
+            relations: [new(1, 2, 80)], alliance: new(3, 1, [1, 2], 36), corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(0, 0)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, null, new(0, 0)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, null, new(0, 0)) { IsRoot = true }, new San9.Core.Domain.CorpsState(5, 5, null, new(0, 0)) { IsRoot = true }]);
         var world = state.BeginMutation();
         world.SetClock(elapsed == 29 ? new(190, 3, 30) : new(190, 4, 1));
         List<DomainEvent> events = [];

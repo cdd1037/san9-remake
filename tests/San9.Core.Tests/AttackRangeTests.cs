@@ -26,7 +26,7 @@ public sealed class AttackRangeTests
             Tactics = [new(9000, 0, TacticEffect.Martial, 1, 9, 0, true, true, [7000])]
         });
         var state = WorldState.Create(new(190, 1, 1), 42,
-            [new(1, 10000, 1000000, 100) { LeaderId = 11 }, new(2, 10000, 1000000, 100) { LeaderId = 22 }],
+            [new(1, 100) { LeaderId = 11 }, new(2, 100) { LeaderId = 22 }],
             [new(1, 1, 10000, 100, 100, 100, 0, 0, 100, 0, 100), new(2, 2, 10000, 100, 100, 100, 0, 0, 100, 0, 100)],
             [new(11, 1, null, new(80, 80, 80, 80), false) { UnitId = 0, LearnedTactics = [9000], EquippedTacticId = 9000 },
                 new(21, 2, null, new(80, 80, 80, 80), false) { UnitId = 1 }, new(22, 2, 2, new(80, 80, 80, 80), false)],
@@ -34,7 +34,7 @@ public sealed class AttackRangeTests
                     MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(11, BattleRank.Front) },
                 new(1, 2, new(27, 2), 100000) { FormationId = 7001, Morale = 100, ServicePlaceId = 2,
                     MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(21, BattleRank.Front) }],
-            controls: [new("player", 1, ControllerKind.Player)]);
+            controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 1000000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 22, new(10000, 1000000)) { IsRoot = true }]);
         captureRules?.Invoke(rules);
         return new(state, EconomyRulebook.Empty, PersonnelRulebook.Empty, TreasureRulebook.Empty, military: rules);
     }

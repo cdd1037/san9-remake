@@ -12,7 +12,7 @@ public sealed record ForceOrigin(
     [JsonRequired] public int? PredecessorId { get; init; }
 }
 
-public sealed record ForceState(int Id, uint Money, uint Food, int Trust)
+public sealed record ForceState(int Id, int Trust)
 {
     [JsonRequired] public bool IsDormant { get; init; }
     [JsonRequired] public ForceOrigin? Origin { get; init; }

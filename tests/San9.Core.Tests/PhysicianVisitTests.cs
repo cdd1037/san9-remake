@@ -13,14 +13,14 @@ public sealed class PhysicianVisitTests
     private static (WorldMutation World, PersistentTask Task) Create(int roll = 0, int place = 1)
     {
         var world = WorldState.Create(new(190, 1, 1), 123,
-            [new(1, 0, 0, 1000) { LeaderId = 1, BaseTrust = 76 }],
+            [new(1, 1000) { LeaderId = 1, BaseTrust = 76 }],
             [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
             [new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
              new(2, 1, 1, new(50, 99, 99, 50), false),
              new(3, null, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Special },
              new(4, null, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Special }],
             treasures: [new(500, 3, TreasureDiscovery.Discovered, null), new(501, 4, TreasureDiscovery.Discovered, null)],
-            controls: [new("player", 1, ControllerKind.Player)]).BeginMutation(new(Books, new([])));
+            controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(0, 0)) { IsRoot = true }]).BeginMutation(new(Books, new([])));
         ulong seed = Enumerable.Range(1, 10000).Select(i => (ulong)i).First(s => new StableRandom(s).NextUInt64() % 100 == (ulong)roll);
         world.SetSimulation(world.Simulation with { RandomStreams = [new("event-search-eligibility", seed)] });
         return (world, new(Guid.NewGuid(), "personnel-search", "player", 1, 2, 1, world.Clock, world.Clock, 0, 0)

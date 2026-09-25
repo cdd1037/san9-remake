@@ -10,14 +10,14 @@ public sealed class LeadershipMaintenanceTests
 
     private static SimulationEngine Engine(out WorldState world)
     {
-        world = WorldState.Create(new(190, 1, 1), 42, [new(1, 10000, 100000, 100)],
+        world = WorldState.Create(new(190, 1, 1), 42, [new(1, 100)],
             [new(1, 1, 1000, 100, 100, 80, 0, 0, 100, 0, 100), new(2, 1, 1000, 100, 100, 80, 0, 0, 100, 0, 100)],
             [new(11, 1, 1, new(50, 50, 50, 80), false) { IsCommander = true },
                 new(12, 1, 1, new(50, 50, 50, 60), false),
                 new(21, 1, 2, new(50, 50, 50, 80), false) { IsCommander = true },
                 new(22, 1, 2, new(50, 50, 50, 60), false)],
             treasures: [new(1, null, TreasureDiscovery.Discovered, null)],
-            controls: [new("player", 1, ControllerKind.Player)]);
+            controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(10000, 100000)) { IsRoot = true }]);
         return new(world, new([new(100, 0), new(101, 0)], []), PersonnelRulebook.Empty, Treasures, Governance);
     }
 

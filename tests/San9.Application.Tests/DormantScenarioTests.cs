@@ -10,13 +10,14 @@ public sealed class DormantScenarioTests
         var initial = G01ScenarioTests.Fixture();
         var definition = initial with
         {
+            Information = initial.Information with { Corps = [.. initial.Information.Corps, new(3, 3, 7, new(1000, 2000)) { IsRoot = true }] },
             Forces = [.. initial.Forces, initial.Forces[1] with { Id = 3, LeaderId = 7, IsDormant = true }],
             Settlements = [.. initial.Settlements, initial.Settlements[1] with { Id = 3, OwnerId = 3, IsDormant = true }],
             Officers = [.. initial.Officers, initial.Officers[0] with
                 { State = new OfficerState(7, 3, 3, new(60, 70, 80, 90), false) { IsDormant = true } }]
         };
         var session = GameSession.Start(definition, 17);
-        Assert.Equal(definition.Forces[2].Money, session.Snapshot.Forces.Single(f => f.Id == 3).Money);
+        Assert.Equal(definition.Information.Corps.Single(c => c.IsRoot && c.OwnerId == 3).Treasury.Money, session.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 3).Treasury.Money);
         Assert.Equal(definition.Settlements[2].Soldiers, session.Snapshot.Settlements.Single(s => s.Id == 3).Soldiers);
         Assert.Equal(System.Text.Json.JsonSerializer.Serialize(definition.Officers[^1].State),
             System.Text.Json.JsonSerializer.Serialize(session.Snapshot.Officers.Single(p => p.Id == 7)));

@@ -11,7 +11,7 @@ namespace San9.Application.Tests;
 public sealed class LongevitySessionTests
 {
     private static ScenarioInitialState Definition() => new(ScenarioInitialState.CurrentSchemaVersion, "longevity", 190, 2, 1, 1,
-        [new(1, "force", 1, 50000, 10000, 100) { LeaderId = 1, BaseTrust = 100, EventHistory = [new("visited")] }],
+        [new(1, "force", 1, 100) { LeaderId = 1, BaseTrust = 100, EventHistory = [new("visited")] }],
         [new(1, "home", 1, 0, 0, 0, 100, 100, 0, [])], new() { [1] = "home" }, new() { [1] = 1 })
     {
         Officers = [new("ruler", new(1, 1, 1, new(0, 100, 0, 0), false) { Status = OfficerStatus.Ruler }),
@@ -19,7 +19,7 @@ public sealed class LongevitySessionTests
             new("diviner", new(4, null, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Special })],
         SearchEvents = [new LongevitySearchEventDefinition(1, 4, new("visited"), 1, 2500, 500, 7, true)
             { Id = "longevity", Consumption = EventConsumption.None }]
-    };
+    , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 1, new(50000, 10000)) { IsRoot = true }], []) };
 
     [Theory]
     [InlineData(true)]

@@ -22,7 +22,7 @@ public sealed class BurnStrategyTests
         Assert.True(result.Success);
         Assert.True(result.DurabilityLoss > 0);
         Assert.Equal(hits, result.FoodLoss > 0);
-        Assert.Equal(10000u - result.FoodLoss, mutation.Forces[2].Food);
+        Assert.Equal(10000u - result.FoodLoss, mutation.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 2).Treasury.Food);
     }
 
     private static SimulationRules Rules(int distance = 31) => new()
@@ -35,13 +35,13 @@ public sealed class BurnStrategyTests
     };
 
     private static WorldState World(int injury = 0, ulong seed = 42) => WorldState.Create(new(190, 1, 1), seed,
-        [new(1, 10000, 10000, 100), new(2, 10000, 10000, 100)],
+        [new(1, 100), new(2, 100)],
         [new(1, 1, 10000, 300, 300, 70, 500, 0, 100, 0, 100),
          new(2, 2, 30000, 300, 300, 70, 500, 0, 100, 0, 100) { Wounded = 4000 },
          new(3, 2, 10000, 300, 300, 70, 500, 0, 100, 0, 100)],
         [new(11, 1, 1, new(100, 70, 70, 70), false) { Injury = injury },
          new(12, 1, 1, new(70, 70, 70, 70), false), new(22, 2, 2, new(70, 70, 70, 50), false)],
-        relations: [new(1, 2, 50)], controls: [new("player", 1, ControllerKind.Player)]);
+        relations: [new(1, 2, 50)], controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, null, new(10000, 10000)) { IsRoot = true }]);
 
     private static PersistentTask Submit(WorldState world, SimulationRules rules, int roll)
     {
@@ -100,15 +100,15 @@ public sealed class BurnStrategyTests
     {
         var rules = Rules(30); var world = World(); Submit(world, rules, roll);
         var mutation = world.BeginMutation(rules.Abilities);
-        uint before = mutation.Forces[2].Food;
+        uint before = mutation.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 2).Treasury.Food;
         var events = Day(mutation, rules);
         var result = Assert.Single(events.OfType<BurnResolvedEvent>());
         Assert.Equal(47, result.Threshold);
         Assert.Equal(success, result.Success);
         Assert.Equal(injury, result.InjuryAfter);
-        long change = events.OfType<ResourceChangedEvent>().Where(e => e.Account == new ResourceAccount(ResourceOwnerKind.Force, 2) &&
+        long change = events.OfType<ResourceChangedEvent>().Where(e => e.Account == new ResourceAccount(ResourceOwnerKind.Corps, 2) &&
             e.Resource == ResourceKind.Food).Sum(e => e.Actual);
-        Assert.Equal((long)before + change, mutation.Forces[2].Food);
+        Assert.Equal((long)before + change, mutation.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 2).Treasury.Food);
         Assert.Equal(-(long)result.FoodLoss, events.OfType<ResourceChangedEvent>().Where(e => e.Reason == BurnStrategies.Kind).Sum(e => e.Actual));
         if (!success)
         {
@@ -198,8 +198,8 @@ public sealed class BurnStrategyTests
             {
                 hits++;
                 Assert.InRange(result.FoodLoss, 1700u, 1799u);
-                Assert.Equal(10000u - result.FoodLoss, mutation.Forces[2].Food);
-                Assert.Equal(10000u, mutation.Forces[1].Food);
+                Assert.Equal(10000u - result.FoodLoss, mutation.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 2).Treasury.Food);
+                Assert.Equal(10000u, mutation.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Food);
             }
         }
         Assert.True(hits > 0);

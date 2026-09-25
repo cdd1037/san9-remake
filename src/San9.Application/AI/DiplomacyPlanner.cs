@@ -49,7 +49,7 @@ public static class DiplomacyPlanner
                     if (engine.GetAttackRequestAdvice(force.Id, actor.Id, target.Id, place.Id).Opinion == AdviserOpinion.Favorable &&
                         engine.Validate(context, command).Accepted) return command;
                 }
-            if (force.Money < 20000) continue;
+            if (world.Corps.Single(c => c.OwnerId == force.Id && c.IsRoot).Treasury.Money < 20000) continue;
             foreach (var target in targets.Where(t => Relation(t.Id) is >= 40 and < 80).OrderByDescending(t => Relation(t.Id)))
             {
                 var command = new GiftCommand(commandId, force.Id, sequence, actor.Id, target.Id, new(GiftKind.Money, 2000, null));

@@ -13,7 +13,7 @@ internal static class SurrenderMerge
     internal static void Apply(WorldMutation world, PersistentTask cause, int force, SimulationRules rules, List<DomainEvent> events)
     {
         int recipient = cause.ForceId;
-        int? root = world.Corps.Values.Where(c => c.OwnerId == recipient && c.Treasury is null).Select(c => (int?)c.Id).SingleOrDefault();
+        int? root = world.Corps.Values.Where(c => c.OwnerId == recipient && c.IsRoot).Select(c => (int?)c.Id).SingleOrDefault();
         ForceTransfer.CancelTasks(world, force, rules, "force-surrendered", events, true);
         var oldUnits = world.Units.Values.Where(u => u.OwnerId == force).OrderBy(u => u.Id).ToArray();
         int Place(OfficerState person) => person.SettlementId ?? (person.UnitId is int unit &&
@@ -77,7 +77,7 @@ internal static class SurrenderMerge
                 foreach (var resource in new[] { ResourceKind.Money, ResourceKind.Food })
                 {
                     uint cargo = resource == ResourceKind.Money ? unit.CargoMoney : unit.CargoFood;
-                    ResourceAccounts.Change(world, new(ResourceOwnerKind.Force, recipient), resource, cargo, "surrender-cargo", unit.Id, events);
+                    ResourceAccounts.Change(world, ResourceAccounts.Resolve(world, recipient, null), resource, cargo, "surrender-cargo", unit.Id, events);
                     ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, unit.Id), resource, "surrender-cargo", recipient, -(long)cargo, -(long)cargo, events);
                 }
                 ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, unit.Id), ResourceKind.Soldiers, "surrender-unit-dissolved", recipient,

@@ -4,7 +4,7 @@ using San9.Core.Simulation;
 
 namespace San9.Application.Presentation;
 
-public sealed record ForceView(int Id,string NameKey,int ColorCode,int FlagGlyph,uint Money,uint Food,int Trust)
+public sealed record ForceView(int Id,string NameKey,int ColorCode,int FlagGlyph,long Money,long Food,int Trust)
 {
     public bool IsEliminated { get; init; }
     public bool IsBarbarian { get; init; }
@@ -166,7 +166,8 @@ public sealed class StrategySnapshot
             int? leaderSettlementId = f.LeaderId is int leader && officerLocations.TryGetValue(leader, out int? location)
                 ? location
                 : null;
-            return new ForceView(f.Id, definition.NameKey, definition.ColorCode, definition.FlagGlyph, f.Money, f.Food, f.Trust)
+            return new ForceView(f.Id, definition.NameKey, definition.ColorCode, definition.FlagGlyph, world.Corps.Where(c => c.OwnerId == f.Id).Sum(c => (long)c.Treasury.Money),
+                world.Corps.Where(c => c.OwnerId == f.Id).Sum(c => (long)c.Treasury.Food), f.Trust)
             {
                 IsBarbarian = f.IsBarbarian,
                 IsEliminated = f.IsEliminated,
@@ -203,7 +204,7 @@ public sealed class StrategySnapshot
                 HasRangeBonus = attack?.Attack is { } enhanced && militaryPlace?.Attack is { } original && enhanced.Range > original.Range,
                 IsDestroyed = s.IsDestroyed,
                 CorpsId = s.CorpsId,
-                IsFacilityListEntry = !s.IsDestroyed && (s.Facility is null ? definition!.IsFacilityListEntry : s.CanHostPersons),
+                IsFacilityListEntry = !s.IsDestroyed && s.CanHostPersons,
                 NameSuffixKey = s.Facility is {} built ? source.FacilityNameSuffixKeys.GetValueOrDefault(built.TypeId) : null,
                 FacilityTypeId = militaryPlace?.FacilityTypeId,
                 EnabledTacticIds = militaryPlace?.EnabledTacticIds ?? [],
@@ -224,6 +225,7 @@ public sealed class StrategySnapshot
     public int Month => World.Clock.Month;
     public int Day => World.Clock.Day;
     public int PlayerForceId { get; }
+    public CorpsState? PlayerCorps => World.Corps.SingleOrDefault(c => c.OwnerId == PlayerForceId && c.IsRoot);
     public IReadOnlyList<CityTacticCourse> TacticCourses { get; }
     public IReadOnlyDictionary<int, string> ProvinceNameKeys { get; }
     public IReadOnlyList<CityConnection> CityConnections { get; }

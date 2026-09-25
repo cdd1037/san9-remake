@@ -11,13 +11,13 @@ public sealed class ScholarInsultTests
     private static (WorldMutation World, PersistentTask Task) Create(int roll = 0)
     {
         var world = WorldState.Create(new(190, 1, 1), 123,
-            [new(1, 2501, 0, 51) { LeaderId = 1, BaseTrust = 0, EventHistory = [new("visited")] }, new(2, 0, 0, 51) { LeaderId = 4, BaseTrust = 0 }],
+            [new(1, 51) { LeaderId = 1, BaseTrust = 0, EventHistory = [new("visited")] }, new(2, 51) { LeaderId = 4, BaseTrust = 0 }],
             [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100), new(2, 2, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
             [new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
              new(2, 1, 1, new(0, 99, 0, 0), false),
              new(3, null, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Special },
              new(4, 2, 2, new(0, 99, 0, 0), false) { Status = OfficerStatus.Ruler }],
-            controls: [new("first", 1, ControllerKind.Player), new("second", 2, ControllerKind.Player)]).BeginMutation();
+            controls: [new("first", 1, ControllerKind.Player), new("second", 2, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(2501, 0)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 4, new(0, 0)) { IsRoot = true }]).BeginMutation();
         ulong seed = Enumerable.Range(1, 10000).Select(i => (ulong)i).First(s => new StableRandom(s).NextUInt64() % 100 == (ulong)roll);
         world.SetSimulation(world.Simulation with { RandomStreams = [new("event-search-eligibility", seed)] });
         return (world, new(Guid.NewGuid(), "personnel-search", "first", 1, 2, 1, world.Clock, world.Clock, 0, 0)

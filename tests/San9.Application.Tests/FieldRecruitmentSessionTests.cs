@@ -16,8 +16,8 @@ public sealed class FieldRecruitmentSessionTests
         .WithLoyalty(owner, id == 21 ? 100 : 0).WithLoyalty(1, 255);
 
     internal static ScenarioInitialState Definition(bool success) => new(ScenarioInitialState.CurrentSchemaVersion, "field-recruitment", 190, 1, 1, 1,
-        [new(1, "force.1", 1, 10000, 10000, 1000) { LeaderId = 1, BaseTrust = 1000 },
-         new(2, "force.2", 2, 10000, 10000, 0) { LeaderId = 2 }],
+        [new(1, "force.1", 1, 1000) { LeaderId = 1, BaseTrust = 1000 },
+         new(2, "force.2", 2, 0) { LeaderId = 2 }],
         [new(1, "home", 1, 0, 0, 1000, 100, 100, 70, []) { Kind = SettlementKind.City, CorpsId = 1, ConsumesFood = false },
          new(2, "enemy", 2, 180, 0, 1000, 100, 100, 70, []) { Kind = SettlementKind.City, CorpsId = 2, ConsumesFood = false }],
         new() { [1] = "home", [2] = "enemy" }, new() { [1] = 1, [2] = 2 })
@@ -25,7 +25,7 @@ public sealed class FieldRecruitmentSessionTests
         AnnualAppearancesEnabled = false, NaturalDeathsEnabled = false, OfficeRequestsEnabled = false,
         FreeOfficerMigrationEnabled = false, ForceEmergenceEnabled = false, CityIndependenceEnabled = false,
         ForceConsolidationEnabled = false, SettlementDefectionsEnabled = false,
-        Information = new([], [], [], [new(1, 1, 1, null), new(2, 2, 2, null)], []) { Relations = [new(1, 2, 50)] },
+        Information = new([], [], [], [new(1, 1, 1, new(10000, 10000)) { IsRoot = true }, new(2, 2, 2, new(10000, 10000)) { IsRoot = true }], []) { Relations = [new(1, 2, 50)] },
         Officers = [new("ruler.1", Person(1, 1, 1)), new("ruler.2", Person(2, 2, 2)), new("actor", Person(11, 1, 1)),
             new("commander", Person(20, 2, null).WithLoyalty(1, success ? 255 : 0)), new("loyal", Person(21, 2, null)),
             new("follower", Person(22, 2, null))],

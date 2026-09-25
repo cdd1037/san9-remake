@@ -20,7 +20,7 @@ internal static class Guandu
             recruit.IsCommander || patron.OwnerId is not int owner || opponent.OwnerId is not int rival || owner == rival ||
             actor.OwnerId != owner || recruit.OwnerId != rival || recruit.Loyalty >= d.LoyaltyExclusive ||
             !world.Forces.TryGetValue(owner, out var force) || force.IsEliminated ||
-            !world.Forces.TryGetValue(rival, out var enemy) || enemy.IsEliminated || enemy.Food == 0 ||
+            !world.Forces.TryGetValue(rival, out var enemy) || enemy.IsEliminated || ResourceAccounts.Root(world, enemy.Id).Treasury.Food == 0 ||
             !world.Simulation.Controls.Any(c => c.ForceId == owner && c.Kind == ControllerKind.Player) ||
             ForceRelations.Get(world, owner, rival).Value >= d.RelationExclusive ||
             world.Simulation.Alliance?.Protects(owner, rival) == true ||
@@ -86,8 +86,8 @@ internal static class Guandu
             world.MaintainLeadership(events);
             ResolutionPipeline.CheckConquest(world, events);
         }
-        uint foodLoss = (uint)((long)world.Forces[rival].Food * d.FoodLossPercent / 100);
-        ResourceAccounts.Change(world, new(ResourceOwnerKind.Force, rival), ResourceKind.Food, -(long)foodLoss, "guandu", actorId, events);
+        uint foodLoss = (uint)((long)ResourceAccounts.Root(world, rival).Treasury.Food * d.FoodLossPercent / 100);
+        ResourceAccounts.Change(world, ResourceAccounts.Resolve(world, rival, null), ResourceKind.Food, -(long)foodLoss, "guandu", actorId, events);
         var force = world.Forces[owner]; var enemy = world.Forces[rival];
         int gain = (int)Math.Min(d.BaseTrustBonus, 1000L - force.BaseTrust), penalty = Math.Min(d.EnemyBaseTrustPenalty, enemy.BaseTrust);
         world.Replace(force with { BaseTrust = force.BaseTrust + gain });

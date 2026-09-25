@@ -10,8 +10,8 @@ namespace San9.Application.Tests;
 public sealed class QiaoMarriageSessionTests
 {
     private static ScenarioInitialState Scenario() => new(ScenarioInitialState.CurrentSchemaVersion, "qiao", 190, 3, 21, 1,
-        [new(1, "force.1", 1, 10000, 10000, 100) { BaseTrust = 100, LeaderId = 11 },
-         new(2, "force.2", 2, 10000, 10000, 100) { BaseTrust = 100, LeaderId = 21 }],
+        [new(1, "force.1", 1, 100) { BaseTrust = 100, LeaderId = 11 },
+         new(2, "force.2", 2, 100) { BaseTrust = 100, LeaderId = 21 }],
         [new(1, "city.1", 1, 0, 0, 100, 100, 100, 50, []) { Kind = SettlementKind.City, ConsumesFood = false },
          new(2, "city.2", 2, 1, 0, 100, 100, 100, 50, []) { Kind = SettlementKind.City, ConsumesFood = false }],
         new() { [1] = "city.1", [2] = "city.2" }, [])
@@ -24,7 +24,7 @@ public sealed class QiaoMarriageSessionTests
             new("ruler.2", new(21, 2, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }),
             new("participant.1", new(31, null, null, new(50, 50, 50, 50), false) { Status = OfficerStatus.Special }),
             new("participant.2", new(32, null, null, new(50, 50, 50, 50), false) { Status = OfficerStatus.Special })],
-        Information = InformationDefinitions.Empty with { Relations = [new(1, 2, 80)] },
+        Information = InformationDefinitions.Empty with { Corps = [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 10000)) { IsRoot = true }], Relations = [new(1, 2, 80)] },
         QiaoMarriage = new(11, 12, [31, 32], 21, 9, [], new(199, 12, 30), new(209, 12, 30), 3, 7, 20, 25, new("qiao-marriage"))
     };
 

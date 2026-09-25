@@ -29,7 +29,7 @@ public static class CorpsControl
         if (command is SetCorpsControlCommand or SetCorpsDelegationCommand)
             return automatic is null ? CommandRejection.None : CommandRejection.NotActiveController;
         if (automatic is null && seat.Kind == ControllerKind.Player &&
-            world.Corps.Any(c => c.OwnerId == seat.ForceId && c.Treasury is null && c.ControlMode == CorpsControlMode.Automatic))
+            world.Corps.Any(c => c.OwnerId == seat.ForceId && c.IsRoot && c.ControlMode == CorpsControlMode.Automatic))
             return CommandRejection.NotActiveController;
         bool OwnPlace(int id)
         {
@@ -37,7 +37,7 @@ public static class CorpsControl
             if (place?.OwnerId != command.IssuerId) return false;
             if (automatic is not null) return place.CorpsId == automatic.Id;
             return place.CorpsId is not int corpsId || world.Corps.Any(c => c.Id == corpsId &&
-                (c.ControlMode == CorpsControlMode.Direct || seat.Kind == ControllerKind.Automatic && c.Treasury is null));
+                (c.ControlMode == CorpsControlMode.Direct || seat.Kind == ControllerKind.Automatic && c.IsRoot));
         }
         bool OwnPerson(int id) => world.Officers.FirstOrDefault(p => p.Id == id)?.SettlementId is int home && OwnPlace(home);
         bool OwnUnit(int id)
@@ -46,7 +46,7 @@ public static class CorpsControl
             if (unit?.OwnerId != command.IssuerId) return false;
             if (automatic is not null) return unit.CorpsId == automatic.Id;
             return unit.CorpsId is not int corpsId || world.Corps.Any(c => c.Id == corpsId &&
-                (c.ControlMode == CorpsControlMode.Direct || seat.Kind == ControllerKind.Automatic && c.Treasury is null));
+                (c.ControlMode == CorpsControlMode.Direct || seat.Kind == ControllerKind.Automatic && c.IsRoot));
         }
         bool permitted = command switch
         {
@@ -75,7 +75,7 @@ public static class CorpsControl
             UnitStrategyCommand strategy => OwnPerson(strategy.OfficerId),
             SearchCommand search => OwnPerson(search.OfficerId),
             MoveOfficersCommand move => !move.OfficerIds.IsDefault && move.OfficerIds.All(OwnPerson) && OwnPlace(move.DestinationId),
-            _ => automatic is null || automatic.Treasury is null
+            _ => automatic is null || automatic.IsRoot
         };
         return permitted ? CommandRejection.None : CommandRejection.NotActiveController;
     }

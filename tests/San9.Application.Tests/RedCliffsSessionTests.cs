@@ -12,8 +12,8 @@ namespace San9.Application.Tests;
 public sealed class RedCliffsSessionTests
 {
     private static ScenarioInitialState Definition() => new(ScenarioInitialState.CurrentSchemaVersion, "red-cliffs", 190, 2, 1, 1,
-        [new(1, "force.1", 1, 10000, 10000, 100) { LeaderId = 11, BaseTrust = 100 },
-         new(2, "force.2", 2, 10000, 10000, 100) { LeaderId = 21, BaseTrust = 100 }],
+        [new(1, "force.1", 1, 100) { LeaderId = 11, BaseTrust = 100 },
+         new(2, "force.2", 2, 100) { LeaderId = 21, BaseTrust = 100 }],
         [new(1, "home", 1, 0, 0, 1000, 100, 100, 60, []) { Kind = SettlementKind.City, ConsumesFood = false },
          new(2, "enemy", 2, 5, 0, 1000, 100, 100, 60, []) { Kind = SettlementKind.City, ConsumesFood = false },
          new(3, "event", 1, 1, 0, 1000, 100, 100, 60, []) { Kind = SettlementKind.Facility, ConsumesFood = false }],
@@ -31,7 +31,7 @@ public sealed class RedCliffsSessionTests
             [new(1, new(2, 2), new(1, 1)), new(2, new(27, 2), new(1, 1)), new(3, new(7, 2), new(1, 1))])
             { RegionIds = Enumerable.Range(0, 12).Select(i => (int?)(i % 6 == 0 ? 1 : i % 6 == 5 ? 2 : 3)).ToImmutableArray() },
         RedCliffs = new(12, 2, [11], 3, [3], 20, 1, 30000, 90, 50, 15, 15, new("red-cliffs"))
-    };
+    , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 10000)) { IsRoot = true }], []) };
     private static OfficerState Officer(int id, int force, int? home, int? unit = null, OfficerStatus status = OfficerStatus.Serving) =>
         new OfficerState(id, force, home, new(50, 50, 50, 50), false) { Status = status, UnitId = unit }.WithLoyalty(force, 100);
 

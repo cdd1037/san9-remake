@@ -55,7 +55,7 @@ public sealed class SettlementContextMenuTests
         var snapshot = GameSession.Start(definition, 1).Snapshot;
         snapshot = snapshot with {
             Settlements = snapshot.Settlements.Select(s => s.Id == 1 ? s with { CorpsId = 77 } : s).ToArray(),
-            Corps = [new(77, 1, 1, null), new(88, 1, 2, new(100, 100))]
+            Corps = [new(77, 1, 1, new(1000, 2000)) { IsRoot = true }, new(88, 1, 2, new(100, 100))]
         };
         var entries = SettlementContextMenu.Read(new(definition, snapshot), 1);
         Assert.Equal(10, entries.Count);
@@ -94,7 +94,7 @@ public sealed class SettlementContextMenuTests
                 : o.State.Id == 2 ? o with { State = o.State with { OfficeId = 888 } } : o).ToArray(),
             Information = new([new(700, "rank", 10000, 0, 0, 9), new(100, "higher", 20000, 0, 0, 10)],
                 [new(888, "office", 10000, 11) { RequiredRankId = 700, DescriptionKey = "office-description" }, new(999, "higher-office", 20000, 20) { RequiredRankId = 100 }],
-                [new(77, "book", 1, 0, 0, 902)], [], [new(77, 1, TreasureDiscovery.Discovered, null)]) {
+                [new(77, "book", 1, 0, 0, 902)], basis.Information.Corps, [new(77, 1, TreasureDiscovery.Discovered, null)]) {
                 Tactics = [new(901, "land-tech"), new(902, "ship-tech"), new(903, "attack") { DescriptionKey = "attack-description" }, new(904, "trap")],
                 Formations = [new(731, "base"), new(732, "advanced"), new(733, "ship")]
             },

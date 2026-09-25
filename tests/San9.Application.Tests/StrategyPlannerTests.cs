@@ -19,7 +19,7 @@ public sealed class StrategyPlannerTests
                 basis.Settlements[0] with { Id = 4, X = 25, CorpsId = 10 }],
             Officers = basis.Officers.Select(p => p.State.Id == 1 ? p with { State = p.State with { SettlementId = 4 } } :
                 p.State.Id == 2 ? p with { State = p.State with { Status = OfficerStatus.Governor } } : p).ToArray(),
-            Information = basis.Information with { Corps = [new(10, 1, 1, null),
+            Information = basis.Information with { Corps = [.. basis.Information.Corps.Where(c => c.OwnerId != 1), new(10, 1, 1, new(10000, 10000)) { IsRoot = true },
                 new(11, 1, 2, new(1000, 1000)) { ControlMode = CorpsControlMode.Automatic }] },
             Military = basis.Military! with { Places = [.. basis.Military.Places, new(4, new(127, 7), new(1, 1))] }
         };
@@ -39,9 +39,9 @@ public sealed class StrategyPlannerTests
         // 190-01-01 starts at category 5 for force 1; select each category through real calendar input.
         int xun = (kind + 3) % 8;
         return new(ScenarioInitialState.CurrentSchemaVersion, "g08-strategy-public", 190, 1 + xun / 3, 1 + xun % 3 * 10, 1,
-            [new(1, "home", 1, 10000, 10000, 100) { LeaderId = 1 },
-             new(2, "enemy", 2, 10000, 10000, 100) { LeaderId = 21 },
-             new(3, "third", 3, 10000, 10000, 100) { LeaderId = 31 }],
+            [new(1, "home", 1, 100) { LeaderId = 1 },
+             new(2, "enemy", 2, 100) { LeaderId = 21 },
+             new(3, "third", 3, 100) { LeaderId = 31 }],
             [new(1, "home", 1, 0, 1, 10000, 100, 100, 70, []) { Durability = 500, MaxDurability = 500 },
              new(2, "enemy", 2, 10, 1, 10000, 100, 100, 70, []) { Durability = 500, MaxDurability = 500 },
              new(3, "third", 3, 20, 1, 10000, 100, 100, 70, []) { Durability = 500, MaxDurability = 500 }], [], [])
@@ -63,7 +63,7 @@ public sealed class StrategyPlannerTests
                 [new(7, 1, 0, 10000, 5, new(1, 1), TravelMode.Land)],
                 [new(1, new(2, 7), new(1, 1)), new(2, new(52, 7), new(1, 1)), new(3, new(102, 7), new(1, 1))])
                 { RegionIds = Enumerable.Repeat<int?>(1, 90).ToImmutableArray() }
-        };
+        , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, 31, new(10000, 10000)) { IsRoot = true }], []) };
     }
 
     [Theory]
@@ -115,6 +115,7 @@ public sealed class StrategyPlannerTests
         Assert.IsType<WaitCommand>(StrategyPlanner.Choose(session, new("unknown", 1, ControllerKind.Automatic), Guid.NewGuid()));
         Assert.Equal(before, SaveService.Encode(session));
         var content = Fixture() with { Officers = Fixture().Officers.Where(p => p.State.OwnerId != 1 || p.State.UnitId is not null).ToArray(),
+            Information = Fixture().Information with { Corps = Fixture().Information.Corps.Select(c => c.IsRoot && c.OwnerId == 1 ? c with { LeaderId = null } : c).ToArray() },
             Forces = Fixture().Forces.Select(f => f.Id == 1 ? f with { LeaderId = null } : f).ToArray() };
         session = GameSession.Start(content, 42);
         Assert.IsType<WaitCommand>(StrategyPlanner.Choose(session, session.Snapshot.Simulation.Controls[0], Guid.NewGuid()));

@@ -12,8 +12,8 @@ namespace San9.Application.Tests;
 public sealed class PoliticalEventSessionTests
 {
     private static ScenarioInitialState Scenario(bool ended = false) => new(ScenarioInitialState.CurrentSchemaVersion, "politics", 190, 3, 1, 1,
-        [new(1, "force.1", 1, 10000, 10000, 1000) { BaseTrust = ended ? 1000 : 900, LeaderId = 1, RankId = 5, FlagGlyph = 10 },
-         new(2, "force.2", 2, 10000, 10000, 100) { BaseTrust = 100, LeaderId = 2, RankId = 700, CountryTitleId = 900 }],
+        [new(1, "force.1", 1, 1000) { BaseTrust = ended ? 1000 : 900, LeaderId = 1, RankId = 5, FlagGlyph = 10 },
+         new(2, "force.2", 2, 100) { BaseTrust = 100, LeaderId = 2, RankId = 700, CountryTitleId = 900 }],
         [new(1, "city.1", 1, 0, 0, 100, 100, 100, 50, []) { Kind = SettlementKind.City, ConsumesFood = false },
          new(2, "city.2", 2, 1, 0, 100, 100, 100, 50, []) { Kind = SettlementKind.City, ConsumesFood = false }],
         new() { [1] = "city.1", [2] = "city.2" }, new() { [1] = 1, [2] = 2 })
@@ -30,6 +30,7 @@ public sealed class PoliticalEventSessionTests
         PoliticalEvents = new(1000, new("historical.court-ended")),
         Information = InformationDefinitions.Empty with
         {
+            Corps = [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 2, new(10000, 10000)) { IsRoot = true }],
             Ranks = [new(700, "rank.entry", 10000, 0, 0, 0), new(5, "rank.king", 20000, 500, 5, 50), new(99, "rank.emperor", 30000, 1000, 10, 100)],
             CountryTitles = [new(new(500, true, true, false, [], []), "title.a", 37), new(new(900, true, true, false, [], []), "title.b", 88)]
         }

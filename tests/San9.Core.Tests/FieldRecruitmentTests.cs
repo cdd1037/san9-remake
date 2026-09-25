@@ -21,7 +21,7 @@ public sealed class FieldRecruitmentTests
         .WithLoyalty(owner, loyalty).WithLoyalty(1, owner == 2 ? 255 : 100);
 
     internal static WorldState World() => WorldState.Create(new(190, 1, 1), 17,
-        [new(1, 10000, 10000, 1000) { LeaderId = 1, BaseTrust = 1000 }, new(2, 10000, 10000, 0) { LeaderId = 2 }],
+        [new(1, 1000) { LeaderId = 1, BaseTrust = 1000 }, new(2, 0) { LeaderId = 2 }],
         [new(1, 1, 1000, 100, 100, 70, 0, 0, 0, 0, 0) { CorpsId = 1, ConsumesFood = false },
          new(2, 2, 1000, 100, 100, 70, 0, 0, 0, 0, 0) { CorpsId = 2, ConsumesFood = false }],
         [Person(1, 1, 1), Person(2, 2, 2), Person(11, 1, 1), Person(20, 2, null), Person(21, 2, null, 100), Person(22, 2, null),
@@ -29,7 +29,7 @@ public sealed class FieldRecruitmentTests
         units: [new(100, 2, new(332, 2), 5000) { CorpsId = 2, ServicePlaceId = 2, FormationId = 1, CommanderId = 20,
             Morale = 70, Wounded = 123, CargoMoney = 345, CargoFood = 678,
             MemberRanks = new Dictionary<int, BattleRank> { [20] = BattleRank.Front, [21] = BattleRank.Middle, [22] = BattleRank.Rear }.ToImmutableDictionary() }],
-        corps: [new(1, 1, 1, null), new(2, 2, 2, null)], relations: [new(1, 2, 50)],
+        corps: [new(1, 1, 1, new(10000, 10000)) { IsRoot = true }, new(2, 2, 2, new(10000, 10000)) { IsRoot = true }], relations: [new(1, 2, 50)],
         controls: [new("player", 1, ControllerKind.Player)]);
 
     private static (WorldMutation World, PersistentTask Task) Submit(int target = 20)

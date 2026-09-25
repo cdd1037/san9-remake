@@ -8,7 +8,7 @@ public sealed class PersonnelDefectionTests
 {
     private static readonly PersonnelRulebook Places = new([new(1, new(0, 0)), new(2, new(600, 0)), new(3, new(300, 0))]);
     private static WorldState World() => WorldState.Create(new(190, 1, 1), 190,
-        [new(1, 10000, 10000, 1000) { LeaderId = 1, BaseTrust = 1000 }, new(2, 10000, 10000, 0) { LeaderId = 2 }],
+        [new(1, 1000) { LeaderId = 1, BaseTrust = 1000 }, new(2, 0) { LeaderId = 2 }],
         [new(1, 1, 100, 100, 100, 0, 0, 0, 100, 0, 100) { CorpsId = 1 },
          new(2, 2, 100, 100, 100, 0, 0, 0, 100, 0, 100) { CorpsId = 2 },
          new(3, 2, 1234, 100, 100, 0, 0, 0, 100, 0, 100) { CorpsId = 20, Population = 5555 }],
@@ -20,7 +20,7 @@ public sealed class PersonnelDefectionTests
          new(21, 2, 3, new(50, 50, 50, 50), false) { ForceLoyalties = ImmutableDictionary<int, int>.Empty.Add(2, 100) },
          new(22, 2, 3, new(50, 50, 50, 50), false) { ForceLoyalties = ImmutableDictionary<int, int>.Empty.Add(2, 0) }],
         units: [new(100, 2, new(300, 0), 100) { CorpsId = 20, ServicePlaceId = 3, IsEmbedded = true }],
-        corps: [new(1, 1, 1, null), new(2, 2, 2, null), new(20, 2, 20, new(123, 456))],
+        corps: [new(1, 1, 1, new(10000, 10000)) { IsRoot = true }, new(2, 2, 2, new(10000, 10000)) { IsRoot = true }, new(20, 2, 20, new(123, 456))],
         relations: [new(1, 2, 80)], controls: [new("player", 1, ControllerKind.Player)]);
 
     [Fact]

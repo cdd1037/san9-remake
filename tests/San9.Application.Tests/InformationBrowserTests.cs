@@ -47,7 +47,7 @@ public sealed class InformationBrowserTests
     private static (GameSession Session, InformationQuery Query) Fixture(bool adjusted = false)
     {
         var scenario = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "information", 190, 1, 1, 5,
-            [new(5, "force", 5, 100, 200, 100) { LeaderId = 1, RankId = 0, ProvidedTactics = [1] }],
+            [new(5, "force", 5, 100) { LeaderId = 1, RankId = 0, ProvidedTactics = [1] }],
             [new(15, "city", 5, 80, 60, 1000, 500, 1000, 50, []) { CorpsId = 5, Commerce = 100, MaxCommerce = 1000, Cultivation = 100, MaxCultivation = 1000, Population = 50000 }],
             new() { [15] = "city", [50] = "region" }, new() { [15] = 15, [50] = 15 })
         {
@@ -55,7 +55,7 @@ public sealed class InformationBrowserTests
             Officers = [new("ruler", new(1, 5, 15, new(90, 60, 80, 90), false) { Status = OfficerStatus.Ruler, BirthYear = 150, LearnedTactics = [0], TacticProficiencies = [200, 0, 0, 0, 0, 0, 0, 0, 0] }),
                 new("free", new(2, null, null, new(20, 60, 40, 50), false) { Status = OfficerStatus.Free, RegionId = 50 })],
             Information = new([new(0, "rank", 60000, 1000, 5, 0)], [], [new(0, "treasure", 1, 5, 10, 2) { AbilityBonuses = new(5, 0, 0, 0) }],
-                [new(5, 5, 1, null)], [new(0, 1, TreasureDiscovery.Discovered, 15)])
+                [new(5, 5, 1, new(100, 200)) { IsRoot = true }], [new(0, 1, TreasureDiscovery.Discovered, 15)])
         };
         if (adjusted)
         {

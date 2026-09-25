@@ -11,7 +11,7 @@ namespace San9.Application.Tests;
 public sealed class ChainedPlotSessionTests
 {
     private static ScenarioInitialState Definition() => new(ScenarioInitialState.CurrentSchemaVersion, "plot", 192, 3, 21, 1,
-        [new(1, "force", 1, 10000, 10000, 500) { LeaderId = 11, BaseTrust = 500 }],
+        [new(1, "force", 1, 500) { LeaderId = 11, BaseTrust = 500 }],
         [new(1, "home", 1, 0, 0, 100, 100, 100, 50, []) { Kind = SettlementKind.City, ConsumesFood = false }],
         new() { [1] = "home" }, new() { [1] = 1 })
     {
@@ -23,7 +23,7 @@ public sealed class ChainedPlotSessionTests
             .Append(new("emperor", new(99, null, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Special })).ToArray(),
         ImperialCourt = new([99], []),
         ChainedPlot = new(11, 12, 13, new(192, 4, 1), 95, 1000, [13, 14], [15], 96, 80, 2, new("plot.start"), new("plot.end"))
-    };
+    , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 10000)) { IsRoot = true }], []) };
 
     [Theory]
     [InlineData(12)]

@@ -83,9 +83,9 @@ public sealed class TacticCombatTests
         if (differentCommander)
             units[0] = units[0] with { CommanderId = 12, };
         var world = WorldState.Create(new(190, 1, 1), seed,
-            [new(1, 10000, 10000, 100) { LeaderId = 11 }, new(2, 10000, 10000, 100) { LeaderId = 21 }],
+            [new(1, 100) { LeaderId = 11 }, new(2, 100) { LeaderId = 21 }],
             [new(1, 1, 100, 100, 100, 100, 0, 0, 100, 0, 100), new(2, 2, 1000, 100, 100, 100, 0, 0, 100, 0, 100)],
-            officers, units: units, controls: [new("player", 1, ControllerKind.Player)], computerDamageBonusPercent: computerBonus);
+            officers, units: units, controls: [new("player", 1, ControllerKind.Player)], computerDamageBonusPercent: computerBonus, corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 10000)) { IsRoot = true }]);
         if (restoredState is not null) return new SimulationEngine(WorldState.Restore(restoredState), EconomyRulebook.Empty, PersonnelRulebook.Empty, TreasureRulebook.Empty, military: rules);
         var engine = new SimulationEngine(world, EconomyRulebook.Empty, PersonnelRulebook.Empty, TreasureRulebook.Empty, military: rules);
         var order = settlement ? new MilitaryOrder(MilitaryOrderKind.AttackSettlement, null, 2) :

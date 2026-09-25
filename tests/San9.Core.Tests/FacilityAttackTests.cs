@@ -49,7 +49,7 @@ public sealed class FacilityAttackTests
     {
         var rules = Rules(enabled);
         var state = WorldState.Create(new(190, 1, 1), 42,
-            [new(1, 10000, 1000000, 100) { LeaderId = 11 }, new(2, 10000, 1000000, 100) { LeaderId = 22 }],
+            [new(1, 100) { LeaderId = 11 }, new(2, 100) { LeaderId = 22 }],
             [Home(), new(9001, 2, 10000, 100, 100, 100, 0, 0, 100, 0, 100)],
             [new(11, 1, 9000, new(80, 80, 80, 80), false) { Status = OfficerStatus.Ruler },
                 new(21, 2, null, new(80, 80, 80, 80), false) { UnitId = 7001 },
@@ -57,7 +57,7 @@ public sealed class FacilityAttackTests
             units: [new(7001, 2, new(7 + distance, 2), 100000) { FormationId = 7000, Morale = 100, ServicePlaceId = 9001,
                 MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(21, BattleRank.Front) }],
             controls: [new("first", 1, sourcePlayer ? ControllerKind.Player : ControllerKind.Automatic),
-                new("second", 2, targetPlayer ? ControllerKind.Player : ControllerKind.Automatic)], computerDamageBonusPercent: bonus);
+                new("second", 2, targetPlayer ? ControllerKind.Player : ControllerKind.Automatic)], computerDamageBonusPercent: bonus, corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 1000000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 22, new(10000, 1000000)) { IsRoot = true }]);
         var engine = new SimulationEngine(state, EconomyRulebook.Empty, PersonnelRulebook.Empty, TreasureRulebook.Empty, military: rules);
         engine.EndControl(new("first"));
         engine.EndControl(new("second"));

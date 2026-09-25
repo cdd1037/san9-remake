@@ -17,9 +17,9 @@ public sealed class ShanyangGongTests
             new Dictionary<int, int> { [1] = 10, [2] = 20, [3] = 30, [4] = 40 })
     };
     private static WorldState World() => WorldState.Create(new(190, 2, 1), 17,
-        [new(1, 10000, 10000, 700) { LeaderId = 11, RankId = 7, BaseTrust = 700 },
-         new(2, 10000, 10000, 500) { LeaderId = 21, RankId = 12, BaseTrust = 500, CountryTitleId = 102 },
-         new(3, 10000, 10000, 500) { LeaderId = 31, RankId = 7, BaseTrust = 500 }],
+        [new(1, 700) { LeaderId = 11, RankId = 7, BaseTrust = 700 },
+         new(2, 500) { LeaderId = 21, RankId = 12, BaseTrust = 500, CountryTitleId = 102 },
+         new(3, 500) { LeaderId = 31, RankId = 7, BaseTrust = 500 }],
         Enumerable.Range(1, 4).Select(id => new SettlementState(id, id < 3 ? 1 : id - 1, 100, 100, 100, 50, 100, 100, 100, 100, 100)
             { Kind = SettlementKind.City, ConsumesFood = false }),
         [new(11, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler, Surname = "刘", BloodlineId = 800 },
@@ -33,7 +33,7 @@ public sealed class ShanyangGongTests
         controls: [new("player", 1, ControllerKind.Player), new("ai2", 2, ControllerKind.Automatic), new("ai3", 3, ControllerKind.Automatic)],
         annualAppearancesEnabled: false, naturalDeathsEnabled: false, freeOfficerMigrationEnabled: false,
         officeRequestsEnabled: false, forceConsolidationEnabled: false, forceEmergenceEnabled: false,
-        cityIndependenceEnabled: false, imperialCourtEnded: true);
+        cityIndependenceEnabled: false, imperialCourtEnded: true, corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, 31, new(10000, 10000)) { IsRoot = true }]);
     private static PersistentTask Task() => new(Guid.NewGuid(), "personnel-search", "player", 1, 12, 1,
         new(190, 2, 1), new(190, 2, 1), 0, 0)
         { Journey = new(1, null, 0) { Route = new(new(0, 0), new(0, 0), false) }, SearchEncounter = new ShanyangGongEncounter() };

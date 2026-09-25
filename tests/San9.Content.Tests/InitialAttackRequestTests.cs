@@ -8,9 +8,9 @@ namespace San9.Content.Tests;
 public sealed class InitialAttackRequestTests
 {
     private static ScenarioInitialState Fixture() => new(ScenarioInitialState.CurrentSchemaVersion, "requests", 190, 1, 1, 1000,
-        [new(1000, "first", 0, 0, 0, 100), new(2000, "second", 1, 0, 0, 100), new(3000, "third", 2, 0, 0, 100)],
+        [new(1000, "first", 0, 100), new(2000, "second", 1, 100), new(3000, "third", 2, 100)],
         [new(4000, "target", 3000, 0, 0, 0, 100, 100, 0, [])], [], [])
-        { AttackRequests = [new(2000, 1000, 4000, 19), new(1000, 2000, 4000, 12)] };
+        { AttackRequests = [new(2000, 1000, 4000, 19), new(1000, 2000, 4000, 12)] , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1000, 1000, null, new(0, 0)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2000, 2000, null, new(0, 0)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3000, 3000, null, new(0, 0)) { IsRoot = true }], []) };
 
     [Fact]
     public void AuthoredRequestsSupportIndependentIdsAndEitherOrder()

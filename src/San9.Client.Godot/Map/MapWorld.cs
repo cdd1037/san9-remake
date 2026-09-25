@@ -182,6 +182,13 @@ public partial class MapWorld : Node2D
     {
         var b = Session.View.Settlements.Single(b => b.Id == id); var c = MapGeometry.Center(b.X, b.Y); FocusWorld(new(c.X, c.Y));
     }
+    public void FocusUnit(int id)
+    {
+        var unit = Session.View.World.Units.SingleOrDefault(u => u.Id == id);
+        if (unit is null) return;
+        var center = MapGeometry.Center(unit.Cell.X, unit.Cell.Y);
+        FocusWorld(new(center.X, center.Y));
+    }
     public Vector2 WorldToViewport(Vector2 world) => GetViewport().CanvasTransform * world;
     public Vector2 ViewportToWorld(Vector2 viewport) => GetViewport().CanvasTransform.AffineInverse() * viewport;
     public void SetZoom(float zoom)

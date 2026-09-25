@@ -7,10 +7,10 @@ namespace San9.Application.Tests;
 public sealed class AllianceCandidateSessionTests
 {
     private static ScenarioInitialState Definition() => new(ScenarioInitialState.CurrentSchemaVersion, "alliance-candidates", 190, 2, 1, 1,
-        Enumerable.Range(1, 4).Select(id => new ForceInitialState(id, $"force.{id}", id, 0, 100000, 50) { BaseTrust = 40 }).ToArray(),
+        Enumerable.Range(1, 4).Select(id => new ForceInitialState(id, $"force.{id}", id, 50) { BaseTrust = 40 }).ToArray(),
         Enumerable.Range(1, 4).Select(id => new SettlementInitialState(1000 + id, $"city.{id}", id, id, 0,
             id == 1 ? 100000u : 0, 100, 100, id == 1 ? 50 : 0, []) { DraftPopulation = id == 1 ? 200001u : 0 }).ToArray(),
-        [], []) { CityProvinceIds = Enumerable.Range(1, 4).ToDictionary(id => 1000 + id, _ => 9001) };
+        [], []) { CityProvinceIds = Enumerable.Range(1, 4).ToDictionary(id => 1000 + id, _ => 9001) , Information = new([], [], [], Enumerable.Range(1, 4).Select(id => new San9.Core.Domain.CorpsState(id, id, null, new(0, 100000)) { IsRoot = true }).ToArray(), []) };
 
     [Fact]
     public void SessionOwnsProvinceMembershipAndRestoresReadOnlyCandidateQueries()

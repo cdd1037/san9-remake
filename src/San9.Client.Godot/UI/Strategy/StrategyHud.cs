@@ -39,7 +39,7 @@ public partial class StrategyHud : Control
     private readonly Dictionary<string,Label> _resourceValues = [];
     public string DisplayedMoney => _resourceValues.TryGetValue("资金", out var label) ? label.Text : "";
     private Label _year = null!, _date = null!;
-    private TextureButton? _large, _small, _territory, _facilities, _officers;
+    private TextureButton? _large, _small, _territory, _facilities, _officers, _units;
     private readonly GameTextPresenter _text = new();
     public override void _Ready()
     {
@@ -74,15 +74,16 @@ public partial class StrategyHud : Control
         _date = LabelAt($"{p.Month}月上旬", new(182, 11), new(89, 32), 24);
         LabelAt(Texts.Resolve(force.NameKey), new(280, 11), new(92, 32), 24, HorizontalAlignment.Left);
         AddResourceField("信望", force.Trust.ToString(), 385, 425, 32);
-        AddResourceField("资金", force.Money.ToString(), 465, 505, 56);
-        AddResourceField("兵粮", force.Food.ToString(), 569, 609, 56);
+        AddResourceField("资金", (Scenario.PlayerCorps?.Treasury.Money ?? 0).ToString(), 465, 505, 56);
+        AddResourceField("兵粮", (Scenario.PlayerCorps?.Treasury.Food ?? 0).ToString(), 569, 609, 56);
         _text.Apply(LabelAt("春", new(26, 40), new(16, 16), 16), GameTextStyles.For(GameTextRole.Spring));
         _territory = AddButton("疆界", "button-territory", new(694, 10), new(64, 36), true, () => World.ShowBoundaries = !World.ShowBoundaries);
         _territory.ToggleMode = true; _territory.SetPressedNoSignal(World.ShowBoundaries);
         AddButton("情报", "button-information", new(842, 7), new(80, 40), true, () => Information.OpenMenu());
         AddButton("功能", "button-functions", new(929, 7), new(80, 40), false);
         AddButton("?", "button-help", new(957, 50), new(56, 40), false);
-        AddButton("部队", "button-units", new(956, 208), new(56, 32), false);
+        _units = AddButton("部队", "button-units", new(956, 208), new(56, 32), true, () => SelectRosterPage(RosterPage.Units));
+        _units.ToggleMode = true;
         _officers = AddButton("武将", "button-officers", new(927, 238), new(56, 32), true, () => SelectRosterPage(RosterPage.Officers));
         _facilities = AddButton("设施", "button-facilities", new(899, 268), new(56, 32), true, () => SelectRosterPage(RosterPage.Facilities));
         _officers.ToggleMode = true; _facilities.ToggleMode = true; _facilities.SetPressedNoSignal(true);
@@ -106,7 +107,7 @@ public partial class StrategyHud : Control
         _rosterList = new StrategyRosterList { Position = new(892, 303), Textures = _textures,
             Texts = Texts, Skin = Skin, Activated = ActivateRosterEntry, ContextRequested = ShowContextMenu };
         AddChild(_rosterList);
-        _rosterList.Refresh(Scenario, Scenario.PlayerForceId);
+        _rosterList.Refresh(Scenario);
         _overviewPanel = new StrategyOverviewPanel { State = Overview, World = World, Session = Session,
             Skin = Skin, Texts = Texts, Service = Textures, Visible = false };
         GetParent().AddChild(_overviewPanel);
@@ -214,10 +215,16 @@ public partial class StrategyHud : Control
         _rosterList.SelectPage(page);
         _facilities!.SetPressedNoSignal(page == RosterPage.Facilities);
         _officers!.SetPressedNoSignal(page == RosterPage.Officers);
+        _units!.SetPressedNoSignal(page == RosterPage.Units);
     }
     private void ActivateRosterEntry(RosterKey key)
     {
-        if (_rosterList.Roster.Find(key) is { } entry) World.FocusBuilding(entry.SettlementId);
+        _rosterList.Refresh(Scenario);
+        switch (_rosterList.Roster.Find(key)?.Location)
+        {
+            case RosterSettlementLocation settlement: World.FocusBuilding(settlement.Id); break;
+            case RosterUnitLocation unit: World.FocusUnit(unit.Id); break;
+        }
     }
     public void FocusFacility(int id) => World.FocusBuilding(id);
     private void UpdateSelection() => UpdateMessage();
@@ -284,9 +291,9 @@ public partial class StrategyHud : Control
         {
             _stateRevision = Session.Snapshot.Revision;
             var view=Session.View; var force=view.Forces.Single(f => f.Id==view.PlayerForceId);
-            _resourceValues["资金"].Text=force.Money.ToString(); _resourceValues["兵粮"].Text=force.Food.ToString(); _resourceValues["信望"].Text=force.Trust.ToString();
+            _resourceValues["资金"].Text=(Scenario.PlayerCorps?.Treasury.Money ?? 0).ToString(); _resourceValues["兵粮"].Text=(Scenario.PlayerCorps?.Treasury.Food ?? 0).ToString(); _resourceValues["信望"].Text=force.Trust.ToString();
             _year.Text=$"{view.Year}年"; _date.Text=$"{view.Month}月{(view.Day==1?"上旬":view.Day==11?"中旬":"下旬")}";
-            _rosterList.Refresh(view, view.PlayerForceId);
+            _rosterList.Refresh(view);
             UpdateSelection();
         }
         UpdateHover(_hoverPosition ?? GetGlobalMousePosition());

@@ -11,7 +11,7 @@ namespace San9.Application.Tests;
 public sealed class ThreeVisitsSessionTests
 {
     private static ScenarioInitialState Definition() => new(ScenarioInitialState.CurrentSchemaVersion, "visits", 190, 2, 1, 1,
-        [new(1, "force", 1, 10000, 10000, 100) { LeaderId = 11, BaseTrust = 100 }],
+        [new(1, "force", 1, 100) { LeaderId = 11, BaseTrust = 100 }],
         [new(1, "home", 1, 0, 0, 100, 100, 100, 50, []) { Kind = SettlementKind.City, ConsumesFood = false }],
         new() { [1] = "home" }, new() { [1] = 1 })
     {
@@ -22,7 +22,7 @@ public sealed class ThreeVisitsSessionTests
             { Status = id == 11 ? OfficerStatus.Ruler : OfficerStatus.Serving }.WithLoyalty(1, 100)))
             .Append(new("recruit", new(15, null, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Undiscovered })).ToArray(),
         ThreeVisits = new(11, 15, 14, [12, 13], 1, 95, 360, 150, 10, new("visits.start"), new("visits.first"), new("visits.end"))
-    };
+    , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 10000)) { IsRoot = true }], []) };
 
     [Fact]
     public void BothVisitsSaveAndReplayAtEveryStableBoundaryWithoutRepeatedRecruitment()

@@ -16,7 +16,7 @@ public sealed class ControlRotationTests
     {
         var controls = Enumerable.Range(1, 3).Select(i => new ControlSeat($"p:{i}", i, ControllerKind.Player)).ToImmutableArray();
         var world = WorldState.Create(new(190, 1, 1), 0,
-            Enumerable.Range(1, 3).Select(i => new ForceState(i, 0, 0, 0)), [], [], controls: controls).BeginMutation();
+            Enumerable.Range(1, 3).Select(i => new ForceState(i, 0)), [], [], controls: controls, corps: [.. Enumerable.Range(1, 3).Select(i => new San9.Core.Domain.CorpsState(i, i, null, new(0, 0)) { IsRoot = true })]).BeginMutation();
         world.SetSimulation(world.Simulation with { ActiveControl = active });
         ForceLifecycle.Retire(world, retired, []);
         Assert.Equal(expected, world.Simulation.ActiveControl == world.Simulation.Controls.Length ? null :

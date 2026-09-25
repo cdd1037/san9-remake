@@ -14,11 +14,11 @@ public sealed class CityIndependenceTests
         { Status = status, Ambition = 15, IsCommander = status is OfficerStatus.Ruler or OfficerStatus.Governor }.WithLoyalty(owner, loyalty);
 
     private static WorldState World(ulong seed = 17) => WorldState.Create(new(190, 1, 1), seed,
-        [new(1, 1000, 2000, 100) { LeaderId = 1 }, new(2, 2000, 3000, 100) { LeaderId = 20 }],
+        [new(1, 100) { LeaderId = 1 }, new(2, 100) { LeaderId = 20 }],
         [City(1, 1, 11), City(2, 1, 10), City(3, 2, 20)],
         [Person(1, 1, 2, 100, OfficerStatus.Ruler), Person(10, 1, 1, 0, OfficerStatus.Governor),
          Person(11, 1, 1, 0), Person(12, 1, 1, 255), Person(20, 2, 3, 100, OfficerStatus.Ruler)],
-        corps: [new(10, 1, 1, null), new(11, 1, 10, new(500, 700)), new(20, 2, 20, null)],
+        corps: [new(10, 1, 1, new(1000, 2000)) { IsRoot = true }, new(11, 1, 10, new(500, 700)), new(20, 2, 20, new(2000, 3000)) { IsRoot = true }],
         controls: [new("player", 1, ControllerKind.Player), new("ai:2", 2, ControllerKind.Automatic)],
         freeOfficerMigrationEnabled: false, officeRequestsEnabled: false, forceEmergenceEnabled: false,
         annualAppearancesEnabled: false, naturalDeathsEnabled: false);
@@ -55,8 +55,8 @@ public sealed class CityIndependenceTests
         Assert.Equal(oldCity.DraftPopulation, world.Settlements[1].DraftPopulation);
         Assert.Equal(oldCity.Morale, world.Settlements[1].Morale);
         Assert.Equal(oldCity.Wounded, world.Settlements[1].Wounded);
-        Assert.Equal(2 * EconomyMath.Revenue(oldCity) + 3000, world.Forces[3].Money);
-        Assert.Equal(1000u, world.Forces[1].Money);
+        Assert.Equal(2 * EconomyMath.Revenue(oldCity) + 3000, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 3).Treasury.Money);
+        Assert.Equal(1000u, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money);
         Assert.Equal(500u, world.Corps[11].Treasury!.Money);
         Assert.Equal(2, world.Officers[12].SettlementId);
         Assert.Equal(1, world.Officers[12].OwnerId);
@@ -84,8 +84,8 @@ public sealed class CityIndependenceTests
         Assert.Equal(OfficerStatus.Free, world.Officers[12].Status);
         Assert.Null(world.Officers[12].OwnerId);
         Assert.Equal(45, world.Officers[12].LoyaltyTo(1));
-        Assert.Equal(1500u, world.Forces[1].Money);
-        Assert.Equal(2700u, world.Forces[1].Food);
+        Assert.Equal(1500u, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money);
+        Assert.Equal(2700u, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Food);
         Assert.False(world.Corps.ContainsKey(11));
         Assert.Contains(events.OfType<ResourceChangedEvent>(), e => e.Reason == "city-independence-corps-dissolved");
         state.Commit(world);
@@ -279,7 +279,7 @@ public sealed class CityIndependenceTests
         var outgoing = new GiftCommand(Guid.NewGuid(), 1, 0, 12, 2, new(GiftKind.Money, 100, null));
         Assert.True(engine.Execute(new("player"), outgoing).Submission.Accepted);
         engine.EndControl(new("player"));
-        uint incomingForceMoney = engine.Snapshot.Forces.Single(f => f.Id == 2).Money;
+        uint incomingForceMoney = engine.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 2).Treasury.Money;
         var incoming = new GiftCommand(Guid.NewGuid(), 2, 1, 21, 1, new(GiftKind.Money, 100, null));
         Assert.True(engine.Execute(new("ai:2"), incoming).Submission.Accepted);
         var world = Due(state);
@@ -290,7 +290,7 @@ public sealed class CityIndependenceTests
         Assert.True(world.Forces[1].IsEliminated);
         Assert.Equal(new[] { outgoing.CommandId, incoming.CommandId }.Order(), events.OfType<TaskCancelledEvent>().Select(e => e.TaskId).Order());
         Assert.DoesNotContain(world.Simulation.Tasks, t => t.Gift is not null || t.ForceId == 1);
-        Assert.Equal(incomingForceMoney, world.Forces[2].Money);
+        Assert.Equal(incomingForceMoney, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 2).Treasury.Money);
         ResolutionPipeline.CheckTerminal(world, events);
         WorldInvariants.Validate(world);
     }

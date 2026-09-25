@@ -41,9 +41,9 @@ public partial class StrategyRosterList : Control
 
     }
 
-    public void Refresh(StrategySnapshot snapshot, int corpsId)
+    public void Refresh(StrategySnapshot snapshot)
     {
-        Roster.Refresh(snapshot, corpsId);
+        Roster.Refresh(snapshot);
         BindPage();
     }
 

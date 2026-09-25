@@ -14,10 +14,10 @@ public sealed class MerchantInvestmentTests
     private static (WorldMutation World, PersistentTask Task) Create(int eligibilityRoll = 0, int investmentRoll = 0)
     {
         var world = WorldState.Create(new(190, 2, 1), 1,
-            [new(1, 5000, 100, 51) { BaseTrust = 51, LeaderId = 1 }, new(2, 5000, 100, 51) { BaseTrust = 51 }],
+            [new(1, 51) { BaseTrust = 51, LeaderId = 1 }, new(2, 51) { BaseTrust = 51 }],
             [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
             [new(1, 1, 1, new(0, 0, 0, 0), false) { Status = OfficerStatus.Ruler }, new(3, 1, 1, new(0, 0, 99, 0), false)],
-            controls: [new("player", 1, ControllerKind.Player), new("other", 2, ControllerKind.Player)], foodExchangeRate: 7).BeginMutation();
+            controls: [new("player", 1, ControllerKind.Player), new("other", 2, ControllerKind.Player)], foodExchangeRate: 7, corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(5000, 100)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, null, new(5000, 100)) { IsRoot = true }]).BeginMutation();
         world.SetSimulation(world.Simulation with { RandomStreams = [new("event-search-eligibility", Seed(eligibilityRoll)), new("event-merchant-investment", Seed(investmentRoll))] });
         return (world, new(Guid.NewGuid(), "personnel-search", "player", 1, 3, 1, world.Clock, world.Clock, 0, 0) { Journey = new(1, null, 0) });
     }
@@ -43,9 +43,9 @@ public sealed class MerchantInvestmentTests
             case "foreign": world.Replace(world.Settlements[1] with { OwnerId = 2 }); break;
             case "automatic": world.SetSimulation(world.Simulation with { Controls = [] }); break;
             case "trust50": world.Replace(world.Forces[1] with { BaseTrust = 50 }); break;
-            case "money1000": world.Replace(world.Forces[1] with { Money = 1000 }); break;
-            case "full-money": world.Replace(world.Forces[1] with { Money = 1000000 }); break;
-            case "full-food": world.Replace(world.Forces[1] with { Food = 1000000 }); break;
+            case "money1000": world.Replace(ResourceAccounts.Root(world, 1) with { Treasury = ResourceAccounts.Root(world, 1).Treasury with { Money = 1000 } }); break;
+            case "full-money": world.Replace(ResourceAccounts.Root(world, 1) with { Treasury = ResourceAccounts.Root(world, 1).Treasury with { Money = 1000000 } }); break;
+            case "full-food": world.Replace(ResourceAccounts.Root(world, 1) with { Treasury = ResourceAccounts.Root(world, 1).Treasury with { Food = 1000000 } }); break;
             case "site": task = task with { Journey = new(999, null, 0) }; break;
             case "banned": world.Replace(world.Forces[1] with { EventHistory = [new("cash.banned")] }); break;
             case "world-key": world.SetSimulation(world.Simulation with { ConsumedEventKeys = [new("cash.banned")] }); break;
@@ -70,7 +70,7 @@ public sealed class MerchantInvestmentTests
         var result = Assert.Single(events.OfType<MerchantInvestmentResolvedEvent>());
         long gross = wins ? 151 + 4L * Math.Max(1, politics) : 0;
         Assert.Equal(wins, result.Succeeded); Assert.Equal(gross, result.GrossReturn);
-        Assert.Equal((uint)(5000 - 101 + gross), world.Forces[1].Money); Assert.Equal(51, result.BaseTrust);
+        Assert.Equal((uint)(5000 - 101 + gross), world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money); Assert.Equal(51, result.BaseTrust);
         Assert.Empty(world.Forces[1].EventHistory); Assert.Empty(world.Simulation.ConsumedEventKeys);
         Assert.Equal(politics, world.Officers[3].BaseAbilities.Politics);
     }
@@ -85,7 +85,7 @@ public sealed class MerchantInvestmentTests
         MerchantInvestment.Resolve(world, task, Rules, new("merchant"), new(MerchantInvestmentChoice.Invest, 101), events);
         var result = Assert.Single(events.OfType<MerchantInvestmentResolvedEvent>());
         Assert.Equal(3829, result.GrossReturn); Assert.Equal(1000000u, world.Corps[7].Treasury!.Food);
-        Assert.Equal(4899u, world.Corps[7].Treasury!.Money); Assert.Equal(5000u, world.Forces[1].Money); Assert.Equal(100u, world.Forces[1].Food);
+        Assert.Equal(4899u, world.Corps[7].Treasury!.Money); Assert.Equal(5000u, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money); Assert.Equal(100u, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Food);
         Assert.Equal(2829, events.OfType<ResourceChangedEvent>().Single(e => e.Resource == ResourceKind.Food).SaturationLoss);
     }
 
@@ -102,7 +102,7 @@ public sealed class MerchantInvestmentTests
         Assert.True(MerchantInvestment.CanResolve(world, task with { Journey = new(2, null, 0) }, Rules, new("merchant")));
         Assert.True(MerchantInvestment.CanResolve(world, task with { ForceId = 2 }, Rules, new("merchant")));
         Assert.Equal(random, world.Simulation.RandomStreams.ToArray()); Assert.DoesNotContain(events, e => e is ResourceChangedEvent);
-        Assert.Equal(5000u, world.Forces[1].Money);
+        Assert.Equal(5000u, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money);
     }
 
     [Theory]
@@ -122,9 +122,9 @@ public sealed class MerchantInvestmentTests
     public void InvalidatedMerchantCancelsWithoutInvestmentRandomOrPayment()
     {
         var (world, task) = Create(); Assert.True(MerchantInvestment.Prepare(world, task, Definition));
-        world.Replace(world.Forces[1] with { Food = 1000000 }); var random = world.Simulation.RandomStreams.ToArray(); List<DomainEvent> events = [];
+        world.Replace(ResourceAccounts.Root(world, 1) with { Treasury = ResourceAccounts.Root(world, 1).Treasury with { Food = 1000000 } }); var random = world.Simulation.RandomStreams.ToArray(); List<DomainEvent> events = [];
         Assert.Throws<InvalidOperationException>(() => MerchantInvestment.Resolve(world, task, Rules, new("merchant"), new(MerchantInvestmentChoice.Invest, 100), events));
-        Assert.Equal(5000u, world.Forces[1].Money); Assert.Equal(random, world.Simulation.RandomStreams.ToArray()); Assert.Empty(events);
+        Assert.Equal(5000u, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money); Assert.Equal(random, world.Simulation.RandomStreams.ToArray()); Assert.Empty(events);
     }
 
     [Fact]
@@ -137,8 +137,8 @@ public sealed class MerchantInvestmentTests
         var rules = new SimulationRules { Personnel = new([new(1, new(0, 0)), new(2, new(0, 0)), new(3, new(0, 0))], searchEvents: [d]) };
         List<DomainEvent> events = [];
         MerchantInvestment.Resolve(world, task, rules, new("merchant"), new(MerchantInvestmentChoice.Invest, 1000), events);
-        Assert.Equal(1000000u, world.Forces[1].Food);
-        Assert.Equal(4000u, world.Forces[1].Money);
+        Assert.Equal(1000000u, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Food);
+        Assert.Equal(4000u, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money);
         var reward = events.OfType<ResourceChangedEvent>().Single(e => e.Resource == ResourceKind.Food);
         Assert.Equal(long.MaxValue, reward.Requested); Assert.Equal(999900, reward.Actual);
     }

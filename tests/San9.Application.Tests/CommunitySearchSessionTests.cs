@@ -23,13 +23,13 @@ public sealed class CommunitySearchSessionTests
         _ => throw new ArgumentException()
     }) with { Id = kind, ChanceAbility = CommunityAbility.Politics, ChanceDivisor = 1 };
     private static ScenarioInitialState Definition(string kind) => new(ScenarioInitialState.CurrentSchemaVersion, "community", 190, 1, 1, 1,
-        [new(1, "force", 1, 10000, 10000, 100) { LeaderId = 1, BaseTrust = 100 }],
+        [new(1, "force", 1, 100) { LeaderId = 1, BaseTrust = 100 }],
         [new(1, "home", 1, 0, 0, 1000, 100, 100, 0, [])], new() { [1] = "home" }, new() { [1] = 1 })
     {
         Officers = [new("ruler", new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }),
             new("actor", new(2, 1, 1, new(60, 30, 100, 70), false))],
         SearchEvents = [Event(kind)]
-    };
+    , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }], []) };
     public static IEnumerable<object[]> Choices()
     {
         yield return ["relief", CommunitySearchChoice.DonateMoney]; yield return ["relief", CommunitySearchChoice.DonateFood];

@@ -13,12 +13,12 @@ public sealed class WomenVisitTests
     private static (WorldMutation World, PersistentTask Task) Create(int roll = 0, int year = 190)
     {
         var world = WorldState.Create(new(year, 1, 1), 123,
-            [new(1, 0, 10000, 999) { LeaderId = 1, BaseTrust = 51 }],
+            [new(1, 999) { LeaderId = 1, BaseTrust = 51 }],
             [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
             [new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
              new(2, 1, 1, new(50, 99, 99, 50), false),
              new(3, null, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Special }],
-            controls: [new("player", 1, ControllerKind.Player)]).BeginMutation();
+            controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(0, 10000)) { IsRoot = true }]).BeginMutation();
         ulong seed = Enumerable.Range(1, 10000).Select(i => (ulong)i).First(s => new StableRandom(s).NextUInt64() % 100 == (ulong)roll);
         world.SetSimulation(world.Simulation with { RandomStreams = [new("event-search-eligibility", seed)] });
         return (world, new(Guid.NewGuid(), "personnel-search", "player", 1, 2, 1, world.Clock, world.Clock, 0, 0)
@@ -67,7 +67,7 @@ public sealed class WomenVisitTests
     {
         var (world, task) = Create(year: year);
         world.SetClock(new(220, 1, 1));
-        world.Replace(world.Forces[1] with { LeaderId = leader });
+        world.Replace(world.Forces[1] with { LeaderId = leader }); world.Replace(ResourceAccounts.Root(world, 1) with { LeaderId = leader });
         world.SetSimulation(world.Simulation with { ConsumedEventKeys = married ? [new("married")] : [] });
         var d = Definition with { Sites = [Definition.Sites[0] with
             { EarliestScenarioStart = new(200, 1, 1), RequiredLeaderIds = [1, 2], RequiredWorldKey = new("married") }] };

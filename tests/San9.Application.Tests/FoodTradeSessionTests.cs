@@ -10,14 +10,14 @@ namespace San9.Application.Tests;
 public sealed class FoodTradeSessionTests
 {
     private static ScenarioInitialState Definition(int chance = 100) => new(ScenarioInitialState.CurrentSchemaVersion, "food-trade", 190, 2, 1, 1,
-        [new(1, "force", 1, 50000, 10000, 100) { LeaderId = 1, BaseTrust = 100 }],
+        [new(1, "force", 1, 100) { LeaderId = 1, BaseTrust = 100 }],
         [new(1, "home", 1, 0, 0, 0, 100, 100, 0, []) { MerchantPresenceChance = chance, CorpsId = 1 },
          new(2, "corps", 1, 1, 0, 0, 100, 100, 0, []) { MerchantPresenceChance = 100, CorpsId = 2 }],
         new() { [1] = "home", [2] = "corps" }, new() { [1] = 1, [2] = 2 })
     {
         Officers = [new("ruler", new(1, 1, 1, new(80, 80, 80, 80), false) { Status = OfficerStatus.Ruler }),
             new("officer", new(2, 1, 2, new(80, 80, 80, 80), false)), new("reserve", new(3, 1, 2, new(80, 80, 80, 80), false))],
-        Information = InformationDefinitions.Empty with { Corps = [new(1, 1, 1, null), new(2, 1, 2, new(10000, 10000))] },
+        Information = InformationDefinitions.Empty with { Corps = [new(1, 1, 1, new(50000, 10000)) { IsRoot = true }, new(2, 1, 2, new(10000, 10000))] },
         FoodExchangeRate = 7
     };
 
@@ -35,8 +35,8 @@ public sealed class FoodTradeSessionTests
         var request = session.Request(new CommandOperation(command), id: command.CommandId);
         var result = session.Apply(request); Assert.Equal(SessionDisposition.Accepted, result.Disposition);
         Assert.Single(result.Events.OfType<FoodTradeCompletedEvent>());
-        Assert.Equal(before.Forces.Single().Money, session.Snapshot.Forces.Single().Money);
-        Assert.Equal(before.Forces.Single().Food, session.Snapshot.Forces.Single().Food);
+        Assert.Equal(before.Corps.Single(c => c.IsRoot).Treasury.Money, session.Snapshot.Corps.Single(c => c.IsRoot).Treasury.Money);
+        Assert.Equal(before.Corps.Single(c => c.IsRoot).Treasury.Food, session.Snapshot.Corps.Single(c => c.IsRoot).Treasury.Food);
         var treasury = session.Snapshot.Corps.Single(c => c.Id == 2).Treasury!;
         uint previous = before.Corps.Single(c => c.Id == 2).Treasury!.Money;
         Assert.Equal(direction == FoodTradeDirection.Buy ? previous - 2 : previous + 1, treasury.Money);

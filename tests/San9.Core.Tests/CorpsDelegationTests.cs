@@ -9,9 +9,9 @@ namespace San9.Core.Tests;
 public sealed class CorpsDelegationTests
 {
     private static WorldState World() => WorldState.Create(new(190, 1, 1), 42,
-        [new ForceState(1, 100000, 100000, 100) { LeaderId = 11 },
-         new ForceState(2, 100000, 100000, 100) { LeaderId = 21 },
-         new ForceState(3, 100000, 100000, 100) { LeaderId = 31 }],
+        [new ForceState(1, 100) { LeaderId = 11 },
+         new ForceState(2, 100) { LeaderId = 21 },
+         new ForceState(3, 100) { LeaderId = 31 }],
         [new(1, 1, 1000, 100, 100, 70, 0, 0, 0, 0, 0) { CorpsId = 10 },
          new(2, 1, 1000, 100, 100, 70, 0, 0, 0, 0, 0) { CorpsId = 20 },
          new(3, 2, 1000, 100, 100, 70, 0, 0, 0, 0, 0),
@@ -20,7 +20,7 @@ public sealed class CorpsDelegationTests
          new OfficerState(12, 1, 2, new(50, 50, 100, 50), false) { Status = OfficerStatus.Governor },
          new OfficerState(21, 2, 3, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
          new OfficerState(31, 3, 4, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }],
-        corps: [new(10, 1, 11, null), new(20, 1, 12, new(1000, 1000)) { ControlMode = CorpsControlMode.Automatic }],
+        corps: [new(10, 1, 11, new(100000, 100000)) { IsRoot = true }, new(20, 1, 12, new(1000, 1000)) { ControlMode = CorpsControlMode.Automatic }, new San9.Core.Domain.CorpsState(2, 2, 21, new(100000, 100000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, 31, new(100000, 100000)) { IsRoot = true }],
         controls: [new("first", 1, ControllerKind.Player), new("second", 2, ControllerKind.Automatic), new("third", 3, ControllerKind.Automatic)]);
 
     private static SimulationRules Rules() => new() { Personnel = new([new(1, new(0, 0)), new(2, new(30, 0)), new(3, new(90, 0)), new(4, new(180, 0))]) };

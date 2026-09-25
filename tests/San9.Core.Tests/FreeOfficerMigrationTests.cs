@@ -10,12 +10,12 @@ public sealed class FreeOfficerMigrationTests
         new Dictionary<int, int> { [1] = 1, [2] = 2, [20] = 2, [3] = 3 }, [new(1, 2)]);
 
     private static WorldState World(ulong seed, bool enabled = true) => WorldState.Create(new(190, 1, 1), seed,
-        [new(1, 1000, 1000, 0) { LeaderId = 1 }, new(2, 1000, 1000, 0) { LeaderId = 2 }],
+        [new(1, 0) { LeaderId = 1 }, new(2, 0) { LeaderId = 2 }],
         [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100), new(2, 2, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
         [new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
          new(2, 2, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
          new OfficerState(9, null, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Free, StatusStartYear = 180 }
-             .WithLoyalty(1, 70)], controls: [new("player", 1, ControllerKind.Player)], freeOfficerMigrationEnabled: enabled);
+             .WithLoyalty(1, 70)], controls: [new("player", 1, ControllerKind.Player)], freeOfficerMigrationEnabled: enabled, corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(1000, 1000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 2, new(1000, 1000)) { IsRoot = true }]);
 
     private static ulong SeedFor(int roll)
     {
@@ -84,7 +84,7 @@ public sealed class FreeOfficerMigrationTests
         var excluded = Enum.GetValues<OfficerStatus>().Where(s => s != OfficerStatus.Free).ToArray();
         var world = WorldState.Create(initial.Clock, 190, initial.Forces, initial.Settlements,
             initial.Officers.Concat(new[] { 40, 10, 30, 20 }.Select(id => free with { Id = id }))
-                .Concat(excluded.Select(status => free with { Id = 1000 + (int)status }))).BeginMutation();
+                .Concat(excluded.Select(status => free with { Id = 1000 + (int)status })), corps: initial.Corps).BeginMutation();
         world.SetClock(new(190, 2, 1));
         foreach (var status in excluded)
             world.Replace(world.Officers[9] with { Id = 1000 + (int)status, Status = status });

@@ -30,13 +30,12 @@ internal static class ForceTransfer
     internal static (long Removed, uint Received) Treasury(WorldMutation world, int force, int recipient,
         ResourceKind resource, int divisor, string reason, int? source, List<DomainEvent> events)
     {
-        var accounts = new[] { new ResourceAccount(ResourceOwnerKind.Force, force) }
-            .Concat(world.Corps.Values.Where(c => c.OwnerId == force && c.Treasury is not null).OrderBy(c => c.Id)
-                .Select(c => new ResourceAccount(ResourceOwnerKind.Corps, c.Id))).ToArray();
+        var accounts = world.Corps.Values.Where(c => c.OwnerId == force).OrderBy(c => c.Id)
+            .Select(c => new ResourceAccount(ResourceOwnerKind.Corps, c.Id)).ToArray();
         long total = accounts.Sum(a => (long)ResourceAccounts.Balance(world, a, resource));
         foreach (var account in accounts) ResourceAccounts.Change(world, account, resource,
             -(long)ResourceAccounts.Balance(world, account, resource), reason, source, events);
-        var target = new ResourceAccount(ResourceOwnerKind.Force, recipient);
+        var target = ResourceAccounts.Resolve(world, recipient, null);
         uint received = (uint)Math.Min(total / divisor, ResourceAccounts.Receivable(world, target, resource));
         ResourceAccounts.Change(world, target, resource, total / divisor, reason, source, events);
         return (total, received);

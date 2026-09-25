@@ -19,8 +19,8 @@ public sealed class ChainedPlotTests
             Enumerable.Range(1, 3).Select(id => new BattlefieldPlace(id, new(id * 5 + 2, 2), new(1, 1))).ToImmutableArray()))
     };
     private static WorldState World(bool started = false) => WorldState.Create(new(192, 4, 1), 17,
-        [new(1, 10000, 10000, 500) { LeaderId = 11, BaseTrust = 500 }, new(2, 10000, 10000, 100) { LeaderId = 21 },
-         new(3, 10000, 10000, 100) { LeaderId = 31 }],
+        [new(1, 500) { LeaderId = 11, BaseTrust = 500 }, new(2, 100) { LeaderId = 21 },
+         new(3, 100) { LeaderId = 31 }],
         Enumerable.Range(1, 4).Select(id => new SettlementState(id, id >= 3 ? id - 1 : 1, 100, 100, 100, 50, 100, 100, 100, 100, 100)
             { Kind = SettlementKind.City, ConsumesFood = false }),
         Enumerable.Range(11, 10).Select(id => new OfficerState(id, 1, id is 14 or 18 ? 2 : id == 19 ? 3 : 1,
@@ -33,7 +33,7 @@ public sealed class ChainedPlotTests
         controls: [new("player", 1, ControllerKind.Player), new("ai", 2, ControllerKind.Automatic)],
         consumedEventKeys: started ? [Definition.StartedKey] : [],
         annualAppearancesEnabled: false, naturalDeathsEnabled: false, freeOfficerMigrationEnabled: false,
-        officeRequestsEnabled: false, forceConsolidationEnabled: false, forceEmergenceEnabled: false, cityIndependenceEnabled: false);
+        officeRequestsEnabled: false, forceConsolidationEnabled: false, forceEmergenceEnabled: false, cityIndependenceEnabled: false, corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, 31, new(10000, 10000)) { IsRoot = true }]);
 
     [Theory]
     [InlineData(1000, 94, 94, true)]
@@ -135,13 +135,13 @@ public sealed class ChainedPlotTests
     public void SuccessorCorpsAndTreasuryBecomeDirectAndOldGovernorIsDemoted()
     {
         var state = World(true); var world = state.BeginMutation(Rules().Abilities);
-        world.AddCorps(new(100, 1, 11, null)); world.AddCorps(new(200, 1, 18, new(300, 400)) { ControlMode = CorpsControlMode.Automatic });
+        var rootTreasury100 = ResourceAccounts.Root(world, 1).Treasury; world.RemoveCorps(ResourceAccounts.Root(world, 1).Id); world.AddCorps(new(100, 1, 11, rootTreasury100) { IsRoot = true }); world.AddCorps(new(200, 1, 18, new(300, 400)) { ControlMode = CorpsControlMode.Automatic });
         world.Replace(world.Settlements[1] with { CorpsId = 100 }); world.Replace(world.Settlements[2] with { CorpsId = 200 });
         world.Replace(world.Officers[12] with { SettlementId = 2 }); world.Replace(world.Officers[18] with { Status = OfficerStatus.Governor });
         ChainedPlot.Apply(world, Rules(), []); state.Commit(world);
-        var corps = Assert.Single(world.Corps.Values); Assert.Equal(12, corps.LeaderId); Assert.Null(corps.Treasury);
+        var corps = Assert.Single(world.Corps.Values, c => c.OwnerId == 1); Assert.Equal(12, corps.LeaderId); Assert.True(corps.IsRoot);
         Assert.Equal(CorpsControlMode.Direct, corps.ControlMode); Assert.Equal(OfficerStatus.Serving, world.Officers[18].Status);
-        Assert.Equal((10300u, 10400u), (world.Forces[1].Money, world.Forces[1].Food));
+        Assert.Equal((10300u, 10400u), (world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Food));
     }
 
     [Theory]

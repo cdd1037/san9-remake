@@ -158,7 +158,7 @@ public sealed class PersonnelMissionTests
 
     private static readonly PersonnelRulebook Places = new([new(1, MapCoordinates.Center(new(0, 0))), new(2, MapCoordinates.Center(new(90, 0))), new(3, MapCoordinates.Center(new(0, 1))), new(30, MapCoordinates.Center(new(30, 30)))]);
     private static WorldState World(ulong seed = 190) => WorldState.Create(new(190, 1, 1), seed,
-        [new(1, 10000, 10000, 1000) { LeaderId = 1, BaseTrust = 1000 }, new(2, 10000, 10000, 0) { LeaderId = 2 }],
+        [new(1, 1000) { LeaderId = 1, BaseTrust = 1000 }, new(2, 0) { LeaderId = 2 }],
         [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100), new(2, 2, 0, 100, 100, 0, 0, 0, 100, 0, 100),
          new(3, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
         [new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
@@ -167,7 +167,7 @@ public sealed class PersonnelMissionTests
          new(13, 1, 3, new(50, 50, 100, 50), false),
          new(20, 2, 2, new(50, 50, 50, 50), false) { ForceLoyalties = ImmutableDictionary<int, int>.Empty.Add(1, 50).Add(2, 90), Righteousness = 5 },
          new(21, null, null, new(50, 50, 50, 50), false) { Status = OfficerStatus.Undiscovered, RegionId = 30, ForceLoyalties = ImmutableDictionary<int, int>.Empty.Add(1, 0) }],
-        relations: [new(1, 2, 80)], controls: [new("player", 1, ControllerKind.Player)], cityIndependenceEnabled: false);
+        relations: [new(1, 2, 80)], controls: [new("player", 1, ControllerKind.Player)], cityIndependenceEnabled: false, corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 2, new(10000, 10000)) { IsRoot = true }]);
     private static SimulationEngine Engine(WorldState world) => new(world, EconomyRulebook.Empty, Places);
     private static CommandExecutionResult Recruit(SimulationEngine engine, int actor = 11, int target = 20) =>
         engine.Execute(new("player"), new RecruitOfficerCommand(Guid.NewGuid(), 1, engine.Snapshot.Simulation.NextSequence, actor, target));
@@ -296,7 +296,7 @@ public sealed class PersonnelMissionTests
         var change = world.BeginMutation();
         change.Replace(change.Settlements[2] with { OwnerId = 1 });
         change.Replace(change.Officers[2] with { SettlementId = 1, OwnerId = 1 });
-        change.Replace(change.Forces[2] with { LeaderId = null });
+        change.Replace(change.Forces[2] with { LeaderId = null }); change.Replace(ResourceAccounts.Root(change, 2) with { LeaderId = null });
         change.Replace(change.Officers[20] with { SettlementId = 1, OwnerId = 1 });
         world.Commit(change);
         engine = Engine(world);
@@ -536,14 +536,14 @@ public sealed class PersonnelMissionTests
     public void SearchTargetsUseTheirOwnerThenTheUnownedRegionsParentCity(int? targetOwner, int? cityOwner, bool built, bool accepted)
     {
         var world = WorldState.Create(new(190, 1, 1), 190,
-            [new(1, 10000, 10000, 0) { LeaderId = 1 }, new(2, 10000, 10000, 0) { LeaderId = 2 }],
+            [new(1, 0) { LeaderId = 1 }, new(2, 0) { LeaderId = 2 }],
             [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100), new(2, 2, 0, 100, 100, 0, 0, 0, 100, 0, 100),
              new(3, cityOwner, 0, 100, 100, 0, 0, 0, 100, 0, 100),
              .. built ? new[] { new SettlementState(30, targetOwner, 0, 100, 100, 0, 0, 0, 100, 0, 100)
                  { Kind = SettlementKind.Facility } } : []],
             [new(1, 1, 1, new(50, 50, 1, 50), false) { Status = OfficerStatus.Ruler },
              new(2, 2, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }],
-            controls: [new("player", 1, ControllerKind.Player)]);
+            controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 2, new(10000, 10000)) { IsRoot = true }]);
         var places = new PersonnelRulebook(Places.Places.Values, new Dictionary<int, int> { [30] = 3 });
         var engine = new SimulationEngine(world, EconomyRulebook.Empty, places);
         string before = engine.Snapshot.StateHash;

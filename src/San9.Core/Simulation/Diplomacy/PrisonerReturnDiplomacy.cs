@@ -36,7 +36,7 @@ internal static class PrisonerReturnDiplomacy
             return CommandRejection.InvalidTask;
         if (!PersonnelMissions.CanAct(world, force, actor)) return CommandRejection.PersonUnavailable;
         var origin = world.Settlements[world.Officers[actor].SettlementId!.Value];
-        if (ResourceAccounts.Resolve(world, force, origin.CorpsId).Kind != ResourceOwnerKind.Force) return CommandRejection.InvalidCorps;
+        if (ResourceAccounts.Resolve(world, force, origin.CorpsId).Id != ResourceAccounts.Root(world, force).Id) return CommandRejection.InvalidCorps;
         if (!rules.Personnel.Places.ContainsKey(origin.Id) || !GiftDiplomacy.Destination(world, target, rules, out _, out _) ||
             !CanRecover(world, prisoner, rules)) return CommandRejection.NoDestination;
         return CommandRejection.None;
@@ -85,7 +85,7 @@ internal static class PrisonerReturnDiplomacy
     internal static long SalaryReserve(WorldMutation world, int force, SimulationRules rules)
     {
         long salaries = world.Officers.Values.Where(p => p.IsServing && p.Status != OfficerStatus.Ruler && p.OwnerId == force &&
-            ResourceAccounts.Resolve(world, force, PersonnelLocations.Corps(world, p)).Kind == ResourceOwnerKind.Force)
+            ResourceAccounts.Resolve(world, force, PersonnelLocations.Corps(world, p)).Id == ResourceAccounts.Root(world, force).Id)
             .Sum(p => (long)(p.OfficeId is int office ? rules.Economy.Salaries.Single(s => s.OfficeId == office).Amount : 1));
         return checked(salaries * DiplomacyMath.PrisonerSalaryReserveXuns(world.Clock.Month, world.Clock.Day));
     }
@@ -99,7 +99,7 @@ internal static class PrisonerReturnDiplomacy
         {
             CompensationKind.Free or CompensationKind.Prisoner => true,
             CompensationKind.Money => DiplomacyMath.AcceptPrisonerRansom(offer.Money, value,
-                world.Forces[task.ForceId].Money, SalaryReserve(world, task.ForceId, rules)),
+                ResourceAccounts.Root(world, task.ForceId).Treasury.Money, SalaryReserve(world, task.ForceId, rules)),
             CompensationKind.Treasure => DiplomacyMath.AcceptPrisonerTreasure(rules.Treasures.Items[offer.TreasureId!.Value].LoyaltyBonus, value),
             _ => false
         };

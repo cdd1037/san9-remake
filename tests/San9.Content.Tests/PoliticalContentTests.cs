@@ -35,7 +35,7 @@ public sealed class PoliticalContentTests
         if (defect == "title") scenario = scenario with { ProvinceCountryTitleIds = ImmutableDictionary<int, int>.Empty.Add(1, 9999) };
         if (defect == "province") scenario = scenario with { ProvinceCountryTitleIds = ImmutableDictionary<int, int>.Empty.Add(1, 4000) };
         if (defect == "key") scenario = scenario with { PoliticalEvents = scenario.PoliticalEvents! with { CourtEndedConsumptionKey = default } };
-        if (defect == "ownership") scenario = scenario with { Forces = [new(1, "a", 0, 0, 0, 0) { CountryTitleId = 4000 }, new(2, "b", 0, 0, 0, 0) { CountryTitleId = 4000 }] };
+        if (defect == "ownership") scenario = scenario with { Forces = [new(1, "a", 0, 0) { CountryTitleId = 4000 }, new(2, "b", 0, 0) { CountryTitleId = 4000 }] };
         if (defect is "ruler" or "glyph") scenario = scenario with { Information = scenario.Information with
         { CountryTitles = scenario.Information.CountryTitles.Select(t => defect == "ruler" ? t with { Rule = t.Rule with { PreferredRulerIds = [6000] } } : t with { FlagGlyph = 186 }).ToArray() } };
         Assert.Throws<InvalidDataException>(() => scenario.Information.Validate(scenario));

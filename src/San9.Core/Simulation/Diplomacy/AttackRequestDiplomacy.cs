@@ -38,7 +38,7 @@ internal static class AttackRequestDiplomacy
         if (!Target(world, force, target, place)) return CommandRejection.InvalidTask;
         if (!PersonnelMissions.CanAct(world, force, actor)) return CommandRejection.PersonUnavailable;
         var origin = world.Settlements[world.Officers[actor].SettlementId!.Value];
-        if (ResourceAccounts.Resolve(world, force, origin.CorpsId).Kind != ResourceOwnerKind.Force) return CommandRejection.InvalidCorps;
+        if (ResourceAccounts.Resolve(world, force, origin.CorpsId).Id != ResourceAccounts.Root(world, force).Id) return CommandRejection.InvalidCorps;
         return rules.Personnel.Places.ContainsKey(origin.Id) && GiftDiplomacy.Destination(world, target, rules, out _, out _)
             ? CommandRejection.None : CommandRejection.NoDestination;
     }
@@ -65,7 +65,7 @@ internal static class AttackRequestDiplomacy
         if (rules.Military is { } military && world.Units.Values.Any(u => !u.IsEmbedded && !u.IsPersonnel &&
             MilitaryDiplomacy.Relation(world, u.OwnerId, requested) < 40 && u.OwnerId != requested &&
             military.RegionAt(u.Position) is int region && rules.Personnel.RegionCities.TryGetValue(region, out int city) && city == nearest.Id)) return false;
-        return (long)world.Forces[requested].Food + world.Corps.Values.Where(c => c.OwnerId == requested).Sum(c => (long)(c.Treasury?.Food ?? 0)) >= 1000;
+        return world.Corps.Values.Where(c => c.OwnerId == requested).Sum(c => (long)(c.Treasury.Food)) >= 1000;
     }
 
     internal static int FreeThreshold(WorldMutation world, int source, int actor, int target, int place, SimulationRules rules) =>
@@ -88,7 +88,7 @@ internal static class AttackRequestDiplomacy
         int relation = MilitaryDiplomacy.Relation(world, source, target);
         if (ruler.Righteousness >= 6 && (!CanFulfill(world, source, target, place, rules) || relation < 60)) return refused;
         long quote = 10L * (300L - relation - world.Abilities(world.Officers[actor]).Politics);
-        if (quote > 0 && quote <= 1000000 && world.Forces[source].Money > quote)
+        if (quote > 0 && quote <= 1000000 && ResourceAccounts.Root(world, source).Treasury.Money > quote)
             return new(CompensationKind.Money, (uint)quote, null, null);
         if (world.Forces[source].LeaderId is not int owner || !world.Officers[owner].IsServing) return refused;
         var items = DiplomacyTreasures.Candidates(world.Treasures.Values, rules.Treasures, owner, ruler.Id);
@@ -117,7 +117,7 @@ internal static class AttackRequestDiplomacy
             CompensationKind.Free or CompensationKind.Prisoner => true,
             CompensationKind.Money => offer.Money <= 4000L - world.Officers[target.LeaderId!.Value].Righteousness *
                 ((long)world.Abilities(world.Officers[task.OfficerId]).Politics + relation) + 2L * target.BaseTrust &&
-                offer.Money < world.Forces[task.ForceId].Money / 2 && (long)offer.Money < world.Forces[task.ForceId].Money -
+                offer.Money < ResourceAccounts.Root(world, task.ForceId).Treasury.Money / 2 && (long)offer.Money < ResourceAccounts.Root(world, task.ForceId).Treasury.Money -
                     PrisonerReturnDiplomacy.SalaryReserve(world, task.ForceId, rules),
             CompensationKind.Treasure => task.Journey!.SuccessRoll >= FreeThreshold(world, task.ForceId, task.OfficerId,
                 mission.TargetForceId, mission.TargetSettlementId, rules) && rules.Treasures.Items[offer.TreasureId!.Value].LoyaltyBonus < (relation - 40) / 2,

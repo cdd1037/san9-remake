@@ -7,9 +7,9 @@ namespace San9.Core.Tests;
 public sealed class AttackRequestTests
 {
     private static WorldMutation World() => WorldState.Create(new(190, 1, 1), 1,
-        Enumerable.Range(1, 4).Select(id => new ForceState(id, 0, 0, 100) { BaseTrust = 100 }),
+        Enumerable.Range(1, 4).Select(id => new ForceState(id, 100) { BaseTrust = 100 }),
         Enumerable.Range(1, 4).Select(id => new SettlementState(id * 10, id, 0, 100, 100, 100, 0, 0, 0, 0, 0)), [],
-        relations: [new(1, 2, 70), new(1, 3, 70), new(2, 3, 70)]).BeginMutation();
+        relations: [new(1, 2, 70), new(1, 3, 70), new(2, 3, 70)], corps: [.. Enumerable.Range(1, 4).Select(id => new San9.Core.Domain.CorpsState(id, id, null, new(0, 0)) { IsRoot = true })]).BeginMutation();
 
     [Fact]
     public void ReciprocalExpiryChargesEachHolderAndClearsBothDirections()

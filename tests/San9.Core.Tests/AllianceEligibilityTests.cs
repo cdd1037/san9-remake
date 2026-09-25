@@ -9,10 +9,10 @@ public sealed class AllianceEligibilityTests
         new(owner * 100, owner, soldiers, 100, 100, 50, 50, 0, 0, 0, 0) { DraftPopulation = draft };
 
     private static WorldMutation World() => WorldState.Create(new(190, 1, 1), 42,
-        Enumerable.Range(1, 5).Select(id => new ForceState(id, 0, 0, 50) { BaseTrust = 40, LeaderId = id }),
+        Enumerable.Range(1, 5).Select(id => new ForceState(id, 50) { BaseTrust = 40, LeaderId = id }),
         Enumerable.Range(1, 5).Select(id => City(id, id == 1 ? 100000u : 0, id == 1 ? 200001u : 0)),
         Enumerable.Range(1, 5).Select(id => new OfficerState(id, id, id * 100, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }),
-        relations: Enumerable.Range(1, 5).SelectMany(first => Enumerable.Range(first + 1, 5 - first).Select(second => new ForceRelation(first, second, 0))))
+        relations: Enumerable.Range(1, 5).SelectMany(first => Enumerable.Range(first + 1, 5 - first).Select(second => new ForceRelation(first, second, 0))), corps: [.. Enumerable.Range(1, 5).Select(id => new San9.Core.Domain.CorpsState(id, id, id, new(0, 0)) { IsRoot = true })])
         .BeginMutation();
 
     private static SimulationRules Rules() => new()
@@ -137,7 +137,7 @@ public sealed class AllianceEligibilityTests
     public void QueryIsPureAndProvidesIdenticalCandidatesAfterRestore()
     {
         var mutation = World();
-        var world = WorldState.Create(mutation.Clock, 42, mutation.Forces.Values, mutation.Settlements.Values, mutation.Officers.Values);
+        var world = WorldState.Create(mutation.Clock, 42, mutation.Forces.Values, mutation.Settlements.Values, mutation.Officers.Values, corps: mutation.Corps.Values);
         var engine = new SimulationEngine(world, Rules());
         var before = engine.CaptureStableState();
         string candidates = CanonicalJson.Text(engine.GetAllianceCandidates());

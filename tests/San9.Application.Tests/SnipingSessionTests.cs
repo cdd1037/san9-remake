@@ -26,7 +26,7 @@ public sealed class SnipingSessionTests
         var ruler = new OfficerState(22, 2, assault ? 2 : null, new(70, 70, 70, 70), false)
             { UnitId = assault ? null : 2, Status = OfficerStatus.Ruler };
         return new(ScenarioInitialState.CurrentSchemaVersion, "sniping-session", 190, 1, 1, 2,
-            [new(1, "first", 1, 0, 100000, 100) { LeaderId = 11 }, new(2, "second", 2, 0, 100000, 100) { LeaderId = 22 }],
+            [new(1, "first", 1, 100) { LeaderId = 11 }, new(2, "second", 2, 100) { LeaderId = 22 }],
             [new(1, "home", 1, 0, 1, 10000, 100, 100, 100, []),
                 new(2, "away", 2, 21, 1, 10000, 100, 100, 100, []),
                 new(3, "reserve", 2, 99, 1, 10000, 100, 100, 100, [])], [], [])
@@ -55,7 +55,7 @@ public sealed class SnipingSessionTests
                 Facilities = [new(8000, 0, 100, new(1, 1), 0, false, true, true, 100000, null, null, null, [])
                     { Combat = combat, Attack = new(10, false), Tactics = new(100, 3, false, [9000]) }]
             }
-        };
+        , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 11, new(0, 100000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 22, new(0, 100000)) { IsRoot = true }], []) };
     }
 
     [Theory]

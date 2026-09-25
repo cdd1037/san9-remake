@@ -14,10 +14,10 @@ public sealed class GovernanceDepartureTests
         };
         if (successor) people.Add(new(3, 1, 2, new(50, 50, 50, 80), false));
         var world = WorldState.Create(new(190, 1, 1), 1,
-            [new(1, 10000, 10000, 0) { LeaderId = 1 }],
+            [new(1, 0) { LeaderId = 1 }],
             [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100) { CorpsId = 10 },
              new(2, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100) { CorpsId = 11 }], people,
-            corps: [new(10, 1, 1, null), new(11, 1, 2, new(100, 200))],
+            corps: [new(10, 1, 1, new(10000, 10000)) { IsRoot = true }, new(11, 1, 2, new(100, 200))],
             controls: [new("player", 1, ControllerKind.Player)]);
         return new(world, EconomyRulebook.Empty, new PersonnelRulebook([new(1, new(0, 0)), new(2, new(30, 0))],
             new Dictionary<int, int> { [1] = 1, [2] = 2 }, [new(1, 2), new(2, 1)]));
@@ -50,8 +50,8 @@ public sealed class GovernanceDepartureTests
         {
             Assert.Single(engine.Snapshot.Corps);
             Assert.Equal(10, engine.Snapshot.Settlements.Single(s => s.Id == 2).CorpsId);
-            if (!move) Assert.Equal(before.Forces.Single().Money + before.Corps.Single(c => c.Id == 11).Treasury!.Money,
-                engine.Snapshot.Forces.Single().Money);
+            if (!move) Assert.Equal(before.Corps.Single(c => c.IsRoot).Treasury.Money + before.Corps.Single(c => c.Id == 11).Treasury!.Money,
+                engine.Snapshot.Corps.Single(c => c.IsRoot).Treasury.Money);
         }
         Assert.Equal(move ? OfficerStatus.Serving : OfficerStatus.Free, engine.Snapshot.Officers.Single(p => p.Id == 2).Status);
     }

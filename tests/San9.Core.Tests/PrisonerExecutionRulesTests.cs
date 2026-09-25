@@ -12,7 +12,7 @@ public sealed class PrisonerExecutionRulesTests
     public void DetentionAuthorityFollowsCurrentCorpsForFieldAndSettlementPrisoners(bool field)
     {
         var world = WorldState.Create(new(190, 1, 1), 190,
-            [new(1, 1000, 1000, 0) { LeaderId = 1 }, new(2, 1000, 1000, 0) { LeaderId = 2 }],
+            [new(1, 0) { LeaderId = 1 }, new(2, 0) { LeaderId = 2 }],
             [new(1, 1, 100, 100, 100, 0, 0, 0, 100, 0, 100) { CorpsId = 10 },
              new(2, 2, 100, 100, 100, 0, 0, 0, 100, 0, 100),
              new(3, 1, 100, 100, 100, 0, 0, 0, 100, 0, 100) { CorpsId = 30 }],
@@ -23,7 +23,7 @@ public sealed class PrisonerExecutionRulesTests
              new(7, 2, field ? null : 3, new(50, 50, 50, 50), false) { Status = OfficerStatus.Captive, UnitId = field ? 0 : null }],
             units: [new(0, 1, new(7, 2), 100) { FormationId = 1, CorpsId = 30, ServicePlaceId = 3,
                 MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(4, BattleRank.Front) }],
-            corps: [new(10, 1, 1, null), new(30, 1, 3, new(100, 100)) { ControlMode = CorpsControlMode.Automatic }],
+            corps: [new(10, 1, 1, new(1000, 1000)) { IsRoot = true }, new(30, 1, 3, new(100, 100)) { ControlMode = CorpsControlMode.Automatic }, new San9.Core.Domain.CorpsState(2, 2, 2, new(1000, 1000)) { IsRoot = true }],
             controls: [new("player", 1, ControllerKind.Player), new("ai:2", 2, ControllerKind.Automatic)]);
         var military = new MilitaryRulebook(new(3, 2, [0, 0, 0, 0, 0, 0], [new(0, 1, null)],
             [new(1, 1, 0, 10000, 5, new(1, 1), TravelMode.Land)],

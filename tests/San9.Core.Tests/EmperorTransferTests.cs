@@ -17,9 +17,9 @@ public sealed class EmperorTransferTests
         new(id, force, city, new(50, 50, 50, 50), false) { Status = status, Righteousness = righteousness,
             ForceLoyalties = force is int owner ? ImmutableDictionary<int, int>.Empty.Add(owner, loyalty) : ImmutableDictionary<int, int>.Empty };
     private static WorldState World(bool player = false) => WorldState.Create(new(190, 2, 1), 17,
-        [new(1, 10000, 10000, 100) { LeaderId = 1, BaseTrust = 100 },
-         new(2, 10000, 10000, 100) { LeaderId = 2, BaseTrust = 100 },
-         new(3, 10000, 10000, 100) { LeaderId = 3, BaseTrust = 100 }],
+        [new(1, 100) { LeaderId = 1, BaseTrust = 100 },
+         new(2, 100) { LeaderId = 2, BaseTrust = 100 },
+         new(3, 100) { LeaderId = 3, BaseTrust = 100 }],
         Enumerable.Range(1, 4).Select(id => new SettlementState(id, id == 4 ? 1 : id, 100, 100, 100, 50, 300, 0, 100, 0, 100)
             { Kind = SettlementKind.City }),
         [Person(1, 1, 4, OfficerStatus.Ruler), Person(2, 2, 2, OfficerStatus.Ruler), Person(3, 3, 3, OfficerStatus.Ruler),
@@ -29,7 +29,7 @@ public sealed class EmperorTransferTests
          Person(25, 2, 3, OfficerStatus.Captive, 15, 100)],
         controls: player ? [new("p2", 2, ControllerKind.Player)] : [],
         officeRequestsEnabled: false, naturalDeathsEnabled: false, freeOfficerMigrationEnabled: false,
-        annualAppearancesEnabled: false, forceConsolidationEnabled: false, forceEmergenceEnabled: false, cityIndependenceEnabled: false);
+        annualAppearancesEnabled: false, forceConsolidationEnabled: false, forceEmergenceEnabled: false, cityIndependenceEnabled: false, corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 2, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, 3, new(10000, 10000)) { IsRoot = true }]);
     private static WorldMutation Mutation(WorldState state, SimulationRules rules) => state.BeginMutation(rules.Abilities, rules.Economy);
 
     [Theory]

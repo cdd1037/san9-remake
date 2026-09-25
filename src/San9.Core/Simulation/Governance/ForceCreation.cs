@@ -16,12 +16,12 @@ internal static class ForceCreation
         if ((kind == ForceCreationKind.EmptyCityUprising) != (predecessor is null))
             throw new ArgumentException("Force creation source does not match its kind.");
         int? rank = rules.Governance.RankPrecedence.OrderBy(r => r.Value).ThenBy(r => r.Key).Select(r => (int?)r.Key).FirstOrDefault();
-        world.AddForce(new(forceId, 0, 0, 100)
+        world.AddForce(new(forceId, 100)
         {
             BaseTrust = 100, LeaderId = founder.Id, RankId = rank,
             Origin = new(kind, founder.Id, cityId, world.Clock) { PredecessorId = predecessor }
         });
-        world.AddCorps(new(corpsId, forceId, founder.Id, null) { ControlMode = CorpsControlMode.Automatic });
+        world.AddCorps(new(corpsId, forceId, founder.Id, new(0, 0)) { IsRoot = true, ControlMode = CorpsControlMode.Automatic });
         world.Replace(city with { OwnerId = forceId, CorpsId = corpsId });
         ControlRotation.Replace(world, world.Simulation.Controls.Add(new($"ai:{forceId}", forceId, ControllerKind.Automatic)));
         foreach (var person in members.OrderBy(p => p.Id))
@@ -42,7 +42,7 @@ internal static class ForceCreation
             !world.Forces.Values.Any(f => f.LeaderId == p.Id)).OrderBy(p => p.Id).ToArray())
             RecruitmentRules.SetLoyalty(world, person.Id, forceId, predecessor is int old && person.OwnerId == old ? 45 : 50, reason, events);
 
-        var account = new ResourceAccount(ResourceOwnerKind.Force, forceId);
+        var account = ResourceAccounts.Resolve(world, forceId, null);
         ResourceAccounts.Change(world, account, ResourceKind.Money, 2 * EconomyMath.Revenue(city) + 3000, reason, cityId, events);
         ResourceAccounts.Change(world, account, ResourceKind.Food, 2 * EconomyMath.Harvest(city) + 30000, reason, cityId, events);
         if (predecessor is null)

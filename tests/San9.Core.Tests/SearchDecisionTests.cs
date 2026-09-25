@@ -8,7 +8,7 @@ public sealed class SearchDecisionTests
 {
     private static readonly PersonnelRulebook Places = new([new(1, new(0, 0))]);
     private static WorldState World(bool automatic = false, bool secondSearch = false) => WorldState.Create(new(190, 1, 1), 190,
-        [new(1, 10000, 10000, 100) { LeaderId = 1 }],
+        [new(1, 100) { LeaderId = 1 }],
         [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
         new[] {
             new OfficerState(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
@@ -18,7 +18,7 @@ public sealed class SearchDecisionTests
             new(4, 1, 1, new(50, 50, 500, 50), false),
         }.Concat(secondSearch ? [new OfficerState(5, null, 1, new(50, 50, 50, 50), false)
             { Status = OfficerStatus.Undiscovered, ForceLoyalties = ImmutableDictionary<int, int>.Empty.Add(1, 240) }] : []),
-        controls: [new("player", 1, automatic ? ControllerKind.Automatic : ControllerKind.Player)]);
+        controls: [new("player", 1, automatic ? ControllerKind.Automatic : ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }]);
     private static SimulationEngine Engine(WorldState world) => new(world, EconomyRulebook.Empty, Places);
 
     private static IReadOnlyList<DomainEvent> Begin(SimulationEngine engine, bool secondSearch = false)

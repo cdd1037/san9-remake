@@ -12,9 +12,9 @@ public sealed class AllianceVictorySessionTests
     {
         var combat = new CombatProfile(10, 10, 100, 10, 50);
         var definition = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "alliance-victory", 190, 1, 1, 1,
-            [new(1, "first", 1, 10000, 100000, 100) { LeaderId = 11 },
-                new(2, "target", 2, 10000, 100000, 100) { LeaderId = 21 },
-                new(3, "ally", 3, 10000, 100000, 100) { LeaderId = 31 }],
+            [new(1, "first", 1, 100) { LeaderId = 11 },
+                new(2, "target", 2, 100) { LeaderId = 21 },
+                new(3, "ally", 3, 100) { LeaderId = 31 }],
             [new(1, "home", 1, 0, 0, 10000, 100, 100, 100, []),
                 new(2, "target", 2, 2, 0, 1, 100, 100, 100, []),
                 new(3, "ally", 3, 5, 0, 1000, 100, 100, 100, [])], [], [])
@@ -30,7 +30,7 @@ public sealed class AllianceVictorySessionTests
                 [new(1, new(2, 2), new(1, 1)) { Combat = combat },
                     new(2, new(12, 2), new(1, 1)) { Combat = combat },
                     new(3, new(27, 2), new(1, 1)) { Combat = combat }])
-        };
+        , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 100000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 100000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, 31, new(10000, 100000)) { IsRoot = true }], []) };
         var session = GameSession.Start(definition, 42);
         int trust = session.Snapshot.Forces.Single(f => f.Id == 1).BaseTrust;
         session.BeginRecording();

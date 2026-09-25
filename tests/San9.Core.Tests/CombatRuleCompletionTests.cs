@@ -15,7 +15,7 @@ public sealed class CombatRuleCompletionTests
             [new(1, new(2, 7), new(1, 1)), new(2, new(497, 7), new(1, 1)), new(3, new(402, 7), new(1, 1))])
             { CityInfluence = influence ? new(8, 10) : null, Geography = new(5, []) });
         var world = WorldState.Create(new(190, 1, 1), 42,
-            [new(1, 10000, 1000000, 100) { LeaderId = 11 }, new(2, 10000, 1000000, 100) { LeaderId = 21 }],
+            [new(1, 100) { LeaderId = 11 }, new(2, 100) { LeaderId = 21 }],
             [new(1, 1, 10000, 100, 100, 100, 0, 0, 100, 0, 100),
                 new(2, 2, 10000, 100, 100, 100, 0, 0, 100, 0, 100),
                 new(3, 1, 10000, 100, 100, 100, 0, 0, 100, 0, 100) { Kind = SettlementKind.Facility }],
@@ -27,7 +27,7 @@ public sealed class CombatRuleCompletionTests
                 new(2, 2, new(106, 7), 10000) { FormationId = 1, Morale = 100, ServicePlaceId = 2, Order = Attack(1),
                     MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(21, BattleRank.Middle) },
                 new(3, 2, new(107, 7), 10000) { FormationId = 1, Morale = 100, ServicePlaceId = 2, Order = Attack(1),
-                    MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(22, BattleRank.Middle) }]);
+                    MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(22, BattleRank.Middle) }], corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 1000000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 1000000)) { IsRoot = true }]);
         return (world, new() { Military = military });
     }
 
@@ -61,7 +61,7 @@ public sealed class CombatRuleCompletionTests
         for (int day = first; day < first + 10; day++)
         {
             m.SetClock(new(190, 1, day));
-            MilitaryMorale.Apply(m, [new(new(ResourceOwnerKind.Force, 1), false), new(new(ResourceOwnerKind.Force, 2), false)], rules, events);
+            MilitaryMorale.Apply(m, [new(new(ResourceOwnerKind.Corps, 1), false), new(new(ResourceOwnerKind.Corps, 2), false)], rules, events);
         }
         Assert.Equal(100 - expected, m.Units[1].Morale);
         Assert.Equal(expected, events.OfType<PeriodicMoraleLostEvent>().Count(e => e.UnitId == 1));
@@ -72,15 +72,15 @@ public sealed class CombatRuleCompletionTests
     {
         var (world, rules) = Create(influence: true); var m = world.BeginMutation(); List<DomainEvent> events = [];
         m.Replace(m.Units[1] with { Position = new(12, 7), Order = null });
-        MilitaryMorale.Apply(m, [new(new(ResourceOwnerKind.Force, 1), false), new(new(ResourceOwnerKind.Force, 2), false)], rules, events);
+        MilitaryMorale.Apply(m, [new(new(ResourceOwnerKind.Corps, 1), false), new(new(ResourceOwnerKind.Corps, 2), false)], rules, events);
         Assert.Equal(100, m.Units[1].Morale);
-        MilitaryDailyCycle.Apply(m, [new(new(ResourceOwnerKind.Force, 1), true)], rules, events);
+        MilitaryDailyCycle.Apply(m, [new(new(ResourceOwnerKind.Corps, 1), true)], rules, events);
         Assert.Equal(97, m.Units[1].Morale);
         m.Replace(m.Settlements[1] with { OwnerId = 2 });
-        MilitaryMorale.Apply(m, [new(new(ResourceOwnerKind.Force, 1), false), new(new(ResourceOwnerKind.Force, 2), false)], rules, events);
+        MilitaryMorale.Apply(m, [new(new(ResourceOwnerKind.Corps, 1), false), new(new(ResourceOwnerKind.Corps, 2), false)], rules, events);
         Assert.Equal(96, m.Units[1].Morale);
         m.Replace(m.Forces[1] with { IsBarbarian = true });
-        MilitaryMorale.Apply(m, [new(new(ResourceOwnerKind.Force, 1), false), new(new(ResourceOwnerKind.Force, 2), false)], rules, events);
+        MilitaryMorale.Apply(m, [new(new(ResourceOwnerKind.Corps, 1), false), new(new(ResourceOwnerKind.Corps, 2), false)], rules, events);
         Assert.Equal(96, m.Units[1].Morale);
     }
 
@@ -88,7 +88,7 @@ public sealed class CombatRuleCompletionTests
     public void RetreatPrefersOwnCorpsBeforeDistanceAndFallsBackAcrossForce()
     {
         var (world, rules) = Create(); var m = world.BeginMutation();
-        m.AddCorps(new(77, 1, 11, null));
+        var rootTreasury77 = ResourceAccounts.Root(m, 1).Treasury; m.RemoveCorps(ResourceAccounts.Root(m, 1).Id); m.AddCorps(new(77, 1, 11, rootTreasury77) { IsRoot = true });
         m.Replace(m.Units[1] with { CorpsId = 77 });
         m.Replace(m.Settlements[3] with { CorpsId = 77 });
         Assert.Equal(3, BattleRetreat.Destination(m, m.Officers[11], new(12, 7), null, rules.Military!)!.Id);
@@ -105,7 +105,7 @@ public sealed class CombatRuleCompletionTests
         for (int day = 1; day <= 10; day++)
         {
             m.SetClock(new(190, 1, day));
-            MilitaryMorale.Apply(m, [new(new(ResourceOwnerKind.Force, 1), false), new(new(ResourceOwnerKind.Force, 2), false)], rules, events);
+            MilitaryMorale.Apply(m, [new(new(ResourceOwnerKind.Corps, 1), false), new(new(ResourceOwnerKind.Corps, 2), false)], rules, events);
         }
         Assert.False(m.Units.ContainsKey(1));
         Assert.Single(events.OfType<UnitTerminatedEvent>());

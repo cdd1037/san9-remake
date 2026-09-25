@@ -28,7 +28,7 @@ internal static class GiftDiplomacy
 {
     internal const string Kind = "diplomacy-gift";
     private static ResourceKind Resource(GiftOffer offer) => offer.Kind == GiftKind.Money ? ResourceKind.Money : ResourceKind.Food;
-    private static ResourceAccount Account(int force) => new(ResourceOwnerKind.Force, force);
+    private static ResourceAccount Account(WorldMutation world, int force) => ResourceAccounts.Resolve(world, force, null);
 
     internal static bool Target(WorldMutation world, int force, int target) => force != target &&
         world.Forces.TryGetValue(target, out var other) && !other.IsEliminated && other.LeaderId is int leader &&
@@ -54,12 +54,12 @@ internal static class GiftDiplomacy
         if (offer?.IsValid != true || !Target(world, forceId, target)) return CommandRejection.InvalidTask;
         if (!PersonnelMissions.CanAct(world, forceId, officerId)) return CommandRejection.PersonUnavailable;
         var origin = world.Settlements[world.Officers[officerId].SettlementId!.Value];
-        if (ResourceAccounts.Resolve(world, forceId, origin.CorpsId).Kind != ResourceOwnerKind.Force)
+        if (ResourceAccounts.Resolve(world, forceId, origin.CorpsId).Id != ResourceAccounts.Root(world, forceId).Id)
             return CommandRejection.InvalidCorps;
         if (!rules.Personnel.Places.ContainsKey(origin.Id) || !Destination(world, target, rules, out _, out _))
             return CommandRejection.NoDestination;
         if (offer.Kind != GiftKind.Treasure)
-            return ResourceAccounts.Balance(world, Account(forceId), Resource(offer)) >= offer.Amount
+            return ResourceAccounts.Balance(world, Account(world, forceId), Resource(offer)) >= offer.Amount
                 ? CommandRejection.None : CommandRejection.InsufficientFunds;
         return world.Treasures.TryGetValue(offer.TreasureId!.Value, out var item) && item.Discovered &&
             item.HolderId is int holder && world.Officers[holder].OwnerId == forceId && world.Officers[holder].IsServing &&
@@ -111,7 +111,7 @@ internal static class GiftDiplomacy
             var item = world.Treasures[command.Offer.TreasureId!.Value];
             if (item.HolderId != actor.Id) PersonnelTreasures.Transfer(world, item, actor.Id, command.IssuerId, "gift-envoy", events);
         }
-        else ResourceAccounts.Change(world, Account(command.IssuerId), Resource(command.Offer), -(long)command.Offer.Amount,
+        else ResourceAccounts.Change(world, Account(world, command.IssuerId), Resource(command.Offer), -(long)command.Offer.Amount,
             "gift-departure", actor.Id, events, true);
         world.Replace(actor with { Acted = true });
         world.SetSimulation(world.Simulation with { Tasks = world.Simulation.Tasks.Add(task) });
@@ -130,7 +130,7 @@ internal static class GiftDiplomacy
     private static uint Refund(WorldMutation world, PersistentTask task, string reason, List<DomainEvent> events)
     {
         if (task.Gift is not { } gift || gift.Offer.Kind == GiftKind.Treasure) return 0;
-        var account = Account(task.ForceId);
+        var account = Account(world, task.ForceId);
         var resource = Resource(gift.Offer);
         uint refunded = Math.Min(gift.Offer.Amount, ResourceAccounts.Receivable(world, account, resource));
         ResourceAccounts.Change(world, account, resource, gift.Offer.Amount, reason, task.OfficerId, events);
@@ -151,8 +151,8 @@ internal static class GiftDiplomacy
             }
             else
             {
-                received = Math.Min(gift.Offer.Amount, ResourceAccounts.Receivable(world, Account(gift.TargetForceId), Resource(gift.Offer)));
-                ResourceAccounts.Change(world, Account(gift.TargetForceId), Resource(gift.Offer), gift.Offer.Amount, "gift-accepted", task.ForceId, events);
+                received = Math.Min(gift.Offer.Amount, ResourceAccounts.Receivable(world, Account(world, gift.TargetForceId), Resource(gift.Offer)));
+                ResourceAccounts.Change(world, Account(world, gift.TargetForceId), Resource(gift.Offer), gift.Offer.Amount, "gift-accepted", task.ForceId, events);
             }
             ForceRelations.Set(world, task.ForceId, gift.TargetForceId,
                 DiplomacyMath.GiftAcceptedRelation(MilitaryDiplomacy.Relation(world, task.ForceId, gift.TargetForceId)), events);

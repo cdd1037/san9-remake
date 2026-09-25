@@ -11,14 +11,14 @@ public sealed class ForceRelationCycleSessionTests
     public void QuarterRunsOnceAcrossSaveRestoreAndReplayButNotOtherXun()
     {
         var content = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "relation-cycle", 190, 3, 1, 1,
-            [new(1, "force.1", 1, 10000, 10000, 50), new(2, "force.2", 2, 10000, 10000, 50)],
+            [new(1, "force.1", 1, 50), new(2, "force.2", 2, 50)],
             [new(1, "city.1", 1, 0, 0, 0, 100, 100, 0, []),
              new(2, "city.2", 2, 1, 0, 0, 100, 100, 0, [])], [], [])
         {
             AnnualAppearancesEnabled = false, NaturalDeathsEnabled = false, OfficeRequestsEnabled = false,
             FreeOfficerMigrationEnabled = false, ForceEmergenceEnabled = false, CityIndependenceEnabled = false,
             ForceConsolidationEnabled = false,
-            Information = InformationDefinitions.Empty with { Relations = [new(1, 2, 80)] }
+            Information = InformationDefinitions.Empty with { Corps = [new San9.Core.Domain.CorpsState(1, 1, null, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, null, new(10000, 10000)) { IsRoot = true }], Relations = [new(1, 2, 80)] }
         };
         var session = GameSession.Start(content, 7);
         session.BeginRecording();

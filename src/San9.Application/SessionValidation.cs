@@ -85,8 +85,8 @@ internal static class SessionValidation
             throw new ArgumentException("Unknown unit service place.");
         // Succession can promote a child corps to the ruler's corps. The treasury belongs to the force,
         // so validate its surviving owner rather than requiring the initial corps identity.
-        Same(content.Information.Corps.Where(c => c.Treasury is null && snapshot.World.Forces.Any(f => f.Id == c.OwnerId && !f.IsEliminated)).Select(c => c.OwnerId).Concat(generated.Where(f => !f.IsEliminated).Select(f => f.Id)),
-            snapshot.World.Corps.Where(c => c.Treasury is null).Select(c => c.OwnerId));
+        Same(content.Information.Corps.Where(c => c.IsRoot && snapshot.World.Forces.Any(f => f.Id == c.OwnerId && !f.IsEliminated)).Select(c => c.OwnerId).Concat(generated.Where(f => !f.IsEliminated).Select(f => f.Id)),
+            snapshot.World.Corps.Where(c => c.IsRoot).Select(c => c.OwnerId));
         Same(content.Information.TreasureStates.Select(t => t.Id), snapshot.World.Treasures.Select(t => t.Id));
         if (content.Information.Relations.Any(initial => !snapshot.World.Relations.Any(current =>
             current.FirstId == initial.FirstId && current.SecondId == initial.SecondId)))

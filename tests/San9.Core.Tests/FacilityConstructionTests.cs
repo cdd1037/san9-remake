@@ -26,9 +26,9 @@ public sealed class FacilityConstructionTests
         ConstructionSites = [new(8000, new(17, 2), [9000])]
     });
     private static SimulationEngine Engine(WorldState? world = null, MilitaryRulebook? military = null) => new(world ?? WorldState.Create(new(190, 1, 1), 42,
-        [new(1, 10000, 1000000, 100) { LeaderId = 11 }], [new(1, 1, 20000, 600, 600, 100, 0, 0, 100, 0, 100)],
+        [new(1, 100) { LeaderId = 11 }], [new(1, 1, 20000, 600, 600, 100, 0, 0, 100, 0, 100)],
         [new(11, 1, 1, new(100, 100, 100, 100), false) { Status = OfficerStatus.Ruler }],
-        controls: [new("player", 1, ControllerKind.Player)]), EconomyRulebook.Empty, Geography, TreasureRulebook.Empty, military: military ?? Military);
+        controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 1000000)) { IsRoot = true }]), EconomyRulebook.Empty, Geography, TreasureRulebook.Empty, military: military ?? Military);
     private static ConstructFacilityCommand Command(long sequence = 0) => new(Guid.NewGuid(), 1, sequence, 1, [11], 10000, 1, 8000, 9000, new(17, 2));
 
     [Fact]
@@ -73,7 +73,7 @@ public sealed class FacilityConstructionTests
         var command = Command();
         Assert.True(engine.Validate(Player, command).Accepted);
         var initial = engine.CaptureStableState();
-        var poorer = Engine(WorldState.Restore(initial with { Forces = initial.Forces.Select(f => f with { Money = 999 }).ToArray() }));
+        var poorer = Engine(WorldState.Restore(initial with { Corps = initial.Corps.Select(f => f with { Treasury = f.Treasury with { Money = 999 } }).ToArray() }));
         var before = poorer.Snapshot.StateHash;
         Assert.False(poorer.Execute(Player, command).Submission.Accepted);
         Assert.Equal(before, poorer.Snapshot.StateHash);
@@ -87,7 +87,7 @@ public sealed class FacilityConstructionTests
             Assert.Equal(before, engine.Snapshot.StateHash);
         }
         Assert.Single(engine.Snapshot.Units);
-        Assert.Equal(9000u, engine.Snapshot.Forces.Single().Money);
+        Assert.Equal(9000u, engine.Snapshot.Corps.Single(c => c.IsRoot).Treasury.Money);
     }
 
     [Fact]
@@ -190,11 +190,11 @@ public sealed class FacilityConstructionTests
     public void ConstructionGrowthUsesIdentityOrderWithoutReselectingCappedMember(int leadership)
     {
         var world = WorldState.Create(new(190, 1, 1), 42,
-            [new(1, 10000, 1000000, 100) { LeaderId = 22 }],
+            [new(1, 100) { LeaderId = 22 }],
             [new(1, 1, 20000, 600, 600, 100, 0, 0, 100, 0, 100)],
             [new(11, 1, 1, new(80, 80, 80, leadership), false),
              new(22, 1, 1, new(80, 80, 80, 99), false) { Status = OfficerStatus.Ruler }],
-            controls: [new("player", 1, ControllerKind.Player)]);
+            controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 22, new(10000, 1000000)) { IsRoot = true }]);
         var military = CreateMilitary(members: 2);
         var engine = Engine(world, military);
         Assert.True(engine.Execute(Player, Command() with { OfficerIds = [22, 11] }).Submission.Accepted);
@@ -238,7 +238,7 @@ public sealed class FacilityConstructionTests
     public void ConstructionTechnologyAndDiscountUseOnlyEligibleProviders(string grant, bool accepted)
     {
         var world = WorldState.Create(new(190, 1, 1), 42,
-            [new(1, 10000, 1000000, 100) { ProvidedTactics = grant == "force" ? [19, 20] : [] }],
+            [new(1, 100) { ProvidedTactics = grant == "force" ? [19, 20] : [] }],
             [new(1, 1, 20000, 600, 600, 100, 0, 0, 100, 0, 100)],
             [new(11, 1, 1, new(70, 70, 70, 70), false) { LearnedTactics = grant == "member" ? [19, 20] : [] },
                 new(12, 1, 1, new(70, 70, 70, 70), false) { LearnedTactics = grant == "nonmember" ? [19, 20] : [] }],
@@ -246,17 +246,17 @@ public sealed class FacilityConstructionTests
                 grant == "buried" ? TreasureDiscovery.Buried : TreasureDiscovery.Discovered, null),
                 new(2, grant == "nonmember" ? 12 : 11,
                     grant == "buried" ? TreasureDiscovery.Buried : TreasureDiscovery.Discovered, null)],
-            controls: [new("player", 1, ControllerKind.Player)]);
+            controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(10000, 1000000)) { IsRoot = true }]);
         var treasures = new TreasureRulebook([new(1, default, 0) { TacticId = grant is "treasure" or "buried" or "nonmember" ? 19 : null },
             new(2, default, 0) { TacticId = grant is "treasure" or "buried" or "nonmember" ? 20 : null }]);
         var engine = new SimulationEngine(world, EconomyRulebook.Empty, Geography, treasures, military: CreateMilitary(needsTechnology: true));
         string before = engine.Snapshot.StateHash;
-        uint money = engine.Snapshot.Forces.Single().Money;
+        uint money = engine.Snapshot.Corps.Single(c => c.IsRoot).Treasury.Money;
         var result = engine.Execute(Player, Command());
         Assert.Equal(accepted, result.Submission.Accepted);
         if (accepted)
         {
-            Assert.Equal(money - 666, engine.Snapshot.Forces.Single().Money);
+            Assert.Equal(money - 666, engine.Snapshot.Corps.Single(c => c.IsRoot).Treasury.Money);
             Advance(engine);
             Assert.NotNull(engine.Snapshot.Settlements.Single(s => s.Id == 8000).Facility!.BuilderUnitId);
             Assert.True(engine.Snapshot.Officers.Single(p => p.Id == 11).TacticProficiencies[6] > 0);
@@ -276,7 +276,7 @@ public sealed class FacilityConstructionTests
         var command = Command();
         var submitted = engine.Execute(Player, command);
         Assert.True(submitted.Submission.Accepted);
-        Assert.Equal(9000u, engine.Snapshot.Forces.Single().Money);
+        Assert.Equal(9000u, engine.Snapshot.Corps.Single(c => c.IsRoot).Treasury.Money);
         Assert.DoesNotContain(engine.Snapshot.Settlements, s => s.Id == 8000);
         Assert.False(engine.Execute(Player, command).Submission.Accepted);
         var first = Advance(engine);
@@ -315,13 +315,13 @@ public sealed class FacilityConstructionTests
         Assert.True(result.Submission.Accepted);
         Assert.Single(result.Events.OfType<FacilityConstructionChangedEvent>(), e => e.Phase == "cancelled");
         Assert.True(engine.Snapshot.Settlements.Single(s => s.Id == 8000).IsDestroyed);
-        Assert.Equal(9000u, engine.Snapshot.Forces.Single().Money);
+        Assert.Equal(9000u, engine.Snapshot.Corps.Single(c => c.IsRoot).Treasury.Money);
         Advance(engine);
         Assert.Empty(engine.Snapshot.Units);
         Assert.True(engine.Execute(Player, Command(engine.Snapshot.Simulation.NextSequence)).Submission.Accepted);
         Advance(engine);
         Assert.False(engine.Snapshot.Settlements.Single(s => s.Id == 8000).IsDestroyed);
-        Assert.Equal(8000u, engine.Snapshot.Forces.Single().Money);
+        Assert.Equal(8000u, engine.Snapshot.Corps.Single(c => c.IsRoot).Treasury.Money);
     }
 
     [Theory]
@@ -362,7 +362,7 @@ public sealed class FacilityConstructionTests
         var saved = engine.CaptureStableState();
         var starving = Engine(WorldState.Restore(saved with
         {
-            Forces = saved.Forces.Select(f => f with { Food = 0 }).ToImmutableArray(),
+            Corps = saved.Corps.Select(f => f with { Treasury = f.Treasury with { Food = 0 } }).ToImmutableArray(),
             Units = saved.Units.Select(u => u with { Morale = 30 }).ToImmutableArray()
         }));
         var result = Advance(starving);
@@ -425,7 +425,7 @@ public sealed class FacilityConstructionTests
         var initial = engine.CaptureStableState();
         engine = Engine(WorldState.Restore(initial with { Forces = initial.Forces.Select(f => f with { ProvidedTactics = [19, 20] }).ToImmutableArray() }), rules);
         Assert.True(engine.Execute(Player, Command()).Submission.Accepted);
-        Assert.Equal(9334u, engine.Snapshot.Forces.Single().Money);
+        Assert.Equal(9334u, engine.Snapshot.Corps.Single(c => c.IsRoot).Treasury.Money);
         Advance(engine);
         var saved = engine.CaptureStableState();
         engine = Engine(WorldState.Restore(saved with { Forces = saved.Forces.Select(f => f with { ProvidedTactics = [19] }).ToImmutableArray() }), rules);
@@ -433,7 +433,7 @@ public sealed class FacilityConstructionTests
         Assert.Single(result.Events.OfType<FacilityConstructionChangedEvent>(), e => e.Phase == "cancelled");
         Assert.Null(engine.Snapshot.Units.Single().Order);
         Assert.True(engine.Snapshot.Settlements.Single(s => s.Id == 8000).IsDestroyed);
-        Assert.Equal(9334u, engine.Snapshot.Forces.Single().Money);
+        Assert.Equal(9334u, engine.Snapshot.Corps.Single(c => c.IsRoot).Treasury.Money);
     }
 
     [Theory]
@@ -449,7 +449,7 @@ public sealed class FacilityConstructionTests
         var engine = Engine();
         var saved = engine.CaptureStableState();
         if (invalid == "funds")
-            engine = Engine(WorldState.Restore(saved with { Forces = saved.Forces.Select(f => f with { Money = 999 }).ToImmutableArray() }));
+            engine = Engine(WorldState.Restore(saved with { Corps = saved.Corps.Select(f => f with { Treasury = f.Treasury with { Money = 999 } }).ToImmutableArray() }));
         if (invalid == "acted")
             engine = Engine(WorldState.Restore(saved with { Officers = saved.Officers.Select(p => p with { Acted = true }).ToImmutableArray() }));
         var command = invalid switch
@@ -484,7 +484,7 @@ public sealed class FacilityConstructionTests
         Assert.DoesNotContain(result.Events.OfType<FacilityConstructionChangedEvent>(), e => e.Phase == "completed");
         Assert.True(engine.Snapshot.Settlements.Single(s => s.Id == 8000).IsDestroyed);
         Assert.Null(engine.Snapshot.Units.Single().Order);
-        Assert.Equal(9000u, engine.Snapshot.Forces.Single().Money);
+        Assert.Equal(9000u, engine.Snapshot.Corps.Single(c => c.IsRoot).Treasury.Money);
     }
 
     [Theory]
@@ -499,7 +499,8 @@ public sealed class FacilityConstructionTests
         var saved = engine.CaptureStableState();
         engine = Engine(WorldState.Restore(saved with
         {
-            Forces = saved.Forces.ToImmutableArray().Add(new(2, 10000, 1000000, 100) { LeaderId = 21 }),
+            Forces = saved.Forces.ToImmutableArray().Add(new(2, 100) { LeaderId = 21 }),
+            Corps = [.. saved.Corps, new(2, 2, 21, new(10000, 10000)) { IsRoot = true }],
             Settlements = saved.Settlements.ToImmutableArray().Add(new(2, 2, 0, 600, 600, 100, 0, 0, 100, 0, 100)),
             Officers = saved.Officers.ToImmutableArray().Add(new(21, 2, null, new(100, 100, 100, 100), false)
                 { UnitId = 1, Status = OfficerStatus.Ruler }),
@@ -546,7 +547,8 @@ public sealed class FacilityConstructionTests
         var saved = engine.CaptureStableState();
         engine = Engine(WorldState.Restore(saved with
         {
-            Forces = saved.Forces.ToImmutableArray().Add(new(2, 10000, 1000000, 100) { LeaderId = 21 }),
+            Forces = saved.Forces.ToImmutableArray().Add(new(2, 100) { LeaderId = 21 }),
+            Corps = [.. saved.Corps, new(2, 2, 21, new(10000, 10000)) { IsRoot = true }],
             Settlements = saved.Settlements.ToImmutableArray().Add(new(2, 2, 0, 600, 600, 100, 0, 0, 100, 0, 100)),
             Officers = saved.Officers.ToImmutableArray().Add(new(21, 2, null, new(100, 100, 100, 100), false)
                 { UnitId = 1, Status = OfficerStatus.Ruler }),
@@ -565,8 +567,8 @@ public sealed class FacilityConstructionTests
         Assert.Empty(events.OfType<SettlementCapturedEvent>());
         Assert.DoesNotContain(events.OfType<ResourceChangedEvent>(), e => e.Reason == "settlement-captured");
         Assert.Equal(50 - events.OfType<PeriodicMoraleLostEvent>().Sum(e => e.PreviousMorale - e.Morale), engine.Snapshot.Units.Single().Morale);
-        Assert.Equal(10000u, engine.Snapshot.Forces.Single(f => f.Id == 2).Money);
-        Assert.Equal(8000u, engine.Snapshot.Forces.Single(f => f.Id == 1).Money);
+        Assert.Equal(10000u, engine.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 2).Treasury.Money);
+        Assert.Equal(8000u, engine.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 1).Treasury.Money);
         var restored = Engine(WorldState.Restore(engine.CaptureStableState()), rules);
         Assert.Equal(CanonicalJson.Text(Advance(engine).Events), CanonicalJson.Text(Advance(restored).Events));
     }
@@ -580,7 +582,8 @@ public sealed class FacilityConstructionTests
         var saved = engine.CaptureStableState();
         engine = Engine(WorldState.Restore(saved with
         {
-            Forces = saved.Forces.ToImmutableArray().Add(new(2, 10000, 1000000, 100) { LeaderId = 21 }),
+            Forces = saved.Forces.ToImmutableArray().Add(new(2, 100) { LeaderId = 21 }),
+            Corps = [.. saved.Corps, new(2, 2, 21, new(10000, 10000)) { IsRoot = true }],
             Settlements = saved.Settlements.ToImmutableArray().Add(new(2, 2, 0, 600, 600, 100, 0, 0, 100, 0, 100)),
             Officers = saved.Officers.ToImmutableArray().Add(new(21, 2, null, new(100, 100, 100, 100), false)
                 { UnitId = 1, Status = OfficerStatus.Ruler }),

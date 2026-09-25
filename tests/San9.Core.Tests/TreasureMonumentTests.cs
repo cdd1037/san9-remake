@@ -16,13 +16,13 @@ public sealed class TreasureMonumentTests
     };
     private static WorldMutation World(uint money = 25001) => CreateWorld(money).BeginMutation();
     private static WorldState CreateWorld(uint money = 25001) => WorldState.Create(new(190, 2, 1), 1,
-        [new(1, money, 0, 998) { LeaderId = 1, RankId = 900, BaseTrust = 998 }, new(2, 0, 0, 0) { LeaderId = 10 }],
+        [new(1, 998) { LeaderId = 1, RankId = 900, BaseTrust = 998 }, new(2, 0) { LeaderId = 10 }],
         [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100), new(2, 2, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
         [new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
          new(2, 1, 1, new(50, 50, 50, 50), false),
          new(3, 1, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Captive },
          new(10, 2, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }],
-        corps: [new(7, 1, 2, new(50000, 0)) { ControlMode = CorpsControlMode.Direct }],
+        corps: [new(7, 1, 2, new(50000, 0)) { ControlMode = CorpsControlMode.Direct }, new San9.Core.Domain.CorpsState(1, 1, 1, new(money, 0)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 10, new(0, 0)) { IsRoot = true }],
         treasures: [new(50, 1, TreasureDiscovery.Discovered, null)],
         controls: [new("player", 1, ControllerKind.Player), new("ai", 2, ControllerKind.Automatic)]);
     private static PersistentTask Task() => new(Guid.NewGuid(), "personnel-search", "player", 1, 2, 1,
@@ -37,7 +37,7 @@ public sealed class TreasureMonumentTests
         var m = World(money);
         Assert.Equal(eligible, TreasureMonument.Eligible(m, Task(), Rules(), Definition));
         Assert.Empty(m.Simulation.RandomStreams); Assert.Empty(m.Simulation.ConsumedEventKeys);
-        Assert.Equal(money, m.Forces[1].Money);
+        Assert.Equal(money, m.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money);
     }
 
     [Theory]
@@ -76,7 +76,7 @@ public sealed class TreasureMonumentTests
         Assert.False(TreasureMonument.Eligible(m, task, rules, Definition));
         List<DomainEvent> events = [];
         Assert.Throws<InvalidOperationException>(() => TreasureMonument.Resolve(m, task, rules, new("tower"), true, events));
-        Assert.Empty(events); Assert.Equal(25001u, m.Forces[1].Money); Assert.Equal(998, m.Forces[1].BaseTrust);
+        Assert.Empty(events); Assert.Equal(25001u, m.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money); Assert.Equal(998, m.Forces[1].BaseTrust);
     }
 
     [Fact]
@@ -86,12 +86,12 @@ public sealed class TreasureMonumentTests
         m.Replace(m.Forces[1] with { RankId = 1 }); // Higher precedence despite a smaller identifier.
         var item = m.Treasures[50];
         TreasureMonument.Resolve(m, task, rules, new("tower"), false, events);
-        Assert.Empty(m.Simulation.ConsumedEventKeys); Assert.Equal(25001u, m.Forces[1].Money);
+        Assert.Empty(m.Simulation.ConsumedEventKeys); Assert.Equal(25001u, m.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money);
         Assert.Equal(998, m.Forces[1].BaseTrust); Assert.True(TreasureMonument.Eligible(m, task, rules, Definition));
         events.Clear(); TreasureMonument.Resolve(m, task, rules, new("tower"), true, events);
-        Assert.Equal(15001u, m.Forces[1].Money); Assert.Equal(1000, m.Forces[1].BaseTrust); Assert.Equal(item, m.Treasures[50]);
+        Assert.Equal(15001u, m.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money); Assert.Equal(1000, m.Forces[1].BaseTrust); Assert.Equal(item, m.Treasures[50]);
         var payment = Assert.Single(events.OfType<ResourceChangedEvent>());
-        Assert.Equal((-10000L, 0L, ResourceOwnerKind.Force), (payment.Actual, payment.Shortfall, payment.Account.Kind));
+        Assert.Equal((-10000L, 0L, ResourceOwnerKind.Corps), (payment.Actual, payment.Shortfall, payment.Account.Kind));
         Assert.Equal(Definition.ConsumptionKey, Assert.Single(m.Simulation.ConsumedEventKeys));
         Assert.Empty(m.Simulation.RandomStreams); Assert.False(TreasureMonument.Eligible(m, task, rules, Definition));
     }
@@ -103,11 +103,11 @@ public sealed class TreasureMonumentTests
         m.Replace(new CorpsState(7, 1, 2, new(50000, 0)) { ControlMode = CorpsControlMode.Direct });
         m.Replace(m.Settlements[1] with { CorpsId = 7 });
         Assert.True(TreasureMonument.Eligible(m, Task(), rules, Definition));
-        m.Replace(m.Forces[1] with { Money = 0 });
+        m.Replace(ResourceAccounts.Root(m, 1) with { Treasury = ResourceAccounts.Root(m, 1).Treasury with { Money = 0 } });
         Assert.True(TreasureMonument.Eligible(m, Task(), rules, Definition));
         List<DomainEvent> events = [];
         TreasureMonument.Resolve(m, Task(), rules, new("tower"), true, events);
-        Assert.Equal(0u, m.Forces[1].Money); Assert.Equal(40000u, m.Corps[7].Treasury!.Money);
+        Assert.Equal(0u, m.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money); Assert.Equal(40000u, m.Corps[7].Treasury!.Money);
         Assert.Equal(new ResourceAccount(ResourceOwnerKind.Corps, 7), Assert.Single(events.OfType<ResourceChangedEvent>()).Account);
     }
 
@@ -122,7 +122,7 @@ public sealed class TreasureMonumentTests
         var prompt = Assert.IsType<TreasureMonumentPrompt>(engine.GetTreasureMonumentPrompt());
         var m = world.BeginMutation();
         if (transferTreasure) m.Replace(m.Treasures[50] with { HolderId = 10 });
-        else m.Replace(m.Forces[1] with { Money = 25000 });
+        else m.Replace(ResourceAccounts.Root(m, 1) with { Treasury = ResourceAccounts.Root(m, 1).Treasury with { Money = 25000 } });
         world.Commit(m);
         var result = engine.Execute(new("player"), new RespondDailyTaskCommand(Guid.NewGuid(), 1,
             engine.Snapshot.Simulation.NextSequence, prompt.TaskId, prompt.Step, true));

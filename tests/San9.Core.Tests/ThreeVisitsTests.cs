@@ -14,7 +14,7 @@ public sealed class ThreeVisitsTests
             [new HealingSearchEventDefinition(14, [], 1) { Id = "healing" }])
     };
     private static WorldState World() => WorldState.Create(new(190, 2, 1), 17,
-        [new(1, 10000, 10000, 100) { LeaderId = 11, BaseTrust = 100 }, new(2, 10000, 10000, 100) { LeaderId = 21 }],
+        [new(1, 100) { LeaderId = 11, BaseTrust = 100 }, new(2, 100) { LeaderId = 21 }],
         [new(1, 1, 100, 100, 100, 50, 100, 100, 100, 100, 100) { Kind = SettlementKind.City, ConsumesFood = false },
          new(2, 2, 100, 100, 100, 50, 100, 100, 100, 100, 100) { Kind = SettlementKind.City, ConsumesFood = false }],
         Enumerable.Range(11, 4).Select(id => new OfficerState(id, 1, 1, new(100, 100, 100, 100), false)
@@ -23,7 +23,7 @@ public sealed class ThreeVisitsTests
             .Append(new(21, 2, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }),
         controls: [new("player", 1, ControllerKind.Player), new("ai", 2, ControllerKind.Automatic)],
         annualAppearancesEnabled: false, naturalDeathsEnabled: false, freeOfficerMigrationEnabled: false,
-        officeRequestsEnabled: false, forceConsolidationEnabled: false, forceEmergenceEnabled: false, cityIndependenceEnabled: false);
+        officeRequestsEnabled: false, forceConsolidationEnabled: false, forceEmergenceEnabled: false, cityIndependenceEnabled: false, corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 10000)) { IsRoot = true }]);
 
     private static WorldMutation Stable(WorldState? state = null)
     {

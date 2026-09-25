@@ -7,12 +7,12 @@ namespace San9.Core.Tests;
 public sealed class EconomyTests
 {
     private static WorldState World(uint money = 1000, uint food = 1000, GameClock? clock = null, ulong seed = 190) => WorldState.Create(clock ?? new(190, 1, 1), seed,
-        [new(1, 1000, 1000, 100) { BaseTrust = 100, LeaderId = 0 }],
+        [new(1, 100) { BaseTrust = 100, LeaderId = 0 }],
         [new(1, 1, 990, 900, 1000, 50, 900, 900, 1000, 900, 1000) { CorpsId = 1, Population = 60000, DraftPopulation = 1000, SoldierCapacity = 1000 },
          new(2, 1, 990, 900, 1000, 50, 900, 900, 1000, 900, 1000) { CorpsId = 2, Population = 60000, DraftPopulation = 1000, SoldierCapacity = 1000 }],
         new[] { new OfficerState(0, 1, 1, new(100,100,100,100), false) { Status = OfficerStatus.Ruler } }
             .Concat(Enumerable.Range(1,5).Select(id => new OfficerState(id,1,2,new(100,100,100,100),false) { Affinity = id * 10, ForceLoyalties = System.Collections.Immutable.ImmutableDictionary<int, int>.Empty.Add(1, 90), MasteredCategories = [0,5] })),
-        corps: [new(1,1,0,null),new(2,1,1,new(money,food))], controls: [new("player",1,ControllerKind.Player)]);
+        corps: [new(1,1,0,new(1000, 1000)) { IsRoot = true },new(2,1,1,new(money,food))], controls: [new("player",1,ControllerKind.Player)]);
 
     private static CommandExecutionResult Run(SimulationEngine engine, DomesticActivity activity, params int[] ids) =>
         engine.Execute(new("player"), new DevelopCommand(new Guid((int)engine.Snapshot.Simulation.NextSequence + 1,0,0,new byte[8]),
@@ -30,7 +30,7 @@ public sealed class EconomyTests
         var result = Run(engine,activity,1);
         Assert.True(result.Submission.Accepted);
         Assert.Equal(expected,result.Development!.Value.Increment);
-        Assert.Equal(1000u,engine.Snapshot.Forces.Single().Money);
+        Assert.Equal(1000u,engine.Snapshot.Corps.Single(c => c.IsRoot).Treasury.Money);
         Assert.Equal(945u,engine.Snapshot.Corps.Single(c=>c.Id==2).Treasury!.Money);
         var debit = Assert.Single(result.Events.OfType<ResourceChangedEvent>());
         Assert.Equal(new ResourceAccount(ResourceOwnerKind.Corps,2),debit.Account);
@@ -109,7 +109,7 @@ public sealed class EconomyTests
     {
         var engine = new SimulationEngine(World(2,1));
         Assert.Equal(3,engine.InitialEvents.OfType<ResourceChangedEvent>().Count(e=>e.Reason=="salary" && e.Shortfall==1));
-        Assert.Equal(1000u,engine.Snapshot.Forces.Single().Money);
+        Assert.Equal(1000u,engine.Snapshot.Corps.Single(c => c.IsRoot).Treasury.Money);
         Assert.Equal(0u,engine.Snapshot.Corps.Single(c=>c.Id==2).Treasury!.Money);
         var result = SimulationEngineTests.Advance(engine);
         var food = result.Events.OfType<ResourceChangedEvent>().Where(e=>e.Resource==ResourceKind.Food && e.Account.Id==2).ToArray();

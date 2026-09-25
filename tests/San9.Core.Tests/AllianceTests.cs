@@ -6,8 +6,8 @@ namespace San9.Core.Tests;
 public sealed class AllianceTests
 {
     private static WorldState World(int duration = 36) => WorldState.Create(new(190, 1, 1), 123,
-        [new(1, 0, 0, 100), new(2, 0, 0, 200), new(3, 0, 0, 50), new(4, 0, 0, 10)], [], [],
-        alliance: new(3, 2, [1, 2, 4], duration));
+        [new(1, 100), new(2, 200), new(3, 50), new(4, 10)], [], [],
+        alliance: new(3, 2, [1, 2, 4], duration), corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(0, 0)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, null, new(0, 0)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, null, new(0, 0)) { IsRoot = true }, new San9.Core.Domain.CorpsState(4, 4, null, new(0, 0)) { IsRoot = true }]);
 
     [Fact]
     public void StartingAllianceProtectsMembersButNotTargetAndExpiresExactlyOnce()

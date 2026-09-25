@@ -16,7 +16,7 @@ public sealed class AlienateStrategyTests
     };
 
     private static WorldState World(ulong seed = 42, bool fieldTarget = false) => WorldState.Create(new(190, 1, 1), seed,
-        [new(1, 10000, 10000, 100), new(2, 10000, 10000, 100), new(3, 10000, 10000, 100)],
+        [new(1, 100), new(2, 100), new(3, 100)],
         [new(1, 1, 10000, 100, 100, 70, 500, 0, 100, 0, 100),
          new(2, 2, 10000, 100, 100, 70, 500, 0, 100, 0, 100),
          new(3, 2, 10000, 100, 100, 70, 500, 0, 100, 0, 100)],
@@ -28,7 +28,7 @@ public sealed class AlienateStrategyTests
         units: fieldTarget ? [new UnitState(5, 2, new(32, 2), 5000)
             { FormationId = 9, Morale = 70, CommanderId = 21, OrderClass = UnitOrderClass.Military }] : [],
         relations: [new(1, 2, 50), new(1, 3, 30), new(2, 3, 80)],
-        controls: [new("player", 1, ControllerKind.Player)]);
+        controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, null, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, null, new(10000, 10000)) { IsRoot = true }]);
 
     private static PersistentTask Submit(WorldState world, SimulationRules rules, int roll)
     {
@@ -166,6 +166,7 @@ public sealed class AlienateStrategyTests
         var snapshot = world.CreateSnapshot();
         return WorldState.Restore(snapshot with
         {
+            Corps = snapshot.Corps.Select(c => c.IsRoot && c.OwnerId == 2 ? c with { LeaderId = 22 } : c).ToArray(),
             Forces = snapshot.Forces.Select(f => f.Id == 2 ? f with { LeaderId = 22 } :
                 f.Id == 1 ? f with { AdviserId = 11 } : f).ToArray(),
             Officers = [.. snapshot.Officers.Select(p => p.Id == 11 ? p with { Status = OfficerStatus.Strategist } : p),
@@ -197,7 +198,7 @@ public sealed class AlienateStrategyTests
         Assert.Equal(30, AlienateStrategies.Threshold(world.BeginMutation(), 11, 21));
         Submit(world, rules, 25);
         var m = world.BeginMutation(rules.Abilities);
-        m.Replace(m.Forces[2] with { LeaderId = 23 });
+        m.Replace(m.Forces[2] with { LeaderId = 23 }); m.Replace(ResourceAccounts.Root(m, 2) with { LeaderId = 23 });
         m.Replace(m.Officers[22] with { Status = OfficerStatus.Serving });
         m.Replace(m.Officers[23] with { Status = OfficerStatus.Ruler });
         var result = Assert.Single(Day(m, rules).OfType<AlienateResolvedEvent>());

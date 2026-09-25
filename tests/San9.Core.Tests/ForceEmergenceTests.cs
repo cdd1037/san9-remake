@@ -58,11 +58,11 @@ public sealed class ForceEmergenceTests
     { Kind = SettlementKind.City, Population = 300000, DraftPopulation = 100000, ConsumesFood = false };
 
     private static WorldState World() => WorldState.Create(new(190, 1, 1), 17,
-        [new(7, 0, 0, 100) { LeaderId = 70 }], [City(1), City(2, 7), City(3)],
+        [new(7, 100) { LeaderId = 70 }], [City(1), City(2, 7), City(3)],
         [new(70, 7, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
          Free(1, 1, 11), Free(2, 2, 0, 10), Free(3, 2, 0, 149), Free(4, 1, 0, 30)],
         controls: [new("player", 7, ControllerKind.Player)], freeOfficerMigrationEnabled: false,
-        officeRequestsEnabled: false, annualAppearancesEnabled: false, naturalDeathsEnabled: false);
+        officeRequestsEnabled: false, annualAppearancesEnabled: false, naturalDeathsEnabled: false, corps: [new San9.Core.Domain.CorpsState(7, 7, 70, new(0, 0)) { IsRoot = true }]);
 
     private static SimulationRules Rules(params CityConnection[] edges) => new()
     {
@@ -93,8 +93,8 @@ public sealed class ForceEmergenceTests
         Assert.Equal(new(ForceCreationKind.EmptyCityUprising, 1, 1, world.Clock), force.Origin);
         Assert.Equal(500, force.RankId);
         Assert.Equal(100, force.BaseTrust);
-        Assert.Equal(2 * EconomyMath.Revenue(before) + 3000, force.Money);
-        Assert.Equal(2 * EconomyMath.Harvest(before) + 30000, force.Food);
+        Assert.Equal(2 * EconomyMath.Revenue(before) + 3000, world.Corps.Values.Single(c => c.OwnerId == force.Id && c.IsRoot).Treasury.Money);
+        Assert.Equal(2 * EconomyMath.Harvest(before) + 30000, world.Corps.Values.Single(c => c.OwnerId == force.Id && c.IsRoot).Treasury.Food);
         Assert.Equal(20000u, world.Settlements[1].Soldiers);
         Assert.Equal(90000u, world.Settlements[1].DraftPopulation);
         Assert.Equal(EconomyMath.RecruitMorale(force.Trust), world.Settlements[1].Morale);
@@ -108,7 +108,7 @@ public sealed class ForceEmergenceTests
         Assert.Equal(50, world.Relations[(7, 8)].Value);
         Assert.False(world.Officers[70].ForceLoyalties.ContainsKey(8));
         Assert.Equal(new("ai:8", 8, ControllerKind.Automatic), world.Simulation.Controls[^1]);
-        Assert.Equal(8, Assert.Single(world.Corps.Values).OwnerId);
+        Assert.Equal(8, world.Corps.Values.Single(c => c.OwnerId == 8).OwnerId);
         Assert.All(founded.MemberIds, id => Assert.Equal(1, world.Officers[id].SettlementId));
         Assert.Single(world.Simulation.RandomStreams);
         state.Commit(world);
@@ -194,8 +194,8 @@ public sealed class ForceEmergenceTests
     {
         var initial = World().CreateSnapshot();
         var state = WorldState.Create(initial.Clock, 17,
-            initial.Forces.Concat(Enumerable.Range(100, 100).Select(id => new ForceState(id, 0, 0, 0) { IsEliminated = true })),
-            initial.Settlements, initial.Officers);
+            initial.Forces.Concat(Enumerable.Range(100, 100).Select(id => new ForceState(id, 0) { IsEliminated = true })),
+            initial.Settlements, initial.Officers, corps: initial.Corps);
         var world = Due(state);
         List<DomainEvent> events = [];
         ForceEmergence.Apply(world, Rules(), events);
@@ -209,7 +209,7 @@ public sealed class ForceEmergenceTests
     {
         var first = Due(World());
         var initial = World().CreateSnapshot();
-        var second = Due(WorldState.Create(initial.Clock, 17, initial.Forces.Reverse(), initial.Settlements.Reverse(), initial.Officers.Reverse(), controls: initial.Simulation.Controls));
+        var second = Due(WorldState.Create(initial.Clock, 17, initial.Forces.Reverse(), initial.Settlements.Reverse(), initial.Officers.Reverse(), controls: initial.Simulation.Controls, corps: initial.Corps));
         List<DomainEvent> a = [], b = [];
         ForceEmergence.Apply(first, Rules(), a);
         ForceEmergence.Apply(second, Rules(), b);
@@ -225,7 +225,7 @@ public sealed class ForceEmergenceTests
     {
         var initial = World().CreateSnapshot();
         var state = WorldState.Create(initial.Clock, 17, initial.Forces, initial.Settlements,
-            initial.Officers.Concat([Free(10, 3, 12), Free(11, 3), Free(12, 3)]));
+            initial.Officers.Concat([Free(10, 3, 12), Free(11, 3), Free(12, 3)]), corps: initial.Corps);
         var world = Due(state);
         List<DomainEvent> events = [];
         ForceEmergence.Apply(world, Rules(), events);
@@ -246,7 +246,7 @@ public sealed class ForceEmergenceTests
             new OfficerState(71, 7, 2, new(50, 50, 50, 50), false),
             new OfficerState(72, 7, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Captive },
             Free(73, 1) with { Status = OfficerStatus.NotAppeared }]);
-        var state = WorldState.Create(initial.Clock, 17, initial.Forces, initial.Settlements, people);
+        var state = WorldState.Create(initial.Clock, 17, initial.Forces, initial.Settlements, people, corps: initial.Corps);
         var world = Due(state);
         world.Replace(world.Officers[1] with { ForceFounderPriority = 7, Ambition = 0 });
         world.Replace(world.Officers[2] with { ForceFounderPriority = 7, Ambition = 15 });

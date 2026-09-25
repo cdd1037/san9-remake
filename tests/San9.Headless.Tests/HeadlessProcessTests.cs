@@ -24,11 +24,11 @@ public sealed class HeadlessProcessTests : IDisposable
     private void WriteFailureScenario()
     {
         var definition = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "failure-cli", 190, 1, 1, 1,
-            [new(1, "force", 1, 10000, 10000, 100) { LeaderId = 1 }],
+            [new(1, "force", 1, 100) { LeaderId = 1 }],
             [new(1, "home", 1, 0, 0, 0, 100, 100, 0, [])], [], [])
         {
             Officers = [new("ruler", new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler })]
-        };
+        , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }], []) };
         File.WriteAllBytes(FilePath("scenario.json"), CanonicalJson.Encode(definition));
         var session = GameSession.Start(definition, 190);
         SaveService.Write(FilePath("initial.save.json"), session);
@@ -41,9 +41,9 @@ public sealed class HeadlessProcessTests : IDisposable
     public async Task CommandLogCreatesReplayWithRecordedComputerDamageBonus()
     {
         var content = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "bonus-cli", 190, 1, 1, 1,
-            [new(1, "force", 0, 10000, 10000, 100) { LeaderId = 1 }],
+            [new(1, "force", 0, 100) { LeaderId = 1 }],
             [new(101, "city", 1, 0, 0, 0, 100, 100, 0, [])], [], [])
-        { Officers = [new("ruler", new(1, 1, 101, new(80, 80, 80, 80), false) { Status = OfficerStatus.Ruler })] };
+        { Officers = [new("ruler", new(1, 1, 101, new(80, 80, 80, 80), false) { Status = OfficerStatus.Ruler })] , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }], []) };
         string scenario = FilePath("bonus-scenario.json"), log = FilePath("bonus.commands.jsonl");
         File.WriteAllBytes(scenario, CanonicalJson.Encode(content));
         var session = GameSession.Start(content, 190, 100);
@@ -58,14 +58,14 @@ public sealed class HeadlessProcessTests : IDisposable
     public async Task SearchDiscoveryRecordsRealAnswerAndResumesBeforeSaving()
     {
         var content = new San9.Content.Scenarios.ScenarioInitialState(San9.Content.Scenarios.ScenarioInitialState.CurrentSchemaVersion,
-            "search-choice-cli", 190, 1, 1, 1, [new(1, "force", 0, 10000, 10000, 100) { LeaderId = 1 }],
+            "search-choice-cli", 190, 1, 1, 1, [new(1, "force", 0, 100) { LeaderId = 1 }],
             [new(101, "city", 1, 0, 0, 0, 100, 100, 0, [])], [], [])
         {
             Officers = [new("ruler", new(1, 1, 101, new(80, 80, 80, 80), false)),
                 new("searcher", new(2, 1, 101, new(50, 50, 500, 50), false)),
                 new("hidden", new(3, null, 101, new(50, 50, 50, 50), false)
                 { Status = San9.Core.Domain.OfficerStatus.Undiscovered })]
-        };
+        , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }], []) };
         string scenario = FilePath("search-scenario.json"), log = FilePath("search.commands.jsonl"), recording = FilePath("search.recording.json");
         File.WriteAllBytes(scenario, San9.Core.Simulation.CanonicalJson.Encode(content));
         var session = San9.Application.GameSession.Start(content, 190);
@@ -103,14 +103,14 @@ public sealed class HeadlessProcessTests : IDisposable
                 { Id = "merchant" }
         };
         var d = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "g10-choice-cli", 190, 1, 1, 1,
-            [new(1, "force", 0, 10000, 10000, 100) { LeaderId = 1, BaseTrust = 100 }],
+            [new(1, "force", 0, 100) { LeaderId = 1, BaseTrust = 100 }],
             [new(101, "city", 1, 0, 0, 1000, 100, 100, 50, [])], [], [])
         {
             Officers = [new("ruler", new(1, 1, 101, new(80, 80, 80, 80), false) { Status = OfficerStatus.Ruler }),
                 new("actor", new(2, 1, 101, new(50, 50, 100, 50), false)),
                 new("visitor", new(3, null, null, default, false) { Status = OfficerStatus.Special })],
             SearchEvents = [rule]
-        };
+        , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }], []) };
         string scenario = FilePath("g10.json"), log = FilePath("g10.commands.jsonl"), initial = FilePath("g10.initial.json"), record = FilePath("g10.recording.json");
         File.WriteAllBytes(scenario, JsonSerializer.SerializeToUtf8Bytes(d, San9.Content.Packages.ScenarioContentFiles.DataJsonOptions));
         var session = GameSession.Start(d, 190);
@@ -138,12 +138,12 @@ public sealed class HeadlessProcessTests : IDisposable
     public async Task VictoryEndingCanBeSelectedSavedAndReplayedByStandaloneCli()
     {
         var content = new San9.Content.Scenarios.ScenarioInitialState(San9.Content.Scenarios.ScenarioInitialState.CurrentSchemaVersion,
-            "ending-cli", 220, 1, 1, 9, [new(9, "force", 0, 1000, 1000, 500) { LeaderId = 17 }],
+            "ending-cli", 220, 1, 1, 9, [new(9, "force", 0, 500) { LeaderId = 17 }],
             [new(101, "city", 9, 0, 0, 1000, 100, 100, 50, [])], [], [])
         {
             Officers = [new("ruler", new(17, 9, 101, new(80, 80, 80, 80), false))],
             Terminal = new([101], 350), Ending = new([101], [101], [101], [101], [101], [101], [])
-        };
+        , Information = new([], [], [], [new San9.Core.Domain.CorpsState(9, 9, 17, new(1000, 1000)) { IsRoot = true }], []) };
         string scenario = FilePath("ending-scenario.json"), log = FilePath("ending.commands.jsonl"), recording = FilePath("ending.recording.json");
         File.WriteAllBytes(scenario, San9.Core.Simulation.CanonicalJson.Encode(content));
         var session = San9.Application.GameSession.Start(content, 1);
@@ -167,7 +167,7 @@ public sealed class HeadlessProcessTests : IDisposable
     {
         var definition = new San9.Content.Scenarios.ScenarioInitialState(San9.Content.Scenarios.ScenarioInitialState.CurrentSchemaVersion,
             "diplomacy-cli", 190, 1, 1, 1,
-            [new(1, "player", 1, 10000, 10000, 100) { LeaderId = 1 }, new(2, "neighbor", 2, 30000, 10000, 100) { LeaderId = 3 }],
+            [new(1, "player", 1, 100) { LeaderId = 1 }, new(2, "neighbor", 2, 100) { LeaderId = 3 }],
             [new(1, "home", 1, 0, 0, 100, 100, 100, 50, []) { Commerce = 100, MaxCommerce = 500 },
                 new(2, "away", 2, 2, 0, 100, 100, 100, 50, []) { Commerce = 100, MaxCommerce = 500 }], [], [])
         {
@@ -175,7 +175,7 @@ public sealed class HeadlessProcessTests : IDisposable
                 new("worker", new(2, 1, 1, new(50, 50, 100, 50), false)),
                 new("ruler2", new(3, 2, 2, new(50, 50, 50, 50), false)),
                 new("envoy", new(4, 2, 2, new(50, 50, 100, 50), false))],
-            Information = San9.Content.Scenarios.InformationDefinitions.Empty with { Relations = [new(1, 2, 60)] }
+            Information = San9.Content.Scenarios.InformationDefinitions.Empty with { Corps = [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 3, new(30000, 10000)) { IsRoot = true }], Relations = [new(1, 2, 60)] }
         };
         File.WriteAllBytes(FilePath("scenario.json"), San9.Core.Simulation.CanonicalJson.Encode(definition));
         var result = await Run("verify", "--scenario", FilePath("scenario.json"), "--xuns", "2", "--output", _directory);
@@ -192,14 +192,14 @@ public sealed class HeadlessProcessTests : IDisposable
     public async Task MilitaryRecordingReportsDeploymentMovementAndSingleAbsorption()
     {
         var definition = new San9.Content.Scenarios.ScenarioInitialState(San9.Content.Scenarios.ScenarioInitialState.CurrentSchemaVersion,
-            "military-cli", 190, 1, 1, 1, [new(1, "force", 1, 10000, 10000, 100)],
+            "military-cli", 190, 1, 1, 1, [new(1, "force", 1, 100)],
             [new(1, "home", 1, 0, 0, 1000, 100, 100, 50, []), new(2, "destination", 1, 2, 0, 100, 100, 100, 50, [])], [], [])
         {
             Officers = [new("person", new(1, 1, 1, new(60, 60, 60, 60), false))],
             Military = new(3, 1, [0, 0, 0], [new(0, 1, null)],
                 [new(1, 10, 0, 10000, 5, new(1, 1), San9.Core.Domain.TravelMode.Land)],
                 [new(1, new(2, 2), new(1, 1)), new(2, new(12, 2), new(1, 1))])
-        };
+        , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, null, new(10000, 10000)) { IsRoot = true }], []) };
         var session = San9.Application.GameSession.Start(definition, 190);
         session.BeginRecording();
         Assert.True(session.Execute(new("player"), new San9.Core.Simulation.DeployUnitCommand(Guid.NewGuid(), 1, 0,
@@ -239,13 +239,13 @@ public sealed class HeadlessProcessTests : IDisposable
     public async Task PersonnelCommandsAndReplayReportTheirActualScope()
     {
         var definition = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "personnel-cli", 190, 1, 1, 1,
-            [new(1, "force", 1, 10000, 20000, 50) { LeaderId = 1 }],
+            [new(1, "force", 1, 50) { LeaderId = 1 }],
             [new(1, "home", 1, 0, 0, 100, 100, 100, 50, [])], [], [])
         {
             Officers = [new("ruler", new(1, 1, 1, new(60, 70, 80, 90), false) { Status = OfficerStatus.Ruler }),
                 new("officer", new(2, 1, 1, new(50, 60, 100, 70), false)),
                 new("adviser", new(3, 1, 1, new(40, 80, 70, 60), false))]
-        };
+        , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 20000)) { IsRoot = true }], []) };
         string scenario = FilePath("personnel.scenario.json");
         File.WriteAllBytes(scenario, CanonicalJson.Encode(definition));
         var session = GameSession.Start(definition, 190);

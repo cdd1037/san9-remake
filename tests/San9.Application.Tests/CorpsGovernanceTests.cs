@@ -17,7 +17,7 @@ public sealed class CorpsGovernanceTests
                 baseline.Settlements[0] with { Id = 3, CorpsId = 11 }],
             Officers = baseline.Officers.Select(p => p.State.Id == 2 ? p with
                 { State = p.State with { SettlementId = 3, Status = OfficerStatus.Governor } } : p).ToArray(),
-            Information = baseline.Information with { Corps = [new(10, 1, 1, null), new(11, 1, 2, new(100, 200))] }
+            Information = baseline.Information with { Corps = [.. baseline.Information.Corps.Where(c => c.OwnerId != 1), new(10, 1, 1, new(1000, 2000)) { IsRoot = true }, new(11, 1, 2, new(100, 200))] }
         };
         var session = GameSession.Start(definition, 190);
         session.BeginRecording();
@@ -45,13 +45,13 @@ public sealed class CorpsGovernanceTests
                 { State = p.State with { SettlementId = 3 } } : p).ToArray(),
             Units = [new(20, 1, new(400, 500), 100) { CorpsId = 1000, ServicePlaceId = 3, OrderClass = UnitOrderClass.Military },
                 new(21, 1, new(400, 500), 100) { CorpsId = 1000, ServicePlaceId = 3, IsEmbedded = true, IsPersonnel = true }],
-            Information = baseline.Information with { Corps = [new(1000, 1, 1, null)] }
+            Information = baseline.Information with { Corps = [.. baseline.Information.Corps.Where(c => c.OwnerId != 1), new(1000, 1, 1, new(1000, 2000)) { IsRoot = true }] }
         };
         var session = GameSession.Start(definition, 190);
         session.BeginRecording();
         var before = session.Snapshot;
         Assert.True(session.Execute(new("player"), new CreateCorpsCommand(Guid.NewGuid(), 1, 0, [3], 100, 200)).Submission.Accepted);
-        var created = session.Snapshot.Corps.Single(c => c.Treasury is not null);
+        var created = session.Snapshot.Corps.Single(c => !c.IsRoot);
         Assert.Equal(1001, created.Id);
         Assert.Equal(2, created.LeaderId);
         Assert.Equal(1001, session.Snapshot.Units.Single(u => u.Id == 20).CorpsId);
@@ -67,9 +67,9 @@ public sealed class CorpsGovernanceTests
         Assert.True(session.Execute(new("player"), dissolve).Submission.Accepted);
         Assert.True(restored.Execute(new("player"), dissolve).Submission.Accepted);
         Assert.Equal(SaveService.Encode(session), SaveService.Encode(restored));
-        Assert.Equal(before.Forces.Single(f => f.Id == 1).Money, session.Snapshot.Forces.Single(f => f.Id == 1).Money);
-        Assert.Equal(before.Forces.Single(f => f.Id == 1).Food, session.Snapshot.Forces.Single(f => f.Id == 1).Food);
-        Assert.Single(session.Snapshot.Corps);
+        Assert.Equal(before.Corps.Single(f => f.IsRoot && f.OwnerId == 1).Treasury.Money, session.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 1).Treasury.Money);
+        Assert.Equal(before.Corps.Single(f => f.IsRoot && f.OwnerId == 1).Treasury.Food, session.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 1).Treasury.Food);
+        Assert.Single(session.Snapshot.Corps, c => c.OwnerId == 1);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
         Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
     }

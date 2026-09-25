@@ -24,7 +24,7 @@ internal static class SeizeStrategies
 
     private static bool Eligible(WorldMutation world, int forceId, int origin, int targetId, SimulationRules rules) =>
         BuildingStrategyTargets.Eligible(world, forceId, origin, targetId, rules) &&
-        world.Forces[world.Settlements[targetId].OwnerId!.Value].Money > 0;
+        ResourceAccounts.Root(world, world.Settlements[targetId].OwnerId!.Value).Treasury.Money > 0;
 
     internal static bool EligibleForTask(WorldMutation world, PersistentTask task, SimulationRules rules) =>
         Eligible(world, task.ForceId, task.OriginSettlementId, task.Journey!.Seize!.TargetSettlementId, rules);
@@ -144,9 +144,9 @@ internal static class SeizeStrategies
         else if (roll < thresholds.Money)
         {
             uint requested = StrategyMath.SeizeMoney(target.Soldiers, target.Wounded,
-                world.Forces[target.OwnerId!.Value].Money,
+                ResourceAccounts.Root(world, target.OwnerId!.Value).Treasury.Money,
                 (int)(world.NextRandom("strategy-seize-money") % 50));
-            var source = new ResourceAccount(ResourceOwnerKind.Force, target.OwnerId.Value);
+            var source = ResourceAccounts.Resolve(world, target.OwnerId.Value, null);
             var recipient = ResourceAccounts.Resolve(world, task.ForceId,
                 world.Settlements[task.OriginSettlementId].CorpsId);
             money = Math.Min(requested, ResourceAccounts.Receivable(world, recipient, ResourceKind.Money));

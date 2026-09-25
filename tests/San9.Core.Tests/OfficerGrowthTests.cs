@@ -8,9 +8,9 @@ public sealed class OfficerGrowthTests
     private static WorldMutation World(int ability = 99, ulong seed = 52)
     {
         var world = WorldState.Create(new(190, 1, 1), 42,
-            [new(1, 1000, 1000, 0) { LeaderId = 1 }],
+            [new(1, 0) { LeaderId = 1 }],
             [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
-            [new(1, 1, 1, new(ability, ability, ability, ability), false) { Status = OfficerStatus.Ruler }]);
+            [new(1, 1, 1, new(ability, ability, ability, ability), false) { Status = OfficerStatus.Ruler }], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(1000, 1000)) { IsRoot = true }]);
         var mutation = world.BeginMutation();
         mutation.SetSimulation(mutation.Simulation with { RandomStreams = [new("growth", seed)] });
         return mutation;
@@ -85,13 +85,13 @@ public sealed class OfficerGrowthTests
     public void BatchLearningCanonicalizesCallerOrderAndSkipsIneligibleMembersWithoutDrawing()
     {
         var world = WorldState.Create(new(190, 1, 1), 42,
-            [new(1, 1000, 1000, 0)],
+            [new(1, 0)],
             [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
             [.. new[] { 10, 20, 30, 40 }.Select(id => new OfficerState(id, 1, 1, new(80, 80, 80, 80), false)
             {
                 TacticProficiencies = [id == 20 ? 99 : 100, 0, 0, 0, 0, 0, 0, 0, 0],
                 LearnedTactics = id == 30 ? [10001] : []
-            })]).BeginMutation();
+            })], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(1000, 1000)) { IsRoot = true }]).BeginMutation();
         world.SetSimulation(world.Simulation with { RandomStreams = [new("military-tactic-learning", 52)] });
         var tactic = new TacticRule(10001, 0, TacticEffect.Martial, 1, 1, 100, true, false, []);
         List<DomainEvent> events = [];

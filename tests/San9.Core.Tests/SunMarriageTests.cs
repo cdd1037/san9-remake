@@ -8,8 +8,8 @@ public sealed class SunMarriageTests
 {
     private static SunMarriageDefinition Definition() => new(11, 22, 900, 3, new(209, 12, 30), 70, 20, 150, [13, 1], new("sun-marriage"));
     private static WorldState World(bool player = true) => WorldState.Create(new(190, 1, 1), 17,
-        [new(1, 10000, 10000, 100) { LeaderId = 11 }, new(2, 10000, 10000, 100) { LeaderId = 21, AdviserId = 22 },
-         new(3, 10000, 10000, 100) { LeaderId = 31 }],
+        [new(1, 100) { LeaderId = 11 }, new(2, 100) { LeaderId = 21, AdviserId = 22 },
+         new(3, 100) { LeaderId = 31 }],
         Enumerable.Range(1, 4).Select(id => new SettlementState(id, id == 4 ? 2 : id, 100, 100, 100, 50, 100, 100, 100, 100, 100)
             { Kind = SettlementKind.City, ConsumesFood = false }),
         [new(11, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
@@ -19,7 +19,7 @@ public sealed class SunMarriageTests
          new(31, 3, 3, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }],
         treasures: [new(7, 22, TreasureDiscovery.Discovered, null)],
         controls: [new("first", 1, player ? ControllerKind.Player : ControllerKind.Automatic), new("second", 2, ControllerKind.Automatic)],
-        relations: [new(1, 2, 71), new(1, 3, 50), new(2, 3, 50)]);
+        relations: [new(1, 2, 71), new(1, 3, 50), new(2, 3, 50)], corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, 31, new(10000, 10000)) { IsRoot = true }]);
     private static SimulationRules Rules(SunMarriageDefinition? definition = null) => new()
     {
         SunMarriage = definition ?? Definition(),
@@ -80,14 +80,14 @@ public sealed class SunMarriageTests
     public void GovernorTransferDissolvesOldCorpsEvenWithRemainingMembersAndReturnsItsResources()
     {
         var state = World(); var world = state.BeginMutation(Rules().Abilities);
-        world.Replace(world.Forces[2] with { AdviserId = null, Money = 999999 });
+        { world.Replace(world.Forces[2] with { AdviserId = null }); world.Replace(ResourceAccounts.Root(world, 2) with { Treasury = ResourceAccounts.Root(world, 2).Treasury with { Money = 999999 } }); }
         world.Replace(world.Officers[22] with { Status = OfficerStatus.Governor });
-        world.AddCorps(new(20, 2, 21, null)); world.AddCorps(new(24, 2, 22, new(100, 200)));
+        var rootTreasury20 = ResourceAccounts.Root(world, 2).Treasury; world.RemoveCorps(ResourceAccounts.Root(world, 2).Id); world.AddCorps(new(20, 2, 21, rootTreasury20) { IsRoot = true }); world.AddCorps(new(24, 2, 22, new(100, 200)));
         world.Replace(world.Settlements[2] with { CorpsId = 20 }); world.Replace(world.Settlements[4] with { CorpsId = 24 });
         List<DomainEvent> events = []; SunMarriage.Apply(world, Rules(), events);
         Assert.False(world.Corps.ContainsKey(24)); Assert.Equal(20, world.Settlements[4].CorpsId);
-        Assert.Equal(2, world.Officers[23].OwnerId); Assert.Equal(1000000u, world.Forces[2].Money);
-        Assert.Equal(10200u, world.Forces[2].Food); Assert.Single(events.OfType<CorpsDissolvedEvent>());
+        Assert.Equal(2, world.Officers[23].OwnerId); Assert.Equal(1000000u, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 2).Treasury.Money);
+        Assert.Equal(10200u, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 2).Treasury.Food); Assert.Single(events.OfType<CorpsDissolvedEvent>());
         state.Commit(world);
     }
 

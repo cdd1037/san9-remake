@@ -24,11 +24,11 @@ public sealed class PrisonerEscapeTests
             new(100, 50, 50, 50), true) { Status = OfficerStatus.Captive, UnitId = field ? 10 : null, Righteousness = 15 }
             .WithLoyalty(1, 60).WithLoyalty(2, 80));
         return WorldState.Create(new(190, 1, 1), 190,
-            [new(1, 1000, 1000, 0) { LeaderId = 1 }, new(2, 1000, 1000, 0) { LeaderId = 2 }],
+            [new(1, 0) { LeaderId = 1 }, new(2, 0) { LeaderId = 2 }],
             [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100), new(2, home ? 2 : 1, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
             [new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
              new(2, 2, 2, new(50, 50, 50, 50), false) { Status = home ? OfficerStatus.Ruler : OfficerStatus.Captive }, .. officers],
-            units: field ? [new(10, 1, new(0, 0), 100) { IsEmbedded = embedded }] : []).BeginMutation();
+            units: field ? [new(10, 1, new(0, 0), 100) { IsEmbedded = embedded }] : [], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(1000, 1000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 2, new(1000, 1000)) { IsRoot = true }]).BeginMutation();
     }
 
     private static void Rolls(WorldMutation world, params int[] rolls)

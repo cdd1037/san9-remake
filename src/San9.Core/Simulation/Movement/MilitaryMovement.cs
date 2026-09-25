@@ -229,16 +229,16 @@ internal static class MilitaryMovement
 
     private static bool CanAbsorb(WorldMutation world, UnitState unit, SettlementState home)
     {
-        if (unit.CorpsId is not int previous || previous == home.CorpsId || world.Corps[previous].Treasury is not { } treasury)
+        if (unit.CorpsId is not int previous || previous == home.CorpsId || world.Corps[previous].IsRoot)
             return true;
         bool survivingMembers = world.Officers.Values.Any(p => p.IsServing && p.OwnerId == unit.OwnerId &&
             p.UnitId != unit.Id && PersonnelLocations.Corps(world, p) == previous);
         if (survivingMembers && world.Settlements.Values.Any(s => s.CorpsId == previous && s.Kind == SettlementKind.City)) return true;
         var force = world.Forces[unit.OwnerId];
-        bool forceReceivesCargo = ResourceAccounts.Resolve(world, unit.OwnerId, home.CorpsId).Kind == ResourceOwnerKind.Force;
-        uint money = forceReceivesCargo ? ResourceAccounts.Project(force.Money, unit.CargoMoney) : force.Money;
-        uint food = forceReceivesCargo ? ResourceAccounts.Project(force.Food, unit.CargoFood) : force.Food;
-        return (ulong)money + treasury.Money <= uint.MaxValue && (ulong)food + treasury.Food <= uint.MaxValue;
+        bool forceReceivesCargo = ResourceAccounts.Resolve(world, unit.OwnerId, home.CorpsId).Id == ResourceAccounts.Root(world, unit.OwnerId).Id;
+        uint money = forceReceivesCargo ? ResourceAccounts.Project(ResourceAccounts.Root(world, force.Id).Treasury.Money, unit.CargoMoney) : ResourceAccounts.Root(world, force.Id).Treasury.Money;
+        uint food = forceReceivesCargo ? ResourceAccounts.Project(ResourceAccounts.Root(world, force.Id).Treasury.Food, unit.CargoFood) : ResourceAccounts.Root(world, force.Id).Treasury.Food;
+        return (ulong)money + world.Corps[previous].Treasury.Money <= uint.MaxValue && (ulong)food + world.Corps[previous].Treasury.Food <= uint.MaxValue;
     }
 
     internal static IEnumerable<MapOccupancy> Occupancy(WorldMutation world, MilitaryRulebook rules, int? movingUnit, int? entry, bool movement = false)

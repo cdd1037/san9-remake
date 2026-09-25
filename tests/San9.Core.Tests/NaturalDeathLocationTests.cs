@@ -32,10 +32,10 @@ public sealed class NaturalDeathLocationTests
             }
         }
         var world = WorldState.Create(new(190, 1, 1), 42,
-            [new(1, 10000, 100000, 100) { LeaderId = 1 }, new(2, 10000, 100000, 100) { LeaderId = 2 }],
+            [new(1, 100) { LeaderId = 1 }, new(2, 100) { LeaderId = 2 }],
             [new(1, 1, 0, 100, 100, 0, 0, 0, 0, 0, 0), new(2, 2, 0, 100, 100, 0, 0, 0, 0, 0, 0),
                 new(3, 1, 0, 100, 100, 0, 0, 0, 0, 0, 0)], people, units,
-            treasures: [new(7, 11, TreasureDiscovery.Discovered, null)], controls: [new("player", 1, ControllerKind.Player)]);
+            treasures: [new(7, 11, TreasureDiscovery.Discovered, null)], controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 100000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 2, new(10000, 100000)) { IsRoot = true }]);
         var places = new PersonnelRulebook([new(1, new(2, 2)), new(2, new(17, 2)), new(3, new(1202, 2))],
             new Dictionary<int, int> { [1] = 1, [2] = 2, [3] = 3 }, [new(1, 2), new(1, 3)]);
         var military = new MilitaryRulebook(new(241, 1, Enumerable.Repeat(0, 241).ToImmutableArray(), [new(0, 1, null)],

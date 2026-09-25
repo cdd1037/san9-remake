@@ -7,13 +7,13 @@ public sealed class PrisonerCycleTests
 {
     private static WorldState World(int distance = 50, int loyalty = 80, int? original = 2, bool leader = true,
         OfficerStatus status = OfficerStatus.Captive) => WorldState.Create(new(190, 1, 1), 190,
-        [new(1, 1000, 1000, 0) { LeaderId = 1 }, new(2, 1000, 1000, 0) { LeaderId = leader ? 2 : null }],
+        [new(1, 0) { LeaderId = 1 }, new(2, 0) { LeaderId = leader ? 2 : null }],
         [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100), new(2, 2, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
         [new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
          new(2, 2, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
          new OfficerState(3, original, 1, new(50, 50, 50, 50), true)
          { Status = status, Affinity = distance, Righteousness = 15, RewardedThisXun = true }.WithLoyalty(1, 130).WithLoyalty(2, loyalty)],
-        controls: [new("player", 1, ControllerKind.Player)]);
+        controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(1000, 1000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, leader ? 2 : null, new(1000, 1000)) { IsRoot = true }]);
 
     [Theory]
     [InlineData(0, 10)]

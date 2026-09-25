@@ -3,7 +3,7 @@ using San9.Core.Domain;
 namespace San9.Core.Simulation;
 
 public enum ResourceKind { Money, Food, Population, DraftPopulation, Soldiers, Wounded }
-public enum ResourceOwnerKind { Force, Corps, Settlement, Unit }
+public enum ResourceOwnerKind { Corps, Settlement, Unit }
 public sealed record ResourceAccount(ResourceOwnerKind Kind, int Id);
 public sealed record ResourceChangedEvent(GameClock Clock, ResourceAccount Account, ResourceKind Resource,
     string Reason, int? SourceId, long Requested, long Actual, long Shortfall, long SaturationLoss) : DomainEvent;
@@ -12,27 +12,22 @@ public sealed record ForceTrustChangedEvent(GameClock Clock, int ForceId, int Pr
 
 internal static class ResourceAccounts
 {
+    internal static CorpsState Root(WorldMutation world, int forceId) =>
+        world.Corps.Values.Single(c => c.OwnerId == forceId && c.IsRoot);
+
     internal static ResourceAccount Resolve(WorldMutation world, int forceId, int? corpsId)
     {
-        if (corpsId is int id)
-        {
-            var corps = world.Corps[id];
-            if (corps.OwnerId != forceId) throw new InvalidOperationException("Account ownership mismatch.");
-            if (corps.Treasury is not null) return new(ResourceOwnerKind.Corps, id);
-        }
-        return new(ResourceOwnerKind.Force, forceId);
+        var corps = corpsId is int id ? world.Corps[id] : Root(world, forceId);
+        if (corps.OwnerId != forceId) throw new InvalidOperationException("Account ownership mismatch.");
+        return new(ResourceOwnerKind.Corps, corps.Id);
     }
 
     internal static uint Balance(WorldMutation world, ResourceAccount account, ResourceKind resource)
     {
-        if (resource is not (ResourceKind.Money or ResourceKind.Food)) throw new ArgumentException("Not a treasury resource.");
-        if (account.Kind == ResourceOwnerKind.Corps)
-        {
-            var treasury = world.Corps[account.Id].Treasury!;
-            return resource == ResourceKind.Money ? treasury.Money : treasury.Food;
-        }
-        var force = world.Forces[account.Id];
-        return resource == ResourceKind.Money ? force.Money : force.Food;
+        if (account.Kind != ResourceOwnerKind.Corps || resource is not (ResourceKind.Money or ResourceKind.Food))
+            throw new ArgumentException("Not a corps treasury resource.");
+        var treasury = world.Corps[account.Id].Treasury;
+        return resource == ResourceKind.Money ? treasury.Money : treasury.Food;
     }
 
     internal static uint Receivable(WorldMutation world, ResourceAccount account, ResourceKind resource)
@@ -46,16 +41,9 @@ internal static class ResourceAccounts
     {
         uint before = Balance(world, account, resource);
         uint after = Project(before, requested, requireFull);
-        if (account.Kind == ResourceOwnerKind.Corps)
-        {
-            var corps = world.Corps[account.Id];
-            world.Replace(corps with { Treasury = resource == ResourceKind.Money ? corps.Treasury! with { Money = after } : corps.Treasury! with { Food = after } });
-        }
-        else
-        {
-            var force = world.Forces[account.Id];
-            world.Replace(resource == ResourceKind.Money ? force with { Money = after } : force with { Food = after });
-        }
+        var corps = world.Corps[account.Id];
+        world.Replace(corps with { Treasury = resource == ResourceKind.Money
+            ? corps.Treasury with { Money = after } : corps.Treasury with { Food = after } });
         Report(world, account, resource, reason, sourceId, requested, (long)after - before, events);
         return after;
     }

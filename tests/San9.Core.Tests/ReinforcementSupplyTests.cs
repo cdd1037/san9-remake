@@ -23,7 +23,7 @@ public sealed class ReinforcementSupplyTests
         }
         mutation.Replace(mutation.Settlements[1] with { DraftPopulation = 499990 });
         uint soldiers = mutation.Settlements[1].Soldiers, wounded = mutation.Settlements[1].Wounded;
-        var treasury = mutation.Forces[1];
+        var treasury = ResourceAccounts.Root(mutation, 1).Treasury;
         List<DomainEvent> events = [];
         ForceTransfer.CancelTasks(mutation, 1, rules, "force-exit", events, false);
         ForceTransfer.CancelTasks(mutation, 1, rules, "force-exit", events, false);
@@ -32,8 +32,8 @@ public sealed class ReinforcementSupplyTests
         Assert.Equal(502990u, mutation.Settlements[1].DraftPopulation);
         Assert.Equal(soldiers, mutation.Settlements[1].Soldiers);
         Assert.Equal(wounded, mutation.Settlements[1].Wounded);
-        Assert.Equal(treasury.Money, mutation.Forces[1].Money);
-        Assert.Equal(treasury.Food, mutation.Forces[1].Food);
+        Assert.Equal(treasury.Money, mutation.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money);
+        Assert.Equal(treasury.Food, mutation.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Food);
         var returned = Assert.Single(events.OfType<ResourceChangedEvent>());
         Assert.Equal(ResourceKind.DraftPopulation, returned.Resource);
         Assert.Equal(3000, returned.Actual);
@@ -70,7 +70,7 @@ public sealed class ReinforcementSupplyTests
             m.SetSimulation(m.Simulation with { Tasks = [] });
             PersonnelReturns.Start(m, task, rules.Personnel, [], false, arrived: true);
         }
-        m.Replace(m.Forces[1] with { Food = food }); // 7000 garrison:14, 5000 army:15, 3000 escort:9.
+        m.Replace(ResourceAccounts.Root(m, 1) with { Treasury = ResourceAccounts.Root(m, 1).Treasury with { Food = food } }); // 7000 garrison:14, 5000 army:15, 3000 escort:9.
         var events = Supply(m, rules);
         var troops = Assert.Single(m.Simulation.Tasks).Reinforcements!;
         Assert.Equal(shortage ? 2970u : 3000u, troops.Soldiers);
@@ -78,9 +78,9 @@ public sealed class ReinforcementSupplyTests
         Assert.Equal(shortage ? 67 : 70, troops.Morale);
         Assert.Equal(shortage ? 6930u : 7000u, m.Settlements[1].Soldiers);
         Assert.Equal(shortage ? 4950u : 5000u, m.Units[5].Soldiers);
-        Assert.Equal(0u, m.Forces[1].Food);
+        Assert.Equal(0u, m.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Food);
         Assert.Equal(shortage ? 3 : 0, events.OfType<DailyAttritionEvent>().Count());
-        Assert.Single(events.OfType<ResourceChangedEvent>(), e => e.Reason == "daily-rations" && e.Account == new ResourceAccount(ResourceOwnerKind.Force, 1));
+        Assert.Single(events.OfType<ResourceChangedEvent>(), e => e.Reason == "daily-rations" && e.Account == new ResourceAccount(ResourceOwnerKind.Corps, 1));
         if (shortage) Assert.Equal(Assert.Single(m.Simulation.Tasks).Id, Assert.Single(events.OfType<DailyAttritionEvent>(), e => e.TaskId is not null).TaskId);
         world.Commit(m);
     }
@@ -94,14 +94,14 @@ public sealed class ReinforcementSupplyTests
         m.SetSimulation(m.Simulation with { Tasks = [task with { Reinforcements = task.Reinforcements! with { Soldiers = 2000, Wounded = 1000 } }] });
         Supply(m, rules);
         Assert.Equal(977u, m.Corps[10].Treasury!.Food); // Same nine rations for all 3000 living travelers.
-        Assert.Equal(9985u, m.Forces[1].Food); // Target army only.
+        Assert.Equal(9985u, m.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Food); // Target army only.
         m.Replace(m.Settlements[1] with { CorpsId = null });
         Supply(m, rules);
-        Assert.Equal(9947u, m.Forces[1].Food);
+        Assert.Equal(9947u, m.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Food);
         Assert.Equal(977u, m.Corps[10].Treasury!.Food);
         m.Replace(m.Settlements[1] with { OwnerId = 2 });
         Supply(m, rules);
-        Assert.Equal(9923u, m.Forces[1].Food); // Escort remains charged to its own force.
+        Assert.Equal(9923u, m.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Food); // Escort remains charged to its own force.
         Assert.Equal(15000, SoldierTotals.Living(m, 1) + 7000); // Lost garrison excluded; wounded escort retained.
     }
 
@@ -109,13 +109,13 @@ public sealed class ReinforcementSupplyTests
     public void DeathsReduceDeliveryAndAllWoundedReturnWithoutBecomingActiveSoldiers()
     {
         var (world, rules, task) = Create(distance: 30); var m = world.BeginMutation(rules.Abilities);
-        m.Replace(m.Forces[1] with { Food = 0 });
+        m.Replace(ResourceAccounts.Root(m, 1) with { Treasury = ResourceAccounts.Root(m, 1).Treasury with { Food = 0 } });
         var events = UnitStrategyTests.Day(m, rules);
         Assert.Equal(2970u, Assert.Single(events.OfType<UnitStrategyResolvedEvent>()).DeliveredSoldiers);
         var returning = Assert.Single(m.Simulation.Tasks);
         Assert.Equal(0u, returning.Reinforcements!.Soldiers);
         Assert.Equal(15u, returning.Reinforcements.Wounded);
-        m.Replace(m.Forces[1] with { Food = 10000 });
+        m.Replace(ResourceAccounts.Root(m, 1) with { Treasury = ResourceAccounts.Root(m, 1).Treasury with { Food = 10000 } });
         uint soldiers = m.Settlements[1].Soldiers, wounded = m.Settlements[1].Wounded;
         for (int day = 0; day < 10 && m.Simulation.Tasks.Length > 0; day++) UnitStrategyTests.Day(m, rules);
         Assert.Empty(m.Simulation.Tasks);
@@ -129,7 +129,7 @@ public sealed class ReinforcementSupplyTests
     public void UnableToDeliverTurnsBackBeforeArrival(uint soldiers, int morale)
     {
         var (world, rules, task) = Create(); var m = world.BeginMutation(rules.Abilities);
-        m.Replace(m.Forces[1] with { Food = 0 });
+        m.Replace(ResourceAccounts.Root(m, 1) with { Treasury = ResourceAccounts.Root(m, 1).Treasury with { Food = 0 } });
         m.SetSimulation(m.Simulation with { Tasks = [task with { Reinforcements = task.Reinforcements! with { Soldiers = soldiers, Morale = morale } }] });
         var events = Supply(m, rules);
         Assert.Equal("reinforcement-unfit", Assert.Single(events.OfType<TaskCancelledEvent>()).Reason);
@@ -169,7 +169,7 @@ public sealed class ReinforcementSupplyTests
     public void DamagedTransportRestoresAndContinuesWithIdenticalEventsAndNoTroopRefill()
     {
         var (world, rules, _) = Create(distance: 900); var m = world.BeginMutation(rules.Abilities);
-        m.Replace(m.Forces[1] with { Food = 0 });
+        m.Replace(ResourceAccounts.Root(m, 1) with { Treasury = ResourceAccounts.Root(m, 1).Treasury with { Food = 0 } });
         world.Commit(m);
         var engine = new SimulationEngine(world, rules);
         engine.EndControl(new("player"));

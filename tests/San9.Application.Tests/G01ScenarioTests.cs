@@ -13,7 +13,7 @@ namespace San9.Application.Tests;
 public sealed class G01ScenarioTests
 {
     internal static ScenarioInitialState Fixture() => new(ScenarioInitialState.CurrentSchemaVersion, "g01-public", 190, 1, 1, 1,
-        [new(1, "force.1", 1, 1000, 2000, 50) { LeaderId = 1 }, new(2, "force.2", 2, 1000, 2000, 50) { LeaderId = 4 }],
+        [new(1, "force.1", 1, 50) { LeaderId = 1 }, new(2, "force.2", 2, 50) { LeaderId = 4 }],
         [new(1, "city.1", 1, 1, 1, 100, 100, 100, 50, []) { Commerce = 300, MaxCommerce = 500, Cultivation = 200, MaxCultivation = 500 },
          new(2, "city.2", 2, 2, 2, 100, 100, 100, 50, []) { Commerce = 300, MaxCommerce = 500, Cultivation = 200, MaxCultivation = 500 }], [], [])
     {
@@ -21,7 +21,7 @@ public sealed class G01ScenarioTests
             new("officer.2", new(2, 1, 1, new(50, 60, 100, 70), false)), new("officer.3", new(3, 1, 1, new(40, 80, 70, 60), false)),
             new("officer.4", new(4, 2, 2, new(60, 70, 80, 90), false)), new("officer.5", new(5, 2, 2, new(50, 60, 100, 70), false)),
             new("officer.6", new(6, 2, 2, new(40, 80, 70, 60), false))]
-    };
+    , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 1, new(1000, 2000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 4, new(1000, 2000)) { IsRoot = true }], []) };
 
     [Fact]
     public void Headless36XunScenarioPreservesStateEventsAndQueriesAcrossRestore()
@@ -89,7 +89,7 @@ public sealed class G01ScenarioTests
                 var projected = new StrategySnapshot(definition, resumed.Snapshot);
                 Assert.Equal(resumed.Snapshot.Clock.Day, projected.Day);
                 Assert.Equal(resumed.Snapshot.Clock.Year, projected.Year);
-                Assert.Equal(resumed.Snapshot.Forces[0].Money, projected.Forces[0].Money);
+                Assert.Equal(resumed.Snapshot.Corps.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money, projected.PlayerCorps!.Treasury.Money);
                 last = resumed.Snapshot;
                 finalHash = last.StateHash;
                 completedXun++;

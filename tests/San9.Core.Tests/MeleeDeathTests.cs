@@ -42,7 +42,7 @@ public sealed class MeleeDeathTests
         {
             m.Replace(m.Officers[21] with { Status = OfficerStatus.Serving });
             m.Replace(m.Officers[22] with { Status = OfficerStatus.Ruler });
-            m.Replace(m.Forces[2] with { LeaderId = 22 });
+            m.Replace(m.Forces[2] with { LeaderId = 22 }); m.Replace(ResourceAccounts.Root(m, 2) with { LeaderId = 22 });
         }
         if (gate == "ability") m.Replace(m.Officers[22] with { BaseAbilities = new(40, 80, 40, 40) });
         if (gate == "barbarian") m.Replace(m.Forces[2] with { IsBarbarian = true });

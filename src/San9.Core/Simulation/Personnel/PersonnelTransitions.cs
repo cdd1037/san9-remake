@@ -32,7 +32,7 @@ internal static class PersonnelTransitions
             !world.Officers.Values.Any(p => p.UnitId == previousUnit && p.IsServing))
             BattleAftermath.TerminateUnit(world, previousUnit, null, rules, events);
         if (person.Status == OfficerStatus.Governor && previousCorps is int corpsId &&
-            world.Corps.TryGetValue(corpsId, out var corps) && corps.Treasury is not null)
+            world.Corps.TryGetValue(corpsId, out var corps) && !corps.IsRoot)
             GovernanceMaintenance.DissolveForced(world, corpsId, reason, events);
         if (person.OwnerId is int previousForce) BattleAftermath.Reconcile(world, new HashSet<int> { previousForce }, rules, events, afterDailyCommands, reason);
         world.MaintainLeadership(events);

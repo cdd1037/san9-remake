@@ -10,14 +10,14 @@ namespace San9.Application.Tests;
 public sealed class TreasureCommandTests
 {
     private static ScenarioInitialState Fixture() => new(ScenarioInitialState.CurrentSchemaVersion, "treasure-commands", 190, 1, 1, 1,
-        [new(1, "force", 1, 1000, 1000, 1000) { LeaderId = 1, BaseTrust = 950 }],
+        [new(1, "force", 1, 1000) { LeaderId = 1, BaseTrust = 950 }],
         [new(1, "city", 1, 0, 0, 0, 100, 100, 0, [])], new() { [1] = "city" }, new() { [1] = 1 })
     {
         ImperialSealId = 10,
         Officers = [new("ruler", new(1, 1, 1, new(50, 50, 50, 50), false)
             { Status = OfficerStatus.Ruler }),
             new("recipient", new OfficerState(2, 1, 1, new(50, 50, 50, 50), false).WithLoyalty(1, 98))],
-        Information = new([], [], [new(10, "treasure", 1, 10, 8, null) { AbilityBonuses = new(10, 0, 0, 0) }], [],
+        Information = new([], [], [new(10, "treasure", 1, 10, 8, null) { AbilityBonuses = new(10, 0, 0, 0) }], [new San9.Core.Domain.CorpsState(1, 1, 1, new(1000, 1000)) { IsRoot = true }],
             [new(10, 1, TreasureDiscovery.Discovered, null)])
     };
 

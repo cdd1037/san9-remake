@@ -9,12 +9,12 @@ public sealed class NaturalMortalityTests
         new(id, owner, home, new(70, 70, 70, 70), false) { BirthYear = birth, Status = status };
 
     private static WorldState World(bool enabled = true, IEnumerable<OfficerState>? others = null, IEnumerable<TreasureState>? treasures = null) => WorldState.Create(new(190, 1, 1), 42,
-        [new(1, 1000, 1000, 0) { LeaderId = 1 }, new(2, 1000, 1000, 0) { LeaderId = 2 }],
+        [new(1, 0) { LeaderId = 1 }, new(2, 0) { LeaderId = 2 }],
         [new(10, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100), new(20, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100),
          new(30, 2, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
         new[] { Person(1, 1, 10, 90, OfficerStatus.Ruler), Person(2, 2, 30, 170, OfficerStatus.Ruler),
          Person(11, 1, 20, 170) with { ParentId = 1, BloodlineId = 1 }, Person(12, 1, 10, 160) with { Affinity = 31 } }.Concat(others ?? []),
-        naturalDeathsEnabled: enabled, treasures: treasures);
+        naturalDeathsEnabled: enabled, treasures: treasures, corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(1000, 1000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 2, new(1000, 1000)) { IsRoot = true }]);
 
     private static SimulationEngine BeforeAnnualBoundary(WorldState world)
     {
@@ -150,7 +150,7 @@ public sealed class NaturalMortalityTests
         var world = World(treasures: [new(7, 1, TreasureDiscovery.Discovered, null)]);
         var rules = new SimulationRules { Governance = new([new(5, 10000, 0)]), Treasures = new([new(7, default, 0)]) };
         var mutation = world.BeginMutation(rules.Abilities);
-        mutation.AddCorps(new(100, 1, 1, null));
+        var rootTreasury100 = ResourceAccounts.Root(mutation, 1).Treasury; mutation.RemoveCorps(ResourceAccounts.Root(mutation, 1).Id); mutation.AddCorps(new(100, 1, 1, rootTreasury100) { IsRoot = true });
         mutation.AddCorps(new(200, 1, 11, new(300, 400)) { ControlMode = CorpsControlMode.Automatic });
         mutation.Replace(mutation.Settlements[10] with { CorpsId = 100 });
         mutation.Replace(mutation.Settlements[20] with { CorpsId = 200 });
@@ -160,12 +160,12 @@ public sealed class NaturalMortalityTests
         OfficerDeath.Resolve(mutation, 1, OfficerDeathCause.Natural, rules, events, afterDailyCommands: false);
         world.Commit(mutation);
         var snapshot = world.CreateSnapshot();
-        Assert.Equal(200, Assert.Single(snapshot.Corps).Id);
-        Assert.Null(Assert.Single(snapshot.Corps).Treasury);
-        Assert.Equal(CorpsControlMode.Direct, Assert.Single(snapshot.Corps).ControlMode);
+        Assert.Equal(200, Assert.Single(snapshot.Corps, c => c.OwnerId == 1).Id);
+        Assert.True(Assert.Single(snapshot.Corps, c => c.OwnerId == 1).IsRoot);
+        Assert.Equal(CorpsControlMode.Direct, Assert.Single(snapshot.Corps, c => c.OwnerId == 1).ControlMode);
         Assert.All(snapshot.Settlements.Where(s => s.OwnerId == 1), s => Assert.Equal(200, s.CorpsId));
-        Assert.Equal(1300u, snapshot.Forces.Single(f => f.Id == 1).Money);
-        Assert.Equal(1400u, snapshot.Forces.Single(f => f.Id == 1).Food);
+        Assert.Equal(1300u, snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 1).Treasury.Money);
+        Assert.Equal(1400u, snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 1).Treasury.Food);
         Assert.Equal(75, snapshot.Officers.Single(p => p.Id == 12).Loyalty);
         Assert.Null(snapshot.Officers.Single(p => p.Id == 11).OfficeId);
         Assert.Equal(11, Assert.Single(snapshot.Treasures).HolderId);

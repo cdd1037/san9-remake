@@ -8,14 +8,14 @@ namespace San9.Application.Tests;
 public sealed class ImperialCeremonySessionTests
 {
     private static ScenarioInitialState Definition() => new(ScenarioInitialState.CurrentSchemaVersion, "ceremony", 190, 2, 1, 1,
-        [new(1, "force", 1, 10000, 10000, 100) { LeaderId = 1, RankId = 999, BaseTrust = 100 }],
+        [new(1, "force", 1, 100) { LeaderId = 1, RankId = 999, BaseTrust = 100 }],
         [new(1, "home", 1, 0, 0, 0, 100, 100, 0, [])], new() { [1] = "home" }, new() { [1] = 1 })
     {
         Officers = [new("ruler", new(1, 1, 1, new(90, 95, 99, 100), false) { Status = OfficerStatus.Ruler }),
             new("officer", new OfficerState(2, 1, 1, new(50, 50, 50, 50), false).WithLoyalty(1, 100))],
         SearchEvents = [new ImperialCeremonySearchEventDefinition(1, 999, 5, 50, 10, new("ceremony"))
             { Id = "ceremony", Consumption = EventConsumption.OnSuccess }],
-        Information = InformationDefinitions.Empty with { Ranks = [new(999, "rank.emperor", 10000, 0, 0, 100)] }
+        Information = InformationDefinitions.Empty with { Corps = [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }], Ranks = [new(999, "rank.emperor", 10000, 0, 0, 100)] }
     };
 
     [Fact]

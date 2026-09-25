@@ -12,7 +12,7 @@ public sealed class ConstructionSessionTests
     public void NewlyConstructedFacilityParticipatesInSessionQueriesAndStableRestore()
     {
         var definition = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "construction", 190, 1, 1, 1,
-            [new(1, "force", 1, 10000, 1000000, 100) { LeaderId = 11 }],
+            [new(1, "force", 1, 100) { LeaderId = 11 }],
             [new(1, "city", 1, 0, 0, 20000, 600, 600, 100, [])],
             new() { [1] = "city", [8000] = "region" }, new() { [1] = 1, [8000] = 1 })
         {
@@ -28,7 +28,7 @@ public sealed class ConstructionSessionTests
                     new(9001, 500, 100, new(1, 1), 0, true, false, false, 250000, null, null, null, [])],
                 ConstructionSites = [new(8000, new(17, 2), [9000]), new(8000, new(22, 2), [9001])]
             }
-        };
+        , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 1000000)) { IsRoot = true }], []) };
         var texts = new San9.Content.Text.TextCatalog(3, new()
         { ["city"] = new("都市", "都市"), ["region"] = new("白水", "白水"), ["fort"] = new("城塞", "城塞"), ["work"] = new("土垒", "土壘") });
         Assert.Throws<InvalidDataException>(() => (definition with { FacilityNameSuffixKeys = new() { [99999] = "fort" } }).Validate());

@@ -59,8 +59,8 @@ public sealed class DuelAftermathTests
     private static WorldMutation Mutation(bool deaths = true)
     {
         var world = World([Person(11, 1, 70), Person(21, 2, 100), Person(22, 2, 50), Person(23, 2, 50)], Seed()).BeginMutation();
-        world.Replace(world.Forces[1] with { LeaderId = 11 });
-        world.Replace(world.Forces[2] with { LeaderId = 21 });
+        world.Replace(world.Forces[1] with { LeaderId = 11 }); world.Replace(ResourceAccounts.Root(world, 1) with { LeaderId = 11 });
+        world.Replace(world.Forces[2] with { LeaderId = 21 }); world.Replace(ResourceAccounts.Root(world, 2) with { LeaderId = 21 });
         world.SetSimulation(world.Simulation with { BattleDeathsEnabled = deaths, Controls = [new("player", 1, ControllerKind.Player)] });
         return world;
     }
@@ -89,7 +89,7 @@ public sealed class DuelAftermathTests
     public void PlayerRulerWaitsBeforeDeathAndResumesWithoutRerolling()
     {
         var world = Mutation();
-        world.Replace(world.Forces[2] with { LeaderId = 22 });
+        world.Replace(world.Forces[2] with { LeaderId = 22 }); world.Replace(ResourceAccounts.Root(world, 2) with { LeaderId = 22 });
         world.Replace(world.Officers[22] with { Status = OfficerStatus.Ruler });
         world.SetSimulation(world.Simulation with { Controls = [new("player", 2, ControllerKind.Player)] });
         var events = new List<DomainEvent>();

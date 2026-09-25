@@ -109,7 +109,7 @@ public sealed class MilitaryCombatTests
     public void PublicAttackRequiresConfirmationForAllianceMember()
     {
         var initial = Engine(World(controlled: true)).CaptureStableState();
-        initial = initial with { Forces = initial.Forces.Append(new ForceState(3, 0, 0, 0)).ToArray() };
+        initial = initial with { Forces = initial.Forces.Append(new ForceState(3, 0)).ToArray(), Corps = [..initial.Corps, new(3, 3, null, new(0, 0)) { IsRoot = true }] };
         var allied = Engine(WorldState.Restore(initial with
         {
             Simulation = initial.Simulation with { Alliance = new(3, 1, [1, 2], 36) }
@@ -140,14 +140,14 @@ public sealed class MilitaryCombatTests
          new(3, new(37, 2), new(1, 1)) { Combat = Profile, Attack = new(1, false) }]));
 
     private static WorldState World(uint defenders = 100, int durability = 100, bool controlled = false) => WorldState.Create(new(190, 1, 1), 42,
-        [new(1, 10000, 10000, 100) { LeaderId = 11 }, new(2, 10000, 10000, 100) { LeaderId = 22 }],
+        [new(1, 100) { LeaderId = 11 }, new(2, 100) { LeaderId = 22 }],
         [new(1, 1, 100, 100, 100, 70, 500, 0, 100, 0, 100), new(2, 2, defenders, durability, 100, 70, 500, 0, 100, 0, 100)],
         [new(11, 1, null, new(90, 90, 90, 90), false) { UnitId = 0, Status = OfficerStatus.Ruler },
          new(12, 1, 1, new(70, 70, 70, 70), false), new(22, 2, 2, new(70, 70, 70, 70), false) { Status = OfficerStatus.Ruler }],
         units: [new(0, 1, new(35, 7), 10000) { FormationId = 7, Morale = 90, ServicePlaceId = 1,
             MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(11, BattleRank.Front),
             Order = new(MilitaryOrderKind.AttackSettlement, null, 2) }],
-        controls: controlled ? [new("player", 1, ControllerKind.Player)] : []);
+        controls: controlled ? [new("player", 1, ControllerKind.Player)] : [], corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 22, new(10000, 10000)) { IsRoot = true }]);
 
     private static SimulationEngine Engine(WorldState world, MilitaryRulebook? rules = null) =>
         new(world, EconomyRulebook.Empty, PersonnelRulebook.Empty, TreasureRulebook.Empty, military: rules ?? Rules());
@@ -230,11 +230,11 @@ public sealed class MilitaryCombatTests
     {
         var initial = World(defenders: 0, controlled: true).CreateSnapshot();
         var world = WorldState.Create(initial.Clock, 42,
-            initial.Forces.Append(new ForceState(3, 10000, 10000, 100) { LeaderId = 31 }),
+            initial.Forces.Append(new ForceState(3, 100) { LeaderId = 31 }),
             initial.Settlements.Append(initial.Settlements[0] with { Id = 3, OwnerId = 3 }),
             initial.Officers.Append(new OfficerState(31, 3, 3, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }),
             units: initial.Units.Select(u => u with { Order = null }), controls: initial.Simulation.Controls,
-            naturalDeathsEnabled: false, annualAppearancesEnabled: false);
+            naturalDeathsEnabled: false, annualAppearancesEnabled: false, corps: [.. initial.Corps, new San9.Core.Domain.CorpsState(3, 3, 31, new(10000, 10000)) { IsRoot = true }]);
         var rules = new SimulationRules
         {
             Military = Rules(),
@@ -278,7 +278,7 @@ public sealed class MilitaryCombatTests
     {
         var world = World();
         var mutation = world.BeginMutation();
-        mutation.AddCorps(new(20, 2, 22, null));
+        var rootTreasury20 = ResourceAccounts.Root(mutation, 2).Treasury; mutation.RemoveCorps(ResourceAccounts.Root(mutation, 2).Id); mutation.AddCorps(new(20, 2, 22, rootTreasury20) { IsRoot = true });
         mutation.AddCorps(new(21, 2, 12, new(500, 500)));
         mutation.Replace(mutation.Settlements[2] with { CorpsId = 20 });
         mutation.AddSettlement(mutation.Settlements[2] with { Id = 3, CorpsId = 21,
@@ -389,7 +389,7 @@ public sealed class MilitaryCombatTests
             Order = new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 1 } });
         mutation.AddUnit(new(1, 2, new(21, 7), 10000) { FormationId = 7, Morale = 90 });
         mutation.SetSimulation(mutation.Simulation with { NextUnitId = 2 });
-        mutation.AddCorps(new(10, 1, 11, null));
+        var rootTreasury10 = ResourceAccounts.Root(mutation, 1).Treasury; mutation.RemoveCorps(ResourceAccounts.Root(mutation, 1).Id); mutation.AddCorps(new(10, 1, 11, rootTreasury10) { IsRoot = true });
         mutation.Replace(mutation.Settlements[1] with { CorpsId = 10 });
         mutation.Replace(mutation.Units[0] with { CorpsId = 10 });
         if (loseHome)
@@ -425,7 +425,7 @@ public sealed class MilitaryCombatTests
         var world = World();
         var engine = Engine(world);
         var mutation = world.BeginMutation();
-        mutation.AddCorps(new(10, 1, 11, null));
+        var rootTreasury10 = ResourceAccounts.Root(mutation, 1).Treasury; mutation.RemoveCorps(ResourceAccounts.Root(mutation, 1).Id); mutation.AddCorps(new(10, 1, 11, rootTreasury10) { IsRoot = true });
         mutation.Replace(mutation.Settlements[1] with { CorpsId = 10 });
         mutation.Replace(mutation.Units[0] with { CorpsId = 10 });
         var events = new List<DomainEvent>();
@@ -434,7 +434,7 @@ public sealed class MilitaryCombatTests
         BattleAftermath.Reconcile(mutation, new HashSet<int> { 1 }, new() { Military = Rules() }, events, true);
         world.Commit(mutation);
         Assert.Equal(11, engine.Snapshot.Forces.Single(f => f.Id == 1).LeaderId);
-        Assert.Equal(11, engine.Snapshot.Corps.Single().LeaderId);
+        Assert.Equal(11, engine.Snapshot.Corps.Single(c => c.OwnerId == 1 && c.IsRoot).LeaderId);
         Assert.Equal(OfficerStatus.Captive, engine.Snapshot.Officers.Single(p => p.Id == 11).Status);
         Assert.DoesNotContain(events, e => e is ForceLeaderChangedEvent);
         var restored = WorldState.Restore(engine.CaptureStableState());
@@ -470,8 +470,8 @@ public sealed class MilitaryCombatTests
     public void UnrelatedAssetlessForceIsNotEliminatedByAnotherBattle()
     {
         var baseline = World().CreateSnapshot();
-        var world = WorldState.Create(baseline.Clock, 42, baseline.Forces.Append(new ForceState(3, 100, 100, 0)),
-            baseline.Settlements, baseline.Officers, baseline.Units);
+        var world = WorldState.Create(baseline.Clock, 42, baseline.Forces.Append(new ForceState(3, 0)),
+            baseline.Settlements, baseline.Officers, baseline.Units, corps: [..baseline.Corps, new San9.Core.Domain.CorpsState(3, 3, null, new(100, 100)) { IsRoot = true }]);
         var engine = Engine(world);
         engine.AdvanceXun();
         Assert.False(engine.Snapshot.Forces.Single(f => f.Id == 3).IsEliminated);
@@ -489,7 +489,7 @@ public sealed class MilitaryCombatTests
             baseline.Officers.Select(p => p.Id == 22 ? p with { Status = OfficerStatus.Governor } : p)
                 .Append(new OfficerState(23, 2, 3, new(70, 70, 70, 70), false) { Status = OfficerStatus.Ruler }),
             baseline.Units.Select(u => u with { CorpsId = 10 }),
-            [new(10, 1, 11, null), new(20, 2, 23, null), new(21, 2, 22, new(1234, 2345))]);
+            [new(10, 1, 11, new(10000, 10000)) { IsRoot = true }, new(20, 2, 23, new(10000, 10000)) { IsRoot = true }, new(21, 2, 22, new(1234, 2345))]);
         var engine = Engine(world);
         var result = engine.AdvanceXun();
         Assert.Single(result.Events.OfType<SettlementCapturedEvent>());
@@ -509,7 +509,7 @@ public sealed class MilitaryCombatTests
             baseline.Officers.Concat(new[] {
                 new OfficerState(30, null, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Undiscovered },
                 new OfficerState(31, null, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.NotAppeared, AppearanceYear = 200 }
-            }), baseline.Units);
+            }), baseline.Units, corps: baseline.Corps);
         var engine = Engine(world);
         engine.AdvanceXun();
         Assert.Equal(OfficerStatus.Undiscovered, engine.Snapshot.Officers.Single(p => p.Id == 30).Status);
@@ -524,7 +524,7 @@ public sealed class MilitaryCombatTests
             baseline.Units.Select(u => u with { Soldiers = 1, Position = new(20, 7),
                 Order = new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 1 } })
                 .Append(new UnitState(1, 2, new(21, 7), 10000) { FormationId = 7, Morale = 90 }),
-            treasures: [new(7, 11, TreasureDiscovery.Discovered, null)]);
+            treasures: [new(7, 11, TreasureDiscovery.Discovered, null)], corps: baseline.Corps);
         var engine = new SimulationEngine(world, EconomyRulebook.Empty, PersonnelRulebook.Empty,
             new TreasureRulebook([new(7, default, 0) { EscapeMount = true }]), military: Rules());
         var result = engine.AdvanceXun();
@@ -540,7 +540,7 @@ public sealed class MilitaryCombatTests
         var baseline = World().CreateSnapshot();
         var world = WorldState.Create(baseline.Clock, 42, baseline.Forces,
             baseline.Settlements.Append(new SettlementState(3, 2, 100, 100, 100, 70, 500, 0, 100, 0, 100)),
-            baseline.Officers, baseline.Units);
+            baseline.Officers, baseline.Units, corps: baseline.Corps);
         var mutation = world.BeginMutation();
         Guid taskId = Guid.NewGuid();
         mutation.SetSimulation(mutation.Simulation with { NextSequence = 1,
@@ -580,7 +580,7 @@ public sealed class MilitaryCombatTests
         var baseline = World().CreateSnapshot();
         var world = WorldState.Create(baseline.Clock, 42, baseline.Forces.Select(f => f.Id == 2 ? f with { IsBarbarian = true } : f),
             baseline.Settlements, baseline.Officers.Append(new OfficerState(30, 2, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Special }),
-            baseline.Units, treasures: [new(7, 30, TreasureDiscovery.Discovered, null)]);
+            baseline.Units, treasures: [new(7, 30, TreasureDiscovery.Discovered, null)], corps: baseline.Corps);
         var engine = new SimulationEngine(world, EconomyRulebook.Empty, PersonnelRulebook.Empty, new TreasureRulebook([new(7, default, 0)]), military: Rules());
         var result = engine.AdvanceXun();
         Assert.Equal(OfficerStatus.Dead, engine.Snapshot.Officers.Single(p => p.Id == 30).Status);
@@ -598,12 +598,12 @@ public sealed class MilitaryCombatTests
     public void RivalClaimantDoesNotAttackNewOwnerInTheSameDailyBatch()
     {
         var baseline = World().CreateSnapshot();
-        var world = WorldState.Create(baseline.Clock, 42, baseline.Forces.Append(new ForceState(3, 10000, 10000, 100) { LeaderId = 33 }),
+        var world = WorldState.Create(baseline.Clock, 42, baseline.Forces.Append(new ForceState(3, 100) { LeaderId = 33 }),
             baseline.Settlements.Append(new SettlementState(3, 3, 100, 100, 100, 70, 500, 0, 100, 0, 100)),
             baseline.Officers.Append(new OfficerState(33, 3, null, new(90, 90, 90, 90), false) { UnitId = 1, Status = OfficerStatus.Ruler }),
             baseline.Units.Append(new UnitState(1, 3, new(36, 6), 10000) { FormationId = 7, Morale = 90,
                 MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(33, BattleRank.Front),
-                Order = new(MilitaryOrderKind.AttackSettlement, null, 2) }));
+                Order = new(MilitaryOrderKind.AttackSettlement, null, 2) }), corps: [.. baseline.Corps, new San9.Core.Domain.CorpsState(3, 3, 33, new(10000, 10000)) { IsRoot = true }]);
         var engine = Engine(world);
         var result = engine.AdvanceXun();
         Assert.Single(result.Events.OfType<SettlementCapturedEvent>());

@@ -75,6 +75,7 @@ public sealed class CapturedRulerDispositionTests
     }
     private static ScenarioInitialState AddThirdForce(ScenarioInitialState original, bool captive = false) => original with
     {
+        Information = original.Information with { Corps = [.. original.Information.Corps, new(3, 3, 7, new(1000, 2000)) { IsRoot = true }] },
         Forces = [.. original.Forces, original.Forces[1] with { Id = 3, NameKey = "force.3", LeaderId = 7 }],
         Settlements = [.. original.Settlements, original.Settlements[1] with { Id = 3, NameKey = "city.3", OwnerId = 3, X = 3, Y = 3 }],
         Officers = [.. original.Officers,
@@ -133,6 +134,7 @@ public sealed class CapturedRulerDispositionTests
         if (!allied) definition = definition with
         {
             Alliance = new(2, 3, [3, 4], 10),
+            Information = definition.Information with { Corps = [.. definition.Information.Corps, new(4, 4, 9, new(1000, 2000)) { IsRoot = true }] },
             Forces = [.. definition.Forces, definition.Forces[2] with { Id = 4, NameKey = "force.4", LeaderId = 9 }],
             Settlements = [.. definition.Settlements, definition.Settlements[2] with { Id = 4, NameKey = "city.4", OwnerId = 4, X = 4, Y = 4 }],
             Officers = [.. definition.Officers, new("officer.9", new(9, 4, 4, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler })]

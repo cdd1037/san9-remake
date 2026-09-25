@@ -13,9 +13,8 @@ public sealed class DiplomaticReturnPlannerTests
         var basis = G01ScenarioTests.Fixture();
         var content = basis with
         {
-            Forces = basis.Forces.Select(f => f.Id == 1 ? f with { Money = 30000 } : f).ToArray(),
             Settlements = basis.Settlements.Select(s => s.Id == 2 ? s with { X = 20 } : s).ToArray(),
-            Information = basis.Information with { Relations = [new(1, 2, 70)] }
+            Information = basis.Information with { Corps = basis.Information.Corps.Select(c => c.IsRoot && c.OwnerId == 1 ? c with { Treasury = c.Treasury with { Money = 30000 } } : c).ToArray(), Relations = [new(1, 2, 70)] }
         };
         var session = GameSession.Start(content, 42);
         var seat = session.Snapshot.Simulation.Controls[0];

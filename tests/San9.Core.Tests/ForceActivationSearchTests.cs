@@ -20,9 +20,9 @@ public sealed class ForceActivationSearchTests
             { RegionIds = Enumerable.Range(1, 6).Select(i => (int?)i).ToImmutableArray() })
     };
     private static WorldState World(int participants = 5) => WorldState.Create(new(190, 2, 1), 17,
-        [new(1, 100, 100, 700) { BaseTrust = 700, LeaderId = 1 },
-         new(2, 10000, 300000, 100) { BaseTrust = 100, LeaderId = 2, IsDormant = true, IsBarbarian = true },
-         new(3, 100, 100, 100) { BaseTrust = 100, LeaderId = 10 }],
+        [new(1, 700) { BaseTrust = 700, LeaderId = 1 },
+         new(2, 100) { BaseTrust = 100, LeaderId = 2, IsDormant = true, IsBarbarian = true },
+         new(3, 100) { BaseTrust = 100, LeaderId = 10 }],
         Places.Where(p => p.Id != 5).Select(p => new SettlementState(p.Id, p.Id switch { 3 => 2, 4 => null, 6 => 3, _ => 1 },
             p.Id == 3 ? 100000u : 0u, 100, 100, 60, 100, 0, 100, 0, 100)
             { IsDormant = p.Id is 3 or 4, Kind = p.Id == 4 ? SettlementKind.Facility : SettlementKind.City, ConsumesFood = false }),
@@ -30,7 +30,7 @@ public sealed class ForceActivationSearchTests
             new OfficerState(11, 1, 1, new(60, 60, 60, 60), false) }
             .Concat(Enumerable.Range(2, participants).Select(id => new OfficerState(id, 2, 3, new(70, 70, 70, 70), false)
                 { IsDormant = true, Status = id == 2 ? OfficerStatus.Ruler : OfficerStatus.Serving })),
-        controls: [new("player", 1, ControllerKind.Player), new("ai:3", 3, ControllerKind.Automatic)]);
+        controls: [new("player", 1, ControllerKind.Player), new("ai:3", 3, ControllerKind.Automatic)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(100, 100)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 2, new(10000, 300000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, 10, new(100, 100)) { IsRoot = true }]);
     private static PersistentTask Task() => new(Guid.NewGuid(), "personnel-search", "player", 1, 11, 1,
         new(190, 2, 1), new(190, 2, 1), 0, 0)
         { Journey = new(5, null, 0) { Route = new(Places[0].Position, Places[4].Position, false) } };
@@ -48,8 +48,8 @@ public sealed class ForceActivationSearchTests
         Assert.Equal(0u, m.Settlements[4].Soldiers);
         Assert.Equal(2, m.Settlements[4].OwnerId);
         Assert.Equal(100, m.Settlements[3].Durability);
-        Assert.Equal(10000u, m.Forces[2].Money); Assert.Equal(300000u, m.Forces[2].Food);
-        Assert.Equal(100u, m.Forces[1].Money); Assert.Equal(710, m.Forces[1].BaseTrust);
+        Assert.Equal(10000u, m.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 2).Treasury.Money); Assert.Equal(300000u, m.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 2).Treasury.Food);
+        Assert.Equal(100u, m.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money); Assert.Equal(710, m.Forces[1].BaseTrust);
         foreach (var person in before.Officers.Where(p => p.IsDormant))
             Assert.Equal(CanonicalJson.Hash(person with { IsDormant = false }), CanonicalJson.Hash(m.Officers[person.Id]));
         Assert.Equal(new[] { 1, 2, 3 }, m.Simulation.Controls.Select(c => c.ForceId));

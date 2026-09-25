@@ -13,7 +13,7 @@ public sealed class PersonnelTreasureTests
     private static SimulationEngine Engine(int loyalty = 98, int bonus = 8, bool captive = false, int location = 1)
     {
         var world = WorldState.Create(new(190, 1, 1), 190,
-            [new(1, 1000, 1000, 1000) { LeaderId = 1, BaseTrust = 950 }, new(2, 1000, 1000, 0) { LeaderId = 3 }],
+            [new(1, 1000) { LeaderId = 1, BaseTrust = 950 }, new(2, 0) { LeaderId = 3 }],
             [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100), new(2, 2, 0, 100, 100, 0, 0, 0, 100, 0, 100),
              new(3, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
             [new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
@@ -21,7 +21,7 @@ public sealed class PersonnelTreasureTests
              { Status = captive ? OfficerStatus.Captive : OfficerStatus.Serving, Injury = 2, OfficeId = 1, ForceLoyalties = ImmutableDictionary<int, int>.Empty.Add(1, loyalty).Add(2, 177) },
              new(3, 2, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }],
             treasures: [new(10, 1, TreasureDiscovery.Discovered, null), new(11, 1, TreasureDiscovery.Discovered, null),
-                new(12, 2, TreasureDiscovery.Discovered, null)], controls: [new("player", 1, ControllerKind.Player)]);
+                new(12, 2, TreasureDiscovery.Discovered, null)], controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(1000, 1000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 3, new(1000, 1000)) { IsRoot = true }]);
         var initialized = new SimulationEngine(world, new([new(1, 0)], [], 10), Places, Rules(bonus), Governance);
         // Set the command boundary input after opening salary and injury recovery.
         var state = initialized.CaptureStableState();
@@ -54,7 +54,7 @@ public sealed class PersonnelTreasureTests
         Assert.Equal(177, person.LoyaltyTo(2));
         Assert.Equal(before.Officers.Single(p => p.Id == 2).Acted, person.Acted);
         Assert.False(person.RewardedThisXun);
-        Assert.Equal(before.Forces.Single(f => f.Id == 1).Money, engine.Snapshot.Forces.Single(f => f.Id == 1).Money);
+        Assert.Equal(before.Corps.Single(f => f.IsRoot && f.OwnerId == 1).Treasury.Money, engine.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 1).Treasury.Money);
         Assert.Equal(CanonicalJson.Text(before.Simulation.RandomStreams), CanonicalJson.Text(engine.Snapshot.Simulation.RandomStreams));
         Assert.Equal(950, engine.Snapshot.Forces.Single(f => f.Id == 1).Trust);
         Assert.True(Array.FindIndex(result.Events.ToArray(), e => e is TreasureTransferredEvent) <

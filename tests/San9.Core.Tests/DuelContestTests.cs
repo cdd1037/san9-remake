@@ -19,9 +19,9 @@ public sealed class DuelContestTests
             MemberRanks = people.Where(p => p.UnitId == id).ToImmutableDictionary(p => p.Id, _ => BattleRank.Front)
         });
         return WorldState.Create(new(190, 1, 1), seed,
-            [new(1, 1000, 1000, 100), new(2, 1000, 1000, 100)],
+            [new(1, 100), new(2, 100)],
             [new(1, 1, 100, 100, 100, 100, 0, 0, 100, 0, 100), new(2, 2, 100, 100, 100, 100, 0, 0, 100, 0, 100)],
-            people, units: units, treasures: treasures);
+            people, units: units, treasures: treasures, corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(1000, 1000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, null, new(1000, 1000)) { IsRoot = true }]);
     }
 
     internal static MilitaryRulebook Rules(bool doubles = false, bool water = false) => new(new(4, 1, [0, 0, 0, 0], [new(0, 1, 1)],

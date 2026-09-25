@@ -11,13 +11,13 @@ public sealed class LongevityTests
     private static (WorldMutation World, PersistentTask Task) Create(int roll = 0)
     {
         var world = WorldState.Create(new(190, 1, 1), 123,
-            [new(1, 2501, 0, 51) { LeaderId = 1, BaseTrust = 0, EventHistory = [new("visited")] }, new(2, 0, 0, 51) { LeaderId = 4, BaseTrust = 0 }],
+            [new(1, 51) { LeaderId = 1, BaseTrust = 0, EventHistory = [new("visited")] }, new(2, 51) { LeaderId = 4, BaseTrust = 0 }],
             [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100), new(2, 2, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
             [new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
              new(2, 1, 1, new(0, 99, 0, 0), false),
              new(3, null, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Special },
              new(4, 2, 2, new(0, 99, 0, 0), false) { Status = OfficerStatus.Ruler }],
-            controls: [new("first", 1, ControllerKind.Player), new("second", 2, ControllerKind.Player)]).BeginMutation();
+            controls: [new("first", 1, ControllerKind.Player), new("second", 2, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(2501, 0)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 4, new(0, 0)) { IsRoot = true }]).BeginMutation();
         ulong seed = Enumerable.Range(1, 10000).Select(i => (ulong)i).First(s => new StableRandom(s).NextUInt64() % 100 == (ulong)roll);
         world.SetSimulation(world.Simulation with { RandomStreams = [new("event-search-eligibility", seed)] });
         return (world, new(Guid.NewGuid(), "personnel-search", "first", 1, 2, 1, world.Clock, world.Clock, 0, 0)
@@ -60,7 +60,7 @@ public sealed class LongevityTests
             case "global-history":
                 world.Replace(world.Forces[1] with { EventHistory = [] });
                 world.SetSimulation(world.Simulation with { ConsumedEventKeys = [d.RequiredHistoryKey] }); break;
-            case "funds": world.Replace(world.Forces[1] with { Money = 2500 }); break;
+            case "funds": world.Replace(ResourceAccounts.Root(world, 1) with { Treasury = ResourceAccounts.Root(world, 1).Treasury with { Money = 2500 } }); break;
             case "dead": world.Replace(world.Officers[3] with { Status = OfficerStatus.Dead }); break;
             case "free": world.Replace(world.Officers[3] with { Status = OfficerStatus.Free }); break;
             case "disabled": d = d with { LifespanChangesAllowed = false }; break;
@@ -87,12 +87,12 @@ public sealed class LongevityTests
         List<DomainEvent> events = [];
         Longevity.Resolve(world, task, rules, new(Definition.Id), accept, events);
         Assert.Equal(after, world.Officers[2].LifespanTier);
-        Assert.Equal(accept ? 2001u : 2501u, world.Forces[1].Money);
+        Assert.Equal(accept ? 2001u : 2501u, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money);
         Assert.Equal(Definition.RequiredHistoryKey, Assert.Single(world.Forces[1].EventHistory));
         Assert.Empty(world.Simulation.ConsumedEventKeys);
         Assert.Equal((accept, before, after), (Assert.Single(events.OfType<LongevityResolvedEvent>()).Accepted,
             events.OfType<LongevityResolvedEvent>().Single().PreviousLifespanTier, events.OfType<LongevityResolvedEvent>().Single().LifespanTier));
-        world.Replace(world.Forces[1] with { Money = 2501 });
+        world.Replace(ResourceAccounts.Root(world, 1) with { Treasury = ResourceAccounts.Root(world, 1).Treasury with { Money = 2501 } });
         Assert.True(Longevity.CanResolve(world, task, rules, new(Definition.Id)));
     }
 
@@ -105,13 +105,13 @@ public sealed class LongevityTests
         var (world, task) = Create();
         world.AddCorps(new CorpsState(7, 1, 2, new(2501, 0)) { ControlMode = CorpsControlMode.Direct });
         world.Replace(world.Settlements[1] with { CorpsId = 7 });
-        world.Replace(world.Forces[1] with { Money = rootMoney });
+        world.Replace(ResourceAccounts.Root(world, 1) with { Treasury = ResourceAccounts.Root(world, 1).Treasury with { Money = rootMoney } });
         Assert.True(Longevity.Prepare(world, task, Definition)); List<DomainEvent> events = [];
         Longevity.Resolve(world, task, Rules(), new(Definition.Id), true, events);
         var payment = Assert.Single(events.OfType<ResourceChangedEvent>());
         Assert.Equal(new ResourceAccount(ResourceOwnerKind.Corps, 7), payment.Account);
         Assert.Equal((-500L, 0L), (payment.Actual, payment.Shortfall));
-        Assert.Equal(rootMoney, world.Forces[1].Money); Assert.Equal(2001u, world.Corps[7].Treasury!.Money);
+        Assert.Equal(rootMoney, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money); Assert.Equal(2001u, world.Corps[7].Treasury!.Money);
         Assert.Equal(7, world.Officers[2].LifespanTier);
     }
 
@@ -124,7 +124,7 @@ public sealed class LongevityTests
         Assert.False(Longevity.Prepare(world, task, d));
         Assert.Throws<InvalidOperationException>(() => Longevity.Resolve(world, task, Rules(d), new(d.Id), true, events));
         Assert.Empty(events);
-        Assert.Equal(2501u, world.Forces[1].Money);
+        Assert.Equal(2501u, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money);
         Assert.Equal(0, world.Officers[2].LifespanTier);
     }
 
@@ -135,6 +135,6 @@ public sealed class LongevityTests
         world.Replace(world.Forces[1] with { EventHistory = [] }); List<DomainEvent> events = [];
         Assert.False(Longevity.CanResolve(world, task, Rules(), new(Definition.Id)));
         Assert.Throws<InvalidOperationException>(() => Longevity.Resolve(world, task, Rules(), new(Definition.Id), true, events));
-        Assert.Empty(events); Assert.Equal(2501u, world.Forces[1].Money); Assert.Equal(0, world.Officers[2].LifespanTier);
+        Assert.Empty(events); Assert.Equal(2501u, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money); Assert.Equal(0, world.Officers[2].LifespanTier);
     }
 }

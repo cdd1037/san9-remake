@@ -10,18 +10,19 @@ public sealed class RuntimeSessionTests
     [Fact]
     public void SessionOwnsStateAndMetadataAndProjectsCommittedChanges()
     {
-        var initial = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion,"fixture",190,1,1,5,[new(5,"force",5,100,200,100)],
+        var initial = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion,"fixture",190,1,1,5,[new(5,"force",5,100)],
             [new(15,"city",5,89,64,1000,500,1000,50,[]) { CorpsId=5, IsFacilityListEntry=true, Commerce=300,MaxCommerce=1000,Cultivation=100,MaxCultivation=400 }],[],[])
-            { Officers=[new("officer.1",new(1,5,15,new(0,0,100,0),false))], Information = new([], [], [], [new(5,5,1,new(100,200))], []) };
+            { Officers=[new("officer.1",new(1,5,15,new(0,0,100,0),false))], Information = new([], [], [], [new(5,5,1,new(100,200)), new San9.Core.Domain.CorpsState(6, 5, null, new(100, 200)) { IsRoot = true }], []) };
         var first=GameSession.Start(initial,1); var second=GameSession.Start(initial,1);
         var old=first.View;
         var roster = new StrategyRoster(); roster.Refresh(old, 5); roster.SelectPage(RosterPage.Officers);
         Assert.True(Assert.Single(roster.Current.Ordinary).IsAvailable);
         initial.Officers[0] = new("changed", initial.Officers[0].State with { BaseAbilities = new(1,1,1,1) });
-        initial.Forces[0]=initial.Forces[0] with { Money=1,ColorCode=49 };
+        initial.Forces[0]=initial.Forces[0] with { ColorCode=49 };
+        initial.Information.Corps[0] = initial.Information.Corps[0] with { Treasury = new(1, 200) };
         var development = first.Develop(new(5, 15, [1], DomesticActivity.Commerce));
         Assert.True(development.Accepted);
-        Assert.Equal(100u,first.View.Forces.Single().Money);
+        Assert.Equal(100u,first.View.PlayerCorps!.Treasury.Money);
         Assert.Equal(5,first.View.Forces.Single().ColorCode);
         Assert.False(first.View.Settlements.Single().HasAvailableOfficer);
         Assert.True(old.Settlements.Single().HasAvailableOfficer);
@@ -29,8 +30,8 @@ public sealed class RuntimeSessionTests
         Assert.True(old.Officers.Single().IsAvailable);
         Assert.True(second.View.Officers.Single().IsAvailable);
         Assert.Equal(100, first.View.Officers.Single().Abilities.Politics);
-        Assert.Equal(100u,old.Forces.Single().Money);
-        Assert.Equal(100u,second.View.Forces.Single().Money);
+        Assert.Equal(100u,old.World.Corps.Single(c => c.IsRoot).Treasury.Money);
+        Assert.Equal(100u,second.View.World.Corps.Single(c => c.IsRoot).Treasury.Money);
         Assert.Equal(300,second.View.Settlements.Single().Commerce);
         Assert.Equal(new SessionRecord(old.World.Clock, 5, 15, 1, DomesticActivity.Commerce, development.Increment, development.Cost),
             Assert.Single(first.Records));

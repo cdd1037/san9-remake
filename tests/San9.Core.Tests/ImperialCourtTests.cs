@@ -8,12 +8,12 @@ public sealed class ImperialCourtTests
     private static OfficerState Person(int id, int? owner, int city, OfficerStatus status) =>
         new(id, owner, city, new(50, 50, 50, 50), false) { Status = status };
     private static WorldState World(ulong seed = 17, bool ended = false) => WorldState.Create(new(190, 1, 1), seed,
-        [new(1, 1000, 1000, 100) { LeaderId = 1, BaseTrust = 100 }, new(2, 1000, 1000, 100) { LeaderId = 2, BaseTrust = 100 }],
+        [new(1, 100) { LeaderId = 1, BaseTrust = 100 }, new(2, 100) { LeaderId = 2, BaseTrust = 100 }],
         [new(1, 1, 100, 100, 100, 50, 300, 0, 100, 0, 100) { Kind = SettlementKind.City },
          new(2, 2, 100, 100, 100, 50, 300, 0, 100, 0, 100) { Kind = SettlementKind.City }],
         [Person(1, 1, 1, OfficerStatus.Ruler), Person(2, 2, 2, OfficerStatus.Ruler),
          Person(12, null, 1, OfficerStatus.Free), Person(11, null, 2, OfficerStatus.Free), Person(13, null, 2, OfficerStatus.Free)],
-        corps: [new(1, 1, 1, null), new(2, 2, 2, null)], imperialCourtEnded: ended);
+        corps: [new(1, 1, 1, new(1000, 1000)) { IsRoot = true }, new(2, 2, 2, new(1000, 1000)) { IsRoot = true }], imperialCourtEnded: ended);
     private static ImperialCourtDefinition Definition(int survival = 60) => new([12, 11, 13],
         [new(12, new(190, 2, 1), new(190, 4, 1), survival)]);
     private static SimulationRules Rules(ImperialCourtDefinition? definition = null) => new()

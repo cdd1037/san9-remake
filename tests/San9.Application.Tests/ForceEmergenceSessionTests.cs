@@ -10,7 +10,7 @@ namespace San9.Application.Tests;
 public sealed class ForceEmergenceSessionTests
 {
     private static ScenarioInitialState Scenario() => new(ScenarioInitialState.CurrentSchemaVersion, "uprising", 190, 1, 1, 80,
-        [new(80, "force.player", 1, 10000, 100000, 100) { LeaderId = 80 }],
+        [new(80, "force.player", 1, 100) { LeaderId = 80 }],
         [new(1, "city.empty", null, 0, 0, 0, 100, 100, 0, []) { Kind = SettlementKind.City, ConsumesFood = false },
          new(2, "city.player", 80, 1, 0, 10000, 100, 100, 50, []) { Kind = SettlementKind.City, ConsumesFood = false }],
         new() { [1] = "region.1", [2] = "region.2" }, new() { [1] = 1, [2] = 2 })
@@ -20,7 +20,7 @@ public sealed class ForceEmergenceSessionTests
         Officers = [new("person.ruler", new(80, 80, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }),
             ..Enumerable.Range(1, 3).Select(id => new OfficerInitialState($"person.{id}",
                 new(id, null, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Free, Ambition = id == 1 ? 10 : 0 }))]
-    };
+    , Information = new([], [], [], [new San9.Core.Domain.CorpsState(80, 80, 80, new(10000, 100000)) { IsRoot = true }], []) };
 
     [Fact]
     public void PublicAdvanceCreatesQueryableAutomaticForceWithSaveAndRecordingRoundTrip()
@@ -73,7 +73,7 @@ public sealed class ForceEmergenceSessionTests
         {
             PoliticalEvents = new(0, new("historical.ended")), ImperialCourtEnded = true,
             CityProvinceIds = new() { [1] = 101, [2] = 202 },
-            Information = InformationDefinitions.Empty with
+            Information = Scenario().Information with
             {
                 Ranks = [new(7000, "entry", 10000, 0, 0, 0), new(5, "king", 20000, 0, 3, 10), new(99, "emperor", 30000, 0, 5, 20)],
                 CountryTitles = [new(new(5000, true, true, false, [], []), "title", 37)]

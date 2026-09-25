@@ -11,20 +11,20 @@ internal static class PersonnelDefection
         {
             var previous = world.Forces[unit.OwnerId];
             if (previous.LeaderId is int fieldRuler && world.Officers[fieldRuler].UnitId == unitId) return false;
-            if (unit.CorpsId is not int fieldCorps || world.Corps[fieldCorps].Treasury is not { } funds) return true;
+            if (unit.CorpsId is not int fieldCorps || world.Corps[fieldCorps].IsRoot) return true;
             return world.Settlements.Values.Any(s => s.CorpsId == fieldCorps && s.Kind == SettlementKind.City) &&
                 world.Officers.Values.Any(p => p.IsServing && p.OwnerId == unit.OwnerId && p.UnitId != unitId &&
                     PersonnelLocations.Corps(world, p) == fieldCorps) ||
-                (ulong)previous.Money + funds.Money <= uint.MaxValue && (ulong)previous.Food + funds.Food <= uint.MaxValue;
+                (ulong)ResourceAccounts.Root(world, previous.Id).Treasury.Money + world.Corps[fieldCorps].Treasury.Money <= uint.MaxValue && (ulong)ResourceAccounts.Root(world, previous.Id).Treasury.Food + world.Corps[fieldCorps].Treasury.Food <= uint.MaxValue;
         }
         if (!target.IsCommander || !target.IsServing || target.OwnerId is not int owner || target.SettlementId is not int home) return true;
         if (world.Forces[owner].LeaderId is int ruler && world.Officers[ruler].SettlementId == home) return false;
-        if (world.Settlements[home].CorpsId is not int id || world.Corps[id].Treasury is not { } treasury) return true;
+        if (world.Settlements[home].CorpsId is not int id || world.Corps[id].IsRoot) return true;
         var force = world.Forces[owner];
         return world.Settlements.Values.Any(s => s.Id != home && s.CorpsId == id && s.Kind == SettlementKind.City) &&
             world.Officers.Values.Any(p => p.IsServing && p.OwnerId == owner && p.SettlementId is int location &&
                 location != home && world.Settlements[location].CorpsId == id) ||
-            (ulong)force.Money + treasury.Money <= uint.MaxValue && (ulong)force.Food + treasury.Food <= uint.MaxValue;
+            (ulong)ResourceAccounts.Root(world, force.Id).Treasury.Money + world.Corps[id].Treasury.Money <= uint.MaxValue && (ulong)ResourceAccounts.Root(world, force.Id).Treasury.Food + world.Corps[id].Treasury.Food <= uint.MaxValue;
     }
 
     internal static bool Recruit(WorldMutation world, PersistentTask task, SimulationRules rules, List<DomainEvent> events)
@@ -53,7 +53,7 @@ internal static class PersonnelDefection
         {
             int owner = target.OwnerId!.Value;
             var source = world.Settlements[oldHome!.Value];
-            int? corps = world.Corps.Values.SingleOrDefault(c => c.OwnerId == task.ForceId && c.Treasury is null)?.Id;
+            int? corps = world.Corps.Values.SingleOrDefault(c => c.OwnerId == task.ForceId && c.IsRoot)?.Id;
             var people = world.Officers.Values.Where(p => p.IsServing && p.OwnerId == owner && p.SettlementId == source.Id).OrderBy(p => p.Id).ToArray();
             var followers = new HashSet<int> { target.Id };
             foreach (var person in people.Where(p => p.Id != target.Id && !world.Simulation.Tasks.Any(t => t.OfficerId == p.Id && t.Journey is not null)))

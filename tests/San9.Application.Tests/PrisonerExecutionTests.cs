@@ -74,6 +74,7 @@ public sealed class PrisonerExecutionTests
         var definition = original with
         {
             Forces = original.Forces.Select(f => f.Id == 2 ? f with { LeaderId = 7 } : f).ToArray(),
+            Information = original.Information with { Corps = original.Information.Corps.Select(c => c.IsRoot && c.OwnerId == 2 ? c with { LeaderId = 7 } : c).ToArray() },
             Officers = original.Officers.Where(p => !last || p.State.OwnerId != 2 || p.State.Id == 7)
                 .Select(p => p.State.Id == 5 ? p with { State = p.State with { ParentId = 7, BirthYear = 180 } } : p).ToArray()
         };
@@ -181,16 +182,16 @@ public sealed class PrisonerExecutionTests
                 original.Settlements[0] with { Id = 3, NameKey = "city.3", CorpsId = 20, X = 3, Y = 3 }],
             Officers = original.Officers.Select(p => p.State.Id == 3 ? p with
                 { State = p.State with { Status = OfficerStatus.Governor, SettlementId = 3 } } : p).ToArray(),
-            Information = original.Information with { Corps = [new(10, 1, 1, null), new(20, 1, 3, new(300, 400))] }
+            Information = original.Information with { Corps = [.. original.Information.Corps.Where(c => c.OwnerId != 1), new(10, 1, 1, new(1000, 2000)) { IsRoot = true }, new(20, 1, 3, new(300, 400))] }
         };
         var session = GameSession.Start(definition, 190);
         session.BeginRecording();
         session.EndControl(new("player"));
         Assert.True(session.Execute(new("ai:2"), new ExecutePrisonerCommand(Guid.NewGuid(), 2, 0, 1)).Submission.Accepted);
         Assert.True(session.Execute(new("player"), new ChooseExecutionSuccessorCommand(Guid.NewGuid(), 1, 1, 1, 3)).Submission.Accepted);
-        var root = Assert.Single(session.Snapshot.Corps);
+        var root = Assert.Single(session.Snapshot.Corps, c => c.OwnerId == 1);
         Assert.Equal(20, root.Id);
-        Assert.Null(root.Treasury);
+        Assert.True(root.IsRoot);
         Assert.Equal(3, root.LeaderId);
         Assert.All(session.Snapshot.Settlements.Where(s => s.OwnerId == 1), s => Assert.Equal(20, s.CorpsId));
         var restored = SaveService.Decode(SaveService.Encode(session), definition);

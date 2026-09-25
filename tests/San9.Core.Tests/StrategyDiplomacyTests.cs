@@ -127,9 +127,9 @@ public sealed class StrategyDiplomacyTests
     };
 
     private static WorldState World() => WorldState.Create(new(190, 1, 1), 42,
-        [new ForceState(1, 10000, 10000, 100) { LeaderId = 11 },
-            new ForceState(2, 10000, 10000, 100) { LeaderId = 21 },
-            new ForceState(3, 10000, 10000, 100) { LeaderId = 31 }],
+        [new ForceState(1, 100) { LeaderId = 11 },
+            new ForceState(2, 100) { LeaderId = 21 },
+            new ForceState(3, 100) { LeaderId = 31 }],
         Enumerable.Range(1, 3).Select(id => new SettlementState(id, id, 10000, 100, 100, 70, 500, 0, 100, 0, 100)),
         [new OfficerState(11, 1, 1, new(100, 100, 100, 100), false) { Status = OfficerStatus.Ruler },
             new OfficerState(21, 2, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
@@ -137,7 +137,7 @@ public sealed class StrategyDiplomacyTests
             new OfficerState(31, 3, 3, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }],
         units: [new UnitState(5, 2, new(37, 2), 5000) { FormationId = 9, CommanderId = 22, Morale = 70 }],
         relations: [new(1, 2, 30), new(1, 3, 30), new(2, 3, 80)],
-        controls: [new("player", 1, ControllerKind.Player)]);
+        controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, 31, new(10000, 10000)) { IsRoot = true }]);
 
     private static GameCommand Command(int kind) => kind switch
     {

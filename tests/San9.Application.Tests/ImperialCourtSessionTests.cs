@@ -10,8 +10,8 @@ namespace San9.Application.Tests;
 public sealed class ImperialCourtSessionTests
 {
     private static ScenarioInitialState Scenario() => new(ScenarioInitialState.CurrentSchemaVersion, "court", 190, 3, 21, 1,
-        [new(1, "force.1", 1, 10000, 10000, 100) { BaseTrust = 100, LeaderId = 1 },
-         new(2, "force.2", 2, 10000, 10000, 100) { BaseTrust = 100, LeaderId = 2 }],
+        [new(1, "force.1", 1, 100) { BaseTrust = 100, LeaderId = 1 },
+         new(2, "force.2", 2, 100) { BaseTrust = 100, LeaderId = 2 }],
         [new(1, "city.1", 1, 0, 0, 100, 100, 100, 50, ["emperor"]) { MerchantPresenceChance = 100, Kind = SettlementKind.City, ConsumesFood = false },
          new(2, "city.2", 2, 1, 0, 100, 100, 100, 50, []) { Kind = SettlementKind.City, ConsumesFood = false }],
         new() { [1] = "city.1", [2] = "city.2" }, [])
@@ -24,7 +24,7 @@ public sealed class ImperialCourtSessionTests
             new("emperor.first", new(12, null, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Free }),
             new("emperor.next", new(11, null, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Free })],
         ImperialCourt = new([12, 11], [new(12, new(190, 4, 1), new(190, 4, 1), 0)])
-    };
+    , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 2, new(10000, 10000)) { IsRoot = true }], []) };
 
     [Fact]
     public void QuarterPreludeDeathUpdatesCurrentQueryTrustAndIconsAndRoundTrips()

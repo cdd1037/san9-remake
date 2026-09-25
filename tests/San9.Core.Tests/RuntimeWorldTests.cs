@@ -6,9 +6,9 @@ namespace San9.Core.Tests;
 public sealed class RuntimeWorldTests
 {
     private static WorldState Create(uint funds = 100) => WorldState.Create(new(190,1,XunIndex.Early),190,
-        [new(1,funds,500,100),new(2,100,500,100)],
+        [new(1,100),new(2,100)],
         [new(15,1,1000,500,1000,50,500,900,1000,900,1000), new(16,2,1000,500,1000,50,500,900,1000,900,1000)],
-        [new(1,1,15,new(0,0,100,0),false),new(2,1,15,new(0,0,100,0),false),new(3,2,16,new(0,0,100,0),false)], controls: [new("player", 1, ControllerKind.Player)]);
+        [new(1,1,15,new(0,0,100,0),false),new(2,1,15,new(0,0,100,0),false),new(3,2,16,new(0,0,100,0),false)], controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(funds, 500)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, null, new(100, 500)) { IsRoot = true }]);
 
     private static CommandExecutionResult Develop(SimulationEngine engine, DevelopmentCommand command)
     {
@@ -29,12 +29,12 @@ public sealed class RuntimeWorldTests
         Assert.Same(engine.Snapshot, result.Snapshot);
         Assert.Equal(before.Revision + 1, result.Snapshot.Revision);
         var after=engine.Snapshot;
-        Assert.Equal(48u,after.Forces.Single(f=>f.Id==1).Money);
+        Assert.Equal(48u,after.Corps.Single(f => f.IsRoot && f.OwnerId == 1).Treasury.Money);
         Assert.Equal(907,after.Settlements.Single(s=>s.Id==15).Commerce);
         Assert.True(after.Officers.Single(o=>o.Id==1).Acted);
         Assert.True(after.Settlements.Single(s=>s.Id==15).CommerceUsed);
         Assert.Equal(before.Clock,after.Clock); Assert.Equal(before.Simulation.RandomStreams,after.Simulation.RandomStreams);
-        Assert.Equal(98u,before.Forces.Single(f=>f.Id==1).Money);
+        Assert.Equal(98u,before.Corps.Single(f => f.IsRoot && f.OwnerId == 1).Treasury.Money);
         Assert.Equal(before.StateHash,new SimulationEngine(second).Snapshot.StateHash);
         Assert.NotEqual(before.StateHash,after.StateHash);
         Assert.False(Develop(engine, new(1, 15, [2], DomesticActivity.Commerce)).Submission.Accepted);
@@ -49,7 +49,7 @@ public sealed class RuntimeWorldTests
             new(1, 15, [3], DomesticActivity.Cultivation),new(1, 15, [99], DomesticActivity.Commerce),new(1, 15, [1], DomesticActivity.Repair) })
         {
             var result = Develop(engine, command);
-            Assert.False(result.Development!.Value.Accepted);
+            Assert.False(result.Submission.Accepted);
             Assert.Empty(result.Events);
             Assert.Same(initial, result.Snapshot);
             Assert.Same(initial,engine.Snapshot);
@@ -87,12 +87,12 @@ public sealed class RuntimeWorldTests
         var mutation = world.BeginMutation();
         var stale = world.BeginMutation();
         var original = world.CreateSnapshot();
-        mutation.Replace(original.Forces.Single(f => f.Id == 1) with { Money = 75 });
+        mutation.Replace(ResourceAccounts.Root(mutation, 1) with { Treasury = ResourceAccounts.Root(mutation, 1).Treasury with { Money = 75 } });
 
         world.Commit(mutation);
 
         Assert.Equal(1, world.Revision);
-        Assert.Equal(75u, world.CreateSnapshot().Forces.Single(f => f.Id == 1).Money);
+        Assert.Equal(75u, world.CreateSnapshot().Corps.Single(f => f.IsRoot && f.OwnerId == 1).Treasury.Money);
         Assert.Throws<InvalidOperationException>(() => world.Commit(mutation));
         Assert.Throws<InvalidOperationException>(() => world.Commit(stale));
         Assert.Throws<InvalidOperationException>(() => other.Commit(stale));
@@ -104,12 +104,12 @@ public sealed class RuntimeWorldTests
     public void SnapshotOrdersEveryIdentityCollection()
     {
         var world = WorldState.Create(new(190, 1, XunIndex.Early), 190,
-            [new(3, 0, 0, 0), new(1, 0, 0, 0), new(2, 0, 0, 0)],
+            [new(3, 0), new(1, 0), new(2, 0)],
             [new(17, 3, 1, 1, 1, 1, 1, 0, 0, 0, 0), new(15, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0),
                 new(16, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0)],
             [new(3, 3, 17, new(), false), new(1, 1, 15, new(), false), new(2, 2, 16, new(), false)],
             [new(3, 3, MapCoordinates.Center(new(1, 1)), 1), new(1, 1, MapCoordinates.Center(new(1, 1)), 1), new(2, 2, MapCoordinates.Center(new(1, 1)), 1)],
-            [new(3, 3, 3, null), new(1, 1, 1, null), new(2, 2, 2, null)],
+            [new(3, 3, 3, new(0, 0)) { IsRoot = true }, new(1, 1, 1, new(0, 0)) { IsRoot = true }, new(2, 2, 2, new(0, 0)) { IsRoot = true }],
             [new(3, 3, TreasureDiscovery.Discovered, null), new(1, 1, TreasureDiscovery.Discovered, null),
                 new(2, 2, TreasureDiscovery.Discovered, null)],
             [new(2, 3, 50), new(1, 3, 50), new(1, 2, 50)]);

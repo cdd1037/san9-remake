@@ -113,7 +113,7 @@ public sealed class AdministrativeInformationTests
             { CorpsId = corps, Kind = SettlementKind.City, Population = 10000, DraftPopulation = 1000, Wounded = 10, PublicOrder = 100, Commerce = 100, Cultivation = 100, MaxCommerce = 1000, MaxCultivation = 1000 };
         OfficerInitialState Person(int id, int city, OfficerStatus status) => new($"person{id}",new(id,5,city,new(70,70,70,70),false) { Status = status });
         var definition = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion,"admin",190,1,1,5,
-            [new(5,"force",0,100,200,100) { LeaderId = 1, RankId = 20 }], [City(15,10,100),City(16,11,200),City(17,12,300)],
+            [new(5,"force",0,100) { LeaderId = 1, RankId = 20 }], [City(15,10,100),City(16,11,200),City(17,12,300)],
             new() { [15]="city15",[16]="city16",[17]="city17",[50]="empty" }, new() { [15]=15,[16]=16,[17]=17,[50]=15 })
         {
             UnbuiltPlaces = [new(50,new(1000,1000))],
@@ -121,7 +121,7 @@ public sealed class AdministrativeInformationTests
             Officers = [Person(1,15,OfficerStatus.Ruler),Person(2,16,OfficerStatus.Governor),Person(3,17,OfficerStatus.Governor),
                 new("free",new(4,null,null,new(20,20,20,20),false) { Status=OfficerStatus.Free,RegionId=50 })],
             Information = new([new(20,"rank",10000,100,0,3) { DescriptionKey="rank-description" },new(80,"none",1000,0,0,0) { IsUnranked=true }], [], [],
-                [new(10,5,1,null),new(11,5,2,new(300,400)) { Delegation=new DomesticDelegation() },new(12,5,3,new(500,600))], [])
+                [new(10,5,1,new(100, 200)) { IsRoot = true },new(11,5,2,new(300,400)) { Delegation=new DomesticDelegation() },new(12,5,3,new(500,600))], [])
         };
         var keys = new[] { "force","city15","city16","city17","empty","province","person1","person2","person3","free","rank","none","rank-description" };
         var text = new TextCatalog(3,keys.ToDictionary(k=>k,k=>new TextEntry(k,k)));
@@ -289,7 +289,7 @@ public sealed class AdministrativeInformationTests
     public void ForceTotalsIncludeSubaccountsAndFieldTroopsWithoutDuplicatingDirectTreasury()
     {
         var (session,text,definition)=Fixture();
-        var world=session.View.World with { Forces=[new(5,100,200,100) { LeaderId=1,RankId=20 }], Corps=definition.Information.Corps,
+        var world=session.View.World with { Forces=[new(5,100) { LeaderId=1,RankId=20 }], Corps=definition.Information.Corps,
             Units=[new(40,5,new(100,100),70) { CorpsId=11,Wounded=7 }] };
         var view=new StrategySnapshot(definition,world);
         var catalog=new AdministrativeCatalog(view,text);

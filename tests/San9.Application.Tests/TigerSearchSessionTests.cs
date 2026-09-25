@@ -11,7 +11,7 @@ namespace San9.Application.Tests;
 public sealed class TigerSearchSessionTests
 {
     private static ScenarioInitialState Definition => new(ScenarioInitialState.CurrentSchemaVersion, "tiger", 190, 2, 1, 1,
-        [new(1, "force", 1, 10000, 10000, 100) { LeaderId = 1, BaseTrust = 100 }],
+        [new(1, "force", 1, 100) { LeaderId = 1, BaseTrust = 100 }],
         [new(1, "home", 1, 0, 0, 0, 100, 100, 0, [])], new() { [1] = "home" }, new() { [1] = 1 })
     {
         Officers = [new("ruler", new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }),
@@ -20,7 +20,7 @@ public sealed class TigerSearchSessionTests
         CityProvinceIds = new() { [1] = 800 },
         SearchEvents = [new TigerSearchEventDefinition([800], 1, 260, 5, 20, 1, 1, 2, 7)
             { Id = "tiger", Consumption = EventConsumption.None }]
-    };
+    , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }], []) };
     private static ulong Seed(bool wins) => Enumerable.Range(1, 10000).Select(i => (ulong)i).First(seed =>
         new StableRandom(StableRandom.DeriveSeed(seed, "event-search-eligibility")).NextUInt64() % 100 < 80 &&
         (new StableRandom(StableRandom.DeriveSeed(seed, "event-tiger-battle")).NextUInt64() % 100 < 80) == wins);

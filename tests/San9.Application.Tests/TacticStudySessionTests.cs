@@ -37,7 +37,7 @@ public sealed class TacticStudySessionTests
     }
 
     private static ScenarioInitialState Scenario() => new(ScenarioInitialState.CurrentSchemaVersion, "study", 190, 1, 1, 1,
-        [new(1, "force.1", 1, 10000, 100000, 100) { LeaderId = 1 }, new(2, "force.2", 2, 10000, 100000, 100) { LeaderId = 4 }],
+        [new(1, "force.1", 1, 100) { LeaderId = 1 }, new(2, "force.2", 2, 100) { LeaderId = 4 }],
         [new(1, "city.1", 1, 0, 0, 100, 600, 600, 100, []), new(2, "city.2", 1, 2, 0, 100, 600, 600, 100, []),
          new(3, "city.3", 2, 4, 0, 100, 600, 600, 100, [])], [], [])
     {
@@ -50,7 +50,7 @@ public sealed class TacticStudySessionTests
             Tactics = [new(9000, 7, TacticEffect.CounterConfusion, 0, 0, 200, false, false, []),
                 new(9001, 7, TacticEffect.CounterConfusion, 0, 0, 200, false, false, [])]
         }
-    };
+    , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 100000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 4, new(10000, 100000)) { IsRoot = true }], []) };
 
     private static OfficerInitialState Person(int id, int force, int city, int proficiency, OfficerStatus status = OfficerStatus.Serving) =>
         new($"officer.{id}", new(id, force, city, new(50, 50, 50, 50), false)

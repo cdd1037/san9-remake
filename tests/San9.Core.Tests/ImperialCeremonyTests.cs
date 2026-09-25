@@ -11,15 +11,15 @@ public sealed class ImperialCeremonyTests
     private static WorldMutation World()
     {
         var world = WorldState.Create(new(190, 2, 1), 17,
-            [new(1, 0, 0, 999) { LeaderId = 1, RankId = 99, BaseTrust = 999 },
-             new(2, 0, 0, 500) { LeaderId = 10, RankId = 5, BaseTrust = 500 }],
+            [new(1, 999) { LeaderId = 1, RankId = 99, BaseTrust = 999 },
+             new(2, 500) { LeaderId = 10, RankId = 5, BaseTrust = 500 }],
             [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100), new(2, 2, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
             [new(1, 1, 1, new(98, 100, 120, 10), false) { Status = OfficerStatus.Ruler },
              new OfficerState(2, 1, 1, new(50, 50, 50, 50), false).WithLoyalty(1, 250),
              new OfficerState(3, 1, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Captive }.WithLoyalty(1, 100),
              new(4, null, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Special },
              new(10, 2, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }],
-            controls: [new("player", 1, ControllerKind.Player), new("ai", 2, ControllerKind.Automatic)]);
+            controls: [new("player", 1, ControllerKind.Player), new("ai", 2, ControllerKind.Automatic)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(0, 0)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 10, new(0, 0)) { IsRoot = true }]);
         var m = world.BeginMutation(); m.SetSimulation(m.Simulation with { Boundary = SimulationBoundary.Stable }); return m;
     }
     private static PersistentTask Task() => new(Guid.NewGuid(), "personnel-search", "player", 1, 1, 1,
@@ -35,7 +35,7 @@ public sealed class ImperialCeremonyTests
         List<DomainEvent> events = [];
         Assert.True(ImperialCeremony.TryResolve(m, Task(), Definition, EconomyRulebook.Empty, events));
         Assert.Equal(new OfficerAbilities(100, 100, 120, 15), m.Officers[1].BaseAbilities);
-        Assert.Equal(1000, m.Forces[1].BaseTrust); Assert.Equal(0u, m.Forces[1].Money);
+        Assert.Equal(1000, m.Forces[1].BaseTrust); Assert.Equal(0u, m.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money);
         Assert.Equal(255, m.Officers[2].LoyaltyTo(1)); Assert.Equal(100, m.Officers[3].LoyaltyTo(1));
         Assert.Equal(2, Assert.Single(Assert.Single(events.OfType<ImperialCeremonyResolvedEvent>()).LoyaltyRecipientIds));
         Assert.Empty(m.Simulation.RandomStreams); Assert.Equal(Definition.ConsumptionKey, Assert.Single(m.Simulation.ConsumedEventKeys));

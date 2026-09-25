@@ -8,12 +8,12 @@ namespace San9.Application.Tests;
 public sealed class DailyTaskDecisionTests
 {
     private static ScenarioInitialState Content() => new(ScenarioInitialState.CurrentSchemaVersion, "daily-decisions", 190, 1, 1, 1,
-        [new(1, "first", 1, 1000, 1000, 100) { BaseTrust = 100 }],
+        [new(1, "first", 1, 100) { BaseTrust = 100 }],
         [new(1, "home", 1, 0, 0, 0, 100, 100, 0, [])], [], [])
     {
         Officers = Enumerable.Range(1, 3).Select(id => new OfficerInitialState($"officer.{id}",
             new(id, 1, 1, new(50, 50, 50, 50), false))).ToArray()
-    };
+    , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, null, new(1000, 1000)) { IsRoot = true }], []) };
 
     private sealed class Rules : SimulationRules
     {

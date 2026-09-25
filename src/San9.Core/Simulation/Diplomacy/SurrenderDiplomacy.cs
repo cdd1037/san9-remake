@@ -22,7 +22,7 @@ internal static class SurrenderDiplomacy
         if (!Target(world, source, target)) return CommandRejection.InvalidTask;
         if (!PersonnelMissions.CanAct(world, source, actor)) return CommandRejection.PersonUnavailable;
         var origin = world.Settlements[world.Officers[actor].SettlementId!.Value];
-        if (ResourceAccounts.Resolve(world, source, origin.CorpsId).Kind != ResourceOwnerKind.Force) return CommandRejection.InvalidCorps;
+        if (ResourceAccounts.Resolve(world, source, origin.CorpsId).Id != ResourceAccounts.Root(world, source).Id) return CommandRejection.InvalidCorps;
         return rules.Personnel.Places.ContainsKey(origin.Id) && GiftDiplomacy.Destination(world, target, rules, out _, out _)
             ? CommandRejection.None : CommandRejection.NoDestination;
     }

@@ -11,7 +11,7 @@ namespace San9.Application.Tests;
 public sealed class DivinerVisitSessionTests
 {
     private static ScenarioInitialState Definition() => new(ScenarioInitialState.CurrentSchemaVersion, "diviner", 190, 2, 1, 1,
-        [new(1, "force", 1, 10000, 10000, 500) { LeaderId = 1, BaseTrust = 500 }],
+        [new(1, "force", 1, 500) { LeaderId = 1, BaseTrust = 500 }],
         [new(1, "home", 1, 0, 0, 0, 100, 100, 0, [])], new() { [1] = "home" }, new() { [1] = 1 })
     {
         Officers = [new("ruler", new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }),
@@ -20,7 +20,7 @@ public sealed class DivinerVisitSessionTests
             new("second-actor", new(4, 1, 1, new(50, 99, 99, 50), false))],
         SearchEvents = [new DivinerVisitSearchEventDefinition(1, 3, 3, 50, new("visited"))
             { Id = "diviner", Consumption = EventConsumption.None }]
-    };
+    , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }], []) };
 
     private static ulong Seed() => Enumerable.Range(1, 10000).Select(i => (ulong)i).First(seed =>
         new StableRandom(StableRandom.DeriveSeed(seed, "event-search-eligibility")).NextUInt64() % 100 < 33);

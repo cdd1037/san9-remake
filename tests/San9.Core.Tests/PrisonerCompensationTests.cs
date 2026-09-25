@@ -11,7 +11,7 @@ public sealed class PrisonerCompensationTests
 
     private static WorldState World(uint money = 10000, int relation = 0, bool exchange = false) => WorldState.Create(
         new(190, 1, 1), 42,
-        [new ForceState(1, money, 0, 100) { LeaderId = 1 }, new ForceState(2, 1000, 0, 100) { LeaderId = 2 }],
+        [new ForceState(1, 100) { LeaderId = 1 }, new ForceState(2, 100) { LeaderId = 2 }],
         [new(1, 1, 0, 100, 100, 0, 0, 0, 0, 0, 0), new(2, 2, 0, 100, 100, 0, 0, 0, 0, 0, 0)],
         [new OfficerState(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
          new OfficerState(2, 2, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
@@ -20,7 +20,7 @@ public sealed class PrisonerCompensationTests
          new OfficerState(5, 2, exchange ? 1 : 2, new(100, 100, 1, 1), false) { Status = exchange ? OfficerStatus.Captive : OfficerStatus.Serving },
          new OfficerState(6, 2, exchange ? 1 : 2, new(60, 60, 60, 60), false) { Status = exchange ? OfficerStatus.Captive : OfficerStatus.Serving }],
         treasures: [new(9, 1, TreasureDiscovery.Discovered, null), new(10, 1, TreasureDiscovery.Discovered, null),
-            new(11, 5, TreasureDiscovery.Discovered, null)], relations: [new(1, 2, relation)]);
+            new(11, 5, TreasureDiscovery.Discovered, null)], relations: [new(1, 2, relation)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(money, 0)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 2, new(1000, 0)) { IsRoot = true }]);
 
     private static WorldMutation Mutation(WorldState world) => world.BeginMutation(new(Treasures(), new([])));
     private static CompensationOffer Quote(WorldMutation world) => PrisonerCompensation.Quote(world, 1, 3, 2, 4, Treasures());
@@ -52,11 +52,11 @@ public sealed class PrisonerCompensationTests
         Assert.Equal(new(CompensationKind.Money, 2100, null, null), Quote(state));
         Assert.Equal(simulation, state.Simulation);
         Assert.Equal(forces, state.Forces.Values);
-        state.Replace(state.Forces[1] with { Money = 2100 });
+        state.Replace(ResourceAccounts.Root(state, 1) with { Treasury = ResourceAccounts.Root(state, 1).Treasury with { Money = 2100 } });
         Assert.Equal(new(CompensationKind.Treasure, 0, null, 10), Quote(state));
         state.Replace(state.Treasures[10] with { HolderId = 2 });
         Assert.Equal(CompensationKind.Refuse, Quote(state).Kind);
-        state.Replace(state.Forces[1] with { Money = 2101 });
+        state.Replace(ResourceAccounts.Root(state, 1) with { Treasury = ResourceAccounts.Root(state, 1).Treasury with { Money = 2101 } });
         Assert.Equal(CompensationKind.Money, Quote(state).Kind);
     }
 

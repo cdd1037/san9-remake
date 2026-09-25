@@ -18,8 +18,8 @@ public sealed class GuanduTests
     private static OfficerState Person(int id, int owner, int? home, OfficerStatus status = OfficerStatus.Serving, int? unit = null) =>
         new OfficerState(id, owner, home, new(50, 50, 50, 50), false) { Status = status, UnitId = unit }.WithLoyalty(owner, 89);
     private static WorldState State() => WorldState.Create(new(190, 2, 1), 17,
-        [new(1, 1000, 10000, 980) { LeaderId = 11, BaseTrust = 980 }, new(2, 1000, 10001, 10) { LeaderId = 21, BaseTrust = 10 },
-         new(3, 1000, 1000, 100) { LeaderId = 31, BaseTrust = 100 }],
+        [new(1, 980) { LeaderId = 11, BaseTrust = 980 }, new(2, 10) { LeaderId = 21, BaseTrust = 10 },
+         new(3, 100) { LeaderId = 31, BaseTrust = 100 }],
         Places.Select(p => new SettlementState(p.Id, p.Id is 1 or 3 ? 1 : p.Id == 6 ? 3 : 2,
             p.Id == 4 ? 9999u : 1000u, 100, 100, 60, 100, 100, 100, 100, 100)
             { Kind = p.Id is 1 or 2 or 6 ? SettlementKind.City : SettlementKind.Facility, ConsumesFood = false, Wounded = 20 }),
@@ -32,7 +32,7 @@ public sealed class GuanduTests
                 OrderClass = UnitOrderClass.Military, Order = new(MilitaryOrderKind.Move, new(12, 7), null) }],
         controls: [new("player", 1, ControllerKind.Player), new("enemy", 2, ControllerKind.Automatic), new("third", 3, ControllerKind.Automatic)],
         relations: [new(1, 2, 19)], annualAppearancesEnabled: false, naturalDeathsEnabled: false, officeRequestsEnabled: false,
-        freeOfficerMigrationEnabled: false, forceEmergenceEnabled: false, cityIndependenceEnabled: false, forceConsolidationEnabled: false);
+        freeOfficerMigrationEnabled: false, forceEmergenceEnabled: false, cityIndependenceEnabled: false, forceConsolidationEnabled: false, corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(1000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(1000, 10001)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, 31, new(1000, 1000)) { IsRoot = true }]);
 
     [Fact]
     public void PreRecruitmentVictoryUsesCurrentRegionsAndRootResourcesWithoutRewardingTheRecruit()
@@ -53,7 +53,7 @@ public sealed class GuanduTests
         Assert.Equal((20u, 100), (world.Settlements[4].Wounded, world.Settlements[4].Durability));
         Assert.Equal(20000u, world.Units[21].Soldiers); Assert.Equal(1000u, world.Settlements[2].Soldiers);
         Assert.Equal(new MilitaryOrder(MilitaryOrderKind.Return, null, 2), world.Units[20].Order);
-        Assert.Equal(3001u, world.Forces[2].Food); Assert.Equal(1000u, world.Forces[2].Money);
+        Assert.Equal(3001u, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 2).Treasury.Food); Assert.Equal(1000u, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 2).Treasury.Money);
         Assert.Equal(104, world.Officers[12].Loyalty); Assert.Equal(255, world.Officers[13].Loyalty);
         Assert.Equal(89, world.Officers[11].Loyalty); Assert.Equal(89, world.Officers[14].Loyalty);
         Assert.Equal(89, world.Officers[23].Loyalty); Assert.Equal(2, world.Officers[23].OwnerId);
@@ -77,7 +77,7 @@ public sealed class GuanduTests
             case "loyalty": world.Replace(world.Officers[23].WithLoyalty(2, 90)); break;
             case "relation": ForceRelations.Set(world, 1, 2, 20, []); break;
             case "soldiers": world.Replace(world.Settlements[4] with { Soldiers = 9998 }); break;
-            case "food": world.Replace(world.Forces[2] with { Food = 0 }); break;
+            case "food": world.Replace(ResourceAccounts.Root(world, 2) with { Treasury = ResourceAccounts.Root(world, 2).Treasury with { Food = 0 } }); break;
             case "commander": world.Replace(world.Officers[23] with { IsCommander = true }); break;
             case "player": world.SetSimulation(world.Simulation with { Controls = [new("ai", 1, ControllerKind.Automatic)] }); break;
             case "required-place": world.Replace(world.Settlements[3] with { OwnerId = 2 }); break;
@@ -102,10 +102,10 @@ public sealed class GuanduTests
     public void NonMilitaryUnitsLoseSoldiersWithoutChangingTheirCommandAndRolesNeedNotBeRulers()
     {
         var state = State(); var world = state.BeginMutation();
-        world.Replace(world.Forces[1] with { LeaderId = 13 });
+        world.Replace(world.Forces[1] with { LeaderId = 13 }); world.Replace(ResourceAccounts.Root(world, 1) with { LeaderId = 13 });
         world.Replace(world.Officers[13] with { Status = OfficerStatus.Ruler });
         world.Replace(world.Officers[11] with { Status = OfficerStatus.Serving });
-        world.Replace(world.Forces[2] with { LeaderId = 24 });
+        world.Replace(world.Forces[2] with { LeaderId = 24 }); world.Replace(ResourceAccounts.Root(world, 2) with { LeaderId = 24 });
         world.Replace(world.Officers[24] with { Status = OfficerStatus.Ruler });
         world.Replace(world.Officers[21] with { Status = OfficerStatus.Serving });
         world.Replace(world.Units[20] with { OrderClass = UnitOrderClass.NonMilitary });
@@ -120,11 +120,11 @@ public sealed class GuanduTests
     {
         var world = State().BeginMutation();
         world.AddCorps(new(50, 2, 23, new(3000, 7777)));
-        world.Replace(world.Forces[2] with { Food = 0 });
+        world.Replace(ResourceAccounts.Root(world, 2) with { Treasury = ResourceAccounts.Root(world, 2).Treasury with { Food = 0 } });
         Assert.False(Guandu.Eligible(world, 12, 23, Rules));
-        world.Replace(world.Forces[2] with { Food = 1 });
+        world.Replace(ResourceAccounts.Root(world, 2) with { Treasury = ResourceAccounts.Root(world, 2).Treasury with { Food = 1 } });
         Assert.True(Guandu.Apply(world, 12, 23, Rules, []));
-        Assert.Equal(1u, world.Forces[2].Food);
+        Assert.Equal(1u, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 2).Treasury.Food);
         Assert.Equal(new CorpsTreasury(3000, 7777), world.Corps[50].Treasury);
     }
 

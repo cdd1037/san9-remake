@@ -43,7 +43,7 @@ public sealed class UnitStrategyTests
         Assert.Equal(106000, SoldierTotals.Living(state, 1));
         state.SetClock(new(190, 7, 1));
         EconomicCycle.Apply(ResolutionStage.QuarterUpdate, state, EconomyRulebook.Empty, []);
-        Assert.Equal(106000u, state.Forces[1].Food);
+        Assert.Equal(106000u, state.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Food);
     }
 
     [Fact]
@@ -114,13 +114,13 @@ public sealed class UnitStrategyTests
     };
 
     internal static WorldState World(bool friendly = false, int distance = 31, int intelligence = 99) => WorldState.Create(new(190, 1, 1), 42,
-        [new(1, 10000, 10000, 100), new(2, 10000, 10000, 100)],
+        [new(1, 100), new(2, 100)],
         [new(1, 1, 10000, 100, 100, 70, 500, 0, 100, 0, 100), new(2, 2, 10000, 100, 100, 70, 500, 0, 100, 0, 100)],
         [new(11, 1, 1, new(70, intelligence, 70, 70), false), new(12, 1, 1, new(70, 70, 70, 70), false),
          new(22, friendly ? 1 : 2, null, new(70, 70, 70, 80), false) { UnitId = 5, TacticCooldown = 20 }],
         units: [new(5, friendly ? 1 : 2, new(2 + distance, 2), 5000) { FormationId = 9, Morale = 70,
             CommanderId = 22, OrderClass = UnitOrderClass.Military }],
-        relations: [new(1, 2, 50)], controls: [new("player", 1, ControllerKind.Player)]);
+        relations: [new(1, 2, 50)], controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, null, new(10000, 10000)) { IsRoot = true }]);
 
     internal static PersistentTask Submit(WorldState world, SimulationRules rules, UnitStrategyKind strategy, int? forcedRoll = null)
     {

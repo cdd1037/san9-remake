@@ -13,9 +13,9 @@ public sealed class MilitaryMovementTests
         [new(1, new(2, 7), new(1, 1)), new(2, new(37, 7), new(1, 1))]));
 
     private static WorldState World() => WorldState.Create(new(190, 1, 1), 42,
-        [new(1, 10000, 10000, 100)],
+        [new(1, 100)],
         [new(1, 1, 1000, 100, 100, 70, 500, 0, 100, 0, 100), new(2, 1, 100, 100, 100, 30, 500, 0, 100, 0, 100)],
-        [new(11, 1, 1, new(70, 70, 70, 70), false)], controls: [new("player", 1, ControllerKind.Player)]);
+        [new(11, 1, 1, new(70, 70, 70, 70), false)], controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(10000, 10000)) { IsRoot = true }]);
     private static SimulationEngine Engine(WorldState world, MilitaryRulebook rules) =>
         new(world, EconomyRulebook.Empty, PersonnelRulebook.Empty, TreasureRulebook.Empty, military: rules);
     private static DeployUnitCommand Deploy(long sequence = 0, uint soldiers = 400, MilitaryOrder? order = null) =>
@@ -147,7 +147,7 @@ public sealed class MilitaryMovementTests
     public void CrossCorpsArrivalRepairsLeadershipOrWaitsForTreasuryCapacity(bool successor, bool overflow)
     {
         var world = WorldState.Create(new(190, 1, 1), 42,
-            [new(1, overflow ? uint.MaxValue : 10000, 10000, 0) { LeaderId = 12 }],
+            [new(1, 0) { LeaderId = 12 }],
             [new(1, 1, 100, 100, 100, 70, 500, 0, 100, 0, 100) { CorpsId = 11 },
              new(2, 1, 100, 100, 100, 30, 500, 0, 100, 0, 100) { CorpsId = 10 }],
             [new(11, 1, null, new(70, 70, 70, 70), false) { UnitId = 0, Status = OfficerStatus.Governor },
@@ -155,7 +155,7 @@ public sealed class MilitaryMovementTests
              new(13, 1, successor ? 1 : 2, new(60, 60, 60, 60), false)],
             units: [new(0, 1, new(36, 7), 400) { CorpsId = 11, ServicePlaceId = 1, FormationId = 7,
                 Morale = 70, CargoMoney = 200, CargoFood = 300, Order = new(MilitaryOrderKind.Transport, null, 2) }],
-            corps: [new(10, 1, 12, null), new(11, 1, 11, new(2000, 3000))]);
+            corps: [new(10, 1, 12, new(overflow ? uint.MaxValue : 10000, 10000)) { IsRoot = true }, new(11, 1, 11, new(2000, 3000))]);
         var mutation = world.BeginMutation();
         var events = new List<DomainEvent>();
         Assert.Equal(CommandRejection.None, GovernanceMaintenance.RepairCorps(mutation, 11, new GovernanceRulebook([]), events));
@@ -184,13 +184,13 @@ public sealed class MilitaryMovementTests
             if (successor)
             {
                 Assert.Equal(13, state.Corps.Single(c => c.Id == 11).LeaderId);
-                Assert.Equal(10200u, state.Forces[0].Money);
+                Assert.Equal(10200u, state.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Money);
             }
             else
             {
                 Assert.Single(state.Corps);
-                Assert.Equal(12200u, state.Forces[0].Money);
-                Assert.Equal(13300u, state.Forces[0].Food);
+                Assert.Equal(12200u, state.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Money);
+                Assert.Equal(13300u, state.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Food);
             }
         }
     }
@@ -207,8 +207,8 @@ public sealed class MilitaryMovementTests
         var person = Assert.Single(result.Snapshot.Officers);
         Assert.Null(person.SettlementId);
         Assert.Equal(unit.Id, person.UnitId);
-        Assert.Equal(before.Forces[0].Money - 250, result.Snapshot.Forces[0].Money);
-        Assert.Equal(before.Forces[0].Food - 300, result.Snapshot.Forces[0].Food);
+        Assert.Equal(before.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Money - 250, result.Snapshot.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Money);
+        Assert.Equal(before.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Food - 300, result.Snapshot.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Food);
         Assert.Equal(DevelopmentRejection.OfficerUnavailable,
             engine.Execute(Player, new DevelopCommand(Guid.NewGuid(), 1, 1, new(1, 1, [11], DomesticActivity.Commerce))).Development!.Value.Rejection);
         var advanced = Advance(engine);

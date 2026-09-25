@@ -32,7 +32,7 @@ public sealed class FacilityCombatTests
             Elevations = [0, 0, 0, 0], TrapTerrains = [new(0, effect == TacticEffect.TrapSelection ? 9100 : null, false)]
         });
         var state = WorldState.Create(new(190, 1, 1), 42,
-            [new(1, 10000, 100000, 100) { LeaderId = 11 }, new(2, 10000, 100000, 100) { LeaderId = 22 }],
+            [new(1, 100) { LeaderId = 11 }, new(2, 100) { LeaderId = 22 }],
             [new(1, 1, 10000, 100, 100, effect == TacticEffect.Inspire ? 79 : 100, 0, 0, 100, 0, 100) { ConfusionDaysRemaining = confusion },
                 new(2, 2, 10000, 100, 100, 100, 0, 0, 100, 0, 100),
                 ..(area ? new SettlementState[] { new(3, 2, 1, 100, 100, 100, 0, 0, 100, 0, 100) } : [])],
@@ -44,7 +44,7 @@ public sealed class FacilityCombatTests
                 CargoMoney = 50, CargoFood = 75,
                 Wounded = support ? 100u : 40u, ServicePlaceId = 2, MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(21, BattleRank.Middle),
                 Condition = support ? UnitCondition.Confused : UnitCondition.Normal, ConditionDaysRemaining = support ? 100 : 0 }],
-            controls: [new("player", attacking ? 2 : 1, ControllerKind.Player)]);
+            controls: [new("player", attacking ? 2 : 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 100000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 22, new(10000, 100000)) { IsRoot = true }]);
         var engine = new SimulationEngine(state, EconomyRulebook.Empty, PersonnelRulebook.Empty, TreasureRulebook.Empty, military: military);
         if (attacking)
             Assert.True(engine.Execute(Player, new OrderUnitCommand(Guid.NewGuid(), 2, 0, 1,
@@ -157,9 +157,9 @@ public sealed class FacilityCombatTests
         Assert.Null(prisoner.UnitId);
         Assert.True(engine.Snapshot.Settlements.Single(s => s.Id == 1).Wounded > 0);
         Assert.Contains(result.Events.OfType<ResourceChangedEvent>(), e => e.Reason == "defeated-cargo" &&
-            e.Account == new ResourceAccount(ResourceOwnerKind.Force, 1) && e.Resource == ResourceKind.Money && e.Actual == 50);
+            e.Account == new ResourceAccount(ResourceOwnerKind.Corps, 1) && e.Resource == ResourceKind.Money && e.Actual == 50);
         Assert.Contains(result.Events.OfType<ResourceChangedEvent>(), e => e.Reason == "defeated-cargo" &&
-            e.Account == new ResourceAccount(ResourceOwnerKind.Force, 1) && e.Resource == ResourceKind.Food && e.Actual == 75);
+            e.Account == new ResourceAccount(ResourceOwnerKind.Corps, 1) && e.Resource == ResourceKind.Food && e.Actual == 75);
         Assert.DoesNotContain(Advance(engine).Events.OfType<UnitTerminatedEvent>(), e => e.UnitId == 1);
     }
 

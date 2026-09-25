@@ -12,7 +12,7 @@ namespace San9.Application.Tests;
 public sealed class MerchantInvestmentSessionTests
 {
     private static ScenarioInitialState Definition(ResourceKind resource = ResourceKind.Money) => new(ScenarioInitialState.CurrentSchemaVersion, "merchant", 190, 2, 1, 1,
-        [new(1, "force", 1, 50000, 10000, 100) { LeaderId = 1, BaseTrust = 100 }],
+        [new(1, "force", 1, 100) { LeaderId = 1, BaseTrust = 100 }],
         [new(1, "home", 1, 0, 0, 0, 100, 100, 0, [])], new() { [1] = "home" }, new() { [1] = 1 })
     {
         Officers = [new("ruler", new(1, 1, 1, new(0, 0, 80, 0), false) { Status = OfficerStatus.Ruler }),
@@ -21,7 +21,7 @@ public sealed class MerchantInvestmentSessionTests
         FoodMarket = new(Enumerable.Range(1, 12).Select(m => ImmutableArray.Create(m + 5, m + 6)).ToImmutableArray()),
         SearchEvents = [new MerchantInvestmentDefinition([new("salt", [1], resource, new("salt.banned"))], 1, 50, 1000, 100, 5, 20, 3, 2, 4, 5)
             { Id = "merchant", Consumption = EventConsumption.None }]
-    };
+    , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 1, new(50000, 10000)) { IsRoot = true }], []) };
     private static ulong Seed(bool wins) => Enumerable.Range(1, 10000).Select(i => (ulong)i).First(seed =>
         new StableRandom(StableRandom.DeriveSeed(seed, "event-search-eligibility")).NextUInt64() % 100 < 80 &&
         (new StableRandom(StableRandom.DeriveSeed(seed, "event-merchant-investment")).NextUInt64() % 100 < 80) == wins);

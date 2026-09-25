@@ -39,7 +39,7 @@ public sealed class PrisonerReturnTests
     public void SalaryReserveIncludesOnlyServingPrimaryAccountMembers(int month, int day, int xuns)
     {
         var state = World().BeginMutation();
-        state.AddCorps(new(10, 1, 11, null));
+        var rootTreasury10 = ResourceAccounts.Root(state, 1).Treasury; state.RemoveCorps(ResourceAccounts.Root(state, 1).Id); state.AddCorps(new(10, 1, 11, rootTreasury10) { IsRoot = true });
         state.AddCorps(new(20, 1, 14, new(0, 0)));
         state.Replace(state.Settlements[1] with { CorpsId = 10 });
         state.AddUnit(new(30, 1, new(0, 0), 100) { CorpsId = 20 });
@@ -55,15 +55,15 @@ public sealed class PrisonerReturnTests
     private static SimulationRules Rules() => new() { Personnel = new([new(1, new(0, 0)), new(2, new(90, 0))],
         new Dictionary<int, int> { [1] = 1, [2] = 2 }, []) };
     private static WorldState World() => WorldState.Create(new(190, 1, 1), 42,
-        [new ForceState(1, 10000, 0, 100) { LeaderId = 11, AdviserId = 14 },
-         new ForceState(2, 999900, 0, 100) { LeaderId = 21 }],
+        [new ForceState(1, 100) { LeaderId = 11, AdviserId = 14 },
+         new ForceState(2, 100) { LeaderId = 21 }],
         [new(1, 1, 0, 100, 100, 0, 0, 0, 0, 0, 0), new(2, 2, 0, 100, 100, 0, 0, 0, 0, 0, 0)],
         [new OfficerState(11, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
          new(12, 1, 1, new(50, 50, 100, 50), false),
          new OfficerState(13, 1, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Captive },
          new OfficerState(14, 1, 1, new(50, 100, 50, 50), false) { Status = OfficerStatus.Strategist },
          new OfficerState(21, 2, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }],
-        controls: [new("first", 1, ControllerKind.Player), new("second", 2, ControllerKind.Player)]);
+        controls: [new("first", 1, ControllerKind.Player), new("second", 2, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 0)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(999900, 0)) { IsRoot = true }]);
 
     private static SimulationEngine Arrive()
     {
@@ -117,7 +117,7 @@ public sealed class PrisonerReturnTests
         Assert.True(engine.Execute(new("second"), new RespondDailyTaskCommand(Guid.NewGuid(), 2, 1, prompt.TaskId, 0, true)
             { Offer = new(CompensationKind.Money, 500, null, null) }).Submission.Accepted);
         var snapshot = engine.Snapshot;
-        snapshot = snapshot with { Forces = snapshot.Forces.Select(f => f.Id == 1 ? f with { Money = 499 } : f).ToArray() };
+        snapshot = snapshot with { Corps = snapshot.Corps.Select(f => f.IsRoot && f.OwnerId == 1 ? f with { Treasury = f.Treasury with { Money = 499 } } : f).ToArray() };
         engine = new(WorldState.Restore(snapshot), Rules());
         var result = engine.Execute(new("first"), new RespondDailyTaskCommand(Guid.NewGuid(), 1, 2, prompt.TaskId, 1, true));
         Assert.True(result.Submission.Accepted);
@@ -158,7 +158,7 @@ public sealed class PrisonerReturnTests
         Assert.Equal(AdviserOpinion.Favorable, advice.Opinion);
         Assert.Equal(advice, engine.GetPrisonerReturnAdvice(1, 12, 2, 13));
         Assert.Equal(before.StateHash, engine.Snapshot.StateHash);
-        snapshot = engine.Snapshot with { Forces = engine.Snapshot.Forces.Select(f => f.Id == 1 ? f with { Money = 0 } : f).ToArray(),
+        snapshot = engine.Snapshot with { Corps = engine.Snapshot.Corps.Select(f => f.IsRoot && f.OwnerId == 1 ? f with { Treasury = f.Treasury with { Money = 0 } } : f).ToArray(),
             Relations = [new(1, 2, relation)] };
         engine = new(WorldState.Restore(snapshot), Rules());
         string beforeFreeAdvice = engine.Snapshot.StateHash;

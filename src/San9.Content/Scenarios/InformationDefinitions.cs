@@ -76,8 +76,10 @@ public sealed record InformationDefinitions(RankDefinition[] Ranks, OfficeDefini
         }
         catch (ArgumentException error) { throw new InvalidDataException("Invalid political content.", error); }
         Unique(Ranks.Select(r => r.Id)); Unique(Offices.Select(o => o.Id)); Unique(Treasures.Select(t => t.Id));
+        if (scenario.Forces.Any(f => Corps.Count(c => c.OwnerId == f.Id && c.IsRoot) != 1))
+            throw new InvalidDataException("Each initial force must have exactly one root corps.");
         Unique(Corps.Select(c => c.Id)); Unique(TreasureStates.Select(t => t.Id));
-        if (Corps.Any(c => c.Treasury is null ? c.Delegation is not GeneralDelegation : c.Delegation switch
+        if (Corps.Any(c => c.IsRoot ? c.Delegation is not GeneralDelegation : c.Delegation switch
             {
                 GeneralDelegation or DomesticDelegation => false,
                 DefeatForceDelegation target => target.ForceId == c.OwnerId || !scenario.Forces.Any(f => f.Id == target.ForceId),
@@ -86,7 +88,7 @@ public sealed record InformationDefinitions(RankDefinition[] Ranks, OfficeDefini
             })) throw new InvalidDataException("Invalid corps delegation.");
         if (scenario.Forces.Any(f => f.RankId is int rank && !Ranks.Any(r => r.Id == rank)) ||
             scenario.Officers.Any(o => o.State.OfficeId is int office && !Offices.Any(d => d.Id == office)) ||
-            Corps.Any(c => (c.Treasury is null) != (scenario.Forces.SingleOrDefault(f => f.Id == c.OwnerId)?.LeaderId == c.LeaderId)))
+            Corps.Any(c => c.IsRoot != (scenario.Forces.SingleOrDefault(f => f.Id == c.OwnerId)?.LeaderId == c.LeaderId)))
             throw new InvalidDataException("Invalid rank, office or corps treasury reference.");
         if (Ranks.Count(r => r.IsUnranked) > 1 || Ranks.Any(r => r.DescriptionKey is not null && string.IsNullOrWhiteSpace(r.DescriptionKey)))
             throw new InvalidDataException("Invalid rank presentation metadata.");
@@ -103,7 +105,8 @@ public sealed record InformationDefinitions(RankDefinition[] Ranks, OfficeDefini
             TreasureStates.Any(t => !t.IsValid ||
                 t.DiscoveryRegionId is int region && !scenario.RegionNameKeys.ContainsKey(region) ||
                 t.HolderId is int holder && !scenario.Officers.Any(o => o.State.Id == holder)) ||
-            Corps.Any(c => !scenario.Forces.Any(f => f.Id == c.OwnerId) || !scenario.Officers.Any(o => o.State.Id == c.LeaderId && o.State.OwnerId == c.OwnerId)))
+            Corps.Any(c => c.Treasury is null || !scenario.Forces.Any(f => f.Id == c.OwnerId) ||
+                (c.LeaderId is int leader ? !scenario.Officers.Any(o => o.State.Id == leader && o.State.OwnerId == c.OwnerId) : !c.IsRoot)))
             throw new InvalidDataException("Invalid information definition or relationship.");
     }
 }

@@ -7,10 +7,10 @@ namespace San9.Core.Tests;
 public sealed class OfficerInjuryRecoveryTests
 {
     private static WorldState World(int injury, GameClock? clock = null) => WorldState.Create(clock ?? new(190, 1, 1), 190,
-        [new(1, 1000, 1000, 0) { LeaderId = 1 }],
+        [new(1, 0) { LeaderId = 1 }],
         [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
         [new(1, 1, 1, new(80, 70, 60, 50), false) { Status = OfficerStatus.Ruler, Injury = injury }],
-        controls: [new("player", 1, ControllerKind.Player)]);
+        controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(1000, 1000)) { IsRoot = true }]);
 
     [Theory]
     [InlineData(0, 0)]

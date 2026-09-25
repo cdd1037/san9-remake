@@ -10,21 +10,21 @@ public sealed class PersonnelRewardTests
         bool acted = false, ControllerKind control = ControllerKind.Player)
     {
         var world = WorldState.Create(new(190, 1, 1), 190,
-            [new(1, 2000, 1000, 0) { LeaderId = 0 }, new(9000, 0, 0, 0)],
+            [new(1, 0) { LeaderId = 0 }, new(9000, 0)],
             [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100) { CorpsId = 3 }],
             [new(0, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
              new(1, 1, 1, new(50, 50, 50, 50), acted)
              {
                  Righteousness = righteousness,
                  ForceLoyalties = ImmutableDictionary<int, int>.Empty.Add(1, loyalty).Add(9000, 254)
-             }], corps: [new(3, 1, 0, new(1001, 1000))], controls: [new("controller", 1, control)]);
+             }], corps: [new(3, 1, 0, new(1001, 1000)), new San9.Core.Domain.CorpsState(1, 1, 0, new(2000, 1000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(9000, 9000, null, new(0, 0)) { IsRoot = true }], controls: [new("controller", 1, control)]);
         var engine = new SimulationEngine(world);
         // Initial preparation recovers actions. Set the stable boundary used by the scenario explicitly.
         var state = engine.Snapshot;
         return new SimulationEngine(WorldState.Restore(state with
         {
             Officers = state.Officers.Select(p => p.Id == 1 ? p with { Acted = acted } : p).ToArray(),
-            Forces = state.Forces.Select(f => f.Id == 1 ? f with { Money = money } : f).ToArray()
+            Corps = state.Corps.Select(f => f.IsRoot && f.OwnerId == 1 ? f with { Treasury = f.Treasury with { Money = money } } : f).ToArray()
         }));
     }
 
@@ -48,11 +48,11 @@ public sealed class PersonnelRewardTests
         Assert.Equal(254, person.LoyaltyTo(9000));
         Assert.True(person.Acted);
         Assert.True(person.RewardedThisXun);
-        Assert.Equal(1000u, engine.Snapshot.Corps.Single().Treasury!.Money);
-        Assert.Equal(900u, engine.Snapshot.Forces.Single(f => f.Id == 1).Money);
+        Assert.Equal(1000u, engine.Snapshot.Corps.Single(c => !c.IsRoot).Treasury!.Money);
+        Assert.Equal(900u, engine.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 1).Treasury.Money);
         var debit = Assert.Single(result.Events.OfType<ResourceChangedEvent>());
         Assert.Equal(-100, debit.Actual);
-        Assert.Equal(new ResourceAccount(ResourceOwnerKind.Force, 1), debit.Account);
+        Assert.Equal(new ResourceAccount(ResourceOwnerKind.Corps, 1), debit.Account);
         Assert.Equal(gain, Assert.Single(result.Events.OfType<OfficerRewardedEvent>()).Gain);
         Assert.Equal(random, CanonicalJson.Text(engine.Snapshot.Simulation.RandomStreams));
     }
@@ -120,11 +120,11 @@ public sealed class PersonnelRewardTests
         var state = Engine(money: 100).Snapshot;
         var engine = new SimulationEngine(WorldState.Restore(state with
         {
-            Corps = state.Corps.Select(c => c with { Treasury = c.Treasury! with { Money = 0 } }).ToArray()
+            Corps = state.Corps.Select(c => c.IsRoot ? c : c with { Treasury = c.Treasury with { Money = 0 } }).ToArray()
         }));
         Assert.True(Reward(engine).Submission.Accepted);
-        Assert.Equal(0u, engine.Snapshot.Forces.Single(f => f.Id == 1).Money);
-        Assert.Equal(0u, engine.Snapshot.Corps.Single().Treasury!.Money);
+        Assert.Equal(0u, engine.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 1).Treasury.Money);
+        Assert.Equal(0u, engine.Snapshot.Corps.Single(c => !c.IsRoot).Treasury!.Money);
     }
 
     [Fact]
@@ -136,6 +136,6 @@ public sealed class PersonnelRewardTests
         Assert.True(engine.Validate(new("controller"), command).Accepted);
         Assert.Equal(before, engine.Snapshot.StateHash);
         Assert.True(engine.Execute(new("controller"), command).Submission.Accepted);
-        Assert.Equal(0u, engine.Snapshot.Forces.Single(f => f.Id == 1).Money);
+        Assert.Equal(0u, engine.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 1).Treasury.Money);
     }
 }

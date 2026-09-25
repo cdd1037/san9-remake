@@ -14,9 +14,9 @@ public sealed class PenglaiSessionTests
     {
         var places = Enumerable.Range(1, 6).Select(id => new PersonPlace(id, MapCoordinates.Center(new(id - 1, 0)))).ToArray();
         return new(ScenarioInitialState.CurrentSchemaVersion, "penglai-public", 190, 2, 1, 1,
-            [new(1, "force.1", 1, 10000, 10000, 800) { BaseTrust = 800, LeaderId = 1 },
-             new(2, "force.2", 2, 10000, 300000, 100) { BaseTrust = 100, LeaderId = 2, IsDormant = true, IsBarbarian = true },
-             new(3, "force.3", 3, 10000, 10000, 100) { BaseTrust = 100, LeaderId = 10 }],
+            [new(1, "force.1", 1, 800) { BaseTrust = 800, LeaderId = 1 },
+             new(2, "force.2", 2, 100) { BaseTrust = 100, LeaderId = 2, IsDormant = true, IsBarbarian = true },
+             new(3, "force.3", 3, 100) { BaseTrust = 100, LeaderId = 10 }],
             places.Where(p => p.Id != 5).Select(p => new SettlementInitialState(p.Id, $"place.{p.Id}",
                 p.Id switch { 3 => 2, 4 => null, 6 => 3, _ => 1 }, p.Id - 1, 0,
                 p.Id == 3 ? 100000u : 0u, 100, 100, p.Id == 3 ? 60 : 0, [])
@@ -31,7 +31,7 @@ public sealed class PenglaiSessionTests
                     new(id, 2, 3, new(70, 70, 70, 70), false) { IsDormant = true, Status = id == 2 ? OfficerStatus.Ruler : OfficerStatus.Serving }))).ToArray(),
             SearchEvents = [new ForceActivationSearchEventDefinition(5, 2, 3, [4], [2, 3, 4, 5, 6], 700, 2, 500000, 10, new("penglai"))
                 { Id = "penglai", Priority = -3, Consumption = EventConsumption.OnSuccess }],
-            Information = InformationDefinitions.Empty with { Corps = [new(2, 2, 2, null)] },
+            Information = InformationDefinitions.Empty with { Corps = [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, 10, new(10000, 10000)) { IsRoot = true }, new(2, 2, 2, new(10000, 300000)) { IsRoot = true }] },
             Military = new(6, 1, Enumerable.Repeat(0, 6).ToImmutableArray(), [new(0, 1, 1)], [],
                 places.Where(p => p.Id != 5).Select(p => new BattlefieldPlace(p.Id, p.Position, new(1, 1))).ToImmutableArray())
                 { RegionIds = Enumerable.Range(1, 6).Select(i => (int?)i).ToImmutableArray() },

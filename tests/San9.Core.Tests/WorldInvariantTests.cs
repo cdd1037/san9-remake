@@ -6,10 +6,10 @@ namespace San9.Core.Tests;
 public sealed class WorldInvariantTests
 {
     private static WorldState Create() => WorldState.Create(new(190, 1, XunIndex.Early), 17,
-        [new(1, 100, 100, 50), new(2, 100, 100, 50)],
+        [new(1, 50), new(2, 50)],
         [new(1, 1, 100, 10, 100, 50, 500, 10, 100, 10, 100)],
         [new(1, 1, 1, new(), false)],
-        [new(1, 1, MapCoordinates.Center(new(10, 10)), 100)], [new(1, 1, 1, null)],
+        [new(1, 1, MapCoordinates.Center(new(10, 10)), 100)], [new(1, 1, 1, new(100, 100)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, null, new(100, 100)) { IsRoot = true }],
         [new(1, 1, TreasureDiscovery.Discovered, null)], [new(1, 2, 50)]);
 
     private static WorldState Recreate(WorldSnapshot state) => WorldState.Create(state.Clock, state.Simulation.InitialSeed,
@@ -27,7 +27,7 @@ public sealed class WorldInvariantTests
         var state = Create().CreateSnapshot();
         state = collection switch
         {
-            0 => state with { Forces = [.. state.Forces, different ? state.Forces[0] with { Money = 99 } : state.Forces[0]] },
+            0 => state with { Forces = [.. state.Forces, different ? state.Forces[0] with { BaseTrust = 99 } : state.Forces[0]] },
             1 => state with { Settlements = [.. state.Settlements, different ? state.Settlements[0] with { Commerce = 11 } : state.Settlements[0]] },
             2 => state with { Officers = [.. state.Officers, different ? state.Officers[0] with { Acted = true } : state.Officers[0]] },
             3 => state with { Units = [.. state.Units, different ? state.Units[0] with { Position = new(11, 10) } : state.Units[0]] },
@@ -54,7 +54,7 @@ public sealed class WorldInvariantTests
         var mutation = world.BeginMutation();
         mutation.SetClock(before.Clock.Advance());
         mutation.NextRandom("invariant-test");
-        mutation.Replace(before.Forces[0] with { Money = 1 });
+        mutation.Replace(before.Forces[0] with { BaseTrust = 1 });
         switch (violation)
         {
             case 0: mutation.Replace(before.Forces[0] with { BaseTrust = -1 }); break;
@@ -85,7 +85,8 @@ public sealed class WorldInvariantTests
         var mutation = world.BeginMutation();
         mutation.Replace(before.Settlements[0] with { OwnerId = 2 });
         mutation.Replace(before.Officers[0] with { OwnerId = 2 });
-        mutation.Replace(before.Corps[0] with { OwnerId = 2 });
+        mutation.Replace(before.Corps[0] with { OwnerId = 2, IsRoot = false });
+        mutation.AddCorps(new(3, 1, null, new(0, 0)) { IsRoot = true });
 
         world.Commit(mutation);
 

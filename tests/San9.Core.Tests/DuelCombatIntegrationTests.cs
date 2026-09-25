@@ -35,8 +35,8 @@ public sealed class DuelCombatIntegrationTests
         var world = DuelContestTests.World(people, Seed());
         var change = world.BeginMutation();
         if (counterOnly) change.Replace(change.Officers[11] with { Personality = 3, BaseAbilities = new(40, 50, 50, 50) });
-        change.Replace(change.Forces[1] with { LeaderId = 11 });
-        change.Replace(change.Forces[2] with { LeaderId = 22 });
+        change.Replace(change.Forces[1] with { LeaderId = 11 }); change.Replace(ResourceAccounts.Root(change, 1) with { LeaderId = 11 });
+        change.Replace(change.Forces[2] with { LeaderId = 22 }); change.Replace(ResourceAccounts.Root(change, 2) with { LeaderId = 22 });
         change.Replace(change.Units[1] with { Order = new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 2 } });
         change.Replace(change.Units[2] with { MemberRanks = ImmutableDictionary<int, BattleRank>.Empty
             .Add(21, BattleRank.Rear).Add(22, BattleRank.Front).Add(23, BattleRank.Rear) });

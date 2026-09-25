@@ -12,7 +12,7 @@ public sealed class FacilityCombatSessionTests
     {
         var combat = new CombatProfile(0, 0, 0, 1000, 50);
         var definition = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "facility-battle", 190, 1, 1, 2,
-            [new(1, "first", 1, 10000, 100000, 100) { LeaderId = 11 }, new(2, "second", 2, 10000, 100000, 100) { LeaderId = 21 }],
+            [new(1, "first", 1, 100) { LeaderId = 11 }, new(2, "second", 2, 100) { LeaderId = 21 }],
             [new(1, "defense", 1, 0, 0, 10000, 100, 100, 100, []), new(2, "home", 2, 2, 0, 20000, 100, 100, 100, [])], [], [])
         {
             Officers = [new("defender", new(11, 1, 1, new(100, 100, 100, 100), false) { Status = OfficerStatus.Ruler }),
@@ -29,7 +29,7 @@ public sealed class FacilityCombatSessionTests
                         Reprisal = new(6, 1000, 10, 10, 10, 5) }],
                 Tactics = [new(9000, 3, TacticEffect.Martial, 1, 9, 0, true, false, [])]
             }
-        };
+        , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 100000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 100000)) { IsRoot = true }], []) };
         Assert.Throws<InvalidDataException>(() => (definition with { Military = definition.Military with
             { LinkRules = new(true, 20, [new(11, 9000, 45, false)]) } }).Validate());
         var session = GameSession.Start(definition, 42, 100);

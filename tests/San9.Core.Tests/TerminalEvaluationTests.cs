@@ -10,7 +10,7 @@ public sealed class TerminalEvaluationTests
         Controls = [new("human", 8, ControllerKind.Player), new("computer", 2, ControllerKind.Automatic)]
     })
     {
-        Forces = [new(8, 0, 0, 0), new(2, 0, 0, 0), new(70, 0, 0, 0) { IsBarbarian = true }],
+        Forces = [new(8, 0), new(2, 0), new(70, 0) { IsBarbarian = true }],
         Settlements = [new(101, 8, 0, 1, 1, 0, 0, 0, 0, 0, 0), new(205, 2, 0, 1, 1, 0, 0, 0, 0, 0, 0)]
     };
 

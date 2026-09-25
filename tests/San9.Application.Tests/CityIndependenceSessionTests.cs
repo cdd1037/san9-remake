@@ -14,7 +14,7 @@ public sealed class CityIndependenceSessionTests
         { Status = status, Ambition = 15, IsCommander = status is OfficerStatus.Ruler or OfficerStatus.Governor }.WithLoyalty(force, loyalty));
 
     private static ScenarioInitialState Scenario() => new(ScenarioInitialState.CurrentSchemaVersion, "independence", 190, 1, 1, 1,
-        [new(1, "force.1", 1, 10000, 100000, 100) { LeaderId = 1 }, new(2, "force.2", 2, 10000, 100000, 100) { LeaderId = 20 }],
+        [new(1, "force.1", 1, 100) { LeaderId = 1 }, new(2, "force.2", 2, 100) { LeaderId = 20 }],
         Enumerable.Range(1, 3).Select(i => new SettlementInitialState(i, $"city.{i}", i == 3 ? 2 : 1, i, 0,
             1000, 100, 100, 70, []) { Kind = SettlementKind.City, CorpsId = i == 1 ? 11 : i == 2 ? 10 : 20, ConsumesFood = false }).ToArray(),
         new() { [1] = "region.1", [2] = "region.2", [3] = "region.3" }, new() { [1] = 1, [2] = 2, [3] = 3 })
@@ -23,7 +23,7 @@ public sealed class CityIndependenceSessionTests
         OfficeRequestsEnabled = false, ForceEmergenceEnabled = false, ForceConsolidationEnabled = false,
         Officers = [Person(1, 1, 2, 100, OfficerStatus.Ruler), Person(10, 1, 1, 0, OfficerStatus.Governor),
             Person(11, 1, 1, 0, OfficerStatus.Serving), Person(12, 1, 1, 255, OfficerStatus.Serving), Person(20, 2, 3, 100, OfficerStatus.Ruler)],
-        Information = new([], [], [], [new(10, 1, 1, null), new(11, 1, 10, new(500, 700)), new(20, 2, 20, null)], [])
+        Information = new([], [], [], [new(10, 1, 1, new(10000, 100000)) { IsRoot = true }, new(11, 1, 10, new(500, 700)), new(20, 2, 20, new(10000, 100000)) { IsRoot = true }], [])
     };
 
     [Fact]

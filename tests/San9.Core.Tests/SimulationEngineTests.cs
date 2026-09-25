@@ -8,13 +8,13 @@ namespace San9.Core.Tests;
 public sealed class SimulationEngineTests
 {
     internal static WorldState CreateWorld(GameClock? clock = null) => WorldState.Create(clock ?? new(190, 1, 1), 190,
-        [new(1, 1000, 2000, 50) { LeaderId = 1 }, new(2, 1000, 2000, 50) { LeaderId = 4 }],
+        [new(1, 50) { LeaderId = 1 }, new(2, 50) { LeaderId = 4 }],
         [new(1, 1, 100, 100, 100, 50, 500, 300, 500, 200, 500) { CorpsId = 1 },
          new(2, 2, 100, 100, 100, 50, 500, 300, 500, 200, 500) { CorpsId = 2 }],
         [new(1, 1, 1, new(60, 70, 80, 90), false), new(2, 1, 1, new(50, 60, 100, 70), false),
          new(3, 1, 1, new(40, 80, 70, 60), false), new(4, 2, 2, new(60, 70, 80, 90), false),
          new(5, 2, 2, new(50, 60, 100, 70), false), new(6, 2, 2, new(40, 80, 70, 60), false)],
-        corps: [new(1, 1, 1, null), new(2, 2, 4, null)],
+        corps: [new(1, 1, 1, new(1000, 2000)) { IsRoot = true }, new(2, 2, 4, new(1000, 2000)) { IsRoot = true }],
         controls: [new("player", 1, ControllerKind.Player), new("ai", 2, ControllerKind.Automatic)]);
 
     internal static Guid Id(int value) => new(value, 0, 0, new byte[8]);
@@ -36,11 +36,11 @@ public sealed class SimulationEngineTests
         private sealed class Investment(FixtureRules owner) : TaskRule
         {
             internal override int DurationDays(PersistentTask task) => owner.Duration;
-            internal override bool Validate(WorldMutation world, PersistentTask task) => world.Forces[task.ForceId].Money >= 50;
+            internal override bool Validate(WorldMutation world, PersistentTask task) => ResourceAccounts.Root(world, task.ForceId).Treasury.Money >= 50;
             internal override void Complete(WorldMutation world, PersistentTask task, List<DomainEvent> events)
             {
                 var force = world.Forces[task.ForceId];
-                world.Replace(force with { Money = force.Money - 50 });
+                ResourceAccounts.Change(world, ResourceAccounts.Resolve(world, force.Id, null), ResourceKind.Money, -50, "fixture-investment", null, events, true);
                 var city = world.Settlements[task.OriginSettlementId];
                 int increment = 1 + (int)(world.NextRandom("fixture-investment") % 10);
                 world.Replace(city with { Commerce = owner.FailCompletion ? 9999 : city.Commerce + increment });
@@ -85,11 +85,11 @@ public sealed class SimulationEngineTests
         {
             if (stage != ResolutionStage.XunUpdate) return;
             calls++;
-            world.Replace(world.Forces[1] with { Money = world.Forces[1].Money - 7 });
+            world.Replace(ResourceAccounts.Root(world, 1) with { Treasury = ResourceAccounts.Root(world, 1).Treasury with { Money = world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money - 7 } });
         };
         var engine = new SimulationEngine(CreateWorld(), rules);
         Assert.Equal(1, calls);
-        Assert.Equal(990u, engine.Snapshot.Forces[0].Money);
+        Assert.Equal(990u, engine.Snapshot.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Money);
         Assert.Equal(new GameClock(190, 1, 1), engine.Snapshot.Clock);
         var saved = engine.CaptureStableState();
         var restored = new SimulationEngine(WorldState.Restore(saved), rules);
@@ -165,7 +165,7 @@ public sealed class SimulationEngineTests
         Assert.True(accepted.Submission.Accepted);
         Assert.Equal(new DevelopmentOutcome(DevelopmentRejection.None, 7, 50), accepted.Development);
         Assert.Equal(307, accepted.Snapshot.Settlements[0].Commerce);
-        Assert.Equal(947u, accepted.Snapshot.Forces[0].Money);
+        Assert.Equal(947u, accepted.Snapshot.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Money);
         Assert.Equal(before.Clock, accepted.Snapshot.Clock);
         Assert.Equal(before.Simulation.RandomStreams, accepted.Snapshot.Simulation.RandomStreams);
         Assert.Equal(CommandRejection.WrongSequence, engine.Execute(new("player"), command).Submission.Rejection);
@@ -204,7 +204,7 @@ public sealed class SimulationEngineTests
         var start = engine.Execute(new("player"), new StartTaskCommand(Id(1), 1, 0, "fixture-investment", 2, 1));
         Assert.True(start.Submission.Accepted);
         Assert.Single(start.Events.OfType<TaskStartedEvent>());
-        Assert.Equal(997u, engine.Snapshot.Forces[0].Money);
+        Assert.Equal(997u, engine.Snapshot.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Money);
         Assert.Equal(300, engine.Snapshot.Settlements[0].Commerce);
         Assert.Empty(Advance(engine).Events.OfType<TaskCompletedEvent>());
         Assert.Equal(10, Assert.Single(engine.Snapshot.Simulation.Tasks).ProgressDays);
@@ -219,11 +219,11 @@ public sealed class SimulationEngineTests
         Assert.Equal(expected.Snapshot.StateHash, actual.Snapshot.StateHash);
         Assert.Equal(new GameClock(190, 1, 16), Assert.Single(actual.Events.OfType<TaskCompletedEvent>()).Clock);
         Assert.Empty(actual.Snapshot.Simulation.Tasks);
-        Assert.Equal(941u, actual.Snapshot.Forces[0].Money);
+        Assert.Equal(941u, actual.Snapshot.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Money);
         Assert.InRange(actual.Snapshot.Settlements[0].Commerce, 301, 310);
         Assert.Single(actual.Snapshot.Simulation.RandomStreams.Where(s => s.Name == "fixture-investment"));
         Assert.Empty(Advance(restored).Events.OfType<TaskCompletedEvent>());
-        Assert.Equal(938u, restored.Snapshot.Forces[0].Money);
+        Assert.Equal(938u, restored.Snapshot.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Money);
     }
 
     [Fact]
@@ -244,16 +244,16 @@ public sealed class SimulationEngineTests
         engine.Execute(new("player"), new StartTaskCommand(Id(1), 1, 0, "fixture-investment", 2, 1));
         Advance(engine);
         var mutation = world.BeginMutation();
-        mutation.Replace(mutation.Settlements[1] with { OwnerId = 2 });
+        uint beforeCancel = ResourceAccounts.Root(mutation, 1).Treasury.Money;
+        mutation.Replace(mutation.Settlements[1] with { OwnerId = 2, CorpsId = 2 });
         foreach (var officer in mutation.Officers.Values.Where(o => o.OwnerId == 1)) mutation.Replace(officer with { OwnerId = 2 });
-        mutation.Replace(mutation.Forces[1] with { LeaderId = null });
-        mutation.Replace(mutation.Corps[1] with { OwnerId = 2 });
+        mutation.Replace(mutation.Forces[1] with { LeaderId = null }); mutation.Replace(ResourceAccounts.Root(mutation, 1) with { LeaderId = null });
         world.Commit(mutation);
         var result = Advance(engine);
         Assert.Single(result.Events.OfType<TaskCancelledEvent>());
         Assert.Empty(result.Events.OfType<TaskCompletedEvent>());
         Assert.Empty(result.Snapshot.Simulation.Tasks);
-        Assert.Equal(994u, result.Snapshot.Forces[0].Money);
+        Assert.Equal(beforeCancel, result.Snapshot.Corps.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money);
         Assert.DoesNotContain(result.Snapshot.Simulation.RandomStreams, s => s.Name == "fixture-investment");
         Assert.Empty(Advance(engine).Events.OfType<TaskCancelledEvent>());
         engine.EndControl(new("player"));
@@ -366,7 +366,7 @@ public sealed class SimulationEngineTests
         Assert.True(engine.Execute(new("player"), new StartTaskCommand(Id(3), 1, 1, "fixture-investment", 3, 1)).Submission.Accepted);
         var result = Advance(engine);
         Assert.Equal(new[] { Id(9), Id(3) }, result.Events.OfType<TaskCompletedEvent>().Select(e => e.TaskId));
-        Assert.Equal(894u, result.Snapshot.Forces[0].Money);
+        Assert.Equal(894u, result.Snapshot.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Money);
     }
 
     [Fact]
@@ -378,12 +378,12 @@ public sealed class SimulationEngineTests
         rules.OnStage = (stage, world, _) =>
         {
             if (stage == ResolutionStage.BeforeDailyCommands && world.Clock.Day == 3)
-                world.Replace(world.Forces[1] with { Money = 49 });
+                world.Replace(ResourceAccounts.Root(world, 1) with { Treasury = ResourceAccounts.Root(world, 1).Treasury with { Money = 49 } });
         };
         var result = Advance(engine);
         Assert.Equal(new GameClock(190, 1, 3), Assert.Single(result.Events.OfType<TaskCancelledEvent>()).Clock);
         Assert.Empty(result.Events.OfType<TaskCompletedEvent>());
-        Assert.Equal(46u, result.Snapshot.Forces[0].Money);
+        Assert.Equal(46u, result.Snapshot.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Money);
         Assert.Equal(300, result.Snapshot.Settlements[0].Commerce);
         Assert.DoesNotContain(result.Snapshot.Simulation.RandomStreams, s => s.Name == "fixture-investment");
     }

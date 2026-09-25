@@ -16,14 +16,14 @@ public sealed class MilitaryEngagementTests
              new(2, new(40, 7), new(1, 1)) { Combat = combat, Attack = new(10, false), WoundedRecovery = 1 },
              new(3, new(60, 7), new(1, 1)) { Combat = combat, Attack = new(10, false) }]));
         var world = WorldState.Create(new(190, 1, 1), 42,
-            [new(1, 1000, 100000, 100), new(2, 1000, 100000, 100), new(3, 1000, 100000, 100)],
+            [new(1, 100), new(2, 100), new(3, 100)],
             [new(1, 1, 10000, 100, 100, 100, 100, 0, 100, 0, 100),
              new(2, 2, 10000, 100, 100, 100, 100, 0, 100, 0, 100)],
             [new(11, 1, 1, new(70, 70, 70, 70), false)],
             units: [new(1, 1, new(32, 7), 10000) { FormationId = 1, Morale = 90 },
                     new(2, 2, new(36, 7), 10000) { FormationId = 1, Morale = 90, Order = Attack(1) },
                     new(3, 2, new(35, 7), 10000) { FormationId = 1, Morale = 90, Order = Attack(1) }],
-            relations: [new(1, 2, 0), new(1, 3, 0), new(2, 3, 0)]);
+            relations: [new(1, 2, 0), new(1, 3, 0), new(2, 3, 0)], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(1000, 100000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, null, new(1000, 100000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, null, new(1000, 100000)) { IsRoot = true }]);
         return (world, military);
     }
 
@@ -56,7 +56,7 @@ public sealed class MilitaryEngagementTests
         m.Replace(m.Units[1] with { Soldiers = 9000, Morale = 80, Wounded = 500, CargoFood = 50 });
         m.Replace(m.Settlements[2] with { Soldiers = 9000, Morale = 80, Durability = 90 });
         m.Replace(m.Officers[11] with { TacticCooldown = 3, Acted = true });
-        m.Replace(m.Forces[1] with { Food = 99000 });
+        m.Replace(ResourceAccounts.Root(m, 1) with { Treasury = ResourceAccounts.Root(m, 1).Treasury with { Food = 99000 } });
         m.SetClock(m.Clock.NextDay());
         m.NextRandom("engagement-test");
         BattleLearning.Daily(m, military, []);

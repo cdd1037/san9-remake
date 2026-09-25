@@ -38,8 +38,8 @@ public sealed class SeizeStrategyTests
 
     private static WorldState World(ulong seed = 42, int actorWar = 100, bool captive = true,
         bool treasures = true, uint actorMoney = 10000) => WorldState.Create(new(190, 1, 1), seed,
-        [new ForceState(1, actorMoney, 10000, 100) { LeaderId = 11 },
-         new ForceState(2, 10000, 10000, 100) { LeaderId = 22 }],
+        [new ForceState(1, 100) { LeaderId = 11 },
+         new ForceState(2, 100) { LeaderId = 22 }],
         [new(1, 1, 10000, 300, 300, 70, 500, 0, 100, 0, 100),
          new(2, 2, 30000, 300, 300, 70, 500, 0, 100, 0, 100) { Wounded = 4000 },
          new(3, 2, 10000, 300, 300, 70, 500, 0, 100, 0, 100)],
@@ -50,18 +50,18 @@ public sealed class SeizeStrategyTests
             { Status = OfficerStatus.Captive } } : [])],
         treasures: treasures ? [new(10, 22, TreasureDiscovery.Discovered, null),
             new(11, 23, TreasureDiscovery.Discovered, null)] : [],
-        relations: [new(1, 2, 50)], controls: [new("player", 1, ControllerKind.Player)]);
+        relations: [new(1, 2, 50)], controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(actorMoney, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 22, new(10000, 10000)) { IsRoot = true }]);
 
     private static PersistentTask Submit(WorldState world, SimulationRules rules, int roll)
     {
         var engine = new SimulationEngine(world, rules);
         var command = new SeizeCommand(Guid.NewGuid(), 1, world.Simulation.NextSequence, 11, 2);
         string before = engine.Snapshot.StateHash;
-        uint targetMoney = engine.Snapshot.Forces.Single(force => force.Id == 2).Money;
+        uint targetMoney = engine.Snapshot.Corps.Single(force => force.IsRoot && force.OwnerId == 2).Treasury.Money;
         Assert.True(engine.Validate(new("player"), command).Accepted);
         Assert.Equal(before, engine.Snapshot.StateHash);
         Assert.True(engine.Execute(new("player"), command).Submission.Accepted);
-        Assert.Equal(targetMoney, engine.Snapshot.Forces.Single(force => force.Id == 2).Money);
+        Assert.Equal(targetMoney, engine.Snapshot.Corps.Single(force => force.IsRoot && force.OwnerId == 2).Treasury.Money);
         var mutation = world.BeginMutation();
         var task = Assert.Single(mutation.Simulation.Tasks);
         task = task with { Journey = task.Journey! with { SuccessRoll = roll } };
@@ -107,7 +107,7 @@ public sealed class SeizeStrategyTests
         Assert.Equal(25, result.MoneyThreshold);
         Assert.Equal(11, state.Treasures[11].HolderId);
         Assert.Equal(22, state.Treasures[10].HolderId);
-        Assert.Equal(9999u, state.Forces[2].Money);
+        Assert.Equal(9999u, state.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 2).Treasury.Money);
         Assert.Single(events.OfType<TreasureTransferredEvent>());
     }
 
@@ -122,7 +122,7 @@ public sealed class SeizeStrategyTests
         Assert.Equal(1, state.Officers[31].SettlementId);
         Assert.Single(events.OfType<PrisonerRecoveredEvent>());
         Assert.Contains(state.Simulation.Tasks, task => task.OfficerId == 31 && task.Kind == PersonnelReturns.Kind);
-        Assert.Equal(9999u, state.Forces[2].Money);
+        Assert.Equal(9999u, state.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 2).Treasury.Money);
     }
 
     [Fact]
@@ -132,16 +132,16 @@ public sealed class SeizeStrategyTests
 
         Assert.Equal(SeizeOutcomeKind.Money, result.Outcome);
         Assert.InRange(result.Money, 435u, 484u);
-        Assert.Equal(9999u + result.Money, state.Forces[1].Money);
-        Assert.Equal(9999u - result.Money, state.Forces[2].Money);
+        Assert.Equal(9999u + result.Money, state.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money);
+        Assert.Equal(9999u - result.Money, state.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 2).Treasury.Money);
         Assert.Equal(30000u, state.Settlements[2].Soldiers);
         Assert.Equal(4000u, state.Settlements[2].Wounded);
         Assert.Equal(0, events.OfType<ResourceChangedEvent>().Sum(e => e.Actual));
 
         var capped = Find(r => !r.ItemGatePassed, 10, captive: false, actorMoney: 1000000);
         Assert.Equal(1u, capped.Result.Money);
-        Assert.Equal(1000000u, capped.State.Forces[1].Money);
-        Assert.Equal(9998u, capped.State.Forces[2].Money);
+        Assert.Equal(1000000u, capped.State.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money);
+        Assert.Equal(9998u, capped.State.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 2).Treasury.Money);
     }
 
     [Fact]
@@ -154,7 +154,7 @@ public sealed class SeizeStrategyTests
         Assert.Equal(7, result.InjuryAfter);
         Assert.InRange(state.Relations[(1, 2)].Value, 47, 49);
         Assert.Equal(50, state.Officers[11].BaseAbilities.War);
-        Assert.Equal(9999u, state.Forces[2].Money);
+        Assert.Equal(9999u, state.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 2).Treasury.Money);
     }
 
     [Fact]
@@ -173,7 +173,7 @@ public sealed class SeizeStrategyTests
         var task = Submit(world, rules, 0);
         var snapshot = engine.Snapshot;
         Assert.NotNull(task.Journey!.Seize);
-        Assert.Equal(9999u, snapshot.Forces.Single(force => force.Id == 2).Money);
+        Assert.Equal(9999u, snapshot.Corps.Single(force => force.IsRoot && force.OwnerId == 2).Treasury.Money);
         Assert.Equal(22, snapshot.Treasures.Single(treasure => treasure.Id == 10).HolderId);
     }
 
@@ -218,7 +218,7 @@ public sealed class SeizeStrategyTests
         var rules = Rules();
         var world = World();
         var mutation = world.BeginMutation();
-        mutation.Replace(mutation.Forces[2] with { Money = 0 });
+        mutation.Replace(ResourceAccounts.Root(mutation, 2) with { Treasury = ResourceAccounts.Root(mutation, 2).Treasury with { Money = 0 } });
         world.Commit(mutation);
         var engine = new SimulationEngine(world, rules);
         Assert.Equal(CommandRejection.InvalidTask, engine.GetSeizeAdvice(1, 11, 2).Rejection);
@@ -227,7 +227,7 @@ public sealed class SeizeStrategyTests
         world = World();
         Submit(world, rules, 0);
         mutation = world.BeginMutation(rules.Abilities);
-        mutation.Replace(mutation.Forces[2] with { Money = 0 });
+        mutation.Replace(ResourceAccounts.Root(mutation, 2) with { Treasury = ResourceAccounts.Root(mutation, 2).Treasury with { Money = 0 } });
         List<DomainEvent> events = [];
         new ResolutionPipeline(rules).AdvanceDay(mutation, events);
         Assert.Single(events.OfType<TaskCancelledEvent>());

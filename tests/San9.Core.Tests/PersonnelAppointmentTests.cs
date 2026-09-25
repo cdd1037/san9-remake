@@ -8,12 +8,12 @@ public sealed class PersonnelAppointmentTests
     private static SimulationEngine Engine(int intelligence, int bonus = 0, int oldIntelligence = 80, ulong seed = 190, bool oldAdviser = true)
     {
         var world = WorldState.Create(new(190, 1, 1), seed,
-            [new(1, 1000, 1000, 0) { LeaderId = 1, AdviserId = oldAdviser ? 11 : null }],
+            [new(1, 0) { LeaderId = 1, AdviserId = oldAdviser ? 11 : null }],
             [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
             [new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
              new OfficerState(11, 1, 1, new(50, oldIntelligence, 50, 50), false) { Status = oldAdviser ? OfficerStatus.Strategist : OfficerStatus.Serving }.WithLoyalty(1, 1),
              new(12, 1, 1, new(50, intelligence, 50, 50), false) { OfficeId = 1 }],
-            treasures: [new(10, 12, TreasureDiscovery.Discovered, null)], controls: [new("player", 1, ControllerKind.Player)]);
+            treasures: [new(10, 12, TreasureDiscovery.Discovered, null)], controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(1000, 1000)) { IsRoot = true }]);
         return new(world, new([new(1, 0)], []), PersonnelRulebook.Empty, new([new(10, new(0, bonus, 0, 0), 0)]),
             new([new(1, 10000, 0) { AbilityBonuses = new(1, 0, 1, 0) }]));
     }
@@ -56,7 +56,7 @@ public sealed class PersonnelAppointmentTests
         var state = Engine(80).Snapshot;
         var engine = new SimulationEngine(WorldState.Restore(state with
         {
-            Corps = [new(3, 1, 12, null)],
+            Corps = [new(3, 1, 12, new(1000, 1000)) { IsRoot = true }],
             Settlements = state.Settlements.Select(s => s with { CorpsId = 3 }).ToArray(),
             Officers = state.Officers.Select(p => p.Id == 12 ? p with { Acted = true } : p).ToArray()
         }), new([new(1, 0)], []), PersonnelRulebook.Empty, new([new(10, new(0, 0, 0, 0), 0)]),

@@ -10,8 +10,8 @@ public sealed class AttackRequestDiplomacyTests
         [new(1, new(0, 0)), new(2, new(90, 0)), new(3, new(180, 0))],
         new Dictionary<int, int> { [1] = 1, [2] = 2, [3] = 3 }, [new(3, 2), new(2, 3)]) };
     private static WorldState World(int relation = 80, bool automatic = false, bool exchange = false) => WorldState.Create(new(190, 1, 1), 42,
-        [new ForceState(1, 10000, 10000, 100) { LeaderId = 11 }, new ForceState(2, 10000, 10000, 100) { LeaderId = 21 },
-         new ForceState(3, 10000, 10000, 100) { LeaderId = 31 }],
+        [new ForceState(1, 100) { LeaderId = 11 }, new ForceState(2, 100) { LeaderId = 21 },
+         new ForceState(3, 100) { LeaderId = 31 }],
         [new(1, 1, 10000, 100, 100, 0, 0, 0, 0, 0, 0), new(2, 2, 10000, 100, 100, 0, 0, 0, 0, 0, 0),
          new(3, 3, 10000, 100, 100, 0, 0, 0, 0, 0, 0)],
         [new OfficerState(11, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
@@ -21,7 +21,7 @@ public sealed class AttackRequestDiplomacyTests
          new OfficerState(31, 3, 3, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }],
         treasures: [new(9, 11, TreasureDiscovery.Discovered, null)],
         controls: [new("first", 1, ControllerKind.Player), new("second", 2, automatic ? ControllerKind.Automatic : ControllerKind.Player),
-            new("third", 3, ControllerKind.Automatic)], relations: [new(1, 2, relation), new(1, 3, 0), new(2, 3, 0)]);
+            new("third", 3, ControllerKind.Automatic)], relations: [new(1, 2, relation), new(1, 3, 0), new(2, 3, 0)], corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, 31, new(10000, 10000)) { IsRoot = true }]);
 
     private static SimulationEngine Arrive(bool automatic = false, int relation = 80, bool exchange = false)
     {
@@ -120,7 +120,7 @@ public sealed class AttackRequestDiplomacyTests
         Assert.True(engine.Execute(new("second"), new RespondDailyTaskCommand(Guid.NewGuid(), 2, 1, prompt.TaskId, 0, true)
             { Offer = new(CompensationKind.Money, 1000, null, null) }).Submission.Accepted);
         var snapshot = engine.Snapshot;
-        engine = new(WorldState.Restore(snapshot with { Forces = snapshot.Forces.Select(f => f.Id == 1 ? f with { Money = 999 } : f).ToArray() }), Rules());
+        engine = new(WorldState.Restore(snapshot with { Corps = snapshot.Corps.Select(f => f.IsRoot && f.OwnerId == 1 ? f with { Treasury = f.Treasury with { Money = 999 } } : f).ToArray() }), Rules());
         result = engine.Execute(new("first"), new RespondDailyTaskCommand(Guid.NewGuid(), 1, 2, prompt.TaskId, 1, true));
         Assert.Contains(result.Events, e => e is TaskCancelledEvent cancelled && cancelled.TaskId == prompt.TaskId);
         Assert.DoesNotContain(result.Events, e => e is AttackRequestEstablishedEvent or AttackRequestResolvedEvent);
@@ -135,7 +135,7 @@ public sealed class AttackRequestDiplomacyTests
     public void AutomaticMoneyAcceptanceUsesStrictLiquidityAndLiveRulerInputs(uint quote, uint money, bool expected)
     {
         var state = World(relation: 60).BeginMutation();
-        state.Replace(state.Forces[1] with { Money = money });
+        state.Replace(ResourceAccounts.Root(state, 1) with { Treasury = ResourceAccounts.Root(state, 1).Treasury with { Money = money } });
         var task = new PersistentTask(Guid.NewGuid(), AttackRequestDiplomacy.Kind, "first", 1, 12, 1,
             state.Clock, state.Clock, 0, 0) { ResolutionStep = 1, Journey = new(2, null, 99),
             AttackRequest = new(2, 3) { Offer = new(CompensationKind.Money, quote, null, null) } };

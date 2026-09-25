@@ -56,13 +56,13 @@ public sealed class SettlementDefectionTests
     private static WorldMutation World(bool occupied = false, ulong seed = 17)
     {
         var state = WorldState.Create(new(190, 1, 1), seed,
-            [new(1, 100000, 200000, 100) { LeaderId = 1 }, new(2, 100000, 200000, 100) { LeaderId = 2 }],
+            [new(1, 100) { LeaderId = 1 }, new(2, 100) { LeaderId = 2 }],
             [Place(2, 2, 200000), Place(3, 1), Place(10, 1, occupied ? 1000u : 0u)],
             [Person(1, 1, 3, OfficerStatus.Ruler), Person(2, 2, 2, OfficerStatus.Ruler),
              Person(30, 2, 10) with { OwnerId = null, Status = OfficerStatus.Undiscovered },
              .. occupied ? new[] { Person(10, 1, 10), Person(11, 1, 10), Person(12, 1, 10) } : []],
             relations: [new(1, 2, 0)],
-            corps: [new(10, 1, 1, null), new(20, 2, 2, null)],
+            corps: [new(10, 1, 1, new(100000, 200000)) { IsRoot = true }, new(20, 2, 2, new(100000, 200000)) { IsRoot = true }],
             controls: [new("player", 1, ControllerKind.Player), new("other", 2, ControllerKind.Player)]);
         var world = state.BeginMutation();
         world.SetClock(new(190, 2, 1));

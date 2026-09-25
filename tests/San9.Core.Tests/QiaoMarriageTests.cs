@@ -8,8 +8,8 @@ public sealed class QiaoMarriageTests
     internal static QiaoMarriageDefinition Definition() => new(11, 12, [31, 32], 21, 9, [3],
         new(199, 12, 30), new(209, 12, 30), 3, 7, 20, 25, new("qiao-marriage"));
     private static WorldState World() => WorldState.Create(new(190, 1, 1), 17,
-        [new(1, 10000, 10000, 100) { LeaderId = 11, BaseTrust = 100 },
-         new(2, 10000, 10000, 100) { LeaderId = 21, BaseTrust = 100 }],
+        [new(1, 100) { LeaderId = 11, BaseTrust = 100 },
+         new(2, 100) { LeaderId = 21, BaseTrust = 100 }],
         Enumerable.Range(1, 3).Select(id => new SettlementState(id, id == 1 ? 1 : 2, 100, 100, 100, 50, 100, 100, 100, 100, 100)
             { Kind = SettlementKind.City, ConsumesFood = false }),
         [new(11, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler, LifespanTier = 2 },
@@ -18,7 +18,7 @@ public sealed class QiaoMarriageTests
          new(31, null, null, new(50, 50, 50, 50), false) { Status = OfficerStatus.Special },
          new(32, null, null, new(50, 50, 50, 50), false) { Status = OfficerStatus.Special }],
         controls: [new("player", 1, ControllerKind.Player), new("ai", 2, ControllerKind.Automatic)],
-        relations: [new(1, 2, 80)]);
+        relations: [new(1, 2, 80)], corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 10000)) { IsRoot = true }]);
     private static SimulationRules Rules(QiaoMarriageDefinition? definition = null) => new()
     {
         QiaoMarriage = definition ?? Definition(),

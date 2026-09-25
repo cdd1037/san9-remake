@@ -88,7 +88,7 @@ public sealed class EventSelectionContractTests
     [Fact]
     public void InvalidWorldEffectDoesNotPublishItsConsumptionKey()
     {
-        var world = WorldState.Create(new(190, 1, 1), 1, [new(1, 0, 0, 100)], [], []);
+        var world = WorldState.Create(new(190, 1, 1), 1, [new(1, 100)], [], [], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(0, 0)) { IsRoot = true }]);
         var engine = new SimulationEngine(world);
         string before = engine.Snapshot.StateHash;
         var mutation = world.BeginMutation();

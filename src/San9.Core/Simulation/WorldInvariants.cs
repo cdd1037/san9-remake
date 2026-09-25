@@ -12,6 +12,8 @@ internal static class WorldInvariants
         if (titles.Any(id => id < 0) || titles.Distinct().Count() != titles.Length) throw new ArgumentException("Invalid country title ownership.");
         foreach (var force in state.AllForces.Values)
         {
+            if (!force.IsEliminated && state.AllCorps.Values.Count(c => c.OwnerId == force.Id && c.IsRoot) != 1)
+                throw new ArgumentException("Each surviving force must have exactly one root corps.");
             if (force.Origin is { } origin)
             {
                 _ = new GameClock(origin.Clock.Year, origin.Clock.Month, origin.Clock.Day);
@@ -23,7 +25,7 @@ internal static class WorldInvariants
                     foundingCity.Kind != San9.Core.Domain.SettlementKind.City)
                     throw new ArgumentException("Invalid force origin.");
             }
-            if (force.IsEliminated && (force.CountryTitleId is not null || force.LeaderId is not null || force.AdviserId is not null || force.Money != 0 || force.Food != 0 ||
+            if (force.IsEliminated && (force.CountryTitleId is not null || force.LeaderId is not null || force.AdviserId is not null ||
                 state.AllOfficers.Values.Any(p => p.OwnerId == force.Id) || state.AllSettlements.Values.Any(s => s.OwnerId == force.Id) ||
                 state.Units.Values.Any(u => u.OwnerId == force.Id) || state.AllCorps.Values.Any(c => c.OwnerId == force.Id) ||
                 state.Simulation.Controls.Any(c => c.ForceId == force.Id))) throw new ArgumentException("Eliminated force retains active references.");
@@ -83,10 +85,10 @@ internal static class WorldInvariants
                     !leader.IsServing || leader.UnitId != unit.Id || leader.OwnerId != unit.OwnerId) ||
                 unit.CorpsId is int corpsId && (!state.AllCorps.TryGetValue(corpsId, out var corps) || corps.OwnerId != unit.OwnerId)) throw new ArgumentException("Invalid unit.");
         }
-        if (state.AllCorps.Values.Any(c => c.Id < 0 || !Enum.IsDefined(c.ControlMode) || !ValidDelegation(state, c) || !state.AllForces.ContainsKey(c.OwnerId) ||
-                !state.AllOfficers.TryGetValue(c.LeaderId, out var leader) || leader.OwnerId != c.OwnerId ||
-                !leader.IsServing && !(c.Treasury is null && leader.Status == San9.Core.Domain.OfficerStatus.Captive &&
-                    state.AllForces[c.OwnerId].LeaderId == leader.Id)) ||
+        if (state.AllCorps.Values.Any(c => c.Treasury is null || c.Id < 0 || !Enum.IsDefined(c.ControlMode) || !ValidDelegation(state, c) || !state.AllForces.ContainsKey(c.OwnerId) ||
+                (c.LeaderId is int leaderId ? !state.AllOfficers.TryGetValue(leaderId, out var leader) || leader.OwnerId != c.OwnerId ||
+                !leader.IsServing && !(c.IsRoot && leader.Status == San9.Core.Domain.OfficerStatus.Captive &&
+                    state.AllForces[c.OwnerId].LeaderId == leader.Id) : !c.IsRoot || state.AllForces[c.OwnerId].LeaderId is not null)) ||
             state.AllTreasures.Values.Any(t => !t.IsValid || t.HolderId is int holder && !state.AllOfficers.ContainsKey(holder)) ||
             state.AllRelations.Values.Any(r => r.FirstId >= r.SecondId || r.Value is < 0 or > 100 || !state.AllForces.ContainsKey(r.FirstId) || !state.AllForces.ContainsKey(r.SecondId)))
             throw new ArgumentException("Invalid information state relationships.");
@@ -107,7 +109,7 @@ internal static class WorldInvariants
                 u.CommanderId is int commander && !state.Officers.ContainsKey(commander) ||
                 u.Order?.SettlementId is int target && !state.Settlements.ContainsKey(target) ||
                 u.ServicePlaceId is int home && state.AllSettlements.TryGetValue(home, out var place) && place.IsDormant) ||
-            state.Corps.Values.Any(c => !state.Officers.ContainsKey(c.LeaderId)) ||
+            state.Corps.Values.Any(c => c.LeaderId is int leader && !state.Officers.ContainsKey(leader)) ||
             state.Simulation.Controls.Any(c => !state.Forces.ContainsKey(c.ForceId)) ||
             state.Simulation.Tasks.Any(t => !state.Forces.ContainsKey(t.ForceId) ||
                 !state.Officers.ContainsKey(t.OfficerId) || !state.Settlements.ContainsKey(t.OriginSettlementId)))
@@ -115,7 +117,7 @@ internal static class WorldInvariants
     }
 
     private static bool ValidDelegation(WorldMutation state, San9.Core.Domain.CorpsState corps) =>
-        corps.Treasury is null ? corps.Delegation is San9.Core.Domain.GeneralDelegation : corps.Delegation switch
+        corps.IsRoot ? corps.Delegation is San9.Core.Domain.GeneralDelegation : corps.Delegation switch
         {
             San9.Core.Domain.GeneralDelegation or San9.Core.Domain.DomesticDelegation => true,
             San9.Core.Domain.DefeatForceDelegation target => target.ForceId != corps.OwnerId &&

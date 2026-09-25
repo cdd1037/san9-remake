@@ -23,12 +23,12 @@ public sealed class CommunitySearchTests
     private static (WorldMutation World, PersistentTask Task, SimulationRules Rules, CommunitySearchEncounter Encounter) Create(string kind)
     {
         var world = WorldState.Create(new(190, 1, 1), 1,
-            [new(1, 0, 0, 100) { LeaderId = 1, BaseTrust = 100 }],
+            [new(1, 100) { LeaderId = 1, BaseTrust = 100 }],
             [new(1, 1, 11000, 100, 100, 0, 0, 0, 100, 0, 100) { CorpsId = 7 }],
             [new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
              new(2, 1, 1, new(60, 30, 80, 70), false)],
             treasures: [new(50, 2, TreasureDiscovery.Discovered, null)],
-            corps: [new(7, 1, 2, new(5000, 5000)) { ControlMode = CorpsControlMode.Direct }],
+            corps: [new(7, 1, 2, new(5000, 5000)) { ControlMode = CorpsControlMode.Direct }, new San9.Core.Domain.CorpsState(1, 1, 1, new(0, 0)) { IsRoot = true }],
             controls: [new("player", 1, ControllerKind.Player)]).BeginMutation(new OfficerAbilityRules(new([new(50, default, 0)]), new([])));
         ulong seed = Enumerable.Range(1, 10000).Select(i => (ulong)i).First(s => new StableRandom(s).NextUInt64() % 100 == 0);
         world.SetSimulation(world.Simulation with { RandomStreams = [new("event-search-eligibility", seed)] });
@@ -65,7 +65,7 @@ public sealed class CommunitySearchTests
         var result = Assert.Single(events.OfType<CommunitySearchResolvedEvent>());
         Assert.Equal(Math.Max(0, money), result.MoneyReward);
         Assert.Equal(trust, result.BaseTrust); Assert.Equal((uint)(5000 + money), world.Corps[7].Treasury!.Money);
-        Assert.Equal((uint)(5000 + food), world.Corps[7].Treasury!.Food); Assert.Equal(0u, world.Forces[1].Money);
+        Assert.Equal((uint)(5000 + food), world.Corps[7].Treasury!.Food); Assert.Equal(0u, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money);
         Assert.Equal(soldiers, result.Soldiers); Assert.Equal(11000u + soldiers, world.Settlements[1].Soldiers);
         Assert.Equal(2, world.Treasures[50].HolderId);
         bool memorial = kind is "monument" or "sacrifice" && choice == CommunitySearchChoice.Accept;
@@ -81,7 +81,7 @@ public sealed class CommunitySearchTests
     public void StrictFundsGateNeverFallsBackToRichRoot(string kind, uint funds)
     {
         var (world, task, rules, encounter) = Create(kind);
-        world.Replace(world.Corps[7] with { Treasury = new(funds, 5000) }); world.Replace(world.Forces[1] with { Money = 100000 });
+        world.Replace(world.Corps[7] with { Treasury = new(funds, 5000) }); world.Replace(ResourceAccounts.Root(world, 1) with { Treasury = ResourceAccounts.Root(world, 1).Treasury with { Money = 100000 } });
         Assert.False(CommunitySearch.CanResolve(world, task, rules, encounter)); List<DomainEvent> events = [];
         Assert.Throws<InvalidOperationException>(() => CommunitySearch.Resolve(world, task, rules, encounter, CommunitySearchChoice.Decline, events));
         Assert.Empty(events); Assert.Equal(100, world.Forces[1].BaseTrust);
@@ -235,7 +235,7 @@ public sealed class CommunitySearchTests
         world.SetSimulation(world.Simulation with { Tasks = [escort with { OriginSettlementId = 1 }] });
         Assert.True(CommunitySearch.CanResolve(world, task, rules, encounter));
         // Dissolving the corps also preserves eligibility.
-        world.Replace(world.Forces[1] with { Money = 5000 });
+        world.Replace(ResourceAccounts.Root(world, 1) with { Treasury = ResourceAccounts.Root(world, 1).Treasury with { Money = 5000 } });
         world.Replace(world.Settlements[1] with { CorpsId = null });
         Assert.True(CommunitySearch.CanResolve(world, task, rules, encounter));
         Assert.Equal(11000, SoldierTotals.Corps(world, 1, null));

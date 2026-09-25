@@ -128,7 +128,7 @@ internal static class PersonnelMissions
             return CommandRejection.InvalidTask;
         if (command.OfficerIds.Any(id => !CanAct(world, command.IssuerId, id) ||
             world.Officers[id].SettlementId == destination.Id || !rules.Places.ContainsKey(world.Officers[id].SettlementId!.Value) ||
-            world.Corps.Values.Any(c => c.LeaderId == id && c.Treasury is null && destination.CorpsId != c.Id) ||
+            world.Corps.Values.Any(c => c.LeaderId == id && c.IsRoot && destination.CorpsId != c.Id) ||
             !GovernanceMaintenance.CanRemove(world, id)))
             return CommandRejection.PersonUnavailable;
         var ids = command.OfficerIds.Order().ToArray();
@@ -333,7 +333,7 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
             return journey.TargetOfficerId is null && journey.SuccessRoll is null &&
                 world.Settlements.TryGetValue(journey.DestinationPlaceId, out var destination) && destination.OwnerId == task.ForceId &&
                 destination.CanHostPersons && destination.Durability > 0 &&
-                !world.Corps.Values.Any(c => c.LeaderId == task.OfficerId && c.Treasury is null && destination.CorpsId != c.Id) &&
+                !world.Corps.Values.Any(c => c.LeaderId == task.OfficerId && c.IsRoot && destination.CorpsId != c.Id) &&
                 GovernanceMaintenance.CanRemove(world, task.OfficerId);
         return journey.SuccessRoll is >= 0 and < 100 && journey.TargetOfficerId is int targetId &&
             world.Forces[task.ForceId].LeaderId is not null && world.Officers.TryGetValue(targetId, out var target) &&

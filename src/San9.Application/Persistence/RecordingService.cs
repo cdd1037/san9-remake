@@ -16,7 +16,7 @@ public sealed class RecordingException(string message, long? sequence = null, Ex
 /// <summary>Explicit debug recordings are separate artifacts, never part of a player save.</summary>
 public static class RecordingService
 {
-    public const int FormatVersion = 4;
+    public const int FormatVersion = 5;
 
     public static byte[] Encode(SessionRecording recording)
     {

@@ -14,7 +14,7 @@ public sealed class DomesticCombinationOrderTests
     public void IdentityCannotOvertakeAbilityOrRulerAndChangeCombinationDraws(int secondId, int thirdId, bool ruler)
     {
         var world = WorldState.Create(new(190, 1, 1), 7,
-            [new(1, 10000, 10000, 100) { LeaderId = ruler ? 10 : 1 }],
+            [new(1, 100) { LeaderId = ruler ? 10 : 1 }],
             [new(1, 1, 0, 100, 100, 0, 500, 900, 1000, 500, 1000)],
             (ruler ? Array.Empty<OfficerState>() : [new OfficerState(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }])
                 .Concat(new[]
@@ -22,7 +22,7 @@ public sealed class DomesticCombinationOrderTests
                     new OfficerState(10, 1, 1, new(50, 50, 80, 50), false) { Status = ruler ? OfficerStatus.Ruler : OfficerStatus.Serving },
                     new OfficerState(secondId, 1, 1, new(50, 50, ruler ? 250 : 79, 50), false),
                     new OfficerState(thirdId, 1, 1, new(50, 50, 78, 50), false)
-                }), controls: [new("player", 1, ControllerKind.Player)]);
+                }), controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, ruler ? 10 : 1, new(10000, 10000)) { IsRoot = true }]);
         var rules = new EconomyRulebook([], [new(DomesticActivity.Commerce, 10, thirdId, ruler, false),
             new(DomesticActivity.Commerce, secondId, thirdId, true, false)]);
         var engine = new SimulationEngine(world, rules);

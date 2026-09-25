@@ -13,9 +13,9 @@ public sealed class AttackRequestSessionTests
     public void InitialRequestOrderingDoesNotChangeContentOrWorldAndContentStaysUnchanged()
     {
         var content = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "request-order", 190, 1, 1, 1,
-            Enumerable.Range(1, 3).Select(id => new ForceInitialState(id, $"force.{id}", id, 10000, 100000, 100)).ToArray(),
+            Enumerable.Range(1, 3).Select(id => new ForceInitialState(id, $"force.{id}", id, 100)).ToArray(),
             [new(30, "target", 3, 0, 0, 0, 100, 100, 0, [])], [], [])
-        { AttackRequests = [new(2, 1, 30, 19), new(1, 2, 30, 12)] };
+        { AttackRequests = [new(2, 1, 30, 19), new(1, 2, 30, 12)] , Information = new([], [], [], Enumerable.Range(1, 3).Select(id => new San9.Core.Domain.CorpsState(id, id, null, new(10000, 100000)) { IsRoot = true }).ToArray(), []) };
         var reordered = content with { AttackRequests = [content.AttackRequests[1], content.AttackRequests[0]] };
         var session = GameSession.Start(content, 1);
         var other = GameSession.Start(reordered, 1);
@@ -31,9 +31,9 @@ public sealed class AttackRequestSessionTests
     public void RequestExpirySurvivesSaveAndReplayAndMissingStateIsRejected()
     {
         var content = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "request-expiry", 190, 1, 1, 1,
-            Enumerable.Range(1, 3).Select(id => new ForceInitialState(id, $"force.{id}", id, 10000, 100000, 100) { BaseTrust = 100 }).ToArray(),
+            Enumerable.Range(1, 3).Select(id => new ForceInitialState(id, $"force.{id}", id, 100) { BaseTrust = 100 }).ToArray(),
             Enumerable.Range(1, 3).Select(id => new SettlementInitialState(id * 10, $"city.{id}", id, id, 0, 0, 100, 100, 0, [])).ToArray(), [], [])
-        { AttackRequests = [new(1, 2, 30, 3)] };
+        { AttackRequests = [new(1, 2, 30, 3)] , Information = new([], [], [], Enumerable.Range(1, 3).Select(id => new San9.Core.Domain.CorpsState(id, id, null, new(10000, 100000)) { IsRoot = true }).ToArray(), []) };
         var session = GameSession.Start(content, 1);
         Assert.Equal(new(1, 2, 30, 3, 2), Assert.Single(session.Snapshot.Simulation.AttackRequests));
         session.BeginRecording();

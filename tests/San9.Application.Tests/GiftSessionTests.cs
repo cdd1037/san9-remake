@@ -46,15 +46,15 @@ public sealed class GiftSessionTests
     }
 
     private static ScenarioInitialState Content() => new(ScenarioInitialState.CurrentSchemaVersion, "gifts", 190, 1, 1, 1,
-        [new(1, "first", 1, 100000, 100000, 100) { LeaderId = 11 },
-         new(2, "second", 2, 100000, 100000, 100) { LeaderId = 21 }],
+        [new(1, "first", 1, 100) { LeaderId = 11 },
+         new(2, "second", 2, 100) { LeaderId = 21 }],
         [new(1, "home", 1, 0, 0, 0, 100, 100, 0, []), new(2, "away", 2, 18, 0, 0, 100, 100, 0, [])], [], [])
     {
         Officers = [new("ruler", new(11, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }),
             new("envoy", new(12, 1, 1, new(50, 50, 100, 50), false)),
             new("ruler2", new(21, 2, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }),
             new("envoy2", new(22, 2, 2, new(50, 50, 100, 50), false))],
-        Information = new([], [], [new(9, "treasure", 0, 0, 50, null)], [], [new(9, 11, TreasureDiscovery.Discovered, null)])
+        Information = new([], [], [new(9, "treasure", 0, 0, 50, null)], [new San9.Core.Domain.CorpsState(1, 1, 11, new(100000, 100000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(100000, 100000)) { IsRoot = true }], [new(9, 11, TreasureDiscovery.Discovered, null)])
     };
 
     [Theory]
@@ -64,18 +64,18 @@ public sealed class GiftSessionTests
     public void GiftPaysOnceTransfersToAiAndReturnsWithSaveAndReplay(GiftKind kind, uint amount)
     {
         var content = Content();
-        content = content with { Forces = content.Forces.Select(f => f with { Food = 500000 }).ToArray() };
+        content = content with { Information = content.Information with { Corps = content.Information.Corps.Select(f => f with { Treasury = f.Treasury with { Food = 500000 } }).ToArray() } };
         var session = GameSession.Start(content, 42);
         session.BeginRecording();
         var offer = new GiftOffer(kind, amount, kind == GiftKind.Treasure ? 9 : null);
         string beforeAdvice = session.Capture().StateHash;
         Assert.Equal(session.GetGiftAdvice(1, 12, 2, offer), session.GetGiftAdvice(1, 12, 2, offer));
         Assert.Equal(beforeAdvice, session.Capture().StateHash);
-        uint before = kind == GiftKind.Food ? session.Snapshot.Forces[0].Food : session.Snapshot.Forces[0].Money;
+        uint before = kind == GiftKind.Food ? session.Snapshot.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Food : session.Snapshot.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Money;
         Assert.True(session.Execute(new("player"), new GiftCommand(Guid.NewGuid(), 1, 0, 12, 2, offer)).Submission.Accepted);
         Assert.Single(session.Snapshot.Simulation.Tasks);
         if (kind == GiftKind.Treasure) Assert.Equal(12, session.Snapshot.Treasures[0].HolderId);
-        else Assert.Equal(before - amount, kind == GiftKind.Food ? session.Snapshot.Forces[0].Food : session.Snapshot.Forces[0].Money);
+        else Assert.Equal(before - amount, kind == GiftKind.Food ? session.Snapshot.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Food : session.Snapshot.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Money);
         var restored = SaveService.Decode(SaveService.Encode(session), content);
         var result = session.AdvanceXun();
         Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
@@ -149,7 +149,7 @@ public sealed class GiftSessionTests
         else if (!accept)
         {
             var refund = Assert.Single(result.Events.OfType<ResourceChangedEvent>(), e => e.Reason == "gift-refused");
-            Assert.Equal(new ResourceAccount(ResourceOwnerKind.Force, 2), refund.Account);
+            Assert.Equal(new ResourceAccount(ResourceOwnerKind.Corps, 2), refund.Account);
             Assert.Equal(kind == GiftKind.Money ? ResourceKind.Money : ResourceKind.Food, refund.Resource);
             Assert.Equal(amount, refund.Actual);
             Assert.Equal(0, refund.SaturationLoss);
@@ -244,9 +244,9 @@ public sealed class GiftSessionTests
     public void TargetCapacityReportsEveryUndeliveredUnitAsSpent()
     {
         var content = Content();
-        content = content with { Forces = content.Forces.Select(f => f.Id == 2 ? f with { Money = 1000000 } : f).ToArray() };
+        content = content with { Information = content.Information with { Corps = content.Information.Corps.Select(f => f.IsRoot && f.OwnerId == 2 ? f with { Treasury = f.Treasury with { Money = 1000000 } } : f).ToArray() } };
         var session = GameSession.Start(content, 42);
-        uint room = 1000000 - session.Snapshot.Forces.Single(f => f.Id == 2).Money;
+        uint room = 1000000 - session.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 2).Treasury.Money;
         Assert.True(session.Execute(new("player"), new GiftCommand(Guid.NewGuid(), 1, 0, 12, 2,
             new(GiftKind.Money, 20000, null))).Submission.Accepted);
         var result = Assert.Single(session.AdvanceXun().Events.OfType<GiftResolvedEvent>());
@@ -269,8 +269,8 @@ public sealed class GiftSessionTests
         var saved = session.Snapshot;
         var engine = GameSession.EngineFactory(content)(WorldState.Restore(saved with
         {
-            Forces = saved.Forces.Select(f => f.Id != 2 ? f : kind == GiftKind.Money
-                ? f with { Money = 999900 } : f with { Food = 999900 }).ToArray()
+            Corps = saved.Corps.Select(c => !c.IsRoot || c.OwnerId != 2 ? c : c with { Treasury = kind == GiftKind.Money
+                ? c.Treasury with { Money = 999900 } : c.Treasury with { Food = 999900 } }).ToArray()
         }));
         var pending = engine.Snapshot.Simulation.PendingDailyTask!;
         var result = engine.Execute(new("player"), new RespondDailyTaskCommand(Guid.NewGuid(), 1,

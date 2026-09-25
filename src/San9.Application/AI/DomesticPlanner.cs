@@ -30,10 +30,9 @@ public static class DomesticPlanner
             foreach (var activity in priorities)
             {
                 // Keep a small cash reserve and ten days of recruit rations before discretionary spending.
-                var corps = city.CorpsId is int id ? snapshot.Corps.Single(c => c.Id == id) : null;
-                var force = snapshot.Forces.Single(f => f.Id == seat.ForceId);
-                uint money = corps?.Treasury?.Money ?? force.Money;
-                uint food = corps?.Treasury?.Food ?? force.Food;
+                var corps = city.CorpsId is int id ? snapshot.Corps.Single(c => c.Id == id) : snapshot.Corps.Single(c => c.OwnerId == seat.ForceId && c.IsRoot);
+                uint money = corps.Treasury.Money;
+                uint food = corps.Treasury.Food;
                 if (activity == DomesticActivity.Recruit && (city.Soldiers >= 10000 || food < (city.Soldiers + 5000L) / 50)) continue;
                 for (int count = Math.Min(5, people.Length); count > 0; count--)
                 {

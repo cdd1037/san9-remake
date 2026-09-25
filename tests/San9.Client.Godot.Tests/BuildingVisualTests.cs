@@ -10,12 +10,12 @@ public sealed class BuildingVisualTests
     {
         var definition = new San9.Content.Scenarios.ScenarioInitialState(
             San9.Content.Scenarios.ScenarioInitialState.CurrentSchemaVersion, "dormant", 190, 1, 1, 5,
-            [new(5, "active", 5, 0, 0, 0), new(6, "reserved", 6, 0, 0, 0) { IsDormant = true }],
-            [new(0, "city", 6, 89, 64, 1000, 1000, 1000, 60, []) { IsDormant = true, Appearance = 2 }], [], []);
+            [new(5, "active", 5, 0), new(6, "reserved", 6, 0) { IsDormant = true }],
+            [new(0, "city", 6, 89, 64, 1000, 1000, 1000, 60, []) { IsDormant = true, Appearance = 2 }], [], []) { Information = new([], [], [], [new San9.Core.Domain.CorpsState(5, 5, null, new(0, 0)) { IsRoot = true }, new San9.Core.Domain.CorpsState(6, 6, null, new(0, 0)) { IsRoot = true }], []) };
         var date = new San9.Core.Simulation.GameClock(190, 1, 1);
         var snapshot = new San9.Core.Simulation.WorldSnapshot(date, new(date, 17))
         {
-            Forces = [new(5, 0, 0, 0), new(6, 0, 0, 0) { IsDormant = true }],
+            Forces = [new(5, 0), new(6, 0) { IsDormant = true }],
             Settlements = [new(0, 6, 1000, 1000, 1000, 60, 0, 0, 100, 0, 100) { IsDormant = true }]
         };
         var map = Map(); var hash = snapshot.StateHash;

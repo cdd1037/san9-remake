@@ -14,7 +14,7 @@ public sealed class DuelSessionTests
         OfficerInitialState Person(int id, int force, int war, OfficerStatus status = OfficerStatus.Serving) =>
             new($"officer.{id}", new(id, force, null, new(war, 50, 50, 50), false) { UnitId = force, Status = status });
         return new(ScenarioInitialState.CurrentSchemaVersion, "duel-session", 190, 1, 1, 2,
-            [new(1, "first", 1, 0, 10000, 100) { LeaderId = 11 }, new(2, "second", 2, 0, 10000, 100) { LeaderId = 22 }],
+            [new(1, "first", 1, 100) { LeaderId = 11 }, new(2, "second", 2, 100) { LeaderId = 22 }],
             [new(1, "home", 1, 0, 0, 100, 100, 100, 100, []), new(2, "away", 2, 3, 0, 100, 100, 100, 100, [])], [], [])
         {
             NaturalDeathsEnabled = false,
@@ -29,7 +29,7 @@ public sealed class DuelSessionTests
                     CaptureRanks = [BattleRank.Front, BattleRank.Front, BattleRank.Rear], Tactics = new(0, 0, 2, [], []) }],
                 [new(1, new(2, 2), new(1, 1)) { Combat = combat }, new(2, new(17, 2), new(1, 1)) { Combat = combat }])
             { BattleDeathsAllowed = true, DuelCapturesAllowed = false }
-        };
+        , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 11, new(0, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 22, new(0, 10000)) { IsRoot = true }], []) };
     }
 
     [Theory]

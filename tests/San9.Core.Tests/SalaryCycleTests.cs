@@ -26,11 +26,11 @@ public sealed class SalaryCycleTests
         bool paid, int trust, int affinity, int righteousness, int roll, int loyalty, int expected)
     {
         var world = WorldState.Create(new(190, 1, 1), 190,
-            [new(1, paid ? 10u : 9u, 0, trust) { LeaderId = 1 }, new(2, 0, 0, 0)],
+            [new(1, trust) { LeaderId = 1 }, new(2, 0)],
             [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
             [new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
              new(2, 1, 1, new(50, 50, 50, 50), false) { OfficeId = 1, Affinity = affinity, Righteousness = righteousness,
-                 ForceLoyalties = ImmutableDictionary<int, int>.Empty.Add(1, loyalty).Add(2, 123) }]);
+                 ForceLoyalties = ImmutableDictionary<int, int>.Empty.Add(1, loyalty).Add(2, 123) }], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(paid ? 10u : 9u, 0)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, null, new(0, 0)) { IsRoot = true }]);
         var mutation = world.BeginMutation();
         ulong state = 0;
         while (new StableRandom(state).NextUInt64() % 100 != (ulong)roll) state++;
@@ -41,7 +41,7 @@ public sealed class SalaryCycleTests
         EconomicCycle.Apply(ResolutionStage.XunUpdate, mutation, new([new(1, 10)], []), events);
         Assert.Equal(expected, mutation.Officers[2].Loyalty);
         Assert.Equal(123, mutation.Officers[2].LoyaltyTo(2));
-        Assert.Equal(paid ? 0u : 9u, mutation.Forces[1].Money);
+        Assert.Equal(paid ? 0u : 9u, mutation.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money);
         var payment = Assert.Single(events.OfType<ResourceChangedEvent>());
         Assert.Equal(paid ? -10 : 0, payment.Actual);
         Assert.Equal(paid ? 0 : 10, payment.Shortfall);

@@ -15,19 +15,19 @@ public sealed class ScholarReturnTests
         int roll = 0, uint money = 10000, int trust = 999, GameClock? clock = null)
     {
         var world = WorldState.Create(clock ?? new(195, 1, 1), 123,
-            [new(1, money, 10000, trust) { LeaderId = 1, BaseTrust = trust }],
+            [new(1, trust) { LeaderId = 1, BaseTrust = trust }],
             [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
             [new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
              new(2, 1, 1, new(50, intelligence, politics, 50), false),
              new(3, null, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Special },
-             new(4, 1, 1, new(50, 99, 99, 50), false)], controls: [new("player", 1, ControllerKind.Player)]);
+             new(4, 1, 1, new(50, 99, 99, 50), false)], controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(money, 10000)) { IsRoot = true }]);
         var mutation = world.BeginMutation();
         mutation.SetSimulation(mutation.Simulation with { RandomStreams = [new("event-search-eligibility", Seed(roll))] });
         world.Commit(mutation);
         var rules = new PersonnelRulebook([new(1, new(0, 0)), new(30, new(0, 0))], searchEvents: [Definition]);
         var engine = new SimulationEngine(world, EconomyRulebook.Empty, rules);
         mutation = world.BeginMutation();
-        mutation.Replace(mutation.Forces[1] with { Money = money, BaseTrust = trust });
+        { mutation.Replace(mutation.Forces[1] with { BaseTrust = trust }); mutation.Replace(ResourceAccounts.Root(mutation, 1) with { Treasury = ResourceAccounts.Root(mutation, 1).Treasury with { Money = money } }); }
         world.Commit(mutation);
         return (world, engine, rules);
     }
@@ -53,6 +53,7 @@ public sealed class ScholarReturnTests
         string before = engine.Snapshot.StateHash;
         var scholar = engine.Snapshot.Officers.Single(p => p.Id == 3);
         var force = Assert.Single(engine.Snapshot.Forces);
+        uint beforeMoney = engine.Snapshot.Corps.Single(c => c.IsRoot).Treasury.Money;
         Assert.Empty(force.EventHistory); Assert.Empty(engine.Snapshot.Simulation.ConsumedEventKeys);
         Assert.Throws<InvalidOperationException>(() => engine.CaptureStableState());
         for (int i = 0; i < 3; i++) Assert.NotNull(engine.GetScholarReturnPrompt());
@@ -65,7 +66,7 @@ public sealed class ScholarReturnTests
         var after = Assert.Single(engine.Snapshot.Forces);
         var moneyChanges = response.Events.OfType<ResourceChangedEvent>().Where(e => e.Resource == ResourceKind.Money).ToArray();
         Assert.All(moneyChanges, e => Assert.Equal("salary", e.Reason));
-        Assert.Equal((long)force.Money + moneyChanges.Sum(e => e.Actual), after.Money);
+        Assert.Equal((long)beforeMoney + moneyChanges.Sum(e => e.Actual), engine.Snapshot.Corps.Single(c => c.IsRoot).Treasury.Money);
         Assert.Equal(scholar, engine.Snapshot.Officers.Single(p => p.Id == 3));
         Assert.Equal(accept, after.EventHistory.Contains(Definition.SuccessHistoryKey));
         Assert.Equal(accept ? 1000 : 999, after.BaseTrust);
@@ -126,7 +127,7 @@ public sealed class ScholarReturnTests
             case "late": m.SetClock(new(208, 1, 1)); break;
             case "trust": m.Replace(m.Forces[1] with { BaseTrust = 300 }); break;
             case "base-trust": m.Replace(m.Forces[1] with { BaseTrust = 1000 }); break;
-            case "money": m.Replace(m.Forces[1] with { Money = 3000 }); break;
+            case "money": m.Replace(ResourceAccounts.Root(m, 1) with { Treasury = ResourceAccounts.Root(m, 1).Treasury with { Money = 3000 } }); break;
             case "dead": m.Replace(m.Officers[3] with { Status = OfficerStatus.Dead }); break;
         }
         var task = new PersistentTask(Guid.NewGuid(), "personnel-search", "player", 1, 2, 1, m.Clock, m.Clock, 0, 0)

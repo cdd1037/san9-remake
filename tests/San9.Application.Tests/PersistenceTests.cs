@@ -52,7 +52,8 @@ public sealed class PersistenceTests : IDisposable
         var basis = Fixture();
         var definition = basis with
         {
-            Forces = basis.Forces.Append(new(3, "target", 3, 0, 0, 0)).ToArray(),
+            Forces = basis.Forces.Append(new(3, "target", 3, 0)).ToArray(),
+            Information = basis.Information with { Corps = [..basis.Information.Corps, new(3, 3, null, new(0, 0)) { IsRoot = true }] },
             Alliance = new(3, 1, [1, 2], 2)
         };
         var session = GameSession.Start(definition, 190);
@@ -140,7 +141,7 @@ public sealed class PersistenceTests : IDisposable
         {
             Units = [new(1, 1, San9.Core.Domain.MapCoordinates.Center(new(3, 4)), 100)],
             Information = new([], [new(1, "office", 1000, 20)], [new(1, "treasure", 0, 10, 5, null)],
-                [new(1, 1, 1, null), new(2, 2, 4, null)], [new(1, 2, TreasureDiscovery.Discovered, null)])
+                [new(1, 1, 1, new(1000, 2000)) { IsRoot = true }, new(2, 2, 4, new(1000, 2000)) { IsRoot = true }], [new(1, 2, TreasureDiscovery.Discovered, null)])
                 { Relations = [new(1, 2, 50)] }
         };
     }
@@ -160,10 +161,10 @@ public sealed class PersistenceTests : IDisposable
         private sealed class Investment(FixtureRules owner) : TaskRule
         {
             internal override int DurationDays(PersistentTask task) => 15;
-            internal override bool Validate(WorldMutation world, PersistentTask task) => world.Forces[task.ForceId].Money >= 50;
+            internal override bool Validate(WorldMutation world, PersistentTask task) => ResourceAccounts.Root(world, task.ForceId).Treasury.Money >= 50;
             internal override void Complete(WorldMutation world, PersistentTask task, List<DomainEvent> events)
             {
-                world.Replace(world.Forces[task.ForceId] with { Money = world.Forces[task.ForceId].Money - 50 });
+                ResourceAccounts.Change(world, ResourceAccounts.Resolve(world, task.ForceId, null), ResourceKind.Money, -50, "fixture-investment", null, events, true);
                 int increment = 1 + (int)(world.NextRandom("fixture-investment") % 10);
                 world.Replace(world.Settlements[task.OriginSettlementId] with { Commerce = owner.Fail ? 9999 : world.Settlements[task.OriginSettlementId].Commerce + increment });
             }
@@ -332,7 +333,7 @@ public sealed class PersistenceTests : IDisposable
         root["session"]!["world"]!["simulation"]!.AsObject().Remove("randomStreams");
         Assert.Equal(SaveFailure.InvalidFormat, Assert.Throws<SaveException>(() => SaveService.Decode(Encoding.UTF8.GetBytes(root.ToJsonString()), definition)).Failure);
         root = JsonNode.Parse(bytes)!;
-        root["session"]!["world"]!["forces"]![0]!["money"] = 1;
+        root["session"]!["world"]!["corps"]![0]!["treasury"]!["money"] = 1;
         Assert.Equal(SaveFailure.IntegrityMismatch, Assert.Throws<SaveException>(() => SaveService.Decode(Encoding.UTF8.GetBytes(root.ToJsonString()), definition)).Failure);
         var changed = definition with { Information = definition.Information with { Offices = [definition.Information.Offices[0] with { Salary = 21 }] } };
         Assert.Equal(SaveFailure.ContentMismatch, Assert.Throws<SaveException>(() => SaveService.Decode(bytes, changed)).Failure);
@@ -341,7 +342,7 @@ public sealed class PersistenceTests : IDisposable
         var corrupted = envelope with { Session = envelope.Session with { World = world } };
         var resigned = CanonicalJson.Encode(corrupted with { IntegrityHash = SaveService.Integrity(corrupted) });
         Assert.Equal(SaveFailure.InvalidState, Assert.Throws<SaveException>(() => SaveService.Decode(resigned, definition)).Failure);
-        Assert.Equal(997u, session.Snapshot.Forces[0].Money);
+        Assert.Equal(997u, session.Snapshot.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Money);
     }
 
     [Fact]
@@ -572,7 +573,7 @@ public sealed class PersistenceTests : IDisposable
     public void AutomaticRecordsAreBoundedWhilePlayerNotesArePreserved()
     {
         var value = Fixture();
-        var definition = value with { Forces = value.Forces.Select(f => f with { Money = 100000 }).ToArray(),
+        var definition = value with { Information = value.Information with { Corps = value.Information.Corps.Select(f => f with { Treasury = f.Treasury with { Money = 100000 } }).ToArray() },
             Settlements = value.Settlements.Select(s => s with { MaxCommerce = 2500 }).ToArray() };
         var session = GameSession.Start(definition, 190);
         session.AddChronicleNote("player note");
@@ -645,7 +646,7 @@ public sealed class PersistenceTests : IDisposable
         root = JsonNode.Parse(bytes)!;
         root["recording"]!["finalHash"] = "tampered";
         Assert.Throws<RecordingException>(() => RecordingService.Replay(Encoding.UTF8.GetBytes(root.ToJsonString()), definition, GameSession.EngineFactory(definition)));
-        var changed = definition with { Forces = definition.Forces.Select(f => f with { Money = 100 }).ToArray() };
+        var changed = definition with { Information = definition.Information with { Corps = definition.Information.Corps.Select(f => f with { Treasury = f.Treasury with { Money = 100 } }).ToArray() } };
         Assert.Throws<RecordingException>(() => RecordingService.Replay(bytes, changed, GameSession.EngineFactory(definition)));
         var envelope = StrictJson.Deserialize<RecordingEnvelope>(bytes);
         var operations = envelope.Recording.Operations.SetItem(1, envelope.Recording.Operations[1] with { Events = [] });

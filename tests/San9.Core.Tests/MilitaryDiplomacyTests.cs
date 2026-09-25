@@ -15,7 +15,7 @@ public sealed class MilitaryDiplomacyTests
         { Facilities = [new(8, 0, 100, new(1, 1), 0, false, true, false, 100000, null, null, null, []) { Combat = Combat }, new(9, 0, 100, new(3, 3), 0, false, false, false, 100000, null, null, null, []) { Combat = Combat, Attack = armed ? new(3, false) : null, IsWork = work }] });
 
     private static WorldState World(int relation = 70, bool alliance = false, bool field = false) => WorldState.Create(new(190, 1, 1), 42,
-        [new(1, 1000, 1000, 100) { BaseTrust = 100, LeaderId = 11 }, new(2, 1000, 1000, 100), new(3, 0, 0, 100), new(4, 0, 0, 100)],
+        [new(1, 100) { BaseTrust = 100, LeaderId = 11 }, new(2, 100), new(3, 100), new(4, 100)],
         [new(1, 1, 10000, 100, 100, 50, 500, 0, 100, 0, 100), new(2, 2, 10000, 100, 100, 50, 500, 0, 100, 0, 100)],
         [new OfficerState(11, 1, 1, new(70, 70, 70, 70), false) { Status = OfficerStatus.Ruler, Righteousness = 10 }.WithLoyalty(1, 100),
          new OfficerState(12, 1, null, new(70, 70, 70, 70), false) { UnitId = 0, Righteousness = 10 }.WithLoyalty(1, 100),
@@ -25,7 +25,7 @@ public sealed class MilitaryDiplomacyTests
             Order = field ? new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 1 } : new(MilitaryOrderKind.AttackSettlement, null, 2) },
             new(1, 2, new(12, 10), 10000) { MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(22, BattleRank.Front), FormationId = 0, Morale = 90, ServicePlaceId = 2 }],
         relations: [new(1, 2, relation), new(1, 3, relation), new(1, 4, 0), new(2, 3, 70), new(2, 4, 0), new(3, 4, 0)],
-        controls: [new("player", 1, ControllerKind.Player)], alliance: alliance ? new(4, 2, [1, 2, 3], 36) : null);
+        controls: [new("player", 1, ControllerKind.Player)], alliance: alliance ? new(4, 2, [1, 2, 3], 36) : null, corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(1000, 1000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, null, new(1000, 1000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, null, new(0, 0)) { IsRoot = true }, new San9.Core.Domain.CorpsState(4, 4, null, new(0, 0)) { IsRoot = true }]);
 
     [Theory]
     [InlineData(39, 100, 100, 39)]

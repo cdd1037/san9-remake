@@ -39,7 +39,7 @@ public sealed class WarfareAuditAlignmentTests
         m.AddUnit(new(3, 1, new(32, 5), 1000) { FormationId = 101, Morale = 40, Order = attack });
         m.AddUnit(new(4, 1, new(10, 7), 1000) { FormationId = 101, Morale = 40, Order = attack });
         m.AddUnit(new(5, 1, new(32, 9), 1000) { FormationId = 101, Morale = 40 });
-        m.AddCorps(new(99, 1, 11, null));
+        var rootTreasury99 = ResourceAccounts.Root(m, 1).Treasury; m.RemoveCorps(ResourceAccounts.Root(m, 1).Id); m.AddCorps(new(99, 1, 11, rootTreasury99) { IsRoot = true });
         m.AddUnit(new(6, 1, new(32, 10), 1000) { FormationId = 101, Morale = 40, Order = attack, CorpsId = 99 });
         m.Replace(m.Units[2] with { Position = new(34, 7), Order = attack });
         BattleAftermath.ResolveSettlementDefeat(m, 2, new(1, false), new() { Military = Rules() }, events);
@@ -179,7 +179,7 @@ public sealed class WarfareAuditAlignmentTests
     private static WorldMutation World() => InitialWorld().BeginMutation();
 
     private static WorldState InitialWorld() => WorldState.Create(new(190, 1, 1), 42,
-        [new(1, 100000, 100000, 500), new(2, 100000, 100000, 400)],
+        [new(1, 500), new(2, 400)],
         [new(1, 1, 1000, 100, 100, 100, 500, 100, 100, 100, 100),
          new(2, 2, 1000, 100, 100, 100, 500, 100, 100, 100, 100)],
         [new(11, 1, null, new(80, 80, 80, 80), false) { UnitId = 1 },
@@ -187,7 +187,7 @@ public sealed class WarfareAuditAlignmentTests
         units: [new(1, 1, new(22, 7), 10000) { FormationId = 101, Morale = 100,
                     CommanderId = 11, OrderClass = UnitOrderClass.Military, MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(11, BattleRank.Middle) },
                 new(2, 2, new(52, 7), 10000) { FormationId = 101, Morale = 100,
-                    CommanderId = 21, MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(21, BattleRank.Middle) }]);
+                    CommanderId = 21, MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(21, BattleRank.Middle) }], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(100000, 100000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, null, new(100000, 100000)) { IsRoot = true }]);
 
     [Theory]
     [InlineData(100, 1, UnitOrderClass.Military, true, 70)]
@@ -272,9 +272,9 @@ public sealed class WarfareAuditAlignmentTests
         m.Replace(m.Settlements[2] with { Population = 1000, DraftPopulation = 3000 });
         m.Replace(m.Units[2] with { Soldiers = 15000 });
         BattleTreasury.Transfer(m, 2, null, BattleTreasury.Weight(m.Settlements[2]), new(1, false), 2, "capture", events);
-        Assert.Equal(87600u, m.Forces[2].Money);
-        Assert.Equal(112400u, m.Forces[1].Money);
-        Assert.Equal(87600u, m.Forces[2].Food);
+        Assert.Equal(87600u, m.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 2).Treasury.Money);
+        Assert.Equal(112400u, m.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money);
+        Assert.Equal(87600u, m.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 2).Treasury.Food);
     }
 
     [Fact]

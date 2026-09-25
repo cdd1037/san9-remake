@@ -16,8 +16,8 @@ public sealed class SettlementDefectionSessionTests
 
     private static ScenarioInitialState Scenario(bool occupied) => new(ScenarioInitialState.CurrentSchemaVersion,
         "settlement-defection", 190, 1, 1, 1,
-        [new(1, "force.1", 1, 100000, 200000, 100) { LeaderId = 1 },
-         new(2, "force.2", 2, 100000, 200000, 100) { LeaderId = 2 }],
+        [new(1, "force.1", 1, 100) { LeaderId = 1 },
+         new(2, "force.2", 2, 100) { LeaderId = 2 }],
         [new(2, "city.2", 2, 20, 0, 200000, 100, 100, 70, []) { Kind = SettlementKind.City, CorpsId = 20, ConsumesFood = false },
          new(3, "city.3", 1, 60, 0, 1000, 100, 100, 70, []) { Kind = SettlementKind.City, CorpsId = 10, ConsumesFood = false },
          new(10, "facility.10", 1, 10, 0, occupied ? 1000u : 0u, 100, 100, occupied ? 70 : 0, [])
@@ -28,7 +28,7 @@ public sealed class SettlementDefectionSessionTests
         OfficeRequestsEnabled = false, ForceEmergenceEnabled = false, CityIndependenceEnabled = false, ForceConsolidationEnabled = false,
         Officers = [Person(1, 1, 3, OfficerStatus.Ruler), Person(2, 2, 2, OfficerStatus.Ruler),
             .. occupied ? new[] { Person(10, 1, 10, OfficerStatus.Serving) } : []],
-        Information = new([], [], [], [new(10, 1, 1, null), new(20, 2, 2, null)], [])
+        Information = new([], [], [], [new(10, 1, 1, new(100000, 200000)) { IsRoot = true }, new(20, 2, 2, new(100000, 200000)) { IsRoot = true }], [])
     };
 
     [Theory]

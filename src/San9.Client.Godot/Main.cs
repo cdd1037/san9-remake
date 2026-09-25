@@ -47,6 +47,27 @@ public partial class Main : Node
             void OnFirstMapReady() { GD.Print($"CLIENT_READY total_ms={startup.Elapsed.TotalMilliseconds:F2}"); world.MapReady -= OnFirstMapReady; }
             world.MapReady += OnFirstMapReady;
             var initial = content.Scenario;
+            // TEMP: local visual preview requested by the user; remove after acceptance.
+            var previewHome = initial.Settlements.Single(s => s.Id == 15);
+            int previewId = initial.Units.Select(u => u.Id).DefaultIfEmpty(-1).Max() + 1;
+            int previewCommander = initial.Forces.Single(f => f.Id == previewHome.OwnerId).LeaderId!.Value;
+            initial = initial with
+            {
+                Officers = initial.Officers.Select(o => o.State.Id == previewCommander ?
+                    o with { State = o.State with { SettlementId = null, RegionId = null, IsCommander = false, UnitId = previewId } } : o).ToArray(),
+                Units = initial.Units.Append(new San9.Core.Domain.UnitState(
+                    previewId,
+                    previewHome.OwnerId!.Value,
+                    San9.Core.Domain.MapCoordinates.Center(new(previewHome.X + 3, previewHome.Y + 3)), 18000)
+                {
+                    CommanderId = previewCommander,
+                    MemberRanks = System.Collections.Immutable.ImmutableDictionary<int, San9.Core.Domain.BattleRank>.Empty
+                        .Add(previewCommander, San9.Core.Domain.BattleRank.Front),
+                    FormationId = 0, Morale = 85, CorpsId = previewHome.CorpsId, ServicePlaceId = previewHome.Id,
+                    OrderClass = San9.Core.Domain.UnitOrderClass.Military,
+                    Condition = San9.Core.Domain.UnitCondition.Normal
+                }).ToArray()
+            };
             // A controlled, in-memory boundary fixture for GPU verification; never changes the content package.
             if (options.RuntimeSmoke) initial = initial with { Settlements = initial.Settlements.Select(s => s.Id == 15 ? s with { Commerce = 300, Cultivation = 150 } : s).ToArray() };
             var session = San9.Application.GameSession.Start(initial, 190, options.ComputerDamageBonusPercent);

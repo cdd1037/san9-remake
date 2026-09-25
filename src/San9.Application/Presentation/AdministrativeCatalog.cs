@@ -166,7 +166,7 @@ public sealed class AdministrativeCatalog(StrategySnapshot view, TextCatalog tex
             case "corps": return view.World.Corps.Count(c => c.OwnerId == owner);
             case "cities": return cities.Length;
             case "officers": return people.Length;
-            case "population": return cities.Sum(s => (long)s.Population);
+            case "population": return cities.Sum(s => (long)s.Population + s.DraftPopulation);
             case "draft": return cities.Sum(s => (long)s.DraftPopulation);
             case "soldiers": return places.Sum(s => (long)s.Soldiers) + units.Sum(u => (long)u.Soldiers) + travelingSoldiers;
             case "wounded": return places.Sum(s => (long)s.Wounded) + units.Sum(u => (long)u.Wounded) + travelingWounded;
@@ -235,7 +235,7 @@ public sealed class AdministrativeCatalog(StrategySnapshot view, TextCatalog tex
             "force" => Force(place.OwnerId), "corps-name" => Person(place.CorpsId is int corps ? _corps.GetValueOrDefault(corps)?.LeaderId : null),
             "commander" => Person(people.FirstOrDefault(o => view.World.Officers.Single(p => p.Id == o.Id).IsCommander)?.Id),
             "emperor" => new(view.EmperorCityId == id ? "○" : "", view.EmperorCityId == id ? 1 : 0),
-            "population" => (long)state.Population, "draft" => (long)state.DraftPopulation,
+            "population" => (long)state.Population + state.DraftPopulation, "draft" => (long)state.DraftPopulation,
             "soldiers" => (long)state.Soldiers, "wounded" => (long)state.Wounded,
             "morale" => state.Soldiers == 0 ? CatalogCell.Unavailable : state.Morale,
             "state" => state.ConfusionDaysRemaining > 0 ? "混乱" : "正常",

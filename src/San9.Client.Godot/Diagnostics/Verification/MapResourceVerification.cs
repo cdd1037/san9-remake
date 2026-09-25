@@ -34,7 +34,7 @@ public partial class ClientVerification
         }, texture => texture.Dispose(), render: (_, _) => new(1, 1, 3, [0, 0, 0]));
         var scene = new MapScene(map, World.Scene!.Terrain, World.Scene.Season, World.Session.View, service);
         // The visible sprite starts outside the viewport, but four columns intersect it.
-        var region = new MapSceneRegion(scene, new(0, 0, 512, 512), [], [], [],
+        var region = new MapSceneRegion(scene, new(0, 0, 512, 512), [], [], [], [],
             [new(extra[0].Id, 80, 100), new(extra[3].Id, 400, 100)], [new(clip.Id, 300, 100, 0, -1)]);
         MapSceneView.Frame Frame(float x) => new(region, new(x, 100, 1), new(32, 32),
             service.CreateScope(service.MapAssets), terrain.Acquire([new(scene.Terrain, 0, 0)]), false);

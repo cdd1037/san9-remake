@@ -21,7 +21,7 @@
 | Content.Text / ScenarioTextReader | 名称与全量消息目录 | `text.json` / `messages.json`，schema3 |
 | Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema20 |
 | Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema119 |
-| Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema3／转换版本12 |
+| Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema4／转换版本13 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 
 共享剧本契约不按原版编号区间限制城市或人物身份。城市图标资格由`SettlementKind.City`决定；`RegionCityIds`必须引用真实城市，其城市名从据点定义读取，不要求城市ID同时存在于地域名称表。数量与名称不继承源格式槽位和字节长度；玩法数值上限及显示资源范围独立校验。
@@ -313,3 +313,7 @@ TC101读取31项人物兵法及12项陆上阵形、4种船的目录名；军事�
 ### 兵法一览说明与筛选
 
 军事目录项包含必填可空`DescriptionKey`，非空时校验文本引用。TC101导入31项人物兵法说明（消息1221+3×ID），名称与规则引用仍完整保留；兵法一览仅展示已可用且`Selectable`的兵法，22项展示候选不包括水军、攻城技术及建设技术。阵形／船目录继续通过所需兵法判断可用性。190年包已重转；军事规则41项兵法／28项阵形及保存协议不变，无需重转纹理。
+
+### 野外部队动画资源
+
+纹理schema4／转换版本13、地图schema10新增部队身体、阵型队列、状态图标和地利光效定义，所有动画明确普通透明或加色混合。需要依次运行`import-textures`和`import-client`，见[地图导入](map-import.md)。剧本schema115／组合119及保存协议不变。资源完整覆盖28项军事阵型、20类身体的八方向待机、五类状态和四档地利；190年初始野战队仍为0，不扩大初始对象筛选。运行时从世界快照和现有地利查询派生显示，没有新增军事命令。显示兵数上限与领域容量独立，实际画面由用户出征后验收。

@@ -41,7 +41,7 @@ public static class MapAnimationCompiler
             for (int i = 0; i < count; i++) palettes[Int(start + i * 8) & 65535] = Int(start + i * 8 + 4);
         List<MapAnimationClip> clips = []; List<MapAnimatedSprite> water = [];
         var clipIds = new HashSet<string>();
-        void Clip(string id, int count, int milliseconds, Func<int, PngImage> frame, Func<int, PngImage>? autumnWinterFrame = null)
+        void Clip(string id, int count, int milliseconds, Func<int, PngImage> frame, Func<int, PngImage>? autumnWinterFrame = null, MapBlendMode blend = MapBlendMode.Alpha)
         {
             if (!clipIds.Add(id)) return;
             string[] frames = new string[count];
@@ -61,7 +61,7 @@ public static class MapAnimationCompiler
                 }
                 seasonFrames = new() { ["spring"] = frames, ["summer"] = frames, ["autumn"] = autumnWinter, ["winter"] = autumnWinter };
             }
-            clips.Add(new(id, frames, milliseconds, seasonFrames));
+            clips.Add(new(id, frames, milliseconds, seasonFrames) { BlendMode = blend });
         }
         for (int parity = 0; parity < 4; parity++)
         {
@@ -73,7 +73,7 @@ public static class MapAnimationCompiler
                 for (int i = 0; i < rgba.Pixels.Length; i += 4)
                     for (int c = 0; c < 3; c++) rgba.Pixels[i + c] = (byte)((rgba.Pixels[i + c] * 179 + 128) / 256);
                 return rgba;
-            });
+            }, blend: MapBlendMode.Additive);
         }
         for (int direction = 0; direction < 8; direction++)
         {

@@ -25,7 +25,11 @@ public sealed record MapComposition(int Id, MapCompositionPart[] Parts)
     [JsonRequired] public MapFlag[] Flags { get; init; } = [];
 }
 public sealed record MapCompositionPart(bool PaletteAlpha, bool DevelopmentVariant, int ResourceId, int X, int Y);
-public sealed record MapAnimationClip(string Id, string[] Frames, int FrameMilliseconds, Dictionary<string, string[]> SeasonFrames);
+public enum MapBlendMode { Alpha, Additive }
+public sealed record MapAnimationClip(string Id, string[] Frames, int FrameMilliseconds, Dictionary<string, string[]> SeasonFrames)
+{
+    [JsonRequired] public MapBlendMode BlendMode { get; init; }
+}
 public sealed record MapAnimatedSprite(string ClipId, int X, int Y, int Phase, int BuildingId);
 public sealed record MapAnimations(MapAnimationClip[] Clips, MapAnimatedSprite[] Water);
 public sealed record MapPackage(
@@ -36,6 +40,7 @@ public sealed record MapPackage(
     MapComposition[] Compositions, MapSprite[] Clouds, int?[] LeftEdge, int?[] RightEdge,
     ContentSource[] Sources, MapAnimations Animations, MapSprite[] Boundaries)
 {
+    [JsonRequired] public MapUnitCatalog Units { get; init; } = MapUnitCatalog.Empty;
     public byte[] MinimapColors { get; init; } = new byte[32];
     [JsonRequired] public MapBuildingType[] BuildingTypes { get; init; } = [];
 }
@@ -44,7 +49,7 @@ public static class MapPackageFiles
 {
     public static void Validate(MapPackage map)
     {
-        if (map.SchemaVersion != 9 || map.Width != 200 || map.Height != 200 || map.Squares.Length != 40000 ||
+        if (map.SchemaVersion != 10 || map.Width != 200 || map.Height != 200 || map.Squares.Length != 40000 ||
             map.CanvasWidth != 13056 || map.CanvasHeight != 6656) throw new InvalidDataException("Unsupported map dimensions or schema.");
         if (!map.Seasons.Select(s => s.Id).Order().SequenceEqual(new[] { "autumn", "spring", "summer", "winter" }) ||
             !map.Seasons.Any(s => s.Id == map.InitialSeason)) throw new InvalidDataException("Invalid seasons.");
@@ -96,6 +101,7 @@ public static class MapPackageFiles
                     if (!common.ContainsKey($"building-{part.ResourceId+variant}-{(part.PaletteAlpha?"alpha":"key")}"))
                         throw new InvalidDataException("Incomplete building development catalog.");
         }
+        map.Units.Validate(map.Animations.Clips.ToDictionary(c => c.Id));
         var clipIds = map.Animations.Clips.Select(c => c.Id).ToHashSet();
         var requiredClips = Enumerable.Range(0,51).Select(c => $"flag-cloth-{c}")
             .Concat(Enumerable.Range(0,2).SelectMany(v => Enumerable.Range(0,186).Select(g => $"flag-glyph-{v}-{g}")))
@@ -110,7 +116,7 @@ public static class MapPackageFiles
         var clips = animations.Clips.ToDictionary(c => c.Id);
         foreach (var clip in clips.Values)
         {
-            if (clip.Frames.Length == 0 || clip.FrameMilliseconds <= 0 || clip.Frames.Any(f => !assets.ContainsKey(f)))
+            if (!Enum.IsDefined(clip.BlendMode) || clip.Frames.Length == 0 || clip.FrameMilliseconds <= 0 || clip.Frames.Any(f => !assets.ContainsKey(f)))
                 throw new InvalidDataException("Invalid animation clip.");
             if (clip.SeasonFrames.Count != 0 && !clip.SeasonFrames.Keys.Order().SequenceEqual(new[] { "autumn", "spring", "summer", "winter" }))
                 throw new InvalidDataException("Seasonal animation must define all four seasons.");

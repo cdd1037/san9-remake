@@ -19,6 +19,8 @@ public static class TextureGroups
         {
             "water" => "water",
             "soldier" => "guards",
+            "unit" when parts[1] == "idle" => "units/bodies/" + parts[2],
+            "unit" when parts[1] is "condition" or "influence" => "units/" + parts[1],
             "flag" when parts[1] == "pole" => "flags/poles",
             "flag" when parts[1] == "cloth" => "flags/cloth/" + (int.Parse(parts[2], System.Globalization.CultureInfo.InvariantCulture) / 16).ToString("D2", System.Globalization.CultureInfo.InvariantCulture),
             "flag" when parts[1] == "glyph" => "flags/glyphs/" + parts[2] + "/" + (int.Parse(parts[3], System.Globalization.CultureInfo.InvariantCulture) / 32).ToString("D2", System.Globalization.CultureInfo.InvariantCulture),

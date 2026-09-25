@@ -1,5 +1,6 @@
 using Godot;
 using San9.Content.Text;
+using San9.Content.Maps;
 using San9.Rendering;
 
 namespace San9.Client.Godot;
@@ -65,6 +66,7 @@ public partial class MapSceneView : Node2D
     private TextureScope _ui = null!;
     private Node2D _water = null!, _objects = null!, _annotations = null!;
     private ShaderMaterial _hoverMaterial = null!;
+    private CanvasItemMaterial _additiveMaterial = null!;
     private readonly List<Sprite2D> _sprites = [];
     private readonly Dictionary<string, int> _frames = [];
     private int? _drawnHover;
@@ -85,6 +87,7 @@ public partial class MapSceneView : Node2D
         _hoverMaterial = new ShaderMaterial { Shader = new Shader { Code = "shader_type canvas_item; void fragment() { vec4 c = texture(TEXTURE, UV); COLOR = vec4(round(c.rgb * 255.0 * 0.6875 + vec3(240.0 * 0.3125)) / 255.0, round(c.a * 255.0 * 0.9375) / 255.0); }" } };
         _water = new Node2D { Material = new CanvasItemMaterial { BlendMode = CanvasItemMaterial.BlendModeEnum.Add } };
         _water.Draw += DrawWater; AddChild(_water);
+        _additiveMaterial = new CanvasItemMaterial { BlendMode = CanvasItemMaterial.BlendModeEnum.Add };
         _objects = new Node2D(); AddChild(_objects);
         _annotations = new Node2D();
         _annotations.Draw += () => { if (ShowAnnotations && Font is not null && Texts is not null) DrawAnnotations(_annotations, Font, Texts, p => p, 1); };
@@ -208,13 +211,13 @@ public partial class MapSceneView : Node2D
     {
         if (Presented is not { } frame) return;
         ObjectDraws++; int cursor = 0; _drawnHover = Hovered; _drawnAssetRevision = frame.Assets.Revision;
-        frame.Region.Objects(AnimationTime(), (id, position, building) =>
+        frame.Region.Objects(AnimationTime(), (id, position, building, blend) =>
         {
             if (!frame.Assets.TryGetReady(id, out var texture)) return;
             if (!frame.Region.Bounds.Intersects(new Rect2(position, texture.GetSize()))) return;
             if (cursor == _sprites.Count) { var sprite = new Sprite2D { Centered = false }; _objects.AddChild(sprite); _sprites.Add(sprite); }
             var item = _sprites[cursor++]; item.Texture = texture; item.Position = position; item.Visible = true;
-            item.Material = building is not null && building == Hovered ? _hoverMaterial : null;
+            item.Material = building is not null && building == Hovered ? _hoverMaterial : blend == MapBlendMode.Additive ? _additiveMaterial : null;
         });
         for (int i = cursor; i < _sprites.Count; i++) { _sprites[i].Texture = null; _sprites[i].Visible = false; }
     }
@@ -234,6 +237,14 @@ public partial class MapSceneView : Node2D
             GameTextPresenter.Draw(target, font, s.ResolveName(texts), new(0, 53), style);
             foreach (string icon in s.Icons) target.DrawTexture(_ui["icon-" + icon], icon == "emperor" ? new(96, 17) : new(75, 17));
         }
+        foreach (var unit in frame.Region.Units)
+        {
+            if (!frame.Region.Bounds.Intersects(new Rect2(unit.LabelX, unit.LabelY, 76, 29))) continue;
+            target.DrawSetTransform(project(new(unit.LabelX, unit.LabelY)), 0, Vector2.One * zoom);
+            GameTextPresenter.Draw(target, font, unit.Soldiers.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                new(0, 16), GameTextStyles.Building(false), HorizontalAlignment.Center, 76);
+            Bar("morale", unit.Morale, 100, new(0, 16));
+        }
         target.DrawSetTransform(Vector2.Zero);
         void Bar(string kind, int current, int maximum, Vector2 point)
         {
@@ -249,6 +260,6 @@ public partial class MapSceneView : Node2D
         foreach (var sprite in _sprites) sprite.Texture = null;
         _transition.Dispose(); _prefetchAssets?.Dispose(); _prefetchTerrain?.Dispose(); _ui.Dispose();
         var waterMaterial = _water.Material;
-        Textures.Defer(() => { waterMaterial.Dispose(); _hoverMaterial.Shader.Dispose(); _hoverMaterial.Dispose(); });
+        Textures.Defer(() => { waterMaterial.Dispose(); _additiveMaterial.Dispose(); _hoverMaterial.Shader.Dispose(); _hoverMaterial.Dispose(); });
     }
 }

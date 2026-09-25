@@ -103,8 +103,10 @@ public static class MapResourceCompiler
             return (c.GetProperty("side").GetInt32(), offsets[0], offsets[1], offsets[2]);
         }).ToArray();
         var animations = MapAnimationCompiler.Compile(exe, dataDir, additionalLandPalettes[1], Read, Save, assets);
+        var clips = animations.Clips.ToList();
+        var units = MapUnitCompiler.Compile(exe, dataDir, Read, Save, assets, clips);
         var colors = Palettes("P_MapEtc", 2)[0].Skip(4).Take(32).ToArray();
-        return new(seasons.ToArray(), assets.ToArray(), maskRecords.ToArray(), compositions.ToArray(), animations.Clips,
-            positions, adjustments, cloudPlacements.Select(c => new CloudPlacement(c.Item1,c.Item2,c.Item3,c.Item4)).ToArray(), colors);
+        return new(seasons.ToArray(), assets.ToArray(), maskRecords.ToArray(), compositions.ToArray(), clips.ToArray(),
+            positions, adjustments, cloudPlacements.Select(c => new CloudPlacement(c.Item1,c.Item2,c.Item3,c.Item4)).ToArray(), colors) { Units = units };
     }
 }

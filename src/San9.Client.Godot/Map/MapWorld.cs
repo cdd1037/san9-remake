@@ -117,7 +117,7 @@ public partial class MapWorld : Node2D
             }
             catch (Exception error) { _error = error.Message; _awaitingSeason = false; GD.PushError(_error); }
         }
-        if (Scene is not null && StateRevision != Session.Snapshot.Revision) RefreshRuntimeBuildings();
+        if (Scene is not null && StateRevision != Session.Snapshot.Revision) RefreshRuntimeObjects();
         _terrain?.Pump(() => Textures.CanUpload);
         if (_display?.Error is not null) _awaitingSeason = false;
         LastProcessMilliseconds = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
@@ -139,7 +139,7 @@ public partial class MapWorld : Node2D
     {
         if (Scene is not null) _display!.Request(Scene, _requested, new(ClientLayout.LogicalWidth, ClientLayout.LogicalHeight), ShowBoundaries, true);
     }
-    public void RefreshRuntimeBuildings()
+    public void RefreshRuntimeObjects()
     {
         if (Scene is null) return;
         Scene = new(Scene.Map, Scene.Terrain, Scene.Season, Session.View, Textures, Scene); RequestDisplay();

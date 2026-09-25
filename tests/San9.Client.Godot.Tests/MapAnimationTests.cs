@@ -31,6 +31,8 @@ public sealed class MapAnimationTests
         var assets = new Dictionary<string, ImageAsset> { ["a"] = a, ["b"] = b };
         var clip = new MapAnimationClip("clip", ["a"], 100, []);
         var sprites = new[] { new MapAnimatedSprite("clip", 0, 0, 0, -1) };
+        Assert.Throws<InvalidDataException>(() => MapPackageFiles.ValidateAnimations(
+            new([clip with { BlendMode = (MapBlendMode)99 }], []), assets, new HashSet<int>()));
         MapPackageFiles.ValidateAnimations(new([clip], sprites), assets, new HashSet<int> { 15 });
         Assert.Throws<InvalidDataException>(() => MapPackageFiles.ValidateAnimations(new([clip], [sprites[0] with { BuildingId = 15 }]), assets, new HashSet<int>()));
         Assert.Throws<InvalidDataException>(() => MapPackageFiles.ValidateAnimations(new([clip with { Frames = ["missing"] }], []), assets, new HashSet<int>()));

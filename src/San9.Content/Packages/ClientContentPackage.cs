@@ -16,6 +16,8 @@ public sealed record ClientContentPackage(int SchemaVersion, ContentSource[] Sou
         if (SchemaVersion != ScenarioContent.CurrentSchemaVersion) throw new InvalidDataException("Unsupported client content version.");
         var images = Map.Assets.Concat(Map.Seasons.SelectMany(s => s.Textures)).Concat(Skin.Assets).Concat(Textures.Assets).ToArray();
         San9.Content.Images.ImageAssetFiles.ValidateCatalog(images);
+        if (Scenario.Military is {} military && military.Formations.Any(f => !Map.Units.Formations.Any(v => v.FormationId == f.Id)))
+            throw new InvalidDataException("Missing formation visual definition.");
         Scenario.Validate(); Text.Validate(); Skin.Validate(); Textures.Validate();
         var markup = Text.Entries.Values.SelectMany(e => new[] { e.Text, e.SourceText })
             .Concat(MessageGraph.Walk(Text.Messages.Values.SelectMany(m => m.Nodes)).SelectMany(n => n switch

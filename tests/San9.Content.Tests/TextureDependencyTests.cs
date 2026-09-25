@@ -12,7 +12,7 @@ public sealed class TextureDependencyTests
     {
         var image = new ImageAsset("portrait/0", "images/portraits/0.png", 240, 240, 3);
         var resources = new MapResources([], [], [], [], [], new int[288], new int[16], [], new byte[32]);
-        var textures = new TexturePackage(3, 7, "source",
+        var textures = new TexturePackage(4, 7, "source",
             [new("G_FaceL.s9", 123, new DateTime(2026, 9, 12, 0, 0, 0, DateTimeKind.Utc))],
             resources, new(20, [], [], []), new(3, [new("portrait", "portraits", [new(0, 0, image)])]),
             [new(0, image, 0, 0)]);

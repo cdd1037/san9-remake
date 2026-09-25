@@ -10,7 +10,10 @@ public sealed record CloudPlacement(int Side, int A, int B, int C);
 
 public sealed record MapResources(MapSeason[] Seasons, ImageAsset[] Assets, MapMask[] Masks,
     MapComposition[] Compositions, MapAnimationClip[] Clips, int[] MaskPositions,
-    int[] MaskHeightAdjustments, CloudPlacement[] CloudPlacements, byte[] MinimapColors);
+    int[] MaskHeightAdjustments, CloudPlacement[] CloudPlacements, byte[] MinimapColors)
+{
+    [System.Text.Json.Serialization.JsonRequired] public MapUnitCatalog Units { get; init; } = MapUnitCatalog.Empty;
+}
 
 /// <summary>Source-version resources. No scenario state or scenario identifier belongs here.</summary>
 public sealed record TexturePackage(int SchemaVersion, int ConversionVersion, string SourceBuild, TextureSourceStamp[] Sources,
@@ -22,10 +25,11 @@ public sealed record TexturePackage(int SchemaVersion, int ConversionVersion, st
 
     public void Validate()
     {
-        if (SchemaVersion != 3 || Map.MinimapColors.Length != 32 || Map.MaskPositions.Length != 288 ||
+        if (SchemaVersion != 4 || Map.MinimapColors.Length != 32 || Map.MaskPositions.Length != 288 ||
             Map.MaskHeightAdjustments.Length != 16) throw new InvalidDataException("Invalid texture package.");
         if (Portraits.Select(p => p.Id).Distinct().Count() != Portraits.Length) throw new InvalidDataException("Duplicate portrait ID.");
         foreach (var portrait in Portraits) portrait.Validate();
+        Map.Units.Validate(Map.Clips.ToDictionary(c => c.Id));
         Skin.Validate(); Library.Validate(); ImageAssetFiles.ValidateCatalog(Assets);
         MapPackageFiles.ValidateAnimations(new(Map.Clips, []), Map.Assets.ToDictionary(a => a.Id), new HashSet<int>());
     }

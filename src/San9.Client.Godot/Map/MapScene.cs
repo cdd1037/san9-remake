@@ -1,6 +1,7 @@
 using Godot;
 using San9.Application.Presentation;
 using San9.Content.Maps;
+using San9.Core.Domain;
 using San9.Rendering;
 
 namespace San9.Client.Godot;
@@ -14,6 +15,7 @@ internal sealed class MapScene
     public StrategySnapshot State { get; }
     public IReadOnlyDictionary<int, SettlementView> Settlements { get; }
     public MapBuilding[] Buildings { get; }
+    public UnitVisual[] Units { get; }
     public IReadOnlyDictionary<int, MapAnimatedSprite[]> Animations { get; }
     public IReadOnlyDictionary<string, MapAnimationClip> Clips { get; }
     private readonly TextureService _textures;
@@ -44,6 +46,23 @@ internal sealed class MapScene
                 s.Soldiers, force?.ColorCode ?? 50, force?.FlagGlyph ?? -1)
             { IsDestroyed = s.IsDestroyed, Placement = s.FacilityTypeId is int type ? new(s.Id, s.X, s.Y, type) : null };
         }).ToArray());
+        var unitPositions = state.World.Units.ToDictionary(u => u.Id, u => u.Position);
+        Units = state.World.Units.Where(u => !u.IsEmbedded && !u.IsPersonnel && u.FormationId is not null && u.Soldiers > 0)
+            .Select(u =>
+            {
+                var order = u.EffectiveOrder;
+                WorldPosition? target = u.MovementPlan is { Steps.Length: > 0 } plan ? plan.Steps[0] :
+                    order?.UnitId is int targetId && unitPositions.TryGetValue(targetId, out var position) ? position :
+                    order?.Position ?? (order?.SettlementId is int place ?
+                        state.Settlements.FirstOrDefault(s => s.Id == place) is {} destination ? MapCoordinates.Center(new(destination.X, destination.Y)) : null : null);
+                return UnitVisuals.Resolve(new(u.Id,
+                    (u.Position.X - MapCoordinates.UnitsPerCell / 2) / (double)MapCoordinates.UnitsPerCell,
+                    (u.Position.Y - MapCoordinates.UnitsPerCell / 2) / (double)MapCoordinates.UnitsPerCell,
+                    map.Squares[u.Cell.Y * map.Width + u.Cell.X].Elevation, u.Soldiers, u.FormationId!.Value,
+                    u.Condition, UnitVisuals.Direction(u.Position, target),
+                    u.EffectiveOrderClass == UnitOrderClass.Military && state.HasCityInfluence(u.OwnerId, u.Position),
+                    forces[u.OwnerId].ColorCode, forces[u.OwnerId].FlagGlyph) { Morale = u.Morale }, map.Units, Clips);
+            }).ToArray();
         Buildings = visuals.Buildings;
         Animations = visuals.Animations.GroupBy(s => s.BuildingId).ToDictionary(g => g.Key, g => g.ToArray());
     }
@@ -70,10 +89,14 @@ internal sealed class MapScene
         building.Sprites.Any(s => bounds.Intersects(Bounds(s))) ||
         Animations.GetValueOrDefault(building.Id, []).Any(s => bounds.Intersects(Bounds(s))) ||
         bounds.Intersects(new Rect2(Anchor(building), new(116, 55)));
+    public bool Intersects(UnitVisual unit, Rect2 bounds) =>
+        unit.Animations.Any(s => bounds.Intersects(Bounds(s))) ||
+        bounds.Intersects(new Rect2(unit.LabelX, unit.LabelY, 76, 29));
     public MapSceneRegion Select(Rect2 bounds, bool boundaries)
     {
         var buildings = Buildings.Where(b => Intersects(b, bounds)).ToArray();
         return new(this, bounds, buildings,
+            Units.Where(u => Intersects(u, bounds)).ToArray(),
             Map.Bridges.Where(s => bounds.Intersects(Bounds(s))).ToArray(),
             boundaries ? Map.Boundaries.Where(s => bounds.Intersects(Bounds(s))).ToArray() : [],
             Map.Clouds.Where(s => bounds.Intersects(Bounds(s))).ToArray(),
@@ -87,18 +110,20 @@ internal sealed class MapScene
     }
 }
 
-internal sealed record MapSceneRegion(MapScene Scene, Rect2 Bounds, MapBuilding[] Buildings,
+internal sealed record MapSceneRegion(MapScene Scene, Rect2 Bounds, MapBuilding[] Buildings, UnitVisual[] Units,
     MapSprite[] Bridges, MapSprite[] Boundaries, MapSprite[] Clouds, MapAnimatedSprite[] Water)
 {
     public MapSceneRegion Select(Rect2 bounds) => new(Scene, bounds,
         Buildings.Where(b => Scene.Intersects(b, bounds)).ToArray(),
+        Units.Where(u => Scene.Intersects(u, bounds)).ToArray(),
         Bridges.Where(s => bounds.Intersects(Scene.Bounds(s))).ToArray(),
         Boundaries.Where(s => bounds.Intersects(Scene.Bounds(s))).ToArray(),
         Clouds.Where(s => bounds.Intersects(Scene.Bounds(s))).ToArray(),
         Water.Where(s => bounds.Intersects(Scene.Bounds(s))).ToArray());
     public IEnumerable<MapAnimatedSprite> ObjectAnimations => Buildings
         .SelectMany(b => Scene.Animations.GetValueOrDefault(b.Id, []))
-        .Where(s => Bounds.Intersects(Scene.Bounds(s)));
+        .Where(s => Bounds.Intersects(Scene.Bounds(s)))
+        .Concat(Units.SelectMany(u => u.Animations));
     public IEnumerable<string> Assets => new[] { "cloud-fill" }
         .Concat(Bridges.Concat(Boundaries).Concat(Clouds).Concat(Buildings.SelectMany(b => b.Sprites))
             .Where(s => Bounds.Intersects(Scene.Bounds(s))).Select(s => s.AssetId))
@@ -107,17 +132,27 @@ internal sealed record MapSceneRegion(MapScene Scene, Rect2 Bounds, MapBuilding[
             .Select(s => Scene.Clips[s.ClipId]).Where(c => c.SeasonFrames.TryGetValue("autumn", out var frames) && frames.Length > 2)
             .Select(c => c.SeasonFrames["autumn"][2])).Distinct();
 
-    // Both views consume this order. Future mobile actors enter the scene's common
-    // depth ordering here, not a separate preview-only rendering path.
-    public void Objects(double time, Action<string, Vector2, int?> emit)
+    // Buildings and field units share terrain depth; clouds cover both views last.
+    public void Objects(double time, Action<string, Vector2, int?, MapBlendMode> emit)
     {
-        foreach (var s in Bridges.Concat(Boundaries)) emit(s.AssetId, new(s.X, s.Y), null);
-        foreach (var building in Buildings)
+        foreach (var s in Bridges.Concat(Boundaries)) emit(s.AssetId, new(s.X, s.Y), null, MapBlendMode.Alpha);
+        var objects = Buildings.Select(b => (Depth: (double)(b.X + b.Y), X: (double)b.X, Kind: 0, Id: b.Id,
+                Building: (MapBuilding?)b, Unit: (UnitVisual?)null))
+            .Concat(Units.Select(u => (Depth: u.Depth, X: u.CellX, Kind: 1, Id: u.Id,
+                Building: (MapBuilding?)null, Unit: (UnitVisual?)u)))
+            .OrderBy(o => o.Depth).ThenBy(o => o.X).ThenBy(o => o.Kind).ThenBy(o => o.Id);
+        foreach (var item in objects)
         {
-            foreach (var s in building.Sprites) emit(s.AssetId, new(s.X, s.Y), building.Id);
-            foreach (var s in Scene.Animations.GetValueOrDefault(building.Id, []))
-                emit(MapAnimationClock.Asset(Scene.Clips[s.ClipId], Scene.Season, time, s.Phase), new(s.X, s.Y), null);
+            if (item.Building is { } building)
+            {
+                foreach (var s in building.Sprites) emit(s.AssetId, new(s.X, s.Y), building.Id, MapBlendMode.Alpha);
+                foreach (var s in Scene.Animations.GetValueOrDefault(building.Id, []))
+                    emit(MapAnimationClock.Asset(Scene.Clips[s.ClipId], Scene.Season, time, s.Phase), new(s.X, s.Y), null, Scene.Clips[s.ClipId].BlendMode);
+            }
+            else
+                foreach (var s in item.Unit!.Animations)
+                    emit(MapAnimationClock.Asset(Scene.Clips[s.ClipId], Scene.Season, time, s.Phase), new(s.X, s.Y), null, Scene.Clips[s.ClipId].BlendMode);
         }
-        foreach (var s in Clouds) emit(s.AssetId, new(s.X, s.Y), null);
+        foreach (var s in Clouds) emit(s.AssetId, new(s.X, s.Y), null, MapBlendMode.Alpha);
     }
 }

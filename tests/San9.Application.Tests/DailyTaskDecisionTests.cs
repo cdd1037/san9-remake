@@ -62,6 +62,8 @@ public sealed class DailyTaskDecisionTests
         Assert.DoesNotContain(advance.Events, e => e is XunAdvancedEvent);
         Assert.Equal(3, advance.Events.OfType<StageCompletedEvent>().Count(e => e.Stage == ResolutionStage.BeforeDailyCommands));
         Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
+        Assert.Throws<InvalidOperationException>(() => session.EndRecording());
+        Assert.True(session.IsRecording);
         for (int answer = 0; answer < 2; answer++)
         {
             var pending = session.Snapshot.Simulation.PendingDailyTask!;
@@ -70,11 +72,20 @@ public sealed class DailyTaskDecisionTests
             string beforeAnswer = session.Snapshot.StateHash;
             Assert.True(session.Validate(new("player"), command).Accepted);
             Assert.Equal(beforeAnswer, session.Snapshot.StateHash);
-            var expected = session.Execute(new("player"), command);
-            var actual = restored.Execute(new("player"), command);
-            Assert.True(expected.Submission.Accepted);
+            var request = session.Request(new CommandOperation(command), id: command.CommandId);
+            var expected = session.Apply(request);
+            var actual = restored.Apply(request);
+            Assert.Equal(SessionDisposition.Accepted, expected.Disposition);
+            Assert.Equal(SessionDisposition.Accepted, actual.Disposition);
             Assert.Equal(CanonicalJson.Text(expected.Events), CanonicalJson.Text(actual.Events));
             Assert.Equal(session.Snapshot.StateHash, restored.Snapshot.StateHash);
+            var afterAnswer = session.Snapshot;
+            long operationSequence = session.NextOperationSequence;
+            var duplicate = session.Apply(request);
+            Assert.Equal(SessionDisposition.AlreadyProcessed, duplicate.Disposition);
+            Assert.Empty(duplicate.Events);
+            Assert.Same(afterAnswer, session.Snapshot);
+            Assert.Equal(operationSequence, session.NextOperationSequence);
             Assert.Equal(answer == 0 ? 0 : 1, expected.Events.OfType<XunAdvancedEvent>().Count());
             if (answer == 0)
             {
@@ -120,7 +131,7 @@ public sealed class DailyTaskDecisionTests
     }
 
     [Fact]
-    public void WrongControllerWrongTaskAndNormalCommandsCannotMutatePendingDecision()
+    public void InvalidResponsesAndNormalCommandsCannotMutatePendingDecision()
     {
         var session = GameSession.Start(Content(), 42, Engine);
         Assert.True(session.Execute(new("player"), new StartTaskCommand(Guid.NewGuid(), 1, 0,
@@ -131,7 +142,22 @@ public sealed class DailyTaskDecisionTests
         var response = new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence,
             pending.RemainingTaskIds[0], 0, true);
         Assert.Equal(CommandRejection.NotActiveController, session.Execute(new("other"), response).Submission.Rejection);
-        Assert.Equal(CommandRejection.InvalidDecision, session.Execute(new("player"), response with { TaskId = Guid.NewGuid() }).Submission.Rejection);
+        Assert.Equal(before, session.Snapshot.StateHash);
+        long operationSequence = session.NextOperationSequence;
+        foreach (var invalid in new[]
+        {
+            response with { TaskId = Guid.NewGuid() },
+            response with { Step = response.Step + 1 },
+            response with { CountryTitleId = 1 },
+            response with { MerchantInvestment = new(MerchantInvestmentChoice.Decline, 0) }
+        })
+        {
+            var result = session.Execute(new("player"), invalid);
+            Assert.Equal(CommandRejection.InvalidDecision, result.Submission.Rejection);
+            Assert.Empty(result.Events);
+            Assert.Equal(before, session.Snapshot.StateHash);
+            Assert.Equal(operationSequence, session.NextOperationSequence);
+        }
         Assert.Equal(CommandRejection.DecisionPending, session.Execute(new("player"),
             new WaitCommand(Guid.NewGuid(), 1, response.Sequence)).Submission.Rejection);
         Assert.Equal(before, session.Snapshot.StateHash);

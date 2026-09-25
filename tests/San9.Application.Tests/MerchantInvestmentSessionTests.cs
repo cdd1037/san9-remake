@@ -46,8 +46,7 @@ public sealed class MerchantInvestmentSessionTests
         var prompt = Assert.IsType<MerchantInvestmentPrompt>(session.GetMerchantInvestmentPrompt());
         Assert.Equal(prompt, restored.GetMerchantInvestmentPrompt()); Assert.Equal(price, prompt.FoodExchangeRate);
         Assert.Equal(100u, prompt.MinimumInvestment); Assert.Equal(9999u, prompt.MaximumInvestment); Assert.Equal(80, prompt.SuccessChance);
-        Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
-        Assert.Throws<InvalidOperationException>(() => session.EndRecording());
+        Assert.Equal(SimulationBoundary.AwaitingDecision, session.Snapshot.Simulation.Boundary);
         string before = session.Snapshot.StateHash; Assert.Equal(prompt, session.GetMerchantInvestmentPrompt()); Assert.Equal(before, session.Snapshot.StateHash);
         uint amount = choice == MerchantInvestmentChoice.Invest ? 101u : 0u;
         var answer = Answer(session, prompt, choice, amount); var request = session.Request(new CommandOperation(answer), id: answer.CommandId);
@@ -59,7 +58,6 @@ public sealed class MerchantInvestmentSessionTests
         Assert.Equal(choice == MerchantInvestmentChoice.Execute ? 95 : 100, result.BaseTrust);
         Assert.Equal(choice == MerchantInvestmentChoice.Execute, session.Snapshot.Forces.Single().EventHistory.Contains(new("salt.banned")));
         Assert.Empty(session.Snapshot.Simulation.ConsumedEventKeys); Assert.DoesNotContain(first.Events, e => e is SearchResolvedEvent);
-        Assert.Equal(SessionDisposition.AlreadyProcessed, session.Apply(request).Disposition);
         Assert.Equal(SaveService.Encode(session), SaveService.Encode(restored));
         Assert.Equal(SaveService.Encode(session), SaveService.Encode(SaveService.Decode(SaveService.Encode(session), d)));
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), d, GameSession.EngineFactory(d));
@@ -79,7 +77,7 @@ public sealed class MerchantInvestmentSessionTests
         {
             valid with { MerchantInvestment = null }, valid with { MerchantInvestment = new(MerchantInvestmentChoice.Invest, 99) },
             valid with { MerchantInvestment = new(MerchantInvestmentChoice.Invest, p.MaximumInvestment + 1) },
-            valid with { Accept = false }, valid with { CountryTitleId = 1 }, valid with { TaskId = Guid.NewGuid() }, valid with { Step = p.Step + 1 },
+            valid with { Accept = false }, valid with { CountryTitleId = 1 },
             valid with { MerchantInvestment = new((MerchantInvestmentChoice)99, 0) },
             valid with { Accept = false, MerchantInvestment = new(MerchantInvestmentChoice.Decline, 100) }
         })

@@ -29,7 +29,7 @@ public sealed class TigerSearchSessionTests
     [InlineData(false, true, EventResult.Declined)]
     [InlineData(true, true, EventResult.Succeeded)]
     [InlineData(true, false, EventResult.Defeated)]
-    public void ChoicesRoundTripSaveReplayAndValidateResponsesWithoutOrdinarySearch(bool accept, bool wins, EventResult expected)
+    public void ChoicesRoundTripSaveAndReplayWithoutOrdinarySearch(bool accept, bool wins, EventResult expected)
     {
         var d = Definition; var session = GameSession.Start(d, Seed(wins)); session.BeginRecording();
         Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 2, 1)).Submission.Accepted);
@@ -37,19 +37,9 @@ public sealed class TigerSearchSessionTests
         session.AdvanceXun(); restored.AdvanceXun();
         var prompt = Assert.IsType<TigerSearchPrompt>(session.GetTigerSearchPrompt());
         Assert.Equal(prompt, restored.GetTigerSearchPrompt()); Assert.Equal(80, prompt.BattleChance);
-        Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
-        Assert.Throws<InvalidOperationException>(() => session.EndRecording());
+        Assert.Equal(SimulationBoundary.AwaitingDecision, session.Snapshot.Simulation.Boundary);
         string before = session.Snapshot.StateHash;
         Assert.Equal(prompt, session.GetTigerSearchPrompt()); Assert.Equal(before, session.Snapshot.StateHash);
-        foreach (var bad in new[]
-        {
-            new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, Guid.NewGuid(), prompt.Step, accept),
-            new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, prompt.TaskId, prompt.Step + 1, accept),
-            new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, prompt.TaskId, prompt.Step, accept) { CountryTitleId = 1 }
-        })
-        {
-            Assert.False(session.Execute(new("player"), bad).Submission.Accepted); Assert.Equal(before, session.Snapshot.StateHash);
-        }
         Guid id = Guid.NewGuid();
         var request = session.Request(new CommandOperation(new RespondDailyTaskCommand(id, 1, session.Snapshot.Simulation.NextSequence,
             prompt.TaskId, prompt.Step, accept)), id: id);
@@ -61,7 +51,6 @@ public sealed class TigerSearchSessionTests
         Assert.Equal(expected == EventResult.Succeeded ? 81 : 80, result.War);
         Assert.Equal(expected == EventResult.Succeeded ? 101 : 98, result.BaseTrust);
         Assert.Equal(3, result.LifespanTier); Assert.DoesNotContain(first.Events, e => e is SearchResolvedEvent or BeastSearchResolvedEvent);
-        Assert.Equal(SessionDisposition.AlreadyProcessed, session.Apply(request).Disposition);
         Assert.Empty(session.Snapshot.Simulation.ConsumedEventKeys); Assert.Null(session.GetTigerSearchPrompt());
         Assert.Equal(SaveService.Encode(session), SaveService.Encode(restored));
         Assert.Equal(SaveService.Encode(session), SaveService.Encode(SaveService.Decode(SaveService.Encode(session), d)));

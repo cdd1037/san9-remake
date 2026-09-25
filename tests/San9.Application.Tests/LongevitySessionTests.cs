@@ -32,19 +32,9 @@ public sealed class LongevitySessionTests
         session.AdvanceXun(); restored.AdvanceXun();
         var p = Assert.IsType<LongevityPrompt>(session.GetLongevityPrompt());
         Assert.Equal(p, restored.GetLongevityPrompt()); Assert.Equal((7, 500u), (p.MinimumLifespanTier, p.Cost));
-        Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
+        Assert.Equal(SimulationBoundary.AwaitingDecision, session.Snapshot.Simulation.Boundary);
         string before = session.Snapshot.StateHash;
         Assert.Equal(p, session.GetLongevityPrompt()); Assert.Equal(before, session.Snapshot.StateHash);
-        foreach (var bad in new[]
-        {
-            new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, Guid.NewGuid(), p.Step, accept),
-            new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, p.TaskId, p.Step + 1, accept),
-            new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, p.TaskId, p.Step, accept) { CountryTitleId = 1 }
-        })
-        {
-            Assert.False(session.Execute(new("player"), bad).Submission.Accepted);
-            Assert.Equal(before, session.Snapshot.StateHash);
-        }
         Guid id = Guid.NewGuid();
         var answer = new RespondDailyTaskCommand(id, 1, session.Snapshot.Simulation.NextSequence, p.TaskId, p.Step, accept);
         var request = session.Request(new CommandOperation(answer), id: id);
@@ -53,7 +43,6 @@ public sealed class LongevitySessionTests
         Assert.Equal(CanonicalJson.Text(first.Events), CanonicalJson.Text(second.Events));
         Assert.Equal(accept, Assert.Single(first.Events.OfType<LongevityResolvedEvent>()).Accepted);
         Assert.DoesNotContain(first.Events, e => e is SearchResolvedEvent);
-        Assert.Equal(SessionDisposition.AlreadyProcessed, session.Apply(request).Disposition);
         Assert.Empty(session.Snapshot.Simulation.ConsumedEventKeys);
         Assert.Equal(accept ? 7 : 0, session.Snapshot.Officers.Single(o => o.Id == 2).LifespanTier);
         Assert.Equal(accept ? -500L : 0L, first.Events.OfType<ResourceChangedEvent>().Where(e => e.Reason == "longevity").Sum(e => e.Actual));

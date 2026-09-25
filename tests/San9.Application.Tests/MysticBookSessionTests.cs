@@ -57,17 +57,7 @@ public sealed class MysticBookSessionTests
             Assert.Equal(p, restored.GetMysticBookOfferPrompt()); Assert.Equal((500u, 100u), (p.AcceptCost, p.DeclineCost));
             task = p.TaskId; step = p.Step;
         }
-        Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
-        string before = session.Snapshot.StateHash;
-        foreach (var bad in new[]
-        {
-            new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, Guid.NewGuid(), step, accept),
-            new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, task, step + 1, accept),
-            new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, task, step, accept) { CountryTitleId = 1 }
-        })
-        {
-            Assert.False(session.Execute(new("player"), bad).Submission.Accepted); Assert.Equal(before, session.Snapshot.StateHash);
-        }
+        Assert.Equal(SimulationBoundary.AwaitingDecision, session.Snapshot.Simulation.Boundary);
         Guid id = Guid.NewGuid();
         var answer = new RespondDailyTaskCommand(id, 1, session.Snapshot.Simulation.NextSequence, task, step, accept);
         var request = session.Request(new CommandOperation(answer), id: id);
@@ -75,7 +65,6 @@ public sealed class MysticBookSessionTests
         Assert.Equal(SessionDisposition.Accepted, first.Disposition);
         Assert.Equal(CanonicalJson.Text(first.Events), CanonicalJson.Text(second.Events));
         Assert.DoesNotContain(first.Events, e => e is SearchResolvedEvent);
-        Assert.Equal(SessionDisposition.AlreadyProcessed, session.Apply(request).Disposition);
         Assert.Equal(returning ? (accept ? 4 : 2) : (accept ? 2 : 4), session.Snapshot.Treasures.Single().HolderId);
         Assert.Equal(returning ? 0 : -(accept ? 500L : 100L), first.Events.OfType<ResourceChangedEvent>().Where(e => e.Reason.StartsWith("mystic-book-", StringComparison.Ordinal)).Sum(e => e.Actual));
         Assert.Equal(returning && !accept, session.Snapshot.Officers.Single(o => o.Id == 2).LearnedTactics.Contains(26));

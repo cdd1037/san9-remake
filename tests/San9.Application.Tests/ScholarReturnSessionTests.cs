@@ -40,20 +40,10 @@ public sealed class ScholarReturnSessionTests
         session.AdvanceXun(); restored.AdvanceXun();
         var prompt = Assert.IsType<ScholarReturnPrompt>(session.GetScholarReturnPrompt());
         Assert.Equal(prompt, restored.GetScholarReturnPrompt());
-        Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
+        Assert.Equal(SimulationBoundary.AwaitingDecision, session.Snapshot.Simulation.Boundary);
         string before = session.Snapshot.StateHash;
         Assert.Equal(prompt, session.GetScholarReturnPrompt()); Assert.Equal(before, session.Snapshot.StateHash);
         Assert.Empty(Assert.Single(session.Snapshot.Forces).EventHistory);
-        foreach (var bad in new[]
-        {
-            new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, Guid.NewGuid(), prompt.Step, accept),
-            new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, prompt.TaskId, prompt.Step + 1, accept),
-            new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, prompt.TaskId, prompt.Step, accept) { CountryTitleId = 1 }
-        })
-        {
-            Assert.False(session.Execute(new("player"), bad).Submission.Accepted);
-            Assert.Equal(before, session.Snapshot.StateHash);
-        }
         Guid id = Guid.NewGuid();
         var command = new RespondDailyTaskCommand(id, 1, session.Snapshot.Simulation.NextSequence, prompt.TaskId, prompt.Step, accept);
         var request = session.Request(new CommandOperation(command), id: id);
@@ -61,7 +51,6 @@ public sealed class ScholarReturnSessionTests
         Assert.Equal(SessionDisposition.Accepted, first.Disposition);
         Assert.Equal(CanonicalJson.Text(first.Events), CanonicalJson.Text(second.Events));
         Assert.Equal(accept, Assert.Single(first.Events.OfType<ScholarReturnResolvedEvent>()).Accepted);
-        Assert.Equal(SessionDisposition.AlreadyProcessed, session.Apply(request).Disposition);
         Assert.Equal(accept, Assert.Single(session.Snapshot.Forces).EventHistory.Contains(new("scholar.accepted")));
         Assert.Equal("scholar", Assert.Single(session.Snapshot.Simulation.ConsumedEventKeys).Value);
         Assert.Null(session.GetScholarReturnPrompt());

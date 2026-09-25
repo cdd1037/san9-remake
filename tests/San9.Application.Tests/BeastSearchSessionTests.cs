@@ -31,7 +31,7 @@ public sealed class BeastSearchSessionTests
     [InlineData(false, true, EventResult.Escaped)]
     [InlineData(true, true, EventResult.Succeeded)]
     [InlineData(true, false, EventResult.Defeated)]
-    public void ChoicesPreserveStableSaveBoundaryAndReplayAllWorldEffects(bool fight, bool knows, EventResult expected)
+    public void ChoicesRoundTripSaveAndReplayAllWorldEffects(bool fight, bool knows, EventResult expected)
     {
         var definition = Definition(knows);
         var session = GameSession.Start(definition, Seed());
@@ -42,8 +42,7 @@ public sealed class BeastSearchSessionTests
         var prompt = session.GetBeastSearchPrompt()!;
         Assert.NotNull(prompt);
         Assert.Equal(prompt, restored.GetBeastSearchPrompt());
-        Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
-        Assert.Throws<InvalidOperationException>(() => session.EndRecording());
+        Assert.Equal(SimulationBoundary.AwaitingDecision, session.Snapshot.Simulation.Boundary);
         string before = session.Snapshot.StateHash;
         Assert.Equal(prompt, session.GetBeastSearchPrompt());
         Assert.Equal(before, session.Snapshot.StateHash);
@@ -55,7 +54,6 @@ public sealed class BeastSearchSessionTests
         Assert.Equal(SessionDisposition.Accepted, first.Disposition);
         Assert.Equal(CanonicalJson.Text(first.Events), CanonicalJson.Text(second.Events));
         Assert.Equal(expected, Assert.Single(first.Events.OfType<BeastSearchResolvedEvent>()).Result);
-        Assert.Equal(SessionDisposition.AlreadyProcessed, session.Apply(request).Disposition);
         Assert.Equal("site.home", Assert.Single(session.Snapshot.Simulation.ConsumedEventKeys).Value);
         Assert.Null(session.GetBeastSearchPrompt());
         Assert.DoesNotContain(first.Events, e => e is SearchResolvedEvent);

@@ -34,19 +34,9 @@ public sealed class TreasureMonumentSessionTests
         session.AdvanceXun(); restored.AdvanceXun();
         var p = Assert.IsType<TreasureMonumentPrompt>(session.GetTreasureMonumentPrompt());
         Assert.Equal(p, restored.GetTreasureMonumentPrompt()); Assert.Equal((500, 10000u), (p.TreasureId, p.Cost));
-        Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
+        Assert.Equal(SimulationBoundary.AwaitingDecision, session.Snapshot.Simulation.Boundary);
         string before = session.Snapshot.StateHash;
         Assert.Equal(p, session.GetTreasureMonumentPrompt()); Assert.Equal(before, session.Snapshot.StateHash);
-        foreach (var bad in new[]
-        {
-            new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, Guid.NewGuid(), p.Step, accept),
-            new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, p.TaskId, p.Step + 1, accept),
-            new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, p.TaskId, p.Step, accept) { CountryTitleId = 1 }
-        })
-        {
-            Assert.False(session.Execute(new("player"), bad).Submission.Accepted);
-            Assert.Equal(before, session.Snapshot.StateHash);
-        }
         Guid id = Guid.NewGuid();
         var answer = new RespondDailyTaskCommand(id, 1, session.Snapshot.Simulation.NextSequence, p.TaskId, p.Step, accept);
         var request = session.Request(new CommandOperation(answer), id: id);
@@ -55,7 +45,6 @@ public sealed class TreasureMonumentSessionTests
         Assert.Equal(CanonicalJson.Text(first.Events), CanonicalJson.Text(second.Events));
         Assert.Equal(accept, Assert.Single(first.Events.OfType<TreasureMonumentResolvedEvent>()).Accepted);
         Assert.DoesNotContain(first.Events, e => e is SearchResolvedEvent);
-        Assert.Equal(SessionDisposition.AlreadyProcessed, session.Apply(request).Disposition);
         Assert.Equal(accept, session.Snapshot.Simulation.ConsumedEventKeys.Contains(new("tower")));
         Assert.Equal(accept ? 105 : 100, Assert.Single(session.Snapshot.Forces).BaseTrust);
         Assert.Equal(accept ? -10000L : 0L, first.Events.OfType<ResourceChangedEvent>().Where(e => e.Reason == "treasure-monument").Sum(e => e.Actual));

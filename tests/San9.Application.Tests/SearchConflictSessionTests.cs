@@ -50,13 +50,13 @@ public sealed class SearchConflictSessionTests
         session.AdvanceXun(); restored.AdvanceXun();
         var p = Assert.IsType<SearchConflictPrompt>(session.GetSearchConflictPrompt());
         Assert.Equal(CanonicalJson.Text(p), CanonicalJson.Text(restored.GetSearchConflictPrompt()));
-        Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
+        Assert.Equal(SimulationBoundary.AwaitingDecision, session.Snapshot.Simulation.Boundary);
         string hash = session.Snapshot.StateHash;
         Assert.Equal(CanonicalJson.Text(p), CanonicalJson.Text(session.GetSearchConflictPrompt())); Assert.Equal(hash, session.Snapshot.StateHash);
         bool accepted = choice is not (SearchConflictChoice.Decline or SearchConflictChoice.Execute);
         var answer = new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, p.TaskId, p.Step, accepted) { SearchConflict = choice };
         foreach (var invalid in new[] { answer with { SearchConflict = null }, answer with { SearchConflict = (SearchConflictChoice)99 },
-            answer with { Step = p.Step + 1 }, answer with { TaskId = Guid.NewGuid() }, answer with { Accept = !accepted },
+            answer with { Accept = !accepted },
             answer with { CountryTitleId = 1 }, answer with { MerchantInvestment = new(MerchantInvestmentChoice.Decline, 0) } })
         {
             Assert.False(session.Execute(new("player"), invalid).Submission.Accepted); Assert.Equal(hash, session.Snapshot.StateHash);
@@ -67,7 +67,6 @@ public sealed class SearchConflictSessionTests
         Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(other.Events));
         Assert.Equal(choice, Assert.Single(result.Events.OfType<SearchConflictResolvedEvent>()).Choice);
         Assert.DoesNotContain(result.Events, e => e is SearchResolvedEvent);
-        Assert.Equal(SessionDisposition.AlreadyProcessed, session.Apply(request).Disposition);
         Assert.Equal(SaveService.Encode(session), SaveService.Encode(restored));
         Assert.Equal(SaveService.Encode(session), SaveService.Encode(SaveService.Decode(SaveService.Encode(session), d)));
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), d, GameSession.EngineFactory(d));

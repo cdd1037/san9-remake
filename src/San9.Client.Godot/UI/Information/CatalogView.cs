@@ -18,6 +18,7 @@ public partial class CatalogView : Control
     public Action<int>? Activated { get; init; }
     public Action<int>? CurrentChanged { get; init; }
     public Action? Closed { get; init; }
+    public Action? ShowMap { get; init; }
     public int InitialPage { get; init; }
     public int? InitialCurrentId { get; init; }
     public int InitialOffset { get; init; }
@@ -62,8 +63,14 @@ public partial class CatalogView : Control
             tab.Pressed += () => ChangePage(page); AddChild(tab); _tabs.Add(tab);
         }
         var close = new InformationActionButton { Title = "关闭", Textures = Textures,
-            Position = new(_body.End.X - 160, _body.End.Y - 48), Size = new(80, 36) };
+            Position = new(_body.End.X - 160, _body.End.Y - 48), Size = new(80, 48) };
         close.Pressed += () => Closed?.Invoke(); AddChild(close);
+        if (ShowMap is not null)
+        {
+            var map = new InformationActionButton { Title = "地图", MapToggle = true, Textures = Textures,
+                Position = new(_body.End.X - 356, _body.End.Y - 68), Size = new(108, 32) };
+            map.Pressed += ShowMap; AddChild(map);
+        }
         IconButton("information-action-close", new(_body.End.X - 40, _body.Position.Y + 32), () => Closed?.Invoke());
         IconButton("catalog-help", new(_body.End.X - 72, _body.Position.Y + 8), ToggleHelp);
         if (Portrait is not null)

@@ -15,9 +15,9 @@ G09人物生命周期新增必填`lifespanTier`、`successionPriority`及场景`
 | Content.Maps / MapImporter | 当前地图方格、地貌及对象位置 | `map.json`（无图片文件） |
 | Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema111 |
 | Content.Text / ScenarioTextReader | 名称与全量消息目录 | `text.json` / `messages.json`，schema3 |
-| Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema16 |
+| Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema20 |
 | Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema115 |
-| Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema3／转换版本8 |
+| Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema3／转换版本12 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 
 共享剧本契约不按原版编号区间限制城市或人物身份。城市图标资格由`SettlementKind.City`决定；`RegionCityIds`必须引用真实城市，其城市名从据点定义读取，不要求城市ID同时存在于地域名称表。数量与名称不继承源格式槽位和字节长度；玩法数值上限及显示资源范围独立校验。
@@ -294,3 +294,11 @@ G10封禅使用剧本schema83／组合87、规则`san9-core-g10-v20`；保存／
 场景schema110／组合包schema114增加必填ProvinceNameKeys及官爵IsUnranked、可空DescriptionKey。州名映射允许作者省略，缺失显示“—”；非空文本引用由组合包校验，无官爵标记至多一个。Importer将源州消息和官爵说明转换为语义文本键，运行时不依赖原版州／官爵编号；旧包须重转，不提供兼容分支。这些显示元数据不额外加入规则字段投影。
 
 都市初始兵法包含剧本位域与TC101新局初始化追加的兵法，后者由CityTacticContentCompiler转换，合并去重且保留落石／射台。城市编号映射仅存在于Importer；共享内容继续使用EnabledTacticIds。修正前生成包须重转；数据进入既有内容指纹，旧会话须重新开局，不能只刷新情报窗口。
+
+行政详情标题栏补齐原版状态／修行底图：界面皮肤schema17、纹理转换版本9。旧纹理包须重新执行`import-textures`，再执行`import-client`更新组合包；剧本、Core规则及保存格式不变。
+
+情报一览／地图切换按钮补齐G_Common358–360的四态蓝色三段贴图，当前界面皮肤schema18、纹理转换版本10；一览关闭按钮恢复原生48像素高度，切换按钮为32像素高。
+
+势力／军团人物摘要补齐专用纹饰底框、小四维网格及绿色／金色矩形字段标签，当前界面皮肤schema19、纹理转换版本11。需要重转纹理及组合包，领域数据和保存格式不变。
+
+情报地图接入G_MMap104–155的24×24四态方形标记，皮肤schema20、纹理转换版本12。都市区域在纹理上传时生成CPU位遮罩用于命中，不保留额外CPU整图或运行时读取源档案。

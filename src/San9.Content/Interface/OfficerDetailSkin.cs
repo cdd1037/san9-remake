@@ -5,6 +5,10 @@ public static class OfficerDetailSkin
     public static IReadOnlyList<string> RequiredRoles { get; } = Array.AsReadOnly(new[]
     {
         "detail-treasure-list-top", "detail-treasure-list-bottom", "detail-treasure-description",
+        "detail-leader-background", "detail-leader-background-1", "detail-leader-radar-grid",
+        "detail-leader-label-left", "detail-leader-label-middle", "detail-leader-label-right",
+        "detail-admin-label-left", "detail-admin-label-middle", "detail-admin-label-right",
+        "detail-status-badge", "detail-training-badge",
         "detail-background", "detail-list-top", "detail-list-bottom", "detail-portrait-frame", "detail-radar-background", "detail-radar-grid",
         "detail-panel-center", "detail-button-shadow", "detail-biography-field", "detail-tactics-field"
     }.Concat(new[] { "top-left", "top", "top-right", "left", "right", "bottom-left", "bottom", "bottom-right" }.Select(p => "detail-panel-" + p))

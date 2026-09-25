@@ -99,14 +99,16 @@ public sealed class AdministrativeCatalog(StrategySnapshot view, TextCatalog tex
             InformationCategory.Corps => view.World.Corps.Where(c => _forces.ContainsKey(c.OwnerId) && (force is null || c.OwnerId == force) && (corps is null || c.Id == corps)).Select(c => c.Id),
             InformationCategory.Cities => view.Settlements.Where(s => s.Kind == SettlementKind.City && (force is null || s.OwnerId == force) && (corps is null || s.CorpsId == corps) && (settlement is null || s.Id == settlement)).Select(s => s.Id),
             InformationCategory.Regions => view.RegionNameKeys.Keys.Where(id => (region is null || id == region) &&
-                (settlement is null || City(id) == settlement) && (force is null || _places.GetValueOrDefault(id)?.OwnerId == force) &&
-                (corps is null || _places.GetValueOrDefault(id)?.CorpsId == corps)),
+                (settlement is null || City(id) == settlement) && (force is null || RegionAuthority(id)?.OwnerId == force) &&
+                (corps is null || RegionAuthority(id)?.CorpsId == corps)),
             _ => throw new ArgumentOutOfRangeException(nameof(category))
         };
         var rows = ids.Select(id => new InformationRow(new(category, id), pages[page].Columns.Select(c => Cell(category, id, c.Id)).ToArray(), MapTarget(category, id))).ToArray();
         return new(InformationQuery.MenuTitle(category)[1..] + "一览", pages.Select(p => p.Title).ToArray(), pages[page].Columns.Select(c => c.Title).ToArray(), rows);
     }
     internal int? City(int region) => view.RegionCityIds.TryGetValue(region, out int city) ? city : _places.GetValueOrDefault(region)?.Kind == SettlementKind.City ? region : null;
+    private SettlementState? RegionAuthority(int region) => _states.GetValueOrDefault(region) is { } local &&
+        (local.Kind == SettlementKind.City || local.CanHostPersons) ? local : City(region) is int city ? _states.GetValueOrDefault(city) : null;
     internal int? MapTarget(InformationCategory category, int id) => category switch
     {
         InformationCategory.Forces => _forces[id].LeaderSettlementId,
@@ -215,6 +217,11 @@ public sealed class AdministrativeCatalog(StrategySnapshot view, TextCatalog tex
         var people = _locals.GetValueOrDefault(id) ?? [];
         if (field == "name") return category == InformationCategory.Regions ? texts.Resolve(view.RegionNameKeys[id]) : Place(id);
         if (field == "city") return city is int c ? Place(c) : CatalogCell.Unavailable;
+        if (category == InformationCategory.Regions && field is "force" or "corps-name")
+        {
+            var authority = RegionAuthority(id);
+            return field == "force" ? Force(authority?.OwnerId) : Person(authority?.CorpsId is int corps ? _corps.GetValueOrDefault(corps)?.LeaderId : null);
+        }
         if (field == "province") return city is int home && view.CityProvinceIds.TryGetValue(home, out int province) && view.ProvinceNameKeys.TryGetValue(province, out var key) ? texts.Resolve(key) : CatalogCell.Unavailable;
         if (field == "serving") return people.Count(o => o.IsServing);
         if (field == "captives") return people.Count(o => o.Status == OfficerStatus.Captive);

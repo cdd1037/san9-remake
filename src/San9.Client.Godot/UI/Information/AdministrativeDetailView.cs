@@ -3,16 +3,17 @@ using San9.Application.Presentation;
 
 namespace San9.Client.Godot;
 
-/// <summary>Administrative detail sections and a shared, fixed-size candidate sidebar.</summary>
+/// <summary>Administrative detail layouts share navigation, not a generic section grid.</summary>
 public partial class AdministrativeDetailView : Control
 {
     public DetailSelectionState State { get; init; } = null!;
+    public InformationCategory Category { get; init; }
     public Func<int, AdministrativeDetailData> Read { get; init; } = null!;
     public Func<int, string> ReadName { get; init; } = null!;
     public Func<InformationLink, bool> Available { get; init; } = null!;
     public Action<InformationLink> Navigate { get; init; } = null!;
     public Action<int> CurrentChanged { get; init; } = null!;
-    public Action<int> Locate { get; init; } = null!;
+    public Func<int, Control> Preview { get; init; } = null!;
     public Action Closed { get; init; } = null!;
     public string Title { get; init; } = "";
     public TextureService Service { get; init; } = null!;
@@ -20,31 +21,43 @@ public partial class AdministrativeDetailView : Control
     private readonly GameTextPresenter _text = new();
     private readonly List<DetailNameButton> _names = [];
     private readonly List<Rect2> _panels = [];
+    private readonly List<(string Role, Rect2 Rect)> _strips = [];
     private Control _body = null!;
     private SkinnedScrollBar _scroll = null!;
     private AdministrativeDetailData _data = null!;
     private bool _refreshing;
+    private int _titleExtra;
+    private void Badge(string role, string text, Vector2 position, Vector2 size)
+    {
+        _body.AddChild(new TextureRect { Texture = Textures["detail-"+role+"-badge"], Position = position,
+            Size = size, MouseFilter = MouseFilterEnum.Ignore });
+        Label(text,new(position,size),24,HorizontalAlignment.Center);
+    }
+    public static int VisibleRows(InformationCategory category) => category switch { InformationCategory.Forces => 14, InformationCategory.Corps => 16, InformationCategory.Cities => 18, _ => 21 };
+    private int Rows => VisibleRows(Category);
     public override void _Ready()
     {
         Size = new(1024,768); MouseFilter = MouseFilterEnum.Stop;
         _body = new Control { MouseFilter = MouseFilterEnum.Ignore }; AddChild(_body);
-        for (int row = 0; row < DetailSelectionState.VisibleRows; row++)
+        for (int row = 0; row < Rows; row++)
         {
             int slot = row;
-            var name = new DetailNameButton { Textures = Textures, Position = new(890,124 + row * 20), Size = new(96,16) };
+            var name = new DetailNameButton { Textures = Textures, Position = new(902,124 + row * 20), Size = new(88,16) };
             name.MouseEntered += () => { State.PointAt(State.Candidates[State.Offset + slot]); RefreshNames(); };
             name.Pressed += () => Activate(State.Candidates[State.Offset + slot]);
             AddChild(name); _names.Add(name);
         }
-        _scroll = new SkinnedScrollBar { Skin = ScrollBarSkin.FromCatalog(Textures), Position = new(990,124), Size = new(16,498), ContextRequested = Closed };
-        AddChild(_scroll); _scroll.Range.Page = DetailSelectionState.VisibleRows;
-        _scroll.Range.MaxValue = Math.Max(DetailSelectionState.VisibleRows, State.Candidates.Count);
+        _scroll = new SkinnedScrollBar { Skin = ScrollBarSkin.FromCatalog(Textures), Position = new(990,124), Size = new(16,Rows * 20 - 2), ContextRequested = Closed };
+        AddChild(_scroll); _scroll.Range.Page = Rows;
+        _scroll.Range.MaxValue = Math.Max(Rows, State.Candidates.Count);
         _scroll.Range.ValueChanged += value => { if (!_refreshing) { State.Scroll((int)value); RefreshNames(); } };
         var close = new DetailActionButton { Title = "关闭", Role = "close", Textures = Textures, Position = new(875,687), Size = new(108,44) };
         close.Pressed += Closed; AddChild(close);
         var icon = new TextureButton { Position = new(964,56), TextureNormal = Textures["detail-close-icon"],
             TextureHover = Textures["detail-close-icon-1"], TexturePressed = Textures["detail-close-icon-2"] };
         icon.Pressed += Closed; AddChild(icon);
+        AddChild(new TextureRect { Position = new(932,32), Texture = Textures["detail-help"], MouseFilter = MouseFilterEnum.Ignore });
+        AddChild(new GameMessageBar { Textures = Textures, Text = "现在显示的是" + Title + "。" });
         RefreshNames(); RefreshBody();
     }
     private void Activate(int id) { State.Activate(id); CurrentChanged(id); RefreshNames(); RefreshBody(); }
@@ -57,57 +70,117 @@ public partial class AdministrativeDetailView : Control
             _names[row].Visible = index < State.Candidates.Count;
             if (_names[row].Visible) _names[row].Bind(ReadName(State.Candidates[index]), State.FocusedId == State.Candidates[index]);
         }
-        _scroll.Visible = State.Candidates.Count > DetailSelectionState.VisibleRows;
+        _scroll.Visible = State.Candidates.Count > Rows;
         _scroll.Range.Value = State.Offset; _scroll.UpdateArrows(); _refreshing = false;
     }
-    private void Label(string text, Rect2 rect, int size = 16, bool heading = false)
+    private void Label(string text, Rect2 rect, int size = 16, HorizontalAlignment alignment = HorizontalAlignment.Left, Color? color = null)
     {
         var label = new Label { Text = text, TooltipText = text, Position = rect.Position, Size = rect.Size, ClipText = true,
-            VerticalAlignment = VerticalAlignment.Center, MouseFilter = MouseFilterEnum.Pass };
-        _body.AddChild(label); _text.Apply(label, GameTextStyles.CatalogRow with { FontSize = size,
-            Foreground = heading ? new Color("d8c898") : new Color("f0f0f0") });
+            VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = alignment, MouseFilter = MouseFilterEnum.Ignore };
+        _body.AddChild(label); _text.Apply(label, GameTextStyles.CatalogRow with { FontSize = size, Foreground = color ?? GameTextStyles.CatalogRow.Foreground });
     }
-    private void Section(InformationSection section, Rect2 rect, int columns = 1)
+    private AdministrativeField FieldData(string id) => _data.Sections.SelectMany(s => s.Fields).First(f => f.Id == id);
+    private void Field(string id, float x, float y, float labelWidth, float valueWidth, string labelRole = "label")
     {
-        _panels.Add(rect); Label(section.Title, new(rect.Position + new Vector2(16,8), new(rect.Size.X-32,24)), heading: true);
-        float width = (rect.Size.X - 32) / columns;
-        int rows = (section.Fields.Length + columns - 1) / columns;
-        for (int i = 0; i < section.Fields.Length; i++)
-        {
-            var point = rect.Position + new Vector2(16 + i / rows * width, 36 + i % rows * 27);
-            float labelWidth = Math.Min(96, width * .43f);
-            Label(section.Fields[i].Label, new(point, new(labelWidth,24)), heading: true);
-            Label(section.Fields[i].Value, new(point + new Vector2(labelWidth,0), new(width-labelWidth-8,24)));
-        }
+        _strips.Add((labelRole, new(x,y,labelWidth,24)));
+        _strips.Add(("field", new(x+labelWidth+8,y,valueWidth,24)));
+        var field = FieldData(id);
+        Label(field.Label, new(x,y,labelWidth,24), alignment: HorizontalAlignment.Center);
+        Label(field.Value, new(x+labelWidth+12,y,valueWidth-8,24), alignment: HorizontalAlignment.Right);
     }
+    private void Column(string[] labels, float x, float y, float labelWidth, float valueWidth, string labelRole = "label")
+    { for (int row = 0; row < labels.Length; row++) Field(labels[row], x, y + row * 32, labelWidth, valueWidth, labelRole); }
     private void RefreshBody()
     {
-        _data = Read(State.CurrentId); _panels.Clear();
+        _data = Read(State.CurrentId); _panels.Clear(); _strips.Clear();
         foreach (Node node in _body.GetChildren()) { _body.RemoveChild(node); node.QueueFree(); }
-        Label(Title + "  " + _data.Name, new(90,45,720,40), 24);
-        if (_data.PortraitRole is { } role)
+        (int titleWidth, int nameWidth) = Category switch {
+            InformationCategory.Forces => (472,100), InformationCategory.Corps => (520,148),
+            InformationCategory.Cities => (568,52), InformationCategory.Regions => (512,76),
+            _ => throw new InvalidOperationException("Unsupported administrative detail.")
+        };
+        // Authored names can exceed the original examples; grow the frame instead of truncating them.
+        int measured = (int)Math.Ceiling(GetThemeFont("font").GetStringSize(_data.Name,fontSize:24).X) + 4;
+        int extra = Math.Max(0,measured-nameWidth);
+        _strips.Add(("title", new(56,34,titleWidth+extra,60)));
+        _strips.Add(("name", new(232,50,nameWidth+extra,28)));
+        Label(Title, new(112,50,116,32),24); Label(_data.Name,new(234,50,nameWidth+extra-4,28),24,HorizontalAlignment.Center);
+        _titleExtra = extra;
+        if (Category is InformationCategory.Forces or InformationCategory.Corps) BuildAdministration(); else BuildLocation();
+        var links = _data.Links.Where(l => l.OfficerId is null).ToArray();
+        for (int i = 0; i < links.Length; i++)
         {
-            _body.AddChild(new AsyncPortrait { Service = Service, Role = role, Position = new(96,118), Size = new(120,144),
-                ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered });
-            Section(_data.Sections[0], new(246,100,566,180), 2);
-            for (int i = 1; i < 4; i++) Section(_data.Sections[i], new(76 + (i-1)*248,294,240,174));
-            if (_data.Sections.Length > 4) Section(_data.Sections[4], new(76,484,736,158), 2);
+            var link = links[i];
+            var button = new DetailActionButton { Title = link.Label, Role = "treasure", Textures = Textures,
+                Position = new(888,629-(links.Length-1-i)*44), Size = new(120,40), Disabled = !Available(link) };
+            button.Pressed += () => Navigate(link); _body.AddChild(button);
+        }
+        QueueRedraw();
+    }
+    private void BuildAdministration()
+    {
+        bool force = Category == InformationCategory.Forces;
+        _panels.Add(new(76,100,force ? 592 : 624,156));
+        _panels.Add(new(76,268,force ? 664 : 640,force ? 300 : 156));
+        _strips.Add(("leader-label",new(96,120,48,24))); Label(force ? "君主" : "都督",new(96,120,48,24),alignment:HorizontalAlignment.Center);
+        _body.AddChild(new TextureRect { Texture = Textures["detail-leader-background"], Position = new(152,120), MouseFilter = MouseFilterEnum.Ignore });
+        Label(_data.LeaderName,new(164,120,172,24));
+        if (_data.PortraitRole is { } role)
+            _body.AddChild(new AsyncPortrait { Service = Service, Role = role, View = San9.Content.Images.PortraitView.Face,
+                Position = new(160,148), Size = new(64,80), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.Scale });
+        if (_data.LeaderAbilities is { } abilities)
+        {
+            _body.AddChild(new OfficerAbilityRadar { Abilities = abilities, Position = new(258,162), Scale = new(52f/164,52f/164) });
+            _body.AddChild(new TextureRect { Texture = Textures["detail-leader-radar-grid"], Position = new(258,162), MouseFilter = MouseFilterEnum.Ignore });
+            Label("统率",new(264,146,40,16),16,HorizontalAlignment.Center,new Color("f8f850"));
+            Label("武力",new(228,180,32,16),16,HorizontalAlignment.Center,new Color("e85440"));
+            Label("智力",new(264,212,40,16),16,HorizontalAlignment.Center,new Color("60d868"));
+            Label("政治",new(308,180,32,16),16,HorizontalAlignment.Center,new Color("5098d8"));
+        }
+        if (force)
+        {
+            Column(["country","rank","trust","tactics"],368,120,48,72,"admin-label");
+            Column(["adviser","corps","cities","officers"],510,120,48,88,"admin-label");
         }
         else
         {
-            Section(_data.Sections[0], new(76,100,360,262)); Section(_data.Sections[1], new(452,100,360,262));
-            Section(_data.Sections[2], new(76,378,360,262));
-            Section(_data.Sections[3], new(452,378,360,152));
-            if (_data.Sections.Length > 4) Section(_data.Sections[4], new(452,544,360,96));
+            Column(["force","cities","officers"],368,120,48,88,"admin-label");
+            Column(["policy","target"],526,120,48,104,"admin-label");
         }
-        for (int i = 0; i < _data.Links.Length; i++)
+        Column(["population","draft","soldiers","wounded"],96,288,96,88);
+        Column(["money","money-cost","money-income","money-forecast"],304,288,96,force ? 104 : 80);
+        Column(["food","food-cost","food-income","food-forecast"],force ? 528 : 504,288,96,88);
+        if (force)
         {
-            var link = _data.Links[i];
-            var button = new InformationActionButton { Title = link.Label, Textures = Textures, Position = new(76+i*102,678), Size = new(96,32), Disabled = !Available(link) };
-            button.Pressed += () => Navigate(link); _body.AddChild(button);
+            Column(["relation","alliance-leader","alliance-target","alliance-days"],96,428,96,88);
+            Column(["requester","request-target","request-days"],304,428,96,104);
         }
-        var map = new InformationActionButton { Title = "地图", Textures = Textures, Position = new(714,678), Size = new(96,32), Disabled = _data.MapSettlementId is null };
-        map.Pressed += () => { if (_data.MapSettlementId is int id) Locate(id); }; _body.AddChild(map); QueueRedraw();
+    }
+    private void BuildLocation()
+    {
+        bool city = Category == InformationCategory.Cities;
+        Badge("status",_data.Status == "正常" ? "一般" : _data.Status,new((city ? 372 : 432)+_titleExtra,50),new(72,32));
+        if (city && _data.Feature != "—") Badge("training",_data.Feature + "修行",new(444+_titleExtra,50),new(120,32));
+        _panels.Add(new(76,100,548,292));
+        var preview = Preview(State.CurrentId); preview.Position = new(94,116); preview.Size = new(512,256); _body.AddChild(preview);
+        _panels.Add(new(632,100,city ? 232 : 200,city ? 332 : 292));
+        Column(city ? ["province","force","corps-name","commander","serving","captives","free"] : ["province","city","force","corps-name","commander","serving","captives","free"],
+            652,120,city ? 96 : 64,88);
+        if (city)
+        {
+            Column(["merchant","emperor"],652,356,96,88);
+            _panels.Add(new(76,400,456,300));
+            Column(["public-order","commerce","cultivation"],96,420,64,96);
+            Column(["population","draft","soldiers","wounded"],280,420,96,128);
+            Column(["durability","morale","trait","tactics"],96,560,64,96);
+            Column(["draft-growth","money-income","food-income"],280,560,96,128);
+        }
+        else
+        {
+            _panels.Add(new(76,400,440,156));
+            Column(["facility","soldiers","wounded","morale"],96,420,80,128);
+            Column(["durability","recovery","tactics","trait"],328,420,64,96);
+        }
     }
     public override void _Input(InputEvent input)
     {
@@ -128,6 +201,13 @@ public partial class AdministrativeDetailView : Control
         for (float x=0; x<rect.Size.X; x+=texture.GetWidth())
         { var size = new Vector2(Math.Min(texture.GetWidth(),rect.Size.X-x),Math.Min(texture.GetHeight(),rect.Size.Y-y)); DrawTextureRectRegion(texture,new(rect.Position+new Vector2(x,y),size),new(Vector2.Zero,size)); }
     }
+    private void Strip(string role,Rect2 rect)
+    {
+        var left=Textures["detail-"+role+"-left"]; var right=Textures["detail-"+role+"-right"];
+        Tile(role+"-middle",new(rect.Position+new Vector2(left.GetWidth(),0),new(rect.Size.X-left.GetWidth()-right.GetWidth(),rect.Size.Y)));
+        DrawTextureRect(left,new(rect.Position,new(left.GetWidth(),rect.Size.Y)),false);
+        DrawTextureRect(right,new(new(rect.End.X-right.GetWidth(),rect.Position.Y),new(right.GetWidth(),rect.Size.Y)),false);
+    }
     private void Panel(Rect2 r)
     {
         Tile("panel-center",r);
@@ -141,9 +221,11 @@ public partial class AdministrativeDetailView : Control
     public override void _Draw()
     {
         DrawTexture(Textures["detail-background"],Vector2.Zero);
-        DrawTextureRectRegion(Textures["detail-treasure-list-top"],new(856,72,168,492),new(0,0,168,492));
-        DrawTexture(Textures["detail-treasure-list-bottom"],new(856,564));
+        float topHeight = Rows * 20 - 8;
+        DrawTextureRectRegion(Textures["detail-list-top"],new(872,72,152,topHeight),new(0,0,152,topHeight));
+        DrawTexture(Textures["detail-list-bottom"],new(872,72+topHeight));
         foreach (var panel in _panels) Panel(panel);
+        foreach (var strip in _strips) Strip(strip.Role,strip.Rect);
     }
     public override void _ExitTree() => _text.Dispose();
 }

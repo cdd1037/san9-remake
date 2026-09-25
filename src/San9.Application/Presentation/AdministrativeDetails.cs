@@ -3,9 +3,16 @@ using San9.Core.Domain;
 
 namespace San9.Application.Presentation;
 
-public sealed record InformationSection(string Title, InformationField[] Fields);
+public sealed record AdministrativeField(string Id, string Label, string Value);
+public sealed record InformationSection(string Title, AdministrativeField[] Fields);
 public sealed record AdministrativeDetailData(string Name, string? PortraitRole, InformationSection[] Sections,
-    InformationLink[] Links, int? MapSettlementId);
+    InformationLink[] Links, int? MapSettlementId)
+{
+    public string LeaderName { get; init; } = "";
+    public OfficerAbilities? LeaderAbilities { get; init; }
+    public string Status { get; init; } = "";
+    public string Feature { get; init; } = "";
+}
 
 public static class AdministrativeDetails
 {
@@ -14,9 +21,9 @@ public static class AdministrativeDetails
         if (key.Category == InformationCategory.Ranks || !AdministrativeCatalog.Supports(key.Category)) throw new ArgumentOutOfRangeException(nameof(key));
         var fields = new AdministrativeCatalog(view, texts);
         InformationSection Section(string title, params (string Id, string Label)[] columns) => new(title,
-            columns.Select(c => new InformationField(c.Label, fields.Cell(key.Category, key.Id, c.Id).Text)).ToArray());
+            columns.Select(c => new AdministrativeField(c.Id, c.Label, fields.Cell(key.Category, key.Id, c.Id).Text)).ToArray());
         InformationSection Economy(string title, string prefix) => Section(title, (prefix, title),
-            (prefix + "-cost", "支出"), (prefix + "-income", "收入"), (prefix + "-forecast", "预测"));
+            (prefix + "-cost", title + "支出"), (prefix + "-income", title + "收入"), (prefix + "-forecast", "预测" + title));
         List<InformationLink> links = [];
         InformationSection[] sections;
         int? leader = null;
@@ -56,7 +63,26 @@ public static class AdministrativeDetails
             links.Add(new("部队", InformationCategory.Units, RegionId: key.Id));
             links.Add(new("武将", InformationCategory.Officers, RegionId: key.Id));
         }
+        if (key.Category is InformationCategory.Cities or InformationCategory.Regions)
+        {
+            var place = view.World.Settlements.FirstOrDefault(s => s.Id == key.Id && !s.IsDormant && !s.IsDestroyed);
+            if (place is not null)
+                sections = sections.Select(section => section with { Fields = section.Fields.Select(field => field with {
+                    Value = field.Id switch {
+                        "public-order" => $"{place.PublicOrder}/1000", "commerce" => $"{place.Commerce}/{place.MaxCommerce}",
+                        "cultivation" => $"{place.Cultivation}/{place.MaxCultivation}", "durability" => $"{place.Durability}/{place.MaxDurability}",
+                        "soldiers" => $"{place.Soldiers}/{place.SoldierCapacity}",
+                        "wounded" => $"{place.Wounded}/{MilitaryRulebook.WoundedCapacity}",
+                        "morale" when place.Soldiers > 0 => $"{place.Morale}/100", _ => field.Value
+                    } }).ToArray() }).ToArray();
+        }
+        var personView = view.Officers.FirstOrDefault(o => o.Id == leader);
+        bool location = key.Category is InformationCategory.Cities or InformationCategory.Regions;
         return new(fields.Cell(key.Category, key.Id, "name").Text, leader is int portrait ? $"information-person-{portrait}" : null,
-            sections, links.ToArray(), fields.MapTarget(key.Category, key.Id));
+            sections, links.ToArray(), fields.MapTarget(key.Category, key.Id)) {
+            LeaderName = personView is null ? "—" : texts.Resolve(personView.NameKey), LeaderAbilities = personView?.Abilities,
+            Status = location ? fields.Cell(key.Category, key.Id, "state").Text : "",
+            Feature = key.Category == InformationCategory.Cities ? fields.Cell(key.Category, key.Id, "feature").Text : ""
+        };
     }
 }

@@ -14,11 +14,18 @@ public sealed record InformationDetail(string Title, InformationField[] Fields, 
 /// <summary>Modal navigation state; no map selection or world mutations.</summary>
 public sealed class InformationBrowser
 {
-    private readonly Stack<(InformationCategory Category, int Page, int Offset, int Sort, bool Descending, int? Selected, bool Detail, int? Force, int? Settlement, int? Holder, int? Corps, int? Region, int? Officer, int[] RowOrder, CatalogTableState Catalog, DetailSelectionState DetailSelection)> _history = [];
+    private readonly Stack<(InformationCategory Category, int Page, int Offset, int Sort, bool Descending, int? Selected, bool Detail, int? Force, int? Settlement, int? Holder, int? Corps, int? Region, int? Officer, int[] RowOrder, CatalogTableState Catalog, DetailSelectionState DetailSelection, bool Map)> _history = [];
     private int[] _rowOrder = [];
     public bool IsOpen { get; private set; }
     public bool IsMenu { get; private set; }
     public bool IsDetail { get; private set; }
+    public bool IsMap { get; private set; }
+    public void ShowMap(bool value)
+    {
+        if (!IsOpen || IsMenu || IsDetail || Category is not (InformationCategory.Forces or InformationCategory.Cities))
+            throw new InvalidOperationException("Map mode requires a force or city catalog.");
+        IsMap = value;
+    }
     public InformationCategory Category { get; private set; }
     public int Page { get; private set; }
     public int Offset { get; private set; }
@@ -38,23 +45,23 @@ public sealed class InformationBrowser
     public void Open(InformationCategory category, int? force = null, int? settlement = null, int? holder = null, int? corps = null, int? region = null, int? officer = null)
     {
         if (!Enum.IsDefined(category)) throw new ArgumentOutOfRangeException(nameof(category));
-        IsOpen = true; IsMenu = IsDetail = false; Category = category; Page = Offset = 0;
+        IsOpen = true; IsMenu = IsDetail = IsMap = false; Category = category; Page = Offset = 0;
         SortColumn = -1; Descending = false; SelectedId = null; ForceFilter = force; SettlementFilter = settlement; HolderFilter = holder; CorpsFilter = corps; RegionFilter = region; OfficerFilter = officer;
         Catalog = new(); DetailSelection = new();
         _rowOrder = [];
     }
     public void Navigate(InformationLink link)
     {
-        _history.Push((Category, Page, Offset, SortColumn, Descending, SelectedId, IsDetail, ForceFilter, SettlementFilter, HolderFilter, CorpsFilter, RegionFilter, OfficerFilter, _rowOrder, Catalog, DetailSelection));
+        _history.Push((Category, Page, Offset, SortColumn, Descending, SelectedId, IsDetail, ForceFilter, SettlementFilter, HolderFilter, CorpsFilter, RegionFilter, OfficerFilter, _rowOrder, Catalog, DetailSelection, IsMap));
         Open(link.Category, link.ForceId, link.SettlementId, link.HolderId, link.CorpsId, link.RegionId, link.OfficerId);
     }
-    public void Close() { IsOpen = IsMenu = IsDetail = false; _history.Clear(); }
+    public void Close() { IsOpen = IsMenu = IsDetail = IsMap = false; _history.Clear(); }
     public void Back()
     {
         if (IsDetail) { IsDetail = false; return; }
         if (_history.TryPop(out var previous))
         {
-            (Category, Page, Offset, SortColumn, Descending, SelectedId, IsDetail, ForceFilter, SettlementFilter, HolderFilter, CorpsFilter, RegionFilter, OfficerFilter, _rowOrder, Catalog, DetailSelection) = previous;
+            (Category, Page, Offset, SortColumn, Descending, SelectedId, IsDetail, ForceFilter, SettlementFilter, HolderFilter, CorpsFilter, RegionFilter, OfficerFilter, _rowOrder, Catalog, DetailSelection, IsMap) = previous;
             return;
         }
         Close();

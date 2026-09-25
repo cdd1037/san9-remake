@@ -3,6 +3,13 @@ namespace San9.Application.Presentation;
 public sealed class DetailSelectionState
 {
     public const int VisibleRows = 25;
+    public int VisibleRowCount { get; private set; } = VisibleRows;
+    public void SetVisibleRows(int count)
+    {
+        if (count <= 0) throw new ArgumentOutOfRangeException(nameof(count));
+        VisibleRowCount = count;
+        Offset = Math.Clamp(Offset, 0, Math.Max(0, Candidates.Count - count));
+    }
     public IReadOnlyList<int> Candidates { get; private set; } = Array.Empty<int>();
     public int CurrentId { get; private set; }
     public int? FocusedId { get; private set; }
@@ -22,7 +29,7 @@ public sealed class DetailSelectionState
         Candidates = Array.AsReadOnly(ordered);
         if (!available.Contains(CurrentId) && ordered.Length > 0) CurrentId = ordered[0];
         if (FocusedId is int focused && !available.Contains(focused)) FocusedId = null;
-        Offset = Math.Clamp(Offset, 0, Math.Max(0, ordered.Length - VisibleRows));
+        Offset = Math.Clamp(Offset, 0, Math.Max(0, ordered.Length - VisibleRowCount));
     }
     public void PointAt(int id)
     {
@@ -34,7 +41,7 @@ public sealed class DetailSelectionState
     public void Scroll(int offset)
     {
         int? row = FocusedId is int id ? Candidates.ToList().IndexOf(id) - Offset : null;
-        Offset = Math.Clamp(offset, 0, Math.Max(0, Candidates.Count - VisibleRows));
+        Offset = Math.Clamp(offset, 0, Math.Max(0, Candidates.Count - VisibleRowCount));
         if (row is int slot) FocusedId = Candidates[Offset + slot];
     }
     public void MoveFocus(int delta)
@@ -42,7 +49,7 @@ public sealed class DetailSelectionState
         if (FocusedId is not int focused) return;
         int index = Math.Clamp(Candidates.ToList().IndexOf(focused) + delta, 0, Candidates.Count - 1);
         if (index < Offset) Scroll(index);
-        else if (index >= Offset + VisibleRows) Scroll(index - VisibleRows + 1);
+        else if (index >= Offset + VisibleRowCount) Scroll(index - VisibleRowCount + 1);
         PointAt(Candidates[index]);
     }
 }

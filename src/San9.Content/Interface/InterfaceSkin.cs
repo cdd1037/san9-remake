@@ -27,7 +27,9 @@ public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dicti
         .Concat(new[] { "top-left", "top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right" }.Select(p => "information-menu-" + p))
         .Concat(new[] { "top-left", "top", "top-right", "left", "right", "bottom-left", "bottom", "bottom-right", "ornament" }.Select(p => "information-frame-" + p))
         .Concat(new[] { "left", "middle", "right" }.SelectMany(p => new[] { "information-title-" + p, "information-footer-" + p }))
-        .Concat(new[] { "left", "middle", "right", "close" }.SelectMany(p => Enumerable.Range(0, 4).Select(f => "information-action-" + p + (f == 0 ? "" : $"-{f}"))))
+        .Concat(Enumerable.Range(0, 51).SelectMany(c => Enumerable.Range(0, 4).Select(f => $"information-map-force-{c}" + (f == 0 ? "" : $"-{f}"))))
+        .Concat(Enumerable.Range(0, 4).Select(f => "information-map-city" + (f == 0 ? "" : $"-{f}")))
+        .Concat(new[] { "left", "middle", "right", "close", "map-left", "map-middle", "map-right" }.SelectMany(p => Enumerable.Range(0, 4).Select(f => "information-action-" + p + (f == 0 ? "" : $"-{f}"))))
         .Concat(new[] { "catalog-header-left", "catalog-header-middle", "catalog-header-right", "catalog-row-left", "catalog-row-middle", "catalog-row-right", "catalog-help", "catalog-scroll-up", "catalog-scroll-down" }
             .SelectMany(p => Enumerable.Range(0,4).Select(f => p + (f == 0 ? "" : $"-{f}"))))
         .Concat(Enumerable.Range(0,6).Select(f => "catalog-tab" + (f == 0 ? "" : $"-{f}")))
@@ -43,7 +45,7 @@ public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dicti
 
     public void Validate()
     {
-        if (SchemaVersion != 16 || Assets.Select(a => a.Id).Distinct().Count() != Assets.Length)
+        if (SchemaVersion != 20 || Assets.Select(a => a.Id).Distinct().Count() != Assets.Length)
             throw new InvalidDataException("Invalid interface skin version or duplicate assets.");
         ImageAssetFiles.ValidateCatalog(Assets);
         var assets = Assets.ToDictionary(a => a.Id);

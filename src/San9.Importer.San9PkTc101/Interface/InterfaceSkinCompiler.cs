@@ -77,6 +77,8 @@ public static class InterfaceSkinCompiler
         Overview("overview-terrain", 1163, 9);
         Overview("overview-borders", 1162, 8, alpha: true);
         Overview("overview-ranking", 1160, 7, alpha: true);
+        for (int color = 0; color < 51; color++) Overview($"information-map-force-{color}", 1103 + color, 4, 4);
+        Overview("information-map-city", 1154, 4, 4);
         Overview("button-overview-forces", 1158, 6, 4, true);
         Overview("button-overview-facilities", 1159, 6, 4, true);
         Overview("button-overview-units", 1157, 6, 4, true);
@@ -147,6 +149,10 @@ public static class InterfaceSkinCompiler
         foreach (var (role, resource, palette) in new[]
         {
             ("treasure-list-top",57,6), ("treasure-list-bottom",58,6), ("treasure-description",98,8),
+            ("leader-label-left",72,7), ("leader-label-middle",73,7), ("leader-label-right",74,7),
+            ("admin-label-left",75,7), ("admin-label-middle",76,7), ("admin-label-right",77,7),
+            ("leader-radar-grid",31,4),
+            ("status-badge",114,11), ("training-badge",115,11),
             ("background",51,6), ("list-top",53,6), ("list-bottom",54,6),
             ("panel-center",59,7), ("panel-top-left",60,7), ("panel-top",61,7), ("panel-top-right",62,7),
             ("panel-left",63,7), ("panel-right",64,7), ("panel-bottom-left",65,7), ("panel-bottom",66,7), ("panel-bottom-right",67,7),
@@ -159,7 +165,7 @@ public static class InterfaceSkinCompiler
         }) Extra("detail-" + role, resource, palette, true);
         foreach (var (role, resource, palette, frames) in new[]
         {
-            ("tab",303,38,4), ("treasure",100,9,4), ("close",308,38,4), ("close-icon",305,38,4), ("help",306,38,4),
+            ("leader-background",30,3,2), ("tab",303,38,4), ("treasure",100,9,4), ("close",308,38,4), ("close-icon",305,38,4), ("help",306,38,4),
             ("tactic-0",104,9,2), ("tactic-1",105,9,2), ("tactic-2",106,9,2), ("tactic-3",112,9,2),
             ("tactic-4",107,9,2), ("tactic-5",108,9,2), ("tactic-6",109,9,2), ("tactic-7",110,9,2), ("tactic-8",111,9,2)
         })
@@ -191,7 +197,7 @@ public static class InterfaceSkinCompiler
             Extra("information-frame-" + part, resource, 41, true);
         foreach (var (part, resource) in new[] { ("left", 361), ("middle", 362), ("right", 363) }) Extra("information-title-" + part, resource, 42, true);
         foreach (var (part, resource) in new[] { ("left", 382), ("middle", 383), ("right", 384) }) Extra("information-footer-" + part, resource, 47, true);
-        foreach (var (role, resource) in new[] { ("left", 350), ("middle", 351), ("right", 352), ("close", 353) })
+        foreach (var (role, resource) in new[] { ("left", 350), ("middle", 351), ("right", 352), ("close", 353), ("map-left", 358), ("map-middle", 359), ("map-right", 360) })
         {
             if (bindings[resource] != 242) throw new InvalidDataException("Unconfirmed information button palette.");
             for (int frame = 0; frame < 4; frame++)
@@ -226,6 +232,6 @@ public static class InterfaceSkinCompiler
         var fontPalette = read(Path.Combine(dataDirectory, "P_Font.s9"));
         string FontColor(int style) => Convert.ToHexString(fontPalette.AsSpan((style / 2 * 32 + 16 + style % 2 * 8 + 7) * 4, 3));
         colors.Add("roster-available", FontColor(7)); colors.Add("roster-unavailable", FontColor(26));
-        return new(16, assets.ToArray(), ui, colors);
+        return new(20, assets.ToArray(), ui, colors);
     }
 }

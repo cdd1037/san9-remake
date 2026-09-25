@@ -77,7 +77,7 @@ public sealed class InformationQuery(GameSession session, TextCatalog texts)
         if (AdministrativeCatalog.Supports(key.Category))
         {
             var detail = AdministrativeDetails.Read(View, texts, key);
-            return new(detail.Name + "情报", detail.Sections.SelectMany(s => s.Fields).ToArray(), detail.Links, detail.MapSettlementId) { ImageRole = detail.PortraitRole };
+            return new(detail.Name + "情报", detail.Sections.SelectMany(s => s.Fields).Select(f => new InformationField(f.Label,f.Value)).ToArray(), detail.Links, detail.MapSettlementId) { ImageRole = detail.PortraitRole };
         }
         var table = Read(key.Category);
         var row = table.Rows.Single(r => r.Key == key);

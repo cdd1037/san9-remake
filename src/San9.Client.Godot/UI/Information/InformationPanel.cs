@@ -11,6 +11,8 @@ public partial class InformationPanel : Control
     public GameSession Session { get; init; } = null!;
     public TextCatalog Texts { get; init; } = null!;
     public TextureService Service { get; init; } = null!;
+    public MapWorld World { get; init; } = null!;
+    public San9.Content.Interface.InterfaceSkin Skin { get; init; } = null!;
     private TextureScope Textures = null!;
     public Action<int> Locate { get; init; } = null!;
     private InformationQuery _query = null!;
@@ -27,6 +29,7 @@ public partial class InformationPanel : Control
         ? _content.GetChildren().OfType<InformationMenuButton>().FirstOrDefault(b => b.IsHovered()) : null;
     private CatalogView? _catalog;
     private AdministrativeDetailView? _administrativeDetail;
+    private InformationMapView? _informationMap;
     private CatalogTableState _officerCatalogState = new();
     private CatalogTableState _treasureCatalogState = new();
     private bool _dirty;
@@ -55,7 +58,7 @@ public partial class InformationPanel : Control
         if (_content is not null) { RemoveChild(_content); _content.QueueFree(); }
         Textures?.Dispose(); Textures = Service.CreateScope(owner: this);
         _content = new Control { Size = Size, MouseFilter = MouseFilterEnum.Ignore }; AddChild(_content);
-        _catalog = null; _administrativeDetail = null; _officerDetail = null; _treasureDetail = null; _scroll = null; _rowControls.Clear(); _columnHeaders.Clear(); _note = null; _mapButton = null;
+        _catalog = null; _administrativeDetail = null; _informationMap = null; _officerDetail = null; _treasureDetail = null; _scroll = null; _rowControls.Clear(); _columnHeaders.Clear(); _note = null; _mapButton = null;
         if (!Visible) return;
         if (State.IsMenu)
         {
@@ -82,14 +85,26 @@ public partial class InformationPanel : Control
                 State.Select(State.DetailSelection.CurrentId);
                 _administrativeDetail = new AdministrativeDetailView
                 {
-                    State = State.DetailSelection, Title = InformationQuery.MenuTitle(category)[1..] + "情报", Service = Service, Textures = Textures,
+                    State = State.DetailSelection, Category = category, Title = InformationQuery.MenuTitle(category)[1..] + "情报", Service = Service, Textures = Textures,
                     Read = id => AdministrativeDetails.Read(Session.View, Texts, new(category, id)),
                     ReadName = id => new AdministrativeCatalog(Session.View, Texts).Cell(category, id, "name").Text,
                     Available = link => _query.Read(link.Category, 0, link.ForceId, link.SettlementId, link.CorpsId, link.RegionId, link.OfficerId).Rows.Length > 0,
                     Navigate = link => { State.Navigate(link); Rebuild(); }, CurrentChanged = State.Select, Closed = Back,
-                    Locate = id => { State.Close(); Rebuild(); Locate(id); }
+                    Preview = id => World.CreateInformationPreview(id, Texts)
                 };
                 _content.AddChild(_administrativeDetail); return;
+            }
+            if (State.IsMap)
+            {
+                var rows = _query.Read(State).Rows;
+                State.Catalog.RefreshRows(rows.Select(r => new CatalogRow(r.Key.Id,r.Cells)).ToArray());
+                _informationMap = new InformationMapView {
+                    Session = Session, Texts = Texts, Skin = Skin, Service = Service, Textures = Textures, Category = category,
+                    Candidates = State.Catalog.Rows.Select(r => r.Id).ToArray(), Closed = Back,
+                    ShowList = () => { State.ShowMap(false); Rebuild(); },
+                    Activated = id => OpenAdministrativeDetail(category,id)
+                };
+                _content.AddChild(_informationMap); return;
             }
             var pages = AdministrativeCatalog.Pages(category);
             _catalog = new CatalogView
@@ -98,10 +113,8 @@ public partial class InformationPanel : Control
                 HintText = category == InformationCategory.Ranks ? "查看官爵的指挥、信望、说明与就任势力。" : "请选择欲观看其情报的项目。",
                 InitialPage = State.Page, InitialCurrentId = State.SelectedId, InitialOffset = State.Offset,
                 ReadRows = page => _query.Read(category, page, State.ForceFilter, State.SettlementFilter, State.CorpsFilter, State.RegionFilter).Rows.Select(r => new CatalogRow(r.Key.Id,r.Cells)).ToArray(),
-                Closed = Back, Activated = category == InformationCategory.Ranks ? null : id =>
-                {
-                    State.DetailSelection.Open(State.Catalog.Rows.Select(r => r.Id), id); State.ShowDetail(id); Rebuild();
-                },
+                Closed = Back, ShowMap = category is InformationCategory.Forces or InformationCategory.Cities ? () => { State.ShowMap(true); Rebuild(); } : null,
+                Activated = category == InformationCategory.Ranks ? null : id => OpenAdministrativeDetail(category,id),
                 ViewChanged = (page, offset, selected) =>
                 {
                     if (State.Page != page) State.SelectPage(page, pages.Count);
@@ -197,6 +210,12 @@ public partial class InformationPanel : Control
             TexturePressed = Textures["information-action-close-2"] };
         close.Pressed += Back; _content.AddChild(close);
         LabelAt("Esc / 右键返回", new(210, 649), new(240, 24), 14, new Color("b8b0a0"));
+    }
+    private void OpenAdministrativeDetail(InformationCategory category, int id)
+    {
+        State.DetailSelection.SetVisibleRows(AdministrativeDetailView.VisibleRows(category));
+        State.DetailSelection.Open(State.Catalog.Rows.Select(r => r.Id),id);
+        State.ShowDetail(id); Rebuild();
     }
     private Label LabelAt(string text, Vector2 at, Vector2 size, int fontSize = 16, Color? color = null, Control? parent = null)
     {
@@ -377,7 +396,7 @@ public partial class InformationPanel : Control
     }
     public override void _Input(InputEvent @event)
     {
-        if (!Visible || _catalog is not null || _administrativeDetail is not null || _officerDetail is not null || _treasureDetail is not null) return;
+        if (!Visible || _catalog is not null || _informationMap is not null || _administrativeDetail is not null || _officerDetail is not null || _treasureDetail is not null) return;
         if (@event is InputEventKey { Pressed: true, Keycode: Key.Escape })
         { if (_note is not null) Rebuild(); else Back(); GetViewport().SetInputAsHandled(); }
         else if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Right })
@@ -403,7 +422,7 @@ public partial class InformationPanel : Control
     }
     public override void _GuiInput(InputEvent @event)
     {
-        if (_catalog is not null || _administrativeDetail is not null || _officerDetail is not null || _treasureDetail is not null) return;
+        if (_catalog is not null || _informationMap is not null || _administrativeDetail is not null || _officerDetail is not null || _treasureDetail is not null) return;
         if (@event is InputEventMouseButton { Pressed: true } mouse)
         {
             if (State.IsMenu && !_menu.HasPoint(mouse.Position)) Back();
@@ -430,7 +449,7 @@ public partial class InformationPanel : Control
     }
     public override void _Draw()
     {
-        if (_catalog is not null || _administrativeDetail is not null || _officerDetail is not null || _treasureDetail is not null) return;
+        if (_catalog is not null || _informationMap is not null || _administrativeDetail is not null || _officerDetail is not null || _treasureDetail is not null) return;
         if (!Visible) return;
         if (State.IsMenu)
         {
@@ -457,6 +476,7 @@ public partial class InformationPanel : Control
 
 public partial class InformationActionButton : BaseButton
 {
+    public bool MapToggle { get; init; }
     private readonly GameTextPresenter _text = new();
     public override void _ExitTree() => _text.Dispose();
     public string Title { get; init; } = "";
@@ -466,15 +486,17 @@ public partial class InformationActionButton : BaseButton
         FocusMode = FocusModeEnum.All;
         var label = new Label { Text = Title, Size = Size, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, MouseFilter = MouseFilterEnum.Ignore };
         AddChild(label);
-        _text.Apply(label, GameTextStyles.For(GameTextRole.DialogTitle));
+        _text.Apply(label, GameTextStyles.For(GameTextRole.DialogTitle) with { FontSize = MapToggle ? 16 : 24 });
     }
     public override void _Process(double delta) { Modulate = Disabled ? new Color("888888") : Colors.White; QueueRedraw(); }
     public override void _Draw()
     {
         int frame = Disabled ? 3 : ButtonPressed || GetDrawMode() is DrawMode.Pressed or DrawMode.HoverPressed ? 2 : IsHovered() || HasFocus() ? 1 : 0;
         string suffix = frame == 0 ? "" : $"-{frame}";
-        var left = Textures["information-action-left" + suffix]; var mid = Textures["information-action-middle" + suffix]; var right = Textures["information-action-right" + suffix];
-        DrawTextureRect(left, new(0, 0, 12, Size.Y), false); DrawTextureRect(mid, new(12, 0, Size.X - 24, Size.Y), false); DrawTextureRect(right, new(Size.X - 12, 0, 12, Size.Y), false);
+        string prefix = MapToggle ? "information-action-map-" : "information-action-";
+        var left = Textures[prefix + "left" + suffix]; var mid = Textures[prefix + "middle" + suffix]; var right = Textures[prefix + "right" + suffix];
+        float l = left.GetWidth(), r = right.GetWidth();
+        DrawTextureRect(left, new(0, 0, l, Size.Y), false); DrawTextureRect(mid, new(l, 0, Size.X - l - r, Size.Y), false); DrawTextureRect(right, new(Size.X - r, 0, r, Size.Y), false);
     }
 }
 

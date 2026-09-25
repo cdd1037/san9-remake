@@ -265,9 +265,16 @@ public partial class DetailActionButton : BaseButton
     public override void _Ready()
     {
         _label=new Label {Text=Title,Size=Size,HorizontalAlignment=HorizontalAlignment.Center,VerticalAlignment=VerticalAlignment.Center,MouseFilter=MouseFilterEnum.Ignore};AddChild(_label);
-        _text.Apply(_label,GameTextStyles.CatalogRow with {FontSize=24});
+        RefreshText();
     }
-    public override void _Process(double delta){_label.Position=Selected||ButtonPressed?new(2,2):Vector2.Zero;QueueRedraw();}
+    private void RefreshText()
+    {
+        bool pressed = !Disabled && (Selected || ButtonPressed);
+        _label.Position = pressed ? new(2,2) : Vector2.Zero;
+        _text.Apply(_label, GameTextStyles.Button(Role == "treasure" ? GameButtonTextRole.Facilities : GameButtonTextRole.MapMode,
+            IsHovered(), pressed, Disabled) with { FontSize = 20 });
+    }
+    public override void _Process(double delta){RefreshText();QueueRedraw();}
     public override void _Draw()
     {
         int frame=Disabled?3:Selected||ButtonPressed?2:IsHovered()?1:0;

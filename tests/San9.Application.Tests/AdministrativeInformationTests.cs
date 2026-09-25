@@ -8,6 +8,105 @@ namespace San9.Application.Tests;
 
 public sealed class AdministrativeInformationTests
 {
+    [Fact]
+    public void MapModeSurvivesDetailsAndRelatedListsWithoutReplacingCatalogState()
+    {
+        var browser = new InformationBrowser();
+        browser.Open(InformationCategory.Forces);
+        browser.SelectPage(3, 5);
+        browser.Catalog.SetRows([new(5, [(CatalogCell)10]), new(9, [(CatalogCell)20])]);
+        browser.Catalog.Sort(0);
+        var catalog = browser.Catalog;
+        browser.ShowMap(true);
+        browser.DetailSelection.Open([9,5], 5);
+        browser.ShowDetail(5);
+        browser.Navigate(new("都市", InformationCategory.Cities, ForceId: 5));
+        browser.ShowMap(true);
+        browser.ShowDetail(15);
+        browser.Back();
+        Assert.True(browser.IsMap);
+        Assert.False(browser.IsDetail);
+        browser.Back();
+        Assert.Equal(InformationCategory.Forces, browser.Category);
+        Assert.True(browser.IsMap);
+        Assert.True(browser.IsDetail);
+        Assert.Same(catalog, browser.Catalog);
+        browser.Back();
+        browser.ShowMap(false);
+        Assert.Equal(3, browser.Page);
+        Assert.Equal(new[] {9,5}, browser.Catalog.Rows.Select(r => r.Id));
+        Assert.True(browser.Catalog.Descending);
+        Assert.Equal(5, browser.SelectedId);
+        browser.Close();
+        Assert.False(browser.IsMap);
+    }
+
+    [Fact]
+    public void MapMarkersKeepUnselectableCitiesAndResolveForceOwnership()
+    {
+        var (session, _, definition) = Fixture();
+        var view = new StrategySnapshot(definition, session.View.World with {
+            Settlements = session.View.World.Settlements.Select(s => s.Id == 17 ? s with { OwnerId = null } : s).ToArray()
+        });
+        var cities = AdministrativeMap.Markers(view, InformationCategory.Cities, [16]);
+        Assert.Equal(3, cities.Length);
+        Assert.Equal(16, cities.Single(c => c.CityId == 16).TargetId);
+        Assert.Null(cities.Single(c => c.CityId == 15).TargetId);
+        var forces = AdministrativeMap.Markers(view, InformationCategory.Forces, [5]);
+        Assert.Equal(5, forces.Single(c => c.CityId == 16).TargetId);
+        Assert.Null(forces.Single(c => c.CityId == 17).TargetId);
+    }
+
+    [Fact]
+    public void EmptyRegionInheritsAdministrativeOwnershipWithoutBorrowingLocalPeople()
+    {
+        var (session,text,_) = Fixture();
+        var catalog = new AdministrativeCatalog(session.View,text);
+        Assert.Contains(catalog.Read(InformationCategory.Regions,0,force:5,corps:10).Rows,r => r.Key.Id == 50);
+        Assert.Equal("force",catalog.Cell(InformationCategory.Regions,50,"force").Text);
+        Assert.Equal("person1",catalog.Cell(InformationCategory.Regions,50,"corps-name").Text);
+        Assert.Equal("0",catalog.Cell(InformationCategory.Regions,50,"serving").Text);
+        Assert.Equal("1",catalog.Cell(InformationCategory.Regions,50,"free").Text);
+    }
+
+    [Fact]
+    public void DetailCapacityUsesRuntimeRulesAndMapSummaryKeepsPlainAmounts()
+    {
+        var (session, text, definition) = Fixture();
+        var world = session.View.World with { Settlements = session.View.World.Settlements.Select(s => s.Id == 15
+            ? s with { SoldierCapacity = 123456, MaxCommerce = 4321 } : s).ToArray() };
+        var view = new StrategySnapshot(definition, world);
+        var detail = AdministrativeDetails.Read(view, text, new(InformationCategory.Cities, 15));
+        var fields = detail.Sections.SelectMany(s => s.Fields).ToArray();
+        Assert.Equal("100/123456", fields.Single(f => f.Label == "士兵").Value);
+        Assert.Equal("100/4321", fields.Single(f => f.Label == "收益").Value);
+        Assert.Equal($"10/{MilitaryRulebook.WoundedCapacity}", fields.Single(f => f.Label == "伤兵").Value);
+        var summary = AdministrativeMap.Summary(view, text, new(InformationCategory.Cities,15));
+        Assert.Equal("100",summary.Single(f => f.Label == "士兵").Value);
+        Assert.Equal(100U,world.Settlements.Single(s => s.Id == 15).Soldiers);
+    }
+
+    [Theory]
+    [InlineData(14)]
+    [InlineData(16)]
+    [InlineData(18)]
+    [InlineData(21)]
+    public void AdministrativeSidebarViewportPreservesFocusAtBothEnds(int rows)
+    {
+        var state = new DetailSelectionState();
+        state.SetVisibleRows(rows);
+        state.Open(Enumerable.Range(100,40),139);
+        Assert.Equal(40-rows,state.Offset);
+        state.PointAt(139);
+        state.Scroll(0);
+        Assert.Equal(100+rows-1,state.FocusedId);
+        state.MoveFocus(1);
+        Assert.Equal(1,state.Offset);
+        Assert.Equal(100+rows,state.FocusedId);
+        state.Activate(state.FocusedId!.Value);
+        Assert.Equal(100+rows,state.CurrentId);
+    }
+
     private static (GameSession Session, TextCatalog Text, ScenarioInitialState Definition) Fixture()
     {
         SettlementInitialState City(int id, int corps, uint troops) => new(id,$"city{id}",5,id,0,troops,500,1000,50,[])

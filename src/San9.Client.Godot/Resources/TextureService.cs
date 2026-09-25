@@ -28,7 +28,7 @@ public partial class TextureService : Node
         var ui = package.Skin.Assets.ToDictionary(a => a.Id);
         Roles = package.Skin.Roles.ToDictionary(p => p.Key, p => ui[p.Value]);
         var hitImages = MapAssets.Values.Where(a => a.Id.StartsWith("building-", StringComparison.Ordinal))
-            .Concat(Roles.Where(p => p.Key is "top-frame" or "radar-frame" or "sidebar-frame" or "ruler-frame" || p.Key.StartsWith("button-overview-", StringComparison.Ordinal)).Select(p => p.Value));
+            .Concat(Roles.Where(p => p.Key is "top-frame" or "radar-frame" or "sidebar-frame" or "ruler-frame" || p.Key.StartsWith("button-overview-", StringComparison.Ordinal) || p.Key.StartsWith("overview-city-", StringComparison.Ordinal)).Select(p => p.Value));
         foreach (var group in hitImages.Distinct().GroupBy(a => a.File)) _maskSources[group.Key] = group.ToArray();
         _cache = new((file, token) => { token.ThrowIfCancellationRequested(); var p = ImageAssetFiles.LoadFile(root, file); token.ThrowIfCancellationRequested(); return p; }, Upload, t => t.Dispose());
         ProcessPriority = -100;

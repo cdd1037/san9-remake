@@ -110,7 +110,7 @@ public partial class StrategyHud : Control
             Skin = Skin, Texts = Texts, Service = Textures, Visible = false };
         GetParent().AddChild(_overviewPanel);
         GetParent().MoveChild(_overviewPanel, GetIndex());
-        Information = new InformationPanel { Session = Session, Texts = Texts, Service = Textures, Locate = id => { Overview.Close(); World.FocusBuilding(id); } };
+        Information = new InformationPanel { Session = Session, Texts = Texts, Service = Textures, World = World, Skin = Skin, Locate = id => { Overview.Close(); World.FocusBuilding(id); } };
         GetParent().AddChild(Information);
         _buildingHover = new BuildingHoverCard { World = World, Textures = _textures, UiFont = GetThemeFont("font"), Visible = false };
         AddChild(_buildingHover);

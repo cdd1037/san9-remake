@@ -28,7 +28,8 @@ public partial class InformationMapPreview : Control
             AnimationTime = () => World.AnimationTime, ShowAnnotations = true, Texts = Texts, Font = GetThemeFont("font") };
         _view.Committed += () =>
         {
-            _view.Position = -_view.Presented!.Region.Bounds.Position;
+            var frame = _view.Presented!;
+            _view.Position = frame.Size / 2 - new Vector2((float)frame.Camera.X, (float)frame.Camera.Y);
             QueueRedraw();
         };
         AddChild(_view);

@@ -26,20 +26,26 @@ public sealed class TextureScope(TextureService service, IReadOnlyDictionary<str
             // Region preserves layout dimensions; an unbound atlas draws nothing while loading.
             var view = new AtlasTexture { Region = new(asset.X, asset.Y, asset.Width, asset.Height), FilterClip = true };
             var binding = new Binding(asset, view, service.Cache.Acquire([asset.File], prefetch));
-            _bindings.Add(key, binding); Refresh(); return view;
+            _bindings.Add(key, binding); Refresh(binding); return view;
         }
     }
     public void Request(IEnumerable<string> keys) { foreach (string key in keys) _ = this[key]; }
     public void Refresh()
     {
         bool changed = false;
-        foreach (var b in _bindings.Values)
-        {
-            if (prefetch && !b.Installed && b.Lease.IsComplete) { b.Installed = true; b.Lease.Dispose(); continue; }
-            if (!b.Installed && b.Lease.IsReady) { b.View.Atlas = service.Cache.Get(b.Asset.File); b.Installed = true; changed = true; }
-            if (!b.Reported && b.Lease.Error is { } error) { GD.PushError($"Texture {b.Asset.Id}: {error.Message}"); b.Reported = true; changed = true; }
-        }
+        foreach (var binding in _bindings.Values) changed |= Refresh(binding);
         if (changed) Changed?.Invoke();
+    }
+    private bool Refresh(Binding binding)
+    {
+        if (prefetch && !binding.Installed && binding.Lease.IsComplete)
+        { binding.Installed = true; binding.Lease.Dispose(); return false; }
+        bool changed = false;
+        if (!binding.Installed && binding.Lease.IsReady)
+        { binding.View.Atlas = service.Cache.Get(binding.Asset.File); binding.Installed = true; changed = true; }
+        if (!binding.Reported && binding.Lease.Error is { } error)
+        { GD.PushError($"Texture {binding.Asset.Id}: {error.Message}"); binding.Reported = true; changed = true; }
+        return changed;
     }
     public void Dispose()
     {

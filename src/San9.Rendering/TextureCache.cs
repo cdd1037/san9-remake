@@ -10,7 +10,9 @@ public sealed class TextureCache<T> : IDisposable where T : class
     {
         public ImageFile File = file;
         public int Users;
-        public bool Prefetch, Skipped;
+        public long Sequence;
+        public volatile bool Prefetch;
+        public bool Skipped;
         public Task<PngImage>? Task;
         public CancellationTokenSource Cancellation = new();
         public Exception? Error;
@@ -22,10 +24,12 @@ public sealed class TextureCache<T> : IDisposable where T : class
     private readonly Func<ImageFile, PngImage, T> _upload;
     private readonly ResourceBudget<ImageFile, T> _resources;
     private readonly List<Request> _retired = [];
+    private readonly BackgroundWorkQueue<PngImage> _workers = new();
+    private long _requestSequence;
     private bool _disposed;
     public const long UploadQueueBudget = 32L * 1024 * 1024;
     public TextureCache(Func<ImageFile, CancellationToken, PngImage> load, Func<ImageFile, PngImage, T> upload,
-        Action<T> release, long budget = 128L * 1024 * 1024)
+        Action<T> release, long budget = 256L * 1024 * 1024)
     { _load = load; _upload = upload; _resources = new(budget, release); }
     public long Bytes => _resources.Bytes;
     public long PinnedBytes => _resources.PinnedBytes;
@@ -44,7 +48,7 @@ public sealed class TextureCache<T> : IDisposable where T : class
         ObjectDisposedException.ThrowIf(_disposed, this);
         var requests = files.Distinct().Select(file =>
         {
-            if (!_requests.TryGetValue(file, out var r)) _requests.Add(file, r = new(file) { Prefetch = prefetch });
+            if (!_requests.TryGetValue(file, out var r)) _requests.Add(file, r = new(file) { Prefetch = prefetch, Sequence = ++_requestSequence });
             r.Users++;
             if (!prefetch) { r.Prefetch = false; r.Skipped = false; }
             if (_resources.Contains(file)) { Hits++; r.Pin ??= _resources.Pin(file); } else Misses++;
@@ -69,7 +73,7 @@ public sealed class TextureCache<T> : IDisposable where T : class
         foreach (var r in _retired.Where(r => r.Task!.IsCompleted).ToArray())
         { _ = r.Task!.Exception; r.Task = null; r.Reserved = 0; r.Cancellation.Dispose(); _retired.Remove(r); }
         var watch = Stopwatch.StartNew();
-        foreach (var r in _requests.Values.OrderBy(r => r.Prefetch).ToArray())
+        foreach (var r in _requests.Values.OrderBy(r => r.Prefetch).ThenBy(r => r.Sequence).ToArray())
         {
             if (r.Task is not { IsCompleted: true }) continue;
             try
@@ -88,22 +92,20 @@ public sealed class TextureCache<T> : IDisposable where T : class
             finally { r.Task = null; r.Reserved = 0; }
             if (watch.Elapsed.TotalMilliseconds >= milliseconds) break;
         }
-        int active = _requests.Values.Concat(_retired).Count(r => r.Task is not null);
-        foreach (var r in _requests.Values.Where(r => r.Task is null && r.Error is null && !r.Skipped && !_resources.Contains(r.File)).OrderBy(r => r.Prefetch))
+        foreach (var r in _requests.Values.Where(r => r.Task is null && r.Error is null && !r.Skipped && !_resources.Contains(r.File)).OrderBy(r => r.Prefetch).ThenBy(r => r.Sequence))
         {
-            if (active >= 2) break;
             long bytes = checked((long)r.File.Width * r.File.Height * r.File.Channels);
             if (r.Prefetch && Bytes + PendingBytes + bytes > _resources.Budget) { r.Skipped = true; continue; }
             if (PendingBytes != 0 && PendingBytes + bytes > UploadQueueBudget) continue;
-            r.Reserved = bytes; active++;
-            r.Task = Task.Run(() =>
+            r.Reserved = bytes;
+            r.Task = _workers.Enqueue(() =>
             {
                 var timer = Stopwatch.StartNew();
                 var pixels = _load(r.File, r.Cancellation.Token);
                 // Only workers write this counter, protected independently of the main-thread state.
                 lock (_load) DecodeMilliseconds += timer.Elapsed.TotalMilliseconds;
                 return pixels;
-            }, r.Cancellation.Token);
+            }, () => r.Prefetch, r.Cancellation.Token);
         }
         _resources.Trim();
     }

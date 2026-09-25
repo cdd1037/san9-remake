@@ -19,6 +19,44 @@ public sealed class TextureCacheTests
         }
     }
     [Fact]
+    public void QueuedDemandOvertakesPrefetchAndCancelledEntriesNeverDecode()
+    {
+        using var firstGate = new ManualResetEventSlim();
+        using var secondGate = new ManualResetEventSlim();
+        using var entered = new CountdownEvent(2);
+        using var finished = new CountdownEvent(2);
+        var decoded = new System.Collections.Concurrent.ConcurrentQueue<string>();
+        using var cache = new TextureCache<Gpu>((file, token) =>
+        {
+            if (file.Path is "first" or "second")
+            {
+                entered.Signal();
+                (file.Path == "first" ? firstGate : secondGate).Wait(token);
+            }
+            else { decoded.Enqueue(file.Path); finished.Signal(); }
+            return Pixel();
+        }, (_, _) => new(1), _ => { });
+        using var blockers = cache.Acquire([File("first"), File("second")]);
+        cache.Pump();
+        try
+        {
+            Assert.True(entered.Wait(TimeSpan.FromSeconds(5)));
+            using var low = cache.Acquire([File("low")], true);
+            using var promoted = cache.Acquire([File("promoted")], true);
+            var cancelled = cache.Acquire([File("cancelled")], true);
+            cache.Pump();
+            cancelled.Dispose();
+            using var demand = cache.Acquire([File("promoted")]);
+            firstGate.Set();
+            Assert.True(finished.Wait(TimeSpan.FromSeconds(5)));
+            Assert.Equal(new[] { "promoted", "low" }, decoded.ToArray());
+            secondGate.Set();
+            Until(cache, () => demand.IsReady && low.IsReady && cache.PendingBytes == 0);
+            Assert.False(cache.Contains(File("cancelled")));
+        }
+        finally { firstGate.Set(); secondGate.Set(); }
+    }
+    [Fact]
     public void SharedRequestsUploadOnceAndReleaseDecodedQueue()
     {
         int reads = 0, uploads = 0;

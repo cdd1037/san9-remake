@@ -46,19 +46,27 @@ public partial class ClientVerification
                 do { await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame); Check(World.HasCompleteView, "Season lost presented terrain."); if (timeout.Elapsed.TotalSeconds > 30) throw new TimeoutException("Season switch timeout."); } while (World.IsLoading);
                 Check(World.LoadError is null && World.Season == season, "Season switch failed.");
             }
-            List<double> frameTimes = [];
-            var frameWatch = System.Diagnostics.Stopwatch.StartNew();
-            for (int i = 0; i < 120; i++)
+            for (int pass = 0; pass < 2; pass++)
             {
-                World.FocusWorld(new(origin.X + i * 18, origin.Y + i * 6));
-                Check(World.HasCompleteView, "Pan exposed missing terrain.");
-                double previousTime = frameWatch.Elapsed.TotalMilliseconds;
-                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-                frameTimes.Add(frameWatch.Elapsed.TotalMilliseconds - previousTime);
+                World.FocusWorld(new(origin.X, origin.Y)); await WaitForView();
+                List<double> frameTimes = [], requestTimes = [];
+                int delayed = 0;
+                long objects = World.ObjectDraws;
+                var frameWatch = System.Diagnostics.Stopwatch.StartNew();
+                for (int i = 0; i < 120; i++)
+                {
+                    double start = frameWatch.Elapsed.TotalMilliseconds;
+                    World.FocusWorld(new(origin.X + i * 18, origin.Y + i * 6));
+                    requestTimes.Add(frameWatch.Elapsed.TotalMilliseconds - start);
+                    Check(World.HasCompleteView && World.Display!.Presented!.Ready, "Pan exposed missing terrain.");
+                    if (!World.IsVisibleReady) delayed++;
+                    await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                    frameTimes.Add(frameWatch.Elapsed.TotalMilliseconds - start);
+                }
+                frameTimes.Sort(); requestTimes.Sort();
+                Check(World.CacheBytes <= 256L * 1024 * 1024, "Chunk cache exceeded its budget.");
+                GD.Print($"MAP_PAN pass={pass} frames=120 median_ms={frameTimes[60]:F2} p95_ms={frameTimes[114]:F2} max_ms={frameTimes[^1]:F2} request_p95_ms={requestTimes[114]:F2} delayed={delayed} object_rebuilds={World.ObjectDraws-objects}");
             }
-            frameTimes.Sort();
-            Check(World.CacheBytes <= 256L * 1024 * 1024, "Chunk cache exceeded its budget.");
-            GD.Print($"MAP_PAN frames=120 median_ms={frameTimes[60]:F2} p95_ms={frameTimes[114]:F2} peak_working_set_mib={System.Diagnostics.Process.GetCurrentProcess().PeakWorkingSet64 / 1048576}");
             World.FocusWorld(new(origin.X, origin.Y));
             await WaitForView();
             await RunNavigationChecks();
@@ -69,6 +77,19 @@ public partial class ClientVerification
     }
     private async Task RunNavigationChecks()
     {
+        var prepared = World.CameraPosition;
+        World.FocusWorld(prepared + new Vector2(5000, 0));
+        World.FocusWorld(prepared);
+        Check(World.IsVisibleReady, "Returning to prepared coverage waited for abandoned navigation.");
+        await Frames(this, 2);
+        long preparedDraws = World.TerrainDraws;
+        for (int i = 1; i <= 10; i++)
+        {
+            World.FocusWorld(prepared + new Vector2(i, 0));
+            Check(World.IsVisibleReady, "Prepared coverage did not move immediately.");
+            await Frames(this);
+        }
+        Check(World.TerrainDraws == preparedDraws, "Camera-only motion rebuilt terrain commands.");
         var old = World.CameraPosition;
         World.FocusWorld(new(6000, 5000));
         if (!World.IsVisibleReady && World.CameraPosition != old) throw new InvalidOperationException("Cold navigation moved the presented camera early.");

@@ -12,6 +12,7 @@ public sealed class MapFrameTransition<T>(Func<T, bool> ready, Func<T, Exception
     {
         var previous = Pending; Pending = next; Error = null; previous?.Dispose();
     }
+    public void CancelPending() { Pending?.Dispose(); Pending = null; Error = null; }
     public bool TryCommit()
     {
         if (Pending is not { } next) return false;

@@ -25,6 +25,69 @@ public sealed class TerrainChunkCacheTests
         }
     }
     [Fact]
+    public void VisibleChunksCanBeReadyWhileBufferedChunksAreStillRendering()
+    {
+        using var gate = new ManualResetEventSlim();
+        using var cache = new TerrainChunkCache<Gpu>(_ => new(1), _ => { }, render: (key, token) =>
+        { if (key.X == 1) gate.Wait(token); return Pixel(); });
+        var renderer = Renderer(); var visible = new TerrainChunkKey(renderer, 0, 0);
+        var buffer = new TerrainChunkKey(renderer, 1, 0);
+        using var lease = cache.Acquire([visible, buffer]);
+        try
+        {
+            Until(cache, () => lease.IsAvailable(visible));
+            Assert.False(lease.IsAvailable(buffer)); Assert.False(lease.IsReady);
+            Assert.False(lease.IsAvailable(new(renderer, 2, 0)));
+            gate.Set(); Until(cache, () => lease.IsReady);
+            lease.Dispose(); Assert.False(lease.IsAvailable(visible));
+        }
+        finally { gate.Set(); }
+    }
+    [Fact]
+    public void WorkersContinueWithoutDisplayPumpsWhileUploadsStayOnDisplayThread()
+    {
+        using var entered = new CountdownEvent(2);
+        using var gate = new ManualResetEventSlim();
+        using var finished = new CountdownEvent(8);
+        int active = 0, peak = 0, started = 0, uploads = 0;
+        var order = new System.Collections.Concurrent.ConcurrentQueue<int>();
+        object sync = new();
+        using var cache = new TerrainChunkCache<Gpu>(_ => { uploads++; return new(1); }, _ => { }, render: (key, token) =>
+        {
+            lock (sync) { active++; peak = Math.Max(peak, active); }
+            order.Enqueue(key.X);
+            if (Interlocked.Increment(ref started) <= 2) entered.Signal();
+            gate.Wait(token);
+            lock (sync) active--;
+            finished.Signal(); return Pixel();
+        });
+        var renderer = Renderer();
+        // Released dictionary slots must not reverse the next view's visible-first request order.
+        cache.Acquire(Enumerable.Range(100, 8).Select(x => new TerrainChunkKey(renderer, x, 0))).Dispose();
+        using var lease = cache.Acquire(Enumerable.Range(0, 8).Select(x => new TerrainChunkKey(renderer, x, 0)));
+        cache.Pump(() => false);
+        try
+        {
+            Assert.True(entered.Wait(TimeSpan.FromSeconds(5)));
+            Assert.Equal(2, started);
+            Assert.Equal(new[] { 0, 1 }, order.Order().ToArray());
+        }
+        finally { gate.Set(); }
+        Assert.True(finished.Wait(TimeSpan.FromSeconds(5)));
+        Assert.Equal(2, peak); Assert.Equal(0, uploads); Assert.False(lease.IsReady);
+        Until(cache, () => lease.IsReady); Assert.Equal(8, uploads);
+    }
+    [Fact]
+    public void QueuedTerrainResultsAreBoundedWhileUploadsArePaused()
+    {
+        using var cache = new TerrainChunkCache<Gpu>(_ => new(1), _ => { }, render: (_, _) => Pixel());
+        var renderer = Renderer();
+        using var lease = cache.Acquire(Enumerable.Range(0, 100).Select(x => new TerrainChunkKey(renderer, x, 0)));
+        cache.Pump(() => false);
+        Assert.InRange(cache.PendingBytes, 3 * 512L * 512, TerrainChunkCache<Gpu>.UploadQueueBudget);
+        Assert.False(lease.IsReady);
+    }
+    [Fact]
     public void TwoViewsShareOneRenderAndClosingPreviewPreservesMainLease()
     {
         int renders = 0, uploads = 0; var released = new List<Gpu>();

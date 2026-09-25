@@ -12,6 +12,19 @@ public sealed class MapFrameTransitionTests
         public void Dispose() => Disposed = true;
     }
     [Fact]
+    public void ReturningToPreparedCoverageCancelsPendingWithoutRetiringPresentedFrame()
+    {
+        using var view = new MapFrameTransition<Frame>(f => f.Terrain && f.Objects, f => f.Error, f => f.Dispose());
+        var home = new Frame { Terrain = true, Objects = true };
+        view.Request(home); Assert.True(view.TryCommit());
+        var distant = new Frame(); view.Request(distant);
+        view.CancelPending();
+        distant.Terrain = distant.Objects = true;
+        Assert.True(distant.Disposed); Assert.False(view.TryCommit());
+        Assert.Same(home, view.Presented); Assert.False(home.Disposed);
+        Assert.Null(view.Pending); Assert.Null(view.Error);
+    }
+    [Fact]
     public void BothResourceSetsMustBeReadyAndRetirementFollowsCommit()
     {
         var retired = new List<Frame>();

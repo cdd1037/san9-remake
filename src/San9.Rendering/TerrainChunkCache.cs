@@ -15,7 +15,8 @@ public sealed class TerrainChunkCache<T>(Func<PngImage, T> upload, Action<T> rel
     {
         public TerrainChunkKey Key = key;
         public int Users;
-        public bool Prefetch;
+        public long Sequence;
+        public volatile bool Prefetch;
         public Task<PngImage>? Work;
         public CancellationTokenSource Cancellation = new();
         public IDisposable? Pin;
@@ -24,6 +25,10 @@ public sealed class TerrainChunkCache<T>(Func<PngImage, T> upload, Action<T> rel
     private readonly ResourceBudget<TerrainChunkKey, T> _cache = new(budget, release);
     private readonly Dictionary<TerrainChunkKey, Request> _requests = [];
     private readonly List<Request> _retired = [];
+    private readonly BackgroundWorkQueue<PngImage> _workers = new();
+    private readonly object _timingGate = new();
+    public const long UploadQueueBudget = 32L * 1024 * 1024;
+    private long _requestSequence;
     private bool _disposed;
     public long Bytes => _cache.Bytes;
     public long PendingBytes => (_requests.Values.Count(r => r.Work is not null) + _retired.Count) * 512L * 512 * 3;
@@ -34,7 +39,7 @@ public sealed class TerrainChunkCache<T>(Func<PngImage, T> upload, Action<T> rel
         ObjectDisposedException.ThrowIf(_disposed, this);
         var requests = keys.Distinct().Select(key =>
         {
-            if (!_requests.TryGetValue(key, out var r)) _requests.Add(key, r = new(key) { Prefetch = prefetch });
+            if (!_requests.TryGetValue(key, out var r)) _requests.Add(key, r = new(key) { Prefetch = prefetch, Sequence = ++_requestSequence });
             r.Users++;
             if (!prefetch) r.Prefetch = false;
             if (_cache.Contains(key)) r.Pin ??= _cache.Pin(key);
@@ -57,7 +62,7 @@ public sealed class TerrainChunkCache<T>(Func<PngImage, T> upload, Action<T> rel
         if (_disposed) return;
         foreach (var r in _retired.Where(r => r.Work!.IsCompleted).ToArray())
         { _ = r.Work!.Exception; r.Work = null; r.Cancellation.Dispose(); _retired.Remove(r); }
-        foreach (var r in _requests.Values.OrderBy(r => r.Prefetch).ToArray())
+        foreach (var r in _requests.Values.OrderBy(r => r.Prefetch).ThenBy(r => r.Sequence).ToArray())
         {
             if (!canUpload()) break;
             if (r.Work is not { IsCompleted: true }) continue;
@@ -72,21 +77,20 @@ public sealed class TerrainChunkCache<T>(Func<PngImage, T> upload, Action<T> rel
             catch (Exception error) { r.Error = error; }
             finally { r.Work = null; }
         }
-        int active = _requests.Values.Count(r => r.Work is not null) + _retired.Count;
-        foreach (var r in _requests.Values.OrderBy(r => r.Prefetch))
+
+        foreach (var r in _requests.Values.OrderBy(r => r.Prefetch).ThenBy(r => r.Sequence))
         {
-            if (active >= 2) break;
+            if (PendingBytes + 512L * 512 * 3 > UploadQueueBudget) break;
             if (r.Work is not null || r.Error is not null || _cache.Contains(r.Key)) continue;
             if (r.Prefetch && Bytes + PendingBytes + 512L * 512 * 3 > budget) continue;
-            active++;
-            r.Work = Task.Run(() =>
+            r.Work = _workers.Enqueue(() =>
             {
                 var timer = Stopwatch.StartNew();
                 var pixels = render is null ? r.Key.Renderer.RenderChunk(r.Key.X, r.Key.Y, r.Cancellation.Token)
                     : render(r.Key, r.Cancellation.Token);
-                lock (_cache) RenderMilliseconds += timer.Elapsed.TotalMilliseconds;
+                lock (_timingGate) RenderMilliseconds += timer.Elapsed.TotalMilliseconds;
                 return pixels;
-            }, r.Cancellation.Token);
+            }, () => r.Prefetch, r.Cancellation.Token);
         }
         var generations = _requests.Keys.Select(k => k.Renderer).ToHashSet();
         _cache.RemoveUnused(key => !generations.Contains(key.Renderer));
@@ -113,6 +117,7 @@ public sealed class TerrainChunkCache<T>(Func<PngImage, T> upload, Action<T> rel
         { _owner = owner; Keys = keys; _error = error; _release = release; }
         public IReadOnlyList<TerrainChunkKey> Keys { get; }
         public bool IsReady => _release is not null && Keys.All(_owner._cache.Contains);
+        public bool IsAvailable(TerrainChunkKey key) => _release is not null && Keys.Contains(key) && _owner._cache.Contains(key);
         public Exception? Error => _error();
         public T Get(TerrainChunkKey key) => _owner._cache.Get(key);
         public void Dispose() => Interlocked.Exchange(ref _release, null)?.Invoke();

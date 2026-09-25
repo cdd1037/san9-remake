@@ -44,7 +44,7 @@ Godot 的堆叠轮廓、堆叠阴影不需要用于这批已确认的单一效�
 
 ## 覆盖与复核入口
 
-已对共享设置／布局函数的全程序直接引用建立清单：883 个调用点、209 个函数、853 条反编译观察；归并得到 47 种实际引用的单通道状态表。它们不等于 47 种已确认完整组合。另有 102 条动态／上下文观察和 47 个未匹配调用点，均保留定位，不能据此宣称全游戏样式已经闭合。研究见 [RE-0167](../research/findings/RE-SAN9PK-0167.md)。
+已对共享设置／布局函数的全程序直接引用建立清单：883 个调用点、209 个函数、853 条反编译观察；归并得到 47 种实际引用的单通道状态表。它们不等于 47 种已确认完整组合。另有 102 条动态／上下文观察和 47 个未匹配调用点，均保留定位，不能据此宣称全游戏样式已经闭合。研究见 [RE-0167](../../research/findings/RE-SAN9PK-0167.md)。
 
 在对应 IDA 主库执行 `research/scripts/ida/export_text_style_usage.py`，再运行：
 
@@ -56,4 +56,4 @@ python research/scripts/summarize_text_style_usage.py local/generated/research/t
 
 历史验收入口 `--text-smoke` 会生成 12／16／24 字号、99 个角色／状态样本的三入口比较页 `local/generated/verification/text/styles-*.png`，并检查普通标签与富文本效果参数一致。后续开发默认不运行，只有当前任务明确要求复现文字场景时单独执行，见[Godot历史画面验收](client-verification.md)。实际截图还须检查可读性、图标、裁切；自检通过不代替画面检查。
 
-字体覆盖取舍：按 2026-09-11 用户决定不增补字体，撤除 BabelStone 回退，明确接受四个已知缺字。缺字仍保留在报告，其他新增缺字不自动豁免；见[字体说明](../src/San9.Client.Godot/assets/README.md)。
+字体覆盖取舍：按 2026-09-11 用户决定不增补字体，撤除 BabelStone 回退，明确接受四个已知缺字。缺字仍保留在报告，其他新增缺字不自动豁免；见[字体说明](../../src/San9.Client.Godot/assets/README.md)。

@@ -91,7 +91,7 @@ G06的`MilitaryOrder`分别引用部队或据点，失效目标在战后事务�
 - 实际Godot 4.7.2 Mono/OpenGL/RTX5070运行默认新包：`RUNTIME_SMOKE_OK`、`UI_SMOKE_OK`、`MAP_SMOKE_OK`。受控夹具将洛阳商业设300，执行后313，资金9520→9470，日期不变；重复命令拒绝，旧快照仍为9520。夹具只改变内存初始输入，不改磁盘包。
 - GPU截图`local/generated/verification/runtime/runtime-before.png`、`runtime-after.png`及`ui.png`保存事务前后建筑、资金和正常界面；四季、导航、缩放、选择与UI输入隔离通过引擎视口事件自检。未进行操作系统交互自动化，也不是原版动态实验。
 
-以下为历史运行态场景的按需复现入口，后续开发默认不运行；分类与限制见[Godot历史画面验收](client-verification.md)：
+以下为历史运行态场景的按需复现入口，后续开发默认不运行；分类与限制见[Godot历史画面验收](ui/client-verification.md)：
 
 ```powershell
 & "<Godot Mono可执行文件>" --path src/San9.Client.Godot -- --runtime-smoke --map-time-ms 0 --map-screenshot "<绝对PNG路径>" --map-quit
@@ -117,7 +117,7 @@ G06的`MilitaryOrder`分别引用部队或据点，失效目标在战后事务�
 
 城市区域掩码、地形、排行榜背景及图层按钮属于皮肤schema7；面板显示和图层切换不修改世界版本。三项开关在本会话保留，重开不重置；点击全图、雷达及名单只改变详细地图相机目标，不改变命令起点。
 
-情报扩展使用不可变目录投影和独立模态导航；军团的Treasury为空表示使用所属势力金库，非空表示其独立金库，避免资金副本。人物可具有据点位置或独立地域位置，在职人物才进入右侧行动名单；官爵、人口、宝物及关系值纳入内容校验。详见[情报界面](information-browser.md)。
+情报扩展使用不可变目录投影和独立模态导航；军团的Treasury为空表示使用所属势力金库，非空表示其独立金库，避免资金副本。人物可具有据点位置或独立地域位置，在职人物才进入右侧行动名单；官爵、人口、宝物及关系值纳入内容校验。详见[情报界面](ui/information-browser.md)。
 
 哈希与指纹的具体用途见[约定](hash-and-fingerprint.md)。
 

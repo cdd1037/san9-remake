@@ -5,17 +5,17 @@
 ## Git 基线
 
 - 使用 Git 追踪规范、研究记录和产品源代码。
-- 提交采用 `type(scope): summary`，summary 使用简短祈使语气且不加句号。
+- 提交标题与说明使用英文，标题采用 `type(scope): summary`，summary 使用简短祈使语气且不加句号。
 - 常用 type：`feat`、`fix`、`docs`、`refactor`、`test`、`build`、`chore`。
-- 常用 scope：`project`、`specs`、`research`、`reverse`、`data`、`game`、`tools`、`test`、`build`。
+- scope 对应实际变化的模块，如 `content`、`importer`、`core`、`application`、`ui`、`specs`、`research`；不限定枚举。
 - 一个提交只包含一个逻辑变化；规格、实现与测试可在同一功能提交中共同演进。
 
 示例：
 
 ```text
 docs(specs): define evidence workflow
-feat(game): implement confirmed search resolution
-test(data): cover officer record boundaries
+feat(core): implement confirmed search resolution
+test(importer): cover officer record boundaries
 ```
 
 ## 变更流程

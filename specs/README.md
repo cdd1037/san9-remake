@@ -20,6 +20,7 @@
 - [研究与证据规范](research-method.md)
 - [逆向工程规范](reverse-engineering.md)
 - [工程与交付流程](engineering-workflow.md)
+- [UI 文档统一入口](../docs/ui/README.md)（界面实现、行为、决策与研究导航）
 - [行为规格目录](behavior/README.md)
 - [改良决策目录](decisions/README.md)
 - [记录模板](templates/README.md)

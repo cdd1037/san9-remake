@@ -1,12 +1,12 @@
 # 战略界面的状态与显示约定
 
-本文保存主界面长期有效的实现约定；转换与启动入口见[客户端内容](client-content.md)，情报页面见[情报界面](information-browser.md)，领域状态见[运行时架构](runtime-state.md)。原作证据以[RE-0158](../research/findings/RE-SAN9PK-0158.md)及对应行为规格为准。
+本文保存主界面长期有效的实现约定；转换与启动入口见[客户端内容](../client-content.md)，情报页面见[情报界面](information-browser.md)，领域状态见[运行时架构](../runtime-state.md)。原作证据以[RE-0158](../../research/findings/RE-SAN9PK-0158.md)及对应行为规格为准。
 
 ## 状态所有权
 
 `Main`装配会话、内容和显示节点。`StrategySelection`管理地图命令选择；`MapWorld`发布拾取事件并接受高亮、镜头定位，建筑显示来自当前会话视图。`MapAnnotations`负责地图标注，`StrategyHud`负责固定界面。控件焦点、地图选择和鼠标悬停是不同状态，不能相互替代。
 
-设施和武将侧栏复用`StrategyRoster`与`StrategyRosterList`，按直属军团过滤；君主所在项固定首行，从普通13行中去重。两页独立保留滚动位置，焦点由Godot控件管理，不写回世界。点击或Enter只定位镜头，褐色行仍可激活；不因地图选择而强制滚动名单。Tab控件导航和Space激活是现代交互约定，见[DEC-UI-0004](../specs/decisions/DEC-UI-0004-facility-list-interaction.md)。
+设施和武将侧栏复用`StrategyRoster`与`StrategyRosterList`，按直属军团过滤；君主所在项固定首行，从普通13行中去重。两页独立保留滚动位置，焦点由Godot控件管理，不写回世界。点击或Enter只定位镜头，褐色行仍可激活；不因地图选择而强制滚动名单。Tab控件导航和Space激活是现代交互约定，见[DEC-UI-0004](../../specs/decisions/DEC-UI-0004-facility-list-interaction.md)。
 
 模态界面先消费输入，再执行关闭或导航回调。回调可能立即移除当前节点，因此回调之后不能依赖该节点仍在场景树中。
 
@@ -28,7 +28,7 @@
 
 `SkinnedScrollBar`负责原生范围、箭头和绘制，`ScrollBarSkin`提供分段纹理与布局，业务列表持有条目与视口。资源帧数量与文字状态表分别定义，不能从背景四帧推断完整文字状态。
 
-主题为`GameFont.tres`（霞鹜文楷等宽GB Lite，不增补回退字体，四个已知缺字明确接受），纯文字与图文控件共用字体。`GameRichTextLabel`使用Godot原生BBCode和转换包图标；提示、列传、说明及侧栏名称共用消息求值和显示链路。名称排序使用严格纯文本读取，不剥离图标。详见[统一消息规格](../specs/behavior/BEH-UI-0006-unified-messages.md)。
+主题为`GameFont.tres`（霞鹜文楷等宽GB Lite，不增补回退字体，四个已知缺字明确接受），纯文字与图文控件共用字体。`GameRichTextLabel`使用Godot原生BBCode和转换包图标；提示、列传、说明及侧栏名称共用消息求值和显示链路。名称排序使用严格纯文本读取，不剥离图标。详见[统一消息规格](../../specs/behavior/BEH-UI-0006-unified-messages.md)。
 
 描边、阴影强一致是未决项，既有纯文字效果可保留；不作为本轮图文验收条件。文字按容器布局，表格正文在24像素行内垂直居中，不针对不同字体追加固定偏移。
 
@@ -38,22 +38,14 @@
 
 默认190年1月上旬、春、董卓势力，以洛阳为初始视野。信望100、资金9520、兵粮73200来自初始剧本；原版对照中的9076与9520相差444，已确认属于普通旬俸禄，不在开局硬编码扣除。Core 已接入周期经济，客户端通过 GameSession 创建运行态；界面数值以当前会话查询为准，对照时须明确是否已执行旬前置结算。当前 HUD 的“进行”入口仍未接通，不能据此认定经济规则尚未实现。
 
-「小」打开战略全图，「大」返回详细地图并保留镜头比例，已取代早期将两按钮作为1倍/0.5倍缩放的约定。全图图层、定位与排行榜见[BEH-UI-0003](../specs/behavior/BEH-UI-0003-strategy-overview.md)。
+「小」打开战略全图，「大」返回详细地图并保留镜头比例，已取代早期将两按钮作为1倍/0.5倍缩放的约定。全图图层、定位与排行榜见[BEH-UI-0003](../../specs/behavior/BEH-UI-0003-strategy-overview.md)。
 
 ## 验证入口
 
-自动测试按受影响范围运行。后续开发默认不执行历史画面验收脚本；只有当前任务明确要求复现主界面场景时使用以下入口，完整分类见[Godot历史画面验收](client-verification.md)：
-
-```powershell
-& "<Godot Mono可执行文件>" --path src/San9.Client.Godot --log-file "<绝对日志路径>" -- --ui-smoke --map-time-ms 0 --map-screenshot "<绝对PNG路径>" --map-quit
-```
-
-宽屏在Godot参数中（`--`之前）增加`--resolution 1280x720`。引擎输入自检、GPU截图、操作系统交互应分别报告；自动测试通过不能代替画面验收。当前用户自行验收，不自动启动游戏。无需为已解决的小问题长期保留每轮截图及日志。
-
-`--ui-smoke`不再隐式运行地图检查与性能采样；需要同时复现地图时显式增加`--map-smoke`。
+自动测试按受影响范围运行，实际画面由用户验收，不自动启动游戏。历史脚本的分类、命令和使用限制统一见[Godot 历史画面验收](client-verification.md)。引擎输入自检、GPU 截图和实际交互分别报告，不能互相替代。
 
 ## 建筑悬停卡
 
-详细地图由HUD统一判定输入阻挡，MapWorld查询命中建筑并保存独立悬停ID；MapAnnotations据此将名称和兵力变黄，BuildingHoverCard显示Application查询得到的当前字段。卡片不接管输入，同一建筑内移动保持卡片位置，窗口离开、全图、情报和弹出菜单清除悬停。九宫格在转换时先按索引覆盖组合，再转换RGBA，避免透明角和边框重复混合。完整行为见[BEH-UI-0005](../specs/behavior/BEH-UI-0005-map-building-hover.md)。
+详细地图由HUD统一判定输入阻挡，MapWorld查询命中建筑并保存独立悬停ID；MapAnnotations据此将名称和兵力变黄，BuildingHoverCard显示Application查询得到的当前字段。卡片不接管输入，同一建筑内移动保持卡片位置，窗口离开、全图、情报和弹出菜单清除悬停。九宫格在转换时先按索引覆盖组合，再转换RGBA，避免透明角和边框重复混合。完整行为见[BEH-UI-0005](../../specs/behavior/BEH-UI-0005-map-building-hover.md)。
 
 大将与人员信息通过当前会话查询显示；Core/Application 已具备人事任免与调动，具体 UI 操作入口和字段投影须分别核对。悬停状态行的显示覆盖不代表完整战斗查询；人员可用数、内政和兵力等已有字段读取当前世界，后续对齐应逐项检查查询与显示，不沿用早期静态界面的领域能力判断。

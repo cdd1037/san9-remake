@@ -56,6 +56,14 @@ dotnet build San9Remake.slnx
 dotnet test San9Remake.slnx
 ```
 
+默认解决方案测试不包含 Headless 进程测试。涉及 CLI、文件产物、存档／命令日志／录制回放协议或其跨进程接线时，单独运行：
+
+```powershell
+dotnet test tests/San9.Headless.Tests/San9.Headless.Tests.csproj
+```
+
+测试项目职责、局部运行命令与精简原则见[测试说明](tests/README.md)。
+
 ### 转换客户端内容
 
 准备已登记且通过指纹校验的繁中 PK 1.0.1.0 EXE，以及本地 `private/s9数据文件/` 下的源数据：

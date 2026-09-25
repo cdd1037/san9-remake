@@ -14,7 +14,6 @@
     <Project Path="tests/San9.Client.Godot.Tests/San9.Client.Godot.Tests.csproj" />
     <Project Path="tests/San9.Content.Tests/San9.Content.Tests.csproj" />
     <Project Path="tests/San9.Core.Tests/San9.Core.Tests.csproj" />
-    <Project Path="tests/San9.Headless.Tests/San9.Headless.Tests.csproj" />
     <Project Path="tests/San9.Importer.San9PkTc101.Tests/San9.Importer.San9PkTc101.Tests.csproj" />
   </Folder>
 </Solution>

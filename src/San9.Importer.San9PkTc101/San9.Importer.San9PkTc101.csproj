@@ -4,6 +4,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../San9.Content/San9.Content.csproj" />
+    <InternalsVisibleTo Include="San9.Importer.San9PkTc101.Tests" />
     <EmbeddedResource Include="MapSourceLocations.json" />
   </ItemGroup>
   <ItemGroup>

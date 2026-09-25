@@ -61,6 +61,7 @@ public static class OfficerContentCompiler
             };
             result.Add(new(text.Person($"officer.{id}", person.FamilyNameResourceCode, person.GivenNameResourceCode), state)
             {
+                FlagGlyph = person.FlagCode < 186 ? person.FlagCode : -1,
                 AgeAtScenarioStart = StartingAge(person.BiographyResourceCode),
                 CourtesyNameKey = text.Courtesy($"officer-courtesy.{id}", person.CourtesyNameResourceCode),
                 BiographyKey = text.Biography($"officer-biography.{id}", person.BiographyResourceCode, biographies)

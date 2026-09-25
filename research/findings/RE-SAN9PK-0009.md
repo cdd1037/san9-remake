@@ -143,7 +143,7 @@ bit1 与 bit21..31 的关闭采用两类互相独立的负面证据。当前 IDB
 
 `0x4C` 经 `set_person_flag_code(0x44BFA0)` 写入 Person `+0x9C`。`generate_person_name_and_flag_code(0x408D90)` 以同一生成姓氏索引同时选择姓氏资源和 `generated_family_name_flag_code_table(0x64BC20)` 中的旗代码；该表恰有 104 个互异字节，范围为 2..173。`inherit_person_flag_code_by_family_name(0x44D820)` 则比较姓氏前两个字节，从 700 名基础人物中复制同姓人物的非空旗代码，否则写空值。黑盒列表和编辑页的“旗”列又分别显示阿、韦、伊、尹等与姓氏对应的字符。
 
-地图显示消费者已经闭合。`resolve_map_object_flag_glyph_code(0x462A20)` 同时被建筑快照构造器 `build_map_building_snapshot(0x52E4F0)` 和部队快照构造器 `0x530030` 调用：普通所属建筑取有效势力君主的 Person `+0x9C`，部队取有效主将的 Person `+0x9C`；无有效主将时返回 `-1` 或回退代码 0，另有特殊势力按势力编号查覆盖表。两条快照链均把结果写入快照 `+0x1C`。建筑合成的旗帜层和 `CMapUnitFlagMotionVO` 随后都把快照 `+0x18` 的旗面基础代码与 `+0x1C` 的字形代码交给 `initialize_flag_motion_visual(0x5389E0)`，最终进入 `CFlagPhasedSprite` 资源初始化。
+地图显示消费者已经闭合。`resolve_map_object_flag_glyph_code(0x462A20)` 同时被建筑快照构造器 `build_map_building_snapshot(0x52E4F0)` 和部队快照构造器 `0x530030` 调用：普通所属建筑取有效势力君主的 Person `+0x9C`，部队在有效大将身份为君主时取代码0（“帥”），其他有效大将取 Person `+0x9C`；无有效主将时返回 `-1`。2026-09-26通过身份字段及源字形复核，撤回此前把身份0解释为无效／inactive的表述；建筑国号分支与部队旗字分开，详见[RE-0156](RE-SAN9PK-0156.md#2026-09-26兵群规模地利及君主外观对齐)。两条快照链均把结果写入快照 `+0x1C`。建筑合成的旗帜层和 `CMapUnitFlagMotionVO` 随后都把快照 `+0x18` 的旗面基础代码与 `+0x1C` 的字形代码交给 `initialize_flag_motion_visual(0x5389E0)`，最终进入 `CFlagPhasedSprite` 资源初始化。
 
 资源索引也已闭合。公共资源加载器把 `G_Flag.s9` 的 4 个调色板注册到 `285..288`、52 张旗面/旗形图注册到全局图元 `491..542`；把 `G_Name.s9` 的 2 个调色板注册到 `289..290`、372 张动画字形图注册到 `543..914`。`initialize_flag_phased_sprite_resources(0x405FF0)` 只在代码 `0..185` 时叠加字形，并从 `flag_glyph_resource_base_ids(0x64BBAC)={543,729}` 选择一组，因此精确映射为 `543 + code` 或 `729 + code`。两段各 186 张，分别是随旗面基础代码选择的颜色变体，而不是 Big5 或普通文本资源号。
 

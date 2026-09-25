@@ -18,6 +18,18 @@ public sealed record ClientContentPackage(int SchemaVersion, ContentSource[] Sou
         San9.Content.Images.ImageAssetFiles.ValidateCatalog(images);
         if (Scenario.Military is {} military && military.Formations.Any(f => !Map.Units.Formations.Any(v => v.FormationId == f.Id)))
             throw new InvalidDataException("Missing formation visual definition.");
+        if (Map.Units.Formations.Length > 0)
+        {
+            var clips = Map.Animations.Clips.Select(c => c.Id).ToHashSet();
+            foreach (int color in Scenario.Forces.Select(f => f.ColorCode).Distinct())
+                foreach (int direction in Enumerable.Range(0, 8))
+                    if (!clips.Contains($"unit-flag-{direction}-cloth-{color}"))
+                        throw new InvalidDataException($"Missing unit flag color: {color}");
+            foreach (int glyph in Scenario.Officers.Select(o => o.FlagGlyph).Where(g => g >= 0).Distinct())
+                foreach (int direction in Enumerable.Range(0, 8))
+                    if (!clips.Contains($"unit-flag-{direction}-glyph-0-{glyph}") || !clips.Contains($"unit-flag-{direction}-glyph-1-{glyph}"))
+                        throw new InvalidDataException($"Missing officer flag glyph: {glyph}");
+        }
         Scenario.Validate(); Text.Validate(); Skin.Validate(); Textures.Validate();
         var markup = Text.Entries.Values.SelectMany(e => new[] { e.Text, e.SourceText })
             .Concat(MessageGraph.Walk(Text.Messages.Values.SelectMany(m => m.Nodes)).SelectMany(n => n switch

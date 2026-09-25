@@ -42,7 +42,7 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 116;
+    public const int CurrentSchemaVersion = 117;
     [JsonRequired] public int FoodExchangeRate { get; init; } = 1;
     [JsonRequired] public San9.Core.Domain.FoodMarketDefinition? FoodMarket { get; init; }
     [JsonRequired] public San9.Core.Domain.HanzhongKingDefinition? HanzhongKing { get; init; }
@@ -237,7 +237,7 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
             Forces.Any(f => !f.IsDormant && Officers.Any(o => o.State.IsDormant && (o.State.Id == f.LeaderId || o.State.Id == f.AdviserId))) ||
             Units.Any(u => Forces.Any(f => f.Id == u.OwnerId && f.IsDormant)))
             throw new InvalidDataException("Dormant initial objects cannot participate in the active world.");
-        if (Officers.Any(o => string.IsNullOrWhiteSpace(o.NameKey) || o.State is null || !o.State.IsValid()) ||
+        if (Officers.Any(o => o.FlagGlyph < -1 || string.IsNullOrWhiteSpace(o.NameKey) || o.State is null || !o.State.IsValid()) ||
             Officers.Select(o => o.State.Id).Distinct().Count() != Officers.Length || Officers.Any(o =>
                 o.State.ForceLoyalties.Keys.Any(id => !forceIds.Contains(id)) ||
                 o.State.SettlementId is int location && !settlementIds.Contains(location) ||

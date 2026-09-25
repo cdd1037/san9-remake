@@ -28,6 +28,31 @@ public sealed class EmperorTransferSessionTests
         ImperialCourt = new([99], []) { TransferEvent = new(11, 15, 5) }
     , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 2, new(10000, 10000)) { IsRoot = true }], []) };
 
+    [Fact]
+    public void UnitAppearanceTracksCourtOwnershipAndRankWhilePreservingOfficerFlags()
+    {
+        var content = Content();
+        content = content with { Information = content.Information with
+        {
+            Ranks = [new(72, "rank.low", 10000, 0, 0, 1), new(91, "rank.imperial", 60000, 0, 0, 8)]
+        } };
+        content.Officers[0] = content.Officers[0] with { FlagGlyph = 27 };
+        var session = GameSession.Start(content, 17);
+        Assert.True(session.View.Forces.Single(f => f.Id == 1).UsesImperialAppearance);
+        Assert.False(session.View.Forces.Single(f => f.Id == 2).UsesImperialAppearance);
+        Assert.Equal(27, session.View.Officers.Single(o => o.Id == 1).FlagGlyph);
+        var world = session.Snapshot;
+        var captured = world with { Settlements = world.Settlements.Select(s => s.Id == 1 ? s with { OwnerId = 2 } : s).ToImmutableArray() };
+        var afterCapture = new San9.Application.Presentation.StrategySnapshot(content, captured);
+        Assert.False(afterCapture.Forces.Single(f => f.Id == 1).UsesImperialAppearance);
+        Assert.True(afterCapture.Forces.Single(f => f.Id == 2).UsesImperialAppearance);
+        var ended = captured with { Simulation = captured.Simulation with { ImperialCourtEnded = true },
+            Forces = captured.Forces.Select(f => f.Id == 1 ? f with { RankId = 91 } : f).ToImmutableArray() };
+        var afterCourt = new San9.Application.Presentation.StrategySnapshot(content, ended);
+        Assert.True(afterCourt.Forces.Single(f => f.Id == 1).UsesImperialAppearance);
+        Assert.False(afterCourt.Forces.Single(f => f.Id == 2).UsesImperialAppearance);
+    }
+
     private static GameSession Pending(ScenarioInitialState content)
     {
         var snapshot = GameSession.Start(content, 17).Capture();

@@ -239,11 +239,13 @@ public partial class MapSceneView : Node2D
         }
         foreach (var unit in frame.Region.Units)
         {
-            if (!frame.Region.Bounds.Intersects(new Rect2(unit.LabelX, unit.LabelY, 76, 29))) continue;
+            if (!frame.Region.Bounds.Intersects(new Rect2(unit.LabelX, unit.LabelY, 76, 47))) continue;
             target.DrawSetTransform(project(new(unit.LabelX, unit.LabelY)), 0, Vector2.One * zoom);
             GameTextPresenter.Draw(target, font, unit.Soldiers.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                new(0, 16), GameTextStyles.Building(false), HorizontalAlignment.Center, 76);
-            Bar("morale", unit.Morale, 100, new(0, 16));
+                new(0, 20), GameTextStyles.Building(false), HorizontalAlignment.Right, 72);
+            Bar("morale", unit.Morale, 100, new(0, 20));
+            GameTextPresenter.Draw(target, font, unit.CommanderNameKey is { } name ? texts.Resolve(name) + "队" : "部队",
+                new(0, 47), GameTextStyles.Building(false));
         }
         target.DrawSetTransform(Vector2.Zero);
         void Bar(string kind, int current, int maximum, Vector2 point)

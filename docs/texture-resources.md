@@ -4,7 +4,7 @@
 
 ## 内容契约与独立构建
 
-纹理包由 `import-textures` 独立生成，输入只有已登记 EXE、原版数据目录和转换规则，不接受剧本。默认目录为 `local/generated/content/textures-san9pk-tc101`，`textures.json` 为 schema4、转换版本13。包拥有界面定义、地图资源定义、完整已确认图片目录和全部物理 PNG。
+纹理包由 `import-textures` 独立生成，输入只有已登记 EXE、原版数据目录和转换规则，不接受剧本。默认目录为 `local/generated/content/textures-san9pk-tc101`，`textures.json` 为 schema5、转换版本16。包拥有界面定义、地图资源定义、完整已确认图片目录和全部物理 PNG。
 
 剧本包 `content.json` 为 schema24，只保存来源、共享纹理目录和数据文件相对路径。`map.json`、`scenario.json`、`text.json`、`messages.json`、`illustrations.json` 分别保存地图实例、剧本初始状态、静态词条、统一消息和插图角色映射。地图实例保存地形、建筑位置、水面位置等，不保存图片文件或图集定义。`ClientContentFiles` 解析依赖后在内存装配显示内容；客户端图片路径相对纹理包根目录。重新导入剧本不会生成或修改共享纹理。旧包重新转换，不提供兼容读取。
 

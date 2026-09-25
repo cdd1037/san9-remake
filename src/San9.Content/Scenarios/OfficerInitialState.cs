@@ -18,6 +18,7 @@ public sealed record OfficerInitialState(
         return State with { BirthYear = startYear - age };
     }
 
+    [JsonRequired] public int FlagGlyph { get; init; } = -1;
     [JsonRequired] public string? CourtesyNameKey { get; init; }
     [JsonRequired] public string? BiographyKey { get; init; }
 }

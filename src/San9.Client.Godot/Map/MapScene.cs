@@ -55,13 +55,20 @@ internal sealed class MapScene
                     order?.UnitId is int targetId && unitPositions.TryGetValue(targetId, out var position) ? position :
                     order?.Position ?? (order?.SettlementId is int place ?
                         state.Settlements.FirstOrDefault(s => s.Id == place) is {} destination ? MapCoordinates.Center(new(destination.X, destination.Y)) : null : null);
+                var commander = u.CommanderId is int commanderId ? state.Officers.FirstOrDefault(o => o.Id == commanderId) : null;
+                var force = forces[u.OwnerId];
                 return UnitVisuals.Resolve(new(u.Id,
                     (u.Position.X - MapCoordinates.UnitsPerCell / 2) / (double)MapCoordinates.UnitsPerCell,
                     (u.Position.Y - MapCoordinates.UnitsPerCell / 2) / (double)MapCoordinates.UnitsPerCell,
                     map.Squares[u.Cell.Y * map.Width + u.Cell.X].Elevation, u.Soldiers, u.FormationId!.Value,
                     u.Condition, UnitVisuals.Direction(u.Position, target),
                     u.EffectiveOrderClass == UnitOrderClass.Military && state.HasCityInfluence(u.OwnerId, u.Position),
-                    forces[u.OwnerId].ColorCode, forces[u.OwnerId].FlagGlyph) { Morale = u.Morale }, map.Units, Clips);
+                    force.ColorCode, commander?.FlagGlyph ?? -1)
+                {
+                    Morale = u.Morale, CommanderNameKey = commander?.NameKey,
+                    IsRulerCommander = u.CommanderId is int leader && force.LeaderId == leader,
+                    UsesImperialAppearance = force.UsesImperialAppearance
+                }, map.Units, Clips);
             }).ToArray();
         Buildings = visuals.Buildings;
         Animations = visuals.Animations.GroupBy(s => s.BuildingId).ToDictionary(g => g.Key, g => g.ToArray());
@@ -91,7 +98,7 @@ internal sealed class MapScene
         bounds.Intersects(new Rect2(Anchor(building), new(116, 55)));
     public bool Intersects(UnitVisual unit, Rect2 bounds) =>
         unit.Animations.Any(s => bounds.Intersects(Bounds(s))) ||
-        bounds.Intersects(new Rect2(unit.LabelX, unit.LabelY, 76, 29));
+        bounds.Intersects(new Rect2(unit.LabelX, unit.LabelY, 76, 47));
     public MapSceneRegion Select(Rect2 bounds, bool boundaries)
     {
         var buildings = Buildings.Where(b => Intersects(b, bounds)).ToArray();

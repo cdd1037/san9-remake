@@ -94,19 +94,43 @@ public static class MapAnimationCompiler
         var pole = IndexedImageArchive.Decode(flagArchive.Images[0], flagArchive.Palettes[palettes[491]-285],true,false);
         Clip("flag-pole-back",4,142,f => Canvas(pole,31,8),f => Canvas(null,0,0));
         Clip("flag-pole-front",4,142,f => Canvas(null,0,0),f => Canvas(pole,31,8));
+        // Unit flags follow facing, independently of the building flags' seasonal directions.
+        for (int direction = 0; direction < 8; direction++)
+        {
+            int d = direction;
+            bool poleInFront = Int(0x24a3d8 + d * 4) != 0;
+            Clip($"unit-flag-{d}-pole-back", 4, 142, f => Canvas(poleInFront ? null : pole, 31, 8));
+            Clip($"unit-flag-{d}-pole-front", 4, 142, f => Canvas(poleInFront ? pole : null, 31, 8));
+        }
         for (int color = 0; color <= 50; color++)
         {
             int c = color;
             PngImage Cloth(int f,int direction) => Canvas(IndexedImageArchive.Decode(
-                IndexedImageArchive.Frame(flagArchive.Images[c+1],4,8,f,direction),flagArchive.Palettes[palettes[492+c]-285],true,false),direction==1?1:34,3);
+                IndexedImageArchive.Frame(flagArchive.Images[c+1],4,8,f,direction),flagArchive.Palettes[palettes[492+c]-285],true,false),Int(0x24a368 + direction * 8), Int(0x24a36c + direction * 8));
             Clip($"flag-cloth-{c}",4,142,f => Cloth(f,1),f => Cloth(f,5));
+            for (int direction = 0; direction < 8; direction++)
+            {
+                int d = direction;
+                Clip($"unit-flag-{d}-cloth-{c}", 4, 142, f => Cloth(f, d));
+            }
         }
         for (int variant = 0; variant < 2; variant++) for (int glyph = 0; glyph < 186; glyph++)
         {
             int v = variant, g = glyph;
-            PngImage Glyph(int f,int direction) => Canvas(IndexedImageArchive.Decode(
-                IndexedImageArchive.Frame(glyphArchive.Images[v*186+g],4,6,f,direction==1?1:4),glyphArchive.Palettes[v],true,true),direction==1?1:34,3);
+            PngImage Glyph(int f, int direction)
+            {
+                int row = Int(0x24a3b8 + direction * 4);
+                return row < 0 ? Canvas(null, 0, 0) : Canvas(IndexedImageArchive.Decode(
+                    IndexedImageArchive.Frame(glyphArchive.Images[v * 186 + g], 4, 6, f, row),
+                    glyphArchive.Palettes[v], true, true),
+                    Int(0x24a368 + direction * 8), Int(0x24a36c + direction * 8));
+            }
             Clip($"flag-glyph-{v}-{g}",4,142,f => Glyph(f,1),f => Glyph(f,5));
+            for (int direction = 0; direction < 8; direction++)
+            {
+                int d = direction;
+                Clip($"unit-flag-{d}-glyph-{v}-{g}", 4, 142, f => Glyph(f, d));
+            }
         }
         return new(clips.ToArray(), water.ToArray());
     }

@@ -8,6 +8,7 @@ public sealed record ForceView(int Id,string NameKey,int ColorCode,int FlagGlyph
 {
     public bool IsEliminated { get; init; }
     public bool IsBarbarian { get; init; }
+    public bool UsesImperialAppearance { get; init; }
     public int? LeaderId { get; init; }
     public int? RankId { get; init; }
     public int? CountryTitleId { get; init; }
@@ -151,6 +152,7 @@ public sealed class StrategySnapshot
             return new OfficerView(o.Id, definition.NameKey, o.OwnerId, o.IsServing ? corpsId : null,
                 o.SettlementId, location?.Kind == San9.Core.Domain.SettlementKind.City, o.IsServing && o.UnitId is null && !o.Acted && !occupied.Contains(o.Id), abilities[o.Id])
             {
+                FlagGlyph = definition.FlagGlyph,
                 UnitId = o.UnitId,
                 Status = o.Status,
                 Journey = task is null ? null : new(task.Id, task.Kind, task.OriginSettlementId, task.Journey!.DestinationPlaceId,
@@ -160,6 +162,8 @@ public sealed class StrategySnapshot
             };
         }).ToArray());
         var officerLocations = world.Officers.ToDictionary(officer => officer.Id, officer => officer.SettlementId);
+        int? imperialRank = Information.Ranks.MaxBy(r => r.Precedence)?.Id;
+        int? emperorOwner = EmperorCityId is int emperorCity ? settlements[emperorCity].OwnerId : null;
         Forces = Array.AsReadOnly(world.Forces.Where(f => !f.IsDormant).Select(f =>
         {
             var definition = source.Force(f);
@@ -169,6 +173,7 @@ public sealed class StrategySnapshot
             return new ForceView(f.Id, definition.NameKey, definition.ColorCode, definition.FlagGlyph, world.Corps.Where(c => c.OwnerId == f.Id).Sum(c => (long)c.Treasury.Money),
                 world.Corps.Where(c => c.OwnerId == f.Id).Sum(c => (long)c.Treasury.Food), f.Trust)
             {
+                UsesImperialAppearance = imperialRank is int rank && f.RankId == rank || emperorOwner == f.Id,
                 IsBarbarian = f.IsBarbarian,
                 IsEliminated = f.IsEliminated,
                 LeaderId = f.LeaderId,

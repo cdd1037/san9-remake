@@ -25,7 +25,7 @@ public sealed record TexturePackage(int SchemaVersion, int ConversionVersion, st
 
     public void Validate()
     {
-        if (SchemaVersion != 4 || Map.MinimapColors.Length != 32 || Map.MaskPositions.Length != 288 ||
+        if (SchemaVersion != 5 || Map.MinimapColors.Length != 32 || Map.MaskPositions.Length != 288 ||
             Map.MaskHeightAdjustments.Length != 16) throw new InvalidDataException("Invalid texture package.");
         if (Portraits.Select(p => p.Id).Distinct().Count() != Portraits.Length) throw new InvalidDataException("Duplicate portrait ID.");
         foreach (var portrait in Portraits) portrait.Validate();

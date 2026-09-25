@@ -6,6 +6,7 @@ public sealed record GovernorOfficeRule(int OfficeId, uint CommandCapacity, int 
 {
     public OfficerAbilities AbilityBonuses { get; init; }
     public int Salary { get; init; }
+    public int LoyaltyBonus => Salary / 2;
     public int? RequiredRankId { get; init; }
 }
 

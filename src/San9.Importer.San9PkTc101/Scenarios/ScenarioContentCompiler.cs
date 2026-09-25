@@ -86,7 +86,7 @@ public static class ScenarioContentCompiler
         var information = new InformationDefinitions(
             RankContentCompiler.Compile(ranks, id => text.Rank($"rank.{id}", id)),
             offices.Where(o => o.IsAssignable).Select(o => new OfficeDefinition(o.Id, text.Office($"office.{o.Id}", o.Id), o.CommandCapacity, o.Salary)
-                { GovernorPriority = San9ScenarioOfficeArchive.RecordCount - o.Id,
+                { DescriptionKey = text.OfficeDescription(o.Id), GovernorPriority = San9ScenarioOfficeArchive.RecordCount - o.Id,
                   AbilityBonuses = OfficerContentCompiler.OfficeBonuses(o),
                   RequiredRankId = o.RankGroupId }).ToArray(),
             items.Where(i => i.SerializedId < TreasureContentCompiler.BuiltInCount).Select(i =>
@@ -106,6 +106,10 @@ public static class ScenarioContentCompiler
                     ? San9.Core.Domain.CorpsControlMode.Direct : San9.Core.Domain.CorpsControlMode.Automatic }).ToArray(),
             treasureStates)
         {
+            Tactics = Read(San9ScenarioTacticArchive.ReadKnownRecords).Where(t => t.Id < 31)
+                .Select(t => new MilitaryCatalogDefinition(t.Id, text.Tactic(t.Id)) { DescriptionKey = text.TacticDescription(t.Id) }).ToArray(),
+            Formations = formations.Where(f => f.Id <= 11 || f.Id is >= 20 and <= 23)
+                .Select(f => new MilitaryCatalogDefinition(f.Id, text.Formation(f.Id))).ToArray(),
             CountryTitles = PoliticalContentCompiler.Titles(countryTitles, persons, officers.Select(o => o.State.Id),
                 id => text.CountryTitle($"country-title.{id}", id),
                 id => System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(exe.AsSpan(0x253bb0 + id * 4, 4))),

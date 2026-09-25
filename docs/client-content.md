@@ -8,7 +8,7 @@
 
 ## 现行版本与历史记录
 
-现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 111，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 115，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 20，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 12。规则及保存／日志版本统一见 [SessionProtocol](../src/San9.Application/SessionProtocol.cs)。
+现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 114，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 118，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 20，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 12。规则及保存／日志版本统一见 [SessionProtocol](../src/San9.Application/SessionProtocol.cs)。
 
 下文各 G 阶段的版本号、重转要求和数据核对结果描述对应接入批次，不能用作现行包版本或本轮验证结果。旧内容按现行契约原位重转；是否需要重转纹理取决于纹理转换版本与源输入，不能只更新剧本包来替代。G10 整包与阶段收口结果统一见[G10 验收](g10-verification.md#2026-09-21阶段收口)。
 
@@ -17,7 +17,7 @@
 | 模块 | 职责 | 输出 |
 | --- | --- | --- |
 | Content.Maps / MapImporter | 当前地图方格、地貌及对象位置 | `map.json`（无图片文件） |
-| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema111 |
+| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema114 |
 | Content.Text / ScenarioTextReader | 名称与全量消息目录 | `text.json` / `messages.json`，schema3 |
 | Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema20 |
 | Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema115 |
@@ -297,3 +297,19 @@ G10封禅使用剧本schema83／组合87、规则`san9-core-g10-v20`；保存／
 势力／军团人物摘要补齐专用纹饰底框、小四维网格及绿色／金色矩形字段标签，该批次界面皮肤schema19、纹理转换版本11。需要重转纹理及组合包，领域数据和保存格式不变。
 
 情报地图接入G_MMap104–155的24×24四态方形标记，皮肤schema20、纹理转换版本12。都市区域在纹理上传时生成CPU位遮罩用于命中，不保留额外CPU整图或运行时读取源档案。
+
+## 2026-09-25右键势力目录
+
+现行剧本schema114／组合118包含必填`Information.Tactics`与`Information.Formations`目录项（`Id`引用军事规则，`NameKey`引用文本）。作者维护名称及展示范围，不维护按势力生成的派生可用表；校验器检查身份唯一、规则和文本引用。军事规则、世界状态及保存／日志结构不变，纹理无需重转；旧组合包须重新执行`import-client`。
+
+TC101读取31项人物兵法及12项陆上阵形、4种船的目录名；军事规则仍完整保留原有41项兵法、28项阵形，设施攻击及驻军／工作物等内部阵形不混入人物可用目录。源编号范围只在Importer中解释。名称来自消息资源，目录仅保存引用，不复制势力可用性缓存。
+
+190年包已原位重转并通过完整链接加载校验。源初始状态仍为25势力／94据点／700人物；开局查询为24活跃势力／92有效据点／205可见人物，休眠及未登场对象不因菜单功能被删除。离线审计遍历全部92个据点菜单及24个势力的四种能力目录，核对详情ID、武将项可用性、表格列数和浏览前后世界哈希；记录在忽略目录`local/generated/context-menu-audit/report.json`。新增入口均为查询，未新增模拟命令；本轮未运行游戏画面验收。
+
+### 爵位一览说明文本
+
+爵位包含必填可空`DescriptionKey`，非空时校验文本引用；TC101导入76项原版说明。旧包须重转，190年运行包已更新；纹理、保存／日志及任官规则语义不变。忠诚上升由共享任官规则的俸禄整数折半值提供，不另设展示公式。
+
+### 兵法一览说明与筛选
+
+军事目录项包含必填可空`DescriptionKey`，非空时校验文本引用。TC101导入31项人物兵法说明（消息1221+3×ID），名称与规则引用仍完整保留；兵法一览仅展示已可用且`Selectable`的兵法，22项展示候选不包括水军、攻城技术及建设技术。阵形／船目录继续通过所需兵法判断可用性。190年包已重转；军事规则41项兵法／28项阵形及保存协议不变，无需重转纹理。

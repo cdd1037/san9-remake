@@ -18,7 +18,7 @@ public partial class ClientVerification
         Check(Hud.IsBlockedPoint(new(512, 384)), "Information menu did not block map.");
         await Capture(Path.Combine(directory, "information-menu.png"));
         var query = new InformationQuery(World.Session, Hud.Texts);
-        foreach (var category in Enum.GetValues<InformationCategory>())
+        foreach (var category in InformationQuery.MenuCategories)
         {
             var point = new Vector2(894, 75 + (int)category * 24);
             GetViewport().PushInput(new InputEventMouseMotion { Position = point, GlobalPosition = point }, true);
@@ -33,7 +33,7 @@ public partial class ClientVerification
         await Frame();
         Check(Hud.MessageText == "", "Menu explanation did not clear on leave.");
         GD.Print("INFORMATION_MENU_OK ten hover bindings, disabled reason/frame, leave clears explanation");
-        foreach (var category in Enum.GetValues<InformationCategory>())
+        foreach (var category in InformationQuery.MenuCategories)
         {
             panel.Open(category); await Frame();
             Check(panel.Visible && panel.State.Category == category, "Information page failed to open.");

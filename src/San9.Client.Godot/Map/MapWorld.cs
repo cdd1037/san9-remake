@@ -58,6 +58,7 @@ public partial class MapWorld : Node2D
     public IReadOnlyList<MapBuilding> RuntimeBuildings => Scene?.Buildings ?? [];
     public int? HoveredBuildingId { get; private set; }
     public Func<Vector2, bool>? IsInputBlocked { get; set; }
+    public event Action<int, Vector2>? BuildingContextRequested;
     public event Action<int>? BuildingPicked;
     public event Action<int, int>? SquarePicked;
     public event Action? SelectionCleared;
@@ -104,7 +105,7 @@ public partial class MapWorld : Node2D
     public override void _Process(double delta)
     {
         long start = Stopwatch.GetTimestamp();
-        if (!Input.IsMouseButtonPressed(MouseButton.Right)) _dragging = false;
+        if (!Input.IsMouseButtonPressed(MouseButton.Middle)) _dragging = false;
         if (_loading is { IsCompleted: true } completed)
         {
             _loading = null;
@@ -201,7 +202,13 @@ public partial class MapWorld : Node2D
         {
             if (button.Position.X < 0 || button.Position.Y < 0 || button.Position.X >= ClientLayout.LogicalWidth || button.Position.Y >= ClientLayout.LogicalHeight) return;
             if (IsInputBlocked?.Invoke(button.Position) == true) { _dragging = false; return; }
-            if (button.ButtonIndex == MouseButton.Right) { _dragging = button.Pressed; GetViewport().SetInputAsHandled(); }
+            if (button.ButtonIndex == MouseButton.Middle) { _dragging = button.Pressed; GetViewport().SetInputAsHandled(); }
+            else if (button.Pressed && button.ButtonIndex == MouseButton.Right)
+            {
+                _dragging = false;
+                if (BuildingAtViewport(button.Position) is int id) BuildingContextRequested?.Invoke(id, button.Position);
+                GetViewport().SetInputAsHandled();
+            }
             else if (button.Pressed && button.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown)
             {
                 var offset = button.Position - new Vector2(ClientLayout.LogicalWidth, ClientLayout.LogicalHeight) / 2;

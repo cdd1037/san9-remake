@@ -26,17 +26,25 @@ public sealed record TreasureDefinition(int Id, string NameKey, int Category, in
 }
 public sealed record OfficeDefinition(int Id, string NameKey, uint CommandCapacity, int Salary)
 {
+    [JsonRequired] public string? DescriptionKey { get; init; }
     [JsonRequired] public int GovernorPriority { get; init; }
     [JsonRequired] public OfficerAbilities AbilityBonuses { get; init; }
     [JsonRequired] public int? RequiredRankId { get; init; }
 }
+public sealed record MilitaryCatalogDefinition(int Id, string NameKey)
+{
+    [JsonRequired] public string? DescriptionKey { get; init; }
+}
+
 public sealed record InformationDefinitions(RankDefinition[] Ranks, OfficeDefinition[] Offices, TreasureDefinition[] Treasures,
     CorpsState[] Corps, TreasureState[] TreasureStates)
 {
+    [JsonRequired] public MilitaryCatalogDefinition[] Tactics { get; init; } = [];
+    [JsonRequired] public MilitaryCatalogDefinition[] Formations { get; init; } = [];
     [JsonRequired] public CountryTitleDefinition[] CountryTitles { get; init; } = [];
     [JsonRequired] public ForceRelation[] Relations { get; init; } = [];
     public static InformationDefinitions Empty => new([], [], [], [], []);
-    public InformationDefinitions Copy() => new(Ranks.ToArray(), Offices.ToArray(), Treasures.ToArray(), Corps.ToArray(), TreasureStates.ToArray()) { Relations = Relations.ToArray(), CountryTitles = CountryTitles.ToArray() };
+    public InformationDefinitions Copy() => new(Ranks.ToArray(), Offices.ToArray(), Treasures.ToArray(), Corps.ToArray(), TreasureStates.ToArray()) { Relations = Relations.ToArray(), CountryTitles = CountryTitles.ToArray(), Tactics = Tactics.ToArray(), Formations = Formations.ToArray() };
     public void Validate(ScenarioInitialState scenario)
     {
         static void Unique(IEnumerable<int> ids)
@@ -46,6 +54,15 @@ public sealed record InformationDefinitions(RankDefinition[] Ranks, OfficeDefini
         if (CountryTitles is null || CountryTitles.Any(t => t is null || t.Rule is null || string.IsNullOrWhiteSpace(t.NameKey) || t.FlagGlyph is < -1 or > 185))
             throw new InvalidDataException("Invalid country title definition.");
         Unique(CountryTitles.Select(t => t.Id));
+        if (Tactics is null || Formations is null || Tactics.Concat(Formations).Any(d => d is null || string.IsNullOrWhiteSpace(d.NameKey) || d.DescriptionKey is not null && string.IsNullOrWhiteSpace(d.DescriptionKey)))
+            throw new InvalidDataException("Invalid military catalog metadata.");
+        Unique(Tactics.Select(t => t.Id)); Unique(Formations.Select(f => f.Id));
+        if (Tactics.Any(t => scenario.Military?.Tactics.Any(r => r.Id == t.Id) != true) ||
+            Formations.Any(f => scenario.Military?.Formations.Any(r => r.Id == f.Id) != true))
+            throw new InvalidDataException("Unknown military catalog rule reference.");
+        if (Formations.Any(f => scenario.Military!.Formations.Single(r => r.Id == f.Id).RequiredTacticId is int tactic &&
+            !Tactics.Any(t => t.Id == tactic)))
+            throw new InvalidDataException("A catalog formation requires a named tactic reference.");
         var occupied = scenario.Forces.Where(f => f.CountryTitleId is not null).Select(f => f.CountryTitleId!.Value).ToArray();
         if (occupied.Distinct().Count() != occupied.Length || occupied.Any(id => !CountryTitles.Any(t => t.Id == id)))
             throw new InvalidDataException("Invalid initial country title ownership.");
@@ -76,7 +93,7 @@ public sealed record InformationDefinitions(RankDefinition[] Ranks, OfficeDefini
         if (Ranks.Select(r => r.Precedence).Distinct().Count() != Ranks.Length)
             throw new InvalidDataException("Rank precedence must be unique.");
         if (Ranks.Any(r => string.IsNullOrWhiteSpace(r.NameKey) || r.RequiredTrust < 0 || r.LoyaltyBonus < 0 || r.Precedence < 0) ||
-            Offices.Any(o => string.IsNullOrWhiteSpace(o.NameKey) || o.Salary < 0 || o.GovernorPriority < 0 ||
+            Offices.Any(o => string.IsNullOrWhiteSpace(o.NameKey) || o.DescriptionKey is not null && string.IsNullOrWhiteSpace(o.DescriptionKey) || o.Salary < 0 || o.GovernorPriority < 0 ||
                 !o.AbilityBonuses.IsNonnegative || o.RequiredRankId is int rank && !Ranks.Any(r => r.Id == rank)) ||
             Treasures.Any(t => string.IsNullOrWhiteSpace(t.NameKey) || t.Category is < 0 or > 12 || !Enum.IsDefined(t.RetentionGroup) || t.AbilityBonus < 0 || !t.AbilityBonuses.IsNonnegative || t.LoyaltyBonus < 0 ||
                 t.FavoredOwnerIds.IsDefault || t.FavoredOwnerIds.Distinct().Count() != t.FavoredOwnerIds.Length ||

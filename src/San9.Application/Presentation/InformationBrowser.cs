@@ -1,6 +1,6 @@
 namespace San9.Application.Presentation;
 
-public enum InformationCategory { Ranks, Forces, Corps, Cities, Regions, Units, Officers, Treasures, Records, Chronicle }
+public enum InformationCategory { Ranks, Forces, Corps, Cities, Regions, Units, Officers, Treasures, Records, Chronicle, Offices, Tactics, Formations, Ships }
 public readonly record struct InformationKey(InformationCategory Category, int Id);
 public sealed record InformationRow(InformationKey Key, CatalogCell[] Cells, int? SettlementId = null);
 public sealed record InformationTable(string Title, string[] Pages, string[] Columns, InformationRow[] Rows);
@@ -16,6 +16,7 @@ public sealed class InformationBrowser
 {
     private readonly Stack<(InformationCategory Category, int Page, int Offset, int Sort, bool Descending, int? Selected, bool Detail, int? Force, int? Settlement, int? Holder, int? Corps, int? Region, int? Officer, int[] RowOrder, CatalogTableState Catalog, DetailSelectionState DetailSelection, bool Map)> _history = [];
     private int[] _rowOrder = [];
+    private bool _directDetailRoot;
     public bool IsOpen { get; private set; }
     public bool IsMenu { get; private set; }
     public bool IsDetail { get; private set; }
@@ -50,15 +51,22 @@ public sealed class InformationBrowser
         Catalog = new(); DetailSelection = new();
         _rowOrder = [];
     }
+    public void OpenContext(SettlementContextEntry entry)
+    {
+        Close();
+        var link = entry.Target;
+        Open(link.Category, link.ForceId, link.SettlementId, link.HolderId, link.CorpsId, link.RegionId, link.OfficerId);
+        if (entry.DetailId is int id) { ShowDetail(id); _directDetailRoot = true; }
+    }
     public void Navigate(InformationLink link)
     {
         _history.Push((Category, Page, Offset, SortColumn, Descending, SelectedId, IsDetail, ForceFilter, SettlementFilter, HolderFilter, CorpsFilter, RegionFilter, OfficerFilter, _rowOrder, Catalog, DetailSelection, IsMap));
         Open(link.Category, link.ForceId, link.SettlementId, link.HolderId, link.CorpsId, link.RegionId, link.OfficerId);
     }
-    public void Close() { IsOpen = IsMenu = IsDetail = IsMap = false; _history.Clear(); }
+    public void Close() { IsOpen = IsMenu = IsDetail = IsMap = false; _history.Clear(); _directDetailRoot = false; }
     public void Back()
     {
-        if (IsDetail) { IsDetail = false; return; }
+        if (IsDetail) { if (_directDetailRoot && _history.Count == 0) Close(); else IsDetail = false; return; }
         if (_history.TryPop(out var previous))
         {
             (Category, Page, Offset, SortColumn, Descending, SelectedId, IsDetail, ForceFilter, SettlementFilter, HolderFilter, CorpsFilter, RegionFilter, OfficerFilter, _rowOrder, Catalog, DetailSelection, IsMap) = previous;

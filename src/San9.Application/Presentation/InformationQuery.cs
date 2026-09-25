@@ -5,6 +5,7 @@ namespace San9.Application.Presentation;
 
 public sealed class InformationQuery(GameSession session, TextCatalog texts)
 {
+    public static IReadOnlyList<InformationCategory> MenuCategories { get; } = Array.AsReadOnly(Enum.GetValues<InformationCategory>().Where(c => !ForceCapabilityCatalog.Supports(c)).ToArray());
     private StrategySnapshot View => session.View;
     private string Name(string key) => texts.Resolve(key);
     private string Force(int? id) => View.Forces.FirstOrDefault(f => f.Id == id) is { } f ? Name(f.NameKey) : "无";
@@ -20,7 +21,8 @@ public sealed class InformationQuery(GameSession session, TextCatalog texts)
         InformationCategory.Ranks => "全官爵", InformationCategory.Forces => "全势力", InformationCategory.Corps => "全军团",
         InformationCategory.Cities => "全都市", InformationCategory.Regions => "全地域", InformationCategory.Units => "全部队",
         InformationCategory.Officers => "全武将", InformationCategory.Treasures => "全宝物", InformationCategory.Records => "进行记录",
-        InformationCategory.Chronicle => "年表", _ => throw new ArgumentOutOfRangeException(nameof(category))
+        InformationCategory.Chronicle => "年表", InformationCategory.Offices => "全爵位",
+        InformationCategory.Tactics => "全兵法", InformationCategory.Formations => "全阵形", InformationCategory.Ships => "全船", _ => throw new ArgumentOutOfRangeException(nameof(category))
     };
     public bool Available(InformationCategory category) => category switch
     {
@@ -36,6 +38,7 @@ public sealed class InformationQuery(GameSession session, TextCatalog texts)
     public InformationTable Read(InformationCategory category, int page = 0, int? force = null, int? settlement = null, int? corps = null, int? region = null, int? officer = null)
     {
         var v = View;
+        if (ForceCapabilityCatalog.Supports(category)) return ForceCapabilityCatalog.Read(session, texts, category, force ?? throw new ArgumentException("A force catalog requires an owner."), page);
         if (AdministrativeCatalog.Supports(category)) return new AdministrativeCatalog(v, texts).Read(category, page, force, settlement, corps, region);
         InformationRow Row(int id, CatalogCell[] cells, int? location = null) => new(new(category, id), cells, location);
         bool Owner(int? id) => force is null || force == id;

@@ -22,7 +22,7 @@ public partial class ClientVerification
             var selected = Selection.Square;
             World._UnhandledInput(new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = true, Position = new(-20, 300) });
             Check(selected == Selection.Square, "Letterbox input changed selection.");
-            World._UnhandledInput(new InputEventMouseButton { ButtonIndex = MouseButton.Right, Pressed = true, Position = new(700, 400) });
+            World._UnhandledInput(new InputEventMouseButton { ButtonIndex = MouseButton.Middle, Pressed = true, Position = new(700, 400) });
             var previous = World.CameraPosition;
             World._UnhandledInput(new InputEventMouseMotion { Position = new(700, 400), Relative = new(120, 60) });
             await WaitForView();

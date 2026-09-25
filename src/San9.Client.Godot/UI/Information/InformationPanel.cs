@@ -49,6 +49,16 @@ public partial class InformationPanel : Control
     private void OnChanged() => _dirty = true;
     public void OpenMenu() { State.OpenMenu(); Rebuild(); }
     public void Open(InformationCategory category) { State.Close(); State.Open(category); Rebuild(); }
+    public void OpenContext(SettlementContextEntry entry)
+    {
+        State.OpenContext(entry);
+        if (entry.DetailId is int id)
+        {
+            State.DetailSelection.SetVisibleRows(AdministrativeDetailView.VisibleRows(entry.Target.Category));
+            State.DetailSelection.Open(_query.Read(State).Rows.Select(r => r.Key.Id), id);
+        }
+        Rebuild();
+    }
     public void Back() { State.Back(); Rebuild(); }
     public override void _Process(double delta)
     { if (_dirty && State.IsOpen) { _dirty = false; Rebuild(); } }
@@ -62,7 +72,7 @@ public partial class InformationPanel : Control
         if (!Visible) return;
         if (State.IsMenu)
         {
-            foreach (var category in Enum.GetValues<InformationCategory>())
+            foreach (var category in InformationQuery.MenuCategories)
             {
                 var button = new InformationMenuButton
                 {
@@ -74,6 +84,25 @@ public partial class InformationPanel : Control
                 _content.AddChild(button);
             }
             return;
+        }
+        if (ForceCapabilityCatalog.Supports(State.Category))
+        {
+            _catalog = new CatalogView
+            {
+                Service = Service, Textures = Textures, TableState = State.Catalog,
+                Title = State.Category is InformationCategory.Offices or InformationCategory.Tactics ? InformationQuery.MenuTitle(State.Category)[1..] + "一览" : "势力" + InformationQuery.MenuTitle(State.Category)[1..],
+                HintText = State.Category == InformationCategory.Offices ? "画面显示君主能任命的爵位。"
+                    : "查看" + Texts.Resolve(Session.View.Forces.Single(f => f.Id == State.ForceFilter).NameKey) + "势力可用的项目。",
+                Pages = ForceCapabilityCatalog.Pages(State.Category),
+                InitialPage = State.Page, InitialCurrentId = State.SelectedId, InitialOffset = State.Offset,
+                ReadRows = page => _query.Read(State.Category, page, State.ForceFilter).Rows.Select(r => new CatalogRow(r.Key.Id, r.Cells)).ToArray(),
+                ViewChanged = (page, offset, selected) =>
+                {
+                    if (State.Page != page) State.SelectPage(page, ForceCapabilityCatalog.Pages(State.Category).Count);
+                    State.Scroll(offset, State.Catalog.Rows.Length); if (selected is int id) State.Select(id);
+                }, Closed = Back
+            };
+            _content.AddChild(_catalog); return;
         }
         if (AdministrativeCatalog.Supports(State.Category))
         {

@@ -190,7 +190,7 @@ public sealed class InformationBrowserTests
     {
         var (session, query) = Fixture();
         var before = session.Snapshot.StateHash;
-        foreach (var category in Enum.GetValues<InformationCategory>())
+        foreach (var category in InformationQuery.MenuCategories)
         {
             var table = query.Read(category);
             foreach (var row in table.Rows) Assert.Equal(table.Columns.Length, row.Cells.Length);

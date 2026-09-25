@@ -27,6 +27,7 @@ public partial class StrategyHud : Control
     private Vector2? _hoverPosition;
     private StrategyRosterList _rosterList = null!;
     private PopupMenu _contextMenu = null!;
+    private SettlementContextPopup _settlementContext = null!;
     private StrategyMinimap? _minimap;
     public StrategyOverview Overview { get; } = new();
     public InformationPanel Information { get; private set; } = null!;
@@ -112,6 +113,9 @@ public partial class StrategyHud : Control
         GetParent().MoveChild(_overviewPanel, GetIndex());
         Information = new InformationPanel { Session = Session, Texts = Texts, Service = Textures, World = World, Skin = Skin, Locate = id => { Overview.Close(); World.FocusBuilding(id); } };
         GetParent().AddChild(Information);
+        _settlementContext = new SettlementContextPopup { Textures = _textures, Activated = OpenSettlementContextEntry };
+        GetParent().AddChild(_settlementContext);
+        World.BuildingContextRequested += ShowSettlementContext;
         _buildingHover = new BuildingHoverCard { World = World, Textures = _textures, UiFont = GetThemeFont("font"), Visible = false };
         AddChild(_buildingHover);
         // Adding controls can trigger hit testing before the HUD is fully constructed.
@@ -167,7 +171,7 @@ public partial class StrategyHud : Control
 
     public bool IsBlockedPoint(Vector2 point)
     {
-        if (Information?.State.IsOpen == true) return true;
+        if (Information?.State.IsOpen == true || _settlementContext?.Visible == true) return true;
         if (point.Y >= 740 && point.Y < 768 && point.X >= 0 && point.X < 1024) return true;
         foreach (var (asset, position) in _frames)
         {
@@ -183,6 +187,21 @@ public partial class StrategyHud : Control
     {
         if (_built && @event is InputEventMouseButton { Pressed: false, ButtonIndex: MouseButton.Right }) ShowContextMenu();
         AcceptEvent();
+    }
+    private int? _contextSettlementId;
+    private long _contextRevision;
+    private void ShowSettlementContext(int id, Vector2 point)
+    {
+        _contextSettlementId = id;
+        _contextRevision = Session.Snapshot.Revision;
+        _settlementContext.Open(SettlementContextMenu.Read(Scenario, id), point);
+        World.HoverBuilding(null); _buildingHover.Hide();
+    }
+    private void OpenSettlementContextEntry(SettlementContextEntry entry)
+    {
+        if (_contextSettlementId is not int id) return;
+        // The world may have advanced while the pointer menu was open.
+        if (SettlementContextMenu.Read(Scenario, id).Contains(entry) && entry.Enabled) Information.OpenContext(entry);
     }
     private void ShowContextMenu()
     {
@@ -259,6 +278,7 @@ public partial class StrategyHud : Control
     }
     public override void _Process(double delta)
     {
+        if (_settlementContext?.Visible == true && _contextRevision != Session.Snapshot.Revision) _settlementContext.Close();
         if (World.LoadError is not null) _message.Text = "地图加载失败 · F3 查看详情";
         if (_built && _stateRevision != Session.Snapshot.Revision)
         {
@@ -300,6 +320,7 @@ public partial class StrategyHud : Control
     public override void _ExitTree()
     {
         World.MapReady -= Build;
+        World.BuildingContextRequested -= ShowSettlementContext;
         GetWindow().MouseExited -= ClearHover;
         _textures.Dispose();
         _text.Dispose();

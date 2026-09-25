@@ -13,6 +13,7 @@ public sealed class TextureScope(TextureService service, IReadOnlyDictionary<str
     private readonly Dictionary<string, Binding> _bindings = [];
     private bool _disposed;
     public event Action? Changed;
+    public long Revision { get; private set; }
     public TextureService Service => service;
     public bool IsReady => _bindings.Values.All(b => b.Installed);
     public Exception? Error => _bindings.Values.Select(b => b.Lease.Error).FirstOrDefault(e => e is not null);
@@ -29,6 +30,19 @@ public sealed class TextureScope(TextureService service, IReadOnlyDictionary<str
             _bindings.Add(key, binding); Refresh(binding); return view;
         }
     }
+    public bool AreReady(IEnumerable<string> keys) => keys.All(k => _bindings.TryGetValue(k, out var b) && b.Installed);
+    public Exception? ErrorFor(IEnumerable<string> keys) => keys.Select(k => _bindings.GetValueOrDefault(k)?.Lease.Error).FirstOrDefault(e => e is not null);
+    public bool TryGetReady(string key, out Texture2D texture)
+    {
+        if (_bindings.TryGetValue(key, out var binding) && binding.Installed && !prefetch)
+        { texture = binding.View; return true; }
+        texture = null!; return false;
+    }
+    public void RequestCached(IEnumerable<string> keys)
+    {
+        foreach (string key in keys)
+            if (service.Cache.Contains(assets[key].File)) _ = this[key];
+    }
     public void Request(IEnumerable<string> keys) { foreach (string key in keys) _ = this[key]; }
     public void Refresh()
     {
@@ -42,7 +56,7 @@ public sealed class TextureScope(TextureService service, IReadOnlyDictionary<str
         { binding.Installed = true; binding.Lease.Dispose(); return false; }
         bool changed = false;
         if (!binding.Installed && binding.Lease.IsReady)
-        { binding.View.Atlas = service.Cache.Get(binding.Asset.File); binding.Installed = true; changed = true; }
+        { binding.View.Atlas = service.Cache.Get(binding.Asset.File); binding.Installed = true; Revision++; changed = true; }
         if (!binding.Reported && binding.Lease.Error is { } error)
         { GD.PushError($"Texture {binding.Asset.Id}: {error.Message}"); binding.Reported = true; changed = true; }
         return changed;

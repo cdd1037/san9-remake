@@ -66,11 +66,13 @@ internal sealed class MapScene
             Map.Squares[building.Y * Map.Width + building.X].Elevation);
         return new(p.X, p.Y);
     }
+    public bool Intersects(MapBuilding building, Rect2 bounds) =>
+        building.Sprites.Any(s => bounds.Intersects(Bounds(s))) ||
+        Animations.GetValueOrDefault(building.Id, []).Any(s => bounds.Intersects(Bounds(s))) ||
+        bounds.Intersects(new Rect2(Anchor(building), new(116, 55)));
     public MapSceneRegion Select(Rect2 bounds, bool boundaries)
     {
-        var buildings = Buildings.Where(b => b.Sprites.Any(s => bounds.Intersects(Bounds(s))) ||
-            Animations.GetValueOrDefault(b.Id, []).Any(s => bounds.Intersects(Bounds(s))) ||
-            bounds.Intersects(new Rect2(Anchor(b), new(116, 55)))).ToArray();
+        var buildings = Buildings.Where(b => Intersects(b, bounds)).ToArray();
         return new(this, bounds, buildings,
             Map.Bridges.Where(s => bounds.Intersects(Bounds(s))).ToArray(),
             boundaries ? Map.Boundaries.Where(s => bounds.Intersects(Bounds(s))).ToArray() : [],
@@ -88,11 +90,20 @@ internal sealed class MapScene
 internal sealed record MapSceneRegion(MapScene Scene, Rect2 Bounds, MapBuilding[] Buildings,
     MapSprite[] Bridges, MapSprite[] Boundaries, MapSprite[] Clouds, MapAnimatedSprite[] Water)
 {
-    public IEnumerable<MapAnimatedSprite> ObjectAnimations => Buildings.SelectMany(b => Scene.Animations.GetValueOrDefault(b.Id, []));
+    public MapSceneRegion Select(Rect2 bounds) => new(Scene, bounds,
+        Buildings.Where(b => Scene.Intersects(b, bounds)).ToArray(),
+        Bridges.Where(s => bounds.Intersects(Scene.Bounds(s))).ToArray(),
+        Boundaries.Where(s => bounds.Intersects(Scene.Bounds(s))).ToArray(),
+        Clouds.Where(s => bounds.Intersects(Scene.Bounds(s))).ToArray(),
+        Water.Where(s => bounds.Intersects(Scene.Bounds(s))).ToArray());
+    public IEnumerable<MapAnimatedSprite> ObjectAnimations => Buildings
+        .SelectMany(b => Scene.Animations.GetValueOrDefault(b.Id, []))
+        .Where(s => Bounds.Intersects(Scene.Bounds(s)));
     public IEnumerable<string> Assets => new[] { "cloud-fill" }
-        .Concat(Bridges.Concat(Boundaries).Concat(Clouds).Concat(Buildings.SelectMany(b => b.Sprites)).Select(s => s.AssetId))
+        .Concat(Bridges.Concat(Boundaries).Concat(Clouds).Concat(Buildings.SelectMany(b => b.Sprites))
+            .Where(s => Bounds.Intersects(Scene.Bounds(s))).Select(s => s.AssetId))
         .Concat(Water.Concat(ObjectAnimations).SelectMany(Scene.Frames))
-        .Concat(ObjectAnimations.Where(s => s.ClipId.StartsWith("flag-", StringComparison.Ordinal))
+        .Concat(Buildings.SelectMany(b => Scene.Animations.GetValueOrDefault(b.Id, [])).Where(s => s.ClipId.StartsWith("flag-", StringComparison.Ordinal))
             .Select(s => Scene.Clips[s.ClipId]).Where(c => c.SeasonFrames.TryGetValue("autumn", out var frames) && frames.Length > 2)
             .Select(c => c.SeasonFrames["autumn"][2])).Distinct();
 

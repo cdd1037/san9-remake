@@ -21,7 +21,12 @@ public partial class TextureService : Node
     public IReadOnlyDictionary<string, ImageAsset> MapAssets { get; private set; } = null!;
     public IReadOnlyDictionary<string, ImageAsset> Roles { get; private set; } = null!;
     public TextureCache<ImageTexture> Cache => _cache;
-    public void Initialize(ClientContentPackage package, string root)
+    public void Initialize(ClientContentPackage package, string root) => Initialize(package, (file, token) =>
+    {
+        token.ThrowIfCancellationRequested(); var pixels = ImageAssetFiles.LoadFile(root, file);
+        token.ThrowIfCancellationRequested(); return pixels;
+    });
+    internal void Initialize(ClientContentPackage package, Func<ImageFile, CancellationToken, PngImage> load)
     {
         _portraits = package.Portraits.ToDictionary(p => p.Image.Id);
         MapAssets = package.Map.Assets.ToDictionary(a => a.Id);
@@ -30,7 +35,7 @@ public partial class TextureService : Node
         var hitImages = MapAssets.Values.Where(a => a.Id.StartsWith("building-", StringComparison.Ordinal))
             .Concat(Roles.Where(p => p.Key is "top-frame" or "radar-frame" or "sidebar-frame" or "ruler-frame" || p.Key.StartsWith("button-overview-", StringComparison.Ordinal) || p.Key.StartsWith("overview-city-", StringComparison.Ordinal)).Select(p => p.Value));
         foreach (var group in hitImages.Distinct().GroupBy(a => a.File)) _maskSources[group.Key] = group.ToArray();
-        _cache = new((file, token) => { token.ThrowIfCancellationRequested(); var p = ImageAssetFiles.LoadFile(root, file); token.ThrowIfCancellationRequested(); return p; }, Upload, t => t.Dispose());
+        _cache = new(load, Upload, t => t.Dispose());
         ProcessPriority = -100;
     }
     private ImageTexture Upload(ImageFile file, PngImage pixels)

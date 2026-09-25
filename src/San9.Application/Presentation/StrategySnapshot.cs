@@ -177,8 +177,9 @@ public sealed class StrategySnapshot
                 : null;
             return new SettlementView(s.Id, nameKey, s.OwnerId, cell.X, cell.Y, s.Soldiers,
                 s.Durability, s.MaxDurability, s.Morale, availableSettlementIds.Contains((s.Id, s.OwnerId)), markerColor,
-                Array.AsReadOnly(source.SettlementIcons(s.Id).Where(icon => icon != "emperor")
-                    .Concat(s.MerchantPresent ? ["merchant"] : Array.Empty<string>())
+                Array.AsReadOnly(source.SettlementIcons(s.Id).Where(icon => icon != "emperor" &&
+                        (icon != "training" || s.MerchantPresenceChance != 100))
+                    .Concat(s.MerchantPresenceChance == 100 ? ["merchant"] : Array.Empty<string>())
                     .Concat(EmperorCityId == s.Id ? ["emperor"] : Array.Empty<string>()).ToArray()), definition?.Appearance ?? 0, s.PublicOrder, s.Commerce, s.MaxCommerce,
                 s.Cultivation, s.MaxCultivation)
             {

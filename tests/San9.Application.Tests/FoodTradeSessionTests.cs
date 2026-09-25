@@ -72,16 +72,21 @@ public sealed class FoodTradeSessionTests
     }
 
     [Fact]
-    public void VisitingMerchantAndDynamicIconFollowSavedStateWithoutReroll()
+    public void VisitingMerchantPreservesTrainingIconAndTradeStateWithoutReroll()
     {
-        var d = Definition(20); var session = GameSession.Start(d, 190);
+        var d = Definition(20);
+        d = d with { Settlements = d.Settlements.Select(s => s with { Icons = ["training"] }).ToArray() };
+        var session = GameSession.Start(d, 190);
         for (int xun = 0; xun < 8; xun++)
         {
             bool present = session.Snapshot.Settlements.Single(s => s.Id == 1).MerchantPresent;
-            Assert.Equal(present, session.View.Settlements.Single(s => s.Id == 1).Icons.Contains("merchant"));
+            Assert.Equal(["training"], session.View.Settlements.Single(s => s.Id == 1).Icons);
+            Assert.Equal(["merchant"], session.View.Settlements.Single(s => s.Id == 2).Icons);
             Assert.Equal(present, session.GetFoodTradeQuote(1, 1, [1], FoodTradeDirection.Buy).Available);
             var restored = SaveService.Decode(SaveService.Encode(session), d);
             Assert.Equal(SaveService.Encode(session), SaveService.Encode(restored));
+            Assert.Equal(["training"], restored.View.Settlements.Single(s => s.Id == 1).Icons);
+            Assert.Equal(["merchant"], restored.View.Settlements.Single(s => s.Id == 2).Icons);
             session.AdvanceXun(); restored.AdvanceXun();
             Assert.Equal(SaveService.Encode(session), SaveService.Encode(restored));
         }

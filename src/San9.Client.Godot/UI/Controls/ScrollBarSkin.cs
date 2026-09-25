@@ -17,8 +17,12 @@ public sealed record ScrollBarSkin(Texture2D TrackTop, Texture2D TrackMiddle, Te
     public static ScrollBarSkin FromCatalog(IReadOnlyDictionary<string, Texture2D> textures)
     {
         Texture2D Part(string role) => new AtlasTexture { Atlas = textures["catalog-scroll-" + role], Region = new(0, 0, 16, textures["catalog-scroll-" + role].GetHeight()) };
+        // The source bottom ornament is 32px high; the catalog arrow slot is only 16px.
+        // Keep its bottom edge inside that slot rather than overlaying the live track above it.
+        Texture2D bottom = new AtlasTexture { Atlas = textures["catalog-scroll-track-bottom"],
+            Region = new(0, textures["catalog-scroll-track-bottom"].GetHeight() - 16, 16, 16) };
         Texture2D[] Frames(string role) => Enumerable.Range(0, 4).Select(i => (Texture2D)textures["catalog-scroll-" + role + (i == 0 ? "" : $"-{i}")]).ToArray();
-        return new(Part("track-top"), Part("track-middle"), Part("track-bottom"), Part("thumb-top"), Part("thumb-middle"), Part("thumb-bottom"), Frames("up"), Frames("down"), new(0, 16));
+        return new(Part("track-top"), Part("track-middle"), bottom, Part("thumb-top"), Part("thumb-middle"), Part("thumb-bottom"), Frames("up"), Frames("down"), new(0, 16));
     }
 
     public StyleBox CreateThumbStyle() => new ScrollThumbStyle { Top = ThumbTop, Middle = ThumbMiddle, Bottom = ThumbBottom,

@@ -1,4 +1,5 @@
 using Godot;
+using static San9.Client.Godot.Diagnostics.VerificationSupport;
 
 namespace San9.Client.Godot;
 
@@ -6,17 +7,10 @@ public partial class StrategyHud
 {
     public async Task RunSmokeAsync()
     {
-        void Check(bool condition, string reason) { if (!condition) throw new InvalidOperationException(reason); }
-        async Task Frame() => await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        Task Frame() => Frames(this);
         async Task View()
         {
-            var watch = System.Diagnostics.Stopwatch.StartNew();
-            while (!World.IsVisibleReady)
-            {
-                Check(World.HasCompleteView, "UI navigation exposed missing terrain.");
-                Check(World.LoadError is null && watch.Elapsed.TotalSeconds < 30, "UI view preparation failed.");
-                await Frame();
-            }
+            await WaitForView(this, World);
             await Frame();
         }
         async Task Click(Vector2 point)

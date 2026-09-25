@@ -36,7 +36,7 @@ public partial class Main : Node
                 if (_startupTextures.Error is { } error) throw error;
                 await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             }
-            if (OS.GetCmdlineUserArgs().Contains("--text-smoke"))
+            if (options.TextSmoke)
             {
                 ui.AddChild(new TextVerification { Content = loaded.Content, Service = textures,
                     Output = Path.GetFullPath(Path.Combine(options.PackageRoot,"../../verification/text")) });
@@ -64,7 +64,7 @@ public partial class Main : Node
             ui.AddChild(hud);
             var debug = new DebugPanel { World = world, Session = session, Selection = selection }; ui.AddChild(debug);
             world.IsInputBlocked = p => hud.Overview.IsOpen || (debug.Visible && debug.GetRect().HasPoint(p)) || hud.IsBlockedPoint(p);
-            if (options.InformationSmoke || options.Smoke || options.RuntimeSmoke || options.Screenshot is not null)
+            if (options.RequiresWorldVerification)
                 AddChild(new ClientVerification { World = world, Selection = selection, Hud = hud, Options = options });
         }
         catch (Exception e)

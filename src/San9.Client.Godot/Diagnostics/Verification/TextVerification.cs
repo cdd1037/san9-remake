@@ -57,16 +57,11 @@ public partial class TextVerification : Control
             Directory.CreateDirectory(Output);
             File.WriteAllText(Path.Combine(Output,"font-coverage.json"),System.Text.Json.JsonSerializer.Serialize(new {Characters=characters.Length,Missing=missing},PackageFiles.JsonOptions),System.Text.Encoding.UTF8);
             if (unexpected.Length != 0) throw new InvalidDataException($"Modern font coverage has {unexpected.Length} unaccepted missing characters.");
-            await ToSignal(GetTree(),SceneTree.SignalName.ProcessFrame);
-            await ToSignal(GetTree(),SceneTree.SignalName.ProcessFrame);
+            await VerificationSupport.Frames(this, 2);
             foreach(var label in labels)
                 if(label.GetContentHeight() <= 0 || label.GetParsedText().Contains("icons/",StringComparison.Ordinal)) throw new InvalidDataException("Native image BBCode did not resolve.");
-            if(DisplayServer.GetName()!="headless")
-            {
-                await ToSignal(RenderingServer.Singleton,RenderingServer.SignalName.FramePostDraw);
-                using var screenshot=GetViewport().GetTexture().GetImage();
-                screenshot.SavePng(Path.Combine(Output,"text-layout.png"));
-            }
+            if (DisplayServer.GetName() != "headless")
+                await VerificationSupport.Capture(this, Path.Combine(Output, "text-layout.png"), Service);
             foreach (var child in GetChildren().OfType<CanvasItem>()) child.Hide();
             var samples = Enum.GetValues<GameTextRole>().Select(role => (Name: role.ToString(), Style: GameTextStyles.For(role)))
                 .Concat(Enum.GetValues<GameButtonTextRole>().SelectMany(role => Enumerable.Range(0, 8).Select(state =>
@@ -78,14 +73,9 @@ public partial class TextVerification : Control
             {
                 var sheet = new TextStyleSheet { Size = Size, Samples = page.rows, FontSize = size, Textures = textures };
                 AddChild(sheet);
-                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                await VerificationSupport.Frames(this, 2);
                 if (DisplayServer.GetName() != "headless")
-                {
-                    await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
-                    using var screenshot = GetViewport().GetTexture().GetImage();
-                    screenshot.SavePng(Path.Combine(Output, $"styles-{size}-{page.index}.png"));
-                }
+                    await VerificationSupport.Capture(this, Path.Combine(Output, $"styles-{size}-{page.index}.png"), Service);
                 RemoveChild(sheet); sheet.Free();
             }
             GD.Print($"TEXT_VERIFICATION_OK characters={characters.Length} missing={missing.Length} accepted={missing.Length - unexpected.Length} unexpected={unexpected.Length}");

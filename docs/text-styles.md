@@ -54,6 +54,6 @@ python research/scripts/summarize_text_style_usage.py local/generated/research/t
 
 得到 `catalog.json` 与 `catalog.md`，包括去重状态表、每个实际调用的证据及未闭合项。生成物只写入 `local/generated/`。以后优先查该目录和研究记录，未闭合的对象生命周期仍需要研究，不能直接交叉组合调色板值。
 
-运行客户端 `--text-smoke` 会生成 12／16／24 字号、99 个角色／状态样本的三入口比较页 `local/generated/verification/text/styles-*.png`，并检查普通标签与富文本效果参数一致。实际截图还须检查可读性、图标、裁切；自检通过不代替画面检查。
+历史验收入口 `--text-smoke` 会生成 12／16／24 字号、99 个角色／状态样本的三入口比较页 `local/generated/verification/text/styles-*.png`，并检查普通标签与富文本效果参数一致。后续开发默认不运行，只有当前任务明确要求复现文字场景时单独执行，见[Godot历史画面验收](client-verification.md)。实际截图还须检查可读性、图标、裁切；自检通过不代替画面检查。
 
 字体覆盖取舍：按 2026-09-11 用户决定不增补字体，撤除 BabelStone 回退，明确接受四个已知缺字。缺字仍保留在报告，其他新增缺字不自动豁免；见[字体说明](../src/San9.Client.Godot/assets/README.md)。

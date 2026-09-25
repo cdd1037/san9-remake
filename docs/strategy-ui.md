@@ -42,13 +42,15 @@
 
 ## 验证入口
 
-自动测试使用`dotnet test San9Remake.slnx`。需要引擎验证且用户允许时，使用现有诊断入口：
+自动测试按受影响范围运行。后续开发默认不执行历史画面验收脚本；只有当前任务明确要求复现主界面场景时使用以下入口，完整分类见[Godot历史画面验收](client-verification.md)：
 
 ```powershell
 & "<Godot Mono可执行文件>" --path src/San9.Client.Godot --log-file "<绝对日志路径>" -- --ui-smoke --map-time-ms 0 --map-screenshot "<绝对PNG路径>" --map-quit
 ```
 
 宽屏在Godot参数中（`--`之前）增加`--resolution 1280x720`。引擎输入自检、GPU截图、操作系统交互应分别报告；自动测试通过不能代替画面验收。当前用户自行验收，不自动启动游戏。无需为已解决的小问题长期保留每轮截图及日志。
+
+`--ui-smoke`不再隐式运行地图检查与性能采样；需要同时复现地图时显式增加`--map-smoke`。
 
 ## 建筑悬停卡
 

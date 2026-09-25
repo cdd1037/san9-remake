@@ -83,7 +83,7 @@ python -B research/scripts/verify_map_package.py "<已登记EXE>" private/s9数�
 
 研究比较脚本需要Python和Pillow，仅用于私有样本验收，不参与客户端运行。`render-map --content-package`默认包含初始态静态对象；单独`--package`缺少剧本初始态，必须指定`--terrain-only true`，`--terrain-only true`只输出地貌/底云。完整导出使用 `--width 13056 --height 6656`；离线PNG导出会占用较多内存，不代表客户端分块缓存占用。
 
-Godot图形模式验收参数：`--map-smoke --map-screenshot <绝对PNG路径> --map-quit`。它验证坐标选择、鼠标中心缩放、拖动、相机边界、四季切换并记录连续平移帧时间；截图需要图形渲染，不能用无图形的headless模式替代。额外季节和边缘截图可使用 `--map-season`、`--map-center`。
+历史Godot图形模式验收参数：`--map-smoke --map-screenshot <绝对PNG路径> --map-quit`。后续开发默认不运行，仅在当前任务明确要求复现地图场景时使用，见[Godot历史画面验收](client-verification.md)。它验证坐标选择、鼠标中心缩放、拖动、相机边界、四季切换并记录连续平移帧时间；截图需要图形渲染，不能用无图形的headless模式替代。额外季节和边缘截图可使用 `--map-season`、`--map-center`。
 
 来源见RE-SAN9PK-0053/0055/0056/0148，首次验收边界见下文历史记录。标准透明混合的细微色差由DEC-RENDER-0002批准；原作截图中的RGB555量化也不在重制渲染范围内。
 

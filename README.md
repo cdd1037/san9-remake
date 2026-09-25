@@ -64,6 +64,8 @@ dotnet test tests/San9.Headless.Tests/San9.Headless.Tests.csproj
 
 测试项目职责、局部运行命令与精简原则见[测试说明](tests/README.md)。
 
+后续开发默认不执行以前的 Godot 画面验收脚本；只有当前任务明确要求复现对应场景时才按需运行。分类与入口见[Godot 历史画面验收](docs/client-verification.md)。
+
 ### 转换客户端内容
 
 准备已登记且通过指纹校验的繁中 PK 1.0.1.0 EXE，以及本地 `private/s9数据文件/` 下的源数据：

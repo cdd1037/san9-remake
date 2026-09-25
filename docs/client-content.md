@@ -209,8 +209,9 @@ FA40..FA45依次映射伷/璝/寗/勑/𩅦/儁；不使用HKSCS猜测。CP950是
 ```powershell
 dotnet run --project src/San9.Tools -- import-text --source-exe "<已登记San9PK.exe绝对路径>" --data-dir "private/s9数据文件" --output "local/generated/research/unified-text" --exe-evidence "local/generated/research/unified-text/exe-evidence.json"
 python research/scripts/verify_message_export.py "private/s9数据文件" local/generated/research/unified-text
-& "<Godot Mono可执行文件>" --path src/San9.Client.Godot -- --text-smoke --map-quit
 ```
+
+历史字体验收另使用`--text-smoke`，后续开发和日常内容转换默认不执行；仅在当前任务明确要求复现时按[Godot历史画面验收](client-verification.md)单独运行。
 
 EXE证据先在项目主IDA库运行`research/scripts/ida/export_text_evidence.py`只读生成；未提供该文件时只审计四个档案。EXE字符串登记和格式识别不等于玩法调用已绑定，必须检查诊断中的边界声明。字节哈希、偏移、控制码、未确认原因只在导入报告中。未来玩法提供的具名绑定与查询清单由`coverage.json`生成；`synthetic-evaluation.json`只证明合成上下文求值，不冒充真实玩法验证。
 

@@ -91,13 +91,13 @@ G06的`MilitaryOrder`分别引用部队或据点，失效目标在战后事务�
 - 实际Godot 4.7.2 Mono/OpenGL/RTX5070运行默认新包：`RUNTIME_SMOKE_OK`、`UI_SMOKE_OK`、`MAP_SMOKE_OK`。受控夹具将洛阳商业设300，执行后313，资金9520→9470，日期不变；重复命令拒绝，旧快照仍为9520。夹具只改变内存初始输入，不改磁盘包。
 - GPU截图`local/generated/verification/runtime/runtime-before.png`、`runtime-after.png`及`ui.png`保存事务前后建筑、资金和正常界面；四季、导航、缩放、选择与UI输入隔离通过引擎视口事件自检。未进行操作系统交互自动化，也不是原版动态实验。
 
-复现运行态验证：
+以下为历史运行态场景的按需复现入口，后续开发默认不运行；分类与限制见[Godot历史画面验收](client-verification.md)：
 
 ```powershell
 & "<Godot Mono可执行文件>" --path src/San9.Client.Godot -- --runtime-smoke --map-time-ms 0 --map-screenshot "<绝对PNG路径>" --map-quit
 ```
 
-将`--runtime-smoke`替换为`--ui-smoke`复验地图和主界面交互。
+将`--runtime-smoke`替换为`--ui-smoke`只复验主界面交互；同时需要地图检查时使用`--map-smoke --ui-smoke`。
 
 设施名单由 `StrategyRoster` 保存直属军团过滤、君主固定行和滚动位置；焦点属于Godot控件，不写入世界或 `StrategySelection`。`ForceState.LeaderId` 与 `SettlementState.CorpsId` 从初始内容复制进世界，君主位置由当前人员记录派生。列表激活只定位相机。现代差异与完整验收见 DEC-UI-0004 / BEH-UI-0001。
 

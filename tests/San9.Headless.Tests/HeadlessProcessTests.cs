@@ -21,6 +21,22 @@ public sealed class HeadlessProcessTests : IDisposable
     }
     private string FilePath(string name) => Path.Combine(_directory, name);
 
+    private void WriteFailureScenario()
+    {
+        var definition = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "failure-cli", 190, 1, 1, 1,
+            [new(1, "force", 1, 10000, 10000, 100) { LeaderId = 1 }],
+            [new(1, "home", 1, 0, 0, 0, 100, 100, 0, [])], [], [])
+        {
+            Officers = [new("ruler", new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler })]
+        };
+        File.WriteAllBytes(FilePath("scenario.json"), CanonicalJson.Encode(definition));
+        var session = GameSession.Start(definition, 190);
+        SaveService.Write(FilePath("initial.save.json"), session);
+        session.BeginRecording();
+        Assert.Equal(SessionDisposition.Accepted, session.Apply(session.Request(new ChronicleOperation("accepted prefix"))).Disposition);
+        CommandLogService.Write(FilePath("commands.jsonl"), session);
+    }
+
     [Fact]
     public async Task CommandLogCreatesReplayWithRecordedComputerDamageBonus()
     {
@@ -222,23 +238,29 @@ public sealed class HeadlessProcessTests : IDisposable
     [Fact]
     public async Task PersonnelCommandsAndReplayReportTheirActualScope()
     {
-        Assert.Equal(0, (await Run("verify", "--fixture", "--xuns", "1", "--output", _directory)).Code);
-        string header = File.ReadLines(FilePath("commands.jsonl")).First();
-        object Request(int sequence, string type, int officerId)
+        var definition = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "personnel-cli", 190, 1, 1, 1,
+            [new(1, "force", 1, 10000, 20000, 50) { LeaderId = 1 }],
+            [new(1, "home", 1, 0, 0, 100, 100, 100, 50, [])], [], [])
         {
-            Guid id = new(sequence + 1, 0, 0, new byte[8]);
-            return new { id, sequence, controllerId = "player", operation = new { type = "command",
-                command = new { type, commandId = id, issuerId = 1, sequence, officerId } } };
-        }
-        File.WriteAllLines(FilePath("personnel.jsonl"), [header,
-            JsonSerializer.Serialize(Request(0, "reward-officer", 2)), JsonSerializer.Serialize(Request(1, "appoint-adviser", 3))], new System.Text.UTF8Encoding(false));
-        var run = await Run("run", "--fixture", "--log", FilePath("personnel.jsonl"), "--report", FilePath("personnel-report.json"),
+            Officers = [new("ruler", new(1, 1, 1, new(60, 70, 80, 90), false) { Status = OfficerStatus.Ruler }),
+                new("officer", new(2, 1, 1, new(50, 60, 100, 70), false)),
+                new("adviser", new(3, 1, 1, new(40, 80, 70, 60), false))]
+        };
+        string scenario = FilePath("personnel.scenario.json");
+        File.WriteAllBytes(scenario, CanonicalJson.Encode(definition));
+        var session = GameSession.Start(definition, 190);
+        session.BeginRecording();
+        Assert.True(session.Execute(new("player"), new RewardOfficerCommand(Guid.NewGuid(), 1, 0, 2)).Submission.Accepted);
+        Assert.True(session.Execute(new("player"), new AppointAdviserCommand(Guid.NewGuid(), 1, 1, 3)).Submission.Accepted);
+        CommandLogService.Write(FilePath("personnel.jsonl"), session);
+        var run = await Run("run", "--scenario", scenario, "--log", FilePath("personnel.jsonl"), "--report", FilePath("personnel-report.json"),
             "--record", FilePath("personnel.recording.json"));
         Assert.Equal(0, run.Code);
+        Assert.Equal(session.Capture().StateHash, run.Report.GetProperty("finalHash").GetString());
         Assert.Equal("G04", run.Report.GetProperty("goal").GetString());
         Assert.Equal(1, run.Report.GetProperty("personnelEvents").GetProperty("officer-rewarded").GetInt32());
         Assert.Equal(1, run.Report.GetProperty("personnelEvents").GetProperty("adviser-appointed").GetInt32());
-        var replay = await Run("replay", "--fixture", "--recording", FilePath("personnel.recording.json"), "--report", FilePath("personnel-replay-report.json"));
+        var replay = await Run("replay", "--scenario", scenario, "--recording", FilePath("personnel.recording.json"), "--report", FilePath("personnel-replay-report.json"));
         Assert.Equal(0, replay.Code);
         Assert.Equal("G04", replay.Report.GetProperty("goal").GetString());
         Assert.Equal(run.Report.GetProperty("finalHash").GetString(), replay.Report.GetProperty("finalHash").GetString());
@@ -309,10 +331,10 @@ public sealed class HeadlessProcessTests : IDisposable
     [Fact]
     public async Task MalformedLogReportsFailureLineAndKeepsAcceptedProgress()
     {
-        Assert.Equal(0, (await Run("verify", "--fixture", "--xuns", "1", "--output", _directory)).Code);
+        WriteFailureScenario();
         string[] lines = File.ReadAllLines(FilePath("commands.jsonl"));
         File.WriteAllLines(FilePath("bad.jsonl"), [lines[0], lines[1], "{broken}"]);
-        var result = await Run("run", "--fixture", "--log", FilePath("bad.jsonl"), "--save", FilePath("partial.save.json"),
+        var result = await Run("run", "--scenario", FilePath("scenario.json"), "--log", FilePath("bad.jsonl"), "--save", FilePath("partial.save.json"),
             "--report", FilePath("bad-report.json"));
         Assert.Equal(5, result.Code);
         Assert.False(result.Report.GetProperty("success").GetBoolean());
@@ -326,11 +348,11 @@ public sealed class HeadlessProcessTests : IDisposable
     [Fact]
     public async Task UnknownSaveVersionHasSpecificFailureCode()
     {
-        Assert.Equal(0, (await Run("verify", "--fixture", "--xuns", "1", "--output", _directory)).Code);
+        WriteFailureScenario();
         var save = JsonNode.Parse(File.ReadAllBytes(FilePath("initial.save.json")))!;
         save["formatVersion"] = 999;
         File.WriteAllText(FilePath("old.save.json"), save.ToJsonString());
-        var result = await Run("run", "--fixture", "--log", FilePath("commands.jsonl"), "--restore", FilePath("old.save.json"),
+        var result = await Run("run", "--scenario", FilePath("scenario.json"), "--log", FilePath("commands.jsonl"), "--restore", FilePath("old.save.json"),
             "--report", FilePath("old-report.json"));
         Assert.Equal(4, result.Code);
         Assert.Equal("save-UnsupportedVersion", result.Report.GetProperty("firstFailure").GetProperty("code").GetString());
@@ -339,16 +361,16 @@ public sealed class HeadlessProcessTests : IDisposable
     [Fact]
     public async Task UnknownCommandAndConflictingPathsAreRejected()
     {
-        Assert.Equal(0, (await Run("verify", "--fixture", "--xuns", "1", "--output", _directory)).Code);
+        WriteFailureScenario();
         string[] lines = File.ReadAllLines(FilePath("commands.jsonl"));
         var request = JsonNode.Parse(lines[1])!;
         request["operation"]!["type"] = "teleport";
         File.WriteAllLines(FilePath("unknown.jsonl"), [lines[0], request.ToJsonString()]);
-        var unknown = await Run("run", "--fixture", "--log", FilePath("unknown.jsonl"), "--report", FilePath("unknown-report.json"));
+        var unknown = await Run("run", "--scenario", FilePath("scenario.json"), "--log", FilePath("unknown.jsonl"), "--report", FilePath("unknown-report.json"));
         Assert.Equal(5, unknown.Code);
         Assert.Equal(2, unknown.Report.GetProperty("firstFailure").GetProperty("line").GetInt32());
         byte[] before = File.ReadAllBytes(FilePath("commands.jsonl"));
-        var conflict = await Run("run", "--fixture", "--log", FilePath("commands.jsonl"), "--report", FilePath("commands.jsonl"));
+        var conflict = await Run("run", "--scenario", FilePath("scenario.json"), "--log", FilePath("commands.jsonl"), "--report", FilePath("commands.jsonl"));
         Assert.Equal(2, conflict.Code);
         Assert.Equal(before, File.ReadAllBytes(FilePath("commands.jsonl")));
     }

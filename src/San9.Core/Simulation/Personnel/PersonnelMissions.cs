@@ -63,6 +63,7 @@ internal static class PersonnelMissions
         !person.Acted && !world.Simulation.Tasks.Any(t => t.OfficerId == id);
 
     internal static bool Recruitable(WorldMutation world, int force, OfficerState target) =>
+        (target.OwnerId is not int owner || !world.Forces[owner].IsBarbarian) &&
         target.OwnerId != force && (target.Status is OfficerStatus.Free or OfficerStatus.Serving or OfficerStatus.Strategist or OfficerStatus.Governor ||
             target.Status == OfficerStatus.Captive && target.SettlementId is int prison && world.Settlements[prison].OwnerId == force) &&
         PersonnelDefection.CanTransfer(world, target) &&

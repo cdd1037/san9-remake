@@ -6,6 +6,48 @@ namespace San9.Core.Tests;
 
 public sealed class PersonnelMissionTests
 {
+    [Theory]
+    [InlineData(OfficerStatus.Serving)]
+    [InlineData(OfficerStatus.Captive)]
+    public void BarbarianAffiliationRejectsRecruitmentWithoutChangingState(OfficerStatus status)
+    {
+        var world = World();
+        var mutation = world.BeginMutation();
+        mutation.Replace(mutation.Forces[2] with { IsBarbarian = true });
+        mutation.Replace(mutation.Officers[20].WithLoyalty(1, 200).WithLoyalty(2, 0) with
+            { Status = status, SettlementId = status == OfficerStatus.Captive ? 1 : 2 });
+        world.Commit(mutation);
+        var engine = Engine(world);
+        string before = engine.Snapshot.StateHash;
+
+        Assert.False(Recruit(engine).Submission.Accepted);
+        Assert.Equal(before, engine.Snapshot.StateHash);
+    }
+
+    [Fact]
+    public void TargetJoiningBarbarianForceCancelsPendingRecruitmentAndReturnsActor()
+    {
+        var world = World();
+        var engine = Engine(world);
+        Assert.True(Recruit(engine).Submission.Accepted);
+        Guid taskId = Assert.Single(engine.Snapshot.Simulation.Tasks).Id;
+        var mutation = world.BeginMutation();
+        mutation.Replace(mutation.Forces[2] with { IsBarbarian = true });
+        world.Commit(mutation);
+        var restored = Engine(WorldState.Restore(engine.CaptureStableState()));
+
+        var events = Advance(engine);
+        Assert.Equal(CanonicalJson.Text(events), CanonicalJson.Text(Advance(restored)));
+        Assert.Single(events.OfType<TaskCancelledEvent>(), e => e.TaskId == taskId);
+        Assert.DoesNotContain(events, e => e is RecruitmentResolvedEvent);
+        Assert.Equal(2, engine.Snapshot.Officers.Single(p => p.Id == 20).OwnerId);
+        for (int xun = 0; xun < 5 && engine.Snapshot.Simulation.Tasks.Length > 0; xun++)
+            Assert.Equal(CanonicalJson.Text(Advance(engine)), CanonicalJson.Text(Advance(restored)));
+        Assert.Empty(engine.Snapshot.Simulation.Tasks);
+        Assert.Equal(1, engine.Snapshot.Officers.Single(p => p.Id == 11).SettlementId);
+        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+    }
+
     [Fact]
     public void PendingSearchKeepsDiscoveryRollWhileRunSeedCanChangeCandidateAndRestoreRepeatsResult()
     {

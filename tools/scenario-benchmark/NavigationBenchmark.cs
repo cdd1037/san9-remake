@@ -57,16 +57,16 @@ internal static class NavigationBenchmark
                         new MapOccupancy(u.Position, rules.Formations[u.FormationId!.Value].Footprint))).ToArray();
                     var move = returning[i]
                         ? rules.Map.Advance(unit.Position, target.Position, formation.Footprint, formation.TravelMode, occupancy,
-                            formation.MovementBudget, formation.MovementStepCost)
+                            formation.MovementBudget)
                         : rules.Map.AdvanceIntoRange(unit.Position, target, formation.Footprint, formation.TravelMode, occupancy,
-                            formation.MovementBudget, 10, formation.MovementStepCost);
+                            formation.MovementBudget, 10);
                     step = new(move.Position, move.Spent, move.Arrived ? NavigationStatus.Arrived :
                         move.Reachable ? NavigationStatus.Moving : NavigationStatus.Unreachable, null);
                 }
                 else step = rules.Map.Navigate(unit.Position, target, !returning[i], formation.Footprint, formation.TravelMode,
                     envelope => places.Concat(units.Where(u => u.Id != unit.Id).Select(u =>
                         new MapOccupancy(u.Position, rules.Formations[u.FormationId!.Value].Footprint))).Where(a => a.Overlaps(envelope)).ToArray(),
-                    formation.MovementBudget, unit.MovementPlan, formation.MovementStepCost, maximumRange: 10);
+                    formation.MovementBudget, unit.MovementPlan, maximumRange: 10);
                 if (step.Position != unit.Position) moved++;
                 if (step.Status == NavigationStatus.Waiting) waiting++;
                 if (step.Arrived) { arrived++; returning[i] = !returning[i]; }

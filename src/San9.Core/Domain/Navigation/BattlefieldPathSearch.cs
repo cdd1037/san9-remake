@@ -18,20 +18,18 @@ internal sealed class BattlefieldPathSearch(BattlefieldMap map)
 
     internal DailyMovement Advance(WorldPosition start, Footprint shape, TravelMode mode,
         IReadOnlyList<MapOccupancy> objects, Func<WorldPosition, bool> arrived,
-        Func<WorldPosition, long> lowerBound, WorldPosition? destination, int budget, int? movementStepCost, PathGoalBounds? goalBounds = null)
+        Func<WorldPosition, long> lowerBound, WorldPosition? destination, int budget, PathGoalBounds? goalBounds = null)
     {
-        if (movementStepCost is <= 0) throw new ArgumentOutOfRangeException(nameof(movementStepCost));
         return Search(start, shape, mode, objects, arrived, lowerBound, destination, goalBounds, new DailyMovement(start, false, false, 0),
             (source, goal, _, costs) =>
             {
                 // Project the selected path onto today's budget without materializing a full route.
-                // Movement speed may use an authored flat cost independent of weighted route preference.
                 long spent = 0;
-                for (int p = goal; p != source; p = previous[p]) spent += movementStepCost ?? costs[p];
+                for (int p = goal; p != source; p = previous[p]) spent += costs[p];
                 int position = goal;
                 while (spent > budget)
                 {
-                    spent -= movementStepCost ?? costs[position];
+                    spent -= costs[position];
                     position = previous[position];
                 }
                 return new(Position(position), true, position == goal, (int)spent);
@@ -41,7 +39,7 @@ internal sealed class BattlefieldPathSearch(BattlefieldMap map)
     private T Search<T>(WorldPosition start, Footprint shape, TravelMode mode,
         IReadOnlyList<MapOccupancy> objects, Func<WorldPosition, bool> arrived,
         Func<WorldPosition, long> lowerBound, WorldPosition? destination, PathGoalBounds? goalBounds, T unreachable,
-        Func<int, int, long, int[], T> complete, Func<T>? limited = null, int horizon = 128, int maximumWork = 8192, int minimumStageDistance = 32)
+        Func<int, int, long, int[], T> complete, Func<T>? limited = null, int horizon = 128, int maximumWork = 8192, int minimumStageDistance = 32, NavigationWorkBudget? work = null, Func<T>? blocked = null)
     {
         var diagnostics = PathSearchDiagnostics.Current;
         if (diagnostics is not null) diagnostics.Queries++;
@@ -71,12 +69,12 @@ internal sealed class BattlefieldPathSearch(BattlefieldMap map)
                 for (int x = left; x <= right; x++) occupied[y * map.FineWidth + x] = stamp;
         }
         int source = Index(start);
-        if (!Passable(source)) return limited is not null && topology.Costs[source] > 0 ? limited() : unreachable;
+        if (!Passable(source)) return limited is not null && topology.Costs[source] > 0 ? (blocked ?? limited)() : unreachable;
         if (destination is { } target)
         {
             int goal = Index(target);
             if (topology.Costs[goal] <= 0 || !topology.Regions.Connected(source, goal)) return unreachable;
-            if (!Passable(goal)) return limited is null ? unreachable : limited();
+            if (!Passable(goal)) return limited is null ? unreachable : (blocked ?? limited)();
         }
         if (arrived(start)) return complete(source, source, 0, topology.Costs);
         var regionGraph = topology.Regions;
@@ -101,7 +99,7 @@ internal sealed class BattlefieldPathSearch(BattlefieldMap map)
                     if (!goals.Contains(region)) goals.Add(region);
                 }
             }
-            if (goals.Count == 0) return limited is null ? unreachable : limited();
+            if (goals.Count == 0) return limited is null ? unreachable : (blocked ?? limited)();
             goals.Sort();
             guide = regionGraph.ToGoals(goals.ToArray());
             int startRegion = regionGraph.Regions[source];
@@ -131,6 +129,7 @@ internal sealed class BattlefieldPathSearch(BattlefieldMap map)
                 int current = item.Node;
                 if (distances[current] != item.Cost || closed[current] == stamp) continue;
                 closed[current] = stamp;
+                if (work is not null && !work.TryExpand()) return limited is not null ? limited() : unreachable;
                 expanded++;
                 if (diagnostics is not null)
                 {
@@ -170,9 +169,10 @@ internal sealed class BattlefieldPathSearch(BattlefieldMap map)
 
     internal NavigationStep Navigate(WorldPosition start, WorldPosition target, Footprint shape, TravelMode mode,
         IReadOnlyList<MapOccupancy> objects, Func<WorldPosition, bool> arrived, Func<WorldPosition, long> lowerBound,
-        WorldPosition? destination, PathGoalBounds bounds, int budget, int? stepCost, MovementPlan? plan)
+        WorldPosition? destination, PathGoalBounds bounds, int budget, MovementPlan? plan, NavigationWorkBudget? work)
     {
         if (arrived(start)) return new(start, 0, NavigationStatus.Arrived, null);
+        if (budget == 0) return new(start, 0, NavigationStatus.Waiting, plan);
         var topology = map.Topologies.Get(shape, mode);
         var steps = plan?.Steps ?? [];
         if (steps.IsEmpty && plan is { RetryDelay: > 0 } && plan.Blockers.SequenceEqual(objects))
@@ -185,27 +185,27 @@ internal sealed class BattlefieldPathSearch(BattlefieldMap map)
             int horizon = NavigationHorizon(failures, budget);
             var segment = Search(start, shape, mode, objects, arrived, lowerBound, destination, bounds,
                 new PathSegment([], NavigationStatus.Unreachable),
-                (source, goal, _, _) => new PathSegment(Trace(source, goal), NavigationStatus.Moving), () => new([], NavigationStatus.Waiting), horizon,
+                (source, goal, _, _) => new PathSegment(Trace(source, goal), NavigationStatus.Moving), () => new([], NavigationStatus.Planning), horizon,
                 (int)Math.Min(int.MaxValue, Math.Min((long)map.FineWidth * map.FineHeight * 2, 8192L << Math.Min(failures, 16))),
-                (int)Math.Min(int.MaxValue, (long)budget / (stepCost ?? topology.Minimum) + 16));
+                (int)Math.Min(int.MaxValue, (long)budget / topology.Minimum + 16), work, () => new([], NavigationStatus.Waiting));
             if (segment.Status != NavigationStatus.Moving)
                 return new(start, 0, segment.Status, new MovementPlan(target, shape, mode, [], Math.Min(failures + 1, 16))
                 { Blockers = objects.ToImmutableArray(), RetryDelay = Math.Min(3, failures / 2), FailureStatus = segment.Status });
             steps = segment.Steps;
         }
         else if (PathSearchDiagnostics.Current is { } diagnostics) diagnostics.ReusedPlans++;
-        int spent = 0, taken = 0;
+        int spent = 0, taken = 0, remainder = 0;
         var position = start;
         foreach (var next in steps)
         {
             if (!Legal(next)) break;
-            int cost = stepCost ?? topology.Costs[Index(next)];
-            if (cost > budget - spent) break;
+            int cost = topology.Costs[Index(next)];
+            if (cost > budget - spent) { remainder = budget - spent; break; }
             position = next; spent += cost; taken++;
             if (arrived(position)) return new(position, spent, NavigationStatus.Arrived, null);
         }
         return new(position, spent, spent > 0 ? NavigationStatus.Moving : NavigationStatus.Waiting,
-            new(target, shape, mode, steps.RemoveRange(0, taken)));
+            new(target, shape, mode, steps.RemoveRange(0, taken))) { Remainder = remainder };
     }
 
     internal static int NavigationHorizon(int failures, int budget) =>

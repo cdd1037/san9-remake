@@ -4,11 +4,11 @@
 
 开局数据、一次性初始化与首旬准备的集中清单见[开局专项](scenario-startup.md)，其中区分原作证据、接入缺口与明确不采用项。
 
-2026-09-25普通登用统一禁止当前异民族势力所属人物（含俘虏），下令与到达复验共用规则。规则升至`san9-core-g10-v63`，保存／日志结构及内容契约不变，本次无需重转内容包；旧规则存档／录像／日志拒绝加载。
+2026-09-26移动预算改为源机动力×5，寻路和实际推进统一按地形扣费，移除阵型`MovementStepCost`，部队新增必填`MovementRemainder`。规则为`san9-core-g10-v64`，保存83／日志86；旧内容包须原位重新执行`import-client`，纹理无需重转，旧规则存档／录像／日志拒绝加载。预计到达由当前世界与路径按需派生，不写入内容包或存档。
 
 ## 现行版本与历史记录
 
-现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 114，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 118，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 20，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 12。规则及保存／日志版本统一见 [SessionProtocol](../src/San9.Application/SessionProtocol.cs)。
+现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 115，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 119，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 20，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 12。规则及保存／日志版本统一见 [SessionProtocol](../src/San9.Application/SessionProtocol.cs)。
 
 下文各 G 阶段的版本号、重转要求和数据核对结果描述对应接入批次，不能用作现行包版本或本轮验证结果。旧内容按现行契约原位重转；是否需要重转纹理取决于纹理转换版本与源输入，不能只更新剧本包来替代。G10 整包与阶段收口结果统一见[G10 验收](g10-verification.md#2026-09-21阶段收口)。
 
@@ -17,10 +17,10 @@
 | 模块 | 职责 | 输出 |
 | --- | --- | --- |
 | Content.Maps / MapImporter | 当前地图方格、地貌及对象位置 | `map.json`（无图片文件） |
-| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema114 |
+| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema115 |
 | Content.Text / ScenarioTextReader | 名称与全量消息目录 | `text.json` / `messages.json`，schema3 |
 | Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema20 |
-| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema115 |
+| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema119 |
 | Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema3／转换版本12 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 
@@ -250,7 +250,7 @@ G07的`UnitPolicies`保留迎击、追击、事后攻击和自主撤退四项语
 
 该批次规则`san9-core-g08-v30`，保存／日志45，剧本schema58／组合62。旧规则存档和日志拒绝加载，不提供兼容分支；运行任务和事件变更不要求重新转换当前内容包。
 
-`FacilityRule.IsWork`和可空的`FormationRule.MovementStepCost`均须显式存在。TC101定义10–16为工作物，28阵型步进费用均为10。工作物与驻人能力独立，地形选路费用与每日步进扣费独立；源编号只留在Importer。
+`FacilityRule.IsWork`须显式存在，TC101定义10–16为工作物；工作物与驻人能力独立，源编号只留在Importer。此前固定步进费用契约已由schema115／组合119的统一地形扣费规则替代，现行阵型只提供每日移动预算。
 
 `AttackRequests`为必填集合：作者填写受请求方、请求方、目标据点与正的剩余旬数；建局根据初始据点归属推导签约条件。缺字段、重复持有人、无效身份、无主或属于签约方的目标均拒绝。集合进入内容指纹，运行态独立演进，恢复不重新应用初始约定。TC101剧本没有请求元组，导入输出空集合；不支持原版存档导入。
 
@@ -300,7 +300,7 @@ G10封禅使用剧本schema83／组合87、规则`san9-core-g10-v20`；保存／
 
 ## 2026-09-25右键势力目录
 
-现行剧本schema114／组合118包含必填`Information.Tactics`与`Information.Formations`目录项（`Id`引用军事规则，`NameKey`引用文本）。作者维护名称及展示范围，不维护按势力生成的派生可用表；校验器检查身份唯一、规则和文本引用。军事规则、世界状态及保存／日志结构不变，纹理无需重转；旧组合包须重新执行`import-client`。
+剧本schema114／组合118起包含必填`Information.Tactics`与`Information.Formations`目录项（`Id`引用军事规则，`NameKey`引用文本）。作者维护名称及展示范围，不维护按势力生成的派生可用表；校验器检查身份唯一、规则和文本引用。军事规则、世界状态及保存／日志结构不变，纹理无需重转；旧组合包须重新执行`import-client`。
 
 TC101读取31项人物兵法及12项陆上阵形、4种船的目录名；军事规则仍完整保留原有41项兵法、28项阵形，设施攻击及驻军／工作物等内部阵形不混入人物可用目录。源编号范围只在Importer中解释。名称来自消息资源，目录仅保存引用，不复制势力可用性缓存。
 

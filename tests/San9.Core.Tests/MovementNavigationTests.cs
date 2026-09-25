@@ -86,8 +86,8 @@ public sealed class MovementNavigationTests
         for (int day = 0; day < 200 && position != target.Position; day++)
         {
             var restored = plan is null ? null : JsonSerializer.Deserialize<MovementPlan>(JsonSerializer.Serialize(plan));
-            var result = map.Navigate(position, target, false, new(3, 3), TravelMode.Land, _ => [], 60, plan, 10);
-            var replay = map.Navigate(position, target, false, new(3, 3), TravelMode.Land, _ => [], 60, restored, 10);
+            var result = map.Navigate(position, target, false, new(3, 3), TravelMode.Land, _ => [], 60, plan);
+            var replay = map.Navigate(position, target, false, new(3, 3), TravelMode.Land, _ => [], 60, restored);
             Assert.Equal(JsonSerializer.Serialize(result), JsonSerializer.Serialize(replay));
             Assert.NotEqual(NavigationStatus.Unreachable, result.Status);
             Assert.NotNull(map.PassageCost(result.Position, new(3, 3), TravelMode.Land, []));
@@ -110,7 +110,7 @@ public sealed class MovementNavigationTests
         for (int day = 0; day < 250 && position != target.Position; day++)
         {
             var result = map.Navigate(position, target, false, new(3, 3), TravelMode.Land,
-                area => wall.Where(w => w.Overlaps(area)).ToArray(), 60, plan, 10);
+                area => wall.Where(w => w.Overlaps(area)).ToArray(), 60, plan);
             Assert.NotEqual(NavigationStatus.Unreachable, result.Status);
             Assert.NotNull(map.PassageCost(result.Position, new(3, 3), TravelMode.Land, wall));
             position = result.Position; plan = result.Plan;

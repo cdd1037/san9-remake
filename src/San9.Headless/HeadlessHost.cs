@@ -146,6 +146,7 @@ public sealed class HeadlessHost
                 DuelCompletedEvent => "duel-completed",
                 DuelSuccessionRequestedEvent => "duel-succession-requested",
                 UnitMovedEvent { Status: NavigationStatus.Unreachable } => "unit-blocked",
+                UnitMovedEvent { Status: NavigationStatus.Planning } => "unit-planning",
                 UnitMovedEvent { Status: NavigationStatus.Waiting } => "unit-waiting",
                 UnitMovedEvent => "unit-moved",
                 UnitOrderChangedEvent { Reason: "target-invalid" } => "unit-target-invalid",

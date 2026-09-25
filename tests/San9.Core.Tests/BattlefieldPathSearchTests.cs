@@ -28,7 +28,7 @@ public sealed class BattlefieldPathSearchTests
         int days = 0;
         while (position != end && days++ < 160)
         {
-            var movement = map.Advance(position, end, new(3, 3), TravelMode.Land, [], 60, 10);
+            var movement = map.Advance(position, end, new(3, 3), TravelMode.Land, [], 60);
             Assert.True(movement.Reachable);
             Assert.NotEqual(position, movement.Position);
             Assert.InRange(movement.Spent, 1, 60);
@@ -88,10 +88,8 @@ public sealed class BattlefieldPathSearchTests
         Assert.InRange(guided.Spent, uninformed.Spent, uninformed.Spent * 5 / 4);
     }
 
-    [Theory]
-    [InlineData(null)]
-    [InlineData(10)]
-    public void DailyMovementPreservesWeightedRoutePrefixForEveryBudget(int? flatCost)
+    [Fact]
+    public void DailyMovementPreservesWeightedRoutePrefixForEveryBudget()
     {
         var map = new BattlefieldMap(3, 2, [0, 1, 0, 0, 0, 0], [new(0, 3, null), new(1, 20, null)]);
         var start = new WorldPosition(2, 2);
@@ -105,13 +103,13 @@ public sealed class BattlefieldPathSearchTests
             int spent = 0;
             foreach (var step in route.Steps)
             {
-                int cost = flatCost ?? map.PassageCost(step, shape, TravelMode.Land, [])!.Value;
+                int cost = map.PassageCost(step, shape, TravelMode.Land, [])!.Value;
                 if (cost > budget - spent) break;
                 spent += cost;
                 expected = step;
             }
             Assert.Equal(new DailyMovement(expected, true, expected == end, spent),
-                map.Advance(start, end, shape, TravelMode.Land, [], budget, flatCost));
+                map.Advance(start, end, shape, TravelMode.Land, [], budget));
         }
     }
 

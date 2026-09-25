@@ -49,7 +49,8 @@ internal sealed class StrategySnapshotSource
         PlayerForceId = definition.PlayerForceId;
         FacilityNameSuffixKeys = new System.Collections.ObjectModel.ReadOnlyDictionary<int, string>(new Dictionary<int, string>(definition.FacilityNameSuffixKeys));
         Information = new(definition.Information);
-        Abilities = new(new TreasureRulebook(definition.Information.Treasures.Select(t => t.ToRule())),
+        Treasures = new(definition.Information.Treasures.Select(t => t.ToRule()));
+        Abilities = new(Treasures,
             new GovernanceRulebook(definition.Information.Offices.Select(o => new GovernorOfficeRule(o.Id, o.CommandCapacity, o.GovernorPriority)
                 { AbilityBonuses = o.AbilityBonuses })));
         TacticCourses = Array.AsReadOnly(definition.TacticCourses.ToArray());
@@ -71,6 +72,7 @@ internal sealed class StrategySnapshotSource
     public int PlayerForceId { get; }
     public InformationCatalog Information { get; }
     internal OfficerAbilityRules Abilities { get; }
+    internal TreasureRulebook Treasures { get; }
     internal MilitaryRulebook? Military { get; }
     internal ImperialCourtDefinition ImperialCourt { get; }
     internal IReadOnlyDictionary<int, string> FacilityNameSuffixKeys { get; }
@@ -102,6 +104,18 @@ internal sealed class StrategySnapshotSource
 public sealed class StrategySnapshot
 {
     private readonly MilitaryRulebook? military;
+    private MilitaryArrivalForecast? arrivalForecast;
+    private readonly TreasureRulebook arrivalTreasures;
+    private readonly Dictionary<int, ArrivalEstimate> arrivals = [];
+
+    public ArrivalEstimate UnitArrival(int unitId)
+    {
+        if (military is null || !World.Units.Any(u => u.Id == unitId && u.OwnerId == PlayerForceId))
+            return new(ArrivalEstimateStatus.NotApplicable);
+        if (!arrivals.TryGetValue(unitId, out var estimate))
+            arrivals.Add(unitId, estimate = (arrivalForecast ??= new(World, military, RegionCityIds, arrivalTreasures)).Estimate(unitId));
+        return estimate;
+    }
     public StrategySnapshot(ScenarioInitialState definition, WorldSnapshot world)
         : this(new StrategySnapshotSource(definition, definition.Military is { } military ? new(military) : null), world)
     {
@@ -110,6 +124,7 @@ public sealed class StrategySnapshot
     internal StrategySnapshot(StrategySnapshotSource source, WorldSnapshot world)
     {
         military = source.Military;
+        arrivalTreasures = source.Treasures;
         Information = source.Information;
         FacilityNameSuffixKeys = source.FacilityNameSuffixKeys;
         World = world;

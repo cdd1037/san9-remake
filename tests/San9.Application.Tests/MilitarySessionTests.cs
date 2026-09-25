@@ -223,6 +223,58 @@ public sealed class MilitarySessionTests
         Assert.Equal(session.Snapshot.Units[0].Policies, restored.Snapshot.Units[0].Policies);
     }
 
+    [Fact]
+    public void ArrivalQuerySharesUnitForecastAndRemainderSurvivesSaveAndReplay()
+    {
+        var basis = Fixture();
+        var definition = basis with { Military = basis.Military! with
+        {
+            Width = 100, TerrainIds = Enumerable.Repeat(0, 300).ToImmutableArray(),
+            Terrains = [new(0, 12, null)],
+            Formations = [basis.Military.Formations[0] with { MovementBudget = 95 }]
+        } };
+        var session = GameSession.Start(definition, 42);
+        session.BeginRecording();
+        Assert.True(session.Execute(new("player"), new DeployUnitCommand(Guid.NewGuid(), 1, 0,
+            1, [1], 400, 7, new(MilitaryOrderKind.Move, new(402, 7), null))).Submission.Accepted);
+        int id = Assert.Single(session.Snapshot.Units).Id;
+        var view = session.View;
+        string before = session.Capture().StateHash;
+        var texts = new San9.Content.Text.TextCatalog(3, new Dictionary<string, San9.Content.Text.TextEntry>
+        {
+            ["officer"] = new("甲", "甲"), ["origin"] = new("甲城", "甲城"), ["destination"] = new("乙城", "乙城")
+        });
+        using (var searches = new PathSearchDiagnostics())
+        {
+            var table = San9.Application.Presentation.OfficerCatalog.Read(view, texts, 2, null, null, 1);
+            Assert.Equal(San9.Application.Presentation.CatalogCell.Unavailable,
+                Assert.Single(table.Rows).Cells[Array.IndexOf(table.Columns, "到达预定")]);
+            var detail = San9.Application.Presentation.OfficerDetails.Read(view, texts, 1);
+            Assert.Equal("—", detail.Fields.SelectMany(f => f).Single(f => f.Label == "到达预定").Value);
+            Assert.Equal(0, searches.Queries);
+        }
+        var estimate = view.UnitArrival(id);
+        Assert.Equal(ArrivalEstimateStatus.Known, estimate.Status);
+        using (var searches = new PathSearchDiagnostics())
+        {
+            Assert.Same(estimate, view.UnitArrival(id));
+            Assert.Equal(0, searches.Queries);
+        }
+        Assert.Equal(before, session.Capture().StateHash);
+        Assert.Null(Assert.Single(session.Snapshot.Units).MovementPlan);
+        session.AdvanceXun();
+        Assert.Equal(2, Assert.Single(session.Snapshot.Units).MovementRemainder);
+        Assert.Equal(estimate.Days - 10, session.View.UnitArrival(id).Days);
+        var restored = SaveService.Decode(SaveService.Encode(session), definition);
+        Assert.Equal(2, Assert.Single(restored.Snapshot.Units).MovementRemainder);
+        Assert.Equal(session.View.UnitArrival(id), restored.View.UnitArrival(id));
+        Assert.Equal(CanonicalJson.Text(session.AdvanceXun().Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
+        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        Assert.Equal(session.View.UnitArrival(id), replay.Session.View.UnitArrival(id));
+    }
+
     private static ScenarioInitialState Fixture() => new(ScenarioInitialState.CurrentSchemaVersion, "military-public", 190, 1, 1, 1,
         [new(1, "force", 1, 10000, 10000, 100)],
         [new(1, "origin", 1, 0, 1, 1000, 100, 100, 70, []) { Wounded = 123 }, new(2, "destination", 1, 7, 1, 100, 100, 100, 30, [])], [], [])

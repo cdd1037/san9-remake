@@ -160,7 +160,7 @@ public sealed class MilitaryDiplomacyTests
         var m = World(relation, alliance).BeginMutation(); var rules = Military();
         Assert.Equal(blocks, MilitaryMovement.Occupancy(m, rules, 0, null, true).Any(o => o.Position == new WorldPosition(50, 10)));
         var move = rules.Map.Advance(new(46, 10), new(54, 10), new(1, 1), TravelMode.Land,
-            MilitaryMovement.Occupancy(m, rules, 0, null, true), 100, 10);
+            MilitaryMovement.Occupancy(m, rules, 0, null, true), 100);
         Assert.Equal(!blocks, move.Arrived);
         Assert.Contains(MilitaryMovement.Occupancy(m, rules, 0, null), o => o.Position == new WorldPosition(50, 10));
         if (!alliance && relation >= 40)

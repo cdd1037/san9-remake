@@ -30,6 +30,25 @@ public sealed class FacilityConstructionTests
         [new(11, 1, 1, new(100, 100, 100, 100), false) { Status = OfficerStatus.Ruler }],
         controls: [new("player", 1, ControllerKind.Player)]), EconomyRulebook.Empty, Geography, TreasureRulebook.Empty, military: military ?? Military);
     private static ConstructFacilityCommand Command(long sequence = 0) => new(Guid.NewGuid(), 1, sequence, 1, [11], 10000, 1, 8000, 9000, new(17, 2));
+
+    [Fact]
+    public void ArrivalForecastUsesConstructionApproachAndCurrentEligibility()
+    {
+        var engine = Engine();
+        Assert.True(engine.Execute(Player, Command()).Submission.Accepted);
+        var snapshot = engine.CaptureStableState();
+        int id = Assert.Single(snapshot.Units).Id;
+        var estimate = new MilitaryArrivalForecast(snapshot, Military, Geography.RegionCities, TreasureRulebook.Empty).Estimate(id);
+        Assert.Equal(ArrivalEstimateStatus.Known, estimate.Status);
+        var lostCity = snapshot with { Settlements = snapshot.Settlements.Select(s => s with { Durability = 0 }).ToArray() };
+        Assert.Equal(ArrivalEstimateStatus.NotApplicable,
+            new MilitaryArrivalForecast(lostCity, Military, Geography.RegionCities, TreasureRulebook.Empty).Estimate(id).Status);
+        var events = Advance(engine).Events;
+        var arrival = events.OfType<UnitMovedEvent>().First(e => e.Status == NavigationStatus.Arrived);
+        Assert.Equal((long)estimate.Days!.Value, arrival.Clock.DayNumber - snapshot.Clock.DayNumber);
+        Assert.Equal(arrival.Clock, events.OfType<FacilityConstructionChangedEvent>().Single(e => e.Phase == "started").Clock);
+    }
+
     [Theory]
     [InlineData("controller")]
     [InlineData("issuer")]

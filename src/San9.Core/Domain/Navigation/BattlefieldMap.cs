@@ -68,18 +68,20 @@ public sealed class BattlefieldMap
             throw new ArgumentException("Invalid battlefield terrain catalog or cell references.");
     }
 
+    internal int MaximumStepCost(TravelMode mode) => Math.Max(1, terrains.Values.Max(t =>
+        (mode == TravelMode.Land ? t.LandCost : t.WaterCost) ?? 0));
+
     public int Width { get; }
     public int Height { get; }
     public int FineWidth { get; }
     public int FineHeight { get; }
     public NavigationStep Navigate(WorldPosition start, MapOccupancy target, bool intoRange, Footprint footprint,
         TravelMode mode, Func<MapOccupancy, IReadOnlyList<MapOccupancy>> occupancy, int budget,
-        MovementPlan? plan = null, int? movementStepCost = null, int maximumRange = 1,
-        Func<WorldPosition, int>? range = null, bool rectangularReach = false)
+        MovementPlan? plan = null, int maximumRange = 1,
+        Func<WorldPosition, int>? range = null, bool rectangularReach = false, NavigationWorkBudget? work = null)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(budget);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumRange);
-        if (movementStepCost is <= 0) throw new ArgumentOutOfRangeException(nameof(movementStepCost));
         if (start.X < 0 || start.Y < 0 || start.X >= FineWidth || start.Y >= FineHeight ||
             target.Position.X < 0 || target.Position.Y < 0 || target.Position.X >= FineWidth || target.Position.Y >= FineHeight)
             return new(start, 0, NavigationStatus.Unreachable, null);
@@ -134,11 +136,11 @@ public sealed class BattlefieldMap
             if (!objects.Contains(target)) objects.Add(target);
         }
         var result = SearchWorkspace.Navigate(start, target.Position, footprint, mode, objects, Arrived, Distance,
-            intoRange ? null : target.Position, bounds, budget, movementStepCost, plan);
+            intoRange ? null : target.Position, bounds, budget, plan, work);
         if (result.Status == NavigationStatus.Moving && result.Spent < budget && result.Plan is { Steps.IsEmpty: true })
         {
             var remainder = Navigate(result.Position, target, intoRange, footprint, mode, occupancy,
-                budget - result.Spent, result.Plan, movementStepCost, maximumRange, range, rectangularReach);
+                budget - result.Spent, result.Plan, maximumRange, range, rectangularReach, work);
             return remainder with { Spent = result.Spent + remainder.Spent,
                 Status = remainder.Status == NavigationStatus.Waiting ? NavigationStatus.Moving : remainder.Status };
         }
@@ -152,25 +154,25 @@ public sealed class BattlefieldMap
     internal bool StopsRockfall(MapCell cell) => terrains[cells[cell.Y * Width + cell.X]].StopsRockfall;
 
     public DailyMovement Advance(WorldPosition start, WorldPosition destination, Footprint footprint,
-        TravelMode mode, IEnumerable<MapOccupancy> occupied, int budget, int? movementStepCost = null)
+        TravelMode mode, IEnumerable<MapOccupancy> occupied, int budget)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(budget);
         var occupancy = occupied.ToArray();
         return SearchWorkspace.Advance(start, footprint, mode, occupancy, p => p == destination,
-            p => Math.Abs((long)p.X - destination.X) + Math.Abs((long)p.Y - destination.Y), destination, budget, movementStepCost);
+            p => Math.Abs((long)p.X - destination.X) + Math.Abs((long)p.Y - destination.Y), destination, budget);
     }
 
     public DailyMovement AdvanceIntoRange(WorldPosition start, MapOccupancy target, Footprint footprint,
-        TravelMode mode, IEnumerable<MapOccupancy> occupied, int budget, int range, int? movementStepCost = null)
+        TravelMode mode, IEnumerable<MapOccupancy> occupied, int budget, int range)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(budget);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(range);
-        return AdvanceIntoRange(start, target, footprint, mode, occupied, budget, _ => range, maximumRange: range, movementStepCost: movementStepCost);
+        return AdvanceIntoRange(start, target, footprint, mode, occupied, budget, _ => range, maximumRange: range);
     }
 
     /// <param name="maximumRange">Optional upper bound valid at every candidate position; null uses uninformed search.</param>
     public DailyMovement AdvanceIntoRange(WorldPosition start, MapOccupancy target, Footprint footprint,
-        TravelMode mode, IEnumerable<MapOccupancy> occupied, int budget, Func<WorldPosition, int> range, bool rectangularReach = false, int? maximumRange = null, int? movementStepCost = null)
+        TravelMode mode, IEnumerable<MapOccupancy> occupied, int budget, Func<WorldPosition, int> range, bool rectangularReach = false, int? maximumRange = null)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(budget);
         ArgumentNullException.ThrowIfNull(range);
@@ -183,7 +185,7 @@ public sealed class BattlefieldMap
             int available = range(p);
             return available > 0 && (rectangularReach ? new MapOccupancy(p, footprint).IntersectsExpanded(target, available) :
                 new MapOccupancy(p, footprint).DistanceTo(target) <= available);
-        }, p => maximumRange is int bound ? RangeDistance(p, footprint, target, bound) : 0, null, budget, movementStepCost,
+        }, p => maximumRange is int bound ? RangeDistance(p, footprint, target, bound) : 0, null, budget,
             maximumRange is int reach ? new PathGoalBounds(
                 target.Left - (footprint.Width - footprint.Width / 2) + 1 - reach,
                 target.Top - (footprint.Height - footprint.Height / 2) + 1 - reach,

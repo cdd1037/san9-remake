@@ -2,6 +2,8 @@
 
 2026-09-13。本轮按用户要求暂停后续G08功能，处理本对话已确认而现有军事规则未接入的行为。依据[RE-0119](../research/findings/RE-SAN9PK-0119.md)、[RE-0136](../research/findings/RE-SAN9PK-0136.md)；产品约定见[普通战斗](../specs/behavior/BEH-WAR-0004-normal-combat.md)和[移动生命周期](../specs/behavior/BEH-WAR-0001-movement-and-command-lifecycle.md)。
 
+本页保留2026-09-13外交接入的验证证据。移动规则已由[现行移动生命周期](../specs/behavior/BEH-WAR-0001-movement-and-command-lifecycle.md)替代：精确预算、地形实际扣费、跨日余量及按需到达预测；下文固定步进速度与版本号仅描述当时验证。
+
 ## 已接入
 
 - 明确攻击不再被联盟身份直接禁止。出征、改令、整编附带攻击在关系≥60或联盟保护时要求ConfirmAttack；未确认原子拒绝，不扣资源、不消耗命令序号。SimulationEngine及GameSession.GetAttackWarning提供结构化警告，确认字段进入命令序列化与重放。

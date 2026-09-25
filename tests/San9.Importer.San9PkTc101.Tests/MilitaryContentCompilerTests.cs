@@ -69,7 +69,7 @@ public sealed class MilitaryContentCompilerTests
         foreach (var formation in definition.Formations)
         {
             var source = formations.Single(f => f.Id == formation.Id);
-            Assert.Equal(10, formation.MovementStepCost);
+            Assert.Equal(source.Mobility * 5, formation.MovementBudget);
             Assert.Equal(source.Id == 1, formation.DoublesCapture);
             Assert.Equal(source.Id == 1, formation.PreventsTacticRescue);
             Assert.Equal(source.Id == 5 ? 30 : 0, formation.SnipingChanceBonus);
@@ -94,12 +94,12 @@ public sealed class MilitaryContentCompilerTests
         Assert.Equal(new[] { 0, 1, 2, 3, 4, 5, 33, 34 }, definition.Tactics.Where(t => t.CanRescuePrisoners).Select(t => t.Id));
         Assert.Equal(new[] { 6, 7, 8, 9, 10, 11, 31, 32 }, definition.Tactics.Where(t => t.SnipingProficiencyCategory == 3).Select(t => t.Id));
         Assert.All(definition.Tactics.Where(t => t.SnipingProficiencyCategory is not null), t => Assert.Equal(3, t.SnipingProficiencyCategory));
-        // Imported budgets must produce original ordinary daily distances in fine coordinates.
-        foreach (var (id, distance) in new[] { (0, 5), (1, 6), (2, 7), (3, 6) })
+        // Imported budgets must produce unrounded first-day distances in fine coordinates.
+        foreach (var (id, distance) in new[] { (0, 5), (1, 5), (2, 6), (3, 6) })
         {
             var formation = rules.Formations[id];
             var movement = rules.Map.Advance(new(100, 100), new(160, 100), formation.Footprint,
-                formation.TravelMode, [], formation.MovementBudget, formation.MovementStepCost);
+                formation.TravelMode, [], formation.MovementBudget);
             Assert.Equal(new WorldPosition(100 + distance, 100), movement.Position);
             Assert.False(movement.Arrived);
         }

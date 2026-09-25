@@ -5,16 +5,15 @@ namespace San9.Core.Tests;
 public sealed class BattlefieldMapTests
 {
     [Fact]
-    public void ExplicitStepCostSeparatesRoutePreferenceFromDailySpeed()
+    public void TerrainCostIsSharedByRoutingAndEveryMovementEntry()
     {
         var map = new BattlefieldMap(8, 1, Enumerable.Repeat(0, 8), [new(0, 12, null)]);
         Assert.Equal(240, map.FindRoute(new(2, 2), new(22, 2), new(1, 1), TravelMode.Land, []).Cost);
         Assert.Equal(new WorldPosition(7, 2), map.Advance(new(2, 2), new(22, 2), new(1, 1), TravelMode.Land, [], 60).Position);
-        Assert.Equal(new WorldPosition(8, 2), map.Advance(new(2, 2), new(22, 2), new(1, 1), TravelMode.Land, [], 60, 10).Position);
         var target = new MapOccupancy(new(22, 2), new(1, 1));
-        Assert.Equal(new WorldPosition(8, 2), map.AdvanceIntoRange(new(2, 2), target, new(1, 1), TravelMode.Land, [], 60, 1, 10).Position);
-        Assert.Equal(new WorldPosition(8, 2), map.AdvanceIntoRange(new(2, 2), target, new(1, 1), TravelMode.Land, [], 60,
-            _ => 1, true, 1, 10).Position);
+        Assert.Equal(new WorldPosition(7, 2), map.AdvanceIntoRange(new(2, 2), target, new(1, 1), TravelMode.Land, [], 60, 1).Position);
+        Assert.Equal(new WorldPosition(7, 2), map.AdvanceIntoRange(new(2, 2), target, new(1, 1), TravelMode.Land, [], 60,
+            _ => 1, true, 1).Position);
     }
 
     [Fact]

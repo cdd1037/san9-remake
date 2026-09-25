@@ -248,6 +248,10 @@ internal sealed partial class WorldMutation
         if (previous.EffectiveOrder != value.EffectiveOrder || previous.FormationId != value.FormationId || previous.OwnerId != value.OwnerId ||
             previous.Position != value.Position && ReferenceEquals(previous.MovementPlan, value.MovementPlan))
             value = value with { MovementPlan = null };
+        if (value.EffectiveOrder is null || value.Condition == UnitCondition.Confused ||
+            value.Condition == UnitCondition.Routed && value.EffectiveOrder.Kind == MilitaryOrderKind.Construct ||
+            previous.FormationId != value.FormationId || previous.OwnerId != value.OwnerId)
+            value = value with { MovementRemainder = 0 };
         if (previous.OwnerId != value.OwnerId || previous.Position != value.Position || previous.FormationId != value.FormationId ||
             previous.IsEmbedded != value.IsEmbedded || previous.IsPersonnel != value.IsPersonnel ||
             previous.Order != value.Order || previous.EngagementTargetId != value.EngagementTargetId || previous.Condition != value.Condition ||

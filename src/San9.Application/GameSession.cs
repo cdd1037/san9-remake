@@ -7,7 +7,7 @@ using San9.Application.Presentation;
 
 namespace San9.Application;
 
-public sealed class GameSession
+public sealed partial class GameSession
 {
     private SimulationEngine _simulation;
     private readonly Func<WorldState, SimulationEngine> _engineFactory;
@@ -238,8 +238,17 @@ public sealed class GameSession
         return new Guid(bytes, bigEndian: true);
     }
 
-    public SessionResult Apply(SessionRequest request)
+    public SessionResult Apply(SessionRequest request) => Apply(request, false, out _);
+
+    public PresentedAdvance AdvanceForPresentation()
     {
+        var result = Apply(Request(new AdvanceOperation()), true, out var frames);
+        return new(result, frames.Select(_snapshotSource.Project).ToImmutableArray());
+    }
+
+    private SessionResult Apply(SessionRequest request, bool capturePresentation, out IReadOnlyList<WorldSnapshot> presentationFrames)
+    {
+        presentationFrames = [];
         if (_executing) return Rejected(SessionRejection.NotStable);
         if (request is null || request.Id == Guid.Empty || request.Sequence < 0 ||
             string.IsNullOrWhiteSpace(request.ControllerId) || request.Operation is null)
@@ -257,6 +266,7 @@ public sealed class GameSession
             // One operation can close several controls and advance. Publish only after all validation succeeds.
             var candidate = _engineFactory(WorldState.Restore(_simulation.Snapshot));
             List<DomainEvent> events = [];
+            IReadOnlyList<WorldSnapshot> frames = [];
             DevelopmentOutcome? development = null;
             ChronicleEntry? note = null;
             var ending = _ending;
@@ -283,15 +293,28 @@ public sealed class GameSession
                         AutomaticCorpsPlanner.Run(candidate, active.Controls[active.ActiveControl], MilitaryRules, events);
                     events.AddRange(candidate.EndControl(new(request.ControllerId)).Events);
                     break;
+                case PrepareAdvanceOperation:
                 case AdvanceOperation:
                     if (request.ControllerId != "player") return Rejected(SessionRejection.InvalidRequest);
-                    while (candidate.Snapshot.Simulation.ActiveControl < candidate.Snapshot.Simulation.Controls.Length)
+                    if (candidate.Snapshot.Simulation.Boundary != SimulationBoundary.Stable)
+                        return Rejected(SessionRejection.NotStable);
+                    while (candidate.Snapshot.Simulation.Boundary == SimulationBoundary.Stable &&
+                        candidate.Snapshot.Simulation.ActiveControl < candidate.Snapshot.Simulation.Controls.Length)
                     {
                         var seat = candidate.Snapshot.Simulation.Controls[candidate.Snapshot.Simulation.ActiveControl];
                         AutomaticCorpsPlanner.Run(candidate, seat, MilitaryRules, events);
                         events.AddRange(candidate.EndControl(new(seat.ControllerId)).Events);
                     }
-                    events.AddRange(candidate.AdvanceXun().Events);
+                    if (request.Operation is AdvanceOperation && candidate.Snapshot.Simulation.Boundary == SimulationBoundary.Stable)
+                    {
+                        var advance = candidate.AdvanceXun(capturePresentation);
+                        events.AddRange(advance.Events);
+                        frames = advance.PresentationFrames;
+                    }
+                    break;
+                case AdvanceDayOperation:
+                    if (request.ControllerId != "player") return Rejected(SessionRejection.InvalidRequest);
+                    events.AddRange(candidate.AdvanceDay().Events);
                     break;
                 case ChronicleOperation chronicle:
                     if (request.ControllerId != "player" || chronicle.Text is null || chronicle.Text.Trim().Length is < 1 or > 240)
@@ -317,6 +340,7 @@ public sealed class GameSession
             if (recorded is not null) _recording.Add(recorded);
             _capture = null;
             result = new(SessionDisposition.Accepted, SessionRejection.None, publishedEvents, snapshot, Development: development);
+            presentationFrames = frames;
         }
         catch (InvalidOperationException) { return Rejected(SessionRejection.NotStable); }
         finally { _executing = false; }
@@ -374,3 +398,5 @@ public sealed class GameSession
 }
 
 public sealed record SessionRecord(GameClock Clock, int ForceId, int SettlementId, int OfficerId, DomesticActivity Activity, int Increment, int Cost);
+
+public sealed record PresentedAdvance(SessionResult Result, IReadOnlyList<StrategySnapshot> Frames);

@@ -10,6 +10,40 @@ namespace San9.Application.Tests;
 public sealed class MilitarySessionTests
 {
     [Fact]
+    public void InteractiveDaysPublishMovementBeforeTheXunEndsAndMatchBatch()
+    {
+        var basis = Fixture();
+        var definition = basis with { Military = basis.Military! with
+        {
+            Width = 100, TerrainIds = Enumerable.Repeat(0, 300).ToImmutableArray(),
+            Terrains = [new(0, 12, null)],
+            Formations = [basis.Military.Formations[0] with { MovementBudget = 95 }, basis.Military.Formations[1]]
+        } };
+        var batch = GameSession.Start(definition, 42);
+        var interactive = GameSession.Start(definition, 42);
+        var deploy = new DeployUnitCommand(Guid.NewGuid(), 1, 0, 1, [1], 400, 7,
+            new(MilitaryOrderKind.Move, new(402, 7), null));
+        Assert.True(batch.Execute(new("player"), deploy).Submission.Accepted);
+        Assert.True(interactive.Execute(new("player"), deploy).Submission.Accepted);
+        var expected = batch.AdvanceXun();
+        List<DomainEvent> events = [.. interactive.Apply(interactive.Request(new PrepareAdvanceOperation())).Events];
+        for (int day = 2; day <= 11; day++)
+        {
+            var before = Assert.Single(interactive.Snapshot.Units);
+            var pending = interactive.StartOperation(interactive.Request(new AdvanceDayOperation()));
+            Assert.True(SpinWait.SpinUntil(() => pending.IsCompleted, TimeSpan.FromSeconds(10)));
+            Assert.Equal(before, Assert.Single(interactive.Snapshot.Units));
+            var result = pending.Complete();
+            Assert.Equal(SessionDisposition.Accepted, result.Disposition);
+            events.AddRange(result.Events);
+            Assert.Equal(day, interactive.Snapshot.Clock.Day);
+            Assert.NotEqual(before.Position, Assert.Single(interactive.Snapshot.Units).Position);
+        }
+        Assert.Equal(batch.Snapshot.StateHash, interactive.Snapshot.StateHash);
+        Assert.Equal(CanonicalJson.Text(expected.Events), CanonicalJson.Text(events));
+    }
+
+    [Fact]
     public void AlienateAdviceMissionSaveAndRecordingUseThePublicCommandPath()
     {
         var basis = Fixture();

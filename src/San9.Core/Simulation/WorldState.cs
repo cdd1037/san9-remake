@@ -63,7 +63,7 @@ public sealed class WorldState
     public static WorldState Restore(WorldSnapshot snapshot)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
-        if (snapshot.Simulation.Boundary is not (SimulationBoundary.Stable or SimulationBoundary.Terminal or SimulationBoundary.AwaitingDecision))
+        if (snapshot.Simulation.Boundary is not (SimulationBoundary.Stable or SimulationBoundary.Terminal or SimulationBoundary.AwaitingDecision or SimulationBoundary.Advancing))
             throw new ArgumentException("Only a committed stable boundary can be restored.");
         var world = Create(snapshot.Simulation.Started, snapshot.Simulation.InitialSeed, snapshot.Forces,
             snapshot.Settlements, snapshot.Officers, snapshot.Units, snapshot.Corps, snapshot.Treasures,
@@ -157,7 +157,7 @@ public sealed record WorldSnapshot(
     [System.Text.Json.Serialization.JsonIgnore]
     public string StateHash => CanonicalJson.Hash(new { version = CanonicalJson.Version, clock = Clock, simulation = Simulation,
         forces = Forces, settlements = Settlements, officers = Officers, units = Units, corps = Corps, treasures = Treasures, relations = Relations,
-        interaction = new { Simulation.PendingDuel, Simulation.PendingEvent, Simulation.PendingDailyTask, Simulation.PendingTacticStudy,
+        interaction = new { Simulation.DailyAdvanceStarted, Simulation.PendingDuel, Simulation.PendingEvent, Simulation.PendingDailyTask, Simulation.PendingTacticStudy,
             Simulation.PendingSniping, Simulation.PendingCapturedRuler, Simulation.PendingExecutionSuccession, tasks = Simulation.Tasks.Where(t => t.ResolutionStep != 0 ||
                 t.AttackRequest?.Offer is not null || t.PrisonerReturn?.Offer is not null)
                 .Select(t => new { t.Id, t.ResolutionStep, t.SearchEncounter, attackOffer = t.AttackRequest?.Offer, prisonerOffer = t.PrisonerReturn?.Offer }) } });

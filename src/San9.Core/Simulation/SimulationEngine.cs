@@ -7,6 +7,8 @@ public sealed class SimulationEngine
     private readonly WorldState _world;
     private readonly SimulationRules _rules;
     private readonly ResolutionPipeline _pipeline;
+    private WorldMutation? _diplomacyAdviceWorld;
+    private long _diplomacyAdviceRevision = -1;
 
     public SimulationEngine(WorldState world) : this(world, new SimulationRules()) { }
     public SimulationEngine(WorldState world, EconomyRulebook economy) : this(world, new SimulationRules { Economy = economy }) { }
@@ -156,8 +158,20 @@ public sealed class SimulationEngine
     }
     public CommandAdvice GetSurrenderAdvice(int forceId, int officerId, int targetForceId)
     {
+        return SurrenderDiplomacy.Advice(DiplomacyAdviceWorld(), forceId, officerId, targetForceId, _rules);
+    }
+
+    // Advice only reads this view. Reuse its active-record indexes until a world commit;
+    // validation and execution always create their own writable candidate mutations.
+    private WorldMutation DiplomacyAdviceWorld()
+    {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
-        return SurrenderDiplomacy.Advice(_world.BeginMutation(_rules.Abilities, _rules.Economy), forceId, officerId, targetForceId, _rules);
+        if (_diplomacyAdviceWorld is null || _diplomacyAdviceRevision != _world.Revision)
+        {
+            _diplomacyAdviceWorld = _world.BeginMutation(_rules.Abilities, _rules.Economy);
+            _diplomacyAdviceRevision = _world.Revision;
+        }
+        return _diplomacyAdviceWorld;
     }
     public AttackRequestPrompt? GetAttackRequestPrompt()
     {
@@ -169,8 +183,7 @@ public sealed class SimulationEngine
     }
     public CommandAdvice GetAttackRequestAdvice(int forceId, int officerId, int targetForceId, int targetSettlementId)
     {
-        if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
-        return AttackRequestDiplomacy.Advice(_world.BeginMutation(_rules.Abilities, _rules.Economy), forceId, officerId, targetForceId, targetSettlementId, _rules);
+        return AttackRequestDiplomacy.Advice(DiplomacyAdviceWorld(), forceId, officerId, targetForceId, targetSettlementId, _rules);
     }
     public PrisonerReturnPrompt? GetPrisonerReturnPrompt()
     {
@@ -457,7 +470,7 @@ public sealed class SimulationEngine
                     int snipingHeir = snipingSuccessor.SuccessorId ?? RulerSuccession.Automatic(mutation,
                         sniping.RespondingForceId, mutation.Officers[sniping.RulerId])!.Id;
                     _pipeline.ResumeSniping(mutation, events, snipingHeir);
-                    ContinueXun(mutation, sniping.Exchange!.XunStarted, events);
+                    ContinueAfterDecision(mutation, sniping.Exchange!.XunStarted, events);
                     break;
                 case ChooseDuelSuccessorCommand duelSuccessor:
                     var duel = mutation.Simulation.PendingDuel!;
@@ -467,7 +480,7 @@ public sealed class SimulationEngine
                     int duelHeir = duelSuccessor.SuccessorId ?? RulerSuccession.Automatic(mutation,
                         duel.RespondingForceId, mutation.Officers[duelSuccessor.RulerId])!.Id;
                     _pipeline.ResumeDuel(mutation, events, duelHeir);
-                    ContinueXun(mutation, duel.XunStarted, events);
+                    ContinueAfterDecision(mutation, duel.XunStarted, events);
                     break;
                 case ChooseCapturedRulerDispositionCommand disposition:
                     var captive = mutation.Simulation.PendingCapturedRuler!;
@@ -476,7 +489,7 @@ public sealed class SimulationEngine
                     CapturedRulerDisposition.Resolve(mutation, _rules, events, captive, disposition.Action);
                     if (!mutation.Simulation.HasPendingDailyResolution)
                         _pipeline.FinishUnitAndBuildingEvents(mutation, events, captive.XunStarted, captive.RulerId);
-                    ContinueXun(mutation, captive.XunStarted, events);
+                    ContinueAfterDecision(mutation, captive.XunStarted, events);
                     break;
                 case ChooseExecutionSuccessorCommand successor:
                     var executionPending = mutation.Simulation.PendingExecutionSuccession!;
@@ -485,7 +498,7 @@ public sealed class SimulationEngine
                     if (executionPending.XunStarted is { } executionStart)
                     {
                         _pipeline.FinishUnitAndBuildingEvents(mutation, events, executionStart, executionPending.RulerId);
-                        ContinueXun(mutation, executionStart, events);
+                        ContinueAfterDecision(mutation, executionStart, events);
                     }
                     break;
                 case DemandSurrenderCommand surrender:
@@ -515,7 +528,7 @@ public sealed class SimulationEngine
                         !_rules.FindTask(respondingTask.Kind)!.AcceptsResponse(mutation, respondingTask, response))
                         return Reject(CommandRejection.InvalidDecision);
                     _pipeline.Respond(mutation, response, events);
-                    ContinueXun(mutation, waiting.XunStarted, events);
+                    ContinueAfterDecision(mutation, waiting.XunStarted, events);
                     break;
                 case RespondEmperorTransferCommand emperorTransfer:
                     var emperorRejection = EmperorTransfer.Respond(mutation, _rules, emperorTransfer, events);
@@ -816,7 +829,7 @@ public sealed class SimulationEngine
         finally { _world.ExitExecution(); }
     }
 
-    public AdvanceXunResult AdvanceXun()
+    public AdvanceXunResult AdvanceXun(bool capturePresentation = false)
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
         if (_world.Simulation.Boundary == SimulationBoundary.Terminal) return new([], Snapshot);
@@ -830,7 +843,35 @@ public sealed class SimulationEngine
             var mutation = _world.BeginMutation(_rules.Abilities, _rules.Economy);
             List<DomainEvent> events = [];
             MilitaryDiplomacy.BeginAdvance(mutation, _rules, events);
-            ContinueXun(mutation, previous, events);
+            List<WorldSnapshot>? frames = capturePresentation ? [] : null;
+            ContinueXun(mutation, previous, events, frames);
+            AttackRequests.Cleanup(mutation, events);
+            CorpsDelegations.Cleanup(mutation, _rules.Military, events);
+            mutation.MaintainDerivedState(events);
+            _world.Commit(mutation);
+            return new(events.AsReadOnly(), Snapshot) { PresentationFrames = frames?.AsReadOnly() ?? (IReadOnlyList<WorldSnapshot>)[] };
+        }
+        finally { _world.ExitExecution(); }
+    }
+
+    /// <summary>Commits at most one day, stopping immediately at a player decision.</summary>
+    public AdvanceXunResult AdvanceDay()
+    {
+        if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
+        var state = _world.Simulation;
+        bool starting = state.DailyAdvanceStarted is null;
+        if (state.Boundary != (starting ? SimulationBoundary.Stable : SimulationBoundary.Advancing) ||
+            state.ActiveControl != state.Controls.Length)
+            throw new InvalidOperationException("All controllers must finish and no decision may be pending.");
+        _world.EnterExecution();
+        try
+        {
+            var mutation = _world.BeginMutation(_rules.Abilities, _rules.Economy);
+            List<DomainEvent> events = [];
+            var started = state.DailyAdvanceStarted ?? _world.Clock;
+            mutation.SetSimulation(state with { DailyAdvanceStarted = started, Boundary = SimulationBoundary.Advancing });
+            if (starting) MilitaryDiplomacy.BeginAdvance(mutation, _rules, events);
+            ContinueXun(mutation, started, events, days: 1);
             AttackRequests.Cleanup(mutation, events);
             CorpsDelegations.Cleanup(mutation, _rules.Military, events);
             mutation.MaintainDerivedState(events);
@@ -840,17 +881,35 @@ public sealed class SimulationEngine
         finally { _world.ExitExecution(); }
     }
 
-    private void ContinueXun(WorldMutation mutation, GameClock previous, List<DomainEvent> events)
+    private void ContinueAfterDecision(WorldMutation mutation, GameClock started, List<DomainEvent> events) =>
+        ContinueXun(mutation, started, events, days: mutation.Simulation.DailyAdvanceStarted is null ? int.MaxValue : 0);
+
+    // Both batch and interactive callers use the same daily pipeline and boundary finalization.
+    private void ContinueXun(WorldMutation mutation, GameClock previous, List<DomainEvent> events,
+        List<WorldSnapshot>? frames = null, int days = int.MaxValue)
     {
         GameClock next = previous.Advance();
-        while (mutation.Clock != next && mutation.Simulation.Boundary != SimulationBoundary.Terminal &&
+        while (days-- > 0 && mutation.Clock != next && mutation.Simulation.Boundary != SimulationBoundary.Terminal &&
             !mutation.Simulation.HasPendingDailyResolution)
+        {
             _pipeline.AdvanceDay(mutation, events, previous);
-        if (mutation.Simulation.Boundary != SimulationBoundary.Terminal && !mutation.Simulation.HasPendingDailyResolution)
+            frames?.Add(mutation.CapturePresentation());
+        }
+        if (mutation.Simulation.Boundary == SimulationBoundary.Terminal)
+            mutation.SetSimulation(mutation.Simulation with { DailyAdvanceStarted = null });
+        else if (mutation.Clock == next && !mutation.Simulation.HasPendingDailyResolution)
+        {
+            mutation.SetSimulation(mutation.Simulation with { DailyAdvanceStarted = null });
             _pipeline.Prepare(mutation, events);
+        }
+        else if (mutation.Simulation.DailyAdvanceStarted is not null && !mutation.Simulation.HasPendingDailyResolution)
+            mutation.SetSimulation(mutation.Simulation with { Boundary = SimulationBoundary.Advancing });
         if (mutation.Clock == next && !mutation.Simulation.HasPendingDailyResolution)
             events.Add(new XunAdvancedEvent(previous, mutation.Clock));
     }
 }
 
-public sealed record AdvanceXunResult(IReadOnlyList<DomainEvent> Events, WorldSnapshot Snapshot);
+public sealed record AdvanceXunResult(IReadOnlyList<DomainEvent> Events, WorldSnapshot Snapshot)
+{
+    public IReadOnlyList<WorldSnapshot> PresentationFrames { get; init; } = [];
+}

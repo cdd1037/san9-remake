@@ -3,7 +3,7 @@ using Godot;
 namespace San9.Client.Godot;
 
 public enum GameTextRole { Header, Resource, Building, Message, Region, Spring, Compass, Roster, HelpBody, DetailBody, DialogTitle }
-public enum GameButtonTextRole { Information, Functions, Help, Territory, MapMode, Advance, Facilities, Officers, Units }
+public enum GameButtonTextRole { Information, Functions, Help, Territory, MapMode, Advance, Facilities, Officers, Units, ConfirmYes, ConfirmNo }
 
 public enum GameTextEffect { None, Outline, Shadow }
 
@@ -76,7 +76,7 @@ public static class GameTextStyles
 
     public static GameTextStyle Button(GameButtonTextRole role, bool hovered, bool selected, bool disabled)
     {
-        bool command = role is GameButtonTextRole.Information or GameButtonTextRole.Functions or GameButtonTextRole.Help or GameButtonTextRole.Advance;
+        bool command = role is GameButtonTextRole.Information or GameButtonTextRole.Functions or GameButtonTextRole.Help or GameButtonTextRole.Advance or GameButtonTextRole.ConfirmYes or GameButtonTextRole.ConfirmNo;
         Color foreground = disabled ? new Color(hovered ? "000000" : "a4a4a4")
             : hovered || (command && selected) ? White : new Color("d8d8d8");
         string activeEdge = role switch
@@ -84,6 +84,8 @@ public static class GameTextStyles
             GameButtonTextRole.Information or GameButtonTextRole.Advance or GameButtonTextRole.Facilities => "005028",
             GameButtonTextRole.Functions or GameButtonTextRole.Units => "5828c8",
             GameButtonTextRole.Officers => "800090",
+            GameButtonTextRole.ConfirmYes => "002878",
+            GameButtonTextRole.ConfirmNo => selected ? "b82000" : "000000",
             _ => "603000"
         };
         return Outlined(24, foreground, disabled ? (hovered ? "f0f0f0" : "000000")

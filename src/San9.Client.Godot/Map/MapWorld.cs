@@ -30,6 +30,8 @@ public partial class MapWorld : Node2D
     internal TerrainChunkCache<ImageTexture> Terrain => _terrain!;
     public MapSceneView? Display => _display;
     public San9.Application.GameSession Session { get; set; } = null!;
+    public San9.Application.Presentation.StrategySnapshot? Presentation { get; set; }
+    public San9.Application.Presentation.StrategySnapshot View => Presentation ?? Session.View;
     public TextureService Textures { get; set; } = null!;
     public long StateRevision => Scene?.State.World.Revision ?? -1;
     public MapPackage? Package => _map;
@@ -57,6 +59,7 @@ public partial class MapWorld : Node2D
     public MapObjectTarget? HoveredObject => _display?.Hovered;
     public int? HoveredBuildingId => HoveredObject is { IsUnit: false } target ? target.Id : null;
     public Func<Vector2, bool>? IsInputBlocked { get; set; }
+    public Func<bool>? CanIssueOrders { get; set; }
     public event Action<int, Vector2>? BuildingContextRequested;
     public event Action<int, Vector2>? UnitContextRequested;
     public event Action<MapObjectTarget, Vector2>? CommandMenuRequested;
@@ -109,12 +112,12 @@ public partial class MapWorld : Node2D
             try
             {
                 var loaded = completed.GetAwaiter().GetResult(); _common = loaded.Common;
-                Scene = new(_map!, loaded.Renderer, loaded.Season, Session.View, Textures);
+                Scene = new(_map!, loaded.Renderer, loaded.Season, View, Textures);
                 RequestDisplay();
             }
             catch (Exception error) { _error = error.Message; _awaitingSeason = false; GD.PushError(_error); }
         }
-        if (Scene is not null && StateRevision != Session.Snapshot.Revision) RefreshRuntimeObjects();
+        if (Scene is not null && !ReferenceEquals(Scene.State, View)) RefreshRuntimeObjects();
         _terrain?.Pump(() => Textures.CanUpload);
         if (_display?.Error is not null) _awaitingSeason = false;
         LastProcessMilliseconds = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
@@ -138,7 +141,7 @@ public partial class MapWorld : Node2D
     public void RefreshRuntimeObjects()
     {
         if (Scene is null) return;
-        Scene = new(Scene.Map, Scene.Terrain, Scene.Season, Session.View, Textures, Scene); RequestDisplay();
+        Scene = new(Scene.Map, Scene.Terrain, Scene.Season, View, Textures, Scene); RequestDisplay();
     }
     public void PreviewSeason(string season) => BeginLoad(season);
     public void HoverBuilding(int? id) => HoverObject(id is int value ? new(value, false) : null);
@@ -193,6 +196,8 @@ public partial class MapWorld : Node2D
         {
             if (button.Position.X < 0 || button.Position.Y < 0 || button.Position.X >= ClientLayout.LogicalWidth || button.Position.Y >= ClientLayout.LogicalHeight) return;
             if (IsInputBlocked?.Invoke(button.Position) == true) { _dragging = false; return; }
+            if (button.ButtonIndex is MouseButton.Left or MouseButton.Right && CanIssueOrders?.Invoke() == false)
+            { GetViewport().SetInputAsHandled(); return; }
             if (button.ButtonIndex == MouseButton.Middle) { _dragging = button.Pressed; GetViewport().SetInputAsHandled(); }
             else if (button.Pressed && button.ButtonIndex == MouseButton.Right)
             {

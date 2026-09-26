@@ -50,7 +50,7 @@ public sealed class ClientContentPackageTests
     [Fact]
     public void MissingUiAndInvalidDurabilityOrNamesFailValidation()
     {
-        var skin = new InterfaceSkin(22, [Asset], InterfaceSkin.RequiredUiAssets.ToDictionary(s => s, _ => "ui"), Colors());
+        var skin = new InterfaceSkin(24, [Asset], InterfaceSkin.RequiredUiAssets.ToDictionary(s => s, _ => "ui"), Colors());
         skin.Validate(); skin.Roles.Remove("top-frame");
         Assert.Throws<InvalidDataException>(skin.Validate);
         skin.Roles["top-frame"] = "missing";
@@ -77,7 +77,7 @@ public sealed class ClientContentPackageTests
     {
         var map = new MapPackage(11, "fixture", "fixture", "spring", 200, 200, 13056, 6656,
             [], [], [], [], [], [], Buildings, [], [], [], [], [], new([], []), []);
-        var skin = new InterfaceSkin(22, [Asset], InterfaceSkin.RequiredUiAssets.ToDictionary(s => s, _ => "ui"), Colors());
+        var skin = new InterfaceSkin(24, [Asset], InterfaceSkin.RequiredUiAssets.ToDictionary(s => s, _ => "ui"), Colors());
         var text = new TextCatalog(3, new() { ["player"] = new("Player", "Player"), ["city"] = new("City", "City"), ["port"] = new("Port", "Port") });
         foreach (string id in San9.Content.Interface.CommandMenuSkin.EntryIds) text.Entries.Add(San9.Content.Interface.CommandMenuSkin.DescriptionKey(id), new("Description", "Description"));
         foreach (string role in StrategyHintText.Roles) text.Entries.Add(StrategyHintText.Key(role), new("Hint", "Hint"));

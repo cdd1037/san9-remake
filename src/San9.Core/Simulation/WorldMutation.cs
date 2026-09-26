@@ -84,6 +84,23 @@ internal sealed partial class WorldMutation
     }
 
     internal GameClock Clock { get; private set; }
+    // Ephemeral presentation samples; these are not stable save boundaries.
+    internal WorldSnapshot CapturePresentation() => new(Clock, Simulation)
+    {
+        Forces = AllForces.Values.OrderBy(x => x.Id).Select(x => x with
+        {
+            AdditionalFormationIds = x.AdditionalFormationIds.Order().ToImmutableArray(),
+            ProvidedTactics = x.ProvidedTactics.Order().ToImmutableArray(),
+        }).ToImmutableArray(),
+        Settlements = AllSettlements.Values.OrderBy(x => x.Id).ToImmutableArray(),
+        Officers = AllOfficers.Values.OrderBy(x => x.Id).Select(x => x with
+            { LearnedTactics = x.LearnedTactics.Order().ToImmutableArray() }).ToImmutableArray(),
+        Units = Units.Values.OrderBy(x => x.Id).ToImmutableArray(),
+        Corps = AllCorps.Values.OrderBy(x => x.Id).ToImmutableArray(),
+        Treasures = AllTreasures.Values.OrderBy(x => x.Id).ToImmutableArray(),
+        Relations = AllRelations.Values.OrderBy(x => x.FirstId).ThenBy(x => x.SecondId).ToImmutableArray(),
+        Revision = _expectedRevision,
+    };
     internal SimulationState Simulation { get; private set; }
     internal ImmutableDictionary<int, ForceState> AllForces { get; private set; }
     internal ImmutableDictionary<int, SettlementState> AllSettlements { get; private set; }

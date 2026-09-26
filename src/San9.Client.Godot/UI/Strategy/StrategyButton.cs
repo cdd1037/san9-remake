@@ -10,7 +10,7 @@ public partial class StrategyButton : TextureButton
     public GameButtonTextRole TextRole { get; init; }
     private readonly GameTextPresenter _text = new();
     private (bool Hovered, bool Selected, bool Disabled)? _lastState;
-    public string Title { get; init; } = "";
+    public string Title { get; set; } = "";
     public string HintText { get; init; } = "";
     private Label _label = null!;
     public Vector2 TextPosition => _label.Position;
@@ -22,6 +22,7 @@ public partial class StrategyButton : TextureButton
             HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
             MouseFilter = MouseFilterEnum.Ignore };
         AddChild(_label);
+        _label.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         MouseEntered += () => { if (!Disabled) GrabFocus(); };
         RefreshVisual();
     }
@@ -29,6 +30,7 @@ public partial class StrategyButton : TextureButton
 
     public void RefreshVisual()
     {
+        _label.Text = Title;
         bool selected = ButtonPressed || GetDrawMode() is DrawMode.Pressed or DrawMode.HoverPressed;
         var state = (IsHovered(), selected, Disabled);
         if (_lastState == state) return;

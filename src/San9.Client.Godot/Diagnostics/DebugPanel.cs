@@ -11,6 +11,7 @@ public partial class DebugPanel : PanelContainer
     private Label _debugStatus = null!, _debugClock = null!;
     private OptionButton _season = null!;
     public GameSession Session { get; init; } = null!;
+    public Func<bool> CanIssueOrders { get; init; } = () => true;
     public San9.Application.Presentation.StrategySelection Selection { get; init; } = null!;
     public override void _UnhandledKeyInput(InputEvent input)
     {
@@ -41,6 +42,7 @@ public partial class DebugPanel : PanelContainer
             var button = new Button { Text = activity == DomesticActivity.Commerce ? "商业（单人）" : "开垦（单人）" }; box.AddChild(button);
             button.Pressed += () =>
             {
+                if (!CanIssueOrders()) { _debugClock.Text = "当前阶段不能下令"; return; }
                 if (Selection.BuildingId is not int city) { _debugClock.Text="请先选择城市"; return; }
                 var officer=Session.View.Officers.Where(o => o.SettlementId==city && o.OwnerId==Session.View.PlayerForceId && o.IsAvailable)
                     .OrderByDescending(o => o.Abilities.Politics).ThenBy(o => o.Id).FirstOrDefault();

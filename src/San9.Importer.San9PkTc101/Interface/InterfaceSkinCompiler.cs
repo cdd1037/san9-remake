@@ -68,9 +68,39 @@ public static class InterfaceSkinCompiler
         Export("button-officers", 70, 2, 4); Export("button-units", 71, 2, 4);
         Export("button-information", 74, 3, 4); Export("button-functions", 73, 3, 4); Export("button-help", 75, 3, 4);
         Export("button-map-mode", 86, 4, 4); Export("button-advance", 87, 4, 4);
+        Export("button-pause", 72, 2, 4);
+        Export("turn-progress-frame", 89, 5, paletteAlpha: true);
+        Export("turn-progress-fill", 90, 5, paletteAlpha: true);
         Export("field-left", 91, 5); Export("field-middle", 92, 5); Export("field-right", 93, 5);
         Export("ruler-frame", 94, 5); Export("region-frame", 97, 20, paletteAlpha: true);
         var common = IndexedImageArchive.ReadCombined(read(Path.Combine(dataDirectory, "G_Common.s9")), 67, 491);
+        var transition = IndexedImageArchive.ReadCombined(read(Path.Combine(dataDirectory, "G_LocalM.s9")), 2, 4);
+        // RE-0158: three 125 ms additive frames, then the palette-alpha title.
+        foreach (var (phase, first) in new[] { ("strategy", 0), ("execution", 1) })
+        for (int frame = 0; frame < 4; frame++)
+        {
+            int index = first + (frame == 3 ? 2 : 0), palette = frame == 3 ? 1 : 0;
+            if (bindings[6073 + index] != 81 + palette) throw new InvalidDataException("Unconfirmed transition palette binding.");
+            var pixels = frame == 3 ? transition.Images[index] : IndexedImageArchive.Frame(transition.Images[index], 3, 1, frame, 0);
+            string key = $"turn-title-{phase}-{frame}", id = "ui-" + key;
+            assets.Add(save(id, TextureSourcePath.Image("G_LocalM", index, palette, true, frame == 3, columns: frame == 3 ? 1 : 3, frame: frame == 3 ? 0 : frame),
+                IndexedImageArchive.Decode(pixels, transition.Palettes[palette], true, frame == 3)));
+            ui.Add(key, id);
+        }
+        if (Enumerable.Range(172, 9).Any(index => bindings[index] != 217))
+            throw new InvalidDataException("Unconfirmed confirmation frame palette.");
+        var dialogFrame = NineSliceArt.Assemble(common.Images.Skip(172).Take(9).ToArray());
+        assets.Add(save("ui-dialog-frame", "ui/dialog-frame.png", IndexedImageArchive.Decode(dialogFrame, common.Palettes[17], true, true)));
+        ui.Add("dialog-frame", "ui-dialog-frame");
+        foreach (var (kind, index) in new[] { ("yes", 389), ("no", 385) })
+        for (int frame = 0; frame < 4; frame++)
+        {
+            if (bindings[index] != 250) throw new InvalidDataException("Unconfirmed confirmation button palette.");
+            string key = $"dialog-{kind}-{frame}", id = "ui-" + key;
+            assets.Add(save(id, TextureSourcePath.Image("G_Common", index, 50, true, true, columns: 4, frame: frame),
+                IndexedImageArchive.Decode(IndexedImageArchive.Frame(common.Images[index], 4, 1, frame, 0), common.Palettes[50], true, true)));
+            ui.Add(key, id);
+        }
         var overview = IndexedImageArchive.ReadCombined(read(Path.Combine(dataDirectory, "G_MMap.s9")), 16, 221);
         void Overview(string role, int resource, int palette, int frames = 1, bool alpha = false)
         {
@@ -257,6 +287,6 @@ public static class InterfaceSkinCompiler
         var fontPalette = read(Path.Combine(dataDirectory, "P_Font.s9"));
         string FontColor(int style) => Convert.ToHexString(fontPalette.AsSpan((style / 2 * 32 + 16 + style % 2 * 8 + 7) * 4, 3));
         colors.Add("roster-available", FontColor(7)); colors.Add("roster-unavailable", FontColor(26));
-        return new(22, assets.ToArray(), ui, colors);
+        return new(24, assets.ToArray(), ui, colors);
     }
 }

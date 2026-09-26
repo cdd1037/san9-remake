@@ -13,7 +13,7 @@ public partial class StrategyHud : Control
     public MapWorld World { get; init; } = null!;
     public StrategySelection Selection { get; init; } = null!;
     public San9.Application.GameSession Session { get; init; } = null!;
-    public San9.Application.Presentation.StrategySnapshot Scenario => Session.View;
+    public San9.Application.Presentation.StrategySnapshot Scenario => World.View;
     public TextCatalog Texts { get; init; } = null!;
     public InterfaceSkin Skin { get; init; } = null!;
     public TextureService Textures { get; init; } = null!;
@@ -65,6 +65,7 @@ public partial class StrategyHud : Control
     private void Build()
     {
         if (_built) return;
+        Turn = new(Session);
         var p = Scenario;
         _frames.Add(("top-frame", Vector2.Zero));
         _frames.Add(("radar-frame", new(624, 0)));
@@ -73,14 +74,14 @@ public partial class StrategyHud : Control
         var force = p.Forces.Single(f => f.Id == p.PlayerForceId);
         _year = LabelAt($"{p.Year}年", new(104, 11), new(66, 32), 24);
         _date = LabelAt($"{p.Month}月上旬", new(182, 11), new(89, 32), 24);
-        LabelAt(Texts.Resolve(force.NameKey), new(280, 11), new(92, 32), 24, HorizontalAlignment.Left);
+        _strategicHeader.Add(LabelAt(Texts.Resolve(force.NameKey), new(280, 11), new(92, 32), 24, HorizontalAlignment.Left));
         AddResourceField("信望", force.Trust.ToString(), 385, 425, 32);
         AddResourceField("资金", (Scenario.PlayerCorps?.Treasury.Money ?? 0).ToString(), 465, 505, 56);
         AddResourceField("兵粮", (Scenario.PlayerCorps?.Treasury.Food ?? 0).ToString(), 569, 609, 56);
         _text.Apply(LabelAt("春", new(26, 40), new(16, 16), 16), GameTextStyles.For(GameTextRole.Spring));
         _territory = AddButton("疆界", "button-territory", new(694, 10), new(64, 36), true, () => World.ShowBoundaries = !World.ShowBoundaries);
         _territory.ToggleMode = true; _territory.SetPressedNoSignal(World.ShowBoundaries);
-        AddButton("情报", "button-information", new(842, 7), new(80, 40), true, () => Information.OpenMenu());
+        _informationButton = AddButton("情报", "button-information", new(842, 7), new(80, 40), true, () => Information.OpenMenu());
         AddButton("功能", "button-functions", new(929, 7), new(80, 40), false);
         AddButton("?", "button-help", new(957, 50), new(56, 40), false);
         _units = AddButton("部队", "button-units", new(956, 208), new(56, 32), true, () => SelectRosterPage(RosterPage.Units));
@@ -92,7 +93,7 @@ public partial class StrategyHud : Control
         _large.ToggleMode = true;
         _small = AddButton("小", "button-map-mode", new(957, 606), new(44, 44), true, Overview.Open);
         _small.ToggleMode = true;
-        AddButton("进行", "button-advance", new(943, 664), new(60, 60), false);
+        _advanceButton = AddButton("进行", "button-advance", new(943, 664), new(60, 60), true, RequestAdvance);
         _minimap = new StrategyMinimap { World = World, Session = Session, Skin = Skin, Position = new(643, 31), Size = new(320, 160) };
         AddChild(_minimap);
         foreach (var (text, x, y) in new[] { ("东", 880, 154), ("西", 710, 52), ("南", 710, 154), ("北", 880, 52) })
@@ -101,10 +102,10 @@ public partial class StrategyHud : Control
         AddChild(_contextMenu);
         foreach (string title in new[] { "进行", "情报", "储存", "载入" })
         {
-            _contextMenu.AddItem(title == "情报" ? title : title + "（尚未实现）");
-            _contextMenu.SetItemDisabled(_contextMenu.ItemCount - 1, title != "情报");
+            _contextMenu.AddItem(title is "情报" or "进行" ? title : title + "（尚未实现）");
+            _contextMenu.SetItemDisabled(_contextMenu.ItemCount - 1, title is not ("情报" or "进行"));
         }
-        _contextMenu.IdPressed += id => { if (id == 1) Information.OpenMenu(); };
+        _contextMenu.IdPressed += id => { if (id == 0) RequestAdvance(); else if (id == 1) Information.OpenMenu(); };
         _rosterList = new StrategyRosterList { Position = new(892, 303), Textures = _textures,
             Texts = Texts, Skin = Skin, Activated = ActivateRosterEntry, ContextRequested = ShowContextMenu };
         AddChild(_rosterList);
@@ -124,6 +125,7 @@ public partial class StrategyHud : Control
         World.CommandMenuRequested += ShowCommandMenu;
         _hoverCard = new MapHoverCard { World = World, Textures = _textures, UiFont = GetThemeFont("font"), Visible = false };
         AddChild(_hoverCard);
+        BuildTurnControls();
         // Adding controls can trigger hit testing before the HUD is fully constructed.
         _built = true;
         UpdateSelection(); QueueRedraw();
@@ -132,8 +134,10 @@ public partial class StrategyHud : Control
     private void AddResourceField(string title, string value, int titleX, int valueX, int valueWidth)
     {
         // Center the font's line metrics in the background, not in an original bitmap glyph cell.
-        LabelAt(title, new(titleX, 15), new(32, 24), 16, HorizontalAlignment.Left);
-        _resourceValues.Add(title, LabelAt(value, new(valueX, 15), new(valueWidth, 24), 16, HorizontalAlignment.Right));
+        _strategicHeader.Add(LabelAt(title, new(titleX, 15), new(32, 24), 16, HorizontalAlignment.Left));
+        var label = LabelAt(value, new(valueX, 15), new(valueWidth, 24), 16, HorizontalAlignment.Right);
+        _strategicHeader.Add(label);
+        _resourceValues.Add(title, label);
     }
 
     private Label LabelAt(string text, Vector2 position, Vector2 size, int fontSize, HorizontalAlignment alignment = HorizontalAlignment.Center)
@@ -155,7 +159,7 @@ public partial class StrategyHud : Control
                 "button-functions" => GameButtonTextRole.Functions,
                 "button-help" => GameButtonTextRole.Help,
                 "button-territory" => GameButtonTextRole.Territory,
-                "button-map-mode" => GameButtonTextRole.MapMode,
+                "button-map-mode" or "button-pause" => GameButtonTextRole.MapMode,
                 "button-advance" => GameButtonTextRole.Advance,
                 "button-facilities" => GameButtonTextRole.Facilities,
                 "button-officers" => GameButtonTextRole.Officers,
@@ -177,16 +181,19 @@ public partial class StrategyHud : Control
 
     public bool IsBlockedPoint(Vector2 point)
     {
+        if (Turn is { CanBrowseMap: false }) return true;
         if (Information?.State.IsOpen == true || _mapContext?.Visible == true || _commandMenu?.Visible == true) return true;
         if (point.Y >= 740 && point.Y < 768 && point.X >= 0 && point.X < 1024) return true;
         foreach (var (asset, position) in _frames)
         {
+            if (asset == "sidebar-frame" && (_commandMenu?.Visible == true || !Turn.IsStrategy)) continue;
+            if (asset == "ruler-frame" && !Turn.IsStrategy) continue;
             var pixels = Textures.Roles[asset];
             int x = (int)Math.Floor(point.X - position.X), y = (int)Math.Floor(point.Y - position.Y);
             if (Textures.Hit(pixels, x, y)) return true;
         }
-        return _built && (_rosterList.GetRect().HasPoint(point) || _minimap!.GetRect().HasPoint(point) ||
-            GetChildren().OfType<TextureButton>().Any(button => button.GetRect().HasPoint(point)));
+        return _built && ((_rosterList.Visible && _rosterList.GetRect().HasPoint(point)) || _minimap!.GetRect().HasPoint(point) ||
+            GetChildren().OfType<TextureButton>().Any(button => button.Visible && button.GetRect().HasPoint(point)));
     }
     public override bool _HasPoint(Vector2 point) => IsBlockedPoint(point);
     public override void _GuiInput(InputEvent @event)
@@ -199,6 +206,7 @@ public partial class StrategyHud : Control
     private long _contextRevision;
     private void ShowCommandMenu(MapObjectTarget target, Vector2 point)
     {
+        if (!CanIssueOrders) return;
         var entries = target.IsUnit ? MapCommandMenu.Unit(Scenario, target.Id) : MapCommandMenu.Settlement(Scenario, target.Id);
         if (entries.Count == 0) return;
         _contextTarget = null;
@@ -210,6 +218,7 @@ public partial class StrategyHud : Control
     }
     private void ShowSettlementContext(int id, Vector2 point)
     {
+        if (!CanIssueOrders) return;
         _contextTarget = new(id, false);
         _contextRevision = Session.Snapshot.Revision;
         _commandMenu.Close();
@@ -218,6 +227,7 @@ public partial class StrategyHud : Control
     }
     private void ShowUnitContext(int id, Vector2 point)
     {
+        if (!CanIssueOrders) return;
         _contextTarget = new(id, true);
         _contextRevision = Session.Snapshot.Revision;
         _commandMenu.Close();
@@ -232,6 +242,8 @@ public partial class StrategyHud : Control
     }
     private void ShowContextMenu()
     {
+        if (!CanIssueOrders) return;
+        _contextMenu.SetItemDisabled(0, !Turn.CanAdvance);
         var point = GetViewport().GetScreenTransform() * GetGlobalMousePosition();
         _contextMenu.Position = new((int)point.X, (int)point.Y);
         _contextMenu.Popup();
@@ -259,6 +271,7 @@ public partial class StrategyHud : Control
     {
         if (World.LoadError is not null) { _message.Text = "地图加载失败 · F3 查看详情"; return; }
         if (!_built) return;
+        if (Turn.Screen != TurnScreen.Strategy) { _message.Text = ""; return; }
         if (Information?.State.IsOpen == true)
         {
             var menu = Information.HoverMenuButton;
@@ -315,28 +328,28 @@ public partial class StrategyHud : Control
     }
     public override void _Process(double delta)
     {
+        if (_built) UpdateTurn(delta);
         if (_commandMenu?.Visible == true && _contextRevision != Session.Snapshot.Revision) _commandMenu.Close();
         if (_mapContext?.Visible == true && _contextRevision != Session.Snapshot.Revision) _mapContext.Close();
         if (World.LoadError is not null) _message.Text = "地图加载失败 · F3 查看详情";
         if (_built && _stateRevision != Session.Snapshot.Revision)
         {
             _stateRevision = Session.Snapshot.Revision;
-            var view=Session.View; var force=view.Forces.Single(f => f.Id==view.PlayerForceId);
-            _resourceValues["资金"].Text=(Scenario.PlayerCorps?.Treasury.Money ?? 0).ToString(); _resourceValues["兵粮"].Text=(Scenario.PlayerCorps?.Treasury.Food ?? 0).ToString(); _resourceValues["信望"].Text=force.Trust.ToString();
-            _year.Text=$"{view.Year}年"; _date.Text=$"{view.Month}月{(view.Day==1?"上旬":view.Day==11?"中旬":"下旬")}";
+            var view=Session.View; var force=view.Forces.SingleOrDefault(f => f.Id==view.PlayerForceId);
+            _resourceValues["资金"].Text=(view.PlayerCorps?.Treasury.Money ?? 0).ToString(); _resourceValues["兵粮"].Text=(view.PlayerCorps?.Treasury.Food ?? 0).ToString(); _resourceValues["信望"].Text=(force?.Trust ?? 0).ToString();
             _rosterList.Refresh(view);
             UpdateSelection();
         }
         if (_built)
         {
-            bool sidebarVisible = !_commandMenu!.Visible;
+            bool sidebarVisible = Turn.IsStrategy && !_commandMenu!.Visible;
             _rosterList.Visible = sidebarVisible;
             foreach (var button in GetChildren().OfType<StrategyButton>().Where(b => b.Position.Y >= 208)) button.Visible = sidebarVisible;
         }
         UpdateHover(_hoverPosition ?? GetGlobalMousePosition());
         UpdateMessage();
         _large?.SetPressedNoSignal(!Overview.IsOpen); _small?.SetPressedNoSignal(Overview.IsOpen);
-        if (_territory is not null) _territory.Disabled = Overview.IsOpen;
+        if (_territory is not null) _territory.Disabled = Overview.IsOpen || !(CanIssueOrders || Turn.Screen == TurnScreen.Playing);
         _territory?.SetPressedNoSignal(World.ShowBoundaries);
         QueueRedraw();
     }
@@ -357,9 +370,13 @@ public partial class StrategyHud : Control
     {
         if (!_built) return;
         foreach (var (asset, point) in _frames)
-            if (_commandMenu?.Visible != true || asset != "sidebar-frame") DrawTexture(_textures[asset], point);
+        {
+            if (asset == "sidebar-frame" && (_commandMenu?.Visible == true || !Turn.IsStrategy)) continue;
+            if (asset == "ruler-frame" && !Turn.IsStrategy) continue;
+            DrawTexture(_textures[asset], point);
+        }
         DrawTexture(_textures["season-spring"], new(26, 31));
-        Strip("field", new(377, 15), 88); Strip("field", new(457, 15), 112); Strip("field", new(561, 15), 112);
+        if (Turn.IsStrategy) { Strip("field", new(377, 15), 88); Strip("field", new(457, 15), 112); Strip("field", new(561, 15), 112); }
         if (_regionVisible) DrawTexture(_textures["region-frame"], new(824, 738));
     }
     public override void _ExitTree()
@@ -371,6 +388,7 @@ public partial class StrategyHud : Control
         GetWindow().MouseExited -= ClearHover;
         _textures.Dispose();
         _text.Dispose();
+        _titleFlashMaterial.Dispose();
     }
 
 }

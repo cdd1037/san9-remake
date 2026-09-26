@@ -15,9 +15,9 @@ public sealed class DailyTaskDecisionTests
             new(id, 1, 1, new(50, 50, 50, 50), false))).ToArray()
     , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, null, new(1000, 1000)) { IsRoot = true }], []) };
 
-    private sealed class Rules : SimulationRules
+    private sealed class Rules(TaskResolutionPhase phase = TaskResolutionPhase.DailyCommands) : SimulationRules
     {
-        internal override TaskRule? FindTask(string kind) => kind == "decision-fixture" ? new DecisionRule() : base.FindTask(kind);
+        internal override TaskRule? FindTask(string kind) => kind == "decision-fixture" ? new DecisionRule(phase) : base.FindTask(kind);
         internal override void ApplyStage(ResolutionStage stage, WorldMutation world, List<DomainEvent> events)
         {
             if (stage == ResolutionStage.BeforeDailyCommands)
@@ -27,9 +27,10 @@ public sealed class DailyTaskDecisionTests
                 world.NextRandom("daily-fixture");
             }
         }
-        private sealed class DecisionRule : TaskRule
+        private sealed class DecisionRule(TaskResolutionPhase phase) : TaskRule
         {
-            internal override int DurationDays(PersistentTask task) => 2;
+            internal override TaskResolutionPhase Phase => phase;
+            internal override int DurationDays(PersistentTask task) => phase == TaskResolutionPhase.XunBoundary ? 10 : 2;
             internal override bool Validate(WorldMutation world, PersistentTask task) => true;
             internal override int? DecisionRecipient(WorldMutation world, PersistentTask task) => 1;
             internal override void Complete(WorldMutation world, PersistentTask task, List<DomainEvent> events) =>
@@ -43,6 +44,78 @@ public sealed class DailyTaskDecisionTests
     }
 
     private static SimulationEngine Engine(WorldState world) => new(world, new Rules());
+
+    [Theory]
+    [InlineData(TaskResolutionPhase.DailyCommands)]
+    [InlineData(TaskResolutionPhase.XunBoundary)]
+    public void IncrementalAnswersResumeOnlyCurrentDayAndPreserveReplay(TaskResolutionPhase phase)
+    {
+        var content = Content();
+        SimulationEngine Factory(WorldState world) => new(world, new Rules(phase));
+        var session = GameSession.Start(content, 42, Factory);
+        session.BeginRecording();
+        List<DomainEvent> events = [];
+        SessionResult Run(SessionOperation operation, Guid? id = null)
+        {
+            var pending = session.StartOperation(session.Request(operation, id: id));
+            Assert.True(SpinWait.SpinUntil(() => pending.IsCompleted, TimeSpan.FromSeconds(10)));
+            var result = pending.Complete();
+            Assert.Equal(SessionDisposition.Accepted, result.Disposition);
+            events.AddRange(result.Events);
+            return result;
+        }
+        for (int actor = 1; actor <= 2; actor++)
+        {
+            var command = new StartTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence,
+                "decision-fixture", actor, 1);
+            Run(new CommandOperation(command), command.CommandId);
+        }
+        Run(new PrepareAdvanceOperation());
+        do { Run(new AdvanceDayOperation()); }
+        while (session.Snapshot.Simulation.Boundary == SimulationBoundary.Advancing);
+        int decisionDay = phase == TaskResolutionPhase.DailyCommands ? 3 : 11;
+        Assert.Equal(decisionDay, session.Snapshot.Clock.Day);
+        Assert.Equal(SimulationBoundary.AwaitingDecision, session.Snapshot.Simulation.Boundary);
+        Assert.Throws<InvalidOperationException>(() => session.Capture());
+        for (int answer = 0; answer < 2; answer++)
+        {
+            var pending = session.Snapshot.Simulation.PendingDailyTask!;
+            var response = new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence,
+                pending.RemainingTaskIds[0], 0, answer == 0);
+            var result = Run(new CommandOperation(response), response.CommandId);
+            Assert.DoesNotContain(result.Events, e => e is StageCompletedEvent { Stage: ResolutionStage.BeforeDailyCommands });
+            Assert.Equal(decisionDay + (answer == 1 && phase == TaskResolutionPhase.DailyCommands ? 1 : 0), session.Snapshot.Clock.Day);
+        }
+        if (phase == TaskResolutionPhase.DailyCommands)
+        {
+            Assert.Equal(SimulationBoundary.Advancing, session.Snapshot.Simulation.Boundary);
+            Assert.DoesNotContain(events, e => e is XunAdvancedEvent);
+            while (session.Snapshot.Simulation.Boundary == SimulationBoundary.Advancing) Run(new AdvanceDayOperation());
+        }
+        Assert.Equal(11, session.Snapshot.Clock.Day);
+        Assert.Equal(90, session.Snapshot.Forces[0].BaseTrust);
+        Assert.Single(events.OfType<XunAdvancedEvent>());
+        Assert.Equal(10, events.OfType<StageCompletedEvent>().Count(e => e.Stage == ResolutionStage.BeforeDailyCommands));
+        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, Factory);
+        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+    }
+
+    [Fact]
+    public void PresentationStopsAtUnansweredDailyDecision()
+    {
+        var session = GameSession.Start(Content(), 42, Engine);
+        Assert.True(session.Execute(new("player"), new StartTaskCommand(Guid.NewGuid(), 1, 0,
+            "decision-fixture", 1, 1)).Submission.Accepted);
+        var advance = session.AdvanceForPresentation();
+        Assert.Equal(SessionDisposition.Accepted, advance.Result.Disposition);
+        Assert.Equal(SimulationBoundary.AwaitingDecision, session.Snapshot.Simulation.Boundary);
+        Assert.Equal(new[] { 2, 3, 3 }, advance.Frames.Select(f => f.Day));
+        Assert.Equal(SimulationBoundary.AwaitingDecision, advance.Frames[^1].World.Simulation.Boundary);
+        Assert.DoesNotContain(advance.Result.Events, e => e is XunAdvancedEvent);
+        string before = session.Snapshot.StateHash;
+        Assert.Empty(session.AdvanceForPresentation().Frames);
+        Assert.Equal(before, session.Snapshot.StateHash);
+    }
 
     [Fact]
     public void TwoSameDayDecisionsContinueInMemoryAndReplayWithoutRepeatingDailyWork()

@@ -130,8 +130,8 @@ internal static class AttackRequestDiplomacy
         var rejection = Eligibility(world, force, actor, target, place, rules);
         if (rejection != CommandRejection.None) return new(rejection, null, AdviserOpinion.Unavailable);
         if (PrisonerReturnDiplomacy.Player(world, target)) return new(CommandRejection.None, null, AdviserOpinion.Unavailable);
-        int threshold = Math.Max(FreeThreshold(world, force, actor, target, place, rules), PrisonerThreshold(world, force, actor, target, place, rules));
-        if (PaymentQuote(world, force, actor, target, place, rules).Kind != CompensationKind.Refuse) threshold = 100;
+        int threshold = PaymentQuote(world, force, actor, target, place, rules).Kind != CompensationKind.Refuse ? 100 :
+            Math.Max(FreeThreshold(world, force, actor, target, place, rules), PrisonerThreshold(world, force, actor, target, place, rules));
         return AdviserJudgment.Evaluate(world, force, ConditionalRandomPurpose.AttackRequest, actor, target, place, threshold);
     }
 

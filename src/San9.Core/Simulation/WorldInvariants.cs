@@ -141,11 +141,21 @@ internal static class WorldInvariants
             sim.NextUnitId < 0 || sim.NextUnitId > (long)int.MaxValue + 1 || state.Units.Keys.Any(id => id >= sim.NextUnitId) ||
             sim.Controls.Any(c => string.IsNullOrWhiteSpace(c.ControllerId) || !Enum.IsDefined(c.Kind) || !state.Forces.ContainsKey(c.ForceId)) ||
             sim.Controls.Select(c => c.ForceId).Distinct().Count() != sim.Controls.Length ||
-            sim.Boundary != SimulationBoundary.Terminal && (!state.Clock.IsXunBoundary && !sim.HasPendingDailyResolution || sim.TerminalReason is not null) ||
+            sim.Boundary != SimulationBoundary.Terminal && (!state.Clock.IsXunBoundary && !sim.HasPendingDailyResolution && sim.DailyAdvanceStarted is null || sim.TerminalReason is not null) ||
             sim.Boundary == SimulationBoundary.Terminal && (string.IsNullOrWhiteSpace(sim.TerminalReason) || !sim.Tasks.IsEmpty) ||
             sim.RandomStreams.Any(s => string.IsNullOrWhiteSpace(s.Name)) ||
             !sim.RandomStreams.Select(s => s.Name).SequenceEqual(sim.RandomStreams.Select(s => s.Name).Distinct().Order(StringComparer.Ordinal)))
             throw new ArgumentException("Invalid simulation boundary, control, sequence or random state.");
+        if (sim.DailyAdvanceStarted is { } advancing)
+        {
+            if (!advancing.IsXunBoundary || advancing.DayNumber < sim.Started.DayNumber ||
+                state.Clock.DayNumber < advancing.DayNumber || state.Clock.DayNumber > advancing.Advance().DayNumber ||
+                sim.ActiveControl != sim.Controls.Length ||
+                sim.Boundary is not (SimulationBoundary.Advancing or SimulationBoundary.AwaitingDecision))
+                throw new ArgumentException("Invalid daily advancement continuation.");
+        }
+        else if (sim.Boundary == SimulationBoundary.Advancing)
+            throw new ArgumentException("Daily advancement requires its starting boundary.");
         if (sim.ThreeVisitsStarted is { } started)
         {
             _ = new GameClock(started.Year, started.Month, started.Day);

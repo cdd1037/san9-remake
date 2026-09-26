@@ -79,8 +79,9 @@ public partial class Main : Node
             ui.AddChild(new MapAnnotations { World = world, Texts = content.Text, UiFont = ui.GetThemeFont("font") });
             var hud = new StrategyHud { World = world, Selection = selection, Session = session, Texts = content.Text, Skin = content.Skin, Textures = textures };
             ui.AddChild(hud);
-            var debug = new DebugPanel { World = world, Session = session, Selection = selection }; ui.AddChild(debug);
+            var debug = new DebugPanel { World = world, Session = session, Selection = selection, CanIssueOrders = () => hud.CanIssueOrders }; ui.AddChild(debug);
             world.IsInputBlocked = p => hud.Overview.IsOpen || (debug.Visible && debug.GetRect().HasPoint(p)) || hud.IsBlockedPoint(p);
+            world.CanIssueOrders = () => hud.CanIssueOrders;
             if (options.RequiresWorldVerification)
                 AddChild(new ClientVerification { World = world, Selection = selection, Hud = hud, Options = options });
         }

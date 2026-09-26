@@ -9,11 +9,11 @@ public partial class StrategyMinimap : Control
 {
     public MapWorld World { get; init; } = null!;
     public San9.Application.GameSession Session { get; init; } = null!;
-    public San9.Application.Presentation.StrategySnapshot Scenario => Session.View;
+    public San9.Application.Presentation.StrategySnapshot Scenario => World.View;
     public InterfaceSkin Skin { get; init; } = null!;
     private ImageTexture? _terrain;
     private TextureRect? _background;
-    private long _stateRevision = -1;
+    private San9.Application.Presentation.StrategySnapshot? _state;
     private readonly Node2D _markers = new();
     private readonly Node2D _viewport = new();
     private (Vector2 Position, float Zoom) _view;
@@ -50,7 +50,7 @@ public partial class StrategyMinimap : Control
     }
     public override void _Process(double delta)
     {
-        if (_stateRevision != Session.Snapshot.Revision) { _stateRevision = Session.Snapshot.Revision; _markers.QueueRedraw(); }
+        if (!ReferenceEquals(_state, Scenario)) { _state = Scenario; _markers.QueueRedraw(); }
         var view = (World.CameraPosition, World.ZoomFactor);
         if (_view == view) return;
         _view = view;

@@ -143,6 +143,34 @@ public sealed class AttackRequestDiplomacyTests
     }
 
     [Fact]
+    public void AdviceViewSurvivesPreviewButRefreshesAfterCommandCommit()
+    {
+        var engine = new SimulationEngine(World(60, automatic: true), Rules());
+        var before = engine.Snapshot.StateHash;
+        var attack = engine.GetAttackRequestAdvice(1, 12, 2, 3);
+        var surrender = engine.GetSurrenderAdvice(1, 12, 2);
+        Assert.Equal(CommandRejection.None, attack.Rejection);
+        Assert.Equal(CommandRejection.None, surrender.Rejection);
+        var command = new RequestAttackCommand(Guid.NewGuid(), 1, 0, 12, 2, 3);
+        Assert.True(engine.Validate(new("first"), command).Accepted);
+        Assert.Equal(before, engine.Snapshot.StateHash);
+        Assert.Equal(attack, engine.GetAttackRequestAdvice(1, 12, 2, 3));
+        Assert.Equal(surrender, engine.GetSurrenderAdvice(1, 12, 2));
+
+        Assert.True(engine.Execute(new("first"), command).Submission.Accepted);
+        var committed = engine.Snapshot.StateHash;
+        var fresh = Restore(engine);
+        Assert.Equal(CommandRejection.PersonUnavailable, engine.GetAttackRequestAdvice(1, 12, 2, 3).Rejection);
+        Assert.Equal(CommandRejection.PersonUnavailable, engine.GetSurrenderAdvice(1, 12, 2).Rejection);
+        foreach (int actor in new[] { 11, 12 })
+        {
+            Assert.Equal(fresh.GetAttackRequestAdvice(1, actor, 2, 3), engine.GetAttackRequestAdvice(1, actor, 2, 3));
+            Assert.Equal(fresh.GetSurrenderAdvice(1, actor, 2), engine.GetSurrenderAdvice(1, actor, 2));
+        }
+        Assert.Equal(committed, engine.Snapshot.StateHash);
+    }
+
+    [Fact]
     public void SubmissionDiceIgnoreSequenceAndQueriesDoNotMutateWorld()
     {
         var first = new SimulationEngine(World(60), Rules());

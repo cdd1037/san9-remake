@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace San9.Core.Simulation;
 
-public enum SimulationBoundary { New, Stable, Terminal, AwaitingDecision }
+public enum SimulationBoundary { New, Stable, Terminal, AwaitingDecision, Advancing }
 public enum ControllerKind { Player, Automatic }
 public sealed record ControlSeat(string ControllerId, int ForceId, ControllerKind Kind);
 public readonly record struct CommandContext(string ControllerId);
@@ -65,6 +65,8 @@ public sealed record PersonnelReturnLeg(int OriginPlaceId, int CountdownDays, bo
 /// <summary>Authoritative scheduling state; immutable and included in every world transaction.</summary>
 public sealed record SimulationState(GameClock Started, ulong InitialSeed)
 {
+    /// <summary>Runtime continuation for day-at-a-time advancement; never a save boundary.</summary>
+    [JsonIgnore] public GameClock? DailyAdvanceStarted { get; init; }
     [JsonRequired] public int FoodExchangeRate { get; init; } = 1;
     [JsonRequired] public GameClock? ThreeVisitsStarted { get; init; }
     [JsonRequired] public EmperorTransferPending? EmperorTransfer { get; init; }
@@ -98,7 +100,7 @@ public sealed record SimulationState(GameClock Started, ulong InitialSeed)
     public SimulationBoundary Boundary { get; init; }
     [JsonIgnore]
     public bool CanPersist => (Boundary is SimulationBoundary.Stable or SimulationBoundary.Terminal) &&
-        PendingDuel is null && PendingEvent is null && PendingDailyTask is null && PendingTacticStudy is null &&
+        DailyAdvanceStarted is null && PendingDuel is null && PendingEvent is null && PendingDailyTask is null && PendingTacticStudy is null &&
         PendingExecutionSuccession is null && PendingCapturedRuler is null && PendingSniping is null && Tasks.All(t => t.ResolutionStep == 0 && t.SearchEncounter is null &&
             t.AttackRequest?.Offer is null && t.PrisonerReturn?.Offer is null);
     public string? TerminalReason { get; init; }

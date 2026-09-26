@@ -44,9 +44,9 @@ internal static class SurrenderDiplomacy
     internal static int Threshold(WorldMutation world, int source, int actor, int target, SimulationRules rules)
     {
         var ruler = world.Officers[world.Forces[target].LeaderId!.Value];
-        if (!ruler.AutomaticSurrenderAllowed || !Neighbors(world, source, target, rules)) return 0;
+        if (!ruler.AutomaticSurrenderAllowed) return 0;
         long ratio = Strength(world, source) / Math.Max(20000, Strength(world, target));
-        if (ratio < 5) return 0;
+        if (ratio < 5 || !Neighbors(world, source, target, rules)) return 0;
         int cities = world.Settlements.Values.Count(s => s.OwnerId == target && s.Kind == SettlementKind.City && !s.IsDestroyed);
         long term = (Math.Clamp(world.Forces[source].Trust, 0, 1000) - Math.Clamp(world.Forces[target].Trust, 0, 1000)) / 40 +
             ratio - 10L * cities - Math.Max(0, 5 * ruler.Ambition - 40) + 10;

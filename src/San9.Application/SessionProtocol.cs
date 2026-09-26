@@ -7,21 +7,25 @@ namespace San9.Application;
 
 public static class SessionProtocol
 {
-    public const string RulesVersion = "san9-core-g10-v73";
+    public const string RulesVersion = "san9-core-g10-v74";
     public const int SaveFormatVersion = 90;
-    public const int LogFormatVersion = 93;
+    public const int LogFormatVersion = 94;
 }
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(CommandOperation), "command")]
 [JsonDerivedType(typeof(EndControlOperation), "end-control")]
 [JsonDerivedType(typeof(AdvanceOperation), "advance-xun")]
+[JsonDerivedType(typeof(PrepareAdvanceOperation), "prepare-advance")]
+[JsonDerivedType(typeof(AdvanceDayOperation), "advance-day")]
 [JsonDerivedType(typeof(ChronicleOperation), "chronicle-note")]
 [JsonDerivedType(typeof(EndingOperation), "ending")]
 public abstract record SessionOperation;
 public sealed record CommandOperation(GameCommand Command) : SessionOperation;
 public sealed record EndControlOperation : SessionOperation;
 public sealed record AdvanceOperation : SessionOperation;
+public sealed record PrepareAdvanceOperation : SessionOperation;
+public sealed record AdvanceDayOperation : SessionOperation;
 public sealed record ChronicleOperation(string Text) : SessionOperation;
 public sealed record EndingSelection([property: JsonRequired] EndingPolicy Policy, [property: JsonRequired] EndingOfficeholders? Officeholders);
 public sealed record EndingOperation(EndingSelection Selection) : SessionOperation;

@@ -7,7 +7,7 @@
 
 ## 1. 范围与证据边界
 
-本记录分析私有样本目录 `private/s9数据文件/` 中剧本的 `shak` chunk，以及加载到内存的 `CShakuiData` 官职对象。IDA 数据库 `San9PK-TC-101.i64` 只读使用；本轮没有修改或保存 IDA 数据库，也没有读取工作区外的原版程序、编辑器或存档。黑盒部分仅使用用户提供的官职编辑界面图。
+本记录分析私有样本目录 `private/游戏文件/` 中剧本的 `shak` chunk，以及加载到内存的 `CShakuiData` 官职对象。IDA 数据库 `San9PK-TC-101.i64` 只读使用；本轮没有修改或保存 IDA 数据库，也没有读取工作区外的原版程序、编辑器或存档。黑盒部分仅使用用户提供的官职编辑界面图。
 
 证据来源如下：
 
@@ -16,7 +16,7 @@
 - `SRC-BIN-001`：`research/findings/RE-SAN9PK-0005.md` 中的 `shak` chunk 偏移和尺寸。
 - `SRC-RECORD-001`：`research/findings/RE-SAN9PK-0009.md` 及 `San9ScenarioPersonArchive.cs` 中武将 `prsn +0x26` 的 `OfficeRankCode`。
 - `SRC-SOURCE-001`：`private/research/upstream/San9PKHard` 中的 `OFFICIAL_NUM = 0x4D`、运行时官职步长 `0x44`、`m_dwOfficialLoyalty[77]`、`m_dwOldSalary[77]` 及忠诚替换补丁；这是第三方辅助工程的旁证，与本二进制 IDA 结果交叉使用，不把未实际写入运行时的参考数组单独当作字段映射依据。
-- `SRC-BIN-002`：`private/s9数据文件/D_Sce001.S9` 及同目录库存剧本；其中 `shak` 60..76 行与官职截图数值逐项对照。
+- `SRC-BIN-002`：`private/游戏文件/D_Sce001.S9` 及同目录库存剧本；其中 `shak` 60..76 行与官职截图数值逐项对照。
 - `SRC-DOCS-001`：`private/research/docs/三国志9电子书.md`，约第 8168、8170 行；资料描述官位、声望/信望、带兵上限、俸禄和附加能力，但没有提供本版本二进制的字段表。
 - `SRC-BLACKBOX-002`：本轮用户提供的官职编辑界面图。
 
@@ -347,4 +347,4 @@ runtime empty candidate = -1      // 某些访问器中的内部空值
 
 ## 9. 独立解析器验证
 
-`San9ScenarioOfficeArchive.ReadKnownRecords` 按 77×18 字节读取 `shak`，以记录顺序建立官职 ID，保留 ID 76 的“无官职”哨兵；`rank_group_code >= 9` 只派生为空关联，原始代码不变。自动测试覆盖字段映射、0..75/76 任用边界、官爵组边界、四项能力掩码、原始槽位保留和异常区块尺寸；对 `private/s9数据文件/` 中 26 个正式布局样本的集成复验均稳定返回 77 条记录。解析器不为掩码高位或三个遗留槽位赋予未经证实的业务语义。
+`San9ScenarioOfficeArchive.ReadKnownRecords` 按 77×18 字节读取 `shak`，以记录顺序建立官职 ID，保留 ID 76 的“无官职”哨兵；`rank_group_code >= 9` 只派生为空关联，原始代码不变。自动测试覆盖字段映射、0..75/76 任用边界、官爵组边界、四项能力掩码、原始槽位保留和异常区块尺寸；对 `private/游戏文件/` 中 26 个正式布局样本的集成复验均稳定返回 77 条记录。解析器不为掩码高位或三个遗留槽位赋予未经证实的业务语义。

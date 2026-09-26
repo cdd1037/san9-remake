@@ -10,9 +10,11 @@ public static class TexturePackageImporter
 {
     public const int ConversionVersion = 22;
 
-    public static async Task<TexturePackage> ImportAsync(string sourceExe, string dataDirectory, string output,
+    public static async Task<TexturePackage> ImportAsync(string gameDirectory, string output,
         Action<string>? progress = null, CancellationToken token = default)
     {
+        var sourceDirectory = new San9SourceDirectory(gameDirectory);
+        string sourceExe = sourceDirectory.Executable, dataDirectory = sourceDirectory.Root;
         var identity = await San9PkTc101Detector.DetectAsync(sourceExe, token);
         if (!identity.IsMatch) throw new InvalidDataException(identity.Reason);
         TextureLibraryCompiler.ValidateInventory(dataDirectory);

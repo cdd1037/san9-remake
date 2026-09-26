@@ -4,7 +4,7 @@
 - 日期：2026-08-30
 - 结论类型：事实、反编译器修正与截图/样本对照
 - 置信度：高（边界、字段宽度、目标运行时偏移、已观察字段）；中（字段业务名称）
-- 关联来源：`SRC-SAN9PK-TC-101`、`SRC-SAN9PKHARD`、样本目录 `private/s9数据文件/`、编辑器截图 `private/剧本编辑器截图/square.png`、`private/剧本编辑器截图/地形.png`
+- 关联来源：`SRC-SAN9PK-TC-101`、`SRC-SAN9PKHARD`、样本目录 `private/游戏文件/`、编辑器截图 `private/剧本编辑器截图/square.png`、`private/剧本编辑器截图/地形.png`
 - 前置记录：[`RE-SAN9PK-0018`](RE-SAN9PK-0018.md)
 - 深入分析：[`RE-SAN9PK-0024`](RE-SAN9PK-0024.md)
 - 关联规格：[`BEH-IMPORT-0014`](../../specs/behavior/BEH-IMPORT-0014-scenario-square-records.md)

@@ -1,6 +1,6 @@
 """从原版源文件独立核对最终纹理颜色、图集区域及原有显示图片。
 
-python research/scripts/verify_texture_library.py --package local/generated/content/textures-san9pk-tc101 --source private/s9数据文件
+python research/scripts/verify_texture_library.py --package local/generated/content/textures-san9pk-tc101 --source private/游戏文件
 """
 import argparse
 import io

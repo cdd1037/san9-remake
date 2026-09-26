@@ -4,7 +4,7 @@
 - 日期：2026-08-16
 - 结论类型：样本事实、黑盒显示对照、低至中置信度推断、待验证项
 - 置信度：高（跨样本不变量、数值分布、特殊值集合）；中（地图块/边缘编码候选）；低（具体 bit 义和玩法效果）
-- 关联来源：[RE-SAN9PK-0019](RE-SAN9PK-0019.md)、`SRC-SAN9PK-TC-101`、`SRC-SAN9PKHARD`、`private/s9数据文件/`、`private/剧本编辑器截图/square.png`
+- 关联来源：[RE-SAN9PK-0019](RE-SAN9PK-0019.md)、`SRC-SAN9PK-TC-101`、`SRC-SAN9PKHARD`、`private/游戏文件/`、`private/剧本编辑器截图/square.png`
 - 关联规格：[BEH-IMPORT-0014](../../specs/behavior/BEH-IMPORT-0014-scenario-square-records.md)
 
 ## 1. 黑盒显示不是文件记录的逐项布局

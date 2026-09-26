@@ -100,11 +100,13 @@ Core按目标格实时选择：范围内更高且具备高处资格的邻格优�
 
 ## 转换与运行
 
+三个导入入口（`import-textures`、`import-client`、`import-text`）统一接受 `--game-dir`，不再接受分离的 `--source-exe`／`--data-dir`。所选目录须直接包含 `San9PK.exe` 和原版S9数据；`--scenario`只接受该目录内的剧本文件名，例如`D_Sce002.S9`，不接受另一个路径。Importer共用`San9SourceDirectory`定位输入，继续校验原版身份，缺失文件明确报错。本地入口为`private/游戏文件/`；该目录内的DLL仅供研究，不参与内容转换或客户端加载。
+
 从仓库根目录执行；已有目录按来源清单原位增量更新。复用未变化资源，同步清单并清理失效文件；必要的全量重建仍优先使用原目录。只有明确需要独立对照时保留副本，不为旧包引入兼容分支：
 
 ```powershell
-dotnet run --project src/San9.Tools -- import-textures --source-exe "<已登记San9PK.exe绝对路径>" --data-dir "private/s9数据文件" --output "local/generated/content/textures-san9pk-tc101"
-dotnet run --project src/San9.Tools -- import-client --source-exe "<已登记San9PK.exe绝对路径>" --data-dir "private/s9数据文件" --scenario "private/s9数据文件/D_Sce002.S9" --texture-package "local/generated/content/textures-san9pk-tc101" --output "local/generated/content/scenario-190-live"
+dotnet run --project src/San9.Tools -- import-textures --game-dir "private/游戏文件" --output "local/generated/content/textures-san9pk-tc101"
+dotnet run --project src/San9.Tools -- import-client --game-dir "private/游戏文件" --scenario "D_Sce002.S9" --texture-package "local/generated/content/textures-san9pk-tc101" --output "local/generated/content/scenario-190-live"
 & "<Godot Mono可执行文件>" --path src/San9.Client.Godot -- --content-package "<客户端内容包绝对路径>"
 ```
 
@@ -125,8 +127,8 @@ dotnet run --project src/San9.Tools -- import-client --source-exe "<已登记San
 FA40..FA45依次映射伷/璝/寗/勑/𩅦/儁；不使用HKSCS猜测。CP950是来源编码，繁简转换仅作用于文字片段。四十条日文占位记录按索引和精确原始字节签名识别CP932，不做宽松编码回退。未知字形、未确认属性及异常尾部保留在诊断，并阻止消息执行；所有引用和依赖确认度另行统计。璝按OpenCC词典显示为𪻺，见[DEC-UI-0005](../specs/decisions/DEC-UI-0005-officer-name-normalization.md)。
 
 ```powershell
-dotnet run --project src/San9.Tools -- import-text --source-exe "<已登记San9PK.exe绝对路径>" --data-dir "private/s9数据文件" --output "local/generated/research/unified-text" --exe-evidence "local/generated/research/unified-text/exe-evidence.json"
-python research/scripts/verify_message_export.py "private/s9数据文件" local/generated/research/unified-text
+dotnet run --project src/San9.Tools -- import-text --game-dir "private/游戏文件" --output "local/generated/research/unified-text" --exe-evidence "local/generated/research/unified-text/exe-evidence.json"
+python research/scripts/verify_message_export.py "private/游戏文件" local/generated/research/unified-text
 ```
 
 历史字体验收另使用`--text-smoke`，后续开发和日常内容转换默认不执行；仅在当前任务明确要求复现时按[Godot历史画面验收](ui/client-verification.md)单独运行。

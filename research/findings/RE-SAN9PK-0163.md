@@ -38,7 +38,7 @@
 
 当前只有稳定初始会话和内政命令，状态行固定“一般”，未接入交战/混乱等状态或自动任命大将。当前像素拾取不是原版4×4视觉对象搜索的精确复现。未新增单位悬停、出征、战斗或军团切换命令。没有启动Godot、引擎输入自检、GPU截图或操作系统交互；用户已反馈整体画面无明显问题，并要求“在任”两侧各至少三位宽，已采用空格补位。
 
-验证命令：`dotnet test San9Remake.slnx --no-restore`（300项通过，包含Godot项目编译）；`python research/scripts/audit_map_hover.py --data-dir private/s9数据文件 --package local/generated/content/scenario-190-live`（6张背景、38标志、32在职负责人、94据点、700人物）。转换原位完成，失效的拆分背景由转换器清理。
+验证命令：`dotnet test San9Remake.slnx --no-restore`（300项通过，包含Godot项目编译）；`python research/scripts/audit_map_hover.py --data-dir private/游戏文件 --package local/generated/content/scenario-190-live`（6张背景、38标志、32在职负责人、94据点、700人物）。转换原位完成，失效的拆分背景由转换器清理。
 
 ## 实际IDA标注与回读
 

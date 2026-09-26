@@ -3,7 +3,7 @@
 - 状态：已确认
 - 来源类型：商业游戏二进制
 - 作者或发布者：KOEI Co., Ltd.
-- 本地样本：`private/San9Tc/dll/KOEIGrpX.dll`
+- 本地样本：`private/游戏文件/KOEIGrpX.dll`
 - 识别日期：2026-08-22
 - 文件大小：90,112 字节
 - SHA-256：`DF682DF708631448A71E44D8D031994424411263597C7552CFC36EA35A2AF5AD`

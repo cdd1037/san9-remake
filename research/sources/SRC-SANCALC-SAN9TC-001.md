@@ -3,7 +3,7 @@
 - 状态：已确认
 - 来源类型：商业游戏二进制
 - 作者或发布者：KOEI Co., Ltd.
-- 本地样本：`private/San9Tc/dll/SanCalc.dll`
+- 本地样本：`private/游戏文件/SanCalc.dll`
 - 识别日期：2026-08-22
 - 文件大小：114,688 字节
 - SHA-256：`E6F51781694B151EDB9181F7F1E06A91078D18062B159147CDF91A36A98B3279`

@@ -133,7 +133,7 @@
 
 沿用 `SRC-SAN9PK-TC-101` 的工具及环境登记。本轮主库 survey 确认繁中威力加强版、32位、映像基址 `0x400000`，EXE SHA-256 为 `d20794aeff67301ec2bf8c3becb1e9944c68c6c0588fbfd4bf04e8597f0e5028`。以反编译、交叉引用和只读指令解码追踪交互、命令集合、推进入口及属性写回，没有运行原游戏动态实验。
 
-文案证据来自当前转换包 `local/generated/content/scenario-190-live/messages.json` 的源脚本字面文本和绑定；转换路径为 `San9MessageTable → OriginalMessageParser`。源文件 `private/s9数据文件/M_MsgPK.s9` 的 SHA-256 为 `3A8BB191DE1A9F17EA95E9EC6CDD1443D6EF44A524BA6DBB7CE977DF25900B5D`。消息编号与 EXE 调用立即数对应，不能只凭文案猜测触发条件。
+文案证据来自当前转换包 `local/generated/content/scenario-190-live/messages.json` 的源脚本字面文本和绑定；转换路径为 `San9MessageTable → OriginalMessageParser`。源文件 `private/游戏文件/M_MsgPK.s9` 的 SHA-256 为 `3A8BB191DE1A9F17EA95E9EC6CDD1443D6EF44A524BA6DBB7CE977DF25900B5D`。消息编号与 EXE 调用立即数对应，不能只凭文案猜测触发条件。
 
 **事实，高置信度：**原作允许确认后下达针对高关系势力或联盟成员的攻击命令。确认、普通宣战代价、联盟背信是不同环节。此前重制实现统一拒绝成员攻击，尚未覆盖这一入口，不能视为联盟玩法完整实现。
 

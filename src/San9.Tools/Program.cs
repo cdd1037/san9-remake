@@ -8,11 +8,11 @@ using San9.Rendering;
 
 try
 {
-    if(args.Length==0)throw new ArgumentException("Commands: import-textures --source-exe PATH --data-dir PATH --output PATH; import-client --source-exe PATH --data-dir PATH --scenario PATH --texture-package PATH --output PATH; verify-textures --texture-package PATH; verify-client --content-package PATH; import-text --source-exe PATH --data-dir PATH --output PATH; render-map --content-package PATH --output PATH");
+    if(args.Length==0)throw new ArgumentException("Commands: import-textures --game-dir PATH --output PATH; import-client --game-dir PATH --scenario FILENAME --texture-package PATH --output PATH; verify-textures --texture-package PATH; verify-client --content-package PATH; import-text --game-dir PATH --output PATH; render-map --content-package PATH --output PATH");
     Dictionary<string,string> options=[];
     for(int i=1;i<args.Length;i+=2)
         if(i+1>=args.Length||!args[i].StartsWith("--",StringComparison.Ordinal)||!options.TryAdd(args[i],args[i+1]))throw new ArgumentException("Invalid or duplicate option.");
-    string[] allowed=args[0] == "import-textures" ? ["--source-exe","--data-dir","--output"] : args[0] == "verify-textures" ? ["--texture-package"] : args[0] == "verify-client" ? ["--content-package"] : args[0] == "import-text" ? ["--source-exe","--data-dir","--output","--exe-evidence"] : args[0] == "import-client"?["--source-exe","--data-dir","--scenario","--texture-package","--output"]:["--content-package","--season","--output","--x","--y","--width","--height","--terrain-only"];
+    string[] allowed=args[0] == "import-textures" ? ["--game-dir","--output"] : args[0] == "verify-textures" ? ["--texture-package"] : args[0] == "verify-client" ? ["--content-package"] : args[0] == "import-text" ? ["--game-dir","--output","--exe-evidence"] : args[0] == "import-client"?["--game-dir","--scenario","--texture-package","--output"]:["--content-package","--season","--output","--x","--y","--width","--height","--terrain-only"];
     if(options.Keys.Any(k=>!allowed.Contains(k)))throw new ArgumentException("Unknown option.");
     string Required(string key)=>options.TryGetValue(key,out var value)?value:throw new ArgumentException($"Missing {key}.");
     var watch=Stopwatch.StartNew();
@@ -26,16 +26,17 @@ try
     }
     else if(args[0]=="import-text")
     {
-        var identity=await San9.Importer.San9PkTc101.San9PkTc101Detector.DetectAsync(Required("--source-exe"));
+        var source = new San9SourceDirectory(Required("--game-dir"));
+        var identity=await San9PkTc101Detector.DetectAsync(source.Executable);
         if(!identity.IsMatch) throw new InvalidDataException(identity.Reason);
-        San9.Importer.San9PkTc101.Text.MessageArchiveCompiler.Export(Required("--data-dir"), Required("--output"), Console.WriteLine);
+        San9.Importer.San9PkTc101.Text.MessageArchiveCompiler.Export(source.Root, Required("--output"), Console.WriteLine);
         MessageVerification.Run(Required("--output"));
         if(options.TryGetValue("--exe-evidence",out var evidence))
-            San9.Importer.San9PkTc101.Text.ExecutableTextCompiler.Export(Required("--source-exe"),evidence,Required("--output"));
+            San9.Importer.San9PkTc101.Text.ExecutableTextCompiler.Export(source.Executable,evidence,Required("--output"));
     }
     else if(args[0]=="import-textures")
     {
-        await TexturePackageImporter.ImportAsync(Required("--source-exe"), Required("--data-dir"), Required("--output"), Console.WriteLine);
+        await TexturePackageImporter.ImportAsync(Required("--game-dir"), Required("--output"), Console.WriteLine);
     }
     else if(args[0]=="verify-textures")
     {
@@ -46,7 +47,7 @@ try
     }
     else if(args[0]=="import-client")
     {
-        var content=await ClientContentImporter.ImportAsync(Required("--source-exe"),Required("--data-dir"),Required("--scenario"),Required("--texture-package"),Required("--output"),Console.WriteLine);
+        var content=await ClientContentImporter.ImportAsync(Required("--game-dir"),Required("--scenario"),Required("--texture-package"),Required("--output"),Console.WriteLine);
         Console.WriteLine($"Complete: {content.Scenario.ScenarioId}, {watch.Elapsed.TotalSeconds:F2}s");
     }
     else if(args[0]=="render-map")

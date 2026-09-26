@@ -107,7 +107,7 @@ y = base_y - 10 * (n + sum(offset[start:end])) / n
 
 ```powershell
 python research/scripts/render_square_map.py `
-  "private/s9数据文件/D_Sce002.S9" "private/s9数据文件" `
+  "private/游戏文件/D_Sce002.S9" "private/游戏文件" `
   "tmp/full-map-edge-clouds.png" `
   --x 0 --y 0 --width 200 --height 200 --edge-clouds
 ```

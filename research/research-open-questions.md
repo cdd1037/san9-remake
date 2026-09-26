@@ -68,7 +68,7 @@
 复现主要检查：
 
 ```powershell
-python research/scripts/analyze_scenario_persons.py private/s9数据文件 local/generated/research/audit/person-profile.json
+python research/scripts/analyze_scenario_persons.py private/游戏文件 local/generated/research/audit/person-profile.json
 python -m unittest discover -s research/scripts
 python research/scripts/validate_core_domain_contracts.py --contracts specs/behavior/core-domain-contracts.json --map specs/behavior/core-domain-dependency-map.md --behavior-dir specs/behavior --decision-dir specs/decisions --repo-root . --output local/generated/research/audit/core-contract-validation.json
 git diff --check

@@ -4,7 +4,7 @@
 - 日期：2026-08-31
 - 结论类型：逆向事实、样本事实与版本边界
 - 置信度：高
-- 关联来源：`SRC-SAN9PK-TC-101`、样本目录 `private/s9数据文件/`
+- 关联来源：`SRC-SAN9PK-TC-101`、样本目录 `private/游戏文件/`
 - 前置记录：[`RE-SAN9PK-0005`](RE-SAN9PK-0005.md)、[`RE-SAN9PK-0015`](RE-SAN9PK-0015.md)、[`RE-SAN9PK-0026`](RE-SAN9PK-0026.md)
 - 关联规格：[`BEH-IMPORT-0013`](../../specs/behavior/BEH-IMPORT-0013-scenario-skrk-records.md)
 

@@ -10,7 +10,7 @@
 
 ## 调查范围
 
-本轮只读调查使用已登记的 IDA 数据库 `research/analysis/San9PK-TC-101.i64`，并只读检查私有目录 `private/s9数据文件/` 中的 `D_Sce001.S9` 至 `D_Sce020.S9`、`D_Ttrl00.S9` 至 `D_Ttrl05.S9`。黑盒对照使用 `private/剧本编辑器截图/军团.png`；样本不进入 Git。
+本轮只读调查使用已登记的 IDA 数据库 `research/analysis/San9PK-TC-101.i64`，并只读检查私有目录 `private/游戏文件/` 中的 `D_Sce001.S9` 至 `D_Sce020.S9`、`D_Ttrl00.S9` 至 `D_Ttrl05.S9`。黑盒对照使用 `private/剧本编辑器截图/军团.png`；样本不进入 Git。
 
 `forc` chunk 的数据从文件偏移 `0x8C06E` 开始，大小为 4,300 字节，包含 50 条、每条 86 字节的记录。`deserialize_scenario_chunks`（`0x453F60`）对该区块调用 `deserialize_force_record`（`0x43E920`）50 次；运行时势力表基址为 `0x1253C38`，步长为 `0xD4`。
 

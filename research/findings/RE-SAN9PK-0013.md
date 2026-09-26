@@ -13,7 +13,7 @@
 证据来源如下：
 
 - `SRC-IDA-006`：`deserialize_scenario_chunks`（`0x453F60`）和 `deserialize_ciki_record`（`0x43A1E0`）的反编译与交叉引用。
-- `SRC-BIN-004`：`private/s9数据文件/D_Sce001.S9`–`D_Sce020.S9`、`D_Ttrl00.S9`–`D_Ttrl05.S9`。
+- `SRC-BIN-004`：`private/游戏文件/D_Sce001.S9`–`D_Sce020.S9`、`D_Ttrl00.S9`–`D_Ttrl05.S9`。
 - `SRC-BLACKBOX-004`：`private/剧本编辑器截图/地形.png`。
 
 ## 2. 黑盒与样本观察

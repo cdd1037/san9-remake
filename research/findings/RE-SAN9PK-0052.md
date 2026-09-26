@@ -5,7 +5,7 @@
 - 分析者：Codex
 - 结论类型：私有样本只读事实、已确认字段解释与受限推断
 - 置信度：高（对象记录、坐标、逐格原始记录和矩阵）；中高（bit14 的对象核心区语义）
-- 样本：工作区私有样本 `private/s9数据文件/D_Sce002.S9`（只读；样本本体不进入 Git）
+- 样本：工作区私有样本 `private/游戏文件/D_Sce002.S9`（只读；样本本体不进入 Git）
 - 前置记录：[RE-SAN9PK-0051](RE-SAN9PK-0051.md)
 - 关联规格：[BEH-IMPORT-0014](../../specs/behavior/BEH-IMPORT-0014-scenario-square-records.md)
 

@@ -8,9 +8,12 @@ namespace San9.Importer.San9PkTc101.Packages;
 
 public static class ClientContentImporter
 {
-    public static async Task<ClientContentPackage> ImportAsync(string sourceExe, string dataDirectory, string scenarioPath,
+    public static async Task<ClientContentPackage> ImportAsync(string gameDirectory, string scenarioFile,
         string textureRoot, string output, Action<string>? progress = null, CancellationToken token = default)
     {
+        var sourceDirectory = new San9SourceDirectory(gameDirectory);
+        string sourceExe = sourceDirectory.Executable, dataDirectory = sourceDirectory.Root;
+        string scenarioPath = sourceDirectory.File(scenarioFile);
         var identity = await San9PkTc101Detector.DetectAsync(sourceExe, token);
         if (!identity.IsMatch) throw new InvalidDataException(identity.Reason);
         textureRoot = Path.GetFullPath(textureRoot); output = Path.GetFullPath(output);

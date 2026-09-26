@@ -31,7 +31,7 @@
 
 调查 `prsn` chunk 的 134 字节记录、目标程序反序列化路径，以及用户本次提供的黑盒剧本编辑器人物页能支持到什么程度。截图只作为字段分组和显示值线索，不把界面标签单独提升为格式事实。
 
-本次剧本样本和编辑器资料均来自仓库私有目录 `private/s9数据文件/` 与 `private/剧本编辑器截图/`，没有读取工作区外的样本。IDA 调查使用仓库内 `research/analysis/San9PK-TC-101.i64`，只读调查与后续 IDB 标注分别记录。
+本次剧本样本和编辑器资料均来自仓库私有目录 `private/游戏文件/` 与 `private/剧本编辑器截图/`，没有读取工作区外的样本。IDA 调查使用仓库内 `research/analysis/San9PK-TC-101.i64`，只读调查与后续 IDB 标注分别记录。
 
 ## 记录边界
 
@@ -188,7 +188,7 @@ bit1 与 bit21..31 的关闭采用两类互相独立的负面证据。当前 IDB
 | `0x00` | `IsCapturedRuler` | 仅当 bit13 与身份 4 同时成立时为真 |
 | `0x00` | `WasRewardedThisXun` | bit14 置位时为真 |
 
-这些视图不覆盖 `EncodedStatusStartYear`、`Health`、`BloodlineRootPersonCode` 或 `ParentPersonCode`。使用 `private/s9数据文件/` 中的 `D_Sce001.S9`–`D_Sce020.S9`、`D_Ttrl00.S9`–`D_Ttrl05.S9` 共 26 个正式布局样本复验，每份均读取为 800 条记录；样本中健康值只出现 0 和 7，血缘根编号范围为 0–799。该统计支持当前读取链，但不替代资源文本和扩展人物槽的后续实验。
+这些视图不覆盖 `EncodedStatusStartYear`、`Health`、`BloodlineRootPersonCode` 或 `ParentPersonCode`。使用 `private/游戏文件/` 中的 `D_Sce001.S9`–`D_Sce020.S9`、`D_Ttrl00.S9`–`D_Ttrl05.S9` 共 26 个正式布局样本复验，每份均读取为 800 条记录；样本中健康值只出现 0 和 7，血缘根编号范围为 0–799。该统计支持当前读取链，但不替代资源文本和扩展人物槽的后续实验。
 
 ## IDA 调查与独立实现
 

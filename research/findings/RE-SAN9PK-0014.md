@@ -13,7 +13,7 @@
 证据来源如下：
 
 - `SRC-IDA-006`：`deserialize_scenario_chunks`（`0x453F60`）、`deserialize_fbld_record`（`0x43D220`）、固定建筑属性 getter（`0x43D350`）、视觉定义访问与地图快照链（`0x436200`、`0x52E4F0`、`0x52EB60`）、伤兵恢复系数访问器（`0x436220`）、每旬建筑伤兵恢复入口（`0x482F10`）、兵法索引函数（`0x453720`）和 48 位兵法位读取链（`0x43CF70`、`0x447610`、`0x4476B0`）。
-- `SRC-BIN-004`：`private/s9数据文件/D_Sce001.S9`–`D_Sce020.S9`、`D_Ttrl00.S9`–`D_Ttrl05.S9`。
+- `SRC-BIN-004`：`private/游戏文件/D_Sce001.S9`–`D_Sce020.S9`、`D_Ttrl00.S9`–`D_Ttrl05.S9`。
 - `SRC-BLACKBOX-005`：`private/剧本编辑器截图/固定建筑.png`。
 
 ## 2. 黑盒与样本观察

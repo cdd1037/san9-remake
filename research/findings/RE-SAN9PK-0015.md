@@ -13,7 +13,7 @@
 证据来源如下：
 
 - `SRC-IDA-006`：`deserialize_scenario_chunks`（`0x453F60`）、`deserialize_hiho_record`（`0x446FD0`）和其 41 项运行时表。
-- `SRC-BIN-004`：`private/s9数据文件/D_Sce001.S9`–`D_Sce020.S9`、`D_Ttrl00.S9`–`D_Ttrl05.S9`。
+- `SRC-BIN-004`：`private/游戏文件/D_Sce001.S9`–`D_Sce020.S9`、`D_Ttrl00.S9`–`D_Ttrl05.S9`。
 - `SRC-BLACKBOX-006`：`private/剧本编辑器截图/兵法.png`。
 - `SRC-SAN9PK-TC-101`：`M_MsgPK.s9` 的消息记录 `4975..4992`（九个系统短名与九个“熟练”标签）及 `1342..1370`（兵法目录表头与阵形列标题）。
 

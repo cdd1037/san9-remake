@@ -10,7 +10,7 @@
 
 ## 调查范围
 
-本轮只读调查已登记的 IDA 数据库 `research/analysis/San9PK-TC-101.i64`，并只读检查私有目录 `private/s9数据文件/` 中的 `D_Sce001.S9` 至 `D_Sce020.S9`、`D_Ttrl00.S9` 至 `D_Ttrl05.S9`。编辑器截图 `private/剧本编辑器截图/据点.png` 只用于界面字段对照；样本不进入 Git。
+本轮只读调查已登记的 IDA 数据库 `research/analysis/San9PK-TC-101.i64`，并只读检查私有目录 `private/游戏文件/` 中的 `D_Sce001.S9` 至 `D_Sce020.S9`、`D_Ttrl00.S9` 至 `D_Ttrl05.S9`。编辑器截图 `private/剧本编辑器截图/据点.png` 只用于界面字段对照；样本不进入 Git。
 
 `bldg` chunk 的头位于文件偏移 `0x89F86`，数据从 `0x89F8E` 开始，大小为 5,600 字节。它包含 200 条、每条 28 字节的记录，目标程序将其加载到 200 项 Zone 表；这里的 `Zone` 对应黑盒编辑器的“据点”列表。
 

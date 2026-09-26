@@ -162,7 +162,7 @@ Lanczos 结果：
 复现命令（仓库根目录，Python 依赖 NumPy/Pillow）：
 
 ```powershell
-uv run --with numpy --with pillow python research/scripts/compare_face_crops.py "private/s9数据文件" local/generated/face-crop-analysis
+uv run --with numpy --with pillow python research/scripts/compare_face_crops.py "private/游戏文件" local/generated/face-crop-analysis
 ```
 
 脚本：[compare_face_crops.py](../scripts/compare_face_crops.py)。输出 `metrics.json` 保存全部指标及搜索坐标，`comparison.png` 和 `adjusted-comparison.png` 保存对照图；生成物不提交。本轮是文件像素实验，没有新增 IDA 写入，也未修改产品代码。

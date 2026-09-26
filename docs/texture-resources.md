@@ -33,11 +33,11 @@
 ## 转换与离线入口
 
 ```powershell
-dotnet run --project src/San9.Tools -- import-textures --source-exe "<San9PK.exe绝对路径>" --data-dir private/s9数据文件 --output local/generated/content/textures-san9pk-tc101
-dotnet run --project src/San9.Tools -- import-client --source-exe "<San9PK.exe绝对路径>" --data-dir private/s9数据文件 --scenario private/s9数据文件/D_Sce002.S9 --texture-package local/generated/content/textures-san9pk-tc101 --output local/generated/content/scenario-190-live
+dotnet run --project src/San9.Tools -- import-textures --game-dir "private/游戏文件" --output local/generated/content/textures-san9pk-tc101
+dotnet run --project src/San9.Tools -- import-client --game-dir "private/游戏文件" --scenario D_Sce002.S9 --texture-package local/generated/content/textures-san9pk-tc101 --output local/generated/content/scenario-190-live
 dotnet run --project src/San9.Tools -- verify-textures --texture-package local/generated/content/textures-san9pk-tc101
 dotnet run --project src/San9.Tools -- verify-client --content-package local/generated/content/scenario-190-live
-python research/scripts/verify_texture_library.py --package local/generated/content/textures-san9pk-tc101 --source private/s9数据文件
+python research/scripts/verify_texture_library.py --package local/generated/content/textures-san9pk-tc101 --source private/游戏文件
 ```
 
 验证入口供显式调用，不在游戏启动时扫描所有 PNG。当前用户负责画面检查，不自动启动游戏。

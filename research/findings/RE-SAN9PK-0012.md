@@ -13,7 +13,7 @@
 证据来源如下：
 
 - `SRC-IDA-005`：`deserialize_scenario_chunks`（`0x453F60`）和 `deserialize_area_record`（`0x434D40`）的反编译与交叉引用。
-- `SRC-BIN-003`：`private/s9数据文件/D_Sce001.S9`–`D_Sce020.S9`、`D_Ttrl00.S9`–`D_Ttrl05.S9`。
+- `SRC-BIN-003`：`private/游戏文件/D_Sce001.S9`–`D_Sce020.S9`、`D_Ttrl00.S9`–`D_Ttrl05.S9`。
 - `SRC-BLACKBOX-003`：`private/剧本编辑器截图/州.png`。
 - `SRC-RECORD-001`：`RE-SAN9PK-0008` 对城市 `area code` 的加载结论。
 

@@ -49,11 +49,11 @@ dotnet test tests/San9.Headless.Tests/San9.Headless.Tests.csproj
 
 ### 转换客户端内容
 
-准备已登记且通过指纹校验的繁中 PK 1.0.1.0 EXE，以及本地 `private/s9数据文件/` 下的源数据：
+选择包含 `San9PK.exe`、S9 数据及剧本文件的同一个原版游戏目录；本地统一使用 `private/游戏文件/`。当前支持已登记且通过指纹校验的繁中 PK 1.0.1.0：
 
 ```powershell
-dotnet run --project src/San9.Tools -- import-textures --source-exe "<San9PK.exe绝对路径>" --data-dir "private/s9数据文件" --output "local/generated/content/textures-san9pk-tc101"
-dotnet run --project src/San9.Tools -- import-client --source-exe "<San9PK.exe绝对路径>" --data-dir "private/s9数据文件" --scenario "private/s9数据文件/D_Sce002.S9" --texture-package "local/generated/content/textures-san9pk-tc101" --output "local/generated/content/scenario-190-live"
+dotnet run --project src/San9.Tools -- import-textures --game-dir "private/游戏文件" --output "local/generated/content/textures-san9pk-tc101"
+dotnet run --project src/San9.Tools -- import-client --game-dir "private/游戏文件" --scenario "D_Sce002.S9" --texture-package "local/generated/content/textures-san9pk-tc101" --output "local/generated/content/scenario-190-live"
 ```
 
 纹理由 `import-textures` 独立构建，按类别存入共享纹理包；`import-client` 只生成剧本、文本、地图实例及资源引用。增量复用与失效产物清理归纹理构建所有。入口见[内容管线](docs/client-content.md)。

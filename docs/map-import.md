@@ -7,8 +7,8 @@
 地图资源由独立 `import-textures` 构建，`textures.json.map` 保存四季源图、遮罩、建筑组合、动画帧和云资源。`import-client` 只读取共享资源定义并编译剧本地图实例，`map.json` 保存方格、地形、对象位置与边界，不包含图片目录。小地图底图改为客户端按当前地图方格合成。资源覆盖不依赖190剧本的当前显示状态。
 
 ```powershell
-dotnet run --project src/San9.Tools -- import-textures --source-exe "<已登记的San9PK.exe>" --data-dir "private/s9数据文件" --output "local/generated/content/textures-san9pk-tc101"
-dotnet run --project src/San9.Tools -- import-client --source-exe "<已登记的San9PK.exe>" --data-dir "private/s9数据文件" --scenario "private/s9数据文件/D_Sce002.S9" --texture-package "local/generated/content/textures-san9pk-tc101" --output "local/generated/content/scenario-190-live"
+dotnet run --project src/San9.Tools -- import-textures --game-dir "private/游戏文件" --output "local/generated/content/textures-san9pk-tc101"
+dotnet run --project src/San9.Tools -- import-client --game-dir "private/游戏文件" --scenario "D_Sce002.S9" --texture-package "local/generated/content/textures-san9pk-tc101" --output "local/generated/content/scenario-190-live"
 dotnet run --project src/San9.Tools -- render-map --content-package local/generated/content/scenario-190-live --output local/generated/verification/map.png --terrain-only true
 ```
 
@@ -137,7 +137,7 @@ EXE须通过繁中PK 1.0.1.0指纹校验。纹理包原位增量更新，在清�
 ```powershell
 dotnet test San9Remake.slnx
 dotnet run --project src/San9.Tools -- render-map --content-package local/generated/content/scenario-190-live --season spring --x 6880 --y 2610 --width 800 --height 450 --terrain-only true --output local/generated/verification/map-history/product-terrain.png
-python -B research/scripts/verify_map_package.py "<已登记EXE>" private/s9数据文件 local/generated/maps/scenario-190-map local/generated/verification/map-history
+python -B research/scripts/verify_map_package.py "<已登记EXE>" private/游戏文件 local/generated/maps/scenario-190-map local/generated/verification/map-history
 ```
 
 研究比较脚本需要Python和Pillow，仅用于私有样本验收，不参与客户端运行。`render-map --content-package`默认包含初始态静态对象；单独`--package`缺少剧本初始态，必须指定`--terrain-only true`，`--terrain-only true`只输出地貌/底云。完整导出使用 `--width 13056 --height 6656`；离线PNG导出会占用较多内存，不代表客户端分块缓存占用。

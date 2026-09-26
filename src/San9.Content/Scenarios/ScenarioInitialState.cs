@@ -4,6 +4,7 @@ namespace San9.Content.Scenarios;
 
 public sealed record ForceInitialState(int Id, string NameKey, int ColorCode, int Trust)
 {
+    [JsonRequired] public System.Collections.Immutable.ImmutableArray<int> AdditionalFormationIds { get; init; } = [];
     [JsonRequired] public bool IsDormant { get; init; }
     [JsonRequired] public bool HasDeposedEmperor { get; init; }
     [JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Simulation.PersistentEventKey> EventHistory { get; init; } = [];
@@ -42,7 +43,7 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 118;
+    public const int CurrentSchemaVersion = 121;
     [JsonRequired] public int FoodExchangeRate { get; init; } = 1;
     [JsonRequired] public San9.Core.Domain.FoodMarketDefinition? FoodMarket { get; init; }
     [JsonRequired] public San9.Core.Domain.HanzhongKingDefinition? HanzhongKing { get; init; }
@@ -96,6 +97,10 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
         Information.Validate(this);
         try { Alliance?.Validate(Forces.Where(f => !f.IsDormant && !f.IsBarbarian).Select(f => f.Id).ToHashSet()); }
         catch (ArgumentException error) { throw new InvalidDataException("Invalid initial alliance.", error); }
+        if (Forces.Any(f => f.AdditionalFormationIds.IsDefault || f.AdditionalFormationIds.Any(id => id < 0) ||
+            f.AdditionalFormationIds.Distinct().Count() != f.AdditionalFormationIds.Length ||
+            f.AdditionalFormationIds.Any(id => Military is null || !Military.Formations.Any(rule => rule.Id == id))))
+            throw new InvalidDataException("Invalid additional force formations.");
         if (Military is { } military)
         {
             var rules = new San9.Core.Domain.MilitaryRulebook(military);

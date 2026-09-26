@@ -39,16 +39,17 @@ public static class MilitaryPlanner
             uint soldiers = (uint)Math.Min(candidate.Source.Soldiers - 3000L,
                 Math.Min(3000 - candidate.Expected, candidate.Target.SoldierCapacity - candidate.Expected));
             var routes = new Dictionary<UnitTravel, bool>();
-            foreach (var formation in rules.Formations.Values.OrderBy(f => f.DeploymentCost).ThenBy(f => f.Id).Take(32))
+            foreach (var formation in rules.Formations.Values.Where(f => f.IsCandidateFor(world.Forces.Single(force => force.Id == seat.ForceId))).OrderBy(f => f.DeploymentCost).ThenBy(f => f.Id).Take(32))
             {
                 uint count = Math.Min(soldiers, formation.SoldierCapacity);
                 if (count < 1000) continue;
+                int? navalId = rules.NavalFormationForDeployment(formation.Id);
                 var command = new DeployUnitCommand(commandId, seat.ForceId, world.Simulation.NextSequence,
                     candidate.Source.Id, [actor.Id], count, formation.Id,
-                    new(MilitaryOrderKind.Transport, null, candidate.Target.Id));
+                    new(MilitaryOrderKind.Transport, null, candidate.Target.Id)) { NavalFormationId = navalId };
                 if (!validate(new(seat.ControllerId), command).Accepted) continue;
                 // Static topology is public content. Enemy unit positions are not planning inputs.
-                var travel = rules.Travel(formation.Id, formation.DefaultNavalFormationId);
+                var travel = rules.Travel(formation.Id, navalId);
                 var key = travel;
                 if (!routes.TryGetValue(key, out bool reachable))
                 {
@@ -119,13 +120,14 @@ public static class MilitaryPlanner
             foreach (var target in PrioritizeTargets(rules.Place(source).Position))
             {
                 if (world.Units.Any(u => u.OwnerId == seat.ForceId && u.Order is { Kind: MilitaryOrderKind.AttackSettlement } && u.Order.SettlementId == target.Id)) continue;
-                foreach (var formation in rules.Formations.Values.Where(f => f.Attack is not null).OrderBy(f => f.DeploymentCost).ThenBy(f => f.Id).Take(32))
+                foreach (var formation in rules.Formations.Values.Where(f => f.IsCandidateFor(world.Forces.Single(force => force.Id == seat.ForceId))).Where(f => f.Attack is not null).OrderBy(f => f.DeploymentCost).ThenBy(f => f.Id).Take(32))
                 {
+                    int? navalId = rules.NavalFormationForDeployment(formation.Id);
                     var command = new DeployUnitCommand(commandId, seat.ForceId, world.Simulation.NextSequence, source.Id,
                         [people[0].Id], Math.Min(source.Soldiers - 3000, formation.SoldierCapacity), formation.Id,
-                        new(MilitaryOrderKind.AttackSettlement, null, target.Id));
-                    if (validate(new(seat.ControllerId), command).Accepted && rules.Travel(formation.Id, formation.DefaultNavalFormationId).Entrances(rules.Place(source))
-                        .Any(p => Reachable(p, formation, formation.DefaultNavalFormationId, target.Id, source.Id))) return command;
+                        new(MilitaryOrderKind.AttackSettlement, null, target.Id)) { NavalFormationId = navalId };
+                    if (validate(new(seat.ControllerId), command).Accepted && rules.Travel(formation.Id, navalId).Entrances(rules.Place(source))
+                        .Any(p => Reachable(p, formation, navalId, target.Id, source.Id))) return command;
                 }
             }
         }

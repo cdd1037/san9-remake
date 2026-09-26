@@ -7,6 +7,9 @@ namespace San9.Importer.San9PkTc101.Scenarios;
 
 public static class ScenarioContentCompiler
 {
+    public static ImmutableArray<int> AdditionalFormations(int? countryTitleId) => countryTitleId is >= 4 and <= 8
+        ? [countryTitleId.Value + 11, 26] : [];
+
     public static (ScenarioInitialState Scenario, TextCatalog Text) Compile(byte[] exe, byte[] scenario, byte[] messages, byte[] biographies)
     {
         T Read<T>(Func<Stream, T> parser) { using var stream = new MemoryStream(scenario); return parser(stream); }
@@ -75,7 +78,7 @@ public static class ScenarioContentCompiler
             if (f.LeaderId is not int leader || leader >= persons.Count) throw new InvalidDataException("Missing force leader.");
             var p = persons[leader];
             string name = text.Person($"force.{id}", p.FamilyNameResourceCode, p.GivenNameResourceCode);
-            return new ForceInitialState(id, name, f.ColorCode, f.Trust) { EventHistory = EventContentCompiler.ForceEventHistory(f), HasDeposedEmperor = f.HasEventHistoryMarker(0), BaseTrust = f.BaseTrust, ProvidedTactics = Enumerable.Range(0, San9ScenarioForceArchive.TacticCount).Where(f.HasTactic).ToImmutableArray(), RankId = f.RankGroupId, CountryTitleId = f.CountryTitleId, IsBarbarian = f.IsBarbarian || f.CountryTitleId is >= 4 and <= 8, LeaderId = leader, FlagGlyph = p.FlagCode < 186 ? p.FlagCode : -1 };
+            return new ForceInitialState(id, name, f.ColorCode, f.Trust) { AdditionalFormationIds = AdditionalFormations(f.CountryTitleId), EventHistory = EventContentCompiler.ForceEventHistory(f), HasDeposedEmperor = f.HasEventHistoryMarker(0), BaseTrust = f.BaseTrust, ProvidedTactics = Enumerable.Range(0, San9ScenarioForceArchive.TacticCount).Where(f.HasTactic).ToImmutableArray(), RankId = f.RankGroupId, CountryTitleId = f.CountryTitleId, IsBarbarian = f.IsBarbarian || f.CountryTitleId is >= 4 and <= 8, LeaderId = leader, FlagGlyph = p.FlagCode < 186 ? p.FlagCode : -1 };
         }).ToArray();
         var officers = OfficerContentCompiler.Compile(persons, settlements, summaries, text, new San9MessageTable(biographies));
         summaries = summaries.Select(f => f with { AdviserId = officers.Where(o => o.State.OwnerId == f.Id && o.State.Status == San9.Core.Domain.OfficerStatus.Strategist)
@@ -108,7 +111,7 @@ public static class ScenarioContentCompiler
         {
             Tactics = Read(San9ScenarioTacticArchive.ReadKnownRecords).Where(t => t.Id < 31)
                 .Select(t => new MilitaryCatalogDefinition(t.Id, text.Tactic(t.Id)) { DescriptionKey = text.TacticDescription(t.Id) }).ToArray(),
-            Formations = formations.Where(f => f.Id <= 11 || f.Id is >= 20 and <= 23)
+            Formations = formations
                 .Select(f => new MilitaryCatalogDefinition(f.Id, text.Formation(f.Id))).ToArray(),
             CountryTitles = PoliticalContentCompiler.Titles(countryTitles, persons, officers.Select(o => o.State.Id),
                 id => text.CountryTitle($"country-title.{id}", id),

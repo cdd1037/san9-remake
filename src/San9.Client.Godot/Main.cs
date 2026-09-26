@@ -63,7 +63,7 @@ public partial class Main : Node
                     CommanderId = previewCommander,
                     MemberRanks = System.Collections.Immutable.ImmutableDictionary<int, San9.Core.Domain.BattleRank>.Empty
                         .Add(previewCommander, San9.Core.Domain.BattleRank.Front),
-                    FormationId = 0, NavalFormationId = initial.Military!.Formations.Single(f => f.Id == 0).DefaultNavalFormationId, Morale = 85, CorpsId = previewHome.CorpsId, ServicePlaceId = previewHome.Id,
+                    FormationId = 0, NavalFormationId = initial.Military!.BasicNavalFormationId, Morale = 85, CorpsId = previewHome.CorpsId, ServicePlaceId = previewHome.Id,
                     OrderClass = San9.Core.Domain.UnitOrderClass.Military,
                     Condition = San9.Core.Domain.UnitCondition.Normal
                 }).ToArray()

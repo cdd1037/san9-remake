@@ -12,6 +12,9 @@ public sealed partial class MilitaryRulebook
 {
     private readonly ConcurrentDictionary<(int, int?), UnitTravel> travelProfiles = new();
 
+    public int? NavalFormationForDeployment(int formationId) =>
+        Formations[formationId].TravelMode == TravelMode.Land ? BasicNavalFormationId : null;
+
     public FormationRule Formation(UnitState unit, WorldPosition? position = null) =>
         Formation(unit.FormationId!.Value, unit.NavalFormationId, position ?? unit.Position);
 

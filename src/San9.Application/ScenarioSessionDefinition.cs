@@ -135,6 +135,7 @@ internal sealed class ScenarioSessionDefinition
 
     private IEnumerable<ForceState> Forces() => Content.Forces.Select(f => new ForceState(f.Id, f.Trust)
     {
+        AdditionalFormationIds = f.AdditionalFormationIds.Order().ToImmutableArray(),
         ProvidedTactics = f.ProvidedTactics.Order().ToImmutableArray(), IsBarbarian = f.Id != Content.PlayerForceId && f.IsBarbarian, IsDormant = f.IsDormant,
         EventHistory = f.EventHistory.OrderBy(k => k.Value, StringComparer.Ordinal).ToImmutableArray(), HasDeposedEmperor = f.HasDeposedEmperor, LeaderId = f.LeaderId, AdviserId = f.AdviserId, RankId = f.RankId, CountryTitleId = f.CountryTitleId, BaseTrust = f.BaseTrust
     });

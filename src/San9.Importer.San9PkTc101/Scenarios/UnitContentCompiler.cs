@@ -14,7 +14,8 @@ public static class UnitContentCompiler
             return new UnitState(u.Id, owner, MapCoordinates.Center(new(x, y)), (uint)u.LoadedSoldierCount)
             {
                 CorpsId = u.ForceId, ServicePlaceId = u.HomeBaseId, FormationId = u.FormationId,
-                NavalFormationId = MilitaryContentCompiler.DefaultNavalFormation(u.FormationId),
+                NavalFormationId = !u.HasRuntimeFlagBit(0) && !u.HasRuntimeFlagBit(1) && u.FormationId is int formation &&
+                    MilitaryContentCompiler.Mode(formation) == TravelMode.Land ? MilitaryContentCompiler.BasicNavalFormationId : null,
                 Policies = new(u.AttacksWhenEnemyApproaches, u.AllowsPursuit, u.AttacksAfterAction, u.AllowsAutonomousRetreat),
                 ConditionDaysRemaining = u.StatusDurationDays,
                 HighSpiritsMoralePenaltyPending = u.UnitStatus == San9ScenarioUnitStatus.HighSpirits && u.StatusDurationDays > 0,

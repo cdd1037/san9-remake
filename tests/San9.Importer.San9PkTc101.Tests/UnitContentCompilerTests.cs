@@ -21,7 +21,11 @@ public sealed class UnitContentCompilerTests
 
     [Theory]
     [InlineData(0, 20)]
-    [InlineData(15, 26)]
+    [InlineData(15, 20)]
+    [InlineData(16, 20)]
+    [InlineData(17, 20)]
+    [InlineData(18, 20)]
+    [InlineData(19, 20)]
     [InlineData(20, null)]
     [InlineData(27, 20)]
     public void ScenarioDefaultsPreserveLandAndIndependentNavalChoices(int land, int? naval)

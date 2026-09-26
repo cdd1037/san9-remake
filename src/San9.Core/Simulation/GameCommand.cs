@@ -108,6 +108,7 @@ public enum CommandRejection
     InvalidDecision,
     DecisionPending,
     SettlementConfused,
+    FormationUnavailable,
 }
 
 public readonly record struct CommandSubmissionResult(

@@ -76,7 +76,8 @@ public static class ForceCapabilityCatalog
             rows = view.Information.Formations.Where(f =>
             {
                 var rule = military.Formations[f.Id];
-                return (rule.TravelMode == TravelMode.Water) == (category == InformationCategory.Ships) &&
+                return rule.IsCandidateFor(force) &&
+                    (rule.TravelMode == TravelMode.Water) == (category == InformationCategory.Ships) &&
                     (rule.RequiredTacticId is not int tactic || HasTactic(tactic));
             }).Select(f =>
             {

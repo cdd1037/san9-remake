@@ -70,9 +70,12 @@ internal static class MilitaryMovement
     {
         if (rules is null || !rules.Formations.TryGetValue(command.FormationId, out var formation))
             return CommandRejection.UnsupportedCommand;
-        int? navalId = command.NavalFormationId ?? formation.DefaultNavalFormationId;
+        int? navalId = command.NavalFormationId ?? rules.NavalFormationForDeployment(formation.Id);
         if (!rules.ValidFormationPair(formation.Id, navalId)) return CommandRejection.InvalidTask;
         var naval = navalId is int selected ? rules.Formations[selected] : null;
+        if (!formation.IsCandidateFor(world.Forces[command.IssuerId]) ||
+            naval is not null && !naval.IsCandidateFor(world.Forces[command.IssuerId]))
+            return CommandRejection.FormationUnavailable;
         var travel = rules.Travel(formation.Id, navalId);
         long deploymentCost = construction ? 0 : (long)formation.DeploymentCost + (naval?.DeploymentCost ?? 0);
         if (command.Policies is null || command.Order is null || !construction && command.Order.Kind == MilitaryOrderKind.Construct) return CommandRejection.InvalidTask;

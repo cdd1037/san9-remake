@@ -2,14 +2,14 @@
 
 本页维护内容转换、契约与校验入口，不累计界面实现说明。界面开发统一从[UI 文档](ui/README.md)进入；地图与运行态见[地图文档](map-import.md)和[运行时架构](runtime-state.md)。
 
-2026-09-26金粮账户统一到军团：君主军团与子军团均保存必填`Treasury`和`IsRoot`，势力不再保存金钱／兵粮。HUD读取根军团，势力情报汇总所属账户。当前规则`san9-core-g10-v66`、保存85／日志88／录像5；旧包须原位重转，旧存档、日志和录像拒绝加载，不提供旧账户兼容分支。190年运行包已重转；25势力／94据点／700人物覆盖不变，25个军团账户与源表逐项一致，开局收支、势力汇总和保存往返核对通过；记录见`local/generated/corps-account-migration/audit.json`。
+2026-09-26金粮账户统一到军团：君主军团与子军团均保存必填`Treasury`和`IsRoot`，势力不再保存金钱／兵粮。HUD读取根军团，势力情报汇总所属账户。当前规则`san9-core-g10-v69`、保存87／日志90／录像5；旧包须原位重转，旧存档、日志和录像拒绝加载，不提供旧账户兼容分支。190年运行包已重转；25势力／94据点／700人物覆盖不变，25个军团账户与源表逐项一致，开局收支、势力汇总和保存往返核对通过；记录见`local/generated/corps-account-migration/audit.json`。
 开局数据、一次性初始化与首旬准备的集中清单见[开局专项](scenario-startup.md)，其中区分原作证据、接入缺口与明确不采用项。
 
 2026-09-26移动预算改为源机动力×5，寻路和实际推进统一按地形扣费，移除阵型`MovementStepCost`，部队新增必填`MovementRemainder`。旧内容包须原位重新执行`import-client`，纹理无需重转，旧规则存档／录像／日志拒绝加载。预计到达由当前世界与路径按需派生，不写入内容包或存档。
 
 ## 现行版本与历史记录
 
-现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 118，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 122，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 20，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 16。规则及保存／日志版本统一见 [SessionProtocol](../src/San9.Application/SessionProtocol.cs)。
+现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 121，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 125，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 20，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 16。规则及保存／日志版本统一见 [SessionProtocol](../src/San9.Application/SessionProtocol.cs)。
 
 下文各 G 阶段的版本号、重转要求和数据核对结果描述对应接入批次，不能用作现行包版本或本轮验证结果。旧内容按现行契约原位重转；是否需要重转纹理取决于纹理转换版本与源输入，不能只更新剧本包来替代。G10 整包与阶段收口结果统一见[G10 验收](g10-verification.md#2026-09-21阶段收口)。
 
@@ -18,10 +18,10 @@
 | 模块 | 职责 | 输出 |
 | --- | --- | --- |
 | Content.Maps / MapImporter | 当前地图方格、地貌及对象位置 | `map.json`（无图片文件） |
-| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema116 |
+| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema121 |
 | Content.Text / ScenarioTextReader | 名称与全量消息目录 | `text.json` / `messages.json`，schema3 |
 | Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema20 |
-| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema120 |
+| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema125 |
 | Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema5／转换版本16 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 
@@ -324,6 +324,16 @@ TC101读取31项人物兵法及12项陆上阵形、4种船的目录名；军事�
 
 ### 2026-09-26水陆阵型接入
 
-剧本schema118／组合122、规则`san9-core-g10-v66`、保存85／命令日志88新增独立水阵与内容默认水阵引用；地图11和纹理5／转换16不变，只需重新运行`import-client`。旧协议不兼容读取。出征、整编、当前地形查询、跨岸寻路、战斗与地图显示使用同一配置；详见[水陆规格](../specs/behavior/BEH-WAR-0001-movement-and-command-lifecycle.md#水陆阵型与跨岸移动)。水阵选择仍使用公共军事命令接口，未新增出征图形表单，实际画面待用户验收。
+剧本schema121／组合125、规则`san9-core-g10-v69`、保存87／命令日志90使用独立水阵与军事规则级统一基础船引用；陆阵定义不绑定水阵，异族不特殊化；地图11和纹理5／转换16不变，只需重新运行`import-client`。旧协议不兼容读取。出征、整编、当前地形查询、跨岸寻路、战斗与地图显示使用同一配置；详见[水陆规格](../specs/behavior/BEH-WAR-0001-movement-and-command-lifecycle.md#水陆阵型与跨岸移动)。水阵选择仍使用公共军事命令接口，未新增出征图形表单，实际画面待用户验收。
 
-验证：默认解决方案3607项通过；最终AI可达性与阵位显示调整后Application609项补跑通过；Headless17项通过。190年包已原位重转，仍为25势力／94据点／700人物／0初始野战队、28项军事阵型；实际内容公开出征得到默认水阵20，20／21／22／23／26五项水阵与八方向身体资源及上岸恢复查询完整，显示查询前后世界哈希不变。核对报告位于忽略目录`local/generated/amphibious-audit/report.json`。没有启动游戏，水陆切换实际画面待用户验收。
+验证：默认解决方案3684项通过；Headless17项通过。回归覆盖更换陆阵保留所选水阵、异族陆阵15至19统一使用基础船20。190年包已原位重转，仍为25势力／94据点／700人物／0初始野战队、28项军事阵型；实际内容公开出征得到默认水阵20，20／21／22／23／26五项水阵与八方向身体资源及上岸恢复查询完整，显示查询前后世界哈希不变。核对报告位于忽略目录`local/generated/amphibious-audit/report.json`。没有启动游戏，水陆切换实际画面待用户验收。
+
+### 阵型候选与兵法条件
+
+`IsCommon` 标记通用阵型，势力 `AdditionalFormationIds` 补充额外候选，按并集去重，不依赖异族身份或控制者。TC101通用阵型为0至11、20至23；国号4至8分别补充陆阵15至19及水阵26，基础船仍为20，不强制配对或使用。其他定义保留，不自动进入通用候选。
+
+阵形／船一览的展示目录完整保留28项阵型名称，查询按当前势力的通用与额外候选、陆水类型及所需兵法筛选，未获候选资格的定义不显示。190年运行包已原位重转，源定义、规则与目录身份集合一致，25个势力共50份阵形／船查询核对通过；报告为 `local/generated/formation-catalog-audit/report.json`。本次解决方案3704项测试通过，未启动游戏，实际画面待用户验收。其他旧包须重新运行 `import-client`，并重新加载内容开启会话。
+
+候选来源不豁免兵法要求：普通攻城、舰船及特殊阵型均检查各自 `RequiredTacticId`，陆阵与水阵独立校验。玩家与AI共享出征／整编校验，AI不新增特殊阵型偏好。剧本121／组合125、规则v69、保存87／日志90；旧包原位重转，不兼容读取。配置、世界状态、保存及回放均保留势力额外候选。
+
+验证：候选来源与兵法条件组合测试、保存／录像回放通过，Headless17项通过。190年包原位重转后，源国号4至8对应的五个势力额外候选与转换包、世界状态逐项一致；25势力／94据点／700人物／28项阵型覆盖不变。通用与额外候选查询、保存往返及基础船20出征核对通过；报告为 `local/generated/amphibious-audit/report.json`。未启动游戏，画面仍待用户验收。

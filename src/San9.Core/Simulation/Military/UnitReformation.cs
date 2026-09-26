@@ -24,9 +24,12 @@ internal static class UnitReformation
             return CommandRejection.InvalidTask;
         if (unit.Condition is UnitCondition.Confused or UnitCondition.Routed || unit.IsEmbedded || unit.IsPersonnel)
             return CommandRejection.PersonUnavailable;
-        int? navalId = command.NavalFormationId ?? (formation.TravelMode == TravelMode.Land ? unit.NavalFormationId ?? formation.DefaultNavalFormationId : null);
+        int? navalId = command.NavalFormationId ?? (formation.TravelMode == TravelMode.Land ? unit.NavalFormationId : null);
         if (!rules.ValidFormationPair(formation.Id, navalId)) return CommandRejection.InvalidTask;
         var naval = navalId is int selected ? rules.Formations[selected] : null;
+        if (!formation.IsCandidateFor(world.Forces[command.IssuerId]) ||
+            naval is not null && !naval.IsCandidateFor(world.Forces[command.IssuerId]))
+            return CommandRejection.FormationUnavailable;
         var travel = rules.Travel(formation.Id, navalId);
         var members = world.Officers.Values.Where(p => p.IsServing && p.UnitId == unit.Id).Select(p => p.Id).Order().ToArray();
         if (command.OfficerIds.IsDefaultOrEmpty || command.OfficerIds.Length > formation.OfficerCapacity ||

@@ -130,7 +130,7 @@ public sealed class WorldState
     internal WorldSnapshot CreateSnapshot()
     {
         if (_snapshot is not null && _snapshot.Revision == Revision) return _snapshot;
-        var forces = Array.AsReadOnly(_forces.Values.OrderBy(f => f.Id).Select(f => f with { ProvidedTactics = f.ProvidedTactics.Order().ToImmutableArray() }).ToArray());
+        var forces = Array.AsReadOnly(_forces.Values.OrderBy(f => f.Id).Select(f => f with { AdditionalFormationIds = f.AdditionalFormationIds.Order().ToImmutableArray(), ProvidedTactics = f.ProvidedTactics.Order().ToImmutableArray() }).ToArray());
         var settlements = Array.AsReadOnly(_settlements.Values.OrderBy(s => s.Id).ToArray());
         var officers = Array.AsReadOnly(_officers.Values.OrderBy(o => o.Id).Select(o => o with { LearnedTactics = o.LearnedTactics.Order().ToImmutableArray() }).ToArray());
         var corps = Array.AsReadOnly(_corps.Values.OrderBy(c => c.Id).ToArray());

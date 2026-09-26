@@ -6,7 +6,9 @@ namespace San9.Core.Domain;
 public sealed record FormationRule(int Id, int MovementBudget, int DeploymentCost, uint SoldierCapacity,
     int OfficerCapacity, Footprint Footprint, TravelMode TravelMode)
 {
-    [JsonRequired] public int? DefaultNavalFormationId { get; init; }
+    [JsonRequired] public bool IsCommon { get; init; } = true;
+    public bool IsCandidateFor(ForceState force) => IsCommon || force.AdditionalFormationIds.Contains(Id);
+
     [JsonRequired] public FormationTactics? Tactics { get; init; }
     [JsonRequired] public ImmutableArray<int> MartialTacticVulnerabilities { get; init; } = [];
     [JsonRequired] public int? RequiredTacticId { get; init; }
@@ -78,6 +80,7 @@ public sealed record MilitaryDefinition(int Width, int Height, ImmutableArray<in
     ImmutableArray<TerrainPassage> Terrains, ImmutableArray<FormationRule> Formations,
     ImmutableArray<BattlefieldPlace> Places)
 {
+    [JsonRequired] public int? BasicNavalFormationId { get; init; }
     [JsonRequired] public int? UnformedFormationId { get; init; }
     [JsonRequired] public bool BattleDeathsAllowed { get; init; } = true;
     [JsonRequired] public bool DuelCapturesAllowed { get; init; } = true;
@@ -132,8 +135,10 @@ public sealed partial class MilitaryRulebook
         Formations = definition.Formations.ToImmutableDictionary(f => f.Id);
         if (Formations.Values.Any(f => f.SnipingChanceBonus is < 0 or > 100))
             throw new ArgumentException("Invalid sniping formation bonus.");
-        if (Formations.Values.Any(f => !ValidFormationPair(f.Id, f.DefaultNavalFormationId)))
-            throw new ArgumentException("Invalid default naval formation.");
+        BasicNavalFormationId = definition.BasicNavalFormationId;
+        if (BasicNavalFormationId is int naval &&
+            (!Formations.TryGetValue(naval, out var basicShip) || basicShip.TravelMode != TravelMode.Water))
+            throw new ArgumentException("Invalid basic naval formation reference.");
         UnformedFormationId = definition.UnformedFormationId;
         if (UnformedFormationId is int unformed && (!Formations.TryGetValue(unformed, out var profile) || profile.Combat is null))
             throw new ArgumentException("Invalid unformed combat formation reference.");
@@ -222,6 +227,7 @@ public sealed partial class MilitaryRulebook
             throw new ArgumentException("Invalid military formation or place.");
     }
 
+    public int? BasicNavalFormationId { get; }
     public BattlefieldMap Map { get; }
     public ImmutableArray<int?> RegionIds { get; }
 

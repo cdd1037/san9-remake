@@ -6,6 +6,19 @@ namespace San9.Importer.San9PkTc101.Tests;
 
 public sealed class MilitaryContentCompilerTests
 {
+    [Theory]
+    [InlineData(4, 15)]
+    [InlineData(5, 16)]
+    [InlineData(6, 17)]
+    [InlineData(7, 18)]
+    [InlineData(8, 19)]
+    [InlineData(0, null)]
+    [InlineData(999, null)]
+    public void SourceCountryGrantsOptionalLandAndNavalFormations(int title, int? land)
+    {
+        Assert.Equal(land is int id ? new[] { id, 26 } : [], ScenarioContentCompiler.AdditionalFormations(title));
+    }
+
     [Fact]
     public void KeepsEveryTerrainAndFormationAndSeparatesHardBlockingFromTerrain()
     {
@@ -30,9 +43,8 @@ public sealed class MilitaryContentCompilerTests
         tactics[15] = tactics[15] with { CompatibleArrayTypeMaskLow = 1 << 8 };
         var definition = MilitaryContentCompiler.Compile(squares, terrains, formations, places, [], buildings, tactics, places.ToDictionary(p => p.Id, _ => System.Collections.Immutable.ImmutableArray<int>.Empty));
         Assert.Equal(27, definition.UnformedFormationId);
-        Assert.Equal(20, definition.Formations.Single(f => f.Id == 0).DefaultNavalFormationId);
-        Assert.Equal(26, definition.Formations.Single(f => f.Id == 15).DefaultNavalFormationId);
-        Assert.Null(definition.Formations.Single(f => f.Id == 20).DefaultNavalFormationId);
+        Assert.Equal(20, definition.BasicNavalFormationId);
+        Assert.Equal(Enumerable.Range(0, 12).Concat(Enumerable.Range(20, 4)), definition.Formations.Where(f => f.IsCommon).Select(f => f.Id));
         Assert.Equal(8, definition.CityInfluence!.RadiusCells);
         Assert.Equal(5, definition.Geography.FootprintScale);
         Assert.Equal(10, definition.CityInfluence.LandTacticBonus);

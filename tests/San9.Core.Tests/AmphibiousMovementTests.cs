@@ -9,7 +9,7 @@ public sealed class AmphibiousMovementTests
     private static MilitaryRulebook Rules(Footprint? shipShape = null, int shipSpeed = 9) => new(new(8, 3,
         Enumerable.Range(0, 24).Select(i => i % 8 is >= 2 and <= 4 ? 1 : 0).ToImmutableArray(),
         [new(0, 2, null), new(1, null, 3) { IsWater = true }],
-        [new(100, 6, 0, 10000, 5, new(1, 1), TravelMode.Land) { DefaultNavalFormationId = 200, Combat = new(10, 10, 10, 10, 50),
+        [new(100, 6, 0, 10000, 5, new(1, 1), TravelMode.Land) { Combat = new(10, 10, 10, 10, 50),
             Attack = new(1, false), CaptureRanks = [BattleRank.Front, BattleRank.Middle, BattleRank.Middle, BattleRank.Rear, BattleRank.Rear] },
          new(200, shipSpeed, 0, 10000, 5, shipShape ?? new(1, 1), TravelMode.Water) { Combat = new(20, 20, 20, 20, 50),
             Attack = new(4, false) { RequiresWaterOrHarbor = true }, CaptureRanks = Enumerable.Repeat(BattleRank.Middle, 5).ToImmutableArray() }], []));

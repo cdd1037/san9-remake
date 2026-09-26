@@ -52,7 +52,7 @@ public static class MilitaryContentCompiler
             terrains.Select(t => Passage(t.Id)).ToImmutableArray(),
             formations.Select(f => new FormationRule(f.Id, checked(f.Mobility * 5), f.DeploymentCost,
                 100000, 5, new(3, 3), Mode(f.Id))
-                { DefaultNavalFormationId = DefaultNavalFormation(f.Id),
+                { IsCommon = f.Id is >= 0 and <= 11 or >= 20 and <= 23,
                     Tactics = f.Id == 27 ? null : new(Mode(f.Id) == TravelMode.Water ? 10 : 15,
                         f.Id is 1 or 8 ? 50 : 0, f.Id == 2 ? 3 : 2,
                         Enumerable.Range(0, 4).Where(category => Favored(f.Id, category)).ToImmutableArray(),
@@ -85,6 +85,7 @@ public static class MilitaryContentCompiler
                         _ => throw new InvalidDataException("Missing formation member position.")
                     }).ToImmutableArray() }).ToImmutableArray(), places)
         {
+            BasicNavalFormationId = BasicNavalFormationId,
             UnformedFormationId = 27,
             Facilities = facilities,
             CityInfluence = new(8, 10),
@@ -140,14 +141,9 @@ public static class MilitaryContentCompiler
         _ => throw new InvalidDataException("Unknown TC101 trap terrain mapping.")
     }, id is 1 or 13 or 14);
 
-    internal static int? DefaultNavalFormation(int? sourceId) => sourceId switch
-    {
-        >= 15 and <= 19 => 26,
-        >= 0 and <= 11 or 27 => 20,
-        _ => null
-    };
+    internal const int BasicNavalFormationId = 20;
 
-    private static TravelMode Mode(int sourceId) => sourceId switch
+    internal static TravelMode Mode(int sourceId) => sourceId switch
     {
         >= 0 and <= 19 or 27 => TravelMode.Land,
         >= 20 and <= 26 => TravelMode.Water,

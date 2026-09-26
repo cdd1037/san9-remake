@@ -50,7 +50,7 @@ public partial class InformationPanel : Control
     private void OnChanged() => _dirty = true;
     public void OpenMenu() { State.OpenMenu(); Rebuild(); }
     public void Open(InformationCategory category) { State.Close(); State.Open(category); Rebuild(); }
-    public void OpenContext(SettlementContextEntry entry)
+    public void OpenContext(MapContextEntry entry)
     {
         State.OpenContext(entry);
         if (entry.DetailId is int id)

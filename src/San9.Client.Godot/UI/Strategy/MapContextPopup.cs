@@ -4,16 +4,18 @@ using San9.Application.Presentation;
 namespace San9.Client.Godot;
 
 /// <summary>A logical-viewport modal: outside clicks close it without reaching the map.</summary>
-public partial class SettlementContextPopup : Control
+public partial class MapContextPopup : Control
 {
     public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;
-    public Action<SettlementContextEntry> Activated { get; init; } = null!;
+    public Action<MapContextEntry> Activated { get; init; } = null!;
     private Rect2 _menu;
+    public string Hint => GetChildren().OfType<InformationMenuButton>().FirstOrDefault(b => b.IsHovered()) is {} button
+        ? $"查看{button.Title}。" : "";
     public override void _Ready()
     {
         Size = new(1024, 768); ZIndex = 19; MouseFilter = MouseFilterEnum.Stop; Hide();
     }
-    public void Open(IReadOnlyList<SettlementContextEntry> entries, Vector2 point)
+    public void Open(IReadOnlyList<MapContextEntry> entries, Vector2 point)
     {
         Close();
         if (entries.Count == 0) return;

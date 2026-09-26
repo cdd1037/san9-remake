@@ -58,7 +58,7 @@ public partial class MapSceneView : Node2D
     public TextCatalog? Texts { get; set; }
     public Font? Font { get; set; }
     public bool ShowAnnotations { get; set; }
-    public int? Hovered { get; set; }
+    public MapObjectTarget? Hovered { get; set; }
     internal Frame? Presented => _transition.Presented;
     private MapFrameTransition<Frame> _transition = null!;
     private TextureScope? _prefetchAssets;
@@ -69,7 +69,7 @@ public partial class MapSceneView : Node2D
     private CanvasItemMaterial _additiveMaterial = null!;
     private readonly List<Sprite2D> _sprites = [];
     private readonly Dictionary<string, int> _frames = [];
-    private int? _drawnHover;
+    private MapObjectTarget? _drawnHover;
     private int _drawnTerrainCount;
     private long _drawnAssetRevision;
     private (MapScene Scene, MapViewport Camera, Vector2 Size, bool Boundaries)? _lastRequest;
@@ -207,30 +207,50 @@ public partial class MapSceneView : Node2D
             if (frame.Assets.TryGetReady(id, out var texture)) _water.DrawTexture(texture, new(s.X, s.Y));
         }
     }
+    private readonly List<(string Asset, Vector2 Position, MapObjectTarget Target)> _hitSprites = [];
+    private readonly List<(Rect2 Bounds, int UnitId)> _hitLabels = [];
+    private Frame? _labelFrame;
+    public MapObjectTarget? ObjectAt(Vector2 point)
+    {
+        // Labels are painted over map objects; overlapping labels follow their draw order.
+        if (ReferenceEquals(_labelFrame, Presented))
+            for (int i = _hitLabels.Count - 1; i >= 0; i--)
+                if (_hitLabels[i].Bounds.HasPoint(point)) return new(_hitLabels[i].UnitId, true);
+        for (int i = _hitSprites.Count - 1; i >= 0; i--)
+        {
+            var sprite = _hitSprites[i];
+            if (Textures.Hit(Textures.MapAssets[sprite.Asset], (int)Math.Floor(point.X - sprite.Position.X),
+                (int)Math.Floor(point.Y - sprite.Position.Y))) return sprite.Target;
+        }
+        return null;
+    }
     private void RebuildObjects()
     {
         if (Presented is not { } frame) return;
+        _hitSprites.Clear();
         ObjectDraws++; int cursor = 0; _drawnHover = Hovered; _drawnAssetRevision = frame.Assets.Revision;
         frame.Region.Objects(AnimationTime(), (id, position, building, blend) =>
         {
             if (!frame.Assets.TryGetReady(id, out var texture)) return;
             if (!frame.Region.Bounds.Intersects(new Rect2(position, texture.GetSize()))) return;
+            if (building is {} target && blend == MapBlendMode.Alpha) _hitSprites.Add((id, position, target));
             if (cursor == _sprites.Count) { var sprite = new Sprite2D { Centered = false }; _objects.AddChild(sprite); _sprites.Add(sprite); }
             var item = _sprites[cursor++]; item.Texture = texture; item.Position = position; item.Visible = true;
-            item.Material = building is not null && building == Hovered ? _hoverMaterial : blend == MapBlendMode.Additive ? _additiveMaterial : null;
+            item.Material = blend == MapBlendMode.Alpha && building is not null && building == Hovered ? _hoverMaterial : blend == MapBlendMode.Additive ? _additiveMaterial : null;
         });
         for (int i = cursor; i < _sprites.Count; i++) { _sprites[i].Texture = null; _sprites[i].Visible = false; }
     }
     public void DrawAnnotations(Node2D target, Font font, TextCatalog texts, Func<Vector2, Vector2> project, float zoom)
     {
         if (Presented is not { } frame) return;
+        _hitLabels.Clear(); _labelFrame = frame;
         foreach (var b in frame.Region.Buildings)
         {
             var s = frame.Region.Scene.Settlements[b.Id];
             var p = frame.Region.Scene.Anchor(b);
             if (!frame.Region.Bounds.Intersects(new Rect2(p, new(116, 55)))) continue;
             target.DrawSetTransform(project(p), 0, Vector2.One * zoom);
-            var style = GameTextStyles.Building(b.Id == Hovered);
+            var style = GameTextStyles.Building(Hovered == new MapObjectTarget(b.Id, false));
             GameTextPresenter.Draw(target, font, s.Soldiers.ToString(System.Globalization.CultureInfo.InvariantCulture), new(0, 16), style, HorizontalAlignment.Right, 72);
             Bar("durability", s.Durability, s.MaxDurability, new(0, 16));
             Bar("morale", s.Morale, 100, new(0, 29));
@@ -239,13 +259,18 @@ public partial class MapSceneView : Node2D
         }
         foreach (var unit in frame.Region.Units)
         {
-            if (!frame.Region.Bounds.Intersects(new Rect2(unit.LabelX, unit.LabelY, 76, 47))) continue;
+            string unitName = unit.CommanderNameKey is { } nameKey ? texts.Resolve(nameKey) + "队" : "部队";
+            int fontSize = GameTextStyles.Building(false).FontSize;
+            float width = Math.Max(76, font.GetStringSize(unitName, fontSize: fontSize).X);
+            var bounds = new Rect2(unit.LabelX, unit.LabelY, width, 47 + font.GetDescent(fontSize));
+            if (!frame.Region.Bounds.Intersects(bounds)) continue;
+            _hitLabels.Add((bounds, unit.Id));
             target.DrawSetTransform(project(new(unit.LabelX, unit.LabelY)), 0, Vector2.One * zoom);
             GameTextPresenter.Draw(target, font, unit.Soldiers.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                new(0, 20), GameTextStyles.Building(false), HorizontalAlignment.Right, 72);
+                new(0, 20), GameTextStyles.Building(Hovered == new MapObjectTarget(unit.Id, true)), HorizontalAlignment.Right, 72);
             Bar("morale", unit.Morale, 100, new(0, 20));
-            GameTextPresenter.Draw(target, font, unit.CommanderNameKey is { } name ? texts.Resolve(name) + "队" : "部队",
-                new(0, 47), GameTextStyles.Building(false));
+            GameTextPresenter.Draw(target, font, unitName,
+                new(0, 47), GameTextStyles.Building(Hovered == new MapObjectTarget(unit.Id, true)));
         }
         target.DrawSetTransform(Vector2.Zero);
         void Bar(string kind, int current, int maximum, Vector2 point)

@@ -58,7 +58,7 @@ public partial class Main : Node
                 Units = initial.Units.Append(new San9.Core.Domain.UnitState(
                     previewId,
                     previewHome.OwnerId!.Value,
-                    San9.Core.Domain.MapCoordinates.Center(new(previewHome.X + 3, previewHome.Y + 3)), 18000)
+                    San9.Core.Domain.MapCoordinates.Center(new(previewHome.X + 1, previewHome.Y + 5)), 18000)
                 {
                     CommanderId = previewCommander,
                     MemberRanks = System.Collections.Immutable.ImmutableDictionary<int, San9.Core.Domain.BattleRank>.Empty

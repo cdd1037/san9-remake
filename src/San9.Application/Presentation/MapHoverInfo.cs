@@ -3,15 +3,18 @@ using San9.Core.Domain;
 
 namespace San9.Application.Presentation;
 
-public enum BuildingHoverTheme { Own, Other, Friendly }
-public sealed record BuildingHoverRow(string Label, string Value, bool Numeric = false);
-public sealed record BuildingHoverInfo(int Id, string Name, BuildingHoverTheme Theme, ForceView? Force,
-    IReadOnlyList<string> Icons, IReadOnlyList<BuildingHoverRow> Rows, int Height)
+public enum MapHoverTheme { Own, Other, Friendly }
+public sealed record MapHoverRow(string Label, string Value, bool Numeric = false);
+public sealed record MapHoverInfo(int Id, string Name, MapHoverTheme Theme, ForceView? Force,
+    IReadOnlyList<string> Icons, IReadOnlyList<MapHoverRow> Rows, int Height)
 {
-    public static BuildingHoverTheme ThemeFor(int? owner, int player, int relation) =>
-        owner == player ? BuildingHoverTheme.Own : owner is null || relation < 40 ? BuildingHoverTheme.Other : BuildingHoverTheme.Friendly;
+    public int? FlagGlyph { get; init; }
+    public bool IsRulerCommander { get; init; }
 
-    public static BuildingHoverInfo? Resolve(StrategySnapshot view, TextCatalog texts, int id)
+    public static MapHoverTheme ThemeFor(int? owner, int player, int relation) =>
+        owner == player ? MapHoverTheme.Own : owner is null || relation < 40 ? MapHoverTheme.Other : MapHoverTheme.Friendly;
+
+    public static MapHoverInfo? Resolve(StrategySnapshot view, TextCatalog texts, int id)
     {
         var s = view.Settlements.SingleOrDefault(s => s.Id == id);
         if (s is null) return null;
@@ -22,7 +25,7 @@ public sealed record BuildingHoverInfo(int Id, string Name, BuildingHoverTheme T
         int relation = view.World.Relations.SingleOrDefault(r =>
             r.FirstId == view.PlayerForceId && r.SecondId == s.OwnerId || r.SecondId == view.PlayerForceId && r.FirstId == s.OwnerId)?.Value ?? 0;
         bool own = s.OwnerId == view.PlayerForceId;
-        List<BuildingHoverRow> rows =
+        List<MapHoverRow> rows =
         [
             new("状态", "一般"),
             new(own ? "军团" : "势力", own ? Person(corps?.LeaderId) : force is null ? "----" : texts.Resolve(force.NameKey)),

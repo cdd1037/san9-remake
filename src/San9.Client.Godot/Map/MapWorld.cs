@@ -56,9 +56,11 @@ public partial class MapWorld : Node2D
     public double LastProcessMilliseconds { get; private set; }
     public string StatusText => LoadError ?? (IsLoading ? "正在准备地图…" : $"{Season} · 缩放 {ZoomFactor:0.00}×");
     public IReadOnlyList<MapBuilding> RuntimeBuildings => Scene?.Buildings ?? [];
-    public int? HoveredBuildingId { get; private set; }
+    public MapObjectTarget? HoveredObject => _display?.Hovered;
+    public int? HoveredBuildingId => HoveredObject is { IsUnit: false } target ? target.Id : null;
     public Func<Vector2, bool>? IsInputBlocked { get; set; }
     public event Action<int, Vector2>? BuildingContextRequested;
+    public event Action<int, Vector2>? UnitContextRequested;
     public event Action<int>? BuildingPicked;
     public event Action<int, int>? SquarePicked;
     public event Action? SelectionCleared;
@@ -145,19 +147,15 @@ public partial class MapWorld : Node2D
         Scene = new(Scene.Map, Scene.Terrain, Scene.Season, Session.View, Textures, Scene); RequestDisplay();
     }
     public void PreviewSeason(string season) => BeginLoad(season);
-    public void HoverBuilding(int? id) { HoveredBuildingId = id; if (_display is not null) _display.Hovered = id; }
-    public int? BuildingAtViewport(Vector2 point) => HasCompleteView && !IsLoading ? TryBuildingAt(ViewportToWorld(point)) : null;
-    private int? TryBuildingAt(Vector2 point)
+    public void HoverBuilding(int? id) => HoverObject(id is int value ? new(value, false) : null);
+    public void HoverObject(MapObjectTarget? target)
     {
-        if (_display?.Presented is not { } frame) return null;
-        foreach (var building in frame.Region.Buildings.Reverse())
-        foreach (var sprite in building.Sprites.Reverse())
-        {
-            var image = Textures.MapAssets[sprite.AssetId];
-            if (Textures.Hit(image, (int)Math.Floor(point.X - sprite.X), (int)Math.Floor(point.Y - sprite.Y))) return building.Id;
-        }
-        return null;
+        if (_display is not null) _display.Hovered = target;
     }
+    public int? BuildingAtViewport(Vector2 point) => ObjectAtViewport(point) is { IsUnit: false } target ? target.Id : null;
+    public MapObjectTarget? ObjectAtViewport(Vector2 point) => HasCompleteView && !IsLoading ? ObjectAt(ViewportToWorld(point)) : null;
+    private int? TryBuildingAt(Vector2 point) => ObjectAt(point) is { IsUnit: false } target ? target.Id : null;
+    private MapObjectTarget? ObjectAt(Vector2 point) => _display?.ObjectAt(point);
     public void DrawHoverFlag(Node2D target, int color, int glyph, Vector2 position)
     {
         if (Scene is null || _flags is null) return;
@@ -213,7 +211,11 @@ public partial class MapWorld : Node2D
             else if (button.Pressed && button.ButtonIndex == MouseButton.Right)
             {
                 _dragging = false;
-                if (BuildingAtViewport(button.Position) is int id) BuildingContextRequested?.Invoke(id, button.Position);
+                if (ObjectAtViewport(button.Position) is {} target)
+                {
+                    if (target.IsUnit) UnitContextRequested?.Invoke(target.Id, button.Position);
+                    else BuildingContextRequested?.Invoke(target.Id, button.Position);
+                }
                 GetViewport().SetInputAsHandled();
             }
             else if (button.Pressed && button.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown)

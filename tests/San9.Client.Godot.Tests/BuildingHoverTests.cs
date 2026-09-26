@@ -10,13 +10,13 @@ namespace San9.Client.Godot.Tests;
 public sealed class BuildingHoverTests
 {
     [Theory]
-    [InlineData(5, 0, BuildingHoverTheme.Own)]
-    [InlineData(null, 100, BuildingHoverTheme.Other)]
-    [InlineData(6, 39, BuildingHoverTheme.Other)]
-    [InlineData(6, 40, BuildingHoverTheme.Friendly)]
-    [InlineData(6, 100, BuildingHoverTheme.Friendly)]
-    public void ThemeFollowsOwnershipAndRelationBoundary(int? owner, int relation, BuildingHoverTheme expected) =>
-        Assert.Equal(expected, BuildingHoverInfo.ThemeFor(owner, 5, relation));
+    [InlineData(5, 0, MapHoverTheme.Own)]
+    [InlineData(null, 100, MapHoverTheme.Other)]
+    [InlineData(6, 39, MapHoverTheme.Other)]
+    [InlineData(6, 40, MapHoverTheme.Friendly)]
+    [InlineData(6, 100, MapHoverTheme.Friendly)]
+    public void ThemeFollowsOwnershipAndRelationBoundary(int? owner, int relation, MapHoverTheme expected) =>
+        Assert.Equal(expected, MapHoverInfo.ThemeFor(owner, 5, relation));
 
     [Theory]
     [InlineData(643, 200, 316, 643, 200)]
@@ -42,19 +42,19 @@ public sealed class BuildingHoverTests
         };
         var texts = new TextCatalog(3, new[] { "city", "gate", "force", "leader", "other", "free" }.ToDictionary(k => k, k => new TextEntry(k, k)));
         var session = GameSession.Start(initial, 190);
-        var before = BuildingHoverInfo.Resolve(session.View, texts, 15)!;
+        var before = MapHoverInfo.Resolve(session.View, texts, 15)!;
         Assert.Equal(10, before.Rows.Count);
         Assert.Equal("leader", before.Rows.Single(r => r.Label == "大将").Value);
         Assert.Equal("  2/  2", before.Rows.Single(r => r.Label == "在任").Value);
         Assert.True(session.Develop(new(5, 15, [1], DomesticActivity.Commerce)).Accepted);
-        var after = BuildingHoverInfo.Resolve(session.View, texts, 15)!;
+        var after = MapHoverInfo.Resolve(session.View, texts, 15)!;
         Assert.Equal("  1/  2", after.Rows.Single(r => r.Label == "在任").Value);
         Assert.NotEqual(before.Rows.Single(r => r.Label == "收益").Value, after.Rows.Single(r => r.Label == "收益").Value);
         Assert.Equal("  2/  2", before.Rows.Single(r => r.Label == "在任").Value);
-        var gate = BuildingHoverInfo.Resolve(session.View, texts, 99)!;
+        var gate = MapHoverInfo.Resolve(session.View, texts, 99)!;
         Assert.Equal(7, gate.Rows.Count); Assert.Empty(gate.Icons);
         Assert.Equal("----", gate.Rows.Single(r => r.Label == "士气").Value);
         Assert.Equal("  0/  0", gate.Rows.Single(r => r.Label == "在任").Value);
-        Assert.Null(BuildingHoverInfo.Resolve(session.View, texts, 999));
+        Assert.Null(MapHoverInfo.Resolve(session.View, texts, 999));
     }
 }

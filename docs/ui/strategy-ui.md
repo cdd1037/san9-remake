@@ -46,6 +46,6 @@
 
 ## 建筑悬停卡
 
-详细地图由HUD统一判定输入阻挡，MapWorld查询命中建筑并保存独立悬停ID；MapAnnotations据此将名称和兵力变黄，BuildingHoverCard显示Application查询得到的当前字段。卡片不接管输入，同一建筑内移动保持卡片位置，窗口离开、全图、情报和弹出菜单清除悬停。九宫格在转换时先按索引覆盖组合，再转换RGBA，避免透明角和边框重复混合。完整行为见[BEH-UI-0005](../../specs/behavior/BEH-UI-0005-map-building-hover.md)。
+详细地图由HUD统一判定输入阻挡，MapWorld查询当前呈现的建筑、部队身体／旗帜及部队名牌，悬停身份同时包含对象类别和ID；MapAnnotations据此将名称和兵力变黄，MapHoverCard显示Application查询得到的当前字段。卡片不接管输入，同一建筑内移动保持卡片位置，窗口离开、全图、情报和弹出菜单清除悬停。九宫格在转换时先按索引覆盖组合，再转换RGBA，避免透明角和边框重复混合。完整行为见[BEH-UI-0005](../../specs/behavior/BEH-UI-0005-map-building-hover.md)。
 
 大将与人员信息通过当前会话查询显示；Core/Application 已具备人事任免与调动，具体 UI 操作入口和字段投影须分别核对。悬停状态行的显示覆盖不代表完整战斗查询；人员可用数、内政和兵力等已有字段读取当前世界，后续对齐应逐项检查查询与显示，不沿用早期静态界面的领域能力判断。

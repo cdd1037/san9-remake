@@ -52,7 +52,7 @@ public sealed class InformationBrowser
         Catalog = new(); DetailSelection = new();
         _rowOrder = [];
     }
-    public void OpenContext(SettlementContextEntry entry)
+    public void OpenContext(MapContextEntry entry)
     {
         Close();
         var link = entry.Target;

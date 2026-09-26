@@ -140,7 +140,7 @@ internal sealed record MapSceneRegion(MapScene Scene, Rect2 Bounds, MapBuilding[
             .Select(c => c.SeasonFrames["autumn"][2])).Distinct();
 
     // Buildings and field units share terrain depth; clouds cover both views last.
-    public void Objects(double time, Action<string, Vector2, int?, MapBlendMode> emit)
+    public void Objects(double time, Action<string, Vector2, MapObjectTarget?, MapBlendMode> emit)
     {
         foreach (var s in Bridges.Concat(Boundaries)) emit(s.AssetId, new(s.X, s.Y), null, MapBlendMode.Alpha);
         var objects = Buildings.Select(b => (Depth: (double)(b.X + b.Y), X: (double)b.X, Kind: 0, Id: b.Id,
@@ -152,14 +152,16 @@ internal sealed record MapSceneRegion(MapScene Scene, Rect2 Bounds, MapBuilding[
         {
             if (item.Building is { } building)
             {
-                foreach (var s in building.Sprites) emit(s.AssetId, new(s.X, s.Y), building.Id, MapBlendMode.Alpha);
+                foreach (var s in building.Sprites) emit(s.AssetId, new(s.X, s.Y), new(building.Id, false), MapBlendMode.Alpha);
                 foreach (var s in Scene.Animations.GetValueOrDefault(building.Id, []))
                     emit(MapAnimationClock.Asset(Scene.Clips[s.ClipId], Scene.Season, time, s.Phase), new(s.X, s.Y), null, Scene.Clips[s.ClipId].BlendMode);
             }
             else
                 foreach (var s in item.Unit!.Animations)
-                    emit(MapAnimationClock.Asset(Scene.Clips[s.ClipId], Scene.Season, time, s.Phase), new(s.X, s.Y), null, Scene.Clips[s.ClipId].BlendMode);
+                    emit(MapAnimationClock.Asset(Scene.Clips[s.ClipId], Scene.Season, time, s.Phase), new(s.X, s.Y), new(item.Id, true), Scene.Clips[s.ClipId].BlendMode);
         }
         foreach (var s in Clouds) emit(s.AssetId, new(s.X, s.Y), null, MapBlendMode.Alpha);
     }
 }
+
+public readonly record struct MapObjectTarget(int Id, bool IsUnit);

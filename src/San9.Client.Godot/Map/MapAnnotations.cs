@@ -10,12 +10,12 @@ public partial class MapAnnotations : Node2D
     public TextCatalog Texts { get; init; } = null!;
     public Font UiFont { get; init; } = null!;
     private long _revision = -1;
-    private int? _hovered;
+    private MapObjectTarget? _hovered;
     public long DrawCount { get; private set; }
     public override void _Process(double delta)
     {
-        if (_revision == World.ViewRevision && _hovered == World.HoveredBuildingId) return;
-        _revision = World.ViewRevision; _hovered = World.HoveredBuildingId; QueueRedraw();
+        if (_revision == World.ViewRevision && _hovered == World.HoveredObject) return;
+        _revision = World.ViewRevision; _hovered = World.HoveredObject; QueueRedraw();
     }
     public override void _Draw()
     {

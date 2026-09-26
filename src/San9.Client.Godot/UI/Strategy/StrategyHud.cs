@@ -27,13 +27,13 @@ public partial class StrategyHud : Control
     private Vector2? _hoverPosition;
     private StrategyRosterList _rosterList = null!;
     private PopupMenu _contextMenu = null!;
-    private SettlementContextPopup _settlementContext = null!;
+    private MapContextPopup _mapContext = null!;
     private StrategyMinimap? _minimap;
     public StrategyOverview Overview { get; } = new();
     public InformationPanel Information { get; private set; } = null!;
     private StrategyOverviewPanel _overviewPanel = null!;
     private bool _built;
-    private BuildingHoverCard _buildingHover = null!;
+    private MapHoverCard _hoverCard = null!;
     private long _hoverRevision = -1;
     private long _stateRevision = -1;
     private readonly Dictionary<string,Label> _resourceValues = [];
@@ -114,11 +114,12 @@ public partial class StrategyHud : Control
         GetParent().MoveChild(_overviewPanel, GetIndex());
         Information = new InformationPanel { Session = Session, Texts = Texts, Service = Textures, World = World, Skin = Skin, Locate = id => { Overview.Close(); World.FocusBuilding(id); } };
         GetParent().AddChild(Information);
-        _settlementContext = new SettlementContextPopup { Textures = _textures, Activated = OpenSettlementContextEntry };
-        GetParent().AddChild(_settlementContext);
+        _mapContext = new MapContextPopup { Textures = _textures, Activated = OpenMapContextEntry };
+        GetParent().AddChild(_mapContext);
         World.BuildingContextRequested += ShowSettlementContext;
-        _buildingHover = new BuildingHoverCard { World = World, Textures = _textures, UiFont = GetThemeFont("font"), Visible = false };
-        AddChild(_buildingHover);
+        World.UnitContextRequested += ShowUnitContext;
+        _hoverCard = new MapHoverCard { World = World, Textures = _textures, UiFont = GetThemeFont("font"), Visible = false };
+        AddChild(_hoverCard);
         // Adding controls can trigger hit testing before the HUD is fully constructed.
         _built = true;
         UpdateSelection(); QueueRedraw();
@@ -172,7 +173,7 @@ public partial class StrategyHud : Control
 
     public bool IsBlockedPoint(Vector2 point)
     {
-        if (Information?.State.IsOpen == true || _settlementContext?.Visible == true) return true;
+        if (Information?.State.IsOpen == true || _mapContext?.Visible == true) return true;
         if (point.Y >= 740 && point.Y < 768 && point.X >= 0 && point.X < 1024) return true;
         foreach (var (asset, position) in _frames)
         {
@@ -189,20 +190,28 @@ public partial class StrategyHud : Control
         if (_built && @event is InputEventMouseButton { Pressed: false, ButtonIndex: MouseButton.Right }) ShowContextMenu();
         AcceptEvent();
     }
-    private int? _contextSettlementId;
+    private MapObjectTarget? _contextTarget;
+    private MapObjectTarget? _hoverTarget;
     private long _contextRevision;
     private void ShowSettlementContext(int id, Vector2 point)
     {
-        _contextSettlementId = id;
+        _contextTarget = new(id, false);
         _contextRevision = Session.Snapshot.Revision;
-        _settlementContext.Open(SettlementContextMenu.Read(Scenario, id), point);
-        World.HoverBuilding(null); _buildingHover.Hide();
+        _mapContext.Open(SettlementContextMenu.Read(Scenario, id), point);
+        World.HoverObject(null); _hoverCard.ShowInfo(null, point); _hoverTarget = null;
     }
-    private void OpenSettlementContextEntry(SettlementContextEntry entry)
+    private void ShowUnitContext(int id, Vector2 point)
     {
-        if (_contextSettlementId is not int id) return;
-        // The world may have advanced while the pointer menu was open.
-        if (SettlementContextMenu.Read(Scenario, id).Contains(entry) && entry.Enabled) Information.OpenContext(entry);
+        _contextTarget = new(id, true);
+        _contextRevision = Session.Snapshot.Revision;
+        _mapContext.Open(UnitMapInteraction.Menu(Scenario, id), point);
+        World.HoverObject(null); _hoverCard.ShowInfo(null, point); _hoverTarget = null;
+    }
+    private void OpenMapContextEntry(MapContextEntry entry)
+    {
+        if (_contextTarget is not {} target) return;
+        var entries = target.IsUnit ? UnitMapInteraction.Menu(Scenario, target.Id) : SettlementContextMenu.Read(Scenario, target.Id);
+        if (entries.Contains(entry) && entry.Enabled) Information.OpenContext(entry);
     }
     private void ShowContextMenu()
     {
@@ -239,6 +248,7 @@ public partial class StrategyHud : Control
             _message.SetMessage(menu?.HintText ?? "", menu is null || !menu.Disabled);
             return;
         }
+        if (_mapContext.Visible) { _message.SetMessage(_mapContext.Hint, true); return; }
         var button = GetChildren().OfType<StrategyButton>().FirstOrDefault(b => b.IsHovered())
             ?? (Overview.IsOpen ? _overviewPanel.HoverButton : null);
         _message.SetMessage(button?.HintText ?? (Overview.IsOpen ? "" : "请选择命令起点。"), button is null || !button.Disabled);
@@ -257,7 +267,7 @@ public partial class StrategyHud : Control
     private void UpdateHover(Vector2 mouse)
     {
         bool visible = false;
-        int? hovered = null;
+        MapObjectTarget? hovered = null;
         if (_built && !World.IsLoading && new Rect2(0, 0, 1024, 768).HasPoint(mouse) && !IsBlockedPoint(mouse))
         {
             if (Overview.IsOpen)
@@ -268,24 +278,26 @@ public partial class StrategyHud : Control
             else
             {
                 if (World.IsInputBlocked?.Invoke(mouse) != true && !_contextMenu.Visible)
-                    hovered = World.BuildingAtViewport(mouse);
+                    hovered = World.ObjectAtViewport(mouse);
                 var world = World.ViewportToWorld(mouse);
                 if (MapGeometry.TrySquare(world.X, world.Y, out int x, out int y))
                 { UpdateRegion(x, y); visible = true; }
             }
         }
-        World.HoverBuilding(hovered);
-        if (_built && (_buildingHover.Info?.Id != hovered || _hoverRevision != Session.Snapshot.Revision))
+        World.HoverObject(hovered);
+        if (_built && (_hoverTarget != hovered || _hoverRevision != Session.Snapshot.Revision))
         {
             _hoverRevision = Session.Snapshot.Revision;
-            _buildingHover.ShowInfo(hovered is int id ? BuildingHoverInfo.Resolve(Scenario, Texts, id) : null, mouse);
+            if (_hoverTarget != hovered) _hoverCard.ShowInfo(null, mouse);
+            _hoverTarget = hovered;
+            _hoverCard.ShowInfo(hovered is {} target ? target.IsUnit ? UnitMapInteraction.Hover(Scenario, Texts, target.Id) : MapHoverInfo.Resolve(Scenario, Texts, target.Id) : null, mouse);
         }
         _regionVisible = visible;
         foreach (var label in _regionLabels) label.Visible = visible;
     }
     public override void _Process(double delta)
     {
-        if (_settlementContext?.Visible == true && _contextRevision != Session.Snapshot.Revision) _settlementContext.Close();
+        if (_mapContext?.Visible == true && _contextRevision != Session.Snapshot.Revision) _mapContext.Close();
         if (World.LoadError is not null) _message.Text = "地图加载失败 · F3 查看详情";
         if (_built && _stateRevision != Session.Snapshot.Revision)
         {
@@ -328,6 +340,7 @@ public partial class StrategyHud : Control
     {
         World.MapReady -= Build;
         World.BuildingContextRequested -= ShowSettlementContext;
+        World.UnitContextRequested -= ShowUnitContext;
         GetWindow().MouseExited -= ClearHover;
         _textures.Dispose();
         _text.Dispose();

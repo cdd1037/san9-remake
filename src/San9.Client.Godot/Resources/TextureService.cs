@@ -32,7 +32,12 @@ public partial class TextureService : Node
         MapAssets = package.Map.Assets.ToDictionary(a => a.Id);
         var ui = package.Skin.Assets.ToDictionary(a => a.Id);
         Roles = package.Skin.Roles.ToDictionary(p => p.Key, p => ui[p.Value]);
-        var hitImages = MapAssets.Values.Where(a => a.Id.StartsWith("building-", StringComparison.Ordinal))
+        var unitClips = package.Map.Units.Bodies.SelectMany(body => body.DirectionClips).ToHashSet();
+        var unitFrames = package.Map.Animations.Clips.Where(clip => unitClips.Contains(clip.Id) ||
+                clip.Id.StartsWith("unit-flag-", StringComparison.Ordinal))
+            .SelectMany(clip => clip.Frames.Concat(clip.SeasonFrames.Values.SelectMany(frames => frames)))
+            .ToHashSet();
+        var hitImages = MapAssets.Values.Where(a => a.Id.StartsWith("building-", StringComparison.Ordinal) || unitFrames.Contains(a.Id))
             .Concat(Roles.Where(p => p.Key is "top-frame" or "radar-frame" or "sidebar-frame" or "ruler-frame" || p.Key.StartsWith("button-overview-", StringComparison.Ordinal) || p.Key.StartsWith("overview-city-", StringComparison.Ordinal)).Select(p => p.Value));
         foreach (var group in hitImages.Distinct().GroupBy(a => a.File)) _maskSources[group.Key] = group.ToArray();
         _cache = new(load, Upload, t => t.Dispose());

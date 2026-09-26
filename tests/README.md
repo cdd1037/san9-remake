@@ -23,6 +23,12 @@ Godot 历史画面验收脚本也不属于默认测试集，后续开发默认�
 
 ## 运行入口
 
+按实际受影响行为选入口，不按文件数量选择检查：局部C#改动验证受影响项目，共享契约或跨层行为变更运行默认解决方案；跨目录移动、注释或纯文档变更本身不构成跨层行为变更。Headless的触发条件见下文。
+
+`dotnet test`默认包含构建，不在它之前另跑同范围`dotnet build`；独立于该入口的项目或明确需要的引擎构建除外。定向测试用于开发定位，最终所需范围通过后不再重复跑定向测试。失败后只重跑受修复影响的范围，未变范围复用已通过结果。
+
+纯文档检查改动涉及的引用、章节锚点、命令与差异；文件或标题迁移时搜索入链，不默认扫描全仓文档。无行为变化的布局／文案调整不为凑覆盖新增测试，画面验收仍遵循既定分工。
+
 在仓库根目录执行：
 
 ```powershell
@@ -42,7 +48,7 @@ dotnet test tests/San9.Headless.Tests/San9.Headless.Tests.csproj
 dotnet test San9Remake.slnx --logger "trx;LogFilePrefix=tests" --results-directory local/generated/verification/tests
 ```
 
-同一版本已通过的验证不因准备提交而重复执行。`G01ScenarioTests` 默认使用公开夹具；设置 `SAN9_G01_SCENARIO` 会切换到指定本地剧本，不能把默认测试通过当作私有内容包已验收。
+同一代码、输入及相关配置已通过的验证不因准备提交而重复执行。后续只改文档不使代码测试失效；仅文件时间戳变化时先核对实际差异，不能据此判定必须重跑。`G01ScenarioTests` 默认使用公开夹具；设置 `SAN9_G01_SCENARIO` 会切换到指定本地剧本，不能把默认测试通过当作私有内容包已验收。
 
 Headless 默认不运行。修改 CLI 参数解析、退出码、文件产物、存档／命令日志／录制回放协议或其跨进程接线时，单独运行上述 Headless 命令；普通领域规则、界面和导入器改动运行对应测试即可。共享契约和跨层变更仍运行默认解决方案测试，只有涉及这些进程边界时才追加 Headless。修改公共测试配置时，还需单独验证 Headless 项目继承该配置后的构建与测试。
 
@@ -52,25 +58,9 @@ Headless 默认不运行。修改 CLI 参数解析、退出码、文件产物、
 
 删除或合并用例，应明确它防止的错误、替代覆盖所在和是否丢失独有入口或状态；不按数量指标裁剪，不添加只复述实现的断言，也不把不同规则塞进难以定位失败的通用测试框架。同名功能的领域规则测试与会话接线测试承担不同职责。
 
-## 2026-09-25 整理基线
+## 公共协议与进程覆盖
 
-以下数量、耗时和通过情况仅记录当时版本，不作为当前测试结果或持续维护的数量目标。
-
-2026-09-25 整理行为测试前的全量基线如下。用例数包含 Theory 展开；耗时为测试运行器报告的项目执行时间，受并行和机器状态影响，不含完整构建成本，也不能直接相加作为总耗时。
-
-| 项目 | C# 文件数（含辅助文件） | 用例数 | 执行时间（约） |
-| --- | ---: | ---: | ---: |
-| Core | 165 | 2,385 | 5 秒 |
-| Application | 98 | 577 | 4 秒 |
-| Importer | 46 | 357 | 1 秒 |
-| Client.Godot | 17 | 122 | 0.8 秒 |
-| Content | 11 | 75 | 0.8 秒 |
-| Headless | 2 | 17 | 27 秒 |
-| 合计 | 339 | 3,533 | — |
-
-基线全部通过，无失败或跳过。公共工程配置合并后再次全量通过；行为测试去重和 CLI 输入准备调整后，受影响的 Application 577 个、Headless 17 个用例分别通过，Headless 本轮约 22 秒（单次结果，不作为固定性能保证）。另有 15 个研究 Python 测试文件，本次未运行。C# 测试及辅助文件约 4.2 万行，维护规模值得控制，但目前执行负担主要来自少量真实进程测试，不能用测试数量作为删除标准。
-
-公共协议覆盖按以下位置维护，探索事件测试不重复展开这些失败路径：
+探索事件共用以下协议测试，各事件保留专有资格、效果、提示、命令接线和状态往返，避免逐个重复公共失败路径。
 
 | 协议 | 集中覆盖位置 | 事件测试保留的内容 |
 | --- | --- | --- |
@@ -78,15 +68,6 @@ Headless 默认不运行。修改 CLI 参数解析、退出码、文件产物、
 | 同一响应重复提交不产生效果 | 上述日任务测试覆盖仍有待办和已恢复稳定两种状态；`PersistenceTests.OperationWatermarkSurvivesSave` 覆盖存档水位 | 首次响应的事件与领域状态变化 |
 | 错误任务、错误阶段、公共互斥字段不修改状态 | `DailyTaskDecisionTests.InvalidResponsesAndNormalCommandsCannotMutatePendingDecision`；`StagedDailyTaskTests` 的过期阶段响应 | 投资金额、具体事件选项、事件专有载荷的校验 |
 
-上述去重已应用于 BeastSearch、TigerSearch、MerchantInvestment、Longevity、MysticBook、CommunitySearch、TreasureMonument、SearchConflict、ScholarInsult、ScholarReturn 十组会话测试。各事件的成功/拒绝/失败分支、实际命令接线、提示查询、专有状态、存档往返和回放仍保留；精简的是重复协议断言，用例数不因此减少。
+Headless 直接执行已构建的 DLL。失败输入由 `WriteFailureScenario` 通过应用 API 准备；人事日志通过 `GameSession`／`CommandLogService` 生成，实际错误处理、保存恢复和录像重放仍交给独立 CLI 进程。精简准备进程时不得丢失被验证的进程边界。
 
-Headless 的损坏日志、未知存档版本、非法命令与路径冲突用例，由 `WriteFailureScenario` 通过应用 API 在各自临时目录准备输入，省去三次仅用于准备数据的 `verify` 进程。实际错误处理仍运行真实 CLI；成功流程中的 `verify`、存档、恢复、录制和回放链路继续保留。
-
-人事命令测试使用独立的小剧本，通过 `GameSession` 和 `CommandLogService` 生成真实奖励、任命命令日志，不再启动 `verify` 提取日志头，也不手写命令 JSON。CLI 执行结果与准备阶段的会话状态比较，再由独立 CLI 进程验证录制回放。Headless 的 17 个用例共启动 33 次 CLI 进程。
-
-其余抽查结论与整理候选：
-
-- `TigerSearchTests` 的资格、阈值、随机消费矩阵，与 `TigerSearchSessionTests` 的提示、命令接线、恢复和回放承担不同职责。同名功能跨层测试不能直接视为重复。
-- `TigerSearchSessionTests.ContentValidatesProvinceReferencesAndAllRequiredParameters` 同时校验内容合法性、必需 JSON 字段和会话指纹。后续调整此类测试时，内容契约部分应归 Content，指纹语义留 Application，避免一个测试承担多个层的职责。
-- `GameTextStyleTests` 含颜色和样式表的精确值断言。修改表现时应区分有规格依据的映射和单纯复制实现常量的断言；前者仍有回归价值，后者不应为了固定当前实现而不断增加。
-- Headless 直接执行构建好的 DLL，没有每个用例重复 `dotnet run` 构建。进一步减少进程前，需要核实是否会丢失进程边界覆盖，不以删除运行很快的 Core 边界用例来优化耗时。
+内容合法性与必需字段归 Content，会话指纹和接线归 Application，规则矩阵归 Core。表格样式中的精确数值须有规格依据；不能仅为固定实现常量增加断言。数量和耗时不是覆盖目标，历史整理基线由 Git 保留。

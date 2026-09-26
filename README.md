@@ -66,7 +66,7 @@ dotnet run --project src/San9.Tools -- import-client --source-exe "<San9PK.exe�
 & "<Godot Mono可执行文件>" --path "src/San9.Client.Godot" -- --content-package "<客户端内容包绝对路径>"
 ```
 
-中键拖动、滚轮缩放、左键选择设施或方格，右键都市／设施打开情报快捷菜单；点击小地图或右侧设施列表定位（不改变地图命令起点）；名单移入保留焦点、Enter定位，君主设施固定首行，「小」打开带势力/设施/部队图层与排行榜的战略全图，「大」返回详细地图（保持缩放），建筑标注暂随地图缩放；疆界按钮切换边界显示。F3打开调试面板，可对选中城市执行单人商业或开垦，并预览四季。正式经营菜单、战斗及“进行”按钮暂不可用。旧包需重新转换；主界面与验收见[UI 文档](docs/ui/README.md)，纯地图转换与离线渲染见[大地图导入与运行](docs/map-import.md)。
+中键拖动、滚轮缩放，左键选择、右键查看情报；小地图和设施列表可定位，F3 打开调试面板。完整交互与画面验收见[UI 文档](docs/ui/README.md)，纯地图转换与离线渲染见[大地图导入与运行](docs/map-import.md)。
 
 ### 无界面运行
 
@@ -93,7 +93,7 @@ dotnet run --project src/San9.Headless -- verify --fixture --xuns 36 --output lo
 | `specs/` | 行为规格、设计决策与路线图 |
 | `local/generated/` | 被 Git 忽略的转换包、缓存与验证产物 |
 
-`local/generated/`按`content/`（当前运行包）、`verification/`（验收截图与报告）、`research/`（本地研究证据）整理，避免临时文件散落根目录。
+本地产物的保留与清理边界见[本地目录说明](local/README.md)。
 
 客户端运行时只读取转换后的内容，不读取源 EXE、S9、IDA 数据库或研究脚本。地图动画由独立显示时钟选帧，再交给 Godot 绘制；显示状态与模拟状态分离。
 

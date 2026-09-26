@@ -145,7 +145,7 @@ G06的`MilitaryOrder`分别引用部队或据点，失效目标在战后事务�
 
 人事、八类计略与四类外交使用互斥的类型化任务载荷。外交去程按整旬取整、旬边界谈判，正常返程使用普通距离天数。待决状态的`Phase`区分日内与旬边界续行；谈判报价和阶段持久化，恢复或重复回答不得重复结算。具体公式见[人事行程](../specs/behavior/BEH-PERSON-0003-recall-movement-and-action-reservation.md#行程位置与返还不变量)。
 
-`GiftResolvedEvent`区分`Received`、`Refunded`、`Spent`，资金／兵粮预扣量等于三者之和。拒收结算时退回来源主账户，容量溢出计入损耗，返程不再退款。外交业务规则见[外交规格](../specs/behavior/BEH-DIPLOMACY-0002-command-negotiation-and-resolution.md)。当前协议版本见[内容契约](client-content.md#g08内容与运行契约)。
+`GiftResolvedEvent`区分`Received`、`Refunded`、`Spent`，资金／兵粮预扣量等于三者之和。拒收结算时退回来源主账户，容量溢出计入损耗，返程不再退款。外交业务规则见[外交规格](../specs/behavior/BEH-DIPLOMACY-0002-command-negotiation-and-resolution.md)。当前协议版本见[内容契约](client-content.md#领域契约导航)。
 
 ## 右侧运行时名单
 

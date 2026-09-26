@@ -184,7 +184,7 @@ public sealed class OriginalMessageParserTests
     [Theory]
     [InlineData(1, 0x4D, "person.0.current-leadership")]
     [InlineData(31, 0xBA, "force.0.same-root-corps-count")]
-    [InlineData(41, 0xA0, "building.0.owner-force-order")]
+    [InlineData(41, 0xA0, "building.0.owner-name")]
     [InlineData(21, 0x36, "treasure.0.category")]
     [InlineData(51, 0x45, "unit.0.command-event-type")]
     public void CatalogPropertiesUseRecoveredGetterSemantics(byte selector, byte property, string binding)
@@ -199,11 +199,13 @@ public sealed class OriginalMessageParserTests
     [InlineData(0xDB)]
     [InlineData(0xDC)]
     [InlineData(0xDD)]
-    public void InvalidPersonCatalogPropertiesAreKnownMinusOneConstants(byte property)
+    public void NumericPersonPropertiesDoNotReplaceDisplayedNames(byte property)
     {
         var result = new OriginalMessageParser().Parse([2,1,property, (byte)'A',5,5,5]);
         var expression = Assert.IsType<MessageValue>(result.Definition.Nodes[0]);
-        Assert.Equal(-1, expression.Expression.Number);
+        Assert.Equal(property switch { 0xDB => "person.0.surname", 0xDC => "person.0.given-name", _ => "person.0.courtesy-name" }, expression.Expression.Binding);
+        var predicate = new OriginalMessageParser().Parse([5,5,4, 2,1,property, (byte)'A',5,5,5]);
+        Assert.Equal(-1, Assert.IsType<MessageConditional>(predicate.Definition.Nodes[0]).Predicate.Number);
         Assert.True(result.Definition.SemanticsConfirmed);
     }
 }

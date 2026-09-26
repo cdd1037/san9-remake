@@ -30,7 +30,7 @@ public sealed class ConstructionSessionTests
                 ConstructionSites = [new(8000, new(17, 2), [9000]), new(8000, new(22, 2), [9001])]
             }
         , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 1000000)) { IsRoot = true }], []) };
-        var texts = new San9.Content.Text.TextCatalog(3, new()
+        var texts = new San9.Content.Text.TextCatalog(4, new()
         { ["city"] = new("都市", "都市"), ["region"] = new("白水", "白水"), ["fort"] = new("城塞", "城塞"), ["work"] = new("土垒", "土壘") });
         Assert.Throws<InvalidDataException>(() => (definition with { FacilityNameSuffixKeys = new() { [99999] = "fort" } }).Validate());
         var session = GameSession.Start(definition, 42);

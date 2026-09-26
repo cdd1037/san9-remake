@@ -124,7 +124,7 @@ public sealed class AdministrativeInformationTests
                 [new(10,5,1,new(100, 200)) { IsRoot = true },new(11,5,2,new(300,400)) { Delegation=new DomesticDelegation() },new(12,5,3,new(500,600))], [])
         };
         var keys = new[] { "force","city15","city16","city17","empty","province","person1","person2","person3","free","rank","none","rank-description" };
-        var text = new TextCatalog(3,keys.ToDictionary(k=>k,k=>new TextEntry(k,k)));
+        var text = new TextCatalog(4,keys.ToDictionary(k=>k,k=>new TextEntry(k,k)));
         return (GameSession.Start(definition,1),text,definition);
     }
     private static CatalogCell Cell(InformationTable table, int id, string column) => table.Rows.Single(r=>r.Key.Id==id).Cells[Array.IndexOf(table.Columns,column)];
@@ -163,7 +163,7 @@ public sealed class AdministrativeInformationTests
         entries["city16"] = new("安平港", "安平港");
         entries["region16"] = new("安平", "安平");
         entries["region17"] = new("港口原名", "港口原名");
-        var text = new TextCatalog(3, entries);
+        var text = new TextCatalog(4, entries);
         definition = definition with {
             Settlements = definition.Settlements.Select((s, i) => s with { X = i, Y = 0 }).ToArray(),
             RegionNameKeys = new(definition.RegionNameKeys) { [16] = "region16", [17] = "region17" },

@@ -74,6 +74,7 @@ public sealed partial class GameSession
         return recording;
     }
     public WorldSnapshot Snapshot => _simulation.Snapshot;
+    public WorldMessageContext Messages(San9.Content.Text.TextCatalog texts) => new(_definition.Content, Snapshot, texts);
     public CountryTitlePrompt? GetCountryTitlePrompt() => _simulation.GetCountryTitlePrompt();
     public EmperorTransferPrompt? GetEmperorTransferPrompt() => _simulation.GetEmperorTransferPrompt();
     public OfficeRequestPrompt? GetOfficeRequestPrompt() => _simulation.GetOfficeRequestPrompt();

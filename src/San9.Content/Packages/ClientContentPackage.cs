@@ -14,6 +14,8 @@ public sealed record ClientContentPackage(int SchemaVersion, ContentSource[] Sou
     public void ValidateLinks()
     {
         if (SchemaVersion != ScenarioContent.CurrentSchemaVersion) throw new InvalidDataException("Unsupported client content version.");
+        if (Text.MessagePeople.Keys.Except(Scenario.Officers.Select(o => o.State.Id)).Any())
+            throw new InvalidDataException("Message person profiles must reference scenario officers.");
         var images = Map.Assets.Concat(Map.Seasons.SelectMany(s => s.Textures)).Concat(Skin.Assets).Concat(Textures.Assets).ToArray();
         San9.Content.Images.ImageAssetFiles.ValidateCatalog(images);
         if (Scenario.Military is {} military && military.Formations.Any(f => !Map.Units.Formations.Any(v => v.FormationId == f.Id)))

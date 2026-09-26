@@ -33,10 +33,22 @@ public static class ClientContentImporter
         var map = MapImporter.Build(scenarioBytes, textures.Map, sources.ToArray());
         var (scenario, text) = ScenarioContentCompiler.Compile(exe, scenarioBytes, Read(Path.Combine(dataDirectory, "M_MsgPK.s9")), Read(Path.Combine(dataDirectory, "M_RtdnPK.s9")));
         Dictionary<string, San9.Content.Text.MessageDefinition> messages = [];
-        foreach (var (file, catalog) in new[] { ("M_MsgPK.s9", "messages"), ("M_RtdnPK.s9", "biographies"), ("M_Msg.s9", "base-messages"), ("M_Rtdn.s9", "base-biographies") })
+        List<MessageContentAdaptation> adaptations = [];
+        foreach (var (file, catalog) in new[] { ("M_MsgPK.s9", "messages"), ("M_RtdnPK.s9", "biographies") })
         {
             var converted = MessageArchiveCompiler.Compile(Read(Path.Combine(dataDirectory, file)), file, catalog);
             foreach (var item in converted.Messages) messages.Add(item.Key, item.Value);
+            var table = new San9MessageTable(Read(Path.Combine(dataDirectory, file)));
+            for (int i = 0; i < table.Count; i++)
+                if (MessageContentPolicy.Apply($"{catalog}.{i}", table.Record(i), catalog, messages) is { } adaptation)
+                    adaptations.Add(adaptation);
+        }
+        using (var source = new MemoryStream(scenarioBytes))
+        {
+            var header = San9ScenarioArchive.ReadInitialScenario190Header(source);
+            source.Position = 0;
+            var people = San9ScenarioPersonArchive.ReadKnownRecords(source);
+            messages = new GameplayMessageCompiler(scenario, people, header.ScenarioId, header.ScenarioModeCode).Compile(messages);
         }
         San9.Content.Text.NameMessages.AddTo(messages);
         text = text with { Messages = messages };
@@ -46,6 +58,14 @@ public static class ClientContentImporter
             dependency, MapInstance.From(map), scenario, text, roles);
         var loaded = ClientContentFiles.Resolve(content, textures, textureRoot);
         await ScenarioContentFiles.WriteAsync(output, content, token);
+        var adaptedKeys = adaptations.Select(a => a.Key).ToHashSet(StringComparer.Ordinal);
+        var messageAudit = GameplayMessageCompiler.Audit(messages)
+            .Select(a => adaptedKeys.Contains(a.Key) ? a with { SourceConfirmed = false } : a).ToArray();
+        await File.WriteAllTextAsync(Path.Combine(output, "message-adaptations.json"),
+            System.Text.Json.JsonSerializer.Serialize(adaptations, PackageFiles.JsonOptions), System.Text.Encoding.UTF8, token);
+        await File.WriteAllTextAsync(Path.Combine(output, "message-readiness.json"),
+            System.Text.Json.JsonSerializer.Serialize(messageAudit, PackageFiles.JsonOptions), System.Text.Encoding.UTF8, token);
+        progress?.Invoke($"Messages: {messageAudit.Count(m => m.RuntimeReady)}/{messageAudit.Length} runtime-ready; see message-readiness.json for arguments and exclusions.");
         progress?.Invoke($"Scenario: {scenario.Settlements.Length} settlements; references independent textures at {dependency.Path}.");
         return loaded;
     }

@@ -8,7 +8,11 @@ namespace San9.Content.Packages;
 public sealed record ScenarioContentManifest(int SchemaVersion, ContentSource[] Sources,
     TextureDependency Textures, string Map, string Scenario, string Text, string Messages, string Illustrations);
 
-public sealed record StaticTextContent(int SchemaVersion, Dictionary<string, TextEntry> Entries);
+public sealed record StaticTextContent(int SchemaVersion, Dictionary<string, TextEntry> Entries)
+{
+    [System.Text.Json.Serialization.JsonRequired]
+    public Dictionary<int, MessagePersonProfile> MessagePeople { get; init; } = [];
+}
 
 /// <summary>Disk contract for a scenario; the assembled model remains independent of file layout.</summary>
 public static class ScenarioContentFiles
@@ -52,7 +56,7 @@ public static class ScenarioContentFiles
         var messages = await Read<Dictionary<string, MessageDefinition>>(manifest.Messages);
         var illustrations = await Read<Dictionary<string, string>>(manifest.Illustrations);
         return new(ScenarioContent.CurrentSchemaVersion, manifest.Sources, manifest.Textures, map, scenario,
-            new(text.SchemaVersion, text.Entries) { Messages = messages }, illustrations);
+            new(text.SchemaVersion, text.Entries) { Messages = messages, MessagePeople = text.MessagePeople }, illustrations);
     }
 
     public static async Task WriteAsync(string root, ScenarioContent content, CancellationToken token = default)
@@ -87,7 +91,7 @@ public static class ScenarioContentFiles
         {
             await Stage(manifest.Map, content.Map, DataJsonOptions);
             await Stage(manifest.Scenario, content.Scenario, DataJsonOptions);
-            await Stage(manifest.Text, new StaticTextContent(content.Text.SchemaVersion, content.Text.Entries), DataJsonOptions);
+            await Stage(manifest.Text, new StaticTextContent(content.Text.SchemaVersion, content.Text.Entries) { MessagePeople = content.Text.MessagePeople }, DataJsonOptions);
             await Stage(manifest.Messages, content.Text.Messages, DataJsonOptions);
             await Stage(manifest.Illustrations, content.IllustrationRoles, DataJsonOptions);
             await Stage("content.json", manifest, PackageFiles.JsonOptions);

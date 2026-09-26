@@ -125,6 +125,11 @@ public static class ScenarioContentCompiler
         var suffixKeys = fixedBuildings.Select(f => (f.Id, Key: text.FacilitySuffix($"facility-suffix.{f.Id}", f.Id)))
                 .Where(p => p.Key is not null).ToDictionary(p => p.Id, p => p.Key!);
         var provinceNames = settlements.Where(s => s.Kind == San9.Core.Domain.SettlementKind.City).Select(s => (int)cities[s.Id].AreaCode).Distinct().ToDictionary(id => id, text.Province);
+        foreach (var officer in officers)
+        {
+            var person = persons[officer.State.Id];
+            text.MessagePerson(officer.State.Id, person.FamilyNameResourceCode, person.GivenNameResourceCode, person.PortraitResourceCode);
+        }
         var catalog = text.Catalog;
         if (catalog.Resolve(summaries.Single(f => f.Id == 5).NameKey) != "董卓") throw new InvalidDataException("Unexpected 190-year player force.");
         var units = UnitContentCompiler.Compile(sourceUnits, Root);

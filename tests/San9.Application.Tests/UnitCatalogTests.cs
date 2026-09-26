@@ -28,7 +28,7 @@ public sealed class UnitCatalogTests
              new(200, 60, 0, 100000, 5, new(1, 1), TravelMode.Water) { Combat = new(10, 10, 10, 10, 50) }], []));
         var keys = definition.Officers.Select(o => o.NameKey).Concat(definition.Forces.Select(f => f.NameKey))
             .Concat(definition.Settlements.Select(s => s.NameKey)).Concat(["land", "water"]);
-        var texts = new TextCatalog(3, keys.ToDictionary(k => k, k => new TextEntry(k, k)));
+        var texts = new TextCatalog(4, keys.ToDictionary(k => k, k => new TextEntry(k, k)));
         var hash = world.StateHash;
         InformationTable Read(int page) => UnitCatalog.Read(view, rules, texts, page);
         Assert.Equal(["所属", "战力", "陆上", "水上", "命令"], Read(0).Pages);

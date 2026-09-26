@@ -45,7 +45,7 @@ var definition = new MessageDefinition(
 
 ## 消息产生与状态所有权
 
-Application的`MessageEvaluator`接收消息目录及`MessageContext`。Values负责具名值；Query接收查询名和已求值参数，由玩法适配当前世界；RandomIndex接收排他上界，必须返回范围内的索引。Content和Application不加载Godot资源。
+Application的`MessageEvaluator`接收消息目录及`MessageContext`。Values负责具名值；底层Query允许独立表达式宿主，自定义查询的正确性由宿主负责；游戏内生产使用`GameSession.Messages(texts)`返回的`WorldMessageContext`，查询读取该次捕获的世界快照；RandomIndex接收排他上界，必须返回范围内的索引。Content和Application不加载Godot资源。
 
 消息产生时求值一次并保存返回的BBCode字符串。重新排版、重绘、鼠标移入或控件刷新使用该结果；只有业务上产生一条新消息才重新求值。当前界面模板没有随机节点。
 
@@ -73,3 +73,33 @@ Application的`MessageEvaluator`接收消息目录及`MessageContext`。Values�
 未来在繁简转换之后接入统一词汇校订层，保留原文对照，不在字体或渲染控件中替换。人物规则绑定稳定人物 ID 和字段，名称结果供列表、详情、动态消息及检索共用；台词规则绑定消息 ID 和预期原词，不能全局按单字替换。PK 台词索引为 7122、7123，基础版为 7032、7033。
 
 每条规则记录原文、转换结果、校订结果、理由与确认状态；原词不匹配时报告，防止资源变更后误改。「孙湾」若日后采用，须明确属于显示替代名，保留原作姓名。当前仍执行四个已知缺字明确接受的决定。
+
+## 领域消息与事件参数
+
+`MessageBinding.Reference(MessageEntityKind.Person, id)`等引用区分人物、势力、据点、部队、宝物、兵法、地域和军团；编号不受原版槽位或倒序常量限制。`property`表达式明确读取`person.name`、`person.surname`、`person.given-name`、`person.courtesy-name`、`person.war`、`settlement.name`等属性。引用本身不能直接打印或参加数值运算。姓、名和肖像比较身份由`TextCatalog.MessagePeople`提供，姓名全称仍复用人物定义。
+
+```csharp
+var messages = session.Messages(texts); // 固定本次世界快照
+var result = messages.Produce("messages.7235", new Dictionary<string, MessageBinding>
+{
+    ["person.0"] = MessageBinding.Reference(MessageEntityKind.Person, speakerId),
+    ["person.1"] = MessageBinding.Reference(MessageEntityKind.Person, recipientId),
+    ["building.0"] = MessageBinding.Reference(MessageEntityKind.Settlement, destinationId),
+    ["return-kind.0"] = MessageBinding.Return(MessageReturnKind.Automatic)
+}, presentationRandom.Next);
+// 保存 result，之后显示 result.BbCode；不要在绘制回调里再次 Produce。
+```
+
+上例仅展示调用契约，不代表已连接相应业务事件。`Personnel`、`Automatic`、`Ordered`分别表示人事归队、自动撤退和主动返回；由事件生产者在任务／单位被移除前明确提供。产生消息所用快照应仍能解析所引用对象。无部队引用的返回台词只需要返回原因，不依赖一个已经销毁的旧部队。表现随机源必须与模拟器随机流独立。
+
+常用查询包括亲子、同父母、血统、长幼、亲密度距离、同根势力、势力关系、持有宝物／类别、日期，以及`event.occurred`具名历史。它们只读取捕获状态；未记录的双边关系沿用Core的0基值，同势力关系为100。`source: true`同时选择源文字面量和源文名称。导入器把原版列传身份条件转换为当前剧本人物引用，把历史特殊称谓写成显式条件；新内容直接引用人物，无需认识列传编号。
+
+运行时`SemanticsConfirmed`描述发布定义已经过语义确认，`UnavailableReasons`描述无法转换为运行时契约的原因，两者独立。严格研究导出仍按原文判断；就绪报告的`SourceConfirmed`对经过重制改写的记录保持false，不冒充原文已确认。`message-readiness.json`的`RuntimeReady`包含引用依赖闭包，`RequiredArguments`列出所有分支可能使用的参数；具体产生时缺少实际访问的参数即报错。PK中原先拒绝的5条按下述内容取舍发布，未新增通用容错或空字符串跳过规则。
+
+### 容貌帮助与异常尾部的发布策略（2026-09-27）
+
+项目所有者提供原作用语辞典截图并确认：PK8677发布为“男性容貌有70种，女性容貌有30种。”，数量暂时写死，仅70和30使用`#F8F8B0`前景色强调。保留源文“種”与简体“种”的对照。该决定不把`ESC H`普遍解释为颜色指令；转换前核对已审阅原文的完整指纹，遇到不同内容拒绝套用。
+
+PK12629／12630／12631／12712，只移除正常结束分隔符之后没有目标编号的`01 J`两字节尾部。必须匹配指定记录及确切尾部结构，截取后的全部正文仍须通过严格解析；保留性别、头像、随机台词和引用分支，不在第一个分支结束处截断。
+
+`MessageContentPolicy`仅用于游戏组合包发布。`import-text`仍输出原始异常及完整原字节，`message-adaptations.json`单独记录每次内容改写，`message-readiness.json`区分原文确认和发布就绪；未登记的新异常继续拒绝。运行时仅导入`M_MsgPK.s9`和`M_RtdnPK.s9`；基础版仅供`import-text`研究对照，不发布或改写。当前14,888条PK档案消息及2条名称模板均就绪；具体业务调用和画面验收的边界不变。

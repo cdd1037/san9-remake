@@ -78,7 +78,7 @@ public sealed class ClientContentPackageTests
         var map = new MapPackage(11, "fixture", "fixture", "spring", 200, 200, 13056, 6656,
             [], [], [], [], [], [], Buildings, [], [], [], [], [], new([], []), []);
         var skin = new InterfaceSkin(24, [Asset], InterfaceSkin.RequiredUiAssets.ToDictionary(s => s, _ => "ui"), Colors());
-        var text = new TextCatalog(3, new() { ["player"] = new("Player", "Player"), ["city"] = new("City", "City"), ["port"] = new("Port", "Port") });
+        var text = new TextCatalog(4, new() { ["player"] = new("Player", "Player"), ["city"] = new("City", "City"), ["port"] = new("Port", "Port") });
         foreach (string id in San9.Content.Interface.CommandMenuSkin.EntryIds) text.Entries.Add(San9.Content.Interface.CommandMenuSkin.DescriptionKey(id), new("Description", "Description"));
         foreach (string role in StrategyHintText.Roles) text.Entries.Add(StrategyHintText.Key(role), new("Hint", "Hint"));
         var p = new ClientContentPackage(ScenarioContent.CurrentSchemaVersion, [], map, Fixture(), text, skin, new(3, [])); p.ValidateLinks();
@@ -89,10 +89,10 @@ public sealed class ClientContentPackageTests
         foreach (string key in text.Entries.Keys)
         {
             var entries = new Dictionary<string, TextEntry>(text.Entries); entries.Remove(key);
-            Assert.Throws<InvalidDataException>(() => (p with { Text = new(3, entries) }).ValidateLinks());
+            Assert.Throws<InvalidDataException>(() => (p with { Text = new(4, entries) }).ValidateLinks());
         }
         var titled = p with { Scenario = p.Scenario with { Information = p.Scenario.Information with
-        { CountryTitles = [new(new(5000, true, true, false, [], []), "country-title", 30)] } }, Text = new(3, new(text.Entries)) };
+        { CountryTitles = [new(new(5000, true, true, false, [], []), "country-title", 30)] } }, Text = new(4, new(text.Entries)) };
         Assert.Throws<InvalidDataException>(titled.ValidateLinks);
         titled.Text.Entries.Add("country-title", new("国号", "國號"));
         titled.ValidateLinks(); // Unclaimed definitions must also retain a valid display name.
@@ -101,7 +101,7 @@ public sealed class ClientContentPackageTests
         var treasurePackage = p with { Scenario = p.Scenario with
         {
             Information = new([], [], [new(0, "treasure", 0, 0, 0, null)], p.Scenario.Information.Corps, [new(0, null, San9.Core.Domain.TreasureDiscovery.Discovered, 15)])
-        }, Text = new(3, new(text.Entries)), Skin = skin with { Roles = new(skin.Roles) } };
+        }, Text = new(4, new(text.Entries)), Skin = skin with { Roles = new(skin.Roles) } };
         treasurePackage.Skin.Roles.Add("information-treasure-0", "ui");
         treasurePackage.Text.Entries.Add("treasure", new("Treasure", "Treasure"));
         Assert.Throws<InvalidDataException>(treasurePackage.ValidateLinks);

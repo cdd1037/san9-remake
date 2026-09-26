@@ -4,7 +4,14 @@ using San9.Content.Text;
 
 namespace San9.Application.Presentation;
 
-public sealed record MessageBinding(long Number, string? Text = null);
+public sealed record MessageBinding(long Number, string? Text = null)
+{
+    public MessageEntity? Entity { get; init; }
+    public static MessageBinding Return(MessageReturnKind kind) => Enum.IsDefined(kind)
+        ? new(0, kind.ToString()) : throw new ArgumentOutOfRangeException(nameof(kind));
+    public static MessageBinding Reference(MessageEntityKind kind, int id) => id >= 0 && Enum.IsDefined(kind)
+        ? new(0) { Entity = new(kind, id) } : throw new ArgumentOutOfRangeException(nameof(id));
+}
 public sealed record MessageContext(IReadOnlyDictionary<string, MessageBinding> Values,
     Func<string, IReadOnlyList<MessageBinding>, MessageBinding> Query, Func<int, int> RandomIndex);
 
@@ -44,10 +51,10 @@ public sealed class MessageEvaluator(IReadOnlyDictionary<string, MessageDefiniti
                         output.Append(value.Prefix).Append(MessageMarkup.Escape(Format(resolved,value.Format))).Append(value.Suffix); break;
                     case MessageReference reference: Render(reference.Key); if (reference.Tail) return true; break;
                     case MessageConditional conditional:
-                        if (Value(conditional.Predicate).Number != 0 && Walk(conditional.Body)) return true;
+                        if (Numeric(Value(conditional.Predicate)) != 0 && Walk(conditional.Body)) return true;
                         break;
                     case MessageChoice choice:
-                        long index = Value(choice.Index).Number;
+                        long index = Numeric(Value(choice.Index));
                         if (index < 0 || index >= choice.Choices.Length) throw new InvalidDataException("Message choice outside candidate range.");
                         if (Walk(choice.Choices[index])) return true;
                         break;
@@ -61,11 +68,22 @@ public sealed class MessageEvaluator(IReadOnlyDictionary<string, MessageDefiniti
         {
             if (++steps > 10000) throw new InvalidDataException("Message expression limit exceeded.");
             if (e.Operation == "constant") return new(e.Number ?? throw new InvalidDataException("Missing constant."));
+            if (e.Operation == "text") return new(0, e.Binding!);
+            if (e.Operation == "entity") return MessageBinding.Reference(Enum.Parse<MessageEntityKind>(e.Binding!), checked((int)e.Number!.Value));
             if (e.Operation == "binding") return context.Values.TryGetValue(e.Binding!, out var value)
                 ? value : throw new InvalidDataException($"Missing message binding: {e.Binding}");
             var args = (e.Arguments ?? []).Select(Value).ToArray();
             long a = args.Length > 0 ? args[0].Number : 0, b = args.Length > 1 ? args[1].Number : 0;
             if (e.Operation == "query") return context.Query(e.Binding!, args);
+            if (e.Operation == "property") return context.Query(e.Binding!, args);
+            if (args.Any(v => v.Entity is not null || v.Text is not null))
+            {
+                if (e.Operation is not ("=" or "!")) throw new InvalidDataException("Arithmetic requires numeric message values.");
+                if ((args[0].Entity is null) != (args[1].Entity is null) || (args[0].Text is null) != (args[1].Text is null))
+                    throw new InvalidDataException("Message comparison requires values of the same type.");
+                bool equal = args[0].Entity is { } entity ? entity == args[1].Entity : args[0].Text == args[1].Text;
+                return new((e.Operation == "=" ? equal : !equal) ? 1 : 0);
+            }
             if (e.Operation is "random" or "chance")
             {
                 int bound = e.Operation == "chance" ? 100 : checked((int)a);
@@ -92,10 +110,15 @@ public sealed class MessageEvaluator(IReadOnlyDictionary<string, MessageDefiniti
         return output.ToString();
     }
 
+    private static long Numeric(MessageBinding value) => value.Entity is null && value.Text is null ? value.Number :
+        throw new InvalidDataException("A numeric message value is required.");
+
     private static string Format(MessageBinding value, MessageValueFormat? format)
     {
+        if (value.Entity is not null) throw new InvalidDataException("An entity requires an explicit display property.");
         if (format is null) return value.Text ?? value.Number.ToString(CultureInfo.InvariantCulture);
         if (format.Width is < 0 or > 4096 || format.Precision is < 0 or > 4096) throw new InvalidDataException("Invalid message field width.");
+        if (format.Kind != "string") _ = Numeric(value);
         string text = format.Kind switch
         {
             "string" => value.Text ?? throw new InvalidDataException("String message parameter requires text."),

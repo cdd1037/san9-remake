@@ -23,7 +23,7 @@ public sealed class OfficerCommandTests
             FacilityNameSuffixKeys = new() { [9000] = "fort" },
             Information = basis.Information with { Treasures = [new(9000, "treasure", 1, 5, 10, null)] }
         };
-        texts = new(3, new Dictionary<string, TextEntry>
+        texts = new(4, new Dictionary<string, TextEntry>
         {
             ["city.1"] = new("甲城", "甲城"), ["city.2"] = new("乙城", "乙城"),
             ["officer.1"] = new("甲", "甲"), ["officer.2"] = new("乙", "乙"), ["officer.3"] = new("丙", "丙"),

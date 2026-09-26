@@ -49,6 +49,35 @@ public sealed class MessageEvaluatorTests
         (_, _) => throw new InvalidDataException("No query registered."), _ => 0);
 
     [Fact]
+    public void EntityIdentityIncludesKindAndRejectsNumericCoercion()
+    {
+        var person = new MessageExpression("entity", "Person", 9001);
+        var force = new MessageExpression("entity", "Force", 9001);
+        var evaluator = new MessageEvaluator(new Dictionary<string, MessageDefinition>
+        {
+            ["same"] = Message(new MessageValue(new("=", Arguments: [person, person]))),
+            ["different"] = Message(new MessageValue(new("=", Arguments: [person, force]))),
+            ["numeric"] = Message(new MessageValue(new("=", Arguments: [person, new("constant", Number: 9001)]))),
+            ["predicate"] = Message(new MessageConditional(person, [Text("bad")]))
+        });
+        Assert.Equal("1", evaluator.Evaluate("same", Context()));
+        Assert.Equal("0", evaluator.Evaluate("different", Context()));
+        Assert.Throws<InvalidDataException>(() => evaluator.Evaluate("numeric", Context()));
+        Assert.Throws<InvalidDataException>(() => evaluator.Evaluate("predicate", Context()));
+    }
+
+    [Fact]
+    public void KnownSourceWithUnavailableDependencyIsRejected()
+    {
+        var evaluator = new MessageEvaluator(new Dictionary<string, MessageDefinition>
+        {
+            ["parent"] = Message(new MessageReference("child", false)),
+            ["child"] = Message(Text("misleading")) with { UnavailableReasons = ["Unknown runtime property"] }
+        });
+        Assert.Throws<InvalidDataException>(() => evaluator.Evaluate("parent", Context()));
+    }
+
+    [Fact]
     public void TailTransferDoesNotAppendCallerSuffixButCallDoes()
     {
         var messages = new Dictionary<string, MessageDefinition>

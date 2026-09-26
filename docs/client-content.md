@@ -4,7 +4,7 @@
 
 ## 现行版本与历史记录
 
-现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 124，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 128，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 24，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 22。规则为 `san9-core-g10-v74`，保存90／日志94／录像6；协议以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 为准。
+现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 124，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 129，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 24，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 22。规则为 `san9-core-g10-v74`，保存90／日志94／录像6；协议以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 为准。
 
 旧内容包按现行契约原位重转，旧规则存档、日志和录像拒绝加载。是否重转纹理取决于纹理转换版本与源输入。历史验收只证明对应基线，不代表当前版本重新验证；阶段收口见[G10 验收](g10-verification.md#2026-09-21阶段收口)。
 
@@ -16,9 +16,9 @@
 | --- | --- | --- |
 | Content.Maps / MapImporter | 当前地图方格、地貌及对象位置 | `map.json`（无图片文件） |
 | Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema124 |
-| Content.Text / ScenarioTextReader | 名称与全量消息目录 | `text.json` / `messages.json`，schema3 |
+| Content.Text / ScenarioTextReader | 名称与全量消息目录 | `text.json` / `messages.json`，schema4 |
 | Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema24 |
-| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema128 |
+| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema129 |
 | Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema5／转换版本22 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 
@@ -116,7 +116,7 @@ dotnet run --project src/San9.Tools -- import-client --source-exe "<已登记San
 
 编写控制节点、绑定参数和显示图片的具体用法见[消息约定](ui/messages.md)。
 
-现行契约见[统一消息规格](../specs/behavior/BEH-UI-0006-unified-messages.md)，原作证据与覆盖边界见[RE-0166](../research/findings/RE-SAN9PK-0166.md)。唯一语法实现为`OriginalMessageParser`；`OriginalTextConverter`只调用该解析器读取静态片段。`import-client`将四个消息/列传档案合入同一个`TextCatalog.Messages`，保留未就绪记录；`import-text`使用同一实现导出全量诊断和合成上下文报告。
+现行契约见[统一消息规格](../specs/behavior/BEH-UI-0006-unified-messages.md)，原作证据与覆盖边界见[RE-0166](../research/findings/RE-SAN9PK-0166.md)。唯一语法实现为`OriginalMessageParser`；`OriginalTextConverter`只调用该解析器读取静态片段。`import-client`仅将`M_MsgPK.s9`和`M_RtdnPK.s9`合入`TextCatalog.Messages`，经`GameplayMessageCompiler`转换为领域引用、属性与事件条件，保留未就绪记录，并生成`message-readiness.json`列出每条消息的参数和拒绝原因；`import-text`仍对四个档案导出研究诊断和合成上下文报告，基础版不进入运行时包。
 
 静态内容使用Godot原生BBCode，逻辑图片路径示例为`[img]icons/city[/img]洛阳`。运行时`MessageEvaluator`接收显式值、查询和随机源，产生可保留的BBCode结果。普通参数始终转义；富文本组合用消息引用。`01J`转换为尾部转移，`01C`为返回调用。样式切换只保存明确BBCode开闭片段，支持跨分支/引用的显示状态，不维护重复样式树。节点中不保存原始地址、控制码或资源偏移。
 
@@ -207,7 +207,7 @@ TC101完整保留41项兵法和28项阵形的展示元数据，名称与说明�
 
 部队的 `CommandedThisXun` 为必填领域状态，表示本旬已成功接收指令；剧本123／组合127和保存90开始包含此字段。原版剧本转换以新指令阶段初始化为 false，不推测源运行时位；重制存档精确保存与恢复。旧包需重新转换，旧存档不做兼容补值。
 
-部队详情新增 `FormationCatalogDefinition.Presentation`（必填可空），包含展示网格、按默认人员顺序排列的可用阵位、视野半径／角度及底图角色；剧本124／组合128。内容校验检查几何范围、重复阵位及图像引用。TC101完整保留28项阵形的展示元数据，并引用已有 `G_Jinkei` 转换资源；不新增纹理解码，也不将视野字段解释为隐藏的索敌规则。新包已原位转换，仍为25势力／94据点／700人物／0初始野战队；阵形展示定义28项及资源引用闭合。
+部队详情新增 `FormationCatalogDefinition.Presentation`（必填可空），包含展示网格、按默认人员顺序排列的可用阵位、视野半径／角度及底图角色；剧本124／组合128开始提供。内容校验检查几何范围、重复阵位及图像引用。TC101完整保留28项阵形的展示元数据，并引用已有 `G_Jinkei` 转换资源；不新增纹理解码，也不将视野字段解释为隐藏的索敌规则。新包已原位转换，仍为25势力／94据点／700人物／0初始野战队；阵形展示定义28项及资源引用闭合。
 
 ### 地图命令菜单资源
 
@@ -216,3 +216,9 @@ TC101完整保留41项兵法和28项阵形的展示元数据，名称与说明�
 ## 战略面与进行面资源
 
 皮肤 schema24／纹理转换版本22提供14个阶段角色／帧及9个公共弹窗角色／帧：阶段字图8帧、静止按钮4帧、进度框／填充，以及 `dialog-frame`、`dialog-yes-*`／`dialog-no-*`。原版九块确认框在转换阶段无缩放拼为216×136的九宫格底图，透明像素和逐色Alpha完整保留；不按具体弹窗尺寸生成图片。客户端切边为左右各96、上下各56，运行时平铺边与中心。转换器校验资源／调色板绑定，拼接器拒绝行列尺寸不匹配的切块。证据见[RE-0158](../research/findings/RE-SAN9PK-0158.md#战略面与进行面资源2026-09-26)。依次原位运行 `import-textures` 与 `import-client` 更新依赖；旧的 `turn-dialog-*` 九块角色已移除，不设兼容分支。
+
+### 动态消息运行时接入（2026-09-27）
+
+文本schema4／组合包129增加人物姓、名与肖像身份元数据，运行时使用类型化对象引用、世界快照属性和具名事件历史，不再要求客户端构造原版倒序编号。正文名称和条件数值分开转换；姓名、官职、地点、势力、宝物与兵法名称通过当前内容和状态查询。内部37／52号返回条件转换为事件参数`return-kind.N`，由消息产生者通过`MessageBinding.Return`提供，不能按当前选中部队推断。
+
+190年组合包已原位更新，无需重新转换纹理。两个PK档案14,888条经已确认的内容取舍后全部具备运行时表达式及依赖支持；另有2条重制名称模板，总计14,890／14,890条就绪。这里的“就绪”要求调用方提供报告所列的有效领域引用和事件参数，并不表示所有原版窗口和事件台词已在客户端触发。PK中原先拒绝的5条已处理：1条容貌帮助固定70／30并着色，4条去除正常结束后的残缺跳转。基础版消息不加载、不改写，也不参与运行时统计。`message-adaptations.json`保留5条直接改写的源数据SHA-256、决定与移除控制字节；研究导出的严格原文诊断不变。详情见[消息约定](ui/messages.md)。

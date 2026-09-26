@@ -23,7 +23,18 @@ public sealed record MessageFormat(string Open, string Close, string Channel = "
 
 public sealed record MessageExpression(string Operation, string? Binding = null, long? Number = null,
     MessageExpression[]? Arguments = null);
-public sealed record MessageDefinition(MessageNode[] Nodes, bool SemanticsConfirmed, string[] RequiredBindings);
+public sealed record MessageDefinition(MessageNode[] Nodes, bool SemanticsConfirmed, string[] RequiredBindings)
+{
+    // Source semantics can be known even when a runtime lowering is unavailable.
+    public string[] UnavailableReasons { get; init; } = [];
+}
+
+public enum MessageEntityKind { Person, Force, Settlement, Unit, Treasure, Tactic, Region, Corps }
+public sealed record MessageEntity(MessageEntityKind Kind, int Id);
+public sealed record MessagePersonProfile(string? SurnameKey, string? GivenNameKey, string? PortraitKey);
+
+// Captured by the producing event, before an arriving unit/task can disappear.
+public enum MessageReturnKind { Personnel, Automatic, Ordered }
 
 public static class MessageMarkup
 {

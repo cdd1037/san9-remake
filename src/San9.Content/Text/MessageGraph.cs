@@ -23,7 +23,8 @@ public static class MessageGraph
     {
         foreach (var (key, message) in messages)
         {
-            if (string.IsNullOrWhiteSpace(key) || message.RequiredBindings.Any(string.IsNullOrWhiteSpace))
+            if (string.IsNullOrWhiteSpace(key) || message.RequiredBindings.Any(string.IsNullOrWhiteSpace) ||
+                message.UnavailableReasons.Any(string.IsNullOrWhiteSpace))
                 throw new InvalidDataException("Invalid message identity/bindings.");
             foreach (var node in Walk(message.Nodes))
             {
@@ -45,6 +46,9 @@ public static class MessageGraph
         bool valid = e.Operation switch
         {
             "constant" => e.Number.HasValue && count == 0,
+            "text" => e.Binding is not null && count == 0,
+            "entity" => Enum.TryParse<MessageEntityKind>(e.Binding, out var kind) && Enum.IsDefined(kind) && e.Number is >= 0 and <= int.MaxValue && count == 0,
+            "property" => !string.IsNullOrWhiteSpace(e.Binding) && count == 1,
             "binding" => !string.IsNullOrWhiteSpace(e.Binding) && count == 0,
             "query" => !string.IsNullOrWhiteSpace(e.Binding),
             "random" or "chance" => count == 1,
@@ -67,12 +71,28 @@ public static class MessageGraph
             if (!seen.Add(id)) return;
             if (!messages.TryGetValue(id, out var message)) { referencesValid = false; executable = false; return; }
             if (active.Count >= 64) { referencesValid = false; executable = false; return; }
-            active.Add(id); executable &= message.SemanticsConfirmed;
+            active.Add(id); executable &= message.SemanticsConfirmed && message.UnavailableReasons.Length == 0;
             bindings.UnionWith(message.RequiredBindings);
             foreach (var reference in Walk(message.Nodes).OfType<MessageReference>()) Visit(reference.Key);
             active.Remove(id);
         }
         Visit(key);
         return (referencesValid,executable,bindings.Order(StringComparer.Ordinal).ToArray());
+    }
+
+    public static string[] Bindings(IEnumerable<MessageNode> nodes)
+    {
+        var result = new HashSet<string>(StringComparer.Ordinal);
+        void Visit(MessageExpression e)
+        {
+            if (e.Operation == "binding") result.Add(e.Binding!);
+            foreach (var child in e.Arguments ?? []) Visit(child);
+        }
+        foreach (var node in Walk(nodes))
+        {
+            var expression = node switch { MessageValue v => v.Expression, MessageConditional c => c.Predicate, MessageChoice c => c.Index, _ => null };
+            if (expression is not null) Visit(expression);
+        }
+        return result.Order(StringComparer.Ordinal).ToArray();
     }
 }

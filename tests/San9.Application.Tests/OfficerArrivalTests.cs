@@ -38,7 +38,7 @@ public sealed class OfficerArrivalTests
             }
         };
         var view = new StrategySnapshot(definition, world);
-        var texts = new TextCatalog(3, definition.Officers.Select(o => o.NameKey).Concat(definition.Settlements.Select(s => s.NameKey))
+        var texts = new TextCatalog(4, definition.Officers.Select(o => o.NameKey).Concat(definition.Settlements.Select(s => s.NameKey))
             .ToDictionary(key => key, key => new TextEntry(key, key)));
         var table = OfficerCatalog.Read(view, texts, 2, null, null, 1);
         var cell = Assert.Single(table.Rows).Cells[Array.IndexOf(table.Columns, "到达预定")];

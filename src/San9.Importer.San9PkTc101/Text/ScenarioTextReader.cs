@@ -9,9 +9,15 @@ public sealed class ScenarioTextReader(byte[] messages, byte[] executable) : IDi
     private readonly San9MessageTable _messages = new(messages);
     private readonly PEReader _executable = new(new MemoryStream(executable));
     private readonly Dictionary<string, TextEntry> _entries = [];
+    private readonly Dictionary<int, MessagePersonProfile> _messagePeople = [];
     private readonly OriginalTextConverter _converter = new();
 
-    public TextCatalog Catalog => new(3, new(_entries));
+    public TextCatalog Catalog => new(TextCatalog.CurrentSchemaVersion, new(_entries)) { MessagePeople = new(_messagePeople) };
+    public void MessagePerson(int id, int family, int given, int portrait)
+    {
+        _messagePeople.Add(id, new(AddOptional($"officer-surname.{id}", _messages.PlainText(1678 + 4 * family)),
+            AddOptional($"officer-given-name.{id}", _messages.PlainText(1679 + 4 * given)), $"portrait.{portrait}"));
+    }
     public void ReadStrategyHints()
     {
         foreach (var entry in Interface.CommandMenuSources.Entries)

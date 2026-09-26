@@ -13,8 +13,9 @@ public sealed class ScenarioContentFilesTests : IDisposable
         new("source", "first", "spring", 200, 200, 13056, 6656,
             [], [], [], [], [], [], [], [], [], [], []),
         new(ScenarioInitialState.CurrentSchemaVersion, "first", 190, 1, 1, 0, [], [], [], []),
-        new(3, new() { ["name"] = new("简体", "繁體") })
+        new(4, new() { ["name"] = new("简体", "繁體") })
         {
+            MessagePeople = new() { [9001] = new("name", "name", "portrait.custom") },
             Messages = new() { ["message"] = new([new MessageValue(new("number", Number: 0))], false, []) }
         }, new() { ["portrait"] = "portrait/0" });
 

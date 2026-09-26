@@ -8,6 +8,7 @@ public partial class GameDialog : Control
     public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;
     public event Action? Confirmed;
     public event Action? Dismissed;
+    public event Action? Closed;
     private float _preferredWidth = 384;
     public float PreferredWidth
     {
@@ -26,7 +27,7 @@ public partial class GameDialog : Control
     private StyleBoxTexture _style = null!;
     private int _lineOverflow, _bodyGap;
     private bool _ready, _layoutQueued;
-    private (string Message, string? Confirm, string? Dismiss)? _content;
+    private (string Message, string? Confirm, string? Dismiss, bool Notice)? _content;
 
     public override void _Ready()
     {
@@ -73,7 +74,11 @@ public partial class GameDialog : Control
         var buttons = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.Center };
         buttons.AddThemeConstantOverride("separation", 16);
         column.AddChild(buttons);
-        _confirm = Button("yes", GameButtonTextRole.ConfirmYes, () => Confirmed?.Invoke());
+        _confirm = Button("yes", GameButtonTextRole.ConfirmYes, () =>
+        {
+            if (_content?.Notice == true) Closed?.Invoke();
+            else Confirmed?.Invoke();
+        });
         _dismiss = Button("no", GameButtonTextRole.ConfirmNo, () => Dismissed?.Invoke());
         buttons.AddChild(_confirm); buttons.AddChild(_dismiss);
         Resized += QueueLayout;
@@ -85,15 +90,26 @@ public partial class GameDialog : Control
 
     public void SetMessage(string message, string? confirm = "是", string? dismiss = "否")
     {
-        var content = (message, confirm, dismiss);
+        var content = (message, confirm, dismiss, false);
         if (_content == content) return;
         _content = content;
         if (_ready) ApplyContent();
     }
 
+    /// <summary>Acknowledgement only: one green close button and content-sized width.</summary>
+    public void SetNotice(string message)
+    {
+        var content = (message, (string?)"关闭", (string?)null, true);
+        if (_content == content) return;
+        _content = content;
+        if (_ready) ApplyContent();
+    }
+
+    public void FocusDefaultButton() => _confirm.GrabFocus();
+
     private void ApplyContent()
     {
-        var content = _content ?? ("", "是", "否");
+        var content = _content ?? ("", "是", "否", false);
         _message.Text = content.Item1;
         _confirm.Visible = content.Item2 is not null;
         _confirm.Title = content.Item2 ?? "";
@@ -125,7 +141,14 @@ public partial class GameDialog : Control
         float buttonsWidth = (_dismiss.Visible ? _dismiss.CustomMinimumSize.X : 0) +
             (_confirm.Visible ? _confirm.CustomMinimumSize.X : 0) + (_confirm.Visible && _dismiss.Visible ? 16 : 0);
         float minWidth = Math.Max(192, buttonsWidth + 112);
-        float width = Math.Max(minWidth, Math.Min(PreferredWidth, Size.X - 32));
+        float preferred = PreferredWidth;
+        if (_content?.Notice == true)
+        {
+            float textWidth = _message.Text.Split('\n').Max(line => _message.LabelSettings.Font.GetStringSize(line, fontSize: 24).X);
+            // Measure modern glyphs, then fit the native 24px panel tiles; never count source bytes.
+            preferred = 192 + 24 * MathF.Ceiling(Math.Max(0, Math.Max(textWidth, buttonsWidth) - 80) / 24);
+        }
+        float width = Math.Max(minWidth, Math.Min(preferred, Size.X - 32));
         _panel.CustomMinimumSize = new(width, 184);
         // Content margins are independent of the wider decorative nine-patch corners.
         float minBodyHeight = 48 + _lineOverflow;
@@ -134,5 +157,14 @@ public partial class GameDialog : Control
     }
 
     public override void _GuiInput(InputEvent @event) => AcceptEvent();
+    public override void _UnhandledInput(InputEvent @event)
+    {
+        if (!IsVisibleInTree() || _content?.Notice != true) return;
+        if (@event is InputEventKey { Pressed: true, Echo: false, Keycode: Key.Escape or Key.Enter or Key.KpEnter })
+        {
+            Closed?.Invoke();
+            GetViewport().SetInputAsHandled();
+        }
+    }
     public override void _ExitTree() { _ready = false; _style?.Dispose(); }
 }

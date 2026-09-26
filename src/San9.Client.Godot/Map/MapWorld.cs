@@ -74,6 +74,9 @@ public partial class MapWorld : Node2D
         _camera = GetNode<Camera2D>("Camera");
         var center = MapGeometry.Center(89, 64);
         _requested = new(center.X, center.Y, 1); _camera.Position = new(center.X, center.Y);
+        GetWindow().MouseExited += ResetNavigation;
+        GetWindow().FocusExited += ResetNavigation;
+        GetWindow().FocusExited += ReleaseMouseLock;
     }
     public void LoadMap(MapPackage map, string root, string? season = null, double? animationTime = null)
     {
@@ -86,6 +89,7 @@ public partial class MapWorld : Node2D
             _display.Committed += OnCommitted; AddChild(_display);
         }
         _flags ??= Textures.CreateScope(Textures.MapAssets, owner: this);
+        _edgeCursor.Initialize(Textures);
         BeginLoad(season ?? map.InitialSeason);
     }
     private void BeginLoad(string season)
@@ -120,6 +124,7 @@ public partial class MapWorld : Node2D
         if (Scene is not null && !ReferenceEquals(Scene.State, View)) RefreshRuntimeObjects();
         _terrain?.Pump(() => Textures.CanUpload);
         if (_display?.Error is not null) _awaitingSeason = false;
+        UpdateEdgeScrolling(delta);
         LastProcessMilliseconds = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
     }
     private void OnCommitted()
@@ -192,6 +197,7 @@ public partial class MapWorld : Node2D
     public override void _UnhandledInput(InputEvent input)
     {
         if (_map is null) return;
+        if (HandleNavigationKey(input)) return;
         if (input is InputEventMouseButton button)
         {
             if (button.Position.X < 0 || button.Position.Y < 0 || button.Position.X >= ClientLayout.LogicalWidth || button.Position.Y >= ClientLayout.LogicalHeight) return;
@@ -231,6 +237,11 @@ public partial class MapWorld : Node2D
     }
     public override void _ExitTree()
     {
+        GetWindow().MouseExited -= ResetNavigation;
+        GetWindow().FocusExited -= ResetNavigation;
+        GetWindow().FocusExited -= ReleaseMouseLock;
+        ReleaseMouseLock();
+        _edgeCursor.Dispose();
         _cancellation.Cancel(); _cancellation.Dispose();
         if (_loading is { } loading) _ = loading.ContinueWith(t => { _ = t.Exception; }, TaskScheduler.Default);
         _flags?.Dispose(); _terrain?.Dispose();

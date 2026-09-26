@@ -2,7 +2,8 @@ using San9.Content.Images;
 
 namespace San9.Content.Interface;
 
-public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dictionary<string,string> Roles, Dictionary<string,string> Colors)
+public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dictionary<string,string> Roles, Dictionary<string,string> Colors,
+    Dictionary<string, CursorDefinition> Cursors)
 {
     private static readonly string[] BaseUiAssets = ["information-menu-button-left", "information-menu-button-middle", "information-menu-button-right", "top-frame", "radar-frame", "sidebar-frame", "roster-scroll-decoration",
         "scroll-track-top", "scroll-track-middle", "scroll-track-bottom",
@@ -48,10 +49,16 @@ public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dicti
 
     public void Validate()
     {
-        if (SchemaVersion != 24 || Assets.Select(a => a.Id).Distinct().Count() != Assets.Length)
+        if (SchemaVersion != 25 || Assets.Select(a => a.Id).Distinct().Count() != Assets.Length)
             throw new InvalidDataException("Invalid interface skin version or duplicate assets.");
         ImageAssetFiles.ValidateCatalog(Assets);
         var assets = Assets.ToDictionary(a => a.Id);
+        if (Cursors is null || CursorDefinition.EdgeScrollRoles.Any(role => !Cursors.ContainsKey(role)) ||
+            Cursors.Any(p => string.IsNullOrWhiteSpace(p.Key) || p.Value is null ||
+                !assets.TryGetValue(p.Value.Asset, out var image) || image.Width > 128 || image.Height > 128 ||
+                p.Value.HotspotX < 0 || p.Value.HotspotX >= image.Width ||
+                p.Value.HotspotY < 0 || p.Value.HotspotY >= image.Height))
+            throw new InvalidDataException("Invalid interface cursors or hotspots.");
         if (Enumerable.Range(0, 52).Any(i => !Colors.ContainsKey($"city-marker-{i}")) ||
             Enumerable.Range(0, 51).Any(i => !Colors.ContainsKey($"overview-force-{i}")) ||
             !Colors.ContainsKey("roster-available") || !Colors.ContainsKey("roster-unavailable") ||

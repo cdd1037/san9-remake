@@ -1,5 +1,6 @@
 using Godot;
 using San9.Content.Images;
+using San9.Content.Interface;
 using San9.Content.Packages;
 using San9.Rendering;
 
@@ -20,6 +21,8 @@ public partial class TextureService : Node
     public bool CanUpload => _frameUploadMilliseconds < 2;
     public IReadOnlyDictionary<string, ImageAsset> MapAssets { get; private set; } = null!;
     public IReadOnlyDictionary<string, ImageAsset> Roles { get; private set; } = null!;
+    public IReadOnlyDictionary<string, CursorDefinition> Cursors { get; private set; } = null!;
+    public IReadOnlyDictionary<string, ImageAsset> CursorAssets { get; private set; } = null!;
     public TextureCache<ImageTexture> Cache => _cache;
     public void Initialize(ClientContentPackage package, string root) => Initialize(package, (file, token) =>
     {
@@ -32,6 +35,8 @@ public partial class TextureService : Node
         MapAssets = package.Map.Assets.ToDictionary(a => a.Id);
         var ui = package.Skin.Assets.ToDictionary(a => a.Id);
         Roles = package.Skin.Roles.ToDictionary(p => p.Key, p => ui[p.Value]);
+        Cursors = package.Skin.Cursors;
+        CursorAssets = Cursors.ToDictionary(p => p.Key, p => ui[p.Value.Asset]);
         var unitClips = package.Map.Units.Bodies.SelectMany(body => body.DirectionClips).ToHashSet();
         var unitFrames = package.Map.Animations.Clips.Where(clip => unitClips.Contains(clip.Id) ||
                 clip.Id.StartsWith("unit-flag-", StringComparison.Ordinal))

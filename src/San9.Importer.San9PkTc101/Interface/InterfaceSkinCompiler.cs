@@ -287,6 +287,7 @@ public static class InterfaceSkinCompiler
         var fontPalette = read(Path.Combine(dataDirectory, "P_Font.s9"));
         string FontColor(int style) => Convert.ToHexString(fontPalette.AsSpan((style / 2 * 32 + 16 + style % 2 * 8 + 7) * 4, 3));
         colors.Add("roster-available", FontColor(7)); colors.Add("roster-unavailable", FontColor(26));
-        return new(24, assets.ToArray(), ui, colors);
+        var cursors = ExecutableCursorCompiler.Compile(pe, assets, save);
+        return new(25, assets.ToArray(), ui, colors, cursors);
     }
 }

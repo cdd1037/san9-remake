@@ -1,0 +1,97 @@
+using Godot;
+
+namespace San9.Client.Godot;
+
+public partial class MapWorld
+{
+    private readonly EdgeScrollController _edgeScroll = new();
+    private readonly EdgeScrollCursor _edgeCursor = new();
+    private Vector2 _pointer = new(-1, -1);
+    private bool _mouseLocked;
+    public event Action<EdgeScrollMode>? EdgeScrollModeChanged;
+    public Func<Vector2, bool>? IsNavigationBlocked { get; set; }
+    public Func<bool>? CanNavigate { get; set; }
+
+    private bool NavigationAvailable => _map is not null && HasCompleteView && !IsLoading && LoadError is null &&
+        GetWindow().HasFocus() && CanNavigate?.Invoke() != false;
+
+    private bool EdgeInputAvailable => NavigationAvailable && !_dragging &&
+        !Input.IsMouseButtonPressed(MouseButton.Middle) && IsNavigationBlocked?.Invoke(_pointer) != true;
+
+    private CanvasPoint PointerPoint => new(_pointer.X, _pointer.Y);
+
+    private void ResetNavigation()
+    {
+        _pointer = new(-1, -1);
+        _dragging = false;
+        _edgeScroll.ReleaseLeft();
+        _edgeCursor.Show(default, false);
+    }
+
+    private void ReleaseMouseLock()
+    {
+        if (!_mouseLocked) return;
+        Input.MouseMode = Input.MouseModeEnum.Visible;
+        _mouseLocked = false;
+    }
+
+    public override void _Input(InputEvent input)
+    {
+        // Handle before GUI dispatch so a modal cannot prevent unlocking the pointer.
+        if (input is InputEventKey { Keycode: Key.F9 } key && _map is not null && GetWindow().HasFocus())
+        {
+            if (key.Pressed && !key.Echo)
+            {
+                if (_mouseLocked) ReleaseMouseLock();
+                else
+                {
+                    Input.MouseMode = Input.MouseModeEnum.Confined;
+                    _mouseLocked = true;
+                }
+            }
+            GetViewport().SetInputAsHandled();
+            return;
+        }
+        if (input is InputEventMouseMotion motion) _pointer = motion.Position;
+        if (input is not InputEventMouseButton button) return;
+        _pointer = button.Position;
+        if (button.ButtonIndex == MouseButton.Middle && button.Pressed)
+        {
+            _edgeScroll.CancelGesture();
+            _edgeCursor.Show(default, false);
+        }
+        if (button.ButtonIndex != MouseButton.Left) return;
+        bool consumed = button.Pressed
+            ? _edgeScroll.PressLeft(PointerPoint, EdgeInputAvailable)
+            : _edgeScroll.ReleaseLeft();
+        if (consumed) GetViewport().SetInputAsHandled();
+    }
+
+    private void UpdateEdgeScrolling(double delta)
+    {
+        bool available = EdgeInputAvailable;
+        var direction = EdgeScrollController.Direction(PointerPoint, available);
+        bool active = _edgeScroll.IsActive(available && !direction.IsNone, Input.IsMouseButtonPressed(MouseButton.Left));
+        if (!direction.IsNone && _map is not null)
+        {
+            // Use the same continuous boundary as every other navigation source.
+            var probe = (_requested with { X = _requested.X + direction.X, Y = _requested.Y + direction.Y }).Clamp(_map.Squares);
+            if (Math.Abs(probe.X - _requested.X) + Math.Abs(probe.Y - _requested.Y) < .001) direction = default;
+        }
+        _edgeCursor.Show(direction, active);
+        if (!active) return;
+        var movement = EdgeScrollController.Displacement(direction, delta, RequestedZoom, IsVisibleReady);
+        if (movement != default)
+            FocusWorld(RequestedPosition + new Vector2((float)movement.X, (float)movement.Y));
+    }
+
+    private bool HandleNavigationKey(InputEvent input)
+    {
+        if (input is not InputEventKey { Keycode: Key.F8, Pressed: true, Echo: false } || !NavigationAvailable) return false;
+        _edgeScroll.ToggleMode();
+        _edgeCursor.Show(default, false);
+        EdgeScrollModeChanged?.Invoke(_edgeScroll.Mode);
+        GetViewport().SetInputAsHandled();
+        return true;
+    }
+}

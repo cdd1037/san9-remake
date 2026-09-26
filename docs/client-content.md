@@ -4,7 +4,7 @@
 
 ## 现行版本与历史记录
 
-现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 124，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 129，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 24，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 22。规则为 `san9-core-g10-v74`，保存90／日志94／录像6；协议以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 为准。
+现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 124，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 129，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 25，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 23。规则为 `san9-core-g10-v74`，保存90／日志94／录像6；协议以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 为准。
 
 旧内容包按现行契约原位重转，旧规则存档、日志和录像拒绝加载。是否重转纹理取决于纹理转换版本与源输入。历史验收只证明对应基线，不代表当前版本重新验证；阶段收口见[G10 验收](g10-verification.md#2026-09-21阶段收口)。
 
@@ -17,9 +17,9 @@
 | Content.Maps / MapImporter | 当前地图方格、地貌及对象位置 | `map.json`（无图片文件） |
 | Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema124 |
 | Content.Text / ScenarioTextReader | 名称与全量消息目录 | `text.json` / `messages.json`，schema4 |
-| Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema24 |
+| Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema25 |
 | Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema129 |
-| Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema5／转换版本22 |
+| Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema5／转换版本23 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 
 共享剧本契约不按原版编号区间限制城市或人物身份。城市图标资格由`SettlementKind.City`决定；`RegionCityIds`必须引用真实城市，其城市名从据点定义读取，不要求城市ID同时存在于地域名称表。数量与名称不继承源格式槽位和字节长度；玩法数值上限及显示资源范围独立校验。
@@ -224,3 +224,7 @@ TC101完整保留41项兵法和28项阵形的展示元数据，名称与说明�
 文本schema4／组合包129增加人物姓、名与肖像身份元数据，运行时使用类型化对象引用、世界快照属性和具名事件历史，不再要求客户端构造原版倒序编号。正文名称和条件数值分开转换；姓名、官职、地点、势力、宝物与兵法名称通过当前内容和状态查询。内部37／52号返回条件转换为事件参数`return-kind.N`，由消息产生者通过`MessageBinding.Return`提供，不能按当前选中部队推断。
 
 190年组合包已原位更新，无需重新转换纹理。两个PK档案14,888条经已确认的内容取舍后全部具备运行时表达式及依赖支持；另有2条重制名称模板，总计14,890／14,890条就绪。这里的“就绪”要求调用方提供报告所列的有效领域引用和事件参数，并不表示所有原版窗口和事件台词已在客户端触发。PK中原先拒绝的5条已处理：1条容貌帮助固定70／30并着色，4条去除正常结束后的残缺跳转。基础版消息不加载、不改写，也不参与运行时统计。`message-adaptations.json`保留5条直接改写的源数据SHA-256、决定与移除控制字节；研究导出的严格原文诊断不变。详情见[消息约定](ui/messages.md)。
+
+### 边缘滚动光标（2026-09-27）
+
+皮肤schema25／纹理转换版本23新增`Cursors`语义目录，每项引用图片并保存像素热点；完整提供八方向的`scroll-<direction>-idle/active`共16项，校验引用、尺寸及热点范围。Mod可提供自己的PNG与热点，不依赖原版资源编号。TC101转换器从已识别EXE的RT_GROUP_CURSOR／RT_CURSOR读取12000至12015组，解码8位调色板、倒序行与AND透明遮罩，拒绝不能以RGBA表达的反色像素。产物为独立48×48 RGBA图片；资源编号只存在于Importer。客户端沿用共享纹理服务及租约，以Godot自定义系统光标显示，无新增平台调用。证据见[RE-0175](../research/findings/RE-SAN9PK-0175.md#真实光标素材接入2026-09-27)。须依次原位运行`import-textures`与`import-client`；不兼容缺少光标定义的旧皮肤。

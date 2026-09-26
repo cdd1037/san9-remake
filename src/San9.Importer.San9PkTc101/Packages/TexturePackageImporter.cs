@@ -8,7 +8,7 @@ namespace San9.Importer.San9PkTc101.Packages;
 
 public static class TexturePackageImporter
 {
-    public const int ConversionVersion = 22;
+    public const int ConversionVersion = 23;
 
     public static async Task<TexturePackage> ImportAsync(string gameDirectory, string output,
         Action<string>? progress = null, CancellationToken token = default)
@@ -99,8 +99,10 @@ public static class TexturePackageImporter
         var mapSources = map.Assets.Select(a => new TextureAtlasCompiler.Source(a, cpuIds.Contains(a.Id) ? null :
             animationGroups.TryGetValue(a.Id, out var groups) ? groups.Count == 1 ? groups.Single() : null : MapCategory(a), MapCategory(a)));
         var rolesByAsset = skin.Roles.GroupBy(p => p.Value).ToDictionary(g => g.Key, g => g.Select(p => TextureGroups.Interface(p.Key)).Distinct().ToArray());
+        var cursorAssets = skin.Cursors.Values.Select(c => c.Asset).ToHashSet();
         var uiSources = skin.Assets.Select(a =>
         {
+            if (cursorAssets.Contains(a.Id)) return new TextureAtlasCompiler.Source(a, null, "interface/cursors");
             string category = rolesByAsset.TryGetValue(a.Id, out var groups) && groups.Length == 1 ? groups[0] : "shared";
             string folder = category == "portrait" ? "portraits" : "interface/" + category;
             return new TextureAtlasCompiler.Source(a, category is "portrait" or "shared" ? null : category, folder);

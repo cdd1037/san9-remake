@@ -21,6 +21,7 @@ public partial class StrategyHud : Control
     private readonly List<(string Asset, Vector2 Position)> _frames = [];
     private Label _footer = null!;
     private GameMessageBar _message = null!;
+    private GameDialog _notice = null!;
     private Label _footerCity = null!;
     private readonly List<Label> _regionLabels = [];
     private bool _regionVisible;
@@ -50,6 +51,11 @@ public partial class StrategyHud : Control
         GetWindow().MouseExited += ClearHover;
         _message = new GameMessageBar { Textures = _textures, Text = "正在准备190年地图…" };
         AddChild(_message);
+        _notice = new GameDialog { Textures = _textures, ZIndex = 60, Visible = false };
+        _notice.Closed += () => _notice.Hide();
+        AddChild(_notice);
+        _notice.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        World.EdgeScrollModeChanged += ShowScrollModeNotice;
         Label RegionLabel(string value, int x, int width)
         {
             var label = LabelAt(value, new(x, 744), new(width, 16), 16);
@@ -179,10 +185,22 @@ public partial class StrategyHud : Control
         return button;
     }
 
+    private bool IsMapInteractionBlocked => !_built || Turn is { CanBrowseMap: false } ||
+        Information?.State.IsOpen == true || _mapContext?.Visible == true ||
+        _commandMenu?.Visible == true || _contextMenu?.Visible == true || _notice?.Visible == true;
+
+    public bool CanNavigateMap => !IsMapInteractionBlocked && !Overview.IsOpen;
+
+    // Navigation passes through passive artwork; object clicks retain the artwork hit masks.
+    public bool IsNavigationBlocked(Vector2 point) => !CanNavigateMap || IsInteractivePoint(point);
+
+    private bool IsInteractivePoint(Vector2 point) => _built &&
+        ((_rosterList.Visible && _rosterList.GetRect().HasPoint(point)) || _minimap!.GetRect().HasPoint(point) ||
+        GetChildren().OfType<TextureButton>().Any(button => button.Visible && button.GetRect().HasPoint(point)));
+
     public bool IsBlockedPoint(Vector2 point)
     {
-        if (Turn is { CanBrowseMap: false }) return true;
-        if (Information?.State.IsOpen == true || _mapContext?.Visible == true || _commandMenu?.Visible == true) return true;
+        if (IsMapInteractionBlocked) return true;
         if (point.Y >= 740 && point.Y < 768 && point.X >= 0 && point.X < 1024) return true;
         foreach (var (asset, position) in _frames)
         {
@@ -192,8 +210,7 @@ public partial class StrategyHud : Control
             int x = (int)Math.Floor(point.X - position.X), y = (int)Math.Floor(point.Y - position.Y);
             if (Textures.Hit(pixels, x, y)) return true;
         }
-        return _built && ((_rosterList.Visible && _rosterList.GetRect().HasPoint(point)) || _minimap!.GetRect().HasPoint(point) ||
-            GetChildren().OfType<TextureButton>().Any(button => button.Visible && button.GetRect().HasPoint(point)));
+        return IsInteractivePoint(point);
     }
     public override bool _HasPoint(Vector2 point) => IsBlockedPoint(point);
     public override void _GuiInput(InputEvent @event)
@@ -290,6 +307,19 @@ public partial class StrategyHud : Control
         var info = RegionHoverInfo.Resolve(map.Squares[y * 200 + x], Scenario, Texts);
         _footer.Text = info.Region; _footerCity.Text = info.City;
     }
+
+    private void ShowScrollModeNotice(EdgeScrollMode mode)
+    {
+        string key = mode == EdgeScrollMode.Hover ? "messages.8427" : "messages.8428";
+        var evaluator = new MessageEvaluator(Texts.Messages);
+        string message = evaluator.Evaluate(key, new(new Dictionary<string, MessageBinding>(),
+            (_, _) => throw new InvalidDataException("Scroll mode notice cannot query world state."),
+            _ => throw new InvalidDataException("Scroll mode notice cannot draw randomness.")));
+        _notice.SetNotice(MessageMarkup.Plain(message));
+        MoveChild(_notice, GetChildCount() - 1);
+        _notice.Show();
+        _notice.FocusDefaultButton();
+    }
     public override void _Input(InputEvent @event)
     {
         if (@event is InputEventMouseMotion motion) _hoverPosition = motion.Position;
@@ -382,6 +412,7 @@ public partial class StrategyHud : Control
     public override void _ExitTree()
     {
         World.MapReady -= Build;
+        World.EdgeScrollModeChanged -= ShowScrollModeNotice;
         World.BuildingContextRequested -= ShowSettlementContext;
         World.UnitContextRequested -= ShowUnitContext;
         World.CommandMenuRequested -= ShowCommandMenu;

@@ -8,11 +8,11 @@ using San9.Rendering;
 
 try
 {
-    if(args.Length==0)throw new ArgumentException("Commands: import-textures --game-dir PATH --output PATH; import-client --game-dir PATH --scenario FILENAME --texture-package PATH --output PATH; verify-textures --texture-package PATH; verify-client --content-package PATH; import-text --game-dir PATH --output PATH; render-map --content-package PATH --output PATH");
+    if(args.Length==0)throw new ArgumentException("Commands: import-textures --game-dir PATH --output PATH [--rebuild all|cursors|skin|map|portraits|library/ARCHIVE]; import-client --game-dir PATH --scenario FILENAME --texture-package PATH --output PATH; verify-textures --texture-package PATH; verify-client --content-package PATH; import-text --game-dir PATH --output PATH; render-map --content-package PATH --output PATH");
     Dictionary<string,string> options=[];
     for(int i=1;i<args.Length;i+=2)
         if(i+1>=args.Length||!args[i].StartsWith("--",StringComparison.Ordinal)||!options.TryAdd(args[i],args[i+1]))throw new ArgumentException("Invalid or duplicate option.");
-    string[] allowed=args[0] == "import-textures" ? ["--game-dir","--output"] : args[0] == "verify-textures" ? ["--texture-package"] : args[0] == "verify-client" ? ["--content-package"] : args[0] == "import-text" ? ["--game-dir","--output","--exe-evidence"] : args[0] == "import-client"?["--game-dir","--scenario","--texture-package","--output"]:["--content-package","--season","--output","--x","--y","--width","--height","--terrain-only"];
+    string[] allowed=args[0] == "import-textures" ? ["--game-dir","--output","--rebuild"] : args[0] == "verify-textures" ? ["--texture-package"] : args[0] == "verify-client" ? ["--content-package"] : args[0] == "import-text" ? ["--game-dir","--output","--exe-evidence"] : args[0] == "import-client"?["--game-dir","--scenario","--texture-package","--output"]:["--content-package","--season","--output","--x","--y","--width","--height","--terrain-only"];
     if(options.Keys.Any(k=>!allowed.Contains(k)))throw new ArgumentException("Unknown option.");
     string Required(string key)=>options.TryGetValue(key,out var value)?value:throw new ArgumentException($"Missing {key}.");
     var watch=Stopwatch.StartNew();
@@ -36,7 +36,7 @@ try
     }
     else if(args[0]=="import-textures")
     {
-        await TexturePackageImporter.ImportAsync(Required("--game-dir"), Required("--output"), Console.WriteLine);
+        await TexturePackageImporter.ImportAsync(Required("--game-dir"), Required("--output"), Console.WriteLine, rebuild: options.GetValueOrDefault("--rebuild"));
     }
     else if(args[0]=="verify-textures")
     {

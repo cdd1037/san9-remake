@@ -54,6 +54,8 @@ public static class TextureLibraryCompiler
         ["G_Radar"] = new("map/radar"), ["G_RadarM"] = new("map/radar"), ["G_RadarL"] = new("map/radar")
     };
 
+    public static IReadOnlyList<string> ArchiveIds { get; } = Recipes.Keys.Select(name => name.ToLowerInvariant()).Order(StringComparer.Ordinal).ToArray();
+
     public static void ValidateInventory(string dataDirectory)
     {
         var actual = Directory.EnumerateFiles(dataDirectory, "G_*.s9").Select(Path.GetFileNameWithoutExtension).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -61,12 +63,15 @@ public static class TextureLibraryCompiler
     }
 
     public static TextureLibrary Compile(byte[] exe, string dataDirectory, Func<string, byte[]> read,
-        Func<string, string, PngImage, ImageAsset> save, Action<string>? progress, CancellationToken token)
+        Func<string, string, PngImage, ImageAsset> save, Action<string>? progress, CancellationToken token, string? archiveId = null)
     {
-        ValidateInventory(dataDirectory);
+        if (archiveId is not null && !Recipes.Keys.Any(name => name.ToLowerInvariant() == archiveId))
+            throw new ArgumentException($"Unknown texture archive: {archiveId}.");
+        if (archiveId is null) ValidateInventory(dataDirectory);
         List<TextureArchive> archives = [];
         foreach (var (name, recipe) in Recipes.OrderBy(p => p.Key, StringComparer.Ordinal))
         {
+            if (archiveId is not null && name.ToLowerInvariant() != archiveId) continue;
             token.ThrowIfCancellationRequested();
             // PortraitCompiler owns the single normal-color mother image and crop metadata.
             if (recipe.Palette == "P_Face.s9") continue;

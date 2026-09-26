@@ -110,6 +110,27 @@ dotnet run --project src/San9.Tools -- import-client --game-dir "private/游戏�
 & "<Godot Mono可执行文件>" --path src/San9.Client.Godot -- --content-package "<客户端内容包绝对路径>"
 ```
 
+修正解析规则或补齐遗漏资源时，给 `import-textures` 加 `--rebuild`，直接按当前代码重转指定单元，不以原始文件变化为触发条件，也不创建持久中间缓存：
+
+```powershell
+# 只重转光标；其他可选值见下表。
+dotnet run --project src/San9.Tools -- import-textures --game-dir "private/游戏文件" --output "local/generated/content/textures-san9pk-tc101" --rebuild cursors
+```
+
+| `--rebuild` 值 | 重新转换范围 |
+| --- | --- |
+| `cursors` | 全部系统光标图片及热点定义 |
+| `skin` | 整个界面皮肤，包括按钮、装饰、颜色和光标 |
+| `map` | 共享地图资源，包括四季地形、建筑和动画 |
+| `portraits` | 全部大头像与锚点 |
+| `library/g_common` 等 `library/<档案ID>` | 指定已登记图库档案的全部已支持图片与调色板变体；ID 使用小写 |
+| `all` | 强制整包重转，跳过原有整包复用判断 |
+
+一次指定一个单元，按修正规则实际影响范围选择；共用解码规则影响多个消费者时须依次重转相关单元，或使用 `all`。当前不支持单按钮、单头像或单地图动画选择。定向重转要求已有可反序列化的同来源、同包 schema 纹理清单，允许被替换单元在当前校验下尚不完整，替换后对整个包校验；不迁移旧格式。原始输入应保持同一基线，切换源数据用整包转换。
+
+定向转换保留其他单元的正式定义和图片，使用 `images/rebuilt/<单元>/` 独立打包，避免覆盖其他消费者仍引用的共享图集；整包清单成功发布后清理无引用图片及临时 `.sources/`。这可能保留其他消费者仍需使用的旧图集，不按像素合并不同规则的产物。局部更新不把全包 `ConversionVersion` 提升到当前版本；包级格式或全局转换升级继续用 `all`，不要把单元修复一律升级为全局版本变更。图片或皮肤修复不需要重转剧本；剧本数据、文本或引用生成规则修正才运行 `import-client`。
+
+
 新局可追加`--computer-damage-bonus 100`指定电脑对玩家直接兵损+100%，默认0。设置随存档和录像保存，加载时不覆盖已有值；此参数不修改内容包。
 
 客户端默认读取`local/generated/content/scenario-190-live`，只加载转换结果。`render-map --content-package local/generated/content/scenario-190-live`也可直接消费组合包内的地图部分。源资源及生成包均被忽略，不提交。

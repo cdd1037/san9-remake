@@ -16,7 +16,7 @@ public sealed class TextureRebuildTests : IDisposable
         var orphan = unrelated with { Id = "cursor-up", File = new("images/up.png", 1, 1, 4) };
         var obsolete = unrelated with { Id = "old-cursor", File = new("images/old.png", 1, 1, 4) };
         var corrected = orphan with { File = new(".sources/new.png", 2, 2, 4), Width = 2, Height = 2 };
-        var skin = new InterfaceSkin(25, [unrelated, orphan, obsolete], [], [], new() { ["old"] = new(obsolete.Id, 0, 0) });
+        var skin = new InterfaceSkin(29, [unrelated, orphan, obsolete], [], [], new() { ["old"] = new(obsolete.Id, 0, 0) });
         var replaced = TexturePackageRebuilder.ReplaceCursors(skin, new() { ["up"] = new(corrected.Id, 1, 1) }, [corrected]);
         Assert.Equal(new[] { unrelated, corrected }, replaced.Assets);
         Assert.Equal(new CursorDefinition(corrected.Id, 1, 1), Assert.Single(replaced.Cursors).Value);
@@ -37,7 +37,7 @@ public sealed class TextureRebuildTests : IDisposable
         var replacement = new ImageAsset("ui-test", ".sources/0.png", 1, 1, 3);
         var package = new TexturePackage(5, 23, "test", [],
             new([], [], [], [], [], new int[288], new int[16], [], new byte[32]),
-            new(25, [replacement], new() { ["test"] = replacement.Id }, [], []),
+            new(29, [replacement], new() { ["test"] = replacement.Id }, [], []),
             new(3, [new("original", "interface", [new(0, 0, first), new(1, 0, second)])]), []);
         var result = TexturePackagePacking.Pack(root, package, "images/rebuilt/skin", default);
         Assert.Equal(new[] { first, second }, result.Library.Assets);
@@ -60,7 +60,7 @@ public sealed class TextureRebuildTests : IDisposable
         var image = new ImageAsset("ui-test", ".sources/0.png", 1, 1, 3);
         var package = new TexturePackage(5, 23, "test", [],
             new([], [], [], [], [], new int[288], new int[16], [], new byte[32]),
-            new(25, [image], new() { ["test"] = image.Id }, [], []),
+            new(29, [image], new() { ["test"] = image.Id }, [], []),
             new(3, [new("original", "interface", [new(0, 0, image with { Id = "library/test" })])]), []);
         var result = TexturePackagePacking.Pack(root, package, "images", default);
         Assert.Equal(Assert.Single(result.Skin.Assets).File, Assert.Single(result.Library.Assets).File);

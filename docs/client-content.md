@@ -4,7 +4,7 @@
 
 ## 现行版本与历史记录
 
-现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 124，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 129，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 25，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 23。规则为 `san9-core-g10-v74`，保存90／日志94／录像6；协议以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 为准。
+现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 125，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 130，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 29，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 25。规则为 `san9-core-g10-v74`，保存90／日志94／录像6；协议以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 为准。
 
 旧内容包按现行契约原位重转，旧规则存档、日志和录像拒绝加载。是否重转纹理取决于纹理转换版本与源输入。历史验收只证明对应基线，不代表当前版本重新验证；阶段收口见[G10 验收](g10-verification.md#2026-09-21阶段收口)。
 
@@ -15,11 +15,11 @@
 | 模块 | 职责 | 输出 |
 | --- | --- | --- |
 | Content.Maps / MapImporter | 当前地图方格、地貌及对象位置 | `map.json`（无图片文件） |
-| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema124 |
+| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema125 |
 | Content.Text / ScenarioTextReader | 名称与全量消息目录 | `text.json` / `messages.json`，schema4 |
-| Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema25 |
-| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema129 |
-| Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema5／转换版本23 |
+| Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema29 |
+| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema130 |
+| Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema5／转换版本25 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 
 共享剧本契约不按原版编号区间限制城市或人物身份。城市图标资格由`SettlementKind.City`决定；`RegionCityIds`必须引用真实城市，其城市名从据点定义读取，不要求城市ID同时存在于地域名称表。数量与名称不继承源格式槽位和字节长度；玩法数值上限及显示资源范围独立校验。
@@ -216,7 +216,7 @@ TC101完整保留41项兵法和28项阵形的展示元数据，名称与说明�
 
 ### 水陆阵型接入
 
-部队保存独立水阵，军事规则声明统一基础船；陆阵定义不绑定船型，异族不特殊化，建设／输送使用固定用途配对。出征、整编、地形查询、跨岸寻路、战斗与地图显示共用有效阵型，详见[水陆规格](../specs/behavior/BEH-WAR-0001-movement-and-command-lifecycle.md#水陆阵型与跨岸移动)。水阵选择仍通过公共命令，未新增出征表单。
+部队保存独立水阵，军事规则声明统一基础船；陆阵定义不绑定船型，异族不特殊化，建设／输送使用固定用途配对。出征、整编、地形查询、跨岸寻路、战斗与地图显示共用有效阵型，详见[水陆规格](../specs/behavior/BEH-WAR-0001-movement-and-command-lifecycle.md#水陆阵型与跨岸移动)。水阵选择已接入设施出征准备；目标选择与客户端实际下令暂未开放。
 
 初次接入批次为剧本121／组合125、规则v69、保存87／日志90；地图11、纹理5／转换16不变。该批默认解决方案3684项、Headless17项通过，190年包保留25势力／94据点／700人物／0初始野战队及28阵型。核对默认船20、20／21／22／23／26五种水阵的八方向资源、上岸恢复，以及查询不改变世界哈希；报告为 `local/generated/amphibious-audit/report.json`。实际水陆切换画面待用户验收。
 
@@ -234,7 +234,7 @@ TC101完整保留41项兵法和28项阵形的展示元数据，名称与说明�
 
 ### 地图命令菜单资源
 
-皮肤schema22、纹理转换版本20加入`command-*`语义角色：六组一级／二级三段四态按钮、上中下拼接框、45个入口的插图角色、条件卡、三类对象摘要底板和摘要图标；`text.json`对应45个`ui.command.*`静态分类／条件说明。原版资源、调色板与布局证据见[RE-SAN9PK-0073](../research/findings/RE-SAN9PK-0073.md#主地图左键命令菜单补充2026-09-26)。须依次原位运行`import-textures`与`import-client`；客户端只读取组合包及纹理依赖。菜单按当前设施类型、拆除属性与部队用途查询，当前只提供导航和说明，不接入领域命令。主界面临时部队预览不改变190年原始剧本的野战部队覆盖。
+皮肤schema22、纹理转换版本20加入`command-*`语义角色：六组一级／二级三段四态按钮、上中下拼接框、45个入口的插图角色、条件卡、三类对象摘要底板和摘要图标；`text.json`对应45个`ui.command.*`静态分类／条件说明。原版资源、调色板与布局证据见[RE-SAN9PK-0073](../research/findings/RE-SAN9PK-0073.md#主地图左键命令菜单补充2026-09-26)。须依次原位运行`import-textures`与`import-client`；客户端只读取组合包及纹理依赖。菜单按当前设施类型、拆除属性与部队用途查询；设施出征接入准备窗口，其他入口仍提供导航和说明，尚不从客户端提交领域命令。主界面临时部队预览不改变190年原始剧本的野战部队覆盖。
 
 ## 战略面与进行面资源
 
@@ -249,3 +249,13 @@ TC101完整保留41项兵法和28项阵形的展示元数据，名称与说明�
 ### 边缘滚动光标（2026-09-27）
 
 皮肤schema25／纹理转换版本23新增`Cursors`语义目录，每项引用图片并保存像素热点；完整提供八方向的`scroll-<direction>-idle/active`共16项，校验引用、尺寸及热点范围。Mod可提供自己的PNG与热点，不依赖原版资源编号。TC101转换器从已识别EXE的RT_GROUP_CURSOR／RT_CURSOR读取12000至12015组，解码8位调色板、倒序行与AND透明遮罩，拒绝不能以RGBA表达的反色像素。产物为独立48×48 RGBA图片；资源编号只存在于Importer。客户端沿用共享纹理服务及租约，以Godot自定义系统光标显示，无新增平台调用。证据见[RE-0175](../research/findings/RE-SAN9PK-0175.md#真实光标素材接入2026-09-27)。须依次原位运行`import-textures`与`import-client`；不兼容缺少光标定义的旧皮肤。
+
+### 设施出征准备
+
+军事内容字段`DefaultDeploymentFormationId`可为空，非空须引用可选用途的陆阵，不能指定建设、输送或无阵。TC101导入指定长蛇，UI不识别源编号；该偏好只用于准备草案初选，不改变公共出征命令或AI选择。
+
+皮肤schema29／纹理转换版本25提供`deployment-*`外框、字段、设施装饰框、陆水标签、按钮与数字输入资源，并复用布阵和目录组件。字段采用标准九宫格及上下横沿；转换阶段裁掉源片外侧留白并统一中心平铺周期。多选目录增加独立勾选背景、绿色决定与金色总括按钮四态，重用正文选中帧。数字面板包含三段标题、滑块填充条与拖动标记。客户端仅使用语义角色；布局和资源证据见[RE-0177](../research/findings/RE-SAN9PK-0177.md)。
+
+现有同源包先执行`import-textures --game-dir "private/游戏文件" --output "local/generated/content/textures-san9pk-tc101" --rebuild skin`，再按上方完整命令执行`import-client`。后续纯皮肤调整只需定向重建皮肤；定向重建保留全包转换版本，完整重建才更新它。
+
+本地包已原位更新并完整加载校验；洛阳8名候选、长蛇／走舸、32000士兵及世界哈希不变通过核对，未改变原始190年部队数量。行为与验收边界见[设施出征准备](../specs/behavior/BEH-UI-0001-initial-strategy-screen.md#设施出征准备2026-09-27)，实际画面待用户验收。

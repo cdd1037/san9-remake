@@ -6,11 +6,12 @@ using San9.Rendering;
 
 namespace San9.Client.Godot;
 
-/// <summary>Read-only command navigation; modal input owns the complete menu lifetime.</summary>
+/// <summary>Command navigation; the caller owns executable workflows.</summary>
 public partial class MapCommandPopup : Control
 {
     public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;
     public TextCatalog Texts { get; init; } = null!;
+    public Action<string>? Activated { get; init; }
     private readonly List<(InformationMenuButton Button, MapCommandEntry Entry)> _primary = [], _secondary = [];
     private Rect2 _menu;
     private Rect2? _submenu;
@@ -20,7 +21,7 @@ public partial class MapCommandPopup : Control
     private double _hoverTime;
     private bool _conditionVisible;
     public string Hint => _hovered is {} entry ? entry.Children.Count > 0
-        ? Texts.Resolve(CommandMenuSkin.DescriptionKey(entry.Id)) : $"{entry.Title}（命令预览）" : "";
+        ? Texts.Resolve(CommandMenuSkin.DescriptionKey(entry.Id)) : entry.Id == "sortie" ? "设置出征部队。" : $"{entry.Title}（命令预览）" : "";
 
     public override void _Ready()
     {
@@ -64,7 +65,9 @@ public partial class MapCommandPopup : Control
         for (int i = 0; i < entry.Children.Count; i++)
         {
             var child = entry.Children[i];
-            _secondary.Add((AddButton(child, new(x, y + 28 * i), true), child));
+            var button = AddButton(child, new(x, y + 28 * i), true);
+            button.Pressed += () => Activated?.Invoke(child.Id);
+            _secondary.Add((button, child));
         }
         QueueRedraw();
     }

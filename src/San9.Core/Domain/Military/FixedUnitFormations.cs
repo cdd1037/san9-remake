@@ -57,5 +57,7 @@ public sealed partial class MilitaryRulebook
         }
         if (BasicNavalFormationId is int basic && IsFixedFormation(basic))
             throw new ArgumentException("Default combat vessel cannot be a fixed-purpose formation.");
+        if (DefaultDeploymentFormationId is int preferred && (IsFixedFormation(preferred) || preferred == UnformedFormationId))
+            throw new ArgumentException("Default deployment formation must be a combat formation.");
     }
 }

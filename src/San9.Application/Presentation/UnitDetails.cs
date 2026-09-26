@@ -4,7 +4,11 @@ using San9.Core.Domain;
 
 namespace San9.Application.Presentation;
 
-public sealed record FormationMemberView(int OfficerId, string Name, string Tactic, BattleRank Rank, bool IsCommander);
+public sealed record FormationMemberView(int OfficerId, string Name, string Tactic, BattleRank Rank, bool IsCommander)
+{
+    public FormationSlot? Position { get; init; }
+    public string HoverText { get; init; } = "";
+}
 public sealed record FormationBoardData(FormationPresentation? Presentation, IReadOnlyList<FormationMemberView> Members);
 public sealed record UnitDetailData(int Id, string Name, string Condition, string Force, string Home,
     string Soldiers, string Wounded, string Morale, string Formation, string Ship,

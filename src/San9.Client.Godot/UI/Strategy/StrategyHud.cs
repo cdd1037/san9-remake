@@ -30,6 +30,8 @@ public partial class StrategyHud : Control
     private PopupMenu _contextMenu = null!;
     private MapContextPopup _mapContext = null!;
     private MapCommandPopup _commandMenu = null!;
+    private DeploymentView? _deployment;
+    private MapObjectTarget? _commandTarget;
     private StrategyMinimap? _minimap;
     public StrategyOverview Overview { get; } = new();
     public InformationPanel Information { get; private set; } = null!;
@@ -124,7 +126,7 @@ public partial class StrategyHud : Control
         GetParent().AddChild(Information);
         _mapContext = new MapContextPopup { Textures = _textures, Activated = OpenMapContextEntry };
         GetParent().AddChild(_mapContext);
-        _commandMenu = new MapCommandPopup { Textures = _textures, Texts = Texts };
+        _commandMenu = new MapCommandPopup { Textures = _textures, Texts = Texts, Activated = ActivateCommand };
         GetParent().AddChild(_commandMenu);
         World.BuildingContextRequested += ShowSettlementContext;
         World.UnitContextRequested += ShowUnitContext;
@@ -187,7 +189,7 @@ public partial class StrategyHud : Control
 
     private bool IsMapInteractionBlocked => !_built || Turn is { CanBrowseMap: false } ||
         Information?.State.IsOpen == true || _mapContext?.Visible == true ||
-        _commandMenu?.Visible == true || _contextMenu?.Visible == true || _notice?.Visible == true;
+        _commandMenu?.Visible == true || _deployment is not null || _contextMenu?.Visible == true || _notice?.Visible == true;
 
     public bool CanNavigateMap => !IsMapInteractionBlocked && !Overview.IsOpen;
 
@@ -227,6 +229,7 @@ public partial class StrategyHud : Control
         var entries = target.IsUnit ? MapCommandMenu.Unit(Scenario, target.Id) : MapCommandMenu.Settlement(Scenario, target.Id);
         if (entries.Count == 0) return;
         _contextTarget = null;
+        _commandTarget = target;
         _contextRevision = Session.Snapshot.Revision;
         if (target.IsUnit) Selection.Clear(); else Selection.SelectBuilding(target.Id);
         _mapContext.Close();
@@ -241,6 +244,25 @@ public partial class StrategyHud : Control
         _commandMenu.Close();
         _mapContext.Open(SettlementContextMenu.Read(Scenario, id), point);
         World.HoverObject(null); _hoverCard.ShowInfo(null, point); _hoverTarget = null;
+    }
+
+    private void ActivateCommand(string command)
+    {
+        if (command != "sortie" || _commandTarget is not { IsUnit: false } target || !CanIssueOrders) return;
+        _commandMenu.Close();
+        var view = Session.View;
+        if (DeploymentDraft.UnavailableReason(view, target.Id) is string reason)
+        { _notice.SetNotice(reason); _notice.Show(); return; }
+        _deployment = new DeploymentView
+        {
+            Draft = new(view, target.Id),
+            Session = Session,
+            Texts = Texts,
+            Textures = _textures,
+            Service = Textures,
+            Closed = () => { if (_deployment is { } deployment) { _deployment = null; deployment.GetParent().RemoveChild(deployment); deployment.QueueFree(); } }
+        };
+        GetParent().AddChild(_deployment);
     }
     private void ShowUnitContext(int id, Vector2 point)
     {

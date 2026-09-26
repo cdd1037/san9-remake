@@ -86,6 +86,7 @@ public static class MilitaryContentCompiler
                     }).ToImmutableArray() }).ToImmutableArray(), places)
         {
             BasicNavalFormationId = BasicNavalFormationId,
+            DefaultDeploymentFormationId = 6,
             ConstructionFormations = new(13, 24),
             TransportFormations = new(14, 25),
             UnformedFormationId = 27,

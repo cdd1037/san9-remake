@@ -8,6 +8,7 @@ public partial class CatalogView : Control
 {
     public string Title { get; init; } = "";
     public string HintText { get; init; } = "";
+    public string CloseTitle { get; init; } = "关闭";
     public IReadOnlyList<CatalogPage> Pages { get; init; } = [];
     public Func<int, CatalogRow[]> ReadRows { get; init; } = null!;
     public TextureService Service { get; init; } = null!;
@@ -25,11 +26,17 @@ public partial class CatalogView : Control
     public int InitialOffset { get; init; }
     public Action<int, int, int?>? ViewChanged { get; init; }
     public CatalogTableState TableState { get; init; } = new();
+    public CatalogSelection? Selection { get; init; }
+    public Action<IReadOnlySet<int>>? ConfirmSelection { get; init; }
+    private int SelectionWidth => Selection is null ? 0 : 40;
+    private InformationActionButton? _confirmSelection;
+    private CatalogBulkButton? _selectAll, _clearSelection;
     private CatalogTableState _state => TableState;
     private readonly GameTextPresenter _text = new();
     private readonly List<CatalogSkinButton> _headers = [];
     private readonly List<CatalogSkinButton> _tabs = [];
     private readonly List<Label[]> _cells = [];
+    private readonly List<Label> _checks = [];
     private Control _grid = null!;
     private SkinnedScrollBar _scroll = null!;
     private AsyncPortrait? _portrait;
@@ -42,14 +49,18 @@ public partial class CatalogView : Control
     private CatalogRow[]? _boundRows;
     private int _boundOffset = -1;
     private Label? _help;
+    private int? _pressedRowId;
+    private int? _hoveredCheckboxId;
+    private int? _pointerRowId;
 
     public override void _Ready()
     {
         Size = new(1024, 768); MouseFilter = MouseFilterEnum.Stop;
+        MouseExited += () => { _pointerRowId = null; _hoveredCheckboxId = null; QueueRedraw(); };
         var rows = ReadRows(InitialPage);
         _visibleRows = Math.Clamp(rows.Length, 9, CatalogTableState.VisibleRows);
         _needsScroll = rows.Length > CatalogTableState.VisibleRows;
-        int width = Math.Max(Pages.Max(p => p.Columns.Sum(c => c.Width)) + (_needsScroll ? 16 : 0),
+        int width = Math.Max(Pages.Max(p => p.Columns.Sum(c => c.Width)) + SelectionWidth + (_needsScroll ? 16 : 0),
             Math.Min(Pages.Count, 7) * 62 + 52) + 80;
         int height = 226 + 24 * _visibleRows + (Pages.Count > 7 ? 32 : 0);
         _body = new((1024 - width) / 2, (768 - height) / 2, width, height);
@@ -63,9 +74,28 @@ public partial class CatalogView : Control
                 Position = _body.Position + new Vector2(86 + i % 7 * 62, 75 + i / 7 * 32), Size = new(58, 26) };
             tab.Pressed += () => ChangePage(page); AddChild(tab); _tabs.Add(tab);
         }
-        var close = new InformationActionButton { Title = "关闭", Textures = Textures,
-            Position = new(_body.End.X - 160, _body.End.Y - 48), Size = new(80, 48) };
+        var close = new InformationActionButton
+        {
+            Title = Selection is null ? CloseTitle : "中止",
+            Textures = Textures,
+            Position = new(_body.End.X - 160, _body.End.Y - 48),
+            Size = new(80, 48)
+        };
         close.Pressed += () => Closed?.Invoke(); AddChild(close);
+        if (Selection is not null)
+        {
+            CatalogBulkButton BulkButton(string title, Vector2 at, Action action)
+            {
+                var button = new CatalogBulkButton { Title = title, Textures = Textures, Position = at, Size = new(112, 32) };
+                button.Pressed += action; AddChild(button); return button;
+            }
+            _selectAll = BulkButton("总括选择", new(_body.Position.X + 80, _body.End.Y - 64), () => { Selection.SelectAll(_state.Rows.Select(r => r.Id)); RefreshRows(); });
+            _clearSelection = BulkButton("总括解除", new(_body.Position.X + 200, _body.End.Y - 64), () => { Selection.Clear(); RefreshRows(); });
+            _confirmSelection = new InformationActionButton { Title = "决定", SkinPrefix = "catalog-accept-", FontSize = 24,
+                Textures = Textures, Position = new(_body.End.X - 248, _body.End.Y - 48), Size = new(80, 48) };
+            _confirmSelection.Pressed += () => { if (Selection.Selected.Count > 0) ConfirmSelection?.Invoke(Selection.Selected); };
+            AddChild(_confirmSelection);
+        }
         if (ShowMap is not null)
         {
             var map = new InformationActionButton { Title = "地图", MapToggle = true, Textures = Textures,
@@ -109,12 +139,14 @@ public partial class CatalogView : Control
             _state.Scroll(offset);
         }
         if (_grid is not null) { RemoveChild(_grid); _grid.QueueFree(); }
-        _headers.Clear(); _cells.Clear();
+        _headers.Clear(); _cells.Clear(); _checks.Clear();
         _boundRows = null;
         _page = page;
         _grid = new Control { Position = _tableOrigin, MouseFilter = MouseFilterEnum.Ignore }; AddChild(_grid);
         var columns = Pages[page].Columns;
-        int width = columns.Sum(c => c.Width), x = 0;
+        int width = columns.Sum(c => c.Width) + SelectionWidth, x = SelectionWidth;
+        if (Selection is not null)
+            _grid.AddChild(new CatalogSkinButton { Textures = Textures, Kind = CatalogButtonKind.Header, Title = "×", Size = new(40,24) });
         for (int i = 0; i < columns.Length; i++)
         {
             int column = i;
@@ -125,7 +157,14 @@ public partial class CatalogView : Control
         }
         for (int row = 0; row < _visibleRows; row++)
         {
-            var labels = new Label[columns.Length]; x = 0;
+            if (Selection is not null)
+            {
+                var check = LabelAt("", new(12,24+row*24), new(16,24), parent: _grid);
+                check.HorizontalAlignment = HorizontalAlignment.Center;
+                _text.Apply(check, GameTextStyles.CatalogRow);
+                _checks.Add(check);
+            }
+            var labels = new Label[columns.Length]; x = SelectionWidth;
             for (int c = 0; c < columns.Length; c++)
             {
                 labels[c] = LabelAt("", new(x + 4, 24 + row * 24), new(columns[c].Width - 8, 24), parent: _grid);
@@ -142,12 +181,22 @@ public partial class CatalogView : Control
         for (int i = 0; i < _tabs.Count; i++) _tabs[i].Selected = i == page;
         RefreshRows();
     }
+    private void ActivateCurrent()
+    {
+        if (_state.Current is not { } row) return;
+        if (!CanActivateRow(row.Id)) return;
+        if (Selection is null) Activated?.Invoke(row.Id);
+        else { Selection.Toggle(row.Id); RefreshRows(); }
+    }
     private void RefreshRows()
     {
         _refreshing = true;
         // Selection changes do not rebind cell text. Sorting/reloading replaces Rows.
         if (!ReferenceEquals(_boundRows, _state.Rows) || _boundOffset != _state.Offset)
         {
+            ClearRowPress();
+            _pointerRowId = null;
+            _hoveredCheckboxId = null;
             for (int r = 0; r < _cells.Count; r++)
             {
                 int index = _state.Offset + r;
@@ -156,6 +205,15 @@ public partial class CatalogView : Control
             }
             _boundRows = _state.Rows; _boundOffset = _state.Offset;
         }
+        for (int r = 0; r < _cells.Count; r++)
+        {
+            int index = _state.Offset + r;
+            var style = index < _state.Rows.Length && !CanActivateRow(_state.Rows[index].Id)
+                ? GameTextStyles.CatalogDisabledRow : GameTextStyles.CatalogRow;
+            foreach (var cell in _cells[r]) _text.Apply(cell, style);
+        }
+        for (int r = 0; r < _checks.Count; r++)
+            _checks[r].Text = _state.Offset+r < _state.Rows.Length && Selection!.Selected.Contains(_state.Rows[_state.Offset+r].Id) ? "×" : "";
         for (int c = 0; c < _headers.Count; c++) _headers[c].SortDirection = _state.SortColumn == c ? _state.Descending ? -1 : 1 : 0;
         _scroll.Range.Value = _state.Offset; _scroll.UpdateArrows();
         if (_portrait is not null)
@@ -171,11 +229,20 @@ public partial class CatalogView : Control
             _portrait.Role = _portrait.Visible ? Portrait!(_state.Current!.Id) : null;
         }
         if (_state.Current is { } row) CurrentChanged?.Invoke(row.Id);
+        if (Selection is not null)
+        {
+            _confirmSelection!.Disabled = Selection.Selected.Count == 0;
+            _selectAll!.Disabled = !_state.Rows.Any(r => !Selection.Selected.Contains(r.Id) && Selection.CanToggle(r.Id));
+            _clearSelection!.Disabled = Selection.Selected.Count == 0;
+        }
         ViewChanged?.Invoke(_page, _state.Offset, _state.Current?.Id);
         _refreshing = false; QueueRedraw();
     }
     private void ToggleHelp()
     {
+        ClearRowPress();
+        _pointerRowId = null;
+        _hoveredCheckboxId = null;
         if (_help is not null) { _help.QueueFree(); _help = null; return; }
         _help = LabelAt("页签切换显示列；点击表头排序。\n上下键选择，滚轮或滚动条翻阅。\nCtrl+Tab 切换页签，回车查看详情。\nEsc 或右键返回。", _body.Position + new Vector2(80, 220), new(_body.Size.X - 160, 150));
         _help.AddThemeStyleboxOverride("normal", new StyleBoxFlat { BgColor = new Color("161b1b"), ContentMarginLeft = 16 });
@@ -183,18 +250,52 @@ public partial class CatalogView : Control
     }
     public override void _GuiInput(InputEvent input)
     {
-        if (input is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: false } mouse &&
+        if (_help is not null) return;
+        if (input is InputEventMouseButton { ButtonIndex: MouseButton.Left } mouse &&
             RowAt(mouse.Position) is int index)
         {
-            AcceptEvent(); _state.PointAt(index); RefreshRows();
-            Activated?.Invoke(_state.Current!.Id);
+            AcceptEvent();
+            UpdateRowPointer(mouse.Position);
+            int id = _state.Rows[index].Id;
+            _state.PointAt(index); RefreshRows();
+            if (!CanActivateRow(id)) return;
+            if (mouse.Pressed)
+            {
+                // The checkbox has its own hit feedback; only the body uses the bright row frame.
+                _pressedRowId = mouse.Position.X >= _tableOrigin.X + SelectionWidth ? id : null;
+                QueueRedraw();
+            }
+            else ActivateCurrent();
         }
-        if (input is InputEventMouseMotion motion && RowAt(motion.Position) is int hovered && hovered != _state.CurrentIndex)
-        { _state.PointAt(hovered); RefreshRows(); }
+        if (input is InputEventMouseMotion motion)
+        {
+            UpdateRowPointer(motion.Position);
+            if (RowAt(motion.Position) is int hovered && hovered != _state.CurrentIndex)
+            { _state.PointAt(hovered); RefreshRows(); }
+        }
+    }
+    private bool CanActivateRow(int id) => Selection?.CanToggle(id) ?? true;
+    private void ClearRowPress()
+    {
+        if (_pressedRowId is null) return;
+        _pressedRowId = null;
+        QueueRedraw();
+    }
+    private void UpdateRowPointer(Vector2 position)
+    {
+        int? row = RowAt(position);
+        int? id = row is int index ? _state.Rows[index].Id : null;
+        int? checkbox = Selection is not null && row is int checkboxRow &&
+            new Rect2(_tableOrigin + new Vector2(12, 28 + (checkboxRow - _state.Offset) * 24), new(16, 16)).HasPoint(position)
+            ? id : null;
+        if (_pointerRowId == id && _hoveredCheckboxId == checkbox) return;
+        _pointerRowId = id;
+        _hoveredCheckboxId = checkbox;
+        QueueRedraw();
     }
     private int? RowAt(Vector2 position)
     {
-        var rect = new Rect2(_tableOrigin + new Vector2(0, 24), new(Pages[_page].Columns.Sum(c => c.Width), _visibleRows * 24));
+        var rect = new Rect2(_tableOrigin + new Vector2(0, 24), new(Pages[_page].Columns.Sum(c => c.Width) + SelectionWidth, _visibleRows * 24));
         if (!rect.HasPoint(position)) return null;
         int index = _state.Offset + (int)((position.Y - rect.Position.Y) / 24);
         return index < _state.Rows.Length ? index : null;
@@ -202,6 +303,9 @@ public partial class CatalogView : Control
     public override void _Input(InputEvent input)
     {
         if (!IsVisibleInTree()) return;
+        // Release can land on a child control or outside the table; it must always end the feedback.
+        if (input is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: false }) ClearRowPress();
+        if (input is InputEventMouseMotion && _help is null) UpdateRowPointer(GetLocalMousePosition());
         if (input is InputEventMouseButton { Pressed: true } mouse)
         {
             if (mouse.ButtonIndex == MouseButton.Right)
@@ -212,11 +316,13 @@ public partial class CatalogView : Control
             }
             if (_help is null && mouse.ButtonIndex is MouseButton.WheelDown or MouseButton.WheelUp)
             {
+                ClearRowPress();
                 _state.Scroll(_state.Offset + (mouse.ButtonIndex == MouseButton.WheelDown ? 1 : -1));
                 GetViewport().SetInputAsHandled(); RefreshRows(); return;
             }
         }
         if (input is not InputEventKey { Pressed: true } key) return;
+        ClearRowPress();
         if (_help is not null && key.Keycode != Key.Escape) { GetViewport().SetInputAsHandled(); return; }
         // Consume input before callbacks can detach this view from the scene tree.
         if (key.Keycode == Key.Escape)
@@ -232,7 +338,7 @@ public partial class CatalogView : Control
         else if (key.Keycode == Key.Enter)
         {
             GetViewport().SetInputAsHandled();
-            if (_state.Current is { } row) Activated?.Invoke(row.Id);
+            ActivateCurrent();
         }
         else
         {
@@ -276,7 +382,7 @@ public partial class CatalogView : Control
         DrawTexture(Textures["information-frame-bottom-right"],new(right-240,bottom-216));
         Strip("information-title",new(x-40,y-16),264);
         DrawTexture(Textures["information-frame-ornament"],new(x-56,y-16));
-        Strip("information-footer",new(right-236,bottom-64),260);
+        Strip("information-footer",new(right-(Selection is null ? 236 : 324),bottom-64),Selection is null ? 260 : 348);
         var tabs = new Rect2(x+40,y+64,TabStripFollowsPage ? Pages[_page].Columns.Sum(c => c.Width) : _body.Size.X-80,Pages.Count>7?80:48);
         Tile("catalog-tabs-top",new(tabs.Position+new Vector2(12,0),new(tabs.Size.X-24,8)));
         Tile("catalog-tabs-bottom",new(tabs.Position+new Vector2(12,tabs.Size.Y-8),new(tabs.Size.X-24,8)));
@@ -284,22 +390,36 @@ public partial class CatalogView : Control
         Tile("catalog-tabs-right",new(tabs.Position+new Vector2(tabs.Size.X-12,24),new(12,tabs.Size.Y-48)));
         DrawTexture(Textures["catalog-tabs-top-left"],tabs.Position); DrawTexture(Textures["catalog-tabs-top-right"],new(tabs.End.X-12,tabs.Position.Y));
         DrawTexture(Textures["catalog-tabs-bottom-left"],new(tabs.Position.X,tabs.End.Y-24)); DrawTexture(Textures["catalog-tabs-bottom-right"],tabs.End-new Vector2(12,24));
-        int width=Pages[_page].Columns.Sum(c=>c.Width);
+        int width = Pages[_page].Columns.Sum(c => c.Width) + SelectionWidth;
         DrawTableFrame(width + 2 + (_needsScroll ? 16 : 0));
-        int current=_state.CurrentIndex-_state.Offset;
-        if(current>=0 && current<_visibleRows)
+        int current = _state.CurrentIndex - _state.Offset;
+        for (int r = 0; r < _visibleRows && _state.Offset + r < _state.Rows.Length; r++)
         {
-            var point=_tableOrigin+new Vector2(0,28+current*24);
-            // Frame 1 is hover/current-row gold; frame 2 is the brighter pressed state (RE-0151).
-            var left = Textures["catalog-row-left-1"];
-            var rightCap = Textures["catalog-row-right-1"];
-            DrawTexture(left,point);
-            DrawTexture(rightCap,point+new Vector2(width-rightCap.GetWidth(),0));
-            // The source left cap ends in a transparent column; the middle covers it (RE-0151).
-            int middleStart = left.GetWidth() - 1;
-            Tile("catalog-row-middle-1",new(point+new Vector2(middleStart,0),new(width-rightCap.GetWidth()-middleStart,left.GetHeight())));
+            int id = _state.Rows[_state.Offset + r].Id;
+            bool selected = Selection?.Selected.Contains(id) == true;
+            bool currentRow = r == current;
+            bool pressed = CanActivateRow(id) && _pressedRowId == id && _pointerRowId == id;
+            if (Selection is not null)
+            {
+                int checkFrame = _hoveredCheckboxId == id ? 1 : selected ? 2 : 0;
+                var check = Textures["catalog-checkbox" + (checkFrame == 0 ? "" : $"-{checkFrame}")];
+                var checkAt = _tableOrigin + new Vector2(12,28+r*24);
+                DrawTexture(check, checkAt);
+
+            }
+            if (pressed || currentRow || selected)
+                DrawRow(_tableOrigin + new Vector2(SelectionWidth,28+r*24), width-SelectionWidth, pressed ? 2 : currentRow ? 1 : 3);
         }
         if(_portrait is { Visible: true }) DrawTextureRect(Textures["catalog-portrait-frame"], new(_portrait.Position - new Vector2(12,12), PortraitSize + new Vector2(24,24)), false);
+    }
+    private void DrawRow(Vector2 point, int width, int frame)
+    {
+        var left = Textures[$"catalog-row-left-{frame}"];
+        var right = Textures[$"catalog-row-right-{frame}"];
+        DrawTexture(left,point);
+        DrawTexture(right,point+new Vector2(width-right.GetWidth(),0));
+        int middleStart = left.GetWidth()-1;
+        Tile($"catalog-row-middle-{frame}",new(point+new Vector2(middleStart,0),new(width-right.GetWidth()-middleStart,left.GetHeight())));
     }
     private void DrawTableFrame(int width)
     {
@@ -320,6 +440,10 @@ public partial class CatalogView : Control
                 Part(middle, x, Math.Min(middle.GetWidth(), width - right.GetWidth() - x));
             Part(left, 0, left.GetWidth()); Part(right, width - right.GetWidth(), right.GetWidth());
         }
+    }
+    public override void _Notification(int what)
+    {
+        if (what == NotificationWMWindowFocusOut) ClearRowPress();
     }
     public override void _ExitTree() => _text.Dispose();
 }

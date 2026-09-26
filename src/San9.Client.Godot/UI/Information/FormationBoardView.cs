@@ -9,15 +9,22 @@ public partial class FormationBoardView : Control
     public FormationBoardData Data { get; init; } = null!;
     public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;
     public Action<int>? OfficerActivated { get; init; }
-    private readonly List<(Rect2 Rect, bool Commander)> _cards = [];
+    public Action<int, San9.Content.Scenarios.FormationSlot>? OfficerMoved { get; init; }
+    private FormationMemberButton? _held;
+    private Vector2 _grab, _start;
+    private bool _dragging;
+    private San9.Content.Scenarios.FormationSlot? _target;
+    private Label _hint = null!;
     public override void _Ready()
     {
-        MouseFilter = MouseFilterEnum.Ignore;
+        MouseFilter = OfficerMoved is null ? MouseFilterEnum.Ignore : MouseFilterEnum.Stop;
         int columns = Data.Presentation?.Columns ?? 3, rows = Data.Presentation?.Rows ?? 3;
         var slots = Data.Presentation?.Slots.ToArray() ?? [];
         var assigned = new List<(FormationMemberView Member, int Column, int Row)>();
         foreach (var member in Data.Members)
         {
+            if (member.Position is { } position)
+            { assigned.Add((member, position.Column, position.Row)); continue; }
             int row = Math.Min(rows - 1, (int)member.Rank);
             var candidates = slots.Where(s => s.Row == row).Select(s => s.Column).ToArray();
             if (candidates.Length == 0) candidates = Enumerable.Range(0, columns).ToArray();
@@ -33,13 +40,75 @@ public partial class FormationBoardView : Control
                 float height = Math.Min(80, cellHeight / group.Count());
                 var rect = new Rect2(item.Column * cellWidth + (cellWidth - Math.Min(120, cellWidth)) / 2,
                     item.Row * cellHeight + index++ * height + 4, Math.Min(120, cellWidth), height);
-                _cards.Add((rect, item.Member.IsCommander));
-                var button = new FormationMemberButton { Position = rect.Position, Size = rect.Size,
-                    Member = item.Member };
-                button.Pressed += () => OfficerActivated?.Invoke(item.Member.OfficerId);
+                var button = new FormationMemberButton
+                {
+                    Position = rect.Position,
+                    Size = rect.Size,
+                    Member = item.Member,
+                    Texture = Textures[item.Member.IsCommander ? "formation-commander" : "formation-member"]
+                };
+                if (OfficerMoved is null) button.Pressed += () => OfficerActivated?.Invoke(item.Member.OfficerId);
+                else button.GuiInput += input =>
+                {
+                    if (input is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true } mouse)
+                    {
+                        button.AcceptEvent();
+                        if (mouse.DoubleClick) { OfficerActivated?.Invoke(item.Member.OfficerId); return; }
+                        _held = button; _grab = mouse.Position; _start = button.Position;
+                    }
+                };
                 AddChild(button);
             }
         }
+        _hint = new Label { Visible = false, MouseFilter = MouseFilterEnum.Ignore, ZIndex = 3 };
+        _hint.AddThemeColorOverride("font_color", Colors.Black);
+        _hint.AddThemeFontSizeOverride("font_size", 16);
+        _hint.AddThemeStyleboxOverride("normal", new StyleBoxFlat { BgColor = new Color("f8e890") });
+        AddChild(_hint);
+    }
+
+    public override void _Input(InputEvent input)
+    {
+        if (_held is null) return;
+        if (input is InputEventMouseMotion)
+        {
+            var at = GetLocalMousePosition() - _grab;
+            if (!_dragging && at.DistanceTo(_start) < 4) return;
+            _dragging = true; _hint.Hide(); _held.ZIndex = 2; _held.Highlighted = true;
+            _held.Position = at;
+            _target = null; float best = 0;
+            if (Data.Presentation is { } p)
+                foreach (var slot in p.Slots)
+                {
+                    var cell = new Rect2(slot.Column * Size.X / p.Columns, slot.Row * Size.Y / p.Rows, Size.X / p.Columns, Size.Y / p.Rows);
+                    var overlap = cell.Intersection(new(at, _held.Size));
+                    float area = overlap.HasArea() ? overlap.Size.X * overlap.Size.Y : 0;
+                    if (area > best) { best = area; _target = slot; }
+                }
+            QueueRedraw(); GetViewport().SetInputAsHandled();
+        }
+        else if (input is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: false }) FinishDrag(true);
+        else if (input is InputEventKey { Keycode: Key.Escape, Pressed: true }) FinishDrag(false);
+    }
+
+    private void FinishDrag(bool commit)
+    {
+        var held = _held!; var target = _target;
+        held.Position = _start; held.ZIndex = 0; held.Highlighted = false;
+        bool moved = _dragging && commit && target is not null;
+        _held = null; _target = null; _dragging = false; QueueRedraw();
+        GetViewport().SetInputAsHandled();
+        if (moved) OfficerMoved?.Invoke(held.Member.OfficerId, target!.Value);
+    }
+
+    public override void _Process(double delta)
+    {
+        if (OfficerMoved is null || _dragging) { _hint.Hide(); return; }
+        var mouse = GetLocalMousePosition();
+        var hovered = GetChildren().OfType<FormationMemberButton>().LastOrDefault(b => b.IsHovered());
+        foreach (var button in GetChildren().OfType<FormationMemberButton>()) button.Highlighted = button == hovered;
+        _hint.Visible = hovered is not null && hovered.Member.HoverText.Length > 0;
+        if (_hint.Visible) { _hint.Text = hovered!.Member.HoverText; _hint.Position = mouse + new Vector2(8, 8); }
     }
     public override void _Draw()
     {
@@ -56,8 +125,8 @@ public partial class FormationBoardView : Control
             }
         for (int x = 1; x < columns; x++) DrawLine(new(x * Size.X / columns, 0), new(x * Size.X / columns, Size.Y), new Color(0,0,0,.5f));
         for (int y = 1; y < rows; y++) DrawLine(new(0, y * Size.Y / rows), new(Size.X, y * Size.Y / rows), new Color(0,0,0,.5f));
-        foreach (var card in _cards)
-            DrawTextureRectRegion(Textures[card.Commander ? "formation-commander" : "formation-member"], card.Rect, new(0,0,120,80));
+        if (_target is { } target)
+            DrawRect(new(target.Column * Size.X / columns, target.Row * Size.Y / rows, Size.X / columns, Size.Y / rows), new Color(0.1f, 0.9f, 0.65f, 0.3f));
     }
 }
 
@@ -65,7 +134,12 @@ public partial class FormationBoardView : Control
 public partial class FormationMemberButton : BaseButton
 {
     public FormationMemberView Member { get; init; } = null!;
+    public Texture2D Texture { get; init; } = null!;
+    private bool _highlighted;
+    public bool Highlighted { get => _highlighted; set { if (_highlighted == value) return; _highlighted = value; QueueRedraw(); ApplyText(); } }
+    private readonly List<Label> _labels = [];
     private readonly GameTextPresenter _text = new();
+    public override void _Draw() => DrawTextureRectRegion(Texture, new(Vector2.Zero, Size), new(Highlighted ? 120 : 0, 0, 120, 80));
 
     public override void _Ready()
     {
@@ -83,7 +157,15 @@ public partial class FormationMemberButton : BaseButton
             ClipText = true, MouseFilter = MouseFilterEnum.Ignore
         };
         AddChild(label);
-        _text.Apply(label, GameTextStyles.CatalogRow with { FontSize = Math.Max(1, (int)(24 * Math.Min(scale.X, scale.Y))) });
+        _labels.Add(label); ApplyText();
+    }
+
+    private void ApplyText()
+    {
+        var scale = Size / new Vector2(120, 80);
+        foreach (var label in _labels) _text.Apply(label, GameTextStyles.CatalogRow with {
+            FontSize = Math.Max(1, (int)(24 * Math.Min(scale.X, scale.Y))),
+            EffectColor = Highlighted ? new Color("00f098") : Colors.Black });
     }
 
     public override void _ExitTree() => _text.Dispose();

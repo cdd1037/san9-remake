@@ -8,6 +8,7 @@ public partial class InformationMenuButton : BaseButton
     public string SkinPrefix { get; init; } = "information-menu-button";
     public string Title { get; init; } = "";
     public string HintText { get; init; } = "";
+    public Func<bool, bool, bool, GameTextStyle> TextStyle { get; init; } = GameTextStyles.InformationMenu;
     public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;
     private readonly GameTextPresenter _text = new();
     private Label _label = null!;
@@ -30,7 +31,7 @@ public partial class InformationMenuButton : BaseButton
         var state = (IsHovered(), pressed, Disabled);
         if (_state == state) return;
         _state = state;
-        _text.Apply(_label, GameTextStyles.InformationMenu(state.Item1, pressed, Disabled));
+        _text.Apply(_label, TextStyle(state.Item1, pressed, Disabled));
         _label.Position = pressed ? new(2, 2) : Vector2.Zero;
         VisualFrame = ButtonVisualState.Frame(false, state.Item1, pressed, Disabled);
         QueueRedraw();

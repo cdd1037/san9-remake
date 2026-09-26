@@ -83,6 +83,7 @@ public sealed record MilitaryDefinition(int Width, int Height, ImmutableArray<in
     [JsonRequired] public FixedUnitFormations? ConstructionFormations { get; init; }
     [JsonRequired] public FixedUnitFormations? TransportFormations { get; init; }
     [JsonRequired] public int? BasicNavalFormationId { get; init; }
+    [JsonRequired] public int? DefaultDeploymentFormationId { get; init; }
     [JsonRequired] public int? UnformedFormationId { get; init; }
     [JsonRequired] public bool BattleDeathsAllowed { get; init; } = true;
     [JsonRequired] public bool DuelCapturesAllowed { get; init; } = true;
@@ -138,6 +139,10 @@ public sealed partial class MilitaryRulebook
         if (Formations.Values.Any(f => f.SnipingChanceBonus is < 0 or > 100))
             throw new ArgumentException("Invalid sniping formation bonus.");
         BasicNavalFormationId = definition.BasicNavalFormationId;
+        DefaultDeploymentFormationId = definition.DefaultDeploymentFormationId;
+        if (DefaultDeploymentFormationId is int preferred &&
+            (!Formations.TryGetValue(preferred, out var defaultLand) || defaultLand.TravelMode != TravelMode.Land))
+            throw new ArgumentException("Invalid default deployment formation.");
         ConstructionFormations = definition.ConstructionFormations;
         TransportFormations = definition.TransportFormations;
         if (BasicNavalFormationId is int naval &&
@@ -233,6 +238,7 @@ public sealed partial class MilitaryRulebook
     }
 
     public int? BasicNavalFormationId { get; }
+    public int? DefaultDeploymentFormationId { get; }
     public BattlefieldMap Map { get; }
     public ImmutableArray<int?> RegionIds { get; }
 

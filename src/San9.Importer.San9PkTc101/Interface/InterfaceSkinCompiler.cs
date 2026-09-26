@@ -176,6 +176,9 @@ public static class InterfaceSkinCompiler
             ("catalog-header-left",332,4,44), ("catalog-header-middle",333,4,44), ("catalog-header-right",334,4,44),
             ("catalog-sort-down",335,1,44), ("catalog-sort-up",336,1,44),
             ("catalog-row-left",293,4,35), ("catalog-row-middle",294,4,35), ("catalog-row-right",295,4,35),
+            ("catalog-checkbox",289,4,33),
+            ("catalog-accept-left",355,4,42), ("catalog-accept-middle",356,4,42), ("catalog-accept-right",357,4,42),
+            ("catalog-bulk-left",347,4,42), ("catalog-bulk-middle",348,4,42), ("catalog-bulk-right",349,4,42),
             ("catalog-tab",380,6,45), ("catalog-portrait-frame",297,1,37), ("catalog-help",354,4,42),
             ("catalog-scroll-down",372,4,48), ("catalog-scroll-up",373,4,48),
             ("catalog-scroll-track-top",374,1,48), ("catalog-scroll-track-middle",375,1,48), ("catalog-scroll-track-bottom",376,1,48),
@@ -288,6 +291,65 @@ public static class InterfaceSkinCompiler
         string FontColor(int style) => Convert.ToHexString(fontPalette.AsSpan((style / 2 * 32 + 16 + style % 2 * 8 + 7) * 4, 3));
         colors.Add("roster-available", FontColor(7)); colors.Add("roster-unavailable", FontColor(26));
         var cursors = ExecutableCursorCompiler.Compile(pe, assets, save);
-        return new(25, assets.ToArray(), ui, colors, cursors);
+        foreach (var (role, resource) in new (string, int)[] {
+            ("background",270), ("top-left",201), ("top-right",202), ("bottom-left",203), ("bottom-right",204), ("edge",226),
+            ("title-left",231), ("title-middle",232), ("title-right",233),
+            ("footer-left",223), ("footer-middle",224), ("footer-right",225),
+            ("label-left",256), ("label-middle",257), ("label-right",258),
+            ("facility-left",239), ("facility-middle",240), ("facility-right",241),
+            ("mode-left",276), ("mode-middle",277), ("mode-right",278), ("field-rim",189),
+            ("number-background",3), ("number-field-left",0), ("number-field-middle",1), ("number-field-right",2) })
+            Extra("deployment-" + role, resource, bindings[resource] - 200, !role.StartsWith("mode-", StringComparison.Ordinal));
+        var deploymentField = CompileDeploymentField(common.Images.Skip(242).Take(9).ToArray());
+        foreach (var (role, resource) in new (string, int)[] {
+            ("title-left", 5), ("title-middle", 6), ("title-right", 7), ("slider-fill", 23), ("slider-thumb", 4) })
+            Extra("deployment-number-" + role, resource, bindings[resource] - 200);
+        int fieldPalette = bindings[242] - 200;
+        if (Enumerable.Range(242, 9).Any(index => bindings[index] != bindings[242]))
+            throw new InvalidDataException("Inconsistent deployment field palette.");
+        assets.Add(save("ui-deployment-field", "ui/deployment-field.png",
+            IndexedImageArchive.Decode(deploymentField, common.Palettes[fieldPalette], true, true)));
+        ui.Add("deployment-field", "ui-deployment-field");
+        foreach (var (role, resource) in new (string, int)[] {
+            ("edit-left",253), ("edit-middle",254), ("edit-right",255),
+            ("accept-left",220), ("accept-middle",221), ("accept-right",222),
+            ("cancel-left",217), ("cancel-middle",218), ("cancel-right",219),
+            ("close",251), ("help",252), ("number-accept",27), ("number-cancel",24),
+            ("number-back",20), ("number-clear",19), ("number-min",29), ("number-max",28), ("number-minus",21), ("number-plus",22),
+            ("number-close",25), ("number-help",26), ("number-00",8), ("number-0",9),
+            ("number-1",10), ("number-2",11), ("number-3",12), ("number-4",13), ("number-5",14), ("number-6",15),
+            ("number-7",16), ("number-8",17), ("number-9",18) })
+            for (int frame = 0; frame < 4; frame++)
+            {
+                int palette = bindings[resource] - 200;
+                string roleKey = "deployment-" + role + (frame == 0 ? "" : $"-{frame}");
+                var pixels = IndexedImageArchive.Frame(common.Images[resource], 4, 1, frame, 0);
+                assets.Add(save("ui-" + roleKey, TextureSourcePath.Image("G_Common", resource, palette, true, true, columns: 4, frame: frame),
+                    IndexedImageArchive.Decode(pixels, common.Palettes[palette], true, true)));
+                ui.Add(roleKey, "ui-" + roleKey);
+            }
+        return new(29, assets.ToArray(), ui, colors, cursors);
+    }
+
+    private static IndexedImage CompileDeploymentField(IReadOnlyList<IndexedImage> sources)
+    {
+        // The source frame discards eight pixels at each outside edge. Its center
+        // tile is narrower than the horizontal edges; repeat it in the exported grid.
+        var parts = new IndexedImage[9];
+        for (int row = 0; row < 3; row++)
+        for (int column = 0; column < 3; column++)
+        {
+            var source = sources[row * 3 + column];
+            int x = column == 0 ? 8 : 0, y = row == 0 ? 8 : 0;
+            int width = source.Width - (column == 1 ? 0 : 8);
+            int height = source.Height - (row == 1 ? 0 : 8);
+            int outputWidth = column == 1 ? sources[1].Width : width;
+            byte[] pixels = new byte[checked(outputWidth * height)];
+            for (int py = 0; py < height; py++)
+            for (int px = 0; px < outputWidth; px++)
+                pixels[py * outputWidth + px] = source.Pixels[(y + py) * source.Width + x + px % width];
+            parts[row * 3 + column] = new(outputWidth, height, pixels);
+        }
+        return NineSliceArt.Assemble(parts);
     }
 }

@@ -50,6 +50,11 @@ public static class GameTextStyles
     };
 
     public static GameTextStyle CatalogRow => Outlined(16, White);
+    public static GameTextStyle CatalogDisabledRow => Outlined(16, new Color("a4a4a4"));
+
+    public static GameTextStyle CatalogBulk(bool hovered, bool pressed, bool disabled) =>
+        Outlined(16, new Color(disabled ? hovered ? "000000" : "a4a4a4" : hovered || pressed ? "f0f0f0" : "d8d8d8"),
+            disabled ? hovered ? "f0f0f0" : "000000" : hovered || pressed ? "603000" : "000000");
 
     public static GameTextStyle Building(bool highlighted) => For(GameTextRole.Building) with
     { Foreground = highlighted ? new Color("f8f850") : White };

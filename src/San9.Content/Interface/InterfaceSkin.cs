@@ -31,7 +31,7 @@ public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dicti
         .Concat(Enumerable.Range(0, 51).SelectMany(c => Enumerable.Range(0, 4).Select(f => $"information-map-force-{c}" + (f == 0 ? "" : $"-{f}"))))
         .Concat(Enumerable.Range(0, 4).Select(f => "information-map-city" + (f == 0 ? "" : $"-{f}")))
         .Concat(new[] { "left", "middle", "right", "close", "map-left", "map-middle", "map-right" }.SelectMany(p => Enumerable.Range(0, 4).Select(f => "information-action-" + p + (f == 0 ? "" : $"-{f}"))))
-        .Concat(new[] { "catalog-header-left", "catalog-header-middle", "catalog-header-right", "catalog-row-left", "catalog-row-middle", "catalog-row-right", "catalog-help", "catalog-scroll-up", "catalog-scroll-down" }
+        .Concat(new[] { "catalog-checkbox", "catalog-accept-left", "catalog-accept-middle", "catalog-accept-right", "catalog-bulk-left", "catalog-bulk-middle", "catalog-bulk-right", "catalog-header-left", "catalog-header-middle", "catalog-header-right", "catalog-row-left", "catalog-row-middle", "catalog-row-right", "catalog-help", "catalog-scroll-up", "catalog-scroll-down" }
             .SelectMany(p => Enumerable.Range(0,4).Select(f => p + (f == 0 ? "" : $"-{f}"))))
         .Concat(Enumerable.Range(0,6).Select(f => "catalog-tab" + (f == 0 ? "" : $"-{f}")))
         .Concat(new[] { "top-left", "top", "top-right", "bottom-left", "bottom", "bottom-right" }.Select(p => "catalog-frame-" + p))
@@ -40,7 +40,7 @@ public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dicti
         .Concat(new[] { "top-left", "top", "top-right", "left", "right", "bottom-left", "bottom", "bottom-right" }.Select(p => "catalog-tabs-" + p))
         .Concat(new[] { "own", "other", "friendly" }.SelectMany(t =>
             new[] { "city", "facility" }.Select(p => $"hover-{t}-{p}")))
-        .Concat(CommandMenuSkin.RequiredRoles).Append("hover-divider").Concat(OfficerDetailSkin.RequiredRoles).Append("information-background")
+        .Concat(CommandMenuSkin.RequiredRoles).Concat(DeploymentSkin.RequiredRoles).Append("hover-divider").Concat(OfficerDetailSkin.RequiredRoles).Append("information-background")
         .Concat(new[] { "strategy", "execution" }.SelectMany(p => Enumerable.Range(0, 4).Select(f => $"turn-title-{p}-{f}")))
         .Concat(new[] { "yes", "no" }.SelectMany(p => Enumerable.Range(0, 4).Select(f => $"dialog-{p}-{f}")))
         .Append("dialog-frame")
@@ -49,7 +49,7 @@ public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dicti
 
     public void Validate()
     {
-        if (SchemaVersion != 25 || Assets.Select(a => a.Id).Distinct().Count() != Assets.Length)
+        if (SchemaVersion != 29 || Assets.Select(a => a.Id).Distinct().Count() != Assets.Length)
             throw new InvalidDataException("Invalid interface skin version or duplicate assets.");
         ImageAssetFiles.ValidateCatalog(Assets);
         var assets = Assets.ToDictionary(a => a.Id);

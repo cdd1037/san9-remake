@@ -112,7 +112,10 @@ public static class ScenarioContentCompiler
             Tactics = Read(San9ScenarioTacticArchive.ReadKnownRecords)
                 .Select(t => new MilitaryCatalogDefinition(t.Id, text.Tactic(t.Id)) { DescriptionKey = text.TacticDescription(t.Id) }).ToArray(),
             Formations = formations
-                .Select(f => new MilitaryCatalogDefinition(f.Id, text.Formation(f.Id)) { DescriptionKey = text.FormationDescription(f.Id) }).ToArray(),
+                .Select(f => new FormationCatalogDefinition(f.Id, text.Formation(f.Id)) { DescriptionKey = text.FormationDescription(f.Id),
+                    Presentation = new(3, 3, Enumerable.Range(0, f.DeploymentSlotCodes.Count).Select(f.GetDeploymentSlotPosition)
+                        .Where(p => p is not null).Select(p => new FormationSlot(p!.Value.Column, p.Value.Row)).ToImmutableArray(),
+                        f.VisionRadius, f.VisionAngleDegrees, $"formation-diagram-{f.Id}", $"formation-available-{f.Id}") }).ToArray(),
             CountryTitles = PoliticalContentCompiler.Titles(countryTitles, persons, officers.Select(o => o.State.Id),
                 id => text.CountryTitle($"country-title.{id}", id),
                 id => System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(exe.AsSpan(0x253bb0 + id * 4, 4))),

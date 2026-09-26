@@ -22,6 +22,27 @@ public sealed class MilitaryMovementTests
     private static TransportUnitCommand Deploy(long sequence = 0, uint soldiers = 400) =>
         new(Guid.NewGuid(), 1, sequence, 1, [11], soldiers, 2, 200, 300);
 
+    [Fact]
+    public void CommandMarkerSurvivesRestoreAndResetsAtNewXun()
+    {
+        var rules = Rules();
+        var engine = Engine(World(), rules);
+        Assert.True(engine.Execute(Player, Deploy()).Submission.Accepted);
+        Assert.True(Assert.Single(engine.Snapshot.Units).CommandedThisXun);
+        engine = Engine(WorldState.Restore(engine.CaptureStableState()), rules);
+        Assert.True(Assert.Single(engine.Snapshot.Units).CommandedThisXun);
+        engine.EndControl(Player);
+        engine.AdvanceXun();
+        var unit = Assert.Single(engine.Snapshot.Units);
+        Assert.False(unit.CommandedThisXun);
+        var invalid = new OrderUnitCommand(Guid.NewGuid(), 1, engine.Snapshot.Simulation.NextSequence, unit.Id,
+            new(MilitaryOrderKind.Move, new(900, 900), null));
+        Assert.False(engine.Execute(Player, invalid).Submission.Accepted);
+        Assert.False(Assert.Single(engine.Snapshot.Units).CommandedThisXun);
+        Assert.True(engine.Execute(Player, invalid with { CommandId = Guid.NewGuid(), Order = new(MilitaryOrderKind.Return, null, 1) }).Submission.Accepted);
+        Assert.True(Assert.Single(engine.Snapshot.Units).CommandedThisXun);
+    }
+
     [Theory]
     [InlineData(false, false)]
     [InlineData(false, true)]

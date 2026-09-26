@@ -255,7 +255,7 @@ public sealed class InformationCatalog(InformationDefinitions definitions)
 {
     public IReadOnlyList<CountryTitleDefinition> CountryTitles { get; } = Array.AsReadOnly(definitions.CountryTitles.ToArray());
     public IReadOnlyList<MilitaryCatalogDefinition> Tactics { get; } = Array.AsReadOnly(definitions.Tactics.ToArray());
-    public IReadOnlyList<MilitaryCatalogDefinition> Formations { get; } = Array.AsReadOnly(definitions.Formations.ToArray());
+    public IReadOnlyList<FormationCatalogDefinition> Formations { get; } = Array.AsReadOnly(definitions.Formations.ToArray());
     public IReadOnlyList<RankDefinition> Ranks { get; } = Array.AsReadOnly(definitions.Ranks.ToArray());
     public IReadOnlyList<OfficeDefinition> Offices { get; } = Array.AsReadOnly(definitions.Offices.ToArray());
     public IReadOnlyList<TreasureDefinition> Treasures { get; } = Array.AsReadOnly(definitions.Treasures.ToArray());

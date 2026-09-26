@@ -24,6 +24,17 @@ public static class InformationArtCompiler
         }
         foreach (var treasure in scenario.Information.Treasures)
             roles.Add($"information-treasure-{treasure.Id}", Image("g_still", treasures[treasure.Id].ImageId + 172));
+        // Original formation catalog order maps to the G_Jinkei three-state diagram groups.
+        int[] diagrams = [9, 12, 3, 6, 15, 18, 0, 21, 42, 45, 39, 36, 48, 48, 48, 48, 48, 48, 48, 48, 24, 27, 30, 33, 48, 48, 48, 48];
+        foreach (var formation in scenario.Information.Formations)
+        {
+            int diagram = diagrams[formation.Id];
+            roles.Add($"formation-diagram-{formation.Id}", Image("g_jinkei", diagram));
+            roles.Add($"formation-available-{formation.Id}", Image("g_jinkei", diagram + 1));
+        }
+        foreach (var (role, index, palette) in new[] { ("formation-member", 51, 1), ("formation-commander", 52, 1),
+            ("formation-panel-deployment", 65, 3), ("formation-panel-detail", 67, 3) })
+            roles.Add(role, library.Archives.Single(a => a.Id == "g_jinkei").Variants.Single(v => v.ImageIndex == index && v.PaletteIndex == palette).Image.Id);
         return roles;
     }
 }

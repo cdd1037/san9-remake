@@ -31,16 +31,24 @@ public sealed record OfficeDefinition(int Id, string NameKey, uint CommandCapaci
     [JsonRequired] public OfficerAbilities AbilityBonuses { get; init; }
     [JsonRequired] public int? RequiredRankId { get; init; }
 }
-public sealed record MilitaryCatalogDefinition(int Id, string NameKey)
+public record MilitaryCatalogDefinition(int Id, string NameKey)
 {
     [JsonRequired] public string? DescriptionKey { get; init; }
+}
+
+public readonly record struct FormationSlot(int Column, int Row);
+public sealed record FormationPresentation(int Columns, int Rows, ImmutableArray<FormationSlot> Slots,
+    int VisionRadius, int VisionAngleDegrees, string? BackgroundRole, string? AvailableRole);
+public sealed record FormationCatalogDefinition(int Id, string NameKey) : MilitaryCatalogDefinition(Id, NameKey)
+{
+    [JsonRequired] public FormationPresentation? Presentation { get; init; }
 }
 
 public sealed record InformationDefinitions(RankDefinition[] Ranks, OfficeDefinition[] Offices, TreasureDefinition[] Treasures,
     CorpsState[] Corps, TreasureState[] TreasureStates)
 {
     [JsonRequired] public MilitaryCatalogDefinition[] Tactics { get; init; } = [];
-    [JsonRequired] public MilitaryCatalogDefinition[] Formations { get; init; } = [];
+    [JsonRequired] public FormationCatalogDefinition[] Formations { get; init; } = [];
     [JsonRequired] public CountryTitleDefinition[] CountryTitles { get; init; } = [];
     [JsonRequired] public ForceRelation[] Relations { get; init; } = [];
     public static InformationDefinitions Empty => new([], [], [], [], []);
@@ -56,6 +64,13 @@ public sealed record InformationDefinitions(RankDefinition[] Ranks, OfficeDefini
         Unique(CountryTitles.Select(t => t.Id));
         if (Tactics is null || Formations is null || Tactics.Concat(Formations).Any(d => d is null || string.IsNullOrWhiteSpace(d.NameKey) || d.DescriptionKey is not null && string.IsNullOrWhiteSpace(d.DescriptionKey)))
             throw new InvalidDataException("Invalid military catalog metadata.");
+        foreach (var formation in Formations)
+            if (formation.Presentation is { } p && (p.Columns <= 0 || p.Rows <= 0 || p.Slots.IsDefault ||
+                p.Slots.Any(s => s.Column < 0 || s.Column >= p.Columns || s.Row < 0 || s.Row >= p.Rows) ||
+                p.Slots.Distinct().Count() != p.Slots.Length || p.VisionRadius < 0 || p.VisionAngleDegrees is < 0 or > 360 ||
+                p.BackgroundRole is not null && string.IsNullOrWhiteSpace(p.BackgroundRole) ||
+                p.AvailableRole is not null && string.IsNullOrWhiteSpace(p.AvailableRole)))
+                throw new InvalidDataException("Invalid formation presentation.");
         Unique(Tactics.Select(t => t.Id)); Unique(Formations.Select(f => f.Id));
         if (Tactics.Any(t => scenario.Military?.Tactics.Any(r => r.Id == t.Id) != true) ||
             Formations.Any(f => scenario.Military?.Formations.Any(r => r.Id == f.Id) != true))

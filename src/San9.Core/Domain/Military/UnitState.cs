@@ -16,6 +16,7 @@ public sealed record UnitState(int Id, int OwnerId, [property: JsonRequired] Wor
     [JsonRequired] public uint CargoMoney { get; init; }
     [JsonRequired] public uint CargoFood { get; init; }
     [JsonRequired] public MilitaryOrder? Order { get; init; }
+    [JsonRequired] public bool CommandedThisXun { get; init; }
     [JsonRequired] public int MovementRemainder { get; init; }
     [JsonRequired] public MovementPlan? MovementPlan { get; init; }
     [JsonRequired] public UnitPolicies Policies { get; init; } = new();

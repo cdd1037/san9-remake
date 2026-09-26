@@ -9,6 +9,12 @@ internal static class XunRecovery
                 mutation.Replace(settlement with { CommerceUsed = false, CultivationUsed = false, PatrolUsed = false, RepairUsed = false, RecruitUsed = false, TrainUsed = false, FoodTradeUsed = false });
     }
 
+    internal static void Units(WorldMutation mutation)
+    {
+        foreach (var unit in mutation.Units.Values)
+            if (unit.CommandedThisXun) mutation.Replace(unit with { CommandedThisXun = false });
+    }
+
     internal static void Personnel(WorldMutation mutation)
     {
         foreach (var officer in mutation.Officers.Values)

@@ -30,6 +30,29 @@ internal sealed class OfficerCommands(StrategySnapshot view, TextCatalog texts)
         ? Region(region) + "周围" : $"({position.X},{position.Y})";
     private static CatalogCell Hidden(int width) => new(new string('＊', width), IsUnavailable: true);
 
+    public (CatalogCell Order, CatalogCell Target) ReadUnit(UnitState unit)
+    {
+        if (unit.OwnerId != view.PlayerForceId) return (Hidden(2), Hidden(5));
+        var effective = unit.EffectiveOrder;
+        CatalogCell order = effective?.Kind switch
+        {
+            MilitaryOrderKind.Move => "进军", MilitaryOrderKind.Return => "撤退",
+            MilitaryOrderKind.Transport => "输送",
+            MilitaryOrderKind.AttackUnit or MilitaryOrderKind.AttackSettlement => "攻击",
+            MilitaryOrderKind.Construct => effective.Construction is { } construction &&
+                view.FacilityNameSuffixKeys.TryGetValue(construction.FacilityTypeId, out string? key) ? texts.Resolve(key) : "建设",
+            _ => ""
+        };
+        CatalogCell target = effective?.Kind switch
+        {
+            MilitaryOrderKind.AttackUnit => Unit(effective.UnitId!.Value),
+            MilitaryOrderKind.Move => Surroundings(effective.Position!.Value),
+            MilitaryOrderKind.Construct => Region(effective.Construction!.RegionId) + "周围",
+            _ => effective?.SettlementId is int destination ? Place(destination) : CatalogCell.Unavailable
+        };
+        return (order, target);
+    }
+
     public OfficerCommandCells Read(OfficerState person)
     {
         var task = tasks.GetValueOrDefault(person.Id);
@@ -52,23 +75,7 @@ internal sealed class OfficerCommands(StrategySnapshot view, TextCatalog texts)
         CatalogCell target = CatalogCell.Unavailable;
         if (unit is not null)
         {
-            var effective = unit.EffectiveOrder;
-            order = effective?.Kind switch
-            {
-                MilitaryOrderKind.Move => "进军", MilitaryOrderKind.Return => "撤退",
-                MilitaryOrderKind.Transport => "输送",
-                MilitaryOrderKind.AttackUnit or MilitaryOrderKind.AttackSettlement => "攻击",
-                MilitaryOrderKind.Construct => effective.Construction is { } construction &&
-                    view.FacilityNameSuffixKeys.TryGetValue(construction.FacilityTypeId, out string? key) ? texts.Resolve(key) : "建设",
-                _ => ""
-            };
-            target = effective?.Kind switch
-            {
-                MilitaryOrderKind.AttackUnit => Unit(effective.UnitId!.Value),
-                MilitaryOrderKind.Move => Surroundings(effective.Position!.Value),
-                MilitaryOrderKind.Construct => Region(effective.Construction!.RegionId) + "周围",
-                _ => effective?.SettlementId is int destination ? Place(destination) : CatalogCell.Unavailable
-            };
+            (order, target) = ReadUnit(unit);
         }
         else if (task?.Journey is { } journey)
         {

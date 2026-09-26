@@ -131,7 +131,7 @@ internal static class MilitaryMovement
             MemberRanks = formation.CaptureRanks.IsEmpty ? ImmutableDictionary<int, BattleRank>.Empty : command.OfficerIds
                 .Select((person, index) => (person, rank: formation.CaptureRanks[index])).ToImmutableDictionary(p => p.person, p => p.rank),
             CargoMoney = cargoMoney, CargoFood = cargoFood, Order = command.Order,
-            Policies = command.Policies, CommanderId = commander,
+            Policies = command.Policies, CommanderId = commander, CommandedThisXun = true,
             OrderClass = UnitOrderClass.Military
         };
         world.AddUnit(unit);
@@ -162,7 +162,7 @@ internal static class MilitaryMovement
         if (!command.ConfirmAttack && MilitaryDiplomacy.Warning(world, command.IssuerId, command.Order, rules) != AttackWarning.None)
             return CommandRejection.AttackConfirmationRequired;
         FacilityConstruction.Cancel(world, unit.Id, events);
-        world.Replace(unit with { Order = command.Order, EngagementTargetId = null, AwaitingPostAction = false });
+        world.Replace(unit with { Order = command.Order, CommandedThisXun = true, EngagementTargetId = null, AwaitingPostAction = false });
         events.Add(new UnitOrderChangedEvent(world.Clock, unit.Id, command.Order, "ordered"));
         return CommandRejection.None;
     }

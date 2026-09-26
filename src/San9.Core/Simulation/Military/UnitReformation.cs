@@ -55,7 +55,7 @@ internal static class UnitReformation
         FacilityConstruction.Cancel(world, unit.Id, events);
         int? commander = LeadershipMaintenance.SelectUnitCommander(world, command.OfficerIds, governance);
         world.Replace(unit with { FormationId = formation.Id, NavalFormationId = navalId, Order = command.Order, CommanderId = commander,
-            EngagementTargetId = null, AwaitingPostAction = false,
+            EngagementTargetId = null, AwaitingPostAction = false, CommandedThisXun = true,
             MemberRanks = formation.CaptureRanks.IsEmpty ? ImmutableDictionary<int, BattleRank>.Empty : command.OfficerIds
                 .Select((id, index) => (id, rank: formation.CaptureRanks[index])).ToImmutableDictionary(p => p.id, p => p.rank) });
         events.Add(new UnitReformedEvent(world.Clock, unit.Id, previous, formation.Id, command.OfficerIds, unit.NavalFormationId, navalId));

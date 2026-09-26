@@ -21,6 +21,16 @@ public static class CombatMath
         value.Validate();
         return (long)BigInteger.Min(long.MaxValue, BigInteger.Max(1, Power(value) * value.Soldiers / 100));
     }
+    /// <summary>Unopposed attack and defense terms for a formation preview, without target wall defense.</summary>
+    public static (long AgainstUnits, long AgainstGarrison, long Defense) FormationStrength(CombatStrength strength, CombatProfile profile)
+    {
+        strength.Validate();
+        profile.Validate();
+        long Term(int coefficient, int divisor) => (long)BigInteger.Min(long.MaxValue,
+            BigInteger.Max(1, FormationPower(strength, coefficient, divisor)));
+        return (Term(profile.AgainstUnits, 25), Term(profile.AgainstGarrison, 25), Term(profile.Defense, 15));
+    }
+
     public static uint AdjustComputerDamage(uint damage, uint targetSoldiers, int bonusPercent)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(bonusPercent);
@@ -48,23 +58,29 @@ public static class CombatMath
         ArgumentOutOfRangeException.ThrowIfNegative(defenseCoefficient);
         ArgumentOutOfRangeException.ThrowIfNegative(durability);
         if (attacker.Soldiers == 0 || defender.Soldiers == 0) return 0;
-        var attack = BigInteger.Max(1, usesRockfallPower ? RockfallPower(attacker) : Power(attacker) * 2 * attackCoefficient / 25);
-        var defense = BigInteger.Max(1, Power(defender) * 2 * defenseCoefficient / 15 + (long)durability * 2 / 5);
+        var attack = BigInteger.Max(1, usesRockfallPower ? RockfallPower(attacker) : FormationPower(attacker, attackCoefficient, 25));
+        var defense = BigInteger.Max(1, FormationPower(defender, defenseCoefficient, 15) + (long)durability * 2 / 5);
         var margin = BigInteger.Max(0, attack - defense + 900);
         var a = BigInteger.Max(1, margin * margin / 2000);
         ulong b = ((ulong)attacker.Soldiers + defender.Soldiers) / 70 + 400;
         return (uint)BigInteger.Min(defender.Soldiers, a * b / 1200);
     }
 
-    public static int DurabilityDamage(uint soldiers, int leadership, int wallCoefficient, int durability)
+    /// <summary>Wall attack term shown in unit previews, before damage scaling and target durability limits.</summary>
+    public static long WallAttackStrength(uint soldiers, int leadership, int wallCoefficient)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(leadership);
         ArgumentOutOfRangeException.ThrowIfNegative(wallCoefficient);
+        long troopStrength = (long)(SquareRoot(soldiers) * SquareRoot((ulong)EconomyMath.ExecutedAbility(leadership) * 100) / 3000);
+        return troopStrength + 3L * (Math.Max(0L, wallCoefficient - 2L) / 9) + 1;
+    }
+
+    public static int DurabilityDamage(uint soldiers, int leadership, int wallCoefficient, int durability)
+    {
+        long strength = WallAttackStrength(soldiers, leadership, wallCoefficient);
         ArgumentOutOfRangeException.ThrowIfNegative(durability);
         if (soldiers == 0 || durability == 0) return 0;
-        long a = (long)(SquareRoot(soldiers) * SquareRoot((ulong)EconomyMath.ExecutedAbility(leadership) * 100) / 3000);
-        long b = a + 3L * ((wallCoefficient - 2L) / 9) + 1;
-        return (int)Math.Min(durability, Math.Max(1, b / 3));
+        return (int)Math.Min(durability, Math.Max(1, strength / 3));
     }
 
     public static CombatLoss Loss(uint soldiers, uint requested, int woundedPercent, uint wounded, uint woundedCapacity)
@@ -76,6 +92,9 @@ public static class CombatMath
         uint added = Math.Min(intended, woundedCapacity - wounded);
         return new(soldiers - actual, added, actual - added, intended - added);
     }
+
+    private static BigInteger FormationPower(CombatStrength strength, int coefficient, int divisor) =>
+        Power(strength) * 2 * coefficient / divisor;
 
     private static BigInteger Power(CombatStrength value)
     {

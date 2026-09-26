@@ -57,7 +57,7 @@ public sealed class AmphibiousSessionTests
             },
             Information = source.Information with
             {
-                Formations = source.Military.Formations.Select(f => new MilitaryCatalogDefinition(f.Id, $"formation.{f.Id}")).ToArray(),
+                Formations = source.Military.Formations.Select(f => new FormationCatalogDefinition(f.Id, $"formation.{f.Id}")).ToArray(),
                 Tactics = [new(8000, "technology")]
             }
         };

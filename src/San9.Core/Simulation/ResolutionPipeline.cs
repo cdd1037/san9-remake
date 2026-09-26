@@ -170,6 +170,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         if (stage == ResolutionStage.XunCleanup)
         {
             XunRecovery.Personnel(world);
+            XunRecovery.Units(world);
             EmperorTransfer.Begin(world, rules, events);
         }
         if (stage == ResolutionStage.QuarterPolitics) PoliticalEvents.Begin(world, rules, events);

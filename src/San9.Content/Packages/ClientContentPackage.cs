@@ -30,6 +30,12 @@ public sealed record ClientContentPackage(int SchemaVersion, ContentSource[] Sou
                     if (!clips.Contains($"unit-flag-{direction}-glyph-0-{glyph}") || !clips.Contains($"unit-flag-{direction}-glyph-1-{glyph}"))
                         throw new InvalidDataException($"Missing officer flag glyph: {glyph}");
         }
+        foreach (string role in Scenario.Information.Formations.Where(f => f.Presentation is not null)
+            .SelectMany(f => new[] { f.Presentation!.BackgroundRole, f.Presentation.AvailableRole }).OfType<string>())
+            if (!Skin.Roles.ContainsKey(role)) throw new InvalidDataException($"Missing formation diagram: {role}");
+        if (Scenario.Information.Formations.Any(f => f.Presentation is not null))
+            foreach (string role in new[] { "formation-member", "formation-commander", "formation-panel-deployment", "formation-panel-detail" })
+                if (!Skin.Roles.ContainsKey(role)) throw new InvalidDataException($"Missing formation interface image: {role}");
         Scenario.Validate(); Text.Validate(); Skin.Validate(); Textures.Validate();
         var markup = Text.Entries.Values.SelectMany(e => new[] { e.Text, e.SourceText })
             .Concat(MessageGraph.Walk(Text.Messages.Values.SelectMany(m => m.Nodes)).SelectMany(n => n switch

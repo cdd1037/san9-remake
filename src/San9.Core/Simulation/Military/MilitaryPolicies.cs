@@ -14,7 +14,7 @@ internal static class MilitaryPolicies
         if (command.Policies is null || !world.Units.TryGetValue(command.UnitId, out var unit) ||
             unit.OwnerId != command.IssuerId || unit.IsEmbedded || unit.IsPersonnel || unit.FormationId is null)
             return CommandRejection.InvalidTask;
-        world.Replace(unit with { Policies = command.Policies });
+        world.Replace(unit with { Policies = command.Policies, CommandedThisXun = true });
         events.Add(new UnitPoliciesChangedEvent(world.Clock, unit.Id, command.Policies));
         return CommandRejection.None;
     }

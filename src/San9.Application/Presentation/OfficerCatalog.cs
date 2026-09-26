@@ -22,7 +22,7 @@ public static class OfficerCatalog
         T("智略", 6, "营造", "石兵", "破陷", "教谕"), T("谋略", 7, "混乱", "陷阱", "攻心", "幻术"), T("策略", 8, "辱骂", "鼓舞", "治疗", "妖术")
     });
 
-    public static InformationTable Read(StrategySnapshot view, TextCatalog texts, int page, int? force, int? settlement, int? officerId = null, int? corpsId = null, int? regionId = null)
+    public static InformationTable Read(StrategySnapshot view, TextCatalog texts, int page, int? force, int? settlement, int? officerId = null, int? corpsId = null, int? regionId = null, int? unitFilter = null)
     {
         if ((uint)page >= Pages.Count) throw new ArgumentOutOfRangeException(nameof(page));
         var officers = view.Officers.ToDictionary(o => o.Id);
@@ -38,7 +38,7 @@ public static class OfficerCatalog
         string Place(int? id) => id is int key && view.RegionNameKeys.TryGetValue(key, out var name) ? texts.Resolve(name) : "";
         var columns = Pages[page].Columns;
         var local = regionId is not null ? new AdministrativeCatalog(view, texts) : null;
-        var rows = view.Officers.Where(o => (corpsId is null || o.CorpsId == corpsId) && (regionId is null || local!.PersonInRegion(o, regionId.Value)) && (officerId is null || o.Id == officerId) && (force is null || o.OwnerId == force) && (settlement is null || o.SettlementId == settlement))
+        var rows = view.Officers.Where(o => (unitFilter is null || o.UnitId == unitFilter) && (corpsId is null || o.CorpsId == corpsId) && (regionId is null || local!.PersonInRegion(o, regionId.Value)) && (officerId is null || o.Id == officerId) && (force is null || o.OwnerId == force) && (settlement is null || o.SettlementId == settlement))
             .OrderBy(o => texts.Resolve(o.NameKey), StringComparer.Create(System.Globalization.CultureInfo.GetCultureInfo("zh-CN"), false))
             .Select(o =>
             {

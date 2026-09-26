@@ -148,6 +148,7 @@ public static class InterfaceSkinCompiler
         }
         foreach (var (role, resource, palette) in new[]
         {
+            ("unit-list-top",55,6), ("unit-list-bottom",56,6),
             ("treasure-list-top",57,6), ("treasure-list-bottom",58,6), ("treasure-description",98,8),
             ("leader-label-left",72,7), ("leader-label-middle",73,7), ("leader-label-right",74,7),
             ("admin-label-left",75,7), ("admin-label-middle",76,7), ("admin-label-right",77,7),
@@ -232,6 +233,6 @@ public static class InterfaceSkinCompiler
         var fontPalette = read(Path.Combine(dataDirectory, "P_Font.s9"));
         string FontColor(int style) => Convert.ToHexString(fontPalette.AsSpan((style / 2 * 32 + 16 + style % 2 * 8 + 7) * 4, 3));
         colors.Add("roster-available", FontColor(7)); colors.Add("roster-unavailable", FontColor(26));
-        return new(20, assets.ToArray(), ui, colors);
+        return new(21, assets.ToArray(), ui, colors);
     }
 }

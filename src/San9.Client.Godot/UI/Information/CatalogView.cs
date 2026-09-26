@@ -19,6 +19,7 @@ public partial class CatalogView : Control
     public Action<int>? CurrentChanged { get; init; }
     public Action? Closed { get; init; }
     public Action? ShowMap { get; init; }
+    public bool TabStripFollowsPage { get; init; }
     public int InitialPage { get; init; }
     public int? InitialCurrentId { get; init; }
     public int InitialOffset { get; init; }
@@ -276,7 +277,7 @@ public partial class CatalogView : Control
         Strip("information-title",new(x-40,y-16),264);
         DrawTexture(Textures["information-frame-ornament"],new(x-56,y-16));
         Strip("information-footer",new(right-236,bottom-64),260);
-        var tabs = new Rect2(x+40,y+64,_body.Size.X-80,Pages.Count>7?80:48);
+        var tabs = new Rect2(x+40,y+64,TabStripFollowsPage ? Pages[_page].Columns.Sum(c => c.Width) : _body.Size.X-80,Pages.Count>7?80:48);
         Tile("catalog-tabs-top",new(tabs.Position+new Vector2(12,0),new(tabs.Size.X-24,8)));
         Tile("catalog-tabs-bottom",new(tabs.Position+new Vector2(12,tabs.Size.Y-8),new(tabs.Size.X-24,8)));
         Tile("catalog-tabs-left",new(tabs.Position+new Vector2(0,24),new(12,tabs.Size.Y-48)));

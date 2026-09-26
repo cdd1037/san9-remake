@@ -28,6 +28,7 @@ public partial class InformationPanel : Control
     public InformationMenuButton? HoverMenuButton => State.IsMenu
         ? _content.GetChildren().OfType<InformationMenuButton>().FirstOrDefault(b => b.IsHovered()) : null;
     private CatalogView? _catalog;
+    private UnitDetailView? _unitDetail;
     private AdministrativeDetailView? _administrativeDetail;
     private InformationMapView? _informationMap;
     private CatalogTableState _officerCatalogState = new();
@@ -68,7 +69,7 @@ public partial class InformationPanel : Control
         if (_content is not null) { RemoveChild(_content); _content.QueueFree(); }
         Textures?.Dispose(); Textures = Service.CreateScope(owner: this);
         _content = new Control { Size = Size, MouseFilter = MouseFilterEnum.Ignore }; AddChild(_content);
-        _catalog = null; _administrativeDetail = null; _informationMap = null; _officerDetail = null; _treasureDetail = null; _scroll = null; _rowControls.Clear(); _columnHeaders.Clear(); _note = null; _mapButton = null;
+        _catalog = null; _unitDetail = null; _administrativeDetail = null; _informationMap = null; _officerDetail = null; _treasureDetail = null; _scroll = null; _rowControls.Clear(); _columnHeaders.Clear(); _note = null; _mapButton = null;
         if (!Visible) return;
         if (State.IsMenu)
         {
@@ -84,6 +85,50 @@ public partial class InformationPanel : Control
                 _content.AddChild(button);
             }
             return;
+        }
+        if (State.Category == InformationCategory.Units && State.IsDetail)
+        {
+            State.DetailSelection.Refresh(_query.Read(State).Rows.Select(r => r.Key.Id));
+            if (State.DetailSelection.Candidates.Count == 0) { State.Back(); Rebuild(); return; }
+            State.Select(State.DetailSelection.CurrentId);
+            _unitDetail = new UnitDetailView
+            {
+                State = State.DetailSelection, Textures = Textures,
+                Read = id => _query.UnitDetail(id),
+                ReadName = id => _query.UnitDetail(id).Name,
+                CurrentChanged = State.Select, Closed = Back,
+                OpenOfficers = id => { State.Navigate(new("武将", InformationCategory.Officers, UnitId: id)); Rebuild(); },
+                OpenOfficer = id =>
+                {
+                    State.Navigate(new("武将", InformationCategory.Officers, OfficerId: id));
+                    _officerDetailState.Open([id],id); State.ShowDetail(id); Rebuild();
+                }
+            };
+            _content.AddChild(_unitDetail); return;
+        }
+        if (State.Category == InformationCategory.Units && !State.IsDetail)
+        {
+            _catalog = new CatalogView
+            {
+                Service = Service, Textures = Textures, TableState = State.Catalog,
+                Title = "部队一览", HintText = "请选择欲观看其情报的部队。", Pages = UnitCatalog.Pages, TabStripFollowsPage = true,
+                InitialPage = State.Page, InitialCurrentId = State.SelectedId, InitialOffset = State.Offset,
+                ReadRows = page => _query.Read(InformationCategory.Units, page, State.ForceFilter, corps: State.CorpsFilter, region: State.RegionFilter)
+                    .Rows.Select(r => new CatalogRow(r.Key.Id, r.Cells)).ToArray(),
+                Closed = Back, Activated = id =>
+                {
+                    State.DetailSelection.SetVisibleRows(UnitDetailView.VisibleRows);
+                    State.DetailSelection.Open(State.Catalog.Rows.Select(r => r.Id), id);
+                    State.ShowDetail(id); Rebuild();
+                },
+                ViewChanged = (page, offset, selected) =>
+                {
+                    if (State.Page != page) State.SelectPage(page, UnitCatalog.Pages.Count);
+                    State.Scroll(offset, State.Catalog.Rows.Length);
+                    if (selected is int id) State.Select(id);
+                }
+            };
+            _content.AddChild(_catalog); return;
         }
         if (ForceCapabilityCatalog.Supports(State.Category))
         {
@@ -162,7 +207,7 @@ public partial class InformationPanel : Control
                 Service = Service,
                 TableState = _officerCatalogState, Title = "武将一览", HintText = Texts.ResolveRich(StrategyHintText.Key("catalog-officers")), Pages = OfficerCatalog.Pages, Textures = Textures,
                 InitialPage = State.Page, InitialCurrentId = State.SelectedId, InitialOffset = State.Offset,
-                ReadRows = page => _query.Read(State.Category, page, State.ForceFilter, State.SettlementFilter, State.CorpsFilter, State.RegionFilter, State.OfficerFilter).Rows
+                ReadRows = page => _query.Read(State.Category, page, State.ForceFilter, State.SettlementFilter, State.CorpsFilter, State.RegionFilter, State.OfficerFilter, State.UnitFilter).Rows
                     .Select(row => new CatalogRow(row.Key.Id, row.Cells)).ToArray(),
                 Portrait = id => $"catalog-person-{id}",
                 PortraitDeceased = id => Session.View.World.Officers.Any(o => o.Id == id && o.Status == San9.Core.Domain.OfficerStatus.Dead),
@@ -376,7 +421,7 @@ public partial class InformationPanel : Control
     }
     private void BuildDetail()
     {
-        var detail = _query.Detail(new(State.Category, State.SelectedId!.Value));
+        var detail = _query.Detail(new(State.Category, State.SelectedId!.Value), State.Category == InformationCategory.Units ? State.Page : null);
         Title(detail.Title);
         bool hasImage = detail.ImageRole is not null;
         if (hasImage)
@@ -427,7 +472,7 @@ public partial class InformationPanel : Control
     }
     public override void _Input(InputEvent @event)
     {
-        if (!Visible || _catalog is not null || _informationMap is not null || _administrativeDetail is not null || _officerDetail is not null || _treasureDetail is not null) return;
+        if (!Visible || _catalog is not null || _unitDetail is not null || _informationMap is not null || _administrativeDetail is not null || _officerDetail is not null || _treasureDetail is not null) return;
         if (@event is InputEventKey { Pressed: true, Keycode: Key.Escape })
         { if (_note is not null) Rebuild(); else Back(); GetViewport().SetInputAsHandled(); }
         else if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Right })
@@ -453,7 +498,7 @@ public partial class InformationPanel : Control
     }
     public override void _GuiInput(InputEvent @event)
     {
-        if (_catalog is not null || _informationMap is not null || _administrativeDetail is not null || _officerDetail is not null || _treasureDetail is not null) return;
+        if (_catalog is not null || _unitDetail is not null || _informationMap is not null || _administrativeDetail is not null || _officerDetail is not null || _treasureDetail is not null) return;
         if (@event is InputEventMouseButton { Pressed: true } mouse)
         {
             if (State.IsMenu && !_menu.HasPoint(mouse.Position)) Back();
@@ -480,7 +525,7 @@ public partial class InformationPanel : Control
     }
     public override void _Draw()
     {
-        if (_catalog is not null || _informationMap is not null || _administrativeDetail is not null || _officerDetail is not null || _treasureDetail is not null) return;
+        if (_catalog is not null || _unitDetail is not null || _informationMap is not null || _administrativeDetail is not null || _officerDetail is not null || _treasureDetail is not null) return;
         if (!Visible) return;
         if (State.IsMenu)
         {

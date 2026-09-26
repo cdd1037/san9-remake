@@ -84,3 +84,18 @@ y = 121 + 88 * row
 2026-08-30 的 `JNKI-01/02` 收口批次写入 9 个高置信名称：`get_formation_description_text`、`get_formation_description_by_code`、`is_formation_slot_index`、`get_formation_slot_code`、`assign_formation_slots_to_unit_people`、`get_formation_property_value`、`get_unit_vision_arc_visual_key`、`refresh_unit_vision_arc_visual` 和 `populate_unit_formation_dialog`。同时修正阵位读取/分配函数的 `__thiscall` 签名，并在加载、说明、人物写入、视野视觉和部署坐标点写入 9 条证据注释。
 
 名称 dry-run 与写入均为 `9/9`；类型写入 `2/2`。原位保存、强制重新反编译并回读确认名称和注释可见；程序字节与函数边界未修改。详见 [`formation-fields-batch-1.json`](../analysis/ida-write-records/formation-fields-batch-1.json)。
+
+## 2026-09-26 部队详情视野贴图
+
+沿已登记TC101样本与主库回读，SHA-256为 `d20794aeff67301ec2bf8c3becb1e9944c68c6c0588fbfd4bf04e8597f0e5028`。以下为详情消费者的静态事实，不把地图视野动态绘制链套入详情页：
+
+- `render_unit_info_panel(0x590610)`创建两个120×120的模式3图像控件；表`0x622CD8`回读位置为陆上(177,512)、水上(435,512)。
+- `populate_unit_formation_dialog(0x590AD0)`分别读取陆阵和船阵，以`968 + sub_448A40(formation,0)`选择图。`0x448A40`按阵形身份查询`0x656010`的双列映射表，不按运行时视野半径和角度生成详情图。
+- `load_common_graphics_resources(0x423270)`把`G_Jinkei`图像绑定到全局915起。因此视野图为本地索引`53 + lookup`，范围53～64。鱼鳞0和走舸20的lookup均6，即本地第59张（从0计数），调色板2。完整lookup按身份0～27为`6,7,4,5,8,9,3,1,6,6,6,6,11,11,11,10,10,10,10,10,6,4,10,9,11,11,10,11`。
+- 模式3绘制函数`0x424C70`保持资源原生尺寸并在控件中居中，显式设置`draw_flags=64`，采用逐色Alpha；初始化的`0x80808080`参数不在模式3分支用于统一调制颜色。
+
+源资源核对：第59张为120×120；按调色板2第四字节覆盖度解码后，上半圆主体圆心约(60,60)、外半径约36、环间距约12像素，RGB与不同透明度均由贴图提供。全部非零Alpha范围为`[25,25,96,95)`，包含下方极淡像素，不能把其高度70误认为半圆主体高度。第64张逐色Alpha结果全透明。仅使用完整透明色键的现有图库变体会把原本Alpha为0但RGB非透明色键的区域画出，形成错误的完整圆盘；视野消费者须采用专门的逐色Alpha资源。
+
+本地研究预览：`local/generated/verification/formation-vision/g-jinkei-59-palette-alpha.png`为源图逐色Alpha解码，`g-jinkei-59-preview.png`为深灰底3倍最近邻展示。原作截图中的大小和渐透纹理与源图相符；重制当前57.6像素固定半径约为源图主体的1.6倍。本轮仅调查，没有修改客户端实现或运行游戏。
+
+IDA实际变更：向`0x590610`和`0x424C70`各追加一条注释，记录贴图选择、位置及逐色Alpha消费者；主库原位保存成功，`ida_funcs.get_func_cmt`按本轮标签回读2/2成功。未修改名称、类型或程序字节。

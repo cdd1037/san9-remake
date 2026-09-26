@@ -26,7 +26,7 @@ public sealed class InformationQuery(GameSession session, TextCatalog texts)
     };
     public bool Available(InformationCategory category) => category switch
     {
-        InformationCategory.Units => View.World.Units.Count > 0,
+        InformationCategory.Units => View.World.Units.Any(UnitCatalog.IsListed),
         InformationCategory.Treasures => TreasureCatalog.Read(View, texts).Rows.Length > 0,
         _ => true
     };
@@ -34,25 +34,19 @@ public sealed class InformationQuery(GameSession session, TextCatalog texts)
         (!Available(category) ? "-empty" : ""));
     public InformationTable Read(InformationBrowser browser) => browser.Category == InformationCategory.Treasures
         ? TreasureCatalog.Read(View, texts, browser.HolderFilter, browser.ForceFilter, browser.SettlementFilter)
-        : Read(browser.Category, browser.Page, browser.ForceFilter, browser.SettlementFilter, browser.CorpsFilter, browser.RegionFilter, browser.OfficerFilter);
-    public InformationTable Read(InformationCategory category, int page = 0, int? force = null, int? settlement = null, int? corps = null, int? region = null, int? officer = null)
+        : Read(browser.Category, browser.Page, browser.ForceFilter, browser.SettlementFilter, browser.CorpsFilter, browser.RegionFilter, browser.OfficerFilter, browser.UnitFilter);
+    public InformationTable Read(InformationCategory category, int page = 0, int? force = null, int? settlement = null, int? corps = null, int? region = null, int? officer = null, int? unit = null)
     {
         var v = View;
         if (ForceCapabilityCatalog.Supports(category)) return ForceCapabilityCatalog.Read(session, texts, category, force ?? throw new ArgumentException("A force catalog requires an owner."), page);
         if (AdministrativeCatalog.Supports(category)) return new AdministrativeCatalog(v, texts).Read(category, page, force, settlement, corps, region);
         InformationRow Row(int id, CatalogCell[] cells, int? location = null) => new(new(category, id), cells, location);
-        bool Owner(int? id) => force is null || force == id;
         switch (category)
         {
             case InformationCategory.Units:
-                return page == 1
-                    ? new("部队一览", ["状态", "方针"], ["部队", "敌接近时", "追击", "事后命令", "自主撤退"],
-                        v.World.Units.Where(u => Owner(u.OwnerId) && (corps is null || u.CorpsId == corps) && (region is null || v.RegionAt(u.Position) == region)).Select(u => Row(u.Id, [$"{Force(u.OwnerId)}部队",
-                            u.Policies.AttackApproachingEnemies ? "迎击" : "继续任务", u.Policies.Pursue ? "许可" : "禁止",
-                            u.Policies.AttackAfterAction ? "攻击" : "返城", u.Policies.AutonomousRetreat ? "许可" : "禁止"])).ToArray())
-                    : new("部队一览", ["状态", "方针"], ["部队", "势力", "士兵", "位置"], v.World.Units.Where(u => Owner(u.OwnerId) && (corps is null || u.CorpsId == corps) && (region is null || v.RegionAt(u.Position) == region)).Select(u => Row(u.Id, [$"{Force(u.OwnerId)}部队", Force(u.OwnerId), (long)u.Soldiers, $"{u.Cell.X}, {u.Cell.Y}"])).ToArray());
+                return UnitCatalog.Read(v, session.MilitaryRules, texts, page, force, corps, region);
             case InformationCategory.Officers:
-                return OfficerCatalog.Read(v, texts, page, force, settlement, officer, corps, region);
+                return OfficerCatalog.Read(v, texts, page, force, settlement, officer, corps, region, unit);
             case InformationCategory.Treasures:
                 return TreasureCatalog.Read(v, texts, force: force, settlement: settlement);
             case InformationCategory.Records:
@@ -75,7 +69,9 @@ public sealed class InformationQuery(GameSession session, TextCatalog texts)
         }
     }
 
-    public InformationDetail Detail(InformationKey key)
+    public UnitDetailData UnitDetail(int id) => UnitDetails.Read(View, session.MilitaryRules, texts, id);
+
+    public InformationDetail Detail(InformationKey key, int? selectedPage = null)
     {
         if (AdministrativeCatalog.Supports(key.Category))
         {
@@ -85,7 +81,7 @@ public sealed class InformationQuery(GameSession session, TextCatalog texts)
         var table = Read(key.Category);
         var row = table.Rows.Single(r => r.Key == key);
         List<InformationField> fields = [];
-        for (int page = 0; page < (key.Category == InformationCategory.Officers ? 1 : table.Pages.Length); page++)
+        for (int page = selectedPage ?? 0; page < (selectedPage is int selected ? selected + 1 : key.Category == InformationCategory.Officers ? 1 : table.Pages.Length); page++)
         {
             var pageTable = Read(key.Category, page); var pageRow = pageTable.Rows.Single(r => r.Key == key);
             for (int c = 1; c < pageTable.Columns.Length; c++)

@@ -6,6 +6,18 @@ public sealed class CombatMathTests
 {
     private static readonly CombatStrength Troops = new(10000, 100, 80, 1, 10);
 
+    [Theory]
+    [InlineData(20000u, 80, 10, 4L, 1)]
+    [InlineData(32000u, 90, 10, 6L, 2)]
+    [InlineData(10000u, 80, 20, 9L, 3)]
+    [InlineData(0u, 80, 10, 1L, 0)]
+    public void WallAttackPreviewRetainsPowerBeforeDamageScaling(uint soldiers, int leadership,
+        int coefficient, long strength, int damage)
+    {
+        Assert.Equal(strength, CombatMath.WallAttackStrength(soldiers, leadership, coefficient));
+        Assert.Equal(damage, CombatMath.DurabilityDamage(soldiers, leadership, coefficient, 100));
+    }
+
     [Fact]
     public void RockfallReplacesAttackPowerWithoutReapplyingMoraleIntensityOrCoefficient()
     {

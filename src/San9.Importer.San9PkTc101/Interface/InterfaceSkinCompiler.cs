@@ -35,15 +35,15 @@ public static class InterfaceSkinCompiler
             }
         }
         foreach (var (part, index) in new[] { ("top-left", 32), ("top", 33), ("top-right", 34), ("left", 35), ("center", 36), ("right", 37), ("bottom-left", 38), ("bottom", 39), ("bottom-right", 40) })
-            Export("information-menu-" + part, index, 11);
+            Export("information-menu-" + part, index, 11, paletteAlpha: true);
         foreach (var (part, index) in new[] { ("left", 23), ("middle", 24), ("right", 25) })
-            Export("information-menu-button-" + part, index, 10, 4);
-        Export("top-frame", 88, 17); Export("radar-frame", 82, 16); Export("sidebar-frame", 84, 16); Export("roster-scroll-decoration", 85, 16);
+            Export("information-menu-button-" + part, index, 10, 4, paletteAlpha: true);
+        Export("top-frame", 88, 17, paletteAlpha: true); Export("radar-frame", 82, 16, paletteAlpha: true); Export("sidebar-frame", 84, 16, paletteAlpha: true); Export("roster-scroll-decoration", 85, 16, paletteAlpha: true);
         Export("button-scroll-up", 51, 6, 4); Export("button-scroll-down", 52, 6, 4);
         foreach (var (part, index) in new[] { ("top", 53), ("middle", 54), ("bottom", 55) })
-            Export("scroll-track-" + part, index, 6);
+            Export("scroll-track-" + part, index, 6, paletteAlpha: true);
         foreach (var (part, index) in new[] { ("top", 56), ("middle", 57), ("bottom", 58) })
-            Export("scroll-thumb-" + part, index, 6);
+            Export("scroll-thumb-" + part, index, 6, paletteAlpha: true);
         string[] seasons = ["spring", "summer", "autumn", "winter"];
         for (int i = 0; i < seasons.Length; i++) Export("season-" + seasons[i], 64 + i, 1);
         Export("button-territory", 68, 2, 6); Export("button-facilities", 69, 2, 4);
@@ -77,8 +77,8 @@ public static class InterfaceSkinCompiler
         Overview("overview-terrain", 1163, 9);
         Overview("overview-borders", 1162, 8, alpha: true);
         Overview("overview-ranking", 1160, 7, alpha: true);
-        for (int color = 0; color < 51; color++) Overview($"information-map-force-{color}", 1103 + color, 4, 4);
-        Overview("information-map-city", 1154, 4, 4);
+        for (int color = 0; color < 51; color++) Overview($"information-map-force-{color}", 1103 + color, 4, 4, alpha: true);
+        Overview("information-map-city", 1154, 4, 4, alpha: true);
         Overview("button-overview-forces", 1158, 6, 4, true);
         Overview("button-overview-facilities", 1159, 6, 4, true);
         Overview("button-overview-units", 1157, 6, 4, true);
@@ -206,7 +206,9 @@ public static class InterfaceSkinCompiler
                 string key = "information-action-" + role + (frame == 0 ? "" : $"-{frame}");
                 string id = "ui-" + key;
                 var pixels = IndexedImageArchive.Frame(common.Images[resource], 4, 1, frame, 0);
-                assets.Add(save(id, TextureSourcePath.Image("G_Common", resource, 42, true, false, columns: 4, frame: frame), IndexedImageArchive.Decode(pixels, common.Palettes[42], true, false)));
+                // Composite three-part buttons use palette alpha; the standalone close icon uses color key.
+                bool alpha = role != "close";
+                assets.Add(save(id, TextureSourcePath.Image("G_Common", resource, 42, true, alpha, columns: 4, frame: frame), IndexedImageArchive.Decode(pixels, common.Palettes[42], true, alpha)));
                 ui.Add(key, id);
             }
         }

@@ -4,7 +4,7 @@
 
 ## 现行版本与历史记录
 
-现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 124，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 128，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 21，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 17。规则为 `san9-core-g10-v73`，保存90／日志93／录像5；协议以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 为准。
+现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 124，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 128，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 21，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 18。规则为 `san9-core-g10-v73`，保存90／日志93／录像5；协议以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 为准。
 
 旧内容包按现行契约原位重转，旧规则存档、日志和录像拒绝加载。是否重转纹理取决于纹理转换版本与源输入。历史验收只证明对应基线，不代表当前版本重新验证；阶段收口见[G10 验收](g10-verification.md#2026-09-21阶段收口)。
 
@@ -19,7 +19,7 @@
 | Content.Text / ScenarioTextReader | 名称与全量消息目录 | `text.json` / `messages.json`，schema3 |
 | Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema21 |
 | Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema128 |
-| Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema5／转换版本17 |
+| Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema5／转换版本18 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 
 共享剧本契约不按原版编号区间限制城市或人物身份。城市图标资格由`SettlementKind.City`决定；`RegionCityIds`必须引用真实城市，其城市名从据点定义读取，不要求城市ID同时存在于地域名称表。数量与名称不继承源格式槽位和字节长度；玩法数值上限及显示资源范围独立校验。
@@ -186,7 +186,7 @@ TC101完整保留41项兵法和28项阵形的展示元数据，名称与说明�
 
 ### 野外部队动画资源
 
-纹理schema5／转换版本17、地图schema11保存部队完整规模布局，每档同时定义兵群与地利光效；身体包含可选的皇帝势力替代资源。人物定义提供旗字，部队采用大将旗字，君主领军用帅旗。需要依次运行`import-textures`和`import-client`，见[地图导入](map-import.md)。覆盖28项军事阵型、20类身体的八方向待机、五类状态及四种地利片段。190年初始野战队仍为0，不扩大初始对象筛选或新增军事命令；显示规模与领域容量独立，实际画面由用户出征验收。
+纹理schema5／转换版本18、地图schema11保存部队完整规模布局，每档同时定义兵群与地利光效；身体包含可选的皇帝势力替代资源。人物定义提供旗字，部队采用大将旗字，君主领军用帅旗。需要依次运行`import-textures`和`import-client`，见[地图导入](map-import.md)。覆盖28项军事阵型、20类身体的八方向待机、五类状态及四种地利片段。190年初始野战队仍为0，不扩大初始对象筛选或新增军事命令；显示规模与领域容量独立，实际画面由用户出征验收。
 
 部队旗帜独立保存八方向片段，当前朝向驱动旗面、旗字和旗杆遮挡；建筑旗帜继续按季节切换。资源变化须依次原位重转纹理与组合包。客户端只读取转换片段。
 

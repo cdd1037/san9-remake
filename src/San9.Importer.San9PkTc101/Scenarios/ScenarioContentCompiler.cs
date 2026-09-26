@@ -109,10 +109,10 @@ public static class ScenarioContentCompiler
                     ? San9.Core.Domain.CorpsControlMode.Direct : San9.Core.Domain.CorpsControlMode.Automatic }).ToArray(),
             treasureStates)
         {
-            Tactics = Read(San9ScenarioTacticArchive.ReadKnownRecords).Where(t => t.Id < 31)
+            Tactics = Read(San9ScenarioTacticArchive.ReadKnownRecords)
                 .Select(t => new MilitaryCatalogDefinition(t.Id, text.Tactic(t.Id)) { DescriptionKey = text.TacticDescription(t.Id) }).ToArray(),
             Formations = formations
-                .Select(f => new MilitaryCatalogDefinition(f.Id, text.Formation(f.Id))).ToArray(),
+                .Select(f => new MilitaryCatalogDefinition(f.Id, text.Formation(f.Id)) { DescriptionKey = text.FormationDescription(f.Id) }).ToArray(),
             CountryTitles = PoliticalContentCompiler.Titles(countryTitles, persons, officers.Select(o => o.State.Id),
                 id => text.CountryTitle($"country-title.{id}", id),
                 id => System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(exe.AsSpan(0x253bb0 + id * 4, 4))),

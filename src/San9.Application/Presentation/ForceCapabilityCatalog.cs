@@ -24,6 +24,14 @@ public static class ForceCapabilityCatalog
                 new("power", "威力", 6, CatalogAlignment.Right), Column("陆上", 6), Column("水上", 6), Column("对设施", 8),
                 new("training", "熟练要求", 10, CatalogAlignment.Right), new("interval", "使用间隔", 10, CatalogAlignment.Right)]),
                 new("说明", [new("name", "兵法", 6, CatalogAlignment.Left), new("description", "说明", 40, CatalogAlignment.Left)])];
+        if (category == InformationCategory.Ships)
+        {
+            CatalogColumn Name() => new("name", "船", 4, CatalogAlignment.Left);
+            CatalogColumn Number(string title, int width = 8) => new(title, title, width, CatalogAlignment.Right);
+            return [new("特征", [Name(), Number("对部队"), Number("对守兵"), Number("对城壁"), Number("守备力"), Number("机动力"), Number("费用", 6)]),
+                new("效果", [Name(), new("effect", "效果", 50, CatalogAlignment.Left)]),
+                new("说明", [Name(), new("description", "说明", 50, CatalogAlignment.Left)])];
+        }
         return [new("特征", category switch
         {
             InformationCategory.Formations or InformationCategory.Ships => [Column(category == InformationCategory.Ships ? "船" : "阵形", 12),
@@ -82,6 +90,20 @@ public static class ForceCapabilityCatalog
             }).Select(f =>
             {
                 var rule = military.Formations[f.Id];
+                if (category == InformationCategory.Ships)
+                {
+                    if (pageIndex == 1)
+                    {
+                        var tactics = rule.Tactics?.AutomaticTactics ?? [];
+                        return Row(f.Id, texts.Resolve(f.NameKey), tactics.Length == 0 ? "" :
+                            "可发动兵法" + string.Concat(tactics.Select(id => $"「{Tactic(id)}」")) + "。");
+                    }
+                    if (pageIndex == 2) return Row(f.Id, texts.Resolve(f.NameKey), f.DescriptionKey is { } key ? texts.Resolve(key) : "");
+                    return Row(f.Id, texts.Resolve(f.NameKey), rule.Combat?.AgainstUnits ?? 0, rule.Combat?.AgainstGarrison ?? 0,
+                        rule.Combat?.AgainstWalls ?? 0, rule.Combat?.Defense ?? 0,
+                        new CatalogCell(((decimal)rule.MovementBudget / MapCoordinates.UnitsPerCell).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture), rule.MovementBudget),
+                        rule.DeploymentCost);
+                }
                 return Row(f.Id, texts.Resolve(f.NameKey), rule.Combat?.AgainstUnits ?? 0, rule.Combat?.AgainstGarrison ?? 0,
                     rule.Combat?.AgainstWalls ?? 0, rule.Combat?.Defense ?? 0, rule.MovementBudget, rule.DeploymentCost, Tactic(rule.RequiredTacticId));
             });

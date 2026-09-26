@@ -63,6 +63,9 @@ public sealed record InformationDefinitions(RankDefinition[] Ranks, OfficeDefini
         if (Formations.Any(f => scenario.Military!.Formations.Single(r => r.Id == f.Id).RequiredTacticId is int tactic &&
             !Tactics.Any(t => t.Id == tactic)))
             throw new InvalidDataException("A catalog formation requires a named tactic reference.");
+        if (Formations.Any(f => (scenario.Military!.Formations.Single(r => r.Id == f.Id).Tactics?.AutomaticTactics ?? [])
+            .Any(id => !Tactics.Any(t => t.Id == id))))
+            throw new InvalidDataException("A catalog formation requires named automatic tactic references.");
         var occupied = scenario.Forces.Where(f => f.CountryTitleId is not null).Select(f => f.CountryTitleId!.Value).ToArray();
         if (occupied.Distinct().Count() != occupied.Length || occupied.Any(id => !CountryTitles.Any(t => t.Id == id)))
             throw new InvalidDataException("Invalid initial country title ownership.");

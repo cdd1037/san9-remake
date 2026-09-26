@@ -95,11 +95,12 @@ public sealed class SettlementContextMenuTests
             Information = new([new(700, "rank", 10000, 0, 0, 9), new(100, "higher", 20000, 0, 0, 10)],
                 [new(888, "office", 10000, 11) { RequiredRankId = 700, DescriptionKey = "office-description" }, new(999, "higher-office", 20000, 20) { RequiredRankId = 100 }],
                 [new(77, "book", 1, 0, 0, 902)], basis.Information.Corps, [new(77, 1, TreasureDiscovery.Discovered, null)]) {
-                Tactics = [new(901, "land-tech"), new(902, "ship-tech"), new(903, "attack") { DescriptionKey = "attack-description" }, new(904, "trap")],
-                Formations = [new(731, "base"), new(732, "advanced"), new(733, "ship")]
+                Tactics = [new(901, "land-tech"), new(902, "ship-tech"), new(903, "attack") { DescriptionKey = "attack-description" }, new(904, "trap"), new(907, "wave"), new(908, "rain")],
+                Formations = [new(731, "base"), new(732, "advanced"), new(733, "ship") { DescriptionKey = "ship-description" }]
             },
             Military = new(4, 4, Enumerable.Repeat(0, 16).ToImmutableArray(), [new(0, 1, 1)],
-                [Formation(731, TravelMode.Land), Formation(732, TravelMode.Land, 901), Formation(733, TravelMode.Water, 902)],
+                [Formation(731, TravelMode.Land), Formation(732, TravelMode.Land, 901), Formation(733, TravelMode.Water, 902) with {
+                    MovementBudget = 61, Tactics = new(10, 0, 2, [], [908, 907]) }],
                 basis.Settlements.Select(s => new BattlefieldPlace(s.Id, MapCoordinates.Center(new(s.X, s.Y)), new(1, 1))).ToImmutableArray()) {
                 Elevations = Enumerable.Repeat(0, 16).ToImmutableArray(),
                 TrapTerrains = [new(0, 905, true)], HigherGroundTrap = new(906, 1),
@@ -108,10 +109,12 @@ public sealed class SettlementContextMenuTests
                     new(903, 2, TacticEffect.Martial, 13, 9, 150, true, true, [731, 733]),
                     new(904, 6, TacticEffect.TrapSelection, 0, 0, 0, true, false, [731]),
                     new(905, 6, TacticEffect.Trap, 0, firstInterval, 0, false, false, [731]),
-                    new(906, 6, TacticEffect.Trap, 0, secondInterval, 0, false, false, [731])]
+                    new(906, 6, TacticEffect.Trap, 0, secondInterval, 0, false, false, [731]),
+                    new(907, 4, TacticEffect.Martial, 10, 0, 0, false, false, [733]),
+                    new(908, 4, TacticEffect.Martial, 20, 0, 0, false, false, [733])]
             }
         };
-        var keys = basis.Officers.Select(o => o.NameKey).Concat(["trap", "attack", "attack-description", "rank", "higher", "office", "office-description", "higher-office", "book", "land-tech", "ship-tech", "base", "advanced", "ship"]);
+        var keys = basis.Officers.Select(o => o.NameKey).Concat(["wave", "rain", "ship-description", "trap", "attack", "attack-description", "rank", "higher", "office", "office-description", "higher-office", "book", "land-tech", "ship-tech", "base", "advanced", "ship"]);
         var texts = new TextCatalog(3, keys.ToDictionary(k => k, k => new TextEntry(k, k)));
         var session = GameSession.Start(definition, 1);
         var query = new InformationQuery(session, texts);
@@ -143,6 +146,19 @@ public sealed class SettlementContextMenuTests
         Assert.Equal("attack-description", Assert.Single(query.Read(InformationCategory.Tactics, 1, force: 1).Rows, r => r.Key.Id == 903).Cells[1].Text);
         Assert.Equal([731, 732], query.Read(InformationCategory.Formations, force: 1).Rows.Select(r => r.Key.Id));
         Assert.Equal([733], query.Read(InformationCategory.Ships, force: 1).Rows.Select(r => r.Key.Id));
+        var ships = query.Read(InformationCategory.Ships, force: 1);
+        Assert.Equal(["特征", "效果", "说明"], ships.Pages);
+        Assert.Equal(["船", "对部队", "对守兵", "对城壁", "守备力", "机动力", "费用"], ships.Columns);
+        Assert.Equal("12.2", Assert.Single(ships.Rows).Cells[5].Text);
+        Assert.Equal("可发动兵法「rain」「wave」。", Assert.Single(query.Read(InformationCategory.Ships, 1, force: 1).Rows).Cells[1].Text);
+        Assert.Equal("ship-description", Assert.Single(query.Read(InformationCategory.Ships, 2, force: 1).Rows).Cells[1].Text);
+        Assert.Throws<InvalidDataException>(() => (definition with {
+            Information = definition.Information with { Tactics = definition.Information.Tactics.Where(t => t.Id != 907).ToArray() }
+        }).Validate());
+        var withoutAutomaticTactics = definition with { Military = definition.Military with {
+            Formations = definition.Military.Formations.Select(f => f.Id == 733 ? f with { Tactics = null } : f).ToImmutableArray() } };
+        Assert.Equal("", Assert.Single(new InformationQuery(GameSession.Start(withoutAutomaticTactics, 1), texts)
+            .Read(InformationCategory.Ships, 1, force: 1).Rows).Cells[1].Text);
         Assert.Empty(query.Read(InformationCategory.Tactics, force: 2).Rows);
         Assert.Equal([731], query.Read(InformationCategory.Formations, force: 2).Rows.Select(r => r.Key.Id));
         Assert.Equal(hash, session.Snapshot.StateHash);

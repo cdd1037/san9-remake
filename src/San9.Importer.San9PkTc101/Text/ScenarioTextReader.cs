@@ -60,6 +60,7 @@ public sealed class ScenarioTextReader(byte[] messages, byte[] executable) : IDi
     public string Tactic(int id) => Add($"tactic.{id}", _messages.PlainText(1219 + 3 * id));
     public string TacticDescription(int id) => Add($"tactic-description.{id}", _messages.PlainText(1221 + 3 * id));
     public string Formation(int id) => Add($"formation.{id}", _messages.PlainText(5363 + 3 * id));
+    public string? FormationDescription(int id) => AddOptional($"formation-description.{id}", _messages.PlainText(5365 + 3 * id));
     public string OfficeDescription(int id) => Add($"office-description.{id}", _messages.PlainText(7770 + id));
     public string Office(string key, int id) => Add(key, _messages.PlainText(5065 + 2 * id));
     public string City(string key, int code) => Add(key, _messages.PlainText(721 + 2 * code));

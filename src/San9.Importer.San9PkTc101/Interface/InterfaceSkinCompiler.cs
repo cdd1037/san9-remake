@@ -38,6 +38,24 @@ public static class InterfaceSkinCompiler
             Export("information-menu-" + part, index, 11, paletteAlpha: true);
         foreach (var (part, index) in new[] { ("left", 23), ("middle", 24), ("right", 25) })
             Export("information-menu-button-" + part, index, 10, 4, paletteAlpha: true);
+        foreach (var (level, start) in new[] { ("primary", 0), ("secondary", 9) })
+        foreach (var (tone, offset) in new[] { ("blue", 0), ("green", 3), ("brown", 6) })
+        foreach (var (part, piece) in new[] { ("left", 0), ("middle", 1), ("right", 2) })
+            Export($"command-{level}-{tone}-{part}", start + offset + piece, 0, 4, paletteAlpha: true);
+        Export("command-top", 18, 7, paletteAlpha: true);
+        Export("command-middle", 19, 7, paletteAlpha: true);
+        Export("command-bottom", 20, 7, paletteAlpha: true);
+        Export("command-illustration-frame", 21, 8, paletteAlpha: true);
+        Export("command-condition", 22, 9, paletteAlpha: true);
+        var still = IndexedImageArchive.ReadArchive(read(Path.Combine(dataDirectory, "G_Still.s9")));
+        foreach (var entry in CommandMenuSources.Entries)
+        {
+            string role = "command-illustration-" + entry.Id, id = "ui-" + role;
+            int index = entry.Illustration;
+            assets.Add(save(id, TextureSourcePath.Image("G_Still", index, index, false, false),
+                IndexedImageArchive.Decode(still.Images[index], still.Palettes[index], false, false)));
+            ui.Add(role, id);
+        }
         Export("top-frame", 88, 17, paletteAlpha: true); Export("radar-frame", 82, 16, paletteAlpha: true); Export("sidebar-frame", 84, 16, paletteAlpha: true); Export("roster-scroll-decoration", 85, 16, paletteAlpha: true);
         Export("button-scroll-up", 51, 6, 4); Export("button-scroll-down", 52, 6, 4);
         foreach (var (part, index) in new[] { ("top", 53), ("middle", 54), ("bottom", 55) })
@@ -192,6 +210,10 @@ public static class InterfaceSkinCompiler
                 ui.Add(role, "ui-" + role);
             }
         }
+        foreach (var (kind, resource) in new[] { ("unit", 488), ("facility", 489), ("city", 490) })
+            Extra("command-summary-" + kind, resource, bindings[resource] - 200, true);
+        Extra("command-summary-merchant", 1239, bindings[1239] - 311, true);
+        Extra("command-summary-training", 1240, bindings[1240] - 311, true);
         Extra("hover-divider", 425, 55, true);
         Extra("information-background", 337, 40);
         foreach (var (part, resource) in new[] { ("bottom", 338), ("left", 339), ("right", 340), ("top", 341), ("bottom-left", 342), ("top-left", 343), ("bottom-right", 344), ("top-right", 345), ("ornament", 346) })
@@ -235,6 +257,6 @@ public static class InterfaceSkinCompiler
         var fontPalette = read(Path.Combine(dataDirectory, "P_Font.s9"));
         string FontColor(int style) => Convert.ToHexString(fontPalette.AsSpan((style / 2 * 32 + 16 + style % 2 * 8 + 7) * 4, 3));
         colors.Add("roster-available", FontColor(7)); colors.Add("roster-unavailable", FontColor(26));
-        return new(21, assets.ToArray(), ui, colors);
+        return new(22, assets.ToArray(), ui, colors);
     }
 }

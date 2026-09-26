@@ -15,14 +15,12 @@ public partial class MapWorld : Node2D
     private MapSceneView? _display;
     private TerrainChunkCache<ImageTexture>? _terrain;
     private TextureScope? _flags;
-    private Node2D _selectionLayer = null!;
     private Dictionary<string, PngImage>? _common;
     private CancellationTokenSource _cancellation = new();
     private Task<LoadedTerrain>? _loading;
     private string _packageRoot = "";
     private string? _error;
     private bool _dragging, _showBoundaries = true, _awaitingSeason;
-    private Vector2I? _selected;
     private readonly Stopwatch _animation = Stopwatch.StartNew(), _navigation = new(), _loadWatch = new();
     private double? _fixedAnimationTime;
     private TerrainRenderer? _announcedTerrain;
@@ -61,9 +59,7 @@ public partial class MapWorld : Node2D
     public Func<Vector2, bool>? IsInputBlocked { get; set; }
     public event Action<int, Vector2>? BuildingContextRequested;
     public event Action<int, Vector2>? UnitContextRequested;
-    public event Action<int>? BuildingPicked;
-    public event Action<int, int>? SquarePicked;
-    public event Action? SelectionCleared;
+    public event Action<MapObjectTarget, Vector2>? CommandMenuRequested;
     public event Action? MapReady;
     public bool ShowBoundaries
     {
@@ -75,7 +71,6 @@ public partial class MapWorld : Node2D
         _camera = GetNode<Camera2D>("Camera");
         var center = MapGeometry.Center(89, 64);
         _requested = new(center.X, center.Y, 1); _camera.Position = new(center.X, center.Y);
-        _selectionLayer = new Node2D(); _selectionLayer.Draw += DrawSelection; AddChild(_selectionLayer);
     }
     public void LoadMap(MapPackage map, string root, string? season = null, double? animationTime = null)
     {
@@ -85,7 +80,7 @@ public partial class MapWorld : Node2D
         if (_display is null)
         {
             _display = new() { Textures = Textures, Terrain = _terrain, AnimationTime = () => AnimationTime };
-            _display.Committed += OnCommitted; AddChild(_display); MoveChild(_selectionLayer, GetChildCount() - 1);
+            _display.Committed += OnCommitted; AddChild(_display);
         }
         _flags ??= Textures.CreateScope(Textures.MapAssets, owner: this);
         BeginLoad(season ?? map.InitialSeason);
@@ -129,7 +124,6 @@ public partial class MapWorld : Node2D
         var frame = _display!.Presented!;
         _camera.Position = new((float)frame.Camera.X, (float)frame.Camera.Y);
         _camera.Zoom = Vector2.One * (float)frame.Camera.Zoom; _camera.ForceUpdateScroll();
-        _selectionLayer.QueueRedraw();
         LastNavigationMilliseconds = _navigation.Elapsed.TotalMilliseconds; _navigation.Stop();
         if (!ReferenceEquals(_announcedTerrain, frame.Region.Scene.Terrain))
         {
@@ -154,7 +148,6 @@ public partial class MapWorld : Node2D
     }
     public int? BuildingAtViewport(Vector2 point) => ObjectAtViewport(point) is { IsUnit: false } target ? target.Id : null;
     public MapObjectTarget? ObjectAtViewport(Vector2 point) => HasCompleteView && !IsLoading ? ObjectAt(ViewportToWorld(point)) : null;
-    private int? TryBuildingAt(Vector2 point) => ObjectAt(point) is { IsUnit: false } target ? target.Id : null;
     private MapObjectTarget? ObjectAt(Vector2 point) => _display?.ObjectAt(point);
     public void DrawHoverFlag(Node2D target, int color, int glyph, Vector2 position)
     {
@@ -167,13 +160,6 @@ public partial class MapWorld : Node2D
             Draw($"flag-glyph-{ink}-{glyph}");
         }
         Draw("flag-pole-front");
-    }
-    public void Highlight((int X, int Y)? square) { _selected = square is { } p ? new(p.X, p.Y) : null; _selectionLayer.QueueRedraw(); }
-    private void DrawSelection()
-    {
-        if (_selected is not Vector2I selected) return;
-        var c = MapGeometry.Center(selected.X, selected.Y); var p = new Vector2(c.X, c.Y);
-        _selectionLayer.DrawPolyline([p + new Vector2(0, -16), p + new Vector2(32, 0), p + new Vector2(0, 16), p + new Vector2(-32, 0), p + new Vector2(0, -16)], new Color(1, 0.9f, 0.25f), 2 / ZoomFactor, true);
     }
     public void FocusWorld(Vector2 point) => RequestView(new(point.X, point.Y, RequestedZoom));
     public void FocusBuilding(int id)
@@ -227,11 +213,8 @@ public partial class MapWorld : Node2D
             }
             else if (button.Pressed && button.ButtonIndex == MouseButton.Left)
             {
-                if (!HasCompleteView) return;
-                var p = ViewportToWorld(button.Position);
-                if (TryBuildingAt(p) is int id) BuildingPicked?.Invoke(id);
-                else if (MapGeometry.TrySquare(p.X, p.Y, out int x, out int y)) SquarePicked?.Invoke(x, y);
-                else SelectionCleared?.Invoke();
+                if (ObjectAtViewport(button.Position) is {} target)
+                    CommandMenuRequested?.Invoke(target, button.Position);
                 GetViewport().SetInputAsHandled();
             }
         }

@@ -25,7 +25,7 @@ Godot 的堆叠轮廓、堆叠阴影不需要用于这批已确认的单一效�
 | `For(Compass)` | 16，棕色主体，黑描边 | RE-0158 方位 |
 | `For(Roster)` | 16，无效果；可用性主体色来自内容包 | RE-0158 名单 |
 | `Button(role, hovered, selected, disabled)` | 九种主界面按钮，完整八状态 | RE-0158 实际前景／描边表 |
-| `InformationMenu(...)` | 白／黄／灰／黑主体，黑／绿／白描边 | RE-0161 |
+| `InformationMenu(...)` | 情报菜单及地图一、二级命令菜单共用：白／黄／灰／黑主体，黑／绿／白描边，无阴影 | RE-0161、RE-0073 |
 | `CatalogHeader(...)` / `CatalogTab(...)` | 列头和页签状态 | RE-0162；统一保留现有配置 |
 | `HelpTopic(..., current)` | 当前／非当前主题，完整八状态 | RE-0167 的帮助、教学页面成对状态表 |
 | `CatalogRow` / `For(DetailBody)` | 16，白字黑描边 | 当前详情页统一基线；未逐项认定为所有原作详情页事实 |

@@ -73,10 +73,6 @@ public partial class Main : Node
             var session = San9.Application.GameSession.Start(initial, 190, options.ComputerDamageBonusPercent);
             world.Session = session;
             var selection = new StrategySelection(session);
-            world.BuildingPicked += selection.SelectBuilding;
-            world.SquarePicked += selection.SelectSquare;
-            world.SelectionCleared += selection.Clear;
-            selection.Changed += () => world.Highlight(selection.Square);
             var center = MapGeometry.Center(options.CenterX, options.CenterY);
             world.FocusWorld(new(center.X, center.Y)); world.SetZoom(options.Zoom);
             world.LoadMap(content.Map, content.TextureRoot, options.Season, options.AnimationTime);

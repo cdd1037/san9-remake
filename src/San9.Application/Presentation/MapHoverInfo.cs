@@ -20,7 +20,8 @@ public sealed record MapHoverInfo(int Id, string Name, MapHoverTheme Theme, Forc
         if (s is null) return null;
         var force = view.Forces.SingleOrDefault(f => f.Id == s.OwnerId);
         var corps = view.World.Corps.SingleOrDefault(c => c.Id == s.CorpsId);
-        var people = view.World.Officers.Where(o => !o.IsDormant && o.SettlementId == id && o.IsServing && o.OwnerId == s.OwnerId).ToArray();
+        var staffing = SettlementStaffing.Read(view, id);
+        var people = staffing.Present.Where(o => o.IsServing && o.OwnerId == s.OwnerId).ToArray();
         string Person(int? person) => view.Officers.SingleOrDefault(o => o.Id == person) is { } o ? texts.Resolve(o.NameKey) : "----";
         int relation = view.World.Relations.SingleOrDefault(r =>
             r.FirstId == view.PlayerForceId && r.SecondId == s.OwnerId || r.SecondId == view.PlayerForceId && r.FirstId == s.OwnerId)?.Value ?? 0;
@@ -36,7 +37,7 @@ public sealed record MapHoverInfo(int Id, string Name, MapHoverTheme Theme, Forc
             new("收益", $"{s.Commerce}/{s.MaxCommerce}", true), new("收获", $"{s.Cultivation}/{s.MaxCultivation}", true)]);
         rows.AddRange([new("耐久", $"{s.Durability}/{s.MaxDurability}", true),
             new("士气", s.Soldiers == 0 ? "----" : $"{s.Morale}/100", true),
-            new("士兵", s.Soldiers.ToString(), true), new("在任", $"{people.Count(o => !o.Acted && !view.World.Simulation.Tasks.Any(t => t.OfficerId == o.Id)),3}/{people.Length,3}", true)]);
+            new("士兵", s.Soldiers.ToString(), true), new("在任", $"{staffing.Available,3}/{staffing.Assigned,3}", true)]);
         return new(id, s.ResolveName(texts), ThemeFor(s.OwnerId, view.PlayerForceId, relation), force,
             city ? s.Icons : [], rows, city ? 316 : 248);
     }

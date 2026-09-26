@@ -28,6 +28,7 @@ public partial class StrategyHud : Control
     private StrategyRosterList _rosterList = null!;
     private PopupMenu _contextMenu = null!;
     private MapContextPopup _mapContext = null!;
+    private MapCommandPopup _commandMenu = null!;
     private StrategyMinimap? _minimap;
     public StrategyOverview Overview { get; } = new();
     public InformationPanel Information { get; private set; } = null!;
@@ -116,8 +117,11 @@ public partial class StrategyHud : Control
         GetParent().AddChild(Information);
         _mapContext = new MapContextPopup { Textures = _textures, Activated = OpenMapContextEntry };
         GetParent().AddChild(_mapContext);
+        _commandMenu = new MapCommandPopup { Textures = _textures, Texts = Texts };
+        GetParent().AddChild(_commandMenu);
         World.BuildingContextRequested += ShowSettlementContext;
         World.UnitContextRequested += ShowUnitContext;
+        World.CommandMenuRequested += ShowCommandMenu;
         _hoverCard = new MapHoverCard { World = World, Textures = _textures, UiFont = GetThemeFont("font"), Visible = false };
         AddChild(_hoverCard);
         // Adding controls can trigger hit testing before the HUD is fully constructed.
@@ -173,7 +177,7 @@ public partial class StrategyHud : Control
 
     public bool IsBlockedPoint(Vector2 point)
     {
-        if (Information?.State.IsOpen == true || _mapContext?.Visible == true) return true;
+        if (Information?.State.IsOpen == true || _mapContext?.Visible == true || _commandMenu?.Visible == true) return true;
         if (point.Y >= 740 && point.Y < 768 && point.X >= 0 && point.X < 1024) return true;
         foreach (var (asset, position) in _frames)
         {
@@ -193,10 +197,22 @@ public partial class StrategyHud : Control
     private MapObjectTarget? _contextTarget;
     private MapObjectTarget? _hoverTarget;
     private long _contextRevision;
+    private void ShowCommandMenu(MapObjectTarget target, Vector2 point)
+    {
+        var entries = target.IsUnit ? MapCommandMenu.Unit(Scenario, target.Id) : MapCommandMenu.Settlement(Scenario, target.Id);
+        if (entries.Count == 0) return;
+        _contextTarget = null;
+        _contextRevision = Session.Snapshot.Revision;
+        if (target.IsUnit) Selection.Clear(); else Selection.SelectBuilding(target.Id);
+        _mapContext.Close();
+        _commandMenu.Open(entries, target.IsUnit ? MapCommandSummary.Unit(Scenario, Texts, target.Id) : MapCommandSummary.Settlement(Scenario, Texts, target.Id), point);
+        World.HoverObject(null); _hoverCard.ShowInfo(null, point); _hoverTarget = null;
+    }
     private void ShowSettlementContext(int id, Vector2 point)
     {
         _contextTarget = new(id, false);
         _contextRevision = Session.Snapshot.Revision;
+        _commandMenu.Close();
         _mapContext.Open(SettlementContextMenu.Read(Scenario, id), point);
         World.HoverObject(null); _hoverCard.ShowInfo(null, point); _hoverTarget = null;
     }
@@ -204,6 +220,7 @@ public partial class StrategyHud : Control
     {
         _contextTarget = new(id, true);
         _contextRevision = Session.Snapshot.Revision;
+        _commandMenu.Close();
         _mapContext.Open(UnitMapInteraction.Menu(Scenario, id), point);
         World.HoverObject(null); _hoverCard.ShowInfo(null, point); _hoverTarget = null;
     }
@@ -248,6 +265,7 @@ public partial class StrategyHud : Control
             _message.SetMessage(menu?.HintText ?? "", menu is null || !menu.Disabled);
             return;
         }
+        if (_commandMenu.Visible) { _message.SetMessage(_commandMenu.Hint, true); return; }
         if (_mapContext.Visible) { _message.SetMessage(_mapContext.Hint, true); return; }
         var button = GetChildren().OfType<StrategyButton>().FirstOrDefault(b => b.IsHovered())
             ?? (Overview.IsOpen ? _overviewPanel.HoverButton : null);
@@ -297,6 +315,7 @@ public partial class StrategyHud : Control
     }
     public override void _Process(double delta)
     {
+        if (_commandMenu?.Visible == true && _contextRevision != Session.Snapshot.Revision) _commandMenu.Close();
         if (_mapContext?.Visible == true && _contextRevision != Session.Snapshot.Revision) _mapContext.Close();
         if (World.LoadError is not null) _message.Text = "地图加载失败 · F3 查看详情";
         if (_built && _stateRevision != Session.Snapshot.Revision)
@@ -307,6 +326,12 @@ public partial class StrategyHud : Control
             _year.Text=$"{view.Year}年"; _date.Text=$"{view.Month}月{(view.Day==1?"上旬":view.Day==11?"中旬":"下旬")}";
             _rosterList.Refresh(view);
             UpdateSelection();
+        }
+        if (_built)
+        {
+            bool sidebarVisible = !_commandMenu!.Visible;
+            _rosterList.Visible = sidebarVisible;
+            foreach (var button in GetChildren().OfType<StrategyButton>().Where(b => b.Position.Y >= 208)) button.Visible = sidebarVisible;
         }
         UpdateHover(_hoverPosition ?? GetGlobalMousePosition());
         UpdateMessage();
@@ -331,7 +356,8 @@ public partial class StrategyHud : Control
     public override void _Draw()
     {
         if (!_built) return;
-        foreach (var (asset, point) in _frames) DrawTexture(_textures[asset], point);
+        foreach (var (asset, point) in _frames)
+            if (_commandMenu?.Visible != true || asset != "sidebar-frame") DrawTexture(_textures[asset], point);
         DrawTexture(_textures["season-spring"], new(26, 31));
         Strip("field", new(377, 15), 88); Strip("field", new(457, 15), 112); Strip("field", new(561, 15), 112);
         if (_regionVisible) DrawTexture(_textures["region-frame"], new(824, 738));
@@ -341,6 +367,7 @@ public partial class StrategyHud : Control
         World.MapReady -= Build;
         World.BuildingContextRequested -= ShowSettlementContext;
         World.UnitContextRequested -= ShowUnitContext;
+        World.CommandMenuRequested -= ShowCommandMenu;
         GetWindow().MouseExited -= ClearHover;
         _textures.Dispose();
         _text.Dispose();

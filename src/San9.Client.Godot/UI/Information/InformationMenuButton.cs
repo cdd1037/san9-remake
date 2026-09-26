@@ -5,6 +5,7 @@ namespace San9.Client.Godot;
 
 public partial class InformationMenuButton : BaseButton
 {
+    public string SkinPrefix { get; init; } = "information-menu-button";
     public string Title { get; init; } = "";
     public string HintText { get; init; } = "";
     public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;
@@ -38,9 +39,9 @@ public partial class InformationMenuButton : BaseButton
     public override void _Draw()
     {
         string suffix = VisualFrame == 0 ? "" : $"-{VisualFrame}";
-        var left = Textures["information-menu-button-left" + suffix];
-        var middle = Textures["information-menu-button-middle" + suffix];
-        var right = Textures["information-menu-button-right" + suffix];
+        var left = Textures[SkinPrefix + "-left" + suffix];
+        var middle = Textures[SkinPrefix + "-middle" + suffix];
+        var right = Textures[SkinPrefix + "-right" + suffix];
         DrawTexture(left, Vector2.Zero);
         float end = Size.X - right.GetWidth();
         for (float x = left.GetWidth(); x < end; x += middle.GetWidth())

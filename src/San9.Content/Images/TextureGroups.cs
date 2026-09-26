@@ -7,6 +7,7 @@ public static class TextureGroups
         role.StartsWith("detail-person-", StringComparison.Ordinal) || role.StartsWith("detail-treasure-portrait-", StringComparison.Ordinal);
 
     public static string Interface(string role) => IsPortrait(role) ? "portrait" :
+        role.StartsWith("command-", StringComparison.Ordinal) ? "command" :
         role.StartsWith("detail-", StringComparison.Ordinal) ? "detail" :
         role.StartsWith("catalog-", StringComparison.Ordinal) ? "catalog" :
         role.StartsWith("information-", StringComparison.Ordinal) ? "information" :

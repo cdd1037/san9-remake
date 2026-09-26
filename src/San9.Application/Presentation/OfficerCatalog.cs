@@ -16,7 +16,7 @@ public static class OfficerCatalog
         P("能力", N("leadership", "统率"), N("war", "武力"), N("intelligence", "智力"), N("politics", "政治"), N("learned", "学得", 2), C("health", "健康", 4), N("treasures", "宝物"), C("status", "身分", 4)),
         P("所属", C("force", "势力", 8), C("corps", "军团", 8), C("home", "所属", 10), C("location", "所在", 10), C("status", "身分", 4), C("commander", "大将", 2), N("loyalty", "忠诚")),
         P("命令", C("order", "命令", 4), C("target-person", "对象", 8), C("target-place", "目标", 10), N("arrival", "到达预定", 2), C("formation", "布阵", 4), C("equipped-tactic", "兵法", 4)),
-        P("个人", C("office", "爵位", 8), N("capacity", "指挥", 5), N("salary", "俸禄"), N("service", "仕官"), C("personality", "性格", 4), C("parent", "父母", 8), N("age", "年龄", 2), N("gender", "性别", 1), C("promoted", "擢升", 2)),
+        P("个人", C("office", "爵位", 8), N("capacity", "指挥", 5), N("salary", "俸禄"), N("service", "仕官"), C("personality", "性格", 4), C("parent", "父母", 8), N("age", "年龄", 2), N("gender", "性别", 1), N("affinity", "相性")),
         T("步兵", 0, "奋战", "奋斗", "奋迅"), T("骑兵", 1, "突破", "突进", "突击"), T("弓骑", 2, "骑射", "奔射", "飞射"),
         T("弩兵", 3, "齐射", "连射", "连弩"), T("水军", 4, "艨艟", "楼船", "斗舰"), T("攻城", 5, "井阑", "冲车", "发石", "象兵"),
         T("智略", 6, "营造", "石兵", "破陷", "教谕"), T("谋略", 7, "混乱", "陷阱", "攻心", "幻术"), T("策略", 8, "辱骂", "鼓舞", "治疗", "妖术")
@@ -89,6 +89,7 @@ public static class OfficerCatalog
                         "parent" => person.ParentId is null ? "" : Person(person.ParentId),
                         "age" => person.BirthYear > 0 ? view.Year - person.BirthYear + 1 : CatalogCell.Unavailable,
                         "gender" => person.IsFemale ? "女" : "男",
+                        "affinity" => person.Affinity,
                         "personality" => new[] { "莽撞", "刚胆", "冷静", "慎重" }[person.Personality],
                         _ => CatalogCell.Unavailable
                     };

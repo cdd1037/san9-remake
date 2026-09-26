@@ -99,7 +99,8 @@ public sealed class SettlementContextMenuTests
                 Formations = [new(731, "base"), new(732, "advanced"), new(733, "ship") { DescriptionKey = "ship-description" }]
             },
             Military = new(4, 4, Enumerable.Repeat(0, 16).ToImmutableArray(), [new(0, 1, 1)],
-                [Formation(731, TravelMode.Land), Formation(732, TravelMode.Land, 901), Formation(733, TravelMode.Water, 902) with {
+                [Formation(731, TravelMode.Land) with { MovementBudget = 61, Tactics = new(15, 0, 3, [1, 2], []),
+                    DoublesCapture = true, DoublesDuelChance = true, SnipingChanceBonus = 30 }, Formation(732, TravelMode.Land, 901), Formation(733, TravelMode.Water, 902) with {
                     MovementBudget = 61, Tactics = new(10, 0, 2, [], [908, 907]) }],
                 basis.Settlements.Select(s => new BattlefieldPlace(s.Id, MapCoordinates.Center(new(s.X, s.Y)), new(1, 1))).ToImmutableArray()) {
                 Elevations = Enumerable.Repeat(0, 16).ToImmutableArray(),
@@ -145,6 +146,15 @@ public sealed class SettlementContextMenuTests
         Assert.Equal(["attack", "弓骑", "13", "○", "○", "○", "150", "9"], attack.Cells.Select(c => c.Text));
         Assert.Equal("attack-description", Assert.Single(query.Read(InformationCategory.Tactics, 1, force: 1).Rows, r => r.Key.Id == 903).Cells[1].Text);
         Assert.Equal([731, 732], query.Read(InformationCategory.Formations, force: 1).Rows.Select(r => r.Key.Id));
+        var formations = query.Read(InformationCategory.Formations, force: 1);
+        Assert.Equal(["特征", "效果", "说明"], formations.Pages);
+        Assert.Equal(["阵形", "对部队", "对守兵", "对城壁", "守备力", "机动力", "费用"], formations.Columns);
+        Assert.Equal("12.2", formations.Rows.Single(r => r.Key.Id == 731).Cells[5].Text);
+        var effects = query.Read(InformationCategory.Formations, 1, force: 1);
+        Assert.Equal("易于发动骑兵、弓骑系兵法。较易俘获敌方武将。较易发动兵法连锁。较易发动单挑。较易发动狙击。",
+            effects.Rows.Single(r => r.Key.Id == 731).Cells[1].Text);
+        Assert.Equal("", effects.Rows.Single(r => r.Key.Id == 732).Cells[1].Text);
+        Assert.Equal(formations.Rows.Select(r => r.Key), query.Read(InformationCategory.Formations, 2, force: 1).Rows.Select(r => r.Key));
         Assert.Equal([733], query.Read(InformationCategory.Ships, force: 1).Rows.Select(r => r.Key.Id));
         var ships = query.Read(InformationCategory.Ships, force: 1);
         Assert.Equal(["特征", "效果", "说明"], ships.Pages);

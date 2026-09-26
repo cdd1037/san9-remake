@@ -155,3 +155,11 @@ AdministrativeDetails明确声明所属、战力、经济等分区，不再从�
 效果采用定义派生：按AutomaticTactics顺序解析兵法名称，显示“可发动兵法「名称」。”；多项连续排列，空集合留空。不能用RequiredTacticId（解锁技术）替代自动兵法；名称和引用必须在内容校验阶段闭合。说明继续读DescriptionKey作者文本，不自动生成战术评价。机动力为内部细格移动预算除以MapCoordinates.UnitsPerCell，非整格值保留小数，排序仍比较完整预算。
 
 原作效果是EXE固定文本，本实现避免规则与描述分别维护；证据及截图标定见[RE-0161](../../research/findings/RE-SAN9PK-0161.md#船一览三页及效果文本2026-09-26)。190年包已重转，画面由用户验收。
+
+### 阵形一览
+
+标题为“阵形一览”，含特征／效果／说明三页，底部提示“画面显示着能使用的阵形。”。特征列为阵形、对部队、对守兵、对城壁、守备力、机动力、费用；机动力以移动预算除以每格坐标单位显示，所需兵法用于可用性筛选，不另列出。
+
+效果由当前重制规则派生：FavoredCategories、LinkMultiplier、DoublesCapture、DoublesDuelChance、SnipingChanceBonus、ImmuneToDisorder、HalvesHostileStrategyChance、ConfusionResistanceChance 与 WoundedPercent，按效果组织短句；无对应效果留空，不按阵形 ID 或名称维护文案表。说明页解析内容定义的 DescriptionKey。
+
+本次三张原版参考图客户区起点约为(1,32)，缩放1.25，对应1024×768逻辑视口。特征表约为(277,256)，宽472；效果／说明表宽464，名称列56，行高24。沿用目录共同锚点及原生装饰端帽：11行时窗口主体(236,139,552,490)，表格起点(276,255)，页签从(322,214)起，三页共享窗口尺寸。坐标为截图量测，非IDA常量；最终画面待用户验收。

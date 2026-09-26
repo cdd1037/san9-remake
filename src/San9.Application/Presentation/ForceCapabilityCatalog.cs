@@ -24,20 +24,15 @@ public static class ForceCapabilityCatalog
                 new("power", "威力", 6, CatalogAlignment.Right), Column("陆上", 6), Column("水上", 6), Column("对设施", 8),
                 new("training", "熟练要求", 10, CatalogAlignment.Right), new("interval", "使用间隔", 10, CatalogAlignment.Right)]),
                 new("说明", [new("name", "兵法", 6, CatalogAlignment.Left), new("description", "说明", 40, CatalogAlignment.Left)])];
-        if (category == InformationCategory.Ships)
+        if (category is InformationCategory.Formations or InformationCategory.Ships)
         {
-            CatalogColumn Name() => new("name", "船", 4, CatalogAlignment.Left);
+            CatalogColumn Name() => new("name", category == InformationCategory.Ships ? "船" : "阵形", category == InformationCategory.Ships ? 4 : 6, CatalogAlignment.Left);
             CatalogColumn Number(string title, int width = 8) => new(title, title, width, CatalogAlignment.Right);
             return [new("特征", [Name(), Number("对部队"), Number("对守兵"), Number("对城壁"), Number("守备力"), Number("机动力"), Number("费用", 6)]),
                 new("效果", [Name(), new("effect", "效果", 50, CatalogAlignment.Left)]),
                 new("说明", [Name(), new("description", "说明", 50, CatalogAlignment.Left)])];
         }
-        return [new("特征", category switch
-        {
-            InformationCategory.Formations or InformationCategory.Ships => [Column(category == InformationCategory.Ships ? "船" : "阵形", 12),
-                Column("对部队"), Column("对驻军"), Column("对城墙"), Column("防御"), Column("移动预算", 10), Column("费用"), Column("所需兵法", 12)],
-            _ => throw new ArgumentOutOfRangeException(nameof(category))
-        })];
+        throw new ArgumentOutOfRangeException(nameof(category));
     }
 
     public static InformationTable Read(GameSession session, TextCatalog texts, InformationCategory category, int forceId, int pageIndex = 0)
@@ -90,28 +85,42 @@ public static class ForceCapabilityCatalog
             }).Select(f =>
             {
                 var rule = military.Formations[f.Id];
-                if (category == InformationCategory.Ships)
+                if (pageIndex == 1)
                 {
-                    if (pageIndex == 1)
-                    {
-                        var tactics = rule.Tactics?.AutomaticTactics ?? [];
-                        return Row(f.Id, texts.Resolve(f.NameKey), tactics.Length == 0 ? "" :
-                            "可发动兵法" + string.Concat(tactics.Select(id => $"「{Tactic(id)}」")) + "。");
-                    }
-                    if (pageIndex == 2) return Row(f.Id, texts.Resolve(f.NameKey), f.DescriptionKey is { } key ? texts.Resolve(key) : "");
-                    return Row(f.Id, texts.Resolve(f.NameKey), rule.Combat?.AgainstUnits ?? 0, rule.Combat?.AgainstGarrison ?? 0,
-                        rule.Combat?.AgainstWalls ?? 0, rule.Combat?.Defense ?? 0,
-                        new CatalogCell(((decimal)rule.MovementBudget / MapCoordinates.UnitsPerCell).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture), rule.MovementBudget),
-                        rule.DeploymentCost);
+                    if (category == InformationCategory.Formations)
+                        return Row(f.Id, texts.Resolve(f.NameKey), FormationEffect(rule));
+                    var tactics = rule.Tactics?.AutomaticTactics ?? [];
+                    return Row(f.Id, texts.Resolve(f.NameKey), tactics.Length == 0 ? "" :
+                        "可发动兵法" + string.Concat(tactics.Select(id => $"「{Tactic(id)}」")) + "。");
                 }
+                if (pageIndex == 2) return Row(f.Id, texts.Resolve(f.NameKey), f.DescriptionKey is { } key ? texts.Resolve(key) : "");
                 return Row(f.Id, texts.Resolve(f.NameKey), rule.Combat?.AgainstUnits ?? 0, rule.Combat?.AgainstGarrison ?? 0,
-                    rule.Combat?.AgainstWalls ?? 0, rule.Combat?.Defense ?? 0, rule.MovementBudget, rule.DeploymentCost, Tactic(rule.RequiredTacticId));
+                    rule.Combat?.AgainstWalls ?? 0, rule.Combat?.Defense ?? 0,
+                    new CatalogCell(((decimal)rule.MovementBudget / MapCoordinates.UnitsPerCell).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture), rule.MovementBudget),
+                    rule.DeploymentCost);
             });
         }
         else throw new ArgumentOutOfRangeException(nameof(category));
         var page = pages[pageIndex];
         return new(InformationQuery.MenuTitle(category)[1..] + "一览", pages.Select(p => p.Title).ToArray(), page.Columns.Select(c => c.Title).ToArray(), rows.ToArray());
     }
+    private static string FormationEffect(FormationRule rule)
+    {
+        string[] categories = ["步兵", "骑兵", "弓骑", "弩兵", "水军", "攻城", "智略", "谋略", "策略"];
+        List<string> effects = [];
+        if (rule.Tactics is { FavoredCategories.Length: > 0 } tactics)
+            effects.Add("易于发动" + string.Join("、", tactics.FavoredCategories.Select(c => categories[c])) + "系兵法");
+        if (rule.DoublesCapture) effects.Add("较易俘获敌方武将");
+        if (rule.Tactics is { LinkMultiplier: > 2 }) effects.Add("较易发动兵法连锁");
+        if (rule.DoublesDuelChance) effects.Add("较易发动单挑");
+        if (rule.SnipingChanceBonus > 0) effects.Add("较易发动狙击");
+        if (rule.ImmuneToDisorder) effects.Add("不会陷入混乱");
+        else if (rule.HalvesHostileStrategyChance || rule.Tactics is { ConfusionResistanceChance: > 0 })
+            effects.Add("状态不易异常");
+        if (rule.Combat is { WoundedPercent: > 50 }) effects.Add("士兵不易死亡");
+        return effects.Count == 0 ? "" : string.Join("。", effects) + "。";
+    }
+
     private static CatalogCell Interval(TacticRule rule, MilitaryRulebook military)
     {
         if (rule.Effect != TacticEffect.TrapSelection) return rule.MinimumInterval;

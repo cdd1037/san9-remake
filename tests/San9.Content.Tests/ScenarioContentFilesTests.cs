@@ -13,10 +13,10 @@ public sealed class ScenarioContentFilesTests : IDisposable
         new("source", "first", "spring", 200, 200, 13056, 6656,
             [], [], [], [], [], [], [], [], [], [], []),
         new(ScenarioInitialState.CurrentSchemaVersion, "first", 190, 1, 1, 0, [], [], [], []),
-        new(4, new() { ["name"] = new("简体", "繁體") })
+        new(TextCatalog.CurrentSchemaVersion, new() { ["name"] = "简体" })
         {
             MessagePeople = new() { [9001] = new("name", "name", "portrait.custom") },
-            Messages = new() { ["message"] = new([new MessageValue(new("number", Number: 0))], false, []) }
+            Messages = new() { ["message"] = new([new MessageLiteral("正文"), new MessageValue(new("constant", Number: 0))]), ["empty"] = new([]) }
         }, new() { ["portrait"] = "portrait/0" });
 
     [Fact]
@@ -33,7 +33,16 @@ public sealed class ScenarioContentFilesTests : IDisposable
         Assert.DoesNotContain("\"format\"", messages);
         Assert.DoesNotContain("\"binding\"", messages);
         Assert.Contains("\"number\":0", messages);
-        Assert.Contains("\"semanticsConfirmed\":false", messages);
+        Assert.DoesNotContain("semanticsConfirmed", messages);
+        Assert.DoesNotContain("requiredBindings", messages);
+        Assert.DoesNotContain("unavailableReasons", messages);
+        Assert.DoesNotContain("sourceBbCode", messages);
+        Assert.DoesNotContain("prefix", messages);
+        Assert.DoesNotContain("suffix", messages);
+        using var messageDocument = JsonDocument.Parse(messages);
+        Assert.Equal(JsonValueKind.Array, messageDocument.RootElement.GetProperty("message").ValueKind);
+        Assert.Equal("正文", messageDocument.RootElement.GetProperty("message")[0].GetString());
+        Assert.Equal(0, messageDocument.RootElement.GetProperty("empty").GetArrayLength());
         string force = JsonSerializer.Serialize(new ForceInitialState(1, "name", 0, 0), ScenarioContentFiles.DataJsonOptions);
         Assert.Contains("\"leaderId\":null", force);
         Assert.NotNull(JsonSerializer.Deserialize<ForceInitialState>(force, ScenarioContentFiles.DataJsonOptions));
@@ -42,6 +51,17 @@ public sealed class ScenarioContentFilesTests : IDisposable
         Assert.Contains("\"binding\": null", JsonSerializer.Serialize(new MessageExpression("number"), PackageFiles.JsonOptions));
         using var text = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(_root, "text.json")));
         Assert.False(text.RootElement.TryGetProperty("messages", out _));
+        Assert.Equal("简体", text.RootElement.GetProperty("entries").GetProperty("name").GetString());
+        Assert.DoesNotContain("sourceText", text.RootElement.GetRawText());
+    }
+
+    [Theory]
+    [InlineData("{\"nodes\":[]}")]
+    [InlineData("[null]")]
+    [InlineData("[{\"kind\":\"unknown\"}]")]
+    public void InvalidMessageArrayFailsDeserialization(string json)
+    {
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<MessageDefinition>(json, ScenarioContentFiles.DataJsonOptions));
     }
 
     [Fact]
@@ -57,6 +77,10 @@ public sealed class ScenarioContentFilesTests : IDisposable
     [InlineData(25)]
     [InlineData(26)]
     [InlineData(27)]
+    [InlineData(130)]
+    [InlineData(131)]
+    [InlineData(132)]
+    [InlineData(133)]
     public async Task UnsupportedVersionRequestsReconversion(int version)
     {
         Directory.CreateDirectory(_root);
@@ -98,7 +122,7 @@ public sealed class ScenarioContentFilesTests : IDisposable
         var content = Fixture();
         await ScenarioContentFiles.WriteAsync(_root, content);
         var before = Directory.GetFiles(_root).ToDictionary(path => path, File.ReadAllText);
-        content.Text.Entries.Add("invalid", new(null!, "source"));
+        content.Text.Messages.Add("invalid", new([new MessageLiteral(null!)]));
         await Assert.ThrowsAsync<JsonException>(() => ScenarioContentFiles.WriteAsync(_root, content));
         foreach (var (path, value) in before) Assert.Equal(value, await File.ReadAllTextAsync(path));
         Assert.Empty(Directory.GetFiles(_root, "*.pending"));

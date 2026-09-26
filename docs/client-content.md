@@ -4,7 +4,7 @@
 
 ## 现行版本与历史记录
 
-现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 125，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 130，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 29，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 25。规则为 `san9-core-g10-v74`，保存90／日志94／录像6；协议以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 为准。
+现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 125，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 137，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 29，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 25。规则为 `san9-core-g10-v74`，保存90／日志94／录像6；协议以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 为准。
 
 旧内容包按现行契约原位重转，旧规则存档、日志和录像拒绝加载。是否重转纹理取决于纹理转换版本与源输入。历史验收只证明对应基线，不代表当前版本重新验证；阶段收口见[G10 验收](g10-verification.md#2026-09-21阶段收口)。
 
@@ -16,9 +16,9 @@
 | --- | --- | --- |
 | Content.Maps / MapImporter | 当前地图方格、地貌及对象位置 | `map.json`（无图片文件） |
 | Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema125 |
-| Content.Text / ScenarioTextReader | 名称与全量消息目录 | `text.json` / `messages.json`，schema4 |
+| Content.Text / ScenarioTextReader | 名称与全量消息目录 | `text.json` / `messages.json`，文本schema6 |
 | Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema29 |
-| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema130 |
+| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema137 |
 | Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema5／转换版本25 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 
@@ -30,7 +30,7 @@
 
 地理契约包含必填`CityProvinceIds`和`MilitaryDefinition.TerritoryExits`。前者是城市到州的基础分组，可不为某城市指定州，不继承15州上限；后者以行优先顺序保存每格北、东、南、西出口语义，与现有地域、地形及完全阻断格共同推导地域边。非空出口数组必须覆盖整幅地图，空数组明确表示未提供地域邻接。作者不维护逐势力邻接或成员候选表；Core只缓存不可变地图边，按当前据点位置、归属、存续及港口属性生成资格。城市州分组进入内容指纹并由会话独立持有。190年包已原位更新并逐项核对50城、40000格及94据点；具体数据链和736条有向边见G08验证记录。
 
-地图内容不引用名称、势力摘要或皮肤。剧本和文本可独立于地图校验；组合层检查建筑稳定ID与据点一一对应、坐标一致以及文本键存在。`SourceText`保存繁体显示原文（设施已组合类型后缀）；基础地域名另有文本项。它不是原消息字节的替代归档，原文件以SHA-256追踪。
+地图内容不引用名称、势力摘要或皮肤。剧本和文本可独立于地图校验；组合层检查建筑稳定ID与据点一一对应、坐标一致以及文本键存在。`text.json`的`entries`直接保存文本键到显示字符串的映射，不再保存`text`／`sourceText`包装对象；设施名称已组合类型后缀，基础地域名另有文本项。原始字节保留在源文件和研究导出中，原文件以SHA-256追踪。文本schema6／剧本包schema137要求重新运行`import-client`，无需重转纹理。
 
 共享纹理默认位于 `local/generated/content/textures-san9pk-tc101`。剧本包只引用共享包的目录和资源 ID，没有 `images` 目录。43个已确认非头像档案及836张正常色大头像转换为最终图片；未确认项只记录研究边界，不保留索引图和原始调色板副本。具体覆盖与透明规则见[纹理资源](texture-resources.md)。
 
@@ -139,9 +139,9 @@ dotnet run --project src/San9.Tools -- import-textures --game-dir "private/游�
 
 编写控制节点、绑定参数和显示图片的具体用法见[消息约定](ui/messages.md)。
 
-现行契约见[统一消息规格](../specs/behavior/BEH-UI-0006-unified-messages.md)，原作证据与覆盖边界见[RE-0166](../research/findings/RE-SAN9PK-0166.md)。唯一语法实现为`OriginalMessageParser`；`OriginalTextConverter`只调用该解析器读取静态片段。`import-client`仅将`M_MsgPK.s9`和`M_RtdnPK.s9`合入`TextCatalog.Messages`，经`GameplayMessageCompiler`转换为领域引用、属性与事件条件，保留未就绪记录，并生成`message-readiness.json`列出每条消息的参数和拒绝原因；`import-text`仍对四个档案导出研究诊断和合成上下文报告，基础版不进入运行时包。
+现行契约见[统一消息规格](../specs/behavior/BEH-UI-0006-unified-messages.md)，原作证据与覆盖边界见[RE-0166](../research/findings/RE-SAN9PK-0166.md)。唯一语法实现为`OriginalMessageParser`；`OriginalTextConverter`只调用该解析器读取静态片段。`import-client`仅将`M_MsgPK.s9`和`M_RtdnPK.s9`合入`TextCatalog.Messages`，经`GameplayMessageCompiler`转换为领域引用、属性与事件条件，发布前拒绝未确认语义、无法转换的表达式和无效引用，不保存未就绪记录；`messages.json`以消息键直接映射节点数组，普通文本节点直接写成字符串，值节点不保存前后缀字段，默认不生成`message-readiness.json`和`message-adaptations.json`，仅在显式指定`--message-reports true`时输出；关闭报告时不构造就绪报告或汇总参数清单，发布校验独立执行，成功转换后清理输出目录中这两个旧报告。就绪报告列出发布消息的原文确认状态和从节点推导的参数；`import-text`仍对四个档案导出研究诊断和合成上下文报告，基础版不进入运行时包。
 
-静态内容使用Godot原生BBCode，逻辑图片路径示例为`[img]icons/city[/img]洛阳`。运行时`MessageEvaluator`接收显式值、查询和随机源，产生可保留的BBCode结果。普通参数始终转义；富文本组合用消息引用。`01J`转换为尾部转移，`01C`为返回调用。样式切换只保存明确BBCode开闭片段，支持跨分支/引用的显示状态，不维护重复样式树。节点中不保存原始地址、控制码或资源偏移。
+静态内容使用有限预设及行内图片标记，逻辑图片路径示例为`[img]icons/city[/img]洛阳`。运行时`MessageEvaluator`接收显式值、查询和随机源，产生可保留的显示字符串，预设由显示边界转换为原生BBCode。普通参数始终转义；富文本组合用消息引用。`01J`转换为尾部转移，`01C`为返回调用。样式使用有限预设：静态范围合并为`[preset=名称]…[/preset]`字符串，动态范围保存`styled/preset/body`。源状态传播在Importer消解，运行时引用不泄漏样式；未知预设及未闭合范围拒绝加载。节点中不保存原始地址、控制码或资源偏移。
 
 `Resolve`是严格纯文本读取，遇到图标/格式标签拒绝，供名称排序和查询使用；`ResolveRich`供提示、列传和说明使用。侧栏城市名称由通用消息模板求值，再交给`GameRichTextLabel`；控件不判断城市前缀。图片由客户端按逻辑标识选择转换包中的最近有效尺寸、同距优先较大图并保持比例，Godot负责行内排版。缺图明确报错。
 
@@ -244,7 +244,7 @@ TC101完整保留41项兵法和28项阵形的展示元数据，名称与说明�
 
 文本schema4／组合包129增加人物姓、名与肖像身份元数据，运行时使用类型化对象引用、世界快照属性和具名事件历史，不再要求客户端构造原版倒序编号。正文名称和条件数值分开转换；姓名、官职、地点、势力、宝物与兵法名称通过当前内容和状态查询。内部37／52号返回条件转换为事件参数`return-kind.N`，由消息产生者通过`MessageBinding.Return`提供，不能按当前选中部队推断。
 
-190年组合包已原位更新，无需重新转换纹理。两个PK档案14,888条经已确认的内容取舍后全部具备运行时表达式及依赖支持；另有2条重制名称模板，总计14,890／14,890条就绪。这里的“就绪”要求调用方提供报告所列的有效领域引用和事件参数，并不表示所有原版窗口和事件台词已在客户端触发。PK中原先拒绝的5条已处理：1条容貌帮助固定70／30并着色，4条去除正常结束后的残缺跳转。基础版消息不加载、不改写，也不参与运行时统计。`message-adaptations.json`保留5条直接改写的源数据SHA-256、决定与移除控制字节；研究导出的严格原文诊断不变。详情见[消息约定](ui/messages.md)。
+190年组合包已原位更新，无需重新转换纹理。两个PK档案14,888条经已确认的内容取舍后全部具备运行时表达式及依赖支持；另有2条重制名称模板，总计14,890／14,890条就绪。这里的“就绪”要求调用方提供报告所列的有效领域引用和事件参数，并不表示所有原版窗口和事件台词已在客户端触发。PK中原先拒绝的5条已处理：1条容貌帮助固定70／30并着色，4条去除正常结束后的残缺跳转。基础版消息不加载、不改写，也不参与运行时统计。显式开启报告后，`message-adaptations.json`保留5条直接改写的源数据SHA-256、决定与移除控制字节；研究导出的严格原文诊断不变。详情见[消息约定](ui/messages.md)。
 
 ### 边缘滚动光标（2026-09-27）
 

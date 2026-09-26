@@ -6,16 +6,15 @@ namespace San9.Application.Tests;
 public sealed class MessageEvaluatorTests
 {
     [Fact]
-    public void IndependentChannelsRemainBalancedAcrossChildAndSkippedBranch()
+    public void PresetsRestoreOuterScopeAcrossChildAndSkippedBranch()
     {
         var evaluator = new MessageEvaluator(new Dictionary<string, MessageDefinition>
         {
-            ["m"] = Message(new MessageFormat("[color=red]", "[/color]"), Text("A"),
-                new MessageReference("child", false), Text("C"), new MessageFormat("", "", "effect"), Text("D")),
-            ["child"] = Message(new MessageFormat("[outline_size=1]", "[/outline_size]", "effect"),
-                new MessageConditional(new("constant", Number: 0), [new MessageFormat("", "")]), Text("B"))
+            ["m"] = Message(new MessageStyled("yellow", [Text("A"), new MessageReference("child", false), Text("C")]), Text("D")),
+            ["child"] = Message(new MessageConditional(new("constant", Number: 0), [new MessageStyled("green", [Text("skipped")])]),
+                new MessageStyled("blue-outline", [Text("B")]))
         });
-        Assert.Equal("[color=red]A[/color][outline_size=1][color=red]BC[/color][/outline_size][color=red]D[/color]",
+        Assert.Equal("[preset=yellow]A[preset=blue-outline]B[/preset]C[/preset]D",
             evaluator.Evaluate("m", Context()));
     }
 
@@ -31,20 +30,18 @@ public sealed class MessageEvaluatorTests
     }
 
     [Fact]
-    public void StylesFollowChosenControlFlowAcrossCalls()
+    public void EarlyReturnClosesPresetAndDoesNotLeakIntoCaller()
     {
         var evaluator = new MessageEvaluator(new Dictionary<string, MessageDefinition>
         {
-            ["m"] = Message(new MessageFormat("[color=red]", "[/color]"), Text("A"),
-                new MessageConditional(new("constant", Number: 0), [new MessageFormat("[color=blue]", "[/color]")]),
-                new MessageReference("child", false), Text("Z")),
-            ["child"] = Message(Text("B"), new MessageFormat("", ""), Text("C"))
+            ["m"] = Message(Text("A"), new MessageReference("child", false), Text("Z")),
+            ["child"] = Message(new MessageStyled("green-outline", [Text("B"), new MessageReturn(), Text("unreachable")]), Text("C"))
         });
-        Assert.Equal("[color=red]AB[/color]CZ", evaluator.Evaluate("m", Context()));
+        Assert.Equal("A[preset=green-outline]B[/preset]Z", evaluator.Evaluate("m", Context()));
     }
 
-    private static MessageLiteral Text(string text) => new(text, text);
-    private static MessageDefinition Message(params MessageNode[] nodes) => new(nodes, true, []);
+    private static MessageLiteral Text(string text) => new(text);
+    private static MessageDefinition Message(params MessageNode[] nodes) => new(nodes);
     private static MessageContext Context() => new(new Dictionary<string, MessageBinding>(),
         (_, _) => throw new InvalidDataException("No query registered."), _ => 0);
 
@@ -67,12 +64,12 @@ public sealed class MessageEvaluatorTests
     }
 
     [Fact]
-    public void KnownSourceWithUnavailableDependencyIsRejected()
+    public void UnsupportedQueryInDependencyIsRejected()
     {
         var evaluator = new MessageEvaluator(new Dictionary<string, MessageDefinition>
         {
             ["parent"] = Message(new MessageReference("child", false)),
-            ["child"] = Message(Text("misleading")) with { UnavailableReasons = ["Unknown runtime property"] }
+            ["child"] = Message(new MessageValue(new("query", "unsupported")))
         });
         Assert.Throws<InvalidDataException>(() => evaluator.Evaluate("parent", Context()));
     }
@@ -106,7 +103,7 @@ public sealed class MessageEvaluatorTests
     {
         int calls=0;
         var evaluator=new MessageEvaluator(new Dictionary<string,MessageDefinition>
-        { ["m"] = Message(new MessageChoice(new("random",Arguments:[new("constant",Number:2)]), [[Text("A")],[Text("B")]])) });
+        { ["m"] = Message(new MessageRandomChoice([[Text("A")],[Text("B")]])) });
         string result=evaluator.Evaluate("m",Context() with { RandomIndex = bound => { Assert.Equal(2,bound); calls++; return 1; } });
         Assert.Equal("B",result); Assert.Equal(1,calls);
     }
@@ -115,7 +112,7 @@ public sealed class MessageEvaluatorTests
     public void UnresolvedAndCyclicMessagesAreRejected()
     {
         var evaluator=new MessageEvaluator(new Dictionary<string,MessageDefinition>
-        { ["m"] = Message(new MessageReference("m",true)), ["unknown"]=new([],false,[]) });
+        { ["m"] = Message(new MessageReference("m",true)) });
         Assert.Throws<InvalidDataException>(()=>evaluator.Evaluate("m",Context()));
         Assert.Throws<InvalidDataException>(()=>evaluator.Evaluate("unknown",Context()));
     }

@@ -20,7 +20,6 @@ public sealed class WorldMessageContext
     private readonly Dictionary<int, OfficerInitialState> _personDefinitions;
     private readonly OfficerAbilityRules _abilities;
     private readonly Lazy<StrategySnapshot> _view;
-    private bool SourceText { get; init; }
 
     public WorldMessageContext(ScenarioInitialState definition, WorldSnapshot world, TextCatalog texts)
     {
@@ -37,14 +36,12 @@ public sealed class WorldMessageContext
     }
 
     public ProducedMessage Produce(string key, IReadOnlyDictionary<string, MessageBinding> values,
-        Func<int, int> randomIndex, bool source = false)
+        Func<int, int> randomIndex)
     {
         foreach (var value in values.Values)
             if (value.Entity is { } entity) Validate(entity);
-        var queries = source ? new WorldMessageContext(_definition, _world, _texts with
-        { Entries = _texts.Entries.ToDictionary(p => p.Key, p => p.Value with { Text = p.Value.SourceText }) }) { SourceText = true } : this;
-        var context = new MessageContext(values, queries.Query, randomIndex);
-        return new(key, _world.Clock, new MessageEvaluator(_texts.Messages).Evaluate(key, context, source));
+        var context = new MessageContext(values, Query, randomIndex);
+        return new(key, _world.Clock, new MessageEvaluator(_texts.Messages).Evaluate(key, context));
     }
 
     public MessageBinding Query(string name, IReadOnlyList<MessageBinding> args)
@@ -194,7 +191,7 @@ public sealed class WorldMessageContext
         throw new InvalidDataException($"Unit {unit.Id} has no service location.");
     private string TacticCategory(int id)
     {
-        string[] names = SourceText ? ["步兵", "騎兵", "弓騎", "弩兵", "水軍", "攻城", "智略", "謀略", "策略"] :
+        string[] names =
             ["步兵", "骑兵", "弓骑", "弩兵", "水军", "攻城", "智略", "谋略", "策略"];
         int? category = _definition.Military?.Tactics.Single(t => t.Id == id).Category;
         return category is int index && (uint)index < names.Length ? names[index] :

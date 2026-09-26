@@ -7,16 +7,14 @@ namespace San9.Importer.San9PkTc101.Tests;
 public sealed class OriginalMessageParserTests
 {
     [Fact]
-    public void OutlineDoesNotOverwriteForegroundAndResetRestoresBase()
+    public void SourceStylesBecomeFiniteScopesAndResetRestoresBase()
     {
-        var parsed = new OriginalMessageParser().Parse([.. Encoding.ASCII.GetBytes("\x1b[2mA"), 2, 0x8C,
+        var parsed = new OriginalMessageParser().Parse([.. Encoding.ASCII.GetBytes("A"), 2, 0x8C,
             .. Encoding.ASCII.GetBytes("1bB"), 2, 0x8C, .. Encoding.ASCII.GetBytes("32bC")], terminated: false);
         Assert.True(parsed.FullyParsed);
-        Assert.True(parsed.Definition.SemanticsConfirmed);
+        Assert.True(parsed.SemanticsConfirmed);
         string markup = MessageMarkup.Static(parsed.Definition.Nodes);
-        Assert.Contains("[outline_color=#98B0F8A6][color=#F06850]B", markup);
-        Assert.DoesNotContain("[color=#98B0F8]", markup);
-        Assert.EndsWith("[outline_size=0]C[/outline_size]", markup);
+        Assert.Equal("A[preset=blue-outline]B[/preset]C", markup);
     }
 
     [Fact]
@@ -26,8 +24,30 @@ public sealed class OriginalMessageParserTests
         var parsed = new OriginalMessageParser().Parse(bytes, terminated: false);
         Assert.Equal(bytes.Length, parsed.ConsumedBytes);
         Assert.True(parsed.FullyParsed);
-        Assert.False(parsed.Definition.SemanticsConfirmed);
-        Assert.Contains(parsed.Issues, issue => issue.Offset == 0 && issue.Reason.Contains("shadow"));
+        Assert.False(parsed.SemanticsConfirmed);
+        Assert.Contains(parsed.Issues, issue => issue.Offset == 0 && issue.Reason.Contains("no confirmed message preset"));
+    }
+
+    [Theory]
+    [InlineData("1b", "blue")]
+    [InlineData("4s", "green")]
+    [InlineData("14b", "yellow")]
+    [InlineData("17b", "peach")]
+    public void HelpUsesItsConfirmedForegroundPreset(string control, string preset)
+    {
+        var parsed = new OriginalMessageParser().Parse(Encoding.ASCII.GetBytes($"\x1b[{control}A\x1b[uB"),
+            terminated: false, presentation: OriginalMessagePresentation.Help);
+        Assert.True(parsed.SemanticsConfirmed);
+        Assert.Equal($"[preset={preset}]A[/preset]B", MessageMarkup.Static(parsed.Definition.Nodes));
+    }
+
+    [Fact]
+    public void UnregisteredSourceCombinationIsDiagnosedInsteadOfInventingAPreset()
+    {
+        var parsed = new OriginalMessageParser().Parse(Encoding.ASCII.GetBytes("\x1b[2mA"), terminated: false);
+        Assert.True(parsed.FullyParsed);
+        Assert.False(parsed.SemanticsConfirmed);
+        Assert.Contains(parsed.Issues, issue => issue.Offset == 0);
     }
 
     [Fact]
@@ -47,7 +67,7 @@ public sealed class OriginalMessageParserTests
         byte[] name = Encoding.GetEncoding(950).GetBytes("洛陽[b]");
         var result = new OriginalMessageParser().Parse([0xFA, 0xD0, .. name, 5, 5, 5]);
         Assert.True(result.FullyParsed);
-        Assert.True(result.Definition.SemanticsConfirmed);
+        Assert.True(result.SemanticsConfirmed);
         Assert.Equal("[img]icons/city[/img]洛阳[lb]b]", string.Concat(result.Definition.Nodes.OfType<MessageLiteral>().Select(n => n.BbCode)));
         Assert.Throws<InvalidDataException>(() => MessageMarkup.Plain("[img]icons/city[/img]洛阳"));
     }
@@ -56,9 +76,9 @@ public sealed class OriginalMessageParserTests
     public void BranchDelimitersAreNotArchiveTerminators()
     {
         var result = new OriginalMessageParser().Parse([1, (byte)'S', 2, 0xCA, (byte)'%', (byte)'2', (byte)'A', 5,5,5, (byte)'B', 5,5,5]);
-        var choice = Assert.IsType<MessageChoice>(Assert.Single(result.Definition.Nodes));
+        var choice = Assert.IsType<MessageRandomChoice>(Assert.Single(result.Definition.Nodes));
         Assert.Equal(2, choice.Choices.Length);
-        Assert.True(result.Definition.SemanticsConfirmed);
+        Assert.True(result.SemanticsConfirmed);
     }
 
     [Fact]
@@ -66,7 +86,7 @@ public sealed class OriginalMessageParserTests
     {
         var result = new OriginalMessageParser().Parse([(byte)'A', 5,5,5, 1,(byte)'J']);
         Assert.False(result.FullyParsed);
-        Assert.False(result.Definition.SemanticsConfirmed);
+        Assert.False(result.SemanticsConfirmed);
         Assert.NotEmpty(result.Definition.Nodes);
     }
 
@@ -87,14 +107,14 @@ public sealed class OriginalMessageParserTests
         var condition = Assert.IsType<MessageConditional>(result.Definition.Nodes[0]);
         Assert.Equal("same-bloodline", condition.Predicate.Binding);
         Assert.Equal(2, condition.Predicate.Arguments!.Length);
-        Assert.True(result.FullyParsed); Assert.True(result.Definition.SemanticsConfirmed);
+        Assert.True(result.FullyParsed); Assert.True(result.SemanticsConfirmed);
     }
 
     [Fact]
     public void UnknownPropertiesAreConsumedButNeverExecutable()
     {
         var result = new OriginalMessageParser().Parse([2,1,0xEE, (byte)'A',5,5,5]);
-        Assert.True(result.FullyParsed); Assert.False(result.Definition.SemanticsConfirmed);
+        Assert.True(result.FullyParsed); Assert.False(result.SemanticsConfirmed);
         Assert.Contains(result.Issues, i => i.Reason.Contains("property EE"));
     }
 
@@ -110,7 +130,7 @@ public sealed class OriginalMessageParserTests
         var result = new OriginalMessageParser().Parse([5,5,4, 2,selector, (byte)'A',5,5,5,(byte)'B',5,5,5]);
         var condition = Assert.IsType<MessageConditional>(result.Definition.Nodes[0]);
         Assert.Equal(binding, condition.Predicate.Binding);
-        Assert.True(result.Definition.SemanticsConfirmed);
+        Assert.True(result.SemanticsConfirmed);
     }
 
     [Theory]
@@ -122,7 +142,7 @@ public sealed class OriginalMessageParserTests
         var condition = Assert.IsType<MessageConditional>(result.Definition.Nodes[0]);
         Assert.Equal(binding, condition.Predicate.Binding);
         Assert.Equal(2, condition.Predicate.Arguments!.Length);
-        Assert.True(result.Definition.SemanticsConfirmed);
+        Assert.True(result.SemanticsConfirmed);
     }
 
     [Fact]
@@ -132,7 +152,7 @@ public sealed class OriginalMessageParserTests
         var condition = Assert.IsType<MessageConditional>(result.Definition.Nodes[0]);
         Assert.Equal("affinity-distance", condition.Predicate.Binding);
         Assert.Equal(2, condition.Predicate.Arguments!.Length);
-        Assert.True(result.Definition.SemanticsConfirmed);
+        Assert.True(result.SemanticsConfirmed);
     }
 
     [Theory]
@@ -145,7 +165,7 @@ public sealed class OriginalMessageParserTests
         var condition = Assert.IsType<MessageConditional>(result.Definition.Nodes[0]);
         Assert.Equal(binding, condition.Predicate.Binding);
         Assert.Equal(2, condition.Predicate.Arguments!.Length);
-        Assert.True(result.Definition.SemanticsConfirmed);
+        Assert.True(result.SemanticsConfirmed);
     }
 
     [Theory]
@@ -157,7 +177,7 @@ public sealed class OriginalMessageParserTests
         var condition = Assert.IsType<MessageConditional>(result.Definition.Nodes[0]);
         Assert.Equal(binding, condition.Predicate.Binding);
         Assert.Single(condition.Predicate.Arguments!);
-        Assert.True(result.Definition.SemanticsConfirmed);
+        Assert.True(result.SemanticsConfirmed);
     }
 
     [Fact]
@@ -167,7 +187,7 @@ public sealed class OriginalMessageParserTests
         var condition = Assert.IsType<MessageConditional>(result.Definition.Nodes[0]);
         Assert.Equal("force-relation", condition.Predicate.Binding);
         Assert.Equal(["force.0", "force.1"], condition.Predicate.Arguments!.Select(a => a.Binding));
-        Assert.True(result.Definition.SemanticsConfirmed);
+        Assert.True(result.SemanticsConfirmed);
     }
 
     [Theory]
@@ -178,7 +198,7 @@ public sealed class OriginalMessageParserTests
         var result = new OriginalMessageParser().Parse([5,5,4, 2,selector, (byte)'A',5,5,5,(byte)'B',5,5,5]);
         var condition = Assert.IsType<MessageConditional>(result.Definition.Nodes[0]);
         Assert.Equal(0, condition.Predicate.Number);
-        Assert.True(result.Definition.SemanticsConfirmed);
+        Assert.True(result.SemanticsConfirmed);
     }
 
     [Theory]
@@ -192,7 +212,7 @@ public sealed class OriginalMessageParserTests
         var result = new OriginalMessageParser().Parse([2,selector,property, (byte)'A',5,5,5]);
         var expression = Assert.IsType<MessageValue>(result.Definition.Nodes[0]);
         Assert.Equal(binding, expression.Expression.Binding);
-        Assert.True(result.Definition.SemanticsConfirmed);
+        Assert.True(result.SemanticsConfirmed);
     }
 
     [Theory]
@@ -206,6 +226,6 @@ public sealed class OriginalMessageParserTests
         Assert.Equal(property switch { 0xDB => "person.0.surname", 0xDC => "person.0.given-name", _ => "person.0.courtesy-name" }, expression.Expression.Binding);
         var predicate = new OriginalMessageParser().Parse([5,5,4, 2,1,property, (byte)'A',5,5,5]);
         Assert.Equal(-1, Assert.IsType<MessageConditional>(predicate.Definition.Nodes[0]).Predicate.Number);
-        Assert.True(result.Definition.SemanticsConfirmed);
+        Assert.True(result.SemanticsConfirmed);
     }
 }

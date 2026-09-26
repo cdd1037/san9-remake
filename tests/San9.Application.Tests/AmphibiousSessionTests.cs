@@ -61,8 +61,8 @@ public sealed class AmphibiousSessionTests
                 Tactics = [new(8000, "technology")]
             }
         };
-        var texts = new TextCatalog(4, definition.Information.Formations.Select(f => f.NameKey).Append("technology")
-            .ToDictionary(key => key, key => new TextEntry(key, key)));
+        var texts = new TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion, definition.Information.Formations.Select(f => f.NameKey).Append("technology")
+            .ToDictionary(key => key, key => key));
         var session = GameSession.Start(definition, 42);
         var query = new InformationQuery(session, texts);
         var hash = session.Snapshot.StateHash;

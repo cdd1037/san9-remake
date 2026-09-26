@@ -15,8 +15,7 @@ public sealed class WorldMessageContextTests
         var texts = Texts();
         texts.Messages.Add("greeting", new([
             new MessageValue(new("property", "person.name", Arguments: [new("binding", "speaker")])),
-            new MessageChoice(new("random", Arguments: [new("constant", Number: 2)]),
-                [[new MessageLiteral("来了", "來了")], [new MessageLiteral("到了", "到了")]])], true, ["speaker"]));
+            new MessageRandomChoice([[new MessageLiteral("来了")], [new MessageLiteral("到了")]])]));
         var context = session.Messages(texts);
         int draws = 0;
         var message = context.Produce("greeting", new Dictionary<string, MessageBinding>
@@ -26,8 +25,8 @@ public sealed class WorldMessageContextTests
         Assert.Equal(before, session.Snapshot.StateHash);
         Assert.Equal("刘备到了", message.BbCode);
         Assert.Equal(1, draws);
-        Assert.Equal("劉備來了", context.Produce("greeting", new Dictionary<string, MessageBinding>
-        { ["speaker"] = MessageBinding.Reference(MessageEntityKind.Person, 1) }, _ => 0, source: true).BbCode);
+        Assert.Equal("刘备来了", context.Produce("greeting", new Dictionary<string, MessageBinding>
+        { ["speaker"] = MessageBinding.Reference(MessageEntityKind.Person, 1) }, _ => 0).BbCode);
     }
 
     [Fact]
@@ -75,7 +74,7 @@ public sealed class WorldMessageContextTests
 
     private static TextCatalog Texts() => new(TextCatalog.CurrentSchemaVersion, new()
     {
-        ["officer.1"] = new("刘备", "劉備"), ["surname"] = new("刘", "劉"), ["given"] = new("备", "備"),
-        ["region"] = new("虎牢", "虎牢")
+        ["officer.1"] = "刘备", ["surname"] = "刘", ["given"] = "备",
+        ["region"] = "虎牢"
     }) { MessagePeople = new() { [1] = new("surname", "given", "portrait") } };
 }

@@ -32,7 +32,7 @@ public static class ExecutableTextCompiler
             ParsedMessage? parsed=messageCandidate ? parser.Parse(raw,terminated:false,formatString:formatCandidate) : null;
             rows.Add(new {Address=address,RawHex=Convert.ToHexString(raw),References=item.GetProperty("references").Clone(),
                 Usage=usage,MessageCandidate=messageCandidate,FormatCandidate=formatCandidate,Parsed=parsed,
-                SyntaxSupported=parsed is null ? null : (bool?)(parsed.FullyParsed && parsed.Definition.SemanticsConfirmed),
+                SyntaxSupported=parsed is null ? null : (bool?)(parsed.FullyParsed && parsed.SemanticsConfirmed),
                 GameplayBound=false,
                 Boundary=item.GetProperty("boundary").GetString()});
         }

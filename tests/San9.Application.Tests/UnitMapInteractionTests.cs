@@ -20,7 +20,7 @@ public sealed class UnitMapInteractionTests
             ? o with { UnitId = 1, SettlementId = null, Status = o.Id == 5 ? OfficerStatus.Captive : o.Status } : o).ToArray() };
         var keys = definition.Officers.Select(o => o.NameKey).Concat(definition.Forces.Select(f => f.NameKey))
             .Concat(definition.Settlements.Select(s => s.NameKey)).Append("formation");
-        var texts = new TextCatalog(4, keys.ToDictionary(k => k, k => new TextEntry(k, k)));
+        var texts = new TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion, keys.ToDictionary(k => k, k => k));
         var view = new StrategySnapshot(definition, world);
         var hash = world.StateHash;
         var card = UnitMapInteraction.Hover(view, texts, 1)!;

@@ -3,6 +3,7 @@ using System.Text.Json;
 using San9.Application.Presentation;
 using San9.Content.Packages;
 using San9.Content.Text;
+using San9.Importer.San9PkTc101.Text;
 
 internal static class MessageVerification
 {
@@ -13,6 +14,10 @@ internal static class MessageVerification
         {
             var messages = JsonSerializer.Deserialize<Dictionary<string, MessageDefinition>>(
                 File.ReadAllText(Path.Combine(directory, catalog + ".json"), Encoding.UTF8), PackageFiles.JsonOptions)!;
+            var audit = JsonSerializer.Deserialize<MessageArchiveAudit>(
+                File.ReadAllText(Path.Combine(directory, catalog + "-audit.json"), Encoding.UTF8), PackageFiles.JsonOptions)!;
+            messages = audit.Records.Where(record => record.DependenciesConfirmed)
+                .ToDictionary(record => record.Key, record => messages[record.Key]);
             MessageGraph.Validate(messages);
             var evaluator = new MessageEvaluator(messages);
             int ready = 0, runs = 0;
@@ -20,7 +25,7 @@ internal static class MessageVerification
             foreach (string key in messages.Keys)
             {
                 var requirements = MessageGraph.Requirements(key, messages);
-                if (!requirements.Executable) continue;
+                if (!requirements.ReferencesValid) continue;
                 ready++;
                 foreach (int value in new[] { 0, 1, 100 })
                 {

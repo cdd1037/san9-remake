@@ -14,7 +14,7 @@ public sealed class RegionHoverTests
         var scenario = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "fixture", 190, 1, 1, 5, [new(5,"player",5,100)], [new(15,"city",5,0,0,0,100,100,0,[])],
             new() { [15] = "city", [99] = "gate" }, new() { [15] = 15, [99] = 15 }) { Information = new([], [], [], [new San9.Core.Domain.CorpsState(5, 5, null, new(100, 100)) { IsRoot = true }], []) };
         var view = San9.Application.GameSession.Start(scenario,1).View;
-        var text = new TextCatalog(4, new() { ["city"] = new("洛阳", "洛陽"), ["gate"] = new("虎牢关", "虎牢關") });
+        var text = new TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion, new() { ["city"] = "洛阳", ["gate"] = "虎牢关" });
         Assert.Equal(new("洛阳", "洛阳"), RegionHoverInfo.Resolve(new(0, 0, 0, 15), view, text));
         Assert.Equal(new("虎牢关", "洛阳"), RegionHoverInfo.Resolve(new(0, 0, 0, 99), view, text));
         Assert.Equal(new("———", "——"), RegionHoverInfo.Resolve(new(0, 0, 0, 99) { HideRegionName = true }, view, text));
@@ -29,7 +29,7 @@ public sealed class RegionHoverTests
             new() { [99] = "region" }, new() { [99] = 1000 }) { Information = new([], [], [], [new San9.Core.Domain.CorpsState(5, 5, null, new(100, 100)) { IsRoot = true }], []) };
         var view = San9.Application.GameSession.Start(scenario, 1).View;
         string name = new('城', 100);
-        var texts = new TextCatalog(4, new() { ["city"] = new(name, name), ["region"] = new("地域", "地域") });
+        var texts = new TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion, new() { ["city"] = name, ["region"] = "地域" });
         Assert.Equal(new("地域", name), RegionHoverInfo.Resolve(new(0, 0, 0, 99), view, texts));
     }
 

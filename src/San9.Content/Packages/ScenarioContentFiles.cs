@@ -8,7 +8,7 @@ namespace San9.Content.Packages;
 public sealed record ScenarioContentManifest(int SchemaVersion, ContentSource[] Sources,
     TextureDependency Textures, string Map, string Scenario, string Text, string Messages, string Illustrations);
 
-public sealed record StaticTextContent(int SchemaVersion, Dictionary<string, TextEntry> Entries)
+public sealed record StaticTextContent(int SchemaVersion, Dictionary<string, string> Entries)
 {
     [System.Text.Json.Serialization.JsonRequired]
     public Dictionary<int, MessagePersonProfile> MessagePeople { get; init; } = [];

@@ -21,9 +21,13 @@ public partial class GameRichTextLabel : RichTextLabel
 
     public void Present(string markup, GameTextStyle style)
     {
-        if (style.Effect == GameTextEffect.Shadow && markup.Contains("[outline_size=", StringComparison.Ordinal))
-            throw new InvalidDataException("Inline outlines cannot replace a host shadow in native RichTextLabel; choose an explicit presentation policy.");
-        _markup = markup; Style = style;
+        _markup = markup;
+        var expanded = San9.Rendering.MessageStyleMarkup.Expand(markup);
+        markup = expanded.BbCode;
+        // Preset messages use one outline baseline. Native per-span outlines cannot replace a theme shadow.
+        if (expanded.HasPresets && style.Effect == GameTextEffect.Shadow)
+            style = style with { Effect = GameTextEffect.Outline };
+        Style = style;
         AddThemeFontOverride("normal_font", GetThemeFont("font"));
         AddThemeFontSizeOverride("normal_font_size", style.FontSize);
         AddThemeColorOverride("default_color", style.Foreground);

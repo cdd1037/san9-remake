@@ -19,7 +19,7 @@ public sealed class GameplayMessageCompilerTests
         });
         var identity = Expression(compiled["identity"]);
         Assert.Equal(new MessageExpression("entity", "Person", 0), identity.Arguments![1]);
-        Assert.Equal(["person.0"], compiled["identity"].RequiredBindings);
+        Assert.Equal(["person.0"], MessageGraph.Requirements("identity", compiled).Bindings);
         var history = Expression(compiled["history"]);
         Assert.Equal("event.occurred", history.Binding);
         Assert.Equal("qiao-marriage", Assert.Single(history.Arguments!).Binding);
@@ -38,28 +38,24 @@ public sealed class GameplayMessageCompilerTests
         var expression = Expression(messages["return"]);
         Assert.Equal("return-kind.0", expression.Arguments![0].Binding);
         Assert.Equal(new MessageExpression("text", kind), expression.Arguments[1]);
-        Assert.Equal(["return-kind.0"], messages["return"].RequiredBindings);
+        Assert.Equal(["return-kind.0"], MessageGraph.Requirements("return", messages).Bindings);
     }
 
     [Fact]
-    public void UnknownRuntimePropertyIsReportedThroughReferencesWithoutLosingSourceConfirmation()
+    public void UnknownRuntimePropertyStopsCompilationWithMessageIdentity()
     {
         var compiler = new GameplayMessageCompiler(Scenario(), [], 0, 0);
-        var messages = compiler.Compile(new Dictionary<string, MessageDefinition>
+        var error = Assert.Throws<InvalidDataException>(() => compiler.Compile(new Dictionary<string, MessageDefinition>
         {
-            ["child"] = Message(new("binding", "person.0.future-property")),
-            ["parent"] = new([new MessageReference("child", false)], true, [])
-        });
-        Assert.All(GameplayMessageCompiler.Audit(messages), row =>
-        {
-            Assert.True(row.SourceConfirmed);
-            Assert.False(row.RuntimeReady);
-            Assert.Contains("No runtime property for person.future-property.", row.UnavailableReasons);
-        });
+            ["parent"] = new([new MessageReference("child", false)]),
+            ["child"] = Message(new("binding", "person.0.future-property"))
+        }));
+        Assert.Contains("child", error.Message);
+        Assert.Contains("No runtime property for person.future-property.", error.Message);
     }
 
     private static MessageExpression Expression(MessageDefinition message) => Assert.IsType<MessageValue>(Assert.Single(message.Nodes)).Expression;
-    private static MessageDefinition Message(MessageExpression expression) => new([new MessageValue(expression)], true, []);
+    private static MessageDefinition Message(MessageExpression expression) => new([new MessageValue(expression)]);
     private static ScenarioInitialState Scenario() => new(ScenarioInitialState.CurrentSchemaVersion, "test", 190, 1, 1, 0, [], [], [], []);
     private static San9ScenarioPersonRecord Person(ushort biography) => new(
         0, 6000, 0, 0, 0, 0, 0, biography, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,

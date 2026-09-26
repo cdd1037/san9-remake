@@ -18,20 +18,19 @@ public sealed record MessageContext(IReadOnlyDictionary<string, MessageBinding> 
 /// <summary>Evaluate once when a message is produced; views retain the returned BBCode.</summary>
 public sealed class MessageEvaluator(IReadOnlyDictionary<string, MessageDefinition> messages)
 {
-    public string Evaluate(string key, MessageContext context, bool source = false)
+    public string Evaluate(string key, MessageContext context)
     {
-        if (!MessageGraph.Requirements(key, messages).Executable)
+        if (!MessageGraph.ReferencesValid(key, messages))
             throw new InvalidDataException($"Message dependencies are not executable: {key}");
         var output = new StringBuilder();
         var active = new HashSet<string>(StringComparer.Ordinal);
         int steps = 0;
-        var formatting = new MessageFormatting();
         void Render(string id)
         {
             if (active.Count >= 64 || !active.Add(id)) throw new InvalidDataException($"Cyclic/deep message reference: {id}");
             try
             {
-                if (!messages.TryGetValue(id, out var message) || !message.SemanticsConfirmed)
+                if (!messages.TryGetValue(id, out var message))
                     throw new InvalidDataException($"Message is not executable: {id}");
                 Walk(message.Nodes);
             }
@@ -44,11 +43,16 @@ public sealed class MessageEvaluator(IReadOnlyDictionary<string, MessageDefiniti
                 if (++steps > 10000 || output.Length > 1_000_000) throw new InvalidDataException("Message evaluation limit exceeded.");
                 switch (node)
                 {
-                    case MessageLiteral literal: output.Append(source ? literal.SourceBbCode : literal.BbCode); break;
-                    case MessageFormat format: formatting.Change(output, format); break;
+                    case MessageLiteral literal: output.Append(literal.BbCode); break;
+                    case MessageStyled styled:
+                        output.Append(MessageStyles.Open(styled.Preset));
+                        bool returned = Walk(styled.Body);
+                        output.Append(MessageStyles.Close);
+                        if (returned) return true;
+                        break;
                     case MessageValue value:
                         var resolved = Value(value.Expression);
-                        output.Append(value.Prefix).Append(MessageMarkup.Escape(Format(resolved,value.Format))).Append(value.Suffix); break;
+                        output.Append(MessageMarkup.Escape(Format(resolved,value.Format))); break;
                     case MessageReference reference: Render(reference.Key); if (reference.Tail) return true; break;
                     case MessageConditional conditional:
                         if (Numeric(Value(conditional.Predicate)) != 0 && Walk(conditional.Body)) return true;
@@ -57,6 +61,12 @@ public sealed class MessageEvaluator(IReadOnlyDictionary<string, MessageDefiniti
                         long index = Numeric(Value(choice.Index));
                         if (index < 0 || index >= choice.Choices.Length) throw new InvalidDataException("Message choice outside candidate range.");
                         if (Walk(choice.Choices[index])) return true;
+                        break;
+                    case MessageRandomChoice randomChoice:
+                        int randomIndex = context.RandomIndex(randomChoice.Choices.Length);
+                        if (randomIndex < 0 || randomIndex >= randomChoice.Choices.Length)
+                            throw new InvalidDataException("Random message choice outside candidate range.");
+                        if (Walk(randomChoice.Choices[randomIndex])) return true;
                         break;
                     case MessageReturn: return true;
                     default: throw new InvalidDataException("Unsupported message node.");
@@ -105,7 +115,6 @@ public sealed class MessageEvaluator(IReadOnlyDictionary<string, MessageDefiniti
             });
         }
         Render(key);
-        output.Append(formatting.Closing);
         if (output.Length > 1_000_000) throw new InvalidDataException("Message output limit exceeded.");
         return output.ToString();
     }

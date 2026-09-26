@@ -19,7 +19,7 @@ public sealed class MapCommandSummaryTests
                 ? o with { SettlementId = null, UnitId = 81 } : o).ToArray(),
             Units = [new UnitState(81, 1, new(12, 12), 1000) { CommanderId = 1, ServicePlaceId = 1 }]
         };
-        var texts = new TextCatalog(4, definition.Settlements.ToDictionary(s => s.NameKey, s => new TextEntry(s.NameKey, s.NameKey)));
+        var texts = new TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion, definition.Settlements.ToDictionary(s => s.NameKey, s => s.NameKey));
         string Serving()
         {
             var view = new StrategySnapshot(definition, world);

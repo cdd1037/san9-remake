@@ -78,9 +78,9 @@ public sealed class ClientContentPackageTests
         var map = new MapPackage(11, "fixture", "fixture", "spring", 200, 200, 13056, 6656,
             [], [], [], [], [], [], Buildings, [], [], [], [], [], new([], []), []);
         var skin = new InterfaceSkin(29, [Asset], InterfaceSkin.RequiredUiAssets.ToDictionary(s => s, _ => "ui"), Colors(), CursorDefinition.EdgeScrollRoles.ToDictionary(s => s, _ => new CursorDefinition("ui", 0, 0)));
-        var text = new TextCatalog(4, new() { ["player"] = new("Player", "Player"), ["city"] = new("City", "City"), ["port"] = new("Port", "Port") });
-        foreach (string id in San9.Content.Interface.CommandMenuSkin.EntryIds) text.Entries.Add(San9.Content.Interface.CommandMenuSkin.DescriptionKey(id), new("Description", "Description"));
-        foreach (string role in StrategyHintText.Roles) text.Entries.Add(StrategyHintText.Key(role), new("Hint", "Hint"));
+        var text = new TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion, new() { ["player"] = "Player", ["city"] = "City", ["port"] = "Port" });
+        foreach (string id in San9.Content.Interface.CommandMenuSkin.EntryIds) text.Entries.Add(San9.Content.Interface.CommandMenuSkin.DescriptionKey(id), "Description");
+        foreach (string role in StrategyHintText.Roles) text.Entries.Add(StrategyHintText.Key(role), "Hint");
         var p = new ClientContentPackage(ScenarioContent.CurrentSchemaVersion, [], map, Fixture(), text, skin, new(3, [])); p.ValidateLinks();
         Assert.Throws<InvalidDataException>(() => (p with { SchemaVersion = 15 }).ValidateLinks());
         Assert.Throws<InvalidDataException>(() => (p with { Scenario = p.Scenario with { Settlements = [p.Scenario.Settlements[0]] } }).ValidateLinks());
@@ -88,24 +88,24 @@ public sealed class ClientContentPackageTests
         Assert.Throws<InvalidDataException>(() => (p with { Scenario = p.Scenario with { Settlements = [p.Scenario.Settlements[0] with { X = 88 }, p.Scenario.Settlements[1]] } }).ValidateLinks());
         foreach (string key in text.Entries.Keys)
         {
-            var entries = new Dictionary<string, TextEntry>(text.Entries); entries.Remove(key);
-            Assert.Throws<InvalidDataException>(() => (p with { Text = new(4, entries) }).ValidateLinks());
+            var entries = new Dictionary<string, string>(text.Entries); entries.Remove(key);
+            Assert.Throws<InvalidDataException>(() => (p with { Text = new(San9.Content.Text.TextCatalog.CurrentSchemaVersion, entries) }).ValidateLinks());
         }
         var titled = p with { Scenario = p.Scenario with { Information = p.Scenario.Information with
-        { CountryTitles = [new(new(5000, true, true, false, [], []), "country-title", 30)] } }, Text = new(4, new(text.Entries)) };
+        { CountryTitles = [new(new(5000, true, true, false, [], []), "country-title", 30)] } }, Text = new(San9.Content.Text.TextCatalog.CurrentSchemaVersion, new(text.Entries)) };
         Assert.Throws<InvalidDataException>(titled.ValidateLinks);
-        titled.Text.Entries.Add("country-title", new("国号", "國號"));
+        titled.Text.Entries.Add("country-title", "国号");
         titled.ValidateLinks(); // Unclaimed definitions must also retain a valid display name.
-        var translated = text with { Entries = text.Entries.ToDictionary(kv => kv.Key, kv => kv.Value with { Text = "中文" }) };
+        var translated = text with { Entries = text.Entries.ToDictionary(kv => kv.Key, kv => "中文") };
         var changed = p with { Text = translated }; changed.ValidateLinks();
         var treasurePackage = p with { Scenario = p.Scenario with
         {
             Information = new([], [], [new(0, "treasure", 0, 0, 0, null)], p.Scenario.Information.Corps, [new(0, null, San9.Core.Domain.TreasureDiscovery.Discovered, 15)])
-        }, Text = new(4, new(text.Entries)), Skin = skin with { Roles = new(skin.Roles) } };
+        }, Text = new(San9.Content.Text.TextCatalog.CurrentSchemaVersion, new(text.Entries)), Skin = skin with { Roles = new(skin.Roles) } };
         treasurePackage.Skin.Roles.Add("information-treasure-0", "ui");
-        treasurePackage.Text.Entries.Add("treasure", new("Treasure", "Treasure"));
+        treasurePackage.Text.Entries.Add("treasure", "Treasure");
         Assert.Throws<InvalidDataException>(treasurePackage.ValidateLinks);
-        treasurePackage.Text.Entries.Add(TreasureText.DescriptionKey(0), new("First\nSecond", "First\nSecond"));
+        treasurePackage.Text.Entries.Add(TreasureText.DescriptionKey(0), "First\nSecond");
         treasurePackage.ValidateLinks();
         Assert.Throws<InvalidDataException>(() => (treasurePackage.Scenario with
         {
@@ -118,6 +118,6 @@ public sealed class ClientContentPackageTests
             { TreasureStates = [new(0, null, San9.Core.Domain.TreasureDiscovery.Buried, 999)] }
         }).Validate());
         Assert.Same(p.Map, changed.Map); Assert.Same(p.Scenario, changed.Scenario);
-        Assert.Equal("中文", changed.Text.Resolve("city")); Assert.Equal("City", changed.Text.Entries["city"].SourceText);
+        Assert.Equal("中文", changed.Text.Resolve("city")); Assert.Equal("City", text.Entries["city"]);
     }
 }

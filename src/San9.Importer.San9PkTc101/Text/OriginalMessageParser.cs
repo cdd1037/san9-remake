@@ -4,14 +4,16 @@ using San9.Content.Text;
 namespace San9.Importer.San9PkTc101.Text;
 
 public sealed record MessageIssue(int Offset, string Reason);
-public sealed record ParsedMessage(MessageDefinition Definition, int ConsumedBytes, bool FullyParsed, MessageIssue[] Issues);
+public sealed record ParsedMessage(MessageDefinition Definition, int ConsumedBytes, bool FullyParsed, MessageIssue[] Issues)
+{
+    public bool SemanticsConfirmed => Issues.Length == 0;
+}
 
 /// <summary>Grammar-driven TC-101 decoding. Unknown semantics remain explicit import diagnostics.</summary>
 public sealed class OriginalMessageParser
 {
     private readonly OriginalTextConverter _text = new();
     private readonly List<MessageIssue> _issues = [];
-    private readonly HashSet<string> _bindings = [];
     private byte[] _bytes = [];
     private int _position;
     private string _catalog = "messages";
@@ -20,9 +22,7 @@ public sealed class OriginalMessageParser
     private List<MessageNode> _root = [];
     private bool _formatString;
     private int _formatParameter;
-    private static readonly string[] Palette = ["000000","98B0F8","F06850","D880F8","88F880","603000","F8F850","F0F0F0",
-        "404040","5828C8","B82000","800090","005028","D8D8D8","F8F8B0","A4A4A4","40F8B0","F0B080","00F098","402800",
-        "002878","983810","E0C850","004010","770000","5A9FD8","988058","A4D168","7EBAC2","C0E0E8","000000","000000"];
+    private OriginalMessagePresentation _presentation;
     public static readonly IReadOnlyDictionary<byte, string> Icons = new Dictionary<byte, string>
     {
         [0xCD] = "arrow-up-right", [0xCE] = "arrow-down-right", [0xD0] = "city",
@@ -30,21 +30,34 @@ public sealed class OriginalMessageParser
         [0xD4] = "turn-arrow", [0xD5] = "book", [0xD6] = "waves", [0xD7] = "circle"
     };
 
-    public ParsedMessage Parse(byte[] bytes, string catalog = "messages", bool terminated = true, bool formatString = false)
+    public ParsedMessage Parse(byte[] bytes, string catalog = "messages", bool terminated = true, bool formatString = false,
+        OriginalMessagePresentation presentation = OriginalMessagePresentation.Standard)
+    {
+        var parsed = ParseSyntax(bytes, catalog, terminated, formatString, presentation);
+        try { return parsed with { Definition = OriginalMessageStyles.Compile(parsed.Definition) }; }
+        catch (InvalidDataException error)
+        {
+            return parsed with { Definition = new([]), Issues = [.. parsed.Issues, new(0, error.Message)] };
+        }
+    }
+
+    internal ParsedMessage ParseSyntax(byte[] bytes, string catalog = "messages", bool terminated = true, bool formatString = false,
+        OriginalMessagePresentation presentation = OriginalMessagePresentation.Standard)
     {
         _bytes = bytes; _position = 0; _catalog = catalog; _depth = 0; _expressionDepth = 0;
-        _issues.Clear(); _bindings.Clear();
+        _issues.Clear();
         List<MessageNode> nodes = [];
         bool complete = true;
         _root = [];
         _formatString = formatString; _formatParameter = 0;
+        _presentation = presentation;
         try
         {
             nodes = Sequence(false);
             if (terminated && !bytes.AsSpan().EndsWith(new byte[] { 5, 5, 5 })) throw new InvalidDataException("Missing terminal delimiter.");
         }
         catch (InvalidDataException e) { complete = false; nodes = _root; Issue(e.Message); }
-        return new(new(nodes.ToArray(), _issues.Count == 0, _bindings.Order(StringComparer.Ordinal).ToArray()), _position, complete && _position == bytes.Length, _issues.ToArray());
+        return new(new(nodes.ToArray()), _position, complete && _position == bytes.Length, _issues.ToArray());
     }
 
     private List<MessageNode> Sequence(bool branch)
@@ -72,7 +85,7 @@ public sealed class OriginalMessageParser
             byte first = Take();
             if (first == '%' && _formatString)
             {
-                if (Peek() == '%') { Take(); nodes.Add(new MessageLiteral("%","%")); continue; }
+                if (Peek() == '%') { Take(); nodes.Add(new MessageLiteral("%")); continue; }
                 bool left = false, zero = false;
                 while (Peek() is (byte)'-' or (byte)'0') { if (Take() == '-') left=true; else zero=true; }
                 int width = Peek() is >= (byte)'0' and <= (byte)'9' ? checked((int)Decimal()) : 0;
@@ -81,7 +94,7 @@ public sealed class OriginalMessageParser
                 byte kind=Take();
                 string format=kind switch { (byte)'s'=>"string", (byte)'d' or (byte)'i'=>"signed", (byte)'u'=>"unsigned", (byte)'x'=>"hex", (byte)'X'=>"hex-upper",
                     _=>throw new InvalidDataException($"Unsupported native format {kind:X2}.") };
-                string key=$"argument.{_formatParameter++}"; _bindings.Add(key);
+                string key=$"argument.{_formatParameter++}";
                 nodes.Add(new MessageValue(new("binding",key),Format:new(format,width,zero,left,precision)));
             }
             else if (first == 1)
@@ -99,7 +112,7 @@ public sealed class OriginalMessageParser
                         throw new InvalidDataException("Nonconstant branch selection requires semantic review.");
                     var candidates = new MessageNode[bound.Number!.Value][];
                     for (int i = 0; i < candidates.Length; i++) candidates[i] = Sequence(true).ToArray();
-                    nodes.Add(new MessageChoice(expression, candidates));
+                    nodes.Add(new MessageRandomChoice(candidates));
                 }
                 else throw new InvalidDataException($"Unsupported macro {macro:X2}.");
             }
@@ -134,7 +147,7 @@ public sealed class OriginalMessageParser
             else if (first == 0xFA && Icons.TryGetValue(Peek(), out string? icon))
             {
                 Take(); string image = $"[img]icons/{icon}[/img]";
-                nodes.Add(new MessageLiteral(image, image));
+                nodes.Add(new MessageLiteral(image));
             }
             else
             {
@@ -148,10 +161,10 @@ public sealed class OriginalMessageParser
                     Take(); if (next >= 128) Take();
                 }
                 if (_position == start) throw new InvalidDataException($"Unsupported control {first:X2}.");
-                TextEntry text;
+                string text;
                 try { text = _text.DecodeCharacters(_bytes.AsSpan(start, _position - start)); }
                 catch (InvalidDataException) { _position = start; throw; }
-                nodes.Add(new MessageLiteral(MessageMarkup.Escape(text.Text), MessageMarkup.Escape(text.SourceText)));
+                nodes.Add(new MessageLiteral(MessageMarkup.Escape(text)));
             }
         }
         if (branch && !ended) throw new InvalidDataException("Missing branch delimiter.");
@@ -160,23 +173,20 @@ public sealed class OriginalMessageParser
     }
     private void AddStyle(List<MessageNode> nodes, long? index, byte suffix, int offset)
     {
-        if (suffix == 's')
+        if (suffix == 'u' || index is null or >= 32)
         {
-            // Native RichTextLabel has no per-span shadow. Keep the exact diagnostic,
-            // consume the grammar, and refuse execution rather than changing text color.
-            Issue("Inline shadow transition requires a supported presentation policy.", offset);
+            nodes.Add(new OriginalStyleChange(null));
             return;
         }
-        if (suffix == 'u' || index >= 32 || suffix == 'm')
+        string? color = index switch { 1 => "blue", 4 => "green", 17 => "peach", 14 => "yellow", _ => null };
+        if (color is not null && suffix is (byte)'b' or (byte)'s' && _presentation == OriginalMessagePresentation.Help)
         {
-            nodes.Add(new MessageFormat("[outline_size=0]", "[/outline_size]", "effect"));
-            string? foreground = suffix == 'm' && index is >= 0 and < 32 ? Palette[index.Value] : null;
-            nodes.Add(new MessageFormat(foreground is null ? "" : $"[color=#{foreground}]", foreground is null ? "" : "[/color]"));
+            // RE-0167: help/training normalizes b/s to foreground, remaps 1/4, and adds black outline.
+            nodes.Add(new OriginalStyleChange(color));
             return;
         }
-        string? edge = index is >= 0 and < 32 ? Palette[index.Value] : null;
-        nodes.Add(new MessageFormat(edge is null ? "[outline_size=0]" : $"[outline_size=1][outline_color=#{edge}A6]",
-            edge is null ? "[/outline_size]" : "[/outline_color][/outline_size]", "effect"));
+        if (color is not null && suffix == 'b') nodes.Add(new OriginalStyleChange(color + "-outline"));
+        else Issue($"Source style {index}{(char)suffix} has no confirmed message preset for {_presentation}.", offset);
     }
     private MessageExpression Boolean()
     {
@@ -266,7 +276,6 @@ public sealed class OriginalMessageParser
                 if (name is null) { Issue($"Unresolved {category} property {property:X2}."); name = "unresolved-property"; }
                 key += "." + name;
             }
-            _bindings.Add(key);
             return new("binding", key);
         }
         if (selector is 0xC9 or 0xCA) return new(selector == 0xCA ? "random" : "chance", Arguments: [Arithmetic()]);
@@ -279,7 +288,7 @@ public sealed class OriginalMessageParser
             int slot = Take() - (selector == 0xDA ? 31 : 1);
             if ((uint)slot >= 5) Issue("Object argument outside bound range.");
             string key = $"{(selector == 0xDA ? "force" : "person")}.{slot}";
-            _bindings.Add(key); arguments.Add(new("binding", key));
+            arguments.Add(new("binding", key));
         }
         if (selector is 0xD2 or 0xD3 or 0xDD) arguments.Add(Arithmetic());
         string? function = selector switch
@@ -295,7 +304,6 @@ public sealed class OriginalMessageParser
             if (selector is < 0xC9 or > 0xDF) throw new InvalidDataException($"Unknown selector {selector:X2}.");
             Issue($"Unresolved expression function {selector:X2}."); function = "unresolved-function";
         }
-        _bindings.Add("query:" + function);
         return new("query", function, Arguments: arguments.ToArray());
     }
     private long Decimal()

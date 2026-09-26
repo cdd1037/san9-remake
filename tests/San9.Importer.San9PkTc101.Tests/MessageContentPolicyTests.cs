@@ -17,20 +17,20 @@ public sealed class MessageContentPolicyTests
             2, 0x8c, .. Encoding.ASCII.GetBytes("14b\x1bH30"), 2, 0x8c, .. Encoding.ASCII.GetBytes("32b"),
             .. Encoding.GetEncoding(950).GetBytes("種。"), 5, 5, 5];
         var original = new OriginalMessageParser().Parse(raw, catalog);
-        Assert.False(original.Definition.SemanticsConfirmed);
+        Assert.False(original.SemanticsConfirmed);
         var messages = new Dictionary<string, MessageDefinition> { [key] = original.Definition };
         var audit = MessageContentPolicy.Apply(key, raw, catalog, messages);
         Assert.NotNull(audit);
-        Assert.Contains("[color=#F8F8B0]70[/color]种", MessageMarkup.Static(messages[key].Nodes.TakeWhile(n => n is not MessageReturn)));
-        Assert.Contains("[color=#F8F8B0]30[/color]種", MessageMarkup.Static(messages[key].Nodes.TakeWhile(n => n is not MessageReturn), source: true));
-        Assert.True(MessageGraph.Requirements(key, messages).Executable);
-        Assert.False(new OriginalMessageParser().Parse(raw, catalog).Definition.SemanticsConfirmed);
+        Assert.Contains("[preset=yellow]70[/preset]种", MessageMarkup.Static(messages[key].Nodes.TakeWhile(n => n is not MessageReturn)));
+        Assert.Contains("[preset=yellow]30[/preset]种", MessageMarkup.Static(messages[key].Nodes.TakeWhile(n => n is not MessageReturn)));
+        Assert.True(MessageGraph.Requirements(key, messages).ReferencesValid);
+        Assert.False(new OriginalMessageParser().Parse(raw, catalog).SemanticsConfirmed);
         raw[0] ^= 1;
         Assert.Throws<InvalidDataException>(() => MessageContentPolicy.Apply(key, raw, catalog, messages));
     }
 
     [Fact]
-    public void ReviewedTailPreservesRandomBranchesAndUnblocksParent()
+    public void ReviewedTailPreservesRandomBranchesAndParentReference()
     {
         byte[] body = [1, (byte)'S', 2, 0xca, (byte)'%', (byte)'2', (byte)'A', 5, 5, 5, (byte)'B', 5, 5, 5];
         byte[] raw = [.. body, 1, (byte)'J'];
@@ -38,15 +38,15 @@ public sealed class MessageContentPolicyTests
         var messages = new Dictionary<string, MessageDefinition>
         {
             ["messages.12712"] = source.Definition,
-            ["parent"] = new([new MessageReference("messages.12712", true)], true, [])
+            ["parent"] = new([new MessageReference("messages.12712", true)])
         };
-        Assert.False(MessageGraph.Requirements("parent", messages).Executable);
+        Assert.False(source.SemanticsConfirmed);
         var audit = MessageContentPolicy.Apply("messages.12712", raw, "messages", messages);
         Assert.Equal("014A", audit!.DiscardedHex);
-        var choice = Assert.IsType<MessageChoice>(Assert.Single(messages["messages.12712"].Nodes));
+        var choice = Assert.IsType<MessageRandomChoice>(Assert.Single(messages["messages.12712"].Nodes));
         Assert.Equal("A", MessageMarkup.Static(choice.Choices[0].OfType<MessageLiteral>()));
         Assert.Equal("B", MessageMarkup.Static(choice.Choices[1].OfType<MessageLiteral>()));
-        Assert.True(MessageGraph.Requirements("parent", messages).Executable);
+        Assert.True(MessageGraph.Requirements("parent", messages).ReferencesValid);
         Assert.False(source.FullyParsed);
         Assert.Null(MessageContentPolicy.Apply("messages.999", raw, "messages", messages));
         Assert.Null(MessageContentPolicy.Apply("base-messages.7762", raw, "base-messages", messages));

@@ -275,9 +275,9 @@ public sealed class MilitarySessionTests
         int id = Assert.Single(session.Snapshot.Units).Id;
         var view = session.View;
         string before = session.Capture().StateHash;
-        var texts = new San9.Content.Text.TextCatalog(4, new Dictionary<string, San9.Content.Text.TextEntry>
+        var texts = new San9.Content.Text.TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion, new Dictionary<string, string>
         {
-            ["officer"] = new("甲", "甲"), ["origin"] = new("甲城", "甲城"), ["destination"] = new("乙城", "乙城")
+            ["officer"] = "甲", ["origin"] = "甲城", ["destination"] = "乙城"
         });
         using (var searches = new PathSearchDiagnostics())
         {

@@ -4,7 +4,7 @@ using San9.Content.Text;
 
 namespace San9.Importer.San9PkTc101.Text;
 
-/// <summary>Single original-byte to Unicode source/display text boundary.</summary>
+/// <summary>Single original-byte to display text boundary.</summary>
 public sealed class OriginalTextConverter
 {
     private readonly Opencc _converter = new(OpenccConfig.T2S);
@@ -16,15 +16,15 @@ public sealed class OriginalTextConverter
         return Encoding.GetEncoding(950, EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback);
     }
 
-    public TextEntry Convert(ReadOnlySpan<byte> bytes)
+    public string Convert(ReadOnlySpan<byte> bytes)
     {
         var parsed = new OriginalMessageParser().Parse(bytes.ToArray(), terminated: false);
-        if (!parsed.FullyParsed || !parsed.Definition.SemanticsConfirmed)
+        if (!parsed.FullyParsed || !parsed.SemanticsConfirmed)
             throw new InvalidDataException("Dynamic or invalid message requested as static text.");
-        return new(MessageMarkup.Static(parsed.Definition.Nodes), MessageMarkup.Static(parsed.Definition.Nodes, true));
+        return MessageMarkup.Static(parsed.Definition.Nodes);
     }
 
-    internal TextEntry DecodeCharacters(ReadOnlySpan<byte> bytes)
+    internal string DecodeCharacters(ReadOnlySpan<byte> bytes)
     {
         var source = new StringBuilder();
         for (int offset = 0; offset < bytes.Length;)
@@ -54,6 +54,6 @@ public sealed class OriginalTextConverter
             offset += length;
         }
         string text = source.ToString();
-        return new(_converter.Convert(text), text);
+        return _converter.Convert(text);
     }
 }

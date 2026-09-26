@@ -8,7 +8,7 @@ public sealed class ScenarioTextReader(byte[] messages, byte[] executable) : IDi
 {
     private readonly San9MessageTable _messages = new(messages);
     private readonly PEReader _executable = new(new MemoryStream(executable));
-    private readonly Dictionary<string, TextEntry> _entries = [];
+    private readonly Dictionary<string, string> _entries = [];
     private readonly Dictionary<int, MessagePersonProfile> _messagePeople = [];
     private readonly OriginalTextConverter _converter = new();
 
@@ -35,7 +35,7 @@ public sealed class ScenarioTextReader(byte[] messages, byte[] executable) : IDi
     private string? AddOptional(string key, byte[] source)
     {
         var entry = _converter.Convert(source);
-        if (string.IsNullOrWhiteSpace(entry.Text)) return null;
+        if (string.IsNullOrWhiteSpace(entry)) return null;
         _entries.Add(key, entry); return key;
     }
     public string? Courtesy(string key, int code)
@@ -78,7 +78,7 @@ public sealed class ScenarioTextReader(byte[] messages, byte[] executable) : IDi
     public string Surname(int family)
     {
         if (family >= 700) throw new InvalidDataException("Unsupported generated surname.");
-        return _converter.Convert(_messages.PlainText(1678 + 4 * family)).Text;
+        return _converter.Convert(_messages.PlainText(1678 + 4 * family));
     }
     public string Person(string key, int family, int given)
     {

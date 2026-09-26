@@ -42,13 +42,9 @@ public partial class TextVerification : Control
             wrap.Present("[img]icons/city[/img]洛阳：[color=#88F880]这是一段用于检查自动换行与行内图标的说明文字。[/color]" +
                 "[outline_size=1][outline_color=#98B0F8A6]蓝色描边[/outline_color][/outline_size]，显式换行如下：\n" + MessageMarkup.Escape("参数里的[b]必须按普通文字显示。") + "\n[font_size=24]字号切换[/font_size]结束。",GameTextStyles.CatalogRow);
             var font = GetThemeFont("font");
-            IEnumerable<string> Literals(IEnumerable<MessageNode> nodes) => nodes.SelectMany(n => n switch
-            {
-                MessageLiteral t => new[]{t.BbCode,t.SourceBbCode},
-                MessageConditional c => Literals(c.Body), MessageChoice c => c.Choices.SelectMany(Literals), _ => []
-            });
-            var characters=Content.Text.Entries.Values.SelectMany(t=>new[]{t.Text,t.SourceText})
-                .Concat(Content.Text.Messages.Values.SelectMany(m=>Literals(m.Nodes)))
+            var characters=Content.Text.Entries.Values
+                .Concat(MessageGraph.Walk(Content.Text.Messages.Values.SelectMany(m => m.Nodes))
+                    .OfType<MessageLiteral>().Select(literal => literal.BbCode))
                 .SelectMany(s=>s.EnumerateRunes()).Where(r=>!System.Text.Rune.IsControl(r)).Distinct().ToArray();
             int[] acceptedMissing = [0x20860, 0x29166, 0x2AEFA, 0x2B623];
             var missing=characters.Where(r=>!font.HasChar(r.Value)).Select(r=>new {

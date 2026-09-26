@@ -44,7 +44,7 @@ public sealed class PenglaiSessionTests
     public void ExplorationActivatesQueriesAndSurvivesSaveAndFullRecording()
     {
         var d = Definition(); var session = GameSession.Start(d, 17); session.BeginRecording();
-        var texts = new TextCatalog(4, d.Forces.Select(f => f.NameKey).Concat(d.Officers.Select(p => p.NameKey)).Concat(d.RegionNameKeys.Values).Distinct().ToDictionary(k => k, k => new TextEntry(k, k)));
+        var texts = new TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion, d.Forces.Select(f => f.NameKey).Concat(d.Officers.Select(p => p.NameKey)).Concat(d.RegionNameKeys.Values).Distinct().ToDictionary(k => k, k => k));
         var query = new InformationQuery(session, texts);
         Assert.DoesNotContain(query.Read(InformationCategory.Corps).Rows, r => r.Key.Id == 2);
         Assert.DoesNotContain(session.View.Settlements, s => s.Id is 3 or 4);

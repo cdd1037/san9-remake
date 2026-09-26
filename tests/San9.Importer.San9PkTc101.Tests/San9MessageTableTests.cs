@@ -29,6 +29,59 @@ public sealed class San9MessageTableTests
         }
         return data;
     }
+    [Fact]
+    public void PublicationRejectsUnconfirmedSourceWhileResearchKeepsDiagnostics()
+    {
+        byte[] archive = Archive(Table([1, (byte)'C', 1, 0], [0x1b, (byte)'H']));
+        var research = MessageArchiveCompiler.Compile(archive, "fixture", "messages");
+        Assert.False(research.Audit.Records[1].SemanticsConfirmed);
+        Assert.False(research.Audit.Records[0].DependenciesConfirmed);
+        Assert.NotEmpty(research.Audit.Records[1].Issues);
+        var error = Assert.Throws<InvalidDataException>(() =>
+            MessageArchiveCompiler.CompileForPublication(archive, "fixture", "messages"));
+        Assert.Contains("messages.1", error.Message);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(2)]
+    public void PublicationRejectsCyclicOrMissingReferences(byte target)
+    {
+        byte[] archive = Archive(Table([1, (byte)'C', target, 0]));
+        Assert.Throws<InvalidDataException>(() =>
+            MessageArchiveCompiler.CompileForPublication(archive, "fixture", "messages"));
+    }
+
+    [Fact]
+    public void PublicationKeepsValidMessagesAndDerivesReferencedArguments()
+    {
+        byte[] archive = Archive(Table([1, (byte)'C', 1, 0], [2, 1, 0xDB]));
+        var published = MessageArchiveCompiler.CompileForPublication(archive, "fixture", "messages");
+        Assert.Equal(2, published.Messages.Count);
+        Assert.Empty(published.Adaptations);
+        Assert.Equal(["person.0.surname"], San9.Content.Text.MessageGraph.Requirements("messages.0", published.Messages).Bindings);
+    }
+
+    [Fact]
+    public void PublicationAppliesReviewedContentBeforeExpandingStyledReferences()
+    {
+        System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+        var encoding = System.Text.Encoding.GetEncoding(950);
+        byte[] appearance = [.. encoding.GetBytes("男性容貌有"), 2, 0x8c, .. System.Text.Encoding.ASCII.GetBytes("14b\x1bH70"),
+            2, 0x8c, .. System.Text.Encoding.ASCII.GetBytes("32b"), .. encoding.GetBytes("種，\n女性容貌有"),
+            2, 0x8c, .. System.Text.Encoding.ASCII.GetBytes("14b\x1bH30"), 2, 0x8c,
+            .. System.Text.Encoding.ASCII.GetBytes("32b"), .. encoding.GetBytes("種。")];
+        var records = Enumerable.Range(0, 8678).Select(_ => Array.Empty<byte>()).ToArray();
+        records[0] = [2, 0x8c, (byte)'1', (byte)'b', 1, (byte)'C', 0xe5, 0x21];
+        records[8677] = appearance;
+        var published = MessageArchiveCompiler.CompileForPublication(Archive(Table(records)), "fixture", "messages");
+        var references = San9.Content.Text.MessageGraph.Walk(published.Messages["messages.0"].Nodes)
+            .OfType<San9.Content.Text.MessageReference>();
+        Assert.Equal("messages.8677", Assert.Single(references).Key);
+        Assert.Contains("[preset=yellow]70[/preset]", San9.Content.Text.MessageMarkup.Static(
+            published.Messages["messages.8677"].Nodes.TakeWhile(n => n is not San9.Content.Text.MessageReturn)));
+    }
+
     private static byte[] Codes(params int[] codes)
     {
         List<int> bits = [];
@@ -45,14 +98,14 @@ public sealed class San9MessageTableTests
         return bytes;
     }
     [Fact]
-    public void StoredNamesKeepSourceTextAndExplicitExtension()
+    public void StoredNamesConvertDisplayTextAndExplicitExtension()
     {
         var table = new San9MessageTable(Archive(Table([0xB5, 0x4C], [0xFA, 0x40], [])));
-        Assert.Equal("無", new OriginalTextConverter().Convert(table.PlainText(0)).SourceText);
-        Assert.Equal("伷", new OriginalTextConverter().Convert(table.PlainText(1)).SourceText);
-        Assert.Equal("", new OriginalTextConverter().Convert(table.PlainText(2)).SourceText);
+        Assert.Equal("无", new OriginalTextConverter().Convert(table.PlainText(0)));
+        Assert.Equal("伷", new OriginalTextConverter().Convert(table.PlainText(1)));
+        Assert.Equal("", new OriginalTextConverter().Convert(table.PlainText(2)));
         var extensions = new San9MessageTable(Archive(Table([0xFA, 0x41], [0xFA, 0x45])));
-        Assert.Equal("璝", new OriginalTextConverter().Convert(extensions.PlainText(0)).SourceText); Assert.Equal("儁", new OriginalTextConverter().Convert(extensions.PlainText(1)).SourceText);
+        Assert.Equal("𪻺", new OriginalTextConverter().Convert(extensions.PlainText(0))); Assert.Equal("俊", new OriginalTextConverter().Convert(extensions.PlainText(1)));
         Assert.Throws<InvalidDataException>(() => table.PlainText(3));
     }
     [Fact]

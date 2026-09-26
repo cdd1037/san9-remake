@@ -31,8 +31,8 @@ public sealed class TreasureCommandTests
         var id = Guid.NewGuid();
         Assert.Equal(SessionDisposition.Accepted, session.Apply(session.Request(new CommandOperation(
             new GrantTreasureCommand(id, 1, 0, 10, 2)), id: id)).Disposition);
-        var texts = new TextCatalog(4, new[] { "treasure", "recipient", "ruler" }
-            .ToDictionary(k => k, k => new TextEntry(k, k)));
+        var texts = new TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion, new[] { "treasure", "recipient", "ruler" }
+            .ToDictionary(k => k, k => k));
         Assert.Empty(TreasureCatalog.Read(session.View, texts, holderId: 1).Rows);
         Assert.Single(TreasureCatalog.Read(session.View, texts, holderId: 2).Rows);
         Assert.Equal(60, session.View.Officers.Single(p => p.Id == 2).Abilities.War);
@@ -61,7 +61,7 @@ public sealed class TreasureCommandTests
             Information = source.Information with { Treasures = [source.Information.Treasures[0] with { TacticId = 0 }] }
         };
         var session = GameSession.Start(definition, 190);
-        var texts = new TextCatalog(4, new[] { "treasure", "recipient", "ruler" }.ToDictionary(k => k, k => new TextEntry(k, k)));
+        var texts = new TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion, new[] { "treasure", "recipient", "ruler" }.ToDictionary(k => k, k => k));
         long Count(StrategySnapshot view, int id) => OfficerCatalog.Read(view, texts, 0, null, null, id).Rows.Single().Cells[5].Number!.Value;
         string[] Marks(StrategySnapshot view, int id) => OfficerCatalog.Read(view, texts, 4, null, null, id).Rows.Single().Cells.Skip(2).Select(c => c.Text).ToArray();
         var before = session.View;

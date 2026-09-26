@@ -4,7 +4,7 @@ using San9.Content.Text;
 namespace San9.Importer.San9PkTc101.Text;
 
 public sealed record GameplayMessageAudit(string Key, bool SourceConfirmed, bool RuntimeReady,
-    string[] RequiredArguments, string[] UnavailableReasons);
+    string[] RequiredArguments);
 
 /// <summary>Removes source identities and catalog sort encodings before messages enter the runtime package.</summary>
 public sealed class GameplayMessageCompiler(ScenarioInitialState scenario, IReadOnlyList<San9ScenarioPersonRecord> people,
@@ -15,12 +15,7 @@ public sealed class GameplayMessageCompiler(ScenarioInitialState scenario, IRead
         Dictionary<string, MessageDefinition> result = [];
         foreach (var (key, definition) in source)
         {
-            var issues = new HashSet<string>(definition.UnavailableReasons, StringComparer.Ordinal);
-            MessageExpression Unsupported(string detail)
-            {
-                issues.Add(detail);
-                return new("query", "unavailable");
-            }
+            MessageExpression Unsupported(string detail) => throw new InvalidDataException($"Message {key}: {detail}");
             MessageExpression Entity(string kind, int id) => new("entity", kind, id);
             MessageExpression Number(long value) => new("constant", Number: value);
             MessageExpression Property(string name, MessageExpression argument) => new("property", name, Arguments: [argument]);
@@ -133,13 +128,14 @@ public sealed class GameplayMessageCompiler(ScenarioInitialState scenario, IRead
             }
             MessageNode[] Nodes(IEnumerable<MessageNode> nodes) => nodes.Select<MessageNode, MessageNode>(node => node switch
             {
+                MessageStyled s => s with { Body = Nodes(s.Body) },
                 MessageValue v => v with { Expression = Translate(v.Expression) },
                 MessageConditional c => c with { Predicate = Translate(c.Predicate), Body = Nodes(c.Body) },
-                MessageChoice c => c with { Index = Translate(c.Index), Choices = c.Choices.Select(Nodes).ToArray() }, _ => node
+                MessageChoice c => c with { Index = Translate(c.Index), Choices = c.Choices.Select(Nodes).ToArray() },
+                MessageRandomChoice c => c with { Choices = c.Choices.Select(Nodes).ToArray() }, _ => node
             }).ToArray();
-            var nodes = Nodes(definition.Nodes);
-            result.Add(key, definition with { Nodes = nodes, RequiredBindings = MessageGraph.Bindings(nodes),
-                UnavailableReasons = issues.Order(StringComparer.Ordinal).ToArray() });
+            var nodes = MessageGraph.Simplify(Nodes(definition.Nodes));
+            result.Add(key, new(nodes));
         }
         MessageGraph.Validate(result);
         return result;
@@ -148,19 +144,7 @@ public sealed class GameplayMessageCompiler(ScenarioInitialState scenario, IRead
     public static GameplayMessageAudit[] Audit(IReadOnlyDictionary<string, MessageDefinition> messages) => messages.Select(pair =>
     {
         var requirements = MessageGraph.Requirements(pair.Key, messages);
-        var reasons = new HashSet<string>(StringComparer.Ordinal);
-        var visited = new HashSet<string>(StringComparer.Ordinal);
-        void Visit(string key)
-        {
-            if (!visited.Add(key)) return;
-            if (!messages.TryGetValue(key, out var message)) { reasons.Add("Missing reference: " + key); return; }
-            if (!message.SemanticsConfirmed) reasons.Add("Source semantics not confirmed: " + key);
-            reasons.UnionWith(message.UnavailableReasons);
-            foreach (var reference in MessageGraph.Walk(message.Nodes).OfType<MessageReference>()) Visit(reference.Key);
-        }
-        Visit(pair.Key);
-        if (!requirements.ReferencesValid) reasons.Add("Invalid or cyclic message references.");
-        return new GameplayMessageAudit(pair.Key, pair.Value.SemanticsConfirmed, requirements.Executable, requirements.Bindings,
-            reasons.Order(StringComparer.Ordinal).ToArray());
+        if (!requirements.ReferencesValid) throw new InvalidDataException($"Invalid or cyclic message references: {pair.Key}.");
+        return new GameplayMessageAudit(pair.Key, true, true, requirements.Bindings);
     }).ToArray();
 }

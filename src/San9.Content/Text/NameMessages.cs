@@ -12,5 +12,5 @@ public static class NameMessages
     }
 
     private static MessageDefinition Define(string prefix) => new(
-        [new MessageLiteral(prefix, prefix), new MessageValue(new("binding", "name"))], true, ["name"]);
+        [new MessageLiteral(prefix), new MessageValue(new("binding", "name"))]);
 }

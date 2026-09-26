@@ -23,12 +23,12 @@ public sealed class OfficerCommandTests
             FacilityNameSuffixKeys = new() { [9000] = "fort" },
             Information = basis.Information with { Treasures = [new(9000, "treasure", 1, 5, 10, null)] }
         };
-        texts = new(4, new Dictionary<string, TextEntry>
+        texts = new(San9.Content.Text.TextCatalog.CurrentSchemaVersion, new Dictionary<string, string>
         {
-            ["city.1"] = new("甲城", "甲城"), ["city.2"] = new("乙城", "乙城"),
-            ["officer.1"] = new("甲", "甲"), ["officer.2"] = new("乙", "乙"), ["officer.3"] = new("丙", "丙"),
-            ["officer.4"] = new("丁", "丁"), ["officer.5"] = new("戊", "戊"), ["officer.6"] = new("己", "己"),
-            ["treasure"] = new("宝刀", "寶刀"), ["fort"] = new("城塞", "城塞")
+            ["city.1"] = "甲城", ["city.2"] = "乙城",
+            ["officer.1"] = "甲", ["officer.2"] = "乙", ["officer.3"] = "丙",
+            ["officer.4"] = "丁", ["officer.5"] = "戊", ["officer.6"] = "己",
+            ["treasure"] = "宝刀", ["fort"] = "城塞"
         });
     }
 

@@ -39,12 +39,11 @@ public sealed record ClientContentPackage(int SchemaVersion, ContentSource[] Sou
             foreach (string role in new[] { "formation-member", "formation-commander", "formation-panel-deployment", "formation-panel-detail" })
                 if (!Skin.Roles.ContainsKey(role)) throw new InvalidDataException($"Missing formation interface image: {role}");
         Scenario.Validate(); Text.Validate(); Skin.Validate(); Textures.Validate();
-        var markup = Text.Entries.Values.SelectMany(e => new[] { e.Text, e.SourceText })
+        var markup = Text.Entries.Values
             .Concat(MessageGraph.Walk(Text.Messages.Values.SelectMany(m => m.Nodes)).SelectMany(n => n switch
             {
-                MessageLiteral l => new[] { l.BbCode, l.SourceBbCode },
-                MessageFormat f => new[] { f.Open, f.Close },
-                MessageValue v => new[] { v.Prefix, v.Suffix }, _ => []
+                MessageLiteral l => new[] { l.BbCode },
+                _ => []
             }));
         foreach (string icon in markup.SelectMany(MessageMarkup.IconIds).Distinct())
             if (!Skin.Roles.ContainsKey($"text-icon-{icon}-16") && !Skin.Roles.ContainsKey($"text-icon-{icon}-24"))

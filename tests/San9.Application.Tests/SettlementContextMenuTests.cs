@@ -116,7 +116,7 @@ public sealed class SettlementContextMenuTests
             }
         };
         var keys = basis.Officers.Select(o => o.NameKey).Concat(["wave", "rain", "ship-description", "trap", "attack", "attack-description", "rank", "higher", "office", "office-description", "higher-office", "book", "land-tech", "ship-tech", "base", "advanced", "ship"]);
-        var texts = new TextCatalog(4, keys.ToDictionary(k => k, k => new TextEntry(k, k)));
+        var texts = new TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion, keys.ToDictionary(k => k, k => k));
         var session = GameSession.Start(definition, 1);
         var query = new InformationQuery(session, texts);
         string hash = session.Snapshot.StateHash;

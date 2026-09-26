@@ -19,8 +19,8 @@ public sealed class InformationBrowserTests
         var original = GameSession.Start(definition, 1).Snapshot;
         var world = original with { Officers = original.Officers.Select(o => o.Id == 1 ? o with { Status = status } : o).ToArray() };
         var view = new StrategySnapshot(definition, world);
-        var texts = new TextCatalog(4, definition.Officers.Select(o => o.NameKey).Concat(definition.Settlements.Select(s => s.NameKey))
-            .ToDictionary(key => key, key => new TextEntry(key, key)));
+        var texts = new TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion, definition.Officers.Select(o => o.NameKey).Concat(definition.Settlements.Select(s => s.NameKey))
+            .ToDictionary(key => key, key => key));
         var table = OfficerCatalog.Read(view, texts, 1, null, null, 1);
         var cell = Assert.Single(table.Rows).Cells[Array.IndexOf(table.Columns, "忠诚")];
         CatalogCell expected = applicable ? world.Officers.Single(o => o.Id == 1).Loyalty : new CatalogCell("—", long.MaxValue);
@@ -64,7 +64,7 @@ public sealed class InformationBrowserTests
                 { Injury = 2, OfficeId = 900 } }, scenario.Officers[1]],
                 Information = scenario.Information with { Offices = [new(900, "office", 10000, 0) { AbilityBonuses = new(3, 0, 0, 0) }] } };
         }
-        var text = new TextCatalog(4, new[] { "force", "city", "region", "ruler", "free", "rank", "treasure", "office" }.ToDictionary(s => s, s => new TextEntry(s, s)));
+        var text = new TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion, new[] { "force", "city", "region", "ruler", "free", "rank", "treasure", "office" }.ToDictionary(s => s, s => s));
         var session = GameSession.Start(scenario, 1);
         return (session, new(session, text));
     }
@@ -73,10 +73,10 @@ public sealed class InformationBrowserTests
     public void TreasureDetailProjectsCurrentHolderAndMultilineDescriptionWithoutMutatingWorld()
     {
         var (session, _) = Fixture();
-        var texts = new TextCatalog(4, new()
+        var texts = new TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion, new()
         {
-            ["treasure"] = new("测试宝物", "测试宝物"), ["ruler"] = new("持有人", "持有人"),
-            [TreasureText.DescriptionKey(0)] = new("第一行\n第二行", "第一行\n第二行")
+            ["treasure"] = "测试宝物", ["ruler"] = "持有人",
+            [TreasureText.DescriptionKey(0)] = "第一行\n第二行"
         });
         var hash = session.Snapshot.StateHash;
         var detail = TreasureDetails.Read(session.View, texts, 0);
@@ -170,10 +170,10 @@ public sealed class InformationBrowserTests
     public void OfficerDetailProjectsCurrentAbilitiesFieldsAndOwnedItemsWithoutMutatingWorld()
     {
         var (session, _) = Fixture(adjusted: true);
-        var texts = new TextCatalog(4, new Dictionary<string, TextEntry>());
+        var texts = new TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion, new Dictionary<string, string>());
         // The fixture names are their own display strings.
         foreach (string key in session.View.Officers.Select(o => o.NameKey).Concat(session.View.RegionNameKeys.Values)
-            .Concat(session.View.Information.Offices.Select(o => o.NameKey))) texts.Entries[key] = new(key, key);
+            .Concat(session.View.Information.Offices.Select(o => o.NameKey))) texts.Entries[key] = key;
         var before = session.Snapshot.StateHash;
         var detail = OfficerDetails.Read(session.View, texts, 1);
         Assert.Equal(new[] { 6, 4, 5, 6 }, detail.Fields.Select(c => c.Length));

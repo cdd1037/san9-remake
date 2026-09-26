@@ -74,6 +74,7 @@ public static class MapUnitCompiler
                 {
                     int body = group > 0 && id is >= 8 and <= 11 ? 0 : primary;
                     int category = At(0x6609d0 + body * 4);
+                    // Large central bodies select the large layout for escort counts as well as offsets.
                     if (category == 0 && At(0x6609d0 + primary * 4) == 2) category = 2;
                     int count = At(0x660a20 + (scale * 3 + category) * 8 + (group == 0 ? 0 : 4));
                     int groups = At(0x660c70 + (scale * 3 + category) * 4);

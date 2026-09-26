@@ -4,6 +4,63 @@ namespace San9.Rendering;
 
 public static class MapCameraBoundary
 {
+    private readonly record struct Segment(double AX, double AY, double BX, double BY);
+
+    /// <summary>Consumes relative travel along the surface and its boundary without losing tangential speed.</summary>
+    public static (double X, double Y) Move(double px, double py, double dx, double dy, IReadOnlyList<MapSquare> squares)
+    {
+        if (!double.IsFinite(px) || !double.IsFinite(py) || !double.IsFinite(dx) || !double.IsFinite(dy))
+            throw new ArgumentOutOfRangeException(nameof(dx));
+        double remaining = Math.Sqrt(dx * dx + dy * dy);
+        if (!double.IsFinite(remaining)) throw new ArgumentOutOfRangeException(nameof(dx));
+        (px, py) = Clamp(px, py, squares);
+        const double epsilon = 1e-7;
+        if (remaining <= epsilon) return (px, py);
+        double ux = dx / remaining, uy = dy / remaining;
+        var edges = Perimeter(squares).ToArray();
+        // Every slide has positive progress along the requested direction, so an edge cannot be revisited.
+        for (int step = 0; step <= edges.Length && remaining > epsilon; step++)
+        {
+            double hit = double.PositiveInfinity;
+            foreach (var edge in edges)
+            {
+                double ex = edge.BX - edge.AX, ey = edge.BY - edge.AY;
+                double cross = ux * ey - uy * ex;
+                // Perimeter edges run clockwise in screen coordinates. Only exits block travel.
+                if (cross <= epsilon) continue;
+                double ax = edge.AX - px, ay = edge.AY - py;
+                double distance = (ax * ey - ay * ex) / cross;
+                double along = (ax * uy - ay * ux) / cross;
+                if (distance >= -epsilon && distance <= remaining && along >= -epsilon && along <= 1 + epsilon)
+                    hit = Math.Min(hit, Math.Max(0, distance));
+            }
+            if (double.IsPositiveInfinity(hit)) return Clamp(px + ux * remaining, py + uy * remaining, squares);
+            px += ux * hit; py += uy * hit; remaining -= hit;
+            if (remaining <= epsilon) break;
+
+            double best = epsilon, tx = 0, ty = 0, available = 0;
+            foreach (var edge in edges)
+            {
+                double ex = edge.BX - edge.AX, ey = edge.BY - edge.AY;
+                double length = Math.Sqrt(ex * ex + ey * ey);
+                double along = ((px - edge.AX) * ex + (py - edge.AY) * ey) / length;
+                double normal = ((px - edge.AX) * ey - (py - edge.AY) * ex) / length;
+                if (Math.Abs(normal) > epsilon || along < -epsilon || along > length + epsilon) continue;
+                double dot = (ux * ex + uy * ey) / length;
+                double travel = dot >= 0 ? length - along : along;
+                if (travel <= epsilon || Math.Abs(dot) <= best) continue;
+                best = Math.Abs(dot); available = travel;
+                double sign = Math.Sign(dot);
+                tx = sign * ex / length; ty = sign * ey / length;
+            }
+            // At a corner or a perpendicular wall, do not invent a direction or bank leftover distance.
+            if (available <= epsilon) break;
+            double slide = Math.Min(remaining, available);
+            px += tx * slide; py += ty * slide; remaining -= slide;
+        }
+        return Clamp(px, py, squares);
+    }
+
     public static (double X, double Y) Clamp(double px, double py, IReadOnlyList<MapSquare> squares)
     {
         // Search the local height surface, independent of resource image bounds.
@@ -27,15 +84,21 @@ public static class MapCameraBoundary
         // Constrain continuously to the perimeter; never snap the window to a square center.
         double best = double.PositiveInfinity;
         (double X, double Y) result = default;
-        void Edge(double ax, double ay, double bx, double by)
+        foreach (var edge in Perimeter(squares))
         {
+            var (ax, ay, bx, by) = edge;
             double vx = bx - ax, vy = by - ay;
             double t = Math.Clamp(((px - ax) * vx + (py - ay) * vy) / (vx * vx + vy * vy), 0, 1);
             double qx = ax + t * vx, qy = ay + t * vy;
             double distance = (qx - px) * (qx - px) + (qy - py) * (qy - py);
             if (distance < best) { best = distance; result = (qx, qy); }
         }
-        void Square(int column, int row)
+        return result;
+    }
+
+    private static IEnumerable<Segment> Perimeter(IReadOnlyList<MapSquare> squares)
+    {
+        IEnumerable<Segment> Square(int column, int row)
         {
             var square = squares[column + row * 200];
             var center = MapGeometry.Center(column, row);
@@ -45,15 +108,18 @@ public static class MapCameraBoundary
             double bottom = cy + 16 - ((mask & 2) != 0 ? 10 : 0);
             double left = cy - ((mask & 4) != 0 ? 10 : 0);
             double right = cy - ((mask & 8) != 0 ? 10 : 0);
-            if (column == 0) Edge(center.X - 32, left, center.X, top);
-            if (row == 0) Edge(center.X, top, center.X + 32, right);
-            if (column == 199) Edge(center.X + 32, right, center.X, bottom);
-            if (row == 199) Edge(center.X, bottom, center.X - 32, left);
+            if (column == 0) yield return new(center.X - 32, left, center.X, top);
+            if (row == 0) yield return new(center.X, top, center.X + 32, right);
+            if (column == 199) yield return new(center.X + 32, right, center.X, bottom);
+            if (row == 199) yield return new(center.X, bottom, center.X - 32, left);
         }
         for (int i = 0; i < 200; i++)
         {
-            Square(i, 0); Square(i, 199); Square(0, i); Square(199, i);
+            foreach (var edge in Square(i, 0)) yield return edge;
+            foreach (var edge in Square(i, 199)) yield return edge;
+            if (i is 0 or 199) continue;
+            foreach (var edge in Square(0, i)) yield return edge;
+            foreach (var edge in Square(199, i)) yield return edge;
         }
-        return result;
     }
 }

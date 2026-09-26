@@ -170,6 +170,13 @@ public partial class MapWorld : Node2D
         Draw("flag-pole-front");
     }
     public void FocusWorld(Vector2 point) => RequestView(new(point.X, point.Y, RequestedZoom));
+    // All relative navigation uses world-space displacement; absolute focus and zoom remain separate.
+    public void MoveWorld(double dx, double dy)
+    {
+        if (_map is null) return;
+        var point = MapCameraBoundary.Move(_requested.X, _requested.Y, dx, dy, _map.Squares);
+        RequestView(_requested with { X = point.X, Y = point.Y });
+    }
     public void FocusBuilding(int id)
     {
         var b = Session.View.Settlements.Single(b => b.Id == id); var c = MapGeometry.Center(b.X, b.Y); FocusWorld(new(c.X, c.Y));
@@ -232,7 +239,7 @@ public partial class MapWorld : Node2D
         else if (input is InputEventMouseMotion motion && _dragging)
         {
             if (IsInputBlocked?.Invoke(motion.Position) == true) { _dragging = false; return; }
-            FocusWorld(RequestedPosition - motion.Relative / RequestedZoom); GetViewport().SetInputAsHandled();
+            MoveWorld(-motion.Relative.X / RequestedZoom, -motion.Relative.Y / RequestedZoom); GetViewport().SetInputAsHandled();
         }
     }
     public override void _ExitTree()

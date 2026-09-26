@@ -1,4 +1,5 @@
 using Godot;
+using San9.Rendering;
 
 namespace San9.Client.Godot;
 
@@ -74,15 +75,15 @@ public partial class MapWorld
         bool active = _edgeScroll.IsActive(available && !direction.IsNone, Input.IsMouseButtonPressed(MouseButton.Left));
         if (!direction.IsNone && _map is not null)
         {
-            // Use the same continuous boundary as every other navigation source.
-            var probe = (_requested with { X = _requested.X + direction.X, Y = _requested.Y + direction.Y }).Clamp(_map.Squares);
+            // Cursor availability follows the same movement rule as drag and edge scrolling.
+            var probe = MapCameraBoundary.Move(_requested.X, _requested.Y, direction.X, direction.Y, _map.Squares);
             if (Math.Abs(probe.X - _requested.X) + Math.Abs(probe.Y - _requested.Y) < .001) direction = default;
         }
         _edgeCursor.Show(direction, active);
         if (!active) return;
         var movement = EdgeScrollController.Displacement(direction, delta, RequestedZoom, IsVisibleReady);
         if (movement != default)
-            FocusWorld(RequestedPosition + new Vector2((float)movement.X, (float)movement.Y));
+            MoveWorld(movement.X, movement.Y);
     }
 
     private bool HandleNavigationKey(InputEvent input)

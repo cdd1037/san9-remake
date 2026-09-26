@@ -23,6 +23,7 @@ public sealed class ConstructionSessionTests
                 [new(1, 5, 50, 100000, 1, new(1, 1), TravelMode.Land)],
                 [new(1, new(2, 2), new(1, 1)) { FacilityTypeId = 0 }])
             {
+                ConstructionFormations = new(1, null),
                 Facilities = [new(0, 0, 600, new(1, 1), 15, false, true, true, 500000, null, null, null, []),
                     new(9000, 1000, 600, new(3, 3), 15, true, true, true, 250000, null, null, null, []),
                     new(9001, 500, 100, new(1, 1), 0, true, false, false, 250000, null, null, null, [])],
@@ -35,7 +36,7 @@ public sealed class ConstructionSessionTests
         var session = GameSession.Start(definition, 42);
         session.BeginRecording();
         definition.FacilityNameSuffixKeys[9000] = "changed-by-author";
-        Assert.True(session.Execute(new("player"), new ConstructFacilityCommand(Guid.NewGuid(), 1, 0, 1, [11], 10000, 1,
+        Assert.True(session.Execute(new("player"), new ConstructFacilityCommand(Guid.NewGuid(), 1, 0, 1, [11], 10000,
             8000, 9000, new(17, 2))).Submission.Accepted);
         session.AdvanceXun();
         var building = session.View.Settlements.Single(s => s.Id == 8000);
@@ -66,7 +67,7 @@ public sealed class ConstructionSessionTests
         Assert.Equal(1, session.View.Officers.Single().SettlementId);
         Assert.Single(ConstructionLocations.Read(session, 1, 9001));
         Assert.True(session.Execute(new("player"), new ConstructFacilityCommand(Guid.NewGuid(), 1,
-            session.Snapshot.Simulation.NextSequence, 1, [11], 5000, 1, 8000, 9001, new(22, 2))).Submission.Accepted);
+            session.Snapshot.Simulation.NextSequence, 1, [11], 5000, 8000, 9001, new(22, 2))).Submission.Accepted);
         var reconstruction = session.AdvanceXun();
         Assert.Single(reconstruction.Events.OfType<FacilityConstructionChangedEvent>(), e => e.Phase == "completed");
         var rebuilt = session.View.Settlements.Single(s => s.Id == 8000);

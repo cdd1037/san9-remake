@@ -80,6 +80,8 @@ public sealed record MilitaryDefinition(int Width, int Height, ImmutableArray<in
     ImmutableArray<TerrainPassage> Terrains, ImmutableArray<FormationRule> Formations,
     ImmutableArray<BattlefieldPlace> Places)
 {
+    [JsonRequired] public FixedUnitFormations? ConstructionFormations { get; init; }
+    [JsonRequired] public FixedUnitFormations? TransportFormations { get; init; }
     [JsonRequired] public int? BasicNavalFormationId { get; init; }
     [JsonRequired] public int? UnformedFormationId { get; init; }
     [JsonRequired] public bool BattleDeathsAllowed { get; init; } = true;
@@ -136,6 +138,8 @@ public sealed partial class MilitaryRulebook
         if (Formations.Values.Any(f => f.SnipingChanceBonus is < 0 or > 100))
             throw new ArgumentException("Invalid sniping formation bonus.");
         BasicNavalFormationId = definition.BasicNavalFormationId;
+        ConstructionFormations = definition.ConstructionFormations;
+        TransportFormations = definition.TransportFormations;
         if (BasicNavalFormationId is int naval &&
             (!Formations.TryGetValue(naval, out var basicShip) || basicShip.TravelMode != TravelMode.Water))
             throw new ArgumentException("Invalid basic naval formation reference.");
@@ -225,6 +229,7 @@ public sealed partial class MilitaryRulebook
             Places.Values.Any(p => p.Id < 0 || !p.Footprint.IsValid || new MapOccupancy(p.Position, p.Footprint) is var area &&
                 (area.Left < 0 || area.Top < 0 || area.Right > Map.FineWidth || area.Bottom > Map.FineHeight)))
             throw new ArgumentException("Invalid military formation or place.");
+        ValidateFixedFormations();
     }
 
     public int? BasicNavalFormationId { get; }

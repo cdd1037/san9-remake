@@ -21,6 +21,8 @@ public sealed class UnitContentCompilerTests
 
     [Theory]
     [InlineData(0, 20)]
+    [InlineData(13, 24)]
+    [InlineData(14, 25)]
     [InlineData(15, 20)]
     [InlineData(16, 20)]
     [InlineData(17, 20)]

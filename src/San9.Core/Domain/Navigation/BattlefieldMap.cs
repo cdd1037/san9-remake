@@ -64,7 +64,7 @@ public sealed class BattlefieldMap
             profile => new(this, profile));
     internal IEnumerable<WorldPosition> Entrances(BattlefieldPlace place, Footprint fallback) =>
         (travel is not { } profile ? new[] { fallback } : new[] { profile.LandShape, profile.WaterShape })
-            .Distinct().SelectMany(shape => place.Entrances(shape).Where(p => ShapeAt(p, fallback) == shape)).Distinct();
+            .Distinct().SelectMany(shape => place.Entrances(shape).Where(p => p.X >= 0 && p.Y >= 0 && p.X < FineWidth && p.Y < FineHeight && ShapeAt(p, fallback) == shape)).Distinct();
 
     internal Footprint ShapeAt(WorldPosition position, Footprint fallback) =>
         travel is not { } profile ? fallback : IsWater(position) ? profile.WaterShape : profile.LandShape;

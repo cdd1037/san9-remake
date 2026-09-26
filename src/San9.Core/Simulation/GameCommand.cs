@@ -33,6 +33,7 @@ public sealed record RespondDailyTaskCommand(Guid CommandId, int IssuerId, long 
 [System.Text.Json.Serialization.JsonDerivedType(typeof(UnitStrategyCommand), "unit-strategy")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(SelectTacticCommand), "select-tactic")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(DeployUnitCommand), "deploy-unit")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(TransportUnitCommand), "transport-unit")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(SetUnitPoliciesCommand), "set-unit-policies")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(OrderUnitCommand), "order-unit")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(ReformUnitCommand), "reform-unit")]

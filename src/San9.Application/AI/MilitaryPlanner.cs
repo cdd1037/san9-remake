@@ -16,7 +16,7 @@ public static class MilitaryPlanner
         var wait = new WaitCommand(commandId, seat.ForceId, world.Simulation.NextSequence);
         if (rules is null) return wait;
         var force = world.Forces.Single(f => f.Id == seat.ForceId);
-        var formations = rules.Formations.Values.Where(f => f.IsCandidateFor(force))
+        var formations = rules.Formations.Values.Where(f => rules.CanSelectFormation(force, f.Id))
             .OrderBy(f => f.DeploymentCost).ThenBy(f => f.Id).ToArray();
         var work = new NavigationWorkBudget(100000);
         var attack = ChooseAttack(world, validate, rules, seat, commandId, corpsId, formations, work);
@@ -43,34 +43,27 @@ public static class MilitaryPlanner
             if (actor is null) continue;
             uint soldiers = (uint)Math.Min(candidate.Source.Soldiers - 3000L,
                 Math.Min(3000 - candidate.Expected, candidate.Target.SoldierCapacity - candidate.Expected));
-            var routes = new Dictionary<(BattlefieldMap, Footprint, TravelMode), bool>();
+            if (rules.TransportFormations is not { } pair) return wait;
+            var formation = rules.Formations[pair.LandFormationId];
+            uint capacity = pair.NavalFormationId is int naval
+                ? Math.Min(formation.SoldierCapacity, rules.Formations[naval].SoldierCapacity) : formation.SoldierCapacity;
+            uint count = Math.Min(soldiers, capacity);
+            if (count < 1000) continue;
+            var command = new TransportUnitCommand(commandId, seat.ForceId, world.Simulation.NextSequence,
+                candidate.Source.Id, [actor.Id], count, candidate.Target.Id);
+            if (!validate(new(seat.ControllerId), command).Accepted) continue;
+            // Static topology is public content. Enemy unit positions are not planning inputs.
             var occupied = world.Settlements.Where(s => !s.IsDestroyed).Select(rules.Place)
                 .Select(p => new MapOccupancy(p.Position, p.Footprint)).ToArray();
-            foreach (var formation in formations.Take(32))
-            {
-                if (work.Exhausted) return wait;
-                uint count = Math.Min(soldiers, formation.SoldierCapacity);
-                if (count < 1000) continue;
-                int? navalId = rules.NavalFormationForDeployment(formation.Id);
-                var command = new DeployUnitCommand(commandId, seat.ForceId, world.Simulation.NextSequence,
-                    candidate.Source.Id, [actor.Id], count, formation.Id,
-                    new(MilitaryOrderKind.Transport, null, candidate.Target.Id)) { NavalFormationId = navalId };
-                if (!validate(new(seat.ControllerId), command).Accepted) continue;
-                // Static topology is public content. Enemy unit positions are not planning inputs.
-                var travel = rules.Travel(formation.Id, navalId);
-                var key = (travel.Map, travel.Shape, travel.Mode);
-                if (!routes.TryGetValue(key, out bool reachable))
-                {
-                    var target = rules.Place(candidate.Target);
-                    reachable = travel.Entrances(rules.Place(candidate.Source))
-                        .TakeWhile(_ => !work.Exhausted)
-                        .Where(p => travel.Map.PassageCost(p, travel.Shape, travel.Mode, occupied) is not null)
-                        .Any(p => travel.Map.ReachabilityIntoRange(p, new(target.Position, target.Footprint), travel.Shape,
-                            travel.Mode, occupied, work, 1) == RouteReachability.Reachable);
-                    if (!work.Exhausted) routes.Add(key, reachable);
-                }
-                if (reachable) return command;
-            }
+            var travel = rules.Travel(pair.LandFormationId, pair.NavalFormationId);
+            var target = rules.Place(candidate.Target);
+            bool reachable = travel.Entrances(rules.Place(candidate.Source))
+                .TakeWhile(_ => !work.Exhausted)
+                .Where(p => travel.Map.PassageCost(p, travel.Shape, travel.Mode, occupied) is not null)
+                .Any(p => travel.Map.ReachabilityIntoRange(p, new(target.Position, target.Footprint), travel.Shape,
+                    travel.Mode, occupied, work, 1) == RouteReachability.Reachable);
+            if (reachable) return command;
+            if (work.Exhausted) return wait;
         }
         return wait;
     }

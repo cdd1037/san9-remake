@@ -63,7 +63,7 @@ public sealed class ShoreMilitarySessionTests
         var command = MilitaryPlanner.Choose(session, new("player", 1, ControllerKind.Player), Guid.NewGuid());
         if (hasTreasure)
         {
-            Assert.Equal(20, Assert.IsType<DeployUnitCommand>(command).FormationId);
+            Assert.IsType<TransportUnitCommand>(command);
             Assert.True(session.Execute(new("player"), command).Submission.Accepted);
         }
         else Assert.IsType<WaitCommand>(command);
@@ -74,18 +74,18 @@ public sealed class ShoreMilitarySessionTests
         [new(1, "origin", 1, 0, 0, 10000, 100, 100, 70, []), new(2, "destination", 1, 5, 0, 100, 100, 100, 30, [])], [], [])
     {
         Officers = [new("officer", new(1, 1, 1, new(70, 70, 70, 70), false))],
-        Military = new(6, 1, [0, 2, 1, 1, 2, 0], [new(0, 1, null), new(1, null, 1), new(2, 1, 1)],
-            [new(10, 5, 0, 10000, 1, new(1, 1), TravelMode.Land), new(20, 5, 50, 10000, 1, new(1, 1), TravelMode.Water)],
-            [new(1, new(2, 2), new(5, 5)), new(2, new(27, 2), new(5, 5))])
+        Military = new(6, 1, [0, 2, 1, 1, 2, 0], [new(0, 1, null), new(1, null, 1) { IsWater = true }, new(2, 1, 1)],
+            [new(10, 5, 0, 10000, 1, new(1, 1), TravelMode.Land), new(20, 5, 50, 10000, 1, new(1, 1), TravelMode.Water),
+             new(70, 5, 0, 10000, 1, new(1, 1), TravelMode.Land), new(71, 5, 50, 10000, 1, new(1, 1), TravelMode.Water)],
+            [new(1, new(2, 2), new(5, 5)), new(2, new(27, 2), new(5, 5))]) { TransportFormations = new(70, 71) }
     , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, null, new(10000, 10000)) { IsRoot = true }], []) };
 
     [Fact]
     public void PlannerChoosesReachableWaterEntrancesAndActualCommandDeliversReinforcements()
     {
         var session = GameSession.Start(Fixture(), 42);
-        var command = Assert.IsType<DeployUnitCommand>(MilitaryPlanner.Choose(session,
+        var command = Assert.IsType<TransportUnitCommand>(MilitaryPlanner.Choose(session,
             new("player", 1, ControllerKind.Player), Guid.NewGuid()));
-        Assert.Equal(20, command.FormationId);
         Assert.True(session.Execute(new("player"), command).Submission.Accepted);
         var result = session.AdvanceXun();
         Assert.Single(result.Events.OfType<UnitAbsorbedEvent>());
@@ -101,7 +101,7 @@ public sealed class ShoreMilitarySessionTests
         var unit = Assert.Single(session.View.World.Units);
         // The first land exit is on the shared shore, so embark before any date advance.
         var command = new ReformUnitCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence,
-            unit.Id, 20, [1], new(MilitaryOrderKind.Transport, null, 2));
+            unit.Id, 20, [1], new(MilitaryOrderKind.Return, null, 2));
         Assert.True(session.Execute(new("player"), command).Submission.Accepted);
         unit = Assert.Single(session.View.World.Units);
         Assert.Equal(20, unit.FormationId);

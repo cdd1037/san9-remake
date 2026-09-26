@@ -9,8 +9,9 @@ public sealed class MilitaryMovementTests
     private static readonly CommandContext Player = new("player");
     private static MilitaryRulebook Rules(int speed = 1) => new(new(8, 3,
         Enumerable.Repeat(0, 24).ToImmutableArray(), [new(0, 1, null)],
-        [new(7, speed, 50, 10000, 5, new(1, 1), TravelMode.Land)],
-        [new(1, new(2, 7), new(1, 1)), new(2, new(37, 7), new(1, 1))]));
+        [new(7, speed, 50, 10000, 5, new(1, 1), TravelMode.Land),
+         new(70, speed, 50, 10000, 5, new(1, 1), TravelMode.Land)],
+        [new(1, new(2, 7), new(1, 1)), new(2, new(37, 7), new(1, 1))]) { TransportFormations = new(70, null) });
 
     private static WorldState World() => WorldState.Create(new(190, 1, 1), 42,
         [new(1, 100)],
@@ -18,8 +19,8 @@ public sealed class MilitaryMovementTests
         [new(11, 1, 1, new(70, 70, 70, 70), false)], controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(10000, 10000)) { IsRoot = true }]);
     private static SimulationEngine Engine(WorldState world, MilitaryRulebook rules) =>
         new(world, EconomyRulebook.Empty, PersonnelRulebook.Empty, TreasureRulebook.Empty, military: rules);
-    private static DeployUnitCommand Deploy(long sequence = 0, uint soldiers = 400, MilitaryOrder? order = null) =>
-        new(Guid.NewGuid(), 1, sequence, 1, [11], soldiers, 7, order ?? new(MilitaryOrderKind.Transport, null, 2), 200, 300);
+    private static TransportUnitCommand Deploy(long sequence = 0, uint soldiers = 400) =>
+        new(Guid.NewGuid(), 1, sequence, 1, [11], soldiers, 2, 200, 300);
 
     [Theory]
     [InlineData(false, false)]
@@ -36,8 +37,8 @@ public sealed class MilitaryMovementTests
             world.Commit(setup);
         }
         var rules = Rules(); var engine = Engine(world, rules);
-        var command = transport ? Deploy() : Deploy() with
-            { Order = new(MilitaryOrderKind.Move, new(32, 7), null), CargoMoney = 0, CargoFood = 0 };
+        GameCommand command = transport ? Deploy() : new DeployUnitCommand(Guid.NewGuid(), 1, 0, 1, [11], 400, 7,
+            new(MilitaryOrderKind.Move, new(32, 7), null));
         Assert.True(engine.Validate(Player, command).Accepted);
         var mutation = world.BeginMutation();
         MilitaryConditions.Confuse(mutation, new(MilitaryOrderKind.AttackSettlement, null, 1), 12, []);
@@ -89,7 +90,7 @@ public sealed class MilitaryMovementTests
     {
         var world = World();
         var engine = Engine(world, Rules(10));
-        var deploy = Deploy() with { Order = new(MilitaryOrderKind.Move, new(32, 7), null), CargoMoney = 0, CargoFood = 0 };
+        var deploy = Deploy();
         Assert.True(engine.Execute(Player, deploy).Submission.Accepted);
         var order = new OrderUnitCommand(Guid.NewGuid(), 1, engine.Snapshot.Simulation.NextSequence, 0, new(kind, null, 2));
         Assert.True(engine.Validate(Player, order).Accepted);
@@ -153,7 +154,7 @@ public sealed class MilitaryMovementTests
             [new(11, 1, null, new(70, 70, 70, 70), false) { UnitId = 0, Status = OfficerStatus.Governor },
              new(12, 1, 2, new(70, 70, 70, 70), false) { Status = OfficerStatus.Ruler },
              new(13, 1, successor ? 1 : 2, new(60, 60, 60, 60), false)],
-            units: [new(0, 1, new(36, 7), 400) { CorpsId = 11, ServicePlaceId = 1, FormationId = 7,
+            units: [new(0, 1, new(36, 7), 400) { CorpsId = 11, ServicePlaceId = 1, FormationId = 70,
                 Morale = 70, CargoMoney = 200, CargoFood = 300, Order = new(MilitaryOrderKind.Transport, null, 2) }],
             corps: [new(10, 1, 12, new(overflow ? uint.MaxValue : 10000, 10000)) { IsRoot = true }, new(11, 1, 11, new(2000, 3000))]);
         var mutation = world.BeginMutation();
@@ -251,7 +252,7 @@ public sealed class MilitaryMovementTests
         Assert.Equal(before, engine.Snapshot.StateHash);
         Assert.False(engine.Execute(Player, Deploy() with { OfficerIds = [11, 11] }).Submission.Accepted);
         Assert.Equal(before, engine.Snapshot.StateHash);
-        Assert.False(engine.Execute(Player, Deploy() with { FormationId = 999 }).Submission.Accepted);
+        Assert.False(engine.Execute(Player, new DeployUnitCommand(Guid.NewGuid(), 1, 0, 1, [11], 400, 999, new(MilitaryOrderKind.Move, new(32, 7), null))).Submission.Accepted);
         Assert.Equal(before, engine.Snapshot.StateHash);
         Assert.True(engine.Validate(Player, Deploy()).Accepted);
         Assert.Equal(before, engine.Snapshot.StateHash);

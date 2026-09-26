@@ -105,9 +105,10 @@ public sealed class AttackRequestPlannerTests
         Military = new(12, 3, Enumerable.Repeat(0, 36).ToImmutableArray(), [new(0, 1, null), new(1, null, null)],
             [new(7, 2, 10, 100000, 5, new(1, 1), TravelMode.Land)
                 { Combat = new(10, 10, 10, 10, 50), Attack = new(1, true),
-                    CaptureRanks = [BattleRank.Middle, BattleRank.Middle, BattleRank.Middle, BattleRank.Middle, BattleRank.Middle] }],
+                    CaptureRanks = [BattleRank.Middle, BattleRank.Middle, BattleRank.Middle, BattleRank.Middle, BattleRank.Middle] },
+             new(70, 2, 10, 100000, 5, new(1, 1), TravelMode.Land)],
             Enumerable.Range(1, 4).Select(id => new BattlefieldPlace(id, new(id == 1 ? 2 : id == 2 ? 17 : id == 3 ? 52 : 57, id == 4 ? 12 : 7), new(1, 1))
-                { Combat = new(10, 10, 0, 10, 50), Attack = new(1, false) }).ToImmutableArray())
+                { Combat = new(10, 10, 0, 10, 50), Attack = new(1, false) }).ToImmutableArray()) { TransportFormations = new(70, null) }
     , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 11, new(100000, 100000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(1000, 1000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, 31, new(1000, 1000)) { IsRoot = true }], []) };
 
     [Fact]

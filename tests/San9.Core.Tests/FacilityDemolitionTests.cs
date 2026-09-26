@@ -11,7 +11,7 @@ public sealed class FacilityDemolitionTests
         var military = new MilitaryRulebook(new(6, 1, [0, 0, 0, 0, 0, 0], [new(0, 1, null)],
             [new(1, 5, 0, 10000, 1, new(1, 1), TravelMode.Land)],
             [new(1, new(2, 2), new(1, 1)), new(2, new(12, 2), new(1, 1)) { CanDemolish = allowed },
-                new(3, new(27, 2), new(1, 1))]));
+                new(3, new(27, 2), new(1, 1))]) { TransportFormations = new(1, null) });
         var geography = new PersonnelRulebook([new(1, new(2, 2)), new(2, new(12, 2)), new(3, new(27, 2))],
             new Dictionary<int, int> { [1] = 1, [2] = 1, [3] = 3 });
         return new(WorldState.Create(new(190, 1, 1), 42,

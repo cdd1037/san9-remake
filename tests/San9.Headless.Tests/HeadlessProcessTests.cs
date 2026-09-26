@@ -198,12 +198,12 @@ public sealed class HeadlessProcessTests : IDisposable
             Officers = [new("person", new(1, 1, 1, new(60, 60, 60, 60), false))],
             Military = new(3, 1, [0, 0, 0], [new(0, 1, null)],
                 [new(1, 10, 0, 10000, 5, new(1, 1), San9.Core.Domain.TravelMode.Land)],
-                [new(1, new(2, 2), new(1, 1)), new(2, new(12, 2), new(1, 1))])
+                [new(1, new(2, 2), new(1, 1)), new(2, new(12, 2), new(1, 1))]) { TransportFormations = new(1, null) }
         , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, null, new(10000, 10000)) { IsRoot = true }], []) };
         var session = San9.Application.GameSession.Start(definition, 190);
         session.BeginRecording();
-        Assert.True(session.Execute(new("player"), new San9.Core.Simulation.DeployUnitCommand(Guid.NewGuid(), 1, 0,
-            1, [1], 400, 1, new(San9.Core.Domain.MilitaryOrderKind.Transport, null, 2), 20, 30)).Submission.Accepted);
+        Assert.True(session.Execute(new("player"), new San9.Core.Simulation.TransportUnitCommand(Guid.NewGuid(), 1, 0,
+            1, [1], 400, 2, 20, 30)).Submission.Accepted);
         session.AdvanceXun();
         File.WriteAllBytes(FilePath("scenario.json"), San9.Core.Simulation.CanonicalJson.Encode(definition));
         San9.Application.Persistence.RecordingService.Write(FilePath("military.recording.json"), session.EndRecording());

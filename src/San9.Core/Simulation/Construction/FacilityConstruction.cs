@@ -5,7 +5,7 @@ using San9.Core.Domain;
 namespace San9.Core.Simulation;
 
 public sealed record ConstructFacilityCommand(Guid CommandId, int IssuerId, long Sequence, int SettlementId,
-    ImmutableArray<int> OfficerIds, uint Soldiers, int FormationId, int RegionId, int FacilityTypeId, WorldPosition Position)
+    ImmutableArray<int> OfficerIds, uint Soldiers, int RegionId, int FacilityTypeId, WorldPosition Position)
     : GameCommand(CommandId, IssuerId, Sequence)
 {
     [JsonRequired] public UnitPolicies Policies { get; init; } = new();
@@ -18,9 +18,8 @@ internal static class FacilityConstruction
     internal static CommandRejection Start(WorldMutation world, ConstructFacilityCommand command, SimulationRules rules,
         List<DomainEvent> events)
     {
-        if (rules.Military is not { } military || !military.Facilities.TryGetValue(command.FacilityTypeId, out var type) ||
+        if (rules.Military is not { ConstructionFormations: { } pair } military || !military.Facilities.TryGetValue(command.FacilityTypeId, out var type) ||
             !military.ConstructionSites.TryGetValue((command.RegionId, command.Position), out var site) ||
-            !military.Formations.TryGetValue(command.FormationId, out var formation) || formation.TravelMode != TravelMode.Land ||
             !world.Settlements.TryGetValue(command.SettlementId, out var home) || home.OwnerId != command.IssuerId ||
             world.AllSettlements.TryGetValue(command.RegionId, out var reserved) && reserved.IsDormant ||
             command.OfficerIds.IsDefaultOrEmpty || command.OfficerIds.Any(id => !world.Officers.ContainsKey(id)) ||
@@ -40,8 +39,9 @@ internal static class FacilityConstruction
         if (world.Simulation.NextUnitId > int.MaxValue) return CommandRejection.ResourceOverflow;
         int unitId = (int)world.Simulation.NextUnitId;
         var rejection = MilitaryMovement.Deploy(world, new(command.CommandId, command.IssuerId, command.Sequence, home.Id,
-            command.OfficerIds, command.Soldiers, command.FormationId, new(MilitaryOrderKind.Construct, null, null) { Construction = plan }) { Policies = command.Policies },
-            military, rules.Governance, rules.Treasures, events, construction: true);
+            command.OfficerIds, command.Soldiers, pair.LandFormationId, new(MilitaryOrderKind.Construct, null, null) { Construction = plan })
+            { Policies = command.Policies, NavalFormationId = pair.NavalFormationId },
+            military, rules.Governance, rules.Treasures, events, UnitPurpose.Construction);
         if (rejection != CommandRejection.None) return rejection;
         if (MilitaryCombat.Area(world.Units[unitId], military).Overlaps(new(command.Position, type.Footprint)))
             return CommandRejection.NoDestination;
@@ -135,7 +135,7 @@ internal static class FacilityConstruction
             else
             {
                 var order = new MilitaryOrder(MilitaryOrderKind.Return, null, unit.ServicePlaceId);
-                if (MilitaryMovement.ValidOrder(world, unit.OwnerId, order, formation, military))
+                if (MilitaryMovement.ValidOrder(world, unit.OwnerId, order, military.Formations[unit.FormationId!.Value], military, unit.NavalFormationId))
                     world.Replace(unit with { Order = order });
                 events.Add(new UnitOrderChangedEvent(world.Clock, id, world.Units[id].Order, "construction-completed"));
             }

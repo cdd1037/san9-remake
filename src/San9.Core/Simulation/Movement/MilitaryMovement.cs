@@ -5,11 +5,16 @@ using San9.Core.Domain;
 namespace San9.Core.Simulation;
 
 public sealed record DeployUnitCommand(Guid CommandId, int IssuerId, long Sequence, int SettlementId,
-    ImmutableArray<int> OfficerIds, uint Soldiers, int FormationId, MilitaryOrder Order,
-    uint CargoMoney = 0, uint CargoFood = 0) : GameCommand(CommandId, IssuerId, Sequence)
+    ImmutableArray<int> OfficerIds, uint Soldiers, int FormationId, MilitaryOrder Order) : GameCommand(CommandId, IssuerId, Sequence)
 {
     [JsonRequired] public int? NavalFormationId { get; init; }
     [JsonRequired] public bool ConfirmAttack { get; init; }
+    [JsonRequired] public UnitPolicies Policies { get; init; } = new();
+}
+public sealed record TransportUnitCommand(Guid CommandId, int IssuerId, long Sequence, int SettlementId,
+    ImmutableArray<int> OfficerIds, uint Soldiers, int DestinationId, uint CargoMoney = 0, uint CargoFood = 0)
+    : GameCommand(CommandId, IssuerId, Sequence)
+{
     [JsonRequired] public UnitPolicies Policies { get; init; } = new();
 }
 public sealed record OrderUnitCommand(Guid CommandId, int IssuerId, long Sequence, int UnitId, MilitaryOrder Order)
@@ -41,7 +46,8 @@ internal static class MilitaryMovement
                 continue;
             }
             if (unit.FormationId is not int id || !rules.Formations.TryGetValue(id, out var formation) ||
-                !rules.ValidFormationPair(id, unit.NavalFormationId) ||
+                !rules.ValidUnitFormations(id, unit.NavalFormationId) || !rules.AllowsOrder(id, unit.Order) ||
+                rules.Purpose(id) != UnitPurpose.Combat && (unit.EngagementTargetId is not null || unit.AwaitingPostAction) ||
                 unit.NavalFormationId is int naval && (unit.Soldiers > rules.Formations[naval].SoldierCapacity ||
                     world.Officers.Count(p => p.UnitId == unit.Id && p.IsServing) > rules.Formations[naval].OfficerCapacity) ||
                 unit.MovementRemainder >= rules.Travel(unit).Map.MaximumStepCost(rules.Travel(unit).Mode) ||
@@ -65,20 +71,33 @@ internal static class MilitaryMovement
         }
     }
 
+    internal static CommandRejection Transport(WorldMutation world, TransportUnitCommand command, MilitaryRulebook? rules,
+        GovernanceRulebook governance, TreasureRulebook treasures, List<DomainEvent> events)
+    {
+        if (rules?.TransportFormations is not { } pair) return CommandRejection.UnsupportedCommand;
+        return Deploy(world, new(command.CommandId, command.IssuerId, command.Sequence, command.SettlementId,
+            command.OfficerIds, command.Soldiers, pair.LandFormationId, new(MilitaryOrderKind.Transport, null, command.DestinationId))
+            { NavalFormationId = pair.NavalFormationId, Policies = command.Policies }, rules, governance, treasures, events,
+            UnitPurpose.Transport, command.CargoMoney, command.CargoFood);
+    }
+
     internal static CommandRejection Deploy(WorldMutation world, DeployUnitCommand command, MilitaryRulebook? rules,
-        GovernanceRulebook governance, TreasureRulebook treasures, List<DomainEvent> events, bool construction = false)
+        GovernanceRulebook governance, TreasureRulebook treasures, List<DomainEvent> events,
+        UnitPurpose purpose = UnitPurpose.Combat, uint cargoMoney = 0, uint cargoFood = 0)
     {
         if (rules is null || !rules.Formations.TryGetValue(command.FormationId, out var formation))
             return CommandRejection.UnsupportedCommand;
-        int? navalId = command.NavalFormationId ?? rules.NavalFormationForDeployment(formation.Id);
-        if (!rules.ValidFormationPair(formation.Id, navalId)) return CommandRejection.InvalidTask;
+        if (rules.Purpose(formation.Id) != purpose) return CommandRejection.FormationUnavailable;
+        int? navalId = purpose == UnitPurpose.Combat
+            ? command.NavalFormationId ?? rules.NavalFormationForDeployment(formation.Id) : command.NavalFormationId;
+        if (!rules.ValidUnitFormations(formation.Id, navalId)) return CommandRejection.InvalidTask;
         var naval = navalId is int selected ? rules.Formations[selected] : null;
-        if (!formation.IsCandidateFor(world.Forces[command.IssuerId]) ||
-            naval is not null && !naval.IsCandidateFor(world.Forces[command.IssuerId]))
+        if (purpose == UnitPurpose.Combat && (!rules.CanSelectFormation(world.Forces[command.IssuerId], formation.Id) ||
+            naval is not null && !rules.CanSelectFormation(world.Forces[command.IssuerId], naval.Id)))
             return CommandRejection.FormationUnavailable;
         var travel = rules.Travel(formation.Id, navalId);
-        long deploymentCost = construction ? 0 : (long)formation.DeploymentCost + (naval?.DeploymentCost ?? 0);
-        if (command.Policies is null || command.Order is null || !construction && command.Order.Kind == MilitaryOrderKind.Construct) return CommandRejection.InvalidTask;
+        long deploymentCost = purpose == UnitPurpose.Construction ? 0 : (long)formation.DeploymentCost + (naval?.DeploymentCost ?? 0);
+        if (command.Policies is null || command.Order is null || purpose != UnitPurpose.Construction && command.Order.Kind == MilitaryOrderKind.Construct) return CommandRejection.InvalidTask;
         if (!world.Settlements.TryGetValue(command.SettlementId, out var home) || home.OwnerId != command.IssuerId ||
             !home.CanHostPersons || home.Durability == 0 || !rules.TryPlace(home, out var place))
             return CommandRejection.NoDestination;
@@ -96,11 +115,9 @@ internal static class MilitaryMovement
         if (!ValidOrder(world, command.IssuerId, command.Order, formation, rules, navalId)) return CommandRejection.InvalidTask;
         if (!command.ConfirmAttack && MilitaryDiplomacy.Warning(world, command.IssuerId, command.Order, rules) != AttackWarning.None)
             return CommandRejection.AttackConfirmationRequired;
-        if (command.Order.Kind != MilitaryOrderKind.Transport && (command.CargoMoney != 0 || command.CargoFood != 0))
-            return CommandRejection.InvalidTask;
         var account = ResourceAccounts.Resolve(world, command.IssuerId, home.CorpsId);
-        if ((ulong)command.CargoMoney + (uint)deploymentCost > ResourceAccounts.Balance(world, account, ResourceKind.Money) ||
-            command.CargoFood > ResourceAccounts.Balance(world, account, ResourceKind.Food)) return CommandRejection.InsufficientFunds;
+        if ((ulong)cargoMoney + (uint)deploymentCost > ResourceAccounts.Balance(world, account, ResourceKind.Money) ||
+            cargoFood > ResourceAccounts.Balance(world, account, ResourceKind.Food)) return CommandRejection.InsufficientFunds;
         var occupancy = Occupancy(world, rules, null, null).ToArray();
         WorldPosition? start = travel.Entrances(place).Cast<WorldPosition?>().FirstOrDefault(p =>
             travel.Map.PassageCost(p!.Value, travel.Shape, travel.Mode, occupancy) is not null);
@@ -113,7 +130,7 @@ internal static class MilitaryMovement
             CorpsId = home.CorpsId, ServicePlaceId = home.Id, FormationId = formation.Id, NavalFormationId = navalId, Morale = home.Morale,
             MemberRanks = formation.CaptureRanks.IsEmpty ? ImmutableDictionary<int, BattleRank>.Empty : command.OfficerIds
                 .Select((person, index) => (person, rank: formation.CaptureRanks[index])).ToImmutableDictionary(p => p.person, p => p.rank),
-            CargoMoney = command.CargoMoney, CargoFood = command.CargoFood, Order = command.Order,
+            CargoMoney = cargoMoney, CargoFood = cargoFood, Order = command.Order,
             Policies = command.Policies, CommanderId = commander,
             OrderClass = UnitOrderClass.Military
         };
@@ -152,7 +169,7 @@ internal static class MilitaryMovement
 
     internal static bool ValidOrder(WorldMutation world, int owner, MilitaryOrder? order, FormationRule formation, MilitaryRulebook rules, int? navalFormationId = null)
     {
-        if (order is null || !order.IsValid) return false;
+        if (order is null || !order.IsValid || !rules.AllowsOrder(formation.Id, order)) return false;
         if (order.Kind == MilitaryOrderKind.Construct) return true;
         if (order.IsAttack) return MilitaryCombat.ValidTarget(world, owner, order, formation, rules) ||
             navalFormationId is int naval && MilitaryCombat.ValidTarget(world, owner, order, rules.Formations[naval], rules);

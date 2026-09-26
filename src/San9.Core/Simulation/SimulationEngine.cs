@@ -569,6 +569,10 @@ public sealed class SimulationEngine
                     var deployRejection = MilitaryMovement.Deploy(mutation, deploy, _rules.Military, _rules.Governance, _rules.Treasures, events);
                     if (deployRejection != CommandRejection.None) return Reject(deployRejection);
                     break;
+                case TransportUnitCommand transport:
+                    var transportRejection = MilitaryMovement.Transport(mutation, transport, _rules.Military, _rules.Governance, _rules.Treasures, events);
+                    if (transportRejection != CommandRejection.None) return Reject(transportRejection);
+                    break;
                 case SetUnitPoliciesCommand policies:
                     var policyRejection = MilitaryPolicies.Set(mutation, policies, events);
                     if (policyRejection != CommandRejection.None) return Reject(policyRejection);

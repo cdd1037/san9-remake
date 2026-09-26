@@ -7,9 +7,13 @@
 
 2026-09-26移动预算改为源机动力×5，寻路和实际推进统一按地形扣费，移除阵型`MovementStepCost`，部队新增必填`MovementRemainder`。旧内容包须原位重新执行`import-client`，纹理无需重转，旧规则存档／录像／日志拒绝加载。预计到达由当前世界与路径按需派生，不写入内容包或存档。
 
+2026-09-26建设与输送固定陆水阵型：剧本schema122／组合126新增必填可空`ConstructionFormations`和`TransportFormations`。TC101分别映射建设／正船及输送／输船，身份只由Importer解释。普通选阵查询排除固定配对，特殊出征不要求普通选阵授权。`ConstructFacilityCommand`移除选阵参数，新增不带选阵参数的`TransportUnitCommand`；`DeployUnitCommand`仅用于战斗出征，移除载荷参数。规则`san9-core-g10-v72`、保存89／日志93／录像5；旧内容包须重转，旧规则存档、日志和录像拒绝加载。
+
+190年包已原位重转；源阵型、转换配对、运行态与保存恢复逐项一致，仍为25势力／94据点／700人物／0初始野战队。公开命令实际创建建设13／正船24、输送14／输船25；50份势力选阵查询均不暴露固定阵型。核对报告：`local/generated/fixed-formations-audit/report.json`。默认解决方案3716项、Headless17项通过；`verify-client`通过28664项逻辑图像与5286个实体文件。此轮未启动游戏，不新增建设／输送图形表单，画面待验收。
+
 ## 现行版本与历史记录
 
-现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 121，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 125，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 20，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 16。规则及保存／日志版本统一见 [SessionProtocol](../src/San9.Application/SessionProtocol.cs)。
+现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 122，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 126，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 20，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 16。规则及保存／日志版本统一见 [SessionProtocol](../src/San9.Application/SessionProtocol.cs)。
 
 下文各 G 阶段的版本号、重转要求和数据核对结果描述对应接入批次，不能用作现行包版本或本轮验证结果。旧内容按现行契约原位重转；是否需要重转纹理取决于纹理转换版本与源输入，不能只更新剧本包来替代。G10 整包与阶段收口结果统一见[G10 验收](g10-verification.md#2026-09-21阶段收口)。
 
@@ -18,10 +22,10 @@
 | 模块 | 职责 | 输出 |
 | --- | --- | --- |
 | Content.Maps / MapImporter | 当前地图方格、地貌及对象位置 | `map.json`（无图片文件） |
-| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema121 |
+| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema122 |
 | Content.Text / ScenarioTextReader | 名称与全量消息目录 | `text.json` / `messages.json`，schema3 |
 | Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema20 |
-| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema125 |
+| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema126 |
 | Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema5／转换版本16 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 

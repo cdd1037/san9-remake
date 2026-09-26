@@ -18,8 +18,8 @@ public sealed class MilitarySupplyTests
     private static SimulationRules Rules() => new()
     {
         Military = new(new(6, 1, [0, 0, 0, 0, 0, 0], [new(0, 1, null)],
-            [new(10, 3, 0, 10000, 1, new(1, 1), TravelMode.Land)],
-            [new(1, new(2, 2), new(1, 1)), new(2, new(27, 2), new(1, 1))])),
+            [new(10, 3, 0, 10000, 1, new(1, 1), TravelMode.Land), new(70, 3, 0, 10000, 1, new(1, 1), TravelMode.Land)],
+            [new(1, new(2, 2), new(1, 1)), new(2, new(27, 2), new(1, 1))]) { TransportFormations = new(70, null) }),
         Personnel = new([new(1, new(2, 2)), new(2, new(27, 2))])
     };
 
@@ -91,7 +91,7 @@ public sealed class MilitarySupplyTests
         List<DomainEvent> events = [];
         var shortages = EconomicCycle.Apply(ResolutionStage.BeforeDailyCommands, mutation, EconomyRulebook.Empty, events);
         MilitaryDailyCycle.Apply(mutation, shortages, Rules(), events);
-        mutation.AddUnit(new(1, 1, new(3, 2), 100) { FormationId = 10, Morale = 70, CargoFood = 100,
+        mutation.AddUnit(new(1, 1, new(3, 2), 100) { FormationId = 70, Morale = 70, CargoFood = 100,
             Order = new(MilitaryOrderKind.Transport, null, 1) });
         mutation.SetSimulation(mutation.Simulation with { NextUnitId = 2 });
         MilitaryMovement.AdvanceDay(mutation, Rules().Military, new([]), PersonnelRulebook.Empty, events);

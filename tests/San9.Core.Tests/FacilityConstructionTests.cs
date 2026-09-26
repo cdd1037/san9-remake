@@ -12,10 +12,13 @@ public sealed class FacilityConstructionTests
     private static readonly MilitaryRulebook Military = CreateMilitary();
     private static MilitaryRulebook CreateMilitary(bool hostsPeople = true, bool needsTechnology = false, bool attacksWalls = false, int members = 1) => new(new(6, 1, [0, 0, 0, 0, 0, 0], [new(0, 1, null)],
         [new(1, 5, 50, 100000, members, new(1, 1), TravelMode.Land)
-            { Combat = new(10, 10, 1000, 10, 50), Attack = new(1, attacksWalls), CaptureRanks = [.. Enumerable.Repeat(BattleRank.Front, members)] }],
+            { Combat = new(10, 10, 1000, 10, 50), Attack = new(1, attacksWalls), CaptureRanks = [.. Enumerable.Repeat(BattleRank.Front, members)] },
+         new(2, 5, 50, 100000, members, new(1, 1), TravelMode.Land)
+            { Combat = new(10, 10, 1000, 10, 50), CaptureRanks = [.. Enumerable.Repeat(BattleRank.Front, members)] }],
         [new(1, new(2, 2), new(1, 1)) { FacilityTypeId = 0 },
          new(2, new(27, 2), new(1, 1)) { FacilityTypeId = 0 }])
     {
+        ConstructionFormations = new(2, null),
         Facilities = [new(0, 0, 600, new(1, 1), 15, false, true, true, 500000, null, null, null, []),
             new(9000, 1000, 600, new(3, 3), 15, true, hostsPeople, hostsPeople, 250000,
                 needsTechnology ? 20 : null, needsTechnology ? 19 : null, null, [])
@@ -29,7 +32,7 @@ public sealed class FacilityConstructionTests
         [new(1, 100) { LeaderId = 11 }], [new(1, 1, 20000, 600, 600, 100, 0, 0, 100, 0, 100)],
         [new(11, 1, 1, new(100, 100, 100, 100), false) { Status = OfficerStatus.Ruler }],
         controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 1000000)) { IsRoot = true }]), EconomyRulebook.Empty, Geography, TreasureRulebook.Empty, military: military ?? Military);
-    private static ConstructFacilityCommand Command(long sequence = 0) => new(Guid.NewGuid(), 1, sequence, 1, [11], 10000, 1, 8000, 9000, new(17, 2));
+    private static ConstructFacilityCommand Command(long sequence = 0) => new(Guid.NewGuid(), 1, sequence, 1, [11], 10000, 8000, 9000, new(17, 2));
 
     [Fact]
     public void ArrivalForecastUsesConstructionApproachAndCurrentEligibility()

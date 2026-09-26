@@ -77,6 +77,8 @@ public sealed class MilitaryContentCompilerTests
         Assert.True(definition.Tactics.Single(t => t.Id == 22).Selectable);
         Assert.Equal(Enumerable.Range(0, 17), definition.Terrains.Select(t => t.Id));
         Assert.Equal(Enumerable.Range(0, 28), definition.Formations.Select(f => f.Id));
+        Assert.Equal(new FixedUnitFormations(13, 24), definition.ConstructionFormations);
+        Assert.Equal(new FixedUnitFormations(14, 25), definition.TransportFormations);
         Assert.Equal(new MapCell(3, 0), Assert.Single(definition.BlockedCells));
         Assert.Equal(2, definition.TerrainIds[3]);
         Assert.Equal(15, definition.TerrainIds[4]);

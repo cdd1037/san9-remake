@@ -24,10 +24,12 @@ public sealed class UnitReformationTests
 
     private static readonly CommandContext Player = new("player");
     private static MilitaryRulebook Rules() => new(new(6, 1, [0, 2, 1, 1, 2, 0],
-        [new(0, 1, null), new(1, null, 1), new(2, 1, 1)],
+        [new(0, 1, null), new(1, null, 1) { IsWater = true }, new(2, 1, 1)],
         [new(10, 5, 0, 10000, 2, new(1, 1), TravelMode.Land) { CaptureRanks = [BattleRank.Front, BattleRank.Rear] },
-         new(20, 5, 50, 10000, 2, new(1, 1), TravelMode.Water) { CaptureRanks = [BattleRank.Middle, BattleRank.Middle] }],
-        [new(1, new(4, 2), new(1, 1)), new(2, new(25, 2), new(1, 1))]));
+         new(20, 5, 50, 10000, 2, new(1, 1), TravelMode.Water) { CaptureRanks = [BattleRank.Middle, BattleRank.Middle] },
+         new(70, 5, 0, 10000, 2, new(1, 1), TravelMode.Land) { CaptureRanks = [BattleRank.Front, BattleRank.Rear] },
+         new(71, 5, 50, 10000, 2, new(1, 1), TravelMode.Water) { CaptureRanks = [BattleRank.Middle, BattleRank.Middle] }],
+        [new(1, new(4, 2), new(1, 1)), new(2, new(25, 2), new(1, 1))]) { TransportFormations = new(70, 71) });
 
     private static WorldState World(int x = 7, bool deployed = true) => WorldState.Create(new(190, 1, 1), 42,
         [new(1, 0)],
@@ -83,14 +85,13 @@ public sealed class UnitReformationTests
     public void WaterTransportUsesShoreEntrancesWithoutEnteringLandBuildingCenter()
     {
         var engine = Engine(World(deployed: false));
-        var command = new DeployUnitCommand(Guid.NewGuid(), 1, 0, 1, [11], 500, 20,
-            new(MilitaryOrderKind.Transport, null, 2), 10, 100);
+        var command = new TransportUnitCommand(Guid.NewGuid(), 1, 0, 1, [11], 500, 2, 10, 100);
         Assert.True(engine.Execute(Player, command).Submission.Accepted);
-        Assert.Equal(new WorldPosition(5, 2), Assert.Single(engine.Snapshot.Units).Position);
+        Assert.Equal(new WorldPosition(4, 1), Assert.Single(engine.Snapshot.Units).Position);
         engine.EndControl(Player);
         var result = engine.AdvanceXun();
         Assert.Single(result.Events.OfType<UnitAbsorbedEvent>());
-        Assert.Equal(new WorldPosition(24, 2), result.Events.OfType<UnitMovedEvent>().Last().To);
+        Assert.Equal(new WorldPosition(25, 1), result.Events.OfType<UnitMovedEvent>().Last().To);
         Assert.Equal(500u, engine.Snapshot.Settlements.Single(s => s.Id == 2).Soldiers);
     }
 }

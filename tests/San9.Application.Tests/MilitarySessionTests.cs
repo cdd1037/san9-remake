@@ -232,7 +232,7 @@ public sealed class MilitarySessionTests
         {
             Width = 100, TerrainIds = Enumerable.Repeat(0, 300).ToImmutableArray(),
             Terrains = [new(0, 12, null)],
-            Formations = [basis.Military.Formations[0] with { MovementBudget = 95 }]
+            Formations = [basis.Military.Formations[0] with { MovementBudget = 95 }, basis.Military.Formations[1]]
         } };
         var session = GameSession.Start(definition, 42);
         session.BeginRecording();
@@ -282,8 +282,9 @@ public sealed class MilitarySessionTests
     {
         Officers = [new("officer", new(1, 1, 1, new(70, 70, 70, 70), false))],
         Military = new(8, 3, Enumerable.Repeat(0, 24).ToImmutableArray(), [new(0, 1, null)],
-            [new(7, 1, 50, 10000, 5, new(1, 1), TravelMode.Land)],
-            [new(1, new(2, 7), new(1, 1)), new(2, new(37, 7), new(1, 1))])
+            [new(7, 1, 50, 10000, 5, new(1, 1), TravelMode.Land),
+             new(70, 1, 50, 10000, 5, new(1, 1), TravelMode.Land)],
+            [new(1, new(2, 7), new(1, 1)), new(2, new(37, 7), new(1, 1))]) { TransportFormations = new(70, null) }
     , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, null, new(10000, 10000)) { IsRoot = true }], []) };
 
     [Fact]
@@ -292,8 +293,8 @@ public sealed class MilitarySessionTests
         var definition = Fixture();
         var session = GameSession.Start(definition, 42);
         session.BeginRecording();
-        var command = new DeployUnitCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence,
-            1, [1], 400, 7, new(MilitaryOrderKind.Transport, null, 2), 200, 300) { Policies = new(true, false, true, false) };
+        var command = new TransportUnitCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence,
+            1, [1], 400, 2, 200, 300) { Policies = new(true, false, true, false) };
         Assert.True(session.Execute(new("player"), command).Submission.Accepted);
         Assert.Equal(command.Policies, Assert.Single(session.Snapshot.Units).Policies);
         Assert.Equal(1, Assert.Single(session.Snapshot.Units).CommanderId);

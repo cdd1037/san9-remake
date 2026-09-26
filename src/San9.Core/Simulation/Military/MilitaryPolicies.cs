@@ -40,7 +40,7 @@ internal static class MilitaryPolicies
         foreach (int id in ids)
         {
             var unit = world.Units[id];
-            if (!Active(unit) || unit.Order?.Kind is MilitaryOrderKind.Construct or MilitaryOrderKind.Transport or MilitaryOrderKind.Return ||
+            if (!Active(unit) || rules.Purpose(unit.FormationId!.Value) != UnitPurpose.Combat || unit.Order?.Kind is MilitaryOrderKind.Construct or MilitaryOrderKind.Transport or MilitaryOrderKind.Return ||
                 unit.EffectiveOrder?.UnitId is not int targetId || !world.Units.TryGetValue(targetId, out var target) ||
                 target.Order?.Kind != MilitaryOrderKind.Return || Commander(world, unit) is not { } leader) continue;
             bool mainTarget = unit.Order?.UnitId == targetId;
@@ -60,7 +60,7 @@ internal static class MilitaryPolicies
         {
             var unit = world.Units[id];
             if (!Active(unit) || resumed.Contains(id) || unit.EngagementTargetId is not null || unit.Order is null ||
-                unit.Order.Kind is MilitaryOrderKind.Construct or MilitaryOrderKind.Transport or MilitaryOrderKind.Return ||
+                rules.Purpose(unit.FormationId!.Value) != UnitPurpose.Combat || unit.Order.Kind is MilitaryOrderKind.Construct or MilitaryOrderKind.Transport or MilitaryOrderKind.Return ||
                 Commander(world, unit) is not { } leader) continue;
             if (unit.Order.IsAttack && MilitaryCombat.ValidTarget(world, unit.OwnerId, unit.Order, rules.Formation(unit), rules) &&
                 Distance(unit, unit.Order, world, rules) <= rules.PolicyRadius) continue;

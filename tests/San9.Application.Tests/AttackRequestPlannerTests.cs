@@ -10,6 +10,41 @@ namespace San9.Application.Tests;
 public sealed class AttackRequestPlannerTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void DistantAttackUsesGuidanceAndOneBoundedDecisionBudget(bool blocked)
+    {
+        var basis = Fixture();
+        var content = basis with
+        {
+            Settlements = basis.Settlements.Select(s => s.Id == 3 ? s with { X = 180, Y = 180 } :
+                s.Id == 2 && blocked ? s with { X = 100, Y = 100 } : s).ToArray(),
+            Military = basis.Military! with
+            {
+                Width = 200, Height = 200,
+                TerrainIds = Enumerable.Range(0, 40000).Select(i => blocked && i < 200 ? 1 : 0).ToImmutableArray(),
+                Places = basis.Military.Places.Select(p => p.Id == 3 ? p with { Position = new(902, 902) } :
+                    p.Id == 2 && blocked ? p with { Position = new(502, 502), Footprint = new(1, 996) } : p).ToImmutableArray()
+            }
+        };
+        var session = GameSession.Start(content, 42);
+        string before = session.Capture().StateHash;
+        using var diagnostics = new PathSearchDiagnostics();
+        var command = MilitaryPlanner.Choose(session, new("player", 1, ControllerKind.Player), Guid.NewGuid());
+        if (blocked)
+        {
+            Assert.IsType<WaitCommand>(command);
+            Assert.Equal(100000, diagnostics.Expanded);
+        }
+        else
+        {
+            Assert.Equal(3, Assert.IsType<DeployUnitCommand>(command).Order.SettlementId);
+            Assert.InRange(diagnostics.Expanded, 1, 10000);
+        }
+        Assert.Equal(before, session.Capture().StateHash);
+    }
+
+    [Theory]
     [InlineData("general", 2)]
     [InlineData("domestic", 0)]
     [InlineData("force", 4)]

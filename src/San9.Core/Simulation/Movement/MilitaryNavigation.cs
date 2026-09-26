@@ -19,7 +19,8 @@ internal static class MilitaryNavigation
                 area => world.MovementOccupancy(rules, unit.Id, null, area), budget, unit.MovementPlan,
                 range: position => MilitaryCombat.ApproachRange(world, unit, order, rules, position), rectangularReach: true,
                 maximumRange: Math.Max(MapCoordinates.UnitsPerCell,
-                    Math.Max(Range(formation), Range(naval))), work: work);
+                    Math.Max(Range(formation), Range(naval))), work: work,
+                rangeState: MilitaryCombat.ApproachState(world, unit, order, rules));
         var target = order.Construction is { } construction
             ? new MapOccupancy(construction.Position, rules.Facilities[construction.FacilityTypeId].Footprint)
             : order.SettlementId is int destination

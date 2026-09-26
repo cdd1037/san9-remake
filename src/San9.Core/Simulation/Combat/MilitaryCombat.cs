@@ -59,6 +59,29 @@ internal static class MilitaryCombat
         return close ? damage : Math.Min(damage, Math.Max(0, target.Durability - 1));
     }
 
+    private static bool RequiresCloseSiege(SettlementState target) => target.Soldiers < 1000 || target.Durability < 20;
+
+    internal static AttackApproachState ApproachState(WorldMutation world, UnitState source, MilitaryOrder target, MilitaryRulebook rules)
+    {
+        var land = rules.Formations[source.FormationId!.Value];
+        var naval = source.NavalFormationId is int ship ? rules.Formations[ship] : null;
+        if (target.SettlementId is not int id)
+            return new(land.Attack, land.Footprint, naval?.Attack, naval?.Footprint,
+                rules.Formation(world.Units[target.UnitId!.Value]).Attack, false, false, false, false);
+        var place = world.Settlements[id];
+        var reply = rules.FacilityAttack(place);
+        bool close = RequiresCloseSiege(place);
+        bool rockfall = !close && (land.Attack?.RangedSiege == true || naval?.Attack?.RangedSiege == true) &&
+            rules.Rockfall is not null && reply.UsesRockfallPower;
+        return new(land.Attack, land.Footprint, naval?.Attack, naval?.Footprint, reply.Attack,
+            true, rules.IsHarbor(place), close, rockfall)
+        {
+            // Rockfall propagation can be changed by facilities outside the movement query window.
+            RockfallBlockers = rockfall ? world.Settlements.Values.Where(s => s.Id != id && !s.IsDestroyed && rules.TryPlace(s, out _))
+                .OrderBy(s => s.Id).Select(s => rules.Place(s)).Select(p => new MapOccupancy(p.Position, p.Footprint)).ToImmutableArray() : []
+        };
+    }
+
     internal static int ApproachRange(WorldMutation world, UnitState source, MilitaryOrder target, MilitaryRulebook rules, WorldPosition position)
     {
         var formation = rules.Formation(source, position);
@@ -69,7 +92,7 @@ internal static class MilitaryCombat
         if (target.SettlementId is int id)
         {
             var place = world.Settlements[id];
-            if (place.Soldiers < 1000 || place.Durability < 20) return MapCoordinates.UnitsPerCell;
+            if (RequiresCloseSiege(place)) return MapCoordinates.UnitsPerCell;
             targetCanReply = new BattleSource(id, true).Area(world, rules).IntersectsExpanded(area,
                 FacilityRange(world, place, source with { Position = position }, rules));
         }

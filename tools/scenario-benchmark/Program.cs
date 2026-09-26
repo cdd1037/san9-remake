@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 using System.Text.Json;
 using San9.Application;
 using San9.Application.Persistence;
@@ -8,14 +9,14 @@ using San9.Core.Domain;
 using San9.Core.Simulation;
 
 if (args.Length < 5) throw new ArgumentException("Usage: scenario.json unit-count xun-count march|combat report-path [verify|navigation|quality]");
-var original = JsonSerializer.Deserialize<ScenarioInitialState>(File.ReadAllText(args[0]), ScenarioContentFiles.DataJsonOptions)!;
+var original = JsonSerializer.Deserialize<ScenarioInitialState>(File.ReadAllText(args[0], Encoding.UTF8), ScenarioContentFiles.DataJsonOptions)!;
 int count = int.Parse(args[1]);
 int xuns = int.Parse(args[2]);
 if (count < 0 || xuns <= 0 || args[3] is not ("march" or "combat")) throw new ArgumentException("Invalid count, duration or mode.");
 bool combat = args[3] == "combat";
 string report = args[4];
 Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(report))!);
-File.WriteAllText(report, "");
+File.WriteAllText(report, "", Encoding.UTF8);
 var definition = count == 0 ? original : Populate(original, count, combat);
 if (args.Contains("quality"))
 {
@@ -65,7 +66,7 @@ if (args.Contains("record"))
 void Log(string line)
 {
     Console.WriteLine(line);
-    File.AppendAllText(report, line + Environment.NewLine);
+    File.AppendAllText(report, line + Environment.NewLine, Encoding.UTF8);
 }
 
 ScenarioInitialState Populate(ScenarioInitialState source, int number, bool battle)
@@ -106,7 +107,7 @@ ScenarioInitialState Populate(ScenarioInitialState source, int number, bool batt
         int id = units.Count;
         units.Add(new(id, owner, position.Value, 5000)
         {
-            FormationId = formation.Id, Morale = 90, CommanderId = person.Id,
+            FormationId = formation.Id, NavalFormationId = rules.NavalFormationForDeployment(formation.Id), Morale = 90, CommanderId = person.Id,
             MemberRanks = System.Collections.Immutable.ImmutableDictionary<int, BattleRank>.Empty.Add(person.Id, formation.CaptureRanks[0]),
             ServicePlaceId = home.Id, CorpsId = home.CorpsId, OrderClass = UnitOrderClass.Military,
             Order = new(MilitaryOrderKind.AttackSettlement, null, target.Id)
@@ -120,7 +121,7 @@ ScenarioInitialState Populate(ScenarioInitialState source, int number, bool batt
         occupancy.Add(new(position.Value, formation.Footprint));
     }
     Log($"fixture units={number} activated_officers={activated} soldiers_added={number * 5000L} " +
-        $"targets={units.Select(u => u.Order!.SettlementId).Distinct().Count()} formation={formation.Id}");
+        $"targets={units.Select(u => u.Order!.SettlementId).Distinct().Count()} formation={formation.Id} naval={rules.NavalFormationForDeployment(formation.Id)}");
     return source with { Units = units.ToArray(), Officers = people };
 }
 

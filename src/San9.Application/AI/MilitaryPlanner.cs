@@ -15,8 +15,13 @@ public static class MilitaryPlanner
     {
         var wait = new WaitCommand(commandId, seat.ForceId, world.Simulation.NextSequence);
         if (rules is null) return wait;
-        var attack = ChooseAttack(world, validate, rules, seat, commandId, corpsId);
+        var force = world.Forces.Single(f => f.Id == seat.ForceId);
+        var formations = rules.Formations.Values.Where(f => f.IsCandidateFor(force))
+            .OrderBy(f => f.DeploymentCost).ThenBy(f => f.Id).ToArray();
+        var work = new NavigationWorkBudget(100000);
+        var attack = ChooseAttack(world, validate, rules, seat, commandId, corpsId, formations, work);
         if (attack is not null) return attack;
+        if (work.Exhausted) return wait;
         var own = world.Settlements.Where(s => s.OwnerId == seat.ForceId && s.CanHostPersons && s.Durability > 0)
             .OrderBy(s => s.Id).ToArray();
         var incoming = world.Units.Where(u => u.OwnerId == seat.ForceId &&
@@ -38,9 +43,12 @@ public static class MilitaryPlanner
             if (actor is null) continue;
             uint soldiers = (uint)Math.Min(candidate.Source.Soldiers - 3000L,
                 Math.Min(3000 - candidate.Expected, candidate.Target.SoldierCapacity - candidate.Expected));
-            var routes = new Dictionary<UnitTravel, bool>();
-            foreach (var formation in rules.Formations.Values.Where(f => f.IsCandidateFor(world.Forces.Single(force => force.Id == seat.ForceId))).OrderBy(f => f.DeploymentCost).ThenBy(f => f.Id).Take(32))
+            var routes = new Dictionary<(BattlefieldMap, Footprint, TravelMode), bool>();
+            var occupied = world.Settlements.Where(s => !s.IsDestroyed).Select(rules.Place)
+                .Select(p => new MapOccupancy(p.Position, p.Footprint)).ToArray();
+            foreach (var formation in formations.Take(32))
             {
+                if (work.Exhausted) return wait;
                 uint count = Math.Min(soldiers, formation.SoldierCapacity);
                 if (count < 1000) continue;
                 int? navalId = rules.NavalFormationForDeployment(formation.Id);
@@ -50,17 +58,16 @@ public static class MilitaryPlanner
                 if (!validate(new(seat.ControllerId), command).Accepted) continue;
                 // Static topology is public content. Enemy unit positions are not planning inputs.
                 var travel = rules.Travel(formation.Id, navalId);
-                var key = travel;
+                var key = (travel.Map, travel.Shape, travel.Mode);
                 if (!routes.TryGetValue(key, out bool reachable))
                 {
-                    var occupied = world.Settlements.Where(s => !s.IsDestroyed).Select(rules.Place)
-                        .Select(p => new MapOccupancy(p.Position, p.Footprint)).ToArray();
                     var target = rules.Place(candidate.Target);
                     reachable = travel.Entrances(rules.Place(candidate.Source))
+                        .TakeWhile(_ => !work.Exhausted)
                         .Where(p => travel.Map.PassageCost(p, travel.Shape, travel.Mode, occupied) is not null)
-                        .Any(p => travel.Map.AdvanceIntoRange(p, new(target.Position, target.Footprint), travel.Shape,
-                            travel.Mode, occupied, 0, 1).Reachable);
-                    routes.Add(key, reachable);
+                        .Any(p => travel.Map.ReachabilityIntoRange(p, new(target.Position, target.Footprint), travel.Shape,
+                            travel.Mode, occupied, work, 1) == RouteReachability.Reachable);
+                    if (!work.Exhausted) routes.Add(key, reachable);
                 }
                 if (reachable) return command;
             }
@@ -69,7 +76,7 @@ public static class MilitaryPlanner
     }
 
     private static GameCommand? ChooseAttack(WorldSnapshot world, Func<CommandContext, GameCommand, CommandSubmissionResult> validate,
-        MilitaryRulebook rules, ControlSeat seat, Guid commandId, int? corpsId)
+        MilitaryRulebook rules, ControlSeat seat, Guid commandId, int? corpsId, FormationRule[] formations, NavigationWorkBudget work)
     {
         bool Controlled(int? id) => corpsId is int expected ? id == expected : id is null ||
             world.Corps.Any(c => c.Id == id && c.ControlMode == CorpsControlMode.Direct);
@@ -91,7 +98,7 @@ public static class MilitaryPlanner
                 (world.Relations.FirstOrDefault(r => r.FirstId == Math.Min(seat.ForceId, other) && r.SecondId == Math.Max(seat.ForceId, other))?.Value ?? 0) < 40) &&
             rules.TryPlace(s, out var p) && p.Combat is not null).OrderBy(s => s.Id).ToArray();
         if (targets.Length == 0) return null;
-        var routes = new Dictionary<(WorldPosition, int, int?, int, int?), bool>();
+        var routes = new Dictionary<(WorldPosition, BattlefieldMap, Footprint, TravelMode, OrdinaryAttack?, OrdinaryAttack?, int, int?), bool>();
         foreach (var unit in world.Units.Where(u => u.OwnerId == seat.ForceId && Controlled(u.CorpsId) && u.Order is null).OrderBy(u => u.Id).Take(8))
         {
             if (unit.FormationId is not int f || rules.Formation(unit).Attack is not { } attack) continue;
@@ -106,6 +113,7 @@ public static class MilitaryPlanner
             }
             foreach (var target in PrioritizeTargets(unit.Position))
             {
+                if (work.Exhausted) return null;
                 var command = new OrderUnitCommand(commandId, seat.ForceId, world.Simulation.NextSequence, unit.Id, new(MilitaryOrderKind.AttackSettlement, null, target.Id));
                 if (validate(new(seat.ControllerId), command).Accepted && Reachable(unit.Position, rules.Formations[f], unit.NavalFormationId, target.Id, unit.ServicePlaceId)) return command;
             }
@@ -120,13 +128,15 @@ public static class MilitaryPlanner
             foreach (var target in PrioritizeTargets(rules.Place(source).Position))
             {
                 if (world.Units.Any(u => u.OwnerId == seat.ForceId && u.Order is { Kind: MilitaryOrderKind.AttackSettlement } && u.Order.SettlementId == target.Id)) continue;
-                foreach (var formation in rules.Formations.Values.Where(f => f.IsCandidateFor(world.Forces.Single(force => force.Id == seat.ForceId))).Where(f => f.Attack is not null).OrderBy(f => f.DeploymentCost).ThenBy(f => f.Id).Take(32))
+                foreach (var formation in formations.Where(f => f.Attack is not null).Take(32))
                 {
+                    if (work.Exhausted) return null;
                     int? navalId = rules.NavalFormationForDeployment(formation.Id);
                     var command = new DeployUnitCommand(commandId, seat.ForceId, world.Simulation.NextSequence, source.Id,
                         [people[0].Id], Math.Min(source.Soldiers - 3000, formation.SoldierCapacity), formation.Id,
                         new(MilitaryOrderKind.AttackSettlement, null, target.Id)) { NavalFormationId = navalId };
                     if (validate(new(seat.ControllerId), command).Accepted && rules.Travel(formation.Id, navalId).Entrances(rules.Place(source))
+                        .TakeWhile(_ => !work.Exhausted)
                         .Any(p => Reachable(p, formation, navalId, target.Id, source.Id))) return command;
                 }
             }
@@ -139,18 +149,23 @@ public static class MilitaryPlanner
 
         bool Reachable(WorldPosition from, FormationRule formation, int? navalId, int target, int? source)
         {
-            var key = (from, formation.Id, navalId, target, source);
             var travel = rules.Travel(formation.Id, navalId);
+            var navalAttack = navalId is int ship ? rules.Formations[ship].Attack : null;
+            var key = (from, travel.Map, travel.Shape, travel.Mode, formation.Attack, navalAttack, target, source);
             OrdinaryAttack? Attack(WorldPosition p) => rules.Formation(formation.Id, navalId, p).Attack;
             if (routes.TryGetValue(key, out bool reachable)) return reachable;
             var settlement = world.Settlements.Single(s => s.Id == target);
             var place = rules.Place(settlement);
             if (!rules.CanAttackTarget(formation.Attack, place.Position, true, rules.IsHarbor(settlement)) &&
                 (navalId is not int naval || !rules.CanAttackTarget(rules.Formations[naval].Attack, place.Position, true, rules.IsHarbor(settlement)))) return false;
-            reachable = travel.Map.AdvanceIntoRange(from, new(place.Position, place.Footprint), travel.Shape,
+            int MaximumRange(OrdinaryAttack? attack) => attack is null ? 0 : checked(attack.Range + attack.MaximumElevationBonus);
+            int maximumRange = Math.Max(MaximumRange(formation.Attack), MaximumRange(navalAttack));
+            var result = travel.Map.ReachabilityIntoRange(from, new(place.Position, place.Footprint), travel.Shape,
                 travel.Mode, world.Settlements.Where(s => s.Id != source && s.Id != target && !s.IsDestroyed)
                     .Select(rules.Place).Select(p => new MapOccupancy(p.Position, p.Footprint)),
-                0, position => rules.AttackRange(Attack(position), position, place.Position, true, rules.IsHarbor(settlement))).Reachable;
+                work, maximumRange, position => rules.AttackRange(Attack(position), position, place.Position, true, rules.IsHarbor(settlement)));
+            if (result == RouteReachability.Incomplete) return false;
+            reachable = result == RouteReachability.Reachable;
             routes.Add(key, reachable);
             return reachable;
         }

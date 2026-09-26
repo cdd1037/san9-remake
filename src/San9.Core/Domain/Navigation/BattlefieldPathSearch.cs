@@ -2,13 +2,38 @@ using System.Collections.Immutable;
 
 namespace San9.Core.Domain;
 
-/// <summary>Reusable search workspace for one map on one execution thread.</summary>
-internal sealed class BattlefieldPathSearch(BattlefieldMap map)
+/// <summary>Exclusively leased thread-local workspace; idle workspaces never retain maps.</summary>
+internal sealed class BattlefieldPathSearch : IDisposable
 {
+    [ThreadStatic] private static BattlefieldPathSearch? available;
+    private BattlefieldMap? currentMap;
+    private BattlefieldMap map => currentMap!;
     private int[] seen = [], previous = [], occupied = [], closed = [];
     private long[] distances = [];
     private int generation;
     private readonly PriorityQueue<(int Node, long Cost), (long Estimate, long Remaining, long Sequence)> pending = new();
+
+    internal static BattlefieldPathSearch Rent(BattlefieldMap map)
+    {
+        var workspace = available ?? new();
+        available = null;
+        workspace.currentMap = map;
+        return workspace;
+    }
+
+    public void Dispose()
+    {
+        currentMap = null;
+        pending.Clear();
+        // Nested callbacks may rent another workspace. Keep only the largest idle one.
+        if (available is null || available.seen.Length < seen.Length) available = this;
+    }
+
+    internal RouteReachability Reachable(WorldPosition start, Footprint shape, TravelMode mode,
+        IReadOnlyList<MapOccupancy> objects, Func<WorldPosition, bool> arrived,
+        Func<WorldPosition, long> lowerBound, PathGoalBounds? bounds, NavigationWorkBudget work) =>
+        Search(start, shape, mode, objects, arrived, lowerBound, null, bounds, RouteReachability.Unreachable,
+            (_, _, _, _) => RouteReachability.Reachable, work: work, incomplete: () => RouteReachability.Incomplete);
 
     internal MovementRoute Search(WorldPosition start, Footprint shape, TravelMode mode,
         IReadOnlyList<MapOccupancy> objects, Func<WorldPosition, bool> arrived,
@@ -39,7 +64,8 @@ internal sealed class BattlefieldPathSearch(BattlefieldMap map)
     private T Search<T>(WorldPosition start, Footprint shape, TravelMode mode,
         IReadOnlyList<MapOccupancy> objects, Func<WorldPosition, bool> arrived,
         Func<WorldPosition, long> lowerBound, WorldPosition? destination, PathGoalBounds? goalBounds, T unreachable,
-        Func<int, int, long, int[], T> complete, Func<T>? limited = null, int horizon = 128, int maximumWork = 8192, int minimumStageDistance = 32, NavigationWorkBudget? work = null, Func<T>? blocked = null)
+        Func<int, int, long, int[], T> complete, Func<T>? limited = null, int horizon = 128, int maximumWork = 8192, int minimumStageDistance = 32,
+        NavigationWorkBudget? work = null, Func<T>? blocked = null, Func<T>? incomplete = null)
     {
         var diagnostics = PathSearchDiagnostics.Current;
         if (diagnostics is not null) diagnostics.Queries++;
@@ -49,11 +75,12 @@ internal sealed class BattlefieldPathSearch(BattlefieldMap map)
             if (!area.Footprint.IsValid || area.Left < 0 || area.Top < 0 || area.Right > map.FineWidth || area.Bottom > map.FineHeight)
                 throw new ArgumentException("Occupancy lies outside battlefield.");
         if (!Inside(start) || destination is { } end && !Inside(end)) return unreachable;
-        var topology = map.Topologies.Get(shape, mode);
+        var topology = map.Topologies.Get(map, shape, mode);
         int count = topology.Costs.Length;
-        if (seen.Length != count)
+        if (seen.Length < count)
         {
             seen = new int[count]; previous = new int[count]; occupied = new int[count]; closed = new int[count]; distances = new long[count];
+            if (diagnostics is not null) diagnostics.WorkspaceGrowths++;
         }
         if (generation >= int.MaxValue - 64) { Array.Clear(seen); Array.Clear(occupied); Array.Clear(closed); generation = 0; }
         int stamp = ++generation;
@@ -119,6 +146,7 @@ internal sealed class BattlefieldPathSearch(BattlefieldMap map)
         }
         while (true)
         {
+            bool clipped = false;
             stamp = ++generation;
             pending.Clear();
             long sequence = 0;
@@ -130,7 +158,7 @@ internal sealed class BattlefieldPathSearch(BattlefieldMap map)
                 int current = item.Node;
                 if (distances[current] != item.Cost || closed[current] == stamp) continue;
                 closed[current] = stamp;
-                if (work is not null && !work.TryExpand()) return limited is not null ? limited() : unreachable;
+                if (work is not null && !work.TryExpand()) return incomplete is not null ? incomplete() : limited is not null ? limited() : unreachable;
                 expanded++;
                 if (diagnostics is not null)
                 {
@@ -139,7 +167,7 @@ internal sealed class BattlefieldPathSearch(BattlefieldMap map)
                 }
                 if (arrived(Position(current)) || stage >= 0 && guide!.Costs[regionGraph.Regions[current]] <= guide.Costs[stage])
                     return complete(source, current, item.Cost, topology.Costs);
-                if (limited is not null && expanded > maximumWork) return limited();
+                if (limited is not null && expanded >= maximumWork) return limited();
                 Visit(current - map.FineWidth);
                 if (current % map.FineWidth < map.FineWidth - 1) Visit(current + 1);
                 Visit(current + map.FineWidth);
@@ -148,7 +176,7 @@ internal sealed class BattlefieldPathSearch(BattlefieldMap map)
                 {
                     if (next < 0 || next >= count || !Passable(next) || closed[next] == stamp) return;
                     if (limited is not null && (Math.Abs(next % map.FineWidth - start.X) > horizon ||
-                        Math.Abs(next / map.FineWidth - start.Y) > horizon)) return;
+                        Math.Abs(next / map.FineWidth - start.Y) > horizon)) { clipped = true; return; }
                     int region = regionGraph.Regions[next];
                     if (corridor is not null && (guide!.Costs[region] == long.MaxValue || restrictCorridor && !corridor[region])) return;
                     long total = checked(item.Cost + topology.Costs[next]);
@@ -159,7 +187,7 @@ internal sealed class BattlefieldPathSearch(BattlefieldMap map)
                 }
             }
             // A corridor is a preference, not a reachability boundary. Eventually search the whole component.
-            if (!restrictCorridor) return limited is null ? unreachable : limited();
+            if (!restrictCorridor) return limited is null ? unreachable : !clipped && blocked is not null ? blocked() : limited();
             restrictCorridor = false;
             if (diagnostics is not null) diagnostics.CorridorRetries++;
         }
@@ -170,28 +198,33 @@ internal sealed class BattlefieldPathSearch(BattlefieldMap map)
 
     internal NavigationStep Navigate(WorldPosition start, WorldPosition target, Footprint shape, TravelMode mode,
         IReadOnlyList<MapOccupancy> objects, Func<WorldPosition, bool> arrived, Func<WorldPosition, long> lowerBound,
-        WorldPosition? destination, PathGoalBounds bounds, int budget, MovementPlan? plan, NavigationWorkBudget? work)
+        WorldPosition? destination, PathGoalBounds bounds, int budget, MovementPlan? plan, NavigationWorkBudget? work,
+        BlockedNavigation? blockedGoal)
     {
         if (arrived(start)) return new(start, 0, NavigationStatus.Arrived, null);
         if (budget == 0) return new(start, 0, NavigationStatus.Waiting, plan);
-        var topology = map.Topologies.Get(shape, mode);
+        var topology = map.Topologies.Get(map, shape, mode);
+        if (topology.Minimum == 0) return new(start, 0, NavigationStatus.Unreachable, null);
         var steps = plan?.Steps ?? [];
-        if (steps.IsEmpty && plan is { RetryDelay: > 0 } && plan.Blockers.SequenceEqual(objects))
+        if (steps.IsEmpty && blockedGoal is not null && plan?.BlockedSearch is { } blockedSearch && blockedSearch.Matches(blockedGoal) && plan.Blockers.SequenceEqual(objects))
+            return new(start, 0, NavigationStatus.Waiting, plan);
+        if (steps.IsEmpty && plan is { BlockedSearch: null, RetryDelay: > 0 } && plan.Blockers.SequenceEqual(objects))
             return new(start, 0, plan.FailureStatus, plan with { RetryDelay = plan.RetryDelay - 1 });
         bool Legal(WorldPosition p) => Inside(p) && topology.Costs[Index(p)] > 0 &&
             !objects.Any(o => o.Overlaps(new(p, map.ShapeAt(p, shape))));
         if (steps.IsEmpty || !Legal(steps[0]))
         {
             int failures = plan?.BlockedAttempts ?? 0;
-            int horizon = NavigationHorizon(failures, budget);
+            int horizon = NavigationHorizon(failures, budget / topology.Minimum);
             var segment = Search(start, shape, mode, objects, arrived, lowerBound, destination, bounds,
                 new PathSegment([], NavigationStatus.Unreachable),
                 (source, goal, _, _) => new PathSegment(Trace(source, goal), NavigationStatus.Moving), () => new([], NavigationStatus.Planning), horizon,
                 (int)Math.Min(int.MaxValue, Math.Min((long)map.FineWidth * map.FineHeight * 2, 8192L << Math.Min(failures, 16))),
-                (int)Math.Min(int.MaxValue, (long)budget / topology.Minimum + 16), work, () => new([], NavigationStatus.Waiting));
+                (int)Math.Min(int.MaxValue, (long)budget / topology.Minimum + 16), work, () => new([], NavigationStatus.Waiting, true));
             if (segment.Status != NavigationStatus.Moving)
                 return new(start, 0, segment.Status, new MovementPlan(target, shape, mode, [], Math.Min(failures + 1, 16))
-                { Blockers = objects.ToImmutableArray(), RetryDelay = Math.Min(3, failures / 2), FailureStatus = segment.Status });
+                { Blockers = objects.ToImmutableArray(), RetryDelay = segment.FullyBlocked && blockedGoal is not null ? 0 : Math.Min(3, failures / 2), FailureStatus = segment.Status,
+                    BlockedSearch = segment.FullyBlocked ? blockedGoal : null });
             steps = segment.Steps;
         }
         else if (PathSearchDiagnostics.Current is { } diagnostics) diagnostics.ReusedPlans++;
@@ -209,8 +242,8 @@ internal sealed class BattlefieldPathSearch(BattlefieldMap map)
             new(target, shape, mode, steps.RemoveRange(0, taken))) { Remainder = remainder };
     }
 
-    internal static int NavigationHorizon(int failures, int budget) =>
-        (int)Math.Min(int.MaxValue, Math.Max(256L, (long)budget + 64) << Math.Min(failures, 16));
+    internal static int NavigationHorizon(int failures, int maximumSteps) =>
+        (int)Math.Min(int.MaxValue, Math.Max(256L, (long)maximumSteps + 64) << Math.Min(failures, 16));
 
     private ImmutableArray<WorldPosition> Trace(int source, int goal)
     {

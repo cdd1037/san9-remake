@@ -338,6 +338,10 @@ public static class InterfaceSkinCompiler
         colors.Add("roster-available", FontColor(7)); colors.Add("roster-unavailable", FontColor(26));
         var cursors = ExecutableCursorCompiler.Compile(pe, assets, save);
         foreach (var (role, resource) in new (string, int)[] {
+            ("top-edge",234), ("left-edge",183), ("right-edge",184),
+            ("choice-normal-left",190), ("choice-normal-middle",191), ("choice-normal-right",192),
+            ("choice-hover-left",196), ("choice-hover-middle",197), ("choice-hover-right",198),
+            ("choice-selected-left",193), ("choice-selected-middle",194), ("choice-selected-right",195),
             ("background",270), ("top-left",201), ("top-right",202), ("bottom-left",203), ("bottom-right",204), ("edge",226),
             ("title-left",231), ("title-middle",232), ("title-right",233),
             ("footer-left",223), ("footer-middle",224), ("footer-right",225),
@@ -346,6 +350,17 @@ public static class InterfaceSkinCompiler
             ("mode-left",276), ("mode-middle",277), ("mode-right",278), ("field-rim",189),
             ("number-background",3), ("number-field-left",0), ("number-field-middle",1), ("number-field-right",2) })
             Extra("deployment-" + role, resource, bindings[resource] - 200, !role.StartsWith("mode-", StringComparison.Ordinal));
+        // Nonzero source mask pixels remove the command background at decorated corners.
+        foreach (var (role, resource) in new (string, int)[] { ("top-left", 209), ("top-right", 210), ("bottom-left", 211) })
+        {
+            var mask = common.Images[resource];
+            byte[] pixels = new byte[mask.Width * mask.Height * 4];
+            for (int i = 0; i < mask.Pixels.Length; i++)
+                if (mask.Pixels[i] != 0) pixels.AsSpan(i * 4, 4).Fill(255);
+            string key = "deployment-cutout-" + role;
+            assets.Add(save("ui-" + key, "ui/" + key + ".png", new(mask.Width, mask.Height, 4, pixels)));
+            ui.Add(key, "ui-" + key);
+        }
         var deploymentField = CompileDeploymentField(common.Images.Skip(242).Take(9).ToArray());
         foreach (var (role, resource) in new (string, int)[] {
             ("title-left", 5), ("title-middle", 6), ("title-right", 7), ("slider-fill", 23), ("slider-thumb", 4) })
@@ -378,7 +393,7 @@ public static class InterfaceSkinCompiler
         TargetMarkerOffset[] offsets = [new(-16,-58), new(-20,-38), new(-4,-34), new(-30,-34), new(2,-52),
             new(-33,-52), new(-16,-22), new(-16,-32), new(-16,-28), new(-16,-41), new(-16,-30),
             new(-24,-32), new(-10,-34), new(-16,-34), new(-16,-32), new(-13,-32), new(-16,-34)];
-        return new(33, assets.ToArray(), ui, colors, cursors)
+        return new(35, assets.ToArray(), ui, colors, cursors)
         { BuildingTargetOffsets = offsets.Select((offset, type) => (offset, type)).ToDictionary(p => p.type, p => p.offset) };
     }
 

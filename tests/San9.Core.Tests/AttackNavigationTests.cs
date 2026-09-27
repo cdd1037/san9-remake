@@ -37,7 +37,7 @@ public sealed class AttackNavigationTests
     private static NavigationStep Advance(WorldMutation world, MilitaryRulebook rules)
     {
         var unit = world.Units[0];
-        var step = MilitaryNavigation.Advance(world, unit, rules, MilitaryNavigation.Budget(unit, rules));
+        var step = MilitaryNavigation.Advance(world, unit, unit.Id, rules, MilitaryNavigation.Budget(unit, rules));
         world.Replace(MilitaryNavigation.Apply(unit, step));
         return step.Navigation;
     }

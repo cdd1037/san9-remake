@@ -21,7 +21,7 @@
 | Content.Text / ScenarioTextReader | 名称与全量消息目录 | `text.json` / `messages.json`，文本schema6 |
 | Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema33 |
 | Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema140 |
-| Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema5／转换版本29 |
+| Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema5／转换版本31 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 
 共享剧本契约不按原版编号区间限制城市或人物身份。城市图标资格由`SettlementKind.City`决定；`RegionCityIds`必须引用真实城市，其城市名从据点定义读取，不要求城市ID同时存在于地域名称表。数量与名称不继承源格式槽位和字节长度；玩法数值上限及显示资源范围独立校验。
@@ -211,7 +211,7 @@ TC101完整保留41项兵法和28项阵形的展示元数据，名称与说明�
 
 ### 野外部队动画资源
 
-纹理schema5／完整转换版本29、地图schema14保存部队完整规模布局，每档同时定义兵群与地利光效；身体包含可选的皇帝势力替代资源。人物定义提供旗字，部队采用大将旗字，君主领军用帅旗。需要依次运行`import-textures`和`import-client`，见[地图导入](map-import.md)。覆盖28项军事阵型、20类身体的八方向待机、五类状态及四种地利片段。190年初始野战队仍为0，不扩大初始对象筛选或新增军事命令；显示规模与领域容量独立，实际画面由用户出征验收。
+纹理schema5／完整转换版本31、地图schema14保存部队完整规模布局，每档同时定义兵群与地利光效；身体包含可选的皇帝势力替代资源。人物定义提供旗字，部队采用大将旗字，君主领军用帅旗。需要依次运行`import-textures`和`import-client`，见[地图导入](map-import.md)。覆盖28项军事阵型、20类身体的八方向待机、五类状态及四种地利片段。190年初始野战队仍为0，不扩大初始对象筛选或新增军事命令；显示规模与领域容量独立，实际画面由用户出征验收。
 
 部队旗帜独立保存八方向片段，当前朝向驱动旗面、旗字和旗杆遮挡；建筑旗帜继续按季节切换。资源变化须依次原位重转纹理与组合包。客户端只读取转换片段。
 
@@ -256,7 +256,7 @@ TC101完整保留41项兵法和28项阵形的展示元数据，名称与说明�
 
 军事内容字段`DefaultDeploymentFormationId`可为空，非空须引用可选用途的陆阵，不能指定建设、输送或无阵。TC101导入指定长蛇，UI不识别源编号；该偏好只用于准备草案初选，不改变公共出征命令或AI选择。
 
-皮肤schema29／纹理转换版本25提供`deployment-*`外框、字段、设施装饰框、陆水标签、按钮与数字输入资源，并复用布阵和目录组件。字段采用标准九宫格及上下横沿；转换阶段裁掉源片外侧留白并统一中心平铺周期。多选目录增加独立勾选背景、绿色决定与金色总括按钮四态，重用正文选中帧。数字面板包含三段标题、滑块填充条与拖动标记。客户端仅使用语义角色；布局和资源证据见[RE-0177](../research/findings/RE-SAN9PK-0177.md)。
+皮肤schema35／完整纹理转换版本31提供`deployment-*`外框、字段、设施装饰框、陆水标签、按钮与数字输入资源，并复用布阵和目录组件。字段采用标准九宫格及上下横沿；转换阶段裁掉源片外侧留白并统一中心平铺周期。多选目录增加独立勾选背景、绿色决定与金色总括按钮四态，重用正文选中帧。数字面板包含三段标题、滑块填充条与拖动标记。命令窗口增加三处背景裁切遮罩、原生边条及方针选项普通未选中／悬停未选中／选中三态素材；遮罩在Importer归一为Alpha覆盖，客户端按内容区尺寸生成临时背景，输入纹理就绪且尺寸变化时重建，窗口退出释放。客户端仅使用语义角色；布局和资源证据见[RE-0177](../research/findings/RE-SAN9PK-0177.md)。
 
 现有同源包先执行`import-textures --game-dir "private/游戏文件" --output "local/generated/content/textures-san9pk-tc101" --rebuild skin`，再按上方完整命令执行`import-client`。后续纯皮肤调整只需定向重建皮肤；定向重建保留全包转换版本，完整重建才更新它。
 

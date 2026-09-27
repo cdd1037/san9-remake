@@ -20,7 +20,7 @@ public partial class DeploymentView : Control
     private readonly GameTextPresenter _text = new();
     private StyleBoxTexture _fieldStyle = null!;
     private float _facilityWidth;
-    private static readonly Rect2 Window = new(96, 32, 832, 704);
+    private CommandWindow? _window;
     public override void _Ready()
     {
         Size = new(1024, 768); ZIndex = 25; MouseFilter = MouseFilterEnum.Stop;
@@ -57,23 +57,20 @@ public partial class DeploymentView : Control
                     ? skin == "edit" ? "800090" : skin == "cancel" ? "983810" : "005028" : "000000")) };
         button.Pressed += action; _body!.AddChild(button);
     }
-    private void Icon(string role, Vector2 at, Action action)
-    {
-        var button = new TextureButton { Position = at, TextureNormal = Textures["deployment-" + role], TextureHover = Textures["deployment-" + role + "-1"], TexturePressed = Textures["deployment-" + role + "-2"] };
-        button.Pressed += action; _body!.AddChild(button);
-    }
     private string Person(int? id) => id is int person ? Texts.Resolve(Draft.View.Officers.Single(o => o.Id == person).NameKey) : "";
     private string Formation(int? id) => id is int formation ? Texts.Resolve(Draft.View.Information.Formations.Single(f => f.Id == formation).NameKey) : "";
     private void Rebuild()
     {
         if (_body is not null) { RemoveChild(_body); _body.QueueFree(); }
         _body = new Control { MouseFilter = MouseFilterEnum.Ignore }; AddChild(_body);
-        Label("出征", new(144, 40, 64, 32), 24, style: new GameTextStyle(24, new Color("f8f850"), GameTextEffect.Outline, new Color("5828c8")));
+        if (_window is not null) { RemoveChild(_window); _window.QueueFree(); }
+        _window = new CommandWindow { Textures = Textures, Position = new(136, 100), Size = new(752, 568),
+            Title = "出征", ShowBehindParent = true, Closed = Closed, Accepted = Proceed, CanAccept = Draft.CanProceed,
+            Help = () => Notice("选择执行武将后，可选择阵形、船和士兵。\n拖拽武将牌交换阵位，双击选择兵法。\n执行进入选目标；中止会放弃本次设置。") };
+        AddChild(_window);
         string facility = "执行设施　" + Draft.View.Settlements.Single(s => s.Id == Draft.Home.Id).ResolveName(Texts);
         _facilityWidth = facility.Sum(c => c < 128 ? 8 : 16) + 32;
         Label(facility, new(136, 100, _facilityWidth, 32));
-        Icon("help", new(848, 44), () => Notice("选择执行武将后，可选择阵形、船和士兵。\n拖拽武将牌交换阵位，双击选择兵法。\n执行进入选目标；中止会放弃本次设置。"));
-        Icon("close", new(880, 68), Closed);
         Button("执行武将", "edit", new(136, 148, 104, 40), SelectOfficers);
         bool selected = !Draft.Members.IsEmpty;
         Button("阵形", "edit", new(136, 228, 104, 40), () => SelectFormation(false), selected && Draft.Formations(false).Count > 1);
@@ -109,8 +106,6 @@ public partial class DeploymentView : Control
         Label("兵法发动率：排在越前方的列队数值越高。\n狙击对象　：位于前锋及中锋的武将可能遭到狙击。\n单挑对战　：发生于敌我双方的前锋。", new(440, 465, 432, 56), alignment: HorizontalAlignment.Left);
         Label("陆上视野", new(384, 555, 80, 24), alignment: HorizontalAlignment.Left, style: sectionStyle);
         Label("水上视野", new(645, 555, 80, 24), alignment: HorizontalAlignment.Left, style: sectionStyle);
-        Button("执行", "accept", new(680, 690, 76, 40), Proceed, Draft.CanProceed);
-        Button("中止", "cancel", new(768, 690, 76, 40), Closed);
         _body.AddChild(new GameMessageBar { Textures = Textures, Text = Draft.Cost > Draft.Money ? "出征资金不足。" : "命令部队出征。" });
         QueueRedraw();
     }
@@ -221,12 +216,6 @@ public partial class DeploymentView : Control
     }
     public override void _Draw()
     {
-        DrawRect(new(0, 0, 1024, 768), new Color(0, 0, 0, .35f));
-        DrawTextureRectRegion(Textures["deployment-background"], Window, new(0, 0, Window.Size.X, Window.Size.Y));
-        Tile("edge", new(104, 36, 816, 4)); Tile("edge", new(104, 728, 816, 4));
-        DrawLine(new(108, 56), new(108, 720), new Color("948867"), 3); DrawLine(new(916, 56), new(916, 720), new Color("948867"), 3);
-        Strip("title", new(104, 32, 176, 56)); Strip("footer", new(590, 684, 296, 56));
-        foreach (var (role, at) in new (string, Vector2)[] { ("top-left", new(96, 32)), ("top-right", new(768, 32)), ("bottom-left", new(96, 568)), ("bottom-right", new(856, 568)) }) DrawTexture(Textures["deployment-" + role], at);
         DrawTexture(Textures["formation-panel-deployment"], new(368, 148));
         Strip("facility", new(136, 100, _facilityWidth, 32));
         foreach (int x in new[] { 240, 296 })

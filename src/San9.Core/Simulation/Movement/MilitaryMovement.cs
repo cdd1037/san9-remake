@@ -225,7 +225,7 @@ internal static class MilitaryMovement
                 continue;
             }
             WorldPosition from = unit.Position;
-            var result = MilitaryNavigation.Advance(world, unit, rules, MilitaryNavigation.Budget(unit, rules));
+            var result = MilitaryNavigation.Advance(world, unit, unit.Id, rules, MilitaryNavigation.Budget(unit, rules));
             unit = MilitaryNavigation.Apply(unit, result);
             world.Replace(unit);
             events.Add(new UnitMovedEvent(world.Clock, id, from, result.Position, result.Spent, result.Status) { Steps = result.Navigation.Steps });

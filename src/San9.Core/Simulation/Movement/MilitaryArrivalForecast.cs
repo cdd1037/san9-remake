@@ -5,6 +5,10 @@ namespace San9.Core.Simulation;
 public enum ArrivalEstimateStatus { Known, NotApplicable, Waiting, Unreachable, Incomplete }
 public sealed record ArrivalEstimate(ArrivalEstimateStatus Status, int? Days = null);
 
+/// <summary>Navigation inputs for a prospective deployment; no command or world identity is allocated.</summary>
+public sealed record DeploymentArrivalRequest(int SettlementId, int FormationId, int? NavalFormationId,
+    MilitaryOrder Order, UnitPolicies Policies, int DepartureDelayDays = 0, WorldPosition? Waypoint = null);
+
 /// <summary>Predicts navigation against a frozen world, without publishing forecast paths or consuming randomness.</summary>
 public sealed class MilitaryArrivalForecast(WorldSnapshot snapshot, MilitaryRulebook rules,
     IReadOnlyDictionary<int, int>? regionCities = null, TreasureRulebook? treasures = null)
@@ -17,9 +21,41 @@ public sealed class MilitaryArrivalForecast(WorldSnapshot snapshot, MilitaryRule
         var work = new NavigationWorkBudget(maximumExpanded);
         var unit = snapshot.Units.FirstOrDefault(u => u.Id == unitId);
         if (unit is not { FormationId: int formation, EffectiveOrder: not null } || !rules.Formations.ContainsKey(formation)) return new(ArrivalEstimateStatus.NotApplicable);
+        return Estimate(unit, unit.Id, maximumDays, work);
+    }
+
+    public ArrivalEstimate EstimateDeployment(DeploymentArrivalRequest request, int maximumDays = 4096, int maximumExpanded = 100000)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumDays);
+        var work = new NavigationWorkBudget(maximumExpanded);
+        var home = snapshot.Settlements.FirstOrDefault(s => s.Id == request.SettlementId);
+        if (home is not { OwnerId: int owner, CanHostPersons: true, IsDestroyed: false, IsDormant: false } || home.Durability == 0 ||
+            request.DepartureDelayDays is < 0 or > 9 || request.Policies is null || request.Order is null ||
+            request.Order.Construction is not null || !rules.Formations.ContainsKey(request.FormationId))
+            return new(ArrivalEstimateStatus.NotApplicable);
+        int? naval = request.NavalFormationId ?? rules.NavalFormationForDeployment(request.FormationId);
+        if (!rules.ValidUnitFormations(request.FormationId, naval) || !rules.TryPlace(home, out var place))
+            return new(ArrivalEstimateStatus.NotApplicable);
+        world ??= WorldState.Restore(snapshot).BeginMutation();
+        var occupancy = world.MovementOccupancy(rules, owner, request.Policies, null, null);
+        var travel = rules.Travel(request.FormationId, naval);
+        var start = MilitaryRouteQuery.DeploymentPosition(travel, rules.BuildingArea(place), occupancy);
+        if (start is null) return new(ArrivalEstimateStatus.Unreachable);
+        // This value only carries navigation state. Null movingUnit below excludes no real world object,
+        // even when the world already contains unit zero; nothing is added to the world or allocated.
+        var unit = new UnitState(0, owner, start.Value, 1)
+        {
+            FormationId = request.FormationId, NavalFormationId = naval, Order = request.Order, Policies = request.Policies,
+            DepartureDaysRemaining = request.DepartureDelayDays, Waypoint = request.Waypoint, ServicePlaceId = home.Id
+        };
+        return Estimate(unit, null, maximumDays, work);
+    }
+
+    private ArrivalEstimate Estimate(UnitState unit, int? movingUnit, int maximumDays, NavigationWorkBudget work)
+    {
         world ??= WorldState.Restore(snapshot).BeginMutation();
         if (!Valid(unit)) return new(ArrivalEstimateStatus.NotApplicable);
-        if (unit.DepartureDaysRemaining == 0 && MilitaryNavigation.Advance(world, unit, rules, 0).Arrived) return new(ArrivalEstimateStatus.Known, 0);
+        if (unit.DepartureDaysRemaining == 0 && MilitaryNavigation.Advance(world, unit, movingUnit, rules, 0).Arrived) return new(ArrivalEstimateStatus.Known, 0);
         for (int day = 1; day <= maximumDays; day++)
         {
             // BeforeDailyCommands expires conditions before that day's map movement.
@@ -41,7 +77,7 @@ public sealed class MilitaryArrivalForecast(WorldSnapshot snapshot, MilitaryRule
                 unit = unit with { MovementRemainder = 0 };
                 continue;
             }
-            var step = MilitaryNavigation.Advance(world, unit, rules, MilitaryNavigation.Budget(unit, rules), work);
+            var step = MilitaryNavigation.Advance(world, unit, movingUnit, rules, MilitaryNavigation.Budget(unit, rules), work);
             if (work.Exhausted || step.Status == NavigationStatus.Planning) return new(ArrivalEstimateStatus.Incomplete);
             if (step.Arrived) return new(ArrivalEstimateStatus.Known, day);
             if (step.Status == NavigationStatus.Unreachable) return new(ArrivalEstimateStatus.Unreachable);

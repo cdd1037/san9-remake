@@ -101,7 +101,7 @@ internal static class FacilityConstruction
             var leader = world.Officers[plan.LeaderId];
             var formation = military.Formation(unit);
             var target = military.FacilityArea(plan.Position, type.Id);
-            var movement = MilitaryNavigation.Advance(world, unit, military, MilitaryNavigation.Budget(unit, military));
+            var movement = MilitaryNavigation.Advance(world, unit, unit.Id, military, MilitaryNavigation.Budget(unit, military));
             world.Replace(MilitaryNavigation.Apply(unit, movement));
             events.Add(new UnitMovedEvent(world.Clock, id, unit.Position, movement.Position, movement.Spent, movement.Status) { Steps = movement.Navigation.Steps });
             if (!movement.Arrived || new MapOccupancy(movement.Position, military.Formation(unit, movement.Position).Footprint).Overlaps(target)) continue;

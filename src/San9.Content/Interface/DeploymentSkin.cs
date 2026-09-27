@@ -3,6 +3,10 @@ namespace San9.Content.Interface;
 public static class DeploymentSkin
 {
     public static IReadOnlyList<string> RequiredRoles { get; } = new[] {
+        "cutout-top-left", "cutout-top-right", "cutout-bottom-left", "top-edge", "left-edge", "right-edge",
+        "choice-normal-left", "choice-normal-middle", "choice-normal-right",
+        "choice-hover-left", "choice-hover-middle", "choice-hover-right",
+        "choice-selected-left", "choice-selected-middle", "choice-selected-right",
         "background", "top-left", "top-right", "bottom-left", "bottom-right", "edge",
         "title-left", "title-middle", "title-right", "footer-left", "footer-middle", "footer-right",
         "label-left", "label-middle", "label-right", "field", "field-rim",

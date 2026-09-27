@@ -37,7 +37,7 @@ public sealed class MovementForecastTests
         var unit = new UnitState(0, 1, new(12, 2), 100)
         { FormationId = 0, Order = new(MilitaryOrderKind.Move, new(32, 2), null), Waypoint = new(7, 2) };
         var world = World(unit).BeginMutation();
-        var step = MilitaryNavigation.Advance(world, unit, rules, MilitaryNavigation.Budget(unit, rules));
+        var step = MilitaryNavigation.Advance(world, unit, unit.Id, rules, MilitaryNavigation.Budget(unit, rules));
         Assert.Equal(100, step.Spent); Assert.False(step.Arrived);
         var moved = MilitaryNavigation.Apply(unit, step);
         Assert.Equal(unit.Position, moved.Position); Assert.Null(moved.Waypoint); Assert.Equal(unit.Order, moved.Order);
@@ -196,4 +196,36 @@ public sealed class MovementForecastTests
             Order = new(MilitaryOrderKind.Move, new(21, 2), null), Condition = UnitCondition.Disguised, ConditionDaysRemaining = 1 };
         Assert.Equal(new(ArrivalEstimateStatus.Incomplete), new MilitaryArrivalForecast(World(unit).CreateSnapshot(), Rules(95)).Estimate(0));
     }
+    [Fact]
+    public void ProspectiveDeploymentKeepsRealUnitZeroAsAnObstacleAndPoliciesAffectPrediction()
+    {
+        var rules = new MilitaryRulebook(new(20, 1, new int[20].ToImmutableArray(), [new(0, 10, null)],
+            [new(0, 95, 0, 10000, 1, new(1, 1), TravelMode.Land),
+             new(1, 95, 0, 10000, 1, new(1, 5), TravelMode.Land)], [new(1, new(2, 2), new(1, 1))]));
+        var world = World(new(0, 2, new(27, 2), 100) { FormationId = 1 });
+        var before = world.CreateSnapshot();
+        var forecast = new MilitaryArrivalForecast(before, rules);
+        var request = new DeploymentArrivalRequest(1, 0, null, new(MilitaryOrderKind.Move, new(52, 2), null),
+            new(AttackApproachingEnemies: true));
+        Assert.Equal(ArrivalEstimateStatus.Waiting, forecast.EstimateDeployment(request).Status);
+        Assert.Equal(ArrivalEstimateStatus.Known, forecast.EstimateDeployment(request with { Policies = new() }).Status);
+        Assert.Equal(before, world.CreateSnapshot());
+        Assert.Equal(ArrivalEstimateStatus.Incomplete, forecast.EstimateDeployment(request with { Policies = new() }, maximumDays: 1).Status);
+        Assert.Equal(ArrivalEstimateStatus.Incomplete, forecast.EstimateDeployment(request with { Policies = new() }, maximumExpanded: 1).Status);
+        Assert.Equal(ArrivalEstimateStatus.NotApplicable, forecast.EstimateDeployment(request with { SettlementId = 99 }).Status);
+    }
+
+    [Fact]
+    public void ProspectiveAttackPredictsEnteringRangeAndReevaluatesTargetInNewSnapshot()
+    {
+        var rules = new MilitaryRulebook(new(20, 1, new int[20].ToImmutableArray(), [new(0, 10, null)],
+            [new(0, 95, 0, 10000, 1, new(1, 1), TravelMode.Land)
+                { Combat = new(10, 10, 10, 10, 50), Attack = new(5, true), CaptureRanks = [BattleRank.Front] }], [new(1, new(2, 2), new(1, 1))]));
+        var snapshot = World(new(0, 2, new(26, 2), 100) { FormationId = 0 }).CreateSnapshot();
+        var request = new DeploymentArrivalRequest(1, 0, null, new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 0 }, new());
+        Assert.Equal(new(ArrivalEstimateStatus.Known, 2), new MilitaryArrivalForecast(snapshot, rules).EstimateDeployment(request));
+        var moved = snapshot with { Units = [snapshot.Units[0] with { Position = new(36, 2) }] };
+        Assert.Equal(new(ArrivalEstimateStatus.Known, 4), new MilitaryArrivalForecast(moved, rules).EstimateDeployment(request));
+    }
+
 }

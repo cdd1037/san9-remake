@@ -16,8 +16,8 @@ internal sealed partial class WorldMutation
     private EngagementRelations? _engagements;
     private MilitaryRulebook? _engagementRules;
     private MovementOccupancy? _movementOccupancy;
-    internal IReadOnlyList<MapOccupancy> MovementOccupancy(MilitaryRulebook rules, int unit, int? entry) =>
-        (_movementOccupancy ??= new(this, rules)).Query(this, Units[unit].OwnerId, Units[unit].Policies, unit, entry);
+    internal IReadOnlyList<MapOccupancy> MovementOccupancy(MilitaryRulebook rules, int owner, UnitPolicies policies, int? movingUnit, int? entry) =>
+        (_movementOccupancy ??= new(this, rules)).Query(this, owner, policies, movingUnit, entry);
 
     internal EngagementRelations Engagements(MilitaryRulebook military)
     {

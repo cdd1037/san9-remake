@@ -93,14 +93,34 @@ public sealed class DeploymentTargets
         DepartureDelayDays = days; return true;
     }
 
+    private MilitaryArrivalForecast? _arrivalForecast;
+    private DeploymentArrivalRequest? _arrivalRequest;
+    private ArrivalEstimate? _arrival;
+
+    /// <summary>Frozen-world travel time, including departure delay; does not authorize or submit deployment.</summary>
+    public ArrivalEstimate EstimateArrival()
+    {
+        if (Selected is not { } target || !Draft.CanProceed) return new(ArrivalEstimateStatus.NotApplicable);
+        var request = new DeploymentArrivalRequest(Draft.Home.Id, Draft.FormationId!.Value, Draft.NavalFormationId,
+            OrderFor(target), Policies, DepartureDelayDays, Waypoint is { } via ? MapCoordinates.Center(via) : null);
+        if (_arrivalRequest != request)
+        {
+            _arrival = (_arrivalForecast ??= new(Draft.View.World, Draft.Rules)).EstimateDeployment(request);
+            _arrivalRequest = request;
+        }
+        return _arrival!;
+    }
+
+    private MilitaryOrder OrderFor(DeploymentTarget target) => new(target.IsUnit ? MilitaryOrderKind.AttackUnit
+        : Candidates[target] == DeploymentMarker.Enter ? MilitaryOrderKind.Return : MilitaryOrderKind.AttackSettlement,
+        null, target.IsUnit ? null : target.Id) { UnitId = target.IsUnit ? target.Id : null };
+
     public DeployUnitCommand CreateCommand(Guid commandId, long sequence, bool confirmAttack = false)
     {
         if (!EditingPolicies || Selected is not { } target || !Reachable || !Draft.CanProceed)
             throw new InvalidOperationException("Deployment is not ready.");
-        var kind = target.IsUnit ? MilitaryOrderKind.AttackUnit : Candidates[target] == DeploymentMarker.Enter
-            ? MilitaryOrderKind.Return : MilitaryOrderKind.AttackSettlement;
         return new(commandId, Draft.Force.Id, sequence, Draft.Home.Id, Draft.Members, Draft.Soldiers,
-            Draft.FormationId!.Value, new(kind, null, target.IsUnit ? null : target.Id) { UnitId = target.IsUnit ? target.Id : null })
+            Draft.FormationId!.Value, OrderFor(target))
         {
             NavalFormationId = Draft.NavalFormationId, Policies = Policies, ConfirmAttack = confirmAttack,
             DepartureDelayDays = DepartureDelayDays, Waypoint = Waypoint is { } via ? MapCoordinates.Center(via) : null,

@@ -15,76 +15,131 @@ public partial class DeploymentPolicyView : Control
     public Func<bool, CommandRejection> Submit { get; init; } = null!;
     public Action Closed { get; init; } = null!;
     private readonly GameTextPresenter _text = new();
+    private static readonly Vector2 Origin = new(304, 224);
+    private CommandWindow _window = null!;
+    private StyleBoxTexture _field = null!;
+    private Control? _child;
+    private Label _delay = null!, _arrival = null!;
+    private GameMessageBar _message = null!;
+    private float _facilityWidth;
+    private bool _confirmAttack;
+
     public override void _Ready()
     {
         Size = new(1024, 768); ZIndex = 30; MouseFilter = MouseFilterEnum.Stop;
-        var center = new CenterContainer(); AddChild(center); center.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-        var panel = new PanelContainer { CustomMinimumSize = new(600, 440) };
-        panel.AddThemeStyleboxOverride("panel", new StyleBoxTexture
-        {
-            Texture = Textures["dialog-frame"], TextureMarginLeft = 96, TextureMarginRight = 96,
-            TextureMarginTop = 56, TextureMarginBottom = 56,
-            AxisStretchHorizontal = StyleBoxTexture.AxisStretchMode.Tile, AxisStretchVertical = StyleBoxTexture.AxisStretchMode.Tile,
-            ContentMarginLeft = 56, ContentMarginRight = 56, ContentMarginTop = 36, ContentMarginBottom = 36
-        });
-        center.AddChild(panel);
-        var column = new VBoxContainer(); column.AddThemeConstantOverride("separation", 16); panel.AddChild(column);
-        void Label(string value, int size = 20)
-        {
-            var label = new Label { Text = value, HorizontalAlignment = HorizontalAlignment.Center };
-            _text.Apply(label, new(size, Colors.Black, GameTextEffect.None, Colors.Transparent)); column.AddChild(label);
-        }
-        Label("方针设定", 24);
+        _field = new StyleBoxTexture { Texture = Textures["deployment-field"],
+            TextureMarginLeft = 16, TextureMarginRight = 16, TextureMarginTop = 8, TextureMarginBottom = 8,
+            AxisStretchHorizontal = StyleBoxTexture.AxisStretchMode.Tile, AxisStretchVertical = StyleBoxTexture.AxisStretchMode.Tile };
+        _window = new CommandWindow { Textures = Textures, Position = Origin, Size = new(416, 320),
+            Title = "决定方针", ShowBehindParent = true, Closed = Closed, Accepted = Execute,
+            Help = () => Notice("决定部队的行动方针。金色为已选项。\n出征时期可设为0至9日后。\n到达预定包含等待和中继绕行，按当前目标及阻挡预测行军时间。") };
+        AddChild(_window);
+        string facility = "命令设施　" + Selection.Draft.View.Settlements.Single(s => s.Id == Selection.Draft.Home.Id).ResolveName(Texts);
+        _facilityWidth = facility.Sum(c => c < 128 ? 8 : 16) + 32;
+        Label(facility, new(0, 0, _facilityWidth, 32));
+        _arrival = Label("", new(256, 0, 136, 32));
+        RefreshArrival();
         var target = Selection.Selected!.Value;
         var info = target.IsUnit ? UnitMapInteraction.Hover(Selection.Draft.View, Texts, target.Id) : MapHoverInfo.Resolve(Selection.Draft.View, Texts, target.Id);
-        Label("目标：" + info?.Name);
-        if (Selection.Waypoint is { } via) Label($"中继点：({via.X}, {via.Y})", 16);
-        var current = Selection.Policies;
-        Toggle("攻击接近的敌军", current.AttackApproachingEnemies, (p, enabled) => p with { AttackApproachingEnemies = enabled });
-        Toggle("追击敌军", current.Pursue, (p, enabled) => p with { Pursue = enabled });
-        Toggle("任务结束后攻击", current.AttackAfterAction, (p, enabled) => p with { AttackAfterAction = enabled });
-        Toggle("自主撤退", current.AutonomousRetreat, (p, enabled) => p with { AutonomousRetreat = enabled });
-        var delayRow = new HBoxContainer(); column.AddChild(delayRow);
-        var delayLabel = new Label { Text = "出征等待（日）", SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        _text.Apply(delayLabel, new(20, Colors.Black, GameTextEffect.None, Colors.Transparent)); delayRow.AddChild(delayLabel);
-        var delay = new SpinBox { MinValue = 0, MaxValue = 9, Step = 1, Value = Selection.DepartureDelayDays, CustomMinimumSize = new(104, 40) };
-        delay.ValueChanged += value => Selection.SetDepartureDelay((int)value); delayRow.AddChild(delay);
-        var error = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart };
-        _text.Apply(error, new(16, Colors.Black, GameTextEffect.None, Colors.Transparent)); column.AddChild(error);
-        var deploy = new InformationMenuButton { Title = "出征", SkinPrefix = "deployment-edit", Textures = Textures,
-            CustomMinimumSize = new(104, 40), SizeFlagsHorizontal = SizeFlags.ShrinkCenter };
-        bool confirmAttack = false;
-        deploy.Pressed += () =>
+        Label("命令", new(0, 48, 96, 32));
+        Label(Selection.Candidates[target] == DeploymentMarker.Enter ? "进军" : "攻击", new(104, 48, 48, 32));
+        Label("目标", new(0, 88, 96, 32)); Label(info?.Name ?? "—", new(104, 88, 160, 32));
+        Label("势力", new(272, 92, 48, 24)); Label(info?.Force is { } force ? Texts.Resolve(force.NameKey) : "—", new(328, 92, 80, 24));
+        Choice("敌接近时", "攻击", "无视", 128, Selection.Policies.AttackApproachingEnemies,
+            (p, value) => p with { AttackApproachingEnemies = value });
+        Choice("自主撤退", "许可", "不许可", 168, Selection.Policies.AutonomousRetreat,
+            (p, value) => p with { AutonomousRetreat = value });
+        Choice("追击", "许可", "不许可", 208, Selection.Policies.Pursue,
+            (p, value) => p with { Pursue = value });
+        Choice("事后命令", "攻击", "撤退", 248, Selection.Policies.AttackAfterAction,
+            (p, value) => p with { AttackAfterAction = value });
+        _window.ActionButton("出征时期", "edit", new(0, 288, 104, 40), SelectDelay);
+        _delay = Label($"{Selection.DepartureDelayDays}日后", new(104, 288, 64, 32));
+        _message = new GameMessageBar { Textures = Textures, Text = Selection.Waypoint is { } via
+            ? $"决定部队行动方针。中继点：({via.X}, {via.Y})。" : "决定部队行动方针。" };
+        AddChild(_message);
+    }
+    private Label Label(string text, Rect2 bounds)
+    {
+        var label = new Label { Text = text, Position = Origin + bounds.Position, Size = bounds.Size,
+            HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+            MouseFilter = MouseFilterEnum.Ignore, ClipText = true };
+        AddChild(label); _text.Apply(label, GameTextStyles.CatalogRow); return label;
+    }
+    private void Choice(string caption, string yes, string no, int y, bool selected, Func<UnitPolicies, bool, UnitPolicies> change)
+    {
+        Label(caption, new(0, y, 96, 32));
+        var group = new ButtonGroup { AllowUnpress = false };
+        foreach (bool value in new[] { true, false })
         {
-            var rejection = Submit(confirmAttack);
-            if (rejection == CommandRejection.None) return;
-            confirmAttack = rejection == CommandRejection.AttackConfirmationRequired;
-            error.Text = confirmAttack ? "攻击该目标将影响外交关系。再次点击确认出征。" : "出征条件已变化，请返回重新选择。";
-            deploy.Title = confirmAttack ? "确认出征" : "出征";
-        };
-        column.AddChild(deploy);
-        var back = new InformationMenuButton { Title = "返回", SkinPrefix = "deployment-cancel", Textures = Textures,
-            CustomMinimumSize = new(96, 40), SizeFlagsHorizontal = SizeFlags.ShrinkCenter };
-        back.Pressed += Closed; column.AddChild(back);
-
-        void Toggle(string name, bool enabled, Func<UnitPolicies, bool, UnitPolicies> change)
-        {
-            var row = new HBoxContainer(); column.AddChild(row);
-            var label = new Label { Text = name, SizeFlagsHorizontal = SizeFlags.ExpandFill };
-            _text.Apply(label, new(20, Colors.Black, GameTextEffect.None, Colors.Transparent)); row.AddChild(label);
-            var button = new InformationMenuButton { Title = enabled ? "许可" : "禁止", SkinPrefix = "deployment-edit", Textures = Textures, CustomMinimumSize = new(104, 40) };
-            button.Pressed += () => { enabled = !enabled; Selection.SetPolicies(change(Selection.Policies, enabled)); button.Title = enabled ? "许可" : "禁止"; button.QueueRedraw(); };
-            row.AddChild(button);
+            var button = new CommandChoiceButton { Title = value ? yes : no, Textures = Textures,
+                Position = Origin + new Vector2(value ? 104 : 192, y), Size = new(80, 32),
+                ToggleMode = true, ButtonGroup = group, ButtonPressed = selected == value };
+            button.Pressed += () => { Selection.SetPolicies(change(Selection.Policies, value)); RefreshArrival(); }; AddChild(button);
         }
     }
-    public override void _GuiInput(InputEvent input)
+    private void RefreshArrival()
     {
-        if (input is InputEventMouseButton { ButtonIndex: MouseButton.Right, Pressed: true }) { AcceptEvent(); Closed(); }
+        var estimate = Selection.EstimateArrival();
+        string value = estimate.Status switch
+        {
+            ArrivalEstimateStatus.Known => $"{estimate.Days}日",
+            ArrivalEstimateStatus.Waiting => "受阻",
+            ArrivalEstimateStatus.Unreachable => "不可达",
+            ArrivalEstimateStatus.Incomplete => "待定",
+            _ => "—"
+        };
+        _arrival.Text = $"到达预定　{value}";
     }
-    public override void _UnhandledKeyInput(InputEvent input)
+    private void Execute()
     {
+        var rejection = Submit(_confirmAttack);
+        if (rejection == CommandRejection.None) return;
+        _confirmAttack = rejection == CommandRejection.AttackConfirmationRequired;
+        _message.SetMessage(_confirmAttack ? "攻击该目标将影响外交关系。再次点击执行确认出征。" : "出征条件已变化，请返回重新选择。", true);
+    }
+    private void SelectDelay()
+    {
+        _child = new NumberInputDialog { State = new(0, 9, (uint)Selection.DepartureDelayDays), Subject = "出征时期",
+            Textures = Textures, Closed = CloseChild,
+            Confirmed = days => { Selection.SetDepartureDelay((int)days); _delay.Text = $"{days}日后"; RefreshArrival(); CloseChild(); } };
+        AddChild(_child);
+    }
+    private void Notice(string text)
+    {
+        var dialog = new GameDialog { Textures = Textures, Size = new(1024, 768) };
+        dialog.Closed += CloseChild; _child = dialog; AddChild(dialog); dialog.SetNotice(text);
+    }
+    private void CloseChild()
+    { if (_child is not null) { RemoveChild(_child); _child.QueueFree(); _child = null; } }
+    public override void _Input(InputEvent input)
+    {
+        if (_child is not null) return;
         if (input is InputEventKey { Pressed: true, Echo: false, Keycode: Key.Escape })
         { GetViewport().SetInputAsHandled(); Closed(); }
+        if (input is InputEventMouseButton { ButtonIndex: MouseButton.Right } mouse)
+        { GetViewport().SetInputAsHandled(); if (mouse.Pressed) Closed(); }
     }
-    public override void _ExitTree() => _text.Dispose();
+    public override void _Draw()
+    {
+        Strip("facility", new(0, 0, _facilityWidth, 32));
+        foreach (int y in new[] { 48, 88, 128, 168, 208, 248 }) Strip("label", new(0, y, 96, 32));
+        var left = Textures["deployment-mode-left"]; var right = Textures["deployment-mode-right"];
+        float l = left.GetWidth() - 8, r = right.GetWidth() - 8;
+        var modeAt = Origin + new Vector2(272, 92);
+        DrawTextureRectRegion(left, new(modeAt, new(l, 24)), new(8, 0, l, 24));
+        SkinPainter.Tile(this, Textures["deployment-mode-middle"], new(modeAt + new Vector2(l, 0), new(48 - l - r, 24)));
+        DrawTextureRectRegion(right, new(modeAt + new Vector2(48 - r, 0), new(r, 24)), new(0, 0, r, 24));
+        foreach (var bounds in new Rect2[] { new(256, 0, 136, 32), new(104, 48, 48, 32), new(104, 88, 160, 32),
+            new(328, 92, 80, 24), new(104, 288, 64, 32) })
+        {
+            var rect = new Rect2(Origin + bounds.Position, bounds.Size); DrawStyleBox(_field, rect);
+            SkinPainter.Tile(this, Textures["deployment-field-rim"], new(rect.Position, new(rect.Size.X - 2, 4)));
+            SkinPainter.Tile(this, Textures["deployment-field-rim"], new(rect.Position + new Vector2(0, rect.Size.Y - 4), new(rect.Size.X - 2, 4)));
+        }
+        DrawLine(Origin + new Vector2(0, 40), Origin + new Vector2(416, 40), new Color("755635"), 2);
+    }
+    private void Strip(string role, Rect2 bounds) => SkinPainter.Strip(this, Textures["deployment-" + role + "-left"],
+        Textures["deployment-" + role + "-middle"], Textures["deployment-" + role + "-right"], new(Origin + bounds.Position, bounds.Size));
+    public override void _ExitTree() { _text.Dispose(); _field.Dispose(); }
 }

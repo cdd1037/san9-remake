@@ -14,22 +14,22 @@ internal static class MilitaryNavigation
         public bool Arrived => Navigation.Arrived;
     }
 
-    internal static UnitStep Advance(WorldMutation world, UnitState unit, MilitaryRulebook rules,
+    internal static UnitStep Advance(WorldMutation world, UnitState unit, int? movingUnit, MilitaryRulebook rules,
         int budget, NavigationWorkBudget? work = null)
     {
         if (unit.Waypoint is not { } via || unit.EngagementTargetId is not null || unit.Condition == UnitCondition.Disguised)
-            return new(AdvanceDestination(world, unit, rules, budget, work));
+            return new(AdvanceDestination(world, unit, movingUnit, rules, budget, work));
         var travel = rules.Travel(unit);
         var first = travel.Map.Navigate(unit.Position, new(via, new(1, 1)), false,
-            travel.Shape, travel.Mode, world.MovementOccupancy(rules, unit.Id, null),
+            travel.Shape, travel.Mode, world.MovementOccupancy(rules, unit.OwnerId, unit.Policies, movingUnit, null),
             budget, work: work, lookahead: unit.Lookahead);
         if (!first.Arrived) return new(first);
         var next = AdvanceDestination(world, unit with { Position = first.Position, Waypoint = null, Lookahead = null },
-            rules, Math.Max(0, budget - first.Spent), work);
+            movingUnit, rules, Math.Max(0, budget - first.Spent), work);
         return new(next with { Spent = first.Spent + next.Spent, Steps = first.Steps.AddRange(next.Steps) }, true);
     }
 
-    private static NavigationStep AdvanceDestination(WorldMutation world, UnitState unit, MilitaryRulebook rules,
+    private static NavigationStep AdvanceDestination(WorldMutation world, UnitState unit, int? movingUnit, MilitaryRulebook rules,
         int budget, NavigationWorkBudget? work = null)
     {
         var order = unit.EffectiveOrder!;
@@ -40,7 +40,7 @@ internal static class MilitaryNavigation
         if (order.IsAttack)
             return travel.Map.Navigate(unit.Position, MilitaryCombat.TargetArea(world, order, rules), true,
                 travel.Shape, travel.Mode,
-                world.MovementOccupancy(rules, unit.Id, null), budget,
+                world.MovementOccupancy(rules, unit.OwnerId, unit.Policies, movingUnit, null), budget,
                 range: position => MilitaryCombat.ApproachRange(world, unit, order, rules, position), rectangularReach: true,
                 maximumRange: Math.Max(MapCoordinates.UnitsPerCell,
                     Math.Max(Range(formation), Range(naval))), work: work, lookahead: unit.Lookahead,
@@ -55,7 +55,7 @@ internal static class MilitaryNavigation
             return new(unit.Position, 0, NavigationStatus.Arrived);
         return travel.Map.Navigate(unit.Position, target, order.Construction is not null || order.SettlementId is not null,
             travel.Shape, travel.Mode,
-            world.MovementOccupancy(rules, unit.Id, order.Construction?.RegionId), budget, work: work, lookahead: unit.Lookahead);
+            world.MovementOccupancy(rules, unit.OwnerId, unit.Policies, movingUnit, order.Construction?.RegionId), budget, work: work, lookahead: unit.Lookahead);
     }
 
     internal static int Budget(UnitState unit, MilitaryRulebook rules) =>

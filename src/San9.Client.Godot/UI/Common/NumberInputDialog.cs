@@ -6,6 +6,7 @@ namespace San9.Client.Godot;
 public partial class NumberInputDialog : Control
 {
     public BoundedNumberInput State { get; init; } = null!;
+    public string Subject { get; init; } = "士兵";
     public TextureScope Textures { get; init; } = null!;
     public Action<uint> Confirmed { get; init; } = null!;
     public Action Closed { get; init; } = null!;
@@ -43,7 +44,7 @@ public partial class NumberInputDialog : Control
         Button("中止", new(303, 491), new(72, 40), Closed, "number-cancel");
         Button("", new(365, 22), new(40, 32), Closed, "number-close");
         Button("", new(334, 3), new(40, 32), () => _help = !_help, "number-help");
-        AddChild(new GameMessageBar { Textures = Textures, Text = "决定士兵。" }); Refresh();
+        AddChild(new GameMessageBar { Textures = Textures, Text = $"决定{Subject}。" }); Refresh();
     }
     private Label Label(string title, Vector2 position, Vector2 size, int fontSize = 16, GameTextEffect effect = GameTextEffect.Outline,
         HorizontalAlignment alignment = HorizontalAlignment.Center)
@@ -69,7 +70,7 @@ public partial class NumberInputDialog : Control
         return button;
     }
     private void Refresh()
-    { _value.Text = State.Value.ToString(); _summary.Text = _help ? "数字键输入，退格删除，回车决定。" : $"士兵：　{_initial} → {State.Value}"; _confirm.Disabled = !State.CanConfirm; _refreshing = true; _slider.Value = State.Value; _refreshing = false; }
+    { _value.Text = State.Value.ToString(); _summary.Text = _help ? "数字键输入，退格删除，回车决定。" : $"{Subject}：　{_initial} → {State.Value}"; _confirm.Disabled = !State.CanConfirm; _refreshing = true; _slider.Value = State.Value; _refreshing = false; }
     public override void _Input(InputEvent input)
     {
         if (input is InputEventMouseButton { ButtonIndex: MouseButton.Right } mouse)

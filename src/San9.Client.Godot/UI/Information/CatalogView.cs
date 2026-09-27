@@ -52,6 +52,8 @@ public partial class CatalogView : Control
     private int? _pressedRowId;
     private int? _hoveredCheckboxId;
     private int? _pointerRowId;
+    private bool? _dragSelectionValue;
+    private int? _dragRowIndex;
 
     public override void _Ready()
     {
@@ -244,7 +246,8 @@ public partial class CatalogView : Control
         _pointerRowId = null;
         _hoveredCheckboxId = null;
         if (_help is not null) { _help.QueueFree(); _help = null; return; }
-        _help = LabelAt("页签切换显示列；点击表头排序。\n上下键选择，滚轮或滚动条翻阅。\nCtrl+Tab 切换页签，回车查看详情。\nEsc 或右键返回。", _body.Position + new Vector2(80, 220), new(_body.Size.X - 160, 150));
+        string activationHelp = Selection is null ? "回车查看详情。" : "回车切换选择。\n按住左键划过多行选择或解除。";
+        _help = LabelAt($"页签切换显示列；点击表头排序。\n上下键选择，滚轮或滚动条翻阅。\nCtrl+Tab 切换页签，{activationHelp}\nEsc 或右键返回。", _body.Position + new Vector2(80, 220), new(_body.Size.X - 160, 150));
         _help.AddThemeStyleboxOverride("normal", new StyleBoxFlat { BgColor = new Color("161b1b"), ContentMarginLeft = 16 });
         _help.ZIndex = 5; _help.MouseFilter = MouseFilterEnum.Stop;
     }
@@ -261,11 +264,17 @@ public partial class CatalogView : Control
             if (!CanActivateRow(id)) return;
             if (mouse.Pressed)
             {
+                if (Selection is not null)
+                {
+                    _dragSelectionValue = !Selection.Selected.Contains(id);
+                    _dragRowIndex = index;
+                    ContinueSelectionDrag(mouse.Position);
+                }
                 // The checkbox has its own hit feedback; only the body uses the bright row frame.
                 _pressedRowId = mouse.Position.X >= _tableOrigin.X + SelectionWidth ? id : null;
                 QueueRedraw();
             }
-            else ActivateCurrent();
+            else if (Selection is null) ActivateCurrent();
         }
         if (input is InputEventMouseMotion motion)
         {
@@ -275,8 +284,39 @@ public partial class CatalogView : Control
         }
     }
     private bool CanActivateRow(int id) => Selection?.CanToggle(id) ?? true;
+    private void ContinueSelectionDrag(Vector2 position)
+    {
+        if (_dragSelectionValue is not bool selected || Selection is null) return;
+        // Clamp vertical overshoot to the last visible row, without scrolling the table.
+        float top = _tableOrigin.Y + 24;
+        int count = Math.Min(_visibleRows, _state.Rows.Length - _state.Offset);
+        if (count <= 0) return;
+        var hit = new Vector2(position.X, Math.Clamp(position.Y, top, top + count * 24 - 1));
+        if (RowAt(hit) is not int index)
+        {
+            _dragRowIndex = null;
+            return;
+        }
+        int first = _dragRowIndex ?? index;
+        int step = index >= first ? 1 : -1;
+        bool changed = false;
+        for (int row = first; ; row += step)
+        {
+            int id = _state.Rows[row].Id;
+            // A stroke assigns one value; revisiting a row must never toggle it back.
+            if (Selection.Selected.Contains(id) != selected) changed |= Selection.Toggle(id);
+            if (row == index) break;
+        }
+        _dragRowIndex = index;
+        bool moved = _state.CurrentIndex != index;
+        _state.PointAt(index);
+        UpdateRowPointer(position);
+        if (changed || moved) RefreshRows();
+    }
     private void ClearRowPress()
     {
+        _dragSelectionValue = null;
+        _dragRowIndex = null;
         if (_pressedRowId is null) return;
         _pressedRowId = null;
         QueueRedraw();
@@ -304,12 +344,31 @@ public partial class CatalogView : Control
     {
         if (!IsVisibleInTree()) return;
         // Release can land on a child control or outside the table; it must always end the feedback.
-        if (input is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: false }) ClearRowPress();
+        if (input is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: false })
+        {
+            if (_dragSelectionValue is not null)
+            {
+                ContinueSelectionDrag(GetLocalMousePosition());
+                GetViewport().SetInputAsHandled();
+            }
+            ClearRowPress();
+        }
+        if (input is InputEventMouseMotion drag && _dragSelectionValue is not null)
+        {
+            if ((drag.ButtonMask & MouseButtonMask.Left) == 0) ClearRowPress();
+            else
+            {
+                ContinueSelectionDrag(GetLocalMousePosition());
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+        }
         if (input is InputEventMouseMotion && _help is null) UpdateRowPointer(GetLocalMousePosition());
         if (input is InputEventMouseButton { Pressed: true } mouse)
         {
             if (mouse.ButtonIndex == MouseButton.Right)
             {
+                ClearRowPress();
                 GetViewport().SetInputAsHandled();
                 if (_help is not null) ToggleHelp(); else Closed?.Invoke();
                 return;
@@ -443,9 +502,14 @@ public partial class CatalogView : Control
     }
     public override void _Notification(int what)
     {
-        if (what == NotificationWMWindowFocusOut) ClearRowPress();
+        if (what == NotificationWMWindowFocusOut ||
+            what == NotificationVisibilityChanged && !IsVisibleInTree()) ClearRowPress();
     }
-    public override void _ExitTree() => _text.Dispose();
+    public override void _ExitTree()
+    {
+        ClearRowPress();
+        _text.Dispose();
+    }
 }
 
 public enum CatalogButtonKind { Header, Tab }

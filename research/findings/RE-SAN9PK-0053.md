@@ -130,9 +130,9 @@ redraw_map_scene
 
 `draw_square_mesh_overlays`（`0x51F140`）在底图和疆界刷新之后，读取每格的临时 overlay state 与 `CSquareData +0x1C`（文件 `+0x0A`），由 `create_square_mesh_visual`（`0x51E1F0`）在六组 MESH/COV 基础资源 `[10972,11004,11036,11020,10988,11052]` 上加上 `+0x0A`，再以组 `25` 插入可见对象。这个消费者是当前 `+0x0A` 最清晰的直接绘制证据。
 
-`create_square_mesh_visual` 还把状态表 `[50,25,20,22,20,20]` 编码为 `((alpha << 8) | 2)` 写入资源对象 `+0x14`。`sub_5C7FB0`（`0x5C7FB0`）将其解释为混合模式 `2` 和源 alpha，随后进入 `BitBltAlphablend`；因此这组数不是像素尺寸的缩放系数。绘制坐标由 `square_to_isometric_anchor`（`0x51C8C0`）给出，横向锚点为等距中心减 `32`，纵向锚点为等距中心再减 `10 × CSquareData +0x14`。此前实验把 MESH 像素按 100% 不透明绘制且漏掉横向 `-32`，生成的实心红色结果不能作为原版外观依据。
+`create_square_mesh_visual` 还把百分数状态表 `[50,25,20,22,20,20]` 先换算为 `alpha = floor(percent × 256 / 100)`，再编码为 `((alpha << 8) | 2)` 写入资源对象 `+0x14`。`sub_5C7FB0`（`0x5C7FB0`）将其解释为混合模式 `2` 和源 alpha，随后进入 `BitBltAlphablend`；因此这组数不是像素尺寸的缩放系数。绘制坐标由 `square_to_isometric_anchor`（`0x51C8C0`）给出，横向锚点为等距中心减 `32`，纵向锚点为等距中心再减 `10 × CSquareData +0x14`。此前实验把 MESH 像素按 100% 不透明绘制且漏掉横向 `-32`，生成的实心红色结果不能作为原版外观依据。
 
-这里的“临时 overlay state”不是 `squa` 字段：`get_square_overlay_cell_state`（`0x51CC70`）从地图对象的运行时覆盖网格（`this + 163`）读取状态，越界时返回 `6`；`apply_square_overlay_states`（`0x520CF0`）才把一个 `CSquareData` 列表和状态值写入该网格，然后重画 MESH/COV。`COrderShingunDlg_refresh_map_overlay`（`0x4F51D0`）已直接观察到普通对象覆盖使用状态 `0`，城市/港口路线覆盖使用状态 `5`。因此 MESH/COV 不是裸地图上按 `+0x0A` 自动铺满的底图层；`+0x0A` 只负责在已激活的状态组内选择 16 个高差变体。
+这里的“临时 overlay state”不是 `squa` 字段：`get_square_overlay_cell_state`（`0x51CC70`）从地图对象的运行时覆盖网格（`this + 163`）读取状态，越界时返回 `6`；`apply_square_overlay_states`（`0x520CF0`）才把一个 `CSquareData` 列表和状态值写入该网格，然后重画 MESH/COV。2026-09-27更正：`COrderShingunDlg_refresh_map_overlay`（`0x4F51D0`）先经`0x473700`取得候选占地的补集，对补集使用状态`0`黑色暗调；仅来源都市的周边可达范围使用状态`5`红色覆盖，后写状态替换前者。旧“普通对象state 0、城市/港口路线state 5”表述撤回；指令、虚表和资源补证见[RE-0178](RE-SAN9PK-0178.md)。因此 MESH/COV 不是裸地图上按 `+0x0A` 自动铺满的底图层；`+0x0A` 只负责在已激活的状态组内选择 16 个高差变体。
 
 资源实验也已闭合：工作区私有样本中的 `G_MESH.s9` 有 `96` 个 `64×44` 图像，资源号连续覆盖 `10972..11067`；六个状态组的基础资源号正是上述数组，每组再加 `+0x0A`。`P_MESH.s9` 有一个调色板，索引 `0` 是透明键色，图像索引 `1/249/250/252/253/255` 是实际覆盖颜色。`G_MapCov.s9` 另有 `4` 个 `1024×768` 大图，配套注册的是 `P_MapEtc.s9`；图像观察呈灰度云雾/遮罩形态，当前调用链没有把它接入 `create_square_mesh_visual`，不能与这 96 个 MESH 子图混为一层，也不能据此确认它是高差覆盖。
 

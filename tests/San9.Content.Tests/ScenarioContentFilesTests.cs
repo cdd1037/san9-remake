@@ -27,8 +27,8 @@ public sealed class ScenarioContentFilesTests : IDisposable
         var restored = await ScenarioContentFiles.LoadAsync(_root);
         Assert.Equal(JsonSerializer.Serialize(content, PackageFiles.JsonOptions),
             JsonSerializer.Serialize(restored, PackageFiles.JsonOptions));
-        Assert.Equal(6, Directory.GetFiles(_root).Length);
-        string messages = await File.ReadAllTextAsync(Path.Combine(_root, "messages.json"));
+        Assert.Equal(6, Directory.GetFiles(_root, "*", SearchOption.AllDirectories).Length);
+        string messages = await File.ReadAllTextAsync(Path.Combine(_root, "messages/general.json"));
         Assert.DoesNotContain("\n", messages);
         Assert.DoesNotContain("\"format\"", messages);
         Assert.DoesNotContain("\"binding\"", messages);
@@ -68,7 +68,7 @@ public sealed class ScenarioContentFilesTests : IDisposable
     public async Task MissingDataFailsLoading()
     {
         await ScenarioContentFiles.WriteAsync(_root, Fixture());
-        File.Delete(Path.Combine(_root, "messages.json"));
+        File.Delete(Path.Combine(_root, "messages/general.json"));
         await Assert.ThrowsAsync<FileNotFoundException>(() => ScenarioContentFiles.LoadAsync(_root));
     }
 
@@ -81,6 +81,7 @@ public sealed class ScenarioContentFilesTests : IDisposable
     [InlineData(131)]
     [InlineData(132)]
     [InlineData(133)]
+    [InlineData(140)]
     public async Task UnsupportedVersionRequestsReconversion(int version)
     {
         Directory.CreateDirectory(_root);
@@ -121,11 +122,54 @@ public sealed class ScenarioContentFilesTests : IDisposable
     {
         var content = Fixture();
         await ScenarioContentFiles.WriteAsync(_root, content);
-        var before = Directory.GetFiles(_root).ToDictionary(path => path, File.ReadAllText);
+        var before = Directory.GetFiles(_root, "*", SearchOption.AllDirectories).ToDictionary(path => path, File.ReadAllText);
         content.Text.Messages.Add("invalid", new([new MessageLiteral(null!)]));
         await Assert.ThrowsAsync<JsonException>(() => ScenarioContentFiles.WriteAsync(_root, content));
         foreach (var (path, value) in before) Assert.Equal(value, await File.ReadAllTextAsync(path));
-        Assert.Empty(Directory.GetFiles(_root, "*.pending"));
+        Assert.Empty(Directory.GetFiles(_root, "*.pending", SearchOption.AllDirectories));
+    }
+
+    [Fact]
+    public async Task CategoriesPreserveCrossFileReferencesAndRetireRemovedCategories()
+    {
+        var content = Fixture();
+        content.Text.Messages.Add("battle.attack", new([new MessageReference("help.attack", true)]));
+        content.Text.Messages.Add("help.attack", new([new MessageLiteral("进攻")]));
+        await ScenarioContentFiles.WriteAsync(_root, content);
+        var restored = await ScenarioContentFiles.LoadAsync(_root);
+        Assert.Equal("help.attack", Assert.IsType<MessageReference>(Assert.Single(restored.Text.Messages["battle.attack"].Nodes)).Key);
+        Assert.Equal("进攻", MessageMarkup.Static(restored.Text.Messages["help.attack"].Nodes));
+        Assert.True(File.Exists(Path.Combine(_root, "messages/battle.json")));
+        Assert.True(File.Exists(Path.Combine(_root, "messages/help.json")));
+        await File.WriteAllTextAsync(Path.Combine(_root, "messages/notes.json"), "{}");
+        await ScenarioContentFiles.WriteAsync(_root, Fixture());
+        Assert.False(File.Exists(Path.Combine(_root, "messages/battle.json")));
+        Assert.False(File.Exists(Path.Combine(_root, "messages/help.json")));
+        Assert.True(File.Exists(Path.Combine(_root, "messages/notes.json")));
+    }
+
+    [Fact]
+    public async Task DuplicateKeysAcrossFilesAreRejected()
+    {
+        await ScenarioContentFiles.WriteAsync(_root, Fixture());
+        var manifest = await PackageFiles.ReadAsync<ScenarioContentManifest>(Path.Combine(_root, "content.json"));
+        await File.WriteAllTextAsync(Path.Combine(_root, "content.json"), JsonSerializer.Serialize(
+            manifest with { Messages = [.. manifest.Messages, manifest.Messages[0]] }, PackageFiles.JsonOptions));
+        var error = await Assert.ThrowsAsync<InvalidDataException>(() => ScenarioContentFiles.LoadAsync(_root));
+        Assert.Contains("Duplicate message key", error.Message);
+    }
+
+    [Fact]
+    public async Task ReconvertRetiresOldMonolithicMessagesButDoesNotLoadOldSchema()
+    {
+        await ScenarioContentFiles.WriteAsync(_root, Fixture());
+        File.Move(Path.Combine(_root, "messages/general.json"), Path.Combine(_root, "messages.json"));
+        await File.WriteAllTextAsync(Path.Combine(_root, "content.json"),
+            """{"schemaVersion":140,"map":"map.json","scenario":"scenario.json","text":"text.json","messages":"messages.json","illustrations":"illustrations.json"}""");
+        await Assert.ThrowsAsync<InvalidDataException>(() => ScenarioContentFiles.LoadAsync(_root));
+        await ScenarioContentFiles.WriteAsync(_root, Fixture());
+        Assert.False(File.Exists(Path.Combine(_root, "messages.json")));
+        Assert.Equal(2, (await ScenarioContentFiles.LoadAsync(_root)).Text.Messages.Count);
     }
 
     public void Dispose()

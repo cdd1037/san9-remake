@@ -6,7 +6,7 @@ using San9.Content.Text;
 namespace San9.Content.Packages;
 
 public sealed record ScenarioContentManifest(int SchemaVersion, ContentSource[] Sources,
-    TextureDependency Textures, string Map, string Scenario, string Text, string Messages, string Illustrations);
+    TextureDependency Textures, string Map, string Scenario, string Text, string[] Messages, string Illustrations);
 
 public sealed record StaticTextContent(int SchemaVersion, Dictionary<string, string> Entries)
 {
@@ -53,7 +53,12 @@ public static class ScenarioContentFiles
         var map = await Read<MapInstance>(manifest.Map);
         var scenario = await Read<ScenarioInitialState>(manifest.Scenario);
         var text = await Read<StaticTextContent>(manifest.Text);
-        var messages = await Read<Dictionary<string, MessageDefinition>>(manifest.Messages);
+        Dictionary<string, MessageDefinition> messages = new(StringComparer.Ordinal);
+        foreach (string path in manifest.Messages)
+        foreach (var (key, definition) in await Read<Dictionary<string, MessageDefinition>>(path))
+            if (!messages.TryAdd(key, definition))
+                throw new InvalidDataException($"Duplicate message key {key} in {path}.");
+        MessageGraph.Validate(messages);
         var illustrations = await Read<Dictionary<string, string>>(manifest.Illustrations);
         return new(ScenarioContent.CurrentSchemaVersion, manifest.Sources, manifest.Textures, map, scenario,
             new(text.SchemaVersion, text.Entries) { Messages = messages, MessagePeople = text.MessagePeople }, illustrations);
@@ -62,26 +67,38 @@ public static class ScenarioContentFiles
     public static async Task WriteAsync(string root, ScenarioContent content, CancellationToken token = default)
     {
         if (content.SchemaVersion != ScenarioContent.CurrentSchemaVersion) throw new InvalidDataException("Unsupported scenario content version.");
+        var messageFiles = content.Text.Messages.GroupBy(pair => Category(pair.Key), StringComparer.Ordinal)
+            .OrderBy(group => group.Key, StringComparer.Ordinal)
+            .ToDictionary(group => $"messages/{group.Key}.json", group => group.ToDictionary(pair => pair.Key, pair => pair.Value));
         Directory.CreateDirectory(root);
         var manifest = new ScenarioContentManifest(ScenarioContent.CurrentSchemaVersion, content.Sources, content.Textures,
-            "map.json", "scenario.json", "text.json", "messages.json", "illustrations.json");
+            "map.json", "scenario.json", "text.json", messageFiles.Keys.ToArray(), "illustrations.json");
         string manifestPath = Path.Combine(root, "content.json");
         string[] previousFiles = [];
         if (File.Exists(manifestPath))
         {
             await using var previousStream = File.OpenRead(manifestPath);
             using var previous = await JsonDocument.ParseAsync(previousStream, cancellationToken: token);
-            if (previous.RootElement.TryGetProperty("schemaVersion", out var version) && version.GetInt32() == ScenarioContent.CurrentSchemaVersion)
+            // Read only old file references for retirement, never old content as a runtime contract.
+            // This also retires the monolithic messages.json when reconverting an older package.
+            if (previous.RootElement.TryGetProperty("schemaVersion", out var version) && version.GetInt32() <= ScenarioContent.CurrentSchemaVersion)
             {
-                var old = previous.Deserialize<ScenarioContentManifest>(PackageFiles.JsonOptions)!;
-                previousFiles = new[] { old.Map, old.Scenario, old.Text, old.Messages, old.Illustrations }
-                    .Select(path => PackageFiles.Resolve(root, path)).ToArray();
+                List<string> paths = [];
+                foreach (string field in new[] { "map", "scenario", "text", "messages", "illustrations" })
+                {
+                    if (!previous.RootElement.TryGetProperty(field, out var value)) continue;
+                    if (value.ValueKind == JsonValueKind.String) paths.Add(value.GetString()!);
+                    else if (field == "messages" && value.ValueKind == JsonValueKind.Array)
+                        paths.AddRange(value.EnumerateArray().Select(item => item.GetString()!));
+                }
+                previousFiles = paths.Select(path => PackageFiles.Resolve(root, path)).ToArray();
             }
         }
         List<(string Pending, string Target)> files = [];
         async Task Stage<T>(string name, T value, JsonSerializerOptions options)
         {
             string target = PackageFiles.Resolve(root, name);
+            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
             string pending = target + "." + Guid.NewGuid().ToString("N") + ".pending";
             files.Add((pending, target));
             await using var file = File.Create(pending);
@@ -92,7 +109,7 @@ public static class ScenarioContentFiles
             await Stage(manifest.Map, content.Map, DataJsonOptions);
             await Stage(manifest.Scenario, content.Scenario, DataJsonOptions);
             await Stage(manifest.Text, new StaticTextContent(content.Text.SchemaVersion, content.Text.Entries) { MessagePeople = content.Text.MessagePeople }, DataJsonOptions);
-            await Stage(manifest.Messages, content.Text.Messages, DataJsonOptions);
+            foreach (var (path, messages) in messageFiles) await Stage(path, messages, DataJsonOptions);
             await Stage(manifest.Illustrations, content.IllustrationRoles, DataJsonOptions);
             await Stage("content.json", manifest, PackageFiles.JsonOptions);
             token.ThrowIfCancellationRequested();
@@ -105,5 +122,13 @@ public static class ScenarioContentFiles
         {
             foreach (var (pending, _) in files) File.Delete(pending);
         }
+    }
+
+    private static string Category(string key)
+    {
+        string category = key.Contains('.') ? key[..key.IndexOf('.')] : "general";
+        if (!System.Text.RegularExpressions.Regex.IsMatch(category, "^[a-z][a-z0-9-]*$"))
+            throw new InvalidDataException($"Invalid message category: {key}.");
+        return category;
     }
 }

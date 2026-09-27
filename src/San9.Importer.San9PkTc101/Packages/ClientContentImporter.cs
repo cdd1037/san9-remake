@@ -50,6 +50,7 @@ public static class ClientContentImporter
             var people = San9ScenarioPersonArchive.ReadKnownRecords(source);
             messages = new GameplayMessageCompiler(scenario, people, header.ScenarioId, header.ScenarioModeCode).Compile(messages);
         }
+        messages = PublicationMessageCatalog.Compile(messages);
         San9.Content.Text.NameMessages.AddTo(messages);
         text = text with { Messages = messages };
         var roles = InformationArtCompiler.Compile(scenarioBytes, scenario, textures.Library, textures.Portraits);
@@ -61,13 +62,20 @@ public static class ClientContentImporter
             if (!San9.Content.Text.MessageGraph.ReferencesValid(key, messages))
                 throw new InvalidDataException($"Invalid or cyclic message references: {key}.");
         await ScenarioContentFiles.WriteAsync(output, content, token);
+        await File.WriteAllTextAsync(Path.Combine(output, "message-id-map.json"),
+            System.Text.Json.JsonSerializer.Serialize(PublicationMessageCatalog.SourceIdMap(), PackageFiles.JsonOptions),
+            System.Text.Encoding.UTF8, token);
         if (messageReports)
         {
-            var adaptedKeys = adaptations.Select(a => a.Key).ToHashSet(StringComparer.Ordinal);
+            var adaptedKeys = adaptations.Select(a => PublicationMessageCatalog.Keys[a.Key]).ToHashSet(StringComparer.Ordinal);
+            var sourceKeys = PublicationMessageCatalog.Keys.ToDictionary(pair => pair.Value, pair => pair.Key, StringComparer.Ordinal);
             var messageAudit = GameplayMessageCompiler.Audit(messages)
-                .Select(a => adaptedKeys.Contains(a.Key) ? a with { SourceConfirmed = false } : a).ToArray();
+                .Select(a => new { a.Key, SourceKey = sourceKeys.GetValueOrDefault(a.Key),
+                    SourceConfirmed = !adaptedKeys.Contains(a.Key) && a.SourceConfirmed, a.RuntimeReady, a.RequiredArguments }).ToArray();
             await File.WriteAllTextAsync(Path.Combine(output, "message-adaptations.json"),
-                System.Text.Json.JsonSerializer.Serialize(adaptations, PackageFiles.JsonOptions), System.Text.Encoding.UTF8, token);
+                System.Text.Json.JsonSerializer.Serialize(adaptations.Select(a => new
+                { Key = PublicationMessageCatalog.Keys[a.Key], SourceKey = a.Key, a.SourceSha256, a.Decision, a.DiscardedHex }),
+                    PackageFiles.JsonOptions), System.Text.Encoding.UTF8, token);
             await File.WriteAllTextAsync(Path.Combine(output, "message-readiness.json"),
                 System.Text.Json.JsonSerializer.Serialize(messageAudit, PackageFiles.JsonOptions), System.Text.Encoding.UTF8, token);
         }

@@ -6,7 +6,7 @@
 
 2026-09-27命令来源光圈：皮肤33／纹理转换26增加五帧`minimap-command-pulse`语义资源（首帧无后缀，其余为`-1..-4`），逐色透明度保留。客户端以当前命令菜单对象定位，兼用于城市、其他设施和部队；出征后续页面保留来源，整项结束清除。依据[RE-0158](../research/findings/RE-SAN9PK-0158.md#小地图命令来源光圈补证2026-09-27)。本地纹理及190年组合包已原位重转，五帧均32×36、首帧全透明，29064逻辑图片／5262物理文件完整校验通过。解决方案各测试项目合计3867项通过；未启动游戏，菜单开关、对象切换及后续命令页面往返的实际画面待用户验收。
 
-现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 128，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 140，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 33，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 29。规则为 `san9-core-g10-v79`，保存93／日志97／录像7；协议以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 为准。
+现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 128，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 141，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 33，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 29。规则为 `san9-core-g10-v79`，保存93／日志97／录像7；协议以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 为准。
 
 旧内容包按现行契约原位重转，旧规则存档、日志和录像拒绝加载。是否重转纹理取决于纹理转换版本与源输入。历史验收只证明对应基线，不代表当前版本重新验证；阶段收口见[G10 验收](g10-verification.md#2026-09-21阶段收口)。
 
@@ -18,9 +18,9 @@
 | --- | --- | --- |
 | Content.Maps / MapImporter | 当前地图方格、地貌及对象位置 | `map.json`（无图片文件） |
 | Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema128 |
-| Content.Text / ScenarioTextReader | 名称与全量消息目录 | `text.json` / `messages.json`，文本schema6 |
+| Content.Text / ScenarioTextReader / PublicationMessageCatalog | 静态词条与按用途命名的全量消息目录 | `text.json` / `messages/*.json`，文本schema6、剧本包schema141 |
 | Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema33 |
-| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema140 |
+| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema141 |
 | Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema5／转换版本31 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 
@@ -32,7 +32,7 @@
 
 地理契约包含必填`CityProvinceIds`和`MilitaryDefinition.TerritoryExits`。前者是城市到州的基础分组，可不为某城市指定州，不继承15州上限；后者以行优先顺序保存每格北、东、南、西出口语义，与现有地域、地形及完全阻断格共同推导地域边。非空出口数组必须覆盖整幅地图，空数组明确表示未提供地域邻接。作者不维护逐势力邻接或成员候选表；Core只缓存不可变地图边，按当前据点位置、归属、存续及港口属性生成资格。城市州分组进入内容指纹并由会话独立持有。190年包已原位更新并逐项核对50城、40000格及94据点；具体数据链和736条有向边见G08验证记录。
 
-地图内容不引用名称、势力摘要或皮肤。剧本和文本可独立于地图校验；组合层检查建筑稳定ID与据点一一对应、坐标一致以及文本键存在。`text.json`的`entries`直接保存文本键到显示字符串的映射，不再保存`text`／`sourceText`包装对象；设施名称已组合类型后缀，基础地域名另有文本项。原始字节保留在源文件和研究导出中，原文件以SHA-256追踪。文本schema6／剧本包schema137要求重新运行`import-client`，无需重转纹理。
+地图内容不引用名称、势力摘要或皮肤。剧本和文本可独立于地图校验；组合层检查建筑稳定ID与据点一一对应、坐标一致以及文本键存在。`text.json`的`entries`直接保存文本键到显示字符串的映射，不再保存`text`／`sourceText`包装对象；设施名称已组合类型后缀，基础地域名另有文本项。原始字节保留在源文件和研究导出中，原文件以SHA-256追踪。文本schema6／剧本包schema141要求重新运行`import-client`，无需重转纹理。
 
 共享纹理默认位于 `local/generated/content/textures-san9pk-tc101`。剧本包只引用共享包的目录和资源 ID，没有 `images` 目录。43个已确认非头像档案及836张正常色大头像转换为最终图片；未确认项只记录研究边界，不保留索引图和原始调色板副本。具体覆盖与透明规则见[纹理资源](texture-resources.md)。
 
@@ -141,7 +141,7 @@ dotnet run --project src/San9.Tools -- import-textures --game-dir "private/游�
 
 编写控制节点、绑定参数和显示图片的具体用法见[消息约定](ui/messages.md)。
 
-现行契约见[统一消息规格](../specs/behavior/BEH-UI-0006-unified-messages.md)，原作证据与覆盖边界见[RE-0166](../research/findings/RE-SAN9PK-0166.md)。唯一语法实现为`OriginalMessageParser`；`OriginalTextConverter`只调用该解析器读取静态片段。`import-client`仅将`M_MsgPK.s9`和`M_RtdnPK.s9`合入`TextCatalog.Messages`，经`GameplayMessageCompiler`转换为领域引用、属性与事件条件，发布前拒绝未确认语义、无法转换的表达式和无效引用，不保存未就绪记录；`messages.json`以消息键直接映射节点数组，普通文本节点直接写成字符串，值节点不保存前后缀字段，默认不生成`message-readiness.json`和`message-adaptations.json`，仅在显式指定`--message-reports true`时输出；关闭报告时不构造就绪报告或汇总参数清单，发布校验独立执行，成功转换后清理输出目录中这两个旧报告。就绪报告列出发布消息的原文确认状态和从节点推导的参数；`import-text`仍对四个档案导出研究诊断和合成上下文报告，基础版不进入运行时包。
+现行契约见[统一消息规格](../specs/behavior/BEH-UI-0006-unified-messages.md)，原作证据与覆盖边界见[RE-0166](../research/findings/RE-SAN9PK-0166.md)。唯一语法实现为`OriginalMessageParser`；`OriginalTextConverter`只调用该解析器读取静态片段。`import-client`仅将`M_MsgPK.s9`和`M_RtdnPK.s9`合入`TextCatalog.Messages`，经`GameplayMessageCompiler`转换为领域引用、属性与事件条件，发布前拒绝未确认语义、无法转换的表达式和无效引用，不保存未就绪记录；`messages/*.json`以消息键直接映射节点数组，普通文本节点直接写成字符串，值节点不保存前后缀字段，默认不生成`message-readiness.json`和`message-adaptations.json`，仅在显式指定`--message-reports true`时输出；关闭报告时不构造就绪报告或汇总参数清单，发布校验独立执行，成功转换后清理输出目录中这两个旧报告。就绪报告列出发布消息的原文确认状态和从节点推导的参数；`import-text`仍对四个档案导出研究诊断和合成上下文报告，基础版不进入运行时包。
 
 静态内容使用有限预设及行内图片标记，逻辑图片路径示例为`[img]icons/city[/img]洛阳`。运行时`MessageEvaluator`接收显式值、查询和随机源，产生可保留的显示字符串，预设由显示边界转换为原生BBCode。普通参数始终转义；富文本组合用消息引用。`01J`转换为尾部转移，`01C`为返回调用。样式使用有限预设：静态范围合并为`[preset=名称]…[/preset]`字符串，动态范围保存`styled/preset/body`。源状态传播在Importer消解，运行时引用不泄漏样式；未知预设及未闭合范围拒绝加载。节点中不保存原始地址、控制码或资源偏移。
 

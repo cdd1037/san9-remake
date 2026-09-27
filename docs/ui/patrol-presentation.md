@@ -18,19 +18,19 @@
 
 ## 消息入口与参数
 
-源序号均为 `M_MsgPK.s9` 的 **0 基序号**。完整映射在生成包根目录 `message-id-map.json`；以下当前发布键均位于 `messages/dialogue.json`。`variant` 后缀只是已有记录标识，不代表每条依次播放。
+源序号均为 `M_MsgPK.s9` 的 **0 基序号**。以下当前发布键均位于 `messages/messages.json`。发布键保留原序号；入口、引用分支与结果的角色分别列出，不按组内序号推断播放顺序。
 
 | 源序号 | 当前发布 ID | 角色与绑定 |
 | --- | --- | --- |
-| 5592 | `dialogue.order-patrol.variant-001` | 普通入口；`person.0` 为排序后首名参与者，`person.1` 为君主，`building.0` 为目标都市 |
-| 5593–5597 | `dialogue.order-patrol.variant-002` 至 `variant-006` | 5592 按性别、君主身份及亲属／特定人物条件引用的分支，分支内再随机选句 |
-| 5598 | `dialogue.order-patrol.variant-007` | 无人物头像的结果提示；`building.0` 为都市，`number.0..3` 依次为新民心、民心增量、新增兵役值、增兵役值增量 |
-| 5826 | `dialogue.cooperative-patrol.variant-001` | 相性加倍入口；`person.0` 为相性判定选出的参与者，`person.1` 为君主，`building.0` 为都市 |
-| 5827–5831 | `dialogue.cooperative-patrol.variant-002` 至 `variant-006` | 5826 的人物身份分支；不是额外五轮发言 |
-| 5832 | `dialogue.cooperative-patrol.variant-007` | 百姓回复；`person.0` 为原作列传码 674 对应的 NPC，`person.1` 为上一句发言的参与者 |
-| 5861 | `dialogue.domestic-special-exchanges.variant-001` | 特定组合第一句；人物参数为 `[甲, 乙]`，甲发言 |
-| 5862 | `dialogue.domestic-special-exchanges.variant-002` | 特定组合第二句；人物参数交换为 `[乙, 甲]`，乙发言 |
-| 5871 | `dialogue.domestic-special-exchanges.variant-011` | 组合匹配使用的默认文本；不是必播的第三句 |
+| 5592 | `messages.5592` | 普通入口；`person.0` 为排序后首名参与者，`person.1` 为君主，`building.0` 为目标都市 |
+| 5593–5597 | `messages.5593` 至 `messages.5597` | 5592 按性别、君主身份及亲属／特定人物条件引用的分支，分支内再随机选句 |
+| 5598 | `messages.5598` | 无人物头像的结果提示；`building.0` 为都市，`number.0..3` 依次为新民心、民心增量、新增兵役值、增兵役值增量 |
+| 5826 | `messages.5826` | 相性加倍入口；`person.0` 为相性判定选出的参与者，`person.1` 为君主，`building.0` 为都市 |
+| 5827–5831 | `messages.5827` 至 `messages.5831` | 5826 的人物身份分支；不是额外五轮发言 |
+| 5832 | `messages.5832` | 百姓回复；`person.0` 为原作列传码 674 对应的 NPC，`person.1` 为上一句发言的参与者 |
+| 5861 | `messages.5861` | 特定组合第一句；人物参数为 `[甲, 乙]`，甲发言 |
+| 5862 | `messages.5862` | 特定组合第二句；人物参数交换为 `[乙, 甲]`，乙发言 |
+| 5871 | `messages.5871` | 组合匹配使用的默认文本；不是必播的第三句 |
 
 5598 报告的是民心及由民心推导的增兵役值变化，不能解释成下令时立即补充了同等数量的士兵。表中的列传码只用于原作溯源，不是产品 `OfficerId`。
 
@@ -42,11 +42,11 @@
 
 | 顺序 | 源序号／发布 ID | 内容用途 | NPC 原作列传码 | 选择条件 |
 | --- | --- | --- | --- | --- |
-| 1 | 5873／`dialogue.domestic-and-regional-advice.variant-001` | 通用内政、军事等提示 | 671 | 首次 10% 判定成功 |
-| 2 | 5874／`dialogue.domestic-and-regional-advice.variant-002` | 凉州及西域发展 | 669 | `0x48A360` 地域条件成立且自身 10% 判定成功 |
-| 3 | 5875／`dialogue.domestic-and-regional-advice.variant-003` | 南方发展及贸易 | 673 | `0x48A3E0` 地域条件成立且自身 10% 判定成功 |
-| 4 | 5876／`dialogue.domestic-and-regional-advice.variant-004` | 异族与边境防卫 | 670 | `0x48A460` 势力／地域条件成立且自身 10% 判定成功 |
-| 5 | 5877／`dialogue.domestic-and-regional-advice.variant-005` | 大都市发展 | 674 | `0x48A540` 地域条件成立且自身 10% 判定成功 |
+| 1 | 5873／`messages.5873` | 通用内政、军事等提示 | 671 | 首次 10% 判定成功 |
+| 2 | 5874／`messages.5874` | 凉州及西域发展 | 669 | `0x48A360` 地域条件成立且自身 10% 判定成功 |
+| 3 | 5875／`messages.5875` | 南方发展及贸易 | 673 | `0x48A3E0` 地域条件成立且自身 10% 判定成功 |
+| 4 | 5876／`messages.5876` | 异族与边境防卫 | 670 | `0x48A460` 势力／地域条件成立且自身 10% 判定成功 |
+| 5 | 5877／`messages.5877` | 大都市发展 | 674 | `0x48A540` 地域条件成立且自身 10% 判定成功 |
 
 这些提示共用 SE 哨兵值 170，不触发新音效。地区字段已复核为民心、商业、耐久，具体城市集合与阈值由版本Importer写入表现定义，证据见 RE 的 2026-09-28 补充。
 

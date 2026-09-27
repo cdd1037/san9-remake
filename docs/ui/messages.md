@@ -2,35 +2,37 @@
 
 本页是重制内容的现行用法。原作控制码只由Importer处理；原始格式调查见[RE-0166](../../research/findings/RE-SAN9PK-0166.md)，生成命令见[内容管线](../client-content.md#原版文本统一入口)。
 
-按命令核对调用顺序、说话人物和音效的实例见[巡察消息与音效流程](patrol-presentation.md)。该索引串联现有分类，不代表流程已在客户端接入。
+按命令核对调用顺序、说话人物和音效的实例见[巡察消息与音效流程](patrol-presentation.md)。该索引按原编号串联调用角色与证据；接入范围见该页。
 
 静态文本目录`text.json`的`entries`直接使用字符串值，例如`"city.0": "洛阳"`，不保存`sourceText`或单独的`text`字段；名称、说明和提示仍按原有语义键查询。
 
 ## 消息分类与命名
 
-完整消息库独立按用途整理，不以`text.json`的已接入词条为分类主体。剧本包schema141的`content.json.messages`为分类文件的相对路径数组；加载全部文件后仍装配成统一的`TextCatalog.Messages`，消息可跨文件引用，重复键直接报错。分类名取消息键的第一段，使用以小写字母开头的小写英文、数字和连字符，文件为`messages/<分类>.json`；未分段的独立创作键归入`general`。独立创作可以增加分类，无须登记原版编号或修改加载器。
+消息身份、文件分组和调用角色分别维护。剧本包schema144的`content.json.messages`列出消息文件的相对路径，加载后合并为统一的`TextCatalog.Messages`；允许跨文件引用，重复键直接报错。
 
-| 分类文件 | 内容 |
+TC101原版消息保留`messages.<原始0基序号>`，列传保留`biographies.<原始0基序号>`。不再全量改成语义名称，也不重新编排组内序号或添加`variant`后缀。原编号只用于内容记录身份与逆向定位，不是领域对象ID，不限制对象数量，也不代表人格、播放顺序或随机规则。客户端按内容引用使用这些不透明键，不解析编号。
+
+仅将已有明确边界的区段独立成文件，文件内仍保持原键及源序号顺序：
+
+| 文件（均位于`messages/`） | 原档案与区段（含两端） |
 | --- | --- |
-| `names.json`、`labels.json`、`descriptions.json` | 名称资源、属性／列表标签、兵法／阵形／宝物／官爵说明 |
-| `scenarios.json`、`biographies.json` | 剧本标题与介绍、人物列传 |
-| `dialogue.json`、`battle.json` | 人事／内政／外交对话，战斗进退、单挑、计略与陷阱反应 |
-| `commands.json`、`interface.json`、`system.json` | 命令条件与确认、界面提示、存取与设置提示 |
-| `help.json`、`tutorial.json` | 用语辞典及操作帮助、教学正文 |
-| `reports.json`、`chronicle.json`、`history.json` | 进行报告、年表记录、历史事件对话与结果 |
-| `encounters.json`、`ending.json` | 探索遭遇、统一与时限结局 |
-| `name-generation.json`、`training.json` | 姓名片段、士兵培养与师徒对话 |
-| `campaign.json`、`presentation.json` | 挑战剧本章节／目标／结果、重制名称显示模板 |
+| `messages.json` | `M_MsgPK.s9`中下列区段以外的消息，包含仍在调查的对话、战斗、报告等 |
+| `help.json` | 消息8577–9323，帮助正文 |
+| `tutorial.json` | 消息9422–9904、10122–10139，教学正文 |
+| `names.json` | 消息11455–12612，姓名生成片段；不是全部人物／地点名称 |
+| `campaign.json` | 消息72–135、12923–14208，挑战剧本标题、正文与结果 |
+| `biographies.json` | `M_RtdnPK.s9`的全部679条列传 |
+| `presentation.json` | 两条重制名称显示模板，保留简短语义键 |
 
-以上文件均在`messages/`目录中。键使用英文用途名称，例如`help.appearance.description`、`battle.false-report-send.variant-001`、`campaign.cao-cao.guandu.objective`、`reports.unit-return`。同用途的独立记录保留稳定的组内序号，目录型资源保留条目标识及`name`／`description`等字段角色；序号不是领域对象ID，不限制武将数量，也不表示人格类型或自动随机选择。只有节点中的`random-choice`决定随机语义。帮助的多段正文仍是不同消息，不擅自拼接。
+`PublicationMessageCatalog`仅维护TC101完整记录覆盖、源顺序与文件分组，不改写消息键及内部引用。导入器向通用写入器传入分组；分组不要求消息键使用相同前缀。独立创作可以自行指定分组；未指定时按键第一段归档，无分段键归入`general`。组名使用以小写字母开头的小写英文、数字和连字符，不允许路径片段。加载器不依赖TC101编号或固定分组。
 
-此次不去重：原版14,888条档案记录与2条名称模板全部保留，重复正文、空记录及姓名池中的空白也不删除，`text.json`与消息库中已有的重复提取保持独立。是否为空不用于判断原版是否调用该记录。分类依据解析后的正文、连续主题及显式引用；它不新增原版调用现场的语义证据，也不代表对应玩法或帮助窗口已经接线。
+14,888条档案记录与2条名称模板全部保留；重复正文、空记录、姓名池空白、分支及顺序不改变。完整覆盖和引用校验仍在发布前执行。分类本身不增加调用现场证据；只有`random-choice`节点决定随机语义。
 
-`PublicationMessageCatalog`持有TC101专属源键到发布键的完整映射；帮助主题和挑战章节分别见`MessageHelpTopics`、`MessageCampaignChapters`。映射必须覆盖全部档案记录且发布键唯一，范围变化、漏项、未知引用均中止导入；所有层级的追加／尾部引用同时重命名，不保留旧键别名。`import-text`研究导出继续使用源编号。可选消息报告同时给出`key`与`sourceKey`（名称模板的后者为空），支持反向核对，源编号不进入运行时消息文件。
+业务用途放在`presentation.json`的角色引用中，例如巡察的`normal`、`result`；地图滚动提示由`notices`的`scroll-hover`、`scroll-click`引用消息8427、8428。用途说明与逆向证据放在文档，不继续堆叠进消息ID。
 
-旧包必须重跑`import-client`，无需重转纹理。写入成功后清理旧清单引用但新清单不再使用的消息文件，包括旧`messages.json`；目录内未被旧清单引用的用户文件不删除。读取旧清单仅用于生成物退役，不提供旧包兼容加载。
+旧包须重跑`import-client`，无需重转纹理，不保留旧语义键别名。成功写入后清理旧清单引用但新清单不再使用的消息文件；未列在旧清单中的用户文件不删除。
 
-每次`import-client`还会在包根目录生成独立的`message-id-map.json`，不受`--message-reports`开关影响。第一层为源档案名（`M_MsgPK.s9`／`M_RtdnPK.s9`），第二层为从0开始的原版记录序号，值为转换后的消息ID，例如`"M_MsgPK.s9": { "7235": "reports.unit-return" }`。两个档案的相同序号互不混淆，全部14,888条源记录都有映射；2条重制名称模板没有源序号，不列入映射。源档案哈希仍由`content.json.sources`追踪。此文件供逆向脚本和人工查证，不列入运行时清单，客户端不读取；每次重转原位覆盖。
+消息键直接提供档案类别与0基序号，不再生成独立编号映射文件；重转成功后清理旧`message-id-map.json`。来源档案及哈希由`content.json.sources`保存。可选消息报告保留`key`和`sourceKey`（原版消息两者相同，重制模板后者为空），`import-text`继续保留原始诊断与字节。
 
 ## 显示片段
 
@@ -131,7 +133,7 @@ Application的`MessageEvaluator`接收消息目录及`MessageContext`。Values�
 
 ```csharp
 var messages = session.Messages(texts); // 固定本次世界快照
-var result = messages.Produce("reports.unit-return", new Dictionary<string, MessageBinding>
+var result = messages.Produce("messages.7235", new Dictionary<string, MessageBinding>
 {
     ["person.0"] = MessageBinding.Reference(MessageEntityKind.Person, speakerId),
     ["person.1"] = MessageBinding.Reference(MessageEntityKind.Person, recipientId),
@@ -145,7 +147,7 @@ var result = messages.Produce("reports.unit-return", new Dictionary<string, Mess
 
 常用查询包括亲子、同父母、血统、长幼、亲密度距离、同根势力、势力关系、持有宝物／类别、日期，以及`event.occurred`具名历史。它们只读取捕获状态；未记录的双边关系沿用Core的0基值，同势力关系为100。运行时消息统一使用发布正文和当前内容名称，不提供原文切换。导入器把原版列传身份条件转换为当前剧本人物引用，把历史特殊称谓写成显式条件；新内容直接引用人物，无需认识列传编号。
 
-运行时`MessageDefinition`只保存`Nodes`，不保存`semanticsConfirmed`、`requiredBindings`或`unavailableReasons`。参数需求由节点及引用依赖推导；未确认原文、无法转换的表达式、缺失或循环引用在发布转换阶段直接报错，中止发布。严格研究导出仍保留原文诊断；就绪报告的`SourceConfirmed`对经过重制改写的记录保持false，不冒充原文已确认。`import-client`默认不生成两个消息报告；指定`--message-reports true`才输出`message-readiness.json`与`message-adaptations.json`。关闭报告时不构造就绪报告或汇总参数清单，成功转换会清理这两个旧文件，发布校验独立执行。`message-readiness.json`只报告成功发布的消息，`RequiredArguments`列出所有分支可能使用的参数；具体产生时缺少实际访问的参数即报错。剧本包schema141要求重新运行`import-client`，无需重转纹理。
+运行时`MessageDefinition`只保存`Nodes`，不保存`semanticsConfirmed`、`requiredBindings`或`unavailableReasons`。参数需求由节点及引用依赖推导；未确认原文、无法转换的表达式、缺失或循环引用在发布转换阶段直接报错，中止发布。严格研究导出仍保留原文诊断；就绪报告的`SourceConfirmed`对经过重制改写的记录保持false，不冒充原文已确认。`import-client`默认不生成两个消息报告；指定`--message-reports true`才输出`message-readiness.json`与`message-adaptations.json`。关闭报告时不构造就绪报告或汇总参数清单，成功转换会清理这两个旧文件，发布校验独立执行。`message-readiness.json`只报告成功发布的消息，`RequiredArguments`列出所有分支可能使用的参数；具体产生时缺少实际访问的参数即报错。剧本包schema144要求重新运行`import-client`，无需重转纹理。
 
 ### 容貌帮助与异常尾部的发布策略（2026-09-27）
 

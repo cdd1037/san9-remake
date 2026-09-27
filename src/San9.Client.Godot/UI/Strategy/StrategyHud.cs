@@ -333,7 +333,7 @@ public partial class StrategyHud : Control
 
     private void ShowScrollModeNotice(EdgeScrollMode mode)
     {
-        string key = mode == EdgeScrollMode.Hover ? "interface.map-scroll.hover" : "interface.map-scroll.click";
+        string key = CommandPresentation.Notices[mode == EdgeScrollMode.Hover ? "scroll-hover" : "scroll-click"];
         var evaluator = new MessageEvaluator(Texts.Messages);
         string message = evaluator.Evaluate(key, new(new Dictionary<string, MessageBinding>(),
             (_, _) => throw new InvalidDataException("Scroll mode notice cannot query world state."),

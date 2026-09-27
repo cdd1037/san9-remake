@@ -49,7 +49,10 @@ public static class ClientContentImporter
             var header = San9ScenarioArchive.ReadInitialScenario190Header(source);
             source.Position = 0;
             var people = San9ScenarioPersonArchive.ReadKnownRecords(source);
-            presentation = PatrolPresentationCompiler.Compile(people);
+            presentation = PatrolPresentationCompiler.Compile(people) with
+            {
+                Notices = new() { ["scroll-hover"] = "messages.8427", ["scroll-click"] = "messages.8428" }
+            };
             messages = new GameplayMessageCompiler(scenario, people, header.ScenarioId, header.ScenarioModeCode).Compile(messages);
         }
         messages = PublicationMessageCatalog.Compile(messages);
@@ -72,20 +75,17 @@ public static class ClientContentImporter
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
             await File.WriteAllBytesAsync(target, bytes, token);
         }
-        await ScenarioContentFiles.WriteAsync(output, content, token);
-        await File.WriteAllTextAsync(Path.Combine(output, "message-id-map.json"),
-            System.Text.Json.JsonSerializer.Serialize(PublicationMessageCatalog.SourceIdMap(), PackageFiles.JsonOptions),
-            System.Text.Encoding.UTF8, token);
+        await ScenarioContentFiles.WriteAsync(output, content, token, PublicationMessageCatalog.Groups);
+        File.Delete(Path.Combine(output, "message-id-map.json"));
         if (messageReports)
         {
-            var adaptedKeys = adaptations.Select(a => PublicationMessageCatalog.Keys[a.Key]).ToHashSet(StringComparer.Ordinal);
-            var sourceKeys = PublicationMessageCatalog.Keys.ToDictionary(pair => pair.Value, pair => pair.Key, StringComparer.Ordinal);
+            var adaptedKeys = adaptations.Select(a => a.Key).ToHashSet(StringComparer.Ordinal);
             var messageAudit = GameplayMessageCompiler.Audit(messages)
-                .Select(a => new { a.Key, SourceKey = sourceKeys.GetValueOrDefault(a.Key),
+                .Select(a => new { a.Key, SourceKey = PublicationMessageCatalog.Groups.ContainsKey(a.Key) ? a.Key : null,
                     SourceConfirmed = !adaptedKeys.Contains(a.Key) && a.SourceConfirmed, a.RuntimeReady, a.RequiredArguments }).ToArray();
             await File.WriteAllTextAsync(Path.Combine(output, "message-adaptations.json"),
                 System.Text.Json.JsonSerializer.Serialize(adaptations.Select(a => new
-                { Key = PublicationMessageCatalog.Keys[a.Key], SourceKey = a.Key, a.SourceSha256, a.Decision, a.DiscardedHex }),
+                { a.Key, SourceKey = a.Key, a.SourceSha256, a.Decision, a.DiscardedHex }),
                     PackageFiles.JsonOptions), System.Text.Encoding.UTF8, token);
             await File.WriteAllTextAsync(Path.Combine(output, "message-readiness.json"),
                 System.Text.Json.JsonSerializer.Serialize(messageAudit, PackageFiles.JsonOptions), System.Text.Encoding.UTF8, token);

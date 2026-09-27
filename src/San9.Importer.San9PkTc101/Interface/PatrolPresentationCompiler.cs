@@ -1,5 +1,4 @@
 using San9.Content.Interface;
-using San9.Importer.San9PkTc101.Text;
 
 namespace San9.Importer.San9PkTc101.Interface;
 
@@ -12,7 +11,7 @@ internal static class PatrolPresentationCompiler
     {
         int Person(int biography) => people.Take(700).Select((person, id) => (person, id))
             .Single(p => p.person.BiographyResourceCode == biography).id;
-        string Key(int source) => PublicationMessageCatalog.Keys[$"messages.{source}"];
+        string Key(int source) => $"messages.{source}";
         // RE-0095: table order is short-circuit priority; city identities are normalized source definitions.
         return new(SoundSources.ToDictionary(s => s.Role, s => $"audio/{s.Role}.wav"),
             new(new() { ["normal"] = Key(5592), ["cooperative"] = Key(5826), ["citizen"] = Key(5832),

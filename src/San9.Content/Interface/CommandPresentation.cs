@@ -10,9 +10,15 @@ public sealed record PatrolPresentationDefinition(Dictionary<string, string> Mes
 /// <summary>Authored presentation bindings. Source indices and file names are importer concerns.</summary>
 public sealed record CommandPresentation(Dictionary<string, string> Sounds, PatrolPresentationDefinition? Patrol)
 {
+    [System.Text.Json.Serialization.JsonRequired]
+    public Dictionary<string, string> Notices { get; init; } = [];
+
     public static CommandPresentation Empty => new([], null);
     public void Validate(TextCatalog texts, IEnumerable<int> people, IEnumerable<int> settlements)
     {
+        foreach (var (role, key) in Notices)
+            if (!texts.Messages.ContainsKey(key))
+                throw new InvalidDataException($"Missing notice message: {role}.");
         if (Patrol is not { } patrol) return;
         var ids = people.ToHashSet(); var cities = settlements.ToHashSet();
         foreach (string role in new[] { "normal", "cooperative", "citizen", "pair-first", "pair-second", "result" })

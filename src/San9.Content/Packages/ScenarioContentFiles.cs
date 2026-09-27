@@ -22,6 +22,9 @@ public static class ScenarioContentFiles
 {
     public static JsonSerializerOptions DataJsonOptions { get; } = CreateDataOptions();
 
+    private static JsonSerializerOptions MessageJsonOptions { get; } = new(DataJsonOptions)
+    { WriteIndented = true, Converters = { new MessageFileJsonConverter() } };
+
     private static JsonSerializerOptions CreateDataOptions()
     {
         var resolver = new DefaultJsonTypeInfoResolver();
@@ -67,10 +70,14 @@ public static class ScenarioContentFiles
             new(text.SchemaVersion, text.Entries) { Messages = messages, MessagePeople = text.MessagePeople }, illustrations) { Presentation = await Read<San9.Content.Interface.CommandPresentation>(manifest.Presentation) };
     }
 
-    public static async Task WriteAsync(string root, ScenarioContent content, CancellationToken token = default)
+    public static async Task WriteAsync(string root, ScenarioContent content, CancellationToken token = default,
+        IReadOnlyDictionary<string, string>? messageGroups = null)
     {
         if (content.SchemaVersion != ScenarioContent.CurrentSchemaVersion) throw new InvalidDataException("Unsupported scenario content version.");
-        var messageFiles = content.Text.Messages.GroupBy(pair => Category(pair.Key), StringComparer.Ordinal)
+        if (messageGroups is not null && messageGroups.Keys.Any(key => !content.Text.Messages.ContainsKey(key)))
+            throw new InvalidDataException("Message grouping contains an unknown message key.");
+        var messageFiles = content.Text.Messages.GroupBy(pair =>
+            ValidateCategory(messageGroups?.GetValueOrDefault(pair.Key) ?? Category(pair.Key)), StringComparer.Ordinal)
             .OrderBy(group => group.Key, StringComparer.Ordinal)
             .ToDictionary(group => $"messages/{group.Key}.json", group => group.ToDictionary(pair => pair.Key, pair => pair.Value));
         Directory.CreateDirectory(root);
@@ -112,7 +119,7 @@ public static class ScenarioContentFiles
             await Stage(manifest.Map, content.Map, DataJsonOptions);
             await Stage(manifest.Scenario, content.Scenario, DataJsonOptions);
             await Stage(manifest.Text, new StaticTextContent(content.Text.SchemaVersion, content.Text.Entries) { MessagePeople = content.Text.MessagePeople }, DataJsonOptions);
-            foreach (var (path, messages) in messageFiles) await Stage(path, messages, DataJsonOptions);
+            foreach (var (path, messages) in messageFiles) await Stage(path, messages, MessageJsonOptions);
             await Stage(manifest.Illustrations, content.IllustrationRoles, DataJsonOptions);
             await Stage(manifest.Presentation, content.Presentation, DataJsonOptions);
             await Stage("content.json", manifest, PackageFiles.JsonOptions);
@@ -131,8 +138,13 @@ public static class ScenarioContentFiles
     private static string Category(string key)
     {
         string category = key.Contains('.') ? key[..key.IndexOf('.')] : "general";
+        return ValidateCategory(category);
+    }
+
+    private static string ValidateCategory(string category)
+    {
         if (!System.Text.RegularExpressions.Regex.IsMatch(category, "^[a-z][a-z0-9-]*$"))
-            throw new InvalidDataException($"Invalid message category: {key}.");
+            throw new InvalidDataException($"Invalid message category: {category}.");
         return category;
     }
 }

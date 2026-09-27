@@ -18,9 +18,9 @@
 | --- | --- | --- |
 | Content.Maps / MapImporter | 当前地图方格、地貌及对象位置 | `map.json`（无图片文件） |
 | Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema128 |
-| Content.Text / ScenarioTextReader / PublicationMessageCatalog | 静态词条与按用途命名的全量消息目录 | `text.json` / `messages/*.json`，文本schema6、剧本包schema143 |
+| Content.Text / ScenarioTextReader / PublicationMessageCatalog | 静态词条与保留原序号、按明确区段分文件的全量消息目录 | `text.json` / `messages/*.json`，文本schema6、剧本包schema144 |
 | Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema37 |
-| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema143 |
+| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema144 |
 | Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema5／转换版本33 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 
@@ -32,7 +32,7 @@
 
 地理契约包含必填`CityProvinceIds`和`MilitaryDefinition.TerritoryExits`。前者是城市到州的基础分组，可不为某城市指定州，不继承15州上限；后者以行优先顺序保存每格北、东、南、西出口语义，与现有地域、地形及完全阻断格共同推导地域边。非空出口数组必须覆盖整幅地图，空数组明确表示未提供地域邻接。作者不维护逐势力邻接或成员候选表；Core只缓存不可变地图边，按当前据点位置、归属、存续及港口属性生成资格。城市州分组进入内容指纹并由会话独立持有。190年包已原位更新并逐项核对50城、40000格及94据点；具体数据链和736条有向边见G08验证记录。
 
-地图内容不引用名称、势力摘要或皮肤。剧本和文本可独立于地图校验；组合层检查建筑稳定ID与据点一一对应、坐标一致以及文本键存在。`text.json`的`entries`直接保存文本键到显示字符串的映射，不再保存`text`／`sourceText`包装对象；设施名称已组合类型后缀，基础地域名另有文本项。原始字节保留在源文件和研究导出中，原文件以SHA-256追踪。文本schema6／剧本包schema143要求重新运行`import-client`；巡察新增对话资源需要先执行纹理`--rebuild skin`。
+地图内容不引用名称、势力摘要或皮肤。剧本和文本可独立于地图校验；组合层检查建筑稳定ID与据点一一对应、坐标一致以及文本键存在。`text.json`的`entries`直接保存文本键到显示字符串的映射，不再保存`text`／`sourceText`包装对象；设施名称已组合类型后缀，基础地域名另有文本项。原始字节保留在源文件和研究导出中，原文件以SHA-256追踪。文本schema6／剧本包schema144要求重新运行`import-client`；巡察新增对话资源需要先执行纹理`--rebuild skin`。
 
 共享纹理默认位于 `local/generated/content/textures-san9pk-tc101`。剧本包只引用共享包的目录和资源 ID，没有 `images` 目录。43个已确认非头像档案及836张正常色大头像转换为最终图片；未确认项只记录研究边界，不保留索引图和原始调色板副本。具体覆盖与透明规则见[纹理资源](texture-resources.md)。
 
@@ -280,7 +280,7 @@ TC101完整保留41项兵法和28项阵形的展示元数据，名称与说明�
 
 ## 巡察命令表现
 
-组合包142新增必填 `presentation.json`，独立声明消息角色、NPC、地区提示条件和语义音效路径。版本Importer把源消息号、列传码、地域表和音效文件转换为内容引用；客户端不读取原版档案。两项WAV导出到包内 `audio/`，加载时检查路径与文件存在。消息及人物引用随组合包校验；源编号映射继续留在独立 `message-id-map.json`。
+组合包142新增必填 `presentation.json`，独立声明消息角色、NPC、地区提示条件和语义音效路径。版本Importer把源消息号、列传码、地域表和音效文件转换为内容引用；客户端不读取原版档案。两项WAV导出到包内 `audio/`，加载时检查路径与文件存在。消息及人物引用随组合包校验；消息键直接保留源序号，无需独立编号映射文件。
 
 皮肤36／完整纹理转换32新增人物对白框及两类继续指示动画。既有包先 `import-textures --rebuild skin`，再 `import-client`；选择性重建保留既有完整转换版本，皮肤采用当前版本。保存94／日志98保留内政加倍类型与触发人物，规则版本未变；表现不消耗规则随机流。操作与消息顺序见[巡察接入](ui/patrol-presentation.md)。
 
@@ -288,4 +288,4 @@ TC101完整保留41项兵法和28项阵形的展示元数据，名称与说明�
 
 ## 执行面空面板
 
-皮肤schema37新增`turn-record-panel`与`turn-command-panel`，分别导入G_Main59／调色板12、G_Main61／调色板13，保留逐色Alpha；剧本schema143新增四个`ui.execution-panel.*`原始表头词条。先执行`import-textures --rebuild skin`，再执行`import-client`。客户端仅展示空消息区与空命令表，消息行、命令行和交互尚未接入。
+皮肤schema37新增`turn-record-panel`与`turn-command-panel`，分别导入G_Main59／调色板12、G_Main61／调色板13，保留逐色Alpha；剧本包包含四个`ui.execution-panel.*`原始表头词条。先执行`import-textures --rebuild skin`，再执行`import-client`。客户端仅展示空消息区与空命令表，消息行、命令行和交互尚未接入。

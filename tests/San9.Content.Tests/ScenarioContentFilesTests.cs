@@ -29,10 +29,8 @@ public sealed class ScenarioContentFilesTests : IDisposable
             JsonSerializer.Serialize(restored, PackageFiles.JsonOptions));
         Assert.Equal(7, Directory.GetFiles(_root, "*", SearchOption.AllDirectories).Length);
         string messages = await File.ReadAllTextAsync(Path.Combine(_root, "messages/general.json"));
-        Assert.DoesNotContain("\n", messages);
         Assert.DoesNotContain("\"format\"", messages);
         Assert.DoesNotContain("\"binding\"", messages);
-        Assert.Contains("\"number\":0", messages);
         Assert.DoesNotContain("semanticsConfirmed", messages);
         Assert.DoesNotContain("requiredBindings", messages);
         Assert.DoesNotContain("unavailableReasons", messages);
@@ -82,6 +80,7 @@ public sealed class ScenarioContentFilesTests : IDisposable
     [InlineData(132)]
     [InlineData(133)]
     [InlineData(140)]
+    [InlineData(143)]
     public async Task UnsupportedVersionRequestsReconversion(int version)
     {
         Directory.CreateDirectory(_root);
@@ -146,6 +145,36 @@ public sealed class ScenarioContentFilesTests : IDisposable
         Assert.False(File.Exists(Path.Combine(_root, "messages/battle.json")));
         Assert.False(File.Exists(Path.Combine(_root, "messages/help.json")));
         Assert.True(File.Exists(Path.Combine(_root, "messages/notes.json")));
+    }
+
+    [Fact]
+    public async Task ExplicitGroupsMoveRecordsWithoutRenamingReferencesAndRetireOldFiles()
+    {
+        var content = Fixture();
+        content.Text.Messages.Add("messages.5592", new([new MessageReference("messages.8677", true)]));
+        content.Text.Messages.Add("messages.8677", new([new MessageLiteral("帮助")]));
+        await ScenarioContentFiles.WriteAsync(_root, content, messageGroups: new Dictionary<string, string>
+        { ["messages.5592"] = "dialogue", ["messages.8677"] = "help" });
+        await File.WriteAllTextAsync(Path.Combine(_root, "messages/notes.json"), "{}");
+        await ScenarioContentFiles.WriteAsync(_root, content, messageGroups: new Dictionary<string, string>
+        { ["messages.8677"] = "help" });
+        Assert.False(File.Exists(Path.Combine(_root, "messages/dialogue.json")));
+        Assert.True(File.Exists(Path.Combine(_root, "messages/notes.json")));
+        using var help = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(_root, "messages/help.json")));
+        Assert.Equal("messages.8677", Assert.Single(help.RootElement.EnumerateObject()).Name);
+        var restored = await ScenarioContentFiles.LoadAsync(_root);
+        Assert.Equal("messages.8677", Assert.IsType<MessageReference>(Assert.Single(restored.Text.Messages["messages.5592"].Nodes)).Key);
+        Assert.Equal("帮助", MessageMarkup.Static(restored.Text.Messages["messages.8677"].Nodes));
+    }
+
+    [Theory]
+    [InlineData("missing", "help")]
+    [InlineData("message", "../outside")]
+    public async Task InvalidExplicitGroupsAreRejectedBeforeWriting(string key, string group)
+    {
+        await Assert.ThrowsAsync<InvalidDataException>(() => ScenarioContentFiles.WriteAsync(_root, Fixture(),
+            messageGroups: new Dictionary<string, string> { [key] = group }));
+        Assert.False(Directory.Exists(_root));
     }
 
     [Fact]

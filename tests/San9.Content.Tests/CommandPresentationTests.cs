@@ -6,6 +6,16 @@ namespace San9.Content.Tests;
 public sealed class CommandPresentationTests
 {
     [Fact]
+    public void NoticesResolveAuthoredKeysEvenWithoutPatrol()
+    {
+        var texts = new TextCatalog(TextCatalog.CurrentSchemaVersion, [])
+        { Messages = new() { ["custom.notice"] = new([new MessageLiteral("Notice")]) } };
+        var content = CommandPresentation.Empty with { Notices = new() { ["scroll-hover"] = "custom.notice" } };
+        content.Validate(texts, [], []);
+        Assert.Throws<InvalidDataException>(() => content.Validate(new(TextCatalog.CurrentSchemaVersion, []), [], []));
+    }
+
+    [Fact]
     public void AuthoredBindingsAcceptCustomIdentitiesAndRejectDanglingReferences()
     {
         var texts = new TextCatalog(TextCatalog.CurrentSchemaVersion, [])

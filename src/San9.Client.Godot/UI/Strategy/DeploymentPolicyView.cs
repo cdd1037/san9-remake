@@ -11,7 +11,7 @@ public partial class DeploymentPolicyView : Control
 {
     public DeploymentTargets Selection { get; init; } = null!;
     public TextCatalog Texts { get; init; } = null!;
-    public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;
+    public TextureScope Textures { get; init; } = null!;
     public Func<bool, CommandRejection> Submit { get; init; } = null!;
     public Action Closed { get; init; } = null!;
     private readonly GameTextPresenter _text = new();
@@ -79,12 +79,12 @@ public partial class DeploymentPolicyView : Control
     }
     public override void _GuiInput(InputEvent input)
     {
-        if (input is InputEventMouseButton { ButtonIndex: MouseButton.Right, Pressed: true }) { Closed(); AcceptEvent(); }
+        if (input is InputEventMouseButton { ButtonIndex: MouseButton.Right, Pressed: true }) { AcceptEvent(); Closed(); }
     }
     public override void _UnhandledKeyInput(InputEvent input)
     {
         if (input is InputEventKey { Pressed: true, Echo: false, Keycode: Key.Escape })
-        { Closed(); GetViewport().SetInputAsHandled(); }
+        { GetViewport().SetInputAsHandled(); Closed(); }
     }
     public override void _ExitTree() => _text.Dispose();
 }

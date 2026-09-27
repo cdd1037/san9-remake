@@ -18,7 +18,7 @@ public partial class AsyncPortrait : TextureRect
     private void Bind()
     {
         Texture = null;
-        _selection.Select(_role, role => { var scope = Service.CreatePortraitScope(role, View, this); _ = scope[role]; return scope; });
+        _selection.Select(_role, role => { var scope = Service.CreatePortraitScope(role, View, this); scope.Request([role]); return scope; });
         if (_scope is not null) Texture = _scope[_role!];
     }
     public override void _Draw()

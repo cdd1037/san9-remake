@@ -5,7 +5,7 @@ namespace San9.Client.Godot;
 public partial class StrategyHud
 {
     public TurnPresentation Turn { get; private set; } = null!;
-    public bool CanIssueOrders => Turn is { CanAdvance: true } && _deployment is null;
+    public bool CanIssueOrders => Interaction.CanIssueOrders;
     private readonly List<Control> _strategicHeader = [];
     private TextureButton _advanceButton = null!, _informationButton = null!;
     private GameDialog _turnDialog = null!;
@@ -38,7 +38,7 @@ public partial class StrategyHud
 
     private void RequestAdvance()
     {
-        if (_deployment is not null) return;
+        if (_flow.IsActive) return;
         if (!Turn.Request()) return;
         Overview.Close();
         _contextMenu.Hide(); _mapContext.Close(); _commandMenu.Close();

@@ -47,6 +47,8 @@ python research/scripts/verify_texture_library.py --package local/generated/cont
 
 ## 所有权与预算
 
+`TextureScope.Assets`只提供资源元数据，枚举不会加载纹理；`Request`／`RequestPrefixes`显式申请，索引器只读取已申请的纹理视图，未申请时直接报错。申请不代表加载完成，就绪状态由`IsReady`／`TryGetReady`查询；`BindingCount`表示绑定数量。页面装配声明皮肤资源族，动态资源在内容绑定时申请，绘制回调不发起申请；图标先按元数据选尺寸，再申请对应角色。
+
 `Main` 装配会话级 `TextureService`。`TextureScope` 是显示资源租约与逻辑区域视图，使用 `Texture2D` 接口；多个角色和窗口共享同一物理 GPU 纹理。窗口只申请实际使用的角色。窗口关闭或重建时移除旧控件并释放作用域；旧绘制引用经过两帧退役后解绑、释放，避免仍在使用的原生绘制命令引用已释放纹理。
 
 | 资源 | 生命周期 |

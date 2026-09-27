@@ -15,6 +15,8 @@ public sealed class TurnPresentation(GameSession session)
     public string? Error { get; private set; }
     public StrategySnapshot? Display { get; private set; }
     public TurnDayPresentation? Day { get; private set; }
+    public Func<StrategySnapshot, StrategySnapshot, IReadOnlyList<DomainEvent>, TurnDayPresentation> CreateDay { get; init; } =
+        (before, after, events) => new(before, after, events);
     public Func<bool>? CanPlayDay { get; set; }
     public bool Paused { get; private set; }
     public bool IsComputing => _pending is { IsCompleted: false };
@@ -22,13 +24,14 @@ public sealed class TurnPresentation(GameSession session)
     public bool IsStrategy => Screen is TurnScreen.Strategy or TurnScreen.Confirmation;
     public bool CanAdvance => Screen == TurnScreen.Strategy && session.Snapshot.Simulation.Boundary == SimulationBoundary.Stable;
     public bool CanBrowseMap => Screen is TurnScreen.Strategy or TurnScreen.Playing;
-    public bool CanCancelFailure => session.Snapshot.Simulation.CanPersist && session.Snapshot.Clock.DayNumber == _startedDay;
+    public bool CanCancelFailure => !_presentationFailed && session.Snapshot.Simulation.CanPersist && session.Snapshot.Clock.DayNumber == _startedDay;
     private GameSession.PendingSessionOperation? _pending;
     private SessionRequest? _request;
     private TurnScreen _retryScreen;
     private double _remaining;
     private long _startedDay;
     private bool _advancing;
+    private bool _presentationFailed;
 
     public bool Request()
     {
@@ -46,6 +49,11 @@ public sealed class TurnPresentation(GameSession session)
 
     public void Confirm()
     {
+        if (Screen == TurnScreen.Failed && _presentationFailed)
+        {
+            Error = null; _presentationFailed = false; Screen = TurnScreen.Playing;
+            return;
+        }
         if (Screen == TurnScreen.Failed && _request is not null)
         {
             Error = null;
@@ -123,9 +131,13 @@ public sealed class TurnPresentation(GameSession session)
         if (_pending is not { IsCompleted: true }) return;
         // Progress follows the prepared day (a choice may stop before the date advances).
         // Publication is delayed until its presentation time; pause never launches another day.
+        StrategySnapshot prepared;
+        IReadOnlyList<DomainEvent> events;
+        try { prepared = _pending.PreparedView; events = _pending.PreparedEvents; }
+        catch { Publish(); return; }
         try
         {
-            Day ??= new(Display!, _pending.PreparedView, _pending.PreparedEvents);
+            Day ??= CreateDay(Display!, prepared, events);
             if (CanPlayDay?.Invoke() == false) return;
             Day.Advance(seconds);
             double completed = Display!.World.Clock.DayNumber - _startedDay;
@@ -133,10 +145,10 @@ public sealed class TurnPresentation(GameSession session)
             int step = Math.Clamp((int)Math.Floor(Day.Progress * 10), 0, 10);
             Progress = Math.Clamp((completed + (next - completed) * step / 10) / 10, 0, 1);
         }
-        catch
+        catch (Exception error)
         {
-            // Complete observes the failure and releases the session's single-operation guard.
-            Publish();
+            // Retain the prepared operation: a presentation error cannot publish an unseen day.
+            Error = error.Message; _presentationFailed = true; Screen = TurnScreen.Failed;
             return;
         }
         if (Day?.Progress >= 1 && Publish()) Continue();

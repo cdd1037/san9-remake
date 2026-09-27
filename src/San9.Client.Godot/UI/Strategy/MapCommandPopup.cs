@@ -9,7 +9,7 @@ namespace San9.Client.Godot;
 /// <summary>Command navigation; the caller owns executable workflows.</summary>
 public partial class MapCommandPopup : Control
 {
-    public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;
+    public TextureScope Textures { get; init; } = null!;
     public TextCatalog Texts { get; init; } = null!;
     public Action<string>? Activated { get; init; }
     private readonly List<(InformationMenuButton Button, MapCommandEntry Entry)> _primary = [], _secondary = [];

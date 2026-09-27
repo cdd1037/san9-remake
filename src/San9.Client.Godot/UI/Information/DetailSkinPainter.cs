@@ -2,24 +2,16 @@ using Godot;
 
 namespace San9.Client.Godot;
 
-internal sealed class DetailSkinPainter(CanvasItem canvas, IReadOnlyDictionary<string, Texture2D> textures)
+internal sealed class DetailSkinPainter(CanvasItem canvas, TextureScope textures)
 {
     public void Tile(string role, Rect2 rect)
     {
-        var texture = textures["detail-" + role];
-        for (float y = 0; y < rect.Size.Y; y += texture.GetHeight())
-        for (float x = 0; x < rect.Size.X; x += texture.GetWidth())
-        {
-            var size = new Vector2(Math.Min(texture.GetWidth(), rect.Size.X - x), Math.Min(texture.GetHeight(), rect.Size.Y - y));
-            canvas.DrawTextureRectRegion(texture, new(rect.Position + new Vector2(x, y), size), new(Vector2.Zero, size));
-        }
+        SkinPainter.Tile(canvas, textures["detail-" + role], rect);
     }
     public void Strip(string role, Rect2 rect)
     {
-        var left = textures["detail-" + role + "-left"]; var right = textures["detail-" + role + "-right"];
-        Tile(role + "-middle", new(rect.Position + new Vector2(left.GetWidth(), 0), new(rect.Size.X - left.GetWidth() - right.GetWidth(), rect.Size.Y)));
-        canvas.DrawTextureRect(left, new(rect.Position, new(left.GetWidth(), rect.Size.Y)), false);
-        canvas.DrawTextureRect(right, new(new(rect.End.X - right.GetWidth(), rect.Position.Y), new(right.GetWidth(), rect.Size.Y)), false);
+        SkinPainter.Strip(canvas, textures["detail-" + role + "-left"], textures["detail-" + role + "-middle"],
+            textures["detail-" + role + "-right"], rect);
     }
     public void Panel(Rect2 rect)
     {

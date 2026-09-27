@@ -273,4 +273,26 @@ public sealed class InformationBrowserTests
         browser.Back(); Assert.False(browser.IsDetail); Assert.True(browser.IsOpen);
         browser.Back(); Assert.False(browser.IsOpen);
     }
+
+    [Fact]
+    public void NestedSameCategoryRoutesRestoreTheirOwnCatalogAndOfficerDetail()
+    {
+        var browser = new InformationBrowser();
+        browser.Open(InformationCategory.Officers, force: 1);
+        var outer = browser.Current;
+        browser.Catalog.SetRows(Enumerable.Range(0, 30).Select(id => new CatalogRow(id, [id])).ToArray());
+        browser.Catalog.Sort(0); browser.Catalog.Scroll(10);
+        browser.OfficerDetail.Open(browser.Catalog.Rows.Select(row => row.Id), 12);
+        browser.OfficerDetail.SelectPage(OfficerDetailPage.Tactics);
+        browser.ShowDetail(12);
+        browser.Navigate(new("related officers", InformationCategory.Officers, ForceId: 2));
+        browser.Catalog.SetRows([new(50, [1])]); browser.ShowDetail(50);
+        browser.Back(); browser.Back();
+        Assert.Same(outer, browser.Current);
+        Assert.Equal(1, browser.ForceFilter);
+        Assert.Equal(12, browser.SelectedId);
+        Assert.Equal(10, browser.Offset);
+        Assert.Equal(OfficerDetailPage.Tactics, browser.OfficerDetail.Page);
+        Assert.Equal(Enumerable.Range(0, 30).Reverse(), browser.Catalog.Rows.Select(row => row.Id));
+    }
 }

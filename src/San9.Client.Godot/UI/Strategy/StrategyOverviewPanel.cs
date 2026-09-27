@@ -21,6 +21,7 @@ public partial class StrategyOverviewPanel : Control
     private readonly Dictionary<OverviewLayer, StrategyButton> _buttons = [];
     private IReadOnlyList<ForceRankingColumn> _rankings = [];
     private long _revision = -1;
+    private (long Revision, bool Forces, bool Facilities, bool Units)? _drawState;
     public StrategyButton? HoverButton => _buttons.Values.FirstOrDefault(b => b.IsHovered());
 
     public bool TrySquare(Vector2 position, out int x, out int y)
@@ -66,11 +67,11 @@ public partial class StrategyOverviewPanel : Control
             if (_scope is not null)
             {
                 foreach (var button in _buttons.Values) { RemoveChild(button); button.QueueFree(); }
-                _buttons.Clear(); _scope.Dispose(); _scope = null; QueueRedraw();
+                _buttons.Clear(); _scope.Dispose(); _scope = null; _drawState = null; QueueRedraw();
             }
             return;
         }
-        if (_scope is null) { _scope = Service.CreateScope(owner: this); BuildButtons(); }
+        if (_scope is null) { _scope = Service.CreateScope(owner: this); _scope.RequestPrefixes("overview-", "button-overview-"); BuildButtons(); }
         foreach (var pair in _buttons)
         {
             string role = "button-overview-" + pair.Key.ToString().ToLowerInvariant();
@@ -84,7 +85,8 @@ public partial class StrategyOverviewPanel : Control
         _buttons[OverviewLayer.Forces].SetPressedNoSignal(State.ShowForces);
         _buttons[OverviewLayer.Facilities].SetPressedNoSignal(State.ShowFacilities);
         _buttons[OverviewLayer.Units].SetPressedNoSignal(State.ShowUnits);
-        QueueRedraw();
+        var drawState = (_revision, State.ShowForces, State.ShowFacilities, State.ShowUnits);
+        if (_drawState != drawState) { _drawState = drawState; QueueRedraw(); }
     }
 
     public override void _ExitTree() => _scope?.Dispose();

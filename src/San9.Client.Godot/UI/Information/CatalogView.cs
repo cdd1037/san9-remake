@@ -4,7 +4,7 @@ using San9.Application.Presentation;
 namespace San9.Client.Godot;
 
 /// <summary>Shared catalog window. Domain queries and navigation belong to its caller.</summary>
-public partial class CatalogView : Control
+public partial class CatalogView : Control, IInformationPage
 {
     public string Title { get; init; } = "";
     public string HintText { get; init; } = "";
@@ -14,17 +14,14 @@ public partial class CatalogView : Control
     public TextureService Service { get; init; } = null!;
     public Func<int, bool>? PortraitDeceased { get; init; }
     public Func<int, string?>? Portrait { get; init; }
-    public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;
+    public TextureScope Textures { get; init; } = null!;
     public Vector2 PortraitSize { get; init; } = new(64, 80);
     public Action<int>? Activated { get; init; }
     public Action<int>? CurrentChanged { get; init; }
     public Action? Closed { get; init; }
     public Action? ShowMap { get; init; }
     public bool TabStripFollowsPage { get; init; }
-    public int InitialPage { get; init; }
     public int? InitialCurrentId { get; init; }
-    public int InitialOffset { get; init; }
-    public Action<int, int, int?>? ViewChanged { get; init; }
     public CatalogTableState TableState { get; init; } = new();
     public CatalogSelection? Selection { get; init; }
     public Action<IReadOnlySet<int>>? ConfirmSelection { get; init; }
@@ -42,7 +39,7 @@ public partial class CatalogView : Control
     private AsyncPortrait? _portrait;
     private Rect2 _body;
     private Vector2 _tableOrigin;
-    private int _page;
+    private int _page => _state.Page;
     private int _visibleRows;
     private bool _needsScroll;
     private bool _refreshing;
@@ -59,7 +56,11 @@ public partial class CatalogView : Control
     {
         Size = new(1024, 768); MouseFilter = MouseFilterEnum.Stop;
         MouseExited += () => { _pointerRowId = null; _hoveredCheckboxId = null; QueueRedraw(); };
-        var rows = ReadRows(InitialPage);
+        if (InitialCurrentId is int initial) _state.SelectId(initial);
+        BuildSurface(ReadRows(_page));
+    }
+    private void BuildSurface(CatalogRow[] rows)
+    {
         _visibleRows = Math.Clamp(rows.Length, 9, CatalogTableState.VisibleRows);
         _needsScroll = rows.Length > CatalogTableState.VisibleRows;
         int width = Math.Max(Pages.Max(p => p.Columns.Sum(c => c.Width)) + SelectionWidth + (_needsScroll ? 16 : 0),
@@ -114,7 +115,7 @@ public partial class CatalogView : Control
             AddChild(_portrait);
         }
         AddChild(new GameMessageBar { Textures = Textures, Text = HintText });
-        ChangePage(InitialPage, InitialCurrentId, InitialOffset, rows);
+        ChangePage(_page, rows);
     }
 
     private void IconButton(string role, Vector2 position, Action action)
@@ -130,20 +131,15 @@ public partial class CatalogView : Control
         _text.Apply(label, GameTextStyles.For(GameTextRole.Resource) with { FontSize = fontSize });
         return label;
     }
-    private void ChangePage(int page, int? current = null, int offset = 0, CatalogRow[]? rows = null)
+    private void ChangePage(int page, CatalogRow[]? rows = null)
     {
         bool opening = _grid is null;
         if (!opening && page == _page) return;
         _state.RefreshRows(rows ?? ReadRows(page), columnsChanged: !opening);
-        if (opening)
-        {
-            if (current is int id) _state.PointAt(Array.FindIndex(_state.Rows, row => row.Id == id));
-            _state.Scroll(offset);
-        }
         if (_grid is not null) { RemoveChild(_grid); _grid.QueueFree(); }
         _headers.Clear(); _cells.Clear(); _checks.Clear();
         _boundRows = null;
-        _page = page;
+        _state.SelectPage(page, Pages.Count);
         _grid = new Control { Position = _tableOrigin, MouseFilter = MouseFilterEnum.Ignore }; AddChild(_grid);
         var columns = Pages[page].Columns;
         int width = columns.Sum(c => c.Width) + SelectionWidth, x = SelectionWidth;
@@ -189,6 +185,23 @@ public partial class CatalogView : Control
         if (!CanActivateRow(row.Id)) return;
         if (Selection is null) Activated?.Invoke(row.Id);
         else { Selection.Toggle(row.Id); RefreshRows(); }
+    }
+    public void RefreshData()
+    {
+        var rows = ReadRows(_page);
+        if (_visibleRows != Math.Clamp(rows.Length, 9, CatalogTableState.VisibleRows) ||
+            _needsScroll != (rows.Length > CatalogTableState.VisibleRows))
+        {
+            ClearRowPress();
+            foreach (var child in GetChildren()) { RemoveChild(child); child.QueueFree(); }
+            _grid = null!; _tabs.Clear(); _headers.Clear(); _cells.Clear(); _checks.Clear();
+            _portrait = null; _help = null; _boundRows = null;
+            BuildSurface(rows);
+            return;
+        }
+        _state.RefreshRows(rows);
+        _scroll.Range.MaxValue = Math.Max(CatalogTableState.VisibleRows, _state.Rows.Length);
+        RefreshRows();
     }
     private void RefreshRows()
     {
@@ -237,7 +250,6 @@ public partial class CatalogView : Control
             _selectAll!.Disabled = !_state.Rows.Any(r => !Selection.Selected.Contains(r.Id) && Selection.CanToggle(r.Id));
             _clearSelection!.Disabled = Selection.Selected.Count == 0;
         }
-        ViewChanged?.Invoke(_page, _state.Offset, _state.Current?.Id);
         _refreshing = false; QueueRedraw();
     }
     private void ToggleHelp()
@@ -411,13 +423,7 @@ public partial class CatalogView : Control
 
     private void Tile(string role, Rect2 rect)
     {
-        var texture = Textures[role];
-        for (float y = 0; y < rect.Size.Y; y += texture.GetHeight())
-        for (float x = 0; x < rect.Size.X; x += texture.GetWidth())
-        {
-            var size = new Vector2(Math.Min(texture.GetWidth(), rect.Size.X - x), Math.Min(texture.GetHeight(), rect.Size.Y - y));
-            DrawTextureRectRegion(texture, new(rect.Position + new Vector2(x,y), size), new(Vector2.Zero,size));
-        }
+        SkinPainter.Tile(this, Textures[role], rect);
     }
     private void Strip(string role, Vector2 point, float width)
     {
@@ -517,7 +523,7 @@ public partial class CatalogSkinButton : BaseButton
 {
     public string Title { get; init; } = "";
     public CatalogButtonKind Kind { get; init; }
-    public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;
+    public TextureScope Textures { get; init; } = null!;
     public bool Selected { get; set; }
     public int SortDirection { get; set; }
     private Label _label = null!;

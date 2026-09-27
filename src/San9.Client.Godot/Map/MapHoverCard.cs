@@ -5,7 +5,7 @@ namespace San9.Client.Godot;
 
 public partial class MapHoverCard : Node2D
 {
-    public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;
+    public TextureScope Textures { get; init; } = null!;
     public MapWorld World { get; init; } = null!;
     public Font UiFont { get; init; } = null!;
     public MapHoverInfo? Info { get; private set; }
@@ -16,6 +16,8 @@ public partial class MapHoverCard : Node2D
             var p = San9.Rendering.BuildingHoverGeometry.Place(point.X, point.Y, info.Height);
             Position = new(p.X, p.Y);
         }
+        if (info is not null) World.PrepareHoverFlag(info.Force?.ColorCode ?? 50,
+            info.IsRulerCommander ? World.Package!.Units.RulerFlagGlyph : info.FlagGlyph ?? info.Force?.FlagGlyph ?? -1);
         Info = info; Visible = info is not null; QueueRedraw();
     }
 
@@ -39,12 +41,6 @@ public partial class MapHoverCard : Node2D
             numeric ? HorizontalAlignment.Right : HorizontalAlignment.Center, width);
     private void Tile(string role, Rect2 rect)
     {
-        var texture = Textures[role];
-        for (float y = 0; y < rect.Size.Y; y += texture.GetHeight())
-        for (float x = 0; x < rect.Size.X; x += texture.GetWidth())
-        {
-            var size = new Vector2(Math.Min(texture.GetWidth(), rect.Size.X - x), Math.Min(texture.GetHeight(), rect.Size.Y - y));
-            DrawTextureRectRegion(texture, new(rect.Position + new Vector2(x, y), size), new(Vector2.Zero, size));
-        }
+        SkinPainter.Tile(this, Textures[role], rect);
     }
 }

@@ -6,7 +6,7 @@ namespace San9.Client.Godot;
 /// <summary>A logical-viewport modal: outside clicks close it without reaching the map.</summary>
 public partial class MapContextPopup : Control
 {
-    public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;
+    public TextureScope Textures { get; init; } = null!;
     public Action<MapContextEntry> Activated { get; init; } = null!;
     private Rect2 _menu;
     public string Hint => GetChildren().OfType<InformationMenuButton>().FirstOrDefault(b => b.IsHovered()) is {} button

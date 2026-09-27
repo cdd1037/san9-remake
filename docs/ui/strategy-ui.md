@@ -6,9 +6,13 @@
 
 `Main`装配会话、内容和显示节点。`StrategySelection`管理地图命令选择；`MapWorld`发布拾取事件并接受高亮、镜头定位，建筑显示来自当前会话视图。`MapAnnotations`负责地图标注，`StrategyHud`负责固定界面。控件焦点、地图选择和鼠标悬停是不同状态，不能相互替代。
 
+`DeploymentFlow`拥有出征草案、来源、目标与子窗口，退出目标选择或流程时清除地图回调；HUD只绑定显示和用户意图。`StrategyInteraction`根据回合、出征阶段、全图和模态覆盖推导输入能力。主情报与菜单挂在`Main`装配的`StrategyOverlayHost`下，出征子窗口由流程持有；全图挂在独立背景宿主下。
+
 设施和武将侧栏复用`StrategyRoster`与`StrategyRosterList`，按直属军团过滤；君主所在项固定首行，从普通13行中去重。两页独立保留滚动位置，焦点由Godot控件管理，不写回世界。点击或Enter只定位镜头，褐色行仍可激活；不因地图选择而强制滚动名单。Tab控件导航和Space激活是现代交互约定，见[DEC-UI-0004](../../specs/decisions/DEC-UI-0004-facility-list-interaction.md)。
 
 模态界面先消费输入，再执行关闭或导航回调。回调可能立即移除当前节点，因此回调之后不能依赖该节点仍在场景树中。
+
+`TurnPresentation`在播放前创建一次日演出及动作计划，资源未就绪时不推进播放时间。演出准备失败保留已计算的会话操作，重试同一日，不提前发布尚未展示的世界。`Main`以取消令牌约束内容加载和逐帧等待，退出后不再安装场景节点；验证场景构造由Diagnostics负责。
 
 ## 启动窗口与系统缩放
 
@@ -29,6 +33,8 @@
 ## 资源与文字
 
 `SkinnedScrollBar`负责原生范围、箭头和绘制，`ScrollBarSkin`提供分段纹理与布局，业务列表持有条目与视口。资源帧数量与文字状态表分别定义，不能从背景四帧推断完整文字状态。
+
+公共平铺和三段拼接使用`SkinPainter`，详情面板使用`DetailSkinPainter`，保留各控件的拼接重叠与文字偏移。静态界面按视觉状态变化重绘；动画、边缘滚动和持续手势仍按帧更新。
 
 主题为`GameFont.tres`（霞鹜文楷等宽GB Lite，不增补回退字体，四个已知缺字明确接受），纯文字与图文控件共用字体。`GameRichTextLabel`使用Godot原生BBCode和转换包图标；提示、列传、说明及侧栏名称共用消息求值和显示链路。名称排序使用严格纯文本读取，不剥离图标。详见[统一消息规格](../../specs/behavior/BEH-UI-0006-unified-messages.md)。
 

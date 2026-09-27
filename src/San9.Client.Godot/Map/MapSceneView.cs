@@ -68,7 +68,8 @@ public partial class MapSceneView : Node2D
     private TextureScope? _prefetchAssets;
     private TerrainChunkCache<ImageTexture>.Lease? _prefetchTerrain;
     private TextureScope _ui = null!;
-    private Node2D _water = null!, _objects = null!, _annotations = null!;
+    private Node2D _water = null!, _annotations = null!;
+    private MapSpriteLayer _objects = null!;
     private ShaderMaterial _hoverMaterial = null!;
     private ShaderMaterial _outlineMaterial = null!;
     private ShaderMaterial _candidateMaterial = null!;
@@ -85,7 +86,6 @@ public partial class MapSceneView : Node2D
     private int _waypointFrame = -1;
     private long _drawnUiRevision;
     private CanvasItemMaterial _additiveMaterial = null!;
-    private readonly List<Sprite2D> _sprites = [];
     private readonly Dictionary<string, int> _frames = [];
     private MapObjectTarget? _drawnHover;
     private int _drawnTerrainCount;
@@ -93,7 +93,6 @@ public partial class MapSceneView : Node2D
     private double _drawnDayTime = -1;
     private int _annotationFrame = -1;
     private long _annotationUiRevision = -1;
-    private bool _hasAnimatedBars;
     private (MapScene Scene, MapViewport Camera, Vector2 Size, bool Boundaries)? _lastRequest;
     public long Revision { get; private set; }
     public long AnnotationRevision { get; private set; }
@@ -107,7 +106,7 @@ public partial class MapSceneView : Node2D
     {
         _transition = new(f => f.Ready, f => f.Error, f => Textures.Defer(f.Dispose));
         _ui = Textures.CreateScope(owner: this);
-        _ui.Request(InterfaceSkin.RequiredUiAssets.Where(role => role.StartsWith("bar-", StringComparison.Ordinal)));
+        _ui.RequestPrefixes("bar-", "icon-");
         _outlineMaterial = new ShaderMaterial { Shader = new Shader { Code = """
             shader_type canvas_item;
             void fragment() {
@@ -155,7 +154,7 @@ public partial class MapSceneView : Node2D
         _water = new Node2D { Material = new CanvasItemMaterial { BlendMode = CanvasItemMaterial.BlendModeEnum.Add } };
         _water.Draw += DrawWater; AddChild(_water);
         _additiveMaterial = new CanvasItemMaterial { BlendMode = CanvasItemMaterial.BlendModeEnum.Add };
-        _objects = new Node2D(); AddChild(_objects);
+        _objects = new MapSpriteLayer(); AddChild(_objects);
         _annotations = new Node2D();
         _annotations.Draw += () => { if (ShowAnnotations && Font is not null && Texts is not null) DrawAnnotations(_annotations, Font, Texts, p => p, 1); };
         AddChild(_annotations);
@@ -255,7 +254,7 @@ public partial class MapSceneView : Node2D
         if (objects) RebuildObjects();
         if (motion) { _drawnDayTime = frame.Region.Scene.Day!.VisualElapsed; Revision++; }
         int annotationFrame = MapInfoBarAnimation.Frame(AnimationTime());
-        bool barsChanged = _hasAnimatedBars && _annotationFrame != annotationFrame;
+        bool barsChanged = _annotationLayout.HasAnimatedBars && _annotationFrame != annotationFrame;
         bool annotationAssetsChanged = _annotationUiRevision != _ui.Revision;
         _annotationFrame = annotationFrame; _annotationUiRevision = _ui.Revision;
         if (hoverChanged || motion || barsChanged || annotationAssetsChanged)
@@ -287,14 +286,9 @@ public partial class MapSceneView : Node2D
         }
     }
     private readonly List<(string Asset, Vector2 Position, MapObjectTarget Target)> _hitSprites = [];
-    private readonly List<(Rect2 Bounds, int UnitId)> _hitLabels = [];
-    private Frame? _labelFrame;
     public MapObjectTarget? ObjectAt(Vector2 point)
     {
-        // Labels are painted over map objects; overlapping labels follow their draw order.
-        if (ReferenceEquals(_labelFrame, Presented))
-            for (int i = _hitLabels.Count - 1; i >= 0; i--)
-                if (_hitLabels[i].Bounds.HasPoint(point)) return new(_hitLabels[i].UnitId, true);
+        if (_annotationLayout.Hit(point) is { } label) return label;
         for (int i = _hitSprites.Count - 1; i >= 0; i--)
         {
             var sprite = _hitSprites[i];
@@ -307,7 +301,7 @@ public partial class MapSceneView : Node2D
     {
         if (Presented is not { } frame) return;
         _hitSprites.Clear();
-        ObjectDraws++; int cursor = 0; _drawnHover = Hovered; _drawnAssetRevision = frame.Assets.Revision;
+        ObjectDraws++; _objects.Begin(); _drawnHover = Hovered; _drawnAssetRevision = frame.Assets.Revision;
         if (_drawnTargets != Targets)
         {
             _drawnTargets = Targets;
@@ -328,9 +322,7 @@ public partial class MapSceneView : Node2D
         void Add(Texture2D texture, Vector2 position, Material? material = null)
         {
             if (!frame.ViewportBounds.Intersects(new Rect2(position, texture.GetSize()))) return;
-            if (cursor == _sprites.Count) { var sprite = new Sprite2D { Centered = false }; _objects.AddChild(sprite); _sprites.Add(sprite); }
-            var item = _sprites[cursor++]; item.Texture = texture; item.Position = position; item.Visible = true;
-            item.Material = material; item.Modulate = Colors.White;
+            _objects.Add(texture, position, material);
         }
         (double Depth, Action Draw)? waypointOverlay = null;
         if (Targets?.Waypoint is { } via)
@@ -385,65 +377,22 @@ public partial class MapSceneView : Node2D
             }
             foreach (var unit in frame.Region.Units) Marker(new(unit.Id, true), new(unit.AnchorX - 16, unit.AnchorY - 48));
         }
-        for (int i = cursor; i < _sprites.Count; i++) { _sprites[i].Texture = null; _sprites[i].Visible = false; }
+        _objects.End();
+        PrepareAnnotations();
     }
-    public void DrawAnnotations(Node2D target, Font font, TextCatalog texts, Func<Vector2, Vector2> project, float zoom)
+    private readonly MapAnnotationLayer _annotationLayout = new();
+    private void PrepareAnnotations()
     {
-        if (Presented is not { } frame) return;
-        _hitLabels.Clear(); _labelFrame = frame;
-        _hasAnimatedBars = false;
-        double barTime = AnimationTime();
-        foreach (var b in frame.Region.Buildings)
-        {
-            var s = frame.Region.Scene.Settlements[b.Id];
-            var p = frame.Region.Scene.Anchor(b);
-            if (!frame.Region.Bounds.Intersects(new Rect2(p, new(116, 55)))) continue;
-            target.DrawSetTransform(project(p), 0, Vector2.One * zoom);
-            var style = GameTextStyles.Building(Hovered == new MapObjectTarget(b.Id, false));
-            GameTextPresenter.Draw(target, font, s.Soldiers.ToString(System.Globalization.CultureInfo.InvariantCulture), new(0, 16), style, HorizontalAlignment.Right, 72);
-            Bar("durability", s.Durability, s.MaxDurability, new(0, 16), b.Id);
-            Bar("morale", s.Morale, 100, new(0, 29), b.Id);
-            GameTextPresenter.Draw(target, font, s.ResolveName(texts), new(0, 53), style);
-            foreach (string icon in s.Icons) target.DrawTexture(_ui["icon-" + icon], icon == "emperor" ? new(96, 17) : new(75, 17));
-        }
-        foreach (var unit in frame.Region.Units.Where(u => frame.Region.Scene.IsUnitVisible(u, frame.ViewportBounds)).Select(u => frame.Region.Scene.Sample(u)))
-        {
-            string unitName = unit.CommanderNameKey is { } nameKey ? texts.Resolve(nameKey) + "队" : "部队";
-            int fontSize = GameTextStyles.Building(false).FontSize;
-            float width = Math.Max(76, font.GetStringSize(unitName, fontSize: fontSize).X);
-            var bounds = new Rect2(unit.LabelX, unit.LabelY, width, 47 + font.GetDescent(fontSize));
-            if (!frame.Region.Bounds.Intersects(bounds)) continue;
-            _hitLabels.Add((bounds, unit.Id));
-            target.DrawSetTransform(project(new(unit.LabelX, unit.LabelY)), 0, Vector2.One * zoom);
-            GameTextPresenter.Draw(target, font, unit.Soldiers.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                new(0, 20), GameTextStyles.Building(Hovered == new MapObjectTarget(unit.Id, true)), HorizontalAlignment.Right, 72);
-            Bar("morale", unit.Morale, 100, new(0, 20), unit.Id);
-            GameTextPresenter.Draw(target, font, unitName,
-                new(0, 47), GameTextStyles.Building(Hovered == new MapObjectTarget(unit.Id, true)));
-        }
-        target.DrawSetTransform(Vector2.Zero);
-        void Bar(string kind, int current, int maximum, Vector2 point, int objectId)
-        {
-            target.DrawTexture(_ui[$"bar-{kind}-frame"], point);
-            int width = BuildingInfoGeometry.FillWidth(current, maximum);
-            if (width == 0) return;
-            _hasAnimatedBars |= BuildingInfoGeometry.FillState(current, maximum) != "normal";
-            var blend = MapInfoBarAnimation.Sample(current, maximum, barTime, objectId);
-            Layer("normal", blend.Normal);
-            Layer("warning", blend.Warning);
-            Layer("critical", blend.Critical);
-            void Layer(string state, float opacity)
-            {
-                if (opacity <= 0) return;
-                var fill = _ui[$"bar-{kind}-{state}"];
-                target.DrawTextureRectRegion(fill, new(point + new Vector2(4, 4), new Vector2(width, fill.GetHeight())),
-                    new(0, 0, width, fill.GetHeight()), new Color(1, 1, 1, opacity));
-            }
-        }
+        if (Presented is { } frame && Font is not null && Texts is not null)
+            _annotationLayout.Prepare(frame, Font, Texts);
     }
+    public void ConfigureAnnotations(Font font, TextCatalog texts)
+    { Font = font; Texts = texts; PrepareAnnotations(); AnnotationRevision++; }
+    public void DrawAnnotations(Node2D target, Font font, TextCatalog texts, Func<Vector2, Vector2> project, float zoom) =>
+        _annotationLayout.Draw(target, font, _ui, Hovered, project, zoom, AnimationTime());
     public override void _ExitTree()
     {
-        foreach (var sprite in _sprites) sprite.Texture = null;
+        _objects.Clear();
         _transition.Dispose(); _prefetchAssets?.Dispose(); _prefetchTerrain?.Dispose(); _ui.Dispose();
         var waterMaterial = _water.Material;
         Textures.Defer(() => {

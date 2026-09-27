@@ -13,7 +13,7 @@ public partial class StrategyMinimap : Control
     public San9.Application.GameSession Session { get; init; } = null!;
     public San9.Application.Presentation.StrategySnapshot Scenario => World.View;
     public InterfaceSkin Skin { get; init; } = null!;
-    public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;
+    public TextureScope Textures { get; init; } = null!;
     private ImageTexture? _terrain;
     private TextureRect? _background;
     private San9.Application.Presentation.StrategySnapshot? _state;

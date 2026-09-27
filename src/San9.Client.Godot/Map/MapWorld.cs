@@ -125,7 +125,7 @@ public partial class MapWorld : Node2D
             try
             {
                 var loaded = completed.GetAwaiter().GetResult(); _common = loaded.Common;
-                Scene = new(_map!, loaded.Renderer, loaded.Season, View, Textures, () => UnitPositionTime);
+                Scene = new(_map!, loaded.Renderer, loaded.Season, View, Textures.MapAssets, () => UnitPositionTime);
                 RequestDisplay();
             }
             catch (Exception error) { _error = error.Message; _awaitingSeason = false; GD.PushError(_error); }
@@ -155,7 +155,7 @@ public partial class MapWorld : Node2D
     public void RefreshRuntimeObjects()
     {
         if (Scene is null) return;
-        Scene = new(Scene.Map, Scene.Terrain, Scene.Season, View, Textures, () => UnitPositionTime, Scene, Day); RequestDisplay();
+        Scene = new(Scene.Map, Scene.Terrain, Scene.Season, View, Textures.MapAssets, () => UnitPositionTime, Scene, Day); RequestDisplay();
     }
     public void PreviewSeason(string season) => BeginLoad(season);
     public void HoverBuilding(int? id) => HoverObject(id is int value ? new(value, false) : null);
@@ -166,17 +166,24 @@ public partial class MapWorld : Node2D
     public int? BuildingAtViewport(Vector2 point) => ObjectAtViewport(point) is { IsUnit: false } target ? target.Id : null;
     public MapObjectTarget? ObjectAtViewport(Vector2 point) => HasCompleteView && !IsLoading ? ObjectAt(ViewportToWorld(point)) : null;
     private MapObjectTarget? ObjectAt(Vector2 point) => _display?.ObjectAt(point);
-    public void DrawHoverFlag(Node2D target, int color, int glyph, Vector2 position)
+    private IEnumerable<string> HoverFlagAssets(int color, int glyph)
     {
-        if (Scene is null || _flags is null) return;
-        void Draw(string id) => target.DrawTexture(_flags[Scene.Clips[id].SeasonFrames["autumn"][2]], position);
-        Draw("flag-pole-back"); Draw($"flag-cloth-{color}");
+        if (Scene is null) yield break;
+        yield return Scene.Clips["flag-pole-back"].SeasonFrames["autumn"][2];
+        yield return Scene.Clips[$"flag-cloth-{color}"].SeasonFrames["autumn"][2];
         if (glyph >= 0)
         {
             int ink = new[] { 3,6,7,8,11,16,18,21,22,23,24,26,27,29,31,33,38,39,40,46,49,50 }.Contains(color) ? 1 : 0;
-            Draw($"flag-glyph-{ink}-{glyph}");
+            yield return Scene.Clips[$"flag-glyph-{ink}-{glyph}"].SeasonFrames["autumn"][2];
         }
-        Draw("flag-pole-front");
+        yield return Scene.Clips["flag-pole-front"].SeasonFrames["autumn"][2];
+    }
+    public void PrepareHoverFlag(int color, int glyph) => _flags?.Request(HoverFlagAssets(color, glyph));
+    public void DrawHoverFlag(Node2D target, int color, int glyph, Vector2 position)
+    {
+        if (_flags is null) return;
+        foreach (string id in HoverFlagAssets(color, glyph))
+            if (_flags.TryGetReady(id, out var texture)) target.DrawTexture(texture, position);
     }
     public void FocusWorld(Vector2 point) => RequestView(new(point.X, point.Y, RequestedZoom));
     // All relative navigation uses world-space displacement; absolute focus and zoom remain separate.

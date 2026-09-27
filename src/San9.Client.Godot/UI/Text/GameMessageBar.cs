@@ -6,7 +6,7 @@ namespace San9.Client.Godot;
 /// <summary>A view-owned instance of the common bottom explanation panel.</summary>
 public partial class GameMessageBar : Control
 {
-    public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;
+    public TextureScope Textures { get; init; } = null!;
     private GameRichTextLabel _label = null!;
     private string _text = "";
     private bool _enabled = true;
@@ -14,6 +14,7 @@ public partial class GameMessageBar : Control
 
     public override void _Ready()
     {
+        Textures.RequestPrefixes("message-");
         Position = new(0,736); Size = new(1024,32); MouseFilter = MouseFilterEnum.Ignore;
         _label = new GameRichTextLabel { Position = new(0,4), Size = new(1024,24), Textures = Textures };
         AddChild(_label);
@@ -32,7 +33,7 @@ public partial class GameMessageBar : Control
     }
     public override void _Draw()
     {
-        if (string.IsNullOrEmpty(_text) || Textures.Count == 0) return;
+        if (string.IsNullOrEmpty(_text)) return;
         int width = Math.Min(1024, _label.GetContentWidth() + 32);
         var bounds = (X: (1024 - width) / 2, Width: width);
         var left = Textures["message-left"]; var middle = Textures["message-middle"]; var right = Textures["message-right"];

@@ -6,7 +6,7 @@ namespace San9.Client.Godot;
 /// <summary>A momentary row whose highlight represents retained keyboard focus.</summary>
 public partial class RosterRowButton : BaseButton
 {
-    public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;
+    public TextureScope Textures { get; init; } = null!;
     public San9.Application.Presentation.RosterKey? EntryKey { get; private set; }
     public Action<int>? Scrolled { get; init; }
     public Action? ContextRequested { get; init; }

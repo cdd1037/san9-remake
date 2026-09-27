@@ -4,7 +4,7 @@ using San9.Core.Simulation;
 namespace San9.Client.Godot;
 
 /// <summary>One prepared day, retained until all its map presentation has completed.</summary>
-public sealed class TurnDayPresentation(StrategySnapshot before, StrategySnapshot after, IReadOnlyList<DomainEvent> events)
+public sealed class TurnDayPresentation(StrategySnapshot before, StrategySnapshot after, IReadOnlyList<DomainEvent> events, MapDayPlan? plan = null, double? duration = null)
 {
     public const double MovementDuration = 0.9;
     public const double MovementMilliseconds = MovementDuration * 1000;
@@ -17,10 +17,12 @@ public sealed class TurnDayPresentation(StrategySnapshot before, StrategySnapsho
     // Visual age since a progress timestamp was reached, including subsequent pauses.
     public double VisualAge(double progressMilliseconds) =>
         (VisualElapsed - progressMilliseconds / 1000 - _pauses.Where(p => p.Position < progressMilliseconds / 1000).Sum(p => p.Duration)) * 1000;
-    public double Duration { get; private set; } = events.OfType<BattleDamageEvent>().Any(e => e.SoldierLoss > 0 || e.DurabilityLoss > 0 || e.MoraleLoss > 0) ? 2.8 : 1.0;
+    public MapDayPlan? Plan { get; } = plan;
+    public double Duration { get; } = Math.Max(BaseDuration(events), plan?.Duration ?? duration ?? 0);
+    internal static double BaseDuration(IReadOnlyList<DomainEvent> events) =>
+        events.OfType<BattleDamageEvent>().Any(e => e.SoldierLoss > 0 || e.DurabilityLoss > 0 || e.MoraleLoss > 0) ? 2.8 : 1.0;
     public double CombatMilliseconds => Elapsed < MovementDuration ? (Elapsed - MovementDuration) * 1000 : VisualAge(MovementMilliseconds);
     public double Progress => Math.Clamp(Elapsed / Duration, 0, 1);
-    public void RequireDuration(double seconds) => Duration = Math.Max(Duration, seconds);
     public void Advance(double seconds, bool paused = false)
     {
         seconds = Math.Max(0, seconds);

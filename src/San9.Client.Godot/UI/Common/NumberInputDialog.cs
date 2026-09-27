@@ -6,7 +6,7 @@ namespace San9.Client.Godot;
 public partial class NumberInputDialog : Control
 {
     public BoundedNumberInput State { get; init; } = null!;
-    public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;
+    public TextureScope Textures { get; init; } = null!;
     public Action<uint> Confirmed { get; init; } = null!;
     public Action Closed { get; init; } = null!;
     private readonly GameTextPresenter _text = new();

@@ -7,14 +7,14 @@ public sealed record ScrollBarSkin(Texture2D TrackTop, Texture2D TrackMiddle, Te
     Texture2D ThumbTop, Texture2D ThumbMiddle, Texture2D ThumbBottom,
     Texture2D[] UpFrames, Texture2D[] DownFrames, Vector2 TrackInset)
 {
-    public static ScrollBarSkin FromInterface(IReadOnlyDictionary<string, Texture2D> textures) => new(
+    public static ScrollBarSkin FromInterface(TextureScope textures) => new(
         textures["scroll-track-top"], textures["scroll-track-middle"], textures["scroll-track-bottom"],
         textures["scroll-thumb-top"], textures["scroll-thumb-middle"], textures["scroll-thumb-bottom"],
         Enumerable.Range(0, 4).Select(i => (Texture2D)textures[i == 0 ? "button-scroll-up" : $"button-scroll-up-{i}"]).ToArray(),
         Enumerable.Range(0, 4).Select(i => (Texture2D)textures[i == 0 ? "button-scroll-down" : $"button-scroll-down-{i}"]).ToArray(),
         new(3, 14));
 
-    public static ScrollBarSkin FromCatalog(IReadOnlyDictionary<string, Texture2D> textures)
+    public static ScrollBarSkin FromCatalog(TextureScope textures)
     {
         Texture2D Part(string role) => new AtlasTexture { Atlas = textures["catalog-scroll-" + role], Region = new(0, 0, 16, textures["catalog-scroll-" + role].GetHeight()) };
         // The source bottom ornament is 32px high; the catalog arrow slot is only 16px.

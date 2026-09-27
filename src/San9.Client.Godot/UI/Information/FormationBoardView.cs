@@ -7,7 +7,7 @@ namespace San9.Client.Godot;
 public partial class FormationBoardView : Control
 {
     public FormationBoardData Data { get; init; } = null!;
-    public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;
+    public TextureScope Textures { get; init; } = null!;
     public Action<int>? OfficerActivated { get; init; }
     public Action<int, San9.Content.Scenarios.FormationSlot>? OfficerMoved { get; init; }
     private FormationMemberButton? _held;
@@ -17,6 +17,9 @@ public partial class FormationBoardView : Control
     private Label _hint = null!;
     public override void _Ready()
     {
+        Textures.Request(["formation-commander", "formation-member"]);
+        if (Data.Presentation?.BackgroundRole is { } background) Textures.Request([background]);
+        if (Data.Presentation?.AvailableRole is { } available) Textures.Request([available]);
         MouseFilter = OfficerMoved is null ? MouseFilterEnum.Ignore : MouseFilterEnum.Stop;
         int columns = Data.Presentation?.Columns ?? 3, rows = Data.Presentation?.Rows ?? 3;
         var slots = Data.Presentation?.Slots.ToArray() ?? [];

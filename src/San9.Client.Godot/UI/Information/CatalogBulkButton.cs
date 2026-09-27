@@ -6,7 +6,7 @@ namespace San9.Client.Godot;
 public partial class CatalogBulkButton : BaseButton
 {
     public string Title { get; init; } = "";
-    public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;
+    public TextureScope Textures { get; init; } = null!;
     private readonly GameTextPresenter _text = new();
     private Label _label = null!;
     private (bool Hovered, bool Pressed, bool Disabled)? _previous;

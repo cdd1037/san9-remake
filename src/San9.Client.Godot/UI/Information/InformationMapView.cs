@@ -6,15 +6,16 @@ using San9.Content.Text;
 
 namespace San9.Client.Godot;
 
-public partial class InformationMapView : Control
+public partial class InformationMapView : Control, IInformationPage
 {
     public GameSession Session { get; init; } = null!;
     public TextCatalog Texts { get; init; } = null!;
     public TextureService Service { get; init; } = null!;
     public InterfaceSkin Skin { get; init; } = null!;
-    public IReadOnlyDictionary<string,Texture2D> Textures { get; init; } = null!;
+    public TextureScope Textures { get; init; } = null!;
     public InformationCategory Category { get; init; }
-    public int[] Candidates { get; init; } = [];
+    public Func<int[]> ReadCandidates { get; init; } = null!;
+    private int[] Candidates => ReadCandidates();
     public Action<int> Activated { get; init; } = null!;
     public Action ShowList { get; init; } = null!;
     public Action Closed { get; init; } = null!;
@@ -65,15 +66,26 @@ public partial class InformationMapView : Control
                 Service.Hit(asset,(int)Math.Floor(local.X),(int)Math.Floor(local.Y))) return area.TargetId;
         return null;
     }
+    public void RefreshData()
+    {
+        _markers = AdministrativeMap.Markers(Session.View, Category, Candidates);
+        UpdateSummary(Target(GetLocalMousePosition()));
+    }
     private void Hover(int? id)
     {
-        if(_hovered==id)return;_hovered=id;
+        if (_hovered == id) return;
+        UpdateSummary(id);
+    }
+    private void UpdateSummary(int? id)
+    {
+        _hovered = id;
         if(id is int selected)_fields=AdministrativeMap.Summary(Session.View,Texts,new(Category,selected));
         for(int i=0;i<_values.Count;i++)_values[i].Text=id is null?"":_fields[i].Value;
         QueueRedraw();
     }
     public override void _GuiInput(InputEvent input)
     {
+        AcceptEvent();
         if(input is InputEventMouseMotion motion)Hover(Target(motion.Position));
         if(input is InputEventMouseButton {ButtonIndex:MouseButton.Left} click)
         {
@@ -82,11 +94,10 @@ public partial class InformationMapView : Control
             else
             {
                 var pressed = _pressedTarget; _pressedTarget = null;
-                if (target is int id && pressed == id) Activated(id);
+                if (target is int id && pressed == id) { Activated(id); return; }
             }
             QueueRedraw();
         }
-        AcceptEvent();
     }
     public override void _Process(double delta) => Hover(Target(GetLocalMousePosition()));
     public override void _Input(InputEvent input)
@@ -96,9 +107,7 @@ public partial class InformationMapView : Control
     }
     private void Tile(string role,Rect2 r)
     {
-        var t=Textures[role];
-        for(float y=0;y<r.Size.Y;y+=t.GetHeight())for(float x=0;x<r.Size.X;x+=t.GetWidth())
-        {var s=new Vector2(Math.Min(t.GetWidth(),r.Size.X-x),Math.Min(t.GetHeight(),r.Size.Y-y));DrawTextureRectRegion(t,new(r.Position+new Vector2(x,y),s),new(Vector2.Zero,s));}
+        SkinPainter.Tile(this, Textures[role], r);
     }
     private void Strip(string role,Vector2 point,float width)
     {
@@ -123,7 +132,7 @@ public partial class InformationMapView : Control
         {
             int color=marker.OwnerId is int owner?forces[owner].ColorCode:50;
             string role=$"overview-city-{marker.CityId}";
-            if(Textures.ContainsKey(role))
+            if(Textures.Assets.ContainsKey(role))
             {
                 var tint = new Color(Skin.Colors[$"overview-force-{color}"]);
                 if (marker.TargetId is int target && _hovered == target) tint = tint.Lerp(Colors.White,.45f);

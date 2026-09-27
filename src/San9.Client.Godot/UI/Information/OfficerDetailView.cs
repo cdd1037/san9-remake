@@ -5,14 +5,14 @@ using San9.Content.Text;
 namespace San9.Client.Godot;
 
 /// <summary>Officer browser presentation; navigation and selected identity are owned by the application state.</summary>
-public partial class OfficerDetailView : Control
+public partial class OfficerDetailView : Control, IInformationPage
 {
     public OfficerDetailState State { get; init; } = null!;
     public Func<int, OfficerDetailData> Read { get; init; } = null!;
     public Func<int, string> ReadName { get; init; } = null!;
     public Action<int> OpenTreasures { get; init; } = null!;
     public TextureService Service { get; init; } = null!;
-    public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;
+    public TextureScope Textures { get; init; } = null!;
     public TextCatalog Texts { get; init; } = null!;
     public Action<int> CurrentChanged { get; init; } = null!;
     public Action Closed { get; init; } = null!;
@@ -60,6 +60,7 @@ public partial class OfficerDetailView : Control
     }
 
     private void ClearNameFocus() { State.ClearFocus(); RefreshNames(); }
+    public void RefreshData() { _scroll.Range.MaxValue = Math.Max(OfficerDetailState.VisibleRows, State.Candidates.Length); RefreshNames(); RefreshBody(); }
     private void Activate(int id) { State.Activate(id); CurrentChanged(id); RefreshNames(); RefreshBody(); }
     private void SelectPage(OfficerDetailPage page) { State.SelectPage(page); RefreshBody(); }
     private DetailActionButton Action(string title, string role, Vector2 position, Vector2 size, Action action, Control? parent = null, string? hint = null)
@@ -200,26 +201,15 @@ public partial class OfficerDetailView : Control
     }
     private void Tile(string role,Rect2 rect)
     {
-        var texture=Textures["detail-"+role];
-        for(float y=0;y<rect.Size.Y;y+=texture.GetHeight())
-        for(float x=0;x<rect.Size.X;x+=texture.GetWidth())
-        {var size=new Vector2(Math.Min(texture.GetWidth(),rect.Size.X-x),Math.Min(texture.GetHeight(),rect.Size.Y-y));DrawTextureRectRegion(texture,new(rect.Position+new Vector2(x,y),size),new(Vector2.Zero,size));}
+        new DetailSkinPainter(this, Textures).Tile(role, rect);
     }
     private void Strip(string role,Rect2 rect)
     {
-        var left=Textures["detail-"+role+"-left"];var right=Textures["detail-"+role+"-right"];
-        Tile(role+"-middle",new(rect.Position+new Vector2(left.GetWidth(),0),new(rect.Size.X-left.GetWidth()-right.GetWidth(),rect.Size.Y)));
-        DrawTexture(left,rect.Position);DrawTexture(right,new(rect.End.X-right.GetWidth(),rect.Position.Y));
+        new DetailSkinPainter(this, Textures).Strip(role, rect);
     }
     private void Panel(Rect2 r)
     {
-        Tile("panel-center",r);
-        Tile("panel-top",new(r.Position+new Vector2(20,0),new(r.Size.X-40,20)));
-        Tile("panel-bottom",new(r.Position+new Vector2(20,r.Size.Y-20),new(r.Size.X-40,20)));
-        Tile("panel-left",new(r.Position+new Vector2(0,20),new(20,r.Size.Y-40)));
-        Tile("panel-right",new(r.Position+new Vector2(r.Size.X-20,20),new(20,r.Size.Y-40)));
-        DrawTexture(Textures["detail-panel-top-left"],r.Position);DrawTexture(Textures["detail-panel-top-right"],new(r.End.X-20,r.Position.Y));
-        DrawTexture(Textures["detail-panel-bottom-left"],new(r.Position.X,r.End.Y-20));DrawTexture(Textures["detail-panel-bottom-right"],r.End-new Vector2(20,20));
+        new DetailSkinPainter(this, Textures).Panel(r);
     }
     public override void _Draw()
     {
@@ -258,7 +248,7 @@ public partial class DetailActionButton : BaseButton
     public string? HintRole {get;set;}
     public string Title {get;init;}="";
     public string Role {get;init;}="";
-    public IReadOnlyDictionary<string,Texture2D> Textures {get;init;}=null!;
+    public TextureScope Textures {get;init;}=null!;
     public bool Selected {get;set;}
     private readonly GameTextPresenter _text=new();
     private Label _label=null!;
@@ -274,7 +264,13 @@ public partial class DetailActionButton : BaseButton
         _text.Apply(_label, GameTextStyles.Button(Role == "treasure" ? GameButtonTextRole.Facilities : GameButtonTextRole.MapMode,
             IsHovered(), pressed, Disabled) with { FontSize = 20 });
     }
-    public override void _Process(double delta){RefreshText();QueueRedraw();}
+    private (bool Disabled, bool Selected, bool Pressed, bool Hovered)? _visual;
+    public override void _Process(double delta)
+    {
+        var state = (Disabled, Selected, ButtonPressed, IsHovered());
+        if (_visual == state) return;
+        _visual = state; RefreshText(); QueueRedraw();
+    }
     public override void _Draw()
     {
         int frame=Disabled?3:Selected||ButtonPressed?2:IsHovered()?1:0;
@@ -286,15 +282,20 @@ public partial class DetailActionButton : BaseButton
 
 public partial class DetailNameButton : BaseButton
 {
-    public IReadOnlyDictionary<string,Texture2D> Textures {get;init;}=null!;
+    public TextureScope Textures {get;init;}=null!;
     private readonly GameTextPresenter _text=new();private Label _label=null!;private bool _focused;
     public override void _Ready()
     {FocusMode=FocusModeEnum.None;_label=new Label {Size=Size,MouseFilter=MouseFilterEnum.Ignore,ClipText=true};AddChild(_label);_text.Apply(_label,GameTextStyles.CatalogRow);}
-    public void Bind(string name,bool focused){_label.Text=name;_focused=focused;QueueRedraw();}
-    public override void _Process(double delta)=>QueueRedraw();
+    public void Bind(string name,bool focused) { if (_label.Text == name && _focused == focused) return; _label.Text=name;_focused=focused;QueueRedraw(); }
+    private bool _pressed;
+    public override void _Process(double delta)
+    {
+        if (_pressed == ButtonPressed) return;
+        _pressed = ButtonPressed; _label.Position = _pressed ? new(2,2) : Vector2.Zero; QueueRedraw();
+    }
     public override void _Draw()
     {
-        int frame=ButtonPressed?2:_focused?1:0;_label.Position=ButtonPressed?new(2,2):Vector2.Zero;
+        int frame=ButtonPressed?2:_focused?1:0;
         string suffix=frame==0?"":$"-{frame}";
         DrawTexture(Textures["roster-row-left"+suffix],Vector2.Zero);
         var middle = Textures["roster-row-middle" + suffix];

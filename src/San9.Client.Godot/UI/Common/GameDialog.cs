@@ -5,7 +5,7 @@ namespace San9.Client.Godot;
 /// <summary>Reusable modal message/confirmation dialog. Its caller owns the outcome.</summary>
 public partial class GameDialog : Control
 {
-    public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;
+    public TextureScope Textures { get; init; } = null!;
     public event Action? Confirmed;
     public event Action? Dismissed;
     public event Action? Closed;
@@ -162,8 +162,8 @@ public partial class GameDialog : Control
         if (!IsVisibleInTree() || _content?.Notice != true) return;
         if (@event is InputEventKey { Pressed: true, Echo: false, Keycode: Key.Escape or Key.Enter or Key.KpEnter })
         {
-            Closed?.Invoke();
             GetViewport().SetInputAsHandled();
+            Closed?.Invoke();
         }
     }
     public override void _ExitTree() { _ready = false; _style?.Dispose(); }

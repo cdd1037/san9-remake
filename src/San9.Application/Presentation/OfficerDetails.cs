@@ -19,6 +19,14 @@ public sealed class OfficerDetailState
         Candidates = ids; CurrentId = current; FocusedId = null; Page = OfficerDetailPage.Status;
         Scroll(Array.IndexOf(ids, current));
     }
+    public void Refresh(IEnumerable<int> candidates)
+    {
+        var available = candidates.ToHashSet();
+        Candidates = Candidates.Where(available.Contains).Concat(available.Except(Candidates)).ToArray();
+        if (!available.Contains(CurrentId) && Candidates.Length > 0) CurrentId = Candidates[0];
+        if (FocusedId is int focused && !available.Contains(focused)) FocusedId = null;
+        Scroll(Offset);
+    }
     public void PointAt(int id)
     {
         if (!Candidates.Contains(id)) throw new ArgumentOutOfRangeException(nameof(id));

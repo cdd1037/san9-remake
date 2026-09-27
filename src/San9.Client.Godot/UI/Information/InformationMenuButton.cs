@@ -14,7 +14,7 @@ public partial class InformationMenuButton : BaseButton
     }
     public string HintText { get; init; } = "";
     public Func<bool, bool, bool, GameTextStyle> TextStyle { get; init; } = GameTextStyles.InformationMenu;
-    public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;
+    public TextureScope Textures { get; init; } = null!;
     private readonly GameTextPresenter _text = new();
     private Label _label = null!;
     private (bool Hovered, bool Pressed, bool Disabled)? _state;

@@ -4,13 +4,13 @@ using San9.Content.Text;
 
 namespace San9.Client.Godot;
 
-public partial class TreasureDetailView : Control
+public partial class TreasureDetailView : Control, IInformationPage
 {
     public DetailSelectionState State { get; init; } = null!;
     public Func<int, TreasureDetailData> Read { get; init; } = null!;
     public Func<int, string> ReadName { get; init; } = null!;
     public TextureService Service { get; init; } = null!;
-    public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;
+    public TextureScope Textures { get; init; } = null!;
     public Action<int> CurrentChanged { get; init; } = null!;
     public Action Closed { get; init; } = null!;
     public TextCatalog Texts { get; init; } = null!;
@@ -65,6 +65,7 @@ public partial class TreasureDetailView : Control
     }
     private void SetHint(string role) => _message.SetMessage(Texts.ResolveRich(StrategyHintText.Key(role)), true);
     private void ClearNameFocus() { State.ClearFocus(); RefreshNames(); }
+    public void RefreshData() { _scroll.Range.MaxValue = Math.Max(DetailSelectionState.VisibleRows, State.Candidates.Count); RefreshNames(); RefreshBody(); }
     private void Activate(int id) { State.Activate(id); CurrentChanged(id); RefreshNames(); RefreshBody(); }
     private void RefreshNames()
     {
@@ -114,26 +115,15 @@ public partial class TreasureDetailView : Control
     }
     private void Tile(string role,Rect2 rect)
     {
-        var texture=Textures["detail-"+role];
-        for(float y=0;y<rect.Size.Y;y+=texture.GetHeight())
-        for(float x=0;x<rect.Size.X;x+=texture.GetWidth())
-        {var size=new Vector2(Math.Min(texture.GetWidth(),rect.Size.X-x),Math.Min(texture.GetHeight(),rect.Size.Y-y));DrawTextureRectRegion(texture,new(rect.Position+new Vector2(x,y),size),new(Vector2.Zero,size));}
+        new DetailSkinPainter(this, Textures).Tile(role, rect);
     }
     private void Strip(string role,Rect2 rect)
     {
-        var left=Textures["detail-"+role+"-left"];var right=Textures["detail-"+role+"-right"];
-        Tile(role+"-middle",new(rect.Position+new Vector2(left.GetWidth(),0),new(rect.Size.X-left.GetWidth()-right.GetWidth(),rect.Size.Y)));
-        DrawTexture(left,rect.Position);DrawTexture(right,new(rect.End.X-right.GetWidth(),rect.Position.Y));
+        new DetailSkinPainter(this, Textures).Strip(role, rect);
     }
     private void Panel(Rect2 r)
     {
-        Tile("panel-center",r);
-        Tile("panel-top",new(r.Position+new Vector2(20,0),new(r.Size.X-40,20)));
-        Tile("panel-bottom",new(r.Position+new Vector2(20,r.Size.Y-20),new(r.Size.X-40,20)));
-        Tile("panel-left",new(r.Position+new Vector2(0,20),new(20,r.Size.Y-40)));
-        Tile("panel-right",new(r.Position+new Vector2(r.Size.X-20,20),new(20,r.Size.Y-40)));
-        DrawTexture(Textures["detail-panel-top-left"],r.Position);DrawTexture(Textures["detail-panel-top-right"],new(r.End.X-20,r.Position.Y));
-        DrawTexture(Textures["detail-panel-bottom-left"],new(r.Position.X,r.End.Y-20));DrawTexture(Textures["detail-panel-bottom-right"],r.End-new Vector2(20,20));
+        new DetailSkinPainter(this, Textures).Panel(r);
     }
     public override void _Draw()
     {

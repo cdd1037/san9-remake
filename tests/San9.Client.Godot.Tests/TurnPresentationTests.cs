@@ -56,8 +56,8 @@ public sealed class TurnPresentationTests
     [Fact]
     public void StartedVolleyFinishesDuringPauseAndDoesNotRestartOnResume()
     {
-        var turn=new TurnPresentation(Session()); Enter(turn); turn.Update(.4);
-        var day=turn.Day!; day.RequireDuration(3);
+        var turn=new TurnPresentation(Session()) { CreateDay = (before, after, events) => new(before, after, events, duration: 3) }; Enter(turn); turn.Update(.4);
+        var day=turn.Day!;
         var attack=new San9.Rendering.MapAttackMotion(1,false,2,false,0,0,100,0,1,
             San9.Rendering.UnitVisualAction.Ranged,San9.Content.Maps.MapProjectileKind.Arrow);
         var art=new San9.Content.Maps.MapProjectile(["arrow"],64,false,0,0);
@@ -74,8 +74,8 @@ public sealed class TurnPresentationTests
     [Fact]
     public void PauseRunsVisualLifetimesWithoutAdvancingOrStartingFutureCombat()
     {
-        var turn = new TurnPresentation(Session()); Enter(turn); turn.Update(.36);
-        var day = turn.Day!; day.RequireDuration(2.8);
+        var turn = new TurnPresentation(Session()) { CreateDay = (before, after, events) => new(before, after, events, duration: 2.8) }; Enter(turn); turn.Update(.36);
+        var day = turn.Day!;
         turn.TogglePause(); turn.Update(2);
         Assert.Equal(.36,day.Elapsed,8);
         Assert.Equal(2.36,day.VisualElapsed,8);
@@ -203,5 +203,41 @@ public sealed class TurnPresentationTests
         Ready(turn); turn.Update(0.002);
         Assert.Equal(TurnScreen.Playing, turn.Screen);
         Assert.Equal(1, session.NextOperationSequence);
+    }
+
+    [Fact]
+    public void PreparationRunsOnceAcrossResourceWaitAndRetryCannotPublishAnUnseenDay()
+    {
+        var session = Session();
+        int preparations = 0;
+        bool fail = true;
+        var turn = new TurnPresentation(session)
+        {
+            CanPlayDay = () => false,
+            CreateDay = (before, after, events) =>
+            {
+                preparations++;
+                if (fail) throw new InvalidOperationException("Controlled presentation failure");
+                return new(before, after, events, duration: 3);
+            }
+        };
+        Enter(turn);
+        long day = session.Snapshot.Clock.DayNumber;
+        turn.Update(.1);
+        Assert.Equal(TurnScreen.Failed, turn.Screen);
+        Assert.Equal(day, session.Snapshot.Clock.DayNumber);
+        Assert.False(turn.CanCancelFailure);
+        fail = false; turn.Confirm(); turn.Update(10);
+        Assert.Equal(2, preparations);
+        var prepared = turn.Day;
+        turn.Update(10);
+        Assert.Same(prepared, turn.Day);
+        Assert.Equal(2, preparations);
+        Assert.Equal(0, turn.Day!.Elapsed);
+        turn.CanPlayDay = () => true;
+        turn.Update(.5);
+        Assert.Equal(.5, turn.Day.Elapsed);
+        Assert.Equal(3, turn.Day.Duration);
+        Assert.Equal(day, session.Snapshot.Clock.DayNumber);
     }
 }

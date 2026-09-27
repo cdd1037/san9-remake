@@ -25,12 +25,14 @@ public partial class StrategyHud : Control
     private Label _footerCity = null!;
     private readonly List<Label> _regionLabels = [];
     private bool _regionVisible;
+    private (bool Strategy, bool Targeting, bool Command, bool Region)? _drawState;
     private Vector2? _hoverPosition;
     private StrategyRosterList _rosterList = null!;
     private PopupMenu _contextMenu = null!;
     private MapContextPopup _mapContext = null!;
     private MapCommandPopup _commandMenu = null!;
-    private DeploymentView? _deployment;
+    public StrategyOverlayHost OverlayHost { get; init; } = null!;
+    public Node BackdropHost { get; init; } = null!;
     private MapObjectTarget? _commandTarget;
     private StrategyMinimap? _minimap;
     public StrategyOverview Overview { get; } = new();
@@ -48,6 +50,9 @@ public partial class StrategyHud : Control
     public override void _Ready()
     {
         _textures = Textures.CreateScope(owner: this);
+        _textures.RequestPrefixes("button-", "top-", "radar-", "sidebar-", "ruler-", "field-", "region-",
+            "season-", "turn-", "target-", "hover-", "icon-", "minimap-",
+            "roster-", "scroll-", "message-", "dialog-", "command-", "information-menu-");
         Name = "StrategyHud"; Size = new(1024, 768); MouseFilter = MouseFilterEnum.Stop;
         World.MapReady += Build;
         GetWindow().MouseExited += ClearHover;
@@ -73,7 +78,11 @@ public partial class StrategyHud : Control
     private void Build()
     {
         if (_built) return;
-        Turn = new(Session) { CanPlayDay = () => ReferenceEquals(World.Day, Turn.Day) && World.IsDayReady };
+        Turn = new(Session)
+        {
+            CanPlayDay = () => ReferenceEquals(World.Day, Turn.Day) && World.IsDayReady,
+            CreateDay = (before, after, events) => new(before, after, events, new MapDayPlan(World.Package!, before, events))
+        };
         var p = Scenario;
         _frames.Add(("top-frame", Vector2.Zero));
         _frames.Add(("radar-frame", new(624, 0)));
@@ -121,14 +130,13 @@ public partial class StrategyHud : Control
         _rosterList.Refresh(Scenario);
         _overviewPanel = new StrategyOverviewPanel { State = Overview, World = World, Session = Session,
             Skin = Skin, Texts = Texts, Service = Textures, Visible = false };
-        GetParent().AddChild(_overviewPanel);
-        GetParent().MoveChild(_overviewPanel, GetIndex());
+        BackdropHost.AddChild(_overviewPanel);
         Information = new InformationPanel { Session = Session, Texts = Texts, Service = Textures, World = World, Skin = Skin, Locate = id => { Overview.Close(); World.FocusBuilding(id); } };
-        GetParent().AddChild(Information);
+        OverlayHost.AddChild(Information);
         _mapContext = new MapContextPopup { Textures = _textures, Activated = OpenMapContextEntry };
-        GetParent().AddChild(_mapContext);
+        OverlayHost.AddChild(_mapContext);
         _commandMenu = new MapCommandPopup { Textures = _textures, Texts = Texts, Activated = ActivateCommand };
-        GetParent().AddChild(_commandMenu);
+        OverlayHost.AddChild(_commandMenu);
         World.BuildingContextRequested += ShowSettlementContext;
         World.UnitContextRequested += ShowUnitContext;
         World.CommandMenuRequested += ShowCommandMenu;
@@ -189,11 +197,11 @@ public partial class StrategyHud : Control
         return button;
     }
 
-    private bool IsMapInteractionBlocked => !_built || Turn is { CanBrowseMap: false } ||
-        Information?.State.IsOpen == true || _mapContext?.Visible == true ||
-        _commandMenu?.Visible == true || _deployment?.Visible == true || _deploymentPolicy is not null || _targetCatalog is not null || _contextMenu?.Visible == true || _notice?.Visible == true;
-
-    public bool CanNavigateMap => !IsMapInteractionBlocked && !Overview.IsOpen;
+    private StrategyInteraction Interaction => StrategyInteraction.Resolve(_built, Turn?.Screen,
+        Turn?.CanAdvance == true, _flow?.Stage ?? DeploymentStage.None, Overview.IsOpen,
+        OverlayHost.IsInsideTree() && OverlayHost.HasModal || _contextMenu?.Visible == true || _notice?.Visible == true);
+    private bool IsMapInteractionBlocked => !Interaction.CanUseMap;
+    public bool CanNavigateMap => Interaction.CanNavigate;
 
     // Navigation passes through passive artwork; object clicks retain the artwork hit masks.
     public bool IsNavigationBlocked(Vector2 point) => !CanNavigateMap || IsInteractivePoint(point);
@@ -250,21 +258,10 @@ public partial class StrategyHud : Control
     {
         if (command != "sortie" || _commandTarget is not { IsUnit: false } target || !CanIssueOrders) return;
         _commandMenu.Close();
-        var view = Session.View;
-        if (DeploymentDraft.UnavailableReason(view, target.Id) is string reason)
-        { _notice.SetNotice(reason); _notice.Show(); return; }
-        _deployment = new DeploymentView
-        {
-            Draft = new(view, target.Id),
-            Session = Session,
-            Texts = Texts,
-            Textures = _textures,
-            Service = Textures,
-            Proceed = BeginTargetSelection,
-            Closed = CloseDeployment
-        };
-        GetParent().AddChild(_deployment);
+        Overview.Close();
+        _flow.Open(target.Id);
     }
+
     private void ShowUnitContext(int id, Vector2 point)
     {
         if (!CanIssueOrders) return;
@@ -396,30 +393,24 @@ public partial class StrategyHud : Control
         }
         if (_built)
         {
-            _minimap!.SetCommandSource(_commandMenu!.Visible || _deployment is not null ? _commandTarget : null);
-            bool sidebarVisible = Turn.IsStrategy && !_commandMenu!.Visible && _targets is null;
+            _minimap!.SetCommandSource(_flow.Source ?? (_commandMenu!.Visible ? _commandTarget : null));
+            bool sidebarVisible = Interaction.ShowSidebar && !_commandMenu!.Visible;
             _rosterList.Visible = sidebarVisible;
             foreach (var button in GetChildren().OfType<StrategyButton>().Where(b => b.Position.Y >= 208 && !_targetButtons.Contains(b))) button.Visible = sidebarVisible;
         }
         UpdateHover(_hoverPosition ?? GetGlobalMousePosition());
         UpdateMessage();
         _large?.SetPressedNoSignal(!Overview.IsOpen); _small?.SetPressedNoSignal(Overview.IsOpen);
-        if (_territory is not null) _territory.Disabled = Overview.IsOpen || !(CanIssueOrders || _targets is not null || Turn.Screen == TurnScreen.Playing);
+        if (_territory is not null) _territory.Disabled = !Interaction.CanToggleBoundaries;
         _territory?.SetPressedNoSignal(World.ShowBoundaries);
-        QueueRedraw();
+        var drawState = (Turn?.IsStrategy == true, _targets is not null, _commandMenu?.Visible == true, _regionVisible);
+        if (_drawState != drawState) { _drawState = drawState; QueueRedraw(); }
     }
     private void Strip(string role, Vector2 position, int width)
     {
-        var left = _textures[role + "-left"]; var middle = _textures[role + "-middle"]; var right = _textures[role + "-right"];
-        var color = Colors.White;
-        DrawTexture(left, position, color);
-        int start = left.GetWidth(), end = width - right.GetWidth();
-        for (int x = start; x < end; x += middle.GetWidth())
-        {
-            int w = Math.Min(middle.GetWidth(), end - x);
-            DrawTextureRectRegion(middle, new(position + new Vector2(x, 0), new Vector2(w, middle.GetHeight())), new(0, 0, w, middle.GetHeight()), color);
-        }
-        DrawTexture(right, position + new Vector2(end, 0), color);
+        var left = _textures[role + "-left"];
+        SkinPainter.Strip(this, left, _textures[role + "-middle"], _textures[role + "-right"],
+            new(position, new(width, left.GetHeight())));
     }
     public override void _Draw()
     {

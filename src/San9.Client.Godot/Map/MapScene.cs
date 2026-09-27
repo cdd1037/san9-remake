@@ -6,7 +6,7 @@ using San9.Rendering;
 
 namespace San9.Client.Godot;
 
-// Immutable display snapshot shared by all cameras. Visible sets never own world state.
+// Display inputs shared by cameras; sampling caches and the playback clock are explicit dependencies.
 internal sealed partial class MapScene
 {
     public MapPackage Map { get; }
@@ -28,12 +28,12 @@ internal sealed partial class MapScene
     }
     public IReadOnlyDictionary<string, MapAnimationClip> Clips { get; }
     public IReadOnlySet<string> HighlightableBuildingAssets { get; }
-    private readonly TextureService _textures;
+    private readonly IReadOnlyDictionary<string, San9.Content.Images.ImageAsset> _assets;
     private readonly Dictionary<(int X, int Y), int[]> _waterBuckets;
 
-    public MapScene(MapPackage map, TerrainRenderer terrain, string season, StrategySnapshot state, TextureService textures, Func<double> positionTime, MapScene? previous = null, TurnDayPresentation? day = null)
+    public MapScene(MapPackage map, TerrainRenderer terrain, string season, StrategySnapshot state, IReadOnlyDictionary<string, San9.Content.Images.ImageAsset> assets, Func<double> positionTime, MapScene? previous = null, TurnDayPresentation? day = null)
     {
-        Map = map; Terrain = terrain; Season = season; State = state; _textures = textures; _positionTime = positionTime;
+        Map = map; Terrain = terrain; Season = season; State = state; _assets = assets; _positionTime = positionTime;
         Settlements = state.Settlements.ToDictionary(s => s.Id);
         Clips = previous is not null && ReferenceEquals(previous.Terrain, terrain) ? previous.Clips : map.Animations.Clips.ToDictionary(c => c.Id);
         if (previous is not null && ReferenceEquals(previous.Terrain, terrain)) _waterBuckets = previous._waterBuckets;
@@ -48,67 +48,32 @@ internal sealed partial class MapScene
                 }
             _waterBuckets = buckets.ToDictionary(p => p.Key, p => p.Value.ToArray());
         }
-        var forces = state.Forces.ToDictionary(f => f.Id);
-        var buildingStates = state.Settlements.Select(s =>
-        {
-            var force = s.OwnerId is int owner ? forces[owner] : null;
-            return new BuildingVisualState(s.Id, s.Durability, s.Appearance, Math.Max(s.Commerce, s.Cultivation),
-                s.Soldiers, force?.ColorCode ?? 50, force?.FlagGlyph ?? -1)
-            {
-                IsDestroyed = s.IsDestroyed, Placement = s.FacilityTypeId is int type ? new(s.Id, s.X, s.Y, type) : null,
-                IsEngaged = state.IsSettlementEngaged(s.Id), IsUnderConstruction = s.IsUnderConstruction,
-                Morale = s.Morale, Month = state.Month
-            };
-        }).ToArray();
-        var visuals = BuildingVisuals.Resolve(map, buildingStates);
+        var projection = MapSceneProjection.Create(state, map);
+        var buildingStates = projection.BuildingStates;
         if (day is not null)
         {
             _combatBuildingAnimations = BuildingVisuals.Resolve(map, buildingStates.Select(s => s with
                 { IsEngaged = day.After.IsSettlementEngaged(s.Id) }).ToArray())
                 .Animations.GroupBy(s => s.BuildingId).ToDictionary(g => g.Key, g => g.ToArray());
         }
-        var unitPositions = state.World.Units.ToDictionary(u => u.Id, u => u.Position);
-        _unitStates = state.World.Units.Where(u => !u.IsEmbedded && !u.IsPersonnel && u.FormationId is not null && u.Soldiers > 0)
-            .Select(u =>
-            {
-                var order = u.EffectiveOrder;
-                WorldPosition? target = u.EngagementTargetId is null && u.Waypoint is { } via ? via :
-                    order?.UnitId is int targetId && unitPositions.TryGetValue(targetId, out var position) ? position :
-                    order?.Position ?? (order?.SettlementId is int place ?
-                        state.Settlements.FirstOrDefault(s => s.Id == place) is {} destination ? MapCoordinates.Center(new(destination.X, destination.Y)) : null : null);
-                var commander = u.CommanderId is int commanderId ? state.Officers.FirstOrDefault(o => o.Id == commanderId) : null;
-                var force = forces[u.OwnerId];
-                return new UnitVisualState(u.Id,
-                    (u.Position.X - MapCoordinates.UnitsPerCell / 2) / (double)MapCoordinates.UnitsPerCell,
-                    (u.Position.Y - MapCoordinates.UnitsPerCell / 2) / (double)MapCoordinates.UnitsPerCell,
-                    map.Squares[u.Cell.Y * map.Width + u.Cell.X].Elevation, u.Soldiers, state.FormationId(u)!.Value,
-                    u.Condition, UnitVisuals.Direction(u.Position, target),
-                    u.EffectiveOrderClass == UnitOrderClass.Military && state.HasCityInfluence(u.OwnerId, u.Position),
-                    force.ColorCode, commander?.FlagGlyph ?? -1)
-                {
-                    IsEngaged = state.IsUnitEngaged(u.Id),
-                    VisionAngleDegrees = state.Information.Formations.Single(f => f.Id == state.FormationId(u)).Presentation?.VisionAngleDegrees ?? 0,
-                    Morale = u.Morale, CommanderNameKey = commander?.NameKey,
-                    IsRulerCommander = u.CommanderId is int leader && force.LeaderId == leader,
-                    UsesImperialAppearance = force.UsesImperialAppearance
-                };
-            }).ToDictionary(u => u.Id);
+        _unitStates = projection.Units;
         Units = _unitStates.Values.Select(s => UnitVisuals.Resolve(s, map.Units, Clips, elevationAt: ElevationAt)).ToArray();
-        Buildings = visuals.Buildings;
+        Buildings = projection.Buildings;
         Occluders = Buildings.Select(b => (Building: b, Area: state.SettlementGeographicArea(b.Id)))
             .Where(p => p.Area is not null).Select(p => UnitOccluder.FromGeographicArea(p.Area!.Value,
                 p.Building.FixedType is 0 or 2 or 3 or 4 or 5 ? 2 : 1, p.Building.FixedType == 0)).ToArray();
         var compositions = map.Compositions.ToDictionary(c => c.Id);
         HighlightableBuildingAssets = Buildings.SelectMany(b => b.Sprites.Zip(compositions[b.CompositionId].Parts)
             .Where(p => !p.Second.PaletteAlpha).Select(p => p.First.AssetId)).ToHashSet();
-        Animations = visuals.Animations.GroupBy(s => s.BuildingId).ToDictionary(g => g.Key, g => g.ToArray());
+        Animations = projection.Animations.GroupBy(s => s.BuildingId).ToDictionary(g => g.Key, g => g.ToArray());
         Day = day;
-        PrepareDay();
+        _motions = day?.Plan?.Motions ?? new();
+        _attacks = day?.Plan?.Attacks ?? [];
         PrepareHistory(previous);
     }
     public Rect2 Bounds(MapSprite sprite)
     {
-        var asset = _textures.MapAssets[sprite.AssetId];
+        var asset = _assets[sprite.AssetId];
         return new(sprite.X, sprite.Y, asset.Width, asset.Height);
     }
     public IEnumerable<string> Frames(MapAnimatedSprite sprite) => Clips[sprite.ClipId].SeasonFrames.GetValueOrDefault(Season, Clips[sprite.ClipId].Frames);
@@ -116,7 +81,7 @@ internal sealed partial class MapScene
     {
         var size = Vector2.Zero;
         foreach (string id in Frames(sprite))
-        { var asset = _textures.MapAssets[id]; size = size.Max(new Vector2(asset.Width, asset.Height)); }
+        { var asset = _assets[id]; size = size.Max(new Vector2(asset.Width, asset.Height)); }
         return new(new(sprite.X, sprite.Y), size);
     }
     public Vector2 Anchor(MapBuilding building)

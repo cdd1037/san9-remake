@@ -13,7 +13,7 @@ public partial class DeploymentView : Control
     public GameSession Session { get; init; } = null!;
     public TextCatalog Texts { get; init; } = null!;
     public TextureService Service { get; init; } = null!;
-    public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;
+    public TextureScope Textures { get; init; } = null!;
     public Action Closed { get; init; } = null!;
     public Action Proceed { get; init; } = null!;
     private Control? _body, _child;

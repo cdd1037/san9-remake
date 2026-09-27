@@ -9,7 +9,7 @@ public partial class GameRichTextLabel : RichTextLabel
     private static readonly Regex Images = new(@"\[font_size=(?<size>\d+)\]|(?<end>\[/font_size\])|\[img(?<options>[^\]]*)\]icons/(?<id>[a-z0-9-]+)\[/img\]", RegexOptions.CultureInvariant);
     private string _markup = "";
     public string Markup => _markup;
-    public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;
+    public TextureScope Textures { get; init; } = null!;
     public GameTextStyle Style { get; private set; }
 
     public GameRichTextLabel()
@@ -50,11 +50,13 @@ public partial class GameRichTextLabel : RichTextLabel
             if (match.Groups["end"].Success) { if (sizes.Count > 1) sizes.Pop(); return match.Value; }
             int size = sizes.Peek();
             string prefix = "text-icon-" + match.Groups["id"].Value + "-";
-            var candidates = Textures.Keys.Where(key => key.StartsWith(prefix, StringComparison.Ordinal))
-                .Select(p => (Texture: Textures[p], Size: int.Parse(p[prefix.Length..])))
+            var candidates = Textures.Assets.Keys.Where(key => key.StartsWith(prefix, StringComparison.Ordinal))
+                .Select(p => (Role: p, Size: int.Parse(p[prefix.Length..])))
                 .OrderBy(p => Math.Abs(p.Size - size)).ThenByDescending(p => p.Size).ToArray();
             if (candidates.Length == 0) throw new InvalidDataException($"Missing text icon: {match.Groups["id"].Value}");
-            var texture = candidates[0].Texture;
+            string role = candidates[0].Role;
+            Textures.Request([role]);
+            var texture = Textures[role];
             // A cached resource name, not a disk file. Ownership remains with the loaded skin textures.
             string path = $"res://message-images/{texture.GetInstanceId()}.tres";
             if (texture.ResourcePath != path) texture.TakeOverPath(path);

@@ -1,4 +1,3 @@
-using System.Collections;
 using Godot;
 using San9.Content.Images;
 using San9.Rendering;
@@ -6,7 +5,7 @@ using San9.Rendering;
 namespace San9.Client.Godot;
 
 public sealed class TextureScope(TextureService service, IReadOnlyDictionary<string, ImageAsset> assets, bool prefetch = false)
-    : IReadOnlyDictionary<string, Texture2D>, IDisposable
+    : IDisposable
 {
     private sealed record Binding(ImageAsset Asset, AtlasTexture View, TextureCache<ImageTexture>.Lease Lease)
     { public bool Installed; public bool Reported; }
@@ -17,19 +16,28 @@ public sealed class TextureScope(TextureService service, IReadOnlyDictionary<str
     public TextureService Service => service;
     public bool IsReady => _bindings.Values.All(b => b.Installed);
     public Exception? Error => _bindings.Values.Select(b => b.Lease.Error).FirstOrDefault(e => e is not null);
+    public IReadOnlyDictionary<string, ImageAsset> Assets => assets;
+    public int BindingCount => _bindings.Count;
     public Texture2D this[string key]
     {
         get
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            if (_bindings.TryGetValue(key, out var existing)) return existing.View;
-            var asset = assets[key];
-            // Region preserves layout dimensions; an unbound atlas draws nothing while loading.
-            var view = new AtlasTexture { Region = new(asset.X, asset.Y, asset.Width, asset.Height), FilterClip = true };
-            var binding = new Binding(asset, view, service.Cache.Acquire([asset.File], prefetch));
-            _bindings.Add(key, binding); Refresh(binding); return view;
+            return _bindings.TryGetValue(key, out var binding) ? binding.View :
+                throw new InvalidOperationException($"Texture '{key}' must be requested before binding or drawing.");
         }
     }
+    private void Request(string key)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (_bindings.ContainsKey(key)) return;
+        var asset = assets[key];
+        var view = new AtlasTexture { Region = new(asset.X, asset.Y, asset.Width, asset.Height), FilterClip = true };
+        var binding = new Binding(asset, view, service.Cache.Acquire([asset.File], prefetch));
+        _bindings.Add(key, binding); Refresh(binding);
+    }
+    public void RequestPrefixes(params string[] prefixes) => Request(assets.Keys.Where(key =>
+        !TextureGroups.IsPortrait(key) && prefixes.Any(prefix => key.StartsWith(prefix, StringComparison.Ordinal))));
     public bool AreReady(IEnumerable<string> keys) => keys.All(k => _bindings.TryGetValue(k, out var b) && b.Installed);
     public Exception? ErrorFor(IEnumerable<string> keys) => keys.Select(k => _bindings.GetValueOrDefault(k)?.Lease.Error).FirstOrDefault(e => e is not null);
     public bool TryGetReady(string key, out Texture2D texture)
@@ -41,9 +49,9 @@ public sealed class TextureScope(TextureService service, IReadOnlyDictionary<str
     public void RequestCached(IEnumerable<string> keys)
     {
         foreach (string key in keys)
-            if (service.Cache.Contains(assets[key].File)) _ = this[key];
+            if (service.Cache.Contains(assets[key].File)) Request(key);
     }
-    public void Request(IEnumerable<string> keys) { foreach (string key in keys) _ = this[key]; }
+    public void Request(IEnumerable<string> keys) { foreach (string key in keys) Request(key); }
     public void Refresh()
     {
         bool changed = false;
@@ -71,11 +79,4 @@ public sealed class TextureScope(TextureService service, IReadOnlyDictionary<str
             _bindings.Clear();
         });
     }
-    public IEnumerable<string> Keys => assets.Keys;
-    public IEnumerable<Texture2D> Values => Keys.Select(k => this[k]);
-    public int Count => assets.Count;
-    public bool ContainsKey(string key) => assets.ContainsKey(key);
-    public bool TryGetValue(string key, out Texture2D value) { if (!ContainsKey(key)) { value = null!; return false; } value = this[key]; return true; }
-    public IEnumerator<KeyValuePair<string, Texture2D>> GetEnumerator() => Keys.Select(k => new KeyValuePair<string, Texture2D>(k, this[k])).GetEnumerator();
-    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }

@@ -29,6 +29,32 @@ public sealed class CatalogTableState
 {
     public const int VisibleRows = 15;
     public CatalogRow[] Rows { get; private set; } = [];
+    public int Page { get; private set; }
+    private int? _requestedId;
+    public int? SelectedId => Current?.Id ?? _requestedId;
+    public void SelectId(int id)
+    {
+        _requestedId = id;
+        int index = Array.FindIndex(Rows, row => row.Id == id);
+        CurrentIndex = index;
+    }
+    public void SelectPage(int page, int count)
+    {
+        if (page < 0 || page >= count) throw new ArgumentOutOfRangeException(nameof(page));
+        if (Page == page) return;
+        Page = page; SortColumn = -1; Descending = false;
+    }
+    internal void SelectSort(int column, int count)
+    {
+        if (column < 0 || column >= count) throw new ArgumentOutOfRangeException(nameof(column));
+        Descending = SortColumn != column || !Descending; SortColumn = column;
+    }
+    internal void BindOrderedRows(CatalogRow[] rows)
+    {
+        int? id = SelectedId;
+        Rows = rows; _requestedId = null;
+        CurrentIndex = rows.Length == 0 ? -1 : Math.Max(0, Array.FindIndex(rows, row => row.Id == id));
+    }
     public int Offset { get; private set; }
     public int CurrentIndex { get; private set; } = -1;
     public int SortColumn { get; private set; } = -1;
@@ -37,7 +63,7 @@ public sealed class CatalogTableState
     public void SetRows(CatalogRow[] rows, int? currentId = null, int offset = 0)
     {
         if (rows.Select(r => r.Id).Distinct().Count() != rows.Length) throw new ArgumentException("Duplicate catalog row identity.", nameof(rows));
-        Rows = rows.ToArray(); SortColumn = -1; Descending = false;
+        Rows = rows.ToArray(); _requestedId = null; SortColumn = -1; Descending = false;
         CurrentIndex = rows.Length == 0 ? -1 : Math.Max(0, Array.FindIndex(rows, r => r.Id == currentId));
         Scroll(offset);
     }
@@ -45,7 +71,8 @@ public sealed class CatalogTableState
     public void RefreshRows(CatalogRow[] rows, bool columnsChanged = false)
     {
         var byId = rows.ToDictionary(row => row.Id);
-        int? currentId = Current?.Id;
+        int? currentId = SelectedId;
+        _requestedId = null;
         var retained = Rows.Where(row => byId.ContainsKey(row.Id)).Select(row => byId[row.Id]).ToArray();
         var retainedIds = retained.Select(row => row.Id).ToHashSet();
         Rows = retained.Concat(rows.Where(row => !retainedIds.Contains(row.Id))).ToArray();
@@ -53,7 +80,8 @@ public sealed class CatalogTableState
         Scroll(Offset);
         if (columnsChanged) { SortColumn = -1; Descending = false; }
     }
-    public void Scroll(int offset) => Offset = Math.Clamp(offset, 0, Math.Max(0, Rows.Length - VisibleRows));
+    public void Scroll(int offset) => Scroll(offset, Rows.Length);
+    internal void Scroll(int offset, int count) => Offset = Math.Clamp(offset, 0, Math.Max(0, count - VisibleRows));
     public void PointAt(int index)
     { if ((uint)index < Rows.Length) CurrentIndex = index; }
     public void MoveTo(int index)

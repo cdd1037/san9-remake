@@ -4,7 +4,7 @@ using San9.Application.Presentation;
 namespace San9.Client.Godot;
 
 /// <summary>Administrative detail layouts share navigation, not a generic section grid.</summary>
-public partial class AdministrativeDetailView : Control
+public partial class AdministrativeDetailView : Control, IInformationPage
 {
     public DetailSelectionState State { get; init; } = null!;
     public InformationCategory Category { get; init; }
@@ -17,7 +17,7 @@ public partial class AdministrativeDetailView : Control
     public Action Closed { get; init; } = null!;
     public string Title { get; init; } = "";
     public TextureService Service { get; init; } = null!;
-    public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;
+    public TextureScope Textures { get; init; } = null!;
     private readonly GameTextPresenter _text = new();
     private readonly List<DetailNameButton> _names = [];
     private readonly List<Rect2> _panels = [];
@@ -60,6 +60,7 @@ public partial class AdministrativeDetailView : Control
         AddChild(new GameMessageBar { Textures = Textures, Text = "现在显示的是" + Title + "。" });
         RefreshNames(); RefreshBody();
     }
+    public void RefreshData() { _scroll.Range.MaxValue = Math.Max(Rows, State.Candidates.Count); RefreshNames(); RefreshBody(); }
     private void Activate(int id) { State.Activate(id); CurrentChanged(id); RefreshNames(); RefreshBody(); }
     private void RefreshNames()
     {
@@ -196,27 +197,15 @@ public partial class AdministrativeDetailView : Control
     }
     private void Tile(string role, Rect2 rect)
     {
-        var texture = Textures["detail-" + role];
-        for (float y=0; y<rect.Size.Y; y+=texture.GetHeight())
-        for (float x=0; x<rect.Size.X; x+=texture.GetWidth())
-        { var size = new Vector2(Math.Min(texture.GetWidth(),rect.Size.X-x),Math.Min(texture.GetHeight(),rect.Size.Y-y)); DrawTextureRectRegion(texture,new(rect.Position+new Vector2(x,y),size),new(Vector2.Zero,size)); }
+        new DetailSkinPainter(this, Textures).Tile(role, rect);
     }
     private void Strip(string role,Rect2 rect)
     {
-        var left=Textures["detail-"+role+"-left"]; var right=Textures["detail-"+role+"-right"];
-        Tile(role+"-middle",new(rect.Position+new Vector2(left.GetWidth(),0),new(rect.Size.X-left.GetWidth()-right.GetWidth(),rect.Size.Y)));
-        DrawTextureRect(left,new(rect.Position,new(left.GetWidth(),rect.Size.Y)),false);
-        DrawTextureRect(right,new(new(rect.End.X-right.GetWidth(),rect.Position.Y),new(right.GetWidth(),rect.Size.Y)),false);
+        new DetailSkinPainter(this, Textures).Strip(role, rect);
     }
     private void Panel(Rect2 r)
     {
-        Tile("panel-center",r);
-        Tile("panel-top",new(r.Position+new Vector2(20,0),new(r.Size.X-40,20)));
-        Tile("panel-bottom",new(r.Position+new Vector2(20,r.Size.Y-20),new(r.Size.X-40,20)));
-        Tile("panel-left",new(r.Position+new Vector2(0,20),new(20,r.Size.Y-40)));
-        Tile("panel-right",new(r.Position+new Vector2(r.Size.X-20,20),new(20,r.Size.Y-40)));
-        DrawTexture(Textures["detail-panel-top-left"],r.Position); DrawTexture(Textures["detail-panel-top-right"],new(r.End.X-20,r.Position.Y));
-        DrawTexture(Textures["detail-panel-bottom-left"],new(r.Position.X,r.End.Y-20)); DrawTexture(Textures["detail-panel-bottom-right"],r.End-new Vector2(20,20));
+        new DetailSkinPainter(this, Textures).Panel(r);
     }
     public override void _Draw()
     {

@@ -3,13 +3,13 @@ using San9.Application.Presentation;
 
 namespace San9.Client.Godot;
 
-public partial class UnitDetailView : Control
+public partial class UnitDetailView : Control, IInformationPage
 {
     public const int VisibleRows = 22;
     public DetailSelectionState State { get; init; } = null!;
     public Func<int, UnitDetailData> Read { get; init; } = null!;
     public Func<int, string> ReadName { get; init; } = null!;
-    public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;
+    public TextureScope Textures { get; init; } = null!;
     public Action<int> CurrentChanged { get; init; } = null!;
     public Action<int> OpenOfficers { get; init; } = null!;
     public Action<int> OpenOfficer { get; init; } = null!;
@@ -51,6 +51,7 @@ public partial class UnitDetailView : Control
         var button = new TextureButton { Position = at, TextureNormal = Textures["detail-"+role], TextureHover = Textures["detail-"+role+"-1"], TexturePressed = Textures["detail-"+role+"-2"] };
         button.Pressed += action; AddChild(button);
     }
+    public void RefreshData() { _scroll.Range.MaxValue = Math.Max(VisibleRows, State.Candidates.Count); RefreshNames(); RefreshBody(); }
     private void Activate(int id) { State.Activate(id); CurrentChanged(id); RefreshNames(); RefreshBody(); }
     private void RefreshNames()
     {

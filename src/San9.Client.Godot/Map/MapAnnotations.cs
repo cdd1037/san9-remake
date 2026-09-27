@@ -13,6 +13,7 @@ public partial class MapAnnotations : Node2D
     private long _annotationRevision = -1;
     private MapObjectTarget? _hovered;
     public long DrawCount { get; private set; }
+    public override void _Ready() => World.Display!.ConfigureAnnotations(UiFont, Texts);
     public override void _Process(double delta)
     {
         long annotationRevision = World.Display?.AnnotationRevision ?? 0;

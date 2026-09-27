@@ -15,7 +15,7 @@ public sealed class MapRenderingTests
             ["weight"] = new(5, 1, 1, weights), ["coverage"] = new(5, 1, 1, [255, 255, 255, 255, 0]),
             ["cloud-fill"] = new(1, 1, 3, [0, 0, 0])
         };
-        var map = new MapPackage(13, "fixture", "fixture", "spring", 200, 200, 13056, 6656, [], [], [], [new(1, "weight", "coverage")],
+        var map = new MapPackage(14, "fixture", "fixture", "spring", 200, 200, 13056, 6656, [], [], [], [new(1, "weight", "coverage")],
             [new(1, 1, 510, 10, 0, 0, true), new(2, 1, 510, 10, 0, 0, false)], [], [], [], [],
             Enumerable.Repeat<int?>(0, 6656).ToArray(), Enumerable.Repeat<int?>(13056, 6656).ToArray(), [], new([], []), []);
         var renderer = new TerrainRenderer(map, common, new()
@@ -48,7 +48,7 @@ public sealed class MapRenderingTests
         byte[] coverage = Enumerable.Repeat((byte)255, 64).ToArray(); coverage[0] = 0; coverage[3] = 0;
         Dictionary<string, PngImage> common = new() { ["weight"] = new(64, 1, 1, new byte[64]), ["coverage"] = new(64, 1, 1, coverage), ["cloud-fill"] = new(1, 1, 3, [0, 0, 0]) };
         var stamp = new TerrainStamp(1, 1, 500, 10, -99, 0, true);
-        var map = new MapPackage(13, "fixture", "fixture", "spring", 200, 200, 13056, 6656, [], [], [], [new(1, "weight", "coverage")], [stamp], [], [], [], [], Enumerable.Repeat<int?>(0, 6656).ToArray(), Enumerable.Repeat<int?>(13056, 6656).ToArray(), [], new([], []), []);
+        var map = new MapPackage(14, "fixture", "fixture", "spring", 200, 200, 13056, 6656, [], [], [], [new(1, "weight", "coverage")], [stamp], [], [], [], [], Enumerable.Repeat<int?>(0, 6656).ToArray(), Enumerable.Repeat<int?>(13056, 6656).ToArray(), [], new([], []), []);
         var renderer = new TerrainRenderer(map, common, new() { [1] = new(128, 1, 3, texture) });
         var a = renderer.RenderChunk(0, 0); var b = renderer.RenderChunk(1, 0);
         for (int mx = 1; mx < 64; mx++)

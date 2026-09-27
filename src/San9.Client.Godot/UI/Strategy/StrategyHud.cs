@@ -73,7 +73,7 @@ public partial class StrategyHud : Control
     private void Build()
     {
         if (_built) return;
-        Turn = new(Session);
+        Turn = new(Session) { CanPlayDay = () => ReferenceEquals(World.Day, Turn.Day) && World.IsDayReady };
         var p = Scenario;
         _frames.Add(("top-frame", Vector2.Zero));
         _frames.Add(("radar-frame", new(624, 0)));

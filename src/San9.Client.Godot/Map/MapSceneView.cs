@@ -16,6 +16,7 @@ public partial class MapSceneView : Node2D
         public MapSceneRegion Region { get; }
         public MapViewport Camera => _target.Camera;
         public Vector2 Size => _target.Size;
+        public Rect2 ViewportBounds => new(new Vector2((float)Camera.X, (float)Camera.Y) - Size / (2 * (float)Camera.Zoom), Size / (float)Camera.Zoom);
         public bool Boundaries { get; }
         public TextureScope Assets { get; }
         public TerrainChunkCache<ImageTexture>.Lease Terrain { get; }
@@ -69,6 +70,7 @@ public partial class MapSceneView : Node2D
     private TextureScope _ui = null!;
     private Node2D _water = null!, _objects = null!, _annotations = null!;
     private ShaderMaterial _hoverMaterial = null!;
+    private ShaderMaterial _outlineMaterial = null!;
     private ShaderMaterial _candidateMaterial = null!;
     private readonly ShaderMaterial[] _meshMaterials = new ShaderMaterial[3];
     private readonly ImageTexture[] _meshTextures = new ImageTexture[16];
@@ -101,6 +103,17 @@ public partial class MapSceneView : Node2D
     {
         _transition = new(f => f.Ready, f => f.Error, f => Textures.Defer(f.Dispose));
         _ui = Textures.CreateScope(owner: this);
+        _outlineMaterial = new ShaderMaterial { Shader = new Shader { Code = """
+            shader_type canvas_item;
+            void fragment() {
+                vec2 p = TEXTURE_PIXEL_SIZE;
+                float a = texture(TEXTURE, UV).a;
+                float l = UV.x > p.x ? texture(TEXTURE, UV-vec2(p.x,0)).a : 0.0;
+                float u = UV.y > p.y ? texture(TEXTURE, UV-vec2(0,p.y)).a : 0.0;
+                float edge = max(abs(step(0.01,a)-step(0.01,l)), abs(step(0.01,a)-step(0.01,u)));
+                COLOR = vec4(0.973,0.973,0.627,edge * 0.65);
+            }
+            """ } };
         _hoverMaterial = new ShaderMaterial { Shader = new Shader { Code = "shader_type canvas_item; void fragment() { vec4 c = texture(TEXTURE, UV); COLOR = vec4(round(c.rgb * 255.0 * 0.6875 + vec3(240.0 * 0.3125)) / 255.0, round(c.a * 255.0 * 0.9375) / 255.0); }" } };
         _routeMaterial = new ShaderMaterial { Shader = new Shader { Code = "shader_type canvas_item; render_mode blend_add; void fragment() { vec4 c = texture(TEXTURE, UV); COLOR = vec4(c.rgb * 0.75, c.a); }" } };
         _candidateMaterial = new ShaderMaterial { Shader = new Shader { Code = "shader_type canvas_item; void fragment() { vec4 c = texture(TEXTURE, UV); COLOR = vec4(round(c.rgb * 255.0 * 0.8125 + vec3(248.0 * 0.1875)) / 255.0, round(c.a * 255.0 * 0.9375) / 255.0); }" } };
@@ -156,6 +169,7 @@ public partial class MapSceneView : Node2D
         {
             _transition.CancelPending();
             presented.Move(camera, size);
+            RebuildObjects(); _annotations.QueueRedraw();
             Revision++; Committed?.Invoke();
             return;
         }
@@ -223,7 +237,7 @@ public partial class MapSceneView : Node2D
         bool markerChanged = Targets is not null && _markerFrame != (int)(AnimationTime() / 200) % 4;
         markerChanged |= Targets is not null && _routeFrame != (int)(AnimationTime() / 200) % 8;
         markerChanged |= Targets?.Waypoint is not null && _waypointFrame != (int)(AnimationTime() / 142) % 4;
-        bool motion = frame.Region.Scene.Day is {} day && _drawnDayTime != day.Elapsed;
+        bool motion = frame.Region.Scene.Day is {} day && _drawnDayTime != day.VisualElapsed;
         bool water = resourcesChanged, objects = motion || hoverChanged || resourcesChanged || targetsChanged || markerChanged || _drawnUiRevision != _ui.Revision;
         foreach (string id in frame.WaterClips.Concat(frame.ObjectClips).Distinct())
         {
@@ -234,7 +248,7 @@ public partial class MapSceneView : Node2D
         }
         if (water) _water.QueueRedraw();
         if (objects) RebuildObjects();
-        if (motion) { _drawnDayTime = frame.Region.Scene.Day!.Elapsed; Revision++; }
+        if (motion) { _drawnDayTime = frame.Region.Scene.Day!.VisualElapsed; Revision++; }
         if (hoverChanged || motion) _annotations.QueueRedraw();
     }
     public override void _Draw()
@@ -303,7 +317,7 @@ public partial class MapSceneView : Node2D
         _waypointFrame = (int)(AnimationTime() / 142) % 4;
         void Add(Texture2D texture, Vector2 position, Material? material = null)
         {
-            if (!frame.Region.Bounds.Intersects(new Rect2(position, texture.GetSize()))) return;
+            if (!frame.ViewportBounds.Intersects(new Rect2(position, texture.GetSize()))) return;
             if (cursor == _sprites.Count) { var sprite = new Sprite2D { Centered = false }; _objects.AddChild(sprite); _sprites.Add(sprite); }
             var item = _sprites[cursor++]; item.Texture = texture; item.Position = position; item.Visible = true;
             item.Material = material; item.Modulate = Colors.White;
@@ -321,7 +335,7 @@ public partial class MapSceneView : Node2D
         frame.Region.Objects(AnimationTime(), (id, position, building, blend, highlightable) =>
         {
             if (!frame.Assets.TryGetReady(id, out var texture)) return;
-            if (!frame.Region.Bounds.Intersects(new Rect2(position, texture.GetSize()))) return;
+            if (!frame.ViewportBounds.Intersects(new Rect2(position, texture.GetSize()))) return;
             if (building is {} target && blend == MapBlendMode.Alpha) _hitSprites.Add((id, position, target));
             bool candidate = building is { IsUnit: false } targetBuilding && Targets?.Candidates.ContainsKey(new(targetBuilding.Id, false)) == true;
             Add(texture, position, blend == MapBlendMode.Additive ? _additiveMaterial :
@@ -341,7 +355,10 @@ public partial class MapSceneView : Node2D
                 }
 
             }
-        }, waypointOverlay);
+        }, waypointOverlay, (id, position) =>
+        {
+            if (frame.Assets.TryGetReady(id, out var texture)) Add(texture, position, _outlineMaterial);
+        }, frame.ViewportBounds);
         if (Targets is { } selection)
         {
             void Marker(DeploymentTarget target, Vector2 position)
@@ -377,7 +394,7 @@ public partial class MapSceneView : Node2D
             GameTextPresenter.Draw(target, font, s.ResolveName(texts), new(0, 53), style);
             foreach (string icon in s.Icons) target.DrawTexture(_ui["icon-" + icon], icon == "emperor" ? new(96, 17) : new(75, 17));
         }
-        foreach (var unit in frame.Region.Units.Select(frame.Region.Scene.Sample))
+        foreach (var unit in frame.Region.Units.Where(u => frame.Region.Scene.IsUnitVisible(u, frame.ViewportBounds)).Select(u => frame.Region.Scene.Sample(u)))
         {
             string unitName = unit.CommanderNameKey is { } nameKey ? texts.Resolve(nameKey) + "队" : "部队";
             int fontSize = GameTextStyles.Building(false).FontSize;
@@ -410,6 +427,7 @@ public partial class MapSceneView : Node2D
         Textures.Defer(() => {
             waterMaterial.Dispose(); _additiveMaterial.Dispose();
             _routeMaterial.Shader.Dispose(); _routeMaterial.Dispose(); _hoverMaterial.Shader.Dispose(); _hoverMaterial.Dispose();
+            _outlineMaterial.Shader.Dispose(); _outlineMaterial.Dispose();
             _candidateMaterial.Shader.Dispose(); _candidateMaterial.Dispose();
             foreach (var texture in _meshTextures) texture.Dispose();
             _meshMaterials[0].Shader.Dispose(); foreach (var material in _meshMaterials) material.Dispose();

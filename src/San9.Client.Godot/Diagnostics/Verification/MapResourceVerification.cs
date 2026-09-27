@@ -32,7 +32,7 @@ public partial class ClientVerification
             using var image = Image.CreateFromData(1, 1, false, Image.Format.Rgb8, pixels.Pixels);
             return ImageTexture.CreateFromImage(image);
         }, texture => texture.Dispose(), render: (_, _) => new(1, 1, 3, [0, 0, 0]));
-        var scene = new MapScene(map, World.Scene!.Terrain, World.Scene.Season, World.Session.View, service);
+        var scene = new MapScene(map, World.Scene!.Terrain, World.Scene.Season, World.Session.View, service, () => World.UnitPositionTime);
         // The visible sprite starts outside the viewport, but four columns intersect it.
         var region = new MapSceneRegion(scene, new(0, 0, 512, 512), [], [], [], [],
             [new(extra[0].Id, 80, 100), new(extra[3].Id, 400, 100)], [new(clip.Id, 300, 100, 0, -1)]);

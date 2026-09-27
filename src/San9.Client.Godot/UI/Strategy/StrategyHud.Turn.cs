@@ -49,11 +49,9 @@ public partial class StrategyHud
 
     private void UpdateTurn(double delta)
     {
-        Turn.CanPlayDay = () => ReferenceEquals(World.Day, Turn.Day) && World.IsDayReady;
         Turn.Update(delta);
         World.Presentation = Turn.Display;
         World.Day = Turn.Day;
-        World.AnimationPaused = Turn.Paused;
         UpdateTurnControls();
     }
 

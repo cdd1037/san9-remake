@@ -62,11 +62,11 @@ public static class MapResourceCompiler
             int type = Enumerable.Range(0, compositionBases.Length).Last(i => compositionBases[i] <= compositionId);
             int group = At(0x615d60 + type * 4) + (type == 0 ? compositionId / 5 : 0);
             int start = location.GetProperty("offset").GetInt32(), count = location.GetProperty("count").GetInt32();
-            var parts = Enumerable.Range(0, count).Select(i => { int p = start + 28 * i; return new MapCompositionPart(Int(p) != 0, Int(p + 4) != 0, Int(p + 12), Int(p + 16), Int(p + 20)); }).ToArray();
+            var parts = Enumerable.Range(0, count).Select(i => { int p = start + 28 * i; return new MapCompositionPart(Int(p) != 0, Int(p + 4) != 0, Int(p + 12), Int(p + 16), Int(p + 20)) { DepthOffset = Int(p + 24), Ground = Int(p + 8) != 0 }; }).ToArray();
             var guards = location.GetProperty("soldiers"); var flags = location.GetProperty("flags");
             compositions.Add(new(location.GetProperty("id").GetInt32(), parts)
             {
-                Guards = Enumerable.Range(0, guards.GetProperty("count").GetInt32()).Select(i => { int p = guards.GetProperty("offset").GetInt32() + 16*i; return new MapGuard(Int(p), Int(p+4), Int(p+12)); }).ToArray(),
+                Guards = Enumerable.Range(0, guards.GetProperty("count").GetInt32()).Select(i => { int p = guards.GetProperty("offset").GetInt32() + 16*i; return new MapGuard(Int(p), Int(p+4), Int(p+12)) { DepthOffset = Int(p+8) }; }).ToArray(),
                 Flags = Enumerable.Range(0, flags.GetProperty("count").GetInt32()).Select(i => { int p = flags.GetProperty("offset").GetInt32() + 8*i; return new MapFlag(Int(p), Int(p+4)); }).ToArray(),
                 ArrowOrigins = Enumerable.Range(0, 8).Select(direction => Enumerable.Range(0, 8).Select(shot =>
                 {

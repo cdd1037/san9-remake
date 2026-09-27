@@ -21,7 +21,7 @@ public sealed class TurnPresentation(GameSession session)
     public double Progress { get; private set; }
     public bool IsStrategy => Screen is TurnScreen.Strategy or TurnScreen.Confirmation;
     public bool CanAdvance => Screen == TurnScreen.Strategy && session.Snapshot.Simulation.Boundary == SimulationBoundary.Stable;
-    public bool CanBrowseMap => Screen == TurnScreen.Strategy || (Screen == TurnScreen.Playing && Paused);
+    public bool CanBrowseMap => Screen is TurnScreen.Strategy or TurnScreen.Playing;
     public bool CanCancelFailure => session.Snapshot.Simulation.CanPersist && session.Snapshot.Clock.DayNumber == _startedDay;
     private GameSession.PendingSessionOperation? _pending;
     private SessionRequest? _request;
@@ -114,7 +114,12 @@ public sealed class TurnPresentation(GameSession session)
             }
             return;
         }
-        if (Screen != TurnScreen.Playing || Paused) return;
+        if (Screen != TurnScreen.Playing) return;
+        if (Paused)
+        {
+            if (Day is not null && CanPlayDay?.Invoke() != false) Day.Advance(seconds, paused: true);
+            return;
+        }
         if (_pending is not { IsCompleted: true }) return;
         // Progress follows the prepared day (a choice may stop before the date advances).
         // Publication is delayed until its presentation time; pause never launches another day.

@@ -9,14 +9,22 @@ public sealed record MapUnitBody(string Id, string[] DirectionClips, int AnchorX
     [JsonRequired] public MapUnitAction[] MeleeActions { get; init; } = [];
     [JsonRequired] public MapUnitAction[] RangedActions { get; init; } = [];
     [JsonRequired] public MapUnitEffect? Wake { get; init; }
+    [JsonRequired] public MapUnitEffect? Trail { get; init; }
+    [JsonRequired] public double TrailChance { get; init; }
+    [JsonRequired] public MapUnitParticle[] Engagement { get; init; } = [];
 }
+public sealed record MapUnitParticle(string ClipId, int X, int Y, int DepthOffset);
 public sealed record MapUnitAction(string[] DirectionClips, MapProjectileKind Projectile);
 public enum MapProjectileKind { None, Arrow, Stone, Rockfall }
 public sealed record MapProjectile(string[] Frames, int FrameMilliseconds, bool Directional, int AnchorX, int AnchorY)
 {
     [JsonRequired] public MapUnitEffect? Impact { get; init; }
 }
-public sealed record MapUnitMember(string BodyId, int X, int Y);
+public sealed record MapUnitMember(string BodyId, int X, int Y)
+{
+    [JsonRequired] public int Group { get; init; }
+    [JsonRequired] public int Index { get; init; }
+}
 public sealed record MapUnitLayout(uint MinimumSoldiers, MapUnitMember[] Members, MapUnitEffect Influence);
 public sealed record MapUnitFormation(int FormationId, MapUnitLayout[] Layouts, int FlagY, int StatusY);
 public sealed record MapUnitEffect(string ClipId, int X, int Y);
@@ -26,6 +34,7 @@ public sealed record MapUnitCatalog(MapUnitBody[] Bodies, MapUnitFormation[] For
     Dictionary<UnitCondition, MapUnitEffect> Conditions, int RulerFlagGlyph)
 {
     [JsonRequired] public Dictionary<MapProjectileKind, MapProjectile> Projectiles { get; init; } = [];
+    [JsonRequired] public MapUnitEffect[] VisionSlices { get; init; } = [];
     public static MapUnitCatalog Empty { get; } = new([], [], [], -1);
 
     public void Validate(IReadOnlyDictionary<string, MapAnimationClip> clips, IReadOnlySet<string>? assets = null)
@@ -37,13 +46,16 @@ public sealed record MapUnitCatalog(MapUnitBody[] Bodies, MapUnitFormation[] For
                 b.DirectionClips.Any(c => !clips.ContainsKey(c)) ||
                 b.MeleeActions.Concat(b.RangedActions).Any(a => a.DirectionClips.Length != 8 || a.DirectionClips.Any(c => !clips.ContainsKey(c)) || !Enum.IsDefined(a.Projectile) || a.Projectile != MapProjectileKind.None && !Projectiles.ContainsKey(a.Projectile)) ||
                 b.Wake is {} wake && !clips.ContainsKey(wake.ClipId) ||
+                b.Trail is {} trail && !clips.ContainsKey(trail.ClipId) || !double.IsFinite(b.TrailChance) || b.TrailChance is < 0 or > 100 ||
+                b.Engagement.Any(e => !clips.ContainsKey(e.ClipId)) ||
                 b.ImperialBodyId is {} imperial && !bodies.ContainsKey(imperial)) ||
             Formations.Any(f => f.FormationId < 0 || f.Layouts.Length == 0 ||
                 !f.Layouts.Any(l => l.MinimumSoldiers == 1) ||
                 f.Layouts.Select(l => l.MinimumSoldiers).Distinct().Count() != f.Layouts.Length ||
                 f.Layouts.Any(l => l.MinimumSoldiers == 0 || l.Members.Length == 0 ||
                     !clips.ContainsKey(l.Influence.ClipId) ||
-                    l.Members.Any(m => !bodies.ContainsKey(m.BodyId)))) ||
+                    l.Members.Any(m => !bodies.ContainsKey(m.BodyId) || m.Group < 0 || m.Index < 0))) ||
+            VisionSlices.Length != 0 && (VisionSlices.Length != 16 || VisionSlices.Any(s => !clips.ContainsKey(s.ClipId))) ||
             Conditions.Any(c => !Enum.IsDefined(c.Key) || !clips.ContainsKey(c.Value.ClipId)))
             throw new InvalidDataException("Invalid field unit visual catalog.");
         if (Projectiles.Any(p => p.Key == MapProjectileKind.None || !Enum.IsDefined(p.Key) || p.Value.Frames.Length == 0 ||

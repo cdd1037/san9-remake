@@ -36,6 +36,27 @@ public sealed class BuildingVisualTests
         Assert.Equal(hash, snapshot.StateHash);
     }
 
+    [Fact]
+    public void BuildingPartsInterleaveWithBodiesAtTheirOwnDepth()
+    {
+        var map = Map();
+        var parts = new MapCompositionPart[] {
+            new(false,false,100,0,-20) { DepthOffset=10 },
+            new(false,false,101,0,20) { DepthOffset=10 },
+            new(true,false,102,0,0),
+            new(false,false,103,0,0) { Ground=true },
+            new(false,true,104,0,0) { DepthOffset=5 }
+        };
+        map = map with { Compositions = map.Compositions.Select(c => c with { Parts=parts }).ToArray() };
+        var building = Assert.Single(BuildingVisuals.Resolve(map,[new(0,1000,2,0,0,5,-1)]).Buildings);
+        double ground = MapGeometry.Center(89,64).Y;
+        var depths = building.Sprites.Select(s => s.Depth).ToArray();
+        Assert.True(depths[0] < ground+30000 && depths[1] > ground+30000);
+        Assert.Equal(ground+10000,depths[2]);
+        Assert.Equal(1,depths[3]);
+        Assert.Equal(ground+29995,depths[4]);
+    }
+
     private static MapPackage Map() => new(9,"fixture","fixture","spring",200,200,13056,6656,
         Enumerable.Repeat(new MapSquare(0,1,0,0),40000).ToArray(),[],[],[],[],[],[new(0,89,64,0)],
         Enumerable.Range(1,14).Select(id=>new MapComposition(id,[new(false,true,100,0,0)])

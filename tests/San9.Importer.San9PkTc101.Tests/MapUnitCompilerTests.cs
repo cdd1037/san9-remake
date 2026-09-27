@@ -53,7 +53,7 @@ public sealed class MapUnitCompilerTests
         Assert.Equal(new uint[] { 1, 6000, 12000, 20000, 30000, 40000, 50000 }, layouts.Select(l => l.MinimumSoldiers));
         Assert.Equal(new[] { 5, 17, 21, 29, 37, 45, 53 }, layouts.Select(l => l.Members.Length));
         Assert.Equal(new[] { "small", "medium", "medium", "large", "large", "largest", "largest" }, layouts.Select(l => l.Influence.ClipId));
-        Assert.Equal(new MapUnitMember("body-0", 24, -7), layouts[3].Members[18]);
+        Assert.Equal(new MapUnitMember("body-0", 24, -7) { Group = 2, Index = 4 }, layouts[3].Members[18]);
         for (int id = 1; id < 8; id++)
             for (int scale = 0; scale < 7; scale++)
                 Assert.Equal(layouts[scale].Members, formations[id].Layouts[scale].Members);
@@ -66,7 +66,7 @@ public sealed class MapUnitCompilerTests
         var siege = formations[8].Layouts[2];
         Assert.Equal(9, siege.Members.Length);
         Assert.Equal(new MapUnitMember("body-14", 200, -2), siege.Members[0]);
-        Assert.Equal(new MapUnitMember("body-0", 210, -2), siege.Members[1]);
+        Assert.Equal(new MapUnitMember("body-0", 210, -2) { Group = 1 }, siege.Members[1]);
         foreach (int id in new[] { 8, 9, 10, 11 })
         {
             Assert.Equal(new[] { 4, 4, 8, 20, 28, 36, 44 },
@@ -93,8 +93,8 @@ public sealed class MapUnitCompilerTests
             string body = id == 16 ? "body-7" : "body-6";
             Assert.All(layouts.SelectMany(l => l.Members), m => Assert.Equal(body, m.BodyId));
             Assert.Equal(new MapUnitMember(body, 100, -2), layouts[2].Members[0]);
-            Assert.Equal(new MapUnitMember(body, 110, -2), layouts[2].Members[1]);
-            Assert.Equal(new MapUnitMember(body, 104, -9), layouts[5].Members[4]);
+            Assert.Equal(new MapUnitMember(body, 110, -2) { Group = 1 }, layouts[2].Members[1]);
+            Assert.Equal(new MapUnitMember(body, 104, -9) { Index = 4 }, layouts[5].Members[4]);
         }
     }
 }

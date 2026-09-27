@@ -8,15 +8,38 @@ namespace San9.Client.Godot.Tests;
 public sealed class MapDayMotionTests
 {
     [Fact]
-    public void MovementFollowsRecordedCornersAndClampsAtBothEnds()
+    public void MovementInterpolatesDailyEndpointsAndKeepsOneFacing()
     {
         var motion = new MapUnitMotion([new(new(190, 1, 1), 42, new(0, 0), new(10, 10), 20, NavigationStatus.Arrived)
         { Steps = [new(0, 0), new(10, 0), new(10, 10)] }]);
         Assert.Equal((0d, 0d), (motion.Sample(-1).X, motion.Sample(-1).Y));
-        Assert.Equal((10d, 0d), (motion.Sample(.5).X, motion.Sample(.5).Y));
-        Assert.Equal((10d, 5d), (motion.Sample(.75).X, motion.Sample(.75).Y));
+        Assert.Equal((5d, 5d), (motion.Sample(.5).X, motion.Sample(.5).Y));
+        Assert.Equal((7.5d, 7.5d), (motion.Sample(.75).X, motion.Sample(.75).Y));
         Assert.Equal((10d, 10d), (motion.Sample(2).X, motion.Sample(2).Y));
-        Assert.NotEqual(motion.Sample(.25).Direction, motion.Sample(.75).Direction);
+        Assert.Equal(motion.Sample(.25).Direction, motion.Sample(.75).Direction);
+        Assert.Equal(UnitVisuals.Direction(new(0, 0), new(10, 10)), motion.Sample(.5).Direction);
+    }
+
+    [Fact]
+    public void VisibilityUsesRecentDisplaySegmentInsteadOfLogicalCorners()
+    {
+        var motion = new MapUnitMotion([new(new(190, 1, 1), 42, new(0, 0), new(10, 10), 20, NavigationStatus.Arrived)
+        { Steps = [new(10, 0)] }]);
+        Assert.Equal(new[] { (2.5d, 2.5d), (7.5d, 7.5d) }, motion.Segment(.25, .75));
+        Assert.Equal(new[] { (10d, 10d), (10d, 10d) }, motion.Segment(1, 2));
+        Assert.Equal(new[] { (0d, 0d), (2.5d, 2.5d) }, motion.Segment(-1, .25));
+    }
+
+    [Fact]
+    public void WaypointEventsUseOneDailyDisplacementAndReturningToStartDoesNotMove()
+    {
+        UnitMovedEvent first = new(new(190, 1, 1), 42, new(0, 0), new(10, 0), 10, NavigationStatus.Arrived);
+        UnitMovedEvent second = new(new(190, 1, 1), 42, new(10, 0), new(10, 10), 10, NavigationStatus.Arrived);
+        var motion = new MapUnitMotion([first, second]);
+        Assert.Equal((5d, 5d), (motion.Sample(.5).X, motion.Sample(.5).Y));
+        var stationary = new MapUnitMotion([first, second with { To = first.From }]);
+        Assert.False(stationary.HasDisplacement);
+        Assert.Equal((0d, 0d), (stationary.Sample(.5).X, stationary.Sample(.5).Y));
     }
 
     [Fact]

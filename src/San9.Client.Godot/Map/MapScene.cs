@@ -15,6 +15,7 @@ internal sealed partial class MapScene
     public StrategySnapshot State { get; }
     public IReadOnlyDictionary<int, SettlementView> Settlements { get; }
     public MapBuilding[] Buildings { get; }
+    public UnitOccluder[] Occluders { get; }
     public UnitVisual[] Units { get; }
     public IReadOnlyDictionary<int, MapAnimatedSprite[]> Animations { get; }
     private readonly IReadOnlyDictionary<int, MapAnimatedSprite[]>? _combatBuildingAnimations;
@@ -30,9 +31,9 @@ internal sealed partial class MapScene
     private readonly TextureService _textures;
     private readonly Dictionary<(int X, int Y), int[]> _waterBuckets;
 
-    public MapScene(MapPackage map, TerrainRenderer terrain, string season, StrategySnapshot state, TextureService textures, MapScene? previous = null, TurnDayPresentation? day = null)
+    public MapScene(MapPackage map, TerrainRenderer terrain, string season, StrategySnapshot state, TextureService textures, Func<double> positionTime, MapScene? previous = null, TurnDayPresentation? day = null)
     {
-        Map = map; Terrain = terrain; Season = season; State = state; _textures = textures;
+        Map = map; Terrain = terrain; Season = season; State = state; _textures = textures; _positionTime = positionTime;
         Settlements = state.Settlements.ToDictionary(s => s.Id);
         Clips = previous is not null && ReferenceEquals(previous.Terrain, terrain) ? previous.Clips : map.Animations.Clips.ToDictionary(c => c.Id);
         if (previous is not null && ReferenceEquals(previous.Terrain, terrain)) _waterBuckets = previous._waterBuckets;
@@ -62,10 +63,8 @@ internal sealed partial class MapScene
         var visuals = BuildingVisuals.Resolve(map, buildingStates);
         if (day is not null)
         {
-            var attacked = day.Events.OfType<San9.Core.Simulation.BattleDamageEvent>()
-                .Where(e => !e.AttackerIsSettlement && e.SettlementId is not null).Select(e => e.SettlementId!.Value).ToHashSet();
             _combatBuildingAnimations = BuildingVisuals.Resolve(map, buildingStates.Select(s => s with
-                { IsEngaged = s.IsEngaged || attacked.Contains(s.Id) || day.After.IsSettlementEngaged(s.Id) }).ToArray())
+                { IsEngaged = day.After.IsSettlementEngaged(s.Id) }).ToArray())
                 .Animations.GroupBy(s => s.BuildingId).ToDictionary(g => g.Key, g => g.ToArray());
         }
         var unitPositions = state.World.Units.ToDictionary(u => u.Id, u => u.Position);
@@ -87,19 +86,25 @@ internal sealed partial class MapScene
                     u.EffectiveOrderClass == UnitOrderClass.Military && state.HasCityInfluence(u.OwnerId, u.Position),
                     force.ColorCode, commander?.FlagGlyph ?? -1)
                 {
+                    IsEngaged = state.IsUnitEngaged(u.Id),
+                    VisionAngleDegrees = state.Information.Formations.Single(f => f.Id == state.FormationId(u)).Presentation?.VisionAngleDegrees ?? 0,
                     Morale = u.Morale, CommanderNameKey = commander?.NameKey,
                     IsRulerCommander = u.CommanderId is int leader && force.LeaderId == leader,
                     UsesImperialAppearance = force.UsesImperialAppearance
                 };
             }).ToDictionary(u => u.Id);
-        Units = _unitStates.Values.Select(s => UnitVisuals.Resolve(s, map.Units, Clips)).ToArray();
+        Units = _unitStates.Values.Select(s => UnitVisuals.Resolve(s, map.Units, Clips, elevationAt: ElevationAt)).ToArray();
         Buildings = visuals.Buildings;
+        Occluders = Buildings.Select(b => (Building: b, Area: state.SettlementGeographicArea(b.Id)))
+            .Where(p => p.Area is not null).Select(p => UnitOccluder.FromGeographicArea(p.Area!.Value,
+                p.Building.FixedType is 0 or 2 or 3 or 4 or 5 ? 2 : 1, p.Building.FixedType == 0)).ToArray();
         var compositions = map.Compositions.ToDictionary(c => c.Id);
         HighlightableBuildingAssets = Buildings.SelectMany(b => b.Sprites.Zip(compositions[b.CompositionId].Parts)
             .Where(p => !p.Second.PaletteAlpha).Select(p => p.First.AssetId)).ToHashSet();
         Animations = visuals.Animations.GroupBy(s => s.BuildingId).ToDictionary(g => g.Key, g => g.ToArray());
         Day = day;
         PrepareDay();
+        PrepareHistory(previous);
     }
     public Rect2 Bounds(MapSprite sprite)
     {
@@ -125,7 +130,7 @@ internal sealed partial class MapScene
         BuildingAnimations(building.Id, true).Any(s => bounds.Intersects(Bounds(s))) ||
         bounds.Intersects(new Rect2(Anchor(building), new(116, 55)));
     public bool Intersects(UnitVisual unit, Rect2 bounds) =>
-        Day is not null ? MotionBounds(unit).Intersects(bounds) :
+        Day is not null || _history.Length > 0 ? MotionBounds(unit).Intersects(bounds) :
         unit.Animations.Any(s => bounds.Intersects(Bounds(s))) ||
         bounds.Intersects(new Rect2(unit.LabelX, unit.LabelY, 76, 47));
     public MapSceneRegion Select(Rect2 bounds, bool boundaries)
@@ -169,44 +174,56 @@ internal sealed record MapSceneRegion(MapScene Scene, Rect2 Bounds, MapBuilding[
             .Select(s => Scene.Clips[s.ClipId]).Where(c => c.SeasonFrames.TryGetValue("autumn", out var frames) && frames.Length > 2)
             .Select(c => c.SeasonFrames["autumn"][2])).Distinct();
 
-    // Buildings and field units share terrain depth; clouds cover both views last.
-    public void Objects(double time, Action<string, Vector2, MapObjectTarget?, MapBlendMode, bool> emit, Action? groundOverlay = null, (double Depth, Action Draw)? objectOverlay = null)
+    public void Objects(double time, Action<string, Vector2, MapObjectTarget?, MapBlendMode, bool> emit,
+        Action? groundOverlay = null, (double Depth, Action Draw)? objectOverlay = null,
+        Action<string, Vector2>? outline = null, Rect2? viewport = null)
     {
         foreach (var s in Bridges.Concat(Boundaries)) emit(s.AssetId, new(s.X, s.Y), null, MapBlendMode.Alpha, false);
         groundOverlay?.Invoke();
-        var objects = Buildings.Select(b => (Depth: (double)(b.X + b.Y), X: (double)b.X, Kind: 0, Id: b.Id,
-                Building: (MapBuilding?)b, Unit: (UnitVisual?)null))
-            .Concat(Units.Select(Scene.Sample).Select(u => (Depth: u.Depth, X: u.CellX, Kind: 1, Id: u.Id,
-                Building: (MapBuilding?)null, Unit: (UnitVisual?)u)))
-            .OrderBy(o => o.Depth).ThenBy(o => o.X).ThenBy(o => o.Kind).ThenBy(o => o.Id);
-        bool overlayDrawn = false;
-        foreach (var item in objects)
+        List<(double Depth, Action Draw)> draws = [];
+        List<(string Asset, Vector2 Position)> outlines = [];
+        void Animated(MapAnimatedSprite sprite, MapObjectTarget? target, double clock, bool highlight)
         {
-            if (!overlayDrawn && objectOverlay is { } overlay && overlay.Depth <= item.Depth)
-            { overlay.Draw(); overlayDrawn = true; }
-            if (item.Building is { } building)
-            {
-                foreach (var s in Scene.BuildingAnimations(building.Id).Where(s => s.BehindBuilding))
-                    emit(MapAnimationClock.Asset(Scene.Clips[s.ClipId], Scene.Season, time, s.Phase), new(s.X, s.Y), null, Scene.Clips[s.ClipId].BlendMode, false);
-                foreach (var s in building.Sprites) emit(s.AssetId, new(s.X, s.Y), new(building.Id, false), MapBlendMode.Alpha, Scene.HighlightableBuildingAssets.Contains(s.AssetId));
-                foreach (var s in Scene.BuildingAnimations(building.Id).Where(s => !s.BehindBuilding))
-                    emit(MapAnimationClock.Asset(Scene.Clips[s.ClipId], Scene.Season, time, s.Phase), new(s.X, s.Y), null, Scene.Clips[s.ClipId].BlendMode, false);
-            }
-            else
-                for (int i = 0; i < item.Unit!.Animations.Length; i++)
-                {
-                    var s = item.Unit.Animations[i];
-                    double clock = Scene.Day is {} day ? day.Elapsed * 1000 : time;
-                    if (Scene.Day is { CombatMilliseconds: >= 0 } combat && i >= item.Unit.BodySpriteStart && i < item.Unit.BodySpriteStart + item.Unit.BodySpriteCount)
-                        clock = combat.CombatMilliseconds;
-                    emit(MapAnimationClock.Asset(Scene.Clips[s.ClipId], Scene.Season, clock, s.Phase), new(s.X, s.Y), new(item.Id, true), Scene.Clips[s.ClipId].BlendMode,
-                        i >= item.Unit.BodySpriteStart && i < item.Unit.BodySpriteStart + item.Unit.BodySpriteCount);
-                }
+            var clip = Scene.Clips[sprite.ClipId];
+            string asset = sprite.Frame is int frame ? clip.Frames[frame] :
+                MapAnimationClock.Asset(clip, Scene.Season, clock * sprite.TimeScale, sprite.Phase);
+            var position = new Vector2(sprite.X, sprite.Y);
+            draws.Add((sprite.Depth, () => emit(asset, position, target, clip.BlendMode, highlight)));
+            if (sprite.IsBody && UnitOcclusion.IsOccluded(sprite.GroundX, sprite.GroundY, Scene.Occluders)) outlines.Add((asset, position));
         }
-        if (!overlayDrawn && objectOverlay is { } remaining) remaining.Draw();
-        foreach (var projectile in Scene.Projectiles(Bounds)) emit(projectile.AssetId, new((float)projectile.X, (float)projectile.Y), null, MapBlendMode.Alpha, false);
+        foreach (var building in Buildings)
+        {
+            foreach (var sprite in building.Sprites)
+                draws.Add((sprite.Depth, () => emit(sprite.AssetId, new(sprite.X, sprite.Y), new(building.Id, false),
+                    MapBlendMode.Alpha, Scene.HighlightableBuildingAssets.Contains(sprite.AssetId))));
+            foreach (var sprite in Scene.BuildingAnimations(building.Id)) Animated(sprite, null, time, false);
+        }
+        foreach (var unit in Units.Where(u => Scene.IsUnitVisible(u, viewport ?? Bounds)).Select(Scene.Sample))
+            foreach (var sprite in unit.Animations)
+            {
+                double clock = time;
+                if (sprite.IsBody && unit.Action is UnitVisualAction.Melee or UnitVisualAction.Ranged &&
+                    Scene.Day is { CombatMilliseconds: >= 0 } combat) clock = combat.CombatMilliseconds;
+                Animated(sprite, new(unit.Id, true), clock, sprite.IsBody);
+            }
+        if (objectOverlay is {} overlay) draws.Add((16 * overlay.Depth + 128 + 30000, overlay.Draw));
+        foreach (var projectile in Scene.Projectiles(viewport ?? Bounds))
+            draws.Add((projectile.Y + 30000, () => emit(projectile.AssetId, new((float)projectile.X, (float)projectile.Y), null, MapBlendMode.Alpha, false)));
+        bool outlined = false;
+        void Outlines()
+        {
+            foreach (var item in outlines) outline?.Invoke(item.Asset, item.Position);
+            outlined = true;
+        }
+        foreach (var draw in draws.OrderBy(d => d.Depth))
+        {
+            if (!outlined && draw.Depth >= 40000) Outlines();
+            draw.Draw();
+        }
+        if (!outlined) Outlines();
         foreach (var s in Clouds) emit(s.AssetId, new(s.X, s.Y), null, MapBlendMode.Alpha, false);
     }
+
 }
 
 public readonly record struct MapObjectTarget(int Id, bool IsUnit);

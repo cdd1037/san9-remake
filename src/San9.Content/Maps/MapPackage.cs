@@ -13,10 +13,16 @@ public sealed record MapSquare(int Terrain, int Elevation, int ElevationMask, in
 public sealed record MapSeason(string Id, ImageAsset[] Textures);
 public sealed record MapMask(int Id, string WeightAsset, string CoverageAsset);
 public sealed record TerrainStamp(int ResourceId, int MaskId, int X, int Y, int SourceX, int SourceY, bool IsCenter);
-public sealed record MapSprite(string AssetId, int X, int Y);
+public sealed record MapSprite(string AssetId, int X, int Y)
+{
+    public double Depth { get; init; }
+}
 public sealed record MapBuildingPlacement(int Id, int X, int Y, int FixedType);
 public sealed record MapBuildingType(int Id, int MaxDurability);
-public sealed record MapGuard(int X, int Y, int Direction);
+public sealed record MapGuard(int X, int Y, int Direction)
+{
+    [JsonRequired] public int DepthOffset { get; init; }
+}
 public sealed record MapFlag(int X, int Y);
 public sealed record MapBuilding(int Id, int X, int Y, int FixedType, int CompositionId, MapSprite[] Sprites);
 public sealed record MapComposition(int Id, MapCompositionPart[] Parts)
@@ -28,7 +34,11 @@ public sealed record MapComposition(int Id, MapCompositionPart[] Parts)
 }
 public sealed record MapSmokeEmitter(string ClipId, int X, int Y, int Chance, bool BehindBuilding);
 public sealed record MapBuildingSmoke(MapSmokeEmitter[] Engagement, MapSmokeEmitter[] DamageA, MapSmokeEmitter[] DamageB);
-public sealed record MapCompositionPart(bool PaletteAlpha, bool DevelopmentVariant, int ResourceId, int X, int Y);
+public sealed record MapCompositionPart(bool PaletteAlpha, bool DevelopmentVariant, int ResourceId, int X, int Y)
+{
+    [JsonRequired] public int DepthOffset { get; init; }
+    [JsonRequired] public bool Ground { get; init; }
+}
 public enum MapBlendMode { Alpha, Additive }
 public sealed record MapAnimationClip(string Id, string[] Frames, int FrameMilliseconds, Dictionary<string, string[]> SeasonFrames)
 {
@@ -37,6 +47,12 @@ public sealed record MapAnimationClip(string Id, string[] Frames, int FrameMilli
 public sealed record MapAnimatedSprite(string ClipId, int X, int Y, int Phase, int BuildingId)
 {
     public bool BehindBuilding { get; init; }
+    [JsonIgnore] public double Depth { get; init; }
+    [JsonIgnore] public int? Frame { get; init; }
+    [JsonIgnore] public double TimeScale { get; init; } = 1;
+    [JsonIgnore] public bool IsBody { get; init; }
+    [JsonIgnore] public double GroundX { get; init; }
+    [JsonIgnore] public double GroundY { get; init; }
 }
 public sealed record MapAnimations(MapAnimationClip[] Clips, MapAnimatedSprite[] Water);
 public sealed record MapPackage(
@@ -56,7 +72,7 @@ public static class MapPackageFiles
 {
     public static void Validate(MapPackage map)
     {
-        if (map.SchemaVersion != 13 || map.Width != 200 || map.Height != 200 || map.Squares.Length != 40000 ||
+        if (map.SchemaVersion != 14 || map.Width != 200 || map.Height != 200 || map.Squares.Length != 40000 ||
             map.CanvasWidth != 13056 || map.CanvasHeight != 6656) throw new InvalidDataException("Unsupported map dimensions or schema.");
         if (!map.Seasons.Select(s => s.Id).Order().SequenceEqual(new[] { "autumn", "spring", "summer", "winter" }) ||
             !map.Seasons.Any(s => s.Id == map.InitialSeason)) throw new InvalidDataException("Invalid seasons.");

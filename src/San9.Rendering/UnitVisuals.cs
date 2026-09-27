@@ -5,13 +5,12 @@ namespace San9.Rendering;
 
 public sealed record UnitVisual(int Id, double CellX, double Depth, MapAnimatedSprite[] Animations)
 {
+    public UnitVisualAction Action { get; init; }
     public uint Soldiers { get; init; }
     public int Morale { get; init; }
     public string? CommanderNameKey { get; init; }
     public int LabelX { get; init; }
     public int LabelY { get; init; }
-    public int BodySpriteCount { get; init; }
-    public int BodySpriteStart { get; init; }
     public int AnchorX { get; init; }
     public int AnchorY { get; init; }
 }
@@ -19,6 +18,8 @@ public sealed record UnitVisualState(int Id, double CellX, double CellY, int Ele
     int FormationId, UnitCondition Condition, int Direction, bool HasCityInfluence, int Color, int Glyph)
 {
     public UnitVisualAction Action { get; init; }
+    public bool IsEngaged { get; init; }
+    public int VisionAngleDegrees { get; init; }
     public bool UsesImperialAppearance { get; init; }
     public bool IsRulerCommander { get; init; }
     public int Morale { get; init; }
@@ -36,50 +37,122 @@ public static class UnitVisuals
         return ((int)Math.Round(Math.Atan2(dy, dx) * 4 / Math.PI) + 10) % 8;
     }
 
+    public static uint Seed(int unit, int member, int tick)
+    {
+        unchecked
+        {
+            uint x = (uint)unit * 747796405u + (uint)member * 2891336453u + (uint)tick * 277803737u;
+            x = (x ^ (x >> 16)) * 2246822519u;
+            return x ^ (x >> 13);
+        }
+    }
+
+    public static double Disorder(UnitVisualState state, MapUnitMember member) =>
+        Math.Clamp((100 - state.Morale) * (member.Group == 0 ? 2 : member.Index == 0 ? 0 : 1), 0, 100) / 100.0;
+
     public static UnitVisual Resolve(UnitVisualState state, MapUnitCatalog catalog,
-        IReadOnlyDictionary<string, MapAnimationClip> clips)
+        IReadOnlyDictionary<string, MapAnimationClip> clips, double milliseconds = 0,
+        Func<double, UnitVisualState>? history = null, Func<double, double>? visualAge = null,
+        Func<double, double, int>? elevationAt = null, double? positionMilliseconds = null)
     {
         if (state.Soldiers == 0 || state.Direction is < 0 or > 7) throw new ArgumentOutOfRangeException(nameof(state));
         var formation = catalog.Formations.Single(f => f.FormationId == state.FormationId);
         var bodies = catalog.Bodies.ToDictionary(b => b.Id);
-        int x = (int)Math.Round(32 * (state.CellX + 200 - state.CellY) + 96);
-        int y = (int)Math.Round(16 * (state.CellX + state.CellY + 1) + 112) - 10 * (state.Elevation - 1);
-        List<MapAnimatedSprite> animations = [];
-        void Add(string clip, int dx, int dy, int phase = 0) =>
-            animations.Add(new(clip, x + dx, y + dy, phase % clips[clip].Frames.Length, -1));
         var layout = formation.Layouts.Where(l => l.MinimumSoldiers <= state.Soldiers).MaxBy(l => l.MinimumSoldiers)!;
-        var members = layout.Members.Select((member, index) => (Member: member, Index: index))
-            .OrderBy(m => m.Member.Y).ThenBy(m => m.Member.X).ToArray();
-        foreach (var member in members)
-            if (bodies[member.Member.BodyId].Wake is {} wake) Add(wake.ClipId, member.Member.X + wake.X, member.Member.Y + wake.Y);
-        int bodyStart = animations.Count;
-        foreach (var member in members)
+        static (double X, double Y) Ground(UnitVisualState s) => (32 * (s.CellX + 200 - s.CellY) + 96, 16 * (s.CellX + s.CellY + 1) + 112);
+        var anchor = Ground(state);
+        int x = (int)Math.Round(anchor.X), y = (int)Math.Round(anchor.Y) - 10 * (state.Elevation - 1);
+        (double X, double Y, double GroundY, int Direction) Pose(MapUnitMember m, int index, double time)
         {
-            var body = bodies[member.Member.BodyId];
+            // A bounded queue of movement samples; morale changes the waiting distance.
+            // Do not compress the remaining path to force all members to arrive together.
+            int waitingSteps = index == 0 ? 0 : Math.Min(8, (int)(Disorder(state, m) * (Seed(state.Id, index, 0) % 800) / 100));
+            double sampleTime = Math.Max(0, time - waitingSteps * 90);
+            var sampled = history?.Invoke(sampleTime) ?? state;
+            var ground = Ground(sampled);
+            double spread = state.Condition switch { UnitCondition.Disguised => .4, UnitCondition.NoFormation => .5,
+                UnitCondition.Confused => .6, UnitCondition.Routed => 1, UnitCondition.HighSpirits => .25, _ => .35 };
+            double interval = 100 + Disorder(state, m) * (Seed(state.Id, index, 1) % 101);
+            double phaseTime = (positionMilliseconds ?? milliseconds) - (milliseconds - time);
+            double wave = (1 + Math.Sin(phaseTime / interval * (m.Group / 2 + 6) * Math.Tau / 256)) / 2;
+            double scale = 1 + spread * Disorder(state, m) * wave;
+            double gx = ground.X + m.X * scale, gy = ground.Y + m.Y * scale;
+            return (gx, gy - 10 * ((elevationAt?.Invoke(gx, gy) ?? sampled.Elevation) - 1), gy, sampled.Direction);
+        }
+        List<MapAnimatedSprite> animations = [];
+        void Add(string clip, double px, double py, double depth, int phase = 0, int? frame = null) =>
+            animations.Add(new(clip, (int)Math.Round(px), (int)Math.Round(py), phase % clips[clip].Frames.Length, -1)
+                { Depth = depth, Frame = frame });
+        var members = layout.Members.Select((m, i) => (Member: m, Index: i, Pose: Pose(m, i, milliseconds)))
+            .OrderBy(m => m.Pose.GroundY).ThenBy(m => m.Pose.X).ToArray();
+        foreach (var m in members)
+            if (bodies[m.Member.BodyId].Wake is {} wake) Add(wake.ClipId, m.Pose.X + wake.X, m.Pose.Y + wake.Y, m.Pose.GroundY + 20000);
+        if (state.Action == UnitVisualAction.Moving && !state.IsEngaged && catalog.VisionSlices.Length > 0)
+        {
+            int sectors = Math.Clamp(state.VisionAngleDegrees / 45, 0, 8);
+            int start = (2 * state.Direction - sectors + 17) % 16;
+            for (int i = 0; i < 2 * sectors; i++)
+            {
+                var slice = catalog.VisionSlices[(start + i) % 16];
+                Add(slice.ClipId, x + slice.X, y + slice.Y, anchor.Y + 20000);
+            }
+        }
+        foreach (var m in members)
+        {
+            var body = bodies[m.Member.BodyId];
             if (state.UsesImperialAppearance && body.ImperialBodyId is {} imperial) body = bodies[imperial];
             var actions = state.Action == UnitVisualAction.Melee ? body.MeleeActions : state.Action == UnitVisualAction.Ranged ? body.RangedActions : [];
-            string clip = actions.Length == 0 ? body.DirectionClips[state.Direction] : actions[(int)(((long)state.Id + member.Index) % actions.Length)].DirectionClips[state.Direction];
-            Add(clip, member.Member.X - body.AnchorX, member.Member.Y - body.AnchorY,
-                state.Action is UnitVisualAction.Melee or UnitVisualAction.Ranged ? 0 : (int)(((long)state.Id + member.Index) % clips[clip].Frames.Length));
+            bool attacking = state.Action is UnitVisualAction.Melee or UnitVisualAction.Ranged;
+            int direction = attacking ? state.Direction : m.Pose.Direction;
+            string clip = actions.Length == 0 ? body.DirectionClips[direction] : actions[(int)(((long)state.Id + m.Index) % actions.Length)].DirectionClips[direction];
+            Add(clip, m.Pose.X - body.AnchorX, m.Pose.Y - body.AnchorY, m.Pose.GroundY + 30000,
+                attacking ? 0 : (int)(((long)state.Id + m.Index) % clips[clip].Frames.Length));
+            animations[^1] = animations[^1] with { IsBody = true, GroundX = m.Pose.X, GroundY = m.Pose.GroundY,
+                TimeScale = attacking ? 1 : 100 / (100 + Disorder(state, m.Member) * (Seed(state.Id, m.Index, 1) % 101)) };
         }
-        Add($"unit-flag-{state.Direction}-pole-back", -34, formation.FlagY);
-        Add($"unit-flag-{state.Direction}-cloth-{state.Color}", -34, formation.FlagY);
+        foreach (var m in members)
+        {
+            var body = bodies[m.Member.BodyId];
+            if (state.IsEngaged && (m.Member.Index == 0 || Seed(state.Id, m.Index, 2) % 3 == 0))
+                foreach (var e in body.Engagement)
+                    Add(e.ClipId, m.Pose.X + e.X, m.Pose.Y + e.Y, m.Pose.GroundY + 30000 + e.DepthOffset,
+                        (int)(Seed(state.Id, m.Index, 3) % (uint)clips[e.ClipId].Frames.Length));
+        }
+        Add($"unit-flag-{state.Direction}-pole-back", x - 34, y + formation.FlagY, anchor.Y + 30100);
+        Add($"unit-flag-{state.Direction}-cloth-{state.Color}", x - 34, y + formation.FlagY, anchor.Y + 30100);
         int glyph = state.IsRulerCommander ? catalog.RulerFlagGlyph : state.Glyph;
         if (glyph >= 0)
         {
             int ink = new[] { 3, 6, 7, 8, 11, 16, 18, 21, 22, 23, 24, 26, 27, 29, 31, 33, 38, 39, 40, 46, 49, 50 }.Contains(state.Color) ? 1 : 0;
-            Add($"unit-flag-{state.Direction}-glyph-{ink}-{glyph}", -34, formation.FlagY);
+            Add($"unit-flag-{state.Direction}-glyph-{ink}-{glyph}", x - 34, y + formation.FlagY, anchor.Y + 30100);
         }
-        Add($"unit-flag-{state.Direction}-pole-front", -34, formation.FlagY);
-        if (state.HasCityInfluence)
-        {
-            var effect = layout.Influence;
-            Add(effect.ClipId, effect.X, effect.Y);
-        }
+        Add($"unit-flag-{state.Direction}-pole-front", x - 34, y + formation.FlagY, anchor.Y + 30100);
+        if (state.HasCityInfluence) Add(layout.Influence.ClipId, x + layout.Influence.X, y + layout.Influence.Y, anchor.Y + 30032);
         if (catalog.Conditions.TryGetValue(state.Condition, out var status))
-            Add(status.ClipId, status.X, formation.StatusY + status.Y);
+            Add(status.ClipId, x + status.X, y + formation.StatusY + status.Y, anchor.Y + 40000);
+        if (history is not null)
+        {
+            // Bounded deterministic emission history makes seeking, pause and multiple cameras identical.
+            for (int tick = Math.Max(0, (int)((milliseconds - 1000) / 90)); tick * 90 <= milliseconds; tick++)
+            {
+                double emitted = tick * 90, age = visualAge?.Invoke(emitted) ?? milliseconds - emitted;
+                var then = history(emitted);
+                if (then.Action != UnitVisualAction.Moving) continue;
+                var oldLayout = catalog.Formations.Single(f => f.FormationId == then.FormationId).Layouts
+                    .Where(l => l.MinimumSoldiers <= then.Soldiers).MaxBy(l => l.MinimumSoldiers)!;
+                for (int i = 0; i < oldLayout.Members.Length; i++)
+                {
+                    var m = oldLayout.Members[i]; var body = bodies[m.BodyId];
+                    if (body.Trail is not {} trail || Seed(state.Id, i, tick + 100) % 1600 >= body.TrailChance * 16) continue;
+                    var clip = clips[trail.ClipId]; int frame = (int)(age / clip.FrameMilliseconds);
+                    if (frame >= clip.Frames.Length) continue;
+                    var pose = Pose(m, i, emitted);
+                    Add(trail.ClipId, pose.X + trail.X, pose.Y + trail.Y, pose.GroundY + 30000 - (body.Wake is null ? 0 : 1), frame: frame);
+                }
+            }
+        }
         return new(state.Id, state.CellX, state.CellX + state.CellY, animations.ToArray())
-        { Soldiers = state.Soldiers, Morale = state.Morale, CommanderNameKey = state.CommanderNameKey, LabelX = x, LabelY = y - 96,
-          BodySpriteCount = members.Length, BodySpriteStart = bodyStart, AnchorX = x, AnchorY = y };
+        { Action = state.Action, Soldiers = state.Soldiers, Morale = state.Morale, CommanderNameKey = state.CommanderNameKey, LabelX = x, LabelY = y - 96,
+          AnchorX = x, AnchorY = y };
     }
 }

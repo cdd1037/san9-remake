@@ -4,38 +4,28 @@ using San9.Core.Simulation;
 
 namespace San9.Rendering;
 
-/// <summary>A display-only path. It never searches again or writes interpolated positions to the world.</summary>
+/// <summary>One day's display displacement, independent of the logical path and movement cost.</summary>
 public sealed class MapUnitMotion
 {
     public WorldPosition[] Points { get; }
-    private readonly double[] _distances;
+    public bool HasDisplacement => Points[0] != Points[1];
     public MapUnitMotion(IEnumerable<UnitMovedEvent> movements)
     {
         var events = movements.ToArray();
-        Points = events.SelectMany(e => new[] { e.From }.Concat(e.Steps).Append(e.To)).DistinctAdjacent().ToArray();
-        _distances = new double[Points.Length];
-        for (int i = 1; i < Points.Length; i++)
-            _distances[i] = _distances[i - 1] + Math.Sqrt(Math.Pow(Points[i].X - Points[i - 1].X, 2) + Math.Pow(Points[i].Y - Points[i - 1].Y, 2));
+        if (events.Length == 0) throw new ArgumentException("Daily movement requires an event.", nameof(movements));
+        Points = [events[0].From, events[^1].To];
+    }
+    public IEnumerable<(double X, double Y)> Segment(double from, double to)
+    {
+        var first = Sample(from); var last = Sample(to);
+        yield return (first.X, first.Y);
+        yield return (last.X, last.Y);
     }
     public (double X, double Y, int Direction) Sample(double progress)
     {
-        if (Points.Length == 0) throw new InvalidOperationException("Empty movement.");
-        if (Points.Length == 1) return (Points[0].X, Points[0].Y, 0);
-        double distance = Math.Clamp(progress, 0, 1) * _distances[^1];
-        int segment = 1;
-        while (segment < Points.Length - 1 && _distances[segment] < distance) segment++;
-        double t = (distance - _distances[segment - 1]) / (_distances[segment] - _distances[segment - 1]);
-        var a = Points[segment - 1]; var b = Points[segment];
-        return (a.X + (b.X - a.X) * t, a.Y + (b.Y - a.Y) * t, UnitVisuals.Direction(a, b));
-    }
-}
-
-internal static class MotionPoints
-{
-    internal static IEnumerable<WorldPosition> DistinctAdjacent(this IEnumerable<WorldPosition> points)
-    {
-        WorldPosition? last = null;
-        foreach (var p in points) if (p != last) { yield return p; last = p; }
+        double t = Math.Clamp(progress, 0, 1);
+        var a = Points[0]; var b = Points[1];
+        return (a.X + ((double)b.X - a.X) * t, a.Y + ((double)b.Y - a.Y) * t, UnitVisuals.Direction(a, b));
     }
 }
 

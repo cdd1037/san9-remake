@@ -36,23 +36,25 @@ public sealed record BuildingVisuals(MapBuilding[] Buildings, MapAnimatedSprite[
             if (!compositions.TryGetValue(id,out var composition)) throw new InvalidDataException($"Unconfirmed composition {id}.");
             var center = MapGeometry.Center(b.X,b.Y); int x = center.X, y = center.Y-10*(map.Squares[b.Y*map.Width+b.X].Elevation-1);
             int development = state.Development <= 300 ? 0 : state.Development <= 600 ? 1 : 2;
-            var sprites = composition.Parts.Select(p => new MapSprite($"building-{p.ResourceId+(type==0 && p.DevelopmentVariant?development:0)}-{(p.PaletteAlpha?"alpha":"key")}",x+p.X,y+p.Y)).ToArray();
+            var sprites = composition.Parts.Select(p => new MapSprite($"building-{p.ResourceId+(type==0 && p.DevelopmentVariant?development:0)}-{(p.PaletteAlpha?"alpha":"key")}",x+p.X,y+p.Y)
+                { Depth = p.PaletteAlpha && !p.DevelopmentVariant ? y + p.Y + 10000 : p.Ground && !p.DevelopmentVariant && !p.PaletteAlpha ? 1 :
+                    y + p.Y + p.DepthOffset + (p.DevelopmentVariant && !p.PaletteAlpha ? 29990 : 30000) }).ToArray();
             buildings.Add(new(b.Id,b.X,b.Y,type,id,sprites));
             if (state.Soldiers > 0)
                 for (int i=0;i<composition.Guards.Length;i++)
                 {
-                    var g=composition.Guards[i]; animations.Add(new($"soldier-{g.Direction}",x+g.X,y+g.Y,(b.Id+i)%8,b.Id));
+                    var g=composition.Guards[i]; animations.Add(new($"soldier-{g.Direction}",x+g.X,y+g.Y,(b.Id+i)%8,b.Id) { Depth = y + g.Y + g.DepthOffset + 30000 });
                 }
             for (int i=0;i<composition.Flags.Length;i++)
             {
                 var f=composition.Flags[i]; int phase=(b.Id+i)%4;
-                animations.Add(new("flag-pole-back",x+f.X,y+f.Y,phase,b.Id));
-                animations.Add(new($"flag-cloth-{state.Color}",x+f.X,y+f.Y,phase,b.Id));
-                if(state.Glyph>=0) animations.Add(new($"flag-glyph-{(darkGlyph.Contains(state.Color)?1:0)}-{state.Glyph}",x+f.X,y+f.Y,phase,b.Id));
-                animations.Add(new("flag-pole-front",x+f.X,y+f.Y,phase,b.Id));
+                animations.Add(new("flag-pole-back",x+f.X,y+f.Y,phase,b.Id) { Depth = y + f.Y + 30100 });
+                animations.Add(new($"flag-cloth-{state.Color}",x+f.X,y+f.Y,phase,b.Id) { Depth = y + f.Y + 30100 });
+                if(state.Glyph>=0) animations.Add(new($"flag-glyph-{(darkGlyph.Contains(state.Color)?1:0)}-{state.Glyph}",x+f.X,y+f.Y,phase,b.Id) { Depth = y + f.Y + 30100 });
+                animations.Add(new("flag-pole-front",x+f.X,y+f.Y,phase,b.Id) { Depth = y + f.Y + 30100 });
             }
             var smoke = BuildingSmokeVisuals.Resolve(composition.Smoke, state, maximum, type == 0, clips);
-            animations.AddRange(smoke.Select(s => s with { X = x + s.X, Y = y + s.Y }));
+            animations.AddRange(smoke.Select(s => s with { X = x + s.X, Y = y + s.Y, Depth = s.BehindBuilding ? sprites.Min(p => p.Depth) - 1 : sprites.Max(p => p.Depth) + 1 }));
         }
         return new(buildings.ToArray(),animations.ToArray());
     }

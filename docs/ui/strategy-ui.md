@@ -6,6 +6,8 @@
 
 `Main`装配会话、内容和显示节点。`StrategySelection`管理地图命令选择；`MapWorld`发布拾取事件并接受高亮、镜头定位，建筑显示来自当前会话视图。`MapAnnotations`负责地图标注，`StrategyHud`负责固定界面。控件焦点、地图选择和鼠标悬停是不同状态，不能相互替代。
 
+普通游戏运行中，F1将稳定战略状态写入`user://saves/quick.save.json`，F2读取该存档；修饰键组合不触发快捷键。存档复用会话协议校验，读取成功后重建会话所属HUD、选择和弹窗，保留地图资源并清除旧动画历史。读取失败保留当前会话；快捷键不在画面验收模式启用。界面提示结果与失败原因，存读档实际交互仍需画面验收。
+
 `DeploymentFlow`拥有出征草案、来源、目标与子窗口，退出目标选择或流程时清除地图回调；HUD只绑定显示和用户意图。`StrategyInteraction`根据回合、出征阶段、全图和模态覆盖推导输入能力。主情报与菜单挂在`Main`装配的`StrategyOverlayHost`下，出征子窗口由流程持有；全图挂在独立背景宿主下。
 
 设施和武将侧栏复用`StrategyRoster`与`StrategyRosterList`，按直属军团过滤；君主所在项固定首行，从普通13行中去重。两页独立保留滚动位置，焦点由Godot控件管理，不写回世界。点击或Enter只定位镜头，褐色行仍可激活；不因地图选择而强制滚动名单。Tab控件导航和Space激活是现代交互约定，见[DEC-UI-0004](../../specs/decisions/DEC-UI-0004-facility-list-interaction.md)。

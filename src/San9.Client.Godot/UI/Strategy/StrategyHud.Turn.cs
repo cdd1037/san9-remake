@@ -6,6 +6,8 @@ public partial class StrategyHud
 {
     public TurnPresentation Turn { get; private set; } = null!;
     public bool CanIssueOrders => Interaction.CanIssueOrders && !SidebarMoving && _patrol is null && _narration is null;
+    public bool CanQuickSave => _built && Turn.Screen == TurnScreen.Strategy && CanIssueOrders &&
+        !_flow.IsActive && !_notice.Visible && !OverlayHost.HasModal;
     private readonly List<Control> _strategicHeader = [];
     private TextureButton _advanceButton = null!, _informationButton = null!;
     private GameDialog _turnDialog = null!;

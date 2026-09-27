@@ -157,6 +157,17 @@ public partial class MapWorld : Node2D
         if (Scene is null) return;
         Scene = new(Scene.Map, Scene.Terrain, Scene.Season, View, Textures.MapAssets, () => UnitPositionTime, Scene, Day); RequestDisplay();
     }
+    public void BindSession(San9.Application.GameSession session)
+    {
+        Session = session; Presentation = null; Day = null;
+        ResetNavigation(); ReleaseMouseLock(); HoverObject(null);
+        TargetPicked = null; WaypointPicked = null;
+        if (_display is not null) _display.Targets = null;
+        if (Scene is null) return;
+        // Retain terrain resources, but never carry motion history across player loads.
+        Scene = new(Scene.Map, Scene.Terrain, Scene.Season, View, Textures.MapAssets, () => UnitPositionTime);
+        RequestDisplay();
+    }
     public void PreviewSeason(string season) => BeginLoad(season);
     public void HoverBuilding(int? id) => HoverObject(id is int value ? new(value, false) : null);
     public void HoverObject(MapObjectTarget? target)

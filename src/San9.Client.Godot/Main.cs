@@ -66,22 +66,38 @@ public partial class Main : Node
             if (options.RuntimeSmoke) initial = ClientVerificationScenario.Create(initial);
             var session = San9.Application.GameSession.Start(initial, 190, options.ComputerDamageBonusPercent);
             world.Session = session;
-            var selection = new StrategySelection(session);
+            StrategySelection selection = null!;
+            StrategyHud hud = null!;
+            Node? sessionUi = null;
             var center = MapGeometry.Center(options.CenterX, options.CenterY);
             world.FocusWorld(new(center.X, center.Y)); world.SetZoom(options.Zoom);
             world.LoadMap(content.Map, content.TextureRoot, options.Season, options.AnimationTime);
             ui.AddChild(new MapAnnotations { World = world, Texts = content.Text, UiFont = ui.GetThemeFont("font") });
-            var backdropHost = new Node(); ui.AddChild(backdropHost);
-            var overlayHost = new StrategyOverlayHost();
-            var hud = new StrategyHud { CommandPresentation = content.Presentation, ContentRoot = content.ContentRoot, SoundEnabled = new Settings.UserSettingsStore(ProjectSettings.GlobalizePath(Settings.UserSettingsStore.UserDataPath)).Load().SoundEnabled, OverlayHost = overlayHost, BackdropHost = backdropHost, World = world, Selection = selection, Session = session, Texts = content.Text, Skin = content.Skin, Textures = textures };
-            ui.AddChild(overlayHost);
-            ui.AddChild(hud);
-            ui.MoveChild(overlayHost, ui.GetChildCount() - 1);
-            var debug = new DebugPanel { World = world, Session = session, Selection = selection, CanIssueOrders = () => hud.CanIssueOrders }; ui.AddChild(debug);
-            world.IsInputBlocked = p => hud.Overview.IsOpen || (debug.Visible && debug.GetRect().HasPoint(p)) || hud.IsBlockedPoint(p);
-            world.IsNavigationBlocked = p => (debug.Visible && debug.GetRect().HasPoint(p)) || hud.IsNavigationBlocked(p);
-            world.CanNavigate = () => hud.CanNavigateMap;
-            world.CanIssueOrders = () => hud.CanIssueOrders;
+            void ActivateSession(San9.Application.GameSession next)
+            {
+                // Detach the old UI before binding the new session; its exit hooks clear map callbacks.
+                sessionUi?.Free();
+                session = next;
+                world.BindSession(next);
+                selection = new StrategySelection(next);
+                sessionUi = new Node { Name = "SessionUi" }; ui.AddChild(sessionUi);
+                var backdropHost = new Node(); sessionUi.AddChild(backdropHost);
+                var overlayHost = new StrategyOverlayHost();
+                hud = new StrategyHud { CommandPresentation = content.Presentation, ContentRoot = content.ContentRoot,
+                    SoundEnabled = new Settings.UserSettingsStore(ProjectSettings.GlobalizePath(Settings.UserSettingsStore.UserDataPath)).Load().SoundEnabled, OverlayHost = overlayHost, BackdropHost = backdropHost, World = world, Selection = selection, Session = session, Texts = content.Text, Skin = content.Skin, Textures = textures };
+                sessionUi.AddChild(overlayHost);
+                sessionUi.AddChild(hud);
+                sessionUi.MoveChild(overlayHost, sessionUi.GetChildCount() - 1);
+                var debug = new DebugPanel { World = world, Session = session, Selection = selection, CanIssueOrders = () => hud.CanIssueOrders }; sessionUi.AddChild(debug);
+                world.IsInputBlocked = p => hud.Overview.IsOpen || (debug.Visible && debug.GetRect().HasPoint(p)) || hud.IsBlockedPoint(p);
+                world.IsNavigationBlocked = p => (debug.Visible && debug.GetRect().HasPoint(p)) || hud.IsNavigationBlocked(p);
+                world.CanNavigate = () => hud.CanNavigateMap;
+                world.CanIssueOrders = () => hud.CanIssueOrders;
+            }
+            ActivateSession(session);
+            if (!options.RequiresWorldVerification)
+                ui.AddChild(new Persistence.QuickSaveShortcuts { Definition = initial, CurrentSession = () => session,
+                    CanSave = () => hud.CanQuickSave, ActivateSession = ActivateSession });
             if (options.RequiresWorldVerification)
                 AddChild(new ClientVerification { World = world, Selection = selection, Hud = hud, Options = options });
         }

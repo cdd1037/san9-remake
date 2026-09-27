@@ -381,6 +381,7 @@ public partial class StrategyHud : Control
     }
     public override void _Process(double delta)
     {
+        if (!_built && World.IsVisibleReady) Build();
         if (_built) UpdateTurn(delta);
         if (_commandMenu?.Visible == true && _contextRevision != Session.Snapshot.Revision) _commandMenu.Close();
         if (_mapContext?.Visible == true && _contextRevision != Session.Snapshot.Revision) _mapContext.Close();

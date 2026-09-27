@@ -210,7 +210,14 @@ public sealed class OriginalMessageParserTests
     public void CatalogPropertiesUseRecoveredGetterSemantics(byte selector, byte property, string binding)
     {
         var result = new OriginalMessageParser().Parse([2,selector,property, (byte)'A',5,5,5]);
-        var expression = Assert.IsType<MessageValue>(result.Definition.Nodes[0]);
+        var node = result.Definition.Nodes[0];
+        if (binding == "building.0.owner-name")
+        {
+            var styled = Assert.IsType<MessageStyled>(node);
+            Assert.Equal("green-outline", styled.Preset);
+            node = Assert.Single(styled.Body);
+        }
+        var expression = Assert.IsType<MessageValue>(node);
         Assert.Equal(binding, expression.Expression.Binding);
         Assert.True(result.SemanticsConfirmed);
     }
@@ -222,7 +229,9 @@ public sealed class OriginalMessageParserTests
     public void NumericPersonPropertiesDoNotReplaceDisplayedNames(byte property)
     {
         var result = new OriginalMessageParser().Parse([2,1,property, (byte)'A',5,5,5]);
-        var expression = Assert.IsType<MessageValue>(result.Definition.Nodes[0]);
+        var styled = Assert.IsType<MessageStyled>(result.Definition.Nodes[0]);
+        Assert.Equal("blue-outline", styled.Preset);
+        var expression = Assert.IsType<MessageValue>(Assert.Single(styled.Body));
         Assert.Equal(property switch { 0xDB => "person.0.surname", 0xDC => "person.0.given-name", _ => "person.0.courtesy-name" }, expression.Expression.Binding);
         var predicate = new OriginalMessageParser().Parse([5,5,4, 2,1,property, (byte)'A',5,5,5]);
         Assert.Equal(-1, Assert.IsType<MessageConditional>(predicate.Definition.Nodes[0]).Predicate.Number);

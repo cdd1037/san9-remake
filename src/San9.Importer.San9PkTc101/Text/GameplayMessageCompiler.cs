@@ -77,7 +77,7 @@ public sealed class GameplayMessageCompiler(ScenarioInitialState scenario, IRead
                     string group = parts[0], property = parts[2];
                     string? semantic = (group, property) switch
                     {
-                        ("person", "name" or "surname" or "given-name" or "courtesy-name" or "office-name" or "location-name" or
+                        ("person", "name" or "surname" or "given-name" or "courtesy-name" or "office-name" or "office-command-capacity" or "location-name" or
                             "personality" or "righteousness" or "ambition" or "injury") => "person." + property,
                         ("person", "gender-flag") => "person.is-female", ("person", "gender-flag-clear") => "person.is-male",
                         ("person", "current-force-loyalty") => "person.loyalty",
@@ -90,7 +90,7 @@ public sealed class GameplayMessageCompiler(ScenarioInitialState scenario, IRead
                         ("building", "owner-name" or "type-name") => "settlement." + property,
                         ("treasure", "name" or "category") => "treasure." + property,
                         ("tactic", "name" or "category-name") => "tactic." + property,
-                        ("unit", "location-name") => "unit.location-name", _ => null
+                        ("unit", "location-name" or "is-embedded" or "commander-name") => "unit." + property, _ => null
                     };
                     return semantic is null ? Unsupported($"No runtime property for {group}.{property}.") :
                         Property(semantic, new("binding", $"{group}.{parts[1]}"));

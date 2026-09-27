@@ -11,6 +11,12 @@ public enum GameTextEffect { None, Outline, Shadow }
 public readonly record struct GameTextStyle(int FontSize, Color Foreground,
     GameTextEffect Effect, Color EffectColor);
 
+public static class GameTextMetrics
+{
+    // Baselines follow the nominal glyph cell; retain the final line's full font height.
+    public static int LineSpacing(Font font, int fontSize) => fontSize - Mathf.CeilToInt(font.GetHeight(fontSize));
+}
+
 public static class GameTextEffects
 {
     public static int OutlineSize(GameTextStyle style) => style.Effect == GameTextEffect.Outline ? TextOutlineStyle.Size : 0;
@@ -51,6 +57,7 @@ public static class GameTextStyles
     };
 
     public static GameTextStyle CatalogRow => Outlined(16, White);
+    public static GameTextStyle NarrationName => new(24, White, GameTextEffect.Shadow, Colors.Black);
     public static GameTextStyle CatalogDisabledRow => Outlined(16, new Color("a4a4a4"));
 
     public static GameTextStyle CatalogBulk(bool hovered, bool pressed, bool disabled) =>
@@ -109,6 +116,7 @@ public sealed class GameTextPresenter : IDisposable
         if (!_settings.TryGetValue(key, out var settings))
         {
             settings = new LabelSettings { Font = key.Item2, FontSize = style.FontSize, FontColor = style.Foreground,
+                LineSpacing = GameTextMetrics.LineSpacing(key.Item2, style.FontSize),
                 OutlineSize = GameTextEffects.OutlineSize(style), OutlineColor = GameTextEffects.OutlineColor(style),
                 ShadowColor = GameTextEffects.ShadowColor(style), ShadowOffset = GameTextEffects.ShadowOffset(style),
                 ShadowSize = 0 };

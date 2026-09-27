@@ -10,6 +10,38 @@ internal sealed record OriginalStyleChange(string? Preset) : MessageNode;
 /// <summary>Lower source style state into lexical scopes, including the continuations of source calls.</summary>
 internal static class OriginalMessageStyles
 {
+    // RE-0168: display properties emit their own escapes, independently of explicit source style tokens.
+    // Only display nodes are decorated; numeric properties and plain name storage remain unchanged.
+    public static MessageNode[] DisplayValue(MessageExpression expression, OriginalMessagePresentation presentation)
+    {
+        var value = new MessageValue(expression);
+        if (expression is not { Operation: "binding", Binding: { } binding }) return [value];
+        string[] parts = binding.Split('.');
+        if (parts.Length != 3) return [value];
+        MessageExpression Property(string name) => new("binding", $"{parts[0]}.{parts[1]}.{name}");
+        MessageStyled Styled(string color, MessageExpression e) => new(
+            presentation == OriginalMessagePresentation.Help ? color : color + "-outline", [new MessageValue(e)]);
+        if (parts is ["person", _, "office-and-name"])
+            return [new MessageConditional(new(">", Arguments: [Property("office-command-capacity"), new("constant", Number: 10000)]),
+                [Styled("green", Property("office-name")), new MessageLiteral("‧")]), Styled("blue", Property("name"))];
+        if (parts is ["unit", _, "display-name"])
+            return [new MessageChoice(Property("is-embedded"),
+                [[Styled("blue", Property("commander-name")), new MessageLiteral("队")],
+                 [Styled("green", Property("location-name"))]])];
+        string? color = (parts[0], parts[2]) switch
+        {
+            ("person", "name" or "surname" or "given-name" or "courtesy-name") => "blue",
+            ("force", "leader-name" or "direct-leader-name") => "blue",
+            ("person", "location-name") => "green",
+            ("building", "name-with-type" or "name" or "owner-name") => "green",
+            ("force", "name" or "country-name" or "rank-name") => "green",
+            ("treasure", "name") => "green",
+            ("tactic", "name") => "green",
+            _ => null
+        };
+        return [color is null ? value : Styled(color, expression)];
+    }
+
     public static MessageDefinition Compile(MessageDefinition source,
         IReadOnlyDictionary<string, MessageDefinition>? catalog = null)
     {

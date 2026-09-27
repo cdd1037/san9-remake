@@ -127,7 +127,7 @@ public sealed class OriginalMessageParser
                 else
                 {
                     _position--;
-                    nodes.Add(new MessageValue(Arithmetic(display: true)));
+                    nodes.AddRange(OriginalMessageStyles.DisplayValue(Arithmetic(display: true), _presentation));
                 }
             }
             else if (first is 0x1A or 0x1B)
@@ -264,12 +264,12 @@ public sealed class OriginalMessageParser
                     name = (category, property) switch
                     {
                         ("person", 0xDB) => "surname", ("person", 0xDC) => "given-name", ("person", 0xDD) => "courtesy-name",
-                        ("person", 0xE0) => "location-name", ("person", 0xE3) => "office-name",
+                        ("person", 0xE0) => "location-name", ("person", 0xE3) => "office-and-name",
                         ("force", 0xC7) => "country-name", ("force", 0xC8) => "rank-name",
                         ("force", 0xC9) => "leader-name", ("force", 0xCE) => "direct-leader-name", ("force", 0xCB) => "name",
                         ("building", 0x9E or 0x9F) => "name-with-type", ("building", 0xA7 or 0xA8) => "name",
                         ("building", 0x3E) => "type-name", ("building", 0xA0) => "owner-name",
-                        ("treasure", 0x43) => "name", ("unit", 0x79) => "location-name",
+                        ("treasure", 0x43) => "name", ("unit", 0x79) => "display-name",
                         ("tactic", 0x36) => "category-name", _ => name
                     };
                 else if (category == "person" && property is 0xDB or 0xDC or 0xDD) return new("constant", Number: -1);

@@ -50,8 +50,8 @@ public partial class GameDialog : Control
         center.AddChild(_panel);
         var column = new VBoxContainer();
         var font = GetThemeFont("font");
-        int fontHeight = (int)Math.Ceiling(font.GetHeight(24));
-        _lineOverflow = Math.Max(0, fontHeight - 24);
+        int lineSpacing = GameTextMetrics.LineSpacing(font, 24);
+        _lineOverflow = Math.Max(0, -lineSpacing);
         _bodyGap = Math.Max(0, 16 - _lineOverflow);
         column.AddThemeConstantOverride("separation", _bodyGap);
         _panel.AddChild(column);
@@ -68,7 +68,7 @@ public partial class GameDialog : Control
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             MouseFilter = MouseFilterEnum.Ignore,
-            LabelSettings = new LabelSettings { Font = font, FontSize = 24, LineSpacing = 24 - fontHeight, FontColor = Colors.Black }
+            LabelSettings = new LabelSettings { Font = font, FontSize = 24, LineSpacing = lineSpacing, FontColor = Colors.Black }
         };
         _body.AddChild(_message);
         var buttons = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.Center };

@@ -11,15 +11,18 @@ public static class MessageStyleMarkup
     {
         MessageStyles.ValidateMarkup(markup);
         bool found = false;
+        var scopes = new Stack<MessageStylePreset>();
         string result = Tags.Replace(markup, match =>
         {
             found = true;
             if (match.Groups["id"].Success)
             {
                 var preset = MessageStyles.Get(match.Groups["id"].Value);
-                return $"[color=#{preset.Foreground}][outline_size={TextOutlineStyle.Size}][outline_color=#{preset.Outline}{TextOutlineStyle.AlphaByte:X2}]";
+                scopes.Push(preset);
+                string foreground = preset.Foreground is null ? "" : $"[color=#{preset.Foreground}]";
+                return $"{foreground}[outline_size={TextOutlineStyle.Size}][outline_color=#{preset.Outline}{TextOutlineStyle.AlphaByte:X2}]";
             }
-            return "[/outline_color][/outline_size][/color]";
+            return "[/outline_color][/outline_size]" + (scopes.Pop().Foreground is null ? "" : "[/color]");
         });
         return (result, found);
     }

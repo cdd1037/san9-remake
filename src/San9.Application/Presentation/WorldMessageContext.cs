@@ -118,6 +118,7 @@ public sealed class WorldMessageContext
                 "person.given-name" => Text(ResolveOptional(Profile(p.Id).GivenNameKey)),
                 "person.courtesy-name" => Text(ResolveOptional(_personDefinitions[p.Id].CourtesyNameKey)),
                 "person.office-name" => Text(p.OfficeId is int office ? _texts.Resolve(_definition.Information.Offices.Single(o => o.Id == office).NameKey) : ""),
+                "person.office-command-capacity" => new(p.OfficeId is int office ? _definition.Information.Offices.Single(o => o.Id == office).CommandCapacity : 0),
                 "person.location-name" => Text(p.SettlementId is int place ? PlaceName(place) : p.UnitId is int unit ? UnitLocation(_units[unit]) :
                     p.RegionId is int region ? _texts.Resolve(_definition.RegionNameKeys[region]) : ""),
                 "person.is-female" => Flag(p.IsFemale),
@@ -169,6 +170,9 @@ public sealed class WorldMessageContext
             "tactic.name" => Text(_texts.Resolve(_definition.Information.Tactics.Single(t => t.Id == Id(0, MessageEntityKind.Tactic)).NameKey)),
             "tactic.category-name" => Text(TacticCategory(Id(0, MessageEntityKind.Tactic))),
             "unit.location-name" => Text(UnitLocation(_units[Id(0, MessageEntityKind.Unit)])),
+            "unit.is-embedded" => Flag(_units[Id(0, MessageEntityKind.Unit)].IsEmbedded),
+            "unit.commander-name" => Text(_units[Id(0, MessageEntityKind.Unit)].CommanderId is int commander ? PersonName(commander) :
+                throw new InvalidDataException("A field unit display name requires a commander.")),
             _ => throw Unsupported(name)
         };
 

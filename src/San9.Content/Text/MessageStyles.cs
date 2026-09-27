@@ -1,8 +1,9 @@
 namespace San9.Content.Text;
 
-public sealed record MessageStylePreset(string Foreground, string Outline);
+/// <summary>A null foreground inherits the enclosing text color.</summary>
+public sealed record MessageStylePreset(string? Foreground, string Outline);
 
-/// <summary>Complete, finite message styles. Source palette indices belong to the importer.</summary>
+/// <summary>Finite message styles. Source palette indices belong to the importer.</summary>
 public static class MessageStyles
 {
     public const string Close = "[/preset]";
@@ -25,10 +26,10 @@ public static class MessageStyles
 
     public static MessageStylePreset Get(string preset) => preset switch
     {
-        "blue-outline" => new("F0F0F0", "98B0F8"),
-        "green-outline" => new("F0F0F0", "88F880"),
-        "peach-outline" => new("F0F0F0", "F0B080"),
-        "yellow-outline" => new("F0F0F0", "F8F8B0"),
+        "blue-outline" => new(null, "98B0F8"),
+        "green-outline" => new(null, "88F880"),
+        "peach-outline" => new(null, "F0B080"),
+        "yellow-outline" => new(null, "F8F8B0"),
         "blue" => new("7EBAC2", "000000"),
         "green" => new("A4D168", "000000"),
         "peach" => new("F0B080", "000000"),

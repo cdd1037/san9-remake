@@ -142,7 +142,6 @@ public partial class OfficerDetailView : Control, IInformationPage
             Label("列传",new(96,636,64,24),16,HorizontalAlignment.Center);
             var biography = new GameRichTextLabel { Position = new(180,640), Size = new(296,92), Textures = Textures };
             _body.AddChild(biography); biography.Present(_data.Biography, GameTextStyles.CatalogRow);
-            biography.AddThemeConstantOverride("line_separation", -3);
             biography.AutowrapMode=TextServer.AutowrapMode.Arbitrary;
         }
         else

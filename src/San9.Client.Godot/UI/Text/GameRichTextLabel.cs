@@ -28,8 +28,10 @@ public partial class GameRichTextLabel : RichTextLabel
         if (expanded.HasPresets && style.Effect == GameTextEffect.Shadow)
             style = style with { Effect = GameTextEffect.Outline };
         Style = style;
-        AddThemeFontOverride("normal_font", GetThemeFont("font"));
+        var font = GetThemeFont("font");
+        AddThemeFontOverride("normal_font", font);
         AddThemeFontSizeOverride("normal_font_size", style.FontSize);
+        AddThemeConstantOverride("line_separation", GameTextMetrics.LineSpacing(font, style.FontSize));
         AddThemeColorOverride("default_color", style.Foreground);
         AddThemeConstantOverride("outline_size", GameTextEffects.OutlineSize(style));
         AddThemeColorOverride("font_outline_color", GameTextEffects.OutlineColor(style));

@@ -106,6 +106,10 @@ Application的`MessageEvaluator`接收消息目录及`MessageContext`。Values�
 
 原作实际使用的蓝、绿、桃、淡黄描边转换为`blue-outline`、`green-outline`、`peach-outline`、`yellow-outline`。帮助／教学通过Importer的`OriginalMessagePresentation.Help`明确选择同色系主体强调预设`blue`、`green`、`peach`、`yellow`，蓝／绿按RE-0167重映射；不按消息编号猜测用途，也未因此新增帮助窗口。容貌帮助使用`yellow`。原作复位结束当前预设范围，恢复所在控件的正文基线；这属于重制选择。未登记组合保留诊断并拒绝发布。样式传播只在导入器中解析，涉及样式的子调用按执行路径展开，运行时的引用不改变调用方后续样式。完整预设及宿主效果组合见[统一文字样式](text-styles.md)。
 
+对象显示参数的样式也由Importer转换为`MessageStyled`，不是仅处理正文中的显式颜色指令：人名、姓、名、字及君主／军团长姓名使用蓝色描边；地点、地点所属势力、势力名、国号、爵位、宝物名及兵法名使用绿色描边。帮助用途沿既有Help策略转换。名称查询仍返回纯文本，参数仍转义；不在控件按“洛阳”等文字匹配上色，也不改变用于条件判断的数值属性。范围结束恢复外层样式。源属性范围及复核见[RE-0168](../../research/findings/RE-SAN9PK-0168.md#动态名称描边补齐2026-09-28)。
+
+复合名称通过已有条件、选择和样式节点组合：官职带兵上限大于10000时显示绿色官职、普通分隔符`‧`、蓝色姓名，否则只显示蓝色姓名；驻防部队显示绿色地点，野战部队显示蓝色主将姓名及普通后缀“队”。`person.office-command-capacity`、`unit.is-embedded`和`unit.commander-name`读取当前世界与内容定义，重绘不改变状态。纯`person.office-name`与`unit.location-name`仍各自只返回官职和服务地点，不把复合富文本塞进普通字符串查询。
+
 ## 后续词汇校订计划（2026-09-11）
 
 以下为项目所有者确认记录的后续校订目标，本次不修改转换结果，也不作为历史姓名考证结论。原始文本和缺字出处见 [RE-0166](../../research/findings/RE-SAN9PK-0166.md#缺字出处核对与不增补字体决定2026-09-11)。

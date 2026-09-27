@@ -92,7 +92,6 @@ public partial class TreasureDetailView : Control, IInformationPage
         var description = new GameRichTextLabel { Position = new(392,156), Size = new(168,68), Textures = Textures };
         _body.AddChild(description); description.Present(_data.Description, GameTextStyles.CatalogRow);
         description.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        description.AddThemeConstantOverride("line_separation", -3);
         Label("种类", new(380,272,64,24), centered: true); Label(_data.Category, new(452,272,80,24), centered: true);
         Label(_data.Effect, new(538,272,88,24), centered: true);
         Label("能力", new(380,304,64,24), centered: true); Label(_data.Ability, new(452,304,80,24), centered: true);

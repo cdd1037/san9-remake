@@ -7,6 +7,18 @@ namespace San9.Client.Godot.Tests;
 public sealed class MapRenderingTests
 {
     [Fact]
+    public void DisplayElevationPreservesCentersAndInterpolatesBothAxesAtMapEdges()
+    {
+        MapSquare[] squares = [new(0, 1, 0, 0), new(0, 3, 0, 0), new(0, 5, 0, 0), new(0, 9, 0, 0)];
+        var origin = MapGeometry.Center(0, 0);
+        double At(double x, double y) => MapGeometry.SampleElevation(origin.X + 32 * (x - y), origin.Y + 16 * (x + y), 2, 2, squares);
+        Assert.Equal(1, At(0, 0)); Assert.Equal(9, At(1, 1));
+        Assert.Equal(4.5, At(.5, .5));
+        Assert.Equal(1, At(-1, -1)); Assert.Equal(9, At(2, 2));
+        Assert.Equal(2, At(.5, -1)); Assert.Equal(7, At(.5, 2));
+    }
+
+    [Fact]
     public void EdgeBlendKeepsWeightsCoverageAndChannelOrder()
     {
         byte[] weights = [0, 1, 128, 255, 0];

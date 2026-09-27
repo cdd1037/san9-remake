@@ -53,7 +53,7 @@ public static class UnitVisuals
     public static UnitVisual Resolve(UnitVisualState state, MapUnitCatalog catalog,
         IReadOnlyDictionary<string, MapAnimationClip> clips, double milliseconds = 0,
         Func<double, UnitVisualState>? history = null, Func<double, double>? visualAge = null,
-        Func<double, double, int>? elevationAt = null, double? positionMilliseconds = null)
+        Func<double, double, double>? elevationAt = null, double? positionMilliseconds = null)
     {
         if (state.Soldiers == 0 || state.Direction is < 0 or > 7) throw new ArgumentOutOfRangeException(nameof(state));
         var formation = catalog.Formations.Single(f => f.FormationId == state.FormationId);
@@ -61,21 +61,47 @@ public static class UnitVisuals
         var layout = formation.Layouts.Where(l => l.MinimumSoldiers <= state.Soldiers).MaxBy(l => l.MinimumSoldiers)!;
         static (double X, double Y) Ground(UnitVisualState s) => (32 * (s.CellX + 200 - s.CellY) + 96, 16 * (s.CellX + s.CellY + 1) + 112);
         var anchor = Ground(state);
-        int x = (int)Math.Round(anchor.X), y = (int)Math.Round(anchor.Y) - 10 * (state.Elevation - 1);
-        (double X, double Y, double GroundY, int Direction) Pose(MapUnitMember m, int index, double time)
+        int x = (int)Math.Round(anchor.X), y = (int)Math.Round(anchor.Y - 10 * ((elevationAt?.Invoke(anchor.X, anchor.Y) ?? state.Elevation) - 1));
+        uint MemberSeed(MapUnitMember m, int tick) => Seed(state.Id, m.Index, unchecked((int)Seed(m.Group, 0, tick)));
+        var historySamples = new Dictionary<double, UnitVisualState>();
+        UnitVisualState At(double time)
         {
-            // A bounded queue of movement samples; morale changes the waiting distance.
-            // Do not compress the remaining path to force all members to arrive together.
-            int waitingSteps = index == 0 ? 0 : Math.Min(8, (int)(Disorder(state, m) * (Seed(state.Id, index, 0) % 800) / 100));
-            double sampleTime = Math.Max(0, time - waitingSteps * 90);
-            var sampled = history?.Invoke(sampleTime) ?? state;
-            var ground = Ground(sampled);
-            double spread = state.Condition switch { UnitCondition.Disguised => .4, UnitCondition.NoFormation => .5,
+            time = Math.Max(0, time);
+            if (!historySamples.TryGetValue(time, out var value))
+                historySamples[time] = value = history?.Invoke(time) ?? state;
+            return value;
+        }
+        (double Delay, double Scale) Parameters(MapUnitMember m, double time)
+        {
+            var sampled = At(time);
+            double disorder = Disorder(sampled, m);
+            int steps = m.Group == 0 && m.Index == 0 ? 0 : Math.Min(8, (int)(disorder * (MemberSeed(m, 0) % 800) / 100));
+            double spread = sampled.Condition switch { UnitCondition.Disguised => .4, UnitCondition.NoFormation => .5,
                 UnitCondition.Confused => .6, UnitCondition.Routed => 1, UnitCondition.HighSpirits => .25, _ => .35 };
-            double interval = 100 + Disorder(state, m) * (Seed(state.Id, index, 1) % 101);
+            double interval = 100 + disorder * (MemberSeed(m, 1) % 101);
             double phaseTime = (positionMilliseconds ?? milliseconds) - (milliseconds - time);
             double wave = (1 + Math.Sin(phaseTime / interval * (m.Group / 2 + 6) * Math.Tau / 256)) / 2;
-            double scale = 1 + spread * Disorder(state, m) * wave;
+            return (steps * 90, 1 + spread * disorder * wave);
+        }
+        (double X, double Y, double GroundY, int Direction) Pose(MapUnitMember m, double time)
+        {
+            // Integrate fixed historical samples over the maximum waiting window. Changing
+            // morale cannot replace the queue cursor instantly or send it backwards.
+            const double window = 720, step = 90;
+            double delay = 0, scale = 0;
+            double clockOffset = (positionMilliseconds ?? milliseconds) - milliseconds;
+            double latestTick = Math.Floor((time + clockOffset) / step) * step - clockOffset;
+            for (int i = 0; i <= 8; i++)
+            {
+                double tick = latestTick - i * step;
+                double weight = Math.Max(0, Math.Min(time, tick + step) - Math.Max(time - window, tick)) / window;
+                if (weight == 0) continue;
+                var parameters = Parameters(m, tick);
+                delay += parameters.Delay * weight;
+                scale += parameters.Scale * weight;
+            }
+            var sampled = At(time - delay);
+            var ground = Ground(sampled);
             double gx = ground.X + m.X * scale, gy = ground.Y + m.Y * scale;
             return (gx, gy - 10 * ((elevationAt?.Invoke(gx, gy) ?? sampled.Elevation) - 1), gy, sampled.Direction);
         }
@@ -83,7 +109,7 @@ public static class UnitVisuals
         void Add(string clip, double px, double py, double depth, int phase = 0, int? frame = null) =>
             animations.Add(new(clip, (int)Math.Round(px), (int)Math.Round(py), phase % clips[clip].Frames.Length, -1)
                 { Depth = depth, Frame = frame });
-        var members = layout.Members.Select((m, i) => (Member: m, Index: i, Pose: Pose(m, i, milliseconds)))
+        var members = layout.Members.Select(m => (Member: m, Pose: Pose(m, milliseconds)))
             .OrderBy(m => m.Pose.GroundY).ThenBy(m => m.Pose.X).ToArray();
         foreach (var m in members)
             if (bodies[m.Member.BodyId].Wake is {} wake) Add(wake.ClipId, m.Pose.X + wake.X, m.Pose.Y + wake.Y, m.Pose.GroundY + 20000);
@@ -104,19 +130,19 @@ public static class UnitVisuals
             var actions = state.Action == UnitVisualAction.Melee ? body.MeleeActions : state.Action == UnitVisualAction.Ranged ? body.RangedActions : [];
             bool attacking = state.Action is UnitVisualAction.Melee or UnitVisualAction.Ranged;
             int direction = attacking ? state.Direction : m.Pose.Direction;
-            string clip = actions.Length == 0 ? body.DirectionClips[direction] : actions[(int)(((long)state.Id + m.Index) % actions.Length)].DirectionClips[direction];
+            string clip = actions.Length == 0 ? body.DirectionClips[direction] : actions[(int)(MemberSeed(m.Member, 4) % (uint)actions.Length)].DirectionClips[direction];
             Add(clip, m.Pose.X - body.AnchorX, m.Pose.Y - body.AnchorY, m.Pose.GroundY + 30000,
-                attacking ? 0 : (int)(((long)state.Id + m.Index) % clips[clip].Frames.Length));
+                attacking ? 0 : (int)(MemberSeed(m.Member, 5) % (uint)clips[clip].Frames.Length));
             animations[^1] = animations[^1] with { IsBody = true, GroundX = m.Pose.X, GroundY = m.Pose.GroundY,
-                TimeScale = attacking ? 1 : 100 / (100 + Disorder(state, m.Member) * (Seed(state.Id, m.Index, 1) % 101)) };
+                TimeScale = attacking ? 1 : 100 / (100 + Disorder(state, m.Member) * (MemberSeed(m.Member, 1) % 101)) };
         }
         foreach (var m in members)
         {
             var body = bodies[m.Member.BodyId];
-            if (state.IsEngaged && (m.Member.Index == 0 || Seed(state.Id, m.Index, 2) % 3 == 0))
+            if (state.IsEngaged && (m.Member.Index == 0 || MemberSeed(m.Member, 2) % 3 == 0))
                 foreach (var e in body.Engagement)
                     Add(e.ClipId, m.Pose.X + e.X, m.Pose.Y + e.Y, m.Pose.GroundY + 30000 + e.DepthOffset,
-                        (int)(Seed(state.Id, m.Index, 3) % (uint)clips[e.ClipId].Frames.Length));
+                        (int)(MemberSeed(m.Member, 3) % (uint)clips[e.ClipId].Frames.Length));
         }
         Add($"unit-flag-{state.Direction}-pole-back", x - 34, y + formation.FlagY, anchor.Y + 30100);
         Add($"unit-flag-{state.Direction}-cloth-{state.Color}", x - 34, y + formation.FlagY, anchor.Y + 30100);
@@ -143,10 +169,10 @@ public static class UnitVisuals
                 for (int i = 0; i < oldLayout.Members.Length; i++)
                 {
                     var m = oldLayout.Members[i]; var body = bodies[m.BodyId];
-                    if (body.Trail is not {} trail || Seed(state.Id, i, tick + 100) % 1600 >= body.TrailChance * 16) continue;
+                    if (body.Trail is not {} trail || MemberSeed(m, tick + 100) % 1600 >= body.TrailChance * 16) continue;
                     var clip = clips[trail.ClipId]; int frame = (int)(age / clip.FrameMilliseconds);
                     if (frame >= clip.Frames.Length) continue;
-                    var pose = Pose(m, i, emitted);
+                    var pose = Pose(m, emitted);
                     Add(trail.ClipId, pose.X + trail.X, pose.Y + trail.Y, pose.GroundY + 30000 - (body.Wake is null ? 0 : 1), frame: frame);
                 }
             }

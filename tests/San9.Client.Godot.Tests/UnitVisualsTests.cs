@@ -6,6 +6,29 @@ namespace San9.Client.Godot.Tests;
 
 public sealed class UnitVisualsTests
 {
+    [Fact]
+    public void StationarySwayAcrossTerrainBoundaryDoesNotMakeBodiesJump()
+    {
+        var squares = Enumerable.Range(0, 40000).Select(i => new MapSquare(0, i % 200 < 90 ? 1 : 3, 0, 0)).ToArray();
+        var state = State with { CellX = 89.25, Soldiers = 1001, Morale = 0 };
+        double Smooth(double x, double y) => MapGeometry.SampleElevation(x, y, 200, 200, squares);
+        double Stepped(double x, double y) => MapGeometry.TrySquare(x, y, out int cx, out int cy) ? squares[cy * 200 + cx].Elevation : 1;
+        MapAnimatedSprite Member(double time, Func<double, double, double> height) =>
+            UnitVisuals.Resolve(state, Catalog, Clips, time, elevationAt: height).Animations.Where(a => a.IsBody).MaxBy(a => a.GroundX)!;
+        int steppedJump = 0, smoothJump = 0;
+        var previousStep = Member(0, Stepped); var previousSmooth = Member(0, Smooth);
+        for (int time = 16; time <= 30000; time += 16)
+        {
+            var step = Member(time, Stepped); var smooth = Member(time, Smooth);
+            steppedJump = Math.Max(steppedJump, Math.Abs(step.Y - previousStep.Y));
+            smoothJump = Math.Max(smoothJump, Math.Abs(smooth.Y - previousSmooth.Y));
+            Assert.Equal(step.Depth, smooth.Depth);
+            previousStep = step; previousSmooth = smooth;
+        }
+        Assert.True(steppedJump >= 20, "The old cell lookup must reproduce the stationary jump.");
+        Assert.InRange(smoothJump, 0, 1);
+    }
+
     private static readonly Dictionary<string, MapAnimationClip> Clips = Enumerable.Range(0, 8).Select(d => $"body-{d}")
         .Concat(Enumerable.Range(0, 8).Select(d => $"imperial-{d}"))
         .Concat(Enumerable.Range(0, 8).SelectMany(d => new[] { $"unit-flag-{d}-pole-back", $"unit-flag-{d}-pole-front", $"unit-flag-{d}-cloth-0", $"unit-flag-{d}-glyph-0-0", $"unit-flag-{d}-glyph-1-0", $"unit-flag-{d}-glyph-0-2" }))
@@ -17,11 +40,52 @@ public sealed class UnitVisualsTests
         [new("body", Enumerable.Range(0, 8).Select(d => $"body-{d}").ToArray(), 18, 30) { ImperialBodyId = "imperial" },
          new("imperial", Enumerable.Range(0, 8).Select(d => $"imperial-{d}").ToArray(), 18, 30)],
         [new(10000, [new(1, [new("body", 0, 0)], new("influence", -40, -50)),
-                    new(1001, [new("body", -12, 0), new("body", 12, 0)], new("influence", -44, -57))], -64, -70),
-         new(20000, [new(1, [new("body", 0, 0), new("body", 12, 12)], new("influence", -40, -50))], -64, -70)],
+                    new(1001, [new("body", -12, 0), new("body", 12, 0) { Index = 1 }], new("influence", -44, -57))], -64, -70),
+         new(20000, [new(1, [new("body", 0, 0), new("body", 12, 12) { Index = 1 }], new("influence", -40, -50))], -64, -70)],
         new() { [UnitCondition.Confused] = new("confused", -16, 0), [UnitCondition.HighSpirits] = new("high", -16, 0) }, 0);
     private static UnitVisualState State => new(10000, 89, 64, 1, 1000, 10000, UnitCondition.Normal, 0, false, 0, 2);
     private static UnitVisual Resolve(UnitVisualState state) => UnitVisuals.Resolve(state, Catalog, Clips);
+
+    [Fact]
+    public void LayoutReorderingPreservesMemberPositionsAndAnimationPhase()
+    {
+        var state = State with { Soldiers = 1001, Morale = 20 };
+        UnitVisualState History(double t) => state with { CellX = state.CellX + t / 100 };
+        var reordered = Catalog with { Formations = Catalog.Formations.Select(f => f with
+            { Layouts = f.Layouts.Select(l => l with { Members = l.Members.Reverse().ToArray() }).ToArray() }).ToArray() };
+        Assert.Equal(UnitVisuals.Resolve(History(1000), Catalog, Clips, 1000, History).Animations,
+            UnitVisuals.Resolve(History(1000), reordered, Clips, 1000, History).Animations);
+    }
+
+    [Theory]
+    [InlineData(0, 100)]
+    [InlineData(100, 0)]
+    public void MoraleAndConditionChangesKeepFollowingPositionsContinuous(int before, int after)
+    {
+        UnitVisualState History(double t) => State with { Soldiers = 1001, Morale = t < 900 ? before : after,
+            Condition = t < 900 ? UnitCondition.Normal : UnitCondition.Routed, CellX = State.CellX + t / 100 };
+        var previous = UnitVisuals.Resolve(History(899), Catalog, Clips, 899, History).Animations.Where(a => a.IsBody).OrderBy(a => a.Phase).ToArray();
+        for (int time = 900; time <= 1700; time++)
+        {
+            var current = UnitVisuals.Resolve(History(time), Catalog, Clips, time, History).Animations.Where(a => a.IsBody).OrderBy(a => a.Phase).ToArray();
+            Assert.All(previous.Zip(current), pair => Assert.InRange(pair.Second.GroundX - pair.First.GroundX, -.05, 1));
+            previous = current;
+        }
+    }
+
+    [Fact]
+    public void EmittedTrailsDoNotMoveWhenMoraleOrConditionChanges()
+    {
+        var catalog = Catalog with { Bodies = Catalog.Bodies.Select(b => b with
+            { Trail = new("influence", 0, 0), TrailChance = 100 }).ToArray() };
+        UnitVisualState History(double t) => State with { Soldiers = 1001, Morale = t < 1000 ? 0 : 100,
+            Condition = t < 1000 ? UnitCondition.Normal : UnitCondition.Routed,
+            Action = UnitVisualAction.Moving, CellX = State.CellX + t / 100 };
+        var before = UnitVisuals.Resolve(History(999), catalog, Clips, 999, History);
+        var after = UnitVisuals.Resolve(History(1000), catalog, Clips, 1000, History);
+        Assert.Equal(before.Animations.Where(a => a.Frame is not null).Select(a => (a.X, a.Y)),
+            after.Animations.Where(a => a.Frame is not null).Select(a => (a.X, a.Y)));
+    }
 
     [Fact]
     public void ContinuousHistoryKeepsFollowersAndEmitsTrailsAfterTheFirstDay()

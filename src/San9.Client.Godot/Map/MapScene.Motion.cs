@@ -16,17 +16,15 @@ internal sealed partial class MapScene
     private readonly Func<double> _positionTime;
     private double _sampleTime = -1, _sampleVisualTime = -1, _samplePositionTime = -1;
 
-    private int ElevationAt(double groundX, double groundY) =>
-        MapGeometry.TrySquare(groundX, groundY, out int x, out int y) ? Map.Squares[y * Map.Width + x].Elevation : 1;
+    private double ElevationAt(double groundX, double groundY) =>
+        MapGeometry.SampleElevation(groundX, groundY, Map.Width, Map.Height, Map.Squares);
 
     private Vector2 Project(double x, double y)
     {
         double cx = (x - MapCoordinates.UnitsPerCell / 2) / MapCoordinates.UnitsPerCell;
         double cy = (y - MapCoordinates.UnitsPerCell / 2) / MapCoordinates.UnitsPerCell;
-        int cellX = Math.Clamp((int)x / MapCoordinates.UnitsPerCell, 0, Map.Width - 1);
-        int cellY = Math.Clamp((int)y / MapCoordinates.UnitsPerCell, 0, Map.Height - 1);
-        return new((float)(32 * (cx + 200 - cy) + 96),
-            (float)(16 * (cx + cy + 1) + 112 - 10 * (Map.Squares[cellY * Map.Width + cellX].Elevation - 1)));
+        double gx = 32 * (cx + 200 - cy) + 96, gy = 16 * (cx + cy + 1) + 112;
+        return new((float)gx, (float)(gy - 10 * (ElevationAt(gx, gy) - 1)));
     }
     // Captures immutable motion inputs, never the scene or its retained history.
     private Func<int, double, UnitVisualState?> StateSampler()

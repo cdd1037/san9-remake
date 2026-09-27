@@ -34,11 +34,14 @@ public partial class GameMessageBar : Control
     public override void _Draw()
     {
         if (string.IsNullOrEmpty(_text)) return;
-        int width = Math.Min(1024, _label.GetContentWidth() + 32);
-        var bounds = (X: (1024 - width) / 2, Width: width);
         var left = Textures["message-left"]; var middle = Textures["message-middle"]; var right = Textures["message-right"];
-        DrawTexture(left,new(bounds.X,0));
-        float start = bounds.X + left.GetWidth(), end = bounds.X + bounds.Width - right.GetWidth();
+        int capWidth = left.GetWidth() + right.GetWidth();
+        // The text and its padding occupy the middle; the fading caps sit outside it.
+        int middleWidth = Math.Min(_label.GetContentWidth() + 8, Math.Max(0, 1024 - capWidth));
+        int width = capWidth + middleWidth;
+        int leftX = (1024 - width) / 2;
+        DrawTexture(left,new(leftX,0));
+        float start = leftX + left.GetWidth(), end = start + middleWidth;
         for (float x = start; x < end; x += middle.GetWidth())
         {
             var size = new Vector2(Math.Min(middle.GetWidth(),end-x),middle.GetHeight());

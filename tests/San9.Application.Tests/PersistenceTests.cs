@@ -403,8 +403,10 @@ public sealed class PersistenceTests : IDisposable
         var reordered = definition with { Forces = definition.Forces.Reverse().ToArray(), Settlements = definition.Settlements.Reverse().ToArray(),
             Officers = definition.Officers.Reverse().ToArray(), Information = definition.Information with { Corps = definition.Information.Corps.Reverse().ToArray() } };
         Assert.Equal(GameSession.Fingerprint(definition), GameSession.Fingerprint(reordered));
-        var translated = definition with { Forces = definition.Forces.Select(f => f with { NameKey = "translated", ColorCode = 10 }).ToArray() };
+        var translated = definition with { Forces = definition.Forces.Select(f => f with { NameKey = "translated" }).ToArray() };
         Assert.Equal(GameSession.Fingerprint(definition), GameSession.Fingerprint(translated));
+        var recolored = definition with { Forces = definition.Forces.Select(f => f with { ColorCode = 10 }).ToArray() };
+        Assert.NotEqual(GameSession.Fingerprint(definition), GameSession.Fingerprint(recolored));
         var a = GameSession.Start(definition, 190);
         var culture = CultureInfo.CurrentCulture;
         try

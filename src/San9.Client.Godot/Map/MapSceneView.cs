@@ -91,8 +91,12 @@ public partial class MapSceneView : Node2D
     private int _drawnTerrainCount;
     private long _drawnAssetRevision;
     private double _drawnDayTime = -1;
+    private int _annotationFrame = -1;
+    private long _annotationUiRevision = -1;
+    private bool _hasAnimatedBars;
     private (MapScene Scene, MapViewport Camera, Vector2 Size, bool Boundaries)? _lastRequest;
     public long Revision { get; private set; }
+    public long AnnotationRevision { get; private set; }
     public long TerrainDraws { get; private set; }
     public long WaterDraws { get; private set; }
     public long ObjectDraws { get; private set; }
@@ -103,6 +107,7 @@ public partial class MapSceneView : Node2D
     {
         _transition = new(f => f.Ready, f => f.Error, f => Textures.Defer(f.Dispose));
         _ui = Textures.CreateScope(owner: this);
+        _ui.Request(InterfaceSkin.RequiredUiAssets.Where(role => role.StartsWith("bar-", StringComparison.Ordinal)));
         _outlineMaterial = new ShaderMaterial { Shader = new Shader { Code = """
             shader_type canvas_item;
             void fragment() {
@@ -249,7 +254,12 @@ public partial class MapSceneView : Node2D
         if (water) _water.QueueRedraw();
         if (objects) RebuildObjects();
         if (motion) { _drawnDayTime = frame.Region.Scene.Day!.VisualElapsed; Revision++; }
-        if (hoverChanged || motion) _annotations.QueueRedraw();
+        int annotationFrame = MapInfoBarAnimation.Frame(AnimationTime());
+        bool barsChanged = _hasAnimatedBars && _annotationFrame != annotationFrame;
+        bool annotationAssetsChanged = _annotationUiRevision != _ui.Revision;
+        _annotationFrame = annotationFrame; _annotationUiRevision = _ui.Revision;
+        if (hoverChanged || motion || barsChanged || annotationAssetsChanged)
+        { AnnotationRevision++; _annotations.QueueRedraw(); }
     }
     public override void _Draw()
     {
@@ -381,6 +391,8 @@ public partial class MapSceneView : Node2D
     {
         if (Presented is not { } frame) return;
         _hitLabels.Clear(); _labelFrame = frame;
+        _hasAnimatedBars = false;
+        double barTime = AnimationTime();
         foreach (var b in frame.Region.Buildings)
         {
             var s = frame.Region.Scene.Settlements[b.Id];
@@ -389,8 +401,8 @@ public partial class MapSceneView : Node2D
             target.DrawSetTransform(project(p), 0, Vector2.One * zoom);
             var style = GameTextStyles.Building(Hovered == new MapObjectTarget(b.Id, false));
             GameTextPresenter.Draw(target, font, s.Soldiers.ToString(System.Globalization.CultureInfo.InvariantCulture), new(0, 16), style, HorizontalAlignment.Right, 72);
-            Bar("durability", s.Durability, s.MaxDurability, new(0, 16));
-            Bar("morale", s.Morale, 100, new(0, 29));
+            Bar("durability", s.Durability, s.MaxDurability, new(0, 16), b.Id);
+            Bar("morale", s.Morale, 100, new(0, 29), b.Id);
             GameTextPresenter.Draw(target, font, s.ResolveName(texts), new(0, 53), style);
             foreach (string icon in s.Icons) target.DrawTexture(_ui["icon-" + icon], icon == "emperor" ? new(96, 17) : new(75, 17));
         }
@@ -405,18 +417,28 @@ public partial class MapSceneView : Node2D
             target.DrawSetTransform(project(new(unit.LabelX, unit.LabelY)), 0, Vector2.One * zoom);
             GameTextPresenter.Draw(target, font, unit.Soldiers.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 new(0, 20), GameTextStyles.Building(Hovered == new MapObjectTarget(unit.Id, true)), HorizontalAlignment.Right, 72);
-            Bar("morale", unit.Morale, 100, new(0, 20));
+            Bar("morale", unit.Morale, 100, new(0, 20), unit.Id);
             GameTextPresenter.Draw(target, font, unitName,
                 new(0, 47), GameTextStyles.Building(Hovered == new MapObjectTarget(unit.Id, true)));
         }
         target.DrawSetTransform(Vector2.Zero);
-        void Bar(string kind, int current, int maximum, Vector2 point)
+        void Bar(string kind, int current, int maximum, Vector2 point, int objectId)
         {
             target.DrawTexture(_ui[$"bar-{kind}-frame"], point);
             int width = BuildingInfoGeometry.FillWidth(current, maximum);
             if (width == 0) return;
-            var fill = _ui[$"bar-{kind}-{BuildingInfoGeometry.FillState(current, maximum)}"];
-            target.DrawTextureRectRegion(fill, new(point + new Vector2(4, 4), new Vector2(width, fill.GetHeight())), new(0, 0, width, fill.GetHeight()));
+            _hasAnimatedBars |= BuildingInfoGeometry.FillState(current, maximum) != "normal";
+            var blend = MapInfoBarAnimation.Sample(current, maximum, barTime, objectId);
+            Layer("normal", blend.Normal);
+            Layer("warning", blend.Warning);
+            Layer("critical", blend.Critical);
+            void Layer(string state, float opacity)
+            {
+                if (opacity <= 0) return;
+                var fill = _ui[$"bar-{kind}-{state}"];
+                target.DrawTextureRectRegion(fill, new(point + new Vector2(4, 4), new Vector2(width, fill.GetHeight())),
+                    new(0, 0, width, fill.GetHeight()), new Color(1, 1, 1, opacity));
+            }
         }
     }
     public override void _ExitTree()

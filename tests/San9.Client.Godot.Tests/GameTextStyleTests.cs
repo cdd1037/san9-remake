@@ -35,24 +35,24 @@ public sealed class GameTextStyleTests
     [InlineData(GameTextRole.Header, GameTextEffect.None, 0)]
     [InlineData(GameTextRole.Resource, GameTextEffect.None, 0)]
     [InlineData(GameTextRole.Roster, GameTextEffect.None, 0)]
-    [InlineData(GameTextRole.Building, GameTextEffect.Outline, 1)]
+    [InlineData(GameTextRole.Building, GameTextEffect.Outline, 4)]
     [InlineData(GameTextRole.Message, GameTextEffect.Shadow, 0)]
-    [InlineData(GameTextRole.Region, GameTextEffect.Outline, 1)]
-    [InlineData(GameTextRole.Spring, GameTextEffect.Outline, 1)]
-    [InlineData(GameTextRole.Compass, GameTextEffect.Outline, 1)]
-    public void RolesKeepTheirDistinctEffects(GameTextRole role, GameTextEffect effect, int passes)
+    [InlineData(GameTextRole.Region, GameTextEffect.Outline, 4)]
+    [InlineData(GameTextRole.Spring, GameTextEffect.Outline, 4)]
+    [InlineData(GameTextRole.Compass, GameTextEffect.Outline, 4)]
+    public void RolesKeepTheirDistinctEffects(GameTextRole role, GameTextEffect effect, int outlineSize)
     {
         var style = GameTextStyles.For(role);
         Assert.Equal(effect, style.Effect);
-        Assert.Equal(passes, GameTextEffects.OutlineSize(style));
+        Assert.Equal(outlineSize, GameTextEffects.OutlineSize(style));
     }
 
     [Fact]
     public void NativeEffectsHaveIndependentOutlineAndShadowProperties()
     {
         var outline = GameTextStyles.InformationMenu(true, false, true);
-        Assert.Equal(1, GameTextEffects.OutlineSize(outline));
-        Assert.Equal(new Color(new Color("f0f0f0"), .65f), GameTextEffects.OutlineColor(outline));
+        Assert.Equal(4, GameTextEffects.OutlineSize(outline));
+        Assert.Equal(new Color(new Color("f0f0f0"), .57f), GameTextEffects.OutlineColor(outline));
         Assert.Equal(Colors.Transparent, GameTextEffects.ShadowColor(outline));
         var shadow = GameTextStyles.Message(true);
         Assert.Equal(0, GameTextEffects.OutlineSize(shadow));

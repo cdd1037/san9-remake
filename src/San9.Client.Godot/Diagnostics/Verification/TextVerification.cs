@@ -40,7 +40,7 @@ public partial class TextVerification : Control
             var wrap = new GameRichTextLabel { Position=new(28,380),Size=new(400,180),Textures=textures,AutowrapMode=TextServer.AutowrapMode.WordSmart };
             AddChild(wrap);
             wrap.Present("[img]icons/city[/img]洛阳：[color=#88F880]这是一段用于检查自动换行与行内图标的说明文字。[/color]" +
-                "[outline_size=1][outline_color=#98B0F8A6]蓝色描边[/outline_color][/outline_size]，显式换行如下：\n" + MessageMarkup.Escape("参数里的[b]必须按普通文字显示。") + "\n[font_size=24]字号切换[/font_size]结束。",GameTextStyles.CatalogRow);
+                "[preset=blue-outline]蓝色描边[/preset]，显式换行如下：\n" + MessageMarkup.Escape("参数里的[b]必须按普通文字显示。") + "\n[font_size=24]字号切换[/font_size]结束。",GameTextStyles.CatalogRow);
             var font = GetThemeFont("font");
             var characters=Content.Text.Entries.Values
                 .Concat(MessageGraph.Walk(Content.Text.Messages.Values.SelectMany(m => m.Nodes))

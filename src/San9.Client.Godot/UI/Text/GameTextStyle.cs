@@ -1,4 +1,5 @@
 using Godot;
+using San9.Rendering;
 
 namespace San9.Client.Godot;
 
@@ -12,9 +13,9 @@ public readonly record struct GameTextStyle(int FontSize, Color Foreground,
 
 public static class GameTextEffects
 {
-    public static int OutlineSize(GameTextStyle style) => style.Effect == GameTextEffect.Outline ? 1 : 0;
+    public static int OutlineSize(GameTextStyle style) => style.Effect == GameTextEffect.Outline ? TextOutlineStyle.Size : 0;
     public static Color OutlineColor(GameTextStyle style) => style.Effect == GameTextEffect.Outline
-        ? new Color(style.EffectColor, style.EffectColor.A * .65f) : Colors.Transparent;
+        ? new Color(style.EffectColor, style.EffectColor.A * TextOutlineStyle.Alpha) : Colors.Transparent;
     public static Color ShadowColor(GameTextStyle style) => style.Effect == GameTextEffect.Shadow
         ? style.EffectColor : Colors.Transparent;
     public static Vector2 ShadowOffset(GameTextStyle style) => style.Effect == GameTextEffect.Shadow

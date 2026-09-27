@@ -17,7 +17,7 @@ public static class MessageStyleMarkup
             if (match.Groups["id"].Success)
             {
                 var preset = MessageStyles.Get(match.Groups["id"].Value);
-                return $"[color=#{preset.Foreground}][outline_size=1][outline_color=#{preset.Outline}A6]";
+                return $"[color=#{preset.Foreground}][outline_size={TextOutlineStyle.Size}][outline_color=#{preset.Outline}{TextOutlineStyle.AlphaByte:X2}]";
             }
             return "[/outline_color][/outline_size][/color]";
         });

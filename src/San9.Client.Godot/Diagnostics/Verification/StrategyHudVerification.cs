@@ -37,7 +37,7 @@ public partial class StrategyHud
             Check(ReferenceEquals(settings, territoryButton.TextSettings), "Unchanged state recreated text settings.");
             var expectedStyle = GameTextStyles.Button(GameButtonTextRole.Territory, hovered, selected, disabled);
             Check(settings.FontColor == expectedStyle.Foreground && settings.OutlineColor == GameTextEffects.OutlineColor(expectedStyle) &&
-                settings.OutlineSize == 1 && settings.StackedShadowCount == 0 && settings.ShadowColor.A == 0, "Button text effect mismatch.");
+                settings.OutlineSize == GameTextEffects.OutlineSize(expectedStyle) && settings.StackedShadowCount == 0 && settings.ShadowColor.A == 0, "Button text effect mismatch.");
             Check(territoryButton.TextPosition == (selected ? new Vector2(2, 2) : Vector2.Zero),
                 "Button text offset drifted or disagreed with selected state.");
             Check(territoryButton.VisualFrame == San9.Rendering.ButtonVisualState.Frame(true, hovered, selected, disabled),
@@ -50,7 +50,7 @@ public partial class StrategyHud
             "Disabled buttons must use the original fourth frame.");
         Check(_rosterList.Rows.Count == 14, "Facility list must have a fixed ruler slot and thirteen ordinary slots.");
         var messageLabel = _message.GetChildren().OfType<GameRichTextLabel>().Single();
-        Check(_footer.LabelSettings.OutlineSize == 1 &&
+        Check(_footer.LabelSettings.OutlineSize == GameTextEffects.OutlineSize(GameTextStyles.For(GameTextRole.Region)) &&
             _footer.LabelSettings.OutlineColor == GameTextEffects.OutlineColor(GameTextStyles.For(GameTextRole.Region)),
             "Footer text effects mismatch.");
         Check(messageLabel.GetThemeFont("normal_font") == messageLabel.GetThemeFont("font") &&

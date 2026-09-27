@@ -90,12 +90,11 @@ internal sealed class StrategySnapshotSource
         int? titleGlyph = force.CountryTitleId is int title ? Information.CountryTitles.Single(t => t.Id == title).FlagGlyph : null;
         if (force.Origin is { } origin)
         {
-            // Fifty authored color resources can be reused; they do not bound force identities.
-            // Runtime forces have no family glyph; an acquired country title supplies its own glyph.
-            return (_officers[origin.FounderId].NameKey, force.Id % 50, titleGlyph ?? -1);
+            int glyph = force.LeaderId is int leader ? _officers[leader].FlagGlyph : -1;
+            return (_officers[origin.FounderId].NameKey, force.ColorCode, titleGlyph ?? glyph);
         }
         var initial = _forces[force.Id];
-        return (initial.NameKey, initial.ColorCode, titleGlyph ?? initial.FlagGlyph);
+        return (initial.NameKey, force.ColorCode, titleGlyph ?? initial.FlagGlyph);
     }
     public SettlementInitialState? Settlement(int id) => _settlements.GetValueOrDefault(id);
     public IReadOnlyList<string> SettlementIcons(int id) => _settlementIcons.GetValueOrDefault(id) ?? [];

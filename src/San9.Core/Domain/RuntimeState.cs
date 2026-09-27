@@ -14,6 +14,7 @@ public sealed record ForceOrigin(
 
 public sealed record ForceState(int Id, int Trust)
 {
+    [JsonRequired] public int ColorCode { get; init; }
     [JsonRequired] public System.Collections.Immutable.ImmutableArray<int> AdditionalFormationIds { get; init; } = [];
     [JsonRequired] public bool IsDormant { get; init; }
     [JsonRequired] public ForceOrigin? Origin { get; init; }

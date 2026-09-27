@@ -12,9 +12,9 @@ public static class ConstructionPlacement
         var places = settlements.ToArray();
         if (!places.Any(s => s.Id == cityId && !s.IsDormant && s.Kind == SettlementKind.City && s.OwnerId == owner && !s.IsDestroyed && s.Durability > 0) ||
             places.Any(s => s.Id == site.RegionId && !s.IsDestroyed)) return false;
-        var area = new MapOccupancy(site.Position, facility.Footprint);
+        var area = rules.FacilityArea(site.Position, facility.Id);
         if (places.Where(s => !s.IsDormant && !s.IsDestroyed).Any(s => rules.TryPlace(s, out var p) &&
-            area.Overlaps(new(p.Position, p.Footprint)))) return false;
+            area.Overlaps(rules.BuildingArea(p)))) return false;
         return !units.Any(u => u.FormationId is int id && rules.Formations.TryGetValue(id, out var f) &&
             area.Overlaps(new(u.Position, rules.Formation(u).Footprint)));
     }

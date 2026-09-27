@@ -55,7 +55,7 @@ internal static class IntelligenceTactics
             if (tactic.AffectsFacilities)
                 targets.AddRange(world.Settlements.Values.Where(s => s.Id != primary.SettlementId && !s.IsDestroyed && s.Facility?.BuilderUnitId is null &&
                     SecondaryOpponent(s.OwnerId) && military.TryPlace(s, out var p) && p.Combat is not null &&
-                    new MapOccupancy(p.Position, p.Footprint).DistanceTo(area) <= tactic.EffectRadius).OrderBy(s => s.Id)
+                    military.BuildingArea(p).DistanceTo(area) <= tactic.EffectRadius).OrderBy(s => s.Id)
                     .Select(s => new MilitaryOrder(MilitaryOrderKind.AttackSettlement, null, s.Id)));
         }
         HashSet<int> forces = [source.Owner(world)];

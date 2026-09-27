@@ -5,22 +5,30 @@ namespace San9.Core.Tests;
 
 public sealed class MovementNavigationTests
 {
-    [Fact]
-    public void FacilityPenaltyCoversAllGeographicCellsWithoutExpandingCollision()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void FacilityPenaltyAndCollisionUseTheSameExtent(bool hard)
     {
         var map = new BattlefieldMap(15, 15, new int[225], [new(0, 10, null)]);
-        var city = new MapOccupancy(new(37, 37), new(5, 5))
-        { Avoidance = NavigationAvoidance.Facility, AvoidanceFootprint = new(25, 25) };
+        var city = new MapOccupancy(new(37, 37), new(25, 25))
+        { Avoidance = NavigationAvoidance.Facility, Hard = hard };
         for (int y = 4; y <= 10; y++)
         for (int x = 4; x <= 10; x++)
         {
             var end = MapCoordinates.Center(new(x, y));
             var start = end with { X = end.X - 1 };
             var route = map.FindRoute(start, end, new(1, 1), TravelMode.Land, [city]);
-            if (x == 7 && y == 7) { Assert.False(route.Reachable); continue; }
+            bool inside = x is >= 5 and <= 9 && y is >= 5 and <= 9;
+            if (inside && hard)
+            {
+                Assert.False(route.Reachable);
+                Assert.Null(map.PassageCost(end, new(1, 1), TravelMode.Land, [city]));
+                continue;
+            }
             Assert.True(route.Reachable);
             Assert.Single(route.Steps);
-            Assert.Equal(x is >= 5 and <= 9 && y is >= 5 and <= 9 ? 20L : 10L, route.Cost);
+            Assert.Equal(inside ? 20L : 10L, route.Cost);
             Assert.Equal(10, map.PassageCost(end, new(1, 1), TravelMode.Land, [city]));
         }
         var targetRoute = map.FindRouteIntoRange(new(12, 37), city, new(1, 1), TravelMode.Land, [city]);

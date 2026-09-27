@@ -26,7 +26,7 @@ internal sealed class MovementOccupancy
     internal void Set(UnitState unit) => Set((true, unit.Id), unit.FormationId is int id
         ? new(unit.Position, rules.Formation(unit).Footprint) : null);
     internal void Set(SettlementState place) => Set((false, place.Id), !place.IsDestroyed && rules.TryPlace(place, out var p)
-        ? new(p.Position, p.Footprint) { AvoidanceFootprint = rules.GeographicArea(place).Footprint } : null);
+        ? rules.BuildingArea(p) : null);
     internal void RemoveUnit(int id) => Set((true, id), null);
     private void Set((bool Unit, int Id) key, MapOccupancy? area)
     {
@@ -71,7 +71,7 @@ public static class MilitaryRouteQuery
     public static IReadOnlyList<MapOccupancy> Occupancy(WorldSnapshot snapshot, MilitaryRulebook rules, int owner, UnitPolicies policies,
         bool includeUnits = true) => MovementOccupancy.Snapshot(snapshot, rules, owner, policies, includeUnits);
 
-    public static WorldPosition? DeploymentPosition(UnitTravel travel, BattlefieldPlace place, IReadOnlyList<MapOccupancy> occupancy)
+    public static WorldPosition? DeploymentPosition(UnitTravel travel, MapOccupancy place, IReadOnlyList<MapOccupancy> occupancy)
     {
         if (travel.Map.PassageCost(place.Position, travel.Shape, travel.Mode, occupancy) is not null) return place.Position;
         // Water-only formations can require an actual shoreline entrance instead of a land facility's center.

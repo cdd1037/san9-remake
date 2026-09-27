@@ -138,7 +138,7 @@ internal static class MilitaryMovement
         if ((ulong)cargoMoney + (uint)deploymentCost > ResourceAccounts.Balance(world, account, ResourceKind.Money) ||
             cargoFood > ResourceAccounts.Balance(world, account, ResourceKind.Food)) return CommandRejection.InsufficientFunds;
         var occupancy = new MovementOccupancy(world, rules).Query(world, command.IssuerId, command.Policies);
-        WorldPosition? start = MilitaryRouteQuery.DeploymentPosition(travel, place, occupancy);
+        WorldPosition? start = MilitaryRouteQuery.DeploymentPosition(travel, rules.BuildingArea(place), occupancy);
         if (start is null) return CommandRejection.NoDestination;
         if (command.Waypoint is { } via && (Occupancy(world, rules, null, null).Any(o => o.Overlaps(new(via, new(1, 1)))) ||
             !travel.Map.FindRoute(start.Value, via, travel.Shape, travel.Mode, occupancy).Reachable))
@@ -202,7 +202,7 @@ internal static class MilitaryMovement
         return order.Position is null && order.SettlementId is int target &&
             world.Settlements.TryGetValue(target, out var destination) && destination.OwnerId == owner &&
             destination.CanHostPersons && destination.Durability > 0 && rules.TryPlace(destination, out var place) &&
-            travel.Entrances(place).Any(p => travel.Map.PassageCost(p, travel.Shape, travel.Mode, []) is not null);
+            travel.Entrances(rules.BuildingArea(place)).Any(p => travel.Map.PassageCost(p, travel.Shape, travel.Mode, []) is not null);
     }
 
     internal static void AdvanceDay(WorldMutation world, MilitaryRulebook? rules, GovernanceRulebook governance, PersonnelRulebook geography, List<DomainEvent> events)
@@ -307,7 +307,7 @@ internal static class MilitaryMovement
         foreach (var settlement in world.Settlements.Values.Where(s => s.Id != entry && !s.IsDestroyed))
             if (rules.TryPlace(settlement, out var place))
             {
-                yield return new(place.Position, place.Footprint);
+                yield return rules.BuildingArea(place);
             }
         foreach (var unit in world.Units.Values.Where(u => u.Id != movingUnit))
         {

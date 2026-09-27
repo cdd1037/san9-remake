@@ -75,7 +75,7 @@ public sealed class AmphibiousMovementTests
         var rules = Rules(new(5, 5));
         var travel = rules.Travel(100, 200);
         var obstacle = new MapOccupancy(new(12, 7), new(1, 1));
-        Assert.Contains(new WorldPosition(2, 6), travel.Entrances(new(1, new(2, 7), new(1, 1))));
+        Assert.Contains(new WorldPosition(2, 6), travel.Entrances(new(new(2, 7), new(1, 1))));
         Assert.NotNull(travel.Map.PassageCost(new(9, 7), travel.Shape, travel.Mode, [obstacle]));
         Assert.Null(travel.Map.PassageCost(new(10, 7), travel.Shape, travel.Mode, [obstacle]));
         var step = travel.Map.Navigate(new(9, 7), new(new(20, 7), new(1, 1)), false, travel.Shape, travel.Mode,

@@ -6,15 +6,15 @@ namespace San9.Core.Tests;
 public sealed class MilitaryEngagementTests
 {
     private static MilitaryOrder Attack(int id) => new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = id };
-    private static (WorldState World, MilitaryRulebook Military) Create()
+    private static (WorldState World, MilitaryRulebook Military) Create(int buildingWidth = 1, int scale = 1)
     {
         var combat = new CombatProfile(10, 10, 10, 10, 50);
         var military = new MilitaryRulebook(new(20, 3, [.. Enumerable.Repeat(0, 60)], [new(0, 1, null)],
             [new(1, 5, 0, 100000, 1, new(1, 1), TravelMode.Land)
                 { Combat = combat, Attack = new(10, true), CaptureRanks = [BattleRank.Middle] }],
             [new(1, new(2, 7), new(1, 1)) { Combat = combat, WoundedRecovery = 1 },
-             new(2, new(40, 7), new(1, 1)) { Combat = combat, Attack = new(10, false), WoundedRecovery = 1 },
-             new(3, new(60, 7), new(1, 1)) { Combat = combat, Attack = new(10, false) }]));
+             new(2, new(40, 7), new(buildingWidth, 1)) { Combat = combat, Attack = new(10, false), WoundedRecovery = 1 },
+             new(3, new(60, 7), new(1, 1)) { Combat = combat, Attack = new(10, false) }]) { Geography = new(scale, []) });
         var world = WorldState.Create(new(190, 1, 1), 42,
             [new(1, 100), new(2, 100), new(3, 100)],
             [new(1, 1, 10000, 100, 100, 100, 100, 0, 100, 0, 100),
@@ -25,6 +25,43 @@ public sealed class MilitaryEngagementTests
                     new(3, 2, new(35, 7), 10000) { FormationId = 1, Morale = 90, Order = Attack(1) }],
             relations: [new(1, 2, 0), new(1, 3, 0), new(2, 3, 0)], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(1000, 100000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, null, new(1000, 100000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, null, new(1000, 100000)) { IsRoot = true }]);
         return (world, military);
+    }
+
+    [Theory]
+    [InlineData(18, true, false)]
+    [InlineData(17, false, false)]
+    [InlineData(23, true, true)]
+    [InlineData(22, true, false)]
+    public void ScaledBuildingExtentDrivesBothAttackDirectionsAndSeparateContact(int x, bool inRange, bool engaged)
+    {
+        var (world, military) = Create(buildingWidth: 5, scale: 5);
+        var m = world.BeginMutation();
+        m.RemoveUnit(2);
+        m.RemoveUnit(3);
+        m.Replace(m.Units[1] with { Position = new(x, 7), Order = new(MilitaryOrderKind.AttackSettlement, null, 2) });
+        var relations = m.Engagements(military);
+        Assert.Equal(inRange, relations.Target(new(1, false)) is not null);
+        Assert.Equal(inRange, relations.Target(new(2, true)) is not null);
+        Assert.Equal(engaged, relations.Engaged(new(1, false)));
+        Assert.Equal(engaged, relations.Engaged(new(2, true)));
+        Assert.Equal(new Footprint(25, 5), MilitaryCombat.TargetArea(m, m.Units[1].Order!, military).Footprint);
+        Assert.Equal(military.SettlementArea(m.Settlements[2]), new BattleSource(2, true).Area(m, military));
+    }
+
+    [Fact]
+    public void PublicUnitProjectionIncludesPassiveDefendersAndDoesNotMutateWorld()
+    {
+        var (world, military) = Create();
+        var snapshot = new SimulationEngine(world, EconomyRulebook.Empty, PersonnelRulebook.Empty,
+            TreasureRulebook.Empty, military: military).CaptureStableState();
+        string hash = snapshot.StateHash;
+        var engaged = MilitaryEngagementQuery.Capture(snapshot, military).Units;
+        Assert.Contains(1,engaged);
+        Assert.Contains(2,engaged);
+        Assert.Contains(3,engaged);
+        Assert.Equal(hash,snapshot.StateHash);
+        var far = snapshot with { Units=snapshot.Units.Select(u => u with { Position=new(180,20), Order=null }).ToArray() };
+        Assert.Empty(MilitaryEngagementQuery.Capture(far, military).Units);
     }
 
     [Fact]
@@ -49,19 +86,20 @@ public sealed class MilitaryEngagementTests
     }
 
     [Theory]
-    [InlineData(30, UnitCondition.Normal, true)]
-    [InlineData(29, UnitCondition.Normal, false)]
-    [InlineData(30, UnitCondition.Confused, false)]
+    [InlineData(35, UnitCondition.Normal, true)]
+    [InlineData(30, UnitCondition.Normal, false)]
+    [InlineData(34, UnitCondition.Normal, false)]
+    [InlineData(35, UnitCondition.Confused, false)]
     public void PublicSettlementProjectionUsesPassiveReachWithoutChangingTheSnapshot(int x, UnitCondition condition, bool engaged)
     {
         var (world, military) = Create();
         var snapshot = new SimulationEngine(world, EconomyRulebook.Empty, PersonnelRulebook.Empty,
             TreasureRulebook.Empty, military: military).CaptureStableState();
-        Assert.Empty(MilitaryEngagementQuery.EngagedSettlements(snapshot, military));
+        Assert.Empty(MilitaryEngagementQuery.Capture(snapshot, military).Settlements);
         snapshot = snapshot with { Units = snapshot.Units.Select(u => u.Id != 1 ? u : u with
             { Position = new(x, 7), Condition = condition, Order = new(MilitaryOrderKind.AttackSettlement, null, 2) }).ToArray() };
         string hash = snapshot.StateHash;
-        Assert.Equal(engaged, MilitaryEngagementQuery.EngagedSettlements(snapshot, military).Contains(2));
+        Assert.Equal(engaged, MilitaryEngagementQuery.Capture(snapshot, military).Settlements.Contains(2));
         Assert.Equal(hash, snapshot.StateHash);
     }
 
@@ -138,7 +176,7 @@ public sealed class MilitaryEngagementTests
     public void NewFacilityImmediatelyParticipatesInRelations()
     {
         var (world, military) = Create(); var m = world.BeginMutation();
-        m.Replace(m.Units[1] with { Position = new(52, 7) });
+        m.Replace(m.Units[1] with { Position = new(55, 7) });
         Assert.False(MilitaryEngagements.Engaged(m, m.Units[1], military));
         m.AddSettlement(new(3, 2, 1000, 100, 100, 100, 100, 0, 100, 0, 100) { Kind = SettlementKind.Facility });
         Assert.Equal(new BattleSource(1, false), m.Engagements(military).Target(new(3, true)));
@@ -160,10 +198,11 @@ public sealed class MilitaryEngagementTests
     }
 
     [Theory]
-    [InlineData(30, UnitCondition.Normal, true)]
-    [InlineData(29, UnitCondition.Normal, false)]
-    [InlineData(30, UnitCondition.Confused, false)]
-    [InlineData(30, UnitCondition.Routed, false)]
+    [InlineData(35, UnitCondition.Normal, true)]
+    [InlineData(30, UnitCondition.Normal, false)]
+    [InlineData(34, UnitCondition.Normal, false)]
+    [InlineData(35, UnitCondition.Confused, false)]
+    [InlineData(35, UnitCondition.Routed, false)]
     public void WoundedRecoveryUsesTheSamePassiveEngagementAndStrictRangeBoundary(int x, UnitCondition condition, bool engaged)
     {
         var (world, military) = Create(); var m = world.BeginMutation();

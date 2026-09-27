@@ -59,19 +59,6 @@ public sealed record BattlefieldPlace(int Id, WorldPosition Position, Footprint 
     [JsonRequired] public CombatProfile? Combat { get; init; }
     [JsonRequired] public OrdinaryAttack? Attack { get; init; }
     [JsonRequired] public bool DestroyedAtZeroDurability { get; init; }
-
-    public IEnumerable<WorldPosition> Entrances(Footprint footprint)
-    {
-        var area = new MapOccupancy(Position, Footprint);
-        for (int x = (int)area.Left - (footprint.Width - 1) / 2; x < area.Right + footprint.Width / 2; x++)
-            yield return new(x, (int)area.Top - (footprint.Height + 1) / 2);
-        for (int y = (int)area.Top - (footprint.Height - 1) / 2; y < area.Bottom + footprint.Height / 2; y++)
-            yield return new((int)area.Right + footprint.Width / 2, y);
-        for (int x = (int)area.Left - (footprint.Width - 1) / 2; x < area.Right + footprint.Width / 2; x++)
-            yield return new(x, (int)area.Bottom + footprint.Height / 2);
-        for (int y = (int)area.Top - (footprint.Height - 1) / 2; y < area.Bottom + footprint.Height / 2; y++)
-            yield return new((int)area.Left - (footprint.Width + 1) / 2, y);
-    }
 }
 public sealed record TrapTerrainRule(int TerrainId, int? BaseTacticId, bool ProvidesHigherGround);
 public sealed record HigherGroundTrapRule(int TacticId, int RadiusCells);
@@ -163,7 +150,7 @@ public sealed partial class MilitaryRulebook
         {
             if (site.RegionId < 0 || site.FacilityIds.IsDefaultOrEmpty || site.FacilityIds.Distinct().Count() != site.FacilityIds.Length ||
                 site.FacilityIds.Any(id => !Facilities.TryGetValue(id, out var facility) || !facility.Buildable ||
-                    new MapOccupancy(site.Position, facility.Footprint) is var area &&
+                    FacilityArea(site.Position, facility.Id) is var area &&
                         (area.Left < 0 || area.Top < 0 || area.Right > Map.FineWidth || area.Bottom > Map.FineHeight)))
                 throw new ArgumentException("Invalid construction site.");
         }
@@ -231,7 +218,7 @@ public sealed partial class MilitaryRulebook
             throw new ArgumentException("Invalid ordinary attack definition.");
         if (Formations.Values.Any(f => f.Id < 0 || f.RequiredTacticId < 0 || f.MovementBudget <= 0 || (long)f.MovementBudget + Map.MaximumStepCost(f.TravelMode) - 1 > int.MaxValue || f.DeploymentCost < 0 || f.SoldierCapacity == 0 ||
                 f.OfficerCapacity <= 0 || !f.Footprint.IsValid || !Enum.IsDefined(f.TravelMode)) ||
-            Places.Values.Any(p => p.Id < 0 || !p.Footprint.IsValid || new MapOccupancy(p.Position, p.Footprint) is var area &&
+            Places.Values.Any(p => p.Id < 0 || !p.Footprint.IsValid || BuildingArea(p) is var area &&
                 (area.Left < 0 || area.Top < 0 || area.Right > Map.FineWidth || area.Bottom > Map.FineHeight)))
             throw new ArgumentException("Invalid military formation or place.");
         ValidateFixedFormations();
@@ -296,7 +283,7 @@ public sealed partial class MilitaryRulebook
             position.X >= Map.FineWidth || position.Y >= Map.FineHeight) return false;
         var target = MapCoordinates.Cell(position);
         var buildings = settlements.Where(s => !s.IsDestroyed && s.Facility?.BuilderUnitId is null && TryPlace(s, out _))
-            .Select(s => (State: s, Area: GeographicArea(s)))
+            .Select(s => (State: s, Area: SettlementArea(s)))
             .ToArray();
         var seeds = new HashSet<MapCell>();
         foreach (var building in buildings.Where(b => b.State.Kind == SettlementKind.City && b.State.OwnerId == ownerId))

@@ -3,7 +3,7 @@ namespace San9.Core.Domain;
 public sealed partial class MilitaryRulebook
 {
     public IReadOnlySet<MapCell> GeographicFootprint(SettlementState settlement) =>
-        GeographicCells(GeographicArea(settlement)).ToHashSet();
+        GeographicCells(SettlementArea(settlement)).ToHashSet();
 
     public IReadOnlySet<MapCell> GeographicFootprint(UnitState unit)
     {
@@ -19,7 +19,7 @@ public sealed partial class MilitaryRulebook
             source.Facility?.BuilderUnitId is not null || !TryPlace(source, out _)) return new HashSet<MapCell>();
         var visited = GeographicFootprint(source).ToHashSet();
         var occupied = settlements.Where(s => s.Id != source.Id && !s.IsDestroyed && s.Facility?.BuilderUnitId is null && TryPlace(s, out _))
-            .Select(GeographicArea).ToArray();
+            .Select(SettlementArea).ToArray();
         var queue = new Queue<(MapCell Cell, int Distance)>();
         foreach (var seed in visited) queue.Enqueue((seed, 0));
         while (queue.TryDequeue(out var current))
@@ -37,12 +37,13 @@ public sealed partial class MilitaryRulebook
         return visited;
     }
 
-    internal MapOccupancy GeographicArea(SettlementState settlement)
-    {
-        var place = Place(settlement);
-        return new(place.Position, new(checked(place.Footprint.Width * Geography.FootprintScale),
-            checked(place.Footprint.Height * Geography.FootprintScale)));
-    }
+    /// <summary>Canonical fine-coordinate building rectangle for combat, navigation and map coverage.</summary>
+    public MapOccupancy SettlementArea(SettlementState settlement) => BuildingArea(Place(settlement));
+
+    public MapOccupancy BuildingArea(BattlefieldPlace place) => ScaledBuildingArea(place.Position, place.Footprint);
+    public MapOccupancy FacilityArea(WorldPosition position, int typeId) => ScaledBuildingArea(position, Facilities[typeId].Footprint);
+    private MapOccupancy ScaledBuildingArea(WorldPosition position, Footprint shape) =>
+        new(position, new(checked(shape.Width * Geography.FootprintScale), checked(shape.Height * Geography.FootprintScale)));
 
     private static bool Inside(MapCell cell, MapOccupancy area)
     {
@@ -70,11 +71,11 @@ public sealed partial class MilitaryRulebook
             !TryPlace(source, out _) || !FacilityAttack(source).UsesRockfallPower ||
             target.X < 0 || target.Y < 0 || target.X >= Map.FineWidth || target.Y >= Map.FineHeight) return [];
         var destination = MapCoordinates.Cell(target);
-        var visited = GeographicCells(GeographicArea(source)).ToHashSet();
+        var visited = GeographicCells(SettlementArea(source)).ToHashSet();
         if (visited.Contains(destination)) return [];
         var predecessors = new Dictionary<MapCell, MapCell>();
         var occupied = settlements.Where(s => s.Id != source.Id && !s.IsDestroyed && TryPlace(s, out _))
-            .Select(GeographicArea).ToArray();
+            .Select(SettlementArea).ToArray();
         var queue = new Queue<(MapCell Cell, int Distance)>();
         foreach (var seed in visited) queue.Enqueue((seed, 0));
         while (queue.TryDequeue(out var current))

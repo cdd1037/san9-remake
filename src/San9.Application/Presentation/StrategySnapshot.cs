@@ -106,17 +106,25 @@ public sealed class StrategySnapshot
 {
     private readonly MilitaryRulebook? military;
     internal MilitaryRulebook? MilitaryRules => military;
-    private IReadOnlySet<int>? engagedSettlements;
-    public bool IsSettlementEngaged(int id) => military is not null &&
-        (engagedSettlements ??= MilitaryEngagementQuery.EngagedSettlements(World, military)).Contains(id);
+    private MilitaryEngagementSnapshot? engagements;
+    private MilitaryEngagementSnapshot? Engagements => military is null ? null :
+        engagements ??= MilitaryEngagementQuery.Capture(World, military);
+    public bool IsUnitEngaged(int id) => Engagements?.Units.Contains(id) == true;
+    public bool IsSettlementEngaged(int id) => Engagements?.Settlements.Contains(id) == true;
     public int? FormationId(UnitState unit) => unit.FormationId is null ? null : military!.Formation(unit).Id;
+    public MapOccupancy? SettlementGeographicArea(int id)
+    {
+        var settlement = World.Settlements.FirstOrDefault(s => s.Id == id);
+        return military is not null && settlement is { IsDestroyed: false } && military.TryPlace(settlement, out _)
+            ? military.SettlementArea(settlement) : null;
+    }
     public MapOccupancy? BattleArea(int id, bool settlement, WorldPosition? position = null)
     {
         if (military is null) return null;
         if (settlement)
         {
             var s = World.Settlements.FirstOrDefault(s => s.Id == id);
-            return s is not null && military.TryPlace(s, out var place) ? new(place.Position, place.Footprint) : null;
+            return s is not null && military.TryPlace(s, out var place) ? military.BuildingArea(place) : null;
         }
         var unit = World.Units.FirstOrDefault(u => u.Id == id);
         return unit?.FormationId is not null ? new(position ?? unit.Position, military.Formation(unit, position).Footprint) : null;

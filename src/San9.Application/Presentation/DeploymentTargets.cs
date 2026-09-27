@@ -115,7 +115,7 @@ public sealed class DeploymentTargets
         var world = Draft.View.World;
         var travel = rules.Travel(Draft.FormationId!.Value, Draft.NavalFormationId);
         var occupied = MilitaryRouteQuery.Occupancy(world, rules, Draft.Force.Id, Policies);
-        WorldPosition? start = MilitaryRouteQuery.DeploymentPosition(travel, rules.Place(Draft.Home), occupied);
+        WorldPosition? start = MilitaryRouteQuery.DeploymentPosition(travel, rules.SettlementArea(Draft.Home), occupied);
         if (start is null) return null;
         MapOccupancy destination;
         if (target.IsUnit)
@@ -126,7 +126,7 @@ public sealed class DeploymentTargets
         else
         {
             var place = rules.Place(world.Settlements.Single(s => s.Id == target.Id));
-            destination = new(place.Position, place.Footprint);
+            destination = rules.BuildingArea(place);
         }
         var steps = new List<WorldPosition> { start.Value };
         if (waypoint is { } via)

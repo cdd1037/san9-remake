@@ -24,13 +24,22 @@ public readonly record struct MapOccupancy(WorldPosition Position, Footprint Foo
 {
     public bool Hard { get; init; } = true;
     public NavigationAvoidance Avoidance { get; init; }
-    /// <summary>Query-derived geographic coverage, independent of physical collision and saved target geometry.</summary>
-    [JsonIgnore] public Footprint? AvoidanceFootprint { get; init; }
-    internal MapOccupancy AvoidanceArea => new(Position, AvoidanceFootprint ?? Footprint);
     [System.Text.Json.Serialization.JsonIgnore] public long Left => (long)Position.X - Footprint.Width / 2;
     [System.Text.Json.Serialization.JsonIgnore] public long Top => (long)Position.Y - Footprint.Height / 2;
     [System.Text.Json.Serialization.JsonIgnore] public long Right => Left + Footprint.Width;
     [System.Text.Json.Serialization.JsonIgnore] public long Bottom => Top + Footprint.Height;
+    public IEnumerable<WorldPosition> Entrances(Footprint footprint)
+    {
+        var area = this;
+        for (int x = (int)area.Left - (footprint.Width - 1) / 2; x < area.Right + footprint.Width / 2; x++)
+            yield return new(x, (int)area.Top - (footprint.Height + 1) / 2);
+        for (int y = (int)area.Top - (footprint.Height - 1) / 2; y < area.Bottom + footprint.Height / 2; y++)
+            yield return new((int)area.Right + footprint.Width / 2, y);
+        for (int x = (int)area.Left - (footprint.Width - 1) / 2; x < area.Right + footprint.Width / 2; x++)
+            yield return new(x, (int)area.Bottom + footprint.Height / 2);
+        for (int y = (int)area.Top - (footprint.Height - 1) / 2; y < area.Bottom + footprint.Height / 2; y++)
+            yield return new((int)area.Left - (footprint.Width + 1) / 2, y);
+    }
     public bool Overlaps(MapOccupancy other) =>
         Left < other.Right && other.Left < Right && Top < other.Bottom && other.Top < Bottom;
     public bool IntersectsExpanded(MapOccupancy other, int range)
@@ -69,7 +78,7 @@ public sealed class BattlefieldMap
     internal BattlefieldMap ForTravel(FormationRule land, FormationRule naval, int budget) =>
         travelMaps.GetOrAdd(new(land.Footprint, naval.Footprint, budget / land.MovementBudget, budget / naval.MovementBudget),
             profile => new(this, profile));
-    internal IEnumerable<WorldPosition> Entrances(BattlefieldPlace place, Footprint fallback) =>
+    internal IEnumerable<WorldPosition> Entrances(MapOccupancy place, Footprint fallback) =>
         (travel is not { } profile ? new[] { fallback } : new[] { profile.LandShape, profile.WaterShape })
             .Distinct().SelectMany(shape => place.Entrances(shape).Where(p => p.X >= 0 && p.Y >= 0 && p.X < FineWidth && p.Y < FineHeight && ShapeAt(p, fallback) == shape)).Distinct();
 

@@ -44,7 +44,7 @@ internal static class MilitaryCombat
 
     internal static MapOccupancy TargetArea(WorldMutation world, MilitaryOrder order, MilitaryRulebook rules) =>
         order.UnitId is int id ? Area(world.Units[id], rules) :
-        new(rules.Place(world.Settlements[order.SettlementId!.Value]).Position, rules.Place(world.Settlements[order.SettlementId.Value]).Footprint);
+        rules.SettlementArea(world.Settlements[order.SettlementId!.Value]);
 
     internal static MapOccupancy Area(UnitState unit, MilitaryRulebook rules) => new(unit.Position, rules.Formation(unit).Footprint);
 

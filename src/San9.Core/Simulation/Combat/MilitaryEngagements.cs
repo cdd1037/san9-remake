@@ -9,17 +9,23 @@ internal static class MilitaryEngagements
     {
         Dictionary<BattleSource, BattleSource> targets = [];
         Dictionary<BattleSource, int> incoming = [];
+        HashSet<BattleSource> engaged = [];
         void Add(BattleSource source, BattleSource target)
         {
             targets.Add(source, target);
             incoming[target] = incoming.GetValueOrDefault(target) + 1;
+            if (source.Area(world, military).IntersectsExpanded(target.Area(world, military), MapCoordinates.UnitsPerCell))
+            {
+                if (!source.IsSettlement) engaged.Add(source);
+                engaged.Add(target);
+            }
         }
         foreach (var unit in world.Units.Values)
             if (FindTarget(world, unit, military) is { } target) Add(new(unit.Id, false), target);
         if (world.Units.Count > 0)
             foreach (var settlement in world.Settlements.Values)
                 if (FindFacilityTarget(world, settlement, military) is { } target) Add(new(settlement.Id, true), new(target.Id, false));
-        return new(targets, incoming);
+        return new(targets, incoming, engaged);
     }
 
     private static BattleSource? FindTarget(WorldMutation world, UnitState unit, MilitaryRulebook military)
@@ -70,11 +76,11 @@ internal static class MilitaryEngagements
 }
 
 /// <summary>A derived view owned by one mutation; queries never modify it or enumerate the world.</summary>
-internal sealed class EngagementRelations(Dictionary<BattleSource, BattleSource> targets, Dictionary<BattleSource, int> incoming)
+internal sealed class EngagementRelations(Dictionary<BattleSource, BattleSource> targets, Dictionary<BattleSource, int> incoming, HashSet<BattleSource> engaged)
 {
     internal BattleSource? Target(BattleSource source) => targets.TryGetValue(source, out var target) ? target : null;
     internal int IncomingCount(BattleSource subject) => incoming.GetValueOrDefault(subject);
-    internal bool Engaged(BattleSource subject) => (!subject.IsSettlement && targets.ContainsKey(subject)) || IncomingCount(subject) > 0;
+    internal bool Engaged(BattleSource subject) => engaged.Contains(subject);
     internal int Intensity(BattleSource subject, BattleSource opponent) =>
         IncomingCount(subject) + (Target(opponent) == subject ? 0 : 1);
 }

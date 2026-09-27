@@ -5,7 +5,7 @@ namespace San9.Core.Domain;
 /// <summary>A movement topology and time scale shared by execution and forecasts.</summary>
 public sealed record UnitTravel(BattlefieldMap Map, Footprint Shape, TravelMode Mode, int DailyBudget)
 {
-    public IEnumerable<WorldPosition> Entrances(BattlefieldPlace place) => Map.Entrances(place, Shape);
+    public IEnumerable<WorldPosition> Entrances(MapOccupancy place) => Map.Entrances(place, Shape);
 }
 
 public sealed partial class MilitaryRulebook

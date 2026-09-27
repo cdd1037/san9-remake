@@ -8,7 +8,7 @@ public sealed class MilitaryDiplomacyTests
 {
     private static readonly CombatProfile Combat = new(10, 10, 10, 10, 50);
     [Fact]
-    public void EnemyFacilityUsesGeographicExtentForAvoidanceAndPhysicalExtentForCollision()
+    public void EnemyFacilityUsesOneScaledExtentForAvoidanceAndCollision()
     {
         var rules = Military(geographicScale: 5);
         var world = World(0).BeginMutation();
@@ -17,9 +17,8 @@ public sealed class MilitaryDiplomacyTests
         var enemy = Assert.Single(occupied, o => o.Position == rules.Place(place).Position);
         Assert.True(enemy.Hard);
         Assert.Equal(NavigationAvoidance.Facility, enemy.Avoidance);
-        Assert.Equal(rules.Place(place).Footprint, enemy.Footprint);
-        Assert.Equal(rules.GeographicArea(place).Footprint, enemy.AvoidanceFootprint);
-        Assert.Equal(new Footprint(15, 15), enemy.AvoidanceFootprint);
+        Assert.Equal(new Footprint(15, 15), enemy.Footprint);
+        Assert.Equal(rules.SettlementArea(place).Footprint, enemy.Footprint);
     }
 
     private static MilitaryRulebook Military(bool work = false, bool armed = false, int geographicScale = 1) => new(new MilitaryDefinition(12, 4, new int[48].ToImmutableArray(),

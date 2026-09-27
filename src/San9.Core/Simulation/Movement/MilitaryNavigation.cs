@@ -46,9 +46,9 @@ internal static class MilitaryNavigation
                     Math.Max(Range(formation), Range(naval))), work: work, lookahead: unit.Lookahead,
                 lookaheadCells: order.UnitId is null ? 25 : 6);
         var target = order.Construction is { } construction
-            ? new MapOccupancy(construction.Position, rules.Facilities[construction.FacilityTypeId].Footprint)
+            ? rules.FacilityArea(construction.Position, construction.FacilityTypeId)
             : order.SettlementId is int destination
-                ? new MapOccupancy(rules.Place(world.Settlements[destination]).Position, rules.Place(world.Settlements[destination]).Footprint)
+                ? rules.SettlementArea(world.Settlements[destination])
                 : new MapOccupancy(order.Position!.Value, new(1, 1));
         if (order.Construction is null && order.SettlementId is int home && world.Settlements[home].OwnerId == unit.OwnerId &&
             new MapOccupancy(unit.Position, rules.Formation(unit).Footprint).Overlaps(target))

@@ -19,7 +19,7 @@ public sealed class UnitReformationTests
             let candidate = new MapOccupancy(new(x, y), footprint)
             where !candidate.Overlaps(area) && candidate.DistanceTo(area) == 1
             select candidate.Position;
-        Assert.Equal(expected.OrderBy(p => p.X).ThenBy(p => p.Y), place.Entrances(footprint).OrderBy(p => p.X).ThenBy(p => p.Y));
+        Assert.Equal(expected.OrderBy(p => p.X).ThenBy(p => p.Y), area.Entrances(footprint).OrderBy(p => p.X).ThenBy(p => p.Y));
     }
 
     private static readonly CommandContext Player = new("player");

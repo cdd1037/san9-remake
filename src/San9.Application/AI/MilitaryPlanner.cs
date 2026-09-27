@@ -56,8 +56,8 @@ public static class MilitaryPlanner
             var occupied = MilitaryRouteQuery.Occupancy(world, rules, seat.ForceId, command.Policies, includeUnits: false);
             var travel = rules.Travel(pair.LandFormationId, pair.NavalFormationId);
             var target = rules.Place(candidate.Target);
-            bool reachable = MilitaryRouteQuery.DeploymentPosition(travel, rules.Place(candidate.Source), occupied) is { } start &&
-                travel.Map.ReachabilityIntoRange(start, new(target.Position, target.Footprint), travel.Shape,
+            bool reachable = MilitaryRouteQuery.DeploymentPosition(travel, rules.SettlementArea(candidate.Source), occupied) is { } start &&
+                travel.Map.ReachabilityIntoRange(start, rules.BuildingArea(target), travel.Shape,
                     travel.Mode, occupied, work, 1) == RouteReachability.Reachable;
             if (reachable) return command;
             if (work.Exhausted) return wait;
@@ -127,7 +127,7 @@ public static class MilitaryPlanner
                         new(MilitaryOrderKind.AttackSettlement, null, target.Id)) { NavalFormationId = navalId };
                     var occupied = MilitaryRouteQuery.Occupancy(world, rules, seat.ForceId, command.Policies, includeUnits: false);
                     if (validate(new(seat.ControllerId), command).Accepted &&
-                        MilitaryRouteQuery.DeploymentPosition(rules.Travel(formation.Id, navalId), rules.Place(source), occupied) is { } start &&
+                        MilitaryRouteQuery.DeploymentPosition(rules.Travel(formation.Id, navalId), rules.SettlementArea(source), occupied) is { } start &&
                         Reachable(start, formation, navalId, target.Id, source.Id)) return command;
                 }
             }
@@ -151,9 +151,10 @@ public static class MilitaryPlanner
                 (navalId is not int naval || !rules.CanAttackTarget(rules.Formations[naval].Attack, place.Position, true, rules.IsHarbor(settlement)))) return false;
             int MaximumRange(OrdinaryAttack? attack) => attack is null ? 0 : checked(attack.Range + attack.MaximumElevationBonus);
             int maximumRange = Math.Max(MaximumRange(formation.Attack), MaximumRange(navalAttack));
-            var result = travel.Map.ReachabilityIntoRange(from, new(place.Position, place.Footprint), travel.Shape,
+            var area = rules.BuildingArea(place);
+            var result = travel.Map.ReachabilityIntoRange(from, area, travel.Shape,
                 travel.Mode, MilitaryRouteQuery.Occupancy(world, rules, seat.ForceId, new(), includeUnits: false)
-                    .Where(o => o.Position != place.Position || o.Footprint != place.Footprint),
+                    .Where(o => o.Position != area.Position || o.Footprint != area.Footprint),
                 work, maximumRange, position => rules.AttackRange(Attack(position), position, place.Position, true, rules.IsHarbor(settlement)));
             if (result == RouteReachability.Incomplete) return false;
             reachable = result == RouteReachability.Reachable;

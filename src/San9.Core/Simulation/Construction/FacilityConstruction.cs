@@ -43,7 +43,7 @@ internal static class FacilityConstruction
             { Policies = command.Policies, NavalFormationId = pair.NavalFormationId },
             military, rules.Governance, rules.Treasures, events, UnitPurpose.Construction);
         if (rejection != CommandRejection.None) return rejection;
-        if (MilitaryCombat.Area(world.Units[unitId], military).Overlaps(new(command.Position, type.Footprint)))
+        if (MilitaryCombat.Area(world.Units[unitId], military).Overlaps(military.FacilityArea(command.Position, type.Id)))
             return CommandRejection.NoDestination;
         ResourceAccounts.Change(world, account, ResourceKind.Money, -cost, "facility-construction", command.RegionId, events, true);
         events.Add(new FacilityConstructionChangedEvent(world.Clock, command.RegionId, unitId, "ordered", 0));
@@ -100,7 +100,7 @@ internal static class FacilityConstruction
             if (unit.Condition is UnitCondition.Confused or UnitCondition.Routed) continue;
             var leader = world.Officers[plan.LeaderId];
             var formation = military.Formation(unit);
-            var target = new MapOccupancy(plan.Position, type.Footprint);
+            var target = military.FacilityArea(plan.Position, type.Id);
             var movement = MilitaryNavigation.Advance(world, unit, military, MilitaryNavigation.Budget(unit, military));
             world.Replace(MilitaryNavigation.Apply(unit, movement));
             events.Add(new UnitMovedEvent(world.Clock, id, unit.Position, movement.Position, movement.Spent, movement.Status) { Steps = movement.Navigation.Steps });

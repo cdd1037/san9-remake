@@ -99,7 +99,7 @@ internal sealed class BattlefieldPathSearch : IDisposable
     {
         if (!shape.IsValid || !Enum.IsDefined(mode)) throw new ArgumentException("Invalid movement shape or mode.");
         foreach (var area in objects)
-            if (!area.Footprint.IsValid || area.AvoidanceFootprint is { IsValid: false } || area.Left < 0 || area.Top < 0 || area.Right > map.FineWidth || area.Bottom > map.FineHeight)
+            if (!area.Footprint.IsValid || area.Left < 0 || area.Top < 0 || area.Right > map.FineWidth || area.Bottom > map.FineHeight)
                 throw new ArgumentException("Occupancy lies outside battlefield.");
         this.shape = shape; this.mode = mode; this.arrived = arrived;
         this.lowerBound = lowerBound; this.work = work; origin = start;
@@ -112,11 +112,10 @@ internal sealed class BattlefieldPathSearch : IDisposable
         if (objectCells.Length < count) objectCells = new List<MapOccupancy>?[count];
         foreach (var o in objects)
         {
-            var avoidance = o.Avoidance == NavigationAvoidance.Facility ? o.AvoidanceArea : o;
-            int left = (int)Math.Max(0, Math.Min(o.Left, avoidance.Left) - shape.Width) / 5;
-            int right = (int)Math.Min(map.FineWidth - 1L, Math.Max(o.Right, avoidance.Right) + shape.Width) / 5;
-            int top = (int)Math.Max(0, Math.Min(o.Top, avoidance.Top) - shape.Height) / 5;
-            int bottom = (int)Math.Min(map.FineHeight - 1L, Math.Max(o.Bottom, avoidance.Bottom) + shape.Height) / 5;
+            int left = (int)Math.Max(0, o.Left - shape.Width) / 5;
+            int right = (int)Math.Min(map.FineWidth - 1L, o.Right + shape.Width) / 5;
+            int top = (int)Math.Max(0, o.Top - shape.Height) / 5;
+            int bottom = (int)Math.Min(map.FineHeight - 1L, o.Bottom + shape.Height) / 5;
             for (int y = top; y <= bottom; y++)
             for (int x = left; x <= right; x++)
             {
@@ -245,9 +244,7 @@ internal sealed class BattlefieldPathSearch : IDisposable
             if (o.Avoidance == NavigationAvoidance.Facility)
             {
                 var cell = MapCoordinates.Center(MapCoordinates.Cell(p));
-                var avoidance = o.AvoidanceArea;
-                facility |= cell.X >= avoidance.Left && cell.X < avoidance.Right &&
-                    cell.Y >= avoidance.Top && cell.Y < avoidance.Bottom;
+                facility |= cell.X >= o.Left && cell.X < o.Right && cell.Y >= o.Top && cell.Y < o.Bottom;
             }
             else if (area.Overlaps(o))
             { friendly |= o.Avoidance == NavigationAvoidance.Friendly; hostile |= o.Avoidance == NavigationAvoidance.Hostile; }

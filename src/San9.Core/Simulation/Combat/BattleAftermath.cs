@@ -101,7 +101,7 @@ internal static class BattleAftermath
                 -(long)settlement.Wounded, -(long)settlement.Wounded, events);
         }
         var traveling = world.Simulation.Tasks.Where(t => t.Journey is not null).Select(t => t.OfficerId).ToHashSet();
-        ResolvePeople(world, p => p.SettlementId == id && !traveling.Contains(p.Id), new(definition.Position, definition.Footprint),
+        ResolvePeople(world, p => p.SettlementId == id && !traveling.Contains(p.Id), rules.Military.BuildingArea(definition),
             null, winner, id, rules, events);
         if (settlement.OwnerId is int owner)
         {

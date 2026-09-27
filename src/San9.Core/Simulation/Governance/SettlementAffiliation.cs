@@ -26,7 +26,7 @@ internal static class SettlementAffiliation
             ResourceAccounts.Resolve(world, recipient, root), place.Id, Reason, events);
         world.Replace(place with { OwnerId = recipient, CorpsId = root });
         foreach (var unit in world.Units.Values.Where(u => u.IsEmbedded && u.ServicePlaceId == place.Id && u.OwnerId == owner).ToArray())
-            world.Replace(unit with { OwnerId = recipient, CorpsId = root, Order = null, MovementPlan = null, EngagementTargetId = null });
+            world.Replace(unit with { OwnerId = recipient, CorpsId = root, Order = null, EngagementTargetId = null });
         foreach (int id in followers.Order())
         {
             int loyalty = 75 + (50 - PersonnelRulebook.AffinityDistance(world.Officers[id], leader)) / 2;

@@ -5,7 +5,7 @@ using San9.Core.Simulation;
 
 namespace San9.Core.Tests;
 
-public sealed class AttackNavigationCacheTests
+public sealed class AttackNavigationTests
 {
     private static (WorldMutation World, MilitaryRulebook Rules) Fixture(bool settlement = false)
     {
@@ -39,73 +39,45 @@ public sealed class AttackNavigationCacheTests
         var unit = world.Units[0];
         var step = MilitaryNavigation.Advance(world, unit, rules, MilitaryNavigation.Budget(unit, rules));
         world.Replace(MilitaryNavigation.Apply(unit, step));
-        return step;
+        return step.Navigation;
     }
 
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void UnchangedAttackBlockageIsReusedAfterSerializationAndReleaseWakesImmediately(bool settlement)
+    public void FriendlyWallIsSoftAndCannotPermanentlyBlockAnAttack(bool settlement)
     {
         var (world, rules) = Fixture(settlement);
-        var first = Advance(world, rules);
-        Assert.Equal(NavigationStatus.Waiting, first.Status);
-        Assert.NotNull(first.Plan!.BlockedSearch!.Approach);
-        var restored = JsonSerializer.Deserialize<MovementPlan>(JsonSerializer.Serialize(first.Plan))!;
-        Assert.True(restored.IsValidFrom(world.Units[0].Position));
-        world.Replace(world.Units[0] with { MovementPlan = restored });
-        using var diagnostics = new PathSearchDiagnostics();
-        for (int day = 0; day < 10; day++) Assert.Equal(NavigationStatus.Waiting, Advance(world, rules).Status);
-        Assert.Equal(0, diagnostics.Queries);
-        world.RemoveUnit(9);
-        Assert.Equal(NavigationStatus.Moving, Advance(world, rules).Status);
-        Assert.True(diagnostics.Queries > 0);
-    }
-
-    [Theory]
-    [InlineData("reply")]
-    [InlineData("position")]
-    public void TargetChangesInvalidateAttackBlockage(string change)
-    {
-        var (world, rules) = Fixture();
-        Assert.NotNull(Advance(world, rules).Plan!.BlockedSearch);
-        world.Replace(change == "reply" ? world.Units[1] with { FormationId = 3 } : world.Units[1] with { Position = new(40, 50) });
-        using var diagnostics = new PathSearchDiagnostics();
-        var result = Advance(world, rules);
-        Assert.True(diagnostics.Queries > 0);
-        if (change == "position") Assert.Equal(NavigationStatus.Moving, result.Status);
-        else Assert.Equal(20, result.Plan!.BlockedSearch!.Approach!.ReplyAttack!.Range);
+        for (int day = 0; day < 12; day++) Advance(world, rules);
+        Assert.True(world.Units[0].Position.X > 50);
     }
 
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void SiegeThresholdChangesInvalidateButUnrelatedTroopChangesDoNot(bool durability)
+    public void HostileWallIsHardWithEngagementPolicyAndRemovalResumesMovement(bool settlement)
     {
-        var (world, rules) = Fixture(true);
-        Assert.NotNull(Advance(world, rules).Plan!.BlockedSearch);
-        world.Replace(world.Settlements[2] with { Soldiers = 1999 });
+        var (world, rules) = Fixture(settlement);
+        world.Replace(world.Units[0] with { Policies = new(AttackApproachingEnemies: true) });
+        world.Replace(world.Units[9] with { OwnerId = 2, CorpsId = 2 });
+        Assert.Equal(NavigationStatus.Waiting, Advance(world, rules).Status);
         using var diagnostics = new PathSearchDiagnostics();
-        Advance(world, rules);
-        Assert.Equal(0, diagnostics.Queries);
-        world.Replace(durability ? world.Settlements[2] with { Durability = 19 } : world.Settlements[2] with { Soldiers = 999 });
-        var result = Advance(world, rules);
+        Assert.Equal(NavigationStatus.Waiting, Advance(world, rules).Status);
         Assert.True(diagnostics.Queries > 0);
-        Assert.True(result.Plan!.BlockedSearch!.Approach!.CloseSiege);
+        world.RemoveUnit(9);
+        Assert.Equal(NavigationStatus.Moving, Advance(world, rules).Status);
     }
 
-    [Fact]
-    public void RockfallBlockerOutsideMovementOccupancyInvalidatesAttackBlockage()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void SiegeThresholdReevaluatesTheCurrentApproach(bool durability)
     {
         var (world, rules) = Fixture(true);
-        Assert.NotNull(Advance(world, rules).Plan!.BlockedSearch);
-        var area = new MapOccupancy(new(50, 50), new(100, 100));
-        var before = world.MovementOccupancy(rules, 0, null, area).ToArray();
-        world.Replace(world.Settlements[3] with { IsDestroyed = true });
-        Assert.Equal(before, world.MovementOccupancy(rules, 0, null, area).ToArray());
-        using var diagnostics = new PathSearchDiagnostics();
-        var result = Advance(world, rules);
-        Assert.True(diagnostics.Queries > 0);
-        Assert.Empty(result.Plan!.BlockedSearch!.Approach!.RockfallBlockers);
+        var unit = world.Units[0];
+        var p = new WorldPosition(60, 50);
+        Assert.Equal(10, MilitaryCombat.ApproachRange(world, unit, unit.Order!, rules, p));
+        world.Replace(durability ? world.Settlements[2] with { Durability = 19 } : world.Settlements[2] with { Soldiers = 999 });
+        Assert.Equal(5, MilitaryCombat.ApproachRange(world, unit, unit.Order!, rules, p));
     }
 }

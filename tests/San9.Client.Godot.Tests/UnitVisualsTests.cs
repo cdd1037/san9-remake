@@ -64,6 +64,8 @@ public sealed class UnitVisualsTests
     public void InfluenceAndConditionCoexistAndClearIndependently()
     {
         var confused = Resolve(State with { HasCityInfluence = true, Condition = UnitCondition.Confused });
+        Assert.All(confused.Animations.Take(confused.BodySpriteCount), s => Assert.StartsWith("body-", s.ClipId));
+        Assert.DoesNotContain(confused.Animations.Skip(confused.BodySpriteCount), s => s.ClipId.StartsWith("body-"));
         Assert.Contains(confused.Animations, s => s.ClipId == "confused");
         Assert.Contains(confused.Animations, s => s.ClipId == "influence");
         var recovered = Resolve(State with { HasCityInfluence = true });

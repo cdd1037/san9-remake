@@ -10,6 +10,9 @@ public sealed record UnitVisual(int Id, double CellX, double Depth, MapAnimatedS
     public string? CommanderNameKey { get; init; }
     public int LabelX { get; init; }
     public int LabelY { get; init; }
+    public int BodySpriteCount { get; init; }
+    public int AnchorX { get; init; }
+    public int AnchorY { get; init; }
 }
 public sealed record UnitVisualState(int Id, double CellX, double CellY, int Elevation, uint Soldiers,
     int FormationId, UnitCondition Condition, int Direction, bool HasCityInfluence, int Color, int Glyph)
@@ -68,6 +71,7 @@ public static class UnitVisuals
         if (catalog.Conditions.TryGetValue(state.Condition, out var status))
             Add(status.ClipId, status.X, formation.StatusY + status.Y);
         return new(state.Id, state.CellX, state.CellX + state.CellY, animations.ToArray())
-        { Soldiers = state.Soldiers, Morale = state.Morale, CommanderNameKey = state.CommanderNameKey, LabelX = x, LabelY = y - 96 };
+        { Soldiers = state.Soldiers, Morale = state.Morale, CommanderNameKey = state.CommanderNameKey, LabelX = x, LabelY = y - 96,
+          BodySpriteCount = members.Length, AnchorX = x, AnchorY = y };
     }
 }

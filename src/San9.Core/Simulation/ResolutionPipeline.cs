@@ -238,6 +238,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
     {
         if (stage == ResolutionStage.DailyMapUpdate) { TacticSupport.AdvanceDay(world, rules, events); world.MaintainDerivedState(events); }
         if (stage == ResolutionStage.DailyMapUpdate) { MilitaryPolicies.ResolveOrders(world, rules.Military, events); world.MaintainDerivedState(events); }
+        if (stage == ResolutionStage.DailyMapUpdate) MilitaryMovement.TickDepartureDelays(world);
         rules.ApplyStage(stage, world, events);
         AttackRequests.Cleanup(world, events);
         CorpsDelegations.Cleanup(world, rules.Military, events);

@@ -21,7 +21,7 @@ internal static class UnitAffiliation
         foreach (var person in people.Where(p => !followers.Contains(p.Id)))
             PersonnelReturns.FromField(world, person.Id, unit.Position, rules, events, recruited);
         world.Replace(unit with { OwnerId = recipient, CorpsId = root, ServicePlaceId = servicePlace,
-            Order = null, MovementPlan = null, EngagementTargetId = null, AwaitingPostAction = false });
+            Order = null, EngagementTargetId = null, AwaitingPostAction = false });
         var ruler = world.Officers[world.Forces[recipient].LeaderId!.Value];
         foreach (int id in followers.Order())
         {

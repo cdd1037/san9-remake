@@ -45,7 +45,7 @@ for (int i = 0; i < xuns; i++)
     Log($"xun={i + 1} ms={ms:F2} allocated_MiB={mib:F2} units={session.Snapshot.Units.Count} " +
         $"moved={moves.Count(e => e.From != e.To)} blocked={moves.Count(e => e.Status == NavigationStatus.Unreachable)} waiting={moves.Count(e => e.Status == NavigationStatus.Waiting)} " +
         $"damages={result.Events.OfType<BattleDamageEvent>().Count()} events={result.Events.Count}");
-    Log($"searches={diagnostics.Queries} expanded={diagnostics.Expanded} maximum_expanded={diagnostics.MaximumExpanded} corridor_retries={diagnostics.CorridorRetries} topology_builds={diagnostics.TopologyBuilds} reused_plans={diagnostics.ReusedPlans}");
+    Log($"searches={diagnostics.Queries} expanded={diagnostics.Expanded} maximum_expanded={diagnostics.MaximumExpanded} workspace_nodes={diagnostics.WorkspaceNodes}");
     if (restored is not null)
     {
         restored.AdvanceXun();

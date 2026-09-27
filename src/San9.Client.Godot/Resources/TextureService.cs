@@ -21,6 +21,7 @@ public partial class TextureService : Node
     public bool CanUpload => _frameUploadMilliseconds < 2;
     public IReadOnlyDictionary<string, ImageAsset> MapAssets { get; private set; } = null!;
     public IReadOnlyDictionary<string, ImageAsset> Roles { get; private set; } = null!;
+    public IReadOnlyDictionary<int, TargetMarkerOffset> BuildingTargetOffsets { get; private set; } = null!;
     public IReadOnlyDictionary<string, CursorDefinition> Cursors { get; private set; } = null!;
     public IReadOnlyDictionary<string, ImageAsset> CursorAssets { get; private set; } = null!;
     public TextureCache<ImageTexture> Cache => _cache;
@@ -35,6 +36,7 @@ public partial class TextureService : Node
         MapAssets = package.Map.Assets.ToDictionary(a => a.Id);
         var ui = package.Skin.Assets.ToDictionary(a => a.Id);
         Roles = package.Skin.Roles.ToDictionary(p => p.Key, p => ui[p.Value]);
+        BuildingTargetOffsets = package.Skin.BuildingTargetOffsets;
         Cursors = package.Skin.Cursors;
         CursorAssets = Cursors.ToDictionary(p => p.Key, p => ui[p.Value.Asset]);
         var unitClips = package.Map.Units.Bodies.SelectMany(body => body.DirectionClips).ToHashSet();
@@ -43,7 +45,7 @@ public partial class TextureService : Node
             .SelectMany(clip => clip.Frames.Concat(clip.SeasonFrames.Values.SelectMany(frames => frames)))
             .ToHashSet();
         var hitImages = MapAssets.Values.Where(a => a.Id.StartsWith("building-", StringComparison.Ordinal) || unitFrames.Contains(a.Id))
-            .Concat(Roles.Where(p => p.Key is "top-frame" or "radar-frame" or "sidebar-frame" or "ruler-frame" || p.Key.StartsWith("button-overview-", StringComparison.Ordinal) || p.Key.StartsWith("overview-city-", StringComparison.Ordinal)).Select(p => p.Value));
+            .Concat(Roles.Where(p => p.Key is "top-frame" or "radar-frame" or "sidebar-frame" or "ruler-frame" or "target-footer" || p.Key.StartsWith("target-title-", StringComparison.Ordinal) || p.Key.StartsWith("button-overview-", StringComparison.Ordinal) || p.Key.StartsWith("overview-city-", StringComparison.Ordinal)).Select(p => p.Value));
         foreach (var group in hitImages.Distinct().GroupBy(a => a.File)) _maskSources[group.Key] = group.ToArray();
         _cache = new(load, Upload, t => t.Dispose());
         ProcessPriority = -100;

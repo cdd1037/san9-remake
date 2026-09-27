@@ -2,6 +2,8 @@ using San9.Content.Images;
 using San9.Content.Interface;
 using San9.Content.Packages;
 using San9.Importer.San9PkTc101.Packages;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace San9.Importer.San9PkTc101.Tests;
 
@@ -10,13 +12,31 @@ public sealed class TextureRebuildTests : IDisposable
     private readonly string root = Path.Combine(Path.GetTempPath(), "san9-rebuild-" + Guid.NewGuid().ToString("N"));
 
     [Fact]
+    public void RebuildingSkinDiscardsItsObsoleteSchemaButRequiresRetainedUnitsToBeReadable()
+    {
+        var skin = new InterfaceSkin(33, [], [], [], []) { BuildingTargetOffsets = new() { [0] = new(-16, -58) } };
+        var package = new TexturePackage(5, 25, "test", [],
+            new([], [], [], [], [], new int[288], new int[16], [], new byte[32]), skin, new(3, []), []);
+        var manifest = JsonSerializer.SerializeToNode(package, PackageFiles.JsonOptions)!.AsObject();
+        manifest["skin"] = JsonNode.Parse("{\"schemaVersion\":29}");
+        Assert.Throws<JsonException>(() => manifest.Deserialize<TexturePackage>(PackageFiles.JsonOptions));
+        var rebuilt = TexturePackageRebuilder.ReplaceUnit(manifest, "skin", skin);
+        Assert.Equal(33, rebuilt.Skin.SchemaVersion);
+        Assert.Equal(new TargetMarkerOffset(-16, -58), rebuilt.Skin.BuildingTargetOffsets[0]);
+        Assert.Equal(package.ConversionVersion, rebuilt.ConversionVersion);
+        Assert.True(JsonNode.DeepEquals(JsonSerializer.SerializeToNode(package.Map, PackageFiles.JsonOptions), manifest["map"]));
+        manifest["map"]!.AsObject().Remove("units");
+        Assert.Throws<JsonException>(() => TexturePackageRebuilder.ReplaceUnit(manifest, "skin", skin));
+    }
+
+    [Fact]
     public void CursorReplacementRestoresMissingDefinitionsAndRemovesObsoleteAssets()
     {
         var unrelated = new ImageAsset("button", "images/button.png", 1, 1);
         var orphan = unrelated with { Id = "cursor-up", File = new("images/up.png", 1, 1, 4) };
         var obsolete = unrelated with { Id = "old-cursor", File = new("images/old.png", 1, 1, 4) };
         var corrected = orphan with { File = new(".sources/new.png", 2, 2, 4), Width = 2, Height = 2 };
-        var skin = new InterfaceSkin(29, [unrelated, orphan, obsolete], [], [], new() { ["old"] = new(obsolete.Id, 0, 0) });
+        var skin = new InterfaceSkin(33, [unrelated, orphan, obsolete], [], [], new() { ["old"] = new(obsolete.Id, 0, 0) });
         var replaced = TexturePackageRebuilder.ReplaceCursors(skin, new() { ["up"] = new(corrected.Id, 1, 1) }, [corrected]);
         Assert.Equal(new[] { unrelated, corrected }, replaced.Assets);
         Assert.Equal(new CursorDefinition(corrected.Id, 1, 1), Assert.Single(replaced.Cursors).Value);
@@ -37,7 +57,7 @@ public sealed class TextureRebuildTests : IDisposable
         var replacement = new ImageAsset("ui-test", ".sources/0.png", 1, 1, 3);
         var package = new TexturePackage(5, 23, "test", [],
             new([], [], [], [], [], new int[288], new int[16], [], new byte[32]),
-            new(29, [replacement], new() { ["test"] = replacement.Id }, [], []),
+            new(33, [replacement], new() { ["test"] = replacement.Id }, [], []),
             new(3, [new("original", "interface", [new(0, 0, first), new(1, 0, second)])]), []);
         var result = TexturePackagePacking.Pack(root, package, "images/rebuilt/skin", default);
         Assert.Equal(new[] { first, second }, result.Library.Assets);
@@ -60,7 +80,7 @@ public sealed class TextureRebuildTests : IDisposable
         var image = new ImageAsset("ui-test", ".sources/0.png", 1, 1, 3);
         var package = new TexturePackage(5, 23, "test", [],
             new([], [], [], [], [], new int[288], new int[16], [], new byte[32]),
-            new(29, [image], new() { ["test"] = image.Id }, [], []),
+            new(33, [image], new() { ["test"] = image.Id }, [], []),
             new(3, [new("original", "interface", [new(0, 0, image with { Id = "library/test" })])]), []);
         var result = TexturePackagePacking.Pack(root, package, "images", default);
         Assert.Equal(Assert.Single(result.Skin.Assets).File, Assert.Single(result.Library.Assets).File);

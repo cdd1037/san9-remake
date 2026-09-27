@@ -7,6 +7,10 @@ namespace San9.Core.Simulation;
 public sealed record DeployUnitCommand(Guid CommandId, int IssuerId, long Sequence, int SettlementId,
     ImmutableArray<int> OfficerIds, uint Soldiers, int FormationId, MilitaryOrder Order) : GameCommand(CommandId, IssuerId, Sequence)
 {
+    [JsonRequired] public ImmutableDictionary<int, int?> Tactics { get; init; } = ImmutableDictionary<int, int?>.Empty;
+    [JsonRequired] public ImmutableDictionary<int, BattleRank> Ranks { get; init; } = ImmutableDictionary<int, BattleRank>.Empty;
+    [JsonRequired] public int DepartureDelayDays { get; init; }
+    [JsonRequired] public WorldPosition? Waypoint { get; init; }
     [JsonRequired] public int? NavalFormationId { get; init; }
     [JsonRequired] public bool ConfirmAttack { get; init; }
     [JsonRequired] public UnitPolicies Policies { get; init; } = new();
@@ -54,6 +58,11 @@ internal static class MilitaryMovement
                 unit.Soldiers > formation.SoldierCapacity || world.Officers.Count(p => p.UnitId == unit.Id && p.IsServing) > formation.OfficerCapacity ||
                 rules.Travel(unit).Map.PassageCost(unit.Position, rules.Travel(unit).Shape, rules.Travel(unit).Mode, []) is null)
                 throw new ArgumentException("Invalid unit formation, location or capacity.");
+            if (unit.Waypoint is { } via && rules.Travel(unit).Map.PassageCost(via, rules.Travel(unit).Shape, rules.Travel(unit).Mode, []) is null)
+                throw new ArgumentException("Invalid unit waypoint.");
+            if (unit.Lookahead is { } stage && (rules.Travel(unit).Map.PassageCost(stage.Position, rules.Travel(unit).Shape, rules.Travel(unit).Mode, []) is null ||
+                stage.Target.Left < 0 || stage.Target.Top < 0 || stage.Target.Right > rules.Travel(unit).Map.FineWidth || stage.Target.Bottom > rules.Travel(unit).Map.FineHeight))
+                throw new ArgumentException("Invalid navigation lookahead.");
             if (formation.Combat is not null && world.Officers.Any(p => p.IsServing && p.UnitId == unit.Id && !unit.MemberRanks.ContainsKey(p.Id)))
                 throw new ArgumentException("Missing battle member rank.");
             if (unit.Order?.Construction is { } plan && (!rules.ConstructionSites.TryGetValue((plan.RegionId, plan.Position), out var site) ||
@@ -97,6 +106,7 @@ internal static class MilitaryMovement
             return CommandRejection.FormationUnavailable;
         var travel = rules.Travel(formation.Id, navalId);
         long deploymentCost = purpose == UnitPurpose.Construction ? 0 : (long)formation.DeploymentCost + (naval?.DeploymentCost ?? 0);
+        if (command.DepartureDelayDays is < 0 or > 9) return CommandRejection.InvalidTask;
         if (command.Policies is null || command.Order is null || purpose != UnitPurpose.Construction && command.Order.Kind == MilitaryOrderKind.Construct) return CommandRejection.InvalidTask;
         if (!world.Settlements.TryGetValue(command.SettlementId, out var home) || home.OwnerId != command.IssuerId ||
             !home.CanHostPersons || home.Durability == 0 || !rules.TryPlace(home, out var place))
@@ -108,6 +118,12 @@ internal static class MilitaryMovement
             return CommandRejection.InvalidTask;
         if (command.OfficerIds.Any(id => !PersonnelMissions.CanAct(world, command.IssuerId, id) || world.Officers[id].SettlementId != home.Id))
             return CommandRejection.PersonUnavailable;
+        if (command.Tactics is null || command.Ranks is null ||
+            command.Tactics.Keys.Concat(command.Ranks.Keys).Any(id => !command.OfficerIds.Contains(id)) ||
+            command.Ranks.Values.Any(rank => !Enum.IsDefined(rank))) return CommandRejection.InvalidTask;
+        foreach (var (person, tacticId) in command.Tactics)
+            if (tacticId is int tactic && (!rules.Tactics.TryGetValue(tactic, out var definition) || !definition.Selectable ||
+                !MilitaryTactics.HasTactic(world, command.IssuerId, [person], tactic, treasures))) return CommandRejection.TacticUnavailable;
         if (!FormationEligibility.CanUse(world, command.IssuerId, command.OfficerIds, formation, treasures) ||
             naval is not null && !FormationEligibility.CanUse(world, command.IssuerId, command.OfficerIds, naval, treasures))
             return CommandRejection.MissingFormationTactic;
@@ -118,10 +134,12 @@ internal static class MilitaryMovement
         var account = ResourceAccounts.Resolve(world, command.IssuerId, home.CorpsId);
         if ((ulong)cargoMoney + (uint)deploymentCost > ResourceAccounts.Balance(world, account, ResourceKind.Money) ||
             cargoFood > ResourceAccounts.Balance(world, account, ResourceKind.Food)) return CommandRejection.InsufficientFunds;
-        var occupancy = Occupancy(world, rules, null, null).ToArray();
-        WorldPosition? start = travel.Entrances(place).Cast<WorldPosition?>().FirstOrDefault(p =>
-            travel.Map.PassageCost(p!.Value, travel.Shape, travel.Mode, occupancy) is not null);
+        var occupancy = new MovementOccupancy(world, rules).Query(world, command.IssuerId, command.Policies);
+        WorldPosition? start = MilitaryRouteQuery.DeploymentPosition(travel, place, occupancy);
         if (start is null) return CommandRejection.NoDestination;
+        if (command.Waypoint is { } via && (Occupancy(world, rules, null, null).Any(o => o.Overlaps(new(via, new(1, 1)))) ||
+            !travel.Map.FindRoute(start.Value, via, travel.Shape, travel.Mode, occupancy).Reachable))
+            return CommandRejection.NoDestination;
         if (world.Simulation.NextUnitId > int.MaxValue) return CommandRejection.ResourceOverflow;
         int id = (int)world.Simulation.NextUnitId;
         int? commander = LeadershipMaintenance.SelectUnitCommander(world, command.OfficerIds, governance);
@@ -129,8 +147,9 @@ internal static class MilitaryMovement
         {
             CorpsId = home.CorpsId, ServicePlaceId = home.Id, FormationId = formation.Id, NavalFormationId = navalId, Morale = home.Morale,
             MemberRanks = formation.CaptureRanks.IsEmpty ? ImmutableDictionary<int, BattleRank>.Empty : command.OfficerIds
-                .Select((person, index) => (person, rank: formation.CaptureRanks[index])).ToImmutableDictionary(p => p.person, p => p.rank),
+                .Select((person, index) => (person, rank: command.Ranks.GetValueOrDefault(person, formation.CaptureRanks[index]))).ToImmutableDictionary(p => p.person, p => p.rank),
             CargoMoney = cargoMoney, CargoFood = cargoFood, Order = command.Order,
+            DepartureDaysRemaining = command.DepartureDelayDays, Waypoint = command.Waypoint,
             Policies = command.Policies, CommanderId = commander, CommandedThisXun = true,
             OrderClass = UnitOrderClass.Military
         };
@@ -147,7 +166,7 @@ internal static class MilitaryMovement
         ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, unit.Id), ResourceKind.Money, "transport-load", home.Id, unit.CargoMoney, unit.CargoMoney, events);
         ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, unit.Id), ResourceKind.Food, "transport-load", home.Id, unit.CargoFood, unit.CargoFood, events);
         foreach (int officer in command.OfficerIds.Order())
-            world.Replace(world.Officers[officer] with { SettlementId = null, UnitId = unit.Id, Acted = true, IsCommander = false });
+            world.Replace(world.Officers[officer] with { EquippedTacticId = command.Tactics.GetValueOrDefault(officer, world.Officers[officer].EquippedTacticId), SettlementId = null, UnitId = unit.Id, Acted = true, IsCommander = false });
         events.Add(new UnitDeployedEvent(world.Clock, unit.Id, home.Id, command.OfficerIds));
         return CommandRejection.None;
     }
@@ -162,7 +181,7 @@ internal static class MilitaryMovement
         if (!command.ConfirmAttack && MilitaryDiplomacy.Warning(world, command.IssuerId, command.Order, rules) != AttackWarning.None)
             return CommandRejection.AttackConfirmationRequired;
         FacilityConstruction.Cancel(world, unit.Id, events);
-        world.Replace(unit with { Order = command.Order, CommandedThisXun = true, EngagementTargetId = null, AwaitingPostAction = false });
+        world.Replace(unit with { Order = command.Order, Waypoint = null, DepartureDaysRemaining = 0, CommandedThisXun = true, EngagementTargetId = null, AwaitingPostAction = false });
         events.Add(new UnitOrderChangedEvent(world.Clock, unit.Id, command.Order, "ordered"));
         return CommandRejection.None;
     }
@@ -189,6 +208,7 @@ internal static class MilitaryMovement
         foreach (int id in world.Units.Keys.Order().ToArray())
         {
             var unit = world.Units[id];
+            if (unit.DepartureDaysRemaining > 0) continue;
             if (unit.EffectiveOrder is not { } order || unit.Condition == UnitCondition.Confused) continue;
             if (order.Kind == MilitaryOrderKind.Construct) continue;
             var formation = rules.Formations[unit.FormationId!.Value];
@@ -215,6 +235,12 @@ internal static class MilitaryMovement
                 events.Add(new UnitOrderChangedEvent(world.Clock, id, null, "arrived"));
             }
         }
+    }
+
+    internal static void TickDepartureDelays(WorldMutation world)
+    {
+        foreach (var unit in world.Units.Values.Where(u => u.DepartureDaysRemaining > 0).OrderBy(u => u.Id).ToArray())
+            world.Replace(unit with { DepartureDaysRemaining = unit.DepartureDaysRemaining - 1 });
     }
 
     internal static void Absorb(WorldMutation world, UnitState unit, int destinationId, GovernanceRulebook governance, PersonnelRulebook geography, List<DomainEvent> events)
@@ -273,14 +299,11 @@ internal static class MilitaryMovement
         return (ulong)money + world.Corps[previous].Treasury.Money <= uint.MaxValue && (ulong)food + world.Corps[previous].Treasury.Food <= uint.MaxValue;
     }
 
-    internal static IEnumerable<MapOccupancy> Occupancy(WorldMutation world, MilitaryRulebook rules, int? movingUnit, int? entry, bool movement = false)
+    internal static IEnumerable<MapOccupancy> Occupancy(WorldMutation world, MilitaryRulebook rules, int? movingUnit, int? entry)
     {
         foreach (var settlement in world.Settlements.Values.Where(s => s.Id != entry && !s.IsDestroyed))
             if (rules.TryPlace(settlement, out var place))
             {
-                if (movement && movingUnit is int moving && world.Units.TryGetValue(moving, out var actor) &&
-                    !MilitaryDiplomacy.Work(world, settlement.Id, rules) &&
-                    (settlement.OwnerId is null || !MilitaryDiplomacy.AutomaticEnemy(world, actor.OwnerId, settlement.OwnerId))) continue;
                 yield return new(place.Position, place.Footprint);
             }
         foreach (var unit in world.Units.Values.Where(u => u.Id != movingUnit))

@@ -114,7 +114,7 @@ public sealed class BattlefieldPathSearchTests
     }
 
     [Fact]
-    public void CachedSearchMatchesIndependentWeightedDistancesAcrossShapesAndDynamicOccupancy()
+    public void CoarseSearchProducesLegalRoutesNoCheaperThanIndependentFineDistances()
     {
         var random = new Random(819);
         var map = new BattlefieldMap(8, 8, Enumerable.Range(0, 64).Select(_ => random.Next(2)),
@@ -128,9 +128,9 @@ public sealed class BattlefieldPathSearchTests
             MapOccupancy[] occupied = [new(new(15 + trial % 10, 20), new(3, 7))];
             long? expected = ReferenceCost(map, start, end, shape, mode, occupied);
             var actual = map.FindRoute(start, end, shape, mode, occupied);
-            Assert.Equal(expected.HasValue, actual.Reachable);
+            if (!expected.HasValue) Assert.False(actual.Reachable);
             if (!actual.Reachable) continue;
-            Assert.Equal(expected!.Value, actual.Cost);
+            Assert.True(actual.Cost >= expected!.Value);
             long total = 0; var previous = start;
             foreach (var step in actual.Steps)
             {

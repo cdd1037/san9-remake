@@ -19,7 +19,7 @@ internal static class MilitaryPolicies
         return CommandRejection.None;
     }
 
-    private static bool Active(UnitState unit) => !unit.IsEmbedded && !unit.IsPersonnel && unit.FormationId is not null &&
+    private static bool Active(UnitState unit) => unit.DepartureDaysRemaining == 0 && !unit.IsEmbedded && !unit.IsPersonnel && unit.FormationId is not null &&
         unit.Condition is UnitCondition.Normal or UnitCondition.HighSpirits;
 
     internal static void AdvanceDay(WorldMutation world, MilitaryRulebook? rules, List<DomainEvent> events)

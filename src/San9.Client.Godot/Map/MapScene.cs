@@ -18,6 +18,7 @@ internal sealed class MapScene
     public UnitVisual[] Units { get; }
     public IReadOnlyDictionary<int, MapAnimatedSprite[]> Animations { get; }
     public IReadOnlyDictionary<string, MapAnimationClip> Clips { get; }
+    public IReadOnlySet<string> HighlightableBuildingAssets { get; }
     private readonly TextureService _textures;
     private readonly Dictionary<(int X, int Y), int[]> _waterBuckets;
 
@@ -51,7 +52,7 @@ internal sealed class MapScene
             .Select(u =>
             {
                 var order = u.EffectiveOrder;
-                WorldPosition? target = u.MovementPlan is { Steps.Length: > 0 } plan ? plan.Steps[0] :
+                WorldPosition? target = u.EngagementTargetId is null && u.Waypoint is { } via ? via :
                     order?.UnitId is int targetId && unitPositions.TryGetValue(targetId, out var position) ? position :
                     order?.Position ?? (order?.SettlementId is int place ?
                         state.Settlements.FirstOrDefault(s => s.Id == place) is {} destination ? MapCoordinates.Center(new(destination.X, destination.Y)) : null : null);
@@ -71,6 +72,9 @@ internal sealed class MapScene
                 }, map.Units, Clips);
             }).ToArray();
         Buildings = visuals.Buildings;
+        var compositions = map.Compositions.ToDictionary(c => c.Id);
+        HighlightableBuildingAssets = Buildings.SelectMany(b => b.Sprites.Zip(compositions[b.CompositionId].Parts)
+            .Where(p => !p.Second.PaletteAlpha).Select(p => p.First.AssetId)).ToHashSet();
         Animations = visuals.Animations.GroupBy(s => s.BuildingId).ToDictionary(g => g.Key, g => g.ToArray());
     }
     public Rect2 Bounds(MapSprite sprite)
@@ -140,27 +144,35 @@ internal sealed record MapSceneRegion(MapScene Scene, Rect2 Bounds, MapBuilding[
             .Select(c => c.SeasonFrames["autumn"][2])).Distinct();
 
     // Buildings and field units share terrain depth; clouds cover both views last.
-    public void Objects(double time, Action<string, Vector2, MapObjectTarget?, MapBlendMode> emit)
+    public void Objects(double time, Action<string, Vector2, MapObjectTarget?, MapBlendMode, bool> emit, Action? groundOverlay = null, (double Depth, Action Draw)? objectOverlay = null)
     {
-        foreach (var s in Bridges.Concat(Boundaries)) emit(s.AssetId, new(s.X, s.Y), null, MapBlendMode.Alpha);
+        foreach (var s in Bridges.Concat(Boundaries)) emit(s.AssetId, new(s.X, s.Y), null, MapBlendMode.Alpha, false);
+        groundOverlay?.Invoke();
         var objects = Buildings.Select(b => (Depth: (double)(b.X + b.Y), X: (double)b.X, Kind: 0, Id: b.Id,
                 Building: (MapBuilding?)b, Unit: (UnitVisual?)null))
             .Concat(Units.Select(u => (Depth: u.Depth, X: u.CellX, Kind: 1, Id: u.Id,
                 Building: (MapBuilding?)null, Unit: (UnitVisual?)u)))
             .OrderBy(o => o.Depth).ThenBy(o => o.X).ThenBy(o => o.Kind).ThenBy(o => o.Id);
+        bool overlayDrawn = false;
         foreach (var item in objects)
         {
+            if (!overlayDrawn && objectOverlay is { } overlay && overlay.Depth <= item.Depth)
+            { overlay.Draw(); overlayDrawn = true; }
             if (item.Building is { } building)
             {
-                foreach (var s in building.Sprites) emit(s.AssetId, new(s.X, s.Y), new(building.Id, false), MapBlendMode.Alpha);
+                foreach (var s in building.Sprites) emit(s.AssetId, new(s.X, s.Y), new(building.Id, false), MapBlendMode.Alpha, Scene.HighlightableBuildingAssets.Contains(s.AssetId));
                 foreach (var s in Scene.Animations.GetValueOrDefault(building.Id, []))
-                    emit(MapAnimationClock.Asset(Scene.Clips[s.ClipId], Scene.Season, time, s.Phase), new(s.X, s.Y), null, Scene.Clips[s.ClipId].BlendMode);
+                    emit(MapAnimationClock.Asset(Scene.Clips[s.ClipId], Scene.Season, time, s.Phase), new(s.X, s.Y), null, Scene.Clips[s.ClipId].BlendMode, false);
             }
             else
-                foreach (var s in item.Unit!.Animations)
-                    emit(MapAnimationClock.Asset(Scene.Clips[s.ClipId], Scene.Season, time, s.Phase), new(s.X, s.Y), new(item.Id, true), Scene.Clips[s.ClipId].BlendMode);
+                for (int i = 0; i < item.Unit!.Animations.Length; i++)
+                {
+                    var s = item.Unit.Animations[i];
+                    emit(MapAnimationClock.Asset(Scene.Clips[s.ClipId], Scene.Season, time, s.Phase), new(s.X, s.Y), new(item.Id, true), Scene.Clips[s.ClipId].BlendMode, i < item.Unit.BodySpriteCount);
+                }
         }
-        foreach (var s in Clouds) emit(s.AssetId, new(s.X, s.Y), null, MapBlendMode.Alpha);
+        if (!overlayDrawn && objectOverlay is { } remaining) remaining.Draw();
+        foreach (var s in Clouds) emit(s.AssetId, new(s.X, s.Y), null, MapBlendMode.Alpha, false);
     }
 }
 

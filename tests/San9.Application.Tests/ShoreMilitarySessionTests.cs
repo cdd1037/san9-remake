@@ -99,7 +99,9 @@ public sealed class ShoreMilitarySessionTests
         Assert.True(session.Execute(new("player"), new DeployUnitCommand(Guid.NewGuid(), 1, 0, 1, [1], 500,
             10, new(MilitaryOrderKind.Move, new(7, 2), null))).Submission.Accepted);
         var unit = Assert.Single(session.View.World.Units);
-        // The first land exit is on the shared shore, so embark before any date advance.
+        // Deployment now starts in the city; move to the shared shore before embarking.
+        Assert.Equal(Fixture().Military!.Places.Single(p => p.Id == 1).Position, unit.Position);
+        session.AdvanceXun();
         var command = new ReformUnitCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence,
             unit.Id, 20, [1], new(MilitaryOrderKind.Return, null, 2));
         Assert.True(session.Execute(new("player"), command).Submission.Accepted);

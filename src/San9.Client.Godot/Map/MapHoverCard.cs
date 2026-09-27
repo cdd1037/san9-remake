@@ -22,9 +22,9 @@ public partial class MapHoverCard : Node2D
     public override void _Draw()
     {
         if (Info is not { } info) return;
-        DrawTexture(Textures[$"hover-{info.Theme.ToString().ToLowerInvariant()}-{(info.Height == 316 ? "city" : "facility")}"], Vector2.Zero);
+        DrawTexture(Textures[$"hover-{info.Theme.ToString().ToLowerInvariant()}-{(info.Height == 316 ? "city" : info.Height == 240 ? "unit" : "facility")}"], Vector2.Zero);
         World.DrawHoverFlag(this, info.Force?.ColorCode ?? 50, info.IsRulerCommander ? World.Package!.Units.RulerFlagGlyph : info.FlagGlyph ?? info.Force?.FlagGlyph ?? -1, new(-13, 12));
-        Text(info.Name, new(64, 42), new Color("f0f0f0"), false, info.Height == 316 ? 32 : 48);
+        Text(info.Name, new(64, 42), new Color("f0f0f0"), false, info.Height == 316 ? 32 : info.Height == 240 ? 80 : 48);
         foreach (string icon in info.Icons) DrawTexture(Textures["icon-" + icon], new(icon == "emperor" ? 124 : 102, 26));
         for (int i = 0; i < info.Rows.Count; i++)
         {

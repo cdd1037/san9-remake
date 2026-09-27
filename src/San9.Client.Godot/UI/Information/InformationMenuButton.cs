@@ -6,7 +6,12 @@ namespace San9.Client.Godot;
 public partial class InformationMenuButton : BaseButton
 {
     public string SkinPrefix { get; init; } = "information-menu-button";
-    public string Title { get; init; } = "";
+    private string _title = "";
+    public string Title
+    {
+        get => _title;
+        set { _title = value; if (_label is not null) _label.Text = value; }
+    }
     public string HintText { get; init; } = "";
     public Func<bool, bool, bool, GameTextStyle> TextStyle { get; init; } = GameTextStyles.InformationMenu;
     public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;

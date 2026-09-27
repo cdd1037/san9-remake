@@ -438,7 +438,6 @@ public sealed class UnitStrategyTests
         state.SetSimulation(state.Simulation with { Tasks = state.Simulation.Tasks.Remove(task) });
         UnitStrategies.Resolve(state, task, rules, []);
         Assert.Null(state.Units[5].Order);
-        Assert.Null(state.Units[5].MovementPlan);
         Assert.Equal(2, state.Units[5].EffectiveOrder!.SettlementId);
         Assert.Equal(CommandRejection.None, MilitaryMovement.Order(state,
             new(Guid.NewGuid(), 2, 0, 5, new(MilitaryOrderKind.Move, new(20, 2), null)), rules.Military, []));

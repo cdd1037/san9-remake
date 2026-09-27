@@ -61,27 +61,6 @@ internal static class MilitaryCombat
 
     private static bool RequiresCloseSiege(SettlementState target) => target.Soldiers < 1000 || target.Durability < 20;
 
-    internal static AttackApproachState ApproachState(WorldMutation world, UnitState source, MilitaryOrder target, MilitaryRulebook rules)
-    {
-        var land = rules.Formations[source.FormationId!.Value];
-        var naval = source.NavalFormationId is int ship ? rules.Formations[ship] : null;
-        if (target.SettlementId is not int id)
-            return new(land.Attack, land.Footprint, naval?.Attack, naval?.Footprint,
-                rules.Formation(world.Units[target.UnitId!.Value]).Attack, false, false, false, false);
-        var place = world.Settlements[id];
-        var reply = rules.FacilityAttack(place);
-        bool close = RequiresCloseSiege(place);
-        bool rockfall = !close && (land.Attack?.RangedSiege == true || naval?.Attack?.RangedSiege == true) &&
-            rules.Rockfall is not null && reply.UsesRockfallPower;
-        return new(land.Attack, land.Footprint, naval?.Attack, naval?.Footprint, reply.Attack,
-            true, rules.IsHarbor(place), close, rockfall)
-        {
-            // Rockfall propagation can be changed by facilities outside the movement query window.
-            RockfallBlockers = rockfall ? world.Settlements.Values.Where(s => s.Id != id && !s.IsDestroyed && rules.TryPlace(s, out _))
-                .OrderBy(s => s.Id).Select(s => rules.Place(s)).Select(p => new MapOccupancy(p.Position, p.Footprint)).ToImmutableArray() : []
-        };
-    }
-
     internal static int ApproachRange(WorldMutation world, UnitState source, MilitaryOrder target, MilitaryRulebook rules, WorldPosition position)
     {
         var formation = rules.Formation(source, position);
@@ -117,7 +96,7 @@ internal static class MilitaryCombat
             int id = units[index];
             world.MaintainLeadership(events);
             if (world.Simulation.TerminalReason is not null) break;
-            if (!world.Units.TryGetValue(id, out var attacker) || attacker.EffectiveOrder is not { IsAttack: true } order || attacker.Condition is UnitCondition.Confused or UnitCondition.Routed) continue;
+            if (!world.Units.TryGetValue(id, out var attacker) || attacker.DepartureDaysRemaining > 0 || attacker.EffectiveOrder is not { IsAttack: true } order || attacker.Condition is UnitCondition.Confused or UnitCondition.Routed) continue;
             var formation = military.Formation(attacker);
             if (!ValidTarget(world, attacker.OwnerId, order, formation, military))
             {

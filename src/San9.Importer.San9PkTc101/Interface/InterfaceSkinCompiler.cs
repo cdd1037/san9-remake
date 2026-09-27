@@ -13,7 +13,7 @@ public static class InterfaceSkinCompiler
         List<ImageAsset> assets = [];
         var archive = IndexedImageArchive.ReadCombined(read(Path.Combine(dataDirectory, "G_Main.s9")), 21, 98);
         Dictionary<int, int> bindings = [];
-        foreach (var (start, count) in new[] { (0x24ea90, 1425), (0x2601d0, 1145) })
+        foreach (var (start, count) in new[] { (0x24ea90, 1425), (0x2601d0, 1145), (0x25cfd0, 1070) })
             for (int i = 0; i < count; i++)
             {
                 int id = BinaryPrimitives.ReadInt32LittleEndian(exe.AsSpan(start + 8 * i)) & 65535;
@@ -47,6 +47,7 @@ public static class InterfaceSkinCompiler
         Export("command-bottom", 20, 7, paletteAlpha: true);
         Export("command-illustration-frame", 21, 8, paletteAlpha: true);
         Export("command-condition", 22, 9, paletteAlpha: true);
+        Export("minimap-command-pulse", 95, 18, 5, paletteAlpha: true);
         var still = IndexedImageArchive.ReadArchive(read(Path.Combine(dataDirectory, "G_Still.s9")));
         foreach (var entry in CommandMenuSources.Entries)
         {
@@ -73,6 +74,16 @@ public static class InterfaceSkinCompiler
         Export("turn-progress-fill", 90, 5, paletteAlpha: true);
         Export("field-left", 91, 5); Export("field-middle", 92, 5); Export("field-right", 93, 5);
         Export("ruler-frame", 94, 5); Export("region-frame", 97, 20, paletteAlpha: true);
+        Export("target-title-left", 79, 15, paletteAlpha: true);
+        Export("target-title-middle", 80, 15, paletteAlpha: true);
+        Export("target-title-right", 81, 15, paletteAlpha: true);
+        Export("target-footer", 78, 15, paletteAlpha: true);
+        foreach (var (role, index) in new[] { ("cancel", 76), ("list", 77) })
+        {
+            Export("target-" + role, index, 15, 4, paletteAlpha: true);
+            ui.Add($"target-{role}-0", ui["target-" + role]);
+            ui.Remove("target-" + role);
+        }
         var common = IndexedImageArchive.ReadCombined(read(Path.Combine(dataDirectory, "G_Common.s9")), 67, 491);
         var transition = IndexedImageArchive.ReadCombined(read(Path.Combine(dataDirectory, "G_LocalM.s9")), 2, 4);
         // RE-0158: three 125 ms additive frames, then the palette-alpha title.
@@ -146,7 +157,42 @@ public static class InterfaceSkinCompiler
         for (int color = 0; color < 51; color++) Overview($"overview-marker-{color}", 1050 + color, 1);
         for (int color = 0; color < 51; color++) Overview($"overview-facility-{color}", 999 + color, 0);
         for (int color = 0; color < 50; color++) Overview($"overview-unit-{color}", 1170 + color, 15);
+        var waypoint = IndexedImageArchive.ReadCombined(read(Path.Combine(dataDirectory, "G_MpMkPK.s9")), 1, 2);
+        for (int variant = 0; variant < 2; variant++)
+        {
+            if (bindings[11068 + variant] != 114 ||
+                waypoint.Images[variant].Width != 160 || waypoint.Images[variant].Height != 68)
+                throw new InvalidDataException("Unconfirmed waypoint flag resource.");
+            for (int frame = 0; frame < 4; frame++)
+            {
+                string role = $"target-waypoint-{(variant == 0 ? "spring-summer" : "autumn-winter")}-{frame}";
+                var source = IndexedImageArchive.Decode(IndexedImageArchive.Frame(waypoint.Images[variant], 4, 1, frame, 0), waypoint.Palettes[0], true, false);
+                // Normalize both source pole anchors (38,67)/(2,67) to the bottom center.
+                byte[] pixels = new byte[76 * 68 * 4];
+                for (int row = 0; row < 68; row++)
+                    source.Pixels.AsSpan(row * 40 * 4, 40 * 4).CopyTo(pixels.AsSpan((row * 76 + variant * 36) * 4));
+                assets.Add(save("ui-" + role, $"ui/{role}.png", new(76, 68, 4, pixels)));
+                ui.Add(role, "ui-" + role);
+            }
+        }
         var marker = IndexedImageArchive.ReadCombined(read(Path.Combine(dataDirectory, "G_Marker.s9")), 5, 34);
+        if (bindings[1251] != 315) throw new InvalidDataException("Unconfirmed route marker binding.");
+        for (int frame = 0; frame < 8; frame++)
+        {
+            string role = $"target-route-{frame}", id = "ui-" + role;
+            assets.Add(save(id, TextureSourcePath.Image("G_Marker", 31, 4, true, false, columns: 8, frame: frame),
+                IndexedImageArchive.Decode(IndexedImageArchive.Frame(marker.Images[31], 8, 1, frame, 0), marker.Palettes[4], true, false)));
+            ui.Add(role, id);
+        }
+        foreach (var (kind, index, palette) in new[] { ("attack", 18, 2), ("enter", 32, 4) })
+        for (int frame = 0; frame < 4; frame++)
+        {
+            if (bindings[1220 + index] != 311 + palette) throw new InvalidDataException("Unconfirmed target marker binding.");
+            string role = $"target-marker-{kind}-{frame}", id = "ui-" + role;
+            assets.Add(save(id, TextureSourcePath.Image("G_Marker", index, palette, true, false, columns: 4, frame: frame),
+                IndexedImageArchive.Decode(IndexedImageArchive.Frame(marker.Images[index], 4, 1, frame, 0), marker.Palettes[palette], true, false)));
+            ui.Add(role, id);
+        }
         void Extra(string role, int resource, int palette, bool paletteAlpha = false)
         {
             int start = resource >= 1220 ? 1220 : 0;
@@ -235,7 +281,7 @@ public static class InterfaceSkinCompiler
         {
             if (Enumerable.Range(first, 9).Any(id => bindings[id] != palette + 200))
                 throw new InvalidDataException("Unconfirmed map hover frame palette.");
-            foreach (var (kind, height) in new[] { ("city", 316), ("facility", 248) })
+            foreach (var (kind, height) in new[] { ("city", 316), ("facility", 248), ("unit", 240) })
             {
                 string role = $"hover-{theme}-{kind}";
                 var indexed = MapHoverArt.Compose(common.Images.Skip(first).Take(9).ToArray(), 160, height);
@@ -328,7 +374,12 @@ public static class InterfaceSkinCompiler
                     IndexedImageArchive.Decode(pixels, common.Palettes[palette], true, true)));
                 ui.Add(roleKey, "ui-" + roleKey);
             }
-        return new(29, assets.ToArray(), ui, colors, cursors);
+        // RE-0178: external display types, independent of settlement identities and domain rules.
+        TargetMarkerOffset[] offsets = [new(-16,-58), new(-20,-38), new(-4,-34), new(-30,-34), new(2,-52),
+            new(-33,-52), new(-16,-22), new(-16,-32), new(-16,-28), new(-16,-41), new(-16,-30),
+            new(-24,-32), new(-10,-34), new(-16,-34), new(-16,-32), new(-13,-32), new(-16,-34)];
+        return new(33, assets.ToArray(), ui, colors, cursors)
+        { BuildingTargetOffsets = offsets.Select((offset, type) => (offset, type)).ToDictionary(p => p.type, p => p.offset) };
     }
 
     private static IndexedImage CompileDeploymentField(IReadOnlyList<IndexedImage> sources)

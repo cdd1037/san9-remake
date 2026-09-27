@@ -10,6 +10,26 @@ namespace San9.Application.Tests;
 public sealed class MilitarySessionTests
 {
     [Fact]
+    public void DelayedWaypointDeploymentPersistsAndReplaysAsRealUnit()
+    {
+        var definition = Fixture(); var session = GameSession.Start(definition, 42);
+        session.BeginRecording();
+        var command = new DeployUnitCommand(Guid.NewGuid(), 1, 0, 1, [1], 400, 7,
+            new(MilitaryOrderKind.Move, new(32, 7), null))
+            { DepartureDelayDays = 9, Waypoint = new(12, 2) };
+        Assert.True(session.Execute(new("player"), command).Submission.Accepted);
+        var restored = SaveService.Decode(SaveService.Encode(session), definition);
+        var unit = Assert.Single(restored.Snapshot.Units);
+        Assert.Equal(9, unit.DepartureDaysRemaining); Assert.Equal(command.Waypoint, unit.Waypoint);
+        Assert.Equal(session.Snapshot.StateHash, restored.Snapshot.StateHash);
+        var result = session.AdvanceXun();
+        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+        Assert.Equal(session.Snapshot.StateHash, restored.Snapshot.StateHash);
+        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
+        Assert.Equal(session.Snapshot.StateHash, replay.Session.Snapshot.StateHash);
+    }
+
+    [Fact]
     public void InteractiveDaysPublishMovementBeforeTheXunEndsAndMatchBatch()
     {
         var basis = Fixture();
@@ -296,7 +316,6 @@ public sealed class MilitarySessionTests
             Assert.Equal(0, searches.Queries);
         }
         Assert.Equal(before, session.Capture().StateHash);
-        Assert.Null(Assert.Single(session.Snapshot.Units).MovementPlan);
         session.AdvanceXun();
         Assert.Equal(2, Assert.Single(session.Snapshot.Units).MovementRemainder);
         Assert.Equal(estimate.Days - 10, session.View.UnitArrival(id).Days);

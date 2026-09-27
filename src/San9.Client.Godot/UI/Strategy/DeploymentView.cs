@@ -15,6 +15,7 @@ public partial class DeploymentView : Control
     public TextureService Service { get; init; } = null!;
     public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;
     public Action Closed { get; init; } = null!;
+    public Action Proceed { get; init; } = null!;
     private Control? _body, _child;
     private readonly GameTextPresenter _text = new();
     private StyleBoxTexture _fieldStyle = null!;
@@ -71,7 +72,7 @@ public partial class DeploymentView : Control
         string facility = "执行设施　" + Draft.View.Settlements.Single(s => s.Id == Draft.Home.Id).ResolveName(Texts);
         _facilityWidth = facility.Sum(c => c < 128 ? 8 : 16) + 32;
         Label(facility, new(136, 100, _facilityWidth, 32));
-        Icon("help", new(848, 44), () => Notice("选择执行武将后，可选择阵形、船和士兵。\n拖拽武将牌交换阵位，双击选择兵法。\n选目标暂未开放；中止会放弃本次设置。"));
+        Icon("help", new(848, 44), () => Notice("选择执行武将后，可选择阵形、船和士兵。\n拖拽武将牌交换阵位，双击选择兵法。\n执行进入选目标；中止会放弃本次设置。"));
         Icon("close", new(880, 68), Closed);
         Button("执行武将", "edit", new(136, 148, 104, 40), SelectOfficers);
         bool selected = !Draft.Members.IsEmpty;
@@ -108,7 +109,7 @@ public partial class DeploymentView : Control
         Label("兵法发动率：排在越前方的列队数值越高。\n狙击对象　：位于前锋及中锋的武将可能遭到狙击。\n单挑对战　：发生于敌我双方的前锋。", new(440, 465, 432, 56), alignment: HorizontalAlignment.Left);
         Label("陆上视野", new(384, 555, 80, 24), alignment: HorizontalAlignment.Left, style: sectionStyle);
         Label("水上视野", new(645, 555, 80, 24), alignment: HorizontalAlignment.Left, style: sectionStyle);
-        Button("执行", "accept", new(680, 690, 76, 40), () => Notice("出征准备已设置。\n选择目标暂未开放，当前尚未下达出征命令。"), Draft.CanProceed);
+        Button("执行", "accept", new(680, 690, 76, 40), Proceed, Draft.CanProceed);
         Button("中止", "cancel", new(768, 690, 76, 40), Closed);
         _body.AddChild(new GameMessageBar { Textures = Textures, Text = Draft.Cost > Draft.Money ? "出征资金不足。" : "命令部队出征。" });
         QueueRedraw();
@@ -201,7 +202,7 @@ public partial class DeploymentView : Control
     }
     public override void _Input(InputEvent input)
     {
-        if (_child is not null) return;
+        if (!Visible || _child is not null) return;
         if (input is InputEventKey { Pressed: true, Keycode: Key.Escape }) { GetViewport().SetInputAsHandled(); Closed(); }
         if (input is InputEventMouseButton { ButtonIndex: MouseButton.Right } mouse)
         { GetViewport().SetInputAsHandled(); if (mouse.Pressed) Closed(); }

@@ -56,7 +56,8 @@ public partial class StrategyHud
 
     private void UpdateTurnControls()
     {
-        foreach (var control in _strategicHeader) control.Visible = Turn.IsStrategy;
+        foreach (var control in _strategicHeader) control.Visible = Turn.IsStrategy && _targets is null;
+        _year.Visible = _date.Visible = _season.Visible = _targets is null;
         _advanceButton.Disabled = !Turn.CanAdvance;
         _informationButton.Disabled = !CanIssueOrders;
         _minimap!.MouseFilter = Turn.CanBrowseMap ? MouseFilterEnum.Stop : MouseFilterEnum.Ignore;

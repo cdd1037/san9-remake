@@ -53,15 +53,12 @@ public static class MilitaryPlanner
                 candidate.Source.Id, [actor.Id], count, candidate.Target.Id);
             if (!validate(new(seat.ControllerId), command).Accepted) continue;
             // Static topology is public content. Enemy unit positions are not planning inputs.
-            var occupied = world.Settlements.Where(s => !s.IsDestroyed).Select(rules.Place)
-                .Select(p => new MapOccupancy(p.Position, p.Footprint)).ToArray();
+            var occupied = MilitaryRouteQuery.Occupancy(world, rules, seat.ForceId, command.Policies, includeUnits: false);
             var travel = rules.Travel(pair.LandFormationId, pair.NavalFormationId);
             var target = rules.Place(candidate.Target);
-            bool reachable = travel.Entrances(rules.Place(candidate.Source))
-                .TakeWhile(_ => !work.Exhausted)
-                .Where(p => travel.Map.PassageCost(p, travel.Shape, travel.Mode, occupied) is not null)
-                .Any(p => travel.Map.ReachabilityIntoRange(p, new(target.Position, target.Footprint), travel.Shape,
-                    travel.Mode, occupied, work, 1) == RouteReachability.Reachable);
+            bool reachable = MilitaryRouteQuery.DeploymentPosition(travel, rules.Place(candidate.Source), occupied) is { } start &&
+                travel.Map.ReachabilityIntoRange(start, new(target.Position, target.Footprint), travel.Shape,
+                    travel.Mode, occupied, work, 1) == RouteReachability.Reachable;
             if (reachable) return command;
             if (work.Exhausted) return wait;
         }
@@ -128,9 +125,10 @@ public static class MilitaryPlanner
                     var command = new DeployUnitCommand(commandId, seat.ForceId, world.Simulation.NextSequence, source.Id,
                         [people[0].Id], Math.Min(source.Soldiers - 3000, formation.SoldierCapacity), formation.Id,
                         new(MilitaryOrderKind.AttackSettlement, null, target.Id)) { NavalFormationId = navalId };
-                    if (validate(new(seat.ControllerId), command).Accepted && rules.Travel(formation.Id, navalId).Entrances(rules.Place(source))
-                        .TakeWhile(_ => !work.Exhausted)
-                        .Any(p => Reachable(p, formation, navalId, target.Id, source.Id))) return command;
+                    var occupied = MilitaryRouteQuery.Occupancy(world, rules, seat.ForceId, command.Policies, includeUnits: false);
+                    if (validate(new(seat.ControllerId), command).Accepted &&
+                        MilitaryRouteQuery.DeploymentPosition(rules.Travel(formation.Id, navalId), rules.Place(source), occupied) is { } start &&
+                        Reachable(start, formation, navalId, target.Id, source.Id)) return command;
                 }
             }
         }
@@ -154,8 +152,8 @@ public static class MilitaryPlanner
             int MaximumRange(OrdinaryAttack? attack) => attack is null ? 0 : checked(attack.Range + attack.MaximumElevationBonus);
             int maximumRange = Math.Max(MaximumRange(formation.Attack), MaximumRange(navalAttack));
             var result = travel.Map.ReachabilityIntoRange(from, new(place.Position, place.Footprint), travel.Shape,
-                travel.Mode, world.Settlements.Where(s => s.Id != source && s.Id != target && !s.IsDestroyed)
-                    .Select(rules.Place).Select(p => new MapOccupancy(p.Position, p.Footprint)),
+                travel.Mode, MilitaryRouteQuery.Occupancy(world, rules, seat.ForceId, new(), includeUnits: false)
+                    .Where(o => o.Position != place.Position || o.Footprint != place.Footprint),
                 work, maximumRange, position => rules.AttackRange(Attack(position), position, place.Position, true, rules.IsHarbor(settlement)));
             if (result == RouteReachability.Incomplete) return false;
             reachable = result == RouteReachability.Reachable;

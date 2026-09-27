@@ -26,6 +26,17 @@ internal static class MilitaryDiplomacy
             world.Simulation.Alliance?.Protects(attacker, defender.Value) != true && !AttackRequests.Protects(world, attacker, defender.Value) &&
             IsHostileRelation(Relation(world, attacker, defender.Value)));
 
+    internal static bool AutomaticEnemy(WorldSnapshot world, int attacker, int? defender)
+    {
+        bool Alive(int id) => world.Forces.Any(f => f.Id == id && !f.IsEliminated);
+        return Alive(attacker) && attacker != defender && (defender is null || Alive(defender.Value) &&
+            world.Simulation.Alliance?.Protects(attacker, defender.Value) != true &&
+            !world.Simulation.AttackRequests.Any(r => r.Connects(attacker, defender.Value) &&
+                AttackRequests.Valid(r, Alive, id => world.Settlements.FirstOrDefault(s => s.Id == id))) &&
+            IsHostileRelation(world.Relations.FirstOrDefault(r => r.FirstId == Math.Min(attacker, defender.Value) &&
+                r.SecondId == Math.Max(attacker, defender.Value))?.Value ?? 0));
+    }
+
     internal static bool Work(WorldMutation world, int settlementId, MilitaryRulebook rules) =>
         rules.Place(world.Settlements[settlementId]).FacilityTypeId is int type && rules.Facilities[type].IsWork;
 

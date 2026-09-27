@@ -7,7 +7,7 @@ namespace San9.Application.Tests;
 
 public sealed class DeploymentDraftTests
 {
-    private static StrategySnapshot View()
+    private static StrategySnapshot View(Func<San9.Core.Simulation.WorldSnapshot, San9.Core.Simulation.WorldSnapshot>? change = null)
     {
         var definition = G01ScenarioTests.Fixture();
         var world = GameSession.Start(definition, 1).Snapshot;
@@ -18,7 +18,8 @@ public sealed class DeploymentDraftTests
         {
             Military = new(4, 4, Enumerable.Repeat(0, 16).ToImmutableArray(), [new(0, 1, 1)],
                 [formation,formation with { Id=900,MovementBudget=100 },formation with { Id=200,RequiredTacticId=5000,DeploymentCost=100 },
-                 formation with { Id=700,TravelMode=TravelMode.Water }], [])
+                 formation with { Id=700,TravelMode=TravelMode.Water }],
+                [new(1, MapCoordinates.Center(new(1, 1)), new(1, 1)), new(2, MapCoordinates.Center(new(2, 2)), new(1, 1))])
             {
                 DefaultDeploymentFormationId = 900,
                 BasicNavalFormationId = 700,
@@ -44,7 +45,7 @@ public sealed class DeploymentDraftTests
                 _ => o
             }).ToArray()
         };
-        return new(definition, world);
+        return new(definition, change is null ? world : change(world));
     }
     [Fact]
     public void PreparationKeepsWorldUntouchedAndUsesCommanderAndCurrentMembers()
@@ -93,5 +94,76 @@ public sealed class DeploymentDraftTests
         number.Backspace(); Assert.Equal(429496729u, number.Value);
         number.Set(1); number.Step(-1); Assert.Equal(1u, number.Value);
         number.Clear(); number.Append("1200"); Assert.True(number.CanConfirm); Assert.Equal(1200u, number.Value);
+    }
+
+    [Fact]
+    public void TargetsSeparateObjectIdentitiesAndLeavePreparationAndWorldUntouched()
+    {
+        var view = View(world => world with { Units = [
+            new(2, 2, MapCoordinates.Center(new(3, 0)), 100) { FormationId = 900 },
+            new(3, 1, MapCoordinates.Center(new(0, 0)), 100) { FormationId = 900, CorpsId = world.Corps.Single(c => c.OwnerId == 1 && c.IsRoot).Id },
+            new(4, 2, MapCoordinates.Center(new(3, 1)), 100) { FormationId = 900, IsEmbedded = true },
+            new(5, 2, MapCoordinates.Center(new(3, 2)), 100) { IsPersonnel = true }] });
+        var draft = new DeploymentDraft(view, 1); draft.SetMembers([1]); draft.SetSoldiers(123);
+        string hash = view.World.StateHash;
+        var targets = new DeploymentTargets(draft);
+        Assert.Equal(2, targets.Candidates.Count);
+        Assert.Equal(DeploymentMarker.Attack, targets.Candidates[new(2, false)]);
+        Assert.Equal(DeploymentMarker.Attack, targets.Candidates[new(2, true)]);
+        Assert.False(targets.Select(new(1, false)));
+        Assert.True(targets.Select(new(2, true)));
+        Assert.Equal(new DeploymentTarget(2, true), targets.Selected);
+        Assert.Contains(new MapCell(3, 0), targets.ClearCells);
+        Assert.DoesNotContain(new MapCell(0, 0), targets.ClearCells);
+        Assert.Equal(hash, view.World.StateHash); Assert.Equal(123u, draft.Soldiers);
+        Assert.Equal(new[] { 1 }, draft.Members);
+    }
+
+    [Fact]
+    public void FriendlyOrdinaryFacilityUsesEntryMarkerAndHostileFacilityUsesAttack()
+    {
+        var view = View(world => world with { Settlements = world.Settlements.Select(s => s.Id == 2 ? s with { OwnerId = 1, CorpsId = null } : s).ToArray() });
+        Assert.Equal(DeploymentMarker.Enter, new DeploymentTargets(new(view, 1)).Candidates[new(2, false)]);
+    }
+
+    [Fact]
+    public void PolicyCommandCapturesDelayRelayAndPreparationWithoutMutatingWorld()
+    {
+        var view = View(); var draft = new DeploymentDraft(view, 1); draft.SetMembers([1]);
+        var targets = new DeploymentTargets(draft);
+        Assert.Equal(0, targets.DepartureDelayDays); Assert.False(targets.SetDepartureDelay(3));
+        targets.Select(new(2, false)); Assert.True(targets.SetWaypoint(new(0, 3)));
+        Assert.True(targets.BeginPolicies()); Assert.True(targets.SetDepartureDelay(9));
+        Assert.False(targets.SetDepartureDelay(10)); Assert.False(targets.SetDepartureDelay(-1));
+        targets.SetPolicies(new(true, false, true, false));
+        var command = targets.CreateCommand(Guid.NewGuid(), view.World.Simulation.NextSequence);
+        Assert.Equal(9, command.DepartureDelayDays);
+        Assert.Equal(MapCoordinates.Center(new(0, 3)), command.Waypoint);
+        Assert.Equal(targets.Policies, command.Policies); Assert.Equal(draft.Tactics, command.Tactics);
+        Assert.Equal(draft.Members, command.OfficerIds); Assert.Empty(view.World.Units);
+        targets.ReturnToTargets(); Assert.True(targets.BeginPolicies()); Assert.Equal(9, targets.DepartureDelayDays);
+    }
+
+    [Fact]
+    public void RouteWaypointTargetSwitchAndPoliciesRemainLocalAndReversible()
+    {
+        var view = View(world => world with { Units = [new(2, 2, MapCoordinates.Center(new(3, 3)), 100) { FormationId = 900 }] });
+        string hash = view.World.StateHash;
+        var draft = new DeploymentDraft(view, 1); draft.SetMembers([1]);
+        var targets = new DeploymentTargets(draft);
+        Assert.False(targets.SetWaypoint(new(0, 0))); Assert.False(targets.BeginPolicies());
+        Assert.True(targets.Select(new(2, false))); Assert.True(targets.Reachable); Assert.NotEmpty(targets.Route);
+        Assert.False(targets.EditingPolicies);
+        Assert.True(targets.SetWaypoint(new(0, 3))); Assert.Contains(new MapCell(0, 3), targets.Route);
+        var route = targets.Route;
+        Assert.False(targets.SetWaypoint(new(1, 1))); Assert.Equal(route, targets.Route);
+        Assert.False(targets.SetWaypoint(new(-1, 0))); Assert.Equal(new MapCell(0, 3), targets.Waypoint);
+        Assert.Null(targets.Error);
+        Assert.True(targets.Select(new(2, true))); Assert.Null(targets.Waypoint); Assert.True(targets.Reachable);
+        Assert.True(targets.BeginPolicies()); targets.SetPolicies(new(true, true, false, true));
+        Assert.False(targets.Select(new(2, false))); Assert.False(targets.SetWaypoint(new(0, 0)));
+        targets.ReturnToTargets(); Assert.Equal(new UnitPolicies(true, true, false, true), targets.Policies);
+        Assert.Equal(new DeploymentTarget(2, true), targets.Selected); Assert.NotEmpty(targets.Route);
+        Assert.Equal(hash, view.World.StateHash);
     }
 }

@@ -2,6 +2,8 @@ using Godot;
 using San9.Content.Text;
 using San9.Content.Maps;
 using San9.Rendering;
+using San9.Application.Presentation;
+using San9.Content.Interface;
 
 namespace San9.Client.Godot;
 
@@ -59,6 +61,7 @@ public partial class MapSceneView : Node2D
     public Font? Font { get; set; }
     public bool ShowAnnotations { get; set; }
     public MapObjectTarget? Hovered { get; set; }
+    public DeploymentTargets? Targets { get; set; }
     internal Frame? Presented => _transition.Presented;
     private MapFrameTransition<Frame> _transition = null!;
     private TextureScope? _prefetchAssets;
@@ -66,6 +69,19 @@ public partial class MapSceneView : Node2D
     private TextureScope _ui = null!;
     private Node2D _water = null!, _objects = null!, _annotations = null!;
     private ShaderMaterial _hoverMaterial = null!;
+    private ShaderMaterial _candidateMaterial = null!;
+    private readonly ShaderMaterial[] _meshMaterials = new ShaderMaterial[3];
+    private readonly ImageTexture[] _meshTextures = new ImageTexture[16];
+    private DeploymentTargets? _drawnTargets;
+    private TargetMesh[] _targetMeshes = [];
+    private TargetMesh[] _visibleTargetMeshes = [];
+    private MapSceneRegion? _meshRegion;
+    private int _markerFrame = -1;
+    private int _routeFrame = -1;
+    private long _routeRevision = -1;
+    private ShaderMaterial _routeMaterial = null!;
+    private int _waypointFrame = -1;
+    private long _drawnUiRevision;
     private CanvasItemMaterial _additiveMaterial = null!;
     private readonly List<Sprite2D> _sprites = [];
     private readonly Dictionary<string, int> _frames = [];
@@ -85,6 +101,38 @@ public partial class MapSceneView : Node2D
         _transition = new(f => f.Ready, f => f.Error, f => Textures.Defer(f.Dispose));
         _ui = Textures.CreateScope(owner: this);
         _hoverMaterial = new ShaderMaterial { Shader = new Shader { Code = "shader_type canvas_item; void fragment() { vec4 c = texture(TEXTURE, UV); COLOR = vec4(round(c.rgb * 255.0 * 0.6875 + vec3(240.0 * 0.3125)) / 255.0, round(c.a * 255.0 * 0.9375) / 255.0); }" } };
+        _routeMaterial = new ShaderMaterial { Shader = new Shader { Code = "shader_type canvas_item; render_mode blend_add; void fragment() { vec4 c = texture(TEXTURE, UV); COLOR = vec4(c.rgb * 0.75, c.a); }" } };
+        _candidateMaterial = new ShaderMaterial { Shader = new Shader { Code = "shader_type canvas_item; void fragment() { vec4 c = texture(TEXTURE, UV); COLOR = vec4(round(c.rgb * 255.0 * 0.8125 + vec3(248.0 * 0.1875)) / 255.0, round(c.a * 255.0 * 0.9375) / 255.0); }" } };
+        for (int mask = 0; mask < _meshTextures.Length; mask++)
+        {
+            var coverage = TargetOverlayGeometry.Coverage(mask);
+            var rgba = new byte[64 * 44 * 4];
+            for (int pixel = 0; pixel < coverage.Length; pixel++) rgba[pixel * 4 + 3] = coverage[pixel];
+            using var image = Image.CreateFromData(64, 44, false, Image.Format.Rgba8, rgba);
+            _meshTextures[mask] = ImageTexture.CreateFromImage(image);
+        }
+        var meshShader = new Shader { Code = """
+            shader_type canvas_item;
+            uniform sampler2D ground : hint_screen_texture, repeat_disable, filter_nearest;
+            uniform vec3 overlay_rgb;
+            uniform float weight;
+            void fragment() {
+                float coverage = texture(TEXTURE, UV).a;
+                vec3 src = floor(round(overlay_rgb) / 8.0) * 8.0;
+                vec3 dst = floor(round(texture(ground, SCREEN_UV).rgb * 255.0) / 8.0) * 8.0;
+                dst = floor((src * weight + dst * (255.0 - weight)) / 2048.0) * 8.0;
+                COLOR = vec4(dst / 255.0, coverage);
+            }
+            """ };
+        for (int i = 0; i < _meshMaterials.Length; i++)
+        {
+            _meshMaterials[i] = new ShaderMaterial { Shader = meshShader };
+            // Byte-valued RGB keeps overlay color independent of the texture's palette.
+            _meshMaterials[i].SetShaderParameter("overlay_rgb", i == 0 ? Vector3.Zero : new Vector3(232, 16, 8));
+            float opacity = i == 0 ? TargetOverlayGeometry.DimOpacity :
+                i == 1 ? TargetOverlayGeometry.InfluenceOpacity : TargetOverlayGeometry.StrongInfluenceOpacity;
+            _meshMaterials[i].SetShaderParameter("weight", opacity * 256);
+        }
         _water = new Node2D { Material = new CanvasItemMaterial { BlendMode = CanvasItemMaterial.BlendModeEnum.Add } };
         _water.Draw += DrawWater; AddChild(_water);
         _additiveMaterial = new CanvasItemMaterial { BlendMode = CanvasItemMaterial.BlendModeEnum.Add };
@@ -170,7 +218,11 @@ public partial class MapSceneView : Node2D
         if (readyTerrain != _drawnTerrainCount) QueueRedraw();
         bool hoverChanged = _drawnHover != Hovered;
         bool resourcesChanged = _drawnAssetRevision != frame.Assets.Revision;
-        bool water = resourcesChanged, objects = hoverChanged || resourcesChanged;
+        bool targetsChanged = _drawnTargets != Targets || _routeRevision != (Targets?.Revision ?? -1);
+        bool markerChanged = Targets is not null && _markerFrame != (int)(AnimationTime() / 200) % 4;
+        markerChanged |= Targets is not null && _routeFrame != (int)(AnimationTime() / 200) % 8;
+        markerChanged |= Targets?.Waypoint is not null && _waypointFrame != (int)(AnimationTime() / 142) % 4;
+        bool water = resourcesChanged, objects = hoverChanged || resourcesChanged || targetsChanged || markerChanged || _drawnUiRevision != _ui.Revision;
         foreach (string id in frame.WaterClips.Concat(frame.ObjectClips).Distinct())
         {
             int current = MapAnimationClock.Frame(frame.Region.Scene.Clips[id], AnimationTime());
@@ -229,15 +281,80 @@ public partial class MapSceneView : Node2D
         if (Presented is not { } frame) return;
         _hitSprites.Clear();
         ObjectDraws++; int cursor = 0; _drawnHover = Hovered; _drawnAssetRevision = frame.Assets.Revision;
-        frame.Region.Objects(AnimationTime(), (id, position, building, blend) =>
+        if (_drawnTargets != Targets)
+        {
+            _drawnTargets = Targets;
+            _targetMeshes = Targets is { } targets ? TargetOverlayGeometry.Meshes(frame.Region.Scene.Map, targets.ClearCells, targets.InfluenceCells).ToArray() : [];
+            _meshRegion = null;
+            if (Targets is not null) _ui.Request(TargetSelectionSkin.RequiredRoles.Where(r => r.StartsWith("target-marker-", StringComparison.Ordinal) || r.StartsWith("target-route-", StringComparison.Ordinal) || r.StartsWith("target-waypoint-", StringComparison.Ordinal)));
+        }
+        _drawnUiRevision = _ui.Revision;
+        if (_meshRegion != frame.Region)
+        {
+            _meshRegion = frame.Region;
+            _visibleTargetMeshes = _targetMeshes.Where(m => frame.Region.Bounds.Intersects(new Rect2(m.X, m.Y, 64, 44))).ToArray();
+        }
+        _markerFrame = (int)(AnimationTime() / 200) % 4;
+        _routeFrame = (int)(AnimationTime() / 200) % 8;
+        _routeRevision = Targets?.Revision ?? -1;
+        _waypointFrame = (int)(AnimationTime() / 142) % 4;
+        void Add(Texture2D texture, Vector2 position, Material? material = null)
+        {
+            if (!frame.Region.Bounds.Intersects(new Rect2(position, texture.GetSize()))) return;
+            if (cursor == _sprites.Count) { var sprite = new Sprite2D { Centered = false }; _objects.AddChild(sprite); _sprites.Add(sprite); }
+            var item = _sprites[cursor++]; item.Texture = texture; item.Position = position; item.Visible = true;
+            item.Material = material; item.Modulate = Colors.White;
+        }
+        (double Depth, Action Draw)? waypointOverlay = null;
+        if (Targets?.Waypoint is { } via)
+        {
+            string season = frame.Region.Scene.Season is "spring" or "summer" ? "spring-summer" : "autumn-winter";
+            if (_ui.TryGetReady($"target-waypoint-{season}-{_waypointFrame}", out var flag))
+            {
+                var p = RoutePreviewGeometry.Waypoint(frame.Region.Scene.Map, via, flag.GetWidth(), flag.GetHeight());
+                waypointOverlay = (via.X + via.Y, () => Add(flag, new(p.X, p.Y)));
+            }
+        }
+        frame.Region.Objects(AnimationTime(), (id, position, building, blend, highlightable) =>
         {
             if (!frame.Assets.TryGetReady(id, out var texture)) return;
             if (!frame.Region.Bounds.Intersects(new Rect2(position, texture.GetSize()))) return;
             if (building is {} target && blend == MapBlendMode.Alpha) _hitSprites.Add((id, position, target));
-            if (cursor == _sprites.Count) { var sprite = new Sprite2D { Centered = false }; _objects.AddChild(sprite); _sprites.Add(sprite); }
-            var item = _sprites[cursor++]; item.Texture = texture; item.Position = position; item.Visible = true;
-            item.Material = blend == MapBlendMode.Alpha && building is not null && building == Hovered ? _hoverMaterial : blend == MapBlendMode.Additive ? _additiveMaterial : null;
-        });
+            bool candidate = building is { IsUnit: false } targetBuilding && Targets?.Candidates.ContainsKey(new(targetBuilding.Id, false)) == true;
+            Add(texture, position, blend == MapBlendMode.Additive ? _additiveMaterial :
+                highlightable && candidate ? _candidateMaterial : highlightable && building is not null && building == Hovered ? _hoverMaterial : null);
+        }, () =>
+        {
+            foreach (var mesh in _visibleTargetMeshes)
+                Add(_meshTextures[mesh.ElevationMask], new(mesh.X, mesh.Y), _meshMaterials[mesh.Opacity == TargetOverlayGeometry.DimOpacity ? 0 :
+                        mesh.Opacity == TargetOverlayGeometry.InfluenceOpacity ? 1 : 2]);
+            if (Targets is { } route)
+            {
+                for (int i = 0; i < route.Route.Length; i++)
+                {
+                    var p = RoutePreviewGeometry.Glow(frame.Region.Scene.Map, route.Route[i]);
+                    string role = $"target-route-{RoutePreviewGeometry.Frame(AnimationTime(), i)}";
+                    if (_ui.TryGetReady(role, out var glow)) Add(glow, new(p.X, p.Y), _routeMaterial);
+                }
+
+            }
+        }, waypointOverlay);
+        if (Targets is { } selection)
+        {
+            void Marker(DeploymentTarget target, Vector2 position)
+            {
+                if (!selection.Candidates.TryGetValue(target, out var kind)) return;
+                string role = $"target-marker-{(kind == DeploymentMarker.Attack ? "attack" : "enter")}-{_markerFrame}";
+                if (_ui.TryGetReady(role, out var texture)) Add(texture, position);
+            }
+            foreach (var building in frame.Region.Buildings)
+            {
+                var offset = Textures.BuildingTargetOffsets[building.FixedType];
+                var point = TargetOverlayGeometry.BuildingMarker(frame.Region.Scene.Map, building, offset.X, offset.Y);
+                Marker(new(building.Id, false), new(point.X, point.Y));
+            }
+            foreach (var unit in frame.Region.Units) Marker(new(unit.Id, true), new(unit.AnchorX - 16, unit.AnchorY - 48));
+        }
         for (int i = cursor; i < _sprites.Count; i++) { _sprites[i].Texture = null; _sprites[i].Visible = false; }
     }
     public void DrawAnnotations(Node2D target, Font font, TextCatalog texts, Func<Vector2, Vector2> project, float zoom)
@@ -287,6 +404,12 @@ public partial class MapSceneView : Node2D
         foreach (var sprite in _sprites) sprite.Texture = null;
         _transition.Dispose(); _prefetchAssets?.Dispose(); _prefetchTerrain?.Dispose(); _ui.Dispose();
         var waterMaterial = _water.Material;
-        Textures.Defer(() => { waterMaterial.Dispose(); _additiveMaterial.Dispose(); _hoverMaterial.Shader.Dispose(); _hoverMaterial.Dispose(); });
+        Textures.Defer(() => {
+            waterMaterial.Dispose(); _additiveMaterial.Dispose();
+            _routeMaterial.Shader.Dispose(); _routeMaterial.Dispose(); _hoverMaterial.Shader.Dispose(); _hoverMaterial.Dispose();
+            _candidateMaterial.Shader.Dispose(); _candidateMaterial.Dispose();
+            foreach (var texture in _meshTextures) texture.Dispose();
+            _meshMaterials[0].Shader.Dispose(); foreach (var material in _meshMaterials) material.Dispose();
+        });
     }
 }

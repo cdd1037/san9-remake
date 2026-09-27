@@ -2,7 +2,42 @@ namespace San9.Core.Domain;
 
 public sealed partial class MilitaryRulebook
 {
-    private MapOccupancy GeographicArea(SettlementState settlement)
+    public IReadOnlySet<MapCell> GeographicFootprint(SettlementState settlement) =>
+        GeographicCells(GeographicArea(settlement)).ToHashSet();
+
+    public IReadOnlySet<MapCell> GeographicFootprint(UnitState unit)
+    {
+        var shape = Formation(unit).Footprint;
+        return GeographicCells(new(unit.Position, new(checked(shape.Width * Geography.FootprintScale),
+            checked(shape.Height * Geography.FootprintScale)))).ToHashSet();
+    }
+
+    /// <summary>The source city's influence, independent of the owner's other cities.</summary>
+    public IReadOnlySet<MapCell> CityInfluenceCells(SettlementState source, IEnumerable<SettlementState> settlements)
+    {
+        if (CityInfluence is not { } rule || source.Kind != SettlementKind.City || source.IsDestroyed ||
+            source.Facility?.BuilderUnitId is not null || !TryPlace(source, out _)) return new HashSet<MapCell>();
+        var visited = GeographicFootprint(source).ToHashSet();
+        var occupied = settlements.Where(s => s.Id != source.Id && !s.IsDestroyed && s.Facility?.BuilderUnitId is null && TryPlace(s, out _))
+            .Select(GeographicArea).ToArray();
+        var queue = new Queue<(MapCell Cell, int Distance)>();
+        foreach (var seed in visited) queue.Enqueue((seed, 0));
+        while (queue.TryDequeue(out var current))
+        {
+            if (current.Distance >= rule.RadiusCells) continue;
+            foreach (var next in new MapCell[] { new(current.Cell.X, current.Cell.Y - 1), new(current.Cell.X + 1, current.Cell.Y),
+                new(current.Cell.X, current.Cell.Y + 1), new(current.Cell.X - 1, current.Cell.Y) })
+            {
+                if (next.X < 0 || next.Y < 0 || next.X >= Map.Width || next.Y >= Map.Height || visited.Contains(next) ||
+                    geographicBlocked.Contains(next) || occupied.Any(area => Inside(next, area))) continue;
+                visited.Add(next);
+                queue.Enqueue((next, current.Distance + 1));
+            }
+        }
+        return visited;
+    }
+
+    internal MapOccupancy GeographicArea(SettlementState settlement)
     {
         var place = Place(settlement);
         return new(place.Position, new(checked(place.Footprint.Width * Geography.FootprintScale),

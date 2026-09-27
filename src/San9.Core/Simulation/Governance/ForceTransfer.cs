@@ -47,7 +47,7 @@ internal static class ForceTransfer
         {
             bool main = unit.Order?.IsAttack == true && MilitaryDiplomacy.TargetOwner(world, unit.Order) == unit.OwnerId;
             bool temporary = unit.EngagementTargetId is int other && world.Units[other].OwnerId == unit.OwnerId;
-            if (main || temporary) world.Replace(unit with { Order = main ? null : unit.Order, MovementPlan = main ? null : unit.MovementPlan,
+            if (main || temporary) world.Replace(unit with { Order = main ? null : unit.Order,
                 EngagementTargetId = temporary ? null : unit.EngagementTargetId, AwaitingPostAction = false });
             if (main) events.Add(new UnitOrderChangedEvent(world.Clock, unit.Id, null, reason));
             if (temporary) events.Add(new UnitEngagementChangedEvent(world.Clock, unit.Id, null, reason));

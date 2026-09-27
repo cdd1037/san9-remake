@@ -42,7 +42,7 @@ public partial class StrategyHud : Control
     private long _stateRevision = -1;
     private readonly Dictionary<string,Label> _resourceValues = [];
     public string DisplayedMoney => _resourceValues.TryGetValue("资金", out var label) ? label.Text : "";
-    private Label _year = null!, _date = null!;
+    private Label _year = null!, _date = null!, _season = null!;
     private TextureButton? _large, _small, _territory, _facilities, _officers, _units;
     private readonly GameTextPresenter _text = new();
     public override void _Ready()
@@ -86,7 +86,8 @@ public partial class StrategyHud : Control
         AddResourceField("信望", force.Trust.ToString(), 385, 425, 32);
         AddResourceField("资金", (Scenario.PlayerCorps?.Treasury.Money ?? 0).ToString(), 465, 505, 56);
         AddResourceField("兵粮", (Scenario.PlayerCorps?.Treasury.Food ?? 0).ToString(), 569, 609, 56);
-        _text.Apply(LabelAt("春", new(26, 40), new(16, 16), 16), GameTextStyles.For(GameTextRole.Spring));
+        _season = LabelAt("春", new(26, 40), new(16, 16), 16);
+        _text.Apply(_season, GameTextStyles.For(GameTextRole.Spring));
         _territory = AddButton("疆界", "button-territory", new(694, 10), new(64, 36), true, () => World.ShowBoundaries = !World.ShowBoundaries);
         _territory.ToggleMode = true; _territory.SetPressedNoSignal(World.ShowBoundaries);
         _informationButton = AddButton("情报", "button-information", new(842, 7), new(80, 40), true, () => Information.OpenMenu());
@@ -102,7 +103,7 @@ public partial class StrategyHud : Control
         _small = AddButton("小", "button-map-mode", new(957, 606), new(44, 44), true, Overview.Open);
         _small.ToggleMode = true;
         _advanceButton = AddButton("进行", "button-advance", new(943, 664), new(60, 60), true, RequestAdvance);
-        _minimap = new StrategyMinimap { World = World, Session = Session, Skin = Skin, Position = new(643, 31), Size = new(320, 160) };
+        _minimap = new StrategyMinimap { World = World, Session = Session, Skin = Skin, Textures = _textures, Position = new(643, 31), Size = new(320, 160) };
         AddChild(_minimap);
         foreach (var (text, x, y) in new[] { ("东", 880, 154), ("西", 710, 52), ("南", 710, 154), ("北", 880, 52) })
             _text.Apply(LabelAt(text, new(x, y), new(16, 16), 16), GameTextStyles.For(GameTextRole.Compass));
@@ -134,6 +135,7 @@ public partial class StrategyHud : Control
         _hoverCard = new MapHoverCard { World = World, Textures = _textures, UiFont = GetThemeFont("font"), Visible = false };
         AddChild(_hoverCard);
         BuildTurnControls();
+        BuildTargetControls();
         // Adding controls can trigger hit testing before the HUD is fully constructed.
         _built = true;
         UpdateSelection(); QueueRedraw();
@@ -189,7 +191,7 @@ public partial class StrategyHud : Control
 
     private bool IsMapInteractionBlocked => !_built || Turn is { CanBrowseMap: false } ||
         Information?.State.IsOpen == true || _mapContext?.Visible == true ||
-        _commandMenu?.Visible == true || _deployment is not null || _contextMenu?.Visible == true || _notice?.Visible == true;
+        _commandMenu?.Visible == true || _deployment?.Visible == true || _deploymentPolicy is not null || _targetCatalog is not null || _contextMenu?.Visible == true || _notice?.Visible == true;
 
     public bool CanNavigateMap => !IsMapInteractionBlocked && !Overview.IsOpen;
 
@@ -204,10 +206,8 @@ public partial class StrategyHud : Control
     {
         if (IsMapInteractionBlocked) return true;
         if (point.Y >= 740 && point.Y < 768 && point.X >= 0 && point.X < 1024) return true;
-        foreach (var (asset, position) in _frames)
+        foreach (var (asset, position) in VisibleFrames())
         {
-            if (asset == "sidebar-frame" && (_commandMenu?.Visible == true || !Turn.IsStrategy)) continue;
-            if (asset == "ruler-frame" && !Turn.IsStrategy) continue;
             var pixels = Textures.Roles[asset];
             int x = (int)Math.Floor(point.X - position.X), y = (int)Math.Floor(point.Y - position.Y);
             if (Textures.Hit(pixels, x, y)) return true;
@@ -260,7 +260,8 @@ public partial class StrategyHud : Control
             Texts = Texts,
             Textures = _textures,
             Service = Textures,
-            Closed = () => { if (_deployment is { } deployment) { _deployment = null; deployment.GetParent().RemoveChild(deployment); deployment.QueueFree(); } }
+            Proceed = BeginTargetSelection,
+            Closed = CloseDeployment
         };
         GetParent().AddChild(_deployment);
     }
@@ -319,6 +320,7 @@ public partial class StrategyHud : Control
         }
         if (_commandMenu.Visible) { _message.SetMessage(_commandMenu.Hint, true); return; }
         if (_mapContext.Visible) { _message.SetMessage(_mapContext.Hint, true); return; }
+        if (_targets is not null) { _message.SetMessage(_targets.Selected is null ? "请选择目标。" : "点击空地设置中继点，点击其他目标切换，再次点击当前目标设定方针。", true); return; }
         var button = GetChildren().OfType<StrategyButton>().FirstOrDefault(b => b.IsHovered())
             ?? (Overview.IsOpen ? _overviewPanel.HoverButton : null);
         _message.SetMessage(button?.HintText ?? (Overview.IsOpen ? "" : "请选择命令起点。"), button is null || !button.Disabled);
@@ -394,14 +396,15 @@ public partial class StrategyHud : Control
         }
         if (_built)
         {
-            bool sidebarVisible = Turn.IsStrategy && !_commandMenu!.Visible;
+            _minimap!.SetCommandSource(_commandMenu!.Visible || _deployment is not null ? _commandTarget : null);
+            bool sidebarVisible = Turn.IsStrategy && !_commandMenu!.Visible && _targets is null;
             _rosterList.Visible = sidebarVisible;
-            foreach (var button in GetChildren().OfType<StrategyButton>().Where(b => b.Position.Y >= 208)) button.Visible = sidebarVisible;
+            foreach (var button in GetChildren().OfType<StrategyButton>().Where(b => b.Position.Y >= 208 && !_targetButtons.Contains(b))) button.Visible = sidebarVisible;
         }
         UpdateHover(_hoverPosition ?? GetGlobalMousePosition());
         UpdateMessage();
         _large?.SetPressedNoSignal(!Overview.IsOpen); _small?.SetPressedNoSignal(Overview.IsOpen);
-        if (_territory is not null) _territory.Disabled = Overview.IsOpen || !(CanIssueOrders || Turn.Screen == TurnScreen.Playing);
+        if (_territory is not null) _territory.Disabled = Overview.IsOpen || !(CanIssueOrders || _targets is not null || Turn.Screen == TurnScreen.Playing);
         _territory?.SetPressedNoSignal(World.ShowBoundaries);
         QueueRedraw();
     }
@@ -421,14 +424,12 @@ public partial class StrategyHud : Control
     public override void _Draw()
     {
         if (!_built) return;
-        foreach (var (asset, point) in _frames)
+        foreach (var (asset, point) in VisibleFrames())
         {
-            if (asset == "sidebar-frame" && (_commandMenu?.Visible == true || !Turn.IsStrategy)) continue;
-            if (asset == "ruler-frame" && !Turn.IsStrategy) continue;
             DrawTexture(_textures[asset], point);
         }
-        DrawTexture(_textures["season-spring"], new(26, 31));
-        if (Turn.IsStrategy) { Strip("field", new(377, 15), 88); Strip("field", new(457, 15), 112); Strip("field", new(561, 15), 112); }
+        if (_targets is null) DrawTexture(_textures["season-spring"], new(26, 31));
+        if (Turn.IsStrategy && _targets is null) { Strip("field", new(377, 15), 88); Strip("field", new(457, 15), 112); Strip("field", new(561, 15), 112); }
         if (_regionVisible) DrawTexture(_textures["region-frame"], new(824, 738));
     }
     public override void _ExitTree()

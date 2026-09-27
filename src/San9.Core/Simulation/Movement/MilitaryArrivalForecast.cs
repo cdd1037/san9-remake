@@ -19,7 +19,7 @@ public sealed class MilitaryArrivalForecast(WorldSnapshot snapshot, MilitaryRule
         if (unit is not { FormationId: int formation, EffectiveOrder: not null } || !rules.Formations.ContainsKey(formation)) return new(ArrivalEstimateStatus.NotApplicable);
         world ??= WorldState.Restore(snapshot).BeginMutation();
         if (!Valid(unit)) return new(ArrivalEstimateStatus.NotApplicable);
-        if (MilitaryNavigation.Advance(world, unit, rules, 0).Arrived) return new(ArrivalEstimateStatus.Known, 0);
+        if (unit.DepartureDaysRemaining == 0 && MilitaryNavigation.Advance(world, unit, rules, 0).Arrived) return new(ArrivalEstimateStatus.Known, 0);
         for (int day = 1; day <= maximumDays; day++)
         {
             // BeforeDailyCommands expires conditions before that day's map movement.
@@ -32,6 +32,8 @@ public sealed class MilitaryArrivalForecast(WorldSnapshot snapshot, MilitaryRule
                 // Do not label arrival at a different future order as arrival at the displayed target.
                 if (unit.EffectiveOrder != previousOrder) return new(ArrivalEstimateStatus.Incomplete);
             }
+            if (unit.DepartureDaysRemaining > 0)
+            { unit = unit with { DepartureDaysRemaining = unit.DepartureDaysRemaining - 1 }; continue; }
             if (!Valid(unit)) return new(ArrivalEstimateStatus.NotApplicable);
             if (unit.Condition == UnitCondition.Confused ||
                 unit.Condition == UnitCondition.Routed && unit.EffectiveOrder!.Kind == MilitaryOrderKind.Construct)
@@ -44,7 +46,7 @@ public sealed class MilitaryArrivalForecast(WorldSnapshot snapshot, MilitaryRule
             if (step.Arrived) return new(ArrivalEstimateStatus.Known, day);
             if (step.Status == NavigationStatus.Unreachable) return new(ArrivalEstimateStatus.Unreachable);
             // Search limits and transient obstructions are not proof of no route.
-            if (step.Status == NavigationStatus.Waiting && step.Remainder == 0)
+            if (step.Status == NavigationStatus.Waiting && step.Remainder == 0 && step.Spent == 0)
                 return new(ArrivalEstimateStatus.Waiting);
             unit = MilitaryNavigation.Apply(unit, step);
         }

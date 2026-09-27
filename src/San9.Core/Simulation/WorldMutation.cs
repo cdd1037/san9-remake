@@ -16,8 +16,8 @@ internal sealed partial class WorldMutation
     private EngagementRelations? _engagements;
     private MilitaryRulebook? _engagementRules;
     private MovementOccupancy? _movementOccupancy;
-    internal IReadOnlyList<MapOccupancy> MovementOccupancy(MilitaryRulebook rules, int unit, int? entry, MapOccupancy area) =>
-        (_movementOccupancy ??= new(this, rules)).Query(this, unit, entry, area);
+    internal IReadOnlyList<MapOccupancy> MovementOccupancy(MilitaryRulebook rules, int unit, int? entry) =>
+        (_movementOccupancy ??= new(this, rules)).Query(this, Units[unit].OwnerId, Units[unit].Policies, unit, entry);
 
     internal EngagementRelations Engagements(MilitaryRulebook military)
     {
@@ -262,9 +262,12 @@ internal sealed partial class WorldMutation
     internal void Replace(UnitState value)
     {
         var previous = Units[value.Id];
-        if (previous.EffectiveOrder != value.EffectiveOrder || (previous.FormationId != value.FormationId || previous.NavalFormationId != value.NavalFormationId) || previous.OwnerId != value.OwnerId ||
-            previous.Position != value.Position && ReferenceEquals(previous.MovementPlan, value.MovementPlan))
-            value = value with { MovementPlan = null };
+        if (value.EffectiveOrder is null || previous.EffectiveOrder != value.EffectiveOrder || previous.OwnerId != value.OwnerId ||
+            previous.FormationId != value.FormationId || previous.NavalFormationId != value.NavalFormationId ||
+            previous.Waypoint != value.Waypoint || previous.Policies != value.Policies || previous.Condition != value.Condition)
+            value = value with { Lookahead = null };
+        if (previous.Order != value.Order || previous.OwnerId != value.OwnerId)
+            value = value with { Waypoint = null, DepartureDaysRemaining = 0 };
         if (value.EffectiveOrder is null || value.Condition == UnitCondition.Confused ||
             value.Condition == UnitCondition.Routed && value.EffectiveOrder.Kind == MilitaryOrderKind.Construct ||
             (previous.FormationId != value.FormationId || previous.NavalFormationId != value.NavalFormationId) || previous.OwnerId != value.OwnerId)

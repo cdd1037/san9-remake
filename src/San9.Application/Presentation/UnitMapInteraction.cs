@@ -33,8 +33,8 @@ public static class UnitMapInteraction
              new(own ? "军团" : "势力", own ? Person(corps?.LeaderId) : texts.Resolve(force.NameKey)),
              new("所属", view.Settlements.FirstOrDefault(s => s.Id == unit.ServicePlaceId)?.ResolveName(texts) ?? "无"),
              new("士兵", unit.Soldiers.ToString(), true), new("士气", $"{unit.Morale}/100", true),
-             new("阵形", formation is null ? "----" : texts.Resolve(formation.NameKey)),
-             new("在任", view.Officers.Count(o => o.UnitId == id && o.IsServing && o.OwnerId == unit.OwnerId).ToString(), true)], 248)
+             new(view.MilitaryRules?.Formation(unit).TravelMode == San9.Core.Domain.TravelMode.Water ? "船" : "阵形", formation is null ? "----" : texts.Resolve(formation.NameKey)),
+             new("在任", view.Officers.Count(o => o.UnitId == id && o.IsServing && o.OwnerId == unit.OwnerId).ToString(), true)], 240)
         { FlagGlyph = view.Officers.FirstOrDefault(o => o.Id == unit.CommanderId)?.FlagGlyph ?? -1,
           IsRulerCommander = unit.CommanderId is int leader && force.LeaderId == leader };
     }

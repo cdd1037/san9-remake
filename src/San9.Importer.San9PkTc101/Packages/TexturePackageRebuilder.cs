@@ -1,4 +1,6 @@
 using System.Reflection.PortableExecutable;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using San9.Content.Images;
 using San9.Content.Interface;
 using San9.Content.Packages;
@@ -10,6 +12,13 @@ namespace San9.Importer.San9PkTc101.Packages;
 /// <summary>Explicit rule corrections rebuild a selected unit from source and retain other published definitions.</summary>
 internal static class TexturePackageRebuilder
 {
+    internal static TexturePackage ReplaceUnit<T>(JsonObject manifest, string unit, T replacement)
+    {
+        // The selected unit is regenerated in full; its old schema is not an input contract.
+        manifest[unit] = JsonSerializer.SerializeToNode(replacement, PackageFiles.JsonOptions);
+        return manifest.Deserialize<TexturePackage>(PackageFiles.JsonOptions) ?? throw new InvalidDataException("Empty texture package.");
+    }
+
     internal static InterfaceSkin ReplaceCursors(InterfaceSkin skin, Dictionary<string, CursorDefinition> cursors, ImageAsset[] assets)
     {
         var replaced = skin.Cursors.Values.Select(c => c.Asset).Concat(assets.Select(a => a.Id)).ToHashSet(StringComparer.Ordinal);
@@ -34,10 +43,12 @@ internal static class TexturePackageRebuilder
         output = Path.GetFullPath(output);
         // Validate the completed package after replacing the selected unit. The old unit can be
         // precisely what is missing a newly required role or contains an incorrect definition.
-        var previous = await PackageFiles.ReadAsync<TexturePackage>(Path.Combine(output, "textures.json"), token);
-        if (previous.SchemaVersion != 5 || previous.SourceBuild != San9PkTc101Detector.SourceBuildId)
+        var manifest = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(output, "textures.json"), token))?.AsObject()
+            ?? throw new InvalidDataException("Empty texture package.");
+        if (manifest["schemaVersion"]?.GetValue<int>() != 5 || manifest["sourceBuild"]?.GetValue<string>() != San9PkTc101Detector.SourceBuildId)
             throw new InvalidDataException("Targeted rebuilding requires a matching texture package schema and source build.");
-        var sources = previous.Sources.ToDictionary(s => s.Name, StringComparer.OrdinalIgnoreCase);
+        var sources = (manifest["sources"].Deserialize<TextureSourceStamp[]>(PackageFiles.JsonOptions)
+            ?? throw new InvalidDataException("Missing texture sources.")).ToDictionary(s => s.Name, StringComparer.OrdinalIgnoreCase);
         byte[] Read(string path)
         {
             token.ThrowIfCancellationRequested();
@@ -60,7 +71,7 @@ internal static class TexturePackageRebuilder
             return asset;
         }
         progress?.Invoke($"Rebuilding {scope} from source using current conversion rules.");
-        var package = previous;
+        TexturePackage package;
         switch (scope)
         {
             case "cursors":
@@ -68,23 +79,27 @@ internal static class TexturePackageRebuilder
                 {
                     List<ImageAsset> assets = [];
                     var cursors = ExecutableCursorCompiler.Compile(pe, assets, Save);
-                    package = previous with { Skin = ReplaceCursors(previous.Skin, cursors, assets.ToArray()) };
+                    var skin = manifest["skin"].Deserialize<InterfaceSkin>(PackageFiles.JsonOptions)
+                        ?? throw new InvalidDataException("Missing interface skin.");
+                    package = ReplaceUnit(manifest, "skin", ReplaceCursors(skin, cursors, assets.ToArray()));
                 }
                 break;
             case "skin":
-                package = previous with { Skin = InterfaceSkinCompiler.Compile(Read(source.Executable), source.Root, Read, Save) };
+                package = ReplaceUnit(manifest, "skin", InterfaceSkinCompiler.Compile(Read(source.Executable), source.Root, Read, Save));
                 break;
             case "map":
-                package = previous with { Map = MapResourceCompiler.Compile(Read(source.Executable), source.Root, Read, Save, progress, token) };
+                package = ReplaceUnit(manifest, "map", MapResourceCompiler.Compile(Read(source.Executable), source.Root, Read, Save, progress, token));
                 break;
             case "portraits":
-                package = previous with { Portraits = PortraitCompiler.Compile(source.Root, Read, Save) };
+                package = ReplaceUnit(manifest, "portraits", PortraitCompiler.Compile(source.Root, Read, Save));
                 break;
             default:
                 string archiveId = scope[8..];
                 var converted = TextureLibraryCompiler.Compile(Read(source.Executable), source.Root, Read, Save, progress, token, archiveId);
-                package = previous with { Library = previous.Library with {
-                    Archives = previous.Library.Archives.Where(a => a.Id != archiveId).Concat(converted.Archives).OrderBy(a => a.Id, StringComparer.Ordinal).ToArray() } };
+                var library = manifest["library"].Deserialize<TextureLibrary>(PackageFiles.JsonOptions)
+                    ?? throw new InvalidDataException("Missing texture library.");
+                package = ReplaceUnit(manifest, "library", library with {
+                    Archives = library.Archives.Where(a => a.Id != archiveId).Concat(converted.Archives).OrderBy(a => a.Id, StringComparer.Ordinal).ToArray() });
                 break;
         }
         package = package with { Sources = sources.Values.OrderBy(s => s.Name, StringComparer.Ordinal).ToArray() };

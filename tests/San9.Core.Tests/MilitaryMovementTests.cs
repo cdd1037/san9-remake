@@ -22,6 +22,52 @@ public sealed class MilitaryMovementTests
     private static TransportUnitCommand Deploy(long sequence = 0, uint soldiers = 400) =>
         new(Guid.NewGuid(), 1, sequence, 1, [11], soldiers, 2, 200, 300);
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(9)]
+    public void DelayedDeploymentCreatesRealUnitImmediatelyAndWaitsExactDays(int delay)
+    {
+        var rules = Rules(); var engine = Engine(World(), rules);
+        var command = new DeployUnitCommand(Guid.NewGuid(), 1, 0, 1, [11], 400, 7,
+            new(MilitaryOrderKind.Move, new(32, 7), null))
+            { DepartureDelayDays = delay, Waypoint = new(12, 2) };
+        Assert.True(engine.Execute(Player, command).Submission.Accepted);
+        var unit = Assert.Single(engine.Snapshot.Units);
+        Assert.Equal(rules.Places[1].Position, unit.Position);
+        Assert.Equal(delay, unit.DepartureDaysRemaining);
+        Assert.False(unit.IsEmbedded);
+        Assert.Equal(command.Waypoint, unit.Waypoint);
+        Assert.Equal(600u, engine.Snapshot.Settlements.Single(s => s.Id == 1).Soldiers);
+        Assert.Equal(unit.Id, engine.Snapshot.Officers.Single(p => p.Id == 11).UnitId);
+        var state = WorldState.Restore(engine.CaptureStableState());
+        var world = state.BeginMutation();
+        for (int day = 0; day < delay; day++)
+        {
+            MilitaryMovement.AdvanceDay(world, rules, new([]), PersonnelRulebook.Empty, []);
+            Assert.Equal(unit.Position, world.Units[unit.Id].Position);
+            MilitaryMovement.TickDepartureDelays(world);
+            Assert.Equal(delay - day - 1, world.Units[unit.Id].DepartureDaysRemaining);
+        }
+        MilitaryMovement.AdvanceDay(world, rules, new([]), PersonnelRulebook.Empty, []);
+        Assert.NotEqual(unit.Position, world.Units[unit.Id].Position);
+    }
+
+    [Theory]
+    [InlineData(-1, false)]
+    [InlineData(10, false)]
+    [InlineData(0, true)]
+    public void InvalidDepartureOrWaypointIsRejectedAtomically(int delay, bool blockedWaypoint)
+    {
+        var engine = Engine(World(), Rules());
+        var hash = engine.Snapshot.StateHash;
+        var result = engine.Execute(Player, new DeployUnitCommand(Guid.NewGuid(), 1, 0, 1, [11], 400, 7,
+            new(MilitaryOrderKind.Move, new(32, 7), null))
+            { DepartureDelayDays = delay, Waypoint = blockedWaypoint ? new(2, 7) : null });
+        Assert.False(result.Submission.Accepted);
+        Assert.Equal(hash, engine.Snapshot.StateHash); Assert.Empty(result.Events);
+    }
+
     [Fact]
     public void CommandMarkerSurvivesRestoreAndResetsAtNewXun()
     {
@@ -297,7 +343,7 @@ public sealed class MilitaryMovementTests
     }
 
     [Fact]
-    public void DynamicBlockerWaitsAcrossBoundaryAndMovementResumesAfterItLeaves()
+    public void FriendlyUnitsAtDestinationDoNotBlockTransport()
     {
         var world = World();
         var mutation = world.BeginMutation();
@@ -307,10 +353,9 @@ public sealed class MilitaryMovementTests
         world.Commit(mutation);
         var engine = Engine(world, Rules(10));
         Assert.True(engine.Execute(Player, Deploy()).Submission.Accepted);
-        var departed = engine.Snapshot.Units.Single(u => u.Id == 4).Position;
-        var blocked = Advance(engine);
-        Assert.Equal(departed, engine.Snapshot.Units.Single(u => u.Id == 4).Position);
-        Assert.Equal(10, blocked.Events.OfType<UnitMovedEvent>().Count(e => e.UnitId == 4 && e.Status == NavigationStatus.Waiting));
+        var result = Advance(engine);
+        Assert.DoesNotContain(engine.Snapshot.Units, u => u.Id == 4);
+        Assert.Contains(result.Events.OfType<UnitAbsorbedEvent>(), e => e.UnitId == 4);
         mutation = world.BeginMutation();
         foreach (int id in Enumerable.Range(0, 4)) mutation.RemoveUnit(id);
         world.Commit(mutation);

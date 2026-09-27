@@ -110,10 +110,11 @@ internal static class AttackRequests
     }
 
     private static bool Alive(WorldMutation world, int id) => world.Forces.TryGetValue(id, out var force) && !force.IsEliminated;
-    private static bool Valid(WorldMutation world, AttackRequestState r) => r.RemainingXun > 0 && r.RequestedForceId != r.RequesterForceId &&
-        r.TargetForceId != r.RequestedForceId && r.TargetForceId != r.RequesterForceId && Alive(world, r.RequestedForceId) &&
-        Alive(world, r.RequesterForceId) && Alive(world, r.TargetForceId) &&
-        world.Settlements.TryGetValue(r.TargetSettlementId, out var target) && !target.IsDestroyed && target.OwnerId == r.TargetForceId;
+    private static bool Valid(WorldMutation world, AttackRequestState r) => Valid(r, id => Alive(world, id), id => world.Settlements.GetValueOrDefault(id));
+    internal static bool Valid(AttackRequestState r, Func<int, bool> alive, Func<int, SettlementState?> place) => r.RemainingXun > 0 && r.RequestedForceId != r.RequesterForceId &&
+        r.TargetForceId != r.RequestedForceId && r.TargetForceId != r.RequesterForceId && alive(r.RequestedForceId) &&
+        alive(r.RequesterForceId) && alive(r.TargetForceId) &&
+        place(r.TargetSettlementId) is { IsDestroyed: false } target && target.OwnerId == r.TargetForceId;
 
     internal static void Validate(WorldMutation world)
     {

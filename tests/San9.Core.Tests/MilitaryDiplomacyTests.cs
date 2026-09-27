@@ -7,12 +7,27 @@ namespace San9.Core.Tests;
 public sealed class MilitaryDiplomacyTests
 {
     private static readonly CombatProfile Combat = new(10, 10, 10, 10, 50);
-    private static MilitaryRulebook Military(bool work = false, bool armed = false) => new(new MilitaryDefinition(12, 4, new int[48].ToImmutableArray(),
+    [Fact]
+    public void EnemyFacilityUsesGeographicExtentForAvoidanceAndPhysicalExtentForCollision()
+    {
+        var rules = Military(geographicScale: 5);
+        var world = World(0).BeginMutation();
+        var place = world.Settlements[2];
+        var occupied = new MovementOccupancy(world, rules).Query(world, 1, new());
+        var enemy = Assert.Single(occupied, o => o.Position == rules.Place(place).Position);
+        Assert.True(enemy.Hard);
+        Assert.Equal(NavigationAvoidance.Facility, enemy.Avoidance);
+        Assert.Equal(rules.Place(place).Footprint, enemy.Footprint);
+        Assert.Equal(rules.GeographicArea(place).Footprint, enemy.AvoidanceFootprint);
+        Assert.Equal(new Footprint(15, 15), enemy.AvoidanceFootprint);
+    }
+
+    private static MilitaryRulebook Military(bool work = false, bool armed = false, int geographicScale = 1) => new(new MilitaryDefinition(12, 4, new int[48].ToImmutableArray(),
         [new(0, 10, null)], [new(0, 10, 0, 100000, 5, new(1, 1), TravelMode.Land)
             { Combat = Combat, Attack = new(3, true), CaptureRanks = [BattleRank.Front, BattleRank.Middle, BattleRank.Middle, BattleRank.Rear, BattleRank.Rear] }],
         [new(1, new(2, 10), new(1, 1)) { Combat = Combat, FacilityTypeId = 8 },
          new(2, new(50, 10), new(3, 3)) { Combat = Combat, Attack = armed ? new(3, false) : null, FacilityTypeId = 9 }])
-        { Facilities = [new(8, 0, 100, new(1, 1), 0, false, true, false, 100000, null, null, null, []) { Combat = Combat }, new(9, 0, 100, new(3, 3), 0, false, false, false, 100000, null, null, null, []) { Combat = Combat, Attack = armed ? new(3, false) : null, IsWork = work }] });
+        { Geography = new(geographicScale, []), Facilities = [new(8, 0, 100, new(1, 1), 0, false, true, false, 100000, null, null, null, []) { Combat = Combat }, new(9, 0, 100, new(3, 3), 0, false, false, false, 100000, null, null, null, []) { Combat = Combat, Attack = armed ? new(3, false) : null, IsWork = work }] });
 
     private static WorldState World(int relation = 70, bool alliance = false, bool field = false) => WorldState.Create(new(190, 1, 1), 42,
         [new(1, 100) { BaseTrust = 100, LeaderId = 11 }, new(2, 100), new(3, 100), new(4, 100)],
@@ -147,7 +162,7 @@ public sealed class MilitaryDiplomacyTests
         MilitaryDiplomacy.BeginAdvance(m, new() { Military = rules }, events);
         MilitaryDiplomacy.CombatOpened(m, 1, 2, true, events);
         Assert.Empty(events);
-        Assert.Contains(MilitaryMovement.Occupancy(m, rules, 0, null, true), o => o.Position == new WorldPosition(50, 10));
+        Assert.Contains(new MovementOccupancy(m, rules).Query(m, m.Units[0].OwnerId, m.Units[0].Policies, 0), o => o.Position == new WorldPosition(50, 10));
     }
 
     [Theory]
@@ -158,15 +173,15 @@ public sealed class MilitaryDiplomacyTests
     public void MovingFacilityOccupancyTracksDiplomacy(int relation, bool alliance, bool blocks)
     {
         var m = World(relation, alliance).BeginMutation(); var rules = Military();
-        Assert.Equal(blocks, MilitaryMovement.Occupancy(m, rules, 0, null, true).Any(o => o.Position == new WorldPosition(50, 10)));
+        Assert.Equal(blocks, new MovementOccupancy(m, rules).Query(m, m.Units[0].OwnerId, m.Units[0].Policies, 0).Any(o => o.Position == new WorldPosition(50, 10)));
         var move = rules.Map.Advance(new(46, 10), new(54, 10), new(1, 1), TravelMode.Land,
-            MilitaryMovement.Occupancy(m, rules, 0, null, true), 100);
+            new MovementOccupancy(m, rules).Query(m, m.Units[0].OwnerId, m.Units[0].Policies, 0), 100);
         Assert.Equal(!blocks, move.Arrived);
         Assert.Contains(MilitaryMovement.Occupancy(m, rules, 0, null), o => o.Position == new WorldPosition(50, 10));
         if (!alliance && relation >= 40)
         {
             MilitaryDiplomacy.CombatOpened(m, 1, 2, false, []);
-            Assert.Contains(MilitaryMovement.Occupancy(m, rules, 0, null, true), o => o.Position == new WorldPosition(50, 10));
+            Assert.Contains(new MovementOccupancy(m, rules).Query(m, m.Units[0].OwnerId, m.Units[0].Policies, 0), o => o.Position == new WorldPosition(50, 10));
         }
     }
 

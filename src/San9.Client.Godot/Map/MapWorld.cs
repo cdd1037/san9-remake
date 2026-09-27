@@ -60,6 +60,8 @@ public partial class MapWorld : Node2D
     public int? HoveredBuildingId => HoveredObject is { IsUnit: false } target ? target.Id : null;
     public Func<Vector2, bool>? IsInputBlocked { get; set; }
     public Func<bool>? CanIssueOrders { get; set; }
+    public Action<MapObjectTarget?>? TargetPicked { get; set; }
+    public Action<San9.Core.Domain.MapCell>? WaypointPicked { get; set; }
     public event Action<int, Vector2>? BuildingContextRequested;
     public event Action<int, Vector2>? UnitContextRequested;
     public event Action<MapObjectTarget, Vector2>? CommandMenuRequested;
@@ -209,6 +211,23 @@ public partial class MapWorld : Node2D
         {
             if (button.Position.X < 0 || button.Position.Y < 0 || button.Position.X >= ClientLayout.LogicalWidth || button.Position.Y >= ClientLayout.LogicalHeight) return;
             if (IsInputBlocked?.Invoke(button.Position) == true) { _dragging = false; return; }
+            if (button.ButtonIndex is MouseButton.Left or MouseButton.Right && TargetPicked is { } pick)
+            {
+                if (button.Pressed)
+                {
+                    if (button.ButtonIndex == MouseButton.Right) pick(null);
+                    else if (HasCompleteView && !IsLoading)
+                    {
+                        if (ObjectAtViewport(button.Position) is { } target) pick(target);
+                        else
+                        {
+                            var point = ViewportToWorld(button.Position);
+                            if (MapGeometry.TrySquare(point.X, point.Y, out int x, out int y)) WaypointPicked?.Invoke(new(x, y));
+                        }
+                    }
+                }
+                GetViewport().SetInputAsHandled(); return;
+            }
             if (button.ButtonIndex is MouseButton.Left or MouseButton.Right && CanIssueOrders?.Invoke() == false)
             { GetViewport().SetInputAsHandled(); return; }
             if (button.ButtonIndex == MouseButton.Middle) { _dragging = button.Pressed; GetViewport().SetInputAsHandled(); }

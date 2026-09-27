@@ -70,7 +70,7 @@ internal static class ForceConsolidation
             var unit = world.Units[original.Id];
             var members = world.Officers.Values.Where(p => p.UnitId == unit.Id && p.IsServing).Select(p => p.Id).Order().ToArray();
             world.Replace(unit with { OwnerId = survivor, CorpsId = root, CommanderId = unit.FormationId is null ? null :
-                LeadershipMaintenance.SelectUnitCommander(world, members, rules.Governance), Order = null, MovementPlan = null,
+                LeadershipMaintenance.SelectUnitCommander(world, members, rules.Governance), Order = null,
                 EngagementTargetId = null, AwaitingPostAction = false });
             events.Add(new UnitTransferredEvent(world.Clock, unit.Id, absorbed, survivor));
         }

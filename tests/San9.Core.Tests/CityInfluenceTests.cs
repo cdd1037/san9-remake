@@ -24,6 +24,7 @@ public sealed class CityInfluenceTests
     public void RangeStartsAtFullFootprintAndCountsFourNeighborSteps(int x, int y, bool expected)
     {
         Assert.Equal(expected, Rules().HasCityInfluence(1, MapCoordinates.Center(new(x, y)), [City()]));
+        Assert.Equal(expected, Rules().CityInfluenceCells(City(), [City()]).Contains(new(x, y)));
     }
 
     [Fact]
@@ -72,5 +73,21 @@ public sealed class CityInfluenceTests
         Assert.False(rules.HasCityInfluence(1, new(2, 2), []));
         Assert.Throws<ArgumentException>(() => Rules(radius: -1));
         Assert.Throws<ArgumentException>(() => Rules([new(30, 0)]));
+    }
+
+    [Fact]
+    public void SourceRangeAgreesWithCombatQueryAcrossDetoursButDoesNotIncludeAnotherCity()
+    {
+        var city = City();
+        var second = city with { Id = 9001 };
+        var rules = Rules(Enumerable.Range(0, 30).Where(y => y != 15).Select(y => new MapCell(13, y)),
+            [new(9001, MapCoordinates.Center(new(25, 25)), new(1, 1))]);
+        var range = rules.CityInfluenceCells(city, [city, second]);
+        Assert.DoesNotContain(new MapCell(25, 25), range);
+        Assert.True(rules.HasCityInfluence(1, MapCoordinates.Center(new(25, 25)), [city, second]));
+        for (int y = 0; y < 30; y++)
+        for (int x = 0; x < 30; x++)
+            Assert.Equal(rules.HasCityInfluence(1, MapCoordinates.Center(new(x, y)), [city, second with { OwnerId = 2 }]), range.Contains(new(x, y)));
+        Assert.Empty(rules.CityInfluenceCells(city with { Kind = SettlementKind.Facility }, [city]));
     }
 }

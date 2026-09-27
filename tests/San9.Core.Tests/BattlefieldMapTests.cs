@@ -42,7 +42,7 @@ public sealed class BattlefieldMapTests
             [new(0, 1, null), new(1, null, null)]);
         var route = map.FindRoute(new(2, 2), new(12, 2), new(1, 1), TravelMode.Land, []);
         Assert.True(route.Reachable);
-        Assert.Equal(26, route.Cost);
+        Assert.Equal(30, route.Cost);
         Assert.Contains(route.Steps, p => p.Y == 10);
         var blocked = map.FindRoute(new(2, 2), new(12, 2), new(1, 1), TravelMode.Land,
             [new(new(7, 12), new(5, 5))]);
@@ -56,7 +56,7 @@ public sealed class BattlefieldMapTests
     {
         var map = new BattlefieldMap(3, 2, [0, 1, 0, 0, 0, 0], [new(0, 1, null), new(1, 20, null)]);
         var route = map.FindRoute(new(2, 2), new(12, 2), new(1, 1), TravelMode.Land, []);
-        Assert.Equal(16, route.Cost);
+        Assert.Equal(20, route.Cost);
         Assert.DoesNotContain(route.Steps, p => p.X is >= 5 and < 10 && p.Y < 5);
         var plain = new BattlefieldMap(1, 1, [0], [new(0, 1, null)]);
         Assert.Equal(new WorldPosition[] { new(2, 1), new(3, 1) },

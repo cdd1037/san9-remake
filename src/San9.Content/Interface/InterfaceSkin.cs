@@ -5,6 +5,8 @@ namespace San9.Content.Interface;
 public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dictionary<string,string> Roles, Dictionary<string,string> Colors,
     Dictionary<string, CursorDefinition> Cursors)
 {
+    [System.Text.Json.Serialization.JsonRequired]
+    public Dictionary<int, TargetMarkerOffset> BuildingTargetOffsets { get; init; } = [];
     private static readonly string[] BaseUiAssets = ["information-menu-button-left", "information-menu-button-middle", "information-menu-button-right", "top-frame", "radar-frame", "sidebar-frame", "roster-scroll-decoration",
         "scroll-track-top", "scroll-track-middle", "scroll-track-bottom",
         "scroll-thumb-top", "scroll-thumb-middle", "scroll-thumb-bottom", "button-scroll-up", "button-scroll-down",
@@ -39,18 +41,21 @@ public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dicti
         .Concat(new[] { "track", "thumb" }.SelectMany(p => new[] { "top", "middle", "bottom" }.Select(s => "catalog-scroll-" + p + "-" + s)))
         .Concat(new[] { "top-left", "top", "top-right", "left", "right", "bottom-left", "bottom", "bottom-right" }.Select(p => "catalog-tabs-" + p))
         .Concat(new[] { "own", "other", "friendly" }.SelectMany(t =>
-            new[] { "city", "facility" }.Select(p => $"hover-{t}-{p}")))
-        .Concat(CommandMenuSkin.RequiredRoles).Concat(DeploymentSkin.RequiredRoles).Append("hover-divider").Concat(OfficerDetailSkin.RequiredRoles).Append("information-background")
+            new[] { "city", "facility", "unit" }.Select(p => $"hover-{t}-{p}")))
+        .Concat(TargetSelectionSkin.RequiredRoles).Concat(CommandMenuSkin.RequiredRoles).Concat(DeploymentSkin.RequiredRoles).Append("hover-divider").Concat(OfficerDetailSkin.RequiredRoles).Append("information-background")
         .Concat(new[] { "strategy", "execution" }.SelectMany(p => Enumerable.Range(0, 4).Select(f => $"turn-title-{p}-{f}")))
         .Concat(new[] { "yes", "no" }.SelectMany(p => Enumerable.Range(0, 4).Select(f => $"dialog-{p}-{f}")))
         .Append("dialog-frame")
+        .Concat(Enumerable.Range(0, 5).Select(f => "minimap-command-pulse" + (f == 0 ? "" : $"-{f}")))
         .Concat(new[] { "arrow-up-right", "arrow-down-right", "crossed-arrows", "empty-square", "question", "turn-arrow", "book", "waves", "circle" }
             .SelectMany(id => new[] { $"text-icon-{id}-16", $"text-icon-{id}-24" })).Append("text-icon-city-16").ToArray());
 
     public void Validate()
     {
-        if (SchemaVersion != 29 || Assets.Select(a => a.Id).Distinct().Count() != Assets.Length)
+        if (SchemaVersion != 33 || Assets.Select(a => a.Id).Distinct().Count() != Assets.Length)
             throw new InvalidDataException("Invalid interface skin version or duplicate assets.");
+        if (BuildingTargetOffsets is null || BuildingTargetOffsets.Any(p => p.Key < 0 || p.Value is null))
+            throw new InvalidDataException("Invalid building target offsets.");
         ImageAssetFiles.ValidateCatalog(Assets);
         var assets = Assets.ToDictionary(a => a.Id);
         if (Cursors is null || CursorDefinition.EdgeScrollRoles.Any(role => !Cursors.ContainsKey(role)) ||

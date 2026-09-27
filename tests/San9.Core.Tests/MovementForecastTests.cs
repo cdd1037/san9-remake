@@ -15,8 +15,8 @@ public sealed class MovementForecastTests
     private static WorldState World(UnitState? unit = null)
     {
         var world = WorldState.Create(new(190, 1, 1), 42,
-        [new(1, 100)], [new(1, 1, 0, 100, 100, 70, 0, 0, 0, 0, 0)], [],
-        [unit ?? new(0, 1, new(2, 2), 100) { FormationId = 0, Order = new(MilitaryOrderKind.Move, new(402, 2), null) }], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(0, 10000)) { IsRoot = true }]);
+        [new(1, 100), new(2, 100)], [new(1, 1, 0, 100, 100, 70, 0, 0, 0, 0, 0)], [],
+        [unit ?? new(0, 1, new(2, 2), 100) { FormationId = 0, Order = new(MilitaryOrderKind.Move, new(402, 2), null) }], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(0, 10000)) { IsRoot = true }, new(2, 2, null, new(0, 0)) { IsRoot = true }]);
         var setup = world.BeginMutation();
         setup.SetSimulation(setup.Simulation with { Boundary = SimulationBoundary.Stable });
         world.Commit(setup);
@@ -30,6 +30,42 @@ public sealed class MovementForecastTests
         return world.Units[0];
     }
 
+    [Fact]
+    public void RelayArrivalUsesRemainingBudgetWithoutCompletingFinalOrder()
+    {
+        var rules = Rules(100);
+        var unit = new UnitState(0, 1, new(12, 2), 100)
+        { FormationId = 0, Order = new(MilitaryOrderKind.Move, new(32, 2), null), Waypoint = new(7, 2) };
+        var world = World(unit).BeginMutation();
+        var step = MilitaryNavigation.Advance(world, unit, rules, MilitaryNavigation.Budget(unit, rules));
+        Assert.Equal(100, step.Spent); Assert.False(step.Arrived);
+        var moved = MilitaryNavigation.Apply(unit, step);
+        Assert.Equal(unit.Position, moved.Position); Assert.Null(moved.Waypoint); Assert.Equal(unit.Order, moved.Order);
+    }
+
+    [Fact]
+    public void RelayConsumesSharedDailyBudgetAndForecastIncludesDelay()
+    {
+        var rules = Rules(100);
+        var unit = new UnitState(0, 1, new(12, 2), 100)
+        {
+            FormationId = 0, Order = new(MilitaryOrderKind.Move, new(32, 2), null),
+            Waypoint = new(2, 2), DepartureDaysRemaining = 2
+        };
+        var world = World(unit); var mutation = world.BeginMutation();
+        var forecast = new MilitaryArrivalForecast(world.CreateSnapshot(), rules).Estimate(0);
+        Assert.Equal(new ArrivalEstimate(ArrivalEstimateStatus.Known, 6), forecast);
+        for (int day = 1; day <= 6; day++)
+        {
+            var current = Day(mutation, rules);
+            if (day <= 2) Assert.Equal(unit.Position, current.Position);
+            if (day == 3) { Assert.Equal(new WorldPosition(2, 2), current.Position); Assert.Null(current.Waypoint); Assert.NotNull(current.Order); }
+            MilitaryMovement.TickDepartureDelays(mutation);
+        }
+        Assert.Equal(new WorldPosition(32, 2), mutation.Units[0].Position);
+        Assert.Null(mutation.Units[0].Order);
+    }
+
     [Theory]
     [InlineData(95, 19)]
     [InlineData(100, 20)]
@@ -39,7 +75,6 @@ public sealed class MovementForecastTests
         var first = Day(world, rules);
         Assert.Equal(budget / 10, first.Position.X - 2);
         Assert.Equal(budget % 10, first.MovementRemainder);
-        world.Replace(first with { MovementPlan = null });
         var second = Day(world, rules);
         Assert.Equal(distance, second.Position.X - 2);
         Assert.Equal(0, second.MovementRemainder);
@@ -54,10 +89,9 @@ public sealed class MovementForecastTests
         var rules = Rules(budget, mixed); var world = World();
         var mutation = world.BeginMutation();
         var before = world.CreateSnapshot();
-        var estimate = new MilitaryArrivalForecast(before, rules).Estimate(0);
+        var estimate = new MilitaryArrivalForecast(before, rules).Estimate(0, maximumExpanded: 1000000);
         Assert.Equal(ArrivalEstimateStatus.Known, estimate.Status);
         Assert.Equal(before, world.CreateSnapshot());
-        Assert.Null(before.Units.Single().MovementPlan);
         for (int day = 1; day <= estimate.Days; day++)
         {
             var unit = Day(mutation, rules);
@@ -83,8 +117,8 @@ public sealed class MovementForecastTests
     {
         var rules = Rules(95); var mutation = World().BeginMutation();
         Day(mutation, rules);
-        mutation.AddUnit(new(1, 1, new(30, 2), 100) { FormationId = 0 });
-        mutation.Replace(mutation.Units[0] with { Order = new(MilitaryOrderKind.Move, new(30, 2), null), MovementPlan = null });
+        mutation.AddUnit(new(1, 2, new(30, 2), 100) { FormationId = 0 });
+        mutation.Replace(mutation.Units[0] with { Order = new(MilitaryOrderKind.Move, new(30, 2), null), Policies = new(AttackApproachingEnemies: true) });
         for (int day = 0; day < 4; day++)
         {
             var blocked = Day(mutation, rules);

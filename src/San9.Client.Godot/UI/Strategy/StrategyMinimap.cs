@@ -1,6 +1,8 @@
 using Godot;
+using San9.Application.Presentation;
 using San9.Content.Scenarios;
 using San9.Content.Interface;
+using San9.Core.Domain;
 using San9.Rendering;
 
 namespace San9.Client.Godot;
@@ -11,11 +13,17 @@ public partial class StrategyMinimap : Control
     public San9.Application.GameSession Session { get; init; } = null!;
     public San9.Application.Presentation.StrategySnapshot Scenario => World.View;
     public InterfaceSkin Skin { get; init; } = null!;
+    public IReadOnlyDictionary<string, Texture2D> Textures { get; init; } = null!;
     private ImageTexture? _terrain;
     private TextureRect? _background;
     private San9.Application.Presentation.StrategySnapshot? _state;
     private readonly Node2D _markers = new();
     private readonly Node2D _viewport = new();
+    private readonly Node2D _commandPulse = new();
+    private static readonly int[] PulseFrames = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 3, 2, 1];
+    private MapObjectTarget? _commandSource;
+    private double _pulseTime;
+    private int _pulseFrame;
     private (Vector2 Position, float Zoom) _view;
     public override void _Ready()
     {
@@ -33,6 +41,8 @@ public partial class StrategyMinimap : Control
         _viewport.Draw += DrawViewport;
         AddChild(_markers);
         AddChild(_viewport);
+        _commandPulse.Draw += DrawCommandPulse;
+        AddChild(_commandPulse);
         _view = (World.CameraPosition, World.ZoomFactor);
         Resized += ResizeLayers;
     }
@@ -50,7 +60,13 @@ public partial class StrategyMinimap : Control
     }
     public override void _Process(double delta)
     {
-        if (!ReferenceEquals(_state, Scenario)) { _state = Scenario; _markers.QueueRedraw(); }
+        if (!ReferenceEquals(_state, Scenario)) { _state = Scenario; _markers.QueueRedraw(); _commandPulse.QueueRedraw(); }
+        if (_commandSource is not null)
+        {
+            _pulseTime = (_pulseTime + delta) % 1.7;
+            int frame = PulseFrames[(int)(_pulseTime / 0.1)];
+            if (frame != _pulseFrame) { _pulseFrame = frame; _commandPulse.QueueRedraw(); }
+        }
         var view = (World.CameraPosition, World.ZoomFactor);
         if (_view == view) return;
         _view = view;
@@ -60,6 +76,38 @@ public partial class StrategyMinimap : Control
     {
         _markers.QueueRedraw();
         _viewport.QueueRedraw();
+        _commandPulse.QueueRedraw();
+    }
+    public void SetCommandSource(MapObjectTarget? source)
+    {
+        if (_commandSource == source) return;
+        _commandSource = source;
+        _pulseTime = 0; _pulseFrame = 0;
+        _commandPulse.QueueRedraw();
+    }
+    private void DrawCommandPulse()
+    {
+        if (_commandSource is not { } source || _pulseFrame == 0) return;
+        double x, y;
+        if (source.IsUnit)
+        {
+            var unit = Scenario.World.Units.FirstOrDefault(u => u.Id == source.Id);
+            if (unit is null) return;
+            x = (unit.Position.X - MapCoordinates.UnitsPerCell / 2) / (double)MapCoordinates.UnitsPerCell;
+            y = (unit.Position.Y - MapCoordinates.UnitsPerCell / 2) / (double)MapCoordinates.UnitsPerCell;
+        }
+        else
+        {
+            var settlement = Scenario.Settlements.FirstOrDefault(s => s.Id == source.Id);
+            if (settlement is null) return;
+            x = settlement.X; y = settlement.Y;
+        }
+        var point = MinimapGeometry.FromGrid(x, y);
+        var scale = Size / new Vector2(320, 160);
+        var center = new Vector2((float)point.X * Size.X, (float)point.Y * Size.Y) - new Vector2(0, scale.Y);
+        var texture = Textures[$"minimap-command-pulse-{_pulseFrame}"];
+        var size = texture.GetSize() * scale;
+        _commandPulse.DrawTextureRect(texture, new(center - size / 2, size), false);
     }
     private void DrawMarkers()
     {

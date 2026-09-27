@@ -273,8 +273,7 @@ public sealed class AllianceFormationTests
         {
             new(101, 1, new(0, 0), 100) { FormationId = 0, ServicePlaceId = 100, Order = attackMember, EngagementTargetId = 301 },
             new(102, 1, new(0, 0), 100) { FormationId = 0, Order = attackMember },
-            new(103, 1, new(0, 0), 100) { FormationId = 0, Order = move, EngagementTargetId = 201,
-                MovementPlan = new(new(9, 0), new(1, 1), TravelMode.Land, [new(1, 0)]) },
+            new(103, 1, new(0, 0), 100) { FormationId = 0, Order = move, EngagementTargetId = 201 },
             new(104, 1, new(0, 0), 100) { FormationId = 0, Order = attackMember, IsPersonnel = true },
             new(201, 2, new(2, 0), 100) { FormationId = 0, Order = attackOutside, EngagementTargetId = 101 },
             new(301, 3, new(4, 0), 100) { FormationId = 0, Order = new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 101 } }
@@ -288,7 +287,6 @@ public sealed class AllianceFormationTests
         Assert.Null(world.Units[102].Order);
         Assert.Equal(move, world.Units[103].Order);
         Assert.Null(world.Units[103].EngagementTargetId);
-        Assert.Null(world.Units[103].MovementPlan);
         Assert.Equal(units[3], world.Units[104]);
         Assert.Equal(attackOutside, world.Units[201].Order);
         Assert.Null(world.Units[201].EngagementTargetId);

@@ -87,11 +87,11 @@ public sealed class UnitReformationTests
         var engine = Engine(World(deployed: false));
         var command = new TransportUnitCommand(Guid.NewGuid(), 1, 0, 1, [11], 500, 2, 10, 100);
         Assert.True(engine.Execute(Player, command).Submission.Accepted);
-        Assert.Equal(new WorldPosition(4, 1), Assert.Single(engine.Snapshot.Units).Position);
+        Assert.Equal(new WorldPosition(4, 2), Assert.Single(engine.Snapshot.Units).Position);
         engine.EndControl(Player);
         var result = engine.AdvanceXun();
         Assert.Single(result.Events.OfType<UnitAbsorbedEvent>());
-        Assert.Equal(new WorldPosition(25, 1), result.Events.OfType<UnitMovedEvent>().Last().To);
+        Assert.Equal(new WorldPosition(24, 2), result.Events.OfType<UnitMovedEvent>().Last().To);
         Assert.Equal(500u, engine.Snapshot.Settlements.Single(s => s.Id == 2).Soldiers);
     }
 }

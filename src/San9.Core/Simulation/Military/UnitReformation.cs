@@ -41,7 +41,7 @@ internal static class UnitReformation
             naval is not null && !FormationEligibility.CanUse(world, command.IssuerId, command.OfficerIds, naval, treasures))
             return CommandRejection.MissingFormationTactic;
         if (travel.Map.PassageCost(unit.Position, travel.Shape, travel.Mode,
-            MilitaryMovement.Occupancy(world, rules, unit.Id, null).ToArray()) is null) return CommandRejection.NoDestination;
+            new MovementOccupancy(world, rules).Query(world, unit.OwnerId, unit.Policies, unit.Id)) is null) return CommandRejection.NoDestination;
         if (command.Order is not null && !MilitaryMovement.ValidOrder(world, unit.OwnerId, command.Order, formation, rules, navalId))
             return CommandRejection.InvalidTask;
         if (command.Order?.Kind == MilitaryOrderKind.Construct) return CommandRejection.InvalidTask;

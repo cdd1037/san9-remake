@@ -12,7 +12,7 @@ public sealed class AttackRequestPlannerTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void DistantAttackUsesGuidanceAndOneBoundedDecisionBudget(bool blocked)
+    public void DistantAttackUsesCoarseRoutesAndOneBoundedDecisionBudget(bool blocked)
     {
         var basis = Fixture();
         var content = basis with
@@ -22,7 +22,8 @@ public sealed class AttackRequestPlannerTests
             Military = basis.Military! with
             {
                 Width = 200, Height = 200,
-                TerrainIds = Enumerable.Range(0, 40000).Select(i => blocked && i < 200 ? 1 : 0).ToImmutableArray(),
+                TerrainIds = new int[40000].ToImmutableArray(),
+                BlockedCells = blocked ? Enumerable.Range(0, 200).Select(y => new MapCell(100, y)).ToImmutableArray() : [],
                 Places = basis.Military.Places.Select(p => p.Id == 3 ? p with { Position = new(902, 902) } :
                     p.Id == 2 && blocked ? p with { Position = new(502, 502), Footprint = new(1, 996) } : p).ToImmutableArray()
             }
@@ -34,12 +35,12 @@ public sealed class AttackRequestPlannerTests
         if (blocked)
         {
             Assert.IsType<WaitCommand>(command);
-            Assert.Equal(100000, diagnostics.Expanded);
+            Assert.InRange(diagnostics.Expanded, 1, 100000);
         }
         else
         {
             Assert.Equal(3, Assert.IsType<DeployUnitCommand>(command).Order.SettlementId);
-            Assert.InRange(diagnostics.Expanded, 1, 10000);
+            Assert.InRange(diagnostics.Expanded, 1, 100000);
         }
         Assert.Equal(before, session.Capture().StateHash);
     }

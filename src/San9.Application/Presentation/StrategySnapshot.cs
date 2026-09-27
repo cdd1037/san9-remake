@@ -104,6 +104,10 @@ internal sealed class StrategySnapshotSource
 
 public sealed class StrategySnapshot
 {
+    private readonly StrategySnapshotSource _source;
+    /// <summary>Dialogue speakers include NPCs that are intentionally absent from the officer browser.</summary>
+    public (string NameKey, int? OwnerId) MessageSpeaker(int id) =>
+        (_source.Officer(id).NameKey, World.Officers.Single(p => p.Id == id).OwnerId);
     private readonly MilitaryRulebook? military;
     internal MilitaryRulebook? MilitaryRules => military;
     private MilitaryEngagementSnapshot? engagements;
@@ -152,6 +156,7 @@ public sealed class StrategySnapshot
 
     internal StrategySnapshot(StrategySnapshotSource source, WorldSnapshot world)
     {
+        _source = source;
         military = source.Military;
         arrivalTreasures = source.Treasures;
         Information = source.Information;

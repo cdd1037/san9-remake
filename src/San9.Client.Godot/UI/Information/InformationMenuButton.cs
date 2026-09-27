@@ -6,6 +6,7 @@ namespace San9.Client.Godot;
 public partial class InformationMenuButton : BaseButton
 {
     public string SkinPrefix { get; init; } = "information-menu-button";
+    public Vector4 TextInsets { get; init; }
     private string _title = "";
     public string Title
     {
@@ -26,6 +27,11 @@ public partial class InformationMenuButton : BaseButton
         _label = new Label { Text = Title, Size = Size, HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center, MouseFilter = MouseFilterEnum.Ignore };
         AddChild(_label);
+        _label.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        _label.OffsetLeft = TextInsets.X;
+        _label.OffsetTop = TextInsets.Y;
+        _label.OffsetRight = -TextInsets.Z;
+        _label.OffsetBottom = -TextInsets.W;
         RefreshVisual();
     }
 
@@ -37,7 +43,11 @@ public partial class InformationMenuButton : BaseButton
         if (_state == state) return;
         _state = state;
         _text.Apply(_label, TextStyle(state.Item1, pressed, Disabled));
-        _label.Position = pressed ? new(2, 2) : Vector2.Zero;
+        var offset = pressed ? new Vector2(2, 2) : Vector2.Zero;
+        _label.OffsetLeft = TextInsets.X + offset.X;
+        _label.OffsetTop = TextInsets.Y + offset.Y;
+        _label.OffsetRight = -TextInsets.Z + offset.X;
+        _label.OffsetBottom = -TextInsets.W + offset.Y;
         VisualFrame = ButtonVisualState.Frame(false, state.Item1, pressed, Disabled);
         QueueRedraw();
     }

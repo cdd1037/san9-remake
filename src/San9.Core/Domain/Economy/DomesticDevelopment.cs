@@ -15,6 +15,15 @@ public readonly record struct DomesticDevelopmentResult(int BaseIncrement, int I
 /// <summary>Base development before combination bonuses; BEH-DOMESTIC-0001.</summary>
 public static class DomesticDevelopment
 {
+    public static OfficerState[] OrderParticipants(IEnumerable<OfficerState> people,
+        IReadOnlyDictionary<int, OfficerAbilities> abilities, DomesticActivity activity) => people
+        .OrderByDescending(p => p.Status == OfficerStatus.Ruler)
+        .ThenByDescending(p => activity switch {
+            DomesticActivity.Patrol => abilities[p.Id].Intelligence,
+            DomesticActivity.Commerce or DomesticActivity.Cultivation => abilities[p.Id].Politics,
+            _ => abilities[p.Id].Leadership })
+        .ThenBy(p => p.Id).ToArray();
+
     public static DomesticDevelopmentResult CalculateResult(
         DomesticActivity activity,
         int current,

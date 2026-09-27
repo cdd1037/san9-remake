@@ -7,7 +7,10 @@ public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dicti
 {
     [System.Text.Json.Serialization.JsonRequired]
     public Dictionary<int, TargetMarkerOffset> BuildingTargetOffsets { get; init; } = [];
-    private static readonly string[] BaseUiAssets = ["information-menu-button-left", "information-menu-button-middle", "information-menu-button-right", "top-frame", "radar-frame", "sidebar-frame", "roster-scroll-decoration",
+    private static readonly string[] BaseUiAssets = ["narration-portrait-frame", "narration-middle", "narration-right", "narration-affiliation",
+        "narration-portrait-next-0", "narration-portrait-next-1", "narration-portrait-next-2", "narration-portrait-next-3", "narration-portrait-next-4", "narration-portrait-next-5",
+        "narration-result-next-0", "narration-result-next-1", "narration-result-next-2", "narration-result-next-3", "narration-result-next-4", "narration-result-next-5", "narration-result-next-6",
+        "information-menu-button-left", "information-menu-button-middle", "information-menu-button-right", "top-frame", "radar-frame", "sidebar-frame", "roster-scroll-decoration",
         "scroll-track-top", "scroll-track-middle", "scroll-track-bottom",
         "scroll-thumb-top", "scroll-thumb-middle", "scroll-thumb-bottom", "button-scroll-up", "button-scroll-down",
         "field-left", "field-middle", "field-right", "ruler-frame", "region-frame",
@@ -52,7 +55,7 @@ public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dicti
 
     public void Validate()
     {
-        if (SchemaVersion != 35 || Assets.Select(a => a.Id).Distinct().Count() != Assets.Length)
+        if (SchemaVersion != 37 || Assets.Select(a => a.Id).Distinct().Count() != Assets.Length)
             throw new InvalidDataException("Invalid interface skin version or duplicate assets.");
         if (BuildingTargetOffsets is null || BuildingTargetOffsets.Any(p => p.Key < 0 || p.Value is null))
             throw new InvalidDataException("Invalid building target offsets.");

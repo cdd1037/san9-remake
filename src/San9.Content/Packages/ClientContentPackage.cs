@@ -11,6 +11,9 @@ public sealed record ClientContentPackage(int SchemaVersion, ContentSource[] Sou
 
     [System.Text.Json.Serialization.JsonIgnore] public San9.Content.Images.PortraitDefinition[] Portraits { get; init; } = [];
 
+    public CommandPresentation Presentation { get; init; } = CommandPresentation.Empty;
+    [System.Text.Json.Serialization.JsonIgnore] public string ContentRoot { get; init; } = "";
+
     public void ValidateLinks()
     {
         if (SchemaVersion != ScenarioContent.CurrentSchemaVersion) throw new InvalidDataException("Unsupported client content version.");
@@ -38,6 +41,8 @@ public sealed record ClientContentPackage(int SchemaVersion, ContentSource[] Sou
         if (Scenario.Information.Formations.Any(f => f.Presentation is not null))
             foreach (string role in new[] { "formation-member", "formation-commander", "formation-panel-deployment", "formation-panel-detail" })
                 if (!Skin.Roles.ContainsKey(role)) throw new InvalidDataException($"Missing formation interface image: {role}");
+        Presentation.Validate(Text, Scenario.Officers.Select(o => o.State.Id), Scenario.Settlements.Select(s => s.Id));
+        foreach (string path in Presentation.Sounds.Values) _ = PackageFiles.Resolve(".", path);
         Scenario.Validate(); Text.Validate(); Skin.Validate(); Textures.Validate();
         if (Map.BuildingTypes.Any(t => !Skin.BuildingTargetOffsets.ContainsKey(t.Id)))
             throw new InvalidDataException("Missing building target marker placement.");
@@ -52,7 +57,12 @@ public sealed record ClientContentPackage(int SchemaVersion, ContentSource[] Sou
                 throw new InvalidDataException($"Missing inline image: {icon}");
         foreach (var treasure in Scenario.Information.Treasures) _ = Text.ResolveRich(TreasureText.DescriptionKey(treasure.Id));
         foreach (string key in Scenario.Officers.Select(o => o.BiographyKey).OfType<string>()) _ = Text.ResolveRich(key);
-        foreach (string id in San9.Content.Interface.CommandMenuSkin.EntryIds) _ = Text.ResolveRich(San9.Content.Interface.CommandMenuSkin.DescriptionKey(id));
+        foreach (string id in CommandMenuSkin.ReasonIds) _ = Text.ResolveRich(CommandMenuSkin.ReasonKey(id));
+        foreach (string id in CommandMenuSkin.EntryIds)
+        {
+            _ = Text.ResolveRich(CommandMenuSkin.DescriptionKey(id));
+            _ = Text.ResolveRich(CommandMenuSkin.HintKey(id));
+        }
         foreach (string role in StrategyHintText.Roles) _ = Text.ResolveRich(StrategyHintText.Key(role));
         foreach (string role in Scenario.Officers.SelectMany(o => new[] { $"information-person-{o.State.Id}", $"catalog-person-{o.State.Id}" })
                      .Concat(Scenario.Information.Treasures.Select(t => $"information-treasure-{t.Id}")))
@@ -76,7 +86,10 @@ public static class ClientContentFiles
         var instance = await ScenarioContentFiles.LoadAsync(root, token);
         string textureRoot = Path.GetFullPath(Path.Combine(root, instance.Textures.Path));
         var textures = await TexturePackageFiles.LoadAsync(textureRoot, token);
-        return Resolve(instance, textures, textureRoot);
+        var content = Resolve(instance, textures, textureRoot) with { ContentRoot = Path.GetFullPath(root) };
+        foreach (string path in content.Presentation.Sounds.Values)
+            if (!File.Exists(PackageFiles.Resolve(root, path))) throw new InvalidDataException($"Missing sound file: {path}.");
+        return content;
     }
 
     public static ClientContentPackage Resolve(ScenarioContent instance, TexturePackage textures, string textureRoot)
@@ -87,7 +100,7 @@ public static class ClientContentFiles
         foreach (var role in instance.IllustrationRoles) roles.Add(role.Key, role.Value);
         var skin = textures.Skin with { Roles = roles, Assets = textures.Skin.Assets.Concat(textures.Library.Assets).Concat(textures.Portraits.Select(p => p.Image)).ToArray() };
         var content = new ClientContentPackage(ScenarioContent.CurrentSchemaVersion, instance.Sources, instance.Map.Resolve(textures.Map), instance.Scenario,
-            instance.Text, skin, textures.Library) { TextureRoot = textureRoot, Portraits = textures.Portraits };
+            instance.Text, skin, textures.Library) { TextureRoot = textureRoot, Portraits = textures.Portraits, Presentation = instance.Presentation };
         content.ValidateLinks();
         MapPackageFiles.Validate(content.Map);
         return content;

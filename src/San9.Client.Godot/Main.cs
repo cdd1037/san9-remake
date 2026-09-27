@@ -73,7 +73,7 @@ public partial class Main : Node
             ui.AddChild(new MapAnnotations { World = world, Texts = content.Text, UiFont = ui.GetThemeFont("font") });
             var backdropHost = new Node(); ui.AddChild(backdropHost);
             var overlayHost = new StrategyOverlayHost();
-            var hud = new StrategyHud { OverlayHost = overlayHost, BackdropHost = backdropHost, World = world, Selection = selection, Session = session, Texts = content.Text, Skin = content.Skin, Textures = textures };
+            var hud = new StrategyHud { CommandPresentation = content.Presentation, ContentRoot = content.ContentRoot, SoundEnabled = new Settings.UserSettingsStore(ProjectSettings.GlobalizePath(Settings.UserSettingsStore.UserDataPath)).Load().SoundEnabled, OverlayHost = overlayHost, BackdropHost = backdropHost, World = world, Selection = selection, Session = session, Texts = content.Text, Skin = content.Skin, Textures = textures };
             ui.AddChild(overlayHost);
             ui.AddChild(hud);
             ui.MoveChild(overlayHost, ui.GetChildCount() - 1);

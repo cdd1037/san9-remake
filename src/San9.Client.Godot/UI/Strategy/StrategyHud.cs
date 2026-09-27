@@ -256,10 +256,10 @@ public partial class StrategyHud : Control
 
     private void ActivateCommand(string command)
     {
-        if (command != "sortie" || _commandTarget is not { IsUnit: false } target || !CanIssueOrders) return;
+        if (command is not ("sortie" or "patrol") || _commandTarget is not { IsUnit: false } target || !CanIssueOrders) return;
         _commandMenu.Close();
         Overview.Close();
-        _flow.Open(target.Id);
+        if (command == "patrol") OpenPatrol(target.Id); else _flow.Open(target.Id);
     }
 
     private void ShowUnitContext(int id, Vector2 point)
@@ -315,7 +315,7 @@ public partial class StrategyHud : Control
             _message.SetMessage(menu?.HintText ?? "", menu is null || !menu.Disabled);
             return;
         }
-        if (_commandMenu.Visible) { _message.SetMessage(_commandMenu.Hint, true); return; }
+        if (_commandMenu.Visible) { _message.SetMessage(_commandMenu.Hint, _commandMenu.HintEnabled); return; }
         if (_mapContext.Visible) { _message.SetMessage(_mapContext.Hint, true); return; }
         if (_targets is not null) { _message.SetMessage(_targets.Selected is null ? "请选择目标。" : "点击空地设置中继点，点击其他目标切换，再次点击当前目标设定方针。", true); return; }
         var button = GetChildren().OfType<StrategyButton>().FirstOrDefault(b => b.IsHovered())
@@ -393,7 +393,7 @@ public partial class StrategyHud : Control
         }
         if (_built)
         {
-            _minimap!.SetCommandSource(_flow.Source ?? (_commandMenu!.Visible ? _commandTarget : null));
+            _minimap!.SetCommandSource(_flow.Source ?? PatrolSource ?? (_commandMenu!.Visible ? _commandTarget : null));
             bool sidebarVisible = Interaction.ShowSidebar && !_commandMenu!.Visible;
             _rosterList.Visible = sidebarVisible;
             foreach (var button in GetChildren().OfType<StrategyButton>().Where(b => b.Position.Y >= 208 && !_targetButtons.Contains(b))) button.Visible = sidebarVisible;

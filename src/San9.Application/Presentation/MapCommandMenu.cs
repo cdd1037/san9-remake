@@ -4,7 +4,11 @@ namespace San9.Application.Presentation;
 
 public enum MapCommandTone { Blue, Green, Brown }
 /// <summary>Presentation-only navigation; leaves deliberately carry no executable command.</summary>
-public sealed record MapCommandEntry(string Id, string Title, MapCommandTone Tone, IReadOnlyList<MapCommandEntry> Children);
+public sealed record MapCommandEntry(string Id, string Title, MapCommandTone Tone, IReadOnlyList<MapCommandEntry> Children)
+{
+    public string? UnavailableReasonKey { get; init; }
+    public bool Enabled => UnavailableReasonKey is null;
+}
 
 public static class MapCommandMenu
 {
@@ -39,6 +43,8 @@ public static class MapCommandMenu
                 ? [.. Facilities.Children.Where(c => c.Id is "repair" or "train"), new("demolish", "撤去", MapCommandTone.Blue, [])]
                 : Facilities.Children.Where(c => c.Id is "repair" or "train").ToArray() };
         }
+        facilities = facilities with { Children = facilities.Children.Select(entry => entry.Id == "patrol"
+            ? entry with { UnavailableReasonKey = PatrolDraft.UnavailableReasonKey(view,id) } : entry).ToArray() };
         return [facilities, .. Common];
     }
 

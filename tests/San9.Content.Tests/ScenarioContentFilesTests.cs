@@ -27,7 +27,7 @@ public sealed class ScenarioContentFilesTests : IDisposable
         var restored = await ScenarioContentFiles.LoadAsync(_root);
         Assert.Equal(JsonSerializer.Serialize(content, PackageFiles.JsonOptions),
             JsonSerializer.Serialize(restored, PackageFiles.JsonOptions));
-        Assert.Equal(6, Directory.GetFiles(_root, "*", SearchOption.AllDirectories).Length);
+        Assert.Equal(7, Directory.GetFiles(_root, "*", SearchOption.AllDirectories).Length);
         string messages = await File.ReadAllTextAsync(Path.Combine(_root, "messages/general.json"));
         Assert.DoesNotContain("\n", messages);
         Assert.DoesNotContain("\"format\"", messages);

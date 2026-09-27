@@ -14,6 +14,7 @@ public partial class ClientVerification : Node
         try
         {
             await VerificationSupport.WaitForView(this, World, requirePresentedView: false);
+            if (Options.PatrolSmoke) await Hud.RunPatrolVerificationAsync();
             if (Options.InformationSmoke) await RunInformationChecks();
             if (Options.MapSmoke) await RunMapChecks();
             if (Options.UiSmoke) await Hud.RunSmokeAsync();

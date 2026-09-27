@@ -26,5 +26,7 @@ public sealed record TextureDependency(string Path);
 public sealed record ScenarioContent(int SchemaVersion, ContentSource[] Sources, TextureDependency Textures,
     MapInstance Map, ScenarioInitialState Scenario, TextCatalog Text, Dictionary<string,string> IllustrationRoles)
 {
-    public const int CurrentSchemaVersion = 141;
+    [System.Text.Json.Serialization.JsonRequired]
+    public San9.Content.Interface.CommandPresentation Presentation { get; init; } = San9.Content.Interface.CommandPresentation.Empty;
+    public const int CurrentSchemaVersion = 143;
 }

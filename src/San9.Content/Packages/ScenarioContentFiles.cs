@@ -6,7 +6,10 @@ using San9.Content.Text;
 namespace San9.Content.Packages;
 
 public sealed record ScenarioContentManifest(int SchemaVersion, ContentSource[] Sources,
-    TextureDependency Textures, string Map, string Scenario, string Text, string[] Messages, string Illustrations);
+    TextureDependency Textures, string Map, string Scenario, string Text, string[] Messages, string Illustrations)
+{
+    [System.Text.Json.Serialization.JsonRequired] public string Presentation { get; init; } = "presentation.json";
+}
 
 public sealed record StaticTextContent(int SchemaVersion, Dictionary<string, string> Entries)
 {
@@ -61,7 +64,7 @@ public static class ScenarioContentFiles
         MessageGraph.Validate(messages);
         var illustrations = await Read<Dictionary<string, string>>(manifest.Illustrations);
         return new(ScenarioContent.CurrentSchemaVersion, manifest.Sources, manifest.Textures, map, scenario,
-            new(text.SchemaVersion, text.Entries) { Messages = messages, MessagePeople = text.MessagePeople }, illustrations);
+            new(text.SchemaVersion, text.Entries) { Messages = messages, MessagePeople = text.MessagePeople }, illustrations) { Presentation = await Read<San9.Content.Interface.CommandPresentation>(manifest.Presentation) };
     }
 
     public static async Task WriteAsync(string root, ScenarioContent content, CancellationToken token = default)
@@ -84,7 +87,7 @@ public static class ScenarioContentFiles
             if (previous.RootElement.TryGetProperty("schemaVersion", out var version) && version.GetInt32() <= ScenarioContent.CurrentSchemaVersion)
             {
                 List<string> paths = [];
-                foreach (string field in new[] { "map", "scenario", "text", "messages", "illustrations" })
+                foreach (string field in new[] { "map", "scenario", "text", "messages", "illustrations", "presentation" })
                 {
                     if (!previous.RootElement.TryGetProperty(field, out var value)) continue;
                     if (value.ValueKind == JsonValueKind.String) paths.Add(value.GetString()!);
@@ -111,6 +114,7 @@ public static class ScenarioContentFiles
             await Stage(manifest.Text, new StaticTextContent(content.Text.SchemaVersion, content.Text.Entries) { MessagePeople = content.Text.MessagePeople }, DataJsonOptions);
             foreach (var (path, messages) in messageFiles) await Stage(path, messages, DataJsonOptions);
             await Stage(manifest.Illustrations, content.IllustrationRoles, DataJsonOptions);
+            await Stage(manifest.Presentation, content.Presentation, DataJsonOptions);
             await Stage("content.json", manifest, PackageFiles.JsonOptions);
             token.ThrowIfCancellationRequested();
             foreach (var (pending, target) in files) File.Move(pending, target, true);

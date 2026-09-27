@@ -50,7 +50,7 @@ public sealed class ClientContentPackageTests
     [Fact]
     public void MissingUiAndInvalidDurabilityOrNamesFailValidation()
     {
-        var skin = new InterfaceSkin(35, [Asset], InterfaceSkin.RequiredUiAssets.ToDictionary(s => s, _ => "ui"), Colors(), CursorDefinition.EdgeScrollRoles.ToDictionary(s => s, _ => new CursorDefinition("ui", 0, 0)));
+        var skin = new InterfaceSkin(37, [Asset], InterfaceSkin.RequiredUiAssets.ToDictionary(s => s, _ => "ui"), Colors(), CursorDefinition.EdgeScrollRoles.ToDictionary(s => s, _ => new CursorDefinition("ui", 0, 0)));
         skin.Validate(); skin.Roles.Remove("top-frame");
         Assert.Throws<InvalidDataException>(skin.Validate);
         skin.Roles["top-frame"] = "missing";
@@ -77,9 +77,14 @@ public sealed class ClientContentPackageTests
     {
         var map = new MapPackage(14, "fixture", "fixture", "spring", 200, 200, 13056, 6656,
             [], [], [], [], [], [], Buildings, [], [], [], [], [], new([], []), []);
-        var skin = new InterfaceSkin(35, [Asset], InterfaceSkin.RequiredUiAssets.ToDictionary(s => s, _ => "ui"), Colors(), CursorDefinition.EdgeScrollRoles.ToDictionary(s => s, _ => new CursorDefinition("ui", 0, 0)));
+        var skin = new InterfaceSkin(37, [Asset], InterfaceSkin.RequiredUiAssets.ToDictionary(s => s, _ => "ui"), Colors(), CursorDefinition.EdgeScrollRoles.ToDictionary(s => s, _ => new CursorDefinition("ui", 0, 0)));
         var text = new TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion, new() { ["player"] = "Player", ["city"] = "City", ["port"] = "Port" });
-        foreach (string id in San9.Content.Interface.CommandMenuSkin.EntryIds) text.Entries.Add(San9.Content.Interface.CommandMenuSkin.DescriptionKey(id), "Description");
+        foreach (string id in CommandMenuSkin.ReasonIds) text.Entries.Add(CommandMenuSkin.ReasonKey(id), "Reason");
+        foreach (string id in San9.Content.Interface.CommandMenuSkin.EntryIds)
+        {
+            text.Entries.Add(San9.Content.Interface.CommandMenuSkin.DescriptionKey(id), "Description");
+            text.Entries.Add(San9.Content.Interface.CommandMenuSkin.HintKey(id), "Hint");
+        }
         foreach (string role in StrategyHintText.Roles) text.Entries.Add(StrategyHintText.Key(role), "Hint");
         var p = new ClientContentPackage(ScenarioContent.CurrentSchemaVersion, [], map, Fixture(), text, skin, new(3, [])); p.ValidateLinks();
         Assert.Throws<InvalidDataException>(() => (p with { SchemaVersion = 15 }).ValidateLinks());

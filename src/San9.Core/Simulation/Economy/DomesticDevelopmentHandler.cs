@@ -30,6 +30,7 @@ internal static class DomesticDevelopmentHandler
         var account = ResourceAccounts.Resolve(world, force.Id, city.CorpsId);
         uint funds = ResourceAccounts.Balance(world, account, ResourceKind.Money);
         int cost = 0, increment;
+        DomesticBonus? bonus = null;
         if (activity == DomesticActivity.Recruit)
         {
             if (city.Soldiers >= city.SoldierCapacity) return new(DevelopmentRejection.AtMaximum);
@@ -63,7 +64,8 @@ internal static class DomesticDevelopmentHandler
                 if (funds < cost) return new(DevelopmentRejection.InsufficientFunds);
                 increment = DomesticDevelopment.CalculateBaseEffect(activity, current, maximum, (int)Math.Min(funds, int.MaxValue), people.Select(p => abilities[p.Id]).ToArray());
             }
-            if (increment < maximum - current && Doubled(world, rules, force, people, abilities, activity)) increment = (int)Math.Min(maximum - current, 2L * increment);
+            if (increment < maximum - current) bonus = ResolveBonus(world, rules, force, people, abilities, activity);
+            if (bonus is not null) increment = (int)Math.Min(maximum - current, 2L * increment);
             world.Replace(activity switch
             {
                 DomesticActivity.Patrol => city with { PublicOrder = current + increment, PatrolUsed = true },
@@ -81,16 +83,13 @@ internal static class DomesticDevelopmentHandler
             foreach (int category in categories) proficiency[category] = Math.Min(1000, proficiency[category] + (person.MasteredCategories.Contains(category) ? 3 : 1));
             world.Replace(person with { Acted = true, TacticProficiencies = proficiency.ToImmutable() });
         }
-        return new(DevelopmentRejection.None, increment, cost);
+        return new(DevelopmentRejection.None, increment, cost, bonus);
     }
 
-    private static bool Doubled(WorldMutation world, EconomyRulebook rules, ForceState force, OfficerState[] people, IReadOnlyDictionary<int, OfficerAbilities> abilities, DomesticActivity activity)
+    private static DomesticBonus? ResolveBonus(WorldMutation world, EconomyRulebook rules, ForceState force, OfficerState[] people, IReadOnlyDictionary<int, OfficerAbilities> abilities, DomesticActivity activity)
     {
-        if (people.Length < 2) return false;
-        long Ability(OfficerState p) => activity switch { DomesticActivity.Patrol => abilities[p.Id].Intelligence,
-            DomesticActivity.Commerce or DomesticActivity.Cultivation => abilities[p.Id].Politics, _ => abilities[p.Id].Leadership };
-        var sorted = people.OrderByDescending(p => p.Status == OfficerStatus.Ruler)
-            .ThenByDescending(Ability).ThenBy(p => p.Id).ToArray();
+        if (people.Length < 2) return null;
+        var sorted = DomesticDevelopment.OrderParticipants(people, abilities, activity);
         foreach (var first in sorted)
         foreach (var second in sorted)
         {
@@ -98,9 +97,11 @@ internal static class DomesticDevelopmentHandler
             if (pair is null || world.NextRandom("domestic-combination") % 100 >= 10) continue;
             if (force.LeaderId is int leader && world.Officers.TryGetValue(leader, out var ruler) &&
                 Math.Min(EconomyMath.AffinityDistance(first.Affinity, ruler.Affinity), EconomyMath.AffinityDistance(second.Affinity, ruler.Affinity)) <= 5 &&
-                (first.Status == OfficerStatus.Ruler) == pair.FirstRequiresRuler && (second.Status == OfficerStatus.Ruler) == pair.SecondRequiresRuler) return true;
+                (first.Status == OfficerStatus.Ruler) == pair.FirstRequiresRuler && (second.Status == OfficerStatus.Ruler) == pair.SecondRequiresRuler) return new(DomesticBonusKind.SpecialPair, first.Id, second.Id);
         }
-        int chance = 5 * (people.GroupBy(p => p.Affinity).Max(g => g.Count()) + 1);
-        return world.NextRandom("domestic-combination") % 100 < (uint)chance;
+        var group = sorted.GroupBy(p => p.Affinity).OrderByDescending(g => g.Count()).First();
+        int chance = 5 * (group.Count() + 1);
+        return world.NextRandom("domestic-combination") % 100 < (uint)chance
+            ? new(DomesticBonusKind.Affinity, group.First().Id) : null;
     }
 }

@@ -6,10 +6,11 @@ public sealed record ClientOptions(string PackageRoot, int CenterX, int CenterY,
     double? AnimationTime, bool MapSmoke, bool UiSmoke, string? Screenshot, bool Quit)
 {
     public int ComputerDamageBonusPercent { get; init; }
+    public bool PatrolSmoke { get; init; }
     public bool RuntimeSmoke { get; init; }
     public bool InformationSmoke { get; init; }
     public bool TextSmoke { get; init; }
-    public bool RequiresWorldVerification => MapSmoke || UiSmoke || RuntimeSmoke || InformationSmoke || Screenshot is not null;
+    public bool RequiresWorldVerification => PatrolSmoke || MapSmoke || UiSmoke || RuntimeSmoke || InformationSmoke || Screenshot is not null;
     public static ClientOptions Parse(string[] args, string projectRoot)
     {
         string? Argument(string name)
@@ -37,6 +38,7 @@ public sealed record ClientOptions(string PackageRoot, int CenterX, int CenterY,
             args.Contains("--ui-smoke"), screenshot is null ? null : Path.GetFullPath(screenshot), args.Contains("--map-quit"))
         {
             ComputerDamageBonusPercent = bonus,
+            PatrolSmoke = args.Contains("--patrol-smoke"),
             RuntimeSmoke = args.Contains("--runtime-smoke"),
             InformationSmoke = args.Contains("--information-smoke"),
             TextSmoke = args.Contains("--text-smoke")

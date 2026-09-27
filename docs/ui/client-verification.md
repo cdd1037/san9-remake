@@ -13,6 +13,7 @@
 | 地图 | `--map-smoke` | `MapVerification.cs`：选点、缩放、拖动、边界、换季、导航和帧耗时采样 |
 | 主界面 | `--ui-smoke` | `StrategyHudVerification.cs`：按钮、名单焦点、滚动、图层、输入阻挡；`InterfaceVerification.cs`：界面状态截图 |
 | 情报 | `--information-smoke` | `InterfaceVerification.cs`：菜单、十类页面、键盘详情与返回、只读状态检查和截图 |
+| 巡察 | `--patrol-smoke` | `PatrolVerification.cs`：菜单、五人选择、即时提交、对白翻页、资金刷新及独立百姓内容探针；默认包输出 `verification/patrol/` |
 | 运行态接线 | `--runtime-smoke` | `ClientVerification.cs`：一次经营命令及其在地图、HUD 的刷新，重复命令拒绝 |
 | 字体与样式 | `--text-smoke` | `TextVerification.cs`、`TextStyleSheet.cs`：字体覆盖、富文本图标、不同字号及文字适配器比较页 |
 | 单张截图 | `--map-screenshot <PNG路径>` | 不启用其他检查时，只等待画面准备完成并截图 |

@@ -24,6 +24,8 @@ public partial class CatalogView : Control, IInformationPage
     public int? InitialCurrentId { get; init; }
     public CatalogTableState TableState { get; init; } = new();
     public CatalogSelection? Selection { get; init; }
+    public Func<IReadOnlySet<int>, bool>? CanConfirmSelection { get; init; }
+    private bool SelectionAccepted => Selection is { Selected.Count: > 0 } && (CanConfirmSelection?.Invoke(Selection.Selected) ?? true);
     public Action<IReadOnlySet<int>>? ConfirmSelection { get; init; }
     private int SelectionWidth => Selection is null ? 0 : 40;
     private InformationActionButton? _confirmSelection;
@@ -96,7 +98,7 @@ public partial class CatalogView : Control, IInformationPage
             _clearSelection = BulkButton("总括解除", new(_body.Position.X + 200, _body.End.Y - 64), () => { Selection.Clear(); RefreshRows(); });
             _confirmSelection = new InformationActionButton { Title = "决定", SkinPrefix = "catalog-accept-", FontSize = 24,
                 Textures = Textures, Position = new(_body.End.X - 248, _body.End.Y - 48), Size = new(80, 48) };
-            _confirmSelection.Pressed += () => { if (Selection.Selected.Count > 0) ConfirmSelection?.Invoke(Selection.Selected); };
+            _confirmSelection.Pressed += () => { if (SelectionAccepted) ConfirmSelection?.Invoke(Selection.Selected); };
             AddChild(_confirmSelection);
         }
         if (ShowMap is not null)
@@ -246,7 +248,7 @@ public partial class CatalogView : Control, IInformationPage
         if (_state.Current is { } row) CurrentChanged?.Invoke(row.Id);
         if (Selection is not null)
         {
-            _confirmSelection!.Disabled = Selection.Selected.Count == 0;
+            _confirmSelection!.Disabled = !SelectionAccepted;
             _selectAll!.Disabled = !_state.Rows.Any(r => !Selection.Selected.Contains(r.Id) && Selection.CanToggle(r.Id));
             _clearSelection!.Disabled = Selection.Selected.Count == 0;
         }

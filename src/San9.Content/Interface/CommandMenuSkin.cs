@@ -7,6 +7,9 @@ public static class CommandMenuSkin
         "facilities", "military", "talent", "strategy", "diplomacy", "appointments", "patrol", "commerce", "cultivate", "repair", "recruit", "train", "buy", "sell", "demolish", "sortie", "build", "transport", "summon", "move", "search", "employ", "alienate", "burn", "seize", "rumor", "false-report", "disorder", "inspire", "rescue", "gift", "request", "return", "surrender", "delegate", "strategist", "rank", "reward", "bestow", "confiscate", "execute", "exile", "attack", "march", "redirect-transport"
     });
     public static string DescriptionKey(string id) => $"ui.command.{id}";
+    public static string HintKey(string id) => $"ui.command-hint.{id}";
+    public static IReadOnlyList<string> ReasonIds { get; } = Array.AsReadOnly(new[] { "unavailable", "already-used", "public-order-max", "no-officer", "funds", "confused", "engaged" });
+    public static string ReasonKey(string id) => $"ui.command-reason.{id}";
     public static IEnumerable<string> RequiredRoles => EntryIds.Select(id => $"command-illustration-{id}")
         .Concat(new[] { "top", "middle", "bottom", "illustration-frame", "condition", "summary-city", "summary-facility", "summary-unit", "summary-merchant", "summary-training" }.Select(id => "command-" + id))
         .Concat(new[] { "primary", "secondary" }.SelectMany(level => new[] { "blue", "green", "brown" }

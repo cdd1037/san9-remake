@@ -33,6 +33,8 @@ public partial class CommandWindow : Control
     {
         var button = new InformationMenuButton { Title = title, SkinPrefix = "deployment-" + skin, Textures = Textures,
             Position = bounds.Position, Size = bounds.Size,
+            // The edit skin reserves transparent space beyond its visible button plate.
+            TextInsets = skin == "edit" ? new(0, 0, 8, 6) : Vector4.Zero,
             TextStyle = (hovered, pressed, disabled) => new(skin == "edit" ? 16 : 24,
                 new Color(disabled ? hovered ? "000000" : "a4a4a4" : hovered || pressed ? "f0f0f0" : "d8d8d8"),
                 GameTextEffect.Outline, new Color(disabled ? hovered ? "f0f0f0" : "000000" : hovered || pressed

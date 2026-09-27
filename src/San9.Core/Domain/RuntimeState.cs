@@ -58,7 +58,10 @@ public sealed record SettlementState(int Id, int? OwnerId, uint Soldiers, int Du
 
 public sealed record DevelopmentCommand(int ForceId, int SettlementId, System.Collections.Immutable.ImmutableArray<int> OfficerIds, DomesticActivity Activity);
 public enum DevelopmentRejection { None, UnknownObject, UnsupportedActivity, WrongOwner, OfficerUnavailable, AlreadyUsed, AtMaximum, InsufficientFunds, NotAuthorized, InvalidParticipants, NoRecruits, NoSoldiers }
-public readonly record struct DevelopmentOutcome(DevelopmentRejection Rejection, int Increment = 0, int Cost = 0)
+public enum DomesticBonusKind { SpecialPair, Affinity }
+public sealed record DomesticBonus(DomesticBonusKind Kind, int SpeakerId, int? PartnerId = null);
+
+public readonly record struct DevelopmentOutcome(DevelopmentRejection Rejection, int Increment = 0, int Cost = 0, DomesticBonus? Bonus = null)
 {
     [System.Text.Json.Serialization.JsonIgnore]
     public bool Accepted => Rejection == DevelopmentRejection.None;

@@ -323,6 +323,12 @@ public static class InterfaceSkinCompiler
             int palette = bindings[resource] - 200;
             Extra($"text-icon-{name}-{size}", resource, palette);
         }
+        // RE-0095: CBushouMessageDlg artwork and the two narration continuation animations.
+        foreach (var (role, resource) in new (string, int)[] {
+            ("portrait-frame", 168), ("middle", 169), ("right", 170), ("affiliation", 171) })
+            Extra("narration-" + role, resource, bindings[resource] - 200, true);
+        for (int frame = 0; frame < 6; frame++) Extra($"narration-portrait-next-{frame}", 447 + frame, bindings[447 + frame] - 200, true);
+        for (int frame = 0; frame < 7; frame++) Extra($"narration-result-next-{frame}", 453 + frame, bindings[453 + frame] - 200, true);
         Extra("message-left", 165, 15, true); Extra("message-middle", 166, 15, true); Extra("message-right", 167, 15, true);
         Extra("bar-morale-frame", 390, 51); Extra("bar-durability-frame", 391, 51);
         Extra("bar-morale-normal", 392, 51); Extra("bar-durability-normal", 393, 51);
@@ -362,6 +368,23 @@ public static class InterfaceSkinCompiler
             ui.Add(key, "ui-" + key);
         }
         var deploymentField = CompileDeploymentField(common.Images.Skip(242).Take(9).ToArray());
+        // RE-0095: header caps discard eight outside pixels; column rules discard
+        // three pixels on each side and eight at the outside vertical ends.
+        foreach (var (role, resource, left, top, right, bottom) in new (string, int, int, int, int, int)[] {
+            ("roster-header-left",273,8,0,0,0), ("roster-header-middle",274,0,0,0,0), ("roster-header-right",275,0,0,8,0),
+            ("column-top",279,3,8,3,0), ("column-middle",280,3,0,3,0), ("column-bottom",281,3,0,3,8),
+            ("divider",185,0,0,0,0) })
+        {
+            var source = common.Images[resource];
+            int width = source.Width - left - right, height = source.Height - top - bottom;
+            byte[] pixels = new byte[width * height];
+            for (int y = 0; y < height; y++)
+                source.Pixels.AsSpan((y + top) * source.Width + left, width).CopyTo(pixels.AsSpan(y * width, width));
+            string key = "deployment-" + role;
+            assets.Add(save("ui-" + key, "ui/" + key + ".png",
+                IndexedImageArchive.Decode(new(width, height, pixels), common.Palettes[bindings[resource] - 200], true, false)));
+            ui.Add(key, "ui-" + key);
+        }
         foreach (var (role, resource) in new (string, int)[] {
             ("title-left", 5), ("title-middle", 6), ("title-right", 7), ("slider-fill", 23), ("slider-thumb", 4) })
             Extra("deployment-number-" + role, resource, bindings[resource] - 200);
@@ -393,7 +416,7 @@ public static class InterfaceSkinCompiler
         TargetMarkerOffset[] offsets = [new(-16,-58), new(-20,-38), new(-4,-34), new(-30,-34), new(2,-52),
             new(-33,-52), new(-16,-22), new(-16,-32), new(-16,-28), new(-16,-41), new(-16,-30),
             new(-24,-32), new(-10,-34), new(-16,-34), new(-16,-32), new(-13,-32), new(-16,-34)];
-        return new(35, assets.ToArray(), ui, colors, cursors)
+        return new(37, assets.ToArray(), ui, colors, cursors)
         { BuildingTargetOffsets = offsets.Select((offset, type) => (offset, type)).ToDictionary(p => p.type, p => p.offset) };
     }
 

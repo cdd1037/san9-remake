@@ -163,7 +163,10 @@ public sealed record DevelopmentCompletedEvent(
     GameClock Clock,
     San9.Core.Domain.DevelopmentCommand Command,
     int Increment,
-    int Cost) : DomainEvent;
+    int Cost) : DomainEvent
+{
+    [System.Text.Json.Serialization.JsonRequired] public San9.Core.Domain.DomesticBonus? Bonus { get; init; }
+}
 
 public sealed record CommandResolvedEvent(
     Guid CommandId,

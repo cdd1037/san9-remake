@@ -675,7 +675,7 @@ public sealed class SimulationEngine
                     development = DomesticDevelopmentHandler.Apply(mutation, develop.Development, _rules.Economy, events);
                     if (!development.Value.Accepted) return Reject(CommandRejection.DevelopmentFailed, development);
                     events.Add(new DevelopmentCompletedEvent(mutation.Clock, develop.Development,
-                        development.Value.Increment, development.Value.Cost));
+                        development.Value.Increment, development.Value.Cost) { Bonus = development.Value.Bonus });
                     break;
                 case StartTaskCommand start:
                     var rule = _rules.FindTask(start.Kind);

@@ -20,8 +20,9 @@ public partial class MapCommandPopup : Control
     private MapCommandEntry? _hovered, _illustrated;
     private double _hoverTime;
     private bool _conditionVisible;
-    public string Hint => _hovered is {} entry ? entry.Children.Count > 0
-        ? Texts.Resolve(CommandMenuSkin.DescriptionKey(entry.Id)) : entry.Id == "sortie" ? "设置出征部队。" : $"{entry.Title}（命令预览）" : "";
+    public string Hint => _hovered is {} entry ? Texts.Resolve(entry.UnavailableReasonKey ?? CommandMenuSkin.HintKey(entry.Id)) : "";
+
+    public bool HintEnabled => _hovered?.Enabled ?? true;
 
     public override void _Ready()
     {
@@ -49,7 +50,7 @@ public partial class MapCommandPopup : Control
     private InformationMenuButton AddButton(MapCommandEntry entry, Vector2 point, bool secondary)
     {
         var button = new InformationMenuButton {
-            Title = entry.Title, Textures = Textures, Position = point, Size = new(68, 28),
+            Title = entry.Title, Disabled = !entry.Enabled, Textures = Textures, Position = point, Size = new(68, 28),
             SkinPrefix = $"command-{(secondary ? "secondary" : "primary")}-{entry.Tone.ToString().ToLowerInvariant()}"
         };
         AddChild(button);
@@ -66,7 +67,7 @@ public partial class MapCommandPopup : Control
         {
             var child = entry.Children[i];
             var button = AddButton(child, new(x, y + 28 * i), true);
-            button.Pressed += () => Activated?.Invoke(child.Id);
+            button.Pressed += () => { if (child.Enabled) Activated?.Invoke(child.Id); };
             _secondary.Add((button, child));
         }
         QueueRedraw();

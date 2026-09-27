@@ -43,11 +43,13 @@ public static class ClientContentImporter
             foreach (var item in converted.Messages) messages.Add(item.Key, item.Value);
             if (messageReports) adaptations.AddRange(converted.Adaptations);
         }
+        San9.Content.Interface.CommandPresentation presentation;
         using (var source = new MemoryStream(scenarioBytes))
         {
             var header = San9ScenarioArchive.ReadInitialScenario190Header(source);
             source.Position = 0;
             var people = San9ScenarioPersonArchive.ReadKnownRecords(source);
+            presentation = PatrolPresentationCompiler.Compile(people);
             messages = new GameplayMessageCompiler(scenario, people, header.ScenarioId, header.ScenarioModeCode).Compile(messages);
         }
         messages = PublicationMessageCatalog.Compile(messages);
@@ -55,12 +57,21 @@ public static class ClientContentImporter
         text = text with { Messages = messages };
         var roles = InformationArtCompiler.Compile(scenarioBytes, scenario, textures.Library, textures.Portraits);
         var dependency = new TextureDependency(Path.GetRelativePath(output, textureRoot).Replace('\\','/'));
+        Dictionary<string, byte[]> sounds = new(StringComparer.Ordinal);
+        foreach (var (role, file) in PatrolPresentationCompiler.SoundSources)
+            sounds.Add(presentation.Sounds[role], Read(Path.Combine(sourceDirectory.Root, file)));
         var content = new ScenarioContent(ScenarioContent.CurrentSchemaVersion, sources.Distinct().OrderBy(s => s.Name, StringComparer.Ordinal).ToArray(),
-            dependency, MapInstance.From(map), scenario, text, roles);
-        var loaded = ClientContentFiles.Resolve(content, textures, textureRoot);
+            dependency, MapInstance.From(map), scenario, text, roles) { Presentation = presentation };
+        var loaded = ClientContentFiles.Resolve(content, textures, textureRoot) with { ContentRoot = output };
         foreach (string key in messages.Keys)
             if (!San9.Content.Text.MessageGraph.ReferencesValid(key, messages))
                 throw new InvalidDataException($"Invalid or cyclic message references: {key}.");
+        foreach (var (path, bytes) in sounds)
+        {
+            string target = PackageFiles.Resolve(output, path);
+            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            await File.WriteAllBytesAsync(target, bytes, token);
+        }
         await ScenarioContentFiles.WriteAsync(output, content, token);
         await File.WriteAllTextAsync(Path.Combine(output, "message-id-map.json"),
             System.Text.Json.JsonSerializer.Serialize(PublicationMessageCatalog.SourceIdMap(), PackageFiles.JsonOptions),

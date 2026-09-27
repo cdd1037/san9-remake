@@ -5,7 +5,7 @@ namespace San9.Client.Godot;
 public partial class StrategyHud
 {
     public TurnPresentation Turn { get; private set; } = null!;
-    public bool CanIssueOrders => Interaction.CanIssueOrders && _patrol is null && _narration is null;
+    public bool CanIssueOrders => Interaction.CanIssueOrders && !SidebarMoving && _patrol is null && _narration is null;
     private readonly List<Control> _strategicHeader = [];
     private TextureButton _advanceButton = null!, _informationButton = null!;
     private GameDialog _turnDialog = null!;
@@ -13,11 +13,14 @@ public partial class StrategyHud
     private TextureRect _turnBanner = null!;
     private StrategyButton _pauseTurn = null!;
     private TextureProgressBar _turnProgress = null!;
+    private ExecutionPanels _executionPanels = null!;
     private readonly Texture2D[][] _turnTitles = new Texture2D[2][];
     private readonly CanvasItemMaterial _titleFlashMaterial = new() { BlendMode = CanvasItemMaterial.BlendModeEnum.Add };
 
     private void BuildTurnControls()
     {
+        _executionPanels = new ExecutionPanels { Textures = _textures, Texts = Texts };
+        AddChild(_executionPanels);
         _turnStatus = LabelAt("", new(270, 320), new(484, 96), 24);
         for (int phase = 0; phase < 2; phase++)
             _turnTitles[phase] = Enumerable.Range(0, 4).Select(frame => (Texture2D)_textures[$"turn-title-{(phase == 0 ? "execution" : "strategy")}-{frame}"]).ToArray();
@@ -52,6 +55,9 @@ public partial class StrategyHud
         Turn.Update(delta);
         World.Presentation = Turn.Display;
         World.Day = Turn.Day;
+        bool showPanels = Turn.Screen is TurnScreen.Preparing or TurnScreen.Playing or TurnScreen.AwaitingDecision ||
+            Turn.Screen == TurnScreen.Failed && _executionPanels.Expanded;
+        _executionPanels.Advance(showPanels, delta);
         UpdateTurnControls();
     }
 

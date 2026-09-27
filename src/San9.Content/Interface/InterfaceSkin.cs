@@ -15,6 +15,7 @@ public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dicti
         "scroll-thumb-top", "scroll-thumb-middle", "scroll-thumb-bottom", "button-scroll-up", "button-scroll-down",
         "field-left", "field-middle", "field-right", "ruler-frame", "region-frame",
         "message-left", "message-middle", "message-right", "button-pause", "turn-progress-frame", "turn-progress-fill",
+        "turn-record-panel", "turn-command-panel",
         "roster-row-left", "roster-row-middle", "roster-row-right",
         "bar-morale-frame", "bar-morale-normal", "bar-morale-warning", "bar-morale-critical",
         "bar-durability-frame", "bar-durability-normal", "bar-durability-warning", "bar-durability-critical",

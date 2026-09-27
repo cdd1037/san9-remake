@@ -20,6 +20,16 @@ public sealed class ScenarioTextReader(byte[] messages, byte[] executable) : IDi
     }
     public void ReadStrategyHints()
     {
+        // RE-0158: execution table header pointers, initialized by the source UI.
+        foreach (var (column, rva) in new[] { ("officer", 0x26a510), ("command", 0x26b3fc),
+            ("target", 0x26a6ac), ("remaining", 0x26a2fc) })
+        {
+            int pointer = BinaryPrimitives.ReadInt32LittleEndian(_executable.GetSectionData(rva).GetContent(0, 4).AsSpan());
+            var bytes = _executable.GetSectionData(checked(pointer - (int)_executable.PEHeaders.PEHeader!.ImageBase)).GetContent(0, 64).ToArray();
+            int end = Array.IndexOf(bytes, (byte)0);
+            if (end < 0) throw new InvalidDataException("Unterminated execution panel header.");
+            Add(San9.Content.Interface.ExecutionPanelSkin.HeaderKey(column), bytes[..end]);
+        }
         foreach (var entry in Interface.CommandMenuSources.Entries)
         {
             Add(San9.Content.Interface.CommandMenuSkin.DescriptionKey(entry.Id), _messages.MultilineText(entry.Message));

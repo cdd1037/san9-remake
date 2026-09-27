@@ -80,7 +80,7 @@ public partial class StrategyHud : Control
         if (_built) return;
         Turn = new(Session)
         {
-            CanPlayDay = () => ReferenceEquals(World.Day, Turn.Day) && World.IsDayReady,
+            CanPlayDay = () => ReferenceEquals(World.Day, Turn.Day) && World.IsDayReady && _executionPanels.IsExpanded,
             CreateDay = (before, after, events) => new(before, after, events, new MapDayPlan(World.Package!, before, events))
         };
         var p = Scenario;
@@ -146,6 +146,7 @@ public partial class StrategyHud : Control
         BuildTargetControls();
         // Adding controls can trigger hit testing before the HUD is fully constructed.
         _built = true;
+        BuildSidebar();
         UpdateSelection(); QueueRedraw();
     }
 
@@ -213,6 +214,7 @@ public partial class StrategyHud : Control
     public bool IsBlockedPoint(Vector2 point)
     {
         if (IsMapInteractionBlocked) return true;
+        if (_built && _executionPanels.Covers(point)) return true;
         if (point.Y >= 740 && point.Y < 768 && point.X >= 0 && point.X < 1024) return true;
         foreach (var (asset, position) in VisibleFrames())
         {
@@ -318,7 +320,7 @@ public partial class StrategyHud : Control
         if (_commandMenu.Visible) { _message.SetMessage(_commandMenu.Hint, _commandMenu.HintEnabled); return; }
         if (_mapContext.Visible) { _message.SetMessage(_mapContext.Hint, true); return; }
         if (_targets is not null) { _message.SetMessage(_targets.Selected is null ? "请选择目标。" : "点击空地设置中继点，点击其他目标切换，再次点击当前目标设定方针。", true); return; }
-        var button = GetChildren().OfType<StrategyButton>().FirstOrDefault(b => b.IsHovered())
+        var button = GetChildren().OfType<StrategyButton>().FirstOrDefault(b => b.Visible && b.IsHovered())
             ?? (Overview.IsOpen ? _overviewPanel.HoverButton : null);
         _message.SetMessage(button?.HintText ?? (Overview.IsOpen ? "" : "请选择命令起点。"), button is null || !button.Disabled);
     }
@@ -394,9 +396,7 @@ public partial class StrategyHud : Control
         if (_built)
         {
             _minimap!.SetCommandSource(_flow.Source ?? PatrolSource ?? (_commandMenu!.Visible ? _commandTarget : null));
-            bool sidebarVisible = Interaction.ShowSidebar && !_commandMenu!.Visible;
-            _rosterList.Visible = sidebarVisible;
-            foreach (var button in GetChildren().OfType<StrategyButton>().Where(b => b.Position.Y >= 208 && !_targetButtons.Contains(b))) button.Visible = sidebarVisible;
+            UpdateSidebar(delta);
         }
         UpdateHover(_hoverPosition ?? GetGlobalMousePosition());
         UpdateMessage();

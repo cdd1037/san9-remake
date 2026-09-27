@@ -64,6 +64,7 @@ public sealed record ClientContentPackage(int SchemaVersion, ContentSource[] Sou
             _ = Text.ResolveRich(CommandMenuSkin.HintKey(id));
         }
         foreach (string role in StrategyHintText.Roles) _ = Text.ResolveRich(StrategyHintText.Key(role));
+        foreach (string column in ExecutionPanelSkin.Columns) _ = Text.ResolveRich(ExecutionPanelSkin.HeaderKey(column));
         foreach (string role in Scenario.Officers.SelectMany(o => new[] { $"information-person-{o.State.Id}", $"catalog-person-{o.State.Id}" })
                      .Concat(Scenario.Information.Treasures.Select(t => $"information-treasure-{t.Id}")))
             if (!Skin.Roles.ContainsKey(role)) throw new InvalidDataException($"Missing information illustration: {role}");

@@ -86,6 +86,7 @@ public sealed class ClientContentPackageTests
             text.Entries.Add(San9.Content.Interface.CommandMenuSkin.HintKey(id), "Hint");
         }
         foreach (string role in StrategyHintText.Roles) text.Entries.Add(StrategyHintText.Key(role), "Hint");
+        foreach (string column in ExecutionPanelSkin.Columns) text.Entries.Add(ExecutionPanelSkin.HeaderKey(column), "Header");
         var p = new ClientContentPackage(ScenarioContent.CurrentSchemaVersion, [], map, Fixture(), text, skin, new(3, [])); p.ValidateLinks();
         Assert.Throws<InvalidDataException>(() => (p with { SchemaVersion = 15 }).ValidateLinks());
         Assert.Throws<InvalidDataException>(() => (p with { Scenario = p.Scenario with { Settlements = [p.Scenario.Settlements[0]] } }).ValidateLinks());

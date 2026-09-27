@@ -72,6 +72,8 @@ public static class InterfaceSkinCompiler
         Export("button-pause", 72, 2, 4);
         Export("turn-progress-frame", 89, 5, paletteAlpha: true);
         Export("turn-progress-fill", 90, 5, paletteAlpha: true);
+        Export("turn-record-panel", 59, 12, paletteAlpha: true);
+        Export("turn-command-panel", 61, 13, paletteAlpha: true);
         Export("field-left", 91, 5); Export("field-middle", 92, 5); Export("field-right", 93, 5);
         Export("ruler-frame", 94, 5); Export("region-frame", 97, 20, paletteAlpha: true);
         Export("target-title-left", 79, 15, paletteAlpha: true);

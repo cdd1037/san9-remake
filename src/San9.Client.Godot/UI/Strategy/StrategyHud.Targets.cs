@@ -35,8 +35,12 @@ public partial class StrategyHud
     {
         foreach (var frame in _frames)
         {
+            if (frame.Asset == "sidebar-frame")
+            {
+                if (SidebarVisible) yield return (frame.Asset, frame.Position + new Vector2(_sidebarOffset, 0));
+                continue;
+            }
             if (_targets is not null && frame.Asset != "radar-frame") continue;
-            if (frame.Asset == "sidebar-frame" && (_commandMenu?.Visible == true || !Turn.IsStrategy)) continue;
             if (frame.Asset == "ruler-frame" && !Turn.IsStrategy) continue;
             yield return frame;
         }

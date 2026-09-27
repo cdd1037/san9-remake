@@ -285,3 +285,7 @@ TC101完整保留41项兵法和28项阵形的展示元数据，名称与说明�
 皮肤36／完整纹理转换32新增人物对白框及两类继续指示动画。既有包先 `import-textures --rebuild skin`，再 `import-client`；选择性重建保留既有完整转换版本，皮肤采用当前版本。保存94／日志98保留内政加倍类型与触发人物，规则版本未变；表现不消耗规则随机流。操作与消息顺序见[巡察接入](ui/patrol-presentation.md)。
 
 命令菜单的底部短提示由 `CommandMenuSources.Hint` 指定原版消息号，经既有文本转换写入 `ui.command-hint.*`；45项均与同包消息目录正文逐项核对一致，无手写替代文案。`ui.command.*` 继续用于多行条件卡。此处接入命令用途提示，动态不可用原因仍随各命令资格接入，不把静态提示当作可执行判定。
+
+## 执行面空面板
+
+皮肤schema37新增`turn-record-panel`与`turn-command-panel`，分别导入G_Main59／调色板12、G_Main61／调色板13，保留逐色Alpha；剧本schema143新增四个`ui.execution-panel.*`原始表头词条。先执行`import-textures --rebuild skin`，再执行`import-client`。客户端仅展示空消息区与空命令表，消息行、命令行和交互尚未接入。

@@ -75,7 +75,7 @@ public sealed class ClientContentPackageTests
     [Fact]
     public void CompositionChecksIdentityCoordinatesAndEveryTextReference()
     {
-        var map = new MapPackage(11, "fixture", "fixture", "spring", 200, 200, 13056, 6656,
+        var map = new MapPackage(13, "fixture", "fixture", "spring", 200, 200, 13056, 6656,
             [], [], [], [], [], [], Buildings, [], [], [], [], [], new([], []), []);
         var skin = new InterfaceSkin(33, [Asset], InterfaceSkin.RequiredUiAssets.ToDictionary(s => s, _ => "ui"), Colors(), CursorDefinition.EdgeScrollRoles.ToDictionary(s => s, _ => new CursorDefinition("ui", 0, 0)));
         var text = new TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion, new() { ["player"] = "Player", ["city"] = "City", ["port"] = "Port" });

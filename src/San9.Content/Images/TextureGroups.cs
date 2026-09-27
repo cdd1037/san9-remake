@@ -20,8 +20,11 @@ public static class TextureGroups
         {
             "water" => "water",
             "soldier" => "guards",
+            "building" when parts[1] == "smoke" => "buildings/smoke",
             "unit" when parts[1] == "idle" => "units/bodies/" + parts[2],
-            "unit" when parts[1] is "condition" or "influence" => "units/" + parts[1],
+            "unit" when parts[1] == "action" => "units/actions/" + parts[2],
+            "unit" when parts[1] is "condition" or "influence" or "wake" => "units/" + parts[1],
+            "rockfall" when parts[1] == "impact" => "projectiles/rockfall-impact",
             "unit" when parts[1] == "flag" && parts[3] == "pole" => "units/flags/" + parts[2] + "/poles",
             "unit" when parts[1] == "flag" && parts[3] == "cloth" => "units/flags/" + parts[2] + "/cloth/" + (int.Parse(parts[4], System.Globalization.CultureInfo.InvariantCulture) / 16).ToString("D2", System.Globalization.CultureInfo.InvariantCulture),
             "unit" when parts[1] == "flag" && parts[3] == "glyph" => "units/flags/" + parts[2] + "/glyphs/" + parts[4] + "/" + (int.Parse(parts[5], System.Globalization.CultureInfo.InvariantCulture) / 32).ToString("D2", System.Globalization.CultureInfo.InvariantCulture),

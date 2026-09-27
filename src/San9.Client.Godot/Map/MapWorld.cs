@@ -21,12 +21,16 @@ public partial class MapWorld : Node2D
     private string _packageRoot = "";
     private string? _error;
     private bool _dragging, _showBoundaries = true, _awaitingSeason;
-    private readonly Stopwatch _animation = Stopwatch.StartNew(), _navigation = new(), _loadWatch = new();
+    private readonly Stopwatch _navigation = new(), _loadWatch = new();
     private double? _fixedAnimationTime;
+    private double _animationMilliseconds;
     private TerrainRenderer? _announcedTerrain;
     private sealed record LoadedTerrain(Dictionary<string, PngImage> Common, TerrainRenderer Renderer, string Season);
     internal MapScene? Scene { get; private set; }
-    internal double AnimationTime => _fixedAnimationTime ?? _animation.Elapsed.TotalMilliseconds;
+    internal double AnimationTime => _fixedAnimationTime ?? _animationMilliseconds;
+    public bool AnimationPaused { get; set; }
+    public TurnDayPresentation? Day { get; set; }
+    public bool IsDayReady => IsVisibleReady && ReferenceEquals(_display?.Presented?.Region.Scene.Day, Day);
     internal TerrainChunkCache<ImageTexture> Terrain => _terrain!;
     public MapSceneView? Display => _display;
     public San9.Application.GameSession Session { get; set; } = null!;
@@ -110,6 +114,7 @@ public partial class MapWorld : Node2D
     }
     public override void _Process(double delta)
     {
+        if (!AnimationPaused) _animationMilliseconds += delta * 1000;
         long start = Stopwatch.GetTimestamp();
         if (!Input.IsMouseButtonPressed(MouseButton.Middle)) _dragging = false;
         if (_loading is { IsCompleted: true } completed)
@@ -123,7 +128,7 @@ public partial class MapWorld : Node2D
             }
             catch (Exception error) { _error = error.Message; _awaitingSeason = false; GD.PushError(_error); }
         }
-        if (Scene is not null && !ReferenceEquals(Scene.State, View)) RefreshRuntimeObjects();
+        if (Scene is not null && (!ReferenceEquals(Scene.State, View) || !ReferenceEquals(Scene.Day, Day))) RefreshRuntimeObjects();
         _terrain?.Pump(() => Textures.CanUpload);
         if (_display?.Error is not null) _awaitingSeason = false;
         UpdateEdgeScrolling(delta);
@@ -148,7 +153,7 @@ public partial class MapWorld : Node2D
     public void RefreshRuntimeObjects()
     {
         if (Scene is null) return;
-        Scene = new(Scene.Map, Scene.Terrain, Scene.Season, View, Textures, Scene); RequestDisplay();
+        Scene = new(Scene.Map, Scene.Terrain, Scene.Season, View, Textures, Scene, Day); RequestDisplay();
     }
     public void PreviewSeason(string season) => BeginLoad(season);
     public void HoverBuilding(int? id) => HoverObject(id is int value ? new(value, false) : null);

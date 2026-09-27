@@ -106,7 +106,23 @@ public sealed class StrategySnapshot
 {
     private readonly MilitaryRulebook? military;
     internal MilitaryRulebook? MilitaryRules => military;
+    private IReadOnlySet<int>? engagedSettlements;
+    public bool IsSettlementEngaged(int id) => military is not null &&
+        (engagedSettlements ??= MilitaryEngagementQuery.EngagedSettlements(World, military)).Contains(id);
     public int? FormationId(UnitState unit) => unit.FormationId is null ? null : military!.Formation(unit).Id;
+    public MapOccupancy? BattleArea(int id, bool settlement, WorldPosition? position = null)
+    {
+        if (military is null) return null;
+        if (settlement)
+        {
+            var s = World.Settlements.FirstOrDefault(s => s.Id == id);
+            return s is not null && military.TryPlace(s, out var place) ? new(place.Position, place.Footprint) : null;
+        }
+        var unit = World.Units.FirstOrDefault(u => u.Id == id);
+        return unit?.FormationId is not null ? new(position ?? unit.Position, military.Formation(unit, position).Footprint) : null;
+    }
+    public IReadOnlyList<MapCell> FacilityRockfallPath(int id, WorldPosition target) => military is not null &&
+        World.Settlements.FirstOrDefault(s => s.Id == id) is {} source ? military.RockfallPath(source, target, World.Settlements) : [];
     public BattleRank? FormationRank(UnitState unit, int officerId) => unit.FormationId is null || !unit.MemberRanks.TryGetValue(officerId, out var rank)
         ? null : unit.NavalFormationId is null ? rank : military!.Rank(unit, officerId);
     private MilitaryArrivalForecast? arrivalForecast;

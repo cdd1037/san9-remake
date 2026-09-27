@@ -62,13 +62,17 @@ public sealed partial class MilitaryRulebook
     }
 
     public bool RockfallCovers(SettlementState source, WorldPosition target, IEnumerable<SettlementState> settlements)
+        => RockfallPath(source, target, settlements).Count > 0;
+
+    public IReadOnlyList<MapCell> RockfallPath(SettlementState source, WorldPosition target, IEnumerable<SettlementState> settlements)
     {
         if (Rockfall is not { } profile || source.IsDestroyed || source.Facility?.BuilderUnitId is not null ||
             !TryPlace(source, out _) || !FacilityAttack(source).UsesRockfallPower ||
-            target.X < 0 || target.Y < 0 || target.X >= Map.FineWidth || target.Y >= Map.FineHeight) return false;
+            target.X < 0 || target.Y < 0 || target.X >= Map.FineWidth || target.Y >= Map.FineHeight) return [];
         var destination = MapCoordinates.Cell(target);
         var visited = GeographicCells(GeographicArea(source)).ToHashSet();
-        if (visited.Contains(destination)) return false;
+        if (visited.Contains(destination)) return [];
+        var predecessors = new Dictionary<MapCell, MapCell>();
         var occupied = settlements.Where(s => s.Id != source.Id && !s.IsDestroyed && TryPlace(s, out _))
             .Select(GeographicArea).ToArray();
         var queue = new Queue<(MapCell Cell, int Distance)>();
@@ -84,12 +88,19 @@ public sealed partial class MilitaryRulebook
                         visited.Contains(next) || geographicBlocked.Contains(next) || Map.IsWater(MapCoordinates.Center(next)) ||
                         elevations[next.Y * Map.Width + next.X] > elevations[current.Cell.Y * Map.Width + current.Cell.X] ||
                         occupied.Any(area => Inside(next, area))) continue;
-                    if (next == destination) return true;
+                    predecessors[next] = current.Cell;
+                    if (next == destination)
+                    {
+                        List<MapCell> path = [next];
+                        while (predecessors.TryGetValue(path[^1], out var previous)) path.Add(previous);
+                        path.Reverse();
+                        return path;
+                    }
                     visited.Add(next);
                     queue.Enqueue((next, current.Distance + 1));
                 }
         }
-        return false;
+        return [];
     }
 
     public int FacilityAttackRange(SettlementState source, WorldPosition target, IEnumerable<SettlementState> settlements) =>

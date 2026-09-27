@@ -23,14 +23,21 @@ public sealed record MapComposition(int Id, MapCompositionPart[] Parts)
 {
     [JsonRequired] public MapGuard[] Guards { get; init; } = [];
     [JsonRequired] public MapFlag[] Flags { get; init; } = [];
+    [JsonRequired] public MapFlag[][] ArrowOrigins { get; init; } = [];
+    [JsonRequired] public MapBuildingSmoke Smoke { get; init; } = new([], [], []);
 }
+public sealed record MapSmokeEmitter(string ClipId, int X, int Y, int Chance, bool BehindBuilding);
+public sealed record MapBuildingSmoke(MapSmokeEmitter[] Engagement, MapSmokeEmitter[] DamageA, MapSmokeEmitter[] DamageB);
 public sealed record MapCompositionPart(bool PaletteAlpha, bool DevelopmentVariant, int ResourceId, int X, int Y);
 public enum MapBlendMode { Alpha, Additive }
 public sealed record MapAnimationClip(string Id, string[] Frames, int FrameMilliseconds, Dictionary<string, string[]> SeasonFrames)
 {
     [JsonRequired] public MapBlendMode BlendMode { get; init; }
 }
-public sealed record MapAnimatedSprite(string ClipId, int X, int Y, int Phase, int BuildingId);
+public sealed record MapAnimatedSprite(string ClipId, int X, int Y, int Phase, int BuildingId)
+{
+    public bool BehindBuilding { get; init; }
+}
 public sealed record MapAnimations(MapAnimationClip[] Clips, MapAnimatedSprite[] Water);
 public sealed record MapPackage(
     int SchemaVersion, string SourceBuild, string ScenarioId, string InitialSeason,
@@ -49,7 +56,7 @@ public static class MapPackageFiles
 {
     public static void Validate(MapPackage map)
     {
-        if (map.SchemaVersion != 11 || map.Width != 200 || map.Height != 200 || map.Squares.Length != 40000 ||
+        if (map.SchemaVersion != 13 || map.Width != 200 || map.Height != 200 || map.Squares.Length != 40000 ||
             map.CanvasWidth != 13056 || map.CanvasHeight != 6656) throw new InvalidDataException("Unsupported map dimensions or schema.");
         if (!map.Seasons.Select(s => s.Id).Order().SequenceEqual(new[] { "autumn", "spring", "summer", "winter" }) ||
             !map.Seasons.Any(s => s.Id == map.InitialSeason)) throw new InvalidDataException("Invalid seasons.");
@@ -94,14 +101,16 @@ public static class MapPackageFiles
             throw new InvalidDataException("Duplicate building composition.");
         foreach (var composition in map.Compositions)
         {
-            if (composition.Parts.Length == 0 || composition.Guards.Any(g => g.Direction is < 0 or > 7))
+            if (composition.Parts.Length == 0 || composition.Guards.Any(g => g.Direction is < 0 or > 7) ||
+                composition.ArrowOrigins.Length != 0 && (composition.ArrowOrigins.Length != 8 || composition.ArrowOrigins.Any(a => a.Length == 0)))
                 throw new InvalidDataException("Invalid building composition.");
             foreach (var part in composition.Parts)
                 for (int variant = 0; variant < (composition.Id < 15 && part.DevelopmentVariant ? 3 : 1); variant++)
                     if (!common.ContainsKey($"building-{part.ResourceId+variant}-{(part.PaletteAlpha?"alpha":"key")}"))
                         throw new InvalidDataException("Incomplete building development catalog.");
         }
-        map.Units.Validate(map.Animations.Clips.ToDictionary(c => c.Id));
+        map.Units.Validate(map.Animations.Clips.ToDictionary(c => c.Id), common.Keys.ToHashSet());
+        ValidateBuildingSmoke(map.Compositions, map.Animations.Clips.ToDictionary(c => c.Id));
         var clipIds = map.Animations.Clips.Select(c => c.Id).ToHashSet();
         var requiredClips = Enumerable.Range(0,51).Select(c => $"flag-cloth-{c}")
             .Concat(Enumerable.Range(0,2).SelectMany(v => Enumerable.Range(0,186).Select(g => $"flag-glyph-{v}-{g}")))
@@ -109,6 +118,14 @@ public static class MapPackageFiles
             .Concat(["flag-pole-back","flag-pole-front"]);
         if (requiredClips.Any(id => !clipIds.Contains(id))) throw new InvalidDataException("Incomplete runtime flag or guard catalog.");
         ValidateAnimations(map.Animations, common, map.Buildings.Select(b => b.Id).ToHashSet());
+    }
+
+    public static void ValidateBuildingSmoke(IEnumerable<MapComposition> compositions, IReadOnlyDictionary<string, MapAnimationClip> clips)
+    {
+        foreach (var c in compositions)
+            foreach (var emitter in c.Smoke.Engagement.Concat(c.Smoke.DamageA).Concat(c.Smoke.DamageB))
+                if (emitter.Chance is < 0 or > 100 || !clips.ContainsKey(emitter.ClipId))
+                    throw new InvalidDataException("Invalid building smoke emitter.");
     }
 
     public static void ValidateAnimations(MapAnimations animations, IReadOnlyDictionary<string, ImageAsset> assets, ISet<int> buildings)

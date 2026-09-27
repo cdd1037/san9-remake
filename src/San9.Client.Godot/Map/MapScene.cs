@@ -7,7 +7,7 @@ using San9.Rendering;
 namespace San9.Client.Godot;
 
 // Immutable display snapshot shared by all cameras. Visible sets never own world state.
-internal sealed class MapScene
+internal sealed partial class MapScene
 {
     public MapPackage Map { get; }
     public TerrainRenderer Terrain { get; }
@@ -17,12 +17,20 @@ internal sealed class MapScene
     public MapBuilding[] Buildings { get; }
     public UnitVisual[] Units { get; }
     public IReadOnlyDictionary<int, MapAnimatedSprite[]> Animations { get; }
+    private readonly IReadOnlyDictionary<int, MapAnimatedSprite[]>? _combatBuildingAnimations;
+    public IEnumerable<MapAnimatedSprite> BuildingAnimations(int id, bool preload = false)
+    {
+        var baseline = Animations.GetValueOrDefault(id, []);
+        if (_combatBuildingAnimations is null) return baseline;
+        var combat = _combatBuildingAnimations.GetValueOrDefault(id, []);
+        return preload ? baseline.Concat(combat).Distinct() : Day?.CombatMilliseconds >= 0 ? combat : baseline;
+    }
     public IReadOnlyDictionary<string, MapAnimationClip> Clips { get; }
     public IReadOnlySet<string> HighlightableBuildingAssets { get; }
     private readonly TextureService _textures;
     private readonly Dictionary<(int X, int Y), int[]> _waterBuckets;
 
-    public MapScene(MapPackage map, TerrainRenderer terrain, string season, StrategySnapshot state, TextureService textures, MapScene? previous = null)
+    public MapScene(MapPackage map, TerrainRenderer terrain, string season, StrategySnapshot state, TextureService textures, MapScene? previous = null, TurnDayPresentation? day = null)
     {
         Map = map; Terrain = terrain; Season = season; State = state; _textures = textures;
         Settlements = state.Settlements.ToDictionary(s => s.Id);
@@ -40,15 +48,28 @@ internal sealed class MapScene
             _waterBuckets = buckets.ToDictionary(p => p.Key, p => p.Value.ToArray());
         }
         var forces = state.Forces.ToDictionary(f => f.Id);
-        var visuals = BuildingVisuals.Resolve(map, state.Settlements.Select(s =>
+        var buildingStates = state.Settlements.Select(s =>
         {
             var force = s.OwnerId is int owner ? forces[owner] : null;
             return new BuildingVisualState(s.Id, s.Durability, s.Appearance, Math.Max(s.Commerce, s.Cultivation),
                 s.Soldiers, force?.ColorCode ?? 50, force?.FlagGlyph ?? -1)
-            { IsDestroyed = s.IsDestroyed, Placement = s.FacilityTypeId is int type ? new(s.Id, s.X, s.Y, type) : null };
-        }).ToArray());
+            {
+                IsDestroyed = s.IsDestroyed, Placement = s.FacilityTypeId is int type ? new(s.Id, s.X, s.Y, type) : null,
+                IsEngaged = state.IsSettlementEngaged(s.Id), IsUnderConstruction = s.IsUnderConstruction,
+                Morale = s.Morale, Month = state.Month
+            };
+        }).ToArray();
+        var visuals = BuildingVisuals.Resolve(map, buildingStates);
+        if (day is not null)
+        {
+            var attacked = day.Events.OfType<San9.Core.Simulation.BattleDamageEvent>()
+                .Where(e => !e.AttackerIsSettlement && e.SettlementId is not null).Select(e => e.SettlementId!.Value).ToHashSet();
+            _combatBuildingAnimations = BuildingVisuals.Resolve(map, buildingStates.Select(s => s with
+                { IsEngaged = s.IsEngaged || attacked.Contains(s.Id) || day.After.IsSettlementEngaged(s.Id) }).ToArray())
+                .Animations.GroupBy(s => s.BuildingId).ToDictionary(g => g.Key, g => g.ToArray());
+        }
         var unitPositions = state.World.Units.ToDictionary(u => u.Id, u => u.Position);
-        Units = state.World.Units.Where(u => !u.IsEmbedded && !u.IsPersonnel && u.FormationId is not null && u.Soldiers > 0)
+        _unitStates = state.World.Units.Where(u => !u.IsEmbedded && !u.IsPersonnel && u.FormationId is not null && u.Soldiers > 0)
             .Select(u =>
             {
                 var order = u.EffectiveOrder;
@@ -58,7 +79,7 @@ internal sealed class MapScene
                         state.Settlements.FirstOrDefault(s => s.Id == place) is {} destination ? MapCoordinates.Center(new(destination.X, destination.Y)) : null : null);
                 var commander = u.CommanderId is int commanderId ? state.Officers.FirstOrDefault(o => o.Id == commanderId) : null;
                 var force = forces[u.OwnerId];
-                return UnitVisuals.Resolve(new(u.Id,
+                return new UnitVisualState(u.Id,
                     (u.Position.X - MapCoordinates.UnitsPerCell / 2) / (double)MapCoordinates.UnitsPerCell,
                     (u.Position.Y - MapCoordinates.UnitsPerCell / 2) / (double)MapCoordinates.UnitsPerCell,
                     map.Squares[u.Cell.Y * map.Width + u.Cell.X].Elevation, u.Soldiers, state.FormationId(u)!.Value,
@@ -69,13 +90,16 @@ internal sealed class MapScene
                     Morale = u.Morale, CommanderNameKey = commander?.NameKey,
                     IsRulerCommander = u.CommanderId is int leader && force.LeaderId == leader,
                     UsesImperialAppearance = force.UsesImperialAppearance
-                }, map.Units, Clips);
-            }).ToArray();
+                };
+            }).ToDictionary(u => u.Id);
+        Units = _unitStates.Values.Select(s => UnitVisuals.Resolve(s, map.Units, Clips)).ToArray();
         Buildings = visuals.Buildings;
         var compositions = map.Compositions.ToDictionary(c => c.Id);
         HighlightableBuildingAssets = Buildings.SelectMany(b => b.Sprites.Zip(compositions[b.CompositionId].Parts)
             .Where(p => !p.Second.PaletteAlpha).Select(p => p.First.AssetId)).ToHashSet();
         Animations = visuals.Animations.GroupBy(s => s.BuildingId).ToDictionary(g => g.Key, g => g.ToArray());
+        Day = day;
+        PrepareDay();
     }
     public Rect2 Bounds(MapSprite sprite)
     {
@@ -98,9 +122,10 @@ internal sealed class MapScene
     }
     public bool Intersects(MapBuilding building, Rect2 bounds) =>
         building.Sprites.Any(s => bounds.Intersects(Bounds(s))) ||
-        Animations.GetValueOrDefault(building.Id, []).Any(s => bounds.Intersects(Bounds(s))) ||
+        BuildingAnimations(building.Id, true).Any(s => bounds.Intersects(Bounds(s))) ||
         bounds.Intersects(new Rect2(Anchor(building), new(116, 55)));
     public bool Intersects(UnitVisual unit, Rect2 bounds) =>
+        Day is not null ? MotionBounds(unit).Intersects(bounds) :
         unit.Animations.Any(s => bounds.Intersects(Bounds(s))) ||
         bounds.Intersects(new Rect2(unit.LabelX, unit.LabelY, 76, 47));
     public MapSceneRegion Select(Rect2 bounds, bool boundaries)
@@ -132,13 +157,14 @@ internal sealed record MapSceneRegion(MapScene Scene, Rect2 Bounds, MapBuilding[
         Clouds.Where(s => bounds.Intersects(Scene.Bounds(s))).ToArray(),
         Water.Where(s => bounds.Intersects(Scene.Bounds(s))).ToArray());
     public IEnumerable<MapAnimatedSprite> ObjectAnimations => Buildings
-        .SelectMany(b => Scene.Animations.GetValueOrDefault(b.Id, []))
+        .SelectMany(b => Scene.BuildingAnimations(b.Id, true))
         .Where(s => Bounds.Intersects(Scene.Bounds(s)))
         .Concat(Units.SelectMany(u => u.Animations));
     public IEnumerable<string> Assets => new[] { "cloud-fill" }
         .Concat(Bridges.Concat(Boundaries).Concat(Clouds).Concat(Buildings.SelectMany(b => b.Sprites))
             .Where(s => Bounds.Intersects(Scene.Bounds(s))).Select(s => s.AssetId))
         .Concat(Water.Concat(ObjectAnimations).SelectMany(Scene.Frames))
+        .Concat(Scene.MotionAssets(Units, Bounds))
         .Concat(Buildings.SelectMany(b => Scene.Animations.GetValueOrDefault(b.Id, [])).Where(s => s.ClipId.StartsWith("flag-", StringComparison.Ordinal))
             .Select(s => Scene.Clips[s.ClipId]).Where(c => c.SeasonFrames.TryGetValue("autumn", out var frames) && frames.Length > 2)
             .Select(c => c.SeasonFrames["autumn"][2])).Distinct();
@@ -150,7 +176,7 @@ internal sealed record MapSceneRegion(MapScene Scene, Rect2 Bounds, MapBuilding[
         groundOverlay?.Invoke();
         var objects = Buildings.Select(b => (Depth: (double)(b.X + b.Y), X: (double)b.X, Kind: 0, Id: b.Id,
                 Building: (MapBuilding?)b, Unit: (UnitVisual?)null))
-            .Concat(Units.Select(u => (Depth: u.Depth, X: u.CellX, Kind: 1, Id: u.Id,
+            .Concat(Units.Select(Scene.Sample).Select(u => (Depth: u.Depth, X: u.CellX, Kind: 1, Id: u.Id,
                 Building: (MapBuilding?)null, Unit: (UnitVisual?)u)))
             .OrderBy(o => o.Depth).ThenBy(o => o.X).ThenBy(o => o.Kind).ThenBy(o => o.Id);
         bool overlayDrawn = false;
@@ -160,18 +186,25 @@ internal sealed record MapSceneRegion(MapScene Scene, Rect2 Bounds, MapBuilding[
             { overlay.Draw(); overlayDrawn = true; }
             if (item.Building is { } building)
             {
+                foreach (var s in Scene.BuildingAnimations(building.Id).Where(s => s.BehindBuilding))
+                    emit(MapAnimationClock.Asset(Scene.Clips[s.ClipId], Scene.Season, time, s.Phase), new(s.X, s.Y), null, Scene.Clips[s.ClipId].BlendMode, false);
                 foreach (var s in building.Sprites) emit(s.AssetId, new(s.X, s.Y), new(building.Id, false), MapBlendMode.Alpha, Scene.HighlightableBuildingAssets.Contains(s.AssetId));
-                foreach (var s in Scene.Animations.GetValueOrDefault(building.Id, []))
+                foreach (var s in Scene.BuildingAnimations(building.Id).Where(s => !s.BehindBuilding))
                     emit(MapAnimationClock.Asset(Scene.Clips[s.ClipId], Scene.Season, time, s.Phase), new(s.X, s.Y), null, Scene.Clips[s.ClipId].BlendMode, false);
             }
             else
                 for (int i = 0; i < item.Unit!.Animations.Length; i++)
                 {
                     var s = item.Unit.Animations[i];
-                    emit(MapAnimationClock.Asset(Scene.Clips[s.ClipId], Scene.Season, time, s.Phase), new(s.X, s.Y), new(item.Id, true), Scene.Clips[s.ClipId].BlendMode, i < item.Unit.BodySpriteCount);
+                    double clock = Scene.Day is {} day ? day.Elapsed * 1000 : time;
+                    if (Scene.Day is { CombatMilliseconds: >= 0 } combat && i >= item.Unit.BodySpriteStart && i < item.Unit.BodySpriteStart + item.Unit.BodySpriteCount)
+                        clock = combat.CombatMilliseconds;
+                    emit(MapAnimationClock.Asset(Scene.Clips[s.ClipId], Scene.Season, clock, s.Phase), new(s.X, s.Y), new(item.Id, true), Scene.Clips[s.ClipId].BlendMode,
+                        i >= item.Unit.BodySpriteStart && i < item.Unit.BodySpriteStart + item.Unit.BodySpriteCount);
                 }
         }
         if (!overlayDrawn && objectOverlay is { } remaining) remaining.Draw();
+        foreach (var projectile in Scene.Projectiles(Bounds)) emit(projectile.AssetId, new((float)projectile.X, (float)projectile.Y), null, MapBlendMode.Alpha, false);
         foreach (var s in Clouds) emit(s.AssetId, new(s.X, s.Y), null, MapBlendMode.Alpha, false);
     }
 }

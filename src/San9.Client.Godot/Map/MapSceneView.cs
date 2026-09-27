@@ -88,6 +88,7 @@ public partial class MapSceneView : Node2D
     private MapObjectTarget? _drawnHover;
     private int _drawnTerrainCount;
     private long _drawnAssetRevision;
+    private double _drawnDayTime = -1;
     private (MapScene Scene, MapViewport Camera, Vector2 Size, bool Boundaries)? _lastRequest;
     public long Revision { get; private set; }
     public long TerrainDraws { get; private set; }
@@ -222,7 +223,8 @@ public partial class MapSceneView : Node2D
         bool markerChanged = Targets is not null && _markerFrame != (int)(AnimationTime() / 200) % 4;
         markerChanged |= Targets is not null && _routeFrame != (int)(AnimationTime() / 200) % 8;
         markerChanged |= Targets?.Waypoint is not null && _waypointFrame != (int)(AnimationTime() / 142) % 4;
-        bool water = resourcesChanged, objects = hoverChanged || resourcesChanged || targetsChanged || markerChanged || _drawnUiRevision != _ui.Revision;
+        bool motion = frame.Region.Scene.Day is {} day && _drawnDayTime != day.Elapsed;
+        bool water = resourcesChanged, objects = motion || hoverChanged || resourcesChanged || targetsChanged || markerChanged || _drawnUiRevision != _ui.Revision;
         foreach (string id in frame.WaterClips.Concat(frame.ObjectClips).Distinct())
         {
             int current = MapAnimationClock.Frame(frame.Region.Scene.Clips[id], AnimationTime());
@@ -232,7 +234,8 @@ public partial class MapSceneView : Node2D
         }
         if (water) _water.QueueRedraw();
         if (objects) RebuildObjects();
-        if (hoverChanged) _annotations.QueueRedraw();
+        if (motion) { _drawnDayTime = frame.Region.Scene.Day!.Elapsed; Revision++; }
+        if (hoverChanged || motion) _annotations.QueueRedraw();
     }
     public override void _Draw()
     {
@@ -374,7 +377,7 @@ public partial class MapSceneView : Node2D
             GameTextPresenter.Draw(target, font, s.ResolveName(texts), new(0, 53), style);
             foreach (string icon in s.Icons) target.DrawTexture(_ui["icon-" + icon], icon == "emperor" ? new(96, 17) : new(75, 17));
         }
-        foreach (var unit in frame.Region.Units)
+        foreach (var unit in frame.Region.Units.Select(frame.Region.Scene.Sample))
         {
             string unitName = unit.CommanderNameKey is { } nameKey ? texts.Resolve(nameKey) + "队" : "部队";
             int fontSize = GameTextStyles.Building(false).FontSize;

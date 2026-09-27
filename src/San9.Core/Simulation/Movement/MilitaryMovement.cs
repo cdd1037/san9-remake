@@ -28,7 +28,10 @@ public sealed record OrderUnitCommand(Guid CommandId, int IssuerId, long Sequenc
 }
 public sealed record UnitDeployedEvent(GameClock Clock, int UnitId, int SettlementId, ImmutableArray<int> OfficerIds) : DomainEvent;
 public sealed record UnitOrderChangedEvent(GameClock Clock, int UnitId, MilitaryOrder? Order, string Reason) : DomainEvent;
-public sealed record UnitMovedEvent(GameClock Clock, int UnitId, WorldPosition From, WorldPosition To, int Spent, NavigationStatus Status) : DomainEvent;
+public sealed record UnitMovedEvent(GameClock Clock, int UnitId, WorldPosition From, WorldPosition To, int Spent, NavigationStatus Status) : DomainEvent
+{
+    [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<WorldPosition> Steps { get; init; } = [];
+}
 public sealed record UnitAbsorbedEvent(GameClock Clock, int UnitId, int SettlementId) : DomainEvent;
 
 internal static class MilitaryMovement
@@ -225,7 +228,7 @@ internal static class MilitaryMovement
             var result = MilitaryNavigation.Advance(world, unit, rules, MilitaryNavigation.Budget(unit, rules));
             unit = MilitaryNavigation.Apply(unit, result);
             world.Replace(unit);
-            events.Add(new UnitMovedEvent(world.Clock, id, from, result.Position, result.Spent, result.Status));
+            events.Add(new UnitMovedEvent(world.Clock, id, from, result.Position, result.Spent, result.Status) { Steps = result.Navigation.Steps });
             if (order.IsAttack) continue;
             if (!result.Arrived) continue;
             if (order.SettlementId is int destination) Absorb(world, unit, destination, governance, geography, events);

@@ -28,6 +28,20 @@ public sealed class RockfallGeographyTests
     }
 
     [Fact]
+    public void ReturnedPathDetoursAroundBarriersAndOnlyContainsCoveredCells()
+    {
+        var rules = Rules(7, 5, blocked: [new(3, 2)]);
+        var target = MapCoordinates.Center(new(5, 2));
+        var path = rules.RockfallPath(Source(), target, [Source()]);
+        Assert.NotEmpty(path);
+        Assert.Equal(new MapCell(5, 2), path[^1]);
+        Assert.DoesNotContain(new MapCell(3, 2), path);
+        foreach (var cell in path.Skip(1)) Assert.True(rules.RockfallCovers(Source(), MapCoordinates.Center(cell), [Source()]));
+        for (int i = 1; i < path.Count; i++)
+            Assert.InRange(Math.Max(Math.Abs(path[i].X - path[i - 1].X), Math.Abs(path[i].Y - path[i - 1].Y)), 1, 1);
+    }
+
+    [Fact]
     public void FullGeographicFootprintSeedsThePropagation()
     {
         var rules = Rules(10, footprint: 3);

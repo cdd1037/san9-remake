@@ -53,6 +53,10 @@ public sealed class MilitarySessionTests
             var pending = interactive.StartOperation(interactive.Request(new AdvanceDayOperation()));
             Assert.True(SpinWait.SpinUntil(() => pending.IsCompleted, TimeSpan.FromSeconds(10)));
             Assert.Equal(before, Assert.Single(interactive.Snapshot.Units));
+            var movement = Assert.Single(pending.PreparedEvents.OfType<UnitMovedEvent>());
+            Assert.NotEmpty(movement.Steps);
+            Assert.Equal(movement.To, movement.Steps[^1]);
+            Assert.Equal(movement.To, Assert.Single(pending.PreparedView.World.Units).Position);
             var result = pending.Complete();
             Assert.Equal(SessionDisposition.Accepted, result.Disposition);
             events.AddRange(result.Events);

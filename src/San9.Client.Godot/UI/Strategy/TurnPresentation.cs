@@ -10,11 +10,12 @@ public enum TurnScreen { Strategy, Confirmation, Entering, Preparing, Playing, R
 public sealed class TurnPresentation(GameSession session)
 {
     public const double TransitionDuration = 1.375;
-    private const double DayDuration = 0.9;
     public int TitleFrame => Math.Clamp((int)((TransitionDuration - _remaining) / 0.125), 0, 3);
     public TurnScreen Screen { get; private set; } = TurnScreen.Strategy;
     public string? Error { get; private set; }
     public StrategySnapshot? Display { get; private set; }
+    public TurnDayPresentation? Day { get; private set; }
+    public Func<bool>? CanPlayDay { get; set; }
     public bool Paused { get; private set; }
     public bool IsComputing => _pending is { IsCompleted: false };
     public double Progress { get; private set; }
@@ -114,15 +115,17 @@ public sealed class TurnPresentation(GameSession session)
             return;
         }
         if (Screen != TurnScreen.Playing || Paused) return;
-        _remaining = Math.Max(0, _remaining - seconds);
         if (_pending is not { IsCompleted: true }) return;
         // Progress follows the prepared day (a choice may stop before the date advances).
         // Publication is delayed until its presentation time; pause never launches another day.
         try
         {
+            Day ??= new(Display!, _pending.PreparedView, _pending.PreparedEvents);
+            if (CanPlayDay?.Invoke() == false) return;
+            Day.Advance(seconds);
             double completed = Display!.World.Clock.DayNumber - _startedDay;
             double next = _pending.PreparedSnapshot.Clock.DayNumber - _startedDay;
-            int step = Math.Clamp((int)Math.Floor((1 - _remaining / DayDuration) * 10), 0, 10);
+            int step = Math.Clamp((int)Math.Floor(Day.Progress * 10), 0, 10);
             Progress = Math.Clamp((completed + (next - completed) * step / 10) / 10, 0, 1);
         }
         catch
@@ -131,7 +134,7 @@ public sealed class TurnPresentation(GameSession session)
             Publish();
             return;
         }
-        if (_remaining <= 0 && Publish()) Continue();
+        if (Day?.Progress >= 1 && Publish()) Continue();
     }
 
     private void Start(SessionOperation operation)
@@ -159,7 +162,7 @@ public sealed class TurnPresentation(GameSession session)
             Screen = TurnScreen.Failed;
             return false;
         }
-        finally { _pending = null; }
+        finally { _pending = null; Day = null; }
     }
 
     private void Continue()
@@ -177,7 +180,6 @@ public sealed class TurnPresentation(GameSession session)
             return;
         }
         Screen = TurnScreen.Playing;
-        _remaining = DayDuration;
         Start(new AdvanceDayOperation());
     }
 }

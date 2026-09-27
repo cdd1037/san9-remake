@@ -29,7 +29,8 @@ public sealed record TexturePackage(int SchemaVersion, int ConversionVersion, st
             Map.MaskHeightAdjustments.Length != 16) throw new InvalidDataException("Invalid texture package.");
         if (Portraits.Select(p => p.Id).Distinct().Count() != Portraits.Length) throw new InvalidDataException("Duplicate portrait ID.");
         foreach (var portrait in Portraits) portrait.Validate();
-        Map.Units.Validate(Map.Clips.ToDictionary(c => c.Id));
+        Map.Units.Validate(Map.Clips.ToDictionary(c => c.Id), Map.Assets.Select(a => a.Id).ToHashSet());
+        MapPackageFiles.ValidateBuildingSmoke(Map.Compositions, Map.Clips.ToDictionary(c => c.Id));
         Skin.Validate(); Library.Validate(); ImageAssetFiles.ValidateCatalog(Assets);
         MapPackageFiles.ValidateAnimations(new(Map.Clips, []), Map.Assets.ToDictionary(a => a.Id), new HashSet<int>());
     }

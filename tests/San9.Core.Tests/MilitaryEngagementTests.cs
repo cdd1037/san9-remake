@@ -48,6 +48,23 @@ public sealed class MilitaryEngagementTests
         Assert.Null(m.Engagements(military).Target(new(4, false)));
     }
 
+    [Theory]
+    [InlineData(30, UnitCondition.Normal, true)]
+    [InlineData(29, UnitCondition.Normal, false)]
+    [InlineData(30, UnitCondition.Confused, false)]
+    public void PublicSettlementProjectionUsesPassiveReachWithoutChangingTheSnapshot(int x, UnitCondition condition, bool engaged)
+    {
+        var (world, military) = Create();
+        var snapshot = new SimulationEngine(world, EconomyRulebook.Empty, PersonnelRulebook.Empty,
+            TreasureRulebook.Empty, military: military).CaptureStableState();
+        Assert.Empty(MilitaryEngagementQuery.EngagedSettlements(snapshot, military));
+        snapshot = snapshot with { Units = snapshot.Units.Select(u => u.Id != 1 ? u : u with
+            { Position = new(x, 7), Condition = condition, Order = new(MilitaryOrderKind.AttackSettlement, null, 2) }).ToArray() };
+        string hash = snapshot.StateHash;
+        Assert.Equal(engaged, MilitaryEngagementQuery.EngagedSettlements(snapshot, military).Contains(2));
+        Assert.Equal(hash, snapshot.StateHash);
+    }
+
     [Fact]
     public void UnrelatedDailyChangesReuseRelationsAndReturnCurrentTargetState()
     {

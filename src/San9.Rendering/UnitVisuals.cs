@@ -11,17 +11,20 @@ public sealed record UnitVisual(int Id, double CellX, double Depth, MapAnimatedS
     public int LabelX { get; init; }
     public int LabelY { get; init; }
     public int BodySpriteCount { get; init; }
+    public int BodySpriteStart { get; init; }
     public int AnchorX { get; init; }
     public int AnchorY { get; init; }
 }
 public sealed record UnitVisualState(int Id, double CellX, double CellY, int Elevation, uint Soldiers,
     int FormationId, UnitCondition Condition, int Direction, bool HasCityInfluence, int Color, int Glyph)
 {
+    public UnitVisualAction Action { get; init; }
     public bool UsesImperialAppearance { get; init; }
     public bool IsRulerCommander { get; init; }
     public int Morale { get; init; }
     public string? CommanderNameKey { get; init; }
 }
+public enum UnitVisualAction { Idle, Moving, Melee, Ranged }
 
 public static class UnitVisuals
 {
@@ -48,11 +51,16 @@ public static class UnitVisuals
         var members = layout.Members.Select((member, index) => (Member: member, Index: index))
             .OrderBy(m => m.Member.Y).ThenBy(m => m.Member.X).ToArray();
         foreach (var member in members)
+            if (bodies[member.Member.BodyId].Wake is {} wake) Add(wake.ClipId, member.Member.X + wake.X, member.Member.Y + wake.Y);
+        int bodyStart = animations.Count;
+        foreach (var member in members)
         {
             var body = bodies[member.Member.BodyId];
             if (state.UsesImperialAppearance && body.ImperialBodyId is {} imperial) body = bodies[imperial];
-            Add(body.DirectionClips[state.Direction], member.Member.X - body.AnchorX, member.Member.Y - body.AnchorY,
-                (int)(((long)state.Id + member.Index) % clips[body.DirectionClips[state.Direction]].Frames.Length));
+            var actions = state.Action == UnitVisualAction.Melee ? body.MeleeActions : state.Action == UnitVisualAction.Ranged ? body.RangedActions : [];
+            string clip = actions.Length == 0 ? body.DirectionClips[state.Direction] : actions[(int)(((long)state.Id + member.Index) % actions.Length)].DirectionClips[state.Direction];
+            Add(clip, member.Member.X - body.AnchorX, member.Member.Y - body.AnchorY,
+                state.Action is UnitVisualAction.Melee or UnitVisualAction.Ranged ? 0 : (int)(((long)state.Id + member.Index) % clips[clip].Frames.Length));
         }
         Add($"unit-flag-{state.Direction}-pole-back", -34, formation.FlagY);
         Add($"unit-flag-{state.Direction}-cloth-{state.Color}", -34, formation.FlagY);
@@ -72,6 +80,6 @@ public static class UnitVisuals
             Add(status.ClipId, status.X, formation.StatusY + status.Y);
         return new(state.Id, state.CellX, state.CellX + state.CellY, animations.ToArray())
         { Soldiers = state.Soldiers, Morale = state.Morale, CommanderNameKey = state.CommanderNameKey, LabelX = x, LabelY = y - 96,
-          BodySpriteCount = members.Length, AnchorX = x, AnchorY = y };
+          BodySpriteCount = members.Length, BodySpriteStart = bodyStart, AnchorX = x, AnchorY = y };
     }
 }

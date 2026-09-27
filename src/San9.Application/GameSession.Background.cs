@@ -44,6 +44,12 @@ public sealed partial class GameSession
             Task<(GameSession, SessionResult)> work) => (_owner, _request, _work) = (owner, request, work);
 
         public bool IsCompleted => _work.IsCompleted;
+        public Presentation.StrategySnapshot PreparedView => IsCompleted
+            ? _work.GetAwaiter().GetResult().Worker.View
+            : throw new InvalidOperationException("Operation is still running.");
+        public IReadOnlyList<DomainEvent> PreparedEvents => IsCompleted
+            ? _work.GetAwaiter().GetResult().Result.Events
+            : throw new InvalidOperationException("Operation is still running.");
         public WorldSnapshot PreparedSnapshot => IsCompleted
             ? _work.GetAwaiter().GetResult().Result.Snapshot
             : throw new InvalidOperationException("Operation is still running.");

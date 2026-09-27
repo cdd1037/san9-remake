@@ -102,6 +102,28 @@ public sealed class TurnPresentationTests
     }
 
     [Fact]
+    public void ResourcePreparationDoesNotConsumePlaybackTimeOrPublishTheDay()
+    {
+        var session = Session(); var turn = new TurnPresentation(session);
+        Enter(turn);
+        string hash = session.Snapshot.StateHash;
+        turn.CanPlayDay = () => false;
+        turn.Update(20);
+        Assert.NotNull(turn.Day);
+        Assert.Equal(0, turn.Day.Elapsed);
+        Assert.Equal(hash, session.Snapshot.StateHash);
+        turn.CanPlayDay = () => true;
+        turn.Update(.4);
+        Assert.Equal(.4, turn.Day.Elapsed);
+        turn.TogglePause(); turn.Update(20);
+        Assert.Equal(.4, turn.Day.Elapsed);
+        Assert.Equal(hash, session.Snapshot.StateHash);
+        turn.TogglePause(); turn.Update(.5);
+        Assert.Null(turn.Day);
+        Assert.NotEqual(hash, session.Snapshot.StateHash);
+    }
+
+    [Fact]
     public void TitleFlashesRunWhilePlanningAndPublicationWaitsForTheTransition()
     {
         var session = Session(); var turn = new TurnPresentation(session);

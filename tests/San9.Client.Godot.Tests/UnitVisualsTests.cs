@@ -24,6 +24,20 @@ public sealed class UnitVisualsTests
     private static UnitVisual Resolve(UnitVisualState state) => UnitVisuals.Resolve(state, Catalog, Clips);
 
     [Fact]
+    public void AttackChangesBodyFramesWhileWakeFlagsAndConditionRemainSeparateLayers()
+    {
+        var catalog = Catalog with { Bodies = [Catalog.Bodies[0] with
+        { MeleeActions = [new(Enumerable.Range(0, 8).Select(d => $"imperial-{d}").ToArray(), MapProjectileKind.None)],
+          Wake = new("influence", -29, -14) }, Catalog.Bodies[1]] };
+        var unit = UnitVisuals.Resolve(State with { Action = UnitVisualAction.Melee, Condition = UnitCondition.Confused }, catalog, Clips);
+        Assert.Equal("influence", unit.Animations[0].ClipId);
+        Assert.Equal(1, unit.BodySpriteStart);
+        Assert.Equal("imperial-0", unit.Animations[unit.BodySpriteStart].ClipId);
+        Assert.Contains(unit.Animations, a => a.ClipId == "unit-flag-0-cloth-0");
+        Assert.Contains(unit.Animations, a => a.ClipId == "confused");
+    }
+
+    [Fact]
     public void FinePositionAndElevationShareTheBuildingProjection()
     {
         var center = MapGeometry.Center(89, 64);

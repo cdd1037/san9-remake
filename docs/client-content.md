@@ -6,7 +6,7 @@
 
 2026-09-27命令来源光圈：皮肤33／纹理转换26增加五帧`minimap-command-pulse`语义资源（首帧无后缀，其余为`-1..-4`），逐色透明度保留。客户端以当前命令菜单对象定位，兼用于城市、其他设施和部队；出征后续页面保留来源，整项结束清除。依据[RE-0158](../research/findings/RE-SAN9PK-0158.md#小地图命令来源光圈补证2026-09-27)。本地纹理及190年组合包已原位重转，五帧均32×36、首帧全透明，29064逻辑图片／5262物理文件完整校验通过。解决方案各测试项目合计3867项通过；未启动游戏，菜单开关、对象切换及后续命令页面往返的实际画面待用户验收。
 
-现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 128，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 140，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 33，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 26。规则为 `san9-core-g10-v77`，保存93／日志97／录像6；协议以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 为准。
+现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 128，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 140，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 33，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 28。规则为 `san9-core-g10-v77`，保存93／日志97／录像7；协议以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 为准。
 
 旧内容包按现行契约原位重转，旧规则存档、日志和录像拒绝加载。是否重转纹理取决于纹理转换版本与源输入。历史验收只证明对应基线，不代表当前版本重新验证；阶段收口见[G10 验收](g10-verification.md#2026-09-21阶段收口)。
 
@@ -21,7 +21,7 @@
 | Content.Text / ScenarioTextReader | 名称与全量消息目录 | `text.json` / `messages.json`，文本schema6 |
 | Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema29 |
 | Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema140 |
-| Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema5／转换版本26 |
+| Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema5／转换版本28 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 
 共享剧本契约不按原版编号区间限制城市或人物身份。城市图标资格由`SettlementKind.City`决定；`RegionCityIds`必须引用真实城市，其城市名从据点定义读取，不要求城市ID同时存在于地域名称表。数量与名称不继承源格式槽位和字节长度；玩法数值上限及显示资源范围独立校验。
@@ -211,7 +211,7 @@ TC101完整保留41项兵法和28项阵形的展示元数据，名称与说明�
 
 ### 野外部队动画资源
 
-纹理schema5／转换版本22、地图schema11保存部队完整规模布局，每档同时定义兵群与地利光效；身体包含可选的皇帝势力替代资源。人物定义提供旗字，部队采用大将旗字，君主领军用帅旗。需要依次运行`import-textures`和`import-client`，见[地图导入](map-import.md)。覆盖28项军事阵型、20类身体的八方向待机、五类状态及四种地利片段。190年初始野战队仍为0，不扩大初始对象筛选或新增军事命令；显示规模与领域容量独立，实际画面由用户出征验收。
+纹理schema5／完整转换版本28、地图schema13保存部队完整规模布局，每档同时定义兵群与地利光效；身体包含可选的皇帝势力替代资源。人物定义提供旗字，部队采用大将旗字，君主领军用帅旗。需要依次运行`import-textures`和`import-client`，见[地图导入](map-import.md)。覆盖28项军事阵型、20类身体的八方向待机、五类状态及四种地利片段。190年初始野战队仍为0，不扩大初始对象筛选或新增军事命令；显示规模与领域容量独立，实际画面由用户出征验收。
 
 部队旗帜独立保存八方向片段，当前朝向驱动旗面、旗字和旗杆遮挡；建筑旗帜继续按季节切换。资源变化须依次原位重转纹理与组合包。客户端只读取转换片段。
 
@@ -275,3 +275,5 @@ TC101完整保留41项兵法和28项阵形的展示元数据，名称与说明�
 更新时先构建当前`San9.Tools`，运行`import-textures --rebuild skin`，再执行`import-client`；`dotnet run --project src/San9.Tools`默认构建工具。皮肤定向重建保留纹理全包转换版本，完整重建才更新它。不能把测试通过当作工具输出目录或内容包已更新。
 
 190年包已原位重转并完整加载，94据点、初始野战部队0；图片校验29059逻辑项／5270物理文件通过。洛阳到孟津／虎牢／长安预览、中继设置、9日等待出征提交和保存恢复通过，查询不修改初始世界。性能、回放与实际限制见[寻路验收](pathfinding-verification.md)。未启动Godot，路线光点、旗帜、目标标记与城内部队显示仍需画面验收。
+
+旬推进动画现已接入实际移动路径、身体攻击、设施箭雨、抛石／落石与船只水纹；资源范围、日内调度及暂未接入的附加层见[表现规格](../specs/behavior/BEH-RENDER-0003-map-ambient-animation.md#旬推进中的移动与攻击)。本次仅需定向重建地图资源，无需重转剧本。

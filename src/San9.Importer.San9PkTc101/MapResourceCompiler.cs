@@ -53,15 +53,26 @@ public static class MapResourceCompiler
         var bridgeImages = Images("G_LHashi", 2); var additionalLandPalettes = Palettes("P_LndAdd", 2); var bridgePalette = additionalLandPalettes[0];
         for (int i = 0; i < 2; i++) assets.Add(Save($"bridge-{i}", TextureSourcePath.Image("G_LHashi", i, 0, true, false, "P_LndAdd.s9"), IndexedImageArchive.Decode(bridgeImages[i], bridgePalette, true, false)));
         List<MapComposition> compositions = [];
+        using var pe = new System.Reflection.PortableExecutable.PEReader(new MemoryStream(exe));
+        int At(int address) => BinaryPrimitives.ReadInt32LittleEndian(pe.GetSectionData(checked(address - (int)pe.PEHeaders.PEHeader!.ImageBase)).GetContent(0, 4).AsSpan());
+        int[] compositionBases = [0, 15, 19, 24, 29, 34, 39, 43, 48, 53, 58, 62, 66, 71, 76, 81, 86];
         foreach (var location in root.GetProperty("compositions").EnumerateArray())
         {
+            int compositionId = location.GetProperty("id").GetInt32();
+            int type = Enumerable.Range(0, compositionBases.Length).Last(i => compositionBases[i] <= compositionId);
+            int group = At(0x615d60 + type * 4) + (type == 0 ? compositionId / 5 : 0);
             int start = location.GetProperty("offset").GetInt32(), count = location.GetProperty("count").GetInt32();
             var parts = Enumerable.Range(0, count).Select(i => { int p = start + 28 * i; return new MapCompositionPart(Int(p) != 0, Int(p + 4) != 0, Int(p + 12), Int(p + 16), Int(p + 20)); }).ToArray();
             var guards = location.GetProperty("soldiers"); var flags = location.GetProperty("flags");
             compositions.Add(new(location.GetProperty("id").GetInt32(), parts)
             {
                 Guards = Enumerable.Range(0, guards.GetProperty("count").GetInt32()).Select(i => { int p = guards.GetProperty("offset").GetInt32() + 16*i; return new MapGuard(Int(p), Int(p+4), Int(p+12)); }).ToArray(),
-                Flags = Enumerable.Range(0, flags.GetProperty("count").GetInt32()).Select(i => { int p = flags.GetProperty("offset").GetInt32() + 8*i; return new MapFlag(Int(p), Int(p+4)); }).ToArray()
+                Flags = Enumerable.Range(0, flags.GetProperty("count").GetInt32()).Select(i => { int p = flags.GetProperty("offset").GetInt32() + 8*i; return new MapFlag(Int(p), Int(p+4)); }).ToArray(),
+                ArrowOrigins = Enumerable.Range(0, 8).Select(direction => Enumerable.Range(0, 8).Select(shot =>
+                {
+                    int point = 0x616da0 + (group * 8 + (shot % 3 + direction + 7) % 8) * 8;
+                    return new MapFlag(At(point), At(point + 4));
+                }).ToArray()).ToArray()
             });
         }
         var buildingImages = Images("G_LBUILD", 284); var buildingPalettes = Palettes("P_LBUILD", 6);
@@ -105,6 +116,11 @@ public static class MapResourceCompiler
         var animations = MapAnimationCompiler.Compile(exe, dataDir, additionalLandPalettes[1], Read, Save, assets);
         var clips = animations.Clips.ToList();
         var units = MapUnitCompiler.Compile(exe, dataDir, Read, Save, assets, clips);
+        var smoke = MapBuildingSmokeCompiler.Compile(exe, dataDir, Read, Save, assets, clips);
+        compositions = compositions.Select(c => c with
+        {
+            Smoke = smoke[Enumerable.Range(0, compositionBases.Length).Last(i => compositionBases[i] <= c.Id)]
+        }).ToList();
         var colors = Palettes("P_MapEtc", 2)[0].Skip(4).Take(32).ToArray();
         return new(seasons.ToArray(), assets.ToArray(), maskRecords.ToArray(), compositions.ToArray(), clips.ToArray(),
             positions, adjustments, cloudPlacements.Select(c => new CloudPlacement(c.Item1,c.Item2,c.Item3,c.Item4)).ToArray(), colors) { Units = units };

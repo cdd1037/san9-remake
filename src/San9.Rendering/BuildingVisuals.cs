@@ -6,6 +6,10 @@ public sealed record BuildingVisualState(int Id, int Durability, int Appearance,
 {
     public bool IsDestroyed { get; init; }
     public MapBuildingPlacement? Placement { get; init; }
+    public bool IsEngaged { get; init; }
+    public bool IsUnderConstruction { get; init; }
+    public int Morale { get; init; }
+    public int Month { get; init; } = 1;
 }
 public sealed record BuildingVisuals(MapBuilding[] Buildings, MapAnimatedSprite[] Animations)
 {
@@ -16,6 +20,7 @@ public sealed record BuildingVisuals(MapBuilding[] Buildings, MapAnimatedSprite[
         var input = states.ToDictionary(s => s.Id);
         var compositions = map.Compositions.ToDictionary(c => c.Id);
         var types = map.BuildingTypes.ToDictionary(t => t.Id);
+        var clips = map.Animations.Clips.ToDictionary(c => c.Id);
         List<MapBuilding> buildings = []; List<MapAnimatedSprite> animations = [];
         foreach (var b in states.Select(s => s.Placement ?? map.Buildings.Single(b => b.Id == s.Id)).OrderBy(b => b.X+b.Y).ThenBy(b => b.X))
         {
@@ -46,6 +51,8 @@ public sealed record BuildingVisuals(MapBuilding[] Buildings, MapAnimatedSprite[
                 if(state.Glyph>=0) animations.Add(new($"flag-glyph-{(darkGlyph.Contains(state.Color)?1:0)}-{state.Glyph}",x+f.X,y+f.Y,phase,b.Id));
                 animations.Add(new("flag-pole-front",x+f.X,y+f.Y,phase,b.Id));
             }
+            var smoke = BuildingSmokeVisuals.Resolve(composition.Smoke, state, maximum, type == 0, clips);
+            animations.AddRange(smoke.Select(s => s with { X = x + s.X, Y = y + s.Y }));
         }
         return new(buildings.ToArray(),animations.ToArray());
     }

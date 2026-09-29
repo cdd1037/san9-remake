@@ -1,0 +1,22 @@
+config_version=5
+
+[application]
+config/name="山河 · 地貌编辑实验"
+run/main_scene="res://Editor.tscn"
+config/features=PackedStringArray("4.7", "C#")
+run/max_fps=60
+
+[display]
+window/size/viewport_width=1280
+window/size/viewport_height=800
+window/size/window_width_override=1280
+window/size/window_height_override=800
+window/stretch/mode="canvas_items"
+
+[dotnet]
+project/assembly_name="San9.TerrainEditor"
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/default_filters/use_nearest_mipmap_filter=false

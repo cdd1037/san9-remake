@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>山河 · 大地图工坊</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<header><div><span class="brand">山河</span><span class="subtitle">大地图工坊 / 制作实验</span></div><div class="actions"><button id="load">打开工程</button><button id="save" class="primary">保存工程 ↓</button><input id="file" type="file" accept=".json,application/json" hidden></div></header>
+<main>
+<aside>
+<div class="eyebrow">01 / 起一幅山河</div><h2>从地貌开始</h2><label>地图名称<input id="name" maxlength="100" value="未命名山河"></label>
+<div class="row"><label>宽 / 格<input id="width" type="number" min="16" max="256" value="128"></label><label>高 / 格<input id="height" type="number" min="16" max="256" value="96"></label></div>
+<label>地貌种子<input id="seed" type="number" step="1" value="927"></label><label>水域倾向 <output id="sea-value">36%</output><input id="sea" type="range" min="15" max="60" value="36"></label>
+<button id="generate" class="wide">生成地貌</button><p class="hint">同一种子生成相同地貌。生成前自动保留一步撤销。</p>
+<div class="divider"></div><div class="eyebrow">02 / 落笔与设城</div><h2>像画画一样制作</h2><div id="tools" class="tools"></div>
+<label>笔刷半径 <output id="radius-value">2 格</output><input id="radius" type="range" min="0" max="10" value="2"></label>
+<label>城市名称<input id="city-name" maxlength="60" placeholder="留空自动命名"></label><p class="hint">设城工具：点陆地放置，点已有城市改名。移除工具只删除城市。</p>
+<div class="row"><button id="undo">撤销</button><button id="redo">重做</button></div>
+</aside>
+<section class="workspace"><div class="mapbar"><div><strong id="map-title">未命名山河</strong><span id="dimensions"></span></div><div class="actions"><label class="inline"><input id="regions" type="checkbox">地域</label><label class="inline"><input id="grid" type="checkbox">网格</label><button id="fit">适应窗口</button></div></div>
+<div id="viewport"><canvas id="map" aria-label="地图编辑画布"></canvas><div class="legend">左键绘制 · 右键 / 中键拖动 · 滚轮缩放</div></div><footer><span id="status" role="status">就绪</span><span id="position">—</span></footer></section>
+<aside class="inspector"><div class="eyebrow">03 / 检查与交付</div><h2>让地图连起来</h2><div class="metric"><strong id="city-count">0</strong><span>座城市</span></div><p class="hint">地域从城市沿可通行地形自动扩展。海岸与高程明暗自动显示，无需逐格配置素材。</p><button id="check" class="wide">检查地图</button><div id="issues" aria-live="polite"></div><div class="divider"></div><h3>本轮实验边界</h3><p class="hint">保存的是可继续编辑的独立工程。当前尚未接入游戏地图包、原版美术、港口水路与剧本配置。</p><p class="hint">连通性使用实验用的四邻接陆路规则，不代表游戏部队的实际寻路结果。</p><div id="storage" class="storage">本机自动保存</div></aside>
+</main><script src="model.js"></script><script src="app.js"></script>
+</body></html>

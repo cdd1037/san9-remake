@@ -54,7 +54,7 @@ flowchart LR
   AI --> Simulation
 ```
 
-实际交付顺序以[路线图](../roadmap.md)为准：先完成时间/命令、保存与经营底座，再接入人事治理和战争，随后补齐其他领域。上图表示契约依赖，不要求一个上游领域全部完成后才开始下游切片。各阶段复用点、缺失输入和代表性场景见[G00实施基线](../roadmap-baseline.md)；逻辑提交顺序仍由模拟流水线串行确定。
+实际交付顺序以[路线图](../roadmap.md)为准：先完成时间/命令、保存与经营底座，再接入人事治理和战争，随后补齐其他领域。上图表示契约依赖，不要求一个上游领域全部完成后才开始下游切片。各阶段范围和可执行退出条件见路线图的[推进方式](../roadmap.md#推进方式)；逻辑提交顺序仍由模拟流水线串行确定。
 
 G04人事与基础治理已接入。`PersonnelTransitions`拥有人物归属/地点和引用任务清理，`PersonnelReturns`拥有归队，`GovernanceMaintenance`拥有负责人/都督修复；`CorpsGovernance`维护辖区与独立账户，`CorpsControl`统一权限。Application的`AutomaticCorpsPlanner`通过同一Core命令执行有限人事/经营；保存、录像与CLI复用G02。内容同步官职能力/爵位、宝物、地点和服务单位分类；证据见[G04验收](../../docs/g04-verification.md)。
 

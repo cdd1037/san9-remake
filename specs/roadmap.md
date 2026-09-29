@@ -14,7 +14,7 @@
 | G09 人物生命周期与单挑 | [验收](../docs/g09-verification.md) |
 | G10 事件、终局与结局 | [验收](../docs/g10-verification.md) |
 
-当前能力见[README](../README.md)与[运行时状态](../docs/runtime-state.md)，阶段复用入口和规则核对方法见[实施基线](roadmap-baseline.md)。历史起点、候选方案及逐轮修复交给Git，不作为当前实施要求。
+当前能力见[README](../README.md)与[运行时状态](../docs/runtime-state.md)，跨域依赖见[领域依赖图](behavior/core-domain-dependency-map.md)，阶段实施与核对方法见下文。历史起点、候选方案及逐轮修复交给Git，不作为当前实施要求。
 
 ## 目标与范围
 
@@ -28,7 +28,7 @@
 
 无需先完成全游戏逆向，但正式实现前必须定向核对当前行为依赖的资格、输入来源、计算与随机、执行时机、副效果、最终写回及失效清理，并明确状态所有者和跨阶段依赖。已选规则遵循现有 BEH；缺失或矛盾证据先调查，再明确目标、来源与验收。重制选择须有明确产品理由，不能仅因研究未完成而用简化规则替代。影响当前结果的未决项解决前，不将相应行为计入完成；继续推进不依赖它的工作。不为原版内部存储建立兼容分支，也不预先设计通用策略游戏引擎。
 
-证据核对使用已有RE及必要的IDA Pro／本地MCP调查，具体流程见[实施基线](roadmap-baseline.md#使用-ida-mcp-定位原版行为)与[逆向规范](reverse-engineering.md)。
+证据核对使用已有RE及必要的IDA Pro／本地MCP调查，具体流程见[研究规范](research-method.md)与[逆向规范](reverse-engineering.md)。
 
 ## 独立开发支线：人才提拔培养
 

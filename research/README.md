@@ -14,7 +14,7 @@
 - `findings/`：可追溯的逆向结论；每项结论使用 `RE-*`，地址只保留在这里；按主题浏览见[结论索引](findings/README.md)。
 - `guides/`：面向阅读的机制说明和攻略资料；涉及原作事实时仍以对应 `RE-*` 与来源记录为准。
   - [优化伴侣改动汇总](guides/san9pkhard-changes.md)：按隐式改动、可配置规则、操作辅助整理，并区分 2019 年版本差异与证据状态。
-- `notes/`：研究笔记、冲突整理和证据链演练。
+- `notes/`：研究笔记与冲突整理。
 - `patch-points/`：第三方补丁候选的可提交摘要与验证状态。
 - `prototypes/`：不进入产品的可复现研究预览；不得作为行为规格或运行时依赖。
 - `scripts/`：未来可复现的研究辅助脚本，不得成为产品运行依赖。
@@ -31,4 +31,4 @@
 5. 产品采用研究结论时，按[规格维护规则](../specs/README.md#规格维护)更新相关 BEH；研究成熟本身不要求新增产品规格。
 6. 逆向任务产生可靠命名、类型或注释时，按需写入对应版本的项目主 IDA 数据库并回读验证；只读调查无需记录“数据库未修改”。
 
-主要入口为[`.s9` 文件清单](sources/s9-file-inventory.md)、[来源登记表](SOURCES.md)、[逆向结论索引](findings/README.md)、[EXE 外部 DLL 契约清单](sources/exe-dll-analysis-inventory.md)、[程序分析归档](archive/program-analysis/program-analysis-roadmap.md)、[来源覆盖账本](archive/program-analysis/program-analysis-coverage.md)、[第三方仓库简介](sources/upstream-repositories.md)和[证据链纸面演练](notes/0001-source-trace-example.md)。
+主要入口为[`.s9` 文件清单](sources/s9-file-inventory.md)、[来源登记表](SOURCES.md)、[逆向结论索引](findings/README.md)、[EXE 外部 DLL 契约清单](sources/exe-dll-analysis-inventory.md)、[程序分析归档](archive/program-analysis/program-analysis-roadmap.md)、[来源覆盖账本](archive/program-analysis/program-analysis-coverage.md)和[第三方仓库简介](sources/upstream-repositories.md)。

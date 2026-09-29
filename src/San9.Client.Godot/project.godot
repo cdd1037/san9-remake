@@ -24,6 +24,7 @@ window/stretch/mode="canvas_items"
 [dotnet]
 
 project/assembly_name="San9.Client.Godot"
+project/solution_directory="../.."
 
 [gui]
 

@@ -4,6 +4,22 @@
     <RootNamespace>San9.Client.Godot</RootNamespace>
     <EnableDynamicLoading>true</EnableDynamicLoading>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'ExportRelease'">
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>partial</TrimMode>
+    <IsTrimmable>false</IsTrimmable>
+    <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
+    <!-- Godot starts managed code through hostfxr, rather than a .NET apphost. -->
+    <_EnableConsumingManagedCodeFromNativeHosting>true</_EnableConsumingManagedCodeFromNativeHosting>
+    <!-- Reflection-based content and Godot bindings remain intact; trim opted-in framework libraries. -->
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);IL2026</WarningsNotAsErrors>
+    <ILLinkTreatWarningsAsErrors>false</ILLinkTreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(Configuration)' == 'ExportRelease'">
+    <TrimmerRootAssembly Include="San9.Client.Godot;San9.Application;San9.Content;San9.Core;San9.Rendering;GodotSharp" />
+    <!-- System.Text.Json locates immutable collection factories through reflection. -->
+    <TrimmerRootAssembly Include="System.Collections.Immutable" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../San9.Application/San9.Application.csproj" />
     <ProjectReference Include="../San9.Core/San9.Core.csproj" />

@@ -11,7 +11,7 @@ public sealed record ClientOptions(string PackageRoot, int CenterX, int CenterY,
     public bool InformationSmoke { get; init; }
     public bool TextSmoke { get; init; }
     public bool RequiresWorldVerification => PatrolSmoke || MapSmoke || UiSmoke || RuntimeSmoke || InformationSmoke || Screenshot is not null;
-    public static ClientOptions Parse(string[] args, string projectRoot)
+    public static ClientOptions Parse(string[] args, string contentRoot)
     {
         string? Argument(string name)
         {
@@ -33,7 +33,7 @@ public sealed record ClientOptions(string PackageRoot, int CenterX, int CenterY,
         double? time = Argument("--map-time-ms") is {} t ? double.Parse(t, CultureInfo.InvariantCulture) : null;
         if (time is {} ms && (!double.IsFinite(ms) || ms < 0)) throw new ArgumentException("Invalid animation capture time.");
         string? screenshot = Argument("--map-screenshot");
-        var options = new ClientOptions(Argument("--content-package") ?? Path.GetFullPath(Path.Combine(projectRoot, "../../local/generated/content/scenario-190-live")),
+        var options = new ClientOptions(Argument("--content-package") ?? Path.GetFullPath(Path.Combine(contentRoot, "scenario-190-live")),
             x, y, zoom, Argument("--map-season"), time, args.Contains("--map-smoke"),
             args.Contains("--ui-smoke"), screenshot is null ? null : Path.GetFullPath(screenshot), args.Contains("--map-quit"))
         {

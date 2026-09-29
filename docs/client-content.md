@@ -135,7 +135,15 @@ dotnet run --project src/San9.Tools -- import-textures --game-dir "private/游�
 
 新局可追加`--computer-damage-bonus 100`指定电脑对玩家直接兵损+100%，默认0。设置随存档和录像保存，加载时不覆盖已有值；此参数不修改内容包。
 
-客户端默认读取`local/generated/content/scenario-190-live`，只加载转换结果。`render-map --content-package local/generated/content/scenario-190-live`也可直接消费组合包内的地图部分。源资源及生成包均被忽略，不提交。
+客户端通过 Godot 的 `editor` 特性区分开发与导出运行：开发时默认读取仓库的 `local/generated/content/scenario-190-live`，导出后默认读取 EXE 同目录的 `content/scenario-190-live`，显式 `--content-package` 参数优先。发布时将 `scenario-190-live` 与 `textures-san9pk-tc101` 两个完整目录同级放入 EXE 旁的 `content/`，保持组合包中的相对纹理引用。客户端只加载转换结果。`render-map --content-package local/generated/content/scenario-190-live`也可直接消费组合包内的地图部分。源资源及生成包均被忽略，不提交。
+
+## Windows 导出
+
+在仓库根目录运行 `./tools/export-windows.ps1`，可用 `-GodotPath "<Godot 4.7.2 .NET 可执行文件>"` 指定编辑器；默认从 PATH 查找。模板固定使用 `private/template/windows_release_x86_64.exe`，输出为 `local/generated/export/windows-x64/San9.exe`，导入与导出日志保存在同目录。
+
+Godot 将 PCK 和 .NET 发布产物嵌入整体单 EXE；不启用 `.NET PublishSingleFile`（Godot C# 工程是类库），也不启用 Native AOT。`ExportRelease` 使用 `PublishTrimmed=true` 与 `TrimMode=partial`，保留游戏程序集、GodotSharp 和 JSON 反射所需的 `System.Collections.Immutable`，并启用原生宿主入口及 JSON 反射。裁剪告警保留在 Godot 的 MSBuild 日志中；当前配置不表示所有代码均可安全进行 full trimming。
+
+脚本不检查、复制或打包转换资源。运行时按上述默认目录放置资源，或通过 `San9.exe -- --content-package "<剧本包绝对路径>"` 指定现有包。仅构建成功不能替代运行验证，headless 启动也不代表画面或完整玩法验收。
 
 ## 原版文本统一入口
 

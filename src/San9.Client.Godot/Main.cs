@@ -33,7 +33,10 @@ public partial class Main : Node
         try
         {
             var startup = System.Diagnostics.Stopwatch.StartNew();
-            var options = ClientOptions.Parse(OS.GetCmdlineUserArgs(), ProjectSettings.GlobalizePath("res://"));
+            string contentRoot = OS.HasFeature("editor")
+                ? Path.Combine(ProjectSettings.GlobalizePath("res://"), "../../local/generated/content")
+                : Path.Combine(Path.GetDirectoryName(OS.GetExecutablePath())!, "content");
+            var options = ClientOptions.Parse(OS.GetCmdlineUserArgs(), contentRoot);
             var loaded = await Task.Run(async () =>
             {
                 var package = await ClientContentFiles.LoadAsync(options.PackageRoot, token);

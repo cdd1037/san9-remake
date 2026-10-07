@@ -17,22 +17,8 @@ public sealed class PatrolDraft
     public bool CanExecute => Members.Length > 0 && Cost <= Money;
     public long DraftGrowth => ReadDraftGrowth(View.World, Home);
 
-    public static string? UnavailableReasonKey(StrategySnapshot view, int id)
-    {
-        var home = view.World.Settlements.FirstOrDefault(s => s.Id == id);
-        if (home is null || home.Kind != SettlementKind.City || home.IsDormant || home.IsDestroyed || home.OwnerId != view.PlayerForceId)
-            return "ui.command-reason.unavailable";
-        if (view.World.Corps.Any(c => c.OwnerId == view.PlayerForceId && c.IsRoot && c.ControlMode == CorpsControlMode.Automatic) ||
-            home.CorpsId is int corps && view.World.Corps.Any(c => c.Id == corps && c.ControlMode != CorpsControlMode.Direct))
-            return "ui.command-reason.unavailable";
-        if (home.ConfusionDaysRemaining > 0) return "ui.command-reason.confused";
-        if (view.IsSettlementEngaged(id)) return "ui.command-reason.engaged";
-        if (home.PatrolUsed) return "ui.command-reason.already-used";
-        if (home.PublicOrder >= 1000) return "ui.command-reason.public-order-max";
-        if (!view.Officers.Any(o => o.IsAvailable && o.OwnerId == home.OwnerId && o.SettlementId == id)) return "ui.command-reason.no-officer";
-        if (Funds(view, home) < 50) return "ui.command-reason.funds";
-        return null;
-    }
+    public static string? UnavailableReasonKey(StrategySnapshot view, int id) =>
+        new MapCommandAvailability(view).SettlementReasonKey(id, "patrol");
     private static uint Funds(StrategySnapshot view, SettlementState home) => view.World.Corps
         .Single(c => home.CorpsId is int corps ? c.Id == corps : c.OwnerId == home.OwnerId && c.IsRoot).Treasury.Money;
 

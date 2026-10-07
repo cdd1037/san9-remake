@@ -36,8 +36,8 @@ public partial class MilitaryCommandFlow : Node
     {
         if (IsActive) return;
         var view = Session.View;
-        if (DeploymentDraft.UnavailableReason(view, settlementId) is string reason)
-        { Notice?.Invoke(reason); return; }
+        if (DeploymentDraft.UnavailableReasonKey(view, settlementId) is string reason)
+        { Notice?.Invoke(Texts.Resolve(reason)); return; }
         Textures.RequestPrefixes("deployment-", "formation-", "detail-", "catalog-", "information-", "roster-", "message-", "dialog-");
         Source = new(settlementId, false);
         _preparation = new DeploymentView

@@ -43,10 +43,12 @@ public static class MapCommandMenu
                 ? [.. Facilities.Children.Where(c => c.Id is "repair" or "train"), new("demolish", "撤去", MapCommandTone.Blue, [])]
                 : Facilities.Children.Where(c => c.Id is "repair" or "train").ToArray() };
         }
-        facilities = facilities with { Children = facilities.Children.Select(entry => entry.Id == "patrol"
-            ? entry with { UnavailableReasonKey = PatrolDraft.UnavailableReasonKey(view,id) }
-            : FacilityCommandDraft.Supports(entry.Id) ? entry with { UnavailableReasonKey = FacilityCommandDraft.UnavailableReasonKey(view,id,entry.Id) } : entry).ToArray() };
-        return [facilities, .. Common];
+        var availability = new MapCommandAvailability(view);
+        return new[] { facilities }.Concat(Common).Select(group => group with {
+            Children = group.Children.Select(entry => entry with {
+                UnavailableReasonKey = availability.SettlementReasonKey(id, entry.Id)
+            }).ToArray()
+        }).ToArray();
     }
 
     public static IReadOnlyList<MapCommandEntry> Unit(StrategySnapshot view, int id)
@@ -54,10 +56,12 @@ public static class MapCommandMenu
         var unit = view.World.Units.SingleOrDefault(u => u.Id == id);
         if (unit is null || !UnitCatalog.IsListed(unit) || unit.FormationId is not int formation ||
             unit.Soldiers == 0 || unit.OwnerId != view.PlayerForceId) return [];
-        return view.MilitaryRules?.Purpose(formation) switch {
+        IReadOnlyList<MapCommandEntry> entries = view.MilitaryRules?.Purpose(formation) switch {
             UnitPurpose.Construction => [UnitEntries.Single(e => e.Id == "march")],
             UnitPurpose.Transport => [Group("redirect-transport", "输送", MapCommandTone.Green)],
             _ => UnitEntries
         };
+        string? reason = new MapCommandAvailability(view).UnitReasonKey(unit);
+        return entries.Select(entry => entry with { UnavailableReasonKey = reason }).ToArray();
     }
 }

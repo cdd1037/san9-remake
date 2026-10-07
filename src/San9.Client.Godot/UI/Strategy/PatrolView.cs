@@ -2,6 +2,7 @@ using Godot;
 using San9.Application;
 using San9.Application.Presentation;
 using San9.Content.Text;
+using San9.Content.Interface;
 using San9.Core.Domain;
 
 namespace San9.Client.Godot;
@@ -57,7 +58,7 @@ public partial class PatrolView : Control
         Label("资金",new(280,428,96,32)); Label("民心",new(280,468,96,32)); Label("增加兵役",new(280,508,96,32));
         Label($"{(Draft.Members.IsEmpty ? "" : Draft.Cost.ToString())}/{Draft.Money}",new(384,428,136,32));
         Label($"{Draft.Home.PublicOrder}/1000",new(384,468,96,32)); Label(Draft.DraftGrowth.ToString(),new(384,508,64,32));
-        _body.AddChild(new GameMessageBar { Textures = Textures, Text = "巡视都市以掌握民心。" });
+        _body.AddChild(new GameMessageBar { Textures = Textures, Text = Texts.Resolve(CommandMenuSkin.HintKey("patrol")) });
         // Draw content surfaces above the command background and below its labels.
         var art = new PatrolFields { Textures = Textures, Field = _field, MouseFilter = MouseFilterEnum.Ignore };
         _body.AddChild(art); _body.MoveChild(art, 1);
@@ -77,7 +78,7 @@ public partial class PatrolView : Control
         CatalogRow[] Rows(int page) => OfficerCatalog.Read(Draft.View, Texts, page == 0 ? 0 : page-1, null, Draft.Home.Id).Rows
             .Where(r => Draft.Candidates.Contains(r.Key.Id)).OrderBy(r => Draft.Candidates.IndexOf(r.Key.Id))
             .Select(r => new CatalogRow(r.Key.Id, page == 0 ? columns.Select(c => r.Cells[c]).ToArray() : r.Cells.ToArray())).ToArray();
-        var view = new CatalogView { Title = "选择武将", HintText = "请选择执行武将。", Pages = [new("巡察", columns.Select(c => ability.Columns[c]).ToArray()), .. OfficerCatalog.Pages],
+        var view = new CatalogView { Title = "选择武将", HintText = Texts.Resolve(CommandMenuSkin.OfficerSelectionHintKey), Pages = [new("巡察", columns.Select(c => ability.Columns[c]).ToArray()), .. OfficerCatalog.Pages],
             ReadRows = Rows, Service = Service, Textures = Textures, Portrait = id => $"catalog-person-{id}", Selection = selection,
             CanConfirmSelection = ids => ids.Count * 50 <= Draft.Money,
             ConfirmSelection = ids => { if (Draft.SetMembers(ids)) CloseChild(); }, Closed = CloseChild };

@@ -36,7 +36,8 @@ public sealed class MapCommandMenuTests
         var domestic = MapCommandMenu.Settlement(facility, 1).Single(e => e.Id == "facilities");
         Assert.Equal(new[] { "repair", "train" }, domestic.Children.Select(c => c.Id));
         Assert.Contains(MapCommandMenu.Settlement(city, 1).Single(e => e.Id == "facilities").Children, c => c.Id == "commerce");
-        Assert.Equal(MapCommandMenu.Settlement(city, 1).Skip(1), MapCommandMenu.Settlement(facility, 1).Skip(1));
+        Assert.Equal(MapCommandMenu.Settlement(city, 1).Skip(1).SelectMany(g => g.Children).Select(c => (c.Id, c.UnavailableReasonKey)),
+            MapCommandMenu.Settlement(facility, 1).Skip(1).SelectMany(g => g.Children).Select(c => (c.Id, c.UnavailableReasonKey)));
     }
 
     [Fact]

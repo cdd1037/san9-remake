@@ -1,3 +1,4 @@
+using San9.Content.Interface;
 using System.Buffers.Binary;
 using System.Reflection.PortableExecutable;
 using San9.Content.Text;
@@ -31,26 +32,35 @@ public sealed class ScenarioTextReader(byte[] messages, byte[] executable) : IDi
             var bytes = _executable.GetSectionData(checked(pointer - (int)_executable.PEHeaders.PEHeader!.ImageBase)).GetContent(0, 64).ToArray();
             int end = Array.IndexOf(bytes, (byte)0);
             if (end < 0) throw new InvalidDataException("Unterminated execution panel header.");
-            Add(San9.Content.Interface.ExecutionPanelSkin.HeaderKey(column), bytes[..end]);
+            Add(ExecutionPanelSkin.HeaderKey(column), bytes[..end]);
         }
-        foreach (var entry in Interface.CommandMenuSources.Entries)
-        {
-            Add(San9.Content.Interface.CommandMenuSkin.DescriptionKey(entry.Id), _messages.MultilineText(entry.Message));
-            Add(San9.Content.Interface.CommandMenuSkin.HintKey(entry.Id), _messages.PlainText(entry.Hint));
-        }
-        // RE-0095: interactive patrol validation supplies the reason, independently of the condition card.
-        foreach (var (role, message) in new (string, int)[] { ("unavailable",5997), ("already-used",6001), ("public-order-max",6002),
-            ("no-officer",5970), ("funds",5889), ("confused",5999), ("engaged",6000),
-            ("commerce-max",6004), ("cultivation-max",6006), ("durability-max",6008), ("no-soldiers",5887),
-            ("morale-max",6010), ("soldiers-max",6124), ("no-recruits",5906), ("merchant-absent",5909),
-            ("food-max",6110), ("money-max",6111), ("no-food",5911) })
-            Add(San9.Content.Interface.CommandMenuSkin.ReasonKey(role), _messages.PlainText(message));
+        ReadCommandMenuText();
         // RE-SAN9PK-0160: toolbar IDs 1000..1013, table 0x660F60.
         int[] messages = [8261, 8260, 8262, 8439, 8430, 8291, 8293, 8253, 8290, 8289, 8288, 8440, 8442, 8441,
             8287, 8281, 8366, 8280, 8367, 8282, 8279, 8283, 8405, 8537, 8371, 8372, 8159,
             8362, 8355, 8356, 8364, 8365, 8354, 8363];
         for (int i = 0; i < messages.Length; i++) Add(StrategyHintText.Key(StrategyHintText.Roles[i]), _messages.PlainText(messages[i]));
     }
+    private void ReadCommandMenuText()
+    {
+        Add(CommandMenuSkin.OfficerSelectionHintKey, _messages.PlainText(8037));
+        foreach (var entry in Interface.CommandMenuSources.Entries)
+        {
+            Add(CommandMenuSkin.DescriptionKey(entry.Id), _messages.MultilineText(entry.Message));
+            Add(CommandMenuSkin.HintKey(entry.Id), _messages.PlainText(entry.Hint));
+        }
+        foreach (var (role, message) in Interface.CommandMenuSources.Reasons)
+            Add(CommandMenuSkin.ReasonKey(role), _messages.PlainText(message));
+        foreach (var (role, message, amount) in Interface.CommandMenuSources.NumberedReasons)
+        {
+            var parsed = new OriginalMessageParser().Parse(_messages.Record(message));
+            if (!parsed.FullyParsed || !parsed.SemanticsConfirmed) throw new InvalidDataException($"Unconfirmed command reason {role} (message {message}).");
+            var nodes = parsed.Definition.Nodes.TakeWhile(node => node is not MessageReturn).Select(node => node is MessageValue { Expression: { Operation: "binding", Binding: "number.0" }, Format: null }
+                ? new MessageLiteral(amount.ToString(System.Globalization.CultureInfo.InvariantCulture)) : node);
+            _entries.Add(CommandMenuSkin.ReasonKey(role), MessageMarkup.Static(nodes));
+        }
+    }
+
     private string Add(string key, byte[] source)
     {
         _entries.Add(key, _converter.Convert(source)); return key;

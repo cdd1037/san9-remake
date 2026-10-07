@@ -6,7 +6,7 @@
 
 2026-09-27命令来源光圈：皮肤33／纹理转换26增加五帧`minimap-command-pulse`语义资源（首帧无后缀，其余为`-1..-4`），逐色透明度保留。客户端以当前命令菜单对象定位，兼用于城市、其他设施和部队；出征后续页面保留来源，整项结束清除。依据[RE-0158](../research/findings/RE-SAN9PK-0158.md#小地图命令来源光圈补证2026-09-27)。本地纹理及190年组合包已原位重转，五帧均32×36、首帧全透明，29064逻辑图片／5262物理文件完整校验通过。解决方案各测试项目合计3867项通过；未启动游戏，菜单开关、对象切换及后续命令页面往返的实际画面待用户验收。
 
-现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 128，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 145，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 38，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 34。规则为 `san9-core-g10-v81`，保存98／日志101／录像9；协议以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 为准。
+现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 128，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 148，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 38，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 34。规则为 `san9-core-g10-v82`，保存99／日志102／录像9；协议以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 为准。
 
 旧内容包按现行契约原位重转，旧规则存档、日志和录像拒绝加载。是否重转纹理取决于纹理转换版本与源输入。历史验收只证明对应基线，不代表当前版本重新验证；阶段收口见[G10 验收](g10-verification.md#2026-09-21阶段收口)。
 
@@ -18,9 +18,9 @@
 | --- | --- | --- |
 | Content.Maps / MapImporter | 当前地图方格、地貌及对象位置 | `map.json`（无图片文件） |
 | Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema128 |
-| Content.Text / ScenarioTextReader / PublicationMessageCatalog | 静态词条与保留原序号、按明确区段分文件的全量消息目录 | `text.json` / `messages/*.json`，文本schema6、剧本包schema145 |
+| Content.Text / ScenarioTextReader / PublicationMessageCatalog | 静态词条与保留原序号、按明确区段分文件的全量消息目录 | `text.json` / `messages/*.json`，文本schema6、剧本包schema148 |
 | Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema38 |
-| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema145 |
+| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema148 |
 | Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema5／转换版本34 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 
@@ -244,7 +244,7 @@ TC101完整保留41项兵法和28项阵形的展示元数据，名称与说明�
 
 ### 地图命令菜单资源
 
-皮肤schema22、纹理转换版本20加入`command-*`语义角色：六组一级／二级三段四态按钮、上中下拼接框、45个入口的插图角色、条件卡、三类对象摘要底板和摘要图标；`text.json`对应45个`ui.command.*`静态分类／条件说明。原版资源、调色板与布局证据见[RE-SAN9PK-0073](../research/findings/RE-SAN9PK-0073.md#主地图左键命令菜单补充2026-09-26)。须依次原位运行`import-textures`与`import-client`；客户端只读取组合包及纹理依赖。菜单按当前设施类型、拆除属性与部队用途查询；设施出征接入准备窗口，其他入口仍提供导航和说明，尚不从客户端提交领域命令。主界面临时部队预览不改变190年原始剧本的野战部队覆盖。
+皮肤schema22、纹理转换版本20加入`command-*`语义角色：六组一级／二级三段四态按钮、上中下拼接框、45个入口的插图角色、条件卡、三类对象摘要底板和摘要图标；`text.json`对应45个`ui.command.*`静态分类／条件说明。原版资源、调色板与布局证据见[RE-SAN9PK-0073](../research/findings/RE-SAN9PK-0073.md#主地图左键命令菜单补充2026-09-26)。须依次原位运行`import-textures`与`import-client`；客户端只读取组合包及纹理依赖。菜单按当前设施类型、拆除属性与部队用途查询，并按当前状态、候选和资源返回禁用原因；组合包schema148补齐其他指令的原因词条，更新时执行`import-client`。设施八项、出征与部队攻击／进军已有交互，其他入口仍提供导航和说明，尚不从客户端提交领域命令。主界面临时部队预览不改变190年原始剧本的野战部队覆盖。
 
 ## 战略面与进行面资源
 

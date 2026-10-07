@@ -1,6 +1,7 @@
 using Godot;
 using San9.Application.Presentation;
 using San9.Content.Text;
+using San9.Content.Interface;
 using San9.Core.Domain;
 
 namespace San9.Client.Godot;
@@ -68,8 +69,8 @@ public partial class FacilityCommandView : Control
         for (int i=0;i<fields.Length;i++)
         { Label(fields[i].Name,new(280,Top+200+i*40,96,32)); Label(fields[i].Value,new(384,Top+200+i*40,widths[i],32)); }
         if (Draft.IsTrade || Draft.Kind == "recruit")
-            window.ActionButton(Draft.Title, "edit", new(0,200,104,40), SelectAmount).Disabled = Draft.IsTrade ? Draft.Quote is not { Available: true } : Draft.RecruitCount == 0;
-        _body.AddChild(new GameMessageBar { Textures = Textures, Text = Texts.Resolve("ui.command-hint." + Draft.Kind) });
+            window.ActionButton(Draft.Title, "edit", new(0,200,104,40), SelectAmount).Disabled = Draft.Members.IsEmpty;
+        _body.AddChild(new GameMessageBar { Textures = Textures, Text = Texts.Resolve(CommandMenuSkin.HintKey(Draft.Kind)) });
     }
     private void CloseChild()
     { if (_child is not null) { RemoveChild(_child); _child.QueueFree(); _child = null; } Rebuild(); }
@@ -94,7 +95,7 @@ public partial class FacilityCommandView : Control
         CatalogRow[] Rows(int page) => OfficerCatalog.Read(Draft.View,Texts,page == 0 ? 0 : page-1,null,Draft.Home.Id).Rows
             .Where(r => Draft.Candidates.Contains(r.Key.Id)).OrderBy(r => Draft.Candidates.IndexOf(r.Key.Id))
             .Select(r => new CatalogRow(r.Key.Id,page == 0 ? columns.Select(c => r.Cells[c]).ToArray() : r.Cells.ToArray())).ToArray();
-        _child = new CatalogView { Title = "选择武将", HintText = "请选择执行武将。", Service = Service, Textures = Textures,
+        _child = new CatalogView { Title = "选择武将", HintText = Texts.Resolve(CommandMenuSkin.OfficerSelectionHintKey), Service = Service, Textures = Textures,
             Pages = [new(Draft.Title,columns.Select(c => OfficerCatalog.Pages[0].Columns[c]).ToArray()),.. OfficerCatalog.Pages],
             ReadRows = Rows, Portrait = id => $"catalog-person-{id}", Selection = new(Draft.Candidates,Draft.Members,Draft.SelectionLimit),
             CanConfirmSelection = ids => Draft.CanSelect(ids), ConfirmSelection = ids => { if (Draft.SetMembers(ids)) CloseChild(); }, Closed = CloseChild };

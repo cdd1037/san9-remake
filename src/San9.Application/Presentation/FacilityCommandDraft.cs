@@ -34,40 +34,9 @@ public sealed class FacilityCommandDraft
         ? Quote is { Available: true } && FoodAmount > 0 && FoodAmount <= Quote.MaximumFoodAmount
         : Cost <= Money && (Activity != DomesticActivity.Recruit || RecruitAmount > 0 && RecruitAmount <= RecruitCount));
     public static bool Supports(string kind) => kind is "commerce" or "cultivate" or "repair" or "recruit" or "train" or "buy" or "sell";
-    public static string? UnavailableReasonKey(StrategySnapshot view, int id, string kind)
-    {
-        string? Reason()
-        {
-            var home = view.World.Settlements.SingleOrDefault(s => s.Id == id);
-            if (!Supports(kind) || home is null || home.IsDormant || home.IsDestroyed || !home.CanHostPersons || home.Facility?.BuilderUnitId is not null || home.OwnerId != view.PlayerForceId ||
-                (home.Kind != SettlementKind.City && kind is not ("repair" or "train"))) return "unavailable";
-            if (view.World.Corps.Any(c => c.OwnerId == view.PlayerForceId && c.IsRoot && c.ControlMode == CorpsControlMode.Automatic) ||
-                home.CorpsId is int corps && view.World.Corps.Any(c => c.Id == corps && c.ControlMode != CorpsControlMode.Direct)) return "unavailable";
-            if (home.ConfusionDaysRemaining > 0) return "confused";
-            if (view.IsSettlementEngaged(id)) return "engaged";
-            if (!view.Officers.Any(o => o.IsAvailable && o.OwnerId == home.OwnerId && o.SettlementId == id)) return "no-officer";
-            bool used = kind switch { "commerce" => home.CommerceUsed, "cultivate" => home.CultivationUsed, "repair" => home.RepairUsed,
-                "recruit" => home.RecruitUsed, "train" => home.TrainUsed, _ => home.FoodTradeUsed };
-            if (used) return "already-used";
-            var treasury = Account(view, home).Treasury;
-            return kind switch {
-                "commerce" when home.Commerce >= home.MaxCommerce => "commerce-max",
-                "cultivate" when home.Cultivation >= home.MaxCultivation => "cultivation-max",
-                "repair" when home.Durability >= home.MaxDurability => "durability-max",
-                "train" when home.Soldiers == 0 => "no-soldiers",
-                "train" when home.Morale >= 100 => "morale-max",
-                "recruit" when home.Soldiers >= home.SoldierCapacity => "soldiers-max",
-                "recruit" when home.DraftPopulation == 0 => "no-recruits",
-                "commerce" or "cultivate" or "repair" when treasury.Money < 50 => "funds",
-                "recruit" or "buy" when treasury.Money == 0 => "funds",
-                "buy" or "sell" when !home.MerchantPresent => "merchant-absent",
-                "buy" when treasury.Food >= 1000000 => "food-max",
-                "sell" when treasury.Money >= 1000000 => "money-max",
-                "sell" when treasury.Food < view.World.Simulation.FoodExchangeRate => "no-food",
-                _ => null };
-        }
-        return Reason() is string reason ? "ui.command-reason." + reason : null;
-    }
+    public static string? UnavailableReasonKey(StrategySnapshot view, int id, string kind) =>
+        Supports(kind) ? new MapCommandAvailability(view).SettlementReasonKey(id, kind)
+            : San9.Content.Interface.CommandMenuSkin.ReasonKey("unavailable");
     private static CorpsState Account(StrategySnapshot view, SettlementState home) => view.World.Corps.Single(c => home.CorpsId is int id ? c.Id == id : c.OwnerId == home.OwnerId && c.IsRoot);
     public FacilityCommandDraft(GameSession session, int id, string kind)
     {

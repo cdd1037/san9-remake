@@ -79,6 +79,7 @@ public sealed class ClientContentPackageTests
             [], [], [], [], [], [], Buildings, [], [], [], [], [], new([], []), []);
         var skin = new InterfaceSkin(38, [Asset], InterfaceSkin.RequiredUiAssets.ToDictionary(s => s, _ => "ui"), Colors(), CursorDefinition.EdgeScrollRoles.ToDictionary(s => s, _ => new CursorDefinition("ui", 0, 0)));
         var text = new TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion, new() { ["player"] = "Player", ["city"] = "City", ["port"] = "Port", [TextCatalog.ScenarioTitleKey] = "Scenario" });
+        text.Entries.Add(CommandMenuSkin.OfficerSelectionHintKey, "Select officers");
         foreach (string id in CommandMenuSkin.ReasonIds) text.Entries.Add(CommandMenuSkin.ReasonKey(id), "Reason");
         foreach (string id in San9.Content.Interface.CommandMenuSkin.EntryIds)
         {

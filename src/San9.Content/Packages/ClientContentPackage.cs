@@ -58,6 +58,7 @@ public sealed record ClientContentPackage(int SchemaVersion, ContentSource[] Sou
                 throw new InvalidDataException($"Missing inline image: {icon}");
         foreach (var treasure in Scenario.Information.Treasures) _ = Text.ResolveRich(TreasureText.DescriptionKey(treasure.Id));
         foreach (string key in Scenario.Officers.Select(o => o.BiographyKey).OfType<string>()) _ = Text.ResolveRich(key);
+        _ = Text.ResolveRich(CommandMenuSkin.OfficerSelectionHintKey);
         foreach (string id in CommandMenuSkin.ReasonIds) _ = Text.ResolveRich(CommandMenuSkin.ReasonKey(id));
         foreach (string id in CommandMenuSkin.EntryIds)
         {

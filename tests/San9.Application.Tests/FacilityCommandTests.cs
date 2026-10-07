@@ -70,7 +70,7 @@ public sealed class FacilityCommandTests
         var completed = Assert.Single(result.Events.OfType<FoodTradeCompletedEvent>());
         Assert.Equal(8u,completed.FoodAmount); Assert.Equal(money,completed.MoneyAmount);
         Assert.Equal(food,session.View.PlayerCorps!.Treasury.Food);
-        Assert.All(new[] { "buy","sell" },k => Assert.Equal("ui.command-reason.already-used",FacilityCommandDraft.UnavailableReasonKey(session.View,1,k)));
+        Assert.All(new[] { "buy","sell" },k => Assert.Equal("ui.command-reason.trade-used",FacilityCommandDraft.UnavailableReasonKey(session.View,1,k)));
         Assert.False(draft.SetFoodAmount(1));
     }
 

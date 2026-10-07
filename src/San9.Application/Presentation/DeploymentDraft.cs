@@ -31,24 +31,12 @@ public sealed class DeploymentDraft
             NavalFormationId is int water ? Rules.Formations[water].SoldierCapacity : uint.MaxValue))) : 0;
     public bool CanProceed => !Members.IsEmpty && FormationId is not null && Soldiers > 0 && Soldiers <= MaximumSoldiers && Cost <= Money;
 
-    public static string? UnavailableReason(StrategySnapshot view, int settlementId)
-    {
-        var home = view.World.Settlements.FirstOrDefault(s => s.Id == settlementId);
-        if (home is null || home.OwnerId != view.PlayerForceId || home.IsDormant || home.IsDestroyed || !home.CanHostPersons || home.Durability == 0)
-            return "该设施不能出征。";
-        if (view.World.Corps.Any(c => c.OwnerId == view.PlayerForceId && c.IsRoot && c.ControlMode == CorpsControlMode.Automatic) ||
-            home.CorpsId is int corps && view.World.Corps.Any(c => c.Id == corps && c.ControlMode != CorpsControlMode.Direct))
-            return "该军团已委任。";
-        if (view.MilitaryRules is null) return "未提供军事规则。";
-        if (home.ConfusionDaysRemaining > 0) return "设施混乱中。";
-        if (home.Soldiers == 0) return "设施没有可出征士兵。";
-        if (!view.Officers.Any(o => o.IsAvailable && o.OwnerId == home.OwnerId && o.SettlementId == home.Id)) return "没有可执行的武将。";
-        return null;
-    }
+    public static string? UnavailableReasonKey(StrategySnapshot view, int settlementId) =>
+        new MapCommandAvailability(view).SettlementReasonKey(settlementId, "sortie");
 
     public DeploymentDraft(StrategySnapshot view, int settlementId)
     {
-        if (UnavailableReason(view, settlementId) is string reason) throw new ArgumentException(reason, nameof(settlementId));
+        if (UnavailableReasonKey(view, settlementId) is string reason) throw new ArgumentException(reason, nameof(settlementId));
         View = view; Rules = view.MilitaryRules!;
         Home = view.World.Settlements.Single(s => s.Id == settlementId);
         Force = view.World.Forces.Single(f => f.Id == Home.OwnerId);

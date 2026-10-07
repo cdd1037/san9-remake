@@ -33,8 +33,19 @@ public static class StrictJson
     public static T Deserialize<T>(ReadOnlyMemory<byte> bytes)
     {
         using var document = JsonDocument.Parse(bytes);
-        Validate(document.RootElement);
-        return JsonSerializer.Deserialize<T>(document.RootElement, Options) ?? throw new JsonException("Null document.");
+        return Deserialize<T>(document.RootElement);
+    }
+
+    public static T Deserialize<T>(Stream stream)
+    {
+        using var document = JsonDocument.Parse(stream);
+        return Deserialize<T>(document.RootElement);
+    }
+
+    public static T Deserialize<T>(JsonElement element)
+    {
+        Validate(element);
+        return JsonSerializer.Deserialize<T>(element, Options) ?? throw new JsonException("Null document.");
     }
 
     private static void Validate(JsonElement value)

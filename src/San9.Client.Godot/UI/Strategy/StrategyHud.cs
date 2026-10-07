@@ -37,6 +37,11 @@ public partial class StrategyHud : Control
     private StrategyMinimap? _minimap;
     public StrategyOverview Overview { get; } = new();
     public InformationPanel Information { get; private set; } = null!;
+    public SystemMenuPanel SystemMenu { get; private set; } = null!;
+    public Persistence.SlotSaveStore SaveStore { get; init; } = null!;
+    public Func<string, Persistence.SaveSlotSummary> SaveSummary { get; init; } = null!;
+    public Action<San9.Application.GameSession> ActivateSession { get; init; } = null!;
+    private TextureButton _functionsButton = null!;
     private StrategyOverviewPanel _overviewPanel = null!;
     private bool _built;
     private MapHoverCard _hoverCard = null!;
@@ -100,7 +105,7 @@ public partial class StrategyHud : Control
         _territory = AddButton("疆界", "button-territory", new(694, 10), new(64, 36), true, () => World.ShowBoundaries = !World.ShowBoundaries);
         _territory.ToggleMode = true; _territory.SetPressedNoSignal(World.ShowBoundaries);
         _informationButton = AddButton("情报", "button-information", new(842, 7), new(80, 40), true, () => Information.OpenMenu());
-        AddButton("功能", "button-functions", new(929, 7), new(80, 40), false);
+        _functionsButton = AddButton("功能", "button-functions", new(929, 7), new(80, 40), true, () => SystemMenu.OpenMenu());
         AddButton("?", "button-help", new(957, 50), new(56, 40), false);
         _units = AddButton("部队", "button-units", new(956, 208), new(56, 32), true, () => SelectRosterPage(RosterPage.Units));
         _units.ToggleMode = true;
@@ -133,6 +138,11 @@ public partial class StrategyHud : Control
         BackdropHost.AddChild(_overviewPanel);
         Information = new InformationPanel { Session = Session, Texts = Texts, Service = Textures, World = World, Skin = Skin, Locate = id => { Overview.Close(); World.FocusBuilding(id); } };
         OverlayHost.AddChild(Information);
+        SystemMenu = new SystemMenuPanel { Service = Textures, Store = SaveStore, Session = Session,
+            CreateSummary = SaveSummary, ActivateSession = ActivateSession };
+        OverlayHost.AddChild(SystemMenu);
+        SystemMenu.VisibilityChanged += () => FocusBehaviorRecursive = SystemMenu.Visible
+            ? FocusBehaviorRecursiveEnum.Disabled : FocusBehaviorRecursiveEnum.Inherited;
         _mapContext = new MapContextPopup { Textures = _textures, Activated = OpenMapContextEntry };
         OverlayHost.AddChild(_mapContext);
         _commandMenu = new MapCommandPopup { Textures = _textures, Texts = Texts, Activated = ActivateCommand };

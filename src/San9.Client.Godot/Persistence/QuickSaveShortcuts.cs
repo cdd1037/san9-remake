@@ -1,7 +1,6 @@
 using Godot;
 using San9.Application;
 using San9.Application.Persistence;
-using San9.Content.Scenarios;
 
 namespace San9.Client.Godot.Persistence;
 
@@ -9,10 +8,10 @@ namespace San9.Client.Godot.Persistence;
 public partial class QuickSaveShortcuts : Label
 {
     public const string SavePath = "user://saves/quick.save.json";
-    public ScenarioInitialState Definition { get; init; } = null!;
     public Func<GameSession> CurrentSession { get; init; } = null!;
     public Func<bool> CanSave { get; init; } = null!;
-    public Action<GameSession> ActivateSession { get; init; } = null!;
+    public Func<bool> IsBlocked { get; init; } = () => false;
+    public Action LoadRequested { get; init; } = null!;
     private bool _pending;
     private double _remaining;
 
@@ -27,7 +26,7 @@ public partial class QuickSaveShortcuts : Label
     public override void _Input(InputEvent input)
     {
         if (input is not InputEventKey { Pressed: true } key || key.Keycode is not (Key.F1 or Key.F2) ||
-            key.AltPressed || key.CtrlPressed || key.MetaPressed || key.ShiftPressed) return;
+            key.AltPressed || key.CtrlPressed || key.MetaPressed || key.ShiftPressed || IsBlocked()) return;
         GetViewport().SetInputAsHandled();
         if (key.Echo || _pending) return;
         _pending = true;
@@ -40,6 +39,7 @@ public partial class QuickSaveShortcuts : Label
     {
         try
         {
+            if (IsBlocked()) return;
             string path = ProjectSettings.GlobalizePath(SavePath);
             if (save)
             {
@@ -49,24 +49,13 @@ public partial class QuickSaveShortcuts : Label
             }
             else
             {
-                // Validate completely before removing any current UI or session state.
-                var loaded = SaveService.Load(path, Definition);
-                ActivateSession(loaded);
-                Notify("快速读档完成");
+                if (!CanSave()) { Notify("当前不能快速读档，请结束交互并返回战略面。"); return; }
+                LoadRequested();
             }
         }
         catch (SaveException error)
         {
-            string reason = error.Failure switch
-            {
-                SaveFailure.NotStable => "当前状态尚未稳定，请结束交互后再试。",
-                SaveFailure.ContentMismatch => "存档与当前剧本内容不匹配。",
-                SaveFailure.UnsupportedVersion => "存档版本不受支持。",
-                SaveFailure.InvalidFormat or SaveFailure.IntegrityMismatch or SaveFailure.InvalidState => "存档损坏或状态无效。",
-                SaveFailure.IoFailure when error.InnerException is FileNotFoundException or DirectoryNotFoundException => "尚无快速存档，请先按 F1。",
-                _ => "无法读写存档文件，请检查磁盘和访问权限。",
-            };
-            Notify($"快速{(save ? "存档" : "读档")}失败：{reason}");
+            Notify($"快速存档失败：{SaveFailureMessages.Describe(error)}");
             GD.PushWarning(error.ToString());
         }
         finally { _pending = false; }

@@ -68,6 +68,7 @@ public partial class Main : Node
             var initial = content.Scenario;
             if (options.RuntimeSmoke) initial = ClientVerificationScenario.Create(initial);
             var session = San9.Application.GameSession.Start(initial, 190, options.ComputerDamageBonusPercent);
+            var saveStore = new Persistence.SlotSaveStore(ProjectSettings.GlobalizePath(Persistence.SlotSaveStore.UserDirectory), initial);
             world.Session = session;
             StrategySelection selection = null!;
             StrategyHud hud = null!;
@@ -87,6 +88,8 @@ public partial class Main : Node
                 var backdropHost = new Node(); sessionUi.AddChild(backdropHost);
                 var overlayHost = new StrategyOverlayHost();
                 hud = new StrategyHud { CommandPresentation = content.Presentation, ContentRoot = content.ContentRoot,
+                    SaveStore = saveStore, SaveSummary = note => Persistence.SaveSlotSummaryFactory.Create(session, initial, content.Text, note),
+                    ActivateSession = ActivateSession,
                     SoundEnabled = new Settings.UserSettingsStore(ProjectSettings.GlobalizePath(Settings.UserSettingsStore.UserDataPath)).Load().SoundEnabled, OverlayHost = overlayHost, BackdropHost = backdropHost, World = world, Selection = selection, Session = session, Texts = content.Text, Skin = content.Skin, Textures = textures };
                 sessionUi.AddChild(overlayHost);
                 sessionUi.AddChild(hud);
@@ -99,8 +102,10 @@ public partial class Main : Node
             }
             ActivateSession(session);
             if (!options.RequiresWorldVerification)
-                ui.AddChild(new Persistence.QuickSaveShortcuts { Definition = initial, CurrentSession = () => session,
-                    CanSave = () => hud.CanQuickSave, ActivateSession = ActivateSession });
+                ui.AddChild(new Persistence.QuickSaveShortcuts { CurrentSession = () => session,
+                    CanSave = () => hud.CanQuickSave, IsBlocked = () => hud.SystemMenu?.IsVisibleInTree() == true,
+                    LoadRequested = () => hud.SystemMenu.RequestLoad(() => San9.Application.Persistence.SaveService.Load(
+                        ProjectSettings.GlobalizePath(Persistence.QuickSaveShortcuts.SavePath), initial)) });
             if (options.RequiresWorldVerification)
                 AddChild(new ClientVerification { World = world, Selection = selection, Hud = hud, Options = options });
         }

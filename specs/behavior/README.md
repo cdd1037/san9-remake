@@ -73,3 +73,4 @@
 - [BEH-UI-0005：大地图建筑悬停](BEH-UI-0005-map-building-hover.md)（采用）
 
 - [BEH-UI-0006：统一消息与图文显示](BEH-UI-0006-unified-messages.md)（已确认）
+- [BEH-UI-0007：存档与读档界面](BEH-UI-0007-save-load-browser.md)（已实现分页、备注与真实文件存读档）

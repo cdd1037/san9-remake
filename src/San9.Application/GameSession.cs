@@ -24,6 +24,13 @@ public sealed partial class GameSession
     private readonly List<RecordedOperation> _recording = [];
     public bool IsRecording => _recordingInitial is not null;
     public long NextOperationSequence { get; private set; }
+    public bool HasUnsavedChanges { get; private set; } = true;
+
+    /// <summary>A completed write only covers the operation sequence captured for that write.</summary>
+    public void MarkSaved(long savedOperationSequence)
+    {
+        if (savedOperationSequence == NextOperationSequence) HasUnsavedChanges = false;
+    }
     private StrategySnapshot _view;
     private SessionSnapshot? _capture;
     private bool _executing;
@@ -206,6 +213,7 @@ public sealed partial class GameSession
         session._chronicle.AddRange(snapshot.Chronicle);
         session.NextOperationSequence = snapshot.NextOperationSequence;
         session._ending = snapshot.Ending;
+        session.HasUnsavedChanges = false;
         return session;
     }
 
@@ -338,6 +346,7 @@ public sealed partial class GameSession
             if (_records.Count > RecentRecordLimit) _records.RemoveRange(0, _records.Count - RecentRecordLimit);
             if (note is not null) _chronicle.Add(note);
             NextOperationSequence++;
+            HasUnsavedChanges = true;
             if (recorded is not null) _recording.Add(recorded);
             _capture = null;
             result = new(SessionDisposition.Accepted, SessionRejection.None, publishedEvents, snapshot, Development: development);

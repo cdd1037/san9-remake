@@ -144,15 +144,9 @@ public static class UnitVisuals
                     Add(e.ClipId, m.Pose.X + e.X, m.Pose.Y + e.Y, m.Pose.GroundY + 30000 + e.DepthOffset,
                         (int)(MemberSeed(m.Member, 3) % (uint)clips[e.ClipId].Frames.Length));
         }
-        Add($"unit-flag-{state.Direction}-pole-back", x - 34, y + formation.FlagY, anchor.Y + 30100);
-        Add($"unit-flag-{state.Direction}-cloth-{state.Color}", x - 34, y + formation.FlagY, anchor.Y + 30100);
         int glyph = state.IsRulerCommander ? catalog.RulerFlagGlyph : state.Glyph;
-        if (glyph >= 0)
-        {
-            int ink = new[] { 3, 6, 7, 8, 11, 16, 18, 21, 22, 23, 24, 26, 27, 29, 31, 33, 38, 39, 40, 46, 49, 50 }.Contains(state.Color) ? 1 : 0;
-            Add($"unit-flag-{state.Direction}-glyph-{ink}-{glyph}", x - 34, y + formation.FlagY, anchor.Y + 30100);
-        }
-        Add($"unit-flag-{state.Direction}-pole-front", x - 34, y + formation.FlagY, anchor.Y + 30100);
+        foreach (string layer in FlagVisuals.Layers(state.Direction, state.Color, glyph))
+            Add(layer, x - 34, y + formation.FlagY, anchor.Y + 30100);
         if (state.HasCityInfluence) Add(layout.Influence.ClipId, x + layout.Influence.X, y + layout.Influence.Y, anchor.Y + 30032);
         if (catalog.Conditions.TryGetValue(state.Condition, out var status))
             Add(status.ClipId, x + status.X, y + formation.StatusY + status.Y, anchor.Y + 40000);

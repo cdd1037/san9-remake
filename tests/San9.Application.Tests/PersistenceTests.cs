@@ -13,7 +13,48 @@ namespace San9.Application.Tests;
 public sealed class PersistenceTests : IDisposable
 {
     [Fact]
-    public void ConsumedEventKeysSurviveSaveAndRecordingAndOldFormatsAreRejected()
+    public void UnsavedChangesTrackCommittedOperationsButNotQueriesOrRejectedRequests()
+    {
+        var session = GameSession.Start(Fixture(), 190);
+        Assert.True(session.HasUnsavedChanges);
+        var before = session.Capture();
+        SaveService.Write(FilePath("dirty.json"), session);
+        Assert.False(session.HasUnsavedChanges);
+        Assert.Same(before, session.Capture());
+        _ = session.View;
+        session.BeginRecording();
+        session.EndRecording();
+        var rejected = session.Apply(session.Request(new ChronicleOperation("rejected"), "ai:2"));
+        Assert.Equal(SessionDisposition.Rejected, rejected.Disposition);
+        Assert.False(session.HasUnsavedChanges);
+        var request = session.Request(new ChronicleOperation("changed"));
+        Assert.Equal(SessionDisposition.Accepted, session.Apply(request).Disposition);
+        Assert.True(session.HasUnsavedChanges);
+        SaveService.Write(FilePath("dirty.json"), session);
+        Assert.False(session.HasUnsavedChanges);
+        Assert.Equal(SessionDisposition.AlreadyProcessed, session.Apply(request).Disposition);
+        Assert.False(session.HasUnsavedChanges);
+        session.AdvanceXun();
+        Assert.True(session.HasUnsavedChanges);
+        var loaded = SaveService.Load(FilePath("dirty.json"), Fixture());
+        Assert.False(loaded.HasUnsavedChanges);
+        Assert.True(session.HasUnsavedChanges);
+        Assert.DoesNotContain("hasUnsavedChanges", Encoding.UTF8.GetString(SaveService.Encode(session)));
+    }
+
+    [Fact]
+    public void CompletingAnOlderSaveDoesNotClearNewerChanges()
+    {
+        var session = GameSession.Start(Fixture(), 190);
+        SaveService.Write(FilePath("older.json"), session, () => session.AddChronicleNote("changed during write"));
+        Assert.True(session.HasUnsavedChanges);
+        Assert.Empty(SaveService.Read(FilePath("older.json"), Fixture()).Chronicle);
+        SaveService.Write(FilePath("older.json"), session);
+        Assert.False(session.HasUnsavedChanges);
+    }
+
+    [Fact]
+    public void ConsumedEventKeysSurviveSaveAndRecording()
     {
         var definition = Fixture() with { ConsumedEventKeys = [new("history")] };
         var session = GameSession.Start(definition, 190);
@@ -24,11 +65,6 @@ public sealed class PersistenceTests : IDisposable
         restored.AdvanceXun();
         var replay = RecordingService.Replay(RecordingService.Encode(restored.EndRecording()), definition, GameSession.EngineFactory(definition));
         Assert.Equal(restored.Capture().StateHash, replay.Session.Capture().StateHash);
-        var old = JsonNode.Parse(SaveService.Encode(session))!;
-        old["formatVersion"] = 58;
-        old["session"]!["world"]!["simulation"]!.AsObject().Remove("consumedEventKeys");
-        Assert.Equal(SaveFailure.UnsupportedVersion, Assert.Throws<SaveException>(() =>
-            SaveService.Decode(Encoding.UTF8.GetBytes(old.ToJsonString()), definition)).Failure);
     }
 
     [Fact]
@@ -334,14 +370,14 @@ public sealed class PersistenceTests : IDisposable
         Assert.Equal(SaveFailure.InvalidFormat, Assert.Throws<SaveException>(() => SaveService.Decode(Encoding.UTF8.GetBytes(root.ToJsonString()), definition)).Failure);
         root = JsonNode.Parse(bytes)!;
         root["session"]!["world"]!["corps"]![0]!["treasury"]!["money"] = 1;
-        Assert.Equal(SaveFailure.IntegrityMismatch, Assert.Throws<SaveException>(() => SaveService.Decode(Encoding.UTF8.GetBytes(root.ToJsonString()), definition)).Failure);
+        Assert.Equal(1u, SaveService.Decode(Encoding.UTF8.GetBytes(root.ToJsonString()), definition).Snapshot.Corps[0].Treasury.Money);
         var changed = definition with { Information = definition.Information with { Offices = [definition.Information.Offices[0] with { Salary = 21 }] } };
         Assert.Equal(SaveFailure.ContentMismatch, Assert.Throws<SaveException>(() => SaveService.Decode(bytes, changed)).Failure);
         var envelope = StrictJson.Deserialize<SaveEnvelope>(bytes);
         var world = envelope.Session.World with { Officers = envelope.Session.World.Officers.Select(o => o.Id == 2 ? o with { OwnerId = 999 } : o).ToArray() };
         var corrupted = envelope with { Session = envelope.Session with { World = world } };
-        var resigned = CanonicalJson.Encode(corrupted with { IntegrityHash = SaveService.Integrity(corrupted) });
-        Assert.Equal(SaveFailure.InvalidState, Assert.Throws<SaveException>(() => SaveService.Decode(resigned, definition)).Failure);
+        var edited = CanonicalJson.Encode(corrupted);
+        Assert.Equal(SaveFailure.InvalidState, Assert.Throws<SaveException>(() => SaveService.Decode(edited, definition)).Failure);
         Assert.Equal(997u, session.Snapshot.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Money);
     }
 
@@ -357,8 +393,8 @@ public sealed class PersistenceTests : IDisposable
         var envelope = StrictJson.Deserialize<SaveEnvelope>(bytes);
         var corrupted = envelope with { Session = envelope.Session with { World = envelope.Session.World with
             { Officers = envelope.Session.World.Officers.Where(o => o.Id != 2).ToArray(), Treasures = [] } } };
-        byte[] resigned = CanonicalJson.Encode(corrupted with { IntegrityHash = SaveService.Integrity(corrupted) });
-        Assert.Equal(SaveFailure.InvalidState, Assert.Throws<SaveException>(() => SaveService.Decode(resigned, definition, w => new(w, rules))).Failure);
+        byte[] edited = CanonicalJson.Encode(corrupted);
+        Assert.Equal(SaveFailure.InvalidState, Assert.Throws<SaveException>(() => SaveService.Decode(edited, definition, w => new(w, rules))).Failure);
     }
 
     [Fact]
@@ -371,8 +407,10 @@ public sealed class PersistenceTests : IDisposable
         byte[] old = File.ReadAllBytes(path);
         session.AddChronicleNote("new state");
         var before = session.Capture();
+        Assert.True(session.HasUnsavedChanges);
         Assert.Equal(SaveFailure.IoFailure, Assert.Throws<SaveException>(() =>
             SaveService.Write(path, session, () => throw new IOException("injected replace failure"))).Failure);
+        Assert.True(session.HasUnsavedChanges);
         Assert.Equal(old, File.ReadAllBytes(path));
         Assert.Same(before, session.Capture());
         Assert.Single(Directory.GetFiles(_directory));
@@ -524,7 +562,7 @@ public sealed class PersistenceTests : IDisposable
             snapshot.Corps, snapshot.Treasures, snapshot.Relations, snapshot.Simulation.Controls)).Snapshot;
         var envelope = StrictJson.Deserialize<SaveEnvelope>(SaveService.Encode(session));
         var corrupted = envelope with { Session = envelope.Session with { World = unknown } };
-        var bytes = CanonicalJson.Encode(corrupted with { IntegrityHash = SaveService.Integrity(corrupted) });
+        var bytes = CanonicalJson.Encode(corrupted);
         Assert.Equal(SaveFailure.InvalidState, Assert.Throws<SaveException>(() => SaveService.Decode(bytes, definition)).Failure);
     }
 

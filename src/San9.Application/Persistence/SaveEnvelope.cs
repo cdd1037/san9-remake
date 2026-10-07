@@ -5,5 +5,4 @@ public sealed record SaveEnvelope(
     string RulesVersion,
     int HashVersion,
     string ContentFingerprint,
-    SessionSnapshot Session,
-    string IntegrityHash);
+    SessionSnapshot Session);

@@ -69,6 +69,7 @@ public partial class StrategyHud
         _year.Visible = _date.Visible = _season.Visible = _targets is null;
         _advanceButton.Disabled = !Turn.CanAdvance;
         _informationButton.Disabled = !CanIssueOrders;
+        _functionsButton.Disabled = !CanIssueOrders;
         _minimap!.MouseFilter = Turn.CanBrowseMap ? MouseFilterEnum.Stop : MouseFilterEnum.Ignore;
         _turnDialog.Visible = Turn.Screen is TurnScreen.Confirmation or TurnScreen.Failed;
         if (_turnDialog.Visible)

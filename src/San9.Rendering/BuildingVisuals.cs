@@ -16,7 +16,6 @@ public sealed record BuildingVisuals(MapBuilding[] Buildings, MapAnimatedSprite[
     public static BuildingVisuals Resolve(MapPackage map, IReadOnlyList<BuildingVisualState> states)
     {
         int[] bases = [0, 15, 19, 24, 29, 34, 39, 43, 48, 53, 58, 62, 66, 71, 76, 81, 86];
-        HashSet<int> darkGlyph = [3,6,7,8,11,16,18,21,22,23,24,26,27,29,31,33,38,39,40,46,49,50];
         var input = states.ToDictionary(s => s.Id);
         var compositions = map.Compositions.ToDictionary(c => c.Id);
         var types = map.BuildingTypes.ToDictionary(t => t.Id);
@@ -50,7 +49,7 @@ public sealed record BuildingVisuals(MapBuilding[] Buildings, MapAnimatedSprite[
                 var f=composition.Flags[i]; int phase=(b.Id+i)%4;
                 animations.Add(new("flag-pole-back",x+f.X,y+f.Y,phase,b.Id) { Depth = y + f.Y + 30100 });
                 animations.Add(new($"flag-cloth-{state.Color}",x+f.X,y+f.Y,phase,b.Id) { Depth = y + f.Y + 30100 });
-                if(state.Glyph>=0) animations.Add(new($"flag-glyph-{(darkGlyph.Contains(state.Color)?1:0)}-{state.Glyph}",x+f.X,y+f.Y,phase,b.Id) { Depth = y + f.Y + 30100 });
+                if(state.Glyph>=0) animations.Add(new($"flag-glyph-{FlagVisuals.GlyphInk(state.Color)}-{state.Glyph}",x+f.X,y+f.Y,phase,b.Id) { Depth = y + f.Y + 30100 });
                 animations.Add(new("flag-pole-front",x+f.X,y+f.Y,phase,b.Id) { Depth = y + f.Y + 30100 });
             }
             var smoke = BuildingSmokeVisuals.Resolve(composition.Smoke, state, maximum, type == 0, clips);

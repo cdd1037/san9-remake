@@ -46,6 +46,42 @@ public sealed class WorldMessageContextTests
     }
 
     [Fact]
+    public void StrategyConfirmationResolvesTheCurrentLeaderOfARuntimeFoundedForce()
+    {
+        var definition = G01ScenarioTests.Fixture();
+        var world = GameSession.Start(definition, 1).Snapshot;
+        const int forceId = 9001;
+        var force = new ForceState(forceId, 100)
+        {
+            LeaderId = 2,
+            Origin = new(ForceCreationKind.CityIndependence, 1, 1, world.Clock)
+        };
+        world = world with { Forces = [.. world.Forces, force] };
+        var texts = Texts();
+        texts.Entries.Add("officer.2", "关羽");
+        texts.Messages.Add("messages.6082", new([
+            new MessageLiteral("将结束"),
+            new MessageStyled("green-outline", [new MessageValue(new("property", "force.country-name",
+                Arguments: [new("binding", "force.0")]))]),
+            new MessageLiteral("军的战略面，\n您确定吗？")]));
+        var values = new Dictionary<string, MessageBinding>
+        {
+            ["force.0"] = MessageBinding.Reference(MessageEntityKind.Force, forceId)
+        };
+        var context = new WorldMessageContext(definition, world, texts);
+
+        Assert.DoesNotContain(definition.Forces, f => f.Id == forceId);
+        Assert.Equal("刘备", context.Query("force.name", [values["force.0"]]).Text);
+        Assert.Equal("将结束[preset=green-outline]关羽[/preset]军的战略面，\n您确定吗？",
+            context.Produce("messages.6082", values, _ => throw new InvalidOperationException()).BbCode);
+
+        var afterSuccession = world with { Forces = [.. world.Forces.Where(f => f.Id != forceId), force with { LeaderId = 1 }] };
+        Assert.Equal("将结束[preset=green-outline]刘备[/preset]军的战略面，\n您确定吗？",
+            new WorldMessageContext(definition, afterSuccession, texts)
+                .Produce("messages.6082", values, _ => throw new InvalidOperationException()).BbCode);
+    }
+
+    [Fact]
     public void RelationsNamesAndEventHistoryReadTheCapturedState()
     {
         var definition = G01ScenarioTests.Fixture() with { RegionNameKeys = new() { [1] = "region" } };

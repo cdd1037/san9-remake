@@ -1,4 +1,5 @@
 using Godot;
+using San9.Content.Text;
 
 namespace San9.Client.Godot;
 
@@ -22,7 +23,7 @@ public partial class GameDialog : Control
     }
     private PanelContainer _panel = null!;
     private ScrollContainer _body = null!;
-    private Label _message = null!;
+    private GameRichTextLabel _message = null!;
     private StrategyButton _confirm = null!, _dismiss = null!;
     private StyleBoxTexture _style = null!;
     private int _lineOverflow, _bodyGap;
@@ -63,12 +64,13 @@ public partial class GameDialog : Control
         column.AddChild(_body);
         // Keep complete glyph metrics inside the scroll clip. Only baseline spacing is 24px;
         // the last line's descent occupies part of the gap before the buttons.
-        _message = new Label
+        _message = new GameRichTextLabel
         {
+            Textures = Textures,
+            FitContent = true,
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            MouseFilter = MouseFilterEnum.Ignore,
-            LabelSettings = new LabelSettings { Font = font, FontSize = 24, LineSpacing = lineSpacing, FontColor = Colors.Black }
+            MouseFilter = MouseFilterEnum.Ignore
         };
         _body.AddChild(_message);
         var buttons = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.Center };
@@ -89,6 +91,9 @@ public partial class GameDialog : Control
     }
 
     public void SetMessage(string message, string? confirm = "是", string? dismiss = "否")
+        => SetRichMessage(MessageMarkup.Escape(message), confirm, dismiss);
+
+    public void SetRichMessage(string message, string? confirm = "是", string? dismiss = "否")
     {
         var content = (message, confirm, dismiss, false);
         if (_content == content) return;
@@ -99,7 +104,7 @@ public partial class GameDialog : Control
     /// <summary>Acknowledgement only: one green close button and content-sized width.</summary>
     public void SetNotice(string message)
     {
-        var content = (message, (string?)"关闭", (string?)null, true);
+        var content = (MessageMarkup.Escape(message), (string?)"关闭", (string?)null, true);
         if (_content == content) return;
         _content = content;
         if (_ready) ApplyContent();
@@ -110,7 +115,7 @@ public partial class GameDialog : Control
     private void ApplyContent()
     {
         var content = _content ?? ("", "是", "否", false);
-        _message.Text = content.Item1;
+        _message.Present(content.Item1, new(24, Colors.Black, GameTextEffect.None, Colors.Transparent));
         _confirm.Visible = content.Item2 is not null;
         _confirm.Title = content.Item2 ?? "";
         _dismiss.Visible = content.Item3 is not null;
@@ -144,7 +149,7 @@ public partial class GameDialog : Control
         float preferred = PreferredWidth;
         if (_content?.Notice == true)
         {
-            float textWidth = _message.Text.Split('\n').Max(line => _message.LabelSettings.Font.GetStringSize(line, fontSize: 24).X);
+            float textWidth = _message.GetParsedText().Split('\n').Max(line => _message.GetThemeFont("font").GetStringSize(line, fontSize: 24).X);
             // Measure modern glyphs, then fit the native 24px panel tiles; never count source bytes.
             preferred = 192 + 24 * MathF.Ceiling(Math.Max(0, Math.Max(textWidth, buttonsWidth) - 80) / 24);
         }

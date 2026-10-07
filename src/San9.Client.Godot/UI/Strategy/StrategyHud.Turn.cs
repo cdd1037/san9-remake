@@ -1,4 +1,6 @@
 using Godot;
+using San9.Application.Presentation;
+using San9.Content.Text;
 
 namespace San9.Client.Godot;
 
@@ -11,6 +13,7 @@ public partial class StrategyHud
     private readonly List<Control> _strategicHeader = [];
     private TextureButton _advanceButton = null!, _informationButton = null!;
     private GameDialog _turnDialog = null!;
+    private string _turnConfirmation = "";
     private Label _turnStatus = null!;
     private TextureRect _turnBanner = null!;
     private StrategyButton _pauseTurn = null!;
@@ -45,6 +48,11 @@ public partial class StrategyHud
     {
         if (_flow.IsActive || _patrol is not null || _facilityCommand is not null || _appointment is not null || _narration is not null) return;
         if (!Turn.Request()) return;
+        _turnConfirmation = Session.Messages(Texts).Produce("messages.6082",
+            new Dictionary<string, MessageBinding>
+            {
+                ["force.0"] = MessageBinding.Reference(MessageEntityKind.Force, Session.View.PlayerForceId)
+            }, _ => throw new InvalidDataException("Turn confirmation must not require randomness.")).BbCode;
         Overview.Close();
         _contextMenu.Hide(); _mapContext.Close(); _commandMenu.Close();
         Selection.Clear(); World.HoverObject(null);
@@ -72,10 +80,10 @@ public partial class StrategyHud
         _functionsButton.Disabled = !CanIssueOrders;
         _minimap!.MouseFilter = Turn.CanBrowseMap ? MouseFilterEnum.Stop : MouseFilterEnum.Ignore;
         _turnDialog.Visible = Turn.Screen is TurnScreen.Confirmation or TurnScreen.Failed;
-        if (_turnDialog.Visible)
-            _turnDialog.SetMessage(Turn.Screen == TurnScreen.Failed ? $"推进失败：{Turn.Error}" :
-                $"将结束{Texts.Resolve(Scenario.Forces.Single(f => f.Id == Scenario.PlayerForceId).NameKey)}军的战略面，\n您确定吗？",
-                Turn.Screen == TurnScreen.Failed ? "重试" : "是", Turn.Screen == TurnScreen.Failed ? (Turn.CanCancelFailure ? "返回" : null) : "否");
+        if (Turn.Screen == TurnScreen.Failed)
+            _turnDialog.SetMessage($"推进失败：{Turn.Error}", "重试", Turn.CanCancelFailure ? "返回" : null);
+        else if (Turn.Screen == TurnScreen.Confirmation)
+            _turnDialog.SetRichMessage(_turnConfirmation);
         _turnStatus.Text = Turn.Screen switch
         {
             TurnScreen.Preparing => "势力决策中",

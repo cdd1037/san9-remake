@@ -9,14 +9,14 @@ public sealed record TacticSelectedEvent(GameClock Clock, int OfficerId, int? Ta
 internal static class MilitaryTactics
 {
     internal static bool HasTactic(WorldMutation world, int owner, IEnumerable<int> members, int required, TreasureRulebook treasures)
-        => TacticAvailability.HasForMembers(required, members.Select(id => world.Officers[id]),
-            world.Forces[owner], world.Treasures.Values, treasures);
+        => world.Forces[owner].ProvidedTactics.Contains(required) || members.Any(id =>
+            world.Officers[id].LearnedTactics.Contains(required) || world.HasTreasureTactic(id, required, treasures));
 
     internal static CommandRejection Select(WorldMutation world, SelectTacticCommand command, SimulationRules rules, List<DomainEvent> events)
     {
         if (rules.Military is not { } military) return CommandRejection.UnsupportedCommand;
         if (!world.Officers.TryGetValue(command.OfficerId, out var officer) || !officer.IsServing || officer.OwnerId != command.IssuerId ||
-            world.Simulation.Tasks.Any(t => t.OfficerId == officer.Id)) return CommandRejection.PersonUnavailable;
+            world.IsBusy(officer.Id)) return CommandRejection.PersonUnavailable;
         if (command.TacticId is int id && (!military.Tactics.TryGetValue(id, out var tactic) || !tactic.Selectable ||
             !HasTactic(world, command.IssuerId, [officer.Id], id, rules.Treasures))) return CommandRejection.TacticUnavailable;
         world.Replace(officer with { EquippedTacticId = command.TacticId });

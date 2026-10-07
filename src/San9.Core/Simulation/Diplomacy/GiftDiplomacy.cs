@@ -63,7 +63,7 @@ internal static class GiftDiplomacy
                 ? CommandRejection.None : CommandRejection.InsufficientFunds;
         return world.Treasures.TryGetValue(offer.TreasureId!.Value, out var item) && item.Discovered &&
             item.HolderId is int holder && world.Officers[holder].OwnerId == forceId && world.Officers[holder].IsServing &&
-            !world.Simulation.Tasks.Any(t => t.OfficerId == holder) && rules.Treasures.Items.ContainsKey(item.Id)
+            !world.IsBusy(holder) && rules.Treasures.Items.ContainsKey(item.Id)
             ? CommandRejection.None : CommandRejection.TreasureUnavailable;
     }
 

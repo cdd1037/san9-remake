@@ -76,7 +76,7 @@ internal static class FacilityConstruction
                 !regionCities.TryGetValue(plan.RegionId, out int cityId) ||
                 !world.Settlements.TryGetValue(cityId, out var city) || city.Kind != SettlementKind.City || city.OwnerId != unit.OwnerId || city.IsDestroyed || city.Durability == 0 ||
                 type.RequiredTacticId is int required && !MilitaryTactics.HasTactic(world, unit.OwnerId,
-                    world.Officers.Values.Where(p => p.IsServing && p.UnitId == unit.Id).Select(p => p.Id), required, treasures) ||
+                    world.ServingUnitMembers(unit.Id).Select(p => p.Id), required, treasures) ||
                 building && existing!.OwnerId != unit.OwnerId || !building && existing is { IsDestroyed: false });
     }
 

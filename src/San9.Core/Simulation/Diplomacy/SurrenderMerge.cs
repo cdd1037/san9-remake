@@ -58,11 +58,11 @@ internal static class SurrenderMerge
         {
             FacilityConstruction.Cancel(world, original.Id, events);
             var unit = world.Units[original.Id];
-            var members = world.Officers.Values.Where(p => p.UnitId == unit.Id && p.IsServing)
+            var members = world.UnitMembers(unit.Id).Where(p => p.IsServing)
                 .Select(p => p.Id).Order().ToArray();
             if (members.Length == 0)
             {
-                foreach (var prisoner in world.Officers.Values.Where(p => p.UnitId == unit.Id).OrderBy(p => p.Id).ToArray())
+                foreach (var prisoner in world.UnitMembers(unit.Id).OrderBy(p => p.Id).ToArray())
                 {
                     int origin = Place(prisoner);
                     if (prisoner.Status == OfficerStatus.Captive && rules.Personnel.Places.ContainsKey(origin) &&

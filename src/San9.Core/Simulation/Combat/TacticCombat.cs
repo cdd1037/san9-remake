@@ -28,7 +28,7 @@ internal static class TacticCombat
             unit.FormationId is not int formationId || military.Formation(unit) is not { Tactics: { } profile } formation ||
             !MilitaryCombat.ValidTarget(world, unit.OwnerId, target, formation, military) ||
             !MilitaryCombat.Area(unit, military).IntersectsExpanded(MilitaryCombat.TargetArea(world, target, military), MilitaryCombat.UnitRange(world, unit, target, military))) return null;
-        if (!world.Officers.Values.Any(p => p.IsServing && p.OwnerId == unit.OwnerId && p.UnitId == sourceId &&
+        if (!world.ServingUnitMembers(sourceId).Any(p => p.OwnerId == unit.OwnerId &&
             p.Injury == 0 && p.TacticCooldown == 0 && !p.Acted)) return null;
         if (counter && !Roll(world, "military-tactic-counter", profile.CounterChance)) return null;
         int cityBonus = formation.TravelMode == TravelMode.Land && military.HasCityInfluence(unit.OwnerId, unit.Position, world.Settlements.Values)

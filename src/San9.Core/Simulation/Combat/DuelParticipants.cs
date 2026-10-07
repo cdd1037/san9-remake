@@ -13,8 +13,8 @@ internal static class DuelParticipants
             attacker.FormationId is not int attackFormation || defender.FormationId is not int defenseFormation ||
             rules.Formation(attacker).TravelMode != TravelMode.Land || rules.Formation(defender).TravelMode != TravelMode.Land ||
             rules.Map.IsWater(attacker.Position) || rules.Map.IsWater(defender.Position)) return null;
-        OfficerState[] Front(UnitState unit) => world.Officers.Values
-            .Where(p => p.IsServing && p.OwnerId == unit.OwnerId && p.UnitId == unit.Id && rules.Rank(unit, p.Id) == BattleRank.Front).OrderBy(p => p.Id).ToArray();
+        OfficerState[] Front(UnitState unit) => world.ServingUnitMembers(unit.Id)
+            .Where(p => p.OwnerId == unit.OwnerId && rules.Rank(unit, p.Id) == BattleRank.Front).OrderBy(p => p.Id).ToArray();
         var attackFront = Front(attacker);
         var defenseFront = Front(defender);
         var first = attackFront.Where(p => p.Injury == 0 && p.TacticCooldown == 0 && !p.Acted && p.Personality != 3)

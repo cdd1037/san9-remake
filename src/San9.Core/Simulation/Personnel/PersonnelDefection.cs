@@ -56,7 +56,7 @@ internal static class PersonnelDefection
             int? corps = world.Corps.Values.SingleOrDefault(c => c.OwnerId == task.ForceId && c.IsRoot)?.Id;
             var people = world.Officers.Values.Where(p => p.IsServing && p.OwnerId == owner && p.SettlementId == source.Id).OrderBy(p => p.Id).ToArray();
             var followers = new HashSet<int> { target.Id };
-            foreach (var person in people.Where(p => p.Id != target.Id && !world.Simulation.Tasks.Any(t => t.OfficerId == p.Id && t.Journey is not null)))
+            foreach (var person in people.Where(p => p.Id != target.Id && !world.IsTraveling(p.Id)))
                 if (Follows(world, person, task.ForceId)) followers.Add(person.Id);
             world.Replace(source with { OwnerId = task.ForceId, CorpsId = corps });
             foreach (var unit in world.Units.Values.Where(u => u.OwnerId == owner && u.ServicePlaceId == source.Id && u.IsEmbedded).ToArray())

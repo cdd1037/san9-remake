@@ -32,7 +32,7 @@ internal static class UnitReformation
             naval is not null && !rules.CanSelectFormation(world.Forces[command.IssuerId], naval.Id))
             return CommandRejection.FormationUnavailable;
         var travel = rules.Travel(formation.Id, navalId);
-        var members = world.Officers.Values.Where(p => p.IsServing && p.UnitId == unit.Id).Select(p => p.Id).Order().ToArray();
+        var members = world.ServingUnitMembers(unit.Id).Select(p => p.Id).Order().ToArray();
         if (command.OfficerIds.IsDefaultOrEmpty || command.OfficerIds.Length > formation.OfficerCapacity ||
             !command.OfficerIds.Order().SequenceEqual(members) || unit.Soldiers > formation.SoldierCapacity)
             return CommandRejection.InvalidTask;

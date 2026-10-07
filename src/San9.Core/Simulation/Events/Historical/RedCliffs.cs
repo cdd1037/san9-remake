@@ -20,7 +20,7 @@ internal static class RedCliffs
             city.OwnerId is not int rival || rival == owner || !world.Forces.TryGetValue(rival, out var enemy) || enemy.IsEliminated ||
             enemy.LeaderId is not int leader || definition.ExcludedRulerIds.Contains(leader) ||
             ForceRelations.Get(world, owner, rival).Value >= definition.RequiredRelationExclusive ||
-            world.Simulation.Tasks.Any(t => t.OfficerId == person.Id && t.Journey is not null)) return false;
+            world.IsTraveling(person.Id)) return false;
         int? location = person.UnitId is int unitId ? military.RegionAt(world.Units[unitId].Position) : person.SettlementId ?? person.RegionId;
         if (location != definition.OfficerRegionId) return false;
 

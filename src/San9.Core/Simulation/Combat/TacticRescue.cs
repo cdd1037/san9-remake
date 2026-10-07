@@ -14,7 +14,7 @@ internal static class TacticRescue
             !world.Units.TryGetValue(id, out var unit) || unit.IsEmbedded ||
             unit.FormationId is not int formation || military.Formation(unit).PreventsTacticRescue)
             return null;
-        var captives = world.Officers.Values.Where(p => p.UnitId == id && p.Status == OfficerStatus.Captive)
+        var captives = world.UnitMembers(id).Where(p => p.Status == OfficerStatus.Captive)
             .OrderBy(p => p.Id).ToArray();
         if (captives.Length == 0 || !TacticCombat.Roll(world, "military-tactic-rescue", 50)) return null;
         var own = captives.Where(p => p.OwnerId == source.Owner(world)).ToArray();

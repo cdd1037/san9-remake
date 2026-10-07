@@ -28,7 +28,7 @@ internal static class FoodTrade
         var people = officerIds.Order().Select(id => world.Officers[id]).ToArray();
         if (city.OwnerId != forceId || people.Any(p => p.OwnerId != forceId)) return Reject(FoodTradeRejection.WrongOwner);
         if (city.Kind != SettlementKind.City || city.IsDestroyed) return Reject(FoodTradeRejection.InvalidCity);
-        if (people.Any(p => !p.IsServing || p.Acted || p.UnitId is not null || p.SettlementId != city.Id || world.Simulation.Tasks.Any(t => t.OfficerId == p.Id)))
+        if (people.Any(p => !p.IsServing || p.Acted || p.UnitId is not null || p.SettlementId != city.Id || world.IsBusy(p.Id)))
             return Reject(FoodTradeRejection.OfficerUnavailable);
         if (!city.MerchantPresent) return Reject(FoodTradeRejection.MerchantAbsent);
         if (city.FoodTradeUsed) return Reject(FoodTradeRejection.AlreadyUsed);

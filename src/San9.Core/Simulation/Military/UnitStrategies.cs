@@ -98,8 +98,8 @@ internal static class UnitStrategies
         return CommandRejection.None;
     }
 
-    internal static OfficerState[] Members(WorldMutation world, UnitState target) => world.Officers.Values
-        .Where(p => p.IsServing && p.UnitId == target.Id && p.OwnerId == target.OwnerId).OrderBy(p => p.Id).ToArray();
+    internal static OfficerState[] Members(WorldMutation world, UnitState target) => world.ServingUnitMembers(target.Id)
+        .Where(p => p.OwnerId == target.OwnerId).OrderBy(p => p.Id).ToArray();
 
     private static bool Knows(WorldMutation world, int force, IEnumerable<OfficerState> members, TacticEffect effect, SimulationRules rules) =>
         rules.Military!.Tactics.Values.Where(t => t.Effect == effect).Any(t =>

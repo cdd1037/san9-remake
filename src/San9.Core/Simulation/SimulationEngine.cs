@@ -688,7 +688,7 @@ public sealed class SimulationEngine
                     for (int day = 0; day < duration; day++) due = due.NextDay();
                     task = task with { Due = due };
                     if (!ResolutionPipeline.TaskReferencesValid(mutation, task) ||
-                        mutation.Officers[task.OfficerId].Acted || mutation.Simulation.Tasks.Any(t => t.OfficerId == task.OfficerId) ||
+                        mutation.Officers[task.OfficerId].Acted || mutation.IsBusy(task.OfficerId) ||
                         !rule.Validate(mutation, task)) return Reject(CommandRejection.InvalidTask);
                     mutation.Replace(mutation.Officers[task.OfficerId] with { Acted = true });
                     mutation.SetSimulation(mutation.Simulation with { Tasks = mutation.Simulation.Tasks.Add(task) });

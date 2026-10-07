@@ -60,7 +60,7 @@ internal static class PersonnelMissions
     internal static bool CanAct(WorldMutation world, int force, int id) =>
         world.Officers.TryGetValue(id, out var person) && person.IsServing && person.OwnerId == force &&
         person.SettlementId is int origin && world.Settlements.TryGetValue(origin, out var home) && home.OwnerId == force && home.CanHostPersons && home.Durability > 0 &&
-        !person.Acted && !world.Simulation.Tasks.Any(t => t.OfficerId == id);
+        !person.Acted && !world.IsBusy(id);
 
     internal static bool Recruitable(WorldMutation world, int force, OfficerState target) =>
         (target.OwnerId is not int owner || !world.Forces[owner].IsBarbarian) &&
@@ -68,7 +68,7 @@ internal static class PersonnelMissions
             target.Status == OfficerStatus.Captive && target.SettlementId is int prison && world.Settlements[prison].OwnerId == force) &&
         PersonnelDefection.CanTransfer(world, target) &&
         !world.Forces.Values.Any(f => f.LeaderId == target.Id) &&
-        !world.Simulation.Tasks.Any(t => t.OfficerId == target.Id && t.Journey is not null);
+        !world.IsTraveling(target.Id);
 
     internal static CommandRejection StartRecruit(WorldMutation world, CommandContext context, RecruitOfficerCommand command,
         SimulationRules simulationRules, List<DomainEvent> events)

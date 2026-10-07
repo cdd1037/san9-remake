@@ -25,7 +25,7 @@ internal static class Guandu
             ForceRelations.Get(world, owner, rival).Value >= d.RelationExclusive ||
             world.Simulation.Alliance?.Protects(owner, rival) == true ||
             !world.Settlements.TryGetValue(d.RequiredPlaceId, out var required) || required.IsDestroyed || required.OwnerId != owner ||
-            world.Simulation.Tasks.Any(t => t.OfficerId == patron.Id && t.Journey is not null)) return false;
+            world.IsTraveling(patron.Id)) return false;
 
         int? patronRegion = patron.UnitId is int unitId && world.Units.TryGetValue(unitId, out var unit)
             ? !unit.IsPersonnel ? unit.IsEmbedded ? unit.ServicePlaceId : military.RegionAt(unit.Position) : null

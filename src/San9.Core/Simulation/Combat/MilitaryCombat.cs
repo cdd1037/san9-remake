@@ -296,10 +296,10 @@ internal static class MilitaryCombat
         return CombatMath.AdjustComputerDamage(damage, soldiers, bonus);
     }
     internal static CombatStrength Strength(WorldMutation world, UnitState unit) => new(unit.Soldiers, unit.Morale,
-        Leadership(world, p => p.UnitId == unit.Id), 1, unit.Condition switch { UnitCondition.Confused => 8, UnitCondition.Routed => 6, _ => 10 });
+        Leadership(world, world.ServingUnitMembers(unit.Id)), 1, unit.Condition switch { UnitCondition.Confused => 8, UnitCondition.Routed => 6, _ => 10 });
     internal static CombatStrength GarrisonStrength(WorldMutation world, SettlementState settlement) => new(settlement.Soldiers,
-        settlement.Morale, Leadership(world, p => p.SettlementId == settlement.Id), 1, settlement.ConfusionDaysRemaining > 0 ? 8 : 10);
-    private static int Leadership(WorldMutation world, Func<OfficerState, bool> location) => world.Officers.Values
-        .Where(p => p.IsServing && location(p) && !world.Simulation.Tasks.Any(t => t.OfficerId == p.Id && t.Journey is not null))
+        settlement.Morale, Leadership(world, world.ServingSettlementMembers(settlement.Id)), 1, settlement.ConfusionDaysRemaining > 0 ? 8 : 10);
+    private static int Leadership(WorldMutation world, IEnumerable<OfficerState> members) => members
+        .Where(p => !world.IsTraveling(p.Id))
         .Select(p => world.Abilities(p).Leadership).DefaultIfEmpty(0).Max();
 }

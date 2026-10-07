@@ -32,7 +32,7 @@ internal static class PersonnelReturns
         PersonnelRulebook places, List<DomainEvent> events, bool afterDailyCommands = true)
     {
         var person = world.Officers[personId];
-        var journey = world.Simulation.Tasks.FirstOrDefault(t => t.OfficerId == personId && t.Journey is not null);
+        var journey = world.TasksFor(personId).FirstOrDefault(t => t.Journey is not null);
         PersonnelTransitions.CancelMissions(world, personId, "service-place-lost", events, places, afterDailyCommands, preserveReinforcements: true);
         if (journey is not null)
         {

@@ -22,7 +22,7 @@ internal static class BattleAftermath
         if (cause == UnitDefeatCause.DoubledMartialTactic && winner is { } source && source.Exists(world))
             MeleeDeaths.Apply(world, unit, rules, events);
         var shape = MilitaryCombat.Area(unit, rules.Military!);
-        ResolvePeople(world, p => p.UnitId == id, shape, unit, winner, unit.ServicePlaceId, rules, events);
+        ResolvePeople(world, world.UnitMembers(id), shape, unit, winner, unit.ServicePlaceId, rules, events);
         int? city = unit.ServicePlaceId is int home ?
             world.Settlements.GetValueOrDefault(home)?.Kind == SettlementKind.City ? home : rules.Personnel.RegionCities.GetValueOrDefault(home, -1) : null;
         if (city is int cityId && (!world.Settlements.TryGetValue(cityId, out var s) || s.Kind != SettlementKind.City)) city = null;
@@ -100,8 +100,7 @@ internal static class BattleAftermath
             ResourceAccounts.Report(world, new(ResourceOwnerKind.Settlement, id), ResourceKind.Wounded, "settlement-destroyed", winner.Id,
                 -(long)settlement.Wounded, -(long)settlement.Wounded, events);
         }
-        var traveling = world.Simulation.Tasks.Where(t => t.Journey is not null).Select(t => t.OfficerId).ToHashSet();
-        ResolvePeople(world, p => p.SettlementId == id && !traveling.Contains(p.Id), rules.Military.BuildingArea(definition),
+        ResolvePeople(world, world.SettlementMembers(id).Where(p => !world.IsTraveling(p.Id)), rules.Military.BuildingArea(definition),
             null, winner, id, rules, events);
         if (settlement.OwnerId is int owner)
         {
@@ -126,11 +125,11 @@ internal static class BattleAftermath
         events.Add(new SettlementCapturedEvent(world.Clock, id, settlement.OwnerId, winner, destroyed));
     }
 
-    private static void ResolvePeople(WorldMutation world, Func<OfficerState, bool> located,
+    private static void ResolvePeople(WorldMutation world, IEnumerable<OfficerState> people,
         MapOccupancy from, UnitState? defeatedUnit, BattleSource? winner, int? fallbackPlace, SimulationRules rules, List<DomainEvent> events)
     {
         var military = rules.Military!;
-        foreach (var original in world.Officers.Values.Where(located).OrderBy(p => p.Id).ToArray())
+        foreach (var original in people.OrderBy(p => p.Id).ToArray())
         {
             int? excluded = defeatedUnit is null ? fallbackPlace : null;
             int? retreat = BattleRetreat.Destination(world, original, from.Position, excluded, military)?.Id;
@@ -139,8 +138,7 @@ internal static class BattleAftermath
             {
                 int nearby = BattleRetreat.CaptureParticipants(world,
                     new(defeatedUnit?.Id ?? fallbackPlace!.Value, defeatedUnit is null), captor.Owner(world), from, military);
-                bool mount = world.Treasures.Values.Any(t => t.HolderId == original.Id && t.Discovery != TreasureDiscovery.Disabled &&
-                    rules.Treasures.Items.TryGetValue(t.Id, out var treasure) && treasure.EscapeMount);
+                bool mount = world.HasEscapeMount(original.Id, rules.Treasures);
                 var rank = original.UnitId is null ? BattleRank.Middle :
                     military.Rank(world.Units[original.UnitId.Value], original.Id);
                 bool doubles = !captor.IsSettlement && military.Formation(world.Units[captor.Id]).DoublesCapture;

@@ -284,7 +284,7 @@ internal static class MilitaryMovement
         ResourceAccounts.Change(world, account, ResourceKind.Food, unit.CargoFood, "transport-unload", unit.Id, events);
         ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, unit.Id), ResourceKind.Money, "transport-unload", home.Id, -(long)unit.CargoMoney, -(long)unit.CargoMoney, events);
         ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, unit.Id), ResourceKind.Food, "transport-unload", home.Id, -(long)unit.CargoFood, -(long)unit.CargoFood, events);
-        foreach (var officer in world.Officers.Values.Where(p => p.UnitId == unit.Id).OrderBy(p => p.Id).ToArray())
+        foreach (var officer in world.UnitMembers(unit.Id).OrderBy(p => p.Id).ToArray())
             world.Replace(officer with { UnitId = null, SettlementId = home.Id, Acted = true });
         world.RemoveUnit(unit.Id);
         MilitaryPolicies.RemoveTarget(world, unit.Id, false, events);

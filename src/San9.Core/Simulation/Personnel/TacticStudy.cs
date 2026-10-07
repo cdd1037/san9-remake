@@ -29,7 +29,7 @@ internal static class TacticStudy
         int owner = world.Settlements[cityId].OwnerId!.Value;
         return world.Officers.Values.Where(p => p.IsServing && p.OwnerId == owner && p.SettlementId == cityId && p.UnitId is null &&
             !p.LearnedTactics.Contains(tacticId) && p.TacticProficiencies[category] >= tactic.TrainingRequirement / 2 &&
-            !world.Simulation.Tasks.Any(t => t.OfficerId == p.Id)).OrderBy(p => p.Id).Select(p => p.Id).ToImmutableArray();
+            !world.IsBusy(p.Id)).OrderBy(p => p.Id).Select(p => p.Id).ToImmutableArray();
     }
 
     internal static TacticStudyPrompt? Prompt(WorldMutation world, SimulationRules rules) =>

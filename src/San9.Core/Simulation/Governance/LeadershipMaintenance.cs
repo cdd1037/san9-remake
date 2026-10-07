@@ -12,18 +12,16 @@ internal static class LeadershipMaintenance
         return governance.SelectCommander(candidates, world.AbilitiesFor(candidates))?.Id;
     }
 
-    internal static OfficerState? Commander(WorldMutation world, int placeId) => world.Officers.Values
-        .FirstOrDefault(p => p.IsCommander && p.IsServing && p.SettlementId == placeId &&
+    internal static OfficerState? Commander(WorldMutation world, int placeId) => world.ServingSettlementMembers(placeId)
+        .FirstOrDefault(p => p.IsCommander &&
             world.Settlements.TryGetValue(placeId, out var place) && place.OwnerId == p.OwnerId &&
-            place.CanHostPersons && !place.IsDestroyed &&
-            !world.Simulation.Tasks.Any(t => t.OfficerId == p.Id && t.Journey is not null));
+            place.CanHostPersons && !place.IsDestroyed);
 
     internal static void Apply(WorldMutation world, GovernanceRulebook governance)
     {
-        var traveling = world.Simulation.Tasks.Where(t => t.Journey is not null).Select(t => t.OfficerId).ToHashSet();
         var people = world.Officers.Values.Where(p => p.IsServing).ToArray();
         var abilities = world.AbilitiesFor(people);
-        var commanders = people.Where(p => p.SettlementId is int home && !traveling.Contains(p.Id) &&
+        var commanders = people.Where(p => p.SettlementId is int home && !world.IsTraveling(p.Id) &&
                 world.Settlements.TryGetValue(home, out var place) && place.OwnerId == p.OwnerId && place.CanHostPersons && !place.IsDestroyed)
             .GroupBy(p => p.SettlementId!.Value)
             .Select(group => governance.SelectCommander(group, abilities)!.Id).ToHashSet();

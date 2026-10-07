@@ -15,7 +15,7 @@ internal static class BattleLearning
     {
         if (winner.IsSettlement) return;
         var unit = world.Units[winner.Id];
-        var members = world.Officers.Values.Where(p => p.IsServing && p.UnitId == unit.Id).OrderBy(p => p.Id).ToArray();
+        var members = world.ServingUnitMembers(unit.Id).OrderBy(p => p.Id).ToArray();
         if (members.Length == 0) return;
         int actor = members[(int)(world.NextRandom("military-capture-growth-member") % (uint)members.Length)].Id;
         OfficerAbilityGrowth.TryIncrease(world, actor, OfficerAbility.Leadership, "military-capture-growth", events);
@@ -48,7 +48,7 @@ internal static class BattleLearning
         {
             if (unit.FormationId is not int id || !military.Formation(unit).GainsDailyCombatProficiency ||
                 unit.EffectiveOrderClass != UnitOrderClass.Military || !MilitaryEngagements.Engaged(world, unit, military)) continue;
-            foreach (var officer in world.Officers.Values.Where(p => p.IsServing && p.UnitId == unit.Id).OrderBy(p => p.Id).ToArray())
+            foreach (var officer in world.ServingUnitMembers(unit.Id).OrderBy(p => p.Id).ToArray())
             {
                 int? category = military.Formation(unit).TravelMode == TravelMode.Water ? 4 :
                     officer.EquippedTacticId is int tactic ? military.Tactics[tactic].Category : null;
@@ -60,13 +60,13 @@ internal static class BattleLearning
     internal static void Siege(WorldMutation world, int unitId, List<DomainEvent> events)
     {
         if (!world.Units.TryGetValue(unitId, out var unit) || unit.Soldiers == 0 || unit.Morale == 0) return;
-        foreach (var officer in world.Officers.Values.Where(p => p.IsServing && p.UnitId == unitId).OrderBy(p => p.Id).ToArray())
+        foreach (var officer in world.ServingUnitMembers(unitId).OrderBy(p => p.Id).ToArray())
             OfficerTacticGrowth.Increase(world, officer.Id, 5, 1, events);
     }
 
     internal static void DestroyedWork(WorldMutation world, int unitId, BattlefieldPlace place, MilitaryRulebook military, List<DomainEvent> events)
     {
-        var members = world.Officers.Values.Where(p => p.IsServing && p.UnitId == unitId).OrderBy(p => p.Id).ToArray();
+        var members = world.ServingUnitMembers(unitId).OrderBy(p => p.Id).ToArray();
         if (members.Length == 0) return;
         var actor = members[(int)(world.NextRandom("military-destruction-growth-member") % (uint)members.Length)];
         OfficerAbilityGrowth.TryIncrease(world, actor.Id, OfficerAbility.Leadership, "military-destruction-growth", events);

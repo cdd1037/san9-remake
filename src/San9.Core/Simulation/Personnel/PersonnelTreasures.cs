@@ -52,7 +52,7 @@ internal static class PersonnelTreasures
         person.IsServing && person.Status != OfficerStatus.Ruler && person.Id != rulerId && person.OwnerId == forceId;
 
     private static bool IsTravelling(WorldMutation world, int officerId) =>
-        world.Simulation.Tasks.Any(t => t.OfficerId == officerId && t.Journey is not null);
+        world.IsTraveling(officerId);
 
     internal static void Transfer(WorldMutation world, TreasureState item, int recipientId, int forceId, string reason,
         List<DomainEvent> events)

@@ -20,7 +20,7 @@ internal static class MeleeDeaths
         int formation = unit.Condition is UnitCondition.NoFormation or UnitCondition.Confused or UnitCondition.Routed &&
             military.UnformedFormationId is int unformed ? unformed : military.Formation(unit).Id;
         bool useRanks = military.Formations[formation].MeleeDeathUsesRanks;
-        foreach (var person in world.Officers.Values.Where(p => p.IsServing && p.OwnerId == unit.OwnerId && p.UnitId == unit.Id)
+        foreach (var person in world.ServingUnitMembers(unit.Id).Where(p => p.OwnerId == unit.OwnerId)
             .OrderBy(p => p.Id).ToArray())
         {
             if (BattleDeathRules.IsProtected(world, person, unit.CommanderId == person.Id, OfficerDeathCause.Melee)) continue;

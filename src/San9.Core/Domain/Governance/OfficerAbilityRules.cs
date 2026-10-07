@@ -6,10 +6,13 @@ namespace San9.Core.Domain;
 public sealed class OfficerAbilityRules(TreasureRulebook treasures, GovernanceRulebook governance)
 {
     internal GovernanceRulebook Governance => governance;
+    internal TreasureRulebook Treasures => treasures;
     public static OfficerAbilityRules Empty { get; } = new(TreasureRulebook.Empty, new([]));
 
     public OfficerAbilities Evaluate(OfficerState person, IEnumerable<TreasureState> holdings) =>
         Calculate(person, treasures.HeldBonuses(holdings, person.Id));
+
+    internal OfficerAbilities EvaluateWithTreasureBonus(OfficerState person, OfficerAbilities bonus) => Calculate(person, bonus);
 
     public ImmutableDictionary<int, OfficerAbilities> EvaluateMany(IEnumerable<OfficerState> people, IEnumerable<TreasureState> holdings)
     {

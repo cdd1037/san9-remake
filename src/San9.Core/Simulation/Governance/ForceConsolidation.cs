@@ -68,7 +68,7 @@ internal static class ForceConsolidation
         {
             FacilityConstruction.Cancel(world, original.Id, events);
             var unit = world.Units[original.Id];
-            var members = world.Officers.Values.Where(p => p.UnitId == unit.Id && p.IsServing).Select(p => p.Id).Order().ToArray();
+            var members = world.UnitMembers(unit.Id).Where(p => p.IsServing).Select(p => p.Id).Order().ToArray();
             world.Replace(unit with { OwnerId = survivor, CorpsId = root, CommanderId = unit.FormationId is null ? null :
                 LeadershipMaintenance.SelectUnitCommander(world, members, rules.Governance), Order = null,
                 EngagementTargetId = null, AwaitingPostAction = false });

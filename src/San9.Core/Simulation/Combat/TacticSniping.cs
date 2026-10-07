@@ -17,7 +17,7 @@ internal static class TacticSniping
         var actors = participants.Distinct().Order().Select(id => world.Officers[id])
             .Where(p => p.IsServing && p.TacticProficiencies[category] > 300).ToArray();
         var targets = IntelligenceTactics.Defenders(world, target).Where(p => p.Injury == 0 &&
-            (target.UnitId is int unit ? rules.Rank(world.Units[unit], p.Id) is BattleRank.Front or BattleRank.Middle : !p.Acted && !world.Simulation.Tasks.Any(t => t.OfficerId == p.Id)))
+            (target.UnitId is int unit ? rules.Rank(world.Units[unit], p.Id) is BattleRank.Front or BattleRank.Middle : !p.Acted && !world.IsBusy(p.Id)))
             .ToArray();
         if (actors.Length == 0 || targets.Length == 0) return null;
         var actor = actors[(int)(world.NextRandom("military-sniping-actor") % (uint)actors.Length)];

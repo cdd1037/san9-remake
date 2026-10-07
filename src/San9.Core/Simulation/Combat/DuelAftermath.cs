@@ -71,7 +71,7 @@ internal static class DuelAftermath
         {
             foreach (int id in losers)
             {
-                if (!Candidate(id) || world.Treasures.Values.Any(t => t.HolderId == id && t.Discovery != TreasureDiscovery.Disabled && rules.Treasures.Items[t.Id].EscapeMount) ||
+                if (!Candidate(id) || world.HasEscapeMount(id, rules.Treasures) ||
                     !Roll("duel-capture", CaptureChance(world.Abilities(world.Officers[id]).War))) continue;
                 PersonnelTransitions.Capture(world, id, null, outcome.WinningUnitId, rules.Personnel, events);
                 world.Replace(world.Officers[id] with { TacticCooldown = 0 });

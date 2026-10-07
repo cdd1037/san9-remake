@@ -17,7 +17,7 @@ internal static class TacticSupport
             if (!world.Units.TryGetValue(id, out var source) || source.IsPersonnel || source.IsEmbedded ||
                 source.Condition is UnitCondition.Confused or UnitCondition.Routed || source.FormationId is not int formationId ||
                 military.Formation(source).Tactics is not { } profile) continue;
-            var members = world.Officers.Values.Where(p => p.IsServing && p.UnitId == id && p.OwnerId == source.OwnerId)
+            var members = world.ServingUnitMembers(id).Where(p => p.OwnerId == source.OwnerId)
                 .OrderBy(p => military.Rank(source, p.Id)).ThenBy(p => p.Id).ToArray();
             var candidates = members.Where(p => p.Injury == 0 && p.TacticCooldown == 0 && p.EquippedTacticId is int tacticId &&
                 military.Tactics[tacticId] is var tactic && tactic.Effect is TacticEffect.Inspire or TacticEffect.Heal &&
@@ -64,7 +64,7 @@ internal static class TacticSupport
                 world.Replace(target with { Soldiers = target.Soldiers + recovered, Wounded = target.Wounded - recovered,
                     Condition = highSpirits ? target.Condition : UnitCondition.Normal,
                     ConditionDaysRemaining = highSpirits ? target.ConditionDaysRemaining : 0, HighSpiritsMoralePenaltyPending = false });
-                var healed = world.Officers.Values.Where(p => p.IsServing && p.UnitId == targetId && p.Injury > 0).OrderBy(p => p.Id).ToArray();
+                var healed = world.ServingUnitMembers(targetId).Where(p => p.Injury > 0).OrderBy(p => p.Id).ToArray();
                 foreach (var officer in healed) world.Replace(officer with { Injury = 0 });
                 ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, targetId), ResourceKind.Soldiers, "tactic-healing", source.Id, recovered, recovered, events);
                 ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, targetId), ResourceKind.Wounded, "tactic-healing", source.Id, -(long)recovered, -(long)recovered, events);
@@ -82,7 +82,7 @@ internal static class TacticSupport
         return world.Units.Values.Where(u => u.OwnerId == source.Owner(world) && u.FormationId is int formation &&
             MilitaryCombat.Area(u, rules).DistanceTo(area) <= tactic.EffectRadius &&
             (u.Wounded > 0 && u.Soldiers < rules.Capacity(u) || u.Condition is UnitCondition.Confused or UnitCondition.Routed ||
-                world.Officers.Values.Any(p => p.IsServing && p.UnitId == u.Id && p.Injury > 0)))
+                world.ServingUnitMembers(u.Id).Any(p => p.Injury > 0)))
             .OrderBy(u => u.Id).Select(u => u.Id).ToArray();
     }
 }

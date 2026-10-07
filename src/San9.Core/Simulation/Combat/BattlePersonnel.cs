@@ -21,8 +21,7 @@ internal static class BattlePersonnel
         int chance = BattleCaptureRules.Chance(world.Abilities(person).War, nearbyAttackers, rank,
             hasRetreatCity, hasEscapeMount, doublesCapture);
         bool exempt = world.Forces[person.OwnerId.Value].IsBarbarian || world.Forces[captor.Owner(world)].IsBarbarian ||
-            captor.IsSettlement && !world.Officers.Values.Any(p => p.IsServing && p.OwnerId == captor.Owner(world) &&
-                p.SettlementId == captor.Id && !world.Simulation.Tasks.Any(t => t.OfficerId == p.Id && t.Journey is not null));
+            captor.IsSettlement && !world.ServingSettlementMembers(captor.Id).Any(p => p.OwnerId == captor.Owner(world));
         bool captured = !exempt && (chance == 100 || chance > 0 && (int)(world.NextRandom("battle-personnel-capture") % 100) < chance);
         if (captured)
             PersonnelTransitions.Capture(world, officerId, captor.IsSettlement ? captor.Id : null,

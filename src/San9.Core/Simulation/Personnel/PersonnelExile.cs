@@ -16,7 +16,7 @@ internal static class PersonnelExile
             return PrisonerRelease.Apply(world, command, person.Id, places, economy, events);
         if (!person.IsServing || person.Status == OfficerStatus.Ruler || person.OwnerId != command.IssuerId ||
             world.Forces[command.IssuerId].LeaderId == person.Id || world.Forces[command.IssuerId].IsBarbarian ||
-            world.Simulation.Tasks.Any(t => t.OfficerId == person.Id && t.Journey is not null))
+            world.IsTraveling(person.Id))
             return CommandRejection.PersonUnavailable;
         if (person.SettlementId is not int origin || !places.RegionCities.ContainsKey(origin))
             return CommandRejection.InvalidTask;

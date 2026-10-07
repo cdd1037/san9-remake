@@ -8,7 +8,7 @@ internal static class FacilityCombat
     internal static void ApplyReprisal(WorldMutation world, SettlementState source, UnitState target,
         FacilityReprisal reprisal, CombatProfile defense, List<DomainEvent> events)
     {
-        var members = world.Officers.Values.Where(p => p.IsServing && p.OwnerId == target.OwnerId && p.UnitId == target.Id).ToArray();
+        var members = world.ServingUnitMembers(target.Id).Where(p => p.OwnerId == target.OwnerId).ToArray();
         int proficiency = members.Select(p => p.TacticProficiencies[reprisal.ProficiencyCategory]).DefaultIfEmpty(0).Max();
         MilitaryCombat.ApplyUnitLoss(world, target, reprisal.Damage(proficiency), 0, defense, new(source.Id, true), events);
         if (world.Units[target.Id].Soldiers == 0) return;

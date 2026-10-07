@@ -13,9 +13,8 @@ internal static class IntelligenceTactics
         TacticEffect.Illusion or TacticEffect.Taunt or TacticEffect.Sorcery or TacticEffect.Trap;
 
     internal static OfficerState[] Defenders(WorldMutation world, MilitaryOrder target) => target.UnitId is int unit
-        ? world.Officers.Values.Where(p => p.IsServing && p.UnitId == unit).OrderBy(p => p.Id).ToArray()
-        : world.Officers.Values.Where(p => p.IsServing && p.SettlementId == target.SettlementId &&
-            !world.Simulation.Tasks.Any(t => t.OfficerId == p.Id && t.Journey is not null)).OrderBy(p => p.Id).ToArray();
+        ? world.ServingUnitMembers(unit).OrderBy(p => p.Id).ToArray()
+        : world.ServingSettlementMembers(target.SettlementId!.Value).OrderBy(p => p.Id).ToArray();
 
     internal static int Effect(WorldMutation world, OfficerState actor, TacticRule tactic, MilitaryOrder target, SimulationRules rules)
     {

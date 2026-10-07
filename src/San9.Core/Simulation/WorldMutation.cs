@@ -130,11 +130,13 @@ internal sealed partial class WorldMutation
         Officers = AllOfficers.RemoveRange(AllOfficers.Values.Where(p => p.IsDormant).Select(p => p.Id));
         _activeCorps = null; _activeTreasures = null; _activeRelations = null;
         _engagements = null; _movementOccupancy = null;
+        _unitMembers = null; _settlementMembers = null;
+        _holdings = null; _treasureEffects.Clear();
     }
 
-    internal OfficerAbilities Abilities(OfficerState person) => _abilityRules.Evaluate(person, Treasures.Values);
+    internal OfficerAbilities Abilities(OfficerState person) => _abilityRules.EvaluateWithTreasureBonus(person, TreasureEffects(person.Id, _abilityRules.Treasures).Bonuses);
     internal ImmutableDictionary<int, OfficerAbilities> AbilitiesFor(IEnumerable<OfficerState> people) =>
-        _abilityRules.EvaluateMany(people, Treasures.Values);
+        people.ToImmutableDictionary(p => p.Id, Abilities);
     private readonly OfficerAbilityRules _abilityRules;
     private readonly EconomyRulebook _economy;
 
@@ -153,6 +155,7 @@ internal sealed partial class WorldMutation
         if (simulation.Tasks != Simulation.Tasks && !simulation.Tasks.Where(t => t.Journey is not null).Select(t => t.OfficerId)
             .SequenceEqual(Simulation.Tasks.Where(t => t.Journey is not null).Select(t => t.OfficerId))) LeadershipChanged();
         if (simulation.Alliance?.MemberForceIds != Simulation.Alliance?.MemberForceIds || simulation.AttackRequests != Simulation.AttackRequests) _engagements = null;
+        if (simulation.Tasks != Simulation.Tasks) { _tasksByOfficer = null; _travelingOfficers = null; }
         Simulation = simulation;
         if (courtChanged)
         {
@@ -250,6 +253,7 @@ internal sealed partial class WorldMutation
             previous.UnitId != value.UnitId || previous.OfficeId != value.OfficeId || previous.Injury != value.Injury ||
             previous.BaseAbilities.Leadership != value.BaseAbilities.Leadership) LeadershipChanged();
         AllOfficers = Replace(AllOfficers, value.Id, value);
+        UpdateMember(previous, value);
         if (previous.IsDormant != value.IsDormant) RebuildActiveRecords();
         else if (!value.IsDormant) Officers = Officers.SetItem(value.Id, value);
         if (courtChanged)
@@ -339,6 +343,7 @@ internal sealed partial class WorldMutation
         int? previousSealOwner = sealChanged ? ForceTrust.SealOwner(this, _economy) : null;
         if (previous.HolderId != value.HolderId || previous.Discovery != value.Discovery) LeadershipChanged();
         AllTreasures = Replace(AllTreasures, value.Id, value); _activeTreasures = null;
+        UpdateHolding(previous, value);
         if (sealChanged) RefreshForceTrust(previousSealOwner, ForceTrust.SealOwner(this, _economy));
     }
     internal void Replace(ForceRelation value)

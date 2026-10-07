@@ -18,7 +18,7 @@ internal static class ImperialCourt
     {
         if (CurrentId(world, rules) is not int id) return null;
         var emperor = world.Officers[id];
-        if (emperor.UnitId is not null || world.Simulation.Tasks.Any(t => t.OfficerId == id && t.Journey is not null) ||
+        if (emperor.UnitId is not null || world.IsTraveling(id) ||
             (emperor.SettlementId ?? emperor.RegionId) is not int place) return null;
         bool City(int location) => world.Settlements.TryGetValue(location, out var city) && city.Kind == SettlementKind.City && !city.IsDestroyed;
         return City(place) ? place : rules.RegionCityIds.TryGetValue(place, out int parent) && City(parent) ? parent : null;

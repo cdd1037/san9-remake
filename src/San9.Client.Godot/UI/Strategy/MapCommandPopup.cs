@@ -41,7 +41,6 @@ public partial class MapCommandPopup : Control
         {
             var entry = entries[i];
             var button = AddButton(entry, new(x + 11, y + 16 + 28 * i), false);
-            if (entry.Children.Count > 0) button.Pressed += () => Expand(entry, button);
             _primary.Add((button, entry));
         }
         Show(); QueueRedraw();
@@ -52,6 +51,12 @@ public partial class MapCommandPopup : Control
         var button = new InformationMenuButton {
             Title = entry.Title, Disabled = !entry.Enabled, Textures = Textures, Position = point, Size = new(68, 28),
             SkinPrefix = $"command-{(secondary ? "secondary" : "primary")}-{entry.Tone.ToString().ToLowerInvariant()}"
+        };
+        button.Pressed += () =>
+        {
+            if (!entry.Enabled) return;
+            if (entry.Children.Count > 0) Expand(entry, button);
+            else Activated?.Invoke(entry.Id);
         };
         AddChild(button);
         return button;
@@ -67,7 +72,6 @@ public partial class MapCommandPopup : Control
         {
             var child = entry.Children[i];
             var button = AddButton(child, new(x, y + 28 * i), true);
-            button.Pressed += () => { if (child.Enabled) Activated?.Invoke(child.Id); };
             _secondary.Add((button, child));
         }
         QueueRedraw();

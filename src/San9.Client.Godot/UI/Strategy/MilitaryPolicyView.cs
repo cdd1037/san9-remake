@@ -6,10 +6,10 @@ using San9.Core.Simulation;
 
 namespace San9.Client.Godot;
 
-/// <summary>Edits local deployment intentions; command submission is a separate use case.</summary>
-public partial class DeploymentPolicyView : Control
+/// <summary>Edits local military intentions; command submission is a separate use case.</summary>
+public partial class MilitaryPolicyView : Control
 {
-    public DeploymentTargets Selection { get; init; } = null!;
+    public MilitaryTargets Selection { get; init; } = null!;
     public TextCatalog Texts { get; init; } = null!;
     public TextureScope Textures { get; init; } = null!;
     public Func<bool, CommandRejection> Submit { get; init; } = null!;
@@ -32,17 +32,21 @@ public partial class DeploymentPolicyView : Control
             AxisStretchHorizontal = StyleBoxTexture.AxisStretchMode.Tile, AxisStretchVertical = StyleBoxTexture.AxisStretchMode.Tile };
         _window = new CommandWindow { Textures = Textures, Position = Origin, Size = new(416, 320),
             Title = "决定方针", ShowBehindParent = true, Closed = Closed, Accepted = Execute,
-            Help = () => Notice("决定部队的行动方针。金色为已选项。\n出征时期可设为0至9日后。\n到达预定包含等待和中继绕行，按当前目标及阻挡预测行军时间。") };
+            Help = () => Notice("决定部队的行动方针。金色为已选项。\n" +
+                (Selection.IsDeployment ? "出征时期可设为0至9日后。\n" : "") +
+                "到达预定按当前目标、中继点及阻挡预测行军时间。") };
         AddChild(_window);
-        string facility = "命令设施　" + Selection.Draft.View.Settlements.Single(s => s.Id == Selection.Draft.Home.Id).ResolveName(Texts);
+        string facility = Selection.Source.IsUnit
+            ? "命令部队　" + UnitMapInteraction.Hover(Selection.View, Texts, Selection.Source.Id)?.Name
+            : "命令设施　" + Selection.View.Settlements.Single(s => s.Id == Selection.Source.Id).ResolveName(Texts);
         _facilityWidth = facility.Sum(c => c < 128 ? 8 : 16) + 32;
         Label(facility, new(0, 0, _facilityWidth, 32));
         _arrival = Label("", new(256, 0, 136, 32));
         RefreshArrival();
         var target = Selection.Selected!.Value;
-        var info = target.IsUnit ? UnitMapInteraction.Hover(Selection.Draft.View, Texts, target.Id) : MapHoverInfo.Resolve(Selection.Draft.View, Texts, target.Id);
+        var info = target.IsUnit ? UnitMapInteraction.Hover(Selection.View, Texts, target.Id) : MapHoverInfo.Resolve(Selection.View, Texts, target.Id);
         Label("命令", new(0, 48, 96, 32));
-        Label(Selection.Candidates[target] == DeploymentMarker.Enter ? "进军" : "攻击", new(104, 48, 48, 32));
+        Label(Selection.Candidates[target] == MilitaryMarker.Enter ? "进军" : "攻击", new(104, 48, 48, 32));
         Label("目标", new(0, 88, 96, 32)); Label(info?.Name ?? "—", new(104, 88, 160, 32));
         Label("势力", new(272, 92, 48, 24)); Label(info?.Force is { } force ? Texts.Resolve(force.NameKey) : "—", new(328, 92, 80, 24));
         Choice("敌接近时", "攻击", "无视", 128, Selection.Policies.AttackApproachingEnemies,
@@ -53,8 +57,11 @@ public partial class DeploymentPolicyView : Control
             (p, value) => p with { Pursue = value });
         Choice("事后命令", "攻击", "撤退", 248, Selection.Policies.AttackAfterAction,
             (p, value) => p with { AttackAfterAction = value });
-        _window.ActionButton("出征时期", "edit", new(0, 288, 104, 40), SelectDelay);
-        _delay = Label($"{Selection.DepartureDelayDays}日后", new(104, 288, 64, 32));
+        if (Selection.IsDeployment)
+        {
+            _window.ActionButton("出征时期", "edit", new(0, 288, 104, 40), SelectDelay);
+            _delay = Label($"{Selection.DepartureDelayDays}日后", new(104, 288, 64, 32));
+        }
         _message = new GameMessageBar { Textures = Textures, Text = Selection.Waypoint is { } via
             ? $"决定部队行动方针。中继点：({via.X}, {via.Y})。" : "决定部队行动方针。" };
         AddChild(_message);
@@ -96,7 +103,7 @@ public partial class DeploymentPolicyView : Control
         var rejection = Submit(_confirmAttack);
         if (rejection == CommandRejection.None) return;
         _confirmAttack = rejection == CommandRejection.AttackConfirmationRequired;
-        _message.SetMessage(_confirmAttack ? "攻击该目标将影响外交关系。再次点击执行确认出征。" : "出征条件已变化，请返回重新选择。", true);
+        _message.SetMessage(_confirmAttack ? "攻击该目标将影响外交关系。再次点击执行确认命令。" : "命令条件已变化，请返回重新选择。", true);
     }
     private void SelectDelay()
     {
@@ -133,6 +140,7 @@ public partial class DeploymentPolicyView : Control
         foreach (var bounds in new Rect2[] { new(256, 0, 136, 32), new(104, 48, 48, 32), new(104, 88, 160, 32),
             new(328, 92, 80, 24), new(104, 288, 64, 32) })
         {
+            if (!Selection.IsDeployment && bounds.Position.Y == 288) continue;
             var rect = new Rect2(Origin + bounds.Position, bounds.Size); DrawStyleBox(_field, rect);
             SkinPainter.Tile(this, Textures["deployment-field-rim"], new(rect.Position, new(rect.Size.X - 2, 4)));
             SkinPainter.Tile(this, Textures["deployment-field-rim"], new(rect.Position + new Vector2(0, rect.Size.Y - 4), new(rect.Size.X - 2, 4)));

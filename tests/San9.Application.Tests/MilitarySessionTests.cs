@@ -10,6 +10,36 @@ namespace San9.Application.Tests;
 public sealed class MilitarySessionTests
 {
     [Fact]
+    public void UnitOrderPoliciesAndWaypointSurviveSaveLogAndRecording()
+    {
+        var definition = Fixture(); var session = GameSession.Start(definition, 42);
+        session.BeginRecording();
+        Assert.True(session.Execute(new("player"), new DeployUnitCommand(Guid.NewGuid(), 1, 0, 1, [1], 400, 7,
+            new(MilitaryOrderKind.Move, new(32, 7), null)) { DepartureDelayDays = 9 }).Submission.Accepted);
+        int unitId = Assert.Single(session.Snapshot.Units).Id;
+        var command = new OrderUnitCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, unitId,
+            new(MilitaryOrderKind.Return, null, 2)) { Policies = new(true, true, false, true), Waypoint = new(12, 2) };
+        Assert.True(session.Execute(new("player"), command).Submission.Accepted);
+        var restored = SaveService.Decode(SaveService.Encode(session), definition);
+        var unit = Assert.Single(restored.Snapshot.Units);
+        Assert.Equal(command.Policies, unit.Policies); Assert.Equal(command.Waypoint, unit.Waypoint);
+        Assert.Equal(0, unit.DepartureDaysRemaining);
+        string path = Path.Combine(Path.GetTempPath(), $"unit-order-{Guid.NewGuid():N}.jsonl");
+        try
+        {
+            CommandLogService.Write(path, session);
+            var fromLog = GameSession.Start(definition, 42);
+            var replayed = CommandLogService.Replay(path, fromLog);
+            Assert.Null(replayed.FirstFailure); Assert.Equal(2, replayed.Accepted);
+            Assert.Equal(session.Snapshot.StateHash, fromLog.Snapshot.StateHash);
+        }
+        finally { File.Delete(path); }
+        Assert.Equal(CanonicalJson.Text(session.AdvanceXun().Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
+        Assert.Equal(session.Snapshot.StateHash, replay.Session.Snapshot.StateHash);
+    }
+
+    [Fact]
     public void DelayedWaypointDeploymentPersistsAndReplaysAsRealUnit()
     {
         var definition = Fixture(); var session = GameSession.Start(definition, 42);

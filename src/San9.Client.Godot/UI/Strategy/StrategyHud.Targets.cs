@@ -6,15 +6,15 @@ namespace San9.Client.Godot;
 
 public partial class StrategyHud
 {
-    private DeploymentTargets? _targets => _flow?.Targets;
-    private DeploymentFlow _flow = null!;
+    private MilitaryTargets? _targets => _flow?.Targets;
+    private MilitaryCommandFlow _flow = null!;
     private Label _targetTitle = null!;
     private readonly List<StrategyButton> _targetButtons = [];
 
     private void BuildTargetControls()
     {
         _flow = new() { World = World, Session = Session, Texts = Texts, Service = Textures, Textures = _textures };
-        _flow.Changed += RefreshDeployment;
+        _flow.Changed += RefreshMilitaryCommand;
         _flow.Notice += message => { _notice.SetNotice(message); _notice.Show(); };
         OverlayHost.AddChild(_flow);
         _targetTitle = LabelAt("选择对象", new(61, 12), new(104, 32), 24, HorizontalAlignment.Left);
@@ -51,7 +51,7 @@ public partial class StrategyHud
         yield return ("target-footer", new(808, 657));
     }
 
-    private void RefreshDeployment()
+    private void RefreshMilitaryCommand()
     {
         bool targeting = _flow.Targets is not null;
         _targetTitle.Visible = targeting;

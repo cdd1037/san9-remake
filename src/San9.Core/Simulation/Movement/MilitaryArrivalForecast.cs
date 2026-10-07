@@ -51,6 +51,17 @@ public sealed class MilitaryArrivalForecast(WorldSnapshot snapshot, MilitaryRule
         return Estimate(unit, null, maximumDays, work);
     }
 
+    public ArrivalEstimate EstimateOrder(int unitId, MilitaryOrder order, UnitPolicies policies, WorldPosition? waypoint,
+        int maximumDays = 4096, int maximumExpanded = 100000)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumDays);
+        var unit = snapshot.Units.FirstOrDefault(u => u.Id == unitId);
+        if (unit is not { FormationId: int formation } || !rules.Formations.ContainsKey(formation))
+            return new(ArrivalEstimateStatus.NotApplicable);
+        return Estimate(unit with { Order = order, Policies = policies, Waypoint = waypoint, DepartureDaysRemaining = 0,
+            EngagementTargetId = null, AwaitingPostAction = false, Lookahead = null }, unit.Id, maximumDays, new(maximumExpanded));
+    }
+
     private ArrivalEstimate Estimate(UnitState unit, int? movingUnit, int maximumDays, NavigationWorkBudget work)
     {
         world ??= WorldState.Restore(snapshot).BeginMutation();

@@ -6,6 +6,40 @@ namespace San9.Core.Tests;
 
 public sealed class MilitaryMovementTests
 {
+    [Fact]
+    public void OrderAtomicallyReplacesTargetPoliciesAndWaypointWithoutRedeployment()
+    {
+        var engine = Engine(World(), Rules());
+        Assert.True(engine.Execute(Player, Deploy()).Submission.Accepted);
+        var before = engine.Snapshot;
+        var unit = Assert.Single(before.Units);
+        var policies = new UnitPolicies(true, true, false, true);
+        var command = new OrderUnitCommand(Guid.NewGuid(), 1, before.Simulation.NextSequence, unit.Id,
+            new(MilitaryOrderKind.Return, null, 1)) { Policies = policies, Waypoint = new(12, 2) };
+        var result = engine.Execute(Player, command);
+        Assert.True(result.Submission.Accepted);
+        var ordered = Assert.Single(engine.Snapshot.Units);
+        Assert.Equal(unit.Id, ordered.Id); Assert.Equal(unit.Position, ordered.Position);
+        Assert.Equal(unit.Soldiers, ordered.Soldiers); Assert.Equal(unit.CargoMoney, ordered.CargoMoney);
+        Assert.Equal(command.Order, ordered.Order); Assert.Equal(policies, ordered.Policies);
+        Assert.Equal(command.Waypoint, ordered.Waypoint); Assert.Equal(0, ordered.DepartureDaysRemaining);
+        Assert.Equal(CanonicalJson.Text(before.Settlements), CanonicalJson.Text(engine.Snapshot.Settlements));
+        Assert.Equal(CanonicalJson.Text(before.Officers), CanonicalJson.Text(engine.Snapshot.Officers));
+        Assert.Single(result.Events.OfType<UnitPoliciesChangedEvent>());
+        Assert.Single(result.Events.OfType<UnitOrderChangedEvent>());
+    }
+
+    [Fact]
+    public void InvalidOrderWaypointRejectsPolicyAndTargetChangesTogether()
+    {
+        var engine = Engine(World(), Rules()); Assert.True(engine.Execute(Player, Deploy()).Submission.Accepted);
+        var before = engine.Snapshot; var unit = Assert.Single(before.Units);
+        var result = engine.Execute(Player, new OrderUnitCommand(Guid.NewGuid(), 1, before.Simulation.NextSequence, unit.Id,
+            new(MilitaryOrderKind.Return, null, 1)) { Policies = new(true, true, true, true), Waypoint = Rules().Places[2].Position });
+        Assert.False(result.Submission.Accepted); Assert.Empty(result.Events);
+        Assert.Equal(before.StateHash, engine.Snapshot.StateHash);
+    }
+
     private static readonly CommandContext Player = new("player");
     private static MilitaryRulebook Rules(int speed = 1) => new(new(8, 3,
         Enumerable.Repeat(0, 24).ToImmutableArray(), [new(0, 1, null)],

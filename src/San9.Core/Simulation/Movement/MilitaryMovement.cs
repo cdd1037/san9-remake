@@ -25,6 +25,8 @@ public sealed record OrderUnitCommand(Guid CommandId, int IssuerId, long Sequenc
     : GameCommand(CommandId, IssuerId, Sequence)
 {
     [JsonRequired] public bool ConfirmAttack { get; init; }
+    [JsonRequired] public UnitPolicies? Policies { get; init; }
+    [JsonRequired] public WorldPosition? Waypoint { get; init; }
 }
 public sealed record UnitDeployedEvent(GameClock Clock, int UnitId, int SettlementId, ImmutableArray<int> OfficerIds) : DomainEvent;
 public sealed record UnitOrderChangedEvent(GameClock Clock, int UnitId, MilitaryOrder? Order, string Reason) : DomainEvent;
@@ -177,15 +179,21 @@ internal static class MilitaryMovement
     internal static CommandRejection Order(WorldMutation world, OrderUnitCommand command, MilitaryRulebook? rules, List<DomainEvent> events)
     {
         if (rules is null) return CommandRejection.UnsupportedCommand;
-        if (!world.Units.TryGetValue(command.UnitId, out var unit) || unit.OwnerId != command.IssuerId ||
+        if (!world.Units.TryGetValue(command.UnitId, out var unit) || unit.IsEmbedded || unit.IsPersonnel || unit.Soldiers == 0 || unit.OwnerId != command.IssuerId ||
             unit.FormationId is not int id || !rules.Formations.TryGetValue(id, out var formation)) return CommandRejection.InvalidTask;
         if (!ValidOrder(world, unit.OwnerId, command.Order, formation, rules, unit.NavalFormationId)) return CommandRejection.InvalidTask;
         if (command.Order.Kind == MilitaryOrderKind.Construct) return CommandRejection.InvalidTask;
+        var policies = command.Policies ?? unit.Policies;
+        var travel = rules.Travel(unit);
+        if (command.Waypoint is { } via && (Occupancy(world, rules, unit.Id, null).Any(o => o.Overlaps(new(via, new(1, 1)))) ||
+            !travel.Map.FindRoute(unit.Position, via, travel.Shape, travel.Mode,
+                world.MovementOccupancy(rules, unit.OwnerId, policies, unit.Id, null)).Reachable)) return CommandRejection.InvalidTask;
         if (!command.ConfirmAttack && MilitaryDiplomacy.Warning(world, command.IssuerId, command.Order, rules) != AttackWarning.None)
             return CommandRejection.AttackConfirmationRequired;
         FacilityConstruction.Cancel(world, unit.Id, events);
-        world.Replace(unit with { Order = command.Order, Waypoint = null, DepartureDaysRemaining = 0, CommandedThisXun = true, EngagementTargetId = null, AwaitingPostAction = false });
+        world.AssignMilitaryOrder(unit.Id, command.Order, policies, command.Waypoint);
         events.Add(new UnitOrderChangedEvent(world.Clock, unit.Id, command.Order, "ordered"));
+        if (policies != unit.Policies) events.Add(new UnitPoliciesChangedEvent(world.Clock, unit.Id, policies));
         return CommandRejection.None;
     }
 

@@ -259,14 +259,23 @@ internal sealed partial class WorldMutation
         }
         if (sealChanged) RefreshForceTrust(previousSealOwner, ForceTrust.SealOwner(this, _economy));
     }
-    internal void Replace(UnitState value)
+    internal void AssignMilitaryOrder(int unitId, MilitaryOrder order, UnitPolicies policies, WorldPosition? waypoint)
+    {
+        ReplaceUnit(Units[unitId] with { Order = order, Policies = policies, Waypoint = waypoint,
+            DepartureDaysRemaining = 0, CommandedThisXun = true, EngagementTargetId = null, AwaitingPostAction = false },
+            assignsNavigation: true);
+    }
+
+    internal void Replace(UnitState value) => ReplaceUnit(value, assignsNavigation: false);
+
+    private void ReplaceUnit(UnitState value, bool assignsNavigation)
     {
         var previous = Units[value.Id];
         if (value.EffectiveOrder is null || previous.EffectiveOrder != value.EffectiveOrder || previous.OwnerId != value.OwnerId ||
             previous.FormationId != value.FormationId || previous.NavalFormationId != value.NavalFormationId ||
             previous.Waypoint != value.Waypoint || previous.Policies != value.Policies || previous.Condition != value.Condition)
             value = value with { Lookahead = null };
-        if (previous.Order != value.Order || previous.OwnerId != value.OwnerId)
+        if ((!assignsNavigation && previous.Order != value.Order) || previous.OwnerId != value.OwnerId)
             value = value with { Waypoint = null, DepartureDaysRemaining = 0 };
         if (value.EffectiveOrder is null || value.Condition == UnitCondition.Confused ||
             value.Condition == UnitCondition.Routed && value.EffectiveOrder.Kind == MilitaryOrderKind.Construct ||

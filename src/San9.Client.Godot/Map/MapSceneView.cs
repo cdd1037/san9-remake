@@ -62,7 +62,7 @@ public partial class MapSceneView : Node2D
     public Font? Font { get; set; }
     public bool ShowAnnotations { get; set; }
     public MapObjectTarget? Hovered { get; set; }
-    public DeploymentTargets? Targets { get; set; }
+    public MilitaryTargets? Targets { get; set; }
     internal Frame? Presented => _transition.Presented;
     private MapFrameTransition<Frame> _transition = null!;
     private TextureScope? _prefetchAssets;
@@ -75,7 +75,7 @@ public partial class MapSceneView : Node2D
     private ShaderMaterial _candidateMaterial = null!;
     private readonly ShaderMaterial[] _meshMaterials = new ShaderMaterial[3];
     private readonly ImageTexture[] _meshTextures = new ImageTexture[16];
-    private DeploymentTargets? _drawnTargets;
+    private MilitaryTargets? _drawnTargets;
     private TargetMesh[] _targetMeshes = [];
     private TargetMesh[] _visibleTargetMeshes = [];
     private MapSceneRegion? _meshRegion;
@@ -363,10 +363,10 @@ public partial class MapSceneView : Node2D
         }, frame.ViewportBounds);
         if (Targets is { } selection)
         {
-            void Marker(DeploymentTarget target, Vector2 position)
+            void Marker(MilitaryTarget target, Vector2 position)
             {
                 if (!selection.Candidates.TryGetValue(target, out var kind)) return;
-                string role = $"target-marker-{(kind == DeploymentMarker.Attack ? "attack" : "enter")}-{_markerFrame}";
+                string role = $"target-marker-{(kind == MilitaryMarker.Attack ? "attack" : "enter")}-{_markerFrame}";
                 if (_ui.TryGetReady(role, out var texture)) Add(texture, position);
             }
             foreach (var building in frame.Region.Buildings)

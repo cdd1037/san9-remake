@@ -30,8 +30,6 @@ public partial class DeploymentView : Control
             AxisStretchHorizontal = StyleBoxTexture.AxisStretchMode.Tile, AxisStretchVertical = StyleBoxTexture.AxisStretchMode.Tile };
         Rebuild();
     }
-    public override void _Process(double delta)
-    { if (Session.Snapshot.Revision != Draft.View.World.Revision) Closed(); }
     private Label Label(string value, Rect2 bounds, int size = 16, HorizontalAlignment alignment = HorizontalAlignment.Center, GameTextStyle? style = null)
     {
         var label = new Label

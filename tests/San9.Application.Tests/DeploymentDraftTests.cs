@@ -7,13 +7,111 @@ namespace San9.Application.Tests;
 
 public sealed class DeploymentDraftTests
 {
+    [Fact]
+    public void UnitAttackAndMarchSplitCandidatesAndPreserveExistingIntentions()
+    {
+        var policies = new UnitPolicies(true, false, true, false);
+        var view = View(world => world with
+        {
+            Simulation = world.Simulation with { NextUnitId = 8 },
+            Settlements = world.Settlements.Select(s => s.Id == 2 ? s with { OwnerId = 1,
+                CorpsId = world.Corps.Single(c => c.OwnerId == 1 && c.IsRoot).Id } : s).ToArray(),
+            Officers = world.Officers.Select(o => o.OwnerId == 2 ? o with { SettlementId = null, UnitId = 2 } : o).ToArray(),
+            Units = [new(7, 1, MapCoordinates.Center(new(0, 0)), 1200)
+                { FormationId = 900, NavalFormationId = 700, Policies = policies,
+                    Order = new(San9.Core.Domain.MilitaryOrderKind.AttackUnit, null, null) { UnitId = 2 },
+                    Waypoint = new(8, 2) },
+                new(2, 2, MapCoordinates.Center(new(3, 0)), 100) { FormationId = 900 },
+                new(3, 1, MapCoordinates.Center(new(0, 3)), 100) { FormationId = 900 }]
+        });
+        string hash = view.World.StateHash;
+        var attack = new UnitCommandTargets(view, 7, UnitCommandKind.Attack);
+        Assert.Equal(new MilitaryTarget(2, true), attack.Selected);
+        Assert.Equal(new MapCell(1, 0), attack.Waypoint);
+        Assert.Equal(policies, attack.Policies);
+        Assert.Single(attack.Candidates);
+        Assert.DoesNotContain(new MilitaryTarget(2, false), attack.Candidates.Keys);
+        Assert.Equal(new MapCell(0, 0), attack.Route[0]);
+        Assert.True(attack.BeginPolicies()); Assert.False(attack.SetDepartureDelay(9));
+        attack.SetPolicies(policies with { AutonomousRetreat = true });
+        var command = attack.CreateCommand(Guid.NewGuid(), 0, true);
+        Assert.Equal(7, command.UnitId); Assert.Equal(2, command.Order.UnitId);
+        Assert.Equal(new WorldPosition(8, 2), command.Waypoint);
+        Assert.True(command.Policies!.AutonomousRetreat); Assert.True(command.ConfirmAttack);
+        Assert.Equal(San9.Core.Simulation.ArrivalEstimateStatus.Known, attack.EstimateArrival().Status);
+        var march = new UnitCommandTargets(view, 7, UnitCommandKind.March);
+        Assert.Equal(2, march.Candidates.Count);
+        Assert.All(march.Candidates, entry => { Assert.False(entry.Key.IsUnit); Assert.Equal(MilitaryMarker.Enter, entry.Value); });
+        Assert.True(march.Select(new(2, false))); Assert.True(march.BeginPolicies());
+        Assert.Null(march.Waypoint);
+        Assert.NotEqual(attack.Route.ToArray(), march.Route.ToArray());
+        var marchCommand = march.CreateCommand(Guid.NewGuid(), 0);
+        Assert.Equal(MilitaryOrderKind.Return, marchCommand.Order.Kind);
+        Assert.Null(marchCommand.Waypoint);
+        Assert.Equal(hash, view.World.StateHash);
+    }
+
+    [Theory]
+    [InlineData(UnitCommandKind.Attack, UnitCommandKind.March)]
+    [InlineData(UnitCommandKind.March, UnitCommandKind.Attack)]
+    public void SwitchingCommandKindPreviewsExistingRouteWithoutAuthorizingOldTarget(UnitCommandKind originalKind, UnitCommandKind nextKind)
+    {
+        var originalTarget = originalKind == UnitCommandKind.March ? new MilitaryTarget(1, false) : new MilitaryTarget(2, true);
+        var nextTarget = nextKind == UnitCommandKind.March ? new MilitaryTarget(1, false) : new MilitaryTarget(2, true);
+        var originalOrder = originalKind == UnitCommandKind.March ? new MilitaryOrder(MilitaryOrderKind.Return, null, 1)
+            : new MilitaryOrder(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 2 };
+        var view = View(world => world with
+        {
+            Simulation = world.Simulation with { NextUnitId = 8 },
+            Units = [new(7, 1, MapCoordinates.Center(new(0, 0)), 1200)
+                { FormationId = 900, NavalFormationId = 700,
+                    Order = originalOrder, Waypoint = new(8, 2) },
+                new(2, 2, MapCoordinates.Center(new(3, 0)), 100) { FormationId = 900 }]
+        });
+        string hash = view.World.StateHash;
+        var original = new UnitCommandTargets(view, 7, originalKind);
+        Assert.Equal(originalTarget, original.Selected);
+        Assert.NotEmpty(original.Route);
+        var next = new UnitCommandTargets(view, 7, nextKind);
+        Assert.Null(next.Selected);
+        Assert.Equal(original.Route.ToArray(), next.Route.ToArray());
+        Assert.Equal(original.Waypoint, next.Waypoint);
+        Assert.False(next.Reachable);
+        Assert.False(next.Select(originalTarget));
+        Assert.False(next.SetWaypoint(new(2, 0)));
+        Assert.False(next.BeginPolicies());
+        Assert.Throws<InvalidOperationException>(() => next.CreateCommand(Guid.NewGuid(), 0));
+        Assert.True(next.Select(nextTarget));
+        Assert.Null(next.Waypoint);
+        Assert.NotEqual(original.Route.ToArray(), next.Route.ToArray());
+        Assert.True(next.BeginPolicies());
+        var command = next.CreateCommand(Guid.NewGuid(), 0);
+        Assert.Equal(nextKind == UnitCommandKind.March ? MilitaryOrderKind.Return : MilitaryOrderKind.AttackUnit, command.Order.Kind);
+        Assert.Equal(nextTarget.Id, nextTarget.IsUnit ? command.Order.UnitId : command.Order.SettlementId);
+        Assert.Null(command.Waypoint);
+        Assert.Equal(hash, view.World.StateHash);
+    }
+
+    [Theory]
+    [InlineData(true, false, 1)]
+    [InlineData(false, true, 1)]
+    [InlineData(false, false, 2)]
+    public void UnitDraftRejectsUnavailableSources(bool embedded, bool personnel, int owner)
+    {
+        var view = View(world => world with { Units = [new(7, owner, MapCoordinates.Center(new(0, 0)), 100)
+            { FormationId = 900, IsEmbedded = embedded, IsPersonnel = personnel }] });
+        Assert.Throws<ArgumentException>(() => new UnitCommandTargets(view, 7, UnitCommandKind.Attack));
+    }
+
     private static StrategySnapshot View(Func<San9.Core.Simulation.WorldSnapshot, San9.Core.Simulation.WorldSnapshot>? change = null)
     {
         var definition = G01ScenarioTests.Fixture();
         var world = GameSession.Start(definition, 1).Snapshot;
         var slots = new FormationPresentation(3, 3, [new(1, 0), new(0, 1), new(1, 1), new(2, 1), new(1, 2)], 3, 180, null, null);
         var line = slots with { Slots = [new(0, 0), new(0, 1), new(1, 1), new(1, 2), new(2, 2)] };
-        var formation = new FormationRule(100, 50, 0, 100000, 5, new(1, 1), TravelMode.Land) { Combat = new(10, 10, 10, 10, 50) };
+        var formation = new FormationRule(100, 50, 0, 100000, 5, new(1, 1), TravelMode.Land)
+            { Combat = new(10, 10, 10, 10, 50), Attack = new(1, false),
+                CaptureRanks = [BattleRank.Front, BattleRank.Middle, BattleRank.Middle, BattleRank.Rear, BattleRank.Rear] };
         definition = definition with
         {
             Military = new(4, 4, Enumerable.Repeat(0, 16).ToImmutableArray(), [new(0, 1, 1)],
@@ -108,11 +206,11 @@ public sealed class DeploymentDraftTests
         string hash = view.World.StateHash;
         var targets = new DeploymentTargets(draft);
         Assert.Equal(2, targets.Candidates.Count);
-        Assert.Equal(DeploymentMarker.Attack, targets.Candidates[new(2, false)]);
-        Assert.Equal(DeploymentMarker.Attack, targets.Candidates[new(2, true)]);
+        Assert.Equal(MilitaryMarker.Attack, targets.Candidates[new(2, false)]);
+        Assert.Equal(MilitaryMarker.Attack, targets.Candidates[new(2, true)]);
         Assert.False(targets.Select(new(1, false)));
         Assert.True(targets.Select(new(2, true)));
-        Assert.Equal(new DeploymentTarget(2, true), targets.Selected);
+        Assert.Equal(new MilitaryTarget(2, true), targets.Selected);
         Assert.Contains(new MapCell(3, 0), targets.ClearCells);
         Assert.DoesNotContain(new MapCell(0, 0), targets.ClearCells);
         Assert.Equal(hash, view.World.StateHash); Assert.Equal(123u, draft.Soldiers);
@@ -120,10 +218,43 @@ public sealed class DeploymentDraftTests
     }
 
     [Fact]
+    public void TargetCatalogProjectsCurrentValuesAndKeepsMixedIdentitiesThroughSorting()
+    {
+        var view = View(world => world with
+        {
+            Settlements = world.Settlements.Select(s => s.Id == 2 ? s with
+                { OwnerId = null, Soldiers = 9, Wounded = 3, Morale = 0, ConfusionDaysRemaining = 2 } : s).ToArray(),
+            Units = [new(2, 2, MapCoordinates.Center(new(3, 0)), 100)
+                { FormationId = 900, CommanderId = 3, Wounded = 6, Morale = 73, Condition = UnitCondition.Confused }]
+        });
+        var keys = view.Settlements.Select(s => s.NameKey).Concat(view.Forces.Select(f => f.NameKey))
+            .Concat(view.Officers.Select(o => o.NameKey)).Distinct();
+        var texts = new San9.Content.Text.TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion,
+            keys.ToDictionary(k => k, k => k));
+        var targets = new DeploymentTargets(new(view, 1));
+        string hash = view.World.StateHash;
+        var catalog = new MilitaryTargetCatalog(targets, texts);
+        var place = Assert.Single(catalog.Rows, r => !catalog.Target(r.Id).IsUnit);
+        var unit = Assert.Single(catalog.Rows, r => catalog.Target(r.Id).IsUnit);
+        Assert.Equal(new MilitaryTarget(2, false), catalog.Target(place.Id));
+        Assert.Equal(new MilitaryTarget(2, true), catalog.Target(unit.Id));
+        Assert.Equal([view.Settlements.Single(s => s.Id == 2).ResolveName(texts), "", "9", "3", "0", "混乱"],
+            place.Cells.Select(c => c.Text));
+        Assert.Equal([texts.Resolve(view.Officers.Single(o => o.Id == 3).NameKey) + "队",
+            texts.Resolve(view.Forces.Single(f => f.Id == 2).NameKey), "100", "6", "73", "混乱"],
+            unit.Cells.Select(c => c.Text));
+        var table = new CatalogTableState(); table.SetRows(catalog.Rows); table.Sort(2);
+        Assert.Equal(new MilitaryTarget(2, true), catalog.Target(table.Rows[0].Id));
+        table.Sort(2);
+        Assert.Equal(new MilitaryTarget(2, false), catalog.Target(table.Rows[0].Id));
+        Assert.Null(targets.Selected); Assert.Equal(hash, view.World.StateHash);
+    }
+
+    [Fact]
     public void FriendlyOrdinaryFacilityUsesEntryMarkerAndHostileFacilityUsesAttack()
     {
         var view = View(world => world with { Settlements = world.Settlements.Select(s => s.Id == 2 ? s with { OwnerId = 1, CorpsId = null } : s).ToArray() });
-        Assert.Equal(DeploymentMarker.Enter, new DeploymentTargets(new(view, 1)).Candidates[new(2, false)]);
+        Assert.Equal(MilitaryMarker.Enter, new DeploymentTargets(new(view, 1)).Candidates[new(2, false)]);
     }
 
     [Fact]
@@ -163,7 +294,7 @@ public sealed class DeploymentDraftTests
         Assert.True(targets.BeginPolicies()); targets.SetPolicies(new(true, true, false, true));
         Assert.False(targets.Select(new(2, false))); Assert.False(targets.SetWaypoint(new(0, 0)));
         targets.ReturnToTargets(); Assert.Equal(new UnitPolicies(true, true, false, true), targets.Policies);
-        Assert.Equal(new DeploymentTarget(2, true), targets.Selected); Assert.NotEmpty(targets.Route);
+        Assert.Equal(new MilitaryTarget(2, true), targets.Selected); Assert.NotEmpty(targets.Route);
         Assert.Equal(hash, view.World.StateHash);
     }
 }

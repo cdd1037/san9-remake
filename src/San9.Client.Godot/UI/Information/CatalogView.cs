@@ -104,7 +104,7 @@ public partial class CatalogView : Control, IInformationPage
         if (ShowMap is not null)
         {
             var map = new InformationActionButton { Title = "地图", MapToggle = true, Textures = Textures,
-                Position = new(_body.End.X - 356, _body.End.Y - 68), Size = new(108, 32) };
+                Position = new(_body.End.X - 352, _body.End.Y - 64), Size = new(108, 32) };
             map.Pressed += ShowMap; AddChild(map);
         }
         IconButton("information-action-close", new(_body.End.X - 40, _body.Position.Y + 32), () => Closed?.Invoke());

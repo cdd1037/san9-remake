@@ -15,12 +15,13 @@ internal sealed class MovementOccupancy
         foreach (var place in places) Set(place);
         foreach (var unit in units) Set(unit);
     }
-    internal static IReadOnlyList<MapOccupancy> Snapshot(WorldSnapshot world, MilitaryRulebook rules, int owner, UnitPolicies policies, bool includeUnits)
+    internal static IReadOnlyList<MapOccupancy> Snapshot(WorldSnapshot world, MilitaryRulebook rules, int owner, UnitPolicies policies, bool includeUnits,
+        int? movingUnit = null)
     {
         var units = world.Units.ToDictionary(u => u.Id);
         var places = world.Settlements.ToDictionary(s => s.Id);
         return new MovementOccupancy(world.Settlements, includeUnits ? world.Units : [], rules)
-            .Query(units, places, policies, other => MilitaryDiplomacy.AutomaticEnemy(world, owner, other));
+            .Query(units, places, policies, other => MilitaryDiplomacy.AutomaticEnemy(world, owner, other), movingUnit);
     }
 
     internal void Set(UnitState unit) => Set((true, unit.Id), unit.FormationId is int id
@@ -69,7 +70,7 @@ internal sealed class MovementOccupancy
 public static class MilitaryRouteQuery
 {
     public static IReadOnlyList<MapOccupancy> Occupancy(WorldSnapshot snapshot, MilitaryRulebook rules, int owner, UnitPolicies policies,
-        bool includeUnits = true) => MovementOccupancy.Snapshot(snapshot, rules, owner, policies, includeUnits);
+        bool includeUnits = true, int? movingUnit = null) => MovementOccupancy.Snapshot(snapshot, rules, owner, policies, includeUnits, movingUnit);
 
     public static WorldPosition? DeploymentPosition(UnitTravel travel, MapOccupancy place, IReadOnlyList<MapOccupancy> occupancy)
     {

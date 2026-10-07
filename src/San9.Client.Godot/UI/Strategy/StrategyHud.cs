@@ -199,7 +199,7 @@ public partial class StrategyHud : Control
     }
 
     private StrategyInteraction Interaction => StrategyInteraction.Resolve(_built, Turn?.Screen,
-        Turn?.CanAdvance == true, _flow?.Stage ?? DeploymentStage.None, Overview.IsOpen,
+        Turn?.CanAdvance == true, _flow?.Stage ?? MilitaryCommandStage.None, Overview.IsOpen,
         OverlayHost.IsInsideTree() && OverlayHost.HasModal || _contextMenu?.Visible == true || _notice?.Visible == true);
     private bool IsMapInteractionBlocked => !Interaction.CanUseMap;
     public bool CanNavigateMap => Interaction.CanNavigate;
@@ -258,7 +258,15 @@ public partial class StrategyHud : Control
 
     private void ActivateCommand(string command)
     {
-        if (command is not ("sortie" or "patrol") || _commandTarget is not { IsUnit: false } target || !CanIssueOrders) return;
+        if (_commandTarget is not { } target || !CanIssueOrders) return;
+        if (target.IsUnit)
+        {
+            if (command is not ("attack" or "march")) return;
+            _commandMenu.Close(); Overview.Close();
+            _flow.OpenUnit(target.Id, command == "attack" ? UnitCommandKind.Attack : UnitCommandKind.March);
+            return;
+        }
+        if (command is not ("sortie" or "patrol")) return;
         _commandMenu.Close();
         Overview.Close();
         if (command == "patrol") OpenPatrol(target.Id); else _flow.Open(target.Id);

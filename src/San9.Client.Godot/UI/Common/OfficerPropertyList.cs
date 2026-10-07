@@ -8,8 +8,10 @@ public sealed record OfficerProperty(string Title, string Value, int ValueWidth 
 public partial class OfficerPropertyList : Control
 {
     public TextureScope Textures { get; init; } = null!;
+    public string LabelSkinPrefix { get; init; } = "detail-admin-label";
     public int LabelWidth { get; init; } = 48;
     public int RowSpacing { get; init; } = 32;
+    public int RowHeight { get; init; } = 24;
     private OfficerProperty[] _properties = [];
     private readonly GameTextPresenter _text = new();
     private StyleBoxTexture _field = null!;
@@ -24,7 +26,7 @@ public partial class OfficerPropertyList : Control
 
     public override void _Ready()
     {
-        if (LabelWidth < 32 || RowSpacing < 32) throw new InvalidOperationException("Property labels and row spacing must be at least 32 pixels.");
+        if (LabelWidth < 32 || RowHeight < 24 || RowSpacing < RowHeight) throw new InvalidOperationException("Invalid property row dimensions.");
         MouseFilter = MouseFilterEnum.Ignore;
         _field = CommandPanelArt.Field(Textures);
         Rebuild();
@@ -37,8 +39,8 @@ public partial class OfficerPropertyList : Control
         for (int row = 0; row < _properties.Length; row++)
         {
             var property = _properties[row];
-            CommandPanelArt.Label(this, _text, property.Title, new(0,row*RowSpacing,LabelWidth,24));
-            CommandPanelArt.Label(this, _text, property.Value, new(LabelWidth+8,row*RowSpacing,property.ValueWidth,24), property.TextColor);
+            CommandPanelArt.Label(this, _text, property.Title, new(0,row*RowSpacing,LabelWidth,RowHeight));
+            CommandPanelArt.Label(this, _text, property.Value, new(LabelWidth+8,row*RowSpacing,property.ValueWidth,RowHeight), property.TextColor);
         }
         QueueRedraw();
     }
@@ -49,10 +51,10 @@ public partial class OfficerPropertyList : Control
         {
             float y = row*RowSpacing;
             int width = _properties[row].ValueWidth;
-            CommandPanelArt.Strip(this, Textures, "detail-admin-label", new(0,y,LabelWidth,24));
-            DrawStyleBox(_field, new(LabelWidth+8,y,width,24));
+            CommandPanelArt.Strip(this, Textures, LabelSkinPrefix, new(0,y,LabelWidth,RowHeight));
+            DrawStyleBox(_field, new(LabelWidth+8,y,width,RowHeight));
             SkinPainter.Tile(this, Textures["deployment-field-rim"], new(LabelWidth+8,y,width,4));
-            SkinPainter.Tile(this, Textures["deployment-field-rim"], new(LabelWidth+8,y+20,width,4));
+            SkinPainter.Tile(this, Textures["deployment-field-rim"], new(LabelWidth+8,y+RowHeight-4,width,4));
         }
     }
 

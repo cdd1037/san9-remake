@@ -43,7 +43,23 @@ public sealed class ScenarioTextReader(byte[] messages, byte[] executable) : IDi
     }
     private void ReadCommandMenuText()
     {
+        foreach (var (role, message) in new[] { ("select",8038), ("select-office",8268), ("individual",8175),
+            ("fill",8407), ("promote",8408), ("remove",8409), ("no-vacancy",8406), ("no-target",8375),
+            ("accept",8205), ("no-changes",8052), ("cancel",8172) })
+            Add(AppointmentText.Key("rank",role), _messages.PlainText(message));
+        foreach (var (role, message) in new[] { ("select", 8038), ("target", 8174), ("accept", 8207), ("cancel", 8172) })
+            Add(AppointmentText.Key("exile", role), _messages.PlainText(message));
+        foreach (string kind in new[] { "bestow", "confiscate" })
+            foreach (var (role, message) in new[] { ("select", 8038), ("target", 8174), ("accept", kind == "bestow" ? 8203 : 8204),
+                ("cancel", 8172), ("treasure", 8173), ("select-treasure", 8043) })
+                Add(AppointmentText.Key(kind, role), _messages.PlainText(message));
+        foreach (var (role, message) in new[] { ("select", 8038), ("target", 8174), ("accept", 8206), ("cancel", 8172) })
+            Add(AppointmentText.Key("execute", role), _messages.PlainText(message));
         Add(CommandMenuSkin.OfficerSelectionHintKey, _messages.PlainText(8037));
+        foreach (var (role, message) in new[] { ("select", 8038), ("target", 8174), ("accept", 8202), ("cancel", 8172) })
+            Add(AppointmentText.Key("reward", role), _messages.PlainText(message));
+        foreach (var (role, message) in new[] { ("select", 8050), ("target", 8174), ("accept", 8201), ("cancel", 8172) })
+            Add(AppointmentText.Key("strategist", role), _messages.PlainText(message));
         foreach (var entry in Interface.CommandMenuSources.Entries)
         {
             Add(CommandMenuSkin.DescriptionKey(entry.Id), _messages.MultilineText(entry.Message));

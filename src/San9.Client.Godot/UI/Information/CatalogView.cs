@@ -19,6 +19,7 @@ public partial class CatalogView : Control, IInformationPage
     public Action<int>? Activated { get; init; }
     public Action<int>? CurrentChanged { get; init; }
     public Action? Closed { get; init; }
+    public Action? Confirmed { get; init; }
     public Action? ShowMap { get; init; }
     public bool TabStripFollowsPage { get; init; }
     public int? InitialCurrentId { get; init; }
@@ -100,6 +101,12 @@ public partial class CatalogView : Control, IInformationPage
                 Textures = Textures, Position = new(_body.End.X - 248, _body.End.Y - 48), Size = new(80, 48) };
             _confirmSelection.Pressed += () => { if (SelectionAccepted) ConfirmSelection?.Invoke(Selection.Selected); };
             AddChild(_confirmSelection);
+        }
+        if (Confirmed is not null)
+        {
+            var confirm = new InformationActionButton { Title = "决定", SkinPrefix = "catalog-accept-", FontSize = 24,
+                Textures = Textures, Position = new(_body.End.X - 248, _body.End.Y - 48), Size = new(80, 48) };
+            confirm.Pressed += Confirmed; AddChild(confirm);
         }
         if (ShowMap is not null)
         {

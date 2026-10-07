@@ -7,7 +7,7 @@ internal static class CommandPresentationCompiler
     internal static readonly (string Role, string File)[] SoundSources =
         [("patrol-citizen", "SE/SE_G008.WAV"), ("domestic-result", "SE/SE_C006.WAV"),
          ("facility-result", "SE/SE_G005.WAV"), ("recruit-result", "SE/SE_C002.WAV"),
-         ("trade-start", "SE/SE_C001.WAV"), ("repair-complete", "SE/se_m002.WAV")];
+         ("trade-start", "SE/SE_C001.WAV"), ("repair-complete", "SE/se_m002.WAV"), ("reward-result", "SE/SE_G005.WAV"), ("exile-result", "SE/SE_G001.WAV"), ("loyalty-decrease", "SE/SE_G006.WAV"), ("execution-result", "SE/SE_G002.WAV")];
 
     internal static CommandPresentation Compile(IReadOnlyList<San9ScenarioPersonRecord> people)
     {
@@ -27,6 +27,12 @@ internal static class CommandPresentationCompiler
                  new(Key(5876), Person(670), [1,0,18,25,43], AdviceMetric.Durability, 1500, true),
                  new(Key(5877), Person(674), [15,29,16,40,23], AdviceMetric.PublicOrder, 4000)]))
         {
+            TreasureTransfer = new(Key(5535), Key(5574), Key(5542), Key(5788), Key(5575), Key(7176), Key(7177), Key(7407), "reward-result", "loyalty-decrease"),
+            Execution = new(Person(669), Key(5753), Key(5468), Key(5754), "execution-result"),
+            Offices = new(Key(5572), Key(5573)),
+            Strategist = new(Key(5515), Key(5523), Key(5530), Key(5534)),
+            Exile = new(Person(669), Key(5755), Key(5496), Key(5756), Key(5503), Key(5857), "exile-result"),
+            Reward = new(Key(5646), Key(5859), "reward-result"),
             Facilities = new() {
                 ["commerce"] = Development(5599,5805,5811,669,5863,5605),
                 ["cultivate"] = Development(5606,5798,5804,673,5865,5612),

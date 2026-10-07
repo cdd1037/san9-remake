@@ -57,7 +57,7 @@ public sealed class TextureRebuildTests : IDisposable
         var replacement = new ImageAsset("ui-test", ".sources/0.png", 1, 1, 3);
         var package = new TexturePackage(5, 23, "test", [],
             new([], [], [], [], [], new int[288], new int[16], [], new byte[32]),
-            new(38, [replacement], new() { ["test"] = replacement.Id }, [], []),
+            new(InterfaceSkin.CurrentSchemaVersion, [replacement], new() { ["test"] = replacement.Id }, [], []),
             new(3, [new("original", "interface", [new(0, 0, first), new(1, 0, second)])]), []);
         var result = TexturePackagePacking.Pack(root, package, "images/rebuilt/skin", default);
         Assert.Equal(new[] { first, second }, result.Library.Assets);
@@ -80,7 +80,7 @@ public sealed class TextureRebuildTests : IDisposable
         var image = new ImageAsset("ui-test", ".sources/0.png", 1, 1, 3);
         var package = new TexturePackage(5, 23, "test", [],
             new([], [], [], [], [], new int[288], new int[16], [], new byte[32]),
-            new(38, [image], new() { ["test"] = image.Id }, [], []),
+            new(InterfaceSkin.CurrentSchemaVersion, [image], new() { ["test"] = image.Id }, [], []),
             new(3, [new("original", "interface", [new(0, 0, image with { Id = "library/test" })])]), []);
         var result = TexturePackagePacking.Pack(root, package, "images", default);
         Assert.Equal(Assert.Single(result.Skin.Assets).File, Assert.Single(result.Library.Assets).File);

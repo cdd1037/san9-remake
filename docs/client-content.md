@@ -6,7 +6,7 @@
 
 2026-09-27命令来源光圈：皮肤33／纹理转换26增加五帧`minimap-command-pulse`语义资源（首帧无后缀，其余为`-1..-4`），逐色透明度保留。客户端以当前命令菜单对象定位，兼用于城市、其他设施和部队；出征后续页面保留来源，整项结束清除。依据[RE-0158](../research/findings/RE-SAN9PK-0158.md#小地图命令来源光圈补证2026-09-27)。本地纹理及190年组合包已原位重转，五帧均32×36、首帧全透明，29064逻辑图片／5262物理文件完整校验通过。解决方案各测试项目合计3867项通过；未启动游戏，菜单开关、对象切换及后续命令页面往返的实际画面待用户验收。
 
-现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 128，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 148，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 38，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 34。规则为 `san9-core-g10-v82`，保存99／日志102／录像9；协议以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 为准。
+现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 129，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 154，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 40，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 36。规则为 `san9-core-g10-v82`，保存99／日志102／录像9；协议以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 为准。
 
 旧内容包按现行契约原位重转，旧规则存档、日志和录像拒绝加载。是否重转纹理取决于纹理转换版本与源输入。历史验收只证明对应基线，不代表当前版本重新验证；阶段收口见[G10 验收](g10-verification.md#2026-09-21阶段收口)。
 
@@ -17,11 +17,11 @@
 | 模块 | 职责 | 输出 |
 | --- | --- | --- |
 | Content.Maps / MapImporter | 当前地图方格、地貌及对象位置 | `map.json`（无图片文件） |
-| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema128 |
-| Content.Text / ScenarioTextReader / PublicationMessageCatalog | 静态词条与保留原序号、按明确区段分文件的全量消息目录 | `text.json` / `messages/*.json`，文本schema6、剧本包schema148 |
-| Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema38 |
-| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema148 |
-| Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema5／转换版本34 |
+| Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema129 |
+| Content.Text / ScenarioTextReader / PublicationMessageCatalog | 静态词条与保留原序号、按明确区段分文件的全量消息目录 | `text.json` / `messages/*.json`，文本schema6、剧本包schema154 |
+| Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema40 |
+| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema154 |
+| Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema5／转换版本36 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 
 共享剧本契约不按原版编号区间限制城市或人物身份。城市图标资格由`SettlementKind.City`决定；`RegionCityIds`必须引用真实城市，其城市名从据点定义读取，不要求城市ID同时存在于地域名称表。数量与名称不继承源格式槽位和字节长度；玩法数值上限及显示资源范围独立校验。
@@ -172,7 +172,7 @@ EXE证据先在项目主IDA库运行`research/scripts/ida/export_text_evidence.p
 
 通用验证要求见[协作规则](../AGENTS.md#验证与交付)。转换契约变化须核对受影响范围的源字段、文本和图像，不以调用同一转换器作为独立证据。当前实际画面由用户验收，不自动启动Godot。
 
-当前运行包为`local/generated/content/scenario-190-live`。研究资料位于`local/generated/research`，仍有用途的运行态对照、字体研究和检查工具位于`local/generated/verification`。局部问题解决后清理对应临时截图与日志，不保留多轮重复验收记录。
+当前运行包为`local/generated/content/scenario-190-live`。七项任免命令专用表现采用组合包schema154，皮肤schema40将通用名单翻页箭头纠正为五帧（含禁用悬停）；完整纹理转换版本36。已有包先执行`import-textures --rebuild skin`，再执行`import-client`，均原位更新。流放与褒奖共用名单准备页、人物卡、分页和选择流程；褒奖另显示费用属性栏。消息分支由导入脚本与执行前快照共同决定。流放配置使者、两组对白和人数汇总；授与／没收增加共享宝物表现绑定、俘虏分支及忠诚变化反馈，新增忠诚下降音效。处斩配置使者、宣告、临终对白、结果及SE_G002音效，人物呈现保留执行前快照。研究资料位于`local/generated/research`，仍有用途的运行态对照、字体研究和检查工具位于`local/generated/verification`。局部问题解决后清理对应临时截图与日志，不保留多轮重复验收记录。
 
 G03经济内容保留基础信望、相性、精通类别、军团账户、兵力容量与粮耗资格；组合表映射为规范化人物ID对，官职俸禄进入Core规则目录。数据覆盖与运行验证见[G03验收](g03-verification.md)。
 
@@ -211,7 +211,7 @@ TC101完整保留41项兵法和28项阵形的展示元数据，名称与说明�
 
 ### 爵位一览说明文本
 
-爵位包含必填可空`DescriptionKey`，非空时校验文本引用；TC101导入76项原版说明。忠诚上升由共享任官规则的俸禄整数折半值提供，不另设展示公式。
+剧本129新增官职的`AppointmentGroup`（文／武）及`FillBeforeOrdinaryOffices`，君主爵位的`PreferBalancedOfficeCandidates`控制是否先比较四维总和；任命顺序使用现有`GovernorPriority`，不从显示文本或运行时对象编号推导。TC101仅在Importer中将源指挥门槛与四项最高官职转换为这些语义。组合包154增加爵位完成及降职提示绑定。爵位包含必填可空`DescriptionKey`，非空时校验文本引用；TC101导入76项原版说明。忠诚上升由共享任官规则的俸禄整数折半值提供，不另设展示公式。
 
 ### 兵法一览说明与筛选
 
@@ -244,7 +244,7 @@ TC101完整保留41项兵法和28项阵形的展示元数据，名称与说明�
 
 ### 地图命令菜单资源
 
-皮肤schema22、纹理转换版本20加入`command-*`语义角色：六组一级／二级三段四态按钮、上中下拼接框、45个入口的插图角色、条件卡、三类对象摘要底板和摘要图标；`text.json`对应45个`ui.command.*`静态分类／条件说明。原版资源、调色板与布局证据见[RE-SAN9PK-0073](../research/findings/RE-SAN9PK-0073.md#主地图左键命令菜单补充2026-09-26)。须依次原位运行`import-textures`与`import-client`；客户端只读取组合包及纹理依赖。菜单按当前设施类型、拆除属性与部队用途查询，并按当前状态、候选和资源返回禁用原因；组合包schema148补齐其他指令的原因词条，更新时执行`import-client`。设施八项、出征与部队攻击／进军已有交互，其他入口仍提供导航和说明，尚不从客户端提交领域命令。主界面临时部队预览不改变190年原始剧本的野战部队覆盖。
+皮肤schema22、纹理转换版本20加入`command-*`语义角色：六组一级／二级三段四态按钮、上中下拼接框、45个入口的插图角色、条件卡、三类对象摘要底板和摘要图标；`text.json`对应45个`ui.command.*`静态分类／条件说明。原版资源、调色板与布局证据见[RE-SAN9PK-0073](../research/findings/RE-SAN9PK-0073.md#主地图左键命令菜单补充2026-09-26)。须依次原位运行`import-textures`与`import-client`；客户端只读取组合包及纹理依赖。菜单按当前设施类型、拆除属性与部队用途查询，并按当前状态、候选和资源返回禁用原因；组合包schema148补齐其他指令的原因词条，更新时执行`import-client`。设施八项、出征、部队攻击／进军及任免除委任外七项已有交互，其他入口仍提供导航和说明，尚不从客户端提交领域命令。主界面临时部队预览不改变190年原始剧本的野战部队覆盖。
 
 ## 战略面与进行面资源
 

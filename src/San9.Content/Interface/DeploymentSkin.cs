@@ -19,5 +19,7 @@ public static class DeploymentSkin
             "cancel-left", "cancel-middle", "cancel-right", "close", "help", "number-accept", "number-cancel",
             "number-back", "number-clear", "number-min", "number-max", "number-minus", "number-plus", "number-close", "number-help", "number-00", "number-0",
             "number-1", "number-2", "number-3", "number-4", "number-5", "number-6", "number-7", "number-8", "number-9" }
-        .SelectMany(s => Enumerable.Range(0, 4).Select(f => "deployment-" + s + (f == 0 ? "" : $"-{f}")))).ToArray();
+        .SelectMany(s => Enumerable.Range(0, 4).Select(f => "deployment-" + s + (f == 0 ? "" : $"-{f}"))))
+        .Concat(new[] { "page-previous", "page-next" }.SelectMany(s => Enumerable.Range(0, 5)
+            .Select(f => "deployment-" + s + (f == 0 ? "" : $"-{f}")))).ToArray();
 }

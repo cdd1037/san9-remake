@@ -157,6 +157,17 @@ public partial class GameDialog : Control
     }
 
     public override void _GuiInput(InputEvent @event) => AcceptEvent();
+    public override void _Input(InputEvent input)
+    {
+        if (!IsVisibleInTree() || _content is not { } content) return;
+        if (input is InputEventMouseButton { ButtonIndex: MouseButton.Right } mouse)
+        {
+            GetViewport().SetInputAsHandled();
+            if (!mouse.Pressed) return;
+            if (content.Notice) Closed?.Invoke();
+            else if (content.Dismiss is not null) Dismissed?.Invoke();
+        }
+    }
     public override void _UnhandledInput(InputEvent @event)
     {
         if (!IsVisibleInTree() || _content?.Notice != true) return;

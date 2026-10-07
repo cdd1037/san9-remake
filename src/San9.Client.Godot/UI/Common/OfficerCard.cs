@@ -56,10 +56,11 @@ internal static class CommandPanelArt
         AxisStretchHorizontal = StyleBoxTexture.AxisStretchMode.Tile, AxisStretchVertical = StyleBoxTexture.AxisStretchMode.Tile
     };
 
-    public static void Label(Control parent, GameTextPresenter text, string value, Rect2 bounds, Color? color = null)
+    public static void Label(Control parent, GameTextPresenter text, string value, Rect2 bounds, Color? color = null,
+        HorizontalAlignment alignment = HorizontalAlignment.Center)
     {
         var label = new Label { Text = value, Position = bounds.Position, Size = bounds.Size,
-            HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = alignment, VerticalAlignment = VerticalAlignment.Center,
             MouseFilter = Control.MouseFilterEnum.Ignore };
         parent.AddChild(label);
         text.Apply(label, GameTextStyles.CatalogRow with { Foreground = color ?? new Color("f0f0f0") });

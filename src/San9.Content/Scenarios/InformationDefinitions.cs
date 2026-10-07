@@ -7,6 +7,7 @@ namespace San9.Content.Scenarios;
 public sealed record RankDefinition(int Id, string NameKey, uint CommandCapacity, int RequiredTrust, int LoyaltyBonus,
     [property: JsonRequired] int Precedence)
 {
+    [JsonRequired] public bool PreferBalancedOfficeCandidates { get; init; }
     [JsonRequired] public bool IsUnranked { get; init; }
     [JsonRequired] public string? DescriptionKey { get; init; }
 }
@@ -24,8 +25,11 @@ public sealed record TreasureDefinition(int Id, string NameKey, int Category, in
         AutomaticDiplomacyOfferAllowed = AutomaticDiplomacyOfferAllowed, FavoredOwnerIds = FavoredOwnerIds
     };
 }
+public enum OfficeAppointmentGroup { Military, Civil }
 public sealed record OfficeDefinition(int Id, string NameKey, uint CommandCapacity, int Salary)
 {
+    [JsonRequired] public OfficeAppointmentGroup AppointmentGroup { get; init; }
+    [JsonRequired] public bool FillBeforeOrdinaryOffices { get; init; }
     [JsonRequired] public string? DescriptionKey { get; init; }
     [JsonRequired] public int GovernorPriority { get; init; }
     [JsonRequired] public OfficerAbilities AbilityBonuses { get; init; }
@@ -114,7 +118,7 @@ public sealed record InformationDefinitions(RankDefinition[] Ranks, OfficeDefini
             throw new InvalidDataException("Rank precedence must be unique.");
         if (Ranks.Any(r => string.IsNullOrWhiteSpace(r.NameKey) || r.RequiredTrust < 0 || r.LoyaltyBonus < 0 || r.Precedence < 0) ||
             Offices.Any(o => string.IsNullOrWhiteSpace(o.NameKey) || o.DescriptionKey is not null && string.IsNullOrWhiteSpace(o.DescriptionKey) || o.Salary < 0 || o.GovernorPriority < 0 ||
-                !o.AbilityBonuses.IsNonnegative || o.RequiredRankId is int rank && !Ranks.Any(r => r.Id == rank)) ||
+                !Enum.IsDefined(o.AppointmentGroup) || !o.AbilityBonuses.IsNonnegative || o.RequiredRankId is int rank && !Ranks.Any(r => r.Id == rank)) ||
             Treasures.Any(t => string.IsNullOrWhiteSpace(t.NameKey) || t.Category is < 0 or > 12 || !Enum.IsDefined(t.RetentionGroup) || t.AbilityBonus < 0 || !t.AbilityBonuses.IsNonnegative || t.LoyaltyBonus < 0 ||
                 t.FavoredOwnerIds.IsDefault || t.FavoredOwnerIds.Distinct().Count() != t.FavoredOwnerIds.Length ||
                 t.FavoredOwnerIds.Any(id => !scenario.Officers.Any(o => o.State.Id == id))) ||

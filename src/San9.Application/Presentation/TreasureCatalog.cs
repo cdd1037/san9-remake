@@ -21,9 +21,10 @@ public static class TreasureCatalog
                    join definition in view.Information.Treasures on treasure.Id equals definition.Id
                    orderby treasure.Id
                    select new InformationRow(new(InformationCategory.Treasures, treasure.Id),
-                   [texts.Resolve(definition.NameKey), definition.Category switch { 0 => "名马", 1 => "武器", 2 => "兵书", _ => $"类别{definition.Category}" },
+                   [texts.Resolve(definition.NameKey), definition.Category switch { 0 => "名马", 1 => "武器", 2 => "兵书", 3 => "政书", 4 => "史书", 5 => "经书", 6 => "论文",
+                           7 => "地图", 8 => "医书", 9 => "奇书", 10 => "玉玺", 11 => "宝物", 12 => "装饰", _ => throw new InvalidOperationException("Unknown treasure category.") },
                        definition.Category switch { 2 => "统率", 1 => "武力", 5 or 9 => "智力", 3 or 4 or 6 => "政治", _ => "" },
-                       definition.AbilityBonus, Tactic(definition.TacticId), definition.Category == 0 ? new CatalogCell("安然撤退") : CatalogCell.Unavailable, texts.Resolve(holder.NameKey)], holder.SettlementId);
+                       definition.AbilityBonus, Tactic(definition.TacticId), definition.Category switch { 0 => new CatalogCell("安然撤退"), 10 => new CatalogCell("信望+100"), _ => CatalogCell.Unavailable }, texts.Resolve(holder.NameKey)], holder.SettlementId);
         return new("宝物一览", ["特征"], Pages[0].Columns.Select(c => c.Title).ToArray(), rows.ToArray());
     }
 

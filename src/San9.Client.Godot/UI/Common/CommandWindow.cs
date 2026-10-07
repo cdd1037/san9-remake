@@ -11,6 +11,9 @@ public partial class CommandWindow : Control
     public Action Closed { get; init; } = null!;
     public Action Accepted { get; init; } = null!;
     public bool CanAccept { get; init; } = true;
+    public Action<string?>? HintChanged { get; init; }
+    public string? AcceptHint { get; init; }
+    public string? CancelHint { get; init; }
     private readonly GameTextPresenter _text = new();
     private ImageTexture? _background;
     private Vector2 _backgroundSize;
@@ -26,7 +29,14 @@ public partial class CommandWindow : Control
         Icon("close", new(Size.X - 8, -36), Closed);
         var accept = ActionButton("执行", "accept", new(Size.X - 210, Size.Y + 20, 80, 48), Accepted);
         accept.Disabled = !CanAccept;
-        ActionButton("中止", "cancel", new(Size.X - 122, Size.Y + 20, 80, 48), Closed);
+        BindHint(accept, AcceptHint);
+        BindHint(ActionButton("中止", "cancel", new(Size.X - 122, Size.Y + 20, 80, 48), Closed), CancelHint);
+    }
+
+    public void BindHint(Control control, string? hint)
+    {
+        control.MouseEntered += () => HintChanged?.Invoke(hint);
+        control.MouseExited += () => HintChanged?.Invoke(null);
     }
 
     public InformationMenuButton ActionButton(string title, string skin, Rect2 bounds, Action action)

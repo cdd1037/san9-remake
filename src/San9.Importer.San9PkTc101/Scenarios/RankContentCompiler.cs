@@ -8,5 +8,6 @@ public static class RankContentCompiler
     public static RankDefinition[] Compile(IEnumerable<San9ScenarioRankRecord> records, Func<int, string> nameKey) =>
         records.Select(r => new RankDefinition(r.Id, nameKey(r.Id), r.CommandCapacity,
             r.PrestigeRequirement, r.PromotionLoyaltyBonus, San9ScenarioRankArchive.RecordCount - 1 - r.Id)
-            { IsUnranked = r.Id == 8, DescriptionKey = r.Id == 8 ? null : $"rank-description.{r.Id}" }).ToArray();
+            { IsUnranked = r.Id == 8, PreferBalancedOfficeCandidates = r.Id == 0,
+              DescriptionKey = r.Id == 8 ? null : $"rank-description.{r.Id}" }).ToArray();
 }

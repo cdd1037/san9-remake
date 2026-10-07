@@ -81,7 +81,7 @@ public static class OfficerCatalog
                         "arrival" => command!.Arrival, "formation" => command!.Rank, "equipped-tactic" => command!.Tactic,
                         // A ruler's dash has a highest-value sort key, not unavailable-value ordering.
                         "loyalty" => o.Status == OfficerStatus.Ruler ? new("—", long.MaxValue)
-                            : o.IsServing ? person.Loyalty : CatalogCell.Unavailable,
+                            : owner is not null ? person.Loyalty : CatalogCell.Unavailable,
                         "office" => office is null ? "无" : texts.Resolve(office.NameKey),
                         "capacity" => office is null ? CatalogCell.Unavailable : (long)office.CommandCapacity,
                         "salary" => office is null ? CatalogCell.Unavailable : office.Salary,

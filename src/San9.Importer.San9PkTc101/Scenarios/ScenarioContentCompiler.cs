@@ -92,6 +92,8 @@ public static class ScenarioContentCompiler
             offices.Where(o => o.IsAssignable).Select(o => new OfficeDefinition(o.Id, text.Office($"office.{o.Id}", o.Id), o.CommandCapacity, o.Salary)
                 { DescriptionKey = text.OfficeDescription(o.Id), GovernorPriority = San9ScenarioOfficeArchive.RecordCount - o.Id,
                   AbilityBonuses = OfficerContentCompiler.OfficeBonuses(o),
+                  AppointmentGroup = o.CommandCapacity >= 15000 ? OfficeAppointmentGroup.Military : OfficeAppointmentGroup.Civil,
+                  FillBeforeOrdinaryOffices = o.Id < 4,
                   RequiredRankId = o.RankGroupId }).ToArray(),
             items.Where(i => i.SerializedId < TreasureContentCompiler.BuiltInCount).Select(i =>
             {

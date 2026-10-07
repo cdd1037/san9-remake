@@ -5,6 +5,7 @@ namespace San9.Content.Interface;
 public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dictionary<string,string> Roles, Dictionary<string,string> Colors,
     Dictionary<string, CursorDefinition> Cursors)
 {
+    public const int CurrentSchemaVersion = 40;
     [System.Text.Json.Serialization.JsonRequired]
     public Dictionary<int, TargetMarkerOffset> BuildingTargetOffsets { get; init; } = [];
     private static readonly string[] BaseUiAssets = ["narration-portrait-frame", "narration-middle", "narration-right", "narration-affiliation",
@@ -56,7 +57,7 @@ public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dicti
 
     public void Validate()
     {
-        if (SchemaVersion != 38 || Assets.Select(a => a.Id).Distinct().Count() != Assets.Length)
+        if (SchemaVersion != CurrentSchemaVersion || Assets.Select(a => a.Id).Distinct().Count() != Assets.Length)
             throw new InvalidDataException("Invalid interface skin version or duplicate assets.");
         if (BuildingTargetOffsets is null || BuildingTargetOffsets.Any(p => p.Key < 0 || p.Value is null))
             throw new InvalidDataException("Invalid building target offsets.");

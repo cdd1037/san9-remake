@@ -228,6 +228,8 @@ public static class InterfaceSkinCompiler
             ("catalog-accept-left",355,4,42), ("catalog-accept-middle",356,4,42), ("catalog-accept-right",357,4,42),
             ("catalog-bulk-left",347,4,42), ("catalog-bulk-middle",348,4,42), ("catalog-bulk-right",349,4,42),
             ("catalog-tab",380,6,45), ("catalog-portrait-frame",297,1,37), ("catalog-help",354,4,42),
+            // The page arrows include a fifth, disabled-hover frame (RE-0112, 4FBAF0).
+            ("deployment-page-previous",181,5,bindings[181]-200), ("deployment-page-next",182,5,bindings[182]-200),
             ("catalog-scroll-down",372,4,48), ("catalog-scroll-up",373,4,48),
             ("catalog-scroll-track-top",374,1,48), ("catalog-scroll-track-middle",375,1,48), ("catalog-scroll-track-bottom",376,1,48),
             ("catalog-scroll-thumb-top",377,1,48), ("catalog-scroll-thumb-middle",378,1,48), ("catalog-scroll-thumb-bottom",379,1,48),
@@ -442,7 +444,7 @@ public static class InterfaceSkinCompiler
         TargetMarkerOffset[] offsets = [new(-16,-58), new(-20,-38), new(-4,-34), new(-30,-34), new(2,-52),
             new(-33,-52), new(-16,-22), new(-16,-32), new(-16,-28), new(-16,-41), new(-16,-30),
             new(-24,-32), new(-10,-34), new(-16,-34), new(-16,-32), new(-13,-32), new(-16,-34)];
-        return new(38, assets.ToArray(), ui, colors, cursors)
+        return new(InterfaceSkin.CurrentSchemaVersion, assets.ToArray(), ui, colors, cursors)
         { BuildingTargetOffsets = offsets.Select((offset, type) => (offset, type)).ToDictionary(p => p.type, p => p.offset) };
     }
 

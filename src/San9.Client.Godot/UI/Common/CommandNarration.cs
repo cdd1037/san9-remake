@@ -10,8 +10,7 @@ public partial class CommandNarration : Control
 {
     private const double ContinuationFrameSeconds = .1;
     private static readonly int[] PortraitFrames = [5,5,5,5,5,5,5,0,1,2,3,2,3,4];
-    private int ResultLines => Math.Max(2,Messages[_index].Message.BbCode.Count(c => c == '\n')+1);
-    private Rect2 ResultFrameBounds => new(280,344-12*ResultLines,480,88+24*ResultLines);
+    private Rect2 _resultFrameBounds;
     public IReadOnlyList<CommandMessage> Messages { get; init; } = [];
     public StrategySnapshot View { get; init; } = null!;
     public TextCatalog Texts { get; init; } = null!;
@@ -24,6 +23,7 @@ public partial class CommandNarration : Control
     private int _index, _frame;
     private double _elapsed;
     private Control? _body;
+    private GamePagedText _message = null!;
     private TextureRect? _continuation;
     private AudioStreamPlayer _audio = null!;
     private readonly Dictionary<string,AudioStreamWav> _sounds = [];
@@ -57,10 +57,16 @@ public partial class CommandNarration : Control
             }
             NameLabel(Texts.Resolve(person.NameKey),new(404,316,104,32),24);
         }
-        var message = new GameRichTextLabel { Textures = Textures, Position = HasPerson ? new(432,384) : new(356,ResultFrameBounds.Position.Y+40),
-            Size = HasPerson ? new(376,104) : new(352,24*ResultLines+24), AutowrapMode = TextServer.AutowrapMode.WordSmart };
-        _body.AddChild(message);
-        message.Present(entry.Message.BbCode, new(24, Colors.Black, GameTextEffect.None, Colors.Transparent));
+        _message = new GamePagedText { Textures = Textures };
+        _body.AddChild(_message);
+        _message.Present(entry.Message.BbCode, new(24, Colors.Black, GameTextEffect.None, Colors.Transparent));
+        float resultBodyHeight = 0;
+        if (HasPerson)
+        {
+            _message.Paginate(376);
+            _message.Position = new(432,384);
+        }
+        else resultBodyHeight = LayoutResult(_message);
         if (SoundEnabled && entry.SoundRole is string role)
         {
             if (!_sounds.TryGetValue(role, out var sound))
@@ -73,9 +79,21 @@ public partial class CommandNarration : Control
         }
         // Result content has 24px logical lines; the source anchor is 46px above its bottom.
         _continuation = new TextureRect { Position = HasPerson ? new(632,452) :
-            new(ResultFrameBounds.End.X - 84, ResultFrameBounds.Position.Y + 40 + 24*ResultLines - 46), MouseFilter = MouseFilterEnum.Ignore };
+            new(_resultFrameBounds.End.X - 84, _resultFrameBounds.Position.Y + 40 + resultBodyHeight - 46), MouseFilter = MouseFilterEnum.Ignore };
         _body.AddChild(_continuation);
         _frame = 0; _elapsed = 0; UpdateContinuation(); QueueRedraw();
+    }
+    private float LayoutResult(GamePagedText message)
+    {
+        // Measure shaped rich text before wrapping, including styles and inline images.
+        // Keep the existing text insets and fit the decorative frame's native 24px tiles.
+        float width = Math.Clamp(192 + 24 * MathF.Ceiling(Math.Max(0, message.UnwrappedWidth - 64) / 24f), 192, 1008);
+        message.Paginate(width - 128);
+        float bodyHeight = Math.Max(24, message.MaximumPageLayoutHeight);
+        float height = 112 + 24 * MathF.Ceiling(Math.Max(0, bodyHeight - 24) / 24f);
+        _resultFrameBounds = new(520 - width / 2, 388 - height / 2, width, height);
+        message.Position = _resultFrameBounds.Position + new Vector2(76, 40);
+        return bodyHeight;
     }
     private void Art(string role, Vector2 position) => _body!.AddChild(new TextureRect { Texture = Textures["narration-"+role], Position = position, MouseFilter = MouseFilterEnum.Ignore });
     private void NameLabel(string value, Rect2 rect, int size)
@@ -85,13 +103,27 @@ public partial class CommandNarration : Control
     }
     private void Next()
     {
+        if (_message.Advance())
+        {
+            _frame = 0; _elapsed = 0; UpdateContinuation();
+            return;
+        }
         if (++_index == Messages.Count) { _index--; Closed(); return; }
         Present();
     }
     public override void _GuiInput(InputEvent input)
     {
-        if (input is InputEventMouseButton { Pressed: false, ButtonIndex: MouseButton.Left or MouseButton.Right }) Next();
+        if (input is InputEventMouseButton { Pressed: false, ButtonIndex: MouseButton.Left }) Next();
         AcceptEvent();
+    }
+    public override void _Input(InputEvent input)
+    {
+        if (!IsVisibleInTree()) return;
+        if (input is InputEventMouseButton { ButtonIndex: MouseButton.Right } mouse)
+        {
+            GetViewport().SetInputAsHandled();
+            if (mouse.Pressed) Next();
+        }
     }
     public override void _UnhandledKeyInput(InputEvent input)
     {
@@ -106,7 +138,7 @@ public partial class CommandNarration : Control
     }
     public override void _Draw()
     {
-        if (!HasPerson) DrawStyleBox(_resultFrame,ResultFrameBounds);
+        if (!HasPerson) DrawStyleBox(_resultFrame,_resultFrameBounds);
     }
     private void UpdateContinuation()
     {

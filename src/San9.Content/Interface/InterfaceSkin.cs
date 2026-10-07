@@ -49,14 +49,14 @@ public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dicti
         .Concat(TargetSelectionSkin.RequiredRoles).Concat(CommandMenuSkin.RequiredRoles).Concat(DeploymentSkin.RequiredRoles).Append("hover-divider").Concat(OfficerDetailSkin.RequiredRoles).Append("information-background")
         .Concat(new[] { "strategy", "execution" }.SelectMany(p => Enumerable.Range(0, 4).Select(f => $"turn-title-{p}-{f}")))
         .Concat(new[] { "yes", "no" }.SelectMany(p => Enumerable.Range(0, 4).Select(f => $"dialog-{p}-{f}")))
-        .Append("dialog-frame")
+        .Append("dialog-frame").Concat(SaveLoadSkin.RequiredRoles)
         .Concat(Enumerable.Range(0, 5).Select(f => "minimap-command-pulse" + (f == 0 ? "" : $"-{f}")))
         .Concat(new[] { "arrow-up-right", "arrow-down-right", "crossed-arrows", "empty-square", "question", "turn-arrow", "book", "waves", "circle" }
             .SelectMany(id => new[] { $"text-icon-{id}-16", $"text-icon-{id}-24" })).Append("text-icon-city-16").ToArray());
 
     public void Validate()
     {
-        if (SchemaVersion != 37 || Assets.Select(a => a.Id).Distinct().Count() != Assets.Length)
+        if (SchemaVersion != 38 || Assets.Select(a => a.Id).Distinct().Count() != Assets.Length)
             throw new InvalidDataException("Invalid interface skin version or duplicate assets.");
         if (BuildingTargetOffsets is null || BuildingTargetOffsets.Any(p => p.Key < 0 || p.Value is null))
             throw new InvalidDataException("Invalid building target offsets.");

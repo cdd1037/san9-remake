@@ -14,7 +14,7 @@ public sealed class TextureDependencyTests
         var resources = new MapResources([], [], [], [], [], new int[288], new int[16], [], new byte[32]);
         var textures = new TexturePackage(5, 7, "source",
             [new("G_FaceL.s9", 123, new DateTime(2026, 9, 12, 0, 0, 0, DateTimeKind.Utc))],
-            resources, new(37, [], [], [], []), new(3, [new("portrait", "portraits", [new(0, 0, image)])]),
+            resources, new(38, [], [], [], []), new(3, [new("portrait", "portraits", [new(0, 0, image)])]),
             [new(0, image, 0, 0)]);
         string json = JsonSerializer.Serialize(textures, PackageFiles.JsonOptions);
         Assert.DoesNotContain("sha256", json, StringComparison.OrdinalIgnoreCase);

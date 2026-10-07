@@ -414,11 +414,35 @@ public static class InterfaceSkinCompiler
                     IndexedImageArchive.Decode(pixels, common.Palettes[palette], true, true)));
                 ui.Add(roleKey, "ui-" + roleKey);
             }
+        foreach (var (role, resource, palette) in new[] {
+            ("background",116,12), ("footer",130,13), ("pages-background",143,13),
+            ("frame-top-left",121,13), ("frame-top",122,13), ("frame-top-right",123,13),
+            ("frame-note-top-right",124,13), ("frame-left",125,13), ("frame-right",126,13),
+            ("frame-bottom-left",127,13), ("frame-bottom",128,13), ("frame-bottom-right",129,13),
+            ("title-left",144,13), ("title-middle",145,13), ("title-right",146,13),
+            ("historical",287,32), ("fictional",286,32), ("difficulty",288,32) })
+            Extra("save-load-" + role, resource, palette, role != "background");
+        foreach (var (role, resource, palette) in new[] {
+            ("save-row",284,31), ("load-row",282,29), ("page",285,32),
+            ("yes",117,13), ("no",444,60), ("close",251,24), ("help",252,24) })
+        {
+            int actualPalette = bindings[resource] - 200;
+            if (actualPalette != palette)
+                throw new InvalidDataException("Unconfirmed save/load palette binding.");
+            for (int frame = 0; frame < 4; frame++)
+            {
+                string key = "save-load-" + role + (frame == 0 ? "" : $"-{frame}");
+                var pixels = IndexedImageArchive.Frame(common.Images[resource], 4, 1, frame, 0);
+                assets.Add(save("ui-" + key, TextureSourcePath.Image("G_Common", resource, actualPalette, true, true, columns: 4, frame: frame),
+                    IndexedImageArchive.Decode(pixels, common.Palettes[actualPalette], true, true)));
+                ui.Add(key, "ui-" + key);
+            }
+        }
         // RE-0178: external display types, independent of settlement identities and domain rules.
         TargetMarkerOffset[] offsets = [new(-16,-58), new(-20,-38), new(-4,-34), new(-30,-34), new(2,-52),
             new(-33,-52), new(-16,-22), new(-16,-32), new(-16,-28), new(-16,-41), new(-16,-30),
             new(-24,-32), new(-10,-34), new(-16,-34), new(-16,-32), new(-13,-32), new(-16,-34)];
-        return new(37, assets.ToArray(), ui, colors, cursors)
+        return new(38, assets.ToArray(), ui, colors, cursors)
         { BuildingTargetOffsets = offsets.Select((offset, type) => (offset, type)).ToDictionary(p => p.type, p => p.offset) };
     }
 

@@ -33,6 +33,7 @@ public static class ScenarioContentCompiler
         var formations = Read(San9ScenarioFormationArchive.ReadKnownRecords);
         var facilityRules = ConstructionContentCompiler.Facilities(fixedBuildings, formations);
         using var text = new ScenarioTextReader(messages, exe);
+        text.ReadScenarioTitle(header.ScenarioId, header.ScenarioModeCode);
         text.ReadStrategyHints();
         int? Root(int? id)
         {

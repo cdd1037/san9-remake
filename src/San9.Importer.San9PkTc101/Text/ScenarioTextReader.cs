@@ -13,6 +13,9 @@ public sealed class ScenarioTextReader(byte[] messages, byte[] executable) : IDi
     private readonly OriginalTextConverter _converter = new();
 
     public TextCatalog Catalog => new(TextCatalog.CurrentSchemaVersion, new(_entries)) { MessagePeople = new(_messagePeople) };
+    // RE-0023 / RE-0180: title selection belongs to the source importer, not the client.
+    public void ReadScenarioTitle(int scenarioId, int mode) =>
+        Add(TextCatalog.ScenarioTitleKey, _messages.PlainText(checked(2 * scenarioId + (mode == 2 ? 60 : 0))));
     public void MessagePerson(int id, int family, int given, int portrait)
     {
         _messagePeople.Add(id, new(AddOptional($"officer-surname.{id}", _messages.PlainText(1678 + 4 * family)),

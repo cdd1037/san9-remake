@@ -6,6 +6,21 @@ namespace San9.Importer.San9PkTc101.Tests;
 
 public sealed class San9MessageTableTests
 {
+    [Theory]
+    [InlineData(0, "Standard title")]
+    [InlineData(1, "Standard title")]
+    [InlineData(2, "Tutorial title")]
+    public void ScenarioTitleUsesTheHeaderModeAndSourceMessage(int mode, string expected)
+    {
+        var records = Enumerable.Range(0, 63).Select(_ => Array.Empty<byte>()).ToArray();
+        records[2] = "Standard title"u8.ToArray();
+        records[62] = "Tutorial title"u8.ToArray();
+        using var reader = new ScenarioTextReader(Archive(Table(records)),
+            File.ReadAllBytes(typeof(ScenarioTextReader).Assembly.Location));
+        reader.ReadScenarioTitle(1, mode);
+        Assert.Equal(expected, reader.Catalog.Resolve(San9.Content.Text.TextCatalog.ScenarioTitleKey));
+    }
+
     private static byte[] Archive(byte[] payload, int? decodedSize = null)
     {
         byte[] archive = new byte[288 + payload.Length];

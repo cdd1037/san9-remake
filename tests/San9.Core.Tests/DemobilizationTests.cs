@@ -41,7 +41,9 @@ public sealed class DemobilizationTests
             mapped ? new Dictionary<int, int> { [2] = 1 } : null);
         var mutation = world.BeginMutation();
         List<DomainEvent> events = [];
-        MilitaryMovement.Absorb(mutation, mutation.Units[0], 2, new([]), geography, events);
+        var military = new MilitaryRulebook(new(8, 3, [.. Enumerable.Repeat(0, 24)],
+            [new(0, 1, null)], [], [new(1, new(2, 2), new(1, 1)), new(2, new(7, 2), new(1, 1))]));
+        MilitaryMovement.Absorb(mutation, mutation.Units[0], 2, new([]), geography, military, events);
         world.Commit(mutation);
         var state = world.CreateSnapshot();
         if (mapped)

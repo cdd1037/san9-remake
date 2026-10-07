@@ -398,7 +398,7 @@ public sealed class MilitarySessionTests
         Assert.NotNull(session.View.Officers[0].UnitId);
         Assert.Null(session.View.Officers[0].SettlementId);
         Assert.False(session.View.Officers[0].IsAvailable);
-        session.AdvanceXun();
+        List<DomainEvent> transportEvents = [.. session.AdvanceXun().Events];
         Assert.NotEmpty(session.Snapshot.Units);
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         Assert.Equal(policies, Assert.Single(restored.Snapshot.Units).Policies);
@@ -407,12 +407,16 @@ public sealed class MilitarySessionTests
         for (int i = 0; i < 4; i++)
         {
             var first = session.AdvanceXun();
+            transportEvents.AddRange(first.Events);
             var second = restored.AdvanceXun();
             Assert.Equal(CanonicalJson.Text(first.Events), CanonicalJson.Text(second.Events));
             Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
         }
         Assert.Empty(session.Snapshot.Units);
-        Assert.Equal(2, session.View.Officers[0].SettlementId);
+        Assert.Equal(2, Assert.Single(transportEvents.OfType<UnitAbsorbedEvent>()).SettlementId);
+        Assert.Equal(1, session.View.Officers[0].SettlementId);
+        Assert.Null(session.View.Officers[0].UnitId);
+        Assert.DoesNotContain(session.Snapshot.Simulation.Tasks, task => task.OfficerId == 1);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
         Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
     }

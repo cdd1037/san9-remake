@@ -243,10 +243,13 @@ public sealed class MilitaryMovementTests
     }
 
     [Theory]
-    [InlineData(false, false)]
-    [InlineData(true, false)]
-    [InlineData(false, true)]
-    public void CrossCorpsArrivalRepairsLeadershipOrWaitsForTreasuryCapacity(bool successor, bool overflow)
+    [InlineData(false, false, false)]
+    [InlineData(true, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(false, false, true)]
+    [InlineData(true, false, true)]
+    [InlineData(false, true, true)]
+    public void CrossCorpsArrivalUsesPersonnelDestinationToRepairLeadership(bool successor, bool overflow, bool transport)
     {
         var world = WorldState.Create(new(190, 1, 1), 42,
             [new(1, 0) { LeaderId = 12 }],
@@ -256,7 +259,8 @@ public sealed class MilitaryMovementTests
              new(12, 1, 2, new(70, 70, 70, 70), false) { Status = OfficerStatus.Ruler },
              new(13, 1, successor ? 1 : 2, new(60, 60, 60, 60), false)],
             units: [new(0, 1, new(36, 7), 400) { CorpsId = 11, ServicePlaceId = 1, FormationId = 70,
-                Morale = 70, CargoMoney = 200, CargoFood = 300, Order = new(MilitaryOrderKind.Transport, null, 2) }],
+                Morale = 70, CargoMoney = 200, CargoFood = 300,
+                Order = new(transport ? MilitaryOrderKind.Transport : MilitaryOrderKind.Return, null, 2) }],
             corps: [new(10, 1, 12, new(overflow ? uint.MaxValue : 10000, 10000)) { IsRoot = true }, new(11, 1, 11, new(2000, 3000))]);
         var mutation = world.BeginMutation();
         var events = new List<DomainEvent>();
@@ -266,7 +270,7 @@ public sealed class MilitaryMovementTests
         MilitaryMovement.AdvanceDay(mutation, Rules(10), new GovernanceRulebook([]), PersonnelRulebook.Empty, events);
         world.Commit(mutation);
         var state = world.CreateSnapshot();
-        if (overflow)
+        if (overflow && !transport)
         {
             var unit = Assert.Single(state.Units);
             Assert.Equal(200u, unit.CargoMoney);
@@ -279,11 +283,25 @@ public sealed class MilitaryMovementTests
         else
         {
             Assert.Empty(state.Units);
-            Assert.Equal(2, state.Officers.Single(p => p.Id == 11).SettlementId);
-            Assert.Equal(OfficerStatus.Serving, state.Officers.Single(p => p.Id == 11).Status);
+            Assert.Equal(transport ? 1 : 2, state.Officers.Single(p => p.Id == 11).SettlementId);
+            Assert.Equal(transport ? OfficerStatus.Governor : OfficerStatus.Serving, state.Officers.Single(p => p.Id == 11).Status);
             Assert.Equal(500u, state.Settlements.Single(s => s.Id == 2).Soldiers);
             Assert.Single(events.OfType<UnitAbsorbedEvent>());
-            if (successor)
+            if (transport)
+            {
+                Assert.Equal(2, state.Corps.Count);
+                var source = state.Corps.Single(c => c.Id == 11);
+                Assert.Equal(11, source.LeaderId);
+                Assert.Equal(new CorpsTreasury(2000, 3000), source.Treasury);
+                Assert.Equal(overflow ? uint.MaxValue : 10200u, state.Corps.Single(c => c.IsRoot).Treasury.Money);
+                var returning = Assert.Single(state.Simulation.Tasks);
+                Assert.Equal("personnel-return", returning.Kind);
+                Assert.Equal(1, returning.Journey!.DestinationPlaceId);
+                Assert.Equal(11, returning.Journey.ReturnLeg!.CorpsId);
+                Assert.Empty(events.OfType<CorpsLeaderChangedEvent>());
+                Assert.Empty(events.OfType<CorpsDissolvedEvent>());
+            }
+            else if (successor)
             {
                 Assert.Equal(13, state.Corps.Single(c => c.Id == 11).LeaderId);
                 Assert.Equal(10200u, state.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Money);
@@ -316,7 +334,7 @@ public sealed class MilitaryMovementTests
         var advanced = Advance(engine);
         Assert.Single(advanced.Events.OfType<UnitAbsorbedEvent>());
         Assert.Empty(engine.Snapshot.Units);
-        Assert.Equal(2, engine.Snapshot.Officers[0].SettlementId);
+        Assert.Equal(1, engine.Snapshot.Officers[0].SettlementId);
         Assert.Null(engine.Snapshot.Officers[0].UnitId);
         Assert.Equal(500u, engine.Snapshot.Settlements.Single(s => s.Id == 2).Soldiers);
         Assert.Equal(60, engine.Snapshot.Settlements.Single(s => s.Id == 2).Morale);

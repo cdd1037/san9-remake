@@ -10,7 +10,8 @@ public partial class CommandNarration : Control
 {
     private const double ContinuationFrameSeconds = .1;
     private static readonly int[] PortraitFrames = [5,5,5,5,5,5,5,0,1,2,3,2,3,4];
-    private static readonly Rect2 ResultFrameBounds = new(280,320,480,136);
+    private int ResultLines => Math.Max(2,Messages[_index].Message.BbCode.Count(c => c == '\n')+1);
+    private Rect2 ResultFrameBounds => new(280,344-12*ResultLines,480,88+24*ResultLines);
     public IReadOnlyList<CommandMessage> Messages { get; init; } = [];
     public StrategySnapshot View { get; init; } = null!;
     public TextCatalog Texts { get; init; } = null!;
@@ -56,8 +57,8 @@ public partial class CommandNarration : Control
             }
             NameLabel(Texts.Resolve(person.NameKey),new(404,316,104,32),24);
         }
-        var message = new GameRichTextLabel { Textures = Textures, Position = HasPerson ? new(432,384) : new(356,360),
-            Size = HasPerson ? new(376,104) : new(352,72), AutowrapMode = TextServer.AutowrapMode.WordSmart };
+        var message = new GameRichTextLabel { Textures = Textures, Position = HasPerson ? new(432,384) : new(356,ResultFrameBounds.Position.Y+40),
+            Size = HasPerson ? new(376,104) : new(352,24*ResultLines+24), AutowrapMode = TextServer.AutowrapMode.WordSmart };
         _body.AddChild(message);
         message.Present(entry.Message.BbCode, new(24, Colors.Black, GameTextEffect.None, Colors.Transparent));
         if (SoundEnabled && entry.SoundRole is string role)
@@ -70,10 +71,9 @@ public partial class CommandNarration : Control
             }
             _audio.Stream = sound; _audio.Play();
         }
-        // Result content starts 40px below the frame top; two 24px lines end there +48.
-        // The source continuation anchor is 46px above that content bottom.
+        // Result content has 24px logical lines; the source anchor is 46px above its bottom.
         _continuation = new TextureRect { Position = HasPerson ? new(632,452) :
-            new(ResultFrameBounds.End.X - 84, ResultFrameBounds.Position.Y + 40 + 48 - 46), MouseFilter = MouseFilterEnum.Ignore };
+            new(ResultFrameBounds.End.X - 84, ResultFrameBounds.Position.Y + 40 + 24*ResultLines - 46), MouseFilter = MouseFilterEnum.Ignore };
         _body.AddChild(_continuation);
         _frame = 0; _elapsed = 0; UpdateContinuation(); QueueRedraw();
     }

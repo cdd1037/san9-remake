@@ -8,6 +8,7 @@ internal static class DomesticDevelopmentHandler
     internal static DevelopmentOutcome Apply(WorldMutation world, DevelopmentCommand command, EconomyRulebook rules, List<DomainEvent> events)
     {
         if (!Enum.IsDefined(command.Activity)) return new(DevelopmentRejection.UnsupportedActivity);
+        if (command.Activity != DomesticActivity.Recruit && command.RecruitAmount is not null) return new(DevelopmentRejection.UnsupportedActivity);
         if (command.OfficerIds.IsDefaultOrEmpty || command.OfficerIds.Length > 5 || command.OfficerIds.Distinct().Count() != command.OfficerIds.Length)
             return new(DevelopmentRejection.InvalidParticipants);
         if (!world.Forces.TryGetValue(command.ForceId, out var force) || !world.Settlements.TryGetValue(command.SettlementId, out var city) ||
@@ -34,8 +35,12 @@ internal static class DomesticDevelopmentHandler
         if (activity == DomesticActivity.Recruit)
         {
             if (city.Soldiers >= city.SoldierCapacity) return new(DevelopmentRejection.AtMaximum);
-            long potential = 3 * (100 * people.Sum(p => (long)abilities[p.Id].Leadership) / (people.Length + 4)) / 2;
-            increment = (int)Math.Min(Math.Min(potential, city.DraftPopulation), Math.Min(10L * funds, city.SoldierCapacity - city.Soldiers));
+            increment = DomesticDevelopment.RecruitCount(city, funds, people.Select(p => abilities[p.Id]).ToArray());
+            if (command.RecruitAmount is uint requested)
+            {
+                if (requested == 0 || requested > increment) return new(DevelopmentRejection.NoRecruits);
+                increment = (int)requested;
+            }
             if (increment == 0) return new(DevelopmentRejection.NoRecruits);
             cost = (increment + 9) / 10;
             int morale = (int)(((long)city.Soldiers * city.Morale + (long)increment * EconomyMath.RecruitMorale(force.Trust)) / (city.Soldiers + increment));

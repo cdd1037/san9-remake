@@ -8,7 +8,8 @@ public static class CommandMenuSkin
     });
     public static string DescriptionKey(string id) => $"ui.command.{id}";
     public static string HintKey(string id) => $"ui.command-hint.{id}";
-    public static IReadOnlyList<string> ReasonIds { get; } = Array.AsReadOnly(new[] { "unavailable", "already-used", "public-order-max", "no-officer", "funds", "confused", "engaged" });
+    public static IReadOnlyList<string> ReasonIds { get; } = Array.AsReadOnly(new[] { "unavailable", "already-used", "public-order-max", "no-officer", "funds", "confused", "engaged",
+        "commerce-max", "cultivation-max", "durability-max", "no-soldiers", "morale-max", "soldiers-max", "no-recruits", "merchant-absent", "food-max", "money-max", "no-food" });
     public static string ReasonKey(string id) => $"ui.command-reason.{id}";
     public static IEnumerable<string> RequiredRoles => EntryIds.Select(id => $"command-illustration-{id}")
         .Concat(new[] { "top", "middle", "bottom", "illustration-frame", "condition", "summary-city", "summary-facility", "summary-unit", "summary-merchant", "summary-training" }.Select(id => "command-" + id))

@@ -43,7 +43,7 @@ M_MsgPK 名称表经过LS11解码，内层为u16数量、u32小端偏移表与�
 当前物理内容分为独立纹理包和剧本包，模块职责保持分离：
 
 - `textures.json`（schema3）保存界面、地图资源、图集、单份正常色头像及相对裁剪锚点，全部图片路径相对纹理包根目录。
-- `content.json`（schema144）保存来源、共享纹理包目录，以及 `map.json`、`scenario.json`、`text.json`、`messages/*.json`、`illustrations.json` 的相对路径；加载器装配地图实例、剧本初始状态、静态词条、全量统一消息和插图资源 ID 映射。
+- `content.json`（schema146）保存来源、共享纹理包目录，以及 `map.json`、`scenario.json`、`text.json`、`messages/*.json`、`illustrations.json` 的相对路径；加载器装配地图实例、剧本初始状态、静态词条、全量统一消息和插图资源 ID 映射。设施八项指令的准备与结果表现见[内政交互](BEH-DOMESTIC-0001-base-development-effect.md#设施菜单交互)。
 - 地图实例保存方格、地形描述和对象位置；初始态schema11保存世界状态，不烘焙显示可用性或标记色；文本schema3保存语义名称与消息，皮肤schema16归共享纹理包。
 
 `import-textures` 不接受剧本；`import-client` 只生成剧本内容并引用共享纹理。加载时校验地图／剧本ID、据点坐标和文本／资源引用；纹理不生成、保存或使用SHA-256；显式离线校验检查PNG格式、CRC、尺寸和区域。旧包重新生成，不添加兼容读取。客户端只读转换包，Core不依赖显示契约；缺失或损坏内容显示错误及导入入口。

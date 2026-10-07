@@ -40,7 +40,10 @@ public sealed class ScenarioTextReader(byte[] messages, byte[] executable) : IDi
         }
         // RE-0095: interactive patrol validation supplies the reason, independently of the condition card.
         foreach (var (role, message) in new (string, int)[] { ("unavailable",5997), ("already-used",6001), ("public-order-max",6002),
-            ("no-officer",5970), ("funds",5889), ("confused",5999), ("engaged",6000) })
+            ("no-officer",5970), ("funds",5889), ("confused",5999), ("engaged",6000),
+            ("commerce-max",6004), ("cultivation-max",6006), ("durability-max",6008), ("no-soldiers",5887),
+            ("morale-max",6010), ("soldiers-max",6124), ("no-recruits",5906), ("merchant-absent",5909),
+            ("food-max",6110), ("money-max",6111), ("no-food",5911) })
             Add(San9.Content.Interface.CommandMenuSkin.ReasonKey(role), _messages.PlainText(message));
         // RE-SAN9PK-0160: toolbar IDs 1000..1013, table 0x660F60.
         int[] messages = [8261, 8260, 8262, 8439, 8430, 8291, 8293, 8253, 8290, 8289, 8288, 8440, 8442, 8441,

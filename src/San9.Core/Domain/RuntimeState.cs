@@ -57,7 +57,11 @@ public sealed record SettlementState(int Id, int? OwnerId, uint Soldiers, int Du
     public uint DraftPopulation { get; init; }
 }
 
-public sealed record DevelopmentCommand(int ForceId, int SettlementId, System.Collections.Immutable.ImmutableArray<int> OfficerIds, DomesticActivity Activity);
+public sealed record DevelopmentCommand(int ForceId, int SettlementId, System.Collections.Immutable.ImmutableArray<int> OfficerIds, DomesticActivity Activity)
+{
+    /// <summary>Exact recruitment order; null asks the planner to use the current maximum. Other activities require null.</summary>
+    [JsonRequired] public uint? RecruitAmount { get; init; }
+}
 public enum DevelopmentRejection { None, UnknownObject, UnsupportedActivity, WrongOwner, OfficerUnavailable, AlreadyUsed, AtMaximum, InsufficientFunds, NotAuthorized, InvalidParticipants, NoRecruits, NoSoldiers }
 public enum DomesticBonusKind { SpecialPair, Affinity }
 public sealed record DomesticBonus(DomesticBonusKind Kind, int SpeakerId, int? PartnerId = null);

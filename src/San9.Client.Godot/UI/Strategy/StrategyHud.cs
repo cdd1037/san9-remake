@@ -276,10 +276,12 @@ public partial class StrategyHud : Control
             _flow.OpenUnit(target.Id, command == "attack" ? UnitCommandKind.Attack : UnitCommandKind.March);
             return;
         }
-        if (command is not ("sortie" or "patrol")) return;
+        if (command is not ("sortie" or "patrol") && !FacilityCommandDraft.Supports(command)) return;
         _commandMenu.Close();
         Overview.Close();
-        if (command == "patrol") OpenPatrol(target.Id); else _flow.Open(target.Id);
+        if (command == "patrol") OpenPatrol(target.Id);
+        else if (FacilityCommandDraft.Supports(command)) OpenFacilityCommand(target.Id,command);
+        else _flow.Open(target.Id);
     }
 
     private void ShowUnitContext(int id, Vector2 point)
@@ -414,7 +416,7 @@ public partial class StrategyHud : Control
         }
         if (_built)
         {
-            _minimap!.SetCommandSource(_flow.Source ?? PatrolSource ?? (_commandMenu!.Visible ? _commandTarget : null));
+            _minimap!.SetCommandSource(_flow.Source ?? PatrolSource ?? FacilitySource ?? (_commandMenu!.Visible ? _commandTarget : null));
             UpdateSidebar(delta);
         }
         UpdateHover(_hoverPosition ?? GetGlobalMousePosition());

@@ -17,7 +17,8 @@ public sealed class MapCommandMenuTests
             } };
         var world = GameSession.Start(source, 1).Snapshot;
         world = world with { Settlements = world.Settlements.Select(s => s.Id == 1 ? s with { Kind = SettlementKind.Facility } : s).ToArray(),
-            Units = [new(81, 1, new(12, 12), 1000) { FormationId = 701 }, new(82, 1, new(12, 12), 1000) { FormationId = 903 }] };
+            Units = [new(81, 1, new(12, 12), 1000) { FormationId = 701 }, new(82, 1, new(12, 12), 1000) { FormationId = 903 }],
+            Simulation = world.Simulation with { NextUnitId = 83 } };
         var view = new StrategySnapshot(definition, world);
         Assert.Contains(MapCommandMenu.Settlement(view, 1).Single(e => e.Id == "facilities").Children, e => e.Id == "demolish");
         Assert.Equal("march", Assert.Single(MapCommandMenu.Unit(view, 81)).Id);

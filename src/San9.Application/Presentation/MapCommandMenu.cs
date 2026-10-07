@@ -44,7 +44,8 @@ public static class MapCommandMenu
                 : Facilities.Children.Where(c => c.Id is "repair" or "train").ToArray() };
         }
         facilities = facilities with { Children = facilities.Children.Select(entry => entry.Id == "patrol"
-            ? entry with { UnavailableReasonKey = PatrolDraft.UnavailableReasonKey(view,id) } : entry).ToArray() };
+            ? entry with { UnavailableReasonKey = PatrolDraft.UnavailableReasonKey(view,id) }
+            : FacilityCommandDraft.Supports(entry.Id) ? entry with { UnavailableReasonKey = FacilityCommandDraft.UnavailableReasonKey(view,id,entry.Id) } : entry).ToArray() };
         return [facilities, .. Common];
     }
 

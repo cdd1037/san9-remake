@@ -52,7 +52,14 @@ public static class PatrolPresentation
                 ["number.2"] = new(growth), ["number.3"] = new(growth - oldGrowth)
             }, random), null, "domestic-result"));
         }
-        foreach (var advice in content.Advice)
+        AppendAdvice(before,content.Advice,force,first,random,(key,speaker,recipient) => Dialogue(key,speaker,recipient));
+        return sequence.AsReadOnly();
+    }
+
+    internal static void AppendAdvice(StrategySnapshot before, IEnumerable<DomesticAdvice> adviceDefinitions, ForceState force,
+        int first, Func<int,int> random, Action<string,int,int> dialogue)
+    {
+        foreach (var advice in adviceDefinitions)
         {
             if (advice.RequiresBarbarianThreat && (force.IsBarbarian || !before.World.Forces.Any(f => f.IsBarbarian && !f.IsDormant && !f.IsEliminated))) continue;
             if (advice.Cities.Length > 0)
@@ -62,9 +69,8 @@ public static class PatrolPresentation
                     { AdviceMetric.PublicOrder => s.PublicOrder, AdviceMetric.Commerce => s.Commerce, _ => s.Durability })) >= advice.Threshold) continue;
             }
             if (random(100) >= 10) continue;
-            Dialogue(advice.MessageKey, advice.SpeakerId, first);
+            dialogue(advice.MessageKey, advice.SpeakerId, first);
             break;
         }
-        return sequence.AsReadOnly();
     }
 }

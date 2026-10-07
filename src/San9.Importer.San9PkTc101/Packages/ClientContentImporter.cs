@@ -49,7 +49,7 @@ public static class ClientContentImporter
             var header = San9ScenarioArchive.ReadInitialScenario190Header(source);
             source.Position = 0;
             var people = San9ScenarioPersonArchive.ReadKnownRecords(source);
-            presentation = PatrolPresentationCompiler.Compile(people) with
+            presentation = CommandPresentationCompiler.Compile(people) with
             {
                 Notices = new() { ["scroll-hover"] = "messages.8427", ["scroll-click"] = "messages.8428" }
             };
@@ -61,7 +61,7 @@ public static class ClientContentImporter
         var roles = InformationArtCompiler.Compile(scenarioBytes, scenario, textures.Library, textures.Portraits);
         var dependency = new TextureDependency(Path.GetRelativePath(output, textureRoot).Replace('\\','/'));
         Dictionary<string, byte[]> sounds = new(StringComparer.Ordinal);
-        foreach (var (role, file) in PatrolPresentationCompiler.SoundSources)
+        foreach (var (role, file) in CommandPresentationCompiler.SoundSources)
             sounds.Add(presentation.Sounds[role], Read(Path.Combine(sourceDirectory.Root, file)));
         var content = new ScenarioContent(ScenarioContent.CurrentSchemaVersion, sources.Distinct().OrderBy(s => s.Name, StringComparer.Ordinal).ToArray(),
             dependency, MapInstance.From(map), scenario, text, roles) { Presentation = presentation };

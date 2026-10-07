@@ -6,6 +6,30 @@ internal static class PersonnelReturns
 {
     internal const string Kind = "personnel-return";
 
+    internal static SettlementState TransportDestination(WorldMutation world, UnitState unit, SettlementState arrival,
+        MilitaryRulebook military)
+    {
+        var person = world.UnitMembers(unit.Id).FirstOrDefault(p => p.IsServing);
+        if (person is null) return arrival;
+        return unit.ServicePlaceId is int id && world.Settlements.TryGetValue(id, out var source) &&
+            source.OwnerId == unit.OwnerId && source.CanHostPersons && !source.IsDestroyed && source.Durability > 0 &&
+            source.Facility?.BuilderUnitId is null && military.TryPlace(source, out _) ? source :
+            BattleRetreat.Destination(world, person, unit.Position, null, military, preferredCorps: unit.CorpsId) ?? arrival;
+    }
+
+    internal static void FromTransport(WorldMutation world, int personId, UnitState unit, int arrivalId,
+        SettlementState home, MilitaryRulebook military, List<DomainEvent> events)
+    {
+        long sequence = world.Simulation.NextSequence;
+        Guid causeId = new(Convert.FromHexString(CanonicalJson.Hash(new { Kind = "transport-return", world.Clock,
+            UnitId = unit.Id, OfficerId = personId, Sequence = sequence })).AsSpan(0, 16));
+        var cause = new PersistentTask(causeId, Kind, "system", unit.OwnerId, personId, arrivalId,
+            world.Clock, world.Clock, 0, sequence);
+        world.SetSimulation(world.Simulation with { NextSequence = checked(sequence + 1) });
+        var route = new PersonnelRoute(unit.Position, military.Place(home).Position, false);
+        Schedule(world, cause, personId, arrivalId, home.Id, route.Days, true, events, route, true, home.CorpsId);
+    }
+
     internal static void FromField(WorldMutation world, int personId, WorldPosition origin, SimulationRules rules,
         List<DomainEvent> events, bool afterDailyCommands = true)
     {

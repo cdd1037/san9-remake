@@ -338,6 +338,7 @@ public static class InterfaceSkinCompiler
         Extra("bar-morale-normal", 392, 51); Extra("bar-durability-normal", 393, 51);
         Extra("bar-morale-critical", 394, 52); Extra("bar-morale-warning", 395, 52);
         Extra("bar-durability-critical", 396, 52); Extra("bar-durability-warning", 397, 52);
+        Extra("icon-construction", 1241, 3); Extra("icon-transport", 1242, 3);
         Extra("icon-emperor", 1243, 3); Extra("icon-training", 1244, 3); Extra("icon-merchant", 1245, 3);
         Dictionary<string, string> colors = [];
         for (int i = 0; i < 51; i++) colors.Add($"overview-force-{i}", Convert.ToHexString(overview.Palettes[8].AsSpan((i + 1) * 4, 3)));

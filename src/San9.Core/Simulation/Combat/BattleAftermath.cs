@@ -47,7 +47,7 @@ internal static class BattleAftermath
         foreach (var capture in captures.Where(c => !world.Settlements[c.Id].IsDestroyed))
             foreach (int unitId in capture.Units)
                 if (world.Units.TryGetValue(unitId, out var unit))
-                    MilitaryMovement.Absorb(world, unit, capture.Id, rules.Governance, rules.Personnel, events);
+                    MilitaryMovement.Absorb(world, unit, capture.Id, rules.Governance, rules.Personnel, rules.Military!, events);
     }
 
     private static int[] CaptureUnits(WorldMutation world, int id, BattleSource winner, MilitaryRulebook military)

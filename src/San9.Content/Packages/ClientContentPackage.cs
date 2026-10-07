@@ -41,6 +41,9 @@ public sealed record ClientContentPackage(int SchemaVersion, ContentSource[] Sou
         if (Scenario.Information.Formations.Any(f => f.Presentation is not null))
             foreach (string role in new[] { "formation-member", "formation-commander", "formation-panel-deployment", "formation-panel-detail" })
                 if (!Skin.Roles.ContainsKey(role)) throw new InvalidDataException($"Missing formation interface image: {role}");
+        foreach (var facility in Scenario.Military?.Facilities.Where(f => f.Buildable) ?? [])
+            if (!Skin.Roles.ContainsKey($"catalog-facility-{facility.Id}"))
+                throw new InvalidDataException($"Missing facility illustration: {facility.Id}");
         Presentation.Validate(Text, Scenario.Officers.Select(o => o.State.Id), Scenario.Settlements.Select(s => s.Id));
         foreach (string path in Presentation.Sounds.Values) _ = PackageFiles.Resolve(".", path);
         Scenario.Validate(); Text.Validate(); Skin.Validate(); Textures.Validate();
@@ -66,6 +69,7 @@ public sealed record ClientContentPackage(int SchemaVersion, ContentSource[] Sou
             _ = Text.ResolveRich(CommandMenuSkin.HintKey(id));
         }
         foreach (string role in StrategyHintText.Roles) _ = Text.ResolveRich(StrategyHintText.Key(role));
+        foreach (string role in SpecialDeploymentText.Roles) _ = Text.ResolveRich(SpecialDeploymentText.Key(role));
         foreach (string column in ExecutionPanelSkin.Columns) _ = Text.ResolveRich(ExecutionPanelSkin.HeaderKey(column));
         foreach (string role in Scenario.Officers.SelectMany(o => new[] { $"information-person-{o.State.Id}", $"catalog-person-{o.State.Id}" })
                      .Concat(Scenario.Information.Treasures.Select(t => $"information-treasure-{t.Id}")))

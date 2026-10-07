@@ -9,6 +9,7 @@ public sealed record ConstructFacilityCommand(Guid CommandId, int IssuerId, long
     : GameCommand(CommandId, IssuerId, Sequence)
 {
     [JsonRequired] public UnitPolicies Policies { get; init; } = new();
+    [JsonRequired] public WorldPosition? Waypoint { get; init; }
 }
 public sealed record FacilityConstructionChangedEvent(GameClock Clock, int SettlementId, int UnitId, string Phase,
     int Durability) : DomainEvent;
@@ -40,7 +41,7 @@ internal static class FacilityConstruction
         int unitId = (int)world.Simulation.NextUnitId;
         var rejection = MilitaryMovement.Deploy(world, new(command.CommandId, command.IssuerId, command.Sequence, home.Id,
             command.OfficerIds, command.Soldiers, pair.LandFormationId, new(MilitaryOrderKind.Construct, null, null) { Construction = plan })
-            { Policies = command.Policies, NavalFormationId = pair.NavalFormationId },
+            { Policies = command.Policies, NavalFormationId = pair.NavalFormationId, Waypoint = command.Waypoint },
             military, rules.Governance, rules.Treasures, events, UnitPurpose.Construction);
         if (rejection != CommandRejection.None) return rejection;
         if (MilitaryCombat.Area(world.Units[unitId], military).Overlaps(military.FacilityArea(command.Position, type.Id)))
@@ -131,7 +132,7 @@ internal static class FacilityConstruction
             if (!complete) continue;
             unit = world.Units[id] with { Order = null };
             world.Replace(unit);
-            if (type.CanHostPersons) MilitaryMovement.Absorb(world, unit, existing.Id, rules.Governance, rules.Personnel, events);
+            if (type.CanHostPersons) MilitaryMovement.Absorb(world, unit, existing.Id, rules.Governance, rules.Personnel, rules.Military!, events);
             else
             {
                 var order = new MilitaryOrder(MilitaryOrderKind.Return, null, unit.ServicePlaceId);

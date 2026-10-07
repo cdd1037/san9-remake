@@ -4,7 +4,7 @@ using San9.Core.Simulation;
 
 namespace San9.Application.Presentation;
 
-public readonly record struct MilitaryTarget(int Id, bool IsUnit);
+public readonly record struct MilitaryTarget(int Id, bool IsUnit, WorldPosition? Position = null);
 public enum MilitaryMarker { Enter, Attack }
 
 /// <summary>Revision-bound map intentions. Selecting a candidate does not issue a military command.</summary>
@@ -33,12 +33,22 @@ public abstract class MilitaryTargets
     public int DepartureDelayDays { get; private set; }
     public bool EditingPolicies { get; private set; }
     public string? Error { get; private set; }
+    private readonly IReadOnlyDictionary<MilitaryTarget, MapOccupancy>? _locations;
 
     protected MilitaryTargets(StrategySnapshot view, MilitaryRulebook rules, int ownerId, int? corpsId,
-        int? homeId, int? movingUnitId, UnitCommandKind? commandKind = null)
+        int? homeId, int? movingUnitId, UnitCommandKind? commandKind = null,
+        IReadOnlyDictionary<MilitaryTarget, MapOccupancy>? locations = null, bool showInfluence = true)
     {
         View = view; Rules = rules; OwnerId = ownerId; MovingUnitId = movingUnitId;
         var world = view.World;
+        _locations = locations;
+        InfluenceCells = showInfluence && homeId is int home ? rules.CityInfluenceCells(world.Settlements.Single(s => s.Id == home), world.Settlements).ToImmutableHashSet() : [];
+        if (locations is not null)
+        {
+            Candidates = locations.Keys.ToImmutableDictionary(t => t, _ => MilitaryMarker.Enter);
+            ClearCells = locations.Values.SelectMany(rules.GeographicCells).ToImmutableHashSet();
+            return;
+        }
         var query = movingUnitId is null ? null : new MilitaryOrderQuery(world, rules);
         var candidates = new Dictionary<MilitaryTarget, MilitaryMarker>();
         var clear = new HashSet<MapCell>();
@@ -69,7 +79,6 @@ public abstract class MilitaryTargets
         if (movingUnitId is int moving) clear.UnionWith(rules.GeographicFootprint(world.Units.Single(u => u.Id == moving)));
         Candidates = candidates.ToImmutableDictionary();
         ClearCells = clear.ToImmutableHashSet();
-        InfluenceCells = homeId is int home ? rules.CityInfluenceCells(world.Settlements.Single(s => s.Id == home), world.Settlements).ToImmutableHashSet() : [];
     }
 
     public bool Select(MilitaryTarget target)
@@ -130,7 +139,7 @@ public abstract class MilitaryTargets
 
     public abstract ArrivalEstimate EstimateArrival();
 
-    protected MilitaryOrder OrderFor(MilitaryTarget target) => new(target.IsUnit ? MilitaryOrderKind.AttackUnit
+    protected virtual MilitaryOrder OrderFor(MilitaryTarget target) => new(target.IsUnit ? MilitaryOrderKind.AttackUnit
         : Candidates[target] == MilitaryMarker.Enter ? MilitaryOrderKind.Return : MilitaryOrderKind.AttackSettlement,
         null, target.IsUnit ? null : target.Id) { UnitId = target.IsUnit ? target.Id : null };
 
@@ -148,7 +157,8 @@ public abstract class MilitaryTargets
         WorldPosition? start = Start(travel, occupied);
         if (start is null) return null;
         MapOccupancy destination;
-        if (target.IsUnit)
+        if (_locations is not null) destination = _locations[target];
+        else if (target.IsUnit)
         {
             var unit = world.Units.Single(u => u.Id == target.Id);
             destination = new(unit.Position, rules.Formation(unit).Footprint);
@@ -158,6 +168,8 @@ public abstract class MilitaryTargets
             var place = rules.Place(world.Settlements.Single(s => s.Id == target.Id));
             destination = rules.BuildingArea(place);
         }
+        // Construction deploys outside the future building, just as the domain command requires.
+        if (target.Position is not null && new MapOccupancy(start.Value,travel.Shape).Overlaps(destination)) return null;
         var steps = new List<WorldPosition> { start.Value };
         if (waypoint is { } via)
         {

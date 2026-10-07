@@ -1,6 +1,7 @@
 using Godot;
 using San9.Application.Presentation;
 using San9.Content.Text;
+using San9.Content.Interface;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -15,7 +16,7 @@ public partial class MilitaryPolicyView : Control
     public Func<bool, CommandRejection> Submit { get; init; } = null!;
     public Action Closed { get; init; } = null!;
     private readonly GameTextPresenter _text = new();
-    private static readonly Vector2 Origin = new(304, 224);
+    private Vector2 Origin => Selection is SpecialDeploymentTargets special ? new(304,special.IsConstruction ? 304 : 320) : new(304,224);
     private CommandWindow _window = null!;
     private StyleBoxTexture _field = null!;
     private Control? _child;
@@ -30,6 +31,7 @@ public partial class MilitaryPolicyView : Control
         _field = new StyleBoxTexture { Texture = Textures["deployment-field"],
             TextureMarginLeft = 16, TextureMarginRight = 16, TextureMarginTop = 8, TextureMarginBottom = 8,
             AxisStretchHorizontal = StyleBoxTexture.AxisStretchMode.Tile, AxisStretchVertical = StyleBoxTexture.AxisStretchMode.Tile };
+        if (Selection is SpecialDeploymentTargets special) { BuildSpecial(special); return; }
         _window = new CommandWindow { Textures = Textures, Position = Origin, Size = new(416, 320),
             Title = "决定方针", ShowBehindParent = true, Closed = Closed, Accepted = Execute,
             Help = () => Notice("决定部队的行动方针。金色为已选项。\n" +
@@ -65,6 +67,27 @@ public partial class MilitaryPolicyView : Control
         _message = new GameMessageBar { Textures = Textures, Text = Selection.Waypoint is { } via
             ? $"决定部队行动方针。中继点：({via.X}, {via.Y})。" : "决定部队行动方针。" };
         AddChild(_message);
+    }
+    private void BuildSpecial(SpecialDeploymentTargets special)
+    {
+        _window = new CommandWindow { Textures = Textures, Position = Origin, Size = new(416,special.IsConstruction ? 160 : 128),
+            Title = "决定方针", ShowBehindParent = true, Closed = Closed, Accepted = Execute,
+            Help = () => Notice("决定部队是否可以自主撤退。到达预定包含所选中继点。") };
+        AddChild(_window);
+        string home = "命令设施　" + Selection.View.Settlements.Single(s => s.Id == Selection.Source.Id).ResolveName(Texts);
+        _facilityWidth = home.Length*16+32; Label(home,new(0,0,_facilityWidth,32));
+        _arrival = Label("",new(256,0,136,32)); RefreshArrival();
+        var target = Selection.Selected!.Value;
+        string name = special.IsConstruction ? Texts.Resolve(Selection.View.RegionNameKeys[target.Id]) :
+            Selection.View.Settlements.Single(s => s.Id == target.Id).ResolveName(Texts);
+        int y = 48;
+        if (special.IsConstruction)
+        {
+            Label("工作物",new(0,y,96,32)); Label(special.Draft.FacilityName(special.Draft.FacilityId!.Value,Texts),new(104,y,80,32)); y+=40;
+        }
+        Label("目标",new(0,y,96,32)); Label(name,new(104,y,160,32)); y+=40;
+        Choice("自主撤退","许可","不许可",y,Selection.Policies.AutonomousRetreat,(p,value)=>p with { AutonomousRetreat=value });
+        _message = new GameMessageBar { Textures=Textures,Text=Texts.ResolveRich(SpecialDeploymentText.Key("policy")) }; AddChild(_message);
     }
     private Label Label(string text, Rect2 bounds)
     {
@@ -130,22 +153,31 @@ public partial class MilitaryPolicyView : Control
     public override void _Draw()
     {
         Strip("facility", new(0, 0, _facilityWidth, 32));
+        if (Selection is SpecialDeploymentTargets special)
+        {
+            int last = special.IsConstruction ? 128 : 88;
+            for (int y=48;y<=last;y+=40) Strip("label",new(0,y,96,32));
+            List<Rect2> fields = [new(256,0,136,32),new(104,special.IsConstruction?88:48,160,32)];
+            if (special.IsConstruction) fields.Add(new(104,48,80,32));
+            foreach (var bounds in fields) DrawField(bounds);
+            DrawLine(Origin+new Vector2(0,40),Origin+new Vector2(416,40),new Color("755635"),2);
+            return;
+        }
         foreach (int y in new[] { 48, 88, 128, 168, 208, 248 }) Strip("label", new(0, y, 96, 32));
-        var left = Textures["deployment-mode-left"]; var right = Textures["deployment-mode-right"];
-        float l = left.GetWidth() - 8, r = right.GetWidth() - 8;
-        var modeAt = Origin + new Vector2(272, 92);
-        DrawTextureRectRegion(left, new(modeAt, new(l, 24)), new(8, 0, l, 24));
-        SkinPainter.Tile(this, Textures["deployment-mode-middle"], new(modeAt + new Vector2(l, 0), new(48 - l - r, 24)));
-        DrawTextureRectRegion(right, new(modeAt + new Vector2(48 - r, 0), new(r, 24)), new(0, 0, r, 24));
+        CommandPanelArt.Strip(this, Textures, "deployment-mode", new(Origin+new Vector2(272,92),new Vector2(48,24)));
         foreach (var bounds in new Rect2[] { new(256, 0, 136, 32), new(104, 48, 48, 32), new(104, 88, 160, 32),
             new(328, 92, 80, 24), new(104, 288, 64, 32) })
         {
             if (!Selection.IsDeployment && bounds.Position.Y == 288) continue;
-            var rect = new Rect2(Origin + bounds.Position, bounds.Size); DrawStyleBox(_field, rect);
-            SkinPainter.Tile(this, Textures["deployment-field-rim"], new(rect.Position, new(rect.Size.X - 2, 4)));
-            SkinPainter.Tile(this, Textures["deployment-field-rim"], new(rect.Position + new Vector2(0, rect.Size.Y - 4), new(rect.Size.X - 2, 4)));
+            DrawField(bounds);
         }
         DrawLine(Origin + new Vector2(0, 40), Origin + new Vector2(416, 40), new Color("755635"), 2);
+    }
+    private void DrawField(Rect2 bounds)
+    {
+        var rect = new Rect2(Origin+bounds.Position,bounds.Size); DrawStyleBox(_field,rect);
+        SkinPainter.Tile(this,Textures["deployment-field-rim"],new(rect.Position,new(rect.Size.X-2,4)));
+        SkinPainter.Tile(this,Textures["deployment-field-rim"],new(rect.Position+new Vector2(0,rect.Size.Y-4),new(rect.Size.X-2,4)));
     }
     private void Strip(string role, Rect2 bounds) => SkinPainter.Strip(this, Textures["deployment-" + role + "-left"],
         Textures["deployment-" + role + "-middle"], Textures["deployment-" + role + "-right"], new(Origin + bounds.Position, bounds.Size));

@@ -6,7 +6,7 @@
 
 2026-09-27命令来源光圈：皮肤33／纹理转换26增加五帧`minimap-command-pulse`语义资源（首帧无后缀，其余为`-1..-4`），逐色透明度保留。客户端以当前命令菜单对象定位，兼用于城市、其他设施和部队；出征后续页面保留来源，整项结束清除。依据[RE-0158](../research/findings/RE-SAN9PK-0158.md#小地图命令来源光圈补证2026-09-27)。本地纹理及190年组合包已原位重转，五帧均32×36、首帧全透明，29064逻辑图片／5262物理文件完整校验通过。解决方案各测试项目合计3867项通过；未启动游戏，菜单开关、对象切换及后续命令页面往返的实际画面待用户验收。
 
-现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 129，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 154，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 40，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 36。规则为 `san9-core-g10-v82`，保存99／日志102／录像9；协议以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 为准。
+现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 129，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 156，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 41，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 37。规则为 `san9-core-g10-v84`，保存99／日志103／录像9；协议以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 为准。
 
 旧内容包按现行契约原位重转，旧规则存档、日志和录像拒绝加载。是否重转纹理取决于纹理转换版本与源输入。历史验收只证明对应基线，不代表当前版本重新验证；阶段收口见[G10 验收](g10-verification.md#2026-09-21阶段收口)。
 
@@ -18,10 +18,10 @@
 | --- | --- | --- |
 | Content.Maps / MapImporter | 当前地图方格、地貌及对象位置 | `map.json`（无图片文件） |
 | Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema129 |
-| Content.Text / ScenarioTextReader / PublicationMessageCatalog | 静态词条与保留原序号、按明确区段分文件的全量消息目录 | `text.json` / `messages/*.json`，文本schema6、剧本包schema154 |
-| Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema40 |
-| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema154 |
-| Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema5／转换版本36 |
+| Content.Text / ScenarioTextReader / PublicationMessageCatalog | 静态词条与保留原序号、按明确区段分文件的全量消息目录 | `text.json` / `messages/*.json`，文本schema6、剧本包schema156 |
+| Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema41 |
+| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema156 |
+| Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema5／转换版本37 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 
 共享剧本契约不按原版编号区间限制城市或人物身份。城市图标资格由`SettlementKind.City`决定；`RegionCityIds`必须引用真实城市，其城市名从据点定义读取，不要求城市ID同时存在于地域名称表。数量与名称不继承源格式槽位和字节长度；玩法数值上限及显示资源范围独立校验。
@@ -303,3 +303,7 @@ TC101完整保留41项兵法和28项阵形的展示元数据，名称与说明�
 皮肤schema38／完整纹理转换34新增`save-load-*`语义角色：全屏背景及边框、两种四帧栏位、四帧页签、史实／虚拟及难度底板、备注标题和是／否按钮。源资源、分帧、调色板与透明禁用帧见[RE-0180](../research/findings/RE-SAN9PK-0180.md)。既有包原位执行`import-textures --rebuild skin`，再执行`import-client`更新依赖。Application存档格式98移除完整性哈希，保留结构、版本、内容匹配和状态合法性检查，允许合法手工修改；客户端以版本3栏位容器原子保存可独立读取的摘要头及会话封套，目录只读取摘要头，确认载入才校验正文，真实读档采用玩家载入语义。文件路径、错误处理及摘要呈现边界见[存读档规格](../specs/behavior/BEH-UI-0007-save-load-browser.md)。
 
 存档预览使用`scenario.title`词条显示作者提供的剧本名，组合包schema145将其列为必需内容；TC101按剧本头编号及模式从消息中导入标题。已有组合包执行`import-client`原位更新即可，头像复用既有Face裁切定义，无须重转纹理。
+
+工作物选择页采用组合包schema156，补齐 `catalog-facility-*` 插图角色和工作物特性／选择提示词条。插图复用已转换的G_Still图库，原位运行 `import-client` 即可，无须重转纹理。列表费用为定义基础费用，建设准备页仍显示按营造人数计算的实际费用。
+
+建设／输送地图标识采用皮肤41的 `icon-construction`／`icon-transport` 角色，完整纹理转换版本37。现有包已先定向重建皮肤，再原位更新190年组合包；选择性重建保留原有全包转换版本。输送卸兵后的人员归还使规则升级为v84，保存99／日志103结构不变。

@@ -20,6 +20,7 @@ public sealed record TransportUnitCommand(Guid CommandId, int IssuerId, long Seq
     : GameCommand(CommandId, IssuerId, Sequence)
 {
     [JsonRequired] public UnitPolicies Policies { get; init; } = new();
+    [JsonRequired] public WorldPosition? Waypoint { get; init; }
 }
 public sealed record OrderUnitCommand(Guid CommandId, int IssuerId, long Sequence, int UnitId, MilitaryOrder Order)
     : GameCommand(CommandId, IssuerId, Sequence)
@@ -91,7 +92,7 @@ internal static class MilitaryMovement
         if (rules?.TransportFormations is not { } pair) return CommandRejection.UnsupportedCommand;
         return Deploy(world, new(command.CommandId, command.IssuerId, command.Sequence, command.SettlementId,
             command.OfficerIds, command.Soldiers, pair.LandFormationId, new(MilitaryOrderKind.Transport, null, command.DestinationId))
-            { NavalFormationId = pair.NavalFormationId, Policies = command.Policies }, rules, governance, treasures, events,
+            { NavalFormationId = pair.NavalFormationId, Policies = command.Policies, Waypoint = command.Waypoint }, rules, governance, treasures, events,
             UnitPurpose.Transport, command.CargoMoney, command.CargoFood);
     }
 
@@ -239,7 +240,7 @@ internal static class MilitaryMovement
             events.Add(new UnitMovedEvent(world.Clock, id, from, result.Position, result.Spent, result.Status) { Steps = result.Navigation.Steps });
             if (order.IsAttack) continue;
             if (!result.Arrived) continue;
-            if (order.SettlementId is int destination) Absorb(world, unit, destination, governance, geography, events);
+            if (order.SettlementId is int destination) Absorb(world, unit, destination, governance, geography, rules, events);
             else
             {
                 world.Replace(unit with { Order = null });
@@ -254,10 +255,12 @@ internal static class MilitaryMovement
             world.Replace(unit with { DepartureDaysRemaining = unit.DepartureDaysRemaining - 1 });
     }
 
-    internal static void Absorb(WorldMutation world, UnitState unit, int destinationId, GovernanceRulebook governance, PersonnelRulebook geography, List<DomainEvent> events)
+    internal static void Absorb(WorldMutation world, UnitState unit, int destinationId, GovernanceRulebook governance, PersonnelRulebook geography, MilitaryRulebook military, List<DomainEvent> events)
     {
         var home = world.Settlements[destinationId];
-        if (!CanAbsorb(world, unit, home))
+        var returnHome = unit.EffectiveOrder?.Kind == MilitaryOrderKind.Transport && unit.ServicePlaceId != home.Id
+            ? PersonnelReturns.TransportDestination(world, unit, home, military) : home;
+        if (!CanAbsorb(world, unit, home, returnHome))
         {
             events.Add(new UnitOrderChangedEvent(world.Clock, unit.Id, unit.Order, "absorption-blocked"));
             return;
@@ -285,7 +288,11 @@ internal static class MilitaryMovement
         ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, unit.Id), ResourceKind.Money, "transport-unload", home.Id, -(long)unit.CargoMoney, -(long)unit.CargoMoney, events);
         ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, unit.Id), ResourceKind.Food, "transport-unload", home.Id, -(long)unit.CargoFood, -(long)unit.CargoFood, events);
         foreach (var officer in world.UnitMembers(unit.Id).OrderBy(p => p.Id).ToArray())
+        {
             world.Replace(officer with { UnitId = null, SettlementId = home.Id, Acted = true });
+            if (officer.IsServing && returnHome.Id != home.Id)
+                PersonnelReturns.FromTransport(world, officer.Id, unit, home.Id, returnHome, military, events);
+        }
         world.RemoveUnit(unit.Id);
         MilitaryPolicies.RemoveTarget(world, unit.Id, false, events);
         if (unit.CorpsId is int previous && previous != home.CorpsId)
@@ -296,12 +303,12 @@ internal static class MilitaryMovement
         events.Add(new UnitAbsorbedEvent(world.Clock, unit.Id, home.Id));
     }
 
-    private static bool CanAbsorb(WorldMutation world, UnitState unit, SettlementState home)
+    private static bool CanAbsorb(WorldMutation world, UnitState unit, SettlementState home, SettlementState returnHome)
     {
         if (unit.CorpsId is not int previous || previous == home.CorpsId || world.Corps[previous].IsRoot)
             return true;
         bool survivingMembers = world.Officers.Values.Any(p => p.IsServing && p.OwnerId == unit.OwnerId &&
-            p.UnitId != unit.Id && PersonnelLocations.Corps(world, p) == previous);
+            (p.UnitId == unit.Id ? returnHome.CorpsId == previous : PersonnelLocations.Corps(world, p) == previous));
         if (survivingMembers && world.Settlements.Values.Any(s => s.CorpsId == previous && s.Kind == SettlementKind.City)) return true;
         var force = world.Forces[unit.OwnerId];
         bool forceReceivesCargo = ResourceAccounts.Resolve(world, unit.OwnerId, home.CorpsId).Id == ResourceAccounts.Root(world, unit.OwnerId).Id;

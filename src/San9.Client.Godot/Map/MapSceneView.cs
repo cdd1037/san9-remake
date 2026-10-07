@@ -63,6 +63,11 @@ public partial class MapSceneView : Node2D
     public bool ShowAnnotations { get; set; }
     public MapObjectTarget? Hovered { get; set; }
     public MilitaryTargets? Targets { get; set; }
+    public Vector2? ConstructionPointer { get; set; }
+    private Vector2? _drawnConstructionPointer;
+    private TextureScope? _previewAssets;
+    private MapSprite[] _previewSprites = [];
+    private long _previewRevision;
     internal Frame? Presented => _transition.Presented;
     private MapFrameTransition<Frame> _transition = null!;
     private TextureScope? _prefetchAssets;
@@ -237,7 +242,8 @@ public partial class MapSceneView : Node2D
         if (readyTerrain != _drawnTerrainCount) QueueRedraw();
         bool hoverChanged = _drawnHover != Hovered;
         bool resourcesChanged = _drawnAssetRevision != frame.Assets.Revision;
-        bool targetsChanged = _drawnTargets != Targets || _routeRevision != (Targets?.Revision ?? -1);
+        bool targetsChanged = _drawnTargets != Targets || _routeRevision != (Targets?.Revision ?? -1) ||
+            _drawnConstructionPointer != ConstructionPointer || _previewRevision != (_previewAssets?.Revision ?? 0);
         bool markerChanged = Targets is not null && _markerFrame != (int)(AnimationTime() / 200) % 4;
         markerChanged |= Targets is not null && _routeFrame != (int)(AnimationTime() / 200) % 8;
         markerChanged |= Targets?.Waypoint is not null && _waypointFrame != (int)(AnimationTime() / 142) % 4;
@@ -304,12 +310,21 @@ public partial class MapSceneView : Node2D
         ObjectDraws++; _objects.Begin(); _drawnHover = Hovered; _drawnAssetRevision = frame.Assets.Revision;
         if (_drawnTargets != Targets)
         {
+            _previewAssets?.Dispose(); _previewAssets = null; _previewSprites = [];
+            if (Targets is SpecialDeploymentTargets { PreviewFacilityId: int type })
+            {
+                _previewSprites = BuildingVisuals.ConstructionPreview(frame.Region.Scene.Map,type);
+                _previewAssets = Textures.CreateScope(Textures.MapAssets,owner:this);
+                _previewAssets.Request(_previewSprites.Select(s=>s.AssetId));
+            }
             _drawnTargets = Targets;
             _targetMeshes = Targets is { } targets ? TargetOverlayGeometry.Meshes(frame.Region.Scene.Map, targets.ClearCells, targets.InfluenceCells).ToArray() : [];
             _meshRegion = null;
             if (Targets is not null) _ui.Request(TargetSelectionSkin.RequiredRoles.Where(r => r.StartsWith("target-marker-", StringComparison.Ordinal) || r.StartsWith("target-route-", StringComparison.Ordinal) || r.StartsWith("target-waypoint-", StringComparison.Ordinal)));
         }
         _drawnUiRevision = _ui.Revision;
+        _drawnConstructionPointer = ConstructionPointer;
+        _previewRevision = _previewAssets?.Revision ?? 0;
         if (_meshRegion != frame.Region)
         {
             _meshRegion = frame.Region;
@@ -377,6 +392,27 @@ public partial class MapSceneView : Node2D
             }
             foreach (var unit in frame.Region.Units) Marker(new(unit.Id, true), new(unit.AnchorX - 16, unit.AnchorY - 48));
         }
+        if (Targets is SpecialDeploymentTargets { IsConstruction:true } construction)
+        {
+            if (construction.Selected?.Position is { } selected)
+            {
+                var cell = San9.Core.Domain.MapCoordinates.Cell(selected);
+                var center = MapGeometry.Center(cell.X,cell.Y);
+                Preview(new(center.X,center.Y-10*(frame.Region.Scene.Map.Squares[cell.Y*frame.Region.Scene.Map.Width+cell.X].Elevation-1)),96f/256);
+            }
+            if (!construction.EditingPolicies && ConstructionPointer is { } cursor)
+            {
+                bool valid = MapGeometry.TrySquare(cursor.X,cursor.Y,out int x,out int y) && construction.At(new(x,y)) is not null;
+                Preview(cursor,(valid?192f:96f)/256);
+            }
+
+            void Preview(Vector2 position, float opacity)
+            {
+                foreach (var sprite in _previewSprites)
+                    if (_previewAssets!.TryGetReady(sprite.AssetId,out var texture))
+                        _objects.Add(texture,position+new Vector2(sprite.X,sprite.Y),null,new Color(1,1,1,opacity));
+            }
+        }
         _objects.End();
         PrepareAnnotations();
     }
@@ -393,7 +429,7 @@ public partial class MapSceneView : Node2D
     public override void _ExitTree()
     {
         _objects.Clear();
-        _transition.Dispose(); _prefetchAssets?.Dispose(); _prefetchTerrain?.Dispose(); _ui.Dispose();
+        _transition.Dispose(); _prefetchAssets?.Dispose(); _prefetchTerrain?.Dispose(); _previewAssets?.Dispose(); _ui.Dispose();
         var waterMaterial = _water.Material;
         Textures.Defer(() => {
             waterMaterial.Dispose(); _additiveMaterial.Dispose();

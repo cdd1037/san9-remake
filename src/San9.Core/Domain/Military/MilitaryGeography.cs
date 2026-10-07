@@ -51,7 +51,7 @@ public sealed partial class MilitaryRulebook
         return center.X >= area.Left && center.X < area.Right && center.Y >= area.Top && center.Y < area.Bottom;
     }
 
-    private IEnumerable<MapCell> GeographicCells(MapOccupancy area)
+    public IEnumerable<MapCell> GeographicCells(MapOccupancy area)
     {
         int scale = MapCoordinates.UnitsPerCell;
         for (long y = Math.Max(0, (area.Top + scale / 2) / scale); y <= Math.Min(Map.Height - 1, (area.Bottom - 1) / scale); y++)

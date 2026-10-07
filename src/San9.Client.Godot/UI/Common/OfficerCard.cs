@@ -66,8 +66,21 @@ internal static class CommandPanelArt
         text.Apply(label, GameTextStyles.CatalogRow with { Foreground = color ?? new Color("f0f0f0") });
     }
 
-    public static void Strip(CanvasItem canvas, TextureScope textures, string role, Rect2 bounds) =>
-        SkinPainter.Strip(canvas, textures[role+"-left"], textures[role+"-middle"], textures[role+"-right"], bounds);
+    public static void Strip(CanvasItem canvas, TextureScope textures, string role, Rect2 bounds)
+    {
+        var left = textures[role+"-left"];
+        var right = textures[role+"-right"];
+        if (role == "deployment-mode")
+        {
+            // Mode label endcaps contain eight transparent pixels outside the visible bounds.
+            float l = left.GetWidth()-8, r = right.GetWidth()-8;
+            canvas.DrawTextureRectRegion(left, new(bounds.Position, new(l,bounds.Size.Y)), new(8,0,l,left.GetHeight()));
+            SkinPainter.Tile(canvas, textures[role+"-middle"], new(bounds.Position+new Vector2(l,0), new(bounds.Size.X-l-r,bounds.Size.Y)));
+            canvas.DrawTextureRectRegion(right, new(new Vector2(bounds.End.X-r,bounds.Position.Y), new(r,bounds.Size.Y)), new(0,0,r,right.GetHeight()));
+            return;
+        }
+        SkinPainter.Strip(canvas, left, textures[role+"-middle"], right, bounds);
+    }
 
     public static void ColumnRule(CanvasItem canvas, TextureScope textures, Vector2 position, float height)
     {

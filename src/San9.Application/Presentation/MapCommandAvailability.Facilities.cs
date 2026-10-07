@@ -37,8 +37,7 @@ internal sealed partial class MapCommandAvailability
     private IEnumerable<FacilityRule> BuildableTypes()
     {
         if (view.MilitaryRules is not { } rules) return [];
-        return rules.ConstructionSites.Values.Where(s => !places.TryGetValue(s.RegionId, out var place) || place.IsDestroyed && !place.IsDormant)
-            .SelectMany(s => s.FacilityIds).Distinct().Select(id => rules.Facilities[id]).Where(f => f.Buildable);
+        return rules.Facilities.Values.Where(f => f.Buildable && !ConstructionLocations.Read(view, Owner, f.Id).IsEmpty);
     }
     private int MinimumConstructionCost(SettlementState home)
     {

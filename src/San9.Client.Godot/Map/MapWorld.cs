@@ -67,6 +67,7 @@ public partial class MapWorld : Node2D
     public Func<bool>? CanIssueOrders { get; set; }
     public Action<MapObjectTarget?>? TargetPicked { get; set; }
     public Action<San9.Core.Domain.MapCell>? WaypointPicked { get; set; }
+    public Action<San9.Core.Domain.MapCell>? SitePicked { get; set; }
     public event Action<int, Vector2>? BuildingContextRequested;
     public event Action<int, Vector2>? UnitContextRequested;
     public event Action<MapObjectTarget, Vector2>? CommandMenuRequested;
@@ -115,6 +116,8 @@ public partial class MapWorld : Node2D
     }
     public override void _Process(double delta)
     {
+        if (_display is not null) _display.ConstructionPointer = SitePicked is not null && NavigationAvailable && IsInputBlocked?.Invoke(_pointer) != true
+            ? ViewportToWorld(_pointer) : null;
         _animationMilliseconds += delta * 1000;
         _unitPositionClock.Advance(delta, Day);
         long start = Stopwatch.GetTimestamp();
@@ -161,7 +164,7 @@ public partial class MapWorld : Node2D
     {
         Session = session; Presentation = null; Day = null;
         ResetNavigation(); ReleaseMouseLock(); HoverObject(null);
-        TargetPicked = null; WaypointPicked = null;
+        TargetPicked = null; WaypointPicked = null; SitePicked = null;
         if (_display is not null) _display.Targets = null;
         if (Scene is null) return;
         // Retain terrain resources, but never carry motion history across player loads.
@@ -197,6 +200,8 @@ public partial class MapWorld : Node2D
             if (_flags.TryGetReady(id, out var texture)) target.DrawTexture(texture, position);
     }
     public void FocusWorld(Vector2 point) => RequestView(new(point.X, point.Y, RequestedZoom));
+    public void FocusCell(San9.Core.Domain.MapCell cell)
+    { var point = MapGeometry.Center(cell.X,cell.Y); FocusWorld(new(point.X,point.Y)); }
     // All relative navigation uses world-space displacement; absolute focus and zoom remain separate.
     public void MoveWorld(double dx, double dy)
     {
@@ -243,7 +248,12 @@ public partial class MapWorld : Node2D
                     if (button.ButtonIndex == MouseButton.Right) pick(null);
                     else if (HasCompleteView && !IsLoading)
                     {
-                        if (ObjectAtViewport(button.Position) is { } target) pick(target);
+                        if (SitePicked is { } sitePick)
+                        {
+                            var point = ViewportToWorld(button.Position);
+                            if (MapGeometry.TrySquare(point.X, point.Y, out int x, out int y)) sitePick(new(x,y));
+                        }
+                        else if (ObjectAtViewport(button.Position) is { } target) pick(target);
                         else
                         {
                             var point = ViewportToWorld(button.Position);

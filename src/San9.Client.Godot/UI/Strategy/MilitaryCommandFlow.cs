@@ -23,13 +23,30 @@ public partial class MilitaryCommandFlow : Node
         Targets is null ? MilitaryCommandStage.Preparation :
         _policy is not null || _catalog is not null ? MilitaryCommandStage.TargetModal : MilitaryCommandStage.Targets;
     private DeploymentView? _preparation;
+    private SpecialDeploymentView? _specialPreparation;
     private MilitaryPolicyView? _policy;
     private CatalogView? _catalog;
 
     public override void _Process(double delta)
     {
-        var view = Targets?.View ?? _preparation?.Draft.View;
+        var view = Targets?.View ?? _preparation?.Draft.View ?? _specialPreparation?.Draft.View;
         if (view is not null && view.World.Revision != Session.Snapshot.Revision) CloseCommand();
+    }
+    public void OpenSpecial(int settlementId, SpecialDeploymentKind kind)
+    {
+        if (IsActive) return;
+        var view = Session.View;
+        if (SpecialDeploymentDraft.UnavailableReasonKey(view,settlementId,kind) is string reason)
+        { Notice?.Invoke(Texts.Resolve(reason)); return; }
+        Textures.RequestPrefixes("deployment-","detail-","catalog-","information-","roster-","message-","dialog-");
+        Source = new(settlementId,false);
+        _specialPreparation = new() { Draft = new(view,settlementId,kind), Texts=Texts, Textures=Textures, Service=Service,
+            Closed=CloseCommand, Proceed=() =>
+            {
+                if (_specialPreparation is not { Draft.CanProceed:true } preparation) return;
+                Targets = new SpecialDeploymentTargets(preparation.Draft); preparation.Hide(); BindTargets();
+            } };
+        AddChild(_specialPreparation); Changed?.Invoke();
     }
 
     public void Open(int settlementId)
@@ -72,14 +89,23 @@ public partial class MilitaryCommandFlow : Node
         World.Display!.Targets = Targets;
         World.TargetPicked = PickTarget;
         World.WaypointPicked = cell => Targets?.SetWaypoint(cell);
+        World.SitePicked = Targets is SpecialDeploymentTargets { IsConstruction:true } construction ? cell =>
+        {
+            if (construction.At(cell) is { } target) PickMilitaryTarget(target);
+            else construction.SetWaypoint(cell);
+        } : null;
         Changed?.Invoke();
     }
 
     private void PickTarget(MapObjectTarget? target)
     {
         if (target is null) { EndTargetSelection(); return; }
-        if (Targets is not { } targets) return;
         var selected = new MilitaryTarget(target.Value.Id, target.Value.IsUnit);
+        PickMilitaryTarget(selected);
+    }
+    private void PickMilitaryTarget(MilitaryTarget selected)
+    {
+        if (Targets is not { } targets) return;
         if (targets.Selected == selected)
         {
             if (targets.BeginPolicies()) ShowPolicies();
@@ -120,8 +146,9 @@ public partial class MilitaryCommandFlow : Node
         if (World.Display is { } display) display.Targets = null;
         World.TargetPicked = null;
         World.WaypointPicked = null;
-        if (_preparation is null) Source = null;
-        _preparation?.Show(); Changed?.Invoke();
+        World.SitePicked = null;
+        if (_preparation is null && _specialPreparation is null) Source = null;
+        _preparation?.Show(); _specialPreparation?.Show(); Changed?.Invoke();
     }
 
     private void CloseCommand()
@@ -129,6 +156,8 @@ public partial class MilitaryCommandFlow : Node
         if (Targets is not null) EndTargetSelection();
         if (_preparation is { } preparation)
         { _preparation = null; RemoveChild(preparation); preparation.QueueFree(); }
+        if (_specialPreparation is { } special)
+        { _specialPreparation = null; RemoveChild(special); special.QueueFree(); }
         Source = null; Changed?.Invoke();
     }
 
@@ -144,14 +173,17 @@ public partial class MilitaryCommandFlow : Node
         var catalog = new MilitaryTargetCatalog(targets, Texts);
         _catalog = new CatalogView
         {
-            Title = "选择对象", HintText = "请选择目标。", CloseTitle = "中止",
+            Title = targets is SpecialDeploymentTargets { IsConstruction:true } ? "选择地域" : "选择对象",
+            HintText = targets is SpecialDeploymentTargets { IsConstruction:true }
+                ? Texts.ResolveRich(San9.Content.Interface.SpecialDeploymentText.Key("site")) : "请选择目标。", CloseTitle = "中止",
             Textures = Textures, Service = Service, ZIndex = 30,
-            Pages = MilitaryTargetCatalog.Pages,
+            Pages = catalog.DisplayPages,
             ReadRows = _ => catalog.Rows,
             Activated = index =>
             {
-                var target = catalog.Target(index); CloseTargetList(); PickTarget(new(target.Id, target.IsUnit));
-                if (target.IsUnit) World.FocusUnit(target.Id); else World.FocusBuilding(target.Id);
+                var target = catalog.Target(index); CloseTargetList(); PickMilitaryTarget(target);
+                if (target.Position is { } position) World.FocusCell(San9.Core.Domain.MapCoordinates.Cell(position));
+                else if (target.IsUnit) World.FocusUnit(target.Id); else World.FocusBuilding(target.Id);
             },
             ShowMap = CloseTargetList,
             Closed = EndTargetSelection
@@ -168,6 +200,6 @@ public partial class MilitaryCommandFlow : Node
     public override void _ExitTree()
     {
         if (World.Display is { } display) display.Targets = null;
-        World.TargetPicked = null; World.WaypointPicked = null;
+        World.TargetPicked = null; World.WaypointPicked = null; World.SitePicked = null;
     }
 }

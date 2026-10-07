@@ -22,6 +22,7 @@ internal sealed class MapAnnotationLayer
             entries.Add(new(new(building.Id, false), position, value.ResolveName(texts), value.Soldiers,
                 value.Morale, value.Durability, value.MaxDurability, value.Icons.ToArray(), null));
         }
+        var units = frame.Region.Scene.State.World.Units.ToDictionary(u => u.Id);
         int fontSize = GameTextStyles.Building(false).FontSize;
         foreach (var unit in frame.Region.Units.Where(u => frame.Region.Scene.IsUnitVisible(u, frame.ViewportBounds)).Select(frame.Region.Scene.Sample))
         {
@@ -30,7 +31,12 @@ internal sealed class MapAnnotationLayer
             var bounds = new Rect2(unit.LabelX, unit.LabelY, width, 47 + font.GetDescent(fontSize));
             if (!frame.Region.Bounds.Intersects(bounds)) continue;
             entries.Add(new(new(unit.Id, true), new(unit.LabelX, unit.LabelY), name, unit.Soldiers,
-                unit.Morale, 0, 0, [], bounds));
+                unit.Morale, 0, 0, frame.Region.Scene.State.UnitPurpose(units[unit.Id]) switch
+                {
+                    San9.Core.Domain.UnitPurpose.Construction => ["construction"],
+                    San9.Core.Domain.UnitPurpose.Transport => ["transport"],
+                    _ => []
+                }, bounds));
         }
         _entries = entries.ToArray();
         HasAnimatedBars = _entries.Any(e => Animated(e.Morale, 100) || !e.Target.IsUnit && Animated(e.Durability, e.MaxDurability));
@@ -56,7 +62,7 @@ internal sealed class MapAnnotationLayer
             if (!entry.Target.IsUnit) Bar("durability", entry.Durability, entry.MaxDurability, new(0, 16), entry.Target.Id);
             Bar("morale", entry.Morale, 100, new(0, entry.Target.IsUnit ? 20 : 29), entry.Target.Id);
             GameTextPresenter.Draw(target, font, entry.Name, new(0, entry.Target.IsUnit ? 47 : 53), style);
-            foreach (string icon in entry.Icons) target.DrawTexture(textures["icon-" + icon], icon == "emperor" ? new(96, 17) : new(75, 17));
+            foreach (string icon in entry.Icons) target.DrawTexture(textures["icon-" + icon], entry.Target.IsUnit ? new(2, 0) : icon == "emperor" ? new(96, 17) : new(75, 17));
         }
         target.DrawSetTransform(Vector2.Zero);
         void Bar(string kind, int current, int maximum, Vector2 point, int objectId)

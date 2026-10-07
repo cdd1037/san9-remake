@@ -24,6 +24,10 @@ public static class InformationArtCompiler
         }
         foreach (var treasure in scenario.Information.Treasures)
             roles.Add($"information-treasure-{treasure.Id}", Image("g_still", treasures[treasure.Id].ImageId + 172));
+        // RE-0137: 0x423B10 resolves fixed-building illustrations through 0x653210.
+        int[] workImages = [276, 281, 282, 277, 278, 279, 274, 275, 272, 273, 280];
+        foreach (var facility in scenario.Military!.Facilities.Where(f => f.Buildable))
+            roles.Add($"catalog-facility-{facility.Id}", Image("g_still", workImages[facility.Id-6]));
         // Original formation catalog order maps to the G_Jinkei three-state diagram groups.
         int[] diagrams = [9, 12, 3, 6, 15, 18, 0, 21, 42, 45, 39, 36, 48, 48, 48, 48, 48, 48, 48, 48, 24, 27, 30, 33, 48, 48, 48, 48];
         foreach (var formation in scenario.Information.Formations)

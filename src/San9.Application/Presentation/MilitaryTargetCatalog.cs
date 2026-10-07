@@ -14,12 +14,25 @@ public sealed class MilitaryTargetCatalog
         new("condition", "状态", 4, CatalogAlignment.Center)])];
 
     private readonly MilitaryTarget[] _targets;
+    public IReadOnlyList<CatalogPage> DisplayPages { get; }
     public CatalogRow[] Rows { get; }
     public MilitaryTarget Target(int rowId) => _targets[rowId];
 
     public MilitaryTargetCatalog(MilitaryTargets selection, TextCatalog texts)
     {
         var view = selection.View;
+        DisplayPages = Pages;
+        if (selection is SpecialDeploymentTargets { IsConstruction: true } construction)
+        {
+            DisplayPages = [new("建设地点", [new("region","地域",12,CatalogAlignment.Center),
+                new("city","所属都市",12,CatalogAlignment.Center),new("location","位置",12,CatalogAlignment.Center)])];
+            // One representative per region keeps the catalog usable; all exact sites remain selectable on the map.
+            _targets = construction.Candidates.Keys.GroupBy(t=>t.Id).OrderBy(g=>g.Key).Select(g=>g.First()).ToArray();
+            Rows = _targets.Select((t,index)=>new CatalogRow(index,[texts.Resolve(view.RegionNameKeys[t.Id]),
+                view.Settlements.Single(s=>s.Id==view.RegionCityIds[t.Id]).ResolveName(texts),
+                $"{San9.Core.Domain.MapCoordinates.Cell(t.Position!.Value).X}, {San9.Core.Domain.MapCoordinates.Cell(t.Position.Value).Y}"])).ToArray();
+            return;
+        }
         var forces = view.Forces.ToDictionary(f => f.Id, f => texts.Resolve(f.NameKey));
         var people = view.Officers.ToDictionary(o => o.Id, o => texts.Resolve(o.NameKey));
         var places = view.Settlements.ToDictionary(s => s.Id);

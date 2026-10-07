@@ -54,6 +54,7 @@ public partial class StrategyHud
     private void RefreshMilitaryCommand()
     {
         bool targeting = _flow.Targets is not null;
+        _targetTitle.Text = _flow.Targets is SpecialDeploymentTargets { IsConstruction:true } ? "建设地点" : "选择对象";
         _targetTitle.Visible = targeting;
         foreach (var button in _targetButtons) button.Visible = targeting;
         ClearHover(); UpdateTurnControls(); QueueRedraw();

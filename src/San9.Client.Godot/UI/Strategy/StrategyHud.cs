@@ -276,10 +276,11 @@ public partial class StrategyHud : Control
             _flow.OpenUnit(target.Id, command == "attack" ? UnitCommandKind.Attack : UnitCommandKind.March);
             return;
         }
-        if (command is not ("sortie" or "patrol") && !FacilityCommandDraft.Supports(command) && !AppointmentDraft.Supports(command)) return;
+        if (command is not ("sortie" or "patrol" or "build" or "transport") && !FacilityCommandDraft.Supports(command) && !AppointmentDraft.Supports(command)) return;
         _commandMenu.Close();
         Overview.Close();
         if (command == "patrol") OpenPatrol(target.Id);
+        else if (command is "build" or "transport") _flow.OpenSpecial(target.Id, command == "build" ? SpecialDeploymentKind.Construction : SpecialDeploymentKind.Transport);
         else if (AppointmentDraft.Supports(command)) OpenAppointment(target.Id, command);
         else if (FacilityCommandDraft.Supports(command)) OpenFacilityCommand(target.Id,command);
         else _flow.Open(target.Id);
@@ -340,7 +341,13 @@ public partial class StrategyHud : Control
         }
         if (_commandMenu.Visible) { _message.SetMessage(_commandMenu.Hint, _commandMenu.HintEnabled); return; }
         if (_mapContext.Visible) { _message.SetMessage(_mapContext.Hint, true); return; }
-        if (_targets is not null) { _message.SetMessage(_targets.Selected is null ? "请选择目标。" : "点击空地设置中继点，点击其他目标切换，再次点击当前目标设定方针。", true); return; }
+        if (_targets is not null)
+        {
+            string initial = _targets is SpecialDeploymentTargets { IsConstruction:true }
+                ? Texts.ResolveRich(San9.Content.Interface.SpecialDeploymentText.Key("site")) : "请选择目标。";
+            _message.SetMessage(_targets.Selected is null ? initial : "点击空地设置中继点，点击其他目标切换，再次点击当前目标设定方针。",true);
+            return;
+        }
         var button = GetChildren().OfType<StrategyButton>().FirstOrDefault(b => b.Visible && b.IsHovered())
             ?? (Overview.IsOpen ? _overviewPanel.HoverButton : null);
         _message.SetMessage(button?.HintText ?? (Overview.IsOpen ? "" : "请选择命令起点。"), button is null || !button.Disabled);

@@ -72,7 +72,7 @@ public partial class OfficerRosterPanel : Control
         for (int column = 0; column < Columns.Count; column++)
         {
             var definition = Columns[column];
-            CommandPanelArt.Label(_body, _text, definition.Title, new(x+8,8,definition.Width-16,24));
+            if (definition.Title.Length != 0) CommandPanelArt.Label(_body, _text, definition.Title, new(x+8,8,definition.Width-16,24));
             for (int row = 0; row < VisibleRows; row++)
             {
                 int index = Page*VisibleRows+row;
@@ -117,7 +117,7 @@ public partial class OfficerRosterPanel : Control
         float x = 0;
         foreach (var column in Columns)
         {
-            CommandPanelArt.Strip(this, Textures, "deployment-roster-header", new(x+8,8,column.Width-16,24));
+            if (column.Title.Length != 0) CommandPanelArt.Strip(this, Textures, "deployment-roster-header", new(x+8,8,column.Width-16,24));
             x += column.Width;
             CommandPanelArt.ColumnRule(this, Textures, new(x,8), PanelHeight-16);
         }

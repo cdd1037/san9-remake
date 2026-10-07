@@ -43,6 +43,12 @@ public sealed class ScenarioTextReader(byte[] messages, byte[] executable) : IDi
     }
     private void ReadCommandMenuText()
     {
+        // RE-0137: construction preparation and shared fixed-formation destination workflow.
+        foreach (var (role, message) in new[] { ("build",6013), ("transport",6109), ("officers",8168),
+            ("soldiers",8169), ("facility",8170), ("need-officers",8037), ("need-soldiers",8157),
+            ("need-facility",8171), ("no-facility",8426), ("next",8193), ("cancel",8172), ("policy",8317), ("site",5948), ("facility-catalog",8164),
+            ("facility-rockfall",8412), ("facility-stone",8413), ("facility-range",8414) })
+            Add(SpecialDeploymentText.Key(role), _messages.PlainText(message));
         foreach (var (role, message) in new[] { ("select",8038), ("select-office",8268), ("individual",8175),
             ("fill",8407), ("promote",8408), ("remove",8409), ("no-vacancy",8406), ("no-target",8375),
             ("accept",8205), ("no-changes",8052), ("cancel",8172) })

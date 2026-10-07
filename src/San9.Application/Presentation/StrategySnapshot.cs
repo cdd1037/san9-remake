@@ -114,6 +114,8 @@ public sealed class StrategySnapshot
         engagements ??= MilitaryEngagementQuery.Capture(World, military);
     public bool IsUnitEngaged(int id) => Engagements?.Units.Contains(id) == true;
     public bool IsSettlementEngaged(int id) => Engagements?.Settlements.Contains(id) == true;
+    public UnitPurpose UnitPurpose(UnitState unit) => unit.FormationId is int formation && military is not null
+        ? military.Purpose(formation) : San9.Core.Domain.UnitPurpose.Combat;
     public int? FormationId(UnitState unit) => unit.FormationId is null ? null : military!.Formation(unit).Id;
     public MapOccupancy? SettlementGeographicArea(int id)
     {

@@ -31,10 +31,15 @@ public sealed class MilitaryArrivalForecast(WorldSnapshot snapshot, MilitaryRule
         var home = snapshot.Settlements.FirstOrDefault(s => s.Id == request.SettlementId);
         if (home is not { OwnerId: int owner, CanHostPersons: true, IsDestroyed: false, IsDormant: false } || home.Durability == 0 ||
             request.DepartureDelayDays is < 0 or > 9 || request.Policies is null || request.Order is null ||
-            request.Order.Construction is not null || !rules.Formations.ContainsKey(request.FormationId))
+            !request.Order.IsValid || !rules.Formations.ContainsKey(request.FormationId) || !rules.AllowsOrder(request.FormationId,request.Order))
             return new(ArrivalEstimateStatus.NotApplicable);
         int? naval = request.NavalFormationId ?? rules.NavalFormationForDeployment(request.FormationId);
         if (!rules.ValidUnitFormations(request.FormationId, naval) || !rules.TryPlace(home, out var place))
+            return new(ArrivalEstimateStatus.NotApplicable);
+        if (request.Order.Construction is { } plan && (regionCities is null ||
+            !rules.Facilities.TryGetValue(plan.FacilityTypeId, out var facility) ||
+            !rules.ConstructionSites.TryGetValue((plan.RegionId, plan.Position), out var site) ||
+            !ConstructionPlacement.IsAvailable(owner, site, facility, rules, regionCities, snapshot.Settlements, snapshot.Units)))
             return new(ArrivalEstimateStatus.NotApplicable);
         world ??= WorldState.Restore(snapshot).BeginMutation();
         var occupancy = world.MovementOccupancy(rules, owner, request.Policies, null, null);
@@ -48,7 +53,9 @@ public sealed class MilitaryArrivalForecast(WorldSnapshot snapshot, MilitaryRule
             FormationId = request.FormationId, NavalFormationId = naval, Order = request.Order, Policies = request.Policies,
             DepartureDaysRemaining = request.DepartureDelayDays, Waypoint = request.Waypoint, ServicePlaceId = home.Id
         };
-        return Estimate(unit, null, maximumDays, work);
+        // The construction site was checked above. This synthetic unit has no serving members in the
+        // frozen world; ongoing-construction validation would incorrectly require the leader to belong to unit zero.
+        return Estimate(unit, null, maximumDays, work, constructionPreview: request.Order.Construction is not null);
     }
 
     public ArrivalEstimate EstimateOrder(int unitId, MilitaryOrder order, UnitPolicies policies, WorldPosition? waypoint,
@@ -62,10 +69,10 @@ public sealed class MilitaryArrivalForecast(WorldSnapshot snapshot, MilitaryRule
             EngagementTargetId = null, AwaitingPostAction = false, Lookahead = null }, unit.Id, maximumDays, new(maximumExpanded));
     }
 
-    private ArrivalEstimate Estimate(UnitState unit, int? movingUnit, int maximumDays, NavigationWorkBudget work)
+    private ArrivalEstimate Estimate(UnitState unit, int? movingUnit, int maximumDays, NavigationWorkBudget work, bool constructionPreview = false)
     {
         world ??= WorldState.Restore(snapshot).BeginMutation();
-        if (!Valid(unit)) return new(ArrivalEstimateStatus.NotApplicable);
+        if (!constructionPreview && !Valid(unit)) return new(ArrivalEstimateStatus.NotApplicable);
         if (unit.DepartureDaysRemaining == 0 && MilitaryNavigation.Advance(world, unit, movingUnit, rules, 0).Arrived) return new(ArrivalEstimateStatus.Known, 0);
         for (int day = 1; day <= maximumDays; day++)
         {
@@ -81,7 +88,7 @@ public sealed class MilitaryArrivalForecast(WorldSnapshot snapshot, MilitaryRule
             }
             if (unit.DepartureDaysRemaining > 0)
             { unit = unit with { DepartureDaysRemaining = unit.DepartureDaysRemaining - 1 }; continue; }
-            if (!Valid(unit)) return new(ArrivalEstimateStatus.NotApplicable);
+            if (!constructionPreview && !Valid(unit)) return new(ArrivalEstimateStatus.NotApplicable);
             if (unit.Condition == UnitCondition.Confused ||
                 unit.Condition == UnitCondition.Routed && unit.EffectiveOrder!.Kind == MilitaryOrderKind.Construct)
             {

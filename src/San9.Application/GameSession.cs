@@ -82,6 +82,7 @@ public sealed partial class GameSession
     }
     public WorldSnapshot Snapshot => _simulation.Snapshot;
     public WorldMessageContext Messages(San9.Content.Text.TextCatalog texts) => new(_definition.Content, Snapshot, texts);
+    public WorldMessageContext Messages(San9.Content.Text.TextCatalog texts, WorldSnapshot snapshot) => new(_definition.Content, snapshot, texts);
     public CountryTitlePrompt? GetCountryTitlePrompt() => _simulation.GetCountryTitlePrompt();
     public EmperorTransferPrompt? GetEmperorTransferPrompt() => _simulation.GetEmperorTransferPrompt();
     public OfficeRequestPrompt? GetOfficeRequestPrompt() => _simulation.GetOfficeRequestPrompt();
@@ -129,6 +130,11 @@ public sealed partial class GameSession
 
     public CommandAdvice GetBurnAdvice(int forceId, int officerId, int targetSettlementId) =>
         _simulation.GetBurnAdvice(forceId, officerId, targetSettlementId);
+
+    public System.Collections.Immutable.ImmutableArray<int> GetSearchPlaces(int forceId) => _simulation.GetSearchPlaces(forceId);
+    public System.Collections.Immutable.ImmutableArray<int> GetRecruitTargets(int forceId, int officerId) => _simulation.GetRecruitTargets(forceId, officerId);
+    public PersonnelJourneyPreview GetPersonnelJourney(int forceId, int officerId, int targetId, PersonnelJourneyKind kind) =>
+        _simulation.GetPersonnelJourney(forceId, officerId, targetId, kind);
 
     public CommandAdvice GetUnitStrategyAdvice(int forceId, int officerId, UnitStrategyKind strategy, int targetUnitId) =>
         _simulation.GetUnitStrategyAdvice(forceId, officerId, strategy, targetUnitId);

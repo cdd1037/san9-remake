@@ -118,6 +118,18 @@ public partial class MapWorld : Node2D
     {
         if (_display is not null) _display.ConstructionPointer = SitePicked is not null && NavigationAvailable && IsInputBlocked?.Invoke(_pointer) != true
             ? ViewportToWorld(_pointer) : null;
+        if (_display is not null)
+        {
+            _display.PersonnelHoverPlace = null;
+            if (_display.PersonnelTargets is { Kind: "search" } search && NavigationAvailable &&
+                _pointer.X >= 0 && _pointer.Y >= 0 && _pointer.X < ClientLayout.LogicalWidth && _pointer.Y < ClientLayout.LogicalHeight &&
+                IsInputBlocked?.Invoke(_pointer) != true)
+            {
+                var point = ViewportToWorld(_pointer);
+                if (MapGeometry.TrySquare(point.X, point.Y, out int x, out int y))
+                    _display.PersonnelHoverPlace = search.PlaceAt(new(x, y));
+            }
+        }
         _animationMilliseconds += delta * 1000;
         _unitPositionClock.Advance(delta, Day);
         long start = Stopwatch.GetTimestamp();
@@ -165,7 +177,7 @@ public partial class MapWorld : Node2D
         Session = session; Presentation = null; Day = null;
         ResetNavigation(); ReleaseMouseLock(); HoverObject(null);
         TargetPicked = null; WaypointPicked = null; SitePicked = null;
-        if (_display is not null) _display.Targets = null;
+        if (_display is not null) { _display.Targets = null; _display.PersonnelTargets = null; }
         if (Scene is null) return;
         // Retain terrain resources, but never carry motion history across player loads.
         Scene = new(Scene.Map, Scene.Terrain, Scene.Season, View, Textures.MapAssets, () => UnitPositionTime);

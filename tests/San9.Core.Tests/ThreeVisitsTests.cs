@@ -83,6 +83,30 @@ public sealed class ThreeVisitsTests
     }
 
     [Fact]
+    public void SearchAdviceUsesTheSameVisitEligibilityWithoutConsumingTheEventOrRandomStreams()
+    {
+        var state = World(); var world = state.BeginMutation();
+        world.Replace(world.Forces[1] with { AdviserId = 14 });
+        world.Replace(world.Officers[14] with { Status = OfficerStatus.Strategist });
+        state.Commit(world);
+        var engine = new SimulationEngine(state,Rules);
+        for (int visit = 0; visit < 2; visit++)
+        {
+            var before = engine.Snapshot;
+            for (int read = 0; read < 3; read++)
+            {
+                var preview = engine.GetPersonnelJourney(1,11,1,PersonnelJourneyKind.Search);
+                Assert.Equal(visit == 0 ? ThreeVisitsStep.FirstVisit : ThreeVisitsStep.Recruitment,preview.SearchAdvice);
+                Assert.Equal(AdviserOpinion.Favorable,preview.Advice.Opinion);
+                Assert.Null(engine.GetPersonnelJourney(1,12,1,PersonnelJourneyKind.Search).SearchAdvice);
+            }
+            Assert.Same(before,engine.Snapshot);
+            Assert.True(engine.Execute(new("player"),new SearchCommand(Guid.NewGuid(),1,engine.Snapshot.Simulation.NextSequence,11,1)).Submission.Accepted);
+            Advance(engine);
+        }
+        Assert.Null(engine.GetPersonnelJourney(1,11,1,PersonnelJourneyKind.Search).SearchAdvice);
+    }
+    [Fact]
     public void TwoSearchesFinishWithoutOrdinaryRewardsAndRecruitThroughSharedReturn()
     {
         var state = World(); var engine = new SimulationEngine(state, Rules);

@@ -15,6 +15,10 @@ public sealed record TreasureTransferPresentationDefinition(string GrantDialogue
 public sealed record ExecutionPresentationDefinition(int MessengerId, string Announcement, string LastWords, string Result, string ResultSound);
 public sealed record RewardPresentationDefinition(string Dialogue, string Result, string ResultSound);
 public sealed record OfficePresentationDefinition(string Result, string DemotionNotice);
+public sealed record PersonnelPresentationDefinition(Dictionary<string, DecisionMessageDefinition> Messages)
+{
+    public string DepartureSound { get; init; } = null!;
+}
 
 /// <summary>Authored presentation bindings. Source indices and file names are importer concerns.</summary>
 public sealed record CommandPresentation(Dictionary<string, string> Sounds, PatrolPresentationDefinition? Patrol)
@@ -42,11 +46,30 @@ public sealed record CommandPresentation(Dictionary<string, string> Sounds, Patr
     [System.Text.Json.Serialization.JsonRequired]
     public OfficePresentationDefinition? Offices { get; init; }
 
+    [System.Text.Json.Serialization.JsonRequired]
+    public PersonnelPresentationDefinition? Personnel { get; init; }
+
     public static CommandPresentation Empty => new([], null);
     public void Validate(TextCatalog texts, IEnumerable<int> people, IEnumerable<int> settlements)
     {
         var personIds = people.ToHashSet();
         Decisions.Validate(texts, Sounds, personIds);
+        if (Personnel is {} personnel)
+        {
+            string[] roles = ["move-start", "search-start", "employ-start", "captive-start", "search-favorable", "search-unfavorable",
+                "employ-favorable", "employ-unfavorable", "search-none", "search-empty", "search-money", "search-treasure",
+                "employ-meeting", "employ-secret-meeting", "employ-success", "employ-failure", "captive-success", "captive-failure",
+                "captive-free-failure", "employ-result-success", "employ-result-failure", "employ-unit", "employ-territory",
+                "search-first-visit", "search-return-visit", "captive-result-success", "employ-city"];
+            if (roles.Except(personnel.Messages.Keys).Any()) throw new InvalidDataException("Missing personnel presentation binding.");
+            if (string.IsNullOrWhiteSpace(personnel.DepartureSound) || !Sounds.ContainsKey(personnel.DepartureSound))
+                throw new InvalidDataException("Missing personnel departure sound.");
+            new DecisionPresentations([], []) { Shared = personnel.Messages }.Validate(texts, Sounds, personIds);
+            string[] values = ["actor", "ruler", "adviser", "target", "old-ruler", "place", "home", "force", "old-force", "treasure", "money"];
+            if (personnel.Messages.Values.Any(m => m.Bindings.Values.Except(values).Any() ||
+                m.Speaker is string speaker && speaker is not ("actor" or "target" or "adviser")))
+                throw new InvalidDataException("Unknown personnel message role.");
+        }
         if (Offices is { } offices)
         {
             if (!texts.Messages.ContainsKey(offices.Result) || !texts.Messages.ContainsKey(offices.DemotionNotice))

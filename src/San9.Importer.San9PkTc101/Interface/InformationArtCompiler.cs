@@ -15,6 +15,8 @@ public static class InformationArtCompiler
         Dictionary<string,string> roles = [];
         string Image(string archive, int index) => library.Archives.Single(a => a.Id == archive)
             .Variants.Single(v => v.ImageIndex == index && v.PaletteIndex == (archive == "g_still" ? index : 0)).Image.Id;
+        // RE-0111: image-control mode 2 code 26 resolves to G_Still 71.
+        roles.Add("personnel-city-transfer",Image("g_still",71));
         foreach (var person in scenario.Officers)
         {
             int portrait = people[person.State.Id].PortraitResourceCode;

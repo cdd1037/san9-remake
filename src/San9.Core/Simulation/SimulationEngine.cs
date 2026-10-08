@@ -2,7 +2,7 @@ using San9.Core.Domain;
 
 namespace San9.Core.Simulation;
 
-public sealed class SimulationEngine
+public sealed partial class SimulationEngine
 {
     private readonly WorldState _world;
     private readonly SimulationRules _rules;

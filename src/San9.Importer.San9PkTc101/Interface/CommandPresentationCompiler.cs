@@ -6,7 +6,7 @@ internal static class CommandPresentationCompiler
 {
     internal static readonly (string Role, string File)[] SoundSources =
         [("decision-announcement", "SE/SE_G001.WAV"), ("decision-success", "SE/SE_G008.WAV"), ("decision-failure", "SE/SE_G009.WAV"), ("decision-increase", "SE/SE_G005.WAV"), ("decision-decrease", "SE/SE_G006.WAV"), ("decision-study", "SE/SE_C004.WAV"), ("patrol-citizen", "SE/SE_G008.WAV"), ("domestic-result", "SE/SE_C006.WAV"),
-         ("facility-result", "SE/SE_G005.WAV"), ("recruit-result", "SE/SE_C002.WAV"),
+         ("personnel-departure", "SE/SE_C004.WAV"), ("personnel-territory", "SE/SE_G012.WAV"), ("facility-result", "SE/SE_G005.WAV"), ("recruit-result", "SE/SE_C002.WAV"),
          ("trade-start", "SE/SE_C001.WAV"), ("repair-complete", "SE/se_m002.WAV"), ("reward-result", "SE/SE_G005.WAV"), ("exile-result", "SE/SE_G001.WAV"), ("loyalty-decrease", "SE/SE_G006.WAV"), ("execution-result", "SE/SE_G002.WAV")];
 
     internal static CommandPresentation Compile(IReadOnlyList<San9ScenarioPersonRecord> people)
@@ -28,6 +28,7 @@ internal static class CommandPresentationCompiler
                  new(Key(5877), Person(674), [15,29,16,40,23], AdviceMetric.PublicOrder, 4000)]))
         {
             Decisions = DecisionPresentationCompiler.Compile(people),
+            Personnel = PersonnelPresentationCompiler.Compile(),
             TreasureTransfer = new(Key(5535), Key(5574), Key(5542), Key(5788), Key(5575), Key(7176), Key(7177), Key(7407), "reward-result", "loyalty-decrease"),
             Execution = new(Person(669), Key(5753), Key(5468), Key(5754), "execution-result"),
             Offices = new(Key(5572), Key(5573)),

@@ -63,6 +63,10 @@ public partial class MapSceneView : Node2D
     public bool ShowAnnotations { get; set; }
     public MapObjectTarget? Hovered { get; set; }
     public MilitaryTargets? Targets { get; set; }
+    public PersonnelDraft? PersonnelTargets { get; set; }
+    public int? PersonnelHoverPlace { get; set; }
+    private int? _drawnPersonnelHoverPlace;
+    private readonly Dictionary<int, TargetMesh[]> _personnelRegionMeshes = [];
     public Vector2? ConstructionPointer { get; set; }
     private Vector2? _drawnConstructionPointer;
     private TextureScope? _previewAssets;
@@ -78,9 +82,12 @@ public partial class MapSceneView : Node2D
     private ShaderMaterial _hoverMaterial = null!;
     private ShaderMaterial _outlineMaterial = null!;
     private ShaderMaterial _candidateMaterial = null!;
+    private ShaderMaterial _unavailableMaterial = null!;
+    private ShaderMaterial _regionHoverMaterial = null!;
     private readonly ShaderMaterial[] _meshMaterials = new ShaderMaterial[3];
     private readonly ImageTexture[] _meshTextures = new ImageTexture[16];
     private MilitaryTargets? _drawnTargets;
+    private PersonnelDraft? _drawnPersonnelTargets;
     private TargetMesh[] _targetMeshes = [];
     private TargetMesh[] _visibleTargetMeshes = [];
     private MapSceneRegion? _meshRegion;
@@ -126,6 +133,7 @@ public partial class MapSceneView : Node2D
         _hoverMaterial = new ShaderMaterial { Shader = new Shader { Code = "shader_type canvas_item; void fragment() { vec4 c = texture(TEXTURE, UV); COLOR = vec4(round(c.rgb * 255.0 * 0.6875 + vec3(240.0 * 0.3125)) / 255.0, round(c.a * 255.0 * 0.9375) / 255.0); }" } };
         _routeMaterial = new ShaderMaterial { Shader = new Shader { Code = "shader_type canvas_item; render_mode blend_add; void fragment() { vec4 c = texture(TEXTURE, UV); COLOR = vec4(c.rgb * 0.75, c.a); }" } };
         _candidateMaterial = new ShaderMaterial { Shader = new Shader { Code = "shader_type canvas_item; void fragment() { vec4 c = texture(TEXTURE, UV); COLOR = vec4(round(c.rgb * 255.0 * 0.8125 + vec3(248.0 * 0.1875)) / 255.0, round(c.a * 255.0 * 0.9375) / 255.0); }" } };
+        _unavailableMaterial = new ShaderMaterial { Shader = new Shader { Code = "shader_type canvas_item; void fragment() { vec4 c = texture(TEXTURE, UV); COLOR = vec4(round(c.rgb * 255.0 * 0.5625 + vec3(8.0 * 0.4375)) / 255.0, round(c.a * 255.0 * 0.9375) / 255.0); }" } };
         for (int mask = 0; mask < _meshTextures.Length; mask++)
         {
             var coverage = TargetOverlayGeometry.Coverage(mask);
@@ -156,6 +164,9 @@ public partial class MapSceneView : Node2D
                 i == 1 ? TargetOverlayGeometry.InfluenceOpacity : TargetOverlayGeometry.StrongInfluenceOpacity;
             _meshMaterials[i].SetShaderParameter("weight", opacity * 256);
         }
+        _regionHoverMaterial = new ShaderMaterial { Shader = meshShader };
+        _regionHoverMaterial.SetShaderParameter("overlay_rgb", new Vector3(208, 208, 208));
+        _regionHoverMaterial.SetShaderParameter("weight", 64f);
         _water = new Node2D { Material = new CanvasItemMaterial { BlendMode = CanvasItemMaterial.BlendModeEnum.Add } };
         _water.Draw += DrawWater; AddChild(_water);
         _additiveMaterial = new CanvasItemMaterial { BlendMode = CanvasItemMaterial.BlendModeEnum.Add };
@@ -240,11 +251,11 @@ public partial class MapSceneView : Node2D
         if (Presented is not { } frame) return;
         int readyTerrain = frame.Terrain.Keys.Count(frame.Terrain.IsAvailable);
         if (readyTerrain != _drawnTerrainCount) QueueRedraw();
-        bool hoverChanged = _drawnHover != Hovered;
+        bool hoverChanged = _drawnHover != Hovered || _drawnPersonnelHoverPlace != PersonnelHoverPlace;
         bool resourcesChanged = _drawnAssetRevision != frame.Assets.Revision;
-        bool targetsChanged = _drawnTargets != Targets || _routeRevision != (Targets?.Revision ?? -1) ||
+        bool targetsChanged = _drawnTargets != Targets || _drawnPersonnelTargets != PersonnelTargets || _routeRevision != (Targets?.Revision ?? -1) ||
             _drawnConstructionPointer != ConstructionPointer || _previewRevision != (_previewAssets?.Revision ?? 0);
-        bool markerChanged = Targets is not null && _markerFrame != (int)(AnimationTime() / 200) % 4;
+        bool markerChanged = (Targets is not null || PersonnelTargets?.Kind == "move") && _markerFrame != (int)(AnimationTime() / 200) % 4;
         markerChanged |= Targets is not null && _routeFrame != (int)(AnimationTime() / 200) % 8;
         markerChanged |= Targets?.Waypoint is not null && _waypointFrame != (int)(AnimationTime() / 142) % 4;
         bool motion = frame.Region.Scene.Day is {} day && _drawnDayTime != day.VisualElapsed;
@@ -307,8 +318,8 @@ public partial class MapSceneView : Node2D
     {
         if (Presented is not { } frame) return;
         _hitSprites.Clear();
-        ObjectDraws++; _objects.Begin(); _drawnHover = Hovered; _drawnAssetRevision = frame.Assets.Revision;
-        if (_drawnTargets != Targets)
+        ObjectDraws++; _objects.Begin(); _drawnHover = Hovered; _drawnPersonnelHoverPlace = PersonnelHoverPlace; _drawnAssetRevision = frame.Assets.Revision;
+        if (_drawnTargets != Targets || _drawnPersonnelTargets != PersonnelTargets)
         {
             _previewAssets?.Dispose(); _previewAssets = null; _previewSprites = [];
             if (Targets is SpecialDeploymentTargets { PreviewFacilityId: int type })
@@ -318,9 +329,21 @@ public partial class MapSceneView : Node2D
                 _previewAssets.Request(_previewSprites.Select(s=>s.AssetId));
             }
             _drawnTargets = Targets;
-            _targetMeshes = Targets is { } targets ? TargetOverlayGeometry.Meshes(frame.Region.Scene.Map, targets.ClearCells, targets.InfluenceCells).ToArray() : [];
+            _drawnPersonnelTargets = PersonnelTargets;
+            _targetMeshes = Targets is { } targets ? TargetOverlayGeometry.Meshes(frame.Region.Scene.Map, targets.ClearCells, targets.InfluenceCells).ToArray() :
+                PersonnelTargets is {} personnel ? TargetOverlayGeometry.Meshes(frame.Region.Scene.Map, personnel.TargetCells(), System.Collections.Immutable.ImmutableHashSet<San9.Core.Domain.MapCell>.Empty).ToArray() : [];
+            _personnelRegionMeshes.Clear();
+            if (PersonnelTargets is { Kind: "search" } search)
+            {
+                var map = frame.Region.Scene.Map;
+                var empty = System.Collections.Immutable.ImmutableHashSet<San9.Core.Domain.MapCell>.Empty;
+                var meshes = TargetOverlayGeometry.Meshes(map, empty, empty).ToArray();
+                foreach (var group in meshes.Select((mesh, index) => (Mesh: mesh, Place: search.PlaceAt(new(index % map.Width, index / map.Width))))
+                    .Where(item => item.Place is not null).GroupBy(item => item.Place!.Value))
+                    _personnelRegionMeshes.Add(group.Key, group.Select(item => item.Mesh).ToArray());
+            }
             _meshRegion = null;
-            if (Targets is not null) _ui.Request(TargetSelectionSkin.RequiredRoles.Where(r => r.StartsWith("target-marker-", StringComparison.Ordinal) || r.StartsWith("target-route-", StringComparison.Ordinal) || r.StartsWith("target-waypoint-", StringComparison.Ordinal)));
+            if (Targets is not null || PersonnelTargets?.Kind == "move") _ui.Request(TargetSelectionSkin.RequiredRoles.Where(r => r.StartsWith("target-marker-", StringComparison.Ordinal) || r.StartsWith("target-route-", StringComparison.Ordinal) || r.StartsWith("target-waypoint-", StringComparison.Ordinal)));
         }
         _drawnUiRevision = _ui.Revision;
         _drawnConstructionPointer = ConstructionPointer;
@@ -354,14 +377,21 @@ public partial class MapSceneView : Node2D
             if (!frame.Assets.TryGetReady(id, out var texture)) return;
             if (!frame.ViewportBounds.Intersects(new Rect2(position, texture.GetSize()))) return;
             if (building is {} target && blend == MapBlendMode.Alpha) _hitSprites.Add((id, position, target));
-            bool candidate = building is { IsUnit: false } targetBuilding && Targets?.Candidates.ContainsKey(new(targetBuilding.Id, false)) == true;
+            bool candidate = building is { IsUnit: false } targetBuilding &&
+                (Targets?.Candidates.ContainsKey(new(targetBuilding.Id, false)) == true ||
+                    PersonnelTargets is { Kind: "move" } movementCandidates && movementCandidates.Targets.Contains(targetBuilding.Id));
             Add(texture, position, blend == MapBlendMode.Additive ? _additiveMaterial :
-                highlightable && candidate ? _candidateMaterial : highlightable && building is not null && building == Hovered ? _hoverMaterial : null);
+                highlightable && candidate ? _candidateMaterial :
+                highlightable && building is { IsUnit: false } && PersonnelTargets?.Kind == "move" ? _unavailableMaterial :
+                highlightable && building is not null && building == Hovered ? _hoverMaterial : null);
         }, () =>
         {
             foreach (var mesh in _visibleTargetMeshes)
                 Add(_meshTextures[mesh.ElevationMask], new(mesh.X, mesh.Y), _meshMaterials[mesh.Opacity == TargetOverlayGeometry.DimOpacity ? 0 :
                         mesh.Opacity == TargetOverlayGeometry.InfluenceOpacity ? 1 : 2]);
+            if (PersonnelHoverPlace is int place && _personnelRegionMeshes.TryGetValue(place, out var regionMeshes))
+                foreach (var mesh in regionMeshes)
+                    Add(_meshTextures[mesh.ElevationMask], new(mesh.X, mesh.Y), _regionHoverMaterial);
             if (Targets is { } route)
             {
                 for (int i = 0; i < route.Route.Length; i++)
@@ -392,6 +422,13 @@ public partial class MapSceneView : Node2D
             }
             foreach (var unit in frame.Region.Units) Marker(new(unit.Id, true), new(unit.AnchorX - 16, unit.AnchorY - 48));
         }
+        if (PersonnelTargets is { Kind: "move" } movement && _ui.TryGetReady($"target-marker-enter-{_markerFrame}", out var arrow))
+            foreach (var building in frame.Region.Buildings.Where(b => movement.Targets.Contains(b.Id)))
+            {
+                var offset = Textures.BuildingTargetOffsets[building.FixedType];
+                var point = TargetOverlayGeometry.BuildingMarker(frame.Region.Scene.Map, building, offset.X, offset.Y);
+                Add(arrow, new(point.X, point.Y));
+            }
         if (Targets is SpecialDeploymentTargets { IsConstruction:true } construction)
         {
             if (construction.Selected?.Position is { } selected)
@@ -436,6 +473,8 @@ public partial class MapSceneView : Node2D
             _routeMaterial.Shader.Dispose(); _routeMaterial.Dispose(); _hoverMaterial.Shader.Dispose(); _hoverMaterial.Dispose();
             _outlineMaterial.Shader.Dispose(); _outlineMaterial.Dispose();
             _candidateMaterial.Shader.Dispose(); _candidateMaterial.Dispose();
+            _unavailableMaterial.Shader.Dispose(); _unavailableMaterial.Dispose();
+            _regionHoverMaterial.Dispose();
             foreach (var texture in _meshTextures) texture.Dispose();
             _meshMaterials[0].Shader.Dispose(); foreach (var material in _meshMaterials) material.Dispose();
         });

@@ -20,6 +20,8 @@ public partial class StrategyHud
             _executionPublication = Turn.Publication;
             foreach (var message in ExecutionMessages.Read(before, Session.Messages(Texts), Texts, CommandPresentation.Decisions, result.Events))
                 _executionPanels.Append(message.Message);
+            if (CommandPresentation.Personnel is {} personnel)
+                NarratePersonnel(PersonnelPresentation.Results(before,Session.Messages(Texts,before.World),Texts,personnel,result.Events,Random.Shared.Next),before);
         }
         _executionBefore = Session.View;
     }
@@ -28,7 +30,7 @@ public partial class StrategyHud
     {
         if (_endingView is { Pending: true } ending && Turn.Publication > _endingPublication)
         { _endingPublication = Turn.Publication; ending.Complete(); }
-        if (Turn.Screen != TurnScreen.Terminal || _terminalPresented) return;
+        if (Turn.Screen != TurnScreen.Terminal || _terminalPresented || _narration is not null) return;
         _terminalPresented = true;
         if (Session.GetEndingPrompt() is null) { ShowSessionEnd(); return; }
         _textures.RequestPrefixes("decision-", "catalog-", "information-", "narration-", "dialog-");
@@ -68,7 +70,7 @@ public partial class StrategyHud
             _decisionPublication = Turn.Publication;
             active.Complete(result);
         }
-        if (_decision is not null || Turn.Screen != TurnScreen.AwaitingDecision || Turn.IsComputing) return;
+        if (_decision is not null || _narration is not null || Turn.Screen != TurnScreen.AwaitingDecision || Turn.IsComputing) return;
         if (_decisionRevision == Session.Snapshot.Revision) return;
         _textures.RequestPrefixes("decision-", "deployment-", "detail-", "catalog-", "information-", "narration-", "dialog-");
         try

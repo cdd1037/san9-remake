@@ -72,15 +72,25 @@ internal sealed partial class MapCommandAvailability
         if (sources.Length == 0) return "no-other-facility";
         var normal = sources.Where(s => s.ConfusionDaysRemaining == 0 && !view.IsSettlementEngaged(s.Id)).Select(s => s.Id).ToHashSet();
         if (normal.Count == 0) return "no-normal-facility";
-        return view.Officers.Any(p => p.OwnerId == Owner && p.SettlementId is int location && normal.Contains(location) && p.IsAvailable &&
-            (p.Status is OfficerStatus.Serving or OfficerStatus.Strategist ||
-                p.Id == Force.LeaderId && (home.CorpsId is null || view.World.Corps.Any(c => c.Id == home.CorpsId && c.IsRoot))))
-            ? null : "no-recall-candidate";
+        return PersonnelActors(home, "summon").Any() ? null : "no-recall-candidate";
     }
+
+    public IEnumerable<OfficerState> PersonnelActors(SettlementState home, string kind)
+    {
+        if (kind != "summon") return view.World.Officers.Where(p => people.TryGetValue(p.Id, out var shown) && shown.IsAvailable &&
+            p.OwnerId == Owner && p.SettlementId == home.Id);
+        var origins = OtherHomes(home).Where(s => s.ConfusionDaysRemaining == 0 && !view.IsSettlementEngaged(s.Id)).Select(s => s.Id).ToHashSet();
+        return view.World.Officers.Where(p => people.TryGetValue(p.Id, out var shown) && shown.IsAvailable && p.OwnerId == Owner &&
+            p.SettlementId is int origin && origins.Contains(origin) && (p.Status is OfficerStatus.Serving or OfficerStatus.Strategist ||
+                p.Id == Force.LeaderId && (home.CorpsId is null || view.World.Corps.Any(c => c.Id == home.CorpsId && c.IsRoot))));
+    }
+
+    public IEnumerable<int> PersonnelTargets(SettlementState home, string kind) => kind == "move"
+        ? OtherHomes(home).Select(s => s.Id) : kind == "employ" ? view.World.Officers.Where(Recruitable).Select(p => p.Id) : [];
 
     private bool Recruitable(OfficerState person)
     {
-        if (person.IsDormant) return false;
+        if (person.IsDormant || forces.Values.Any(f => f.LeaderId == person.Id)) return false;
         if (person.Status == OfficerStatus.Captive) return Captive(person);
         if (person.IsServing) return person.Status != OfficerStatus.Ruler && person.OwnerId is int owner &&
             !forces[owner].IsBarbarian && Hostile(owner);

@@ -6,6 +6,42 @@ namespace San9.Core.Tests;
 
 public sealed class PersonnelMissionTests
 {
+    [Fact]
+    public void AccurateRecruitAdviceUsesTheSubmittedRollAndLiveThresholdWithoutMutatingWorld()
+    {
+        var world = World(); var mutation = world.BeginMutation();
+        mutation.Replace(mutation.Forces[1] with { AdviserId = 12 });
+        mutation.Replace(mutation.Officers[12] with { Status = OfficerStatus.Strategist });
+        world.Commit(mutation); var engine = Engine(world);
+        string before = engine.Snapshot.StateHash;
+        var preview = engine.GetPersonnelJourney(1,11,20,PersonnelJourneyKind.Recruit);
+        for (int i = 0; i < 30; i++) Assert.Equal(preview,engine.GetPersonnelJourney(1,11,20,PersonnelJourneyKind.Recruit));
+        Assert.Equal(before,engine.Snapshot.StateHash);
+        Assert.True(preview.Available);
+        Assert.Equal(15,preview.Days);
+        Assert.True(Recruit(engine).Submission.Accepted);
+        RecruitmentResolvedEvent? outcome = null;
+        for (int i = 0; i < 3 && outcome is null; i++) outcome = Advance(engine).OfType<RecruitmentResolvedEvent>().SingleOrDefault();
+        Assert.NotNull(outcome);
+        Assert.Equal(outcome.Success,preview.Advice.Opinion == AdviserOpinion.Favorable);
+        Assert.Equal(outcome.Roll < outcome.Threshold,outcome.Success);
+    }
+    [Fact]
+    public void SearchPreviewRejectsUnavailableActorsAndIncludesTheDiscoveryGate()
+    {
+        var world = World(); var mutation = world.BeginMutation();
+        mutation.Replace(mutation.Forces[1] with { AdviserId = 12 });
+        mutation.Replace(mutation.Officers[12] with { Status = OfficerStatus.Strategist });
+        mutation.Replace(mutation.Officers[11] with { BaseAbilities = new(50,50,100,200) });
+        world.Commit(mutation); var engine = Engine(world);
+        Assert.Contains(30,engine.GetSearchPlaces(1));
+        Assert.DoesNotContain(2,engine.GetSearchPlaces(1));
+        Assert.Equal(AdviserOpinion.Favorable,engine.GetPersonnelJourney(1,11,30,PersonnelJourneyKind.Search).Advice.Opinion);
+        Assert.Equal(AdviserOpinion.Unfavorable,engine.GetPersonnelJourney(1,11,1,PersonnelJourneyKind.Search).Advice.Opinion);
+        Assert.Equal(AdviserOpinion.NoAdviser,Engine(World()).GetPersonnelJourney(1,11,1,PersonnelJourneyKind.Search).Advice.Opinion);
+        Assert.True(engine.Execute(new("player"),new SearchCommand(Guid.NewGuid(),1,0,11,30)).Submission.Accepted);
+        Assert.False(engine.GetPersonnelJourney(1,11,30,PersonnelJourneyKind.Search).Available);
+    }
     [Theory]
     [InlineData(OfficerStatus.Serving)]
     [InlineData(OfficerStatus.Captive)]

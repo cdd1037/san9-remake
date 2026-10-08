@@ -21,6 +21,7 @@ public partial class CommandNarration : Control
     public IReadOnlyDictionary<string,string> Sounds { get; init; } = null!;
     public string ContentRoot { get; init; } = "";
     public bool SoundEnabled { get; init; } = true;
+    public string? InitialSoundRole { get; init; }
     public Action Closed { get; init; } = null!;
     public Action<CommandMessage>? MessagePresented { get; init; }
     private int _index, _frame;
@@ -40,7 +41,9 @@ public partial class CommandNarration : Control
         _resultFrame = new() { Texture = Textures["dialog-frame"], TextureMarginLeft = 96, TextureMarginRight = 96,
             TextureMarginTop = 56, TextureMarginBottom = 56, AxisStretchHorizontal = StyleBoxTexture.AxisStretchMode.Tile,
             AxisStretchVertical = StyleBoxTexture.AxisStretchMode.Tile };
-        _audio = new(); AddChild(_audio); Present();
+        _audio = new(); AddChild(_audio);
+        if (InitialSoundRole is string sound) PlaySound(sound);
+        Present();
     }
     private void Present()
     {
@@ -90,21 +93,24 @@ public partial class CommandNarration : Control
             _resultFrameBounds=new(_resultFrameBounds.Position+new Vector2(0,dy),_resultFrameBounds.Size);
             _message.Position+=new Vector2(0,dy);
         }
-        if (SoundEnabled && entry.SoundRole is string role)
-        {
-            if (!_sounds.TryGetValue(role, out var sound))
-            {
-                sound = AudioStreamWav.LoadFromFile(PackageFiles.Resolve(ContentRoot, Sounds[role]))
-                    ?? throw new InvalidDataException($"Cannot load sound: {role}.");
-                _sounds.Add(role,sound);
-            }
-            _audio.Stream = sound; _audio.Play();
-        }
+        if (entry.SoundRole is string role) PlaySound(role);
         // Result content has 24px logical lines; the source anchor is 46px above its bottom.
         _continuation = new TextureRect { Position = HasPerson ? new(632,452) :
             new(_message.Position.X + _message.Size.X + 8, _message.Position.Y + resultBodyHeight - 46), MouseFilter = MouseFilterEnum.Ignore };
         _body.AddChild(_continuation);
         _frame = 0; _elapsed = 0; UpdateContinuation(); QueueRedraw();
+    }
+    private void PlaySound(string role)
+    {
+        if (!SoundEnabled) return;
+        if (!_sounds.TryGetValue(role, out var sound))
+        {
+            sound = AudioStreamWav.LoadFromFile(PackageFiles.Resolve(ContentRoot, Sounds[role]))
+                ?? throw new InvalidDataException($"Cannot load sound: {role}.");
+            _sounds.Add(role, sound);
+        }
+        _audio.Stream = sound;
+        _audio.Play();
     }
     private float LayoutResult(GamePagedText message)
     {

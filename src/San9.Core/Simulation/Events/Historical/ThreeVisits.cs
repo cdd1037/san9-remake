@@ -46,15 +46,21 @@ internal static class ThreeVisits
         return true;
     }
 
+    internal static ThreeVisitsStep? SearchStep(WorldMutation world, int officerId, int forceId, int placeId, ThreeVisitsDefinition? definition)
+    {
+        if (definition is null || officerId != definition.RulerId || placeId != definition.PlaceId ||
+            world.Officers[officerId].Status != OfficerStatus.Ruler ||
+            !world.Officers.TryGetValue(definition.RecruitId, out var recruit) || recruit.Status != OfficerStatus.Special || !CompanionsPresent(world, definition, forceId)) return null;
+        bool first = !Consumed(world, definition.FirstVisitKey);
+        if (first ? !Consumed(world, definition.StartedKey) : Consumed(world, definition.CompletedKey)) return null;
+        return first ? ThreeVisitsStep.FirstVisit : ThreeVisitsStep.Recruitment;
+    }
     // Called only for a player-controlled direct search, before the remaining search candidates.
     internal static bool Search(WorldMutation world, PersistentTask task, ThreeVisitsDefinition? definition,
         PersonnelRulebook personnel, EconomyRulebook economy, List<DomainEvent> events)
     {
-        if (definition is null || task.OfficerId != definition.RulerId || task.Journey!.DestinationPlaceId != definition.PlaceId ||
-            world.Officers[task.OfficerId].Status != OfficerStatus.Ruler ||
-            !world.Officers.TryGetValue(definition.RecruitId, out var recruit) || recruit.Status != OfficerStatus.Special || !CompanionsPresent(world, definition, task.ForceId)) return false;
-        bool first = !Consumed(world, definition.FirstVisitKey);
-        if (first ? !Consumed(world, definition.StartedKey) : Consumed(world, definition.CompletedKey)) return false;
+        if (definition is null || SearchStep(world, task.OfficerId, task.ForceId, task.Journey!.DestinationPlaceId, definition) is not { } step) return false;
+        bool first = step == ThreeVisitsStep.FirstVisit;
         if (first)
             Consume(world, definition.FirstVisitKey, EventTrigger.Search);
         else

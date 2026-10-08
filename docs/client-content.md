@@ -6,7 +6,7 @@
 
 2026-09-27命令来源光圈：皮肤33／纹理转换26增加五帧`minimap-command-pulse`语义资源（首帧无后缀，其余为`-1..-4`），逐色透明度保留。客户端以当前命令菜单对象定位，兼用于城市、其他设施和部队；出征后续页面保留来源，整项结束清除。依据[RE-0158](../research/findings/RE-SAN9PK-0158.md#小地图命令来源光圈补证2026-09-27)。本地纹理及190年组合包已原位重转，五帧均32×36、首帧全透明，29064逻辑图片／5262物理文件完整校验通过。解决方案各测试项目合计3867项通过；未启动游戏，菜单开关、对象切换及后续命令页面往返的实际画面待用户验收。
 
-现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 129，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 157，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 43，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 37。规则为 `san9-core-g10-v85`，保存99／日志103／录像9；协议以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 为准。
+现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 129，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 160，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 43，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 37。规则为 `san9-core-g10-v85`，保存99／日志103／录像9；协议以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 为准。
 
 旧内容包按现行契约原位重转，旧规则存档、日志和录像拒绝加载。是否重转纹理取决于纹理转换版本与源输入。历史验收只证明对应基线，不代表当前版本重新验证；阶段收口见[G10 验收](g10-verification.md#2026-09-21阶段收口)。
 
@@ -20,9 +20,9 @@
 | --- | --- | --- |
 | Content.Maps / MapImporter | 当前地图方格、地貌及对象位置 | `map.json`（无图片文件） |
 | Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema129 |
-| Content.Text / ScenarioTextReader / PublicationMessageCatalog | 静态词条与保留原序号、按明确区段分文件的全量消息目录 | `text.json` / `messages/*.json`，文本schema6、剧本包schema157 |
+| Content.Text / ScenarioTextReader / PublicationMessageCatalog | 静态词条与保留原序号、按明确区段分文件的全量消息目录 | `text.json` / `messages/*.json`，文本schema6、剧本包schema160 |
 | Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema43 |
-| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema157 |
+| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema160 |
 | Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema5／转换版本37 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 
@@ -321,3 +321,11 @@ TC101完整保留41项兵法和28项阵形的展示元数据，名称与说明�
 `ISceneMedia`只接受语义BGM与影片请求及取消令牌；默认SilentSceneMedia立即完成，不加载或播放BGM、影片。SE实际导入并按消息播放，受已有音效设置控制。新增SE_G009与SE_C004从同一私有原版安装补齐后转换；原版文件及转换包均不提交。
 
 当前190年运行包已原位重建skin并更新import-client，全包纹理转换仍为37。实际包检查341次消息引用生成无缺失参数，解码核验52个新消息／选择／时间条图角色，静态查看开场图和四态选择按钮；该检查不是运行画面或试听验收。审核后默认解决方案各项目合计4139项通过（Application修复所属部队过滤后单独复验881项，其余项目复用本轮全量结果），Headless进程测试17项通过。主要交互验证包括只读预览、商人／社区／冲突各选项的真实命令提交、山阳公两步提交、结局退选和呈现期间禁止后台续行。未启动Godot进行实际画面与声音验收。
+
+## 人才四命令（2026-10-08）
+
+组合包160的 `presentation.personnel` 声明召来／移动出发、探索／登庸军师推荐、探索普通结果与登庸结果的消息、说话人、参数和音效角色，包含四命令独立出发声音、三顾茅庐两条专用预测、俘虏成功通知及携城插图／声音。复用既有人物卡、目录、名单、地图目标选择与对白框。旧包原位运行 `import-client` 即可，无须重转纹理；源游戏目录须包含SE_C004.WAV及SE_G012.WAV，190年包已更新为14890条消息、94据点，保存／日志／录像协议不变。
+
+`PersonnelDraft`维护本次准备的局部选择和世界版本。探索／登庸默认选当前有效政治最高者；召来／移动支持多选，召来显示每人的来源和到达天数。名单中止、地图中止和关闭准备页均不提交任务；执行一次提交整个选择。行程与推荐读取Core共享的资格、阈值与条件随机查询，不创建任务、不消耗随机流、不向客户端暴露隐藏人物／宝物身份；重复确认相同对象不重复弹军师对白。
+
+出发对白在提交成功后显示，召来／移动均按既有统辖优先级选择一名发言者，整次只发言一次。每日发布的普通探索／登庸事件使用执行前快照组织结果，逐条播放后再继续进行面；发现人物沿已有待答链显示，不重复播报。探索无获／资金／宝物分别使用既有下降／增加／成功SE；人物发言与普通登庸地图通知遵循原作无音效路径，携城额外显示G_Still71插图和SE_G012，并受当前音效设置控制。三顾茅庐专用搜索预测共用领域事件资格，不消费事件和随机流；完整历史剧情、登庸触发的官渡专用剧情演出及敌方登庸我方时的专用通知尚未接入。证据与界面标定见[RE-0110](../research/findings/RE-SAN9PK-0110.md#2026-10-08人才命令界面军师推荐与声音接入)、[RE-0111](../research/findings/RE-SAN9PK-0111.md#2026-10-08登庸准备与结果表现)、[RE-0112](../research/findings/RE-SAN9PK-0112.md#2026-10-08人才四命令附加表现复核)。

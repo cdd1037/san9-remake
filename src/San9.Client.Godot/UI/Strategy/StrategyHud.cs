@@ -87,8 +87,8 @@ public partial class StrategyHud : Control
         if (_built) return;
         Turn = new(Session)
         {
-            CanContinue = () => _decision is null,
-            CanPlayDay = () => ReferenceEquals(World.Day, Turn.Day) && World.IsDayReady && _executionPanels.IsExpanded,
+            CanContinue = () => _decision is null && _narration is null,
+            CanPlayDay = () => _narration is null && ReferenceEquals(World.Day, Turn.Day) && World.IsDayReady && _executionPanels.IsExpanded,
             CreateDay = (before, after, events) => new(before, after, events, new MapDayPlan(World.Package!, before, events))
         };
         var p = Scenario;
@@ -212,7 +212,7 @@ public partial class StrategyHud : Control
     }
 
     private StrategyInteraction Interaction => StrategyInteraction.Resolve(_built, Turn?.Screen,
-        Turn?.CanAdvance == true, _flow?.Stage ?? MilitaryCommandStage.None, Overview.IsOpen,
+        Turn?.CanAdvance == true, _personnel is null ? _flow?.Stage ?? MilitaryCommandStage.None : PersonnelStage, Overview.IsOpen,
         OverlayHost.IsInsideTree() && OverlayHost.HasModal || _contextMenu?.Visible == true || _notice?.Visible == true);
     private bool IsMapInteractionBlocked => !Interaction.CanUseMap;
     public bool CanNavigateMap => Interaction.CanNavigate;
@@ -279,10 +279,11 @@ public partial class StrategyHud : Control
             _flow.OpenUnit(target.Id, command == "attack" ? UnitCommandKind.Attack : UnitCommandKind.March);
             return;
         }
-        if (command is not ("sortie" or "patrol" or "build" or "transport") && !FacilityCommandDraft.Supports(command) && !AppointmentDraft.Supports(command)) return;
+        if (command is not ("sortie" or "patrol" or "build" or "transport") && !FacilityCommandDraft.Supports(command) && !AppointmentDraft.Supports(command) && !PersonnelDraft.Supports(command)) return;
         _commandMenu.Close();
         Overview.Close();
         if (command == "patrol") OpenPatrol(target.Id);
+        else if (PersonnelDraft.Supports(command)) OpenPersonnel(target.Id,command);
         else if (command is "build" or "transport") _flow.OpenSpecial(target.Id, command == "build" ? SpecialDeploymentKind.Construction : SpecialDeploymentKind.Transport);
         else if (AppointmentDraft.Supports(command)) OpenAppointment(target.Id, command);
         else if (FacilityCommandDraft.Supports(command)) OpenFacilityCommand(target.Id,command);
@@ -344,6 +345,7 @@ public partial class StrategyHud : Control
         }
         if (_commandMenu.Visible) { _message.SetMessage(_commandMenu.Hint, _commandMenu.HintEnabled); return; }
         if (_mapContext.Visible) { _message.SetMessage(_mapContext.Hint, true); return; }
+        if (_personnelTargeting) { _message.SetMessage(_personnel?.Draft.Kind == "search" ? "请选择目标地域。" : "请选择目标设施。",true); return; }
         if (_targets is not null)
         {
             string initial = _targets is SpecialDeploymentTargets { IsConstruction:true }
@@ -427,7 +429,7 @@ public partial class StrategyHud : Control
         }
         if (_built)
         {
-            _minimap!.SetCommandSource(_flow.Source ?? PatrolSource ?? FacilitySource ?? AppointmentSource ?? (_commandMenu!.Visible ? _commandTarget : null));
+            _minimap!.SetCommandSource(_flow.Source ?? PatrolSource ?? FacilitySource ?? AppointmentSource ?? PersonnelSource ?? (_commandMenu!.Visible ? _commandTarget : null));
             UpdateSidebar(delta);
         }
         UpdateHover(_hoverPosition ?? GetGlobalMousePosition());
@@ -435,7 +437,7 @@ public partial class StrategyHud : Control
         _large?.SetPressedNoSignal(!Overview.IsOpen); _small?.SetPressedNoSignal(Overview.IsOpen);
         if (_territory is not null) _territory.Disabled = !Interaction.CanToggleBoundaries;
         _territory?.SetPressedNoSignal(World.ShowBoundaries);
-        var drawState = (Turn?.IsStrategy == true, _targets is not null, _commandMenu?.Visible == true, _regionVisible);
+        var drawState = (Turn?.IsStrategy == true, SelectingTargets, _commandMenu?.Visible == true, _regionVisible);
         if (_drawState != drawState) { _drawState = drawState; QueueRedraw(); }
     }
     private void Strip(string role, Vector2 position, int width)
@@ -451,8 +453,8 @@ public partial class StrategyHud : Control
         {
             DrawTexture(_textures[asset], point);
         }
-        if (_targets is null) DrawTexture(_textures["season-spring"], new(26, 31));
-        if (Turn.IsStrategy && _targets is null) { Strip("field", new(377, 15), 88); Strip("field", new(457, 15), 112); Strip("field", new(561, 15), 112); }
+        if (!SelectingTargets) DrawTexture(_textures["season-spring"], new(26, 31));
+        if (Turn.IsStrategy && !SelectingTargets) { Strip("field", new(377, 15), 88); Strip("field", new(457, 15), 112); Strip("field", new(561, 15), 112); }
         if (_regionVisible) DrawTexture(_textures["region-frame"], new(824, 738));
     }
     public override void _ExitTree()

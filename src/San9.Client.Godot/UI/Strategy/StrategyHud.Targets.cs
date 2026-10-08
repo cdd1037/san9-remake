@@ -7,6 +7,7 @@ namespace San9.Client.Godot;
 public partial class StrategyHud
 {
     private MilitaryTargets? _targets => _flow?.Targets;
+    private bool SelectingTargets => _targets is not null || _personnelTargeting;
     private MilitaryCommandFlow _flow = null!;
     private Label _targetTitle = null!;
     private readonly List<StrategyButton> _targetButtons = [];
@@ -21,7 +22,8 @@ public partial class StrategyHud
         _text.Apply(_targetTitle, new(24, new Color("f8f8b0"), GameTextEffect.Outline, new Color("780000")));
         _targetTitle.Hide();
         foreach (var (role, title, x, action) in new (string, string, int, Action)[]
-            { ("list", "一览", 834, _flow.ShowTargetList), ("cancel", "中止", 921, _flow.EndTargetSelection) })
+            { ("list", "一览", 834, () => { if (_personnelTargeting) ShowPersonnelTargetsList(); else _flow.ShowTargetList(); }),
+              ("cancel", "中止", 921, () => { if (_personnelTargeting) EndPersonnelTargets(); else _flow.EndTargetSelection(); }) })
         {
             var button = new StrategyButton { Title = title, Position = new(x, 680), Size = new(88, 44), Visible = false,
                 Frames = Enumerable.Range(0, 4).Select(f => (Texture2D)_textures[$"target-{role}-{f}"]).ToArray(),
@@ -40,11 +42,11 @@ public partial class StrategyHud
                 if (SidebarVisible) yield return (frame.Asset, frame.Position + new Vector2(_sidebarOffset, 0));
                 continue;
             }
-            if (_targets is not null && frame.Asset != "radar-frame") continue;
+            if (SelectingTargets && frame.Asset != "radar-frame") continue;
             if (frame.Asset == "ruler-frame" && !Turn.IsStrategy) continue;
             yield return frame;
         }
-        if (_targets is null) yield break;
+        if (!SelectingTargets) yield break;
         yield return ("target-title-left", Vector2.Zero);
         for (int x = 64; x < 160; x += 24) yield return ("target-title-middle", new(x, 0));
         yield return ("target-title-right", new(160, 0));
@@ -53,8 +55,9 @@ public partial class StrategyHud
 
     private void RefreshMilitaryCommand()
     {
-        bool targeting = _flow.Targets is not null;
-        _targetTitle.Text = _flow.Targets is SpecialDeploymentTargets { IsConstruction:true } ? "建设地点" : "选择对象";
+        bool targeting = SelectingTargets;
+        _targetTitle.Text = _personnelTargeting && _personnel?.Draft.Kind == "search" ? "选择地域" :
+            _flow.Targets is SpecialDeploymentTargets { IsConstruction:true } ? "建设地点" : "选择对象";
         _targetTitle.Visible = targeting;
         foreach (var button in _targetButtons) button.Visible = targeting;
         ClearHover(); UpdateTurnControls(); QueueRedraw();

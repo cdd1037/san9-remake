@@ -7,7 +7,7 @@ namespace San9.Client.Godot;
 public partial class StrategyHud
 {
     public TurnPresentation Turn { get; private set; } = null!;
-    public bool CanIssueOrders => Interaction.CanIssueOrders && !SidebarMoving && _patrol is null && _facilityCommand is null && _appointment is null && _narration is null;
+    public bool CanIssueOrders => Interaction.CanIssueOrders && !SidebarMoving && _patrol is null && _facilityCommand is null && _appointment is null && _personnel is null && _narration is null;
     public bool CanQuickSave => _built && Turn.Screen == TurnScreen.Strategy && CanIssueOrders &&
         !_flow.IsActive && !_notice.Visible && !OverlayHost.HasModal;
     private readonly List<Control> _strategicHeader = [];
@@ -46,7 +46,7 @@ public partial class StrategyHud
 
     private void RequestAdvance()
     {
-        if (_flow.IsActive || _patrol is not null || _facilityCommand is not null || _appointment is not null || _narration is not null) return;
+        if (_flow.IsActive || _patrol is not null || _facilityCommand is not null || _appointment is not null || _personnel is not null || _narration is not null) return;
         if (!Turn.Request()) return;
         _turnConfirmation = Session.Messages(Texts).Produce("messages.6082",
             new Dictionary<string, MessageBinding>
@@ -77,8 +77,8 @@ public partial class StrategyHud
 
     private void UpdateTurnControls()
     {
-        foreach (var control in _strategicHeader) control.Visible = Turn.IsStrategy && _targets is null;
-        _year.Visible = _date.Visible = _season.Visible = _targets is null;
+        foreach (var control in _strategicHeader) control.Visible = Turn.IsStrategy && !SelectingTargets;
+        _year.Visible = _date.Visible = _season.Visible = !SelectingTargets;
         _advanceButton.Disabled = !Turn.CanAdvance;
         _informationButton.Disabled = !CanIssueOrders;
         _functionsButton.Disabled = !CanIssueOrders;

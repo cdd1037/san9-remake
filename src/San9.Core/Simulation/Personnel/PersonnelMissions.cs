@@ -74,6 +74,21 @@ internal static class PersonnelMissions
         SimulationRules simulationRules, List<DomainEvent> events)
     {
         var rules = simulationRules.Personnel;
+        var rejection = ValidateRecruit(world, command, simulationRules, out int destination, out UnitState? unit);
+        if (rejection != CommandRejection.None) return rejection;
+        int origin = world.Officers[command.OfficerId].SettlementId!.Value;
+        int roll = ConditionalRandom.Percentile(world.Simulation.InitialSeed, ConditionalRandomPurpose.Recruitment,
+            world.Clock, command.OfficerId, command.TargetOfficerId);
+        Add(world, context, command, command.CommandId, command.OfficerId, origin,
+            new(destination, command.TargetOfficerId, roll) { RecruitmentUnitId = unit?.Id }, RecruitKind, rules, events, unit?.Position);
+        return CommandRejection.None;
+    }
+
+    internal static CommandRejection ValidateRecruit(WorldMutation world, RecruitOfficerCommand command,
+        SimulationRules simulationRules, out int destination, out UnitState? unit)
+    {
+        destination = -1; unit = null;
+        var rules = simulationRules.Personnel;
         if (!CanAct(world, command.IssuerId, command.OfficerId)) return CommandRejection.PersonUnavailable;
         if (!world.Officers.TryGetValue(command.TargetOfficerId, out var target)) return CommandRejection.UnknownPerson;
         if (!Recruitable(world, command.IssuerId, target)) return CommandRejection.PersonUnavailable;
@@ -81,31 +96,35 @@ internal static class PersonnelMissions
         if (target.OwnerId is int other && !world.Relations.ContainsKey((Math.Min(other, command.IssuerId), Math.Max(other, command.IssuerId))))
             return CommandRejection.InvalidTask;
         int origin = world.Officers[command.OfficerId].SettlementId!.Value;
-        UnitState? unit = null;
         if (target.UnitId is int unitId && (!world.Units.TryGetValue(unitId, out unit) ||
             unit.IsEmbedded || unit.IsPersonnel || unit.FormationId is null || !target.IsServing)) return CommandRejection.PersonUnavailable;
         int? targetPlace = unit is null ? target.SettlementId ?? target.RegionId : simulationRules.Military?.RegionAt(unit.Position);
-        if (targetPlace is not int destination || !rules.Places.ContainsKey(origin) || !rules.Places.ContainsKey(destination))
+        if (targetPlace is not int place || !rules.Places.ContainsKey(origin) || !rules.Places.ContainsKey(place))
             return CommandRejection.InvalidTask;
-        int roll = ConditionalRandom.Percentile(world.Simulation.InitialSeed, ConditionalRandomPurpose.Recruitment,
-            world.Clock, command.OfficerId, command.TargetOfficerId);
-        Add(world, context, command, command.CommandId, command.OfficerId, origin,
-            new(destination, target.Id, roll) { RecruitmentUnitId = unit?.Id }, RecruitKind, rules, events, unit?.Position);
+        destination = place;
         return CommandRejection.None;
     }
 
     internal static CommandRejection StartSearch(WorldMutation world, CommandContext context, SearchCommand command,
         PersonnelRulebook rules, List<DomainEvent> events)
     {
+        var rejection = ValidateSearch(world, command, rules);
+        if (rejection != CommandRejection.None) return rejection;
+        int origin = world.Officers[command.OfficerId].SettlementId!.Value;
+        int roll = ConditionalRandom.Percentile(world.Simulation.InitialSeed, ConditionalRandomPurpose.SearchDiscovery,
+            world.Clock, command.OfficerId, command.DestinationId);
+        Add(world, context, command, command.CommandId, command.OfficerId, origin,
+            new(command.DestinationId, null, roll), SearchKind, rules, events);
+        return CommandRejection.None;
+    }
+
+    internal static CommandRejection ValidateSearch(WorldMutation world, SearchCommand command, PersonnelRulebook rules)
+    {
         if (!CanAct(world, command.IssuerId, command.OfficerId) || world.Forces[command.IssuerId].LeaderId is null)
             return CommandRejection.PersonUnavailable;
         int origin = world.Officers[command.OfficerId].SettlementId!.Value;
         if (!rules.Places.ContainsKey(origin) || !CanSearch(world, command.IssuerId, command.DestinationId, rules))
             return CommandRejection.InvalidTask;
-        int roll = ConditionalRandom.Percentile(world.Simulation.InitialSeed, ConditionalRandomPurpose.SearchDiscovery,
-            world.Clock, command.OfficerId, command.DestinationId);
-        Add(world, context, command, command.CommandId, command.OfficerId, origin,
-            new(command.DestinationId, null, roll), SearchKind, rules, events);
         return CommandRejection.None;
     }
 
@@ -121,6 +140,21 @@ internal static class PersonnelMissions
     internal static CommandRejection StartMove(WorldMutation world, CommandContext context, MoveOfficersCommand command,
         PersonnelRulebook rules, List<DomainEvent> events)
     {
+        var rejection = ValidateMove(world, command, rules);
+        if (rejection != CommandRejection.None) return rejection;
+        var ids = command.OfficerIds.Order().ToArray();
+        for (int index = 0; index < ids.Length; index++)
+        {
+            int id = ids[index];
+            Guid taskId = index == 0 ? command.CommandId : new Guid(Convert.FromHexString(CanonicalJson.Hash(new { command.CommandId, OfficerId = id })).AsSpan(0, 16));
+            Add(world, context, command, taskId, id, world.Officers[id].SettlementId!.Value,
+                new(command.DestinationId, null, null), MoveKind, rules, events);
+        }
+        return CommandRejection.None;
+    }
+
+    internal static CommandRejection ValidateMove(WorldMutation world, MoveOfficersCommand command, PersonnelRulebook rules)
+    {
         if (command.OfficerIds.IsDefaultOrEmpty || command.OfficerIds.Distinct().Count() != command.OfficerIds.Length)
             return CommandRejection.InvalidTask;
         if (!world.Settlements.TryGetValue(command.DestinationId, out var destination) ||
@@ -131,14 +165,6 @@ internal static class PersonnelMissions
             world.Corps.Values.Any(c => c.LeaderId == id && c.IsRoot && destination.CorpsId != c.Id) ||
             !GovernanceMaintenance.CanRemove(world, id)))
             return CommandRejection.PersonUnavailable;
-        var ids = command.OfficerIds.Order().ToArray();
-        for (int index = 0; index < ids.Length; index++)
-        {
-            int id = ids[index];
-            Guid taskId = index == 0 ? command.CommandId : new Guid(Convert.FromHexString(CanonicalJson.Hash(new { command.CommandId, OfficerId = id })).AsSpan(0, 16));
-            Add(world, context, command, taskId, id, world.Officers[id].SettlementId!.Value,
-                new(destination.Id, null, null), MoveKind, rules, events);
-        }
         return CommandRejection.None;
     }
 
@@ -389,10 +415,8 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
         var people = world.Officers.Values.Where(p => p.Status == OfficerStatus.Undiscovered &&
             (p.SettlementId ?? p.RegionId) == destination).OrderBy(p => p.Id).ToArray();
         int politics = world.Abilities(world.Officers[task.OfficerId]).Politics;
-        score = Math.Max(1, Math.Min(politics, 60) / 2) + Math.Max(0, Math.Min(politics, 80) - 60)
-            + 2L * Math.Max(0, Math.Min(politics, 90) - 80) + 3L * Math.Max(0, politics - 90);
-        long root = (long)Math.Sqrt(100L * people.Length);
-        long threshold = 2 * score * root / 30;
+        score = PersonnelSearchChances.PoliticsScore(politics);
+        long threshold = PersonnelSearchChances.Person(score, people.Length);
         if (people.Length == 0 || task.Journey.SuccessRoll >= threshold)
             return null;
         return people[(int)(world.NextRandom("personnel-search-candidate") % (ulong)people.Length)];
@@ -431,7 +455,7 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
         {
             var items = world.Treasures.Values.Where(t => t.Discovery == TreasureDiscovery.Buried && t.HolderId is null &&
                 t.DiscoveryRegionId == destination && treasures.Items.ContainsKey(t.Id)).OrderBy(t => t.Id).ToArray();
-            long threshold = politicsScore * (long)Math.Sqrt(100L * items.Length) / 90;
+            long threshold = PersonnelSearchChances.Treasure(politicsScore, items.Length);
             if (items.Length > 0 && task.Journey.SuccessRoll < threshold)
             {
                 var item = items[world.NextRandom("personnel-search-treasure") % (ulong)items.Length];

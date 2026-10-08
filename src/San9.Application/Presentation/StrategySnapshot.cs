@@ -170,6 +170,7 @@ public sealed class StrategySnapshot
         RegionNameKeys = source.RegionNameKeys;
         RegionCityIds = source.RegionCityIds;
         var settlements = world.Settlements.ToDictionary(settlement => settlement.Id);
+        var units = world.Units.ToDictionary(unit => unit.Id);
         var emperor = source.ImperialCourt.Resolve(world.Simulation.ImperialCourtEnded, world.Officers);
         EmperorId = emperor?.Id;
         EmperorCityId = ImperialCourtDefinition.City(emperor, world.Settlements, source.RegionCityIds,
@@ -182,12 +183,14 @@ public sealed class StrategySnapshot
             var location = o.SettlementId is int id ? settlements[id] : null;
             var definition = source.Officer(o.Id);
             var task = journeys.GetValueOrDefault(o.Id);
-            int? corpsId = o.UnitId is int unitId ? world.Units.Single(u => u.Id == unitId).CorpsId : location?.CorpsId;
+            var unit = o.UnitId is int unitId ? units[unitId] : null;
+            int? corpsId = unit is not null ? unit.CorpsId : location?.CorpsId;
             return new OfficerView(o.Id, definition.NameKey, o.OwnerId, o.IsServing ? corpsId : null,
                 o.SettlementId, location?.Kind == San9.Core.Domain.SettlementKind.City, o.IsServing && o.UnitId is null && !o.Acted && !occupied.Contains(o.Id), abilities[o.Id])
             {
                 FlagGlyph = definition.FlagGlyph,
                 UnitId = o.UnitId,
+                ServicePlaceId = unit is not null ? unit.ServicePlaceId : o.SettlementId ?? o.RegionId,
                 Status = o.Status,
                 Journey = task is null ? null : new(task.Id, task.Kind, task.OriginSettlementId, task.Journey!.DestinationPlaceId,
                     task.Journey.TargetOfficerId, task.Due, task.ProgressDays),

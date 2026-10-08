@@ -16,8 +16,7 @@ public static class SettlementContextMenu
         List<MapContextEntry> entries = [new(prefix + "情报",
             city ? new("", InformationCategory.Cities, SettlementId: place.Id) : new("", InformationCategory.Regions, RegionId: place.Id), place.Id)];
         if (!city && !place.CanHostPersons) return entries;
-        bool hasPeople = view.Officers.Any(o => o.Journey is null &&
-            view.World.Officers.Any(p => p.Id == o.Id && p.UnitId is null && (p.SettlementId ?? p.RegionId) == place.Id));
+        bool hasPeople = view.Officers.Any(o => o.ServicePlaceId == place.Id);
         entries.Add(new(prefix + "武将", new("", InformationCategory.Officers, RegionId: place.Id), Enabled: hasPeople));
         if (place.OwnerId is not int owner || view.Forces.FirstOrDefault(f => f.Id == owner) is not { } force) return entries;
         AddOwnerEntries(view, entries, owner, place.CorpsId);

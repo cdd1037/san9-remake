@@ -10,7 +10,8 @@ public sealed class OfficerCommanderCatalogTests
 {
     private static Dictionary<int, CatalogCell> Read(ScenarioInitialState definition, WorldSnapshot world)
     {
-        var texts = new TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion, definition.Officers.ToDictionary(o => o.NameKey, o => o.NameKey));
+        var texts = new TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion, definition.Officers.Select(o => o.NameKey)
+            .Concat(definition.Settlements.Select(s => s.NameKey)).ToDictionary(key => key, key => key));
         var table = OfficerCatalog.Read(new(definition, world), texts, 1, null, null);
         int column = Array.IndexOf(table.Columns, "大将");
         return table.Rows.ToDictionary(r => r.Key.Id, r => r.Cells[column]);

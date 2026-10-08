@@ -35,10 +35,10 @@ public static class OfficerCatalog
         var treasuresByHolder = view.World.Treasures.Where(t => t.Discovered).ToLookup(t => t.HolderId);
         var treasureRules = new TreasureRulebook(view.Information.Treasures.Select(t => t.ToRule()));
         string Person(int? id) => id is int key && officers.TryGetValue(key, out var p) ? texts.Resolve(p.NameKey) : "";
-        string Place(int? id) => id is int key && view.RegionNameKeys.TryGetValue(key, out var name) ? texts.Resolve(name) : "";
+        string Place(int? id) => id is int key ? view.Settlements.FirstOrDefault(s => s.Id == key)?.ResolveName(texts)
+            ?? (view.RegionNameKeys.TryGetValue(key, out var name) ? texts.Resolve(name) : "") : "";
         var columns = Pages[page].Columns;
-        var local = regionId is not null ? new AdministrativeCatalog(view, texts) : null;
-        var rows = view.Officers.Where(o => (unitFilter is null || o.UnitId == unitFilter) && (corpsId is null || o.CorpsId == corpsId) && (regionId is null || local!.PersonInRegion(o, regionId.Value)) && (officerId is null || o.Id == officerId) && (force is null || o.OwnerId == force) && (settlement is null || o.SettlementId == settlement))
+        var rows = view.Officers.Where(o => (unitFilter is null || o.UnitId == unitFilter) && (corpsId is null || o.CorpsId == corpsId) && (regionId is null || o.ServicePlaceId == regionId) && (officerId is null || o.Id == officerId) && (force is null || o.OwnerId == force) && (settlement is null || o.ServicePlaceId == settlement))
             .OrderBy(o => texts.Resolve(o.NameKey), StringComparer.Create(System.Globalization.CultureInfo.GetCultureInfo("zh-CN"), false))
             .Select(o =>
             {
@@ -56,6 +56,16 @@ public static class OfficerCatalog
                     bool commander = o.Journey is null && (person.UnitId is int unitId
                         ? units[unitId].CommanderId == person.Id : person.IsCommander);
                     return new(commander ? "○" : "", commander ? 1 : 0);
+                }
+                CatalogCell Location()
+                {
+                    if (o.Journey is not null)
+                        return o.OwnerId == view.PlayerForceId ? new("移动中") : new("＊＊＊", IsUnavailable: true);
+                    if (o.UnitId is not int currentUnit) return new(Place(o.SettlementId ?? person.RegionId));
+                    var unit = units[currentUnit];
+                    string name = unit.CommanderId is int commander ? Person(commander)
+                        : view.Forces.FirstOrDefault(f => f.Id == unit.OwnerId) is { } forceView ? texts.Resolve(forceView.NameKey) : "无";
+                    return new(name + "队");
                 }
                 CatalogCell Cell(string id)
                 {
@@ -76,7 +86,8 @@ public static class OfficerCatalog
                         "treasures" => treasures.Length, "status" => new(InformationQuery.Status(o.Status), (int)o.Status),
                         "force" => Person(owner?.LeaderId), "corps" => Person(o.CorpsId is int currentCorpsId ? corps.GetValueOrDefault(currentCorpsId)?.LeaderId : null),
                         "commander" => Commander(),
-                        "home" => Place(o.IsServing ? o.SettlementId : null), "location" => o.Journey is null ? Place(o.SettlementId ?? person.RegionId) : o.Journey.Kind == "tactic-study" ? "兵法修行中" : "出行中",
+                        "home" => Place(o.ServicePlaceId),
+                        "location" => Location(),
                         "order" => command!.Order, "target-person" => command!.Object, "target-place" => command!.Target,
                         "arrival" => command!.Arrival, "formation" => command!.Rank, "equipped-tactic" => command!.Tactic,
                         // A ruler's dash has a highest-value sort key, not unavailable-value ordering.

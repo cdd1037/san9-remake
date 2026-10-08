@@ -49,6 +49,8 @@ public sealed class AdministrativeCatalog(StrategySnapshot view, TextCatalog tex
     private readonly Dictionary<int, OfficerView[]> _locals = view.Officers.Where(o => o.Journey is null)
         .Join(view.World.Officers.Where(o => o.UnitId is null), o => o.Id, o => o.Id, (visible, state) => (visible, Place: state.SettlementId ?? state.RegionId))
         .Where(p => p.Place is not null).GroupBy(p => p.Place!.Value).ToDictionary(g => g.Key, g => g.Select(p => p.visible).ToArray());
+    private readonly Dictionary<int, OfficerView[]> _assigned = view.Officers.Where(o => o.ServicePlaceId is not null)
+        .GroupBy(o => o.ServicePlaceId!.Value).ToDictionary(g => g.Key, g => g.ToArray());
     private static CatalogCell Hidden => new("＊＊＊", IsUnavailable: true);
     private readonly Dictionary<(int Owner, int? Corps), EconomicOutlook> _outlooks = [];
     private readonly IReadOnlyList<TerritoryConnection> _connections = view.TerritoryConnections();
@@ -86,7 +88,6 @@ public sealed class AdministrativeCatalog(StrategySnapshot view, TextCatalog tex
         return names.Length <= 3 ? string.Join("‧", names)
             : $"{string.Join("‧", names.Take(2))}及其他{names.Length - 2}势力";
     }
-    internal bool PersonInRegion(OfficerView officer, int region) => _locals.GetValueOrDefault(region)?.Any(o => o.Id == officer.Id) == true;
 
     public InformationTable Read(InformationCategory category, int page, int? force = null, int? settlement = null, int? corps = null, int? region = null)
     {
@@ -223,8 +224,8 @@ public sealed class AdministrativeCatalog(StrategySnapshot view, TextCatalog tex
             return field == "force" ? Force(authority?.OwnerId) : Person(authority?.CorpsId is int corps ? _corps.GetValueOrDefault(corps)?.LeaderId : null);
         }
         if (field == "province") return city is int home && view.CityProvinceIds.TryGetValue(home, out int province) && view.ProvinceNameKeys.TryGetValue(province, out var key) ? texts.Resolve(key) : CatalogCell.Unavailable;
-        if (field == "serving") return people.Count(o => o.IsServing);
-        if (field == "captives") return people.Count(o => o.Status == OfficerStatus.Captive);
+        if (field == "serving") return (_assigned.GetValueOrDefault(id) ?? []).Count(o => o.IsServing);
+        if (field == "captives") return (_assigned.GetValueOrDefault(id) ?? []).Count(o => o.Status == OfficerStatus.Captive);
         if (field == "free") return people.Count(o => o.Status == OfficerStatus.Free);
         if (field == "regions") return string.Join("‧", view.RegionCityIds.Where(p => p.Value == id).Select(p => texts.Resolve(view.RegionNameKeys[p.Key])));
         if (field is "adjacent" or "frontline")

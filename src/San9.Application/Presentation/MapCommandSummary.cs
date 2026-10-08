@@ -34,7 +34,7 @@ public sealed record MapCommandSummary(string Kind, string Name, string Status, 
             Row("商人", Cell("merchant"), false); Row("市价", $"兵粮{view.World.Simulation.FoodExchangeRate}/资金1", false); y += 10;
         }
         Row("在任", $"{staffing.Available,3}/{staffing.Assigned,3}");
-        Row("俘虏", people.Count(o => o.Status == OfficerStatus.Captive).ToString());
+        Row("俘虏", staffing.AssignedPeople.Count(o => o.Status == OfficerStatus.Captive).ToString());
         Row("在野", people.Count(o => o.Status == OfficerStatus.Free).ToString());
         return new(city ? "city" : "facility", visible.ResolveName(texts), place.ConfusionDaysRemaining > 0 ? "混乱" : "一般", rows) {
             Icon = city ? place.MerchantPresent ? "merchant" : visible.Icons.Contains("training") ? "training" : null : null

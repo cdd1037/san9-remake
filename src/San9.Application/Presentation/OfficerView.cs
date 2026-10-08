@@ -7,6 +7,7 @@ public sealed record OfficerView(int Id, string NameKey, int? OwnerId, int? Corp
 {
     public int FlagGlyph { get; init; } = -1;
     public int? UnitId { get; init; }
+    public int? ServicePlaceId { get; init; }
     public string? CourtesyNameKey { get; init; }
     public string? BiographyKey { get; init; }
     public OfficerStatus Status { get; init; } = OfficerStatus.Serving;

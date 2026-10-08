@@ -46,7 +46,7 @@ public partial class StrategyHud
             var sequence = StrategistPresentation.Create(draft.View, Session.Messages(Texts), CommandPresentation.Strategist!,
                 result.Events.OfType<AdviserAppointedEvent>().Single(), Random.Shared.Next);
             _narration = new() { Messages = sequence, View = Session.View, Texts = Texts, Service = Textures, Textures = _textures,
-                ContentRoot = ContentRoot, Sounds = CommandPresentation.Sounds, SoundEnabled = SoundEnabled, Closed = CloseNarration };
+                ContentRoot = ContentRoot, Sounds = CommandPresentation.Sounds, SoundEnabled = SoundEnabled, MessagePresented=m=>_executionPanels.Append(m.Message), Closed = CloseNarration };
             OverlayHost.AddChild(_narration); return;
         }
         var execution = result.Events.OfType<PrisonerExecutedEvent>().SingleOrDefault();
@@ -60,7 +60,7 @@ public partial class StrategyHud
                 : TreasureTransferPresentation.Create(draft.View,beforeMessages,CommandPresentation.TreasureTransfer!,
                     result.Events.OfType<TreasureTransferredEvent>().Single(),result.Events.OfType<OfficerLoyaltyChangedEvent>(),Random.Shared.Next);
             _narration = new() { Messages = sequence, View = draft.View, Texts = Texts, Service = Textures, Textures = _textures,
-                ContentRoot = ContentRoot, Sounds = CommandPresentation.Sounds, SoundEnabled = SoundEnabled,
+                ContentRoot = ContentRoot, Sounds = CommandPresentation.Sounds, SoundEnabled = SoundEnabled, MessagePresented=m=>_executionPanels.Append(m.Message),
                 Closed = () => {
                     CloseNarration();
                     if (result.Rejection != CommandRejection.None)

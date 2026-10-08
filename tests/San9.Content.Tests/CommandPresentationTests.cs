@@ -6,6 +6,17 @@ namespace San9.Content.Tests;
 public sealed class CommandPresentationTests
 {
     [Fact]
+    public void DecisionSharedMessagesRequireBindingsAndSoundReferences()
+    {
+        var texts=new TextCatalog(TextCatalog.CurrentSchemaVersion,[]) { Messages=new() {
+            ["reply"]=new([new MessageValue(new("binding","person.0"))]) } };
+        var definitions=new DecisionPresentations([],new(){["citizen"]=9001}) {
+            Shared=new(){["custom-reply"]=new("reply",new(){["person.0"]="actor"},Sound:"reply") } };
+        definitions.Validate(texts,new Dictionary<string,string>{{"reply","reply.wav"}},[9001]);
+        Assert.Throws<InvalidDataException>(()=>definitions.Validate(texts,new Dictionary<string,string>(),[9001]));
+        Assert.Throws<InvalidDataException>(()=>(definitions with { Shared=new(){["custom-reply"]=new("reply",[])} }).Validate(texts,new Dictionary<string,string>(),[9001]));
+    }
+    [Fact]
     public void FacilityBindingsRequireMessagesNpcSoundsAndRepairCompletion()
     {
         string[] roles = ["normal","cooperative","citizen","pair-first","pair-second","result","complete","complete-dialogue"];

@@ -21,6 +21,24 @@ public static class InterfaceSkinCompiler
                 bindings[id] = palette;
             }
         Dictionary<string, string> ui = [];
+        var ending=IndexedImageArchive.ReadArchive(read(Path.Combine(dataDirectory,"G_Ending.s9")));
+        int endingPalette=BinaryPrimitives.ReadInt32LittleEndian(exe.AsSpan(0x264698+47*8+4));
+        if ((BinaryPrimitives.ReadInt32LittleEndian(exe.AsSpan(0x264698+47*8))&65535)!=3047)
+            throw new InvalidDataException("Unconfirmed ending opening image.");
+        const string endingRole="decision-ending-opening";
+        assets.Add(save("ui-"+endingRole,TextureSourcePath.Image("G_Ending",47,endingPalette,true,false),
+            IndexedImageArchive.Decode(ending.Images[47],ending.Palettes[endingPalette],true,false)));
+        ui.Add(endingRole,"ui-"+endingRole);
+        foreach(var (role,index) in new[]{("expansion",0),("domestic",3),("army",22),("west",23),("trade",24),("trade-failure",25),
+            ("empire",26),("building",27),("government",28),("building-failure",29),("defense",30),("culture",31),("culture-failure",32),
+            ("military-failure",33),("empire-failure",34),("government-failure",36),("stable",48),("unstable",49)})
+        {
+            int palette=BinaryPrimitives.ReadInt32LittleEndian(exe.AsSpan(0x264698+index*8+4));
+            string key="decision-ending-"+role;
+            assets.Add(save("ui-"+key,TextureSourcePath.Image("G_Ending",index,palette,true,false),
+                IndexedImageArchive.Decode(ending.Images[index],ending.Palettes[palette],true,false)));
+            ui.Add(key,"ui-"+key);
+        }
         void Export(string semantic, int index, int expectedPalette, int columns = 1, bool paletteAlpha = false)
         {
             if (bindings[5975 + index] != expectedPalette + 60) throw new InvalidDataException("Unconfirmed UI palette binding.");
@@ -74,6 +92,9 @@ public static class InterfaceSkinCompiler
         Export("turn-progress-fill", 90, 5, paletteAlpha: true);
         Export("turn-record-panel", 59, 12, paletteAlpha: true);
         Export("turn-command-panel", 61, 13, paletteAlpha: true);
+        // This palette supplies RGB colors; its reserved fourth bytes are all zero.
+        // The original copies the indexed pixels and palette into an opaque bar surface.
+        Export("turn-command-remaining-fill", 63, 14);
         Export("field-left", 91, 5); Export("field-middle", 92, 5); Export("field-right", 93, 5);
         Export("ruler-frame", 94, 5); Export("region-frame", 97, 20, paletteAlpha: true);
         Export("target-title-left", 79, 15, paletteAlpha: true);
@@ -87,6 +108,36 @@ public static class InterfaceSkinCompiler
             ui.Remove("target-" + role);
         }
         var common = IndexedImageArchive.ReadCombined(read(Path.Combine(dataDirectory, "G_Common.s9")), 67, 491);
+        if(bindings[390]!=251) throw new InvalidDataException("Unconfirmed remaining-command frame palette.");
+        assets.Add(save("ui-turn-command-remaining-frame",TextureSourcePath.Image("G_Common",390,51,true,true),
+            IndexedImageArchive.Decode(common.Images[390],common.Palettes[51],true,true)));
+        ui.Add("turn-command-remaining-frame","ui-turn-command-remaining-frame");
+        // RE-0181: vertical choices use the distinct three-part configuration 3, four state frames.
+        foreach (var (part, index) in new[] { ("left",386), ("middle",387), ("right",388) })
+        for (int frame = 0; frame < 4; frame++)
+        {
+            if (bindings[index] != 250) throw new InvalidDataException("Unconfirmed vertical choice palette.");
+            string role = $"decision-choice-{part}" + (frame == 0 ? "" : $"-{frame}"), id = "ui-" + role;
+            assets.Add(save(id, TextureSourcePath.Image("G_Common",index,50,true,true,columns:4,frame:frame),
+                IndexedImageArchive.Decode(IndexedImageArchive.Frame(common.Images[index],4,1,frame,0),common.Palettes[50],true,true)));
+            ui.Add(role,id);
+        }
+        foreach (var (role,index) in new[] { ("tongque",45),("commemoration",46),("training-land",47),("training-water",48),
+            ("bandits-land",58),("bandits-water",59),("beast",60),("festival",61),("dippers",62),("unification",63),("alliance",66) })
+        {
+            string key = "decision-" + role, id = "ui-" + key;
+            assets.Add(save(id,TextureSourcePath.Image("G_Still",index,index,false,false),
+                IndexedImageArchive.Decode(still.Images[index],still.Palettes[index],false,false)));
+            ui.Add(key,id);
+        }
+        string[] tradeCategories=["salt","textiles","distribution","trade","livestock","iron","farmland","orchard"];
+        for(int category=0;category<tradeCategories.Length;category++)
+        {
+            int index=49+category; string key="decision-trade-"+tradeCategories[category],id="ui-"+key;
+            assets.Add(save(id,TextureSourcePath.Image("G_Still",index,index,false,false),
+                IndexedImageArchive.Decode(still.Images[index],still.Palettes[index],false,false)));
+            ui.Add(key,id);
+        }
         var transition = IndexedImageArchive.ReadCombined(read(Path.Combine(dataDirectory, "G_LocalM.s9")), 2, 4);
         // RE-0158: three 125 ms additive frames, then the palette-alpha title.
         foreach (var (phase, first) in new[] { ("strategy", 0), ("execution", 1) })
@@ -328,6 +379,14 @@ public static class InterfaceSkinCompiler
             Extra($"text-icon-{name}-{size}", resource, palette);
         }
         // RE-0095: CBushouMessageDlg artwork and the two narration continuation animations.
+        // RE-0181: all image-frame parts bind to the same palette, retained after composition.
+        foreach (var (part, resource) in new[] { ("top-left",426), ("top",427), ("top-right",428),
+            ("left",429), ("right",430), ("bottom-left",431), ("bottom",432), ("bottom-right",433) })
+        {
+            if (bindings[resource] != 257)
+                throw new InvalidDataException("Unconfirmed illustration frame binding.");
+            Extra("narration-image-frame-"+part,resource,57,true);
+        }
         foreach (var (role, resource) in new (string, int)[] {
             ("portrait-frame", 168), ("middle", 169), ("right", 170), ("affiliation", 171) })
             Extra("narration-" + role, resource, bindings[resource] - 200, true);

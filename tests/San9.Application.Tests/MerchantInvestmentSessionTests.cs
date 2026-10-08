@@ -11,7 +11,7 @@ namespace San9.Application.Tests;
 
 public sealed class MerchantInvestmentSessionTests
 {
-    private static ScenarioInitialState Definition(ResourceKind resource = ResourceKind.Money) => new(ScenarioInitialState.CurrentSchemaVersion, "merchant", 190, 2, 1, 1,
+    internal static ScenarioInitialState Definition(ResourceKind resource = ResourceKind.Money) => new(ScenarioInitialState.CurrentSchemaVersion, "merchant", 190, 2, 1, 1,
         [new(1, "force", 1, 100) { LeaderId = 1, BaseTrust = 100 }],
         [new(1, "home", 1, 0, 0, 0, 100, 100, 0, [])], new() { [1] = "home" }, new() { [1] = 1 })
     {

@@ -17,6 +17,8 @@ public partial class StrategyHud : Control
     public TextCatalog Texts { get; init; } = null!;
     public InterfaceSkin Skin { get; init; } = null!;
     public TextureService Textures { get; init; } = null!;
+    public ISceneMedia SceneMedia { get; init; } = new SilentSceneMedia();
+    public Action? StartNewGame { get; init; }
     private TextureScope _textures = null!;
     private readonly List<(string Asset, Vector2 Position)> _frames = [];
     private Label _footer = null!;
@@ -85,6 +87,7 @@ public partial class StrategyHud : Control
         if (_built) return;
         Turn = new(Session)
         {
+            CanContinue = () => _decision is null,
             CanPlayDay = () => ReferenceEquals(World.Day, Turn.Day) && World.IsDayReady && _executionPanels.IsExpanded,
             CreateDay = (before, after, events) => new(before, after, events, new MapDayPlan(World.Package!, before, events))
         };

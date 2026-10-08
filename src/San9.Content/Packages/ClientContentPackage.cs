@@ -45,6 +45,10 @@ public sealed record ClientContentPackage(int SchemaVersion, ContentSource[] Sou
             if (!Skin.Roles.ContainsKey($"catalog-facility-{facility.Id}"))
                 throw new InvalidDataException($"Missing facility illustration: {facility.Id}");
         Presentation.Validate(Text, Scenario.Officers.Select(o => o.State.Id), Scenario.Settlements.Select(s => s.Id));
+        foreach (string illustration in Presentation.Decisions.Events.Values.SelectMany(d=>d.Introduction.Append(d.Prompt)
+            .Concat(d.Results.Values.SelectMany(m=>m))).Concat(Presentation.Decisions.Shared.Values)
+            .Select(m=>m.Illustration).OfType<string>().Where(r=>r.StartsWith("decision-",StringComparison.Ordinal)).Distinct())
+            if(!Skin.Roles.ContainsKey(illustration)) throw new InvalidDataException($"Missing decision illustration: {illustration}.");
         foreach (string path in Presentation.Sounds.Values) _ = PackageFiles.Resolve(".", path);
         Scenario.Validate(); Text.Validate(); Skin.Validate(); Textures.Validate();
         _ = Text.Resolve(TextCatalog.ScenarioTitleKey);

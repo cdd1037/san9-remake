@@ -10,7 +10,7 @@ namespace San9.Application.Tests;
 
 public sealed class ScholarInsultSessionTests
 {
-    private static ScenarioInitialState Definition() => new(ScenarioInitialState.CurrentSchemaVersion, "insult", 190, 2, 1, 1,
+    internal static ScenarioInitialState Definition() => new(ScenarioInitialState.CurrentSchemaVersion, "insult", 190, 2, 1, 1,
         [new(1, "force", 1, 100) { LeaderId = 1, BaseTrust = 100, EventHistory = [new("visited")] }],
         [new(1, "home", 1, 0, 0, 0, 100, 100, 0, [])], new() { [1] = "home" }, new() { [1] = 1 })
     {

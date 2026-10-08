@@ -6,6 +6,24 @@ namespace San9.Client.Godot.Tests;
 
 public sealed class TurnPresentationTests
 {
+    [Fact]
+    public void CommittedPublicationWaitsForPresentationWithoutRepeatingTheOperation()
+    {
+        var session=Session(); var turn=new TurnPresentation(session); Enter(turn);
+        turn.CanContinue=()=>false;
+        turn.Update(2);
+        Assert.Equal(TurnScreen.Presenting,turn.Screen);
+        long operation=session.NextOperationSequence,publication=turn.Publication;
+        string hash=session.Snapshot.StateHash;
+        Assert.NotNull(turn.LastResult);
+        turn.Update(20);turn.Update(20);
+        Assert.Equal(hash,session.Snapshot.StateHash);
+        Assert.Equal(operation,session.NextOperationSequence);
+        Assert.Equal(publication,turn.Publication);
+        turn.CanContinue=()=>true;turn.Update(0);
+        Assert.Equal(TurnScreen.Playing,turn.Screen);
+        Assert.Equal(operation,session.NextOperationSequence);
+    }
     private static GameSession Session(int month = 1, int day = 1)
     {
         var definition = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "turn", 190, month, day, 5,

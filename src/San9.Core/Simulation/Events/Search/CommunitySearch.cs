@@ -7,7 +7,11 @@ public enum CommunitySearchChoice { Accept, DonateMoney, DonateFood, DemandMoney
 public sealed record CommunitySearchOption(CommunitySearchChoice Choice, ResourceKind Resource, uint Cost);
 public sealed record CommunitySearchPrompt(Guid TaskId, int Step, string EventId, int ForceId, int OfficerId,
     int PlaceId, int Season, ResourceAccount Account, int? RequiredTreasureId, int? TacticCategory,
-    ImmutableArray<CommunitySearchOption> Options);
+    ImmutableArray<CommunitySearchOption> Options)
+{
+    public uint OfferedSoldiers { get; init; }
+    public uint OfferedMoney { get; init; }
+}
 public sealed record CommunitySearchResolvedEvent(GameClock Clock, string EventId, int ForceId, int OfficerId,
     int PlaceId, CommunitySearchChoice Choice, ResourceAccount Account, ResourceKind PaymentResource, uint Cost,
     long MoneyReward, uint Soldiers, int? LearnedTacticId, int BaseTrust) : DomainEvent;
@@ -86,6 +90,12 @@ internal static class CommunitySearch
         };
     }
     private static uint Cost(uint multiplier, int ceiling, int ability) => (uint)Math.Min(uint.MaxValue, (long)multiplier * Math.Max(0L, (long)ceiling - ability));
+    internal static uint VolunteerSoldiers(WorldMutation world, PersistentTask task, CivicSearchEventDefinition definition)
+    {
+        var home = world.Settlements[task.OriginSettlementId];
+        return (uint)Math.Min((long)home.SoldierCapacity - home.Soldiers,
+            (long)definition.SoldierMultiplier * world.Abilities(world.Officers[task.OfficerId]).Leadership);
+    }
     internal static bool IsAcceptance(CommunitySearchChoice choice) => choice is not (CommunitySearchChoice.Decline or CommunitySearchChoice.Execute);
     internal static bool ValidResponse(WorldMutation world, PersistentTask task, CommunitySearchEventDefinition d, CommunitySearchChoice choice) =>
         Options(world, task, d).Any(o => o.Choice == choice);
@@ -112,7 +122,7 @@ internal static class CommunitySearch
                         if (choice == CommunitySearchChoice.Accept)
                         {
                             var home = world.Settlements[task.OriginSettlementId];
-                            soldiers = (uint)Math.Min((long)home.SoldierCapacity - home.Soldiers, (long)civic.SoldierMultiplier * a.Leadership);
+                            soldiers = VolunteerSoldiers(world, task, civic);
                             world.Replace(home with { Soldiers = home.Soldiers + soldiers });
                         }
                         break;

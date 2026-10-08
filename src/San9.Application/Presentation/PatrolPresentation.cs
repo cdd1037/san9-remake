@@ -5,7 +5,11 @@ using San9.Core.Simulation;
 
 namespace San9.Application.Presentation;
 
-public sealed record CommandMessage(ProducedMessage Message, int? SpeakerId, string? SoundRole);
+public sealed record CommandMessage(ProducedMessage Message, int? SpeakerId, string? SoundRole)
+{
+    public string? IllustrationRole { get; init; }
+    public int? IllustrationPersonId { get; init; }
+}
 
 /// <summary>Creates a retained message sequence once, from a committed command and its pre-command snapshot.</summary>
 public static class PatrolPresentation

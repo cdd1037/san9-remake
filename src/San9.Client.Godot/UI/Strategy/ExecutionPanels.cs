@@ -1,20 +1,26 @@
 using Godot;
 using San9.Content.Interface;
 using San9.Content.Text;
+using San9.Application.Presentation;
 
 namespace San9.Client.Godot;
 
-/// <summary>Execution record and pending-command surfaces; row content is not connected yet.</summary>
+/// <summary>Retained event messages and current pending commands, projected without evaluating messages on repaint.</summary>
 public partial class ExecutionPanels : Control
 {
     public TextureScope Textures { get; init; } = null!;
     public TextCatalog Texts { get; init; } = null!;
+    public InterfaceSkin Skin { get; init; } = null!;
     private const int Travel = 214;
     private static readonly Rect2 Records = new(13, 564, 424, 208);
     private static readonly Rect2 Commands = new(738, 610, 272, 140);
     private readonly GameTextPresenter _text = new();
     private Control _headers = null!;
+    private Control _rows = null!;
+    private readonly List<ProducedMessage> _records = [];
+    private long _revision = -1;
     private bool _expanded;
+    private bool _covered;
     private int _offset = Travel;
     private double _elapsed;
     public bool Expanded => _expanded;
@@ -26,6 +32,7 @@ public partial class ExecutionPanels : Control
         Size = new(1024, 768);
         _headers = new Control { MouseFilter = MouseFilterEnum.Ignore };
         AddChild(_headers);
+        _rows=new Control { MouseFilter=MouseFilterEnum.Ignore }; AddChild(_rows);
         int[] x = [28, 88, 124, 184];
         for (int i = 0; i < ExecutionPanelSkin.Columns.Count; i++)
         {
@@ -38,8 +45,68 @@ public partial class ExecutionPanels : Control
         ApplyOffset();
     }
 
-    public void Advance(bool expanded, double delta)
+    public void Append(ProducedMessage message)
     {
+        _records.Add(message);
+        RefreshRecords();
+    }
+
+    private Control? _recordRows;
+    private void RefreshRecords()
+    {
+        if (!IsNodeReady()) return;
+        if (_recordRows is not null) { RemoveChild(_recordRows); _recordRows.QueueFree(); }
+        _recordRows=new Control { Position=new(0,_offset),MouseFilter=MouseFilterEnum.Ignore }; AddChild(_recordRows);
+        var visible=_records.TakeLast(10).ToArray();
+        for (int i=0;i<visible.Length;i++)
+        {
+            var label=new GameRichTextLabel { Textures=Textures,Position=Records.Position+new Vector2(28,24+16*i),Size=new(376,16),
+                MouseFilter=MouseFilterEnum.Ignore,ClipContents=true };
+            _recordRows.AddChild(label);
+            label.Present(visible[i].BbCode.Replace('\n',' '),new(12,Colors.Black,GameTextEffect.None,Colors.Transparent));
+        }
+    }
+
+    public void Bind(StrategySnapshot view)
+    {
+        if (_revision==view.World.Revision || !IsNodeReady()) return;
+        _revision=view.World.Revision;
+        foreach (var child in _rows.GetChildren()) { _rows.RemoveChild(child); child.QueueFree(); }
+        var rows=ExecutionCommands.Read(view,Texts).TakeLast(5).ToArray();
+        int[] x=[14,74,110,166], widths=[60,36,56,74];
+        var force = view.World.Forces.Single(f => f.Id == view.PlayerForceId);
+        for(int row=0;row<rows.Length;row++)
+        {
+            var value=rows[row];
+            // Columns and decorations are local to the row surface, inset from the panel.
+            var origin = Commands.Position + new Vector2(14,35+16*(5-rows.Length+row));
+            var container = new Control { Position=origin,Size=new(244,16),MouseFilter=MouseFilterEnum.Ignore };
+            _rows.AddChild(container);
+            container.AddChild(new ColorRect { Position=new(2,2),Size=new(12,12),Color=new Color("080808"),MouseFilter=MouseFilterEnum.Ignore });
+            container.AddChild(new ColorRect { Position=new(3,3),Size=new(10,10),Color=new Color(Skin.Colors[$"overview-force-{force.ColorCode}"]),MouseFilter=MouseFilterEnum.Ignore });
+            bool bar=value.FinishesThisXun;
+            string[] cells=[value.Officer,value.Command,value.Target,bar ? "" : "-------"];
+            for(int column=0;column<cells.Length;column++)
+            {
+                var label=new Label { Text=cells[column],Position=new(x[column],0),Size=new(widths[column],16),
+                    HorizontalAlignment=column==3 ? HorizontalAlignment.Center : HorizontalAlignment.Left,
+                    ClipText=true,MouseFilter=MouseFilterEnum.Ignore };
+                container.AddChild(label); _text.Apply(label,GameTextStyles.CatalogRow with { FontSize=12 });
+            }
+            if(bar)
+            {
+                container.AddChild(new TextureRect { Texture=Textures["turn-command-remaining-frame"],Position=new(166,3),MouseFilter=MouseFilterEnum.Ignore });
+                var fill=Textures["turn-command-remaining-fill"];
+                int width=(int)(fill.GetWidth()*Math.Min(10,value.RemainingDays)/10);
+                if(width>0) container.AddChild(new TextureRect { Texture=new AtlasTexture { Atlas=fill,Region=new(0,0,width,3) },Position=new(169,6),MouseFilter=MouseFilterEnum.Ignore });
+            }
+        }
+    }
+
+    public void Advance(bool expanded, double delta, bool covered = false)
+    {
+        _covered = covered;
+        Visible = _offset < Travel && !_covered;
         if (_expanded != expanded)
         {
             _expanded = expanded;
@@ -59,8 +126,10 @@ public partial class ExecutionPanels : Control
 
     private void ApplyOffset()
     {
-        Visible = _offset < Travel;
+        Visible = _offset < Travel && !_covered;
         _headers.Position = new(0, _offset);
+        _rows.Position = new(0,_offset);
+        if (_recordRows is not null) _recordRows.Position=new(0,_offset);
         QueueRedraw();
     }
 

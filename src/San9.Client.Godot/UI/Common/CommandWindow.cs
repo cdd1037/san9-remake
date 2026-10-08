@@ -9,8 +9,13 @@ public partial class CommandWindow : Control
     public string Title { get; init; } = "";
     public Action Help { get; init; } = null!;
     public Action Closed { get; init; } = null!;
+    public Action? Cancelled { get; init; }
     public Action Accepted { get; init; } = null!;
     public bool CanAccept { get; init; } = true;
+    public bool CanClose { get; init; } = true;
+    public string AcceptTitle { get; init; } = "执行";
+    public string CancelTitle { get; init; } = "中止";
+    public int ActionRightInset { get; init; } = 42;
     public Action<string?>? HintChanged { get; init; }
     public string? AcceptHint { get; init; }
     public string? CancelHint { get; init; }
@@ -26,11 +31,11 @@ public partial class CommandWindow : Control
         AddChild(title);
         _text.Apply(title, new(24, new Color("f8f850"), GameTextEffect.Outline, new Color("5828c8")));
         Icon("help", new(Size.X - 40, -56), Help);
-        Icon("close", new(Size.X - 8, -36), Closed);
-        var accept = ActionButton("执行", "accept", new(Size.X - 210, Size.Y + 20, 80, 48), Accepted);
+        Icon("close", new(Size.X - 8, -36), Closed, !CanClose);
+        var accept = ActionButton(AcceptTitle, "accept", new(Size.X - ActionRightInset - 168, Size.Y + 20, 80, 48), Accepted);
         accept.Disabled = !CanAccept;
         BindHint(accept, AcceptHint);
-        BindHint(ActionButton("中止", "cancel", new(Size.X - 122, Size.Y + 20, 80, 48), Closed), CancelHint);
+        BindHint(ActionButton(CancelTitle, "cancel", new(Size.X - ActionRightInset - 80, Size.Y + 20, 80, 48), Cancelled ?? Closed), CancelHint);
     }
 
     public void BindHint(Control control, string? hint)
@@ -52,10 +57,11 @@ public partial class CommandWindow : Control
         button.Pressed += action; AddChild(button); return button;
     }
 
-    private void Icon(string role, Vector2 at, Action action)
+    private void Icon(string role, Vector2 at, Action action, bool disabled = false)
     {
         var button = new TextureButton { Position = at, TextureNormal = Textures["deployment-" + role],
-            TextureHover = Textures["deployment-" + role + "-1"], TexturePressed = Textures["deployment-" + role + "-2"] };
+            TextureHover = Textures["deployment-" + role + "-1"], TexturePressed = Textures["deployment-" + role + "-2"],
+            TextureDisabled = Textures["deployment-" + role + "-3"], Disabled = disabled };
         button.Pressed += action; AddChild(button);
     }
 

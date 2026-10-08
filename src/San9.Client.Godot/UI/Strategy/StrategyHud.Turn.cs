@@ -24,7 +24,7 @@ public partial class StrategyHud
 
     private void BuildTurnControls()
     {
-        _executionPanels = new ExecutionPanels { Textures = _textures, Texts = Texts };
+        _executionPanels = new ExecutionPanels { Textures = _textures, Texts = Texts, Skin = Skin };
         AddChild(_executionPanels);
         _turnStatus = LabelAt("", new(270, 320), new(484, 96), 24);
         for (int phase = 0; phase < 2; phase++)
@@ -63,11 +63,15 @@ public partial class StrategyHud
     private void UpdateTurn(double delta)
     {
         Turn.Update(delta);
+        UpdateExecutionMessages();
+        UpdateDecision();
+        UpdateEnding();
         World.Presentation = Turn.Display;
         World.Day = Turn.Day;
-        bool showPanels = Turn.Screen is TurnScreen.Preparing or TurnScreen.Playing or TurnScreen.AwaitingDecision ||
+        bool showPanels = Turn.Screen is TurnScreen.Preparing or TurnScreen.Playing or TurnScreen.AwaitingDecision or TurnScreen.Presenting ||
             Turn.Screen == TurnScreen.Failed && _executionPanels.Expanded;
-        _executionPanels.Advance(showPanels, delta);
+        _executionPanels.Advance(showPanels, delta, _decision is not null);
+        _executionPanels.Bind(Turn.Display ?? Session.View);
         UpdateTurnControls();
     }
 
@@ -91,7 +95,7 @@ public partial class StrategyHud
             TurnScreen.Terminal => "本局结束",
             _ => "",
         };
-        _turnStatus.Visible = _turnStatus.Text.Length != 0;
+        _turnStatus.Visible = _turnStatus.Text.Length != 0 && _decision is null && _endingView is null;
         _turnBanner.Visible = Turn.Screen is TurnScreen.Entering or TurnScreen.Returning;
         if (_turnBanner.Visible)
         {

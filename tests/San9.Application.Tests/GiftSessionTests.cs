@@ -91,7 +91,7 @@ public sealed class GiftSessionTests
         var returning = SaveService.Decode(SaveService.Encode(session), content);
         var next = session.AdvanceXun();
         Assert.Equal(CanonicalJson.Text(next.Events), CanonicalJson.Text(returning.AdvanceXun().Events));
-        Assert.Contains(next.Events.OfType<PersonnelReturnedEvent>(), e => e.OfficerId == 12 && e.Clock == new GameClock(190, 1, 14));
+        Assert.Contains(next.Events.OfType<PersonnelReturnedEvent>(), e => e.OfficerId == 12 && e.Clock == new GameClock(190, 1, 13));
         Assert.DoesNotContain(session.Snapshot.Simulation.Tasks, t => t.OfficerId == 12);
         DecisionResponses.DeclineAll(session);
         DecisionResponses.DeclineAll(returning);

@@ -5,7 +5,7 @@ namespace San9.Content.Interface;
 public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dictionary<string,string> Roles, Dictionary<string,string> Colors,
     Dictionary<string, CursorDefinition> Cursors)
 {
-    public const int CurrentSchemaVersion = 41;
+    public const int CurrentSchemaVersion = 43;
     [System.Text.Json.Serialization.JsonRequired]
     public Dictionary<int, TargetMarkerOffset> BuildingTargetOffsets { get; init; } = [];
     private static readonly string[] BaseUiAssets = ["narration-portrait-frame", "narration-middle", "narration-right", "narration-affiliation",
@@ -16,7 +16,7 @@ public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dicti
         "scroll-thumb-top", "scroll-thumb-middle", "scroll-thumb-bottom", "button-scroll-up", "button-scroll-down",
         "field-left", "field-middle", "field-right", "ruler-frame", "region-frame",
         "message-left", "message-middle", "message-right", "button-pause", "turn-progress-frame", "turn-progress-fill",
-        "turn-record-panel", "turn-command-panel",
+        "turn-record-panel", "turn-command-panel", "turn-command-remaining-frame", "turn-command-remaining-fill",
         "roster-row-left", "roster-row-middle", "roster-row-right",
         "bar-morale-frame", "bar-morale-normal", "bar-morale-warning", "bar-morale-critical",
         "bar-durability-frame", "bar-durability-normal", "bar-durability-warning", "bar-durability-critical",
@@ -51,6 +51,8 @@ public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dicti
         .Concat(new[] { "strategy", "execution" }.SelectMany(p => Enumerable.Range(0, 4).Select(f => $"turn-title-{p}-{f}")))
         .Concat(new[] { "yes", "no" }.SelectMany(p => Enumerable.Range(0, 4).Select(f => $"dialog-{p}-{f}")))
         .Append("dialog-frame").Concat(SaveLoadSkin.RequiredRoles)
+        .Concat(new[] { "top-left", "top", "top-right", "left", "right", "bottom-left", "bottom", "bottom-right" }.Select(p => "narration-image-frame-" + p))
+        .Concat(new[]{"left","middle","right"}.SelectMany(p=>Enumerable.Range(0,4).Select(f=>"decision-choice-"+p+(f==0 ? "" : "-"+f))))
         .Concat(Enumerable.Range(0, 5).Select(f => "minimap-command-pulse" + (f == 0 ? "" : $"-{f}")))
         .Concat(new[] { "arrow-up-right", "arrow-down-right", "crossed-arrows", "empty-square", "question", "turn-arrow", "book", "waves", "circle" }
             .SelectMany(id => new[] { $"text-icon-{id}-16", $"text-icon-{id}-24" })).Append("text-icon-city-16").ToArray());

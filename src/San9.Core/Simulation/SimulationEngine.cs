@@ -354,7 +354,12 @@ public sealed class SimulationEngine
             (world.Clock.Month - 1) / 3, SearchEventResources.Account(world, task),
             d is CommemorationSearchEventDefinition memorial ? CommunitySearch.Site(task, memorial)?.RequiredTreasureId : null,
             d is TrainingSiteSearchEventDefinition training ? CommunitySearch.Site(task, training)?.Category : null,
-            CommunitySearch.Options(world, task, d));
+            CommunitySearch.Options(world, task, d))
+        {
+            OfferedSoldiers = d is CivicSearchEventDefinition { Activity: CivicSearchKind.Volunteers } volunteers
+                ? CommunitySearch.VolunteerSoldiers(world, task, volunteers) : 0,
+            OfferedMoney = d is CivicSearchEventDefinition civic ? civic.BaseMoneyReward : 0
+        };
     }
 
     public SearchConflictPrompt? GetSearchConflictPrompt()

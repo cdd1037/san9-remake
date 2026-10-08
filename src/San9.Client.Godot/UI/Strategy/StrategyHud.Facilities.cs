@@ -35,7 +35,7 @@ public partial class StrategyHud
         var sequence = FacilityCommandPresentation.Create(before,messages,CommandPresentation,view.Draft.Kind,completed,Random.Shared.Next);
         CloseFacilityCommand();
         _narration = new() { Messages = sequence, View = before, Texts = Texts, Service = Textures, Textures = _textures,
-            ContentRoot = ContentRoot, Sounds = CommandPresentation.Sounds, SoundEnabled = SoundEnabled, Closed = CloseNarration };
+            ContentRoot = ContentRoot, Sounds = CommandPresentation.Sounds, SoundEnabled = SoundEnabled, MessagePresented=m=>_executionPanels.Append(m.Message), Closed = CloseNarration };
         OverlayHost.AddChild(_narration);
     }
 }

@@ -4,7 +4,7 @@ using San9.Core.Simulation;
 
 namespace San9.Client.Godot;
 
-public enum TurnScreen { Strategy, Confirmation, Entering, Preparing, Playing, Returning, AwaitingDecision, Terminal, Failed }
+public enum TurnScreen { Strategy, Confirmation, Entering, Preparing, Playing, Returning, AwaitingDecision, Presenting, Terminal, Failed }
 
 /// <summary>The owner thread presents one committed step; isolated workers calculate the next.</summary>
 public sealed class TurnPresentation(GameSession session)
@@ -18,6 +18,9 @@ public sealed class TurnPresentation(GameSession session)
     public Func<StrategySnapshot, StrategySnapshot, IReadOnlyList<DomainEvent>, TurnDayPresentation> CreateDay { get; init; } =
         (before, after, events) => new(before, after, events);
     public Func<bool>? CanPlayDay { get; set; }
+    public Func<bool>? CanContinue { get; set; }
+    public SessionResult? LastResult { get; private set; }
+    public long Publication { get; private set; }
     public bool Paused { get; private set; }
     public bool IsComputing => _pending is { IsCompleted: false };
     public double Progress { get; private set; }
@@ -83,8 +86,20 @@ public sealed class TurnPresentation(GameSession session)
         return true;
     }
 
+    public bool SelectEnding(EndingOperation operation)
+    {
+        if (Screen!=TurnScreen.Terminal || _pending is not null || session.Ending is not null) return false;
+        Start(operation); return true;
+    }
+
     public void Update(double seconds)
     {
+        if (Screen==TurnScreen.Terminal && _pending is not null) { Publish(); return; }
+        if (Screen == TurnScreen.Presenting)
+        {
+            if (CanContinue?.Invoke() != false) Continue();
+            return;
+        }
         if (Screen == TurnScreen.Strategy)
         {
             if (session.Snapshot.Simulation.Boundary == SimulationBoundary.Terminal) Screen = TurnScreen.Terminal;
@@ -169,6 +184,8 @@ public sealed class TurnPresentation(GameSession session)
             if (result.Disposition != SessionDisposition.Accepted)
                 throw new InvalidOperationException(result.Rejection.ToString());
             Display = session.View;
+            LastResult = result;
+            Publication++;
             Progress = Math.Clamp((Display.World.Clock.DayNumber - _startedDay) / 10.0, 0, 1);
             return true;
         }
@@ -184,6 +201,7 @@ public sealed class TurnPresentation(GameSession session)
 
     private void Continue()
     {
+        if (CanContinue?.Invoke() == false) { Screen = TurnScreen.Presenting; return; }
         var state = session.Snapshot.Simulation;
         if (state.Boundary == SimulationBoundary.Terminal) { Screen = TurnScreen.Terminal; return; }
         if (state.Boundary == SimulationBoundary.AwaitingDecision) { Screen = TurnScreen.AwaitingDecision; return; }

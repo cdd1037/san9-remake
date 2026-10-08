@@ -6,9 +6,11 @@
 
 2026-09-27命令来源光圈：皮肤33／纹理转换26增加五帧`minimap-command-pulse`语义资源（首帧无后缀，其余为`-1..-4`），逐色透明度保留。客户端以当前命令菜单对象定位，兼用于城市、其他设施和部队；出征后续页面保留来源，整项结束清除。依据[RE-0158](../research/findings/RE-SAN9PK-0158.md#小地图命令来源光圈补证2026-09-27)。本地纹理及190年组合包已原位重转，五帧均32×36、首帧全透明，29064逻辑图片／5262物理文件完整校验通过。解决方案各测试项目合计3867项通过；未启动游戏，菜单开关、对象切换及后续命令页面往返的实际画面待用户验收。
 
-现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 129，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 156，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 41，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 37。规则为 `san9-core-g10-v84`，保存99／日志103／录像9；协议以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 为准。
+现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 129，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 157，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 43，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 37。规则为 `san9-core-g10-v85`，保存99／日志103／录像9；协议以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 为准。
 
 旧内容包按现行契约原位重转，旧规则存档、日志和录像拒绝加载。是否重转纹理取决于纹理转换版本与源输入。历史验收只证明对应基线，不代表当前版本重新验证；阶段收口见[G10 验收](g10-verification.md#2026-09-21阶段收口)。
+
+返程日内阶段与改道计时修正升级规则为v85，保存／日志结构不变；旧规则的存档、日志和录像不能用于新规则续算。
 
 开局初始化见[开局专项](scenario-startup.md)，军事状态与命令见[移动规格](../specs/behavior/BEH-WAR-0001-movement-and-command-lifecycle.md)。
 
@@ -18,9 +20,9 @@
 | --- | --- | --- |
 | Content.Maps / MapImporter | 当前地图方格、地貌及对象位置 | `map.json`（无图片文件） |
 | Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema129 |
-| Content.Text / ScenarioTextReader / PublicationMessageCatalog | 静态词条与保留原序号、按明确区段分文件的全量消息目录 | `text.json` / `messages/*.json`，文本schema6、剧本包schema156 |
-| Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema41 |
-| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema156 |
+| Content.Text / ScenarioTextReader / PublicationMessageCatalog | 静态词条与保留原序号、按明确区段分文件的全量消息目录 | `text.json` / `messages/*.json`，文本schema6、剧本包schema157 |
+| Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema43 |
+| Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema157 |
 | Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema5／转换版本37 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 
@@ -294,9 +296,9 @@ TC101完整保留41项兵法和28项阵形的展示元数据，名称与说明�
 
 命令菜单的底部短提示由 `CommandMenuSources.Hint` 指定原版消息号，经既有文本转换写入 `ui.command-hint.*`；45项均与同包消息目录正文逐项核对一致，无手写替代文案。`ui.command.*` 继续用于多行条件卡。此处接入命令用途提示，动态不可用原因仍随各命令资格接入，不把静态提示当作可执行判定。
 
-## 执行面空面板
+## 进行面消息与任务面板
 
-皮肤schema37新增`turn-record-panel`与`turn-command-panel`，分别导入G_Main59／调色板12、G_Main61／调色板13，保留逐色Alpha；剧本包包含四个`ui.execution-panel.*`原始表头词条。先执行`import-textures --rebuild skin`，再执行`import-client`。客户端仅展示空消息区与空命令表，消息行、命令行和交互尚未接入。
+皮肤schema37新增`turn-record-panel`与`turn-command-panel`，分别导入G_Main59／调色板12、G_Main61／调色板13，保留逐色Alpha；剧本包包含四个`ui.execution-panel.*`原始表头词条。先执行`import-textures --rebuild skin`，再执行`import-client`。客户端现在保留已展示的待答、巡察、设施及任免消息，左下显示最近十条；修习完成由本次已发布事件生成。右下读取玩家当前任务，最多五行，超过本旬显示“-------”，本旬内显示原作剩余日数条。记录求值一次，不因重绘重新随机；完整日结广播和历史浏览交互尚未全量映射。
 
 ## 存读档界面皮肤
 
@@ -307,3 +309,15 @@ TC101完整保留41项兵法和28项阵形的展示元数据，名称与说明�
 工作物选择页采用组合包schema156，补齐 `catalog-facility-*` 插图角色和工作物特性／选择提示词条。插图复用已转换的G_Still图库，原位运行 `import-client` 即可，无须重转纹理。列表费用为定义基础费用，建设准备页仍显示按营造人数计算的实际费用。
 
 建设／输送地图标识采用皮肤41的 `icon-construction`／`icon-transport` 角色，完整纹理转换版本37。现有包已先定向重建皮肤，再原位更新190年组合包；选择性重建保留原有全包转换版本。输送卸兵后的人员归还使规则升级为v84，保存99／日志103结构不变。
+
+## 待答事件、终局与媒体接口（2026-10-07）
+
+组合包157新增 `presentation.decisions`：窗口族、语义选项、消息键与角色绑定、前置／结果序列、选择／取消确认、NPC与类别词汇。来源编号和文件偏移仅由版本Importer持有，运行客户端不读取EXE／S9／IDA。`DecisionDraft`只读取当前待答；控制者取受询势力当前玩家席位，不能固定为初始玩家或事件发起方。费用、候选、报价和实际结果取领域查询／已提交事件；祢衡“无视”对应不尝试处斩，山阳公保护与国号第二步分别展示，未提交前不宣告奖励。
+
+24类玩法Prompt逐一接入，8项社区搜索和7项冲突分别绑定；三种继任复用同一目录。现有契约为36个事件表现定义（含山阳公国号第二步）；结局独立于玩法待答。横向确认、人物资料与目录、数值键盘继续复用；纵向选择使用G_Common386..388的32px高四态素材、40px纵向步距。外交报价／接受按IDA确认的四组矩形显示条件、实际资金及交换候选，联盟先确认参与及影响，再展示实际成立／失败。
+
+皮肤43包含选择、事件插图、19个结局图角色、红色大图消息框八块素材及剩余时间条（G_Common390/palette51、G_Main63/palette14）。大图消息框使用G_Common426..433／palette57，按原生边角及平铺边组装，与正文共用居中布局；不得复用纸纹正文框包围插图。已有运行包须先`import-textures --rebuild skin`再`import-client`，190年包已原位更新。结局排除君主及已选者，取消只退回上一人；确认四人和方针后提交一次EndingOperation，分段叙事读取实际结果与冻结胜利快照，世界日期不推进。结束后可开始同剧本新游戏或退出；完整原作标题页不在本次范围。外交专用场景的分层、结局地图滚动／遮幅／淡入节拍没有逐帧复刻，目前复用保留消息／图片呈现。
+
+`ISceneMedia`只接受语义BGM与影片请求及取消令牌；默认SilentSceneMedia立即完成，不加载或播放BGM、影片。SE实际导入并按消息播放，受已有音效设置控制。新增SE_G009与SE_C004从同一私有原版安装补齐后转换；原版文件及转换包均不提交。
+
+当前190年运行包已原位重建skin并更新import-client，全包纹理转换仍为37。实际包检查341次消息引用生成无缺失参数，解码核验52个新消息／选择／时间条图角色，静态查看开场图和四态选择按钮；该检查不是运行画面或试听验收。审核后默认解决方案各项目合计4139项通过（Application修复所属部队过滤后单独复验881项，其余项目复用本轮全量结果），Headless进程测试17项通过。主要交互验证包括只读预览、商人／社区／冲突各选项的真实命令提交、山阳公两步提交、结局退选和呈现期间禁止后台续行。未启动Godot进行实际画面与声音验收。

@@ -10,7 +10,7 @@ namespace San9.Application.Tests;
 
 public sealed class ShanyangGongSessionTests
 {
-    private static ScenarioInitialState Definition() => new(ScenarioInitialState.CurrentSchemaVersion, "shanyang", 230, 2, 1, 1,
+    internal static ScenarioInitialState Definition() => new(ScenarioInitialState.CurrentSchemaVersion, "shanyang", 230, 2, 1, 1,
         [new(1, "force.1", 1, 700) { LeaderId = 11, RankId = 7, BaseTrust = 700 },
          new(2, "force.2", 2, 100) { LeaderId = 21, RankId = 7, BaseTrust = 100 }],
         Enumerable.Range(1, 3).Select(id => new SettlementInitialState(id, $"city.{id}", id < 3 ? 1 : 2, id, 0, 100, 100, 100, 50, [])

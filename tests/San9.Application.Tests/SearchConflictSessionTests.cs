@@ -21,7 +21,7 @@ public sealed class SearchConflictSessionTests
         "mediation" => new BanditMediationSearchEventDefinition([new(1, 4)], [4], 50, 60000, 15, 25, 1000),
         _ => throw new ArgumentException()
     }) with { Id = kind, ChanceAbility = ConflictChanceAbility.Politics, ChanceDivisor = 1 };
-    private static ScenarioInitialState Definition(string kind) => new(ScenarioInitialState.CurrentSchemaVersion, "conflicts", 190, 4, 1, 1,
+    internal static ScenarioInitialState Definition(string kind) => new(ScenarioInitialState.CurrentSchemaVersion, "conflicts", 190, 4, 1, 1,
         [new(1, "force", 1, 100) { LeaderId = 1, BaseTrust = 100 }],
         [new(1, "home", 1, 0, 0, 0, 100, 100, 0, [])], new() { [1] = "home" }, new() { [1] = 1 })
     {

@@ -20,6 +20,8 @@ public sealed record OfficePresentationDefinition(string Result, string Demotion
 public sealed record CommandPresentation(Dictionary<string, string> Sounds, PatrolPresentationDefinition? Patrol)
 {
     [System.Text.Json.Serialization.JsonRequired]
+    public DecisionPresentations Decisions { get; init; } = DecisionPresentations.Empty;
+    [System.Text.Json.Serialization.JsonRequired]
     public Dictionary<string, FacilityPresentationDefinition> Facilities { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired]
     public Dictionary<string, string> Notices { get; init; } = [];
@@ -44,6 +46,7 @@ public sealed record CommandPresentation(Dictionary<string, string> Sounds, Patr
     public void Validate(TextCatalog texts, IEnumerable<int> people, IEnumerable<int> settlements)
     {
         var personIds = people.ToHashSet();
+        Decisions.Validate(texts, Sounds, personIds);
         if (Offices is { } offices)
         {
             if (!texts.Messages.ContainsKey(offices.Result) || !texts.Messages.ContainsKey(offices.DemotionNotice))

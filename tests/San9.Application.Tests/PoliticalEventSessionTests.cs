@@ -11,7 +11,7 @@ namespace San9.Application.Tests;
 
 public sealed class PoliticalEventSessionTests
 {
-    private static ScenarioInitialState Scenario(bool ended = false) => new(ScenarioInitialState.CurrentSchemaVersion, "politics", 190, 3, 1, 1,
+    internal static ScenarioInitialState Scenario(bool ended = false) => new(ScenarioInitialState.CurrentSchemaVersion, "politics", 190, 3, 1, 1,
         [new(1, "force.1", 1, 1000) { BaseTrust = ended ? 1000 : 900, LeaderId = 1, RankId = 5, FlagGlyph = 10 },
          new(2, "force.2", 2, 100) { BaseTrust = 100, LeaderId = 2, RankId = 700, CountryTitleId = 900 }],
         [new(1, "city.1", 1, 0, 0, 100, 100, 100, 50, []) { Kind = SettlementKind.City, ConsumesFood = false },

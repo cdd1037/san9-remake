@@ -44,6 +44,13 @@ public sealed class WorldMessageContext
         return new(key, _world.Clock, new MessageEvaluator(_texts.Messages).Evaluate(key, context));
     }
 
+    public WorldMessageContext PreviewCountryTitle(int forceId,int titleId)
+    {
+        if (!_definition.Information.CountryTitles.Any(t=>t.Id==titleId) || !_forces.ContainsKey(forceId))
+            throw new ArgumentException("Unknown country title preview.");
+        return new(_definition,_world with { Forces=_world.Forces.Select(f=>f.Id==forceId ? f with { CountryTitleId=titleId } : f).ToArray() },_texts);
+    }
+
     public MessageBinding Query(string name, IReadOnlyList<MessageBinding> args)
     {
         int Id(int index, MessageEntityKind kind)
@@ -160,8 +167,8 @@ public sealed class WorldMessageContext
         }
         return name switch
         {
-            "settlement.name" => Text(PlaceName(Id(0, MessageEntityKind.Settlement))),
-            "settlement.base-name" => Text(BasePlaceName(Id(0, MessageEntityKind.Settlement))),
+            "settlement.name" => Text(args[0].Entity?.Kind==MessageEntityKind.Region ? _texts.Resolve(_definition.RegionNameKeys[Id(0,MessageEntityKind.Region)]) : PlaceName(Id(0, MessageEntityKind.Settlement))),
+            "settlement.base-name" => Text(args[0].Entity?.Kind==MessageEntityKind.Region ? _texts.Resolve(_definition.RegionNameKeys[Id(0,MessageEntityKind.Region)]) : BasePlaceName(Id(0, MessageEntityKind.Settlement))),
             "settlement.owner-name" => Text(_places[Id(0, MessageEntityKind.Settlement)].OwnerId is int owner ?
                 _texts.Resolve(_view.Value.Forces.Single(f => f.Id == owner).NameKey) : ""),
             "settlement.type-name" => Text(SettlementType(Id(0, MessageEntityKind.Settlement))),

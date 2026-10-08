@@ -27,7 +27,9 @@ internal static class PersonnelReturns
             world.Clock, world.Clock, 0, sequence);
         world.SetSimulation(world.Simulation with { NextSequence = checked(sequence + 1) });
         var route = new PersonnelRoute(unit.Position, military.Place(home).Position, false);
-        Schedule(world, cause, personId, arrivalId, home.Id, route.Days, true, events, route, true, home.CorpsId);
+        // Military map updates run after the date advances. The displayed date's
+        // daily commands have not run yet, so they must consume the first return day.
+        Schedule(world, cause, personId, arrivalId, home.Id, route.Days, world.CurrentDateCommandsConsumed, events, route, true, home.CorpsId);
     }
 
     internal static void FromField(WorldMutation world, int personId, WorldPosition origin, SimulationRules rules,
@@ -104,7 +106,7 @@ internal static class PersonnelReturns
             int outbound = previous.Journey.ReturnLeg?.CountdownDays ?? (roundedOutbound
                 ? previous.Journey.Route.XunRoundedDays : previous.Journey.Route.Days);
             int remaining = Math.Max(0, outbound -
-                previous.ProgressDays - (afterDailyCommands ? 1 : 0));
+                PersonnelJourneyTiming.ElapsedDays(previous, world.Clock, afterDailyCommands));
             if (roundedOutbound)
             {
                 int rounded = Math.Max(10, (days + 9) / 10 * 10);

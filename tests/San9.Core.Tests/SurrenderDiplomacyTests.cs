@@ -8,7 +8,7 @@ namespace San9.Core.Tests;
 public sealed class SurrenderDiplomacyTests
 {
     [Fact]
-    public void SurrenderReturnsForeignEnvoyAfterDailyCommandsAcrossRestore()
+    public void SurrenderReturnsForeignEnvoyBeforeCurrentDatesCommandsAcrossRestore()
     {
         var rules = new SimulationRules
         {
@@ -31,10 +31,10 @@ public sealed class SurrenderDiplomacyTests
         Assert.Equal(CanonicalJson.Text(events), CanonicalJson.Text(restored.Execute(new("second"), answer).Events));
         Assert.Single(events.OfType<ForceSurrenderedEvent>());
         var returning = Assert.Single(engine.Snapshot.Simulation.Tasks.Where(t => t.OfficerId == 31));
-        Assert.True(returning.Journey!.ReturnLeg!.AfterDailyCommands);
+        Assert.False(returning.Journey!.ReturnLeg!.AfterDailyCommands);
         Assert.True(returning.Journey.ReturnLeg.DiplomaticEnvoy);
-        Assert.Equal(11, returning.Journey.ReturnLeg.CountdownDays);
-        Assert.Equal(new GameClock(190, 1, 22), returning.Due);
+        Assert.Equal(10, returning.Journey.ReturnLeg.CountdownDays);
+        Assert.Equal(new GameClock(190, 1, 20), returning.Due);
         restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()), rules);
         List<DomainEvent> completion = [];
         for (int i = 0; i < 2; i++)
@@ -45,7 +45,7 @@ public sealed class SurrenderDiplomacyTests
             Assert.Equal(CanonicalJson.Text(next), CanonicalJson.Text(restored.AdvanceXun().Events));
             completion.AddRange(next);
         }
-        Assert.Equal(new GameClock(190, 1, 22), Assert.Single(completion.OfType<PersonnelReturnedEvent>(), e => e.OfficerId == 31).Clock);
+        Assert.Equal(new GameClock(190, 1, 20), Assert.Single(completion.OfType<PersonnelReturnedEvent>(), e => e.OfficerId == 31).Clock);
         Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
     }
 

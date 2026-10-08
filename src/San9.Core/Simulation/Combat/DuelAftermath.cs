@@ -40,7 +40,7 @@ internal static class DuelAftermath
         {
             if (successorId is not int successor || !Successors(world, ruler).Contains(successor))
                 throw new ArgumentException("Invalid duel successor.", nameof(successorId));
-            OfficerDeath.Resolve(world, ruler, OfficerDeathCause.Duel, rules, events, afterDailyCommands: true, successorId: successor);
+            OfficerDeath.Resolve(world, ruler, OfficerDeathCause.Duel, rules, events, afterDailyCommands: world.CurrentDateCommandsConsumed, successorId: successor);
         }
         else if (successorId is not null) throw new ArgumentException("No duel succession is pending.", nameof(successorId));
 
@@ -65,7 +65,7 @@ internal static class DuelAftermath
                 events.Add(new DuelSuccessionRequestedEvent(world.Clock, id, owner));
                 return new(outcome, i + 1, id);
             }
-            OfficerDeath.Resolve(world, id, OfficerDeathCause.Duel, rules, events, afterDailyCommands: true);
+            OfficerDeath.Resolve(world, id, OfficerDeathCause.Duel, rules, events, afterDailyCommands: world.CurrentDateCommandsConsumed);
         }
         if (rules.Military!.DuelCapturesAllowed && world.Units.TryGetValue(outcome.WinningUnitId, out var winner) && !world.Forces[winner.OwnerId].IsBarbarian)
         {

@@ -105,6 +105,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         ImmutableArray<Guid>? remainingTasks = null)
     {
         if (remainingTasks is null && !Run(ResolutionStage.BeforeDailyCommands, world, events)) return;
+        world.CurrentDateCommandsConsumed = true;
         ResolveTasks(world, events, xunStarted, remainingTasks: remainingTasks);
         if (world.Simulation.PendingDailyTask is not null) return;
         if (!CheckTerminal(world, events) || !Run(ResolutionStage.DailyCommands, world, events)) return;
@@ -275,6 +276,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
     internal void Respond(WorldMutation world, RespondDailyTaskCommand response, List<DomainEvent> events)
     {
         var pending = world.Simulation.PendingDailyTask!;
+        world.CurrentDateCommandsConsumed = pending.Phase == TaskResolutionPhase.DailyCommands;
         var task = world.Simulation.Tasks.Single(t => t.Id == pending.RemainingTaskIds[0]);
         var rule = rules.FindTask(task.Kind)!;
         world.SetSimulation(world.Simulation with { PendingDailyTask = null, Boundary = SimulationBoundary.Stable });

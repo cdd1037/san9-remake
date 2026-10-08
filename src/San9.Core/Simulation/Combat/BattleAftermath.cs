@@ -27,7 +27,7 @@ internal static class BattleAftermath
             world.Settlements.GetValueOrDefault(home)?.Kind == SettlementKind.City ? home : rules.Personnel.RegionCities.GetValueOrDefault(home, -1) : null;
         if (city is int cityId && (!world.Settlements.TryGetValue(cityId, out var s) || s.Kind != SettlementKind.City)) city = null;
         UnitTerminationService.Complete(world, id, winner, city, rules.Governance, events, repairCorps: false);
-        if (victorForce is int victorId) EliminateIfDefeated(world, unit.OwnerId, rules, events, true, victorId);
+        if (victorForce is int victorId) EliminateIfDefeated(world, unit.OwnerId, rules, events, world.CurrentDateCommandsConsumed, victorId);
     }
 
     internal static void ResolveSettlementDefeat(WorldMutation world, int id, BattleSource winner, SimulationRules rules, List<DomainEvent> events)
@@ -43,7 +43,7 @@ internal static class BattleAftermath
         var captures = ids.Select(id => (Id: id, Units: CaptureUnits(world, id, winner, rules.Military!))).ToArray();
         foreach (var capture in captures)
             CaptureSettlement(world, capture.Id, winner, capture.Units, rules, events);
-        foreach (int owner in previousOwners) EliminateIfDefeated(world, owner, rules, events, true, victor);
+        foreach (int owner in previousOwners) EliminateIfDefeated(world, owner, rules, events, world.CurrentDateCommandsConsumed, victor);
         foreach (var capture in captures.Where(c => !world.Settlements[c.Id].IsDestroyed))
             foreach (int unitId in capture.Units)
                 if (world.Units.TryGetValue(unitId, out var unit))
@@ -147,7 +147,7 @@ internal static class BattleAftermath
             }
             else
             {
-                PersonnelTransitions.CancelMissions(world, original.Id, "battle-location-lost", events, rules.Personnel, true);
+                PersonnelTransitions.CancelMissions(world, original.Id, "battle-location-lost", events, rules.Personnel, world.CurrentDateCommandsConsumed);
                 var person = world.Officers[original.Id];
                 if (winner is { } recipient)
                 {

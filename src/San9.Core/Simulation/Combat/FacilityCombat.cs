@@ -69,7 +69,7 @@ internal static class FacilityCombat
                 TacticCombat.TryUnit(world, target.Id, new(MilitaryOrderKind.AttackSettlement, null, id), rules, events, true);
                 if (world.Simulation.PendingSniping is not null && SnipingSuccession.CaptureExchange(world, CaptureExchange(false))) return;
             }
-            BattleAftermath.Reconcile(world, new HashSet<int> { settlement.OwnerId!.Value, target.OwnerId }, rules, events, true);
+            BattleAftermath.Reconcile(world, new HashSet<int> { settlement.OwnerId!.Value, target.OwnerId }, rules, events, world.CurrentDateCommandsConsumed);
             ResolutionPipeline.CheckConquest(world, events);
         }
     }

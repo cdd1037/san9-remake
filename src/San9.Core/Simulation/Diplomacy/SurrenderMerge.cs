@@ -14,7 +14,7 @@ internal static class SurrenderMerge
     {
         int recipient = cause.ForceId;
         int? root = world.Corps.Values.Where(c => c.OwnerId == recipient && c.IsRoot).Select(c => (int?)c.Id).SingleOrDefault();
-        ForceTransfer.CancelTasks(world, force, rules, "force-surrendered", events, true);
+        ForceTransfer.CancelTasks(world, force, rules, "force-surrendered", events, world.CurrentDateCommandsConsumed);
         var oldUnits = world.Units.Values.Where(u => u.OwnerId == force).OrderBy(u => u.Id).ToArray();
         int Place(OfficerState person) => person.SettlementId ?? (person.UnitId is int unit &&
             rules.Military?.RegionAt(world.Units[unit].Position) is int region ? region :
@@ -26,12 +26,12 @@ internal static class SurrenderMerge
         foreach (var person in people)
         {
             if (!joined.Contains(person.Id))
-                PersonnelTransitions.CancelMissions(world, person.Id, "force-surrendered", events, rules.Personnel, true);
+                PersonnelTransitions.CancelMissions(world, person.Id, "force-surrendered", events, rules.Personnel, world.CurrentDateCommandsConsumed);
             if (joined.Contains(person.Id))
             {
                 int loyalty = 75 + (50 - PersonnelRulebook.AffinityDistance(person, world.Officers[world.Forces[recipient].LeaderId!.Value])) / 2;
                 PersonnelTransitions.TransferAllegiance(world, person.Id, recipient, loyalty, Place(person),
-                    "force-surrendered", rules.Personnel, events);
+                    "force-surrendered", rules.Personnel, events, world.CurrentDateCommandsConsumed);
             }
             else if (person.Status == OfficerStatus.Captive)
             {

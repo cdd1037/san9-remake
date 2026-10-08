@@ -49,7 +49,7 @@ internal static class PrisonerRelease
             PrisonerDepartureKind.Displaced => "prisoner-displaced",
             _ => throw new ArgumentOutOfRangeException(nameof(departure))
         };
-        PersonnelTransitions.CancelMissions(world, personId, reason, events, places, false);
+        PersonnelTransitions.CancelMissions(world, personId, reason, events, places, world.CurrentDateCommandsConsumed);
         if (departure == PrisonerDepartureKind.Released && releasingCaptor is int captor)
             RecruitmentRules.SetLoyalty(world, personId, captor,
                 Math.Clamp(person.LoyaltyTo(captor) + person.Righteousness / 5, 0, 255), "prisoner-released", events);
@@ -67,7 +67,7 @@ internal static class PrisonerRelease
                 person.OwnerId.Value, personId, origin, world.Clock, world.Clock, 0, sequence);
             var route = new PersonnelRoute(position, PersonnelLocations.Position(world, places, home.Id), false);
             PersonnelReturns.Schedule(world, previous, personId, origin, home.Id,
-                route.Days, false, events, route, originPosition is not null);
+                route.Days, world.CurrentDateCommandsConsumed, events, route, originPosition is not null);
         }
         events.Add(departure switch
         {

@@ -45,13 +45,13 @@ internal static class BattlePersonnel
         bool dead = person.OwnerId is int owner && world.Forces[owner].IsBarbarian;
         if (dead)
         {
-            OfficerDeath.Remove(world, officerId, OfficerDeathCause.NoRetreat, places, events, true);
+            OfficerDeath.Remove(world, officerId, OfficerDeathCause.NoRetreat, places, events, world.CurrentDateCommandsConsumed);
             OfficerDeath.SettleTreasures(world, officerId, null, events);
             return;
         }
         var candidates = originPlace is int place ? PersonnelRelocation.Destinations(world, place, places) : [];
         int? destination = candidates.Length == 0 ? null : candidates[world.NextRandom("battle-personnel-placement") % (ulong)candidates.Length];
-        PersonnelTransitions.CancelMissions(world, officerId, "battle-no-return-home", events, places, true);
+        PersonnelTransitions.CancelMissions(world, officerId, "battle-no-return-home", events, places, world.CurrentDateCommandsConsumed);
         if (destination is not null && person.OwnerId is int previousOwner)
             RecruitmentRules.SetLoyalty(world, officerId, previousOwner, Math.Min(45, person.LoyaltyTo(previousOwner)), "battle-displacement", events);
         // An empty geographic pool has no random destination. Retain the last geographic location
@@ -69,7 +69,7 @@ internal static class BattlePersonnel
         int? corps = PersonnelLocations.Corps(world, person);
         if (!world.Settlements.TryGetValue(destination, out var home) || home.OwnerId != person.OwnerId ||
             home.IsDestroyed || !home.CanHostPersons || home.Durability == 0) throw new ArgumentException("Invalid escape destination.");
-        PersonnelTransitions.CancelMissions(world, officerId, "person-escaped-battle", events, places, true);
+        PersonnelTransitions.CancelMissions(world, officerId, "person-escaped-battle", events, places, world.CurrentDateCommandsConsumed);
         world.Replace(world.Officers[officerId] with { UnitId = null, SettlementId = destination, RegionId = null,
             Status = person.Status == OfficerStatus.Captive
                 ? world.Forces[person.OwnerId!.Value].LeaderId == person.Id ? OfficerStatus.Ruler : OfficerStatus.Serving
@@ -80,7 +80,8 @@ internal static class BattlePersonnel
             person.OwnerId!.Value, officerId, destination, world.Clock, world.Clock, 0, world.Simulation.NextSequence);
         world.SetSimulation(world.Simulation with { NextSequence = checked(world.Simulation.NextSequence + 1) });
         PersonnelReturns.Schedule(world, cause, officerId, destination, destination,
-            BattleRetreat.Days(origin, military.Place(home).Position), true, events, new(origin, military.Place(home).Position, false), true, corps);
+            BattleRetreat.Days(origin, military.Place(home).Position), world.CurrentDateCommandsConsumed, events,
+            new(origin, military.Place(home).Position, false), true, corps);
         events.Add(new OfficerEscapedBattleEvent(world.Clock, officerId, person.UnitId, destination));
     }
 
@@ -88,7 +89,7 @@ internal static class BattlePersonnel
     {
         if (task.Journey?.ReturnLeg?.FieldTravel != true)
         {
-            PersonnelReturns.Start(world, task, rules.Personnel, events, true);
+            PersonnelReturns.Start(world, task, rules.Personnel, events, world.CurrentDateCommandsConsumed);
             return;
         }
         var person = world.Officers[task.OfficerId];
@@ -107,9 +108,11 @@ internal static class BattlePersonnel
             return;
         }
         int days = BattleRetreat.Days(origin, rules.Military!.Place(home).Position);
-        int remaining = Math.Max(0, task.Journey.ReturnLeg.CountdownDays - task.ProgressDays - 1);
+        int remaining = Math.Max(0, task.Journey.ReturnLeg.CountdownDays -
+            PersonnelJourneyTiming.ElapsedDays(task, world.Clock, world.CurrentDateCommandsConsumed));
         if (days >= remaining) days -= remaining;
-        PersonnelReturns.Schedule(world, task, person.Id, task.Journey.DestinationPlaceId, home.Id, days, true, events,
+        PersonnelReturns.Schedule(world, task, person.Id, task.Journey.DestinationPlaceId, home.Id, days,
+            world.CurrentDateCommandsConsumed, events,
             new(origin, rules.Military.Place(home).Position, false), true,
             task.Journey.ReturnLeg.CorpsId);
     }

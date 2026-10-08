@@ -16,12 +16,8 @@ internal static class OfficerArrival
             : task.Kind == "personnel-search" || task.Gift is not null || task.PrisonerReturn is not null ||
                 task.AttackRequest is not null || task.Surrender is not null ? journey.Route.XunRoundedDays
             : journey.Route.Days;
-        // Returns created after daily commands skip that day's decrement, even though
-        // the subsequent date advance increments their general task progress counter.
-        int elapsed = Math.Max(0, task.ProgressDays - (journey.ReturnLeg?.AfterDailyCommands == true ? 1 : 0));
-        // A decision can expose the world after the current day's pre-command decrement.
-        if (view.World.Simulation.PendingDailyTask is { Phase: TaskResolutionPhase.DailyCommands } &&
-            !(journey.ReturnLeg?.AfterDailyCommands == true && task.Started == view.World.Clock)) elapsed++;
+        int elapsed = PersonnelJourneyTiming.ElapsedDays(task, view.World.Clock,
+            view.World.Simulation.PendingDailyTask is { Phase: TaskResolutionPhase.DailyCommands });
         return Math.Max(0, days - elapsed);
     }
 }

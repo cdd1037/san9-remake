@@ -64,7 +64,7 @@ internal static class PersonnelTransitions
                 ? settlement.OwnerId : null
             : world.Units.TryGetValue(unitId!.Value, out var unit) ? unit.OwnerId : null;
         if (captor is null || captor == person.OwnerId) throw new ArgumentException("Invalid captor.");
-        CancelMissions(world, personId, "person-captured", events, places, true);
+        CancelMissions(world, personId, "person-captured", events, places, world.CurrentDateCommandsConsumed);
         var force = world.Forces[person.OwnerId.Value];
         if (force.AdviserId == personId) world.Replace(force with { AdviserId = null });
         world.Replace(world.Officers[personId] with

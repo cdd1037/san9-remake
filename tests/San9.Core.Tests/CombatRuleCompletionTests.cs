@@ -174,7 +174,7 @@ public sealed class CombatRuleCompletionTests
         Assert.Single(engine.Snapshot.Simulation.Tasks);
         var result = engine.AdvanceXun();
         Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
-        Assert.Single(result.Events.OfType<PersonnelReturnedEvent>());
+        Assert.Equal(new GameClock(190, 1, 14), Assert.Single(result.Events.OfType<PersonnelReturnedEvent>()).Clock);
         Assert.Empty(engine.Snapshot.Simulation.Tasks);
         Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
     }
@@ -196,5 +196,26 @@ public sealed class CombatRuleCompletionTests
         Assert.Empty(m.Simulation.Tasks);
         Assert.Equal(OfficerStatus.Free, m.Officers[11].Status);
         Assert.Null(m.Officers[11].OwnerId);
+    }
+
+    [Fact]
+    public void ReturnRerouteDoesNotCountCreationDateAdvanceAsTravel()
+    {
+        var (world, rules) = Create();
+        var m = world.BeginMutation();
+        m.CurrentDateCommandsConsumed = true;
+        BattlePersonnel.Escape(m, 11, 1, rules.Personnel, [], new(402, 7), rules.Military!);
+        var task = Assert.Single(m.Simulation.Tasks);
+        // Date advancement increments general task age; this return missed that day's tick.
+        m.SetClock(m.Clock.NextDay());
+        m.CurrentDateCommandsConsumed = false;
+        task = task with { ProgressDays = 1 };
+        m.SetSimulation(m.Simulation with { Tasks = [] });
+        m.Replace(m.Settlements[1] with { OwnerId = 2 });
+        BattlePersonnel.ResumeReturn(m, task, rules, []);
+        var rerouted = Assert.Single(m.Simulation.Tasks);
+        Assert.Equal(3, rerouted.OriginSettlementId);
+        Assert.Equal(0, rerouted.Journey!.ReturnLeg!.CountdownDays);
+        Assert.Equal(m.Clock, rerouted.Due);
     }
 }

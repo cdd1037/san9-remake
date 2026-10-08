@@ -185,6 +185,49 @@ public sealed class MilitaryMovementTests
     }
 
     [Theory]
+    [InlineData(30, 1)]
+    [InlineData(31, 2)]
+    [InlineData(115, 4)] // Tong Pass (332,322) to Luoyang (447,322).
+    public void TransportReturnConsumesNextDailyStageWithoutAnExtraWaitingDay(int distance, int days)
+    {
+        var destination = new WorldPosition(332, 322);
+        var home = new WorldPosition(332 + distance, 322);
+        var rules = new MilitaryRulebook(new(100, 80,
+            Enumerable.Repeat(0, 8000).ToImmutableArray(), [new(0, 1, null)],
+            [new(70, 10, 50, 10000, 5, new(1, 1), TravelMode.Land)],
+            [new(1, home, new(1, 1)), new(2, destination, new(1, 1))])
+            { TransportFormations = new(70, null) });
+        var world = WorldState.Create(new(190, 1, 1), 42, [new(1, 100)],
+            [new(1, 1, 1000, 100, 100, 70, 500, 0, 100, 0, 100),
+             new(2, 1, 100, 100, 100, 30, 500, 0, 100, 0, 100)],
+            [new(11, 1, null, new(70, 70, 70, 70), false) { UnitId = 0 }],
+            units: [new(0, 1, destination, 400) { ServicePlaceId = 1, FormationId = 70,
+                Order = new(MilitaryOrderKind.Transport, null, 2) }],
+            corps: [new(1, 1, null, new(10000, 10000)) { IsRoot = true }],
+            controls: [new("player", 1, ControllerKind.Player)]);
+        var engine = Engine(world, rules);
+        engine.EndControl(Player);
+        var arrival = engine.AdvanceDay();
+        Assert.Single(arrival.Events.OfType<UnitAbsorbedEvent>());
+        Assert.Equal(new GameClock(190, 1, 2), engine.Snapshot.Clock);
+        Assert.Equal(days, Assert.Single(engine.Snapshot.Simulation.Tasks).Journey!.ReturnLeg!.CountdownDays);
+        for (int day = 1; day <= days; day++)
+        {
+            var result = engine.AdvanceDay();
+            if (day < days)
+            {
+                Assert.Single(engine.Snapshot.Simulation.Tasks);
+                Assert.Empty(result.Events.OfType<PersonnelReturnedEvent>());
+            }
+            else
+            {
+                Assert.Empty(engine.Snapshot.Simulation.Tasks);
+                Assert.Equal(1, Assert.Single(result.Events.OfType<PersonnelReturnedEvent>()).DestinationId);
+            }
+        }
+    }
+
+    [Theory]
     [InlineData(MilitaryOrderKind.Return)]
     [InlineData(MilitaryOrderKind.Transport)]
     public void DeliveryOrdersRevalidateTargetsAndRejectDuplicateSubmissions(MilitaryOrderKind kind)

@@ -155,6 +155,72 @@ public sealed class DiplomacyTimingTests
         }
     }
 
+    [Theory]
+    [InlineData(30, 1)]
+    [InlineData(31, 2)]
+    [InlineData(90, 3)]
+    [InlineData(300, 10)]
+    public void BoundaryDiplomacyReturnConsumesTheNewDatesFirstDailyStage(int distance, int days)
+    {
+        var world = World(new(190, 1, 1));
+        var mutation = world.BeginMutation();
+        mutation.SetSimulation(mutation.Simulation with { Controls = mutation.Simulation.Controls
+            .Select(c => c.ForceId == 2 ? c with { Kind = ControllerKind.Automatic } : c).ToImmutableArray() });
+        world.Commit(mutation);
+        var rules = Rules(distance);
+        var engine = new SimulationEngine(world, rules);
+        Assert.True(engine.Execute(new("first"), Command(0)).Submission.Accepted);
+        Advance(engine);
+        var returning = Assert.Single(engine.Snapshot.Simulation.Tasks);
+        Assert.Equal(new GameClock(190, 1, 11), returning.Started);
+        Assert.Equal(days, returning.Journey!.ReturnLeg!.CountdownDays);
+        var expectedDate = new GameClock(190, 1, 10 + days);
+        Assert.Equal(expectedDate, returning.Due);
+        var restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()), rules);
+        var result = Advance(engine);
+        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(Advance(restored).Events));
+        Assert.Equal(expectedDate, Assert.Single(result.Events.OfType<PersonnelReturnedEvent>()).Clock);
+    }
+
+    private sealed class RecoveryDialogRules : SimulationRules
+    {
+        internal override TaskRule? FindTask(string kind) => kind == "recovery-dialog" ? new RecoveryRule(this) : base.FindTask(kind);
+        private sealed class RecoveryRule(SimulationRules rules) : TaskRule
+        {
+            internal override int DurationDays(PersistentTask task) => 2;
+            internal override bool Validate(WorldMutation world, PersistentTask task) => true;
+            internal override int? DecisionRecipient(WorldMutation world, PersistentTask task) => 1;
+            internal override void CompleteDecision(WorldMutation world, PersistentTask task, bool accept, List<DomainEvent> events)
+            {
+                Assert.Equal(CommandRejection.None, PrisonerRelease.Recover(world, 13, 2, task.Id, task.Sequence,
+                    rules.Personnel, rules.Economy, events));
+            }
+        }
+    }
+
+    [Fact]
+    public void DailyDecisionRecoveryDoesNotConsumeItsNewReturnOnTheCreationDay()
+    {
+        var world = World(new(190, 1, 1));
+        var mutation = world.BeginMutation();
+        foreach (var place in mutation.Settlements.Values.ToArray()) mutation.Replace(place with { Durability = 100 });
+        world.Commit(mutation);
+        var rules = new RecoveryDialogRules { Personnel = Rules(90).Personnel };
+        var engine = new SimulationEngine(world, rules);
+        Assert.True(engine.Execute(new("first"), new StartTaskCommand(Guid.NewGuid(), 1, 0,
+            "recovery-dialog", 12, 1)).Submission.Accepted);
+        Advance(engine);
+        Assert.Equal(new GameClock(190, 1, 3), engine.Snapshot.Clock);
+        var pending = engine.Snapshot.Simulation.PendingDailyTask!;
+        var response = new RespondDailyTaskCommand(Guid.NewGuid(), 1, 1, pending.RemainingTaskIds[0], 0, true);
+        var result = engine.Execute(new("first"), response);
+        Assert.True(result.Submission.Accepted);
+        var returning = Assert.Single(result.Events.OfType<TaskStartedEvent>()).Task;
+        Assert.Equal(3, returning.Journey!.ReturnLeg!.CountdownDays);
+        Assert.Equal(new GameClock(190, 1, 6), returning.Due);
+        Assert.Equal(new GameClock(190, 1, 6), Assert.Single(result.Events.OfType<PersonnelReturnedEvent>()).Clock);
+    }
+
     [Fact]
     public void DailyDecisionResumesIntoBoundaryDiplomacyWithoutRepeatingTheDay()
     {

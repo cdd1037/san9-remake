@@ -183,7 +183,7 @@ internal static class AttackRequestDiplomacy
         }
         events.Add(new AttackRequestResolvedEvent(world.Clock, task.Id, mission.TargetForceId, mission.TargetSettlementId,
             mission.Offer, outcome, received, spent));
-        PersonnelReturns.Start(world, task, rules.Personnel, events, true);
+        PersonnelReturns.Start(world, task, rules.Personnel, events, world.CurrentDateCommandsConsumed);
     }
 }
 

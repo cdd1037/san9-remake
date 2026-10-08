@@ -12,6 +12,9 @@ internal sealed partial class WorldMutation
     private readonly WorldState _owner;
     private readonly long _expectedRevision;
     private bool _committed;
+    // Relative to Clock, rather than to the enclosing AdvanceDay operation.
+    // Date advancement opens a new day's command stage.
+    internal bool CurrentDateCommandsConsumed { get; set; }
     private Dictionary<int, int?>? _leadershipBefore;
     private EngagementRelations? _engagements;
     private MilitaryRulebook? _engagementRules;
@@ -143,6 +146,7 @@ internal sealed partial class WorldMutation
     internal void SetClock(GameClock clock)
     {
         EnsureOpen();
+        if (Clock != clock) CurrentDateCommandsConsumed = false;
         Clock = clock;
     }
 

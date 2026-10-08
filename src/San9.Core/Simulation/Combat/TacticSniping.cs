@@ -61,7 +61,7 @@ internal static class TacticSniping
             events.Add(new SnipingSuccessionRequestedEvent(world.Clock, person.Id, owner));
             return false;
         }
-        OfficerDeath.Resolve(world, person.Id, OfficerDeathCause.Sniping, rules, events, afterDailyCommands: true);
+        OfficerDeath.Resolve(world, person.Id, OfficerDeathCause.Sniping, rules, events, afterDailyCommands: world.CurrentDateCommandsConsumed);
         return true;
     }
 }

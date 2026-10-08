@@ -26,7 +26,7 @@ internal static class MeleeDeaths
             if (BattleDeathRules.IsProtected(world, person, unit.CommanderId == person.Id, OfficerDeathCause.Melee)) continue;
             var rank = !useRanks ? BattleRank.Front : military.Rank(unit, person.Id);
             if (!TacticCombat.Roll(world, "battle-melee-death", Chance(world.Abilities(person).War, rank))) continue;
-            OfficerDeath.Remove(world, person.Id, OfficerDeathCause.Melee, rules.Personnel, events, afterDailyCommands: true);
+            OfficerDeath.Remove(world, person.Id, OfficerDeathCause.Melee, rules.Personnel, events, afterDailyCommands: world.CurrentDateCommandsConsumed);
             OfficerDeath.SettleTreasures(world, person.Id, world.Forces[unit.OwnerId].LeaderId, events);
         }
     }

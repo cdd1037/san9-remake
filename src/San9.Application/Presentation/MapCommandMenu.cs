@@ -40,7 +40,7 @@ public static class MapCommandMenu
         {
             bool removable = view.MilitaryRules is {} rules && rules.TryPlace(place, out var definition) && definition.CanDemolish;
             facilities = Facilities with { Children = removable
-                ? [.. Facilities.Children.Where(c => c.Id is "repair" or "train"), new("demolish", "撤去", MapCommandTone.Blue, [])]
+                ? [.. Facilities.Children.Where(c => c.Id is "repair" or "train"), new("demolish", "撤除", MapCommandTone.Blue, [])]
                 : Facilities.Children.Where(c => c.Id is "repair" or "train").ToArray() };
         }
         var availability = new MapCommandAvailability(view);

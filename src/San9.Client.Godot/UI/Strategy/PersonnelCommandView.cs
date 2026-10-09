@@ -61,7 +61,7 @@ public partial class PersonnelCommandView : Control
             if (Draft.Kind == "move")
             {
                 window.ActionButton("目标设施", "edit", new(0,48,104,40), ChooseMap).Disabled = Draft.Targets.Length < 2;
-                Label(Draft.TargetId is int target ? Draft.PlaceName(Texts, target) : "", new(at + new Vector2(104,48), new(144,32)));
+                Label(Draft.TargetId is int target ? Draft.DestinationName(Texts, target) : "", new(at + new Vector2(104,48), new(144,32)));
             }
             int y = Draft.Kind == "summon" ? 48 : 88;
             window.ActionButton("执行武将", "edit", new(0,y,104,40), SelectOfficers).Disabled = Draft.Candidates.Length < 2;

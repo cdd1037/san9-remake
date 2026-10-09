@@ -89,6 +89,8 @@ public partial class StrategyHud
     }
     public override void _UnhandledInput(InputEvent input)
     {
+        if (_demolition is not null && input is InputEventKey { Pressed: true, Echo: false, Keycode: Key.Escape })
+        { GetViewport().SetInputAsHandled(); CloseDemolition(); return; }
         if (_personnelTargeting && _personnel?.HasChild == false && _narration is null &&
             input is InputEventKey { Pressed:true, Echo:false, Keycode:Key.Escape })
         { GetViewport().SetInputAsHandled(); EndPersonnelTargets(); }

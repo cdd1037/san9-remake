@@ -14,6 +14,7 @@ public sealed record TreasureTransferPresentationDefinition(string GrantDialogue
     string IncreaseSound, string DecreaseSound);
 public sealed record ExecutionPresentationDefinition(int MessengerId, string Announcement, string LastWords, string Result, string ResultSound);
 public sealed record RewardPresentationDefinition(string Dialogue, string Result, string ResultSound);
+public sealed record DemolitionPresentationDefinition(string Confirmation, string Dialogue, string Result, string ResultSound);
 public sealed record OfficePresentationDefinition(string Result, string DemotionNotice);
 public sealed record PersonnelPresentationDefinition(Dictionary<string, DecisionMessageDefinition> Messages)
 {
@@ -49,11 +50,37 @@ public sealed record CommandPresentation(Dictionary<string, string> Sounds, Patr
     [System.Text.Json.Serialization.JsonRequired]
     public PersonnelPresentationDefinition? Personnel { get; init; }
 
+    [System.Text.Json.Serialization.JsonRequired]
+    public Dictionary<string, DecisionMessageDefinition> Military { get; init; } = [];
+
+    [System.Text.Json.Serialization.JsonRequired]
+    public DemolitionPresentationDefinition? Demolition { get; init; }
+
     public static CommandPresentation Empty => new([], null);
     public void Validate(TextCatalog texts, IEnumerable<int> people, IEnumerable<int> settlements)
     {
         var personIds = people.ToHashSet();
         Decisions.Validate(texts, Sounds, personIds);
+        if (Demolition is { } demolition)
+        {
+            new DecisionPresentations([], []) { Shared = new()
+            {
+                ["confirmation"] = new(demolition.Confirmation, new() { ["building.0"] = "place" }),
+                ["dialogue"] = new(demolition.Dialogue, new() { ["building.0"] = "place", ["person.0"] = "actor" }, "actor"),
+                ["result"] = new(demolition.Result, new() { ["building.0"] = "place", ["force.0"] = "force" }, Sound: demolition.ResultSound)
+            } }.Validate(texts, Sounds, personIds);
+            if (string.IsNullOrWhiteSpace(demolition.ResultSound))
+                throw new InvalidDataException("Missing demolition result sound.");
+        }
+        if (Military.Count > 0)
+        {
+            string[] roles = ["sortie", "reinforce", "build", "transport", "transport-redirect", "attack", "march", "retreat", "adjust"];
+            string[] values = ["commander", "recipient", "target", "unit"];
+            if (roles.Except(Military.Keys).Any() || Military.Values.Any(m =>
+                m.Speaker != "commander" || m.Illustration is not null || m.Bindings.Values.Except(values).Any()))
+                throw new InvalidDataException("Invalid military command presentation.");
+            new DecisionPresentations([], []) { Shared = Military }.Validate(texts, Sounds, personIds);
+        }
         if (Personnel is {} personnel)
         {
             string[] roles = ["move-start", "search-start", "employ-start", "captive-start", "search-favorable", "search-unfavorable",

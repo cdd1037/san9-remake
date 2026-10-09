@@ -17,6 +17,7 @@ public partial class StrategyHud
         _flow = new() { World = World, Session = Session, Texts = Texts, Service = Textures, Textures = _textures };
         _flow.Changed += RefreshMilitaryCommand;
         _flow.Notice += message => { _notice.SetNotice(message); _notice.Show(); };
+        _flow.Submitted += PresentMilitaryCommand;
         OverlayHost.AddChild(_flow);
         _targetTitle = LabelAt("选择对象", new(61, 12), new(104, 32), 24, HorizontalAlignment.Left);
         _text.Apply(_targetTitle, new(24, new Color("f8f8b0"), GameTextEffect.Outline, new Color("780000")));
@@ -31,6 +32,14 @@ public partial class StrategyHud
             button.Pressed += action;
             AddChild(button); _targetButtons.Add(button);
         }
+    }
+
+    private void PresentMilitaryCommand(StrategySnapshot before, GameCommand command, IReadOnlyList<DomainEvent> events)
+    {
+        var after = Session.View;
+        var sequence = MilitaryCommandPresentation.Create(before, after, Session.Messages(Texts),
+            CommandPresentation, command, events, Random.Shared.Next);
+        OpenNarration(sequence, after);
     }
 
     private IEnumerable<(string Asset, Vector2 Position)> VisibleFrames()

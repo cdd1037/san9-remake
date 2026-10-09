@@ -86,11 +86,14 @@ public sealed class GameplayMessageCompiler(ScenarioInitialState scenario, IRead
                         ("force", "name" or "country-name" or "rank-name" or "leader-name" or "direct-leader-name" or "is-alliance-leader") => "force." + property,
                         ("force", "same-root-corps-count") => "force.corps-count",
                         ("building", "name-with-type") => "settlement.name",
+                        ("building", "name-with-city") => "settlement.base-name-with-city",
+                        ("building", "name-with-type-and-city") => "settlement.name-with-city",
                         ("building", "name") => "settlement.base-name",
                         ("building", "owner-name" or "type-name") => "settlement." + property,
                         ("treasure", "name" or "category") => "treasure." + property,
                         ("tactic", "name" or "category-name") => "tactic." + property,
-                        ("unit", "location-name" or "is-embedded" or "commander-name") => "unit." + property, _ => null
+                        ("unit", "is-embedded") => "military-target.is-garrison",
+                        ("unit", "location-name" or "commander-name") => "military-target." + property, _ => null
                     };
                     return semantic is null ? Unsupported($"No runtime property for {group}.{property}.") :
                         Property(semantic, new("binding", $"{group}.{parts[1]}"));

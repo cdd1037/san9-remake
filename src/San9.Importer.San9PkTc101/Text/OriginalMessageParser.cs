@@ -267,7 +267,8 @@ public sealed class OriginalMessageParser
                         ("person", 0xE0) => "location-name", ("person", 0xE3) => "office-and-name",
                         ("force", 0xC7) => "country-name", ("force", 0xC8) => "rank-name",
                         ("force", 0xC9) => "leader-name", ("force", 0xCE) => "direct-leader-name", ("force", 0xCB) => "name",
-                        ("building", 0x9E or 0x9F) => "name-with-type", ("building", 0xA7 or 0xA8) => "name",
+                        ("building", 0x9E) => "name-with-city", ("building", 0x9F) => "name-with-type-and-city",
+                        ("building", 0xA7) => "name", ("building", 0xA8) => "name-with-type",
                         ("building", 0x3E) => "type-name", ("building", 0xA0) => "owner-name",
                         ("treasure", 0x43) => "name", ("unit", 0x79) => "display-name",
                         ("tactic", 0x36) => "category-name", _ => name

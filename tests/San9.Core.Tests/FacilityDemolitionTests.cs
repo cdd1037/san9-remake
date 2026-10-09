@@ -6,25 +6,30 @@ namespace San9.Core.Tests;
 public sealed class FacilityDemolitionTests
 {
     private static readonly CommandContext Player = new("player");
-    private static SimulationEngine Engine(bool allowed = true, bool friendlyCity = true, uint soldiers = 1000)
+    private static SimulationEngine Engine(bool allowed = true, bool friendlyCity = true, uint soldiers = 1000, bool confused = false, bool engaged = false)
     {
         var military = new MilitaryRulebook(new(6, 1, [0, 0, 0, 0, 0, 0], [new(0, 1, null)],
-            [new(1, 5, 0, 10000, 1, new(1, 1), TravelMode.Land)],
-            [new(1, new(2, 2), new(1, 1)), new(2, new(12, 2), new(1, 1)) { CanDemolish = allowed },
+            [new(1, 5, 0, 10000, 1, new(1, 1), TravelMode.Land),
+                new(2, 5, 0, 10000, 1, new(1, 1), TravelMode.Land)
+                { Combat = new(10, 10, 10, 10, 50), Attack = new(10, true), CaptureRanks = [BattleRank.Middle] }],
+            [new(1, new(2, 2), new(1, 1)), new(2, new(12, 2), new(1, 1))
+                { CanDemolish = allowed, Combat = new(10, 10, 10, 10, 50) },
                 new(3, new(27, 2), new(1, 1))]) { TransportFormations = new(1, null) });
         var geography = new PersonnelRulebook([new(1, new(2, 2)), new(2, new(12, 2)), new(3, new(27, 2))],
             new Dictionary<int, int> { [1] = 1, [2] = 1, [3] = 3 });
         return new(WorldState.Create(new(190, 1, 1), 42,
             [new(1, 100) { LeaderId = 11 }, new(2, 100) { LeaderId = 21 }],
             [new(1, friendlyCity ? 1 : 2, soldiers, 100, 100, 80, 0, 0, 100, 0, 100) { Wounded = 49990 },
-                new(2, 1, 100, 100, 100, 50, 0, 0, 100, 0, 100) { Kind = SettlementKind.Facility, Wounded = 20 },
+                new(2, 1, 100, 100, 100, 50, 0, 0, 100, 0, 100) { Kind = SettlementKind.Facility, Wounded = 20, ConfusionDaysRemaining = confused ? 1 : 0 },
                 new(3, 2, 100, 100, 100, 100, 0, 0, 100, 0, 100)],
             [new(11, 1, 2, new(70, 70, 70, 70), false) { Status = OfficerStatus.Ruler },
                 new(12, 2, 2, new(70, 70, 70, 70), false) { Status = OfficerStatus.Captive },
                 new(21, 2, 3, new(70, 70, 70, 70), false) { Status = OfficerStatus.Ruler },
                 new(13, 1, null, new(70, 70, 70, 70), false) { UnitId = 0 }],
             units: [new(0, 1, new(7, 2), 100) { FormationId = 1, Morale = 100, ServicePlaceId = 2,
-                CargoFood = 100, Order = new(MilitaryOrderKind.Transport, null, 2) }],
+                CargoFood = 100, Order = new(MilitaryOrderKind.Transport, null, 2) },
+                .. engaged ? new UnitState[] { new(1, 2, new(14, 2), 100)
+                    { FormationId = 2, Morale = 100, Order = new(MilitaryOrderKind.AttackSettlement, null, 2) } } : []],
             controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 10000)) { IsRoot = true }]), EconomyRulebook.Empty, geography,
             TreasureRulebook.Empty, military: military);
     }
@@ -69,6 +74,29 @@ public sealed class FacilityDemolitionTests
         var engine = Engine(allowed, friendlyCity);
         string hash = engine.Snapshot.StateHash;
         Assert.False(engine.Execute(Player, new DemolishFacilityCommand(Guid.NewGuid(), 1, 0, 2)).Submission.Accepted);
+        Assert.Equal(hash, engine.Snapshot.StateHash);
+    }
+
+    [Fact]
+    public void EngagedFacilityRejectsDemolitionWithoutRemovingItsAttackerTarget()
+    {
+        var engine = Engine(engaged: true);
+        string hash = engine.Snapshot.StateHash;
+        var result = engine.Execute(Player, new DemolishFacilityCommand(Guid.NewGuid(), 1, 0, 2));
+        Assert.Equal(CommandRejection.InvalidTask, result.Submission.Rejection);
+        Assert.Empty(result.Events);
+        Assert.Equal(2, engine.Snapshot.Units.Single(u => u.Id == 1).Order!.SettlementId);
+        Assert.Equal(hash, engine.Snapshot.StateHash);
+    }
+
+    [Fact]
+    public void ConfusedFacilityRejectsDemolitionWithoutChangingState()
+    {
+        var engine = Engine(confused: true);
+        string hash = engine.Snapshot.StateHash;
+        var result = engine.Execute(Player, new DemolishFacilityCommand(Guid.NewGuid(), 1, 0, 2));
+        Assert.Equal(CommandRejection.SettlementConfused, result.Submission.Rejection);
+        Assert.Empty(result.Events);
         Assert.Equal(hash, engine.Snapshot.StateHash);
     }
 

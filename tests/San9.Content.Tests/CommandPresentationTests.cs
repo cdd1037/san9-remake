@@ -6,6 +6,53 @@ namespace San9.Content.Tests;
 public sealed class CommandPresentationTests
 {
     [Fact]
+    public void DemolitionRejectsMissingMessageArgumentsAndResultSound()
+    {
+        var texts = new TextCatalog(TextCatalog.CurrentSchemaVersion, []) { Messages = new()
+        {
+            ["confirm"] = new([new MessageValue(new("binding", "building.0"))]),
+            ["dialogue"] = new([new MessageValue(new("binding", "person.0"))]),
+            ["result"] = new([new MessageValue(new("binding", "force.0"))])
+        } };
+        var content = CommandPresentation.Empty with
+        {
+            Demolition = new("confirm", "dialogue", "result", "removed"),
+            Sounds = new() { ["removed"] = "removed.wav" }
+        };
+        content.Validate(texts, [], []);
+        Assert.Throws<InvalidDataException>(() => (content with { Sounds = [] }).Validate(texts, [], []));
+        Assert.Throws<InvalidDataException>(() => (content with
+            { Demolition = content.Demolition with { Confirmation = "missing" } }).Validate(texts, [], []));
+        texts.Messages["confirm"] = new([new MessageValue(new("binding", "building.1"))]);
+        Assert.Throws<InvalidDataException>(() => content.Validate(texts, [], []));
+    }
+
+    [Fact]
+    public void MilitaryMessagesRejectIncompleteBranchesBindingsAndSounds()
+    {
+        string[] roles = ["sortie", "reinforce", "build", "transport", "transport-redirect", "attack", "march", "retreat", "adjust"];
+        var texts = new TextCatalog(TextCatalog.CurrentSchemaVersion, []) { Messages = new()
+        {
+            ["order"] = new([new MessageValue(new("binding", "person.0"))])
+        } };
+        var content = CommandPresentation.Empty with
+        {
+            Military = roles.ToDictionary(r => r, _ => new DecisionMessageDefinition("order",
+                new() { ["person.0"] = "commander" }, "commander", "order")),
+            Sounds = new() { ["order"] = "order.wav" }
+        };
+        content.Validate(texts, [], []);
+        Assert.Throws<InvalidDataException>(() => (content with { Sounds = [] }).Validate(texts, [], []));
+        Assert.Throws<InvalidDataException>(() => (content with
+            { Military = content.Military.Where(m => m.Key != "adjust").ToDictionary() }).Validate(texts, [], []));
+        var invalid = new Dictionary<string, DecisionMessageDefinition>(content.Military)
+            { ["attack"] = content.Military["attack"] with { Bindings = new() { ["person.0"] = "enemy" } } };
+        Assert.Throws<InvalidDataException>(() => (content with { Military = invalid }).Validate(texts, [], []));
+        invalid["attack"] = content.Military["attack"] with { Bindings = [] };
+        Assert.Throws<InvalidDataException>(() => (content with { Military = invalid }).Validate(texts, [], []));
+    }
+
+    [Fact]
     public void DecisionSharedMessagesRequireBindingsAndSoundReferences()
     {
         var texts=new TextCatalog(TextCatalog.CurrentSchemaVersion,[]) { Messages=new() {

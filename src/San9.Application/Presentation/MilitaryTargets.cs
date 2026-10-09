@@ -61,8 +61,10 @@ public abstract class MilitaryTargets
             var marker = sameForce && place.CanHostPersons ? MilitaryMarker.Enter : MilitaryMarker.Attack;
             if (commandKind is { } kind)
             {
-                marker = kind == UnitCommandKind.March ? MilitaryMarker.Enter : MilitaryMarker.Attack;
-                var order = new MilitaryOrder(kind == UnitCommandKind.March ? MilitaryOrderKind.Return : MilitaryOrderKind.AttackSettlement, null, place.Id);
+                marker = kind == UnitCommandKind.Attack ? MilitaryMarker.Attack : MilitaryMarker.Enter;
+                var orderKind = kind switch { UnitCommandKind.March => MilitaryOrderKind.Return,
+                    UnitCommandKind.Transport => MilitaryOrderKind.Transport, _ => MilitaryOrderKind.AttackSettlement };
+                var order = new MilitaryOrder(orderKind, null, place.Id);
                 if (!query!.CanAssign(movingUnitId!.Value, order)) continue;
             }
             candidates.Add(new(place.Id, false), marker);
@@ -71,7 +73,7 @@ public abstract class MilitaryTargets
         foreach (var unit in world.Units.Where(u => !u.IsEmbedded && !u.IsPersonnel && u.Soldiers > 0 && u.FormationId is not null &&
             u.Id != movingUnitId && !SameAffiliation(u.OwnerId, u.CorpsId)))
         {
-            if (commandKind == UnitCommandKind.March || query is not null &&
+            if (commandKind is UnitCommandKind.March or UnitCommandKind.Transport || query is not null &&
                 !query.CanAssign(movingUnitId!.Value, new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = unit.Id })) continue;
             candidates.Add(new(unit.Id, true), MilitaryMarker.Attack);
             clear.UnionWith(rules.GeographicFootprint(unit));

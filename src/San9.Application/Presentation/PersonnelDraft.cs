@@ -90,6 +90,12 @@ public sealed class PersonnelDraft
     public int? PlaceAt(MapCell cell) => View.RegionAt(MapCoordinates.Center(cell));
     public string PlaceName(TextCatalog texts, int id) => View.Settlements.SingleOrDefault(s => s.Id == id)?.ResolveName(texts)
         ?? (View.RegionNameKeys.TryGetValue(id, out string? key) ? texts.Resolve(key) : throw new InvalidDataException("Unknown personnel place."));
+    public string DestinationName(TextCatalog texts, int id)
+    {
+        var place = View.Settlements.Single(s => s.Id == id);
+        string name = place.ResolveName(texts);
+        return place.Kind == SettlementKind.City ? name : name + "〈" + PlaceName(texts, View.RegionCityIds[id]) + "〉";
+    }
     public GameCommand CreateCommand(Guid id, long sequence)
     {
         if (!CanExecute) throw new InvalidOperationException("Invalid or stale personnel preparation.");

@@ -19,6 +19,8 @@ internal static class FacilityDemolition
             !world.Settlements.TryGetValue(cityId, out var city) || city.Kind != SettlementKind.City ||
             city.IsDestroyed || city.OwnerId != command.IssuerId || city.Durability == 0 || !city.CanHostPersons)
             return CommandRejection.NoDestination;
+        if (facility.ConfusionDaysRemaining > 0) return CommandRejection.SettlementConfused;
+        if (world.Engagements(military).Engaged(new(facility.Id, true))) return CommandRejection.InvalidTask;
         if (facility.Facility?.BuilderUnitId is int builder)
         {
             FacilityConstruction.Cancel(world, builder, events);

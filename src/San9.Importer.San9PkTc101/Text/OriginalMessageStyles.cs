@@ -33,7 +33,7 @@ internal static class OriginalMessageStyles
             ("person", "name" or "surname" or "given-name" or "courtesy-name") => "blue",
             ("force", "leader-name" or "direct-leader-name") => "blue",
             ("person", "location-name") => "green",
-            ("building", "name-with-type" or "name" or "owner-name") => "green",
+            ("building", "name-with-type" or "name-with-city" or "name-with-type-and-city" or "name" or "owner-name") => "green",
             ("force", "name" or "country-name" or "rank-name") => "green",
             ("treasure", "name") => "green",
             ("tactic", "name") => "green",

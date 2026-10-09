@@ -272,17 +272,22 @@ public partial class StrategyHud : Control
     private void ActivateCommand(string command)
     {
         if (_commandTarget is not { } target || !CanIssueOrders) return;
+        if ((target.IsUnit && command is ("attack" or "march" or "redirect-transport") || !target.IsUnit && command is ("sortie" or "build" or "transport")) &&
+            CommandPresentation.Military.Count == 0)
+        { _notice.SetNotice("内容包没有提供军事指令表现定义。"); _notice.Show(); return; }
         if (target.IsUnit)
         {
-            if (command is not ("attack" or "march")) return;
+            if (command is not ("attack" or "march" or "redirect-transport")) return;
             _commandMenu.Close(); Overview.Close();
-            _flow.OpenUnit(target.Id, command == "attack" ? UnitCommandKind.Attack : UnitCommandKind.March);
+            _flow.OpenUnit(target.Id, command switch { "attack" => UnitCommandKind.Attack,
+                "redirect-transport" => UnitCommandKind.Transport, _ => UnitCommandKind.March });
             return;
         }
-        if (command is not ("sortie" or "patrol" or "build" or "transport") && !FacilityCommandDraft.Supports(command) && !AppointmentDraft.Supports(command) && !PersonnelDraft.Supports(command)) return;
+        if (command is not ("sortie" or "patrol" or "build" or "transport" or "demolish") && !FacilityCommandDraft.Supports(command) && !AppointmentDraft.Supports(command) && !PersonnelDraft.Supports(command)) return;
         _commandMenu.Close();
         Overview.Close();
         if (command == "patrol") OpenPatrol(target.Id);
+        else if (command == "demolish") OpenDemolition(target.Id);
         else if (PersonnelDraft.Supports(command)) OpenPersonnel(target.Id,command);
         else if (command is "build" or "transport") _flow.OpenSpecial(target.Id, command == "build" ? SpecialDeploymentKind.Construction : SpecialDeploymentKind.Transport);
         else if (AppointmentDraft.Supports(command)) OpenAppointment(target.Id, command);
@@ -429,7 +434,7 @@ public partial class StrategyHud : Control
         }
         if (_built)
         {
-            _minimap!.SetCommandSource(_flow.Source ?? PatrolSource ?? FacilitySource ?? AppointmentSource ?? PersonnelSource ?? (_commandMenu!.Visible ? _commandTarget : null));
+            _minimap!.SetCommandSource(_flow.Source ?? PatrolSource ?? FacilitySource ?? DemolitionSource ?? AppointmentSource ?? PersonnelSource ?? (_commandMenu!.Visible ? _commandTarget : null));
             UpdateSidebar(delta);
         }
         UpdateHover(_hoverPosition ?? GetGlobalMousePosition());

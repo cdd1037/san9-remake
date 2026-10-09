@@ -45,9 +45,8 @@ public partial class StrategyHud
         {
             var sequence = StrategistPresentation.Create(draft.View, Session.Messages(Texts), CommandPresentation.Strategist!,
                 result.Events.OfType<AdviserAppointedEvent>().Single(), Random.Shared.Next);
-            _narration = new() { Messages = sequence, View = Session.View, Texts = Texts, Service = Textures, Textures = _textures,
-                ContentRoot = ContentRoot, Sounds = CommandPresentation.Sounds, SoundEnabled = SoundEnabled, MessagePresented=m=>_executionPanels.Append(m.Message), Closed = CloseNarration };
-            OverlayHost.AddChild(_narration); return;
+            OpenNarration(sequence, Session.View);
+            return;
         }
         var execution = result.Events.OfType<PrisonerExecutedEvent>().SingleOrDefault();
         if (result.CompletedCommands > 0 && (draft.Kind is "rank" or "reward" or "exile" or "bestow" or "confiscate" || execution is not null))

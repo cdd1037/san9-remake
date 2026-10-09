@@ -3,11 +3,18 @@ using San9.Core.Simulation;
 
 namespace San9.Application.Presentation;
 
-public enum UnitCommandKind { Attack, March }
+public enum UnitCommandKind { Attack, March, Transport }
 
 public sealed class UnitCommandTargets : MilitaryTargets
 {
     public UnitState Unit { get; }
+    public UnitCommandKind Kind { get; }
+    public UnitPurpose Purpose => View.UnitPurpose(Unit);
+    public static string CommandId(UnitCommandKind kind) => kind switch
+    {
+        UnitCommandKind.Attack => "attack", UnitCommandKind.March => "march",
+        UnitCommandKind.Transport => "redirect-transport", _ => throw new ArgumentOutOfRangeException(nameof(kind))
+    };
     protected override bool CanProceed => true;
     protected override int FormationId => Unit.FormationId!.Value;
     protected override int? NavalFormationId => Unit.NavalFormationId;
@@ -21,7 +28,7 @@ public sealed class UnitCommandTargets : MilitaryTargets
     private UnitCommandTargets(StrategySnapshot view, UnitState unit, UnitCommandKind kind)
         : base(view, view.MilitaryRules!, unit.OwnerId, unit.CorpsId, null, unit.Id, kind)
     {
-        Unit = unit; Policies = unit.Policies;
+        Unit = unit; Kind = kind; Policies = unit.Policies;
         var current = unit.Order;
         var target = current?.UnitId is int enemy ? new MilitaryTarget(enemy, true) :
             current?.SettlementId is int place ? new MilitaryTarget(place, false) : (MilitaryTarget?)null;
@@ -37,13 +44,15 @@ public sealed class UnitCommandTargets : MilitaryTargets
 
     private static UnitState SourceUnit(StrategySnapshot view, int unitId, UnitCommandKind kind)
     {
-        string command = kind == UnitCommandKind.Attack ? "attack" : "march";
-        if (!Enum.IsDefined(kind) || view.MilitaryRules is null || !MapCommandMenu.Unit(view, unitId).Any(e => e.Id == command && e.Enabled))
+        string command = CommandId(kind);
+        if (view.MilitaryRules is null || !MapCommandMenu.Unit(view, unitId).Any(e => e.Id == command && e.Enabled))
             throw new ArgumentException("Unit command is unavailable.", nameof(unitId));
         return view.World.Units.Single(u => u.Id == unitId);
     }
 
     private MilitaryArrivalForecast? _forecast;
+    protected override MilitaryOrder OrderFor(MilitaryTarget target) => Kind == UnitCommandKind.Transport
+        ? new(MilitaryOrderKind.Transport, null, target.Id) : base.OrderFor(target);
     private (MilitaryOrder Order, UnitPolicies Policies, WorldPosition? Waypoint)? _request;
     private ArrivalEstimate? _arrival;
     public override ArrivalEstimate EstimateArrival()

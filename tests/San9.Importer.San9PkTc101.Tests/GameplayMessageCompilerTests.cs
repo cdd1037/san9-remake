@@ -6,6 +6,22 @@ namespace San9.Importer.San9PkTc101.Tests;
 
 public sealed class GameplayMessageCompilerTests
 {
+    [Theory]
+    [InlineData(0x9E, "settlement.base-name-with-city")]
+    [InlineData(0x9F, "settlement.name-with-city")]
+    [InlineData(0xA7, "settlement.base-name")]
+    [InlineData(0xA8, "settlement.name")]
+    public void BuildingDisplaySelectorsPreserveTypeAndReceivingCitySemantics(byte selector, string expected)
+    {
+        var source = new OriginalMessageParser().Parse([2, 41, selector, 5, 5, 5]);
+        Assert.True(source.SemanticsConfirmed);
+        var messages = new GameplayMessageCompiler(Scenario(), [], 0, 0)
+            .Compile(new Dictionary<string, MessageDefinition> { ["place"] = source.Definition });
+        var expression = MessageGraph.Walk(messages["place"].Nodes).OfType<MessageValue>().Single().Expression;
+        Assert.Equal(expected, expression.Binding);
+        Assert.Equal("building.0", Assert.Single(expression.Arguments!).Binding);
+    }
+
     [Fact]
     public void SourceBiographyBecomesIdentityAndWorldBitsBecomeEventKeys()
     {

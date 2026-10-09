@@ -168,6 +168,7 @@ public sealed class WorldMessageContext
         return name switch
         {
             "settlement.name" => Text(args[0].Entity?.Kind==MessageEntityKind.Region ? _texts.Resolve(_definition.RegionNameKeys[Id(0,MessageEntityKind.Region)]) : PlaceName(Id(0, MessageEntityKind.Settlement))),
+            "settlement.name-with-city" or "settlement.base-name-with-city" => Text(PlaceNameWithCity(args[0], name == "settlement.base-name-with-city")),
             "settlement.base-name" => Text(args[0].Entity?.Kind==MessageEntityKind.Region ? _texts.Resolve(_definition.RegionNameKeys[Id(0,MessageEntityKind.Region)]) : BasePlaceName(Id(0, MessageEntityKind.Settlement))),
             "settlement.owner-name" => Text(_places[Id(0, MessageEntityKind.Settlement)].OwnerId is int owner ?
                 _texts.Resolve(_view.Value.Forces.Single(f => f.Id == owner).NameKey) : ""),
@@ -176,9 +177,11 @@ public sealed class WorldMessageContext
             "treasure.category" => new(_definition.Information.Treasures.Single(t => t.Id == Id(0, MessageEntityKind.Treasure)).Category),
             "tactic.name" => Text(_texts.Resolve(_definition.Information.Tactics.Single(t => t.Id == Id(0, MessageEntityKind.Tactic)).NameKey)),
             "tactic.category-name" => Text(TacticCategory(Id(0, MessageEntityKind.Tactic))),
-            "unit.location-name" => Text(UnitLocation(_units[Id(0, MessageEntityKind.Unit)])),
-            "unit.is-embedded" => Flag(_units[Id(0, MessageEntityKind.Unit)].IsEmbedded),
-            "unit.commander-name" => Text(_units[Id(0, MessageEntityKind.Unit)].CommanderId is int commander ? PersonName(commander) :
+            "military-target.location-name" => Text(args[0].Entity?.Kind == MessageEntityKind.Settlement ?
+                PlaceName(Id(0, MessageEntityKind.Settlement)) : UnitLocation(_units[Id(0, MessageEntityKind.Unit)])),
+            "military-target.is-garrison" => Flag(args[0].Entity?.Kind == MessageEntityKind.Settlement
+                ? _places.ContainsKey(Id(0, MessageEntityKind.Settlement)) : _units[Id(0, MessageEntityKind.Unit)].IsEmbedded),
+            "military-target.commander-name" => Text(_units[Id(0, MessageEntityKind.Unit)].CommanderId is int commander ? PersonName(commander) :
                 throw new InvalidDataException("A field unit display name requires a commander.")),
             _ => throw Unsupported(name)
         };
@@ -192,6 +195,18 @@ public sealed class WorldMessageContext
     private MessagePersonProfile Profile(int id) => _texts.MessagePeople.TryGetValue(id, out var profile) ? profile :
         throw new InvalidDataException($"Missing message person profile: {id}.");
     private string PlaceName(int id) => _view.Value.Settlements.Single(s => s.Id == id).ResolveName(_texts);
+    private string PlaceNameWithCity(MessageBinding value, bool baseName)
+    {
+        if (value.Entity is not { Kind: MessageEntityKind.Settlement or MessageEntityKind.Region } entity)
+            throw new InvalidDataException("Qualified place name requires a settlement or region reference.");
+        Validate(entity);
+        string place = entity.Kind == MessageEntityKind.Region ? _texts.Resolve(_definition.RegionNameKeys[entity.Id]) :
+            baseName ? BasePlaceName(entity.Id) : PlaceName(entity.Id);
+        if (entity.Kind == MessageEntityKind.Settlement && _places[entity.Id].Kind == SettlementKind.City) return place;
+        if (!_definition.RegionCityIds.TryGetValue(entity.Id, out int city))
+            throw new InvalidDataException($"Missing city for place {entity.Id}.");
+        return place + "〈" + PlaceName(city) + "〉";
+    }
     private string BasePlaceName(int id) => _texts.Resolve(_definition.RegionNameKeys.TryGetValue(id, out string? key)
         ? key : _view.Value.Settlements.Single(s => s.Id == id).NameKey);
     private string SettlementType(int id) => _places[id].Kind == SettlementKind.City ? "都市" :

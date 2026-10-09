@@ -16,7 +16,9 @@ public partial class MilitaryPolicyView : Control
     public Func<bool, CommandRejection> Submit { get; init; } = null!;
     public Action Closed { get; init; } = null!;
     private readonly GameTextPresenter _text = new();
-    private Vector2 Origin => Selection is SpecialDeploymentTargets special ? new(304,special.IsConstruction ? 304 : 320) : new(304,224);
+    private bool IsConstruction => Selection is SpecialDeploymentTargets { IsConstruction: true };
+    private bool IsSpecial => Selection is SpecialDeploymentTargets or UnitCommandTargets { Purpose: not UnitPurpose.Combat };
+    private Vector2 Origin => new(304, IsSpecial ? IsConstruction ? 304 : 320 : 224);
     private CommandWindow _window = null!;
     private StyleBoxTexture _field = null!;
     private Control? _child;
@@ -31,7 +33,7 @@ public partial class MilitaryPolicyView : Control
         _field = new StyleBoxTexture { Texture = Textures["deployment-field"],
             TextureMarginLeft = 16, TextureMarginRight = 16, TextureMarginTop = 8, TextureMarginBottom = 8,
             AxisStretchHorizontal = StyleBoxTexture.AxisStretchMode.Tile, AxisStretchVertical = StyleBoxTexture.AxisStretchMode.Tile };
-        if (Selection is SpecialDeploymentTargets special) { BuildSpecial(special); return; }
+        if (IsSpecial) { BuildSpecial(); return; }
         _window = new CommandWindow { Textures = Textures, Position = Origin, Size = new(416, 320),
             Title = "决定方针", ShowBehindParent = true, Closed = Closed, Accepted = Execute,
             Help = () => Notice("决定部队的行动方针。金色为已选项。\n" +
@@ -68,20 +70,22 @@ public partial class MilitaryPolicyView : Control
             ? $"决定部队行动方针。中继点：({via.X}, {via.Y})。" : "决定部队行动方针。" };
         AddChild(_message);
     }
-    private void BuildSpecial(SpecialDeploymentTargets special)
+    private void BuildSpecial()
     {
-        _window = new CommandWindow { Textures = Textures, Position = Origin, Size = new(416,special.IsConstruction ? 160 : 128),
+        _window = new CommandWindow { Textures = Textures, Position = Origin, Size = new(416,IsConstruction ? 160 : 128),
             Title = "决定方针", ShowBehindParent = true, Closed = Closed, Accepted = Execute,
             Help = () => Notice("决定部队是否可以自主撤退。到达预定包含所选中继点。") };
         AddChild(_window);
-        string home = "命令设施　" + Selection.View.Settlements.Single(s => s.Id == Selection.Source.Id).ResolveName(Texts);
-        _facilityWidth = home.Length*16+32; Label(home,new(0,0,_facilityWidth,32));
+        string home = Selection.Source.IsUnit
+            ? "命令部队　" + UnitMapInteraction.Hover(Selection.View, Texts, Selection.Source.Id)?.Name
+            : "命令设施　" + Selection.View.Settlements.Single(s => s.Id == Selection.Source.Id).ResolveName(Texts);
+        _facilityWidth = home.Sum(c => c < 128 ? 8 : 16) + 32; Label(home,new(0,0,_facilityWidth,32));
         _arrival = Label("",new(256,0,136,32)); RefreshArrival();
         var target = Selection.Selected!.Value;
-        string name = special.IsConstruction ? Texts.Resolve(Selection.View.RegionNameKeys[target.Id]) :
+        string name = IsConstruction ? Texts.Resolve(Selection.View.RegionNameKeys[target.Id]) :
             Selection.View.Settlements.Single(s => s.Id == target.Id).ResolveName(Texts);
         int y = 48;
-        if (special.IsConstruction)
+        if (Selection is SpecialDeploymentTargets { IsConstruction: true } special)
         {
             Label("工作物",new(0,y,96,32)); Label(special.Draft.FacilityName(special.Draft.FacilityId!.Value,Texts),new(104,y,80,32)); y+=40;
         }
@@ -153,12 +157,12 @@ public partial class MilitaryPolicyView : Control
     public override void _Draw()
     {
         Strip("facility", new(0, 0, _facilityWidth, 32));
-        if (Selection is SpecialDeploymentTargets special)
+        if (IsSpecial)
         {
-            int last = special.IsConstruction ? 128 : 88;
+            int last = IsConstruction ? 128 : 88;
             for (int y=48;y<=last;y+=40) Strip("label",new(0,y,96,32));
-            List<Rect2> fields = [new(256,0,136,32),new(104,special.IsConstruction?88:48,160,32)];
-            if (special.IsConstruction) fields.Add(new(104,48,80,32));
+            List<Rect2> fields = [new(256,0,136,32),new(104,IsConstruction?88:48,160,32)];
+            if (IsConstruction) fields.Add(new(104,48,80,32));
             foreach (var bounds in fields) DrawField(bounds);
             DrawLine(Origin+new Vector2(0,40),Origin+new Vector2(416,40),new Color("755635"),2);
             return;

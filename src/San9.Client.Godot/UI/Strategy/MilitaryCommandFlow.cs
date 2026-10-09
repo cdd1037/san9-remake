@@ -16,6 +16,7 @@ public partial class MilitaryCommandFlow : Node
     public TextureScope Textures { get; init; } = null!;
     public event Action? Changed;
     public event Action<string>? Notice;
+    public event Action<StrategySnapshot, GameCommand, IReadOnlyList<DomainEvent>>? Submitted;
     public MilitaryTargets? Targets { get; private set; }
     public MapObjectTarget? Source { get; private set; }
     public bool IsActive => Source is not null;
@@ -38,7 +39,7 @@ public partial class MilitaryCommandFlow : Node
         var view = Session.View;
         if (SpecialDeploymentDraft.UnavailableReasonKey(view,settlementId,kind) is string reason)
         { Notice?.Invoke(Texts.Resolve(reason)); return; }
-        Textures.RequestPrefixes("deployment-","detail-","catalog-","information-","roster-","message-","dialog-");
+        Textures.RequestPrefixes("deployment-","detail-","catalog-","information-","roster-","message-","narration-","dialog-");
         Source = new(settlementId,false);
         _specialPreparation = new() { Draft = new(view,settlementId,kind), Texts=Texts, Textures=Textures, Service=Service,
             Closed=CloseCommand, Proceed=() =>
@@ -55,7 +56,7 @@ public partial class MilitaryCommandFlow : Node
         var view = Session.View;
         if (DeploymentDraft.UnavailableReasonKey(view, settlementId) is string reason)
         { Notice?.Invoke(Texts.Resolve(reason)); return; }
-        Textures.RequestPrefixes("deployment-", "formation-", "detail-", "catalog-", "information-", "roster-", "message-", "dialog-");
+        Textures.RequestPrefixes("deployment-", "formation-", "detail-", "catalog-", "information-", "roster-", "message-", "narration-", "dialog-");
         Source = new(settlementId, false);
         _preparation = new DeploymentView
         {
@@ -76,9 +77,9 @@ public partial class MilitaryCommandFlow : Node
     {
         if (IsActive) return;
         var view = Session.View;
-        string command = kind == UnitCommandKind.Attack ? "attack" : "march";
+        string command = UnitCommandTargets.CommandId(kind);
         if (!MapCommandMenu.Unit(view, unitId).Any(e => e.Id == command && e.Enabled)) return;
-        Textures.RequestPrefixes("deployment-", "catalog-", "information-", "roster-", "message-", "dialog-");
+        Textures.RequestPrefixes("deployment-", "catalog-", "information-", "roster-", "message-", "narration-", "dialog-");
         Source = new(unitId, true);
         Targets = new UnitCommandTargets(view, unitId, kind);
         BindTargets();
@@ -126,8 +127,14 @@ public partial class MilitaryCommandFlow : Node
     {
         if (Targets is not { } targets || targets.View.World.Revision != Session.Snapshot.Revision)
             return CommandRejection.NotStable;
-        var result = Session.Execute(new("player"), targets.CreateCommand(Guid.NewGuid(), Session.Snapshot.Simulation.NextSequence, confirmAttack));
-        if (result.Submission.Accepted) CloseCommand();
+        var before = targets.View;
+        var command = targets.CreateCommand(Guid.NewGuid(), Session.Snapshot.Simulation.NextSequence, confirmAttack);
+        var result = Session.Execute(new("player"), command);
+        if (result.Submission.Accepted)
+        {
+            CloseCommand();
+            Submitted?.Invoke(before, command, result.Events);
+        }
         return result.Submission.Rejection;
     }
 

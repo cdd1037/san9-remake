@@ -11,7 +11,6 @@ public partial class StrategyHud
     public string ContentRoot { get; init; } = "";
     public bool SoundEnabled { get; init; } = true;
     private PatrolView? _patrol;
-    private CommandNarration? _narration;
     private MapObjectTarget? PatrolSource => _patrol is { } view ? new(view.Draft.Home.Id,false) : null;
     private void OpenPatrol(int id)
     {
@@ -39,13 +38,6 @@ public partial class StrategyHud
         var completed = result.Events.OfType<DevelopmentCompletedEvent>().Single();
         var sequence = PatrolPresentation.Create(before,messages,CommandPresentation.Patrol!,completed,Random.Shared.Next);
         ClosePatrol();
-        _narration = new() { Messages = sequence, View = before, Texts = Texts, Service = Textures, Textures = _textures,
-            ContentRoot = ContentRoot, Sounds = CommandPresentation.Sounds, SoundEnabled = SoundEnabled, MessagePresented=m=>_executionPanels.Append(m.Message), Closed = CloseNarration };
-        OverlayHost.AddChild(_narration);
-    }
-    private void CloseNarration()
-    {
-        if (_narration is not { } view) return;
-        _narration = null; OverlayHost.RemoveChild(view); view.QueueFree();
+        OpenNarration(sequence, before);
     }
 }

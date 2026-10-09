@@ -103,6 +103,7 @@ public partial class StrategyHud : Control
         AddResourceField("信望", force.Trust.ToString(), 385, 425, 32);
         AddResourceField("资金", (Scenario.PlayerCorps?.Treasury.Money ?? 0).ToString(), 465, 505, 56);
         AddResourceField("兵粮", (Scenario.PlayerCorps?.Treasury.Food ?? 0).ToString(), 569, 609, 56);
+        UpdateResources(p);
         _season = LabelAt("春", new(26, 40), new(16, 16), 16);
         _text.Apply(_season, GameTextStyles.For(GameTextRole.Spring));
         _territory = AddButton("疆界", "button-territory", new(694, 10), new(64, 36), true, () => World.ShowBoundaries = !World.ShowBoundaries);
@@ -170,6 +171,18 @@ public partial class StrategyHud : Control
         var label = LabelAt(value, new(valueX, 15), new(valueWidth, 24), 16, HorizontalAlignment.Right);
         _strategicHeader.Add(label);
         _resourceValues.Add(title, label);
+    }
+
+    private void UpdateResources(StrategySnapshot view)
+    {
+        var economy = view.PlayerEconomicOutlook;
+        var money = _resourceValues["资金"];
+        var food = _resourceValues["兵粮"];
+        money.Text = (view.PlayerCorps?.Treasury.Money ?? 0).ToString();
+        food.Text = (view.PlayerCorps?.Treasury.Food ?? 0).ToString();
+        _text.Apply(money, GameTextStyles.Resource(economy?.Money.Sufficient ?? true));
+        _text.Apply(food, GameTextStyles.Resource(economy?.Food.Sufficient ?? true));
+        _resourceValues["信望"].Text = (view.Forces.SingleOrDefault(f => f.Id == view.PlayerForceId)?.Trust ?? 0).ToString();
     }
 
     private Label LabelAt(string text, Vector2 position, Vector2 size, int fontSize, HorizontalAlignment alignment = HorizontalAlignment.Center)
@@ -427,8 +440,8 @@ public partial class StrategyHud : Control
         if (_built && _stateRevision != Session.Snapshot.Revision)
         {
             _stateRevision = Session.Snapshot.Revision;
-            var view=Session.View; var force=view.Forces.SingleOrDefault(f => f.Id==view.PlayerForceId);
-            _resourceValues["资金"].Text=(view.PlayerCorps?.Treasury.Money ?? 0).ToString(); _resourceValues["兵粮"].Text=(view.PlayerCorps?.Treasury.Food ?? 0).ToString(); _resourceValues["信望"].Text=(force?.Trust ?? 0).ToString();
+            var view = Session.View;
+            UpdateResources(view);
             _rosterList.Refresh(view);
             UpdateSelection();
         }

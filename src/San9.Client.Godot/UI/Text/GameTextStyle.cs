@@ -56,6 +56,11 @@ public static class GameTextStyles
         Foreground = enabled ? White : new Color("f06850")
     };
 
+    public static GameTextStyle Resource(bool sufficient) => For(GameTextRole.Resource) with
+    {
+        Foreground = sufficient ? White : new Color("f06850")
+    };
+
     public static GameTextStyle CatalogRow => Outlined(16, White);
     public static GameTextStyle NarrationName => new(24, White, GameTextEffect.Shadow, Colors.Black);
     public static GameTextStyle CatalogDisabledRow => Outlined(16, new Color("a4a4a4"));

@@ -268,6 +268,9 @@ public sealed class StrategySnapshot
     public int Day => World.Clock.Day;
     public int PlayerForceId { get; }
     public CorpsState? PlayerCorps => World.Corps.SingleOrDefault(c => c.OwnerId == PlayerForceId && c.IsRoot);
+    public EconomicOutlook? PlayerEconomicOutlook => PlayerCorps is {} corps
+        ? EconomicOutlook.Read(World, Information.Offices.ToDictionary(o => o.Id, o => o.Salary), PlayerForceId, corps.Id)
+        : null;
     public IReadOnlyList<CityTacticCourse> TacticCourses { get; }
     public IReadOnlyDictionary<int, string> ProvinceNameKeys { get; }
     public IReadOnlyList<CityConnection> CityConnections { get; }

@@ -17,6 +17,7 @@
 
 - [整体路线图](roadmap.md)
 - [电脑 AI 实现规划](ai-implementation-plan.md)（G11 草案）
+- [表现层后续接入规划](presentation-implementation-plan.md)（操作、消息、战场与剧情演出及整局收口）
 - [粗格导航设计](navigation-redesign.md)（已采用：粗格导航、细步执行与端点接驳）
 - [项目与文档约定](project-conventions.md)
 - [研究与证据规范](research-method.md)

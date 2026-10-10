@@ -8,7 +8,7 @@ internal sealed class MovementOccupancy
     private readonly MilitaryRulebook rules;
     private readonly SortedDictionary<(bool Unit, int Id), MapOccupancy> areas = [];
 
-    internal MovementOccupancy(WorldMutation world, MilitaryRulebook rules) : this(world.Settlements.Values, world.Units.Values, rules) { }
+    internal MovementOccupancy(IWorldQuery world, MilitaryRulebook rules) : this(world.Settlements.Values, world.Units.Values, rules) { }
     private MovementOccupancy(IEnumerable<SettlementState> places, IEnumerable<UnitState> units, MilitaryRulebook rules)
     {
         this.rules = rules;
@@ -35,7 +35,7 @@ internal sealed class MovementOccupancy
         else if (!areas.TryGetValue(key, out var previous) || previous != next) areas[key] = next;
     }
 
-    internal IReadOnlyList<MapOccupancy> Query(WorldMutation world, int owner, UnitPolicies policies, int? movingUnit = null, int? entry = null)
+    internal IReadOnlyList<MapOccupancy> Query(IWorldQuery world, int owner, UnitPolicies policies, int? movingUnit = null, int? entry = null)
         => Query(world.Units, world.Settlements, policies, other => MilitaryDiplomacy.AutomaticEnemy(world, owner, other), movingUnit, entry);
 
     private IReadOnlyList<MapOccupancy> Query(IReadOnlyDictionary<int, UnitState> units, IReadOnlyDictionary<int, SettlementState> places,

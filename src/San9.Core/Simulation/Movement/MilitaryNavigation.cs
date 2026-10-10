@@ -14,7 +14,7 @@ internal static class MilitaryNavigation
         public bool Arrived => Navigation.Arrived;
     }
 
-    internal static UnitStep Advance(WorldMutation world, UnitState unit, int? movingUnit, MilitaryRulebook rules,
+    internal static UnitStep Advance(IWorldQuery world, UnitState unit, int? movingUnit, MilitaryRulebook rules,
         int budget, NavigationWorkBudget? work = null)
     {
         if (unit.Waypoint is not { } via || unit.EngagementTargetId is not null || unit.Condition == UnitCondition.Disguised)
@@ -29,7 +29,7 @@ internal static class MilitaryNavigation
         return new(next with { Spent = first.Spent + next.Spent, Steps = first.Steps.AddRange(next.Steps) }, true);
     }
 
-    private static NavigationStep AdvanceDestination(WorldMutation world, UnitState unit, int? movingUnit, MilitaryRulebook rules,
+    private static NavigationStep AdvanceDestination(IWorldQuery world, UnitState unit, int? movingUnit, MilitaryRulebook rules,
         int budget, NavigationWorkBudget? work = null)
     {
         var order = unit.EffectiveOrder!;

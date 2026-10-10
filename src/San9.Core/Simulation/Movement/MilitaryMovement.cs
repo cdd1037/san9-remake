@@ -198,7 +198,7 @@ internal static class MilitaryMovement
         return CommandRejection.None;
     }
 
-    internal static bool ValidOrder(WorldMutation world, int owner, MilitaryOrder? order, FormationRule formation, MilitaryRulebook rules, int? navalFormationId = null)
+    internal static bool ValidOrder(IWorldQuery world, int owner, MilitaryOrder? order, FormationRule formation, MilitaryRulebook rules, int? navalFormationId = null)
     {
         if (order is null || !order.IsValid || !rules.AllowsOrder(formation.Id, order)) return false;
         if (order.Kind == MilitaryOrderKind.Construct) return true;

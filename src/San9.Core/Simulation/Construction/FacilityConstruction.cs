@@ -66,7 +66,7 @@ internal static class FacilityConstruction
         }
     }
 
-    internal static bool CanContinue(WorldMutation world, UnitState unit, MilitaryRulebook military,
+    internal static bool CanContinue(IWorldQuery world, UnitState unit, MilitaryRulebook military,
         IReadOnlyDictionary<int, int> regionCities, TreasureRulebook treasures)
     {
         if (unit.EffectiveOrder?.Construction is not { } plan ||

@@ -11,7 +11,7 @@ public sealed record AllianceRequestConflict(AttackRequestState Request, int? Li
 
 internal static class AttackRequests
 {
-    internal static bool Protects(WorldMutation world, int first, int second) =>
+    internal static bool Protects(IWorldQuery world, int first, int second) =>
         world.Simulation.AttackRequests.Any(r => r.Connects(first, second) && Valid(world, r));
 
     // The diplomacy executor calls this only after both sides accept and before its success transfers.
@@ -109,8 +109,8 @@ internal static class AttackRequests
         events.Add(new AttackRequestEndedEvent(world.Clock, request, reason, liable));
     }
 
-    private static bool Alive(WorldMutation world, int id) => world.Forces.TryGetValue(id, out var force) && !force.IsEliminated;
-    private static bool Valid(WorldMutation world, AttackRequestState r) => Valid(r, id => Alive(world, id), id => world.Settlements.GetValueOrDefault(id));
+    private static bool Alive(IWorldQuery world, int id) => world.Forces.TryGetValue(id, out var force) && !force.IsEliminated;
+    private static bool Valid(IWorldQuery world, AttackRequestState r) => Valid(r, id => Alive(world, id), id => world.Settlements.GetValueOrDefault(id));
     internal static bool Valid(AttackRequestState r, Func<int, bool> alive, Func<int, SettlementState?> place) => r.RemainingXun > 0 && r.RequestedForceId != r.RequesterForceId &&
         r.TargetForceId != r.RequestedForceId && r.TargetForceId != r.RequesterForceId && alive(r.RequestedForceId) &&
         alive(r.RequesterForceId) && alive(r.TargetForceId) &&

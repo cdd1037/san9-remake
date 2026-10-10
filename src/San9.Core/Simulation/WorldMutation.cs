@@ -7,8 +7,19 @@ namespace San9.Core.Simulation;
 /// Stages one atomic world change. Handlers validate business preconditions; the engine
 /// coordinates execution and the world validates invariants before publishing the final state.
 /// </summary>
-internal sealed partial class WorldMutation
+internal sealed partial class WorldMutation : IWorldQuery
 {
+    SimulationState IWorldQuery.Simulation => Simulation;
+    IReadOnlyDictionary<int, ForceState> IWorldQuery.Forces => Forces;
+    IReadOnlyDictionary<int, SettlementState> IWorldQuery.Settlements => Settlements;
+    IReadOnlyDictionary<int, OfficerState> IWorldQuery.Officers => Officers;
+    IReadOnlyDictionary<int, UnitState> IWorldQuery.Units => Units;
+    IReadOnlyDictionary<(int FirstId, int SecondId), ForceRelation> IWorldQuery.Relations => Relations;
+    IEnumerable<OfficerState> IWorldQuery.ServingUnitMembers(int unitId) => ServingUnitMembers(unitId);
+    bool IWorldQuery.HasTreasureTactic(int officerId, int tacticId, TreasureRulebook rules) => HasTreasureTactic(officerId, tacticId, rules);
+    IReadOnlyList<MapOccupancy> IWorldQuery.MovementOccupancy(MilitaryRulebook rules, int owner, UnitPolicies policies, int? movingUnit, int? entry) =>
+        MovementOccupancy(rules, owner, policies, movingUnit, entry);
+
     private readonly WorldState _owner;
     private readonly long _expectedRevision;
     private bool _committed;

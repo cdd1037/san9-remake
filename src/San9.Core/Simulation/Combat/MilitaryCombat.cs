@@ -20,7 +20,7 @@ internal static class MilitaryCombat
             source.IsSettlement && military.FacilityAttack(world.Settlements[source.Id]).UsesRockfallPower);
     }
 
-    internal static bool ValidTarget(WorldMutation world, int owner, MilitaryOrder order, FormationRule formation, MilitaryRulebook rules)
+    internal static bool ValidTarget(IWorldQuery world, int owner, MilitaryOrder order, FormationRule formation, MilitaryRulebook rules)
     {
         if (formation.Combat is null || formation.Attack is null) return false;
         if (order.Kind == MilitaryOrderKind.AttackUnit)
@@ -32,17 +32,17 @@ internal static class MilitaryCombat
             rules.CanAttackTarget(formation.Attack, definition.Position, true, rules.IsHarbor(settlement));
     }
 
-    internal static int UnitRange(WorldMutation world, UnitState source, MilitaryOrder target, MilitaryRulebook rules, WorldPosition? position = null)
+    internal static int UnitRange(IWorldQuery world, UnitState source, MilitaryOrder target, MilitaryRulebook rules, WorldPosition? position = null)
     {
         var targetPosition = target.UnitId is int id ? world.Units[id].Position : rules.Place(world.Settlements[target.SettlementId!.Value]).Position;
         return rules.AttackRange(rules.Formation(source, position).Attack, position ?? source.Position, targetPosition,
             target.UnitId is null, target.SettlementId is int place && rules.IsHarbor(world.Settlements[place]));
     }
 
-    internal static int FacilityRange(WorldMutation world, SettlementState source, UnitState target, MilitaryRulebook rules) =>
+    internal static int FacilityRange(IWorldQuery world, SettlementState source, UnitState target, MilitaryRulebook rules) =>
         rules.FacilityAttackRange(source, target.Position, world.Settlements.Values);
 
-    internal static MapOccupancy TargetArea(WorldMutation world, MilitaryOrder order, MilitaryRulebook rules) =>
+    internal static MapOccupancy TargetArea(IWorldQuery world, MilitaryOrder order, MilitaryRulebook rules) =>
         order.UnitId is int id ? Area(world.Units[id], rules) :
         rules.SettlementArea(world.Settlements[order.SettlementId!.Value]);
 
@@ -61,7 +61,7 @@ internal static class MilitaryCombat
 
     private static bool RequiresCloseSiege(SettlementState target) => target.Soldiers < 1000 || target.Durability < 20;
 
-    internal static int ApproachRange(WorldMutation world, UnitState source, MilitaryOrder target, MilitaryRulebook rules, WorldPosition position)
+    internal static int ApproachRange(IWorldQuery world, UnitState source, MilitaryOrder target, MilitaryRulebook rules, WorldPosition position)
     {
         var formation = rules.Formation(source, position);
         int reach = UnitRange(world, source, target, rules, position);

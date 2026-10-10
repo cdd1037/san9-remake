@@ -13,7 +13,7 @@ public sealed record DeploymentArrivalRequest(int SettlementId, int FormationId,
 public sealed class MilitaryArrivalForecast(WorldSnapshot snapshot, MilitaryRulebook rules,
     IReadOnlyDictionary<int, int>? regionCities = null, TreasureRulebook? treasures = null)
 {
-    private WorldMutation? world;
+    private WorldQuery? world;
 
     public ArrivalEstimate Estimate(int unitId, int maximumDays = 4096, int maximumExpanded = 100000)
     {
@@ -41,7 +41,7 @@ public sealed class MilitaryArrivalForecast(WorldSnapshot snapshot, MilitaryRule
             !rules.ConstructionSites.TryGetValue((plan.RegionId, plan.Position), out var site) ||
             !ConstructionPlacement.IsAvailable(owner, site, facility, rules, regionCities, snapshot.Settlements, snapshot.Units)))
             return new(ArrivalEstimateStatus.NotApplicable);
-        world ??= WorldState.Restore(snapshot).BeginMutation();
+        world ??= new WorldQuery(snapshot);
         var occupancy = world.MovementOccupancy(rules, owner, request.Policies, null, null);
         var travel = rules.Travel(request.FormationId, naval);
         var start = MilitaryRouteQuery.DeploymentPosition(travel, rules.BuildingArea(place), occupancy);
@@ -71,7 +71,7 @@ public sealed class MilitaryArrivalForecast(WorldSnapshot snapshot, MilitaryRule
 
     private ArrivalEstimate Estimate(UnitState unit, int? movingUnit, int maximumDays, NavigationWorkBudget work, bool constructionPreview = false)
     {
-        world ??= WorldState.Restore(snapshot).BeginMutation();
+        world ??= new WorldQuery(snapshot);
         if (!constructionPreview && !Valid(unit)) return new(ArrivalEstimateStatus.NotApplicable);
         if (unit.DepartureDaysRemaining == 0 && MilitaryNavigation.Advance(world, unit, movingUnit, rules, 0).Arrived) return new(ArrivalEstimateStatus.Known, 0);
         for (int day = 1; day <= maximumDays; day++)

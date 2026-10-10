@@ -8,10 +8,10 @@ public sealed record WarDeclaredEvent(GameClock Clock, int AttackerForceId, int 
 
 internal static class MilitaryDiplomacy
 {
-    internal static int Relation(WorldMutation world, int first, int second) =>
+    internal static int Relation(IWorldQuery world, int first, int second) =>
         world.Relations.TryGetValue((Math.Min(first, second), Math.Max(first, second)), out var relation) ? relation.Value : 0;
 
-    internal static bool CanFight(WorldMutation world, int attacker, int? defender) =>
+    internal static bool CanFight(IWorldQuery world, int attacker, int? defender) =>
         world.Forces.TryGetValue(attacker, out var force) && !force.IsEliminated && attacker != defender &&
         (defender is null || world.Forces.TryGetValue(defender.Value, out var other) && !other.IsEliminated);
 
@@ -21,7 +21,7 @@ internal static class MilitaryDiplomacy
         CanFight(world, source, target) && world.Simulation.Alliance?.Protects(source, target) != true &&
         !AttackRequests.Protects(world, source, target);
 
-    internal static bool AutomaticEnemy(WorldMutation world, int attacker, int? defender) =>
+    internal static bool AutomaticEnemy(IWorldQuery world, int attacker, int? defender) =>
         CanFight(world, attacker, defender) && (defender is null ||
             world.Simulation.Alliance?.Protects(attacker, defender.Value) != true && !AttackRequests.Protects(world, attacker, defender.Value) &&
             IsHostileRelation(Relation(world, attacker, defender.Value)));
@@ -37,7 +37,7 @@ internal static class MilitaryDiplomacy
                 r.SecondId == Math.Max(attacker, defender.Value))?.Value ?? 0));
     }
 
-    internal static bool Work(WorldMutation world, int settlementId, MilitaryRulebook rules) =>
+    internal static bool Work(IWorldQuery world, int settlementId, MilitaryRulebook rules) =>
         rules.Place(world.Settlements[settlementId]).FacilityTypeId is int type && rules.Facilities[type].IsWork;
 
     internal static int? TargetOwner(WorldMutation world, MilitaryOrder? order) => order?.Kind switch

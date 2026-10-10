@@ -44,6 +44,35 @@ public sealed class MovementForecastTests
     }
 
     [Fact]
+    public void FrozenOrderQueriesMatchExecutionAndKeepTheirSnapshotAfterOwnershipChanges()
+    {
+        var rules = Rules(100);
+        var world = World();
+        var before = world.CreateSnapshot();
+        string hash = before.StateHash;
+        var query = new MilitaryOrderQuery(before, rules);
+        var mutation = world.BeginMutation();
+        MilitaryOrder[] orders =
+        [
+            new(MilitaryOrderKind.Move, new(32, 2), null),
+            new(MilitaryOrderKind.Move, new(-5, 2), null),
+            new(MilitaryOrderKind.Return, null, 1),
+            new(MilitaryOrderKind.Return, null, 99),
+            new(MilitaryOrderKind.AttackSettlement, null, 1),
+            new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 99 },
+        ];
+        foreach (var order in orders)
+            Assert.Equal(MilitaryMovement.ValidOrder(mutation, 1, order, rules.Formations[0], rules), query.CanAssign(0, order));
+        var home = new MilitaryOrder(MilitaryOrderKind.Return, null, 1);
+        Assert.True(query.CanAssign(0, home));
+        mutation.Replace(mutation.Settlements[1] with { OwnerId = 2, CorpsId = 2 });
+        world.Commit(mutation);
+        Assert.True(query.CanAssign(0, home));
+        Assert.False(new MilitaryOrderQuery(world.CreateSnapshot(), rules).CanAssign(0, home));
+        Assert.Equal(hash, before.StateHash);
+    }
+
+    [Fact]
     public void RelayConsumesSharedDailyBudgetAndForecastIncludesDelay()
     {
         var rules = Rules(100);
@@ -209,6 +238,7 @@ public sealed class MovementForecastTests
             new(AttackApproachingEnemies: true));
         Assert.Equal(ArrivalEstimateStatus.Waiting, forecast.EstimateDeployment(request).Status);
         Assert.Equal(ArrivalEstimateStatus.Known, forecast.EstimateDeployment(request with { Policies = new() }).Status);
+        Assert.Equal(ArrivalEstimateStatus.Waiting, forecast.EstimateDeployment(request).Status);
         Assert.Equal(before, world.CreateSnapshot());
         Assert.Equal(ArrivalEstimateStatus.Incomplete, forecast.EstimateDeployment(request with { Policies = new() }, maximumDays: 1).Status);
         Assert.Equal(ArrivalEstimateStatus.Incomplete, forecast.EstimateDeployment(request with { Policies = new() }, maximumExpanded: 1).Status);

@@ -5,7 +5,7 @@ namespace San9.Core.Simulation;
 /// <summary>Snapshot target eligibility shared with final order validation; never executes a command.</summary>
 public sealed class MilitaryOrderQuery(WorldSnapshot snapshot, MilitaryRulebook rules)
 {
-    private readonly WorldMutation world = WorldState.Restore(snapshot).BeginMutation();
+    private readonly WorldQuery world = new(snapshot);
 
     public bool CanAssign(int unitId, MilitaryOrder order) => world.Units.TryGetValue(unitId, out var unit) &&
         !unit.IsEmbedded && !unit.IsPersonnel && unit.Soldiers > 0 && unit.FormationId is int formation &&

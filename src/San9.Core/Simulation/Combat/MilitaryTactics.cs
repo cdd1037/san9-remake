@@ -8,7 +8,7 @@ public sealed record TacticSelectedEvent(GameClock Clock, int OfficerId, int? Ta
 
 internal static class MilitaryTactics
 {
-    internal static bool HasTactic(WorldMutation world, int owner, IEnumerable<int> members, int required, TreasureRulebook treasures)
+    internal static bool HasTactic(IWorldQuery world, int owner, IEnumerable<int> members, int required, TreasureRulebook treasures)
         => world.Forces[owner].ProvidedTactics.Contains(required) || members.Any(id =>
             world.Officers[id].LearnedTactics.Contains(required) || world.HasTreasureTactic(id, required, treasures));
 

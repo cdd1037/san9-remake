@@ -5,7 +5,7 @@ namespace San9.Core.Simulation;
 /// <summary>Directed engagements derived from current orders, ownership and attack reach.</summary>
 internal static class MilitaryEngagements
 {
-    internal static EngagementRelations Build(WorldMutation world, MilitaryRulebook military)
+    internal static EngagementRelations Build(IWorldQuery world, MilitaryRulebook military)
     {
         Dictionary<BattleSource, BattleSource> targets = [];
         Dictionary<BattleSource, int> incoming = [];
@@ -28,7 +28,7 @@ internal static class MilitaryEngagements
         return new(targets, incoming, engaged);
     }
 
-    private static BattleSource? FindTarget(WorldMutation world, UnitState unit, MilitaryRulebook military)
+    private static BattleSource? FindTarget(IWorldQuery world, UnitState unit, MilitaryRulebook military)
     {
         if (unit.IsEmbedded || unit.IsPersonnel || unit.Soldiers == 0 || unit.Morale == 0 ||
             unit.Condition is UnitCondition.Confused or UnitCondition.Routed ||
@@ -39,7 +39,7 @@ internal static class MilitaryEngagements
         return new(order.UnitId ?? order.SettlementId!.Value, order.UnitId is null);
     }
 
-    private static UnitState? FindFacilityTarget(WorldMutation world, SettlementState settlement, MilitaryRulebook military)
+    private static UnitState? FindFacilityTarget(IWorldQuery world, SettlementState settlement, MilitaryRulebook military)
     {
         if (!FacilityCombat.Active(settlement) || !military.TryPlace(settlement, out _) ||
             military.FacilityAttack(settlement).Attack is null) return null;

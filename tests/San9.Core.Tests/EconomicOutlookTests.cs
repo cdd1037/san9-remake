@@ -5,6 +5,36 @@ namespace San9.Core.Tests;
 public sealed class EconomicOutlookTests
 {
     [Fact]
+    public void AccountGroupingKeepsFieldPersonnelAndTransportCostsWithTheirCurrentCorps()
+    {
+        var clock = new GameClock(190, 6, 21);
+        var world = new WorldSnapshot(clock, new(new(190, 1, 1), 1)
+        {
+            Tasks = [new(Guid.NewGuid(), "personnel-return", "player", 5, 3, 16, clock, clock.NextDay(), 0, 0)
+                { Reinforcements = new(1000, 50, 16) }]
+        })
+        {
+            Forces = [new(5, 100), new(6, 100)],
+            Corps = [new(10, 5, null, new(1000, 1000)) { IsRoot = true }, new(11, 5, null, new(2000, 2000))],
+            Settlements = [new(15, 5, 500, 100, 100, 50, 800, 0, 100, 0, 100),
+                new(16, 5, 1000, 100, 100, 50, 800, 0, 100, 0, 100) { CorpsId = 11 }],
+            Units = [new(20, 5, new(0, 0), 1000), new(21, 6, new(0, 0), 90000)],
+            Officers = [new(1, 5, null, new(50, 50, 50, 50), false) { UnitId = 20, OfficeId = 1 },
+                new(2, 5, 16, new(50, 50, 50, 50), false) { OfficeId = 2 }]
+        };
+        var salaries = new Dictionary<int, int> { [1] = 7, [2] = 3 };
+        var root = EconomicOutlook.Read(world, salaries, 5, 10);
+        var branch = EconomicOutlook.Read(world, salaries, 5, 11);
+        var force = EconomicOutlook.Read(world, salaries, 5);
+        Assert.Equal(7, root.Money.Expenditure);
+        Assert.Equal(3, branch.Money.Expenditure);
+        Assert.Equal(40, root.Food.Expenditure);
+        Assert.Equal(50, branch.Food.Expenditure);
+        Assert.Equal(root.Money.Forecast + branch.Money.Forecast, force.Money.Forecast);
+        Assert.Equal(root.Food.Forecast + branch.Food.Forecast, force.Food.Forecast);
+    }
+
+    [Fact]
     public void DormantOfficerDoesNotConsumeSalaryAndBarbarianSupplyReplacesInventory()
     {
         var clock = new GameClock(190, 6, 21);

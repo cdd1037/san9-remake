@@ -16,7 +16,20 @@ public sealed record EconomicOutlook(ResourceOutlook Money, ResourceOutlook Food
         var query = new WorldQuery(world);
         var corps = world.Corps.Where(c => c.OwnerId == forceId).ToDictionary(c => c.Id);
         if (corpsId is int requested && !corps.ContainsKey(requested)) throw new ArgumentOutOfRangeException(nameof(corpsId));
-        int Account(int? id) => id ?? corps.Values.Single(c => c.IsRoot).Id;
+        int rootAccount = corps.Values.Single(c => c.IsRoot).Id;
+        int Account(int? id) => id ?? rootAccount;
+        var places = query.Settlements.Values.Where(s => !s.IsDestroyed && s.OwnerId == forceId)
+            .ToLookup(s => Account(s.CorpsId));
+        var payroll = query.Officers.Values.Where(o => o.IsServing && o.Status != OfficerStatus.Ruler && o.OwnerId == forceId)
+            .ToLookup(o => Account(PersonnelLocations.Corps(query, o)),
+                o => (long)(o.OfficeId is int office && salaries.TryGetValue(office, out int amount) ? amount : 1));
+        var fieldRations = query.Units.Values.Where(u => u.OwnerId == forceId)
+            .Select(u => (Account: Account(u.CorpsId), Cost: DailyRations.Field(u.Soldiers, u.Wounded)))
+            .Concat(world.Simulation.Tasks.Where(t => t.ForceId == forceId && t.Reinforcements is not null)
+                .Select(t => (Account: Account(ReinforcementTransport.Corps(query, t)),
+                    Cost: DailyRations.Field(t.Reinforcements!.Soldiers, t.Reinforcements.Wounded))))
+            .ToLookup(r => r.Account, r => r.Cost);
+        long? barbarianFood = force.IsBarbarian ? EconomyMath.BarbarianAnnualFood(SoldierTotals.Living(query, forceId)) : null;
         int[] accounts = corpsId is int selected ? [selected] : [.. corps.Keys];
         int dayOfYear = (world.Clock.Month - 1) * 30 + world.Clock.Day - 1;
         int moneyDays = 90 - dayOfYear % 90;
@@ -28,24 +41,16 @@ public sealed record EconomicOutlook(ResourceOutlook Money, ResourceOutlook Food
         List<ResourceOutlook> money = [], food = [];
         foreach (int account in accounts)
         {
-            bool Own(int? owner, int? id) => owner == forceId && Account(id) == account;
-            var places = query.Settlements.Values.Where(s => !s.IsDestroyed && Own(s.OwnerId,s.CorpsId)).ToArray();
-            var cities = places.Where(s => s.Kind == SettlementKind.City).ToArray();
-            long salary = query.Officers.Values.Where(o => o.IsServing && o.Status != OfficerStatus.Ruler && Own(o.OwnerId,PersonnelLocations.Corps(query, o)))
-                .Sum(o => (long)(o.OfficeId is int office && salaries.TryGetValue(office, out int amount) ? amount : 1));
-            long rations = places.Where(s => s.ConsumesFood).Sum(s => DailyRations.Garrison(s.Soldiers,s.Wounded)) +
-                world.Units.Where(u => Own(u.OwnerId,u.CorpsId)).Sum(u => DailyRations.Field(u.Soldiers,u.Wounded));
-            foreach (var task in world.Simulation.Tasks.Where(t => t.ForceId == forceId && t.Reinforcements is not null))
-            {
-                if (Account(ReinforcementTransport.Corps(query, task)) == account)
-                    rations += DailyRations.Field(task.Reinforcements!.Soldiers, task.Reinforcements.Wounded);
-            }
+            var cities = places[account].Where(s => s.Kind == SettlementKind.City).ToArray();
+            long salary = payroll[account].Sum();
+            long rations = places[account].Where(s => s.ConsumesFood).Sum(s => DailyRations.Garrison(s.Soldiers,s.Wounded)) +
+                fieldRations[account].Sum();
             var treasury = corps[account].Treasury;
             bool supplied = force.IsBarbarian && cities.Length > 0;
             money.Add(Project(treasury.Money, salary * salaryPayments, cities.Sum(EconomyMath.Revenue),
                 supplied ? EconomyRulebook.BarbarianQuarterlyFunds : null));
             food.Add(Project(treasury.Food, rations * foodDays, cities.Sum(EconomyMath.Harvest),
-                supplied ? EconomyMath.BarbarianAnnualFood(SoldierTotals.Living(query, forceId)) : null));
+                supplied ? barbarianFood : null));
         }
         return new(Sum(money), Sum(food));
     }

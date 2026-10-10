@@ -66,8 +66,13 @@ public partial class Main : Node
             world.MapReady += OnFirstMapReady;
             var initial = content.Scenario;
             if (options.RuntimeSmoke) initial = ClientVerificationScenario.Create(initial);
-            San9.Application.GameSession CreateNewSession() =>
-                San9.Application.GameSession.Start(initial, 190, options.ComputerDamageBonusPercent);
+            San9.Application.GameSession CreateNewSession()
+            {
+                ulong seed = options.RequiresWorldVerification ? 190UL
+                    : System.Buffers.Binary.BinaryPrimitives.ReadUInt64LittleEndian(
+                        System.Security.Cryptography.RandomNumberGenerator.GetBytes(sizeof(ulong)));
+                return San9.Application.GameSession.Start(initial, seed, options.ComputerDamageBonusPercent);
+            }
             var session = CreateNewSession();
             var saveStore = new Persistence.SlotSaveStore(ProjectSettings.GlobalizePath(Persistence.SlotSaveStore.UserDirectory), initial);
             var music = new SceneMusicPlayer { ContentRoot = content.ContentRoot, Tracks = content.Presentation.Sounds };

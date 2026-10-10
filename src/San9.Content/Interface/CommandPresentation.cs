@@ -25,6 +25,8 @@ public sealed record PersonnelPresentationDefinition(Dictionary<string, Decision
 public sealed record CommandPresentation(Dictionary<string, string> Sounds, PatrolPresentationDefinition? Patrol)
 {
     [System.Text.Json.Serialization.JsonRequired]
+    public MapAudioDefinition? MapAudio { get; init; }
+    [System.Text.Json.Serialization.JsonRequired]
     public DecisionPresentations Decisions { get; init; } = DecisionPresentations.Empty;
     [System.Text.Json.Serialization.JsonRequired]
     public Dictionary<string, FacilityPresentationDefinition> Facilities { get; init; } = [];
@@ -67,8 +69,10 @@ public sealed record CommandPresentation(Dictionary<string, string> Sounds, Patr
     {
         var personIds = people.ToHashSet();
         Decisions.Validate(texts, Sounds, personIds);
+        MapAudio?.Validate(Sounds);
         if (Progress is { } progress)
         {
+            if (MapAudio is null) throw new InvalidDataException("Missing map audio presentation.");
             if (progress.OrderPrompt is null || string.IsNullOrWhiteSpace(progress.StrategyTitleSound) || !Sounds.ContainsKey(progress.StrategyTitleSound))
                 throw new InvalidDataException("Incomplete strategy entry presentation.");
             if (ProgressPresentationDefinition.RecordRoles.Except(progress.Records.Keys).Any() ||

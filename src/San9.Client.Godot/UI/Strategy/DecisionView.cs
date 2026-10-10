@@ -226,7 +226,7 @@ public partial class DecisionView : Control
     private void FinishResult() { _music?.Dispose(); _music = null; Pending = false; Finished(); }
     private void StartDiplomacyMusic()
     {
-        if (SoundEnabled && Draft.Diplomacy is not null && _music is null)
+        if (Draft.Diplomacy is not null && _music is null)
             _music = BeginMusic?.Invoke("diplomacy-music");
     }
     public override void _GuiInput(InputEvent input) => AcceptEvent();

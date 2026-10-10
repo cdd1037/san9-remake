@@ -21,6 +21,7 @@ public partial class StrategyHud : Control
     public Action? StartNewGame { get; init; }
     private TextureScope _textures = null!;
     private SceneMusicPlayer _sceneMusic = null!;
+    public bool MusicEnabled { get; init; } = true;
     private readonly List<(string Asset, Vector2 Position)> _frames = [];
     private Label _footer = null!;
     private GameMessageBar _message = null!;
@@ -58,7 +59,7 @@ public partial class StrategyHud : Control
     public override void _Ready()
     {
         _textures = Textures.CreateScope(owner: this);
-        _sceneMusic = new() { ContentRoot = ContentRoot, Tracks = CommandPresentation.Sounds };
+        _sceneMusic = new() { ContentRoot = ContentRoot, Tracks = CommandPresentation.Sounds, Enabled = MusicEnabled };
         AddChild(_sceneMusic);
         _textures.RequestPrefixes("button-", "top-", "radar-", "sidebar-", "ruler-", "field-", "region-",
             "season-", "turn-", "target-", "hover-", "icon-", "minimap-",
@@ -90,6 +91,7 @@ public partial class StrategyHud : Control
         if (_built) return;
         Turn = new(Session)
         {
+            ExecutionTitleStarted = () => _sceneSounds.Play(CommandPresentation.MapAudio!.ExecutionTitleSound, SoundEnabled),
             StrategyTitleStarted = () =>
             {
                 if (CommandPresentation.Progress is { } progress) _sceneSounds.Play(progress.StrategyTitleSound, SoundEnabled);

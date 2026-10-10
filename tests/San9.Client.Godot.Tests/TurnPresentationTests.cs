@@ -9,8 +9,8 @@ public sealed class TurnPresentationTests
     [Fact]
     public void StrategyTitleCueOnlyRunsForCompletedXunAndEntranceDoesNotRepeatOnRepaintOrCancel()
     {
-        int sounds = 0;
-        var turn = new TurnPresentation(Session()) { StrategyTitleStarted = () => sounds++ };
+        int sounds = 0, executionSounds = 0;
+        var turn = new TurnPresentation(Session()) { StrategyTitleStarted = () => sounds++, ExecutionTitleStarted = () => executionSounds++ };
         Assert.Equal(1,turn.StrategyEntrance);
         turn.Update(2);
         Assert.Equal(0,sounds);
@@ -20,12 +20,14 @@ public sealed class TurnPresentationTests
         Enter(turn);
         Finish(turn);
         Assert.Equal(TurnScreen.Strategy,turn.Screen);
+        Assert.Equal(1,executionSounds);
         Assert.Equal(2,turn.StrategyEntrance);
         Assert.Equal(1,sounds);
         turn.Update(2); turn.Update(2);
+        Assert.Equal(1,executionSounds);
         Assert.Equal(2,turn.StrategyEntrance);
         Assert.Equal(1,sounds);
-        var restored = new TurnPresentation(Session()) { StrategyTitleStarted = () => sounds++ };
+        var restored = new TurnPresentation(Session()) { StrategyTitleStarted = () => sounds++, ExecutionTitleStarted = () => executionSounds++ };
         restored.Update(2);
         Assert.Equal(1,restored.StrategyEntrance);
         Assert.Equal(1,sounds);

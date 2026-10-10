@@ -57,7 +57,7 @@ public partial class CommandNarration : Control
         if (_musicRole != entry.BackgroundMusicRole)
         {
             _music?.Dispose(); _music = null; _musicRole = entry.BackgroundMusicRole;
-            if (SoundEnabled && _musicRole is string music) _music = BeginMusic?.Invoke(music);
+            if (_musicRole is string music) _music = BeginMusic?.Invoke(music);
         }
         MessagePresented?.Invoke(entry);
         if (!HasIllustration && entry.SpeakerId is int id)

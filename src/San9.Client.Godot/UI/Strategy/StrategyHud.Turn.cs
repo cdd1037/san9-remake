@@ -25,12 +25,16 @@ public partial class StrategyHud
     private San9.Core.Simulation.GameClock? _contextPresented;
     private long _strategyEntrancePresented;
     private SceneSoundPlayer _sceneSounds = null!;
+    private MapSoundPlayer _mapSounds = null!;
+    private readonly MapAudioPlayback _mapAudioPlayback = new(Random.Shared.Next);
 
     private void BuildTurnControls()
     {
         _contextPresented = Session.StrategicContext.Clock;
         _sceneSounds = new() { ContentRoot = ContentRoot, Sounds = CommandPresentation.Sounds };
         AddChild(_sceneSounds);
+        _mapSounds = new() { ContentRoot = ContentRoot, Sounds = CommandPresentation.Sounds };
+        AddChild(_mapSounds);
         BuildMapMessages();
         _executionPanels = new ExecutionPanels { Textures = _textures, Texts = Texts, Skin = Skin, RecordsLog = _mapRecords };
         _executionPanels.LocationRequested += World.FocusCell;
@@ -92,12 +96,35 @@ public partial class StrategyHud
         }
         World.Presentation = Turn.Display;
         World.Day = Turn.Day;
+        UpdateMapAudio();
         UpdateMapMessages(delta);
         bool showPanels = Turn.Screen is TurnScreen.Preparing or TurnScreen.Playing or TurnScreen.AwaitingDecision or TurnScreen.Presenting ||
             Turn.Screen == TurnScreen.Failed && _executionPanels.Expanded;
         _executionPanels.Advance(showPanels || _mapRecordsRequested, delta, _decision is not null);
         _executionPanels.Bind(Turn.Display ?? Session.View);
         UpdateTurnControls();
+    }
+
+    private void UpdateMapAudio()
+    {
+        var audio = CommandPresentation.MapAudio!;
+        _sceneMusic.SetMapTrack(Turn.Screen == TurnScreen.Terminal ? null : MapMusic.Select(Turn.Display ?? Session.View, audio));
+        var frame = World.Display?.Presented;
+        if (!SoundEnabled || Turn.Screen != TurnScreen.Playing || _narration is not null ||
+            frame is null || !World.IsDayReady || !ReferenceEquals(frame.Region.Scene.Day, Turn.Day))
+        {
+            _mapSounds.UpdateVoices([], Turn.Day);
+            if (!SoundEnabled || Turn.Screen != TurnScreen.Playing || _narration is not null || Turn.Day is null)
+                _mapAudioPlayback.Clear();
+            return;
+        }
+        var transform = GetGlobalTransformWithCanvas().AffineInverse() * World.GetGlobalTransformWithCanvas();
+        var sources = frame.Region.Scene.SoundSources(audio).Select(source =>
+        {
+            var p = transform * new Vector2((float)source.X, (float)source.Y);
+            return source with { X = p.X, Y = p.Y, Resource = CommandPresentation.Sounds[source.Role] };
+        });
+        _mapSounds.UpdateVoices(_mapAudioPlayback.Update(sources, Size.X, Size.Y, audio.BattleAmbience), Turn.Day);
     }
 
     private void UpdateTurnControls()

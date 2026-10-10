@@ -43,13 +43,14 @@ public static class ClientContentImporter
             foreach (var item in converted.Messages) messages.Add(item.Key, item.Value);
             if (messageReports) adaptations.AddRange(converted.Adaptations);
         }
+        var audioFiles = AudioAssetCompiler.Discover(sourceDirectory.Root);
         San9.Content.Interface.CommandPresentation presentation;
         using (var source = new MemoryStream(scenarioBytes))
         {
             var header = San9ScenarioArchive.ReadInitialScenario190Header(source);
             source.Position = 0;
             var people = San9ScenarioPersonArchive.ReadKnownRecords(source);
-            presentation = CommandPresentationCompiler.Compile(people) with
+            presentation = CommandPresentationCompiler.Compile(people, audioFiles) with
             {
                 Notices = new() { ["scroll-hover"] = "messages.8427", ["scroll-click"] = "messages.8428" }
             };
@@ -60,11 +61,15 @@ public static class ClientContentImporter
         text = text with { Messages = messages };
         var roles = InformationArtCompiler.Compile(scenarioBytes, scenario, textures.Library, textures.Portraits);
         var dependency = new TextureDependency(Path.GetRelativePath(output, textureRoot).Replace('\\','/'));
+        var mapAudio = MapAudioCompiler.Compile(exe);
+        presentation = presentation with { MapAudio = mapAudio.Definition };
+        foreach (var source in mapAudio.Sources.Concat(MapAudioCompiler.MusicSources))
+            presentation.Sounds.Add(source.Role, AudioAssetCompiler.Path(AudioAssetCompiler.Resolve(audioFiles, source.File)));
         Dictionary<string, byte[]> sounds = new(StringComparer.Ordinal);
-        foreach (var (role, file) in CommandPresentationCompiler.SoundSources)
-            sounds.Add(presentation.Sounds[role], Read(Path.Combine(sourceDirectory.Root, file)));
-        sounds.Add(presentation.Sounds["diplomacy-music"], await AudioTranscoder.ToWaveAsync(Read(Path.Combine(sourceDirectory.Root,"BGM","BGM_21.WMA")), token));
-        sounds.Add(presentation.Sounds["force-eliminated-music"], await AudioTranscoder.ToWaveAsync(Read(Path.Combine(sourceDirectory.Root,"BGM","BGM_26.WMA")), token));
+        foreach (string file in audioFiles.Values)
+            sounds.Add(AudioAssetCompiler.Path(file), Read(Path.Combine(sourceDirectory.Root, file)));
+        foreach (string path in presentation.Sounds.Values.Distinct())
+            if (!sounds.ContainsKey(path)) throw new InvalidDataException("Missing prepared audio asset: " + path);
         var content = new ScenarioContent(ScenarioContent.CurrentSchemaVersion, sources.Distinct().OrderBy(s => s.Name, StringComparer.Ordinal).ToArray(),
             dependency, MapInstance.From(map), scenario, text, roles) { Presentation = presentation };
         var loaded = ClientContentFiles.Resolve(content, textures, textureRoot) with { ContentRoot = output };
@@ -77,6 +82,9 @@ public static class ClientContentImporter
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
             await File.WriteAllBytesAsync(target, bytes, token);
         }
+        var currentAudio = sounds.Keys.Select(path => PackageFiles.Resolve(output, path)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (string path in Directory.EnumerateFiles(Path.Combine(output, "audio"), "*", SearchOption.AllDirectories))
+            if (San9.Content.Interface.AudioFileFormats.Identify(path) is not null && !currentAudio.Contains(path)) File.Delete(path);
         await ScenarioContentFiles.WriteAsync(output, content, token, PublicationMessageCatalog.Groups);
         File.Delete(Path.Combine(output, "message-id-map.json"));
         if (messageReports)

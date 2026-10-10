@@ -87,11 +87,12 @@ public partial class Main : Node
                 sessionUi = new Node { Name = "SessionUi" }; ui.AddChild(sessionUi);
                 var backdropHost = new Node(); sessionUi.AddChild(backdropHost);
                 var overlayHost = new StrategyOverlayHost();
+                var soundSettings = new Settings.UserSettingsStore(ProjectSettings.GlobalizePath(Settings.UserSettingsStore.UserDataPath)).Load();
                 hud = new StrategyHud { CommandPresentation = content.Presentation, ContentRoot = content.ContentRoot,
                     SaveStore = saveStore, SaveSummary = note => Persistence.SaveSlotSummaryFactory.Create(session, initial, content.Text, note),
                     ActivateSession = ActivateSession,
                     StartNewGame = () => Callable.From(() => ActivateSession(San9.Application.GameSession.Start(initial,190,options.ComputerDamageBonusPercent))).CallDeferred(),
-                    SoundEnabled = new Settings.UserSettingsStore(ProjectSettings.GlobalizePath(Settings.UserSettingsStore.UserDataPath)).Load().SoundEnabled, OverlayHost = overlayHost, BackdropHost = backdropHost, World = world, Selection = selection, Session = session, Texts = content.Text, Skin = content.Skin, Textures = textures };
+                    MusicEnabled = soundSettings.MusicEnabled, SoundEnabled = soundSettings.SoundEnabled, OverlayHost = overlayHost, BackdropHost = backdropHost, World = world, Selection = selection, Session = session, Texts = content.Text, Skin = content.Skin, Textures = textures };
                 sessionUi.AddChild(overlayHost);
                 sessionUi.AddChild(hud);
                 sessionUi.MoveChild(overlayHost, sessionUi.GetChildCount() - 1);

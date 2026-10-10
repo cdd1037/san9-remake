@@ -23,6 +23,7 @@ public sealed class TurnPresentation(GameSession session)
     public long Publication { get; private set; }
     public long StrategyEntrance { get; private set; } = 1;
     public Action? StrategyTitleStarted { get; init; }
+    public Action? ExecutionTitleStarted { get; init; }
     public bool Paused { get; private set; }
     public bool IsComputing => _pending is { IsCompleted: false };
     public double Progress { get; private set; }
@@ -74,6 +75,7 @@ public sealed class TurnPresentation(GameSession session)
         Progress = 0;
         Paused = false;
         _remaining = TransitionDuration;
+        ExecutionTitleStarted?.Invoke();
         Start(new PrepareAdvanceOperation());
     }
 

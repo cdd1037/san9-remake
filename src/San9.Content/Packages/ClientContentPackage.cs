@@ -45,6 +45,10 @@ public sealed record ClientContentPackage(int SchemaVersion, ContentSource[] Sou
             if (!Skin.Roles.ContainsKey($"catalog-facility-{facility.Id}"))
                 throw new InvalidDataException($"Missing facility illustration: {facility.Id}");
         Presentation.Validate(Text, Scenario.Officers.Select(o => o.State.Id), Scenario.Settlements.Select(s => s.Id));
+        Presentation.MapAudio?.ValidateReferences(Map.Units, Scenario.Information.Ranks.Select(r => r.Id), Map.BuildingTypes.Select(t => t.Id));
+        if (Presentation.MapAudio is { } audio && (Scenario.Military?.Facilities.Where(f => f.Buildable)
+            .Select(f => f.Id).Except(audio.ConstructionSounds.Keys).Any() ?? false))
+            throw new InvalidDataException("Missing construction sound binding.");
         foreach (string illustration in Presentation.Decisions.Events.Values.SelectMany(d=>d.Introduction.Append(d.Prompt)
             .Concat(d.Results.Values.SelectMany(m=>m))).Concat(Presentation.Decisions.Shared.Values)
             .Select(m=>m.Illustration).OfType<string>().Where(r=>r.StartsWith("decision-",StringComparison.Ordinal)).Distinct())

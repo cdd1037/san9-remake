@@ -2,7 +2,7 @@
 
 本页维护内容转换、契约与校验入口，不累计界面实现说明。界面开发统一从[UI 文档](ui/README.md)进入；地图与运行态见[地图文档](map-import.md)和[运行时架构](runtime-state.md)。
 
-P1 计略外交采用组合包 schema166，必需的 `presentation.missions` 字典提供十二类出发、意见、结果、外交会谈、计略行动／回应和军团结果等 88 项语义绑定，并校验消息图参数闭包、说话人及音效引用。出发音效区分计略、流言／外交与夺取；外交会谈及劝降灭亡插图分别提供独立音乐角色，插图复用完整纹理包的 G_Still64。转换器通过 PATH 上的 FFmpeg 将源 BGM_21／BGM_26.WMA 转为 PCM WAV，源文件纳入输入校验；客户端仅加载转换包。旧包原位执行 `import-client`，无需重转纹理；190 年包已更新。客户端和原作对齐边界见[操作说明](ui/mission-corps-commands.md)。
+P1 计略外交采用组合包 schema166，必需的 `presentation.missions` 字典提供十二类出发、意见、结果、外交会谈、计略行动／回应和军团结果等 88 项语义绑定，并校验消息图参数闭包、说话人及音效引用。出发音效区分计略、流言／外交与夺取；外交会谈及劝降灭亡插图分别提供独立音乐角色，插图复用完整纹理包的 G_Still64。会谈及灭亡音乐从私有目录读取已准备音频，Importer只重命名与复制；客户端仅加载转换包。离线转码见[音频准备](audio-preparation.md)。旧包原位执行 `import-client`，无需重转纹理；190 年包已更新。客户端和原作对齐边界见[操作说明](ui/mission-corps-commands.md)。
 
 皮肤schema48包含红向下／蓝向上目标箭头四帧及独立的建筑锚点 `BuildingArrowOffsets`，并新增都市／势力缩略图共用的 `information-summary` 摘要底图及 `information-map-selected` 多选外框，并补齐共用命令窗口的小样式四角、标题、页脚和裁切遮罩；命令底纹独立于边框尺寸，大小窗口均使用蓝色背景270。内容宽小于416或高小于312时切换小样式，保留贴图透明留白与完整调色板颜色。已有纹理包原位执行 `import-textures --rebuild skin` 即可，剧本包无需重转；完整纹理转换版本为41，定向重建保留原包完整转换版本。
 
@@ -10,9 +10,11 @@ P1 计略外交采用组合包 schema166，必需的 `presentation.missions` 字
 
 ## 现行版本与历史记录
 
+组合包170新增必填`presentation.mapAudio`，以语义角色提供进行字图声音、四季普通／高爵位共八首地图音乐、身体移动／攻击、设施建设、战场环境、设施箭雨和落石声音。身体、爵位与设施引用由组合包校验，不在客户端判断源编号。导入器只重命名与复制已准备音频，保留实际编码和扩展名；旧包原位执行`import-client`，纹理和保存／日志／录像格式不变。190年包的音频现分为`audio/music`与`audio/sound-effects`，保留27首音乐和170项音效；181项播放角色引用68个物理文件，20种身体及八首地图选曲完整，声音角色不再决定物理文件数量。依据与现代实现边界见[RE-0186](../research/findings/RE-SAN9PK-0186.md)，操作与试听见[战略界面](ui/strategy-ui.md#地图音乐与进行面声音)。
+
 2026-09-27命令来源光圈：皮肤33／纹理转换26增加五帧`minimap-command-pulse`语义资源（首帧无后缀，其余为`-1..-4`），逐色透明度保留。客户端以当前命令菜单对象定位，兼用于城市、其他设施和部队；出征后续页面保留来源，整项结束清除。依据[RE-0158](../research/findings/RE-SAN9PK-0158.md#小地图命令来源光圈补证2026-09-27)。本地纹理及190年组合包已原位重转，五帧均32×36、首帧全透明，29064逻辑图片／5262物理文件完整校验通过。解决方案各测试项目合计3867项通过；未启动游戏，菜单开关、对象切换及后续命令页面往返的实际画面待用户验收。
 
-现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 129，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 169，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 50，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 43。规则为 `san9-core-g10-v87`，保存101／日志105／录像11；协议以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 为准。
+现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 129，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 170，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 50，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 43。规则为 `san9-core-g10-v87`，保存101／日志105／录像11；协议以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 为准。
 
 组合包169在`presentation.progress`增加必填`orderPrompt`与`strategyTitleSound`，分别绑定固定下令结果和战略字图音效；新增转换声音SE_G000／SE_G010，客户端只读语义角色。原位执行`import-client`，无需重转纹理。190年包及第40号测试档已更新，保存／日志／录像格式不变。源声音从已有同版本游戏目录补入忽略的私有输入目录，导出WAV哈希与源一致；证据见[RE-0185入口补证](../research/findings/RE-SAN9PK-0185.md#战略入口固定下令提示与两项音效补证)。
 
@@ -80,6 +82,8 @@ TC101剧本导入以源坐标识别地域配置：双坐标均为无效哨兵的
 
 比较身份集合和关键字段，不能只比较总数；文本和资源检查须覆盖支持范围，不能只用首屏样本。
 
+这里的支持范围指本次新增或改变的数据集合及其依赖，不要求每次接入重做全部已有内容的源数据、资源与世界核对。输入及相关规则未变的已通过核对继续复用；包版本递增本身不使未受影响集合的核对失效。
+
 ### 已有批次核对记录
 
 验收按专题保留，普通字段增删、版本递增和逐次测试过程由 Git 追溯。这里仅汇总数据链入口；各报告中的日期、基线和限制仍有效。
@@ -116,9 +120,13 @@ Core按目标格实时选择：范围内更高且具备高处资格的邻格优�
 
 ## 转换与运行
 
+原版音乐的离线转码及音效去角色重复的素材整理见[音频准备](audio-preparation.md)。转码与运行包导入独立，不固定到版本Importer；Importer从私有目录复制已准备的WAV／Ogg Vorbis／MP3并生成语义引用。
+
 三个导入入口（`import-textures`、`import-client`、`import-text`）统一接受 `--game-dir`，不再接受分离的 `--source-exe`／`--data-dir`。所选目录须直接包含 `San9PK.exe` 和原版S9数据；`--scenario`只接受该目录内的剧本文件名，例如`D_Sce002.S9`，不接受另一个路径。Importer共用`San9SourceDirectory`定位输入，继续校验原版身份，缺失文件明确报错。本地入口为`private/游戏文件/`；该目录内的DLL仅供研究，不参与内容转换或客户端加载。
 
-从仓库根目录执行；已有目录按来源清单原位增量更新。复用未变化资源，同步清单并清理失效文件；必要的全量重建仍优先使用原目录。只有明确需要独立对照时保留副本，不为旧包引入兼容分支：
+以下是按需转换与运行入口，不是每次开发或交付的执行清单。先按[工程流程](../specs/engineering-workflow.md#变更流程)判断已有产物是否失效；相关内容改动收敛后集中更新，纯消费者代码和文档改动复用已有包。
+
+从仓库根目录执行，已有产物写回原目录。`import-textures`支持来源复用与下述单元重建；`import-client`目前没有局部或增量转换入口，会重新生成剧本组合包的全部JSON、重命名并复制私有目录中已准备的音效与音乐，共享纹理包仅被引用，不会随之重建。因此“原位更新”不表示只处理变化文件；确需`import-client`时集中运行一次，不为后续未改变产物的修正重复执行。只有明确需要独立对照时保留副本，不为旧包引入兼容分支：
 
 ```powershell
 dotnet run --project src/San9.Tools -- import-textures --game-dir "private/游戏文件" --output "local/generated/content/textures-san9pk-tc101"

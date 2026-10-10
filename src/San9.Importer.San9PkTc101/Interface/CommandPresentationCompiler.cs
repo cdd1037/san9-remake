@@ -11,7 +11,7 @@ internal static class CommandPresentationCompiler
          ("trade-start", "SE/SE_C001.WAV"), ("repair-complete", "SE/se_m002.WAV"), ("reward-result", "SE/SE_G005.WAV"), ("exile-result", "SE/SE_G001.WAV"), ("loyalty-decrease", "SE/SE_G006.WAV"), ("execution-result", "SE/SE_G002.WAV"),
          ("strategy-order-prompt", "SE/SE_G000.WAV"), ("strategy-title", "SE/SE_G010.WAV")];
 
-    internal static CommandPresentation Compile(IReadOnlyList<San9ScenarioPersonRecord> people)
+    internal static CommandPresentation Compile(IReadOnlyList<San9ScenarioPersonRecord> people, IReadOnlyDictionary<string, string> audioFiles)
     {
         int Person(int biography) => people.Take(700).Select((person, id) => (person, id))
             .Single(p => p.person.BiographyResourceCode == biography).id;
@@ -20,8 +20,9 @@ internal static class CommandPresentationCompiler
         FacilityPresentationDefinition Development(int normal, int cooperative, int citizen, int biography, int pair, int result) =>
             new(new() { ["normal"] = Key(normal), ["cooperative"] = Key(cooperative), ["citizen"] = Key(citizen),
                 ["pair-first"] = Key(pair), ["pair-second"] = Key(pair+1), ["result"] = Key(result) }, Person(biography));
-        return new(new(SoundSources.ToDictionary(s => s.Role, s => $"audio/{s.Role}.wav"))
-            { ["diplomacy-music"] = "audio/diplomacy-music.wav", ["force-eliminated-music"] = "audio/force-eliminated-music.wav" },
+        return new(new(SoundSources.ToDictionary(s => s.Role, s => AudioAssetCompiler.Path(AudioAssetCompiler.Resolve(audioFiles, s.File))))
+            { ["diplomacy-music"] = AudioAssetCompiler.Path(AudioAssetCompiler.Resolve(audioFiles, "BGM/BGM_21")),
+              ["force-eliminated-music"] = AudioAssetCompiler.Path(AudioAssetCompiler.Resolve(audioFiles, "BGM/BGM_26")) },
             new(new() { ["normal"] = Key(5592), ["cooperative"] = Key(5826), ["citizen"] = Key(5832),
                 ["pair-first"] = Key(5861), ["pair-second"] = Key(5862), ["result"] = Key(5598) }, Person(674),
                 [new(Key(5873), Person(671), [], AdviceMetric.PublicOrder, 0),

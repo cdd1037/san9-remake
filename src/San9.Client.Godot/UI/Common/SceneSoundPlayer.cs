@@ -9,15 +9,14 @@ public partial class SceneSoundPlayer : Node
     public string ContentRoot { get; init; } = "";
     public IReadOnlyDictionary<string,string> Sounds { get; init; } = null!;
     private AudioStreamPlayer _player = null!;
-    private readonly Dictionary<string,AudioStreamWav> _streams = [];
+    private readonly Dictionary<string,AudioStream> _streams = [];
     public override void _Ready() { _player = new(); AddChild(_player); }
     public void Play(string role, bool enabled)
     {
         if (!enabled) return;
         if (!_streams.TryGetValue(role,out var stream))
         {
-            stream = AudioStreamWav.LoadFromFile(PackageFiles.Resolve(ContentRoot,Sounds[role]))
-                ?? throw new InvalidDataException("Unable to load scene sound: " + role);
+            stream = AudioStreams.Load(PackageFiles.Resolve(ContentRoot,Sounds[role]), loop: false);
             _streams.Add(role,stream);
         }
         _player.Stream = stream;

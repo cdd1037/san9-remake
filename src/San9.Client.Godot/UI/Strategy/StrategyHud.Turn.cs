@@ -119,7 +119,7 @@ public partial class StrategyHud
             return;
         }
         var transform = GetGlobalTransformWithCanvas().AffineInverse() * World.GetGlobalTransformWithCanvas();
-        var sources = frame.Region.Scene.SoundSources(audio).Select(source =>
+        var sources = frame.Region.Scene.SoundSources(audio, frame.Region.Units).Select(source =>
         {
             var p = transform * new Vector2((float)source.X, (float)source.Y);
             return source with { X = p.X, Y = p.Y, Resource = CommandPresentation.Sounds[source.Role] };

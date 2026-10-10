@@ -5,9 +5,9 @@ namespace San9.Client.Godot;
 
 internal sealed partial class MapScene
 {
-    internal IEnumerable<MapSoundSource> SoundSources(MapAudioDefinition audio)
+    internal IEnumerable<MapSoundSource> SoundSources(MapAudioDefinition audio, IEnumerable<UnitVisual> visibleUnits)
     {
-        foreach (var unit in Units)
+        foreach (var unit in visibleUnits)
         {
             var sampled = Sample(unit);
             var state = _stateSampler(unit.Id, MotionTime - _motionStart)!;

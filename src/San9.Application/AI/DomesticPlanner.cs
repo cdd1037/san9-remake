@@ -14,11 +14,14 @@ public static class DomesticPlanner
         ControlSeat seat, Guid commandId, int turn, bool scripted = false, int? corpsId = null)
     {
         snapshot = AiPlanningWorld.Read(snapshot);
+        var busy = snapshot.Simulation.Tasks.Select(t => t.OfficerId).ToHashSet();
+        var available = snapshot.Officers.Where(p => p.IsServing && !p.Acted && p.OwnerId == seat.ForceId &&
+            p.SettlementId is not null && !busy.Contains(p.Id)).ToLookup(p => p.SettlementId!.Value);
         foreach (var city in snapshot.Settlements.Where(s => s.OwnerId == seat.ForceId && (corpsId is null || s.CorpsId == corpsId)).OrderBy(s => s.Id))
         {
-            var people = snapshot.Officers.Where(p => p.IsServing && !p.Acted && p.OwnerId == seat.ForceId && p.SettlementId == city.Id &&
-                !snapshot.Simulation.Tasks.Any(t => t.OfficerId == p.Id)).OrderBy(p => p.Id).ToArray();
+            var people = available[city.Id].OrderBy(p => p.Id).Take(5).ToArray();
             if (people.Length == 0) continue;
+            var corps = city.CorpsId is int id ? snapshot.Corps.Single(c => c.Id == id) : snapshot.Corps.Single(c => c.OwnerId == seat.ForceId && c.IsRoot);
             DomesticActivity[] priorities = scripted ? Enumerable.Range(0, 6).Select(i => (DomesticActivity)((turn + i) % 6)).ToArray() :
                 [DomesticActivity.Cultivation, DomesticActivity.Commerce, DomesticActivity.Patrol, DomesticActivity.Recruit, DomesticActivity.Train, DomesticActivity.Repair];
             if (!scripted)
@@ -31,11 +34,10 @@ public static class DomesticPlanner
             foreach (var activity in priorities)
             {
                 // Keep a small cash reserve and ten days of recruit rations before discretionary spending.
-                var corps = city.CorpsId is int id ? snapshot.Corps.Single(c => c.Id == id) : snapshot.Corps.Single(c => c.OwnerId == seat.ForceId && c.IsRoot);
                 uint money = corps.Treasury.Money;
                 uint food = corps.Treasury.Food;
                 if (activity == DomesticActivity.Recruit && (city.Soldiers >= 10000 || food < (city.Soldiers + 5000L) / 50)) continue;
-                for (int count = Math.Min(5, people.Length); count > 0; count--)
+                for (int count = people.Length; count > 0; count--)
                 {
                     if (activity != DomesticActivity.Train && money < 50 * count + 100) continue;
                     var command = new DevelopCommand(commandId, seat.ForceId, snapshot.Simulation.NextSequence,

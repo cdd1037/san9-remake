@@ -19,8 +19,8 @@ internal sealed class MovementOccupancy
         int? movingUnit = null)
     {
         var units = world.Units.ToDictionary(u => u.Id);
-        var places = world.Settlements.ToDictionary(s => s.Id);
-        return new MovementOccupancy(world.Settlements, includeUnits ? world.Units : [], rules)
+        var places = world.Settlements.Where(s => !s.IsDormant).ToDictionary(s => s.Id);
+        return new MovementOccupancy(places.Values, includeUnits ? world.Units : [], rules)
             .Query(units, places, policies, other => MilitaryDiplomacy.AutomaticEnemy(world, owner, other), movingUnit);
     }
 

@@ -13,6 +13,7 @@ public static class MilitaryPlanner
         Func<CommandContext, GameCommand, CommandSubmissionResult> validate, MilitaryRulebook? rules,
         ControlSeat seat, Guid commandId, int? corpsId = null)
     {
+        world = AiPlanningWorld.Read(world);
         var wait = new WaitCommand(commandId, seat.ForceId, world.Simulation.NextSequence);
         if (rules is null) return wait;
         var force = world.Forces.Single(f => f.Id == seat.ForceId);

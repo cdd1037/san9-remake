@@ -13,6 +13,7 @@ public static class StrategyPlanner
         Func<CommandContext, GameCommand, CommandRejection> eligible, MilitaryRulebook? rules,
         ControlSeat seat, Guid commandId, int? corpsId = null)
     {
+        world = AiPlanningWorld.Read(world);
         long sequence = world.Simulation.NextSequence;
         var wait = new WaitCommand(commandId, seat.ForceId, sequence);
         if (rules is null || world.Simulation.Tasks.Any(t => t.ControllerId == seat.ControllerId &&

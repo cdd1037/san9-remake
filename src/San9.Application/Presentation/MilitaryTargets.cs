@@ -115,7 +115,7 @@ public abstract class MilitaryTargets
         var rules = Rules;
         var cell = MapCoordinates.Cell(position);
         if (cell.X < 0 || cell.Y < 0 || cell.X >= rules.Map.Width || cell.Y >= rules.Map.Height ||
-            View.World.Settlements.Where(s => !s.IsDestroyed && rules.TryPlace(s, out _)).Any(s => rules.GeographicFootprint(s).Contains(cell)) ||
+            View.World.Settlements.Where(s => !s.IsDormant && !s.IsDestroyed && rules.TryPlace(s, out _)).Any(s => rules.GeographicFootprint(s).Contains(cell)) ||
             View.World.Units.Where(u => u.FormationId is not null).Any(u => rules.GeographicFootprint(u).Contains(cell)))
             return false;
         var route = Plan(target, position);

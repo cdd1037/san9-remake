@@ -44,6 +44,19 @@ public sealed class StrategyOverviewTests
     }
 
     [Fact]
+    public void RetiredForceCannotOccupyRankingOrChangeSurvivorsRanks()
+    {
+        var session = GameSession.Start(Fixture(), 1);
+        var world = session.Snapshot with { Forces = session.Snapshot.Forces.Select(f => f.Id == 0 ? f with { IsEliminated = true } : f).ToArray() };
+        var columns = StrategyOverview.Rankings(new StrategySnapshot(Fixture(), world));
+        Assert.DoesNotContain(columns.SelectMany(c => c.Leaders), r => r.Force.Id == 0);
+        var trust = columns.Single(c => c.Metric == ForceRankingMetric.Trust);
+        Assert.Equal(new[] { 1, 2, 3 }, trust.Leaders.Select(r => r.Rank));
+        Assert.Equal(new[] { 1, 2, 3 }, trust.Leaders.Select(r => r.Force.Id));
+        Assert.Equal(3, trust.Player!.Rank);
+    }
+
+    [Fact]
     public void ClosingDoesNotResetIndependentLayers()
     {
         var state=new StrategyOverview(); state.Open();

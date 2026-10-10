@@ -13,6 +13,7 @@ public static class DomesticPlanner
     internal static GameCommand Choose(WorldSnapshot snapshot, Func<CommandContext, GameCommand, CommandSubmissionResult> validate,
         ControlSeat seat, Guid commandId, int turn, bool scripted = false, int? corpsId = null)
     {
+        snapshot = AiPlanningWorld.Read(snapshot);
         foreach (var city in snapshot.Settlements.Where(s => s.OwnerId == seat.ForceId && (corpsId is null || s.CorpsId == corpsId)).OrderBy(s => s.Id))
         {
             var people = snapshot.Officers.Where(p => p.IsServing && !p.Acted && p.OwnerId == seat.ForceId && p.SettlementId == city.Id &&

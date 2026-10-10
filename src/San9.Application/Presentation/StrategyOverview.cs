@@ -29,7 +29,7 @@ public sealed class StrategyOverview
         var settlements = snapshot.Settlements.Where(s => s.OwnerId is not null).ToLookup(s => s.OwnerId!.Value);
         var officers = snapshot.Officers.Where(o => o.IsServing && o.OwnerId is not null).ToLookup(o => o.OwnerId!.Value);
         var units = snapshot.World.Units.ToLookup(u => u.OwnerId);
-        var forces = snapshot.Forces.Where(f => !f.IsBarbarian || f.Id == snapshot.PlayerForceId).ToArray();
+        var forces = snapshot.Forces.Where(f => !f.IsEliminated && (!f.IsBarbarian || f.Id == snapshot.PlayerForceId)).ToArray();
         return Array.AsReadOnly(Enum.GetValues<ForceRankingMetric>().Select(metric =>
         {
             long Value(ForceView force) => metric switch

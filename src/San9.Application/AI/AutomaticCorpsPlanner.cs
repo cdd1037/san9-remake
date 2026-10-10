@@ -30,7 +30,7 @@ internal static class AutomaticCorpsPlanner
             var strategy = StrategyPlanner.Choose(engine.Snapshot, engine.GetPreparationEligibility, military, seat,
                 Id(engine.Snapshot, corps.Id, "strategy"), corps.Id);
             if (strategy is not WaitCommand) events.AddRange(engine.Execute(context, strategy).Events);
-            var snapshot = engine.Snapshot;
+            var snapshot = AiPlanningWorld.Read(engine.Snapshot);
             var places = snapshot.Settlements.Where(s => s.CorpsId == corps.Id && s.CanHostPersons && s.Durability > 0).Select(s => s.Id).ToHashSet();
             var abilities = engine.GetAbilities(snapshot);
             var actor = snapshot.Officers.Where(p => p.IsServing && p.OwnerId == corps.OwnerId &&

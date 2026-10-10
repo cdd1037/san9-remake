@@ -10,7 +10,7 @@ public static class DiplomacyPlanner
 
     internal static GameCommand Choose(SimulationEngine engine, ControlSeat seat, Guid commandId)
     {
-        var world = engine.Snapshot;
+        var world = AiPlanningWorld.Read(engine.Snapshot);
         var context = new CommandContext(seat.ControllerId);
         long sequence = world.Simulation.NextSequence;
         var wait = new WaitCommand(commandId, seat.ForceId, sequence);

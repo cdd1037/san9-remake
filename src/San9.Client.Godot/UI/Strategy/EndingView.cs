@@ -15,6 +15,7 @@ public partial class EndingView : Control
     public TextCatalog Texts { get; init; } = null!;
     public CommandPresentation Presentation { get; init; } = null!;
     public string ContentRoot { get; init; } = "";
+    public Func<Settings.MessageSpeed> ReadMessageSpeed { get; init; } = () => Settings.MessageSpeed.Normal;
     public bool SoundEnabled { get; init; }
     public ISceneMedia Media { get; init; } = null!;
     public Func<EndingOperation, bool> Submit { get; init; } = null!;
@@ -48,7 +49,7 @@ public partial class EndingView : Control
         Textures = Textures,
         Sounds = Presentation.Sounds,
         ContentRoot = ContentRoot,
-        SoundEnabled = SoundEnabled,
+        SoundEnabled = SoundEnabled, ReadMessageSpeed = ReadMessageSpeed,
         MessagePresented = MessagePresented,
         Closed = next
     });

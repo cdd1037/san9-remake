@@ -12,6 +12,7 @@ public partial class CommandNarration : Control
     private Rect2 _resultFrameBounds;
     private Rect2? _imageFrameBounds;
     private TextureScope? _illustration;
+    private AsyncPortrait? _portrait;
     public IReadOnlyList<CommandMessage> Messages { get; init; } = [];
     public StrategySnapshot View { get; init; } = null!;
     public TextCatalog Texts { get; init; } = null!;
@@ -20,6 +21,8 @@ public partial class CommandNarration : Control
     public IReadOnlyDictionary<string,string> Sounds { get; init; } = null!;
     public string ContentRoot { get; init; } = "";
     public bool SoundEnabled { get; init; } = true;
+    public Func<Settings.MessageSpeed> ReadMessageSpeed { get; init; } = () => Settings.MessageSpeed.Normal;
+    private readonly Settings.MessagePageTimer _pageTimer = new();
     public string? InitialSoundRole { get; init; }
     public Func<string,IDisposable>? BeginMusic { get; init; }
     private IDisposable? _music;
@@ -52,6 +55,7 @@ public partial class CommandNarration : Control
     {
         if (_body is not null) { RemoveChild(_body); _body.QueueFree(); }
         _illustration?.Dispose(); _illustration=null; _imageFrameBounds=null;
+        _portrait = null;
         _body = new Control { MouseFilter = MouseFilterEnum.Ignore }; AddChild(_body);
         var entry = Messages[_index];
         if (_musicRole != entry.BackgroundMusicRole)
@@ -63,7 +67,8 @@ public partial class CommandNarration : Control
         if (!HasIllustration && entry.SpeakerId is int id)
         {
             var person = View.MessageSpeaker(id);
-            _body.AddChild(new AsyncPortrait { Service = Service, Role = $"information-person-{id}", View = San9.Content.Images.PortraitView.Bust, Position = new(216,300), Size = new(160,180), MouseFilter = MouseFilterEnum.Ignore });
+            _portrait = new AsyncPortrait { Service = Service, Role = $"information-person-{id}", View = San9.Content.Images.PortraitView.Bust, Position = new(216,300), Size = new(160,180), MouseFilter = MouseFilterEnum.Ignore };
+            _body.AddChild(_portrait);
             Art("portrait-frame",new(168,260));
             for (int i=0;i<7;i++) Art("middle",new(544+i*24,332));
             Art("right",new(712,332));
@@ -106,7 +111,7 @@ public partial class CommandNarration : Control
         _continuation = new TextureRect { Position = HasPerson ? new(632,452) :
             new(_message.Position.X + _message.Size.X + 8, _message.Position.Y + resultBodyHeight - 46), MouseFilter = MouseFilterEnum.Ignore };
         _body.AddChild(_continuation);
-        _frame = 0; _elapsed = 0; UpdateContinuation(); QueueRedraw();
+        _frame = 0; _elapsed = 0; _pageTimer.Reset(); UpdateContinuation(); QueueRedraw();
     }
     private void PlaySound(string role)
     {
@@ -136,6 +141,7 @@ public partial class CommandNarration : Control
     private void Next()
     {
         if(_illustration is { IsReady:false }) return;
+        _pageTimer.Reset();
         if (_message.Advance())
         {
             _frame = 0; _elapsed = 0; UpdateContinuation();
@@ -168,6 +174,8 @@ public partial class CommandNarration : Control
         _elapsed += delta;
         int frame = (int)(_elapsed / ContinuationFrameSeconds);
         if (frame != _frame) { _frame = frame; UpdateContinuation(); }
+        if (_pageTimer.Advance(delta, ReadMessageSpeed(), IsVisibleInTree() && Textures.IsReady &&
+            _illustration is not { IsReady: false } && _portrait is not { IsResourceReady: false } && _musicRole is null)) Next();
     }
     public override void _Draw()
     {

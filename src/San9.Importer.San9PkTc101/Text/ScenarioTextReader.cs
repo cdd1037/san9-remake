@@ -39,7 +39,9 @@ public sealed class ScenarioTextReader(byte[] messages, byte[] executable) : IDi
         // RE-SAN9PK-0160: toolbar IDs 1000..1013, table 0x660F60.
         int[] messages = [8261, 8260, 8262, 8439, 8430, 8291, 8293, 8253, 8290, 8289, 8288, 8440, 8442, 8441,
             8287, 8281, 8366, 8280, 8367, 8282, 8279, 8283, 8405, 8537, 8371, 8372, 8159,
-            8362, 8355, 8356, 8364, 8365, 8354, 8363];
+            8362, 8355, 8356, 8364, 8365, 8354, 8363,
+            // RE-0083: function menu mode 1, descriptor +12.
+            8269, 8270, 8547, 8548, 8549, 8550, 8551, 8552, 8096, 8111, 8066];
         for (int i = 0; i < messages.Length; i++) Add(StrategyHintText.Key(StrategyHintText.Roles[i]), _messages.PlainText(messages[i]));
     }
     private void ReadCommandMenuText()

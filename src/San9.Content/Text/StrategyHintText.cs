@@ -9,7 +9,10 @@ public static class StrategyHintText
         "information-ranks", "information-forces", "information-corps", "information-cities", "information-regions",
         "information-units", "information-officers", "information-treasures", "information-records", "information-chronicle",
         "information-units-empty", "information-treasures-empty", "catalog-officers",
-        "officer-detail", "officer-detail-treasures-empty", "officer-detail-treasures", "officer-detail-status", "officer-detail-tactics", "detail-close", "treasure-detail"
+        "officer-detail", "officer-detail-treasures-empty", "officer-detail-treasures", "officer-detail-status", "officer-detail-tactics", "detail-close", "treasure-detail",
+        "functions-save", "functions-load", "functions-edit-officers", "functions-edit-corps", "functions-edit-cities",
+        "functions-edit-facilities", "functions-edit-obstacles", "functions-pk", "functions-environment",
+        "functions-initial", "functions-exit"
     });
     public static string Key(string role) => $"ui.hint.{role}";
 }

@@ -2,6 +2,7 @@ using Godot;
 using San9.Client.Godot.Persistence;
 using San9.Application;
 using San9.Application.Persistence;
+using San9.Content.Text;
 
 namespace San9.Client.Godot;
 
@@ -9,13 +10,17 @@ namespace San9.Client.Godot;
 public partial class SystemMenuPanel : Control
 {
     public TextureService Service { get; init; } = null!;
+    public TextCatalog Texts { get; init; } = null!;
     public SlotSaveStore Store { get; init; } = null!;
     public GameSession Session { get; init; } = null!;
     public Func<string, SaveSlotSummary> CreateSummary { get; init; } = null!;
     public Action<GameSession> ActivateSession { get; init; } = null!;
+    public Func<Settings.UserSettings> ReadSettings { get; init; } = null!;
+    public Action<Settings.UserSettings> ApplySettings { get; init; } = null!;
     public SaveLoadBrowser Browser { get; } = new();
     private TextureScope? _textures;
     private Control? _page;
+    public InformationMenuButton? HoverMenuButton => (_page as FunctionsMenuView)?.HoverButton;
     private Control? _busyOverlay;
     private readonly CancellationTokenSource _lifetime = new();
     private bool _busy;
@@ -33,7 +38,20 @@ public partial class SystemMenuPanel : Control
         _textures ??= Service.CreateScope(owner: this);
         _textures.RequestPrefixes("information-menu-", "save-load-", "message-");
         Show();
-        ReplacePage(new FunctionsMenuView { Textures = _textures, Open = Open, Closed = Close });
+        ReplacePage(new FunctionsMenuView { Textures = _textures, Texts = Texts, Open = Open, OpenEnvironment = OpenEnvironment, Closed = Close });
+    }
+    private void OpenEnvironment()
+    {
+        _textures!.RequestPrefixes("environment-", "save-load-", "dialog-");
+        ReplacePage(new EnvironmentSettingsView { Textures = _textures, Initial = ReadSettings(), Apply = ApplySettings, Closed = Close });
+    }
+    public void ShowSettingsLoadFailure(string message)
+    {
+        _textures ??= Service.CreateScope(owner: this);
+        _textures.RequestPrefixes("dialog-"); Show();
+        var notice = MapDialog();
+        notice.SetNotice($"环境设定读取失败，已使用默认值：\n{message}");
+        notice.FocusDefaultButton();
     }
     public async void Open(SaveLoadMode mode)
     {
@@ -173,11 +191,19 @@ public partial class SystemMenuPanel : Control
     {
         if (!IsVisibleInTree()) return;
         if (_busy) { GetViewport().SetInputAsHandled(); return; }
+        if (_page is EnvironmentSettingsView environment && input is InputEventMouseButton { ButtonIndex: MouseButton.Right } right)
+        {
+            GetViewport().SetInputAsHandled();
+            if (right.Pressed) environment.Back();
+            return;
+        }
         if (input is InputEventKey { Pressed: true, Echo: false, Keycode: Key.Escape } ||
             input is InputEventMouseButton { Pressed: false, ButtonIndex: MouseButton.Right })
         {
             GetViewport().SetInputAsHandled();
-            if (_page is SaveLoadView view) view.Back(); else Close();
+            if (_page is SaveLoadView view) view.Back();
+            else if (_page is EnvironmentSettingsView settings) settings.Back();
+            else Close();
         }
     }
     public override void _GuiInput(InputEvent input) => AcceptEvent();

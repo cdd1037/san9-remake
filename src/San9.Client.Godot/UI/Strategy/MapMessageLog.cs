@@ -10,7 +10,16 @@ public sealed class MapMessageLog
     private readonly HashSet<Guid> _published = [];
     public event Action? Changed;
     public IReadOnlyList<MapMessageRecord> Entries => _entries.AsReadOnly();
-    public IEnumerable<MapMessageRecord> Visible => _entries.TakeLast(10);
+    private readonly Queue<MapMessageRecord> _immediate = new(10);
+    public Settings.ProgressReportMode ReportMode { get; set; } = Settings.ProgressReportMode.Detailed;
+    public IEnumerable<MapMessageRecord> Visible => _immediate;
+    public bool Allows(MapMessageRecord entry) => ReportMode switch
+    {
+        Settings.ProgressReportMode.Detailed => true,
+        Settings.ProgressReportMode.Summary => entry.Importance == MapReportImportance.Summary,
+        Settings.ProgressReportMode.Off => false,
+        _ => throw new InvalidOperationException("Invalid report preference.")
+    };
 
     public InformationTable ReadHistory() => new("进行记录", ["记录"], ["日期", "内容"],
         _entries.Select((entry, index) =>
@@ -30,6 +39,11 @@ public sealed class MapMessageLog
         if (entry.Id == Guid.Empty) throw new ArgumentException("A publication identity is required.", nameof(entry));
         if (!_published.Add(entry.Id)) return false;
         _entries.Add(entry);
+        if (Allows(entry))
+        {
+            if (_immediate.Count == 10) _immediate.Dequeue();
+            _immediate.Enqueue(entry);
+        }
         Changed?.Invoke();
         return true;
     }

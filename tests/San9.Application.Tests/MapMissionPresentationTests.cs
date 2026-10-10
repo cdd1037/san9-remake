@@ -41,6 +41,7 @@ public sealed class MapMissionPresentationTests
         var action = Assert.IsType<MapSpeechMessage>(messages[0].MapSpeech);
         var response = Assert.IsType<MapSpeechMessage>(messages[1].MapSpeech);
         var record = Assert.IsType<MapMessageRecord>(messages[2].MapRecord);
+        Assert.Equal(MapReportImportance.Summary, record.Importance);
         Assert.Equal(2,action.SpeakerId);
         Assert.Equal(23,response.SpeakerId);
         Assert.Equal("enemy-commander",response.SpeakerName);

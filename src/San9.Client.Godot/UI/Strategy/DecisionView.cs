@@ -16,6 +16,7 @@ public partial class DecisionView : Control
     public TextCatalog Texts { get; init; } = null!;
     public CommandPresentation Presentation { get; init; } = null!;
     public string ContentRoot { get; init; } = "";
+    public Func<Settings.MessageSpeed> ReadMessageSpeed { get; init; } = () => Settings.MessageSpeed.Normal;
     public bool SoundEnabled { get; init; }
     public bool SkipIntroduction { get; init; }
     public Func<string,IDisposable>? BeginMusic { get; init; }
@@ -54,7 +55,7 @@ public partial class DecisionView : Control
             Textures = Textures,
             Sounds = Presentation.Sounds,
             ContentRoot = ContentRoot,
-            SoundEnabled = SoundEnabled,
+            SoundEnabled = SoundEnabled, ReadMessageSpeed = ReadMessageSpeed,
             MessagePresented = message =>
             {
                 if (message.SpeakerId is not null) StartDiplomacyMusic();

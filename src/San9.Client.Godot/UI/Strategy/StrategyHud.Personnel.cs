@@ -73,7 +73,7 @@ public partial class StrategyHud
         if (sequence.Count == 0) return;
         _textures.RequestPrefixes("narration-","dialog-","information-");
         _narration = new() { Messages = sequence, View = before, Texts = Texts, Service = Textures, Textures = _textures,
-            ContentRoot = ContentRoot, Sounds = CommandPresentation.Sounds, SoundEnabled = SoundEnabled, InitialSoundRole = initialSound,
+            ContentRoot = ContentRoot, Sounds = CommandPresentation.Sounds, SoundEnabled = SoundEnabled, ReadMessageSpeed = () => ReadSettings().MessageSpeed, InitialSoundRole = initialSound,
             MessagePresented = RecordNarration, Closed = CloseNarration };
         OverlayHost.AddChild(_narration);
     }

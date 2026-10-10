@@ -10,7 +10,6 @@ public partial class StrategyHud
 {
     public CommandPresentation CommandPresentation { get; init; } = CommandPresentation.Empty;
     public string ContentRoot { get; init; } = "";
-    public bool SoundEnabled { get; init; } = true;
     private PatrolView? _patrol;
     private MapObjectTarget? PatrolSource => _patrol is { } view ? new(view.Draft.Home.Id,false) : null;
     private void OpenPatrol(int id)

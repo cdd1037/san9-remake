@@ -29,8 +29,20 @@ public partial class SessionUiHost : Node
     private GameSession? _session;
     private Node? _sessionUi;
     private GameSession? _pending;
+    private UserSettingsSession _settings = null!;
+    private string? _settingsError;
 
-    public override void _Ready() => Activate(InitialSession);
+    public override void _Ready()
+    {
+        _settings = new(new UserSettingsStore(ProjectSettings.GlobalizePath(UserSettingsStore.UserDataPath)));
+        try { _settings.Load(); }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or System.Text.DecoderFallbackException)
+        {
+            _settingsError = error.Message;
+        }
+        Music.SetEnabled(_settings.Current.MusicEnabled);
+        Activate(InitialSession);
+    }
 
     public void Activate(GameSession next)
     {
@@ -52,6 +64,11 @@ public partial class SessionUiHost : Node
 
     public override void _Process(double delta)
     {
+        if (_settingsError is { } settingsError && Hud?.SystemMenu is { } menu)
+        {
+            _settingsError = null;
+            menu.ShowSettingsLoadFailure(settingsError);
+        }
         if (!IsSwitching) return;
         if (World.LoadError is { } error) RestoreSession(error);
         else if (World.IsVisibleReady) CompleteSwitch();
@@ -77,8 +94,6 @@ public partial class SessionUiHost : Node
         _sessionUi = new Node { Name = "SessionUi" }; AddChild(_sessionUi);
         var backdropHost = new Node(); _sessionUi.AddChild(backdropHost);
         var overlayHost = new StrategyOverlayHost();
-        var settings = new UserSettingsStore(ProjectSettings.GlobalizePath(UserSettingsStore.UserDataPath)).Load();
-        Music.SetEnabled(settings.MusicEnabled);
         Hud = new StrategyHud
         {
             CommandPresentation = Content.Presentation, ContentRoot = Content.ContentRoot,
@@ -86,7 +101,13 @@ public partial class SessionUiHost : Node
             SaveSummary = note => SaveSlotSummaryFactory.Create(Session, Definition, Content.Text, note),
             ActivateSession = Activate,
             StartNewGame = () => Callable.From(() => Activate(CreateNewSession())).CallDeferred(),
-            Music = Music, SoundEnabled = settings.SoundEnabled, OverlayHost = overlayHost,
+            Music = Music, OverlayHost = overlayHost,
+            ReadSettings = () => _settings.Current,
+            ApplySettings = draft =>
+            {
+                _settings.Apply(draft);
+                Music.SetEnabled(draft.MusicEnabled);
+            },
             BackdropHost = backdropHost, World = World, Selection = Selection, Session = Session,
             Texts = Content.Text, Skin = Content.Skin, Textures = Textures
         };

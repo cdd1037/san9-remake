@@ -16,6 +16,7 @@ public partial class SceneSoundPlayer : Node
         _player.Stream = _streams.Get(role, loop: false);
         _player.Play();
     }
+    public void Stop() { _player.Stop(); _player.Stream = null; }
     public override void _ExitTree()
     {
         _player.Stop(); _player.Stream = null;

@@ -27,6 +27,12 @@ public partial class ExecutionPanels : Control
     private double _elapsed;
     public bool Expanded => _expanded;
     public bool IsExpanded => _expanded && _offset == 0;
+    private bool ReportsVisible => RecordsLog.ReportMode != Settings.ProgressReportMode.Off;
+    public void SetReportMode(Settings.ProgressReportMode mode)
+    {
+        RecordsLog.ReportMode = mode;
+        RefreshRecords(); QueueRedraw();
+    }
 
     public override void _Ready()
     {
@@ -49,12 +55,13 @@ public partial class ExecutionPanels : Control
 
     public void Append(ProducedMessage message)
     {
-        Append(new MapMessageRecord(Guid.NewGuid(), message));
+        Append(new MapMessageRecord(Guid.NewGuid(), message, Importance: MapReportImportance.Detailed));
     }
 
     public bool Append(MapMessageRecord entry)
     {
         if (!RecordsLog.Append(entry)) return false;
+        if (!RecordsLog.Allows(entry)) return false;
         RefreshRecords();
         return true;
     }
@@ -70,7 +77,7 @@ public partial class ExecutionPanels : Control
     {
         if (!IsNodeReady()) return;
         if (_recordRows is not null) { RemoveChild(_recordRows); _recordRows.QueueFree(); }
-        _recordRows=new Control { Position=new(0,_offset),MouseFilter=MouseFilterEnum.Ignore }; AddChild(_recordRows);
+        _recordRows=new Control { Position=new(0,_offset),MouseFilter=MouseFilterEnum.Ignore, Visible = ReportsVisible }; AddChild(_recordRows);
         var visible=RecordsLog.Visible.ToArray();
         for (int i=0;i<visible.Length;i++)
         {
@@ -168,12 +175,12 @@ public partial class ExecutionPanels : Control
     }
 
     public bool Covers(Vector2 point) => Visible &&
-        (new Rect2(Records.Position + new Vector2(0, _offset), Records.Size).HasPoint(point) ||
+        (ReportsVisible && new Rect2(Records.Position + new Vector2(0, _offset), Records.Size).HasPoint(point) ||
          new Rect2(Commands.Position + new Vector2(0, _offset), Commands.Size).HasPoint(point));
 
     public override void _Draw()
     {
-        DrawTexture(Textures["turn-record-panel"], Records.Position + new Vector2(0, _offset));
+        if (ReportsVisible) DrawTexture(Textures["turn-record-panel"], Records.Position + new Vector2(0, _offset));
         DrawTexture(Textures["turn-command-panel"], Commands.Position + new Vector2(0, _offset));
     }
 

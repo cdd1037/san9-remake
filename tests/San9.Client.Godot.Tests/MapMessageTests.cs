@@ -11,6 +11,26 @@ public sealed class MapMessageTests
     private static ProducedMessage Message(string text = "result") => new("test",new GameClock(190,1,1),text);
 
     [Fact]
+    public void ReportPreferenceFiltersNewImmediatePublicationsWithoutLosingHistoryOrReplayingOldRows()
+    {
+        var log = new MapMessageLog { ReportMode = Settings.ProgressReportMode.Summary };
+        var detail = new MapMessageRecord(Guid.NewGuid(), Message("detail"), Importance: MapReportImportance.Detailed);
+        var summary = new MapMessageRecord(Guid.NewGuid(), Message("summary"));
+        log.Append(detail); log.Append(summary);
+        Assert.Equal(summary, Assert.Single(log.Visible));
+        Assert.Equal(2, log.ReadHistory().Rows.Length);
+        log.ReportMode = Settings.ProgressReportMode.Off;
+        var hidden = summary with { Id = Guid.NewGuid() }; log.Append(hidden);
+        Assert.Equal(summary, Assert.Single(log.Visible));
+        log.ReportMode = Settings.ProgressReportMode.Detailed;
+        Assert.Equal(summary, Assert.Single(log.Visible));
+        Assert.False(log.Append(hidden));
+        var next = detail with { Id = Guid.NewGuid() }; log.Append(next);
+        Assert.Equal(new[] { summary, next }, log.Visible);
+        Assert.Equal(4, log.Entries.Count);
+    }
+
+    [Fact]
     public void HistoryUsesCapturedMessagesBeyondVisibleRowsAndPreservesEscapedText()
     {
         var log = new MapMessageLog();

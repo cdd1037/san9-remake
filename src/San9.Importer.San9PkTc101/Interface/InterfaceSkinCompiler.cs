@@ -533,6 +533,17 @@ public static class InterfaceSkinCompiler
                 ui.Add(key, "ui-" + key);
             }
         }
+        foreach (var (part, resource) in new[] { ("left", 131), ("middle", 132), ("right", 133) })
+            Extra("environment-label-" + part, resource, 13, true);
+        foreach (var (part, resource) in new[] { ("left", 118), ("middle", 119), ("right", 120) })
+        for (int frame = 0; frame < 4; frame++)
+        {
+            if (bindings[resource] != 213) throw new InvalidDataException("Unconfirmed environment choice palette.");
+            string role = "environment-choice-" + part + (frame == 0 ? "" : "-" + frame), id = "ui-" + role;
+            assets.Add(save(id, TextureSourcePath.Image("G_Common", resource, 13, true, true, columns: 4, frame: frame),
+                IndexedImageArchive.Decode(IndexedImageArchive.Frame(common.Images[resource], 4, 1, frame, 0), common.Palettes[13], true, true)));
+            ui.Add(role, id);
+        }
         // RE-0178: external display types, independent of settlement identities and domain rules.
         TargetMarkerOffset[] offsets = [new(-16,-58), new(-20,-38), new(-4,-34), new(-30,-34), new(2,-52),
             new(-33,-52), new(-16,-22), new(-16,-32), new(-16,-28), new(-16,-41), new(-16,-30),

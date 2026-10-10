@@ -44,6 +44,9 @@ public partial class StrategyHud : Control
     public Persistence.SlotSaveStore SaveStore { get; init; } = null!;
     public Func<string, Persistence.SaveSlotSummary> SaveSummary { get; init; } = null!;
     public Action<San9.Application.GameSession> ActivateSession { get; init; } = null!;
+    public bool SoundEnabled => ReadSettings().SoundEnabled;
+    public Func<Settings.UserSettings> ReadSettings { get; init; } = () => Settings.UserSettings.Default;
+    public Action<Settings.UserSettings> ApplySettings { get; init; } = _ => { };
     private TextureButton _functionsButton = null!;
     private StrategyOverviewPanel _overviewPanel = null!;
     private bool _built;
@@ -149,8 +152,9 @@ public partial class StrategyHud : Control
         Information = new InformationPanel { Session = Session, Texts = Texts, Service = Textures, World = World, Skin = Skin,
             RecordsLog = _mapRecords, Locate = id => { Overview.Close(); World.FocusBuilding(id); } };
         OverlayHost.AddChild(Information);
-        SystemMenu = new SystemMenuPanel { Service = Textures, Store = SaveStore, Session = Session,
-            CreateSummary = SaveSummary, ActivateSession = ActivateSession };
+        SystemMenu = new SystemMenuPanel { Service = Textures, Texts = Texts, Store = SaveStore, Session = Session,
+            CreateSummary = SaveSummary, ActivateSession = ActivateSession,
+            ReadSettings = ReadSettings, ApplySettings = ApplyUserSettings };
         OverlayHost.AddChild(SystemMenu);
         SystemMenu.VisibilityChanged += () => FocusBehaviorRecursive = SystemMenu.Visible
             ? FocusBehaviorRecursiveEnum.Disabled : FocusBehaviorRecursiveEnum.Inherited;
@@ -229,6 +233,13 @@ public partial class StrategyHud : Control
         if (action is not null) button.Pressed += () => action();
         AddChild(button);
         return button;
+    }
+
+    private void ApplyUserSettings(Settings.UserSettings draft)
+    {
+        ApplySettings(draft);
+        if (!draft.SoundEnabled) _sceneSounds.Stop();
+        _executionPanels.SetReportMode(draft.ProgressReport);
     }
 
     private StrategyInteraction Interaction => StrategyInteraction.Resolve(_built, Turn?.Screen,
@@ -364,6 +375,12 @@ public partial class StrategyHud : Control
         if (World.LoadError is not null) { _message.Text = "地图加载失败 · F3 查看详情"; return; }
         if (!_built) return;
         if (Turn.Screen != TurnScreen.Strategy) { _message.Text = ""; return; }
+        if (SystemMenu?.Visible == true)
+        {
+            var menu = SystemMenu.HoverMenuButton;
+            _message.SetMessage(menu?.HintText ?? "", menu is null || !menu.Disabled);
+            return;
+        }
         if (Information?.State.IsOpen == true)
         {
             var menu = Information.HoverMenuButton;

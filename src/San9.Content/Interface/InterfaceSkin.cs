@@ -5,7 +5,7 @@ namespace San9.Content.Interface;
 public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dictionary<string,string> Roles, Dictionary<string,string> Colors,
     Dictionary<string, CursorDefinition> Cursors)
 {
-    public const int CurrentSchemaVersion = 50;
+    public const int CurrentSchemaVersion = 51;
     [System.Text.Json.Serialization.JsonRequired]
     public Dictionary<int, TargetMarkerOffset> BuildingTargetOffsets { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired]
@@ -54,6 +54,8 @@ public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dicti
         .Concat(new[] { "strategy", "execution" }.SelectMany(p => Enumerable.Range(0, 4).Select(f => $"turn-title-{p}-{f}")))
         .Concat(new[] { "yes", "no" }.SelectMany(p => Enumerable.Range(0, 4).Select(f => $"dialog-{p}-{f}")))
         .Append("dialog-frame").Concat(SaveLoadSkin.RequiredRoles).Concat(MapSpeechSkin.RequiredRoles)
+        .Concat(new[] { "left", "middle", "right" }.Select(p => "environment-label-" + p))
+        .Concat(new[] { "left", "middle", "right" }.SelectMany(p => Enumerable.Range(0, 4).Select(f => "environment-choice-" + p + (f == 0 ? "" : "-" + f))))
         .Concat(new[] { "top-left", "top", "top-right", "left", "right", "bottom-left", "bottom", "bottom-right" }.Select(p => "narration-image-frame-" + p))
         .Concat(new[]{"left","middle","right"}.SelectMany(p=>Enumerable.Range(0,4).Select(f=>"decision-choice-"+p+(f==0 ? "" : "-"+f))))
         .Concat(Enumerable.Range(0, 5).Select(f => "minimap-command-pulse" + (f == 0 ? "" : $"-{f}")))

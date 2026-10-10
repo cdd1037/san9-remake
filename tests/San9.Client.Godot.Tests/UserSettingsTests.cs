@@ -10,6 +10,25 @@ public sealed class UserSettingsTests : IDisposable
     private string FilePath => Path.Combine(_directory, "user-settings.json");
 
     [Fact]
+    public void SessionPublishesOnlySavedDraftAndRetainsLoadedPreferencesInMemory()
+    {
+        var store = new UserSettingsStore(FilePath);
+        var session = new UserSettingsSession(store);
+        session.Load();
+        var draft = session.Current with { MusicEnabled = false, MessageSpeed = MessageSpeed.Fast };
+        Assert.True(session.Current.MusicEnabled);
+        session.Apply(draft);
+        Assert.Equal(draft, session.Current);
+        Assert.Equal(draft, store.Load());
+        Assert.Throws<JsonException>(() => session.Apply(draft with { MessageSpeed = (MessageSpeed)99 }));
+        Assert.Equal(draft, session.Current);
+        File.Delete(FilePath);
+        Directory.CreateDirectory(FilePath);
+        Assert.ThrowsAny<Exception>(() => session.Apply(UserSettings.Default));
+        Assert.Equal(draft, session.Current);
+    }
+
+    [Fact]
     public void MissingFile_ReturnsDefaultsWithoutCreatingFile()
     {
         Assert.Equal(UserSettings.Default, new UserSettingsStore(FilePath).Load());

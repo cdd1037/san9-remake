@@ -8,7 +8,7 @@ public static class PersonnelCatalog
 {
     private static CatalogColumn OfficerColumn(string field) => OfficerCatalog.Pages.SelectMany(p => p.Columns).First(c => c.Id == field);
     private static CatalogColumn RegionColumn(string field) => AdministrativeCatalog.Pages(InformationCategory.Regions).SelectMany(p => p.Columns).First(c => c.Id == field);
-    private static readonly CatalogColumn Arrival = new("estimate", "到达预定", 3, CatalogAlignment.Right);
+    private static CatalogColumn Arrival(TextCatalog texts) => new("estimate", CommandText.Resolve(texts, "label.arrival"), 3, CatalogAlignment.Right);
     private static IEnumerable<int> OrderedOfficers(PersonnelDraft draft, bool targets)
     {
         var people = draft.View.World.Officers.ToDictionary(p => p.Id);
@@ -34,7 +34,7 @@ public static class PersonnelCatalog
             _ => ids.OrderByDescending(id => officers[id].Abilities.Politics)
         };
     }
-    public static IReadOnlyList<CatalogPage> OfficerPages(PersonnelDraft draft, bool targets = false)
+    public static IReadOnlyList<CatalogPage> OfficerPages(PersonnelDraft draft, TextCatalog texts, bool targets = false)
     {
         string[] fields = targets ? ["status", "loyalty", "force", "location", "leadership", "war", "intelligence", "politics", "estimate"]
             : draft.Kind switch
@@ -43,7 +43,7 @@ public static class PersonnelCatalog
                 "move" => ["status", "office", "capacity", "leadership", "war", "intelligence", "politics", "learned"],
                 _ => ["politics", "status", "leadership", "war", "intelligence", "learned"]
             };
-        return [new(draft.Title, [OfficerColumn("name"), .. fields.Select(f => f == "estimate" ? Arrival : OfficerColumn(f))]), .. OfficerCatalog.Pages];
+        return [new(CommandText.Resolve(texts, "title." + draft.Kind), [OfficerColumn("name"), .. fields.Select(f => f == "estimate" ? Arrival(texts) : OfficerColumn(f))]), .. OfficerCatalog.Pages];
     }
     public static CatalogRow[] Officers(PersonnelDraft draft, TextCatalog texts, int page, bool targets = false)
     {
@@ -53,7 +53,7 @@ public static class PersonnelCatalog
             var rows = OfficerCatalog.Read(draft.View, texts, page - 1, null, null).Rows.ToDictionary(r => r.Key.Id);
             return ids.Select(id => new CatalogRow(id, rows[id].Cells.ToArray())).ToArray();
         }
-        var columns = OfficerPages(draft, targets)[0].Columns;
+        var columns = OfficerPages(draft, texts, targets)[0].Columns;
         var fields = columns.Where(c => c.Id != "estimate").ToDictionary(c => c.Id,
             c => OfficerCatalog.Pages.Select((catalog, index) => (Page: index, Column: Array.FindIndex(catalog.Columns, field => field.Id == c.Id)))
                 .First(location => location.Column >= 0));
@@ -71,7 +71,7 @@ public static class PersonnelCatalog
         }
         return ids.Select(id => new CatalogRow(id, columns.Select(c => Cell(id,c.Id)).ToArray())).ToArray();
     }
-    public static IReadOnlyList<CatalogPage> TargetPages(PersonnelDraft draft)
+    public static IReadOnlyList<CatalogPage> TargetPages(PersonnelDraft draft, TextCatalog texts)
     {
         bool search = draft.Kind == "search";
         string[] primary = search ? ["estimate", "province", "city", "force", "facility", "free"]
@@ -81,14 +81,14 @@ public static class PersonnelCatalog
         string[] strength = search ? ["soldiers", "wounded", "morale", "state", "facility", "durability", "max-durability", "recovery", "tactics", "trait"]
             : ["soldiers", "wounded", "morale", "state", "facility", "durability", "max-durability", "trait"];
         CatalogPage Page(string title, IEnumerable<string> fields) => new(title,
-            [new("name",search ? "地域" : "设施",6,CatalogAlignment.Left), .. fields.Select(f => f == "estimate" ? Arrival : RegionColumn(f))]);
-        return search ? [Page(draft.Title,primary),Page("所属",affiliation),Page("战力",strength),Page("邻接",["frontline","adjacent"])]
-            : [Page(draft.Title,primary),Page("所属",affiliation),Page("战力",strength)];
+            [new("name",search ? CommandText.Resolve(texts, "label.region") : CommandText.Resolve(texts, "label.facility"),6,CatalogAlignment.Left), .. fields.Select(f => f == "estimate" ? Arrival(texts) : RegionColumn(f))]);
+        return search ? [Page(CommandText.Resolve(texts, "title." + draft.Kind),primary),Page(CommandText.Resolve(texts, "page.affiliation"),affiliation),Page(CommandText.Resolve(texts, "page.strength"),strength),Page(CommandText.Resolve(texts, "page.adjacent"),["frontline","adjacent"])]
+            : [Page(CommandText.Resolve(texts, "title." + draft.Kind),primary),Page(CommandText.Resolve(texts, "page.affiliation"),affiliation),Page(CommandText.Resolve(texts, "page.strength"),strength)];
     }
     public static CatalogRow[] Targets(PersonnelDraft draft, TextCatalog texts, int page)
     {
         var catalog = new AdministrativeCatalog(draft.View,texts);
-        var columns = TargetPages(draft)[page].Columns;
+        var columns = TargetPages(draft, texts)[page].Columns;
         CatalogCell Cell(int id, string field)
         {
             if (field == "name") return draft.PlaceName(texts,id);

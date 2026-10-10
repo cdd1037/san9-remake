@@ -14,7 +14,6 @@ public sealed class PersonnelDraft
     public StrategySnapshot View { get; }
     public SettlementState Home { get; }
     public string Kind { get; }
-    public string Title => Kind switch { "summon" => "召来", "move" => "移动", "search" => "探索", "employ" => "登庸", _ => throw new InvalidOperationException() };
     public PersonnelJourneyKind JourneyKind => Kind switch { "search" => PersonnelJourneyKind.Search, "employ" => PersonnelJourneyKind.Recruit, _ => PersonnelJourneyKind.Move };
     public ImmutableArray<int> Candidates { get; }
     public ImmutableArray<int> Targets { get; }

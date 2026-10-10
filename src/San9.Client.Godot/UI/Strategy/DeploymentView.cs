@@ -62,7 +62,7 @@ public partial class DeploymentView : Control
         if (_body is not null) { RemoveChild(_body); _body.QueueFree(); }
         _body = new Control { MouseFilter = MouseFilterEnum.Ignore }; AddChild(_body);
         if (_window is not null) { RemoveChild(_window); _window.QueueFree(); }
-        _window = new CommandWindow { Textures = Textures, Position = new(136, 100), Size = new(752, 568),
+        _window = new CommandWindow { Texts = Texts, Textures = Textures, Position = new(136, 100), Size = new(752, 568),
             Title = "出征", ShowBehindParent = true, Closed = Closed, Accepted = Proceed, CanAccept = Draft.CanProceed,
             Help = () => Notice("选择执行武将后，可选择阵形、船和士兵。\n拖拽武将牌交换阵位，双击选择兵法。\n执行进入选目标；中止会放弃本次设置。") };
         AddChild(_window);

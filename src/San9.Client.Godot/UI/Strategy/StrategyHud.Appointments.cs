@@ -1,3 +1,4 @@
+using San9.Content.Text;
 using San9.Application.Presentation;
 using San9.Core.Simulation;
 
@@ -12,17 +13,17 @@ public partial class StrategyHud
         if (AppointmentDraft.UnavailableReasonKey(Session.View, sourceId, kind) is string reason)
         { _notice.SetNotice(Texts.Resolve(reason)); _notice.Show(); return; }
         if (kind == "strategist" && CommandPresentation.Strategist is null)
-        { _notice.SetNotice("内容包缺少军师指令表现，请重新转换内容包。"); _notice.Show(); return; }
+        { _notice.SetNotice(CommandText.Resolve(Texts, "content.strategist")); _notice.Show(); return; }
         if (kind == "reward" && CommandPresentation.Reward is null)
-        { _notice.SetNotice("内容包缺少褒奖指令表现，请重新转换内容包。"); _notice.Show(); return; }
+        { _notice.SetNotice(CommandText.Resolve(Texts, "content.reward")); _notice.Show(); return; }
         if (kind == "exile" && CommandPresentation.Exile is null)
-        { _notice.SetNotice("内容包缺少流放指令表现，请重新转换内容包。"); _notice.Show(); return; }
+        { _notice.SetNotice(CommandText.Resolve(Texts, "content.exile")); _notice.Show(); return; }
         if (kind is "bestow" or "confiscate" && CommandPresentation.TreasureTransfer is null)
-        { _notice.SetNotice("内容包缺少宝物任免表现，请重新转换内容包。"); _notice.Show(); return; }
+        { _notice.SetNotice(CommandText.Resolve(Texts, "content.treasures")); _notice.Show(); return; }
         if (kind == "execute" && CommandPresentation.Execution is null)
-        { _notice.SetNotice("内容包缺少处斩指令表现，请重新转换内容包。"); _notice.Show(); return; }
+        { _notice.SetNotice(CommandText.Resolve(Texts, "content.execution")); _notice.Show(); return; }
         if (kind == "rank" && CommandPresentation.Offices is null)
-        { _notice.SetNotice("内容包缺少爵位指令表现，请重新转换内容包。"); _notice.Show(); return; }
+        { _notice.SetNotice(CommandText.Resolve(Texts, "content.rank")); _notice.Show(); return; }
         _textures.RequestPrefixes("deployment-", "detail-", "catalog-", "information-", "dialog-", "narration-");
         if (kind == "rank") _textures.RequestPrefixes("text-icon-arrow-");
         _appointment = new() { Draft = new(Session, sourceId, kind), Texts = Texts, Service = Textures, Textures = _textures,

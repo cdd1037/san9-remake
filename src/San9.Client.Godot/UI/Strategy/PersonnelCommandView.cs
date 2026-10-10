@@ -43,10 +43,10 @@ public partial class PersonnelCommandView : Control
         if (_body is not null) { RemoveChild(_body); _body.QueueFree(); }
         _body = new Control { MouseFilter = MouseFilterEnum.Ignore }; AddChild(_body);
         var bounds = Bounds; var at = bounds.Position;
-        var window = new CommandWindow { Textures = Textures, Title = Draft.Title, Position = at, Size = bounds.Size,
+        var window = new CommandWindow { Texts = Texts, Textures = Textures, Title = CommandText.Resolve(Texts, "title." + Draft.Kind), Position = at, Size = bounds.Size,
             CanAccept = Draft.CanExecute, Accepted = Submit, Closed = Closed, Help = () => Notice(Texts.Resolve("ui.command." + Draft.Kind)) };
         _body.AddChild(window);
-        string source = "命令设施　" + Draft.PlaceName(Texts, Draft.Home.Id) + "　";
+        string source = CommandText.Resolve(Texts, "value.source", Draft.PlaceName(Texts, Draft.Home.Id));
         float sourceWidth = source.Sum(c => c < 128 ? 8 : 16) + 32;
         _body.AddChild(new PersonnelCommandFields { Textures = Textures, Bounds = bounds, Kind = Draft.Kind, SourceWidth = sourceWidth });
         Label(source, new(at, new(sourceWidth,32)));
@@ -54,50 +54,50 @@ public partial class PersonnelCommandView : Control
         {
             int? days = Draft.Members.IsEmpty ? null : Draft.ArrivalDays(Draft.Members[0]);
             _body.AddChild(new CommandArrivalField { Textures = Textures, Position = at + new Vector2(256,0),
-                Size = new(152,32), Text = CommandArrivalField.FormatDays(days) });
+                Size = new(152,32), Text = CommandArrivalField.FormatDays(Texts, days) });
         }
         if (Draft.Kind is "summon" or "move")
         {
             if (Draft.Kind == "move")
             {
-                window.ActionButton("目标设施", "edit", new(0,48,104,40), ChooseMap).Disabled = Draft.Targets.Length < 2;
+                window.ActionButton(CommandText.Resolve(Texts, "label.target-facility"), "edit", new(0,48,104,40), ChooseMap).Disabled = Draft.Targets.Length < 2;
                 Label(Draft.TargetId is int target ? Draft.DestinationName(Texts, target) : "", new(at + new Vector2(104,48), new(144,32)));
             }
             int y = Draft.Kind == "summon" ? 48 : 88;
-            window.ActionButton("执行武将", "edit", new(0,y,104,40), SelectOfficers).Disabled = Draft.Candidates.Length < 2;
+            window.ActionButton(CommandText.Resolve(Texts, "label.actor"), "edit", new(0,y,104,40), SelectOfficers).Disabled = Draft.Candidates.Length < 2;
             var roster = new OfficerRosterPanel { Service = Service, Textures = Textures, Position = at + new Vector2(104,y),
                 VisibleRows = Draft.Kind == "summon" ? 10 : 5, ShowPagination = true,
                 PaginationSpacing = Draft.Kind == "summon" ? 2 : 4,
                 PaginationTop = Draft.Kind == "summon" ? 4 : 8,
                 PaginationLabelTop = Draft.Kind == "summon" ? 10 : 12,
                 CountGap = Draft.Kind == "summon" ? 70 : 68,
-                Columns = Draft.Kind == "summon" ? [new("武将",80), new("所在",96), new("到达预定",96)] : [new("武将",80)] };
+                Columns = Draft.Kind == "summon" ? [new(CommandText.Resolve(Texts, "label.officer"),80), new(CommandText.Resolve(Texts, "label.location"),96), new(CommandText.Resolve(Texts, "label.arrival"),96)] : [new(CommandText.Resolve(Texts, "label.officer"),80)] };
             roster.SetEntries(Draft.Members.Select(id => new OfficerRosterEntry(Card(id), Draft.Kind == "summon"
-                ? [Card(id).Name, Draft.PlaceName(Texts,Draft.View.Officers.Single(p => p.Id == id).SettlementId!.Value), Draft.ArrivalDays(id) + "日"]
+                ? [Card(id).Name, Draft.PlaceName(Texts,Draft.View.Officers.Single(p => p.Id == id).SettlementId!.Value), CommandText.Resolve(Texts, "value.days", Draft.ArrivalDays(id))]
                 : [Card(id).Name])));
             _body.AddChild(roster);
         }
         else if (Draft.Kind == "search")
         {
-            window.ActionButton("目标地域", "edit", new(0,48,104,40), ChooseMap).Disabled = Draft.Targets.Length < 2;
+            window.ActionButton(CommandText.Resolve(Texts, "label.target-region"), "edit", new(0,48,104,40), ChooseMap).Disabled = Draft.Targets.Length < 2;
             Label(Draft.TargetId is int target ? Draft.PlaceName(Texts,target) : "", new(at + new Vector2(104,48), new(128,32)));
-            window.ActionButton("执行武将", "edit", new(0,88,104,40), SelectOfficers).Disabled = Draft.Candidates.Length < 2;
+            window.ActionButton(CommandText.Resolve(Texts, "label.actor"), "edit", new(0,88,104,40), SelectOfficers).Disabled = Draft.Candidates.Length < 2;
             Person(Draft.Members.IsEmpty ? null : Draft.Members[0], at + new Vector2(104,88));
-            Properties(at + new Vector2(312,88), new OfficerProperty("政治", Draft.Members.IsEmpty ? "" : Card(Draft.Members[0]).Abilities.Politics.ToString(), 40));
+            Properties(at + new Vector2(312,88), new OfficerProperty(CommandText.Resolve(Texts, "label.politics"), Draft.Members.IsEmpty ? "" : Card(Draft.Members[0]).Abilities.Politics.ToString(), 40));
         }
         else
         {
-            window.ActionButton("对象武将", "edit", new(0,48,104,40), SelectRecruit).Disabled = Draft.Targets.Length < 2;
+            window.ActionButton(CommandText.Resolve(Texts, "label.target-officer"), "edit", new(0,48,104,40), SelectRecruit).Disabled = Draft.Targets.Length < 2;
             Person(Draft.TargetId, at + new Vector2(104,48));
             var targetPerson = Draft.View.Officers.SingleOrDefault(p => p.Id == Draft.TargetId);
             Properties(at + new Vector2(312,48),
-                new("势力", targetPerson?.OwnerId is int owner ? Texts.Resolve(Draft.View.Forces.Single(f => f.Id == owner).NameKey) : targetPerson is null ? "" : "—", 80),
-                new("忠诚", targetPerson?.OwnerId is null ? "" : Math.Min(100,Draft.View.World.Officers.Single(p => p.Id == targetPerson.Id).Loyalty).ToString(), 40));
-            window.ActionButton("执行武将", "edit", new(0,176,104,40), SelectOfficers).Disabled = Draft.Candidates.Length < 2;
+                new(CommandText.Resolve(Texts, "label.force"), targetPerson?.OwnerId is int owner ? Texts.Resolve(Draft.View.Forces.Single(f => f.Id == owner).NameKey) : targetPerson is null ? "" : "—", 80),
+                new(CommandText.Resolve(Texts, "label.loyalty"), targetPerson?.OwnerId is null ? "" : Math.Min(100,Draft.View.World.Officers.Single(p => p.Id == targetPerson.Id).Loyalty).ToString(), 40));
+            window.ActionButton(CommandText.Resolve(Texts, "label.actor"), "edit", new(0,176,104,40), SelectOfficers).Disabled = Draft.Candidates.Length < 2;
             Person(Draft.Members.IsEmpty ? null : Draft.Members[0], at + new Vector2(104,176));
-            Properties(at + new Vector2(312,176), new OfficerProperty("政治", Draft.Members.IsEmpty ? "" : Card(Draft.Members[0]).Abilities.Politics.ToString(), 40));
+            Properties(at + new Vector2(312,176), new OfficerProperty(CommandText.Resolve(Texts, "label.politics"), Draft.Members.IsEmpty ? "" : Card(Draft.Members[0]).Abilities.Politics.ToString(), 40));
         }
-        _body.AddChild(new GameMessageBar { Textures = Textures, Text = Draft.Kind == "employ" ? "请决定要登庸的武将。" : Texts.Resolve(CommandMenuSkin.HintKey(Draft.Kind)) });
+        _body.AddChild(new GameMessageBar { Textures = Textures, Text = Draft.Kind == "employ" ? CommandText.Resolve(Texts, "hint.employ") : Texts.Resolve(CommandMenuSkin.HintKey(Draft.Kind)) });
     }
     private void CloseChild()
     { if (_child is not null) { RemoveChild(_child); _child.QueueFree(); _child = null; } Rebuild(); }
@@ -109,8 +109,8 @@ public partial class PersonnelCommandView : Control
     private void SelectOfficers()
     {
         bool multiple = Draft.Kind is "summon" or "move";
-        _child = new CatalogView { Title = "选择武将", HintText = Texts.Resolve(CommandMenuSkin.OfficerSelectionHintKey), Service = Service, Textures = Textures,
-            CloseTitle = "中止", Pages = PersonnelCatalog.OfficerPages(Draft), ReadRows = page => PersonnelCatalog.Officers(Draft,Texts,page), Portrait = id => $"catalog-person-{id}",
+        _child = new CatalogView { Title = CommandText.Resolve(Texts, "select.officer"), HintText = Texts.Resolve(CommandMenuSkin.OfficerSelectionHintKey), Service = Service, Textures = Textures,
+            CloseTitle = CommandText.Resolve(Texts, "action.cancel"), Pages = PersonnelCatalog.OfficerPages(Draft,Texts), ReadRows = page => PersonnelCatalog.Officers(Draft,Texts,page), Portrait = id => $"catalog-person-{id}",
             InitialCurrentId = Draft.Members.IsEmpty ? null : Draft.Members[0],
             Selection = multiple ? new(Draft.Candidates,Draft.Members,Draft.SelectionLimit) : null, CanConfirmSelection = ids => Draft.CanSelect(ids),
             Activated = id => { if (Draft.SetMembers([id])) { CloseChild(); SelectionChanged(); } },
@@ -119,8 +119,8 @@ public partial class PersonnelCommandView : Control
     }
     private void SelectRecruit()
     {
-        _child = new CatalogView { Title = "选择武将", HintText = "请决定要登庸的武将。", CloseTitle = "中止", Service = Service, Textures = Textures,
-            Pages = PersonnelCatalog.OfficerPages(Draft,targets:true), ReadRows = page => PersonnelCatalog.Officers(Draft,Texts,page,targets:true),
+        _child = new CatalogView { Title = CommandText.Resolve(Texts, "select.officer"), HintText = CommandText.Resolve(Texts, "hint.employ"), CloseTitle = CommandText.Resolve(Texts, "action.cancel"), Service = Service, Textures = Textures,
+            Pages = PersonnelCatalog.OfficerPages(Draft,Texts,targets:true), ReadRows = page => PersonnelCatalog.Officers(Draft,Texts,page,targets:true),
             Portrait = id => $"catalog-person-{id}", InitialCurrentId = Draft.TargetId,
             Activated = id => { if (Draft.SetTarget(id)) { CloseChild(); SelectionChanged(); } }, Closed = CloseChild };
         AddChild(_child);
@@ -129,9 +129,9 @@ public partial class PersonnelCommandView : Control
     {
         if (_child is not null) return;
         Show(); _body!.Hide();
-        _child = new CatalogView { Title = Draft.Kind == "search" ? "选择地域" : "选择设施", Service = Service, Textures = Textures,
-            CloseTitle = "中止", HintText = Draft.Kind == "search" ? "请选择欲探索的地域。" : "请选择目标设施。",
-            Pages = PersonnelCatalog.TargetPages(Draft), ReadRows = page => PersonnelCatalog.Targets(Draft,Texts,page),
+        _child = new CatalogView { Title = Draft.Kind == "search" ? CommandText.Resolve(Texts, "select.region") : CommandText.Resolve(Texts, "select.facility"), Service = Service, Textures = Textures,
+            CloseTitle = CommandText.Resolve(Texts, "action.cancel"), HintText = Draft.Kind == "search" ? CommandText.Resolve(Texts, "hint.search-region") : CommandText.Resolve(Texts, "hint.target-facility"),
+            Pages = PersonnelCatalog.TargetPages(Draft,Texts), ReadRows = page => PersonnelCatalog.Targets(Draft,Texts,page),
             InitialCurrentId = Draft.TargetId, Activated = id => { CloseChild(); selected(id); }, Closed = () => { CloseChild(); cancelled(); },
             ShowMap = () => { CloseChild(); cancelled(); } };
         AddChild(_child);

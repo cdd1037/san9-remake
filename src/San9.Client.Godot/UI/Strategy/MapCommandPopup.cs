@@ -49,7 +49,7 @@ public partial class MapCommandPopup : Control
     private InformationMenuButton AddButton(MapCommandEntry entry, Vector2 point, bool secondary)
     {
         var button = new InformationMenuButton {
-            Title = entry.Title, Disabled = !entry.Enabled, Textures = Textures, Position = point, Size = new(68, 28),
+            Title = CommandText.Resolve(Texts, "title." + entry.Id), Disabled = !entry.Enabled, Textures = Textures, Position = point, Size = new(68, 28),
             SkinPrefix = $"command-{(secondary ? "secondary" : "primary")}-{entry.Tone.ToString().ToLowerInvariant()}"
         };
         button.Pressed += () =>

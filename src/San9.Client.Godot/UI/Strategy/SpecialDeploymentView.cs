@@ -49,7 +49,7 @@ public partial class SpecialDeploymentView : Control
         if (_body is not null) { RemoveChild(_body); _body.QueueFree(); }
         _strips.Clear(); _fields.Clear();
         _body = new Control { Position = Origin, MouseFilter = MouseFilterEnum.Ignore }; AddChild(_body);
-        _window = new CommandWindow { Textures = Textures, Title = Draft.Title, Position = Origin, Size = Construction ? new(608,352) : new(448,256),
+        _window = new CommandWindow { Texts = Texts, Textures = Textures, Title = Draft.Title, Position = Origin, Size = Construction ? new(608,352) : new(448,256),
             ShowBehindParent = true, Closed = Closed, Accepted = Proceed, CanAccept = Draft.CanProceed,
             HintChanged = hint => _message.SetMessage(hint??Hint), AcceptHint = AcceptHint, CancelHint = Text("cancel"),
             Help = () => Notice(Construction ? "选择执行武将、士兵与工作物，再选择建设地点。" : "选择执行武将和士兵，再选择己方目标设施。") };

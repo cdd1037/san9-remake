@@ -1,3 +1,4 @@
+using San9.Content.Text;
 using Godot;
 using San9.Application.Presentation;
 using San9.Core.Simulation;
@@ -15,7 +16,7 @@ public partial class StrategyHud
         if (FacilityDemolitionDraft.UnavailableReasonKey(Session.View, id) is string reason)
         { _notice.SetNotice(Texts.Resolve(reason)); _notice.Show(); return; }
         if (CommandPresentation.Demolition is not { } definition)
-        { _notice.SetNotice("内容包缺少撤除表现，请重新转换内容包。"); _notice.Show(); return; }
+        { _notice.SetNotice(CommandText.Resolve(Texts, "content.demolition")); _notice.Show(); return; }
         _textures.RequestPrefixes("dialog-", "narration-");
         _demolitionDraft = new(Session, id);
         _demolition = new() { Textures = _textures };
@@ -45,7 +46,7 @@ public partial class StrategyHud
         var result = Session.Execute(new("player"), draft.CreateCommand(Guid.NewGuid(), Session.Snapshot.Simulation.NextSequence));
         CloseDemolition();
         if (!result.Submission.Accepted)
-        { _notice.SetNotice("撤除未能执行，请重新选择设施。"); _notice.Show(); return; }
+        { _notice.SetNotice(CommandText.Resolve(Texts, "failure.demolition")); _notice.Show(); return; }
         var sequence = FacilityDemolitionPresentation.Create(before, context, CommandPresentation.Demolition!,
             result.Events.OfType<FacilityDemolishedEvent>().Single(), Random.Shared.Next);
         OpenNarration(sequence, before);

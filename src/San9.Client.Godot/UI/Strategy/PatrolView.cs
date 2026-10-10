@@ -38,15 +38,15 @@ public partial class PatrolView : Control
     {
         if (_body is not null) { RemoveChild(_body); _body.QueueFree(); }
         _body = new Control { MouseFilter = MouseFilterEnum.Ignore }; AddChild(_body);
-        var window = new CommandWindow { Textures = Textures, Title = "巡察", Position = new(280, 228), Size = new(464, 312),
+        var window = new CommandWindow { Texts = Texts, Textures = Textures, Title = CommandText.Resolve(Texts, "title.patrol"), Position = new(280, 228), Size = new(464, 312),
             CanAccept = Draft.CanExecute, Accepted = Submit, Closed = Closed,
-            Help = () => Notice("选择最多五名武将巡察都市。\n每人消耗资金50，提升民心；执行武将本旬不能再行动。") };
+            Help = () => Notice(CommandText.Resolve(Texts, "hint.patrol-help")) };
         _body.AddChild(window);
-        Label("命令设施　" + Draft.View.Settlements.Single(s => s.Id == Draft.Home.Id).ResolveName(Texts), new(280,228,160,32));
-        var edit = window.ActionButton("执行武将", "edit", new(0, 48, 104, 40), SelectOfficers);
+        Label(CommandText.Resolve(Texts, "value.source", Draft.View.Settlements.Single(s => s.Id == Draft.Home.Id).ResolveName(Texts)), new(280,228,160,32));
+        var edit = window.ActionButton(CommandText.Resolve(Texts, "label.actor"), "edit", new(0, 48, 104, 40), SelectOfficers);
         edit.Disabled = Draft.Candidates.Length < 2;
         var roster = new OfficerRosterPanel { Service = Service, Textures = Textures,
-            Position = new(384,276), VisibleRows = 5, Columns = [new("武将",80), new("智力",64)] };
+            Position = new(384,276), VisibleRows = 5, Columns = [new(CommandText.Resolve(Texts, "label.officer"),80), new(CommandText.Resolve(Texts, "label.intelligence"),64)] };
         roster.SetEntries(Draft.Members.Select(id =>
         {
             var person = Draft.View.Officers.Single(o => o.Id == id);
@@ -55,7 +55,7 @@ public partial class PatrolView : Control
                 [name, person.Abilities.Intelligence.ToString()]);
         }));
         _body.AddChild(roster);
-        Label("资金",new(280,428,96,32)); Label("民心",new(280,468,96,32)); Label("增加兵役",new(280,508,96,32));
+        Label(CommandText.Resolve(Texts, "label.money"),new(280,428,96,32)); Label(CommandText.Resolve(Texts, "label.public-order"),new(280,468,96,32)); Label(CommandText.Resolve(Texts, "label.draft-growth"),new(280,508,96,32));
         Label($"{(Draft.Members.IsEmpty ? "" : Draft.Cost.ToString())}/{Draft.Money}",new(384,428,136,32));
         Label($"{Draft.Home.PublicOrder}/1000",new(384,468,96,32)); Label(Draft.DraftGrowth.ToString(),new(384,508,64,32));
         _body.AddChild(new GameMessageBar { Textures = Textures, Text = Texts.Resolve(CommandMenuSkin.HintKey("patrol")) });
@@ -78,7 +78,7 @@ public partial class PatrolView : Control
         CatalogRow[] Rows(int page) => OfficerCatalog.Read(Draft.View, Texts, page == 0 ? 0 : page-1, null, Draft.Home.Id).Rows
             .Where(r => Draft.Candidates.Contains(r.Key.Id)).OrderBy(r => Draft.Candidates.IndexOf(r.Key.Id))
             .Select(r => new CatalogRow(r.Key.Id, page == 0 ? columns.Select(c => r.Cells[c]).ToArray() : r.Cells.ToArray())).ToArray();
-        var view = new CatalogView { Title = "选择武将", HintText = Texts.Resolve(CommandMenuSkin.OfficerSelectionHintKey), Pages = [new("巡察", columns.Select(c => ability.Columns[c]).ToArray()), .. OfficerCatalog.Pages],
+        var view = new CatalogView { Title = CommandText.Resolve(Texts, "select.officer"), HintText = Texts.Resolve(CommandMenuSkin.OfficerSelectionHintKey), Pages = [new(CommandText.Resolve(Texts, "title.patrol"), columns.Select(c => ability.Columns[c]).ToArray()), .. OfficerCatalog.Pages],
             ReadRows = Rows, Service = Service, Textures = Textures, Portrait = id => $"catalog-person-{id}", Selection = selection,
             CanConfirmSelection = ids => ids.Count * 50 <= Draft.Money,
             ConfirmSelection = ids => { if (Draft.SetMembers(ids)) CloseChild(); }, Closed = CloseChild };

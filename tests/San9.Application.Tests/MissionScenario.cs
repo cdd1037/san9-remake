@@ -42,6 +42,6 @@ internal static class MissionScenario
 
 
     internal static TextCatalog Texts(StrategySnapshot view) => new(TextCatalog.CurrentSchemaVersion,
-        view.Officers.Select(p => p.NameKey).Concat(view.Forces.Select(f => f.NameKey)).Concat(view.Settlements.Select(s => s.NameKey))
-            .Distinct().ToDictionary(key => key, key => key));
+        San9.Tests.CommandTextFixture.Entries(view.Officers.Select(p => p.NameKey).Concat(view.Forces.Select(f => f.NameKey)).Concat(view.Settlements.Select(s => s.NameKey))
+            .Distinct().ToDictionary(key => key, key => key)));
 }

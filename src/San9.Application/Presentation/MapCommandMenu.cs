@@ -4,7 +4,7 @@ namespace San9.Application.Presentation;
 
 public enum MapCommandTone { Blue, Green, Brown }
 /// <summary>Presentation-only navigation; leaves deliberately carry no executable command.</summary>
-public sealed record MapCommandEntry(string Id, string Title, MapCommandTone Tone, IReadOnlyList<MapCommandEntry> Children)
+public sealed record MapCommandEntry(string Id, MapCommandTone Tone, IReadOnlyList<MapCommandEntry> Children)
 {
     public string? UnavailableReasonKey { get; init; }
     public bool Enabled => UnavailableReasonKey is null;
@@ -12,23 +12,23 @@ public sealed record MapCommandEntry(string Id, string Title, MapCommandTone Ton
 
 public static class MapCommandMenu
 {
-    private static MapCommandEntry Group(string id, string title, MapCommandTone tone, params (string Id, string Title)[] children) =>
-        new(id, title, tone, Array.AsReadOnly(children.Select(c => new MapCommandEntry(c.Id, c.Title, tone, [])).ToArray()));
+    private static MapCommandEntry Group(string id, MapCommandTone tone, params string[] children) =>
+        new(id, tone, Array.AsReadOnly(children.Select(id => new MapCommandEntry(id, tone, [])).ToArray()));
 
-    private static readonly MapCommandEntry Facilities = Group("facilities", "设施", MapCommandTone.Blue,
-        ("patrol", "巡察"), ("commerce", "商业"), ("cultivate", "开垦"), ("repair", "修筑"),
-        ("recruit", "征兵"), ("train", "训练"), ("buy", "买进"), ("sell", "卖出"));
+    private static readonly MapCommandEntry Facilities = Group("facilities", MapCommandTone.Blue,
+        "patrol", "commerce", "cultivate", "repair",
+        "recruit", "train", "buy", "sell");
     private static readonly IReadOnlyList<MapCommandEntry> Common = Array.AsReadOnly(new[] {
-        Group("military", "军事", MapCommandTone.Green, ("sortie", "出征"), ("build", "建设"), ("transport", "输送")),
-        Group("talent", "人才", MapCommandTone.Green, ("summon", "召来"), ("move", "移动"), ("search", "探索"), ("employ", "登庸")),
-        Group("strategy", "计略", MapCommandTone.Green, ("alienate", "离间"), ("burn", "烧夷"), ("seize", "夺取"),
-            ("rumor", "流言"), ("false-report", "伪报"), ("disorder", "扰乱"), ("inspire", "激励"), ("rescue", "救援")),
-        Group("diplomacy", "外交", MapCommandTone.Green, ("gift", "赠与"), ("request", "请求"), ("return", "交还"), ("surrender", "劝降")),
-        Group("appointments", "任免", MapCommandTone.Brown, ("delegate", "委任"), ("strategist", "军师"), ("rank", "爵位"),
-            ("reward", "褒奖"), ("bestow", "授与"), ("confiscate", "没收"), ("execute", "处斩"), ("exile", "流放"))
+        Group("military", MapCommandTone.Green, "sortie", "build", "transport"),
+        Group("talent", MapCommandTone.Green, "summon", "move", "search", "employ"),
+        Group("strategy", MapCommandTone.Green, "alienate", "burn", "seize",
+            "rumor", "false-report", "disorder", "inspire", "rescue"),
+        Group("diplomacy", MapCommandTone.Green, "gift", "request", "return", "surrender"),
+        Group("appointments", MapCommandTone.Brown, "delegate", "strategist", "rank",
+            "reward", "bestow", "confiscate", "execute", "exile")
     });
     private static readonly IReadOnlyList<MapCommandEntry> UnitEntries = Array.AsReadOnly(new[] {
-        Group("attack", "攻击", MapCommandTone.Green), Group("march", "进军", MapCommandTone.Green)
+        Group("attack", MapCommandTone.Green), Group("march", MapCommandTone.Green)
     });
 
     public static IReadOnlyList<MapCommandEntry> Settlement(StrategySnapshot view, int id)
@@ -40,7 +40,7 @@ public static class MapCommandMenu
         {
             bool removable = view.MilitaryRules is {} rules && rules.TryPlace(place, out var definition) && definition.CanDemolish;
             facilities = Facilities with { Children = removable
-                ? [.. Facilities.Children.Where(c => c.Id is "repair" or "train"), new("demolish", "撤除", MapCommandTone.Blue, [])]
+                ? [.. Facilities.Children.Where(c => c.Id is "repair" or "train"), new("demolish", MapCommandTone.Blue, [])]
                 : Facilities.Children.Where(c => c.Id is "repair" or "train").ToArray() };
         }
         var availability = new MapCommandAvailability(view);
@@ -58,7 +58,7 @@ public static class MapCommandMenu
             unit.Soldiers == 0 || unit.OwnerId != view.PlayerForceId) return [];
         IReadOnlyList<MapCommandEntry> entries = view.MilitaryRules?.Purpose(formation) switch {
             UnitPurpose.Construction => [UnitEntries.Single(e => e.Id == "march")],
-            UnitPurpose.Transport => [Group("redirect-transport", "输送", MapCommandTone.Green)],
+            UnitPurpose.Transport => [Group("redirect-transport", MapCommandTone.Green)],
             _ => UnitEntries
         };
         string? reason = new MapCommandAvailability(view).UnitReasonKey(unit);

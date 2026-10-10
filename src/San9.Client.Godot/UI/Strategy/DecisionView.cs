@@ -82,8 +82,7 @@ public partial class DecisionView : Control
         {
             var officer = Draft.Before.Officers.Single(o => o.Id == person);
             var hint = new GameMessageBar { Textures = Textures, Text = Draft.Prompt.BbCode };
-            var window = new CommandWindow
-            {
+            var window = new CommandWindow { Texts = Texts,
                 Textures = Textures,
                 Title = Draft.Role switch { "office-request" => "仕官待遇", "search-recruitment" => "探索登用", _ => "俘虏处置" },
                 Position = new(304, 320),

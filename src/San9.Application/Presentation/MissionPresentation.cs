@@ -94,27 +94,30 @@ public static class MissionPresentation
             string who = Person(task.OfficerId);
             switch (e)
             {
-                case AlienateResolvedEvent a: Add($"{who}对{Person(a.TargetOfficerId)}的离间{(a.Success ? $"成功，忠诚降低{a.LoyaltyLoss}" : "失败")}。",a.Success ? $"忠诚降低{a.LoyaltyLoss}。" : null); break;
-                case BurnResolvedEvent b: Add($"{who}对{Place(b.TargetSettlementId)}的烧夷{(b.Success ? $"成功，耐久降低{b.DurabilityLoss}、兵粮损失{b.FoodLoss}" : "失败")}。",
-                    b.Success ? $"{Place(b.TargetSettlementId)}：耐久降低{b.DurabilityLoss}，兵粮损失{b.FoodLoss}。" : null); break;
+                case AlienateResolvedEvent a: Add(CommandText.Resolve(texts, "result.alienate", who, Person(a.TargetOfficerId), (a.Success ? CommandText.Resolve(texts, "result.alienate-gain", a.LoyaltyLoss) : CommandText.Resolve(texts, "outcome.failure"))),a.Success ? CommandText.Resolve(texts, "result.loyalty-loss", a.LoyaltyLoss) : null); break;
+                case BurnResolvedEvent b: Add(CommandText.Resolve(texts, "result.burn", who, Place(b.TargetSettlementId), (b.Success ? CommandText.Resolve(texts, "result.burn-gain", b.DurabilityLoss, b.FoodLoss) : CommandText.Resolve(texts, "outcome.failure"))),
+                    b.Success ? CommandText.Resolve(texts, "result.burn-loss", Place(b.TargetSettlementId), b.DurabilityLoss, b.FoodLoss) : null); break;
                 case SeizeResolvedEvent s:
-                    string gain = s.Outcome switch { SeizeOutcomeKind.Item => "取得宝物" + texts.Resolve(before.Information.Treasures.Single(t => t.Id == s.TreasureId).NameKey),
-                        SeizeOutcomeKind.Person => "救出"+Person(s.RecoveredOfficerId!.Value), SeizeOutcomeKind.Money => $"取得资金{s.Money}", _ => "失败" };
-                    Add($"{who}在{Place(s.TargetSettlementId)}执行夺取：{gain}。"); break;
-                case GossipResolvedEvent g: Add($"{who}在{Force(g.FirstTargetForceId)}执行流言{(g.Success ? $"成功，与{Force(g.SecondTargetForceId)}的友好降低{g.RelationLoss}" : "失败")}。",
-                    g.Success ? $"与{Force(g.SecondTargetForceId)}的友好降低{g.RelationLoss}。" : null); break;
+                    string gain = s.Outcome switch { SeizeOutcomeKind.Item => CommandText.Resolve(texts, "result.treasure-gain", texts.Resolve(before.Information.Treasures.Single(t => t.Id == s.TreasureId).NameKey)),
+                        SeizeOutcomeKind.Person => CommandText.Resolve(texts, "result.person-gain", Person(s.RecoveredOfficerId!.Value)), SeizeOutcomeKind.Money => CommandText.Resolve(texts, "result.money-gain", s.Money), _ => CommandText.Resolve(texts, "outcome.failure") };
+                    Add(CommandText.Resolve(texts, "result.seize", who, Place(s.TargetSettlementId), gain)); break;
+                case GossipResolvedEvent g: Add(CommandText.Resolve(texts, "result.rumor", who, Force(g.FirstTargetForceId), (g.Success ? CommandText.Resolve(texts, "result.rumor-gain", Force(g.SecondTargetForceId), g.RelationLoss) : CommandText.Resolve(texts, "outcome.failure"))),
+                    g.Success ? CommandText.Resolve(texts, "result.relation-loss", Force(g.SecondTargetForceId), g.RelationLoss) : null); break;
                 case UnitStrategyResolvedEvent u:
-                    string name = u.Strategy switch { UnitStrategyKind.FalseReport => "伪报", UnitStrategyKind.Disorder => "扰乱", UnitStrategyKind.Inspire => "激励", _ => "救援" };
+                    string name = u.Strategy switch { UnitStrategyKind.FalseReport => CommandText.Resolve(texts, "title.false-report"), UnitStrategyKind.Disorder => CommandText.Resolve(texts, "title.disorder"), UnitStrategyKind.Inspire => CommandText.Resolve(texts, "title.inspire"), _ => CommandText.Resolve(texts, "title.rescue") };
                     var target = before.World.Units.Single(t => t.Id == u.TargetUnitId);
-                    Add($"{who}对{(target.CommanderId is int commander ? Person(commander) : Force(target.OwnerId))}队执行{name}{(u.Success ? "成功" : "失败")}"+
-                        (u.Strategy == UnitStrategyKind.Reinforce ? $"，送达士兵{u.DeliveredSoldiers}（请求{u.RequestedSoldiers}）" : "")+"。",
-                        u.Strategy == UnitStrategyKind.Reinforce ? $"送达士兵{u.DeliveredSoldiers}（请求{u.RequestedSoldiers}）。" : null); break;
-                case GiftResolvedEvent g: Add($"{Force(g.TargetForceId)}{(g.Accepted ? "接受" : "拒绝")}了{who}的赠与。"+(g.Refunded > 0 ? $"退回资源{g.Refunded}。" : ""),
-                    g.Refunded > 0 ? $"退回{(g.Offer.Kind == GiftKind.Food ? "兵粮" : "资金")}{g.Refunded}。" : null); break;
-                case AttackRequestResolvedEvent a: Add($"{Force(a.RequestedForceId)}对攻打{Place(a.TargetSettlementId)}的请求："+(a.Outcome switch { AttackRequestOutcome.Accepted => "接受",AttackRequestOutcome.AlreadyAgreed => "已约定",_ => "拒绝"})+"。"); break;
-                case PrisonerReturnResolvedEvent p: Add($"{Person(p.PrisonerId)}的交还谈判{(p.Accepted ? "成功" : "被拒绝")}。"); break;
+                    string recipient = target.CommanderId is int commander ? Person(commander) : Force(target.OwnerId);
+                    string outcome = CommandText.Resolve(texts, u.Success ? "outcome.success" : "outcome.failure");
+                    Add(u.Strategy == UnitStrategyKind.Reinforce
+                        ? CommandText.Resolve(texts, "result.reinforcement-summary", who, recipient, name, outcome, u.DeliveredSoldiers, u.RequestedSoldiers)
+                        : CommandText.Resolve(texts, "result.unit-strategy", who, recipient, name, outcome),
+                        u.Strategy == UnitStrategyKind.Reinforce ? CommandText.Resolve(texts, "result.reinforcement", u.DeliveredSoldiers, u.RequestedSoldiers) : null); break;
+                case GiftResolvedEvent g: Add(CommandText.Resolve(texts, "result.gift", Force(g.TargetForceId), (g.Accepted ? CommandText.Resolve(texts, "outcome.accepted") : CommandText.Resolve(texts, "outcome.refused")), who)+(g.Refunded > 0 ? CommandText.Resolve(texts, "result.refunded", g.Refunded) : ""),
+                    g.Refunded > 0 ? CommandText.Resolve(texts, "result.refund-resource", (g.Offer.Kind == GiftKind.Food ? CommandText.Resolve(texts, "label.food") : CommandText.Resolve(texts, "label.money")), g.Refunded) : null); break;
+                case AttackRequestResolvedEvent a: Add(CommandText.Resolve(texts, "result.request", Force(a.RequestedForceId), Place(a.TargetSettlementId), a.Outcome switch { AttackRequestOutcome.Accepted => CommandText.Resolve(texts, "outcome.accepted"),AttackRequestOutcome.AlreadyAgreed => CommandText.Resolve(texts, "outcome.agreed"),_ => CommandText.Resolve(texts, "outcome.refused")})); break;
+                case PrisonerReturnResolvedEvent p: Add(CommandText.Resolve(texts, "result.prisoner-return", Person(p.PrisonerId), (p.Accepted ? CommandText.Resolve(texts, "outcome.success") : CommandText.Resolve(texts, "outcome.rejected")))); break;
                 case SurrenderResolvedEvent s:
-                    Add($"{Force(s.TargetForceId)}{(s.Accepted ? "接受" : "拒绝")}了劝降。");
+                    Add(CommandText.Resolve(texts, "result.surrender", Force(s.TargetForceId), (s.Accepted ? CommandText.Resolve(texts, "outcome.accepted") : CommandText.Resolve(texts, "outcome.refused"))));
                     if (s.Accepted && content is { Count: > 0 } && context is not null)
                     {
                         var values = ResultValues(e,task,before);
@@ -123,7 +126,7 @@ public static class MissionPresentation
                         messages.Add(elimination with { Message = elimination.Message with { Clock = clock }, BackgroundMusicRole = "force-eliminated-music" });
                     }
                     break;
-                case TaskCancelledEvent c: Add($"{who}的任务取消：{Cancellation(c.Reason)}。"); break;
+                case TaskCancelledEvent c: Add(CommandText.Resolve(texts, "result.cancelled", who, Cancellation(texts,c.Reason))); break;
             }
         }
         return messages;
@@ -238,9 +241,9 @@ public static class MissionPresentation
     }
     private static bool IsMission(PersistentTask task) => task.Journey is { ReturnLeg: null } &&
         (task.Kind.StartsWith("strategy-",StringComparison.Ordinal) || task.Kind == "unit-strategy" || task.Kind.StartsWith("diplomacy-",StringComparison.Ordinal));
-    private static string Cancellation(string reason) => reason switch
+    private static string Cancellation(TextCatalog texts, string reason) => reason switch
     {
-        "reinforcement-unfit" => "救援部队已无法接收兵员", "target-invalidated" => "目标已失效",
-        _ => "人物、目标或来源状态已不满足执行条件"
+        "reinforcement-unfit" => CommandText.Resolve(texts, "cancel.reinforcement-unfit"), "target-invalidated" => CommandText.Resolve(texts, "cancel.target-invalidated"),
+        _ => CommandText.Resolve(texts, "cancel.conditions")
     };
 }

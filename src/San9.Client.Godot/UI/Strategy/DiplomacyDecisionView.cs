@@ -21,8 +21,7 @@ public partial class DiplomacyDecisionView : Control
         bool attack = data.TargetSettlementId is not null, accepting = data.Offer is not null;
         var bounds = attack ? accepting ? new Rect2(292, 248, 440, 272) : new Rect2(292, 228, 440, 312) :
             accepting ? new Rect2(360, 240, 304, 288) : new Rect2(360, 220, 304, 328);
-        var window = new CommandWindow
-        {
+        var window = new CommandWindow { Texts = Texts,
             Textures = Textures,
             Title = attack ? "请求攻打" : "俘虏返还",
             Position = bounds.Position,

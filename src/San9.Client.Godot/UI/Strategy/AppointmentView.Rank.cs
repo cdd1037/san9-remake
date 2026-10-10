@@ -1,3 +1,4 @@
+using San9.Content.Text;
 using Godot;
 using San9.Application.Presentation;
 using San9.Content.Interface;
@@ -12,7 +13,7 @@ public partial class AppointmentView
         var plan = Draft.OfficePlan!;
         string idle = Texts.Resolve(CommandMenuSkin.HintKey("rank"));
         var message = new GameMessageBar { Textures = Textures, Text = idle };
-        var window = new CommandWindow { Textures = Textures, Title = Draft.Title, Position = new(208,204), Size = new(608,360),
+        var window = new CommandWindow { Texts = Texts, Textures = Textures, Title = CommandText.Resolve(Texts, "title." + Draft.Kind), Position = new(208,204), Size = new(608,360),
             CanAccept = Draft.CanExecute, Accepted = Submit, Closed = Closed, Help = Help,
             AcceptHint = RankHint(Draft.CanExecute ? "accept" : "no-changes"), CancelHint = RankHint("cancel"),
             HintChanged = hint => message.Text = hint ?? idle };
@@ -23,14 +24,14 @@ public partial class AppointmentView
             button.Disabled = unavailable is not null;
             window.BindHint(button, RankHint(unavailable ?? hint));
         }
-        Button("个别任命", "individual", 0, SelectPeople);
-        Button("空缺任命", "fill", 1, () => { plan.FillVacancies(); Rebuild(); }, plan.FillUnavailable);
-        Button("右迁任命", "promote", 2, () => { plan.Promote(); Rebuild(); }, plan.PromoteUnavailable);
-        Button("全卸任", "remove", 3, () => { plan.RemoveAll(); Rebuild(); }, plan.RemoveUnavailable);
+        Button(CommandText.Resolve(Texts, "rank.individual"), "individual", 0, SelectPeople);
+        Button(CommandText.Resolve(Texts, "rank.fill"), "fill", 1, () => { plan.FillVacancies(); Rebuild(); }, plan.FillUnavailable);
+        Button(CommandText.Resolve(Texts, "rank.promote"), "promote", 2, () => { plan.Promote(); Rebuild(); }, plan.PromoteUnavailable);
+        Button(CommandText.Resolve(Texts, "rank.remove"), "remove", 3, () => { plan.RemoveAll(); Rebuild(); }, plan.RemoveUnavailable);
         var roster = new OfficerRosterPanel { Service = Service, Textures = Textures, Position = new(104,0), ShowPortrait = false,
             VisibleRows = 10, BodyHeight = 248, ShowPagination = true, PageNumberWidth = 72, PaginationSpacing = 4,
             PaginationTop = 0, PaginationLabelTop = 8, CountGap = 60,
-            Columns = [new("武将",80),new("爵位",104),new("指挥",64),new("统率",64),new("武力",64),new("智力",64),new("政治",64)] };
+            Columns = [new(CommandText.Resolve(Texts, "label.officer"),80),new(CommandText.Resolve(Texts, "title.rank"),104),new(CommandText.Resolve(Texts, "label.capacity"),64),new(CommandText.Resolve(Texts, "label.leadership"),64),new(CommandText.Resolve(Texts, "label.war"),64),new(CommandText.Resolve(Texts, "label.intelligence"),64),new(CommandText.Resolve(Texts, "label.politics"),64)] };
         roster.SetEntries(plan.Changes.Select(change => {
             int id = change.OfficerId;
             var person = Draft.View.Officers.Single(p => p.Id == id);
@@ -46,7 +47,7 @@ public partial class AppointmentView
         window.AddChild(roster);
         var counts = new OfficerPropertyList { Textures = Textures, LabelSkinPrefix = "deployment-label", LabelWidth = 96,
             RowHeight = 32, RowSpacing = 40, Position = new(0,288) };
-        counts.SetProperties([new("右迁",plan.Promotions.ToString(),40),new("左迁",plan.Demotions.ToString(),40)]);
+        counts.SetProperties([new(CommandText.Resolve(Texts, "label.promotions"),plan.Promotions.ToString(),40),new(CommandText.Resolve(Texts, "label.demotions"),plan.Demotions.ToString(),40)]);
         window.AddChild(counts); body.AddChild(message);
     }
 
@@ -64,9 +65,9 @@ public partial class AppointmentView
             return order.Select(id => new CatalogRow(id,rows[id].Cells.Select((cell,index) =>
                 edited.Cell(id,OfficerCatalog.Pages[page-1].Columns[index].Id,cell,Texts)).ToArray())).ToArray();
         }
-        ReplaceChild(new CatalogView { Title = "选择武将", CloseTitle = "中止", Textures = Textures, Service = Service,
+        ReplaceChild(new CatalogView { Title = CommandText.Resolve(Texts, "select.officer"), CloseTitle = CommandText.Resolve(Texts, "action.cancel"), Textures = Textures, Service = Service,
             HintText = RankHint("select"), TableState = state, Portrait = id => $"catalog-person-{id}",
-            Pages = [new("爵位",first.Select(c => OfficerCatalog.Pages[c.Page].Columns[c.Column]).ToArray()), .. OfficerCatalog.Pages],
+            Pages = [new(CommandText.Resolve(Texts, "title.rank"),first.Select(c => OfficerCatalog.Pages[c.Page].Columns[c.Column]).ToArray()), .. OfficerCatalog.Pages],
             ReadRows = Rows, Activated = id => SelectRankOffice(edited,id,state), Closed = CloseChild,
             Confirmed = () => { if (Draft.IsCurrent) Draft.OfficePlan!.Accept(edited); CloseChild(); } });
     }
@@ -85,11 +86,11 @@ public partial class AppointmentView
                 ? [name,Holder(id),(long)(office?.CommandCapacity ?? 10000),office?.Salary ?? 0,a.Leadership,a.War,a.Intelligence,a.Politics,(office?.Salary ?? 0)/2]
                 : [name,office?.DescriptionKey is string key ? Texts.Resolve(key) : ""]);
         }).ToArray();
-        ReplaceChild(new CatalogView { Title = "选择爵位", CloseTitle = "中止", Textures = Textures, Service = Service,
+        ReplaceChild(new CatalogView { Title = CommandText.Resolve(Texts, "select.rank"), CloseTitle = CommandText.Resolve(Texts, "action.cancel"), Textures = Textures, Service = Service,
             HintText = RankHint("select-office"), InitialCurrentId = Array.IndexOf(choices,edited.OfficeFor(person)),
-            Pages = [new("特征",[C("office","爵位",8),C("holder","武将",8),C("capacity","指挥",6),C("salary","俸禄",5),
-                C("leadership","统率",5),C("war","武力",5),C("intelligence","智力",5),C("politics","政治",5),C("loyalty","忠诚上升",9)]),
-                new("说明",[C("office","爵位",8),new("description","说明",61,CatalogAlignment.Left)])],
+            Pages = [new(CommandText.Resolve(Texts, "page.features"),[C("office",CommandText.Resolve(Texts, "title.rank"),8),C("holder",CommandText.Resolve(Texts, "label.officer"),8),C("capacity",CommandText.Resolve(Texts, "label.capacity"),6),C("salary",CommandText.Resolve(Texts, "label.salary"),5),
+                C("leadership",CommandText.Resolve(Texts, "label.leadership"),5),C("war",CommandText.Resolve(Texts, "label.war"),5),C("intelligence",CommandText.Resolve(Texts, "label.intelligence"),5),C("politics",CommandText.Resolve(Texts, "label.politics"),5),C("loyalty",CommandText.Resolve(Texts, "label.loyalty-gain"),9)]),
+                new(CommandText.Resolve(Texts, "label.description"),[C("office",CommandText.Resolve(Texts, "title.rank"),8),new("description",CommandText.Resolve(Texts, "label.description"),61,CatalogAlignment.Left)])],
             ReadRows = Rows, Closed = () => SelectRankPeople(edited,peopleState),
             Activated = index => { if (edited.Assign(person,choices[index])) SelectRankPeople(edited,peopleState); } });
     }

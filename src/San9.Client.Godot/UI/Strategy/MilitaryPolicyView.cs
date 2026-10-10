@@ -35,7 +35,7 @@ public partial class MilitaryPolicyView : Control
             TextureMarginLeft = 16, TextureMarginRight = 16, TextureMarginTop = 8, TextureMarginBottom = 8,
             AxisStretchHorizontal = StyleBoxTexture.AxisStretchMode.Tile, AxisStretchVertical = StyleBoxTexture.AxisStretchMode.Tile };
         if (IsSpecial) { BuildSpecial(); return; }
-        _window = new CommandWindow { Textures = Textures, Position = Origin, Size = new(416, 320),
+        _window = new CommandWindow { Texts = Texts, Textures = Textures, Position = Origin, Size = new(416, 320),
             Title = "决定方针", ShowBehindParent = true, Closed = Closed, Accepted = Execute,
             Help = () => Notice("决定部队的行动方针。金色为已选项。\n" +
                 (Selection.IsDeployment ? "出征时期可设为0至9日后。\n" : "") +
@@ -73,7 +73,7 @@ public partial class MilitaryPolicyView : Control
     }
     private void BuildSpecial()
     {
-        _window = new CommandWindow { Textures = Textures, Position = Origin, Size = new(416,IsConstruction ? 160 : 128),
+        _window = new CommandWindow { Texts = Texts, Textures = Textures, Position = Origin, Size = new(416,IsConstruction ? 160 : 128),
             Title = "决定方针", ShowBehindParent = true, Closed = Closed, Accepted = Execute,
             Help = () => Notice("决定部队是否可以自主撤退。到达预定包含所选中继点。") };
         AddChild(_window);

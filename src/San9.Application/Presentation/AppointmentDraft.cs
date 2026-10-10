@@ -13,8 +13,6 @@ public sealed class AppointmentDraft
     public StrategySnapshot View { get; }
     public int SourceId { get; }
     public string Kind { get; }
-    public string Title => Kind switch { "strategist" => "军师", "rank" => "爵位", "reward" => "褒奖",
-        "bestow" => "授与", "confiscate" => "没收", "execute" => "处斩", "exile" => "流放", _ => throw new InvalidOperationException() };
     public ImmutableArray<int> Candidates { get; }
     public ImmutableArray<int> TreasureIds { get; }
     public ImmutableArray<int> Members { get; private set; } = [];

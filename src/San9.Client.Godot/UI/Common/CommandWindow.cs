@@ -1,3 +1,4 @@
+using San9.Content.Text;
 using Godot;
 
 namespace San9.Client.Godot;
@@ -5,6 +6,7 @@ namespace San9.Client.Godot;
 /// <summary>Command chrome anchored to the caller’s content rectangle. Content and command state belong to the caller.</summary>
 public partial class CommandWindow : Control
 {
+    public TextCatalog Texts { get; init; } = null!;
     public TextureScope Textures { get; init; } = null!;
     public string Title { get; init; } = "";
     public Action Help { get; init; } = null!;
@@ -13,8 +15,8 @@ public partial class CommandWindow : Control
     public Action Accepted { get; init; } = null!;
     public bool CanAccept { get; init; } = true;
     public bool CanClose { get; init; } = true;
-    public string AcceptTitle { get; init; } = "执行";
-    public string CancelTitle { get; init; } = "中止";
+    public string? AcceptTitle { get; init; }
+    public string? CancelTitle { get; init; }
     public int ActionRightInset { get; init; } = 42;
     public Action<string?>? HintChanged { get; init; }
     public string? AcceptHint { get; init; }
@@ -34,10 +36,10 @@ public partial class CommandWindow : Control
         _text.Apply(title, new(24, new Color("f8f850"), GameTextEffect.Outline, new Color("5828c8")));
         Icon("help", new(Size.X - 40, -56), Help);
         Icon("close", new(Size.X - 8, -36), Closed, !CanClose);
-        var accept = ActionButton(AcceptTitle, "accept", new(Size.X - (SmallFrame ? 26 : ActionRightInset) - 168, Size.Y + (SmallFrame ? 21 : 20), 80, 48), Accepted);
+        var accept = ActionButton(AcceptTitle ?? CommandText.Resolve(Texts, "action.execute"), "accept", new(Size.X - (SmallFrame ? 26 : ActionRightInset) - 168, Size.Y + (SmallFrame ? 21 : 20), 80, 48), Accepted);
         accept.Disabled = !CanAccept;
         BindHint(accept, AcceptHint);
-        BindHint(ActionButton(CancelTitle, "cancel", new(Size.X - (SmallFrame ? 26 : ActionRightInset) - 80, Size.Y + (SmallFrame ? 21 : 20), 80, 48), Cancelled ?? Closed), CancelHint);
+        BindHint(ActionButton(CancelTitle ?? CommandText.Resolve(Texts, "action.cancel"), "cancel", new(Size.X - (SmallFrame ? 26 : ActionRightInset) - 80, Size.Y + (SmallFrame ? 21 : 20), 80, 48), Cancelled ?? Closed), CancelHint);
     }
 
     public void BindHint(Control control, string? hint)

@@ -16,7 +16,7 @@ public sealed class PersonnelCommandTests
             .Concat(view.Settlements.Select(s => s.NameKey)).Concat(view.Settlements.Select(s => s.NameSuffixKey).OfType<string>())
             .Concat(view.RegionNameKeys.Values).Concat(view.ProvinceNameKeys.Values)
             .Concat(view.Information.Offices.Select(o => o.NameKey));
-        return new(TextCatalog.CurrentSchemaVersion,keys.Distinct().ToDictionary(k => k,k => k));
+        return new(TextCatalog.CurrentSchemaVersion,San9.Tests.CommandTextFixture.Entries(keys.Distinct().ToDictionary(k => k,k => k)));
     }
     [Theory]
     [InlineData("summon")]
@@ -31,7 +31,7 @@ public sealed class PersonnelCommandTests
         var before = session.Snapshot;
         var target = draft.TargetId;
         var members = draft.Members;
-        var pages = PersonnelCatalog.OfficerPages(draft);
+        var pages = PersonnelCatalog.OfficerPages(draft,CatalogTexts(draft.View));
         var officerOrder = PersonnelCatalog.Officers(draft,texts,0).Select(r => r.Id).ToArray();
         Assert.Equal(draft.Candidates.Order(),officerOrder.Order());
         for (int page = 0; page < pages.Count; page++)
@@ -42,7 +42,7 @@ public sealed class PersonnelCommandTests
         }
         if (kind is "search" or "move")
         {
-            var targetPages = PersonnelCatalog.TargetPages(draft);
+            var targetPages = PersonnelCatalog.TargetPages(draft,CatalogTexts(draft.View));
             var targetOrder = PersonnelCatalog.Targets(draft,texts,0).Select(r => r.Id).ToArray();
             Assert.Equal(draft.Targets.Order(),targetOrder.Order());
             for (int page = 0; page < targetPages.Count; page++)
@@ -54,7 +54,7 @@ public sealed class PersonnelCommandTests
         }
         if (kind == "employ")
         {
-            var targetPages = PersonnelCatalog.OfficerPages(draft,targets:true);
+            var targetPages = PersonnelCatalog.OfficerPages(draft,CatalogTexts(draft.View),targets:true);
             var targetOrder = PersonnelCatalog.Officers(draft,texts,0,targets:true).Select(r => r.Id).ToArray();
             Assert.Equal(draft.Targets.Order(),targetOrder.Order());
             for (int page = 0; page < targetPages.Count; page++)
@@ -73,7 +73,7 @@ public sealed class PersonnelCommandTests
             hidden with { State = hidden.State with { Id = 101, Status = OfficerStatus.Undiscovered } }] },7);
         var draft = new PersonnelDraft(session,1,"search");
         var texts = CatalogTexts(session.View);
-        var page = PersonnelCatalog.TargetPages(draft)[0];
+        var page = PersonnelCatalog.TargetPages(draft,CatalogTexts(draft.View))[0];
         var rows = PersonnelCatalog.Targets(draft,texts,0);
         int free = Array.FindIndex(page.Columns,c => c.Id == "free");
         int estimate = Array.FindIndex(page.Columns,c => c.Id == "estimate");
@@ -132,8 +132,8 @@ public sealed class PersonnelCommandTests
         var draft = new PersonnelDraft(session,1,"employ");
         var rows = PersonnelCatalog.Officers(draft,CatalogTexts(session.View),0,targets:true);
         Assert.Equal(new[] { 102,101,100,103,5,6 },rows.Select(r => r.Id));
-        Assert.Equal(new[] { "武将","身分","忠诚","势力","所在","统率","武力","智力","政治","到达预定" },
-            PersonnelCatalog.OfficerPages(draft,targets:true)[0].Columns.Select(c => c.Title));
+        Assert.Equal(new[] { "武将","身分","忠诚","势力","所在","统率","武力","智力","政治","label.arrival" },
+            PersonnelCatalog.OfficerPages(draft,CatalogTexts(draft.View),targets:true)[0].Columns.Select(c => c.Title));
         var far = rows.Single(r => r.Id == 100);
         var near = rows.Single(r => r.Id == 103);
         Assert.True(far.Cells[^1].Number > near.Cells[^1].Number);

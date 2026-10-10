@@ -17,13 +17,6 @@ public sealed class MissionDraft
     public StrategySnapshot View { get; }
     public SettlementState Home { get; }
     public string Kind { get; }
-    public string Title => Kind switch
-    {
-        "alienate" => "离间", "burn" => "烧夷", "seize" => "夺取", "rumor" => "流言",
-        "false-report" => "伪报", "disorder" => "扰乱", "inspire" => "激励", "rescue" => "救援",
-        "gift" => "赠与", "request" => "请求", "return" => "交还", "surrender" => "劝降",
-        _ => throw new InvalidOperationException()
-    };
     public bool IsDiplomacy => Kind is "gift" or "request" or "return" or "surrender";
     public CommandTargetMarker MapMarker(bool secondary = false) => Kind switch
     {

@@ -1,3 +1,4 @@
+using San9.Content.Text;
 using Godot;
 using San9.Application.Presentation;
 using San9.Content.Interface;
@@ -15,23 +16,23 @@ public partial class AppointmentView
         string idle = Texts.Resolve(CommandMenuSkin.HintKey(Draft.Kind));
         var message = new GameMessageBar { Textures = Textures, Text = idle };
         int rulerY = Math.Max(312,184 + 32 * (preview.TargetAbilities.Count + 1) + 8);
-        var window = new CommandWindow { Textures = Textures, Title = Draft.Title, Position = new(292,168), Size = new(440,rulerY+120),
+        var window = new CommandWindow { Texts = Texts, Textures = Textures, Title = CommandText.Resolve(Texts, "title." + Draft.Kind), Position = new(292,168), Size = new(440,rulerY+120),
             CanAccept = Draft.CanExecute, Accepted = Submit, Closed = Closed, Help = Help,
             AcceptHint = Hint(Draft.CanExecute ? "accept" : Draft.TreasureId is null ? "select-treasure" : "select"),
             CancelHint = Hint("cancel"), HintChanged = hint => message.Text = hint ?? idle };
         body!.AddChild(window);
-        var itemButton = window.ActionButton("宝物","edit",new(0,0,104,40),SelectTreasure);
+        var itemButton = window.ActionButton(CommandText.Resolve(Texts, "label.treasure"),"edit",new(0,0,104,40),SelectTreasure);
         itemButton.Disabled = Draft.TreasureIds.Length == 1;
         window.BindHint(itemButton,itemButton.Disabled ? idle : Hint("treasure"));
         window.AddChild(new TreasureCard { Textures = Textures, Service = Service, Treasure = treasure, Position = new(104,0) });
         if (grant)
         {
-            var targetButton = window.ActionButton("对象武将","edit",new(0,184,104,40),SelectPeople);
+            var targetButton = window.ActionButton(CommandText.Resolve(Texts, "label.target-officer"),"edit",new(0,184,104,40),SelectPeople);
             targetButton.Disabled = Draft.Candidates.Length == 1;
             window.BindHint(targetButton,targetButton.Disabled ? idle : Hint("target"));
         }
-        else AddLabel("对象武将",184);
-        AddLabel("君主",rulerY);
+        else AddLabel(CommandText.Resolve(Texts, "label.target-officer"),184);
+        AddLabel(CommandText.Resolve(Texts, "label.ruler"),rulerY);
         void AddLabel(string value,int y)
         {
             // Static caption shares the command label skin without adding a value field.
@@ -57,7 +58,7 @@ public partial class AppointmentView
             {
                 var loyalty = new OfficerPropertyList { Textures = Textures, LabelSkinPrefix = "deployment-mode",
                     Position = new(312,y+32*Math.Max(1,abilities.Count)) };
-                loyalty.SetProperties([new("忠诚",preview.Loyalty?.Text ?? "")]); window.AddChild(loyalty);
+                loyalty.SetProperties([new(CommandText.Resolve(Texts, "label.loyalty"),preview.Loyalty?.Text ?? "")]); window.AddChild(loyalty);
             }
         }
         Officer(preview.TargetId,184,preview.TargetAbilities,true);

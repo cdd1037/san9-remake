@@ -1,3 +1,4 @@
+using San9.Content.Text;
 using Godot;
 
 namespace San9.Client.Godot;
@@ -7,7 +8,7 @@ public partial class CommandArrivalField : Control
 {
     public TextureScope Textures { get; init; } = null!;
     public string Text { get => _label is null ? _value : _label.Text; set { _value = value; if (_label is not null) _label.Text = value; } }
-    public static string FormatDays(long? days) => days is long value ? $"到达预定　{value,3}日　" : "到达预定　　日";
+    public static string FormatDays(TextCatalog texts, long? days) => days is long value ? CommandText.Resolve(texts, "value.arrival", value) : CommandText.Resolve(texts, "value.arrival-empty");
     private string _value = "";
     private Label? _label;
     private StyleBoxTexture _field = null!;

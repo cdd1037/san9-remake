@@ -19,7 +19,7 @@ public static class CorpsPresentation
             {
                 CorpsCreatedEvent e when e.ForceId == before.PlayerForceId => Produce("corps-created",e.CorpsId,committed),
                 CorpsChangedEvent e when e.ForceId == before.PlayerForceId => Produce("corps-changed",e.CorpsId,prior),
-                CorpsDissolvedEvent e when e.ForceId == before.PlayerForceId => new(new("corps-result", e.Clock, $"解除了{Corps(e.CorpsId)}军团。"),null,null),
+                CorpsDissolvedEvent e when e.ForceId == before.PlayerForceId => new(new("corps-result", e.Clock, CommandText.Resolve(texts, "result.corps-dissolved", Corps(e.CorpsId))),null,null),
                 _ => null
             };
             if (message is not null) messages.Add(message);

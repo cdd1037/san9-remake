@@ -29,7 +29,7 @@ public abstract partial class CommandPreparationView : Control
         if (IsCurrent || invalidated) return;
         invalidated = true;
         var dialog = new GameDialog { Textures = Textures, Size = Size };
-        dialog.SetNotice("局势已变化，请重新准备命令。"); dialog.Closed += Closed; ReplaceChild(dialog);
+        dialog.SetNotice(CommandText.Resolve(Texts, "failure.stale-preparation")); dialog.Closed += Closed; ReplaceChild(dialog);
     }
     protected void Rebuild()
     {
@@ -49,7 +49,7 @@ public abstract partial class CommandPreparationView : Control
     protected void SelectMapTargets(CommandTargetSelection selection, string title, IReadOnlyList<CatalogPage> pages,
         Func<int, CatalogRow[]> readRows, Action<int> selected, Action canceled, int? current = null)
     {
-        if (selection.Candidates.IsEmpty) { Notice("当前没有符合条件的目标。"); return; }
+        if (selection.Candidates.IsEmpty) { Notice(CommandText.Resolve(Texts, "failure.no-target")); return; }
         var state = new CatalogTableState();
         ChooseMap(new(this, selection, title, (pick, showMap) =>
         {
@@ -57,7 +57,7 @@ public abstract partial class CommandPreparationView : Control
             void Map() { CloseChild(); showMap(); }
             ReplaceChild(new CatalogView
             {
-                Title = title, HintText = "请选择目标。", CloseTitle = "中止", Service = Service, Textures = Textures,
+                Title = title, HintText = CommandText.Resolve(Texts, "hint.target"), CloseTitle = CommandText.Resolve(Texts, "action.cancel"), Service = Service, Textures = Textures,
                 Pages = pages, TableState = state, InitialCurrentId = state.SelectedId ?? current,
                 ReadRows = readRows, Activated = pick, ShowMap = Map, Closed = Map
             });
@@ -71,11 +71,11 @@ public abstract partial class CommandPreparationView : Control
     {
         var ids = candidates.ToArray();
         var available = ids.ToHashSet();
-        if (ids.Length == 0) { Notice("当前没有符合条件的目标。"); return; }
+        if (ids.Length == 0) { Notice(CommandText.Resolve(Texts, "failure.no-target")); return; }
         Textures.RequestPrefixes("overview-", "information-", "detail-", "catalog-");
         var query = new InformationQuery(session,Texts);
         var state = new CatalogTableState();
-        string hint = hintText ?? (category == InformationCategory.Cities ? "请选择都市。" : "请选择势力。");
+        string hint = hintText ?? (category == InformationCategory.Cities ? CommandText.Resolve(Texts, "hint.city") : CommandText.Resolve(Texts, "hint.force"));
         Action cancel = canceled ?? CloseChild;
         void Show(bool map)
         {
@@ -83,14 +83,14 @@ public abstract partial class CommandPreparationView : Control
                 ReplaceChild(new InformationMapView
                 {
                     ReadView = () => view, Texts = Texts, Skin = Skin, Service = Service, Textures = Textures,
-                    Category = category, ReadCandidates = () => ids, Title = title, HintText = hint, CloseTitle = "中止",
+                    Category = category, ReadCandidates = () => ids, Title = title, HintText = hint, CloseTitle = CommandText.Resolve(Texts, "action.cancel"),
                     Activated = id => selected?.Invoke(id), Selection = selection, ConfirmSelection = confirmed,
                     ShowList = () => Show(false), Closed = cancel
                 });
             else
                 ReplaceChild(new CatalogView
                 {
-                    Title = title, HintText = hint, CloseTitle = "中止", Service = Service, Textures = Textures,
+                    Title = title, HintText = hint, CloseTitle = CommandText.Resolve(Texts, "action.cancel"), Service = Service, Textures = Textures,
                     Pages = pages ?? AdministrativeCatalog.Pages(category), TableState = state, InitialCurrentId = state.SelectedId ?? current,
                     ReadRows = readRows ?? (page => query.Read(category,page).Rows.Where(r => available.Contains(r.Key.Id))
                         .Select(r => new CatalogRow(r.Key.Id,r.Cells.ToArray())).ToArray()),

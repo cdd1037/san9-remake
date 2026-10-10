@@ -34,7 +34,7 @@ public sealed class MissionSelectionTests
         var texts = MissionScenario.Texts(draft.View);
         byte[] before = SaveService.Encode(session);
         Assert.Equal(first,draft.ActorId);
-        var pages = MissionOfficerCatalog.Pages(draft);
+        var pages = MissionOfficerCatalog.Pages(draft,MissionScenario.Texts(draft.View));
         var primary = MissionOfficerCatalog.Read(draft,texts,0);
         Assert.Equal(first,primary[0].Id);
         Assert.Contains(draft.ActorPriorityField,pages[0].Columns.Select(c => c.Id));
@@ -54,7 +54,7 @@ public sealed class MissionSelectionTests
         var draft = new MissionDraft(GameSession.Start(content,42),1,"inspire");
         Assert.Equal(new[] {4,5,1,2},draft.Actors);
         var rows = MissionOfficerCatalog.Read(draft,MissionScenario.Texts(draft.View),0);
-        int column = Array.FindIndex(MissionOfficerCatalog.Pages(draft)[0].Columns,c => c.Id == "inspiration");
+        int column = Array.FindIndex(MissionOfficerCatalog.Pages(draft,MissionScenario.Texts(draft.View))[0].Columns,c => c.Id == "inspiration");
         Assert.Equal("○",rows.Single(r => r.Id == 5).Cells[column].Text);
         Assert.Equal("×",rows.Single(r => r.Id == 4).Cells[column].Text);
     }
@@ -65,7 +65,7 @@ public sealed class MissionSelectionTests
         var session = GameSession.Start(MissionScenario.Create(),42);
         var draft = new MissionDraft(session,1,"alienate");
         byte[] before = SaveService.Encode(session);
-        var pages = MissionOfficerCatalog.Pages(draft,targets:true);
+        var pages = MissionOfficerCatalog.Pages(draft,MissionScenario.Texts(draft.View),targets:true);
         var rows = MissionOfficerCatalog.Read(draft,MissionScenario.Texts(draft.View),0,targets:true);
         var row = rows.Single(r => r.Id == 22);
         var arrival = row.Cells[Array.FindIndex(pages[0].Columns,c => c.Id == "estimate")];

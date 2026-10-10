@@ -1,3 +1,4 @@
+using San9.Content.Text;
 using San9.Application.Presentation;
 
 namespace San9.Client.Godot;
@@ -10,7 +11,7 @@ public partial class StrategyHud
     private void OpenMission(int id, string kind)
     {
         if (CommandPresentation.Missions.Count == 0)
-        { _notice.SetNotice("内容包缺少计略外交表现，请重新转换内容包。"); _notice.Show(); return; }
+        { _notice.SetNotice(CommandText.Resolve(Texts, "content.missions")); _notice.Show(); return; }
         _textures.RequestPrefixes("deployment-", "detail-", "catalog-", "information-", "narration-", "dialog-");
         _missionAdviceSelection = null;
         _mission = new() { Draft = new(Session,id,kind), Session = Session, Texts = Texts, Service = Textures, Textures = _textures, Skin = Skin,
@@ -35,10 +36,10 @@ public partial class StrategyHud
     private void SubmitMission()
     {
         if (_mission is not {} view) return;
-        if (!view.Draft.CanExecute) { view.ShowFailure(CommandFailureText.Describe(view.Draft.Rejection)); return; }
+        if (!view.Draft.CanExecute) { view.ShowFailure(CommandFailureText.Describe(Texts, view.Draft.Rejection)); return; }
         var before = view.Draft.View;
         var result = Session.Execute(new("player"),view.Draft.CreateCommand());
-        if (!result.Submission.Accepted) { view.ShowFailure(CommandFailureText.Describe(result.Submission.Rejection)); return; }
+        if (!result.Submission.Accepted) { view.ShowFailure(CommandFailureText.Describe(Texts, result.Submission.Rejection)); return; }
         var messages = MissionPresentation.Departure(view.Draft,CommandPresentation.Missions,Session.Messages(Texts,before.World),Texts);
         CloseMission(); if (messages.Count > 0) OpenNarration(messages,before);
     }
@@ -58,9 +59,9 @@ public partial class StrategyHud
     private void SubmitCorpsManagement()
     {
         if (_corpsCommand is not {} view) return;
-        if (!view.Draft.CanExecute) { view.ShowFailure(CommandFailureText.Describe(view.Draft.Rejection)); return; }
+        if (!view.Draft.CanExecute) { view.ShowFailure(CommandFailureText.Describe(Texts, view.Draft.Rejection)); return; }
         var result = Session.Execute(new("player"),view.Draft.CreateCommand());
-        if (!result.Submission.Accepted) { view.ShowFailure(CommandFailureText.Describe(result.Submission.Rejection)); return; }
+        if (!result.Submission.Accepted) { view.ShowFailure(CommandFailureText.Describe(Texts, result.Submission.Rejection)); return; }
         var messages = CorpsPresentation.Results(view.Draft.View, result.Events, Texts, CommandPresentation.Missions,
             Session.Messages(Texts,view.Draft.View.World),Session.Messages(Texts));
         CloseCorpsManagement();

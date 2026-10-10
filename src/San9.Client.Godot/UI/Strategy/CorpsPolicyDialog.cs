@@ -1,3 +1,4 @@
+using San9.Content.Text;
 using Godot;
 
 namespace San9.Client.Godot;
@@ -5,6 +6,7 @@ namespace San9.Client.Godot;
 /// <summary>Delegation policy popup uses the shared native tiled choice-panel art.</summary>
 public partial class CorpsPolicyDialog : Control
 {
+    public TextCatalog Texts { get; init; } = null!;
     public TextureScope Textures { get; init; } = null!;
     public IReadOnlySet<int> DisabledOptions { get; init; } = new HashSet<int>();
     public Action<int> Selected { get; init; } = null!;
@@ -17,11 +19,11 @@ public partial class CorpsPolicyDialog : Control
     {
         Size = new(1024,768); MouseFilter = MouseFilterEnum.Stop;
         // Native title text starts at the frame's (32,8) inset; it is not centered in its 44px height.
-        var title = new Label { Text = "委任方针", Position = TitleOrigin + new Vector2(32,8), Size = new(96,24),
+        var title = new Label { Text = CommandText.Resolve(Texts, "label.corps-policy"), Position = TitleOrigin + new Vector2(32,8), Size = new(96,24),
             HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top,
             MouseFilter = MouseFilterEnum.Ignore };
         AddChild(title); text.Apply(title,GameTextStyles.CatalogRow with { FontSize = 24 });
-        string[] names = ["委任","重视内政","打倒敌势","攻略设施"];
+        string[] names = [CommandText.Resolve(Texts, "title.delegate"),CommandText.Resolve(Texts, "policy.domestic"),CommandText.Resolve(Texts, "policy.defeat-force"),CommandText.Resolve(Texts, "policy.capture-facility")];
         for (int i = 0; i < names.Length; i++)
         {
             int choice = i;
@@ -32,7 +34,7 @@ public partial class CorpsPolicyDialog : Control
                     GameTextEffect.Outline, !disabled && (hovered || pressed) ? new Color("5828c8") : Colors.Black) };
             button.Pressed += () => Selected(choice); AddChild(button);
         }
-        AddChild(new GameMessageBar { Textures = Textures, Text = "选择军团委任方针。" });
+        AddChild(new GameMessageBar { Textures = Textures, Text = CommandText.Resolve(Texts, "hint.corps-policy") });
     }
 
     public override void _Draw()

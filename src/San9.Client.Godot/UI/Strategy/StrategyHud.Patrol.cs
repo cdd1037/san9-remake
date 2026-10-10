@@ -1,3 +1,4 @@
+using San9.Content.Text;
 using Godot;
 using San9.Application.Presentation;
 using San9.Content.Interface;
@@ -15,7 +16,7 @@ public partial class StrategyHud
     private void OpenPatrol(int id)
     {
         if (PatrolDraft.UnavailableReasonKey(Session.View,id) is string reason) { _notice.SetNotice(Texts.Resolve(reason)); _notice.Show(); return; }
-        if (CommandPresentation.Patrol is null) { _notice.SetNotice("内容包没有提供巡察表现定义。"); _notice.Show(); return; }
+        if (CommandPresentation.Patrol is null) { _notice.SetNotice(CommandText.Resolve(Texts, "content.patrol")); _notice.Show(); return; }
         _textures.RequestPrefixes("deployment-","detail-","catalog-","information-","narration-","dialog-");
         _patrol = new() { Draft = new(Session.View,id), Session = Session, Texts = Texts, Service = Textures, Textures = _textures,
             Closed = ClosePatrol, Submit = SubmitPatrol };
@@ -34,7 +35,7 @@ public partial class StrategyHud
         var messages = Session.Messages(Texts);
         var result = Session.Execute(new("player"),view.Draft.CreateCommand(Guid.NewGuid(),Session.Snapshot.Simulation.NextSequence));
         if (!result.Submission.Accepted)
-        { ClosePatrol(); _notice.SetNotice("巡察未能执行，请重新选择设施和武将。"); _notice.Show(); return; }
+        { ClosePatrol(); _notice.SetNotice(CommandText.Resolve(Texts, "failure.patrol")); _notice.Show(); return; }
         var completed = result.Events.OfType<DevelopmentCompletedEvent>().Single();
         var sequence = PatrolPresentation.Create(before,messages,CommandPresentation.Patrol!,completed,Random.Shared.Next);
         ClosePatrol();

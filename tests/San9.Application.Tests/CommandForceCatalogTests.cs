@@ -17,7 +17,7 @@ public sealed class CommandForceCatalogTests
         var texts = MissionScenario.Texts(view);
         var catalog = new CommandForceCatalog(view,texts,[2,3]);
         var shared = new AdministrativeCatalog(view,texts);
-        Assert.Equal(new[] { "委任","状态","战力","资金","兵粮","外交" },catalog.Pages.Select(p => p.Title));
+        Assert.Equal(new[] { "title.delegate","状态","战力","资金","兵粮","外交" },catalog.Pages.Select(p => p.Title));
         foreach (string field in new[] { "relation","alliance" })
         {
             var column = AdministrativeCatalog.Pages(InformationCategory.Forces).SelectMany(p => p.Columns).First(c => c.Id == field);

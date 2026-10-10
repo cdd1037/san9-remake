@@ -14,8 +14,7 @@ public sealed class FacilityCommandDraft
     public DomesticActivity? Activity { get; }
     public FoodTradeDirection Direction => Kind == "buy" ? FoodTradeDirection.Buy : FoodTradeDirection.Sell;
     public bool IsTrade => Activity is null;
-    public string Title => Kind switch { "commerce" => "商业", "cultivate" => "开垦", "repair" => "修筑", "recruit" => "征兵", "train" => "训练", "buy" => "买进", "sell" => "卖出", _ => throw new InvalidOperationException() };
-    public string AbilityTitle => Activity is DomesticActivity.Repair or DomesticActivity.Recruit or DomesticActivity.Train ? "统率" : "政治";
+    public bool UsesLeadership => Activity is DomesticActivity.Repair or DomesticActivity.Recruit or DomesticActivity.Train;
     public ImmutableArray<int> Candidates { get; }
     public ImmutableArray<int> Members { get; private set; } = [];
     public uint FoodAmount { get; private set; }
@@ -47,7 +46,7 @@ public sealed class FacilityCommandDraft
             "repair" => DomesticActivity.Repair, "recruit" => DomesticActivity.Recruit, "train" => DomesticActivity.Train, _ => null };
         var treasury = Account(View, Home).Treasury; Money = treasury.Money; Food = treasury.Food;
         Candidates = View.Officers.Where(o => o.IsAvailable && o.OwnerId == Home.OwnerId && o.SettlementId == id)
-            .OrderByDescending(o => AbilityTitle == "统率" ? o.Abilities.Leadership : o.Abilities.Politics).ThenBy(o => o.Id).Select(o => o.Id).ToImmutableArray();
+            .OrderByDescending(o => UsesLeadership ? o.Abilities.Leadership : o.Abilities.Politics).ThenBy(o => o.Id).Select(o => o.Id).ToImmutableArray();
         if (Candidates.Length == 1) SetMembers(Candidates);
     }
     public bool CanSelect(IReadOnlyCollection<int> ids) => IsCurrent && ids.Count <= SelectionLimit && ids.Distinct().Count() == ids.Count && !ids.Except(Candidates).Any() &&

@@ -15,8 +15,8 @@ public sealed class CommandFacilityCatalogTests
         var session = GameSession.Start(MissionScenario.Create(),42);
         var catalog = new CommandFacilityCatalog(session.View,MissionScenario.Texts(session.View),kind,[2,3]);
         Assert.Equal(fields.Split(','),catalog.Pages[0].Columns.Skip(1).Select(c => c.Id));
-        Assert.Equal(new[] { "所属", "战力" },catalog.Pages.Skip(1).Select(p => p.Title));
-        Assert.Equal(kind == "delegation" ? "设施" : "工作物",catalog.Pages[0].Columns[0].Title);
+        Assert.Equal(new[] { "page.affiliation", "战力" },catalog.Pages.Skip(1).Select(p => p.Title));
+        Assert.Equal(kind == "delegation" ? "label.facility" : "label.work",catalog.Pages[0].Columns[0].Title);
         Assert.Equal(catalog.Read(0).Select(r => r.Id),catalog.Read(2).Select(r => r.Id));
     }
 

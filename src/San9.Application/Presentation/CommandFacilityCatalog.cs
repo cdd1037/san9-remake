@@ -15,14 +15,14 @@ public sealed class CommandFacilityCatalog
         var catalog = new AdministrativeCatalog(view,texts);
         CatalogColumn Column(string field) => field switch
         {
-            "commander-leadership" => new(field,"大将统率",4,CatalogAlignment.Right),
-            "estimate" => new(field,"到达预定",3,CatalogAlignment.Right),
+            "commander-leadership" => new(field,CommandText.Resolve(texts, "label.commander-leadership"),4,CatalogAlignment.Right),
+            "estimate" => new(field,CommandText.Resolve(texts, "label.arrival"),3,CatalogAlignment.Right),
             "relation" => AdministrativeCatalog.Pages(InformationCategory.Forces).SelectMany(p => p.Columns).First(c => c.Id == field),
             "durability" or "serving" when kind == "delegation" => AdministrativeCatalog.Pages(InformationCategory.Regions).SelectMany(p => p.Columns).First(c => c.Id == field) with { PreferredHalfCells = 6 },
             _ => AdministrativeCatalog.Pages(InformationCategory.Regions).SelectMany(p => p.Columns).First(c => c.Id == field)
         };
         CatalogPage Page(string title, string[] fields) => new(title,
-            [new("name",kind == "delegation" ? "设施" : "工作物",10,CatalogAlignment.Left), .. fields.Select(Column)]);
+            [new("name",kind == "delegation" ? CommandText.Resolve(texts, "label.facility") : CommandText.Resolve(texts, "label.work"),10,CatalogAlignment.Left), .. fields.Select(Column)]);
         string[] primary = kind switch
         {
             "burn" => ["force","commander","commander-leadership","durability","state","estimate"],
@@ -30,9 +30,9 @@ public sealed class CommandFacilityCatalog
             "request" or "delegation" => ["force","relation","commander","soldiers","durability","serving"],
             _ => throw new ArgumentOutOfRangeException(nameof(kind))
         };
-        Pages = [Page(kind switch { "burn" => "烧夷", "seize" => "夺取", "request" => "请求", _ => "委任" },primary),
-            Page("所属",["city","force","corps-name","commander","serving","captives","free"]),
-            Page("战力",["soldiers","wounded","morale","state","facility","durability","max-durability","trait"])];
+        Pages = [Page(kind switch { "burn" => CommandText.Resolve(texts, "title.burn"), "seize" => CommandText.Resolve(texts, "title.seize"), "request" => CommandText.Resolve(texts, "title.request"), _ => CommandText.Resolve(texts, "title.delegate") },primary),
+            Page(CommandText.Resolve(texts, "page.affiliation"),["city","force","corps-name","commander","serving","captives","free"]),
+            Page(CommandText.Resolve(texts, "page.strength"),["soldiers","wounded","morale","state","facility","durability","max-durability","trait"])];
         var places = view.Settlements.ToDictionary(p => p.Id);
         CatalogCell Cell(int id, string field)
         {
@@ -41,7 +41,7 @@ public sealed class CommandFacilityCatalog
             if (field == "estimate") return arrival?.Invoke(id) is long days ? days : CatalogCell.Unavailable;
             if (field == "relation") return places[id].OwnerId is int owner && owner != view.PlayerForceId ?
                 catalog.Cell(InformationCategory.Forces,owner,"relation") : CatalogCell.Unavailable;
-            if (field == "state") return view.World.Settlements.Single(s => s.Id == id).ConfusionDaysRemaining > 0 ? "混乱" : "一般";
+            if (field == "state") return view.World.Settlements.Single(s => s.Id == id).ConfusionDaysRemaining > 0 ? CommandText.Resolve(texts, "state.confused") : CommandText.Resolve(texts, "state.normal");
             return catalog.Cell(InformationCategory.Regions,id,field);
         }
         int Leadership(int id) => catalog.Commander(id)?.Abilities.Leadership ?? 0;

@@ -5,14 +5,14 @@ namespace San9.Application.Presentation;
 /// <summary>Command-specific first page and candidate priority, followed by shared officer facts.</summary>
 public static class MissionOfficerCatalog
 {
-    private static CatalogColumn Column(string id) => id switch
+    private static CatalogColumn Column(string id, TextCatalog texts) => id switch
     {
-        "estimate" => new(id,"到达预定",2,CatalogAlignment.Right),
-        "inspiration" => new(id,"鼓舞",2,CatalogAlignment.Center),
+        "estimate" => new(id,CommandText.Resolve(texts, "label.arrival"),2,CatalogAlignment.Right),
+        "inspiration" => new(id,CommandText.Resolve(texts, "label.inspiration"),2,CatalogAlignment.Center),
         _ => OfficerCatalog.Pages.SelectMany(p => p.Columns).First(c => c.Id == id)
     };
 
-    public static IReadOnlyList<CatalogPage> Pages(MissionDraft draft, bool targets = false)
+    public static IReadOnlyList<CatalogPage> Pages(MissionDraft draft, TextCatalog texts, bool targets = false)
     {
         string[] fields = targets ? draft.Kind == "alienate"
             ? ["intelligence","loyalty","force","location","status","leadership","war","politics","estimate"]
@@ -25,12 +25,12 @@ public static class MissionOfficerCatalog
                 _ => draft.Kind == "inspire" ? ["intelligence","inspiration","status","leadership","war","politics","learned"]
                     : ["intelligence","status","leadership","war","politics","learned"]
             };
-        return [new(draft.Title,[Column("name"), .. fields.Select(Column)]), .. OfficerCatalog.Pages];
+        return [new(CommandText.Resolve(texts, "title." + draft.Kind),[Column("name",texts), .. fields.Select(f => Column(f,texts))]), .. OfficerCatalog.Pages];
     }
 
     public static CatalogRow[] Read(MissionDraft draft, TextCatalog texts, int page, bool targets = false)
     {
-        var pages = Pages(draft,targets);
+        var pages = Pages(draft,texts,targets);
         if ((uint)page >= pages.Count) throw new ArgumentOutOfRangeException(nameof(page));
         IEnumerable<int> ids = targets ? draft.Kind == "return" ? draft.Prisoners : draft.Targets : draft.Actors;
         if (targets && draft.Kind == "alienate") ids = ids.OrderBy(id => draft.View.Officers.Single(o => o.Id == id).Abilities.Intelligence).ThenBy(id => id);

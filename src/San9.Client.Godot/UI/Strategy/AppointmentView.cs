@@ -59,15 +59,15 @@ public partial class AppointmentView : Control
             ? Draft.Candidates.Select(id => new CatalogRow(id,columns.Select(c => tables[c.Page][id].Cells[c.Column]).ToArray())).ToArray()
             : OfficerCatalog.Read(Draft.View,Texts,page-1,null,null).Rows.Where(r => Draft.Candidates.Contains(r.Key.Id))
                 .OrderBy(r => Draft.Candidates.IndexOf(r.Key.Id)).Select(r => new CatalogRow(r.Key.Id,r.Cells.ToArray())).ToArray();
-        ReplaceChild(new CatalogView { Title = "选择武将", CloseTitle = "中止", Textures = Textures, Service = Service,
+        ReplaceChild(new CatalogView { Title = CommandText.Resolve(Texts, "select.officer"), CloseTitle = CommandText.Resolve(Texts, "action.cancel"), Textures = Textures, Service = Service,
             HintText = Texts.Resolve(AppointmentText.Key(Draft.Kind,"select")),
-            Pages = [new(Draft.Title,columns.Select(c => OfficerCatalog.Pages[c.Page].Columns[c.Column]).ToArray()), .. OfficerCatalog.Pages],
+            Pages = [new(CommandText.Resolve(Texts, "title." + Draft.Kind),columns.Select(c => OfficerCatalog.Pages[c.Page].Columns[c.Column]).ToArray()), .. OfficerCatalog.Pages],
             ReadRows = Rows, Portrait = id => $"catalog-person-{id}", InitialCurrentId = Draft.Members.IsEmpty ? null : Draft.Members[0],
             Activated = id => { if (Draft.SetMembers([id])) CloseChild(); }, Closed = CloseChild });
     }
     private void SelectTreasure()
     {
-        ReplaceChild(new CatalogView { Title = "选择宝物", CloseTitle = "中止", Pages = TreasureCatalog.Pages, Textures = Textures, Service = Service,
+        ReplaceChild(new CatalogView { Title = CommandText.Resolve(Texts, "select.treasure"), CloseTitle = CommandText.Resolve(Texts, "action.cancel"), Pages = TreasureCatalog.Pages, Textures = Textures, Service = Service,
             HintText = Texts.Resolve(AppointmentText.Key(Draft.Kind,"select-treasure")),
             ReadRows = _ => TreasureCatalog.Read(Draft.View, Texts).Rows.Where(r => Draft.TreasureIds.Contains(r.Key.Id))
                 .OrderBy(r => Draft.TreasureIds.IndexOf(r.Key.Id)).Select(r => new CatalogRow(r.Key.Id, r.Cells.ToArray())).ToArray(),

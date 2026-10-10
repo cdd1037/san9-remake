@@ -1,3 +1,4 @@
+using San9.Content.Text;
 using Godot;
 using San9.Application.Presentation;
 using San9.Core.Simulation;
@@ -17,7 +18,7 @@ public partial class StrategyHud
         if (PersonnelDraft.UnavailableReasonKey(Session.View,id,kind) is string reason)
         { _notice.SetNotice(Texts.Resolve(reason)); _notice.Show(); return; }
         if (CommandPresentation.Personnel is null)
-        { _notice.SetNotice("内容包缺少人才命令表现，请重新转换内容包。"); _notice.Show(); return; }
+        { _notice.SetNotice(CommandText.Resolve(Texts, "content.personnel")); _notice.Show(); return; }
         _textures.RequestPrefixes("deployment-","detail-","catalog-","information-","narration-","dialog-");
         _personnelAdviceSelection = null;
         _personnel = new() { Draft = new(Session,id,kind), Texts = Texts, Service = Textures, Textures = _textures,
@@ -83,7 +84,7 @@ public partial class StrategyHud
         var context = Session.Messages(Texts);
         var result = Session.Execute(new("player"),view.Draft.CreateCommand(Guid.NewGuid(),Session.Snapshot.Simulation.NextSequence));
         if (!result.Submission.Accepted)
-        { ClosePersonnel(); _notice.SetNotice("指令未能执行，请重新选择设施和武将。"); _notice.Show(); return; }
+        { ClosePersonnel(); _notice.SetNotice(CommandText.Resolve(Texts, "failure.command")); _notice.Show(); return; }
         var sequence = PersonnelPresentation.Departure(view.Draft,CommandPresentation.Personnel,context,Texts,Random.Shared.Next);
         ClosePersonnel(); NarratePersonnel(sequence,before,CommandPresentation.Personnel.DepartureSound);
     }

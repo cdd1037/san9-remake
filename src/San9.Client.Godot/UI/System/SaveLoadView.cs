@@ -59,9 +59,11 @@ public partial class SaveLoadView : Control
                 Disabled = State.Mode == SaveLoadMode.Load && !State.Occupied(slot) };
             row.Pressed += () => SelectSlot(slot, row); _rows.AddChild(row);
             string edge = State.Mode == SaveLoadMode.Save ? "5828c8" : "005028";
-            void RowLabel(string text, Vector2 at, Vector2 size, int fontSize, string outline, bool fixedColor = false)
+            void RowLabel(string text, Vector2 at, Vector2 size, int fontSize, string outline, bool fixedColor = false,
+                HorizontalAlignment alignment = HorizontalAlignment.Left)
             {
                 var label = LabelAt(text, at, size, fontSize, content);
+                label.HorizontalAlignment = alignment;
                 row.StyleContentLabel(label, new(outline), fixedColor);
             }
             RowLabel(slot.ToString(), new(24, 16), new(40, 32), 24, edge);
@@ -86,7 +88,9 @@ public partial class SaveLoadView : Control
             content.AddChild(new TextureRect { Texture = Textures["save-load-difficulty"], Position = new(440, 28), MouseFilter = MouseFilterEnum.Ignore });
             RowLabel(entry.Difficulty, new(448, 28), new(40, 24), 16, "b82000");
             RowLabel(entry.CurrentDate, new(568, 20), new(260, 32), 24, "800090");
-            RowLabel(entry.SavedAt.ToLocalTime().ToString("yyyy/ M/d  H:mm"), new(860, 16), new(140, 24), 16, "5828c8");
+            // The timestamp frame spans x=848..992; keep equal inner margins with the current font.
+            RowLabel(entry.SavedAt.ToLocalTime().ToString("yyyy/M/d H:mm"), new(852, 16), new(136, 24), 16, "5828c8",
+                alignment: HorizontalAlignment.Center);
             RowLabel(entry.StartDate, new(176, 60), new(112, 32), 24, edge);
             RowLabel(entry.Scenario, new(296, 64), new(256, 24), 16, edge);
             RowLabel("备注", new(568, 64), new(64, 24), 16, "800090", fixedColor: true);

@@ -16,7 +16,7 @@ public partial class StrategyHud
         _narration = new() { Messages = messages, View = view, Texts = Texts, Service = Textures, Textures = _textures,
             ContentRoot = ContentRoot, Sounds = CommandPresentation.Sounds, SoundEnabled = SoundEnabled,
             BeginMusic = _sceneMusic.Begin,
-            MessagePresented = m => _executionPanels.Append(m.Message), Closed = CloseNarration };
+            MessagePresented = RecordNarration, Closed = CloseNarration };
         OverlayHost.AddChild(_narration);
     }
 

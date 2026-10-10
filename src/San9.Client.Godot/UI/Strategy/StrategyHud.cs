@@ -90,6 +90,10 @@ public partial class StrategyHud : Control
         if (_built) return;
         Turn = new(Session)
         {
+            StrategyTitleStarted = () =>
+            {
+                if (CommandPresentation.Progress is { } progress) _sceneSounds.Play(progress.StrategyTitleSound, SoundEnabled);
+            },
             CanContinue = () => _decision is null && _narration is null,
             CanPlayDay = () => _narration is null && ReferenceEquals(World.Day, Turn.Day) && World.IsDayReady && _executionPanels.IsExpanded,
             CreateDay = (before, after, events) => new(before, after, events, new MapDayPlan(World.Package!, before, events))
@@ -143,7 +147,8 @@ public partial class StrategyHud : Control
         _overviewPanel = new StrategyOverviewPanel { State = Overview, World = World, Session = Session,
             Skin = Skin, Texts = Texts, Service = Textures, Visible = false };
         BackdropHost.AddChild(_overviewPanel);
-        Information = new InformationPanel { Session = Session, Texts = Texts, Service = Textures, World = World, Skin = Skin, Locate = id => { Overview.Close(); World.FocusBuilding(id); } };
+        Information = new InformationPanel { Session = Session, Texts = Texts, Service = Textures, World = World, Skin = Skin,
+            RecordsLog = _mapRecords, Locate = id => { Overview.Close(); World.FocusBuilding(id); } };
         OverlayHost.AddChild(Information);
         SystemMenu = new SystemMenuPanel { Service = Textures, Store = SaveStore, Session = Session,
             CreateSummary = SaveSummary, ActivateSession = ActivateSession };
@@ -403,6 +408,7 @@ public partial class StrategyHud : Control
     public override void _Input(InputEvent @event)
     {
         if (@event is InputEventMouseMotion motion) _hoverPosition = motion.Position;
+        HandleMapSpeechInput(@event);
     }
     private void ClearHover() => _hoverPosition = new Vector2(-1, -1);
     private void UpdateHover(Vector2 mouse)
@@ -491,6 +497,7 @@ public partial class StrategyHud : Control
         World.CommandMenuRequested -= ShowCommandMenu;
         GetWindow().MouseExited -= ClearHover;
         _textures.Dispose();
+        _speechTextures?.Dispose();
         _text.Dispose();
         _titleFlashMaterial.Dispose();
     }

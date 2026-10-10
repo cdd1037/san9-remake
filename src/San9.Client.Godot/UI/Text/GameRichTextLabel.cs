@@ -19,10 +19,18 @@ public partial class GameRichTextLabel : RichTextLabel
         AutowrapMode = TextServer.AutowrapMode.Off;
     }
 
-    public void Present(string markup, GameTextStyle style)
+    /// <summary>Present text at an original nominal glyph-cell origin. Container layout uses Present.</summary>
+    public void PresentAtGlyphCell(string markup, GameTextStyle style, Vector2 origin)
+    {
+        Present(markup, style);
+        Position = GameTextMetrics.GlyphCellPosition(origin, GetThemeFont("normal_font"), style.FontSize);
+    }
+
+    public void Present(string markup, GameTextStyle style,
+        San9.Rendering.MessageEmphasisMode emphasis = San9.Rendering.MessageEmphasisMode.Outline)
     {
         _markup = markup;
-        var expanded = San9.Rendering.MessageStyleMarkup.Expand(markup);
+        var expanded = San9.Rendering.MessageStyleMarkup.Expand(markup, emphasis);
         markup = expanded.BbCode;
         // Preset messages use one outline baseline. Native per-span outlines cannot replace a theme shadow.
         if (expanded.HasPresets && style.Effect == GameTextEffect.Shadow)

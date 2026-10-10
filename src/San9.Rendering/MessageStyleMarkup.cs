@@ -3,11 +3,14 @@ using San9.Content.Text;
 
 namespace San9.Rendering;
 
+public enum MessageEmphasisMode { Outline, Foreground }
+
 /// <summary>Translate validated preset scopes into native BBCode at the display boundary.</summary>
 public static class MessageStyleMarkup
 {
     private static readonly Regex Tags = new(MessageStyles.TagPattern, RegexOptions.CultureInvariant);
-    public static (string BbCode, bool HasPresets) Expand(string markup)
+    public static (string BbCode, bool HasPresets) Expand(string markup,
+        MessageEmphasisMode emphasis = MessageEmphasisMode.Outline)
     {
         MessageStyles.ValidateMarkup(markup);
         bool found = false;
@@ -17,7 +20,10 @@ public static class MessageStyleMarkup
             found = true;
             if (match.Groups["id"].Success)
             {
-                var preset = MessageStyles.Get(match.Groups["id"].Value);
+                string id = match.Groups["id"].Value;
+                if (emphasis == MessageEmphasisMode.Foreground && id.EndsWith("-outline", StringComparison.Ordinal))
+                    id = id[..^8];
+                var preset = MessageStyles.Get(id);
                 scopes.Push(preset);
                 string foreground = preset.Foreground is null ? "" : $"[color=#{preset.Foreground}]";
                 return $"{foreground}[outline_size={TextOutlineStyle.Size}][outline_color=#{preset.Outline}{TextOutlineStyle.AlphaByte:X2}]";

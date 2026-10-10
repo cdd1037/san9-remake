@@ -6,11 +6,19 @@ P1 计略外交采用组合包 schema166，必需的 `presentation.missions` 字
 
 皮肤schema48包含红向下／蓝向上目标箭头四帧及独立的建筑锚点 `BuildingArrowOffsets`，并新增都市／势力缩略图共用的 `information-summary` 摘要底图及 `information-map-selected` 多选外框，并补齐共用命令窗口的小样式四角、标题、页脚和裁切遮罩；命令底纹独立于边框尺寸，大小窗口均使用蓝色背景270。内容宽小于416或高小于312时切换小样式，保留贴图透明留白与完整调色板颜色。已有纹理包原位执行 `import-textures --rebuild skin` 即可，剧本包无需重转；完整纹理转换版本为41，定向重建保留原包完整转换版本。
 
+组合包168新增 `presentation.progress` 的21类结算记录与25类战略情境消息绑定，运行时按语义角色加载，不引用原版地址和脚本编号。战后事件保留发生身份／位置；会话持有战略提示计划、已报告单位及已披露线索。原位运行 `import-client` 更新，纹理不需再次转换；190年包和第40号测试档已更新。存档101、日志105及录像11拒绝旧格式，规则v87不变。覆盖和现代实现选择见[RE-0185](../research/findings/RE-SAN9PK-0185.md)与[操作说明](ui/map-messages.md)。
+
 ## 现行版本与历史记录
 
 2026-09-27命令来源光圈：皮肤33／纹理转换26增加五帧`minimap-command-pulse`语义资源（首帧无后缀，其余为`-1..-4`），逐色透明度保留。客户端以当前命令菜单对象定位，兼用于城市、其他设施和部队；出征后续页面保留来源，整项结束清除。依据[RE-0158](../research/findings/RE-SAN9PK-0158.md#小地图命令来源光圈补证2026-09-27)。本地纹理及190年组合包已原位重转，五帧均32×36、首帧全透明，29064逻辑图片／5262物理文件完整校验通过。解决方案各测试项目合计3867项通过；未启动游戏，菜单开关、对象切换及后续命令页面往返的实际画面待用户验收。
 
-现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 129，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 166，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 49，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 42。规则为 `san9-core-g10-v87`，保存100／日志104／录像9；协议以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 为准。
+现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 129，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 169，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 50，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 43。规则为 `san9-core-g10-v87`，保存101／日志105／录像11；协议以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 为准。
+
+组合包169在`presentation.progress`增加必填`orderPrompt`与`strategyTitleSound`，分别绑定固定下令结果和战略字图音效；新增转换声音SE_G000／SE_G010，客户端只读语义角色。原位执行`import-client`，无需重转纹理。190年包及第40号测试档已更新，保存／日志／录像格式不变。源声音从已有同版本游戏目录补入忽略的私有输入目录，导出WAV哈希与源一致；证据见[RE-0185入口补证](../research/findings/RE-SAN9PK-0185.md#战略入口固定下令提示与两项音效补证)。
+
+皮肤50提供地图喊话四种布局各三片素材、五帧`minimap-record-pulse`以及记录交互和喊话文字的五项颜色。来源见[RE-0183](../research/findings/RE-SAN9PK-0183.md)。旧纹理包原位执行`import-textures --rebuild skin`，再执行`import-client`更新组合包引用；定向重建保留原包完整转换版本。共享纹理及190年组合包已更新，31,405逻辑图片／6,073物理文件校验通过；没有新增人物或改变世界对象筛选范围。
+
+组合包167要求计略团结、识破及两种方圆阵专用失败的四项消息绑定，原位执行`import-client`更新，纹理无需再次重转。部队计略事件增加结算时目标上下文，精确录像格式升级10，旧录像拒绝读取；存档和命令日志格式不变。依据及可直接载入的本地测试场景见[RE-0184](../research/findings/RE-SAN9PK-0184.md)和[测试说明](ui/map-messages.md)。
 
 旧内容包按现行契约原位重转，旧规则存档、日志和录像拒绝加载。是否重转纹理取决于纹理转换版本与源输入。历史验收只证明对应基线，不代表当前版本重新验证；阶段收口见[G10 验收](g10-verification.md#2026-09-21阶段收口)。
 

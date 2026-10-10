@@ -71,6 +71,7 @@ public sealed partial class GameSession
                     _owner._simulation = worker._simulation;
                     _owner._view = worker._view;
                     _owner._ending = worker._ending;
+                    _owner._strategicContext = worker._strategicContext;
                     _owner._records.Clear();
                     _owner._records.AddRange(worker._records);
                     _owner._chronicle.Clear();

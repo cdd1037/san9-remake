@@ -20,6 +20,8 @@ public partial class StrategyMinimap : Control
     private readonly Node2D _markers = new();
     private readonly Node2D _viewport = new();
     private readonly Node2D _commandPulse = new();
+    private readonly Node2D _recordPulse = new();
+    private readonly List<(MapCell Cell,double Time)> _recordLocations = [];
     private static readonly int[] PulseFrames = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 3, 2, 1];
     private MapObjectTarget? _commandSource;
     private double _pulseTime;
@@ -43,6 +45,8 @@ public partial class StrategyMinimap : Control
         AddChild(_viewport);
         _commandPulse.Draw += DrawCommandPulse;
         AddChild(_commandPulse);
+        _recordPulse.Draw += DrawRecordPulse;
+        AddChild(_recordPulse);
         _view = (World.CameraPosition, World.ZoomFactor);
         Resized += ResizeLayers;
     }
@@ -60,6 +64,13 @@ public partial class StrategyMinimap : Control
     }
     public override void _Process(double delta)
     {
+        if (_recordLocations.Count > 0)
+        {
+            for (int i=0;i<_recordLocations.Count;i++)
+                _recordLocations[i] = (_recordLocations[i].Cell,_recordLocations[i].Time+delta);
+            _recordLocations.RemoveAll(entry => entry.Time >= .5);
+            _recordPulse.QueueRedraw();
+        }
         if (!ReferenceEquals(_state, Scenario)) { _state = Scenario; _markers.QueueRedraw(); _commandPulse.QueueRedraw(); }
         if (_commandSource is not null)
         {
@@ -74,6 +85,7 @@ public partial class StrategyMinimap : Control
     }
     private void ResizeLayers()
     {
+        _recordPulse.QueueRedraw();
         _markers.QueueRedraw();
         _viewport.QueueRedraw();
         _commandPulse.QueueRedraw();
@@ -108,6 +120,25 @@ public partial class StrategyMinimap : Control
         var texture = Textures[$"minimap-command-pulse-{_pulseFrame}"];
         var size = texture.GetSize() * scale;
         _commandPulse.DrawTextureRect(texture, new(center - size / 2, size), false);
+    }
+    public void PresentRecordLocation(MapCell cell)
+    {
+        _recordLocations.Add((cell,0));
+        _recordPulse.QueueRedraw();
+    }
+
+    private void DrawRecordPulse()
+    {
+        var scale = Size / new Vector2(320,160);
+        foreach (var entry in _recordLocations)
+        {
+            var point = MinimapGeometry.FromGrid(entry.Cell.X,entry.Cell.Y);
+            var center = new Vector2((float)point.X*Size.X,(float)point.Y*Size.Y)-new Vector2(0,scale.Y);
+            int frame = Math.Clamp((int)(entry.Time/.1),0,4);
+            var texture = Textures["minimap-record-pulse"+(frame == 0 ? "" : $"-{frame}")];
+            var size = texture.GetSize()*scale;
+            _recordPulse.DrawTextureRect(texture,new(center-size/2,size),false);
+        }
     }
     private void DrawMarkers()
     {

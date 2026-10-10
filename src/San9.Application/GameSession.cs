@@ -35,6 +35,8 @@ public sealed partial class GameSession
     private bool _executing;
     internal bool IsExecuting => _executing;
     private EndingSelection? _ending;
+    private StrategicContextState _strategicContext;
+    public StrategicContextState StrategicContext => _strategicContext;
     public event Action? Changed;
 
     private GameSession(ScenarioSessionDefinition definition, SimulationEngine simulation)
@@ -45,6 +47,7 @@ public sealed partial class GameSession
         _snapshotSource = new(definition.Content, definition.MilitaryRules);
         _view = _snapshotSource.Project(simulation.Snapshot);
         _initialView = _view;
+        _strategicContext = StrategicContextState.Empty with { Clock = simulation.Snapshot.Clock.IsXunBoundary ? simulation.Snapshot.Clock : null };
         _readOnlyRecords = _records.AsReadOnly();
         _readOnlyChronicle = _chronicle.AsReadOnly();
         InitialDate = $"{definition.Content.Year}年{definition.Content.Month}月{definition.Content.Day}日";
@@ -217,6 +220,7 @@ public sealed partial class GameSession
         session._chronicle.AddRange(snapshot.Chronicle);
         session.NextOperationSequence = snapshot.NextOperationSequence;
         session._ending = snapshot.Ending;
+        session._strategicContext = snapshot.StrategicContext;
         session.HasUnsavedChanges = false;
         return session;
     }
@@ -233,7 +237,7 @@ public sealed partial class GameSession
         if (_capture is not null && ReferenceEquals(_capture.World, world)) return _capture;
         var records = _records.ToImmutableArray();
         var chronicle = _chronicle.ToImmutableArray();
-        return _capture = new(world, records, chronicle, NextOperationSequence) { Ending = _ending };
+        return _capture = new(world, records, chronicle, NextOperationSequence) { Ending = _ending, StrategicContext = _strategicContext };
     }
 
     public SessionRequest Request(SessionOperation operation, string controllerId = "player", Guid? id = null)
@@ -342,10 +346,12 @@ public sealed partial class GameSession
                 new SessionRecord(e.Clock, e.Command.ForceId, e.Command.SettlementId, e.Command.OfficerIds[0],
                     e.Command.Activity, e.Increment, e.Cost)).ToArray();
             var snapshot = candidate.Snapshot;
+            var strategicContext = Presentation.StrategicContext.Prepare(_snapshotSource.Project(snapshot), _strategicContext);
             var publishedEvents = events.ToImmutableArray();
             var recorded = IsRecording ? new RecordedOperation(request, publishedEvents) : null;
             _simulation = candidate;
             _ending = ending;
+            _strategicContext = strategicContext;
             _records.AddRange(completed);
             if (_records.Count > RecentRecordLimit) _records.RemoveRange(0, _records.Count - RecentRecordLimit);
             if (note is not null) _chronicle.Add(note);

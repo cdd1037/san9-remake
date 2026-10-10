@@ -2,9 +2,9 @@ using San9.Core.Domain;
 
 namespace San9.Core.Simulation;
 
-internal static class NaturalMortality
+public static class NaturalMortality
 {
-    internal static int Chance(int year, OfficerState person)
+    public static int Chance(int year, OfficerState person)
     {
         long age = (long)year + 1 - person.BirthYear;
         return age >= 100 ? 100 : (int)Math.Clamp(3 * (age - 6L * person.LifespanTier - 35), 0, 100);

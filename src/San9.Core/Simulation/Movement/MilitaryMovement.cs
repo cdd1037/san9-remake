@@ -35,7 +35,11 @@ public sealed record UnitMovedEvent(GameClock Clock, int UnitId, WorldPosition F
 {
     [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<WorldPosition> Steps { get; init; } = [];
 }
-public sealed record UnitAbsorbedEvent(GameClock Clock, int UnitId, int SettlementId) : DomainEvent;
+public sealed record UnitAbsorbedEvent(GameClock Clock, int UnitId, int SettlementId) : DomainEvent
+{
+    [JsonRequired] public required BattleObjectContext Source { get; init; }
+    [JsonRequired] public bool WasTransport { get; init; }
+}
 
 internal static class MilitaryMovement
 {
@@ -300,7 +304,8 @@ internal static class MilitaryMovement
             if (GovernanceMaintenance.RepairCorps(world, previous, governance, events) != CommandRejection.None)
                 throw new InvalidOperationException("Validated unit absorption could not settle previous corps.");
         }
-        events.Add(new UnitAbsorbedEvent(world.Clock, unit.Id, home.Id));
+        events.Add(new UnitAbsorbedEvent(world.Clock, unit.Id, home.Id)
+            { Source = BattleObjectContext.Capture(unit), WasTransport = unit.Order?.Kind == MilitaryOrderKind.Transport });
     }
 
     private static bool CanAbsorb(WorldMutation world, UnitState unit, SettlementState home, SettlementState returnHome)

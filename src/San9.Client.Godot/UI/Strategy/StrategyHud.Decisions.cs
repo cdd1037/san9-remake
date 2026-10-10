@@ -18,13 +18,8 @@ public partial class StrategyHud
         if (Turn.Publication > _executionPublication && Turn.LastResult is { } result && _executionBefore is { } before)
         {
             _executionPublication = Turn.Publication;
-            foreach (var message in ExecutionMessages.Read(before, Session.Messages(Texts), Texts, CommandPresentation.Decisions, result.Events))
-                _executionPanels.Append(message.Message);
-            var messages = MissionPresentation.Results(before,Texts,result.Events,_diplomacyNarrated,
-                CommandPresentation.Missions,Session.Messages(Texts,before.World),CommandPresentation.Decisions.People).ToList();
-            if (CommandPresentation.Personnel is {} personnel)
-                messages.InsertRange(0,PersonnelPresentation.Results(before,Session.Messages(Texts,before.World),Texts,personnel,result.Events,Random.Shared.Next));
-            if (messages.Count > 0) OpenNarration(messages,before);
+            var messages = ExecutionPublication.Read(before,Session.View,Session.Messages(Texts,before.World),Texts,CommandPresentation,result.Events,_diplomacyNarrated);
+            OpenNarration(PresentExecutionMessages(messages),before);
         }
         _executionBefore = Session.View;
     }

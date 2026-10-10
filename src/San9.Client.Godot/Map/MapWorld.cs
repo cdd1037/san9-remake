@@ -34,6 +34,16 @@ public partial class MapWorld : Node2D
     public bool IsDayReady => IsVisibleReady && ReferenceEquals(_display?.Presented?.Region.Scene.Day, Day);
     internal TerrainChunkCache<ImageTexture> Terrain => _terrain!;
     public MapSceneView? Display => _display;
+    internal bool TrySpeechUnitAnchor(int id, out Vector2 anchor, out int direction)
+    {
+        var scene = _display?.Presented?.Region.Scene;
+        var unit = scene?.Units.FirstOrDefault(unit => unit.Id == id);
+        if (scene is null || unit is null) { anchor = default; direction = 0; return false; }
+        var sampled = scene.Sample(unit);
+        anchor = new(sampled.AnchorX,sampled.AnchorY);
+        direction = sampled.Direction;
+        return true;
+    }
     public San9.Application.GameSession Session { get; set; } = null!;
     public San9.Application.Presentation.StrategySnapshot? Presentation { get; set; }
     public San9.Application.Presentation.StrategySnapshot View => Presentation ?? Session.View;

@@ -2,13 +2,17 @@ using San9.Core.Domain;
 
 namespace San9.Core.Simulation;
 
-public sealed record UnitTerminatedEvent(GameClock Clock, int UnitId, BattleSource? Winner, long UnrecoveredSoldiers) : DomainEvent;
+public sealed record UnitTerminatedEvent(GameClock Clock, int UnitId, BattleSource? Winner, long UnrecoveredSoldiers) : DomainEvent
+{
+    [System.Text.Json.Serialization.JsonRequired] public required BattleObjectContext Target { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public BattleObjectContext? Source { get; init; }
+}
 
 /// <summary>Final resource and identity commit after personnel outcomes have been settled by the battle transaction.</summary>
 internal static class UnitTerminationService
 {
     internal static void Complete(WorldMutation world, int unitId, BattleSource? winner, int? associatedCityId,
-        GovernanceRulebook governance, List<DomainEvent> events, bool repairCorps = true)
+        GovernanceRulebook governance, List<DomainEvent> events, bool repairCorps = true, BattleObjectContext? target = null)
     {
         if (!world.Units.TryGetValue(unitId, out var defeated) || world.Officers.Values.Any(p => p.UnitId == unitId))
             throw new InvalidOperationException("Unit termination requires resolved personnel and a live unit.");
@@ -63,7 +67,11 @@ internal static class UnitTerminationService
         MilitaryPolicies.RemoveTarget(world, unitId, false, events);
         if (repairCorps && defeated.CorpsId is int corps && GovernanceMaintenance.RepairCorps(world, corps, governance, events) != CommandRejection.None)
             throw new InvalidOperationException("Battle transaction cannot settle the defeated corps.");
-        events.Add(new UnitTerminatedEvent(world.Clock, unitId, winner, pool - recovered));
+        events.Add(new UnitTerminatedEvent(world.Clock, unitId, winner, pool - recovered)
+        {
+            Target = target ?? BattleObjectContext.Capture(defeated),
+            Source = winner is { } source ? BattleObjectContext.Capture(world, source) : null
+        });
     }
 
     private static uint Wounded(WorldMutation world, SettlementState home, long requested, int unitId, List<DomainEvent> events)

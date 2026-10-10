@@ -28,7 +28,9 @@ public sealed class ClientContentPackageTests
             "{\"Terrain\":0,\"Elevation\":0,\"ElevationMask\":0,\"RegionId\":15}"));
     }
     private static Dictionary<string, string> Colors() => Enumerable.Range(0, 52).Select(i => $"city-marker-{i}")
-        .Concat(Enumerable.Range(0, 51).Select(i => $"overview-force-{i}")).Concat(["roster-available", "roster-unavailable"]).ToDictionary(s => s, _ => "F0F0F0");
+        .Concat(Enumerable.Range(0, 51).Select(i => $"overview-force-{i}"))
+        .Concat(["roster-available", "roster-unavailable", "map-record-normal", "map-record-hover", "map-record-pressed", "map-speech-text", "map-speech-name-shadow"])
+        .ToDictionary(s => s, _ => "F0F0F0");
     private static readonly MapBuildingPlacement[] Buildings = [new(15, 89, 64, 0), new(100, 86, 65, 1)];
     private static readonly ImageAsset Asset = new("ui", "ui/frame.png", 32, 32);
     private static ScenarioInitialState Fixture() => new(ScenarioInitialState.CurrentSchemaVersion, "fixture", 190, 1, 1, 5,

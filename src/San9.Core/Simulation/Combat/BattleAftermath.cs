@@ -3,8 +3,14 @@ using San9.Core.Domain;
 
 namespace San9.Core.Simulation;
 
-public sealed record SettlementCapturedEvent(GameClock Clock, int SettlementId, int? PreviousOwnerId, BattleSource Winner, bool Destroyed) : DomainEvent;
-public sealed record FacilityDestroyedEvent(GameClock Clock, int SettlementId, BattleSource Attacker) : DomainEvent;
+public sealed record SettlementCapturedEvent(GameClock Clock, int SettlementId, int? PreviousOwnerId, BattleSource Winner, bool Destroyed) : DomainEvent
+{
+    [System.Text.Json.Serialization.JsonRequired] public required BattleObjectContext Source { get; init; }
+}
+public sealed record FacilityDestroyedEvent(GameClock Clock, int SettlementId, BattleSource Attacker) : DomainEvent
+{
+    [System.Text.Json.Serialization.JsonRequired] public required BattleObjectContext Source { get; init; }
+}
 public sealed record ForceEliminatedEvent(GameClock Clock, int ForceId, bool WasPlayerControlled) : DomainEvent;
 public sealed record ForceLeaderChangedEvent(GameClock Clock, int ForceId, int? PreviousId, int OfficerId) : DomainEvent;
 
@@ -26,7 +32,8 @@ internal static class BattleAftermath
         int? city = unit.ServicePlaceId is int home ?
             world.Settlements.GetValueOrDefault(home)?.Kind == SettlementKind.City ? home : rules.Personnel.RegionCities.GetValueOrDefault(home, -1) : null;
         if (city is int cityId && (!world.Settlements.TryGetValue(cityId, out var s) || s.Kind != SettlementKind.City)) city = null;
-        UnitTerminationService.Complete(world, id, winner, city, rules.Governance, events, repairCorps: false);
+        UnitTerminationService.Complete(world, id, winner, city, rules.Governance, events, repairCorps: false,
+            target: BattleObjectContext.Capture(unit));
         if (victorForce is int victorId) EliminateIfDefeated(world, unit.OwnerId, rules, events, world.CurrentDateCommandsConsumed, victorId);
     }
 
@@ -77,7 +84,7 @@ internal static class BattleAftermath
             world.Replace(settlement with { IsDestroyed = true, OwnerId = null, CorpsId = null,
                 Soldiers = 0, Wounded = 0, Morale = 0, Durability = 0, ConfusionDaysRemaining = 0 });
             MilitaryPolicies.RemoveTarget(world, id, true, events);
-            events.Add(new FacilityDestroyedEvent(world.Clock, id, winner));
+            events.Add(new FacilityDestroyedEvent(world.Clock, id, winner) { Source = BattleObjectContext.Capture(world, winner) });
             return;
         }
         bool destroyed = settlement.Durability == 0 && definition.DestroyedAtZeroDurability;
@@ -122,7 +129,8 @@ internal static class BattleAftermath
         }
         winner.Reward(world, 0, 10);
         MilitaryPolicies.SettlementChanged(world, id, rules.Military!, events);
-        events.Add(new SettlementCapturedEvent(world.Clock, id, settlement.OwnerId, winner, destroyed));
+        events.Add(new SettlementCapturedEvent(world.Clock, id, settlement.OwnerId, winner, destroyed)
+            { Source = BattleObjectContext.Capture(world, winner) });
     }
 
     private static void ResolvePeople(WorldMutation world, IEnumerable<OfficerState> people,

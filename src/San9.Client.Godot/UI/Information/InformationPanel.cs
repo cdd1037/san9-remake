@@ -16,6 +16,7 @@ public partial class InformationPanel : Control
     public MapWorld World { get; init; } = null!;
     public San9.Content.Interface.InterfaceSkin Skin { get; init; } = null!;
     public Action<int> Locate { get; init; } = null!;
+    public MapMessageLog RecordsLog { get; init; } = null!;
     private InformationQuery _query = null!;
     private TextureScope? _textures;
     private Control? _page;
@@ -25,7 +26,7 @@ public partial class InformationPanel : Control
     {
         Name = "InformationPanel"; Size = new(1024, 768); ZIndex = 20;
         MouseFilter = MouseFilterEnum.Stop; Visible = false;
-        _query = new(Session, Texts); Session.Changed += OnChanged;
+        _query = new(Session, Texts); Session.Changed += OnChanged; RecordsLog.Changed += OnChanged;
     }
     private void OnChanged() => _dirty = true;
     public void OpenMenu() { State.OpenMenu(); Rebuild(); }
@@ -80,14 +81,14 @@ public partial class InformationPanel : Control
         if (State.IsMenu) _textures.RequestPrefixes("information-menu-");
         else if (State.IsDetail) _textures.RequestPrefixes("detail-", "formation-", "roster-", "catalog-scroll-", "message-");
         else if (State.IsMap) _textures.RequestPrefixes("information-", "overview-", "catalog-help", "message-");
-        else _textures.RequestPrefixes("information-", "catalog-", "roster-", "scroll-", "button-scroll-", "message-");
+        else _textures.RequestPrefixes("information-", "catalog-", "roster-", "scroll-", "button-scroll-", "message-", "text-icon-");
         _page = State.IsMenu
             ? new InformationMenuView { Query = _query, Texts = Texts, Textures = _textures,
                 Open = category => { State.Open(category); Rebuild(); }, Back = Back }
             : new InformationPageFactory { State = State, Session = Session, Texts = Texts,
                 Service = Service, Textures = _textures, World = World, Skin = Skin, Query = _query,
-                Rebuild = Rebuild, Back = Back }.Create();
+                RecordsLog = RecordsLog, Rebuild = Rebuild, Back = Back }.Create();
         AddChild(_page);
     }
-    public override void _ExitTree() { Session.Changed -= OnChanged; _textures?.Dispose(); }
+    public override void _ExitTree() { Session.Changed -= OnChanged; RecordsLog.Changed -= OnChanged; _textures?.Dispose(); }
 }

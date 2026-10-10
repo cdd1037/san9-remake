@@ -194,7 +194,11 @@ public sealed class UnitStrategyTests
         var state = world.BeginMutation(rules.Abilities);
         Day(state, rules);
         var events = Day(state, rules);
-        Assert.True(Assert.Single(events.OfType<UnitStrategyResolvedEvent>()).Success);
+        var result = Assert.Single(events.OfType<UnitStrategyResolvedEvent>());
+        Assert.True(result.Success);
+        Assert.Equal(UnitCondition.Normal,result.Target.Condition);
+        Assert.Equal(new WorldPosition(33,2),result.Target.Position);
+        Assert.Equal(22,result.Target.CommanderId);
         var unit = Assert.Single(state.Units.Values);
         Assert.Equal(UnitCondition.HighSpirits, unit.Condition);
         Assert.Equal(11, unit.ConditionDaysRemaining);

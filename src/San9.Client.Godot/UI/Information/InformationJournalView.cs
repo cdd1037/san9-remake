@@ -12,12 +12,16 @@ public partial class InformationJournalView : Control, IInformationPage
     public InformationQuery Query { get; init; } = null!;
     public TextureScope Textures { get; init; } = null!;
     public Action Back { get; init; } = null!;
+    public Action<San9.Core.Domain.MapCell> LocateRecord { get; init; } = null!;
+    public MapMessageLog RecordsLog { get; init; } = null!;
+    public San9.Content.Interface.InterfaceSkin Skin { get; init; } = null!;
     private Control _content => this;
     private readonly GameTextPresenter _text = new();
     private SkinnedScrollBar? _scroll;
     private InformationTable? _table;
     private InformationRow[] _rows = [];
-    private readonly List<(InformationRowButton Button, Label[] Cells)> _rowControls = [];
+    private readonly List<(InformationRowButton Button, Label?[] Cells)> _rowControls = [];
+    private readonly List<GameRichTextLabel> _recordText = [];
     private readonly List<Button> _columnHeaders = [];
     private readonly Rect2 _body = new(200, 104, 648, 576);
     private LineEdit? _note;
@@ -25,7 +29,7 @@ public partial class InformationJournalView : Control, IInformationPage
     public override void _Ready()
     {
         Size = new(1024, 768); MouseFilter = MouseFilterEnum.Stop;
-        _table = Query.Read(State); _rows = State.Order(_table);
+        _table = ReadTable(); _rows = State.Order(_table);
         State.Scroll(State.Offset, _rows.Length);
         BuildTable();
         ActionButton("关闭", new(723, 625), new(80, 36), Back);
@@ -37,7 +41,7 @@ public partial class InformationJournalView : Control, IInformationPage
     }
     public void RefreshData()
     {
-        _table = Query.Read(State); _rows = State.Order(_table);
+        _table = ReadTable(); _rows = State.Order(_table);
         State.Scroll(State.Offset, _rows.Length);
         if (_scroll is not null) _scroll.Range.MaxValue = Math.Max(InformationBrowser.PageSize, _rows.Length);
         _count.Text = $"共 {_rows.Length} 项";
@@ -49,6 +53,8 @@ public partial class InformationJournalView : Control, IInformationPage
         if (_note is null) return;
         RemoveChild(_note); _note.QueueFree(); _note = null;
     }
+    private InformationTable ReadTable() => State.Category == InformationCategory.Records
+        ? RecordsLog.ReadHistory() : Query.Read(State);
     private Label LabelAt(string text, Vector2 at, Vector2 size, int fontSize = 16, Color? color = null, Control? parent = null)
     {
         var label = new Label { Text = text, Position = at, Size = size, VerticalAlignment = VerticalAlignment.Center,
@@ -126,11 +132,18 @@ public partial class InformationJournalView : Control, IInformationPage
                 State.Select(_rows[index].Key.Id);
                 RefreshSelection();
             };
-            var cells = new Label[widths.Length];
+            button.Pressed += () => ActivateRecord(State.Offset + visibleRow);
+            var cells = new Label?[widths.Length];
             float x = 0;
             for (int c = 0; c < cells.Length; c++)
             {
-                cells[c] = LabelAt("", new(x + 4, 0), new(widths[c] - 8, 24), 16, parent: button);
+                if (State.Category == InformationCategory.Records && c == 1)
+                {
+                    var rich = new GameRichTextLabel { Textures = Textures, Position = new(x + 4, 0),
+                        Size = new(widths[c] - 8, 24), ClipContents = true };
+                    button.AddChild(rich); _recordText.Add(rich);
+                }
+                else cells[c] = LabelAt("", new(x + 4, 0), new(widths[c] - 8, 24), 16, parent: button);
                 x += widths[c];
             }
             _rowControls.Add((button, cells));
@@ -147,14 +160,30 @@ public partial class InformationJournalView : Control, IInformationPage
             var row = _rows[index];
             for (int c = 0; c < cells.Length; c++)
             {
-                cells[c].Text = row.Cells[c].Text;
-                cells[c].HorizontalAlignment = row.Cells[c].Number is not null ? HorizontalAlignment.Right : HorizontalAlignment.Left;
+                if (cells[c] is not { } label) continue;
+                label.Text = row.Cells[c].Text;
+                label.HorizontalAlignment = row.Cells[c].Number is not null ? HorizontalAlignment.Right : HorizontalAlignment.Left;
+            }
+            if (State.Category == InformationCategory.Records)
+            {
+                var rich = _recordText[slot];
+                rich.Present(RecordsLog.Entries[row.Key.Id].Message.BbCode.Replace('\n', ' '),
+                    new(16, new Color(Skin.Colors["map-record-normal"]), GameTextEffect.Outline, Colors.Black),
+                    San9.Rendering.MessageEmphasisMode.Foreground);
+                button.TooltipText = row.Cells[1].Text;
+                rich.Position = new(rich.Position.X, Mathf.Floor((24 - rich.GetContentHeight()) / 2f));
             }
         }
         for (int c = 0; c < _columnHeaders.Count; c++)
             _columnHeaders[c].Text = _table!.Columns[c] + (State.SortColumn == c ? State.Descending ? " ▾" : " ▴" : "");
         if (_scroll is not null) { _scroll.Range.SetValueNoSignal(State.Offset); _scroll.UpdateArrows(); }
         RefreshSelection();
+    }
+    private void ActivateRecord(int index)
+    {
+        if (State.Category == InformationCategory.Records && index >= 0 && index < _rows.Length &&
+            RecordsLog.Entries[_rows[index].Key.Id].Location is { } location)
+            LocateRecord(location);
     }
     private void RefreshSelection()
     {
@@ -181,6 +210,7 @@ public partial class InformationJournalView : Control, IInformationPage
         else if (_note is null && @event is InputEventKey { Pressed: true } key)
         {
             int i = Math.Max(0, Array.FindIndex(_rows, r => r.Key.Id == State.SelectedId));
+            if (key.Keycode == Key.Enter) { ActivateRecord(i); GetViewport().SetInputAsHandled(); return; }
             int target = key.Keycode switch { Key.Up => i - 1, Key.Down => i + 1, Key.Pageup => i - 15, Key.Pagedown => i + 15, Key.Home => 0, Key.End => _rows.Length - 1, _ => i };
             if (target != i && _rows.Length > 0)
             {

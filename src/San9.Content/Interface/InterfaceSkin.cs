@@ -5,7 +5,7 @@ namespace San9.Content.Interface;
 public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dictionary<string,string> Roles, Dictionary<string,string> Colors,
     Dictionary<string, CursorDefinition> Cursors)
 {
-    public const int CurrentSchemaVersion = 49;
+    public const int CurrentSchemaVersion = 50;
     [System.Text.Json.Serialization.JsonRequired]
     public Dictionary<int, TargetMarkerOffset> BuildingTargetOffsets { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired]
@@ -53,10 +53,11 @@ public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dicti
         .Concat(TargetSelectionSkin.RequiredRoles).Concat(CommandMenuSkin.RequiredRoles).Concat(DeploymentSkin.RequiredRoles).Append("hover-divider").Concat(OfficerDetailSkin.RequiredRoles).Append("information-background")
         .Concat(new[] { "strategy", "execution" }.SelectMany(p => Enumerable.Range(0, 4).Select(f => $"turn-title-{p}-{f}")))
         .Concat(new[] { "yes", "no" }.SelectMany(p => Enumerable.Range(0, 4).Select(f => $"dialog-{p}-{f}")))
-        .Append("dialog-frame").Concat(SaveLoadSkin.RequiredRoles)
+        .Append("dialog-frame").Concat(SaveLoadSkin.RequiredRoles).Concat(MapSpeechSkin.RequiredRoles)
         .Concat(new[] { "top-left", "top", "top-right", "left", "right", "bottom-left", "bottom", "bottom-right" }.Select(p => "narration-image-frame-" + p))
         .Concat(new[]{"left","middle","right"}.SelectMany(p=>Enumerable.Range(0,4).Select(f=>"decision-choice-"+p+(f==0 ? "" : "-"+f))))
         .Concat(Enumerable.Range(0, 5).Select(f => "minimap-command-pulse" + (f == 0 ? "" : $"-{f}")))
+        .Concat(Enumerable.Range(0, 5).Select(f => "minimap-record-pulse" + (f == 0 ? "" : $"-{f}")))
         .Concat(new[] { "arrow-up-right", "arrow-down-right", "crossed-arrows", "empty-square", "question", "turn-arrow", "book", "waves", "circle" }
             .SelectMany(id => new[] { $"text-icon-{id}-16", $"text-icon-{id}-24" })).Append("text-icon-city-16").ToArray());
 
@@ -78,6 +79,7 @@ public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dicti
         if (Enumerable.Range(0, 52).Any(i => !Colors.ContainsKey($"city-marker-{i}")) ||
             Enumerable.Range(0, 51).Any(i => !Colors.ContainsKey($"overview-force-{i}")) ||
             !Colors.ContainsKey("roster-available") || !Colors.ContainsKey("roster-unavailable") ||
+            new[] { "map-record-normal", "map-record-hover", "map-record-pressed", "map-speech-text", "map-speech-name-shadow" }.Any(role => !Colors.ContainsKey(role)) ||
             Colors.Values.Any(c => c.Length != 6 || !uint.TryParse(c, System.Globalization.NumberStyles.HexNumber, null, out _)))
             throw new InvalidDataException("Missing or invalid interface colors.");
         if (RequiredUiAssets.Any(id => !Roles.TryGetValue(id, out var asset) || !assets.ContainsKey(asset)) ||

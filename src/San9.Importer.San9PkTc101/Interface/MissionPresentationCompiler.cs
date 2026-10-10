@@ -98,6 +98,10 @@ internal static class MissionPresentationCompiler
             Add(role+"-action",key,"actor",resultPair);
         Add("false-report-reaction-success",10555,"target-person",("person.0","target-person"),("building.0","home"));
         Add("false-report-reaction-failure",10564,"target-person",("person.0","target-person"),("person.1","actor"));
+        Add("strategy-reaction-united",10745,"target-person",("person.0","target-person"),("person.1","actor"));
+        Add("strategy-reaction-countered",10754,"target-person",("person.0","target-person"),("person.1","actor"));
+        Add("false-report-reaction-defensive",10573,"target-person",("person.0","target-person"),("person.1","actor"));
+        Add("disorder-reaction-defensive",10736,"target-person",("person.0","target-person"),("person.1","actor"));
         Add("disorder-reaction-success",10591,"target-person",("person.0","target-person"));
         Add("disorder-reaction-failure",10600,"target-person",("person.0","target-person"),("person.1","actor"));
         Add("inspire-reaction-success",10618,"soldier",("person.0","soldier"),("person.1","target-person"));

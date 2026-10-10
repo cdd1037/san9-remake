@@ -8,7 +8,8 @@ internal static class CommandPresentationCompiler
         [("demolition-result", "SE/se_m005.WAV"), ("military-order", "SE/SE_C007.WAV"), ("decision-announcement", "SE/SE_G001.WAV"), ("decision-success", "SE/SE_G008.WAV"), ("decision-failure", "SE/SE_G009.WAV"), ("decision-increase", "SE/SE_G005.WAV"), ("decision-decrease", "SE/SE_G006.WAV"), ("decision-study", "SE/SE_C004.WAV"), ("patrol-citizen", "SE/SE_G008.WAV"), ("domestic-result", "SE/SE_C006.WAV"),
          ("mission-departure", "SE/SE_C004.WAV"), ("strategy-departure", "SE/SE_C003.WAV"), ("seize-departure", "SE/SE_C007.WAV"),
          ("personnel-departure", "SE/SE_C004.WAV"), ("personnel-territory", "SE/SE_G012.WAV"), ("facility-result", "SE/SE_G005.WAV"), ("recruit-result", "SE/SE_C002.WAV"),
-         ("trade-start", "SE/SE_C001.WAV"), ("repair-complete", "SE/se_m002.WAV"), ("reward-result", "SE/SE_G005.WAV"), ("exile-result", "SE/SE_G001.WAV"), ("loyalty-decrease", "SE/SE_G006.WAV"), ("execution-result", "SE/SE_G002.WAV")];
+         ("trade-start", "SE/SE_C001.WAV"), ("repair-complete", "SE/se_m002.WAV"), ("reward-result", "SE/SE_G005.WAV"), ("exile-result", "SE/SE_G001.WAV"), ("loyalty-decrease", "SE/SE_G006.WAV"), ("execution-result", "SE/SE_G002.WAV"),
+         ("strategy-order-prompt", "SE/SE_G000.WAV"), ("strategy-title", "SE/SE_G010.WAV")];
 
     internal static CommandPresentation Compile(IReadOnlyList<San9ScenarioPersonRecord> people)
     {
@@ -33,6 +34,7 @@ internal static class CommandPresentationCompiler
             Personnel = PersonnelPresentationCompiler.Compile(),
             Military = MilitaryPresentationCompiler.Compile(),
             Missions = MissionPresentationCompiler.Compile(),
+            Progress = ExecutionPresentationCompiler.Compile(),
             Demolition = new(Key(6023), Key(5588), Key(5591), "demolition-result"),
             TreasureTransfer = new(Key(5535), Key(5574), Key(5542), Key(5788), Key(5575), Key(7176), Key(7177), Key(7407), "reward-result", "loyalty-decrease"),
             Execution = new(Person(669), Key(5753), Key(5468), Key(5754), "execution-result"),

@@ -85,12 +85,20 @@ public static class MissionPresentation
             if (task is null || !Player(task) || !IsMission(task)) continue;
             if (content is { Count: > 0 } && context is not null)
                 messages.AddRange(OutcomeDialogue(e, task, before, content, context, texts, speakers)
-                    .Select(message => message with { Message = message.Message with { Clock = clock } }));
+                    .Select(message => message with { Message = message.Message with { Clock = clock },
+                        MapSpeech = message.MapSpeech is { } speech ? speech with { Message = speech.Message with { Clock = clock } } : null }));
             var original = content is not null && context is not null ? OriginalResult(e,task,before,content,context,texts) : null;
-            void Add(string value, string? detail = null) => messages.Add(new(
-                original is null ? new("mission-result",clock,value) : original.Message with { Clock = clock,
-                    BbCode = original.Message.BbCode+(detail is null ? "" : "\n"+detail) },original?.SpeakerId,original?.SoundRole)
-                { IllustrationRole = original?.IllustrationRole });
+            void Add(string value, string? detail = null)
+            {
+                var message = original is null ? new ProducedMessage("mission-result",clock,value) : original.Message with { Clock = clock,
+                    BbCode = original.Message.BbCode+(detail is null ? "" : "\n"+detail) };
+                var location = ResultLocation(e,before);
+                messages.Add(new(message,original?.SpeakerId,original?.SoundRole)
+                {
+                    IllustrationRole = original?.IllustrationRole,
+                    MapRecord = new(Guid.NewGuid(),message,location,before.Forces.Single(f => f.Id == task.ForceId).ColorCode)
+                });
+            }
             string who = Person(task.OfficerId);
             switch (e)
             {
@@ -105,8 +113,7 @@ public static class MissionPresentation
                     g.Success ? CommandText.Resolve(texts, "result.relation-loss", Force(g.SecondTargetForceId), g.RelationLoss) : null); break;
                 case UnitStrategyResolvedEvent u:
                     string name = u.Strategy switch { UnitStrategyKind.FalseReport => CommandText.Resolve(texts, "title.false-report"), UnitStrategyKind.Disorder => CommandText.Resolve(texts, "title.disorder"), UnitStrategyKind.Inspire => CommandText.Resolve(texts, "title.inspire"), _ => CommandText.Resolve(texts, "title.rescue") };
-                    var target = before.World.Units.Single(t => t.Id == u.TargetUnitId);
-                    string recipient = target.CommanderId is int commander ? Person(commander) : Force(target.OwnerId);
+                    string recipient = u.Target.CommanderId is int commander ? Person(commander) : Force(u.Target.ForceId);
                     string outcome = CommandText.Resolve(texts, u.Success ? "outcome.success" : "outcome.failure");
                     Add(u.Strategy == UnitStrategyKind.Reinforce
                         ? CommandText.Resolve(texts, "result.reinforcement-summary", who, recipient, name, outcome, u.DeliveredSoldiers, u.RequestedSoldiers)
@@ -156,10 +163,10 @@ public static class MissionPresentation
     }
     private static Dictionary<string,MessageBinding> ResultValues(DomainEvent e, PersistentTask task, StrategySnapshot before)
     {
-        int? person = e switch { AlienateResolvedEvent a => a.TargetOfficerId, UnitStrategyResolvedEvent u => before.World.Units.Single(t => t.Id == u.TargetUnitId).CommanderId,
+        int? person = e switch { AlienateResolvedEvent a => a.TargetOfficerId, UnitStrategyResolvedEvent u => u.Target.CommanderId,
             PrisonerReturnResolvedEvent p => p.PrisonerId, SeizeResolvedEvent s => s.RecoveredOfficerId, _ => null };
         int? place = e switch { BurnResolvedEvent b => b.TargetSettlementId, SeizeResolvedEvent s => s.TargetSettlementId, AttackRequestResolvedEvent a => a.TargetSettlementId, _ => null };
-        int? force = e switch { GossipResolvedEvent g => g.FirstTargetForceId, UnitStrategyResolvedEvent u => before.World.Units.Single(t => t.Id == u.TargetUnitId).OwnerId,
+        int? force = e switch { GossipResolvedEvent g => g.FirstTargetForceId, UnitStrategyResolvedEvent u => u.Target.ForceId,
             BurnResolvedEvent b => before.World.Settlements.Single(s => s.Id == b.TargetSettlementId).OwnerId,
             SeizeResolvedEvent s => before.World.Settlements.Single(t => t.Id == s.TargetSettlementId).OwnerId,
             GiftResolvedEvent g => g.TargetForceId, AttackRequestResolvedEvent a => a.RequestedForceId, PrisonerReturnResolvedEvent => task.PrisonerReturn!.TargetForceId,
@@ -169,7 +176,7 @@ public static class MissionPresentation
         if (before.World.Forces.Single(f => f.Id == task.ForceId).LeaderId is int leader)
             values["ruler"] = MessageBinding.Reference(MessageEntityKind.Person, leader);
         if (person is int targetPerson) values["target-person"] = MessageBinding.Reference(MessageEntityKind.Person,targetPerson);
-        if (e is UnitStrategyResolvedEvent unitResult && before.World.Units.Single(u => u.Id == unitResult.TargetUnitId).ServicePlaceId is int home)
+        if (e is UnitStrategyResolvedEvent unitResult && unitResult.Target.ServicePlaceId is int home)
             values["home"] = MessageBinding.Reference(MessageEntityKind.Settlement,home);
         if (place is int location) values["place"] = MessageBinding.Reference(MessageEntityKind.Settlement,location);
         if (e is AttackRequestResolvedEvent attack && before.World.Settlements.Single(s => s.Id == attack.TargetSettlementId).OwnerId is int enemy)
@@ -203,7 +210,24 @@ public static class MissionPresentation
             var required = MessageGraph.Requirements(definition.Key,texts.Messages).Bindings;
             if (required.Any(slot => !values.ContainsKey(definition.Bindings[slot])) ||
                 definition.Speaker is string speaker && !values.ContainsKey(speaker)) return;
-            sequence.Add(Produce(role,content,values,context,texts));
+            var message = Produce(role,content,values,context,texts);
+            if (e is UnitStrategyResolvedEvent or BurnResolvedEvent or SeizeResolvedEvent && message.SpeakerId is int person)
+            {
+                int force = role.EndsWith("-action",StringComparison.Ordinal) ? task.ForceId : e switch
+                {
+                    UnitStrategyResolvedEvent unit => unit.Target.ForceId,
+                    BurnResolvedEvent burn => before.World.Settlements.Single(s => s.Id == burn.TargetSettlementId).OwnerId!.Value,
+                    SeizeResolvedEvent seize => before.World.Settlements.Single(s => s.Id == seize.TargetSettlementId).OwnerId!.Value,
+                    _ => throw new InvalidOperationException()
+                };
+                var speech = new MapSpeechMessage(Guid.NewGuid(), message.Message, person,
+                    texts.Resolve(before.MessageSpeaker(person).NameKey),ResultLocation(e,before)!.Value,
+                    e is UnitStrategyResolvedEvent target ? target.TargetUnitId : null,
+                    before.Forces.Single(f => f.Id == force).ColorCode,
+                    DelaySeconds: role.EndsWith("-action",StringComparison.Ordinal) ? 0 : 1);
+                message = message with { MapSpeech = speech };
+            }
+            sequence.Add(message);
         }
         switch (e)
         {
@@ -221,7 +245,13 @@ public static class MissionPresentation
             case UnitStrategyResolvedEvent unit:
                 string kind = unit.Strategy switch { UnitStrategyKind.FalseReport => "false-report", UnitStrategyKind.Disorder => "disorder",
                     UnitStrategyKind.Inspire => "inspire", _ => "rescue" };
-                Add(kind+"-action"); Add(kind+"-reaction-"+(unit.Success ? "success" : "failure")); break;
+                Add(kind+"-action");
+                string reaction = unit.Success ? kind+"-reaction-success" :
+                    unit.Strategy is UnitStrategyKind.FalseReport or UnitStrategyKind.Disorder ?
+                        unit.Target.Condition == UnitCondition.HighSpirits ? "strategy-reaction-united" :
+                        unit.Target.HasCounterConfusion ? "strategy-reaction-countered" :
+                        unit.Target.DefensiveFormation ? kind+"-reaction-defensive" : kind+"-reaction-failure" : kind+"-reaction-failure";
+                Add(reaction); break;
             case BurnResolvedEvent burn:
                 Add("burn-action"); Add("burn-reaction-"+(burn.Success ? "success" : "failure")); break;
             case SeizeResolvedEvent seize when seize.Outcome == SeizeOutcomeKind.Person:
@@ -241,6 +271,22 @@ public static class MissionPresentation
     }
     private static bool IsMission(PersistentTask task) => task.Journey is { ReturnLeg: null } &&
         (task.Kind.StartsWith("strategy-",StringComparison.Ordinal) || task.Kind == "unit-strategy" || task.Kind.StartsWith("diplomacy-",StringComparison.Ordinal));
+
+    private static MapCell? ResultLocation(DomainEvent outcome,StrategySnapshot before)
+    {
+        MapCell Cell(int id)
+        {
+            var settlement = before.Settlements.Single(s => s.Id == id);
+            return new(settlement.X,settlement.Y);
+        }
+        return outcome switch
+        {
+            UnitStrategyResolvedEvent unit => MapCoordinates.Cell(unit.Target.Position),
+            BurnResolvedEvent burn => Cell(burn.TargetSettlementId),
+            SeizeResolvedEvent seize => Cell(seize.TargetSettlementId),
+            _ => null
+        };
+    }
     private static string Cancellation(TextCatalog texts, string reason) => reason switch
     {
         "reinforcement-unfit" => CommandText.Resolve(texts, "cancel.reinforcement-unfit"), "target-invalidated" => CommandText.Resolve(texts, "cancel.target-invalidated"),

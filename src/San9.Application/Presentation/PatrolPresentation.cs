@@ -7,6 +7,9 @@ namespace San9.Application.Presentation;
 
 public sealed record CommandMessage(ProducedMessage Message, int? SpeakerId, string? SoundRole)
 {
+    public bool RecordInJournal { get; init; } = true;
+    public MapMessageRecord? MapRecord { get; init; }
+    public MapSpeechMessage? MapSpeech { get; init; }
     public string? IllustrationRole { get; init; }
     public int? IllustrationPersonId { get; init; }
     public string? BackgroundMusicRole { get; init; }

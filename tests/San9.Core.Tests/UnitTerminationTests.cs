@@ -30,7 +30,10 @@ public sealed class UnitTerminationTests
         Assert.Equal(500u, state.Corps.Single(f => f.IsRoot && f.OwnerId == 1).Treasury.Money);
         Assert.Equal(600u, state.Corps.Single(f => f.IsRoot && f.OwnerId == 2).Treasury.Money);
         Assert.Equal(500u, state.Corps.Single(f => f.IsRoot && f.OwnerId == 2).Treasury.Food);
-        Assert.Equal(1, Assert.Single(events.OfType<UnitTerminatedEvent>()).UnrecoveredSoldiers);
+        var terminated = Assert.Single(events.OfType<UnitTerminatedEvent>());
+        Assert.Equal(1,terminated.UnrecoveredSoldiers);
+        Assert.Equal(new BattleObjectContext(0,false,1,null,new(2,2),1,false),terminated.Target);
+        Assert.Equal(new BattleObjectContext(1,false,2,null,new(3,2),null,false),terminated.Source);
     }
 
     [Theory]

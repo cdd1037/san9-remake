@@ -14,6 +14,7 @@
 | [文字样式](text-styles.md) | 字体、角色与状态、描边阴影、样式覆盖 |
 | [部队外观](../../specs/behavior/BEH-RENDER-0003-map-ambient-animation.md#阵型身体数量与站位) | 阵型身体、三类兵群数量与坐标、兵器护卫及固定船型 |
 | [消息编写](messages.md) | BBCode、图标、参数绑定、消息求值与词汇校订计划 |
+| [地图消息测试](map-messages.md) | 首批计略喊话与左下记录接线、第40号本地测试存档及后续范围 |
 | [画面验证](client-verification.md) | 验收分工、历史脚本分类、按需复现命令与限制 |
 
 ## 行为与设计依据

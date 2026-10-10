@@ -22,9 +22,18 @@ public partial class StrategyHud
     private readonly Texture2D[][] _turnTitles = new Texture2D[2][];
     private readonly CanvasItemMaterial _titleFlashMaterial = new() { BlendMode = CanvasItemMaterial.BlendModeEnum.Add };
 
+    private San9.Core.Simulation.GameClock? _contextPresented;
+    private long _strategyEntrancePresented;
+    private SceneSoundPlayer _sceneSounds = null!;
+
     private void BuildTurnControls()
     {
-        _executionPanels = new ExecutionPanels { Textures = _textures, Texts = Texts, Skin = Skin };
+        _contextPresented = Session.StrategicContext.Clock;
+        _sceneSounds = new() { ContentRoot = ContentRoot, Sounds = CommandPresentation.Sounds };
+        AddChild(_sceneSounds);
+        BuildMapMessages();
+        _executionPanels = new ExecutionPanels { Textures = _textures, Texts = Texts, Skin = Skin, RecordsLog = _mapRecords };
+        _executionPanels.LocationRequested += World.FocusCell;
         AddChild(_executionPanels);
         _turnStatus = LabelAt("", new(270, 320), new(484, 96), 24);
         for (int phase = 0; phase < 2; phase++)
@@ -62,15 +71,31 @@ public partial class StrategyHud
 
     private void UpdateTurn(double delta)
     {
+        var previous = Turn.Screen;
         Turn.Update(delta);
+        if (previous == TurnScreen.Returning && Turn.Screen == TurnScreen.Strategy) _mapRecordsRequested = false;
         UpdateExecutionMessages();
         UpdateDecision();
         UpdateEnding();
+        if (Turn.Screen == TurnScreen.Strategy && Turn.StrategyEntrance != _strategyEntrancePresented &&
+            Session.Snapshot.Simulation.Boundary == San9.Core.Simulation.SimulationBoundary.Stable && CommandPresentation.Progress is { } progress)
+        {
+            _strategyEntrancePresented = Turn.StrategyEntrance;
+            var context = Session.Messages(Texts);
+            List<CommandMessage> sequence = [.. StrategyEntryPresentation.Produce(Session.View, context, Texts, progress)];
+            if (Session.StrategicContext.Clock is { } clock && _contextPresented != clock)
+            {
+                _contextPresented = clock;
+                sequence.AddRange(StrategicContext.Produce(Session.StrategicContext, Session.View, context, Texts, progress));
+            }
+            OpenNarration(sequence, Session.View);
+        }
         World.Presentation = Turn.Display;
         World.Day = Turn.Day;
+        UpdateMapMessages(delta);
         bool showPanels = Turn.Screen is TurnScreen.Preparing or TurnScreen.Playing or TurnScreen.AwaitingDecision or TurnScreen.Presenting ||
             Turn.Screen == TurnScreen.Failed && _executionPanels.Expanded;
-        _executionPanels.Advance(showPanels, delta, _decision is not null);
+        _executionPanels.Advance(showPanels || _mapRecordsRequested, delta, _decision is not null);
         _executionPanels.Bind(Turn.Display ?? Session.View);
         UpdateTurnControls();
     }

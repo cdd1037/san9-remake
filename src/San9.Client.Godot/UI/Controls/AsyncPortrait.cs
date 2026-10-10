@@ -12,6 +12,7 @@ public partial class AsyncPortrait : TextureRect
     private TextureScope? _scope => _selection.Current;
     private string? _role;
     private bool _ready;
+    public bool IsResourceReady => _scope?.IsReady ?? true;
     private Exception? _error;
     public string? Role { get => _role; set { if (_role == value) return; _role = value; if (IsInsideTree()) Bind(); } }
     public override void _Ready() { ExpandMode = ExpandModeEnum.IgnoreSize; StretchMode = StretchModeEnum.KeepAspectCentered; Bind(); }

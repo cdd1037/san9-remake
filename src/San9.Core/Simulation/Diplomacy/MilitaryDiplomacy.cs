@@ -6,7 +6,7 @@ namespace San9.Core.Simulation;
 public enum AttackWarning { None = 0, FriendlyRelations = 1, AllianceBetrayal = 2, AttackRequestBreach = 4 }
 public sealed record WarDeclaredEvent(GameClock Clock, int AttackerForceId, int DefenderForceId, bool BetrayedAlliance) : DomainEvent;
 
-internal static class MilitaryDiplomacy
+public static class MilitaryDiplomacy
 {
     internal static int Relation(IWorldQuery world, int first, int second) =>
         world.Relations.TryGetValue((Math.Min(first, second), Math.Max(first, second)), out var relation) ? relation.Value : 0;
@@ -26,7 +26,7 @@ internal static class MilitaryDiplomacy
             world.Simulation.Alliance?.Protects(attacker, defender.Value) != true && !AttackRequests.Protects(world, attacker, defender.Value) &&
             IsHostileRelation(Relation(world, attacker, defender.Value)));
 
-    internal static bool AutomaticEnemy(WorldSnapshot world, int attacker, int? defender)
+    public static bool AutomaticEnemy(WorldSnapshot world, int attacker, int? defender)
     {
         bool Alive(int id) => world.Forces.Any(f => f.Id == id && !f.IsEliminated);
         return Alive(attacker) && attacker != defender && (defender is null || Alive(defender.Value) &&

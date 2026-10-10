@@ -57,6 +57,9 @@ public sealed record CommandPresentation(Dictionary<string, string> Sounds, Patr
     public Dictionary<string, DecisionMessageDefinition> Missions { get; init; } = [];
 
     [System.Text.Json.Serialization.JsonRequired]
+    public ProgressPresentationDefinition? Progress { get; init; }
+
+    [System.Text.Json.Serialization.JsonRequired]
     public DemolitionPresentationDefinition? Demolition { get; init; }
 
     public static CommandPresentation Empty => new([], null);
@@ -64,6 +67,21 @@ public sealed record CommandPresentation(Dictionary<string, string> Sounds, Patr
     {
         var personIds = people.ToHashSet();
         Decisions.Validate(texts, Sounds, personIds);
+        if (Progress is { } progress)
+        {
+            if (progress.OrderPrompt is null || string.IsNullOrWhiteSpace(progress.StrategyTitleSound) || !Sounds.ContainsKey(progress.StrategyTitleSound))
+                throw new InvalidDataException("Incomplete strategy entry presentation.");
+            if (ProgressPresentationDefinition.RecordRoles.Except(progress.Records.Keys).Any() ||
+                ProgressPresentationDefinition.ContextRoles.Except(progress.Context.Keys).Any())
+                throw new InvalidDataException("Incomplete progress presentation.");
+            string[] roles = ["actor", "ruler", "other", "force", "enemy-force", "place", "other-place", "city", "unit", "treasure", "corps"];
+            var messages = progress.Records.Values.Concat(progress.Context.Values).Append(progress.OrderPrompt);
+            if (messages.Any(m => m.Bindings.Values.Except(roles).Any() || m.Speaker is { } speaker && !roles.Contains(speaker)))
+                throw new InvalidDataException("Unknown progress presentation role.");
+            new DecisionPresentations([], []) { Shared = progress.Records }.Validate(texts, Sounds, personIds);
+            new DecisionPresentations([], []) { Shared = progress.Context }.Validate(texts, Sounds, personIds);
+            new DecisionPresentations([], []) { Shared = new() { ["order-prompt"] = progress.OrderPrompt } }.Validate(texts, Sounds, personIds);
+        }
         if (Missions.Count > 0)
         {
             string[] kinds = ["alienate", "burn", "seize", "rumor", "false-report", "disorder", "inspire", "rescue", "gift", "request", "return", "surrender"];
@@ -78,7 +96,8 @@ public sealed record CommandPresentation(Dictionary<string, string> Sounds, Patr
                 "gift-proposal", "surrender-proposal", "request-proposal", "request-unowned-proposal", "return-proposal", "diplomacy-host-adviser",
                 "gift-host-favorable", "gift-host-unfavorable", "surrender-host-favorable", "surrender-host-unfavorable",
                 "gift-accepted", "gift-refused", "surrender-accepted", "surrender-refused", "surrender-actor-accepted", "surrender-actor-refused", "surrender-eliminated",
-                "false-report-action", "disorder-action", "inspire-action", "rescue-action", "burn-action", "seize-action", "seize-person-action", "seize-person-reaction"];
+                "false-report-action", "disorder-action", "inspire-action", "rescue-action", "burn-action", "seize-action", "seize-person-action", "seize-person-reaction",
+                "strategy-reaction-united", "strategy-reaction-countered", "false-report-reaction-defensive", "disorder-reaction-defensive"];
             var reactions = new[] { "false-report", "disorder", "inspire", "rescue", "burn", "seize" }
                 .SelectMany(k => new[] { k+"-reaction-success", k+"-reaction-failure" });
             if (extra.Concat(reactions).Except(Missions.Keys).Any() || !Decisions.People.ContainsKey("soldier") ||

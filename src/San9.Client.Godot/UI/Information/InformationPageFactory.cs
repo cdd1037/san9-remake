@@ -17,6 +17,7 @@ internal sealed class InformationPageFactory
     public required InformationQuery Query { get; init; }
     public required Action Rebuild { get; init; }
     public required Action Back { get; init; }
+    public required MapMessageLog RecordsLog { get; init; }
     public Control Create()
     {
         if (State.Category == InformationCategory.Units && State.IsDetail)
@@ -168,7 +169,8 @@ internal sealed class InformationPageFactory
             };
             return catalog;
         }
-        return new InformationJournalView { State = State, Session = Session, Query = Query, Textures = Textures, Back = Back };
+        return new InformationJournalView { State = State, Session = Session, Query = Query, Textures = Textures,
+            RecordsLog = RecordsLog, Skin = Skin, Back = Back, LocateRecord = cell => { State.Close(); Rebuild(); World.FocusCell(cell); } };
     }
     private void OpenAdministrativeDetail(InformationCategory category, int id)
     {

@@ -20,8 +20,10 @@ public sealed class WorldMessageContext
     private readonly Dictionary<int, OfficerInitialState> _personDefinitions;
     private readonly OfficerAbilityRules _abilities;
     private readonly Lazy<StrategySnapshot> _view;
+    private readonly IReadOnlyDictionary<int, BattleObjectContext> _capturedUnits;
 
-    public WorldMessageContext(ScenarioInitialState definition, WorldSnapshot world, TextCatalog texts)
+    public WorldMessageContext(ScenarioInitialState definition, WorldSnapshot world, TextCatalog texts,
+        IEnumerable<BattleObjectContext>? capturedObjects = null)
     {
         _definition = definition; _world = world; _texts = texts;
         _people = world.Officers.ToDictionary(p => p.Id);
@@ -33,7 +35,12 @@ public sealed class WorldMessageContext
             new(definition.Information.Offices.Select(o => new GovernorOfficeRule(o.Id, o.CommandCapacity, o.GovernorPriority)
                 { AbilityBonuses = o.AbilityBonuses })));
         _view = new(() => new StrategySnapshot(definition, world));
+        _capturedUnits = (capturedObjects ?? []).Where(o => !o.IsSettlement).ToDictionary(o => o.Id);
     }
+
+    public WorldMessageContext AtOccurrence(GameClock clock, params BattleObjectContext[] objects) =>
+        new(_definition, _world with { Clock = clock }, _texts, objects);
+    public WorldMessageContext ForWorld(WorldSnapshot world) => new(_definition, world, _texts);
 
     public ProducedMessage Produce(string key, IReadOnlyDictionary<string, MessageBinding> values,
         Func<int, int> randomIndex)
@@ -178,10 +185,12 @@ public sealed class WorldMessageContext
             "tactic.name" => Text(_texts.Resolve(_definition.Information.Tactics.Single(t => t.Id == Id(0, MessageEntityKind.Tactic)).NameKey)),
             "tactic.category-name" => Text(TacticCategory(Id(0, MessageEntityKind.Tactic))),
             "military-target.location-name" => Text(args[0].Entity?.Kind == MessageEntityKind.Settlement ?
-                PlaceName(Id(0, MessageEntityKind.Settlement)) : UnitLocation(_units[Id(0, MessageEntityKind.Unit)])),
+                PlaceName(Id(0, MessageEntityKind.Settlement)) : TargetLocation(Id(0, MessageEntityKind.Unit))),
             "military-target.is-garrison" => Flag(args[0].Entity?.Kind == MessageEntityKind.Settlement
-                ? _places.ContainsKey(Id(0, MessageEntityKind.Settlement)) : _units[Id(0, MessageEntityKind.Unit)].IsEmbedded),
-            "military-target.commander-name" => Text(_units[Id(0, MessageEntityKind.Unit)].CommanderId is int commander ? PersonName(commander) :
+                ? _places.ContainsKey(Id(0, MessageEntityKind.Settlement)) : _capturedUnits.TryGetValue(Id(0, MessageEntityKind.Unit), out var captured)
+                    ? captured.IsGarrison : _units[Id(0, MessageEntityKind.Unit)].IsEmbedded),
+            "military-target.commander-name" => Text((_capturedUnits.TryGetValue(Id(0, MessageEntityKind.Unit), out var target)
+                ? target.CommanderId : _units[Id(0, MessageEntityKind.Unit)].CommanderId) is int commander ? PersonName(commander) :
                 throw new InvalidDataException("A field unit display name requires a commander.")),
             _ => throw Unsupported(name)
         };
@@ -215,6 +224,9 @@ public sealed class WorldMessageContext
             : throw new InvalidDataException($"Settlement {id} has no facility type.");
     private string UnitLocation(UnitState unit) => unit.ServicePlaceId is int place ? PlaceName(place) :
         throw new InvalidDataException($"Unit {unit.Id} has no service location.");
+    private string TargetLocation(int id) => _capturedUnits.TryGetValue(id, out var target)
+        ? target.ServicePlaceId is int place ? PlaceName(place) : throw new InvalidDataException($"Captured unit {id} has no service location.")
+        : UnitLocation(_units[id]);
     private string TacticCategory(int id)
     {
         string[] names =
@@ -230,7 +242,7 @@ public sealed class WorldMessageContext
         bool exists = entity.Kind switch
         {
             MessageEntityKind.Person => _people.ContainsKey(entity.Id), MessageEntityKind.Force => _forces.ContainsKey(entity.Id),
-            MessageEntityKind.Settlement => _places.ContainsKey(entity.Id), MessageEntityKind.Unit => _units.ContainsKey(entity.Id),
+            MessageEntityKind.Settlement => _places.ContainsKey(entity.Id), MessageEntityKind.Unit => _units.ContainsKey(entity.Id) || _capturedUnits.ContainsKey(entity.Id),
             MessageEntityKind.Treasure => _world.Treasures.Any(t => t.Id == entity.Id),
             MessageEntityKind.Tactic => _definition.Information.Tactics.Any(t => t.Id == entity.Id),
             MessageEntityKind.Region => _definition.RegionNameKeys.ContainsKey(entity.Id),

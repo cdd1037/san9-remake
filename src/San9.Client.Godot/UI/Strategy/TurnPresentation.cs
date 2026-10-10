@@ -21,6 +21,8 @@ public sealed class TurnPresentation(GameSession session)
     public Func<bool>? CanContinue { get; set; }
     public SessionResult? LastResult { get; private set; }
     public long Publication { get; private set; }
+    public long StrategyEntrance { get; private set; } = 1;
+    public Action? StrategyTitleStarted { get; init; }
     public bool Paused { get; private set; }
     public bool IsComputing => _pending is { IsCompleted: false };
     public double Progress { get; private set; }
@@ -110,7 +112,7 @@ public sealed class TurnPresentation(GameSession session)
         if (Screen == TurnScreen.Returning)
         {
             _remaining -= seconds;
-            if (_remaining <= 0) { Screen = TurnScreen.Strategy; Display = null; }
+            if (_remaining <= 0) { Screen = TurnScreen.Strategy; Display = null; StrategyEntrance++; }
             return;
         }
         if (Screen == TurnScreen.Entering)
@@ -207,7 +209,7 @@ public sealed class TurnPresentation(GameSession session)
         if (state.Boundary == SimulationBoundary.AwaitingDecision) { Screen = TurnScreen.AwaitingDecision; return; }
         if (!_advancing) { Screen = TurnScreen.Strategy; Display = null; return; }
         if (session.Snapshot.Clock.DayNumber >= _startedDay + 10)
-        { Screen = TurnScreen.Returning; _remaining = TransitionDuration; return; }
+        { Screen = TurnScreen.Returning; _remaining = TransitionDuration; StrategyTitleStarted?.Invoke(); return; }
         if (state.ActiveControl < state.Controls.Length)
         {
             Screen = TurnScreen.Preparing;

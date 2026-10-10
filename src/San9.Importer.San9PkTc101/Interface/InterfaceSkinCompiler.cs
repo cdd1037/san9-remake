@@ -91,7 +91,20 @@ public static class InterfaceSkinCompiler
         Export("turn-progress-frame", 89, 5, paletteAlpha: true);
         Export("turn-progress-fill", 90, 5, paletteAlpha: true);
         Export("turn-record-panel", 59, 12, paletteAlpha: true);
+        Export("minimap-record-pulse", 96, 19, 5, paletteAlpha: true);
         Export("turn-command-panel", 61, 13, paletteAlpha: true);
+        // RE-0183: native three-part frames retain their transparent margins and tails.
+        var speech = IndexedImageArchive.ReadCombined(read(Path.Combine(dataDirectory, "G_Effect.s9")), 20, 52);
+        foreach (var placement in Enum.GetValues<MapSpeechPlacement>())
+        foreach (var (part, offset) in new[] { ("left", 0), ("middle", 1), ("right", 2) })
+        {
+            int index = 39 + 3 * (int)placement + offset;
+            if (bindings[5611 + index] != 39) throw new InvalidDataException("Unconfirmed map speech palette binding.");
+            string role = MapSpeechSkin.Role(placement, part), id = "ui-" + role;
+            assets.Add(save(id, TextureSourcePath.Image("G_Effect", index, 18, true, false),
+                IndexedImageArchive.Decode(speech.Images[index], speech.Palettes[18], true, false)));
+            ui.Add(role, id);
+        }
         // This palette supplies RGB colors; its reserved fourth bytes are all zero.
         // The original copies the indexed pixels and palette into an opaque bar surface.
         Export("turn-command-remaining-fill", 63, 14);
@@ -408,6 +421,9 @@ public static class InterfaceSkinCompiler
         var fontPalette = read(Path.Combine(dataDirectory, "P_Font.s9"));
         string FontColor(int style) => Convert.ToHexString(fontPalette.AsSpan((style / 2 * 32 + 16 + style % 2 * 8 + 7) * 4, 3));
         colors.Add("roster-available", FontColor(7)); colors.Add("roster-unavailable", FontColor(26));
+        colors.Add("map-record-normal", FontColor(7)); colors.Add("map-record-hover", FontColor(6));
+        colors.Add("map-record-pressed", FontColor(5)); colors.Add("map-speech-text", FontColor(0));
+        colors.Add("map-speech-name-shadow", FontColor(1));
         var cursors = ExecutableCursorCompiler.Compile(pe, assets, save);
         foreach (var (role, resource) in new (string, int)[] {
             ("top-edge",234), ("left-edge",183), ("right-edge",184),

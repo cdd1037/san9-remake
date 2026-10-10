@@ -6,6 +6,7 @@ namespace San9.Rendering;
 public sealed record UnitVisual(int Id, double CellX, double Depth, MapAnimatedSprite[] Animations)
 {
     public UnitVisualAction Action { get; init; }
+    public int Direction { get; init; }
     public uint Soldiers { get; init; }
     public int Morale { get; init; }
     public string? CommanderNameKey { get; init; }
@@ -172,7 +173,7 @@ public static class UnitVisuals
             }
         }
         return new(state.Id, state.CellX, state.CellX + state.CellY, animations.ToArray())
-        { Action = state.Action, Soldiers = state.Soldiers, Morale = state.Morale, CommanderNameKey = state.CommanderNameKey, LabelX = x, LabelY = y - 96,
+        { Action = state.Action, Direction = state.Direction, Soldiers = state.Soldiers, Morale = state.Morale, CommanderNameKey = state.CommanderNameKey, LabelX = x, LabelY = y - 96,
           AnchorX = x, AnchorY = y };
     }
 }

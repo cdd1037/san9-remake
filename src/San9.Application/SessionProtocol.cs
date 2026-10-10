@@ -8,8 +8,8 @@ namespace San9.Application;
 public static class SessionProtocol
 {
     public const string RulesVersion = "san9-core-g10-v87";
-    public const int SaveFormatVersion = 100;
-    public const int LogFormatVersion = 104;
+    public const int SaveFormatVersion = 101;
+    public const int LogFormatVersion = 105;
 }
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
@@ -45,8 +45,9 @@ public sealed record SessionSnapshot(WorldSnapshot World, ImmutableArray<Session
     ImmutableArray<ChronicleEntry> Chronicle, long NextOperationSequence)
 {
     [JsonRequired] public EndingSelection? Ending { get; init; }
+    [JsonRequired] public Presentation.StrategicContextState StrategicContext { get; init; } = Presentation.StrategicContextState.Empty;
     [JsonIgnore]
     public string StateHash => CanonicalJson.Hash(new { version = CanonicalJson.Version,
-        world = World.StateHash, records = Records, chronicle = Chronicle, ending = Ending,
+        world = World.StateHash, records = Records, chronicle = Chronicle, ending = Ending, strategicContext = StrategicContext,
         nextOperationSequence = NextOperationSequence });
 }

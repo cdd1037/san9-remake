@@ -6,8 +6,11 @@ public enum UnitStrategyKind { FalseReport, Disorder, Inspire, Reinforce }
 public sealed record UnitStrategyCommand(Guid CommandId, int IssuerId, long Sequence, int OfficerId,
     UnitStrategyKind Strategy, int TargetUnitId) : GameCommand(CommandId, IssuerId, Sequence);
 public sealed record UnitStrategyMission(UnitStrategyKind Strategy, int TargetUnitId);
+public sealed record UnitStrategyTarget(WorldPosition Position, int ForceId, int? CommanderId, int? ServicePlaceId,
+    UnitCondition Condition, bool DefensiveFormation, bool HasCounterConfusion);
 public sealed record UnitStrategyResolvedEvent(GameClock Clock, int OfficerId, int TargetUnitId,
-    UnitStrategyKind Strategy, int Threshold, int Roll, bool Success) : DomainEvent
+    UnitStrategyKind Strategy, int Threshold, int Roll, bool Success,
+    [property: System.Text.Json.Serialization.JsonRequired] UnitStrategyTarget Target) : DomainEvent
 {
     public uint RequestedSoldiers { get; init; }
     public uint DeliveredSoldiers { get; init; }
@@ -99,6 +102,11 @@ internal static class UnitStrategies
         rules.Military!.Tactics.Values.Where(t => t.Effect == effect).Any(t =>
             MilitaryTactics.HasTactic(world, force, members.Select(p => p.Id).ToArray(), t.Id, rules.Treasures));
 
+    private static UnitStrategyTarget CaptureTarget(WorldMutation world, UnitState target, SimulationRules rules) =>
+        new(target.Position, target.OwnerId, target.CommanderId, target.ServicePlaceId, target.Condition,
+            rules.Military!.Formation(target).HalvesHostileStrategyChance,
+            Knows(world, target.OwnerId, Members(world, target), TacticEffect.CounterConfusion, rules));
+
     internal static bool Eligible(WorldMutation world, int force, UnitStrategyKind strategy, int targetId, SimulationRules rules)
     {
         if (!Enum.IsDefined(strategy) || rules.Military is not { } military || !world.Units.TryGetValue(targetId, out var target) ||
@@ -137,6 +145,7 @@ internal static class UnitStrategies
     {
         var mission = task.Journey!.UnitStrategy!;
         var target = world.Units[mission.TargetUnitId];
+        var occurrence = CaptureTarget(world, target, rules);
         int threshold = Threshold(world, task.OfficerId, mission, rules);
         int roll = task.Journey.SuccessRoll!.Value;
         bool success = roll < threshold;
@@ -201,7 +210,7 @@ internal static class UnitStrategies
             -1 - (int)(world.NextRandom("strategy-hostile-failure-relations") % 3), events);
         OfficerTacticGrowth.Increase(world, task.OfficerId, 7, 2, events);
         OfficerTacticGrowth.Increase(world, task.OfficerId, 8, 2, events);
-        events.Add(new UnitStrategyResolvedEvent(world.Clock, task.OfficerId, target.Id, mission.Strategy, threshold, roll, success));
+        events.Add(new UnitStrategyResolvedEvent(world.Clock, task.OfficerId, target.Id, mission.Strategy, threshold, roll, success, occurrence));
         PersonnelReturns.Start(world, task, rules.Personnel, events, true);
     }
 
@@ -209,6 +218,7 @@ internal static class UnitStrategies
         List<DomainEvent> events, UnitState target, int threshold, int roll, bool success)
     {
         var actor = world.Officers[task.OfficerId];
+        var occurrence = CaptureTarget(world, target, rules);
         uint requested = success ? 3000u : StrategyMath.FailedReinforcement(world.Abilities(actor).Leadership);
         uint capacity = rules.Military!.Capacity(target);
         var troops = task.Reinforcements!;
@@ -229,7 +239,7 @@ internal static class UnitStrategies
         OfficerTacticGrowth.Increase(world, actor.Id, 7, 2, events);
         OfficerTacticGrowth.Increase(world, actor.Id, 8, 2, events);
         events.Add(new UnitStrategyResolvedEvent(world.Clock, actor.Id, target.Id, UnitStrategyKind.Reinforce,
-            threshold, roll, success) { RequestedSoldiers = requested, DeliveredSoldiers = delivered });
+            threshold, roll, success, occurrence) { RequestedSoldiers = requested, DeliveredSoldiers = delivered });
         var returning = task with { Reinforcements = delivered == troops.Soldiers && troops.Wounded == 0 ? null : troops with
         {
             Soldiers = troops.Soldiers - delivered,

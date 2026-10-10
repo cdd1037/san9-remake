@@ -2,6 +2,7 @@ using Godot;
 using San9.Content.Interface;
 using San9.Content.Text;
 using San9.Application.Presentation;
+using San9.Core.Domain;
 
 namespace San9.Client.Godot;
 
@@ -17,7 +18,8 @@ public partial class ExecutionPanels : Control
     private readonly GameTextPresenter _text = new();
     private Control _headers = null!;
     private Control _rows = null!;
-    private readonly List<ProducedMessage> _records = [];
+    public MapMessageLog RecordsLog { get; init; } = null!;
+    public event Action<MapCell>? LocationRequested;
     private long _revision = -1;
     private bool _expanded;
     private bool _covered;
@@ -47,8 +49,20 @@ public partial class ExecutionPanels : Control
 
     public void Append(ProducedMessage message)
     {
-        _records.Add(message);
+        Append(new MapMessageRecord(Guid.NewGuid(), message));
+    }
+
+    public bool Append(MapMessageRecord entry)
+    {
+        if (!RecordsLog.Append(entry)) return false;
         RefreshRecords();
+        return true;
+    }
+
+    public void ExpandImmediately()
+    {
+        _expanded = true; _offset = 0; _elapsed = 0;
+        ApplyOffset();
     }
 
     private Control? _recordRows;
@@ -57,13 +71,33 @@ public partial class ExecutionPanels : Control
         if (!IsNodeReady()) return;
         if (_recordRows is not null) { RemoveChild(_recordRows); _recordRows.QueueFree(); }
         _recordRows=new Control { Position=new(0,_offset),MouseFilter=MouseFilterEnum.Ignore }; AddChild(_recordRows);
-        var visible=_records.TakeLast(10).ToArray();
+        var visible=RecordsLog.Visible.ToArray();
         for (int i=0;i<visible.Length;i++)
         {
-            var label=new GameRichTextLabel { Textures=Textures,Position=Records.Position+new Vector2(28,24+16*i),Size=new(376,16),
+            var entry = visible[i];
+            var row = new Control { Position = Records.Position + new Vector2(21,21+16*(10-visible.Length+i)), Size = new(376,16),
+                MouseFilter = MouseFilterEnum.Stop, MouseDefaultCursorShape = entry.Location is null ? CursorShape.Arrow : CursorShape.PointingHand };
+            _recordRows.AddChild(row);
+            var label=new GameRichTextLabel { Textures=Textures,Position=new(16,0),Size=new(360,16),
                 MouseFilter=MouseFilterEnum.Ignore,ClipContents=true };
-            _recordRows.AddChild(label);
-            label.Present(visible[i].BbCode.Replace('\n',' '),new(12,Colors.Black,GameTextEffect.None,Colors.Transparent));
+            row.AddChild(label);
+            void Style(string role) => label.Present(entry.Message.BbCode.Replace('\n',' '),new(12,new Color(Skin.Colors[role]),GameTextEffect.Outline,Colors.Black),
+                San9.Rendering.MessageEmphasisMode.Foreground);
+            Style("map-record-normal");
+            row.MouseEntered += () => Style("map-record-hover");
+            row.MouseExited += () => Style("map-record-normal");
+            row.GuiInput += input =>
+            {
+                if (input is not InputEventMouseButton { ButtonIndex: MouseButton.Left } mouse) return;
+                Style(mouse.Pressed ? "map-record-pressed" : "map-record-hover");
+                if (!mouse.Pressed && entry.Location is { } location) LocationRequested?.Invoke(location);
+                row.AcceptEvent();
+            };
+            if (entry.ForceColorCode is int color)
+            {
+                row.AddChild(new ColorRect { Position = new(2,2), Size = new(12,12), Color = new("080808"), MouseFilter = MouseFilterEnum.Ignore });
+                row.AddChild(new ColorRect { Position = new(3,3), Size = new(10,10), Color = new(Skin.Colors[$"overview-force-{color}"]), MouseFilter = MouseFilterEnum.Ignore });
+            }
         }
     }
 

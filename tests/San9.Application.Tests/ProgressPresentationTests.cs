@@ -1,0 +1,267 @@
+using System.Collections.Immutable;
+using San9.Application.Persistence;
+using San9.Application.Presentation;
+using San9.Content.Interface;
+using San9.Content.Text;
+using San9.Core.Domain;
+using San9.Core.Simulation;
+
+namespace San9.Application.Tests;
+
+public sealed class ProgressPresentationTests
+{
+    [Fact]
+    public void OrderPromptUsesCurrentRulerWithoutAdviserAndDoesNotAlterRestoredAdvice()
+    {
+        var session = GameSession.Start(Scenario(false),42);
+        var texts = MissionScenario.Texts(session.View) with { Messages = new()
+        {
+            ["order"] = new([new MessageValue(new("property","person.name",Arguments:[new("binding","person.0")])),
+                new MessageLiteral("大人，请下令。")])
+        } };
+        var content = new ProgressPresentationDefinition([],[])
+        { OrderPrompt = new("order",new() { ["person.0"]="ruler" },Sound:"prompt"), StrategyTitleSound="title" };
+        var restored = GameSession.Restore(Scenario(false),session.Capture());
+        string hash = restored.Snapshot.StateHash;
+        var message = Assert.Single(StrategyEntryPresentation.Produce(restored.View,restored.Messages(texts),texts,content));
+        Assert.Equal("ruler大人，请下令。",message.Message.BbCode);
+        Assert.Null(message.SpeakerId);
+        Assert.Equal("prompt",message.SoundRole);
+        Assert.False(message.RecordInJournal);
+        Assert.Null(message.MapRecord);
+        Assert.Equal(hash,restored.Snapshot.StateHash);
+        Assert.Equal(session.StrategicContext,restored.StrategicContext);
+    }
+
+    private static San9.Content.Scenarios.ScenarioInitialState Scenario(bool adviser = true)
+    {
+        var scenario = MissionScenario.Create();
+        return scenario with
+        {
+            Forces = scenario.Forces.Select(f => f.Id == 1 ? f with { AdviserId = adviser ? 2 : null } : f).ToArray(),
+            Officers = scenario.Officers.Select(p => p.State.Id == 2 ? p with { State = p.State with { Status = adviser ? OfficerStatus.Strategist : OfficerStatus.Serving } } : p).ToArray()
+        };
+    }
+    private static StrategySnapshot Entry(bool adviser = true, bool threat = true)
+    {
+        var definition = Scenario(adviser);
+        var world = GameSession.Start(definition,42).Snapshot;
+        return new(definition,world with
+        {
+            Clock = world.Clock.Advance(),
+            Units = world.Units.Select(u => u.Id == 20 && threat
+                ? u with { OrderClass = UnitOrderClass.Military, Order = new(MilitaryOrderKind.AttackSettlement,null,1) } : u).ToImmutableArray()
+        });
+    }
+
+    [Fact]
+    public void EnemyReportsTakePriorityAndPersistPerUnitWithoutRerolling()
+    {
+        var view = Entry();
+        var state = StrategicContext.Prepare(view,StrategicContextState.Empty,_ => 0);
+        Assert.Equal("enemy-city",Assert.Single(state.Prompts.Where(p => p.Role.StartsWith("enemy-",StringComparison.Ordinal))).Role);
+        Assert.Equal(new[] { 20 },state.ReportedEnemyUnits.ToArray());
+        Assert.Same(state,StrategicContext.Prepare(view,state,_ => throw new Exception("Rerolled entry")));
+        var next = new StrategySnapshot(Scenario(),view.World with { Clock = view.World.Clock.Advance() });
+        Assert.DoesNotContain(StrategicContext.Prepare(next,state,_ => 99).Prompts,p => p.Role.StartsWith("enemy-",StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void NoAdviserMeansNoContextAndNoEnemyReportConsumed()
+    {
+        var state = StrategicContext.Prepare(Entry(false),StrategicContextState.Empty,_ => throw new Exception("No speaker"));
+        Assert.Empty(state.Prompts);
+        Assert.Empty(state.ReportedEnemyUnits);
+    }
+
+    [Fact]
+    public void SameForceAtOnePlaceReportsOnceButDifferentEnemyForcesRemainIndependent()
+    {
+        var view = Entry();
+        var enemy = view.World.Units.Single(u => u.Id == 20);
+        var world = view.World with { Units = view.World.Units.Concat(new[] { enemy with { Id = 24 }, enemy with { Id = 30, OwnerId = 3, CommanderId = 31 } }).ToImmutableArray() };
+        var state = StrategicContext.Prepare(new(Scenario(),world),StrategicContextState.Empty,_ => 0);
+        Assert.Equal(new[] { 2,3 },state.Prompts.Where(p => p.Role == "enemy-city").Select(p => p.EnemyForceId!.Value).ToArray());
+        Assert.Equal(new[] { 20,24,30 },state.ReportedEnemyUnits.ToArray());
+    }
+
+    [Fact]
+    public void QuarterlyFoodWarningPrecedesOtherNonThreatHints()
+    {
+        var view = Entry(threat:false);
+        var world = view.World with
+        {
+            Clock = new(190,4,1),
+            Corps = view.World.Corps.Select(c => c.OwnerId == 1 ? c with { Treasury = new(0,0) } : c).ToImmutableArray()
+        };
+        var state = StrategicContext.Prepare(new(Scenario(),world),StrategicContextState.Empty,_ => 0);
+        Assert.Equal("food-shortage",Assert.Single(state.Prompts).Role);
+    }
+
+    [Fact]
+    public void DesperateDefensePrecedesOtherResponsesAndUsesLocalOfficer()
+    {
+        var view = Entry();
+        var world = view.World with
+        {
+            Settlements = view.World.Settlements.Select(s => s.Id == 1 ? s with { Soldiers = 1000 } : s).ToImmutableArray(),
+            Officers = view.World.Officers.Select(p => p.Id == 1 ? p with { Personality = 3 } : p).ToImmutableArray()
+        };
+        var state = StrategicContext.Prepare(new(Scenario(),world),StrategicContextState.Empty,_ => 0);
+        Assert.Equal(["enemy-city","defense-desperate"],state.Prompts.Select(p => p.Role));
+        Assert.Equal(1,state.Prompts[1].ActorId);
+    }
+
+    [Theory]
+    [InlineData(80,"person-region",true)]
+    [InlineData(95,"person-city-anonymous",false)]
+    [InlineData(100,"person-city",false)]
+    public void CluePrecisionFollowsIntelligenceAndDoesNotIncludeEnemyLocations(int intelligence,string role,bool regionOnly)
+    {
+        var view = Entry(threat:false);
+        var world = view.World with
+        {
+            Officers = view.World.Officers.Select(p => p.Id == 2 ? p with { BaseAbilities = p.BaseAbilities with { Intelligence = intelligence } }
+                : p.Id == 22 ? p with { OwnerId = null, Status = OfficerStatus.Undiscovered }
+                : p.Id == 1 ? p with { OwnerId = null, Status = OfficerStatus.Undiscovered } : p).ToImmutableArray()
+        };
+        // A separate hidden officer in an owned city; the enemy-city candidate must never be published.
+        world = world with { Officers = world.Officers.Select(p => p.Id == 1 ? view.World.Officers.Single(o => o.Id == 1) : p).ToImmutableArray()
+            .Add(new(40,null,1,new(50,50,50,50),false) { Status = OfficerStatus.Undiscovered }) };
+        var definition = Scenario() with { Officers = Scenario().Officers.Append(new("hidden",world.Officers.Single(p => p.Id == 40))).ToArray() };
+        StrategicContextState state = StrategicContextState.Empty;
+        for (ulong seed = 1; seed < 100 && state.Prompts.IsEmpty; seed++)
+        {
+            var candidate = world with { Simulation = world.Simulation with { InitialSeed = seed } };
+            state = StrategicContext.Prepare(new(definition,candidate),StrategicContextState.Empty,_ => 0);
+        }
+        Assert.Equal(role,Assert.Single(state.Prompts).Role);
+        var clue = Assert.Single(state.Clues);
+        Assert.Equal(1,clue.PlaceId);
+        Assert.Equal(regionOnly,clue.RegionOnly);
+        Assert.Equal(intelligence >= 100 ? 40 : null,clue.OfficerId);
+    }
+
+    [Fact]
+    public void SaveAndRecordingRetainContextPublicationAndItsStateHash()
+    {
+        var definition = Scenario();
+        var session = GameSession.Start(definition,42);
+        session.BeginRecording();
+        session.AdvanceXun();
+        var loaded = SaveService.Decode(SaveService.Encode(session),definition);
+        Assert.Equal(session.StrategicContext.Clock,SaveService.Load(SaveService.Encode(session),definition).StrategicContext.Clock);
+        Assert.Equal(session.Capture().StateHash,loaded.Capture().StateHash);
+        Assert.Equal(session.StrategicContext.Clock,loaded.StrategicContext.Clock);
+        Assert.Same(loaded.StrategicContext,StrategicContext.Prepare(loaded.View,loaded.StrategicContext,_ => throw new Exception("Rerolled save")));
+        string path = Path.Combine(Path.GetTempPath(),$"san9-context-{Guid.NewGuid():N}.json");
+        try
+        {
+            RecordingService.Write(path,session.CaptureRecording());
+            Assert.Equal(session.Capture().StateHash,RecordingService.Replay(path,definition).Session.Capture().StateHash);
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void SaveRejectsContextWithAnUnknownDisclosedPlace()
+    {
+        var definition = Scenario();
+        var session = GameSession.Start(definition,42);
+        var envelope = SaveService.Capture(session);
+        var context = session.StrategicContext with { Prompts = [new("enemy-city",2,1,1,PlaceId:9999,CityId:1,EnemyForceId:2)] };
+        var error = Assert.Throws<SaveException>(() => SaveService.Load(envelope with
+            { Session = envelope.Session with { StrategicContext = context } },definition));
+        Assert.Equal(SaveFailure.InvalidState,error.Failure);
+    }
+
+    [Fact]
+    public void EnemyPrisonerDeathIsVisibleToThePlayerDetentionOwner()
+    {
+        var definition = Scenario();
+        var session = GameSession.Start(definition,42);
+        var before = new StrategySnapshot(definition,session.Snapshot with { Officers = session.Snapshot.Officers.Select(p => p.Id == 22
+            ? p with { Status = OfficerStatus.Captive, SettlementId = 1 } : p).ToImmutableArray() });
+        var texts = MissionScenario.Texts(before) with { Messages = new() { ["death"] = new([new MessageLiteral("death")]) } };
+        var content = new ProgressPresentationDefinition(new() { ["captive-death"] = new("death",[]) },[]);
+        var death = new OfficerDiedEvent(before.World.Clock.NextDay(),22,OfficerDeathCause.Natural,OfficerStatus.Captive,2,1,null,null);
+        var record = Assert.Single(ProgressMessages.Read(before,before,session.Messages(texts,before.World),texts,content,[death])).MapRecord!;
+        Assert.Equal(new MapCell(0,1),record.Location);
+        Assert.Equal(death.Clock,record.Message.Clock);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void CaptureLocationUsesOnlyMovementBeforeTheFactEvenWhenTheUnitLaterDisappears(bool movedBefore)
+    {
+        var definition = Scenario();
+        var session = GameSession.Start(definition,42);
+        var before = session.View;
+        var clock = before.World.Clock.NextDay();
+        var after = new StrategySnapshot(definition,before.World with { Units = before.World.Units.Select(u => u.Id == 10
+            ? u with { Position = new(130,12) } : u).ToImmutableArray() });
+        var texts = MissionScenario.Texts(before) with { Messages = new() { ["capture"] = new([new MessageLiteral("capture")]) } };
+        var content = CommandPresentation.Empty with { Progress = new(new()
+            { ["enemy-captured"] = new("capture",[]), ["unit-lost"] = new("capture",[]) },[]) };
+        List<DomainEvent> events = [];
+        if (movedBefore) events.Add(new UnitMovedEvent(clock,10,new(12,7),new(64,12),1,NavigationStatus.Moving));
+        events.Add(new OfficerCapturedEvent(clock,22,1,null,10));
+        events.Add(new UnitMovedEvent(clock,10,new(64,12),new(130,12),1,NavigationStatus.Moving));
+        events.Add(new UnitTerminatedEvent(clock,10,null,5000)
+            { Target = new(10,false,1,2,new(130,12),1,false), Source = null });
+        var record = ExecutionPublication.Read(before,after,session.Messages(texts,before.World),texts,content,events)[0].MapRecord!;
+        Assert.Equal(movedBefore ? MapCoordinates.Cell(new(64,12)) : before.World.Units.Single(u => u.Id == 10).Cell,record.Location);
+    }
+
+    [Fact]
+    public void DefeatRecordRetainsCapturedIdentityLocationAndOccurrenceClockAfterRemoval()
+    {
+        var definition = Scenario();
+        var session = GameSession.Start(definition,42);
+        var before = session.View;
+        var after = new StrategySnapshot(definition,before.World with { Units = before.World.Units.Where(u => u.Id != 20).ToImmutableArray(),
+            Officers = before.World.Officers.Select(p => p.UnitId == 20 ? p with { UnitId = null, SettlementId = 2 } : p).ToImmutableArray() });
+        var clock = before.World.Clock.NextDay();
+        var texts = MissionScenario.Texts(before) with { Messages = new() { ["defeat"] = new([
+            new MessageValue(new("property","person.name",Arguments:[new("binding","person.0")])),new MessageLiteral("/"),
+            new MessageValue(new("property","military-target.commander-name",Arguments:[new("binding","unit.0")]))]) } };
+        var content = new ProgressPresentationDefinition(new() { ["unit-defeated"] = new("defeat",new()
+            { ["person.0"]="other",["unit.0"]="unit" }) },[]);
+        DomainEvent[] events = [new UnitTerminatedEvent(clock,20,new(10,false),5000)
+        {
+            Target = new(20,false,2,23,new(67,12),2,false),
+            Source = new(10,false,1,2,new(62,12),1,false)
+        }];
+        var record = Assert.Single(ProgressMessages.Read(before,after,session.Messages(texts,before.World),texts,content,events)).MapRecord!;
+        Assert.Equal(clock,record.Message.Clock);
+        Assert.Equal("enemy-commander/actor",record.Message.BbCode);
+        Assert.Equal(MapCoordinates.Cell(new(67,12)),record.Location);
+        Assert.Equal(record,Assert.Single(ProgressMessages.Read(before,after,session.Messages(texts,before.World),texts,content,events)).MapRecord);
+        var foreign = ((UnitTerminatedEvent)events[0]) with { Source = new(30,false,3,31,new(62,12),3,false) };
+        Assert.Empty(ProgressMessages.Read(before,after,session.Messages(texts,before.World),texts,content,[foreign]));
+    }
+
+    [Fact]
+    public void SurrenderOnlySuppressesItsOwnDissolutionAndPreservesOtherBattleReports()
+    {
+        var session = GameSession.Start(Scenario(),42);
+        var before = session.View;
+        var clock = before.World.Clock.NextDay();
+        var texts = MissionScenario.Texts(before) with { Messages = new()
+            { ["loss"] = new([new MessageLiteral("loss")]) } };
+        var content = CommandPresentation.Empty with
+            { Progress = new(new() { ["unit-lost"] = new("loss",[]) },[]) };
+        var loss = new UnitTerminatedEvent(clock,10,null,5000)
+            { Target = new(10,false,1,2,new(62,12),1,false), Source = null };
+        var surrender = new ForceSurrenderedEvent(clock,1,2,0,0,0,0,[],[]);
+        IReadOnlyList<CommandMessage> Read(params DomainEvent[] events) =>
+            ExecutionPublication.Read(before,before,session.Messages(texts),texts,content,events);
+
+        Assert.Empty(Read(loss,surrender));
+        Assert.Single(Read(loss,surrender with { ForceId = 3 }));
+        Assert.Single(Read(loss,surrender with { Clock = clock.NextDay() }));
+        Assert.Single(Read(loss with { Winner = new(20,false),
+            Source = new(20,false,2,23,new(67,12),2,false) },surrender));
+    }
+}

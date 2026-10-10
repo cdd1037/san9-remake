@@ -15,6 +15,13 @@ public static class GameTextMetrics
 {
     // Baselines follow the nominal glyph cell; retain the final line's full font height.
     public static int LineSpacing(Font font, int fontSize) => fontSize - Mathf.CeilToInt(font.GetHeight(fontSize));
+
+    // Center a modern font's line box on an original nominal glyph cell.
+    public static int GlyphCellTopOffset(Font font, int fontSize) =>
+        Mathf.FloorToInt((fontSize - font.GetHeight(fontSize)) / 2);
+
+    public static Vector2 GlyphCellPosition(Vector2 origin, Font font, int fontSize) =>
+        origin + new Vector2(0, GlyphCellTopOffset(font, fontSize));
 }
 
 public static class GameTextEffects
@@ -115,6 +122,15 @@ public static class GameTextStyles
 public sealed class GameTextPresenter : IDisposable
 {
     private readonly Dictionary<(GameTextStyle Style, Font Font), LabelSettings> _settings = [];
+
+    /// <summary>Place text at a nominal glyph-cell origin, independent of the theme font's line height.</summary>
+    public void ApplyAtGlyphCell(Label label, GameTextStyle style, Vector2 origin)
+    {
+        Apply(label, style);
+        label.VerticalAlignment = VerticalAlignment.Top;
+        label.Position = GameTextMetrics.GlyphCellPosition(origin, label.LabelSettings.Font, style.FontSize);
+    }
+
     public void Apply(Label label, GameTextStyle style)
     {
         var key = (style, label.GetThemeFont("font"));
@@ -151,6 +167,13 @@ public sealed class GameTextPresenter : IDisposable
                 GameTextEffects.OutlineSize(style), GameTextEffects.OutlineColor(style));
         canvas.DrawString(font, point, text, alignment, width, style.FontSize, style.Foreground);
     }
+
+    /// <summary>Draw from a glyph-cell top-left rather than a text baseline.</summary>
+    public static void DrawAtGlyphCell(CanvasItem canvas, Font font, string text, Vector2 origin,
+        GameTextStyle style, HorizontalAlignment alignment = HorizontalAlignment.Left, float width = -1) =>
+        Draw(canvas, font, text,
+            GameTextMetrics.GlyphCellPosition(origin, font, style.FontSize) + new Vector2(0, font.GetAscent(style.FontSize)),
+            style, alignment, width);
 
     public void Dispose() { foreach (var settings in _settings.Values) settings.Dispose(); _settings.Clear(); }
 }

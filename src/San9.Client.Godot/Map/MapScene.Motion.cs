@@ -13,8 +13,9 @@ internal sealed partial class MapScene
     private Dictionary<int, MapUnitMotion> _motions = [];
     private MapAttackMotion[] _attacks = [];
     private Dictionary<int, UnitVisual> _sampledUnits = [];
+    private Dictionary<int, UnitMotionPlayback> _unitPlayback = [];
     private readonly Func<double> _positionTime;
-    private double _sampleTime = -1, _sampleVisualTime = -1, _samplePositionTime = -1;
+    private double _sampleTime = -1, _sampleVisualTime = -1;
 
     private double ElevationAt(double groundX, double groundY) =>
         MapGeometry.SampleElevation(groundX, groundY, Map.Width, Map.Height, Map.Squares);
@@ -39,12 +40,15 @@ internal sealed partial class MapScene
         MapPackage map, TurnDayPresentation? day)
     {
         if (!states.TryGetValue(id, out var state)) return null;
+        state = state with { ReceivesPositionUpdates = day is not null && milliseconds >= 0 &&
+            milliseconds < MapMovementCadence.DayMilliseconds };
         if (motions.TryGetValue(id, out var motion))
         {
-            var p = motion.Sample(milliseconds / TurnDayPresentation.MovementMilliseconds);
+            var p = motion.Sample(milliseconds);
             var position = new WorldPosition((int)Math.Round(p.X), (int)Math.Round(p.Y));
             var runtime = snapshot.World.Units.Single(u => u.Id == id) with { Position = position };
             int formation = snapshot.FormationId(runtime)!.Value;
+            bool moving = motion.HasDisplacement && state.ReceivesPositionUpdates;
             state = state with
             {
                 CellX = (p.X - MapCoordinates.UnitsPerCell / 2) / MapCoordinates.UnitsPerCell,
@@ -53,7 +57,8 @@ internal sealed partial class MapScene
                 Direction = motion.HasDisplacement ? p.Direction : state.Direction, FormationId = formation,
                 VisionAngleDegrees = snapshot.Information.Formations.Single(f => f.Id == formation).Presentation?.VisionAngleDegrees ?? 0,
                 HasCityInfluence = runtime.EffectiveOrderClass == UnitOrderClass.Military && snapshot.HasCityInfluence(runtime.OwnerId, position),
-                Action = motion.HasDisplacement && milliseconds < TurnDayPresentation.MovementMilliseconds ? UnitVisualAction.Moving : UnitVisualAction.Idle
+                IsMoving = moving,
+                Action = moving ? UnitVisualAction.Moving : UnitVisualAction.Idle
             };
         }
         if (day is not null && milliseconds >= TurnDayPresentation.MovementMilliseconds)
@@ -66,15 +71,45 @@ internal sealed partial class MapScene
     }
     public UnitVisual Sample(UnitVisual unit)
     {
+        AdvanceUnitPlayback();
         double time = MotionTime, visualTime = MotionVisualTime;
-        double positionTime = _positionTime();
-        if (_sampleTime != time || _sampleVisualTime != visualTime || _samplePositionTime != positionTime)
-        { _sampleTime = time; _sampleVisualTime = visualTime; _samplePositionTime = positionTime; _sampledUnits.Clear(); }
+        if (_sampleTime != time || _sampleVisualTime != visualTime)
+        { _sampleTime = time; _sampleVisualTime = visualTime; _sampledUnits.Clear(); }
         if (_sampledUnits.TryGetValue(unit.Id, out var cached)) return cached;
         var state = _stateSampler(unit.Id, time - _motionStart)!;
-        UnitVisualState At(double t) => HistoryState(unit.Id, t) ?? state;
-        return _sampledUnits[unit.Id] = UnitVisuals.Resolve(state, Map.Units, Clips, time,
-            At, t => visualTime - EmissionTime(t), ElevationAt, positionTime);
+        return _sampledUnits[unit.Id] = UnitVisuals.Resolve(state, Map.Units, Clips, _unitPlayback[unit.Id], ElevationAt);
+    }
+    private void PrepareUnitPlayback(MapScene? previous)
+    {
+        if (previous is not null)
+        {
+            previous.AdvanceUnitPlayback();
+            _unitPlayback = previous._unitPlayback.Where(p => _unitStates.ContainsKey(p.Key))
+                .ToDictionary(p => p.Key, p => p.Value.Copy());
+        }
+        foreach (int id in _unitStates.Keys)
+        {
+            bool created = !_unitPlayback.TryGetValue(id, out var playback);
+            if (created) _unitPlayback[id] = playback = new();
+            if (created || previous is null || !ReferenceEquals(previous.Day, Day) || !ReferenceEquals(previous.State, State))
+                playback!.Begin(_stateSampler(id, -MapMovementCadence.StepMilliseconds)!, Map.Units,
+                    _motionStart, _visualStart, _motions.TryGetValue(id, out var motion) && motion.HasDisplacement);
+        }
+    }
+    public long UnitAnimationRevision
+    {
+        get { AdvanceUnitPlayback(); return _unitPlayback.Values.Sum(p => p.Revision); }
+    }
+    public double PlaybackMilliseconds => MotionVisualTime;
+    private double _playbackTime = -1, _playbackVisualTime = -1;
+    private void AdvanceUnitPlayback()
+    {
+        double time = MotionTime, visualTime = MotionVisualTime;
+        if (_playbackTime == time && _playbackVisualTime == visualTime) return;
+        foreach (var (id, playback) in _unitPlayback)
+            playback.Advance(time, visualTime, t => HistoryState(id, t) ?? _unitStates[id],
+                Map.Units, Clips, EmissionTime);
+        _playbackTime = time; _playbackVisualTime = visualTime;
     }
     public Rect2 MotionBounds(UnitVisual unit)
     {
@@ -83,8 +118,8 @@ internal sealed partial class MapScene
             foreach (var p in motion.Points) bounds = bounds.Expand(Project(p.X, p.Y));
         foreach (var segment in _history)
             if (segment.Paths.TryGetValue(unit.Id, out var previousPath))
-                foreach (var p in previousPath.Segment(Math.Max(0, MotionTime - HistoryMilliseconds - segment.Start) / TurnDayPresentation.MovementMilliseconds,
-                    (segment.End - segment.Start) / TurnDayPresentation.MovementMilliseconds)) bounds = bounds.Expand(Project(p.X, p.Y));
+                foreach (var p in previousPath.Segment(Math.Max(0, MotionTime - HistoryMilliseconds - segment.Start),
+                    segment.End - segment.Start)) bounds = bounds.Expand(Project(p.X, p.Y));
         return bounds.Grow(256);
     }
     public IEnumerable<string> MotionAssets(IEnumerable<UnitVisual> units, Rect2 bounds)

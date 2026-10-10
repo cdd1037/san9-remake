@@ -150,7 +150,7 @@ public partial class MapWorld : Node2D
             try
             {
                 var loaded = completed.GetAwaiter().GetResult(); _common = loaded.Common;
-                Scene = new(_map!, loaded.Renderer, loaded.Season, View, Textures.MapAssets, () => UnitPositionTime);
+                Scene = new(_map!, loaded.Renderer, loaded.Season, View, Textures.MapAssets, () => UnitPositionTime, Scene, Day);
                 RequestDisplay();
             }
             catch (Exception error) { _error = error.Message; _awaitingSeason = false; GD.PushError(_error); }

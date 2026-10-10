@@ -4,6 +4,17 @@ using San9.Core.Simulation;
 
 namespace San9.Rendering;
 
+/// <summary>Ten display positions, starting with the first displacement at the day's first callback.</summary>
+public static class MapMovementCadence
+{
+    public const int StepMilliseconds = 100;
+    public const int Steps = 10;
+    public const int DayMilliseconds = StepMilliseconds * Steps;
+    public const int ArrivalMilliseconds = StepMilliseconds * (Steps - 1);
+    public static double Progress(double milliseconds) => milliseconds < 0 ? 0 :
+        Math.Min(Steps, Math.Floor(milliseconds / StepMilliseconds) + 1) / Steps;
+}
+
 /// <summary>One day's display displacement, independent of the logical path and movement cost.</summary>
 public sealed class MapUnitMotion
 {
@@ -21,9 +32,9 @@ public sealed class MapUnitMotion
         yield return (first.X, first.Y);
         yield return (last.X, last.Y);
     }
-    public (double X, double Y, int Direction) Sample(double progress)
+    public (double X, double Y, int Direction) Sample(double milliseconds)
     {
-        double t = Math.Clamp(progress, 0, 1);
+        double t = MapMovementCadence.Progress(milliseconds);
         var a = Points[0]; var b = Points[1];
         return (a.X + ((double)b.X - a.X) * t, a.Y + ((double)b.Y - a.Y) * t, UnitVisuals.Direction(a, b));
     }

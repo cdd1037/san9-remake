@@ -21,7 +21,7 @@ internal sealed partial class MapScene
     {
         _stateSampler = StateSampler();
         _idlePositionStart = _positionTime();
-        if (previous is null || !ReferenceEquals(previous.Terrain, Terrain)) return;
+        if (previous is null || !ReferenceEquals(previous.Map, Map)) return;
         if (ReferenceEquals(previous.Day, Day) && ReferenceEquals(previous.State, State))
         {
             _history = previous._history; _motionStart = previous._motionStart;
@@ -39,7 +39,7 @@ internal sealed partial class MapScene
         if (time >= _motionStart) return _stateSampler(id, time - _motionStart);
         foreach (var segment in _history.Reverse())
             if (time >= segment.Start) return segment.Sample(id, Math.Min(time, segment.End) - segment.Start);
-        return _history.Length > 0 ? _history[0].Sample(id, 0) : _stateSampler(id, 0);
+        return _history.Length > 0 ? _history[0].Sample(id, -MapMovementCadence.StepMilliseconds) : _stateSampler(id, time - _motionStart);
     }
     private double EmissionTime(double time)
     {
@@ -69,7 +69,7 @@ internal sealed partial class MapScene
             double a = Math.Max(from, start), b = Math.Min(now, end);
             if (a > b) return;
             if (paths.TryGetValue(unit.Id, out var path))
-                foreach (var p in path.Segment((a - start) / TurnDayPresentation.MovementMilliseconds, (b - start) / TurnDayPresentation.MovementMilliseconds)) Include(p.X, p.Y);
+                foreach (var p in path.Segment(a - start, b - start)) Include(p.X, p.Y);
             else if (sample(unit.Id, 0) is {} state)
                 Include(state.CellX * MapCoordinates.UnitsPerCell + MapCoordinates.UnitsPerCell / 2,
                     state.CellY * MapCoordinates.UnitsPerCell + MapCoordinates.UnitsPerCell / 2);

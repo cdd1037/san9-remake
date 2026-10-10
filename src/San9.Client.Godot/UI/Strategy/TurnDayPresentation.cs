@@ -1,12 +1,13 @@
 using San9.Application.Presentation;
 using San9.Core.Simulation;
+using San9.Rendering;
 
 namespace San9.Client.Godot;
 
 /// <summary>One prepared day, retained until all its map presentation has completed.</summary>
 public sealed class TurnDayPresentation(StrategySnapshot before, StrategySnapshot after, IReadOnlyList<DomainEvent> events, MapDayPlan? plan = null, double? duration = null)
 {
-    public const double MovementDuration = 0.9;
+    public const double MovementDuration = MapMovementCadence.ArrivalMilliseconds / 1000.0;
     public const double MovementMilliseconds = MovementDuration * 1000;
     public StrategySnapshot Before { get; } = before;
     public StrategySnapshot After { get; } = after;

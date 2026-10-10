@@ -20,6 +20,8 @@ public sealed record UnitVisualState(int Id, double CellX, double CellY, int Ele
 {
     public UnitVisualAction Action { get; init; }
     public bool IsEngaged { get; init; }
+    public bool IsMoving { get; init; }
+    public bool ReceivesPositionUpdates { get; init; }
     public int VisionAngleDegrees { get; init; }
     public bool UsesImperialAppearance { get; init; }
     public bool IsRulerCommander { get; init; }
@@ -52,9 +54,8 @@ public static class UnitVisuals
         Math.Clamp((100 - state.Morale) * (member.Group == 0 ? 2 : member.Index == 0 ? 0 : 1), 0, 100) / 100.0;
 
     public static UnitVisual Resolve(UnitVisualState state, MapUnitCatalog catalog,
-        IReadOnlyDictionary<string, MapAnimationClip> clips, double milliseconds = 0,
-        Func<double, UnitVisualState>? history = null, Func<double, double>? visualAge = null,
-        Func<double, double, double>? elevationAt = null, double? positionMilliseconds = null)
+        IReadOnlyDictionary<string, MapAnimationClip> clips, UnitMotionPlayback? playback = null,
+        Func<double, double, double>? elevationAt = null)
     {
         if (state.Soldiers == 0 || state.Direction is < 0 or > 7) throw new ArgumentOutOfRangeException(nameof(state));
         var formation = catalog.Formations.Single(f => f.FormationId == state.FormationId);
@@ -64,53 +65,23 @@ public static class UnitVisuals
         var anchor = Ground(state);
         int x = (int)Math.Round(anchor.X), y = (int)Math.Round(anchor.Y - 10 * ((elevationAt?.Invoke(anchor.X, anchor.Y) ?? state.Elevation) - 1));
         uint MemberSeed(MapUnitMember m, int tick) => Seed(state.Id, m.Index, unchecked((int)Seed(m.Group, 0, tick)));
-        var historySamples = new Dictionary<double, UnitVisualState>();
-        UnitVisualState At(double time)
+        // Resource planning also needs an unanimated snapshot, independent of any retained motion layout.
+        if (playback is null)
         {
-            time = Math.Max(0, time);
-            if (!historySamples.TryGetValue(time, out var value))
-                historySamples[time] = value = history?.Invoke(time) ?? state;
-            return value;
+            playback = new();
+            playback.Begin(state, catalog, 0, 0, false);
         }
-        (double Delay, double Scale) Parameters(MapUnitMember m, double time)
+        (double X, double Y, double GroundY, int Direction) Pose(MapUnitMember m)
         {
-            var sampled = At(time);
-            double disorder = Disorder(sampled, m);
-            int steps = m.Group == 0 && m.Index == 0 ? 0 : Math.Min(8, (int)(disorder * (MemberSeed(m, 0) % 800) / 100));
-            double spread = sampled.Condition switch { UnitCondition.Disguised => .4, UnitCondition.NoFormation => .5,
-                UnitCondition.Confused => .6, UnitCondition.Routed => 1, UnitCondition.HighSpirits => .25, _ => .35 };
-            double interval = 100 + disorder * (MemberSeed(m, 1) % 101);
-            double phaseTime = (positionMilliseconds ?? milliseconds) - (milliseconds - time);
-            double wave = (1 + Math.Sin(phaseTime / interval * (m.Group / 2 + 6) * Math.Tau / 256)) / 2;
-            return (steps * 90, 1 + spread * disorder * wave);
-        }
-        (double X, double Y, double GroundY, int Direction) Pose(MapUnitMember m, double time)
-        {
-            // Integrate fixed historical samples over the maximum waiting window. Changing
-            // morale cannot replace the queue cursor instantly or send it backwards.
-            const double window = 720, step = 90;
-            double delay = 0, scale = 0;
-            double clockOffset = (positionMilliseconds ?? milliseconds) - milliseconds;
-            double latestTick = Math.Floor((time + clockOffset) / step) * step - clockOffset;
-            for (int i = 0; i <= 8; i++)
-            {
-                double tick = latestTick - i * step;
-                double weight = Math.Max(0, Math.Min(time, tick + step) - Math.Max(time - window, tick)) / window;
-                if (weight == 0) continue;
-                var parameters = Parameters(m, tick);
-                delay += parameters.Delay * weight;
-                scale += parameters.Scale * weight;
-            }
-            var sampled = At(time - delay);
-            var ground = Ground(sampled);
-            double gx = ground.X + m.X * scale, gy = ground.Y + m.Y * scale;
-            return (gx, gy - 10 * ((elevationAt?.Invoke(gx, gy) ?? sampled.Elevation) - 1), gy, sampled.Direction);
+            var point = playback.Position(m);
+            return (point.X, point.Y - 10 * ((elevationAt?.Invoke(point.X, point.Y) ?? state.Elevation) - 1), point.Y,
+                playback.Direction(m, state));
         }
         List<MapAnimatedSprite> animations = [];
         void Add(string clip, double px, double py, double depth, int phase = 0, int? frame = null) =>
             animations.Add(new(clip, (int)Math.Round(px), (int)Math.Round(py), phase % clips[clip].Frames.Length, -1)
                 { Depth = depth, Frame = frame });
-        var members = layout.Members.Select(m => (Member: m, Pose: Pose(m, milliseconds)))
+        var members = layout.Members.Select(m => (Member: m, Pose: Pose(m)))
             .OrderBy(m => m.Pose.GroundY).ThenBy(m => m.Pose.X).ToArray();
         foreach (var m in members)
             if (bodies[m.Member.BodyId].Wake is {} wake) Add(wake.ClipId, m.Pose.X + wake.X, m.Pose.Y + wake.Y, m.Pose.GroundY + 20000);
@@ -135,7 +106,7 @@ public static class UnitVisuals
             Add(clip, m.Pose.X - body.AnchorX, m.Pose.Y - body.AnchorY, m.Pose.GroundY + 30000,
                 attacking ? 0 : (int)(MemberSeed(m.Member, 5) % (uint)clips[clip].Frames.Length));
             animations[^1] = animations[^1] with { IsBody = true, GroundX = m.Pose.X, GroundY = m.Pose.GroundY,
-                TimeScale = attacking ? 1 : 100 / (100 + Disorder(state, m.Member) * (MemberSeed(m.Member, 1) % 101)) };
+                Frame = attacking ? null : playback.Frame(m.Member, clips[clip].Frames.Length) };
         }
         foreach (var m in members)
         {
@@ -151,26 +122,13 @@ public static class UnitVisuals
         if (state.HasCityInfluence) Add(layout.Influence.ClipId, x + layout.Influence.X, y + layout.Influence.Y, anchor.Y + 30032);
         if (catalog.Conditions.TryGetValue(state.Condition, out var status))
             Add(status.ClipId, x + status.X, y + formation.StatusY + status.Y, anchor.Y + 40000);
-        if (history is not null)
+        foreach (var trail in playback.Trails)
         {
-            // Bounded deterministic emission history makes seeking, pause and multiple cameras identical.
-            for (int tick = Math.Max(0, (int)((milliseconds - 1000) / 90)); tick * 90 <= milliseconds; tick++)
-            {
-                double emitted = tick * 90, age = visualAge?.Invoke(emitted) ?? milliseconds - emitted;
-                var then = history(emitted);
-                if (then.Action != UnitVisualAction.Moving) continue;
-                var oldLayout = catalog.Formations.Single(f => f.FormationId == then.FormationId).Layouts
-                    .Where(l => l.MinimumSoldiers <= then.Soldiers).MaxBy(l => l.MinimumSoldiers)!;
-                for (int i = 0; i < oldLayout.Members.Length; i++)
-                {
-                    var m = oldLayout.Members[i]; var body = bodies[m.BodyId];
-                    if (body.Trail is not {} trail || MemberSeed(m, tick + 100) % 1600 >= body.TrailChance * 16) continue;
-                    var clip = clips[trail.ClipId]; int frame = (int)(age / clip.FrameMilliseconds);
-                    if (frame >= clip.Frames.Length) continue;
-                    var pose = Pose(m, emitted);
-                    Add(trail.ClipId, pose.X + trail.X, pose.Y + trail.Y, pose.GroundY + 30000 - (body.Wake is null ? 0 : 1), frame: frame);
-                }
-            }
+            var clip = clips[trail.ClipId];
+            int frame = (int)((playback.VisualTime - trail.Emitted) / clip.FrameMilliseconds);
+            if (frame >= clip.Frames.Length) continue;
+            double height = elevationAt?.Invoke(trail.X, trail.Y) ?? trail.Elevation;
+            Add(trail.ClipId, trail.X, trail.Y - 10 * (height - 1), trail.Depth, frame: frame);
         }
         return new(state.Id, state.CellX, state.CellX + state.CellY, animations.ToArray())
         { Action = state.Action, Direction = state.Direction, Soldiers = state.Soldiers, Morale = state.Morale, CommanderNameKey = state.CommanderNameKey, LabelX = x, LabelY = y - 96,

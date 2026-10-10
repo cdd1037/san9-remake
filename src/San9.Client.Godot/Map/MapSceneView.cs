@@ -243,6 +243,7 @@ public partial class MapSceneView : Node2D
         QueueRedraw(); _water.QueueRedraw(); _annotations.QueueRedraw(); Committed?.Invoke();
     }
     internal void RetryFailedRequest() { if (Error is not null) _lastRequest = null; }
+    private long _drawnUnitRevision = -1;
     public override void _Process(double delta)
     {
         TryCommit();
@@ -261,7 +262,10 @@ public partial class MapSceneView : Node2D
         markerChanged |= Targets is not null && _routeFrame != (int)(AnimationTime() / 200) % 8;
         markerChanged |= Targets?.Waypoint is not null && _waypointFrame != (int)(AnimationTime() / 142) % 4;
         bool motion = frame.Region.Scene.Day is {} day && _drawnDayTime != day.VisualElapsed;
-        bool water = resourcesChanged, objects = motion || hoverChanged || resourcesChanged || targetsChanged || markerChanged || _drawnUiRevision != _ui.Revision;
+        long unitRevision = frame.Region.Scene.UnitAnimationRevision;
+        bool membersChanged = _drawnUnitRevision != unitRevision;
+        _drawnUnitRevision = unitRevision;
+        bool water = resourcesChanged, objects = membersChanged || motion || hoverChanged || resourcesChanged || targetsChanged || markerChanged || _drawnUiRevision != _ui.Revision;
         foreach (string id in frame.WaterClips.Concat(frame.ObjectClips).Distinct())
         {
             int current = MapAnimationClock.Frame(frame.Region.Scene.Clips[id], AnimationTime());

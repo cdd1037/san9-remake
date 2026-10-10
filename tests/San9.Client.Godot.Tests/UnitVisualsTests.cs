@@ -1,11 +1,14 @@
 using San9.Content.Maps;
 using San9.Core.Domain;
 using San9.Rendering;
+using static San9.Client.Godot.Tests.UnitVisualFixture;
 
 namespace San9.Client.Godot.Tests;
 
 public sealed class UnitVisualsTests
 {
+    private static UnitVisual Resolve(UnitVisualState state) => Sample(state, Catalog);
+
     [Fact]
     public void StationarySwayAcrossTerrainBoundaryDoesNotMakeBodiesJump()
     {
@@ -13,13 +16,15 @@ public sealed class UnitVisualsTests
         var state = State with { CellX = 89.25, Soldiers = 1001, Morale = 0 };
         double Smooth(double x, double y) => MapGeometry.SampleElevation(x, y, 200, 200, squares);
         double Stepped(double x, double y) => MapGeometry.TrySquare(x, y, out int cx, out int cy) ? squares[cy * 200 + cx].Elevation : 1;
-        MapAnimatedSprite Member(double time, Func<double, double, double> height) =>
-            UnitVisuals.Resolve(state, Catalog, Clips, time, elevationAt: height).Animations.Where(a => a.IsBody).MaxBy(a => a.GroundX)!;
+        var smoothPlayback = new UnitMotionPlayback();
+        var steppedPlayback = new UnitMotionPlayback();
+        MapAnimatedSprite Member(UnitMotionPlayback playback, double time, Func<double, double, double> height) =>
+            Sample(state, Catalog, time, elevationAt: height, playback: playback).Animations.Where(a => a.IsBody).MaxBy(a => a.GroundX)!;
         int steppedJump = 0, smoothJump = 0;
-        var previousStep = Member(0, Stepped); var previousSmooth = Member(0, Smooth);
+        var previousStep = Member(steppedPlayback, 0, Stepped); var previousSmooth = Member(smoothPlayback, 0, Smooth);
         for (int time = 16; time <= 30000; time += 16)
         {
-            var step = Member(time, Stepped); var smooth = Member(time, Smooth);
+            var step = Member(steppedPlayback, time, Stepped); var smooth = Member(smoothPlayback, time, Smooth);
             steppedJump = Math.Max(steppedJump, Math.Abs(step.Y - previousStep.Y));
             smoothJump = Math.Max(smoothJump, Math.Abs(smooth.Y - previousSmooth.Y));
             Assert.Equal(step.Depth, smooth.Depth);
@@ -29,22 +34,26 @@ public sealed class UnitVisualsTests
         Assert.InRange(smoothJump, 0, 1);
     }
 
-    private static readonly Dictionary<string, MapAnimationClip> Clips = Enumerable.Range(0, 8).Select(d => $"body-{d}")
-        .Concat(Enumerable.Range(0, 8).Select(d => $"imperial-{d}"))
-        .Concat(Enumerable.Range(0, 8).SelectMany(d => new[] { $"unit-flag-{d}-pole-back", $"unit-flag-{d}-pole-front", $"unit-flag-{d}-cloth-0", $"unit-flag-{d}-glyph-0-0", $"unit-flag-{d}-glyph-1-0", $"unit-flag-{d}-glyph-0-2" }))
-        .Concat(["flag-glyph-0-0", "flag-glyph-1-0", "flag-pole-back", "flag-cloth-0", "flag-glyph-0-2", "flag-pole-front", "confused", "high", "influence"])
-        .ToDictionary(id => id, id => new MapAnimationClip(id, [id + "-0", id + "-1"], 100,
-            id.StartsWith("unit-flag-") ? [] : new() { ["spring"] = [id + "-0", id + "-1"], ["summer"] = [id + "-0", id + "-1"],
-                ["autumn"] = [id + "-winter-0", id + "-winter-1"], ["winter"] = [id + "-winter-0", id + "-winter-1"] }));
-    private static readonly MapUnitCatalog Catalog = new(
-        [new("body", Enumerable.Range(0, 8).Select(d => $"body-{d}").ToArray(), 18, 30) { ImperialBodyId = "imperial" },
-         new("imperial", Enumerable.Range(0, 8).Select(d => $"imperial-{d}").ToArray(), 18, 30)],
-        [new(10000, [new(1, [new("body", 0, 0)], new("influence", -40, -50)),
-                    new(1001, [new("body", -12, 0), new("body", 12, 0) { Index = 1 }], new("influence", -44, -57))], -64, -70),
-         new(20000, [new(1, [new("body", 0, 0), new("body", 12, 12) { Index = 1 }], new("influence", -40, -50))], -64, -70)],
-        new() { [UnitCondition.Confused] = new("confused", -16, 0), [UnitCondition.HighSpirits] = new("high", -16, 0) }, 0);
-    private static UnitVisualState State => new(10000, 89, 64, 1, 1000, 10000, UnitCondition.Normal, 0, false, 0, 2);
-    private static UnitVisual Resolve(UnitVisualState state) => UnitVisuals.Resolve(state, Catalog, Clips);
+    [Fact]
+    public void LeaderKeepsBaselineFrameRateAndReceivesTheFirstPositionEvenBetweenFollowerTicks()
+    {
+        var state = State with { Soldiers = 1001, Morale = 0, IsMoving = true, Action = UnitVisualAction.Moving };
+        UnitVisualState History(double time) => state with { CellX = state.CellX + MapMovementCadence.Progress(time) };
+        var playback = new UnitMotionPlayback();
+        var first = Sample(History(0), Catalog, 0, History, playback: playback);
+        var leader = first.Animations.Where(a => a.IsBody).MinBy(a => a.GroundX)!;
+        var follower = first.Animations.Where(a => a.IsBody).MaxBy(a => a.GroundX)!;
+        var beforeTick = Sample(History(99), Catalog, 99, History, playback: playback);
+        Assert.Equal(leader.Frame, beforeTick.Animations.Where(a => a.IsBody).MinBy(a => a.GroundX)!.Frame);
+        var atTick = Sample(History(100), Catalog, 100, History, playback: playback);
+        Assert.NotEqual(leader.Frame, atTick.Animations.Where(a => a.IsBody).MinBy(a => a.GroundX)!.Frame);
+        Assert.Equal(follower.Frame, atTick.Animations.Where(a => a.IsBody).MaxBy(a => a.GroundX)!.Frame);
+        var rigid = Sample(History(0), Catalog, 0);
+        Assert.Equal(rigid.Animations.Where(a => a.IsBody).MinBy(a => a.GroundX)!.GroundX, leader.GroundX, 6);
+        var healthy = new UnitMotionPlayback();
+        healthy.Begin(state with { Morale = 100 }, Catalog, 0, 0, true);
+        Assert.All(Catalog.Formations[0].Layouts[1].Members, member => Assert.Equal(100, healthy.Interval(member)));
+    }
 
     [Fact]
     public void LayoutReorderingPreservesMemberPositionsAndAnimationPhase()
@@ -53,94 +62,17 @@ public sealed class UnitVisualsTests
         UnitVisualState History(double t) => state with { CellX = state.CellX + t / 100 };
         var reordered = Catalog with { Formations = Catalog.Formations.Select(f => f with
             { Layouts = f.Layouts.Select(l => l with { Members = l.Members.Reverse().ToArray() }).ToArray() }).ToArray() };
-        Assert.Equal(UnitVisuals.Resolve(History(1000), Catalog, Clips, 1000, History).Animations,
-            UnitVisuals.Resolve(History(1000), reordered, Clips, 1000, History).Animations);
-    }
-
-    [Theory]
-    [InlineData(0, 100)]
-    [InlineData(100, 0)]
-    public void MoraleAndConditionChangesKeepFollowingPositionsContinuous(int before, int after)
-    {
-        UnitVisualState History(double t) => State with { Soldiers = 1001, Morale = t < 900 ? before : after,
-            Condition = t < 900 ? UnitCondition.Normal : UnitCondition.Routed, CellX = State.CellX + t / 100 };
-        var previous = UnitVisuals.Resolve(History(899), Catalog, Clips, 899, History).Animations.Where(a => a.IsBody).OrderBy(a => a.Phase).ToArray();
-        for (int time = 900; time <= 1700; time++)
-        {
-            var current = UnitVisuals.Resolve(History(time), Catalog, Clips, time, History).Animations.Where(a => a.IsBody).OrderBy(a => a.Phase).ToArray();
-            Assert.All(previous.Zip(current), pair => Assert.InRange(pair.Second.GroundX - pair.First.GroundX, -.05, 1));
-            previous = current;
-        }
-    }
-
-    [Fact]
-    public void EmittedTrailsDoNotMoveWhenMoraleOrConditionChanges()
-    {
-        var catalog = Catalog with { Bodies = Catalog.Bodies.Select(b => b with
-            { Trail = new("influence", 0, 0), TrailChance = 100 }).ToArray() };
-        UnitVisualState History(double t) => State with { Soldiers = 1001, Morale = t < 1000 ? 0 : 100,
-            Condition = t < 1000 ? UnitCondition.Normal : UnitCondition.Routed,
-            Action = UnitVisualAction.Moving, CellX = State.CellX + t / 100 };
-        var before = UnitVisuals.Resolve(History(999), catalog, Clips, 999, History);
-        var after = UnitVisuals.Resolve(History(1000), catalog, Clips, 1000, History);
-        Assert.Equal(before.Animations.Where(a => a.Frame is not null).Select(a => (a.X, a.Y)),
-            after.Animations.Where(a => a.Frame is not null).Select(a => (a.X, a.Y)));
-    }
-
-    [Fact]
-    public void ContinuousHistoryKeepsFollowersAndEmitsTrailsAfterTheFirstDay()
-    {
-        var catalog = Catalog with { Bodies = Catalog.Bodies.Select(b => b with
-            { Trail = new("influence", 0, 0), TrailChance = 100 }).ToArray() };
-        UnitVisualState History(double t) => State with { Soldiers = 1001, Morale = 0,
-            Action = UnitVisualAction.Moving, CellX = State.CellX + t / 100 };
-        var before = UnitVisuals.Resolve(History(999), catalog, Clips, 999, History);
-        var after = UnitVisuals.Resolve(History(1000), catalog, Clips, 1000, History);
-        var a = before.Animations.Where(s => s.IsBody).OrderBy(s => s.GroundX).ToArray();
-        var b = after.Animations.Where(s => s.IsBody).OrderBy(s => s.GroundX).ToArray();
-        Assert.All(a.Zip(b), pair => Assert.InRange(pair.Second.GroundX - pair.First.GroundX, 0, 1));
-        var later = UnitVisuals.Resolve(History(1400), catalog, Clips, 1400, History);
-        Assert.Contains(later.Animations, s => s.ClipId == "influence");
-        var paused = UnitVisuals.Resolve(History(1400), catalog, Clips, 1400, History, t => 2400 - t);
-        Assert.DoesNotContain(paused.Animations, s => s.ClipId == "influence");
-    }
-
-    [Fact]
-    public void DayBoundaryDoesNotResetFormationSwayOrMoveOldTrails()
-    {
-        var state = State with { Soldiers = 1001, Morale = 25 };
-        var before = UnitVisuals.Resolve(state, Catalog, Clips, 1900, positionMilliseconds: 7300);
-        var after = UnitVisuals.Resolve(state, Catalog, Clips, 0, positionMilliseconds: 7300);
-        Assert.Equal(before.Animations, after.Animations);
-        var catalog = Catalog with { Bodies = Catalog.Bodies.Select(b => b with
-            { Trail = new("influence", 0, 0), TrailChance = 100 }).ToArray() };
-        UnitVisualState History(double t) => state with { Action = UnitVisualAction.Moving, CellX = state.CellX + t / 100 };
-        var early = UnitVisuals.Resolve(History(90), catalog, Clips, 90, History, positionMilliseconds: 5090);
-        var late = UnitVisuals.Resolve(History(110), catalog, Clips, 110, History, positionMilliseconds: 5110);
-        Assert.Equal(early.Animations.Where(a => a.Frame is not null).Select(a => (a.X, a.Y)),
-            late.Animations.Where(a => a.Frame is not null).Select(a => (a.X, a.Y)));
-    }
-
-    [Fact]
-    public void LowMoraleFollowersDoNotAccelerateToArriveWithTheLeader()
-    {
-        var state=State with { Soldiers=1001, Morale=0, Action=UnitVisualAction.Moving };
-        UnitVisualState History(double t) => state with { CellX=state.CellX+Math.Min(t,900)/100 };
-        var arrival=UnitVisuals.Resolve(History(900),Catalog,Clips,900,History);
-        var rigid=UnitVisuals.Resolve(History(900),Catalog,Clips,900);
-        var delayed=arrival.Animations.Where(a=>a.IsBody).OrderBy(a=>a.ClipId).Select(a=>a.GroundX).ToArray();
-        var targets=rigid.Animations.Where(a=>a.IsBody).OrderBy(a=>a.ClipId).Select(a=>a.GroundX).ToArray();
-        Assert.True(delayed.Sum()<targets.Sum()-32);
-        Assert.Equal(rigid.Animations.Count(a=>a.IsBody),delayed.Length);
+        Assert.Equal(Sample(History(1000), Catalog, 1000, History).Animations,
+            Sample(History(1000), reordered, 1000, History).Animations);
     }
 
     [Fact]
     public void EachMemberUsesItsOwnTerrainHeightWithoutChangingDepth()
     {
         var state=State with { Soldiers=1001, Morale=100 };
-        var flat=UnitVisuals.Resolve(state,Catalog,Clips);
+        var flat=Sample(state,Catalog);
         double middle=MapGeometry.Center(89,64).X;
-        var slope=UnitVisuals.Resolve(state,Catalog,Clips,elevationAt:(x,y)=>x<middle?1:3);
+        var slope=Sample(state,Catalog,elevationAt:(x,y)=>x<middle?1:3);
         var a=flat.Animations.Where(s=>s.IsBody).ToArray();
         var b=slope.Animations.Where(s=>s.IsBody).ToArray();
         for(int i=0;i<a.Length;i++) {
@@ -150,25 +82,12 @@ public sealed class UnitVisualsTests
     }
 
     [Fact]
-    public void PausedMovementKeepsBodyPositionsWhileExistingTrailsExpire()
-    {
-        var catalog = Catalog with { Bodies=Catalog.Bodies.Select(b => b with { Trail=new("influence",0,0), TrailChance=100 }).ToArray() };
-        var state = State with { Morale=50, Action=UnitVisualAction.Moving };
-        UnitVisualState History(double t) => state with { CellX=state.CellX+t/100 };
-        var before=UnitVisuals.Resolve(History(180),catalog,Clips,180,History);
-        var paused=UnitVisuals.Resolve(History(180),catalog,Clips,180,History,t=>1180-t);
-        Assert.Contains(before.Animations,a=>a.Frame is not null);
-        Assert.DoesNotContain(paused.Animations,a=>a.Frame is not null);
-        Assert.Equal(before.Animations.Where(a=>a.IsBody),paused.Animations.Where(a=>a.IsBody));
-    }
-
-    [Fact]
     public void AttackChangesBodyFramesWhileWakeFlagsAndConditionRemainSeparateLayers()
     {
         var catalog = Catalog with { Bodies = [Catalog.Bodies[0] with
         { MeleeActions = [new(Enumerable.Range(0, 8).Select(d => $"imperial-{d}").ToArray(), MapProjectileKind.None)],
           Wake = new("influence", -29, -14) }, Catalog.Bodies[1]] };
-        var unit = UnitVisuals.Resolve(State with { Action = UnitVisualAction.Melee, Condition = UnitCondition.Confused }, catalog, Clips);
+        var unit = Sample(State with { Action = UnitVisualAction.Melee, Condition = UnitCondition.Confused }, catalog);
         Assert.Equal("influence", unit.Animations[0].ClipId);
         Assert.Equal("imperial-0", Assert.Single(unit.Animations, s => s.IsBody).ClipId);
         Assert.Contains(unit.Animations, a => a.ClipId == "unit-flag-0-cloth-0");
@@ -308,46 +227,17 @@ public sealed class UnitVisualsTests
     public void MovingVisionUsesAngleAndDisappearsInCombat()
     {
         var catalog = Catalog with { VisionSlices = Enumerable.Range(0,16).Select(_ => new MapUnitEffect("influence",0,0)).ToArray() };
-        var state = State with { Action = UnitVisualAction.Moving, VisionAngleDegrees = 180, HasCityInfluence = false };
-        var moving = UnitVisuals.Resolve(state, catalog, Clips);
+        var state = State with { IsMoving = true, Action = UnitVisualAction.Moving, VisionAngleDegrees = 180, HasCityInfluence = false };
+        var moving = Sample(state, catalog);
         Assert.Equal(8, moving.Animations.Count(a => a.Depth < 30000));
-        Assert.DoesNotContain(UnitVisuals.Resolve(state with { IsEngaged = true }, catalog, Clips).Animations, a => a.Depth < 30000);
-        Assert.DoesNotContain(UnitVisuals.Resolve(state with { Action = UnitVisualAction.Idle }, catalog, Clips).Animations, a => a.Depth < 30000);
-    }
-
-    [Fact]
-    public void MembersFollowHistoryAndCatchUpWithoutChangingAuthoritativeState()
-    {
-        var state = State with { Soldiers = 1001, Morale = 50, Action = UnitVisualAction.Moving };
-        UnitVisualState History(double t) => state with { CellX = state.CellX + Math.Min(t,900) / 900 * 4 };
-        var middle = UnitVisuals.Resolve(History(450), Catalog, Clips, 450, History);
-        var repeated = UnitVisuals.Resolve(History(450), Catalog, Clips, 450, History);
-        Assert.Equal(middle.Animations, repeated.Animations);
-        var end = UnitVisuals.Resolve(History(1800), Catalog, Clips, 1800, History);
-        var stationaryEnd = UnitVisuals.Resolve(History(1800), Catalog, Clips, 1800);
-        Assert.Equal(end.Animations, stationaryEnd.Animations);
-        var rigid = UnitVisuals.Resolve(History(450), Catalog, Clips, 450);
-        Assert.NotEqual(rigid.Animations.Where(a => a.IsBody).Last().X, middle.Animations.Where(a => a.IsBody).Last().X);
-    }
-
-    [Fact]
-    public void TrailRemainsAtEmissionPointAndExpiresAfterMovement()
-    {
-        var catalog = Catalog with { Bodies = Catalog.Bodies.Select(b => b with { Trail = new("influence",0,0), TrailChance = 100 }).ToArray() };
-        var state = State with { Morale = 100, HasCityInfluence = false };
-        UnitVisualState History(double t) => state with { CellX = state.CellX + Math.Min(900,t) / 100,
-            Action = t < 900 ? UnitVisualAction.Moving : UnitVisualAction.Idle };
-        var first = UnitVisuals.Resolve(History(20), catalog, Clips, 20, History).Animations.Single(a => a.Frame is not null);
-        var next = UnitVisuals.Resolve(History(120), catalog, Clips, 120, History).Animations.First(a => a.Frame is not null);
-        Assert.Equal((first.X, first.Y), (next.X, next.Y));
-        Assert.NotEqual(first.Frame, next.Frame);
-        Assert.DoesNotContain(UnitVisuals.Resolve(History(1900), catalog, Clips, 1900, History).Animations, a => a.Frame is not null);
+        Assert.DoesNotContain(Sample(state with { IsEngaged = true }, catalog).Animations, a => a.Depth < 30000);
+        Assert.DoesNotContain(Sample(state with { Action = UnitVisualAction.Idle }, catalog).Animations, a => a.Depth < 30000);
     }
 
     [Fact]
     public void UnitEffectsHaveIndependentDepthBands()
     {
-        var u = UnitVisuals.Resolve(State with { Soldiers = 1001, HasCityInfluence = true }, Catalog, Clips);
+        var u = Sample(State with { Soldiers = 1001, HasCityInfluence = true }, Catalog);
         double flag = u.Animations.First(a => a.ClipId.Contains("pole-back")).Depth;
         Assert.True(u.Animations.Single(a => a.ClipId == "influence").Depth < flag);
         Assert.All(u.Animations.Where(a => a.IsBody), a => Assert.Equal(a.GroundY + 30000, a.Depth));

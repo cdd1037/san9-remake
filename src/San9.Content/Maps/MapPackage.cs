@@ -49,7 +49,6 @@ public sealed record MapAnimatedSprite(string ClipId, int X, int Y, int Phase, i
     public bool BehindBuilding { get; init; }
     [JsonIgnore] public double Depth { get; init; }
     [JsonIgnore] public int? Frame { get; init; }
-    [JsonIgnore] public double TimeScale { get; init; } = 1;
     [JsonIgnore] public bool IsBody { get; init; }
     [JsonIgnore] public double GroundX { get; init; }
     [JsonIgnore] public double GroundY { get; init; }

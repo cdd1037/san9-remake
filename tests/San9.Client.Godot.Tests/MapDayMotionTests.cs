@@ -8,16 +8,19 @@ namespace San9.Client.Godot.Tests;
 public sealed class MapDayMotionTests
 {
     [Fact]
-    public void MovementInterpolatesDailyEndpointsAndKeepsOneFacing()
+    public void EachDisplayPositionIsHeldUntilTheNextCallbackAndTheTenthArrivesAt900Milliseconds()
     {
-        var motion = new MapUnitMotion([new(new(190, 1, 1), 42, new(0, 0), new(10, 10), 20, NavigationStatus.Arrived)
-        { Steps = [new(0, 0), new(10, 0), new(10, 10)] }]);
+        var motion = new MapUnitMotion([new(new(190, 1, 1), 42, new(0, 0), new(100, -100), 20, NavigationStatus.Arrived)
+            { Steps = [new(100, 0), new(100, -100)] }]);
         Assert.Equal((0d, 0d), (motion.Sample(-1).X, motion.Sample(-1).Y));
-        Assert.Equal((5d, 5d), (motion.Sample(.5).X, motion.Sample(.5).Y));
-        Assert.Equal((7.5d, 7.5d), (motion.Sample(.75).X, motion.Sample(.75).Y));
-        Assert.Equal((10d, 10d), (motion.Sample(2).X, motion.Sample(2).Y));
-        Assert.Equal(motion.Sample(.25).Direction, motion.Sample(.75).Direction);
-        Assert.Equal(UnitVisuals.Direction(new(0, 0), new(10, 10)), motion.Sample(.5).Direction);
+        for (int step = 0; step < 10; step++)
+        {
+            var start = motion.Sample(step * 100);
+            Assert.Equal(((step + 1) * 10d, -(step + 1) * 10d), (start.X, start.Y));
+            Assert.Equal(start, motion.Sample(step * 100 + 99.999));
+            Assert.Equal(UnitVisuals.Direction(new(0, 0), new(100, -100)), start.Direction);
+        }
+        Assert.Equal(motion.Sample(900), motion.Sample(1000));
     }
 
     [Fact]
@@ -25,9 +28,9 @@ public sealed class MapDayMotionTests
     {
         var motion = new MapUnitMotion([new(new(190, 1, 1), 42, new(0, 0), new(10, 10), 20, NavigationStatus.Arrived)
         { Steps = [new(10, 0)] }]);
-        Assert.Equal(new[] { (2.5d, 2.5d), (7.5d, 7.5d) }, motion.Segment(.25, .75));
-        Assert.Equal(new[] { (10d, 10d), (10d, 10d) }, motion.Segment(1, 2));
-        Assert.Equal(new[] { (0d, 0d), (2.5d, 2.5d) }, motion.Segment(-1, .25));
+        Assert.Equal(new[] { (3d, 3d), (8d, 8d) }, motion.Segment(250, 750));
+        Assert.Equal(new[] { (10d, 10d), (10d, 10d) }, motion.Segment(1000, 2000));
+        Assert.Equal(new[] { (0d, 0d), (3d, 3d) }, motion.Segment(-1, 250));
     }
 
     [Fact]
@@ -36,10 +39,10 @@ public sealed class MapDayMotionTests
         UnitMovedEvent first = new(new(190, 1, 1), 42, new(0, 0), new(10, 0), 10, NavigationStatus.Arrived);
         UnitMovedEvent second = new(new(190, 1, 1), 42, new(10, 0), new(10, 10), 10, NavigationStatus.Arrived);
         var motion = new MapUnitMotion([first, second]);
-        Assert.Equal((5d, 5d), (motion.Sample(.5).X, motion.Sample(.5).Y));
+        Assert.Equal((5d, 5d), (motion.Sample(400).X, motion.Sample(400).Y));
         var stationary = new MapUnitMotion([first, second with { To = first.From }]);
         Assert.False(stationary.HasDisplacement);
-        Assert.Equal((0d, 0d), (stationary.Sample(.5).X, stationary.Sample(.5).Y));
+        Assert.Equal((0d, 0d), (stationary.Sample(400).X, stationary.Sample(400).Y));
     }
 
     [Fact]

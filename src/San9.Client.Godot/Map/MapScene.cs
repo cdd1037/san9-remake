@@ -57,7 +57,6 @@ internal sealed partial class MapScene
                 .Animations.GroupBy(s => s.BuildingId).ToDictionary(g => g.Key, g => g.ToArray());
         }
         _unitStates = projection.Units;
-        Units = _unitStates.Values.Select(s => UnitVisuals.Resolve(s, map.Units, Clips, elevationAt: ElevationAt)).ToArray();
         Buildings = projection.Buildings;
         Occluders = Buildings.Select(b => (Building: b, Area: state.SettlementGeographicArea(b.Id)))
             .Where(p => p.Area is not null).Select(p => UnitOccluder.FromGeographicArea(p.Area!.Value,
@@ -70,6 +69,8 @@ internal sealed partial class MapScene
         _motions = day?.Plan?.Motions ?? new();
         _attacks = day?.Plan?.Attacks ?? [];
         PrepareHistory(previous);
+        PrepareUnitPlayback(previous is not null && ReferenceEquals(previous.Map, Map) ? previous : null);
+        Units = _unitStates.Values.Select(s => UnitVisuals.Resolve(s, map.Units, Clips, elevationAt: ElevationAt)).ToArray();
     }
     public Rect2 Bounds(MapSprite sprite)
     {
@@ -150,8 +151,8 @@ internal sealed record MapSceneRegion(MapScene Scene, Rect2 Bounds, MapBuilding[
         void Animated(MapAnimatedSprite sprite, MapObjectTarget? target, double clock, bool highlight)
         {
             var clip = Scene.Clips[sprite.ClipId];
-            string asset = sprite.Frame is int frame ? clip.Frames[frame] :
-                MapAnimationClock.Asset(clip, Scene.Season, clock * sprite.TimeScale, sprite.Phase);
+            string asset = sprite.Frame is int frame ? clip.SeasonFrames.GetValueOrDefault(Scene.Season, clip.Frames)[frame] :
+                MapAnimationClock.Asset(clip, Scene.Season, clock, sprite.Phase);
             var position = new Vector2(sprite.X, sprite.Y);
             draws.Add((sprite.Depth, () => emit(asset, position, target, clip.BlendMode, highlight)));
             if (sprite.IsBody && UnitOcclusion.IsOccluded(sprite.GroundX, sprite.GroundY, Scene.Occluders)) outlines.Add((asset, position));

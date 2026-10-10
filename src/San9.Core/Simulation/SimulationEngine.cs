@@ -630,11 +630,11 @@ public sealed partial class SimulationEngine
                     if (dissolveRejection != CommandRejection.None) return Reject(dissolveRejection);
                     break;
                 case CreateCorpsCommand create:
-                    var createRejection = CorpsGovernance.Create(mutation, create, _rules.Personnel, _rules.Governance, events);
+                    var createRejection = CorpsGovernance.Create(mutation, create, _rules.Personnel, _rules.Governance, _rules.Military, events);
                     if (createRejection != CommandRejection.None) return Reject(createRejection);
                     break;
                 case ChangeCorpsCommand change:
-                    var changeRejection = CorpsGovernance.Change(mutation, change, _rules.Personnel, _rules.Governance, events);
+                    var changeRejection = CorpsGovernance.Change(mutation, change, _rules.Personnel, _rules.Governance, _rules.Military, events);
                     if (changeRejection != CommandRejection.None) return Reject(changeRejection);
                     break;
                 case AppointAdviserCommand appoint:

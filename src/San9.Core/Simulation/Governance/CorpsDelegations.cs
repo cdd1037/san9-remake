@@ -10,12 +10,14 @@ public sealed record CorpsDelegationChangedEvent(GameClock Clock, int ForceId, i
 internal static class CorpsDelegations
 {
     internal static bool Valid(WorldMutation world, CorpsState corps, MilitaryRulebook? military) =>
-        corps.IsRoot ? corps.Delegation is GeneralDelegation : corps.Delegation switch
+        corps.IsRoot ? corps.Delegation is GeneralDelegation : Valid(world, corps.OwnerId, corps.Delegation, military);
+
+    internal static bool Valid(IWorldQuery world, int owner, CorpsDelegation delegation, MilitaryRulebook? military) => delegation switch
         {
             GeneralDelegation or DomesticDelegation => true,
-            DefeatForceDelegation target => MilitaryDiplomacy.AutomaticEnemy(world, corps.OwnerId, target.ForceId),
+            DefeatForceDelegation target => MilitaryDiplomacy.AutomaticEnemy(world, owner, target.ForceId),
             CaptureSettlementDelegation target => world.Settlements.TryGetValue(target.SettlementId, out var place) &&
-                !place.IsDestroyed && (IsWork(place, military) || MilitaryDiplomacy.AutomaticEnemy(world, corps.OwnerId, place.OwnerId)),
+                !place.IsDestroyed && (IsWork(place, military) || MilitaryDiplomacy.AutomaticEnemy(world, owner, place.OwnerId)),
             _ => false
         };
 
@@ -23,12 +25,20 @@ internal static class CorpsDelegations
         military is not null && military.TryPlace(place, out var definition) && definition.FacilityTypeId is int type &&
         military.Facilities[type].IsWork;
 
-    internal static CommandRejection Set(WorldMutation world, SetCorpsDelegationCommand command,
-        MilitaryRulebook? military, List<DomainEvent> events)
+    internal static CommandRejection Eligibility(WorldMutation world, SetCorpsDelegationCommand command, MilitaryRulebook? military)
     {
         if (!world.Corps.TryGetValue(command.CorpsId, out var corps) || corps.OwnerId != command.IssuerId ||
             corps.IsRoot || !Valid(world, corps with { Delegation = command.Delegation }, military))
             return CommandRejection.InvalidCorps;
+        return CommandRejection.None;
+    }
+
+    internal static CommandRejection Set(WorldMutation world, SetCorpsDelegationCommand command,
+        MilitaryRulebook? military, List<DomainEvent> events)
+    {
+        var rejection = Eligibility(world, command, military);
+        if (rejection != CommandRejection.None) return rejection;
+        var corps = world.Corps[command.CorpsId];
         Change(world, corps, command.Delegation, "ordered", events);
         return CommandRejection.None;
     }

@@ -29,12 +29,14 @@ public sealed class ChangeCorpsTests
     {
         var engine = Engine(controller: controller);
         var before = engine.Snapshot;
-        var command = new ChangeCorpsCommand(Guid.NewGuid(), 1, 0, 11, [3], 50, 300);
+        var command = new ChangeCorpsCommand(Guid.NewGuid(), 1, 0, 11, [3], 50, 300, new DomesticDelegation());
         Assert.True(engine.Validate(new("controller"), command).Accepted);
         Assert.Equal(before.StateHash, engine.Snapshot.StateHash);
         var result = engine.Execute(new("controller"), command);
         Assert.True(result.Submission.Accepted);
         Assert.Equal(3, result.Snapshot.Corps.Single(c => c.Id == 11).LeaderId);
+        Assert.IsType<DomesticDelegation>(result.Snapshot.Corps.Single(c => c.Id == 11).Delegation);
+        Assert.Single(result.Events.OfType<CorpsDelegationChangedEvent>());
         Assert.Equal(OfficerStatus.Serving, result.Snapshot.Officers.Single(p => p.Id == 2).Status);
         Assert.Equal(OfficerStatus.Governor, result.Snapshot.Officers.Single(p => p.Id == 3).Status);
         Assert.Equal(10, result.Snapshot.Units.Single(u => u.Id == 1).CorpsId);
@@ -51,13 +53,14 @@ public sealed class ChangeCorpsTests
     [InlineData(2)]
     [InlineData(3)]
     [InlineData(4)]
+    [InlineData(5)]
     public void InvalidChangesAndOverflowAreAtomic(int branch)
     {
         var engine = Engine(branch == 4 ? uint.MaxValue : 1000);
         var before = engine.Snapshot.StateHash;
         var result = engine.Execute(new("controller"), new ChangeCorpsCommand(Guid.NewGuid(), 1, 0,
             branch == 0 ? 10 : 11, branch == 1 ? [1] : branch == 2 ? [2, 2] : [3],
-            branch == 3 ? uint.MaxValue : 0, 0));
+            branch == 3 ? uint.MaxValue : 0, 0, branch == 5 ? new DefeatForceDelegation(1) : new GeneralDelegation()));
         Assert.False(result.Submission.Accepted);
         Assert.Empty(result.Events);
         Assert.Equal(before, engine.Snapshot.StateHash);

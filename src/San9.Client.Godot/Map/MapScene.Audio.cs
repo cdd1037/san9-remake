@@ -16,13 +16,8 @@ internal sealed partial class MapScene
             var bodyId = layout.Members[0].BodyId;
             if (state.UsesImperialAppearance) bodyId = Map.Units.Bodies.Single(b => b.Id == bodyId).ImperialBodyId ?? bodyId;
             var sounds = audio.Bodies[bodyId];
-            var roles = sampled.Action switch
-            {
-                UnitVisualAction.Moving when !state.IsEngaged => sounds.Movement,
-                UnitVisualAction.Melee => sounds.Melee,
-                UnitVisualAction.Ranged => sounds.Ranged,
-                _ => []
-            };
+            bool displaced = _motions.TryGetValue(unit.Id, out var motion) && motion.HasDisplacement;
+            var roles = MapUnitAudio.Select(sounds, sampled.Action, displaced, state.IsEngaged);
             if (roles.Length > 0)
             {
                 long? pulse = null;
@@ -33,7 +28,8 @@ internal sealed partial class MapScene
                     pulse = (long)Math.Floor(Math.Max(0, Day!.CombatMilliseconds) / (clip.FrameMilliseconds * clip.Frames.Length));
                 }
                 int variation = pulse is long tick ? (int)(UnitVisuals.Seed(unit.Id, 0, (int)tick) % (uint)roles.Length) : unit.Id % roles.Length;
-                yield return new($"unit:{unit.Id}", roles[variation], sampled.AnchorX, sampled.AnchorY) { Pulse = pulse };
+                yield return new($"unit:{unit.Id}", roles[variation], sampled.AnchorX, sampled.AnchorY)
+                    { Pulse = pulse, Kind = pulse is null ? MapSoundKind.Movement : MapSoundKind.Action };
             }
             if (state.IsEngaged)
                 yield return new($"battle-unit:{unit.Id}", audio.BattleAmbience[0], sampled.AnchorX, sampled.AnchorY) { Kind = MapSoundKind.BattleAmbience };

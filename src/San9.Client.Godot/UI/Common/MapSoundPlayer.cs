@@ -28,7 +28,7 @@ public partial class MapSoundPlayer : Node2D
                 AddChild(player); _voices.Add(voice.Key, player);
             }
             player.Position = new((float)voice.X, (float)voice.Y);
-            player.VolumeDb = (float)(20 * Math.Log10(voice.Gain));
+            player.VolumeDb = Mathf.LinearToDb((float)voice.Gain);
             if (_pulses.WasEmitted(voice)) continue;
             var stream = _streams.Get(voice.Role, loop: voice.Pulse is null);
             if (voice.Pulse is null && player.Stream == stream && player.Playing) continue;

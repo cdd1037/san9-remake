@@ -1,6 +1,5 @@
 using Godot;
 using San9.Application.Presentation;
-using San9.Content.Packages;
 using San9.Content.Text;
 
 namespace San9.Client.Godot;
@@ -33,7 +32,7 @@ public partial class CommandNarration : Control
     private GamePagedText _message = null!;
     private TextureRect? _continuation;
     private AudioStreamPlayer _audio = null!;
-    private readonly Dictionary<string,AudioStreamWav> _sounds = [];
+    private AudioStreams _streams = null!;
     private readonly GameTextPresenter _text = new();
     private StyleBoxTexture _resultFrame = null!;
     private bool HasIllustration => Messages[_index].IllustrationRole is not null || Messages[_index].IllustrationPersonId is not null;
@@ -44,6 +43,7 @@ public partial class CommandNarration : Control
         _resultFrame = new() { Texture = Textures["dialog-frame"], TextureMarginLeft = 96, TextureMarginRight = 96,
             TextureMarginTop = 56, TextureMarginBottom = 56, AxisStretchHorizontal = StyleBoxTexture.AxisStretchMode.Tile,
             AxisStretchVertical = StyleBoxTexture.AxisStretchMode.Tile };
+        _streams = new(ContentRoot, Sounds);
         _audio = new(); AddChild(_audio);
         if (InitialSoundRole is string sound) PlaySound(sound);
         Present();
@@ -111,13 +111,7 @@ public partial class CommandNarration : Control
     private void PlaySound(string role)
     {
         if (!SoundEnabled) return;
-        if (!_sounds.TryGetValue(role, out var sound))
-        {
-            sound = AudioStreamWav.LoadFromFile(PackageFiles.Resolve(ContentRoot, Sounds[role]))
-                ?? throw new InvalidDataException($"Cannot load sound: {role}.");
-            _sounds.Add(role, sound);
-        }
-        _audio.Stream = sound;
+        _audio.Stream = _streams.Get(role, loop: false);
         _audio.Play();
     }
     private float LayoutResult(GamePagedText message)
@@ -216,7 +210,7 @@ public partial class CommandNarration : Control
     {
         _music?.Dispose(); _music = null;
         _audio.Stop(); _audio.Stream = null;
-        foreach (var sound in _sounds.Values) sound.Dispose();
+        _streams.Dispose();
         _resultFrame.Dispose(); _text.Dispose();
         _illustration?.Dispose();
     }

@@ -1,6 +1,7 @@
 using Godot;
 using San9.Application.Presentation;
 using San9.Content.Text;
+using San9.Rendering;
 
 namespace San9.Client.Godot;
 
@@ -110,21 +111,22 @@ public partial class StrategyHud
         var audio = CommandPresentation.MapAudio!;
         _sceneMusic.SetMapTrack(Turn.Screen == TurnScreen.Terminal ? null : MapMusic.Select(Turn.Display ?? Session.View, audio));
         var frame = World.Display?.Presented;
-        if (!SoundEnabled || Turn.Screen != TurnScreen.Playing || _narration is not null ||
-            frame is null || !World.IsDayReady || !ReferenceEquals(frame.Region.Scene.Day, Turn.Day))
+        if (!SoundEnabled || Turn.Screen != TurnScreen.Playing || _narration is not null || World.LoadError is not null)
         {
             _mapSounds.UpdateVoices([], Turn.Day);
-            if (!SoundEnabled || Turn.Screen != TurnScreen.Playing || _narration is not null || Turn.Day is null)
-                _mapAudioPlayback.Clear();
+            _mapAudioPlayback.Clear();
             return;
         }
+        // A pending frame does not end the audible scene. Keep loop positions across daily publication.
+        if (Turn.Day is null || frame is null || !World.IsDayReady || !ReferenceEquals(frame.Region.Scene.Day, Turn.Day)) return;
         var transform = GetGlobalTransformWithCanvas().AffineInverse() * World.GetGlobalTransformWithCanvas();
         var sources = frame.Region.Scene.SoundSources(audio, frame.Region.Units).Select(source =>
         {
             var p = transform * new Vector2((float)source.X, (float)source.Y);
             return source with { X = p.X, Y = p.Y, Resource = CommandPresentation.Sounds[source.Role] };
         });
-        _mapSounds.UpdateVoices(_mapAudioPlayback.Update(sources, Size.X, Size.Y, audio.BattleAmbience), Turn.Day);
+        _mapSounds.UpdateVoices(_mapAudioPlayback.Update(sources, Size.X, Size.Y, audio.BattleAmbience,
+            frame.Region.Scene.PlaybackMilliseconds, Turn.Day.Elapsed * 1000 < MapMovementCadence.ArrivalMilliseconds), Turn.Day);
     }
 
     private void UpdateTurnControls()

@@ -111,9 +111,8 @@ internal static class EconomicCycle
 
     private static void Population(WorldMutation world, List<DomainEvent> events)
     {
-        var cities = world.Settlements.Values.Where(s => s.Kind == SettlementKind.City).OrderBy(s => s.Id).ToArray();
-        long population = cities.Sum(s => (long)s.Population), order = cities.Sum(s => (long)s.PublicOrder);
-        long military = cities.Sum(s => (long)s.DraftPopulation) + SoldierTotals.Living(world);
+        var cities = world.Settlements.Values.Where(s => !s.IsDestroyed && s.Kind == SettlementKind.City).OrderBy(s => s.Id).ToArray();
+        var (population, military, order) = PopulationOutlook.Totals(world);
         foreach (var city in cities)
         {
             long growth = Math.Max(30000L - city.Population, order == 0 ? 0 : city.PublicOrder * (population / 20) / order - city.Population / 20);

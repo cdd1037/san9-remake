@@ -44,13 +44,5 @@ public sealed class PatrolDraft
         : throw new InvalidOperationException("No valid patrol selection.");
 
     public static long ReadDraftGrowth(WorldSnapshot world, SettlementState city)
-    {
-        var cities = world.Settlements.Where(s => s.Kind == SettlementKind.City).ToArray();
-        long military = cities.Sum(s => (long)s.DraftPopulation) + world.Settlements.Sum(s => (long)s.Soldiers + s.Wounded) +
-            world.Units.Sum(u => (long)u.Soldiers + u.Wounded) + world.Simulation.Tasks.Where(t => t.Reinforcements is not null)
-                .Sum(t => (long)t.Reinforcements!.Soldiers + t.Reinforcements.Wounded);
-        // The original preview substitutes the target city's order while retaining the current world's total.
-        long growth = EconomyMath.DraftIncrease(cities.Sum(s => (long)s.Population), military, cities.Sum(s => (long)s.PublicOrder), city.PublicOrder);
-        return Math.Min(Math.Max(500000L, city.DraftPopulation), city.DraftPopulation + growth) - city.DraftPopulation;
-    }
+        => PopulationOutlook.DraftGrowth(world, city);
 }

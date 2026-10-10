@@ -5,7 +5,7 @@ namespace San9.Core.Simulation;
 /// <summary>Owns the living troops carried by an outbound or returning personnel task.</summary>
 internal static class ReinforcementTransport
 {
-    internal static int? Corps(WorldMutation world, PersistentTask task) =>
+    internal static int? Corps(IWorldQuery world, PersistentTask task) =>
         world.Settlements.TryGetValue(task.OriginSettlementId, out var home) &&
         !home.IsDestroyed && home.OwnerId == task.ForceId ? home.CorpsId : null;
 

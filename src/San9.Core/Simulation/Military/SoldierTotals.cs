@@ -3,13 +3,13 @@ namespace San9.Core.Simulation;
 /// <summary>Counts soldiers at their current owner, including troops carried by personnel tasks.</summary>
 internal static class SoldierTotals
 {
-    internal static long Force(WorldMutation world, int forceId) => Count(world, forceId, false, null);
+    internal static long Force(IWorldQuery world, int forceId) => Count(world, forceId, false, null);
 
-    internal static long Corps(WorldMutation world, int forceId, int? corpsId) => Count(world, forceId, true, corpsId);
+    internal static long Corps(IWorldQuery world, int forceId, int? corpsId) => Count(world, forceId, true, corpsId);
 
-    internal static long Living(WorldMutation world, int? forceId = null) => Count(world, forceId, false, null, includeWounded: true);
+    internal static long Living(IWorldQuery world, int? forceId = null) => Count(world, forceId, false, null, includeWounded: true);
 
-    private static long Count(WorldMutation world, int? forceId, bool restrictCorps, int? corpsId, bool includeWounded = false)
+    private static long Count(IWorldQuery world, int? forceId, bool restrictCorps, int? corpsId, bool includeWounded = false)
     {
         long total = 0;
         foreach (var place in world.Settlements.Values)

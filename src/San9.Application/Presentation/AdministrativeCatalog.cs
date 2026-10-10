@@ -213,13 +213,7 @@ public sealed class AdministrativeCatalog(StrategySnapshot view, TextCatalog tex
         }
     }
     private long DraftGrowth(SettlementState city)
-    {
-        var cities = _states.Values.Where(s => s.Kind == SettlementKind.City).ToArray();
-        long military = cities.Sum(s => (long)s.DraftPopulation) + _states.Values.Sum(s => (long)s.Soldiers + s.Wounded) +
-            view.World.Units.Sum(u => (long)u.Soldiers + u.Wounded) + view.World.Simulation.Tasks.Where(t => t.Reinforcements is not null).Sum(t => (long)t.Reinforcements!.Soldiers + t.Reinforcements.Wounded);
-        long increase = EconomyMath.DraftIncrease(cities.Sum(s => (long)s.Population), military, cities.Sum(s => (long)s.PublicOrder), city.PublicOrder);
-        return Math.Min(Math.Max(500000L, city.DraftPopulation), city.DraftPopulation + increase) - city.DraftPopulation;
-    }
+        => PopulationOutlook.DraftGrowth(view.World, city);
     private CatalogCell PlaceCell(InformationCategory category, int id, string field)
     {
         var place = _places.GetValueOrDefault(id);

@@ -13,7 +13,7 @@ internal static class PersonnelLocations
         WorldPosition? fieldDestination = null) => new(Position(world, places, origin),
             fieldDestination ?? Position(world, places, destination), fieldDestination is not null);
 
-    internal static int? Corps(WorldMutation world, OfficerState person) => person.UnitId is int unit
+    internal static int? Corps(IWorldQuery world, OfficerState person) => person.UnitId is int unit
         ? world.Units[unit].CorpsId : person.SettlementId is int home ? world.Settlements[home].CorpsId : null;
 
     internal static int? ServicePlace(WorldMutation world, OfficerState person) => person.UnitId is int unit

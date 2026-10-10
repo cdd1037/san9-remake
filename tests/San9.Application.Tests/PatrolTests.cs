@@ -9,6 +9,24 @@ namespace San9.Application.Tests;
 public sealed class PatrolTests
 {
     [Fact]
+    public void DormantCitiesDoNotAlterPatrolPopulationForecast()
+    {
+        var definition = G01ScenarioTests.Fixture();
+        var session = GameSession.Start(definition, 7);
+        var active = session.Snapshot with { Settlements = session.Snapshot.Settlements.Select(s => s with { Population = 200399, DraftPopulation = 0, Soldiers = 0, PublicOrder = 800 }).ToArray() };
+        var home = active.Settlements.Single(s => s.Id == 1);
+        var dormant = home with { Id = 99, OwnerId = null, CorpsId = null, IsDormant = true, Population = 900000, Soldiers = 500000 };
+        var complete = active with { Settlements = [.. active.Settlements, dormant] };
+        string before = complete.StateHash;
+        long expected = PopulationOutlook.DraftGrowth(active, home);
+        Assert.True(expected > 0);
+        Assert.Equal(expected, PatrolDraft.ReadDraftGrowth(complete, home));
+        var catalog = new AdministrativeCatalog(new StrategySnapshot(definition, complete), new TextCatalog(TextCatalog.CurrentSchemaVersion, []));
+        Assert.Equal(expected, catalog.Cell(InformationCategory.Cities, home.Id, "draft-growth").Number);
+        Assert.Equal(before, complete.StateHash);
+    }
+
+    [Fact]
     public void MenuAndPreparationShareDisabledReasonsWithoutChangingWorld()
     {
         var definition = G01ScenarioTests.Fixture();

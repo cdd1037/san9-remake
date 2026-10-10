@@ -53,8 +53,8 @@ public partial class PersonnelCommandView : Control
         if (Draft.Kind != "summon")
         {
             int? days = Draft.Members.IsEmpty ? null : Draft.ArrivalDays(Draft.Members[0]);
-            string arrival = days is int value ? $"到达预定　{value,3}日　" : "到达预定　　日";
-            Label(arrival, new(at + new Vector2(256,0), new(152,32)));
+            _body.AddChild(new CommandArrivalField { Textures = Textures, Position = at + new Vector2(256,0),
+                Size = new(152,32), Text = CommandArrivalField.FormatDays(days) });
         }
         if (Draft.Kind is "summon" or "move")
         {
@@ -162,7 +162,6 @@ internal partial class PersonnelCommandFields : Control
         var at = Bounds.Position;
         CommandPanelArt.Strip(this,Textures,"deployment-facility",new(at,new(SourceWidth,32)));
         SkinPainter.Tile(this,Textures["deployment-divider"],new(at+new Vector2(0,40),new(Bounds.Size.X,5)));
-        if (Kind != "summon") Field(new(at+new Vector2(256,0),new(152,32)));
         if (Kind is "search" or "move") Field(new(at+new Vector2(104,48),new(Kind == "search" ? 128 : 144,32)));
     }
     private void Field(Rect2 bounds)

@@ -8,6 +8,7 @@ public partial class VerticalChoiceDialog : Control
     public TextureScope Textures { get; init; } = null!;
     public string Message { get; init; } = "";
     public IReadOnlyList<(string Text, Action Choose)> Options { get; init; } = [];
+    public IReadOnlySet<int> DisabledOptions { get; init; } = new HashSet<int>();
     private StyleBoxTexture _frame = null!;
     private Rect2 _bounds;
     public override void _Ready()
@@ -38,7 +39,7 @@ public partial class VerticalChoiceDialog : Control
             {
                 Textures = Textures,
                 SkinPrefix = "decision-choice",
-                Title = option.Text,
+                Title = option.Text, Disabled = DisabledOptions.Contains(i),
                 Position = new(_bounds.Position.X + 56, top + 40 * i),
                 Size = new(width - 112, 32)
             };

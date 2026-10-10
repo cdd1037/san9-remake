@@ -177,7 +177,7 @@ public partial class MapWorld : Node2D
         Session = session; Presentation = null; Day = null;
         ResetNavigation(); ReleaseMouseLock(); HoverObject(null);
         TargetPicked = null; WaypointPicked = null; SitePicked = null;
-        if (_display is not null) { _display.Targets = null; _display.PersonnelTargets = null; }
+        if (_display is not null) { _display.Targets = null; _display.PersonnelTargets = null; _display.CommandTargets = null; }
         if (Scene is null) return;
         // Retain terrain resources, but never carry motion history across player loads.
         Scene = new(Scene.Map, Scene.Terrain, Scene.Season, View, Textures.MapAssets, () => UnitPositionTime);

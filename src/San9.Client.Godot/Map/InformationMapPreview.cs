@@ -6,8 +6,8 @@ namespace San9.Client.Godot;
 
 public partial class MapWorld
 {
-    public Control CreateInformationPreview(int regionId, TextCatalog texts) =>
-        new InformationMapPreview { World = this, RegionId = regionId, Texts = texts };
+    public Control CreateInformationPreview(int regionId, TextCatalog texts, int? unitId = null) =>
+        new InformationMapPreview { World = this, RegionId = regionId, UnitId = unitId, Texts = texts };
 }
 
 // Only preview framing and clipping live here; every map layer is drawn by MapSceneView.
@@ -15,6 +15,7 @@ public partial class InformationMapPreview : Control
 {
     public MapWorld World { get; init; } = null!;
     public int RegionId { get; init; }
+    public int? UnitId { get; init; }
     public TextCatalog Texts { get; init; } = null!;
     private MapSceneView _view = null!;
     private long _revision = -1;
@@ -42,7 +43,13 @@ public partial class InformationMapPreview : Control
         _requestedScene = scene; _requestedSize = Size;
         var settlement = scene.State.Settlements.FirstOrDefault(s => s.Id == RegionId);
         Vector2 center;
-        if (settlement is not null)
+        if (UnitId is int unitId && scene.State.World.Units.FirstOrDefault(u => u.Id == unitId) is {} unit)
+        {
+            double x = (unit.Position.X - San9.Core.Domain.MapCoordinates.UnitsPerCell / 2) / (double)San9.Core.Domain.MapCoordinates.UnitsPerCell;
+            double y = (unit.Position.Y - San9.Core.Domain.MapCoordinates.UnitsPerCell / 2) / (double)San9.Core.Domain.MapCoordinates.UnitsPerCell;
+            center = new((float)(32 * (x + 200 - y) + 96), (float)(16 * (x + y + 1) + 112));
+        }
+        else if (settlement is not null)
         {
             var p = MapGeometry.Center(settlement.X, settlement.Y); center = new(p.X, p.Y - 48);
         }

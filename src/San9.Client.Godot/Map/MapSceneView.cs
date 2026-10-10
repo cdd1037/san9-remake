@@ -64,6 +64,7 @@ public partial class MapSceneView : Node2D
     public MapObjectTarget? Hovered { get; set; }
     public MilitaryTargets? Targets { get; set; }
     public PersonnelDraft? PersonnelTargets { get; set; }
+    public CommandTargetSelection? CommandTargets { get; set; }
     public int? PersonnelHoverPlace { get; set; }
     private int? _drawnPersonnelHoverPlace;
     private readonly Dictionary<int, TargetMesh[]> _personnelRegionMeshes = [];
@@ -88,6 +89,7 @@ public partial class MapSceneView : Node2D
     private readonly ImageTexture[] _meshTextures = new ImageTexture[16];
     private MilitaryTargets? _drawnTargets;
     private PersonnelDraft? _drawnPersonnelTargets;
+    private CommandTargetSelection? _drawnCommandTargets;
     private TargetMesh[] _targetMeshes = [];
     private TargetMesh[] _visibleTargetMeshes = [];
     private MapSceneRegion? _meshRegion;
@@ -253,9 +255,9 @@ public partial class MapSceneView : Node2D
         if (readyTerrain != _drawnTerrainCount) QueueRedraw();
         bool hoverChanged = _drawnHover != Hovered || _drawnPersonnelHoverPlace != PersonnelHoverPlace;
         bool resourcesChanged = _drawnAssetRevision != frame.Assets.Revision;
-        bool targetsChanged = _drawnTargets != Targets || _drawnPersonnelTargets != PersonnelTargets || _routeRevision != (Targets?.Revision ?? -1) ||
+        bool targetsChanged = _drawnTargets != Targets || _drawnPersonnelTargets != PersonnelTargets || _drawnCommandTargets != CommandTargets || _routeRevision != (Targets?.Revision ?? -1) ||
             _drawnConstructionPointer != ConstructionPointer || _previewRevision != (_previewAssets?.Revision ?? 0);
-        bool markerChanged = (Targets is not null || PersonnelTargets?.Kind == "move") && _markerFrame != (int)(AnimationTime() / 200) % 4;
+        bool markerChanged = (Targets is not null || PersonnelTargets?.Kind == "move" || CommandTargets is not null) && _markerFrame != (int)(AnimationTime() / 200) % 4;
         markerChanged |= Targets is not null && _routeFrame != (int)(AnimationTime() / 200) % 8;
         markerChanged |= Targets?.Waypoint is not null && _waypointFrame != (int)(AnimationTime() / 142) % 4;
         bool motion = frame.Region.Scene.Day is {} day && _drawnDayTime != day.VisualElapsed;
@@ -319,7 +321,7 @@ public partial class MapSceneView : Node2D
         if (Presented is not { } frame) return;
         _hitSprites.Clear();
         ObjectDraws++; _objects.Begin(); _drawnHover = Hovered; _drawnPersonnelHoverPlace = PersonnelHoverPlace; _drawnAssetRevision = frame.Assets.Revision;
-        if (_drawnTargets != Targets || _drawnPersonnelTargets != PersonnelTargets)
+        if (_drawnTargets != Targets || _drawnPersonnelTargets != PersonnelTargets || _drawnCommandTargets != CommandTargets)
         {
             _previewAssets?.Dispose(); _previewAssets = null; _previewSprites = [];
             if (Targets is SpecialDeploymentTargets { PreviewFacilityId: int type })
@@ -330,8 +332,10 @@ public partial class MapSceneView : Node2D
             }
             _drawnTargets = Targets;
             _drawnPersonnelTargets = PersonnelTargets;
+            _drawnCommandTargets = CommandTargets;
             _targetMeshes = Targets is { } targets ? TargetOverlayGeometry.Meshes(frame.Region.Scene.Map, targets.ClearCells, targets.InfluenceCells).ToArray() :
-                PersonnelTargets is {} personnel ? TargetOverlayGeometry.Meshes(frame.Region.Scene.Map, personnel.TargetCells(), System.Collections.Immutable.ImmutableHashSet<San9.Core.Domain.MapCell>.Empty).ToArray() : [];
+                PersonnelTargets is {} personnel ? TargetOverlayGeometry.Meshes(frame.Region.Scene.Map, personnel.TargetCells(), System.Collections.Immutable.ImmutableHashSet<San9.Core.Domain.MapCell>.Empty).ToArray() :
+                CommandTargets is {} command ? TargetOverlayGeometry.Meshes(frame.Region.Scene.Map, command.ClearCells, System.Collections.Immutable.ImmutableHashSet<San9.Core.Domain.MapCell>.Empty).ToArray() : [];
             _personnelRegionMeshes.Clear();
             if (PersonnelTargets is { Kind: "search" } search)
             {
@@ -343,7 +347,7 @@ public partial class MapSceneView : Node2D
                     _personnelRegionMeshes.Add(group.Key, group.Select(item => item.Mesh).ToArray());
             }
             _meshRegion = null;
-            if (Targets is not null || PersonnelTargets?.Kind == "move") _ui.Request(TargetSelectionSkin.RequiredRoles.Where(r => r.StartsWith("target-marker-", StringComparison.Ordinal) || r.StartsWith("target-route-", StringComparison.Ordinal) || r.StartsWith("target-waypoint-", StringComparison.Ordinal)));
+            if (Targets is not null || PersonnelTargets?.Kind == "move" || CommandTargets is not null) _ui.Request(TargetSelectionSkin.RequiredRoles.Where(r => r.StartsWith("target-marker-", StringComparison.Ordinal) || r.StartsWith("target-route-", StringComparison.Ordinal) || r.StartsWith("target-waypoint-", StringComparison.Ordinal)));
         }
         _drawnUiRevision = _ui.Revision;
         _drawnConstructionPointer = ConstructionPointer;
@@ -377,12 +381,12 @@ public partial class MapSceneView : Node2D
             if (!frame.Assets.TryGetReady(id, out var texture)) return;
             if (!frame.ViewportBounds.Intersects(new Rect2(position, texture.GetSize()))) return;
             if (building is {} target && blend == MapBlendMode.Alpha) _hitSprites.Add((id, position, target));
-            bool candidate = building is { IsUnit: false } targetBuilding &&
+            bool candidate = building is {} mapObject && (CommandTargets?.Objects.Contains(new(mapObject.Id,mapObject.IsUnit)) == true || mapObject is { IsUnit: false } targetBuilding &&
                 (Targets?.Candidates.ContainsKey(new(targetBuilding.Id, false)) == true ||
-                    PersonnelTargets is { Kind: "move" } movementCandidates && movementCandidates.Targets.Contains(targetBuilding.Id));
+                    PersonnelTargets is { Kind: "move" } movementCandidates && movementCandidates.Targets.Contains(targetBuilding.Id)));
             Add(texture, position, blend == MapBlendMode.Additive ? _additiveMaterial :
                 highlightable && candidate ? _candidateMaterial :
-                highlightable && building is { IsUnit: false } && PersonnelTargets?.Kind == "move" ? _unavailableMaterial :
+                highlightable && (CommandTargets is not null && building is not null || building is { IsUnit: false } && PersonnelTargets?.Kind == "move") ? _unavailableMaterial :
                 highlightable && building is not null && building == Hovered ? _hoverMaterial : null);
         }, () =>
         {
@@ -429,6 +433,27 @@ public partial class MapSceneView : Node2D
                 var point = TargetOverlayGeometry.BuildingMarker(frame.Region.Scene.Map, building, offset.X, offset.Y);
                 Add(arrow, new(point.X, point.Y));
             }
+        if (CommandTargets is {} commandSelection)
+        {
+            string role = commandSelection.Marker switch
+            {
+                CommandTargetMarker.Enter => "enter", CommandTargetMarker.Attack => "attack",
+                CommandTargetMarker.Hostile => "hostile", CommandTargetMarker.Friendly => "friendly",
+                _ => throw new InvalidOperationException("Unknown command target marker.")
+            };
+            if (_ui.TryGetReady($"target-marker-{role}-{_markerFrame}", out var commandArrow))
+            {
+                bool directional = commandSelection.Marker is CommandTargetMarker.Hostile or CommandTargetMarker.Friendly;
+                foreach (var building in frame.Region.Buildings.Where(b => commandSelection.Objects.Contains(new(b.Id,false))))
+                {
+                    var offset = (directional ? Textures.BuildingArrowOffsets : Textures.BuildingTargetOffsets)[building.FixedType];
+                    var point = TargetOverlayGeometry.BuildingMarker(frame.Region.Scene.Map,building,offset.X,offset.Y);
+                    Add(commandArrow,new(point.X,point.Y));
+                }
+                foreach (var unit in frame.Region.Units.Where(u => commandSelection.Objects.Contains(new(u.Id,true))))
+                    Add(commandArrow,directional ? new(unit.AnchorX-28,unit.AnchorY-36) : new(unit.AnchorX-16,unit.AnchorY-48));
+            }
+        }
         if (Targets is SpecialDeploymentTargets { IsConstruction:true } construction)
         {
             if (construction.Selected?.Position is { } selected)

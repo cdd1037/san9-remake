@@ -23,6 +23,7 @@ public partial class TextureService : Node
     public IReadOnlyDictionary<string, San9.Content.Maps.MapAnimationClip> AnimationClips { get; private set; } = null!;
     public IReadOnlyDictionary<string, ImageAsset> Roles { get; private set; } = null!;
     public IReadOnlyDictionary<int, TargetMarkerOffset> BuildingTargetOffsets { get; private set; } = null!;
+    public IReadOnlyDictionary<int, TargetMarkerOffset> BuildingArrowOffsets { get; private set; } = null!;
     public IReadOnlyDictionary<string, CursorDefinition> Cursors { get; private set; } = null!;
     public IReadOnlyDictionary<string, ImageAsset> CursorAssets { get; private set; } = null!;
     public TextureCache<ImageTexture> Cache => _cache;
@@ -39,6 +40,7 @@ public partial class TextureService : Node
         var ui = package.Skin.Assets.ToDictionary(a => a.Id);
         Roles = package.Skin.Roles.ToDictionary(p => p.Key, p => ui[p.Value]);
         BuildingTargetOffsets = package.Skin.BuildingTargetOffsets;
+        BuildingArrowOffsets = package.Skin.BuildingArrowOffsets;
         Cursors = package.Skin.Cursors;
         CursorAssets = Cursors.ToDictionary(p => p.Key, p => ui[p.Value.Asset]);
         var unitClips = package.Map.Units.Bodies.SelectMany(body => body.DirectionClips

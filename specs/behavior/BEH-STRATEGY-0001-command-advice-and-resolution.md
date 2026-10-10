@@ -2,7 +2,7 @@
 
 - 状态：已确认
 - 负责人：项目开发者
-- 最后更新：2026-09-18
+- 最后更新：2026-10-10
 - 关联证据：[RE-SAN9PK-0113](../../research/findings/RE-SAN9PK-0113.md)、[RE-SAN9PK-0114](../../research/findings/RE-SAN9PK-0114.md)、[RE-SAN9PK-0115](../../research/findings/RE-SAN9PK-0115.md)、[RE-SAN9PK-0116](../../research/findings/RE-SAN9PK-0116.md)
 - 关联决策：[DEC-SIM-0001](../decisions/DEC-SIM-0001-determinism-and-saves.md)、[DEC-PROJECT-0002](../decisions/DEC-PROJECT-0002-selective-inheritance.md)
 - 继承方式：关系保留
@@ -73,6 +73,10 @@
 - [x] 相同条件下，改变无关操作顺序、命令序号、玩家读档或重启不改变提交骰；实时阈值变化仍可改变成败。
 - [x] 军师重复查询稳定且不推进规则随机流；军师或有效条件变化会重算。
 - [x] 玩家读档保留任务骰，混合流程仍有独立运行抽样；录像精确恢复完整事件与状态。
+
+## P1 客户端操作（2026-10-10）
+
+八类计略从设施正式菜单进入选人／目标准备页，选择与预计执行日期通过公共查询和提交预览产生；确认才提交，取消不占用武将、不改变资源或随机流。修订变化使草稿失效并提示原因。出发、军师意见及结果采用转换包的语义角色绑定，结果仅消费本次事实事件并记录玩家直接任务。目标部队显示冻结查询的地图和资料，不额外结算效果。原作布局和消息见 [RE-0182](../../research/findings/RE-SAN9PK-0182.md)，交互、验证及画面验收分工见[操作说明](../../docs/ui/mission-corps-commands.md)。
 
 ## 未决问题
 

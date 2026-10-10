@@ -20,6 +20,7 @@ public partial class StrategyHud : Control
     public ISceneMedia SceneMedia { get; init; } = new SilentSceneMedia();
     public Action? StartNewGame { get; init; }
     private TextureScope _textures = null!;
+    private SceneMusicPlayer _sceneMusic = null!;
     private readonly List<(string Asset, Vector2 Position)> _frames = [];
     private Label _footer = null!;
     private GameMessageBar _message = null!;
@@ -57,6 +58,8 @@ public partial class StrategyHud : Control
     public override void _Ready()
     {
         _textures = Textures.CreateScope(owner: this);
+        _sceneMusic = new() { ContentRoot = ContentRoot, Tracks = CommandPresentation.Sounds };
+        AddChild(_sceneMusic);
         _textures.RequestPrefixes("button-", "top-", "radar-", "sidebar-", "ruler-", "field-", "region-",
             "season-", "turn-", "target-", "hover-", "icon-", "minimap-",
             "roster-", "scroll-", "message-", "dialog-", "command-", "information-menu-");
@@ -225,7 +228,7 @@ public partial class StrategyHud : Control
     }
 
     private StrategyInteraction Interaction => StrategyInteraction.Resolve(_built, Turn?.Screen,
-        Turn?.CanAdvance == true, _personnel is null ? _flow?.Stage ?? MilitaryCommandStage.None : PersonnelStage, Overview.IsOpen,
+        Turn?.CanAdvance == true, _commandTargets is not null ? CommandTargetStage : _personnel is null ? _flow?.Stage ?? MilitaryCommandStage.None : PersonnelStage, Overview.IsOpen,
         OverlayHost.IsInsideTree() && OverlayHost.HasModal || _contextMenu?.Visible == true || _notice?.Visible == true);
     private bool IsMapInteractionBlocked => !Interaction.CanUseMap;
     public bool CanNavigateMap => Interaction.CanNavigate;
@@ -296,11 +299,13 @@ public partial class StrategyHud : Control
                 "redirect-transport" => UnitCommandKind.Transport, _ => UnitCommandKind.March });
             return;
         }
-        if (command is not ("sortie" or "patrol" or "build" or "transport" or "demolish") && !FacilityCommandDraft.Supports(command) && !AppointmentDraft.Supports(command) && !PersonnelDraft.Supports(command)) return;
+        if (command is not ("sortie" or "patrol" or "build" or "transport" or "demolish" or "delegate") && !MissionDraft.Supports(command) && !FacilityCommandDraft.Supports(command) && !AppointmentDraft.Supports(command) && !PersonnelDraft.Supports(command)) return;
         _commandMenu.Close();
         Overview.Close();
         if (command == "patrol") OpenPatrol(target.Id);
         else if (command == "demolish") OpenDemolition(target.Id);
+        else if (command == "delegate") OpenCorpsManagement();
+        else if (MissionDraft.Supports(command)) OpenMission(target.Id,command);
         else if (PersonnelDraft.Supports(command)) OpenPersonnel(target.Id,command);
         else if (command is "build" or "transport") _flow.OpenSpecial(target.Id, command == "build" ? SpecialDeploymentKind.Construction : SpecialDeploymentKind.Transport);
         else if (AppointmentDraft.Supports(command)) OpenAppointment(target.Id, command);
@@ -364,6 +369,7 @@ public partial class StrategyHud : Control
         if (_commandMenu.Visible) { _message.SetMessage(_commandMenu.Hint, _commandMenu.HintEnabled); return; }
         if (_mapContext.Visible) { _message.SetMessage(_mapContext.Hint, true); return; }
         if (_personnelTargeting) { _message.SetMessage(_personnel?.Draft.Kind == "search" ? "请选择目标地域。" : "请选择目标设施。",true); return; }
+        if (_commandTargets is not null) { _message.SetMessage("请选择目标。",true); return; }
         if (_targets is not null)
         {
             string initial = _targets is SpecialDeploymentTargets { IsConstruction:true }
@@ -434,6 +440,7 @@ public partial class StrategyHud : Control
     {
         if (!_built && World.IsVisibleReady) Build();
         if (_built) UpdateTurn(delta);
+        if (_commandTargets is {} request && request.Selection.View.World.Revision != Session.Snapshot.Revision) EndCommandTargets();
         if (_commandMenu?.Visible == true && _contextRevision != Session.Snapshot.Revision) _commandMenu.Close();
         if (_mapContext?.Visible == true && _contextRevision != Session.Snapshot.Revision) _mapContext.Close();
         if (World.LoadError is not null) _message.Text = "地图加载失败 · F3 查看详情";

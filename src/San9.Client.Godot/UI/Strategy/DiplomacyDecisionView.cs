@@ -76,8 +76,10 @@ public partial class DiplomacyDecisionView : Control
     }
     private void Field(Control parent, int y, string label, string value)
     {
-        CommandPanelArt.Label(parent, _text, label, new(0, y, 96, 24));
-        CommandPanelArt.Label(parent, _text, value, new(104, y, parent.Size.X - 104, 24), alignment: HorizontalAlignment.Left);
+        parent.AddChild(new CommandLabelField { Textures = Textures, Position = new(0, y), Size = new(96, 32) });
+        parent.AddChild(new CommandValueField { Textures = Textures, Position = new(104, y), Size = new(parent.Size.X - 104, 32) });
+        CommandPanelArt.Label(parent, _text, label, new(0, y, 96, 32));
+        CommandPanelArt.Label(parent, _text, value, new(104, y, parent.Size.X - 104, 32), alignment: HorizontalAlignment.Left);
     }
     public override void _GuiInput(InputEvent input) => AcceptEvent();
     public override void _ExitTree() => _text.Dispose();

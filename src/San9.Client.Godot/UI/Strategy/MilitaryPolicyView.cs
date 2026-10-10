@@ -22,7 +22,8 @@ public partial class MilitaryPolicyView : Control
     private CommandWindow _window = null!;
     private StyleBoxTexture _field = null!;
     private Control? _child;
-    private Label _delay = null!, _arrival = null!;
+    private Label _delay = null!;
+    private CommandArrivalField _arrival = null!;
     private GameMessageBar _message = null!;
     private float _facilityWidth;
     private bool _confirmAttack;
@@ -45,7 +46,7 @@ public partial class MilitaryPolicyView : Control
             : "命令设施　" + Selection.View.Settlements.Single(s => s.Id == Selection.Source.Id).ResolveName(Texts);
         _facilityWidth = facility.Sum(c => c < 128 ? 8 : 16) + 32;
         Label(facility, new(0, 0, _facilityWidth, 32));
-        _arrival = Label("", new(256, 0, 136, 32));
+        AddArrival();
         RefreshArrival();
         var target = Selection.Selected!.Value;
         var info = target.IsUnit ? UnitMapInteraction.Hover(Selection.View, Texts, target.Id) : MapHoverInfo.Resolve(Selection.View, Texts, target.Id);
@@ -80,7 +81,7 @@ public partial class MilitaryPolicyView : Control
             ? "命令部队　" + UnitMapInteraction.Hover(Selection.View, Texts, Selection.Source.Id)?.Name
             : "命令设施　" + Selection.View.Settlements.Single(s => s.Id == Selection.Source.Id).ResolveName(Texts);
         _facilityWidth = home.Sum(c => c < 128 ? 8 : 16) + 32; Label(home,new(0,0,_facilityWidth,32));
-        _arrival = Label("",new(256,0,136,32)); RefreshArrival();
+        AddArrival(); RefreshArrival();
         var target = Selection.Selected!.Value;
         string name = IsConstruction ? Texts.Resolve(Selection.View.RegionNameKeys[target.Id]) :
             Selection.View.Settlements.Single(s => s.Id == target.Id).ResolveName(Texts);
@@ -117,13 +118,18 @@ public partial class MilitaryPolicyView : Control
         var estimate = Selection.EstimateArrival();
         string value = estimate.Status switch
         {
-            ArrivalEstimateStatus.Known => $"{estimate.Days}日",
+            ArrivalEstimateStatus.Known => $"{estimate.Days,3}日　",
             ArrivalEstimateStatus.Waiting => "受阻",
             ArrivalEstimateStatus.Unreachable => "不可达",
             ArrivalEstimateStatus.Incomplete => "待定",
             _ => "—"
         };
         _arrival.Text = $"到达预定　{value}";
+    }
+    private void AddArrival()
+    {
+        _arrival = new CommandArrivalField { Textures = Textures, Position = Origin + new Vector2(256,0), Size = new(136,32) };
+        AddChild(_arrival);
     }
     private void Execute()
     {
@@ -161,7 +167,7 @@ public partial class MilitaryPolicyView : Control
         {
             int last = IsConstruction ? 128 : 88;
             for (int y=48;y<=last;y+=40) Strip("label",new(0,y,96,32));
-            List<Rect2> fields = [new(256,0,136,32),new(104,IsConstruction?88:48,160,32)];
+            List<Rect2> fields = [new(104,IsConstruction?88:48,160,32)];
             if (IsConstruction) fields.Add(new(104,48,80,32));
             foreach (var bounds in fields) DrawField(bounds);
             DrawLine(Origin+new Vector2(0,40),Origin+new Vector2(416,40),new Color("755635"),2);
@@ -169,7 +175,7 @@ public partial class MilitaryPolicyView : Control
         }
         foreach (int y in new[] { 48, 88, 128, 168, 208, 248 }) Strip("label", new(0, y, 96, 32));
         CommandPanelArt.Strip(this, Textures, "deployment-mode", new(Origin+new Vector2(272,92),new Vector2(48,24)));
-        foreach (var bounds in new Rect2[] { new(256, 0, 136, 32), new(104, 48, 48, 32), new(104, 88, 160, 32),
+        foreach (var bounds in new Rect2[] { new(104, 48, 48, 32), new(104, 88, 160, 32),
             new(328, 92, 80, 24), new(104, 288, 64, 32) })
         {
             if (!Selection.IsDeployment && bounds.Position.Y == 288) continue;

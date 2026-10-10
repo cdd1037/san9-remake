@@ -18,6 +18,8 @@ public partial class DecisionView : Control
     public string ContentRoot { get; init; } = "";
     public bool SoundEnabled { get; init; }
     public bool SkipIntroduction { get; init; }
+    public Func<string,IDisposable>? BeginMusic { get; init; }
+    private IDisposable? _music;
     public Func<GameCommand, string, bool> Submit { get; init; } = null!;
     public Action Finished { get; init; } = null!;
     public Action<CommandMessage>? MessagePresented { get; init; }
@@ -53,12 +55,17 @@ public partial class DecisionView : Control
             Sounds = Presentation.Sounds,
             ContentRoot = ContentRoot,
             SoundEnabled = SoundEnabled,
-            MessagePresented = MessagePresented,
+            MessagePresented = message =>
+            {
+                if (message.SpeakerId is not null) StartDiplomacyMusic();
+                MessagePresented?.Invoke(message);
+            },
             Closed = () => { Replace(null); next(); }
         });
     }
     private void ShowChoices()
     {
+        StartDiplomacyMusic();
         Pending = false;
         if (Draft.Diplomacy is not null)
         { Replace(new DiplomacyDecisionView { Draft = Draft, Textures = Textures, Service = Service, Texts = Texts, Choose = Choose }); return; }
@@ -201,6 +208,7 @@ public partial class DecisionView : Control
     public void Complete(SessionResult result)
     {
         if (!Pending || _answer is null) return;
+        _music?.Dispose(); _music = null;
         var messages = Draft.Results(_answer.Role, result.Events, _selected, _amount);
         if (Draft.Role == "shanyang-gong" && _answer.Role == "accept")
             Narrate([Draft.MovieIntroduction()], () => PlayRestorationMovie(messages));
@@ -216,7 +224,12 @@ public partial class DecisionView : Control
         if (_lifetime.IsCancellationRequested) return;
         Narrate(messages, FinishResult);
     }
-    private void FinishResult() { Pending = false; Finished(); }
+    private void FinishResult() { _music?.Dispose(); _music = null; Pending = false; Finished(); }
+    private void StartDiplomacyMusic()
+    {
+        if (SoundEnabled && Draft.Diplomacy is not null && _music is null)
+            _music = BeginMusic?.Invoke("diplomacy-music");
+    }
     public override void _GuiInput(InputEvent input) => AcceptEvent();
-    public override void _ExitTree() { _lifetime.Cancel(); _lifetime.Dispose(); }
+    public override void _ExitTree() { _music?.Dispose(); _music = null; _lifetime.Cancel(); _lifetime.Dispose(); }
 }

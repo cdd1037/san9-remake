@@ -20,8 +20,11 @@ public partial class StrategyHud
             _executionPublication = Turn.Publication;
             foreach (var message in ExecutionMessages.Read(before, Session.Messages(Texts), Texts, CommandPresentation.Decisions, result.Events))
                 _executionPanels.Append(message.Message);
+            var messages = MissionPresentation.Results(before,Texts,result.Events,_diplomacyNarrated,
+                CommandPresentation.Missions,Session.Messages(Texts,before.World),CommandPresentation.Decisions.People).ToList();
             if (CommandPresentation.Personnel is {} personnel)
-                NarratePersonnel(PersonnelPresentation.Results(before,Session.Messages(Texts,before.World),Texts,personnel,result.Events,Random.Shared.Next),before);
+                messages.InsertRange(0,PersonnelPresentation.Results(before,Session.Messages(Texts,before.World),Texts,personnel,result.Events,Random.Shared.Next));
+            if (messages.Count > 0) OpenNarration(messages,before);
         }
         _executionBefore = Session.View;
     }
@@ -92,6 +95,7 @@ public partial class StrategyHud
                 Finished = CloseDecision,
                 Media = SceneMedia,
                 SkipIntroduction = draft.Diplomacy is { } diplomacy && !_diplomacyNarrated.Add(diplomacy.TaskId),
+                BeginMusic = _sceneMusic.Begin,
                 MessagePresented = message => _executionPanels.Append(message.Message)
             };
             OverlayHost.AddChild(_decision);
@@ -110,5 +114,6 @@ public partial class StrategyHud
     {
         if (_decision is not { } view) return;
         _decision = null; OverlayHost.RemoveChild(view); view.QueueFree();
+        ContinueNarrations();
     }
 }

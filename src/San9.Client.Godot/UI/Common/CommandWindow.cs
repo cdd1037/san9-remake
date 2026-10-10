@@ -22,6 +22,8 @@ public partial class CommandWindow : Control
     private readonly GameTextPresenter _text = new();
     private ImageTexture? _background;
     private Vector2 _backgroundSize;
+    private bool SmallFrame => Size.X < 416 || Size.Y < 312;
+    private string FrameKey(string role) => "deployment-" + (SmallFrame && role is not ("left-edge" or "right-edge") ? "small-" : "") + role;
 
     public override void _Ready()
     {
@@ -32,10 +34,10 @@ public partial class CommandWindow : Control
         _text.Apply(title, new(24, new Color("f8f850"), GameTextEffect.Outline, new Color("5828c8")));
         Icon("help", new(Size.X - 40, -56), Help);
         Icon("close", new(Size.X - 8, -36), Closed, !CanClose);
-        var accept = ActionButton(AcceptTitle, "accept", new(Size.X - ActionRightInset - 168, Size.Y + 20, 80, 48), Accepted);
+        var accept = ActionButton(AcceptTitle, "accept", new(Size.X - (SmallFrame ? 26 : ActionRightInset) - 168, Size.Y + (SmallFrame ? 21 : 20), 80, 48), Accepted);
         accept.Disabled = !CanAccept;
         BindHint(accept, AcceptHint);
-        BindHint(ActionButton(CancelTitle, "cancel", new(Size.X - ActionRightInset - 80, Size.Y + 20, 80, 48), Cancelled ?? Closed), CancelHint);
+        BindHint(ActionButton(CancelTitle, "cancel", new(Size.X - (SmallFrame ? 26 : ActionRightInset) - 80, Size.Y + (SmallFrame ? 21 : 20), 80, 48), Cancelled ?? Closed), CancelHint);
     }
 
     public void BindHint(Control control, string? hint)
@@ -69,7 +71,8 @@ public partial class CommandWindow : Control
     {
         // Derived from the current skin and content size; never persisted as content.
         if (_background is not null && _backgroundSize == Size) return;
-        string[] roles = ["deployment-background", "deployment-cutout-top-left", "deployment-cutout-top-right", "deployment-cutout-bottom-left"];
+        // The command base selects background 270 independently of the frame size.
+        string[] roles = ["deployment-background", FrameKey("cutout-top-left"), FrameKey("cutout-top-right"), FrameKey("cutout-bottom-left")];
         if (!Textures.AreReady(roles)) return;
         using var source = Textures[roles[0]].GetImage();
         source.Convert(Image.Format.Rgba8);
@@ -103,17 +106,17 @@ public partial class CommandWindow : Control
         if (_background is not null) DrawTexture(_background, new(-32, -64));
         float titleWidth = 160 + Title.Length * 16;
         Strip("title", new(-24, -72, titleWidth, 56));
-        Tile("top-edge", new(-24 + titleWidth, -72, Size.X - 112 - (-24 + titleWidth), Textures["deployment-top-edge"].GetHeight()));
-        Strip("footer", new(Size.X - 298, Size.Y + 16, 296, 56));
-        Tile("edge", new(118, Size.Y + 56, Size.X - 416, Textures["deployment-edge"].GetHeight()));
-        Tile("left-edge", new(-36, 104, Textures["deployment-left-edge"].GetWidth(), Size.Y - 136));
-        Tile("right-edge", new(Size.X + 25, 88, Textures["deployment-right-edge"].GetWidth(), Size.Y - 120));
+        Tile("top-edge", new(-24 + titleWidth, -72, Size.X - (SmallFrame ? 88 : 112) - (-24 + titleWidth), Textures[FrameKey("top-edge")].GetHeight()));
+        Strip("footer", new(Size.X - (SmallFrame ? 266 : 298), Size.Y + 16, SmallFrame ? 280 : 296, 56));
+        Tile("edge", new(SmallFrame ? 28 : 116, Size.Y + 56, Size.X - (SmallFrame ? 302 : 422), Textures[FrameKey("edge")].GetHeight()));
+        Tile("left-edge", new(-36, SmallFrame ? 8 : 104, Textures["deployment-left-edge"].GetWidth(), Size.Y - (SmallFrame ? 28 : 136)));
+        Tile("right-edge", new(Size.X + 25, SmallFrame ? 12 : 88, Textures["deployment-right-edge"].GetWidth(), Size.Y - (SmallFrame ? 28 : 120)));
         foreach (var (role, at) in new (string, Vector2)[] { ("top-left", new(-62, -79)), ("top-right", new(Size.X - 112, -80)),
             ("bottom-left", new(-64, Size.Y - 96)), ("bottom-right", new(Size.X - 24, Size.Y - 96)) })
-            DrawTexture(Textures["deployment-" + role], at);
+            DrawTexture(Textures[FrameKey(role)], at);
     }
-    private void Tile(string role, Rect2 rect) => SkinPainter.Tile(this, Textures["deployment-" + role], rect);
-    private void Strip(string role, Rect2 rect) => SkinPainter.Strip(this, Textures["deployment-" + role + "-left"],
-        Textures["deployment-" + role + "-middle"], Textures["deployment-" + role + "-right"], rect);
+    private void Tile(string role, Rect2 rect) => SkinPainter.Tile(this, Textures[FrameKey(role)], rect);
+    private void Strip(string role, Rect2 rect) => SkinPainter.Strip(this, Textures[FrameKey(role + "-left")],
+        Textures[FrameKey(role + "-middle")], Textures[FrameKey(role + "-right")], rect);
     public override void _ExitTree() { _text.Dispose(); _background?.Dispose(); }
 }

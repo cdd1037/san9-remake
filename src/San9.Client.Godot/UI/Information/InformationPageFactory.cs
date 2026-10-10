@@ -89,7 +89,7 @@ internal sealed class InformationPageFactory
                 var rows = Query.Read(State).Rows;
                 State.Catalog.RefreshRows(rows.Select(r => new CatalogRow(r.Key.Id,r.Cells)).ToArray());
                 var informationMap = new InformationMapView {
-                    Session = Session, Texts = Texts, Skin = Skin, Service = Service, Textures = Textures, Category = category,
+                    ReadView = () => Session.View, Texts = Texts, Skin = Skin, Service = Service, Textures = Textures, Category = category,
                     ReadCandidates = () => Query.Read(State).Rows.Select(r => r.Key.Id).ToArray(), Closed = Back,
                     ShowList = () => { State.ShowMap(false); Rebuild(); },
                     Activated = id => OpenAdministrativeDetail(category,id)

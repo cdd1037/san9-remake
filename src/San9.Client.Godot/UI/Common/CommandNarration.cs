@@ -22,6 +22,9 @@ public partial class CommandNarration : Control
     public string ContentRoot { get; init; } = "";
     public bool SoundEnabled { get; init; } = true;
     public string? InitialSoundRole { get; init; }
+    public Func<string,IDisposable>? BeginMusic { get; init; }
+    private IDisposable? _music;
+    private string? _musicRole;
     public Action Closed { get; init; } = null!;
     public Action<CommandMessage>? MessagePresented { get; init; }
     private int _index, _frame;
@@ -51,6 +54,11 @@ public partial class CommandNarration : Control
         _illustration?.Dispose(); _illustration=null; _imageFrameBounds=null;
         _body = new Control { MouseFilter = MouseFilterEnum.Ignore }; AddChild(_body);
         var entry = Messages[_index];
+        if (_musicRole != entry.BackgroundMusicRole)
+        {
+            _music?.Dispose(); _music = null; _musicRole = entry.BackgroundMusicRole;
+            if (SoundEnabled && _musicRole is string music) _music = BeginMusic?.Invoke(music);
+        }
         MessagePresented?.Invoke(entry);
         if (!HasIllustration && entry.SpeakerId is int id)
         {
@@ -206,6 +214,7 @@ public partial class CommandNarration : Control
     }
     public override void _ExitTree()
     {
+        _music?.Dispose(); _music = null;
         _audio.Stop(); _audio.Stream = null;
         foreach (var sound in _sounds.Values) sound.Dispose();
         _resultFrame.Dispose(); _text.Dispose();

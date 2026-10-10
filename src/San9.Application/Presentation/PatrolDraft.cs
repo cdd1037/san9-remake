@@ -15,7 +15,7 @@ public sealed class PatrolDraft
     public int Cost => Members.Length * 50;
     public int SelectionLimit => 5;
     public bool CanExecute => Members.Length > 0 && Cost <= Money;
-    public long DraftGrowth => ReadDraftGrowth(View.World, Home);
+    public long DraftGrowth { get; }
 
     public static string? UnavailableReasonKey(StrategySnapshot view, int id) =>
         new MapCommandAvailability(view).SettlementReasonKey(id, "patrol");
@@ -26,6 +26,7 @@ public sealed class PatrolDraft
     {
         if (UnavailableReasonKey(view, id) is string reason) throw new ArgumentException(reason, nameof(id));
         View = view; Home = view.World.Settlements.Single(s => s.Id == id); Money = Funds(view, Home);
+        DraftGrowth = new PopulationOutlook(view.World).DraftGrowth(id);
         Candidates = view.Officers.Where(o => o.IsAvailable && o.OwnerId == Home.OwnerId && o.SettlementId == id)
             .OrderByDescending(o => o.Abilities.Intelligence).ThenBy(o => o.Id).Select(o => o.Id).ToImmutableArray();
         if (Candidates.Length == 1) SetMembers(Candidates);
@@ -42,7 +43,4 @@ public sealed class PatrolDraft
     public DevelopCommand CreateCommand(Guid id, long sequence) => CanExecute
         ? new(id, Home.OwnerId!.Value, sequence, new(Home.OwnerId.Value, Home.Id, Members, DomesticActivity.Patrol))
         : throw new InvalidOperationException("No valid patrol selection.");
-
-    public static long ReadDraftGrowth(WorldSnapshot world, SettlementState city)
-        => PopulationOutlook.DraftGrowth(world, city);
 }

@@ -56,6 +56,7 @@ public sealed class AdministrativeCatalog(StrategySnapshot view, TextCatalog tex
     public OfficerView? Commander(int id) => (_locals.GetValueOrDefault(id) ?? [])
         .SingleOrDefault(o => o.IsServing && o.OwnerId == _places.GetValueOrDefault(id)?.OwnerId && _commanderIds.Contains(o.Id));
     private readonly Dictionary<(int Owner, int? Corps), EconomicOutlook> _outlooks = [];
+    private PopulationOutlook? _population;
     private readonly IReadOnlyList<TerritoryConnection> _connections = view.TerritoryConnections();
     private HashSet<int>? _frontlineRegions;
     private Dictionary<int, int?>? _regionOwners;
@@ -212,8 +213,6 @@ public sealed class AdministrativeCatalog(StrategySnapshot view, TextCatalog tex
             default: throw new ArgumentOutOfRangeException(nameof(field), field, "Unknown force field.");
         }
     }
-    private long DraftGrowth(SettlementState city)
-        => PopulationOutlook.DraftGrowth(view.World, city);
     private CatalogCell PlaceCell(InformationCategory category, int id, string field)
     {
         var place = _places.GetValueOrDefault(id);
@@ -259,7 +258,7 @@ public sealed class AdministrativeCatalog(StrategySnapshot view, TextCatalog tex
                 : state.MerchantPresent ? new("驻在", 1) : new("", 0),
             "tactics" => place.ConfiguredTacticId is int tactic ? Tactics([tactic]) : CatalogCell.Unavailable,
             "facility" => place.Kind == SettlementKind.City ? "都市" : place.NameSuffixKey is { } suffix ? texts.Resolve(suffix) : place.ResolveName(texts),
-            "draft-growth" => DraftGrowth(state),
+            "draft-growth" => (_population ??= new(view.World)).DraftGrowth(id),
             "feature" => view.TacticCourses.FirstOrDefault(c => c.CityId == id) is { } course && view.TacticCategory(course.TacticId) is int group ? OfficerCatalog.Pages[group + 4].Title : CatalogCell.Unavailable,
             "trait" => string.Join("‧", (place.UsesRockfallPower ? new[] { "落石" } : []).Concat(place.HasRangeBonus ? new[] { "射台" } : [])),
             "recovery" => place.WoundedRecovery is int recovery ? recovery : CatalogCell.Unavailable,

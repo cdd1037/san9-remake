@@ -13,14 +13,17 @@ public sealed class PopulationOutlookTests
              new(2, null, 500000, 100, 100, 50, 1000, 0, 100, 0, 100) { IsDormant = true, Population = 900000 }], []);
         var snapshot = world.CreateSnapshot();
         var city = snapshot.Settlements.Single(s => s.Id == 1);
-        long predicted = PopulationOutlook.DraftGrowth(snapshot, city);
+        var outlook = new PopulationOutlook(snapshot);
+        long predicted = outlook.DraftGrowth(city.Id);
         Assert.Equal(600, predicted);
-        Assert.Equal(predicted, PopulationOutlook.DraftGrowth(snapshot with { Settlements = [city] }, city));
+        Assert.Equal(750, outlook.DraftGrowth(city.Id, publicOrder: 1000));
+        Assert.Equal(predicted, outlook.DraftGrowth(city.Id));
+        Assert.Equal(predicted, new PopulationOutlook(snapshot with { Settlements = [city] }).DraftGrowth(city.Id));
         var mutation = world.BeginMutation();
         mutation.SetClock(new(190, 4, 1));
         EconomicCycle.Apply(ResolutionStage.QuarterUpdate, mutation, EconomyRulebook.Empty, []);
         Assert.Equal(predicted, (long)mutation.Settlements[1].DraftPopulation - city.DraftPopulation);
         Assert.Equal(snapshot.Settlements.Single(s => s.Id == 2), mutation.AllSettlements[2]);
-        Assert.Equal(0, PopulationOutlook.DraftGrowth(snapshot, snapshot.Settlements.Single(s => s.Id == 2)));
+        Assert.Equal(0, outlook.DraftGrowth(2));
     }
 }

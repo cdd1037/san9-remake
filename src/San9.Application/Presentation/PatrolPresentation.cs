@@ -51,8 +51,9 @@ public static class PatrolPresentation
         if (result.Increment > 0)
         {
             int order = home.PublicOrder + result.Increment;
-            long oldGrowth = PatrolDraft.ReadDraftGrowth(before.World, home);
-            long growth = PatrolDraft.ReadDraftGrowth(before.World, home with { PublicOrder = order });
+            var population = new PopulationOutlook(before.World);
+            long oldGrowth = population.DraftGrowth(home.Id);
+            long growth = population.DraftGrowth(home.Id, order);
             sequence.Add(new(context.Produce(content.Messages["result"], new Dictionary<string, MessageBinding>
             {
                 ["building.0"] = MessageBinding.Reference(MessageEntityKind.Settlement, home.Id),

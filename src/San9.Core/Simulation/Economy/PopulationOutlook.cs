@@ -3,15 +3,23 @@ using San9.Core.Domain;
 namespace San9.Core.Simulation;
 
 /// <summary>Population forecasts use the same participating population and troops as quarterly updates.</summary>
-public static class PopulationOutlook
+public sealed class PopulationOutlook
 {
-    public static long DraftGrowth(WorldSnapshot snapshot, SettlementState city)
+    private readonly IReadOnlyDictionary<int, SettlementState> _places;
+    private readonly (long Population, long Military, long Order) _totals;
+
+    public PopulationOutlook(WorldSnapshot snapshot)
     {
         var world = new WorldQuery(snapshot);
-        if (!world.Settlements.TryGetValue(city.Id, out var current) || current.IsDestroyed || current.Kind != SettlementKind.City)
+        _places = world.Settlements;
+        _totals = Totals(world);
+    }
+
+    public long DraftGrowth(int cityId, int? publicOrder = null)
+    {
+        if (!_places.TryGetValue(cityId, out var city) || city.IsDestroyed || city.Kind != SettlementKind.City)
             return 0;
-        var totals = Totals(world);
-        long growth = EconomyMath.DraftIncrease(totals.Population, totals.Military, totals.Order, city.PublicOrder);
+        long growth = EconomyMath.DraftIncrease(_totals.Population, _totals.Military, _totals.Order, publicOrder ?? city.PublicOrder);
         return Math.Min(Math.Max(500000L, city.DraftPopulation), city.DraftPopulation + growth) - city.DraftPopulation;
     }
 

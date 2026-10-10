@@ -18,10 +18,11 @@ public sealed class PatrolTests
         var dormant = home with { Id = 99, OwnerId = null, CorpsId = null, IsDormant = true, Population = 900000, Soldiers = 500000 };
         var complete = active with { Settlements = [.. active.Settlements, dormant] };
         string before = complete.StateHash;
-        long expected = PopulationOutlook.DraftGrowth(active, home);
+        long expected = new PopulationOutlook(active).DraftGrowth(home.Id);
         Assert.True(expected > 0);
-        Assert.Equal(expected, PatrolDraft.ReadDraftGrowth(complete, home));
-        var catalog = new AdministrativeCatalog(new StrategySnapshot(definition, complete), new TextCatalog(TextCatalog.CurrentSchemaVersion, []));
+        var view = new StrategySnapshot(definition, complete);
+        Assert.Equal(expected, new PatrolDraft(view, home.Id).DraftGrowth);
+        var catalog = new AdministrativeCatalog(view, new TextCatalog(TextCatalog.CurrentSchemaVersion, []));
         Assert.Equal(expected, catalog.Cell(InformationCategory.Cities, home.Id, "draft-growth").Number);
         Assert.Equal(before, complete.StateHash);
     }

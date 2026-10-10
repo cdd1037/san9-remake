@@ -84,6 +84,16 @@ public partial class SystemMenuPanel : Control
         ReplacePage(dialog);
         return dialog;
     }
+    public void ShowLoadFailure(string message)
+    {
+        HideBusy();
+        _textures ??= Service.CreateScope(owner: this);
+        _textures.RequestPrefixes("dialog-");
+        Show();
+        var notice = MapDialog();
+        notice.SetNotice($"载入失败：\n{message}");
+        notice.FocusDefaultButton();
+    }
     private async void Load(Func<GameSession> read)
     {
         if (_busy) return;
@@ -101,12 +111,7 @@ public partial class SystemMenuPanel : Control
         catch (OperationCanceledException) when (token.IsCancellationRequested) { }
         catch (SaveException error)
         {
-            if (!token.IsCancellationRequested)
-            {
-                var notice = MapDialog();
-                notice.SetNotice($"载入失败：\n{SaveFailureMessages.Describe(error)}");
-                notice.FocusDefaultButton();
-            }
+            if (!token.IsCancellationRequested) ShowLoadFailure(SaveFailureMessages.Describe(error));
             GD.PushWarning(error.ToString());
         }
         finally { if (!token.IsCancellationRequested && !activating) _busy = false; }

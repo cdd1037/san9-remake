@@ -109,7 +109,7 @@ public partial class StrategyHud
     private void UpdateMapAudio()
     {
         var audio = CommandPresentation.MapAudio!;
-        _sceneMusic.SetMapTrack(Turn.Screen == TurnScreen.Terminal ? null : MapMusic.Select(Turn.Display ?? Session.View, audio));
+        Music.SetMapTrack(Turn.Screen == TurnScreen.Terminal ? null : MapMusic.Select(Turn.Display ?? Session.View, audio));
         var frame = World.Display?.Presented;
         if (!SoundEnabled || Turn.Screen != TurnScreen.Playing || _narration is not null || World.LoadError is not null)
         {

@@ -20,8 +20,7 @@ public partial class StrategyHud : Control
     public ISceneMedia SceneMedia { get; init; } = new SilentSceneMedia();
     public Action? StartNewGame { get; init; }
     private TextureScope _textures = null!;
-    private SceneMusicPlayer _sceneMusic = null!;
-    public bool MusicEnabled { get; init; } = true;
+    public SceneMusicPlayer Music { get; init; } = null!;
     private readonly List<(string Asset, Vector2 Position)> _frames = [];
     private Label _footer = null!;
     private GameMessageBar _message = null!;
@@ -59,8 +58,6 @@ public partial class StrategyHud : Control
     public override void _Ready()
     {
         _textures = Textures.CreateScope(owner: this);
-        _sceneMusic = new() { ContentRoot = ContentRoot, Tracks = CommandPresentation.Sounds, Enabled = MusicEnabled };
-        AddChild(_sceneMusic);
         _textures.RequestPrefixes("button-", "top-", "radar-", "sidebar-", "ruler-", "field-", "region-",
             "season-", "turn-", "target-", "hover-", "icon-", "minimap-",
             "roster-", "scroll-", "message-", "dialog-", "command-", "information-menu-");

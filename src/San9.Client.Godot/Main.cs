@@ -1,5 +1,4 @@
 using Godot;
-using San9.Application.Presentation;
 using San9.Client.Godot.Diagnostics;
 using San9.Content.Images;
 using San9.Content.Packages;
@@ -67,49 +66,32 @@ public partial class Main : Node
             world.MapReady += OnFirstMapReady;
             var initial = content.Scenario;
             if (options.RuntimeSmoke) initial = ClientVerificationScenario.Create(initial);
-            var session = San9.Application.GameSession.Start(initial, 190, options.ComputerDamageBonusPercent);
+            San9.Application.GameSession CreateNewSession() =>
+                San9.Application.GameSession.Start(initial, 190, options.ComputerDamageBonusPercent);
+            var session = CreateNewSession();
             var saveStore = new Persistence.SlotSaveStore(ProjectSettings.GlobalizePath(Persistence.SlotSaveStore.UserDirectory), initial);
+            var music = new SceneMusicPlayer { ContentRoot = content.ContentRoot, Tracks = content.Presentation.Sounds };
+            AddChild(music);
             world.Session = session;
-            StrategySelection selection = null!;
-            StrategyHud hud = null!;
-            Node? sessionUi = null;
             var center = MapGeometry.Center(options.CenterX, options.CenterY);
             world.FocusWorld(new(center.X, center.Y)); world.SetZoom(options.Zoom);
             world.LoadMap(content.Map, content.TextureRoot, options.Season, options.AnimationTime);
             ui.AddChild(new MapAnnotations { World = world, Texts = content.Text, UiFont = ui.GetThemeFont("font") });
-            void ActivateSession(San9.Application.GameSession next)
+            var sessions = new SessionUiHost
             {
-                // Detach the old UI before binding the new session; its exit hooks clear map callbacks.
-                sessionUi?.Free();
-                session = next;
-                world.BindSession(next);
-                selection = new StrategySelection(next);
-                sessionUi = new Node { Name = "SessionUi" }; ui.AddChild(sessionUi);
-                var backdropHost = new Node(); sessionUi.AddChild(backdropHost);
-                var overlayHost = new StrategyOverlayHost();
-                var soundSettings = new Settings.UserSettingsStore(ProjectSettings.GlobalizePath(Settings.UserSettingsStore.UserDataPath)).Load();
-                hud = new StrategyHud { CommandPresentation = content.Presentation, ContentRoot = content.ContentRoot,
-                    SaveStore = saveStore, SaveSummary = note => Persistence.SaveSlotSummaryFactory.Create(session, initial, content.Text, note),
-                    ActivateSession = ActivateSession,
-                    StartNewGame = () => Callable.From(() => ActivateSession(San9.Application.GameSession.Start(initial,190,options.ComputerDamageBonusPercent))).CallDeferred(),
-                    MusicEnabled = soundSettings.MusicEnabled, SoundEnabled = soundSettings.SoundEnabled, OverlayHost = overlayHost, BackdropHost = backdropHost, World = world, Selection = selection, Session = session, Texts = content.Text, Skin = content.Skin, Textures = textures };
-                sessionUi.AddChild(overlayHost);
-                sessionUi.AddChild(hud);
-                sessionUi.MoveChild(overlayHost, sessionUi.GetChildCount() - 1);
-                var debug = new DebugPanel { World = world, Session = session, Selection = selection, CanIssueOrders = () => hud.CanIssueOrders }; sessionUi.AddChild(debug);
-                world.IsInputBlocked = p => hud.Overview.IsOpen || (debug.Visible && debug.GetRect().HasPoint(p)) || hud.IsBlockedPoint(p);
-                world.IsNavigationBlocked = p => (debug.Visible && debug.GetRect().HasPoint(p)) || hud.IsNavigationBlocked(p);
-                world.CanNavigate = () => hud.CanNavigateMap;
-                world.CanIssueOrders = () => hud.CanIssueOrders;
-            }
-            ActivateSession(session);
+                World = world, Textures = textures, Content = content, Definition = initial,
+                SaveStore = saveStore, Music = music, InitialSession = session,
+                CreateNewSession = CreateNewSession
+            };
+            ui.AddChild(sessions);
             if (!options.RequiresWorldVerification)
-                ui.AddChild(new Persistence.QuickSaveShortcuts { CurrentSession = () => session,
-                    CanSave = () => hud.CanQuickSave, IsBlocked = () => hud.SystemMenu?.IsVisibleInTree() == true,
-                    LoadRequested = () => hud.SystemMenu.RequestLoad(() => San9.Application.Persistence.SaveService.Load(
-                        ProjectSettings.GlobalizePath(Persistence.QuickSaveShortcuts.SavePath), initial)) });
+                ui.AddChild(new Persistence.QuickSaveShortcuts
+                {
+                    CurrentSession = () => sessions.Session, CanSave = () => sessions.CanSave,
+                    IsBlocked = () => sessions.IsBlocked, LoadRequested = sessions.RequestQuickLoad
+                });
             if (options.RequiresWorldVerification)
-                AddChild(new ClientVerification { World = world, Selection = selection, Hud = hud, Options = options });
+                AddChild(new ClientVerification { World = world, Selection = sessions.Selection, Hud = sessions.Hud, Options = options });
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { }
         catch (Exception e)

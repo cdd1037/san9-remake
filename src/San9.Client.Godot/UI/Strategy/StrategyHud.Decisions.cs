@@ -90,7 +90,7 @@ public partial class StrategyHud
                 Finished = CloseDecision,
                 Media = SceneMedia,
                 SkipIntroduction = draft.Diplomacy is { } diplomacy && !_diplomacyNarrated.Add(diplomacy.TaskId),
-                BeginMusic = _sceneMusic.Begin,
+                BeginMusic = Music.Begin,
                 MessagePresented = message => _executionPanels.Append(message.Message)
             };
             OverlayHost.AddChild(_decision);

@@ -15,7 +15,7 @@ public partial class StrategyHud
         _textures.RequestPrefixes("narration-", "dialog-");
         _narration = new() { Messages = messages, View = view, Texts = Texts, Service = Textures, Textures = _textures,
             ContentRoot = ContentRoot, Sounds = CommandPresentation.Sounds, SoundEnabled = SoundEnabled,
-            BeginMusic = _sceneMusic.Begin,
+            BeginMusic = Music.Begin,
             MessagePresented = RecordNarration, Closed = CloseNarration };
         OverlayHost.AddChild(_narration);
     }

@@ -7,10 +7,10 @@ namespace San9.Application.AI;
 public static class StrategyPlanner
 {
     public static GameCommand Choose(GameSession session, ControlSeat seat, Guid commandId) =>
-        Choose(session.Snapshot, session.Validate, session.MilitaryRules, seat, commandId);
+        Choose(session.Snapshot, session.GetPreparationEligibility, session.MilitaryRules, seat, commandId);
 
     internal static GameCommand Choose(WorldSnapshot world,
-        Func<CommandContext, GameCommand, CommandSubmissionResult> validate, MilitaryRulebook? rules,
+        Func<CommandContext, GameCommand, CommandRejection> eligible, MilitaryRulebook? rules,
         ControlSeat seat, Guid commandId, int? corpsId = null)
     {
         long sequence = world.Simulation.NextSequence;
@@ -45,7 +45,7 @@ public static class StrategyPlanner
             int kind = (first + offset) % 8;
             foreach (var actor in actors)
                 foreach (var command in Candidates(kind, actor))
-                    if (validate(new(seat.ControllerId), command).Accepted) return command;
+                    if (eligible(new(seat.ControllerId), command) == CommandRejection.None) return command;
         }
         return wait;
 

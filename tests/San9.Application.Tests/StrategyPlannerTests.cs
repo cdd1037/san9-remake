@@ -1,7 +1,5 @@
 using San9.Application.AI;
-using System.Collections.Immutable;
 using San9.Application.Persistence;
-using San9.Content.Scenarios;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -12,7 +10,7 @@ public sealed class StrategyPlannerTests
     [Fact]
     public void DelegatedCorpsUsesItsOwnOfficerAndPublicStrategyDuringPlayerControl()
     {
-        var basis = Fixture(4);
+        var basis = MissionScenario.Create(4);
         var content = basis with
         {
             Settlements = [.. basis.Settlements.Select(s => s.Id == 1 ? s with { CorpsId = 11, Soldiers = 1000 } : s),
@@ -34,44 +32,12 @@ public sealed class StrategyPlannerTests
         Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
     }
 
-    internal static ScenarioInitialState Fixture(int kind = 0)
-    {
-        // 190-01-01 starts at category 5 for force 1; select each category through real calendar input.
-        int xun = (kind + 3) % 8;
-        return new(ScenarioInitialState.CurrentSchemaVersion, "g08-strategy-public", 190, 1 + xun / 3, 1 + xun % 3 * 10, 1,
-            [new(1, "home", 1, 100) { LeaderId = 1 },
-             new(2, "enemy", 2, 100) { LeaderId = 21 },
-             new(3, "third", 3, 100) { LeaderId = 31 }],
-            [new(1, "home", 1, 0, 1, 10000, 100, 100, 70, []) { Durability = 500, MaxDurability = 500 },
-             new(2, "enemy", 2, 10, 1, 10000, 100, 100, 70, []) { Durability = 500, MaxDurability = 500 },
-             new(3, "third", 3, 20, 1, 10000, 100, 100, 70, []) { Durability = 500, MaxDurability = 500 }], [], [])
-        {
-            RegionNameKeys = new() { [1] = "home", [2] = "enemy", [3] = "third" },
-            RegionCityIds = new() { [1] = 1, [2] = 2, [3] = 3 },
-            CityConnections = [new(1, 2), new(2, 1)],
-            Officers = [new("ruler", new(1, 1, 1, new(90, 90, 90, 90), false) { Status = OfficerStatus.Ruler }),
-                new("actor", new(2, 1, 1, new(90, 90, 90, 90), false)),
-                new("commander", new(3, 1, null, new(50, 50, 50, 50), false) { UnitId = 10 }),
-                new("enemy-ruler", new(21, 2, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }),
-                new("enemy-officer", new OfficerState(22, 2, 2, new(50, 50, 50, 50), false).WithLoyalty(2, 80)),
-                new("enemy-commander", new(23, 2, null, new(50, 50, 50, 50), false) { UnitId = 20 }),
-                new("third-ruler", new(31, 3, 3, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler })],
-            Units = [new(10, 1, new(12, 7), 5000) { FormationId = 7, Morale = 70, CommanderId = 3,
-                    Order = new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 20 } },
-                new(20, 2, new(42, 7), 5000) { FormationId = 7, Morale = 70, CommanderId = 23, }],
-            Military = new(30, 3, Enumerable.Repeat(0, 90).ToImmutableArray(), [new(0, 1, null)],
-                [new(7, 1, 0, 10000, 5, new(1, 1), TravelMode.Land)],
-                [new(1, new(2, 7), new(1, 1)), new(2, new(52, 7), new(1, 1)), new(3, new(102, 7), new(1, 1))])
-                { RegionIds = Enumerable.Repeat<int?>(1, 90).ToImmutableArray() }
-        , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, 31, new(10000, 10000)) { IsRoot = true }], []) };
-    }
-
     [Theory]
     [InlineData(0)] [InlineData(1)] [InlineData(2)] [InlineData(3)]
     [InlineData(4)] [InlineData(5)] [InlineData(6)] [InlineData(7)]
     public void EveryCategoryUsesPublicCommandAndResolvesIdenticallyAfterSaveAndReplay(int kind)
     {
-        var content = Fixture(kind);
+        var content = MissionScenario.Create(kind);
         var session = GameSession.Start(content, 42);
         var seat = session.Snapshot.Simulation.Controls.Single(c => c.ForceId == 1);
         session.BeginRecording();
@@ -110,13 +76,13 @@ public sealed class StrategyPlannerTests
     [Fact]
     public void NoAuthorityAndNoActorsProduceNoCommandAndDoNotChangeWorld()
     {
-        var session = GameSession.Start(Fixture(), 42);
+        var session = GameSession.Start(MissionScenario.Create(), 42);
         byte[] before = SaveService.Encode(session);
         Assert.IsType<WaitCommand>(StrategyPlanner.Choose(session, new("unknown", 1, ControllerKind.Automatic), Guid.NewGuid()));
         Assert.Equal(before, SaveService.Encode(session));
-        var content = Fixture() with { Officers = Fixture().Officers.Where(p => p.State.OwnerId != 1 || p.State.UnitId is not null).ToArray(),
-            Information = Fixture().Information with { Corps = Fixture().Information.Corps.Select(c => c.IsRoot && c.OwnerId == 1 ? c with { LeaderId = null } : c).ToArray() },
-            Forces = Fixture().Forces.Select(f => f.Id == 1 ? f with { LeaderId = null } : f).ToArray() };
+        var content = MissionScenario.Create() with { Officers = MissionScenario.Create().Officers.Where(p => p.State.OwnerId != 1 || p.State.UnitId is not null).ToArray(),
+            Information = MissionScenario.Create().Information with { Corps = MissionScenario.Create().Information.Corps.Select(c => c.IsRoot && c.OwnerId == 1 ? c with { LeaderId = null } : c).ToArray() },
+            Forces = MissionScenario.Create().Forces.Select(f => f.Id == 1 ? f with { LeaderId = null } : f).ToArray() };
         session = GameSession.Start(content, 42);
         Assert.IsType<WaitCommand>(StrategyPlanner.Choose(session, session.Snapshot.Simulation.Controls[0], Guid.NewGuid()));
     }
@@ -126,7 +92,7 @@ public sealed class StrategyPlannerTests
     {
         foreach (bool tiny in new[] { false, true })
         {
-            var content = Fixture(3);
+            var content = MissionScenario.Create(3);
             content = content with
             {
                 Settlements = content.Settlements.Select(s => s.Id == 1 ? s with { Soldiers = tiny ? 10000u : 5999u } : s).ToArray(),
@@ -141,7 +107,7 @@ public sealed class StrategyPlannerTests
     [Fact]
     public void UncontactedEnemyUnitsAreNotUsedAndAutomaticControlActuallyDispatches()
     {
-        var content = Fixture();
+        var content = MissionScenario.Create();
         content = content with { Units = content.Units.Select(u => u.Id == 10 ? u with { Order = null } : u).ToArray() };
         var session = GameSession.Start(content, 42);
         Assert.NotEqual(0, Category(StrategyPlanner.Choose(session, session.Snapshot.Simulation.Controls[0], Guid.NewGuid())));

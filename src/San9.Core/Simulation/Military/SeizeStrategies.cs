@@ -29,7 +29,7 @@ internal static class SeizeStrategies
     internal static bool EligibleForTask(WorldMutation world, PersistentTask task, SimulationRules rules) =>
         Eligible(world, task.ForceId, task.OriginSettlementId, task.Journey!.Seize!.TargetSettlementId, rules);
 
-    private static CommandRejection Eligibility(WorldMutation world, int forceId, int officerId, int targetId,
+    internal static CommandRejection Eligibility(WorldMutation world, int forceId, int officerId, int targetId,
         SimulationRules rules)
     {
         if (!PersonnelMissions.CanAct(world, forceId, officerId)) return CommandRejection.PersonUnavailable;
@@ -84,22 +84,17 @@ internal static class SeizeStrategies
     internal static CommandRejection Start(WorldMutation world, CommandContext context, SeizeCommand command,
         SimulationRules rules, List<DomainEvent> events)
     {
-        var rejection = Eligibility(world, command.IssuerId, command.OfficerId, command.TargetSettlementId, rules);
-        if (rejection != CommandRejection.None) return rejection;
+        var plan = MissionPreparation.Prepare(world, command, rules, out var rejection);
+        if (plan is null) return rejection;
         var actor = world.Officers[command.OfficerId];
-        int origin = actor.SettlementId!.Value;
-        var route = PersonnelLocations.Route(world, rules.Personnel, origin, command.TargetSettlementId);
-        int offset = Math.Max(0, route.Days - 1);
-        var due = world.Clock;
-        for (int day = 0; day < offset; day++) due = due.NextDay();
         int roll = ConditionalRandom.Percentile(world.Simulation.InitialSeed, ConditionalRandomPurpose.Seize,
             world.Clock, actor.Id, command.TargetSettlementId);
         var task = new PersistentTask(command.CommandId, Kind, context.ControllerId, command.IssuerId, actor.Id,
-            origin, world.Clock, due, 0, command.Sequence)
+            plan.Origin, world.Clock, plan.Arrival, 0, command.Sequence)
         {
             Journey = new(command.TargetSettlementId, null, roll)
             {
-                Route = route,
+                Route = plan.Route,
                 Seize = new(command.TargetSettlementId)
             }
         };

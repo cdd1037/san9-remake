@@ -48,7 +48,7 @@ internal static class GiftDiplomacy
         return false;
     }
 
-    private static CommandRejection Eligibility(WorldMutation world, int forceId, int officerId, int target,
+    internal static CommandRejection Eligibility(WorldMutation world, int forceId, int officerId, int target,
         GiftOffer? offer, SimulationRules rules)
     {
         if (offer?.IsValid != true || !Target(world, forceId, target)) return CommandRejection.InvalidTask;
@@ -61,11 +61,14 @@ internal static class GiftDiplomacy
         if (offer.Kind != GiftKind.Treasure)
             return ResourceAccounts.Balance(world, Account(world, forceId), Resource(offer)) >= offer.Amount
                 ? CommandRejection.None : CommandRejection.InsufficientFunds;
-        return world.Treasures.TryGetValue(offer.TreasureId!.Value, out var item) && item.Discovered &&
-            item.HolderId is int holder && world.Officers[holder].OwnerId == forceId && world.Officers[holder].IsServing &&
-            !world.IsBusy(holder) && rules.Treasures.Items.ContainsKey(item.Id)
+        return CanOfferTreasure(world, forceId, offer.TreasureId!.Value, rules.Treasures)
             ? CommandRejection.None : CommandRejection.TreasureUnavailable;
     }
+
+    internal static bool CanOfferTreasure(WorldMutation world, int forceId, int treasureId, TreasureRulebook rules) =>
+        world.Treasures.TryGetValue(treasureId, out var item) && item.Discovered &&
+            item.HolderId is int holder && world.Officers[holder].OwnerId == forceId && world.Officers[holder].IsServing &&
+            !world.IsBusy(holder) && rules.Items.ContainsKey(item.Id);
 
     internal static int Threshold(WorldMutation world, int forceId, int actor, int target, GiftOffer offer, SimulationRules rules)
     {
@@ -90,20 +93,14 @@ internal static class GiftDiplomacy
 
     internal static CommandRejection Start(WorldMutation world, CommandContext context, GiftCommand command, SimulationRules rules, List<DomainEvent> events)
     {
-        var rejection = Eligibility(world, command.IssuerId, command.OfficerId, command.TargetForceId, command.Offer, rules);
-        if (rejection != CommandRejection.None) return rejection;
+        var plan = MissionPreparation.Prepare(world, command, rules, out var rejection);
+        if (plan is null) return rejection;
         var actor = world.Officers[command.OfficerId];
-        int origin = actor.SettlementId!.Value;
-        Destination(world, command.TargetForceId, rules, out int destination, out var position);
-        var route = PersonnelLocations.Route(world, rules.Personnel, origin, destination, position);
-        int days = route.XunRoundedDays;
-        var due = world.Clock;
-        for (int i = 0; i < days; i++) due = due.NextDay();
-        var task = new PersistentTask(command.CommandId, Kind, context.ControllerId, command.IssuerId, actor.Id, origin,
-            world.Clock, due, 0, command.Sequence)
+        var task = new PersistentTask(command.CommandId, Kind, context.ControllerId, command.IssuerId, actor.Id, plan.Origin,
+            world.Clock, plan.Arrival, 0, command.Sequence)
         {
-            Journey = new(destination, null, ConditionalRandom.Percentile(world.Simulation.InitialSeed,
-                ConditionalRandomPurpose.Gift, world.Clock, actor.Id, command.TargetForceId)) { Route = route },
+            Journey = new(plan.Destination, null, ConditionalRandom.Percentile(world.Simulation.InitialSeed,
+                ConditionalRandomPurpose.Gift, world.Clock, actor.Id, command.TargetForceId)) { Route = plan.Route },
             Gift = new(command.TargetForceId, command.Offer)
         };
         if (command.Offer.Kind == GiftKind.Treasure)

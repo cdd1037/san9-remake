@@ -20,7 +20,7 @@ internal static class AlienateStrategies
         return TryDestination(world, target, rules, out _, out _);
     }
 
-    private static CommandRejection Eligibility(WorldMutation world, int forceId, int officerId, int targetId,
+    internal static CommandRejection Eligibility(WorldMutation world, int forceId, int officerId, int targetId,
         SimulationRules rules)
     {
         if (!PersonnelMissions.CanAct(world, forceId, officerId)) return CommandRejection.PersonUnavailable;
@@ -30,7 +30,7 @@ internal static class AlienateStrategies
             ? CommandRejection.None : CommandRejection.InvalidTask;
     }
 
-    private static bool TryDestination(WorldMutation world, OfficerState target, SimulationRules rules,
+    internal static bool TryDestination(WorldMutation world, OfficerState target, SimulationRules rules,
         out int placeId, out WorldPosition? position)
     {
         position = null;
@@ -74,22 +74,15 @@ internal static class AlienateStrategies
     internal static CommandRejection Start(WorldMutation world, CommandContext context, AlienateCommand command,
         SimulationRules rules, List<DomainEvent> events)
     {
-        var rejection = Eligibility(world, command.IssuerId, command.OfficerId, command.TargetOfficerId, rules);
-        if (rejection != CommandRejection.None) return rejection;
+        var plan = MissionPreparation.Prepare(world, command, rules, out var rejection);
+        if (plan is null) return rejection;
         var actor = world.Officers[command.OfficerId];
-        int origin = actor.SettlementId!.Value;
-        _ = TryDestination(world, world.Officers[command.TargetOfficerId], rules, out int destination,
-            out WorldPosition? position);
-        var route = PersonnelLocations.Route(world, rules.Personnel, origin, destination, position);
-        int offset = Math.Max(0, route.Days - 1);
-        var due = world.Clock;
-        for (int day = 0; day < offset; day++) due = due.NextDay();
         int roll = ConditionalRandom.Percentile(world.Simulation.InitialSeed, ConditionalRandomPurpose.Alienate,
             world.Clock, actor.Id, command.TargetOfficerId);
         var task = new PersistentTask(command.CommandId, Kind, context.ControllerId, command.IssuerId, actor.Id,
-            origin, world.Clock, due, 0, command.Sequence)
+            plan.Origin, world.Clock, plan.Arrival, 0, command.Sequence)
         {
-            Journey = new(destination, command.TargetOfficerId, roll) { Route = route }
+            Journey = new(plan.Destination, command.TargetOfficerId, roll) { Route = plan.Route }
         };
         world.Replace(actor with { Acted = true });
         world.SetSimulation(world.Simulation with { Tasks = world.Simulation.Tasks.Add(task) });

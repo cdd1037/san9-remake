@@ -33,6 +33,7 @@ public sealed partial class GameSession
     private StrategySnapshot _view;
     private SessionSnapshot? _capture;
     private bool _executing;
+    internal bool IsExecuting => _executing;
     private EndingSelection? _ending;
     public event Action? Changed;
 
@@ -387,6 +388,15 @@ public sealed partial class GameSession
 
     public CommandSubmissionResult Validate(CommandContext context, GameCommand command) => _executing
         ? CommandSubmissionResult.Reject(CommandRejection.NotStable) : _simulation.Validate(context, command);
+    public CommandPreparationPreview Preview(CommandContext context, GameCommand command) => _executing
+        ? new(CommandRejection.NotStable, null, null) : _simulation.Preview(context, command);
+    public ImmutableArray<int> GetGiftTreasures(int forceId) => _executing ? [] : _simulation.GetGiftTreasures(forceId);
+    public CommandPreparationPreview GetMissionPreparation(CommandContext context, GameCommand command) => _executing
+        ? new(CommandRejection.NotStable, null, null) : _simulation.GetMissionPreparation(context, command);
+    public bool CanSelectCorpsDelegation(CommandContext context, int owner, CorpsDelegation delegation) =>
+        !_executing && _simulation.CanSelectCorpsDelegation(context, owner, delegation);
+    public CommandRejection GetPreparationEligibility(CommandContext context, GameCommand command) => _executing
+        ? CommandRejection.NotStable : _simulation.GetPreparationEligibility(context, command);
 
     public AdvanceXunResult EndControl(CommandContext context)
     {

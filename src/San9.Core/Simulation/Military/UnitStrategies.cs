@@ -34,7 +34,7 @@ internal static class UnitStrategies
         _ => throw new ArgumentOutOfRangeException(nameof(strategy))
     };
 
-    private static CommandRejection SubmissionEligibility(WorldMutation world, int forceId, int officerId,
+    internal static CommandRejection SubmissionEligibility(WorldMutation world, int forceId, int officerId,
         UnitStrategyKind strategy, int targetId, SimulationRules rules)
     {
         if (!PersonnelMissions.CanAct(world, forceId, officerId)) return CommandRejection.PersonUnavailable;
@@ -61,33 +61,27 @@ internal static class UnitStrategies
     internal static CommandRejection Start(WorldMutation world, CommandContext context, UnitStrategyCommand command,
         SimulationRules rules, List<DomainEvent> events)
     {
-        var rejection = SubmissionEligibility(world, command.IssuerId, command.OfficerId, command.Strategy, command.TargetUnitId, rules);
-        if (rejection != CommandRejection.None) return rejection;
+        var plan = MissionPreparation.Prepare(world, command, rules, out var rejection);
+        if (plan is null) return rejection;
         var actor = world.Officers[command.OfficerId];
-        int origin = actor.SettlementId!.Value;
         var target = world.Units[command.TargetUnitId];
-        int region = rules.Military!.RegionAt(target.Position)!.Value;
-        var route = PersonnelLocations.Route(world, rules.Personnel, origin, region, target.Position);
-        int days = route.Days;
-        var due = world.Clock;
-        for (int day = 0; day < Math.Max(0, days - 1); day++) due = due.NextDay();
         var purpose = Purpose(command.Strategy);
         int roll = ConditionalRandom.Percentile(world.Simulation.InitialSeed, purpose, world.Clock, actor.Id, target.Id);
-        var task = new PersistentTask(command.CommandId, Kind, context.ControllerId, command.IssuerId, actor.Id, origin,
-            world.Clock, due, 0, command.Sequence)
+        var task = new PersistentTask(command.CommandId, Kind, context.ControllerId, command.IssuerId, actor.Id, plan.Origin,
+            world.Clock, plan.Arrival, 0, command.Sequence)
         {
-            Journey = new(region, null, roll)
+            Journey = new(plan.Destination, null, roll)
             {
-                Route = route,
+                Route = plan.Route,
                 UnitStrategy = new(command.Strategy, target.Id)
             },
             Reinforcements = command.Strategy == UnitStrategyKind.Reinforce
-                ? new(3000, world.Settlements[origin].Morale, Demobilization.City(world, origin, rules.Personnel)!.Value)
+                ? new(3000, world.Settlements[plan.Origin].Morale, Demobilization.City(world, plan.Origin, rules.Personnel)!.Value)
                 : null
         };
         if (command.Strategy == UnitStrategyKind.Reinforce)
         {
-            var source = world.Settlements[origin];
+            var source = world.Settlements[plan.Origin];
             world.Replace(source with { Soldiers = source.Soldiers - 3000 });
             ResourceAccounts.Report(world, new(ResourceOwnerKind.Settlement, source.Id), ResourceKind.Soldiers,
                 Kind, target.Id, -3000, -3000, events);

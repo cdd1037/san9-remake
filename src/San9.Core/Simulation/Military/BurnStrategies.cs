@@ -31,7 +31,7 @@ internal static class BurnStrategies
     internal static bool Eligible(WorldMutation world, int forceId, int origin, int targetId, SimulationRules rules)
         => BuildingStrategyTargets.Eligible(world, forceId, origin, targetId, rules);
 
-    private static CommandRejection Eligibility(WorldMutation world, int force, int officer, int target, SimulationRules rules)
+    internal static CommandRejection Eligibility(WorldMutation world, int force, int officer, int target, SimulationRules rules)
     {
         if (!PersonnelMissions.CanAct(world, force, officer)) return CommandRejection.PersonUnavailable;
         return Eligible(world, force, world.Officers[officer].SettlementId!.Value, target, rules)
@@ -54,21 +54,16 @@ internal static class BurnStrategies
     internal static CommandRejection Start(WorldMutation world, CommandContext context, BurnCommand command,
         SimulationRules rules, List<DomainEvent> events)
     {
-        var rejection = Eligibility(world, command.IssuerId, command.OfficerId, command.TargetSettlementId, rules);
-        if (rejection != CommandRejection.None) return rejection;
+        var plan = MissionPreparation.Prepare(world, command, rules, out var rejection);
+        if (plan is null) return rejection;
         var actor = world.Officers[command.OfficerId];
-        int origin = actor.SettlementId!.Value;
-        var route = PersonnelLocations.Route(world, rules.Personnel, origin, command.TargetSettlementId);
-        int offset = Math.Max(0, route.Days - 1);
-        var due = world.Clock;
-        for (int day = 0; day < offset; day++) due = due.NextDay();
         int roll = ConditionalRandom.Percentile(world.Simulation.InitialSeed, ConditionalRandomPurpose.Burn,
             world.Clock, actor.Id, command.TargetSettlementId);
         var task = new PersistentTask(command.CommandId, Kind, context.ControllerId, command.IssuerId, actor.Id,
-            origin, world.Clock, due, 0, command.Sequence)
+            plan.Origin, world.Clock, plan.Arrival, 0, command.Sequence)
         {
             Journey = new(command.TargetSettlementId, null, roll)
-                { Route = route, Burn = new(command.TargetSettlementId) }
+                { Route = plan.Route, Burn = new(command.TargetSettlementId) }
         };
         world.Replace(actor with { Acted = true });
         world.SetSimulation(world.Simulation with { Tasks = world.Simulation.Tasks.Add(task) });

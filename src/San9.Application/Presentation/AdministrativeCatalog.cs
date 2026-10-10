@@ -44,6 +44,7 @@ public sealed class AdministrativeCatalog(StrategySnapshot view, TextCatalog tex
     private readonly Dictionary<int, SettlementView> _places = view.Settlements.ToDictionary(s => s.Id);
     private readonly Dictionary<int, SettlementState> _states = view.World.Settlements.Where(s => !s.IsDormant && !s.IsDestroyed).ToDictionary(s => s.Id);
     private readonly Dictionary<int, OfficerView> _people = view.Officers.ToDictionary(o => o.Id);
+    private readonly HashSet<int> _commanderIds = view.World.Officers.Where(o => o.IsCommander).Select(o => o.Id).ToHashSet();
     private sealed record Totals(SettlementState[] Places, SettlementState[] Cities, UnitState[] Units, OfficerView[] People, long TravelingSoldiers, long TravelingWounded);
     private readonly Dictionary<(int Owner, int? Corps), Totals> _totals = [];
     private readonly Dictionary<int, OfficerView[]> _locals = view.Officers.Where(o => o.Journey is null)
@@ -52,6 +53,8 @@ public sealed class AdministrativeCatalog(StrategySnapshot view, TextCatalog tex
     private readonly Dictionary<int, OfficerView[]> _assigned = view.Officers.Where(o => o.ServicePlaceId is not null)
         .GroupBy(o => o.ServicePlaceId!.Value).ToDictionary(g => g.Key, g => g.ToArray());
     private static CatalogCell Hidden => new("＊＊＊", IsUnavailable: true);
+    public OfficerView? Commander(int id) => (_locals.GetValueOrDefault(id) ?? [])
+        .SingleOrDefault(o => o.IsServing && o.OwnerId == _places.GetValueOrDefault(id)?.OwnerId && _commanderIds.Contains(o.Id));
     private readonly Dictionary<(int Owner, int? Corps), EconomicOutlook> _outlooks = [];
     private readonly IReadOnlyList<TerritoryConnection> _connections = view.TerritoryConnections();
     private HashSet<int>? _frontlineRegions;
@@ -182,7 +185,14 @@ public sealed class AdministrativeCatalog(StrategySnapshot view, TextCatalog tex
                 if (owner != view.PlayerForceId) return Hidden;
                 if (field == "policy") return corps.Delegation switch { GeneralDelegation => "全权", DomesticDelegation => "内政", DefeatForceDelegation => "势力攻略", CaptureSettlementDelegation => "都市攻略", _ => throw new InvalidOperationException("Unknown delegation.") };
                 return corps.Delegation switch { DefeatForceDelegation d => Force(d.ForceId), CaptureSettlementDelegation c => Place(c.SettlementId), _ => CatalogCell.Unavailable };
-            case "relation": return relation is null || owner == view.PlayerForceId ? CatalogCell.Unavailable : relation.Value;
+            case "relation":
+                return relation is null || owner == view.PlayerForceId ? CatalogCell.Unavailable : new CatalogCell(
+                    DiplomacyMath.RelationBand(relation.Value) switch
+                    {
+                        ForceRelationBand.Hostile => "险恶", ForceRelationBand.Unfriendly => "不和",
+                        ForceRelationBand.Neutral => "中立", ForceRelationBand.Friendly => "好意",
+                        ForceRelationBand.Intimate => "信赖", _ => throw new InvalidOperationException("Unknown relation band.")
+                    }, relation.Value);
             case "alliance": return !allied ? CatalogCell.Unavailable : alliance!.TargetForceId == owner ? "×" : alliance.LeaderForceId == owner ? "◎" : "○";
             case "alliance-days": return allied ? alliance!.RemainingXun * 10 : CatalogCell.Unavailable;
             case "alliance-leader": return allied ? Force(alliance!.LeaderForceId) : CatalogCell.Unavailable;
@@ -241,7 +251,7 @@ public sealed class AdministrativeCatalog(StrategySnapshot view, TextCatalog tex
         return field switch
         {
             "force" => Force(place.OwnerId), "corps-name" => Person(place.CorpsId is int corps ? _corps.GetValueOrDefault(corps)?.LeaderId : null),
-            "commander" => Person(people.FirstOrDefault(o => view.World.Officers.Single(p => p.Id == o.Id).IsCommander)?.Id),
+            "commander" => Person(Commander(id)?.Id),
             "emperor" => new(view.EmperorCityId == id ? "○" : "", view.EmperorCityId == id ? 1 : 0),
             "population" => (long)state.Population + state.DraftPopulation, "draft" => (long)state.DraftPopulation,
             "soldiers" => (long)state.Soldiers, "wounded" => (long)state.Wounded,

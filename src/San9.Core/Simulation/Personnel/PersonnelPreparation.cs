@@ -23,7 +23,7 @@ public sealed partial class SimulationEngine
     public ImmutableArray<int> GetRecruitTargets(int forceId, int officerId)
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
-        var world = _world.BeginMutation(_rules.Abilities, _rules.Economy);
+        var world = PreparationWorld();
         return world.Officers.Keys.Where(id => PersonnelMissions.ValidateRecruit(world,
             new(Guid.Empty, forceId, 0, officerId, id), _rules, out _, out _) == CommandRejection.None).Order().ToImmutableArray();
     }
@@ -31,7 +31,7 @@ public sealed partial class SimulationEngine
     public ImmutableArray<int> GetSearchPlaces(int forceId)
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
-        var world = _world.BeginMutation(_rules.Abilities, _rules.Economy);
+        var world = PreparationWorld();
         return _rules.Personnel.Places.Keys.Where(id => PersonnelMissions.CanSearch(world, forceId, id, _rules.Personnel)).Order().ToImmutableArray();
     }
 
@@ -39,7 +39,7 @@ public sealed partial class SimulationEngine
     public PersonnelJourneyPreview GetPersonnelJourney(int forceId, int officerId, int targetId, PersonnelJourneyKind kind)
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
-        var world = _world.BeginMutation(_rules.Abilities, _rules.Economy);
+        var world = PreparationWorld();
         int destination = targetId;
         UnitState? unit = null;
         CommandRejection rejection = kind switch

@@ -24,11 +24,14 @@ internal sealed partial class MapCommandAvailability(StrategySnapshot view)
 
     private string? SettlementReason(int id, string command)
     {
-        if (!places.TryGetValue(id, out var home) || !Present(home) || home.OwnerId != Owner || !Controlled(home.CorpsId))
+        if (!places.TryGetValue(id, out var home) || !Present(home) || home.OwnerId != Owner)
             return "unavailable";
+        // Management must remain reachable so a player can restore directly controlled corps.
+        if (command == "delegate") return null;
+        if (!Controlled(home.CorpsId)) return "unavailable";
         if (IsDomestic(command) && home.Kind != SettlementKind.City && command is not ("repair" or "train"))
             return "unavailable";
-        if (command is "delegate" or "strategist" or "rank" or "reward" or "bestow" or "confiscate" or "execute" or "exile")
+        if (command is "strategist" or "rank" or "reward" or "bestow" or "confiscate" or "execute" or "exile")
             return Appointment(command);
         if (command == "summon") return Recall(home);
         if (command == "demolish" && (!OtherHomes(home).Any() ||

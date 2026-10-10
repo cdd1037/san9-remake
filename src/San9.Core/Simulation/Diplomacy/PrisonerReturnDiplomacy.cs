@@ -45,19 +45,13 @@ internal static class PrisonerReturnDiplomacy
     internal static CommandRejection Start(WorldMutation world, CommandContext context, ReturnPrisonerCommand command,
         SimulationRules rules, List<DomainEvent> events)
     {
-        var rejection = Eligibility(world, command.IssuerId, command.OfficerId, command.TargetForceId, command.PrisonerId, rules);
-        if (rejection != CommandRejection.None) return rejection;
+        var plan = MissionPreparation.Prepare(world, command, rules, out var rejection);
+        if (plan is null) return rejection;
         var actor = world.Officers[command.OfficerId];
-        int origin = actor.SettlementId!.Value;
-        GiftDiplomacy.Destination(world, command.TargetForceId, rules, out int destination, out var position);
-        var route = PersonnelLocations.Route(world, rules.Personnel, origin, destination, position);
-        int days = route.XunRoundedDays;
-        var due = world.Clock;
-        for (int i = 0; i < days; i++) due = due.NextDay();
         var task = new PersistentTask(command.CommandId, Kind, context.ControllerId, command.IssuerId,
-            actor.Id, origin, world.Clock, due, 0, command.Sequence)
+            actor.Id, plan.Origin, world.Clock, plan.Arrival, 0, command.Sequence)
         {
-            Journey = new(destination, null, null) { Route = route },
+            Journey = new(plan.Destination, null, null) { Route = plan.Route },
             PrisonerReturn = new(command.TargetForceId, command.PrisonerId)
         };
         world.Replace(actor with { Acted = true });

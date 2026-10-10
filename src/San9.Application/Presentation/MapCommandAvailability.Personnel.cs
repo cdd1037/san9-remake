@@ -58,10 +58,6 @@ internal sealed partial class MapCommandAvailability
                 if (subordinates.Length == 0) return "no-subordinate";
                 if (stationary.Length == 0) return "no-office-candidate";
                 return AppointmentOffices().Any() ? null : "no-office";
-            case "delegate":
-                int? rulerHome = view.World.Officers.SingleOrDefault(p => p.Id == Force.LeaderId)?.SettlementId;
-                if (!places.Values.Any(s => s.Kind == SettlementKind.City && s.OwnerId == Owner && Present(s) && s.Id != rulerHome)) return "no-delegation-city";
-                return subordinates.Any(p => p.SettlementId != rulerHome) ? null : "no-corps-leader";
             default: return "unavailable";
         }
     }

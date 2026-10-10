@@ -1,0 +1,182 @@
+using San9.Application.Persistence;
+using San9.Application.Presentation;
+using San9.Content.Text;
+using San9.Content.Interface;
+using San9.Core.Domain;
+using San9.Core.Simulation;
+using System.Collections.Immutable;
+
+namespace San9.Application.Tests;
+
+public sealed class MissionCommandTests
+{
+    [Theory]
+    [InlineData("false-report",20)] [InlineData("disorder",20)]
+    [InlineData("inspire",10)] [InlineData("rescue",10)]
+    [InlineData("alienate",22)] [InlineData("burn",2)] [InlineData("seize",2)] [InlineData("rumor",2)]
+    [InlineData("gift",2)] [InlineData("request",2)] [InlineData("return",2)] [InlineData("surrender",2)]
+    public void ReadOnlyPreparationMatchesSubmissionAndRefreshesAfterWorldChanges(string kind,int target)
+    {
+        var content = MissionScenario.Create();
+        if (kind == "return") content = content with { Officers = content.Officers.Select(p => p.State.Id == 3 ?
+            p with { State = p.State with { UnitId = null, SettlementId = 2, Status = OfficerStatus.Captive } } : p).ToArray(),
+            Units = content.Units.Where(u => u.Id != 10).ToArray() };
+        var session = GameSession.Start(content,42);
+        byte[] before = SaveService.Encode(session);
+        var draft = new MissionDraft(session,1,kind);
+        Assert.True(draft.SetActor(2));
+        Assert.Contains(target,draft.Targets);
+        Assert.True(draft.SetTarget(target));
+        if (kind == "rumor") Assert.True(draft.SetTarget(3,true));
+        if (kind == "request") Assert.True(draft.SetTarget(3,true));
+        if (kind == "return") Assert.True(draft.SetPrisoner(3));
+        Assert.True(draft.CanExecute);
+        var preview = draft.Preview;
+        var advice = draft.Advice;
+        Assert.NotNull(advice);
+        Assert.NotNull(preview.Arrival);
+        Assert.Equal(before,SaveService.Encode(session));
+        var command = draft.CreateCommand();
+        Assert.Equal(command,draft.CreateCommand());
+        Assert.Equal(session.Preview(new("player"),command),session.GetMissionPreparation(new("player"),command));
+        Assert.Equal(CommandRejection.None,session.GetPreparationEligibility(new("player"),command));
+        Assert.Equal(before,SaveService.Encode(session));
+        var result = session.Execute(new("player"),command);
+        Assert.True(result.Submission.Accepted);
+        Assert.Equal(preview.Arrival,Assert.Single(result.Events.OfType<TaskStartedEvent>()).Task.Due);
+        Assert.False(draft.IsCurrent);
+        Assert.Equal(CommandRejection.NotStable,draft.Rejection);
+        Assert.False(draft.SetActor(2));
+        var acted = command with { CommandId = Guid.NewGuid(), Sequence = session.Snapshot.Simulation.NextSequence };
+        Assert.Equal(session.Preview(new("player"),acted),session.GetMissionPreparation(new("player"),acted));
+        Assert.Equal(session.Validate(new("player"),acted).Rejection,session.GetPreparationEligibility(new("player"),acted));
+        Assert.NotEqual(CommandRejection.None,session.GetPreparationEligibility(new("player"),acted));
+        if (!draft.IsDiplomacy)
+            Assert.NotEmpty(MissionPresentation.Results(new(content,result.Snapshot),MissionScenario.Texts(new(content,result.Snapshot)),session.AdvanceXun().Events));
+    }
+
+    [Fact]
+    public void PreparationSharesEnvelopeValidationWithoutChangingWorld()
+    {
+        var session = GameSession.Start(MissionScenario.Create(),42);
+        var command = new BurnCommand(Guid.NewGuid(),1,session.Snapshot.Simulation.NextSequence,2,2);
+        byte[] before = SaveService.Encode(session);
+        foreach (var (context, candidate) in new (CommandContext, GameCommand)[]
+        {
+            (new("player"), command with { CommandId = Guid.Empty }),
+            (new("player"), command with { Sequence = command.Sequence + 1 }),
+            (new("other"), command)
+        })
+        {
+            var trial = session.Preview(context,candidate);
+            Assert.NotEqual(CommandRejection.None,trial.Rejection);
+            Assert.Equal(trial,session.GetMissionPreparation(context,candidate));
+            Assert.Equal(trial.Rejection,session.GetPreparationEligibility(context,candidate));
+        }
+        Assert.Equal(before,SaveService.Encode(session));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void RejectedBackgroundOperationDoesNotPoisonDraftCaches(bool primed)
+    {
+        var session = GameSession.Start(MissionScenario.Create(),42);
+        var mission = new MissionDraft(session,1,"burn");
+        var corps = new CorpsDraft(session);
+        if (primed)
+        {
+            Assert.Contains(2,mission.Targets);
+            Assert.Equal(CommandRejection.InvalidCorps,corps.Preview.Rejection);
+        }
+        var before = session.Snapshot;
+        var pending = session.StartOperation(session.Request(new AdvanceOperation()) with { Sequence = session.NextOperationSequence + 1 });
+        try
+        {
+            Assert.Empty(mission.Targets);
+            Assert.Equal(CommandRejection.NotStable,corps.Preview.Rejection);
+        }
+        finally
+        {
+            Assert.True(SpinWait.SpinUntil(() => pending.IsCompleted,TimeSpan.FromSeconds(10)));
+            Assert.Equal(SessionDisposition.Rejected,pending.Complete().Disposition);
+        }
+        Assert.Same(before,session.Snapshot);
+        Assert.Contains(2,mission.Targets);
+        Assert.Equal(CommandRejection.InvalidCorps,corps.Preview.Rejection);
+    }
+
+    [Fact]
+    public void DepartureKeepsRegionIdentityWhenItsIdAlsoNamesASettlement()
+    {
+        var basis = MissionScenario.Create();
+        var content = basis with { RegionNameKeys = new() { [1] = "region",[2] = "enemy",[3] = "third" },
+            Officers = basis.Officers.Select(p => p.State.Id == 23 ? p with { State = p.State.WithLoyalty(2,80) } : p).ToArray() };
+        var session = GameSession.Start(content,42);
+        var draft = new MissionDraft(session,1,"alienate");
+        Assert.True(draft.SetTarget(23));
+        var texts = new TextCatalog(TextCatalog.CurrentSchemaVersion,new() { ["region"] = "野外地域",["home"] = "城内设施" })
+        {
+            Messages = new() { ["departure"] = new([new MessageValue(new("property","settlement.name",Arguments: [new("binding","building.0")]))]) }
+        };
+        var messages = MissionPresentation.Departure(draft,new Dictionary<string,DecisionMessageDefinition>
+        { ["alienate-start"] = new("departure",new() { ["building.0"] = "place" },null) },session.Messages(texts),texts);
+        Assert.Equal("野外地域",Assert.Single(messages).Message.BbCode);
+    }
+
+    [Fact]
+    public void GiftModesAreExclusiveAndOverBudgetCannotSubmit()
+    {
+        var session = GameSession.Start(MissionScenario.Create(),42);
+        var draft = new MissionDraft(session,1,"gift");
+        Assert.True(draft.SetActor(2)); Assert.True(draft.SetTarget(2));
+        Assert.True(draft.SetGift(new(GiftKind.Food,1200,null)));
+        var command = Assert.IsType<GiftCommand>(draft.CreateCommand());
+        Assert.Equal(GiftKind.Food,command.Offer.Kind);
+        Assert.Null(command.Offer.TreasureId);
+        Assert.False(draft.SetGift(new(GiftKind.Treasure,1200,999)));
+        Assert.True(draft.SetGift(new(GiftKind.Money,draft.View.World.Corps.Single(c => c.OwnerId == 1).Treasury.Money+1,null)));
+        Assert.False(draft.CanExecute);
+        Assert.Equal(CommandRejection.InsufficientFunds,draft.Rejection);
+    }
+
+    [Fact]
+    public void AutomaticCorpsCannotSubmitAndManagementRemainsReachable()
+    {
+        var content = MissionScenario.Create();
+        content = content with { Information = content.Information with { Corps = content.Information.Corps.Select(c => c.OwnerId == 1 ?
+            c with { ControlMode = CorpsControlMode.Automatic } : c).ToArray() } };
+        var session = GameSession.Start(content,42);
+        var draft = new MissionDraft(session,1,"burn");
+        draft.SetActor(2); draft.SetTarget(2);
+        Assert.False(draft.CanExecute);
+        var menu = MapCommandMenu.Settlement(session.View,1).SelectMany(g => g.Children).ToArray();
+        Assert.Null(menu.Single(e => e.Id == "delegate").UnavailableReasonKey);
+        Assert.NotNull(menu.Single(e => e.Id == "burn").UnavailableReasonKey);
+        var root = session.Snapshot.Corps.Single(c => c.OwnerId == 1 && c.IsRoot);
+        Assert.True(session.Execute(new("player"),new SetCorpsControlCommand(Guid.NewGuid(),1,
+            session.Snapshot.Simulation.NextSequence,root.Id,CorpsControlMode.Direct)).Submission.Accepted);
+        draft = new(session,1,"burn"); draft.SetActor(2); draft.SetTarget(2);
+        Assert.True(draft.CanExecute);
+    }
+
+
+    [Fact]
+    public void ResultsUsePublicationClockOnlyTrackPlayersAndDoNotRepeatAnsweredDiplomacy()
+    {
+        var session = GameSession.Start(MissionScenario.Create(),42);
+        var draft = new MissionDraft(session,1,"gift"); draft.SetActor(2); draft.SetTarget(2);
+        var command = Assert.IsType<GiftCommand>(draft.CreateCommand());
+        Assert.True(session.Execute(new("player"),command).Submission.Accepted);
+        var before = session.View; var texts = MissionScenario.Texts(before);
+        var clock = before.World.Clock.Advance();
+        DomainEvent[] events = [new GiftResolvedEvent(clock,command.CommandId,2,2,command.Offer,true,1,0,0)];
+        var messages = MissionPresentation.Results(before,texts,events);
+        Assert.Equal(clock,Assert.Single(messages).Message.Clock);
+        Assert.Empty(MissionPresentation.Results(before,texts,events,new HashSet<Guid> { command.CommandId }));
+        var cancelled = MissionPresentation.Results(before,texts,[new TaskCancelledEvent(command.CommandId,clock,"target-invalidated")]);
+        Assert.Contains("目标已失效",Assert.Single(cancelled).Message.BbCode);
+        var other = before.World with { Simulation = before.World.Simulation with { Tasks = before.World.Simulation.Tasks.Select(t => t with { ControllerId = "ai:1" }).ToImmutableArray() } };
+        Assert.Empty(MissionPresentation.Results(new(MissionScenario.Create(),other),texts,events));
+    }
+}

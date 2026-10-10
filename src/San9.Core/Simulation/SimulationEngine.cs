@@ -7,8 +7,8 @@ public sealed partial class SimulationEngine
     private readonly WorldState _world;
     private readonly SimulationRules _rules;
     private readonly ResolutionPipeline _pipeline;
-    private WorldMutation? _diplomacyAdviceWorld;
-    private long _diplomacyAdviceRevision = -1;
+    private WorldMutation? _preparationWorld;
+    private long _preparationRevision = -1;
 
     /// <summary>Branches the current runtime for an isolated operation, sharing immutable records and compiled rules.</summary>
     public SimulationEngine Fork() => new(_world.Fork(), _rules, new(_rules));
@@ -164,20 +164,20 @@ public sealed partial class SimulationEngine
     }
     public CommandAdvice GetSurrenderAdvice(int forceId, int officerId, int targetForceId)
     {
-        return SurrenderDiplomacy.Advice(DiplomacyAdviceWorld(), forceId, officerId, targetForceId, _rules);
+        return SurrenderDiplomacy.Advice(PreparationWorld(), forceId, officerId, targetForceId, _rules);
     }
 
-    // Advice only reads this view. Reuse its active-record indexes until a world commit;
+    // Preparation only reads this view. Reuse its active-record indexes until a world commit;
     // validation and execution always create their own writable candidate mutations.
-    private WorldMutation DiplomacyAdviceWorld()
+    private WorldMutation PreparationWorld()
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
-        if (_diplomacyAdviceWorld is null || _diplomacyAdviceRevision != _world.Revision)
+        if (_preparationWorld is null || _preparationRevision != _world.Revision)
         {
-            _diplomacyAdviceWorld = _world.BeginMutation(_rules.Abilities, _rules.Economy);
-            _diplomacyAdviceRevision = _world.Revision;
+            _preparationWorld = _world.BeginMutation(_rules.Abilities, _rules.Economy);
+            _preparationRevision = _world.Revision;
         }
-        return _diplomacyAdviceWorld;
+        return _preparationWorld;
     }
     public AttackRequestPrompt? GetAttackRequestPrompt()
     {
@@ -189,7 +189,7 @@ public sealed partial class SimulationEngine
     }
     public CommandAdvice GetAttackRequestAdvice(int forceId, int officerId, int targetForceId, int targetSettlementId)
     {
-        return AttackRequestDiplomacy.Advice(DiplomacyAdviceWorld(), forceId, officerId, targetForceId, targetSettlementId, _rules);
+        return AttackRequestDiplomacy.Advice(PreparationWorld(), forceId, officerId, targetForceId, targetSettlementId, _rules);
     }
     public PrisonerReturnPrompt? GetPrisonerReturnPrompt()
     {
@@ -202,12 +202,12 @@ public sealed partial class SimulationEngine
     public CommandAdvice GetPrisonerReturnAdvice(int forceId, int officerId, int targetForceId, int prisonerId)
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
-        return PrisonerReturnDiplomacy.Advice(_world.BeginMutation(_rules.Abilities, _rules.Economy), forceId, officerId, targetForceId, prisonerId, _rules);
+        return PrisonerReturnDiplomacy.Advice(PreparationWorld(), forceId, officerId, targetForceId, prisonerId, _rules);
     }
     public CommandAdvice GetGiftAdvice(int forceId, int officerId, int targetForceId, GiftOffer offer)
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
-        return GiftDiplomacy.Advice(_world.BeginMutation(_rules.Abilities, _rules.Economy), forceId, officerId, targetForceId, offer, _rules);
+        return GiftDiplomacy.Advice(PreparationWorld(), forceId, officerId, targetForceId, offer, _rules);
     }
     public WorldSnapshot CaptureStableState()
     {
@@ -218,6 +218,20 @@ public sealed partial class SimulationEngine
 
     public CommandSubmissionResult Validate(CommandContext context, GameCommand command) =>
         Evaluate(context, command, commit: false).Submission;
+
+    /// <summary>Preparation facts from the actual submission path, evaluated on an isolated mutation.</summary>
+    public CommandPreparationPreview Preview(CommandContext context, GameCommand command)
+    {
+        GameClock? arrival = null;
+        int? governor = null;
+        var result = Evaluate(context, command, commit: false, events =>
+        {
+            arrival = events.OfType<TaskStartedEvent>().FirstOrDefault()?.Task.Due;
+            governor = events.OfType<CorpsCreatedEvent>().FirstOrDefault()?.LeaderId ??
+                events.OfType<CorpsChangedEvent>().FirstOrDefault()?.LeaderId;
+        });
+        return new(result.Submission.Rejection, arrival, governor);
+    }
 
     public AllianceFormationCandidates GetAllianceCandidates()
     {
@@ -411,20 +425,20 @@ public sealed partial class SimulationEngine
     public CommandAdvice GetBurnAdvice(int forceId, int officerId, int targetSettlementId)
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
-        return BurnStrategies.Advice(_world.BeginMutation(_rules.Abilities, _rules.Economy), forceId, officerId, targetSettlementId, _rules);
+        return BurnStrategies.Advice(PreparationWorld(), forceId, officerId, targetSettlementId, _rules);
     }
 
     public CommandAdvice GetAlienateAdvice(int forceId, int officerId, int targetOfficerId)
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
-        return AlienateStrategies.Advice(_world.BeginMutation(_rules.Abilities, _rules.Economy), forceId, officerId,
+        return AlienateStrategies.Advice(PreparationWorld(), forceId, officerId,
             targetOfficerId, _rules);
     }
 
     public CommandAdvice GetSeizeAdvice(int forceId, int officerId, int targetSettlementId)
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
-        return SeizeStrategies.Advice(_world.BeginMutation(_rules.Abilities, _rules.Economy), forceId, officerId,
+        return SeizeStrategies.Advice(PreparationWorld(), forceId, officerId,
             targetSettlementId, _rules);
     }
 
@@ -432,14 +446,14 @@ public sealed partial class SimulationEngine
         int secondTargetForceId)
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
-        return GossipStrategies.Advice(_world.BeginMutation(_rules.Abilities, _rules.Economy), forceId, officerId,
+        return GossipStrategies.Advice(PreparationWorld(), forceId, officerId,
             firstTargetForceId, secondTargetForceId, _rules);
     }
 
     public CommandAdvice GetUnitStrategyAdvice(int forceId, int officerId, UnitStrategyKind strategy, int targetUnitId)
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
-        return UnitStrategies.Advice(_world.BeginMutation(_rules.Abilities, _rules.Economy), forceId, officerId, strategy, targetUnitId, _rules);
+        return UnitStrategies.Advice(PreparationWorld(), forceId, officerId, strategy, targetUnitId, _rules);
     }
 
     public AttackWarning GetAttackWarning(int forceId, MilitaryOrder order)
@@ -451,7 +465,8 @@ public sealed partial class SimulationEngine
     public CommandExecutionResult Execute(CommandContext context, GameCommand command) =>
         Evaluate(context, command, commit: true);
 
-    private CommandExecutionResult Evaluate(CommandContext context, GameCommand command, bool commit)
+    private CommandExecutionResult Evaluate(CommandContext context, GameCommand command, bool commit,
+        Action<IReadOnlyList<DomainEvent>>? preview = null)
     {
         ArgumentNullException.ThrowIfNull(command);
         var rejection = ValidateEnvelope(context, command);
@@ -715,8 +730,13 @@ public sealed partial class SimulationEngine
             AttackRequests.Cleanup(mutation, events);
             CorpsDelegations.Cleanup(mutation, _rules.Military, events);
             mutation.MaintainDerivedState(events);
-            WorldInvariants.Validate(mutation);
-            if (!commit) return new(CommandSubmissionResult.Success, [], Snapshot, development);
+            if (!commit)
+            {
+                // Trials have no publication boundary; committed changes are checked by WorldState.Commit.
+                WorldInvariants.Validate(mutation);
+                preview?.Invoke(events);
+                return new(CommandSubmissionResult.Success, [], Snapshot, development);
+            }
             _world.Commit(mutation);
             events.Add(new CommandResolvedEvent(command.CommandId, command.IssuerId, command.GetType().Name)
                 { Sequence = command.Sequence });

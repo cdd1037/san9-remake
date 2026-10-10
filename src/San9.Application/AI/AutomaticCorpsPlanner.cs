@@ -15,7 +15,7 @@ internal static class AutomaticCorpsPlanner
             var command = MilitaryPlanner.Choose(engine.Snapshot, engine.Validate, military, active,
                 Id(engine.Snapshot, -1, "military"));
             if (command is not WaitCommand) events.AddRange(engine.Execute(new(active.ControllerId), command).Events);
-            var strategy = StrategyPlanner.Choose(engine.Snapshot, engine.Validate, military, active,
+            var strategy = StrategyPlanner.Choose(engine.Snapshot, engine.GetPreparationEligibility, military, active,
                 Id(engine.Snapshot, -1, "strategy"));
             if (strategy is not WaitCommand) events.AddRange(engine.Execute(new(active.ControllerId), strategy).Events);
         }
@@ -27,7 +27,7 @@ internal static class AutomaticCorpsPlanner
             var reinforcement = MilitaryPlanner.Choose(engine.Snapshot, engine.Validate, military, seat,
                 Id(engine.Snapshot, corps.Id, "military"), corps.Id);
             if (reinforcement is not WaitCommand) events.AddRange(engine.Execute(context, reinforcement).Events);
-            var strategy = StrategyPlanner.Choose(engine.Snapshot, engine.Validate, military, seat,
+            var strategy = StrategyPlanner.Choose(engine.Snapshot, engine.GetPreparationEligibility, military, seat,
                 Id(engine.Snapshot, corps.Id, "strategy"), corps.Id);
             if (strategy is not WaitCommand) events.AddRange(engine.Execute(context, strategy).Events);
             var snapshot = engine.Snapshot;

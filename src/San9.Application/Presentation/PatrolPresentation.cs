@@ -9,6 +9,7 @@ public sealed record CommandMessage(ProducedMessage Message, int? SpeakerId, str
 {
     public string? IllustrationRole { get; init; }
     public int? IllustrationPersonId { get; init; }
+    public string? BackgroundMusicRole { get; init; }
 }
 
 /// <summary>Creates a retained message sequence once, from a committed command and its pre-command snapshot.</summary>

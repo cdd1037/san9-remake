@@ -38,7 +38,7 @@ internal static class GossipStrategies
         return true;
     }
 
-    private static bool TryDestination(WorldMutation world, int firstTargetForceId, SimulationRules rules,
+    internal static bool TryDestination(WorldMutation world, int firstTargetForceId, SimulationRules rules,
         out int placeId, out WorldPosition? position)
     {
         position = null;
@@ -60,7 +60,7 @@ internal static class GossipStrategies
         return false;
     }
 
-    private static CommandRejection Eligibility(WorldMutation world, int forceId, int officerId,
+    internal static CommandRejection Eligibility(WorldMutation world, int forceId, int officerId,
         int firstTargetForceId, int secondTargetForceId, SimulationRules rules)
     {
         if (!PersonnelMissions.CanAct(world, forceId, officerId)) return CommandRejection.PersonUnavailable;
@@ -95,25 +95,17 @@ internal static class GossipStrategies
     internal static CommandRejection Start(WorldMutation world, CommandContext context, GossipCommand command,
         SimulationRules rules, List<DomainEvent> events)
     {
-        var rejection = Eligibility(world, command.IssuerId, command.OfficerId, command.FirstTargetForceId,
-            command.SecondTargetForceId, rules);
-        if (rejection != CommandRejection.None) return rejection;
+        var plan = MissionPreparation.Prepare(world, command, rules, out var rejection);
+        if (plan is null) return rejection;
         var actor = world.Officers[command.OfficerId];
-        int origin = actor.SettlementId!.Value;
-        _ = TryDestination(world, command.FirstTargetForceId, rules, out int destination,
-            out WorldPosition? position);
-        var route = PersonnelLocations.Route(world, rules.Personnel, origin, destination, position);
-        int offset = Math.Max(0, route.Days - 1);
-        var due = world.Clock;
-        for (int day = 0; day < offset; day++) due = due.NextDay();
         int roll = ConditionalRandom.Percentile(world.Simulation.InitialSeed, ConditionalRandomPurpose.Gossip,
             world.Clock, actor.Id, command.FirstTargetForceId, command.SecondTargetForceId);
         var task = new PersistentTask(command.CommandId, Kind, context.ControllerId, command.IssuerId, actor.Id,
-            origin, world.Clock, due, 0, command.Sequence)
+            plan.Origin, world.Clock, plan.Arrival, 0, command.Sequence)
         {
-            Journey = new(destination, null, roll)
+            Journey = new(plan.Destination, null, roll)
             {
-                Route = route,
+                Route = plan.Route,
                 Gossip = new(command.FirstTargetForceId, command.SecondTargetForceId)
             }
         };

@@ -3,7 +3,7 @@ using San9.Core.Simulation;
 
 namespace San9.Application.AI;
 
-/// <summary>Bounded stage policy; every proposal uses the public command validator.</summary>
+/// <summary>Bounded stage policy; proposals use shared read-only mission preparation.</summary>
 public static class DiplomacyPlanner
 {
     public static GameCommand Choose(GameSession session, ControlSeat seat, Guid commandId) => session.ChooseDiplomacy(seat, commandId);
@@ -32,13 +32,13 @@ public static class DiplomacyPlanner
                     prisoner.UnitId is int unit ? world.Units.Single(u => u.Id == unit).OwnerId : null;
                 if (captor is not int target) continue;
                 var command = new ReturnPrisonerCommand(commandId, force.Id, sequence, actor.Id, target, prisoner.Id);
-                if (engine.Validate(context, command).Accepted) return command;
+                if (engine.GetPreparationEligibility(context, command) == CommandRejection.None) return command;
             }
             foreach (var target in targets)
             {
                 var command = new DemandSurrenderCommand(commandId, force.Id, sequence, actor.Id, target.Id);
                 if (engine.GetSurrenderAdvice(force.Id, actor.Id, target.Id).Opinion == AdviserOpinion.Favorable &&
-                    engine.Validate(context, command).Accepted) return command;
+                    engine.GetPreparationEligibility(context, command) == CommandRejection.None) return command;
             }
             foreach (var target in targets.Where(t => Relation(t.Id) >= 60 &&
                 !world.Simulation.AttackRequests.Any(r => r.RequestedForceId == t.Id)))
@@ -47,13 +47,13 @@ public static class DiplomacyPlanner
                 {
                     var command = new RequestAttackCommand(commandId, force.Id, sequence, actor.Id, target.Id, place.Id);
                     if (engine.GetAttackRequestAdvice(force.Id, actor.Id, target.Id, place.Id).Opinion == AdviserOpinion.Favorable &&
-                        engine.Validate(context, command).Accepted) return command;
+                        engine.GetPreparationEligibility(context, command) == CommandRejection.None) return command;
                 }
             if (world.Corps.Single(c => c.OwnerId == force.Id && c.IsRoot).Treasury.Money < 20000) continue;
             foreach (var target in targets.Where(t => Relation(t.Id) is >= 40 and < 80).OrderByDescending(t => Relation(t.Id)))
             {
                 var command = new GiftCommand(commandId, force.Id, sequence, actor.Id, target.Id, new(GiftKind.Money, 2000, null));
-                if (engine.Validate(context, command).Accepted) return command;
+                if (engine.GetPreparationEligibility(context, command) == CommandRejection.None) return command;
             }
         }
         return wait;

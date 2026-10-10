@@ -5,6 +5,10 @@ namespace San9.Application.Tests;
 
 public sealed class IncrementalAdvanceTests
 {
+    private sealed class BlockingRules(Action entered) : SimulationRules
+    {
+        internal override void ApplyStage(ResolutionStage stage, WorldMutation world, List<DomainEvent> events) => entered();
+    }
     private static SessionResult Apply(GameSession session, SessionOperation operation)
     {
         var pending = session.StartOperation(session.Request(operation));
@@ -55,7 +59,7 @@ public sealed class IncrementalAdvanceTests
         using var entered = new ManualResetEventSlim();
         using var release = new ManualResetEventSlim();
         bool block = false;
-        var session = GameSession.Start(G01ScenarioTests.Fixture(), 190, world =>
+        var rules = new BlockingRules(() =>
         {
             if (block)
             {
@@ -63,13 +67,18 @@ public sealed class IncrementalAdvanceTests
                 entered.Set();
                 if (!release.Wait(TimeSpan.FromSeconds(10))) throw new TimeoutException();
             }
-            return new(world);
+        });
+        int factoryCalls = 0;
+        var session = GameSession.Start(G01ScenarioTests.Fixture(), 190, world =>
+        {
+            factoryCalls++;
+            return new(world, rules);
         });
         var before = session.Snapshot;
         int notifications = 0;
         session.Changed += () => { Assert.Equal(owner, Environment.CurrentManagedThreadId); notifications++; };
         block = true;
-        var pending = session.StartOperation(session.Request(new PrepareAdvanceOperation()));
+        var pending = session.StartOperation(session.Request(new AdvanceOperation()));
         try
         {
             Assert.True(entered.Wait(TimeSpan.FromSeconds(10)));
@@ -87,6 +96,7 @@ public sealed class IncrementalAdvanceTests
         Assert.Same(before, session.Snapshot);
         Assert.Equal(SessionDisposition.Accepted, pending.Complete().Disposition);
         Assert.Equal(1, notifications);
+        Assert.Equal(1, factoryCalls);
         Assert.Throws<InvalidOperationException>(() => pending.Complete());
     }
 

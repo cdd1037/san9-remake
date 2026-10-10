@@ -10,6 +10,12 @@ public sealed partial class SimulationEngine
     private WorldMutation? _diplomacyAdviceWorld;
     private long _diplomacyAdviceRevision = -1;
 
+    /// <summary>Branches the current runtime for an isolated operation, sharing immutable records and compiled rules.</summary>
+    public SimulationEngine Fork() => new(_world.Fork(), _rules, new(_rules));
+
+    private SimulationEngine(WorldState world, SimulationRules rules, ResolutionPipeline pipeline)
+        => (_world, _rules, _pipeline) = (world, rules, pipeline);
+
     public SimulationEngine(WorldState world) : this(world, new SimulationRules()) { }
     public SimulationEngine(WorldState world, EconomyRulebook economy) : this(world, new SimulationRules { Economy = economy }) { }
     public SimulationEngine(WorldState world, EconomyRulebook economy, PersonnelRulebook personnel)

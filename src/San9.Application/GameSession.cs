@@ -10,7 +10,6 @@ namespace San9.Application;
 public sealed partial class GameSession
 {
     private SimulationEngine _simulation;
-    private readonly Func<WorldState, SimulationEngine> _engineFactory;
     private readonly ScenarioSessionDefinition _definition;
     private readonly StrategySnapshotSource _snapshotSource;
     private readonly StrategySnapshot _initialView;
@@ -37,12 +36,10 @@ public sealed partial class GameSession
     private EndingSelection? _ending;
     public event Action? Changed;
 
-    private GameSession(ScenarioSessionDefinition definition, SimulationEngine simulation,
-        Func<WorldState, SimulationEngine> engineFactory)
+    private GameSession(ScenarioSessionDefinition definition, SimulationEngine simulation)
     {
         _definition = definition;
         _simulation = simulation;
-        _engineFactory = engineFactory;
         _initialEvents = simulation.InitialEvents;
         _snapshotSource = new(definition.Content, definition.MilitaryRules);
         _view = _snapshotSource.Project(simulation.Snapshot);
@@ -173,7 +170,7 @@ public sealed partial class GameSession
     internal static GameSession Start(ScenarioInitialState definition, ulong seed, Func<WorldState, SimulationEngine> factory, int computerDamageBonusPercent = 0, bool battleDeathsEnabled = false)
     {
         var owned = new ScenarioSessionDefinition(definition);
-        return new(owned, factory(owned.CreateWorld(seed, computerDamageBonusPercent, battleDeathsEnabled)), factory);
+        return new(owned, factory(owned.CreateWorld(seed, computerDamageBonusPercent, battleDeathsEnabled)));
     }
 
     public static GameSession Restore(ScenarioInitialState definition, SessionSnapshot snapshot) =>
@@ -214,7 +211,7 @@ public sealed partial class GameSession
         Func<WorldState, SimulationEngine> factory)
     {
         var simulation = factory(world);
-        var session = new GameSession(owned, simulation, factory);
+        var session = new GameSession(owned, simulation);
         session._records.AddRange(snapshot.Records);
         session._chronicle.AddRange(snapshot.Chronicle);
         session.NextOperationSequence = snapshot.NextOperationSequence;
@@ -279,7 +276,7 @@ public sealed partial class GameSession
         try
         {
             // One operation can close several controls and advance. Publish only after all validation succeeds.
-            var candidate = _engineFactory(WorldState.Restore(_simulation.Snapshot));
+            var candidate = _simulation.Fork();
             List<DomainEvent> events = [];
             IReadOnlyList<WorldSnapshot> frames = [];
             DevelopmentOutcome? development = null;

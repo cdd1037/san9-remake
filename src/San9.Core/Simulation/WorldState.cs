@@ -65,15 +65,33 @@ public sealed class WorldState
         ArgumentNullException.ThrowIfNull(snapshot);
         if (snapshot.Simulation.Boundary is not (SimulationBoundary.Stable or SimulationBoundary.Terminal or SimulationBoundary.AwaitingDecision or SimulationBoundary.Advancing))
             throw new ArgumentException("Only a committed stable boundary can be restored.");
-        var world = Create(snapshot.Simulation.Started, snapshot.Simulation.InitialSeed, snapshot.Forces,
-            snapshot.Settlements, snapshot.Officers, snapshot.Units, snapshot.Corps, snapshot.Treasures,
-            snapshot.Relations, snapshot.Simulation.Controls);
-        world.Clock = snapshot.Clock;
-        world.Simulation = snapshot.Simulation;
         if (snapshot.Revision < 0) throw new ArgumentException("Invalid world revision.");
-        world.Revision = snapshot.Revision;
+        var world = new WorldState(snapshot.Clock, snapshot.Simulation.InitialSeed)
+        {
+            _forces = IndexUnique(snapshot.Forces, value => value.Id),
+            _settlements = IndexUnique(snapshot.Settlements, value => value.Id),
+            _officers = IndexUnique(snapshot.Officers, value => value.Id),
+            _units = IndexUnique(snapshot.Units, value => value.Id),
+            _corps = IndexUnique(snapshot.Corps, value => value.Id),
+            _treasures = IndexUnique(snapshot.Treasures, value => value.Id),
+            _relations = IndexUnique(snapshot.Relations, value => (value.FirstId, value.SecondId)),
+            Simulation = snapshot.Simulation,
+            Revision = snapshot.Revision,
+        };
         WorldInvariants.Validate(world.BeginMutation());
         return world;
+    }
+
+    // Internal branches share immutable committed records; a commit replaces only the branch's roots.
+    internal WorldState Fork()
+    {
+        if (IsExecuting) throw new InvalidOperationException("Cannot fork an executing world.");
+        return new(Clock, Simulation.InitialSeed)
+        {
+            _forces = _forces, _settlements = _settlements, _officers = _officers, _units = _units,
+            _corps = _corps, _treasures = _treasures, _relations = _relations,
+            Simulation = Simulation, Revision = Revision, _snapshot = _snapshot,
+        };
     }
 
     private static ImmutableDictionary<TKey, TValue> IndexUnique<TKey, TValue>(

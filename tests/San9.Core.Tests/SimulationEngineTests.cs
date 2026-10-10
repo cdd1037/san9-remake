@@ -7,6 +7,27 @@ namespace San9.Core.Tests;
 
 public sealed class SimulationEngineTests
 {
+    [Fact]
+    public void RuntimeBranchesShareCommittedSnapshotButPublishIndependentState()
+    {
+        var engine = new SimulationEngine(CreateWorld());
+        var before = engine.Snapshot;
+        string hash = before.StateHash;
+        var first = engine.Fork();
+        var second = engine.Fork();
+        Assert.Same(before, first.Snapshot);
+        Assert.Same(before, second.Snapshot);
+        var command = new WaitCommand(Id(701), 1, before.Simulation.NextSequence);
+        Assert.True(first.Execute(new("player"), command).Submission.Accepted);
+        Assert.Equal(hash, engine.Snapshot.StateHash);
+        Assert.Equal(hash, second.Snapshot.StateHash);
+        Assert.Equal(before.Simulation.NextSequence + 1, first.Snapshot.Simulation.NextSequence);
+        Assert.True(second.Execute(new("player"), command).Submission.Accepted);
+        Assert.Equal(first.Snapshot.StateHash, second.Snapshot.StateHash);
+        Advance(first);
+        Assert.Equal(hash, engine.Snapshot.StateHash);
+        Assert.NotEqual(first.Snapshot.StateHash, second.Snapshot.StateHash);
+    }
     internal static WorldState CreateWorld(GameClock? clock = null) => WorldState.Create(clock ?? new(190, 1, 1), 190,
         [new(1, 50) { LeaderId = 1 }, new(2, 50) { LeaderId = 4 }],
         [new(1, 1, 100, 100, 100, 50, 500, 300, 500, 200, 500) { CorpsId = 1 },

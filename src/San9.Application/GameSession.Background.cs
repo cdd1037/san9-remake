@@ -13,7 +13,7 @@ public sealed partial class GameSession
     public PendingSessionOperation StartOperation(SessionRequest request)
     {
         if (_executing) throw new InvalidOperationException("Session is executing.");
-        var snapshot = Snapshot;
+        var simulation = _simulation;
         var records = _records.ToArray();
         var chronicle = _chronicle.ToArray();
         var sequence = NextOperationSequence;
@@ -21,7 +21,8 @@ public sealed partial class GameSession
         _executing = true;
         return new(this, request, Task.Run(() =>
         {
-            var worker = new GameSession(_definition, _engineFactory(WorldState.Restore(snapshot)), _engineFactory)
+            // Apply branches the shared committed runtime once, before making any changes.
+            var worker = new GameSession(_definition, simulation)
             { NextOperationSequence = sequence, _ending = ending };
             worker._records.AddRange(records);
             worker._chronicle.AddRange(chronicle);

@@ -79,6 +79,7 @@ public sealed class ClientContentPackageTests
             [], [], [], [], [], [], Buildings, [], [], [], [], [], new([], []), []);
         var skin = new InterfaceSkin(InterfaceSkin.CurrentSchemaVersion, [Asset], InterfaceSkin.RequiredUiAssets.ToDictionary(s => s, _ => "ui"), Colors(), CursorDefinition.EdgeScrollRoles.ToDictionary(s => s, _ => new CursorDefinition("ui", 0, 0)));
         var text = new TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion, new() { ["player"] = "Player", ["city"] = "City", ["port"] = "Port", [TextCatalog.ScenarioTitleKey] = "Scenario" });
+        foreach (var (key, value) in San9.Tests.CommandTextFixture.Entries()) text.Entries.Add(key, value);
         text.Entries.Add(CommandMenuSkin.OfficerSelectionHintKey, "Select officers");
         foreach (string id in CommandMenuSkin.ReasonIds) text.Entries.Add(CommandMenuSkin.ReasonKey(id), "Reason");
         foreach (string id in San9.Content.Interface.CommandMenuSkin.EntryIds)
@@ -105,6 +106,8 @@ public sealed class ClientContentPackageTests
         titled.Text.Entries.Add("country-title", "国号");
         titled.ValidateLinks(); // Unclaimed definitions must also retain a valid display name.
         var translated = text with { Entries = text.Entries.ToDictionary(kv => kv.Key, kv => "中文") };
+        foreach (var (role, count) in CommandText.Parameters)
+            translated.Entries[CommandText.Key(role)] = "中文" + string.Concat(Enumerable.Range(0, count).Select(i => " {" + i + "}"));
         var changed = p with { Text = translated }; changed.ValidateLinks();
         var treasurePackage = p with { Scenario = p.Scenario with
         {

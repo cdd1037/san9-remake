@@ -51,6 +51,7 @@ public sealed record ClientContentPackage(int SchemaVersion, ContentSource[] Sou
             if(!Skin.Roles.ContainsKey(illustration)) throw new InvalidDataException($"Missing decision illustration: {illustration}.");
         foreach (string path in Presentation.Sounds.Values) _ = PackageFiles.Resolve(".", path);
         Scenario.Validate(); Text.Validate(); Skin.Validate(); Textures.Validate();
+        CommandText.Validate(Text);
         _ = Text.Resolve(TextCatalog.ScenarioTitleKey);
         if (Map.BuildingTypes.Any(t => !Skin.BuildingTargetOffsets.ContainsKey(t.Id) || !Skin.BuildingArrowOffsets.ContainsKey(t.Id)))
             throw new InvalidDataException("Missing building target marker placement.");

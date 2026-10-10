@@ -2,7 +2,7 @@
 
 本页维护内容转换、契约与校验入口，不累计界面实现说明。界面开发统一从[UI 文档](ui/README.md)进入；地图与运行态见[地图文档](map-import.md)和[运行时架构](runtime-state.md)。
 
-P1 计略外交采用组合包 schema165，必需的 `presentation.missions` 字典提供十二类出发、意见、结果、外交会谈、计略行动／回应和军团结果等 88 项语义绑定，并校验消息图参数闭包、说话人及音效引用。出发音效区分计略、流言／外交与夺取；外交会谈及劝降灭亡插图分别提供独立音乐角色，插图复用完整纹理包的 G_Still64。转换器通过 PATH 上的 FFmpeg 将源 BGM_21／BGM_26.WMA 转为 PCM WAV，源文件纳入输入校验；客户端仅加载转换包。旧包原位执行 `import-client`，无需重转纹理；190 年包已更新。客户端和原作对齐边界见[操作说明](ui/mission-corps-commands.md)。
+P1 计略外交采用组合包 schema166，必需的 `presentation.missions` 字典提供十二类出发、意见、结果、外交会谈、计略行动／回应和军团结果等 88 项语义绑定，并校验消息图参数闭包、说话人及音效引用。出发音效区分计略、流言／外交与夺取；外交会谈及劝降灭亡插图分别提供独立音乐角色，插图复用完整纹理包的 G_Still64。转换器通过 PATH 上的 FFmpeg 将源 BGM_21／BGM_26.WMA 转为 PCM WAV，源文件纳入输入校验；客户端仅加载转换包。旧包原位执行 `import-client`，无需重转纹理；190 年包已更新。客户端和原作对齐边界见[操作说明](ui/mission-corps-commands.md)。
 
 皮肤schema48包含红向下／蓝向上目标箭头四帧及独立的建筑锚点 `BuildingArrowOffsets`，并新增都市／势力缩略图共用的 `information-summary` 摘要底图及 `information-map-selected` 多选外框，并补齐共用命令窗口的小样式四角、标题、页脚和裁切遮罩；命令底纹独立于边框尺寸，大小窗口均使用蓝色背景270。内容宽小于416或高小于312时切换小样式，保留贴图透明留白与完整调色板颜色。已有纹理包原位执行 `import-textures --rebuild skin` 即可，剧本包无需重转；完整纹理转换版本为41，定向重建保留原包完整转换版本。
 
@@ -10,7 +10,7 @@ P1 计略外交采用组合包 schema165，必需的 `presentation.missions` 字
 
 2026-09-27命令来源光圈：皮肤33／纹理转换26增加五帧`minimap-command-pulse`语义资源（首帧无后缀，其余为`-1..-4`），逐色透明度保留。客户端以当前命令菜单对象定位，兼用于城市、其他设施和部队；出征后续页面保留来源，整项结束清除。依据[RE-0158](../research/findings/RE-SAN9PK-0158.md#小地图命令来源光圈补证2026-09-27)。本地纹理及190年组合包已原位重转，五帧均32×36、首帧全透明，29064逻辑图片／5262物理文件完整校验通过。解决方案各测试项目合计3867项通过；未启动游戏，菜单开关、对象切换及后续命令页面往返的实际画面待用户验收。
 
-现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 129，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 165，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 49，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 42。规则为 `san9-core-g10-v87`，保存100／日志104／录像9；协议以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 为准。
+现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 129，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 166，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 49，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 42。规则为 `san9-core-g10-v87`，保存100／日志104／录像9；协议以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 为准。
 
 旧内容包按现行契约原位重转，旧规则存档、日志和录像拒绝加载。是否重转纹理取决于纹理转换版本与源输入。历史验收只证明对应基线，不代表当前版本重新验证；阶段收口见[G10 验收](g10-verification.md#2026-09-21阶段收口)。
 
@@ -152,6 +152,8 @@ Godot 将 PCK 和 .NET 发布产物嵌入整体单 EXE；不启用 `.NET Publish
 脚本不检查、复制或打包转换资源。运行时按上述默认目录放置资源，或通过 `San9.exe -- --content-package "<剧本包绝对路径>"` 指定现有包。仅构建成功不能替代运行验证，headless 启动也不代表画面或完整玩法验收。
 
 ## 原版文本统一入口
+
+命令界面词条由 `CommandText` 定义 233 个必需语义角色及参数契约：TC101 从 EXE 公共表读取 135 项短标签／格式，从消息文件读取 10 项静态提示，另显式加入 88 项重制说明与事实摘要。对白继续使用消息图。`ui.commands.*` 缺失或模板参数不完整会拒绝加载，没有运行时中文回退。组合包 schema166 需原位重跑 `import-client`，无需重转纹理；独立内容作者应提供完整词条，可调整措辞与参数顺序。
 
 编写控制节点、绑定参数和显示图片的具体用法见[消息约定](ui/messages.md)。
 

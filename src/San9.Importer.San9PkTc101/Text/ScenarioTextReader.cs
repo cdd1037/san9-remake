@@ -1,4 +1,5 @@
 using San9.Content.Interface;
+using San9.Importer.San9PkTc101.Interface;
 using System.Buffers.Binary;
 using System.Reflection.PortableExecutable;
 using San9.Content.Text;
@@ -43,6 +44,16 @@ public sealed class ScenarioTextReader(byte[] messages, byte[] executable) : IDi
     }
     private void ReadCommandMenuText()
     {
+        CommandText.AddRemakeEntries(_entries);
+        foreach (var (role, rva) in CommandTextSources.Labels)
+        {
+            var bytes = _executable.GetSectionData(rva).GetContent(0, 256).ToArray();
+            int end = Array.IndexOf(bytes, (byte)0);
+            if (end < 0) throw new InvalidDataException($"Unterminated command label: {role}.");
+            _entries.Add(CommandText.Key(role), CommandTextSources.Format(_converter.Convert(bytes.AsSpan(0, end))));
+        }
+        foreach (var (role, message) in CommandTextSources.Messages)
+            Add(CommandText.Key(role), _messages.MultilineText(message));
         // RE-0137: construction preparation and shared fixed-formation destination workflow.
         foreach (var (role, message) in new[] { ("build",6013), ("transport",6109), ("officers",8168),
             ("soldiers",8169), ("facility",8170), ("need-officers",8037), ("need-soldiers",8157),

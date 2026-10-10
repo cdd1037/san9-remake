@@ -3,6 +3,8 @@
     <Description>Versioned content contracts and validation for San9 Remake.</Description>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Text/CommandText.json" />
+    <EmbeddedResource Include="Text/RemakeCommandText.json" />
     <ProjectReference Include="../San9.Core/San9.Core.csproj" />
   </ItemGroup>
 </Project>

@@ -171,6 +171,7 @@ public sealed class DuelContestTests
         }
         Assert.All(outcome.Pairs, p => { Assert.Equal(80, p.WinnerInitialMartial); Assert.Equal(80, p.LoserInitialMartial); });
         Assert.InRange(outcome.SurvivorHitPoints, 1, 100);
+        Assert.Equal(events.OfType<DuelPairWonEvent>().Last().RemainingHitPoints, outcome.SurvivorHitPoints);
         Assert.Contains(world.Officers.Values, p => p.Injury > 0);
     }
 }

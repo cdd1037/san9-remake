@@ -82,7 +82,7 @@ internal static class DuelAftermath
                 world.Replace(world.Officers[id] with { Injury = Math.Max(7, world.Officers[id].Injury) });
         int change = outcome.SurvivorHitPoints / 5 + 10;
         if (world.Units.TryGetValue(outcome.WinningUnitId, out var winningUnit))
-            world.Replace(winningUnit with { Morale = Math.Min(100, winningUnit.Morale + change) });
+            world.Replace(winningUnit with { Morale = Math.Min(100, winningUnit.Morale + Math.Min(winningUnit.Morale, change)) });
         if (world.Units.TryGetValue(loserUnit, out var losingUnit))
             world.Replace(losingUnit with { Morale = losingUnit.Morale == 0 ? 0 : Math.Max(1, losingUnit.Morale - change) });
         foreach (var pair in outcome.Pairs.GroupBy(p => p.WinnerId).OrderBy(g => g.Key).Select(g => g.First()))

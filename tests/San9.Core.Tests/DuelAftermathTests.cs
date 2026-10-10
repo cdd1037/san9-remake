@@ -197,4 +197,35 @@ public sealed class DuelAftermathTests
         Assert.Equal(7, world.Officers[22].Injury);
         Assert.Empty(world.Simulation.RandomStreams);
     }
+
+    [Theory]
+    [InlineData(0, 0)]
+    [InlineData(1, 2)]
+    [InlineData(5, 10)]
+    [InlineData(19, 38)]
+    [InlineData(20, 40)]
+    [InlineData(50, 70)]
+    [InlineData(80, 100)]
+    [InlineData(95, 100)]
+    [InlineData(100, 100)]
+    public void WinnerMoraleGainCannotExceedItsCurrentMorale(int morale, int expected)
+    {
+        foreach (int winningUnit in new[] { 1, 2 })
+        {
+            var world = World([Person(11, 1), Person(21, 2)]).BeginMutation();
+            int losingUnit = winningUnit == 1 ? 2 : 1;
+            int winner = winningUnit == 1 ? 11 : 21, loser = winningUnit == 1 ? 21 : 11;
+            world.Replace(world.Units[winningUnit] with { Morale = morale });
+            world.Replace(world.Units[losingUnit] with { Morale = 5 });
+            var outcome = new DuelOutcome(new(1, 2, [11], [21]), winningUnit, winner, 50,
+                [new(winner, loser, 80, 80)]);
+
+            DuelAftermath.Advance(world, DuelAftermath.Begin(world, outcome),
+                new() { Military = Policy(false, false) }, []);
+
+            Assert.Equal(expected, world.Units[winningUnit].Morale);
+            Assert.Equal(1, world.Units[losingUnit].Morale);
+            Assert.Empty(world.Simulation.RandomStreams);
+        }
+    }
 }

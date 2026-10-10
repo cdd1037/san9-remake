@@ -54,6 +54,9 @@ public sealed record CommandPresentation(Dictionary<string, string> Sounds, Patr
     public Dictionary<string, DecisionMessageDefinition> Military { get; init; } = [];
 
     [System.Text.Json.Serialization.JsonRequired]
+    public Dictionary<string, DecisionMessageDefinition> Missions { get; init; } = [];
+
+    [System.Text.Json.Serialization.JsonRequired]
     public DemolitionPresentationDefinition? Demolition { get; init; }
 
     public static CommandPresentation Empty => new([], null);
@@ -61,6 +64,29 @@ public sealed record CommandPresentation(Dictionary<string, string> Sounds, Patr
     {
         var personIds = people.ToHashSet();
         Decisions.Validate(texts, Sounds, personIds);
+        if (Missions.Count > 0)
+        {
+            string[] kinds = ["alienate", "burn", "seize", "rumor", "false-report", "disorder", "inspire", "rescue", "gift", "request", "return", "surrender"];
+            string[] roles = ["actor", "ruler", "adviser", "target-person", "target-ruler", "target-adviser", "target-force", "enemy-force", "second-force", "place", "home", "force", "soldier", "defender", "corps", "year", "month"];
+            var results = kinds.Where(k => k != "seize").SelectMany(k => new[] { k+"-success",k+"-failure" })
+                .Concat(["seize-person","seize-failure"]);
+            if (kinds.Select(k => k + "-start").Concat(new[] { "strategy", "gift", "request", "return", "surrender" }
+                    .SelectMany(k => new[] { k + "-favorable", k + "-unfavorable" })).Concat(results).Except(Missions.Keys).Any() ||
+                Missions.Values.Any(m => m.Bindings.Values.Except(roles).Any() || m.Speaker is string speaker && !roles.Contains(speaker)))
+                throw new InvalidDataException("Incomplete mission presentation.");
+            string[] extra = ["corps-created", "corps-changed", "diplomacy-arrival", "diplomacy-greeting", "diplomacy-welcome",
+                "gift-proposal", "surrender-proposal", "request-proposal", "request-unowned-proposal", "return-proposal", "diplomacy-host-adviser",
+                "gift-host-favorable", "gift-host-unfavorable", "surrender-host-favorable", "surrender-host-unfavorable",
+                "gift-accepted", "gift-refused", "surrender-accepted", "surrender-refused", "surrender-actor-accepted", "surrender-actor-refused", "surrender-eliminated",
+                "false-report-action", "disorder-action", "inspire-action", "rescue-action", "burn-action", "seize-action", "seize-person-action", "seize-person-reaction"];
+            var reactions = new[] { "false-report", "disorder", "inspire", "rescue", "burn", "seize" }
+                .SelectMany(k => new[] { k+"-reaction-success", k+"-reaction-failure" });
+            if (extra.Concat(reactions).Except(Missions.Keys).Any() || !Decisions.People.ContainsKey("soldier") ||
+                kinds.Any(k => string.IsNullOrWhiteSpace(Missions[k+"-start"].Sound)) ||
+                !Sounds.ContainsKey("diplomacy-music") || !Sounds.ContainsKey("force-eliminated-music"))
+                throw new InvalidDataException("Incomplete mission dialogue or departure sound.");
+            new DecisionPresentations([], []) { Shared = Missions }.Validate(texts, Sounds, personIds);
+        }
         if (Demolition is { } demolition)
         {
             new DecisionPresentations([], []) { Shared = new()

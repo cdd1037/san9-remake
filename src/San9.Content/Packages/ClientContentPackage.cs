@@ -52,7 +52,7 @@ public sealed record ClientContentPackage(int SchemaVersion, ContentSource[] Sou
         foreach (string path in Presentation.Sounds.Values) _ = PackageFiles.Resolve(".", path);
         Scenario.Validate(); Text.Validate(); Skin.Validate(); Textures.Validate();
         _ = Text.Resolve(TextCatalog.ScenarioTitleKey);
-        if (Map.BuildingTypes.Any(t => !Skin.BuildingTargetOffsets.ContainsKey(t.Id)))
+        if (Map.BuildingTypes.Any(t => !Skin.BuildingTargetOffsets.ContainsKey(t.Id) || !Skin.BuildingArrowOffsets.ContainsKey(t.Id)))
             throw new InvalidDataException("Missing building target marker placement.");
         var markup = Text.Entries.Values
             .Concat(MessageGraph.Walk(Text.Messages.Values.SelectMany(m => m.Nodes)).SelectMany(n => n switch

@@ -191,6 +191,7 @@ public static class InterfaceSkinCompiler
         Overview("overview-ranking", 1160, 7, alpha: true);
         for (int color = 0; color < 51; color++) Overview($"information-map-force-{color}", 1103 + color, 4, 4, alpha: true);
         Overview("information-map-city", 1154, 4, 4, alpha: true);
+        Overview("information-map-selected", 1155, 4, alpha: true);
         Overview("button-overview-forces", 1158, 6, 4, true);
         Overview("button-overview-facilities", 1159, 6, 4, true);
         Overview("button-overview-units", 1157, 6, 4, true);
@@ -237,7 +238,7 @@ public static class InterfaceSkinCompiler
                 IndexedImageArchive.Decode(IndexedImageArchive.Frame(marker.Images[31], 8, 1, frame, 0), marker.Palettes[4], true, false)));
             ui.Add(role, id);
         }
-        foreach (var (kind, index, palette) in new[] { ("attack", 18, 2), ("enter", 32, 4) })
+        foreach (var (kind, index, palette) in new[] { ("attack", 18, 2), ("enter", 32, 4), ("hostile", 0, 0), ("friendly", 1, 0) })
         for (int frame = 0; frame < 4; frame++)
         {
             if (bindings[1220 + index] != 311 + palette) throw new InvalidDataException("Unconfirmed target marker binding.");
@@ -350,6 +351,7 @@ public static class InterfaceSkinCompiler
         Extra("command-summary-training", 1240, bindings[1240] - 311, true);
         Extra("hover-divider", 425, 55, true);
         Extra("information-background", 337, 40);
+        Extra("information-summary", 381, 46);
         foreach (var (part, resource) in new[] { ("bottom", 338), ("left", 339), ("right", 340), ("top", 341), ("bottom-left", 342), ("top-left", 343), ("bottom-right", 344), ("top-right", 345), ("ornament", 346) })
             Extra("information-frame-" + part, resource, 41, true);
         foreach (var (part, resource) in new[] { ("left", 361), ("middle", 362), ("right", 363) }) Extra("information-title-" + part, resource, 42, true);
@@ -420,14 +422,22 @@ public static class InterfaceSkinCompiler
             ("mode-left",276), ("mode-middle",277), ("mode-right",278), ("field-rim",189),
             ("number-background",3), ("number-field-left",0), ("number-field-middle",1), ("number-field-right",2) })
             Extra("deployment-" + role, resource, bindings[resource] - 200, !role.StartsWith("mode-", StringComparison.Ordinal));
+        foreach (var (role, resource) in new (string, int)[] {
+            ("top-left",205), ("top-right",206), ("bottom-left",207), ("bottom-right",208),
+            ("edge",230), ("top-edge",238), ("title-left",235), ("title-middle",236), ("title-right",237),
+            ("footer-left",227), ("footer-middle",228), ("footer-right",229) })
+            Extra("deployment-small-" + role, resource, bindings[resource] - 200, true);
+        foreach (var (part, resource) in new[] { ("left",186), ("middle",187), ("right",188) })
+            Extra("deployment-arrival-rim-" + part, resource, bindings[resource] - 200);
         // Nonzero source mask pixels remove the command background at decorated corners.
-        foreach (var (role, resource) in new (string, int)[] { ("top-left", 209), ("top-right", 210), ("bottom-left", 211) })
+        foreach (var (role, resource) in new (string, int)[] { ("top-left", 209), ("top-right", 210), ("bottom-left", 211),
+            ("small-top-left", 213), ("small-top-right", 214), ("small-bottom-left", 215) })
         {
             var mask = common.Images[resource];
             byte[] pixels = new byte[mask.Width * mask.Height * 4];
             for (int i = 0; i < mask.Pixels.Length; i++)
                 if (mask.Pixels[i] != 0) pixels.AsSpan(i * 4, 4).Fill(255);
-            string key = "deployment-cutout-" + role;
+            string key = role.StartsWith("small-", StringComparison.Ordinal) ? "deployment-small-cutout-" + role[6..] : "deployment-cutout-" + role;
             assets.Add(save("ui-" + key, "ui/" + key + ".png", new(mask.Width, mask.Height, 4, pixels)));
             ui.Add(key, "ui-" + key);
         }
@@ -452,6 +462,13 @@ public static class InterfaceSkinCompiler
         foreach (var (role, resource) in new (string, int)[] {
             ("title-left", 5), ("title-middle", 6), ("title-right", 7), ("slider-fill", 23), ("slider-thumb", 4) })
             Extra("deployment-number-" + role, resource, bindings[resource] - 200);
+        Extra("deployment-policy-background",460,bindings[460]-200);
+        foreach (var (role, resource) in new (string, int)[] {
+            ("frame-top-left",461), ("frame-top",462), ("frame-top-right",463),
+            ("frame-left",464), ("frame-right",465), ("frame-bottom-left",466),
+            ("frame-bottom",467), ("frame-bottom-right",468),
+            ("title-left",472), ("title-middle",473), ("title-right",474) })
+            Extra("deployment-policy-"+role,resource,bindings[resource]-200,true);
         int fieldPalette = bindings[242] - 200;
         if (Enumerable.Range(242, 9).Any(index => bindings[index] != bindings[242]))
             throw new InvalidDataException("Inconsistent deployment field palette.");
@@ -462,7 +479,7 @@ public static class InterfaceSkinCompiler
             ("edit-left",253), ("edit-middle",254), ("edit-right",255),
             ("accept-left",220), ("accept-middle",221), ("accept-right",222),
             ("cancel-left",217), ("cancel-middle",218), ("cancel-right",219),
-            ("close",251), ("help",252), ("number-accept",27), ("number-cancel",24),
+            ("close",251), ("help",252), ("policy-choice-left",469), ("policy-choice-middle",470), ("policy-choice-right",471), ("number-accept",27), ("number-cancel",24),
             ("number-back",20), ("number-clear",19), ("number-min",29), ("number-max",28), ("number-minus",21), ("number-plus",22),
             ("number-close",25), ("number-help",26), ("number-00",8), ("number-0",9),
             ("number-1",10), ("number-2",11), ("number-3",12), ("number-4",13), ("number-5",14), ("number-6",15),
@@ -504,8 +521,14 @@ public static class InterfaceSkinCompiler
         TargetMarkerOffset[] offsets = [new(-16,-58), new(-20,-38), new(-4,-34), new(-30,-34), new(2,-52),
             new(-33,-52), new(-16,-22), new(-16,-32), new(-16,-28), new(-16,-41), new(-16,-30),
             new(-24,-32), new(-10,-34), new(-16,-34), new(-16,-32), new(-13,-32), new(-16,-34)];
+        TargetMarkerOffset[] arrowOffsets = [new(-28,-65), new(-38,-41), new(-10,-54), new(-45,-54), new(-22,-35),
+            new(-49,-42), new(-31,-39), new(-28,-52), new(-28,-50), new(-34,-45), new(-31,-42),
+            new(-35,-39), new(-25,-30), new(-21,-43), new(-40,-35), new(-21,-34), new(-26,-41)];
         return new(InterfaceSkin.CurrentSchemaVersion, assets.ToArray(), ui, colors, cursors)
-        { BuildingTargetOffsets = offsets.Select((offset, type) => (offset, type)).ToDictionary(p => p.type, p => p.offset) };
+        {
+            BuildingTargetOffsets = offsets.Select((offset, type) => (offset, type)).ToDictionary(p => p.type, p => p.offset),
+            BuildingArrowOffsets = arrowOffsets.Select((offset, type) => (offset, type)).ToDictionary(p => p.type, p => p.offset)
+        };
     }
 
     private static IndexedImage CompileDeploymentField(IReadOnlyList<IndexedImage> sources)

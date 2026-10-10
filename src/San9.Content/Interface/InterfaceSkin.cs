@@ -5,9 +5,11 @@ namespace San9.Content.Interface;
 public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dictionary<string,string> Roles, Dictionary<string,string> Colors,
     Dictionary<string, CursorDefinition> Cursors)
 {
-    public const int CurrentSchemaVersion = 43;
+    public const int CurrentSchemaVersion = 49;
     [System.Text.Json.Serialization.JsonRequired]
     public Dictionary<int, TargetMarkerOffset> BuildingTargetOffsets { get; init; } = [];
+    [System.Text.Json.Serialization.JsonRequired]
+    public Dictionary<int, TargetMarkerOffset> BuildingArrowOffsets { get; init; } = [];
     private static readonly string[] BaseUiAssets = ["narration-portrait-frame", "narration-middle", "narration-right", "narration-affiliation",
         "narration-portrait-next-0", "narration-portrait-next-1", "narration-portrait-next-2", "narration-portrait-next-3", "narration-portrait-next-4", "narration-portrait-next-5",
         "narration-result-next-0", "narration-result-next-1", "narration-result-next-2", "narration-result-next-3", "narration-result-next-4", "narration-result-next-5", "narration-result-next-6",
@@ -37,6 +39,7 @@ public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dicti
         .Concat(new[] { "left", "middle", "right" }.SelectMany(p => new[] { "information-title-" + p, "information-footer-" + p }))
         .Concat(Enumerable.Range(0, 51).SelectMany(c => Enumerable.Range(0, 4).Select(f => $"information-map-force-{c}" + (f == 0 ? "" : $"-{f}"))))
         .Concat(Enumerable.Range(0, 4).Select(f => "information-map-city" + (f == 0 ? "" : $"-{f}")))
+        .Concat(new[] { "information-summary", "information-map-selected" })
         .Concat(new[] { "left", "middle", "right", "close", "map-left", "map-middle", "map-right" }.SelectMany(p => Enumerable.Range(0, 4).Select(f => "information-action-" + p + (f == 0 ? "" : $"-{f}"))))
         .Concat(new[] { "catalog-checkbox", "catalog-accept-left", "catalog-accept-middle", "catalog-accept-right", "catalog-bulk-left", "catalog-bulk-middle", "catalog-bulk-right", "catalog-header-left", "catalog-header-middle", "catalog-header-right", "catalog-row-left", "catalog-row-middle", "catalog-row-right", "catalog-help", "catalog-scroll-up", "catalog-scroll-down" }
             .SelectMany(p => Enumerable.Range(0,4).Select(f => p + (f == 0 ? "" : $"-{f}"))))
@@ -61,7 +64,8 @@ public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dicti
     {
         if (SchemaVersion != CurrentSchemaVersion || Assets.Select(a => a.Id).Distinct().Count() != Assets.Length)
             throw new InvalidDataException("Invalid interface skin version or duplicate assets.");
-        if (BuildingTargetOffsets is null || BuildingTargetOffsets.Any(p => p.Key < 0 || p.Value is null))
+        if (BuildingTargetOffsets is null || BuildingTargetOffsets.Any(p => p.Key < 0 || p.Value is null) ||
+            BuildingArrowOffsets is null || BuildingArrowOffsets.Any(p => p.Key < 0 || p.Value is null))
             throw new InvalidDataException("Invalid building target offsets.");
         ImageAssetFiles.ValidateCatalog(Assets);
         var assets = Assets.ToDictionary(a => a.Id);

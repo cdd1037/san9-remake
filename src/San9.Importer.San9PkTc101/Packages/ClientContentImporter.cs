@@ -63,6 +63,8 @@ public static class ClientContentImporter
         Dictionary<string, byte[]> sounds = new(StringComparer.Ordinal);
         foreach (var (role, file) in CommandPresentationCompiler.SoundSources)
             sounds.Add(presentation.Sounds[role], Read(Path.Combine(sourceDirectory.Root, file)));
+        sounds.Add(presentation.Sounds["diplomacy-music"], await AudioTranscoder.ToWaveAsync(Read(Path.Combine(sourceDirectory.Root,"BGM","BGM_21.WMA")), token));
+        sounds.Add(presentation.Sounds["force-eliminated-music"], await AudioTranscoder.ToWaveAsync(Read(Path.Combine(sourceDirectory.Root,"BGM","BGM_26.WMA")), token));
         var content = new ScenarioContent(ScenarioContent.CurrentSchemaVersion, sources.Distinct().OrderBy(s => s.Name, StringComparer.Ordinal).ToArray(),
             dependency, MapInstance.From(map), scenario, text, roles) { Presentation = presentation };
         var loaded = ClientContentFiles.Resolve(content, textures, textureRoot) with { ContentRoot = output };

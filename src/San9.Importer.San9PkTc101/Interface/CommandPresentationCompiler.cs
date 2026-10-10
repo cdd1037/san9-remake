@@ -6,6 +6,7 @@ internal static class CommandPresentationCompiler
 {
     internal static readonly (string Role, string File)[] SoundSources =
         [("demolition-result", "SE/se_m005.WAV"), ("military-order", "SE/SE_C007.WAV"), ("decision-announcement", "SE/SE_G001.WAV"), ("decision-success", "SE/SE_G008.WAV"), ("decision-failure", "SE/SE_G009.WAV"), ("decision-increase", "SE/SE_G005.WAV"), ("decision-decrease", "SE/SE_G006.WAV"), ("decision-study", "SE/SE_C004.WAV"), ("patrol-citizen", "SE/SE_G008.WAV"), ("domestic-result", "SE/SE_C006.WAV"),
+         ("mission-departure", "SE/SE_C004.WAV"), ("strategy-departure", "SE/SE_C003.WAV"), ("seize-departure", "SE/SE_C007.WAV"),
          ("personnel-departure", "SE/SE_C004.WAV"), ("personnel-territory", "SE/SE_G012.WAV"), ("facility-result", "SE/SE_G005.WAV"), ("recruit-result", "SE/SE_C002.WAV"),
          ("trade-start", "SE/SE_C001.WAV"), ("repair-complete", "SE/se_m002.WAV"), ("reward-result", "SE/SE_G005.WAV"), ("exile-result", "SE/SE_G001.WAV"), ("loyalty-decrease", "SE/SE_G006.WAV"), ("execution-result", "SE/SE_G002.WAV")];
 
@@ -18,7 +19,8 @@ internal static class CommandPresentationCompiler
         FacilityPresentationDefinition Development(int normal, int cooperative, int citizen, int biography, int pair, int result) =>
             new(new() { ["normal"] = Key(normal), ["cooperative"] = Key(cooperative), ["citizen"] = Key(citizen),
                 ["pair-first"] = Key(pair), ["pair-second"] = Key(pair+1), ["result"] = Key(result) }, Person(biography));
-        return new(SoundSources.ToDictionary(s => s.Role, s => $"audio/{s.Role}.wav"),
+        return new(new(SoundSources.ToDictionary(s => s.Role, s => $"audio/{s.Role}.wav"))
+            { ["diplomacy-music"] = "audio/diplomacy-music.wav", ["force-eliminated-music"] = "audio/force-eliminated-music.wav" },
             new(new() { ["normal"] = Key(5592), ["cooperative"] = Key(5826), ["citizen"] = Key(5832),
                 ["pair-first"] = Key(5861), ["pair-second"] = Key(5862), ["result"] = Key(5598) }, Person(674),
                 [new(Key(5873), Person(671), [], AdviceMetric.PublicOrder, 0),
@@ -30,6 +32,7 @@ internal static class CommandPresentationCompiler
             Decisions = DecisionPresentationCompiler.Compile(people),
             Personnel = PersonnelPresentationCompiler.Compile(),
             Military = MilitaryPresentationCompiler.Compile(),
+            Missions = MissionPresentationCompiler.Compile(),
             Demolition = new(Key(6023), Key(5588), Key(5591), "demolition-result"),
             TreasureTransfer = new(Key(5535), Key(5574), Key(5542), Key(5788), Key(5575), Key(7176), Key(7177), Key(7407), "reward-result", "loyalty-decrease"),
             Execution = new(Person(669), Key(5753), Key(5468), Key(5754), "execution-result"),

@@ -17,6 +17,8 @@ public static class InformationArtCompiler
             .Variants.Single(v => v.ImageIndex == index && v.PaletteIndex == (archive == "g_still" ? index : 0)).Image.Id;
         // RE-0111: image-control mode 2 code 26 resolves to G_Still 71.
         roles.Add("personnel-city-transfer",Image("g_still",71));
+        // RE-0182: surrender result mode2 code19 resolves to G_Still64.
+        roles.Add("diplomacy-eliminated",Image("g_still",64));
         foreach (var person in scenario.Officers)
         {
             int portrait = people[person.State.Id].PortraitResourceCode;

@@ -123,13 +123,17 @@ public partial class MapSceneView : Node2D
         _ui.RequestPrefixes("bar-", "icon-");
         _outlineMaterial = new ShaderMaterial { Shader = new Shader { Code = """
             shader_type canvas_item;
+            float solid(sampler2D source, vec2 uv) {
+                if (any(lessThan(uv, vec2(0.0))) || any(greaterThanEqual(uv, vec2(1.0)))) return 0.0;
+                return step(0.01, texture(source, uv).a);
+            }
             void fragment() {
                 vec2 p = TEXTURE_PIXEL_SIZE;
-                float a = texture(TEXTURE, UV).a;
-                float l = UV.x > p.x ? texture(TEXTURE, UV-vec2(p.x,0)).a : 0.0;
-                float u = UV.y > p.y ? texture(TEXTURE, UV-vec2(0,p.y)).a : 0.0;
-                float edge = max(abs(step(0.01,a)-step(0.01,l)), abs(step(0.01,a)-step(0.01,u)));
-                COLOR = vec4(0.973,0.973,0.627,edge * 0.65);
+                float neighbors = max(max(solid(TEXTURE, UV-vec2(p.x,0)), solid(TEXTURE, UV+vec2(p.x,0))),
+                    max(solid(TEXTURE, UV-vec2(0,p.y)), solid(TEXTURE, UV+vec2(0,p.y))));
+                float edge = (1.0-solid(TEXTURE, UV)) * neighbors;
+                // The original's opaque RGB555 outline resolves to pale cyan after channel quantization.
+                COLOR = vec4(vec3(152.0,240.0,240.0)/255.0, edge);
             }
             """ } };
         _hoverMaterial = new ShaderMaterial { Shader = new Shader { Code = "shader_type canvas_item; void fragment() { vec4 c = texture(TEXTURE, UV); COLOR = vec4(round(c.rgb * 255.0 * 0.6875 + vec3(240.0 * 0.3125)) / 255.0, round(c.a * 255.0 * 0.9375) / 255.0); }" } };

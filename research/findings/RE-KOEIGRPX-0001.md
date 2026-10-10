@@ -72,6 +72,8 @@ gray = uint8(offset + floor(scale*luma/256))
 
 `FrameBlt2` 与 `KBMPFrameBlt2` 比较当前源像素和左/上一源像素的透明状态。在透明—非透明状态发生变化时，以 `frame_rgb` 和 `alpha` 染目标边界像素；`copy_frame_to_current!=0` 时还把生成的边界色复制到当前目标像素。KBMP 版本仍以完整调色板 DWORD判透明。`alpha` 只做上限 255 夹取，调用方须保证非负。
 
+2026-10-10只读回查`1000AAC0 → 10004BD0/10004F70`：`frame_rgb`的低／次低／第三字节分别为R/G/B，高字节不作为此颜色的覆盖Alpha。TC101部队遮挡调用的`0x80F8F8A0`故为RGB(160,248,248)；默认Alpha255在MMX路径以255/256混合并量化RGB555，结果为RGB(152,240,240)，目标权重为0。`copy_frame_to_current=0`的MMX路径选择透明侧边界，横向分支对部分纵向角点有优先关系；标量路径的邻接目标分支有差异，不将两者概括成同一个逐像素算法。未修改DLL主库，EXE注释同步及产品修正见[RE-0156](RE-SAN9PK-0156.md#2026-10-10行军画面与描边颜色复核)。
+
 ### MMX 检测
 
 `IsMMXSupported()` 执行 `CPUID(1)` 并返回 EDX bit23。它没有操作系统能力探测或后备配置；DLL 初始化结果直接控制上述 MMX/标量分支。

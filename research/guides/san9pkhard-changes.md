@@ -14,8 +14,8 @@
 
 | 来源 | 内容与使用范围 |
 | --- | --- |
-| [S1：旧版帮助](../../private/research/docs/优化伴侣2019年版/San9PKHard帮助.txt) | 文件正文署期为 2012.12，虽然位于 2019 版目录，不能视为全部反映新版行为。用于基础功能说明。 |
-| [S2：2019 年更新说明](../../private/research/docs/优化伴侣2019年版/更新说明（2019年7月）.txt) | 含 2019 年 4 月、7 月变化；涉及版本差异时优先于 S1。 |
+| [S1：旧版帮助](../../private/research/docs/优化伴侣后人维护版/San9PKHard帮助.txt) | 文件正文署期为 2012.12，不能因所在目录后来更名而视为全部反映新版行为。用于基础功能说明。 |
+| [S2：2019 年更新说明](../../private/research/docs/优化伴侣后人维护版/更新说明（2019年7月）.txt) | 含 2019 年 4 月、7 月变化；涉及版本差异时优先于 S1。 |
 | [S3：设计公式和优化方法](../../private/research/docs/程序分析、设计公式、优化方法/三国志9威力加强版的设计公式和优化方法.md) | 原版公式、优化方法及项目后续校核。公式分析或修复建议不自动等于伴侣已实现。 |
 | [S4：设置绑定](../../private/research/upstream/San9PKHard/Parasettingdlg.cpp) | `DDX_Check`、`DDX_Text` 确认开关和参数入口。 |
 | [S5：主程序及补丁安装](../../private/research/upstream/San9PKHard/San9PKHardDlg.cpp) | 初始化、配置加载、补丁写入与选项分支。 |

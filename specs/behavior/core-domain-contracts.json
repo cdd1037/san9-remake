@@ -81,7 +81,8 @@
       "id": "session-persistence",
       "classification": "boundary",
       "behavior_specs": [
-        "BEH-SAVE-0001"
+        "BEH-SAVE-0001",
+        "BEH-PROFILE-0001"
       ],
       "objects": [
         "ScenarioSessionDefinition",
@@ -394,7 +395,7 @@
     {
       "id": "presentation",
       "classification": "boundary",
-      "behavior_specs": ["BEH-RENDER-0001", "BEH-RENDER-0002", "BEH-RENDER-0003", "BEH-RENDER-0004", "BEH-UI-0001", "BEH-UI-0002", "BEH-UI-0003", "BEH-UI-0004", "BEH-UI-0005", "BEH-UI-0006"],
+      "behavior_specs": ["BEH-RENDER-0001", "BEH-RENDER-0002", "BEH-RENDER-0003", "BEH-RENDER-0004", "BEH-UI-0001", "BEH-UI-0002", "BEH-UI-0003", "BEH-UI-0004", "BEH-UI-0005", "BEH-UI-0006", "BEH-UI-0007"],
       "objects": ["read-only world snapshot", "static map snapshot", "calendar view model", "requested and presented viewport", "presentation clock", "strategy selection"],
       "states": ["unbound", "rendering", "presented"],
       "inputs": ["application snapshot", "validated content assets"],

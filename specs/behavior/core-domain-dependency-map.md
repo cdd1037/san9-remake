@@ -91,7 +91,7 @@ G07已接入的周期入口：`PrisonerEscapeCycle`在旬更新复用`PrisonerRe
 | 边界 | 规格 | 职责 | 实现入口 |
 | --- | --- | --- | --- |
 | `content-import` | `BEH-IMPORT-0001..0017` | 识别批准样本、无损解码已知/未知字段、生成稳定内容 ID 与规范化内容包；不进入运行时依赖 | `San9.Importer.San9PkTc101` 与 `San9.Content` |
-| `presentation` | `BEH-RENDER-0001..0004`、`BEH-UI-0001..0006` | 消费只读快照和内容资产，组织地图、动画、完整视野提交、选择与固定UI；不拥有规则真值或玩法随机 | `San9.Rendering`、`San9.Application` 与 `San9.Client.Godot` |
+| `presentation` | `BEH-RENDER-0001..0004`、`BEH-UI-0001..0007` | 消费只读快照和内容资产，组织地图、动画、完整视野提交、选择与固定UI；不拥有规则真值或玩法随机 | `San9.Rendering`、`San9.Application` 与 `San9.Client.Godot` |
 
 ## 决策门
 
@@ -114,5 +114,7 @@ G07已接入的周期入口：`PrisonerEscapeCycle`在旬更新复用`PrisonerRe
 当前聚合契约没有登记中的核心规格冲突；这不表示各研究公式的全部输入或范围外规则已经闭合，具体见[研究与规格疑点清单](../../research/research-open-questions.md)。未确认的字段标签、UI 名称、挑战剧本布局和可选细节保持在各规格的排除范围，不能进入上述类型或验证器。新的规则或语义差异须更新相关 BEH 并明确可执行验收场景；是否新增 DEC 按[文档规则](../README.md)判断。
 
 ## 保存与无界面边界
+
+跨局玩家进度基础`BEH-PROFILE-0001`归入`session-persistence`边界；仅持有本地完成事实，与单局保存、随机及重放隔离，不将尚未接入的解锁规则算作已完成。
 
 `session-persistence`依赖`simulation`，已确认规格为`BEH-SAVE-0001`。Core的`CanonicalJson`提供规范化编码与按需诊断摘要，普通快照不携带摘要；Application持有内容/规则身份、操作水位、轻量保存恢复、独立录像及原子会话发布；独立`San9.Headless`只消费Application，不拥有领域规则。G03新增相性、精通、基础信望、容量与粮耗资格，规范化组合对和官职俸禄成为经济输入。后续新增领域状态、规则输入与动态身份必须同步保存、恢复校验、指纹和重放测试。实际入口为`SaveService`、`CommandLogService`与`HeadlessHost`，验证见[G02验收](../../docs/g02-verification.md)。

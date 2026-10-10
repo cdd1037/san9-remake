@@ -2,10 +2,17 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from validate_program_analysis_final_acceptance import markdown_link_audit, roadmap_batches, write_record_is_verified
+from validate_program_analysis_final_acceptance import completed_disposition, markdown_link_audit, roadmap_batches, write_record_is_verified
 
 
 class ValidateProgramAnalysisFinalAcceptanceTests(unittest.TestCase):
+    def test_compound_disposition_requires_every_assigned_batch_to_be_complete(self):
+        batches = {"PERS-04": "completed", "GOV-04": "completed", "WAR-04": "planned"}
+        self.assertTrue(completed_disposition("completed:PERS-04+GOV-04", batches))
+        self.assertFalse(completed_disposition("completed:PERS-04+WAR-04", batches))
+        self.assertFalse(completed_disposition("completed:PERS-04+MISSING-01", batches))
+        self.assertFalse(completed_disposition("completed:PERS-04+", batches))
+
     def test_parses_completed_roadmap_rows_and_rejects_duplicates(self):
         text = "| `COV-01` | `completed` | x | y |\n| `DOM-01` | `completed` | x | y |\n"
         self.assertEqual(roadmap_batches(text), {"COV-01": "completed", "DOM-01": "completed"})

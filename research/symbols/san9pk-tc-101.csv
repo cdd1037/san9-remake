@@ -153,7 +153,7 @@ address,symbol,kind,module,confidence,evidence,sources,match,notes
 0x0045D620,serialize_extended_person_record,function,extended-person,high,RE-SAN9PK-0009,SRC-SAN9PK-TC-101,target-record-saver,Writes extended Person +0x12C as record +0x06
 0x0045DAE0,flag_base_code_uses_second_glyph_variant,function,map-flags,high,RE-SAN9PK-0009,SRC-SAN9PK-TC-101,target-two-resource-ranges,Selects which of the two 186-image G_Name glyph color variants matches the base flag code
 0x0045DD40,subtract_record_troops,function,simulation,high,RE-SAN9PK-0078,SRC-SAN9PK-TC-101,target-saturating-subtract+building-unit-deployment-callers,Subtracts a troop amount from record offset 0x30 and notifies the record
-0x0045DDE0,set_person_name_reading_resource_code,function,person-data,high,RE-SAN9PK-0009,SRC-SAN9PK-TC-101,target-field-write+loader-chain,Stores the name-reading resource code at Person +0x38
+0x0045DDE0,set_record_dword_38,function,record-data,high,RE-SAN9PK-0009+RE-SAN9PK-0068,SRC-SAN9PK-TC-101,target-field-write+caller-context,Compiler-folded direct dword writer at record +0x38; person name resource code or unit morale according to caller
 0x0045E0D0,get_object_force_leader,function,governance,high,RE-SAN9PK-0124,SRC-SAN9PK-TC-101,target-owning-force+leader-lookup,Returns an object's owning-force leader or null
 0x0045E210,ownable_object_belongs_to_direct_corps,function,governance,high,RE-SAN9PK-0124,SRC-SAN9PK-TC-101,target-generic-direct-corps-owner-comparison,Tests exact object ownership by one corps record
 0x00460C60,resolve_map_object_flag_base_code,function,map-flags,high,RE-SAN9PK-0009,SRC-SAN9PK-TC-101,target-force-visual-chain,"Resolves the force-derived base flag image code, defaulting to 50 when no force exists"
@@ -414,7 +414,7 @@ address,symbol,kind,module,confidence,evidence,sources,match,notes
 0x0050F400,interactive_force_action_task_dtor,function,simulation-task,high,RE-SAN9PK-0072,SRC-SAN9PK-TC-101,target-vtable-restore+base-dtor,Non-deleting interactive force-action task destructor
 0x0050F410,is_interactive_force_action_context_valid,function,simulation-task,high,RE-SAN9PK-0072,SRC-SAN9PK-TC-101,target-base-validity+predicate-nonzero,Validates the interactive force-action source context
 0x0050F650,open_progress_log_dialog,function,interactive-ui,high,RE-SAN9PK-0084,SRC-SAN9PK-TC-101,target-opcode-11028+runtime-class-CLogDlg,Opens the progress-log modal dialog
-0x0050F6C0,open_force_leader_information,function,interactive-ui,high,RE-SAN9PK-0073,SRC-SAN9PK-TC-101,target-current-force+leader-person,Opens the current force leader information
+0x0050F6C0,open_current_force_chronicle,function,interactive-ui,high,RE-SAN9PK-0073+RE-SAN9PK-0161,SRC-SAN9PK-TC-101,target-current-force+chronicle-dialog,Opens the current force chronicle using its ruler as dialog context
 0x0050F7B0,open_game_help_topic,function,interactive-ui,high,RE-SAN9PK-0073,SRC-SAN9PK-TC-101,target-WinHelpA+SAN9PK_T.HLP,Opens a game help topic
 0x00510200,force_unit_simulation_task_vfunc_18,function,virtual-dispatch,high,RE-SAN9PK-0155,SRC-SAN9PK-TC-101,vtable-slot-recovery,Recovered .text virtual-table target; owner and slot encoded in symbol
 0x00510CF0,open_title_catalog,function,interactive-ui,high,RE-SAN9PK-0073,SRC-SAN9PK-TC-101,target-message-8382+CKanshakuData,Opens the title catalog

@@ -53,6 +53,13 @@ FORBIDDEN_TRACKED_PATTERNS = (
     re.compile(r"(?i)^(?:private/(?!README\.md$)|artifacts/|local/generated/)"),
 )
 EXPECTED_SAMPLE_HASH = "d20794aeff67301ec2bf8c3becb1e9944c68c6c0588fbfd4bf04e8597f0e5028"
+HISTORICAL_FINDINGS = {f"RE-SAN9PK-{index:04d}" for index in range(1, 148)}
+HISTORICAL_SYMBOL_COUNT = 419
+
+
+def completed_disposition(value: str, batches: dict[str, str]) -> bool:
+    match = re.fullmatch(r"completed:([A-Z]+-\d{2}(?:\+[A-Z]+-\d{2})*)", value)
+    return match is not None and all(batches.get(batch) == "completed" for batch in match.group(1).split("+"))
 
 
 def load_json(path: Path) -> object:
@@ -221,8 +228,7 @@ def validate_repository(root: Path) -> dict[str, object]:
         disposition = row["disposition"]
         if disposition in {"baseline", "duplicate", "out-of-scope"}:
             continue
-        match = re.fullmatch(r"completed:([A-Z]+-\d{2})", disposition)
-        if not match or batches.get(match.group(1)) != "completed":
+        if not completed_disposition(disposition, batches):
             issue("coverage_nonterminal_disposition", row)
 
     formulas = load_json(program_status_archive / "formula-status.json")
@@ -240,19 +246,20 @@ def validate_repository(root: Path) -> dict[str, object]:
     if close03.get("behavior_spec_count") != 44 or close03.get("research_detail_leak_count") != 0:
         issue("behavior_contract_counts", {"specs": close03.get("behavior_spec_count"), "leaks": close03.get("research_detail_leak_count")})
 
-    finding_paths = sorted((research / "findings").glob("RE-SAN9PK-*.md"))
+    finding_paths = sorted(path for path in (research / "findings").glob("RE-SAN9PK-*.md")
+                           if re.fullmatch(r"RE-SAN9PK-\d{4}", path.stem))
     finding_ids = {path.stem for path in finding_paths}
     index_text = (research / "findings" / "README.md").read_text(encoding="utf-8")
     indexed_ids = set(re.findall(r"RE-SAN9PK-\d{4}(?=\.md)", index_text))
     if finding_ids != indexed_ids:
         issue("finding_index", {"unindexed": sorted(finding_ids - indexed_ids), "missing": sorted(indexed_ids - finding_ids)})
-    if len(finding_ids) != 147:
-        issue("finding_count", len(finding_ids))
+    if missing_baseline := sorted(HISTORICAL_FINDINGS - finding_ids):
+        issue("missing_historical_findings", missing_baseline)
 
     symbol_path = research / "symbols" / "san9pk-tc-101.csv"
     with symbol_path.open(encoding="utf-8-sig", newline="") as stream:
         symbols = list(csv.DictReader(stream))
-    if len(symbols) != 419:
+    if len(symbols) < HISTORICAL_SYMBOL_COUNT:
         issue("symbol_count", len(symbols))
     for field in ("address", "symbol"):
         duplicates = sorted(key for key, count in Counter(row[field] for row in symbols).items() if count > 1)
@@ -279,7 +286,8 @@ def validate_repository(root: Path) -> dict[str, object]:
     if ida_state.get("write_operations") != 0 or ida_state.get("program_byte_changes") != 0:
         issue("final_ida_write", ida_state)
     symbol_readback = ida.get("symbol_readback", {})
-    if symbol_readback.get("row_count") != len(symbols) or symbol_readback.get("final_name_mismatch_count") != 0 or symbol_readback.get("function_entry_mismatch_count") != 0:
+    # The archived readback proves the 2026-08-27 baseline, not subsequent IDA edits or additions.
+    if symbol_readback.get("row_count") != HISTORICAL_SYMBOL_COUNT or symbol_readback.get("final_name_mismatch_count") != 0 or symbol_readback.get("function_entry_mismatch_count") != 0:
         issue("final_symbol_readback", symbol_readback)
     type_readback = ida.get("type_readback", {})
     if type_readback.get("row_count") != len(types) or type_readback.get("size_mismatch_count") != 0 or type_readback.get("missing_accessor_count") != 0:
@@ -347,7 +355,7 @@ def validate_repository(root: Path) -> dict[str, object]:
         "evidence_indexes": {"findings": len(finding_ids), "symbols": len(symbols), "types": len(types), "behavior_specs": close03.get("behavior_spec_count")},
         "ida": {
             "historical_machine_batches_verified": len(MACHINE_STATUS_RECORDS),
-            "final_symbol_readback": f"{symbol_readback.get('row_count')}/{len(symbols)}",
+            "final_symbol_readback": f"{symbol_readback.get('row_count')}/{HISTORICAL_SYMBOL_COUNT}",
             "final_type_readback": f"{type_readback.get('row_count')}/{len(types)}",
             "final_write_operations": ida_state.get("write_operations"),
         },

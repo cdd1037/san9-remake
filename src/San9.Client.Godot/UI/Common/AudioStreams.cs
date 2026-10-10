@@ -1,11 +1,30 @@
 using Godot;
 using San9.Content.Interface;
+using San9.Content.Packages;
 
 namespace San9.Client.Godot;
 
-internal static class AudioStreams
+/// <summary>Each playback owner caches and releases physical assets independently of their roles.</summary>
+internal sealed class AudioStreams(string root, IReadOnlyDictionary<string, string> sounds) : IDisposable
 {
-    internal static AudioStream Load(string path, bool loop)
+    private readonly Dictionary<(string Path, bool Loop), AudioStream> _streams = [];
+
+    internal AudioStream Get(string role, bool loop)
+    {
+        var key = (Path: sounds[role], Loop: loop);
+        if (_streams.TryGetValue(key, out var stream)) return stream;
+        stream = Load(PackageFiles.Resolve(root, key.Path), loop);
+        _streams.Add(key, stream);
+        return stream;
+    }
+
+    public void Dispose()
+    {
+        foreach (var stream in _streams.Values) stream.Dispose();
+        _streams.Clear();
+    }
+
+    private static AudioStream Load(string path, bool loop)
     {
         AudioStream? stream = AudioFileFormats.Identify(path) switch
         {

@@ -1,5 +1,4 @@
 using Godot;
-using San9.Content.Packages;
 
 namespace San9.Client.Godot;
 
@@ -13,26 +12,19 @@ public partial class SceneMusicPlayer : Node
     private AudioStreamPlayer _map = null!;
     private string? _mapRole;
     private int _owners;
-    private readonly Dictionary<string,AudioStream> _streams = [];
-    public override void _Ready() { _player = new(); AddChild(_player); _map = new(); AddChild(_map); }
+    private AudioStreams _streams = null!;
+    public override void _Ready() { _streams = new(ContentRoot, Tracks); _player = new(); AddChild(_player); _map = new(); AddChild(_map); }
     public void SetMapTrack(string? role)
     {
         if (_mapRole == role) return;
         _mapRole = role; _map.Stop(); _map.Stream = null;
         if (!Enabled || role is null) return;
-        _map.Stream = Stream(role); _map.Play(); _map.StreamPaused = _owners > 0;
-    }
-    private AudioStream Stream(string role)
-    {
-        if (_streams.TryGetValue(role, out var cached)) return cached;
-        var stream = AudioStreams.Load(PackageFiles.Resolve(ContentRoot, Tracks[role]), loop: true);
-        _streams.Add(role, stream);
-        return stream;
+        _map.Stream = _streams.Get(role, loop: true); _map.Play(); _map.StreamPaused = _owners > 0;
     }
     public IDisposable Begin(string role)
     {
         if (!Enabled) return new Lease(() => { });
-        var stream = Stream(role);
+        var stream = _streams.Get(role, loop: true);
         var prior = _player.Stream;
         float position = _player.GetPlaybackPosition();
         bool playing = _player.Playing;
@@ -55,7 +47,6 @@ public partial class SceneMusicPlayer : Node
     {
         _player.Stop(); _player.Stream = null;
         _map.Stop(); _map.Stream = null;
-        foreach (var stream in _streams.Values) stream.Dispose();
-        _streams.Clear();
+        _streams.Dispose();
     }
 }

@@ -107,6 +107,30 @@ public sealed class MissionCommandTests
     }
 
     [Fact]
+    public void GiftSelectionAndSubmissionExcludeGrantedAndForeignTreasures()
+    {
+        var basis = MissionScenario.Create();
+        var content = basis with { Information = basis.Information with
+        {
+            Treasures = [new(101,"own",0,0,5,null),new(102,"granted",0,0,5,null),new(103,"foreign",0,0,5,null)],
+            TreasureStates = [new(101,1,TreasureDiscovery.Discovered,null),new(102,3,TreasureDiscovery.Discovered,null),
+                new(103,21,TreasureDiscovery.Discovered,null)]
+        } };
+        var session = GameSession.Start(content,42);
+        var draft = new MissionDraft(session,1,"gift");
+        Assert.Equal(new[] {101},draft.Treasures);
+        Assert.True(draft.SetActor(2));
+        Assert.False(draft.SetGift(new(GiftKind.Treasure,0,102)));
+        var invalid = new GiftCommand(Guid.NewGuid(),1,session.Snapshot.Simulation.NextSequence,2,2,new(GiftKind.Treasure,0,102));
+        Assert.Equal(CommandRejection.TreasureUnavailable,session.Execute(new("player"),invalid).Submission.Rejection);
+        Assert.True(draft.SetGift(new(GiftKind.Treasure,0,101)));
+        Assert.True(draft.SetTarget(2));
+        Assert.True(draft.CanExecute);
+        Assert.True(session.Execute(new("player"),draft.CreateCommand()).Submission.Accepted);
+        Assert.Equal(2,session.Snapshot.Treasures.Single(t => t.Id == 101).HolderId);
+    }
+
+    [Fact]
     public void DepartureKeepsRegionIdentityWhenItsIdAlsoNamesASettlement()
     {
         var basis = MissionScenario.Create();

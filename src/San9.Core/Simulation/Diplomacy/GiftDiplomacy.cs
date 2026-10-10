@@ -67,7 +67,8 @@ internal static class GiftDiplomacy
 
     internal static bool CanOfferTreasure(WorldMutation world, int forceId, int treasureId, TreasureRulebook rules) =>
         world.Treasures.TryGetValue(treasureId, out var item) && item.Discovered &&
-            item.HolderId is int holder && world.Officers[holder].OwnerId == forceId && world.Officers[holder].IsServing &&
+            item.HolderId is int holder && world.Forces.TryGetValue(forceId, out var force) && holder == force.LeaderId &&
+            world.Officers[holder].OwnerId == forceId && world.Officers[holder].IsServing &&
             !world.IsBusy(holder) && rules.Items.ContainsKey(item.Id);
 
     internal static int Threshold(WorldMutation world, int forceId, int actor, int target, GiftOffer offer, SimulationRules rules)

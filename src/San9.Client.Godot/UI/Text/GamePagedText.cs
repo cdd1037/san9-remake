@@ -2,7 +2,7 @@ using Godot;
 
 namespace San9.Client.Godot;
 
-/// <summary>Three shaped lines per page, retaining one rich-text document and its styles.</summary>
+/// <summary>Measure the complete rich-text document, then display only the current three-line page.</summary>
 public partial class GamePagedText : Control
 {
     public TextureScope Textures { get; init; } = null!;
@@ -12,7 +12,9 @@ public partial class GamePagedText : Control
     public int PageCount => _pages.Count;
     public int PageIndex { get; private set; }
     private GameRichTextLabel _label = null!;
-    private readonly List<(float Offset, float Height, int EndCharacter)> _pages = [];
+    private string _document = "";
+    private GameTextStyle _style;
+    private readonly List<(string Markup, float Height)> _pages = [];
 
     public GamePagedText()
     {
@@ -31,11 +33,14 @@ public partial class GamePagedText : Control
         _label.Position = Vector2.Zero;
         _label.AutowrapMode = TextServer.AutowrapMode.Off;
         _label.Present(markup, style);
+        _document = _label.Text;
+        _style = _label.Style;
         UnwrappedWidth = _label.GetContentWidth();
     }
 
     public void Paginate(float width)
     {
+        _label.Present(_document, _style);
         _label.Size = new(width, 24);
         _label.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         int lines = _label.GetLineCount();
@@ -48,11 +53,12 @@ public partial class GamePagedText : Control
         {
             int last = Math.Min(first + 2, lines - 1);
             float offset = _label.GetLineOffset(first);
-            _pages.Add((offset, _label.GetLineOffset(last) - offset + _label.GetLineHeight(last),
-                Math.Min(_label.GetLineRange(last).Y, _label.GetTotalCharacterCount())));
+            string markup = San9.Rendering.RichTextPageMarkup.Slice(_document, _label.GetLineRange(first).X,
+                Math.Min(_label.GetLineRange(last).Y, _label.GetTotalCharacterCount()));
+            _pages.Add((markup, _label.GetLineOffset(last) - offset + _label.GetLineHeight(last)));
         }
         // Empty messages still have one acknowledgement page.
-        if (_pages.Count == 0) _pages.Add((0, 24, 0));
+        if (_pages.Count == 0) _pages.Add(("", 24));
         MaximumPageLayoutHeight = _pages.Max(page => page.Height);
         MaximumPageHeight = MaximumPageLayoutHeight + finalLineOverflow;
         Size = new(width, MaximumPageHeight);
@@ -71,7 +77,7 @@ public partial class GamePagedText : Control
     private void ShowPage()
     {
         var page = _pages[PageIndex];
-        _label.Position = new(0, -page.Offset);
-        _label.VisibleCharacters = page.EndCharacter;
+        _label.Present(page.Markup, _style);
+        _label.Size = Size;
     }
 }

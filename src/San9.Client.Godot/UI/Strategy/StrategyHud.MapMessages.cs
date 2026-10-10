@@ -26,7 +26,7 @@ public partial class StrategyHud
         foreach (var message in messages)
         {
             if (message.MapSpeech is { } speech) PresentMapSpeech(speech);
-            else if (message.MapRecord is { } record && message.SoundRole is null && message.IllustrationRole is null)
+            else if (message.RecordInJournal && message.MapRecord is { } record && message.SoundRole is null && message.IllustrationRole is null)
                 PresentMapRecord(record);
             else narration.Add(message);
         }

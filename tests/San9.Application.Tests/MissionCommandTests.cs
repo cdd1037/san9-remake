@@ -11,6 +11,38 @@ namespace San9.Application.Tests;
 public sealed class MissionCommandTests
 {
     [Theory]
+    [InlineData("burn")]
+    [InlineData("gift")]
+    public void PreparationAdviceIsDialogueOnlyWhileDepartureRemainsRecordable(string kind)
+    {
+        var content = MissionScenario.Create();
+        content = content with
+        {
+            Forces = content.Forces.Select(f => f.Id == 1 ? f with { AdviserId = 2 } : f).ToArray(),
+            Officers = content.Officers.Select(p => p.State.Id == 2 ? p with { State = p.State with { Status = OfficerStatus.Strategist } } : p).ToArray()
+        };
+        var session = GameSession.Start(content,42);
+        var draft = new MissionDraft(session,1,kind);
+        Assert.True(draft.SetActor(2));
+        Assert.True(draft.SetTarget(2));
+        string prefix = draft.IsDiplomacy ? kind : "strategy";
+        string[] roles = [prefix + "-favorable",prefix + "-unfavorable",kind + "-start"];
+        var texts = new TextCatalog(TextCatalog.CurrentSchemaVersion,[]) { Messages = roles.ToDictionary(
+            role => role,role => new MessageDefinition([new MessageLiteral(role)])) };
+        var messages = roles.ToDictionary(role => role,
+            role => new DecisionMessageDefinition(role,[],role.EndsWith("-start") ? "actor" : "adviser"));
+        var context = session.Messages(texts);
+
+        var advice = Assert.Single(MissionPresentation.Advice(draft,messages,context,texts));
+        Assert.Equal(2,advice.SpeakerId);
+        Assert.False(advice.RecordInJournal);
+        Assert.Null(advice.MapRecord);
+        Assert.Null(advice.MapSpeech);
+
+        Assert.True(Assert.Single(MissionPresentation.Departure(draft,messages,context,texts)).RecordInJournal);
+    }
+
+    [Theory]
     [InlineData("false-report",20)] [InlineData("disorder",20)]
     [InlineData("inspire",10)] [InlineData("rescue",10)]
     [InlineData("alienate",22)] [InlineData("burn",2)] [InlineData("seize",2)] [InlineData("rumor",2)]

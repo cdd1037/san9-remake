@@ -44,7 +44,7 @@ public partial class StrategyHud
             SoundEnabled = SoundEnabled,
             Media = SceneMedia,
             Submit = Turn.SelectEnding,
-            MessagePresented = m => _executionPanels.Append(m.Message),
+            MessagePresented = RecordNarration,
             Finished = () =>
             {
                 var view = _endingView!; _endingView = null; OverlayHost.RemoveChild(view); view.QueueFree(); ShowSessionEnd();
@@ -91,7 +91,7 @@ public partial class StrategyHud
                 Media = SceneMedia,
                 SkipIntroduction = draft.Diplomacy is { } diplomacy && !_diplomacyNarrated.Add(diplomacy.TaskId),
                 BeginMusic = Music.Begin,
-                MessagePresented = message => _executionPanels.Append(message.Message)
+                MessagePresented = RecordNarration
             };
             OverlayHost.AddChild(_decision);
         }

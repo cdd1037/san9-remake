@@ -60,7 +60,7 @@ public partial class StrategyHud
                 : TreasureTransferPresentation.Create(draft.View,beforeMessages,CommandPresentation.TreasureTransfer!,
                     result.Events.OfType<TreasureTransferredEvent>().Single(),result.Events.OfType<OfficerLoyaltyChangedEvent>(),Random.Shared.Next);
             _narration = new() { Messages = sequence, View = draft.View, Texts = Texts, Service = Textures, Textures = _textures,
-                ContentRoot = ContentRoot, Sounds = CommandPresentation.Sounds, SoundEnabled = SoundEnabled, MessagePresented=m=>_executionPanels.Append(m.Message),
+                ContentRoot = ContentRoot, Sounds = CommandPresentation.Sounds, SoundEnabled = SoundEnabled, MessagePresented=RecordNarration,
                 Closed = () => {
                     CloseNarration();
                     if (result.Rejection != CommandRejection.None)

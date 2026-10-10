@@ -11,6 +11,34 @@ namespace San9.Application.Tests;
 public sealed class ProgressPresentationTests
 {
     [Fact]
+    public void StrategyContextDialogueNeverPublishesExecutionRecords()
+    {
+        var session = GameSession.Start(Scenario(),42);
+        var clock = session.Snapshot.Clock.Advance();
+        var texts = MissionScenario.Texts(session.View) with { Messages = new()
+        {
+            ["advice"] = new([new MessageLiteral("旬初建议")])
+        } };
+        var content = new ProgressPresentationDefinition([],ProgressPresentationDefinition.ContextRoles
+            .ToDictionary(role => role, _ => new DecisionMessageDefinition("advice",[],Speaker:"actor")));
+        var state = new StrategicContextState(clock,[],ProgressPresentationDefinition.ContextRoles
+            .Select(role => new StrategicContextPrompt(role,2,1,1,PlaceId:1,CityId:1)).ToImmutableArray(),[]);
+
+        var messages = StrategicContext.Produce(state,session.View,session.Messages(texts),texts,content);
+
+        Assert.Equal(state.Prompts.Length,messages.Count);
+        Assert.All(messages,message =>
+        {
+            Assert.Equal("旬初建议",message.Message.BbCode);
+            Assert.Equal(clock,message.Message.Clock);
+            Assert.Equal(2,message.SpeakerId);
+            Assert.False(message.RecordInJournal);
+            Assert.Null(message.MapRecord);
+            Assert.Null(message.MapSpeech);
+        });
+    }
+
+    [Fact]
     public void OrderPromptUsesCurrentRulerWithoutAdviserAndDoesNotAlterRestoredAdvice()
     {
         var session = GameSession.Start(Scenario(false),42);
@@ -85,17 +113,38 @@ public sealed class ProgressPresentationTests
         Assert.Equal(new[] { 20,24,30 },state.ReportedEnemyUnits.ToArray());
     }
 
-    [Fact]
-    public void QuarterlyFoodWarningPrecedesOtherNonThreatHints()
+    [Theory]
+    [InlineData(70, 9, true)]
+    [InlineData(70, 10, false)]
+    [InlineData(90, 29, true)]
+    [InlineData(90, 30, false)]
+    [InlineData(100, 49, true)]
+    [InlineData(100, 50, false)]
+    public void NonThreatAdviceRespectsTheIntelligenceProbabilityGate(int intelligence, int roll, bool expected)
     {
-        var view = Entry(threat:false);
+        var view = Entry(threat: false);
         var world = view.World with
         {
-            Clock = new(190,4,1),
-            Corps = view.World.Corps.Select(c => c.OwnerId == 1 ? c with { Treasury = new(0,0) } : c).ToImmutableArray()
+            Clock = new(190, 4, 1),
+            Officers = view.World.Officers.Select(p => p.Id == 2
+                ? p with { BaseAbilities = p.BaseAbilities with { Intelligence = intelligence } } : p).ToImmutableArray(),
+            Corps = view.World.Corps.Select(c => c.OwnerId == 1 ? c with { Treasury = new(0, 0) } : c).ToImmutableArray()
         };
-        var state = StrategicContext.Prepare(new(Scenario(),world),StrategicContextState.Empty,_ => 0);
-        Assert.Equal("food-shortage",Assert.Single(state.Prompts).Role);
+        var state = StrategicContext.Prepare(new(Scenario(), world), StrategicContextState.Empty, _ => roll);
+        if (expected) Assert.Equal("food-shortage", Assert.Single(state.Prompts).Role);
+        else Assert.Empty(state.Prompts);
+    }
+
+    [Theory]
+    [InlineData(49, true)]
+    [InlineData(50, false)]
+    public void AccurateHiddenLocationStillRequiresTheHintProbabilityGate(int roll, bool expected)
+    {
+        var (definition, world) = HiddenOfficerEntry(100);
+        int choices = 0;
+        var state = StrategicContext.Prepare(new(definition, world), StrategicContextState.Empty,
+            count => count == 100 && ++choices > 1 ? roll : 0);
+        Assert.Equal(expected, state.Clues.Any(c => c.OfficerId == 40));
     }
 
     [Fact]
@@ -118,28 +167,44 @@ public sealed class ProgressPresentationTests
     [InlineData(100,"person-city",false)]
     public void CluePrecisionFollowsIntelligenceAndDoesNotIncludeEnemyLocations(int intelligence,string role,bool regionOnly)
     {
-        var view = Entry(threat:false);
-        var world = view.World with
-        {
-            Officers = view.World.Officers.Select(p => p.Id == 2 ? p with { BaseAbilities = p.BaseAbilities with { Intelligence = intelligence } }
-                : p.Id == 22 ? p with { OwnerId = null, Status = OfficerStatus.Undiscovered }
-                : p.Id == 1 ? p with { OwnerId = null, Status = OfficerStatus.Undiscovered } : p).ToImmutableArray()
-        };
-        // A separate hidden officer in an owned city; the enemy-city candidate must never be published.
-        world = world with { Officers = world.Officers.Select(p => p.Id == 1 ? view.World.Officers.Single(o => o.Id == 1) : p).ToImmutableArray()
-            .Add(new(40,null,1,new(50,50,50,50),false) { Status = OfficerStatus.Undiscovered }) };
-        var definition = Scenario() with { Officers = Scenario().Officers.Append(new("hidden",world.Officers.Single(p => p.Id == 40))).ToArray() };
-        StrategicContextState state = StrategicContextState.Empty;
-        for (ulong seed = 1; seed < 100 && state.Prompts.IsEmpty; seed++)
-        {
-            var candidate = world with { Simulation = world.Simulation with { InitialSeed = seed } };
-            state = StrategicContext.Prepare(new(definition,candidate),StrategicContextState.Empty,_ => 0);
-        }
+        var (definition, world) = HiddenOfficerEntry(intelligence);
+        var state = StrategicContext.Prepare(new(definition, world), StrategicContextState.Empty, _ => 0);
         Assert.Equal(role,Assert.Single(state.Prompts).Role);
         var clue = Assert.Single(state.Clues);
         Assert.Equal(1,clue.PlaceId);
         Assert.Equal(regionOnly,clue.RegionOnly);
         Assert.Equal(intelligence >= 100 ? 40 : null,clue.OfficerId);
+    }
+
+    private static (San9.Content.Scenarios.ScenarioInitialState Definition, WorldSnapshot World) HiddenOfficerEntry(int intelligence)
+    {
+        var view = Entry(threat: false);
+        var world = view.World with
+        {
+            // Seed 3 permits this location at every tested intelligence level.
+            Simulation = view.World.Simulation with { InitialSeed = 3 },
+            Officers = view.World.Officers.Select(p => p.Id == 2
+                ? p with { BaseAbilities = p.BaseAbilities with { Intelligence = intelligence } }
+                : p.Id == 22 ? p with { OwnerId = null, Status = OfficerStatus.Undiscovered } : p).ToImmutableArray()
+                .Add(new(40, null, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Undiscovered })
+        };
+        // The hidden officer in the enemy city must never be disclosed.
+        var definition = Scenario() with
+        {
+            Officers = Scenario().Officers.Append(new("hidden", world.Officers.Single(p => p.Id == 40))).ToArray()
+        };
+        return (definition, world);
+    }
+
+    [Theory]
+    [InlineData(1UL, false)]
+    [InlineData(3UL, true)]
+    public void LocationAccuracyCanRejectCluesEvenWhenBothPresentationRollsPass(ulong seed, bool expected)
+    {
+        var (definition, world) = HiddenOfficerEntry(70);
+        world = world with { Simulation = world.Simulation with { InitialSeed = seed } };
+        var state = StrategicContext.Prepare(new(definition, world), StrategicContextState.Empty, _ => 0);
+        Assert.Equal(expected, !state.Clues.IsEmpty);
     }
 
     [Fact]

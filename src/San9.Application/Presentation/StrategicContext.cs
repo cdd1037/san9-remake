@@ -157,10 +157,8 @@ public static class StrategicContext
             var definition = content.Context[prompt.Role];
             var random = new StableRandom(StableRandom.DeriveSeed((ulong)clock.DayNumber,$"context-text:{prompt.ForceId}:{index}"));
             var message = ProgressMessageProducer.Produce(definition,context.AtOccurrence(clock),texts,values,n => (int)(random.NextUInt64() % (ulong)n));
-            int? disclosedPlace = prompt.Role.EndsWith("-region",StringComparison.Ordinal) ? prompt.CityId : prompt.PlaceId;
-            MapCell? location = disclosedPlace is int place ? view.Settlements.FirstOrDefault(s => s.Id == place) is { } settlement
-                ? new(settlement.X,settlement.Y) : view.MilitaryRules?.Places.GetValueOrDefault(place) is { } region ? MapCoordinates.Cell(region.Position) : null : null;
-            return message with { MapRecord = new(ProgressMessageProducer.Identity($"context:{clock.DayNumber}:{prompt.ForceId}:{index}"),message.Message,location) };
+            // Strategy-entry advice is dialogue; disclosed clues are retained in the session, not the execution log.
+            return message with { RecordInJournal = false };
         }).ToArray();
     }
 }

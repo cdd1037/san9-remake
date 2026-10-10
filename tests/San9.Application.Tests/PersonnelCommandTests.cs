@@ -10,6 +10,30 @@ namespace San9.Application.Tests;
 
 public sealed class PersonnelCommandTests
 {
+    [Theory]
+    [InlineData("search",1)]
+    [InlineData("employ",100)]
+    public void PreparationAdviceIsDialogueOnlyWhileDepartureRemainsRecordable(string kind, int target)
+    {
+        var session = GameSession.Start(Definition(),7);
+        var draft = new PersonnelDraft(session,1,kind);
+        Assert.True(draft.SetTarget(target));
+        string[] roles = [kind + "-favorable",kind + "-unfavorable",kind + "-start"];
+        var texts = new TextCatalog(TextCatalog.CurrentSchemaVersion,[]) { Messages = roles.ToDictionary(
+            role => role,role => new MessageDefinition([new MessageLiteral(role)])) };
+        var content = new PersonnelPresentationDefinition(roles.ToDictionary(role => role,
+            role => new DecisionMessageDefinition(role,[],role.EndsWith("-start") ? "actor" : "adviser")));
+        var context = session.Messages(texts);
+
+        var advice = Assert.Single(PersonnelPresentation.Advice(draft,content,context,texts,_ => 0));
+        Assert.Equal(3,advice.SpeakerId);
+        Assert.False(advice.RecordInJournal);
+        Assert.Null(advice.MapRecord);
+        Assert.Null(advice.MapSpeech);
+
+        Assert.True(Assert.Single(PersonnelPresentation.Departure(draft,content,context,texts,_ => 0)).RecordInJournal);
+    }
+
     private static TextCatalog CatalogTexts(StrategySnapshot view)
     {
         var keys = view.Officers.Select(o => o.NameKey).Concat(view.Forces.Select(f => f.NameKey))

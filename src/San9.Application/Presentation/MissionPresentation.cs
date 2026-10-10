@@ -25,7 +25,8 @@ public static class MissionPresentation
         };
         if (draft.TargetId is int force && draft.TargetKind == MissionTargetKind.Force)
             values["target-force"] = MessageBinding.Reference(MessageEntityKind.Force, force);
-        return [Produce((draft.IsDiplomacy ? draft.Kind : "strategy")+(advice.Opinion == AdviserOpinion.Favorable ? "-favorable" : "-unfavorable"),content,values,context,texts)];
+        return [Produce((draft.IsDiplomacy ? draft.Kind : "strategy")+(advice.Opinion == AdviserOpinion.Favorable ? "-favorable" : "-unfavorable"),content,values,context,texts)
+            with { RecordInJournal = false }];
     }
     public static IReadOnlyList<CommandMessage> Departure(MissionDraft draft,IReadOnlyDictionary<string,DecisionMessageDefinition> content,WorldMessageContext context,TextCatalog texts)
     {

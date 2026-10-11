@@ -136,14 +136,32 @@ public sealed class OfficerCommandTests
         Assert.Equal("乙城", Read(world)[2].Text);
     }
 
-    [Fact]
-    public void ForeignOrdersAreHiddenButRanksAndDefaultEquippedTacticsRemainPublic()
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void ForeignOrderAndTacticVisibilityAreIndependent(bool orders, bool tactics)
     {
-        var cells = Read(Deployed(), 4);
-        Assert.Equal(new[] { "＊＊", "＊＊＊＊", "＊＊＊＊＊", "**", "中锋", "奋迅" }, cells.Select(c => c.Text));
-        Assert.All(cells.Take(4), c => { Assert.True(c.IsUnavailable); Assert.Null(c.Number); });
+        var world = Deployed();
+        world = world with
+        {
+            Simulation = world.Simulation with { OtherForceOrdersVisible = orders, OtherForceTacticsVisible = tactics },
+            Units = [world.Units[0], world.Units[1] with { Order = new(MilitaryOrderKind.AttackSettlement, null, 1) }]
+        };
+        var cells = Read(world, 4);
+        Assert.Equal(orders ? "攻击" : "＊＊", cells[0].Text);
+        Assert.Equal(orders ? "甲城" : "＊＊＊＊＊", cells[2].Text);
+        Assert.Equal(tactics ? "奋迅" : "＊＊", cells[5].Text);
+        Assert.Equal(!orders, cells[0].IsUnavailable);
+        Assert.Equal(!tactics, cells[5].IsUnavailable);
+        Assert.Equal("中锋", cells[4].Text);
+        Assert.Equal(new[] { "攻击", "—", "乙城", "—", "后卫", "奋迅" }, Read(world).Select(c => c.Text));
+
+        var personnel = world with { Units = [world.Units[0], world.Units[1] with { IsPersonnel = true }] };
+        Assert.Equal("＊＊＊＊＊", Read(personnel, 4)[2].Text);
         var foreignTask = Task("diplomacy-gift") with { OfficerId = 4, ForceId = 2, Gift = new(1, new(GiftKind.Money, 999, null)) };
-        var hidden = Read(initial with { Simulation = initial.Simulation with { Tasks = [foreignTask] } }, 4);
+        var hidden = Read(initial with { Simulation = world.Simulation with { Tasks = [foreignTask] } }, 4);
         Assert.Equal("＊＊＊＊＊", hidden[2].Text);
         Assert.DoesNotContain(hidden, c => c.Text.Contains("999"));
     }

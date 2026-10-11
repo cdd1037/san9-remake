@@ -33,7 +33,8 @@ public static class UnitDetails
         {
             var person = view.World.Officers.Single(p => p.Id == o.Id);
             var tactic = view.Information.Tactics.FirstOrDefault(t => t.Id == person.EquippedTacticId);
-            return new FormationMemberView(o.Id, texts.Resolve(o.NameKey), tactic is null ? "—" : texts.Resolve(tactic.NameKey),
+            return new FormationMemberView(o.Id, texts.Resolve(o.NameKey), unit.OwnerId != view.PlayerForceId &&
+                !view.World.Simulation.OtherForceTacticsVisible ? "＊＊＊" : tactic is null ? "—" : texts.Resolve(tactic.NameKey),
                 unit.MemberRanks.GetValueOrDefault(o.Id, BattleRank.Middle), o.Id == unit.CommanderId);
         }).ToArray();
         var commander = view.World.Officers.FirstOrDefault(o => o.Id == unit.CommanderId);

@@ -38,20 +38,20 @@ public partial class SystemMenuPanel : Control
         _textures ??= Service.CreateScope(owner: this);
         _textures.RequestPrefixes("information-menu-", "save-load-", "message-");
         Show();
-        ReplacePage(new FunctionsMenuView { Textures = _textures, Texts = Texts, Open = Open, OpenEnvironment = OpenEnvironment, Closed = Close });
+        ReplacePage(new FunctionsMenuView { Textures = _textures, Texts = Texts, Open = Open,
+            OpenEnvironment = OpenEnvironment, OpenPkSettings = OpenPkSettings, Closed = Close });
     }
     private void OpenEnvironment()
     {
         _textures!.RequestPrefixes("environment-", "save-load-", "dialog-");
         ReplacePage(new EnvironmentSettingsView { Textures = _textures, Initial = ReadSettings(), Apply = ApplySettings, Closed = Close });
     }
-    public void ShowSettingsLoadFailure(string message)
+    private void OpenPkSettings()
     {
-        _textures ??= Service.CreateScope(owner: this);
-        _textures.RequestPrefixes("dialog-"); Show();
-        var notice = MapDialog();
-        notice.SetNotice($"环境设定读取失败，已使用默认值：\n{message}");
-        notice.FocusDefaultButton();
+        _textures!.RequestPrefixes("environment-", "save-load-", "dialog-");
+        ReplacePage(new PkSettingsView { Textures = _textures, Initial = Session.Snapshot.Simulation,
+            InitialSettings = ReadSettings(), ApplySettings = ApplySettings,
+            ApplyWorld = settings => Session.Apply(Session.Request(settings)), Closed = Close });
     }
     public async void Open(SaveLoadMode mode)
     {
@@ -191,10 +191,10 @@ public partial class SystemMenuPanel : Control
     {
         if (!IsVisibleInTree()) return;
         if (_busy) { GetViewport().SetInputAsHandled(); return; }
-        if (_page is EnvironmentSettingsView environment && input is InputEventMouseButton { ButtonIndex: MouseButton.Right } right)
+        if (_page is SettingsView settingsPage && input is InputEventMouseButton { ButtonIndex: MouseButton.Right } right)
         {
             GetViewport().SetInputAsHandled();
-            if (right.Pressed) environment.Back();
+            if (right.Pressed) settingsPage.Back();
             return;
         }
         if (input is InputEventKey { Pressed: true, Echo: false, Keycode: Key.Escape } ||
@@ -202,7 +202,7 @@ public partial class SystemMenuPanel : Control
         {
             GetViewport().SetInputAsHandled();
             if (_page is SaveLoadView view) view.Back();
-            else if (_page is EnvironmentSettingsView settings) settings.Back();
+            else if (_page is SettingsView settings) settings.Back();
             else Close();
         }
     }

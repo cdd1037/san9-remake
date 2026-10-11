@@ -131,6 +131,13 @@ public sealed class DailyTaskDecisionTests
         var advance = session.AdvanceXun();
         Assert.Equal(3, session.Snapshot.Clock.Day);
         Assert.Equal(SimulationBoundary.AwaitingDecision, session.Snapshot.Simulation.Boundary);
+        string beforeSettings = session.Snapshot.StateHash;
+        long beforeSettingsSequence = session.NextOperationSequence;
+        var settings = session.Apply(session.Request(new PkSettingsOperation(false, false, true)));
+        Assert.Equal(SessionDisposition.Rejected, settings.Disposition);
+        Assert.Equal(SessionRejection.NotStable, settings.Rejection);
+        Assert.Equal(beforeSettings, session.Snapshot.StateHash);
+        Assert.Equal(beforeSettingsSequence, session.NextOperationSequence);
         Assert.Equal(97, session.Snapshot.Forces[0].BaseTrust);
         Assert.DoesNotContain(advance.Events, e => e is XunAdvancedEvent);
         Assert.Equal(3, advance.Events.OfType<StageCompletedEvent>().Count(e => e.Stage == ResolutionStage.BeforeDailyCommands));

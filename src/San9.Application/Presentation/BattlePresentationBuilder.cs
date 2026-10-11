@@ -10,7 +10,7 @@ namespace San9.Application.Presentation;
 /// <summary>Projects occurrence-ordered facts into one prepared day; owns the presentation clock and feedback context.</summary>
 internal sealed class BattlePresentationBuilder(StrategySnapshot before, StrategySnapshot after,
     IReadOnlyList<DomainEvent> events, WorldMessageContext context, TextCatalog texts, CommandPresentation content,
-    IReadOnlyDictionary<int, int>? buildingTypes, MapPackage? map)
+    IReadOnlyDictionary<int, int>? buildingTypes, MapPackage? map, bool tacticScenesEnabled)
 {
     private readonly List<BattleMessageCue> _messages = [];
     private readonly List<BattleVisualCue> _visuals = [];
@@ -282,6 +282,7 @@ internal sealed class BattlePresentationBuilder(StrategySnapshot before, Strateg
             bool support = definition.Support;
             string report = support ? "support" : (active.IsChain ? "chain-" : "activation-") + (Player(source.ForceId) ? "own" : "enemy");
             Add(report, battle.Messages[report], _cursor);
+            bool showScene = definition.Zoom is not null && tacticScenesEnabled;
             if (definition.Zoom is null)
                 Add("announcement", definition.Messages["announcement"], _cursor, BattleMessageChannel.Dialogue, true);
             if (active.OfficerIds.Length > 1)
@@ -293,7 +294,7 @@ internal sealed class BattlePresentationBuilder(StrategySnapshot before, Strateg
                 string role = member == 0 ? active.IsChain ? occurrence.TargetCondition == UnitCondition.NoFormation ? "chain-unformed" : "chain-confused" : "action" : $"link-{Math.Min(member - 1, 3)}";
                 Add(role, role == "action" ? definition.Messages[role] : battle.Messages[role],
                     _cursor,
-                    definition.Zoom is null ? BattleMessageChannel.MapSpeech : BattleMessageChannel.Dialogue, true);
+                    showScene ? BattleMessageChannel.Dialogue : BattleMessageChannel.MapSpeech, true);
             }
             values["actor"] = ProgressMessageProducer.Person(actor);
             double preludeEnd = _cursor;
@@ -315,36 +316,44 @@ internal sealed class BattlePresentationBuilder(StrategySnapshot before, Strateg
                 var sniping = following.OfType<TacticSnipingResolvedEvent>().FirstOrDefault(e => e.TacticId == tacticId &&
                     e.Source.Id == source.Id && e.Source.IsSettlement == source.IsSettlement &&
                     e.Target.Id == target.Id && e.Target.IsSettlement == target.IsSettlement);
-                var scene = BattleScenePreparation.Create(before, occurrence, zoom, battle, hit, sniping,
-                    effect < 10, clock, _index, buildingTypes, map);
-                zoom = scene.Zoom;
-                var playback = scene.Playback;
-                // Dialogue completion starts darkening; action and reveal share the scene boundary.
-                double start = _cursor + BattleSceneTransition.DarkenDuration, end = start + playback.Duration;
-                _impact = start + playback.Impacts[0].Time;
-                _visuals.Add(new(Identity("zoom"), start, end, source, target, tacticId, actor, effect < 10, active.Doubled,
-                    hit?.SoldierLoss ?? 0, hit?.DurabilityLoss ?? 0, hit?.MoraleLoss ?? 0, null, zoom)
-                { Playback = playback, Officers = scene.Officers, Backdrop = scene.Backdrop, EntranceStart = _cursor });
-                double responseStart = end - 4;
+                double start = preludeEnd, end = preludeEnd;
+                double responseStart = preludeEnd, snipingStart = preludeEnd, snipingResponse = preludeEnd;
+                if (showScene)
+                {
+                    var scene = BattleScenePreparation.Create(before, occurrence, zoom, battle, hit, sniping,
+                        effect < 10, clock, _index, buildingTypes, map);
+                    var playback = scene.Playback;
+                    // Dialogue completion starts darkening; action and reveal share the scene boundary.
+                    start = _cursor + BattleSceneTransition.DarkenDuration;
+                    end = start + playback.Duration;
+                    _impact = start + playback.Impacts[0].Time;
+                    _visuals.Add(new(Identity("zoom"), start, end, source, target, tacticId, actor, effect < 10, active.Doubled,
+                        hit?.SoldierLoss ?? 0, hit?.DurabilityLoss ?? 0, hit?.MoraleLoss ?? 0, null, scene.Zoom)
+                    { Playback = playback, Officers = scene.Officers, Backdrop = scene.Backdrop, EntranceStart = _cursor });
+                    responseStart = end - 4;
+                    snipingStart = start + playback.ActionEnd;
+                    snipingResponse = start + playback.FeedbackStart;
+                }
+                else _impact = preludeEnd;
+                var responseChannel = showScene ? BattleMessageChannel.Dialogue : BattleMessageChannel.MapSpeech;
                 if (effect < 10)
                 {
-                    Add("block-reaction", battle.Messages["block-reaction"], responseStart, BattleMessageChannel.Dialogue);
-                    Add("block-reply", battle.Messages["block-reply"], responseStart, BattleMessageChannel.Dialogue, true);
+                    Add("block-reaction", battle.Messages["block-reaction"], responseStart, responseChannel);
+                    Add("block-reply", battle.Messages["block-reply"], responseStart, responseChannel, true);
                     Add("blocked", battle.Messages["blocked"], end);
                 }
-                else Add("hit-reaction", battle.Messages["hit-reaction"], responseStart, BattleMessageChannel.Dialogue);
+                else Add("hit-reaction", battle.Messages["hit-reaction"], responseStart, responseChannel);
                 values["damage"] = new(hit?.SoldierLoss ?? 0);
                 if (effect >= 10) Add("damage", battle.Messages["damage"], end);
                 if (sniping is not null)
                 {
                     values["actor"] = ProgressMessageProducer.Person(sniping.ActorId);
                     values["responder"] = ProgressMessageProducer.Person(sniping.OfficerId);
-                    double snipingStart = start + playback.ActionEnd;
-                    Add("sniping-action", battle.Messages["sniping-action"], snipingStart, BattleMessageChannel.Dialogue, true);
+                    Add("sniping-action", battle.Messages["sniping-action"], snipingStart, responseChannel, true);
                     string response = sniping.Injury == 7 ? "sniping-fatal" : sniping.Injury == 4 ? "sniping-heavy" : "sniping-light";
-                    Add(response, battle.Messages[response], start + playback.FeedbackStart, BattleMessageChannel.Dialogue);
+                    Add(response, battle.Messages[response], snipingResponse, responseChannel);
                     double frameStart = snipingStart;
-                    for (int frame = 0; frame < battle.SnipingEffect.Length; frame++)
+                    for (int frame = 0; showScene && frame < battle.SnipingEffect.Length; frame++)
                     {
                         var sprite = battle.SnipingEffect[frame];
                         double frameEnd = frameStart + sprite.Columns * sprite.FrameMilliseconds / 1000.0;

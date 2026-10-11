@@ -295,6 +295,12 @@ public sealed partial class GameSession
                     catch (ArgumentException) { return Rejected(SessionRejection.InvalidRequest); }
                     ending = selection.Selection;
                     break;
+                case PkSettingsOperation pk:
+                    if (request.ControllerId != "player") return Rejected(SessionRejection.InvalidRequest);
+                    if (candidate.Snapshot.Simulation.Boundary != SimulationBoundary.Stable)
+                        return Rejected(SessionRejection.NotStable);
+                    candidate.SetPkSettings(pk.OtherForceOrdersVisible, pk.OtherForceTacticsVisible, pk.BattleDeathsEnabled);
+                    break;
                 case CommandOperation execute:
                     if (execute.Command is null || execute.Command.CommandId != request.Id)
                         return Rejected(SessionRejection.InvalidRequest);

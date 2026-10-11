@@ -2,7 +2,7 @@
 
 本页维护内容转换、契约与校验入口，不累计界面实现说明。界面开发统一从[UI 文档](ui/README.md)进入；地图与运行态见[地图文档](map-import.md)和[运行时架构](runtime-state.md)。
 
-当前组合包178提供兵法特写名称与操作文本，并沿用177的数字及状态效果声明：必填`ConditionEffects`映射状态到一次性图集／声音，必填可空`MapNumbers`声明地图正负数字图集及步进；特写必填可空`Numbers`提供小数字、滚动汇总图集、布局、帧间隔与滚动／停定音效，必填`FacilityNumberPositions`覆盖设施布局。沿用176的`Officers`／`FacilityOfficers`武将身体及旗布局，以及175的`WaveEmission`移动箭簇。资源复用共享纹理，不重建贴图；190年运行包已原位更新并完整校验，其他旧组合包运行`import-client`。录像14、保存101／日志105和规则v87不变。证据见[RE-0192](../research/findings/RE-SAN9PK-0192.md)。
+组合包178提供兵法特写名称与操作文本，并沿用177的数字及状态效果声明：必填`ConditionEffects`映射状态到一次性图集／声音，必填可空`MapNumbers`声明地图正负数字图集及步进；特写必填可空`Numbers`提供小数字、滚动汇总图集、布局、帧间隔与滚动／停定音效，必填`FacilityNumberPositions`覆盖设施布局。沿用176的`Officers`／`FacilityOfficers`武将身体及旗布局，以及175的`WaveEmission`移动箭簇。资源复用共享纹理，不重建贴图；190年运行包已原位更新并完整校验，其他旧组合包运行`import-client`。当时录像14、保存101／日志105和规则v87不变。证据见[RE-0192](../research/findings/RE-SAN9PK-0192.md)。
 
 P1 计略外交采用组合包 schema166，必需的 `presentation.missions` 字典提供十二类出发、意见、结果、外交会谈、计略行动／回应和军团结果等 88 项语义绑定，并校验消息图参数闭包、说话人及音效引用。出发音效区分计略、流言／外交与夺取；外交会谈及劝降灭亡插图分别提供独立音乐角色，插图复用完整纹理包的 G_Still64。会谈及灭亡音乐从私有目录读取已准备音频，Importer只重命名与复制；客户端仅加载转换包。离线转码见[音频准备](audio-preparation.md)。旧包原位执行 `import-client`，无需重转纹理；190 年包已更新。客户端和原作对齐边界见[操作说明](ui/mission-corps-commands.md)。
 
@@ -18,7 +18,7 @@ P1 计略外交采用组合包 schema166，必需的 `presentation.missions` 字
 
 2026-09-27命令来源光圈：皮肤33／纹理转换26增加五帧`minimap-command-pulse`语义资源（首帧无后缀，其余为`-1..-4`），逐色透明度保留。客户端以当前命令菜单对象定位，兼用于城市、其他设施和部队；出征后续页面保留来源，整项结束清除。依据[RE-0158](../research/findings/RE-SAN9PK-0158.md#小地图命令来源光圈补证2026-09-27)。本地纹理及190年组合包已原位重转，五帧均32×36、首帧全透明，29064逻辑图片／5262物理文件完整校验通过。解决方案各测试项目合计3867项通过；未启动游戏，菜单开关、对象切换及后续命令页面往返的实际画面待用户验收。
 
-现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 129，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 178，地图 [MapPackage](../src/San9.Content/Maps/MapPackage.cs) 为 15，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 50，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 43。规则为 `san9-core-g10-v87`，保存101／日志105／录像14；协议以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 和 [RecordingService](../src/San9.Application/Persistence/RecordingService.cs) 为准。
+现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 129，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 178，地图 [MapPackage](../src/San9.Content/Maps/MapPackage.cs) 为 15，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 51，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 44。规则为 `san9-core-g10-v89`，保存103／日志107／录像14；协议以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 和 [RecordingService](../src/San9.Application/Persistence/RecordingService.cs) 为准。
 
 组合包178新增特殊国号／最高爵位来源身体、逐帧交锋／反应位移、末段移动与残影、局部粒子及其分组散布／透明度样式、船只尾波和受击水花、目标体型对应的损失音效。客户端只消费内容声明，不读取原作编号或研究库。190年运行包已原位重转并完整校验，复用未变共享纹理；旧组合包须运行`import-client`，无需重转纹理。自动化与真实包核对通过，画面和试听由用户验收。
 
@@ -374,6 +374,6 @@ TC101完整保留41项兵法和28项阵形的展示元数据，名称与说明�
 
 ### 环境设定接入（2026-10-11）
 
-皮肤51新增 `environment-label-*` 三片底板和 `environment-choice-*` 四态三片选项按钮；源素材为G_Common131..133、118..120／palette13。既有背景、窗口、标题、执行、中止及关闭按钮复用已转换资源。190年运行包已原位执行 `import-textures --rebuild skin` 和 `import-client`，保留其他资源及原全包转换版本。消息等级属于已产生消息的表现属性，不改变模拟、存档或录像协议。行为、持久化和实际验收边界见[用户设置](user-settings.md)，原版证据见[RE-0065](../research/findings/RE-SAN9PK-0065.md)。
+皮肤51新增 `environment-label-*` 三片底板和 `environment-choice-*` 四态三片选项按钮；源素材为G_Common131..133、118..120／palette13。标签三片按不透明底色转换，选项保留逐色Alpha；依据并排画面对照修正标签底纹后，190年共享纹理包已原位执行 `import-textures --rebuild skin`。既有背景、窗口、标题、执行、中止及关闭按钮复用已转换资源。消息等级属于已产生消息的表现属性，不改变模拟、存档或录像协议。行为、持久化和实际验收边界见[用户设置](user-settings.md)，原版证据见[RE-0065](../research/findings/RE-SAN9PK-0065.md)。
 
 功能菜单提示由消息表转换为 `ui.hint.functions-*`，共 11 项，与已有主按钮 `ui.hint.functions` 共用文本目录；新增键需重新运行 `import-client`，不需要重建贴图。证据见 [RE-0083](../research/findings/RE-SAN9PK-0083.md#2026-10-11功能菜单提示文本复核)。

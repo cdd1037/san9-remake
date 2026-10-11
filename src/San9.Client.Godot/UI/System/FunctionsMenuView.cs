@@ -12,6 +12,7 @@ public partial class FunctionsMenuView : Control
     public Action<SaveLoadMode> Open { get; init; } = null!;
     public Action Closed { get; init; } = null!;
     public Action OpenEnvironment { get; init; } = null!;
+    public Action OpenPkSettings { get; init; } = null!;
     private static readonly Rect2 Bounds = new(904, 47, 120, 296);
     public override void _Ready()
     {
@@ -27,6 +28,7 @@ public partial class FunctionsMenuView : Control
                 "save" => () => Open(SaveLoadMode.Save),
                 "load" => () => Open(SaveLoadMode.Load),
                 "environment" => OpenEnvironment,
+                "pk" => OpenPkSettings,
                 _ => null
             };
             var button = new InformationMenuButton { Title = entries[i].Title, Textures = Textures,

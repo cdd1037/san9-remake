@@ -534,7 +534,7 @@ public static class InterfaceSkinCompiler
             }
         }
         foreach (var (part, resource) in new[] { ("left", 131), ("middle", 132), ("right", 133) })
-            Extra("environment-label-" + part, resource, 13, true);
+            Extra("environment-label-" + part, resource, 13);
         foreach (var (part, resource) in new[] { ("left", 118), ("middle", 119), ("right", 120) })
         for (int frame = 0; frame < 4; frame++)
         {

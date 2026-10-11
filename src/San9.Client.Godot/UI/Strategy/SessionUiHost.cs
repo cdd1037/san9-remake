@@ -33,7 +33,6 @@ public partial class SessionUiHost : Node
     private Node? _sessionUi;
     private GameSession? _pending;
     private UserSettingsSession _settings = null!;
-    private string? _settingsError;
     private SceneTransitionOverlay _transition = null!;
     private SceneReplacementTransition? _replacement;
     private bool _bound;
@@ -44,10 +43,7 @@ public partial class SessionUiHost : Node
         AddChild(_transition);
         _settings = new(new UserSettingsStore(ProjectSettings.GlobalizePath(UserSettingsStore.UserDataPath)));
         try { _settings.Load(); }
-        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or System.Text.DecoderFallbackException)
-        {
-            _settingsError = error.Message;
-        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or System.Text.DecoderFallbackException or InvalidDataException) { }
         Music.SetEnabled(_settings.Current.MusicEnabled);
         Activate(InitialSession, SessionReplacementKind.Startup);
     }
@@ -84,11 +80,6 @@ public partial class SessionUiHost : Node
 
     public override void _Process(double delta)
     {
-        if (_settingsError is { } settingsError && Hud?.SystemMenu is { } menu)
-        {
-            _settingsError = null;
-            menu.ShowSettingsLoadFailure(settingsError);
-        }
         if (!IsSwitching) return;
         if (_replacement is { } replacement)
         {

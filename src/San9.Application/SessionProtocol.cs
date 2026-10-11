@@ -7,9 +7,9 @@ namespace San9.Application;
 
 public static class SessionProtocol
 {
-    public const string RulesVersion = "san9-core-g10-v87";
-    public const int SaveFormatVersion = 101;
-    public const int LogFormatVersion = 105;
+    public const string RulesVersion = "san9-core-g10-v89";
+    public const int SaveFormatVersion = 103;
+    public const int LogFormatVersion = 107;
 }
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
@@ -20,7 +20,10 @@ public static class SessionProtocol
 [JsonDerivedType(typeof(AdvanceDayOperation), "advance-day")]
 [JsonDerivedType(typeof(ChronicleOperation), "chronicle-note")]
 [JsonDerivedType(typeof(EndingOperation), "ending")]
+[JsonDerivedType(typeof(PkSettingsOperation), "pk-settings")]
 public abstract record SessionOperation;
+public sealed record PkSettingsOperation(bool OtherForceOrdersVisible,
+    bool OtherForceTacticsVisible, bool BattleDeathsEnabled) : SessionOperation;
 public sealed record CommandOperation(GameCommand Command) : SessionOperation;
 public sealed record EndControlOperation : SessionOperation;
 public sealed record AdvanceOperation : SessionOperation;

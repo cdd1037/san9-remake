@@ -82,6 +82,8 @@ public sealed record SimulationState(GameClock Started, ulong InitialSeed)
     [JsonRequired] public bool AnnualAppearancesEnabled { get; init; } = true;
     [JsonRequired] public bool NaturalDeathsEnabled { get; init; } = true;
     [JsonRequired] public bool BattleDeathsEnabled { get; init; }
+    [JsonRequired] public bool OtherForceOrdersVisible { get; init; } = true;
+    [JsonRequired] public bool OtherForceTacticsVisible { get; init; } = true;
     [JsonRequired] public San9.Core.Domain.AllianceState? Alliance { get; init; }
     [JsonIgnore] public SnipingCombatDecision? PendingSniping { get; init; }
     [JsonIgnore] public CapturedRulerDecision? PendingCapturedRuler { get; init; }

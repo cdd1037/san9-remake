@@ -32,7 +32,8 @@ internal sealed class OfficerCommands(StrategySnapshot view, TextCatalog texts)
 
     public (CatalogCell Order, CatalogCell Target) ReadUnit(UnitState unit)
     {
-        if (unit.OwnerId != view.PlayerForceId) return (Hidden(2), Hidden(5));
+        if (unit.OwnerId != view.PlayerForceId && !view.World.Simulation.OtherForceOrdersVisible)
+            return (Hidden(2), Hidden(5));
         var effective = unit.EffectiveOrder;
         CatalogCell order = effective?.Kind switch
         {
@@ -62,13 +63,18 @@ internal sealed class OfficerCommands(StrategySnapshot view, TextCatalog texts)
         CatalogCell rankCell = rank is { } row
             ? new(row switch { BattleRank.Front => "前锋", BattleRank.Middle => "中锋", _ => "后卫" }, 3 - (int)row)
             : CatalogCell.Unavailable;
-        // Original default expert setting exposes enemy equipped tactics. Rank is public.
-        CatalogCell tactic = person.EquippedTacticId is not int tacticId ? new("")
+        // Rank stays public; equipped tactics follow their own PK visibility setting.
+        CatalogCell tactic = person.OwnerId != view.PlayerForceId && !view.World.Simulation.OtherForceTacticsVisible
+            ? Hidden(2) : person.EquippedTacticId is not int tacticId ? new("")
             : rank is null ? CatalogCell.Unavailable
             : TacticNames.TryGetValue(tacticId, out string? name) ? new(name) : CatalogCell.Unavailable;
         var arrival = OfficerArrival.Read(view, person, task);
         if (person.OwnerId != view.PlayerForceId)
-            return new(Hidden(2), Hidden(4), Hidden(5), arrival, rankCell, tactic);
+        {
+            var (foreignOrder, foreignTarget) = unit is not null && UnitCatalog.IsListed(unit)
+                ? ReadUnit(unit) : (Hidden(2), Hidden(5));
+            return new(foreignOrder, Hidden(4), foreignTarget, arrival, rankCell, tactic);
+        }
 
         CatalogCell order = "";
         CatalogCell subject = CatalogCell.Unavailable;

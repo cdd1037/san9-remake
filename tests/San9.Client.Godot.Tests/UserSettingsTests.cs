@@ -15,7 +15,7 @@ public sealed class UserSettingsTests : IDisposable
         var store = new UserSettingsStore(FilePath);
         var session = new UserSettingsSession(store);
         session.Load();
-        var draft = session.Current with { MusicEnabled = false, MessageSpeed = MessageSpeed.Fast };
+        var draft = session.Current with { MusicEnabled = false, TacticScenesEnabled = false, MessageSpeed = MessageSpeed.Fast };
         Assert.True(session.Current.MusicEnabled);
         session.Apply(draft);
         Assert.Equal(draft, session.Current);
@@ -42,13 +42,31 @@ public sealed class UserSettingsTests : IDisposable
         foreach (var speed in Enum.GetValues<MessageSpeed>())
         foreach (var report in Enum.GetValues<ProgressReportMode>())
         {
-            var expected = new UserSettings(false, true, false, speed, report);
+            var expected = new UserSettings(false, true, false, speed, report) { TacticScenesEnabled = false };
             store.Save(expected);
             Assert.Equal(expected, new UserSettingsStore(FilePath).Load());
         }
         store.Save(UserSettings.Default with { SoundEnabled = false });
         Assert.False(store.Load().SoundEnabled);
         Assert.Single(Directory.GetFiles(_directory));
+    }
+
+    [Fact]
+    public void ExistingSettingsWithoutTacticScenes_LoadWithDefaultAndKeepOtherPreferences()
+    {
+        const string json = "{\"version\":1,\"settings\":{\"musicEnabled\":false,\"soundEnabled\":true,\"moviesEnabled\":false,\"messageSpeed\":\"Fast\",\"progressReport\":\"Summary\"}}";
+        Directory.CreateDirectory(_directory);
+        File.WriteAllText(FilePath, json, Encoding.UTF8);
+
+        var store = new UserSettingsStore(FilePath);
+        var loaded = store.Load();
+
+        Assert.Equal(new UserSettings(false, true, false, MessageSpeed.Fast, ProgressReportMode.Summary), loaded);
+        Assert.True(loaded.TacticScenesEnabled);
+        Assert.Equal(json, File.ReadAllText(FilePath, Encoding.UTF8));
+
+        store.Save(loaded with { TacticScenesEnabled = false });
+        Assert.False(store.Load().TacticScenesEnabled);
     }
 
     [Theory]

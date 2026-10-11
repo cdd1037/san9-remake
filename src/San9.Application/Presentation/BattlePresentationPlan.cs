@@ -52,6 +52,6 @@ public sealed class BattlePresentationPlan
 
     public static BattlePresentationPlan Create(StrategySnapshot before, StrategySnapshot after,
         IReadOnlyList<DomainEvent> events, WorldMessageContext context, TextCatalog texts, CommandPresentation content,
-        IReadOnlyDictionary<int, int>? buildingTypes = null, MapPackage? map = null) =>
-        new BattlePresentationBuilder(before, after, events, context, texts, content, buildingTypes, map).Build();
+        IReadOnlyDictionary<int, int>? buildingTypes = null, MapPackage? map = null, bool tacticScenesEnabled = true) =>
+        new BattlePresentationBuilder(before, after, events, context, texts, content, buildingTypes, map, tacticScenesEnabled).Build();
 }

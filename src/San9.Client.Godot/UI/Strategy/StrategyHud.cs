@@ -102,7 +102,8 @@ public partial class StrategyHud : Control
             RetryPresentation = () => _battleView.RetryResources(),
             CreateDay = (before, after, events) => new(before, after, events, new MapDayPlan(World.Package!, before, events),
                 battle: BattlePresentationPlan.Create(before, after, events, Session.Messages(Texts, before.World), Texts, CommandPresentation,
-                    World.Package!.Buildings.ToDictionary(b => b.Id, b => b.FixedType), World.Package))
+                    World.Package!.Buildings.ToDictionary(b => b.Id, b => b.FixedType), World.Package,
+                    ReadSettings().TacticScenesEnabled))
         };
         var p = Scenario;
         _frames.Add(("top-frame", Vector2.Zero));

@@ -11,6 +11,8 @@ public sealed record UserSettings(
     MessageSpeed MessageSpeed,
     ProgressReportMode ProgressReport)
 {
+    public bool TacticScenesEnabled { get; init; } = true;
+
     public static UserSettings Default { get; } = new(true, true, true,
         MessageSpeed.Normal, ProgressReportMode.Detailed);
 }

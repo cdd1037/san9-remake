@@ -42,8 +42,6 @@ public sealed class UnitCatalogTests
         var changed = world with { Units = [unit with { NavalFormationId = null, CommandedThisXun = false }] };
         Assert.All(Assert.Single(UnitCatalog.Read(new(definition, changed), rules, texts, 3).Rows).Cells.Skip(1), c => Assert.True(c.IsUnavailable));
         Assert.Equal("未", Assert.Single(UnitCatalog.Read(new(definition, changed), rules, texts, 4).Rows).Cells[^1].Text);
-        var enemy = world with { Units = [unit with { OwnerId = 2 }] };
-        Assert.All(Assert.Single(UnitCatalog.Read(new(definition, enemy), rules, texts, 4).Rows).Cells.Skip(1), c => Assert.True(c.IsUnavailable));
         var detail = UnitDetails.Read(view, rules, texts, 77);
         Assert.Equal("officer.1队", detail.Name);
         Assert.Equal("32000/20000", detail.Soldiers);
@@ -71,5 +69,41 @@ public sealed class UnitCatalogTests
         browser.Back();
         Assert.Null(browser.UnitFilter); Assert.True(browser.IsDetail); Assert.Equal(77, browser.SelectedId);
         Assert.Equal(hash, world.StateHash);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void ForeignVisibilityMatchesCatalogDetailAndMapSummary(bool orders, bool tactics)
+    {
+        var definition = G01ScenarioTests.Fixture();
+        var world = GameSession.Start(definition, 1).Snapshot;
+        definition = definition with { Information = definition.Information with { Tactics = [new(2, "tactic")] } };
+        world = world with
+        {
+            Simulation = world.Simulation with { OtherForceOrdersVisible = orders, OtherForceTacticsVisible = tactics },
+            Units = [new(77, 2, new(12, 12), 1000) { CommanderId = 4, ServicePlaceId = 2,
+                Order = new(MilitaryOrderKind.AttackSettlement, null, 1) }],
+            Officers = world.Officers.Select(o => o.Id == 4 ? o with
+                { UnitId = 77, SettlementId = null, EquippedTacticId = 2 } : o).ToArray()
+        };
+        var view = new StrategySnapshot(definition, world);
+        var keys = definition.Officers.Select(o => o.NameKey).Concat(definition.Forces.Select(f => f.NameKey))
+            .Concat(definition.Settlements.Select(s => s.NameKey));
+        var entries = keys.ToDictionary(key => key, key => key);
+        entries["tactic"] = "奋迅";
+        var texts = new TextCatalog(TextCatalog.CurrentSchemaVersion, entries);
+        var row = Assert.Single(UnitCatalog.Read(view, null, texts, 4).Rows);
+        var detail = UnitDetails.Read(view, null, texts, 77);
+        var summary = MapCommandSummary.Unit(view, texts, 77);
+        Assert.Equal(orders ? "攻击" : "＊＊", row.Cells[1].Text);
+        Assert.Equal(orders ? "city.1" : "＊＊＊＊＊", row.Cells[2].Text);
+        Assert.Equal(row.Cells[1].Text, detail.Orders[0].Value);
+        Assert.Equal(row.Cells[2].Text, detail.Orders[1].Value);
+        Assert.Equal(detail.Orders.Select(f => f.Value), summary.Rows.Skip(5).Select(r => r.Value));
+        Assert.Equal(tactics ? "奋迅" : "＊＊＊", Assert.Single(detail.Board.Members).Tactic);
+        Assert.All(row.Cells.Skip(3), cell => Assert.True(cell.IsUnavailable));
     }
 }

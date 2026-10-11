@@ -13,6 +13,25 @@ public sealed partial class SimulationEngine
     /// <summary>Branches the current runtime for an isolated operation, sharing immutable records and compiled rules.</summary>
     public SimulationEngine Fork() => new(_world.Fork(), _rules, new(_rules));
 
+    public void SetPkSettings(bool otherOrders, bool otherTactics, bool battleDeaths)
+    {
+        if (_world.IsExecuting || _world.Simulation.Boundary != SimulationBoundary.Stable)
+            throw new InvalidOperationException("PK settings require a stable world.");
+        _world.EnterExecution();
+        try
+        {
+            var mutation = _world.BeginMutation(_rules.Abilities, _rules.Economy);
+            mutation.SetSimulation(mutation.Simulation with
+            {
+                OtherForceOrdersVisible = otherOrders,
+                OtherForceTacticsVisible = otherTactics,
+                BattleDeathsEnabled = battleDeaths
+            });
+            _world.Commit(mutation);
+        }
+        finally { _world.ExitExecution(); }
+    }
+
     private SimulationEngine(WorldState world, SimulationRules rules, ResolutionPipeline pipeline)
         => (_world, _rules, _pipeline) = (world, rules, pipeline);
 

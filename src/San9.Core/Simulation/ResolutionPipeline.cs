@@ -204,11 +204,14 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         }
         if (stage == ResolutionStage.XunUpdate) WoundedRecovery.Apply(world, rules.Military, events);
         if (stage == ResolutionStage.XunUpdate) PrisonerEscapeCycle.Apply(world, rules.Personnel, rules.Economy, events);
+        var contactsBefore = stage == ResolutionStage.DailyMapUpdate && rules.Military is { } contactRules
+            ? world.Engagements(contactRules) : null;
         if (stage == ResolutionStage.DailyMapUpdate) { MilitaryPolicies.AdvanceDay(world, rules.Military, events); world.MaintainDerivedState(events); }
         if (stage == ResolutionStage.DailyMapUpdate) { MilitaryMovement.AdvanceDay(world, rules.Military, rules.Governance, rules.Personnel, events); world.MaintainDerivedState(events); }
         if (stage == ResolutionStage.DailyMapUpdate) { FacilityConstruction.AdvanceDay(world, rules, events); world.MaintainDerivedState(events); }
         if (stage == ResolutionStage.DailyMapUpdate)
         {
+            if (contactsBefore is not null) BattleContact.PublishEntries(world, rules.Military!, contactsBefore, events);
             MilitaryCombat.AdvanceDay(world, rules, events, xunStarted);
             world.MaintainDerivedState(events);
             if (world.Simulation.PendingDuel is not null || world.Simulation.PendingSniping is not null || !CheckTerminal(world, events)) return false;

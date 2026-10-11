@@ -45,6 +45,7 @@ internal sealed class BattlePresentationBuilder(StrategySnapshot before, Strateg
             switch (events[_index])
             {
                 case BattleDamageEvent damage: PresentDamage(damage); break;
+                case BattleContactStartedEvent or UnitWaypointReachedEvent: PresentMapNotification(); break;
                 case BattleConditionChangedEvent condition: PresentCondition(condition); break;
                 case TacticMoraleChangedEvent morale: PresentMorale(morale); break;
                 case TacticDefectionEvent defection: PresentDefection(defection); break;
@@ -95,7 +96,7 @@ internal sealed class BattlePresentationBuilder(StrategySnapshot before, Strateg
             _cursor = Math.Max(_cursor, start + BattleMapNumberPlayback.Duration(digits));
         }
     }
-    private void Outcome(string role, GameClock clock, TacticOccurrence occurrence, uint amount)
+    private void Outcome(string role, GameClock clock, TacticOccurrence occurrence, uint amount, int? colorForce)
     {
         if (content.Battle is not { } battle || !Visible(occurrence)) return;
         var source = occurrence.Source; var target = occurrence.Target;
@@ -111,7 +112,7 @@ internal sealed class BattlePresentationBuilder(StrategySnapshot before, Strateg
             source.Id == target.Id && source.IsSettlement == target.IsSettlement ? [source] : [source, target]), texts, values, n => (int)(random.NextUInt64() % (ulong)n));
         var id = Identity(role);
         _records.Add(new(_impact + 0.2, new(id, produced.Message, Location(target),
-            target.ForceId is int force ? before.Forces.Concat(after.Forces).First(f => f.Id == force).ColorCode : null), produced.SoundRole));
+            MapRecordColors.Resolve(before, after, colorForce)), produced.SoundRole));
     }
 
     private void PresentDamage(BattleDamageEvent damage)
@@ -161,7 +162,8 @@ internal sealed class BattlePresentationBuilder(StrategySnapshot before, Strateg
         Number(to, -(long)defection.TargetLoss, _impact, "map-defection-loss");
         int visual = _visuals.FindLastIndex(c => c.TacticId == defection.TacticId && c.Zoom is null && !c.ScreenEffect && c.Target.Id == to.Id && c.Target.IsSettlement == to.IsSettlement);
         if (visual >= 0 && Visible(defection.Occurrence)) _visuals[visual] = _visuals[visual] with { SoldierLoss = defection.TargetLoss };
-        Outcome("defection", defection.Clock, defection.Occurrence, defection.SourceGain);
+        Outcome("defection", defection.Clock, defection.Occurrence, defection.SourceGain,
+            Player(from.ForceId) ? from.ForceId : to.ForceId);
     }
 
     private void PresentMission(DomainEvent fact)
@@ -211,6 +213,18 @@ internal sealed class BattlePresentationBuilder(StrategySnapshot before, Strateg
         }
     }
 
+    private void PresentMapNotification()
+    {
+        if (content.Progress is not { } progress) return;
+        var records = ProgressMessages.Read(before, after, context, texts, progress, events, _index);
+        var speeches = MapNotificationSpeeches.Read(before, after, context, texts, progress, events[_index], _index);
+        if (records.Count == 0 && speeches.Count == 0) return;
+        _presented.Add(_index);
+        foreach (var record in records) _records.Add(new(_cursor, record));
+        foreach (var speech in speeches) _messages.Add(new(speech.MapSpeech!.Id, _cursor, speech));
+        _cursor += 1;
+    }
+
     private void PresentHealing(TacticHealingEvent healing)
     {
         if (healing.Occurrence is not { } heal || healing.TacticId is not int healTactic ||
@@ -222,7 +236,7 @@ internal sealed class BattlePresentationBuilder(StrategySnapshot before, Strateg
         { SoldierGain = healing.RecoveredSoldiers });
         _stateValues.Add(new(_impact, healing.TargetUnitId, false, healing.RecoveredSoldiers, 0, 0));
         Number(heal.Target, healing.RecoveredSoldiers, _impact, "map-healing");
-        if (healing.RecoveredSoldiers > 0) Outcome("healed", healing.Clock, heal, healing.RecoveredSoldiers);
+        if (healing.RecoveredSoldiers > 0) Outcome("healed", healing.Clock, heal, healing.RecoveredSoldiers, heal.Source.ForceId);
         _cursor = Math.Max(_cursor, _impact + 1.5);
     }
 
@@ -258,7 +272,14 @@ internal sealed class BattlePresentationBuilder(StrategySnapshot before, Strateg
             ["damage"] = new(0)
         };
         if (target.ForceId is int targetForce) values["target-force"] = ProgressMessageProducer.Force(targetForce);
-        void Add(string role, DecisionMessageDefinition message, double time, BattleMessageChannel? channel = null, bool atSource = false)
+        void AddRecord(string role, DecisionMessageDefinition message, double time, BattleObjectContext location, int? colorForce)
+        {
+            var random = new StableRandom(StableRandom.DeriveSeed((ulong)before.World.Revision, $"battle:{_index}:{role}:{_messages.Count + _records.Count}"));
+            var produced = ProgressMessageProducer.Produce(message, occurrenceContext, texts, values, n => (int)(random.NextUInt64() % (ulong)n));
+            var id = Identity($"{role}:{_messages.Count + _records.Count}");
+            _records.Add(new(time, new(id, produced.Message, Location(location), MapRecordColors.Resolve(before, after, colorForce)), produced.SoundRole));
+        }
+        void Add(string role, DecisionMessageDefinition message, double time, BattleMessageChannel channel, bool atSource = false)
         {
             var random = new StableRandom(StableRandom.DeriveSeed((ulong)before.World.Revision, $"battle:{_index}:{role}:{_messages.Count + _records.Count}"));
             var produced = ProgressMessageProducer.Produce(message, occurrenceContext, texts, values, n => (int)(random.NextUInt64() % (ulong)n));
@@ -270,24 +291,20 @@ internal sealed class BattlePresentationBuilder(StrategySnapshot before, Strateg
                     MapSpeech = new(id, produced.Message, speaker,
                     texts.Resolve(before.MessageSpeaker(speaker).NameKey), Location(obj), obj.IsSettlement ? null : obj.Id, color)
                 };
-            else if (channel is null)
-            {
-                _records.Add(new(time, new(id, produced.Message, Location(obj), color), produced.SoundRole));
-                return;
-            }
-            _messages.Add(new(id, time, produced, channel!.Value));
+            _messages.Add(new(id, time, produced, channel));
         }
         if (fact is TacticActivatedEvent active)
         {
             bool support = definition.Support;
             string report = support ? "support" : (active.IsChain ? "chain-" : "activation-") + (Player(source.ForceId) ? "own" : "enemy");
-            Add(report, battle.Messages[report], _cursor);
+            var reportingSide = Player(source.ForceId) ? source : target;
+            AddRecord(report, battle.Messages[report], _cursor, support ? source : reportingSide, reportingSide.ForceId);
             bool showScene = definition.Zoom is not null && tacticScenesEnabled;
             if (definition.Zoom is null)
                 Add("announcement", definition.Messages["announcement"], _cursor, BattleMessageChannel.Dialogue, true);
             if (active.OfficerIds.Length > 1)
                 foreach (int officer in active.OfficerIds)
-                { values["actor"] = ProgressMessageProducer.Person(officer); Add("link", battle.Messages["link"], _cursor); }
+                { values["actor"] = ProgressMessageProducer.Person(officer); AddRecord("link", battle.Messages["link"], _cursor, source, source.ForceId); }
             for (int member = 0; member < active.OfficerIds.Length; member++)
             {
                 values["actor"] = ProgressMessageProducer.Person(active.OfficerIds[member]);
@@ -340,11 +357,11 @@ internal sealed class BattlePresentationBuilder(StrategySnapshot before, Strateg
                 {
                     Add("block-reaction", battle.Messages["block-reaction"], responseStart, responseChannel);
                     Add("block-reply", battle.Messages["block-reply"], responseStart, responseChannel, true);
-                    Add("blocked", battle.Messages["blocked"], end);
+                    AddRecord("blocked", battle.Messages["blocked"], end, target, target.ForceId);
                 }
                 else Add("hit-reaction", battle.Messages["hit-reaction"], responseStart, responseChannel);
                 values["damage"] = new(hit?.SoldierLoss ?? 0);
-                if (effect >= 10) Add("damage", battle.Messages["damage"], end);
+                if (effect >= 10) AddRecord("damage", battle.Messages["damage"], end, target, target.ForceId);
                 if (sniping is not null)
                 {
                     values["actor"] = ProgressMessageProducer.Person(sniping.ActorId);
@@ -366,7 +383,8 @@ internal sealed class BattlePresentationBuilder(StrategySnapshot before, Strateg
                     }
                     values["injury"] = new(0, CommandText.Resolve(texts, sniping.Injury == 0 ? "battle.injury-healthy" : sniping.Injury <= 4 ? "battle.injury-light" : "battle.injury-heavy"));
                     string reportRole = Player(target.ForceId) ? "sniping-own" : "sniping-enemy";
-                    Add(reportRole, battle.Messages[reportRole], end);
+                    AddRecord(reportRole, battle.Messages[reportRole], end, source,
+                        Player(target.ForceId) ? target.ForceId : source.ForceId);
                 }
                 _mapAvailable = end;
                 _cursor = end;

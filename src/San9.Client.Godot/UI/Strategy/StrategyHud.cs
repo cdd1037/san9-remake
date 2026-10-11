@@ -290,7 +290,7 @@ public partial class StrategyHud : Control
     private void ApplyUserSettings(Settings.UserSettings draft)
     {
         ApplySettings(draft);
-        if (!draft.SoundEnabled) _sceneSounds.Stop();
+        if (!draft.SoundEnabled) { _sceneSounds.Stop(); _recordSounds.Stop(); }
         _executionPanels.SetReportMode(draft.ProgressReport);
     }
 

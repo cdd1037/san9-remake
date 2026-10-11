@@ -10,12 +10,14 @@ internal static class MilitaryEngagements
         Dictionary<BattleSource, BattleSource> targets = [];
         Dictionary<BattleSource, int> incoming = [];
         HashSet<BattleSource> engaged = [];
+        Dictionary<BattleSource, BattleSource> contacts = [];
         void Add(BattleSource source, BattleSource target)
         {
             targets.Add(source, target);
             incoming[target] = incoming.GetValueOrDefault(target) + 1;
             if (source.Area(world, military).IntersectsExpanded(target.Area(world, military), MapCoordinates.UnitsPerCell))
             {
+                contacts.Add(source, target);
                 if (!source.IsSettlement) engaged.Add(source);
                 engaged.Add(target);
             }
@@ -25,7 +27,11 @@ internal static class MilitaryEngagements
         if (world.Units.Count > 0)
             foreach (var settlement in world.Settlements.Values)
                 if (FindFacilityTarget(world, settlement, military) is { } target) Add(new(settlement.Id, true), new(target.Id, false));
-        return new(targets, incoming, engaged);
+        // Prefer an entrant's own close target, then the first attacker in stable identity order.
+        var opponents = contacts.Where(p => engaged.Contains(p.Key)).ToDictionary();
+        foreach (var (source, target) in contacts.OrderBy(p => p.Key.IsSettlement).ThenBy(p => p.Key.Id))
+            opponents.TryAdd(target, source);
+        return new(targets, incoming, opponents);
     }
 
     private static BattleSource? FindTarget(IWorldQuery world, UnitState unit, MilitaryRulebook military)
@@ -76,11 +82,14 @@ internal static class MilitaryEngagements
 }
 
 /// <summary>A derived view owned by one mutation; queries never modify it or enumerate the world.</summary>
-internal sealed class EngagementRelations(Dictionary<BattleSource, BattleSource> targets, Dictionary<BattleSource, int> incoming, HashSet<BattleSource> engaged)
+internal sealed class EngagementRelations(Dictionary<BattleSource, BattleSource> targets, Dictionary<BattleSource, int> incoming,
+    Dictionary<BattleSource, BattleSource> opponents)
 {
+    internal IEnumerable<BattleSource> Participants => opponents.Keys;
+    internal BattleSource Opponent(BattleSource participant) => opponents[participant];
     internal BattleSource? Target(BattleSource source) => targets.TryGetValue(source, out var target) ? target : null;
     internal int IncomingCount(BattleSource subject) => incoming.GetValueOrDefault(subject);
-    internal bool Engaged(BattleSource subject) => engaged.Contains(subject);
+    internal bool Engaged(BattleSource subject) => opponents.ContainsKey(subject);
     internal int Intensity(BattleSource subject, BattleSource opponent) =>
         IncomingCount(subject) + (Target(opponent) == subject ? 0 : 1);
 }

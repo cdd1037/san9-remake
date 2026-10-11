@@ -23,7 +23,7 @@ public sealed class MapAudioContentTests
     {
         var audio = new MapAudioDefinition("cue", ["spring", "summer", "autumn", "winter"],
             ["spring", "summer", "autumn", "winter"], [99], new() { ["custom"] = new(["foot"], [], []) },
-            new() { [1000] = "build" }, ["battle"]);
+            new() { [1000] = "build" }, ["battle"]) { RecordNotificationSound = "notification" };
         var sounds = audio.SoundRoles.Distinct().ToDictionary(r => r, r => $"audio/{r}.wav");
         audio.Validate(sounds);
         sounds.Remove("foot");

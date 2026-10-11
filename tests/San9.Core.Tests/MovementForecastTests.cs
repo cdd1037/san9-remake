@@ -41,6 +41,15 @@ public sealed class MovementForecastTests
         Assert.Equal(100, step.Spent); Assert.False(step.Arrived);
         var moved = MilitaryNavigation.Apply(unit, step);
         Assert.Equal(unit.Position, moved.Position); Assert.Null(moved.Waypoint); Assert.Equal(unit.Order, moved.Order);
+        List<DomainEvent> events = [];
+        MilitaryMovement.AdvanceDay(world, rules, new([]), PersonnelRulebook.Empty, events);
+        var arrival = Assert.Single(events.OfType<UnitWaypointReachedEvent>());
+        Assert.Equal(new WorldPosition(7, 2), arrival.Position);
+        Assert.Equal(arrival.Position, arrival.Unit.Position);
+        Assert.NotEqual(arrival.Position, world.Units[0].Position);
+        events.Clear();
+        MilitaryMovement.AdvanceDay(world, rules, new([]), PersonnelRulebook.Empty, events);
+        Assert.Empty(events.OfType<UnitWaypointReachedEvent>());
     }
 
     [Fact]

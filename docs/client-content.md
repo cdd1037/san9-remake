@@ -2,6 +2,8 @@
 
 本页维护内容转换、契约与校验入口，不累计界面实现说明。界面开发统一从[UI 文档](ui/README.md)进入；地图与运行态见[地图文档](map-import.md)和[运行时架构](runtime-state.md)。
 
+组合包179新增交战开始／中继点到达的记录与`progress.mapSpeeches`，以及必填`mapAudio.recordNotificationSound`。红色事件闪光和白色命令光圈复用各自已有资源，无需重建纹理；旧组合包原位运行`import-client`。规则版本v91增加发生时通知事实，保存／日志结构版本保持103／107。
+
 组合包178提供兵法特写名称与操作文本，并沿用177的数字及状态效果声明：必填`ConditionEffects`映射状态到一次性图集／声音，必填可空`MapNumbers`声明地图正负数字图集及步进；特写必填可空`Numbers`提供小数字、滚动汇总图集、布局、帧间隔与滚动／停定音效，必填`FacilityNumberPositions`覆盖设施布局。沿用176的`Officers`／`FacilityOfficers`武将身体及旗布局，以及175的`WaveEmission`移动箭簇。资源复用共享纹理，不重建贴图；190年运行包已原位更新并完整校验，其他旧组合包运行`import-client`。当时录像14、保存101／日志105和规则v87不变。证据见[RE-0192](../research/findings/RE-SAN9PK-0192.md)。
 
 P1 计略外交采用组合包 schema166，必需的 `presentation.missions` 字典提供十二类出发、意见、结果、外交会谈、计略行动／回应和军团结果等 88 项语义绑定，并校验消息图参数闭包、说话人及音效引用。出发音效区分计略、流言／外交与夺取；外交会谈及劝降灭亡插图分别提供独立音乐角色，插图复用完整纹理包的 G_Still64。会谈及灭亡音乐从私有目录读取已准备音频，Importer只重命名与复制；客户端仅加载转换包。离线转码见[音频准备](audio-preparation.md)。旧包原位执行 `import-client`，无需重转纹理；190 年包已更新。客户端和原作对齐边界见[操作说明](ui/mission-corps-commands.md)。
@@ -18,7 +20,7 @@ P1 计略外交采用组合包 schema166，必需的 `presentation.missions` 字
 
 2026-09-27命令来源光圈：皮肤33／纹理转换26增加五帧`minimap-command-pulse`语义资源（首帧无后缀，其余为`-1..-4`），逐色透明度保留。客户端以当前命令菜单对象定位，兼用于城市、其他设施和部队；出征后续页面保留来源，整项结束清除。依据[RE-0158](../research/findings/RE-SAN9PK-0158.md#小地图命令来源光圈补证2026-09-27)。本地纹理及190年组合包已原位重转，五帧均32×36、首帧全透明，29064逻辑图片／5262物理文件完整校验通过。解决方案各测试项目合计3867项通过；未启动游戏，菜单开关、对象切换及后续命令页面往返的实际画面待用户验收。
 
-现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 129，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 178，地图 [MapPackage](../src/San9.Content/Maps/MapPackage.cs) 为 15，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 51，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 44。规则为 `san9-core-g10-v90`，保存103／日志107／录像14；协议以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 和 [RecordingService](../src/San9.Application/Persistence/RecordingService.cs) 为准。
+现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 129，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 179，地图 [MapPackage](../src/San9.Content/Maps/MapPackage.cs) 为 15，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 51，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 44。规则为 `san9-core-g10-v91`，保存103／日志107／录像14；协议以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 和 [RecordingService](../src/San9.Application/Persistence/RecordingService.cs) 为准。
 
 组合包178新增特殊国号／最高爵位来源身体、逐帧交锋／反应位移、末段移动与残影、局部粒子及其分组散布／透明度样式、船只尾波和受击水花、目标体型对应的损失音效。客户端只消费内容声明，不读取原作编号或研究库。190年运行包已原位重转并完整校验，复用未变共享纹理；旧组合包须运行`import-client`，无需重转纹理。自动化与真实包核对通过，画面和试听由用户验收。
 

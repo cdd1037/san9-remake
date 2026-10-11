@@ -48,6 +48,7 @@ internal static class MapAudioCompiler
             [0, 1, 2], bodies, Enumerable.Range(0, 17).ToDictionary(i => i, i => i is >= 7 and <= 10 ? fortification : construction),
             Enumerable.Range(159, 3).Select(i => Sound($"map-battle-ambience-{i - 159}", i)).ToArray())
         {
+            RecordNotificationSound = Sound("map-record-notification", 2),
             FacilityArrowSounds = Enumerable.Range(64, 3).Select(i => Sound($"map-facility-arrow-{i - 64}", i)).ToArray(),
             RockfallImpactSounds = [Sound("map-rockfall-impact", 75), Sound("map-rockfall-dust", 71)]
         };

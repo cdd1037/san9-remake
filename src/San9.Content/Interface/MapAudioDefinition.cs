@@ -7,9 +7,10 @@ public sealed record MapAudioDefinition(string ExecutionTitleSound, string[] Sea
     string[] RankedSeasonalMusic, int[] RankedMusicRankIds, Dictionary<string, MapBodySounds> Bodies,
     Dictionary<int, string> ConstructionSounds, string[] BattleAmbience)
 {
+    [System.Text.Json.Serialization.JsonRequired] public string RecordNotificationSound { get; init; } = null!;
     [System.Text.Json.Serialization.JsonRequired] public string[] FacilityArrowSounds { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public string[] RockfallImpactSounds { get; init; } = [];
-    public IEnumerable<string> SoundRoles => new[] { ExecutionTitleSound }.Concat(ConstructionSounds.Values)
+    public IEnumerable<string> SoundRoles => new[] { ExecutionTitleSound, RecordNotificationSound }.Concat(ConstructionSounds.Values)
         .Concat(FacilityArrowSounds).Concat(RockfallImpactSounds)
         .Concat(SeasonalMusic).Concat(RankedSeasonalMusic).Concat(BattleAmbience)
         .Concat(Bodies.Values.SelectMany(b => b.Movement.Concat(b.Melee).Concat(b.Ranged)));

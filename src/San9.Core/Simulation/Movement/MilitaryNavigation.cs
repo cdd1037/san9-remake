@@ -70,6 +70,12 @@ internal static class MilitaryNavigation
 
     internal static UnitState Commit(WorldMutation world, UnitState unit, UnitStep step, List<DomainEvent> events)
     {
+        if (step.WaypointReached)
+        {
+            var waypoint = unit.Waypoint!.Value;
+            events.Add(new UnitWaypointReachedEvent(world.Clock,
+                BattleObjectContext.Capture(unit with { Position = waypoint }), waypoint));
+        }
         var moved = world.AdvanceNavigation(unit.Id, step);
         events.Add(new UnitMovedEvent(world.Clock, unit.Id, unit.Position, step.Position, step.Spent, step.Status)
             { Steps = step.Navigation.Steps });

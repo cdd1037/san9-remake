@@ -11,6 +11,62 @@ namespace San9.Application.Tests;
 public sealed class ProgressPresentationTests
 {
     [Fact]
+    public void ContactAndWaypointFactsPublishIndependentSpeechesAndRecordsOnceAtTheirLocations()
+    {
+        var session = GameSession.Start(Scenario(), 42);
+        var before = session.View;
+        var roles = ProgressPresentationDefinition.MapSpeechRoles.Concat(["unit-contact", "settlement-contact"]).Distinct().ToArray();
+        var texts = MissionScenario.Texts(before) with
+        { Messages = roles.ToDictionary(r => r, r => new MessageDefinition([new MessageLiteral(r)])) };
+        var progress = new ProgressPresentationDefinition(new()
+        { ["unit-contact"] = new("unit-contact", []), ["settlement-contact"] = new("settlement-contact", []),
+            ["waypoint-reached"] = new("waypoint-reached", []) }, [])
+        { MapSpeeches = ProgressPresentationDefinition.MapSpeechRoles.ToDictionary(r => r, r => new DecisionMessageDefinition(r, [], "actor")) };
+        var content = CommandPresentation.Empty with { Progress = progress };
+        var own = new BattleObjectContext(10, false, 1, 3, new(62, 12), 1, false);
+        var enemy = new BattleObjectContext(20, false, 2, 23, new(67, 12), 2, false);
+        DomainEvent[] facts = [new UnitWaypointReachedEvent(before.World.Clock, own, new(47, 12)),
+            new BattleContactStartedEvent(before.World.Clock, own, enemy, true, 5000, 5000),
+            new BattleContactStartedEvent(before.World.Clock, enemy, own, false, 5000, 5000)];
+        var output = ExecutionPublication.Read(before, before, session.Messages(texts), texts, content, facts);
+        Assert.Equal(2, output.Records.Count);
+        Assert.All(output.Records, r => Assert.Equal(1, r.ForceColorCode));
+        Assert.Equal(MapCoordinates.Cell(new(47, 12)), output.Records[0].Location);
+        var arrival = Assert.Single(output.Messages, m => m.Message.Key == "waypoint-reached").MapSpeech!;
+        Assert.Equal(output.Records[0].Location, arrival.Location);
+        Assert.Null(arrival.UnitId);
+        Assert.Equal(3, output.Messages.Count);
+        Assert.Equal(2, Assert.Single(output.Messages, m => m.Message.Key == "contact-defense").MapSpeech!.ForceColorCode);
+        var plan = BattlePresentationPlan.Create(before, before, facts, session.Messages(texts), texts, content);
+        Assert.Equal(2, plan.Records.Count);
+        Assert.Equal(3, plan.Messages.Count);
+        var rest = ExecutionPublication.Read(before, before, session.Messages(texts), texts, content, facts, presentedFacts: plan.PresentedFacts);
+        Assert.Empty(rest.Records); Assert.Empty(rest.Messages);
+    }
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void CaptureAndDestructionRecordsUseThePlayerParticipantColor(bool enemyAttacker)
+    {
+        var session = GameSession.Start(Scenario(), 42);
+        var before = session.View;
+        var source = new BattleObjectContext(enemyAttacker ? 20 : 10, false, enemyAttacker ? 2 : 1,
+            enemyAttacker ? 23 : 3, new(12, 7), enemyAttacker ? 2 : 1, false);
+        int place = enemyAttacker ? 1 : 2, previousOwner = enemyAttacker ? 1 : 2;
+        string[] roles = ["settlement-won", "settlement-lost", "territory-changed", "territory-lost",
+            "facility-won", "facility-destroyed", "enemy-captured", "person-captured"];
+        var texts = MissionScenario.Texts(before) with
+        { Messages = roles.ToDictionary(role => role, role => new MessageDefinition([new MessageLiteral(role)])) };
+        var content = new ProgressPresentationDefinition(roles.ToDictionary(role => role, role => new DecisionMessageDefinition(role, [])), []);
+        DomainEvent[] facts = [new SettlementCapturedEvent(before.World.Clock, place, previousOwner, new(source.Id, false), false) { Source = source },
+            new FacilityDestroyedEvent(before.World.Clock, place, new(source.Id, false)) { Source = source },
+            new OfficerCapturedEvent(before.World.Clock, enemyAttacker ? 3 : 23, source.ForceId!.Value, place, null)];
+        var records = ProgressMessages.Read(before, before, session.Messages(texts), texts, content, facts);
+        Assert.Equal(4, records.Count);
+        Assert.All(records, record => Assert.Equal(1, record.ForceColorCode));
+    }
+
+    [Fact]
     public void StrategyContextDialogueNeverPublishesExecutionRecords()
     {
         var session = GameSession.Start(Scenario(),42);
@@ -249,6 +305,7 @@ public sealed class ProgressPresentationTests
         var record = Assert.Single(ProgressMessages.Read(before,before,session.Messages(texts,before.World),texts,content,[death]));
         Assert.Equal(new MapCell(0,1),record.Location);
         Assert.Equal(death.Clock,record.Message.Clock);
+        Assert.Null(record.ForceColorCode);
     }
 
     [Theory]
@@ -297,6 +354,7 @@ public sealed class ProgressPresentationTests
         var record = Assert.Single(ProgressMessages.Read(before,after,session.Messages(texts,before.World),texts,content,events));
         Assert.Equal(clock,record.Message.Clock);
         Assert.Equal("enemy-commander/actor",record.Message.BbCode);
+        Assert.Equal(1,record.ForceColorCode);
         Assert.Equal(MapCoordinates.Cell(new(67,12)),record.Location);
         Assert.Equal(record,Assert.Single(ProgressMessages.Read(before,after,session.Messages(texts,before.World),texts,content,events)));
         var foreign = ((UnitTerminatedEvent)events[0]) with { Source = new(30,false,3,31,new(62,12),3,false) };

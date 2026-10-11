@@ -7,6 +7,31 @@ namespace San9.Core.Tests;
 
 public sealed class AttackNavigationTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void CloseContactPublishesBothEntrantsOnceAndKeepsOccurrenceContext(bool settlement)
+    {
+        var (world, rules) = Fixture(settlement);
+        world.Replace(world.Units[0] with { Morale = 70 });
+        var previous = world.Engagements(rules);
+        world.Replace(world.Units[0] with { Position = new(60, 50) });
+        List<DomainEvent> events = [];
+        BattleContact.PublishEntries(world, rules, previous, events);
+        Assert.Empty(events);
+        previous = world.Engagements(rules);
+        world.Replace(world.Units[0] with { Position = new(68, 50) });
+        BattleContact.PublishEntries(world, rules, previous, events);
+        var contacts = events.OfType<BattleContactStartedEvent>().ToArray();
+        Assert.Equal(2, contacts.Length);
+        Assert.Equal(new WorldPosition(68, 50), contacts[0].Participant.Position);
+        Assert.Contains(contacts, c => c.Participant.IsSettlement == settlement && c.Participant.Id == (settlement ? 2 : 1));
+        events.Clear();
+        BattleContact.PublishEntries(world, rules, world.Engagements(rules), events);
+        Assert.Empty(events);
+        world.RemoveUnit(0);
+        Assert.Equal(new WorldPosition(68, 50), contacts[0].Participant.Position);
+    }
     private static (WorldMutation World, MilitaryRulebook Rules) Fixture(bool settlement = false)
     {
         FormationRule Formation(int id, int range, Footprint shape) => new(id, 60, 0, 10000, 1, shape, TravelMode.Land)

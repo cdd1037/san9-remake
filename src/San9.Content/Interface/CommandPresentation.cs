@@ -78,14 +78,16 @@ public sealed record CommandPresentation(Dictionary<string, string> Sounds, Patr
             if (progress.OrderPrompt is null || string.IsNullOrWhiteSpace(progress.StrategyTitleSound) || !Sounds.ContainsKey(progress.StrategyTitleSound))
                 throw new InvalidDataException("Incomplete strategy entry presentation.");
             if (ProgressPresentationDefinition.RecordRoles.Except(progress.Records.Keys).Any() ||
+                ProgressPresentationDefinition.MapSpeechRoles.Except(progress.MapSpeeches.Keys).Any() ||
                 ProgressPresentationDefinition.ContextRoles.Except(progress.Context.Keys).Any())
                 throw new InvalidDataException("Incomplete progress presentation.");
             string[] roles = ["actor", "ruler", "other", "force", "enemy-force", "place", "other-place", "city", "unit", "treasure", "corps"];
-            var messages = progress.Records.Values.Concat(progress.Context.Values).Append(progress.OrderPrompt);
+            var messages = progress.Records.Values.Concat(progress.Context.Values).Concat(progress.MapSpeeches.Values).Append(progress.OrderPrompt);
             if (messages.Any(m => m.Bindings.Values.Except(roles).Any() || m.Speaker is { } speaker && !roles.Contains(speaker)))
                 throw new InvalidDataException("Unknown progress presentation role.");
             new DecisionPresentations([], []) { Shared = progress.Records }.Validate(texts, Sounds, personIds);
             new DecisionPresentations([], []) { Shared = progress.Context }.Validate(texts, Sounds, personIds);
+            new DecisionPresentations([], []) { Shared = progress.MapSpeeches }.Validate(texts, Sounds, personIds);
             new DecisionPresentations([], []) { Shared = new() { ["order-prompt"] = progress.OrderPrompt } }.Validate(texts, Sounds, personIds);
         }
         if (Missions.Count > 0)

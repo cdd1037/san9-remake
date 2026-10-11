@@ -10,6 +10,42 @@ namespace San9.Application.Tests;
 public sealed class BattlePresentationTests
 {
     [Theory]
+    [InlineData(false, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(true, false, false)]
+    [InlineData(true, true, false)]
+    [InlineData(false, false, true)]
+    [InlineData(true, false, true)]
+    public void RecordColorsFollowReportingForcesIndependentlyOfSpeechAndDamage(bool enemySource, bool chain, bool support)
+    {
+        var (session, texts, content, occurrence) = Fixture();
+        if (enemySource) occurrence = occurrence with { Source = occurrence.Target, Target = occurrence.Source };
+        content.Battle!.Tactics[99] = content.Battle.Tactics[99] with
+        { Support = support, Zoom = support ? null : content.Battle.Tactics[99].Zoom };
+        var source = occurrence.Source; var target = occurrence.Target;
+        ImmutableArray<int> participants = enemySource ? [23, 22] : [3, 2];
+        DomainEvent[] facts = [new TacticActivatedEvent(session.Snapshot.Clock, source.Id, false, target.Id, false, 99, participants, false, 10)
+            { Occurrence = occurrence, IsChain = chain },
+            new BattleDamageEvent(session.Snapshot.Clock, source.Id, target.Id, null, 500, 0, 500, 0, 0)
+            { TacticId = 99, Source = source, Target = target }];
+        var plan = BattlePresentationPlan.Create(session.View, session.View, facts, session.Messages(texts), texts, content, tacticScenesEnabled: false);
+        string role = support ? "support" : (chain ? "chain-" : "activation-") + (enemySource ? "enemy" : "own");
+        var activation = Assert.Single(plan.Records, c => c.Record.Message.Key == role).Record;
+        Assert.Equal(1, activation.ForceColorCode);
+        var reportingSide = enemySource ? target : source;
+        Assert.Equal(MapCoordinates.Cell((support ? source : reportingSide).Position!.Value), activation.Location);
+        Assert.All(plan.Records.Where(c => c.Record.Message.Key == "link"), c => Assert.Equal(enemySource ? (int?)null : 1, c.Record.ForceColorCode));
+        if (!support)
+        {
+            var damage = Assert.Single(plan.Records, c => c.Record.Message.Key == "damage").Record;
+            Assert.Equal(enemySource ? 1 : (int?)null, damage.ForceColorCode);
+            Assert.Equal(MapCoordinates.Cell(target.Position!.Value), damage.Location);
+        }
+        var speech = Assert.Single(plan.Messages, c => c.Message.Message.Key == (chain ? "chain-confused" : "action")).Message.MapSpeech!;
+        Assert.Equal(enemySource ? 2 : 1, speech.ForceColorCode);
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public void DisabledTacticScenesKeepTacticFactWithoutCreatingZoom(bool blocked)
@@ -35,6 +71,24 @@ public sealed class BattlePresentationTests
         Assert.DoesNotContain(plan.Messages, message => message.Message.Message.Key == "announcement");
         Assert.Contains(plan.Messages, message => message.Message.Message.Key == "action" &&
             message.Channel == BattleMessageChannel.MapSpeech);
+        Assert.Equal(1, Assert.Single(plan.Records, c => c.Record.Message.Key == "activation-own").Record.ForceColorCode);
+        Assert.Null(Assert.Single(plan.Records, c => c.Record.Message.Key == (blocked ? "blocked" : "damage")).Record.ForceColorCode);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void DefectionRecordUsesThePlayerReportingSide(bool enemySource)
+    {
+        var (session, texts, content, occurrence) = Fixture(false);
+        if (enemySource) occurrence = occurrence with { Source = occurrence.Target, Target = occurrence.Source };
+        texts.Messages.Add("defection", new([new MessageLiteral("defection")]));
+        content.Battle!.Messages.Add("defection", new("defection", []));
+        var fact = new TacticDefectionEvent(session.Snapshot.Clock, 3, 99, occurrence, 200, 200);
+        var plan = BattlePresentationPlan.Create(session.View, session.View, [fact], session.Messages(texts), texts, content);
+        var record = Assert.Single(plan.Records).Record;
+        Assert.Equal(1, record.ForceColorCode);
+        Assert.Equal(MapCoordinates.Cell(occurrence.Target.Position!.Value), record.Location);
     }
 
     [Theory]
@@ -198,6 +252,9 @@ public sealed class BattlePresentationTests
         var action = Assert.Single(plan.Messages, c => c.Message.Message.Key == "sniping-action");
         var reaction = Assert.Single(plan.Messages, c => c.Message.Message.Key == response);
         Assert.Equal(2, action.Message.SpeakerId); Assert.Equal(21, reaction.Message.SpeakerId);
+        var injuryRecord = Assert.Single(plan.Records, c => c.Record.Message.Key == "sniping-enemy").Record;
+        Assert.Equal(1, injuryRecord.ForceColorCode);
+        Assert.Equal(MapCoordinates.Cell(occurrence.Source.Position!.Value), injuryRecord.Location);
         if (!scenesEnabled)
         {
             Assert.Empty(plan.Visuals);

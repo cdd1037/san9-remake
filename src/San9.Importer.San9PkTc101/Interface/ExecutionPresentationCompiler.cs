@@ -10,6 +10,9 @@ internal static class ExecutionPresentationCompiler
             new($"messages.{source}", values.ToDictionary(v => v.Slot, v => v.Role), speaker);
         Dictionary<string, DecisionMessageDefinition> records = new()
         {
+            ["unit-contact"] = M(9906, values: [("person.0", "actor")]),
+            ["settlement-contact"] = M(9908, values: [("building.0", "place")]),
+            ["waypoint-reached"] = M(10144, values: [("unit.0", "unit")]),
             ["unit-lost"] = M(9993, values: [("unit.0", "unit")]),
             ["unit-defeated"] = M(10097, values: [("unit.0", "unit"), ("person.0", "other"), ("force.0", "enemy-force")]),
             ["settlement-won"] = M(10095, values: [("person.0", "actor"), ("building.0", "place")]),
@@ -59,6 +62,17 @@ internal static class ExecutionPresentationCompiler
         Dialogue("officer-health",7274,("person.2","other"));
         return new(records, context)
         {
+            MapSpeeches = new()
+            {
+                ["waypoint-reached"] = M(11348, "actor", ("person.0", "actor")),
+                ["contact-attack"] = M(10441, "actor", ("person.0", "actor"), ("person.1", "other")),
+                ["contact-defense"] = M(10508, "actor", ("person.0", "actor"), ("person.1", "other")),
+                ["contact-attack-strong"] = M(10419, "actor", ("person.0", "actor"), ("person.1", "other")),
+                ["contact-attack-weak"] = M(10430, "actor", ("person.0", "actor"), ("person.1", "other")),
+                ["contact-defense-strong"] = M(10497, "actor", ("person.0", "actor"), ("person.1", "other")),
+                ["contact-defense-weak"] = M(10488, "actor", ("person.0", "actor"), ("person.1", "other")),
+                ["contact-building"] = M(10452, "actor", ("person.0", "actor"), ("person.1", "other"))
+            },
             OrderPrompt = new("messages.5992", new() { ["person.0"] = "ruler" }, Sound: "strategy-order-prompt"),
             StrategyTitleSound = "strategy-title"
         };

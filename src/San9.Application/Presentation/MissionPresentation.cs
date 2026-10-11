@@ -151,7 +151,7 @@ public static class MissionPresentation
                 _ => null
             };
             var message = new ProducedMessage(original?.Message.Key ?? "mission-result", clock, summary + (detail is null ? "" : "\n" + detail));
-            records.Add(new(ResultIdentity(before, task, e, "record"), message, ResultLocation(e,before), before.Forces.Single(f => f.Id == task.ForceId).ColorCode));
+            records.Add(new(ResultIdentity(before, task, e, "record"), message, ResultLocation(e,before), MapRecordColors.Resolve(before, before, task.ForceId)));
             if (narrated || values is null || content is null || occurrence is null) continue;
             messages.AddRange(OutcomeDialogue(e, task, before, content, values, occurrence, texts, speakers, Pick));
             if (original is { SoundRole: not null } or { IllustrationRole: not null })

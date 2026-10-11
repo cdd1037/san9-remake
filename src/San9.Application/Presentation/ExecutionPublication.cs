@@ -20,7 +20,10 @@ public static class ExecutionPublication
             var random = new StableRandom(StableRandom.DeriveSeed((ulong)before.World.Revision,$"publication:{index}"));
             int Pick(int count) => (int)(random.NextUInt64() % (ulong)count);
             if (content.Progress is { } progress)
+            {
                 records.AddRange(ProgressMessages.Read(before,after,context,texts,progress,events,index));
+                messages.AddRange(MapNotificationSpeeches.Read(before, after, context, texts, progress, fact, index));
+            }
             var mission = MissionPresentation.Results(before,texts,[fact],alreadyPresented,content.Missions,context,content.Decisions.People);
             messages.AddRange(mission.Messages);
             records.AddRange(mission.Records);

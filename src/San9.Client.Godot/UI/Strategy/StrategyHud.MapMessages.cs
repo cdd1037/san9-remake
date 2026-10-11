@@ -12,6 +12,7 @@ public partial class StrategyHud
     private Control _speechHost = null!;
     private TextureScope _speechTextures = null!;
     private bool _mapRecordsRequested;
+    private SceneSoundPlayer _recordSounds = null!;
 
     private IReadOnlyList<CommandMessage> PresentExecutionMessages(IReadOnlyList<CommandMessage> messages)
     {
@@ -26,6 +27,8 @@ public partial class StrategyHud
 
     private void BuildMapMessages()
     {
+        _recordSounds = new() { ContentRoot = ContentRoot, Sounds = CommandPresentation.Sounds, MaxPolyphony = 3 };
+        AddChild(_recordSounds);
         _speechTextures = Textures.CreateScope(owner: this);
         _speechTextures.RequestPrefixes("map-speech-","text-icon-");
         // Above map annotations (-2), below the HUD frame and controls (0).
@@ -40,7 +43,11 @@ public partial class StrategyHud
         if (!_executionPanels.Append(entry)) return false;
         _mapRecordsRequested = true;
         _executionPanels.ExpandImmediately();
-        if (entry.Location is { } location) _minimap!.PresentRecordLocation(location);
+        if (entry.Location is { } location)
+        {
+            _minimap!.PresentRecordLocation(location);
+            _recordSounds.Play(CommandPresentation.MapAudio!.RecordNotificationSound, SoundEnabled);
+        }
         return true;
     }
 

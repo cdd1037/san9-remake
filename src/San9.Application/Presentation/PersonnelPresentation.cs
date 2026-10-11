@@ -39,7 +39,7 @@ public static class PersonnelPresentation
         string role = draft.Kind + (advice.Opinion == AdviserOpinion.Favorable ? "-favorable" : "-unfavorable");
         if (draft.SearchAdvice is ThreeVisitsStep.FirstVisit) role = "search-first-visit";
         if (draft.SearchAdvice is ThreeVisitsStep.Recruitment) role = "search-return-visit";
-        return [Message(content, role, context, texts, values, random) with { RecordInJournal = false }];
+        return [Message(content, role, context, texts, values, random)];
     }
     private static int TargetPlace(StrategySnapshot view, int targetId)
     {

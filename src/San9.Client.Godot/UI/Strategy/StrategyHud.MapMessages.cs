@@ -13,21 +13,12 @@ public partial class StrategyHud
     private TextureScope _speechTextures = null!;
     private bool _mapRecordsRequested;
 
-    private void RecordNarration(CommandMessage message)
-    {
-        if (!message.RecordInJournal) return;
-        if (message.MapRecord is { } record) PresentMapRecord(record);
-        else _executionPanels.Append(message.Message);
-    }
-
     private IReadOnlyList<CommandMessage> PresentExecutionMessages(IReadOnlyList<CommandMessage> messages)
     {
         List<CommandMessage> narration = [];
         foreach (var message in messages)
         {
             if (message.MapSpeech is { } speech) PresentMapSpeech(speech);
-            else if (message.RecordInJournal && message.MapRecord is { } record && message.SoundRole is null && message.IllustrationRole is null)
-                PresentMapRecord(record);
             else narration.Add(message);
         }
         return narration;

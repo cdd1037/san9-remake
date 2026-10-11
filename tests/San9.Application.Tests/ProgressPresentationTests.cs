@@ -32,8 +32,6 @@ public sealed class ProgressPresentationTests
             Assert.Equal("旬初建议",message.Message.BbCode);
             Assert.Equal(clock,message.Message.Clock);
             Assert.Equal(2,message.SpeakerId);
-            Assert.False(message.RecordInJournal);
-            Assert.Null(message.MapRecord);
             Assert.Null(message.MapSpeech);
         });
     }
@@ -55,8 +53,6 @@ public sealed class ProgressPresentationTests
         Assert.Equal("ruler大人，请下令。",message.Message.BbCode);
         Assert.Null(message.SpeakerId);
         Assert.Equal("prompt",message.SoundRole);
-        Assert.False(message.RecordInJournal);
-        Assert.Null(message.MapRecord);
         Assert.Equal(hash,restored.Snapshot.StateHash);
         Assert.Equal(session.StrategicContext,restored.StrategicContext);
     }
@@ -250,7 +246,7 @@ public sealed class ProgressPresentationTests
         var texts = MissionScenario.Texts(before) with { Messages = new() { ["death"] = new([new MessageLiteral("death")]) } };
         var content = new ProgressPresentationDefinition(new() { ["captive-death"] = new("death",[]) },[]);
         var death = new OfficerDiedEvent(before.World.Clock.NextDay(),22,OfficerDeathCause.Natural,OfficerStatus.Captive,2,1,null,null);
-        var record = Assert.Single(ProgressMessages.Read(before,before,session.Messages(texts,before.World),texts,content,[death])).MapRecord!;
+        var record = Assert.Single(ProgressMessages.Read(before,before,session.Messages(texts,before.World),texts,content,[death]));
         Assert.Equal(new MapCell(0,1),record.Location);
         Assert.Equal(death.Clock,record.Message.Clock);
     }
@@ -275,7 +271,7 @@ public sealed class ProgressPresentationTests
         events.Add(new UnitMovedEvent(clock,10,new(64,12),new(130,12),1,NavigationStatus.Moving));
         events.Add(new UnitTerminatedEvent(clock,10,null,5000)
             { Target = new(10,false,1,2,new(130,12),1,false), Source = null });
-        var record = ExecutionPublication.Read(before,after,session.Messages(texts,before.World),texts,content,events)[0].MapRecord!;
+        var record = ExecutionPublication.Read(before,after,session.Messages(texts,before.World),texts,content,events).Records[0];
         Assert.Equal(movedBefore ? MapCoordinates.Cell(new(64,12)) : before.World.Units.Single(u => u.Id == 10).Cell,record.Location);
     }
 
@@ -298,11 +294,11 @@ public sealed class ProgressPresentationTests
             Target = new(20,false,2,23,new(67,12),2,false),
             Source = new(10,false,1,2,new(62,12),1,false)
         }];
-        var record = Assert.Single(ProgressMessages.Read(before,after,session.Messages(texts,before.World),texts,content,events)).MapRecord!;
+        var record = Assert.Single(ProgressMessages.Read(before,after,session.Messages(texts,before.World),texts,content,events));
         Assert.Equal(clock,record.Message.Clock);
         Assert.Equal("enemy-commander/actor",record.Message.BbCode);
         Assert.Equal(MapCoordinates.Cell(new(67,12)),record.Location);
-        Assert.Equal(record,Assert.Single(ProgressMessages.Read(before,after,session.Messages(texts,before.World),texts,content,events)).MapRecord);
+        Assert.Equal(record,Assert.Single(ProgressMessages.Read(before,after,session.Messages(texts,before.World),texts,content,events)));
         var foreign = ((UnitTerminatedEvent)events[0]) with { Source = new(30,false,3,31,new(62,12),3,false) };
         Assert.Empty(ProgressMessages.Read(before,after,session.Messages(texts,before.World),texts,content,[foreign]));
     }
@@ -320,8 +316,8 @@ public sealed class ProgressPresentationTests
         var loss = new UnitTerminatedEvent(clock,10,null,5000)
             { Target = new(10,false,1,2,new(62,12),1,false), Source = null };
         var surrender = new ForceSurrenderedEvent(clock,1,2,0,0,0,0,[],[]);
-        IReadOnlyList<CommandMessage> Read(params DomainEvent[] events) =>
-            ExecutionPublication.Read(before,before,session.Messages(texts),texts,content,events);
+        IReadOnlyList<MapMessageRecord> Read(params DomainEvent[] events) =>
+            ExecutionPublication.Read(before,before,session.Messages(texts),texts,content,events).Records;
 
         Assert.Empty(Read(loss,surrender));
         Assert.Single(Read(loss,surrender with { ForceId = 3 }));

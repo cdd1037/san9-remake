@@ -18,8 +18,9 @@ public partial class StrategyHud
         if (Turn.Publication > _executionPublication && Turn.LastResult is { } result && _executionBefore is { } before)
         {
             _executionPublication = Turn.Publication;
-            var messages = ExecutionPublication.Read(before,Session.View,Session.Messages(Texts,before.World),Texts,CommandPresentation,result.Events,_diplomacyNarrated);
-            OpenNarration(PresentExecutionMessages(messages),before);
+            var output = ExecutionPublication.Read(before, Session.View, Session.Messages(Texts, before.World), Texts, CommandPresentation, result.Events, _diplomacyNarrated);
+            foreach (var record in output.Records) PresentMapRecord(record);
+            OpenNarration(PresentExecutionMessages(output.Messages),before);
         }
         _executionBefore = Session.View;
     }
@@ -44,7 +45,6 @@ public partial class StrategyHud
             SoundEnabled = SoundEnabled, ReadMessageSpeed = () => ReadSettings().MessageSpeed,
             Media = SceneMedia,
             Submit = Turn.SelectEnding,
-            MessagePresented = RecordNarration,
             Finished = () =>
             {
                 var view = _endingView!; _endingView = null; OverlayHost.RemoveChild(view); view.QueueFree(); ShowSessionEnd();
@@ -90,8 +90,7 @@ public partial class StrategyHud
                 Finished = CloseDecision,
                 Media = SceneMedia,
                 SkipIntroduction = draft.Diplomacy is { } diplomacy && !_diplomacyNarrated.Add(diplomacy.TaskId),
-                BeginMusic = Music.Begin,
-                MessagePresented = RecordNarration
+                BeginMusic = Music.Begin
             };
             OverlayHost.AddChild(_decision);
         }

@@ -16,6 +16,6 @@ public static class StrategyEntryPresentation
         var message = ProgressMessageProducer.Produce(content.OrderPrompt, context, texts,
             new Dictionary<string, MessageBinding> { ["ruler"] = ProgressMessageProducer.Person(ruler) },
             _ => throw new InvalidDataException("Order prompt must not require randomness."));
-        return [message with { RecordInJournal = false }];
+        return [message];
     }
 }

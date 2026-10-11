@@ -23,7 +23,6 @@ public partial class DecisionView : Control
     private IDisposable? _music;
     public Func<GameCommand, string, bool> Submit { get; init; } = null!;
     public Action Finished { get; init; } = null!;
-    public Action<CommandMessage>? MessagePresented { get; init; }
     public ISceneMedia Media { get; init; } = new SilentSceneMedia();
     public bool Pending { get; private set; }
     private Control? _child;
@@ -59,7 +58,6 @@ public partial class DecisionView : Control
             MessagePresented = message =>
             {
                 if (message.SpeakerId is not null) StartDiplomacyMusic();
-                MessagePresented?.Invoke(message);
             },
             Closed = () => { Replace(null); next(); }
         });

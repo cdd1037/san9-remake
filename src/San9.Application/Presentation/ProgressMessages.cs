@@ -26,11 +26,11 @@ internal static class ProgressMessageProducer
 /// <summary>Public outcomes in commit order. Low-level resource and movement events are not reports.</summary>
 public static class ProgressMessages
 {
-    public static IReadOnlyList<CommandMessage> Read(StrategySnapshot before, StrategySnapshot after,
+    public static IReadOnlyList<MapMessageRecord> Read(StrategySnapshot before, StrategySnapshot after,
         WorldMessageContext context, TextCatalog texts, ProgressPresentationDefinition content,
         IReadOnlyList<DomainEvent> events, int? eventIndex = null)
     {
-        List<CommandMessage> result = [];
+        List<MapMessageRecord> result = [];
         bool Player(int? force) => force is int id && before.World.Simulation.Controls.Any(c => c.ForceId == id && c.Kind == ControllerKind.Player);
         MapCell? PlaceLocation(int id) => after.Settlements.Concat(before.Settlements).FirstOrDefault(s => s.Id == id) is { } place
             ? new(place.X, place.Y) : null;
@@ -163,15 +163,15 @@ public static class ProgressMessages
             Guid identity = ProgressMessageProducer.Identity($"report:{before.World.Revision}:{index}:{role}");
             var random = new StableRandom(StableRandom.DeriveSeed((ulong)before.World.Revision,$"report-text:{index}:{role}"));
             var message = ProgressMessageProducer.Produce(content.Records[role], occurrence, texts, values,n => (int)(random.NextUInt64() % (ulong)n));
-            result.Add(message with { MapRecord = new(identity, message.Message, location,
-                colorForce is int force ? before.Forces.Concat(after.Forces).First(f => f.Id == force).ColorCode : null) });
+            result.Add(new(identity, message.Message, location,
+                colorForce is int force ? before.Forces.Concat(after.Forces).First(f => f.Id == force).ColorCode : null));
             if (role is "settlement-won" or "settlement-lost")
             {
                 string territoryRole = role == "settlement-won" ? "territory-changed" : "territory-lost";
                 var territory = ProgressMessageProducer.Produce(content.Records[territoryRole],occurrence,texts,values,
                     n => (int)(random.NextUInt64() % (ulong)n));
-                result.Add(territory with { MapRecord = new(ProgressMessageProducer.Identity($"report:{before.World.Revision}:{index}:{territoryRole}"),
-                    territory.Message,location,result[^1].MapRecord!.ForceColorCode) });
+                result.Add(new(ProgressMessageProducer.Identity($"report:{before.World.Revision}:{index}:{territoryRole}"),
+                    territory.Message, location, result[^1].ForceColorCode));
             }
         }
         return result;

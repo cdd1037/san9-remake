@@ -13,7 +13,7 @@ public sealed class PersonnelCommandTests
     [Theory]
     [InlineData("search",1)]
     [InlineData("employ",100)]
-    public void PreparationAdviceIsDialogueOnlyWhileDepartureRemainsRecordable(string kind, int target)
+    public void PreparationAndDepartureDialogueDoNotPublishExecutionRecords(string kind, int target)
     {
         var session = GameSession.Start(Definition(),7);
         var draft = new PersonnelDraft(session,1,kind);
@@ -27,11 +27,9 @@ public sealed class PersonnelCommandTests
 
         var advice = Assert.Single(PersonnelPresentation.Advice(draft,content,context,texts,_ => 0));
         Assert.Equal(3,advice.SpeakerId);
-        Assert.False(advice.RecordInJournal);
-        Assert.Null(advice.MapRecord);
         Assert.Null(advice.MapSpeech);
 
-        Assert.True(Assert.Single(PersonnelPresentation.Departure(draft,content,context,texts,_ => 0)).RecordInJournal);
+        Assert.Single(PersonnelPresentation.Departure(draft,content,context,texts,_ => 0));
     }
 
     private static TextCatalog CatalogTexts(StrategySnapshot view)

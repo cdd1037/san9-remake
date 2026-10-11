@@ -13,7 +13,7 @@ public sealed class MissionCommandTests
     [Theory]
     [InlineData("burn")]
     [InlineData("gift")]
-    public void PreparationAdviceIsDialogueOnlyWhileDepartureRemainsRecordable(string kind)
+    public void PreparationAndDepartureDialogueDoNotPublishExecutionRecords(string kind)
     {
         var content = MissionScenario.Create();
         content = content with
@@ -35,11 +35,9 @@ public sealed class MissionCommandTests
 
         var advice = Assert.Single(MissionPresentation.Advice(draft,messages,context,texts));
         Assert.Equal(2,advice.SpeakerId);
-        Assert.False(advice.RecordInJournal);
-        Assert.Null(advice.MapRecord);
         Assert.Null(advice.MapSpeech);
 
-        Assert.True(Assert.Single(MissionPresentation.Departure(draft,messages,context,texts)).RecordInJournal);
+        Assert.Single(MissionPresentation.Departure(draft,messages,context,texts));
     }
 
     [Theory]
@@ -84,7 +82,7 @@ public sealed class MissionCommandTests
         Assert.Equal(session.Validate(new("player"),acted).Rejection,session.GetPreparationEligibility(new("player"),acted));
         Assert.NotEqual(CommandRejection.None,session.GetPreparationEligibility(new("player"),acted));
         if (!draft.IsDiplomacy)
-            Assert.NotEmpty(MissionPresentation.Results(new(content,result.Snapshot),MissionScenario.Texts(new(content,result.Snapshot)),session.AdvanceXun().Events));
+            Assert.NotEmpty(MissionPresentation.Results(new(content,result.Snapshot),MissionScenario.Texts(new(content,result.Snapshot)),session.AdvanceXun().Events).Records);
     }
 
     [Fact]
@@ -228,11 +226,43 @@ public sealed class MissionCommandTests
         var clock = before.World.Clock.Advance();
         DomainEvent[] events = [new GiftResolvedEvent(clock,command.CommandId,2,2,command.Offer,true,1,0,0)];
         var messages = MissionPresentation.Results(before,texts,events);
-        Assert.Equal(clock,Assert.Single(messages).Message.Clock);
-        Assert.Empty(MissionPresentation.Results(before,texts,events,new HashSet<Guid> { command.CommandId }));
+        Assert.Equal(clock,Assert.Single(messages.Records).Message.Clock);
+        var narrated = MissionPresentation.Results(before,texts,events,new HashSet<Guid> { command.CommandId });
+        Assert.Equal(messages.Records,narrated.Records);
+        Assert.Empty(narrated.Messages);
         var cancelled = MissionPresentation.Results(before,texts,[new TaskCancelledEvent(command.CommandId,clock,"target-invalidated")]);
-        Assert.Contains("目标已失效",Assert.Single(cancelled).Message.BbCode);
+        Assert.Contains("目标已失效",Assert.Single(cancelled.Records).Message.BbCode);
         var other = before.World with { Simulation = before.World.Simulation with { Tasks = before.World.Simulation.Tasks.Select(t => t with { ControllerId = "ai:1" }).ToImmutableArray() } };
-        Assert.Empty(MissionPresentation.Results(new(MissionScenario.Create(),other),texts,events));
+        Assert.Empty(MissionPresentation.Results(new(MissionScenario.Create(),other),texts,events).Records);
+    }
+
+    [Fact]
+    public void AnsweredDiplomacyStillPublishesTheSameRecordWithoutReplayingDialogueOrMedia()
+    {
+        var session = GameSession.Start(MissionScenario.Create(),42);
+        var draft = new MissionDraft(session,1,"gift"); draft.SetActor(2); draft.SetTarget(2);
+        var command = Assert.IsType<GiftCommand>(draft.CreateCommand());
+        Assert.True(session.Execute(new("player"),command).Submission.Accepted);
+        var before = session.View;
+        string[] roles = ["diplomacy-arrival", "diplomacy-greeting", "diplomacy-welcome", "gift-proposal",
+            "gift-host-favorable", "gift-accepted", "gift-success"];
+        var texts = MissionScenario.Texts(before) with { Messages = roles.ToDictionary(role => role,
+            role => new MessageDefinition([new MessageLiteral(role), new MessageRandomChoice(
+                [[new MessageLiteral("A")], [new MessageLiteral("B")]]), new MessageValue(new("query", "day"))])) };
+        var content = CommandPresentation.Empty with { Missions = roles.ToDictionary(role => role,
+            role => new DecisionMessageDefinition(role, [], Sound: role == "gift-success" ? "result-sound" : null)) };
+        var clock = before.World.Clock.NextDay();
+        DomainEvent[] facts = [new GiftResolvedEvent(clock,command.CommandId,2,2,command.Offer,true,1,0,0)];
+        var context = session.Messages(texts,before.World);
+        var fresh = ExecutionPublication.Read(before,before,context,texts,content,facts);
+        var narrated = ExecutionPublication.Read(before,before,context,texts,content,facts,new HashSet<Guid> { command.CommandId });
+
+        Assert.NotEmpty(fresh.Messages);
+        Assert.Contains(fresh.Messages, message => message.SoundRole == "result-sound");
+        Assert.All(fresh.Messages, message => Assert.Equal(clock,message.Message.Clock));
+        Assert.Empty(narrated.Messages);
+        Assert.Equal(Assert.Single(fresh.Records),Assert.Single(narrated.Records));
+        Assert.Equal(clock,narrated.Records[0].Message.Clock);
+        Assert.EndsWith(clock.Day.ToString(),narrated.Records[0].Message.BbCode);
     }
 }

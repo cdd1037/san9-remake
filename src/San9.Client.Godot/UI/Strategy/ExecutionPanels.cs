@@ -53,11 +53,6 @@ public partial class ExecutionPanels : Control
         ApplyOffset();
     }
 
-    public void Append(ProducedMessage message)
-    {
-        Append(new MapMessageRecord(Guid.NewGuid(), message, Importance: MapReportImportance.Detailed));
-    }
-
     public bool Append(MapMessageRecord entry)
     {
         if (!RecordsLog.Append(entry)) return false;

@@ -8,13 +8,9 @@ namespace San9.Application.Presentation;
 public static class MissionPresentation
 {
     private static CommandMessage Produce(string role,IReadOnlyDictionary<string,DecisionMessageDefinition> content,
-        IReadOnlyDictionary<string,MessageBinding> values,WorldMessageContext context,TextCatalog texts)
-    {
-        var message = content[role];
-        var bindings = MessageGraph.Requirements(message.Key,texts.Messages).Bindings.ToDictionary(slot => slot,slot => values[message.Bindings[slot]]);
-        return new(context.Produce(message.Key,bindings,Random.Shared.Next),message.Speaker is string speaker ? values[speaker].Entity!.Id : null,message.Sound)
-            { IllustrationRole = message.Illustration };
-    }
+        IReadOnlyDictionary<string, MessageBinding> values, WorldMessageContext context, TextCatalog texts, Func<int, int>? random = null) =>
+        ProgressMessageProducer.Produce(content[role], context, texts, values, random ?? Random.Shared.Next)
+            with { IllustrationRole = content[role].Illustration };
     public static IReadOnlyList<CommandMessage> Advice(MissionDraft draft,IReadOnlyDictionary<string,DecisionMessageDefinition> content,WorldMessageContext context,TextCatalog texts)
     {
         if (draft.Advice is not { AdviserId: int adviser, Opinion: AdviserOpinion.Favorable or AdviserOpinion.Unfavorable } advice || content.Count == 0) return [];
@@ -25,8 +21,7 @@ public static class MissionPresentation
         };
         if (draft.TargetId is int force && draft.TargetKind == MissionTargetKind.Force)
             values["target-force"] = MessageBinding.Reference(MessageEntityKind.Force, force);
-        return [Produce((draft.IsDiplomacy ? draft.Kind : "strategy")+(advice.Opinion == AdviserOpinion.Favorable ? "-favorable" : "-unfavorable"),content,values,context,texts)
-            with { RecordInJournal = false }];
+        return [Produce((draft.IsDiplomacy ? draft.Kind : "strategy")+(advice.Opinion == AdviserOpinion.Favorable ? "-favorable" : "-unfavorable"),content,values,context,texts)];
     }
     public static IReadOnlyList<CommandMessage> Departure(MissionDraft draft,IReadOnlyDictionary<string,DecisionMessageDefinition> content,WorldMessageContext context,TextCatalog texts)
     {
@@ -62,105 +57,131 @@ public static class MissionPresentation
     }
 
     /// <summary>Result facts come from this publication and its prior tasks, including invalidation; never inferred from a later world.</summary>
-    public static IReadOnlyList<CommandMessage> Results(StrategySnapshot before,TextCatalog texts,IReadOnlyList<DomainEvent> events,
+    public static ExecutionOutput Results(StrategySnapshot before,TextCatalog texts,IReadOnlyList<DomainEvent> events,
         IReadOnlySet<Guid>? alreadyPresented = null, IReadOnlyDictionary<string,DecisionMessageDefinition>? content = null,
         WorldMessageContext? context = null, IReadOnlyDictionary<string,int>? speakers = null)
     {
         List<CommandMessage> messages = [];
+        List<MapMessageRecord> records = [];
         string Person(int id) => texts.Resolve(before.Officers.Single(p => p.Id == id).NameKey);
         string Place(int id) => before.Settlements.Single(s => s.Id == id).ResolveName(texts);
         string Force(int id) => texts.Resolve(before.Forces.Single(f => f.Id == id).NameKey);
         bool Player(PersistentTask task) => task.ForceId == before.PlayerForceId && task.ControllerId == "player";
         foreach (var e in events)
         {
-            int? actor = e switch { AlienateResolvedEvent a => a.OfficerId, BurnResolvedEvent b => b.OfficerId, SeizeResolvedEvent s => s.OfficerId,
-                GossipResolvedEvent g => g.OfficerId, UnitStrategyResolvedEvent u => u.OfficerId, GiftResolvedEvent g => g.OfficerId, _ => null };
-            Guid? taskId = e switch { GiftResolvedEvent g => g.TaskId, AttackRequestResolvedEvent a => a.TaskId, PrisonerReturnResolvedEvent p => p.TaskId,
-                SurrenderResolvedEvent s => s.TaskId, TaskCancelledEvent c => c.TaskId, _ => null };
-            if (taskId is Guid presented && alreadyPresented?.Contains(presented) == true && e is not TaskCancelledEvent) continue;
-            var clock = e switch { AlienateResolvedEvent a => a.Clock, BurnResolvedEvent b => b.Clock, SeizeResolvedEvent s => s.Clock,
-                GossipResolvedEvent g => g.Clock, UnitStrategyResolvedEvent u => u.Clock, GiftResolvedEvent g => g.Clock,
-                AttackRequestResolvedEvent a => a.Clock, PrisonerReturnResolvedEvent p => p.Clock, SurrenderResolvedEvent s => s.Clock,
-                TaskCancelledEvent c => c.Clock, _ => before.World.Clock };
-            var task = before.World.Simulation.Tasks.FirstOrDefault(t => taskId is Guid id ? t.Id == id : actor is int p && t.OfficerId == p && IsMission(t));
-            if (task is null || !Player(task) || !IsMission(task)) continue;
-            if (content is { Count: > 0 } && context is not null)
-                messages.AddRange(OutcomeDialogue(e, task, before, content, context, texts, speakers)
-                    .Select(message => message with { Message = message.Message with { Clock = clock },
-                        MapSpeech = message.MapSpeech is { } speech ? speech with { Message = speech.Message with { Clock = clock } } : null }));
-            var original = content is not null && context is not null ? OriginalResult(e,task,before,content,context,texts) : null;
-            void Add(string value, string? detail = null)
+            // Only mission results enter this projection; identity, occurrence and authored role travel together.
+            (int? Actor, Guid? TaskId, GameClock Clock, string? Role) outcome = e switch
             {
-                var message = original is null ? new ProducedMessage("mission-result",clock,value) : original.Message with { Clock = clock,
-                    BbCode = original.Message.BbCode+(detail is null ? "" : "\n"+detail) };
-                var location = ResultLocation(e,before);
-                messages.Add(new(message,original?.SpeakerId,original?.SoundRole)
+                AlienateResolvedEvent a => (a.OfficerId, null, a.Clock, a.Success ? "alienate-success" : "alienate-failure"),
+                BurnResolvedEvent b => (b.OfficerId, null, b.Clock, b.Success ? "burn-success" : "burn-failure"),
+                SeizeResolvedEvent s => (s.OfficerId, null, s.Clock, s.Outcome switch
                 {
-                    IllustrationRole = original?.IllustrationRole,
-                    MapRecord = new(Guid.NewGuid(),message,location,before.Forces.Single(f => f.Id == task.ForceId).ColorCode)
-                });
-            }
+                    SeizeOutcomeKind.Person => "seize-person",
+                    SeizeOutcomeKind.Failure => "seize-failure", _ => null
+                }),
+                GossipResolvedEvent g => (g.OfficerId, null, g.Clock, g.Success ? "rumor-success" : "rumor-failure"),
+                UnitStrategyResolvedEvent u => (u.OfficerId, null, u.Clock, StrategyRole(u.Strategy) + (u.Success ? "-success" : "-failure")),
+                GiftResolvedEvent g => (null, g.TaskId, g.Clock, g.Accepted ? "gift-success" : "gift-failure"),
+                AttackRequestResolvedEvent a => (null, a.TaskId, a.Clock, a.Outcome switch
+                {
+                    AttackRequestOutcome.Accepted => "request-success", AttackRequestOutcome.Refused => "request-failure", _ => null
+                }),
+                PrisonerReturnResolvedEvent p => (null, p.TaskId, p.Clock, p.Accepted ? "return-success" : "return-failure"),
+                SurrenderResolvedEvent s => (null, s.TaskId, s.Clock, s.Accepted ? "surrender-success" : "surrender-failure"),
+                TaskCancelledEvent c => (null, c.TaskId, c.Clock, null),
+                _ => (null, null, default, null)
+            };
+            var (actor, taskId, clock, role) = outcome;
+            if (actor is null && taskId is null) continue;
+            var task = before.World.Simulation.Tasks.FirstOrDefault(t => taskId is Guid id ? t.Id == id : t.OfficerId == actor && IsMission(t));
+            if (task is null || !Player(task) || !IsMission(task)) continue;
+            bool narrated = alreadyPresented?.Contains(task.Id) == true && e is not TaskCancelledEvent;
+            var occurrence = context?.AtOccurrence(clock);
+            var values = content is { Count: > 0 } && occurrence is not null ? ResultValues(e,task,before) : null;
+            var random = new StableRandom(StableRandom.DeriveSeed((ulong)before.World.Revision, $"mission:{task.Id}:{clock.DayNumber}"));
+            int Pick(int count) => (int)(random.NextUInt64() % (ulong)count);
+            // Resolve the record first so dialogue suppression cannot change its random text selection.
+            var original = role is not null && values is not null && content is not null && occurrence is not null
+                ? ResultMessage(role, content, values, occurrence, texts, Pick) : null;
             string who = Person(task.OfficerId);
-            switch (e)
+            string Outcome(bool success) => CommandText.Resolve(texts, success ? "outcome.success" : "outcome.failure");
+            string summary = original?.Message.BbCode ?? e switch
             {
-                case AlienateResolvedEvent a: Add(CommandText.Resolve(texts, "result.alienate", who, Person(a.TargetOfficerId), (a.Success ? CommandText.Resolve(texts, "result.alienate-gain", a.LoyaltyLoss) : CommandText.Resolve(texts, "outcome.failure"))),a.Success ? CommandText.Resolve(texts, "result.loyalty-loss", a.LoyaltyLoss) : null); break;
-                case BurnResolvedEvent b: Add(CommandText.Resolve(texts, "result.burn", who, Place(b.TargetSettlementId), (b.Success ? CommandText.Resolve(texts, "result.burn-gain", b.DurabilityLoss, b.FoodLoss) : CommandText.Resolve(texts, "outcome.failure"))),
-                    b.Success ? CommandText.Resolve(texts, "result.burn-loss", Place(b.TargetSettlementId), b.DurabilityLoss, b.FoodLoss) : null); break;
-                case SeizeResolvedEvent s:
-                    string gain = s.Outcome switch { SeizeOutcomeKind.Item => CommandText.Resolve(texts, "result.treasure-gain", texts.Resolve(before.Information.Treasures.Single(t => t.Id == s.TreasureId).NameKey)),
-                        SeizeOutcomeKind.Person => CommandText.Resolve(texts, "result.person-gain", Person(s.RecoveredOfficerId!.Value)), SeizeOutcomeKind.Money => CommandText.Resolve(texts, "result.money-gain", s.Money), _ => CommandText.Resolve(texts, "outcome.failure") };
-                    Add(CommandText.Resolve(texts, "result.seize", who, Place(s.TargetSettlementId), gain)); break;
-                case GossipResolvedEvent g: Add(CommandText.Resolve(texts, "result.rumor", who, Force(g.FirstTargetForceId), (g.Success ? CommandText.Resolve(texts, "result.rumor-gain", Force(g.SecondTargetForceId), g.RelationLoss) : CommandText.Resolve(texts, "outcome.failure"))),
-                    g.Success ? CommandText.Resolve(texts, "result.relation-loss", Force(g.SecondTargetForceId), g.RelationLoss) : null); break;
-                case UnitStrategyResolvedEvent u:
-                    string name = u.Strategy switch { UnitStrategyKind.FalseReport => CommandText.Resolve(texts, "title.false-report"), UnitStrategyKind.Disorder => CommandText.Resolve(texts, "title.disorder"), UnitStrategyKind.Inspire => CommandText.Resolve(texts, "title.inspire"), _ => CommandText.Resolve(texts, "title.rescue") };
-                    string recipient = u.Target.CommanderId is int commander ? Person(commander) : Force(u.Target.ForceId);
-                    string outcome = CommandText.Resolve(texts, u.Success ? "outcome.success" : "outcome.failure");
-                    Add(u.Strategy == UnitStrategyKind.Reinforce
-                        ? CommandText.Resolve(texts, "result.reinforcement-summary", who, recipient, name, outcome, u.DeliveredSoldiers, u.RequestedSoldiers)
-                        : CommandText.Resolve(texts, "result.unit-strategy", who, recipient, name, outcome),
-                        u.Strategy == UnitStrategyKind.Reinforce ? CommandText.Resolve(texts, "result.reinforcement", u.DeliveredSoldiers, u.RequestedSoldiers) : null); break;
-                case GiftResolvedEvent g: Add(CommandText.Resolve(texts, "result.gift", Force(g.TargetForceId), (g.Accepted ? CommandText.Resolve(texts, "outcome.accepted") : CommandText.Resolve(texts, "outcome.refused")), who)+(g.Refunded > 0 ? CommandText.Resolve(texts, "result.refunded", g.Refunded) : ""),
-                    g.Refunded > 0 ? CommandText.Resolve(texts, "result.refund-resource", (g.Offer.Kind == GiftKind.Food ? CommandText.Resolve(texts, "label.food") : CommandText.Resolve(texts, "label.money")), g.Refunded) : null); break;
-                case AttackRequestResolvedEvent a: Add(CommandText.Resolve(texts, "result.request", Force(a.RequestedForceId), Place(a.TargetSettlementId), a.Outcome switch { AttackRequestOutcome.Accepted => CommandText.Resolve(texts, "outcome.accepted"),AttackRequestOutcome.AlreadyAgreed => CommandText.Resolve(texts, "outcome.agreed"),_ => CommandText.Resolve(texts, "outcome.refused")})); break;
-                case PrisonerReturnResolvedEvent p: Add(CommandText.Resolve(texts, "result.prisoner-return", Person(p.PrisonerId), (p.Accepted ? CommandText.Resolve(texts, "outcome.success") : CommandText.Resolve(texts, "outcome.rejected")))); break;
-                case SurrenderResolvedEvent s:
-                    Add(CommandText.Resolve(texts, "result.surrender", Force(s.TargetForceId), (s.Accepted ? CommandText.Resolve(texts, "outcome.accepted") : CommandText.Resolve(texts, "outcome.refused"))));
-                    if (s.Accepted && content is { Count: > 0 } && context is not null)
-                    {
-                        var values = ResultValues(e,task,before);
-                        values["year"] = new(s.Clock.Year); values["month"] = new(s.Clock.Month);
-                        var elimination = Produce("surrender-eliminated",content,values,context,texts);
-                        messages.Add(elimination with { Message = elimination.Message with { Clock = clock }, BackgroundMusicRole = "force-eliminated-music" });
-                    }
-                    break;
-                case TaskCancelledEvent c: Add(CommandText.Resolve(texts, "result.cancelled", who, Cancellation(texts,c.Reason))); break;
+                AlienateResolvedEvent a => CommandText.Resolve(texts, "result.alienate", who, Person(a.TargetOfficerId),
+                    a.Success ? CommandText.Resolve(texts, "result.alienate-gain", a.LoyaltyLoss) : Outcome(false)),
+                BurnResolvedEvent b => CommandText.Resolve(texts, "result.burn", who, Place(b.TargetSettlementId),
+                    b.Success ? CommandText.Resolve(texts, "result.burn-gain", b.DurabilityLoss, b.FoodLoss) : Outcome(false)),
+                SeizeResolvedEvent s => CommandText.Resolve(texts, "result.seize", who, Place(s.TargetSettlementId), s.Outcome switch
+                {
+                    SeizeOutcomeKind.Item => CommandText.Resolve(texts, "result.treasure-gain", texts.Resolve(before.Information.Treasures.Single(t => t.Id == s.TreasureId).NameKey)),
+                    SeizeOutcomeKind.Person => CommandText.Resolve(texts, "result.person-gain", Person(s.RecoveredOfficerId!.Value)),
+                    SeizeOutcomeKind.Money => CommandText.Resolve(texts, "result.money-gain", s.Money), _ => Outcome(false)
+                }),
+                GossipResolvedEvent g => CommandText.Resolve(texts, "result.rumor", who, Force(g.FirstTargetForceId),
+                    g.Success ? CommandText.Resolve(texts, "result.rumor-gain", Force(g.SecondTargetForceId), g.RelationLoss) : Outcome(false)),
+                UnitStrategyResolvedEvent u => UnitSummary(u),
+                GiftResolvedEvent g => CommandText.Resolve(texts, "result.gift", Force(g.TargetForceId),
+                    CommandText.Resolve(texts, g.Accepted ? "outcome.accepted" : "outcome.refused"), who) +
+                    (g.Refunded > 0 ? CommandText.Resolve(texts, "result.refunded", g.Refunded) : ""),
+                AttackRequestResolvedEvent a => CommandText.Resolve(texts, "result.request", Force(a.RequestedForceId), Place(a.TargetSettlementId),
+                    CommandText.Resolve(texts, a.Outcome switch { AttackRequestOutcome.Accepted => "outcome.accepted", AttackRequestOutcome.AlreadyAgreed => "outcome.agreed", _ => "outcome.refused" })),
+                PrisonerReturnResolvedEvent p => CommandText.Resolve(texts, "result.prisoner-return", Person(p.PrisonerId),
+                    CommandText.Resolve(texts, p.Accepted ? "outcome.success" : "outcome.rejected")),
+                SurrenderResolvedEvent s => CommandText.Resolve(texts, "result.surrender", Force(s.TargetForceId),
+                    CommandText.Resolve(texts, s.Accepted ? "outcome.accepted" : "outcome.refused")),
+                TaskCancelledEvent c => CommandText.Resolve(texts, "result.cancelled", who, Cancellation(texts,c.Reason)),
+                _ => throw new InvalidOperationException("Unknown mission result.")
+            };
+            string UnitSummary(UnitStrategyResolvedEvent u)
+            {
+                object[] arguments = [who, u.Target.CommanderId is int commander ? Person(commander) : Force(u.Target.ForceId),
+                    CommandText.Resolve(texts, "title." + StrategyRole(u.Strategy)), Outcome(u.Success)];
+                return u.Strategy == UnitStrategyKind.Reinforce
+                    ? CommandText.Resolve(texts, "result.reinforcement-summary", [..arguments, u.DeliveredSoldiers, u.RequestedSoldiers])
+                    : CommandText.Resolve(texts, "result.unit-strategy", arguments);
+            }
+            string? detail = original is null ? null : e switch
+            {
+                AlienateResolvedEvent { Success: true } a => CommandText.Resolve(texts, "result.loyalty-loss", a.LoyaltyLoss),
+                BurnResolvedEvent { Success: true } b => CommandText.Resolve(texts, "result.burn-loss", Place(b.TargetSettlementId), b.DurabilityLoss, b.FoodLoss),
+                GossipResolvedEvent { Success: true } g => CommandText.Resolve(texts, "result.relation-loss", Force(g.SecondTargetForceId), g.RelationLoss),
+                UnitStrategyResolvedEvent { Strategy: UnitStrategyKind.Reinforce } u => CommandText.Resolve(texts, "result.reinforcement", u.DeliveredSoldiers, u.RequestedSoldiers),
+                GiftResolvedEvent { Refunded: > 0 } g => CommandText.Resolve(texts, "result.refund-resource",
+                    CommandText.Resolve(texts, g.Offer.Kind == GiftKind.Food ? "label.food" : "label.money"), g.Refunded),
+                _ => null
+            };
+            var message = new ProducedMessage(original?.Message.Key ?? "mission-result", clock, summary + (detail is null ? "" : "\n" + detail));
+            records.Add(new(ResultIdentity(before, task, e, "record"), message, ResultLocation(e,before), before.Forces.Single(f => f.Id == task.ForceId).ColorCode));
+            if (narrated || values is null || content is null || occurrence is null) continue;
+            messages.AddRange(OutcomeDialogue(e, task, before, content, values, occurrence, texts, speakers, Pick));
+            if (original is { SoundRole: not null } or { IllustrationRole: not null })
+                messages.Add(original with { Message = message });
+            if (e is SurrenderResolvedEvent { Accepted: true } surrender)
+            {
+                values["year"] = new(surrender.Clock.Year); values["month"] = new(surrender.Clock.Month);
+                messages.Add(Produce("surrender-eliminated",content,values,occurrence,texts,Pick)
+                    with { BackgroundMusicRole = "force-eliminated-music" });
             }
         }
-        return messages;
+        return new(messages, records);
     }
-    private static CommandMessage? OriginalResult(DomainEvent e,PersistentTask task,StrategySnapshot before,
-        IReadOnlyDictionary<string,DecisionMessageDefinition> content,WorldMessageContext context,TextCatalog texts)
+    private static string StrategyRole(UnitStrategyKind kind) => kind switch
     {
-        string? role = e switch
-        {
-            AlienateResolvedEvent a => a.Success ? "alienate-success" : "alienate-failure",
-            BurnResolvedEvent b => b.Success ? "burn-success" : "burn-failure",
-            SeizeResolvedEvent s => s.Outcome switch { SeizeOutcomeKind.Person => "seize-person",
-                SeizeOutcomeKind.Failure => "seize-failure", _ => null },
-            GossipResolvedEvent g => g.Success ? "rumor-success" : "rumor-failure",
-            UnitStrategyResolvedEvent u => (u.Strategy switch { UnitStrategyKind.FalseReport => "false-report", UnitStrategyKind.Disorder => "disorder",
-                UnitStrategyKind.Inspire => "inspire", _ => "rescue" })+(u.Success ? "-success" : "-failure"),
-            GiftResolvedEvent g => g.Accepted ? "gift-success" : "gift-failure",
-            AttackRequestResolvedEvent a => a.Outcome switch { AttackRequestOutcome.Accepted => "request-success", AttackRequestOutcome.Refused => "request-failure", _ => null },
-            PrisonerReturnResolvedEvent p => p.Accepted ? "return-success" : "return-failure",
-            SurrenderResolvedEvent s => s.Accepted ? "surrender-success" : "surrender-failure", _ => null
-        };
-        if (role is null || content.Count == 0) return null;
-        var values = ResultValues(e, task, before);
+        UnitStrategyKind.FalseReport => "false-report", UnitStrategyKind.Disorder => "disorder",
+        UnitStrategyKind.Inspire => "inspire", UnitStrategyKind.Reinforce => "rescue",
+        _ => throw new ArgumentOutOfRangeException(nameof(kind))
+    };
+    private static Guid ResultIdentity(StrategySnapshot before, PersistentTask task, DomainEvent fact, string role) =>
+        ProgressMessageProducer.Identity($"mission:{before.World.Revision}:{task.Id}:{fact.GetType().Name}:{role}");
+
+    private static CommandMessage? ResultMessage(string role, IReadOnlyDictionary<string, DecisionMessageDefinition> content,
+        IReadOnlyDictionary<string, MessageBinding> values, WorldMessageContext context, TextCatalog texts, Func<int, int> random)
+    {
         // A previous publication may precede a holder change; do not fabricate missing historical identities.
-        if (MessageGraph.Requirements(content[role].Key,texts.Messages).Bindings.Any(slot => !values.ContainsKey(content[role].Bindings[slot]))) return null;
-        return Produce(role,content,values,context,texts);
+        var definition = content[role];
+        if (MessageGraph.Requirements(definition.Key,texts.Messages).Bindings.Any(slot => !values.ContainsKey(definition.Bindings[slot])) ||
+            definition.Speaker is string speaker && !values.ContainsKey(speaker)) return null;
+        return Produce(role, content, values, context, texts, random);
     }
     private static Dictionary<string,MessageBinding> ResultValues(DomainEvent e, PersistentTask task, StrategySnapshot before)
     {
@@ -191,10 +212,9 @@ public static class MissionPresentation
         return values;
     }
     private static IReadOnlyList<CommandMessage> OutcomeDialogue(DomainEvent e, PersistentTask task, StrategySnapshot before,
-        IReadOnlyDictionary<string,DecisionMessageDefinition> content, WorldMessageContext context, TextCatalog texts,
-        IReadOnlyDictionary<string,int>? speakers)
+        IReadOnlyDictionary<string,DecisionMessageDefinition> content, Dictionary<string,MessageBinding> values, WorldMessageContext context, TextCatalog texts,
+        IReadOnlyDictionary<string, int>? speakers, Func<int, int> random)
     {
-        var values = ResultValues(e, task, before);
         if (speakers?.TryGetValue("soldier", out int soldier) == true)
             values["soldier"] = MessageBinding.Reference(MessageEntityKind.Person,soldier);
         int? place = e switch { BurnResolvedEvent b => b.TargetSettlementId, SeizeResolvedEvent s => s.TargetSettlementId, _ => null };
@@ -207,11 +227,7 @@ public static class MissionPresentation
         List<CommandMessage> sequence = [];
         void Add(string role)
         {
-            var definition = content[role];
-            var required = MessageGraph.Requirements(definition.Key,texts.Messages).Bindings;
-            if (required.Any(slot => !values.ContainsKey(definition.Bindings[slot])) ||
-                definition.Speaker is string speaker && !values.ContainsKey(speaker)) return;
-            var message = Produce(role,content,values,context,texts);
+            if (ResultMessage(role, content, values, context, texts, random) is not { } message) return;
             if (e is UnitStrategyResolvedEvent or BurnResolvedEvent or SeizeResolvedEvent && message.SpeakerId is int person)
             {
                 int force = role.EndsWith("-action",StringComparison.Ordinal) ? task.ForceId : e switch
@@ -221,7 +237,7 @@ public static class MissionPresentation
                     SeizeResolvedEvent seize => before.World.Settlements.Single(s => s.Id == seize.TargetSettlementId).OwnerId!.Value,
                     _ => throw new InvalidOperationException()
                 };
-                var speech = new MapSpeechMessage(Guid.NewGuid(), message.Message, person,
+                var speech = new MapSpeechMessage(ResultIdentity(before, task, e, $"speech:{role}"), message.Message, person,
                     texts.Resolve(before.MessageSpeaker(person).NameKey),ResultLocation(e,before)!.Value,
                     e is UnitStrategyResolvedEvent target ? target.TargetUnitId : null,
                     before.Forces.Single(f => f.Id == force).ColorCode,
@@ -244,8 +260,7 @@ public static class MissionPresentation
                 Meeting(); Add("return-proposal");
                 if (values.ContainsKey("target-adviser")) Add("diplomacy-host-adviser"); break;
             case UnitStrategyResolvedEvent unit:
-                string kind = unit.Strategy switch { UnitStrategyKind.FalseReport => "false-report", UnitStrategyKind.Disorder => "disorder",
-                    UnitStrategyKind.Inspire => "inspire", _ => "rescue" };
+                string kind = StrategyRole(unit.Strategy);
                 Add(kind+"-action");
                 string reaction = unit.Success ? kind+"-reaction-success" :
                     unit.Strategy is UnitStrategyKind.FalseReport or UnitStrategyKind.Disorder ?

@@ -156,9 +156,8 @@ public static class StrategicContext
             // Constructed and fixed settlements use the settlement contract; unbuilt locations remain regions.
             var definition = content.Context[prompt.Role];
             var random = new StableRandom(StableRandom.DeriveSeed((ulong)clock.DayNumber,$"context-text:{prompt.ForceId}:{index}"));
-            var message = ProgressMessageProducer.Produce(definition,context.AtOccurrence(clock),texts,values,n => (int)(random.NextUInt64() % (ulong)n));
             // Strategy-entry advice is dialogue; disclosed clues are retained in the session, not the execution log.
-            return message with { RecordInJournal = false };
+            return ProgressMessageProducer.Produce(definition,context.AtOccurrence(clock),texts,values,n => (int)(random.NextUInt64() % (ulong)n));
         }).ToArray();
     }
 }

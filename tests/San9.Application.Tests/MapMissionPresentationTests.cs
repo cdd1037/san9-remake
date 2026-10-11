@@ -30,17 +30,21 @@ public sealed class MapMissionPresentationTests
         string[] roles = ["false-report-action",reaction,success ? "false-report-success" : "false-report-failure"];
         var texts = MissionScenario.Texts(before) with { Messages = roles.Distinct().ToDictionary(role => role,
             role => new MessageDefinition([new MessageLiteral(role)])) };
+        // Authored results must not evaluate the unused fallback summary.
+        texts.Entries.Remove(CommandText.Key("result.unit-strategy"));
+        texts.Entries.Remove(CommandText.Key("title.false-report"));
         var definitions = roles.Distinct().ToDictionary(role => role,role => new DecisionMessageDefinition(role,[],
             role.EndsWith("-action",StringComparison.Ordinal) ? "actor" : role == roles[2] ? null : "target-person"));
         var target = new UnitStrategyTarget(new(67,12),2,23,2,condition,defensive,countered);
         var clock = before.World.Clock.Advance();
-        var messages = MissionPresentation.Results(before,texts,
-            [new UnitStrategyResolvedEvent(clock,2,20,UnitStrategyKind.FalseReport,50,success ? 0 : 99,success,target)],
+        DomainEvent[] facts = [new UnitStrategyResolvedEvent(clock,2,20,UnitStrategyKind.FalseReport,50,success ? 0 : 99,success,target)];
+        ExecutionOutput Read() => MissionPresentation.Results(before,texts,facts,
             content: definitions,context: session.Messages(texts,before.World));
-        Assert.Equal(3,messages.Count);
-        var action = Assert.IsType<MapSpeechMessage>(messages[0].MapSpeech);
-        var response = Assert.IsType<MapSpeechMessage>(messages[1].MapSpeech);
-        var record = Assert.IsType<MapMessageRecord>(messages[2].MapRecord);
+        var messages = Read();
+        Assert.Equal(2,messages.Messages.Count);
+        var action = Assert.IsType<MapSpeechMessage>(messages.Messages[0].MapSpeech);
+        var response = Assert.IsType<MapSpeechMessage>(messages.Messages[1].MapSpeech);
+        var record = Assert.Single(messages.Records);
         Assert.Equal(MapReportImportance.Summary, record.Importance);
         Assert.Equal(2,action.SpeakerId);
         Assert.Equal(23,response.SpeakerId);
@@ -53,8 +57,19 @@ public sealed class MapMissionPresentationTests
         Assert.Equal(20,response.UnitId);
         Assert.Equal(clock,response.Message.Clock);
         Assert.Equal(clock,record.Message.Clock);
-        Assert.Null(messages[1].MapRecord);
-        Assert.Null(messages[2].MapSpeech);
+        var repeated = Read();
+        Assert.Equal(messages.Messages, repeated.Messages);
+        Assert.Equal(messages.Records, repeated.Records);
+        Assert.NotEqual(action.Id, response.Id);
+        Assert.NotEqual(action.Id, record.Id);
+        Assert.NotEqual(response.Id, record.Id);
+        // Authored result media still plays, independently of the execution record.
+        definitions[roles[2]] = definitions[roles[2]] with { Sound = "result-sound" };
+        var withMedia = Read();
+        var notification = Assert.Single(withMedia.Messages, m => m.SoundRole == "result-sound");
+        Assert.Null(notification.MapSpeech);
+        Assert.Equal(record, Assert.Single(withMedia.Records));
+        Assert.Equal(record.Message, notification.Message);
     }
 
     [Fact]

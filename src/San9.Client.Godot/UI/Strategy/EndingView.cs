@@ -20,7 +20,6 @@ public partial class EndingView : Control
     public ISceneMedia Media { get; init; } = null!;
     public Func<EndingOperation, bool> Submit { get; init; } = null!;
     public Action Finished { get; init; } = null!;
-    public Action<CommandMessage>? MessagePresented { get; init; }
     public bool Pending { get; private set; }
     private Control? _child;
     private readonly CancellationTokenSource _lifetime = new();
@@ -50,7 +49,6 @@ public partial class EndingView : Control
         Sounds = Presentation.Sounds,
         ContentRoot = ContentRoot,
         SoundEnabled = SoundEnabled, ReadMessageSpeed = ReadMessageSpeed,
-        MessagePresented = MessagePresented,
         Closed = next
     });
     private void SelectOffice()

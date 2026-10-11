@@ -27,6 +27,7 @@ public partial class CommandChoiceButton : BaseButton
         string color = ButtonPressed ? hovered ? "f0f0f0" : "d8d8d8" : hovered ? "d8d8d8" : "a4a4a4";
         _text.Apply(_label, new(16, new Color(color), GameTextEffect.Outline,
             ButtonPressed || hovered ? new Color("603000") : Colors.Black));
+        _label.Position = ButtonPressed ? new(2, 2) : Vector2.Zero;
         QueueRedraw();
     }
     public override void _Draw()

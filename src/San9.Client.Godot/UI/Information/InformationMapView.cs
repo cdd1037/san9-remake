@@ -54,6 +54,7 @@ public partial class InformationMapView : Control, IInformationPage
         if (Selection is not null)
         {
             _confirmSelection = new InformationActionButton { Title = "决定", SkinPrefix = "catalog-accept-", FontSize = 24,
+                TextRole = GameButtonTextRole.ConfirmYes,
                 Textures = Textures, Position = new(720,696), Size = new(80,48) };
             _confirmSelection.Pressed += () => { if (SelectionAccepted) ConfirmSelection?.Invoke(Selection.Selected); };
             AddChild(_confirmSelection);
@@ -76,7 +77,9 @@ public partial class InformationMapView : Control, IInformationPage
         AddChild(label);_text.Apply(label,GameTextStyles.CatalogRow with { FontSize=font });return label;
     }
     private void Button(string text,Vector2 p,Action action,bool mapToggle)
-    { var button=new InformationActionButton {Title=text,MapToggle=mapToggle,Textures=Textures,Position=p,Size=mapToggle?new(108,32):new(80,48)};button.Pressed+=action;AddChild(button); }
+    { var button=new InformationActionButton {Title=text,MapToggle=mapToggle,
+        TextRole=mapToggle?GameButtonTextRole.MapMode:GameButtonTextRole.ConfirmNo,
+        Textures=Textures,Position=p,Size=mapToggle?new(108,32):new(80,48)};button.Pressed+=action;AddChild(button); }
     private static Vector2 Center(InformationMapMarker m)=>Origin+new Vector2(2*(m.X-m.Y)+401,m.X+m.Y);
     private int? Target(Vector2 p)
     {

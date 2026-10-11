@@ -78,6 +78,8 @@ public sealed class GameTextStyleTests
     [InlineData(GameButtonTextRole.Facilities, "005028", false)]
     [InlineData(GameButtonTextRole.Officers, "800090", false)]
     [InlineData(GameButtonTextRole.Units, "5828c8", false)]
+    [InlineData(GameButtonTextRole.ConfirmYes, "005028", true)]
+    [InlineData(GameButtonTextRole.ConfirmNo, "983810", true)]
     public void ButtonStateColorsFollowOriginalTables(GameButtonTextRole role, string edge, bool selectedWhite)
     {
         Assert.Equal(new Color("d8d8d8"), GameTextStyles.Button(role, false, false, false).Foreground);

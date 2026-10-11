@@ -10,23 +10,34 @@ public partial class InformationActionButton : BaseButton
     public string? SkinPrefix { get; init; }
     public int? FontSize { get; init; }
     public bool MapToggle { get; init; }
+    public GameButtonTextRole TextRole { get; init; } = GameButtonTextRole.ConfirmNo;
     private readonly GameTextPresenter _text = new();
+    private Label _label = null!;
     public override void _ExitTree() => _text.Dispose();
     public string Title { get; init; } = "";
     public TextureScope Textures { get; init; } = null!;
     public override void _Ready()
     {
         FocusMode = FocusModeEnum.All;
-        var label = new Label { Text = Title, Size = Size, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, MouseFilter = MouseFilterEnum.Ignore };
-        AddChild(label);
-        _text.Apply(label, GameTextStyles.For(GameTextRole.DialogTitle) with { FontSize = FontSize ?? (MapToggle ? 16 : 24) });
+        _label = new Label { Text = Title, Size = Size, HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center, MouseFilter = MouseFilterEnum.Ignore };
+        AddChild(_label); RefreshAppearance();
     }
     private (bool Disabled, bool Pressed, bool Hovered, bool Focused, DrawMode Mode)? _visual;
     public override void _Process(double delta)
     {
         var state = (Disabled, ButtonPressed, IsHovered(), HasFocus(), GetDrawMode());
         if (_visual == state) return;
-        _visual = state; Modulate = Disabled ? new Color("888888") : Colors.White; QueueRedraw();
+        _visual = state; RefreshAppearance(); QueueRedraw();
+    }
+    private void RefreshAppearance()
+    {
+        bool pressed = GetDrawMode() is DrawMode.Pressed or DrawMode.HoverPressed;
+        bool highlighted = IsHovered() || HasFocus() || pressed;
+        Modulate = Disabled ? new Color("888888") : Colors.White;
+        _text.Apply(_label, GameTextStyles.Button(TextRole, highlighted, ButtonPressed || pressed, Disabled)
+            with { FontSize = FontSize ?? (MapToggle ? 16 : 24) });
+        _label.Position = ButtonPressed || pressed ? new(2, 2) : Vector2.Zero;
     }
     public override void _Draw()
     {

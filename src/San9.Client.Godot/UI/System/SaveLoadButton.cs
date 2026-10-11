@@ -36,8 +36,15 @@ public partial class SaveLoadButton : BaseButton
         var state = (Disabled, IsHovered() || HasFocus(), pressed, Selected);
         if (_previous == state) return;
         _previous = state;
-        _text.Apply(_label!, new(FontSize, Disabled ? new Color("a4a4a4") : TextColor,
-            GameTextEffect.Outline, new Color(IsHovered() || pressed ? "603000" : "000000")));
+        bool highlighted = IsHovered() || HasFocus() || pressed;
+        var style = Skin switch
+        {
+            "yes" => GameTextStyles.Button(GameButtonTextRole.ConfirmYes, highlighted, Selected || pressed, Disabled),
+            "no" => GameTextStyles.Button(GameButtonTextRole.ConfirmNo, highlighted, Selected || pressed, Disabled),
+            _ => new GameTextStyle(FontSize, Disabled ? new Color("a4a4a4") : TextColor,
+                GameTextEffect.Outline, new Color(highlighted ? "603000" : "000000"))
+        };
+        _text.Apply(_label!, style with { FontSize = FontSize });
         _label!.Position = pressed || Selected ? new(2, 2) : Vector2.Zero;
         if (Content is not null) Content.Position = _label.Position;
         foreach (var (label, outline, fixedColor) in _contentLabels)

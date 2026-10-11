@@ -35,12 +35,13 @@ public partial class StrategyHud
             var settings = territoryButton.TextSettings;
             for (int repeat = 0; repeat < 3; repeat++) territoryButton.RefreshVisual();
             Check(ReferenceEquals(settings, territoryButton.TextSettings), "Unchanged state recreated text settings.");
-            var expectedStyle = GameTextStyles.Button(GameButtonTextRole.Territory, hovered, selected, disabled);
+            bool highlighted = hovered || territoryButton.HasFocus();
+            var expectedStyle = GameTextStyles.Button(GameButtonTextRole.Territory, highlighted, selected, disabled);
             Check(settings.FontColor == expectedStyle.Foreground && settings.OutlineColor == GameTextEffects.OutlineColor(expectedStyle) &&
                 settings.OutlineSize == GameTextEffects.OutlineSize(expectedStyle) && settings.StackedShadowCount == 0 && settings.ShadowColor.A == 0, "Button text effect mismatch.");
             Check(territoryButton.TextPosition == (selected ? new Vector2(2, 2) : Vector2.Zero),
                 "Button text offset drifted or disagreed with selected state.");
-            Check(territoryButton.VisualFrame == San9.Rendering.ButtonVisualState.Frame(true, hovered, selected, disabled),
+            Check(territoryButton.VisualFrame == San9.Rendering.ButtonVisualState.Frame(true, highlighted, selected, disabled),
                 "Territory background state mismatch.");
         }
         territoryButton.Disabled = false;

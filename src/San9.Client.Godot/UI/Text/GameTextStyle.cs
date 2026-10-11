@@ -109,8 +109,8 @@ public static class GameTextStyles
             GameButtonTextRole.Information or GameButtonTextRole.Advance or GameButtonTextRole.Facilities => "005028",
             GameButtonTextRole.Functions or GameButtonTextRole.Units => "5828c8",
             GameButtonTextRole.Officers => "800090",
-            GameButtonTextRole.ConfirmYes => "002878",
-            GameButtonTextRole.ConfirmNo => selected ? "b82000" : "000000",
+            GameButtonTextRole.ConfirmYes => "005028",
+            GameButtonTextRole.ConfirmNo => "983810",
             _ => "603000"
         };
         return Outlined(24, foreground, disabled ? (hovered ? "f0f0f0" : "000000")

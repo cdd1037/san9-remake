@@ -259,20 +259,21 @@ public partial class DetailActionButton : BaseButton
     private void RefreshText()
     {
         bool pressed = !Disabled && (Selected || ButtonPressed);
+        bool highlighted = IsHovered() || HasFocus();
         _label.Position = pressed ? new(2,2) : Vector2.Zero;
         _text.Apply(_label, GameTextStyles.Button(Role == "treasure" ? GameButtonTextRole.Facilities : GameButtonTextRole.MapMode,
-            IsHovered(), pressed, Disabled) with { FontSize = 20 });
+            highlighted, pressed, Disabled) with { FontSize = 20 });
     }
-    private (bool Disabled, bool Selected, bool Pressed, bool Hovered)? _visual;
+    private (bool Disabled, bool Selected, bool Pressed, bool Hovered, bool Focused)? _visual;
     public override void _Process(double delta)
     {
-        var state = (Disabled, Selected, ButtonPressed, IsHovered());
+        var state = (Disabled, Selected, ButtonPressed, IsHovered(), HasFocus());
         if (_visual == state) return;
         _visual = state; RefreshText(); QueueRedraw();
     }
     public override void _Draw()
     {
-        int frame=Disabled?3:Selected||ButtonPressed?2:IsHovered()?1:0;
+        int frame=Disabled?3:Selected||ButtonPressed?2:IsHovered()||HasFocus()?1:0;
         if(Role is "tab" or "treasure")DrawTexture(Textures["detail-button-shadow"],Vector2.Zero);
         DrawTexture(Textures["detail-"+Role+(frame==0?"":$"-{frame}")],Role is "tab" or "treasure" ? new(4,4) : Vector2.Zero);
     }

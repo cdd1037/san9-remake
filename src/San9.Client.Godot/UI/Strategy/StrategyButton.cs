@@ -32,13 +32,14 @@ public partial class StrategyButton : TextureButton
     {
         _label.Text = Title;
         bool selected = ButtonPressed || GetDrawMode() is DrawMode.Pressed or DrawMode.HoverPressed;
-        var state = (IsHovered(), selected, Disabled);
+        bool highlighted = IsHovered() || HasFocus();
+        var state = (highlighted, selected, Disabled);
         if (_lastState == state) return;
         _lastState = state;
         _text.Apply(_label, GameTextStyles.Button(TextRole, state.Item1, selected, Disabled));
         var offset = ButtonVisualState.TextOffset(selected);
         _label.Position = new(offset.X, offset.Y);
-        VisualFrame = ButtonVisualState.Frame(Territory, IsHovered(), selected, Disabled);
+        VisualFrame = ButtonVisualState.Frame(Territory, highlighted, selected, Disabled);
         // Use one resolved texture for every Godot draw mode: the original has
         // distinct selected-hover and disabled-selected states.
         var texture = Frames[VisualFrame];

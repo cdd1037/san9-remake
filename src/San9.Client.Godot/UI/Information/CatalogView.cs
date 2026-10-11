@@ -98,6 +98,7 @@ public partial class CatalogView : Control, IInformationPage
             _selectAll = BulkButton("总括选择", new(_body.Position.X + 80, _body.End.Y - 64), () => { Selection.SelectAll(_state.Rows.Select(r => r.Id)); RefreshRows(); });
             _clearSelection = BulkButton("总括解除", new(_body.Position.X + 200, _body.End.Y - 64), () => { Selection.Clear(); RefreshRows(); });
             _confirmSelection = new InformationActionButton { Title = "决定", SkinPrefix = "catalog-accept-", FontSize = 24,
+                TextRole = GameButtonTextRole.ConfirmYes,
                 Textures = Textures, Position = new(_body.End.X - 248, _body.End.Y - 48), Size = new(80, 48) };
             _confirmSelection.Pressed += () => { if (SelectionAccepted) ConfirmSelection?.Invoke(Selection.Selected); };
             AddChild(_confirmSelection);
@@ -105,12 +106,14 @@ public partial class CatalogView : Control, IInformationPage
         if (Confirmed is not null)
         {
             var confirm = new InformationActionButton { Title = "决定", SkinPrefix = "catalog-accept-", FontSize = 24,
+                TextRole = GameButtonTextRole.ConfirmYes,
                 Textures = Textures, Position = new(_body.End.X - 248, _body.End.Y - 48), Size = new(80, 48) };
             confirm.Pressed += Confirmed; AddChild(confirm);
         }
         if (ShowMap is not null)
         {
-            var map = new InformationActionButton { Title = "地图", MapToggle = true, Textures = Textures,
+            var map = new InformationActionButton { Title = "地图", MapToggle = true,
+                TextRole = GameButtonTextRole.MapMode, Textures = Textures,
                 Position = new(_body.End.X - 352, _body.End.Y - 64), Size = new(108, 32) };
             map.Pressed += ShowMap; AddChild(map);
         }

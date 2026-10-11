@@ -1,6 +1,7 @@
 using Godot;
 using San9.Application.Presentation;
 using San9.Content.Text;
+using San9.Rendering;
 
 namespace San9.Client.Godot;
 
@@ -22,6 +23,9 @@ public partial class CommandNarration : Control
     public string ContentRoot { get; init; } = "";
     public bool SoundEnabled { get; init; } = true;
     public Func<Settings.MessageSpeed> ReadMessageSpeed { get; init; } = () => Settings.MessageSpeed.Normal;
+    public double IllustrationFadeSeconds { get; init; }
+    private TextureRect? _image;
+    private double _imageElapsed;
     private readonly Settings.MessagePageTimer _pageTimer = new();
     public string? InitialSoundRole { get; init; }
     public Func<string,IDisposable>? BeginMusic { get; init; }
@@ -56,6 +60,7 @@ public partial class CommandNarration : Control
         if (_body is not null) { RemoveChild(_body); _body.QueueFree(); }
         _illustration?.Dispose(); _illustration=null; _imageFrameBounds=null;
         _portrait = null;
+        _image = null; _imageElapsed = 0;
         _body = new Control { MouseFilter = MouseFilterEnum.Ignore }; AddChild(_body);
         var entry = Messages[_index];
         if (_musicRole != entry.BackgroundMusicRole)
@@ -100,8 +105,10 @@ public partial class CommandNarration : Control
             var imageSize=new Vector2(asset.Width,asset.Height)*scale;
             float top=(768-imageSize.Y-64-(resultBodyHeight+112))/2;
             _imageFrameBounds=new((1024-imageSize.X-64)/2,top,imageSize.X+64,imageSize.Y+64);
-            _body.AddChild(new TextureRect { Texture=_illustration[imageRole],Position=_imageFrameBounds.Value.Position+new Vector2(32,32),Size=imageSize,
-                ExpandMode=TextureRect.ExpandModeEnum.IgnoreSize,StretchMode=TextureRect.StretchModeEnum.Scale,MouseFilter=MouseFilterEnum.Ignore });
+            _image = new TextureRect { Texture=_illustration[imageRole],Position=_imageFrameBounds.Value.Position+new Vector2(32,32),Size=imageSize,
+                ExpandMode=TextureRect.ExpandModeEnum.IgnoreSize,StretchMode=TextureRect.StretchModeEnum.Scale,MouseFilter=MouseFilterEnum.Ignore,
+                Modulate = new Color(1, 1, 1, SceneOpacity.Darken(0, IllustrationFadeSeconds)) };
+            _body.AddChild(_image);
             float dy=(imageSize.Y+96)/2;
             _resultFrameBounds=new(_resultFrameBounds.Position+new Vector2(0,dy),_resultFrameBounds.Size);
             _message.Position+=new Vector2(0,dy);
@@ -171,6 +178,11 @@ public partial class CommandNarration : Control
     }
     public override void _Process(double delta)
     {
+        if (_image is not null && _illustration?.IsReady == true)
+        {
+            _imageElapsed += delta;
+            _image.Modulate = new Color(1, 1, 1, SceneOpacity.Darken(_imageElapsed, IllustrationFadeSeconds));
+        }
         _elapsed += delta;
         int frame = (int)(_elapsed / ContinuationFrameSeconds);
         if (frame != _frame) { _frame = frame; UpdateContinuation(); }

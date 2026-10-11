@@ -6,8 +6,11 @@ using San9.Client.Godot.Persistence;
 using San9.Client.Godot.Settings;
 using San9.Content.Packages;
 using San9.Content.Scenarios;
+using San9.Rendering;
 
 namespace San9.Client.Godot;
+
+public enum SessionReplacementKind { Startup, Load, NewGame }
 
 /// <summary>Owns session UI replacement while retaining its last complete presentation.</summary>
 public partial class SessionUiHost : Node
@@ -23,7 +26,7 @@ public partial class SessionUiHost : Node
     public GameSession Session => _session ?? InitialSession;
     public StrategySelection Selection { get; private set; } = null!;
     public StrategyHud Hud { get; private set; } = null!;
-    public bool IsSwitching => _pending is not null;
+    public bool IsSwitching => _pending is not null || _replacement is not null;
     public bool CanSave => !IsSwitching && Hud.CanQuickSave;
     public bool IsBlocked => IsSwitching || Hud.SystemMenu?.IsVisibleInTree() == true;
     private GameSession? _session;
@@ -31,9 +34,14 @@ public partial class SessionUiHost : Node
     private GameSession? _pending;
     private UserSettingsSession _settings = null!;
     private string? _settingsError;
+    private SceneTransitionOverlay _transition = null!;
+    private SceneReplacementTransition? _replacement;
+    private bool _bound;
 
     public override void _Ready()
     {
+        _transition = new() { ZIndex = 100, MouseFilter = Control.MouseFilterEnum.Stop };
+        AddChild(_transition);
         _settings = new(new UserSettingsStore(ProjectSettings.GlobalizePath(UserSettingsStore.UserDataPath)));
         try { _settings.Load(); }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or System.Text.DecoderFallbackException)
@@ -41,17 +49,29 @@ public partial class SessionUiHost : Node
             _settingsError = error.Message;
         }
         Music.SetEnabled(_settings.Current.MusicEnabled);
-        Activate(InitialSession);
+        Activate(InitialSession, SessionReplacementKind.Startup);
     }
 
-    public void Activate(GameSession next)
+    public void Activate(GameSession next, SessionReplacementKind kind)
     {
         if (IsSwitching) return;
         _pending = next;
         if (_sessionUi is not null) _sessionUi.ProcessMode = ProcessModeEnum.Disabled;
+        _bound = false;
+        if (_sessionUi is not null && kind == SessionReplacementKind.NewGame)
+        {
+            // Modern scene replacement: retain the old scene until it is fully covered.
+            _replacement = new(1, .875);
+            return;
+        }
+        BindPendingScene();
+    }
+
+    private void BindPendingScene()
+    {
         try
         {
-            World.BindSession(next);
+            World.BindSession(_pending!); _bound = true;
         }
         catch (Exception error)
         {
@@ -70,6 +90,15 @@ public partial class SessionUiHost : Node
             menu.ShowSettingsLoadFailure(settingsError);
         }
         if (!IsSwitching) return;
+        if (_replacement is { } replacement)
+        {
+            replacement.Advance(delta); _transition.Sample(replacement.Opacity);
+            if (replacement.Phase == SceneReplacementPhase.Complete)
+            { _replacement = null; return; }
+            if (replacement.Phase != SceneReplacementPhase.WaitingForScene) return;
+            if (!_bound) BindPendingScene();
+        }
+        if (_pending is null || !_bound) return;
         if (World.LoadError is { } error) RestoreSession(error);
         else if (World.IsVisibleReady) CompleteSwitch();
     }
@@ -77,6 +106,7 @@ public partial class SessionUiHost : Node
     private void RestoreSession(string error)
     {
         _pending = null;
+        _replacement = null; _transition.Sample(0); _bound = false;
         World.BindSession(Session);
         if (_sessionUi is not null)
         {
@@ -99,8 +129,8 @@ public partial class SessionUiHost : Node
             CommandPresentation = Content.Presentation, ContentRoot = Content.ContentRoot,
             SaveStore = SaveStore,
             SaveSummary = note => SaveSlotSummaryFactory.Create(Session, Definition, Content.Text, note),
-            ActivateSession = Activate,
-            StartNewGame = () => Callable.From(() => Activate(CreateNewSession())).CallDeferred(),
+            ActivateSession = next => Activate(next, SessionReplacementKind.Load),
+            StartNewGame = () => Callable.From(() => Activate(CreateNewSession(), SessionReplacementKind.NewGame)).CallDeferred(),
             Music = Music, OverlayHost = overlayHost,
             ReadSettings = () => _settings.Current,
             ApplySettings = draft =>
@@ -124,6 +154,7 @@ public partial class SessionUiHost : Node
         World.CanNavigate = () => !IsSwitching && Hud.CanNavigateMap;
         World.CanIssueOrders = () => !IsSwitching && Hud.CanIssueOrders;
         _pending = null;
+        _replacement?.RevealPreparedScene();
     }
 
     public void RequestQuickLoad() => Hud.SystemMenu.RequestLoad(() =>

@@ -49,6 +49,7 @@ public partial class EndingView : Control
         Sounds = Presentation.Sounds,
         ContentRoot = ContentRoot,
         SoundEnabled = SoundEnabled, ReadMessageSpeed = ReadMessageSpeed,
+        IllustrationFadeSeconds = 1,
         Closed = next
     });
     private void SelectOffice()

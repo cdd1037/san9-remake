@@ -174,7 +174,7 @@ internal sealed record MapSceneRegion(MapScene Scene, Rect2 Bounds, MapBuilding[
             }
         if (objectOverlay is {} overlay) draws.Add((16 * overlay.Depth + 128 + 30000, overlay.Draw));
         foreach (var projectile in Scene.Projectiles(viewport ?? Bounds))
-            draws.Add((projectile.Y + 30000, () => emit(projectile.AssetId, new((float)projectile.X, (float)projectile.Y), null, MapBlendMode.Alpha, false)));
+            draws.Add((projectile.Depth, () => emit(projectile.AssetId, new((float)projectile.X, (float)projectile.Y), null, MapBlendMode.Alpha, false)));
         bool outlined = false;
         void Outlines()
         {

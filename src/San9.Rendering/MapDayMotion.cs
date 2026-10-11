@@ -47,35 +47,70 @@ public sealed record MapAttackMotion(int SourceId, bool SourceIsSettlement, int 
     public MapMotionPoint[] Origins { get; init; } = [];
 }
 public readonly record struct MapMotionPoint(double X, double Y);
-public sealed record MapProjectileSprite(string AssetId, double X, double Y);
+public sealed record MapProjectileSprite(string AssetId, double X, double Y)
+{
+    public int Depth => MapProjectiles.VisualDepth;
+}
 
 public static class MapProjectiles
 {
+    public const int VisualDepth = 50000;
+    private const int ShotSpacingMilliseconds = 200;
+    private const int MinimumFlightMilliseconds = 256;
+    private const int BallisticMillisecondsPerPixel = 2;
+    private const int GroundMillisecondsPerPixel = 4;
+
+    private readonly record struct Flight(MapMotionPoint Origin, MapMotionPoint Target, double Duration, double Height);
+
+    private static int ShotCount(MapAttackMotion attack) => attack.Origins.Length > 0 ? attack.Origins.Length :
+        attack.Projectile == MapProjectileKind.Arrow ? (attack.SourceIsSettlement ? 8 : 5) : 1;
+
+    private static int Scatter(MapAttackMotion attack, int shot, int channel, int radius) =>
+        (int)(UnitVisuals.Seed(attack.SourceId, attack.TargetId, shot * 5 + channel) % (uint)(radius * 2 + 1)) - radius;
+
+    private static Flight PrepareFlight(MapAttackMotion attack, int shot)
+    {
+        var origin = attack.Origins.Length > shot ? attack.Origins[shot] : new MapMotionPoint(attack.FromX, attack.FromY);
+        var target = new MapMotionPoint(attack.ToX, attack.ToY);
+        bool ballistic = attack.Projectile is MapProjectileKind.Arrow or MapProjectileKind.Stone;
+        if (ballistic)
+        {
+            // Wall volleys already have authored origins; unit volleys spread around their formation center.
+            if (attack.Projectile == MapProjectileKind.Arrow && !attack.SourceIsSettlement && attack.Origins.Length == 0 && shot > 0)
+                origin = new(origin.X + Scatter(attack, shot, 0, 16), origin.Y + Scatter(attack, shot, 1, 8));
+            target = new(target.X + Scatter(attack, shot, 2, 32), target.Y + Scatter(attack, shot, 3, 32));
+        }
+        double dx = target.X - origin.X, dy = target.Y - origin.Y;
+        double duration = Math.Max(MinimumFlightMilliseconds, Math.Sqrt(dx * dx + dy * dy) *
+            (ballistic ? BallisticMillisecondsPerPixel : GroundMillisecondsPerPixel));
+        double height = attack.Projectile == MapProjectileKind.Rockfall ? 0 : Math.Sqrt(dx * dx + 4 * dy * dy) / 8;
+        if (ballistic)
+            height *= 0.85 + (UnitVisuals.Seed(attack.SourceId, attack.TargetId, shot * 5 + 4) % 31) / 100.0;
+        return new(origin, target, duration, height);
+    }
+
     public static IEnumerable<MapProjectileSprite> Sample(MapAttackMotion attack, MapProjectile art, double milliseconds,
         IReadOnlyDictionary<string, MapAnimationClip>? clips = null)
     {
-        int count = attack.Origins.Length > 0 ? attack.Origins.Length : attack.Projectile == MapProjectileKind.Arrow ? (attack.SourceIsSettlement ? 8 : 5) : 1;
-        for (int i = 0; i < count; i++)
+        for (int i = 0; i < ShotCount(attack); i++)
         {
-            double elapsed = milliseconds - i * 200;
-            var origin = attack.Origins.Length > i ? attack.Origins[i] : new MapMotionPoint(attack.FromX, attack.FromY);
-            double dx = attack.ToX - origin.X, dy = attack.ToY - origin.Y;
-            double duration = Math.Max(256, Math.Sqrt(dx * dx + dy * dy) * 4);
-            double t = elapsed / duration;
-            if (t < 0) continue;
-            if (t >= 1)
+            double elapsed = milliseconds - i * ShotSpacingMilliseconds;
+            if (elapsed < 0) continue;
+            var flight = PrepareFlight(attack, i);
+            double dx = flight.Target.X - flight.Origin.X, dy = flight.Target.Y - flight.Origin.Y;
+            double t = elapsed / flight.Duration;
+            if (milliseconds >= flight.Duration + i * ShotSpacingMilliseconds)
             {
                 if (art.Impact is {} impact && clips is not null)
                 {
                     var clip = clips[impact.ClipId];
-                    int index = (int)((elapsed - duration) / clip.FrameMilliseconds);
-                    if (index < clip.Frames.Length) yield return new(clip.Frames[index], attack.ToX + impact.X, attack.ToY + impact.Y);
+                    int index = (int)((elapsed - flight.Duration) / clip.FrameMilliseconds);
+                    if (index < clip.Frames.Length) yield return new(clip.Frames[index], flight.Target.X + impact.X, flight.Target.Y + impact.Y);
                 }
                 continue;
             }
-            double height = attack.Projectile == MapProjectileKind.Rockfall ? 0 : Math.Sqrt(dx * dx + 4 * dy * dy) / 8;
-            double x = origin.X + dx * t;
-            double y = origin.Y + dy * t - 4 * height * t * (1 - t);
+            double x = flight.Origin.X + dx * t;
+            double y = flight.Origin.Y + dy * t - 4 * flight.Height * t * (1 - t);
             if (attack.Path.Length > 1)
             {
                 double step = t * (attack.Path.Length - 1);
@@ -85,7 +120,7 @@ public static class MapProjectiles
                 y = a.Y + (b.Y - a.Y) * (step - index);
             }
             int frame = art.Directional
-                ? ((int)Math.Round(Math.Atan2(dy - 4 * height * (1 - 2 * t), dx) * art.Frames.Length / (2 * Math.PI)) + art.Frames.Length) % art.Frames.Length
+                ? ((int)Math.Round(Math.Atan2(dy - 4 * flight.Height * (1 - 2 * t), dx) * art.Frames.Length / (2 * Math.PI)) + art.Frames.Length) % art.Frames.Length
                 : (int)(elapsed / art.FrameMilliseconds) % art.Frames.Length;
             yield return new(art.Frames[frame], x - art.AnchorX,
                 y - art.AnchorY);
@@ -93,10 +128,7 @@ public static class MapProjectiles
     }
     public static double Duration(MapAttackMotion attack)
     {
-        if (attack.Origins.Length > 0)
-            return attack.Origins.Select((p, i) => Math.Max(256, Math.Sqrt(Math.Pow(attack.ToX - p.X, 2) + Math.Pow(attack.ToY - p.Y, 2)) * 4) + i * 200).Max();
-        double dx = attack.ToX - attack.FromX, dy = attack.ToY - attack.FromY;
-        return Math.Max(256, Math.Sqrt(dx * dx + dy * dy) * 4) +
-            (attack.Projectile == MapProjectileKind.Arrow ? (attack.SourceIsSettlement ? 7 : 4) * 200 : 0);
+        return Enumerable.Range(0, ShotCount(attack))
+            .Max(i => PrepareFlight(attack, i).Duration + i * ShotSpacingMilliseconds);
     }
 }

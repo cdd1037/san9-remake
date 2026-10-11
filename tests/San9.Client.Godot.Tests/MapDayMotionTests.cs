@@ -49,14 +49,48 @@ public sealed class MapDayMotionTests
     public void ArrowFlightUsesDirectionalFramesAndFiniteStaggeredVolleys()
     {
         var art = new MapProjectile(Enumerable.Range(0, 16).Select(i => $"arrow-{i}").ToArray(), 64, true, 0, 0);
-        var attack = new MapAttackMotion(1, false, 2, false, 0, 0, 100, 0, 1, UnitVisualAction.Ranged, MapProjectileKind.Arrow);
+        var attack = new MapAttackMotion(1, false, 2, true, 0, 0, 100, 0, 1, UnitVisualAction.Ranged, MapProjectileKind.Arrow);
         Assert.Empty(MapProjectiles.Sample(attack, art, -1));
         var first = Assert.Single(MapProjectiles.Sample(attack, art, 0));
         Assert.Equal(0, first.X);
         var flying = MapProjectiles.Sample(attack, art, 100).First();
         Assert.True(flying.Y < 0);
+        Assert.Equal(50000, first.Depth);
+        Assert.Equal(first.Depth, flying.Depth);
         Assert.NotEqual(first.AssetId, MapProjectiles.Sample(attack, art, 300).First().AssetId);
         Assert.Empty(MapProjectiles.Sample(attack, art, MapProjectiles.Duration(attack)));
+    }
+
+    [Fact]
+    public void SiegeVolleyKeepsFastScatteredFlightsStableAcrossSamples()
+    {
+        var attack = new MapAttackMotion(1, false, 2, true, 0, 0, 400, 0, 1, UnitVisualAction.Ranged, MapProjectileKind.Arrow);
+        var art = new MapProjectile(["arrow"], 64, false, 0, 0);
+        var flying = MapProjectiles.Sample(attack, art, 200).ToArray();
+
+        Assert.Equal(2, flying.Length);
+        Assert.Equal(flying, MapProjectiles.Sample(attack, art, 200));
+        Assert.InRange(flying[1].X, -16, 16);
+        Assert.InRange(flying[1].Y, -8, 8);
+        Assert.InRange(MapProjectiles.Duration(attack) - 800, 700, 900);
+        Assert.Empty(MapProjectiles.Sample(attack, art, MapProjectiles.Duration(attack)));
+    }
+
+    [Theory]
+    [InlineData(MapProjectileKind.Arrow)]
+    [InlineData(MapProjectileKind.Stone)]
+    public void ArrowAndStoneUseFastStableArcs(MapProjectileKind kind)
+    {
+        var attack = new MapAttackMotion(1, false, 2, true, 0, 0, 400, 0, 1, UnitVisualAction.Ranged, kind)
+        { Origins = [new(0, 0)] };
+        var art = new MapProjectile(["projectile"], 64, false, 0, 0);
+        double duration = MapProjectiles.Duration(attack);
+
+        Assert.InRange(duration, 700, 900);
+        var midpoint = Assert.Single(MapProjectiles.Sample(attack, art, duration / 2));
+        Assert.True(midpoint.Y < 0);
+        Assert.Equal(midpoint, Assert.Single(MapProjectiles.Sample(attack, art, duration / 2)));
+        Assert.Empty(MapProjectiles.Sample(attack, art, duration));
     }
 
     [Fact]

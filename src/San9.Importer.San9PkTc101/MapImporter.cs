@@ -18,7 +18,7 @@ public static class MapImporter
         var zones = Scenario(San9ScenarioZoneArchive.ReadKnownRecords);
         var fixedBuildings = Scenario(San9ScenarioFixedBuildingArchive.ReadKnownRecords);
         San9ScenarioSquareArchive.ValidateKnownTopology(rawSquares, cities, zones);
-        var squares = rawSquares.Select(s => new MapSquare(s.TerrainCode, s.OffsetCode, s.ElevationTransitionMask, s.RegionCode ?? -1) { HideRegionName = s.IsExcludedFromRegionSquareCount }).ToArray();
+        var squares = rawSquares.Select(s => new MapSquare(s.TerrainCode, s.OffsetCode, s.ElevationTransitionMask, s.RegionCode ?? -1) { HideRegionName = s.IsExcludedFromRegionSquareCount, TextureVariant = s.OpaqueField0B }).ToArray();
         var assets = resources.Assets;
         var compositions = resources.Compositions;
         var terrain = MapTerrainCompiler.Compile(rawSquares, resources.MaskPositions, resources.MaskHeightAdjustments);
@@ -57,6 +57,6 @@ public static class MapImporter
         var clouds = MapCloudCompiler.Foreground(squares, orderedBuildings, assets.ToDictionary(a => a.Id), cloudPlacements);
         var animations = new MapAnimations(resources.Clips, MapAnimationCompiler.PlaceWater(rawSquares));
         string[] names = ["spring", "summer", "autumn", "winter"];
-        return new(14, San9PkTc101Detector.SourceBuildId, header.ScenarioId.ToString(System.Globalization.CultureInfo.InvariantCulture), names[(header.StartDate.Month - 1) / 3], 200, 200, 13056, 6656, squares, resources.Seasons, assets, resources.Masks, terrain, bridges.ToArray(), orderedBuildings.Select(b => new MapBuildingPlacement(b.Id,b.X,b.Y,b.FixedType)).ToArray(), compositions, clouds, edges.Left, edges.Right, sources.OrderBy(s => s.Name, StringComparer.Ordinal).ToArray(), animations, boundaries) { Units = resources.Units, MinimapColors = resources.MinimapColors, BuildingTypes = fixedBuildings.Select((b,id) => new MapBuildingType(id, b.MaxDurability)).ToArray() };
+        return new(15, San9PkTc101Detector.SourceBuildId, header.ScenarioId.ToString(System.Globalization.CultureInfo.InvariantCulture), names[(header.StartDate.Month - 1) / 3], 200, 200, 13056, 6656, squares, resources.Seasons, assets, resources.Masks, terrain, bridges.ToArray(), orderedBuildings.Select(b => new MapBuildingPlacement(b.Id,b.X,b.Y,b.FixedType)).ToArray(), compositions, clouds, edges.Left, edges.Right, sources.OrderBy(s => s.Name, StringComparer.Ordinal).ToArray(), animations, boundaries) { Units = resources.Units, MinimapColors = resources.MinimapColors, BuildingTypes = fixedBuildings.Select((b,id) => new MapBuildingType(id, b.MaxDurability)).ToArray() };
     }
 }

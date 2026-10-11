@@ -37,6 +37,7 @@ internal static class MissionPresentationCompiler
         Add("burn-success",9944,null,("person.0","actor"));
         Add("burn-failure",9948,null,("person.0","actor"),("building.0","place"));
         Add("seize-person",9932,null,resultPair);
+        Add("seize-item", 9929, null, ("person.0", "actor"), ("person.1", "previous-holder"), ("treasure.0", "treasure"));
         Add("seize-failure",9937,null,("person.0","actor"),("building.0","place"));
         Add("rumor-success",9940,null,("person.0","actor"),("force.0","target-force"));
         Add("rumor-failure",9942,null,("person.0","actor"),("force.0","target-force"));
@@ -57,12 +58,15 @@ internal static class MissionPresentationCompiler
         Add("surrender-success",6640,null,("force.0","force"),("force.1","target-force"));
         Add("surrender-failure",6641,null,("force.0","force"),("force.1","target-force"));
         foreach (string role in messages.Keys.Where(k => k.EndsWith("-start", StringComparison.Ordinal)).ToArray())
-            messages[role] = messages[role] with { Sound = role switch
+            messages[role] = messages[role] with
+            {
+                Sound = role switch
             {
                 "seize-start" => "seize-departure",
                 "rumor-start" or "gift-start" or "request-start" or "return-start" or "surrender-start" => "mission-departure",
                 _ => "strategy-departure"
-            } };
+                }
+            };
         foreach (string role in new[] { "gift", "request", "return", "surrender" })
         {
             messages[role + "-success"] = messages[role + "-success"] with { Sound = "decision-success" };
@@ -112,6 +116,8 @@ internal static class MissionPresentationCompiler
         Add("burn-reaction-success",10642,"defender",("person.0","defender"),("building.0","place"));
         Add("burn-reaction-failure",10651,"defender",("person.0","defender"),("person.1","actor"),("building.0","place"),("force.0","force"));
         Add("seize-person-action",10684,"actor",[.. resultPair,("building.0","place")]);
+        Add("seize-item-action", 10660, "actor", ("person.0", "actor"), ("person.1", "previous-holder"), ("treasure.0", "treasure"));
+        Add("seize-item-reaction", 10669, "previous-holder", ("person.0", "previous-holder"), ("treasure.0", "treasure"));
         Add("seize-person-reaction",10693,"defender",("person.0","defender"),("person.1","target-person"),("force.0","force"));
         Add("seize-action",10702,"actor",("person.0","actor"),("building.0","place"));
         Add("seize-reaction-success",10711,"defender",("person.0","defender"));

@@ -2,6 +2,8 @@
 
 本页维护内容转换、契约与校验入口，不累计界面实现说明。界面开发统一从[UI 文档](ui/README.md)进入；地图与运行态见[地图文档](map-import.md)和[运行时架构](runtime-state.md)。
 
+当前组合包178提供兵法特写名称与操作文本，并沿用177的数字及状态效果声明：必填`ConditionEffects`映射状态到一次性图集／声音，必填可空`MapNumbers`声明地图正负数字图集及步进；特写必填可空`Numbers`提供小数字、滚动汇总图集、布局、帧间隔与滚动／停定音效，必填`FacilityNumberPositions`覆盖设施布局。沿用176的`Officers`／`FacilityOfficers`武将身体及旗布局，以及175的`WaveEmission`移动箭簇。资源复用共享纹理，不重建贴图；190年运行包已原位更新并完整校验，其他旧组合包运行`import-client`。录像14、保存101／日志105和规则v87不变。证据见[RE-0192](../research/findings/RE-SAN9PK-0192.md)。
+
 P1 计略外交采用组合包 schema166，必需的 `presentation.missions` 字典提供十二类出发、意见、结果、外交会谈、计略行动／回应和军团结果等 88 项语义绑定，并校验消息图参数闭包、说话人及音效引用。出发音效区分计略、流言／外交与夺取；外交会谈及劝降灭亡插图分别提供独立音乐角色，插图复用完整纹理包的 G_Still64。会谈及灭亡音乐从私有目录读取已准备音频，Importer只重命名与复制；客户端仅加载转换包。离线转码见[音频准备](audio-preparation.md)。旧包原位执行 `import-client`，无需重转纹理；190 年包已更新。客户端和原作对齐边界见[操作说明](ui/mission-corps-commands.md)。
 
 皮肤schema48包含红向下／蓝向上目标箭头四帧及独立的建筑锚点 `BuildingArrowOffsets`，并新增都市／势力缩略图共用的 `information-summary` 摘要底图及 `information-map-selected` 多选外框，并补齐共用命令窗口的小样式四角、标题、页脚和裁切遮罩；命令底纹独立于边框尺寸，大小窗口均使用蓝色背景270。内容宽小于416或高小于312时切换小样式，保留贴图透明留白与完整调色板颜色。已有纹理包原位执行 `import-textures --rebuild skin` 即可，剧本包无需重转；完整纹理转换版本为41，定向重建保留原包完整转换版本。
@@ -10,11 +12,19 @@ P1 计略外交采用组合包 schema166，必需的 `presentation.missions` 字
 
 ## 现行版本与历史记录
 
+组合包171新增`presentation.battle`，提供27类主动兵法的消息、地图图集、特写身体动作、强化图与声音，以及建筑类型的烧夷／夺取有限火焰。发生事实保留身份、位置、阵型及实际损失／恢复／转移量，录像格式升为12；保存101、日志105和规则v87不变。190年运行包已原位更新并通过完整引用校验，复用纹理和已准备音频；其他旧组合包运行`import-client`，无需重转纹理。包校验包含消息角色、闭包、图片帧宽、透明度与声音引用；客户端不读取原版EXE或IDA。行为及验收见[兵法表现](../specs/behavior/BEH-UI-0008-battle-presentation.md)。
+
 组合包170新增必填`presentation.mapAudio`，以语义角色提供进行字图声音、四季普通／高爵位共八首地图音乐、身体移动／攻击、设施建设、战场环境、设施箭雨和落石声音。身体、爵位与设施引用由组合包校验，不在客户端判断源编号。导入器只重命名与复制已准备音频，保留实际编码和扩展名；旧包原位执行`import-client`，纹理和保存／日志／录像格式不变。190年包的音频现分为`audio/music`与`audio/sound-effects`，保留27首音乐和170项音效；181项播放角色引用68个物理文件，20种身体及八首地图选曲完整，声音角色不再决定物理文件数量。依据与现代实现边界见[RE-0186](../research/findings/RE-SAN9PK-0186.md)，操作与试听见[战略界面](ui/strategy-ui.md#地图音乐与进行面声音)。
 
 2026-09-27命令来源光圈：皮肤33／纹理转换26增加五帧`minimap-command-pulse`语义资源（首帧无后缀，其余为`-1..-4`），逐色透明度保留。客户端以当前命令菜单对象定位，兼用于城市、其他设施和部队；出征后续页面保留来源，整项结束清除。依据[RE-0158](../research/findings/RE-SAN9PK-0158.md#小地图命令来源光圈补证2026-09-27)。本地纹理及190年组合包已原位重转，五帧均32×36、首帧全透明，29064逻辑图片／5262物理文件完整校验通过。解决方案各测试项目合计3867项通过；未启动游戏，菜单开关、对象切换及后续命令页面往返的实际画面待用户验收。
 
-现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 129，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 170，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 50，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 43。规则为 `san9-core-g10-v87`，保存101／日志105／录像11；协议以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 为准。
+现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 129，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 178，地图 [MapPackage](../src/San9.Content/Maps/MapPackage.cs) 为 15，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 50，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 43。规则为 `san9-core-g10-v87`，保存101／日志105／录像14；协议以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 和 [RecordingService](../src/San9.Application/Persistence/RecordingService.cs) 为准。
+
+组合包178新增特殊国号／最高爵位来源身体、逐帧交锋／反应位移、末段移动与残影、局部粒子及其分组散布／透明度样式、船只尾波和受击水花、目标体型对应的损失音效。客户端只消费内容声明，不读取原作编号或研究库。190年运行包已原位重转并完整校验，复用未变共享纹理；旧组合包须运行`import-client`，无需重转纹理。自动化与真实包核对通过，画面和试听由用户验收。
+
+组合包174为9类智略与2类支援增加必需的`announcement`消息角色，绑定实际发动者、目标主将、兵法或目标所属势力；客户端按头像对白完成边界继续播放后续地图喊话。190年包已原位重转并校验，复用已有纹理与准备音频；旧组合包须重新运行`import-client`。
+
+组合包173提供兵法背景地形规则、过渡／边缘和设施图层、编队行与身体偏移、近战／齐射／攻城动作参数及损失分段。地图15新增必填`TextureVariant`，保留方格地貌变体用于特写选图；源偏移只留在Importer。双方势力行沿用172的`ui.commands.battle.force-name`（一个势力名参数），强化插画逐图300ms。190年运行包已原位执行`import-client`并通过完整校验，复用现有纹理与准备音频；其他旧包同样原位重转，不手改生成物。Rendering根据内容声明准备背景与动作时间线；后续缺口见[兵法表现](../specs/behavior/BEH-UI-0008-battle-presentation.md)。
 
 组合包169在`presentation.progress`增加必填`orderPrompt`与`strategyTitleSound`，分别绑定固定下令结果和战略字图音效；新增转换声音SE_G000／SE_G010，客户端只读语义角色。原位执行`import-client`，无需重转纹理。190年包及第40号测试档已更新，保存／日志／录像格式不变。源声音从已有同版本游戏目录补入忽略的私有输入目录，导出WAV哈希与源一致；证据见[RE-0185入口补证](../research/findings/RE-SAN9PK-0185.md#战略入口固定下令提示与两项音效补证)。
 

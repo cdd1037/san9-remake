@@ -17,7 +17,7 @@ public sealed class MapDayPlanTests
              new(2, "target", 5, 10, 0, 100, 100, 100, 60, [])], [], [])
         { Information = new([], [], [], [new CorpsState(5, 5, null, new(100, 100)) { IsRoot = true }], []) };
         var session = GameSession.Start(definition, 1);
-        var map = new MapPackage(14, "fixture", "plan", "spring", 11, 1, 13056, 6656,
+        var map = new MapPackage(15, "fixture", "plan", "spring", 11, 1, 13056, 6656,
             Enumerable.Repeat(new MapSquare(0, 1, 0, 0), 11).ToArray(), [], [], [], [], [],
             [new(1, 0, 0, 0), new(2, 10, 0, 0)],
             Enumerable.Range(1, 14).Select(id => new MapComposition(id, [])).ToArray(),

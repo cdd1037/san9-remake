@@ -45,6 +45,8 @@ public sealed record ClientContentPackage(int SchemaVersion, ContentSource[] Sou
             if (!Skin.Roles.ContainsKey($"catalog-facility-{facility.Id}"))
                 throw new InvalidDataException($"Missing facility illustration: {facility.Id}");
         Presentation.Validate(Text, Scenario.Officers.Select(o => o.State.Id), Scenario.Settlements.Select(s => s.Id));
+        Presentation.Battle?.Validate(Text, Presentation.Sounds, Scenario.Officers.Select(o => o.State.Id),
+            Scenario.Information.Tactics.Select(t => t.Id), images.DistinctBy(a => a.Id));
         Presentation.MapAudio?.ValidateReferences(Map.Units, Scenario.Information.Ranks.Select(r => r.Id), Map.BuildingTypes.Select(t => t.Id));
         if (Presentation.MapAudio is { } audio && (Scenario.Military?.Facilities.Where(f => f.Buildable)
             .Select(f => f.Id).Except(audio.ConstructionSounds.Keys).Any() ?? false))
@@ -116,7 +118,8 @@ public static class ClientContentFiles
         foreach (var role in instance.IllustrationRoles) roles.Add(role.Key, role.Value);
         var skin = textures.Skin with { Roles = roles, Assets = textures.Skin.Assets.Concat(textures.Library.Assets).Concat(textures.Portraits.Select(p => p.Image)).ToArray() };
         var content = new ClientContentPackage(ScenarioContent.CurrentSchemaVersion, instance.Sources, instance.Map.Resolve(textures.Map), instance.Scenario,
-            instance.Text, skin, textures.Library) { TextureRoot = textureRoot, Portraits = textures.Portraits, Presentation = instance.Presentation };
+            instance.Text, skin, textures.Library)
+        { TextureRoot = textureRoot, Portraits = textures.Portraits, Presentation = instance.Presentation };
         content.ValidateLinks();
         MapPackageFiles.Validate(content.Map);
         return content;

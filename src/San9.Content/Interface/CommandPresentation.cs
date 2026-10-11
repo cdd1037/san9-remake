@@ -25,6 +25,8 @@ public sealed record PersonnelPresentationDefinition(Dictionary<string, Decision
 public sealed record CommandPresentation(Dictionary<string, string> Sounds, PatrolPresentationDefinition? Patrol)
 {
     [System.Text.Json.Serialization.JsonRequired]
+    public BattlePresentationDefinition? Battle { get; init; }
+    [System.Text.Json.Serialization.JsonRequired]
     public MapAudioDefinition? MapAudio { get; init; }
     [System.Text.Json.Serialization.JsonRequired]
     public DecisionPresentations Decisions { get; init; } = DecisionPresentations.Empty;
@@ -89,9 +91,9 @@ public sealed record CommandPresentation(Dictionary<string, string> Sounds, Patr
         if (Missions.Count > 0)
         {
             string[] kinds = ["alienate", "burn", "seize", "rumor", "false-report", "disorder", "inspire", "rescue", "gift", "request", "return", "surrender"];
-            string[] roles = ["actor", "ruler", "adviser", "target-person", "target-ruler", "target-adviser", "target-force", "enemy-force", "second-force", "place", "home", "force", "soldier", "defender", "corps", "year", "month"];
+            string[] roles = ["actor", "ruler", "adviser", "target-person", "target-ruler", "target-adviser", "target-force", "enemy-force", "second-force", "place", "home", "force", "soldier", "defender", "corps", "year", "month", "previous-holder", "treasure"];
             var results = kinds.Where(k => k != "seize").SelectMany(k => new[] { k+"-success",k+"-failure" })
-                .Concat(["seize-person","seize-failure"]);
+                .Concat(["seize-person", "seize-item", "seize-failure"]);
             if (kinds.Select(k => k + "-start").Concat(new[] { "strategy", "gift", "request", "return", "surrender" }
                     .SelectMany(k => new[] { k + "-favorable", k + "-unfavorable" })).Concat(results).Except(Missions.Keys).Any() ||
                 Missions.Values.Any(m => m.Bindings.Values.Except(roles).Any() || m.Speaker is string speaker && !roles.Contains(speaker)))
@@ -100,7 +102,7 @@ public sealed record CommandPresentation(Dictionary<string, string> Sounds, Patr
                 "gift-proposal", "surrender-proposal", "request-proposal", "request-unowned-proposal", "return-proposal", "diplomacy-host-adviser",
                 "gift-host-favorable", "gift-host-unfavorable", "surrender-host-favorable", "surrender-host-unfavorable",
                 "gift-accepted", "gift-refused", "surrender-accepted", "surrender-refused", "surrender-actor-accepted", "surrender-actor-refused", "surrender-eliminated",
-                "false-report-action", "disorder-action", "inspire-action", "rescue-action", "burn-action", "seize-action", "seize-person-action", "seize-person-reaction",
+                "false-report-action", "disorder-action", "inspire-action", "rescue-action", "burn-action", "seize-action", "seize-person-action", "seize-person-reaction", "seize-item-action", "seize-item-reaction",
                 "strategy-reaction-united", "strategy-reaction-countered", "false-report-reaction-defensive", "disorder-reaction-defensive"];
             var reactions = new[] { "false-report", "disorder", "inspire", "rescue", "burn", "seize" }
                 .SelectMany(k => new[] { k+"-reaction-success", k+"-reaction-failure" });
@@ -112,12 +114,15 @@ public sealed record CommandPresentation(Dictionary<string, string> Sounds, Patr
         }
         if (Demolition is { } demolition)
         {
-            new DecisionPresentations([], []) { Shared = new()
+            new DecisionPresentations([], [])
+            {
+                Shared = new()
             {
                 ["confirmation"] = new(demolition.Confirmation, new() { ["building.0"] = "place" }),
                 ["dialogue"] = new(demolition.Dialogue, new() { ["building.0"] = "place", ["person.0"] = "actor" }, "actor"),
                 ["result"] = new(demolition.Result, new() { ["building.0"] = "place", ["force.0"] = "force" }, Sound: demolition.ResultSound)
-            } }.Validate(texts, Sounds, personIds);
+                }
+            }.Validate(texts, Sounds, personIds);
             if (string.IsNullOrWhiteSpace(demolition.ResultSound))
                 throw new InvalidDataException("Missing demolition result sound.");
         }

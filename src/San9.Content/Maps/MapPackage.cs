@@ -9,6 +9,8 @@ public sealed record MapSquare(int Terrain, int Elevation, int ElevationMask, in
 {
     [JsonRequired]
     public bool HideRegionName { get; init; }
+    [JsonRequired]
+    public int TextureVariant { get; init; }
 }
 public sealed record MapSeason(string Id, ImageAsset[] Textures);
 public sealed record MapMask(int Id, string WeightAsset, string CoverageAsset);
@@ -71,7 +73,7 @@ public static class MapPackageFiles
 {
     public static void Validate(MapPackage map)
     {
-        if (map.SchemaVersion != 14 || map.Width != 200 || map.Height != 200 || map.Squares.Length != 40000 ||
+        if (map.SchemaVersion != 15 || map.Width != 200 || map.Height != 200 || map.Squares.Length != 40000 ||
             map.CanvasWidth != 13056 || map.CanvasHeight != 6656) throw new InvalidDataException("Unsupported map dimensions or schema.");
         if (!map.Seasons.Select(s => s.Id).Order().SequenceEqual(new[] { "autumn", "spring", "summer", "winter" }) ||
             !map.Seasons.Any(s => s.Id == map.InitialSeason)) throw new InvalidDataException("Invalid seasons.");
@@ -100,7 +102,7 @@ public static class MapPackageFiles
         if (!common.ContainsKey("cloud-fill") || map.LeftEdge.Length != map.CanvasHeight || map.RightEdge.Length != map.CanvasHeight)
             throw new InvalidDataException("Invalid cloud boundaries.");
         foreach (var square in map.Squares)
-            if (square.Terrain is < 0 or > 16 || square.Elevation is < 0 or > 7 || square.ElevationMask is < 0 or > 15)
+            if (square.Terrain is < 0 or > 16 || square.Elevation is < 0 or > 7 || square.ElevationMask is < 0 or > 15 || square.TextureVariant < 0)
                 throw new InvalidDataException("Invalid square.");
         foreach (var building in map.Buildings)
             if (building.X is < 0 or >= 200 || building.Y is < 0 or >= 200)

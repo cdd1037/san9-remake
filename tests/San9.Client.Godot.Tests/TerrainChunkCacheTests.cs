@@ -9,7 +9,7 @@ public sealed class TerrainChunkCacheTests
     private sealed record Gpu(int Value);
     private static TerrainRenderer Renderer()
     {
-        var map = new MapPackage(14, "fixture", "fixture", "spring", 1, 1, 1024, 512,
+        var map = new MapPackage(15, "fixture", "fixture", "spring", 1, 1, 1024, 512,
             [], [], [], [], [], [], [], [], [], new int?[512], new int?[512], [], new([], []), []);
         return new(map, new() { ["cloud-fill"] = new(1, 1, 3, [1, 2, 3]) }, []);
     }

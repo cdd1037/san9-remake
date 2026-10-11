@@ -62,8 +62,9 @@ public static class ClientContentImporter
         var roles = InformationArtCompiler.Compile(scenarioBytes, scenario, textures.Library, textures.Portraits);
         var dependency = new TextureDependency(Path.GetRelativePath(output, textureRoot).Replace('\\','/'));
         var mapAudio = MapAudioCompiler.Compile(exe);
-        presentation = presentation with { MapAudio = mapAudio.Definition };
-        foreach (var source in mapAudio.Sources.Concat(MapAudioCompiler.MusicSources))
+        var battle = BattlePresentationCompiler.Compile(exe, textures.Library);
+        presentation = presentation with { MapAudio = mapAudio.Definition, Battle = battle.Definition };
+        foreach (var source in mapAudio.Sources.Concat(MapAudioCompiler.MusicSources).Concat(battle.Sources))
             presentation.Sounds.Add(source.Role, AudioAssetCompiler.Path(AudioAssetCompiler.Resolve(audioFiles, source.File)));
         Dictionary<string, byte[]> sounds = new(StringComparer.Ordinal);
         foreach (string file in audioFiles.Values)
@@ -71,7 +72,8 @@ public static class ClientContentImporter
         foreach (string path in presentation.Sounds.Values.Distinct())
             if (!sounds.ContainsKey(path)) throw new InvalidDataException("Missing prepared audio asset: " + path);
         var content = new ScenarioContent(ScenarioContent.CurrentSchemaVersion, sources.Distinct().OrderBy(s => s.Name, StringComparer.Ordinal).ToArray(),
-            dependency, MapInstance.From(map), scenario, text, roles) { Presentation = presentation };
+            dependency, MapInstance.From(map), scenario, text, roles)
+        { Presentation = presentation };
         var loaded = ClientContentFiles.Resolve(content, textures, textureRoot) with { ContentRoot = output };
         foreach (string key in messages.Keys)
             if (!San9.Content.Text.MessageGraph.ReferencesValid(key, messages))
@@ -91,8 +93,14 @@ public static class ClientContentImporter
         {
             var adaptedKeys = adaptations.Select(a => a.Key).ToHashSet(StringComparer.Ordinal);
             var messageAudit = GameplayMessageCompiler.Audit(messages)
-                .Select(a => new { a.Key, SourceKey = PublicationMessageCatalog.Groups.ContainsKey(a.Key) ? a.Key : null,
-                    SourceConfirmed = !adaptedKeys.Contains(a.Key) && a.SourceConfirmed, a.RuntimeReady, a.RequiredArguments }).ToArray();
+                .Select(a => new
+                {
+                    a.Key,
+                    SourceKey = PublicationMessageCatalog.Groups.ContainsKey(a.Key) ? a.Key : null,
+                    SourceConfirmed = !adaptedKeys.Contains(a.Key) && a.SourceConfirmed,
+                    a.RuntimeReady,
+                    a.RequiredArguments
+                }).ToArray();
             await File.WriteAllTextAsync(Path.Combine(output, "message-adaptations.json"),
                 System.Text.Json.JsonSerializer.Serialize(adaptations.Select(a => new
                 { a.Key, SourceKey = a.Key, a.SourceSha256, a.Decision, a.DiscardedHex }),

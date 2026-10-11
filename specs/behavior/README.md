@@ -74,3 +74,4 @@
 
 - [BEH-UI-0006：统一消息与图文显示](BEH-UI-0006-unified-messages.md)（已确认）
 - [BEH-UI-0007：存档与读档界面](BEH-UI-0007-save-load-browser.md)（已实现分页、备注与真实文件存读档）
+- [BEH-UI-0008：地图战斗与兵法演出](BEH-UI-0008-battle-presentation.md)（P3已有接线和自动化验证；普通武力兵法画面细节未对齐原作，尚未完成）

@@ -15,7 +15,7 @@ public sealed record MapInstance(string SourceBuild, string ScenarioId, string I
         m.Width,m.Height,m.CanvasWidth,m.CanvasHeight,m.Squares,m.Terrain,m.Bridges,m.Buildings,
         m.Clouds,m.LeftEdge,m.RightEdge,m.Sources,m.Animations.Water,m.Boundaries,m.BuildingTypes);
 
-    public MapPackage Resolve(MapResources r) => new(14,SourceBuild,ScenarioId,InitialSeason,Width,Height,
+    public MapPackage Resolve(MapResources r) => new(15,SourceBuild,ScenarioId,InitialSeason,Width,Height,
         CanvasWidth,CanvasHeight,Squares,r.Seasons,r.Assets,r.Masks,Terrain,Bridges,Buildings,
         r.Compositions,Clouds,LeftEdge,RightEdge,Sources,new(r.Clips,Water),Boundaries)
         { Units = r.Units, BuildingTypes = BuildingTypes, MinimapColors = r.MinimapColors };
@@ -28,5 +28,5 @@ public sealed record ScenarioContent(int SchemaVersion, ContentSource[] Sources,
 {
     [System.Text.Json.Serialization.JsonRequired]
     public San9.Content.Interface.CommandPresentation Presentation { get; init; } = San9.Content.Interface.CommandPresentation.Empty;
-    public const int CurrentSchemaVersion = 170;
+    public const int CurrentSchemaVersion = 178;
 }

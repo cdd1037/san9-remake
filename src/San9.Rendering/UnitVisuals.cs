@@ -18,6 +18,9 @@ public sealed record UnitVisual(int Id, double CellX, double Depth, MapAnimatedS
 public sealed record UnitVisualState(int Id, double CellX, double CellY, int Elevation, uint Soldiers,
     int FormationId, UnitCondition Condition, int Direction, bool HasCityInfluence, int Color, int Glyph)
 {
+    // A terminal occurrence retains its last living pose until the outcome is presented.
+    public uint? RetainedBodySoldiers { get; init; }
+    public uint BodySoldiers => RetainedBodySoldiers ?? Soldiers;
     public UnitVisualAction Action { get; init; }
     public bool IsEngaged { get; init; }
     public bool IsMoving { get; init; }
@@ -57,10 +60,10 @@ public static class UnitVisuals
         IReadOnlyDictionary<string, MapAnimationClip> clips, UnitMotionPlayback? playback = null,
         Func<double, double, double>? elevationAt = null)
     {
-        if (state.Soldiers == 0 || state.Direction is < 0 or > 7) throw new ArgumentOutOfRangeException(nameof(state));
+        if (state.BodySoldiers == 0 || state.Direction is < 0 or > 7) throw new ArgumentOutOfRangeException(nameof(state));
         var formation = catalog.Formations.Single(f => f.FormationId == state.FormationId);
         var bodies = catalog.Bodies.ToDictionary(b => b.Id);
-        var layout = formation.Layouts.Where(l => l.MinimumSoldiers <= state.Soldiers).MaxBy(l => l.MinimumSoldiers)!;
+        var layout = formation.Layouts.Where(l => l.MinimumSoldiers <= state.BodySoldiers).MaxBy(l => l.MinimumSoldiers)!;
         static (double X, double Y) Ground(UnitVisualState s) => (32 * (s.CellX + 200 - s.CellY) + 96, 16 * (s.CellX + s.CellY + 1) + 112);
         var anchor = Ground(state);
         int x = (int)Math.Round(anchor.X), y = (int)Math.Round(anchor.Y - 10 * ((elevationAt?.Invoke(anchor.X, anchor.Y) ?? state.Elevation) - 1));
@@ -105,8 +108,13 @@ public static class UnitVisuals
             string clip = actions.Length == 0 ? body.DirectionClips[direction] : actions[(int)(MemberSeed(m.Member, 4) % (uint)actions.Length)].DirectionClips[direction];
             Add(clip, m.Pose.X - body.AnchorX, m.Pose.Y - body.AnchorY, m.Pose.GroundY + 30000,
                 attacking ? 0 : (int)(MemberSeed(m.Member, 5) % (uint)clips[clip].Frames.Length));
-            animations[^1] = animations[^1] with { IsBody = true, GroundX = m.Pose.X, GroundY = m.Pose.GroundY,
-                Frame = attacking ? null : playback.Frame(m.Member, clips[clip].Frames.Length) };
+            animations[^1] = animations[^1] with
+            {
+                IsBody = true,
+                GroundX = m.Pose.X,
+                GroundY = m.Pose.GroundY,
+                Frame = attacking ? null : playback.Frame(m.Member, clips[clip].Frames.Length)
+            };
         }
         foreach (var m in members)
         {
@@ -131,7 +139,16 @@ public static class UnitVisuals
             Add(trail.ClipId, trail.X, trail.Y - 10 * (height - 1), trail.Depth, frame: frame);
         }
         return new(state.Id, state.CellX, state.CellX + state.CellY, animations.ToArray())
-        { Action = state.Action, Direction = state.Direction, Soldiers = state.Soldiers, Morale = state.Morale, CommanderNameKey = state.CommanderNameKey, LabelX = x, LabelY = y - 96,
-          AnchorX = x, AnchorY = y };
+        {
+            Action = state.Action,
+            Direction = state.Direction,
+            Soldiers = state.Soldiers,
+            Morale = state.Morale,
+            CommanderNameKey = state.CommanderNameKey,
+            LabelX = x,
+            LabelY = y - 96,
+            AnchorX = x,
+            AnchorY = y
+        };
     }
 }

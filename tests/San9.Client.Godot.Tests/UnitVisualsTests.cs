@@ -10,6 +10,21 @@ public sealed class UnitVisualsTests
     private static UnitVisual Resolve(UnitVisualState state) => Sample(state, Catalog);
 
     [Fact]
+    public void TerminalPresentationShowsZeroSoldiersWhileRetainingTheLastLivingBodyLayout()
+    {
+        var living = State with { Soldiers = 1001 };
+        var terminal = living with { Soldiers = 0, RetainedBodySoldiers = living.Soldiers };
+        var playback = new UnitMotionPlayback();
+        Sample(living, Catalog, playback: playback);
+        var visual = Sample(terminal, Catalog, 1000, history: t => t < 500 ? living : terminal, playback: playback);
+        Assert.Equal(0u, visual.Soldiers);
+        Assert.Equal(2, visual.Animations.Count(a => a.IsBody));
+        var paused = Sample(terminal, Catalog, 1000, history: t => t < 500 ? living : terminal,
+            visualAge: _ => 2000, playback: playback);
+        Assert.Equal(0u, paused.Soldiers); Assert.Equal(2, paused.Animations.Count(a => a.IsBody));
+    }
+
+    [Fact]
     public void StationarySwayAcrossTerrainBoundaryDoesNotMakeBodiesJump()
     {
         var squares = Enumerable.Range(0, 40000).Select(i => new MapSquare(0, i % 200 < 90 ? 1 : 3, 0, 0)).ToArray();
@@ -60,8 +75,11 @@ public sealed class UnitVisualsTests
     {
         var state = State with { Soldiers = 1001, Morale = 20 };
         UnitVisualState History(double t) => state with { CellX = state.CellX + t / 100 };
-        var reordered = Catalog with { Formations = Catalog.Formations.Select(f => f with
-            { Layouts = f.Layouts.Select(l => l with { Members = l.Members.Reverse().ToArray() }).ToArray() }).ToArray() };
+        var reordered = Catalog with
+        {
+            Formations = Catalog.Formations.Select(f => f with
+            { Layouts = f.Layouts.Select(l => l with { Members = l.Members.Reverse().ToArray() }).ToArray() }).ToArray()
+        };
         Assert.Equal(Sample(History(1000), Catalog, 1000, History).Animations,
             Sample(History(1000), reordered, 1000, History).Animations);
     }
@@ -75,7 +93,8 @@ public sealed class UnitVisualsTests
         var slope=Sample(state,Catalog,elevationAt:(x,y)=>x<middle?1:3);
         var a=flat.Animations.Where(s=>s.IsBody).ToArray();
         var b=slope.Animations.Where(s=>s.IsBody).ToArray();
-        for(int i=0;i<a.Length;i++) {
+        for (int i = 0; i < a.Length; i++)
+        {
             Assert.Equal(a[i].Depth,b[i].Depth);
             Assert.Equal(a[i].Y-(a[i].GroundX<middle?0:20),b[i].Y);
         }
@@ -84,9 +103,12 @@ public sealed class UnitVisualsTests
     [Fact]
     public void AttackChangesBodyFramesWhileWakeFlagsAndConditionRemainSeparateLayers()
     {
-        var catalog = Catalog with { Bodies = [Catalog.Bodies[0] with
+        var catalog = Catalog with
+        {
+            Bodies = [Catalog.Bodies[0] with
         { MeleeActions = [new(Enumerable.Range(0, 8).Select(d => $"imperial-{d}").ToArray(), MapProjectileKind.None)],
-          Wake = new("influence", -29, -14) }, Catalog.Bodies[1]] };
+          Wake = new("influence", -29, -14) }, Catalog.Bodies[1]]
+        };
         var unit = Sample(State with { Action = UnitVisualAction.Melee, Condition = UnitCondition.Confused }, catalog);
         Assert.Equal("influence", unit.Animations[0].ClipId);
         Assert.Equal("imperial-0", Assert.Single(unit.Animations, s => s.IsBody).ClipId);

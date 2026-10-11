@@ -40,9 +40,19 @@ public sealed class UnitMotionPlayback
     public IReadOnlyList<Trail> Trails => _trails;
     public UnitMotionPlayback Copy()
     {
-        var copy = new UnitMotionPlayback { _time = _time, _visualTime = _visualTime,
-            _nextPosition = _nextPosition, _movement = _movement, _moving = _moving, IsInitialized = IsInitialized,
-            _layout = _layout, _formation = _formation, _soldiers = _soldiers, Revision = Revision };
+        var copy = new UnitMotionPlayback
+        {
+            _time = _time,
+            _visualTime = _visualTime,
+            _nextPosition = _nextPosition,
+            _movement = _movement,
+            _moving = _moving,
+            IsInitialized = IsInitialized,
+            _layout = _layout,
+            _formation = _formation,
+            _soldiers = _soldiers,
+            Revision = Revision
+        };
         foreach (var (key, member) in _members) copy._members.Add(key, member.Copy());
         copy._trails.AddRange(_trails);
         return copy;
@@ -53,13 +63,13 @@ public sealed class UnitMotionPlayback
     private static (double X, double Y) Point(UnitVisualState s, MapUnitMember m) =>
         (32 * (s.CellX + 200 - s.CellY) + 96 + m.X, 16 * (s.CellX + s.CellY + 1) + 112 + m.Y);
     private static MapUnitLayout Layout(UnitVisualState s, MapUnitCatalog catalog) => catalog.Formations
-        .Single(f => f.FormationId == s.FormationId).Layouts.Where(l => l.MinimumSoldiers <= s.Soldiers)
+        .Single(f => f.FormationId == s.FormationId).Layouts.Where(l => l.MinimumSoldiers <= s.BodySoldiers)
         .MaxBy(l => l.MinimumSoldiers)!;
 
     private void Reconcile(UnitVisualState state, MapUnitCatalog catalog, double time)
     {
-        if (_formation == state.FormationId && _soldiers == state.Soldiers) return;
-        _formation = state.FormationId; _soldiers = state.Soldiers;
+        if (_formation == state.FormationId && _soldiers == state.BodySoldiers) return;
+        _formation = state.FormationId; _soldiers = state.BodySoldiers;
         var selected = Layout(state, catalog);
         if (ReferenceEquals(_layout, selected)) return;
         _layout = selected;
@@ -155,8 +165,15 @@ public sealed class UnitMotionPlayback
             {
                 member.Phase = (member.Phase + member.Definition.Group / 2 + 6) % 256;
                 int wave = ((int)Math.Round(256 * Math.Sin(member.Phase * Math.Tau / 256)) + 256) / 2;
-                int spread = state.Condition switch { UnitCondition.Disguised => 40, UnitCondition.NoFormation => 50,
-                    UnitCondition.Confused => 60, UnitCondition.Routed => 100, UnitCondition.HighSpirits => 25, _ => 35 };
+                int spread = state.Condition switch
+                {
+                    UnitCondition.Disguised => 40,
+                    UnitCondition.NoFormation => 50,
+                    UnitCondition.Confused => 60,
+                    UnitCondition.Routed => 100,
+                    UnitCondition.HighSpirits => 25,
+                    _ => 35
+                };
                 int percentage = spread * (int)Math.Round(100 * UnitVisuals.Disorder(state, member.Definition)) * wave / 25600;
                 member.Offset = (percentage * member.Definition.X / 100, percentage * member.Definition.Y / 100);
             }

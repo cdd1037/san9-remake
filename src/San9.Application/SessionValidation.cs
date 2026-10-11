@@ -12,6 +12,8 @@ internal static class SessionValidation
         if (snapshot.Records.IsDefault || snapshot.Chronicle.IsDefault || snapshot.Records.Length > GameSession.RecentRecordLimit ||
             snapshot.NextOperationSequence < 0)
             throw new ArgumentException("Missing session state.");
+        if (snapshot.Ai is null) throw new ArgumentException("Missing AI state.");
+        snapshot.Ai.Validate(snapshot.World);
         var expected = definition.CreateWorld(snapshot.World.Simulation.InitialSeed);
         var generated = snapshot.World.Forces.Where(f => f.Origin is not null).OrderBy(f => f.Id).ToArray();
         long nextForceId = (long)definition.Content.Forces.Max(f => f.Id) + 1;

@@ -44,6 +44,8 @@ public sealed partial class GameSession
     private bool _executing;
     internal bool IsExecuting => _executing;
     private EndingSelection? _ending;
+    private AiSessionState _ai = new();
+    public AiSessionState AiState => _ai;
     private StrategicContextState _strategicContext;
     public StrategicContextState StrategicContext => _strategicContext;
     public event Action? Changed;
@@ -180,8 +182,14 @@ public sealed partial class GameSession
     }
 
     public static string Fingerprint(ScenarioInitialState definition) => new ScenarioSessionDefinition(definition).Fingerprint;
-    public static GameSession Start(ScenarioInitialState definition, ulong seed, int computerDamageBonusPercent = 0, bool battleDeathsEnabled = false) =>
-        Start(definition, seed, EngineFactory(definition), computerDamageBonusPercent, battleDeathsEnabled);
+    public static GameSession Start(ScenarioInitialState definition, ulong seed, int computerDamageBonusPercent = 0,
+        bool battleDeathsEnabled = false, AiPolicyConfiguration? aiPolicy = null)
+    {
+        var session = Start(definition, seed, EngineFactory(definition), computerDamageBonusPercent, battleDeathsEnabled);
+        session._ai = new() { Configuration = aiPolicy ?? AiPolicyConfiguration.Standard };
+        session._ai.Validate(session.Snapshot);
+        return session;
+    }
 
     internal static GameSession Start(ScenarioInitialState definition, ulong seed, Func<WorldState, SimulationEngine> factory, int computerDamageBonusPercent = 0, bool battleDeathsEnabled = false)
     {
@@ -233,6 +241,7 @@ public sealed partial class GameSession
         session.NextOperationSequence = snapshot.NextOperationSequence;
         session._ending = snapshot.Ending;
         session._strategicContext = snapshot.StrategicContext;
+        session._ai = snapshot.Ai;
         session.HasUnsavedChanges = false;
         return session;
     }
@@ -249,7 +258,7 @@ public sealed partial class GameSession
         if (_capture is not null && ReferenceEquals(_capture.World, world)) return _capture;
         var records = _records.ToImmutableArray();
         var chronicle = _chronicle.ToImmutableArray();
-        return _capture = new(world, records, chronicle, NextOperationSequence) { Ending = _ending, StrategicContext = _strategicContext };
+        return _capture = new(world, records, chronicle, NextOperationSequence) { Ending = _ending, StrategicContext = _strategicContext, Ai = _ai };
     }
 
     public SessionRequest Request(SessionOperation operation, string controllerId = "player", Guid? id = null)
@@ -299,6 +308,7 @@ public sealed partial class GameSession
             DevelopmentOutcome? development = null;
             ChronicleEntry? note = null;
             var ending = _ending;
+            var ai = _ai;
             switch (request.Operation)
             {
                 case EndingOperation selection:
@@ -323,7 +333,7 @@ public sealed partial class GameSession
                     events.AddRange(command.Events);
                     break;
                 case EndControlOperation:
-                    AutomaticTurnRunner.EndControl(candidate, new(request.ControllerId), MilitaryRules, events);
+                    AutomaticTurnRunner.EndControl(candidate, new(request.ControllerId), MilitaryRules, events, ref ai);
                     break;
                 case PrepareAdvanceOperation:
                 case AdvanceOperation:
@@ -334,7 +344,7 @@ public sealed partial class GameSession
                         candidate.Snapshot.Simulation.ActiveControl < candidate.Snapshot.Simulation.Controls.Length)
                     {
                         var seat = candidate.Snapshot.Simulation.Controls[candidate.Snapshot.Simulation.ActiveControl];
-                        AutomaticTurnRunner.EndControl(candidate, new(seat.ControllerId), MilitaryRules, events);
+                        AutomaticTurnRunner.EndControl(candidate, new(seat.ControllerId), MilitaryRules, events, ref ai);
                     }
                     if (request.Operation is AdvanceOperation && candidate.Snapshot.Simulation.Boundary == SimulationBoundary.Stable)
                     {
@@ -360,10 +370,12 @@ public sealed partial class GameSession
                 new SessionRecord(e.Clock, e.Command.ForceId, e.Command.SettlementId, e.Command.OfficerIds[0],
                     e.Command.Activity, e.Increment, e.Cost)).ToArray();
             var snapshot = candidate.Snapshot;
+            ai = ai.Prune(snapshot);
             var strategicContext = Presentation.StrategicContext.Prepare(_snapshotSource.Project(snapshot), _strategicContext);
             var publishedEvents = events.ToImmutableArray();
             var recorded = IsRecording ? new RecordedOperation(request, publishedEvents) : null;
             _simulation = candidate;
+            _ai = ai;
             _ending = ending;
             _strategicContext = strategicContext;
             _records.AddRange(completed);

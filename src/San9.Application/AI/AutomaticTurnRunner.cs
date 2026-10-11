@@ -6,17 +6,17 @@ namespace San9.Application.AI;
 /// <summary>Bounded personnel, reinforcement and economic work for automatic controllers.</summary>
 internal static class AutomaticTurnRunner
 {
-    internal static void EndControl(SimulationEngine engine, CommandContext context, MilitaryRulebook? military, List<DomainEvent> events)
+    internal static void EndControl(SimulationEngine engine, CommandContext context, MilitaryRulebook? military, List<DomainEvent> events, ref AiSessionState ai)
     {
         var state = engine.Snapshot.Simulation;
         if (state.Boundary != SimulationBoundary.Stable || state.ActiveControl >= state.Controls.Length ||
             state.Controls[state.ActiveControl].ControllerId != context.ControllerId)
             throw new InvalidOperationException("Not the active stable controller.");
-        Run(engine, state.Controls[state.ActiveControl], military, events);
+        Run(engine, state.Controls[state.ActiveControl], military, events, ref ai);
         events.AddRange(engine.EndControl(context).Events);
     }
 
-    private static void Run(SimulationEngine engine, ControlSeat active, MilitaryRulebook? military, List<DomainEvent> events)
+    private static void Run(SimulationEngine engine, ControlSeat active, MilitaryRulebook? military, List<DomainEvent> events, ref AiSessionState ai)
     {
         if (active.Kind == ControllerKind.Automatic)
         {
@@ -29,7 +29,7 @@ internal static class AutomaticTurnRunner
                 Id(engine.Snapshot, -1, "strategy"));
             if (strategy is not WaitCommand) events.AddRange(engine.Execute(new(active.ControllerId), strategy).Events);
             Recruit(active, new(active.ControllerId), -1);
-            Develop(active, new(active.ControllerId), -1);
+            ai = EconomicTurnRunner.Run(engine, active, new(active.ControllerId), ai, work => Id(engine.Snapshot, -1, work), events);
         }
         foreach (var corps in engine.Snapshot.Corps.Where(c => c.OwnerId == active.ForceId &&
             c.ControlMode == CorpsControlMode.Automatic && !(active.Kind == ControllerKind.Automatic && c.IsRoot)).OrderBy(c => c.Id))
@@ -43,7 +43,7 @@ internal static class AutomaticTurnRunner
                 Id(engine.Snapshot, corps.Id, "strategy"));
             if (strategy is not WaitCommand) events.AddRange(engine.Execute(context, strategy).Events);
             Recruit(active, context, corps.Id);
-            Develop(active, context, corps.Id);
+            ai = EconomicTurnRunner.Run(engine, active, context, ai, work => Id(engine.Snapshot, corps.Id, work), events);
         }
 
         void Recruit(ControlSeat owner, CommandContext context, int scope)
@@ -68,14 +68,6 @@ internal static class AutomaticTurnRunner
                     break;
                 }
             }
-        }
-
-        void Develop(ControlSeat owner, CommandContext context, int scope)
-        {
-            var development = DomesticCommandSelection.Choose(engine.Snapshot, engine.Validate, owner, context,
-                Id(engine.Snapshot, scope, "domestic"),
-                checked((int)((engine.Snapshot.Clock.DayNumber - engine.Snapshot.Simulation.Started.DayNumber) / 10)));
-            if (development is not WaitCommand) events.AddRange(engine.Execute(context, development).Events);
         }
     }
 

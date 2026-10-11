@@ -7,7 +7,7 @@ namespace San9.Application.AI;
 
 public sealed record AiPolicyConfiguration(string Version, long WorkBudget, int MaximumPurchases)
 {
-    public static AiPolicyConfiguration Standard { get; } = new("economic-v1", 4096, 8);
+    public static AiPolicyConfiguration Standard { get; } = new("allocation-v1", 65536, 8);
 }
 
 public sealed record FoodSecurityGoal(int ForceId, string ControllerId, int AccountId, GameClock Started);
@@ -20,7 +20,7 @@ public sealed record AiSessionState
 
     internal void Validate(WorldSnapshot world)
     {
-        if (Configuration is null || Configuration.Version != "economic-v1" || Configuration.WorkBudget is < 1 or > 1000000 ||
+        if (Configuration is null || Configuration.Version != "allocation-v1" || Configuration.WorkBudget is < 1 or > 1000000 ||
             Configuration.MaximumPurchases is < 1 or > 256 || FoodSecurity.IsDefault || FoodSecurity.Any(g => g is null) ||
             FoodSecurity.DistinctBy(g => (g.ControllerId, g.AccountId)).Count() != FoodSecurity.Length ||
             FoodSecurity.Any(g => string.IsNullOrWhiteSpace(g.ControllerId) || g.Started.DayNumber < world.Simulation.Started.DayNumber ||
@@ -44,7 +44,11 @@ public sealed record AiSessionState
     }
 }
 
-public sealed record EconomicAccountObservation(int Id, long Money, long Food, long RequiredFood);
+public sealed record EconomicAccountObservation(int Id, long Money, long Food, long RequiredFood)
+{
+    public long DailyConsumption { get; init; }
+    public int HorizonDays { get; init; }
+}
 public sealed record FoodPurchaseObservation(int SettlementId, int AccountId, ImmutableArray<int> OfficerIds, int ExchangeRate, uint Maximum);
 public sealed record EconomicObservation(DomesticObservation Domestic, ImmutableArray<EconomicAccountObservation> Accounts,
     ImmutableArray<FoodPurchaseObservation> Purchases, int Turn)
@@ -52,11 +56,14 @@ public sealed record EconomicObservation(DomesticObservation Domestic, Immutable
     public long ProjectionWork { get; init; }
     public bool Complete { get; init; } = true;
 
-    internal static EconomicObservation Capture(SimulationEngine engine, ControlSeat seat, CommandContext context, long budget)
+    internal static EconomicObservation Capture(SimulationEngine engine, ControlSeat seat, CommandContext context, long budget, bool quoteAll = false)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(budget);
         var world = engine.Snapshot;
         var domestic = DomesticObservation.Capture(world, seat, context);
+        var abilities = engine.GetAbilities(world);
+        domestic = domestic with { Abilities = domestic.Settlements.SelectMany(s => s.OfficerIds).Distinct()
+            .ToImmutableDictionary(id => id, id => abilities[id]) };
         var accounts = ImmutableArray.CreateBuilder<EconomicAccountObservation>();
         var purchases = ImmutableArray.CreateBuilder<FoodPurchaseObservation>();
         long work = 0;
@@ -68,15 +75,17 @@ public sealed record EconomicObservation(DomesticObservation Domestic, Immutable
         {
             if (!Spend()) return Result(false);
             // Food projection uses shared garrison, field and in-transit consumption rules.
-            var food = FoodSupplyForecast.Evaluate(FoodSupplyForecast.Capture(world, seat.ForceId, id));
+            var input = FoodSupplyForecast.Capture(world, seat.ForceId, id);
+            var food = FoodSupplyForecast.Evaluate(input);
             var treasury = world.Corps.Single(c => c.Id == id).Treasury;
-            accounts.Add(new(id, treasury.Money, food.Balance, food.Expenditure));
+            accounts.Add(new(id, treasury.Money, food.Balance, food.Expenditure)
+                { DailyConsumption = input.DailyConsumption, HorizonDays = FoodSupplyForecast.DaysUntilHarvest(input) });
         }
         foreach (var settlement in domestic.Settlements)
         {
             if (!Spend()) return Result(false);
             var account = accounts.Single(a => a.Id == settlement.AccountId);
-            if (account.Food >= account.RequiredFood) continue;
+            if (!quoteAll && account.Food >= account.RequiredFood) continue;
             List<FoodPurchaseObservation> singles = [];
             foreach (int id in settlement.OfficerIds)
             {
@@ -88,11 +97,13 @@ public sealed record EconomicObservation(DomesticObservation Domestic, Immutable
                 purchases.Add(candidate);
             }
             var officers = singles.OrderByDescending(p => p.Maximum).ThenBy(p => p.OfficerIds[0])
-                .Take(5).Select(p => p.OfficerIds[0]).ToImmutableArray();
-            for (int count = 2; count <= officers.Length; count++)
+                .Take(6).Select(p => p.OfficerIds[0]).ToImmutableArray();
+            for (int mask = 1; mask < 1 << officers.Length; mask++)
             {
+                int count = System.Numerics.BitOperations.PopCount((uint)mask);
+                if (count is < 2 or > 5) continue;
                 if (!Spend()) return Result(false);
-                var participants = officers.Take(count).ToImmutableArray();
+                var participants = officers.Where((id, index) => (mask & 1 << index) != 0).ToImmutableArray();
                 var quote = engine.GetFoodTradeQuote(seat.ForceId, settlement.Id, participants, FoodTradeDirection.Buy);
                 if (quote.Available) purchases.Add(new(settlement.Id, settlement.AccountId, participants, quote.FoodExchangeRate, quote.MaximumFoodAmount));
             }
@@ -139,8 +150,10 @@ public static class EconomicPlanner
                 if (amount <= 0 || purchase.ExchangeRate <= 0) continue;
                 long cost = (amount + purchase.ExchangeRate - 1) / purchase.ExchangeRate;
                 if (cost > ledger[account.Id]) continue;
+                var intent = new PurchaseFoodIntent(account.Id, purchase.SettlementId, purchase.OfficerIds, (uint)amount);
+                if (rejected?.Contains(CanonicalJson.Hash(intent)) == true) continue;
                 ledger[account.Id] -= cost;
-                return Result(new PurchaseFoodIntent(account.Id, purchase.SettlementId, purchase.OfficerIds, (uint)amount));
+                return Result(intent);
             }
             // Preserve scarce money for supply. No recruitment while the account cannot sustain its army.
             ledger[account.Id] = 0;
@@ -151,63 +164,26 @@ public static class EconomicPlanner
         // Leave capacity to inspect at least one generated candidate before the budget is exhausted.
         var plan = DomesticPlanner.Plan(funded, new(remainingWork - work - 1, 0), observation.Turn);
         work += plan.Evaluations;
-        foreach (var candidate in plan.Candidates)
+        foreach (var generated in plan.Candidates)
         {
             if (!Spend()) return Result(null, true);
-            if (rejected?.Contains(CanonicalJson.Hash(candidate)) == true) continue;
+            var candidate = generated;
             var account = observation.Accounts.Single(a => a.Id == funded.Settlements.Single(s => s.Id == candidate.SettlementId).AccountId);
             if (goals.Any(g => g.AccountId == account.Id) && candidate.Activity != DomesticActivity.Train) continue;
+            if (candidate.Activity == DomesticActivity.Recruit)
+            {
+                var city = funded.Settlements.Single(s => s.Id == candidate.SettlementId);
+                if (candidate.OfficerIds.Any(id => !domestic.Abilities.ContainsKey(id))) continue;
+                uint maximum = (uint)DomesticDevelopment.RecruitCount(city.DraftPopulation, city.Soldiers, city.SoldierCapacity,
+                    city.Money, candidate.OfficerIds.Select(id => domestic.Abilities[id]).ToArray());
+                uint amount = city.ConsumesFood ? FoodSupplyForecast.SustainableRecruitment(city.Soldiers, city.Wounded, maximum,
+                    account.HorizonDays, account.Food - account.RequiredFood) : maximum;
+                if (amount == 0) continue;
+                candidate = candidate with { RecruitAmount = amount };
+            }
+            if (rejected?.Contains(CanonicalJson.Hash(candidate)) == true) continue;
             return Result(new DevelopIntent(account.Id, candidate), plan.BudgetExhausted);
         }
         return Result(null, plan.BudgetExhausted);
-    }
-}
-
-internal static class EconomicTurnRunner
-{
-    internal static AiSessionState Run(SimulationEngine engine, ControlSeat seat, CommandContext context,
-        AiSessionState state, Func<string, Guid> identity, List<DomainEvent> events)
-    {
-        long remaining = state.Configuration.WorkBudget;
-        int purchases = 0;
-        bool developed = false;
-        HashSet<string> rejected = [];
-        while (remaining > 0)
-        {
-            var observation = EconomicObservation.Capture(engine, seat, context, remaining);
-            remaining -= observation.ProjectionWork;
-            var decision = EconomicPlanner.Decide(observation, state.FoodSecurity, context.ControllerId,
-                remaining, !developed, rejected);
-            remaining -= decision.Work;
-            state = state with { FoodSecurity = state.FoodSecurity.Where(g => g.ControllerId != context.ControllerId ||
-                    !observation.Accounts.Any(a => a.Id == g.AccountId))
-                .Concat(decision.Goals).OrderBy(g => g.ForceId).ThenBy(g => g.ControllerId, StringComparer.Ordinal).ThenBy(g => g.AccountId).ToImmutableArray() };
-            if (decision.Intent is null) break;
-            GameCommand command = decision.Intent switch
-            {
-                PurchaseFoodIntent food => new FoodTradeCommand(identity("supply"), seat.ForceId,
-                    engine.Snapshot.Simulation.NextSequence, food.SettlementId, food.OfficerIds, FoodTradeDirection.Buy, food.Amount),
-                DevelopIntent develop => new DevelopCommand(identity("domestic"), seat.ForceId,
-                    engine.Snapshot.Simulation.NextSequence, develop.Development),
-                _ => throw new InvalidOperationException("Unknown economic intent.")
-            };
-            var result = engine.Execute(context, command);
-            if (!result.Submission.Accepted)
-            {
-                if (decision.Intent is DevelopIntent failure) { rejected.Add(CanonicalJson.Hash(failure.Development)); continue; }
-                break;
-            }
-            events.AddRange(result.Events);
-            if (decision.Intent is PurchaseFoodIntent purchase)
-            {
-                var account = observation.Accounts.Single(a => a.Id == purchase.AccountId);
-                if (account.Food + purchase.Amount >= account.RequiredFood)
-                    state = state with { FoodSecurity = state.FoodSecurity.Where(g =>
-                        g.ControllerId != context.ControllerId || g.AccountId != purchase.AccountId).ToImmutableArray() };
-            }
-            if (decision.Intent is DevelopIntent) developed = true;
-            else if (++purchases >= state.Configuration.MaximumPurchases) break;
-        }
-        return state;
     }
 }

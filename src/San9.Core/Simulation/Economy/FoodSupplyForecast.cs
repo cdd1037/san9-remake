@@ -5,14 +5,82 @@ namespace San9.Core.Simulation;
 /// <summary>Known account values only; no task outcomes, world handles or random state.</summary>
 public sealed record FoodSupplyInput(GameClock Clock, GameClock Started, long Balance, long DailyConsumption,
     long Harvest, long? ReplacementSupply);
+public sealed record FoodSupplyChange(int Days, long DailyConsumptionChange, long FoodDelivery = 0);
 
 public static class FoodSupplyForecast
 {
-    public static ResourceOutlook Evaluate(FoodSupplyInput input)
+    public static uint SustainableRecruitment(uint soldiers, uint wounded, uint maximum, int days, long availableFood)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(days);
+        if (availableFood < 0) return 0;
+        uint low = 0, high = maximum;
+        while (low < high)
+        {
+            uint middle = low + (uint)(((ulong)high - low + 1) / 2);
+            long cost = (GarrisonConsumption(checked(soldiers + middle), wounded) - GarrisonConsumption(soldiers, wounded)) * days;
+            if (cost <= availableFood) low = middle;
+            else high = middle - 1;
+        }
+        return low;
+    }
+    public static long FieldConsumption(uint soldiers, uint wounded = 0) => DailyRations.Field(soldiers, wounded);
+    public static long GarrisonConsumption(uint soldiers, uint wounded = 0) => DailyRations.Garrison(soldiers, wounded);
+
+    /// <summary>Maximum cumulative deficit, so future deliveries cannot pay consumption before their arrival.</summary>
+    public static long RequiredFood(long dailyConsumption, int horizonDays, IEnumerable<FoodSupplyChange> changes)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(dailyConsumption);
+        ArgumentOutOfRangeException.ThrowIfNegative(horizonDays);
+        long spent = 0, required = 0;
+        int previous = 0;
+        foreach (var change in changes.Where(c => c.Days <= horizonDays).OrderBy(c => c.Days))
+        {
+            ArgumentOutOfRangeException.ThrowIfNegative(change.Days);
+            ArgumentOutOfRangeException.ThrowIfNegative(change.FoodDelivery);
+            spent = checked(spent + dailyConsumption * (change.Days - previous));
+            required = Math.Max(required, spent);
+            spent -= change.FoodDelivery;
+            dailyConsumption = checked(dailyConsumption + change.DailyConsumptionChange);
+            ArgumentOutOfRangeException.ThrowIfNegative(dailyConsumption);
+            previous = change.Days;
+        }
+        return Math.Max(required, checked(spent + dailyConsumption * (horizonDays - previous)));
+    }
+    /// <summary>Additional food needed while soldiers travel rather than remain in their garrison.</summary>
+    public static long DeploymentExpenditure(uint sourceSoldiers, uint deployedSoldiers, int days, uint sourceWounded = 0, bool sourceConsumesFood = true)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(days);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(deployedSoldiers, sourceSoldiers);
+        long before = sourceConsumesFood ? DailyRations.Garrison(sourceSoldiers, sourceWounded) : 0;
+        long remaining = sourceConsumesFood ? DailyRations.Garrison(sourceSoldiers - deployedSoldiers, sourceWounded) : 0;
+        return checked(Math.Max(0, remaining + DailyRations.Field(deployedSoldiers, 0) - before) * days);
+    }
+
+    public static long ReinforcementExpenditure(uint targetSoldiers, uint receivedSoldiers, int days, uint targetWounded = 0, bool targetConsumesFood = true)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(days);
+        return targetConsumesFood ? checked((DailyRations.Garrison(checked(targetSoldiers + receivedSoldiers), targetWounded) -
+            DailyRations.Garrison(targetSoldiers, targetWounded)) * days) : 0;
+    }
+
+    public static long TransferExpenditure(uint sourceSoldiers, uint targetSoldiers, uint soldiers, int arrivalDays, int horizonDays,
+        uint sourceWounded = 0, uint targetWounded = 0, bool sourceConsumesFood = true, bool targetConsumesFood = true)
+    {
+        int travel = Math.Min(arrivalDays, horizonDays);
+        long afterArrival = (sourceConsumesFood ? DailyRations.Garrison(sourceSoldiers - soldiers, sourceWounded) - DailyRations.Garrison(sourceSoldiers, sourceWounded) : 0) +
+            (targetConsumesFood ? DailyRations.Garrison(checked(targetSoldiers + soldiers), targetWounded) - DailyRations.Garrison(targetSoldiers, targetWounded) : 0);
+        return checked(DeploymentExpenditure(sourceSoldiers, soldiers, travel, sourceWounded, sourceConsumesFood) + Math.Max(0, afterArrival) * Math.Max(0, horizonDays - travel));
+    }
+
+    public static int DaysUntilHarvest(FoodSupplyInput input)
     {
         int dayOfYear = (input.Clock.Month - 1) * 30 + input.Clock.Day - 1;
         int days = (180 - dayOfYear + 359) % 360 + 1;
-        if (input.Clock.DayNumber - input.Started.DayNumber + days < 30) days += 360;
+        return input.Clock.DayNumber - input.Started.DayNumber + days < 30 ? days + 360 : days;
+    }
+    public static ResourceOutlook Evaluate(FoodSupplyInput input)
+    {
+        int days = DaysUntilHarvest(input);
         long expenditure = checked(input.DailyConsumption * days);
         long remaining = Math.Max(0, input.Balance - expenditure);
         return input.ReplacementSupply is long replacement

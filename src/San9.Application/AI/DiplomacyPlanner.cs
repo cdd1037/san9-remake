@@ -8,7 +8,7 @@ public static class DiplomacyPlanner
 {
     public static GameCommand Choose(GameSession session, ControlSeat seat, Guid commandId) => session.ChooseDiplomacy(seat, commandId);
 
-    internal static GameCommand Choose(SimulationEngine engine, ControlSeat seat, Guid commandId)
+    internal static GameCommand Choose(SimulationEngine engine, ControlSeat seat, Guid commandId, Func<bool>? spend = null)
     {
         var world = AiPlanningWorld.Read(engine.Snapshot);
         var context = new CommandContext(seat.ControllerId);
@@ -31,11 +31,13 @@ public static class DiplomacyPlanner
                 int? captor = prisoner.SettlementId is int place ? world.Settlements.Single(s => s.Id == place).OwnerId :
                     prisoner.UnitId is int unit ? world.Units.Single(u => u.Id == unit).OwnerId : null;
                 if (captor is not int target) continue;
+                if (spend is not null && !spend()) return wait;
                 var command = new ReturnPrisonerCommand(commandId, force.Id, sequence, actor.Id, target, prisoner.Id);
                 if (engine.GetPreparationEligibility(context, command) == CommandRejection.None) return command;
             }
             foreach (var target in targets)
             {
+                if (spend is not null && !spend()) return wait;
                 var command = new DemandSurrenderCommand(commandId, force.Id, sequence, actor.Id, target.Id);
                 if (engine.GetSurrenderAdvice(force.Id, actor.Id, target.Id).Opinion == AdviserOpinion.Favorable &&
                     engine.GetPreparationEligibility(context, command) == CommandRejection.None) return command;
@@ -45,6 +47,7 @@ public static class DiplomacyPlanner
                 foreach (var place in world.Settlements.Where(s => !s.IsDestroyed && s.OwnerId is int owner && owner != force.Id &&
                     owner != target.Id && Relation(owner) < 40).OrderBy(s => s.Id).Take(16))
                 {
+                    if (spend is not null && !spend()) return wait;
                     var command = new RequestAttackCommand(commandId, force.Id, sequence, actor.Id, target.Id, place.Id);
                     if (engine.GetAttackRequestAdvice(force.Id, actor.Id, target.Id, place.Id).Opinion == AdviserOpinion.Favorable &&
                         engine.GetPreparationEligibility(context, command) == CommandRejection.None) return command;
@@ -52,6 +55,7 @@ public static class DiplomacyPlanner
             if (world.Corps.Single(c => c.OwnerId == force.Id && c.IsRoot).Treasury.Money < 20000) continue;
             foreach (var target in targets.Where(t => Relation(t.Id) is >= 40 and < 80).OrderByDescending(t => Relation(t.Id)))
             {
+                if (spend is not null && !spend()) return wait;
                 var command = new GiftCommand(commandId, force.Id, sequence, actor.Id, target.Id, new(GiftKind.Money, 2000, null));
                 if (engine.GetPreparationEligibility(context, command) == CommandRejection.None) return command;
             }

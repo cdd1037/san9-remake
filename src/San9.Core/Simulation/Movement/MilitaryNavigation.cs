@@ -39,11 +39,10 @@ internal static class MilitaryNavigation
             ? Math.Max(1, checked(f.Attack.Range + f.Attack.MaximumElevationBonus)) : 1;
         var travel = rules.Travel(unit);
         if (order.IsAttack)
-            return travel.Map.Navigate(unit.Position, MilitaryCombat.TargetArea(world, order, rules), true,
-                travel.Shape, travel.Mode,
-                world.MovementOccupancy(rules, unit.OwnerId, unit.Policies, movingUnit, null), budget,
+            return NavigationArrivalForecast.Advance(travel, unit.Position, MilitaryCombat.TargetArea(world, order, rules), true,
+                world.MovementOccupancy(rules, unit.OwnerId, unit.Policies, movingUnit, null), budget, work, unit.Lookahead,
                 range: position => MilitaryCombat.ApproachRange(world, unit, order, rules, position), rectangularReach: true,
-                maximumRange: Math.Max(Range(formation), Range(naval)), work: work, lookahead: unit.Lookahead,
+                maximumRange: Math.Max(Range(formation), Range(naval)),
                 lookaheadCells: order.UnitId is null ? 25 : 6);
         var target = order.Construction is { } construction
             ? rules.FacilityArea(construction.Position, construction.FacilityTypeId)
@@ -53,9 +52,8 @@ internal static class MilitaryNavigation
         if (order.Construction is null && order.SettlementId is int home && world.Settlements[home].OwnerId == unit.OwnerId &&
             new MapOccupancy(unit.Position, rules.Formation(unit).Footprint).Overlaps(target))
             return new(unit.Position, 0, NavigationStatus.Arrived);
-        return travel.Map.Navigate(unit.Position, target, order.Construction is not null || order.SettlementId is not null,
-            travel.Shape, travel.Mode,
-            world.MovementOccupancy(rules, unit.OwnerId, unit.Policies, movingUnit, order.Construction?.RegionId), budget, work: work, lookahead: unit.Lookahead);
+        return NavigationArrivalForecast.Advance(travel, unit.Position, target, order.Construction is not null || order.SettlementId is not null,
+            world.MovementOccupancy(rules, unit.OwnerId, unit.Policies, movingUnit, order.Construction?.RegionId), budget, work, unit.Lookahead);
     }
 
     internal static int Budget(UnitState unit, MilitaryRulebook rules) =>

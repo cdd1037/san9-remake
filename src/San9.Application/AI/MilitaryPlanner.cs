@@ -11,17 +11,14 @@ public static class MilitaryPlanner
 
     internal static GameCommand Choose(WorldSnapshot world,
         Func<CommandContext, GameCommand, CommandSubmissionResult> validate, MilitaryRulebook? rules,
-        ControlSeat seat, Guid commandId, int? corpsId = null)
+        ControlSeat seat, Guid commandId, int? corpsId = null, NavigationWorkBudget? navigationWork = null)
     {
         world = AiPlanningWorld.Read(world);
         var wait = new WaitCommand(commandId, seat.ForceId, world.Simulation.NextSequence);
         if (rules is null) return wait;
-        var force = world.Forces.Single(f => f.Id == seat.ForceId);
-        var formations = rules.Formations.Values.Where(f => rules.CanSelectFormation(force, f.Id))
-            .OrderBy(f => f.DeploymentCost).ThenBy(f => f.Id).ToArray();
-        var work = new NavigationWorkBudget(100000);
-        var attack = ChooseAttack(world, validate, rules, seat, commandId, corpsId, formations, work);
-        if (attack is not null) return attack;
+        var work = navigationWork ?? new NavigationWorkBudget(100000);
+        var attack = ChooseCombat(world, validate, rules, seat, commandId, corpsId, work);
+        if (attack is not WaitCommand) return attack;
         if (work.Exhausted) return wait;
         var own = world.Settlements.Where(s => s.OwnerId == seat.ForceId && s.CanHostPersons && s.Durability > 0)
             .OrderBy(s => s.Id).ToArray();
@@ -63,6 +60,19 @@ public static class MilitaryPlanner
             if (work.Exhausted) return wait;
         }
         return wait;
+    }
+
+    internal static GameCommand ChooseCombat(WorldSnapshot world,
+        Func<CommandContext, GameCommand, CommandSubmissionResult> validate, MilitaryRulebook? rules,
+        ControlSeat seat, Guid commandId, int? corpsId, NavigationWorkBudget work)
+    {
+        world = AiPlanningWorld.Read(world);
+        var wait = new WaitCommand(commandId, seat.ForceId, world.Simulation.NextSequence);
+        if (rules is null) return wait;
+        var force = world.Forces.Single(f => f.Id == seat.ForceId);
+        var formations = rules.Formations.Values.Where(f => rules.CanSelectFormation(force, f.Id))
+            .OrderBy(f => f.DeploymentCost).ThenBy(f => f.Id).ToArray();
+        return ChooseAttack(world, validate, rules, seat, commandId, corpsId, formations, work) ?? wait;
     }
 
     private static GameCommand? ChooseAttack(WorldSnapshot world, Func<CommandContext, GameCommand, CommandSubmissionResult> validate,

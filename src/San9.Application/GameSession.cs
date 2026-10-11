@@ -46,6 +46,8 @@ public sealed partial class GameSession
     private EndingSelection? _ending;
     private AiSessionState _ai = new();
     public AiSessionState AiState => _ai;
+    public bool AllocationDiagnosticsEnabled { get; set; }
+    public AllocationDiagnostics AllocationDiagnostics { get; } = new();
     private StrategicContextState _strategicContext;
     public StrategicContextState StrategicContext => _strategicContext;
     public event Action? Changed;
@@ -310,6 +312,8 @@ public sealed partial class GameSession
             ChronicleEntry? note = null;
             var ending = _ending;
             var ai = _ai;
+            List<AllocationTrace>? allocationTraces = AllocationDiagnosticsEnabled ? [] : null;
+            List<AllocationBatchTrace>? allocationBatches = AllocationDiagnosticsEnabled ? [] : null;
             switch (request.Operation)
             {
                 case EndingOperation selection:
@@ -334,7 +338,7 @@ public sealed partial class GameSession
                     events.AddRange(command.Events);
                     break;
                 case EndControlOperation:
-                    AutomaticTurnRunner.EndControl(candidate, new(request.ControllerId), MilitaryRules, events, ref ai);
+                    AutomaticTurnRunner.EndControl(candidate, new(request.ControllerId), MilitaryRules, events, ref ai, allocationTraces, allocationBatches);
                     break;
                 case PrepareAdvanceOperation:
                 case AdvanceOperation:
@@ -345,7 +349,7 @@ public sealed partial class GameSession
                         candidate.Snapshot.Simulation.ActiveControl < candidate.Snapshot.Simulation.Controls.Length)
                     {
                         var seat = candidate.Snapshot.Simulation.Controls[candidate.Snapshot.Simulation.ActiveControl];
-                        AutomaticTurnRunner.EndControl(candidate, new(seat.ControllerId), MilitaryRules, events, ref ai);
+                        AutomaticTurnRunner.EndControl(candidate, new(seat.ControllerId), MilitaryRules, events, ref ai, allocationTraces, allocationBatches);
                     }
                     if (request.Operation is AdvanceOperation && candidate.Snapshot.Simulation.Boundary == SimulationBoundary.Stable)
                     {
@@ -378,6 +382,7 @@ public sealed partial class GameSession
             var recorded = IsRecording ? new RecordedOperation(request, publishedEvents) : null;
             _simulation = candidate;
             _ai = ai;
+            if (allocationTraces is not null) AllocationDiagnostics.Publish(allocationTraces, allocationBatches!, publishedEvents);
             _ending = ending;
             _strategicContext = strategicContext;
             _records.AddRange(completed);

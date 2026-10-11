@@ -15,11 +15,14 @@ public readonly record struct DomesticDevelopmentResult(int BaseIncrement, int I
 /// <summary>Base development before combination bonuses; BEH-DOMESTIC-0001.</summary>
 public static class DomesticDevelopment
 {
-    public static int RecruitCount(SettlementState city, uint funds, IReadOnlyList<OfficerAbilities> participants)
+    public static int RecruitCount(SettlementState city, uint funds, IReadOnlyList<OfficerAbilities> participants) =>
+        RecruitCount(city.DraftPopulation, city.Soldiers, city.SoldierCapacity, funds, participants);
+
+    public static int RecruitCount(uint draftPopulation, uint soldiers, uint soldierCapacity, uint funds, IReadOnlyList<OfficerAbilities> participants)
     {
         if (participants.Count == 0) return 0;
         long potential = 3 * (100 * participants.Sum(p => (long)p.Leadership) / (participants.Count + 4)) / 2;
-        return (int)Math.Min(Math.Min(potential, city.DraftPopulation), Math.Min(10L * funds, Math.Max(0L, (long)city.SoldierCapacity - city.Soldiers)));
+        return (int)Math.Min(Math.Min(potential, draftPopulation), Math.Min(10L * funds, Math.Max(0L, (long)soldierCapacity - soldiers)));
     }
 
     public static OfficerState[] OrderParticipants(IEnumerable<OfficerState> people,

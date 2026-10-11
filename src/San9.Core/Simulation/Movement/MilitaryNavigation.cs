@@ -35,15 +35,15 @@ internal static class MilitaryNavigation
         var order = unit.EffectiveOrder!;
         var formation = rules.Formations[unit.FormationId!.Value];
         var naval = unit.NavalFormationId is int id ? rules.Formations[id] : null;
-        int Range(FormationRule? f) => checked((f?.Attack?.Range ?? 0) + (f?.Attack?.MaximumElevationBonus ?? 0));
+        int Range(FormationRule? f) => f?.Attack?.RangedSiege == true
+            ? Math.Max(1, checked(f.Attack.Range + f.Attack.MaximumElevationBonus)) : 1;
         var travel = rules.Travel(unit);
         if (order.IsAttack)
             return travel.Map.Navigate(unit.Position, MilitaryCombat.TargetArea(world, order, rules), true,
                 travel.Shape, travel.Mode,
                 world.MovementOccupancy(rules, unit.OwnerId, unit.Policies, movingUnit, null), budget,
                 range: position => MilitaryCombat.ApproachRange(world, unit, order, rules, position), rectangularReach: true,
-                maximumRange: Math.Max(MapCoordinates.UnitsPerCell,
-                    Math.Max(Range(formation), Range(naval))), work: work, lookahead: unit.Lookahead,
+                maximumRange: Math.Max(Range(formation), Range(naval)), work: work, lookahead: unit.Lookahead,
                 lookaheadCells: order.UnitId is null ? 25 : 6);
         var target = order.Construction is { } construction
             ? rules.FacilityArea(construction.Position, construction.FacilityTypeId)
@@ -63,7 +63,16 @@ internal static class MilitaryNavigation
 
     internal static UnitState Apply(UnitState unit, UnitStep step) => unit with
     {
-        Position = step.Position, MovementRemainder = step.Remainder, Lookahead = step.Navigation.Lookahead,
+        Position = step.Position, MovementRemainder = step.Remainder,
+        Lookahead = step.Navigation.Lookahead,
         Waypoint = step.WaypointReached ? null : unit.Waypoint
     };
+
+    internal static UnitState Commit(WorldMutation world, UnitState unit, UnitStep step, List<DomainEvent> events)
+    {
+        var moved = world.AdvanceNavigation(unit.Id, step);
+        events.Add(new UnitMovedEvent(world.Clock, unit.Id, unit.Position, step.Position, step.Spent, step.Status)
+            { Steps = step.Navigation.Steps });
+        return moved;
+    }
 }

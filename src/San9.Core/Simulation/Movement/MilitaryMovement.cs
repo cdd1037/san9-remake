@@ -237,11 +237,8 @@ internal static class MilitaryMovement
                 events.Add(new UnitOrderChangedEvent(world.Clock, id, fallback, "target-invalid"));
                 continue;
             }
-            WorldPosition from = unit.Position;
             var result = MilitaryNavigation.Advance(world, unit, unit.Id, rules, MilitaryNavigation.Budget(unit, rules));
-            unit = MilitaryNavigation.Apply(unit, result);
-            world.Replace(unit);
-            events.Add(new UnitMovedEvent(world.Clock, id, from, result.Position, result.Spent, result.Status) { Steps = result.Navigation.Steps });
+            unit = MilitaryNavigation.Commit(world, unit, result, events);
             if (order.IsAttack) continue;
             if (!result.Arrived) continue;
             if (order.SettlementId is int destination) Absorb(world, unit, destination, governance, geography, rules, events);

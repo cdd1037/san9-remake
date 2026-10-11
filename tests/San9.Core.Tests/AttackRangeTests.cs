@@ -7,12 +7,13 @@ namespace San9.Core.Tests;
 public sealed class AttackRangeTests
 {
     private static readonly CommandContext Player = new("player");
-    private static SimulationEngine Engine(bool restricted = false, bool waterTarget = false, bool harbor = false, Action<MilitaryRulebook>? captureRules = null)
+    private static SimulationEngine Engine(bool restricted = false, bool waterTarget = false, bool harbor = false,
+        Action<MilitaryRulebook>? captureRules = null, int movementBudget = 100)
     {
         var combat = new CombatProfile(0, 0, 0, 1000, 50);
         var rules = new MilitaryRulebook(new(7, 1, [0, 0, 0, 0, 0, 1, 1],
             [new(0, 1, 1), new(1, 1, 1) { IsWater = waterTarget }],
-            [new(7000, 100, 0, 100000, 1, new(1, 1), TravelMode.Land)
+            [new(7000, movementBudget, 0, 100000, 1, new(1, 1), TravelMode.Land)
                 { Combat = combat, CaptureRanks = [BattleRank.Front],
                     Attack = new(1, false) { ElevationBonusPerLevel = restricted ? 0 : 5, MaximumElevationBonus = restricted ? 0 : 10,
                         RequiresWaterOrHarbor = restricted }, Tactics = new(100, 0, 2, [0], []) },
@@ -40,17 +41,20 @@ public sealed class AttackRangeTests
     }
 
     [Fact]
-    public void ApproachStopsAtHighGroundAndUsesSameRangeForCombatAndTactics()
+    public void HighGroundAllowsCombatAndTacticsWhileOrdinaryApproachContinues()
     {
         MilitaryRulebook rules = null!;
-        var engine = Engine(captureRules: value => rules = value);
+        var engine = Engine(captureRules: value => rules = value, movementBudget: 9);
         Assert.True(engine.Execute(Player, new OrderUnitCommand(Guid.NewGuid(), 1, 0, 0,
             new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 1 })).Submission.Accepted);
         engine.EndControl(Player);
         var events = engine.AdvanceXun().Events;
         Assert.Equal(new WorldPosition(16, 2), events.OfType<UnitMovedEvent>().First(e => e.UnitId == 0).To);
+        Assert.Equal(new WorldPosition(26, 2), events.OfType<UnitMovedEvent>().Last(e => e.UnitId == 0).To);
         Assert.Contains(events.OfType<TacticActivatedEvent>(), e => e.SourceId == 0 && e.Clock.Day == 2);
-        Assert.All(events.OfType<BattleDamageEvent>().Where(e => e.AttackerId == 1), e => Assert.Equal(0u, e.SoldierLoss));
+        Assert.Contains(events.OfType<BattleDamageEvent>(), e => e.AttackerId == 0 && e.Clock.Day == 2);
+        Assert.DoesNotContain(events.OfType<BattleDamageEvent>(), e => e.AttackerId == 1 && e.Clock.Day == 2 && e.SoldierLoss > 0);
+        Assert.Contains(events.OfType<BattleDamageEvent>(), e => e.AttackerId == 1 && e.Clock.Day >= 4 && e.SoldierLoss > 0);
         var restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()), EconomyRulebook.Empty,
             PersonnelRulebook.Empty, TreasureRulebook.Empty, military: rules);
         engine.EndControl(Player); restored.EndControl(Player);

@@ -44,6 +44,43 @@ public sealed class MovementForecastTests
     }
 
     [Fact]
+    public void RoutePreviewContinuesAfterRelayExhaustsTheDailyBudget()
+    {
+        var rules = Rules(100);
+        var unit = new UnitState(0, 1, new(12, 2), 100)
+        { FormationId = 0, Order = new(MilitaryOrderKind.Move, new(32, 2), null), Waypoint = new(2, 2) };
+        var world = World(unit).BeginMutation();
+        var plan = MilitaryRouteQuery.Plan(world.CapturePresentation(), rules, unit, unit.Id);
+        Assert.Equal(NavigationStatus.Arrived, plan.Status);
+        var positions = new List<WorldPosition> { unit.Position };
+        for (int day = 0; day < 4; day++)
+        {
+            List<DomainEvent> events = [];
+            MilitaryMovement.AdvanceDay(world, rules, new([]), PersonnelRulebook.Empty, events);
+            positions.AddRange(Assert.Single(events.OfType<UnitMovedEvent>()).Steps);
+        }
+        Assert.Equal(positions, plan.Steps);
+        Assert.Equal(new WorldPosition(32, 2), world.Units[0].Position);
+    }
+
+    [Fact]
+    public void RelayReplacesItsLookaheadWithTheFinalDestinationLookahead()
+    {
+        var rules = Rules(100);
+        var unit = new UnitState(0, 1, new(12, 2), 100)
+        {
+            FormationId = 0, Order = new(MilitaryOrderKind.Move, new(352, 2), null), Waypoint = new(7, 2),
+            Lookahead = new(new(9, 2), new(new(7, 2), new(1, 1)))
+        };
+        var world = World(unit).BeginMutation();
+        var moved = Day(world, rules);
+        Assert.Null(moved.Waypoint);
+        Assert.NotNull(moved.Lookahead);
+        Assert.Equal(unit.Order.Position, moved.Lookahead.Target.Position);
+        Assert.NotEqual(unit.Lookahead, moved.Lookahead);
+    }
+
+    [Fact]
     public void FrozenOrderQueriesMatchExecutionAndKeepTheirSnapshotAfterOwnershipChanges()
     {
         var rules = Rules(100);
@@ -198,7 +235,7 @@ public sealed class MovementForecastTests
     }
 
     [Fact]
-    public void AttackForecastUsesRangeAndReevaluatesRelocatedTarget()
+    public void AttackForecastPredictsCloseApproachAndReevaluatesRelocatedTarget()
     {
         var rules = new MilitaryRulebook(new(100, 1, Enumerable.Repeat(0, 100).ToImmutableArray(), [new(0, 10, null)],
             [new(0, 95, 0, 10000, 1, new(1, 1), TravelMode.Land) { Combat = new(10, 10, 10, 10, 50), Attack = new(5, true), CaptureRanks = [BattleRank.Front] }], []));
@@ -209,12 +246,14 @@ public sealed class MovementForecastTests
         setup.SetSimulation(setup.Simulation with { Boundary = SimulationBoundary.Stable });
         world.Commit(setup);
         var snapshot = world.CreateSnapshot();
-        Assert.Equal(new(ArrivalEstimateStatus.Known, 2), new MilitaryArrivalForecast(snapshot, rules).Estimate(0));
+        Assert.Equal(new(ArrivalEstimateStatus.Known, 3), new MilitaryArrivalForecast(snapshot, rules).Estimate(0));
         var moved = snapshot with { Units = snapshot.Units.Select(u => u.Id == 1 ? u with { Position = new(36, 2) } : u).ToArray() };
         Assert.Equal(new(ArrivalEstimateStatus.Known, 4), new MilitaryArrivalForecast(moved, rules).Estimate(0));
         var mutation = world.BeginMutation();
         Day(mutation, rules);
         Assert.Equal(new WorldPosition(21, 2), Day(mutation, rules).Position);
+        Assert.Equal(ArrivalEstimateStatus.Known, new MilitaryArrivalForecast(mutation.CapturePresentation(), rules).Estimate(0).Status);
+        Assert.Equal(new WorldPosition(25, 2), Day(mutation, rules).Position);
         Assert.Equal(0, mutation.Units[0].MovementRemainder);
     }
 
@@ -246,14 +285,14 @@ public sealed class MovementForecastTests
     }
 
     [Fact]
-    public void ProspectiveAttackPredictsEnteringRangeAndReevaluatesTargetInNewSnapshot()
+    public void ProspectiveAttackPredictsCloseApproachAndReevaluatesTargetInNewSnapshot()
     {
         var rules = new MilitaryRulebook(new(20, 1, new int[20].ToImmutableArray(), [new(0, 10, null)],
             [new(0, 95, 0, 10000, 1, new(1, 1), TravelMode.Land)
                 { Combat = new(10, 10, 10, 10, 50), Attack = new(5, true), CaptureRanks = [BattleRank.Front] }], [new(1, new(2, 2), new(1, 1))]));
         var snapshot = World(new(0, 2, new(26, 2), 100) { FormationId = 0 }).CreateSnapshot();
         var request = new DeploymentArrivalRequest(1, 0, null, new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 0 }, new());
-        Assert.Equal(new(ArrivalEstimateStatus.Known, 2), new MilitaryArrivalForecast(snapshot, rules).EstimateDeployment(request));
+        Assert.Equal(new(ArrivalEstimateStatus.Known, 3), new MilitaryArrivalForecast(snapshot, rules).EstimateDeployment(request));
         var moved = snapshot with { Units = [snapshot.Units[0] with { Position = new(36, 2) }] };
         Assert.Equal(new(ArrivalEstimateStatus.Known, 4), new MilitaryArrivalForecast(moved, rules).EstimateDeployment(request));
     }

@@ -33,7 +33,10 @@ public abstract class MilitaryTargets
     public int DepartureDelayDays { get; private set; }
     public bool EditingPolicies { get; private set; }
     public string? Error { get; private set; }
-    private readonly IReadOnlyDictionary<MilitaryTarget, MapOccupancy>? _locations;
+    private sealed record RoutePreview(ImmutableArray<MapCell> Cells, string? Error = null)
+    {
+        public bool Reachable => Error is null;
+    }
 
     protected MilitaryTargets(StrategySnapshot view, MilitaryRulebook rules, int ownerId, int? corpsId,
         int? homeId, int? movingUnitId, UnitCommandKind? commandKind = null,
@@ -41,7 +44,6 @@ public abstract class MilitaryTargets
     {
         View = view; Rules = rules; OwnerId = ownerId; MovingUnitId = movingUnitId;
         var world = view.World;
-        _locations = locations;
         InfluenceCells = showInfluence && homeId is int home ? rules.CityInfluenceCells(world.Settlements.Single(s => s.Id == home), world.Settlements).ToImmutableHashSet() : [];
         if (locations is not null)
         {
@@ -89,11 +91,7 @@ public abstract class MilitaryTargets
         if (Selected == target) return true;
         Selected = target;
         WaypointPosition = null;
-        var route = Plan(target, null);
-        Reachable = route is not null;
-        Route = route ?? [];
-        Error = Reachable ? null : "无法到达该目标，请选择其他目标或中继点。";
-        Revision++;
+        UpdateRoute(Plan(target, null));
         return true;
     }
 
@@ -103,9 +101,9 @@ public abstract class MilitaryTargets
     /// <summary>Show the existing intention without selecting a target for the new command.</summary>
     protected void PreviewExistingOrder(MilitaryTarget target, WorldPosition? waypoint)
     {
-        var route = Plan(target, waypoint);
-        Route = route ?? [];
-        WaypointPosition = route is not null ? waypoint : null;
+        var route = Plan(target, waypoint, MovingUnitId is int id ? View.World.Units.Single(u => u.Id == id).Order : null);
+        Route = route.Cells;
+        WaypointPosition = route.Reachable ? waypoint : null;
         Revision++;
     }
 
@@ -119,8 +117,9 @@ public abstract class MilitaryTargets
             View.World.Units.Where(u => u.FormationId is not null).Any(u => rules.GeographicFootprint(u).Contains(cell)))
             return false;
         var route = Plan(target, position);
-        if (route is null) return false;
-        WaypointPosition = position; Route = route.Value; Reachable = true; Error = null; Revision++;
+        if (!route.Reachable) return false;
+        WaypointPosition = position;
+        UpdateRoute(route);
         return true;
     }
 
@@ -131,7 +130,16 @@ public abstract class MilitaryTargets
     }
     public void ReturnToTargets() => EditingPolicies = false;
     public void SetPolicies(UnitPolicies policies)
-    { if (EditingPolicies) Policies = policies; }
+    {
+        if (!EditingPolicies) return;
+        Policies = policies;
+        if (Selected is { } target) UpdateRoute(Plan(target, WaypointPosition));
+    }
+
+    private void UpdateRoute(RoutePreview route)
+    {
+        Route = route.Cells; Reachable = route.Reachable; Error = route.Error; Revision++;
+    }
 
     public bool SetDepartureDelay(int days)
     {
@@ -149,45 +157,41 @@ public abstract class MilitaryTargets
     protected MilitaryOrder ReadyOrder() => EditingPolicies && Selected is { } target && Reachable && CanProceed
         ? OrderFor(target) : throw new InvalidOperationException("Military command is not ready.");
 
-    private ImmutableArray<MapCell>? Plan(MilitaryTarget target, WorldPosition? waypoint)
+    private RoutePreview Plan(MilitaryTarget target, WorldPosition? waypoint, MilitaryOrder? existingOrder = null)
     {
-        if (!CanProceed) return null;
+        const string unreachable = "无法到达该目标，请选择其他目标或中继点。";
+        if (!CanProceed) return new([], unreachable);
         var rules = Rules;
         var world = View.World;
         var travel = rules.Travel(FormationId, NavalFormationId);
         var occupied = MilitaryRouteQuery.Occupancy(world, rules, OwnerId, Policies, movingUnit: MovingUnitId);
         WorldPosition? start = Start(travel, occupied);
-        if (start is null) return null;
-        MapOccupancy destination;
-        if (_locations is not null) destination = _locations[target];
-        else if (target.IsUnit)
-        {
-            var unit = world.Units.Single(u => u.Id == target.Id);
-            destination = new(unit.Position, rules.Formation(unit).Footprint);
-        }
-        else
-        {
-            var place = rules.Place(world.Settlements.Single(s => s.Id == target.Id));
-            destination = rules.BuildingArea(place);
-        }
+        if (start is null) return new([], unreachable);
+        var order = existingOrder ?? OrderFor(target);
         // Construction deploys outside the future building, just as the domain command requires.
-        if (target.Position is not null && new MapOccupancy(start.Value,travel.Shape).Overlaps(destination)) return null;
-        var steps = new List<WorldPosition> { start.Value };
-        if (waypoint is { } via)
+        if (order.Construction is { } construction && new MapOccupancy(start.Value, travel.Shape)
+            .Overlaps(rules.FacilityArea(construction.Position, construction.FacilityTypeId))) return new([], unreachable);
+        var source = MovingUnitId is int moving ? world.Units.Single(u => u.Id == moving) :
+            new UnitState(0, OwnerId, start.Value, 1);
+        var plan = MilitaryRouteQuery.Plan(world, rules, source with
         {
-            var first = travel.Map.FindRoute(start.Value, via, travel.Shape, travel.Mode, occupied);
-            if (!first.Reachable) return null;
-            steps.AddRange(first.Steps);
-        }
-        var last = travel.Map.FindRouteIntoRange(steps[^1], destination, travel.Shape, travel.Mode, occupied);
-        if (!last.Reachable) return null;
-        steps.AddRange(last.Steps);
+            Position = start.Value, FormationId = FormationId, NavalFormationId = NavalFormationId,
+            Order = order, Policies = Policies, Waypoint = waypoint, EngagementTargetId = null,
+            AwaitingPostAction = false, Lookahead = null, Condition = UnitCondition.Normal
+        }, MovingUnitId);
+        if (plan.Status != NavigationStatus.Arrived)
+            return new([], plan.Status switch
+            {
+                NavigationStatus.Planning => "路线规划尚未完成，请选择较近的中继点。",
+                NavigationStatus.Waiting => "当前路线受阻，请选择其他目标或中继点。",
+                _ => unreachable
+            });
         var cells = ImmutableArray.CreateBuilder<MapCell>();
-        foreach (var position in steps)
+        foreach (var position in plan.Steps)
         {
             var cell = MapCoordinates.Cell(position);
             if (cells.Count == 0 || cells[^1] != cell) cells.Add(cell);
         }
-        return cells.ToImmutable();
+        return new(cells.ToImmutable());
     }
 }

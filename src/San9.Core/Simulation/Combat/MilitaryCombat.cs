@@ -71,14 +71,14 @@ internal static class MilitaryCombat
     internal static int ApproachRange(IWorldQuery world, UnitState source, MilitaryOrder target, MilitaryRulebook rules, WorldPosition position)
     {
         var formation = rules.Formation(source, position);
+        if (formation.Attack?.RangedSiege != true || rules.Map.IsWater(position)) return 1;
         int reach = UnitRange(world, source, target, rules, position);
-        if (formation.Attack?.RangedSiege != true) return reach;
         var area = new MapOccupancy(position, formation.Footprint);
         bool targetCanReply;
         if (target.SettlementId is int id)
         {
             var place = world.Settlements[id];
-            if (RequiresCloseSiege(place)) return MapCoordinates.UnitsPerCell;
+            if (RequiresCloseSiege(place)) return 1;
             targetCanReply = new BattleSource(id, true).Area(world, rules).IntersectsExpanded(area,
                 FacilityRange(world, place, source with { Position = position }, rules));
         }
@@ -88,7 +88,7 @@ internal static class MilitaryCombat
             int range = rules.AttackRange(rules.Formation(unit).Attack, unit.Position, position, false, false);
             targetCanReply = Area(unit, rules).IntersectsExpanded(area, range);
         }
-        return targetCanReply ? MapCoordinates.UnitsPerCell : reach;
+        return targetCanReply ? 1 : reach;
     }
 
     internal static void AdvanceDay(WorldMutation world, SimulationRules rules, List<DomainEvent> events,

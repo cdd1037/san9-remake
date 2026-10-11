@@ -13,7 +13,8 @@ public sealed class IntelligenceMartialChainTests
         bool contact = false, uint targetSoldiers = 100000, Action<MilitaryRulebook>? capture = null, int targetX = 12)
     {
         var combat = new CombatProfile(0, 0, 0, 1000, 50);
-        var rules = new MilitaryRulebook(new(6, 1, [0, 0, 0, 0, 0, 0], [new(0, 1, 1)],
+        // Contact boundary cases keep positions fixed throughout the xun despite continued approach.
+        var rules = new MilitaryRulebook(new(6, 1, [0, 0, 0, 0, 0, 0], [new(0, contact ? 100 : 1, contact ? 100 : 1)],
             [new(100, 5, 0, 200000, 3, new(1, 1), TravelMode.Land)
                 { Combat = combat, Attack = new(10, false), CaptureRanks = [BattleRank.Front, BattleRank.Middle, BattleRank.Rear],
                     Tactics = new(100, 0, 4, [0], []) },

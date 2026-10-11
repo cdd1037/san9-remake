@@ -287,6 +287,13 @@ internal sealed partial class WorldMutation : IWorldQuery
 
     internal void Replace(UnitState value) => ReplaceUnit(value, assignsNavigation: false);
 
+    internal UnitState AdvanceNavigation(int unitId, MilitaryNavigation.UnitStep step)
+    {
+        var moved = MilitaryNavigation.Apply(Units[unitId], step);
+        StoreUnit(moved);
+        return moved;
+    }
+
     private void ReplaceUnit(UnitState value, bool assignsNavigation)
     {
         var previous = Units[value.Id];
@@ -300,6 +307,12 @@ internal sealed partial class WorldMutation : IWorldQuery
             value.Condition == UnitCondition.Routed && value.EffectiveOrder.Kind == MilitaryOrderKind.Construct ||
             (previous.FormationId != value.FormationId || previous.NavalFormationId != value.NavalFormationId) || previous.OwnerId != value.OwnerId)
             value = value with { MovementRemainder = 0 };
+        StoreUnit(value);
+    }
+
+    private void StoreUnit(UnitState value)
+    {
+        var previous = Units[value.Id];
         if (previous.OwnerId != value.OwnerId || previous.Position != value.Position || (previous.FormationId != value.FormationId || previous.NavalFormationId != value.NavalFormationId) ||
             previous.IsEmbedded != value.IsEmbedded || previous.IsPersonnel != value.IsPersonnel ||
             previous.Order != value.Order || previous.EngagementTargetId != value.EngagementTargetId || previous.Condition != value.Condition ||

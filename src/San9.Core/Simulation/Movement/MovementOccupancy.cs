@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using San9.Core.Domain;
 
 namespace San9.Core.Simulation;
@@ -66,9 +67,32 @@ internal sealed class MovementOccupancy
     }
 }
 
-/// <summary>Read-only deployment queries use the same diplomacy and obstacle classification as daily movement.</summary>
+public sealed record MilitaryRoutePlan(NavigationStatus Status, ImmutableArray<WorldPosition> Steps);
+
+/// <summary>Read-only route queries use the same navigation as daily movement.</summary>
 public static class MilitaryRouteQuery
 {
+    /// <summary>Traces daily navigation against a frozen world, including relay and automatic lookahead state.</summary>
+    public static MilitaryRoutePlan Plan(WorldSnapshot snapshot, MilitaryRulebook rules, UnitState unit, int? movingUnit,
+        int maximumDays = 4096, int maximumExpanded = 100000)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumDays);
+        var world = new WorldQuery(snapshot);
+        var work = new NavigationWorkBudget(maximumExpanded);
+        var steps = ImmutableArray.CreateBuilder<WorldPosition>();
+        steps.Add(unit.Position);
+        for (int day = 0; day < maximumDays; day++)
+        {
+            var step = MilitaryNavigation.Advance(world, unit, movingUnit, rules, MilitaryNavigation.Budget(unit, rules), work);
+            steps.AddRange(step.Navigation.Steps);
+            if (step.Arrived || step.Status is NavigationStatus.Unreachable or NavigationStatus.Planning ||
+                step.Status == NavigationStatus.Waiting && step.Remainder == 0 && step.Spent == 0)
+                return new(step.Status, steps.ToImmutable());
+            unit = MilitaryNavigation.Apply(unit, step);
+        }
+        return new(NavigationStatus.Planning, steps.ToImmutable());
+    }
+
     public static IReadOnlyList<MapOccupancy> Occupancy(WorldSnapshot snapshot, MilitaryRulebook rules, int owner, UnitPolicies policies,
         bool includeUnits = true, int? movingUnit = null) => MovementOccupancy.Snapshot(snapshot, rules, owner, policies, includeUnits, movingUnit);
 

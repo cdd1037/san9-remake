@@ -283,15 +283,15 @@ public sealed class WarfareAuditAlignmentTests
         var m = World(); var rules = Rules(); var attack = new MilitaryOrder(MilitaryOrderKind.AttackSettlement, null, 2);
         m.Replace(m.Settlements[2] with { Durability = 1 });
         Assert.Equal(0, MilitaryCombat.WallDamage(m, m.Units[1], m.Settlements[2], rules));
-        Assert.Equal(5, MilitaryCombat.ApproachRange(m, m.Units[1], attack, rules, m.Units[1].Position));
+        Assert.Equal(1, MilitaryCombat.ApproachRange(m, m.Units[1], attack, rules, m.Units[1].Position));
         m.Replace(m.Units[1] with { Position = new(27, 7) });
         Assert.Equal(1, MilitaryCombat.WallDamage(m, m.Units[1], m.Settlements[2], rules));
     }
 
     [Theory]
     [InlineData(1000u, 20, 15)]
-    [InlineData(999u, 20, 5)]
-    [InlineData(1000u, 19, 5)]
+    [InlineData(999u, 20, 1)]
+    [InlineData(1000u, 19, 1)]
     public void CatapultRemoteStopHasSoldierAndDurabilityThresholds(uint soldiers, int durability, int reach)
     {
         var m = World(); var rules = Rules();

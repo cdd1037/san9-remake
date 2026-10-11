@@ -123,6 +123,7 @@ public sealed partial class GameSession
 
     public DuelSuccessionPrompt? GetDuelSuccessionPrompt() => _simulation.GetDuelSuccessionPrompt();
 
+    public ResponseRequest? GetPendingResponse() => _simulation.GetPendingResponse();
     public CapturedRulerPrompt? GetCapturedRulerPrompt() => _simulation.GetCapturedRulerPrompt();
     public ExecutionSuccessionPrompt? GetExecutionSuccessionPrompt() => _simulation.GetExecutionSuccessionPrompt();
     internal GameCommand ChooseDiplomacy(ControlSeat seat, Guid commandId) => DiplomacyPlanner.Choose(_simulation, seat, commandId);
@@ -304,7 +305,7 @@ public sealed partial class GameSession
             // One operation can close several controls and advance. Publish only after all validation succeeds.
             var candidate = _simulation.Fork();
             List<DomainEvent> events = [];
-            IReadOnlyList<WorldSnapshot> frames = [];
+            List<WorldSnapshot> frames = [];
             DevelopmentOutcome? development = null;
             ChronicleEntry? note = null;
             var ending = _ending;
@@ -350,7 +351,7 @@ public sealed partial class GameSession
                     {
                         var advance = candidate.AdvanceXun(capturePresentation);
                         events.AddRange(advance.Events);
-                        frames = advance.PresentationFrames;
+                        frames.AddRange(advance.PresentationFrames);
                     }
                     break;
                 case AdvanceDayOperation:
@@ -366,6 +367,7 @@ public sealed partial class GameSession
                 default:
                     return Rejected(SessionRejection.InvalidRequest);
             }
+            AutomaticResponseRunner.Run(candidate, events, capturePresentation ? frames : null);
             var completed = events.OfType<DevelopmentCompletedEvent>().Select(e =>
                 new SessionRecord(e.Clock, e.Command.ForceId, e.Command.SettlementId, e.Command.OfficerIds[0],
                     e.Command.Activity, e.Increment, e.Cost)).ToArray();
@@ -387,6 +389,10 @@ public sealed partial class GameSession
             _capture = null;
             result = new(SessionDisposition.Accepted, SessionRejection.None, publishedEvents, snapshot, Development: development);
             presentationFrames = frames;
+        }
+        catch (AutomaticResponseException failure)
+        {
+            return Rejected(SessionRejection.AutomaticResponseFailed) with { AutomaticResponseFailure = failure.Failure };
         }
         catch (InvalidOperationException) { return Rejected(SessionRejection.NotStable); }
         finally { _executing = false; }
@@ -433,7 +439,8 @@ public sealed partial class GameSession
     public AdvanceXunResult EndControl(CommandContext context)
     {
         var result = Apply(Request(new EndControlOperation(), context.ControllerId));
-        if (result.Disposition == SessionDisposition.Rejected) throw new InvalidOperationException(result.Rejection.ToString());
+        if (result.Disposition == SessionDisposition.Rejected) throw new InvalidOperationException(result.AutomaticResponseFailure is { } failure
+            ? CanonicalJson.Text(failure) : result.Rejection.ToString());
         return new(result.Events, result.Snapshot);
     }
 
@@ -441,7 +448,8 @@ public sealed partial class GameSession
     {
         if (Snapshot.Simulation.Boundary == SimulationBoundary.Terminal) return new([], Snapshot);
         var result = Apply(Request(new AdvanceOperation()));
-        if (result.Disposition == SessionDisposition.Rejected) throw new InvalidOperationException(result.Rejection.ToString());
+        if (result.Disposition == SessionDisposition.Rejected) throw new InvalidOperationException(result.AutomaticResponseFailure is { } failure
+            ? CanonicalJson.Text(failure) : result.Rejection.ToString());
         return new(result.Events, result.Snapshot);
     }
 

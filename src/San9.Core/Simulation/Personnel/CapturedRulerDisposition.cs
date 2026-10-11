@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Text.Json.Serialization;
 using San9.Core.Domain;
 
@@ -7,7 +8,15 @@ public enum CapturedRulerAction { Release, Execute }
 public sealed record ChooseCapturedRulerDispositionCommand(Guid CommandId, int IssuerId, long Sequence,
     int RulerId, [property: JsonRequired] CapturedRulerAction Action) : GameCommand(CommandId, IssuerId, Sequence);
 public sealed record CapturedRulerDecision(GameClock XunStarted, int RulerId, int CaptorId);
-public sealed record CapturedRulerPrompt(int RulerId, int CaptorId, int OriginalForceId);
+public sealed record CapturedRulerPrompt(int RulerId, int CaptorId, int OriginalForceId)
+{
+    public ImmutableArray<CapturedRulerAction> LegalActions { get; init; } =
+        [CapturedRulerAction.Release, CapturedRulerAction.Execute];
+    public int CaptorBaseTrust { get; init; }
+    public OfficerAbilities RulerAbilities { get; init; }
+    public int RelationValue { get; init; }
+    public bool IsAllianceTarget { get; init; }
+}
 public sealed record CapturedRulerDispositionRequestedEvent(GameClock Clock, int RulerId, int CaptorId) : DomainEvent;
 
 internal static class CapturedRulerDisposition
@@ -21,33 +30,17 @@ internal static class CapturedRulerDisposition
         return captor is int id && !world.Forces[id].IsEliminated && PrisonerExecution.DetainedBy(world, person, id) ? id : null;
     }
 
-    internal static int ExecutionChance(WorldMutation world, int captor, OfficerState ruler)
-    {
-        var abilities = world.Abilities(ruler);
-        int best = Math.Max(Math.Max(abilities.War, abilities.Intelligence), Math.Max(abilities.Politics, abilities.Leadership));
-        return Math.Max(0, 70 - world.Forces[captor].BaseTrust / 10 - best / 2 -
-            ForceRelations.Get(world, captor, ruler.OwnerId!.Value).Value);
-    }
-
-    internal static void Apply(WorldMutation world, SimulationRules rules, List<DomainEvent> events,
+    internal static void Apply(WorldMutation world, List<DomainEvent> events,
         GameClock xunStarted, int? afterRuler = null)
     {
         foreach (int id in world.Officers.Keys.Where(id => afterRuler is null || id > afterRuler).Order().ToArray())
         {
             var ruler = world.Officers[id];
             if (Captor(world, ruler) is not int captor) continue;
-            if (world.Simulation.Controls.Any(c => c.ForceId == captor && c.Kind == ControllerKind.Player))
-            {
-                world.SetSimulation(world.Simulation with { Boundary = SimulationBoundary.AwaitingDecision,
-                    PendingCapturedRuler = new(xunStarted, id, captor) });
-                events.Add(new CapturedRulerDispositionRequestedEvent(world.Clock, id, captor));
-                return;
-            }
-            bool execute = world.Simulation.Alliance is { } alliance && alliance.TargetForceId == ruler.OwnerId &&
-                alliance.MemberForceIds.Contains(captor);
-            if (!execute) execute = world.NextRandom("captured-ruler-disposition") % 100 < (ulong)ExecutionChance(world, captor, ruler);
-            Resolve(world, rules, events, new(xunStarted, id, captor), execute ? CapturedRulerAction.Execute : CapturedRulerAction.Release);
-            if (world.Simulation.PendingExecutionSuccession is not null || world.Simulation.Boundary == SimulationBoundary.Terminal) return;
+            world.SetSimulation(world.Simulation with { Boundary = SimulationBoundary.AwaitingDecision,
+                PendingCapturedRuler = new(xunStarted, id, captor) });
+            events.Add(new CapturedRulerDispositionRequestedEvent(world.Clock, id, captor));
+            return;
         }
     }
 
@@ -85,7 +78,7 @@ internal static class CapturedRulerDisposition
         if (world.Simulation.PendingCapturedRuler is not { } pending) return;
         if (!ValidContinuation(world, pending.XunStarted) || !world.Officers.TryGetValue(pending.RulerId, out var ruler) ||
             Captor(world, ruler) != pending.CaptorId ||
-            !world.Simulation.Controls.Any(c => c.ForceId == pending.CaptorId && c.Kind == ControllerKind.Player))
+            !world.Simulation.Controls.Any(c => c.ForceId == pending.CaptorId && !world.Forces[c.ForceId].IsEliminated))
             throw new ArgumentException("Invalid pending captured ruler disposition.");
     }
 }

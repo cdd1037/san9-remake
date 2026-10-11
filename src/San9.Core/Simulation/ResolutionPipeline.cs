@@ -130,7 +130,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
     internal void FinishUnitAndBuildingEvents(WorldMutation world, List<DomainEvent> events, GameClock xunStarted, int? afterRuler = null)
     {
         if (!CheckTerminal(world, events)) return;
-        CapturedRulerDisposition.Apply(world, rules, events, xunStarted, afterRuler);
+        CapturedRulerDisposition.Apply(world, events, xunStarted, afterRuler);
         if (world.Simulation.HasPendingDailyResolution || !CheckTerminal(world, events)) return;
         // The later unit/building phase settles returns already due in the completed day,
         // including those created by that day's commands. Advancing the date is not another countdown tick.

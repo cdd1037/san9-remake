@@ -20,36 +20,25 @@ public sealed class CapturedRulerDispositionTests
     }
 
     [Fact]
-    public void AutomaticZeroChanceStillDrawsAndReleasesBeforeLateReturns()
+    public void AutomaticCaptorWaitsForResponseThenReleasesBeforeLateReturns()
     {
         var (world, rules) = Fixture();
         int loyalty = world.Officers[11].LoyaltyTo(2);
         List<DomainEvent> events = [];
         new ResolutionPipeline(rules).AdvanceDay(world, events);
+        Assert.NotNull(world.Simulation.PendingCapturedRuler);
+        Assert.Equal(OfficerStatus.Captive, world.Officers[11].Status);
+        Assert.DoesNotContain(events.OfType<StageCompletedEvent>(), e => e.Stage == ResolutionStage.UnitAndBuildingEvents);
+        AnswerRelease(world, rules, events);
         Assert.Equal(OfficerStatus.Ruler, world.Officers[11].Status);
         Assert.Equal(loyalty + 3, world.Officers[11].LoyaltyTo(2));
-        Assert.Contains(world.Simulation.RandomStreams, s => s.Name == "captured-ruler-disposition");
+        Assert.DoesNotContain(world.Simulation.RandomStreams, s => s.Name == "captured-ruler-disposition");
         var task = Assert.Single(world.Simulation.Tasks);
         Assert.Equal(world.Clock, task.Started);
         Assert.False(task.Journey!.ReturnLeg!.AfterDailyCommands);
         Assert.Equal(task.Started.DayNumber + task.Journey.ReturnLeg.CountdownDays - 1, task.Due.DayNumber);
         Assert.Single(events.OfType<PrisonerReleasedEvent>());
         Assert.Contains(events.OfType<StageCompletedEvent>(), e => e.Stage == ResolutionStage.UnitAndBuildingEvents);
-    }
-
-    [Theory]
-    [InlineData(19, 99, 0, 20)]
-    [InlineData(20, 100, 0, 18)]
-    [InlineData(1000, 100, 100, 0)]
-    public void ChanceUsesBaseTrustCurrentBestAbilityAndSeparateIntegerDivisions(int trust, int ability, int relation, int expected)
-    {
-        var (world, _) = Fixture();
-        world.Replace(world.Forces[2] with { BaseTrust = trust });
-        world.Replace(world.Officers[11] with { BaseAbilities = new(1, 1, ability, 1) });
-        world.SetRelation(new(1, 2, relation));
-        Assert.Equal(expected, CapturedRulerDisposition.ExecutionChance(world, 2, world.Officers[11]));
-        world.Replace(world.Officers[11] with { Injury = 5 });
-        Assert.True(CapturedRulerDisposition.ExecutionChance(world, 2, world.Officers[11]) >= expected);
     }
 
     [Theory]
@@ -72,11 +61,13 @@ public sealed class CapturedRulerDispositionTests
         Assert.DoesNotContain(world.Simulation.RandomStreams, s => s.Name == "personnel-execution-relations");
     }
 
-    [Fact]
-    public void PlayerHeirWaitResumesSameDayWithoutRepeatingDisposition()
+    [Theory]
+    [InlineData(ControllerKind.Player)]
+    [InlineData(ControllerKind.Automatic)]
+    public void HeirOwnerWaitResumesSameDayWithoutRepeatingDisposition(ControllerKind owner)
     {
         var (world, rules) = Fixture();
-        world.SetSimulation(world.Simulation with { Controls = [new("victim", 1, ControllerKind.Player), new("captor", 2, ControllerKind.Automatic)], ActiveControl = 2 });
+        world.SetSimulation(world.Simulation with { Controls = [new("victim", 1, owner), new("captor", 2, ControllerKind.Automatic)], ActiveControl = 2 });
         world.SetClock(world.Clock.NextDay());
         List<DomainEvent> events = [];
         CapturedRulerDisposition.Resolve(world, rules, events, new(new(190, 1, 1), 11, 2), CapturedRulerAction.Execute);
@@ -90,24 +81,17 @@ public sealed class CapturedRulerDispositionTests
         Assert.Single(events.OfType<StageCompletedEvent>(), e => e.Stage == ResolutionStage.UnitAndBuildingEvents);
     }
     [Theory]
-    [InlineData(19, true)]
-    [InlineData(20, false)]
-    public void AutomaticRollUsesStrictPercentageBoundary(int roll, bool execute)
+    [InlineData(ControllerKind.Player)]
+    [InlineData(ControllerKind.Automatic)]
+    public void CaptorKindDoesNotChangeDecisionEligibility(ControllerKind kind)
     {
-        var (world, rules) = Fixture();
-        world.Replace(world.Forces[2] with { BaseTrust = 0 });
-        for (ulong seed = 1; ; seed++)
-        {
-            var random = new StableRandom(seed);
-            if (random.NextUInt64() % 100 != (ulong)roll) continue;
-            world.SetSimulation(world.Simulation with { RandomStreams = [new("captured-ruler-disposition", seed)] });
-            break;
-        }
+        var (world, rules) = Fixture(kind);
         List<DomainEvent> events = [];
         new ResolutionPipeline(rules).AdvanceDay(world, events);
-        Assert.Equal(execute ? OfficerStatus.Dead : OfficerStatus.Ruler, world.Officers[11].Status);
-        Assert.Equal(execute ? 1 : 0, events.OfType<PrisonerExecutedEvent>().Count());
-        Assert.False(world.Simulation.BattleDeathsEnabled);
+        Assert.Equal(new CapturedRulerDecision(new(190, 1, 1), 11, 2), world.Simulation.PendingCapturedRuler);
+        CapturedRulerDisposition.ValidatePending(world);
+        Assert.Single(events.OfType<CapturedRulerDispositionRequestedEvent>());
+        Assert.Empty(world.Simulation.RandomStreams);
     }
 
     [Theory]
@@ -134,6 +118,7 @@ public sealed class CapturedRulerDispositionTests
         world.SetClock(new(190, 1, day));
         List<DomainEvent> events = [];
         new ResolutionPipeline(rules).AdvanceDay(world, events, new(190, 1, 1));
+        AnswerRelease(world, rules, events);
         Assert.Empty(world.Simulation.Tasks);
         var returned = Assert.Single(events.OfType<PersonnelReturnedEvent>());
         Assert.Equal(world.Clock, returned.Clock);
@@ -158,7 +143,7 @@ public sealed class CapturedRulerDispositionTests
             [new(7, 1, 50, 10000, 5, new(1, 1), TravelMode.Land)],
             [new(1, new(2, 7), new(1, 1)), new(2, new(12, 7), new(1, 1))]));
         var rules = new SimulationRules { Personnel = places, Military = military };
-        CapturedRulerDisposition.Apply(world, rules, [], new(190, 1, 1));
+        CapturedRulerDisposition.Resolve(world, rules, [], new(new(190, 1, 1), 11, 2), CapturedRulerAction.Release);
         var task = Assert.Single(world.Simulation.Tasks);
         Assert.Equal(new WorldPosition(37, 7), task.Journey!.Route.Origin);
         Assert.Equal(2, task.Journey.ReturnLeg!.CountdownDays);
@@ -168,4 +153,12 @@ public sealed class CapturedRulerDispositionTests
         Assert.Equal(11, world.Forces[1].LeaderId);
         Assert.True(world.Units.ContainsKey(10));
     }
+    private static void AnswerRelease(WorldMutation world, SimulationRules rules, List<DomainEvent> events)
+    {
+        var pending = world.Simulation.PendingCapturedRuler!;
+        world.SetSimulation(world.Simulation with { PendingCapturedRuler = null, Boundary = SimulationBoundary.Stable });
+        CapturedRulerDisposition.Resolve(world, rules, events, pending, CapturedRulerAction.Release);
+        new ResolutionPipeline(rules).FinishUnitAndBuildingEvents(world, events, pending.XunStarted, pending.RulerId);
+    }
+
 }

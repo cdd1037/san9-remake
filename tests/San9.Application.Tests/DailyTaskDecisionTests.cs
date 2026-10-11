@@ -101,6 +101,50 @@ public sealed class DailyTaskDecisionTests
     }
 
     [Fact]
+    public void UnsupportedAutomaticTaskResponseReportsIdentityAndRollsBack()
+    {
+        var original = Content();
+        var content = original with { Information = original.Information with { Corps = original.Information.Corps
+            .Select(c => c with { ControlMode = CorpsControlMode.Automatic }).ToArray() } };
+        var session = GameSession.Start(content, 42, Engine);
+        Assert.True(session.Execute(new("corps:1"), new StartTaskCommand(Guid.NewGuid(), 1, 0,
+            "decision-fixture", 2, 1)).Submission.Accepted);
+        session.BeginRecording();
+        var before = session.Capture();
+        var request = session.Request(new AdvanceOperation());
+        var advance = session.Apply(request);
+        Assert.Equal(SessionRejection.AutomaticResponseFailed, advance.Rejection);
+        var failure = Assert.IsType<San9.Application.AI.AutomaticResponseFailure>(advance.AutomaticResponseFailure);
+        Assert.Equal("response-unsupported", failure.Code);
+        Assert.Equal("daily-task", failure.Kind);
+        Assert.Equal("corps:1", failure.ControllerId);
+        Assert.NotEmpty(failure.Identity);
+        Assert.Equal(before.StateHash, session.Capture().StateHash);
+        Assert.Empty(session.CaptureRecording().Operations);
+        Assert.Empty(advance.Events);
+        Assert.Equal(failure, session.Apply(request).AutomaticResponseFailure);
+    }
+
+    [Fact]
+    public void RevokedTaskDelegationReturnsResponseOwnershipToPlayer()
+    {
+        var original = Content();
+        var content = original with { Information = original.Information with { Corps = original.Information.Corps
+            .Select(c => c with { ControlMode = CorpsControlMode.Automatic }).ToArray() } };
+        var session = GameSession.Start(content, 42, Engine);
+        Assert.True(session.Execute(new("corps:1"), new StartTaskCommand(Guid.NewGuid(), 1, 0,
+            "decision-fixture", 2, 1)).Submission.Accepted);
+        Assert.True(session.Execute(new("player"), new SetCorpsControlCommand(Guid.NewGuid(), 1,
+            session.Snapshot.Simulation.NextSequence, 1, CorpsControlMode.Direct)).Submission.Accepted);
+        var result = session.Apply(session.Request(new AdvanceOperation()));
+        Assert.Equal(SessionDisposition.Accepted, result.Disposition);
+        var pending = Assert.IsType<ResponseRequest>(session.GetPendingResponse());
+        Assert.Equal("player", pending.Owner.ControllerId);
+        Assert.Equal(ControllerKind.Player, pending.Owner.Kind);
+        Assert.Equal(SimulationBoundary.AwaitingDecision, session.Snapshot.Simulation.Boundary);
+    }
+
+    [Fact]
     public void PresentationStopsAtUnansweredDailyDecision()
     {
         var session = GameSession.Start(Content(), 42, Engine);

@@ -7,7 +7,7 @@ namespace San9.Application;
 
 public static class SessionProtocol
 {
-    public const string RulesVersion = "san9-core-g10-v93";
+    public const string RulesVersion = "san9-core-g10-v94";
     public const int SaveFormatVersion = 104;
     public const int LogFormatVersion = 108;
 }
@@ -41,11 +41,11 @@ public sealed record EndingOperation(EndingSelection Selection) : SessionOperati
 
 public sealed record SessionRequest(Guid Id, long Sequence, string ControllerId, SessionOperation Operation);
 public enum SessionDisposition { Accepted, AlreadyProcessed, Rejected }
-public enum SessionRejection { None, InvalidRequest, OutOfOrder, CommandRejected, NotStable, Terminal }
+public enum SessionRejection { None, InvalidRequest, OutOfOrder, CommandRejected, NotStable, Terminal, AutomaticResponseFailed }
 
 public sealed record SessionResult(SessionDisposition Disposition, SessionRejection Rejection,
     IReadOnlyList<DomainEvent> Events, WorldSnapshot Snapshot,
-    CommandRejection CommandRejection = CommandRejection.None, DevelopmentOutcome? Development = null);
+    CommandRejection CommandRejection = CommandRejection.None, DevelopmentOutcome? Development = null, AI.AutomaticResponseFailure? AutomaticResponseFailure = null);
 
 public sealed record RecordedOperation(SessionRequest Request, ImmutableArray<DomainEvent> Events);
 public sealed record SessionRecording(string ContentFingerprint, SessionSnapshot Initial, ImmutableArray<RecordedOperation> Operations, string FinalHash);

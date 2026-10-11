@@ -171,7 +171,21 @@ public sealed partial class SimulationEngine
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
         return _world.Simulation.PendingCapturedRuler is { } pending
-            ? new(pending.RulerId, pending.CaptorId, Snapshot.Officers.Single(p => p.Id == pending.RulerId).OwnerId!.Value) : null;
+            ? CreateCapturedRulerPrompt(pending) : null;
+    }
+
+    private CapturedRulerPrompt CreateCapturedRulerPrompt(CapturedRulerDecision pending)
+    {
+        var world = _world.BeginMutation(_rules.Abilities, _rules.Economy);
+        var ruler = world.Officers[pending.RulerId];
+        return new(pending.RulerId, pending.CaptorId, ruler.OwnerId!.Value)
+        {
+            CaptorBaseTrust = world.Forces[pending.CaptorId].BaseTrust,
+            RulerAbilities = world.Abilities(ruler),
+            RelationValue = ForceRelations.Get(world, pending.CaptorId, ruler.OwnerId.Value).Value,
+            IsAllianceTarget = world.Simulation.Alliance is { } alliance &&
+                alliance.TargetForceId == ruler.OwnerId && alliance.MemberForceIds.Contains(pending.CaptorId)
+        };
     }
 
     public ExecutionSuccessionPrompt? GetExecutionSuccessionPrompt()
@@ -481,11 +495,11 @@ public sealed partial class SimulationEngine
         return MilitaryDiplomacy.Warning(_world.BeginMutation(_rules.Abilities, _rules.Economy), forceId, order, _rules.Military);
     }
 
-    public CommandExecutionResult Execute(CommandContext context, GameCommand command) =>
-        Evaluate(context, command, commit: true);
+    public CommandExecutionResult Execute(CommandContext context, GameCommand command, bool capturePresentation = false) =>
+        Evaluate(context, command, commit: true, capturePresentation: capturePresentation);
 
     private CommandExecutionResult Evaluate(CommandContext context, GameCommand command, bool commit,
-        Action<IReadOnlyList<DomainEvent>>? preview = null)
+        Action<IReadOnlyList<DomainEvent>>? preview = null, bool capturePresentation = false)
     {
         ArgumentNullException.ThrowIfNull(command);
         var rejection = ValidateEnvelope(context, command);
@@ -496,6 +510,7 @@ public sealed partial class SimulationEngine
             var mutation = _world.BeginMutation(_rules.Abilities, _rules.Economy);
             List<DomainEvent> events = [];
             DevelopmentOutcome? development = null;
+            List<WorldSnapshot>? frames = capturePresentation ? [] : null;
             switch (command)
             {
                 case ChooseTacticStudentCommand student:
@@ -534,7 +549,7 @@ public sealed partial class SimulationEngine
                     CapturedRulerDisposition.Resolve(mutation, _rules, events, captive, disposition.Action);
                     if (!mutation.Simulation.HasPendingDailyResolution)
                         _pipeline.FinishUnitAndBuildingEvents(mutation, events, captive.XunStarted, captive.RulerId);
-                    ContinueAfterDecision(mutation, captive.XunStarted, events);
+                    ContinueAfterDecision(mutation, captive.XunStarted, events, frames);
                     break;
                 case ChooseExecutionSuccessorCommand successor:
                     var executionPending = mutation.Simulation.PendingExecutionSuccession!;
@@ -543,7 +558,7 @@ public sealed partial class SimulationEngine
                     if (executionPending.XunStarted is { } executionStart)
                     {
                         _pipeline.FinishUnitAndBuildingEvents(mutation, events, executionStart, executionPending.RulerId);
-                        ContinueAfterDecision(mutation, executionStart, events);
+                        ContinueAfterDecision(mutation, executionStart, events, frames);
                     }
                     break;
                 case DemandSurrenderCommand surrender:
@@ -755,7 +770,8 @@ public sealed partial class SimulationEngine
             _world.Commit(mutation);
             events.Add(new CommandResolvedEvent(command.CommandId, command.IssuerId, command.GetType().Name)
                 { Sequence = command.Sequence });
-            return new(CommandSubmissionResult.Success, events.AsReadOnly(), Snapshot, development);
+            return new(CommandSubmissionResult.Success, events.AsReadOnly(), Snapshot, development)
+                { PresentationFrames = frames?.AsReadOnly() ?? (IReadOnlyList<WorldSnapshot>)[] };
         }
         finally { _world.ExitExecution(); }
     }
@@ -798,14 +814,14 @@ public sealed partial class SimulationEngine
         {
             if (command is not ChooseCapturedRulerDispositionCommand) return CommandRejection.DecisionPending;
             return captive.CaptorId == command.IssuerId && sim.Controls.Any(c => c.ForceId == command.IssuerId &&
-                c.Kind == ControllerKind.Player && c.ControllerId == context.ControllerId)
+                c.ControllerId == context.ControllerId)
                 ? CommandRejection.None : CommandRejection.NotActiveController;
         }
         if (sim.PendingExecutionSuccession is { } succession)
         {
             if (command is not ChooseExecutionSuccessorCommand) return CommandRejection.DecisionPending;
             return succession.RespondingForceId == command.IssuerId && sim.Controls.Any(c => c.ForceId == command.IssuerId &&
-                c.Kind == ControllerKind.Player && c.ControllerId == context.ControllerId)
+                c.ControllerId == context.ControllerId)
                 ? CommandRejection.None : CommandRejection.NotActiveController;
         }
         if (sim.PendingDailyTask is { } daily)
@@ -927,8 +943,13 @@ public sealed partial class SimulationEngine
         finally { _world.ExitExecution(); }
     }
 
-    private void ContinueAfterDecision(WorldMutation mutation, GameClock started, List<DomainEvent> events) =>
-        ContinueXun(mutation, started, events, days: mutation.Simulation.DailyAdvanceStarted is null ? int.MaxValue : 0);
+    private void ContinueAfterDecision(WorldMutation mutation, GameClock started, List<DomainEvent> events,
+        List<WorldSnapshot>? frames = null)
+    {
+        frames?.Add(mutation.CapturePresentation());
+        ContinueXun(mutation, started, events, frames,
+            days: mutation.Simulation.DailyAdvanceStarted is null ? int.MaxValue : 0);
+    }
 
     // Both batch and interactive callers use the same daily pipeline and boundary finalization.
     private void ContinueXun(WorldMutation mutation, GameClock previous, List<DomainEvent> events,

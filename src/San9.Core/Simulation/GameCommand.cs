@@ -123,4 +123,7 @@ public readonly record struct CommandSubmissionResult(
 
 public sealed record CommandExecutionResult(CommandSubmissionResult Submission,
     IReadOnlyList<DomainEvent> Events, WorldSnapshot Snapshot,
-    San9.Core.Domain.DevelopmentOutcome? Development = null);
+    San9.Core.Domain.DevelopmentOutcome? Development = null)
+{
+    public IReadOnlyList<WorldSnapshot> PresentationFrames { get; init; } = [];
+}

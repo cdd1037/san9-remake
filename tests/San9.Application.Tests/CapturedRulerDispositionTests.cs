@@ -1,4 +1,6 @@
 using San9.Application.Persistence;
+using San9.Application.AI;
+using System.Collections.Immutable;
 using San9.Content.Scenarios;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -213,4 +215,211 @@ public sealed class CapturedRulerDispositionTests
         Assert.DoesNotContain(result.Events, e => e is StageCompletedEvent or XunAdvancedEvent);
         Assert.Equal(session.Capture().StateHash, SaveService.Decode(SaveService.Encode(session), definition).Capture().StateHash);
     }
+    private static ScenarioInitialState ComputerFixture(bool execute)
+    {
+        var original = AddThirdForce(G01ScenarioTests.Fixture());
+        return original with
+        {
+            NaturalDeathsEnabled = false,
+            Forces = original.Forces.Select(f => f.Id == 2 ? f with { BaseTrust = 1000 } : f).ToArray(),
+            Officers = original.Officers.Select(p => p.State.Id == 7
+                ? p with { State = p.State with { Status = OfficerStatus.Captive, SettlementId = 2 } } : p).ToArray(),
+            Alliance = execute ? new(3, 1, [1, 2], 10) : null
+        };
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ComputerResponsesCompleteWithExhaustedTurnBudgetAndRegenerateInReplay(bool execute)
+    {
+        var definition = ComputerFixture(execute);
+        var session = GameSession.Start(definition, 190,
+            aiPolicy: AiPolicyConfiguration.Standard with { WorkBudget = 1 });
+        session.BeginRecording();
+        var saved = SaveService.Encode(session);
+        var result = session.AdvanceForPresentation();
+        Assert.Equal(SessionDisposition.Accepted, result.Result.Disposition);
+        Assert.Equal(new GameClock(190, 1, 11), session.Snapshot.Clock);
+        Assert.Null(session.GetPendingResponse());
+        Assert.Single(result.Result.Events.OfType<CapturedRulerDispositionRequestedEvent>());
+        Assert.Equal(execute ? 1 : 0, result.Result.Events.OfType<ExecutionSuccessionRequestedEvent>().Count());
+        Assert.Equal(execute ? 1 : 0, result.Result.Events.OfType<PrisonerExecutedEvent>().Count());
+        Assert.Equal(execute ? 0 : 1, result.Result.Events.OfType<PrisonerReleasedEvent>().Count());
+        Assert.Equal(execute ? 8 : 7, session.Snapshot.Forces.Single(f => f.Id == 3).LeaderId);
+        Assert.DoesNotContain(session.Snapshot.Simulation.RandomStreams, r => r.Name == "captured-ruler-disposition");
+        Assert.Equal(10, result.Result.Events.OfType<StageCompletedEvent>().Count(e => e.Stage == ResolutionStage.UnitAndBuildingEvents));
+        Assert.Equal(10, result.Frames.Count);
+        Assert.All(result.Frames, f => Assert.NotEqual(SimulationBoundary.AwaitingDecision, f.World.Simulation.Boundary));
+        Assert.Equal(session.Snapshot.Clock, result.Frames[^1].World.Clock);
+        var finalPerson = session.Snapshot.Officers.Single(p => p.Id == 7);
+        var displayedPerson = result.Frames[^1].World.Officers.Single(p => p.Id == 7);
+        Assert.Equal((finalPerson.Status, finalPerson.OwnerId, finalPerson.SettlementId),
+            (displayedPerson.Status, displayedPerson.OwnerId, displayedPerson.SettlementId));
+        var restored = SaveService.Decode(saved, definition);
+        Assert.Equal(CanonicalJson.Text(result.Result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        var recording = session.EndRecording();
+        Assert.Single(recording.Operations);
+        var replay = RecordingService.Replay(RecordingService.Encode(recording), definition, GameSession.EngineFactory(definition));
+        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ComputerResponseIsIdenticalAcrossXunDailyAndExplicitControlEntries(bool execute)
+    {
+        var definition = ComputerFixture(execute);
+        var whole = GameSession.Start(definition, 190);
+        var daily = GameSession.Start(definition, 190);
+        var explicitControls = GameSession.Start(definition, 190);
+        var events = whole.AdvanceXun().Events;
+        List<DomainEvent> dailyEvents = [.. daily.Apply(daily.Request(new PrepareAdvanceOperation())).Events];
+        for (int i = 0; i < 10; i++)
+        {
+            var day = daily.Apply(daily.Request(new AdvanceDayOperation()));
+            Assert.Equal(SessionDisposition.Accepted, day.Disposition);
+            Assert.Equal(new GameClock(190, 1, i + 2), daily.Snapshot.Clock);
+            dailyEvents.AddRange(day.Events);
+        }
+        List<DomainEvent> controlEvents = [];
+        while (explicitControls.Snapshot.Simulation.ActiveControl < explicitControls.Snapshot.Simulation.Controls.Length)
+        {
+            var seat = explicitControls.Snapshot.Simulation.Controls[explicitControls.Snapshot.Simulation.ActiveControl];
+            controlEvents.AddRange(explicitControls.EndControl(new(seat.ControllerId)).Events);
+        }
+        controlEvents.AddRange(explicitControls.AdvanceXun().Events);
+        Assert.Equal(whole.Snapshot.StateHash, daily.Snapshot.StateHash);
+        Assert.Equal(whole.Snapshot.StateHash, explicitControls.Snapshot.StateHash);
+        // A command completes after its continuation, so its notification moves with the requested day/xun boundary.
+        Assert.Equal(CanonicalJson.Text(events.Where(e => e is not CommandResolvedEvent)),
+            CanonicalJson.Text(dailyEvents.Where(e => e is not CommandResolvedEvent)));
+        Assert.Equal(CanonicalJson.Text(events.OfType<CommandResolvedEvent>()),
+            CanonicalJson.Text(dailyEvents.OfType<CommandResolvedEvent>()));
+        Assert.Equal(CanonicalJson.Text(events), CanonicalJson.Text(controlEvents));
+    }
+
+    [Theory]
+    [InlineData(19, 99, 0, 20)]
+    [InlineData(20, 100, 0, 18)]
+    [InlineData(1000, 100, 100, 0)]
+    public void ResponseEvaluationUsesSeparateIntegerDivisions(int trust, int ability, int relation, int expected)
+    {
+        var prompt = new CapturedRulerPrompt(7, 2, 3) { CaptorBaseTrust = trust,
+            RulerAbilities = new(1, 1, ability, 1), RelationValue = relation };
+        Assert.Equal(expected, AutomaticResponseRunner.ExecutionChance(prompt));
+    }
+
+    [Fact]
+    public void DispositionObservationUsesInjuredCurrentAbility()
+    {
+        int Chance(int injury)
+        {
+            var original = ComputerFixture(false);
+            var definition = original with
+            {
+                Forces = original.Forces.Select(f => f.Id == 2 ? f with { BaseTrust = 0 } : f).ToArray(),
+                Officers = original.Officers.Select(p => p.State.Id == 7
+                    ? p with { State = p.State with { Injury = injury } } : p).ToArray()
+            };
+            var engine = GameSession.EngineFactory(definition)(WorldState.Restore(GameSession.Start(definition, 190).Snapshot));
+            foreach (var seat in engine.Snapshot.Simulation.Controls) engine.EndControl(new(seat.ControllerId));
+            engine.AdvanceXun();
+            return AutomaticResponseRunner.ExecutionChance(engine.GetCapturedRulerPrompt()!);
+        }
+        Assert.True(Chance(5) > Chance(0));
+    }
+
+    [Fact]
+    public void CoreAuthorizesComputerResponseOutsideActiveSeatAndProvidesLegalDefault()
+    {
+        var definition = ComputerFixture(true);
+        var engine = GameSession.EngineFactory(definition)(WorldState.Restore(GameSession.Start(definition, 190).Snapshot));
+        foreach (var seat in engine.Snapshot.Simulation.Controls) engine.EndControl(new(seat.ControllerId));
+        engine.AdvanceXun();
+        var response = Assert.IsType<ResponseRequest>(engine.GetPendingResponse());
+        Assert.Equal("ai:2", response.Owner.ControllerId);
+        var command = AutomaticResponseRunner.Choose(engine, response, evaluationBudget: 0);
+        Assert.Equal(CapturedRulerAction.Release, Assert.IsType<ChooseCapturedRulerDispositionCommand>(command).Action);
+        string before = engine.Snapshot.StateHash;
+        Assert.Equal(CommandRejection.NotActiveController, engine.Execute(new("player"), command).Submission.Rejection);
+        Assert.Equal(CommandRejection.InvalidDecision, engine.Execute(new("ai:2"),
+            ((ChooseCapturedRulerDispositionCommand)command) with { RulerId = 8 }).Submission.Rejection);
+        var failure = Assert.Throws<AutomaticResponseException>(() => AutomaticResponseRunner.Choose(engine,
+            response with { Kind = "unimplemented" }));
+        Assert.Equal("response-unsupported", failure.Failure.Code);
+        Assert.Equal(before, engine.Snapshot.StateHash);
+        Assert.True(engine.Execute(new("ai:2"), command).Submission.Accepted);
+        Assert.Null(engine.GetPendingResponse());
+    }
+
+    [Fact]
+    public void DelegatedRootDoesNotOwnForcePoliticalResponse()
+    {
+        var original = Fixture();
+        var definition = original with { Information = original.Information with { Corps = original.Information.Corps
+            .Select(c => c.OwnerId == 1 ? c with { ControlMode = CorpsControlMode.Automatic } : c).ToArray() } };
+        var session = GameSession.Start(definition, 190);
+        session.AdvanceXun();
+        var response = Assert.IsType<ResponseRequest>(session.GetPendingResponse());
+        Assert.Equal(ControllerKind.Player, response.Owner.Kind);
+        Assert.Equal("player", response.Owner.ControllerId);
+        var command = new ChooseCapturedRulerDispositionCommand(Guid.NewGuid(), 1,
+            session.Snapshot.Simulation.NextSequence, 4, CapturedRulerAction.Release);
+        Assert.Equal(CommandRejection.NotActiveController, session.Execute(new("corps:1"), command).Submission.Rejection);
+        Assert.True(session.Execute(new("player"), command).Submission.Accepted);
+        Assert.Null(session.GetPendingResponse());
+    }
+
+    [Fact]
+    public void ComputerExecutionStopsImmediatelyWhenPlayerHasNoHeir()
+    {
+        var original = AddThirdForce(Fixture(playerVictim: true));
+        var definition = original with { Alliance = new(1, 2, [2, 3], 10),
+            Officers = original.Officers.Where(p => p.State.OwnerId != 1 || p.State.Id == 1).ToArray() };
+        var session = GameSession.Start(definition, 190);
+        session.BeginRecording();
+        var result = session.AdvanceXun();
+        Assert.Equal(SimulationBoundary.Terminal, session.Snapshot.Simulation.Boundary);
+        Assert.Equal(new GameClock(190, 1, 2), session.Snapshot.Clock);
+        Assert.Single(result.Events.OfType<CapturedRulerDispositionRequestedEvent>());
+        Assert.Single(result.Events.OfType<PrisonerExecutedEvent>());
+        Assert.Single(result.Events.OfType<SimulationEndedEvent>());
+        Assert.Empty(result.Events.OfType<ExecutionSuccessionRequestedEvent>());
+        Assert.DoesNotContain(result.Events.OfType<StageCompletedEvent>(), e => e.Stage == ResolutionStage.UnitAndBuildingEvents);
+        Assert.Empty(result.Events.OfType<XunAdvancedEvent>());
+        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
+        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+    }
+
+    [Fact]
+    public void RepeatedResponseWithoutProgressFailsAndRollsBackOuterOperation()
+    {
+        var definition = ComputerFixture(false);
+        var rules = new RepeatingDispositionRules { Personnel = new(definition.Settlements.Select(s => new PersonPlace(s.Id, s.Position))) };
+        var session = GameSession.Start(definition, 190, w => new(w, rules));
+        session.BeginRecording();
+        var before = session.Capture();
+        var result = session.Apply(session.Request(new AdvanceOperation()));
+        Assert.Equal(SessionRejection.AutomaticResponseFailed, result.Rejection);
+        Assert.Equal("response-no-progress", result.AutomaticResponseFailure!.Code);
+        Assert.Equal("ai:2", result.AutomaticResponseFailure.ControllerId);
+        Assert.Equal(before.StateHash, session.Capture().StateHash);
+        Assert.Empty(result.Events);
+        Assert.Empty(session.CaptureRecording().Operations);
+        Assert.Empty(session.Records);
+    }
+
+    private sealed class RepeatingDispositionRules : SimulationRules
+    {
+        internal override void ApplyStage(ResolutionStage stage, WorldMutation world, List<DomainEvent> events)
+        {
+            if (stage != ResolutionStage.UnitAndBuildingEvents) return;
+            world.Replace(world.Officers[7] with { Status = OfficerStatus.Captive, SettlementId = 2 });
+            world.SetSimulation(world.Simulation with { Tasks = world.Simulation.Tasks.Where(t => t.OfficerId != 7).ToImmutableArray(),
+                Boundary = SimulationBoundary.AwaitingDecision, PendingCapturedRuler = new(new(190, 1, 1), 7, 2) });
+        }
+    }
+
 }

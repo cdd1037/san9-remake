@@ -13,7 +13,10 @@ internal static class AutomaticTurnRunner
             state.Controls[state.ActiveControl].ControllerId != context.ControllerId)
             throw new InvalidOperationException("Not the active stable controller.");
         Run(engine, state.Controls[state.ActiveControl], military, events, ref ai);
-        events.AddRange(engine.EndControl(context).Events);
+        AutomaticResponseRunner.Run(engine, events);
+        if (engine.Snapshot.Simulation.Boundary == SimulationBoundary.Stable)
+            events.AddRange(engine.EndControl(context).Events);
+        AutomaticResponseRunner.Run(engine, events);
     }
 
     private static void Run(SimulationEngine engine, ControlSeat active, MilitaryRulebook? military, List<DomainEvent> events, ref AiSessionState ai)

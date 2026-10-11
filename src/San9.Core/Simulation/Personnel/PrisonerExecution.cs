@@ -39,7 +39,7 @@ internal static class PrisonerExecution
         if (!world.Officers.TryGetValue(officerId, out var prisoner)) return CommandRejection.UnknownPerson;
         if (!DetainedBy(world, prisoner, executingForceId)) return CommandRejection.PersonUnavailable;
         if (prisoner.OwnerId is int owner && world.Forces[owner].LeaderId == prisoner.Id &&
-            world.Simulation.Controls.Any(c => c.ForceId == owner && c.Kind == ControllerKind.Player) &&
+            world.Simulation.Controls.Any(c => c.ForceId == owner && !world.Forces[c.ForceId].IsEliminated) &&
             !Candidates(world, owner).IsEmpty &&
             ForceLifecycle.HasCity(world, owner))
         {
@@ -101,7 +101,7 @@ internal static class PrisonerExecution
             !world.Officers.TryGetValue(pending.RulerId, out var person) || person.OwnerId != pending.RespondingForceId ||
             !DetainedBy(world, person, pending.ExecutingForceId) ||
             !world.Forces.TryGetValue(pending.RespondingForceId, out var force) || force.LeaderId != person.Id || force.IsEliminated ||
-            !sim.Controls.Any(c => c.ForceId == pending.RespondingForceId && c.Kind == ControllerKind.Player) ||
+            !sim.Controls.Any(c => c.ForceId == pending.RespondingForceId && !world.Forces[c.ForceId].IsEliminated) ||
             Candidates(world, pending.RespondingForceId).IsEmpty ||
             !ForceLifecycle.HasCity(world, pending.RespondingForceId))
             throw new ArgumentException("Invalid pending execution succession.");

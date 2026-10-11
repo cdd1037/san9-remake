@@ -9,12 +9,13 @@ public static class ExecutionPublication
 {
     public static ExecutionOutput Read(StrategySnapshot before, StrategySnapshot after,
         WorldMessageContext context, TextCatalog texts, CommandPresentation content,
-        IReadOnlyList<DomainEvent> events, IReadOnlySet<Guid>? alreadyPresented = null)
+        IReadOnlyList<DomainEvent> events, IReadOnlySet<Guid>? alreadyPresented = null, IReadOnlySet<int>? presentedFacts = null)
     {
         List<CommandMessage> messages = [];
         List<MapMessageRecord> records = [];
         for (int index = 0; index < events.Count; index++)
         {
+            if (presentedFacts?.Contains(index) == true) continue;
             var fact = events[index];
             var random = new StableRandom(StableRandom.DeriveSeed((ulong)before.World.Revision,$"publication:{index}"));
             int Pick(int count) => (int)(random.NextUInt64() % (ulong)count);

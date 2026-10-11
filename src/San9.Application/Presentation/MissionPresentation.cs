@@ -76,7 +76,7 @@ public static class MissionPresentation
                 BurnResolvedEvent b => (b.OfficerId, null, b.Clock, b.Success ? "burn-success" : "burn-failure"),
                 SeizeResolvedEvent s => (s.OfficerId, null, s.Clock, s.Outcome switch
                 {
-                    SeizeOutcomeKind.Person => "seize-person",
+                    SeizeOutcomeKind.Person => "seize-person", SeizeOutcomeKind.Item => "seize-item",
                     SeizeOutcomeKind.Failure => "seize-failure", _ => null
                 }),
                 GossipResolvedEvent g => (g.OfficerId, null, g.Clock, g.Success ? "rumor-success" : "rumor-failure"),
@@ -185,14 +185,27 @@ public static class MissionPresentation
     }
     private static Dictionary<string,MessageBinding> ResultValues(DomainEvent e, PersistentTask task, StrategySnapshot before)
     {
-        int? person = e switch { AlienateResolvedEvent a => a.TargetOfficerId, UnitStrategyResolvedEvent u => u.Target.CommanderId,
-            PrisonerReturnResolvedEvent p => p.PrisonerId, SeizeResolvedEvent s => s.RecoveredOfficerId, _ => null };
+        int? person = e switch
+        {
+            AlienateResolvedEvent a => a.TargetOfficerId,
+            UnitStrategyResolvedEvent u => u.Target.CommanderId,
+            PrisonerReturnResolvedEvent p => p.PrisonerId,
+            SeizeResolvedEvent s => s.RecoveredOfficerId,
+            _ => null
+        };
         int? place = e switch { BurnResolvedEvent b => b.TargetSettlementId, SeizeResolvedEvent s => s.TargetSettlementId, AttackRequestResolvedEvent a => a.TargetSettlementId, _ => null };
-        int? force = e switch { GossipResolvedEvent g => g.FirstTargetForceId, UnitStrategyResolvedEvent u => u.Target.ForceId,
+        int? force = e switch
+        {
+            GossipResolvedEvent g => g.FirstTargetForceId,
+            UnitStrategyResolvedEvent u => u.Target.ForceId,
             BurnResolvedEvent b => before.World.Settlements.Single(s => s.Id == b.TargetSettlementId).OwnerId,
             SeizeResolvedEvent s => before.World.Settlements.Single(t => t.Id == s.TargetSettlementId).OwnerId,
-            GiftResolvedEvent g => g.TargetForceId, AttackRequestResolvedEvent a => a.RequestedForceId, PrisonerReturnResolvedEvent => task.PrisonerReturn!.TargetForceId,
-            SurrenderResolvedEvent s => s.TargetForceId, _ => null };
+            GiftResolvedEvent g => g.TargetForceId,
+            AttackRequestResolvedEvent a => a.RequestedForceId,
+            PrisonerReturnResolvedEvent => task.PrisonerReturn!.TargetForceId,
+            SurrenderResolvedEvent s => s.TargetForceId,
+            _ => null
+        };
         Dictionary<string,MessageBinding> values = new()
         { ["actor"] = MessageBinding.Reference(MessageEntityKind.Person,task.OfficerId), ["force"] = MessageBinding.Reference(MessageEntityKind.Force,task.ForceId) };
         if (before.World.Forces.Single(f => f.Id == task.ForceId).LeaderId is int leader)
@@ -200,6 +213,11 @@ public static class MissionPresentation
         if (person is int targetPerson) values["target-person"] = MessageBinding.Reference(MessageEntityKind.Person,targetPerson);
         if (e is UnitStrategyResolvedEvent unitResult && unitResult.Target.ServicePlaceId is int home)
             values["home"] = MessageBinding.Reference(MessageEntityKind.Settlement,home);
+        if (e is SeizeResolvedEvent seized)
+        {
+            if (seized.PreviousHolderId is int holder) values["previous-holder"] = MessageBinding.Reference(MessageEntityKind.Person, holder);
+            if (seized.TreasureId is int treasure) values["treasure"] = MessageBinding.Reference(MessageEntityKind.Treasure, treasure);
+        }
         if (place is int location) values["place"] = MessageBinding.Reference(MessageEntityKind.Settlement,location);
         if (e is AttackRequestResolvedEvent attack && before.World.Settlements.Single(s => s.Id == attack.TargetSettlementId).OwnerId is int enemy)
             values["enemy-force"] = MessageBinding.Reference(MessageEntityKind.Force,enemy);
@@ -272,6 +290,8 @@ public static class MissionPresentation
                 Add("burn-action"); Add("burn-reaction-"+(burn.Success ? "success" : "failure")); break;
             case SeizeResolvedEvent seize when seize.Outcome == SeizeOutcomeKind.Person:
                 Add("seize-person-action"); Add("seize-person-reaction"); break;
+            case SeizeResolvedEvent seize when seize.Outcome == SeizeOutcomeKind.Item:
+                Add("seize-item-action"); Add("seize-item-reaction"); break;
             case SeizeResolvedEvent seize when seize.Outcome is SeizeOutcomeKind.Money or SeizeOutcomeKind.Failure:
                 Add("seize-action"); Add("seize-reaction-"+(seize.Outcome == SeizeOutcomeKind.Failure ? "failure" : "success")); break;
         }
@@ -305,7 +325,8 @@ public static class MissionPresentation
     }
     private static string Cancellation(TextCatalog texts, string reason) => reason switch
     {
-        "reinforcement-unfit" => CommandText.Resolve(texts, "cancel.reinforcement-unfit"), "target-invalidated" => CommandText.Resolve(texts, "cancel.target-invalidated"),
+        "reinforcement-unfit" => CommandText.Resolve(texts, "cancel.reinforcement-unfit"),
+        "target-invalidated" => CommandText.Resolve(texts, "cancel.target-invalidated"),
         _ => CommandText.Resolve(texts, "cancel.conditions")
     };
 }

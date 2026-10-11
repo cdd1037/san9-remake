@@ -63,6 +63,15 @@ public sealed class MapMissionPresentationTests
         Assert.NotEqual(action.Id, response.Id);
         Assert.NotEqual(action.Id, record.Id);
         Assert.NotEqual(response.Id, record.Id);
+        var content = CommandPresentation.Empty with { Missions = definitions };
+        var plan = BattlePresentationPlan.Create(before, before, facts, session.Messages(texts,before.World), texts, content);
+        Assert.Equal(record, Assert.Single(plan.Records).Record);
+        Assert.Equal(messages.Messages.Select(m => m.MapSpeech!.Id), plan.Messages.Select(c => c.Id));
+        var unpublished = ExecutionPublication.Read(before, before, session.Messages(texts,before.World), texts, content, facts,
+            presentedFacts: plan.PresentedFacts);
+        Assert.Empty(unpublished.Messages);
+        Assert.Empty(unpublished.Records);
+
         // Authored result media still plays, independently of the execution record.
         definitions[roles[2]] = definitions[roles[2]] with { Sound = "result-sound" };
         var withMedia = Read();

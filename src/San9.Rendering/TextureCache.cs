@@ -43,6 +43,13 @@ public sealed class TextureCache<T> : IDisposable where T : class
     public long UploadOverruns { get; private set; }
     public T Get(ImageFile file) => _resources.Get(file);
     public bool Contains(ImageFile file) => _resources.Contains(file);
+    public void RetryFailed(IEnumerable<ImageFile> files)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        foreach (var file in files.Distinct())
+            if (_requests.TryGetValue(file, out var request) && request.Error is not null)
+                request.Error = null;
+    }
     public Lease Acquire(IEnumerable<ImageFile> files, bool prefetch = false)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);

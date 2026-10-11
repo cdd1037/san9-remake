@@ -7,6 +7,124 @@ namespace San9.Client.Godot.Tests;
 public sealed class TurnPresentationTests
 {
     [Fact]
+    public void SkippingZoomKeepsResultResponsesAndCannotPublishOrChangeTheWorld()
+    {
+        var session = Session();
+        string[] roles = ["activation-own", "action", "hit-reaction", "damage"];
+        var texts = new San9.Content.Text.TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion, [])
+        { Messages = roles.ToDictionary(r => r, r => new San9.Content.Text.MessageDefinition([new San9.Content.Text.MessageLiteral(r)])) };
+        var messages = roles.ToDictionary(r => r, r => new San9.Content.Interface.DecisionMessageDefinition(r, []));
+        var sprite = new San9.Content.Interface.BattleSprite("sprite", 8, 100);
+        var body = new San9.Content.Interface.BattleZoomBody(sprite, sprite, sprite, null)
+        { BlockPoints = [new(500, 200), new(600, 250), new(700, 300)] };
+        var zoom = new San9.Content.Interface.BattleZoomDefinition(body, body, sprite, sprite, "left", "right", [])
+        { DamageBands = [new(null, 2)] };
+        var content = new San9.Content.Interface.CommandPresentation([], null)
+        { Battle = new(messages, new() { [99] = new(messages, null, zoom) }, "hit", "block") };
+        var source = new San9.Core.Simulation.BattleObjectContext(10, false, 5, null, new(12, 12), 15, false);
+        var target = source with { Id = 11, Position = new(24, 24) };
+        var occurrence = new San9.Core.Simulation.TacticOccurrence(source, target, null, null,
+            San9.Core.Domain.UnitCondition.Normal, null, null, null, false);
+        San9.Core.Simulation.DomainEvent[] events = [new San9.Core.Simulation.TacticActivatedEvent(session.Snapshot.Clock,10,false,11,false,99,[7],false,10)
+            { Occurrence=occurrence }];
+        var plan = San9.Application.Presentation.BattlePresentationPlan.Create(session.View, session.View, events, session.Messages(texts), texts, content);
+        var day = new TurnDayPresentation(session.View, session.View, events, battle: plan);
+        var cue = Assert.Single(plan.Visuals); string hash = session.Snapshot.StateHash;
+        day.Advance(cue.Start + .1);
+        double gate = day.Elapsed;
+        Assert.NotEmpty(day.PendingDialogues);
+        Assert.Equal(cue.EntranceStart, gate);
+        day.Advance(100);
+        Assert.Equal(gate, day.Elapsed);
+        foreach (var dialogue in day.PendingDialogues) day.CompleteDialogue(dialogue.Id);
+        day.Advance(.001);
+        Assert.InRange(day.Elapsed, cue.EntranceStart!.Value + .0009, cue.EntranceStart.Value + .0011);
+        Assert.Empty(day.PendingDialogues);
+        float opacity = San9.Rendering.BattleSceneTransition.Opacity(day.Elapsed - cue.EntranceStart.Value);
+        day.Advance(10, paused: true);
+        Assert.Equal(opacity, San9.Rendering.BattleSceneTransition.Opacity(day.Elapsed - cue.EntranceStart.Value));
+        // Skip from the darkening phase must still stop at the next response dialogue.
+        day.SkipVisual();
+        Assert.True(day.Elapsed < cue.End);
+        Assert.Equal("hit-reaction", Assert.Single(day.PendingDialogues).Message.Message.Key);
+        gate = day.Elapsed;
+        day.SkipVisual(); Assert.Equal(gate, day.Elapsed);
+        foreach (var dialogue in day.PendingDialogues) day.CompleteDialogue(dialogue.Id);
+        day.SkipVisual();
+        Assert.Equal(cue.End, day.Elapsed, 6);
+        Assert.Equal(day.Duration, day.Elapsed);
+        Assert.Contains(plan.Records, c => c.Record.Message.Key == "damage" && c.Time == day.Elapsed);
+        day.SkipVisual(); Assert.Equal(cue.End, day.Elapsed, 6);
+        Assert.Same(plan, day.Battle); Assert.Equal(hash, session.Snapshot.StateHash);
+    }
+    [Fact]
+    public void MapSpeechAtTheDialogueBoundaryWaitsForCompletionWithoutAnArtificialDelay()
+    {
+        var definition = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "turn", 190, 1, 1, 5,
+            [new(5, "player", 5, 100)], [new(15, "city", 5, 0, 0, 0, 100, 100, 0, [])], [], [])
+        { Officers = [new("actor", new San9.Core.Domain.OfficerState(7, 5, 15, new(50, 50, 50, 50), false))],
+          Information = new([], [], [], [new San9.Core.Domain.CorpsState(5, 5, null, new(100, 100)) { IsRoot = true }], []) };
+        var session = GameSession.Start(definition, 1);
+        string[] roles = ["activation-own", "announcement", "action"];
+        var texts = new San9.Content.Text.TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion, new() { ["actor"] = "actor" })
+        { Messages = roles.ToDictionary(r => r, r => new San9.Content.Text.MessageDefinition([new San9.Content.Text.MessageLiteral(r)])) };
+        var messages = roles.ToDictionary(r => r, r => new San9.Content.Interface.DecisionMessageDefinition(r, [], "actor"));
+        var content = new San9.Content.Interface.CommandPresentation([], null)
+        { Battle = new(messages, new() { [99] = new(messages, null, null) }, "hit", "block") };
+        var source = new BattleObjectContext(10, false, 5, 7, new(12, 12), 15, false);
+        var target = source with { Id = 11 };
+        var occurrence = new TacticOccurrence(source, target, null, null, San9.Core.Domain.UnitCondition.Normal, null, null, null, false);
+        DomainEvent[] events = [new TacticActivatedEvent(session.Snapshot.Clock, 10, false, 11, false, 99, [7], false, 10)
+        { Occurrence = occurrence }];
+        var plan = San9.Application.Presentation.BattlePresentationPlan.Create(session.View, session.View, events,
+            session.Messages(texts), texts, content);
+        var day = new TurnDayPresentation(session.View, session.View, events, battle: plan);
+        day.Advance(100);
+        var dialogue = Assert.Single(day.PendingDialogues);
+        Assert.Empty(day.ReadyMapSpeeches);
+        Assert.Equal(1, day.Progress);
+        Assert.False(day.IsComplete);
+        double boundary = day.Elapsed;
+        day.CompleteDialogue(dialogue.Id);
+        Assert.True(day.IsComplete);
+        Assert.Equal(boundary, day.Elapsed);
+        Assert.Equal("action", Assert.Single(day.ReadyMapSpeeches).Message.Message.Key);
+    }
+
+    [Fact]
+    public void PreparedPresentationSurvivesPauseAndResourceRetryAndReportsBeforeWorldPublication()
+    {
+        var session = Session(); bool ready = false, fail = false; int retries = 0, calls = 0;
+        TurnDayPresentation? retained = null;
+        var turn = new TurnPresentation(session)
+        {
+            CreateDay = (before, after, events) => new(before, after, events, duration: 3),
+            CanPlayDay = () => fail ? throw new IOException("resource") : ready,
+            RetryPresentation = () => { retries++; fail = false; },
+            PresentDay = day =>
+            {
+                calls++;
+                Assert.Equal(day.Before.World.Revision, session.Snapshot.Revision);
+                retained ??= day; Assert.Same(retained, day);
+            }
+        };
+        Enter(turn); turn.Update(8);
+        var prepared = turn.Day!; string hash = session.Snapshot.StateHash;
+        Assert.Equal(0, prepared.Elapsed); Assert.Equal(0, calls);
+        ready = true; turn.Update(.5);
+        turn.TogglePause(); turn.Update(20);
+        Assert.Same(prepared, turn.Day); Assert.Equal(.5, prepared.Elapsed); Assert.Equal(1, calls);
+        fail = true; turn.Update(.2);
+        Assert.Equal(TurnScreen.Failed, turn.Screen);
+        Assert.Equal(hash, session.Snapshot.StateHash);
+        turn.Confirm(); Assert.Equal(1, retries);
+        turn.Update(3); Assert.Same(prepared, turn.Day); Assert.Equal(.5, prepared.Elapsed);
+        turn.TogglePause();
+        turn.Update(3);
+        Assert.Equal(2, calls); Assert.Null(turn.Day);
+        Assert.NotEqual(hash, session.Snapshot.StateHash);
+    }
+    [Fact]
     public void StrategyTitleCueOnlyRunsForCompletedXunAndEntranceDoesNotRepeatOnRepaintOrCancel()
     {
         int sounds = 0, executionSounds = 0;

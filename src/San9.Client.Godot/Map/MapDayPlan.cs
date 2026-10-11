@@ -50,7 +50,7 @@ public sealed class MapDayPlan
         _motions = _events.OfType<UnitMovedEvent>().Where(e => e.From != e.To).GroupBy(e => e.UnitId)
             .ToDictionary(g => g.Key, g => new MapUnitMotion(g));
         List<MapAttackMotion> attacks = [];
-        foreach (var hit in _events.OfType<BattleDamageEvent>().Where(e => e.SoldierLoss > 0 || e.DurabilityLoss > 0 || e.MoraleLoss > 0))
+        foreach (var hit in _events.OfType<BattleDamageEvent>().Where(e => e.TacticId is null && (e.SoldierLoss > 0 || e.DurabilityLoss > 0 || e.MoraleLoss > 0)))
         {
             bool targetSettlement = hit.SettlementId is not null;
             int targetId = hit.TargetUnitId ?? hit.SettlementId!.Value;
@@ -97,7 +97,8 @@ public sealed class MapDayPlan
             }
             else continue;
             attacks.Add(new(hit.AttackerId, hit.AttackerIsSettlement, targetId, targetSettlement,
-                source.X, source.Y, target.X, target.Y, UnitVisuals.Direction(from, to), action, kind) { Path = path, Origins = origins });
+                source.X, source.Y, target.X, target.Y, UnitVisuals.Direction(from, to), action, kind)
+            { Path = path, Origins = origins });
         }
         _attacks = attacks.DistinctBy(a => (a.SourceId, a.SourceIsSettlement, a.TargetId, a.TargetIsSettlement, a.Projectile)).ToArray();
         foreach (var attack in _attacks.Where(a => a.Projectile != MapProjectileKind.None))

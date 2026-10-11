@@ -5,6 +5,24 @@ namespace San9.Client.Godot.Tests;
 
 public sealed class TextureCacheTests
 {
+    [Fact]
+    public void FailedDemandCanRetryWithTheSameLeaseWithoutReloadingReadyImages()
+    {
+        int attempts = 0, readyLoads = 0;
+        var broken = File("broken"); var ready = File("ready");
+        using var cache = new TextureCache<Gpu>((file, _) =>
+        {
+            if (file == broken && Interlocked.Increment(ref attempts) == 1) throw new IOException("transient");
+            if (file == ready) Interlocked.Increment(ref readyLoads);
+            return Pixel();
+        }, (_, _) => new(1), _ => { });
+        using var lease = cache.Acquire([broken, ready]);
+        Until(cache, () => lease.Error is not null && cache.Contains(ready));
+        Assert.False(lease.IsReady);
+        cache.RetryFailed([broken, ready]);
+        Until(cache, () => lease.IsReady);
+        Assert.Null(lease.Error); Assert.Equal(2, attempts); Assert.Equal(1, readyLoads);
+    }
     private sealed record Gpu(int Value);
     private static ImageFile File(string name, int width = 1, int height = 1) => new(name, width, height, 4);
     private static PngImage Pixel(byte value = 7) => new(1, 1, 4, [value, 0, 0, 255]);

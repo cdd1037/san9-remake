@@ -20,6 +20,7 @@ public partial class TextureService : Node
     private long _generatedUploadOverruns;
     public bool CanUpload => _frameUploadMilliseconds < 2;
     public IReadOnlyDictionary<string, ImageAsset> MapAssets { get; private set; } = null!;
+    public IReadOnlyDictionary<string, ImageAsset> LibraryAssets { get; private set; } = null!;
     public IReadOnlyDictionary<string, San9.Content.Maps.MapAnimationClip> AnimationClips { get; private set; } = null!;
     public IReadOnlyDictionary<string, ImageAsset> Roles { get; private set; } = null!;
     public IReadOnlyDictionary<int, TargetMarkerOffset> BuildingTargetOffsets { get; private set; } = null!;
@@ -36,6 +37,7 @@ public partial class TextureService : Node
     {
         _portraits = package.Portraits.ToDictionary(p => p.Image.Id);
         MapAssets = package.Map.Assets.ToDictionary(a => a.Id);
+        LibraryAssets = package.Textures.Assets.ToDictionary(a => a.Id);
         AnimationClips = package.Map.Animations.Clips.ToDictionary(c => c.Id);
         var ui = package.Skin.Assets.ToDictionary(a => a.Id);
         Roles = package.Skin.Roles.ToDictionary(p => p.Key, p => ui[p.Value]);

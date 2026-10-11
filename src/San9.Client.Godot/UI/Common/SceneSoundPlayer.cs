@@ -9,6 +9,7 @@ public partial class SceneSoundPlayer : Node
     public IReadOnlyDictionary<string,string> Sounds { get; init; } = null!;
     private AudioStreamPlayer _player = null!;
     private AudioStreams _streams = null!;
+    public void SetTransitionGain(float gain) => _player.VolumeDb = Mathf.LinearToDb(gain);
     public override void _Ready() { _streams = new(ContentRoot, Sounds); _player = new(); AddChild(_player); }
     public void Play(string role, bool enabled)
     {

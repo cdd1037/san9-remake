@@ -10,6 +10,7 @@ internal sealed partial class MapScene
         foreach (var unit in visibleUnits)
         {
             var sampled = Sample(unit);
+            if (sampled.Soldiers == 0) continue;
             var state = _stateSampler(unit.Id, MotionTime - _motionStart)!;
             var formation = Map.Units.Formations.Single(f => f.FormationId == state.FormationId);
             var layout = formation.Layouts.Where(l => l.MinimumSoldiers <= state.Soldiers).MaxBy(l => l.MinimumSoldiers)!;

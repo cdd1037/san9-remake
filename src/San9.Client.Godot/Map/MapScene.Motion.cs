@@ -1,4 +1,5 @@
 using Godot;
+using San9.Application.Presentation;
 using San9.Content.Maps;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -9,6 +10,17 @@ namespace San9.Client.Godot;
 internal sealed partial class MapScene
 {
     public TurnDayPresentation? Day { get; }
+    public SettlementView SampleSettlement(SettlementView value)
+    {
+        if (Day?.Battle is not { } battle) return value;
+        var changes = battle.Values.Where(v => v.IsSettlement && v.TargetId == value.Id && v.Time <= Day.Elapsed).ToArray();
+        return value with
+        {
+            Soldiers = (uint)Math.Clamp((long)value.Soldiers + changes.Sum(v => v.Soldiers), 0, uint.MaxValue),
+            Morale = Math.Clamp(value.Morale + changes.Sum(v => v.Morale), 0, 100),
+            Durability = Math.Clamp(value.Durability + changes.Sum(v => v.Durability), 0, value.MaxDurability)
+        };
+    }
     private readonly Dictionary<int, UnitVisualState> _unitStates;
     private Dictionary<int, MapUnitMotion> _motions = [];
     private MapAttackMotion[] _attacks = [];
@@ -40,8 +52,11 @@ internal sealed partial class MapScene
         MapPackage map, TurnDayPresentation? day)
     {
         if (!states.TryGetValue(id, out var state)) return null;
-        state = state with { ReceivesPositionUpdates = day is not null && milliseconds >= 0 &&
-            milliseconds < MapMovementCadence.DayMilliseconds };
+        state = state with
+        {
+            ReceivesPositionUpdates = day is not null && milliseconds >= 0 &&
+            milliseconds < MapMovementCadence.DayMilliseconds
+        };
         if (motions.TryGetValue(id, out var motion))
         {
             var p = motion.Sample(milliseconds);
@@ -54,7 +69,8 @@ internal sealed partial class MapScene
                 CellX = (p.X - MapCoordinates.UnitsPerCell / 2) / MapCoordinates.UnitsPerCell,
                 CellY = (p.Y - MapCoordinates.UnitsPerCell / 2) / MapCoordinates.UnitsPerCell,
                 Elevation = map.Squares[runtime.Cell.Y * map.Width + runtime.Cell.X].Elevation,
-                Direction = motion.HasDisplacement ? p.Direction : state.Direction, FormationId = formation,
+                Direction = motion.HasDisplacement ? p.Direction : state.Direction,
+                FormationId = formation,
                 VisionAngleDegrees = snapshot.Information.Formations.Single(f => f.Id == formation).Presentation?.VisionAngleDegrees ?? 0,
                 HasCityInfluence = runtime.EffectiveOrderClass == UnitOrderClass.Military && snapshot.HasCityInfluence(runtime.OwnerId, position),
                 IsMoving = moving,
@@ -64,8 +80,26 @@ internal sealed partial class MapScene
         if (day is not null && milliseconds >= TurnDayPresentation.MovementMilliseconds)
         {
             state = state with { IsEngaged = day.After.IsUnitEngaged(id) };
-            if (attacks.FirstOrDefault(a => !a.SourceIsSettlement && a.SourceId == id) is {} attack)
+            if (milliseconds < (day.Plan?.Duration ?? TurnDayPresentation.BaseDuration(day.Events)) * 1000 &&
+                attacks.FirstOrDefault(a => !a.SourceIsSettlement && a.SourceId == id) is { } attack)
                 state = state with { Direction = attack.Direction, Action = attack.Action };
+        }
+        if (day?.Battle is { } battle)
+        {
+            var changes = battle.Values.Where(v => !v.IsSettlement && v.TargetId == id && v.Time * 1000 <= milliseconds).ToArray();
+            uint soldiers = state.Soldiers, lastLiving = soldiers;
+            foreach (var change in changes)
+            {
+                soldiers = (uint)Math.Clamp((long)soldiers + change.Soldiers, 0, uint.MaxValue);
+                if (soldiers > 0) lastLiving = soldiers;
+            }
+            state = state with
+            {
+                Soldiers = soldiers,
+                RetainedBodySoldiers = soldiers == 0 ? lastLiving : null,
+                Morale = Math.Clamp(state.Morale + changes.Sum(v => v.Morale), 0, 100),
+                Condition = changes.LastOrDefault(v => v.Condition is not null)?.Condition ?? state.Condition
+            };
         }
         return state;
     }
@@ -124,6 +158,9 @@ internal sealed partial class MapScene
     }
     public IEnumerable<string> MotionAssets(IEnumerable<UnitVisual> units, Rect2 bounds)
     {
+        foreach (var condition in Day?.Battle?.Values.Select(v => v.Condition).OfType<UnitCondition>().Distinct() ?? [])
+            if (Map.Units.Conditions.TryGetValue(condition, out var effect))
+                foreach (string frame in Clips[effect.ClipId].Frames) yield return frame;
 
         foreach (var slice in Map.Units.VisionSlices)
             foreach (string frame in Clips[slice.ClipId].Frames) yield return frame;

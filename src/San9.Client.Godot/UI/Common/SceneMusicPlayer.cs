@@ -27,6 +27,7 @@ public partial class SceneMusicPlayer : Node
         _mapRole = role;
         RefreshMapTrack();
     }
+    public void SetMapTransitionGain(float gain) => _map.VolumeDb = Mathf.LinearToDb(gain);
     private void RefreshMapTrack()
     {
         if (!Enabled || _mapRole is null) { _map.Stop(); _map.Stream = null; return; }

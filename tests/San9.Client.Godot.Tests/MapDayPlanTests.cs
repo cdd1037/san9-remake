@@ -24,13 +24,20 @@ public sealed class MapDayPlanTests
             [], [], [], [], new([new("impact", ["a", "b"], 2000, [])], []), [])
         {
             BuildingTypes = [new(0, 100)],
-            Units = MapUnitCatalog.Empty with { Projectiles = new() {
+            Units = MapUnitCatalog.Empty with
+            {
+                Projectiles = new()
+                {
                 [MapProjectileKind.Arrow] = new(["arrow"], 64, false, 0, 0) { Impact = new("impact", 0, 0) }
-            } }
+                }
+            }
         };
         DomainEvent[] events = [new BattleDamageEvent(session.Snapshot.Clock, 1, null, 2, 10, 0, 10, 0, 0, true)];
         string hash = session.Snapshot.StateHash;
         var plan = new MapDayPlan(map, session.View, events);
+        var tacticPlan = new MapDayPlan(map, session.View, [((BattleDamageEvent)events[0]) with { TacticId = 99 }]);
+        Assert.Equal(2.8, tacticPlan.Duration);
+        Assert.True(plan.Duration > tacticPlan.Duration);
         Assert.True(plan.Duration > 4);
         var first = new TurnDayPresentation(session.View, session.View, events, plan);
         var preview = new TurnDayPresentation(session.View, session.View, events, plan);

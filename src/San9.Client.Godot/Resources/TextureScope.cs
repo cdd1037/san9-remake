@@ -52,6 +52,12 @@ public sealed class TextureScope(TextureService service, IReadOnlyDictionary<str
             if (service.Cache.Contains(assets[key].File)) Request(key);
     }
     public void Request(IEnumerable<string> keys) { foreach (string key in keys) Request(key); }
+    public void RetryFailed()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        service.Cache.RetryFailed(_bindings.Values.Select(b => b.Asset.File));
+        foreach (var binding in _bindings.Values.Where(b => !b.Installed)) binding.Reported = false;
+    }
     public void Refresh()
     {
         bool changed = false;

@@ -18,6 +18,9 @@ public sealed class TurnPresentation(GameSession session)
     public Func<StrategySnapshot, StrategySnapshot, IReadOnlyList<DomainEvent>, TurnDayPresentation> CreateDay { get; init; } =
         (before, after, events) => new(before, after, events);
     public Func<bool>? CanPlayDay { get; set; }
+    public Action<TurnDayPresentation>? PresentDay { get; init; }
+    public Action? RetryPresentation { get; init; }
+    public IReadOnlySet<int> LastPresentedFacts { get; private set; } = new HashSet<int>();
     public Func<bool>? CanContinue { get; set; }
     public SessionResult? LastResult { get; private set; }
     public long Publication { get; private set; }
@@ -57,6 +60,7 @@ public sealed class TurnPresentation(GameSession session)
     {
         if (Screen == TurnScreen.Failed && _presentationFailed)
         {
+            RetryPresentation?.Invoke();
             Error = null; _presentationFailed = false; Screen = TurnScreen.Playing;
             return;
         }
@@ -144,7 +148,11 @@ public sealed class TurnPresentation(GameSession session)
         if (Screen != TurnScreen.Playing) return;
         if (Paused)
         {
-            if (Day is not null && CanPlayDay?.Invoke() != false) Day.Advance(seconds, paused: true);
+            try
+            {
+                if (Day is not null && CanPlayDay?.Invoke() != false) Day.Advance(seconds, paused: true);
+            }
+            catch (Exception error) { FailPresentation(error); }
             return;
         }
         if (_pending is not { IsCompleted: true }) return;
@@ -159,6 +167,7 @@ public sealed class TurnPresentation(GameSession session)
             Day ??= CreateDay(Display!, prepared, events);
             if (CanPlayDay?.Invoke() == false) return;
             Day.Advance(seconds);
+            PresentDay?.Invoke(Day);
             double completed = Display!.World.Clock.DayNumber - _startedDay;
             double next = _pending.PreparedSnapshot.Clock.DayNumber - _startedDay;
             int step = Math.Clamp((int)Math.Floor(Day.Progress * 10), 0, 10);
@@ -167,10 +176,10 @@ public sealed class TurnPresentation(GameSession session)
         catch (Exception error)
         {
             // Retain the prepared operation: a presentation error cannot publish an unseen day.
-            Error = error.Message; _presentationFailed = true; Screen = TurnScreen.Failed;
+            FailPresentation(error);
             return;
         }
-        if (Day?.Progress >= 1 && Publish()) Continue();
+        if (Day?.IsComplete == true && Publish()) Continue();
     }
 
     private void Start(SessionOperation operation)
@@ -178,6 +187,9 @@ public sealed class TurnPresentation(GameSession session)
         _request = session.Request(operation);
         _pending = session.StartOperation(_request);
     }
+
+    private void FailPresentation(Exception error)
+    { Error = error.Message; _presentationFailed = true; Screen = TurnScreen.Failed; }
 
     private bool Publish()
     {
@@ -188,6 +200,7 @@ public sealed class TurnPresentation(GameSession session)
             if (result.Disposition != SessionDisposition.Accepted)
                 throw new InvalidOperationException(result.Rejection.ToString());
             Display = session.View;
+            LastPresentedFacts = Day?.Battle?.PresentedFacts ?? new HashSet<int>();
             LastResult = result;
             Publication++;
             Progress = Math.Clamp((Display.World.Clock.DayNumber - _startedDay) / 10.0, 0, 1);

@@ -16,7 +16,7 @@ internal sealed class MapAnnotationLayer
         List<Entry> entries = [];
         foreach (var building in frame.Region.Buildings)
         {
-            var value = frame.Region.Scene.Settlements[building.Id];
+            var value = frame.Region.Scene.SampleSettlement(frame.Region.Scene.Settlements[building.Id]);
             var position = frame.Region.Scene.Anchor(building);
             if (!frame.Region.Bounds.Intersects(new Rect2(position, new(116, 55)))) continue;
             entries.Add(new(new(building.Id, false), position, value.ResolveName(texts), value.Soldiers,

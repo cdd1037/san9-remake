@@ -63,7 +63,7 @@ public partial class StrategyHud : Control
         _textures = Textures.CreateScope(owner: this);
         _textures.RequestPrefixes("button-", "top-", "radar-", "sidebar-", "ruler-", "field-", "region-",
             "season-", "turn-", "target-", "hover-", "icon-", "minimap-",
-            "roster-", "scroll-", "message-", "dialog-", "command-", "information-menu-");
+            "roster-", "scroll-", "message-", "dialog-", "narration-", "command-", "information-menu-");
         Name = "StrategyHud"; Size = new(1024, 768); MouseFilter = MouseFilterEnum.Stop;
         World.MapReady += Build;
         GetWindow().MouseExited += ClearHover;
@@ -97,8 +97,12 @@ public partial class StrategyHud : Control
                 if (CommandPresentation.Progress is { } progress) _sceneSounds.Play(progress.StrategyTitleSound, SoundEnabled);
             },
             CanContinue = () => _decision is null && _narration is null,
-            CanPlayDay = () => _narration is null && ReferenceEquals(World.Day, Turn.Day) && World.IsDayReady && _executionPanels.IsExpanded,
-            CreateDay = (before, after, events) => new(before, after, events, new MapDayPlan(World.Package!, before, events))
+            CanPlayDay = () => _narration is null && _textures.IsReady && _speechTextures.IsReady && _battleView.Prepare(Turn.Day) && ReferenceEquals(World.Day, Turn.Day) && World.IsDayReady && _executionPanels.IsExpanded,
+            PresentDay = PresentBattleDay,
+            RetryPresentation = () => _battleView.RetryResources(),
+            CreateDay = (before, after, events) => new(before, after, events, new MapDayPlan(World.Package!, before, events),
+                battle: BattlePresentationPlan.Create(before, after, events, Session.Messages(Texts, before.World), Texts, CommandPresentation,
+                    World.Package!.Buildings.ToDictionary(b => b.Id, b => b.FixedType), World.Package))
         };
         var p = Scenario;
         _frames.Add(("top-frame", Vector2.Zero));
@@ -142,19 +146,50 @@ public partial class StrategyHud : Control
             _contextMenu.SetItemDisabled(_contextMenu.ItemCount - 1, title is not ("情报" or "进行"));
         }
         _contextMenu.IdPressed += id => { if (id == 0) RequestAdvance(); else if (id == 1) Information.OpenMenu(); };
-        _rosterList = new StrategyRosterList { Position = new(892, 303), Textures = _textures,
-            Texts = Texts, Skin = Skin, Activated = ActivateRosterEntry, ContextRequested = ShowContextMenu };
+        _rosterList = new StrategyRosterList
+        {
+            Position = new(892, 303),
+            Textures = _textures,
+            Texts = Texts,
+            Skin = Skin,
+            Activated = ActivateRosterEntry,
+            ContextRequested = ShowContextMenu
+        };
         AddChild(_rosterList);
         _rosterList.Refresh(Scenario);
-        _overviewPanel = new StrategyOverviewPanel { State = Overview, World = World, Session = Session,
-            Skin = Skin, Texts = Texts, Service = Textures, Visible = false };
+        _overviewPanel = new StrategyOverviewPanel
+        {
+            State = Overview,
+            World = World,
+            Session = Session,
+            Skin = Skin,
+            Texts = Texts,
+            Service = Textures,
+            Visible = false
+        };
         BackdropHost.AddChild(_overviewPanel);
-        Information = new InformationPanel { Session = Session, Texts = Texts, Service = Textures, World = World, Skin = Skin,
-            RecordsLog = _mapRecords, Locate = id => { Overview.Close(); World.FocusBuilding(id); } };
+        Information = new InformationPanel
+        {
+            Session = Session,
+            Texts = Texts,
+            Service = Textures,
+            World = World,
+            Skin = Skin,
+            RecordsLog = _mapRecords,
+            Locate = id => { Overview.Close(); World.FocusBuilding(id); }
+        };
         OverlayHost.AddChild(Information);
-        SystemMenu = new SystemMenuPanel { Service = Textures, Texts = Texts, Store = SaveStore, Session = Session,
-            CreateSummary = SaveSummary, ActivateSession = ActivateSession,
-            ReadSettings = ReadSettings, ApplySettings = ApplyUserSettings };
+        SystemMenu = new SystemMenuPanel
+        {
+            Service = Textures,
+            Texts = Texts,
+            Store = SaveStore,
+            Session = Session,
+            CreateSummary = SaveSummary,
+            ActivateSession = ActivateSession,
+            ReadSettings = ReadSettings,
+            ApplySettings = ApplyUserSettings
+        };
         OverlayHost.AddChild(SystemMenu);
         SystemMenu.VisibilityChanged += () => FocusBehaviorRecursive = SystemMenu.Visible
             ? FocusBehaviorRecursiveEnum.Disabled : FocusBehaviorRecursiveEnum.Inherited;
@@ -198,8 +233,15 @@ public partial class StrategyHud : Control
 
     private Label LabelAt(string text, Vector2 position, Vector2 size, int fontSize, HorizontalAlignment alignment = HorizontalAlignment.Center)
     {
-        var label = new Label { Text = text, Position = position, Size = size, HorizontalAlignment = alignment,
-            VerticalAlignment = VerticalAlignment.Center, MouseFilter = MouseFilterEnum.Ignore };
+        var label = new Label
+        {
+            Text = text,
+            Position = position,
+            Size = size,
+            HorizontalAlignment = alignment,
+            VerticalAlignment = VerticalAlignment.Center,
+            MouseFilter = MouseFilterEnum.Ignore
+        };
         AddChild(label);
         _text.Apply(label, GameTextStyles.For(fontSize == 24 ? GameTextRole.Header : GameTextRole.Resource));
         return label;
@@ -207,7 +249,12 @@ public partial class StrategyHud : Control
 
     private TextureButton AddButton(string title, string asset, Vector2 position, Vector2 size, bool enabled, Action? action = null)
     {
-        var button = new StrategyButton { Title = title, Position = position, Size = size, IgnoreTextureSize = true,
+        var button = new StrategyButton
+        {
+            Title = title,
+            Position = position,
+            Size = size,
+            IgnoreTextureSize = true,
             Territory = asset == "button-territory",
             TextRole = asset switch
             {
@@ -224,12 +271,16 @@ public partial class StrategyHud : Control
             },
             Frames = Enumerable.Range(0, asset == "button-territory" ? 6 : 4)
                 .Select(frame => (Texture2D)_textures[frame == 0 ? asset : $"{asset}-{frame}"]).ToArray(),
-            StretchMode = TextureButton.StretchModeEnum.Scale, Disabled = !enabled,
+            StretchMode = TextureButton.StretchModeEnum.Scale,
+            Disabled = !enabled,
             HintText = Texts.ResolveRich(StrategyHintText.Key(title switch
             {
-                "大" => "map-large", "小" => "map-small",
+                "大" => "map-large",
+                "小" => "map-small",
                 _ => asset["button-".Length..]
-            })), MouseFilter = MouseFilterEnum.Stop };
+            })),
+            MouseFilter = MouseFilterEnum.Stop
+        };
         if (action is not null) button.Pressed += () => action();
         AddChild(button);
         return button;
@@ -246,7 +297,7 @@ public partial class StrategyHud : Control
         Turn?.CanAdvance == true, _commandTargets is not null ? CommandTargetStage : _personnel is null ? _flow?.Stage ?? MilitaryCommandStage.None : PersonnelStage, Overview.IsOpen,
         OverlayHost.IsInsideTree() && OverlayHost.HasModal || _contextMenu?.Visible == true || _notice?.Visible == true);
     private bool IsMapInteractionBlocked => !Interaction.CanUseMap;
-    public bool CanNavigateMap => Interaction.CanNavigate;
+    public bool CanNavigateMap => Interaction.CanNavigate && _battleView?.IsSceneActive != true;
 
     // Navigation passes through passive artwork; object clicks retain the artwork hit masks.
     public bool IsNavigationBlocked(Vector2 point) => !CanNavigateMap || IsInteractivePoint(point);
@@ -257,6 +308,7 @@ public partial class StrategyHud : Control
 
     public bool IsBlockedPoint(Vector2 point)
     {
+        if (_battleView?.IsSceneActive == true) return true;
         if (IsMapInteractionBlocked) return true;
         if (_built && _executionPanels.Covers(point)) return true;
         if (point.Y >= 740 && point.Y < 768 && point.X >= 0 && point.X < 1024) return true;
@@ -310,8 +362,12 @@ public partial class StrategyHud : Control
         {
             if (command is not ("attack" or "march" or "redirect-transport")) return;
             _commandMenu.Close(); Overview.Close();
-            _flow.OpenUnit(target.Id, command switch { "attack" => UnitCommandKind.Attack,
-                "redirect-transport" => UnitCommandKind.Transport, _ => UnitCommandKind.March });
+            _flow.OpenUnit(target.Id, command switch
+            {
+                "attack" => UnitCommandKind.Attack,
+                "redirect-transport" => UnitCommandKind.Transport,
+                _ => UnitCommandKind.March
+            });
             return;
         }
         if (command is not ("sortie" or "patrol" or "build" or "transport" or "demolish" or "delegate") && !MissionDraft.Supports(command) && !FacilityCommandDraft.Supports(command) && !AppointmentDraft.Supports(command) && !PersonnelDraft.Supports(command)) return;
@@ -506,6 +562,7 @@ public partial class StrategyHud : Control
     }
     public override void _ExitTree()
     {
+        Music.SetMapTransitionGain(1);
         World.MapReady -= Build;
         World.EdgeScrollModeChanged -= ShowScrollModeNotice;
         World.BuildingContextRequested -= ShowSettlementContext;

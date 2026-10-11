@@ -28,6 +28,9 @@ public partial class StrategyHud
     private SceneSoundPlayer _sceneSounds = null!;
     private MapSoundPlayer _mapSounds = null!;
     private readonly MapAudioPlayback _mapAudioPlayback = new(Random.Shared.Next);
+    private BattlePresentationView _battleView = null!;
+    private TurnDayPresentation? _battleMessagesDay;
+    private readonly HashSet<Guid> _battleMessagesPlayed = [];
 
     private void BuildTurnControls()
     {
@@ -37,6 +40,34 @@ public partial class StrategyHud
         _mapSounds = new() { ContentRoot = ContentRoot, Sounds = CommandPresentation.Sounds };
         AddChild(_mapSounds);
         BuildMapMessages();
+        _battleView = new()
+        {
+            Textures = Textures,
+            Texts = Texts,
+            Size = Size,
+            ZIndex = 3,
+            MouseFilter = MouseFilterEnum.Ignore,
+            ContentRoot = ContentRoot,
+            Sounds = CommandPresentation.Sounds,
+            SoundEnabled = () => SoundEnabled,
+            PauseRequested = () => Turn.TogglePause(),
+            PlaySound = role => _sceneSounds.Play(role, SoundEnabled),
+            PlayMapSound = (role, point) => _mapSounds.PlayOnce(role, point, SoundEnabled),
+            IsPaused = () => Turn.Paused,
+            FocusRequested = obj => World.FocusCell(BattleCell(obj)),
+            Project = obj =>
+            {
+                Vector2 point;
+                if (!obj.IsSettlement && World.TrySpeechUnitAnchor(obj.Id, out var anchor, out _)) point = anchor;
+                else
+                {
+                    var cell = BattleCell(obj); var center = MapGeometry.Center(cell.X, cell.Y);
+                    point = new(center.X, center.Y - 10 * (World.Package!.Squares[cell.Y * World.Package.Width + cell.X].Elevation - 1));
+                }
+                return GetGlobalTransformWithCanvas().AffineInverse() * (World.GetGlobalTransformWithCanvas() * point);
+            }
+        };
+        AddChild(_battleView);
         _executionPanels = new ExecutionPanels { Textures = _textures, Texts = Texts, Skin = Skin, RecordsLog = _mapRecords };
         _mapRecords.ReportMode = ReadSettings().ProgressReport;
         _executionPanels.LocationRequested += World.FocusCell;
@@ -46,9 +77,17 @@ public partial class StrategyHud
             _turnTitles[phase] = Enumerable.Range(0, 4).Select(frame => (Texture2D)_textures[$"turn-title-{(phase == 0 ? "execution" : "strategy")}-{frame}"]).ToArray();
         _turnBanner = new TextureRect { ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, MouseFilter = MouseFilterEnum.Ignore, Visible = false };
         AddChild(_turnBanner);
-        _turnProgress = new TextureProgressBar { Position = new(285, 19), Size = new(304, 16), MaxValue = 304, Step = 1,
-            TextureUnder = _textures["turn-progress-frame"], TextureProgress = _textures["turn-progress-fill"],
-            MouseFilter = MouseFilterEnum.Ignore, Visible = false };
+        _turnProgress = new TextureProgressBar
+        {
+            Position = new(285, 19),
+            Size = new(304, 16),
+            MaxValue = 304,
+            Step = 1,
+            TextureUnder = _textures["turn-progress-frame"],
+            TextureProgress = _textures["turn-progress-fill"],
+            MouseFilter = MouseFilterEnum.Ignore,
+            Visible = false
+        };
         AddChild(_turnProgress);
         _pauseTurn = (StrategyButton)AddButton("静止", "button-pause", new(602, 10), new(64, 36), true, () => Turn.TogglePause());
         _pauseTurn.ToggleMode = true;
@@ -98,6 +137,10 @@ public partial class StrategyHud
         }
         World.Presentation = Turn.Display;
         World.Day = Turn.Day;
+        if (_narration is null) _battleView.UpdatePlayback(Turn.Day);
+        _mapSounds.TransitionGain = _battleView.MapAudioGain;
+        _sceneSounds.SetTransitionGain(_battleView.SceneAudioGain);
+        Music.SetMapTransitionGain(_battleView.MapAudioGain);
         UpdateMapAudio();
         UpdateMapMessages(delta);
         bool showPanels = Turn.Screen is TurnScreen.Preparing or TurnScreen.Playing or TurnScreen.AwaitingDecision or TurnScreen.Presenting ||
@@ -107,13 +150,47 @@ public partial class StrategyHud
         UpdateTurnControls();
     }
 
+    private San9.Core.Domain.MapCell BattleCell(San9.Core.Simulation.BattleObjectContext obj)
+    {
+        if (obj.Position is { } position) return San9.Core.Domain.MapCoordinates.Cell(position);
+        var place = (Turn.Day?.Before ?? Session.View).Settlements.First(s => s.Id == obj.ServicePlaceId);
+        return new(place.X, place.Y);
+    }
+
+    private void PresentBattleDay(TurnDayPresentation day)
+    {
+        if (!ReferenceEquals(_battleMessagesDay, day)) { _battleMessagesDay = day; _battleMessagesPlayed.Clear(); }
+        if (day.Battle is not { } plan) return;
+        var dialogues = day.PendingDialogues.Where(c => !_battleMessagesPlayed.Contains(c.Id)).ToArray();
+        if (dialogues.Length > 0)
+        {
+            OpenNarration(dialogues.Select(c => c.Message).ToArray(), day.Before,
+                () => { foreach (var cue in dialogues) day.CompleteDialogue(cue.Id); });
+            foreach (var cue in dialogues) _battleMessagesPlayed.Add(cue.Id);
+        }
+        foreach (var cue in day.ReadyMapSpeeches)
+        {
+            if (!_battleMessagesPlayed.Add(cue.Id)) continue;
+            var message = cue.Message;
+            if (message.MapSpeech is { } speech) PresentMapSpeech(speech);
+            if (message.SoundRole is { } sound) _sceneSounds.Play(sound, SoundEnabled);
+        }
+        foreach (var cue in plan.Records.Where(c => c.Time <= day.Elapsed))
+        {
+            if (!_battleMessagesPlayed.Add(cue.Record.Id)) continue;
+            PresentMapRecord(cue.Record);
+            if (cue.SoundRole is { } sound) _sceneSounds.Play(sound, SoundEnabled);
+        }
+    }
+
     private void UpdateMapAudio()
     {
         var audio = CommandPresentation.MapAudio!;
         Music.SetMapTrack(Turn.Screen == TurnScreen.Terminal ? null : MapMusic.Select(Turn.Display ?? Session.View, audio));
         var frame = World.Display?.Presented;
-        if (!SoundEnabled || Turn.Screen != TurnScreen.Playing || _narration is not null || World.LoadError is not null)
+        if (!SoundEnabled || Turn.Screen != TurnScreen.Playing || _narration is not null || World.LoadError is not null || _battleView.IsZoomActive)
         {
+            if (!SoundEnabled || Turn.Screen != TurnScreen.Playing || World.LoadError is not null) _mapSounds.StopOneShots();
             _mapSounds.UpdateVoices([], Turn.Day);
             _mapAudioPlayback.Clear();
             return;

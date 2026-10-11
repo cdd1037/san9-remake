@@ -63,7 +63,7 @@ public partial class StrategyHud
         },_=>0);
         _narration = new() { Messages = [new(npc,presentation.CitizenId,"patrol-citizen")], View = Session.View,
             Texts = Texts, Service = Textures, Textures = _textures, ContentRoot = ContentRoot,
-            Sounds = CommandPresentation.Sounds, SoundEnabled = SoundEnabled, Closed = CloseNarration };
+            Sounds = CommandPresentation.Sounds, SoundEnabled = SoundEnabled, Closed = () => CloseNarration() };
         OverlayHost.AddChild(_narration);
         await CaptureStage("citizen-content-probe");
         await Click(new(500,420));

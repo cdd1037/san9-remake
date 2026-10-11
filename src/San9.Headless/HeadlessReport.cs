@@ -13,6 +13,7 @@ public sealed class HeadlessReport
     public string Mode { get; set; } = "unknown";
     public bool Success { get; set; }
     public string RulesVersion { get; init; } = Application.SessionProtocol.RulesVersion;
+    public List<Application.RulesVersionWarning> RulesVersionWarnings { get; set; } = [];
     public int HashVersion { get; init; } = Core.Simulation.CanonicalJson.Version;
     public string? ContentFingerprint { get; set; }
     public ulong? Seed { get; set; }

@@ -96,8 +96,10 @@ public sealed class SlotSaveStore(string directory, ScenarioInitialState definit
     private void ValidateHeader(SlotSaveHeader header)
     {
         if (header.Version != FormatVersion || header.SaveVersion != SessionProtocol.SaveFormatVersion ||
-            header.RulesVersion != SessionProtocol.RulesVersion || header.HashVersion != CanonicalJson.Version)
+            header.HashVersion != CanonicalJson.Version)
             throw new SaveException(SaveFailure.UnsupportedVersion, "Unsupported slot or application save version.");
+        if (string.IsNullOrWhiteSpace(header.RulesVersion))
+            throw new JsonException("Missing slot rules version.");
         if (header.Summary.Players < 1 || header.Flag.Color < 0 || header.Flag.Glyph < -1)
             throw new JsonException("Invalid slot preview metadata.");
         if (header.ContentFingerprint != _contentFingerprint)

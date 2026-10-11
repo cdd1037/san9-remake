@@ -12,6 +12,12 @@ public static class SessionProtocol
     public const int LogFormatVersion = 107;
 }
 
+/// <summary>Non-authoritative load diagnostics; never included in saves or deterministic hashes.</summary>
+public sealed record RulesVersionWarning(string SavedVersion, string CurrentVersion)
+{
+    public string Message => $"档案规则版本为 {SavedVersion}，当前为 {CurrentVersion}。已按当前规则载入，后续结算或回放结果可能不同。";
+}
+
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(CommandOperation), "command")]
 [JsonDerivedType(typeof(EndControlOperation), "end-control")]

@@ -85,16 +85,29 @@ public sealed class SlotSaveStoreTests : IDisposable
     [Theory]
     [InlineData("version")]
     [InlineData("saveVersion")]
-    [InlineData("rulesVersion")]
     [InlineData("hashVersion")]
     public void UnsupportedHeaderVersionsAreRejectedWithoutReadingTheBody(string field)
     {
         var store = new SlotSaveStore(_directory, Definition);
         var document = JsonNode.Parse(SlotSaveStore.Encode(GameSession.Start(Definition, 1), Summary("旧存档")))!;
-        document["header"]![field] = field == "rulesVersion" ? JsonValue.Create("obsolete") : JsonValue.Create(-1);
+        document["header"]![field] = -1;
         store.Write(1, Encoding.UTF8.GetBytes(document.ToJsonString()));
         Assert.Equal(SaveFailure.UnsupportedVersion, store.ReadCatalog(40)[1].Error!.Failure);
         Assert.Equal(SaveFailure.UnsupportedVersion, Assert.Throws<SaveException>(() => store.Load(1)).Failure);
+    }
+
+    [Fact]
+    public void OlderRulesRemainBrowsableAndLoadWithWarning()
+    {
+        var store = new SlotSaveStore(_directory, Definition);
+        var document = JsonNode.Parse(SlotSaveStore.Encode(GameSession.Start(Definition, 1), Summary("旧存档")))!;
+        document["header"]!["rulesVersion"] = "older-rules";
+        document["save"]!["rulesVersion"] = "older-rules";
+        store.Write(1, Encoding.UTF8.GetBytes(document.ToJsonString()));
+        var listing = store.ReadCatalog(40)[1];
+        Assert.Null(listing.Error);
+        Assert.Equal("旧存档", listing.Summary!.Note);
+        Assert.Equal("older-rules", Assert.Single(store.Load(1).RulesVersionWarnings).SavedVersion);
     }
 
     [Fact]

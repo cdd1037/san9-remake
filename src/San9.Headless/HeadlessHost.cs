@@ -55,6 +55,7 @@ public sealed class HeadlessHost
         {
             if (_session is not null)
             {
+                _report.RulesVersionWarnings = _report.RulesVersionWarnings.Union(_session.RulesVersionWarnings).ToList();
                 _report.ContentFingerprint = _session.ContentFingerprint;
                 _report.Seed = _session.Snapshot.Simulation.InitialSeed;
                 _report.FinalHash = _session.Snapshot.Simulation.CanPersist ? _session.Capture().StateHash : null;
@@ -67,6 +68,7 @@ public sealed class HeadlessHost
                     _session.Snapshot.Treasures.Count, _session.Snapshot.Relations.Count);
             }
             _report.ElapsedMilliseconds = timer.ElapsedMilliseconds;
+            foreach (var warning in _report.RulesVersionWarnings) Console.Error.WriteLine(warning.Message);
             if (_reportPath is not null)
             {
                 try { Write(_reportPath, CanonicalJson.Encode(_report)); }
@@ -254,7 +256,7 @@ public sealed class HeadlessHost
 
     private void ReplayRecording(Dictionary<string, string> options)
     {
-        var replay = RecordingService.Replay(Required(options, "recording"), Content(options));
+        var replay = RecordingService.Replay(Required(options, "recording"), Content(options), _report.RulesVersionWarnings.Add);
         _session = replay.Session;
         _started = replay.Started;
         _report.AcceptedOperations = replay.Accepted;

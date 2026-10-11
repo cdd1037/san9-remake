@@ -146,6 +146,8 @@ public partial class SessionUiHost : Node
         World.CanIssueOrders = () => !IsSwitching && Hud.CanIssueOrders;
         _pending = null;
         _replacement?.RevealPreparedScene();
+        if (!Session.RulesVersionWarnings.IsEmpty)
+            Hud.SystemMenu.ShowLoadWarning(string.Join("\n", Session.RulesVersionWarnings.Select(w => w.Message)));
     }
 
     public void RequestQuickLoad() => Hud.SystemMenu.RequestLoad(() =>

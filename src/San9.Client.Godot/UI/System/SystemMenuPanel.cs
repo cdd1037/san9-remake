@@ -102,14 +102,16 @@ public partial class SystemMenuPanel : Control
         ReplacePage(dialog);
         return dialog;
     }
-    public void ShowLoadFailure(string message)
+    public void ShowLoadFailure(string message) => ShowLoadNotice($"载入失败：\n{message}");
+    public void ShowLoadWarning(string message) => ShowLoadNotice($"载入警告：\n{message}");
+    private void ShowLoadNotice(string message)
     {
         HideBusy();
         _textures ??= Service.CreateScope(owner: this);
         _textures.RequestPrefixes("dialog-");
         Show();
         var notice = MapDialog();
-        notice.SetNotice($"载入失败：\n{message}");
+        notice.SetNotice(message);
         notice.FocusDefaultButton();
     }
     private async void Load(Func<GameSession> read)

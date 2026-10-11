@@ -29,11 +29,11 @@ public static class RecordingService
 
     public static void Write(string path, SessionRecording recording) => AtomicFile.Write(path, Encode(recording));
 
-    public static RecordingReplay Replay(string path, ScenarioInitialState definition) =>
-        Replay(File.ReadAllBytes(path), definition, GameSession.EngineFactory(definition));
+    public static RecordingReplay Replay(string path, ScenarioInitialState definition, Action<RulesVersionWarning>? reportWarning = null) =>
+        Replay(File.ReadAllBytes(path), definition, GameSession.EngineFactory(definition), reportWarning);
 
     internal static RecordingReplay Replay(ReadOnlyMemory<byte> bytes, ScenarioInitialState definition,
-        Func<WorldState, SimulationEngine> factory)
+        Func<WorldState, SimulationEngine> factory, Action<RulesVersionWarning>? reportWarning = null)
     {
         RecordingEnvelope envelope;
         try
@@ -41,10 +41,10 @@ public static class RecordingService
             using var document = JsonDocument.Parse(bytes);
             var root = document.RootElement;
             if (root.GetProperty("formatVersion").GetInt32() != FormatVersion ||
-                root.GetProperty("rulesVersion").GetString() != SessionProtocol.RulesVersion ||
                 root.GetProperty("hashVersion").GetInt32() != CanonicalJson.Version)
-                throw new RecordingException("Unsupported recording, rules or hash version.");
+                throw new RecordingException("Unsupported recording or hash version.");
             envelope = StrictJson.Deserialize<RecordingEnvelope>(bytes);
+            if (string.IsNullOrWhiteSpace(envelope.RulesVersion)) throw new RecordingException("Missing recording rules version.");
             if (envelope.IntegrityHash != Integrity(envelope)) throw new RecordingException("Recording integrity mismatch.");
         }
         catch (Exception error) when (error is JsonException or ArgumentException or InvalidOperationException or KeyNotFoundException or NotSupportedException or FormatException)
@@ -57,6 +57,7 @@ public static class RecordingService
             var owned = new ScenarioSessionDefinition(definition);
             if (recording.ContentFingerprint != owned.Fingerprint) throw new RecordingException("Recording content mismatch.");
             session = GameSession.Restore(owned, recording.Initial, factory);
+            if (session.ReportRulesVersion(envelope.RulesVersion) is { } warning) reportWarning?.Invoke(warning);
         }
         catch (Exception error) when (error is ArgumentException or InvalidOperationException or OverflowException)
         { throw new RecordingException("Invalid recording origin.", inner: error); }

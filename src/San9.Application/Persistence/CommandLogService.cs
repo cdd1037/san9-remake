@@ -48,11 +48,13 @@ public static class CommandLogService
     {
         using var reader = new StreamReader(path, new UTF8Encoding(false, true));
         var header = Parse<CommandLogHeader>(reader.ReadLine(), 1);
-        if (header.FormatVersion != SessionProtocol.LogFormatVersion || header.RulesVersion != SessionProtocol.RulesVersion ||
+        if (header.FormatVersion != SessionProtocol.LogFormatVersion ||
             header.HashVersion != CanonicalJson.Version || header.ContentFingerprint != session.ContentFingerprint ||
             header.ComputerDamageBonusPercent != session.Snapshot.Simulation.ComputerDamageBonusPercent ||
             header.Seed != session.Snapshot.Simulation.InitialSeed || header.BattleDeathsEnabled != session.Snapshot.Simulation.BattleDeathsEnabled)
             throw new CommandLogException(1, "Log version, content or seed mismatch.");
+        if (string.IsNullOrWhiteSpace(header.RulesVersion)) throw new CommandLogException(1, "Missing log rules version.");
+        session.ReportRulesVersion(header.RulesVersion);
         int line = 1, accepted = 0, alreadyProcessed = 0;
         var events = ImmutableArray.CreateBuilder<DomainEvent>();
         var attempts = ImmutableArray.CreateBuilder<ReplayAttempt>();

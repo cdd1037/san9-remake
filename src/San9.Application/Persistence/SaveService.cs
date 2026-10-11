@@ -54,13 +54,20 @@ public static class SaveService
     private static GameSession Restore(SaveEnvelope envelope, ScenarioInitialState definition,
         Func<WorldState, SimulationEngine> factory, bool playerLoad)
     {
-        if (envelope.FormatVersion != SessionProtocol.SaveFormatVersion || envelope.RulesVersion != SessionProtocol.RulesVersion ||
+        if (envelope.FormatVersion != SessionProtocol.SaveFormatVersion ||
             envelope.HashVersion != CanonicalJson.Version)
-            throw new SaveException(SaveFailure.UnsupportedVersion, "Unsupported save, rule or hash version.");
+            throw new SaveException(SaveFailure.UnsupportedVersion, "Unsupported save or hash version.");
+        if (string.IsNullOrWhiteSpace(envelope.RulesVersion))
+            throw new SaveException(SaveFailure.InvalidFormat, "Missing save rules version.");
         var owned = new ScenarioSessionDefinition(definition);
         if (envelope.ContentFingerprint != owned.Fingerprint)
             throw new SaveException(SaveFailure.ContentMismatch, "Save belongs to different gameplay content.");
-        try { return playerLoad ? GameSession.Load(owned, envelope.Session, factory) : GameSession.Restore(owned, envelope.Session, factory); }
+        try
+        {
+            var session = playerLoad ? GameSession.Load(owned, envelope.Session, factory) : GameSession.Restore(owned, envelope.Session, factory);
+            session.ReportRulesVersion(envelope.RulesVersion);
+            return session;
+        }
         catch (Exception error) when (error is ArgumentException or InvalidOperationException or OverflowException)
         { throw new SaveException(SaveFailure.InvalidState, "Invalid authoritative session state.", error); }
     }

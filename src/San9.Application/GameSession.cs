@@ -24,6 +24,15 @@ public sealed partial class GameSession
     public bool IsRecording => _recordingInitial is not null;
     public long NextOperationSequence { get; private set; }
     public bool HasUnsavedChanges { get; private set; } = true;
+    public ImmutableArray<RulesVersionWarning> RulesVersionWarnings { get; private set; } = [];
+
+    internal RulesVersionWarning? ReportRulesVersion(string savedVersion)
+    {
+        if (savedVersion == SessionProtocol.RulesVersion) return null;
+        var warning = new RulesVersionWarning(savedVersion, SessionProtocol.RulesVersion);
+        if (!RulesVersionWarnings.Contains(warning)) RulesVersionWarnings = RulesVersionWarnings.Add(warning);
+        return warning;
+    }
 
     /// <summary>A completed write only covers the operation sequence captured for that write.</summary>
     public void MarkSaved(long savedOperationSequence)

@@ -346,6 +346,27 @@ public sealed class HeadlessProcessTests : IDisposable
     }
 
     [Fact]
+    public async Task OlderRulesWarnInReportAndStandardErrorWhileContinuing()
+    {
+        WriteFailureScenario();
+        var save = JsonNode.Parse(File.ReadAllBytes(FilePath("initial.save.json")))!;
+        save["rulesVersion"] = "older-save-rules";
+        File.WriteAllText(FilePath("older.save.json"), save.ToJsonString(), new System.Text.UTF8Encoding(false));
+        string[] lines = File.ReadAllLines(FilePath("commands.jsonl"));
+        var header = JsonNode.Parse(lines[0])!;
+        header["rulesVersion"] = "older-log-rules";
+        lines[0] = header.ToJsonString();
+        File.WriteAllLines(FilePath("older.jsonl"), lines, new System.Text.UTF8Encoding(false));
+        var result = await Run("run", "--scenario", FilePath("scenario.json"), "--log", FilePath("older.jsonl"),
+            "--restore", FilePath("older.save.json"), "--report", FilePath("warnings.json"));
+        Assert.Equal(0, result.Code);
+        Assert.True(result.Report.GetProperty("success").GetBoolean());
+        Assert.Equal(1, result.Report.GetProperty("acceptedOperations").GetInt32());
+        Assert.Equal(new[] { "older-save-rules", "older-log-rules" }, result.Report.GetProperty("rulesVersionWarnings")
+            .EnumerateArray().Select(w => w.GetProperty("savedVersion").GetString()));
+    }
+
+    [Fact]
     public async Task UnknownSaveVersionHasSpecificFailureCode()
     {
         WriteFailureScenario();
@@ -401,8 +422,10 @@ public sealed class HeadlessProcessTests : IDisposable
         catch { process.Kill(entireProcessTree: true); throw; }
         string output = await stdout;
         string errors = await stderr;
-        Assert.True(string.IsNullOrWhiteSpace(errors), errors);
         using var document = JsonDocument.Parse(output);
+        string expectedErrors = string.Concat(document.RootElement.GetProperty("rulesVersionWarnings")
+            .EnumerateArray().Select(w => w.GetProperty("message").GetString() + Environment.NewLine));
+        Assert.Equal(expectedErrors, errors);
         return (process.ExitCode, document.RootElement.Clone());
     }
 }

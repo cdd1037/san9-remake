@@ -347,15 +347,77 @@ public sealed class PersistenceTests : IDisposable
 
     [Theory]
     [InlineData("formatVersion")]
-    [InlineData("rulesVersion")]
     [InlineData("hashVersion")]
     public void UnknownVersionsAreExplicitlyRejected(string field)
     {
         var session = GameSession.Start(Fixture(), 190);
         var root = JsonNode.Parse(SaveService.Encode(session))!;
-        root[field] = field == "rulesVersion" ? JsonValue.Create("unknown") : JsonValue.Create(999);
+        root[field] = JsonValue.Create(999);
         Assert.Equal(SaveFailure.UnsupportedVersion, Assert.Throws<SaveException>(() =>
             SaveService.Decode(Encoding.UTF8.GetBytes(root.ToJsonString()), Fixture())).Failure);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void RuleVersionMismatchWarnsWithoutBlockingRestorationOrChangingSavedState(bool playerLoad)
+    {
+        var definition = Fixture();
+        var original = GameSession.Start(definition, 190);
+        original.AddChronicleNote("saved progress");
+        var envelope = SaveService.Capture(original) with { RulesVersion = "older-rules" };
+        var restored = playerLoad ? SaveService.Load(envelope, definition) : SaveService.Decode(CanonicalJson.Encode(envelope), definition);
+        var warning = Assert.Single(restored.RulesVersionWarnings);
+        Assert.Equal(envelope.RulesVersion, warning.SavedVersion);
+        Assert.Equal(SessionProtocol.RulesVersion, warning.CurrentVersion);
+        Assert.Equal(original.Chronicle, restored.Chronicle);
+        Assert.False(restored.HasUnsavedChanges);
+        if (!playerLoad) Assert.Equal(original.Capture().StateHash, restored.Capture().StateHash);
+        var saved = SaveService.Capture(restored);
+        Assert.Equal(SessionProtocol.RulesVersion, saved.RulesVersion);
+        Assert.Empty(SaveService.Decode(CanonicalJson.Encode(saved), definition).RulesVersionWarnings);
+        Assert.DoesNotContain("rulesVersionWarnings", Encoding.UTF8.GetString(SaveService.Encode(restored)));
+        Assert.Empty(original.RulesVersionWarnings);
+    }
+
+    [Fact]
+    public void RuleVersionMismatchWarnsAndCommandLogStillAppliesCommands()
+    {
+        var definition = Fixture();
+        var session = GameSession.Start(definition, 190);
+        string path = FilePath("older-rules.jsonl");
+        var request = session.Request(new ChronicleOperation("old log command"));
+        var header = new CommandLogHeader(SessionProtocol.LogFormatVersion, "older-rules", CanonicalJson.Version,
+            session.ContentFingerprint, 190);
+        CommandLogService.Write(path, header, [request]);
+        var result = CommandLogService.Replay(path, session);
+        Assert.Null(result.FirstFailure);
+        Assert.Equal(1, result.Accepted);
+        Assert.Equal("old log command", Assert.Single(session.Chronicle).Text);
+        Assert.Equal("older-rules", Assert.Single(session.RulesVersionWarnings).SavedVersion);
+    }
+
+    [Fact]
+    public void RuleVersionMismatchWarnsAndRecordingStillValidatesRealReplayDifferences()
+    {
+        var definition = Fixture();
+        var session = GameSession.Start(definition, 190);
+        session.BeginRecording();
+        session.AddChronicleNote("old recording command");
+        var envelope = StrictJson.Deserialize<RecordingEnvelope>(RecordingService.Encode(session.EndRecording()))
+            with { RulesVersion = "older-rules" };
+        envelope = envelope with { IntegrityHash = RecordingService.Integrity(envelope) };
+        var warnings = new List<RulesVersionWarning>();
+        var replay = RecordingService.Replay(CanonicalJson.Encode(envelope), definition, GameSession.EngineFactory(definition), warnings.Add);
+        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        Assert.Equal("older-rules", Assert.Single(replay.Session.RulesVersionWarnings).SavedVersion);
+        Assert.Single(warnings);
+        envelope = envelope with { Recording = envelope.Recording with { FinalHash = "different-state" } };
+        envelope = envelope with { IntegrityHash = RecordingService.Integrity(envelope) };
+        warnings.Clear();
+        Assert.Contains("final state mismatch", Assert.Throws<RecordingException>(() => RecordingService.Replay(
+            CanonicalJson.Encode(envelope), definition, GameSession.EngineFactory(definition), warnings.Add)).Message);
+        Assert.Single(warnings);
     }
 
     [Fact]

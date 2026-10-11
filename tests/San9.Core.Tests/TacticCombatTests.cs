@@ -25,6 +25,31 @@ public sealed class TacticCombatTests
 
     private static readonly CommandContext Player = new("player");
 
+    [Fact]
+    public void ActivationRetainsAllSourceMembersEvenWhenOnlyOneActivates()
+    {
+        var fact = Engine(members: 2, seed: 29, linkMultiplier: 2).AdvanceXun().Events.OfType<TacticActivatedEvent>().First();
+        Assert.Single(fact.OfficerIds);
+        Assert.Equal(2, fact.Occurrence!.SourceMemberIds.Length);
+        Assert.Contains(fact.OfficerIds[0], fact.Occurrence.SourceMemberIds);
+        var restored = (TacticActivatedEvent)System.Text.Json.JsonSerializer.Deserialize<DomainEvent>(
+            System.Text.Json.JsonSerializer.Serialize<DomainEvent>(fact))!;
+        Assert.Equal(fact.Occurrence.SourceMemberIds.ToArray(), restored.Occurrence!.SourceMemberIds.ToArray());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void MartialOverkillRetainsCalculatedDamageAfterTargetLossIsCapped(bool settlement)
+    {
+        var damage = Engine(settlement: settlement, power: 10000).AdvanceXun().Events
+            .OfType<BattleDamageEvent>().First(e => e.TacticId is not null);
+        Assert.True(damage.CalculatedSoldierLoss > damage.SoldierLoss);
+        Assert.Equal(damage.SoldierLoss, damage.Dead + damage.AddedWounded);
+        var restored = System.Text.Json.JsonSerializer.Deserialize<DomainEvent>(System.Text.Json.JsonSerializer.Serialize<DomainEvent>(damage));
+        Assert.Equal(damage, restored);
+    }
+
     [Theory]
     [InlineData(2, 22UL, 2)] // Link stream rolls 49: below the ordinary 50% threshold.
     [InlineData(2, 29UL, 1)] // 50 is outside that threshold.
@@ -63,23 +88,39 @@ public sealed class TacticCombatTests
                 MartialTacticVulnerabilities = vulnerableCategory is int weak ? [weak] : [],
                 Attack = counter ? new(1, false) : null, Tactics = counter ? new(opportunityChance, 100, 2, [0], []) : null }],
             [new(1, new(2, 2), new(1, 1)) { Combat = combat }, new(2, new(17, 2), new(1, 1)) { Combat = combat }])
-        { LinkRules = links ?? TacticLinkRules.Empty, CityInfluence = influence,
+        {
+            LinkRules = links ?? TacticLinkRules.Empty,
+            CityInfluence = influence,
             Tactics = [new(9000, 0, TacticEffect.Martial, power, 9, 0, !water, allowedFacility, [100, 200]),
-                new(9020, 4, TacticEffect.FormationTechnology, 0, 0, 0, false, false, [100])] });
+                new(9020, 4, TacticEffect.FormationTechnology, 0, 0, 0, false, false, [100])]
+        });
         List<OfficerState> officers = [new(11, 1, null, new(80, 70, 70, 70), false)
             { UnitId = 0, LearnedTactics = equipped ? [9000] : [], EquippedTacticId = equipped ? 9000 : null,
                 Injury = injury, TacticCooldown = cooldown,
                 TacticProficiencies = [primaryProficiency, 0, 0, 0, waterLearning ? 1000 : 0, 0, 0, 0, 0] }];
         if (members == 2) officers.Add(new(12, 1, null, new(80, 70, 70, 70), false)
-            { UnitId = 0, LearnedTactics = [9000], EquippedTacticId = 9000,
-                TacticProficiencies = [linkedProficiency, 0, 0, 0, waterLearning ? 1000 : 0, 0, 0, 0, 0] });
-        officers.Add(new(21, 2, settlement ? 2 : null, new(70, 70, 70, 70), false) { UnitId = settlement ? null : 1,
+        {
+            UnitId = 0,
+            LearnedTactics = [9000],
+            EquippedTacticId = 9000,
+            TacticProficiencies = [linkedProficiency, 0, 0, 0, waterLearning ? 1000 : 0, 0, 0, 0, 0]
+        });
+        officers.Add(new(21, 2, settlement ? 2 : null, new(70, 70, 70, 70), false)
+        {
+            UnitId = settlement ? null : 1,
             TacticProficiencies = [defenderProficiency, 0, 0, 0, waterLearning ? 1000 : 0, 0, 0, 0, 0],
-            LearnedTactics = counter ? [9000] : [], EquippedTacticId = counter ? 9000 : null });
+            LearnedTactics = counter ? [9000] : [],
+            EquippedTacticId = counter ? 9000 : null
+        });
         List<UnitState> units = [new(0, 1, new(settlement ? 16 : 6, 2), 100000) { FormationId = 100, Morale = 100, ServicePlaceId = 1,
             MemberRanks = officers.Where(p => p.UnitId == 0).ToImmutableDictionary(p => p.Id, _ => BattleRank.Front) }];
-        if (!settlement) units.Add(new(1, 2, new(7, 2), 100000) { FormationId = 200, Morale = 100, ServicePlaceId = 2,
-            MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(21, BattleRank.Middle) });
+        if (!settlement) units.Add(new(1, 2, new(7, 2), 100000)
+        {
+            FormationId = 200,
+            Morale = 100,
+            ServicePlaceId = 2,
+            MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(21, BattleRank.Middle)
+        });
         if (differentCommander)
             units[0] = units[0] with { CommanderId = 12, };
         var world = WorldState.Create(new(190, 1, 1), seed,
@@ -227,8 +268,18 @@ public sealed class TacticCombatTests
     public void TacticCaptureUsesSharedForceAndTargetCleanupExactlyOnce()
     {
         var engine = Engine(settlement: true, power: 10000);
+        int? commander = engine.Snapshot.Units.Single(u => u.Id == 0).CommanderId;
         var result = engine.AdvanceXun();
-        Assert.Single(result.Events.OfType<TacticActivatedEvent>());
+        var activation = Assert.Single(result.Events.OfType<TacticActivatedEvent>());
+        Assert.Equal(0, activation.Occurrence!.Source.Id);
+        Assert.Equal(commander, activation.Occurrence.Source.CommanderId);
+        Assert.Equal(2, activation.Occurrence.Target.ForceId);
+        Assert.All(result.Events.OfType<BattleDamageEvent>().Where(e => e.TacticId is not null), hit =>
+        {
+            Assert.Equal(activation.TacticId, hit.TacticId);
+            Assert.Equal(activation.Occurrence.Source, hit.Source);
+            Assert.Equal(activation.Occurrence.Target, hit.Target);
+        });
         Assert.Single(result.Events.OfType<SettlementCapturedEvent>());
         Assert.Single(result.Events.OfType<ForceEliminatedEvent>());
         Assert.Equal(1, engine.Snapshot.Settlements.Single(s => s.Id == 2).OwnerId);

@@ -23,23 +23,30 @@ public sealed class IntelligenceTacticTests
                 Tactics = new(0, 0, 2, [], []) { BypassesPassiveCounters = bypass, ConfusionResistanceChance = formationResistance } }],
             [new(1, new(2, 2), new(1, 1)) { Combat = combat }, new(2, new(17, 2), new(1, 1)) { Combat = combat },
              new(3, new(areaSettlement ? 9 : 27, 2), new(1, 1)) { Combat = combat }])
-        { RegionIds = Enumerable.Repeat(localCity is int city ? (int?)(city + 100) : null, 6).ToImmutableArray(),
+        {
+            RegionIds = Enumerable.Repeat(localCity is int city ? (int?)(city + 100) : null, 6).ToImmutableArray(),
             Tactics = [new(9000, 7, effect, power, 15, 0, true, true, [100]) { EffectRadius = support || area ? 3 : 0 },
             new(9100, 6, effect == TacticEffect.TrapSelection ? TacticEffect.CounterTrap : TacticEffect.CounterConfusion, 0, 0, 0, true, false, []),
             new(9200, 7, TacticEffect.Trap, 10, 9, 0, false, true, [100])],
             Elevations = [0, 0, 0, 0, 0, 0],
-            TrapTerrains = [new(0, trap, false)] });
+            TrapTerrains = [new(0, trap, false)]
+        });
         List<OfficerState> officers = [new(11, 1, null, new(70, 200, 70, 70), false) { UnitId = 0, LearnedTactics = [9000],
                 TacticProficiencies = [0, 0, 0, 0, 0, 0, 0, 500, 0] },
             new(21, targetOwner, settlement ? 2 : null, new(70, 0, 70, 70), false) { UnitId = settlement ? null : 1,
                 LearnedTactics = counter ? [9100] : [], EquippedTacticId = counter ? 9100 : null, Injury = effect == TacticEffect.Heal ? 7 : 0 }];
         List<UnitState> units = [new(0, 1, new(settlement ? 16 : 6, 2), 99900) { FormationId = 100, Morale = effect == TacticEffect.Inspire ? 79 : 100, ServicePlaceId = 1,
             MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(11, BattleRank.Front) }];
-        if (!settlement) units.Add(new(1, targetOwner, new(7, 2), support ? 99950u : 10000u) { FormationId = 200,
-            Morale = effect == TacticEffect.Taunt ? 7 : effect == TacticEffect.Inspire ? 79 : 100, ServicePlaceId = targetHome,
-            Wounded = effect == TacticEffect.Heal ? wounded : 0, Condition = effect == TacticEffect.Heal || existingConfusion > 0 ? UnitCondition.Confused : UnitCondition.Normal,
+        if (!settlement) units.Add(new(1, targetOwner, new(7, 2), support ? 99950u : 10000u)
+        {
+            FormationId = 200,
+            Morale = effect == TacticEffect.Taunt ? 7 : effect == TacticEffect.Inspire ? 79 : 100,
+            ServicePlaceId = targetHome,
+            Wounded = effect == TacticEffect.Heal ? wounded : 0,
+            Condition = effect == TacticEffect.Heal || existingConfusion > 0 ? UnitCondition.Confused : UnitCondition.Normal,
             ConditionDaysRemaining = effect == TacticEffect.Heal ? 100 : existingConfusion,
-            MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(21, BattleRank.Middle) });
+            MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(21, BattleRank.Middle)
+        });
         List<ForceState> forces = [new(1, 100) { LeaderId = 11 }];
         if (!support) forces.Add(new(2, 100) { LeaderId = 21 });
         List<SettlementState> settlements = [new(1, 1, 1000, 100, 100, 100, 0, 0, 100, 0, 100),
@@ -48,8 +55,13 @@ public sealed class IntelligenceTacticTests
         {
             forces.Add(new(3, 100) { LeaderId = 31 });
             officers.Add(new(31, 3, null, new(70, 0, 70, 70), false) { UnitId = 2 });
-            units.Add(new(2, 3, new(9, 2), 10000) { FormationId = 200, Morale = 100, ServicePlaceId = 3,
-                MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(31, BattleRank.Middle) });
+            units.Add(new(2, 3, new(9, 2), 10000)
+            {
+                FormationId = 200,
+                Morale = 100,
+                ServicePlaceId = 3,
+                MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(31, BattleRank.Middle)
+            });
             units.Add(new(3, 1, new(8, 3), 10000) { FormationId = 200, Morale = 100 });
             settlements.Add(new(3, 3, 1000, 100, 100, 100, 0, 0, 100, 0, 100));
         }
@@ -167,9 +179,17 @@ public sealed class IntelligenceTacticTests
     public void EquippedCounterAndFormationResistanceHaveDistinctBypassRules(bool counter, bool bypass, int resistance, bool succeeds)
     {
         var engine = Engine(TacticEffect.Confusion, counter: counter, bypass: bypass, formationResistance: resistance);
-        var events = engine.AdvanceXun().Events.OfType<TacticActivatedEvent>().ToArray();
+        var result = engine.AdvanceXun();
+        var events = result.Events.OfType<TacticActivatedEvent>().ToArray();
         Assert.Equal(succeeds, events.Length > 0);
-        if (!succeeds) Assert.Equal(0, engine.Snapshot.Officers.Single(p => p.Id == 11).TacticCooldown);
+        if (!succeeds)
+        {
+            Assert.Equal(0, engine.Snapshot.Officers.Single(p => p.Id == 11).TacticCooldown);
+            var attempt = Assert.IsType<IntelligenceEffectResolvedEvent>(result.Events.First(e => e is IntelligenceEffectResolvedEvent));
+            Assert.True(attempt.IsAttempt); Assert.Equal(0, attempt.Effect); Assert.Equal(11, attempt.ActorId);
+            Assert.Equal(counter ? 21 : (int?)null, attempt.Occurrence!.CounterOfficerId);
+            Assert.Equal(1, attempt.Occurrence.Target.Id);
+        }
     }
 
     [Theory]

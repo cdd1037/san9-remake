@@ -3,9 +3,16 @@ using San9.Core.Domain;
 namespace San9.Core.Simulation;
 
 public sealed record IntelligenceEffectResolvedEvent(GameClock Clock, BattleSource Source, int TargetId, bool TargetIsSettlement,
-    int TacticId, int Effect) : DomainEvent;
+    int TacticId, int Effect) : DomainEvent
+{
+    public int? ActorId { get; init; }
+    public TacticOccurrence? Occurrence { get; init; }
+    public bool IsAttempt { get; init; }
+}
 public sealed record TacticMoraleChangedEvent(GameClock Clock, int TargetId, bool TargetIsSettlement, int Previous, int Current,
     int TacticId) : DomainEvent;
+public sealed record TacticDefectionEvent(GameClock Clock, int ActorId, int TacticId, TacticOccurrence Occurrence,
+    uint SourceGain, uint TargetLoss) : DomainEvent;
 
 internal static class IntelligenceTactics
 {
@@ -68,7 +75,8 @@ internal static class IntelligenceTactics
             if (owner is int force) forces.Add(force);
             int effect = target == primary ? primaryEffect : Effect(world, actor, tactic, target, rules);
             events.Add(new IntelligenceEffectResolvedEvent(world.Clock, source, target.UnitId ?? target.SettlementId!.Value,
-                target.UnitId is null, tactic.Id, effect));
+                target.UnitId is null, tactic.Id, effect)
+            { ActorId = actor.Id, Occurrence = TacticOccurrence.Capture(world, source, target, tactic, military, rules.Treasures) });
             if (effect == 0) continue;
             Apply(world, source, actor, tactic, target, effect, rules, events, defeatedSettlements);
             var learning = tactic.Effect == TacticEffect.Trap
@@ -120,6 +128,7 @@ internal static class IntelligenceTactics
                     target.UnitId is null, morale, current, tactic.Id));
                 break;
             case TacticEffect.Defection:
+                var occurrence = TacticOccurrence.Capture(world, source, target, tactic, military, rules.Treasures);
                 uint loss = TacticMath.Defection(proficiency, intelligence, tactic.Power, effect, soldiers, target.UnitId is null);
                 uint accepted = Math.Min(loss, source.Capacity(world, military) - source.Soldiers(world));
                 int? cityId = target.UnitId is int targetUnit
@@ -139,6 +148,7 @@ internal static class IntelligenceTactics
                     target.UnitId ?? target.SettlementId, accepted, accepted, events);
                 ResourceAccounts.Report(world, new(target.UnitId is null ? ResourceOwnerKind.Settlement : ResourceOwnerKind.Unit,
                     target.UnitId ?? target.SettlementId!.Value), ResourceKind.Soldiers, "tactic-defection", source.Id, -(long)loss, -(long)loss, events);
+                events.Add(new TacticDefectionEvent(world.Clock, actor.Id, tactic.Id, occurrence, accepted, loss));
                 break;
             case TacticEffect.Illusion:
             case TacticEffect.Sorcery:
@@ -146,9 +156,9 @@ internal static class IntelligenceTactics
                 uint damage = tactic.Effect == TacticEffect.Trap ? TacticMath.TrapDamage(proficiency, intelligence, tactic.Power, effect, soldiers) :
                     TacticMath.IllusionDamage(proficiency, intelligence, tactic.Power, effect, soldiers, tactic.Effect == TacticEffect.Sorcery);
                 if (target.UnitId is int damaged)
-                    MilitaryCombat.DamageUnit(world, world.Units[damaged], damage, military.CombatFormation(world.Units[damaged])!, source.Id, events, source.IsSettlement);
+                    MilitaryCombat.DamageUnit(world, world.Units[damaged], damage, military.CombatFormation(world.Units[damaged])!, source.Id, events, source.IsSettlement, tactic.Id);
                 else MilitaryCombat.DamageSettlement(world, world.Settlements[target.SettlementId!.Value], damage,
-                    military.Place(world.Settlements[target.SettlementId.Value]).Combat!, source.Id, events, attackerIsSettlement: source.IsSettlement);
+                    military.Place(world.Settlements[target.SettlementId.Value]).Combat!, source.Id, events, attackerIsSettlement: source.IsSettlement, tacticId: tactic.Id);
                 break;
             default:
                 throw new InvalidOperationException("Not an offensive intelligence effect.");

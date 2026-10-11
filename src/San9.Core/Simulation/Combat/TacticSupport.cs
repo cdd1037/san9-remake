@@ -4,7 +4,12 @@ using San9.Core.Domain;
 namespace San9.Core.Simulation;
 
 public sealed record TacticHealingEvent(GameClock Clock, BattleSource Source, int TargetUnitId, uint RecoveredSoldiers,
-    ImmutableArray<int> HealedOfficers, bool ConditionCleared) : DomainEvent;
+    ImmutableArray<int> HealedOfficers, bool ConditionCleared) : DomainEvent
+{
+    public int? TacticId { get; init; }
+    public int? ActorId { get; init; }
+    public TacticOccurrence? Occurrence { get; init; }
+}
 
 internal static class TacticSupport
 {
@@ -42,7 +47,13 @@ internal static class TacticSupport
     {
         world.Replace(world.Officers[actor.Id] with { TacticCooldown = tactic.MinimumInterval });
         events.Add(new TacticActivatedEvent(world.Clock, source.Id, source.IsSettlement, targets[0],
-            tactic.Effect == TacticEffect.Inspire && source.IsSettlement, tactic.Id, [actor.Id], false, 10));
+            tactic.Effect == TacticEffect.Inspire && source.IsSettlement, tactic.Id, [actor.Id], false, 10)
+        {
+            Occurrence = TacticOccurrence.Capture(world, source,
+            new(source.IsSettlement && tactic.Effect == TacticEffect.Inspire ? MilitaryOrderKind.AttackSettlement : MilitaryOrderKind.AttackUnit,
+                null, source.IsSettlement && tactic.Effect == TacticEffect.Inspire ? source.Id : null)
+            { UnitId = source.IsSettlement && tactic.Effect == TacticEffect.Inspire ? null : targets[0] }, tactic, military)
+        });
         int proficiency = actor.TacticProficiencies[tactic.Category!.Value];
         int intelligence = world.Abilities(actor).Intelligence;
         foreach (int targetId in targets)
@@ -57,19 +68,27 @@ internal static class TacticSupport
             else
             {
                 var target = world.Units[targetId];
+                var occurrence = TacticOccurrence.Capture(world, source,
+                    new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = targetId }, tactic, military);
                 uint recovered = TacticMath.HealSoldiers(proficiency, intelligence, tactic.Power, target.Wounded,
                     military.Capacity(target) - target.Soldiers);
                 bool highSpirits = target.Condition == UnitCondition.HighSpirits;
                 bool clear = !highSpirits && (target.Condition != UnitCondition.Normal || target.ConditionDaysRemaining > 0);
-                world.Replace(target with { Soldiers = target.Soldiers + recovered, Wounded = target.Wounded - recovered,
+                world.Replace(target with
+                {
+                    Soldiers = target.Soldiers + recovered,
+                    Wounded = target.Wounded - recovered,
                     Condition = highSpirits ? target.Condition : UnitCondition.Normal,
-                    ConditionDaysRemaining = highSpirits ? target.ConditionDaysRemaining : 0, HighSpiritsMoralePenaltyPending = false });
+                    ConditionDaysRemaining = highSpirits ? target.ConditionDaysRemaining : 0,
+                    HighSpiritsMoralePenaltyPending = false
+                });
                 var healed = world.ServingUnitMembers(targetId).Where(p => p.Injury > 0).OrderBy(p => p.Id).ToArray();
                 foreach (var officer in healed) world.Replace(officer with { Injury = 0 });
                 ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, targetId), ResourceKind.Soldiers, "tactic-healing", source.Id, recovered, recovered, events);
                 ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, targetId), ResourceKind.Wounded, "tactic-healing", source.Id, -(long)recovered, -(long)recovered, events);
                 if (clear) events.Add(new BattleConditionChangedEvent(world.Clock, targetId, false, UnitCondition.Normal, 0));
-                events.Add(new TacticHealingEvent(world.Clock, source, targetId, recovered, healed.Select(p => p.Id).ToImmutableArray(), clear));
+                events.Add(new TacticHealingEvent(world.Clock, source, targetId, recovered, healed.Select(p => p.Id).ToImmutableArray(), clear)
+                { TacticId = tactic.Id, ActorId = actor.Id, Occurrence = occurrence });
             }
         }
         TacticCombat.Grow(world, members, [actor.Id], tactic, events);

@@ -23,6 +23,8 @@ public sealed class SeizeStrategyTests
         Assert.Equal(0u, result.Money);
         Assert.Equal(outcome == SeizeOutcomeKind.Item, result.TreasureId is not null);
         Assert.Equal(outcome == SeizeOutcomeKind.Person, result.RecoveredOfficerId is not null);
+        Assert.Equal(outcome == SeizeOutcomeKind.Item ? 23 : (int?)null, result.PreviousHolderId);
+        if (outcome == SeizeOutcomeKind.Item) Assert.Equal(11, mutation.Treasures[result.TreasureId!.Value].HolderId);
     }
 
     private static SimulationRules Rules(int distance = 30) => new()
@@ -183,8 +185,12 @@ public sealed class SeizeStrategyTests
         var rules = Rules();
         var world = World();
         var state = world.BeginMutation();
-        state.Replace(state.Officers[31] with { SettlementId = 1, Status = OfficerStatus.Strategist,
-            BaseAbilities = new(70, 100, 70, 70) });
+        state.Replace(state.Officers[31] with
+        {
+            SettlementId = 1,
+            Status = OfficerStatus.Strategist,
+            BaseAbilities = new(70, 100, 70, 70)
+        });
         state.Replace(state.Forces[1] with { AdviserId = 31 });
         world.Commit(state);
         var engine = new SimulationEngine(world, rules);

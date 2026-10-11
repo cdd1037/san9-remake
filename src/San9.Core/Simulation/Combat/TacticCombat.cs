@@ -4,7 +4,11 @@ using San9.Core.Domain;
 namespace San9.Core.Simulation;
 
 public sealed record TacticActivatedEvent(GameClock Clock, int SourceId, bool SourceIsSettlement, int TargetId,
-    bool TargetIsSettlement, int TacticId, ImmutableArray<int> OfficerIds, bool Doubled, int Effect) : DomainEvent;
+    bool TargetIsSettlement, int TacticId, ImmutableArray<int> OfficerIds, bool Doubled, int Effect) : DomainEvent
+{
+    public TacticOccurrence? Occurrence { get; init; }
+    public bool IsChain { get; init; }
+}
 public sealed record TacticProficiencyGrownEvent(GameClock Clock, int OfficerId, int Category, int Previous, int Current) : DomainEvent;
 public sealed record TacticLearnedEvent(GameClock Clock, int OfficerId, int TacticId) : DomainEvent;
 
@@ -64,7 +68,13 @@ internal static class TacticCombat
             if (candidate.Tactic.Effect != TacticEffect.Martial)
             {
                 intelligenceEffect = IntelligenceTactics.Effect(world, candidate.Officer, candidate.Tactic, target, rules);
-                if (intelligenceEffect == 0) continue;
+                if (intelligenceEffect == 0)
+                {
+                    events.Add(new IntelligenceEffectResolvedEvent(world.Clock, new(unit.Id, false),
+                        target.UnitId ?? target.SettlementId!.Value, target.UnitId is null, candidate.Tactic.Id, 0)
+                    { ActorId = candidate.Officer.Id, IsAttempt = true, Occurrence = TacticOccurrence.Capture(world, new(unit.Id, false), target, candidate.Tactic, military, rules.Treasures) });
+                    continue;
+                }
             }
             primary = candidate;
             break;
@@ -78,7 +88,8 @@ internal static class TacticCombat
                     world.Settlements[target.SettlementId!.Value].ConfusionDaysRemaining == 0);
             world.Replace(world.Officers[primary.Officer.Id] with { TacticCooldown = primary.Tactic.MinimumInterval });
             events.Add(new TacticActivatedEvent(world.Clock, unit.Id, false, target.UnitId ?? target.SettlementId!.Value,
-                target.UnitId is null, primary.Tactic.Id, [primary.Officer.Id], false, intelligenceEffect));
+                target.UnitId is null, primary.Tactic.Id, [primary.Officer.Id], false, intelligenceEffect)
+            { Occurrence = TacticOccurrence.Capture(world, new(unit.Id, false), target, primary.Tactic, military, rules.Treasures) });
             IntelligenceTactics.Resolve(world, new(unit.Id, false), primary.Officer, primary.Tactic, target, intelligenceEffect, rules, events);
             if (canStartChain) TryMartialChain(world, unit.Id, primary, target, rules, events);
             return;
@@ -108,11 +119,11 @@ internal static class TacticCombat
         var primary = candidates[(int)(world.NextRandom("military-tactic-chain-member") % (uint)candidates.Length)];
         if (!Roll(world, "military-tactic-chain-allocation", AllocationChance(military.Rank(unit, primary.Officer.Id), members.Length,
             profile.FavoredCategories.Contains(primary.Tactic.Category!.Value)))) return;
-        ActivateMartial(world, unit, members, candidates, primary, target, rules, events);
+        ActivateMartial(world, unit, members, candidates, primary, target, rules, events, isChain: true);
     }
 
     private static void ActivateMartial(WorldMutation world, UnitState unit, OfficerState[] members, Participant[] candidates,
-        Participant primary, MilitaryOrder target, SimulationRules rules, List<DomainEvent> events)
+        Participant primary, MilitaryOrder target, SimulationRules rules, List<DomainEvent> events, bool isChain = false)
     {
         var military = rules.Military!;
         var profile = military.Formation(unit).Tactics!;
@@ -130,7 +141,8 @@ internal static class TacticCombat
             world.Replace(world.Officers[participant.Officer.Id] with
             { TacticCooldown = participant.Officer.Id == primary.Officer.Id ? primary.Tactic.MinimumInterval : participant.Tactic.MinimumInterval / 3 });
         events.Add(new TacticActivatedEvent(world.Clock, unit.Id, false, target.UnitId ?? target.SettlementId!.Value,
-            target.UnitId is null, primary.Tactic.Id, participants.Select(p => p.Officer.Id).ToImmutableArray(), doubled, effect));
+            target.UnitId is null, primary.Tactic.Id, participants.Select(p => p.Officer.Id).ToImmutableArray(), doubled, effect)
+        { Occurrence = TacticOccurrence.Capture(world, new(unit.Id, false), target, primary.Tactic, military, rules.Treasures), IsChain = isChain });
         var damageMembers = participants.Select(p => new MartialTacticMember(p.Tactic.Power,
             p.Officer.TacticProficiencies[category], world.Abilities(p.Officer).War, p.Officer.Id != primary.Officer.Id)).ToArray();
         var sniping = TacticSniping.Select(world, new(unit.Id, false), primary.Tactic, target,
@@ -182,9 +194,9 @@ internal static class TacticCombat
             var defender = world.Units[targetId];
             var defense = military.CombatFormation(defender)!;
             uint ordinary = MilitaryCombat.NormalDamage(world, source, new(targetId, false), military);
-            uint damage = TacticMath.MartialDamage(members, doubled, ordinary, effect,
+            var damage = TacticMath.MartialDamage(members, doubled, ordinary, effect,
                 defender.Condition is UnitCondition.NoFormation or UnitCondition.Confused or UnitCondition.Routed, defender.Soldiers);
-            MilitaryCombat.DamageUnit(world, defender, damage, defense, source.Id, events, source.IsSettlement);
+            MilitaryCombat.DamageUnit(world, defender, damage.Applied, defense, source.Id, events, source.IsSettlement, tactic.Id, damage.Calculated);
             var current = world.Units[targetId];
             if (current.Soldiers == 0 || current.Morale == 0)
                 BattleAftermath.TerminateUnit(world, targetId, source, rules, events,
@@ -197,8 +209,9 @@ internal static class TacticCombat
             var defender = world.Settlements[target.SettlementId!.Value];
             var defense = military.Place(defender).Combat!;
             uint ordinary = MilitaryCombat.NormalDamage(world, source, new(defender.Id, true), military);
-            uint damage = TacticMath.MartialDamage(members, doubled, ordinary, effect, false, defender.Soldiers);
-            MilitaryCombat.DamageSettlement(world, defender, damage, defense, source.Id, events, attackerIsSettlement: source.IsSettlement);
+            var damage = TacticMath.MartialDamage(members, doubled, ordinary, effect, false, defender.Soldiers);
+            MilitaryCombat.DamageSettlement(world, defender, damage.Applied, defense, source.Id, events, attackerIsSettlement: source.IsSettlement,
+                tacticId: tactic.Id, calculatedSoldierLoss: damage.Calculated);
             var current = world.Settlements[defender.Id];
             if (MilitaryCombat.Defeated(current)) return defender.Id;
         }

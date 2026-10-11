@@ -10,6 +10,7 @@ public sealed record SeizeResolvedEvent(GameClock Clock, int OfficerId, int Targ
     int ItemThreshold, int PersonThreshold, int MoneyThreshold, bool ItemGatePassed, SeizeOutcomeKind Outcome) : DomainEvent
 {
     public int? TreasureId { get; init; }
+    public int? PreviousHolderId { get; init; }
     public int? RecoveredOfficerId { get; init; }
     public uint Money { get; init; }
     public int InjuryBefore { get; init; }
@@ -116,6 +117,7 @@ internal static class SeizeStrategies
         int roll = task.Journey.SuccessRoll!.Value;
         int injuryBefore = actor.Injury;
         int? treasureId = null;
+        int? previousHolderId = null;
         int? recoveredId = null;
         uint money = 0;
         SeizeOutcomeKind outcome;
@@ -123,6 +125,7 @@ internal static class SeizeStrategies
         {
             var item = thresholds.ItemCandidate!;
             treasureId = item.Id;
+            previousHolderId = item.HolderId;
             PersonnelTreasures.Transfer(world, item, actor.Id, task.ForceId, Kind, events);
             outcome = SeizeOutcomeKind.Item;
         }
@@ -166,6 +169,7 @@ internal static class SeizeStrategies
             thresholds.Person, thresholds.Money, itemGate, outcome)
         {
             TreasureId = treasureId,
+            PreviousHolderId = previousHolderId,
             RecoveredOfficerId = recoveredId,
             Money = money,
             InjuryBefore = injuryBefore,
@@ -178,9 +182,11 @@ internal static class SeizeStrategies
 internal sealed class SeizeRule(SimulationRules rules) : TaskRule
 {
     internal override bool HasValidPayload(PersistentTask task) => task.Journey is
-        { TargetOfficerId: null, SuccessRoll: >= 0 and < 100, ReturnLeg: null,
+    {
+        TargetOfficerId: null, SuccessRoll: >= 0 and < 100, ReturnLeg: null,
           UnitStrategy: null, Burn: null, Seize: { TargetSettlementId: >= 0 } seize, Gossip: null,
-          Route: { FieldDestination: false } } journey &&
+        Route: { FieldDestination: false }
+    } journey &&
         journey.DestinationPlaceId == seize.TargetSettlementId &&
         rules.Personnel.Places.TryGetValue(seize.TargetSettlementId, out var target) &&
         DurationDays(task) >= 0;

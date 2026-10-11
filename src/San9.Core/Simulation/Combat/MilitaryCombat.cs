@@ -4,7 +4,13 @@ using San9.Core.Domain;
 namespace San9.Core.Simulation;
 
 public sealed record BattleDamageEvent(GameClock Clock, int AttackerId, int? TargetUnitId, int? SettlementId,
-    uint SoldierLoss, uint AddedWounded, uint Dead, int DurabilityLoss, int MoraleLoss, bool AttackerIsSettlement = false) : DomainEvent;
+    uint SoldierLoss, uint AddedWounded, uint Dead, int DurabilityLoss, int MoraleLoss, bool AttackerIsSettlement = false) : DomainEvent
+{
+    public int? TacticId { get; init; }
+    public uint? CalculatedSoldierLoss { get; init; }
+    public BattleObjectContext? Source { get; init; }
+    public BattleObjectContext? Target { get; init; }
+}
 
 internal static class MilitaryCombat
 {
@@ -12,7 +18,8 @@ internal static class MilitaryCombat
     {
         CombatStrength StrengthOf(BattleSource actor, BattleSource opponent) =>
             (actor.IsSettlement ? GarrisonStrength(world, world.Settlements[actor.Id]) : Strength(world, world.Units[actor.Id]))
-            with { Intensity = MilitaryEngagements.Intensity(world, actor, opponent, military) };
+            with
+            { Intensity = MilitaryEngagements.Intensity(world, actor, opponent, military) };
         CombatProfile Profile(BattleSource actor) => actor.IsSettlement ? military.Place(world.Settlements[actor.Id]).Combat! :
             military.CombatFormation(world.Units[actor.Id])!;
         return CombatMath.TroopDamage(StrengthOf(source, target), StrengthOf(target, source), Profile(source), Profile(target),
@@ -100,8 +107,12 @@ internal static class MilitaryCombat
             var formation = military.Formation(attacker);
             if (!ValidTarget(world, attacker.OwnerId, order, formation, military))
             {
-                world.Replace(attacker with { Order = attacker.EngagementTargetId is null ? null : attacker.Order,
-                    AwaitingPostAction = attacker.EngagementTargetId is null, EngagementTargetId = null });
+                world.Replace(attacker with
+                {
+                    Order = attacker.EngagementTargetId is null ? null : attacker.Order,
+                    AwaitingPostAction = attacker.EngagementTargetId is null,
+                    EngagementTargetId = null
+                });
                 if (attacker.EngagementTargetId is not null)
                     events.Add(new UnitEngagementChangedEvent(world.Clock, id, null, "attack-target-invalid"));
                 else events.Add(new UnitOrderChangedEvent(world.Clock, id, null, "attack-target-invalid"));
@@ -196,9 +207,12 @@ internal static class MilitaryCombat
                 new(xunStarted, captureDay(), new(attacker, false), new(defender, false), affectedForces, !counter))) return false;
             if (paused is not { } waiting) continue;
             int owner = world.Officers[waiting.Progress.PendingRulerId!.Value].OwnerId!.Value;
-            world.SetSimulation(world.Simulation with { Boundary = SimulationBoundary.AwaitingDecision,
+            world.SetSimulation(world.Simulation with
+            {
+                Boundary = SimulationBoundary.AwaitingDecision,
                 PendingDuel = new(xunStarted, captureDay(), attacker, defender, affectedForces, counter,
-                    waiting.TacticReady, waiting.Progress, owner) });
+                    waiting.TacticReady, waiting.Progress, owner)
+            });
             return false;
         }
         return true;
@@ -210,8 +224,14 @@ internal static class MilitaryCombat
         var progress = DuelAftermath.Advance(world, pending.Aftermath, rules, events, successorId);
         if (progress is not null)
         {
-            world.SetSimulation(world.Simulation with { PendingDuel = pending with { Aftermath = progress,
-                RespondingForceId = world.Officers[progress.PendingRulerId!.Value].OwnerId!.Value } });
+            world.SetSimulation(world.Simulation with
+            {
+                PendingDuel = pending with
+                {
+                    Aftermath = progress,
+                    RespondingForceId = world.Officers[progress.PendingRulerId!.Value].OwnerId!.Value
+                }
+            });
             return;
         }
         world.SetSimulation(world.Simulation with { PendingDuel = null, Boundary = SimulationBoundary.Stable });
@@ -263,30 +283,42 @@ internal static class MilitaryCombat
     internal static bool Defeated(SettlementState settlement) => !settlement.IsDestroyed && settlement.Facility?.BuilderUnitId is null &&
         (settlement.Durability == 0 || settlement.CanHostPersons && (settlement.Soldiers == 0 || settlement.Morale == 0));
     internal static void DamageSettlement(WorldMutation world, SettlementState settlement, uint damage, CombatProfile profile,
-        int attacker, List<DomainEvent> events, int walls = 0, bool attackerIsSettlement = false)
+        int attacker, List<DomainEvent> events, int walls = 0, bool attackerIsSettlement = false, int? tacticId = null, uint? calculatedSoldierLoss = null)
     {
         damage = FinalDamage(world, new(attacker, attackerIsSettlement), settlement.OwnerId, damage, settlement.Soldiers);
         var loss = CombatMath.Loss(settlement.Soldiers, damage, profile.WoundedPercent, settlement.Wounded, MilitaryRulebook.WoundedCapacity);
         int morale = 0;
-        world.Replace(settlement with { Soldiers = loss.RemainingSoldiers, Wounded = settlement.Wounded + loss.AddedWounded,
-            Morale = settlement.Morale - morale, Durability = settlement.Durability - walls });
+        world.Replace(settlement with
+        {
+            Soldiers = loss.RemainingSoldiers,
+            Wounded = settlement.Wounded + loss.AddedWounded,
+            Morale = settlement.Morale - morale,
+            Durability = settlement.Durability - walls
+        });
         events.Add(new BattleDamageEvent(world.Clock, attacker, null, settlement.Id, settlement.Soldiers - loss.RemainingSoldiers,
-            loss.AddedWounded, loss.Dead, walls, morale, attackerIsSettlement));
+            loss.AddedWounded, loss.Dead, walls, morale, attackerIsSettlement)
+        {
+            TacticId = tacticId,
+            CalculatedSoldierLoss = calculatedSoldierLoss,
+            Source = BattleObjectContext.Capture(world, new(attacker, attackerIsSettlement)),
+            Target = BattleObjectContext.Capture(world, new(settlement.Id, true))
+        });
     }
     internal static void DamageUnit(WorldMutation world, UnitState unit, uint damage, CombatProfile profile, int attacker, List<DomainEvent> events,
-        bool attackerIsSettlement = false)
+        bool attackerIsSettlement = false, int? tacticId = null, uint? calculatedSoldierLoss = null)
     {
         damage = FinalDamage(world, new(attacker, attackerIsSettlement), unit.OwnerId, damage, unit.Soldiers);
         int morale = 0;
-        ApplyUnitLoss(world, unit, damage, morale, profile, new(attacker, attackerIsSettlement), events);
+        ApplyUnitLoss(world, unit, damage, morale, profile, new(attacker, attackerIsSettlement), events, tacticId, calculatedSoldierLoss);
     }
     internal static void ApplyUnitLoss(WorldMutation world, UnitState unit, uint damage, int morale, CombatProfile profile,
-        BattleSource source, List<DomainEvent> events)
+        BattleSource source, List<DomainEvent> events, int? tacticId = null, uint? calculatedSoldierLoss = null)
     {
         damage = Math.Min(damage, unit.Soldiers);
         var loss = CombatMath.Loss(unit.Soldiers, damage, profile.WoundedPercent, unit.Wounded, MilitaryRulebook.WoundedCapacity);
         world.Replace(unit with { Soldiers = loss.RemainingSoldiers, Wounded = unit.Wounded + loss.AddedWounded, Morale = unit.Morale - morale });
-        events.Add(new BattleDamageEvent(world.Clock, source.Id, unit.Id, null, damage, loss.AddedWounded, loss.Dead, 0, morale, source.IsSettlement));
+        events.Add(new BattleDamageEvent(world.Clock, source.Id, unit.Id, null, damage, loss.AddedWounded, loss.Dead, 0, morale, source.IsSettlement)
+        { TacticId = tacticId, CalculatedSoldierLoss = calculatedSoldierLoss, Source = BattleObjectContext.Capture(world, source), Target = BattleObjectContext.Capture(unit) });
     }
     private static uint FinalDamage(WorldMutation world, BattleSource source, int? targetOwner, uint damage, uint soldiers)
     {

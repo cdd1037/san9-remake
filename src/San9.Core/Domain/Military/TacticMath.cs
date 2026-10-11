@@ -3,6 +3,7 @@ using System.Numerics;
 namespace San9.Core.Domain;
 
 public readonly record struct MartialTacticMember(int Power, int Proficiency, int War, bool Linked);
+public readonly record struct MartialTacticDamage(uint Calculated, uint Applied);
 
 /// <summary>Pure tactic arithmetic. Opportunity, resistance, targets and state changes belong to resolution.</summary>
 public static class TacticMath
@@ -15,7 +16,7 @@ public static class TacticMath
         return (int)Math.Clamp(100 + 6 * difference / 5, 0, 100);
     }
 
-    public static uint MartialDamage(IEnumerable<MartialTacticMember> members, bool doubled,
+    public static MartialTacticDamage MartialDamage(IEnumerable<MartialTacticMember> members, bool doubled,
         uint ordinaryDamage, int effect, bool abnormalTarget, uint targetSoldiers)
     {
         ArgumentNullException.ThrowIfNull(members);
@@ -31,7 +32,8 @@ public static class TacticMath
             total += member.Linked ? damage / 2 : damage;
         }
         if (doubled) total *= 2;
-        return Cap((total + ordinaryDamage) * effect / 10 * (abnormalTarget ? 13 : 10) / 10, targetSoldiers);
+        uint calculated = Cap((total + ordinaryDamage) * effect / 10 * (abnormalTarget ? 13 : 10) / 10, uint.MaxValue);
+        return new(calculated, Math.Min(calculated, targetSoldiers));
     }
 
     public static int ConfusionDays(int proficiency, int intelligence, int effect)

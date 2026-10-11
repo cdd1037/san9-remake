@@ -78,12 +78,12 @@ public static class ProgressMessages
                     if (!Player(target.ForceId) && lost.Source is { } source && target.CommanderId is int commander)
                     {
                         objects.Add(source); values["unit"] = MessageBinding.Reference(source.IsSettlement ? MessageEntityKind.Settlement : MessageEntityKind.Unit, source.Id);
-                        Person("other", commander); Force("enemy-force", target.ForceId); role = "unit-defeated";
+                        Person("other", commander); Force("enemy-force", target.ForceId!.Value); role = "unit-defeated";
                     }
                     break;
                 case SettlementCapturedEvent captured when captured.Source is { } capturingSource &&
                     (Player(capturingSource.ForceId) || Player(captured.PreviousOwnerId)):
-                    clock = captured.Clock; Place(captured.SettlementId); Force("force", capturingSource.ForceId); colorForce = capturingSource.ForceId;
+                    clock = captured.Clock; Place(captured.SettlementId); Force("force", capturingSource.ForceId!.Value); colorForce = capturingSource.ForceId;
                     role = "territory-changed";
                     if (captured.Destroyed)
                     {

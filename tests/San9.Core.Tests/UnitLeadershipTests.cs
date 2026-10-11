@@ -68,17 +68,6 @@ public sealed class UnitLeadershipTests
         Assert.Equal(BattleRank.Middle, unit.MemberRanks[10]);
     }
 
-    [Fact]
-    public void ReformationCannotMakeLowerPriorityFirstMemberCommander()
-    {
-        var engine = Deploy(out _, out _, Person(90, 100), Person(10, 30, 9000));
-        var unit = Assert.Single(engine.Snapshot.Units);
-        Assert.True(engine.Execute(new("player"), new ReformUnitCommand(Guid.NewGuid(), 1, engine.Snapshot.Simulation.NextSequence,
-            unit.Id, 1, [90, 10], unit.Order)).Submission.Accepted);
-        Assert.Equal(10, Assert.Single(engine.Snapshot.Units).CommanderId);
-        Assert.Equal(BattleRank.Front, Assert.Single(engine.Snapshot.Units).MemberRanks[90]);
-    }
-
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

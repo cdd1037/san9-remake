@@ -105,11 +105,11 @@ public sealed class AmphibiousSessionTests
             : new DeployUnitCommand(Guid.NewGuid(), 1, 0, 1, [1], 400, naval ? 100 : special, order) { NavalFormationId = naval ? special : null };
         var result = session.Execute(new("player"), command);
         bool candidate = common || additional;
-        bool accepted = candidate && learned;
+        bool accepted = !reform && candidate && learned;
         Assert.Equal(accepted, result.Submission.Accepted);
         if (!accepted)
         {
-            Assert.Equal(candidate ? CommandRejection.MissingFormationTactic : CommandRejection.FormationUnavailable, result.Submission.Rejection);
+            Assert.Equal(reform ? CommandRejection.UnsupportedCommand : candidate ? CommandRejection.MissingFormationTactic : CommandRejection.FormationUnavailable, result.Submission.Rejection);
             Assert.Equal(before, session.Capture().StateHash);
         }
         else
@@ -151,16 +151,9 @@ public sealed class AmphibiousSessionTests
         Assert.Equal(200, session.View.FormationId(unit));
         Assert.Equal(forecast.Days - 10, session.View.UnitArrival(unit.Id).Days);
         var before = session.Capture().StateHash;
-        Assert.Equal(CommandRejection.InvalidTask, session.Execute(new("player"), new ReformUnitCommand(Guid.NewGuid(), 1,
+        Assert.Equal(CommandRejection.UnsupportedCommand, session.Execute(new("player"), new ReformUnitCommand(Guid.NewGuid(), 1,
             session.Snapshot.Simulation.NextSequence, unit.Id, 100, [1], unit.Order) { NavalFormationId = 100 }).Submission.Rejection);
         Assert.Equal(before, session.Capture().StateHash);
-        Assert.True(session.Execute(new("player"), new ReformUnitCommand(Guid.NewGuid(), 1,
-            session.Snapshot.Simulation.NextSequence, unit.Id, 100, [1], unit.Order) { NavalFormationId = 300 }).Submission.Accepted);
-        Assert.Equal(300, session.View.FormationId(Assert.Single(session.Snapshot.Units)));
-        unit = Assert.Single(session.Snapshot.Units);
-        Assert.True(session.Execute(new("player"), new ReformUnitCommand(Guid.NewGuid(), 1,
-            session.Snapshot.Simulation.NextSequence, unit.Id, 101, [1], unit.Order)).Submission.Accepted);
-        Assert.Equal(300, Assert.Single(session.Snapshot.Units).NavalFormationId);
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
         Assert.Equal(session.View.UnitArrival(unit.Id), restored.View.UnitArrival(unit.Id));
@@ -171,8 +164,8 @@ public sealed class AmphibiousSessionTests
         }
         unit = Assert.Single(session.Snapshot.Units);
         Assert.Equal(new WorldPosition(32, 7), unit.Position);
-        Assert.Equal(101, session.View.FormationId(unit));
-        Assert.Equal(300, unit.NavalFormationId);
+        Assert.Equal(100, session.View.FormationId(unit));
+        Assert.Equal(200, unit.NavalFormationId);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
         Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
     }

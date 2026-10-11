@@ -647,10 +647,6 @@ public sealed partial class SimulationEngine
                     var orderRejection = MilitaryMovement.Order(mutation, order, _rules.Military, events);
                     if (orderRejection != CommandRejection.None) return Reject(orderRejection);
                     break;
-                case ReformUnitCommand reform:
-                    var reformRejection = UnitReformation.Apply(mutation, reform, _rules.Military, _rules.Treasures, _rules.Governance, events);
-                    if (reformRejection != CommandRejection.None) return Reject(reformRejection);
-                    break;
                 case SetCorpsControlCommand control:
                     var controlRejection = CorpsControl.Set(mutation, control, events);
                     if (controlRejection != CommandRejection.None) return Reject(controlRejection);

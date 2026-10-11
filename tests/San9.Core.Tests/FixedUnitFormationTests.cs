@@ -61,7 +61,7 @@ public sealed class FixedUnitFormationTests
             {
                 var reform = new ReformUnitCommand(Guid.NewGuid(), 1, engine.Snapshot.Simulation.NextSequence,
                     unit.Id, formation, [11], new(MilitaryOrderKind.Move, new(7, 2), null));
-                Assert.Equal(CommandRejection.FormationUnavailable, engine.Execute(Player, reform).Submission.Rejection);
+                Assert.Equal(CommandRejection.UnsupportedCommand, engine.Execute(Player, reform).Submission.Rejection);
                 Assert.Equal(before, engine.Snapshot.StateHash);
             }
             Assert.False(engine.Execute(Player, new OrderUnitCommand(Guid.NewGuid(), 1,

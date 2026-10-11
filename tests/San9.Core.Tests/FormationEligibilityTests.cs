@@ -48,6 +48,7 @@ public sealed class FormationEligibilityTests
             ? new ReformUnitCommand(Guid.NewGuid(), 1, 0, 0, 999, [11], null)
             : new DeployUnitCommand(Guid.NewGuid(), 1, 0, 1, [11], 500, 999, new(MilitaryOrderKind.Move, new(8, 2), null));
         var result = engine.Execute(Player, command);
+        accepted = accepted && !reform;
         Assert.Equal(accepted, result.Submission.Accepted);
         if (accepted)
         {
@@ -56,7 +57,7 @@ public sealed class FormationEligibilityTests
         }
         else
         {
-            Assert.Equal(CommandRejection.MissingFormationTactic, result.Submission.Rejection);
+            Assert.Equal(reform ? CommandRejection.UnsupportedCommand : CommandRejection.MissingFormationTactic, result.Submission.Rejection);
             Assert.Equal(before.StateHash, engine.Snapshot.StateHash);
         }
     }

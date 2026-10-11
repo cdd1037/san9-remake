@@ -93,7 +93,7 @@ public sealed class ShoreMilitarySessionTests
     }
 
     [Fact]
-    public void SessionDispatchesReformationAndQueryShowsItsCurrentFormationAndOrder()
+    public void SessionRejectsReformationWithoutChangingTheUnit()
     {
         var session = GameSession.Start(Fixture(), 42);
         Assert.True(session.Execute(new("player"), new DeployUnitCommand(Guid.NewGuid(), 1, 0, 1, [1], 500,
@@ -104,10 +104,11 @@ public sealed class ShoreMilitarySessionTests
         session.AdvanceXun();
         var command = new ReformUnitCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence,
             unit.Id, 20, [1], new(MilitaryOrderKind.Return, null, 2));
-        Assert.True(session.Execute(new("player"), command).Submission.Accepted);
-        unit = Assert.Single(session.View.World.Units);
-        Assert.Equal(20, unit.FormationId);
-        Assert.Equal(2, unit.Order!.SettlementId);
-        Assert.Single(session.AdvanceXun().Events.OfType<UnitAbsorbedEvent>());
+        string before = session.Capture().StateHash;
+        Assert.Equal(CommandRejection.UnsupportedCommand, session.Validate(new("player"), command).Rejection);
+        var result = session.Execute(new("player"), command);
+        Assert.Equal(CommandRejection.UnsupportedCommand, result.Submission.Rejection);
+        Assert.Empty(result.Events);
+        Assert.Equal(before, session.Capture().StateHash);
     }
 }

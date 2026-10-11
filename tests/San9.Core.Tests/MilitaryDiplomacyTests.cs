@@ -222,7 +222,7 @@ public sealed class MilitaryDiplomacyTests
         GameCommand command = reform ? new ReformUnitCommand(Guid.NewGuid(), 1, 0, 0, 0, [12], order) :
             new DeployUnitCommand(Guid.NewGuid(), 1, 0, 1, [11], 1000, 0, order);
         string before = engine.Snapshot.StateHash;
-        Assert.Equal(CommandRejection.AttackConfirmationRequired, engine.Execute(new("player"), command).Submission.Rejection);
+        Assert.Equal(reform ? CommandRejection.UnsupportedCommand : CommandRejection.AttackConfirmationRequired, engine.Execute(new("player"), command).Submission.Rejection);
         Assert.Equal(before, engine.Snapshot.StateHash);
         GameCommand confirmed = command switch
         {
@@ -230,7 +230,8 @@ public sealed class MilitaryDiplomacyTests
             DeployUnitCommand c => c with { ConfirmAttack = true },
             _ => throw new InvalidOperationException()
         };
-        Assert.True(engine.Execute(new("player"), confirmed).Submission.Accepted);
+        Assert.Equal(!reform, engine.Execute(new("player"), confirmed).Submission.Accepted);
+        if (reform) Assert.Equal(before, engine.Snapshot.StateHash);
         Assert.Equal(80, engine.Snapshot.Relations.Single(r => r.FirstId == 1 && r.SecondId == 2).Value);
     }
 

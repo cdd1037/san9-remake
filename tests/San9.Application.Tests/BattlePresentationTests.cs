@@ -40,17 +40,19 @@ public sealed class BattlePresentationTests
     }
 
     [Fact]
-    public void OrdinaryPlayerAttackShowsEnemyLossWithoutDisclosingFollowingComputerAttack()
+    public void OrdinaryAttackKeepsLossValuesWithoutMapNumbersWhileVisibleTacticShowsThem()
     {
         var (session, texts, content, occurrence) = Fixture();
         content = content with { Battle = content.Battle! with { MapNumbers = new("digits", 12, 20, 125, 8, 4) } };
         var damage = new BattleDamageEvent(session.Snapshot.Clock, 10, 20, null, 500, 0, 500, 0, 0)
         { Source = occurrence.Source, Target = occurrence.Target };
-        var hidden = damage with { Source = occurrence.Source with { ForceId = 3 }, SoldierLoss = 700 };
-        var plan = BattlePresentationPlan.Create(session.View, session.View, [damage, hidden], session.Messages(texts), texts, content);
+        var tactic = damage with { TacticId = 99 };
+        var hidden = tactic with { Source = occurrence.Source with { ForceId = 3 }, SoldierLoss = 700 };
+        var plan = BattlePresentationPlan.Create(session.View, session.View, [damage, tactic, hidden], session.Messages(texts), texts, content);
         var number = Assert.Single(plan.MapNumbers);
         Assert.Equal(-500, number.Amount);
         Assert.Equal(occurrence.Target, number.Target);
+        Assert.Equal([-500L, -500L, -700L], plan.Values.Select(value => value.Soldiers));
     }
 
     [Fact]

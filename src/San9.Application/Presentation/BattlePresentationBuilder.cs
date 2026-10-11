@@ -123,7 +123,8 @@ internal sealed class BattlePresentationBuilder(StrategySnapshot before, Strateg
         _impact = time;
         _stateValues.Add(new(time, damage.TargetUnitId ?? damage.SettlementId!.Value,
             damage.SettlementId is not null, -(long)damage.SoldierLoss, -damage.MoraleLoss, -damage.DurabilityLoss));
-        Number(damageTarget, -(long)damage.SoldierLoss, time, "map-loss");
+        if (damage.TacticId is not null)
+            Number(damageTarget, -(long)damage.SoldierLoss, time, "map-loss");
     }
 
     private void PresentCondition(BattleConditionChangedEvent condition)

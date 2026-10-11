@@ -68,4 +68,16 @@ public sealed class DuelSessionTests
             File.WriteAllBytes(Path.Combine(output, "duel.recording.json"), recording);
         }
     }
+    [Fact]
+    public void AutomaticDuelSuccessionCompletesWithoutPlayerInputAndReplays()
+    {
+        ulong seed = 0;
+        while (new StableRandom(StableRandom.DeriveSeed(seed, "duel-trigger")).NextUInt64() % 100 >= 3 ||
+            new StableRandom(StableRandom.DeriveSeed(seed, "duel-death")).NextUInt64() % 100 >= 30) seed++;
+        var scenario = Scenario() with { PlayerForceId = 1 };
+        var session = GameSession.Start(scenario, seed, battleDeathsEnabled: true, aiPolicy: San9.Application.AI.AiPolicyConfiguration.Standard with { WorkBudget = 1 });
+        var events = AutomaticResponseReplay.Advance(session, scenario, 1);
+        Assert.Contains(events.OfType<OfficerDiedEvent>(), e => e.OfficerId == 22);
+        Assert.NotEqual(22, session.Snapshot.Forces.Single(f => f.Id == 2).LeaderId);
+    }
 }

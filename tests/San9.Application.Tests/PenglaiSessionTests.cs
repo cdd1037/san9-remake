@@ -56,7 +56,7 @@ public sealed class PenglaiSessionTests
         var result = session.AdvanceXun(); var repeated = before.AdvanceXun();
         Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(repeated.Events));
         Assert.Single(result.Events.OfType<ForceActivatedBySearchEvent>());
-        Assert.DoesNotContain(result.Events, e => e is SearchResolvedEvent);
+        Assert.DoesNotContain(result.Events.OfType<SearchResolvedEvent>(), e => e.OfficerId == 1);
         Assert.Null(session.Snapshot.Simulation.PendingDailyTask);
         Assert.Contains(session.View.Settlements, s => s.Id == 3 && s.Soldiers == 500000);
         Assert.Contains(session.View.Settlements, s => s.Id == 4 && s.OwnerId == 2 && s.Soldiers == 0);

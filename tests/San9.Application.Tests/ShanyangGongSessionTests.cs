@@ -79,7 +79,7 @@ public sealed class ShanyangGongSessionTests
             result = session.Execute(new("player"), answer); Assert.True(result.Submission.Accepted);
             Assert.True(restored.Execute(new("player"), answer).Submission.Accepted);
         }
-        Assert.Single(result.Events.OfType<ShanyangGongEvent>()); Assert.Empty(result.Events.OfType<SearchResolvedEvent>());
+        Assert.Single(result.Events.OfType<ShanyangGongEvent>()); Assert.DoesNotContain(result.Events.OfType<SearchResolvedEvent>(), e => e.OfficerId == 12);
         Assert.Null(session.GetShanyangGongPrompt()); Assert.Equal(SimulationBoundary.Stable, session.Snapshot.Simulation.Boundary);
         Assert.Equal(new GameClock(230, 2, 11), session.Snapshot.Clock);
         Assert.Equal(protect ? 120 : 80, session.Snapshot.Officers.Single(p => p.Id == 12).Loyalty);

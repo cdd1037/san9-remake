@@ -124,16 +124,18 @@ public sealed class PoliticalEventsTests
     }
 
     [Theory]
-    [InlineData(0, false)]
-    [InlineData(1, true)]
-    public void AutomaticTitleUsesLessThanOrEqualPlayerCountGate(int players, bool assigned)
+    [InlineData(0)]
+    [InlineData(1)]
+    public void AutomaticTitleUsesPublicChoiceRegardlessOfPlayerCount(int players)
     {
         var world = Due(World(5, true));
         world.SetSimulation(world.Simulation with { Controls = players == 0 ? [new("ai", 1, ControllerKind.Automatic), new("ai2", 2, ControllerKind.Automatic)] :
             [new("ai", 1, ControllerKind.Automatic), new("player", 2, ControllerKind.Player)] });
         var rules = Rules(Politics([new(41, true, true, false, [11], [])]));
         List<DomainEvent> events = []; PoliticalEvents.Begin(world, rules, events);
-        Assert.Equal(assigned ? 41 : null, world.Forces[1].CountryTitleId); Assert.Equal(99, world.Forces[1].RankId);
+        Assert.IsType<CountryTitleEventSession>(world.Simulation.PendingEvent);
+        Assert.Equal(CommandRejection.None, PoliticalEvents.Respond(world, rules, new(Guid.NewGuid(), 1, 0, 41), events));
+        Assert.Equal(41, world.Forces[1].CountryTitleId); Assert.Equal(99, world.Forces[1].RankId);
         Assert.Empty(world.Simulation.RandomStreams);
     }
 
@@ -165,7 +167,7 @@ public sealed class PoliticalEventsTests
     }
 
     [Fact]
-    public void PlayerCorpsDoNotInflateTheAutomaticTitleReservationCount()
+    public void PlayerCorpsDoNotChangeTheAutomaticTitleChoice()
     {
         var state = World(5, true); var world = Due(state);
         world.SetSimulation(world.Simulation with { Controls = [new("ai", 1, ControllerKind.Automatic), new("player", 2, ControllerKind.Player)] });
@@ -173,7 +175,8 @@ public sealed class PoliticalEventsTests
         world.Replace(world.Settlements[3] with { CorpsId = 50 });
         List<DomainEvent> events = []; world.MaintainLeadership(events);
         PoliticalEvents.Begin(world, Rules(), events);
-        Assert.Equal(99, world.Forces[1].RankId); Assert.Null(world.Forces[1].CountryTitleId);
+        Assert.IsType<CountryTitleEventSession>(world.Simulation.PendingEvent);
+        Assert.Equal(5, world.Forces[1].RankId); Assert.Null(world.Forces[1].CountryTitleId);
         Assert.Empty(world.Simulation.RandomStreams); state.Commit(world);
     }
 

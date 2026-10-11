@@ -793,21 +793,21 @@ public sealed partial class SimulationEngine
         {
             if (command is not ChooseSnipingSuccessorCommand) return CommandRejection.DecisionPending;
             return sniping.RespondingForceId == command.IssuerId && sim.Controls.Any(c => c.ForceId == command.IssuerId &&
-                c.Kind == ControllerKind.Player && c.ControllerId == context.ControllerId)
+                c.ControllerId == context.ControllerId)
                 ? CommandRejection.None : CommandRejection.NotActiveController;
         }
         if (sim.PendingDuel is { } duel)
         {
             if (command is not ChooseDuelSuccessorCommand) return CommandRejection.DecisionPending;
             return duel.RespondingForceId == command.IssuerId && sim.Controls.Any(c => c.ForceId == command.IssuerId &&
-                c.Kind == ControllerKind.Player && c.ControllerId == context.ControllerId)
+                c.ControllerId == context.ControllerId)
                 ? CommandRejection.None : CommandRejection.NotActiveController;
         }
         if (sim.PendingTacticStudy is { } study)
         {
             if (command is not ChooseTacticStudentCommand) return CommandRejection.DecisionPending;
             return study.RespondingForceId == command.IssuerId && sim.Controls.Any(c => c.ForceId == command.IssuerId &&
-                c.Kind == ControllerKind.Player && c.ControllerId == context.ControllerId)
+                c.ControllerId == context.ControllerId)
                 ? CommandRejection.None : CommandRejection.NotActiveController;
         }
         if (sim.PendingCapturedRuler is { } captive)
@@ -827,37 +827,36 @@ public sealed partial class SimulationEngine
         if (sim.PendingDailyTask is { } daily)
         {
             if (command is not RespondDailyTaskCommand) return CommandRejection.DecisionPending;
-            return daily.RespondingForceId == command.IssuerId && sim.Controls.Any(c => c.ForceId == daily.RespondingForceId &&
-                c.Kind == ControllerKind.Player && c.ControllerId == context.ControllerId)
+            return daily.RespondingForceId == command.IssuerId && GetPendingResponse()?.Owner.ControllerId == context.ControllerId
                 ? CommandRejection.None : CommandRejection.NotActiveController;
         }
         if (sim.PendingEvent is EmperorTransferEventSession emperor)
         {
             if (command is not RespondEmperorTransferCommand) return CommandRejection.DecisionPending;
             return emperor.ForceId == command.IssuerId && sim.Controls.Any(c => c.ForceId == command.IssuerId &&
-                c.Kind == ControllerKind.Player && c.ControllerId == context.ControllerId)
+                c.ControllerId == context.ControllerId)
                 ? CommandRejection.None : CommandRejection.NotActiveController;
         }
         if (sim.PendingEvent is CountryTitleEventSession title)
         {
             if (command is not ChooseCountryTitleCommand) return CommandRejection.DecisionPending;
             return title.ForceId == command.IssuerId && sim.Controls.Any(c => c.ForceId == command.IssuerId &&
-                c.Kind == ControllerKind.Player && c.ControllerId == context.ControllerId)
+                c.ControllerId == context.ControllerId)
                 ? CommandRejection.None : CommandRejection.NotActiveController;
         }
         if (sim.PendingEvent is OfficeRequestEventSession officeRequest)
         {
             if (command is not RespondOfficeRequestCommand) return CommandRejection.DecisionPending;
             return officeRequest.RespondingForceId == command.IssuerId && sim.Controls.Any(c => c.ForceId == command.IssuerId &&
-                c.Kind == ControllerKind.Player && c.ControllerId == context.ControllerId)
+                c.ControllerId == context.ControllerId)
                 ? CommandRejection.None : CommandRejection.NotActiveController;
         }
         if (sim.PendingEvent is AllianceEventSession { Proposal: var proposal })
         {
             if (command is not AllianceParticipationCommand) return CommandRejection.DecisionPending;
-            int respondent = proposal.PlayerChoices.First(p => p.Join is null).ForceId;
+            int respondent = proposal.Choices.First(p => p.Join is null).ForceId;
             return respondent == command.IssuerId && sim.Controls.Any(c => c.ForceId == respondent &&
-                c.Kind == ControllerKind.Player && c.ControllerId == context.ControllerId)
+                c.ControllerId == context.ControllerId)
                 ? CommandRejection.None : CommandRejection.NotActiveController;
         }
         if (sim.Boundary != SimulationBoundary.Stable) return CommandRejection.NotStable;

@@ -69,8 +69,104 @@ internal static class AutomaticResponseRunner
             return new ChooseExecutionSuccessorCommand(id, response.Owner.ForceId,
                 snapshot.Simulation.NextSequence, succession.RulerId, null);
         }
+        if (response.Kind == "sniping-succession" && engine.GetSnipingSuccessionPrompt() is { } sniping)
+            return new ChooseSnipingSuccessorCommand(id, response.Owner.ForceId, snapshot.Simulation.NextSequence, sniping.RulerId, null);
+        if (response.Kind == "duel-succession" && engine.GetDuelSuccessionPrompt() is { } duel)
+            return new ChooseDuelSuccessorCommand(id, response.Owner.ForceId, snapshot.Simulation.NextSequence, duel.RulerId, null);
+        if (engine.GetOfficeRequestPrompt() is { } office)
+            return new RespondOfficeRequestCommand(id, response.Owner.ForceId, snapshot.Simulation.NextSequence, office.OfficerId, EventChoice.Accept);
+        if (engine.GetEmperorTransferPrompt() is { } emperor)
+            return new RespondEmperorTransferCommand(id, response.Owner.ForceId, snapshot.Simulation.NextSequence,
+                emperor.EmperorId, emperor.CityId, EmperorTransferChoice.Support);
+        if (engine.GetCountryTitlePrompt() is { } title)
+            return new ChooseCountryTitleCommand(id, response.Owner.ForceId, snapshot.Simulation.NextSequence, title.CandidateIds[0]);
+        if (engine.GetAllianceParticipationPrompt() is { } alliance)
+        {
+            int target = alliance.Proposal.TargetForceId;
+            int relation = snapshot.Relations.SingleOrDefault(r => r.FirstId == Math.Min(target, response.Owner.ForceId) &&
+                r.SecondId == Math.Max(target, response.Owner.ForceId))?.Value ?? 0;
+            return new AllianceParticipationCommand(id, response.Owner.ForceId, snapshot.Simulation.NextSequence, target,
+                relation < 60 && alliance.Proposal.EligibleMemberForceIds.Contains(response.Owner.ForceId));
+        }
+        if (engine.GetTacticStudyPrompt() is { } study)
+            return new ChooseTacticStudentCommand(id, response.Owner.ForceId, snapshot.Simulation.NextSequence, study.CityId,
+                study.CandidateIds.IsEmpty ? null : study.CandidateIds[0]);
+        if (response.Kind == "daily-task" && engine.GetDailyDecisionPrompt() is { } daily)
+            return Daily(engine, id, response, snapshot.Simulation.NextSequence, daily);
         Fail(response, "response-unsupported");
         throw new InvalidOperationException("Unreachable response dispatch.");
+    }
+
+    private static RespondDailyTaskCommand Daily(SimulationEngine engine, Guid id, ResponseRequest request, long sequence, DailyDecisionPrompt prompt)
+    {
+        int force = request.Owner.ForceId;
+        var response = new RespondDailyTaskCommand(id, force, sequence, prompt.TaskId, prompt.Step, false);
+        if (prompt.Kind is "diplomacy-attack-request" or "diplomacy-prisoner-return")
+        {
+            if (prompt.Step == 0)
+            {
+                bool cooperative = prompt.Kind == "diplomacy-prisoner-return" || prompt.CanFulfill && prompt.TargetSettlementId is int target &&
+                    engine.Snapshot.Settlements.FirstOrDefault(s => s.Id == target)?.OwnerId is int owner &&
+                    MilitaryDiplomacy.AutomaticEnemy(engine.Snapshot, force, owner);
+                var offer = prompt.LegalOffers.FirstOrDefault(o => o.Kind == CompensationKind.Prisoner) ?? (prompt.Relation >= 80 ? prompt.LegalOffers.FirstOrDefault(o => o.Kind == CompensationKind.Free)
+                    : prompt.LegalOffers.Where(o => o.Kind == CompensationKind.Money).OrderBy(o => o.Money).FirstOrDefault()
+                        ?? prompt.LegalOffers.FirstOrDefault());
+                return response with { Accept = cooperative && offer is not null, Offer = cooperative ? offer : null };
+            }
+            bool accept = prompt.Offer is { Kind: CompensationKind.Free or CompensationKind.Prisoner } ||
+                prompt.Offer is { Kind: CompensationKind.Money } payment && payment.Money <= prompt.SpendingMoney / 4 ||
+                prompt.Offer is { Kind: CompensationKind.Treasure, TreasureId: int treasure } &&
+                    engine.GetTreasureDefinition(treasure) is { LoyaltyBonus: <= 10 };
+            return response with { Accept = accept };
+        }
+        if (engine.GetCommunitySearchPrompt() is { } community)
+        {
+            var choice = community.Options.Where(o => o.Choice is not (CommunitySearchChoice.Execute or CommunitySearchChoice.DemandMoney))
+                .Where(o => o.Cost <= Spending(community.Account, o.Resource))
+                .OrderBy(o => o.Choice == CommunitySearchChoice.Decline).ThenBy(o => o.Cost).First();
+            return response with { CommunitySearch = choice.Choice,
+                Accept = choice.Choice is not (CommunitySearchChoice.Decline or CommunitySearchChoice.Execute) };
+        }
+        if (engine.GetSearchConflictPrompt() is { } conflict)
+        {
+            var choice = conflict.Options.Where(o => o.Choice != SearchConflictChoice.Execute)
+                .Where(o => o.Cost <= Spending(conflict.Account, ResourceKind.Money))
+                .OrderByDescending(o => o.SuccessChance ?? (o.Choice == SearchConflictChoice.Decline ? 0 : 100))
+                .ThenBy(o => o.Cost).First();
+            return response with { SearchConflict = choice.Choice,
+                Accept = choice.Choice is not (SearchConflictChoice.Decline or SearchConflictChoice.Execute) };
+        }
+        if (engine.GetMerchantInvestmentPrompt() is { } merchant)
+        {
+            bool invest = merchant.SuccessChance >= 60 && merchant.MaximumInvestment >= merchant.MinimumInvestment &&
+                Spending(merchant.Account, ResourceKind.Money) >= merchant.MinimumInvestment;
+            return response with { Accept = invest, MerchantInvestment = new(invest ? MerchantInvestmentChoice.Invest : MerchantInvestmentChoice.Decline,
+                invest ? merchant.MinimumInvestment : 0) };
+        }
+        if (engine.GetShanyangGongPrompt() is { } shanyang)
+            return response with { Accept = true, CountryTitleId = shanyang.ChoosingCountryTitle ? shanyang.CountryTitleIds[0] : null };
+        if (engine.GetTigerSearchPrompt() is { } tiger) return response with { Accept = tiger.BattleChance >= 60 };
+        if (engine.GetBeastSearchPrompt() is { } beast) return response with { Accept = beast.BattleChance >= 60 };
+        if (engine.GetScholarInsultPrompt() is not null) return response;
+        if (engine.GetMysticBookReturnPrompt() is { } book) return response with { Accept = book.DeclineRewardTacticId is null };
+        if (engine.GetMysticBookOfferPrompt() is { } mystic)
+            return response with { Accept = Spending(mystic.Account, ResourceKind.Money) >= mystic.AcceptCost };
+        if (engine.GetLongevityPrompt() is { } longevity)
+            return response with { Accept = Spending(longevity.Account, ResourceKind.Money) >= longevity.Cost };
+        if (engine.GetTreasureMonumentPrompt() is { } monument)
+            return response with { Accept = Spending(monument.Account, ResourceKind.Money) >= monument.Cost };
+        if (engine.GetSearchRecruitmentPrompt() is not null || engine.GetScholarReturnPrompt() is not null)
+            return response with { Accept = true };
+        // Gift and surrender retain the public automatic outcome rule; these prompts only arise for a player force.
+        Fail(request, "response-unsupported");
+        throw new InvalidOperationException("Unreachable response dispatch.");
+
+        long Spending(ResourceAccount account, ResourceKind resource)
+        {
+            var outlook = engine.GetAccountOutlook(force, account.Id);
+            var forecast = resource == ResourceKind.Money ? outlook.Money : outlook.Food;
+            return Math.Max(0, forecast.Balance - forecast.Expenditure);
+        }
     }
 
     internal static int ExecutionChance(CapturedRulerPrompt captive)

@@ -1,6 +1,6 @@
 # 游戏 AI 系统设计
 
-- 状态：已确认（AI-01～AI-04 已完成；完整 AI 尚未交付）
+- 状态：已确认（AI-01～AI-05 已完成；完整 AI 尚未交付）
 - 日期：2026-10-12
 - 范围：电脑势力自主运行、既有自动军团的权限接入、日内响应、保存与评测
 - 性质：基于当前重制规则的自主设计，不复刻原版 AI 算法
@@ -23,10 +23,10 @@
 
 | 当前入口 | 可复用基础 | 正式接入需解决的问题 |
 | --- | --- | --- |
-| [AiPlanning.cs](../src/San9.Application/AI/AiPlanning.cs)与[DomesticObservation.cs](../src/San9.Application/AI/DomesticObservation.cs) | 分析随机和预算；经营已具备权限裁剪的不可变观察与纯候选生成 | 经营已接入缺粮目标、保存配置和账户工作账本；全领域观察仍待后续阶段 |
-| [AutomaticTurnRunner.cs](../src/San9.Application/AI/AutomaticTurnRunner.cs) | 会话统一执行自动工作与结束控制，电脑直属经营和委任调度接通，电脑根军团不重复调度 | 同一势力批次由 AllocationTurnRunner 共同分配账户、人物及工作额度；战役闭环已接入 AI-04，全领域观察仍待后续阶段 |
+| [AiPlanning.cs](../src/San9.Application/AI/AiPlanning.cs)与[DomesticObservation.cs](../src/San9.Application/AI/DomesticObservation.cs) | 分析随机和预算；经营已具备权限裁剪的不可变观察与纯候选生成 | 经营已接入缺粮目标、保存配置和账户工作账本；AI-05 机会采用独立不可变观察 |
+| [AutomaticTurnRunner.cs](../src/San9.Application/AI/AutomaticTurnRunner.cs) | 会话统一执行自动工作与结束控制，电脑直属经营和委任调度接通，电脑根军团不重复调度 | 同一势力批次由 AllocationTurnRunner 共同分配账户、人物及工作额度；战役闭环已接入 AI-04，AI-05 机会及治理候选共用分配 |
 | [GameSession.cs](../src/San9.Application/GameSession.cs) | 候选世界、验证、事件聚合和成功发布 | AI-01 策略状态已与候选世界一起发布、回滚；推进入口共用自动调度 |
-| [SimulationEngine.cs](../src/San9.Core/Simulation/SimulationEngine.cs)与[ResolutionPipeline.cs](../src/San9.Core/Simulation/ResolutionPipeline.cs) | 公共命令及暂停续行 | 部分响应授权只接受玩家，另有 Core 内直接做出的电脑选择，需要按语义拆分 |
+| [SimulationEngine.cs](../src/San9.Core/Simulation/SimulationEngine.cs)与[ResolutionPipeline.cs](../src/San9.Core/Simulation/ResolutionPipeline.cs) | 公共命令及暂停续行 | 策略响应已统一待决身份与控制者授权；强制规则及玩家直辖搜索／修习例外独立保留 |
 | [EconomicOutlook.cs](../src/San9.Core/Simulation/Economy/EconomicOutlook.cs) | 按账户估算收入、薪俸和粮耗 | 已计入在途运输、未来粮食到账、招募与新投送的增量粮耗；收入风险和战役维持仍待扩展 |
 | [MilitaryArrivalForecast.cs](../src/San9.Core/Simulation/Movement/MilitaryArrivalForecast.cs) | 复用移动规则的到达估计，区分不可达与未完成 | AI 使用显式 NavigationArrivalInput，共享导航规则及工作计量；原完整世界入口留给公共查询 |
 | [SessionProtocol.cs](../src/San9.Application/SessionProtocol.cs)与[SaveService.cs](../src/San9.Application/Persistence/SaveService.cs) | 会话状态、精确恢复、玩家读档与录像基础 | AI-01 已保存缺粮目标、配置身份及参数，并纳入会话摘要；后续领域继续扩展 |
@@ -66,6 +66,40 @@ AI-01 已接入真实缺粮处理：经营观察按控制范围投影实际账�
 `CampaignGoal` 保存目标归属、准备／集结／进攻／巩固／退出／冷却阶段、源城、实际接受的部队身份、首次日期、进展日期和预计行程。行程减少或守军／城墙削弱更新进展；连续停滞超过预计行程加一旬（至少两旬）、易主、外交保护、路线失效、严重损失或供养不可行时退出。撤回通过公共军令执行，不因缺粮拒绝减耗退出，正在有效撤回的部队不每旬改令。退出完成后按目标公开条件保存三旬冷却；条件变化可重新比较。占领后优先巡察、修复和训练，未到场部队优先归入新城，新城无法合法到达时归入其他可达本方据点，守备和巩固满足后移除目标。
 
 观察或搜索未完成时保留承诺，不能作为战役失败证据。状态随候选世界原子提交、保存和录像再生；诊断不影响状态或决策。公开证据见 [CampaignPlanningTests](../tests/San9.Application.Tests/CampaignPlanningTests.cs)：三种种子的真实占领、巩固与恢复／录像，筹粮与训练、征兵与调将瓶颈，多城整体费用及迟到会师，不能维持的占领、停滞冷却、易主撤回、交替佯攻及真实反击对照、隐藏任务输入和低预算未完成。完整 190 年内容与长期强度仍归 AI-06／G12。
+
+### AI-05 已实现行为与证据
+
+生产机会候选由 `OpportunityObservationCapture` 投影合法行动、公开目标、行程、军师意见及当前战役需求；纯 `OpportunityPlanner` 不持有世界或查询回调。外交、计略、搜索和登用与救援、战役、内政共用 `SharedAllocator` 的账户与人物。紧急救援和供养优先，普通机会排在已有战役及支援之后；每条接受的命令后重新观察。机会任务沿用离队后的守备需求，不能扩大源城防御缺口；已有在途人物不再计入留守指挥。跨账户补兵同时检查来源运输／失败返程余量与接收方成功接兵后的增量粮耗，不能借用另一账户余额。旧 `DiplomacyPlanner`、`StrategyPlanner` 和 `PersonnelAllocation` 不再参与生产调度，仍是脚本／测试工具，其清理归 AI-06。
+
+军师可靠性使用 Core 公共 `AdviserAccuracy.Percent`，不是行动成功率。机会评价将可见条件先验与有利／不利意见按可靠性合成概率估计，再扣除立即费用和行程中的人员机会成本；完全可靠的意见在咨询范围内取 100%／0%，有误差的意见不一律排除。该合成及评分是有限策略估计，不声称反推出领域真实阈值；不读取咨询内部或任务骰子。无军师保留先验。失败按任务身份或人物与行动目标关联，不串到同人物的其他任务。
+
+会话保存每个控制范围与行动目标的在途尝试和条件冷却，成功保留一旬、失败或取消保留三旬，结束后及时删除；不保存事件历史。公开目标、关系、军师可靠性或人物能力档变化允许重新比较；小幅政治成长不使同条件失败立即失去冷却。恢复校验在途任务身份、执行者、所属、日期和权限，记忆随世界原子发布／回滚。
+
+人事配置独立于任务占用：褒美使用公共资格，无电脑专属开局或周期门；军师任命比较当前有效智力对应的咨询收益，不用固定智力差门槛漏掉达到完全准确的改任机会。官职与宝物比较一个季度的恢复后岗位增益，扣除实际俸禄、撤职或没收引起的忠诚损失，官职比较先剔除被比较官职自身的加成，并按实际新增俸禄评价改任；宝物按公共最高同类增量计算边际收益。短期受伤可以只改任军师，原装备与官职仍按恢复后的价值保留；长期收益改变时允许调整，不设置受伤者禁止调整的分支。当前恢复估计按无伤能力评价长期岗位，不预测具体治疗日。
+
+Core 在需要策略答复时统一产生待决状态，Application 经公共命令回答电脑，玩家保持暂停。已迁移普通搜索即时登用、求仕、联盟逐方参加、攻击请求及俘虏返还的报价／接受、普通拥立、国号、单挑／狙击继任；与既有被俘君主处置及处决继任使用同一协议。电脑报价从公开合法补偿与自身预留后余额选择；攻击请求要求当前可履约且目标为敌，接受付费保留自身预算。联盟先按势力顺序征询玩家，再按势力顺序征询合法电脑，不把未回答的电脑预先计入成员。免费／拒绝收尾、强制废帝、自然死亡继任，以及赠与／劝降的公共自动效果仍是领域规则。玩家直辖特殊搜索表与修习城市资格不机械删除；若产生已支持的委任日任务，响应按其具体提示选择可支付、符合收益的参数。
+
+当前命令覆盖如下；采用表示会评估合法机会，排除表示本版不自动签发该命令，不改变玩家公共能力。
+
+| 命令 | AI-05 生产采用或排除理由 |
+| --- | --- |
+| `DevelopCommand`、`FoodTradeCommand` | 经营、征兵、训练、修复与缺粮购买；未生成无需求卖粮，避免供养余量来回交易 |
+| `SearchCommand`、`RecruitOfficerCommand`、`MoveOfficersCommand` | 城内人员缺口搜索／招募，低忠诚外方人员的登用机会，以及支援、战役前置调将；不扫描未发现人物 |
+| `RewardOfficerCommand`、`AppointAdviserCommand`、`AssignOfficesCommand`、`GrantTreasureCommand`、`ConfiscateTreasureCommand` | 忠诚维护、咨询与长期配置候选，经势力级权限验证；玩家委任军团不代行这些任命 |
+| `GiftCommand`、`ReturnPrisonerCommand`、`RequestAttackCommand`、`DemandSurrenderCommand` | 赠与针对公开战线压力或潜在战役协同；取回可见本方俘虏；请求协同当前战役；有优势且已实际进攻的目标才劝降，不无目的送礼或开局吞并 |
+| `UnitStrategyCommand`、`BurnCommand`、`AlienateCommand`、`SeizeCommand`、`GossipCommand` | 补充友军／士气、干扰敌军、削弱当前战役目标和敌方合作，计入行程和收益；不采用旧日历轮转 |
+| `DeployUnitCommand`、`TransportUnitCommand`、`OrderUnitCommand` | 战役、救援、补给、退出及占领接收；复用已有共同分配 |
+| `SetUnitPoliciesCommand`、`SelectTacticCommand` | 暂不独立改令：出征已选择公共默认策略及相容兵法，没有另一个经过投影验证的改装净收益方案 |
+| `ReleasePrisonerCommand`、`ExecutePrisonerCommand`、`ExileOfficerCommand` | 普通下令暂不主动处置：优先保留登用／交换机会，尚无证明即时释放、处决或驱逐优于保留的候选；被俘君主的待决释放／处决另走正式响应 |
+| `ConstructFacilityCommand`、`DemolishFacilityCommand` | 暂不产生：现有战役模型未评价新增阻挡／通道及拆除损失，不能只因合法就施工 |
+| `CreateCorpsCommand`、`ChangeCorpsCommand`、`DissolveCorpsCommand` | 暂不产生：沿现有军团和账户分配，尚无组织调整的前后收益投影，不机械拆分城市或跨账户搬钱 |
+| `SetCorpsControlCommand`、`SetCorpsDelegationCommand` | 保留现有授权及方针；玩家军团不得修改授予权限，自主势力也不为增加动作而重设控制 |
+| `RespondDailyTaskCommand` | 普通招募、谈判和各已支持搜索提示按语义选参数；投资、购买与冲突支出使用真实账户预留后的可支配资源 |
+| `AllianceParticipationCommand`、`RespondOfficeRequestCommand`、`RespondEmperorTransferCommand`、`ChooseCountryTitleCommand`、`ChooseTacticStudentCommand` | 只回答合法待决；联合敌对目标、接受求仕、普通拥立、选择可用国号／学生，保持原资格例外 |
+| `ChooseCapturedRulerDispositionCommand`、`ChooseExecutionSuccessorCommand`、`ChooseDuelSuccessorCommand`、`ChooseSnipingSuccessorCommand` | 处置及实时合法继任，经势力控制者授权；战略预算耗尽也可继续答复 |
+| `WaitCommand`、`ReformUnitCommand`、内部 `StartTaskCommand` | 无收益或预算耗尽时结束控制；整编全局禁用，内部任务只能由公共命令建立 |
+
+证据见 [DomainOpportunityTests](../tests/San9.Application.Tests/DomainOpportunityTests.cs)、既有外交／计略公开命令与委任测试，以及求仕、政治、拥立、单挑、狙击会话中的新增电脑恢复／录像对照。完全可靠与有误差意见、负收益、同条件失败冷却／条件改变、冷却保存恢复、短期受伤保持配置及长期配置调整均有公开夹具。独立进程覆盖正式外交答复、保存和录像。当前策略配置为 `domains-v1`；AI-05 不代表完整内容的强度定标、设施优化或长期对抗验收已完成，相关范围仍见 AI-06～AI-10。
 
 ## 必须保持的不变量
 
@@ -438,7 +472,7 @@ AI-01～AI-06 是 G11 内部施工顺序，AI-07～AI-10 是持续增强与最�
 | AI-02 响应纵向闭环（已完成） | 被俘君主处置及继任续行接入响应所有权、合法选项和公共提交 | 电脑释放／处决后能继续推进，玩家仍等待输入；战略额度耗尽不挂起；未知响应明确失败 |
 | AI-03 经营与共同分配（已完成） | 先贯通共享的到达窗口与有效投送，再合成动态威胁、账户保障、人员供给和岗位机会成本；购粮、内政、人事、救援竞争同一预算 | 可解缺粮得到解决，能及时支援的局面作出有效行动；区分迟到与搜索未完成，计入准备和调将，不能到达时不盲目抽空后方；多账户、多军团无重复占用 |
 | AI-04 战役闭环（已完成） | 复用时间窗口分析，接入动态留守与预备、进攻窗口和目标净价值；协调多城力量、阵型兵法组合、补给、巩固、撤回和失效修复 | 完成经营到占领闭环；有兵但迟到、能占领但不能维持等局面不误判为可行优势；面对反击、易主、结盟和无进展有实际应对 |
-| AI-05 全领域贯通 | 外交、计略、治理、其余日任务和政治人事响应进入同一目标与分配体系；军师意见按公共准确性规则参与评价 | 命令表逐项有采用策略或排除理由，全部支持的电脑响应无需 UI，既有委任限制与玩家权限保持；不同军师可靠性及重复失败反馈通过对照验收 |
+| AI-05 全领域贯通（已完成） | 外交、计略、治理、其余日任务和政治人事响应进入同一目标与分配体系；军师意见按公共准确性规则参与评价 | 命令表逐项有采用策略或排除理由，全部支持的电脑响应无需 UI，既有委任限制与玩家权限保持；不同军师可靠性及重复失败反馈通过对照验收 |
 | AI-06 生产切换与能力定标 | 清除退出生产的旧策略、整理测试基线、难度和报告，190 年完整内容及独立进程验收 | 唯一生产入口，完成场景对照、自动对局、保存与录像核验，登记性能、能力局限和 G12 输入 |
 
 AI-01 的恢复目标需要真实跨旬状态，例如持续检查粮食保障缺口，直到满足可靠收入前的供养条件，而不是为了验证存档保存一个无用计数器。AI-02 尽早验证最难的推进边界，避免直到全领域完成才发现 Core 不能接受电脑答复。AI-03 先在小局面共用基本态势，不要求先完成完整战役搜索。

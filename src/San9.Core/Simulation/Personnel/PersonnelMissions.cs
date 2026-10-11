@@ -222,7 +222,7 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
         (world.Settlements[task.OriginSettlementId].CorpsId is not int corpsId || world.Corps[corpsId].ControlMode == CorpsControlMode.Direct);
 
     internal override int? DecisionRecipient(WorldMutation world, PersistentTask task) =>
-        task.SearchEncounter is not null && Direct(world, task) ? task.ForceId : null;
+        task.SearchEncounter is not null ? task.ForceId : null;
 
     internal override bool AcceptsResponse(WorldMutation world, PersistentTask task, RespondDailyTaskCommand response) =>
         response.Offer is null && (task.SearchEncounter is CommunitySearchEncounter community

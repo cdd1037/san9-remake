@@ -44,7 +44,7 @@ internal static class DuelCombat
             state.ActiveControl != state.Controls.Length || pending.Aftermath.PendingRulerId is not int ruler ||
             !world.Officers.TryGetValue(ruler, out var officer) || !officer.IsServing || officer.OwnerId != pending.RespondingForceId ||
             world.Forces[pending.RespondingForceId].LeaderId != ruler ||
-            !state.Controls.Any(c => c.ForceId == pending.RespondingForceId && c.Kind == ControllerKind.Player) ||
+            !state.Controls.Any(c => c.ForceId == pending.RespondingForceId) ||
             DuelAftermath.Successors(world, ruler).IsEmpty || pending.Day.RemainingUnits.IsDefault ||
             pending.Day.UsedUnits.IsDefault || pending.Day.UsedBuildings.IsDefault ||
             !pending.Day.RemainingUnits.SequenceEqual(pending.Day.RemainingUnits.Distinct().Order()))

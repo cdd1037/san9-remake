@@ -63,12 +63,18 @@ public sealed class AttackRequestDiplomacyTests
     public void AutomaticFreeAndPrisonerOffersUseDifferentBranches()
     {
         var free = Arrive(true);
+        var freePrompt = free.GetAttackRequestPrompt()!;
+        Assert.True(free.Execute(new("second"), new RespondDailyTaskCommand(Guid.NewGuid(), 2, 1, freePrompt.TaskId, 0, true)
+            { Offer = new(CompensationKind.Free, 0, null, null) }).Submission.Accepted);
         Assert.Null(free.GetAttackRequestPrompt());
         Assert.Single(free.Snapshot.Simulation.AttackRequests);
         var exchange = Arrive(true, exchange: true);
+        var quotePrompt = exchange.GetAttackRequestPrompt()!;
+        Assert.True(exchange.Execute(new("second"), new RespondDailyTaskCommand(Guid.NewGuid(), 2, 1, quotePrompt.TaskId, 0, true)
+            { Offer = new(CompensationKind.Prisoner, 0, 22, null) }).Submission.Accepted);
         var prompt = exchange.GetAttackRequestPrompt()!;
         Assert.Equal(CompensationKind.Prisoner, prompt.Offer!.Kind);
-        var result = exchange.Execute(new("first"), new RespondDailyTaskCommand(Guid.NewGuid(), 1, 1, prompt.TaskId, prompt.Step, true));
+        var result = exchange.Execute(new("first"), new RespondDailyTaskCommand(Guid.NewGuid(), 1, exchange.Snapshot.Simulation.NextSequence, prompt.TaskId, prompt.Step, true));
         Assert.Single(result.Events.OfType<PrisonerRecoveredEvent>());
         Assert.Single(exchange.Snapshot.Simulation.AttackRequests);
     }

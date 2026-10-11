@@ -553,7 +553,7 @@ public sealed class PersistenceTests : IDisposable
                 State = o.State with { Righteousness = 15, ForceLoyalties = ImmutableDictionary<int, int>.Empty.Add(1, 80).Add(2, 255) }
             } : o).ToArray()
         };
-        var session = GameSession.Start(definition, 190);
+        var session = GameSession.Start(definition, 190, aiPolicy: San9.Application.AI.AiPolicyConfiguration.Standard with { WorkBudget = 1 });
         session.BeginRecording();
         var request = session.Request(new CommandOperation(new RewardOfficerCommand(Id(80), 1, 0, 2)), id: Id(80));
         Assert.Equal(SessionDisposition.Accepted, session.Apply(request).Disposition);
@@ -663,7 +663,9 @@ public sealed class PersistenceTests : IDisposable
         Assert.NotNull(firstYear);
         Assert.InRange(session.Records.Count, 0, GameSession.RecentRecordLimit);
         var withoutRecords = SaveService.EncodeSnapshot(session.Capture() with { Records = [] }, session.ContentFingerprint);
-        Assert.InRange(withoutRecords.Length - firstYear.Length, 0, 100);
+        // Current opportunities and cooldowns vary with the live world; they do not retain a historical journal.
+        Assert.InRange(Math.Abs(withoutRecords.Length - firstYear.Length), 0, 4096);
+        Assert.All(session.AiState.Opportunities, a => Assert.True(a.Outcome == "pending" || a.RetryAfter.DayNumber > session.Snapshot.Clock.DayNumber));
         string json = Encoding.UTF8.GetString(final);
         Assert.DoesNotContain("acceptedCommandIds", json);
         Assert.DoesNotContain("journal", json);
@@ -679,7 +681,8 @@ public sealed class PersistenceTests : IDisposable
     {
         var value = Fixture();
         var definition = value with { Information = value.Information with { Corps = value.Information.Corps.Select(f => f with { Treasury = f.Treasury with { Money = 100000 } }).ToArray() },
-            Settlements = value.Settlements.Select(s => s with { MaxCommerce = 2500 }).ToArray() };
+            Settlements = value.Settlements.Select(s => s with { MaxCommerce = 2500 }).ToArray(),
+            Officers = value.Officers.Select(o => o with { State = o.State.WithLoyalty(o.State.OwnerId!.Value, 100) }).ToArray() };
         var session = GameSession.Start(definition, 190);
         session.AddChronicleNote("player note");
         List<GameClock> completedDates = [];

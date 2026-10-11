@@ -66,9 +66,9 @@ morale_delta = trunc0(survivor_hp/5) + 10
 
 ## 状态与不变量
 
-战斗阵亡会话选项`BattleDeathsEnabled`默认关闭，证据见[RE-0071](../../research/findings/RE-SAN9PK-0071.md)。剧本军事规则独立保存`BattleDeathsAllowed`与`DuelCapturesAllowed`，版本Importer分别转换模式非2／9与非9的限制；领域不读取源模式。选项不控制自然死亡或处决，保存、录像及命令重放必须保持相同值。玩家君主命中单挑阵亡后须先等待继任选择，再执行死亡事务并继续原日结算，不能默认代选，也不能重复阵亡骰或已完成的战斗阶段。
+战斗阵亡会话选项`BattleDeathsEnabled`默认关闭，证据见[RE-0071](../../research/findings/RE-SAN9PK-0071.md)。剧本军事规则独立保存`BattleDeathsAllowed`与`DuelCapturesAllowed`，版本Importer分别转换模式非2／9与非9的限制；领域不读取源模式。选项不控制自然死亡或处决，保存、录像及命令重放必须保持相同值。君主命中单挑阵亡后须先生成继任待决；玩家等待输入，电脑由 Application 通过同一公共命令回答，再执行死亡事务并继续原日结算，不能默认代选，也不能重复阵亡骰或已完成的战斗阶段。
 
-公共查询`GetDuelSuccessionPrompt`返回待继任君主、响应势力及实时候选；仅该玩家可提交`ChooseDuelSuccessorCommand`。响应必须显式携带可空`SuccessorId`：具体ID表示手选，null表示取消手选并按实时`RulerSuccession.Automatic`自动选择，保留原作自动回退；不是撤销死亡。等待期间拒绝普通命令、推进、存档和录像导出。`PendingDuel`仅驻留内存，包含战后续行、未处理单位与当日已攻击集合；回答后继续未完成的战后处理、剩余兵法／反击机会及当日后续阶段，再完成本旬。只在确实等待玩家时构造续行快照，不保存逐刀中间状态。从此前稳定起点重放答复可再现事件及最终世界。
+公共查询`GetDuelSuccessionPrompt`返回待继任君主、响应势力及实时候选；仅实际势力控制者可提交`ChooseDuelSuccessorCommand`。响应必须显式携带可空`SuccessorId`：具体ID表示手选，null表示取消手选并按实时`RulerSuccession.Automatic`自动选择，保留原作自动回退；不是撤销死亡。等待期间拒绝普通命令、推进、存档和录像导出。`PendingDuel`仅驻留内存，包含战后续行、未处理单位与当日已攻击集合；回答后继续未完成的战后处理、剩余兵法／反击机会及当日后续阶段，再完成本旬。只在确实需要继任选择时构造续行快照，不保存逐刀中间状态。从此前稳定起点重放答复可再现事件及最终世界。
 
 - 输入与前置条件：已结束的单挑、稳定的双方参战名单和配对败者名单、双方当前部队士气、胜方、存活者 HP、场景规则与人物/势力状态。
 - 状态变化：全部参战人物写回兵法间隔；失败侧人物进入死亡、俘虏或至少重伤之一；双方士气写回；临时单挑状态清空。

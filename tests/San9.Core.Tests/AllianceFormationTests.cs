@@ -53,7 +53,7 @@ public sealed class AllianceFormationTests
             QiaoMarriage = new(11, 12, [31], 31, 10, [100, 200, 300, 400], new(199, 12, 30), new(209, 12, 30),
                 3, 7, 20, 25, new("qiao-marriage"))
         });
-        Assert.Empty(engine.AdvanceXun().Events.OfType<QiaoMarriageEvent>());
+        Assert.Empty(Advance(engine).Events.OfType<QiaoMarriageEvent>());
         for (int player = 2; player <= 5; player++)
         {
             var response = Answer(engine, player, false);
@@ -88,14 +88,37 @@ public sealed class AllianceFormationTests
             Simulation = initial.Simulation with { ActiveControl = controls.Length } }), Rules());
     }
 
-    private static CommandExecutionResult Answer(SimulationEngine engine, int player, bool join) => engine.Execute(new($"controller:{player}"),
-        new AllianceParticipationCommand(Guid.NewGuid(), player, engine.Snapshot.Simulation.NextSequence, 1, join));
+    private static CommandExecutionResult Answer(SimulationEngine engine, int player, bool join) =>
+        FinishAutomatic(engine, engine.Execute(new($"controller:{player}"),
+            new AllianceParticipationCommand(Guid.NewGuid(), player, engine.Snapshot.Simulation.NextSequence, 1, join)));
+
+    private static CommandExecutionResult FinishAutomatic(SimulationEngine engine, CommandExecutionResult result)
+    {
+        if (!result.Submission.Accepted) return result;
+        var events = result.Events.ToList();
+        while (engine.GetPendingResponse() is { Owner.Kind: ControllerKind.Automatic } pending &&
+            engine.GetAllianceParticipationPrompt() is { } prompt)
+        {
+            var answer = engine.Execute(new(pending.Owner.ControllerId), new AllianceParticipationCommand(new Guid(Convert.FromHexString(CanonicalJson.Hash(new { pending.Identity, engine.Snapshot.Simulation.NextSequence })).AsSpan(0, 16)),
+                pending.Owner.ForceId, engine.Snapshot.Simulation.NextSequence, prompt.Proposal.TargetForceId, true));
+            Assert.True(answer.Submission.Accepted);
+            events.AddRange(answer.Events);
+        }
+        return result with { Events = events, Snapshot = engine.Snapshot };
+    }
+
+    private static AdvanceXunResult Advance(SimulationEngine engine)
+    {
+        var result = engine.AdvanceXun();
+        var answered = FinishAutomatic(engine, new(CommandSubmissionResult.Success, result.Events, result.Snapshot));
+        return new(answered.Events, answered.Snapshot);
+    }
 
     [Fact]
     public void AllAutomaticFormationSelectsLaterTrustTieAndInitializesFullDuration()
     {
         var engine = Ready();
-        var result = engine.AdvanceXun();
+        var result = Advance(engine);
         var formed = Assert.Single(result.Events.OfType<AllianceFormedEvent>());
         Assert.Equal(new[] { 2, 3, 4 }, formed.Alliance.MemberForceIds);
         Assert.Equal(4, formed.Alliance.LeaderForceId);
@@ -110,14 +133,14 @@ public sealed class AllianceFormationTests
         Assert.Equal(79, result.Snapshot.Relations.Single(r => r.FirstId == 1 && r.SecondId == 5).Value);
         Assert.Equal(SimulationBoundary.Stable, result.Snapshot.Simulation.Boundary);
         foreach (var control in engine.Snapshot.Simulation.Controls) engine.EndControl(new(control.ControllerId));
-        Assert.Equal(35, engine.AdvanceXun().Snapshot.Simulation.Alliance!.RemainingXun);
+        Assert.Equal(35, Advance(engine).Snapshot.Simulation.Alliance!.RemainingXun);
     }
 
     [Fact]
     public void GateDoesNotRunBeforeFirstYearAndUsesOneQuarterlyRoll()
     {
         var engine = Ready(0);
-        var result = engine.AdvanceXun();
+        var result = Advance(engine);
         Assert.Null(result.Snapshot.Simulation.Alliance);
         Assert.Null(result.Snapshot.Simulation.PendingEvent);
         Assert.Single(result.Snapshot.Simulation.RandomStreams.Where(r => r.Name == "alliance-formation"));
@@ -134,7 +157,7 @@ public sealed class AllianceFormationTests
         var initial = Ready().Snapshot;
         var engine = new SimulationEngine(WorldState.Restore(initial with { Simulation = initial.Simulation with
             { Alliance = new(1, 4, [2, 3, 4], 10) } }), Rules());
-        var result = engine.AdvanceXun();
+        var result = Advance(engine);
         Assert.Equal(9, result.Snapshot.Simulation.Alliance!.RemainingXun);
         Assert.Empty(result.Events.OfType<AllianceProposedEvent>());
         Assert.DoesNotContain(result.Snapshot.Simulation.RandomStreams, r => r.Name.StartsWith("alliance-", StringComparison.Ordinal));
@@ -144,10 +167,10 @@ public sealed class AllianceFormationTests
     public void PlayerOutsideAutomaticEligibilityCanJoinAtAnInMemoryDecisionBoundary()
     {
         var engine = Ready(5, 5);
-        var arrival = engine.AdvanceXun();
+        var arrival = Advance(engine);
         Assert.Equal(SimulationBoundary.AwaitingDecision, engine.Snapshot.Simulation.Boundary);
         var prompt = engine.GetAllianceParticipationPrompt()!;
-        Assert.Equal(new[] { 2, 3, 4 }, prompt.Proposal.AutomaticMemberForceIds);
+        Assert.Equal(new[] { 2, 3, 4 }, prompt.Proposal.EligibleMemberForceIds);
         Assert.Equal(5, prompt.Proposal.RespondingForceId);
         Assert.Null(engine.Snapshot.Simulation.Alliance);
         Assert.DoesNotContain(arrival.Events.OfType<StageCompletedEvent>(), e => e.Stage == ResolutionStage.QuarterUpdate);
@@ -158,8 +181,8 @@ public sealed class AllianceFormationTests
         var command = new AllianceParticipationCommand(Guid.NewGuid(), 5, engine.Snapshot.Simulation.NextSequence, 1, true);
         Assert.True(engine.Validate(new("controller:5"), command).Accepted);
         Assert.Equal(before, engine.Snapshot.StateHash);
-        var expected = engine.Execute(new("controller:5"), command);
-        var actual = restored.Execute(new("controller:5"), command);
+        var expected = FinishAutomatic(engine, engine.Execute(new("controller:5"), command));
+        var actual = FinishAutomatic(restored, restored.Execute(new("controller:5"), command));
         Assert.True(expected.Submission.Accepted);
         Assert.Equal(expected.Snapshot.StateHash, actual.Snapshot.StateHash);
         Assert.Equal(CanonicalJson.Text(expected.Events), CanonicalJson.Text(actual.Events));
@@ -178,7 +201,7 @@ public sealed class AllianceFormationTests
     public void MultiplePlayersAnswerInForceOrderAndInsufficientParticipationFailsWithoutAllianceEffects(bool firstJoins)
     {
         var engine = Ready(5, 2, 3, 4);
-        engine.AdvanceXun();
+        Advance(engine);
         var before = engine.Snapshot;
         Assert.False(Answer(engine, 3, true).Submission.Accepted);
         Assert.Equal(before.StateHash, engine.Snapshot.StateHash);
@@ -201,7 +224,7 @@ public sealed class AllianceFormationTests
     public void DecliningDoesNotBlockAutomaticMembersFromFormingAnAlliance()
     {
         var engine = Ready(5, 5);
-        engine.AdvanceXun();
+        Advance(engine);
         var result = Answer(engine, 5, false);
         Assert.True(result.Submission.Accepted);
         Assert.Equal(new[] { 2, 3, 4 }, result.Snapshot.Simulation.Alliance!.MemberForceIds);
@@ -220,7 +243,7 @@ public sealed class AllianceFormationTests
             Forces = initial.Forces.Select(f => f.Id == 2 ? f with { BaseTrust = 20 } : f).ToArray(),
             Settlements = initial.Settlements.Select(s => s.Id == 200 ? s with { DraftPopulation = 200001 } : s).ToArray()
         }), Rules());
-        var result = engine.AdvanceXun();
+        var result = Advance(engine);
         Assert.Equal(expectedTarget, result.Snapshot.Simulation.Alliance!.TargetForceId);
         Assert.Single(result.Snapshot.Simulation.RandomStreams.Where(r => r.Name == "alliance-target"));
     }
@@ -229,13 +252,13 @@ public sealed class AllianceFormationTests
     public void PendingChoiceRejectsOrdinaryCommandsAdvanceWrongControllerAndWrongTargetWithoutMutation()
     {
         var engine = Ready(5, 5);
-        engine.AdvanceXun();
+        Advance(engine);
         string before = engine.Snapshot.StateHash;
         long sequence = engine.Snapshot.Simulation.NextSequence;
         Assert.Equal(CommandRejection.DecisionPending, engine.Execute(new("controller:5"), new WaitCommand(Guid.NewGuid(), 5, sequence)).Submission.Rejection);
         Assert.Equal(CommandRejection.NotActiveController, engine.Execute(new("controller:4"), new AllianceParticipationCommand(Guid.NewGuid(), 5, sequence, 1, true)).Submission.Rejection);
         Assert.Equal(CommandRejection.InvalidDecision, engine.Execute(new("controller:5"), new AllianceParticipationCommand(Guid.NewGuid(), 5, sequence, 2, true)).Submission.Rejection);
-        Assert.Throws<InvalidOperationException>(() => engine.AdvanceXun());
+        Assert.Throws<InvalidOperationException>(() => Advance(engine));
         Assert.Throws<InvalidOperationException>(() => engine.EndControl(new("controller:5")));
         Assert.Equal(before, engine.Snapshot.StateHash);
     }
@@ -244,15 +267,15 @@ public sealed class AllianceFormationTests
     public void CorruptDecisionSnapshotsCannotResumeOrSkipTheRemainingQuarter()
     {
         var engine = Ready(5, 2, 3, 4);
-        engine.AdvanceXun();
+        Advance(engine);
         var valid = engine.Snapshot;
         var proposal = ((AllianceEventSession)valid.Simulation.PendingEvent!).Proposal;
         foreach (var invalid in new AllianceProposal[]
         {
-            proposal with { TargetForceId = 999 }, proposal with { AutomaticMemberForceIds = [2] },
-            proposal with { PlayerChoices = [] }, proposal with { PlayerChoices = [new(2, null), new(3, true), new(4, null)] },
-            proposal with { PlayerChoices = [new(2, true), new(3, false), new(4, false)] },
-            proposal with { PlayerChoices = [new(2, null), new(3, null)] }
+            proposal with { TargetForceId = 999 }, proposal with { EligibleMemberForceIds = [2] },
+            proposal with { Choices = [] }, proposal with { Choices = [new(2, null), new(3, true), new(4, null)] },
+            proposal with { Choices = [new(2, true), new(3, false), new(4, false)] },
+            proposal with { Choices = [new(2, null), new(3, null)] }
         }) Assert.Throws<ArgumentException>(() => WorldState.Restore(valid with { Simulation = valid.Simulation with { PendingEvent = new AllianceEventSession(invalid) } }));
         Assert.Throws<ArgumentException>(() => WorldState.Restore(valid with { Simulation = valid.Simulation with { PendingEvent = null } }));
         Assert.Throws<ArgumentException>(() => WorldState.Restore(valid with { Simulation = valid.Simulation with { Boundary = SimulationBoundary.Stable } }));

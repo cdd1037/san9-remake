@@ -42,11 +42,7 @@ internal static class AllocationTurnRunner
             var support = SupportObservationCapture.Capture(engine, active, input, rules, supportWork, routes);
             work.Charge(supportBudget - supportWork.Remaining);
             input = EconomicSupplyProjection.Apply(input, support.FoodChanges);
-            long personnelBudget = work.Remaining / 4;
-            var personnelWork = new AllocationWork(personnelBudget);
-            var personnel = PersonnelAllocation.Capture(engine, input, personnelWork);
-            work.Charge(personnelBudget - personnelWork.Remaining);
-            var proposals = support.Candidates.Concat(personnel).Where(c => !completed.Contains(c.ControllerId + ":" + c.Purpose)).ToImmutableArray();
+            var proposals = support.Candidates.Where(c => !completed.Contains(c.ControllerId + ":" + c.Purpose)).ToImmutableArray();
             bool campaignComplete = true;
             if (rules is not null && support.Complete && work.Remaining > 1 && input.All(e => e.Observation.Complete) &&
                 (state.Campaigns.Any(g => g.ForceId == active.ForceId) || input.All(e => e.Observation.Accounts.All(a => a.Food >= a.RequiredFood))))
@@ -60,13 +56,18 @@ internal static class AllocationTurnRunner
                 proposals = proposals.AddRange(campaign.Candidates.Where(c => !completed.Contains(c.ControllerId + ":" + c.Purpose)));
                 work.Charge(campaignBudget - campaignWork.Remaining);
             }
-            // Unmigrated diplomacy/strategy policies supply bounded proposals, never execute a separate phase.
-            if (work.Remaining > 0 && support.Complete && proposals.All(c => c.Priority > 0) &&
-                input.All(e => e.Observation.Complete && e.Observation.Accounts.All(a => a.Food >= a.RequiredFood)))
+            if (work.Remaining > 2 && input.All(e => e.Observation.Complete))
             {
                 long opportunityBudget = work.Remaining / 2;
                 var opportunityWork = new AllocationWork(opportunityBudget);
-                if (Opportunity(input, support, opportunityWork) is { } opportunity) proposals = proposals.Add(opportunity);
+                var captureWork = new AllocationWork(opportunityWork.Remaining / 2);
+                long captureBudget = captureWork.Remaining;
+                var observation = OpportunityObservationCapture.Capture(engine, active, input, support, state.Campaigns, rules, captureWork);
+                opportunityWork.Charge(captureBudget - captureWork.Remaining);
+                proposals = proposals.AddRange(OpportunityPlanner.Plan(observation, state.Opportunities, opportunityWork)
+                    .Where(c => !completed.Contains(c.ControllerId + ":" + c.Purpose)));
+                proposals = proposals.AddRange(PersonnelConfiguration.Capture(engine, active, input, opportunityWork)
+                    .Where(c => !completed.Contains(c.ControllerId + ":" + c.Purpose)));
                 work.Charge(opportunityBudget - opportunityWork.Remaining);
             }
             var decision = SharedAllocator.Decide(input, proposals, state.FoodSecurity, Math.Max(0, work.Remaining - 1),
@@ -117,6 +118,16 @@ internal static class AllocationTurnRunner
                 continue;
             }
             events.AddRange(result.Events);
+            if (candidate?.Opportunity is { } opportunity)
+            {
+                var started = result.Events.OfType<TaskStartedEvent>().FirstOrDefault();
+                if (started is not null)
+                    state = state with { Opportunities = state.Opportunities
+                        .Where(a => a.ControllerId != controllerId || a.Key != opportunity.Key)
+                        .Append(new(active.ForceId, controllerId, opportunity.Key, opportunity.Conditions,
+                            started.Task.Id, started.Task.OfficerId, engine.Snapshot.Clock, engine.Snapshot.Clock, "pending")).ToImmutableArray() };
+            }
+            state = state with { Opportunities = OpportunityPlanner.Feedback(state.Opportunities, engine.Snapshot, result.Events) };
             if (candidate?.Campaign is { } commitment)
             {
                 var previous = state.Campaigns.FirstOrDefault(g => g.ForceId == commitment.ForceId && g.TargetId == commitment.TargetId);
@@ -140,67 +151,5 @@ internal static class AllocationTurnRunner
         }
         return state;
 
-        AllocationCandidate? Opportunity(ImmutableArray<(string ControllerId, EconomicObservation Observation)> input, SupportObservation support,
-            AllocationWork proposalWork)
-        {
-            foreach (var (controller, economy) in input)
-            {
-                var seat = active with { ControllerId = controller, Kind = ControllerKind.Automatic };
-                if (!completed.Contains(controller + ":diplomacy") && controller == active.ControllerId && active.Kind == ControllerKind.Automatic && proposalWork.Spend())
-                {
-                    var command = DiplomacyPlanner.Choose(engine, seat, identity(controller, "diplomacy"), proposalWork.Spend);
-                    if (command is not WaitCommand && Safe(controller, command, economy, support) is { } candidate) return candidate with { Purpose = "diplomacy" };
-                    completed.Add(controller + ":diplomacy");
-                }
-                if (!completed.Contains(controller + ":strategy") && proposalWork.Spend())
-                {
-                    CommandRejection Eligible(CommandContext c, GameCommand command) => proposalWork.Spend()
-                        ? engine.GetPreparationEligibility(c, command) : CommandRejection.InvalidTask;
-                    var command = StrategyPlanner.Choose(engine.Snapshot, Eligible, rules, seat, identity(controller, "strategy"));
-                    if (command is not WaitCommand && Safe(controller, command, economy, support) is { } candidate) return candidate with { Purpose = "strategy" };
-                    completed.Add(controller + ":strategy");
-                }
-            }
-            return null;
-        }
-
-        AllocationCandidate? Safe(string controller, GameCommand command, EconomicObservation economy, SupportObservation support)
-        {
-            var world = engine.Snapshot;
-            int? source = command switch
-            {
-                DeployUnitCommand d => d.SettlementId,
-                OrderUnitCommand => null,
-                _ => Actor(command) is int person ? world.Officers.Single(p => p.Id == person).SettlementId : null
-            };
-            var home = economy.Domestic.Settlements.FirstOrDefault(s => s.Id == source);
-            if (home is null && command is not OrderUnitCommand) return null;
-            // Discretionary departures cannot consume a threatened garrison or its remaining officer supply.
-            if (source is int id && support.Arrivals.Any(a => a.Hostile && a.TargetId == id && a.Estimate.Status != ArrivalEstimateStatus.Unreachable)) return null;
-            long cost = command switch
-            {
-                DeployUnitCommand d when rules is not null => (long)rules.Formations[d.FormationId].DeploymentCost +
-                    (d.NavalFormationId is int naval ? rules.Formations[naval].DeploymentCost : 0),
-                GiftCommand { Offer.Kind: GiftKind.Money } g => g.Offer.Amount,
-                _ => 0
-            };
-            int accountId = home?.AccountId ?? economy.Accounts.First().Id;
-            var account = economy.Accounts.Single(a => a.Id == accountId);
-            long food = command is DeployUnitCommand deploy && home is not null
-                ? FoodSupplyForecast.DeploymentExpenditure(home.Soldiers, deploy.Soldiers, account.HorizonDays, home.Wounded, home.ConsumesFood) : 0;
-            if (command is UnitStrategyCommand { Strategy: UnitStrategyKind.Reinforce } && home is not null)
-                food = FoodSupplyForecast.DeploymentExpenditure(home.Soldiers, 3000, account.HorizonDays, home.Wounded, home.ConsumesFood);
-            if (account.Money < cost || account.Food < account.RequiredFood + food) return null;
-            return new(controller, accountId, command with { CommandId = Guid.Empty, Sequence = 0 },
-                command is DeployUnitCommand deployment ? deployment.OfficerIds : Actor(command) is int actor ? [actor] : [],
-                3, 0, cost, food, source, Purpose: "military");
-        }
     }
-
-    private static int? Actor(GameCommand command) => command switch
-    {
-        GiftCommand c => c.OfficerId, ReturnPrisonerCommand c => c.OfficerId, RequestAttackCommand c => c.OfficerId,
-        DemandSurrenderCommand c => c.OfficerId, UnitStrategyCommand c => c.OfficerId, BurnCommand c => c.OfficerId,
-        SeizeCommand c => c.OfficerId, AlienateCommand c => c.OfficerId, GossipCommand c => c.OfficerId, _ => null
-    };
 }

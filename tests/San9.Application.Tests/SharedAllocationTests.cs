@@ -180,7 +180,8 @@ public sealed class SharedAllocationTests
         Assert.DoesNotContain(session.AiState.FoodSecurity, g => g.AccountId == 3);
         var next = session.AdvanceXun();
         Assert.Empty(next.Events.OfType<UnitDeployedEvent>());
-        Assert.Equal(0u, session.Snapshot.Corps.Single(c => c.Id == 3).Treasury.Money);
+        Assert.Equal((uint)next.Events.OfType<ResourceChangedEvent>().Where(e => e.Account == new ResourceAccount(ResourceOwnerKind.Corps, 3) && e.Resource == ResourceKind.Money).Sum(e => e.Actual),
+            session.Snapshot.Corps.Single(c => c.Id == 3).Treasury.Money);
         var delivered = session.AdvanceXun();
         Assert.Contains(delivered.Events.OfType<UnitAbsorbedEvent>(), e => e.UnitId == transport.Id);
         Assert.True(session.Snapshot.Corps.Single(c => c.Id == 3).Treasury.Food > 200);

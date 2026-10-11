@@ -178,14 +178,27 @@ public sealed class HeadlessProcessTests : IDisposable
             Information = San9.Content.Scenarios.InformationDefinitions.Empty with { Corps = [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 3, new(30000, 10000)) { IsRoot = true }], Relations = [new(1, 2, 60)] }
         };
         File.WriteAllBytes(FilePath("scenario.json"), San9.Core.Simulation.CanonicalJson.Encode(definition));
-        var result = await Run("verify", "--scenario", FilePath("scenario.json"), "--xuns", "2", "--output", _directory);
+        var session = GameSession.Start(definition, 190, aiPolicy: San9.Application.AI.AiPolicyConfiguration.Standard with { WorkBudget = 1 });
+        SaveService.Write(FilePath("initial.json"), session);
+        session.BeginRecording();
+        session.EndControl(new("player"));
+        Assert.True(session.Execute(new("ai:2"), new GiftCommand(Guid.NewGuid(), 2, 0, 4, 1,
+            new(GiftKind.Money, 2000, null))).Submission.Accepted);
+        session.AdvanceXun();
+        var pending = session.Snapshot.Simulation.PendingDailyTask!;
+        Assert.True(session.Execute(new("player"), new RespondDailyTaskCommand(Guid.NewGuid(), 1,
+            session.Snapshot.Simulation.NextSequence, pending.RemainingTaskIds[0], 0, false)).Submission.Accepted);
+        CommandLogService.Write(FilePath("commands.jsonl"), session);
+        var result = await Run("run", "--scenario", FilePath("scenario.json"), "--restore", FilePath("initial.json"),
+            "--log", FilePath("commands.jsonl"), "--save", FilePath("resolved.json"),
+            "--record", FilePath("recording.json"), "--report", FilePath("report.json"));
         Assert.Equal(0, result.Code);
-        Assert.Equal(2, result.Report.GetProperty("completedXun").GetInt32());
-        Assert.Equal("G08", result.Report.GetProperty("goal").GetString());
         Assert.True(result.Report.GetProperty("diplomacyStrategyEvents").GetProperty("gift-resolved").GetInt32() > 0);
-        Assert.Contains("after-player-decisions", File.ReadAllText(FilePath("checkpoints.json")));
         Assert.Contains("respond-daily-task", File.ReadAllText(FilePath("commands.jsonl")));
-        Assert.Equal(File.ReadAllBytes(FilePath("continuous.save.json")), File.ReadAllBytes(FilePath("restored.save.json")));
+        Assert.Equal(session.Capture().StateHash, SaveService.Read(FilePath("resolved.json"), definition).Capture().StateHash);
+        var replay = await Run("replay", "--scenario", FilePath("scenario.json"), "--recording", FilePath("recording.json"), "--report", FilePath("replay.json"));
+        Assert.Equal(0, replay.Code);
+        Assert.Equal(session.Capture().StateHash, replay.Report.GetProperty("finalHash").GetString());
     }
 
     [Fact]

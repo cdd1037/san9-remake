@@ -244,11 +244,11 @@ public sealed class GiftSessionTests
     public void TargetCapacityReportsEveryUndeliveredUnitAsSpent()
     {
         var content = Content();
-        content = content with { Information = content.Information with { Corps = content.Information.Corps.Select(f => f.IsRoot && f.OwnerId == 2 ? f with { Treasury = f.Treasury with { Money = 1000000 } } : f).ToArray() } };
-        var session = GameSession.Start(content, 42);
+        content = content with { Information = content.Information with { Corps = content.Information.Corps.Select(f => f.IsRoot && f.OwnerId == 2 ? f with { Treasury = f.Treasury with { Money = 999950 } } : f).ToArray() } };
+        var session = GameSession.Start(content, 42, aiPolicy: San9.Application.AI.AiPolicyConfiguration.Standard with { WorkBudget = 1 });
         Assert.True(session.Execute(new("player"), new GiftCommand(Guid.NewGuid(), 1, 0, 12, 2,
             new(GiftKind.Money, 20000, null))).Submission.Accepted);
-        // Automatic economic work can spend the recipient's money before the envoy arrives.
+        // Isolate overflow settlement from optional economic and search income.
         Assert.Equal(SessionDisposition.Accepted, session.Apply(session.Request(new PrepareAdvanceOperation())).Disposition);
         uint room = 1000000 - session.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 2).Treasury.Money;
         var result = Assert.Single(session.AdvanceXun().Events.OfType<GiftResolvedEvent>());

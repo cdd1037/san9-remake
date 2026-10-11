@@ -140,7 +140,7 @@ internal sealed class PrisonerReturnRule(SimulationRules rules) : TaskRule
         var mission = task.PrisonerReturn!;
         if (task.ResolutionStep == 1 && mission.Offer!.Kind is CompensationKind.Free or CompensationKind.Refuse) return null;
         int respondent = task.ResolutionStep == 0 ? mission.TargetForceId : task.ForceId;
-        return PrisonerReturnDiplomacy.Player(world, respondent) ? respondent : null;
+        return respondent;
     }
     internal override bool AcceptsResponse(WorldMutation world, PersistentTask task, RespondDailyTaskCommand response) =>
         response.CommunitySearch is null && response.SearchConflict is null && (
@@ -155,10 +155,9 @@ internal sealed class PrisonerReturnRule(SimulationRules rules) : TaskRule
     internal override PersistentTask? Resolve(WorldMutation world, PersistentTask task, bool? accept, List<DomainEvent> events)
     {
         var mission = task.PrisonerReturn!;
-        if (task.ResolutionStep == 0) return Quote(world, task, PrisonerCompensation.Quote(world, task.ForceId,
-            task.OfficerId, mission.TargetForceId, mission.PrisonerId, rules.Treasures), events);
+        if (task.ResolutionStep == 0) throw new InvalidOperationException("A prisoner return requires a counteroffer response.");
         bool accepted = mission.Offer!.Kind == CompensationKind.Free ||
-            mission.Offer.Kind != CompensationKind.Refuse && (accept ?? PrisonerReturnDiplomacy.Accept(world, task, rules));
+            mission.Offer.Kind != CompensationKind.Refuse && (accept ?? throw new InvalidOperationException("A priced prisoner return requires an acceptance response."));
         PrisonerReturnDiplomacy.Finish(world, task, accepted, rules, events);
         return null;
     }

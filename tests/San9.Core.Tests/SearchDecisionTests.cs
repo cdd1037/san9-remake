@@ -108,7 +108,9 @@ public sealed class SearchDecisionTests
         Begin(player);
         var playerEvents = player.Execute(new("player"), Answer(player, true)).Events;
         var automatic = Engine(World(automatic: true));
-        var automaticEvents = Begin(automatic);
+        Begin(automatic);
+        Assert.NotNull(automatic.GetSearchRecruitmentPrompt());
+        var automaticEvents = automatic.Execute(new("player"), Answer(automatic, true)).Events;
         Assert.Null(automatic.GetSearchRecruitmentPrompt());
         Assert.Equal(CanonicalJson.Text(player.Snapshot.Officers), CanonicalJson.Text(automatic.Snapshot.Officers));
         Assert.Equal(CanonicalJson.Text(player.Snapshot.Simulation.RandomStreams), CanonicalJson.Text(automatic.Snapshot.Simulation.RandomStreams));

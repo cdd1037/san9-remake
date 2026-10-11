@@ -53,7 +53,7 @@ internal static class TacticSniping
             !outcome.Source.Exists(world) || !outcome.Target.Exists(world)) return true;
         if (!TacticCombat.Roll(world, "military-sniping-death", outcome.Injury * outcome.Injury)) return true;
         if (person.OwnerId is int owner && world.Forces[owner].LeaderId == person.Id && ForceLifecycle.HasCity(world, owner) &&
-            world.Simulation.Controls.Any(c => c.ForceId == owner && c.Kind == ControllerKind.Player) &&
+            world.Simulation.Controls.Any(c => c.ForceId == owner) &&
             !RulerSuccession.Candidates(world, person.Id).IsEmpty)
         {
             world.SetSimulation(world.Simulation with { Boundary = SimulationBoundary.AwaitingDecision,

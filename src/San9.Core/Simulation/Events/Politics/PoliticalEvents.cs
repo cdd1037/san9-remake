@@ -42,17 +42,14 @@ internal static class PoliticalEvents
             if (title is null)
             {
                 var available = rules.Politics.ManualCandidates(Occupied(world));
-                bool player = world.Simulation.Controls.Any(c => c.ForceId == candidate.Id && c.Kind == ControllerKind.Player);
-                if (player && !available.IsEmpty)
+                if (!available.IsEmpty)
                 {
                     world.SetSimulation(world.Simulation with { Boundary = SimulationBoundary.AwaitingDecision,
                         PendingEvent = new CountryTitleEventSession(candidate.Id, kind, available) });
                     events.Add(new CountryTitleOfferedEvent(world.Clock, candidate.Id, available));
                     return;
                 }
-                int waitingPlayers = forces.Count(f => f.RankId != rules.Politics.ImperialRankId &&
-                    world.Simulation.Controls.Any(c => c.ForceId == f.Id && c.Kind == ControllerKind.Player));
-                if (player || available.Length <= waitingPlayers) title = AutomaticTitle(world, rules, candidate);
+                title = AutomaticTitle(world, rules, candidate);
             }
             Commit(world, rules, candidate.Id, rules.Politics.ImperialRankId!.Value, title, kind, events);
             return;
@@ -135,7 +132,7 @@ internal static class PoliticalEvents
         if (!world.Clock.Boundary.Quarter || world.Clock.DayNumber - world.Simulation.Started.DayNumber < 30 ||
             world.Simulation.ActiveControl != world.Simulation.Controls.Length ||
             !world.Forces.TryGetValue(pending.ForceId, out var force) || force.IsEliminated || force.CountryTitleId is not null ||
-            !world.Simulation.Controls.Any(c => c.ForceId == pending.ForceId && c.Kind == ControllerKind.Player) ||
+            !world.Simulation.Controls.Any(c => c.ForceId == pending.ForceId) ||
             pending.ChangeKind is not (PeerageChangeKind.Abdication or PeerageChangeKind.Proclamation) || pending.CandidateIds.IsDefaultOrEmpty ||
             !pending.CandidateIds.SequenceEqual(pending.CandidateIds.Distinct().Order()) || pending.CandidateIds.Any(id => id < 0 || Occupied(world).Contains(id)))
             throw new ArgumentException("Invalid country title event session.");

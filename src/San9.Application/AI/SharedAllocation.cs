@@ -25,6 +25,7 @@ public sealed record AllocationCandidate(string ControllerId, int AccountId, Gam
     public long ReceivingFood { get; init; }
     public long OfficerOpportunityCost { get; init; }
     public CampaignGoal? Campaign { get; init; }
+    public OpportunityOption? Opportunity { get; init; }
 }
 
 public sealed record AllocationDecision(AllocationCandidate? Candidate, EconomicIntent? Economic,

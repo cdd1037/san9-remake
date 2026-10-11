@@ -376,7 +376,7 @@ public sealed partial class GameSession
                 new SessionRecord(e.Clock, e.Command.ForceId, e.Command.SettlementId, e.Command.OfficerIds[0],
                     e.Command.Activity, e.Increment, e.Cost)).ToArray();
             var snapshot = candidate.Snapshot;
-            ai = ai.Prune(snapshot);
+            ai = (ai with { Opportunities = OpportunityPlanner.Feedback(ai.Opportunities, snapshot, events) }).Prune(snapshot);
             var strategicContext = Presentation.StrategicContext.Prepare(_snapshotSource.Project(snapshot), _strategicContext);
             var publishedEvents = events.ToImmutableArray();
             var recorded = IsRecording ? new RecordedOperation(request, publishedEvents) : null;

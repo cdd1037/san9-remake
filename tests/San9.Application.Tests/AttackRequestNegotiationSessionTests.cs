@@ -11,9 +11,12 @@ public sealed class AttackRequestNegotiationSessionTests
         [new(1, "first", 1, 100) { LeaderId = 11 },
          new(2, "second", 2, 100) { LeaderId = 21 },
          new(3, "third", 3, 100) { LeaderId = 31 }],
-        [new(1, "home", 1, 0, 0, 0, 100, 100, 0, []), new(2, "away", 2, 18, 0, 0, 100, 100, 0, []),
+        [new(1, "home", 1, 0, 0, 0, 100, 100, 0, []), new(2, "away", 2, 18, 0, 20000, 100, 100, 0, []),
          new(3, "target", 3, 36, 0, 0, 100, 100, 0, [])], [], [])
     {
+        RegionNameKeys = new() { [1] = "home", [2] = "away", [3] = "target" },
+        RegionCityIds = new() { [1] = 1, [2] = 2, [3] = 3 },
+        CityConnections = [new(3, 2), new(2, 3)],
         Officers = [new("ruler", new(11, 1, 1, new(50, 50, 100, 50), false) { Status = OfficerStatus.Ruler }),
             new("envoy", new(12, 1, 1, new(50, 50, 100, 50), false)),
             new("ruler2", new(21, 2, 2, new(50, 50, 100, 50), false) { Status = OfficerStatus.Ruler, Righteousness = 5 }),
@@ -35,7 +38,7 @@ public sealed class AttackRequestNegotiationSessionTests
         Assert.Equal(CanonicalJson.Text(arrived.Events), CanonicalJson.Text(outbound.AdvanceXun().Events));
         var prompt = session.GetAttackRequestPrompt()!;
         Assert.Equal(CompensationKind.Money, prompt.Offer!.Kind);
-        Assert.Equal(1400u, prompt.Offer.Money);
+        Assert.Equal(1000u, prompt.Offer.Money);
         Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
         var restored = outbound;
         var response = new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, prompt.TaskId, prompt.Step, accept);

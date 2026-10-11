@@ -42,7 +42,7 @@ internal static class SnipingSuccession
             !CapturedRulerDisposition.ValidContinuation(world, exchange.XunStarted) ||
             !world.Officers.TryGetValue(pending.RulerId, out var ruler) || !ruler.IsServing || ruler.Injury <= 0 ||
             ruler.OwnerId != pending.RespondingForceId || world.Forces[pending.RespondingForceId].LeaderId != ruler.Id ||
-            !world.Simulation.Controls.Any(c => c.ForceId == pending.RespondingForceId && c.Kind == ControllerKind.Player) ||
+            !world.Simulation.Controls.Any(c => c.ForceId == pending.RespondingForceId) ||
             !ForceLifecycle.HasCity(world, pending.RespondingForceId) || RulerSuccession.Candidates(world, ruler.Id).IsEmpty ||
             !Ordered(exchange.Day.RemainingUnits) || !Ordered(exchange.Day.UsedUnits) || !Ordered(exchange.Day.UsedBuildings) ||
             exchange.Day.RemainingBuildings is { } buildings && !Ordered(buildings) ||

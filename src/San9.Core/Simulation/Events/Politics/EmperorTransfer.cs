@@ -34,7 +34,7 @@ internal static class EmperorTransfer
         if (pending is not null && Candidate(world, rules) is { } candidate && candidate.ForceId != pending.PreviousForceId)
         {
             bool forced = Forced(world.Forces[candidate.ForceId], rules.Politics);
-            if (!forced && world.Simulation.Controls.Any(c => c.ForceId == candidate.ForceId && c.Kind == ControllerKind.Player))
+            if (!forced && world.Simulation.Controls.Any(c => c.ForceId == candidate.ForceId))
             {
                 events.Add(new EmperorTransferOfferedEvent(world.Clock, candidate.ForceId, candidate.EmperorId, candidate.CityId));
                 world.SetSimulation(world.Simulation with { PendingEvent = candidate, Boundary = SimulationBoundary.AwaitingDecision });
@@ -100,7 +100,7 @@ internal static class EmperorTransfer
             !world.Forces.TryGetValue(session.ForceId, out var force) || force.IsEliminated ||
             !world.Officers.ContainsKey(session.EmperorId) || !world.Settlements.TryGetValue(session.CityId, out var city) ||
             city.Kind != SettlementKind.City || city.IsDestroyed || city.OwnerId != session.ForceId ||
-            !world.Simulation.Controls.Any(c => c.ForceId == session.ForceId && c.Kind == ControllerKind.Player))
+            !world.Simulation.Controls.Any(c => c.ForceId == session.ForceId))
             throw new ArgumentException("Invalid emperor transfer session.");
     }
 

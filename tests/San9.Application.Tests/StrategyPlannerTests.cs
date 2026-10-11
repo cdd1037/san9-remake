@@ -26,7 +26,7 @@ public sealed class StrategyPlannerTests
         var restored = SaveService.Decode(SaveService.Encode(session), content);
         var result = session.AdvanceXun();
         Assert.Contains(result.Events.OfType<TaskStartedEvent>(), e => e.Task.ControllerId == "corps:11" &&
-            e.Task.OfficerId == 2 && e.Task.Journey?.Burn is not null);
+            e.Task.OfficerId == 2 && e.Task.Journey?.UnitStrategy is not null);
         Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
         Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));

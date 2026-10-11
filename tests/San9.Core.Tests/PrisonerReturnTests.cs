@@ -148,7 +148,7 @@ public sealed class PrisonerReturnTests
     [InlineData(79, false)]
     [InlineData(80, true)]
     [InlineData(100, true)]
-    public void AdviceIncludesFreeReturnWithoutAnyCompensationAndMatchesAutomaticQuote(int relation, bool free)
+    public void AdviceIncludesFreeReturnAndAutomaticControllerCanQuoteThroughPublicResponse(int relation, bool free)
     {
         var snapshot = new SimulationEngine(World(), Rules()).Snapshot;
         snapshot = snapshot with { Simulation = snapshot.Simulation with { Controls = [new("first", 1, ControllerKind.Player), new("ai:2", 2, ControllerKind.Automatic)] } };
@@ -167,7 +167,11 @@ public sealed class PrisonerReturnTests
         Assert.Equal(beforeFreeAdvice, engine.Snapshot.StateHash);
         Assert.True(engine.Execute(new("first"), new ReturnPrisonerCommand(Guid.NewGuid(), 1, 0, 12, 2, 13)).Submission.Accepted);
         engine.EndControl(new("first")); engine.EndControl(new("ai:2"));
-        var resolved = Assert.Single(engine.AdvanceXun().Events.OfType<PrisonerReturnResolvedEvent>());
+        engine.AdvanceXun();
+        var prompt = engine.GetPrisonerReturnPrompt()!;
+        var result = engine.Execute(new("ai:2"), new RespondDailyTaskCommand(Guid.NewGuid(), 2, engine.Snapshot.Simulation.NextSequence, prompt.TaskId, 0, free)
+            { Offer = free ? new(CompensationKind.Free, 0, null, null) : null });
+        var resolved = Assert.Single(result.Events.OfType<PrisonerReturnResolvedEvent>());
         Assert.Equal(free, resolved.Accepted);
         Assert.Equal(free ? CompensationKind.Free : CompensationKind.Refuse, resolved.Offer.Kind);
     }

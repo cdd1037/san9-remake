@@ -38,13 +38,8 @@ internal static class OfficeRequests
             if ((int)(world.NextRandom("event-office-request") % 100) >= threshold) continue;
             var session = new OfficeRequestEventSession(id, owner, home, queue.Skip(index + 1).ToImmutableArray());
             events.Add(new OfficeRequestOfferedEvent(world.Clock, id, owner, home));
-            if (world.Simulation.Controls.Any(c => c.ForceId == owner && c.Kind == ControllerKind.Player))
-            {
-                world.SetSimulation(world.Simulation with { PendingEvent = session, Boundary = SimulationBoundary.AwaitingDecision });
-                return;
-            }
-            bool accepts = (int)(world.NextRandom("event-office-request-acceptance") % 100) < 100 - distance * distance;
-            Commit(world, rules, session, accepts ? EventChoice.Accept : EventChoice.Reject, events);
+            world.SetSimulation(world.Simulation with { PendingEvent = session, Boundary = SimulationBoundary.AwaitingDecision });
+            return;
         }
     }
 
@@ -92,7 +87,7 @@ internal static class OfficeRequests
         if (world.Simulation.PendingEvent is not OfficeRequestEventSession session) return;
         if (!world.Simulation.OfficeRequestsEnabled || world.Clock.DayNumber - world.Simulation.Started.DayNumber < 30 ||
             world.Simulation.ActiveControl != world.Simulation.Controls.Length ||
-            !world.Simulation.Controls.Any(c => c.ForceId == session.ForceId && c.Kind == ControllerKind.Player) ||
+            !world.Simulation.Controls.Any(c => c.ForceId == session.ForceId) ||
             session.RemainingOfficerIds.IsDefault || !session.RemainingOfficerIds.SequenceEqual(session.RemainingOfficerIds.Distinct().Order()) ||
             session.RemainingOfficerIds.Any(id => id <= session.OfficerId || !world.Officers.ContainsKey(id)) ||
             !Eligible(world, session.OfficerId, out int owner, out int home) || owner != session.ForceId || home != session.SettlementId)

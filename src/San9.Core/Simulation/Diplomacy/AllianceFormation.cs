@@ -6,12 +6,11 @@ namespace San9.Core.Simulation;
 
 public sealed record AllianceParticipation([property: JsonRequired] int ForceId, [property: JsonRequired] bool? Join);
 public sealed record AllianceProposal([property: JsonRequired] int TargetForceId,
-    [property: JsonRequired] ImmutableArray<int> AutomaticMemberForceIds,
-    [property: JsonRequired] ImmutableArray<AllianceParticipation> PlayerChoices)
+    [property: JsonRequired] ImmutableArray<int> EligibleMemberForceIds,
+    [property: JsonRequired] ImmutableArray<AllianceParticipation> Choices)
 {
-    [JsonIgnore] public int? RespondingForceId => PlayerChoices.FirstOrDefault(p => p.Join is null)?.ForceId;
-    [JsonIgnore] public ImmutableArray<int> KnownMemberForceIds => AutomaticMemberForceIds
-        .Concat(PlayerChoices.Where(p => p.Join == true).Select(p => p.ForceId)).Order().ToImmutableArray();
+    [JsonIgnore] public int? RespondingForceId => Choices.FirstOrDefault(p => p.Join is null)?.ForceId;
+    [JsonIgnore] public ImmutableArray<int> KnownMemberForceIds => Choices.Where(p => p.Join == true).Select(p => p.ForceId).Order().ToImmutableArray();
 }
 
 public sealed record AllianceParticipationCommand(Guid CommandId, int IssuerId, long Sequence,
@@ -42,8 +41,10 @@ internal static class AllianceFormation
         if (target is null) return false;
         var players = world.Simulation.Controls.Where(c => c.Kind == ControllerKind.Player && c.ForceId != target.ForceId &&
                 !world.Forces[c.ForceId].IsEliminated).Select(c => c.ForceId).Order().ToArray();
-        var proposal = new AllianceProposal(target.ForceId, target.EligibleMemberForceIds.Where(id => !players.Contains(id)).ToImmutableArray(),
-            players.Select(id => new AllianceParticipation(id, null)).ToImmutableArray());
+        var proposal = new AllianceProposal(target.ForceId, target.EligibleMemberForceIds,
+            world.Simulation.Controls.Where(c => players.Contains(c.ForceId) || target.EligibleMemberForceIds.Contains(c.ForceId))
+                .OrderBy(c => c.Kind == ControllerKind.Player ? 0 : 1).ThenBy(c => c.ForceId)
+                .Select(c => new AllianceParticipation(c.ForceId, null)).ToImmutableArray());
         events.Add(new AllianceProposedEvent(world.Clock, proposal));
         if (proposal.RespondingForceId is null) Complete(world, proposal, rules, events);
         else world.SetSimulation(world.Simulation with { Boundary = SimulationBoundary.AwaitingDecision, PendingEvent = new AllianceEventSession(proposal) });
@@ -54,7 +55,7 @@ internal static class AllianceFormation
     {
         if (world.Simulation.PendingEvent is not AllianceEventSession { Proposal: var proposal } || proposal.TargetForceId != command.TargetForceId ||
             proposal.RespondingForceId != command.IssuerId) return CommandRejection.InvalidDecision;
-        proposal = proposal with { PlayerChoices = proposal.PlayerChoices.Select(p => p.ForceId == command.IssuerId ? p with { Join = command.Join } : p).ToImmutableArray() };
+        proposal = proposal with { Choices = proposal.Choices.Select(p => p.ForceId == command.IssuerId ? p with { Join = command.Join } : p).ToImmutableArray() };
         events.Add(new AllianceParticipationDecidedEvent(world.Clock, command.IssuerId, proposal.TargetForceId, command.Join));
         if (proposal.RespondingForceId is null)
         {
@@ -68,7 +69,7 @@ internal static class AllianceFormation
     internal static AllianceParticipationPrompt? Prompt(WorldMutation world, SimulationRules rules)
     {
         if (world.Simulation.PendingEvent is not AllianceEventSession { Proposal: var proposal }) return null;
-        var potential = proposal.KnownMemberForceIds.Concat(proposal.PlayerChoices.Where(p => p.Join is null).Select(p => p.ForceId)).ToHashSet();
+        var potential = proposal.KnownMemberForceIds.Concat(proposal.Choices.Where(p => p.Join is null).Select(p => p.ForceId)).ToHashSet();
         return new(proposal, Conflicts(world, potential, rules.Military))
         {
             PossibleRequestConflicts = AttackRequests.AllianceConflicts(world, proposal.TargetForceId, potential)
@@ -144,19 +145,19 @@ internal static class AllianceFormation
         bool Alive(int id) => world.Forces.TryGetValue(id, out var force) && !force.IsEliminated;
         if (!world.Clock.Boundary.Quarter || world.Clock.DayNumber - sim.Started.DayNumber < 360 || sim.Alliance is not null ||
             sim.ActiveControl != sim.Controls.Length ||
-            !Alive(proposal.TargetForceId) || proposal.AutomaticMemberForceIds.IsDefault || proposal.PlayerChoices.IsDefaultOrEmpty ||
+            !Alive(proposal.TargetForceId) || proposal.EligibleMemberForceIds.IsDefault || proposal.EligibleMemberForceIds.Length < 3 || proposal.Choices.IsDefaultOrEmpty ||
             world.Forces[proposal.TargetForceId].IsBarbarian &&
                 !sim.Controls.Any(c => c.ForceId == proposal.TargetForceId && c.Kind == ControllerKind.Player) ||
-            proposal.PlayerChoices.Any(p => p is null) ||
-            !proposal.AutomaticMemberForceIds.SequenceEqual(proposal.AutomaticMemberForceIds.Distinct().Order()) ||
-            !proposal.PlayerChoices.Select(p => p.ForceId).SequenceEqual(proposal.PlayerChoices.Select(p => p.ForceId).Distinct().Order()) ||
-            !proposal.PlayerChoices.Select(p => p.ForceId).SequenceEqual(sim.Controls.Where(c => c.Kind == ControllerKind.Player &&
-                c.ForceId != proposal.TargetForceId).Select(c => c.ForceId).Order()) ||
-            proposal.AutomaticMemberForceIds.Any(id => id == proposal.TargetForceId || !Alive(id) || world.Forces[id].IsBarbarian ||
-                sim.Controls.Any(c => c.ForceId == id && c.Kind == ControllerKind.Player)) ||
-            proposal.PlayerChoices.Any(p => p.ForceId == proposal.TargetForceId || !Alive(p.ForceId) ||
-                !sim.Controls.Any(c => c.ForceId == p.ForceId && c.Kind == ControllerKind.Player)) ||
-            proposal.RespondingForceId is null || proposal.PlayerChoices.SkipWhile(p => p.Join is not null).Any(p => p.Join is not null))
+            proposal.Choices.Any(p => p is null) ||
+            !proposal.EligibleMemberForceIds.SequenceEqual(proposal.EligibleMemberForceIds.Distinct().Order()) ||
+            proposal.Choices.Select(p => p.ForceId).Distinct().Count() != proposal.Choices.Length ||
+            !proposal.Choices.Select(p => p.ForceId).SequenceEqual(sim.Controls.Where(c => c.ForceId != proposal.TargetForceId &&
+                (c.Kind == ControllerKind.Player || proposal.EligibleMemberForceIds.Contains(c.ForceId)))
+                .OrderBy(c => c.Kind == ControllerKind.Player ? 0 : 1).ThenBy(c => c.ForceId).Select(c => c.ForceId)) ||
+            proposal.EligibleMemberForceIds.Any(id => id == proposal.TargetForceId || !Alive(id) || world.Forces[id].IsBarbarian && !sim.Controls.Any(c => c.ForceId == id && c.Kind == ControllerKind.Player)) ||
+            proposal.Choices.Any(p => p.ForceId == proposal.TargetForceId || !Alive(p.ForceId) ||
+                !sim.Controls.Any(c => c.ForceId == p.ForceId)) ||
+            proposal.RespondingForceId is null || proposal.Choices.SkipWhile(p => p.Join is not null).Any(p => p.Join is not null))
             throw new ArgumentException("Invalid pending alliance proposal.");
     }
 }

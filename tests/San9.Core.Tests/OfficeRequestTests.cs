@@ -95,18 +95,20 @@ public sealed class OfficeRequestTests
     [Theory]
     [InlineData(0, true)]
     [InlineData(11, false)]
-    public void ComputerUsesItsOwnAcceptanceGateAndCommonOutcome(int distance, bool accepted)
+    public void AutomaticControllerChoosesThroughTheCommonResponseRule(int distance, bool accepted)
     {
         var world = Mature(World(player: false));
         world.Replace(world.Officers[10] with { Affinity = distance });
         world.Replace(world.Officers[10].WithLoyalty(1, 255));
         List<DomainEvent> events = [];
         OfficeRequests.Begin(world, Rules, events);
-        Assert.Null(world.Simulation.PendingEvent);
+        Assert.IsType<OfficeRequestEventSession>(world.Simulation.PendingEvent);
+        Assert.Equal(CommandRejection.None, OfficeRequests.Respond(world, Rules,
+            new(Guid.NewGuid(), 1, 0, 10, accepted ? EventChoice.Accept : EventChoice.Reject), events));
         Assert.Equal(accepted ? EventChoice.Accept : EventChoice.Reject, Assert.Single(events.OfType<OfficeRequestResolvedEvent>()).Choice);
         Assert.Equal(accepted ? 1 : (int?)null, world.Officers[10].OwnerId);
         Assert.Equal(accepted ? 100 : 45, world.Officers[10].LoyaltyTo(1));
-        Assert.Contains(world.Simulation.RandomStreams, s => s.Name == "event-office-request-acceptance");
+        Assert.DoesNotContain(world.Simulation.RandomStreams, s => s.Name == "event-office-request-acceptance");
     }
 
     [Fact]

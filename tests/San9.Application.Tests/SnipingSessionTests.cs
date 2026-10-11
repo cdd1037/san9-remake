@@ -71,7 +71,7 @@ public sealed class SnipingSessionTests
             new StableRandom(StableRandom.DeriveSeed(seed, "military-sniping")).NextUInt64() % 100 >= 50 ||
             new StableRandom(StableRandom.DeriveSeed(seed, "military-sniping-target")).NextUInt64() % 2 != 1) seed++;
         var scenario = Scenario(path);
-        var session = GameSession.Start(scenario, seed, battleDeathsEnabled: true);
+        var session = GameSession.Start(scenario, seed, battleDeathsEnabled: true, aiPolicy: San9.Application.AI.AiPolicyConfiguration.Standard with { WorkBudget = 1 });
         Assert.True(session.Snapshot.Simulation.BattleDeathsEnabled);
         Assert.Equal(70, session.Snapshot.Officers.Single(p => p.Id == 22).BaseAbilities.War);
 
@@ -133,5 +133,18 @@ public sealed class SnipingSessionTests
         var json = JsonSerializer.Serialize(command, CanonicalJson.Options);
         Assert.Equal(command, JsonSerializer.Deserialize<GameCommand>(json, CanonicalJson.Options));
         Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<GameCommand>(json.Replace(",\"successorId\":null", ""), CanonicalJson.Options));
+    }
+    [Fact]
+    public void AutomaticSnipingSuccessionCompletesWithoutPlayerInputAndReplays()
+    {
+        ulong seed = 0;
+        while (new StableRandom(StableRandom.DeriveSeed(seed, "military-sniping-death")).NextUInt64() % 100 != 0 ||
+            new StableRandom(StableRandom.DeriveSeed(seed, "military-sniping")).NextUInt64() % 100 >= 50 ||
+            new StableRandom(StableRandom.DeriveSeed(seed, "military-sniping-target")).NextUInt64() % 2 != 1) seed++;
+        var scenario = Scenario("field") with { PlayerForceId = 1 };
+        var session = GameSession.Start(scenario, seed, battleDeathsEnabled: true, aiPolicy: San9.Application.AI.AiPolicyConfiguration.Standard with { WorkBudget = 1 });
+        var events = AutomaticResponseReplay.Advance(session, scenario, 1);
+        Assert.Contains(events.OfType<OfficerDiedEvent>(), e => e.OfficerId == 22);
+        Assert.NotEqual(22, session.Snapshot.Forces.Single(f => f.Id == 2).LeaderId);
     }
 }

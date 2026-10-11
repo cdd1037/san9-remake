@@ -60,7 +60,7 @@ internal static class DuelAftermath
                     world.Units[loserUnit].CommanderId == id, OfficerDeathCause.Duel) ||
                 !Roll("duel-death", DeathChance(world.Abilities(person).War))) continue;
             if (person.OwnerId is int owner && world.Forces[owner].LeaderId == id &&
-                world.Simulation.Controls.Any(c => c.ForceId == owner && c.Kind == ControllerKind.Player) && !Successors(world, id).IsEmpty)
+                world.Simulation.Controls.Any(c => c.ForceId == owner) && !Successors(world, id).IsEmpty)
             {
                 events.Add(new DuelSuccessionRequestedEvent(world.Clock, id, owner));
                 return new(outcome, i + 1, id);

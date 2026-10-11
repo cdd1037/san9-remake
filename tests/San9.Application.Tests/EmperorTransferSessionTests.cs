@@ -133,4 +133,14 @@ public sealed class EmperorTransferSessionTests
         Assert.True(titleJson.Remove("forcesEmperorDeposition"));
         Assert.Throws<JsonException>(() => titleJson.Deserialize<CountryTitleRule>(CanonicalJson.Options));
     }
+    [Fact]
+    public void AutomaticCourtTransferSupportsTheEmperorThroughThePublicResponse()
+    {
+        var scenario = Content() with { PlayerForceId = 2 };
+        var initial = Pending(scenario).Capture();
+        var session = GameSession.Restore(scenario, initial with { Ai = initial.Ai with
+            { Configuration = San9.Application.AI.AiPolicyConfiguration.Standard with { WorkBudget = 1 } } });
+        var events = AutomaticResponseReplay.Advance(session, scenario, 1);
+        Assert.Equal(EmperorTransferChoice.Support, Assert.Single(events.OfType<EmperorTransferResolvedEvent>()).Choice);
+    }
 }

@@ -39,7 +39,7 @@ public sealed class SurrenderSessionTests
         Assert.True(session.Execute(new("ai:2"), new DemandSurrenderCommand(Guid.NewGuid(), 2, 0, 21, 1)).Submission.Accepted);
         var outbound = SaveService.Decode(SaveService.Encode(session), content);
         Assert.Equal(CanonicalJson.Text(session.AdvanceXun().Events), CanonicalJson.Text(outbound.AdvanceXun().Events));
-        var task = Assert.Single(session.Snapshot.Simulation.Tasks);
+        var task = Assert.Single(session.Snapshot.Simulation.Tasks, t => t.Surrender is not null);
         Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
         var restored = outbound;
         var response = new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, task.Id, 0, accept);

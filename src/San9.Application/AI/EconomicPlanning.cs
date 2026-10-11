@@ -7,7 +7,7 @@ namespace San9.Application.AI;
 
 public sealed record AiPolicyConfiguration(string Version, long WorkBudget, int MaximumPurchases)
 {
-    public static AiPolicyConfiguration Standard { get; } = new("campaign-v1", 65536, 8);
+    public static AiPolicyConfiguration Standard { get; } = new("domains-v1", 65536, 8);
 }
 
 public sealed record FoodSecurityGoal(int ForceId, string ControllerId, int AccountId, GameClock Started);
@@ -18,10 +18,11 @@ public sealed record AiSessionState
     [JsonRequired] public AiPolicyConfiguration Configuration { get; init; } = AiPolicyConfiguration.Standard;
     [JsonRequired] public ImmutableArray<FoodSecurityGoal> FoodSecurity { get; init; } = [];
     [JsonRequired] public ImmutableArray<CampaignGoal> Campaigns { get; init; } = [];
+    [JsonRequired] public ImmutableArray<OpportunityAttempt> Opportunities { get; init; } = [];
 
     internal void Validate(WorldSnapshot world)
     {
-        if (Configuration is null || Configuration.Version != "campaign-v1" || Configuration.WorkBudget is < 1 or > 1000000 ||
+        if (Configuration is null || Configuration.Version != "domains-v1" || Configuration.WorkBudget is < 1 or > 1000000 ||
             Configuration.MaximumPurchases is < 1 or > 256 || FoodSecurity.IsDefault || FoodSecurity.Any(g => g is null) ||
             FoodSecurity.DistinctBy(g => (g.ControllerId, g.AccountId)).Count() != FoodSecurity.Length ||
             FoodSecurity.Any(g => string.IsNullOrWhiteSpace(g.ControllerId) || g.Started.DayNumber < world.Simulation.Started.DayNumber ||
@@ -35,15 +36,31 @@ public sealed record AiSessionState
                 string.IsNullOrWhiteSpace(g.Conditions) || !CampaignAuthorized(world, g) || g.ExpectedDays < 0 || g.Progress < 0 ||
                 g.Started.DayNumber < world.Simulation.Started.DayNumber || g.LastProgress.DayNumber < g.Started.DayNumber ||
                 g.LastProgress.DayNumber > world.Clock.DayNumber) ||
-            Campaigns.DistinctBy(g => (g.ForceId, g.TargetId)).Count() != Campaigns.Length)
+            Campaigns.DistinctBy(g => (g.ForceId, g.TargetId)).Count() != Campaigns.Length ||
+            Opportunities.IsDefault || Opportunities.Any(a => a is null || string.IsNullOrWhiteSpace(a.Key) ||
+                string.IsNullOrWhiteSpace(a.Conditions) || a.TaskId == Guid.Empty || a.ActorId < 0 ||
+                a.Started.DayNumber > world.Clock.DayNumber || a.Started.DayNumber < world.Simulation.Started.DayNumber ||
+                a.RetryAfter.DayNumber < a.Started.DayNumber || a.Outcome is not ("pending" or "succeeded" or "failed" or "finished") ||
+                a.Outcome == "pending" && !world.Simulation.Tasks.Any(t => t.Id == a.TaskId &&
+                    t.OfficerId == a.ActorId && t.ForceId == a.ForceId && t.Journey?.ReturnLeg is null) ||
+                !OpportunityAuthorized(world, a)) || Opportunities.DistinctBy(a => (a.ControllerId, a.Key)).Count() != Opportunities.Length)
             throw new ArgumentException("Invalid AI policy state.");
     }
 
     internal AiSessionState Prune(WorldSnapshot world) => this with
     {
         FoodSecurity = FoodSecurity.Where(g => Authorized(world, g)).ToImmutableArray(),
-        Campaigns = Campaigns.Where(g => CampaignAuthorized(world, g)).ToImmutableArray()
+        Campaigns = Campaigns.Where(g => CampaignAuthorized(world, g)).ToImmutableArray(),
+        Opportunities = Opportunities.Where(a => OpportunityAuthorized(world, a)).ToImmutableArray()
     };
+
+    private static bool OpportunityAuthorized(WorldSnapshot world, OpportunityAttempt attempt)
+    {
+        var seat = world.Simulation.Controls.FirstOrDefault(s => s.ForceId == attempt.ForceId);
+        return seat is not null && (seat.Kind == ControllerKind.Automatic || attempt.ControllerId.StartsWith("corps:", StringComparison.Ordinal)) &&
+            world.Settlements.Any(s => !s.IsDormant && !s.IsDestroyed &&
+                CorpsControl.CanControlSettlement(world, seat, new(attempt.ControllerId), s.Id));
+    }
 
     private static bool CampaignAuthorized(WorldSnapshot world, CampaignGoal goal)
     {

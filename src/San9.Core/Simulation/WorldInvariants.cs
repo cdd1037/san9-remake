@@ -191,7 +191,7 @@ internal static class WorldInvariants
                 sim.ActiveControl != sim.Controls.Length || pending.RemainingTaskIds.IsDefaultOrEmpty ||
                 pending.RemainingTaskIds.Distinct().Count() != pending.RemainingTaskIds.Length ||
                 !sim.Tasks.Any(t => t.Id == pending.RemainingTaskIds[0] && t.Due.DayNumber <= state.Clock.DayNumber) ||
-                !sim.Controls.Any(c => c.ForceId == pending.RespondingForceId && c.Kind == ControllerKind.Player))
+                !sim.Controls.Any(c => c.ForceId == pending.RespondingForceId))
                 throw new ArgumentException("Invalid daily task decision.");
             var ordered = sim.Tasks.Where(t => pending.RemainingTaskIds.Contains(t.Id))
                 .OrderBy(t => t.Sequence).ThenBy(t => t.OriginSettlementId).ThenBy(t => t.OfficerId).ThenBy(t => t.Id)
@@ -261,9 +261,13 @@ internal static class WorldInvariants
                 string.IsNullOrWhiteSpace(task.ControllerId) ||
                 !state.Forces.ContainsKey(task.ForceId) || !state.Officers.ContainsKey(task.OfficerId) || !state.Settlements.ContainsKey(task.OriginSettlementId) ||
                 task.Started.DayNumber < sim.Started.DayNumber || task.Started.DayNumber > state.Clock.DayNumber ||
-                task.Due.DayNumber < task.Started.DayNumber || task.Due.DayNumber < state.Clock.DayNumber || task.ProgressDays < 0 ||
+                // A decision after the date advance can precede the return-settlement phase.
+                // Such returns remain due in the completed day until the shared pipeline resumes.
+                task.Due.DayNumber < task.Started.DayNumber ||
+                task.Due.DayNumber < state.Clock.DayNumber && !(task.Kind == PersonnelReturns.Kind &&
+                    task.Due.DayNumber == state.Clock.DayNumber - 1 && sim.HasPendingDailyResolution) || task.ProgressDays < 0 ||
                 task.ProgressDays != state.Clock.DayNumber - task.Started.DayNumber)
-                throw new ArgumentException("Invalid persistent task.");
+                throw new ArgumentException($"Invalid persistent task '{task.Kind}' ({task.Id}): started {task.Started}, due {task.Due}, current {state.Clock}, progress {task.ProgressDays}.");
             if (task.Reinforcements is { } troops &&
                 ((ulong)troops.Soldiers + troops.Wounded is 0 or > 3000 || troops.Morale is < 0 or > 100 ||
                  !state.Settlements.TryGetValue(troops.DemobilizationCityId, out var muster) || muster.Kind != San9.Core.Domain.SettlementKind.City ||

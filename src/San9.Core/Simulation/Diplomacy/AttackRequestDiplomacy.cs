@@ -201,7 +201,7 @@ internal sealed class AttackRequestRule(SimulationRules rules) : TaskRule
         if (AttackRequestDiplomacy.Duplicate(world, task.ForceId, mission.TargetForceId, mission.TargetSettlementId) ||
             task.ResolutionStep == 1 && mission.Offer!.Kind is CompensationKind.Free or CompensationKind.Refuse) return null;
         int force = task.ResolutionStep == 0 ? mission.TargetForceId : task.ForceId;
-        return PrisonerReturnDiplomacy.Player(world, force) ? force : null;
+        return force;
     }
     internal override bool AcceptsResponse(WorldMutation world, PersistentTask task, RespondDailyTaskCommand response) =>
         response.CommunitySearch is null && response.SearchConflict is null && (
@@ -215,9 +215,9 @@ internal sealed class AttackRequestRule(SimulationRules rules) : TaskRule
         var mission = task.AttackRequest!;
         if (AttackRequestDiplomacy.Duplicate(world, task.ForceId, mission.TargetForceId, mission.TargetSettlementId))
         { AttackRequestDiplomacy.Finish(world, task, false, rules, events); return null; }
-        if (task.ResolutionStep == 0) return Quote(task, AttackRequestDiplomacy.Quote(world, task, rules), world.Clock, events);
+        if (task.ResolutionStep == 0) throw new InvalidOperationException("An attack request requires a counteroffer response.");
         bool accepted = mission.Offer!.Kind == CompensationKind.Free || mission.Offer.Kind != CompensationKind.Refuse &&
-            (accept ?? AttackRequestDiplomacy.Accept(world, task, rules));
+            (accept ?? throw new InvalidOperationException("A priced attack request requires an acceptance response."));
         AttackRequestDiplomacy.Finish(world, task, accepted, rules, events);
         return null;
     }

@@ -85,8 +85,11 @@ public sealed class GuanduSessionTests
         var session = GameSession.Start(definition, 17);
         var command = new RecruitOfficerCommand(Guid.NewGuid(), 1, 0, 12, 23);
         Assert.True(session.Execute(new("player"), command).Submission.Accepted);
+        session.EndControl(new("player"));
+        Assert.True(session.Execute(new("ai:2"), new MoveOfficersCommand(Guid.NewGuid(), 2,
+            session.Snapshot.Simulation.NextSequence, [23], 4)).Submission.Accepted);
         var result = session.AdvanceXun();
-        Assert.Contains(result.Events.OfType<TaskStartedEvent>(), e => e.Task.OfficerId == 23 && e.Task.Journey is not null);
+        Assert.Contains(result.Events.OfType<OfficerMovedEvent>(), e => e.OfficerId == 23);
         Assert.Contains(result.Events.OfType<TaskCancelledEvent>(), e => e.TaskId == command.CommandId);
         Assert.Empty(result.Events.OfType<GuanduEvent>());
         Assert.DoesNotContain(new PersistentEventKey("guandu"), session.Snapshot.Simulation.ConsumedEventKeys);

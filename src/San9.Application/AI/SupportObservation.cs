@@ -63,7 +63,9 @@ internal static class SupportObservationCapture
         SupportObservation Result() => new(candidates.ToImmutable(), arrivals.ToImmutable(), complete) { FoodChanges = foodChanges.ToImmutable() };
         bool Spend() { if (work.Spend()) return true; complete = false; return false; }
         int Leadership(SettlementState place, int? departing = null) => world.Officers.Where(p => p.OwnerId == seat.ForceId && p.IsServing &&
-            p.SettlementId == place.Id && p.Id != departing).Select(p => abilities[p.Id].Leadership).DefaultIfEmpty(50).Max();
+            p.SettlementId == place.Id && p.Id != departing &&
+            !world.Simulation.Tasks.Any(t => t.OfficerId == p.Id && t.Journey is not null))
+            .Select(p => abilities[p.Id].Leadership).DefaultIfEmpty(50).Max();
         long Defense(SettlementState place, uint soldiers, int? departing = null)
         {
             var strength = new CombatStrength(soldiers, place.Morale, Leadership(place, departing), 100, 100);

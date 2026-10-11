@@ -274,6 +274,11 @@ public sealed class HeadlessProcessTests : IDisposable
         Assert.True(verification.Report.GetProperty("success").GetBoolean());
         Assert.Equal(2, verification.Report.GetProperty("completedXun").GetInt32());
         Assert.Equal(4, verification.Report.GetProperty("developmentCommands").GetInt32());
+        var readOptions = new JsonSerializerOptions(CanonicalJson.Options) { AllowOutOfOrderMetadataProperties = true };
+        var requests = File.ReadLines(FilePath("commands.jsonl")).Skip(1)
+            .Select(line => JsonSerializer.Deserialize<SessionRequest>(line, readOptions)!).ToArray();
+        Assert.Contains(requests, request => request.ControllerId.StartsWith("ai:", StringComparison.Ordinal) && request.Operation is EndControlOperation);
+        Assert.DoesNotContain(requests, request => request.ControllerId.StartsWith("ai:", StringComparison.Ordinal) && request.Operation is CommandOperation);
         string finalHash = verification.Report.GetProperty("finalHash").GetString()!;
         var replay = await Run("run", "--fixture", "--log", FilePath("commands.jsonl"), "--restore", FilePath("initial.save.json"),
             "--save", FilePath("replay.save.json"), "--report", FilePath("replay-report.json"));
@@ -284,7 +289,7 @@ public sealed class HeadlessProcessTests : IDisposable
             "--save", FilePath("replay.save.json"), "--report", FilePath("duplicate-report.json"));
         Assert.Equal(0, repeated.Code);
         Assert.Equal(0, repeated.Report.GetProperty("acceptedOperations").GetInt32());
-        Assert.Equal(11, repeated.Report.GetProperty("alreadyProcessedOperations").GetInt32());
+        Assert.Equal(requests.Length, repeated.Report.GetProperty("alreadyProcessedOperations").GetInt32());
         Assert.Equal(finalHash, repeated.Report.GetProperty("finalHash").GetString());
         Assert.Equal(0, new FileInfo(FilePath("duplicate-report.events.jsonl")).Length);
     }

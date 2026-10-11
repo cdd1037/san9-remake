@@ -4,9 +4,19 @@ using San9.Core.Simulation;
 namespace San9.Application.AI;
 
 /// <summary>Bounded personnel, reinforcement and economic work for automatic controllers.</summary>
-internal static class AutomaticCorpsPlanner
+internal static class AutomaticTurnRunner
 {
-    internal static void Run(SimulationEngine engine, ControlSeat active, MilitaryRulebook? military, List<DomainEvent> events)
+    internal static void EndControl(SimulationEngine engine, CommandContext context, MilitaryRulebook? military, List<DomainEvent> events)
+    {
+        var state = engine.Snapshot.Simulation;
+        if (state.Boundary != SimulationBoundary.Stable || state.ActiveControl >= state.Controls.Length ||
+            state.Controls[state.ActiveControl].ControllerId != context.ControllerId)
+            throw new InvalidOperationException("Not the active stable controller.");
+        Run(engine, state.Controls[state.ActiveControl], military, events);
+        events.AddRange(engine.EndControl(context).Events);
+    }
+
+    private static void Run(SimulationEngine engine, ControlSeat active, MilitaryRulebook? military, List<DomainEvent> events)
     {
         if (active.Kind == ControllerKind.Automatic)
         {
@@ -18,9 +28,11 @@ internal static class AutomaticCorpsPlanner
             var strategy = StrategyPlanner.Choose(engine.Snapshot, engine.GetPreparationEligibility, military, active,
                 Id(engine.Snapshot, -1, "strategy"));
             if (strategy is not WaitCommand) events.AddRange(engine.Execute(new(active.ControllerId), strategy).Events);
+            Recruit(active, new(active.ControllerId), -1);
+            Develop(active, new(active.ControllerId), -1);
         }
         foreach (var corps in engine.Snapshot.Corps.Where(c => c.OwnerId == active.ForceId &&
-            c.ControlMode == CorpsControlMode.Automatic).OrderBy(c => c.Id))
+            c.ControlMode == CorpsControlMode.Automatic && !(active.Kind == ControllerKind.Automatic && c.IsRoot)).OrderBy(c => c.Id))
         {
             var seat = active with { ControllerId = CorpsControl.ControllerId(corps.Id), Kind = ControllerKind.Automatic };
             var context = new CommandContext(seat.ControllerId);
@@ -28,29 +40,41 @@ internal static class AutomaticCorpsPlanner
                 Id(engine.Snapshot, corps.Id, "military"), corps.Id);
             if (reinforcement is not WaitCommand) events.AddRange(engine.Execute(context, reinforcement).Events);
             var strategy = StrategyPlanner.Choose(engine.Snapshot, engine.GetPreparationEligibility, military, seat,
-                Id(engine.Snapshot, corps.Id, "strategy"), corps.Id);
+                Id(engine.Snapshot, corps.Id, "strategy"));
             if (strategy is not WaitCommand) events.AddRange(engine.Execute(context, strategy).Events);
+            Recruit(active, context, corps.Id);
+            Develop(active, context, corps.Id);
+        }
+
+        void Recruit(ControlSeat owner, CommandContext context, int scope)
+        {
             var snapshot = AiPlanningWorld.Read(engine.Snapshot);
-            var places = snapshot.Settlements.Where(s => s.CorpsId == corps.Id && s.CanHostPersons && s.Durability > 0).Select(s => s.Id).ToHashSet();
+            var places = snapshot.Settlements.Where(s => s.CanHostPersons && s.Durability > 0 &&
+                CorpsControl.CanControlSettlement(snapshot, owner, context, s.Id)).Select(s => s.Id).ToHashSet();
             var abilities = engine.GetAbilities(snapshot);
-            var actor = snapshot.Officers.Where(p => p.IsServing && p.OwnerId == corps.OwnerId &&
+            var actor = snapshot.Officers.Where(p => p.IsServing && p.OwnerId == owner.ForceId &&
                 p.SettlementId is int home && places.Contains(home) && !p.Acted && !snapshot.Simulation.Tasks.Any(t => t.OfficerId == p.Id))
                 .OrderByDescending(p => abilities[p.Id].Politics).ThenBy(p => p.Id).FirstOrDefault();
             if (actor is not null)
             {
-                foreach (var target in snapshot.Officers.Where(p => p.IsVisible && p.OwnerId != corps.OwnerId &&
+                foreach (var target in snapshot.Officers.Where(p => p.IsVisible && p.OwnerId != owner.ForceId &&
                     p.Status is OfficerStatus.Free or OfficerStatus.Captive && p.SettlementId is int place && places.Contains(place) &&
-                    p.LoyaltyTo(corps.OwnerId) >= 50).OrderBy(p => p.Id).Take(16))
+                    p.LoyaltyTo(owner.ForceId) >= 50).OrderBy(p => p.Id).Take(16))
                 {
-                    var command = new RecruitOfficerCommand(Id(engine.Snapshot, corps.Id, "personnel"), corps.OwnerId,
+                    var command = new RecruitOfficerCommand(Id(engine.Snapshot, scope, "personnel"), owner.ForceId,
                         engine.Snapshot.Simulation.NextSequence, actor.Id, target.Id);
                     if (!engine.Validate(context, command).Accepted) continue;
                     events.AddRange(engine.Execute(context, command).Events);
                     break;
                 }
             }
-            var development = DomesticPlanner.Choose(engine.Snapshot, engine.Validate, seat, Id(engine.Snapshot, corps.Id, "domestic"),
-                (int)((engine.Snapshot.Clock.DayNumber - engine.Snapshot.Simulation.Started.DayNumber) / 10), corpsId: corps.Id);
+        }
+
+        void Develop(ControlSeat owner, CommandContext context, int scope)
+        {
+            var development = DomesticCommandSelection.Choose(engine.Snapshot, engine.Validate, owner, context,
+                Id(engine.Snapshot, scope, "domestic"),
+                checked((int)((engine.Snapshot.Clock.DayNumber - engine.Snapshot.Simulation.Started.DayNumber) / 10)));
             if (development is not WaitCommand) events.AddRange(engine.Execute(context, development).Events);
         }
     }

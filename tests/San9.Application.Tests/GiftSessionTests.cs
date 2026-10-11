@@ -246,9 +246,11 @@ public sealed class GiftSessionTests
         var content = Content();
         content = content with { Information = content.Information with { Corps = content.Information.Corps.Select(f => f.IsRoot && f.OwnerId == 2 ? f with { Treasury = f.Treasury with { Money = 1000000 } } : f).ToArray() } };
         var session = GameSession.Start(content, 42);
-        uint room = 1000000 - session.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 2).Treasury.Money;
         Assert.True(session.Execute(new("player"), new GiftCommand(Guid.NewGuid(), 1, 0, 12, 2,
             new(GiftKind.Money, 20000, null))).Submission.Accepted);
+        // Automatic economic work can spend the recipient's money before the envoy arrives.
+        Assert.Equal(SessionDisposition.Accepted, session.Apply(session.Request(new PrepareAdvanceOperation())).Disposition);
+        uint room = 1000000 - session.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 2).Treasury.Money;
         var result = Assert.Single(session.AdvanceXun().Events.OfType<GiftResolvedEvent>());
         Assert.True(result.Accepted);
         Assert.Equal(room, result.Received);

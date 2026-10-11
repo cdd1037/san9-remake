@@ -134,7 +134,7 @@ Importer 将源阵型0–19及27映射为陆行、20–26映射为水行；共�
 
 - [x] 四向重寻路、机动力预算、地形代价和硬阻挡有确定性测试。
 - [x] footprint 碰撞、精确建筑到达、无路停步和次日重算有测试。
-- [x] 交互与自动命令经过同一最终验证器；规划后目标变化可使提交失败且零写回。GameSession与AutomaticCorpsPlanner均提交SimulationEngine.Execute，攻击、建设和运送预检后的状态变化有原子拒绝测试。
+- [x] 交互与自动命令经过同一最终验证器；规划后目标变化可使提交失败且零写回。GameSession与AutomaticTurnRunner均提交SimulationEngine.Execute，攻击、建设和运送预检后的状态变化有原子拒绝测试。
 - [x] 攻击、建设、输送、主动撤退和自动返城各有成功、目标失效与重复提交测试。MilitaryCombatTests、FacilityConstructionTests和MilitaryMovementTests验证实际提交与逐日完成；自动返城由目标失效产生，后续推进不得重复吸收，原驻地同时失效则清令保留队伍与载荷。
 - [x] 输送目标被撤除后清除旧目标并待命，载荷保持；无悬挂命令引用或伪到达。
 - [x] 普通与高昂状态下都能削减耐久并推进建设；达到最大耐久且同时发出完成事件时只完成一次。MilitaryCombatTests与FacilityConstructionTests覆盖日级战斗及建设完成。

@@ -29,8 +29,7 @@ public static class MilitaryPlanner
             u.Order is { SettlementId: not null, Kind: MilitaryOrderKind.Return or MilitaryOrderKind.Transport })
             .GroupBy(u => u.Order!.SettlementId!.Value).ToDictionary(g => g.Key, g => g.Sum(u => (long)u.Soldiers));
         var candidates = from source in own
-            where source.Soldiers > 4000 && (corpsId is int id ? source.CorpsId == id :
-                source.CorpsId is null || world.Corps.Any(c => c.Id == source.CorpsId && c.ControlMode == CorpsControlMode.Direct))
+            where source.Soldiers > 4000 && CorpsControl.CanControlSettlement(world, seat, new(seat.ControllerId), source.Id)
             from target in own
             let expected = target.Soldiers + incoming.GetValueOrDefault(target.Id)
             where source.Id != target.Id && expected < 3000 && expected < target.SoldierCapacity
@@ -69,8 +68,6 @@ public static class MilitaryPlanner
     private static GameCommand? ChooseAttack(WorldSnapshot world, Func<CommandContext, GameCommand, CommandSubmissionResult> validate,
         MilitaryRulebook rules, ControlSeat seat, Guid commandId, int? corpsId, FormationRule[] formations, NavigationWorkBudget work)
     {
-        bool Controlled(int? id) => corpsId is int expected ? id == expected : id is null ||
-            world.Corps.Any(c => c.Id == id && c.ControlMode == CorpsControlMode.Direct);
         var delegation = corpsId is int corps ? world.Corps.Single(c => c.Id == corps).Delegation : new GeneralDelegation();
         if (delegation is DomesticDelegation) return null;
         bool MatchesDelegation(SettlementState target) => delegation switch
@@ -90,7 +87,8 @@ public static class MilitaryPlanner
             rules.TryPlace(s, out var p) && p.Combat is not null).OrderBy(s => s.Id).ToArray();
         if (targets.Length == 0) return null;
         var routes = new Dictionary<(WorldPosition, BattlefieldMap, Footprint, TravelMode, OrdinaryAttack?, OrdinaryAttack?, int, int?), bool>();
-        foreach (var unit in world.Units.Where(u => u.OwnerId == seat.ForceId && Controlled(u.CorpsId) && u.Order is null).OrderBy(u => u.Id).Take(8))
+        foreach (var unit in world.Units.Where(u => u.OwnerId == seat.ForceId &&
+            CorpsControl.CanControlUnit(world, seat, new(seat.ControllerId), u.Id) && u.Order is null).OrderBy(u => u.Id).Take(8))
         {
             if (unit.FormationId is not int f || rules.Formation(unit).Attack is not { } attack) continue;
             if (unit.Morale < 30 || unit.Soldiers < 500)
@@ -109,7 +107,8 @@ public static class MilitaryPlanner
                 if (validate(new(seat.ControllerId), command).Accepted && Reachable(unit.Position, rules.Formations[f], unit.NavalFormationId, target.Id, unit.ServicePlaceId)) return command;
             }
         }
-        foreach (var source in world.Settlements.Where(s => s.OwnerId == seat.ForceId && Controlled(s.CorpsId) && s.CanHostPersons &&
+        foreach (var source in world.Settlements.Where(s => s.OwnerId == seat.ForceId &&
+            CorpsControl.CanControlSettlement(world, seat, new(seat.ControllerId), s.Id) && s.CanHostPersons &&
             s.Soldiers >= 6000 && s.Morale >= 65 && rules.TryPlace(s, out _)).OrderByDescending(s => s.Soldiers).ThenBy(s => s.Id).Take(4))
         {
             // Preserve a garrison and one administrator; a single officer is sufficient for this bounded policy.

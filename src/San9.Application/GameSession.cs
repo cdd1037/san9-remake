@@ -124,6 +124,9 @@ public sealed partial class GameSession
     public CapturedRulerPrompt? GetCapturedRulerPrompt() => _simulation.GetCapturedRulerPrompt();
     public ExecutionSuccessionPrompt? GetExecutionSuccessionPrompt() => _simulation.GetExecutionSuccessionPrompt();
     internal GameCommand ChooseDiplomacy(ControlSeat seat, Guid commandId) => DiplomacyPlanner.Choose(_simulation, seat, commandId);
+
+    public GameCommand ChooseDomesticCommand(ControlSeat seat, Guid commandId, int turn, bool scripted = false) =>
+        DomesticCommandSelection.Choose(Snapshot, Validate, seat, new(seat.ControllerId), commandId, turn, scripted);
     public CommandAdvice GetSurrenderAdvice(int forceId, int officerId, int targetForceId) =>
         _simulation.GetSurrenderAdvice(forceId, officerId, targetForceId);
     public AttackRequestPrompt? GetAttackRequestPrompt() => _simulation.GetAttackRequestPrompt();
@@ -320,10 +323,7 @@ public sealed partial class GameSession
                     events.AddRange(command.Events);
                     break;
                 case EndControlOperation:
-                    var active = candidate.Snapshot.Simulation;
-                    if (active.ActiveControl < active.Controls.Length && active.Controls[active.ActiveControl].ControllerId == request.ControllerId)
-                        AutomaticCorpsPlanner.Run(candidate, active.Controls[active.ActiveControl], MilitaryRules, events);
-                    events.AddRange(candidate.EndControl(new(request.ControllerId)).Events);
+                    AutomaticTurnRunner.EndControl(candidate, new(request.ControllerId), MilitaryRules, events);
                     break;
                 case PrepareAdvanceOperation:
                 case AdvanceOperation:
@@ -334,8 +334,7 @@ public sealed partial class GameSession
                         candidate.Snapshot.Simulation.ActiveControl < candidate.Snapshot.Simulation.Controls.Length)
                     {
                         var seat = candidate.Snapshot.Simulation.Controls[candidate.Snapshot.Simulation.ActiveControl];
-                        AutomaticCorpsPlanner.Run(candidate, seat, MilitaryRules, events);
-                        events.AddRange(candidate.EndControl(new(seat.ControllerId)).Events);
+                        AutomaticTurnRunner.EndControl(candidate, new(seat.ControllerId), MilitaryRules, events);
                     }
                     if (request.Operation is AdvanceOperation && candidate.Snapshot.Simulation.Boundary == SimulationBoundary.Stable)
                     {

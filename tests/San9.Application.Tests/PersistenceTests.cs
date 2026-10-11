@@ -652,15 +652,18 @@ public sealed class PersistenceTests : IDisposable
             Assert.Equal(SessionDisposition.Accepted, result.Disposition);
             session.AdvanceXun();
             DecisionResponses.DeclineAll(session);
-            // Named streams initialize lazily; measure history growth after the first annual cycle.
-            if (xun == 35) firstYear = SaveService.Encode(session);
+            // Compare unbounded history separately from the bounded economic records, whose queue fills as AI works.
+            // Named streams initialize lazily; begin after the first annual cycle.
+            if (xun == 35) firstYear = SaveService.EncodeSnapshot(session.Capture() with { Records = [] }, session.ContentFingerprint);
         }
         Assert.Equal(230, session.Snapshot.Clock.Year);
         Assert.False(session.IsRecording);
         Assert.Throws<InvalidOperationException>(() => session.CaptureRecording());
         byte[] final = SaveService.Encode(session);
         Assert.NotNull(firstYear);
-        Assert.InRange(final.Length - firstYear.Length, 0, 100);
+        Assert.InRange(session.Records.Count, 0, GameSession.RecentRecordLimit);
+        var withoutRecords = SaveService.EncodeSnapshot(session.Capture() with { Records = [] }, session.ContentFingerprint);
+        Assert.InRange(withoutRecords.Length - firstYear.Length, 0, 100);
         string json = Encoding.UTF8.GetString(final);
         Assert.DoesNotContain("acceptedCommandIds", json);
         Assert.DoesNotContain("journal", json);
@@ -679,14 +682,16 @@ public sealed class PersistenceTests : IDisposable
             Settlements = value.Settlements.Select(s => s with { MaxCommerce = 2500 }).ToArray() };
         var session = GameSession.Start(definition, 190);
         session.AddChronicleNote("player note");
+        List<GameClock> completedDates = [];
         for (int i = 0; i < GameSession.RecentRecordLimit + 10; i++)
         {
             Assert.True(session.Develop(new(1, 1, [2], DomesticActivity.Commerce)).Accepted);
-            session.AdvanceXun();
+            completedDates.Add(session.Snapshot.Clock);
+            completedDates.AddRange(session.AdvanceXun().Events.OfType<DevelopmentCompletedEvent>().Select(e => e.Clock));
             DecisionResponses.DeclineAll(session);
         }
         Assert.Equal(GameSession.RecentRecordLimit, session.Records.Count);
-        Assert.Equal(new GameClock(190, 4, 11), session.Records[0].Clock);
+        Assert.Equal(completedDates.TakeLast(GameSession.RecentRecordLimit), session.Records.Select(r => r.Clock));
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         Assert.Equal(session.Records, restored.Records);
         Assert.Equal("player note", Assert.Single(restored.Chronicle).Text);

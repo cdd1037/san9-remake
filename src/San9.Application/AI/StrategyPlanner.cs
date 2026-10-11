@@ -11,7 +11,7 @@ public static class StrategyPlanner
 
     internal static GameCommand Choose(WorldSnapshot world,
         Func<CommandContext, GameCommand, CommandRejection> eligible, MilitaryRulebook? rules,
-        ControlSeat seat, Guid commandId, int? corpsId = null)
+        ControlSeat seat, Guid commandId)
     {
         world = AiPlanningWorld.Read(world);
         long sequence = world.Simulation.NextSequence;
@@ -19,8 +19,7 @@ public static class StrategyPlanner
         if (rules is null || world.Simulation.Tasks.Any(t => t.ControllerId == seat.ControllerId &&
             (t.Journey?.UnitStrategy is not null || t.Journey?.Burn is not null || t.Journey?.Seize is not null ||
              t.Journey?.Gossip is not null || t.Kind == "strategy-alienate"))) return wait;
-        bool Controlled(SettlementState place) => corpsId is int id ? place.CorpsId == id : place.CorpsId is null ||
-            world.Corps.Any(c => c.Id == place.CorpsId && c.ControlMode == CorpsControlMode.Direct);
+        bool Controlled(SettlementState place) => CorpsControl.CanControlSettlement(world, seat, new(seat.ControllerId), place.Id);
         var homes = world.Settlements.Where(s => s.OwnerId == seat.ForceId && Controlled(s)).ToDictionary(s => s.Id);
         var actors = world.Officers.Where(p => p.OwnerId == seat.ForceId && p.IsServing && !p.Acted &&
             p.SettlementId is int home && homes.ContainsKey(home) && !world.Simulation.Tasks.Any(t => t.OfficerId == p.Id))

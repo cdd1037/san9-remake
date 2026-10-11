@@ -30,6 +30,9 @@ public sealed class SurrenderSessionTests
     public void PlayerDecisionOverridesAutomaticExclusionAndReplaysFromOutboundSave(bool accept)
     {
         var content = Content();
+        // Keep the unrelated third force from recruiting and changing the surrender balance before arrival.
+        content = content with { Information = content.Information with { Corps = content.Information.Corps
+            .Select(c => c.OwnerId == 3 ? c with { Treasury = new(0, 0) } : c).ToArray() } };
         var session = GameSession.Start(content, 42);
         session.BeginRecording();
         session.EndControl(new("player"));
@@ -39,7 +42,7 @@ public sealed class SurrenderSessionTests
         var task = Assert.Single(session.Snapshot.Simulation.Tasks);
         Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
         var restored = outbound;
-        var response = new RespondDailyTaskCommand(Guid.NewGuid(), 1, 1, task.Id, 0, accept);
+        var response = new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, task.Id, 0, accept);
         var result = session.Execute(new("player"), response);
         Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.Execute(new("player"), response).Events));
         Assert.Equal(accept, Assert.Single(result.Events.OfType<SurrenderResolvedEvent>()).Accepted);

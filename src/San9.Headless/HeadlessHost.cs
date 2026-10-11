@@ -314,6 +314,11 @@ public sealed class HeadlessHost
         {
             foreach (var seat in _session.Snapshot.Simulation.Controls)
             {
+                if (seat.Kind == ControllerKind.Automatic)
+                {
+                    Compare(_session.Request(new EndControlOperation(), seat.ControllerId));
+                    continue;
+                }
                 var diplomacyRequest = _session.Request(new EndControlOperation(), seat.ControllerId);
                 var diplomacy = DiplomacyPlanner.Choose(_session, seat, diplomacyRequest.Id);
                 if (diplomacy is not WaitCommand)
@@ -323,7 +328,7 @@ public sealed class HeadlessHost
                 if (strategyCommand is not WaitCommand)
                     Compare(strategyRequest with { Operation = new CommandOperation(strategyCommand) });
                 var planned = _session.Request(new EndControlOperation(), seat.ControllerId);
-                Compare(planned with { Operation = new CommandOperation(DomesticPlanner.Choose(_session, seat, planned.Id, xun, !options.ContainsKey("strategy"))) });
+                Compare(planned with { Operation = new CommandOperation(_session.ChooseDomesticCommand(seat, planned.Id, xun, !options.ContainsKey("strategy"))) });
                 if (firstCommand) { Checkpoint("first-command"); firstCommand = false; }
                 Compare(_session.Request(new EndControlOperation(), seat.ControllerId));
             }

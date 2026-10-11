@@ -60,8 +60,8 @@ internal static class DomesticDevelopmentHandler
             if (activity == DomesticActivity.Train)
             {
                 if (city.Soldiers == 0) return new(DevelopmentRejection.NoSoldiers);
-                long scale = 10L * (11 - people.Length) * (EconomyMath.RecruitMorale(force.Trust) - city.Morale + 100) / 100;
-                increment = (int)Math.Min(100 - current, people.Length + people.Sum(p => EconomyMath.ExecutedAbility(abilities[p.Id].Leadership)) * scale / EconomyMath.SquareRoot(city.Soldiers + 10000L) / 10);
+                increment = DomesticDevelopment.TrainingIncrement(city.Soldiers, city.Morale, force.Trust,
+                    people.Select(p => abilities[p.Id]).ToArray());
             }
             else
             {

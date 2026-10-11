@@ -47,7 +47,20 @@ internal static class AllocationTurnRunner
             var personnel = PersonnelAllocation.Capture(engine, input, personnelWork);
             work.Charge(personnelBudget - personnelWork.Remaining);
             var proposals = support.Candidates.Concat(personnel).Where(c => !completed.Contains(c.ControllerId + ":" + c.Purpose)).ToImmutableArray();
-            // Unmigrated war/diplomacy/strategy policies supply bounded proposals, never execute a separate phase.
+            bool campaignComplete = true;
+            if (rules is not null && support.Complete && work.Remaining > 1 && input.All(e => e.Observation.Complete) &&
+                (state.Campaigns.Any(g => g.ForceId == active.ForceId) || input.All(e => e.Observation.Accounts.All(a => a.Food >= a.RequiredFood))))
+            {
+                long campaignBudget = work.Remaining / 2;
+                var campaignWork = new AllocationWork(campaignBudget);
+                var observation = CampaignObservationCapture.Capture(engine, active, input, support, rules, campaignWork, routes, state.Campaigns);
+                campaignComplete = observation.Complete;
+                var campaign = CampaignPlanner.Decide(observation, state.Campaigns, campaignWork);
+                state = state with { Campaigns = campaign.Goals };
+                proposals = proposals.AddRange(campaign.Candidates.Where(c => !completed.Contains(c.ControllerId + ":" + c.Purpose)));
+                work.Charge(campaignBudget - campaignWork.Remaining);
+            }
+            // Unmigrated diplomacy/strategy policies supply bounded proposals, never execute a separate phase.
             if (work.Remaining > 0 && support.Complete && proposals.All(c => c.Priority > 0) &&
                 input.All(e => e.Observation.Complete && e.Observation.Accounts.All(a => a.Food >= a.RequiredFood)))
             {
@@ -72,7 +85,7 @@ internal static class AllocationTurnRunner
                 _ => throw new InvalidOperationException("Unknown allocation intent.")
             };
             batches?.Add(new(engine.Snapshot.Clock, active.ForceId, state.Configuration.WorkBudget - work.Remaining,
-                support.Complete, input.SelectMany(e => e.Observation.Accounts).ToImmutableArray(), support.Arrivals)
+                support.Complete && campaignComplete, input.SelectMany(e => e.Observation.Accounts).ToImmutableArray(), support.Arrivals)
                 { Candidates = proposals, SelectedIntentHash = intent is null ? null : CanonicalJson.Hash(intent) });
             if (batches?.Count > AllocationDiagnostics.Capacity) batches.RemoveAt(0);
             if (controllerId is null || intent is null) break;
@@ -85,8 +98,8 @@ internal static class AllocationTurnRunner
             {
                 var deployment = result.Events.OfType<UnitDeployedEvent>().FirstOrDefault();
                 traces.Add(new(command.CommandId, controllerId, candidate?.Purpose ?? (economic is PurchaseFoodIntent ? "supply" : "domestic"),
-                    engine.Snapshot.Clock, deployment?.UnitId, candidate?.TargetId, candidate?.Arrival?.Days,
-                    candidate?.Intent is TransportUnitCommand transport ? transport.Soldiers : null, candidate?.AdditionalFood ?? 0,
+                    engine.Snapshot.Clock, deployment?.UnitId, candidate?.TargetId, candidate?.Campaign?.ExpectedDays ?? candidate?.Arrival?.Days,
+                    candidate?.Intent is TransportUnitCommand transport ? transport.Soldiers : candidate?.Intent is DeployUnitCommand expedition ? expedition.Soldiers : null, candidate?.AdditionalFood ?? 0,
                     result.Submission.Accepted ? deployment is null || candidate?.Arrival is null ? AllocationOutcome.Completed : AllocationOutcome.Pending : AllocationOutcome.Rejected,
                     work.Remaining, input.SelectMany(e => e.Observation.Accounts).ToImmutableArray())
                     { IntentHash = CanonicalJson.Hash(intent), AccountId = candidate?.AccountId,
@@ -100,11 +113,21 @@ internal static class AllocationTurnRunner
                 rejected.Add(CanonicalJson.Hash(intent));
                 if (economic is not null) rejected.Add(CanonicalJson.Hash(economic));
                 if (economic is DevelopIntent failure) rejected.Add(CanonicalJson.Hash(failure.Development));
-                if (candidate is not null && candidate.Purpose != "support") completed.Add(controllerId + ":" + candidate.Purpose);
+                if (candidate is not null && candidate.Purpose is not ("support" or "campaign")) completed.Add(controllerId + ":" + candidate.Purpose);
                 continue;
             }
             events.AddRange(result.Events);
-            if (candidate is not null && candidate.Purpose != "support") completed.Add(controllerId + ":" + candidate.Purpose);
+            if (candidate?.Campaign is { } commitment)
+            {
+                var previous = state.Campaigns.FirstOrDefault(g => g.ForceId == commitment.ForceId && g.TargetId == commitment.TargetId);
+                var deployed = result.Events.OfType<UnitDeployedEvent>().Select(e => e.UnitId).Concat(command is OrderUnitCommand order ? [order.UnitId] : []);
+                var updated = (previous ?? commitment) with { UnitIds = (previous?.UnitIds ?? []).Concat(deployed).Distinct().Order().ToImmutableArray(),
+                    Phase = command is DeployUnitCommand or OrderUnitCommand ? CampaignPhase.Assembling : CampaignPhase.Preparing,
+                    SourceIds = commitment.SourceIds };
+                state = state with { Campaigns = state.Campaigns.Where(g => g.ForceId != updated.ForceId || g.TargetId != updated.TargetId)
+                    .Append(updated).OrderBy(g => g.ForceId).ThenBy(g => g.TargetId).ToImmutableArray() };
+            }
+            if (candidate is not null && candidate.Purpose is not ("support" or "campaign")) completed.Add(controllerId + ":" + candidate.Purpose);
             if (economic is DevelopIntent) developed.Add(controllerId);
             if (economic is PurchaseFoodIntent purchase)
             {
@@ -123,16 +146,6 @@ internal static class AllocationTurnRunner
             foreach (var (controller, economy) in input)
             {
                 var seat = active with { ControllerId = controller, Kind = ControllerKind.Automatic };
-                if (!completed.Contains(controller + ":military") && proposalWork.Spend())
-                {
-                    CommandSubmissionResult Validate(CommandContext c, GameCommand command) => proposalWork.Spend()
-                        ? engine.Validate(c, command) : new(false, CommandRejection.InvalidTask);
-                    var command = MilitaryPlanner.ChooseCombat(engine.Snapshot, Validate, rules, seat, identity(controller, "military"),
-                        controller.StartsWith("corps:", StringComparison.Ordinal) ? int.Parse(controller.AsSpan(6)) : null, proposalWork.Navigation());
-                    // Reinforcement is now owned exclusively by support analysis, including arrival and source safety.
-                    if (command is not WaitCommand && Safe(controller, command, economy, support) is { } candidate) return candidate;
-                    completed.Add(controller + ":military");
-                }
                 if (!completed.Contains(controller + ":diplomacy") && controller == active.ControllerId && active.Kind == ControllerKind.Automatic && proposalWork.Spend())
                 {
                     var command = DiplomacyPlanner.Choose(engine, seat, identity(controller, "diplomacy"), proposalWork.Spend);

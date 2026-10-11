@@ -7,7 +7,7 @@ namespace San9.Application.AI;
 
 public sealed record AiPolicyConfiguration(string Version, long WorkBudget, int MaximumPurchases)
 {
-    public static AiPolicyConfiguration Standard { get; } = new("allocation-v1", 65536, 8);
+    public static AiPolicyConfiguration Standard { get; } = new("campaign-v1", 65536, 8);
 }
 
 public sealed record FoodSecurityGoal(int ForceId, string ControllerId, int AccountId, GameClock Started);
@@ -17,21 +17,43 @@ public sealed record AiSessionState
 {
     [JsonRequired] public AiPolicyConfiguration Configuration { get; init; } = AiPolicyConfiguration.Standard;
     [JsonRequired] public ImmutableArray<FoodSecurityGoal> FoodSecurity { get; init; } = [];
+    [JsonRequired] public ImmutableArray<CampaignGoal> Campaigns { get; init; } = [];
 
     internal void Validate(WorldSnapshot world)
     {
-        if (Configuration is null || Configuration.Version != "allocation-v1" || Configuration.WorkBudget is < 1 or > 1000000 ||
+        if (Configuration is null || Configuration.Version != "campaign-v1" || Configuration.WorkBudget is < 1 or > 1000000 ||
             Configuration.MaximumPurchases is < 1 or > 256 || FoodSecurity.IsDefault || FoodSecurity.Any(g => g is null) ||
             FoodSecurity.DistinctBy(g => (g.ControllerId, g.AccountId)).Count() != FoodSecurity.Length ||
             FoodSecurity.Any(g => string.IsNullOrWhiteSpace(g.ControllerId) || g.Started.DayNumber < world.Simulation.Started.DayNumber ||
-                g.Started.DayNumber > world.Clock.DayNumber || !Authorized(world, g)))
+                g.Started.DayNumber > world.Clock.DayNumber || !Authorized(world, g)) ||
+            Campaigns.IsDefault || Campaigns.Any(g => g is null || !Enum.IsDefined(g.Phase) || g.UnitIds.IsDefault || g.SourceIds.IsDefault ||
+                g.SourceIds.Any(id => id < 0) || g.SourceIds.Distinct().Count() != g.SourceIds.Length ||
+                g.SourceIds.Any(id => !world.Settlements.Any(s => s.Id == id)) ||
+                g.ExpectedOwnerId is int owner && !world.Forces.Any(f => f.Id == owner) ||
+                g.UnitIds.Any(id => world.Units.Any(u => u.Id == id && u.OwnerId != g.ForceId)) ||
+                g.UnitIds.Any(id => id < 0) || g.UnitIds.Distinct().Count() != g.UnitIds.Length ||
+                string.IsNullOrWhiteSpace(g.Conditions) || !CampaignAuthorized(world, g) || g.ExpectedDays < 0 || g.Progress < 0 ||
+                g.Started.DayNumber < world.Simulation.Started.DayNumber || g.LastProgress.DayNumber < g.Started.DayNumber ||
+                g.LastProgress.DayNumber > world.Clock.DayNumber) ||
+            Campaigns.DistinctBy(g => (g.ForceId, g.TargetId)).Count() != Campaigns.Length)
             throw new ArgumentException("Invalid AI policy state.");
     }
 
     internal AiSessionState Prune(WorldSnapshot world) => this with
     {
-        FoodSecurity = FoodSecurity.Where(g => Authorized(world, g)).ToImmutableArray()
+        FoodSecurity = FoodSecurity.Where(g => Authorized(world, g)).ToImmutableArray(),
+        Campaigns = Campaigns.Where(g => CampaignAuthorized(world, g)).ToImmutableArray()
     };
+
+    private static bool CampaignAuthorized(WorldSnapshot world, CampaignGoal goal)
+    {
+        var seat = world.Simulation.Controls.FirstOrDefault(s => s.ForceId == goal.ForceId);
+        return seat is not null && !string.IsNullOrWhiteSpace(goal.ControllerId) &&
+            world.Settlements.Any(s => s.Id == goal.TargetId && !s.IsDormant) &&
+            (seat.Kind == ControllerKind.Automatic || goal.ControllerId.StartsWith("corps:", StringComparison.Ordinal)) &&
+            (world.Settlements.Any(s => !s.IsDormant && !s.IsDestroyed && CorpsControl.CanControlSettlement(world, seat, new(goal.ControllerId), s.Id)) ||
+                world.Units.Any(u => CorpsControl.CanControlUnit(world, seat, new(goal.ControllerId), u.Id)));
+    }
 
     private static bool Authorized(WorldSnapshot world, FoodSecurityGoal goal)
     {

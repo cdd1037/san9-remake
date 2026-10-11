@@ -7,7 +7,7 @@ namespace San9.Core.Simulation;
 public sealed record NavigationArrivalInput(UnitTravel Travel, WorldPosition Start, MapOccupancy Target,
     ImmutableArray<MapOccupancy> Occupancy, bool Adjacent = true, int PreparationDays = 0,
     int MovementRemainder = 0, bool RectangularReach = false, int Range = 1,
-    WorldPosition? Waypoint = null, NavigationLookahead? Lookahead = null);
+    WorldPosition? Waypoint = null, NavigationLookahead? Lookahead = null, bool AllowTargetOverlap = false);
 
 public static class NavigationArrivalForecast
 {
@@ -15,6 +15,8 @@ public static class NavigationArrivalForecast
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumDays);
         ArgumentOutOfRangeException.ThrowIfNegative(input.PreparationDays);
+        if (input.AllowTargetOverlap && input.Waypoint is null && new MapOccupancy(input.Start, input.Travel.Shape).Overlaps(input.Target))
+            return new(ArrivalEstimateStatus.Known, input.PreparationDays);
         var position = input.Start;
         int remainder = input.MovementRemainder;
         NavigationLookahead? lookahead = input.Lookahead;

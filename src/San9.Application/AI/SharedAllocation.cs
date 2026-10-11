@@ -24,6 +24,7 @@ public sealed record AllocationCandidate(string ControllerId, int AccountId, Gam
     public int? ReceivingAccountId { get; init; }
     public long ReceivingFood { get; init; }
     public long OfficerOpportunityCost { get; init; }
+    public CampaignGoal? Campaign { get; init; }
 }
 
 public sealed record AllocationDecision(AllocationCandidate? Candidate, EconomicIntent? Economic,
@@ -114,7 +115,7 @@ public static class SharedAllocator
             var account = observation?.Accounts.FirstOrDefault(a => a.Id == candidate.AccountId);
             var receiving = economies.SelectMany(e => e.Observation.Accounts).FirstOrDefault(a => a.Id == candidate.ReceivingAccountId);
             return account is not null && account.Money >= candidate.MoneyCost &&
-                account.Food >= account.RequiredFood + candidate.AdditionalFood &&
+                (candidate.Intent is OrderUnitCommand { Order.Kind: MilitaryOrderKind.Return } || account.Food >= account.RequiredFood + candidate.AdditionalFood) &&
                 (candidate.ReceivingAccountId is null || receiving is not null && receiving.Food >= receiving.RequiredFood + candidate.ReceivingFood) &&
                 (candidate.Arrival is null || candidate.Arrival.Status == ArrivalEstimateStatus.Known &&
                     (candidate.DeadlineDays is null || candidate.Arrival.Days <= candidate.DeadlineDays));

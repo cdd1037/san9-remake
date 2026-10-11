@@ -10,7 +10,9 @@ public sealed record SupportObservation(ImmutableArray<AllocationCandidate> Cand
     ImmutableArray<ArrivalProjection> Arrivals, bool Complete)
 {
     public ImmutableArray<AccountSupplyChange> FoodChanges { get; init; } = [];
+    public ImmutableArray<GarrisonRequirement> GarrisonRequirements { get; init; } = [];
 }
+public sealed record GarrisonRequirement(int SettlementId, int? DepartingOfficerId, uint Soldiers);
 public sealed record AccountSupplyChange(int AccountId, FoodSupplyChange Change);
 
 public static class EconomicSupplyProjection
@@ -25,12 +27,12 @@ public static class EconomicSupplyProjection
 internal sealed class ArrivalProjectionCache
 {
     private readonly Dictionary<(UnitTravel Travel, WorldPosition Start, MapOccupancy Target, string Occupancy,
-        int Preparation, int Remainder, bool Adjacent, bool Rectangular, int Range, WorldPosition? Waypoint, NavigationLookahead? Lookahead), ArrivalEstimate> estimates = [];
+        int Preparation, int Remainder, bool Adjacent, bool Rectangular, int Range, WorldPosition? Waypoint, NavigationLookahead? Lookahead, bool Overlap), ArrivalEstimate> estimates = [];
 
     internal ArrivalEstimate Evaluate(NavigationArrivalInput input, AllocationWork work)
     {
         var key = (input.Travel, input.Start, input.Target, CanonicalJson.Hash(input.Occupancy), input.PreparationDays,
-            input.MovementRemainder, input.Adjacent, input.RectangularReach, input.Range, input.Waypoint, input.Lookahead);
+            input.MovementRemainder, input.Adjacent, input.RectangularReach, input.Range, input.Waypoint, input.Lookahead, input.AllowTargetOverlap);
         if (estimates.TryGetValue(key, out var estimate)) return estimate;
         estimate = NavigationArrivalForecast.Evaluate(input, work.Navigation());
         if (estimate.Status is ArrivalEstimateStatus.Known or ArrivalEstimateStatus.Unreachable) estimates.Add(key, estimate);
@@ -275,6 +277,9 @@ internal static class SupportObservationCapture
                     source.Id, target.Id, estimate, deadline));
             }
         }
-        return Result();
+        return Result() with { GarrisonRequirements = own.SelectMany(s =>
+            new int?[] { null }.Concat(controlled.TryGetValue(s.Id, out var scope)
+                ? scope.Settlement.OfficerIds.Select(id => (int?)id) : [])
+                .Select(id => new GarrisonRequirement(s.Id, id, Need(s, id).Required))).ToImmutableArray() };
     }
 }

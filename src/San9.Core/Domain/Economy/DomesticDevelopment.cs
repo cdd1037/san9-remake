@@ -15,6 +15,15 @@ public readonly record struct DomesticDevelopmentResult(int BaseIncrement, int I
 /// <summary>Base development before combination bonuses; BEH-DOMESTIC-0001.</summary>
 public static class DomesticDevelopment
 {
+    public static int TrainingIncrement(uint soldiers, int morale, int trust, IReadOnlyList<OfficerAbilities> participants)
+    {
+        if (participants.Count is < 1 or > 5 || morale is < 0 or > 100 || soldiers == 0)
+            throw new ArgumentException("Invalid training inputs.");
+        long scale = 10L * (11 - participants.Count) * (EconomyMath.RecruitMorale(trust) - morale + 100) / 100;
+        return (int)Math.Min(100 - morale, participants.Count + participants.Sum(p => EconomyMath.ExecutedAbility(p.Leadership)) *
+            scale / EconomyMath.SquareRoot(soldiers + 10000L) / 10);
+    }
+
     public static int RecruitCount(SettlementState city, uint funds, IReadOnlyList<OfficerAbilities> participants) =>
         RecruitCount(city.DraftPopulation, city.Soldiers, city.SoldierCapacity, funds, participants);
 

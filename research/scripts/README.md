@@ -1,5 +1,7 @@
 # 研究脚本
 
+IDA 主库加载故障的诊断与恢复见 [Root Node 恢复方法](../../docs/ida-database-recovery.md)。
+
 - `analyze_scenario_persons.py`：只读统计 20 个正式剧本的人物编号、能力、属性、熟练度、忠诚和标志位；原始样本哈希用于来源识别，逐值分布保存在忽略目录，不将库存极值转成产品拒绝规则。运行：`python research/scripts/analyze_scenario_persons.py private/游戏文件 local/generated/research/audit/person-profile.json`；验证：`python -m unittest discover -s research/scripts -p test_analyze_scenario_persons.py`。
 
 - `build_source_catalog.py`：从本地源码和文档生成统一来源候选。

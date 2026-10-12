@@ -10,8 +10,13 @@ namespace San9.Client.Godot;
 public sealed class MapDayPlan
 {
     internal Dictionary<int, MapUnitMotion> Motions => _motions;
-    internal MapAttackMotion[] Attacks => _attacks;
-    public double Duration { get; private set; }
+    public IReadOnlyList<MapAttackMotion> Attacks => _attacks;
+    private readonly Dictionary<MapAttackMotion, double> _attackDurations = [];
+    public double AttackDuration(MapAttackMotion attack) => _attackDurations[attack];
+    // Attack admission uses the presented camera, independent of resource prefetch coverage.
+    public static bool IsAttackVisible(MapAttackMotion attack, double x, double y, double width, double height) =>
+        attack.FromX >= x - 80 && attack.FromX < x + width + 80 &&
+        attack.FromY >= y - 80 && attack.FromY < y + height + 80;
     private readonly MapPackage Map;
     private readonly StrategySnapshot State;
     private readonly IReadOnlyList<DomainEvent> _events;
@@ -28,7 +33,6 @@ public sealed class MapDayPlan
         var projection = MapSceneProjection.Create(state, map);
         Buildings = projection.Buildings; _units = projection.Units;
         Clips = map.Animations.Clips.ToDictionary(c => c.Id);
-        Duration = TurnDayPresentation.BaseDuration(events);
         Prepare();
     }
     private MapMotionPoint Project(double x, double y)
@@ -44,6 +48,18 @@ public sealed class MapDayPlan
     {
         if (settlement) return Settlements.TryGetValue(id, out var s) ? MapCoordinates.Center(new(s.X, s.Y)) : null;
         return _motions.TryGetValue(id, out var motion) ? motion.Points.LastOrDefault() : State.World.Units.FirstOrDefault(u => u.Id == id)?.Position;
+    }
+    private MapUnitLayout AttackLayout(UnitVisualState state, WorldPosition position)
+    {
+        var runtime = State.World.Units.Single(u => u.Id == state.Id) with { Position = position };
+        var formation = Map.Units.Formations.Single(f => f.FormationId == State.FormationId(runtime));
+        return formation.Layouts.Where(l => l.MinimumSoldiers <= state.BodySoldiers).MaxBy(l => l.MinimumSoldiers)!;
+    }
+    private MapUnitBody AttackBody(UnitVisualState state, MapUnitMember member)
+    {
+        var body = Map.Units.Bodies.Single(b => b.Id == member.BodyId);
+        return state.UsesImperialAppearance && body.ImperialBodyId is {} imperial
+            ? Map.Units.Bodies.Single(b => b.Id == imperial) : body;
     }
     private void Prepare()
     {
@@ -83,9 +99,7 @@ public sealed class MapDayPlan
             }
             else if (_units.TryGetValue(hit.AttackerId, out var unit))
             {
-                var runtime = State.World.Units.Single(u => u.Id == unit.Id) with { Position = from };
-                var formation = Map.Units.Formations.Single(f => f.FormationId == State.FormationId(runtime));
-                var body = Map.Units.Bodies.Single(b => b.Id == formation.Layouts[0].Members[0].BodyId);
+                var body = AttackBody(unit, AttackLayout(unit, from).Members[0]);
                 var sourceArea = State.BattleArea(hit.AttackerId, false, from);
                 var targetArea = State.BattleArea(targetId, targetSettlement, to);
                 bool ranged = sourceArea is {} a && targetArea is {} b && !a.IntersectsExpanded(b, MapCoordinates.UnitsPerCell);
@@ -101,8 +115,28 @@ public sealed class MapDayPlan
             { Path = path, Origins = origins });
         }
         _attacks = attacks.DistinctBy(a => (a.SourceId, a.SourceIsSettlement, a.TargetId, a.TargetIsSettlement, a.Projectile)).ToArray();
-        foreach (var attack in _attacks.Where(a => a.Projectile != MapProjectileKind.None))
-            Duration = Math.Max(Duration, TurnDayPresentation.MovementDuration + MapProjectiles.Duration(attack) / 1000 +
-                (Map.Units.Projectiles[attack.Projectile].Impact is {} impact ? Clips[impact.ClipId].Frames.Length * Clips[impact.ClipId].FrameMilliseconds / 1000.0 : 0) + 0.1);
+        foreach (var attack in _attacks)
+        {
+            double duration = 0;
+            if (!attack.SourceIsSettlement && _units.TryGetValue(attack.SourceId, out var state))
+            {
+                var layout = AttackLayout(state, Position(attack.SourceId, false)!.Value);
+                foreach (var member in layout.Members)
+                {
+                    var body = AttackBody(state, member);
+                    var actions = attack.Action == UnitVisualAction.Melee ? body.MeleeActions : body.RangedActions;
+                    if (actions.Length == 0) continue;
+                    int seed = (int)(UnitVisuals.Seed(state.Id, member.Index,
+                        unchecked((int)UnitVisuals.Seed(member.Group, 0, 4))) % (uint)actions.Length);
+                    var clip = Clips[actions[seed].DirectionClips[attack.Direction]];
+                    duration = Math.Max(duration, clip.Frames.Length * clip.FrameMilliseconds / 1000.0);
+                }
+            }
+            if (attack.Projectile != MapProjectileKind.None)
+                duration = Math.Max(duration, MapProjectiles.Duration(attack) / 1000 +
+                    (Map.Units.Projectiles[attack.Projectile].Impact is {} impact
+                        ? Clips[impact.ClipId].Frames.Length * Clips[impact.ClipId].FrameMilliseconds / 1000.0 : 0));
+            _attackDurations.Add(attack, duration);
+        }
     }
 }

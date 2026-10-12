@@ -104,6 +104,11 @@ public partial class StrategyHud : Control
                 battle: BattlePresentationPlan.Create(before, after, events, Session.Messages(Texts, before.World), Texts, CommandPresentation,
                     World.Package!.Buildings.ToDictionary(b => b.Id, b => b.FixedType), World.Package,
                     ReadSettings().TacticScenesEnabled))
+            {
+                CanPresentAttack = attack => World.Display?.Presented is { } frame &&
+                    MapDayPlan.IsAttackVisible(attack, frame.ViewportBounds.Position.X, frame.ViewportBounds.Position.Y,
+                        frame.ViewportBounds.Size.X, frame.ViewportBounds.Size.Y)
+            }
         };
         var p = Scenario;
         _frames.Add(("top-frame", Vector2.Zero));

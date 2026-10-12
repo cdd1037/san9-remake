@@ -67,7 +67,7 @@ internal sealed partial class MapScene
         Animations = projection.Animations.GroupBy(s => s.BuildingId).ToDictionary(g => g.Key, g => g.ToArray());
         Day = day;
         _motions = day?.Plan?.Motions ?? new();
-        _attacks = day?.Plan?.Attacks ?? [];
+        _attacks = day?.Plan?.Attacks.ToArray() ?? [];
         PrepareHistory(previous);
         PrepareUnitPlayback(previous is not null && ReferenceEquals(previous.Map, Map) ? previous : null);
         Units = _unitStates.Values.Select(s => UnitVisuals.Resolve(s, map.Units, Clips, elevationAt: ElevationAt)).ToArray();

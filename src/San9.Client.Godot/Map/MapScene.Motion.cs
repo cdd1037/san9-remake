@@ -80,8 +80,7 @@ internal sealed partial class MapScene
         if (day is not null && milliseconds >= TurnDayPresentation.MovementMilliseconds)
         {
             state = state with { IsEngaged = day.After.IsUnitEngaged(id) };
-            if (milliseconds < (day.Plan?.Duration ?? TurnDayPresentation.BaseDuration(day.Events)) * 1000 &&
-                attacks.FirstOrDefault(a => !a.SourceIsSettlement && a.SourceId == id) is { } attack)
+            if (attacks.FirstOrDefault(a => !a.SourceIsSettlement && a.SourceId == id && day.IsAttackActive(a)) is { } attack)
                 state = state with { Direction = attack.Direction, Action = attack.Action };
         }
         if (day?.Battle is { } battle)
@@ -196,5 +195,6 @@ internal sealed partial class MapScene
         new Rect2((float)Math.Min(a.FromX, a.ToX), (float)Math.Min(a.FromY, a.ToY),
             (float)Math.Abs(a.ToX - a.FromX) + 1, (float)Math.Abs(a.ToY - a.FromY) + 1).Grow(256).Intersects(bounds));
     public IEnumerable<MapProjectileSprite> Projectiles(Rect2 bounds) => Day is null ? [] : VisibleAttacks(bounds)
+        .Where(Day.IsAttackPresented)
         .SelectMany(a => MapProjectiles.Sample(a, Map.Units.Projectiles[a.Projectile], Day.CombatMilliseconds, Clips));
 }

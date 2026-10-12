@@ -19,6 +19,14 @@ public sealed class TurnDayPresentation(StrategySnapshot before, StrategySnapsho
     public double VisualAge(double progressMilliseconds) =>
         (VisualElapsed - progressMilliseconds / 1000 - _pauses.Where(p => p.Position < progressMilliseconds / 1000).Sum(p => p.Duration)) * 1000;
     public MapDayPlan? Plan { get; } = plan;
+    public Func<MapAttackMotion, bool>? CanPresentAttack { get; init; }
+    private bool _combatStarted;
+    private readonly HashSet<MapAttackMotion> _presentedAttacks = [];
+    private double _combatDuration;
+    public bool IsAttackPresented(MapAttackMotion attack) => _presentedAttacks.Contains(attack);
+    public bool IsAttackActive(MapAttackMotion attack) => IsAttackPresented(attack) &&
+        CombatMilliseconds < Plan!.AttackDuration(attack) * 1000;
+    public bool IsCombatBlocking => _combatStarted && CombatMilliseconds < _combatDuration * 1000 - 1e-6;
     public BattlePresentationPlan? Battle { get; } = battle;
     private readonly HashSet<Guid> _completedDialogues = [];
     public IReadOnlyList<BattleMessageCue> PendingDialogues => Battle?.Messages
@@ -36,20 +44,18 @@ public sealed class TurnDayPresentation(StrategySnapshot before, StrategySnapsho
                 c.Time <= Elapsed && c.Time < boundary).ToArray() ?? [];
         }
     }
-    public bool IsComplete => Elapsed >= Duration && NextDialogueTime is null;
+    public bool IsComplete => Elapsed >= Duration && !IsCombatBlocking && NextDialogueTime is null;
     public void CompleteDialogue(Guid id)
     {
         if (!PendingDialogues.Any(c => c.Id == id)) throw new InvalidOperationException("Battle dialogue is not pending.");
         _completedDialogues.Add(id);
     }
-    public double Duration { get; } = Math.Max(battle?.Duration ?? 0, Math.Max(BaseDuration(events), plan?.Duration ?? duration ?? 0));
+    public double Duration { get; } = Math.Max(battle?.Duration ?? 0, Math.Max(MapMovementCadence.DayMilliseconds / 1000.0, duration ?? 0));
     public void SkipVisual()
     {
         var current = Battle?.Visuals.FirstOrDefault(c => c.Zoom is not null && Elapsed >= (c.EntranceStart ?? c.Start) && Elapsed < c.End);
         if (current is not null) Advance(current.End - Elapsed);
     }
-    internal static double BaseDuration(IReadOnlyList<DomainEvent> events) =>
-        events.OfType<BattleDamageEvent>().Any(e => e.SoldierLoss > 0 || e.DurabilityLoss > 0 || e.MoraleLoss > 0) ? 2.8 : 1.0;
     public double CombatMilliseconds => Elapsed < MovementDuration ? (Elapsed - MovementDuration) * 1000 : VisualAge(MovementMilliseconds);
     public double Progress => Math.Clamp(Elapsed / Duration, 0, 1);
     public void Advance(double seconds, bool paused = false)
@@ -57,18 +63,46 @@ public sealed class TurnDayPresentation(StrategySnapshot before, StrategySnapsho
         seconds = Math.Max(0, seconds);
         if (paused)
         {
-            if (_pauses.Count > 0 && _pauses[^1].Position == Elapsed)
-                _pauses[^1] = (Elapsed, _pauses[^1].Duration + seconds);
-            else _pauses.Add((Elapsed, seconds));
-            VisualElapsed += seconds;
+            Hold(seconds);
+            return;
         }
-        else
+        if (!_combatStarted && Elapsed < MovementDuration)
         {
-            double next = Math.Min(Duration, Elapsed + seconds);
-            if (NextDialogueTime is { } boundary)
-                next = Math.Min(next, Math.Max(Elapsed, boundary));
-            VisualElapsed += next - Elapsed;
-            Elapsed = next;
+            double consumed = AdvanceTimeline(Math.Min(seconds, MovementDuration - Elapsed));
+            seconds -= consumed;
+            if (Elapsed < MovementDuration) return;
         }
+        if (!_combatStarted)
+        {
+            var selected = (Plan?.Attacks ?? []).Where(a => CanPresentAttack?.Invoke(a) == true).ToArray();
+            double combatDuration = selected.Select(a => Plan!.AttackDuration(a)).DefaultIfEmpty(0).Max();
+            _presentedAttacks.UnionWith(selected);
+            _combatDuration = combatDuration;
+            _combatStarted = true;
+        }
+        if (IsCombatBlocking)
+        {
+            double held = Math.Min(seconds, Math.Max(0, _combatDuration - CombatMilliseconds / 1000));
+            Hold(held);
+            seconds -= held;
+        }
+        AdvanceTimeline(seconds);
+    }
+    private void Hold(double seconds)
+    {
+        if (seconds <= 0) return;
+        if (_pauses.Count > 0 && _pauses[^1].Position == Elapsed)
+            _pauses[^1] = (Elapsed, _pauses[^1].Duration + seconds);
+        else _pauses.Add((Elapsed, seconds));
+        VisualElapsed += seconds;
+    }
+    private double AdvanceTimeline(double seconds)
+    {
+        double next = Math.Min(Duration, Elapsed + seconds);
+        if (NextDialogueTime is { } boundary) next = Math.Min(next, Math.Max(Elapsed, boundary));
+        double consumed = next - Elapsed;
+        VisualElapsed += consumed;
+        Elapsed = next;
+        return consumed;
     }
 }

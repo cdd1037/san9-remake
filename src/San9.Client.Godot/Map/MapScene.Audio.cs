@@ -46,7 +46,7 @@ internal sealed partial class MapScene
                 yield return new($"battle-place:{building.Id}", audio.BattleAmbience[0], anchor.X, anchor.Y) { Kind = MapSoundKind.BattleAmbience };
         }
         if (Day is not { CombatMilliseconds: >= 0 } day) yield break;
-        foreach (var attack in _attacks.Where(a => a.SourceIsSettlement))
+        foreach (var attack in _attacks.Where(a => a.SourceIsSettlement && day.IsAttackPresented(a)))
         {
             if (attack.Projectile == San9.Content.Maps.MapProjectileKind.Arrow)
             {

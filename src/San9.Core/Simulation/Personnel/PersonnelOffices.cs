@@ -10,8 +10,7 @@ public sealed record OfficeAssignedEvent(GameClock Clock, int ForceId, int Offic
 
 internal static class PersonnelOffices
 {
-    internal static CommandRejection Apply(WorldMutation world, AssignOfficesCommand command, GovernanceRulebook rules,
-        List<DomainEvent> events)
+    internal static CommandRejection Eligibility(WorldMutation world, AssignOfficesCommand command, GovernanceRulebook rules)
     {
         if (command.Assignments.IsDefaultOrEmpty || command.Assignments.Any(a => a is null) ||
             command.Assignments.Select(a => a.OfficerId).Distinct().Count() != command.Assignments.Length)
@@ -28,6 +27,14 @@ internal static class PersonnelOffices
         var finalOffices = world.Officers.Values.Where(p => p.OwnerId == command.IssuerId && p.IsServing)
             .Select(p => assignments.TryGetValue(p.Id, out var office) ? office : p.OfficeId).Where(id => id is not null).ToArray();
         if (finalOffices.Distinct().Count() != finalOffices.Length) return CommandRejection.InvalidOffice;
+        return CommandRejection.None;
+    }
+
+    internal static CommandRejection Apply(WorldMutation world, AssignOfficesCommand command, GovernanceRulebook rules,
+        List<DomainEvent> events)
+    {
+        var rejection = Eligibility(world, command, rules);
+        if (rejection != CommandRejection.None) return rejection;
         foreach (var assignment in command.Assignments.OrderBy(a => a.OfficerId))
         {
             var person = world.Officers[assignment.OfficerId];

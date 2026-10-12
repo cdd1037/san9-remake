@@ -11,6 +11,20 @@ public sealed record NavigationArrivalInput(UnitTravel Travel, WorldPosition Sta
 
 public static class NavigationArrivalForecast
 {
+    /// <summary>Optimistic travel-time bound, ignoring obstacles and using the fastest terrain.
+    /// This is not proof of reachability and must never authorize an own movement.</summary>
+    public static int EarliestDays(UnitTravel travel, WorldPosition start, MapOccupancy target,
+        int preparationDays = 0, int? movementRemainder = null, int maximumRange = 1)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(preparationDays);
+        if (movementRemainder is int known) ArgumentOutOfRangeException.ThrowIfNegative(known);
+        ArgumentOutOfRangeException.ThrowIfNegative(maximumRange);
+        long distance = Math.Max(0, new MapOccupancy(start, travel.Shape).DistanceTo(target) - 2L * maximumRange);
+        int remainder = movementRemainder ?? travel.Map.MaximumStepCost(travel.Mode) - 1;
+        long cost = Math.Max(0, distance * travel.Map.MinimumStepCost(travel.Mode) - remainder);
+        return (int)Math.Min(int.MaxValue, preparationDays + (cost + travel.DailyBudget - 1) / travel.DailyBudget);
+    }
+
     public static ArrivalEstimate Evaluate(NavigationArrivalInput input, NavigationWorkBudget work, int maximumDays = 4096)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumDays);

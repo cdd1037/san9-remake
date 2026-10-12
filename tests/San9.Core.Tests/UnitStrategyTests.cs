@@ -102,7 +102,27 @@ public sealed class UnitStrategyTests
         Assert.Equal(0, state.Units[5].ConditionDaysRemaining);
     }
 
-    internal static SimulationRules Rules(bool defensive = false, bool immune = false, bool reinforcementConnection = true) => new()
+    [Fact]
+    public void FalseReportOnTransportPreservesRestorableNoncombatState()
+    {
+        var rules = Rules(transport: true);
+        var world = World(distance: 30);
+        var setup = world.BeginMutation();
+        setup.Replace(setup.Units[5] with { ServicePlaceId = 2 });
+        world.Commit(setup);
+        var task = Submit(world, rules, UnitStrategyKind.FalseReport, 0);
+        var state = world.BeginMutation(rules.Abilities);
+        state.SetSimulation(state.Simulation with { Tasks = state.Simulation.Tasks.Remove(task) });
+        UnitStrategies.Resolve(state, task, rules, []);
+        Assert.Equal(UnitCondition.Disguised, state.Units[5].Condition);
+        Assert.False(state.Units[5].AwaitingPostAction);
+        Assert.Equal(MilitaryOrderKind.Return, state.Units[5].EffectiveOrder!.Kind);
+        world.Commit(state);
+        var restored = new SimulationEngine(WorldState.Restore(world.CreateSnapshot()), rules);
+        Assert.Equal(world.CreateSnapshot().StateHash, restored.Snapshot.StateHash);
+    }
+
+    internal static SimulationRules Rules(bool defensive = false, bool immune = false, bool reinforcementConnection = true, bool transport = false) => new()
     {
         Personnel = new([new(1, new(2, 2)), new(2, new(997, 12))],
             new Dictionary<int, int> { [1] = 1, [2] = 2 }, reinforcementConnection ? [new(1, 2)] : []),
@@ -110,7 +130,7 @@ public sealed class UnitStrategyTests
             [new(9, 1, 0, 10000, 5, new(1, 1), TravelMode.Land)
                 { HalvesHostileStrategyChance = defensive, ImmuneToDisorder = immune }],
             [new(1, new(2, 2), new(1, 1)), new(2, new(997, 12), new(1, 1))])
-            { RegionIds = Enumerable.Repeat<int?>(2, 600).ToImmutableArray() })
+            { RegionIds = Enumerable.Repeat<int?>(2, 600).ToImmutableArray(), TransportFormations = transport ? new(9, null) : null })
     };
 
     internal static WorldState World(bool friendly = false, int distance = 31, int intelligence = 99) => WorldState.Create(new(190, 1, 1), 42,

@@ -59,6 +59,7 @@ public sealed record MovementRoute(bool Reachable, ImmutableArray<WorldPosition>
 }
 public sealed record DailyMovement(WorldPosition Position, bool Reachable, bool Arrived, int Spent);
 public enum RouteReachability { Reachable, Unreachable, Incomplete }
+public readonly record struct RouteCostEstimate(RouteReachability Status, long Cost = 0);
 
 /// <summary>Immutable domain topology. Neither textures nor source-format identities determine passage.</summary>
 public sealed class BattlefieldMap
@@ -66,13 +67,14 @@ public sealed class BattlefieldMap
     private readonly (TerrainPassage Terrain, bool Blocked)[] cells;
     private readonly ImmutableDictionary<int, TerrainPassage> terrains;
     private readonly TravelTopology? travel;
+    private readonly (int Minimum, int Maximum) landCosts, waterCosts;
     private readonly ConcurrentDictionary<TravelTopology, BattlefieldMap> travelMaps = new();
-
     private BattlefieldMap(BattlefieldMap source, TravelTopology profile)
     {
         Width = source.Width; Height = source.Height; FineWidth = source.FineWidth; FineHeight = source.FineHeight;
         cells = source.cells; terrains = source.terrains;
         travel = profile;
+        landCosts = waterCosts = CostBounds(TravelMode.Land);
     }
 
     internal BattlefieldMap ForTravel(FormationRule land, FormationRule naval, int budget) =>
@@ -102,11 +104,28 @@ public sealed class BattlefieldMap
             blocked.Any(c => c.X < 0 || c.Y < 0 || c.X >= width || c.Y >= height))
             throw new ArgumentException("Invalid battlefield terrain catalog or cell references.");
         cells = ids.Select((id, index) => (terrains[id], blocked.Contains(new(index % width, index / width)))).ToArray();
+        landCosts = CostBounds(TravelMode.Land);
+        waterCosts = CostBounds(TravelMode.Water);
     }
 
-    internal int MaximumStepCost(TravelMode mode) => Math.Max(1, terrains.Values.Max(t =>
-        travel is not { } profile ? ((mode == TravelMode.Land ? t.LandCost : t.WaterCost) ?? 0) :
-            checked(((t.IsWater ? t.WaterCost : t.LandCost) ?? 0) * (t.IsWater ? profile.WaterScale : profile.LandScale))));
+    internal int MaximumStepCost(TravelMode mode) => (mode == TravelMode.Land ? landCosts : waterCosts).Maximum;
+
+    // Terrain and travel scaling are immutable. Bounds belong to topology construction, not every search/day.
+    private (int Minimum, int Maximum) CostBounds(TravelMode mode)
+    {
+        int minimum = int.MaxValue, maximum = 1;
+        bool passable = false;
+        foreach (var terrain in terrains.Values)
+        {
+            int? cost = travel is not { } profile ? (mode == TravelMode.Land ? terrain.LandCost : terrain.WaterCost) :
+                checked(terrain.IsWater ? terrain.WaterCost * profile.WaterScale : terrain.LandCost * profile.LandScale);
+            if (cost is not int value) continue;
+            passable = true;
+            minimum = Math.Min(minimum, value);
+            maximum = Math.Max(maximum, value);
+        }
+        return (passable ? minimum : 0, maximum);
+    }
 
     public int Width { get; }
     public int Height { get; }
@@ -154,10 +173,7 @@ public sealed class BattlefieldMap
             goal.Bounds, budget, work, target, lookaheadCells);
     }
 
-    internal int MinimumStepCost(TravelMode mode) => terrains.Values.Select(t => travel is not { } profile
-        ? (mode == TravelMode.Land ? t.LandCost : t.WaterCost)
-        : (t.IsWater ? t.WaterCost * profile.WaterScale : t.LandCost * profile.LandScale))
-        .Where(c => c.HasValue).Select(c => c!.Value).DefaultIfEmpty(0).Min();
+    internal int MinimumStepCost(TravelMode mode) => (mode == TravelMode.Land ? landCosts : waterCosts).Minimum;
 
     public bool IsWater(WorldPosition position)
     {
@@ -261,17 +277,26 @@ public sealed class BattlefieldMap
         for (int y = (int)area.Top / MapCoordinates.UnitsPerCell; y <= lastY; y++)
         for (int x = (int)area.Left / MapCoordinates.UnitsPerCell; x <= lastX; x++)
         {
-            var cell = cells[y * Width + x];
-            if (cell.Blocked) return null;
-            var terrain = cell.Terrain;
-            int? step = travel is null ? (mode == TravelMode.Land ? terrain.LandCost : terrain.WaterCost) :
-                terrain.IsWater ? terrain.WaterCost : terrain.LandCost;
-            if (step is int raw && travel is { } profile)
-                step = checked(raw * (terrain.IsWater ? profile.WaterScale : profile.LandScale));
+            int? step = CellPassageCost(y * Width + x, mode);
             if (step is null) return null;
             cost = Math.Max(cost, step.Value);
         }
         return cost;
+    }
+
+    internal int? CoarsePassageCost(WorldPosition position, TravelMode mode) =>
+        CellPassageCost(position.Y / MapCoordinates.UnitsPerCell * Width + position.X / MapCoordinates.UnitsPerCell, mode);
+
+    private int? CellPassageCost(int index, TravelMode mode)
+    {
+        var cell = cells[index];
+        if (cell.Blocked) return null;
+        var terrain = cell.Terrain;
+        int? step = travel is null ? (mode == TravelMode.Land ? terrain.LandCost : terrain.WaterCost) :
+            terrain.IsWater ? terrain.WaterCost : terrain.LandCost;
+        if (step is int raw && travel is { } profile)
+            step = checked(raw * (terrain.IsWater ? profile.WaterScale : profile.LandScale));
+        return step;
     }
 
     public MovementRoute FindRoute(WorldPosition start, WorldPosition destination, Footprint footprint,
@@ -279,6 +304,41 @@ public sealed class BattlefieldMap
     {
         var occupancy = occupied.ToArray();
         return Search(start, footprint, mode, occupancy, p => p == destination, destination);
+    }
+
+    /// <summary>Strategic coarse route estimate. Avoidance selects the route but does not add travel time.
+    /// Interior cell samples do not guarantee passage for the moving footprint.</summary>
+    public RouteCostEstimate EstimateTravelCost(WorldPosition start, MapOccupancy target, Footprint footprint,
+        TravelMode mode, IReadOnlyList<MapOccupancy> occupied, NavigationWorkBudget work,
+        bool intoRange = true, int range = 1, bool rectangularReach = false) =>
+        EstimateRouteCostCore(start, target, footprint, mode, occupied, work, intoRange, range, rectangularReach, true);
+
+    /// <summary>One bounded path-cost search for planning, without materializing or replaying daily steps.</summary>
+    public RouteCostEstimate EstimateRouteCost(WorldPosition start, MapOccupancy target, Footprint footprint,
+        TravelMode mode, IReadOnlyList<MapOccupancy> occupied, NavigationWorkBudget work,
+        bool intoRange = true, int range = 1, bool rectangularReach = false) =>
+        EstimateRouteCostCore(start, target, footprint, mode, occupied, work, intoRange, range, rectangularReach, false);
+
+    private RouteCostEstimate EstimateRouteCostCore(WorldPosition start, MapOccupancy target, Footprint footprint,
+        TravelMode mode, IReadOnlyList<MapOccupancy> occupied, NavigationWorkBudget work,
+        bool intoRange, int range, bool rectangularReach, bool forecast)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(range);
+        if (work.Exhausted) return new(RouteReachability.Incomplete);
+        if (start.X < 0 || start.Y < 0 || start.X >= FineWidth || start.Y >= FineHeight ||
+            target.Position.X < 0 || target.Position.Y < 0 || target.Position.X >= FineWidth || target.Position.Y >= FineHeight)
+            return new(RouteReachability.Unreachable);
+        var goal = intoRange ? RangeGoal(target, footprint, _ => range, rectangularReach, range) :
+            (Arrived: (Func<WorldPosition, bool>)(p => p == target.Position),
+             Distance: (Func<WorldPosition, long>)(p => Math.Abs((long)p.X - target.Position.X) + Math.Abs((long)p.Y - target.Position.Y)),
+             Bounds: (PathGoalBounds?)new(target.Position.X, target.Position.Y, target.Position.X, target.Position.Y));
+        if (goal.Arrived(start)) return new(RouteReachability.Reachable);
+        var objects = intoRange ? TargetOccupancy(occupied, target) : occupied;
+        using var search = BattlefieldPathSearch.Rent(this);
+        var route = search.Search(start, footprint, mode, objects, goal.Arrived, goal.Distance,
+            intoRange ? null : target.Position, goal.Bounds, work, stepLimit: 0, forecast: forecast);
+        return work.Exhausted ? new(RouteReachability.Incomplete) :
+            route.Reachable ? new(RouteReachability.Reachable, route.Cost) : new(RouteReachability.Unreachable);
     }
 
     /// <summary>Full presentation route to a legal position adjacent to an occupied target.</summary>

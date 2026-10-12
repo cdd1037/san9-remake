@@ -77,7 +77,8 @@ public sealed class DomesticPlanningBoundaryTests
     [Fact]
     public void WorkLimitReturnsDeterministicPrefixAndDistinguishesExhaustion()
     {
-        var session = GameSession.Start(G01ScenarioTests.Fixture(), 190);
+        var initial = G01ScenarioTests.Fixture();
+        var session = GameSession.Start(initial with { Settlements = initial.Settlements.Select(s => s with { Soldiers = 5000, Morale = 50 }).ToArray() }, 190);
         var observed = DomesticObservation.Capture(session.Snapshot, session.Snapshot.Simulation.Controls[0], new("player"));
         var small = DomesticPlanner.Plan(observed, new(3, 0), 0);
         var full = DomesticPlanner.Plan(observed, new(100, 0), 0);
@@ -88,6 +89,19 @@ public sealed class DomesticPlanningBoundaryTests
         Assert.Equal(CanonicalJson.Hash(full.Candidates[0]), CanonicalJson.Hash(small.Candidates[0]));
         Assert.False(DomesticPlanner.Plan(observed with { Settlements = [] }, new(1, 0), 0).BudgetExhausted);
         Assert.Throws<ArgumentException>(() => DomesticPlanner.Plan(observed, new(0, 1), 0));
+    }
+
+    [Fact]
+    public void UsedAndSaturatedActivitiesAreExcludedBeforeAllocatingPeople()
+    {
+        var session = GameSession.Start(G01ScenarioTests.Fixture(), 190);
+        var world = session.Snapshot;
+        world = world with { Settlements = world.Settlements.Select(s => s with
+            { TrainUsed = true, Morale = 50, Cultivation = s.MaxCultivation, RepairUsed = true }).ToArray() };
+        var observed = DomesticObservation.Capture(world, world.Simulation.Controls[0], new("player"));
+        var plan = DomesticPlanner.Plan(observed, new(100, 0), 0);
+        Assert.NotEmpty(plan.Candidates);
+        Assert.DoesNotContain(plan.Candidates, c => c.Activity is DomesticActivity.Train or DomesticActivity.Cultivation or DomesticActivity.Repair);
     }
 
     [Theory]

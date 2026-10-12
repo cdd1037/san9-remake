@@ -8,6 +8,22 @@ namespace San9.Application.Tests;
 public sealed class WorldMessageContextTests
 {
     [Fact]
+    public void OccurrenceChangesDateWhileKeepingTheCapturedWorld()
+    {
+        var session = GameSession.Start(G01ScenarioTests.Fixture(), 17);
+        var texts = Texts();
+        texts.Messages.Add("date", new([new MessageValue(new("property", "day"))]));
+        var context = session.Messages(texts);
+        var next = session.Snapshot.Clock.Advance();
+        var occurrence = context.AtOccurrence(next);
+        Assert.Equal(next.Day, occurrence.Query("day", []).Number);
+        Assert.Equal(session.Snapshot.Clock.Day, context.Query("day", []).Number);
+        Assert.Equal(context.Query("person.name", [MessageBinding.Reference(MessageEntityKind.Person, 1)]),
+            occurrence.Query("person.name", [MessageBinding.Reference(MessageEntityKind.Person, 1)]));
+        Assert.Equal(next, occurrence.Produce("date", new Dictionary<string, MessageBinding>(), _ => 0).Clock);
+    }
+
+    [Fact]
     public void ProductionCapturesWorldAndRandomWithoutChangingSimulation()
     {
         var session = GameSession.Start(G01ScenarioTests.Fixture(), 17);

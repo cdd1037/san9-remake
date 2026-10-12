@@ -202,7 +202,8 @@ public sealed class PersistenceTests : IDisposable
             {
                 ResourceAccounts.Change(world, ResourceAccounts.Resolve(world, task.ForceId, null), ResourceKind.Money, -50, "fixture-investment", null, events, true);
                 int increment = 1 + (int)(world.NextRandom("fixture-investment") % 10);
-                world.Replace(world.Settlements[task.OriginSettlementId] with { Commerce = owner.Fail ? 9999 : world.Settlements[task.OriginSettlementId].Commerce + increment });
+                world.Replace(world.Settlements[task.OriginSettlementId] with { Commerce = world.Settlements[task.OriginSettlementId].Commerce + increment });
+                if (owner.Fail) throw new InvalidOperationException("Injected task failure after effects.");
             }
         }
     }
@@ -488,7 +489,7 @@ public sealed class PersistenceTests : IDisposable
         session.AdvanceXun();
         rules.Fail = true;
         var before = session.Capture();
-        Assert.Throws<ArgumentException>(() => session.AdvanceXun());
+        Assert.Throws<InvalidOperationException>(() => session.AdvanceXun());
         Assert.Same(before, session.Capture());
         Assert.Equal(0, session.Snapshot.Simulation.ActiveControl);
         rules.Fail = false;

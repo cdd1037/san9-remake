@@ -5,6 +5,28 @@ namespace San9.Core.Tests;
 
 public sealed class GossipStrategyTests
 {
+    [Fact]
+    public void TargetEligibilityRefreshesAfterPersonnelLeaveReturnOrBecomeInactive()
+    {
+        var rules = Rules();
+        var mutation = World().BeginMutation(rules.Abilities);
+        CommandRejection Eligibility() => GossipStrategies.Eligibility(mutation, 1, 11, 2, 3, rules);
+        var adviser = mutation.Officers[22];
+        var subordinate = mutation.Officers[23];
+        Assert.Equal(CommandRejection.None, Eligibility());
+        mutation.Replace(adviser with { Status = OfficerStatus.Free, OwnerId = null });
+        mutation.Replace(subordinate with { Status = OfficerStatus.Free, OwnerId = null });
+        Assert.Equal(CommandRejection.InvalidTask, Eligibility());
+        mutation.Replace(subordinate);
+        Assert.Equal(CommandRejection.None, Eligibility());
+        mutation.Replace(subordinate with { IsDormant = true });
+        Assert.Equal(CommandRejection.InvalidTask, Eligibility());
+        mutation.Replace(subordinate);
+        Assert.Equal(CommandRejection.None, Eligibility());
+        mutation.Replace(subordinate with { OwnerId = 3 });
+        Assert.Equal(CommandRejection.InvalidTask, Eligibility());
+    }
+
     [Theory]
     [InlineData(156UL, true)] // SplitMix64 percentile 49.
     [InlineData(72UL, false)] // SplitMix64 percentile 50.

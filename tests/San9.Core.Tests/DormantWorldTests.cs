@@ -64,7 +64,7 @@ public sealed class DormantWorldTests
         var mutation = world.BeginMutation();
         mutation.SetSimulation(mutation.Simulation with { Boundary = SimulationBoundary.Stable });
         mutation.Replace(mutation.AllOfficers[2] with { IsDormant = false });
-        Assert.Throws<ArgumentException>(() => world.Commit(mutation));
+        Assert.Throws<ArgumentException>(() => WorldInvariants.Validate(mutation));
         Assert.Same(before, world.CreateSnapshot());
     }
 }

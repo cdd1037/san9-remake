@@ -38,8 +38,18 @@ public sealed class WorldMessageContext
         _capturedUnits = (capturedObjects ?? []).Where(o => !o.IsSettlement).ToDictionary(o => o.Id);
     }
 
+    // An occurrence changes the displayed date and captured battle objects, not world records or rules.
+    private WorldMessageContext(WorldMessageContext source, GameClock clock, BattleObjectContext[] objects)
+    {
+        _definition = source._definition; _world = source._world with { Clock = clock }; _texts = source._texts;
+        _people = source._people; _forces = source._forces; _places = source._places; _units = source._units;
+        _personDefinitions = source._personDefinitions; _abilities = source._abilities;
+        _view = new(() => new StrategySnapshot(_definition, _world));
+        _capturedUnits = objects.Where(o => !o.IsSettlement).ToDictionary(o => o.Id);
+    }
+
     public WorldMessageContext AtOccurrence(GameClock clock, params BattleObjectContext[] objects) =>
-        new(_definition, _world with { Clock = clock }, _texts, objects);
+        new(this, clock, objects);
     public WorldMessageContext ForWorld(WorldSnapshot world) => new(_definition, world, _texts);
 
     public ProducedMessage Produce(string key, IReadOnlyDictionary<string, MessageBinding> values,

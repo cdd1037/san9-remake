@@ -9,6 +9,22 @@ namespace San9.Application.Tests;
 
 public sealed class SharedAllocationTests
 {
+    [Fact]
+    public void SharedMilitaryProjectionInvalidatesOnWorldOrObserverChange()
+    {
+        var session = GameSession.Start(Fixture(), 190);
+        var cache = new ArrivalProjectionCache();
+        var world = session.Snapshot;
+        var rules = session.MilitaryRules!;
+        var original = cache.Situation(world, 2, rules);
+        Assert.Same(original, cache.Situation(world, 2, rules));
+        var changed = world with { Settlements = world.Settlements.Select(s => s.Id == 1 ? s with { Soldiers = 5000 } : s).ToArray() };
+        var refreshed = cache.Situation(changed, 2, rules);
+        Assert.Equal(4000u, Assert.Single(refreshed.Sources).Soldiers);
+        Assert.NotEqual(Assert.Single(original.Sources).Soldiers, Assert.Single(refreshed.Sources).Soldiers);
+        Assert.DoesNotContain(cache.Situation(changed, 1, rules).Sources, s => s.SettlementId == 1);
+    }
+
     private static ScenarioInitialState Fixture(int targetX = 5, int enemyX = 17) => new(
         ScenarioInitialState.CurrentSchemaVersion, "shared-allocation", 190, 1, 1, 1,
         [new(1, "opponent", 1, 100) { LeaderId = 1 }, new(2, "automatic", 2, 100) { LeaderId = 2 }],
@@ -47,6 +63,34 @@ public sealed class SharedAllocationTests
         var economy = EconomicObservation.Capture(engine, seat, new(seat.ControllerId), budget, quoteAll: true);
         var support = SupportObservationCapture.Capture(engine, seat, [(seat.ControllerId, economy)], session.MilitaryRules, new(budget));
         return (economy, support);
+    }
+
+    [Fact]
+    public void ACommittedBatchRescueSatisfiesDemandAndUpdatesTheSharedFoodLedger()
+    {
+        var definition = Fixture();
+        var session = WithThreat(definition);
+        var world = session.Snapshot;
+        var engine = GameSession.EngineFactory(definition)(WorldState.Restore(world with
+            { Simulation = world.Simulation with { ActiveControl = 1 } }));
+        var seat = world.Simulation.Controls.Single(s => s.ForceId == 2);
+        var economy = EconomicObservation.Capture(engine, seat, new(seat.ControllerId), 65536, quoteAll: true);
+        var support = SupportObservationCapture.Capture(engine, seat, [(seat.ControllerId, economy)], session.MilitaryRules, new(65536));
+        var batch = new AllocationObservations { Economies = [(seat.ControllerId, economy)], Support = support };
+        var rescue = support.Candidates.Where(c => c.Priority == 0).MinBy(c => c.OfficerOpportunityCost)!;
+        var intent = rescue.Intent;
+        var command = intent with { CommandId = Guid.NewGuid(), Sequence = engine.Snapshot.Simulation.NextSequence };
+        var result = engine.Execute(new(seat.ControllerId), command);
+        Assert.True(result.Submission.Accepted);
+        batch.Applied(engine, seat, session.MilitaryRules, command, intent, rescue, result.Events);
+        var current = EconomicSupplyProjection.Apply(batch.Economies, batch.Support!.FoodChanges);
+        Assert.DoesNotContain(batch.SupportCandidates(engine.Snapshot, current), c => c.TargetId == rescue.TargetId);
+        Assert.DoesNotContain(current[0].Observation.Domestic.Settlements.SelectMany(s => s.OfficerIds), id => rescue.Officers.Contains(id));
+        var fresh = EconomicObservation.Capture(engine, seat, new(seat.ControllerId), 65536, quoteAll: true);
+        var delivery = SupportObservationCapture.Capture(engine, seat, [(seat.ControllerId, fresh)], session.MilitaryRules, new(65536));
+        var expected = EconomicSupplyProjection.Apply([(seat.ControllerId, fresh)], delivery.FoodChanges);
+        Assert.Equal(expected[0].Observation.Accounts.ToArray(), current[0].Observation.Accounts.ToArray());
+        Assert.Equal(CanonicalJson.Hash(fresh.Domestic.Settlements), CanonicalJson.Hash(current[0].Observation.Domestic.Settlements));
     }
 
     [Theory]
@@ -92,17 +136,20 @@ public sealed class SharedAllocationTests
     }
 
     [Fact]
-    public void LateRouteAndIncompleteSearchAreDifferentAndNeitherAuthorizesRescue()
+    public void ImpossibleDeadlineSkipsNavigationAndIncompleteObservationDoesNotAuthorizeRescue()
     {
         var definition = Fixture(12, 15);
         var session = WithThreat(definition);
+        using var navigation = new PathSearchDiagnostics();
         var (_, observed) = Observe(session, definition);
+        Assert.Equal(0, navigation.Queries);
         Assert.True(observed.Complete);
         Assert.DoesNotContain(observed.Candidates, c => c.Priority == 0);
-        Assert.Contains(observed.Arrivals, a => !a.Hostile && a.SourceId == 2 && a.Estimate.Status == ArrivalEstimateStatus.Known);
+        Assert.DoesNotContain(observed.Arrivals, a => !a.Hostile && a.SourceId == 2);
         var (_, incomplete) = Observe(session, definition, 1);
         Assert.False(incomplete.Complete);
-        Assert.Contains(incomplete.Arrivals, a => a.Estimate.Status == ArrivalEstimateStatus.Incomplete);
+        Assert.False(incomplete.DefenseComplete);
+        Assert.Empty(incomplete.Candidates);
         var result = session.Apply(session.Request(new PrepareAdvanceOperation()));
         Assert.DoesNotContain(result.Events.OfType<UnitDeployedEvent>(), e => e.SettlementId == 2 &&
             session.Snapshot.Units.Any(u => u.Id == e.UnitId && u.Order?.Kind == MilitaryOrderKind.Transport));
@@ -205,6 +252,21 @@ public sealed class SharedAllocationTests
         Assert.True(detailed.AllocationDiagnostics.Actions.Length <= AllocationDiagnostics.Capacity);
     }
 
+    [Fact]
+    public void CommittedTotalsIncludeActionsEvictedFromDetailedDiagnostics()
+    {
+        var diagnostics = new AllocationDiagnostics();
+        var clock = new GameClock(190, 1, 1);
+        var actions = Enumerable.Range(0, AllocationDiagnostics.Capacity + 1).Select(i =>
+            new AllocationTrace(Guid.NewGuid(), "ai:2", "domestic", clock, null, null, null, null, 0,
+                AllocationOutcome.Completed, 1, []) { ForceId = 2, CommandType = nameof(DevelopCommand) }).ToArray();
+        diagnostics.Publish(actions, [new(clock, 2, 400, true, [], []) { IsTurnSummary = true }], []);
+        Assert.Equal(AllocationDiagnostics.Capacity, diagnostics.Actions.Length);
+        Assert.Equal(actions.Length, diagnostics.AcceptedCommands[nameof(DevelopCommand)]);
+        Assert.Equal(actions.Length, diagnostics.WorkByForce[2].AcceptedCommands);
+        Assert.Equal(400, diagnostics.WorkByForce[2].Work);
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(9)]
@@ -276,8 +338,7 @@ public sealed class SharedAllocationTests
         var session = WithThreat(definition);
         var support = Observe(session, definition).Support;
         Assert.DoesNotContain(support.Candidates, c => c.Intent is MoveOfficersCommand);
-        Assert.Contains(support.Arrivals, a => !a.Hostile && a.SourceId == 2 &&
-            a.Estimate.Status == ArrivalEstimateStatus.Known && a.Estimate.Days > 7);
+        Assert.DoesNotContain(support.Arrivals, a => !a.Hostile && a.SourceId == 2);
         var result = session.Apply(session.Request(new PrepareAdvanceOperation()));
         Assert.DoesNotContain(result.Events.OfType<TaskStartedEvent>(), e => e.Task.Kind == "personnel-move");
     }

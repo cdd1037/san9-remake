@@ -105,6 +105,47 @@ internal static class MilitaryMovement
         GovernanceRulebook governance, TreasureRulebook treasures, List<DomainEvent> events,
         UnitPurpose purpose = UnitPurpose.Combat, uint cargoMoney = 0, uint cargoFood = 0)
     {
+        var rejection = PrepareDeployment(world, command, rules, treasures, purpose, cargoMoney, cargoFood, out var prepared);
+        if (rejection != CommandRejection.None) return rejection;
+        var (home, formation, navalId, start, account, deploymentCost) = prepared!;
+        int id = (int)world.Simulation.NextUnitId;
+        int? commander = LeadershipMaintenance.SelectUnitCommander(world, command.OfficerIds, governance);
+        var unit = new UnitState(id, home.OwnerId!.Value, start, command.Soldiers)
+        {
+            CorpsId = home.CorpsId, ServicePlaceId = home.Id, FormationId = formation.Id, NavalFormationId = navalId, Morale = home.Morale,
+            MemberRanks = formation.CaptureRanks.IsEmpty ? ImmutableDictionary<int, BattleRank>.Empty : command.OfficerIds
+                .Select((person, index) => (person, rank: command.Ranks.GetValueOrDefault(person, formation.CaptureRanks[index]))).ToImmutableDictionary(p => p.person, p => p.rank),
+            CargoMoney = cargoMoney, CargoFood = cargoFood, Order = command.Order,
+            DepartureDaysRemaining = command.DepartureDelayDays, Waypoint = command.Waypoint,
+            Policies = command.Policies, CommanderId = commander, CommandedThisXun = true,
+            OrderClass = UnitOrderClass.Military
+        };
+        world.AddUnit(unit);
+        world.SetSimulation(world.Simulation with { NextUnitId = world.Simulation.NextUnitId + 1 });
+        world.Replace(home with { Soldiers = home.Soldiers - unit.Soldiers, Morale = home.Soldiers == unit.Soldiers ? 0 : home.Morale });
+        ResourceAccounts.Report(world, new(ResourceOwnerKind.Settlement, home.Id), ResourceKind.Soldiers,
+            "deploy", unit.Id, -(long)unit.Soldiers, -(long)unit.Soldiers, events);
+        ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, unit.Id), ResourceKind.Soldiers,
+            "deploy", home.Id, unit.Soldiers, unit.Soldiers, events);
+        ResourceAccounts.Change(world, account, ResourceKind.Money, -deploymentCost, "formation-deployment", unit.Id, events, true);
+        ResourceAccounts.Change(world, account, ResourceKind.Money, -(long)unit.CargoMoney, "transport-load", unit.Id, events, true);
+        ResourceAccounts.Change(world, account, ResourceKind.Food, -(long)unit.CargoFood, "transport-load", unit.Id, events, true);
+        ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, unit.Id), ResourceKind.Money, "transport-load", home.Id, unit.CargoMoney, unit.CargoMoney, events);
+        ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, unit.Id), ResourceKind.Food, "transport-load", home.Id, unit.CargoFood, unit.CargoFood, events);
+        foreach (int officer in command.OfficerIds.Order())
+            world.Replace(world.Officers[officer] with { EquippedTacticId = command.Tactics.GetValueOrDefault(officer, world.Officers[officer].EquippedTacticId), SettlementId = null, UnitId = unit.Id, Acted = true, IsCommander = false });
+        events.Add(new UnitDeployedEvent(world.Clock, unit.Id, home.Id, command.OfficerIds));
+        return CommandRejection.None;
+    }
+
+    internal sealed record DeploymentPreparation(SettlementState Home, FormationRule Formation, int? NavalId,
+        WorldPosition Start, ResourceAccount Account, long Cost);
+
+    internal static CommandRejection PrepareDeployment(WorldMutation world, DeployUnitCommand command,
+        MilitaryRulebook? rules, TreasureRulebook treasures, UnitPurpose purpose, uint cargoMoney, uint cargoFood,
+        out DeploymentPreparation? prepared)
+    {
+        prepared = null;
         if (rules is null || !rules.Formations.TryGetValue(command.FormationId, out var formation))
             return CommandRejection.UnsupportedCommand;
         if (rules.Purpose(formation.Id) != purpose) return CommandRejection.FormationUnavailable;
@@ -152,37 +193,11 @@ internal static class MilitaryMovement
             !travel.Map.FindRoute(start.Value, via, travel.Shape, travel.Mode, occupancy).Reachable))
             return CommandRejection.NoDestination;
         if (world.Simulation.NextUnitId > int.MaxValue) return CommandRejection.ResourceOverflow;
-        int id = (int)world.Simulation.NextUnitId;
-        int? commander = LeadershipMaintenance.SelectUnitCommander(world, command.OfficerIds, governance);
-        var unit = new UnitState(id, home.OwnerId!.Value, start.Value, command.Soldiers)
-        {
-            CorpsId = home.CorpsId, ServicePlaceId = home.Id, FormationId = formation.Id, NavalFormationId = navalId, Morale = home.Morale,
-            MemberRanks = formation.CaptureRanks.IsEmpty ? ImmutableDictionary<int, BattleRank>.Empty : command.OfficerIds
-                .Select((person, index) => (person, rank: command.Ranks.GetValueOrDefault(person, formation.CaptureRanks[index]))).ToImmutableDictionary(p => p.person, p => p.rank),
-            CargoMoney = cargoMoney, CargoFood = cargoFood, Order = command.Order,
-            DepartureDaysRemaining = command.DepartureDelayDays, Waypoint = command.Waypoint,
-            Policies = command.Policies, CommanderId = commander, CommandedThisXun = true,
-            OrderClass = UnitOrderClass.Military
-        };
-        world.AddUnit(unit);
-        world.SetSimulation(world.Simulation with { NextUnitId = world.Simulation.NextUnitId + 1 });
-        world.Replace(home with { Soldiers = home.Soldiers - unit.Soldiers, Morale = home.Soldiers == unit.Soldiers ? 0 : home.Morale });
-        ResourceAccounts.Report(world, new(ResourceOwnerKind.Settlement, home.Id), ResourceKind.Soldiers,
-            "deploy", unit.Id, -(long)unit.Soldiers, -(long)unit.Soldiers, events);
-        ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, unit.Id), ResourceKind.Soldiers,
-            "deploy", home.Id, unit.Soldiers, unit.Soldiers, events);
-        ResourceAccounts.Change(world, account, ResourceKind.Money, -deploymentCost, "formation-deployment", unit.Id, events, true);
-        ResourceAccounts.Change(world, account, ResourceKind.Money, -(long)unit.CargoMoney, "transport-load", unit.Id, events, true);
-        ResourceAccounts.Change(world, account, ResourceKind.Food, -(long)unit.CargoFood, "transport-load", unit.Id, events, true);
-        ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, unit.Id), ResourceKind.Money, "transport-load", home.Id, unit.CargoMoney, unit.CargoMoney, events);
-        ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, unit.Id), ResourceKind.Food, "transport-load", home.Id, unit.CargoFood, unit.CargoFood, events);
-        foreach (int officer in command.OfficerIds.Order())
-            world.Replace(world.Officers[officer] with { EquippedTacticId = command.Tactics.GetValueOrDefault(officer, world.Officers[officer].EquippedTacticId), SettlementId = null, UnitId = unit.Id, Acted = true, IsCommander = false });
-        events.Add(new UnitDeployedEvent(world.Clock, unit.Id, home.Id, command.OfficerIds));
+        prepared = new(home, formation, navalId, start.Value, account, deploymentCost);
         return CommandRejection.None;
     }
 
-    internal static CommandRejection Order(WorldMutation world, OrderUnitCommand command, MilitaryRulebook? rules, List<DomainEvent> events)
+    internal static CommandRejection OrderEligibility(WorldMutation world, OrderUnitCommand command, MilitaryRulebook? rules)
     {
         if (rules is null) return CommandRejection.UnsupportedCommand;
         if (!world.Units.TryGetValue(command.UnitId, out var unit) || unit.IsEmbedded || unit.IsPersonnel || unit.Soldiers == 0 || unit.OwnerId != command.IssuerId ||
@@ -196,6 +211,15 @@ internal static class MilitaryMovement
                 world.MovementOccupancy(rules, unit.OwnerId, policies, unit.Id, null)).Reachable)) return CommandRejection.InvalidTask;
         if (!command.ConfirmAttack && MilitaryDiplomacy.Warning(world, command.IssuerId, command.Order, rules) != AttackWarning.None)
             return CommandRejection.AttackConfirmationRequired;
+        return CommandRejection.None;
+    }
+
+    internal static CommandRejection Order(WorldMutation world, OrderUnitCommand command, MilitaryRulebook? rules, List<DomainEvent> events)
+    {
+        var rejection = OrderEligibility(world, command, rules);
+        if (rejection != CommandRejection.None) return rejection;
+        var unit = world.Units[command.UnitId];
+        var policies = command.Policies ?? unit.Policies;
         FacilityConstruction.Cancel(world, unit.Id, events);
         world.AssignMilitaryOrder(unit.Id, command.Order, policies, command.Waypoint);
         events.Add(new UnitOrderChangedEvent(world.Clock, unit.Id, command.Order, "ordered"));

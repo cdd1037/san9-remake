@@ -86,7 +86,7 @@ public sealed class EventSelectionContractTests
     }
 
     [Fact]
-    public void InvalidWorldEffectDoesNotPublishItsConsumptionKey()
+    public void InvalidWorldEffectIsDetectedByExplicitAudit()
     {
         var world = WorldState.Create(new(190, 1, 1), 1, [new(1, 100)], [], [], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(0, 0)) { IsRoot = true }]);
         var engine = new SimulationEngine(world);
@@ -95,7 +95,7 @@ public sealed class EventSelectionContractTests
         mutation.ConsumeEvent(new("history", EventTrigger.Search, 1, EventConsumption.OnSuccess, new("history")),
             new("history", EventOutcomeKind.Completed, false, EventResult.Succeeded));
         mutation.Replace(mutation.Forces[1] with { BaseTrust = -1 });
-        Assert.Throws<ArgumentException>(() => world.Commit(mutation));
+        Assert.Throws<ArgumentException>(() => WorldInvariants.Validate(mutation));
         Assert.Empty(world.Simulation.ConsumedEventKeys);
         Assert.Equal(before, world.CreateSnapshot().StateHash);
     }

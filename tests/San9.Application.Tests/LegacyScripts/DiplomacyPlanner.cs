@@ -1,3 +1,4 @@
+using San9.Application;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -6,7 +7,8 @@ namespace San9.Application.AI;
 /// <summary>Bounded stage policy; proposals use shared read-only mission preparation.</summary>
 public static class DiplomacyPlanner
 {
-    public static GameCommand Choose(GameSession session, ControlSeat seat, Guid commandId) => session.ChooseDiplomacy(seat, commandId);
+    public static GameCommand Choose(GameSession session, San9.Content.Scenarios.ScenarioInitialState content, ControlSeat seat, Guid commandId) =>
+        Choose(GameSession.EngineFactory(content)(WorldState.Restore(session.CaptureStableState())), seat, commandId);
 
     internal static GameCommand Choose(SimulationEngine engine, ControlSeat seat, Guid commandId, Func<bool>? spend = null)
     {

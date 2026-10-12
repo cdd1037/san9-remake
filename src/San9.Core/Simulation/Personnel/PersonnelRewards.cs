@@ -9,7 +9,7 @@ public sealed record OfficerRewardedEvent(GameClock Clock, int ForceId, int Offi
 
 internal static class PersonnelRewards
 {
-    internal static CommandRejection Apply(WorldMutation world, RewardOfficerCommand command, List<DomainEvent> events)
+    internal static CommandRejection Eligibility(WorldMutation world, RewardOfficerCommand command)
     {
         if (!world.Officers.TryGetValue(command.OfficerId, out var person))
             return CommandRejection.UnknownPerson;
@@ -23,6 +23,15 @@ internal static class PersonnelRewards
         if (ResourceAccounts.Balance(world, account, ResourceKind.Money) < 100)
             return CommandRejection.InsufficientFunds;
 
+        return CommandRejection.None;
+    }
+
+    internal static CommandRejection Apply(WorldMutation world, RewardOfficerCommand command, List<DomainEvent> events)
+    {
+        var rejection = Eligibility(world, command);
+        if (rejection != CommandRejection.None) return rejection;
+        var person = world.Officers[command.OfficerId];
+        var account = ResourceAccounts.Resolve(world, command.IssuerId, null);
         int gain = Math.Min(Math.Min(50 * (20 - person.Righteousness) / 100, 10), 100 - person.Loyalty);
         ResourceAccounts.Change(world, account, ResourceKind.Money, -100, "personnel-reward", person.Id, events, requireFull: true);
         world.Replace(person.WithLoyalty(command.IssuerId, person.Loyalty + gain) with { RewardedThisXun = true });

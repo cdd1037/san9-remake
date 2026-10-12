@@ -33,14 +33,16 @@ internal static class PersonnelConfiguration
                     (AdviserAccuracy.Percent(abilities[person.Id].Intelligence) - (force.AdviserId is null ? 50 : AdviserAccuracy.Percent(current))) * 120L,
                     0, "adviser", 2);
         }
+        HashSet<int> assignedOfficers = [];
         foreach (var office in engine.GetAvailableOffices(force.Id))
         {
             if (!work.Spend()) return result.ToImmutable();
             var holder = people.FirstOrDefault(p => p.OfficeId == office.OfficeId);
+            if (holder is not null && assignedOfficers.Contains(holder.Id)) continue;
             // Compare a quarter of recovered post value, including salary and the old holder's real loyalty loss.
             long Value(OfficerState p) => PostValue(engine.EvaluateOfficerAbilities(p with { Injury = 0, OfficeId = null },
                 world.Treasures), office.AbilityBonuses) * 9;
-            var best = people.Where(p => p.Id != force.LeaderId && p.OfficeId is null)
+            var best = people.Where(p => p.Id != force.LeaderId && p.OfficeId is null && !assignedOfficers.Contains(p.Id))
                 .OrderByDescending(Value).ThenBy(p => p.Id).FirstOrDefault();
             if (best is null) continue;
             long salaryIncrease = holder is null ? Math.Max(0, office.Salary - 1) * 9L : 0;
@@ -48,8 +50,11 @@ internal static class PersonnelConfiguration
             if (benefit <= 0) continue;
             ImmutableArray<OfficeAssignment> assignments = holder is null ? [new(best.Id, office.OfficeId)]
                 : [new(holder.Id, null), new(best.Id, office.OfficeId)];
+            int before = result.Count;
             Add(new AssignOfficesCommand(Guid.Empty, force.Id, 0, assignments), best.Id, benefit,
                 salaryIncrease, $"office:{office.OfficeId}", 3);
+            if (result.Count > before)
+                foreach (var assignment in assignments) assignedOfficers.Add(assignment.OfficerId);
         }
         foreach (var treasure in world.Treasures.Where(t => t.Discovered && t.HolderId is int holder && people.Any(p => p.Id == holder)))
         {
@@ -80,7 +85,7 @@ internal static class PersonnelConfiguration
         {
             if (benefit <= 0 || !work.Spend()) return;
             var query = intent with { CommandId = new Guid("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), Sequence = world.Simulation.NextSequence };
-            if (!engine.Validate(new(active.ControllerId), query).Accepted) return;
+            if (engine.GetPreparationEligibility(new(active.ControllerId), query) != CommandRejection.None) return;
             result.Add(new(active.ControllerId, root.Id, intent, [], priority, benefit, cost, 0,
                 people.Single(p => p.Id == person).SettlementId, person, Purpose: purpose));
         }

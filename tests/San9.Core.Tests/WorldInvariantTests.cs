@@ -47,11 +47,12 @@ public sealed class WorldInvariantTests
     [InlineData(5)]
     [InlineData(6)]
     [InlineData(7)]
-    public void InitializationAndCommitRejectInvalidStatesWithoutPublishing(int violation)
+    public void InitializationRestoreAndExplicitAuditRejectInvalidStates(int violation)
     {
         var world = Create();
         var before = world.CreateSnapshot();
         var mutation = world.BeginMutation();
+        mutation.SetSimulation(mutation.Simulation with { Boundary = SimulationBoundary.Stable });
         mutation.SetClock(before.Clock.Advance());
         mutation.NextRandom("invariant-test");
         mutation.Replace(before.Forces[0] with { BaseTrust = 1 });
@@ -70,7 +71,8 @@ public sealed class WorldInvariantTests
         Assert.ThrowsAny<ArgumentException>(() => WorldState.Create(mutation.Clock, mutation.Simulation.InitialSeed,
             mutation.Forces.Values, mutation.Settlements.Values, mutation.Officers.Values,
             mutation.Units.Values, mutation.Corps.Values, mutation.Treasures.Values, mutation.Relations.Values));
-        Assert.ThrowsAny<ArgumentException>(() => world.Commit(mutation));
+        Assert.ThrowsAny<ArgumentException>(() => WorldInvariants.Validate(mutation));
+        Assert.ThrowsAny<ArgumentException>(() => WorldState.Restore(mutation.CapturePresentation()));
         Assert.Same(before, world.CreateSnapshot());
         Assert.Equal(before.Revision, world.Revision);
         Assert.Equal(before.Clock, world.Clock);
@@ -78,16 +80,44 @@ public sealed class WorldInvariantTests
     }
 
     [Fact]
-    public void RelatedOwnershipChangesAreValidatedTogetherAtCommit()
+    public void ExplicitAuditRejectsAnInvalidSettlementReference()
     {
         var world = Create();
         var before = world.CreateSnapshot();
         var mutation = world.BeginMutation();
+        mutation.SetSimulation(mutation.Simulation with { Boundary = SimulationBoundary.Stable });
+        mutation.Replace(mutation.AllSettlements[1] with { OwnerId = 2 });
+        Assert.Throws<ArgumentException>(() => WorldInvariants.Validate(mutation));
+        Assert.ThrowsAny<ArgumentException>(() => WorldState.Restore(mutation.CapturePresentation()));
+        Assert.Same(before, world.CreateSnapshot());
+    }
+
+    [Fact]
+    public void OfficerCopiedFromAValidatedRecordMustValidateItsNewIntrinsicValues()
+    {
+        var world = Create();
+        var before = world.CreateSnapshot();
+        var mutation = world.BeginMutation();
+        mutation.SetSimulation(mutation.Simulation with { Boundary = SimulationBoundary.Stable });
+        mutation.Replace(mutation.AllOfficers[1] with { Injury = 15 });
+        Assert.Throws<ArgumentException>(() => WorldInvariants.Validate(mutation));
+        Assert.ThrowsAny<ArgumentException>(() => WorldState.Restore(mutation.CapturePresentation()));
+        Assert.Same(before, world.CreateSnapshot());
+    }
+
+    [Fact]
+    public void RelatedOwnershipChangesPreserveInvariants()
+    {
+        var world = Create();
+        var before = world.CreateSnapshot();
+        var mutation = world.BeginMutation();
+        mutation.SetSimulation(mutation.Simulation with { Boundary = SimulationBoundary.Stable });
         mutation.Replace(before.Settlements[0] with { OwnerId = 2 });
         mutation.Replace(before.Officers[0] with { OwnerId = 2 });
         mutation.Replace(before.Corps[0] with { OwnerId = 2, IsRoot = false });
         mutation.AddCorps(new(3, 1, null, new(0, 0)) { IsRoot = true });
 
+        WorldInvariants.Validate(mutation);
         world.Commit(mutation);
 
         var after = world.CreateSnapshot();

@@ -18,13 +18,22 @@ public sealed record AllocationTrace(Guid CommandId, string ControllerId, string
     public uint? ActualDeliveredSoldiers { get; init; }
     public long? SoldierLoss => PredictedSoldiers is uint expected && ActualDeliveredSoldiers is uint delivered ? (long)expected - delivered : null;
     public string IntentHash { get; init; } = "";
+    public string CommandType { get; init; } = "";
+    public int ForceId { get; init; }
+    public CommandRejection Rejection { get; init; }
 }
 public sealed record AllocationBatchTrace(GameClock Clock, int ForceId, long Work, bool SearchComplete,
     ImmutableArray<EconomicAccountObservation> Accounts, ImmutableArray<ArrivalProjection> Arrivals)
 {
     public ImmutableArray<AllocationCandidate> Candidates { get; init; } = [];
     public string? SelectedIntentHash { get; init; }
+    public bool IsTurnSummary { get; init; }
+    public bool BudgetExhausted { get; init; }
+    public ImmutableDictionary<string, long> WorkByKind { get; init; } = ImmutableDictionary<string, long>.Empty;
 }
+
+public sealed record AllocationWorkSummary(long Turns, long Work, long IncompleteTurns, long ExhaustedTurns,
+    long AcceptedCommands, long RejectedCommands);
 
 /// <summary>Bounded development evidence, excluded from session state, saves, hashes and decision inputs.</summary>
 public sealed class AllocationDiagnostics
@@ -32,11 +41,44 @@ public sealed class AllocationDiagnostics
     public const int Capacity = 128;
     public ImmutableArray<AllocationTrace> Actions { get; private set; } = [];
     public ImmutableArray<AllocationBatchTrace> Batches { get; private set; } = [];
+    public ImmutableDictionary<int, AllocationWorkSummary> WorkByForce { get; private set; } =
+        ImmutableDictionary<int, AllocationWorkSummary>.Empty;
+    public ImmutableDictionary<string, long> AcceptedCommands { get; private set; } =
+        ImmutableDictionary<string, long>.Empty;
+    public ImmutableDictionary<string, long> RejectedCommands { get; private set; } =
+        ImmutableDictionary<string, long>.Empty;
+    public ImmutableDictionary<CommandRejection, long> RejectionReasons { get; private set; } =
+        ImmutableDictionary<CommandRejection, long>.Empty;
 
     internal void Publish(IEnumerable<AllocationTrace> actions, IEnumerable<AllocationBatchTrace> batches, IReadOnlyList<DomainEvent> events)
     {
-        Actions = Actions.Concat(actions).TakeLast(Capacity).ToImmutableArray();
-        Batches = Batches.Concat(batches).TakeLast(Capacity).ToImmutableArray();
+        var actionArray = actions.ToArray();
+        var batchArray = batches.ToArray();
+        foreach (var turn in batchArray.Where(b => b.IsTurnSummary))
+        {
+            var previous = WorkByForce.GetValueOrDefault(turn.ForceId) ?? new(0, 0, 0, 0, 0, 0);
+            // Summaries are published only after the outer transaction commits. Detailed rows may be evicted.
+            WorkByForce = WorkByForce.SetItem(turn.ForceId, previous with
+            {
+                Turns = previous.Turns + 1, Work = previous.Work + turn.Work,
+                IncompleteTurns = previous.IncompleteTurns + (turn.SearchComplete ? 0 : 1),
+                ExhaustedTurns = previous.ExhaustedTurns + (turn.BudgetExhausted ? 1 : 0),
+                AcceptedCommands = previous.AcceptedCommands + actionArray.Count(a => a.Outcome != AllocationOutcome.Rejected && a.ForceId == turn.ForceId),
+                RejectedCommands = previous.RejectedCommands + actionArray.Count(a => a.Outcome == AllocationOutcome.Rejected && a.ForceId == turn.ForceId)
+            });
+        }
+        foreach (var action in actionArray)
+        {
+            if (action.Outcome == AllocationOutcome.Rejected)
+            {
+                RejectedCommands = RejectedCommands.SetItem(action.CommandType, RejectedCommands.GetValueOrDefault(action.CommandType) + 1);
+                RejectionReasons = RejectionReasons.SetItem(action.Rejection, RejectionReasons.GetValueOrDefault(action.Rejection) + 1);
+            }
+            else
+                AcceptedCommands = AcceptedCommands.SetItem(action.CommandType, AcceptedCommands.GetValueOrDefault(action.CommandType) + 1);
+        }
+        Actions = Actions.Concat(actionArray).TakeLast(Capacity).ToImmutableArray();
+        Batches = Batches.Concat(batchArray).TakeLast(Capacity).ToImmutableArray();
         foreach (var e in events)
         {
             if (e is ResourceChangedEvent { Resource: ResourceKind.Food, Reason: "daily-rations", Account.Kind: ResourceOwnerKind.Corps } ration)

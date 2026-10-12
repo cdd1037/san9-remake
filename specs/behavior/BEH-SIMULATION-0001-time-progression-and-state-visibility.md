@@ -2,7 +2,7 @@
 
 - 状态：已确认
 - 负责人：项目开发者
-- 最后更新：2026-09-12
+- 最后更新：2026-10-12
 - 关联证据：[RE-SAN9PK-0069](../../research/findings/RE-SAN9PK-0069.md)、[RE-SAN9PK-0071](../../research/findings/RE-SAN9PK-0071.md)、[RE-SAN9PK-0083](../../research/findings/RE-SAN9PK-0083.md)、[RE-SAN9PK-0102](../../research/findings/RE-SAN9PK-0102.md)、[RE-SAN9PK-0123](../../research/findings/RE-SAN9PK-0123.md)、[RE-SAN9PK-0142](../../research/findings/RE-SAN9PK-0142.md)、[RE-SAN9PK-0145](../../research/findings/RE-SAN9PK-0145.md)
 - 关联决策：[DEC-PROJECT-0001](../decisions/DEC-PROJECT-0001-layered-architecture.md)、[DEC-PROJECT-0002](../decisions/DEC-PROJECT-0002-selective-inheritance.md)、[DEC-SIM-0001](../decisions/DEC-SIM-0001-determinism-and-saves.md)
 - 继承方式：关系保留、领域模型现代化
@@ -24,6 +24,8 @@
 重制版以 `GameClock` 持有唯一权威日期，以 `PeriodBoundary` 表示旬、月、季、年边界，以显式的 `ResolutionPipeline` 串行阶段替代隐式任务状态码。周期系统只能读取权威日期和边界快照，不能各自维护可分叉的日期。`CalendarViewModel` 始终由已提交的权威日期派生；存档不持久化它，也不恢复执行到一半的旬结算。
 
 保存只允许发生在稳定交互边界或已提交终局。稳定边界可以包含仍在进行的领域任务，但不包含正在执行的结算事务；持久任务的恢复协议见下方 G01 执行契约。若将来需要保存半执行的结算事务，必须另立决策，不能把 UI 缓存或内部阶段号当作兼容格式。
+
+正常游戏中，领域处理器负责在写入时维持不变量；命令试算、提交和日级结算不再执行全世界不变量扫描。完整审计只用于外部世界创建／恢复及显式测试。命令权限、资源资格、随时间可能失效的任务目标和事务生命周期仍按自身语义处理。发布快照按不可变集合根复用未变化的有序集合，仅重建实际变化的集合；旧快照与分支互不影响。
 
 ## 状态与不变量
 

@@ -15,6 +15,14 @@ public sealed class WorldState
         ImmutableDictionary<(int FirstId, int SecondId), ForceRelation>.Empty;
     public long Revision { get; private set; }
     private WorldSnapshot? _snapshot;
+    // Published arrays depend only on their immutable collection root, not the world revision.
+    private IReadOnlyList<ForceState>? _publishedForces;
+    private IReadOnlyList<SettlementState>? _publishedSettlements;
+    private IReadOnlyList<OfficerState>? _publishedOfficers;
+    private IReadOnlyList<UnitState>? _publishedUnits;
+    private IReadOnlyList<CorpsState>? _publishedCorps;
+    private IReadOnlyList<TreasureState>? _publishedTreasures;
+    private IReadOnlyList<ForceRelation>? _publishedRelations;
     internal bool IsExecuting { get; private set; }
     internal void EnterExecution()
     {
@@ -91,6 +99,13 @@ public sealed class WorldState
             _forces = _forces, _settlements = _settlements, _officers = _officers, _units = _units,
             _corps = _corps, _treasures = _treasures, _relations = _relations,
             Simulation = Simulation, Revision = Revision, _snapshot = _snapshot,
+            _publishedForces = _publishedForces,
+            _publishedSettlements = _publishedSettlements,
+            _publishedOfficers = _publishedOfficers,
+            _publishedUnits = _publishedUnits,
+            _publishedCorps = _publishedCorps,
+            _publishedTreasures = _publishedTreasures,
+            _publishedRelations = _publishedRelations,
         };
     }
 
@@ -117,6 +132,7 @@ public sealed class WorldState
         if (!ReferenceEquals(_forces, mutation.AllForces))
         {
             _forces = mutation.AllForces;
+            _publishedForces = null;
             _snapshot = null;
         }
         mutation.MarkCommitted();
@@ -126,10 +142,13 @@ public sealed class WorldState
     {
         ArgumentNullException.ThrowIfNull(mutation);
         mutation.VerifyCommit(this, Revision);
-        WorldInvariants.Validate(mutation);
-        bool recordsUnchanged = ReferenceEquals(_forces, mutation.AllForces) && ReferenceEquals(_settlements, mutation.AllSettlements) &&
-            ReferenceEquals(_officers, mutation.AllOfficers) && ReferenceEquals(_units, mutation.Units) &&
-            ReferenceEquals(_corps, mutation.AllCorps) && ReferenceEquals(_treasures, mutation.AllTreasures) && ReferenceEquals(_relations, mutation.AllRelations);
+        if (!ReferenceEquals(_forces, mutation.AllForces)) _publishedForces = null;
+        if (!ReferenceEquals(_settlements, mutation.AllSettlements)) _publishedSettlements = null;
+        if (!ReferenceEquals(_officers, mutation.AllOfficers)) _publishedOfficers = null;
+        if (!ReferenceEquals(_units, mutation.Units)) _publishedUnits = null;
+        if (!ReferenceEquals(_corps, mutation.AllCorps)) _publishedCorps = null;
+        if (!ReferenceEquals(_treasures, mutation.AllTreasures)) _publishedTreasures = null;
+        if (!ReferenceEquals(_relations, mutation.AllRelations)) _publishedRelations = null;
         _forces = mutation.AllForces;
         _settlements = mutation.AllSettlements;
         _officers = mutation.AllOfficers;
@@ -140,24 +159,28 @@ public sealed class WorldState
         Clock = mutation.Clock;
         Simulation = mutation.Simulation;
         Revision++;
-        // Scheduling-only transactions can share all immutable published domain records.
-        _snapshot = recordsUnchanged && _snapshot is not null ? _snapshot with { Clock = Clock, Simulation = Simulation, Revision = Revision } : null;
+        _snapshot = null;
         mutation.MarkCommitted();
     }
 
     internal WorldSnapshot CreateSnapshot()
     {
         if (_snapshot is not null && _snapshot.Revision == Revision) return _snapshot;
-        var forces = Array.AsReadOnly(_forces.Values.OrderBy(f => f.Id).Select(f => f with { AdditionalFormationIds = f.AdditionalFormationIds.Order().ToImmutableArray(), ProvidedTactics = f.ProvidedTactics.Order().ToImmutableArray() }).ToArray());
-        var settlements = Array.AsReadOnly(_settlements.Values.OrderBy(s => s.Id).ToArray());
-        var officers = Array.AsReadOnly(_officers.Values.OrderBy(o => o.Id).Select(o => o with { LearnedTactics = o.LearnedTactics.Order().ToImmutableArray() }).ToArray());
-        var corps = Array.AsReadOnly(_corps.Values.OrderBy(c => c.Id).ToArray());
-        var relations = Array.AsReadOnly(_relations.Values.OrderBy(r => r.FirstId).ThenBy(r => r.SecondId).ToArray());
-        var treasures = Array.AsReadOnly(_treasures.Values.OrderBy(t => t.Id).ToArray());
-        var units = Array.AsReadOnly(_units.Values.OrderBy(u => u.Id).ToArray());
-        var simulation = Simulation with { Tasks = Simulation.Tasks.OrderBy(t => t.Sequence).ThenBy(t => t.OriginSettlementId).ThenBy(t => t.OfficerId).ThenBy(t => t.Id).ToImmutableArray() };
-        return _snapshot = new WorldSnapshot(Clock, simulation) { Forces = forces, Settlements = settlements, Officers = officers, Units = units, Corps = corps, Treasures = treasures, Relations = relations, Revision = Revision };
+        var forces = _publishedForces ??= Array.AsReadOnly(_forces.Values.OrderBy(f => f.Id).Select(f => f with { AdditionalFormationIds = f.AdditionalFormationIds.Order().ToImmutableArray(), ProvidedTactics = f.ProvidedTactics.Order().ToImmutableArray() }).ToArray());
+        var settlements = _publishedSettlements ??= Array.AsReadOnly(_settlements.Values.OrderBy(s => s.Id).ToArray());
+        var officers = _publishedOfficers ??= Array.AsReadOnly(_officers.Values.OrderBy(o => o.Id).Select(o => o with { LearnedTactics = o.LearnedTactics.Order().ToImmutableArray() }).ToArray());
+        var corps = _publishedCorps ??= Array.AsReadOnly(_corps.Values.OrderBy(c => c.Id).ToArray());
+        var relations = _publishedRelations ??= Array.AsReadOnly(_relations.Values.OrderBy(r => r.FirstId).ThenBy(r => r.SecondId).ToArray());
+        var treasures = _publishedTreasures ??= Array.AsReadOnly(_treasures.Values.OrderBy(t => t.Id).ToArray());
+        var units = _publishedUnits ??= Array.AsReadOnly(_units.Values.OrderBy(u => u.Id).ToArray());
+        return _snapshot = new WorldSnapshot(Clock, SnapshotSimulation()) { Forces = forces, Settlements = settlements, Officers = officers, Units = units, Corps = corps, Treasures = treasures, Relations = relations, Revision = Revision };
     }
+
+    private SimulationState SnapshotSimulation() => Simulation with
+    {
+        Tasks = Simulation.Tasks.OrderBy(t => t.Sequence).ThenBy(t => t.OriginSettlementId)
+            .ThenBy(t => t.OfficerId).ThenBy(t => t.Id).ToImmutableArray()
+    };
 }
 
 public sealed record WorldSnapshot(

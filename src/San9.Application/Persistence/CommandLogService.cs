@@ -9,6 +9,8 @@ public sealed record CommandLogHeader(int FormatVersion, string RulesVersion, in
 {
     [System.Text.Json.Serialization.JsonRequired] public int ComputerDamageBonusPercent { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public bool BattleDeathsEnabled { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public AI.AiPolicyConfiguration AiConfiguration { get; init; } = AI.AiPolicyConfiguration.Standard;
+    [System.Text.Json.Serialization.JsonRequired] public ControllerKind PlayerForceController { get; init; } = ControllerKind.Player;
 }
 public sealed record ReplayAttempt(int Line, SessionRequest? Request, SessionDisposition Disposition, SessionRejection Rejection);
 public sealed record ReplayResult(int Accepted, int AlreadyProcessed, ReplayAttempt? FirstFailure,
@@ -27,7 +29,8 @@ public static class CommandLogService
         Write(path, new(SessionProtocol.LogFormatVersion, SessionProtocol.RulesVersion, CanonicalJson.Version,
             session.ContentFingerprint, recording.Initial.World.Simulation.InitialSeed)
             { BattleDeathsEnabled = recording.Initial.World.Simulation.BattleDeathsEnabled,
-                ComputerDamageBonusPercent = recording.Initial.World.Simulation.ComputerDamageBonusPercent },
+                ComputerDamageBonusPercent = recording.Initial.World.Simulation.ComputerDamageBonusPercent,
+                AiConfiguration = recording.Initial.Ai.Configuration, PlayerForceController = recording.Initial.PlayerForceController },
             recording.Operations.Select(e => e.Request));
     }
 
@@ -41,17 +44,26 @@ public static class CommandLogService
     public static CommandLogHeader ReadHeader(string path)
     {
         using var reader = new StreamReader(path, new UTF8Encoding(false, true));
-        return Parse<CommandLogHeader>(reader.ReadLine(), 1);
+        return ReadHeader(reader);
+    }
+
+    private static CommandLogHeader ReadHeader(StreamReader reader)
+    {
+        var header = Parse<CommandLogHeader>(reader.ReadLine(), 1);
+        if (header.AiConfiguration is null || !header.AiConfiguration.IsValid || !Enum.IsDefined(header.PlayerForceController))
+            throw new CommandLogException(1, "Invalid AI configuration or player force controller.");
+        return header;
     }
 
     public static ReplayResult Replay(string path, GameSession session)
     {
         using var reader = new StreamReader(path, new UTF8Encoding(false, true));
-        var header = Parse<CommandLogHeader>(reader.ReadLine(), 1);
+        var header = ReadHeader(reader);
         if (header.FormatVersion != SessionProtocol.LogFormatVersion ||
             header.HashVersion != CanonicalJson.Version || header.ContentFingerprint != session.ContentFingerprint ||
             header.ComputerDamageBonusPercent != session.Snapshot.Simulation.ComputerDamageBonusPercent ||
-            header.Seed != session.Snapshot.Simulation.InitialSeed || header.BattleDeathsEnabled != session.Snapshot.Simulation.BattleDeathsEnabled)
+            header.Seed != session.Snapshot.Simulation.InitialSeed || header.BattleDeathsEnabled != session.Snapshot.Simulation.BattleDeathsEnabled ||
+            header.AiConfiguration != session.AiState.Configuration || header.PlayerForceController != session.PlayerForceController)
             throw new CommandLogException(1, "Log version, content or seed mismatch.");
         if (string.IsNullOrWhiteSpace(header.RulesVersion)) throw new CommandLogException(1, "Missing log rules version.");
         session.ReportRulesVersion(header.RulesVersion);

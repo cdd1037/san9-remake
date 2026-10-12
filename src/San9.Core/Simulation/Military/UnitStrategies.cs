@@ -192,7 +192,9 @@ internal static class UnitStrategies
             world.Replace(target with { Condition = condition, ConditionDaysRemaining = days, Morale = morale,
                 HighSpiritsMoralePenaltyPending = condition == UnitCondition.HighSpirits,
                 Order = condition == UnitCondition.Disguised ? null : target.Order,
-                AwaitingPostAction = condition == UnitCondition.Disguised || target.AwaitingPostAction,
+                AwaitingPostAction = condition == UnitCondition.Disguised
+                    ? rules.Military!.Purpose(target.FormationId!.Value) == UnitPurpose.Combat
+                    : target.AwaitingPostAction,
                 EngagementTargetId = condition == UnitCondition.Disguised ? null : target.EngagementTargetId });
             if (condition == UnitCondition.Disguised)
             {

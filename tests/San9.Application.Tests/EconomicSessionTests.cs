@@ -8,6 +8,57 @@ namespace San9.Application.Tests;
 
 public sealed class EconomicSessionTests
 {
+    [Fact]
+    public void SuppliedAccountCanSpendExactlyThePublicSingleOfficerDevelopmentCost()
+    {
+        var initial = G01ScenarioTests.Fixture();
+        initial = initial with
+        {
+            Settlements = initial.Settlements.Select(s => s.OwnerId == 2 ? s with { Soldiers = 10000, Morale = 100 } : s).ToArray(),
+            Information = initial.Information with { Corps = initial.Information.Corps.Select(c => c.OwnerId == 2
+                ? c with { Treasury = new(50, 100000) } : c).ToArray() }
+        };
+        var session = GameSession.Start(initial, 190);
+        // Opening preparation pays salaries; set the comparison balance at the actual decision boundary.
+        var world = session.Snapshot with { Corps = session.Snapshot.Corps.Select(c => c.OwnerId == 2
+            ? c with { Treasury = c.Treasury with { Money = 50 } } : c).ToArray() };
+        var engine = GameSession.EngineFactory(initial)(WorldState.Restore(world with
+            { Simulation = world.Simulation with { ActiveControl = 1 } }));
+        var seat = world.Simulation.Controls[1];
+        var observation = EconomicObservation.Capture(engine, seat, new(seat.ControllerId), 1000);
+        var decision = EconomicPlanner.Decide(observation, [], seat.ControllerId, 1000, true);
+        var development = Assert.IsType<DevelopIntent>(decision.Intent);
+        Assert.Single(development.OfficerIds);
+        var result = engine.Execute(new(seat.ControllerId), new DevelopCommand(Guid.NewGuid(), 2,
+            engine.Snapshot.Simulation.NextSequence, development.Development));
+        Assert.True(result.Submission.Accepted);
+        Assert.Equal(50, Assert.Single(result.Events.OfType<DevelopmentCompletedEvent>()).Cost);
+        Assert.Equal(0u, engine.Snapshot.Corps.Single(c => c.OwnerId == 2 && c.IsRoot).Treasury.Money);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void RejectedSupplyIntentIsNotSelectedAgainIncludingRescueFallback(bool reserveBuyers)
+    {
+        var session = GameSession.Start(Shortage(), 190);
+        var seat = session.Snapshot.Simulation.Controls.Single(s => s.ForceId == 2);
+        var observed = EconomicObservation.Capture(new(WorldState.Restore(session.Snapshot)), seat, new(seat.ControllerId), 1000);
+        System.Collections.Immutable.ImmutableArray<AllocationCandidate> candidates = reserveBuyers
+            ? [new(seat.ControllerId, observed.Accounts[0].Id, new WaitCommand(Guid.Empty, 2, 0),
+                observed.Domestic.Settlements[0].OfficerIds, 0, 100, 0, 0,
+                Arrival: new(ArrivalEstimateStatus.Known, 1), DeadlineDays: 1)] : [];
+        var rejected = new RejectedPlanningIntents();
+        var first = SharedAllocator.Decide([(seat.ControllerId, observed)], candidates, [], 1000,
+            new HashSet<string>(), new HashSet<string>(), rejected);
+        var purchase = Assert.IsType<PurchaseFoodIntent>(first.Economic);
+        rejected.Add(purchase);
+        var retry = SharedAllocator.Decide([(seat.ControllerId, observed)], candidates, [], 1000,
+            new HashSet<string>(), new HashSet<string>(), rejected);
+        Assert.IsType<PurchaseFoodIntent>(retry.Economic);
+        Assert.True(retry.Economic is null || !rejected.Contains(retry.Economic));
+    }
+
     private static ScenarioInitialState Shortage(int merchantChance = 100)
     {
         var initial = G01ScenarioTests.Fixture();
@@ -50,6 +101,24 @@ public sealed class EconomicSessionTests
         Assert.True(EconomicOutlook.Read(continuous.Snapshot, new Dictionary<int, int>(), 2, 2).Food.Sufficient);
         var replay = RecordingService.Replay(RecordingService.Encode(continuous.EndRecording()), initial, GameSession.EngineFactory(initial));
         Assert.Equal(continuous.Capture().StateHash, replay.Session.Capture().StateHash);
+    }
+
+    [Fact]
+    public void UnfinishedQuotesRetainKnownShortageAndDoNotInvalidateAccountFacts()
+    {
+        var session = GameSession.Start(Shortage(), 190);
+        var seat = session.Snapshot.Simulation.Controls.Single(s => s.ForceId == 2);
+        var engine = new SimulationEngine(WorldState.Restore(session.Snapshot));
+        var observed = EconomicObservation.Capture(engine, seat, new(seat.ControllerId), 1);
+        Assert.True(observed.Complete);
+        Assert.False(observed.QuotesComplete);
+        Assert.Empty(observed.Purchases);
+        var decision = EconomicPlanner.Decide(observed, [], seat.ControllerId, 100, allowDevelopment: false);
+        Assert.Single(decision.Goals);
+        Assert.Null(decision.Intent);
+        var unchanged = EconomicObservation.CapturePurchases(engine, 2, observed, new HashSet<int>(), 100);
+        Assert.False(unchanged.QuotesComplete);
+        Assert.Equal(observed.Accounts, unchanged.Accounts);
     }
 
     [Fact]
@@ -209,6 +278,7 @@ public sealed class EconomicSessionTests
         var initial = Shortage();
         var rules = new FailingDailyRules();
         var session = GameSession.Start(initial, 190, w => new(w, rules));
+        session.AllocationDiagnosticsEnabled = true;
         session.BeginRecording();
         var before = session.Capture();
         var request = session.Request(new AdvanceOperation());
@@ -219,10 +289,14 @@ public sealed class EconomicSessionTests
         Assert.Empty(session.Records);
         Assert.Empty(session.AiState.FoodSecurity);
         Assert.Empty(session.CaptureRecording().Operations);
+        Assert.Empty(session.AllocationDiagnostics.WorkByForce);
+        Assert.Empty(session.AllocationDiagnostics.AcceptedCommands);
         rules.Fail = false;
         Assert.Equal(SessionDisposition.Accepted, session.Apply(request).Disposition);
         Assert.Single(session.AiState.FoodSecurity);
         Assert.Single(session.CaptureRecording().Operations);
+        Assert.NotEmpty(session.AllocationDiagnostics.AcceptedCommands);
+        Assert.NotEmpty(session.AllocationDiagnostics.WorkByForce);
     }
 
     private sealed class FailingDailyRules : SimulationRules

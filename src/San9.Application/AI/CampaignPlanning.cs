@@ -14,9 +14,10 @@ public sealed record CampaignGoal(int ForceId, string ControllerId, int TargetId
 }
 
 public sealed record CampaignPlace(int Id, int? OwnerId, uint Soldiers, int Morale, int Durability,
-    int MaxDurability, int PublicOrder, int Leadership, CombatProfile Profile, long Value, string Conditions)
+    int MaxDurability, int PublicOrder, int Leadership, CombatProfile Profile, long Value)
 {
     public bool CanRetaliate { get; init; } = true;
+    public string ConditionsFingerprint() => CanonicalJson.Hash(new { OwnerId, Soldiers, Durability, Morale });
 }
 public sealed record CampaignForce(AllocationCandidate Action, uint Soldiers, int Morale, int Leadership,
     CombatProfile Profile, bool DamagesWalls, int? UnitId = null, long TacticValue = 0, bool NeedsOrder = false);
@@ -27,6 +28,8 @@ public sealed record CampaignObservation(GameClock Clock, int ForceId, Immutable
     ImmutableArray<AllocationCandidate> Returns,
     ImmutableArray<AllocationCandidate> Consolidation, ImmutableArray<EconomicAccountObservation> Accounts, bool Complete)
 {
+    public bool AnalysisReady { get; init; }
+    public ImmutableArray<int> UnresolvedUnitIds { get; init; } = [];
     public ImmutableArray<int> ActiveUnitIds { get; init; } = [];
     public ImmutableArray<CampaignPurchase> Purchases { get; init; } = [];
     public ImmutableArray<int> WaitingSources { get; init; } = [];
@@ -91,18 +94,19 @@ internal static class CampaignPlanner
 {
     internal static CampaignDecision Decide(CampaignObservation observation, ImmutableArray<CampaignGoal> memory, AllocationWork work)
     {
-        if (!observation.Complete) return new([], memory);
+        if (!observation.Complete && !observation.AnalysisReady) return new([], memory);
         var goals = memory.ToBuilder();
         var candidates = ImmutableArray.CreateBuilder<AllocationCandidate>();
         foreach (var goal in memory.Where(g => g.ForceId == observation.ForceId))
         {
             if (!work.Spend()) return new(candidates.ToImmutable(), goals.ToImmutable());
+            if (goal.UnitIds.Intersect(observation.UnresolvedUnitIds).Any()) continue;
             var target = observation.Places.FirstOrDefault(p => p.Id == goal.TargetId);
             var units = observation.Forces.Where(f => f.Action.TargetId == goal.TargetId && f.UnitId is int id && goal.UnitIds.Contains(id)).ToImmutableArray();
             int index = goals.IndexOf(goal);
             if (goal.Phase == CampaignPhase.CoolingDown)
             {
-                if (target is null || target.Conditions != goal.Conditions || observation.Clock.DayNumber - goal.LastProgress.DayNumber >= 30)
+                if (target is null || observation.Clock.DayNumber - goal.LastProgress.DayNumber >= 30 || target.ConditionsFingerprint() != goal.Conditions)
                     goals.Remove(goal);
                 continue;
             }
@@ -132,7 +136,12 @@ internal static class CampaignPlanner
                 goal.SourceIds.Intersect(observation.WaitingSources).Any()) continue;
             var plan = !invalid && !withdrawing && !stalled
                 ? Choose(target!, continuation, observation, work) : null;
-            if (work.Remaining == 0) return new(candidates.ToImmutable(), goals.ToImmutable());
+            if (work.Remaining == 0)
+            {
+                if (plan is not null) candidates.AddRange(plan.Value.Actions);
+                return new(candidates.ToImmutable(), goals.ToImmutable());
+            }
+            if (plan is null && !invalid && !stalled && !observation.Complete) continue;
             if (plan is null && !invalid && !stalled && goal.Phase == CampaignPhase.Preparing &&
                 goal.LastProgress.DayNumber == observation.Clock.DayNumber) continue;
             if (plan is not null)
@@ -145,7 +154,7 @@ internal static class CampaignPlanner
                 bool exited = !goal.UnitIds.Intersect(observation.ActiveUnitIds).Any();
                 goals[index] = goal with { Phase = exited ? CampaignPhase.CoolingDown : CampaignPhase.Withdrawing,
                     LastProgress = exited ? observation.Clock : goal.LastProgress,
-                    Conditions = target?.Conditions ?? goal.Conditions };
+                    Conditions = target?.ConditionsFingerprint() ?? goal.Conditions };
             }
         }
         // A force finishes or exits its current commitment before spending the same reserve on a new objective.
@@ -168,6 +177,8 @@ internal static class CampaignPlanner
         if (options.IsEmpty) return null;
         var committed = options.Where(f => f.UnitId is not null).ToImmutableArray();
         (ImmutableArray<AllocationCandidate> Actions, CampaignForecast Forecast, long Value)? best = null;
+        string? conditions = null;
+        List<ImmutableArray<CampaignForce>> evaluated = [];
         // Keep a mobility alternative as well as troop strength, wall strength and preparation.
         // Fast, weaker formations must reach the actual forecast before value comparison can reject them.
         foreach (int mode in new[] { 0, 1, 2, 3 })
@@ -183,7 +194,10 @@ internal static class CampaignPlanner
             for (int count = committed.IsEmpty ? 1 : 0; count <= fresh.Length; count++)
             {
                 if (!work.Spend()) return best is { } known ? (known.Actions, known.Forecast) : null;
-                var plan = EvaluatePlan(target, committed.AddRange(fresh.Take(count)), observation, work);
+                var chosen = committed.AddRange(fresh.Take(count));
+                if (evaluated.Any(previous => previous.SequenceEqual(chosen))) continue;
+                evaluated.Add(chosen);
+                var plan = EvaluatePlan(target, chosen, observation, work, ref conditions);
                 if (plan is { } result && (best is null || result.Value > best.Value.Value)) best = result;
             }
         }
@@ -191,7 +205,7 @@ internal static class CampaignPlanner
     }
 
     private static (ImmutableArray<AllocationCandidate> Actions, CampaignForecast Forecast, long Value)? EvaluatePlan(CampaignPlace target,
-        ImmutableArray<CampaignForce> chosen, CampaignObservation observation, AllocationWork work)
+        ImmutableArray<CampaignForce> chosen, CampaignObservation observation, AllocationWork work, ref string? conditions)
     {
         if (chosen.IsEmpty || chosen.Any(f => f.Morale < 30)) return null;
         var officers = chosen.SelectMany(f => f.Action.Officers).ToArray();
@@ -216,6 +230,7 @@ internal static class CampaignPlanner
             long shortage = account.RequiredFood + food - account.Food;
             if (shortage <= 0) continue;
             var purchase = observation.Purchases.Where(p => p.Quote.AccountId == account.Id && p.Quote.Maximum >= shortage &&
+                !p.Quote.OfficerIds.Any(officers.Contains) &&
                 p.Quote.ExchangeRate > 0 && account.Money >= group.Sum(f => f.Action.MoneyCost) + (shortage + p.Quote.ExchangeRate - 1) / p.Quote.ExchangeRate)
                 .OrderBy(p => p.Quote.OfficerIds.Length).ThenBy(p => p.Quote.SettlementId).FirstOrDefault();
             if (purchase is null || !work.Spend()) return null;
@@ -229,10 +244,12 @@ internal static class CampaignPlanner
         var next = supply.Count > 0 ? supply.ToImmutable() : chosen.Where(f => f.UnitId is null || f.NeedsOrder).Select(f => f.Action).ToImmutableArray();
         bool Preparing(AllocationCandidate c) => c.Intent is not (DeployUnitCommand or OrderUnitCommand);
         if (next.Any(Preparing)) next = next.Where(Preparing).ToImmutableArray();
+        if (next.IsEmpty) return ([], delayed, value);
+        string fingerprint = conditions ??= target.ConditionsFingerprint();
         return (next.Select(c => c with
         { Benefit = value, Priority = 2, Purpose = "campaign", Campaign = new(observation.ForceId, c.ControllerId, target.Id,
             target.OwnerId, Preparing(c) ? CampaignPhase.Preparing : CampaignPhase.Assembling, observation.Clock, observation.Clock,
-            target.Soldiers + target.Durability * 100L + latest * 1000L, delayed.Days, [], target.Conditions)
+            target.Soldiers + target.Durability * 100L + latest * 1000L, delayed.Days, [], fingerprint)
             { SourceIds = chosen.Select(f => f.Action.SourceId).OfType<int>().Distinct().Order().ToImmutableArray() } }).ToImmutableArray(), delayed, value);
     }
 }

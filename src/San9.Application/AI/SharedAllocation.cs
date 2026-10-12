@@ -6,6 +6,7 @@ namespace San9.Application.AI;
 
 internal sealed class AllocationWork(long maximum)
 {
+    public long Maximum { get; } = maximum;
     public long Remaining { get; private set; } = maximum >= 0 ? maximum : throw new ArgumentOutOfRangeException(nameof(maximum));
     public bool Spend() { if (Remaining == 0) return false; Remaining--; return true; }
     public void Charge(long amount)
@@ -37,11 +38,11 @@ public static class SharedAllocator
     public static AllocationDecision Decide(ImmutableArray<(string ControllerId, EconomicObservation Observation)> economies,
         ImmutableArray<AllocationCandidate> candidates, ImmutableArray<FoodSecurityGoal> memory,
         long budget, IReadOnlySet<string> developed, IReadOnlySet<string> purchaseLimited,
-        IReadOnlySet<string>? rejected = null)
+        RejectedPlanningIntents? rejected = null)
     {
         var work = new AllocationWork(budget);
         var goals = memory;
-        var ranked = candidates.Where(c => rejected?.Contains(CanonicalJson.Hash(c.Intent)) != true)
+        var ranked = candidates.Where(c => rejected?.Contains(c.Intent) != true && HasAvailableOfficers(c, economies))
             .OrderBy(c => c.Priority).ThenByDescending(c => c.Benefit)
             .ThenBy(c => c.Arrival?.Days ?? int.MaxValue).ThenBy(c => c.MoneyCost)
             .ThenBy(c => c.OfficerOpportunityCost).ThenBy(c => c.SourceId).ThenBy(c => c.TargetId).ThenBy(c => c.Officers.FirstOrDefault()).ToArray();
@@ -64,12 +65,12 @@ public static class SharedAllocator
                     Purchases = observation.Purchases.Where(p => !p.OfficerIds.Intersect(reserved.Officers).Any()).ToImmutableArray()
                 };
             }
-            var decision = EconomicPlanner.Decide(observation, goals, controller, work.Remaining, false);
+            var decision = EconomicPlanner.Decide(observation, goals, controller, work.Remaining, false, rejected);
             work.Charge(decision.Work);
             // If the only buyer is also the proposed commander, that joint plan is infeasible; save the account first.
             if (decision.Intent is null && reserved is not null && original.Purchases.Any(p => p.OfficerIds.Intersect(reserved.Officers).Any()))
             {
-                decision = EconomicPlanner.Decide(original, goals, controller, work.Remaining, false);
+                decision = EconomicPlanner.Decide(original, goals, controller, work.Remaining, false, rejected);
                 work.Charge(decision.Work);
             }
             goals = goals.Where(g => g.ControllerId != controller || !observation.Accounts.Any(a => a.Id == g.AccountId))
@@ -109,17 +110,26 @@ public static class SharedAllocator
         }
         return Result(exhausted: work.Remaining == 0);
 
-        bool Funded(AllocationCandidate candidate)
-        {
-            if (rejected?.Contains(CanonicalJson.Hash(candidate.Intent)) == true) return false;
-            var observation = economies.FirstOrDefault(e => e.ControllerId == candidate.ControllerId).Observation;
-            var account = observation?.Accounts.FirstOrDefault(a => a.Id == candidate.AccountId);
-            var receiving = economies.SelectMany(e => e.Observation.Accounts).FirstOrDefault(a => a.Id == candidate.ReceivingAccountId);
-            return account is not null && account.Money >= candidate.MoneyCost &&
-                (candidate.Intent is OrderUnitCommand { Order.Kind: MilitaryOrderKind.Return } || account.Food >= account.RequiredFood + candidate.AdditionalFood) &&
-                (candidate.ReceivingAccountId is null || receiving is not null && receiving.Food >= receiving.RequiredFood + candidate.ReceivingFood) &&
-                (candidate.Arrival is null || candidate.Arrival.Status == ArrivalEstimateStatus.Known &&
-                    (candidate.DeadlineDays is null || candidate.Arrival.Days <= candidate.DeadlineDays));
-        }
+        bool Funded(AllocationCandidate candidate) => CanFund(candidate, economies, rejected);
     }
+
+    internal static bool CanFund(AllocationCandidate candidate,
+        ImmutableArray<(string ControllerId, EconomicObservation Observation)> economies, RejectedPlanningIntents? rejected)
+    {
+        if (rejected?.Contains(candidate.Intent) == true) return false;
+        var observation = economies.FirstOrDefault(e => e.ControllerId == candidate.ControllerId).Observation;
+        var account = observation?.Accounts.FirstOrDefault(a => a.Id == candidate.AccountId);
+        var receiving = economies.SelectMany(e => e.Observation.Accounts).FirstOrDefault(a => a.Id == candidate.ReceivingAccountId);
+        return account is not null && account.Money >= candidate.MoneyCost &&
+            HasAvailableOfficers(candidate, economies) &&
+            (candidate.Intent is OrderUnitCommand { Order.Kind: MilitaryOrderKind.Return } || account.Food >= account.RequiredFood + candidate.AdditionalFood) &&
+            (candidate.ReceivingAccountId is null || receiving is not null && receiving.Food >= receiving.RequiredFood + candidate.ReceivingFood) &&
+            (candidate.Arrival is null || candidate.Arrival.Status == ArrivalEstimateStatus.Known &&
+                (candidate.DeadlineDays is null || candidate.Arrival.Days <= candidate.DeadlineDays));
+    }
+
+    private static bool HasAvailableOfficers(AllocationCandidate candidate,
+        ImmutableArray<(string ControllerId, EconomicObservation Observation)> economies) =>
+        candidate.Officers.IsEmpty || economies.Any(e => e.ControllerId == candidate.ControllerId &&
+            candidate.Officers.All(id => e.Observation.Domestic.Settlements.Any(s => s.OfficerIds.Contains(id))));
 }

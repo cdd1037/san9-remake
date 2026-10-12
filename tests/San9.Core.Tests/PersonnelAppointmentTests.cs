@@ -24,7 +24,10 @@ public sealed class PersonnelAppointmentTests
     public void AppointmentValidatesMinimumIntelligenceAndMaintainsAdviserIdentity(int intelligence, bool accepted)
     {
         var engine = Engine(intelligence);
+        var preview = new AppointAdviserCommand(Guid.NewGuid(), 1, engine.Snapshot.Simulation.NextSequence, 12);
         string before = engine.Snapshot.StateHash;
+        Assert.Equal(accepted, engine.GetPreparationEligibility(new("player"), preview) == CommandRejection.None);
+        Assert.Equal(before, engine.Snapshot.StateHash);
         var result = engine.Execute(new("player"), new AppointAdviserCommand(Guid.NewGuid(), 1, 0, 12));
         Assert.Equal(accepted, result.Submission.Accepted);
         if (!accepted) { Assert.Equal(before, engine.Snapshot.StateHash); return; }

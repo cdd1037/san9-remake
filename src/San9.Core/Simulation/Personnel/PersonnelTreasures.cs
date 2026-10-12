@@ -11,8 +11,7 @@ public sealed record TreasureTransferredEvent(GameClock Clock, int ForceId, int 
 
 internal static class PersonnelTreasures
 {
-    internal static CommandRejection Grant(WorldMutation world, GrantTreasureCommand command,
-        TreasureRulebook rules, EconomyRulebook economy, List<DomainEvent> events)
+    internal static CommandRejection GrantEligibility(WorldMutation world, GrantTreasureCommand command, TreasureRulebook rules)
     {
         if (!world.Treasures.TryGetValue(command.TreasureId, out var item) || !rules.Items.ContainsKey(command.TreasureId))
             return CommandRejection.UnknownTreasure;
@@ -22,14 +21,23 @@ internal static class PersonnelTreasures
         if (!IsOwnOfficer(recipient, command.IssuerId, ruler.Value) || IsTravelling(world, recipient.Id))
             return CommandRejection.PersonUnavailable;
 
+        return CommandRejection.None;
+    }
+
+    internal static CommandRejection Grant(WorldMutation world, GrantTreasureCommand command,
+        TreasureRulebook rules, EconomyRulebook economy, List<DomainEvent> events)
+    {
+        var rejection = GrantEligibility(world, command, rules);
+        if (rejection != CommandRejection.None) return rejection;
+        var item = world.Treasures[command.TreasureId];
+        var recipient = world.Officers[command.OfficerId];
         Transfer(world, item, recipient.Id, command.IssuerId, "grant", events);
         int loyalty = (int)Math.Min(255L, (long)recipient.Loyalty + rules.Items[item.Id].LoyaltyBonus);
         RecruitmentRules.SetLoyalty(world, recipient.Id, command.IssuerId, loyalty, "treasure-granted", events);
         return CommandRejection.None;
     }
 
-    internal static CommandRejection Confiscate(WorldMutation world, ConfiscateTreasureCommand command,
-        TreasureRulebook rules, EconomyRulebook economy, List<DomainEvent> events)
+    internal static CommandRejection ConfiscateEligibility(WorldMutation world, ConfiscateTreasureCommand command, TreasureRulebook rules)
     {
         if (!world.Treasures.TryGetValue(command.TreasureId, out var item) || !rules.Items.ContainsKey(command.TreasureId))
             return CommandRejection.UnknownTreasure;
@@ -42,7 +50,19 @@ internal static class PersonnelTreasures
         if ((!IsOwnOfficer(person, command.IssuerId, ruler.Value) && !detainedHere) || IsTravelling(world, holder))
             return CommandRejection.PersonUnavailable;
 
-        Transfer(world, item, ruler.Value, command.IssuerId, "confiscate", events);
+        return CommandRejection.None;
+    }
+
+    internal static CommandRejection Confiscate(WorldMutation world, ConfiscateTreasureCommand command,
+        TreasureRulebook rules, EconomyRulebook economy, List<DomainEvent> events)
+    {
+        var rejection = ConfiscateEligibility(world, command, rules);
+        if (rejection != CommandRejection.None) return rejection;
+        var item = world.Treasures[command.TreasureId];
+        int? ruler = world.Forces[command.IssuerId].LeaderId;
+        int holder = item.HolderId!.Value;
+        var person = world.Officers[holder];
+        Transfer(world, item, ruler!.Value, command.IssuerId, "confiscate", events);
         int loyalty = (int)Math.Max(0L, person.LoyaltyTo(command.IssuerId) - 3L * rules.Items[item.Id].LoyaltyBonus / 2);
         RecruitmentRules.SetLoyalty(world, holder, command.IssuerId, loyalty, "treasure-confiscated", events);
         return CommandRejection.None;

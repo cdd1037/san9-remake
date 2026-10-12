@@ -13,6 +13,7 @@ internal static class SessionValidation
             snapshot.NextOperationSequence < 0)
             throw new ArgumentException("Missing session state.");
         if (snapshot.Ai is null) throw new ArgumentException("Missing AI state.");
+        if (!Enum.IsDefined(snapshot.PlayerForceController)) throw new ArgumentException("Invalid player force controller.");
         snapshot.Ai.Validate(snapshot.World);
         var expected = definition.CreateWorld(snapshot.World.Simulation.InitialSeed);
         var generated = snapshot.World.Forces.Where(f => f.Origin is not null).OrderBy(f => f.Id).ToArray();
@@ -35,7 +36,7 @@ internal static class SessionValidation
         }
         var expectedControls = definition.Content.Forces.OrderBy(f => f.Id == definition.Content.PlayerForceId ? 0 : 1).ThenBy(f => f.Id)
             .Select(f => new ControlSeat(f.Id == definition.Content.PlayerForceId ? "player" : $"ai:{f.Id}", f.Id,
-                f.Id == definition.Content.PlayerForceId ? ControllerKind.Player : ControllerKind.Automatic))
+                f.Id == definition.Content.PlayerForceId ? snapshot.PlayerForceController : ControllerKind.Automatic))
             .Concat(generated.Select(f => new ControlSeat($"ai:{f.Id}", f.Id, ControllerKind.Automatic)))
             .Where(c => snapshot.World.Forces.Any(f => f.Id == c.ForceId && !f.IsDormant && !f.IsEliminated));
         if (snapshot.World.Simulation.Started != expected.Clock ||

@@ -29,7 +29,7 @@ public sealed class DiplomacyPlannerTests
         };
         var session = GameSession.Start(content, 42);
         var seat = session.Snapshot.Simulation.Controls[0];
-        var command = Assert.IsType<DemandSurrenderCommand>(DiplomacyPlanner.Choose(session, seat, Guid.NewGuid()));
+        var command = Assert.IsType<DemandSurrenderCommand>(DiplomacyPlanner.Choose(session, content, seat, Guid.NewGuid()));
         Assert.True(session.Execute(new(seat.ControllerId), command).Submission.Accepted);
         var result = session.AdvanceXun();
         Assert.True(Assert.Single(result.Events.OfType<SurrenderResolvedEvent>()).Accepted);
@@ -45,7 +45,7 @@ public sealed class DiplomacyPlannerTests
         session.BeginRecording();
         session.EndControl(new("player"));
         var seat = session.Snapshot.Simulation.Controls.Single(c => c.ForceId == 2);
-        var gift = Assert.IsType<GiftCommand>(DiplomacyPlanner.Choose(session, seat, Guid.NewGuid()));
+        var gift = Assert.IsType<GiftCommand>(DiplomacyPlanner.Choose(session, content, seat, Guid.NewGuid()));
         Assert.True(session.Execute(new(seat.ControllerId), gift).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), content);
         restored.AdvanceXun();
@@ -81,7 +81,7 @@ public sealed class DiplomacyPlannerTests
         var session = GameSession.Start(content, 42);
         var seat = session.Snapshot.Simulation.Controls[0];
         string before = session.Snapshot.StateHash;
-        var command = Assert.IsType<RequestAttackCommand>(DiplomacyPlanner.Choose(session, seat, Guid.NewGuid()));
+        var command = Assert.IsType<RequestAttackCommand>(DiplomacyPlanner.Choose(session, content, seat, Guid.NewGuid()));
         Assert.Equal(2, command.TargetForceId);
         Assert.Equal(3, command.TargetSettlementId);
         Assert.Equal(before, session.Snapshot.StateHash);
@@ -98,12 +98,12 @@ public sealed class DiplomacyPlannerTests
         var seat = session.Snapshot.Simulation.Controls[0];
         var id = Guid.NewGuid();
         string before = session.Snapshot.StateHash;
-        var command = Assert.IsType<ReturnPrisonerCommand>(DiplomacyPlanner.Choose(session, seat, id));
-        Assert.Equal(command, DiplomacyPlanner.Choose(session, seat, id));
+        var command = Assert.IsType<ReturnPrisonerCommand>(DiplomacyPlanner.Choose(session, content, seat, id));
+        Assert.Equal(command, DiplomacyPlanner.Choose(session, content, seat, id));
         Assert.Equal(before, session.Snapshot.StateHash);
         Assert.Equal(3, command.PrisonerId);
         Assert.True(session.Execute(new(seat.ControllerId), command).Submission.Accepted);
-        Assert.IsType<WaitCommand>(DiplomacyPlanner.Choose(session, seat, Guid.NewGuid()));
+        Assert.IsType<WaitCommand>(DiplomacyPlanner.Choose(session, content, seat, Guid.NewGuid()));
     }
 
     [Fact]
@@ -113,11 +113,11 @@ public sealed class DiplomacyPlannerTests
         content = content with { Information = content.Information with { Corps = content.Information.Corps.Select(f => f.IsRoot && f.OwnerId == 1 ? f with { Treasury = f.Treasury with { Money = 30000 } } : f).ToArray(), Relations = [new(1, 2, 60)] } };
         var session = GameSession.Start(content, 42);
         var seat = session.Snapshot.Simulation.Controls[0];
-        var gift = Assert.IsType<GiftCommand>(DiplomacyPlanner.Choose(session, seat, Guid.NewGuid()));
+        var gift = Assert.IsType<GiftCommand>(DiplomacyPlanner.Choose(session, content, seat, Guid.NewGuid()));
         Assert.Equal(2000u, gift.Offer.Amount);
         Assert.True(session.Execute(new(seat.ControllerId), gift).Submission.Accepted);
         content = content with { Information = content.Information with { Corps = content.Information.Corps.Select(f => f.IsRoot && f.OwnerId == 1 ? f with { Treasury = f.Treasury with { Money = 19999 } } : f).ToArray() } };
         session = GameSession.Start(content, 42);
-        Assert.IsType<WaitCommand>(DiplomacyPlanner.Choose(session, seat, Guid.NewGuid()));
+        Assert.IsType<WaitCommand>(DiplomacyPlanner.Choose(session, content, seat, Guid.NewGuid()));
     }
 }

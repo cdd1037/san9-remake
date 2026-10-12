@@ -9,10 +9,35 @@ namespace San9.Application.Tests;
 
 public sealed class DomainOpportunityTests
 {
+    [Fact]
+    public void DeferredEvidencePreservesThePersistedCooldownFingerprint()
+    {
+        var subject = new { OwnerId = 2, Status = OfficerStatus.Serving, SettlementId = 3, UnitId = (int?)null, Loyalty = (int?)75 };
+        var evidence = new OpportunityConditions(80, 6, 60, subject, new(8, 9), null, 40);
+        string persisted = CanonicalJson.Hash(new { accuracy = 80, adviserId = (int?)6, prior = 60, subject,
+            actorBand = new { Intelligence = 8, Politics = 9 }, relation = (int?)null, gossipRelation = (int?)40 });
+        Assert.Equal(persisted, evidence.Fingerprint());
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData(" ")]
+    public void RestoreRejectsOpportunityWithMissingController(string? controller)
+    {
+        var content = G01ScenarioTests.Fixture();
+        var session = GameSession.Start(content, 190);
+        var saved = session.Capture();
+        var attempt = new OpportunityAttempt(2, controller!, "SearchCommand:2", "conditions", Guid.NewGuid(), 5,
+            saved.World.Clock, saved.World.Clock, "failed");
+        Assert.Throws<ArgumentException>(() => GameSession.Restore(content,
+            saved with { Ai = saved.Ai with { Opportunities = [attempt] } }));
+    }
+
     private static OpportunityOption Option(AdviserOpinion opinion = AdviserOpinion.Unfavorable) => new(
         new("ai:2", 2, new RecruitOfficerCommand(Guid.Empty, 2, 0, 5, 3), [5], 5, 2000, 100, 0,
             Purpose: "personnel") { OfficerOpportunityCost = 100 },
-        new(CommandRejection.None, 6, opinion), 60, 10, "RecruitOfficerCommand:3", "conditions");
+        new(CommandRejection.None, 6, opinion), 60, 10, "RecruitOfficerCommand:3", new(100, 6, 60, null, new(8, 8), null, null));
 
     [Fact]
     public void ReliableAdviceOverridesThePriorButFallibleAdviceRemainsEvidence()
@@ -66,7 +91,7 @@ public sealed class DomainOpportunityTests
     {
         var session = GameSession.Start(G01ScenarioTests.Fixture(), 190);
         var option = Option(AdviserOpinion.Favorable);
-        var attempt = new OpportunityAttempt(2, "ai:2", option.Key, option.Conditions, Guid.NewGuid(), 5,
+        var attempt = new OpportunityAttempt(2, "ai:2", option.Key, option.Conditions.Fingerprint(), Guid.NewGuid(), 5,
             session.Snapshot.Clock, session.Snapshot.Clock, "pending");
         var unrelated = OpportunityPlanner.Feedback([attempt], session.Snapshot,
             [new RecruitmentResolvedEvent(session.Snapshot.Clock, 5, 99, 0, 0, false)]);
@@ -76,7 +101,8 @@ public sealed class DomainOpportunityTests
         Assert.Equal("failed", Assert.Single(failed).Outcome);
         var observation = new OpportunityObservation(session.Snapshot.Clock, 100, [option], true);
         Assert.Empty(OpportunityPlanner.Plan(observation, failed, new(100)));
-        Assert.Single(OpportunityPlanner.Plan(observation with { Options = [option with { Conditions = "new conditions" }] }, failed, new(100)));
+        Assert.Single(OpportunityPlanner.Plan(observation with { Options = [option with
+            { Conditions = option.Conditions with { ActorBand = new(9, 8) } }] }, failed, new(100)));
         Assert.Single(OpportunityPlanner.Plan(observation with { Clock = failed[0].RetryAfter }, failed, new(100)));
         var restored = GameSession.Restore(G01ScenarioTests.Fixture(), session.Capture() with
             { Ai = session.AiState with { Opportunities = failed } });

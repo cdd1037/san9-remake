@@ -5,7 +5,7 @@ namespace San9.Core.Simulation;
 
 /// <summary>
 /// Stages one atomic world change. Handlers validate business preconditions; the engine
-/// coordinates execution and the world validates invariants before publishing the final state.
+/// coordinates execution. Handlers preserve domain invariants when changing state.
 /// </summary>
 internal sealed partial class WorldMutation : IWorldQuery
 {
@@ -145,6 +145,7 @@ internal sealed partial class WorldMutation : IWorldQuery
         _activeCorps = null; _activeTreasures = null; _activeRelations = null;
         _engagements = null; _movementOccupancy = null;
         _unitMembers = null; _settlementMembers = null;
+        _forcePersonnel = null;
         _holdings = null; _treasureEffects.Clear();
     }
 

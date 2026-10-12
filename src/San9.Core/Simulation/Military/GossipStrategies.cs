@@ -20,8 +20,11 @@ internal static class GossipStrategies
         .Where(person => person.OwnerId == forceId && person.IsServing && person.Status != OfficerStatus.Ruler)
         .OrderBy(person => person.Loyalty).ThenBy(person => person.Id).ToArray();
 
-    private static int MemberCount(WorldMutation world, int forceId) => world.Officers.Values.Count(person =>
-        person.OwnerId == forceId && person.IsServing);
+    private static bool HasTargets(WorldMutation world, int forceId)
+    {
+        var people = world.ForcePersonnel(forceId);
+        return people.Serving > 1 && people.NonRulers > 0;
+    }
 
     private static bool ValidForce(WorldMutation world, int forceId) =>
         world.Forces.TryGetValue(forceId, out var force) && !force.IsEliminated && !force.IsBarbarian &&
@@ -34,7 +37,7 @@ internal static class GossipStrategies
             actorForceId == firstTargetForceId || actorForceId == secondTargetForceId ||
             firstTargetForceId == secondTargetForceId ||
             !MilitaryDiplomacy.CanUseHostileStrategy(world, actorForceId, firstTargetForceId) ||
-            MemberCount(world, firstTargetForceId) <= 1 || Targets(world, firstTargetForceId).Length == 0) return false;
+            !HasTargets(world, firstTargetForceId)) return false;
         return true;
     }
 

@@ -39,11 +39,15 @@ public static class DomesticPlanner
             foreach (var activity in priorities)
             {
                 if (!Spend()) return Result(true);
+                if (city.UnavailableActivities.Contains(activity)) continue;
                 if (activity == DomesticActivity.Recruit && (city.Soldiers >= 10000 || city.Food < (city.Soldiers + 5000L) / 50)) continue;
                 for (int count = people.Length; count > 0; count--)
                 {
                     if (!Spend()) return Result(true);
-                    if (activity != DomesticActivity.Train && city.Money < 50 * count + 100) continue;
+                    // Supply reservations belong to the account allocator. Recruitment pays for actual
+                    // recruits; ordinary development costs exactly 50 per participant and training is free.
+                    if (activity == DomesticActivity.Recruit ? city.Money == 0 :
+                        activity != DomesticActivity.Train && city.Money < 50 * count) continue;
                     candidates.Add(new(observation.Perspective.ObserverId, city.Id, people.Take(count).ToImmutableArray(), activity));
                 }
             }

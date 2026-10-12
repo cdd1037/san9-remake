@@ -8,6 +8,32 @@ namespace San9.Core.Tests;
 public sealed class SimulationEngineTests
 {
     [Fact]
+    public void SchedulingOnlySnapshotUsesTheSameTaskOrderAsARebuiltSnapshot()
+    {
+        var world = CreateWorld();
+        var clock = world.Clock;
+        var mutation = world.BeginMutation();
+        mutation.SetSimulation(mutation.Simulation with
+        {
+            Boundary = SimulationBoundary.Stable, NextSequence = 2,
+            Tasks = [new(Id(802), "fixture", "player", 1, 3, 1, clock, clock.Advance(), 0, 1),
+                new(Id(801), "fixture", "player", 1, 2, 1, clock, clock.Advance(), 0, 0)]
+        });
+        world.Commit(mutation);
+        var before = world.CreateSnapshot();
+        var restored = WorldState.Restore(before);
+        foreach (var state in new[] { world, restored })
+        {
+            var next = state.BeginMutation();
+            next.SetSimulation(next.Simulation with { ActiveControl = 1 });
+            state.Commit(next);
+        }
+        Assert.Equal(world.CreateSnapshot().StateHash, restored.CreateSnapshot().StateHash);
+        Assert.Equal(new long[] { 0, 1 }, world.CreateSnapshot().Simulation.Tasks.Select(t => t.Sequence));
+        Assert.Same(before.Officers, world.CreateSnapshot().Officers);
+    }
+
+    [Fact]
     public void RuntimeBranchesShareCommittedSnapshotButPublishIndependentState()
     {
         var engine = new SimulationEngine(CreateWorld());
@@ -64,7 +90,8 @@ public sealed class SimulationEngineTests
                 ResourceAccounts.Change(world, ResourceAccounts.Resolve(world, force.Id, null), ResourceKind.Money, -50, "fixture-investment", null, events, true);
                 var city = world.Settlements[task.OriginSettlementId];
                 int increment = 1 + (int)(world.NextRandom("fixture-investment") % 10);
-                world.Replace(city with { Commerce = owner.FailCompletion ? 9999 : city.Commerce + increment });
+                world.Replace(city with { Commerce = city.Commerce + increment });
+                if (owner.FailCompletion) throw new InvalidOperationException("Injected task failure after effects.");
             }
         }
     }
@@ -289,7 +316,7 @@ public sealed class SimulationEngineTests
         engine.Execute(new("player"), new StartTaskCommand(Id(1), 1, 0, "fixture-investment", 2, 1));
         engine.EndControl(new("player")); engine.EndControl(new("ai"));
         var saved = engine.CaptureStableState();
-        Assert.Throws<ArgumentException>(() => engine.AdvanceXun());
+        Assert.Throws<InvalidOperationException>(() => engine.AdvanceXun());
         Assert.Same(saved, engine.CaptureStableState());
         rules.FailCompletion = false;
         var fresh = new SimulationEngine(WorldState.Restore(saved), rules);
@@ -432,7 +459,7 @@ public sealed class SimulationEngineTests
     [InlineData(3)]
     [InlineData(4)]
     [InlineData(5)]
-    public void SchedulingInvariantsRejectMalformedCandidatesAtomically(int variant)
+    public void ExplicitSchedulingAuditRejectsMalformedCandidates(int variant)
     {
         var world = CreateWorld();
         var engine = new SimulationEngine(world, new FixtureRules());
@@ -451,7 +478,7 @@ public sealed class SimulationEngineTests
         };
         var mutation = world.BeginMutation();
         mutation.SetSimulation(invalid);
-        Assert.Throws<ArgumentException>(() => world.Commit(mutation));
+        Assert.Throws<ArgumentException>(() => WorldInvariants.Validate(mutation));
         Assert.Same(before, engine.Snapshot);
     }
 

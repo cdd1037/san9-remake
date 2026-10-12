@@ -30,6 +30,28 @@ public sealed class CampaignPlanningTests
             new CorpsState(2, 2, 2, new(100000, 100000)) { IsRoot = true }], [])
     };
 
+    [Fact]
+    public void DeploymentPreparationMatchesSubmissionWithoutMovingTheArmy()
+    {
+        var definition = Fixture();
+        var session = GameSession.Start(definition, 190);
+        var world = session.Snapshot;
+        var engine = GameSession.EngineFactory(definition)(WorldState.Restore(world with
+            { Simulation = world.Simulation with { ActiveControl = 1 } }));
+        var command = new DeployUnitCommand(Guid.NewGuid(), 2, world.Simulation.NextSequence, 2, [3], 5000, 7,
+            new(MilitaryOrderKind.AttackSettlement, null, 3));
+        string before = engine.Snapshot.StateHash;
+        foreach (var query in new[] { command, command with { Soldiers = 50000 }, command with { OfficerIds = [1] },
+            command with { DepartureDelayDays = 20 } })
+        foreach (var context in new[] { new CommandContext("ai:2"), new CommandContext("forged") })
+            Assert.Equal(engine.Validate(context, query).Rejection, engine.GetPreparationEligibility(context, query));
+        Assert.Equal(before, engine.Snapshot.StateHash);
+        Assert.Equal(CommandRejection.None, engine.GetPreparationEligibility(new("ai:2"), command));
+        Assert.True(engine.Execute(new("ai:2"), command).Submission.Accepted);
+        Assert.NotEqual(CommandRejection.None, engine.GetPreparationEligibility(new("ai:2"), command with
+            { CommandId = Guid.NewGuid(), Sequence = engine.Snapshot.Simulation.NextSequence }));
+    }
+
     private static CampaignObservation Observe(GameSession session, ScenarioInitialState definition, long budget = 65536)
     {
         var snapshot = session.Snapshot;
@@ -110,9 +132,57 @@ public sealed class CampaignPlanningTests
             new(MilitaryOrderKind.AttackSettlement, null, 3)), [source + 10], 2, 0, cost, 100,
             source, 3, new(ArrivalEstimateStatus.Known, days), Purpose: "campaign"), count, 100, 90, new(20, 20, 30, 20, 50), true);
     private static CampaignPlace Target(uint soldiers = 10000, int walls = 1000) => new(3, 1, soldiers, 100, walls,
-        walls, 100, 70, new(20, 20, 0, 20, 50), 50000, "public-conditions");
+        walls, 100, 70, new(20, 20, 0, 20, 50), 50000);
     private static CampaignObservation Input(ImmutableArray<CampaignForce> forces) =>
         new(new(190, 1, 1), 2, [Target()], forces, [], [], [], [new(2, 100000, 100000, 1000) { HorizonDays = 90 }], true);
+
+    [Fact]
+    public void UnfinishedAlternativesDoNotDiscardAValidatedLocalCampaign()
+    {
+        var observed = Input([Force(2, 12000)]) with
+            { Places = [Target(1000, 20)], Complete = false, AnalysisReady = true };
+        Assert.NotEmpty(CampaignPlanner.Decide(observed, [], new(65536)).Candidates);
+        Assert.Empty(CampaignPlanner.Decide(observed with { AnalysisReady = false }, [], new(65536)).Candidates);
+    }
+
+    [Fact]
+    public void UnresolvedCommittedArrivalIsNotEvidenceOfAnInvalidOrder()
+    {
+        var goal = new CampaignGoal(2, "ai:2", 3, 1, CampaignPhase.Attacking,
+            new(190, 1, 1), new(190, 1, 1), 100000, 20, [7], "conditions");
+        var observed = Input([]) with { Complete = false, AnalysisReady = true, ActiveUnitIds = [7], UnresolvedUnitIds = [7] };
+        var decision = CampaignPlanner.Decide(observed, [goal], new(65536));
+        Assert.Empty(decision.Candidates);
+        Assert.Equal(goal, Assert.Single(decision.Goals));
+    }
+
+    [Fact]
+    public void DistantGarrisonsDoNotConsumeRouteSearchBeforeALocalCampaign()
+    {
+        var basis = Fixture();
+        var distant = Enumerable.Range(10, 40).Select(id => basis.Settlements[0] with
+            { Id = id, NameKey = "distant-" + id, X = 1000 + id * 3, Soldiers = 10000 }).ToArray();
+        var definition = basis with
+        {
+            Settlements = [..basis.Settlements, ..distant],
+            Military = basis.Military! with { Width = 1200, TerrainIds = Enumerable.Repeat(0, 3600).ToImmutableArray(),
+                Places = basis.Military.Places.AddRange(distant.Select(s => new BattlefieldPlace(s.Id, s.Position, new(1, 1))
+                    { Combat = new(10, 10, 0, 10, 50) })) }
+        };
+        var session = GameSession.Start(definition, 42);
+        using (var diagnostics = new PathSearchDiagnostics())
+        {
+            var threats = MilitarySituation.Capture(session.Snapshot, 2, session.MilitaryRules!)
+                .Project(session.Snapshot.Settlements.Where(s => s.Id is 2 or 3).ToArray(), session.MilitaryRules!, new(65536), true, false);
+            Assert.True(threats.Complete);
+            Assert.Equal(0, diagnostics.Queries);
+            Assert.Equal(threats.Arrivals.Length, threats.Arrivals.Select(a => (a.Source.UnitId, a.Source.SettlementId)).Distinct().Count());
+            Assert.All(threats.Arrivals.Where(a => a.Source.SettlementId >= 10), a => Assert.True(a.EarliestDays > 100));
+        }
+        var observed = Observe(session, definition, 8192);
+        Assert.True(observed.AnalysisReady);
+        Assert.Contains(CampaignPlanner.Decide(observed, [], new(8192)).Candidates, c => c.TargetId == 3);
+    }
 
     [Fact]
     public void JointPlanRequiresEveryAccountAndRejectsLateAssembly()
@@ -201,7 +271,7 @@ public sealed class CampaignPlanningTests
         var exited = CampaignPlanner.Decide(observation with { Forces = [], ActiveUnitIds = [], Returns = [] }, stalled.Goals, new(65536));
         Assert.Equal(CampaignPhase.CoolingDown, Assert.Single(exited.Goals).Phase);
         Assert.Empty(CampaignPlanner.Decide(observation with { Forces = [Force(2, 20000)] }, exited.Goals, new(65536)).Candidates);
-        var changed = observation with { Forces = [Force(2, 20000)], Places = [Target(100, 10) with { Conditions = "changed" }] };
+        var changed = observation with { Forces = [Force(2, 20000)], Places = [Target(100, 10)] };
         Assert.NotEmpty(CampaignPlanner.Decide(changed, exited.Goals, new(65536)).Candidates);
     }
 

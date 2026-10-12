@@ -6,6 +6,71 @@ namespace San9.Core.Tests;
 
 public sealed class PersonnelTreasureTests
 {
+    [Theory]
+    [InlineData(DomesticActivity.Commerce)]
+    [InlineData(DomesticActivity.Train)]
+    [InlineData(DomesticActivity.Recruit)]
+    public void DomesticPreparationIsReadOnlyAndRejectsUsedActivities(DomesticActivity activity)
+    {
+        var snapshot = Engine().Snapshot;
+        snapshot = snapshot with { Settlements = snapshot.Settlements.Select(s => s.Id == 1
+            ? s with { Soldiers = 5000, Morale = 30, Commerce = 0, MaxCommerce = 1000, DraftPopulation = 10000 } : s).ToArray() };
+        var engine = new SimulationEngine(WorldState.Restore(snapshot), new([new(1, 0)], [], 10), Places, Rules(), Governance);
+        var command = new DevelopCommand(Guid.NewGuid(), 1, engine.Snapshot.Simulation.NextSequence, new(1, 1, [2], activity));
+        string before = engine.Snapshot.StateHash;
+        Assert.Equal(CommandRejection.None, engine.GetPreparationEligibility(new("player"), command));
+        Assert.Equal(before, engine.Snapshot.StateHash);
+        Assert.True(engine.Execute(new("player"), command).Submission.Accepted);
+        var next = command with { CommandId = Guid.NewGuid(), Sequence = engine.Snapshot.Simulation.NextSequence };
+        Assert.Equal(CommandRejection.DevelopmentFailed, engine.GetPreparationEligibility(new("player"), next));
+        Assert.Equal(engine.Validate(new("player"), next).Rejection, engine.GetPreparationEligibility(new("player"), next));
+    }
+
+    [Theory]
+    [InlineData("grant", true)]
+    [InlineData("grant", false)]
+    [InlineData("confiscate", true)]
+    [InlineData("confiscate", false)]
+    [InlineData("reward", true)]
+    [InlineData("reward", false)]
+    [InlineData("office", true)]
+    [InlineData("office", false)]
+    public void PreparationMatchesExecutionWithoutChangingWorld(string kind, bool valid)
+    {
+        var engine = Engine();
+        var before = engine.Snapshot;
+        int officer = valid ? 2 : 9999;
+        GameCommand command = kind switch
+        {
+            "grant" => new GrantTreasureCommand(Guid.NewGuid(), 1, before.Simulation.NextSequence, 10, officer),
+            "confiscate" => new ConfiscateTreasureCommand(Guid.NewGuid(), 1, before.Simulation.NextSequence, valid ? 12 : 9999),
+            "reward" => new RewardOfficerCommand(Guid.NewGuid(), 1, before.Simulation.NextSequence, officer),
+            _ => new AssignOfficesCommand(Guid.NewGuid(), 1, before.Simulation.NextSequence, [new(officer, null)])
+        };
+        var rejection = engine.GetPreparationEligibility(new("player"), command);
+        Assert.Equal(valid, rejection == CommandRejection.None);
+        Assert.Equal(before.StateHash, engine.Snapshot.StateHash);
+        Assert.Equal(rejection, engine.Execute(new("player"), command).Submission.Rejection);
+        var next = command with { CommandId = Guid.NewGuid(), Sequence = engine.Snapshot.Simulation.NextSequence };
+        Assert.Equal(engine.Validate(new("player"), next).Rejection, engine.GetPreparationEligibility(new("player"), next));
+    }
+
+    [Fact]
+    public void AbilityProjectionReusesUnchangedDependenciesAndRefreshesTreasureAndInjury()
+    {
+        var engine = Engine();
+        var before = engine.Snapshot;
+        var abilities = engine.GetAbilities(before);
+        var acted = before with { Officers = before.Officers.Select(p => p with { Acted = !p.Acted }).ToArray() };
+        Assert.Same(abilities, engine.GetAbilities(acted));
+        Grant(engine);
+        var granted = engine.GetAbilities(engine.Snapshot);
+        Assert.NotEqual(abilities[2].War, granted[2].War);
+        var injured = engine.Snapshot with { Officers = engine.Snapshot.Officers.Select(p => p.Id == 2 ? p with { Injury = 5 } : p).ToArray() };
+        Assert.NotEqual(granted[2].War, engine.GetAbilities(injured)[2].War);
+        Assert.Equal(abilities, engine.GetAbilities(before));
+    }
+
     private static readonly PersonnelRulebook Places = new([new(1, new(0, 0)), new(2, new(300, 0)), new(3, new(0, 300))]);
     private static TreasureRulebook Rules(int loyalty = 8) => new([new(10, new(10, 0, 0, 0), loyalty),
         new(11, new(6, 0, 0, 0), 0), new(12, new(0, 7, 0, 0), 8)]);

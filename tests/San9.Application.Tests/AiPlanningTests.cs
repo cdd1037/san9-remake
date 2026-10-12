@@ -27,33 +27,32 @@ public sealed class AiPlanningTests
     }
 
     [Fact]
-    public void Planner_IsDeterministicForSameObservationAndBudget()
+    public void AnalysisRandom_IsDeterministicForSameObservationAndPurpose()
     {
         SimulationEngine engine = CreateEngine();
-        IAiPlanner planner = new SamplePlanner();
         AiPlanningContext first = CreateContext(engine, AiDiagnosticLevel.None);
         AiPlanningContext second = CreateContext(engine, AiDiagnosticLevel.None);
 
-        AiPlan firstPlan = planner.Plan(first);
-        AiPlan secondPlan = planner.Plan(second);
-
         Assert.Equal(first.AnalysisSeed, second.AnalysisSeed);
-        Assert.Equal(firstPlan.Proposals, secondPlan.Proposals);
-        Assert.Equal(firstPlan.Diagnostics, secondPlan.Diagnostics);
+        var a = first.CreateAnalysisRandom();
+        var b = second.CreateAnalysisRandom();
+        for (int index = 0; index < 100; index++) Assert.Equal(a.NextUInt64(), b.NextUInt64());
     }
 
     [Fact]
     public void DiagnosticLevel_DoesNotChangeProposals()
     {
-        SimulationEngine engine = CreateEngine();
-        IAiPlanner planner = new SamplePlanner();
-
-        AiPlan withoutDiagnostics = planner.Plan(CreateContext(engine, AiDiagnosticLevel.None));
-        AiPlan withDiagnostics = planner.Plan(CreateContext(engine, AiDiagnosticLevel.Detailed));
-
-        Assert.Equal(withoutDiagnostics.Proposals, withDiagnostics.Proposals);
-        Assert.Empty(withoutDiagnostics.Diagnostics);
-        Assert.NotEmpty(withDiagnostics.Diagnostics);
+        var content = G01ScenarioTests.Fixture();
+        var plain = GameSession.Start(content, 190, playerForceController: ControllerKind.Automatic);
+        var diagnosed = GameSession.Start(content, 190, playerForceController: ControllerKind.Automatic);
+        diagnosed.AllocationDiagnosticsEnabled = true;
+        for (int turn = 0; turn < 3; turn++)
+        {
+            Assert.Equal(CanonicalJson.Hash(plain.AdvanceXun().Events), CanonicalJson.Hash(diagnosed.AdvanceXun().Events));
+            Assert.Equal(plain.Capture().StateHash, diagnosed.Capture().StateHash);
+        }
+        Assert.Empty(plain.AllocationDiagnostics.Batches);
+        Assert.NotEmpty(diagnosed.AllocationDiagnostics.Batches);
     }
 
     [Fact]
@@ -61,10 +60,8 @@ public sealed class AiPlanningTests
     {
         SimulationEngine engine = CreateEngine();
         WaitCommand invalid = new(Guid.Parse("00000000-0000-0000-0000-000000000001"), 1, -1);
-        AiPlan plan = new([new AiCommandProposal(invalid, 100, "invalid test candidate")]);
-
-        CommandSubmissionResult validation = engine.Validate(new("ai"), plan.Proposals[0].Command);
-        CommandSubmissionResult submission = engine.Execute(new("ai"), plan.Proposals[0].Command).Submission;
+        CommandSubmissionResult validation = engine.Validate(new("ai"), invalid);
+        CommandSubmissionResult submission = engine.Execute(new("ai"), invalid).Submission;
         AdvanceXunResult result = engine.AdvanceXun();
 
         Assert.Equal(CommandRejection.NegativeSequence, validation.Rejection);
@@ -127,37 +124,5 @@ public sealed class AiPlanningTests
             new GameClock(190, 1, XunIndex.Early),
             seed: 190UL);
         return new SimulationEngine(world);
-    }
-
-    private sealed class SamplePlanner : IAiPlanner
-    {
-        public AiPlan Plan(AiPlanningContext context)
-        {
-            StableRandom random = context.CreateAnalysisRandom();
-            List<AiCommandProposal> proposals = [];
-            int count = Math.Min(context.Budget.MaxRollouts, 2);
-            for (int index = 0; index < count; index++)
-            {
-                ulong roll = random.NextUInt64();
-                WaitCommand command = new(
-                    CreateGuid(roll, index),
-                    context.Observation.ObserverId,
-                    index);
-                proposals.Add(new AiCommandProposal(command, unchecked((long)roll), $"candidate-{index}"));
-            }
-
-            IEnumerable<AiDiagnostic> diagnostics = context.DiagnosticLevel == AiDiagnosticLevel.None
-                ? []
-                : [new AiDiagnostic("AI-PLAN", $"Generated {proposals.Count} candidates.")];
-            return new AiPlan(proposals, diagnostics);
-        }
-
-        private static Guid CreateGuid(ulong roll, int index)
-        {
-            byte[] bytes = new byte[16];
-            BitConverter.GetBytes(roll).CopyTo(bytes, 0);
-            BitConverter.GetBytes(index).CopyTo(bytes, 8);
-            return new Guid(bytes);
-        }
     }
 }

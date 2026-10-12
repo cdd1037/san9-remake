@@ -1,6 +1,8 @@
+using San9.Core.Domain;
+
 namespace San9.Core.Simulation;
 
-/// <summary>Validates the complete candidate state at initialization and publication.</summary>
+/// <summary>Audits external world creation/restoration and explicit test candidates.</summary>
 internal static class WorldInvariants
 {
     internal static void Validate(WorldMutation state)

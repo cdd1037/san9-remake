@@ -161,7 +161,7 @@ public sealed class EconomyTests
         var change=Assert.Single(events.OfType<ResourceChangedEvent>());
         Assert.Equal(1,change.Actual);Assert.Equal(9,change.SaturationLoss);
         mutation.Replace(mutation.Settlements[2] with { CorpsId=999 });
-        Assert.Throws<ArgumentException>(()=>world.Commit(mutation));
+        Assert.Throws<ArgumentException>(()=>WorldInvariants.Validate(mutation));
     }
 
     [Fact]

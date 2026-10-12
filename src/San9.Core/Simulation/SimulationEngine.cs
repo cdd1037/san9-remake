@@ -762,8 +762,6 @@ public sealed partial class SimulationEngine
             mutation.MaintainDerivedState(events);
             if (!commit)
             {
-                // Trials have no publication boundary; committed changes are checked by WorldState.Commit.
-                WorldInvariants.Validate(mutation);
                 preview?.Invoke(events);
                 return new(CommandSubmissionResult.Success, [], Snapshot, development);
             }
@@ -776,8 +774,29 @@ public sealed partial class SimulationEngine
         finally { _world.ExitExecution(); }
     }
 
-    public System.Collections.Immutable.ImmutableDictionary<int, OfficerAbilities> GetAbilities(WorldSnapshot snapshot) =>
-        _rules.Abilities.EvaluateMany(snapshot.Officers, snapshot.Treasures);
+    private WorldSnapshot? _abilitySnapshot;
+    private System.Collections.Immutable.ImmutableDictionary<int, OfficerAbilities>? _abilityProjection;
+
+    public System.Collections.Immutable.ImmutableDictionary<int, OfficerAbilities> GetAbilities(WorldSnapshot snapshot)
+    {
+        // The projection depends only on base abilities, injuries, offices and treasure holdings.
+        // Orders, action flags and loyalty changes do not invalidate it. Keep only the latest view.
+        bool same = _abilitySnapshot is { } previous && previous.Officers.Count == snapshot.Officers.Count &&
+            previous.Treasures.SequenceEqual(snapshot.Treasures);
+        if (same && !ReferenceEquals(_abilitySnapshot!.Officers, snapshot.Officers))
+            for (int i = 0; i < snapshot.Officers.Count; i++)
+            {
+                var before = _abilitySnapshot.Officers[i];
+                var after = snapshot.Officers[i];
+                if (before.Id == after.Id && before.BaseAbilities == after.BaseAbilities &&
+                    before.Injury == after.Injury && before.OfficeId == after.OfficeId) continue;
+                same = false;
+                break;
+            }
+        if (!same) _abilityProjection = _rules.Abilities.EvaluateMany(snapshot.Officers, snapshot.Treasures);
+        _abilitySnapshot = snapshot;
+        return _abilityProjection!;
+    }
 
     private CommandRejection ValidateEnvelope(CommandContext context, GameCommand command)
     {

@@ -5,7 +5,7 @@ namespace San9.Core.Simulation;
 
 internal static class DomesticDevelopmentHandler
 {
-    internal static DevelopmentOutcome Apply(WorldMutation world, DevelopmentCommand command, EconomyRulebook rules, List<DomainEvent> events)
+    internal static DevelopmentOutcome Prepare(WorldMutation world, DevelopmentCommand command)
     {
         if (!Enum.IsDefined(command.Activity)) return new(DevelopmentRejection.UnsupportedActivity);
         if (command.Activity != DomesticActivity.Recruit && command.RecruitAmount is not null) return new(DevelopmentRejection.UnsupportedActivity);
@@ -31,7 +31,6 @@ internal static class DomesticDevelopmentHandler
         var account = ResourceAccounts.Resolve(world, force.Id, city.CorpsId);
         uint funds = ResourceAccounts.Balance(world, account, ResourceKind.Money);
         int cost = 0, increment;
-        DomesticBonus? bonus = null;
         if (activity == DomesticActivity.Recruit)
         {
             if (city.Soldiers >= city.SoldierCapacity) return new(DevelopmentRejection.AtMaximum);
@@ -43,10 +42,6 @@ internal static class DomesticDevelopmentHandler
             }
             if (increment == 0) return new(DevelopmentRejection.NoRecruits);
             cost = (increment + 9) / 10;
-            int morale = (int)(((long)city.Soldiers * city.Morale + (long)increment * EconomyMath.RecruitMorale(force.Trust)) / (city.Soldiers + increment));
-            world.Replace(city with { Soldiers = city.Soldiers + (uint)increment, DraftPopulation = city.DraftPopulation - (uint)increment, Morale = morale, RecruitUsed = true });
-            ResourceAccounts.Report(world, new(ResourceOwnerKind.Settlement, city.Id), ResourceKind.DraftPopulation, "recruit", city.Id, -increment, -increment, events);
-            ResourceAccounts.Report(world, new(ResourceOwnerKind.Settlement, city.Id), ResourceKind.Soldiers, "recruit", city.Id, increment, increment, events);
         }
         else
         {
@@ -69,7 +64,37 @@ internal static class DomesticDevelopmentHandler
                 if (funds < cost) return new(DevelopmentRejection.InsufficientFunds);
                 increment = DomesticDevelopment.CalculateBaseEffect(activity, current, maximum, (int)Math.Min(funds, int.MaxValue), people.Select(p => abilities[p.Id]).ToArray());
             }
-            if (increment < maximum - current) bonus = ResolveBonus(world, rules, force, people, abilities, activity);
+        }
+        return new(DevelopmentRejection.None, increment, cost);
+    }
+
+    internal static DevelopmentOutcome Apply(WorldMutation world, DevelopmentCommand command, EconomyRulebook rules, List<DomainEvent> events)
+    {
+        var prepared = Prepare(world, command);
+        if (!prepared.Accepted) return prepared;
+        var force = world.Forces[command.ForceId];
+        var city = world.Settlements[command.SettlementId];
+        var people = command.OfficerIds.Order().Select(id => world.Officers[id]).ToArray();
+        var activity = command.Activity;
+        var account = ResourceAccounts.Resolve(world, force.Id, city.CorpsId);
+        int increment = prepared.Increment, cost = prepared.Cost;
+        DomesticBonus? bonus = null;
+        if (activity == DomesticActivity.Recruit)
+        {
+            int morale = (int)(((long)city.Soldiers * city.Morale + (long)increment * EconomyMath.RecruitMorale(force.Trust)) / (city.Soldiers + increment));
+            world.Replace(city with { Soldiers = city.Soldiers + (uint)increment, DraftPopulation = city.DraftPopulation - (uint)increment, Morale = morale, RecruitUsed = true });
+            ResourceAccounts.Report(world, new(ResourceOwnerKind.Settlement, city.Id), ResourceKind.DraftPopulation, "recruit", city.Id, -increment, -increment, events);
+            ResourceAccounts.Report(world, new(ResourceOwnerKind.Settlement, city.Id), ResourceKind.Soldiers, "recruit", city.Id, increment, increment, events);
+        }
+        else
+        {
+            (int current, int maximum) = activity switch
+            {
+                DomesticActivity.Patrol => (city.PublicOrder, 1000), DomesticActivity.Commerce => (city.Commerce, city.MaxCommerce),
+                DomesticActivity.Cultivation => (city.Cultivation, city.MaxCultivation), DomesticActivity.Repair => (city.Durability, city.MaxDurability),
+                _ => (city.Morale, 100)
+            };
+            if (increment < maximum - current) bonus = ResolveBonus(world, rules, force, people, world.AbilitiesFor(people), activity);
             if (bonus is not null) increment = (int)Math.Min(maximum - current, 2L * increment);
             world.Replace(activity switch
             {

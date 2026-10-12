@@ -45,6 +45,7 @@ public sealed partial class GameSession
     internal bool IsExecuting => _executing;
     private EndingSelection? _ending;
     private AiSessionState _ai = new();
+    public ControllerKind PlayerForceController { get; private set; } = ControllerKind.Player;
     public AiSessionState AiState => _ai;
     public bool AllocationDiagnosticsEnabled { get; set; }
     public AllocationDiagnostics AllocationDiagnostics { get; } = new();
@@ -128,8 +129,6 @@ public sealed partial class GameSession
     public ResponseRequest? GetPendingResponse() => _simulation.GetPendingResponse();
     public CapturedRulerPrompt? GetCapturedRulerPrompt() => _simulation.GetCapturedRulerPrompt();
     public ExecutionSuccessionPrompt? GetExecutionSuccessionPrompt() => _simulation.GetExecutionSuccessionPrompt();
-    internal GameCommand ChooseDiplomacy(ControlSeat seat, Guid commandId) => DiplomacyPlanner.Choose(_simulation, seat, commandId);
-
     public GameCommand ChooseDomesticCommand(ControlSeat seat, Guid commandId, int turn, bool scripted = false) =>
         DomesticCommandSelection.Choose(Snapshot, Validate, seat, new(seat.ControllerId), commandId, turn, scripted);
     public CommandAdvice GetSurrenderAdvice(int forceId, int officerId, int targetForceId) =>
@@ -186,18 +185,20 @@ public sealed partial class GameSession
 
     public static string Fingerprint(ScenarioInitialState definition) => new ScenarioSessionDefinition(definition).Fingerprint;
     public static GameSession Start(ScenarioInitialState definition, ulong seed, int computerDamageBonusPercent = 0,
-        bool battleDeathsEnabled = false, AiPolicyConfiguration? aiPolicy = null)
+        bool battleDeathsEnabled = false, AiPolicyConfiguration? aiPolicy = null, ControllerKind playerForceController = ControllerKind.Player)
     {
-        var session = Start(definition, seed, EngineFactory(definition), computerDamageBonusPercent, battleDeathsEnabled);
+        if (!Enum.IsDefined(playerForceController)) throw new ArgumentOutOfRangeException(nameof(playerForceController));
+        var session = Start(definition, seed, EngineFactory(definition), computerDamageBonusPercent, battleDeathsEnabled, playerForceController);
         session._ai = new() { Configuration = aiPolicy ?? AiPolicyConfiguration.Standard };
         session._ai.Validate(session.Snapshot);
         return session;
     }
 
-    internal static GameSession Start(ScenarioInitialState definition, ulong seed, Func<WorldState, SimulationEngine> factory, int computerDamageBonusPercent = 0, bool battleDeathsEnabled = false)
+    internal static GameSession Start(ScenarioInitialState definition, ulong seed, Func<WorldState, SimulationEngine> factory, int computerDamageBonusPercent = 0, bool battleDeathsEnabled = false, ControllerKind playerForceController = ControllerKind.Player)
     {
         var owned = new ScenarioSessionDefinition(definition);
-        return new(owned, factory(owned.CreateWorld(seed, computerDamageBonusPercent, battleDeathsEnabled)));
+        return new(owned, factory(owned.CreateWorld(seed, computerDamageBonusPercent, battleDeathsEnabled, playerForceController)))
+            { PlayerForceController = playerForceController };
     }
 
     public static GameSession Restore(ScenarioInitialState definition, SessionSnapshot snapshot) =>
@@ -245,6 +246,7 @@ public sealed partial class GameSession
         session._ending = snapshot.Ending;
         session._strategicContext = snapshot.StrategicContext;
         session._ai = snapshot.Ai;
+        session.PlayerForceController = snapshot.PlayerForceController;
         session.HasUnsavedChanges = false;
         return session;
     }
@@ -261,7 +263,8 @@ public sealed partial class GameSession
         if (_capture is not null && ReferenceEquals(_capture.World, world)) return _capture;
         var records = _records.ToImmutableArray();
         var chronicle = _chronicle.ToImmutableArray();
-        return _capture = new(world, records, chronicle, NextOperationSequence) { Ending = _ending, StrategicContext = _strategicContext, Ai = _ai };
+        return _capture = new(world, records, chronicle, NextOperationSequence)
+            { Ending = _ending, StrategicContext = _strategicContext, Ai = _ai, PlayerForceController = PlayerForceController };
     }
 
     public SessionRequest Request(SessionOperation operation, string controllerId = "player", Guid? id = null)

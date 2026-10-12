@@ -9,6 +9,7 @@ internal sealed partial class WorldMutation
     private Dictionary<int, ImmutableDictionary<int, OfficerState>>? _unitMembers;
     private Dictionary<int, ImmutableDictionary<int, OfficerState>>? _settlementMembers;
     private ILookup<int, PersistentTask>? _tasksByOfficer;
+    private Dictionary<int, (int Serving, int NonRulers)>? _forcePersonnel;
     private HashSet<int>? _travelingOfficers;
     private Dictionary<int, ImmutableDictionary<int, TreasureState>>? _holdings;
     private sealed record HeldTreasureEffects(OfficerAbilities Bonuses, bool EscapeMount, ImmutableHashSet<int> Tactics);
@@ -32,6 +33,8 @@ internal sealed partial class WorldMutation
 
     private void UpdateMember(OfficerState previous, OfficerState current)
     {
+        if (previous.OwnerId != current.OwnerId || previous.Status != current.Status || previous.IsDormant != current.IsDormant)
+            _forcePersonnel = null;
         if (_unitMembers is null) return;
         if (previous.UnitId is int unit && _unitMembers.TryGetValue(unit, out var members))
             _unitMembers[unit] = members.Remove(previous.Id);
@@ -55,6 +58,23 @@ internal sealed partial class WorldMutation
     internal IEnumerable<OfficerState> ServingUnitMembers(int unitId) => UnitMembers(unitId).Where(p => p.IsServing);
     internal IEnumerable<OfficerState> ServingSettlementMembers(int settlementId) =>
         SettlementMembers(settlementId).Where(p => p.IsServing && !IsTraveling(p.Id));
+
+    // Qualification queries repeatedly ask whether a force has personnel to target. Only ownership,
+    // status and activation affect these counts; attributes, action flags and location do not.
+    internal (int Serving, int NonRulers) ForcePersonnel(int forceId)
+    {
+        if (_forcePersonnel is null)
+        {
+            _forcePersonnel = [];
+            foreach (var person in Officers.Values)
+                if (person.IsServing && person.OwnerId is int owner)
+                {
+                    var previous = _forcePersonnel.GetValueOrDefault(owner);
+                    _forcePersonnel[owner] = (previous.Serving + 1, previous.NonRulers + (person.Status == OfficerStatus.Ruler ? 0 : 1));
+                }
+        }
+        return _forcePersonnel.GetValueOrDefault(forceId);
+    }
 
     private void EnsureTasks()
     {

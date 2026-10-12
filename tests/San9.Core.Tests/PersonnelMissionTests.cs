@@ -7,6 +7,26 @@ namespace San9.Core.Tests;
 public sealed class PersonnelMissionTests
 {
     [Fact]
+    public void PreparationEligibilityMatchesTrialsAndRefreshesAfterPersonnelLeaves()
+    {
+        var engine = Engine(World());
+        GameCommand[] commands = [new RecruitOfficerCommand(Guid.NewGuid(), 1, 0, 11, 20),
+            new SearchCommand(Guid.NewGuid(), 1, 0, 11, 30),
+            new MoveOfficersCommand(Guid.NewGuid(), 1, 0, [11], 1)];
+        string before = engine.Snapshot.StateHash;
+        foreach (var context in new[] { new CommandContext("player"), new CommandContext("forged") })
+        foreach (var command in commands)
+            Assert.Equal(engine.Validate(context, command).Rejection, engine.GetPreparationEligibility(context, command));
+        Assert.Equal(before, engine.Snapshot.StateHash);
+        Assert.True(engine.Execute(new("player"), commands[0]).Submission.Accepted);
+        foreach (var command in commands.Select(c => c with { CommandId = Guid.NewGuid(), Sequence = engine.Snapshot.Simulation.NextSequence }))
+        {
+            Assert.Equal(engine.Validate(new("player"), command).Rejection, engine.GetPreparationEligibility(new("player"), command));
+            Assert.NotEqual(CommandRejection.None, engine.GetPreparationEligibility(new("player"), command));
+        }
+    }
+
+    [Fact]
     public void AccurateRecruitAdviceUsesTheSubmittedRollAndLiveThresholdWithoutMutatingWorld()
     {
         var world = World(); var mutation = world.BeginMutation();

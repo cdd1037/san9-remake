@@ -8,12 +8,20 @@ public sealed record AdviserAppointedEvent(GameClock Clock, int ForceId, int? Pr
 
 internal static class PersonnelAppointments
 {
-    internal static CommandRejection Apply(WorldMutation world, AppointAdviserCommand command, List<DomainEvent> events)
+    internal static CommandRejection Eligibility(WorldMutation world, AppointAdviserCommand command)
     {
         if (!world.Officers.TryGetValue(command.OfficerId, out var candidate)) return CommandRejection.UnknownPerson;
         if (candidate.OwnerId != command.IssuerId || candidate.Status != OfficerStatus.Serving || world.Abilities(candidate).Intelligence < 70 ||
             world.Forces[command.IssuerId].LeaderId == candidate.Id)
             return CommandRejection.PersonUnavailable;
+        return CommandRejection.None;
+    }
+
+    internal static CommandRejection Apply(WorldMutation world, AppointAdviserCommand command, List<DomainEvent> events)
+    {
+        var rejection = Eligibility(world, command);
+        if (rejection != CommandRejection.None) return rejection;
+        var candidate = world.Officers[command.OfficerId];
         var force = world.Forces[command.IssuerId];
         if (force.AdviserId is int oldId)
         {

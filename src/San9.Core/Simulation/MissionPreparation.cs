@@ -111,9 +111,26 @@ public sealed partial class SimulationEngine
         var rejection = ValidateEnvelope(context, command);
         if (rejection != CommandRejection.None) return rejection;
         var world = PreparationWorld();
-        return command is SetCorpsDelegationCommand delegation
-            ? CorpsDelegations.Eligibility(world, delegation, _rules.Military)
-            : MissionPreparation.Eligibility(world, command, _rules);
+        return command switch
+        {
+            DevelopCommand develop => develop.Development is null || develop.Development.ForceId != command.IssuerId
+                ? CommandRejection.NotActiveController
+                : DomesticDevelopmentHandler.Prepare(world, develop.Development).Accepted
+                    ? CommandRejection.None : CommandRejection.DevelopmentFailed,
+            OrderUnitCommand order => MilitaryMovement.OrderEligibility(world, order, _rules.Military),
+            AppointAdviserCommand appoint => PersonnelAppointments.Eligibility(world, appoint),
+            AssignOfficesCommand offices => PersonnelOffices.Eligibility(world, offices, _rules.Governance),
+            RewardOfficerCommand reward => PersonnelRewards.Eligibility(world, reward),
+            GrantTreasureCommand grant => PersonnelTreasures.GrantEligibility(world, grant, _rules.Treasures),
+            ConfiscateTreasureCommand confiscate => PersonnelTreasures.ConfiscateEligibility(world, confiscate, _rules.Treasures),
+            SetCorpsDelegationCommand delegation => CorpsDelegations.Eligibility(world, delegation, _rules.Military),
+            RecruitOfficerCommand recruit => PersonnelMissions.ValidateRecruit(world, recruit, _rules, out _, out _),
+            SearchCommand search => PersonnelMissions.ValidateSearch(world, search, _rules.Personnel),
+            MoveOfficersCommand move => PersonnelMissions.ValidateMove(world, move, _rules.Personnel),
+            DeployUnitCommand deploy => MilitaryMovement.PrepareDeployment(world, deploy, _rules.Military,
+                _rules.Treasures, UnitPurpose.Combat, 0, 0, out _),
+            _ => MissionPreparation.Eligibility(world, command, _rules)
+        };
     }
 
     /// <summary>Reads mission eligibility and arrival without starting a task or evaluating a world change.</summary>

@@ -122,14 +122,15 @@ internal sealed class ScenarioSessionDefinition
     }
     internal MilitaryRulebook? MilitaryRules { get; }
     internal string Fingerprint { get; }
-    internal WorldState CreateWorld(ulong seed, int computerDamageBonusPercent = 0, bool battleDeathsEnabled = false) => WorldState.Create(new(Content.Year, Content.Month, Content.Day), seed,
+    internal WorldState CreateWorld(ulong seed, int computerDamageBonusPercent = 0, bool battleDeathsEnabled = false,
+        ControllerKind playerForceController = ControllerKind.Player) => WorldState.Create(new(Content.Year, Content.Month, Content.Day), seed,
         Forces(),
         BarbarianStartup.CreateSettlements(Forces(), Settlements(), Content.Officers.Select(o => o.State)),
         Content.Officers.Select(o => o.CreateState(Content.Year)), Content.Units, Content.Information.Corps,
         Content.Information.TreasureStates, Content.Information.Relations,
         Content.Forces.Where(f => !f.IsDormant).OrderBy(f => f.Id == Content.PlayerForceId ? 0 : 1).ThenBy(f => f.Id)
             .Select(f => new ControlSeat(f.Id == Content.PlayerForceId ? "player" : $"ai:{f.Id}", f.Id,
-                f.Id == Content.PlayerForceId ? ControllerKind.Player : ControllerKind.Automatic)), computerDamageBonusPercent, Content.Alliance,
+                f.Id == Content.PlayerForceId ? playerForceController : ControllerKind.Automatic)), computerDamageBonusPercent, Content.Alliance,
         Content.AttackRequests.Select(r => new AttackRequestState(r.RequestedForceId, r.RequesterForceId, r.TargetSettlementId,
             Content.Settlements.Single(s => s.Id == r.TargetSettlementId).OwnerId!.Value, r.RemainingXun)), Content.AnnualAppearancesEnabled, Content.NaturalDeathsEnabled, Content.FreeOfficerMigrationEnabled, battleDeathsEnabled, Content.OfficeRequestsEnabled, Content.ConsumedEventKeys, Content.ForceConsolidationEnabled, Content.ForceEmergenceEnabled, Content.CityIndependenceEnabled, Content.ImperialCourtEnded, Content.ThreeVisitsStarted, Content.FoodExchangeRate, Content.SettlementDefectionsEnabled, Content.UnitDefectionsEnabled);
 

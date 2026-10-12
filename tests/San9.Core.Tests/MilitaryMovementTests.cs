@@ -16,6 +16,8 @@ public sealed class MilitaryMovementTests
         var policies = new UnitPolicies(true, true, false, true);
         var command = new OrderUnitCommand(Guid.NewGuid(), 1, before.Simulation.NextSequence, unit.Id,
             new(MilitaryOrderKind.Return, null, 1)) { Policies = policies, Waypoint = new(12, 2) };
+        Assert.Equal(CommandRejection.None, engine.GetPreparationEligibility(Player, command));
+        Assert.Equal(before.StateHash, engine.Snapshot.StateHash);
         var result = engine.Execute(Player, command);
         Assert.True(result.Submission.Accepted);
         var ordered = Assert.Single(engine.Snapshot.Units);
@@ -34,6 +36,10 @@ public sealed class MilitaryMovementTests
     {
         var engine = Engine(World(), Rules()); Assert.True(engine.Execute(Player, Deploy()).Submission.Accepted);
         var before = engine.Snapshot; var unit = Assert.Single(before.Units);
+        var invalid = new OrderUnitCommand(Guid.NewGuid(), 1, before.Simulation.NextSequence, unit.Id,
+            new(MilitaryOrderKind.Return, null, 1)) { Policies = new(true, true, true, true), Waypoint = Rules().Places[2].Position };
+        Assert.Equal(engine.Validate(Player, invalid).Rejection, engine.GetPreparationEligibility(Player, invalid));
+        Assert.Equal(before.StateHash, engine.Snapshot.StateHash);
         var result = engine.Execute(Player, new OrderUnitCommand(Guid.NewGuid(), 1, before.Simulation.NextSequence, unit.Id,
             new(MilitaryOrderKind.Return, null, 1)) { Policies = new(true, true, true, true), Waypoint = Rules().Places[2].Position });
         Assert.False(result.Submission.Accepted); Assert.Empty(result.Events);

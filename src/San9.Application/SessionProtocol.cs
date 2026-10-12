@@ -7,9 +7,9 @@ namespace San9.Application;
 
 public static class SessionProtocol
 {
-    public const string RulesVersion = "san9-core-g10-v97";
-    public const int SaveFormatVersion = 107;
-    public const int LogFormatVersion = 111;
+    public const string RulesVersion = "san9-core-g10-v106";
+    public const int SaveFormatVersion = 108;
+    public const int LogFormatVersion = 112;
 }
 
 /// <summary>Non-authoritative load diagnostics; never included in saves or deterministic hashes.</summary>
@@ -56,8 +56,9 @@ public sealed record SessionSnapshot(WorldSnapshot World, ImmutableArray<Session
     [JsonRequired] public EndingSelection? Ending { get; init; }
     [JsonRequired] public Presentation.StrategicContextState StrategicContext { get; init; } = Presentation.StrategicContextState.Empty;
     [JsonRequired] public AI.AiSessionState Ai { get; init; } = new();
+    [JsonRequired] public ControllerKind PlayerForceController { get; init; } = ControllerKind.Player;
     [JsonIgnore]
     public string StateHash => CanonicalJson.Hash(new { version = CanonicalJson.Version,
         world = World.StateHash, records = Records, chronicle = Chronicle, ending = Ending, strategicContext = StrategicContext, ai = Ai,
-        nextOperationSequence = NextOperationSequence });
+        nextOperationSequence = NextOperationSequence, playerForceController = PlayerForceController });
 }

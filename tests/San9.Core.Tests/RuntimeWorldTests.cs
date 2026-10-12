@@ -101,6 +101,36 @@ public sealed class RuntimeWorldTests
     }
 
     [Fact]
+    public void PublishedCollectionsFollowOnlyTheirOwnChangesAcrossForks()
+    {
+        var world = Create();
+        var before = world.CreateSnapshot();
+        var branch = world.Fork();
+        var mutation = branch.BeginMutation();
+        mutation.SetSimulation(mutation.Simulation with { Boundary = SimulationBoundary.Stable });
+        mutation.Replace(mutation.AllCorps[1] with { Treasury = new(75, 500) });
+        branch.Commit(mutation);
+        var after = branch.CreateSnapshot();
+        Assert.Same(before.Forces, after.Forces);
+        Assert.Same(before.Settlements, after.Settlements);
+        Assert.Same(before.Officers, after.Officers);
+        Assert.Same(before.Units, after.Units);
+        Assert.Same(before.Treasures, after.Treasures);
+        Assert.Same(before.Relations, after.Relations);
+        Assert.Equal(100u, before.Corps[0].Treasury.Money);
+        Assert.Equal(75u, after.Corps[0].Treasury.Money);
+        Assert.Same(before, world.CreateSnapshot());
+        Assert.Equal(after.StateHash, WorldState.Restore(after).CreateSnapshot().StateHash);
+
+        var next = branch.BeginMutation();
+        next.Replace(next.AllOfficers[1] with { Acted = true });
+        branch.Commit(next);
+        Assert.True(branch.CreateSnapshot().Officers[0].Acted);
+        Assert.False(after.Officers[0].Acted);
+        Assert.Same(after.Corps, branch.CreateSnapshot().Corps);
+    }
+
+    [Fact]
     public void SnapshotOrdersEveryIdentityCollection()
     {
         var world = WorldState.Create(new(190, 1, XunIndex.Early), 190,

@@ -299,7 +299,7 @@
       "id": "ai",
       "classification": "core",
       "behavior_specs": ["BEH-AI-0001"],
-      "objects": ["AiObservation", "AiPlanningContext", "AiPlanningBudget", "AiPlan", "AiDiagnostic"],
+      "objects": ["AiObservation", "AiPlanningContext", "AiPlanningBudget", "EconomicObservation", "CampaignObservation", "OpportunityObservation", "AllocationCandidate", "AiSessionState", "AllocationDiagnostics"],
       "states": ["observing", "analyzing", "proposed", "validated", "submitted"],
       "inputs": ["force-perspective immutable observation", "named planning purpose", "deterministic work budget", "diagnostic level"],
       "outputs": ["ordered command proposals", "integer scores and rationale", "optional non-authoritative diagnostics"],
@@ -310,7 +310,7 @@
         "project": "San9.Application",
         "target_namespace": "San9.Application.AI",
         "target_path": "src/San9.Application/AI",
-        "entry_types": ["AiObservation", "AiPlanningContext", "AiPlan", "IAiPlanner"],
+        "entry_types": ["AiObservation", "AiPlanningContext", "EconomicObservation", "CampaignObservation", "OpportunityObservation", "SharedAllocator", "AllocationDiagnostics"],
         "existing_anchors": ["src/San9.Application/AI/AiPlanning.cs", "src/San9.Core/Simulation/SimulationEngine.cs"]
       }
     },

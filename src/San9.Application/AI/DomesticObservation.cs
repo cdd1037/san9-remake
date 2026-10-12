@@ -11,6 +11,7 @@ public sealed record DomesticSettlementObservation(int Id, int AccountId, uint M
     public uint SoldierCapacity { get; init; }
     public uint Wounded { get; init; }
     public bool ConsumesFood { get; init; } = true;
+    public ImmutableArray<DomesticActivity> UnavailableActivities { get; init; } = [];
 }
 
 /// <summary>Owned economic inputs only. Task payloads, foreign state and resolution randomness never cross this boundary.</summary>
@@ -31,10 +32,30 @@ public sealed record DomesticObservation(AiObservation Perspective, ImmutableArr
         return new(perspective, places.Select(s =>
         {
             var account = s.CorpsId is int id ? accounts[id] : root;
-            return new DomesticSettlementObservation(s.Id, account.Id, account.Treasury.Money, account.Treasury.Food,
-                s.Soldiers, s.Morale, s.PublicOrder, s.Durability, s.MaxDurability,
-                people[s.Id].OrderBy(p => p.Id).Select(p => p.Id).ToImmutableArray())
-                { DraftPopulation = s.DraftPopulation, SoldierCapacity = s.SoldierCapacity, Wounded = s.Wounded, ConsumesFood = s.ConsumesFood };
+            return Settlement(s, account.Id, account.Treasury.Money, account.Treasury.Food,
+                people[s.Id].OrderBy(p => p.Id).Select(p => p.Id).ToImmutableArray());
         }).ToImmutableArray());
+    }
+
+    internal static DomesticSettlementObservation Settlement(SettlementState s, int accountId, uint money, uint food,
+        ImmutableArray<int> officers)
+    {
+        return new DomesticSettlementObservation(s.Id, accountId, money, food,
+            s.Soldiers, s.Morale, s.PublicOrder, s.Durability, s.MaxDurability,
+            officers)
+            { DraftPopulation = s.DraftPopulation, SoldierCapacity = s.SoldierCapacity, Wounded = s.Wounded, ConsumesFood = s.ConsumesFood,
+                UnavailableActivities = Enum.GetValues<DomesticActivity>().Where(activity =>
+                    s.Facility?.BuilderUnitId is not null ||
+                    s.Kind != SettlementKind.City && activity is not (DomesticActivity.Repair or DomesticActivity.Train) ||
+                    (activity switch
+                    {
+                        DomesticActivity.Patrol => s.PatrolUsed || s.PublicOrder >= 1000,
+                        DomesticActivity.Commerce => s.CommerceUsed || s.Commerce >= s.MaxCommerce,
+                        DomesticActivity.Cultivation => s.CultivationUsed || s.Cultivation >= s.MaxCultivation,
+                        DomesticActivity.Repair => s.RepairUsed || s.Durability >= s.MaxDurability,
+                        DomesticActivity.Recruit => s.RecruitUsed || s.Soldiers >= s.SoldierCapacity || s.DraftPopulation == 0,
+                        DomesticActivity.Train => s.TrainUsed || s.Morale >= 100 || s.Soldiers == 0,
+                        _ => true
+                    })).ToImmutableArray() };
     }
 }

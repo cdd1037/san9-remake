@@ -2,6 +2,14 @@ namespace San9.Headless;
 
 public sealed record HeadlessFailure(string Code, string Message, int? Line = null);
 public sealed record ContentCoverage(int Forces, int Settlements, int Officers, int Units, int Corps, int Treasures, int Relations);
+public sealed record AiTurnReport(int ForceId, Core.Simulation.GameClock Clock, long Work, bool SearchComplete,
+    bool BudgetExhausted, long ElapsedMilliseconds, int AcceptedCommands, int RejectedCommands, int TargetSwitches, Dictionary<string, long> WorkByKind)
+{
+    public bool NoCommand => AcceptedCommands == 0;
+}
+public sealed record AiForceState(int ForceId, int Settlements, long Soldiers, long Money, long Food, int Campaigns, long CampaignNoProgressXun);
+public sealed record AiStateCheckpoint(Core.Simulation.GameClock Clock, AiForceState[] Forces);
+public sealed record EvaluationMachine(string Framework, string OperatingSystem, string Architecture, int LogicalProcessors);
 
 public sealed class HeadlessReport
 {
@@ -39,5 +47,18 @@ public sealed class HeadlessReport
     public Dictionary<string, int> DiplomacyStrategyEvents { get; set; } = [];
     public int RestoreCount { get; set; }
     public ContentCoverage? Coverage { get; set; }
+    public Application.AI.AiPolicyConfiguration? AiConfiguration { get; set; }
+    public EvaluationMachine Machine { get; } = new(System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription,
+        System.Runtime.InteropServices.RuntimeInformation.OSDescription,
+        System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString(), Environment.ProcessorCount);
+    public Dictionary<int, Application.AI.AllocationWorkSummary> AiWorkByForce { get; set; } = [];
+    public Dictionary<string, long> AiAcceptedCommands { get; set; } = [];
+    public Dictionary<string, long> AiRejectedCommands { get; set; } = [];
+    public Dictionary<Core.Simulation.CommandRejection, long> AiRejectionReasons { get; set; } = [];
+    public long BattleSoldierLoss { get; set; }
+    public long BattleDead { get; set; }
+    public long UnrecoveredSoldiers { get; set; }
+    public List<AiTurnReport> AiTurns { get; set; } = [];
+    public List<AiStateCheckpoint> AiCheckpoints { get; set; } = [];
     public string Scope { get; set; } = "Domestic commands and economic cycles with scripted/simple policy, save and replay; no warfare or complete strategic AI.";
 }

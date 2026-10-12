@@ -21,6 +21,67 @@ public sealed class HeadlessProcessTests : IDisposable
     }
     private string FilePath(string name) => Path.Combine(_directory, name);
 
+    [Theory]
+    [InlineData(190, 65536)]
+    [InlineData(42, 16)]
+    public async Task AutonomousPolicyReportsCommittedWorkAndReplaysFromItsSavedInitialState(int seed, int budget)
+    {
+        var verified = await Run("verify", "--fixture", "--strategy", "autonomous", "--xuns", "6",
+            "--seed", seed.ToString(), "--ai-budget", budget.ToString(), "--output", _directory);
+        Assert.Equal(0, verified.Code);
+        Assert.Equal("AI-06", verified.Report.GetProperty("goal").GetString());
+        Assert.Equal(6, verified.Report.GetProperty("completedXun").GetInt32());
+        Assert.Equal(budget, verified.Report.GetProperty("aiConfiguration").GetProperty("workBudget").GetInt64());
+        var turns = verified.Report.GetProperty("aiTurns").EnumerateArray().ToArray();
+        Assert.Equal(12, turns.Length);
+        Assert.All(turns, turn =>
+        {
+            long work = turn.GetProperty("work").GetInt64();
+            Assert.InRange(work, 0, budget);
+            Assert.Equal(work, turn.GetProperty("workByKind").EnumerateObject().Sum(p => p.Value.GetInt64()));
+        });
+        Assert.Equal(7, verified.Report.GetProperty("aiCheckpoints").GetArrayLength());
+        var initial = StrictJson.Deserialize<SaveEnvelope>(File.ReadAllBytes(FilePath("initial.save.json"))).Session;
+        Assert.All(initial.World.Simulation.Controls, seat => Assert.Equal(ControllerKind.Automatic, seat.Kind));
+        Assert.Equal(0, initial.World.Simulation.ComputerDamageBonusPercent);
+        foreach (var force in verified.Report.GetProperty("aiWorkByForce").EnumerateObject())
+            Assert.Equal(6, force.Value.GetProperty("turns").GetInt64());
+        var logReplay = await Run("run", "--fixture", "--log", FilePath("commands.jsonl"), "--restore", FilePath("initial.save.json"),
+            "--report", FilePath("autonomous-log.json"));
+        Assert.Equal(0, logReplay.Code);
+        Assert.Equal(verified.Report.GetProperty("finalHash").GetString(), logReplay.Report.GetProperty("finalHash").GetString());
+        var freshReplay = await Run("run", "--fixture", "--log", FilePath("commands.jsonl"), "--report", FilePath("autonomous-fresh.json"));
+        Assert.Equal(0, freshReplay.Code);
+        Assert.Equal(verified.Report.GetProperty("finalHash").GetString(), freshReplay.Report.GetProperty("finalHash").GetString());
+        var recordingReplay = await Run("replay", "--fixture", "--recording", FilePath("verification.recording.json"),
+            "--report", FilePath("autonomous-recording.json"));
+        Assert.Equal(0, recordingReplay.Code);
+        Assert.Equal(verified.Report.GetProperty("finalHash").GetString(), recordingReplay.Report.GetProperty("finalHash").GetString());
+    }
+
+    [Fact]
+    public async Task InvalidEvaluationBudgetIsAUsageFailure()
+    {
+        var result = await Run("verify", "--fixture", "--strategy", "autonomous", "--ai-budget", "0", "--output", _directory);
+        Assert.Equal(2, result.Code);
+        Assert.Equal("usage", result.Report.GetProperty("firstFailure").GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task MissingLoggedPolicyCannotSilentlyUseTheDefault()
+    {
+        WriteFailureScenario();
+        var lines = File.ReadAllLines(FilePath("commands.jsonl"));
+        var header = JsonNode.Parse(lines[0])!;
+        header["aiConfiguration"] = null;
+        lines[0] = header.ToJsonString();
+        File.WriteAllLines(FilePath("invalid-policy.jsonl"), lines);
+        var result = await Run("run", "--scenario", FilePath("scenario.json"), "--log", FilePath("invalid-policy.jsonl"),
+            "--report", FilePath("invalid-policy-report.json"));
+        Assert.Equal(5, result.Code);
+        Assert.Equal(1, result.Report.GetProperty("firstFailure").GetProperty("line").GetInt32());
+    }
+
     private void WriteFailureScenario()
     {
         var definition = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "failure-cli", 190, 1, 1, 1,

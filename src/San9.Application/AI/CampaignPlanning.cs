@@ -196,24 +196,70 @@ internal static class CampaignPlanner
             {
                 if (!work.Spend()) return best is { } known ? (known.Actions, known.Forecast) : null;
                 var chosen = committed.AddRange(fresh.Take(count));
-                if (evaluated.Any(previous => previous.SequenceEqual(chosen))) continue;
-                evaluated.Add(chosen);
-                var plan = EvaluatePlan(target, chosen, observation, work);
-                if (plan is { } result && (best is null || result.Value > best.Value.Value)) best = result;
+                Consider(chosen);
             }
         }
+        // The rankings above provide inexpensive seeds, not a restriction on legal combinations.
+        // Search source subsets and substitutions jointly. An optimistic bound can prune a branch
+        // only when even an immediate, lossless victory cannot improve the incumbent.
+        var sources = options.Where(f => f.UnitId is null).GroupBy(f => f.Action.SourceId)
+            .OrderBy(g => g.Min(f => f.Action.Arrival!.Days)).ThenBy(g => g.Key)
+            .Select(g => g.OrderBy(f => f.Action.Arrival!.Days).ThenBy(f => f.Action.MoneyCost + f.Action.OfficerOpportunityCost)
+                .ThenByDescending(f => f.Soldiers).ToImmutableArray()).ToArray();
+        Search(0, committed);
         return best is { } selected ? (selected.Actions, selected.Forecast) : null;
+
+        long UpperBound(ImmutableArray<CampaignForce> chosen, bool extend = false) => target.Value -
+            ((extend ? options : chosen).Min(f => f.Action.Arrival!.Days!.Value) + 2L) * 100 -
+            chosen.Sum(f => f.Action.MoneyCost + f.Action.OfficerOpportunityCost);
+
+        void Consider(ImmutableArray<CampaignForce> chosen)
+        {
+            if (chosen.IsEmpty || !CanAssemble(chosen, observation) || best is { } incumbent && UpperBound(chosen) <= incumbent.Value) return;
+            var ordered = chosen.OrderBy(f => f.Action.SourceId).ThenBy(f => f.UnitId).ToImmutableArray();
+            if (evaluated.Any(previous => previous.SequenceEqual(ordered))) return;
+            evaluated.Add(ordered);
+            var plan = EvaluatePlan(target, chosen, observation, work);
+            if (plan is { } result && (best is null || result.Value > best.Value.Value)) best = result;
+        }
+
+        void Search(int first, ImmutableArray<CampaignForce> chosen)
+        {
+            for (int source = first; source < sources.Length; source++)
+            foreach (var option in sources[source])
+            {
+                if (!work.Spend()) return;
+                var next = chosen.Add(option);
+                if (!CanAssemble(next, observation) || best is { } incumbent && UpperBound(next, extend: true) <= incumbent.Value) continue;
+                Consider(next);
+                if (work.Remaining == 0) return;
+                Search(source + 1, next);
+                if (work.Remaining == 0) return;
+            }
+        }
+    }
+
+    private static bool CanAssemble(ImmutableArray<CampaignForce> chosen, CampaignObservation observation)
+    {
+        if (chosen.Any(f => f.Morale < 30)) return false;
+        var officers = chosen.SelectMany(f => f.Action.Officers).ToArray();
+        if (officers.Distinct().Count() != officers.Length) return false;
+        int latest = chosen.Max(f => f.Action.Arrival!.Days!.Value);
+        if (chosen.Any(f => f.UnitId is null && latest - f.Action.Arrival!.Days > 9)) return false;
+        foreach (var group in chosen.GroupBy(f => f.Action.AccountId))
+        {
+            var account = observation.Accounts.FirstOrDefault(a => a.Id == group.Key);
+            if (account is null || account.Money < group.Sum(f => f.Action.MoneyCost)) return false;
+        }
+        return true;
     }
 
     private static (ImmutableArray<AllocationCandidate> Actions, CampaignForecast Forecast, long Value)? EvaluatePlan(CampaignPlace target,
         ImmutableArray<CampaignForce> chosen, CampaignObservation observation, AllocationWork work)
     {
-        if (chosen.IsEmpty || chosen.Any(f => f.Morale < 30)) return null;
         var officers = chosen.SelectMany(f => f.Action.Officers).ToArray();
-        if (officers.Distinct().Count() != officers.Length) return null;
         // A signed departure can wait at most nine days. A larger split is not an executable assembly plan.
         int latest = chosen.Max(f => f.Action.Arrival!.Days!.Value);
-        if (chosen.Any(f => f.UnitId is null && latest - f.Action.Arrival!.Days > 9)) return null;
         chosen = chosen.Select(f => f.UnitId is null && f.Action.Intent is DeployUnitCommand deploy
             ? f with { Action = f.Action with { Intent = deploy with { DepartureDelayDays = latest - f.Action.Arrival!.Days!.Value },
                 Arrival = f.Action.Arrival with { Days = latest } } } : f).ToImmutableArray();

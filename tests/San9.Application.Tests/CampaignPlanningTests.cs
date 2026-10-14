@@ -182,6 +182,99 @@ public sealed class CampaignPlanningTests
     private static CampaignObservation Input(ImmutableArray<CampaignForce> forces) =>
         new(new(190, 1, 1), 2, [Target()], forces, [], [], [], [new(2, 100000, 100000, 1000) { HorizonDays = 90 }], true);
 
+    [Theory]
+    [InlineData(512)]
+    [InlineData(2048)]
+    [InlineData(8192)]
+    [InlineData(65536)]
+    public void JointSearchCanSkipAnUnaffordableNearSource(long budget)
+    {
+        var observation = Input([Force(2, 12000, cost: 100), Force(4, 12000, days: 2)]) with
+        {
+            Places = [Target(1000, 20)],
+            Accounts = [new(2, 20, 100000, 1000) { HorizonDays = 90 }]
+        };
+        var work = new AllocationWork(budget);
+        var result = CampaignPlanner.Decide(observation, [], work);
+        Assert.Equal(4, Assert.Single(result.Candidates).SourceId);
+        Assert.InRange(work.Remaining, 0, budget);
+        var repeat = CampaignPlanner.Decide(observation, [], new(budget));
+        Assert.Equal(result.Candidates.Select(c => (c.SourceId, c.Benefit)), repeat.Candidates.Select(c => (c.SourceId, c.Benefit)));
+    }
+
+    [Theory]
+    [InlineData(512)]
+    [InlineData(2048)]
+    [InlineData(8192)]
+    [InlineData(65536)]
+    public void JointSearchSubstitutesAnOfficerInsteadOfDiscardingTheWholeAssembly(long budget)
+    {
+        var first = Force(2, 10000);
+        var second = Force(4, 10000);
+        var conflicting = second with { Leadership = 99, Action = second.Action with
+        {
+            Officers = first.Action.Officers,
+            Intent = ((DeployUnitCommand)second.Action.Intent) with { OfficerIds = first.Action.Officers }
+        } };
+        var observation = Input([first, conflicting, second]);
+        var work = new AllocationWork(budget);
+        var result = CampaignPlanner.Decide(observation, [], work);
+        Assert.Equal(2, result.Candidates.Length);
+        Assert.Equal(2, result.Candidates.SelectMany(c => c.Officers).Distinct().Count());
+        Assert.InRange(work.Remaining, 0, budget);
+    }
+
+    [Theory]
+    [InlineData(2048)]
+    [InlineData(8192)]
+    [InlineData(65536)]
+    public void JointSearchFindsAMiddleSpeedFormationThatCanAssemble(long budget)
+    {
+        var first = Force(2, 10000, days: 10);
+        var slow = Force(4, 10000, days: 20) with { Profile = new(20, 20, 38, 20, 50), TacticValue = 10000 };
+        var fast = Force(4, 100, days: 1);
+        var compatible = Force(4, 9999, days: 11);
+        compatible = compatible with { Action = compatible.Action with
+            { Intent = ((DeployUnitCommand)compatible.Action.Intent) with { FormationId = 8 } } };
+        var result = CampaignPlanner.Decide(Input([first, slow, fast, compatible]), [], new(budget));
+        Assert.Equal(2, result.Candidates.Length);
+        Assert.Contains(result.Candidates, c => c.Intent is DeployUnitCommand { FormationId: 8 });
+        Assert.All(result.Candidates, c => Assert.Equal(11, c.Arrival!.Days));
+    }
+
+    [Fact]
+    public void JointSearchMatchesSmallExhaustiveOracleAndKeepsItsIncumbentAsBudgetGrows()
+    {
+        CampaignForce[] left = [Force(2, 10000), Force(2, 11000, cost: 1000)];
+        CampaignForce[] right = [Force(4, 10000), Force(4, 11000, cost: 2000)];
+        var observation = Input([.. left, .. right]);
+        long optimum = 0;
+        // Independent finite oracle: either city can stay home or choose either deployment.
+        for (int a = -1; a < left.Length; a++)
+        for (int b = -1; b < right.Length; b++)
+        {
+            ImmutableArray<CampaignForce> chosen = [.. a < 0 ? Array.Empty<CampaignForce>() : [left[a]],
+                .. b < 0 ? Array.Empty<CampaignForce>() : [right[b]]];
+            if (chosen.IsEmpty) continue;
+            var normal = CampaignCombatForecast.Evaluate(observation.Places[0], chosen, [], 0, () => true);
+            var delayed = CampaignCombatForecast.Evaluate(observation.Places[0], chosen, [], 2, () => true);
+            if (!normal.Feasible || !delayed.Feasible) continue;
+            optimum = Math.Max(optimum, observation.Places[0].Value - delayed.Losses - delayed.Days * 100L - chosen.Sum(f => f.Action.MoneyCost));
+        }
+        Assert.True(optimum > 0);
+        long previous = 0;
+        foreach (long budget in new long[] { 512, 2048, 8192, 65536 })
+        {
+            var work = new AllocationWork(budget);
+            var result = CampaignPlanner.Decide(observation, [], work);
+            long value = result.Candidates.Select(c => c.Benefit).DefaultIfEmpty().Max();
+            Assert.InRange(value, previous, optimum);
+            Assert.InRange(work.Remaining, 0, budget);
+            previous = value;
+        }
+        Assert.Equal(optimum, previous);
+    }
+
     [Fact]
     public void UnfinishedAlternativesDoNotDiscardAValidatedLocalCampaign()
     {

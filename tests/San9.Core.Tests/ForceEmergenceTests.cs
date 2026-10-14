@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -47,7 +48,7 @@ public sealed class ForceEmergenceTests
         Assert.False(engine.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 7,
             engine.Snapshot.Simulation.NextSequence, 70, 2)).Submission.Accepted);
         var restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()), rules);
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
     }
 
     private static OfficerState Free(int id, int place, int ambition = 0, int affinity = 0) =>

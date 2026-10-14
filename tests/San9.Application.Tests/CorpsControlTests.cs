@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.Persistence;
 using San9.Content.Scenarios;
 using San9.Core.Domain;
@@ -24,9 +25,9 @@ public sealed class CorpsControlTests
         session.BeginRecording();
         Assert.True(session.Execute(new("player"), new SetCorpsControlCommand(Guid.NewGuid(), 1, 0, 11, CorpsControlMode.Automatic)).Submission.Accepted);
         var command = new RecruitOfficerCommand(Guid.NewGuid(), 1, 1, 2, 7);
-        var hash = session.Snapshot.StateHash;
+        var hash = session.Snapshot;
         Assert.False(session.Execute(new("player"), command).Submission.Accepted);
-        Assert.Equal(hash, session.Snapshot.StateHash);
+        StateAssert.Equal(hash, session.Snapshot);
         Assert.True(session.Validate(new(CorpsControl.ControllerId(11)), command).Accepted);
         Assert.False(session.Validate(new(CorpsControl.ControllerId(11)), command with { OfficerId = 1 }).Accepted);
         Assert.False(session.Validate(new(CorpsControl.ControllerId(11)), new DissolveCorpsCommand(Guid.NewGuid(), 1, 1, 11)).Accepted);
@@ -34,10 +35,11 @@ public sealed class CorpsControlTests
         Assert.Equal(SessionDisposition.Accepted, result.Disposition);
         Assert.Contains(result.Events, e => e is RecruitmentResolvedEvent);
         Assert.Contains(result.Events, e => e is DevelopmentCompletedEvent);
+        var saveState = session.Capture();
         var save = SaveService.Encode(session);
-        Assert.Equal(save, SaveService.Encode(SaveService.Decode(save, definition)));
+        StateAssert.Equal(saveState, SaveService.Decode(save, definition).Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(save, SaveService.Encode(replay.Session));
+        StateAssert.Equal(saveState, replay.Session.Capture());
         long sequence = session.Snapshot.Simulation.NextSequence;
         Assert.True(session.Execute(new("player"), new SetCorpsControlCommand(Guid.NewGuid(), 1, sequence, 11, CorpsControlMode.Direct)).Submission.Accepted);
         Assert.False(session.Validate(new(CorpsControl.ControllerId(11)), new WaitCommand(Guid.NewGuid(), 1, sequence + 1)).Accepted);

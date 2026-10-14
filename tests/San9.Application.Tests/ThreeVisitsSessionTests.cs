@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -36,18 +37,18 @@ public sealed class ThreeVisitsSessionTests
             Assert.True(session.Execute(new("player"), command).Submission.Accepted);
             var restored = SaveService.Decode(SaveService.Encode(session), definition);
             var result = session.AdvanceXun();
-            Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+            EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
             Assert.Equal(visit == 0 ? ThreeVisitsStep.FirstVisit : ThreeVisitsStep.Recruitment,
                 Assert.Single(result.Events.OfType<ThreeVisitsEvent>()).Step);
-            Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+            StateAssert.Equal(session.Capture(), restored.Capture());
             Assert.DoesNotContain(result.Events, e => e is SearchResolvedEvent);
-            Assert.Equal(session.Capture().StateHash, SaveService.Decode(SaveService.Encode(session), definition).Capture().StateHash);
+            StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), definition).Capture());
         }
         Assert.Equal(150, session.Snapshot.Officers.Single(p => p.Id == 15).Loyalty);
         Assert.Equal(new GameClock(190, 2, 1), session.Snapshot.Simulation.ThreeVisitsStarted);
         Assert.Equal(110, session.Snapshot.Forces.Single().BaseTrust);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -58,12 +59,12 @@ public sealed class ThreeVisitsSessionTests
             Assert.Empty(session.AdvanceXun().Events.OfType<ThreeVisitsEvent>());
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         var result = session.AdvanceXun();
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+        EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
         Assert.Equal(ThreeVisitsStep.Expired, Assert.Single(result.Events.OfType<ThreeVisitsEvent>()).Step);
         Assert.Equal(new GameClock(191, 2, 1), session.Snapshot.Clock);
         Assert.Equal(OfficerStatus.Undiscovered, session.Snapshot.Officers.Single(p => p.Id == 15).Status);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -75,8 +76,7 @@ public sealed class ThreeVisitsSessionTests
             Assert.Throws<InvalidDataException>(() => (definition with { ThreeVisits = invalid }).Validate());
         Assert.Throws<InvalidDataException>(() => (definition with { ThreeVisitsStarted = new(190, 2, 1) }).Validate());
         Assert.Throws<InvalidDataException>(() => (definition with { ThreeVisitsStarted = new(191, 2, 1), ConsumedEventKeys = [visits.StartedKey] }).Validate());
-        Assert.NotEqual(GameSession.Fingerprint(definition), GameSession.Fingerprint(definition with { ThreeVisits = visits with { DurationDays = 350 } }));
-        Assert.Equal(GameSession.Fingerprint(definition), GameSession.Fingerprint(definition with { ThreeVisits = visits with { CompanionIds = [13, 12] } }));
+
         foreach (string field in new[] { "threeVisits", "threeVisitsStarted" })
         {
             var document = JsonNode.Parse(CanonicalJson.Encode(definition))!.AsObject(); document.Remove(field);

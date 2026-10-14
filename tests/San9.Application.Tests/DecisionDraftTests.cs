@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.Presentation;
 using San9.Content.Interface;
 using San9.Content.Text;
@@ -45,8 +46,9 @@ public sealed class DecisionDraftTests
     [InlineData("execute", MerchantInvestmentChoice.Execute)]
     public void MerchantOptionsSubmitTheirActualChoice(string role, MerchantInvestmentChoice choice)
     {
-        ulong seed = Enumerable.Range(1, 100).Select(i => (ulong)i).First(value =>
-            new StableRandom(StableRandom.DeriveSeed(value, "event-search-eligibility")).NextUInt64() % 100 < 80);
+        const ulong seed = 1UL;
+        var eligibilityRandom = new StableRandom(StableRandom.DeriveSeed(seed, "event-search-eligibility"));
+        Assert.True(eligibilityRandom.NextUInt64() % 100 < 80);
         var session = SearchSession(MerchantInvestmentSessionTests.Definition(), seed);
         var draft = SearchDraft(session, "merchant-investment", ["invest", "decline", "execute"]);
         var option = draft.Options.Single(o => o.Role == role);
@@ -141,12 +143,12 @@ public sealed class DecisionDraftTests
             SelectionConfirmation = new("confirm", new() { ["force.0"] = "force" })
         };
         var presentation = CommandPresentation.Empty with { Decisions = new(new() { ["country-title"] = definition }, []) };
-        string hash = session.Snapshot.StateHash;
+        var hash = session.Snapshot;
         var draft = DecisionDraft.Read(session, texts, presentation)!;
         Assert.Equal("player", draft.ControllerId);
         Assert.Equal(new[] { 500 }, draft.Options.Single().Candidates);
         Assert.Equal("汉", draft.ConfirmSelection(500)!.BbCode);
-        Assert.Equal(hash, session.Snapshot.StateHash);
+        StateAssert.Equal(hash, session.Snapshot);
         var command = draft.Options.Single().CreateCommand(Guid.NewGuid(), session.Snapshot.Simulation.NextSequence, 500, 0);
         Assert.True(session.Execute(new(draft.ControllerId), command).Submission.Accepted);
         Assert.Equal(500, session.Snapshot.Forces.Single(f => f.Id == 1).CountryTitleId);
@@ -181,16 +183,16 @@ public sealed class DecisionDraftTests
     {
         var session = GameSession.Start(EndingSessionTests.Fixture(), 1);
         var draft = new EndingDraft(session, new(TextCatalog.CurrentSchemaVersion, []), DecisionPresentations.Empty);
-        string hash = session.Snapshot.StateHash;
+        var hash = session.Snapshot;
         Assert.DoesNotContain(draft.Snapshot.RulerId, draft.Candidates);
         draft.Select(2); draft.Select(3); draft.Select(7); draft.Back();
         Assert.Contains(7, draft.Candidates); Assert.DoesNotContain(2, draft.Candidates);
         Assert.Throws<ArgumentOutOfRangeException>(() => draft.Select(2));
         draft.Select(7); draft.Select(8);
-        Assert.Equal(hash, session.Snapshot.StateHash);
+        StateAssert.Equal(hash, session.Snapshot);
         var operation = draft.CreateOperation();
         Assert.Equal(SessionDisposition.Accepted, session.Apply(session.Request(operation)).Disposition);
-        Assert.Equal(hash, session.Snapshot.StateHash);
+        StateAssert.Equal(hash, session.Snapshot);
         Assert.Equal(EndingOutcome.SouthernDynasty, session.Ending!.Outcome);
     }
 }

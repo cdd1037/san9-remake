@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.Presentation;
 using San9.Core.Domain;
 using System.Collections.Immutable;
@@ -47,14 +48,14 @@ public sealed class MapCommandMenuTests
         var session = GameSession.Start(definition, 1);
         var world = session.Snapshot with { Units = [new UnitState(1, 1, new(12, 12), 1000) { FormationId = 1 }] };
         var view = new StrategySnapshot(definition, world);
-        var hash = world.StateHash;
+        var hash = world;
         var selection = new StrategySelection(session);
         selection.SelectBuilding(2);
         Assert.NotEmpty(MapCommandMenu.Settlement(view, 1).SelectMany(e => e.Children));
         Assert.All(MapCommandMenu.Unit(view, 1), entry => Assert.Empty(entry.Children));
         Assert.NotEmpty(MapCommandMenu.Unit(view, 1));
         Assert.Equal(2, selection.BuildingId);
-        Assert.Equal(hash, world.StateHash);
+        StateAssert.Equal(hash, world);
     }
 
     [Fact]

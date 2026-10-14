@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -54,12 +55,12 @@ public sealed class MilitaryEngagementTests
         var (world, military) = Create();
         var snapshot = new SimulationEngine(world, EconomyRulebook.Empty, PersonnelRulebook.Empty,
             TreasureRulebook.Empty, military: military).CaptureStableState();
-        string hash = snapshot.StateHash;
+        var hash = snapshot;
         var engaged = MilitaryEngagementQuery.Capture(snapshot, military).Units;
         Assert.Contains(1,engaged);
         Assert.Contains(2,engaged);
         Assert.Contains(3,engaged);
-        Assert.Equal(hash,snapshot.StateHash);
+        StateAssert.Equal(hash, snapshot);
         var far = snapshot with { Units=snapshot.Units.Select(u => u with { Position=new(180,20), Order=null }).ToArray() };
         Assert.Empty(MilitaryEngagementQuery.Capture(far, military).Units);
     }
@@ -98,9 +99,9 @@ public sealed class MilitaryEngagementTests
         Assert.Empty(MilitaryEngagementQuery.Capture(snapshot, military).Settlements);
         snapshot = snapshot with { Units = snapshot.Units.Select(u => u.Id != 1 ? u : u with
             { Position = new(x, 7), Condition = condition, Order = new(MilitaryOrderKind.AttackSettlement, null, 2) }).ToArray() };
-        string hash = snapshot.StateHash;
+        var hash = snapshot;
         Assert.Equal(engaged, MilitaryEngagementQuery.Capture(snapshot, military).Settlements.Contains(2));
-        Assert.Equal(hash, snapshot.StateHash);
+        StateAssert.Equal(hash, snapshot);
     }
 
     [Fact]
@@ -193,8 +194,8 @@ public sealed class MilitaryEngagementTests
         var restored = Engine(WorldState.Restore(engine.CaptureStableState()));
         var result = engine.AdvanceXun();
         Assert.NotEmpty(result.Events.OfType<BattleDamageEvent>());
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
     }
 
     [Theory]

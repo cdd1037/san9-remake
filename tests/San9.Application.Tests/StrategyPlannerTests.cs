@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.AI;
 using San9.Application.Persistence;
 using San9.Core.Domain;
@@ -27,9 +28,9 @@ public sealed class StrategyPlannerTests
         var result = session.AdvanceXun();
         Assert.Contains(result.Events.OfType<TaskStartedEvent>(), e => e.Task.ControllerId == "corps:11" &&
             e.Task.OfficerId == 2 && e.Task.Journey?.UnitStrategy is not null);
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+        EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Theory]
@@ -42,11 +43,11 @@ public sealed class StrategyPlannerTests
         var seat = session.Snapshot.Simulation.Controls.Single(c => c.ForceId == 1);
         session.BeginRecording();
         var id = Guid.NewGuid();
-        byte[] before = SaveService.Encode(session);
+        var before = session.Capture();
         var command = StrategyPlanner.Choose(session, seat, id);
         Assert.Equal(kind, Category(command));
         Assert.Equal(command, StrategyPlanner.Choose(session, seat, id));
-        Assert.Equal(before, SaveService.Encode(session));
+        Assert.Same(before, session.Capture());
         Assert.True(session.Execute(new(seat.ControllerId), command).Submission.Accepted);
         Assert.IsType<WaitCommand>(StrategyPlanner.Choose(session, seat, Guid.NewGuid()));
         var restored = SaveService.Decode(SaveService.Encode(session), content);
@@ -60,11 +61,11 @@ public sealed class StrategyPlannerTests
             GossipResolvedEvent g => kind == 7 && g.OfficerId == 2,
             _ => false
         });
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(restored));
+        EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         byte[] recording = RecordingService.Encode(session.EndRecording());
         var replay = RecordingService.Replay(recording, content, GameSession.EngineFactory(content));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
         if (Environment.GetEnvironmentVariable("SAN9_G08_REPORT_DIR") is { Length: > 0 } output)
         {
             Directory.CreateDirectory(output);
@@ -77,9 +78,9 @@ public sealed class StrategyPlannerTests
     public void NoAuthorityAndNoActorsProduceNoCommandAndDoNotChangeWorld()
     {
         var session = GameSession.Start(MissionScenario.Create(), 42);
-        byte[] before = SaveService.Encode(session);
+        var before = session.Capture();
         Assert.IsType<WaitCommand>(StrategyPlanner.Choose(session, new("unknown", 1, ControllerKind.Automatic), Guid.NewGuid()));
-        Assert.Equal(before, SaveService.Encode(session));
+        Assert.Same(before, session.Capture());
         var content = MissionScenario.Create() with { Officers = MissionScenario.Create().Officers.Where(p => p.State.OwnerId != 1 || p.State.UnitId is not null).ToArray(),
             Information = MissionScenario.Create().Information with { Corps = MissionScenario.Create().Information.Corps.Select(c => c.IsRoot && c.OwnerId == 1 ? c with { LeaderId = null } : c).ToArray() },
             Forces = MissionScenario.Create().Forces.Select(f => f.Id == 1 ? f with { LeaderId = null } : f).ToArray() };
@@ -119,9 +120,9 @@ public sealed class StrategyPlannerTests
         Assert.Contains(result.Events.OfType<TaskStartedEvent>(), e => e.Task.ForceId == 1 &&
             (e.Task.Journey?.UnitStrategy is not null || e.Task.Journey?.Burn is not null || e.Task.Journey?.Seize is not null ||
              e.Task.Journey?.Gossip is not null || e.Task.Kind == "strategy-alienate"));
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+        EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     private static int Category(GameCommand command) => command switch

@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -43,8 +44,8 @@ public sealed class NaturalMortalityTests
         var engine = BeforeAnnualBoundary(world);
         var restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()));
         var events = engine.AdvanceXun().Events;
-        Assert.Equal(CanonicalJson.Text(events), CanonicalJson.Text(restored.AdvanceXun().Events));
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        EventAssert.Equal(events, restored.AdvanceXun().Events);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
         Assert.Equal(1, Assert.Single(events.OfType<OfficerDiedEvent>()).OfficerId);
         Assert.Equal(11, engine.Snapshot.Forces.Single(f => f.Id == 1).LeaderId);
         Assert.Equal(OfficerStatus.Ruler, engine.Snapshot.Officers.Single(p => p.Id == 11).Status);

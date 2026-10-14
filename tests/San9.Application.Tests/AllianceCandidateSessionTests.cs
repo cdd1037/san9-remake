@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.Persistence;
 using San9.Content.Scenarios;
 using San9.Core.Simulation;
@@ -17,18 +18,18 @@ public sealed class AllianceCandidateSessionTests
     {
         var definition = Definition();
         var session = GameSession.Start(definition, 42);
-        string before = session.Capture().StateHash;
+        var before = session.Capture();
         var candidates = session.GetAllianceCandidates();
         Assert.Equal(new[] { 2, 3, 4 }, candidates.LargestRealm!.EligibleMemberForceIds);
-        Assert.Equal(before, session.Capture().StateHash);
+        StateAssert.Equal(before, session.Capture());
         definition.CityProvinceIds[1004] = 88;
         Assert.Equal(new[] { 2, 3, 4 }, session.GetAllianceCandidates().LargestRealm!.EligibleMemberForceIds);
         Assert.Null(GameSession.Start(definition, 42).GetAllianceCandidates().LargestRealm);
-        Assert.NotEqual(GameSession.Fingerprint(definition), session.ContentFingerprint);
+
         var source = Definition();
         var restored = SaveService.Decode(SaveService.Encode(session), source, GameSession.EngineFactory(source));
         Assert.Equal(CanonicalJson.Text(candidates), CanonicalJson.Text(restored.GetAllianceCandidates()));
-        Assert.Equal(before, restored.Capture().StateHash);
+        StateAssert.Equal(before, restored.Capture());
     }
 
     [Fact]

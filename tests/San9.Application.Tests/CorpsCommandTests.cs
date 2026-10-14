@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.Persistence;
 using San9.Application.Presentation;
 using San9.Core.Domain;
@@ -21,7 +22,7 @@ public sealed class CorpsCommandTests
         var session = GameSession.Start(content,42);
         var treasury = session.Snapshot.Corps.Single(c => c.OwnerId == 1).Treasury;
         var draft = new CorpsDraft(session);
-        byte[] before = SaveService.Encode(session);
+        var before = session.Capture();
         Assert.DoesNotContain(1,draft.CityCandidates);
         Assert.False(draft.SetCities([1])); Assert.False(draft.SetCities([3,3]));
         Assert.True(draft.SetCities([3]));
@@ -35,7 +36,7 @@ public sealed class CorpsCommandTests
         var counts = draft.Counts;
         Assert.Equal(1UL,counts.People); Assert.Equal(3UL,counts.TotalPeople);
         draft.SetPolicy(new DomesticDelegation()); Assert.True(draft.CanExecute);
-        Assert.Equal(before,SaveService.Encode(session));
+        Assert.Same(before, session.Capture());
         Assert.True(session.Execute(new("player"),draft.CreateCommand()).Submission.Accepted);
         Assert.Equal(CommandRejection.NotStable,draft.Rejection);
         int corps = session.Snapshot.Corps.Single(c => c.OwnerId == 1 && !c.IsRoot).Id;
@@ -45,7 +46,7 @@ public sealed class CorpsCommandTests
         draft.SetMoney(draft.MaximumMoney+1); Assert.Equal(CommandRejection.InsufficientFunds,draft.Rejection);
         draft.SetMoney(50); draft.SetFood(300); Assert.True(session.Execute(new("player"),draft.CreateCommand()).Submission.Accepted);
         draft = new(session); draft.SetOperation(CorpsOperation.Change);
-        before = SaveService.Encode(session); var policy = draft.Policy;
+        before = session.Capture(); var policy = draft.Policy;
         _ = draft.PolicyTargets(true); _ = draft.PolicyTargets(false);
         foreach (var delegation in draft.View.Forces.Select(f => (CorpsDelegation)new DefeatForceDelegation(f.Id))
             .Concat(draft.View.Settlements.Select(s => new CaptureSettlementDelegation(s.Id))))
@@ -54,7 +55,7 @@ public sealed class CorpsCommandTests
                 session.Snapshot.Simulation.NextSequence,corps,delegation);
             Assert.Equal(session.Validate(new("player"),command).Rejection,session.GetPreparationEligibility(new("player"),command));
         }
-        Assert.Equal(policy,draft.Policy); Assert.Equal(before,SaveService.Encode(session));
+        Assert.Equal(policy,draft.Policy); Assert.Same(before, session.Capture());
         draft = new(session); draft.SetOperation(CorpsOperation.Dissolve); Assert.True(draft.SelectCorps(corps));
         Assert.True(session.Execute(new("player"),draft.CreateCommand()).Submission.Accepted);
         Assert.Single(session.Snapshot.Corps,c => c.OwnerId == 1);

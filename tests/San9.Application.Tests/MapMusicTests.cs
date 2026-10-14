@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.Presentation;
 using San9.Content.Interface;
 using San9.Content.Scenarios;
@@ -23,11 +24,11 @@ public sealed class MapMusicTests
             [new San9.Core.Domain.CorpsState(5, 5, null, new(100, 100)) { IsRoot = true }], []) };
         var session = GameSession.Start(definition, 1);
         var restored = GameSession.Restore(definition, session.Capture());
-        string hash = restored.Snapshot.StateHash;
+        var hash = restored.Snapshot;
         Assert.Equal(audio.SeasonalMusic[season], MapMusic.Select(restored.View, audio));
         var ranked = definition with { Forces = [definition.Forces[0] with { RankId = 99 }] };
         var rankedSession = GameSession.Start(ranked, 1);
         Assert.Equal(audio.RankedSeasonalMusic[season], MapMusic.Select(rankedSession.View, audio));
-        Assert.Equal(hash, restored.Snapshot.StateHash);
+        StateAssert.Equal(hash, restored.Snapshot);
     }
 }

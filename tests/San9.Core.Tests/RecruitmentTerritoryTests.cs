@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -35,8 +36,8 @@ public sealed class RecruitmentTerritoryTests
         engine.EndControl(new("player")); engine.EndControl(new("ai:2"));
         var restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()), EconomyRulebook.Empty, geography);
         var advance = engine.AdvanceXun();
-        Assert.Equal(CanonicalJson.Text(advance.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        EventAssert.Equal(advance.Events, restored.AdvanceXun().Events);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
         Assert.True(Assert.Single(advance.Events.OfType<RecruitmentResolvedEvent>()).Success);
         var snapshot = engine.CaptureStableState();
         Assert.Equal(1, snapshot.Settlements.Single(s => s.Id == 2).OwnerId);

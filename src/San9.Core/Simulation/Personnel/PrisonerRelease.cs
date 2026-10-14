@@ -18,16 +18,16 @@ internal static class PrisonerRelease
         if (person.Status != OfficerStatus.Captive || person.SettlementId is not int origin ||
             world.Settlements[origin].OwnerId != command.IssuerId || !places.Places.ContainsKey(origin))
             return CommandRejection.PersonUnavailable;
-        return Depart(world, personId, origin, command.CommandId, command.Sequence, PrisonerDepartureKind.Released,
+        return Depart(world, personId, origin, command.Sequence, PrisonerDepartureKind.Released,
             command.IssuerId, places, economy, events);
     }
 
-    internal static CommandRejection Recover(WorldMutation world, int personId, int origin, Guid causeId,
+    internal static CommandRejection Recover(WorldMutation world, int personId, int origin,
         long sequence, PersonnelRulebook places, EconomyRulebook economy, List<DomainEvent> events) =>
-        Depart(world, personId, origin, causeId, sequence, PrisonerDepartureKind.Recovered, null,
+        Depart(world, personId, origin, sequence, PrisonerDepartureKind.Recovered, null,
             places, economy, events);
 
-    internal static CommandRejection Depart(WorldMutation world, int personId, int origin, Guid causeId, long sequence,
+    internal static CommandRejection Depart(WorldMutation world, int personId, int origin, long sequence,
         PrisonerDepartureKind departure, int? releasingCaptor, PersonnelRulebook places, EconomyRulebook economy,
         List<DomainEvent> events, WorldPosition? originPosition = null, int? excludedHomeId = null)
     {
@@ -63,10 +63,9 @@ internal static class PrisonerRelease
             world.Replace(world.Officers[personId] with { Status = world.Forces[person.OwnerId!.Value].LeaderId == personId
                 ? OfficerStatus.Ruler : OfficerStatus.Serving, SettlementId = home.Id, RegionId = null, UnitId = null,
                 OfficeId = null, IsCommander = false, Acted = true, StatusStartYear = world.Clock.Year });
-            var previous = new PersistentTask(causeId, PersonnelReturns.Kind, control?.ControllerId ?? "system",
-                person.OwnerId.Value, personId, origin, world.Clock, world.Clock, 0, sequence);
+            var context = new PersonnelReturnContext(control?.ControllerId ?? "system", person.OwnerId.Value, sequence);
             var route = new PersonnelRoute(position, PersonnelLocations.Position(world, places, home.Id), false);
-            PersonnelReturns.Schedule(world, previous, personId, origin, home.Id,
+            PersonnelReturns.Schedule(world, context, personId, origin, home.Id,
                 route.Days, world.CurrentDateCommandsConsumed, events, route, originPosition is not null);
         }
         events.Add(departure switch

@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -37,8 +38,8 @@ public sealed class MilitaryCombatTests
         var engine = Engine(world, military);
         var restored = Engine(WorldState.Restore(engine.CaptureStableState()), military);
         var result = engine.AdvanceXun();
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
         Assert.Single(result.Events.OfType<FacilityDestroyedEvent>());
         Assert.Equal(11, Assert.Single(result.Events.OfType<TacticLearnedEvent>()).OfficerId);
         Assert.Equal(new[] { 11, 12 }, result.Events.OfType<TacticProficiencyGrownEvent>()
@@ -81,8 +82,8 @@ public sealed class MilitaryCombatTests
         engine.EndControl(context);
         restored.EndControl(context);
         var result = engine.AdvanceXun();
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
         Assert.Single(result.Events.OfType<SettlementCapturedEvent>());
         if (owned)
         {
@@ -115,9 +116,9 @@ public sealed class MilitaryCombatTests
             Simulation = initial.Simulation with { Alliance = new(3, 1, [1, 2], 36) }
         }));
         var command = new OrderUnitCommand(Guid.NewGuid(), 1, 0, 0, new(MilitaryOrderKind.AttackSettlement, null, 2));
-        string before = allied.Snapshot.StateHash;
+        var before = allied.Snapshot;
         Assert.Equal(CommandRejection.AttackConfirmationRequired, allied.Execute(new("player"), command).Submission.Rejection);
-        Assert.Equal(before, allied.Snapshot.StateHash);
+        StateAssert.Equal(before, allied.Snapshot);
         Assert.True(allied.Execute(new("player"), command with { ConfirmAttack = true }).Submission.Accepted);
         var expired = Engine(WorldState.Restore(initial));
         Assert.True(expired.Execute(new("player"), command).Submission.Accepted);
@@ -166,20 +167,20 @@ public sealed class MilitaryCombatTests
         mutation.Replace(mutation.Officers[22] with { SettlementId = 3 });
         mutation.Replace(mutation.Settlements[2] with { OwnerId = 1 });
         world.Commit(mutation);
-        var before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         var rejected = engine.Execute(player, command);
         Assert.False(rejected.Submission.Accepted);
         Assert.Empty(rejected.Events);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         mutation = world.BeginMutation();
         mutation.Replace(mutation.Settlements[2] with { OwnerId = 2 });
         world.Commit(mutation);
         Assert.True(engine.Execute(player, command).Submission.Accepted);
-        before = engine.Snapshot.StateHash;
+        before = engine.Snapshot;
         rejected = engine.Execute(player, command);
         Assert.False(rejected.Submission.Accepted);
         Assert.Empty(rejected.Events);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         engine.EndControl(player);
         Assert.Single(engine.AdvanceXun().Events.OfType<SettlementCapturedEvent>());
         engine.EndControl(player);
@@ -208,8 +209,8 @@ public sealed class MilitaryCombatTests
         var engine = Engine(World());
         var restored = Engine(WorldState.Restore(engine.CaptureStableState()));
         var result = engine.AdvanceXun();
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
         Assert.Single(result.Events.OfType<SettlementCapturedEvent>());
         Assert.Single(result.Events.OfType<ForceEliminatedEvent>());
         Assert.Single(result.Events.OfType<SimulationEndedEvent>());
@@ -222,7 +223,7 @@ public sealed class MilitaryCombatTests
         Assert.Equal(2, prisoner.SettlementId);
         Assert.Contains(result.Events.OfType<UnitAbsorbedEvent>(), e => e.UnitId == 0 && e.SettlementId == 2);
         Assert.Empty(engine.AdvanceXun().Events);
-        Assert.Equal(engine.Snapshot.StateHash, Engine(WorldState.Restore(engine.CaptureStableState())).Snapshot.StateHash);
+        StateAssert.Equal(engine.Snapshot, Engine(WorldState.Restore(engine.CaptureStableState())).Snapshot);
     }
 
     [Fact]
@@ -254,7 +255,7 @@ public sealed class MilitaryCombatTests
             engine.EndControl(new("player"));
             restored.EndControl(new("player"));
             var events = engine.AdvanceXun().Events;
-            Assert.Equal(CanonicalJson.Text(events), CanonicalJson.Text(restored.AdvanceXun().Events));
+            EventAssert.Equal(events, restored.AdvanceXun().Events);
             all.AddRange(events);
             if (i == 0)
             {
@@ -269,7 +270,7 @@ public sealed class MilitaryCombatTests
             }
         }
         Assert.Equal(new GameClock(190, 1, 22), Assert.Single(all.OfType<PersonnelReturnedEvent>(), e => e.OfficerId == 12).Clock);
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
     }
 
     [Theory]
@@ -298,8 +299,8 @@ public sealed class MilitaryCombatTests
         var engine = Engine(world, military);
         var restored = Engine(WorldState.Restore(engine.CaptureStableState()), military);
         var result = engine.AdvanceXun();
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
         var capture = Assert.Single(result.Events.OfType<SettlementCapturedEvent>());
         Assert.Equal(!remainingCity, engine.Snapshot.Forces.Single(f => f.Id == 2).IsEliminated);
         if (remainingCity)

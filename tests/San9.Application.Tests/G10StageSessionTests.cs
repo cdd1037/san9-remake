@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Application.Persistence;
 using San9.Content.Scenarios;
@@ -37,7 +38,7 @@ public sealed class G10StageSessionTests
         Assert.Equal(ChainedPlotStep.Prelude, Assert.Single(session.AdvanceXun().Events.OfType<ChainedPlotEvent>()).Step);
         Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, 11, 3)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), d);
-        var coup = session.AdvanceXun(); Assert.Equal(CanonicalJson.Text(coup.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+        var coup = session.AdvanceXun(); EventAssert.Equal(coup.Events, restored.AdvanceXun().Events);
         Assert.Single(coup.Events.OfType<OfficerDiedEvent>()); Assert.Equal(12, session.Snapshot.Forces.Single(f => f.Id == 1).LeaderId);
         Assert.DoesNotContain(session.Snapshot.Simulation.Tasks, t => t.OfficerId == 11);
         Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, 12, 1)).Submission.Accepted);
@@ -79,11 +80,12 @@ public sealed class G10StageSessionTests
     }
     private static void AssertTerminalFrozenAndReplay(GameSession session, ScenarioInitialState d)
     {
-        var saved = SaveService.Encode(session); var hash = session.Snapshot.StateHash;
+        var savedState = session.Capture();
+        var saved = SaveService.Encode(session); var hash = session.Snapshot;
         Assert.Equal(SessionRejection.Terminal, session.Apply(session.Request(new AdvanceOperation())).Rejection);
-        Assert.Equal(hash, session.Snapshot.StateHash);
-        Assert.Equal(saved, SaveService.Encode(SaveService.Decode(saved, d)));
+        StateAssert.Equal(hash, session.Snapshot);
+        StateAssert.Equal(savedState, SaveService.Decode(saved, d).Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), d, GameSession.EngineFactory(d));
-        Assert.Equal(saved, SaveService.Encode(replay.Session));
+        StateAssert.Equal(savedState, replay.Session.Capture());
     }
 }

@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -51,14 +52,14 @@ public sealed class ForceActivationSearchTests
         Assert.Equal(10000u, m.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 2).Treasury.Money); Assert.Equal(300000u, m.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 2).Treasury.Food);
         Assert.Equal(100u, m.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money); Assert.Equal(710, m.Forces[1].BaseTrust);
         foreach (var person in before.Officers.Where(p => p.IsDormant))
-            Assert.Equal(CanonicalJson.Hash(person with { IsDormant = false }), CanonicalJson.Hash(m.Officers[person.Id]));
+            Assert.Equal(CanonicalJson.Text(person with { IsDormant = false }), CanonicalJson.Text(m.Officers[person.Id]));
         Assert.Equal(new[] { 1, 2, 3 }, m.Simulation.Controls.Select(c => c.ForceId));
         Assert.Equal(3, m.Simulation.Controls[m.Simulation.ActiveControl].ForceId);
         Assert.Empty(m.Simulation.RandomStreams);
         Assert.Equal(count, Assert.Single(events.OfType<ForceActivatedBySearchEvent>()).OfficerIds.Length);
         Assert.False(ForceActivationSearch.TryResolve(m, Task(), Definition(count), Rules(count), events));
         state.Commit(m);
-        Assert.Equal(state.CreateSnapshot().StateHash, WorldState.Restore(state.CreateSnapshot()).CreateSnapshot().StateHash);
+        StateAssert.Equal(state.CreateSnapshot(), WorldState.Restore(state.CreateSnapshot()).CreateSnapshot());
     }
 
     [Theory]

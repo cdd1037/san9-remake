@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Application.Presentation;
 using San9.Content.Text;
@@ -22,7 +23,7 @@ public sealed class UnitMapInteractionTests
             .Concat(definition.Settlements.Select(s => s.NameKey)).Append("formation");
         var texts = new TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion, keys.ToDictionary(k => k, k => k));
         var view = new StrategySnapshot(definition, world);
-        var hash = world.StateHash;
+        var hash = world;
         var card = UnitMapInteraction.Hover(view, texts, 1)!;
         Assert.Equal("officer.1队", card.Name);
         Assert.Equal(["一般", "officer.1", "city.2", "18000", "85/100", "formation", "1"], card.Rows.Select(r => r.Value));
@@ -47,6 +48,6 @@ public sealed class UnitMapInteractionTests
             Assert.Empty(UnitMapInteraction.Menu(absent, 1));
         }
         Assert.Empty(UnitMapInteraction.Menu(new(definition, world with { Units = [], Officers = original.Officers }), 1));
-        Assert.Equal(hash, world.StateHash);
+        StateAssert.Equal(hash, world);
     }
 }

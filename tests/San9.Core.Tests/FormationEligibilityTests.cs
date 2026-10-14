@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -58,7 +59,7 @@ public sealed class FormationEligibilityTests
         else
         {
             Assert.Equal(reform ? CommandRejection.UnsupportedCommand : CommandRejection.MissingFormationTactic, result.Submission.Rejection);
-            Assert.Equal(before.StateHash, engine.Snapshot.StateHash);
+            StateAssert.Equal(before, engine.Snapshot);
         }
     }
 

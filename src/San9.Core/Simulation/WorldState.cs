@@ -194,13 +194,5 @@ public sealed record WorldSnapshot(
     public IReadOnlyList<ForceRelation> Relations { get; init; } = [];
     public IReadOnlyList<CorpsState> Corps { get; init; } = [];
     public IReadOnlyList<TreasureState> Treasures { get; init; } = [];
-    // Diagnostics are derived on demand, never persisted or required for normal play/restore.
-    [System.Text.Json.Serialization.JsonIgnore]
-    public string StateHash => CanonicalJson.Hash(new { version = CanonicalJson.Version, clock = Clock, simulation = Simulation,
-        forces = Forces, settlements = Settlements, officers = Officers, units = Units, corps = Corps, treasures = Treasures, relations = Relations,
-        interaction = new { Simulation.DailyAdvanceStarted, Simulation.PendingDuel, Simulation.PendingEvent, Simulation.PendingDailyTask, Simulation.PendingTacticStudy,
-            Simulation.PendingSniping, Simulation.PendingCapturedRuler, Simulation.PendingExecutionSuccession, tasks = Simulation.Tasks.Where(t => t.ResolutionStep != 0 ||
-                t.AttackRequest?.Offer is not null || t.PrisonerReturn?.Offer is not null)
-                .Select(t => new { t.Id, t.ResolutionStep, t.SearchEncounter, attackOffer = t.AttackRequest?.Offer, prisonerOffer = t.PrisonerReturn?.Offer }) } });
     public long Revision { get; init; }
 }

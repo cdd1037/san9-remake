@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -94,9 +95,9 @@ public sealed class GossipStrategyTests
     {
         var engine = new SimulationEngine(world, rules);
         var command = new GossipCommand(Guid.NewGuid(), 1, world.Simulation.NextSequence, 11, 2, 3);
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         Assert.True(engine.Validate(new("player"), command).Accepted);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         Assert.True(engine.Execute(new("player"), command).Submission.Accepted);
         var task = Assert.Single(world.Simulation.Tasks);
         if (roll is int fixedRoll)
@@ -171,11 +172,11 @@ public sealed class GossipStrategyTests
         var rules = Rules();
         var world = World();
         var engine = new SimulationEngine(world, rules);
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         uint money = engine.Snapshot.Corps.Single(force => force.IsRoot && force.OwnerId == 1).Treasury.Money;
 
         Assert.Equal(AdviserOpinion.NoAdviser, engine.GetGossipAdvice(1, 11, 2, 3).Opinion);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         var task = Submit(world, rules, null);
         Assert.Equal(new GossipMission(2, 3), task.Journey!.Gossip);
         Assert.Equal(ConditionalRandom.Percentile(42, ConditionalRandomPurpose.Gossip,

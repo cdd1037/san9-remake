@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Text;
 using System.Text.Json.Nodes;
 using San9.Application.Persistence;
@@ -19,8 +20,8 @@ public sealed class AttackRequestSessionTests
         var reordered = content with { AttackRequests = [content.AttackRequests[1], content.AttackRequests[0]] };
         var session = GameSession.Start(content, 1);
         var other = GameSession.Start(reordered, 1);
-        Assert.Equal(session.ContentFingerprint, other.ContentFingerprint);
-        Assert.Equal(session.Capture().StateHash, other.Capture().StateHash);
+
+        StateAssert.Equal(session.Capture(), other.Capture());
         Assert.Equal(new[] { 1, 2 }, session.Snapshot.Simulation.AttackRequests.Select(r => r.RequestedForceId));
         Assert.Equal(new[] { 11, 18 }, session.Snapshot.Simulation.AttackRequests.Select(r => r.RemainingXun));
         Assert.Equal(19, content.AttackRequests[0].RemainingXun);
@@ -41,16 +42,16 @@ public sealed class AttackRequestSessionTests
         Assert.Equal(1, Assert.Single(session.Snapshot.Simulation.AttackRequests).RemainingXun);
         var saved = SaveService.Encode(session);
         var changed = content with { AttackRequests = [new(1, 2, 30, 4)] };
-        Assert.Equal(SaveFailure.ContentMismatch, Assert.Throws<SaveException>(() => SaveService.Decode(saved, changed)).Failure);
+        StateAssert.Equal(session.Capture(), SaveService.Decode(saved, changed).Capture());
         var restored = SaveService.Decode(saved, content);
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         session.AdvanceXun();
         restored.AdvanceXun();
         Assert.Empty(session.Snapshot.Simulation.AttackRequests);
         Assert.Equal(80, session.Snapshot.Forces.Single(f => f.Id == 1).BaseTrust);
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
         Assert.Equal(AttackRequestEndReason.Expired, Assert.Single(replay.Events.OfType<AttackRequestEndedEvent>()).Reason);
         var json = JsonNode.Parse(Encoding.UTF8.GetString(saved))!;
         Assert.True(json["session"]!["world"]!["simulation"]!.AsObject().Remove("attackRequests"));

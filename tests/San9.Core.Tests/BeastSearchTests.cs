@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -10,8 +11,7 @@ public sealed class BeastSearchTests
         { Id = "beast", Consumption = EventConsumption.OnPresentation };
     private static PersonnelRulebook Rules(BeastSearchEventDefinition? definition = null) => new(
         [new(1, new(0, 0)), new(30, new(300, 0))], searchEvents: [definition ?? Definition]);
-    private static ulong SeedForRoll(int roll) => Enumerable.Range(1, 10000).Select(i => (ulong)i)
-        .First(seed => new StableRandom(seed).NextUInt64() % 100 == (ulong)roll);
+    private static ulong SeedForRoll(int roll) => TestSeeds.StateForRoll(roll);
     private static (WorldState World, SimulationEngine Engine) Create(int war = 99, bool knows = true, int battleRoll = 0,
         int lifespan = 3, bool loseLifespan = true)
     {
@@ -50,9 +50,9 @@ public sealed class BeastSearchTests
         var before = engine.Snapshot;
         var prompt = Begin(engine);
         Assert.Equal(19, prompt.BattleChance);
-        string hash = engine.Snapshot.StateHash;
+        var hash = engine.Snapshot;
         for (int i = 0; i < 3; i++) Assert.Equal(prompt, engine.GetBeastSearchPrompt());
-        Assert.Equal(hash, engine.Snapshot.StateHash);
+        StateAssert.Equal(hash, engine.Snapshot);
         Assert.Empty(engine.Snapshot.Simulation.ConsumedEventKeys);
         Assert.Throws<InvalidOperationException>(() => engine.CaptureStableState());
         Assert.Equal(99, engine.Snapshot.Officers.Single(p => p.Id == 2).BaseAbilities.War);
@@ -69,9 +69,9 @@ public sealed class BeastSearchTests
         Assert.DoesNotContain(response.Events, e => e is SearchResolvedEvent or OfficerAbilityGrownEvent);
         Assert.Equal(OfficerStatus.Undiscovered, engine.Snapshot.Officers.Single(p => p.Id == 3).Status);
         Assert.Equal(SimulationBoundary.Stable, engine.Snapshot.Simulation.Boundary);
-        string after = engine.Snapshot.StateHash;
+        var after = engine.Snapshot;
         Assert.False(engine.Execute(new("player"), answer).Submission.Accepted);
-        Assert.Equal(after, engine.Snapshot.StateHash);
+        StateAssert.Equal(after, engine.Snapshot);
     }
     [Theory]
     [InlineData(18, EventResult.Succeeded)]

@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -64,8 +65,8 @@ public sealed class BarbarianEconomyTests
             var restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()));
             var result = engine.AdvanceXun();
             var replayed = restored.AdvanceXun();
-            Assert.Equal(result.Snapshot.StateHash, replayed.Snapshot.StateHash);
-            Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(replayed.Events));
+            StateAssert.Equal(result.Snapshot, replayed.Snapshot);
+            EventAssert.Equal(result.Events, replayed.Events);
             Assert.DoesNotContain(result.Events.OfType<ResourceChangedEvent>(), e => e.Resource == ResourceKind.Food && e.Shortfall > 0);
             Assert.Equal(100000u, result.Snapshot.Settlements.Single(s => s.Id == 1).Soldiers);
             if (result.Snapshot.Clock.Month == 7 && result.Snapshot.Clock.Day == 1)

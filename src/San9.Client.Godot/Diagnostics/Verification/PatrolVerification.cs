@@ -42,14 +42,14 @@ public partial class StrategyHud
         await Click(new(574,584));
         Check(_patrol is null && _narration is not null,"Execute did not transition to narration.");
         Check(Session.Snapshot.Clock==before.Clock && Session.View.PlayerCorps!.Treasury.Money==money-count*50,"Patrol transaction mismatch.");
-        string committed = Session.Snapshot.StateHash;
+        long committed = Session.Snapshot.Revision;
         int index=0;
         while (_narration is not null)
         {
             Check(index<8,"Narration failed to terminate.");
             await CaptureStage($"message-{index++}");
             await Click(new(500,420));
-            Check(Session.Snapshot.StateHash==committed,"Advancing dialogue mutated the world.");
+            Check(Session.Snapshot.Revision==committed,"Advancing dialogue mutated the world.");
         }
         Check(PatrolDraft.UnavailableReasonKey(Session.View,city) is not null,"Repeated patrol remained available.");
         await Frames(this,2);
@@ -67,7 +67,7 @@ public partial class StrategyHud
         OverlayHost.AddChild(_narration);
         await CaptureStage("citizen-content-probe");
         await Click(new(500,420));
-        Check(_narration is null && Session.Snapshot.StateHash==committed,"NPC presentation altered the command result.");
+        Check(_narration is null && Session.Snapshot.Revision==committed,"NPC presentation altered the command result.");
         ShowCommandMenu(new(city,false),new(400,200));
         var facilities = _commandMenu.GetChildren().OfType<InformationMenuButton>().Single(b => b.Title == "设施");
         await Click(facilities.GlobalPosition+facilities.Size/2);
@@ -78,7 +78,7 @@ public partial class StrategyHud
         Check(!_commandMenu.HintEnabled && _commandMenu.Hint==Texts.Resolve("ui.command-reason.already-used"),"Disabled patrol did not show its reason.");
         await CaptureStage("disabled-patrol");
         await Click(patrol.GlobalPosition+patrol.Size/2);
-        Check(_patrol is null && Session.Snapshot.StateHash==committed,"Disabled click executed a command.");
+        Check(_patrol is null && Session.Snapshot.Revision==committed,"Disabled click executed a command.");
         _commandMenu.Close();
         GD.Print($"PATROL_SMOKE_OK city={city} people={count} messages={index} revision={Session.Snapshot.Revision}");
     }

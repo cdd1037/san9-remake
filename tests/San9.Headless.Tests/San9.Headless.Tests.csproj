@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
-    <ProjectReference Include="../../src/San9.Headless/San9.Headless.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../../src/San9.Headless/San9.Headless.csproj" />
     <ProjectReference Include="../../src/San9.Application/San9.Application.csproj" />
   </ItemGroup>
 </Project>

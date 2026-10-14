@@ -35,7 +35,7 @@ internal static class SettlementAffiliation
         foreach (var person in world.Officers.Values.Where(p => p.IsServing && p.OwnerId == owner && p.SettlementId == place.Id)
             .OrderBy(p => p.Id).ToArray())
         {
-            var cause = Cause(world, person.Id, owner, place.Id);
+            var cause = ReturnContext(world, owner);
             PersonnelReturns.Repatriate(world, person.Id, place.Id, cause, rules.Personnel, events, false);
             world.Replace(world.Officers[person.Id] with { TacticCooldown = 0 });
             AdvanceSequence(world);
@@ -64,8 +64,7 @@ internal static class SettlementAffiliation
         foreach (var prisoner in world.Officers.Values.Where(p => p.Status == OfficerStatus.Captive && p.SettlementId == placeId)
             .OrderBy(p => p.Id).ToArray())
         {
-            var cause = Cause(world, prisoner.Id, previousOwner, placeId);
-            if (PrisonerRelease.Depart(world, prisoner.Id, placeId, cause.Id, cause.Sequence,
+            if (PrisonerRelease.Depart(world, prisoner.Id, placeId, world.Simulation.NextSequence,
                 PrisonerDepartureKind.Displaced, null, rules.Personnel, rules.Economy, events) == CommandRejection.None)
                 AdvanceSequence(world);
             // No geographic destination: an unrelated captive retains custody in the transferred facility.
@@ -73,11 +72,9 @@ internal static class SettlementAffiliation
         }
     }
 
-    private static PersistentTask Cause(WorldMutation world, int person, int owner, int place) => new(
-        new Guid(Convert.FromHexString(CanonicalJson.Hash(new { Kind = Reason, world.Clock, OfficerId = person,
-            Sequence = world.Simulation.NextSequence })).AsSpan(0, 16)), PersonnelReturns.Kind,
-        world.Simulation.Controls.FirstOrDefault(c => c.ForceId == owner)?.ControllerId ?? "system", owner, person, place,
-        world.Clock, world.Clock, 0, world.Simulation.NextSequence);
+    private static PersonnelReturnContext ReturnContext(WorldMutation world, int owner) => new(
+        world.Simulation.Controls.FirstOrDefault(c => c.ForceId == owner)?.ControllerId ?? "system",
+        owner, world.Simulation.NextSequence);
 
     private static void AdvanceSequence(WorldMutation world) =>
         world.SetSimulation(world.Simulation with { NextSequence = checked(world.Simulation.NextSequence + 1) });

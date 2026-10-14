@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -17,9 +18,9 @@ public sealed class PersonnelTreasureTests
             ? s with { Soldiers = 5000, Morale = 30, Commerce = 0, MaxCommerce = 1000, DraftPopulation = 10000 } : s).ToArray() };
         var engine = new SimulationEngine(WorldState.Restore(snapshot), new([new(1, 0)], [], 10), Places, Rules(), Governance);
         var command = new DevelopCommand(Guid.NewGuid(), 1, engine.Snapshot.Simulation.NextSequence, new(1, 1, [2], activity));
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         Assert.Equal(CommandRejection.None, engine.GetPreparationEligibility(new("player"), command));
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         Assert.True(engine.Execute(new("player"), command).Submission.Accepted);
         var next = command with { CommandId = Guid.NewGuid(), Sequence = engine.Snapshot.Simulation.NextSequence };
         Assert.Equal(CommandRejection.DevelopmentFailed, engine.GetPreparationEligibility(new("player"), next));
@@ -49,7 +50,7 @@ public sealed class PersonnelTreasureTests
         };
         var rejection = engine.GetPreparationEligibility(new("player"), command);
         Assert.Equal(valid, rejection == CommandRejection.None);
-        Assert.Equal(before.StateHash, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         Assert.Equal(rejection, engine.Execute(new("player"), command).Submission.Rejection);
         var next = command with { CommandId = Guid.NewGuid(), Sequence = engine.Snapshot.Simulation.NextSequence };
         Assert.Equal(engine.Validate(new("player"), next).Rejection, engine.GetPreparationEligibility(new("player"), next));
@@ -151,10 +152,10 @@ public sealed class PersonnelTreasureTests
     public void CaptiveConfiscationUsesDetentionLocationRatherThanOriginalAffiliation(int location, bool accepted)
     {
         var engine = Engine(20, captive: true, location: location);
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         var result = Confiscate(engine, 12);
         Assert.Equal(accepted, result.Submission.Accepted);
-        if (!accepted) Assert.Equal(before, engine.Snapshot.StateHash);
+        if (!accepted) StateAssert.Equal(before, engine.Snapshot);
         else
         {
             Assert.Equal(1, engine.Snapshot.Treasures.Single(t => t.Id == 12).HolderId);
@@ -168,19 +169,19 @@ public sealed class PersonnelTreasureTests
     {
         var engine = Engine();
         var command = new GrantTreasureCommand(Guid.NewGuid(), 1, 0, 10, 2);
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         Assert.True(engine.Validate(new("player"), command).Accepted);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         Assert.True(Grant(engine).Submission.Accepted);
-        before = engine.Snapshot.StateHash;
+        before = engine.Snapshot;
         Assert.Equal(CommandRejection.TreasureUnavailable, Grant(engine).Submission.Rejection);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         Assert.True(engine.Execute(new("player"), new MoveOfficersCommand(Guid.NewGuid(), 1,
             engine.Snapshot.Simulation.NextSequence, [2], 3)).Submission.Accepted);
-        before = engine.Snapshot.StateHash;
+        before = engine.Snapshot;
         Assert.Equal(CommandRejection.PersonUnavailable, Confiscate(engine).Submission.Rejection);
         Assert.Equal(CommandRejection.PersonUnavailable, Grant(engine, 11).Submission.Rejection);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
     }
 
     [Theory]
@@ -192,8 +193,8 @@ public sealed class PersonnelTreasureTests
     public void InvalidGrantDoesNotMutate(int item, int recipient, CommandRejection reason)
     {
         var engine = Engine();
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         Assert.Equal(reason, Grant(engine, item, recipient).Submission.Rejection);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
     }
 }

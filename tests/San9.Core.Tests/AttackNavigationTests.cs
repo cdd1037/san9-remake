@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using System.Text.Json;
 using San9.Core.Domain;
@@ -140,10 +141,10 @@ public sealed class AttackNavigationTests
         world.Replace(world.Units[0] with { FormationId = catapult ? 0 : 3, Waypoint = relay ? new(22, 72) : null });
         if (weakened) world.Replace(world.Settlements[2] with { Durability = 19 });
         var snapshot = world.CapturePresentation();
-        string hash = snapshot.StateHash;
+        var hash = snapshot;
         var plan = MilitaryRouteQuery.Plan(snapshot, rules, world.Units[0], 0);
         Assert.Equal(NavigationStatus.Arrived, plan.Status);
-        Assert.Equal(hash, snapshot.StateHash);
+        StateAssert.Equal(hash, snapshot);
         var actual = new List<WorldPosition> { world.Units[0].Position };
         NavigationStep step;
         int days = 0;

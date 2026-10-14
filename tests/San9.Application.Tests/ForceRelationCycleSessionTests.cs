@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.Persistence;
 using San9.Content.Scenarios;
 using San9.Core.Domain;
@@ -27,15 +28,15 @@ public sealed class ForceRelationCycleSessionTests
         var restored = SaveService.Decode(SaveService.Encode(session), content);
         var quarter = session.AdvanceXun();
         Assert.Single(quarter.Events.OfType<ForceRelationChangedEvent>());
-        Assert.Equal(CanonicalJson.Text(quarter.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+        EventAssert.Equal(quarter.Events, restored.AdvanceXun().Events);
         Assert.Equal(79, Assert.Single(session.Snapshot.Relations).Value);
         restored = SaveService.Decode(SaveService.Encode(session), content);
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         Assert.Empty(session.AdvanceXun().Events.OfType<ForceRelationChangedEvent>());
         restored.AdvanceXun();
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
         Assert.Single(replay.Events.OfType<ForceRelationChangedEvent>());
     }
 }

@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using San9.Application.Persistence;
@@ -36,15 +37,15 @@ public sealed class CityIndependenceSessionTests
         var before = SaveService.Decode(SaveService.Encode(session), content);
         var result = session.AdvanceXun();
         Assert.Single(result.Events.OfType<CityIndependenceEvent>());
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(before.AdvanceXun().Events));
+        EventAssert.Equal(result.Events, before.AdvanceXun().Events);
         Assert.Equal(1, session.Snapshot.Forces.Single(f => f.Id == 3).Origin!.PredecessorId);
         Assert.Equal("person.10", session.View.Forces.Single(f => f.Id == 3).NameKey);
         var restored = SaveService.Decode(SaveService.Encode(session), content);
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         Assert.Empty(restored.InitialEvents);
-        Assert.Equal(CanonicalJson.Text(session.AdvanceXun().Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+        EventAssert.Equal(session.AdvanceXun().Events, restored.AdvanceXun().Events);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Theory]
@@ -73,7 +74,7 @@ public sealed class CityIndependenceSessionTests
     public void ContentAndSaveRequireExplicitIndependenceConfiguration()
     {
         var content = Scenario();
-        Assert.NotEqual(GameSession.Fingerprint(content), GameSession.Fingerprint(content with { CityIndependenceEnabled = false }));
+
         var json = JsonNode.Parse(CanonicalJson.Text(GameSession.Start(content, 17).Snapshot.Simulation))!.AsObject();
         Assert.True(json.Remove("cityIndependenceEnabled"));
         Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<SimulationState>(json.ToJsonString(), CanonicalJson.Options));
@@ -100,8 +101,8 @@ public sealed class CityIndependenceSessionTests
         Assert.Equal(OfficerStatus.Free, session.Snapshot.Officers.Single(p => p.Id == 11).Status);
         Assert.Equal(1, session.Snapshot.Settlements.Single(s => s.Id == 1).OwnerId);
         var restored = SaveService.Decode(SaveService.Encode(session), content);
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 }

@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -31,7 +32,7 @@ public sealed class OfficerOrderingTests
         var forward = Resolve(false);
         var reversed = Resolve(true);
         Assert.Equal(forward.Events, reversed.Events);
-        Assert.Equal(forward.State.StateHash, reversed.State.StateHash);
+        StateAssert.Equal(forward.State, reversed.State);
     }
 
     [Theory]

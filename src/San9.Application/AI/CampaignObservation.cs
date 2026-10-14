@@ -55,16 +55,14 @@ internal static class CampaignObservationCapture
                 DefeatForceDelegation d => target.OwnerId == d.ForceId, _ => true };
         }
         var eligibility = new Dictionary<string, Dictionary<GameCommand, bool>>(StringComparer.Ordinal);
-        Guid? queryId = null;
+        var queryId = SimulationIdentity.Command(world.Simulation.NextSequence, seat.ForceId);
         bool Legal(string controller, GameCommand intent)
         {
             if (!Spend()) return false;
             if (!eligibility.TryGetValue(controller, out var commands))
                 eligibility.Add(controller, commands = new(PlanningIntentEquality.Instance));
             if (commands.TryGetValue(intent, out bool accepted)) return accepted;
-            queryId ??= new Guid(Convert.FromHexString(CanonicalJson.Hash(new
-                { seat.ForceId, world.Clock, world.Simulation.NextSequence, Purpose = "campaign-query" })).AsSpan(0, 16));
-            var query = intent with { CommandId = queryId.Value,
+            var query = intent with { CommandId = queryId,
                 Sequence = world.Simulation.NextSequence };
             return commands[intent] = engine.GetPreparationEligibility(new(controller), query) == CommandRejection.None;
         }

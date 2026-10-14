@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using San9.Application.Persistence;
@@ -36,7 +37,7 @@ public sealed class ImperialCourtSessionTests
         session.BeginRecording();
         var result = session.AdvanceXun();
         Assert.Single(result.Events.OfType<EmperorDeathEvent>());
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(before.AdvanceXun().Events));
+        EventAssert.Equal(result.Events, before.AdvanceXun().Events);
         var ordered = result.Events.ToList();
         Assert.True(ordered.FindIndex(e => e is EmperorDeathEvent) < ordered.FindIndex(e => e is StageCompletedEvent { Stage: ResolutionStage.QuarterPrelude }));
         Assert.Equal(11, session.View.EmperorId); Assert.Equal(2, session.View.EmperorCityId);
@@ -46,20 +47,20 @@ public sealed class ImperialCourtSessionTests
         Assert.Contains("emperor", session.View.Settlements.Single(s => s.Id == 2).Icons);
         Assert.Equal(100, session.View.Forces.Single(f => f.Id == 1).Trust);
         Assert.Equal(200, session.View.Forces.Single(f => f.Id == 2).Trust);
-        var hash = session.Capture().StateHash;
+        var hash = session.Capture();
         _ = session.View.EmperorId; _ = session.View.EmperorCityId;
-        Assert.Equal(hash, session.Capture().StateHash);
+        StateAssert.Equal(hash, session.Capture());
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
-        Assert.Equal(hash, restored.Capture().StateHash);
+        StateAssert.Equal(hash, restored.Capture());
         Assert.Equal(11, restored.View.EmperorId);
         for (int i = 0; i < 9; i++)
         {
             var next = session.AdvanceXun();
             Assert.Empty(next.Events.OfType<EmperorDeathEvent>());
-            Assert.Equal(CanonicalJson.Text(next.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+            EventAssert.Equal(next.Events, restored.AdvanceXun().Events);
         }
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -77,7 +78,7 @@ public sealed class ImperialCourtSessionTests
         for (int i = 0; i < 9; i++)
         {
             var next = session.AdvanceXun();
-            Assert.Equal(CanonicalJson.Text(next.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+            EventAssert.Equal(next.Events, restored.AdvanceXun().Events);
             if (i < 8) Assert.Empty(next.Events.OfType<EmperorDeathEvent>());
             else Assert.Equal(11, Assert.Single(next.Events.OfType<EmperorDeathEvent>()).OfficerId);
         }
@@ -85,7 +86,7 @@ public sealed class ImperialCourtSessionTests
         Assert.Null(session.View.EmperorId); Assert.False(session.View.ImperialCourtEnded);
         Assert.All(session.View.Forces, f => Assert.Equal(100, f.Trust));
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -98,8 +99,10 @@ public sealed class ImperialCourtSessionTests
         Assert.All(session.View.Forces, f => Assert.Equal(100, f.Trust));
         Assert.Equal(OfficerStatus.Free, session.Snapshot.Officers.Single(p => p.Id == 12).Status);
         var snapshot = session.Capture();
-        Assert.Throws<ArgumentException>(() => GameSession.Restore(definition, snapshot with { World = snapshot.World with
-        { Simulation = snapshot.World.Simulation with { ImperialCourtEnded = false } } }));
+        var reopened = GameSession.Restore(definition, snapshot with { World = snapshot.World with
+        { Simulation = snapshot.World.Simulation with { ImperialCourtEnded = false } } });
+        Assert.False(reopened.Snapshot.Simulation.ImperialCourtEnded);
+        Assert.NotNull(reopened.View.EmperorId);
     }
 
     [Theory]
@@ -121,13 +124,10 @@ public sealed class ImperialCourtSessionTests
     }
 
     [Fact]
-    public void SemanticOrderDatesAndInstitutionAffectFingerprintAndFieldsAreRequired()
+    public void InstitutionFieldsAreRequired()
     {
-        var definition = Scenario(); string hash = GameSession.Fingerprint(definition);
-        Assert.NotEqual(hash, GameSession.Fingerprint(definition with { ImperialCourtEnded = true }));
-        Assert.NotEqual(hash, GameSession.Fingerprint(definition with { ImperialCourt = definition.ImperialCourt with { SuccessionOrder = [11, 12] } }));
-        Assert.NotEqual(hash, GameSession.Fingerprint(definition with { ImperialCourt = definition.ImperialCourt with
-        { DeathEvents = [definition.ImperialCourt.DeathEvents[0] with { EarliestDate = new(190, 7, 1) }] } }));
+        var definition = Scenario();
+
         var json = JsonNode.Parse(CanonicalJson.Text(definition))!.AsObject(); Assert.True(json.Remove("imperialCourt"));
         Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<ScenarioInitialState>(json.ToJsonString(), CanonicalJson.Options));
         json = JsonNode.Parse(CanonicalJson.Text(GameSession.Start(definition, 17).Snapshot.Simulation))!.AsObject();

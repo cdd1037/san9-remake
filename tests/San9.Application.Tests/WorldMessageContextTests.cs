@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Application.Presentation;
 using San9.Content.Text;
@@ -27,7 +28,7 @@ public sealed class WorldMessageContextTests
     public void ProductionCapturesWorldAndRandomWithoutChangingSimulation()
     {
         var session = GameSession.Start(G01ScenarioTests.Fixture(), 17);
-        string before = session.Snapshot.StateHash;
+        var before = session.Snapshot;
         var texts = Texts();
         texts.Messages.Add("greeting", new([
             new MessageValue(new("property", "person.name", Arguments: [new("binding", "speaker")])),
@@ -38,7 +39,7 @@ public sealed class WorldMessageContextTests
         { ["speaker"] = MessageBinding.Reference(MessageEntityKind.Person, 1) }, bound => { draws++; return bound - 1; });
         Assert.Equal("刘备到了", message.BbCode);
         Assert.Equal(session.Snapshot.Clock, message.Clock);
-        Assert.Equal(before, session.Snapshot.StateHash);
+        StateAssert.Equal(before, session.Snapshot);
         Assert.Equal("刘备到了", message.BbCode);
         Assert.Equal(1, draws);
         Assert.Equal("刘备来了", context.Produce("greeting", new Dictionary<string, MessageBinding>

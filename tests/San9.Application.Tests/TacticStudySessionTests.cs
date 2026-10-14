@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -31,9 +32,9 @@ public sealed class TacticStudySessionTests
         Assert.Empty(response.Events.OfType<TacticLearnedEvent>());
         Assert.Equal(new GameClock(190, 10, 1), Assert.Single(session.Snapshot.Simulation.Tasks).Due);
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     private static ScenarioInitialState Scenario() => new(ScenarioInitialState.CurrentSchemaVersion, "study", 190, 1, 1, 1,
@@ -90,7 +91,7 @@ public sealed class TacticStudySessionTests
         var command = new ChooseTacticStudentCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, 2, 3);
         var result = session.Execute(new("player"), command);
         Assert.True(result.Submission.Accepted);
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.Execute(new("player"), command).Events));
+        EventAssert.Equal(result.Events, restored.Execute(new("player"), command).Events);
         Assert.DoesNotContain(result.Events.OfType<StageCompletedEvent>(), e => e.Stage == ResolutionStage.QuarterStudyOffers);
         Assert.Single(result.Events.OfType<StageCompletedEvent>(), e => e.Stage == ResolutionStage.QuarterUpdate);
         Assert.Equal(2, session.Snapshot.Simulation.Tasks.Count(t => t.Kind == "tactic-study"));
@@ -105,12 +106,12 @@ public sealed class TacticStudySessionTests
             {
                 restored = SaveService.Decode(SaveService.Encode(restored), definition, GameSession.EngineFactory(definition));
                 Assert.All(restored.Snapshot.Simulation.Tasks, task => Assert.Equal(30, task.ProgressDays));
-                Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+                StateAssert.Equal(session.Capture(), restored.Capture());
             }
         }
         Assert.Empty(session.Snapshot.Officers.Single(o => o.Id == 2).LearnedTactics);
         var completion = session.AdvanceXun();
-        Assert.Equal(CanonicalJson.Text(completion.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+        EventAssert.Equal(completion.Events, restored.AdvanceXun().Events);
         Assert.Equal(2, completion.Events.OfType<TacticLearnedEvent>().Count());
         Assert.Equal(new(190, 7, 1), session.Snapshot.Clock);
         Assert.Null(session.GetTacticStudyPrompt());
@@ -118,9 +119,9 @@ public sealed class TacticStudySessionTests
         Assert.Equal(100, session.Snapshot.Officers.Single(o => o.Id == 2).TacticProficiencies[7]);
         Assert.Contains(9000, session.Snapshot.Officers.Single(o => o.Id == 2).LearnedTactics);
         Assert.DoesNotContain(session.Snapshot.Simulation.RandomStreams, s => s.Name.Contains("study") || s.Name.Contains("learn"));
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -161,7 +162,7 @@ public sealed class TacticStudySessionTests
         Assert.Throws<InvalidDataException>(() => (definition with { TacticCourses = [new(9999, 9000)] }).Validate());
         Assert.Throws<InvalidDataException>(() => (definition with { TacticCourses = [new(1, 9999)] }).Validate());
         Assert.Throws<InvalidDataException>(() => (definition with { TacticCourses = [new(1, 9000), new(1, 9001)] }).Validate());
-        Assert.NotEqual(GameSession.Fingerprint(definition), GameSession.Fingerprint(definition with { TacticCourses = [] }));
+
         var json = JsonNode.Parse(JsonSerializer.Serialize(definition, ScenarioContentFiles.DataJsonOptions))!;
         json.AsObject().Remove("tacticCourses");
         Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<ScenarioInitialState>(json.ToJsonString(), ScenarioContentFiles.DataJsonOptions));

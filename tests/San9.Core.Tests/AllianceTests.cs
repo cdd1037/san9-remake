@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -39,8 +40,8 @@ public sealed class AllianceTests
         Assert.Equal(1, restored.Snapshot.Simulation.Alliance!.RemainingXun);
         var expected = original.AdvanceXun();
         var actual = restored.AdvanceXun();
-        Assert.Equal(expected.Snapshot.StateHash, actual.Snapshot.StateHash);
-        Assert.Equal(CanonicalJson.Text(expected.Events), CanonicalJson.Text(actual.Events));
+        StateAssert.Equal(expected.Snapshot, actual.Snapshot);
+        EventAssert.Equal(expected.Events, actual.Events);
     }
 
     [Theory]

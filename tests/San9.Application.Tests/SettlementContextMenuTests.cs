@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Application.Presentation;
 using San9.Content.Scenarios;
@@ -19,7 +20,7 @@ public sealed class SettlementContextMenuTests
     {
         var definition = G01ScenarioTests.Fixture();
         var session = GameSession.Start(definition, 1);
-        var before = session.Snapshot.StateHash;
+        var before = session.Snapshot;
         var snapshot = session.Snapshot with { Settlements = session.Snapshot.Settlements.Select(s =>
             s.Id == 1 ? s with { Kind = kind, OwnerId = owner } : s).ToArray() };
         var entries = SettlementContextMenu.Read(new(definition, snapshot), 1);
@@ -30,7 +31,7 @@ public sealed class SettlementContextMenuTests
         Assert.Null(entries[1].Target.ForceId);
         Assert.True(entries[1].Enabled);
         Assert.All(entries.Skip(2), e => Assert.Equal(owner, e.Target.ForceId));
-        Assert.Equal(before, session.Snapshot.StateHash);
+        StateAssert.Equal(before, session.Snapshot);
     }
 
     [Fact]
@@ -119,7 +120,7 @@ public sealed class SettlementContextMenuTests
         var texts = new TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion, keys.ToDictionary(k => k, k => k));
         var session = GameSession.Start(definition, 1);
         var query = new InformationQuery(session, texts);
-        string hash = session.Snapshot.StateHash;
+        var hash = session.Snapshot;
         Assert.Throws<InvalidDataException>(() => (definition with {
             Information = definition.Information with { Tactics = [new(901, "land-tech")] }
         }).Validate());
@@ -171,6 +172,6 @@ public sealed class SettlementContextMenuTests
             .Read(InformationCategory.Ships, 1, force: 1).Rows).Cells[1].Text);
         Assert.Empty(query.Read(InformationCategory.Tactics, force: 2).Rows);
         Assert.Equal([731], query.Read(InformationCategory.Formations, force: 2).Rows.Select(r => r.Key.Id));
-        Assert.Equal(hash, session.Snapshot.StateHash);
+        StateAssert.Equal(hash, session.Snapshot);
     }
 }

@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using System.Text.Json;
 using San9.Core.Domain;
@@ -28,12 +29,7 @@ public sealed class DuelContestTests
         [new(1, 5, 0, 100000, 100, new(1, 1), water ? TravelMode.Water : TravelMode.Land)
             { DoublesDuelChance = doubles, Tactics = new(0, 0, 2, [], []) }], []));
 
-    private static ulong SeedForTrigger(int roll)
-    {
-        for (ulong seed = 0; seed < 10000; seed++)
-            if (new StableRandom(StableRandom.DeriveSeed(seed, "duel-trigger")).NextUInt64() % 100 == (ulong)roll) return seed;
-        throw new InvalidOperationException("Missing test seed.");
-    }
+    private static ulong SeedForTrigger(int roll) => TestSeeds.ForNamedRoll("duel-trigger", roll);
 
     [Theory]
     [InlineData(false, 1, 3)]
@@ -100,15 +96,11 @@ public sealed class DuelContestTests
     [Fact]
     public void SupportsDrawInAttackingThenDefendingIdentityOrder()
     {
-        ulong seed = 0;
-        for (; seed < 100000; seed++)
-        {
-            if (new StableRandom(StableRandom.DeriveSeed(seed, "duel-trigger")).NextUInt64() % 100 >= 9) continue;
-            var support = new StableRandom(StableRandom.DeriveSeed(seed, "duel-support"));
-            if (support.NextUInt64() % 100 < 50 && support.NextUInt64() % 100 >= 50 &&
-                support.NextUInt64() % 100 >= 50 && support.NextUInt64() % 100 < 50) break;
-        }
-        Assert.True(seed < 100000);
+        const ulong seed = 14UL;
+        Assert.True(new StableRandom(StableRandom.DeriveSeed(seed, "duel-trigger")).NextUInt64() % 100 < 9);
+        var support = new StableRandom(StableRandom.DeriveSeed(seed, "duel-support"));
+        Assert.True(support.NextUInt64() % 100 < 50 && support.NextUInt64() % 100 >= 50 &&
+            support.NextUInt64() % 100 >= 50 && support.NextUInt64() % 100 < 50);
         var world = World([Person(11, 1, 100), Person(19, 1), Person(12, 1),
             Person(21, 2, 100), Person(29, 2), Person(22, 2)], seed).BeginMutation();
         var roster = DuelParticipants.Select(world, world.Units[1], world.Units[2], Rules())!;
@@ -143,7 +135,7 @@ public sealed class DuelContestTests
         var outcome = DuelContest.Resolve(world, roster, events);
         var repeatEvents = new List<DomainEvent>();
         Assert.Equal(CanonicalJson.Text(outcome), CanonicalJson.Text(DuelContest.Resolve(restored, roster, repeatEvents)));
-        Assert.Equal(CanonicalJson.Text(events), CanonicalJson.Text(repeatEvents));
+        EventAssert.Equal(events, repeatEvents);
         Assert.True(outcome.Pairs.Length >= 7);
         var hp = people.ToDictionary(p => p.Id, _ => 100);
         int attackIndex = 0, defenseIndex = 0;

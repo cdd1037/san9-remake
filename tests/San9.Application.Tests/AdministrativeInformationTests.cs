@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.Presentation;
 using San9.Content.Scenarios;
 using San9.Content.Text;
@@ -342,7 +343,7 @@ public sealed class AdministrativeInformationTests
     [Fact]
     public void AllPagesFitTheSharedCatalogAndAllDetailQueriesAreReadOnly()
     {
-        var (session,text,_)=Fixture(); var query=new InformationQuery(session,text); string before=session.View.World.StateHash;
+        var (session,text,_)=Fixture(); var query=new InformationQuery(session,text); var before=session.View.World;
         foreach(var (category,count) in new[]{(InformationCategory.Ranks,1),(InformationCategory.Forces,5),(InformationCategory.Corps,4),(InformationCategory.Cities,5),(InformationCategory.Regions,3)})
         {
             Assert.Equal(count,AdministrativeCatalog.Pages(category).Count);
@@ -352,7 +353,7 @@ public sealed class AdministrativeInformationTests
             if(category!=InformationCategory.Ranks)
                 foreach(var row in query.Read(category).Rows) Assert.NotEmpty(AdministrativeDetails.Read(session.View,text,row.Key).Sections);
         }
-        Assert.Equal(before,session.View.World.StateHash);
+        StateAssert.Equal(before,session.View.World);
     }
     [Fact]
     public void ReturningFromRelatedListsRestoresCatalogAndDetailFocusIndependently()

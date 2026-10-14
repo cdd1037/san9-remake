@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -30,9 +31,9 @@ public sealed class PrisonerExecutionRulesTests
             [new(1, new(2, 2), new(1, 1)), new(2, new(12, 2), new(1, 1)), new(3, new(2, 7), new(1, 1))]));
         var engine = new SimulationEngine(world, new SimulationRules { Military = military });
         var command = new ExecutePrisonerCommand(Guid.NewGuid(), 1, 0, 7);
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         Assert.Equal(CommandRejection.NotActiveController, engine.Execute(new("player"), command).Submission.Rejection);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         var result = engine.Execute(new(CorpsControl.ControllerId(30)), command);
         Assert.True(result.Submission.Accepted);
         Assert.Single(result.Events.OfType<OfficerDiedEvent>());

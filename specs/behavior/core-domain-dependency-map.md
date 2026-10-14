@@ -66,7 +66,7 @@ G10支持范围内事件已接入：日历拥有唯一活动`EventSession`，`Of
 
 ## 核心领域契约
 
-`domestic-development` 是四项内政随机加倍前的纯计算入口，已由 `San9.Core.Domain.DomesticDevelopment` 实现；它没有模拟调度依赖。`economy`依赖该计算与`simulation`，由BEH-ECONOMY-0001定义多人六项命令、共享资源账户、城市商人和粮食买卖及周期经济；Application通过`DomesticPlanner`和公共命令运行确定性简单策略。`CityMerchants`每旬刷新城市在场状态，`FoodTrade`共用只读报价与提交复验、实际军团账户及同城旬次数。`FoodMarket`按内容月份池每旬刷新当前粮价，重复值保留权重，稳定恢复不重抽。经济状态、名义规则输入及事件同步存档、内容指纹和录像。
+`domestic-development` 是四项内政随机加倍前的纯计算入口，已由 `San9.Core.Domain.DomesticDevelopment` 实现；它没有模拟调度依赖。`economy`依赖该计算与`simulation`，由BEH-ECONOMY-0001定义多人六项命令、共享资源账户、城市商人和粮食买卖及周期经济；Application通过`DomesticPlanner`和公共命令运行确定性简单策略。`CityMerchants`每旬刷新城市在场状态，`FoodTrade`共用只读报价与提交复验、实际军团账户及同城旬次数。`FoodMarket`按内容月份池每旬刷新当前粮价，重复值保留权重，稳定恢复不重抽。当前名义规则输入由内容提供，经济状态进入存档，事件由录像记录。
 
 | 领域 | 已确认规格 | 对象与状态 | 输入 → 输出 | 关键不变量 | 首个实现入口 |
 | --- | --- | --- | --- | --- | --- |
@@ -117,4 +117,4 @@ G07已接入的周期入口：`PrisonerEscapeCycle`在旬更新复用`PrisonerRe
 
 跨局玩家进度基础`BEH-PROFILE-0001`归入`session-persistence`边界；仅持有本地完成事实，与单局保存、随机及重放隔离，不将尚未接入的解锁规则算作已完成。
 
-`session-persistence`依赖`simulation`，已确认规格为`BEH-SAVE-0001`。Core的`CanonicalJson`提供规范化编码与按需诊断摘要，普通快照不携带摘要；Application持有内容/规则身份、操作水位、轻量保存恢复、独立录像及原子会话发布；独立`San9.Headless`只消费Application，不拥有领域规则。G03新增相性、精通、基础信望、容量与粮耗资格，规范化组合对和官职俸禄成为经济输入。后续新增领域状态、规则输入与动态身份必须同步保存、恢复校验、指纹和重放测试。实际入口为`SaveService`、`CommandLogService`与`HeadlessHost`，验证见[G02验收](../../docs/g02-verification.md)。
+`session-persistence`依赖`simulation`，已确认规格为`BEH-SAVE-0001`。Core的`CanonicalJson`提供规范化编码，诊断API显式比较语义状态，普通快照不携带摘要；Application持有规则版本、操作水位、轻量保存恢复、独立录像及原子会话发布；独立`San9.Headless`只消费Application，不拥有领域规则。G03新增相性、精通、基础信望、容量与粮耗资格，规范化组合对和官职俸禄成为经济输入。后续新增领域状态、规则输入与动态身份必须同步保存、恢复校验、状态诊断和重放测试。实际入口为`SaveService`、`CommandLogService`与`HeadlessHost`，验证见[G02验收](../../docs/g02-verification.md)。

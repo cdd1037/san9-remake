@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -30,6 +31,6 @@ public sealed class ComputerDamageTests
         var engine = new SimulationEngine(world);
         var restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()));
         Assert.Equal(100, restored.Snapshot.Simulation.ComputerDamageBonusPercent);
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
     }
 }

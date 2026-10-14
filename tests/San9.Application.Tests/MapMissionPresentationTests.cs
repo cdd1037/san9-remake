@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Application.Persistence;
 using San9.Application.Presentation;
@@ -100,7 +101,7 @@ public sealed class MapMissionPresentationTests
             replay = RecordingService.Replay(path,content);
         }
         finally { File.Delete(path); }
-        Assert.Equal(session.Snapshot.StateHash,replay.Session.Snapshot.StateHash);
+        StateAssert.Equal(session.Snapshot, replay.Session.Snapshot);
         Assert.Equal(result.Events.OfType<UnitStrategyResolvedEvent>().Select(e => e.Target),
             replay.Events.OfType<UnitStrategyResolvedEvent>().Select(e => e.Target));
     }

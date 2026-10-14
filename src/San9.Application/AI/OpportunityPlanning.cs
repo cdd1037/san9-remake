@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Text.Json.Serialization;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -7,16 +8,26 @@ namespace San9.Application.AI;
 /// <summary>A permitted, prepared alternative. No world, query callbacks or resolution dice cross this boundary.</summary>
 public sealed record OpportunityOption(AllocationCandidate Candidate, CommandAdvice Advice, int Prior,
     int Days, string Key, OpportunityConditions Conditions);
-// Frozen public evidence, not a persisted identity. Encode only for a live cooldown or an accepted task.
-public sealed record OpportunityConditions(int Accuracy, int? AdviserId, int Prior, object? Subject,
-    OpportunityActorBand ActorBand, int? Relation, int? GossipRelation)
-{
-    public string Fingerprint() => CanonicalJson.Hash(this);
-}
+/// <summary>Public evidence compared by value and retained only for an accepted task's cooldown.</summary>
+public sealed record OpportunityConditions(int Accuracy, int? AdviserId, int Prior, OpportunitySubject? Subject,
+    OpportunityActorBand ActorBand, int? Relation, int? GossipRelation);
+
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(OpportunityPerson), "person")]
+[JsonDerivedType(typeof(OpportunityUnit), "unit")]
+[JsonDerivedType(typeof(OpportunityPlace), "place")]
+[JsonDerivedType(typeof(OpportunitySearch), "search")]
+[JsonDerivedType(typeof(OpportunitySurrender), "surrender")]
+public abstract record OpportunitySubject;
+public sealed record OpportunityPerson(int? OwnerId, OfficerStatus Status, int? SettlementId, int? UnitId, int? Loyalty) : OpportunitySubject;
+public sealed record OpportunityUnit(int OwnerId, WorldPosition Position, uint Soldiers, int Morale, UnitCondition Condition) : OpportunitySubject;
+public sealed record OpportunityPlace(int? OwnerId, uint Soldiers, int Durability) : OpportunitySubject;
+public sealed record OpportunitySearch(int Posts) : OpportunitySubject;
+public sealed record OpportunitySurrender(long OwnSoldiers, long TargetSoldiers) : OpportunitySubject;
 public sealed record OpportunityActorBand(int Intelligence, int Politics);
 public sealed record OpportunityObservation(GameClock Clock, int AdviserAccuracy,
     ImmutableArray<OpportunityOption> Options, bool Complete);
-public sealed record OpportunityAttempt(int ForceId, string ControllerId, string Key, string Conditions,
+public sealed record OpportunityAttempt(int ForceId, string ControllerId, string Key, OpportunityConditions Conditions,
     Guid TaskId, int ActorId, GameClock Started, GameClock RetryAfter, string Outcome);
 
 public static class OpportunityPlanner
@@ -42,7 +53,7 @@ public static class OpportunityPlanner
             if (!work.Spend()) break;
             if (attempts.Any(a => a.ControllerId == option.Candidate.ControllerId && a.Key == option.Key &&
                 (a.Outcome == "pending" || a.RetryAfter.DayNumber > observation.Clock.DayNumber &&
-                    a.Conditions == option.Conditions.Fingerprint()))) continue;
+                    a.Conditions == option.Conditions))) continue;
             int probability = Estimate(option.Prior, option.Advice.Opinion, observation.AdviserAccuracy);
             var candidate = option.Candidate;
             long net = candidate.Benefit * probability / 100 - candidate.MoneyCost - candidate.OfficerOpportunityCost;
@@ -119,7 +130,7 @@ internal static class OpportunityObservationCapture
         int forceId = active.ForceId;
         // Eligibility probes do not create tasks. One unused identity covers this frozen observation;
         // candidate payloads need no serialization merely to pass the public command envelope.
-        Guid? queryId = null;
+        var queryId = SimulationIdentity.Command(world.Simulation.NextSequence, forceId);
         int accuracy = world.Forces.Single(f => f.Id == forceId).AdviserId is int adviser
             ? AdviserAccuracy.Percent(abilities[adviser].Intelligence) : 50;
         int Relation(int target) => world.Relations.SingleOrDefault(r => r.FirstId == Math.Min(forceId, target) && r.SecondId == Math.Max(forceId, target))?.Value ?? 0;
@@ -290,9 +301,7 @@ internal static class OpportunityObservationCapture
                     if (!work.Spend()) { complete = false; return; }
                     var advice = consult();
                     if (advice.Rejection != CommandRejection.None) return;
-                    queryId ??= new Guid(Convert.FromHexString(CanonicalJson.Hash(new
-                        { forceId, world.Clock, world.Simulation.NextSequence, Purpose = "opportunity-query" })).AsSpan(0, 16));
-                    var query = command with { CommandId = queryId.Value, Sequence = world.Simulation.NextSequence };
+                    var query = command with { CommandId = queryId, Sequence = world.Simulation.NextSequence };
                     if (command is RecruitOfficerCommand or SearchCommand)
                     {
                         if (engine.GetPreparationEligibility(new(controller), query) != CommandRejection.None) return;
@@ -321,18 +330,18 @@ internal static class OpportunityObservationCapture
                                 FoodSupplyForecast.FieldConsumption(unit.Soldiers, unit.Wounded)) * Math.Max(0, receiver.HorizonDays - days);
                         }
                     }
-                    object? subject = command switch
+                    OpportunitySubject? subject = command switch
                     {
                         RecruitOfficerCommand or AlienateCommand or ReturnPrisonerCommand => world.Officers
-                            .Where(p => p.Id == target && p.IsVisible).Select(p => new
-                            { p.OwnerId, p.Status, p.SettlementId, p.UnitId, Loyalty = p.IsServing ? (int?)p.Loyalty : null }).FirstOrDefault(),
-                        UnitStrategyCommand => world.Units.Where(u => u.Id == target).Select(u => new
-                            { u.OwnerId, u.Position, u.Soldiers, u.Morale, u.Condition }).FirstOrDefault(),
+                            .Where(p => p.Id == target && p.IsVisible).Select(p => new OpportunityPerson(
+                                p.OwnerId, p.Status, p.SettlementId, p.UnitId, p.IsServing ? (int?)p.Loyalty : null)).FirstOrDefault(),
+                        UnitStrategyCommand => world.Units.Where(u => u.Id == target).Select(u => new OpportunityUnit(
+                            u.OwnerId, u.Position, u.Soldiers, u.Morale, u.Condition)).FirstOrDefault(),
                         BurnCommand or SeizeCommand or RequestAttackCommand => world.Settlements.Where(s => s.Id == target)
-                            .Select(s => new { s.OwnerId, s.Soldiers, s.Durability }).FirstOrDefault(),
-                        SearchCommand => posts,
-                        DemandSurrenderCommand => new { ownSoldiers = world.Settlements.Where(s => s.OwnerId == forceId).Sum(s => (long)s.Soldiers),
-                            targetSoldiers = world.Settlements.Where(s => s.OwnerId == target).Sum(s => (long)s.Soldiers) },
+                            .Select(s => new OpportunityPlace(s.OwnerId, s.Soldiers, s.Durability)).FirstOrDefault(),
+                        SearchCommand => new OpportunitySearch(posts),
+                        DemandSurrenderCommand => new OpportunitySurrender(world.Settlements.Where(s => s.OwnerId == forceId).Sum(s => (long)s.Soldiers),
+                            world.Settlements.Where(s => s.OwnerId == target).Sum(s => (long)s.Soldiers)),
                         _ => null
                     };
                     var conditions = new OpportunityConditions(accuracy, advice.AdviserId, prior, subject,

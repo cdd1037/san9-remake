@@ -21,84 +21,6 @@ internal sealed class ScenarioSessionDefinition
             ProvinceNameKeys = new(definition.ProvinceNameKeys), CityProvinceIds = new(definition.CityProvinceIds)
         };
         MilitaryRules = Content.Military is { } military ? new MilitaryRulebook(military) : null;
-        Fingerprint = CanonicalJson.Hash(new
-        {
-            definition.SchemaVersion, definition.ScenarioId, definition.Year, definition.Month, definition.Day, definition.PlayerForceId, definition.DomesticPairs, definition.ImperialSealId, definition.ImperialCourt, definition.ImperialCourtEnded,
-            definition.ShanyangGong,
-            Guandu = definition.Guandu is { } guandu ? guandu with
-                { PatronRegionIds = guandu.PatronRegionIds.Order().ToImmutableArray(), EnemyRegionIds = guandu.EnemyRegionIds.Order().ToImmutableArray() } : null,
-            RedCliffs = definition.RedCliffs is { } battle ? battle with
-                { ExcludedRulerIds = battle.ExcludedRulerIds.Order().ToImmutableArray(), RegionIds = battle.RegionIds.Order().ToImmutableArray() } : null,
-            ChainedPlot = definition.ChainedPlot is { } plot ? plot with
-                { SupporterIds = plot.SupporterIds.Order().ToImmutableArray(), OpponentIds = plot.OpponentIds.Order().ToImmutableArray() } : null,
-            definition.Military, definition.ThreeVisitsStarted,
-            ThreeVisits = definition.ThreeVisits is { } visits ? visits with { CompanionIds = visits.CompanionIds.Order().ToImmutableArray() } : null,
-            definition.HanzhongKing, definition.FiveTigers, definition.ExpeditionMemorial, definition.SunMarriage, definition.PoliticalEvents, definition.ProvinceCountryTitleIds,
-            QiaoMarriage = definition.QiaoMarriage is { } qiao ? qiao with
-                { RequiredLivingOfficerIds = qiao.RequiredLivingOfficerIds.Order().ToImmutableArray(), ExcludedCityIds = qiao.ExcludedCityIds.Order().ToImmutableArray() } : null,
-            CountryTitles = definition.Information.CountryTitles.OrderBy(t => t.Id).Select(t => t.Rule with
-                { PreferredRulerIds = t.Rule.PreferredRulerIds.Order().ToImmutableArray(), PreferredBloodlineIds = t.Rule.PreferredBloodlineIds.Order().ToImmutableArray() }),
-            Terminal = definition.Terminal is { } terminal ? new { Cities = terminal.CoreCityIds.Order(), terminal.EndYear } : null,
-            Ending = definition.Ending is { } ending ? new
-            {
-                ExpansionOrder = ending.ExpansionPublicOrderCityIds.Order(), ExpansionGateways = ending.ExpansionGatewayCityIds.Order(),
-                ExpansionCommerce = ending.ExpansionCommerceCityIds.Order(), DomesticDurability = ending.DomesticDurabilityCityIds.Order(),
-                DomesticGateways = ending.DomesticGatewayCityIds.Order(), DomesticOrder = ending.DomesticPublicOrderCityIds.Order(),
-                Treasures = ending.CulturalTreasureIds.Order()
-            } : null,
-            definition.Alliance,
-            definition.AnnualAppearancesEnabled,
-            definition.NaturalDeathsEnabled,
-            definition.FoodExchangeRate, definition.FoodMarket,
-            definition.FreeOfficerMigrationEnabled,
-            definition.OfficeRequestsEnabled,
-            definition.ForceConsolidationEnabled,
-            definition.ForceEmergenceEnabled,
-            definition.CityIndependenceEnabled,
-            definition.UnitDefectionsEnabled,
-            definition.SettlementDefectionsEnabled,
-            TacticCourses = definition.TacticCourses.OrderBy(c => c.CityId),
-            AttackRequests = definition.AttackRequests.OrderBy(r => r.RequestedForceId),
-            ConsumedEventKeys = definition.ConsumedEventKeys.OrderBy(k => k.Value, StringComparer.Ordinal),
-            SearchEvents = definition.SearchEvents.OrderBy(e => e.Id, StringComparer.Ordinal).Select(e => e switch
-            {
-                HealingSearchEventDefinition healing => (SearchEventDefinition)(healing with
-                    { ExcludedSearchingOfficerIds = healing.ExcludedSearchingOfficerIds.Order().ToImmutableArray() }),
-                MerchantInvestmentDefinition merchant => merchant with { Categories = merchant.Categories.OrderBy(c => c.Id, StringComparer.Ordinal)
-                    .Select(c => c with { PlaceIds = c.PlaceIds.Order().ToImmutableArray() }).ToImmutableArray() },
-                MoneyDemandSearchEventDefinition demand => demand with { Months = demand.Months.Order().ToImmutableArray(), DemandingOfficerIds = demand.DemandingOfficerIds.Order().ToImmutableArray() },
-                ScholarPunishmentSearchEventDefinition scholar => scholar with { Months = scholar.Months.Order().ToImmutableArray(), Sites = scholar.Sites.OrderBy(s => s.PlaceId).ToImmutableArray() },
-                BanditMediationSearchEventDefinition mediation => mediation with { Months = mediation.Months.Order().ToImmutableArray(), Sites = mediation.Sites.OrderBy(s => s.PlaceId).ToImmutableArray(), GuaranteedOfficerIds = mediation.GuaranteedOfficerIds.Order().ToImmutableArray() },
-                CommemorationSearchEventDefinition memorial => memorial with { Months = memorial.Months.Order().ToImmutableArray(), Sites = memorial.Sites.OrderBy(s => s.PlaceId).ToImmutableArray() },
-                TrainingSiteSearchEventDefinition training => training with { Months = training.Months.Order().ToImmutableArray(), Sites = training.Sites.OrderBy(s => s.PlaceId).ToImmutableArray() },
-                CommunitySearchEventDefinition community => community with { Months = community.Months.Order().ToImmutableArray() },
-                ConflictSearchEventDefinition conflict => conflict with { Months = conflict.Months.Order().ToImmutableArray() },
-                TigerSearchEventDefinition tiger => tiger with { ProvinceIds = tiger.ProvinceIds.Order().ToImmutableArray() },
-                BeastSearchEventDefinition beast => beast with { Sites = beast.Sites.OrderBy(s => s.PlaceId).ToImmutableArray(),
-                    BattleTacticIds = beast.BattleTacticIds.Order().ToImmutableArray() },
-                ForceActivationSearchEventDefinition activation => activation with
-                    { AttachedSettlementIds = activation.AttachedSettlementIds.Order().ToImmutableArray(), OfficerIds = activation.OfficerIds.Order().ToImmutableArray() },
-                WomenVisitSearchEventDefinition visit => visit with { Sites = visit.Sites.OrderBy(s => s.PlaceId)
-                    .Select(s => s with { RequiredLeaderIds = s.RequiredLeaderIds.Order().ToImmutableArray() }).ToImmutableArray() },
-                SageVisitSearchEventDefinition sage => sage with { RecommendedOfficerIds = sage.RecommendedOfficerIds.Order().ToImmutableArray() },
-                PhysicianVisitSearchEventDefinition physician => physician with { Sites = physician.Sites.OrderBy(s => s.PlaceId).ToImmutableArray() },
-                _ => e
-            }),
-            Forces = Forces().OrderBy(f => f.Id), Settlements = Settlements().OrderBy(s => s.Id),
-            Officers = definition.Officers.OrderBy(o => o.State.Id).Select(o => new
-                { State = o.State with { LearnedTactics = o.State.LearnedTactics.Order().ToImmutableArray() }, o.AgeAtScenarioStart }),
-            Units = definition.Units.OrderBy(u => u.Id), Corps = definition.Information.Corps.OrderBy(c => c.Id),
-            Treasures = definition.Information.TreasureStates.OrderBy(t => t.Id),
-            Relations = definition.Information.Relations.OrderBy(r => r.FirstId).ThenBy(r => r.SecondId),
-            Coordinates = definition.Settlements.OrderBy(s => s.Id).Select(s => new { s.Id, s.X, s.Y }),
-            UnbuiltPlaces = definition.UnbuiltPlaces.OrderBy(p => p.Id),
-            Regions = definition.RegionNameKeys.Keys.Order(), definition.RegionCityIds, definition.CityProvinceIds,
-            CityConnections = definition.CityConnections.OrderBy(c => c.FromCityId).ThenBy(c => c.ToCityId),
-            Ranks = definition.Information.Ranks.OrderBy(r => r.Id).Select(r => new { r.Id, r.CommandCapacity, r.RequiredTrust, r.LoyaltyBonus, r.Precedence }),
-            Offices = definition.Information.Offices.OrderBy(o => o.Id).Select(o => new { o.Id, o.CommandCapacity, o.Salary, o.GovernorPriority, o.AbilityBonuses, o.RequiredRankId }),
-            TreasureDefinitions = definition.Information.Treasures.OrderBy(t => t.Id).Select(t => new { t.Id, t.Category, t.AbilityBonus, t.AbilityBonuses, t.LoyaltyBonus, t.TacticId, t.EscapeMount,
-                t.RetentionGroup, t.AutomaticDiplomacyOfferAllowed, FavoredOwnerIds = t.FavoredOwnerIds.Order() })
-        });
     }
 
     internal ScenarioInitialState Content { get; }
@@ -121,7 +43,6 @@ internal sealed class ScenarioSessionDefinition
         };
     }
     internal MilitaryRulebook? MilitaryRules { get; }
-    internal string Fingerprint { get; }
     internal WorldState CreateWorld(ulong seed, int computerDamageBonusPercent = 0, bool battleDeathsEnabled = false,
         ControllerKind playerForceController = ControllerKind.Player) => WorldState.Create(new(Content.Year, Content.Month, Content.Day), seed,
         Forces(),

@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -48,7 +49,7 @@ public sealed class PoliticalEventSessionTests
         session.AdvanceXun(); session.AdvanceXun();
         var restoredBefore = SaveService.Decode(SaveService.Encode(session), scenario);
         var result = session.AdvanceXun();
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restoredBefore.AdvanceXun().Events));
+        EventAssert.Equal(result.Events, restoredBefore.AdvanceXun().Events);
         var prompt = session.GetCountryTitlePrompt()!;
         Assert.Equal(new[] { 500 }, prompt.CandidateIds); Assert.Equal(1, prompt.ForceId);
         Assert.Equal(ended ? PeerageChangeKind.Proclamation : PeerageChangeKind.Abdication, prompt.Kind);
@@ -60,14 +61,14 @@ public sealed class PoliticalEventSessionTests
         var order = result.Events.ToList();
         Assert.True(order.FindIndex(e => e is StageCompletedEvent { Stage: ResolutionStage.QuarterUpdate }) <
             order.FindIndex(e => e is CountryTitleOfferedEvent));
-        string before = session.Snapshot.StateHash;
+        var before = session.Snapshot;
         for (int i = 0; i < 5; i++) Assert.Equal(prompt, session.GetCountryTitlePrompt());
-        Assert.Equal(before, session.Snapshot.StateHash);
+        StateAssert.Equal(before, session.Snapshot);
         Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
         Assert.Throws<InvalidOperationException>(() => session.CaptureRecording());
         Assert.False(session.Execute(new("player"), new ChooseCountryTitleCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, 900)).Submission.Accepted);
         Assert.False(session.Execute(new("ai:2"), new ChooseCountryTitleCommand(Guid.NewGuid(), 2, session.Snapshot.Simulation.NextSequence, 500)).Submission.Accepted);
-        Assert.Equal(before, session.Snapshot.StateHash);
+        StateAssert.Equal(before, session.Snapshot);
         var command = new ChooseCountryTitleCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, 500);
         var committed = session.Execute(new("player"), command);
         Assert.True(committed.Submission.Accepted); Assert.Single(committed.Events.OfType<PeerageChangedEvent>());
@@ -78,15 +79,15 @@ public sealed class PoliticalEventSessionTests
         Assert.DoesNotContain("emperor", session.View.Settlements.Single(s => s.Id == 1).Icons);
         Assert.Equal(!ended, session.Snapshot.Simulation.ConsumedEventKeys.Contains(new("historical.court-ended")));
         Assert.Null(session.GetCountryTitlePrompt());
-        string committedHash = session.Snapshot.StateHash;
+        var committedHash = session.Snapshot;
         Assert.False(session.Execute(new("player"), command).Submission.Accepted);
-        Assert.Equal(committedHash, session.Snapshot.StateHash);
+        StateAssert.Equal(committedHash, session.Snapshot);
         var restored = SaveService.Decode(SaveService.Encode(session), scenario);
         Assert.Equal(force, restored.View.Forces.Single(f => f.Id == 1));
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
-        Assert.Equal(CanonicalJson.Text(session.AdvanceXun().Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+        StateAssert.Equal(session.Capture(), restored.Capture());
+        EventAssert.Equal(session.AdvanceXun().Events, restored.AdvanceXun().Events);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), scenario, GameSession.EngineFactory(scenario));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -102,19 +103,16 @@ public sealed class PoliticalEventSessionTests
         Assert.Equal(910, session.Snapshot.Forces.Single(f => f.Id == 1).BaseTrust);
         Assert.Equal(110, session.Snapshot.Forces.Single(f => f.Id == 2).Trust);
         var restored = SaveService.Decode(SaveService.Encode(session), scenario);
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
-        Assert.Equal(session.Capture().StateHash, RecordingService.Replay(RecordingService.Encode(session.EndRecording()), scenario,
-            GameSession.EngineFactory(scenario)).Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), restored.Capture());
+        StateAssert.Equal(session.Capture(), RecordingService.Replay(RecordingService.Encode(session.EndRecording()), scenario,
+            GameSession.EngineFactory(scenario)).Session.Capture());
     }
 
     [Fact]
-    public void PoliticalInputsAffectFingerprintAndRuntimeTitleIsRequiredAndValidated()
+    public void RuntimeTitleIsRequiredAndValidated()
     {
-        var scenario = Scenario(); string original = GameSession.Fingerprint(scenario);
-        Assert.NotEqual(original, GameSession.Fingerprint(scenario with { PoliticalEvents = null }));
-        Assert.NotEqual(original, GameSession.Fingerprint(scenario with { ProvinceCountryTitleIds = ImmutableDictionary<int, int>.Empty }));
-        Assert.NotEqual(original, GameSession.Fingerprint(scenario with { Information = scenario.Information with
-        { CountryTitles = scenario.Information.CountryTitles.Select(t => t with { Rule = t.Rule with { AutomaticSelectionAllowed = false } }).ToArray() } }));
+        var scenario = Scenario();
+
         var session = GameSession.Start(scenario, 17); var snapshot = session.Capture();
         Assert.Throws<ArgumentException>(() => GameSession.Restore(scenario, snapshot with { World = snapshot.World with
         { Forces = snapshot.World.Forces.Select(f => f.Id == 1 ? f with { CountryTitleId = 123456 } : f).ToArray() } }));

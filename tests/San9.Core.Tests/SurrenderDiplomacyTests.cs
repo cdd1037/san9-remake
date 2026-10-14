@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using System.Text.Json;
 using San9.Core.Domain;
@@ -28,7 +29,7 @@ public sealed class SurrenderDiplomacyTests
         var restored = new SimulationEngine(WorldState.Restore(engine.Snapshot), rules);
         var answer = new RespondDailyTaskCommand(Guid.NewGuid(), 2, 2, surrenderId, 0, true);
         var events = engine.Execute(new("second"), answer).Events;
-        Assert.Equal(CanonicalJson.Text(events), CanonicalJson.Text(restored.Execute(new("second"), answer).Events));
+        EventAssert.Equal(events, restored.Execute(new("second"), answer).Events);
         Assert.Single(events.OfType<ForceSurrenderedEvent>());
         var returning = Assert.Single(engine.Snapshot.Simulation.Tasks.Where(t => t.OfficerId == 31));
         Assert.False(returning.Journey!.ReturnLeg!.AfterDailyCommands);
@@ -42,11 +43,11 @@ public sealed class SurrenderDiplomacyTests
             foreach (var current in new[] { engine, restored })
                 foreach (var control in current.Snapshot.Simulation.Controls) current.EndControl(new(control.ControllerId));
             var next = engine.AdvanceXun().Events;
-            Assert.Equal(CanonicalJson.Text(next), CanonicalJson.Text(restored.AdvanceXun().Events));
+            EventAssert.Equal(next, restored.AdvanceXun().Events);
             completion.AddRange(next);
         }
         Assert.Equal(new GameClock(190, 1, 20), Assert.Single(completion.OfType<PersonnelReturnedEvent>(), e => e.OfficerId == 31).Clock);
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
     }
 
     [Theory]
@@ -80,7 +81,7 @@ public sealed class SurrenderDiplomacyTests
 
         var events = Resolve(engine);
         Assert.Equal(CanonicalJson.Text(events), CanonicalJson.Text(Resolve(restored)));
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
         bool grows = accept && politics < 100;
         var growth = events.OfType<OfficerAbilityGrownEvent>().ToArray();
         if (grows)
@@ -147,7 +148,7 @@ public sealed class SurrenderDiplomacyTests
         var response = new RespondDailyTaskCommand(Guid.NewGuid(), 2, 1, task.Id, 0, true);
         var result = engine.Execute(new("second"), response);
         Assert.True(result.Submission.Accepted);
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.Execute(new("second"), response).Events));
+        EventAssert.Equal(result.Events, restored.Execute(new("second"), response).Events);
         var surrendered = Assert.Single(result.Events.OfType<ForceSurrenderedEvent>());
         long funds = saved.Corps.Where(c => c.OwnerId == 2).Sum(c => (long)(c.Treasury?.Money ?? 0));
         Assert.Equal(funds, surrendered.MoneyRemoved);

@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -181,9 +182,9 @@ public sealed class UnitPolicyTests
     {
         var engine = new SimulationEngine(World(), EconomyRulebook.Empty, PersonnelRulebook.Empty, TreasureRulebook.Empty, military: Rules());
         var command = new SetUnitPoliciesCommand(Guid.NewGuid(), 1, 0, 1, new(true, true, true, true));
-        var before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         Assert.False(engine.Execute(new("player"), command with { UnitId = 2 }).Submission.Accepted);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         Assert.True(engine.Execute(new("player"), command).Submission.Accepted);
         Assert.Equal(command.Policies, engine.Snapshot.Units.Single(u => u.Id == 1).Policies);
         Assert.Equal(Mission, engine.Snapshot.Units.Single(u => u.Id == 1).Order);

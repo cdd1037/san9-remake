@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Application.Presentation;
 using San9.Content.Interface;
@@ -243,7 +244,7 @@ public sealed class PersonnelCommandTests
         var command = selected.CreateCommand(Guid.NewGuid(),0);
         Assert.True(queried.Execute(new("player"),command).Submission.Accepted);
         Assert.True(untouched.Execute(new("player"),command).Submission.Accepted);
-        Assert.Equal(untouched.Capture().StateHash,queried.Capture().StateHash);
+        StateAssert.Equal(untouched.Capture(), queried.Capture());
     }
     [Fact]
     public void RecallSpeaksOnceForAllOriginsUsingCommanderPriorityAndDoesNotMutateTheWorld()

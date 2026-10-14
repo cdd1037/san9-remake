@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -51,26 +52,26 @@ public sealed class CommunitySearchSessionTests
         var p = Assert.IsType<CommunitySearchPrompt>(session.GetCommunitySearchPrompt());
         Assert.Equal(CanonicalJson.Text(p), CanonicalJson.Text(restored.GetCommunitySearchPrompt()));
         Assert.Equal(SimulationBoundary.AwaitingDecision, session.Snapshot.Simulation.Boundary);
-        string hash = session.Snapshot.StateHash;
-        Assert.Equal(CanonicalJson.Text(p), CanonicalJson.Text(session.GetCommunitySearchPrompt())); Assert.Equal(hash, session.Snapshot.StateHash);
+        var hash = session.Snapshot;
+        Assert.Equal(CanonicalJson.Text(p), CanonicalJson.Text(session.GetCommunitySearchPrompt())); StateAssert.Equal(hash, session.Snapshot);
         bool accepted = choice is not (CommunitySearchChoice.Decline or CommunitySearchChoice.Execute);
         var answer = new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, p.TaskId, p.Step, accepted) { CommunitySearch = choice };
         foreach (var invalid in new[] { answer with { CommunitySearch = null }, answer with { CommunitySearch = (CommunitySearchChoice)99 },
             answer with { Accept = !accepted },
             answer with { SearchConflict = SearchConflictChoice.Pay }, answer with { CountryTitleId = 1 }, answer with { MerchantInvestment = new(MerchantInvestmentChoice.Decline, 0) } })
         {
-            Assert.False(session.Execute(new("player"), invalid).Submission.Accepted); Assert.Equal(hash, session.Snapshot.StateHash);
+            Assert.False(session.Execute(new("player"), invalid).Submission.Accepted); StateAssert.Equal(hash, session.Snapshot);
         }
         var request = session.Request(new CommandOperation(answer), id: answer.CommandId);
         var result = session.Apply(request); var other = restored.Apply(request);
         Assert.Equal(SessionDisposition.Accepted, result.Disposition);
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(other.Events));
+        EventAssert.Equal(result.Events, other.Events);
         Assert.Equal(choice, Assert.Single(result.Events.OfType<CommunitySearchResolvedEvent>()).Choice);
         Assert.DoesNotContain(result.Events, e => e is SearchResolvedEvent);
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(restored));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(SaveService.Decode(SaveService.Encode(session), d)));
+        StateAssert.Equal(session.Capture(), restored.Capture());
+        StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), d).Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), d, GameSession.EngineFactory(d));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Theory]
@@ -101,7 +102,7 @@ public sealed class CommunitySearchSessionTests
             e with { Sites = [e.Sites[0] with { RequiredTreasureId = 999 }] }, e with { Sites = [e.Sites[0] with { RewardTacticIds = [999] }] },
             e with { Months = [13] }, e with { Consumption = EventConsumption.None } })
             Assert.Throws<InvalidDataException>(() => (d with { SearchEvents = [bad] }).Validate());
-        Assert.NotEqual(GameSession.Fingerprint(d), GameSession.Fingerprint(d with { SearchEvents = [e with { Cost = 1 }] }));
+
         var json = JsonNode.Parse(CanonicalJson.Encode(d))!; json["searchEvents"]![0]!.AsObject().Remove("chanceDivisor");
         Assert.Throws<JsonException>(() => StrictJson.Deserialize<ScenarioInitialState>(Encoding.UTF8.GetBytes(json.ToJsonString())));
     }
@@ -128,8 +129,8 @@ public sealed class CommunitySearchSessionTests
             Assert.Equal(SessionDisposition.Accepted, session.Apply(request).Disposition);
             Assert.Equal(SessionDisposition.Accepted, restored.Apply(request).Disposition);
         }
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(restored));
+        StateAssert.Equal(session.Capture(), restored.Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), d, GameSession.EngineFactory(d));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 }

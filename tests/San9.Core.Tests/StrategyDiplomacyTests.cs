@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -15,16 +16,16 @@ public sealed class StrategyDiplomacyTests
         var mutation = world.BeginMutation();
         mutation.Replace(mutation.Forces[2] with { IsBarbarian = true });
         world.Commit(mutation);
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         Assert.Equal(kind < 2, engine.Validate(new("player"), Command(kind)).Accepted);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         mutation = world.BeginMutation();
         mutation.Replace(mutation.Forces[2] with { IsBarbarian = false });
         mutation.SetSimulation(mutation.Simulation with { Alliance = new(3, 1, [1, 2], 36) });
         world.Commit(mutation);
-        before = engine.Snapshot.StateHash;
+        before = engine.Snapshot;
         Assert.False(engine.Execute(new("player"), Command(kind)).Submission.Accepted);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
     }
 
     [Theory]
@@ -163,9 +164,9 @@ public sealed class StrategyDiplomacyTests
             var mutation = world.BeginMutation();
             AttackRequests.Establish(mutation, reverse ? 2 : 1, reverse ? 1 : 2, 3, []);
             world.Commit(mutation);
-            string before = engine.Snapshot.StateHash;
+            var before = engine.Snapshot;
             Assert.False(engine.Execute(new("player"), command).Submission.Accepted);
-            Assert.Equal(before, engine.Snapshot.StateHash);
+            StateAssert.Equal(before, engine.Snapshot);
         }
     }
 

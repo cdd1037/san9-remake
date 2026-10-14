@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using System.Text;
 using System.Text.Json;
@@ -23,11 +24,13 @@ public sealed class SageVisitSessionTests
             { Id = "sage", Consumption = EventConsumption.None }]
     , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }], []) };
 
-    private static ulong Seed() => Enumerable.Range(1, 10000).Select(i => (ulong)i).First(seed =>
+    private static ulong Seed()
     {
+        const ulong seed = 37UL;
         var random = new StableRandom(StableRandom.DeriveSeed(seed, "event-search-eligibility"));
-        return random.NextUInt64() % 100 < 16 && random.NextUInt64() % 100 < 16;
-    });
+        Assert.True(random.NextUInt64() % 100 < 16 && random.NextUInt64() % 100 < 16);
+        return seed;
+    }
 
     [Fact]
     public void RecommendationPersistsWithoutDiscoveringOrRecruitingAndNoRewardRepeatEndsSearch()
@@ -36,7 +39,7 @@ public sealed class SageVisitSessionTests
         Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 2, 1)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), d);
         var result = session.AdvanceXun(); var again = restored.AdvanceXun();
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(again.Events));
+        EventAssert.Equal(result.Events, again.Events);
         Assert.Equal(4, Assert.Single(Assert.Single(result.Events.OfType<SageVisitResolvedEvent>()).LoyaltyRecipientIds));
         Assert.DoesNotContain(result.Events, e => e is SearchResolvedEvent);
         Assert.Null(session.GetSearchRecruitmentPrompt()); Assert.Null(session.Snapshot.Simulation.PendingDailyTask);
@@ -47,13 +50,13 @@ public sealed class SageVisitSessionTests
         var repeat = session.AdvanceXun();
         Assert.Empty(Assert.Single(repeat.Events.OfType<SageVisitResolvedEvent>()).LoyaltyRecipientIds);
         Assert.DoesNotContain(repeat.Events, e => e is SearchResolvedEvent);
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(SaveService.Decode(SaveService.Encode(session), d)));
+        StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), d).Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), d, GameSession.EngineFactory(d));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
-    public void AuthoredReferencesAreValidatedAndRecommendationSetsAreCanonical()
+    public void AuthoredReferencesAreValidated()
     {
         var d = Definition(); var sage = (SageVisitSearchEventDefinition)d.SearchEvents[0];
         foreach (var invalid in new[] { sage with { PlaceId = 999 }, sage with { SageOfficerId = 999 },
@@ -62,11 +65,7 @@ public sealed class SageVisitSessionTests
             sage with { MinimumBaseTrustExclusive = -1 }, sage with { MaximumRecipientLoyaltyInclusive = 256 },
             sage with { LoyaltyReward = 0 }, sage with { Consumption = EventConsumption.OnSuccess } })
             Assert.Throws<InvalidDataException>(() => (d with { SearchEvents = [invalid] }).Validate());
-        var first = d with { SearchEvents = [sage with { RecommendedOfficerIds = [1, 4] }] };
-        var second = d with { SearchEvents = [sage with { RecommendedOfficerIds = [4, 1] }] };
-        Assert.Equal(GameSession.Fingerprint(first), GameSession.Fingerprint(second));
-        Assert.NotEqual(GameSession.Fingerprint(first), GameSession.Fingerprint(d));
-        Assert.NotEqual(GameSession.Fingerprint(d), GameSession.Fingerprint(d with { SearchEvents = [sage with { LoyaltyReward = 4 }] }));
+
         var document = JsonNode.Parse(CanonicalJson.Encode(d))!;
         document["searchEvents"]![0]!.AsObject().Remove("recommendedOfficerIds");
         Assert.Throws<JsonException>(() => StrictJson.Deserialize<ScenarioInitialState>(Encoding.UTF8.GetBytes(document.ToJsonString())));

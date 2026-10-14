@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -8,10 +9,10 @@ public sealed class DuelCombatIntegrationTests
 {
     private static ulong Seed()
     {
-        for (ulong seed = 0; seed < 100000; seed++)
-            if (new StableRandom(StableRandom.DeriveSeed(seed, "duel-trigger")).NextUInt64() % 100 < 3 &&
-                new StableRandom(StableRandom.DeriveSeed(seed, "duel-death")).NextUInt64() % 100 < 30) return seed;
-        throw new InvalidOperationException("Missing duel seed.");
+        const ulong seed = 16UL;
+        Assert.True(new StableRandom(StableRandom.DeriveSeed(seed, "duel-trigger")).NextUInt64() % 100 < 3);
+        Assert.True(new StableRandom(StableRandom.DeriveSeed(seed, "duel-death")).NextUInt64() % 100 < 30);
+        return seed;
     }
 
     private static SimulationEngine Engine(bool deaths = false, int opportunity = 0, int counterChance = 0, bool counterOnly = false, bool laterBattle = false, int cooldown = 0)
@@ -154,14 +155,14 @@ public sealed class DuelCombatIntegrationTests
         Assert.Throws<InvalidOperationException>(() => engine.CaptureStableState());
         Assert.DoesNotContain(arrival.Events, e => e is StageCompletedEvent { Stage: ResolutionStage.DailyMapUpdate });
         Assert.DoesNotContain(arrival.Events, e => e is OfficerDiedEvent);
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         Assert.Throws<InvalidOperationException>(() => engine.AdvanceXun());
         Assert.Equal(CommandRejection.DecisionPending, engine.Execute(new("player"),
             new WaitCommand(Guid.NewGuid(), 2, engine.Snapshot.Simulation.NextSequence)).Submission.Rejection);
         var answer = new ChooseDuelSuccessorCommand(Guid.NewGuid(), 2, engine.Snapshot.Simulation.NextSequence, 22, automatic ? null : 21);
         Assert.Equal(CommandRejection.NotActiveController, engine.Execute(new("other"), answer).Submission.Rejection);
         Assert.Equal(CommandRejection.InvalidDecision, engine.Execute(new("player"), answer with { SuccessorId = 11 }).Submission.Rejection);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         var deathRandom = engine.Snapshot.Simulation.RandomStreams.Single(s => s.Name == "duel-death");
         var result = engine.Execute(new("player"), answer);
         Assert.True(result.Submission.Accepted);

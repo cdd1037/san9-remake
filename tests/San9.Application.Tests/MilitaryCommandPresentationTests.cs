@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Application.Presentation;
 using San9.Content.Interface;
@@ -50,13 +51,13 @@ public sealed class MilitaryCommandPresentationTests
         var result = session.Execute(new("player"), command);
         Assert.True(result.Submission.Accepted, result.Submission.Rejection.ToString());
         var (content, texts) = Presentation();
-        string hash = session.Snapshot.StateHash;
+        var hash = session.Snapshot;
         var message = Assert.Single(MilitaryCommandPresentation.Create(before, session.View, session.Messages(texts),
             content, command, result.Events, _ => 0));
         Assert.Equal(2, message.SpeakerId);
         Assert.Equal("sortie", message.Message.Key);
         Assert.Equal("order", message.SoundRole);
-        Assert.Equal(hash, session.Snapshot.StateHash);
+        StateAssert.Equal(hash, session.Snapshot);
     }
 
     [Theory]

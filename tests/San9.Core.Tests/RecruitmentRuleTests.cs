@@ -42,7 +42,8 @@ public sealed class RecruitmentRuleTests
     public void FailureFeedbackCoversAllIndependentGatesWithSeparateForceWrites()
     {
         HashSet<(bool Increase, bool Decrease)> combinations = [];
-        for (ulong seed = 0; seed < 100 && combinations.Count < 4; seed++)
+        // One fixed vector for each combination of the two independent gates.
+        foreach (ulong seed in new ulong[] { 4, 0, 2, 7 })
         {
             var state = World(seed).BeginMutation();
             var expected = new StableRandom(StableRandom.DeriveSeed(seed, "personnel-recruit-feedback"));

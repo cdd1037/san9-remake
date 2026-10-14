@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.Persistence;
 using San9.Content.Scenarios;
 using San9.Core.Domain;
@@ -35,7 +36,7 @@ public sealed class AttackRequestNegotiationSessionTests
         Assert.True(session.Execute(new("player"), new RequestAttackCommand(Guid.NewGuid(), 1, 0, 12, 2, 3)).Submission.Accepted);
         var outbound = SaveService.Decode(SaveService.Encode(session), content);
         var arrived = session.AdvanceXun();
-        Assert.Equal(CanonicalJson.Text(arrived.Events), CanonicalJson.Text(outbound.AdvanceXun().Events));
+        EventAssert.Equal(arrived.Events, outbound.AdvanceXun().Events);
         var prompt = session.GetAttackRequestPrompt()!;
         Assert.Equal(CompensationKind.Money, prompt.Offer!.Kind);
         Assert.Equal(1000u, prompt.Offer.Money);
@@ -43,11 +44,11 @@ public sealed class AttackRequestNegotiationSessionTests
         var restored = outbound;
         var response = new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, prompt.TaskId, prompt.Step, accept);
         var result = session.Execute(new("player"), response);
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.Execute(new("player"), response).Events));
+        EventAssert.Equal(result.Events, restored.Execute(new("player"), response).Events);
         Assert.Equal(accept ? AttackRequestOutcome.Accepted : AttackRequestOutcome.Refused,
             Assert.Single(result.Events.OfType<AttackRequestResolvedEvent>()).Outcome);
         DecisionResponses.DeclineAll(session);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 }

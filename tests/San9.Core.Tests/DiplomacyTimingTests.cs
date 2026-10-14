@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using System.Text.Json;
 using San9.Core.Domain;
@@ -88,7 +89,7 @@ public sealed class DiplomacyTimingTests
 
         var events = Settle(engine);
         Assert.Equal(CanonicalJson.Text(events), CanonicalJson.Text(Settle(restored)));
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
         bool grows = accept && politics < 100;
         var growth = events.OfType<OfficerAbilityGrownEvent>().ToArray();
         if (grows)
@@ -126,8 +127,8 @@ public sealed class DiplomacyTimingTests
         var restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()), rules);
 
         var events = Advance(engine).Events;
-        Assert.Equal(CanonicalJson.Text(events), CanonicalJson.Text(Advance(restored).Events));
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        EventAssert.Equal(events, Advance(restored).Events);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
         Assert.Equal(2, Assert.Single(events.OfType<ForceEliminatedEvent>()).ForceId);
         var returning = Assert.Single(engine.Snapshot.Simulation.Tasks);
         Assert.Equal(PersonnelReturns.Kind, returning.Kind);
@@ -137,7 +138,7 @@ public sealed class DiplomacyTimingTests
         Assert.Equal(new GameClock(191, 1, 10), returning.Due);
         restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()), rules);
         var completion = Advance(engine).Events;
-        Assert.Equal(CanonicalJson.Text(completion), CanonicalJson.Text(Advance(restored).Events));
+        EventAssert.Equal(completion, Advance(restored).Events);
         Assert.Equal(new GameClock(191, 1, 10), Assert.Single(completion.OfType<PersonnelReturnedEvent>()).Clock);
         Assert.Empty(engine.Snapshot.Simulation.Tasks);
     }
@@ -178,7 +179,7 @@ public sealed class DiplomacyTimingTests
         Assert.Equal(expectedDate, returning.Due);
         var restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()), rules);
         var result = Advance(engine);
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(Advance(restored).Events));
+        EventAssert.Equal(result.Events, Advance(restored).Events);
         Assert.Equal(expectedDate, Assert.Single(result.Events.OfType<PersonnelReturnedEvent>()).Clock);
     }
 
@@ -192,7 +193,7 @@ public sealed class DiplomacyTimingTests
             internal override int? DecisionRecipient(WorldMutation world, PersistentTask task) => 1;
             internal override void CompleteDecision(WorldMutation world, PersistentTask task, bool accept, List<DomainEvent> events)
             {
-                Assert.Equal(CommandRejection.None, PrisonerRelease.Recover(world, 13, 2, task.Id, task.Sequence,
+                Assert.Equal(CommandRejection.None, PrisonerRelease.Recover(world, 13, 2, task.Sequence,
                     rules.Personnel, rules.Economy, events));
             }
         }
@@ -288,8 +289,8 @@ public sealed class DiplomacyTimingTests
         var response = new RespondDailyTaskCommand(Guid.NewGuid(), 2, 1, task.Id, 0, false);
         var answered = engine.Execute(new("second"), response);
         Assert.True(answered.Submission.Accepted);
-        Assert.Equal(CanonicalJson.Text(answered.Events), CanonicalJson.Text(restored.Execute(new("second"), response).Events));
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        EventAssert.Equal(answered.Events, restored.Execute(new("second"), response).Events);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
         Assert.Equal(task.Due, engine.Snapshot.Clock);
         Assert.Single(answered.Events.OfType<XunAdvancedEvent>());
         Assert.Single(answered.Events.OfType<StageCompletedEvent>(), e => e.Stage == ResolutionStage.XunUpdate);

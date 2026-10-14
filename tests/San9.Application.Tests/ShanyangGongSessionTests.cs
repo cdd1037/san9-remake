@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using San9.Application.Persistence;
@@ -47,17 +48,17 @@ public sealed class ShanyangGongSessionTests
         var definition = Definition(); var session = GameSession.Start(definition, 17); session.BeginRecording();
         Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, 12, 1)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
-        var arrival = session.AdvanceXun(); Assert.Equal(CanonicalJson.Text(arrival.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+        var arrival = session.AdvanceXun(); EventAssert.Equal(arrival.Events, restored.AdvanceXun().Events);
         var prompt = session.GetShanyangGongPrompt()!;
         Assert.NotNull(prompt); Assert.Equal((99, 1, 1, false), (prompt.EmperorId, prompt.PlaceId, prompt.Step, prompt.ChoosingCountryTitle));
-        var before = session.Snapshot.StateHash;
-        Assert.Equal(prompt, session.GetShanyangGongPrompt()); Assert.Equal(before, session.Snapshot.StateHash);
+        var before = session.Snapshot;
+        Assert.Equal(prompt, session.GetShanyangGongPrompt()); StateAssert.Equal(before, session.Snapshot);
         Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
         Assert.False(session.Execute(new("player"), Response(session, protect) with { TaskId = Guid.NewGuid() }).Submission.Accepted);
         Assert.False(session.Execute(new("player"), Response(session, protect) with { Step = 0 }).Submission.Accepted);
         Assert.False(session.Execute(new("ai:2"), Response(session, protect)).Submission.Accepted);
         Assert.False(session.Execute(new("player"), Response(session, protect, 101)).Submission.Accepted);
-        Assert.Equal(before, session.Snapshot.StateHash);
+        StateAssert.Equal(before, session.Snapshot);
         var answer = Response(session, protect);
         var result = session.Execute(new("player"), answer); Assert.True(result.Submission.Accepted);
         Assert.True(restored.Execute(new("player"), answer).Submission.Accepted);
@@ -70,11 +71,11 @@ public sealed class ShanyangGongSessionTests
             Assert.Equal(700, session.Snapshot.Forces.Single(f => f.Id == 1).BaseTrust);
             Assert.Equal(100, session.Snapshot.Officers.Single(p => p.Id == 12).Loyalty);
             Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
-            before = session.Snapshot.StateHash;
+            before = session.Snapshot;
             Assert.False(session.Execute(new("player"), Response(session, true, 999)).Submission.Accepted);
             Assert.False(session.Execute(new("player"), Response(session, false, 101)).Submission.Accepted);
             Assert.False(session.Execute(new("player"), Response(session, true)).Submission.Accepted);
-            Assert.Equal(before, session.Snapshot.StateHash);
+            StateAssert.Equal(before, session.Snapshot);
             answer = Response(session, true, 101);
             result = session.Execute(new("player"), answer); Assert.True(result.Submission.Accepted);
             Assert.True(restored.Execute(new("player"), answer).Submission.Accepted);
@@ -86,12 +87,12 @@ public sealed class ShanyangGongSessionTests
         Assert.Equal(protect ? OfficerStatus.Special : OfficerStatus.Dead, session.Snapshot.Officers.Single(p => p.Id == 99).Status);
         Assert.True(session.Snapshot.Simulation.ImperialCourtEnded); Assert.Null(session.View.EmperorId);
         Assert.Contains(new("shanyang"), session.Snapshot.Simulation.ConsumedEventKeys);
-        Assert.Equal(session.Snapshot.StateHash, restored.Snapshot.StateHash);
-        before = session.Snapshot.StateHash; Assert.False(session.Execute(new("player"), answer).Submission.Accepted); Assert.Equal(before, session.Snapshot.StateHash);
-        Assert.Equal(session.Capture().StateHash, SaveService.Decode(SaveService.Encode(session), definition).Capture().StateHash);
+        StateAssert.Equal(session.Snapshot, restored.Snapshot);
+        before = session.Snapshot; Assert.False(session.Execute(new("player"), answer).Submission.Accepted); StateAssert.Equal(before, session.Snapshot);
+        StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), definition).Capture());
         Assert.Null(session.GetShanyangGongPrompt());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -107,16 +108,14 @@ public sealed class ShanyangGongSessionTests
     }
 
     [Fact]
-    public void DefinitionAndSemanticStateParticipateInStrictContractsAndFingerprint()
+    public void DefinitionAndSemanticStateParticipateInStrictContracts()
     {
         var d = Definition(); var e = d.ShanyangGong!;
         foreach (var invalid in new[] { e with { EmperorId = 999 }, e with { PlaceId = 999 }, e with { MinimumTrust = -1 },
             e with { MinimumRighteousness = 16 }, e with { ImperialSurname = "" }, e with { ConsumptionKey = default } })
             Assert.Throws<InvalidDataException>(() => (d with { ShanyangGong = invalid }).Validate());
         Assert.Throws<InvalidDataException>(() => (d with { Information = InformationDefinitions.Empty }).Validate());
-        Assert.NotEqual(GameSession.Fingerprint(d), GameSession.Fingerprint(d with { ShanyangGong = e with { MinimumTrust = 701 } }));
-        Assert.NotEqual(GameSession.Fingerprint(d), GameSession.Fingerprint(d with { Forces = d.Forces.Select(f => f with { HasDeposedEmperor = true }).ToArray() }));
-        Assert.NotEqual(GameSession.Fingerprint(d), GameSession.Fingerprint(d with { Officers = d.Officers.Select(o => o with { State = o.State with { Surname = "曹" } }).ToArray() }));
+
         foreach (string field in JsonNode.Parse(CanonicalJson.Encode(e))!.AsObject().Select(p => p.Key))
         {
             var node = JsonNode.Parse(CanonicalJson.Encode(e))!.AsObject(); node.Remove(field);

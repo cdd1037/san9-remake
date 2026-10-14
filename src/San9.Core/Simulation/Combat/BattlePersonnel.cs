@@ -75,11 +75,9 @@ internal static class BattlePersonnel
                 ? world.Forces[person.OwnerId!.Value].LeaderId == person.Id ? OfficerStatus.Ruler : OfficerStatus.Serving
                 : person.Status, Acted = true, IsCommander = false,
             TacticCooldown = 0 });
-        var cause = new PersistentTask(new Guid(Convert.FromHexString(CanonicalJson.Hash(new { OfficerId = officerId,
-            world.Clock, Origin = origin, Destination = destination })).AsSpan(0, 16)), PersonnelReturns.Kind, "system",
-            person.OwnerId!.Value, officerId, destination, world.Clock, world.Clock, 0, world.Simulation.NextSequence);
+        var context = new PersonnelReturnContext("system", person.OwnerId!.Value, world.Simulation.NextSequence);
         world.SetSimulation(world.Simulation with { NextSequence = checked(world.Simulation.NextSequence + 1) });
-        PersonnelReturns.Schedule(world, cause, officerId, destination, destination,
+        PersonnelReturns.Schedule(world, context, officerId, destination, destination,
             BattleRetreat.Days(origin, military.Place(home).Position), world.CurrentDateCommandsConsumed, events,
             new(origin, military.Place(home).Position, false), true, corps);
         events.Add(new OfficerEscapedBattleEvent(world.Clock, officerId, person.UnitId, destination));
@@ -111,7 +109,7 @@ internal static class BattlePersonnel
         int remaining = Math.Max(0, task.Journey.ReturnLeg.CountdownDays -
             PersonnelJourneyTiming.ElapsedDays(task, world.Clock, world.CurrentDateCommandsConsumed));
         if (days >= remaining) days -= remaining;
-        PersonnelReturns.Schedule(world, task, person.Id, task.Journey.DestinationPlaceId, home.Id, days,
+        PersonnelReturns.Schedule(world, PersonnelReturnContext.FromTask(task, person.Id), person.Id, task.Journey.DestinationPlaceId, home.Id, days,
             world.CurrentDateCommandsConsumed, events,
             new(origin, rules.Military.Place(home).Position, false), true,
             task.Journey.ReturnLeg.CorpsId);

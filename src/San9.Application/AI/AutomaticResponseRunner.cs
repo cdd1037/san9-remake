@@ -3,7 +3,7 @@ using San9.Core.Simulation;
 
 namespace San9.Application.AI;
 
-public sealed record AutomaticResponseFailure(string Code, string Kind, string Identity, string ControllerId,
+public sealed record AutomaticResponseFailure(string Code, string Kind, string ControllerId,
     CommandRejection Rejection = CommandRejection.None);
 
 internal sealed class AutomaticResponseException(AutomaticResponseFailure failure) : Exception(failure.Code)
@@ -16,10 +16,8 @@ internal static class AutomaticResponseRunner
 {
     internal static void Run(SimulationEngine engine, List<DomainEvent> events, List<WorldSnapshot>? frames = null)
     {
-        HashSet<string> answered = [];
         while (engine.GetPendingResponse() is { Owner.Kind: ControllerKind.Automatic } response)
         {
-            if (!answered.Add(response.Identity)) Fail(response, "response-no-progress");
             CommandExecutionResult result;
             try
             {
@@ -28,10 +26,11 @@ internal static class AutomaticResponseRunner
             }
             catch (Exception error) when (error is InvalidOperationException or ArgumentException)
             {
-                throw new AutomaticResponseException(new("response-rule-fault", response.Kind, response.Identity,
+                throw new AutomaticResponseException(new("response-rule-fault", response.Kind,
                     response.Owner.ControllerId));
             }
             if (!result.Submission.Accepted) Fail(response, "response-rejected", result.Submission.Rejection);
+            if (engine.GetPendingResponse() == response) Fail(response, "response-no-progress");
             events.AddRange(result.Events);
             if (frames is not null)
                 foreach (var frame in result.PresentationFrames)
@@ -45,8 +44,7 @@ internal static class AutomaticResponseRunner
     internal static GameCommand Choose(SimulationEngine engine, ResponseRequest response, int evaluationBudget = 2)
     {
         var snapshot = engine.Snapshot;
-        var id = new Guid(Convert.FromHexString(CanonicalJson.Hash(new { snapshot.Simulation.RunSeed,
-            response.Identity, response.Owner.ControllerId, snapshot.Simulation.NextSequence })).AsSpan(0, 16));
+        var id = SimulationIdentity.Command(snapshot.Simulation.NextSequence, response.Owner.ForceId);
         if (response.Kind == "captured-ruler" && engine.GetCapturedRulerPrompt() is { } captive)
         {
             // Release is the explicit low-budget default. Optional comparison samples only the analysis stream.
@@ -177,5 +175,5 @@ internal static class AutomaticResponseRunner
     }
 
     private static void Fail(ResponseRequest response, string code, CommandRejection rejection = CommandRejection.None) =>
-        throw new AutomaticResponseException(new(code, response.Kind, response.Identity, response.Owner.ControllerId, rejection));
+        throw new AutomaticResponseException(new(code, response.Kind, response.Owner.ControllerId, rejection));
 }

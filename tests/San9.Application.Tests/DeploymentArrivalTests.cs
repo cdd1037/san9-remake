@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Application.Presentation;
 using San9.Content.Scenarios;
@@ -35,11 +36,11 @@ public sealed class DeploymentArrivalTests
         var targets = new DeploymentTargets(draft); Assert.True(targets.Select(new(2, false)));
         if (relay) Assert.True(targets.SetWaypoint(new(1, 2)));
         Assert.True(targets.BeginPolicies()); Assert.True(targets.SetDepartureDelay(delay));
-        string hash = session.Capture().StateHash;
+        var hash = session.Capture();
         var before = session.Snapshot;
         var estimate = targets.EstimateArrival();
         Assert.Equal(ArrivalEstimateStatus.Known, estimate.Status);
-        Assert.Equal(hash, session.Capture().StateHash);
+        StateAssert.Equal(hash, session.Capture());
         Assert.Empty(session.Snapshot.Units); Assert.Equal(before.Simulation.NextUnitId, session.Snapshot.Simulation.NextUnitId);
         using (var searches = new PathSearchDiagnostics())
         { Assert.Same(estimate, targets.EstimateArrival()); Assert.Equal(0, searches.Queries); }

@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.AI;
 using System.Collections.Immutable;
 using San9.Application.Persistence;
@@ -29,7 +30,7 @@ public sealed class AttackRequestPlannerTests
             }
         };
         var session = GameSession.Start(content, 42);
-        string before = session.Capture().StateHash;
+        var before = session.Capture();
         using var diagnostics = new PathSearchDiagnostics();
         var command = MilitaryPlanner.Choose(session, new("player", 1, ControllerKind.Player), Guid.NewGuid());
         if (blocked)
@@ -42,7 +43,7 @@ public sealed class AttackRequestPlannerTests
             Assert.Equal(3, Assert.IsType<DeployUnitCommand>(command).Order.SettlementId);
             Assert.InRange(diagnostics.Expanded, 1, 100000);
         }
-        Assert.Equal(before, session.Capture().StateHash);
+        StateAssert.Equal(before, session.Capture());
     }
 
     [Theory]
@@ -77,16 +78,16 @@ public sealed class AttackRequestPlannerTests
         var request = session.Request(new EndControlOperation());
         var result = session.Apply(request);
         Assert.Equal(SessionDisposition.Accepted, result.Disposition);
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.Apply(request).Events));
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        EventAssert.Equal(result.Events, restored.Apply(request).Events);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         if (expectedTarget == 0) Assert.Equal(MilitaryOrderKind.Transport, Assert.Single(session.Snapshot.Units).Order!.Kind);
         else Assert.Equal(expectedTarget, Assert.Single(session.Snapshot.Units).Order!.SettlementId);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
         var authored = content with { Information = content.Information with { Corps = content.Information.Corps.Select(c =>
             c.Id == 20 ? c with { Delegation = delegation } : c).ToArray() } };
         authored.Validate();
-        if (policy != "general") Assert.NotEqual(GameSession.Fingerprint(content), GameSession.Fingerprint(authored));
+
         Assert.Equal(delegation, GameSession.Start(authored, 42).Snapshot.Corps.Single(c => c.Id == 20).Delegation);
     }
 
@@ -121,27 +122,27 @@ public sealed class AttackRequestPlannerTests
         var content = basis with { Military = basis.Military! with
             { Places = basis.Military.Places.Select(p => p.Id == 2 ? p with { Attack = null } : p).ToImmutableArray() } };
         var session = GameSession.Start(content, 42);
-        string before = session.Capture().StateHash;
+        var before = session.Capture();
         var command = Assert.IsType<DeployUnitCommand>(MilitaryPlanner.Choose(session, new("player", 1, ControllerKind.Player), Guid.NewGuid()));
         Assert.Equal(3, command.Order.SettlementId);
-        Assert.Equal(before, session.Capture().StateHash);
+        StateAssert.Equal(before, session.Capture());
         session.BeginRecording();
         Assert.True(session.Execute(new("player"), command).Submission.Accepted);
         Assert.Single(session.Snapshot.Simulation.AttackRequests);
         var restored = SaveService.Decode(SaveService.Encode(session), content);
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         var events = new List<DomainEvent>();
         for (int i = 0; i < 8 && session.Snapshot.Simulation.AttackRequests.Length != 0; i++)
         {
             var result = session.AdvanceXun();
             events.AddRange(result.Events);
-            Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
-            Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+            EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
+            StateAssert.Equal(session.Capture(), restored.Capture());
         }
         Assert.Empty(session.Snapshot.Simulation.AttackRequests);
         Assert.Equal(AttackRequestEndReason.Fulfilled, Assert.Single(events.OfType<AttackRequestEndedEvent>()).Reason);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]

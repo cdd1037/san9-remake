@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.Persistence;
 using San9.Core.Simulation;
 
@@ -45,11 +46,11 @@ public sealed class IncrementalAdvanceTests
             Assert.Equal(SessionDisposition.Rejected, session.Apply(session.Request(new AdvanceOperation())).Disposition);
             Assert.Equal(SessionDisposition.Rejected, session.Apply(session.Request(new PrepareAdvanceOperation())).Disposition);
         }
-        Assert.Equal(batch.Snapshot.StateHash, session.Snapshot.StateHash);
-        Assert.Equal(CanonicalJson.Text(expected.Events), CanonicalJson.Text(events));
+        StateAssert.Equal(batch.Snapshot, session.Snapshot);
+        EventAssert.Equal(expected.Events, events);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
-        Assert.Equal(CanonicalJson.Text(events), CanonicalJson.Text(replay.Events));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
+        EventAssert.Equal(events, replay.Events);
     }
 
     [Fact]

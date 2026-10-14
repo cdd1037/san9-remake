@@ -38,7 +38,7 @@ internal static class CityIndependence
                 foreach (var prisoner in world.Officers.Values.Where(p => p.Status == OfficerStatus.Captive && p.SettlementId == id)
                     .OrderBy(p => p.Id).ToArray())
                 {
-                    if (PrisonerRelease.Depart(world, prisoner.Id, id, Cause(world, prisoner.Id), world.Simulation.NextSequence,
+                    if (PrisonerRelease.Depart(world, prisoner.Id, id, world.Simulation.NextSequence,
                         PrisonerDepartureKind.Displaced, null, rules.Personnel, rules.Economy, events, excludedHomeId: id) == CommandRejection.None)
                         AdvanceSequence(world);
                 }
@@ -51,7 +51,7 @@ internal static class CityIndependence
                 foreach (var person in world.Officers.Values.Where(p => p.IsServing && p.OwnerId == owner && p.SettlementId == id)
                     .OrderBy(p => p.Id).ToArray())
                 {
-                    var cause = ReturnCause(world, person.Id, owner, id);
+                    var cause = ReturnContext(world, owner);
                     PersonnelReturns.Repatriate(world, person.Id, id, cause, rules.Personnel, events, afterDailyCommands: false);
                     AdvanceSequence(world);
                 }
@@ -80,7 +80,7 @@ internal static class CityIndependence
         if (home is null) { Detach(world, personId, previous.Id, rules.Personnel, events, true); return; }
         PersonnelTransitions.CancelMissions(world, personId, Reason, events, rules.Personnel, false);
         var route = PersonnelLocations.Route(world, rules.Personnel, previous.Id, home.Id);
-        var cause = ReturnCause(world, personId, previous.OwnerId!.Value, previous.Id);
+        var cause = ReturnContext(world, previous.OwnerId!.Value);
         world.Replace(world.Officers[personId] with { TacticCooldown = 0 });
         PersonnelReturns.Schedule(world, cause, personId, previous.Id, home.Id, route.Days, false, events, route);
         AdvanceSequence(world);
@@ -103,12 +103,9 @@ internal static class CityIndependence
         return true;
     }
 
-    private static Guid Cause(WorldMutation world, int person) => new(Convert.FromHexString(CanonicalJson.Hash(new
-        { Kind = Reason, world.Clock, OfficerId = person, Sequence = world.Simulation.NextSequence })).AsSpan(0, 16));
-
-    private static PersistentTask ReturnCause(WorldMutation world, int person, int owner, int place) =>
-        new(Cause(world, person), PersonnelReturns.Kind, world.Simulation.Controls.FirstOrDefault(c => c.ForceId == owner)?.ControllerId ?? "system",
-            owner, person, place, world.Clock, world.Clock, 0, world.Simulation.NextSequence);
+    private static PersonnelReturnContext ReturnContext(WorldMutation world, int owner) =>
+        new(world.Simulation.Controls.FirstOrDefault(c => c.ForceId == owner)?.ControllerId ?? "system",
+            owner, world.Simulation.NextSequence);
 
     private static void AdvanceSequence(WorldMutation world) =>
         world.SetSimulation(world.Simulation with { NextSequence = checked(world.Simulation.NextSequence + 1) });

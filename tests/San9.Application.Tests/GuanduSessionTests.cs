@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using System.Text;
 using System.Text.Json;
@@ -46,8 +47,8 @@ public sealed class GuanduSessionTests
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         var result = session.AdvanceXun();
         Assert.Single(result.Events.OfType<GuanduEvent>());
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         Assert.Equal(3000u, session.Snapshot.Settlements.Single(s => s.Id == 4).Soldiers);
         Assert.Equal(3001u, session.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 2).Treasury.Food);
         Assert.Equal(150, session.Snapshot.Forces.Single(f => f.Id == 1).BaseTrust);
@@ -57,10 +58,10 @@ public sealed class GuanduSessionTests
         Assert.DoesNotContain(result.Events.OfType<OfficerLoyaltyChangedEvent>(), e => e.OfficerId == 23 && e.Reason == "guandu");
         Assert.True(Assert.Single(result.Events.OfType<RecruitmentResolvedEvent>()).Success);
         var saved = SaveService.Decode(SaveService.Encode(session), definition);
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(saved));
+        StateAssert.Equal(session.Capture(), saved.Capture());
         Assert.Empty(session.AdvanceXun().Events.OfType<GuanduEvent>());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -97,7 +98,7 @@ public sealed class GuanduSessionTests
     }
 
     [Fact]
-    public void DefinitionValidatesAllReferencesAndCanonicalizesRegionSets()
+    public void DefinitionValidatesAllReferences()
     {
         var definition = Definition(); var d = definition.Guandu!;
         foreach (var invalid in new[] { d with { PatronId = 99 }, d with { OpponentId = d.PatronId }, d with { RecruitId = 99 },
@@ -107,8 +108,7 @@ public sealed class GuanduSessionTests
             d with { LoyaltyBonus = -1 }, d with { BaseTrustBonus = -1 }, d with { EnemyBaseTrustPenalty = -1 } })
             Assert.Throws<InvalidDataException>(() => (definition with { Guandu = invalid }).Validate());
         Assert.Throws<InvalidDataException>(() => (definition with { Military = definition.Military! with { RegionIds = [] } }).Validate());
-        Assert.Equal(GameSession.Fingerprint(definition), GameSession.Fingerprint(definition with { Guandu = d with { PatronRegionIds = [3, 1] } }));
-        Assert.NotEqual(GameSession.Fingerprint(definition), GameSession.Fingerprint(definition with { Guandu = d with { FoodLossPercent = 60 } }));
+
         var document = JsonNode.Parse(CanonicalJson.Encode(definition))!.AsObject(); document.Remove("guandu");
         Assert.Throws<JsonException>(() => StrictJson.Deserialize<ScenarioInitialState>(Encoding.UTF8.GetBytes(document.ToJsonString())));
         foreach (string field in new[] { "patronId", "opponentId", "recruitId", "requiredPlaceId", "patronRegionIds", "enemyRegionIds", "consumptionKey" })

@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.AI;
 using San9.Content.Scenarios;
 using San9.Core.Domain;
@@ -24,6 +25,6 @@ public sealed class AiParticipationTests
         var development = Assert.IsType<DevelopCommand>(command);
         Assert.Equal(new[] { 99 }, development.Development.OfficerIds);
         Assert.True(engine.Validate(new("player"), command).Accepted);
-        Assert.Equal(snapshot.StateHash, engine.Snapshot.StateHash);
+        StateAssert.Equal(snapshot, engine.Snapshot);
     }
 }

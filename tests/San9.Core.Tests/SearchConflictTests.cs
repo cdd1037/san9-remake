@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -16,7 +17,7 @@ public sealed class SearchConflictTests
         "mediation" => new BanditMediationSearchEventDefinition([new(1, 4)], [4], 50, 60000, 15, 25, 1000) { RequiresOwnedPlace = true, MaximumBaseTrustExclusive = 260, RequiresMoneyCapacity = true },
         _ => throw new ArgumentException()
     }) with { Id = kind, ChanceAbility = ConflictChanceAbility.Politics, ChanceDivisor = 1 };
-    private static ulong Seed(int roll) => Enumerable.Range(1, 10000).Select(i => (ulong)i).First(s => new StableRandom(s).NextUInt64() % 100 == (ulong)roll);
+    private static ulong Seed(int roll) => TestSeeds.StateForRoll(roll);
     private static (WorldMutation World, PersistentTask Task, SimulationRules Rules, ConflictSearchEncounter Encounter) Create(string kind, int roll = 0)
     {
         var world = WorldState.Create(new(190, 4, 1), 1,

@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using System.Text;
 using System.Text.Json;
@@ -29,11 +30,13 @@ public sealed class PhysicianVisitSessionTests
         }
     };
 
-    private static ulong Seed() => Enumerable.Range(1, 10000).Select(i => (ulong)i).First(seed =>
+    private static ulong Seed()
     {
+        const ulong seed = 37UL;
         var random = new StableRandom(StableRandom.DeriveSeed(seed, "event-search-eligibility"));
-        return random.NextUInt64() % 100 < 16 && random.NextUInt64() % 100 < 16;
-    });
+        Assert.True(random.NextUInt64() % 100 < 16 && random.NextUInt64() % 100 < 16);
+        return seed;
+    }
 
     [Fact]
     public void FirstSameDaySearcherReceivesTheUniqueBookAndSaveReplayPreserveOwnership()
@@ -43,7 +46,7 @@ public sealed class PhysicianVisitSessionTests
             Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, actor, 1)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), d);
         var result = session.AdvanceXun(); var again = restored.AdvanceXun();
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(again.Events));
+        EventAssert.Equal(result.Events, again.Events);
         Assert.Equal(2, Assert.Single(result.Events.OfType<PhysicianVisitResolvedEvent>()).SearchingOfficerId);
         Assert.Single(result.Events.OfType<TreasureTransferredEvent>());
         Assert.Single(result.Events.OfType<SearchResolvedEvent>());
@@ -52,13 +55,13 @@ public sealed class PhysicianVisitSessionTests
         Assert.Empty(session.Snapshot.Officers.Single(p => p.Id == 2).LearnedTactics);
         Assert.DoesNotContain(result.Events, e => e is OfficerLoyaltyChangedEvent);
         Assert.Empty(session.Snapshot.Simulation.ConsumedEventKeys);
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(SaveService.Decode(SaveService.Encode(session), d)));
+        StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), d).Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), d, GameSession.EngineFactory(d));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
-    public void AuthoredSitesAndReferencesAreValidatedAndFingerprinted()
+    public void AuthoredSitesAndReferencesAreValidated()
     {
         var d = Definition(); var visit = (PhysicianVisitSearchEventDefinition)d.SearchEvents[0]; var site = visit.Sites[0];
         foreach (var invalid in new[] { visit with { Sites = [site with { PlaceId = 999 }] },
@@ -66,7 +69,7 @@ public sealed class PhysicianVisitSessionTests
             visit with { Sites = [site, site] }, visit with { Sites = [] }, visit with { PoliticsChanceDivisor = 0 },
             visit with { MinimumBaseTrustExclusive = -1 }, visit with { Consumption = EventConsumption.OnSuccess } })
             Assert.Throws<InvalidDataException>(() => (d with { SearchEvents = [invalid] }).Validate());
-        Assert.NotEqual(GameSession.Fingerprint(d), GameSession.Fingerprint(d with { SearchEvents = [visit with { MinimumBaseTrustExclusive = 76 }] }));
+
         var document = JsonNode.Parse(CanonicalJson.Encode(d))!;
         document["searchEvents"]![0]!["sites"]![0]!.AsObject().Remove("treasureId");
         Assert.Throws<JsonException>(() => StrictJson.Deserialize<ScenarioInitialState>(Encoding.UTF8.GetBytes(document.ToJsonString())));

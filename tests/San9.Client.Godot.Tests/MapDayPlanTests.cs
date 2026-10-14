@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application;
 using San9.Content.Maps;
 using San9.Content.Scenarios;
@@ -118,7 +119,7 @@ public sealed class MapDayPlanTests
             }
         };
         DomainEvent[] events = [new BattleDamageEvent(session.Snapshot.Clock, 1, null, 2, 10, 0, 10, 0, 0, true)];
-        string hash = session.Snapshot.StateHash;
+        var hash = session.Snapshot;
         var plan = new MapDayPlan(map, session.View, events);
         var tacticPlan = new MapDayPlan(map, session.View, [((BattleDamageEvent)events[0]) with { TacticId = 99 }]);
         Assert.Empty(tacticPlan.Attacks);
@@ -154,6 +155,6 @@ public sealed class MapDayPlanTests
         replay.Advance(100);
         Assert.True(replay.IsComplete);
         Assert.Equal(1 + plan.AttackDuration(attack), replay.VisualElapsed, 8);
-        Assert.Equal(hash, session.Snapshot.StateHash);
+        StateAssert.Equal(hash, session.Snapshot);
     }
 }

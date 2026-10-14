@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.Persistence;
 using San9.Core.Simulation;
 
@@ -37,7 +38,7 @@ public sealed class BarbarianSelectionTests
             {
                 var restored = SaveService.Decode(SaveService.Encode(session), definition);
                 Assert.False(restored.Snapshot.Forces.Single(f => f.Id == playerId).IsBarbarian);
-                Assert.Equal(SaveService.Encode(session), SaveService.Encode(restored));
+                StateAssert.Equal(session.Capture(), restored.Capture());
                 ordinary = restored;
             }
         }
@@ -47,6 +48,6 @@ public sealed class BarbarianSelectionTests
         Assert.Contains(resources, e => e.Account.Id != playerId && e.Reason == "barbarian-quarterly-funds");
         Assert.Contains(resources, e => e.Account.Id != playerId && e.Reason == "barbarian-annual-food");
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 }

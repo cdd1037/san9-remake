@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.AI;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -58,10 +59,10 @@ public sealed class DiplomacyPlannerTests
         var answered = session.Apply(request);
         Assert.Equal(SessionDisposition.Accepted, answered.Disposition);
         Assert.Single(answered.Events.OfType<XunAdvancedEvent>());
-        Assert.Equal(CanonicalJson.Text(answered.Events), CanonicalJson.Text(restored.Apply(request).Events));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(restored));
+        EventAssert.Equal(answered.Events, restored.Apply(request).Events);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -80,11 +81,11 @@ public sealed class DiplomacyPlannerTests
         };
         var session = GameSession.Start(content, 42);
         var seat = session.Snapshot.Simulation.Controls[0];
-        string before = session.Snapshot.StateHash;
+        var before = session.Snapshot;
         var command = Assert.IsType<RequestAttackCommand>(DiplomacyPlanner.Choose(session, content, seat, Guid.NewGuid()));
         Assert.Equal(2, command.TargetForceId);
         Assert.Equal(3, command.TargetSettlementId);
-        Assert.Equal(before, session.Snapshot.StateHash);
+        StateAssert.Equal(before, session.Snapshot);
         Assert.True(session.Execute(new(seat.ControllerId), command).Submission.Accepted);
     }
 
@@ -97,10 +98,10 @@ public sealed class DiplomacyPlannerTests
         var session = GameSession.Start(content, 42);
         var seat = session.Snapshot.Simulation.Controls[0];
         var id = Guid.NewGuid();
-        string before = session.Snapshot.StateHash;
+        var before = session.Snapshot;
         var command = Assert.IsType<ReturnPrisonerCommand>(DiplomacyPlanner.Choose(session, content, seat, id));
         Assert.Equal(command, DiplomacyPlanner.Choose(session, content, seat, id));
-        Assert.Equal(before, session.Snapshot.StateHash);
+        StateAssert.Equal(before, session.Snapshot);
         Assert.Equal(3, command.PrisonerId);
         Assert.True(session.Execute(new(seat.ControllerId), command).Submission.Accepted);
         Assert.IsType<WaitCommand>(DiplomacyPlanner.Choose(session, content, seat, Guid.NewGuid()));

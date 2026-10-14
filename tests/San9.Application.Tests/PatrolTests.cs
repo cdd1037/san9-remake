@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.Presentation;
 using San9.Content.Interface;
 using San9.Content.Text;
@@ -17,14 +18,14 @@ public sealed class PatrolTests
         var home = active.Settlements.Single(s => s.Id == 1);
         var dormant = home with { Id = 99, OwnerId = null, CorpsId = null, IsDormant = true, Population = 900000, Soldiers = 500000 };
         var complete = active with { Settlements = [.. active.Settlements, dormant] };
-        string before = complete.StateHash;
+        var before = complete;
         long expected = new PopulationOutlook(active).DraftGrowth(home.Id);
         Assert.True(expected > 0);
         var view = new StrategySnapshot(definition, complete);
         Assert.Equal(expected, new PatrolDraft(view, home.Id).DraftGrowth);
         var catalog = new AdministrativeCatalog(view, new TextCatalog(TextCatalog.CurrentSchemaVersion, []));
         Assert.Equal(expected, catalog.Cell(InformationCategory.Cities, home.Id, "draft-growth").Number);
-        Assert.Equal(before, complete.StateHash);
+        StateAssert.Equal(before, complete);
     }
 
     [Fact]
@@ -117,7 +118,7 @@ public sealed class PatrolTests
         Assert.Equal((int)draft.Money-draft.Cost,(int)session.View.PlayerCorps!.Treasury.Money);
         Assert.All(session.Snapshot.Officers.Where(p => draft.Members.Contains(p.Id)),p => Assert.True(p.Acted));
         Assert.True(session.Snapshot.Settlements.Single(s=>s.Id==1).PatrolUsed);
-        string hash = session.Snapshot.StateHash;
+        var hash = session.Snapshot;
         var texts = new TextCatalog(TextCatalog.CurrentSchemaVersion,definition.Officers.ToDictionary(o=>o.NameKey,o=>o.NameKey))
         { Messages = new[] { "normal","cooperative","citizen","pair-first","pair-second","result","advice" }
             .ToDictionary(k=>k,k=>new MessageDefinition([new MessageLiteral(k)])) };
@@ -149,9 +150,9 @@ public sealed class PatrolTests
         Assert.Equal(messages.Count+1,withAdvice.Count);
         Assert.Equal("advice",withAdvice[^1].Message.Key);
         Assert.Null(withAdvice[^1].SoundRole);
-        Assert.Equal(hash,session.Snapshot.StateHash);
+        StateAssert.Equal(hash, session.Snapshot);
         var repeat = session.Execute(new("player"),draft.CreateCommand(Guid.NewGuid(),session.Snapshot.Simulation.NextSequence));
         Assert.False(repeat.Submission.Accepted);
-        Assert.Equal(hash,session.Snapshot.StateHash);
+        StateAssert.Equal(hash, session.Snapshot);
     }
 }

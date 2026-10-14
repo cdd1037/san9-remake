@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -15,7 +16,7 @@ public sealed class EconomyTests
         corps: [new(1,1,0,new(1000, 1000)) { IsRoot = true },new(2,1,1,new(money,food))], controls: [new("player",1,ControllerKind.Player)]);
 
     private static CommandExecutionResult Run(SimulationEngine engine, DomesticActivity activity, params int[] ids) =>
-        engine.Execute(new("player"), new DevelopCommand(new Guid((int)engine.Snapshot.Simulation.NextSequence + 1,0,0,new byte[8]),
+        engine.Execute(new("player"), new DevelopCommand(SimulationIdentity.Command(engine.Snapshot.Simulation.NextSequence, 1),
             1,engine.Snapshot.Simulation.NextSequence,new(1,2,ids.ToImmutableArray(),activity)));
 
     [Theory]
@@ -136,7 +137,7 @@ public sealed class EconomyTests
         Assert.Equal(60000u,city.Population);
         Assert.Equal(grows?2:0,result.Events.OfType<ResourceChangedEvent>().Count(e=>e.Reason=="quarterly-revenue"));
         Assert.Equal(harvest?2:0,result.Events.OfType<ResourceChangedEvent>().Count(e=>e.Reason=="annual-harvest"));
-        Assert.Equal(engine.Snapshot.StateHash,new SimulationEngine(WorldState.Restore(engine.Snapshot)).Snapshot.StateHash);
+        StateAssert.Equal(engine.Snapshot, new SimulationEngine(WorldState.Restore(engine.Snapshot)).Snapshot);
     }
 
     [Fact]
@@ -235,6 +236,6 @@ public sealed class EconomyTests
         Assert.Equal(expected,result.Development!.Value.Increment);
         var restored=new SimulationEngine(WorldState.Restore(engine.Snapshot),rules);
         SimulationEngineTests.Advance(engine);SimulationEngineTests.Advance(restored);
-        Assert.Equal(Run(engine,DomesticActivity.Commerce,1,2).Snapshot.StateHash,Run(restored,DomesticActivity.Commerce,1,2).Snapshot.StateHash);
+        StateAssert.Equal(Run(engine,DomesticActivity.Commerce,1,2).Snapshot, Run(restored,DomesticActivity.Commerce,1,2).Snapshot);
     }
 }

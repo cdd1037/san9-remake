@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Text;
 using System.Text.Json;
 using San9.Application.Persistence;
@@ -25,11 +26,11 @@ public sealed class DuelAdvantagesSessionTests
             Assert.Throws<CommandLogException>(() => CommandLogService.Replay(log, GameSession.Start(scenario, 190)));
             var compatible = GameSession.Start(scenario, 190, battleDeathsEnabled: true);
             Assert.Null(CommandLogService.Replay(log, compatible).FirstFailure);
-            Assert.Equal(session.Capture().StateHash, compatible.Capture().StateHash);
+            StateAssert.Equal(session.Capture(), compatible.Capture());
         }
         finally { File.Delete(log); }
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), scenario, GameSession.EngineFactory(scenario));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Theory]
@@ -55,7 +56,7 @@ public sealed class DuelAdvantagesSessionTests
     }
 
     [Fact]
-    public void AuthoredDuelAdvantagesSurviveWorldSaveAndRecordingAndAffectFingerprint()
+    public void AuthoredDuelAdvantagesSurviveWorldSaveAndRecording()
     {
         var fixture = G01ScenarioTests.Fixture();
         var officer = fixture.Officers[0];
@@ -63,15 +64,15 @@ public sealed class DuelAdvantagesSessionTests
             ? p with { State = p.State with { DuelAdvantages = DuelAdvantages.DominantParry | DuelAdvantages.DominantDoubleStrike } }
             : p).ToArray() };
         var session = GameSession.Start(scenario, 190);
-        Assert.NotEqual(GameSession.Start(fixture, 190).ContentFingerprint, session.ContentFingerprint);
+
         var restored = SaveService.Decode(SaveService.Encode(session), scenario, GameSession.EngineFactory(scenario));
         Assert.Equal(DuelAdvantages.DominantParry | DuelAdvantages.DominantDoubleStrike,
             restored.Snapshot.Officers.Single(p => p.Id == officer.State.Id).DuelAdvantages);
         session.BeginRecording();
         session.AdvanceXun();
         restored.AdvanceXun();
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), scenario, GameSession.EngineFactory(scenario));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 }

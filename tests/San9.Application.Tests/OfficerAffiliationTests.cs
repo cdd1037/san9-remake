@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.Presentation;
 using San9.Content.Text;
 using San9.Core.Domain;
@@ -37,7 +38,7 @@ public sealed class OfficerAffiliationTests
         };
         var view = new StrategySnapshot(definition, world);
         var texts = Texts(definition);
-        var hash = world.StateHash;
+        var hash = world;
         int[] Ids(StrategySnapshot snapshot, int place) => OfficerCatalog.Read(snapshot, texts, 0, null, null, regionId: place)
             .Rows.Select(r => r.Key.Id).Order().ToArray();
 
@@ -66,7 +67,7 @@ public sealed class OfficerAffiliationTests
             Simulation = world.Simulation with { Tasks = [] }
         });
         Assert.Equal([1, 2, 3, 5], Ids(returned, 1));
-        Assert.Equal(hash, world.StateHash);
+        StateAssert.Equal(hash, world);
     }
 
     [Fact]

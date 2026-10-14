@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -63,8 +64,8 @@ public sealed class ForceConsolidationTests
         }
 
         var events = Advance(engine).Events;
-        Assert.Equal(CanonicalJson.Text(events), CanonicalJson.Text(Advance(restored).Events));
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        EventAssert.Equal(events, Advance(restored).Events);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
         Assert.Equal(2, Assert.Single(events.OfType<ForcesConsolidatedEvent>()).AbsorbedId);
         var returning = Assert.Single(engine.Snapshot.Simulation.Tasks);
         Assert.False(returning.Journey!.ReturnLeg!.AfterDailyCommands);
@@ -74,10 +75,10 @@ public sealed class ForceConsolidationTests
         Assert.DoesNotContain(events, e => e is GiftResolvedEvent);
         restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()), rules);
         var completion = Advance(engine).Events;
-        Assert.Equal(CanonicalJson.Text(completion), CanonicalJson.Text(Advance(restored).Events));
+        EventAssert.Equal(completion, Advance(restored).Events);
         Assert.Equal(new GameClock(191, 1, 10), Assert.Single(completion.OfType<PersonnelReturnedEvent>()).Clock);
         Assert.Empty(engine.Snapshot.Simulation.Tasks);
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
     }
 
     [Fact]
@@ -188,7 +189,7 @@ public sealed class ForceConsolidationTests
             return CanonicalJson.Text(events);
         }
         Assert.Equal(Resume(world), Resume(restored));
-        Assert.Equal(world.CreateSnapshot().StateHash, restored.CreateSnapshot().StateHash);
+        StateAssert.Equal(world.CreateSnapshot(), restored.CreateSnapshot());
     }
 
     [Fact]

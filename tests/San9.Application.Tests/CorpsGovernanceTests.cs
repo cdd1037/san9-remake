@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.Persistence;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -25,10 +26,11 @@ public sealed class CorpsGovernanceTests
         Assert.Equal(SessionDisposition.Accepted, session.Apply(session.Request(new CommandOperation(command), id: command.CommandId)).Disposition);
         Assert.Equal(3, Assert.Single(session.Snapshot.Units).ServicePlaceId);
         Assert.Equal(new WorldPosition(400, 500), Assert.Single(session.Snapshot.Units).Position);
+        var saveState = session.Capture();
         var save = SaveService.Encode(session);
-        Assert.Equal(save, SaveService.Encode(SaveService.Decode(save, definition)));
+        StateAssert.Equal(saveState, SaveService.Decode(save, definition).Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(save, SaveService.Encode(replay.Session));
+        StateAssert.Equal(saveState, replay.Session.Capture());
     }
 
     [Fact]
@@ -56,21 +58,23 @@ public sealed class CorpsGovernanceTests
         Assert.Equal(2, created.LeaderId);
         Assert.Equal(1001, session.Snapshot.Units.Single(u => u.Id == 20).CorpsId);
         Assert.Equal(1000, session.Snapshot.Units.Single(u => u.Id == 21).CorpsId);
+        var saveState = session.Capture();
         var save = SaveService.Encode(session);
-        Assert.Equal(save, SaveService.Encode(SaveService.Decode(save, definition)));
+        StateAssert.Equal(saveState, SaveService.Decode(save, definition).Capture());
         Assert.True(session.Execute(new("player"), new ChangeCorpsCommand(Guid.NewGuid(), 1, 1, created.Id, [3], 50, 300, new DomesticDelegation())).Submission.Accepted);
         Assert.Equal(created.Id, session.Snapshot.Units.Single(u => u.Id == 21).CorpsId);
+        var changedSaveState = session.Capture();
         var changedSave = SaveService.Encode(session);
         var restored = SaveService.Decode(changedSave, definition);
-        Assert.Equal(changedSave, SaveService.Encode(restored));
+        StateAssert.Equal(changedSaveState, restored.Capture());
         var dissolve = new DissolveCorpsCommand(Guid.NewGuid(), 1, 2, created.Id);
         Assert.True(session.Execute(new("player"), dissolve).Submission.Accepted);
         Assert.True(restored.Execute(new("player"), dissolve).Submission.Accepted);
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(restored));
+        StateAssert.Equal(session.Capture(), restored.Capture());
         Assert.Equal(before.Corps.Single(f => f.IsRoot && f.OwnerId == 1).Treasury.Money, session.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 1).Treasury.Money);
         Assert.Equal(before.Corps.Single(f => f.IsRoot && f.OwnerId == 1).Treasury.Food, session.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 1).Treasury.Food);
         Assert.Single(session.Snapshot.Corps, c => c.OwnerId == 1);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 }

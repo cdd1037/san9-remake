@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -57,11 +58,11 @@ public sealed class UnitStrategyTests
         mutation.Replace(mutation.Officers[12] with { Status = OfficerStatus.Strategist, BaseAbilities = new(70, 100, 70, 70) });
         world.Commit(mutation);
         var engine = new SimulationEngine(world, rules);
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         var expected = engine.GetUnitStrategyAdvice(1, 11, UnitStrategyKind.Inspire, 5);
         Assert.Equal(AdviserOpinion.Unfavorable, expected.Opinion);
         for (int query = 0; query < 20; query++) Assert.Equal(expected, engine.GetUnitStrategyAdvice(1, 11, UnitStrategyKind.Inspire, 5));
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         Assert.True(engine.Execute(new("player"), new WaitCommand(Guid.NewGuid(), 1, 0)).Submission.Accepted);
         Assert.Equal(expected, engine.GetUnitStrategyAdvice(1, 11, UnitStrategyKind.Inspire, 5));
         mutation = world.BeginMutation();
@@ -119,7 +120,7 @@ public sealed class UnitStrategyTests
         Assert.Equal(MilitaryOrderKind.Return, state.Units[5].EffectiveOrder!.Kind);
         world.Commit(state);
         var restored = new SimulationEngine(WorldState.Restore(world.CreateSnapshot()), rules);
-        Assert.Equal(world.CreateSnapshot().StateHash, restored.Snapshot.StateHash);
+        StateAssert.Equal(world.CreateSnapshot(), restored.Snapshot);
     }
 
     internal static SimulationRules Rules(bool defensive = false, bool immune = false, bool reinforcementConnection = true, bool transport = false) => new()
@@ -146,9 +147,9 @@ public sealed class UnitStrategyTests
     {
         var engine = new SimulationEngine(world, rules);
         var command = new UnitStrategyCommand(Guid.NewGuid(), 1, world.Simulation.NextSequence, 11, strategy, 5);
-        string hash = engine.Snapshot.StateHash;
+        var hash = engine.Snapshot;
         Assert.True(engine.Validate(new("player"), command).Accepted);
-        Assert.Equal(hash, engine.Snapshot.StateHash);
+        StateAssert.Equal(hash, engine.Snapshot);
         Assert.True(engine.Execute(new("player"), command).Submission.Accepted);
         if (forcedRoll is int roll)
         {
@@ -275,8 +276,8 @@ public sealed class UnitStrategyTests
         {
             engine.EndControl(new("player"));
             restored.EndControl(new("player"));
-            Assert.Equal(CanonicalJson.Hash(engine.AdvanceXun().Events), CanonicalJson.Hash(restored.AdvanceXun().Events));
-            Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+            EventAssert.Equal(engine.AdvanceXun().Events, restored.AdvanceXun().Events);
+            StateAssert.Equal(engine.Snapshot, restored.Snapshot);
             if (xun == 0) Assert.Equal("unit-strategy", Assert.Single(engine.Snapshot.Simulation.Tasks).Kind);
             if (xun == 1) Assert.Equal("personnel-return", Assert.Single(engine.Snapshot.Simulation.Tasks).Kind);
             restored = new SimulationEngine(WorldState.Restore(restored.Snapshot), rules);
@@ -320,7 +321,7 @@ public sealed class UnitStrategyTests
         string json = CanonicalJson.Text(world.CreateSnapshot());
         var snapshot = System.Text.Json.JsonSerializer.Deserialize<WorldSnapshot>(json, CanonicalJson.Options)!;
         var restored = new SimulationEngine(WorldState.Restore(snapshot), rules);
-        Assert.Equal(world.CreateSnapshot().StateHash, restored.Snapshot.StateHash);
+        StateAssert.Equal(world.CreateSnapshot(), restored.Snapshot);
         Assert.Equal(70, Assert.Single(restored.Snapshot.Simulation.Tasks).Reinforcements!.Morale);
 
         var state = world.BeginMutation(rules.Abilities);
@@ -495,8 +496,8 @@ public sealed class UnitStrategyTests
         Assert.Equal(MilitaryOrderKind.Return, second.Snapshot.Units.Single().EffectiveOrder!.Kind);
         first.EndControl(new("player"));
         second.EndControl(new("player"));
-        Assert.Equal(CanonicalJson.Text(first.AdvanceXun().Events), CanonicalJson.Text(second.AdvanceXun().Events));
-        Assert.Equal(first.Snapshot.StateHash, second.Snapshot.StateHash);
+        EventAssert.Equal(first.AdvanceXun().Events, second.AdvanceXun().Events);
+        StateAssert.Equal(first.Snapshot, second.Snapshot);
     }
 
     [Fact]

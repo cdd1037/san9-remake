@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Application.Persistence;
 using San9.Content.Scenarios;
@@ -37,15 +38,15 @@ public sealed class DuelSessionTests
     [InlineData(true)]
     public void DuelSuccessionIsTransientAndReplaysFromStableStart(bool automatic)
     {
-        ulong seed = 0;
-        while (new StableRandom(StableRandom.DeriveSeed(seed, "duel-trigger")).NextUInt64() % 100 >= 3 ||
-            new StableRandom(StableRandom.DeriveSeed(seed, "duel-death")).NextUInt64() % 100 >= 30) seed++;
+        const ulong seed = 16UL;
+        Assert.True(new StableRandom(StableRandom.DeriveSeed(seed, "duel-trigger")).NextUInt64() % 100 < 3);
+        Assert.True(new StableRandom(StableRandom.DeriveSeed(seed, "duel-death")).NextUInt64() % 100 < 30);
         var scenario = Scenario();
         var session = GameSession.Start(scenario, seed, battleDeathsEnabled: true);
         session.BeginRecording();
         var restored = SaveService.Decode(SaveService.Encode(session), scenario);
         var arrival = session.AdvanceXun();
-        Assert.Equal(CanonicalJson.Text(arrival.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+        EventAssert.Equal(arrival.Events, restored.AdvanceXun().Events);
         var prompt = Assert.IsType<DuelSuccessionPrompt>(session.GetDuelSuccessionPrompt());
         Assert.Equal(22, prompt.RulerId);
         Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
@@ -53,12 +54,12 @@ public sealed class DuelSessionTests
         var answer = new ChooseDuelSuccessorCommand(Guid.NewGuid(), 2, session.Snapshot.Simulation.NextSequence, 22, automatic ? null : 21);
         var result = session.Execute(new("player"), answer);
         Assert.True(result.Submission.Accepted);
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.Execute(new("player"), answer).Events));
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        EventAssert.Equal(result.Events, restored.Execute(new("player"), answer).Events);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         Assert.DoesNotContain("pendingDuel", System.Text.Encoding.UTF8.GetString(SaveService.Encode(session)));
         var recording = RecordingService.Encode(session.EndRecording());
         var replay = RecordingService.Replay(recording, scenario, GameSession.EngineFactory(scenario));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
         Assert.Single(replay.Events.OfType<OfficerDiedEvent>(), e => e.OfficerId == 22);
         Assert.Single(replay.Events.OfType<DuelStartedEvent>(), e => e.Clock.Day == 2);
         if (!automatic && Environment.GetEnvironmentVariable("SAN9_G09_REPORT_DIR") is { Length: > 0 } output)
@@ -71,9 +72,9 @@ public sealed class DuelSessionTests
     [Fact]
     public void AutomaticDuelSuccessionCompletesWithoutPlayerInputAndReplays()
     {
-        ulong seed = 0;
-        while (new StableRandom(StableRandom.DeriveSeed(seed, "duel-trigger")).NextUInt64() % 100 >= 3 ||
-            new StableRandom(StableRandom.DeriveSeed(seed, "duel-death")).NextUInt64() % 100 >= 30) seed++;
+        const ulong seed = 16UL;
+        Assert.True(new StableRandom(StableRandom.DeriveSeed(seed, "duel-trigger")).NextUInt64() % 100 < 3);
+        Assert.True(new StableRandom(StableRandom.DeriveSeed(seed, "duel-death")).NextUInt64() % 100 < 30);
         var scenario = Scenario() with { PlayerForceId = 1 };
         var session = GameSession.Start(scenario, seed, battleDeathsEnabled: true, aiPolicy: San9.Application.AI.AiPolicyConfiguration.Standard with { WorkBudget = 1 });
         var events = AutomaticResponseReplay.Advance(session, scenario, 1);

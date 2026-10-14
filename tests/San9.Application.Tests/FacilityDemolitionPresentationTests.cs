@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Application.Presentation;
 using San9.Content.Interface;
@@ -46,15 +47,15 @@ public sealed class FacilityDemolitionPresentationTests
             }
         };
         var context = session.Messages(texts);
-        string beforeHash = session.Snapshot.StateHash;
+        var beforeHash = session.Snapshot;
         Assert.Equal("撤除河南阵〈洛阳〉", draft.Confirmation(context, definition).BbCode);
         Assert.True(draft.CanExecute);
-        Assert.Equal(beforeHash, session.Snapshot.StateHash);
+        StateAssert.Equal(beforeHash, session.Snapshot);
         var result = session.Execute(new("player"), draft.CreateCommand(Guid.NewGuid(), session.Snapshot.Simulation.NextSequence));
         Assert.True(result.Submission.Accepted, result.Submission.Rejection.ToString());
         Assert.False(draft.CanExecute);
         Assert.Throws<InvalidOperationException>(() => draft.CreateCommand(Guid.NewGuid(), session.Snapshot.Simulation.NextSequence));
-        string hash = session.Snapshot.StateHash;
+        var hash = session.Snapshot;
         var messages = FacilityDemolitionPresentation.Create(draft.View, context, definition,
             Assert.Single(result.Events.OfType<FacilityDemolishedEvent>()), _ => 0);
         Assert.Equal(2, messages.Count);
@@ -64,7 +65,7 @@ public sealed class FacilityDemolitionPresentationTests
         Assert.Equal("removed", messages[1].SoundRole);
         Assert.Null(messages[1].SpeakerId);
         Assert.True(session.Snapshot.Settlements.Single(s => s.Id == 3).IsDestroyed);
-        Assert.Equal(hash, session.Snapshot.StateHash);
+        StateAssert.Equal(hash, session.Snapshot);
     }
 
     [Fact]

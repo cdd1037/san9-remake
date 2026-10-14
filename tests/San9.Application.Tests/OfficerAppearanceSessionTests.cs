@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Text;
 using System.Text.Json.Nodes;
 using San9.Application.Persistence;
@@ -32,8 +33,8 @@ public sealed class OfficerAppearanceSessionTests
         session.BeginRecording();
         var expected = session.AdvanceXun();
         var actual = restored.AdvanceXun();
-        Assert.Equal(CanonicalJson.Text(expected.Events), CanonicalJson.Text(actual.Events));
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        EventAssert.Equal(expected.Events, actual.Events);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         Assert.Single(expected.Events.OfType<OfficerAppearedEvent>());
         var visible = Assert.Single(session.View.Officers, p => p.Id == 9000);
         Assert.True(visible.IsServing);
@@ -43,25 +44,11 @@ public sealed class OfficerAppearanceSessionTests
         Assert.Equal(80000, person.BloodlineId);
         Assert.Equal(191, person.AppearanceYear);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), scenario, GameSession.EngineFactory(scenario));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
         var after = SaveService.Decode(SaveService.Encode(session), scenario, GameSession.EngineFactory(scenario));
         Assert.Empty(after.InitialEvents);
-        Assert.Equal(session.Capture().StateHash, after.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), after.Capture());
         Assert.True(after.Develop(new(person.OwnerId!.Value, person.SettlementId!.Value, [9000], DomesticActivity.Commerce)).Accepted);
-    }
-
-    [Fact]
-    public void AppearanceInputsAndModeParticipateInContentIdentity()
-    {
-        var scenario = Scenario();
-        string fingerprint = GameSession.Start(scenario, 190).ContentFingerprint;
-        Assert.NotEqual(fingerprint, GameSession.Start(Scenario(false), 190).ContentFingerprint);
-        foreach (var state in new[] { scenario.Officers[^1].State with { AppearanceYear = 192 },
-            scenario.Officers[^1].State with { BloodlineId = null } })
-        {
-            var changed = scenario with { Officers = scenario.Officers[..^1].Append(scenario.Officers[^1] with { State = state }).ToArray() };
-            Assert.NotEqual(fingerprint, GameSession.Start(changed, 190).ContentFingerprint);
-        }
     }
 
     [Theory]

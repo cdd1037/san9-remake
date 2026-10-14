@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.AI;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -22,7 +23,7 @@ public sealed class AiPlanningTests
         AdvanceXunResult expected = withoutAnalysis.AdvanceXun();
         AdvanceXunResult actual = withAnalysis.AdvanceXun();
 
-        Assert.Equal(expected.Snapshot.StateHash, actual.Snapshot.StateHash);
+        StateAssert.Equal(expected.Snapshot, actual.Snapshot);
         Assert.Equal(expected.Events, actual.Events);
     }
 
@@ -48,8 +49,8 @@ public sealed class AiPlanningTests
         diagnosed.AllocationDiagnosticsEnabled = true;
         for (int turn = 0; turn < 3; turn++)
         {
-            Assert.Equal(CanonicalJson.Hash(plain.AdvanceXun().Events), CanonicalJson.Hash(diagnosed.AdvanceXun().Events));
-            Assert.Equal(plain.Capture().StateHash, diagnosed.Capture().StateHash);
+            EventAssert.Equal(plain.AdvanceXun().Events, diagnosed.AdvanceXun().Events);
+            StateAssert.Equal(plain.Capture(), diagnosed.Capture());
         }
         Assert.Empty(plain.AllocationDiagnostics.Batches);
         Assert.NotEmpty(diagnosed.AllocationDiagnostics.Batches);

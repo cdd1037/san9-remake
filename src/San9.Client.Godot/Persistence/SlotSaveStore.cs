@@ -6,8 +6,7 @@ using San9.Core.Simulation;
 
 namespace San9.Client.Godot.Persistence;
 
-public sealed record SlotSaveHeader(int Version, int SaveVersion, string RulesVersion, int HashVersion,
-    string ContentFingerprint, SaveSlotSummary Summary, SaveSlotFlag Flag);
+public sealed record SlotSaveHeader(int Version, int SaveVersion, string RulesVersion, SaveSlotSummary Summary, SaveSlotFlag Flag);
 public sealed record SlotSaveDocument(SlotSaveHeader Header, SaveEnvelope Save);
 public sealed record SaveSlotFlag(int Color, int Glyph);
 public sealed record SaveSlotListing(SaveSlotSummary? Summary, SaveException? Error, SaveSlotFlag? Flag = null);
@@ -15,9 +14,8 @@ public sealed record SaveSlotListing(SaveSlotSummary? Summary, SaveException? Er
 /// <summary>One atomic JSON file: independently readable header first, authoritative save second.</summary>
 public sealed class SlotSaveStore(string directory, ScenarioInitialState definition)
 {
-    private const int FormatVersion = 3;
+    private const int FormatVersion = 4;
     public const string UserDirectory = "user://saves/slots";
-    private readonly string _contentFingerprint = GameSession.Fingerprint(definition);
     public string PathFor(int slot)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(slot, 1);
@@ -43,7 +41,7 @@ public sealed class SlotSaveStore(string directory, ScenarioInitialState definit
         var save = SaveService.Capture(session);
         var force = session.View.Forces.Single(f => f.Id == session.View.PlayerForceId);
         var header = new SlotSaveHeader(FormatVersion, SessionProtocol.SaveFormatVersion, SessionProtocol.RulesVersion,
-            CanonicalJson.Version, session.ContentFingerprint, summary, new(force.ColorCode, force.FlagGlyph));
+            summary, new(force.ColorCode, force.FlagGlyph));
         // Canonical order places "header" before "save", allowing a bounded prefix read.
         return CanonicalJson.Encode(new SlotSaveDocument(header, save));
     }
@@ -93,17 +91,14 @@ public sealed class SlotSaveStore(string directory, ScenarioInitialState definit
             if (length == buffer.Length) Array.Resize(ref buffer, checked(buffer.Length * 2));
         }
     }
-    private void ValidateHeader(SlotSaveHeader header)
+    private static void ValidateHeader(SlotSaveHeader header)
     {
-        if (header.Version != FormatVersion || header.SaveVersion != SessionProtocol.SaveFormatVersion ||
-            header.HashVersion != CanonicalJson.Version)
+        if (header.Version != FormatVersion || header.SaveVersion != SessionProtocol.SaveFormatVersion)
             throw new SaveException(SaveFailure.UnsupportedVersion, "Unsupported slot or application save version.");
         if (string.IsNullOrWhiteSpace(header.RulesVersion))
             throw new JsonException("Missing slot rules version.");
         if (header.Summary.Players < 1 || header.Flag.Color < 0 || header.Flag.Glyph < -1)
             throw new JsonException("Invalid slot preview metadata.");
-        if (header.ContentFingerprint != _contentFingerprint)
-            throw new SaveException(SaveFailure.ContentMismatch, "Slot belongs to different gameplay content.");
     }
     private T ReadFile<T>(int slot, Func<Stream, T> read)
     {

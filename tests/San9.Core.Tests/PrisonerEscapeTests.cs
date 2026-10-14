@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -31,15 +32,10 @@ public sealed class PrisonerEscapeTests
             units: field ? [new(10, 1, new(0, 0), 100) { IsEmbedded = embedded }] : [], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(1000, 1000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 2, new(1000, 1000)) { IsRoot = true }]).BeginMutation();
     }
 
-    private static void Rolls(WorldMutation world, params int[] rolls)
+    private static void Rolls(WorldMutation world, int roll)
     {
-        for (ulong seed = 1; ; seed++)
-        {
-            var random = new StableRandom(seed);
-            if (!rolls.All(r => random.NextUInt64() % 100 == (ulong)r)) continue;
-            world.SetSimulation(world.Simulation with { RandomStreams = [new("personnel-prisoner-escape", seed)] });
-            return;
-        }
+        ulong seed = TestSeeds.StateForRoll(roll);
+        world.SetSimulation(world.Simulation with { RandomStreams = [new("personnel-prisoner-escape", seed)] });
     }
 
     [Theory]

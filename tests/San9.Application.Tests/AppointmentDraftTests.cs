@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.Persistence;
 using San9.Application.Presentation;
 using San9.Content.Scenarios;
@@ -38,7 +39,7 @@ public sealed class AppointmentDraftTests
         session.BeginRecording();
         var draft = new AppointmentDraft(session, 1, kind);
         int singleTarget = kind == "strategist" ? draft.Candidates[0] : 2;
-        string before = session.Snapshot.StateHash;
+        var before = session.Snapshot;
         Assert.Equal(kind is "strategist" or "confiscate" or "execute", draft.CanExecute);
         if (kind == "rank") Assert.True(draft.AssignOffice(2, 401));
         else if (kind == "confiscate") Assert.True(draft.SetTreasure(702));
@@ -46,7 +47,7 @@ public sealed class AppointmentDraftTests
             Assert.True(draft.SetMembers(kind == "execute" ? [7] : kind is "reward" or "exile" ? [3, 2] : [singleTarget]));
             if (kind == "bestow") Assert.True(draft.SetTreasure(301));
         }
-        Assert.Equal(before, session.Snapshot.StateHash);
+        StateAssert.Equal(before, session.Snapshot);
         Assert.True(draft.CanExecute);
         var result = draft.Submit();
         Assert.Equal(CommandRejection.None, result.Rejection);
@@ -62,9 +63,9 @@ public sealed class AppointmentDraftTests
             case "execute": Assert.Equal(OfficerStatus.Dead, session.Snapshot.Officers.Single(p => p.Id == 7).Status); break;
             case "exile": Assert.All(session.Snapshot.Officers.Where(p => p.Id is 2 or 3), p => Assert.Equal(OfficerStatus.Free, p.Status)); break;
         }
-        Assert.Equal(session.Capture().StateHash, SaveService.Decode(SaveService.Encode(session), definition).Capture().StateHash);
+        StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), definition).Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -101,9 +102,9 @@ public sealed class AppointmentDraftTests
         Assert.False(draft.SetMembers([1])); Assert.False(draft.SetMembers([5])); Assert.False(draft.SetMembers([2, 2]));
         Assert.True(draft.SetMembers([2]));
         Assert.True(session.Execute(new("player"), new RewardOfficerCommand(Guid.NewGuid(), 1, 0, 3)).Submission.Accepted);
-        string before = session.Snapshot.StateHash;
+        var before = session.Snapshot;
         Assert.False(draft.SetMembers([2])); Assert.False(draft.CanExecute);
-        Assert.Throws<InvalidOperationException>(() => draft.Submit()); Assert.Equal(before, session.Snapshot.StateHash);
+        Assert.Throws<InvalidOperationException>(() => draft.Submit()); StateAssert.Equal(before, session.Snapshot);
         Assert.False(AppointmentDraft.Supports("delegate"));
     }
 
@@ -134,8 +135,8 @@ public sealed class AppointmentDraftTests
         Assert.Single(release.Submit().Events.OfType<PrisonerReleasedEvent>());
         var disconnected = GameSession.Start(definition with { CityConnections = [] }, 190);
         var exile = new AppointmentDraft(disconnected, 1, "exile"); Assert.True(exile.SetMembers([2, 3]));
-        string before = disconnected.Snapshot.StateHash; var result = exile.Submit();
+        var before = disconnected.Snapshot; var result = exile.Submit();
         Assert.Equal(CommandRejection.NoDestination, result.Rejection); Assert.Equal(0, result.CompletedCommands);
-        Assert.Equal(before, disconnected.Snapshot.StateHash);
+        StateAssert.Equal(before, disconnected.Snapshot);
     }
 }

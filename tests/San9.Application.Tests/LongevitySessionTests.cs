@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -33,14 +34,14 @@ public sealed class LongevitySessionTests
         var p = Assert.IsType<LongevityPrompt>(session.GetLongevityPrompt());
         Assert.Equal(p, restored.GetLongevityPrompt()); Assert.Equal((7, 500u), (p.MinimumLifespanTier, p.Cost));
         Assert.Equal(SimulationBoundary.AwaitingDecision, session.Snapshot.Simulation.Boundary);
-        string before = session.Snapshot.StateHash;
-        Assert.Equal(p, session.GetLongevityPrompt()); Assert.Equal(before, session.Snapshot.StateHash);
+        var before = session.Snapshot;
+        Assert.Equal(p, session.GetLongevityPrompt()); StateAssert.Equal(before, session.Snapshot);
         Guid id = Guid.NewGuid();
         var answer = new RespondDailyTaskCommand(id, 1, session.Snapshot.Simulation.NextSequence, p.TaskId, p.Step, accept);
         var request = session.Request(new CommandOperation(answer), id: id);
         var first = session.Apply(request); var second = restored.Apply(request);
         Assert.Equal(SessionDisposition.Accepted, first.Disposition);
-        Assert.Equal(CanonicalJson.Text(first.Events), CanonicalJson.Text(second.Events));
+        EventAssert.Equal(first.Events, second.Events);
         Assert.Equal(accept, Assert.Single(first.Events.OfType<LongevityResolvedEvent>()).Accepted);
         Assert.DoesNotContain(first.Events, e => e is SearchResolvedEvent);
         Assert.Empty(session.Snapshot.Simulation.ConsumedEventKeys);
@@ -48,10 +49,10 @@ public sealed class LongevitySessionTests
         Assert.Equal(accept ? -500L : 0L, first.Events.OfType<ResourceChangedEvent>().Where(e => e.Reason == "longevity").Sum(e => e.Actual));
         Assert.Equal(new PersistentEventKey("visited"), Assert.Single(session.Snapshot.Forces.Single().EventHistory));
         Assert.Null(session.GetLongevityPrompt());
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(SaveService.Decode(SaveService.Encode(session), d)));
+        StateAssert.Equal(session.Capture(), restored.Capture());
+        StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), d).Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), d, GameSession.EngineFactory(d));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
         Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, 2, 1)).Submission.Accepted);
         session.AdvanceXun(); Assert.NotNull(session.GetLongevityPrompt());
     }
@@ -81,14 +82,14 @@ public sealed class LongevitySessionTests
     }
 
     [Fact]
-    public void ContentReferencesConsumptionPolicyAndCostAreValidatedAndFingerprinted()
+    public void ContentReferencesConsumptionPolicyAndCostAreValidated()
     {
         var d = Definition(); var longevity = (LongevitySearchEventDefinition)d.SearchEvents[0];
         foreach (var bad in new[] { longevity with { IntelligenceChanceDivisor = 0 }, longevity with { PlaceId = 999 }, longevity with { DivinerOfficerId = 999 },
             longevity with { Cost = 0 }, longevity with { MinimumLifespanTier = -1 }, longevity with { RequiredHistoryKey = default },
             longevity with { Consumption = EventConsumption.OnPresentation } })
             Assert.Throws<InvalidDataException>(() => (d with { SearchEvents = [bad] }).Validate());
-        Assert.NotEqual(GameSession.Fingerprint(d), GameSession.Fingerprint(d with { SearchEvents = [longevity with { Cost = 12000 }] }));
+
         var document = JsonNode.Parse(CanonicalJson.Encode(d))!;
         document["searchEvents"]![0]!.AsObject().Remove("lifespanChangesAllowed");
         Assert.Throws<JsonException>(() => StrictJson.Deserialize<ScenarioInitialState>(Encoding.UTF8.GetBytes(document.ToJsonString())));

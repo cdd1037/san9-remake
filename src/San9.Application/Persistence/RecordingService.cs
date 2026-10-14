@@ -1,51 +1,44 @@
 using System.Collections.Immutable;
 using System.Text.Json;
 using San9.Content.Scenarios;
+using San9.Core.Diagnostics;
 using San9.Core.Simulation;
 
 namespace San9.Application.Persistence;
 
-public sealed record RecordingEnvelope(int FormatVersion, string RulesVersion, int HashVersion,
-    SessionRecording Recording, string IntegrityHash);
+public sealed record RecordingEnvelope(int FormatVersion, string RulesVersion, SessionRecording Recording);
 public sealed record RecordingReplay(GameSession Session, GameClock Started, int Accepted, ImmutableArray<DomainEvent> Events);
 public sealed class RecordingException(string message, long? sequence = null, Exception? inner = null) : Exception(message, inner)
 {
     public long? Sequence { get; } = sequence;
 }
 
-/// <summary>Explicit debug recordings are separate artifacts, never part of a player save.</summary>
+/// <summary>Recordings replay operations; recorded events are compared only when explicitly requested.</summary>
 public static class RecordingService
 {
-    public const int FormatVersion = 19;
+    public const int FormatVersion = 22;
 
-    public static byte[] Encode(SessionRecording recording)
-    {
-        var envelope = new RecordingEnvelope(FormatVersion, SessionProtocol.RulesVersion, CanonicalJson.Version, recording, "");
-        return CanonicalJson.Encode(envelope with { IntegrityHash = Integrity(envelope) });
-    }
-
-    internal static string Integrity(RecordingEnvelope envelope) => CanonicalJson.Hash(new
-        { envelope.FormatVersion, envelope.RulesVersion, envelope.HashVersion, envelope.Recording });
+    public static byte[] Encode(SessionRecording recording) => CanonicalJson.Encode(
+        new RecordingEnvelope(FormatVersion, SessionProtocol.RulesVersion, recording));
 
     public static void Write(string path, SessionRecording recording) => AtomicFile.Write(path, Encode(recording));
 
-    public static RecordingReplay Replay(string path, ScenarioInitialState definition, Action<RulesVersionWarning>? reportWarning = null) =>
-        Replay(File.ReadAllBytes(path), definition, GameSession.EngineFactory(definition), reportWarning);
+    public static RecordingReplay Replay(string path, ScenarioInitialState definition, Action<RulesVersionWarning>? reportWarning = null,
+        bool verifyEvents = false) =>
+        Replay(File.ReadAllBytes(path), definition, GameSession.EngineFactory(definition), reportWarning, verifyEvents);
 
     internal static RecordingReplay Replay(ReadOnlyMemory<byte> bytes, ScenarioInitialState definition,
-        Func<WorldState, SimulationEngine> factory, Action<RulesVersionWarning>? reportWarning = null)
+        Func<WorldState, SimulationEngine> factory, Action<RulesVersionWarning>? reportWarning = null, bool verifyEvents = false)
     {
         RecordingEnvelope envelope;
         try
         {
             using var document = JsonDocument.Parse(bytes);
             var root = document.RootElement;
-            if (root.GetProperty("formatVersion").GetInt32() != FormatVersion ||
-                root.GetProperty("hashVersion").GetInt32() != CanonicalJson.Version)
-                throw new RecordingException("Unsupported recording or hash version.");
-            envelope = StrictJson.Deserialize<RecordingEnvelope>(bytes);
+            if (root.GetProperty("formatVersion").GetInt32() != FormatVersion)
+                throw new RecordingException("Unsupported recording version.");
+            envelope = StrictJson.Deserialize<RecordingEnvelope>(root);
             if (string.IsNullOrWhiteSpace(envelope.RulesVersion)) throw new RecordingException("Missing recording rules version.");
-            if (envelope.IntegrityHash != Integrity(envelope)) throw new RecordingException("Recording integrity mismatch.");
         }
         catch (Exception error) when (error is JsonException or ArgumentException or InvalidOperationException or KeyNotFoundException or NotSupportedException or FormatException)
         { throw new RecordingException("Invalid recording document.", inner: error); }
@@ -55,7 +48,6 @@ public static class RecordingService
         try
         {
             var owned = new ScenarioSessionDefinition(definition);
-            if (recording.ContentFingerprint != owned.Fingerprint) throw new RecordingException("Recording content mismatch.");
             session = GameSession.Restore(owned, recording.Initial, factory);
             if (session.ReportRulesVersion(envelope.RulesVersion) is { } warning) reportWarning?.Invoke(warning);
         }
@@ -71,13 +63,12 @@ public static class RecordingService
             try { result = session.Apply(entry.Request); }
             catch (Exception error) when (error is ArgumentException or InvalidOperationException or OverflowException or NotSupportedException or KeyNotFoundException)
             { throw new RecordingException("Recorded operation failed during execution.", sequence, error); }
-            if (result.Disposition != SessionDisposition.Accepted ||
-                !result.Events.Select(e => CanonicalJson.Text<DomainEvent>(e)).SequenceEqual(entry.Events.Select(e => CanonicalJson.Text<DomainEvent>(e))))
+            if (result.Disposition != SessionDisposition.Accepted)
                 throw new RecordingException("Recorded operation diverged: " + result.Rejection, sequence);
+            if (verifyEvents && EventDiagnostics.Compare(entry.Events, result.Events) is { } difference)
+                throw new RecordingException($"Recorded events diverged at {difference.Path}: expected {difference.Expected}, actual {difference.Actual}.", sequence);
             events.AddRange(result.Events);
         }
-        if (session.Capture().StateHash != recording.FinalHash)
-            throw new RecordingException("Recording final state mismatch.", session.NextOperationSequence);
         return new(session, recording.Initial.World.Clock, recording.Operations.Length, events.ToImmutable());
     }
 }

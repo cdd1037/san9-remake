@@ -54,7 +54,7 @@ public partial class ClientVerification
             panel.Back(); await Frame();
             Check(!panel.Visible, "Information page failed to close.");
         }
-        Check(World.Session.Snapshot.StateHash == before.StateHash && selected == Selection.Square, "Information browsing changed simulation or map selection.");
+        Check(World.Session.Snapshot.Revision == before.Revision && selected == Selection.Square, "Information browsing changed simulation or map selection.");
         GD.Print("INFORMATION_SMOKE_OK ten pages, modal blocking, engine keyboard detail/return, unchanged simulation");
     }
     private async Task CaptureUiVariants(string path)

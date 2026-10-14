@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -260,8 +261,8 @@ public sealed class TacticCombatTests
         var firstDay = result.Events;
         Assert.Equal(new[] { 21, 12 }, firstDay.OfType<TacticLearnedEvent>().Where(e => e.Clock.Day == 2).Select(e => e.OfficerId));
         Assert.Equal(new[] { 11, 12 }, firstDay.OfType<TacticProficiencyGrownEvent>().Where(e => e.Clock.Day == 2).Select(e => e.OfficerId));
-        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(result.Events), System.Text.Json.JsonSerializer.Serialize(repeated.Events));
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        EventAssert.Equal(result.Events, repeated.Events);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
     }
 
     [Fact]

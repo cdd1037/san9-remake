@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -40,7 +41,7 @@ public sealed class OfficerAbilityRulesTests
         Assert.Equal(new OfficerAbilities(50, 50, 50, 50), mutation.Abilities(mutation.Officers[1]));
         Assert.Equal(new OfficerAbilities(61, 42, 44, 40), mutation.Abilities(mutation.Officers[2]));
         Assert.Equal(60, Rules.EvaluateMany(before.Officers, before.Treasures)[1].War);
-        Assert.Equal(before.StateHash, world.CreateSnapshot().StateHash);
+        StateAssert.Equal(before, world.CreateSnapshot());
         world.Commit(mutation);
         var after = world.CreateSnapshot();
         Assert.Equal(61, Rules.EvaluateMany(after.Officers, after.Treasures)[2].War);

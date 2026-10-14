@@ -17,7 +17,6 @@ public sealed record AllocationTrace(Guid CommandId, string ControllerId, string
     public long? FoodExpenditureError => PredictedAccountFoodExpenditure is long expected ? ActualAccountFoodExpenditure - expected : null;
     public uint? ActualDeliveredSoldiers { get; init; }
     public long? SoldierLoss => PredictedSoldiers is uint expected && ActualDeliveredSoldiers is uint delivered ? (long)expected - delivered : null;
-    public string IntentHash { get; init; } = "";
     public string CommandType { get; init; } = "";
     public int ForceId { get; init; }
     public CommandRejection Rejection { get; init; }
@@ -26,7 +25,6 @@ public sealed record AllocationBatchTrace(GameClock Clock, int ForceId, long Wor
     ImmutableArray<EconomicAccountObservation> Accounts, ImmutableArray<ArrivalProjection> Arrivals)
 {
     public ImmutableArray<AllocationCandidate> Candidates { get; init; } = [];
-    public string? SelectedIntentHash { get; init; }
     public bool IsTurnSummary { get; init; }
     public bool BudgetExhausted { get; init; }
     public ImmutableDictionary<string, long> WorkByKind { get; init; } = ImmutableDictionary<string, long>.Empty;

@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Application.Persistence;
 using San9.Application.Presentation;
@@ -104,12 +105,12 @@ public sealed class ProgressPresentationTests
         var content = new ProgressPresentationDefinition([],[])
         { OrderPrompt = new("order",new() { ["person.0"]="ruler" },Sound:"prompt"), StrategyTitleSound="title" };
         var restored = GameSession.Restore(Scenario(false),session.Capture());
-        string hash = restored.Snapshot.StateHash;
+        var hash = restored.Snapshot;
         var message = Assert.Single(StrategyEntryPresentation.Produce(restored.View,restored.Messages(texts),texts,content));
         Assert.Equal("ruler大人，请下令。",message.Message.BbCode);
         Assert.Null(message.SpeakerId);
         Assert.Equal("prompt",message.SoundRole);
-        Assert.Equal(hash,restored.Snapshot.StateHash);
+        StateAssert.Equal(hash, restored.Snapshot);
         Assert.Equal(session.StrategicContext,restored.StrategicContext);
     }
 
@@ -260,7 +261,7 @@ public sealed class ProgressPresentationTests
     }
 
     [Fact]
-    public void SaveAndRecordingRetainContextPublicationAndItsStateHash()
+    public void SaveAndRecordingRetainContextPublication()
     {
         var definition = Scenario();
         var session = GameSession.Start(definition,42);
@@ -268,14 +269,14 @@ public sealed class ProgressPresentationTests
         session.AdvanceXun();
         var loaded = SaveService.Decode(SaveService.Encode(session),definition);
         Assert.Equal(session.StrategicContext.Clock,SaveService.Load(SaveService.Encode(session),definition).StrategicContext.Clock);
-        Assert.Equal(session.Capture().StateHash,loaded.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), loaded.Capture());
         Assert.Equal(session.StrategicContext.Clock,loaded.StrategicContext.Clock);
         Assert.Same(loaded.StrategicContext,StrategicContext.Prepare(loaded.View,loaded.StrategicContext,_ => throw new Exception("Rerolled save")));
         string path = Path.Combine(Path.GetTempPath(),$"san9-context-{Guid.NewGuid():N}.json");
         try
         {
             RecordingService.Write(path,session.CaptureRecording());
-            Assert.Equal(session.Capture().StateHash,RecordingService.Replay(path,definition).Session.Capture().StateHash);
+            StateAssert.Equal(session.Capture(), RecordingService.Replay(path,definition).Session.Capture());
         }
         finally { File.Delete(path); }
     }

@@ -31,9 +31,7 @@ internal static class UnitDefections
                     SettlementDefections.Active(s) && s.Facility?.BuilderUnitId is null && military.TryPlace(s, out _))
                 .OrderBy(s => MapCoordinates.Distance(unit.Position, military.Place(s).Position)).ThenBy(s => s.Id)
                 .Select(s => (int?)s.Id).FirstOrDefault();
-            Guid cause = new(Convert.FromHexString(CanonicalJson.Hash(new { Kind = "unit-defected", world.Clock, UnitId = id,
-                world.Simulation.NextSequence })).AsSpan(0, 16));
-            UnitAffiliation.Transfer(world, unit, recipient, home, followers, region, cause, false, rules, events);
+            UnitAffiliation.Transfer(world, unit, recipient, home, followers, region, false, rules, events);
             BattleAftermath.Reconcile(world, new HashSet<int> { owner }, rules, events, false, "unit-defected");
             ForceTransfer.ClearFriendlyOrders(world, "unit-defected", events);
             CorpsDelegations.Cleanup(world, military, events);

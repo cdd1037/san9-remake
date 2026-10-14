@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Text.Json.Nodes;
 using San9.Application.Persistence;
 using San9.Content.Scenarios;
@@ -56,13 +57,13 @@ public sealed class PrisonerExecutionTests
         Assert.Single(result.Events.OfType<TaskCancelledEvent>());
         Assert.All(session.Snapshot.Simulation.Tasks, t => Assert.Equal("personnel-return", t.Kind));
         Assert.DoesNotContain(session.View.Officers, p => p.Id == 7);
-        string before = session.Snapshot.StateHash;
+        var before = session.Snapshot;
         Assert.False(session.Execute(new("player"), command with { CommandId = Guid.NewGuid(), Sequence = 2 }).Submission.Accepted);
-        Assert.Equal(before, session.Snapshot.StateHash);
+        StateAssert.Equal(before, session.Snapshot);
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Theory]
@@ -93,7 +94,7 @@ public sealed class PrisonerExecutionTests
             Assert.DoesNotContain(session.Snapshot.Settlements, p => p.OwnerId == 2);
         }
         else Assert.Equal(5, force.LeaderId);
-        Assert.Equal(session.Capture().StateHash, SaveService.Decode(SaveService.Encode(session), definition).Capture().StateHash);
+        StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), definition).Capture());
     }
 
     [Theory]
@@ -103,11 +104,11 @@ public sealed class PrisonerExecutionTests
     public void NonCaptiveOrMissingTargetRejectsWithoutEffects(int target)
     {
         var session = GameSession.Start(Fixture(), 190);
-        string before = session.Snapshot.StateHash;
+        var before = session.Snapshot;
         var result = session.Execute(new("player"), new ExecutePrisonerCommand(Guid.NewGuid(), 1, 0, target));
         Assert.False(result.Submission.Accepted);
         Assert.Empty(result.Events);
-        Assert.Equal(before, session.Snapshot.StateHash);
+        StateAssert.Equal(before, session.Snapshot);
     }
 
     [Fact]
@@ -146,21 +147,21 @@ public sealed class PrisonerExecutionTests
         Assert.Equal(1, Assert.Single(session.Snapshot.Treasures).HolderId);
         var prompt = session.GetExecutionSuccessionPrompt()!;
         Assert.Equal(new[] { 2, 3 }, prompt.CandidateIds);
-        string pendingHash = session.Snapshot.StateHash;
+        var pendingHash = session.Snapshot;
         Assert.Equal(CommandRejection.DecisionPending, session.Execute(new("ai:2"), new WaitCommand(Guid.NewGuid(), 2, 1)).Submission.Rejection);
         Assert.Equal(CommandRejection.NotActiveController, session.Execute(new("ai:2"),
             new ChooseExecutionSuccessorCommand(Guid.NewGuid(), 1, 1, 1, 3)).Submission.Rejection);
         Assert.Equal(CommandRejection.InvalidDecision, session.Execute(new("player"),
             new ChooseExecutionSuccessorCommand(Guid.NewGuid(), 1, 1, 1, 4)).Submission.Rejection);
-        Assert.Equal(pendingHash, session.Snapshot.StateHash);
+        StateAssert.Equal(pendingHash, session.Snapshot);
         Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
         Assert.Equal(CanonicalJson.Text(prompt), CanonicalJson.Text(restored.GetExecutionSuccessionPrompt()));
         var response = new ChooseExecutionSuccessorCommand(Guid.NewGuid(), 1, 1, 1, automatic ? null : 3);
         var request = session.Request(new CommandOperation(response), "player", response.CommandId);
         var result = session.Apply(request);
         Assert.Equal(SessionDisposition.Accepted, result.Disposition);
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.Apply(request).Events));
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        EventAssert.Equal(result.Events, restored.Apply(request).Events);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         Assert.Equal(3, session.Snapshot.Forces.Single(f => f.Id == 1).LeaderId);
         Assert.Equal(OfficerStatus.Dead, session.Snapshot.Officers.Single(p => p.Id == 1).Status);
         Assert.Equal(4, Assert.Single(session.Snapshot.Treasures).HolderId);
@@ -169,7 +170,7 @@ public sealed class PrisonerExecutionTests
         Assert.Equal(2, session.Snapshot.Simulation.Controls[session.Snapshot.Simulation.ActiveControl].ForceId);
         Assert.Empty(result.Events.OfType<StageCompletedEvent>());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -195,9 +196,9 @@ public sealed class PrisonerExecutionTests
         Assert.Equal(3, root.LeaderId);
         Assert.All(session.Snapshot.Settlements.Where(s => s.OwnerId == 1), s => Assert.Equal(20, s.CorpsId));
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]

@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -33,8 +34,8 @@ public sealed class LeadershipMaintenanceTests
         Assert.Equal([12, 22], engine.Snapshot.Officers.Where(p => p.IsCommander).Select(p => p.Id).ToArray());
         var restored = new SimulationEngine(WorldState.Restore(origin), new([new(100, 0), new(101, 0)], []),
             PersonnelRulebook.Empty, Treasures, Governance);
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.Execute(new("player"), command).Events));
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        EventAssert.Equal(result.Events, restored.Execute(new("player"), command).Events);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
         var wait = engine.Execute(new("player"), new WaitCommand(Guid.NewGuid(), 1, 1));
         Assert.Empty(wait.Events.OfType<CommanderChangedEvent>());
     }

@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Text.Json;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -18,7 +19,7 @@ public sealed class PrisonerReturnTests
         { Journey = new(2, null, null) { Route = new(new(0, 0), new(300, 0), false) }, PrisonerReturn = new(2, 13) };
         state.SetSimulation(state.Simulation with { Tasks = [pending] });
         List<DomainEvent> events = [];
-        Assert.Equal(CommandRejection.None, PrisonerRelease.Depart(state, 13, 2, Guid.NewGuid(), 1,
+        Assert.Equal(CommandRejection.None, PrisonerRelease.Depart(state, 13, 2, 1,
             PrisonerDepartureKind.Recovered, null, Rules().Personnel, EconomyRulebook.Empty, events, new(180, 0)));
         var recovered = state.Officers[13];
         Assert.Null(recovered.UnitId);
@@ -86,20 +87,20 @@ public sealed class PrisonerReturnTests
         var restored = new SimulationEngine(WorldState.Restore(snapshot), Rules());
         var quoted = engine.Execute(new("second"), response);
         Assert.True(quoted.Submission.Accepted);
-        Assert.Equal(CanonicalJson.Text(quoted.Events), CanonicalJson.Text(restored.Execute(new("second"), response).Events));
+        EventAssert.Equal(quoted.Events, restored.Execute(new("second"), response).Events);
         Assert.DoesNotContain(quoted.Events, e => e is TaskCompletedEvent or PrisonerReturnResolvedEvent or XunAdvancedEvent);
         prompt = engine.GetPrisonerReturnPrompt()!;
         Assert.Equal(1, prompt.RespondingForceId);
         Assert.Equal(1, prompt.Step);
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         var final = new RespondDailyTaskCommand(Guid.NewGuid(), 1, 2, prompt.TaskId, 1, true);
         Assert.Equal(CommandRejection.InvalidDecision, engine.Execute(new("first"), final with { Step = 0 }).Submission.Rejection);
         Assert.Equal(CommandRejection.NotActiveController, engine.Execute(new("second"), final).Submission.Rejection);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         snapshot = engine.Snapshot;
         restored = new(WorldState.Restore(snapshot), Rules());
         var result = engine.Execute(new("first"), final);
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.Execute(new("first"), final).Events));
+        EventAssert.Equal(result.Events, restored.Execute(new("first"), final).Events);
         var resolved = Assert.Single(result.Events.OfType<PrisonerReturnResolvedEvent>());
         Assert.True(resolved.Accepted);
         Assert.Equal(100u, resolved.Received);
@@ -157,14 +158,14 @@ public sealed class PrisonerReturnTests
         var advice = engine.GetPrisonerReturnAdvice(1, 12, 2, 13);
         Assert.Equal(AdviserOpinion.Favorable, advice.Opinion);
         Assert.Equal(advice, engine.GetPrisonerReturnAdvice(1, 12, 2, 13));
-        Assert.Equal(before.StateHash, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         snapshot = engine.Snapshot with { Corps = engine.Snapshot.Corps.Select(f => f.IsRoot && f.OwnerId == 1 ? f with { Treasury = f.Treasury with { Money = 0 } } : f).ToArray(),
             Relations = [new(1, 2, relation)] };
         engine = new(WorldState.Restore(snapshot), Rules());
-        string beforeFreeAdvice = engine.Snapshot.StateHash;
+        var beforeFreeAdvice = engine.Snapshot;
         Assert.Equal(free ? AdviserOpinion.Favorable : AdviserOpinion.Unfavorable,
             engine.GetPrisonerReturnAdvice(1, 12, 2, 13).Opinion);
-        Assert.Equal(beforeFreeAdvice, engine.Snapshot.StateHash);
+        StateAssert.Equal(beforeFreeAdvice, engine.Snapshot);
         Assert.True(engine.Execute(new("first"), new ReturnPrisonerCommand(Guid.NewGuid(), 1, 0, 12, 2, 13)).Submission.Accepted);
         engine.EndControl(new("first")); engine.EndControl(new("ai:2"));
         engine.AdvanceXun();

@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.AI;
 using San9.Application.Persistence;
 using San9.Content.Scenarios;
@@ -90,8 +91,8 @@ public sealed class EconomicSessionTests
         {
             var a = continuous.AdvanceXun();
             var b = resumed.AdvanceXun();
-            Assert.Equal(CanonicalJson.Hash(a.Events), CanonicalJson.Hash(b.Events));
-            Assert.Equal(continuous.Capture().StateHash, resumed.Capture().StateHash);
+            EventAssert.Equal(a.Events, b.Events);
+            StateAssert.Equal(continuous.Capture(), resumed.Capture());
             trades += a.Events.OfType<FoodTradeCompletedEvent>().Count();
             Assert.All(continuous.AiState.FoodSecurity, g => Assert.Equal(goal.Started, g.Started));
             resumed = SaveService.Decode(SaveService.Encode(resumed), initial);
@@ -100,7 +101,7 @@ public sealed class EconomicSessionTests
         Assert.Empty(continuous.AiState.FoodSecurity);
         Assert.True(EconomicOutlook.Read(continuous.Snapshot, new Dictionary<int, int>(), 2, 2).Food.Sufficient);
         var replay = RecordingService.Replay(RecordingService.Encode(continuous.EndRecording()), initial, GameSession.EngineFactory(initial));
-        Assert.Equal(continuous.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(continuous.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -204,7 +205,7 @@ public sealed class EconomicSessionTests
         var before = session.Capture();
         var invalid = session.Request(new EndControlOperation(), "ai:2");
         Assert.Equal(SessionDisposition.Rejected, session.Apply(invalid).Disposition);
-        Assert.Equal(before.StateHash, session.Capture().StateHash);
+        StateAssert.Equal(before, session.Capture());
         Assert.Empty(session.CaptureRecording().Operations);
         var request = session.Request(new PrepareAdvanceOperation());
         var result = session.Apply(request);
@@ -217,8 +218,8 @@ public sealed class EconomicSessionTests
         Assert.Same(captured, session.Capture());
         var resumed = SaveService.Decode(SaveService.Encode(session), initial);
         Assert.Equal(1, resumed.AiState.Configuration.WorkBudget);
-        Assert.Equal(captured.StateHash, resumed.Capture().StateHash);
-        Assert.NotEqual(captured.StateHash, (captured with { Ai = new() }).StateHash);
+        StateAssert.Equal(captured, resumed.Capture());
+        StateAssert.NotEqual(captured, (captured with { Ai = new() }));
         Assert.Throws<ArgumentException>(() => GameSession.Restore(initial, captured with { Ai = captured.Ai with
         { Configuration = captured.Ai.Configuration with { WorkBudget = 0 } } }));
         Assert.Throws<ArgumentException>(() => GameSession.Restore(initial, captured with { Ai = captured.Ai with
@@ -238,7 +239,7 @@ public sealed class EconomicSessionTests
         };
         var observed = EconomicObservation.Capture(new(WorldState.Restore(before)), seat, new(seat.ControllerId), 1000);
         var hidden = EconomicObservation.Capture(new(WorldState.Restore(changed)), seat, new(seat.ControllerId), 1000);
-        Assert.Equal(CanonicalJson.Hash(observed), CanonicalJson.Hash(hidden));
+        Assert.Equal(CanonicalJson.Text(observed), CanonicalJson.Text(hidden));
         var decision = EconomicPlanner.Decide(observed, [], seat.ControllerId, 1, true);
         Assert.True(decision.Exhausted);
         Assert.Equal(1, decision.Work);
@@ -247,7 +248,7 @@ public sealed class EconomicSessionTests
         var full = EconomicPlanner.Decide(observed, [], seat.ControllerId, 100, true);
         Assert.IsType<PurchaseFoodIntent>(full.Intent);
         Assert.True(full.Work <= 100);
-        Assert.Equal(CanonicalJson.Hash(full), CanonicalJson.Hash(EconomicPlanner.Decide(hidden, [], seat.ControllerId, 100, true)));
+        Assert.Equal(CanonicalJson.Text(full), CanonicalJson.Text(EconomicPlanner.Decide(hidden, [], seat.ControllerId, 100, true)));
     }
 
     [Fact]
@@ -285,7 +286,7 @@ public sealed class EconomicSessionTests
         var result = session.Apply(request);
         Assert.True(rules.SawPurchase);
         Assert.Equal(SessionDisposition.Rejected, result.Disposition);
-        Assert.Equal(before.StateHash, session.Capture().StateHash);
+        StateAssert.Equal(before, session.Capture());
         Assert.Empty(session.Records);
         Assert.Empty(session.AiState.FoodSecurity);
         Assert.Empty(session.CaptureRecording().Operations);
@@ -327,7 +328,7 @@ public sealed class EconomicSessionTests
         Assert.Single(preparation.Events.OfType<FoodTradeCompletedEvent>());
         for (int i = 0; i < 10; i++)
             Assert.Equal(SessionDisposition.Accepted, daily.Apply(daily.Request(new AdvanceDayOperation())).Disposition);
-        Assert.Equal(whole.Snapshot.StateHash, daily.Snapshot.StateHash);
-        Assert.Equal(CanonicalJson.Hash(whole.AiState), CanonicalJson.Hash(daily.AiState));
+        StateAssert.Equal(whole.Snapshot, daily.Snapshot);
+        Assert.Equal(CanonicalJson.Text(whole.AiState), CanonicalJson.Text(daily.AiState));
     }
 }

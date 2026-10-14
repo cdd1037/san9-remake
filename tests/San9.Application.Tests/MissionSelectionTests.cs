@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.Persistence;
 using San9.Application.Presentation;
 using San9.Core.Domain;
@@ -32,7 +33,7 @@ public sealed class MissionSelectionTests
         var session = GameSession.Start(content,42);
         var draft = new MissionDraft(session,1,kind);
         var texts = MissionScenario.Texts(draft.View);
-        byte[] before = SaveService.Encode(session);
+        var before = session.Capture();
         Assert.Equal(first,draft.ActorId);
         var pages = MissionOfficerCatalog.Pages(draft,MissionScenario.Texts(draft.View));
         var primary = MissionOfficerCatalog.Read(draft,texts,0);
@@ -40,7 +41,7 @@ public sealed class MissionSelectionTests
         Assert.Contains(draft.ActorPriorityField,pages[0].Columns.Select(c => c.Id));
         for (int page = 1; page < pages.Count; page++)
             Assert.Equal(primary.Select(r => r.Id),MissionOfficerCatalog.Read(draft,texts,page).Select(r => r.Id));
-        Assert.Equal(before,SaveService.Encode(session));
+        Assert.Same(before, session.Capture());
     }
 
     [Fact]
@@ -64,14 +65,14 @@ public sealed class MissionSelectionTests
     {
         var session = GameSession.Start(MissionScenario.Create(),42);
         var draft = new MissionDraft(session,1,"alienate");
-        byte[] before = SaveService.Encode(session);
+        var before = session.Capture();
         var pages = MissionOfficerCatalog.Pages(draft,MissionScenario.Texts(draft.View),targets:true);
         var rows = MissionOfficerCatalog.Read(draft,MissionScenario.Texts(draft.View),0,targets:true);
         var row = rows.Single(r => r.Id == 22);
         var arrival = row.Cells[Array.FindIndex(pages[0].Columns,c => c.Id == "estimate")];
         Assert.True(arrival.Number > 0);
         Assert.Null(draft.TargetId);
-        Assert.Equal(before,SaveService.Encode(session));
+        Assert.Same(before, session.Capture());
     }
 
     [Fact]
@@ -81,14 +82,14 @@ public sealed class MissionSelectionTests
         var content = basis with { Units = basis.Units.Select(u => u.Id == 10 ? u with { Id = 2 } : u).ToArray(),
             Officers = basis.Officers.Select(p => p.State.UnitId == 10 ? p with { State = p.State with { UnitId = 2 } } : p).ToArray() };
         var session = GameSession.Start(content,42);
-        byte[] before = SaveService.Encode(session);
+        var before = session.Capture();
         var facility = new CommandTargetSelection(session.View,CommandMapTargetKind.Settlement,[2],CommandTargetMarker.Hostile);
         var unit = new CommandTargetSelection(session.View,CommandMapTargetKind.Unit,[2],CommandTargetMarker.Friendly);
         Assert.Equal(2,facility.Resolve(new CommandMapObject(2,false)));
         Assert.Null(facility.Resolve(new CommandMapObject(2,true)));
         Assert.Equal(2,unit.Resolve(new CommandMapObject(2,true)));
         Assert.Null(unit.Resolve(new CommandMapObject(2,false)));
-        Assert.Equal(before,SaveService.Encode(session));
+        Assert.Same(before, session.Capture());
     }
 
 }

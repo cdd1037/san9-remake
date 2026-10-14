@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.Persistence;
 using San9.Content.Scenarios;
 using San9.Core.Domain;
@@ -21,7 +22,7 @@ public sealed class PersonnelReturnTests
         Assert.Single(result.Events.OfType<TaskCancelledEvent>());
         Assert.Equal(2, session.Snapshot.Simulation.Tasks.Length);
         Assert.All(session.Snapshot.Simulation.Tasks, task => Assert.Equal("personnel-return", task.Kind));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(SaveService.Decode(SaveService.Encode(session), definition)));
+        StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), definition).Capture());
     }
 
     [Fact]
@@ -37,10 +38,10 @@ public sealed class PersonnelReturnTests
         {
             var content = connected ? definition : definition with { CityConnections = [] };
             var session = GameSession.Start(content, 190);
-            string before = session.Snapshot.StateHash;
+            var before = session.Snapshot;
             var result = session.Execute(new("player"), new ReleasePrisonerCommand(Guid.NewGuid(), 1, 0, 7));
             Assert.Equal(connected, result.Submission.Accepted);
-            if (!connected) { Assert.Equal(before, session.Snapshot.StateHash); continue; }
+            if (!connected) { StateAssert.Equal(before, session.Snapshot); continue; }
             var person = session.Snapshot.Officers.Single(p => p.Id == 7);
             Assert.Equal(OfficerStatus.Free, person.Status);
             Assert.Equal(2, person.SettlementId);
@@ -81,14 +82,14 @@ public sealed class PersonnelReturnTests
         {
             var request = session.Request(new AdvanceOperation());
             var result = session.Apply(request);
-            Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.Apply(request).Events));
+            EventAssert.Equal(result.Events, restored.Apply(request).Events);
             returned |= result.Events.OfType<PersonnelReturnedEvent>().Any(e => e.OfficerId == 7);
             restored = SaveService.Decode(SaveService.Encode(restored), definition);
         }
         Assert.True(returned);
         Assert.Empty(session.Snapshot.Simulation.Tasks);
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(restored));
+        StateAssert.Equal(session.Capture(), restored.Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 }

@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -49,8 +50,7 @@ public sealed class OfficeRequestTests
     [InlineData(50, 70, false)]
     public void LoyaltyAndStrictRequestThreshold(int loyalty, int roll, bool offered)
     {
-        ulong seed = 0;
-        while (new StableRandom(StableRandom.DeriveSeed(seed, "event-office-request")).NextUInt64() % 100 != (ulong)roll) seed++;
+        ulong seed = TestSeeds.ForNamedRoll("event-office-request", roll);
         var world = Mature(World(seed));
         world.Replace(world.Officers[10].WithLoyalty(1, loyalty));
         List<DomainEvent> events = [];
@@ -117,9 +117,9 @@ public sealed class OfficeRequestTests
         var engine = new SimulationEngine(World(count: 2), Rules);
         for (int i = 0; i < 3; i++) { engine.EndControl(new("player")); engine.AdvanceXun(); }
         Assert.Equal(10, engine.GetOfficeRequestPrompt()!.OfficerId);
-        string hash = engine.Snapshot.StateHash;
+        var hash = engine.Snapshot;
         _ = engine.GetOfficeRequestPrompt();
-        Assert.Equal(hash, engine.Snapshot.StateHash);
+        StateAssert.Equal(hash, engine.Snapshot);
         Assert.Throws<InvalidOperationException>(() => engine.CaptureStableState());
         foreach (var command in new GameCommand[]
         {
@@ -129,7 +129,7 @@ public sealed class OfficeRequestTests
         })
         {
             Assert.False(engine.Execute(new("player"), command).Submission.Accepted);
-            Assert.Equal(hash, engine.Snapshot.StateHash);
+            StateAssert.Equal(hash, engine.Snapshot);
         }
         var first = new RespondOfficeRequestCommand(Guid.NewGuid(), 1, 0, 10, EventChoice.Accept);
         var answer = engine.Execute(new("player"), first);
@@ -147,6 +147,6 @@ public sealed class OfficeRequestTests
         Assert.DoesNotContain(last.Events.OfType<StageCompletedEvent>(), e => e.Stage == ResolutionStage.XunUpdate);
         var restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()), Rules);
         Assert.Empty(restored.InitialEvents);
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
     }
 }

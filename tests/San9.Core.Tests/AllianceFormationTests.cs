@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -99,7 +100,7 @@ public sealed class AllianceFormationTests
         while (engine.GetPendingResponse() is { Owner.Kind: ControllerKind.Automatic } pending &&
             engine.GetAllianceParticipationPrompt() is { } prompt)
         {
-            var answer = engine.Execute(new(pending.Owner.ControllerId), new AllianceParticipationCommand(new Guid(Convert.FromHexString(CanonicalJson.Hash(new { pending.Identity, engine.Snapshot.Simulation.NextSequence })).AsSpan(0, 16)),
+            var answer = engine.Execute(new(pending.Owner.ControllerId), new AllianceParticipationCommand(SimulationIdentity.Command(engine.Snapshot.Simulation.NextSequence, pending.Owner.ForceId),
                 pending.Owner.ForceId, engine.Snapshot.Simulation.NextSequence, prompt.Proposal.TargetForceId, true));
             Assert.True(answer.Submission.Accepted);
             events.AddRange(answer.Events);
@@ -175,17 +176,17 @@ public sealed class AllianceFormationTests
         Assert.Null(engine.Snapshot.Simulation.Alliance);
         Assert.DoesNotContain(arrival.Events.OfType<StageCompletedEvent>(), e => e.Stage == ResolutionStage.QuarterUpdate);
         Assert.Single(arrival.Events.OfType<XunAdvancedEvent>());
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         var restored = new SimulationEngine(WorldState.Restore(engine.Snapshot), Rules());
         Assert.Empty(restored.InitialEvents);
         var command = new AllianceParticipationCommand(Guid.NewGuid(), 5, engine.Snapshot.Simulation.NextSequence, 1, true);
         Assert.True(engine.Validate(new("controller:5"), command).Accepted);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         var expected = FinishAutomatic(engine, engine.Execute(new("controller:5"), command));
         var actual = FinishAutomatic(restored, restored.Execute(new("controller:5"), command));
         Assert.True(expected.Submission.Accepted);
-        Assert.Equal(expected.Snapshot.StateHash, actual.Snapshot.StateHash);
-        Assert.Equal(CanonicalJson.Text(expected.Events), CanonicalJson.Text(actual.Events));
+        StateAssert.Equal(expected.Snapshot, actual.Snapshot);
+        EventAssert.Equal(expected.Events, actual.Events);
         Assert.Equal(new[] { 2, 3, 4, 5 }, expected.Snapshot.Simulation.Alliance!.MemberForceIds);
         Assert.Equal(5, expected.Snapshot.Simulation.Alliance.LeaderForceId);
         Assert.Equal(new[] { ResolutionStage.QuarterStudyOffers, ResolutionStage.QuarterUpdate, ResolutionStage.AnnualAppearance, ResolutionStage.AnnualCleanup, ResolutionStage.XunCleanup, ResolutionStage.QuarterPolitics },
@@ -204,7 +205,7 @@ public sealed class AllianceFormationTests
         Advance(engine);
         var before = engine.Snapshot;
         Assert.False(Answer(engine, 3, true).Submission.Accepted);
-        Assert.Equal(before.StateHash, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         Assert.True(Answer(engine, 2, firstJoins).Submission.Accepted);
         Assert.Equal(3, engine.GetAllianceParticipationPrompt()!.Proposal.RespondingForceId);
         engine = new(WorldState.Restore(engine.Snapshot), Rules());
@@ -253,14 +254,14 @@ public sealed class AllianceFormationTests
     {
         var engine = Ready(5, 5);
         Advance(engine);
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         long sequence = engine.Snapshot.Simulation.NextSequence;
         Assert.Equal(CommandRejection.DecisionPending, engine.Execute(new("controller:5"), new WaitCommand(Guid.NewGuid(), 5, sequence)).Submission.Rejection);
         Assert.Equal(CommandRejection.NotActiveController, engine.Execute(new("controller:4"), new AllianceParticipationCommand(Guid.NewGuid(), 5, sequence, 1, true)).Submission.Rejection);
         Assert.Equal(CommandRejection.InvalidDecision, engine.Execute(new("controller:5"), new AllianceParticipationCommand(Guid.NewGuid(), 5, sequence, 2, true)).Submission.Rejection);
         Assert.Throws<InvalidOperationException>(() => Advance(engine));
         Assert.Throws<InvalidOperationException>(() => engine.EndControl(new("controller:5")));
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
     }
 
     [Fact]

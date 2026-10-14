@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.AI;
 using System.Collections.Immutable;
 using San9.Application.Persistence;
@@ -38,10 +39,10 @@ public sealed class G06CampaignTests
             events.AddRange(result.Events);
             events.AddRange(session.AdvanceXun().Events);
         }
-        string before = session.Capture().StateHash;
+        var before = session.Capture();
         var attack = MilitaryPlanner.Choose(session, new("player", 1, ControllerKind.Player), Guid.NewGuid());
         Assert.IsType<DeployUnitCommand>(attack);
-        Assert.Equal(before, session.Capture().StateHash);
+        StateAssert.Equal(before, session.Capture());
         var deployed = session.Execute(new("player"), attack);
         Assert.True(deployed.Submission.Accepted);
         events.AddRange(deployed.Events);
@@ -51,8 +52,8 @@ public sealed class G06CampaignTests
         for (int i = 0; i < 10 && session.Snapshot.Simulation.Boundary != SimulationBoundary.Terminal; i++)
         {
             var result = session.AdvanceXun();
-            Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
-            Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+            EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
+            StateAssert.Equal(session.Capture(), restored.Capture());
             events.AddRange(result.Events);
         }
         Assert.Equal(SimulationBoundary.Terminal, session.Snapshot.Simulation.Boundary);
@@ -60,9 +61,9 @@ public sealed class G06CampaignTests
         Assert.Single(events.OfType<ForceEliminatedEvent>());
         Assert.Contains(events.OfType<DevelopmentCompletedEvent>(), e => e.Command.Activity == DomesticActivity.Recruit);
         Assert.True(session.View.Forces.Single(f => f.Id == 2).IsEliminated);
-        Assert.Equal(session.Capture().StateHash, SaveService.Decode(SaveService.Encode(session), definition).Capture().StateHash);
+        StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), definition).Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -80,11 +81,11 @@ public sealed class G06CampaignTests
         Assert.Contains(events, e => e is SettlementCapturedEvent);
         Assert.Equal("player-defeated", session.Snapshot.Simulation.TerminalReason);
         Assert.DoesNotContain(session.Snapshot.Simulation.Controls, c => c.ForceId == 2);
-        string hash = session.Capture().StateHash;
+        var hash = session.Capture();
         Assert.Empty(session.AdvanceXun().Events);
-        Assert.Equal(hash, session.Capture().StateHash);
-        Assert.Equal(hash, SaveService.Decode(SaveService.Encode(session), definition).Capture().StateHash);
+        StateAssert.Equal(hash, session.Capture());
+        StateAssert.Equal(hash, SaveService.Decode(SaveService.Encode(session), definition).Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(hash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(hash, replay.Session.Capture());
     }
 }

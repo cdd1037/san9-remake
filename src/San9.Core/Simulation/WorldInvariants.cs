@@ -139,7 +139,7 @@ internal static class WorldInvariants
         if (!sim.Started.IsXunBoundary || sim.Started.DayNumber > state.Clock.DayNumber ||
             sim.ComputerDamageBonusPercent < 0 || !Enum.IsDefined(sim.Boundary) || sim.Controls.IsDefault || sim.Tasks.IsDefault ||
             sim.RandomStreams.IsDefault ||
-            sim.ActiveControl < 0 || sim.ActiveControl > sim.Controls.Length || sim.NextSequence < 0 ||
+            sim.ActiveControl < 0 || sim.ActiveControl > sim.Controls.Length || sim.NextSequence < 0 || sim.NextTaskIdentity < 0 ||
             sim.NextUnitId < 0 || sim.NextUnitId > (long)int.MaxValue + 1 || state.Units.Keys.Any(id => id >= sim.NextUnitId) ||
             sim.Controls.Any(c => string.IsNullOrWhiteSpace(c.ControllerId) || !Enum.IsDefined(c.Kind) || !state.Forces.ContainsKey(c.ForceId)) ||
             sim.Controls.Select(c => c.ForceId).Distinct().Count() != sim.Controls.Length ||
@@ -209,6 +209,9 @@ internal static class WorldInvariants
             sim.Tasks.Count(t => t.Kind == TacticStudy.Kind)) throw new ArgumentException("Duplicate city study.");
         foreach (var task in sim.Tasks)
         {
+            if (SimulationIdentity.TryGetTaskSequence(task.Id, out long identity) &&
+                (identity < 0 || identity >= sim.NextTaskIdentity))
+                throw new ArgumentException("Task identity exceeds its allocation watermark.");
             if ((task.Kind == PersonnelMissions.SearchKind && task.ResolutionStep > 0) != (task.SearchEncounter is not null))
                 throw new ArgumentException("Search resolution step requires its selected encounter.");
             if (task.SearchEncounter is { } encounter &&

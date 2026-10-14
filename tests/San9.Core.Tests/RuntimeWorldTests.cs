@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -35,10 +36,10 @@ public sealed class RuntimeWorldTests
         Assert.True(after.Settlements.Single(s=>s.Id==15).CommerceUsed);
         Assert.Equal(before.Clock,after.Clock); Assert.Equal(before.Simulation.RandomStreams,after.Simulation.RandomStreams);
         Assert.Equal(98u,before.Corps.Single(f => f.IsRoot && f.OwnerId == 1).Treasury.Money);
-        Assert.Equal(before.StateHash,new SimulationEngine(second).Snapshot.StateHash);
-        Assert.NotEqual(before.StateHash,after.StateHash);
+        StateAssert.Equal(before, new SimulationEngine(second).Snapshot);
+        StateAssert.NotEqual(before, after);
         Assert.False(Develop(engine, new(1, 15, [2], DomesticActivity.Commerce)).Submission.Accepted);
-        Assert.Equal(after.StateHash,engine.Snapshot.StateHash);
+        StateAssert.Equal(after, engine.Snapshot);
     }
 
     [Fact]
@@ -120,7 +121,7 @@ public sealed class RuntimeWorldTests
         Assert.Equal(100u, before.Corps[0].Treasury.Money);
         Assert.Equal(75u, after.Corps[0].Treasury.Money);
         Assert.Same(before, world.CreateSnapshot());
-        Assert.Equal(after.StateHash, WorldState.Restore(after).CreateSnapshot().StateHash);
+        StateAssert.Equal(after, WorldState.Restore(after).CreateSnapshot());
 
         var next = branch.BeginMutation();
         next.Replace(next.AllOfficers[1] with { Acted = true });

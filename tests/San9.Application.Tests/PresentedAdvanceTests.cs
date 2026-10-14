@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Core.Simulation;
 
 namespace San9.Application.Tests;
@@ -17,11 +18,11 @@ public sealed class PresentedAdvanceTests
     public void FailedTransactionDiscardsDailyFramesAndWorldChanges()
     {
         var session = GameSession.Start(G01ScenarioTests.Fixture(), 190, world => new(world, new FailingRules()));
-        string before = session.Capture().StateHash;
+        var before = session.Capture();
         var advance = session.AdvanceForPresentation();
         Assert.Equal(SessionDisposition.Rejected, advance.Result.Disposition);
         Assert.Empty(advance.Frames);
-        Assert.Equal(before, session.Capture().StateHash);
+        StateAssert.Equal(before, session.Capture());
     }
 
     [Theory]
@@ -37,12 +38,12 @@ public sealed class PresentedAdvanceTests
         var expected = plain.AdvanceXun();
         var actual = presented.AdvanceForPresentation();
         Assert.Equal(SessionDisposition.Accepted, actual.Result.Disposition);
-        Assert.Equal(plain.Capture().StateHash, presented.Capture().StateHash);
-        Assert.Equal(CanonicalJson.Text(expected.Events), CanonicalJson.Text(actual.Result.Events));
+        StateAssert.Equal(plain.Capture(), presented.Capture());
+        EventAssert.Equal(expected.Events, actual.Result.Events);
         Assert.Equal(Enumerable.Range(1, 10).Select(i => start.DayNumber + i), actual.Frames.Select(f => f.World.Clock.DayNumber));
-        string first = actual.Frames[0].World.StateHash;
+        var first = actual.Frames[0].World;
         presented.AdvanceXun();
-        Assert.Equal(first, actual.Frames[0].World.StateHash);
+        StateAssert.Equal(first, actual.Frames[0].World);
     }
 
     [Fact]
@@ -56,6 +57,6 @@ public sealed class PresentedAdvanceTests
         var result = session.AdvanceForPresentation();
         Assert.Equal(SessionRejection.Terminal, result.Result.Rejection);
         Assert.Empty(result.Frames);
-        Assert.Equal(terminal.StateHash, session.Capture().StateHash);
+        StateAssert.Equal(terminal, session.Capture());
     }
 }

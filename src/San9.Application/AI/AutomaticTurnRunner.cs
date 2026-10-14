@@ -13,14 +13,10 @@ internal static class AutomaticTurnRunner
         if (state.Boundary != SimulationBoundary.Stable || state.ActiveControl >= state.Controls.Length ||
             state.Controls[state.ActiveControl].ControllerId != context.ControllerId)
             throw new InvalidOperationException("Not the active stable controller.");
-        ai = AllocationTurnRunner.Run(engine, state.Controls[state.ActiveControl], military, ai,
-            (controller, purpose) => Id(engine.Snapshot, controller, purpose), events, traces, batches);
+        ai = AllocationTurnRunner.Run(engine, state.Controls[state.ActiveControl], military, ai, events, traces, batches);
         AutomaticResponseRunner.Run(engine, events);
         if (engine.Snapshot.Simulation.Boundary == SimulationBoundary.Stable)
             events.AddRange(engine.EndControl(context).Events);
         AutomaticResponseRunner.Run(engine, events);
     }
-
-    private static Guid Id(WorldSnapshot snapshot, string controllerId, string work) => new(Convert.FromHexString(CanonicalJson.Hash(new
-        { snapshot.Simulation.InitialSeed, snapshot.Clock, snapshot.Simulation.NextSequence, ControllerId = controllerId, Work = work })).AsSpan(0, 16));
 }

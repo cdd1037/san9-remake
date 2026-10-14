@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -32,22 +33,22 @@ public sealed class CreateCorpsTests
         var engine = Engine();
         var command = new CreateCorpsCommand(Guid.NewGuid(), 1, 0, branch switch
         { 0 => [], 1 => [1], 2 => [1, 2], 3 => [2, 2], _ => [2] }, branch == 4 ? uint.MaxValue : 0, 0, new GeneralDelegation());
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         var result = engine.Execute(new("player"), command);
         Assert.False(result.Submission.Accepted);
         Assert.Empty(result.Events);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
     }
 
     [Fact]
     public void InvalidDelegationRejectsBeforeAllocatingResourcesOrCorpsIdentity()
     {
         var engine = Engine();
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         var result = engine.Execute(new("player"), new CreateCorpsCommand(Guid.NewGuid(), 1, 0, [2], 100, 200, new DefeatForceDelegation(1)));
         Assert.False(result.Submission.Accepted);
         Assert.Empty(result.Events);
-        Assert.Equal(before, result.Snapshot.StateHash);
+        StateAssert.Equal(before, result.Snapshot);
     }
 
     [Fact]
@@ -55,9 +56,9 @@ public sealed class CreateCorpsTests
     {
         var engine = Engine(true);
         var command = new CreateCorpsCommand(Guid.NewGuid(), 1, 0, [2], 0, 0, new DomesticDelegation());
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         Assert.True(engine.Validate(new("player"), command).Accepted);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         var result = engine.Execute(new("player"), command);
         Assert.True(result.Submission.Accepted);
         Assert.Equal(2, result.Snapshot.Corps.Single(c => c.Id == 11).LeaderId);

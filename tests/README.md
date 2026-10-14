@@ -2,7 +2,7 @@
 
 测试按依赖边界分成六个项目，公共 SDK、xUnit 版本和测试属性由本目录的 `Directory.Build.props` 管理，并显式继承仓库根目录的构建配置。各项目只声明自己的工程依赖。
 
-默认解决方案包含五个测试项目；`San9.Headless.Tests` 独立于解决方案，按需单独运行。Headless 产品工程仍在解决方案中，参与日常构建。
+默认解决方案包含五个测试项目；`San9.Headless.Tests`（宿主与少量进程测试）独立于解决方案，按需单独运行。Headless 产品工程仍在解决方案中，参与日常构建。
 
 ## 职责
 
@@ -13,7 +13,7 @@
 | San9.Content.Tests | 内容契约、序列化、引用与资源校验 | 与具体原版格式无关的契约放在这里 |
 | San9.Importer.San9PkTc101.Tests | 源格式识别、解析、转换与导出 | 验证源数据到共享语义的映射，不重复领域规则矩阵 |
 | San9.Client.Godot.Tests | 客户端选取、坐标、显示状态、设置及 Rendering 逻辑 | 自动化逻辑验证不代表实际画面验收 |
-| San9.Headless.Tests | 真实 CLI 进程、退出码、文件产物、恢复与回放链路 | 保留进程边界覆盖，不在 CLI 再展开所有规则分支 |
+| San9.Headless.Tests | 宿主参数、报告、文件产物、恢复与回放接线；少量真实 CLI 进程覆盖入口与标准流 | 领域场景直接调用宿主；进程用例只验证启动、退出码和跨进程接线，不重复规则矩阵 |
 
 Rendering 的测试目前与客户端测试放在一起。仅为目录对称而新增测试程序集不会增加覆盖；后续若需要独立于 Godot 构建和运行，再按依赖需要拆分。
 
@@ -80,6 +80,12 @@ Headless 默认不运行。修改 CLI 参数解析、退出码、文件产物、
 | 同一响应重复提交不产生效果 | 上述日任务测试覆盖仍有待办和已恢复稳定两种状态；`PersistenceTests.OperationWatermarkSurvivesSave` 覆盖存档水位 | 首次响应的事件与领域状态变化 |
 | 错误任务、错误阶段、公共互斥字段不修改状态 | `DailyTaskDecisionTests.InvalidResponsesAndNormalCommandsCannotMutatePendingDecision`；`StagedDailyTaskTests` 的过期阶段响应 | 投资金额、具体事件选项、事件专有载荷的校验 |
 
-Headless 直接执行已构建的 DLL。失败输入由 `WriteFailureScenario` 通过应用 API 准备；人事日志通过 `GameSession`／`CommandLogService` 生成，实际错误处理、保存恢复和录像重放仍交给独立 CLI 进程。精简准备进程时不得丢失被验证的进程边界。
+Headless 的领域场景由`HeadlessHostTests`直接调用生产宿主，并以独立`TextWriter`捕获输出，不修改全局Console。文件产物、退出码、恢复、重放、警告和失败前缀断言保留。`HeadlessProcessTests`只执行两个入口用例、共四次真实进程启动，覆盖三种命令模式、标准输出／错误、成功／失败退出码及跨进程存档／日志／录像。失败输入由应用API准备，不用另一个CLI进程造夹具。
 
 内容合法性与必需字段归 Content，会话指纹和接线归 Application，规则矩阵归 Core。表格样式中的精确数值须有规格依据；不能仅为固定实现常量增加断言。数量和耗时不是覆盖目标，历史整理基线由 Git 保留。
+
+状态一致性断言使用共享的`StateAssert.Equal`／`NotEqual`，直接传入不可变世界或会话快照。共享状态和相等记录跳过序列化，跨快照按分块使用源生成诊断元数据比较语义内容；`NotEqual`使用`AreEqual`，不定位差异，`Equal`只在失败时定位字段差异，不计算SHA-256、不生成规范化JSON字符串。只读界面验收使用`Revision`。测试中的存档／录像序列化仍覆盖真实产品协议，不另建替代存档实现。
+
+事件一致性使用`EventAssert.Equal`逐项比较，保留类型、顺序、长度和字段语义；相等记录跳过JSON，仅不相等的事件使用源生成元数据比较。玩法测试以快照断言比较恢复／重放状态，实际往返仍使用产品存档协议；字节稳定性、格式和录制隔离集中在`PersistenceTests`验证。失败诊断仅在断言失败时序列化。固定分支夹具使用已知种子或`TestSeeds`随机向量，并核对要求的随机值；随机矩阵继续覆盖原有输入范围，不运行时搜索分支种子。
+
+默认存档不累计操作／事件历史由3旬短流程、文件字段检查和恢复后继续一致性验证；记录队列通过`AutomaticRecordsAreBoundedWhilePlayerNotesArePreserved`越过128条上限并验证精确淘汰顺序。删除40年推进及存档长度差阈值，后者随当前AI目标、随机流和日期位数变化，不能证明历史有界。这些用例不承担长期对局或内存泄漏验收；有具体长期故障时按实际状态／资源增长补回归。

@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -58,10 +59,10 @@ public sealed class SeizeStrategyTests
     {
         var engine = new SimulationEngine(world, rules);
         var command = new SeizeCommand(Guid.NewGuid(), 1, world.Simulation.NextSequence, 11, 2);
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         uint targetMoney = engine.Snapshot.Corps.Single(force => force.IsRoot && force.OwnerId == 2).Treasury.Money;
         Assert.True(engine.Validate(new("player"), command).Accepted);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         Assert.True(engine.Execute(new("player"), command).Submission.Accepted);
         Assert.Equal(targetMoney, engine.Snapshot.Corps.Single(force => force.IsRoot && force.OwnerId == 2).Treasury.Money);
         var mutation = world.BeginMutation();
@@ -165,13 +166,13 @@ public sealed class SeizeStrategyTests
         var rules = Rules();
         var world = World();
         var engine = new SimulationEngine(world, rules);
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
 
         var advice = engine.GetSeizeAdvice(1, 11, 2);
 
         Assert.Equal(AdviserOpinion.NoAdviser, advice.Opinion);
         Assert.Equal(advice, engine.GetSeizeAdvice(1, 11, 2));
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         var task = Submit(world, rules, 0);
         var snapshot = engine.Snapshot;
         Assert.NotNull(task.Journey!.Seize);
@@ -203,9 +204,9 @@ public sealed class SeizeStrategyTests
             state.NextRandom("strategy-seize-item-gate");
             state.SetSimulation(state.Simulation with { RunSeed = (ulong)i });
             world.Commit(state);
-            string before = engine.Snapshot.StateHash;
+            var before = engine.Snapshot;
             Assert.Equal(expected, engine.GetSeizeAdvice(1, 11, 2));
-            Assert.Equal(before, engine.Snapshot.StateHash);
+            StateAssert.Equal(before, engine.Snapshot);
         }
         state = world.BeginMutation();
         state.Replace(state.Officers[11] with { BaseAbilities = new(87, 70, 70, 70) });

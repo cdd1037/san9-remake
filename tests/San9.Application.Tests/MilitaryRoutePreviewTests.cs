@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Application.Presentation;
 using San9.Core.Domain;
@@ -38,11 +39,11 @@ public sealed class MilitaryRoutePreviewTests
         Assert.True(draft.SetMembers([1]));
         Assert.True(draft.SetSoldiers(1000));
         var targets = new DeploymentTargets(draft);
-        string hash = session.Snapshot.StateHash;
+        var hash = session.Snapshot;
         Assert.True(targets.Select(new(2, false)));
         Assert.True(targets.Reachable);
         if (relay) Assert.True(targets.SetWaypoint(new(5, 12)));
-        Assert.Equal(hash, session.Snapshot.StateHash);
+        StateAssert.Equal(hash, session.Snapshot);
         var preview = targets.Route;
         Assert.True(targets.BeginPolicies());
         Assert.True(session.Execute(new("player"), targets.CreateCommand(Guid.NewGuid(), 0, true)).Submission.Accepted);

@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Core.Domain;
 
 namespace San9.Application.Tests;
@@ -26,7 +27,7 @@ public sealed class DormantScenarioTests
         Assert.DoesNotContain(session.View.Settlements, s => s.Id == 3);
         Assert.DoesNotContain(session.View.Officers, p => p.Id == 7);
         var restored = GameSession.Restore(definition, session.Capture());
-        Assert.Equal(session.Snapshot.StateHash, restored.Snapshot.StateHash);
+        StateAssert.Equal(session.Snapshot, restored.Snapshot);
         Assert.DoesNotContain(restored.View.Forces, f => f.Id == 3);
         Assert.True(restored.Snapshot.Forces.Single(f => f.Id == 3).IsDormant);
     }

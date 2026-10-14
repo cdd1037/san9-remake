@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Application.Persistence;
 using San9.Content.Scenarios;
@@ -18,9 +19,7 @@ public sealed class PersonnelScenarioTests
             valid with { HealerOfficerId = 9999 }, valid with { ExcludedSearchingOfficerIds = [9999] },
             valid with { WarChanceDivisor = 0 }, valid with { ExcludedSearchingOfficerIds = [11, 11] }
         }) Assert.Throws<InvalidDataException>(() => (basis with { SearchEvents = [invalid] }).Validate());
-        var first = basis with { SearchEvents = [valid] };
-        var second = basis with { SearchEvents = [valid with { WarChanceDivisor = 7 }] };
-        Assert.NotEqual(GameSession.Fingerprint(first), GameSession.Fingerprint(second));
+
     }
 
     [Fact]
@@ -43,7 +42,7 @@ public sealed class PersonnelScenarioTests
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         var expected = session.AdvanceXun();
         var actual = restored.AdvanceXun();
-        Assert.Equal(CanonicalJson.Text(expected.Events), CanonicalJson.Text(actual.Events));
+        EventAssert.Equal(expected.Events, actual.Events);
         Assert.Equal(1, Assert.Single(Assert.Single(expected.Events.OfType<SearchHealingResolvedEvent>()).HealedOfficerIds));
         Assert.DoesNotContain(expected.Events, e => e is SearchResolvedEvent);
         Assert.Null(session.GetSearchRecruitmentPrompt());
@@ -51,9 +50,9 @@ public sealed class PersonnelScenarioTests
         Assert.Equal(0, ruler.Injury);
         Assert.Equal(3, ruler.LifespanTier);
         Assert.Empty(session.Snapshot.Simulation.ConsumedEventKeys);
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -69,7 +68,7 @@ public sealed class PersonnelScenarioTests
         loaded.BeginRecording();
         loaded.AdvanceXun();
         var replay = RecordingService.Replay(RecordingService.Encode(loaded.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(SaveService.Encode(loaded), SaveService.Encode(replay.Session));
+        StateAssert.Equal(loaded.Capture(), replay.Session.Capture());
     }
 
     private static ScenarioInitialState Fixture() => new(ScenarioInitialState.CurrentSchemaVersion, "personnel-public", 190, 1, 1, 1,
@@ -121,7 +120,7 @@ public sealed class PersonnelScenarioTests
                 var result = session.Apply(request);
                 Assert.Equal(SessionDisposition.Accepted, result.Disposition);
                 var second = resumed.Apply(request);
-                Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(second.Events));
+                EventAssert.Equal(result.Events, second.Events);
                 Assert.Equal(SessionDisposition.Accepted, second.Disposition);
                 commands.Add(command.GetType().Name);
                 events.AddRange(result.Events);
@@ -145,10 +144,10 @@ public sealed class PersonnelScenarioTests
             var first = session.Apply(advance);
             var other = resumed.Apply(advance);
             Assert.Equal(SessionDisposition.Accepted, first.Disposition);
-            Assert.Equal(CanonicalJson.Text(first.Events), CanonicalJson.Text(other.Events));
+            EventAssert.Equal(first.Events, other.Events);
             events.AddRange(first.Events);
             RespondSearch(session, resumed, true, events);
-            Assert.Equal(SaveService.Encode(session), SaveService.Encode(resumed));
+            StateAssert.Equal(session.Capture(), resumed.Capture());
         }
         Assert.Equal(12, checkpoints);
         Assert.True(sawTravel);
@@ -161,7 +160,7 @@ public sealed class PersonnelScenarioTests
         Assert.Contains(events, e => e is OfficerMovedEvent { OfficerId: 21, DestinationId: 3 });
         Assert.Contains(events, e => e is OfficerRewardedEvent { OfficerId: 21 });
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Theory]
@@ -187,13 +186,13 @@ public sealed class PersonnelScenarioTests
             var first = session.Apply(request);
             var second = restored.Apply(request);
             Assert.Equal(SessionDisposition.Accepted, first.Disposition);
-            Assert.Equal(CanonicalJson.Text(first.Events), CanonicalJson.Text(second.Events));
+            EventAssert.Equal(first.Events, second.Events);
         }
         Assert.NotNull(session.GetSearchRecruitmentPrompt());
         Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
         Assert.Throws<InvalidOperationException>(() => session.CaptureRecording());
         RespondSearch(session, restored, acceptRecruitment);
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(restored));
+        StateAssert.Equal(session.Capture(), restored.Capture());
         Assert.Equal(new GameClock(190, 1, 11), session.Snapshot.Clock);
         Assert.Empty(session.Snapshot.Simulation.Tasks);
         Assert.True(session.View.Officers.Single(p => p.Id == 11).IsAvailable);
@@ -201,7 +200,7 @@ public sealed class PersonnelScenarioTests
             session.Snapshot.Officers.Single(p => p.Id == 21).Status);
         if (acceptRecruitment) Assert.True(session.View.Officers.Single(p => p.Id == 21).IsAvailable);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -234,7 +233,7 @@ public sealed class PersonnelScenarioTests
             Assert.Equal(SessionDisposition.Accepted, result.Disposition);
             var other = second.Apply(request);
             Assert.Equal(SessionDisposition.Accepted, other.Disposition);
-            Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(other.Events));
+            EventAssert.Equal(result.Events, other.Events);
             events?.AddRange(result.Events);
         }
     }

@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -50,7 +51,7 @@ public sealed class HistoricalRecognitionSessionTests
         for (int i = 0; i < 30; i++)
         {
             var next = session.AdvanceXun(); events.AddRange(next.Events);
-            Assert.Equal(CanonicalJson.Text(next.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+            EventAssert.Equal(next.Events, restored.AdvanceXun().Events);
             if (i == 2)
             {
                 Assert.Equal(200, session.View.Forces.Single(f => f.Id == 1).RankId);
@@ -66,7 +67,7 @@ public sealed class HistoricalRecognitionSessionTests
         Assert.Equal(new[] { 103, 104 }, session.Snapshot.Officers.Single(p => p.Id == 11).LearnedTactics);
         Assert.Equal(3, session.Snapshot.Simulation.ConsumedEventKeys.Length);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -84,7 +85,7 @@ public sealed class HistoricalRecognitionSessionTests
         Assert.Contains(new PersistentEventKey("hanzhong-king"), session.Snapshot.Simulation.ConsumedEventKeys);
         Assert.Contains(new PersistentEventKey("court-ended"), session.Snapshot.Simulation.ConsumedEventKeys);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -100,12 +101,10 @@ public sealed class HistoricalRecognitionSessionTests
     }
 
     [Fact]
-    public void InitialConsumptionSkipsEventsAndAllDefinitionsAffectFingerprint()
+    public void InitialConsumptionSkipsEvents()
     {
         var definition = Definition();
-        Assert.NotEqual(GameSession.Fingerprint(definition), GameSession.Fingerprint(definition with { HanzhongKing = null }));
-        Assert.NotEqual(GameSession.Fingerprint(definition), GameSession.Fingerprint(definition with { FiveTigers = null }));
-        Assert.NotEqual(GameSession.Fingerprint(definition), GameSession.Fingerprint(definition with { ExpeditionMemorial = null }));
+
         var session = GameSession.Start(definition with { ConsumedEventKeys = [new("hanzhong-king"), new("five-tigers"), new("expedition-memorial")] }, 17);
         session.AdvanceXun(); session.AdvanceXun(); var result = session.AdvanceXun();
         Assert.DoesNotContain(result.Events.OfType<PeerageChangedEvent>(), e => e.Kind == PeerageChangeKind.HanzhongKing);

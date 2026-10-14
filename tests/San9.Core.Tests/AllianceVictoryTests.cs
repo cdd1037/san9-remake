@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -53,6 +54,6 @@ public sealed class AllianceVictoryTests
         Assert.Equal(count, events.Count);
         m.MaintainDerivedState(events);
         world.Commit(m);
-        Assert.Equal(world.CreateSnapshot().StateHash, WorldState.Restore(world.CreateSnapshot()).CreateSnapshot().StateHash);
+        StateAssert.Equal(world.CreateSnapshot(), WorldState.Restore(world.CreateSnapshot()).CreateSnapshot());
     }
 }

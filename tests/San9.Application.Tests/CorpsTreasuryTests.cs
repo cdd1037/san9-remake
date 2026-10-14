@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using San9.Application.Persistence;
@@ -31,7 +32,7 @@ public sealed class CorpsTreasuryTests
         var restored = SaveService.Decode(SaveService.Encode(session), content);
         Assert.Equal(session.View.PlayerCorps, restored.View.PlayerCorps);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
         var serialized = JsonNode.Parse(CanonicalJson.Text(session.Snapshot.Forces[0]))!.AsObject();
         Assert.False(serialized.ContainsKey("money"));
         Assert.False(serialized.ContainsKey("food"));

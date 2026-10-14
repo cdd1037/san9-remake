@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -61,11 +62,11 @@ public sealed class FacilityConstructionTests
         var engine = Engine();
         var command = Command();
         Assert.True(engine.Validate(Player, command).Accepted);
-        var before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         var result = engine.Execute(invalid == "controller" ? new("outsider") : Player,
             invalid == "issuer" ? command with { IssuerId = 2 } : invalid == "sequence" ? command with { Sequence = 1 } : command);
         Assert.False(result.Submission.Accepted);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         Assert.Empty(result.Events);
     }
 
@@ -77,17 +78,17 @@ public sealed class FacilityConstructionTests
         Assert.True(engine.Validate(Player, command).Accepted);
         var initial = engine.CaptureStableState();
         var poorer = Engine(WorldState.Restore(initial with { Corps = initial.Corps.Select(f => f with { Treasury = f.Treasury with { Money = 999 } }).ToArray() }));
-        var before = poorer.Snapshot.StateHash;
+        var before = poorer.Snapshot;
         Assert.False(poorer.Execute(Player, command).Submission.Accepted);
-        Assert.Equal(before, poorer.Snapshot.StateHash);
+        StateAssert.Equal(before, poorer.Snapshot);
         Assert.True(engine.Execute(Player, command).Submission.Accepted);
-        before = engine.Snapshot.StateHash;
+        before = engine.Snapshot;
         foreach (var duplicate in new[] { command, command with { CommandId = Guid.NewGuid(), Sequence = engine.Snapshot.Simulation.NextSequence } })
         {
             var rejected = engine.Execute(Player, duplicate);
             Assert.False(rejected.Submission.Accepted);
             Assert.Empty(rejected.Events);
-            Assert.Equal(before, engine.Snapshot.StateHash);
+            StateAssert.Equal(before, engine.Snapshot);
         }
         Assert.Single(engine.Snapshot.Units);
         Assert.Equal(9000u, engine.Snapshot.Corps.Single(c => c.IsRoot).Treasury.Money);
@@ -101,11 +102,11 @@ public sealed class FacilityConstructionTests
         var initial = engine.CaptureStableState();
         var confused = Engine(WorldState.Restore(initial with { Settlements = initial.Settlements
             .Select(s => s.Id == 1 ? s with { ConfusionDaysRemaining = 12 } : s).ToArray() }));
-        string before = confused.Snapshot.StateHash;
+        var before = confused.Snapshot;
         Assert.Equal(CommandRejection.SettlementConfused, confused.Validate(Player, command).Rejection);
         var rejected = confused.Execute(Player, command);
         Assert.Equal(CommandRejection.SettlementConfused, rejected.Submission.Rejection);
-        Assert.Empty(rejected.Events); Assert.Equal(before, confused.Snapshot.StateHash);
+        Assert.Empty(rejected.Events); StateAssert.Equal(before, confused.Snapshot);
         Advance(confused); Advance(confused);
         Assert.True(confused.Execute(Player, command with { Sequence = confused.Snapshot.Simulation.NextSequence }).Submission.Accepted);
         Assert.Single(confused.Snapshot.Units);
@@ -217,8 +218,8 @@ public sealed class FacilityConstructionTests
 
         Assert.Single(result.Events.OfType<FacilityConstructionChangedEvent>(), e => e.Phase == "started");
         Assert.DoesNotContain(result.Events.OfType<FacilityConstructionChangedEvent>(), e => e.Phase == "completed");
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
-        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(result.Events), System.Text.Json.JsonSerializer.Serialize(replayed.Events));
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
+        EventAssert.Equal(result.Events, replayed.Events);
         Assert.Equal(11, Assert.Single(result.Events.OfType<TacticLearnedEvent>()).OfficerId);
         var growth = result.Events.OfType<OfficerAbilityGrownEvent>().ToArray();
         if (leadership == 99) Assert.Equal(11, Assert.Single(growth).OfficerId);
@@ -253,7 +254,7 @@ public sealed class FacilityConstructionTests
         var treasures = new TreasureRulebook([new(1, default, 0) { TacticId = grant is "treasure" or "buried" or "nonmember" ? 19 : null },
             new(2, default, 0) { TacticId = grant is "treasure" or "buried" or "nonmember" ? 20 : null }]);
         var engine = new SimulationEngine(world, EconomyRulebook.Empty, Geography, treasures, military: CreateMilitary(needsTechnology: true));
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         uint money = engine.Snapshot.Corps.Single(c => c.IsRoot).Treasury.Money;
         var result = engine.Execute(Player, Command());
         Assert.Equal(accepted, result.Submission.Accepted);
@@ -268,7 +269,7 @@ public sealed class FacilityConstructionTests
         else
         {
             Assert.Equal(CommandRejection.TacticUnavailable, result.Submission.Rejection);
-            Assert.Equal(before, engine.Snapshot.StateHash);
+            StateAssert.Equal(before, engine.Snapshot);
         }
     }
 
@@ -293,7 +294,7 @@ public sealed class FacilityConstructionTests
         for (int i = 0; i < 3; i++)
         {
             var actual = Advance(engine);
-            Assert.Equal(CanonicalJson.Text(actual.Events), CanonicalJson.Text(Advance(restored).Events));
+            EventAssert.Equal(actual.Events, Advance(restored).Events);
             completed += actual.Events.OfType<FacilityConstructionChangedEvent>().Count(e => e.Phase == "completed");
         }
         Assert.Equal(1, completed);
@@ -380,13 +381,13 @@ public sealed class FacilityConstructionTests
         var engine = Engine();
         Assert.True(engine.Execute(Player, Command()).Submission.Accepted);
         Advance(engine);
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         var repair = new DevelopCommand(Guid.NewGuid(), 1, engine.Snapshot.Simulation.NextSequence,
             new(1, 8000, [11], DomesticActivity.Repair));
         var rejected = engine.Execute(Player, repair);
         Assert.False(rejected.Submission.Accepted);
         Assert.Equal(DevelopmentRejection.UnsupportedActivity, rejected.Development!.Value.Rejection);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         for (int i = 0; i < 3; i++) Advance(engine);
         var saved = engine.CaptureStableState();
         var damaged = Engine(WorldState.Restore(saved with
@@ -422,9 +423,9 @@ public sealed class FacilityConstructionTests
     {
         var rules = CreateMilitary(needsTechnology: true);
         var engine = Engine(military: rules);
-        string hash = engine.Snapshot.StateHash;
+        var hash = engine.Snapshot;
         Assert.Equal(CommandRejection.TacticUnavailable, engine.Execute(Player, Command()).Submission.Rejection);
-        Assert.Equal(hash, engine.Snapshot.StateHash);
+        StateAssert.Equal(hash, engine.Snapshot);
         var initial = engine.CaptureStableState();
         engine = Engine(WorldState.Restore(initial with { Forces = initial.Forces.Select(f => f with { ProvidedTactics = [19, 20] }).ToImmutableArray() }), rules);
         Assert.True(engine.Execute(Player, Command()).Submission.Accepted);
@@ -464,10 +465,10 @@ public sealed class FacilityConstructionTests
             "soldiers" => Command() with { Soldiers = 20001 },
             _ => Command()
         };
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         var result = engine.Execute(Player, command);
         Assert.False(result.Submission.Accepted);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         Assert.DoesNotContain(result.Events, e => e is UnitDeployedEvent or FacilityConstructionChangedEvent or ResourceChangedEvent);
     }
 
@@ -526,11 +527,11 @@ public sealed class FacilityConstructionTests
         {
             Simulation = controlled.Simulation with { Controls = [new("player", 2, ControllerKind.Player)] }
         }), rules);
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         var rejected = engine.Execute(Player, new OrderUnitCommand(Guid.NewGuid(), 2,
             engine.Snapshot.Simulation.NextSequence, 1, new(MilitaryOrderKind.AttackSettlement, null, 8000)));
         Assert.False(rejected.Submission.Accepted);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
     }
     [Theory]
     [InlineData(false)]
@@ -573,7 +574,7 @@ public sealed class FacilityConstructionTests
         Assert.Equal(10000u, engine.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 2).Treasury.Money);
         Assert.Equal(8000u, engine.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 1).Treasury.Money);
         var restored = Engine(WorldState.Restore(engine.CaptureStableState()), rules);
-        Assert.Equal(CanonicalJson.Text(Advance(engine).Events), CanonicalJson.Text(Advance(restored).Events));
+        EventAssert.Equal(Advance(engine).Events, Advance(restored).Events);
     }
 
     [Fact]

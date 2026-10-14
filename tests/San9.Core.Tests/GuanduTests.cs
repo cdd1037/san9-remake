@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -61,7 +62,7 @@ public sealed class GuanduTests
         Assert.Empty(world.Simulation.RandomStreams); Assert.False(Guandu.Apply(world, 12, 23, Rules, events));
         world.SetSimulation(world.Simulation with { Boundary = SimulationBoundary.Stable });
         state.Commit(world);
-        Assert.Equal(state.CreateSnapshot().StateHash, WorldState.Restore(state.CreateSnapshot()).CreateSnapshot().StateHash);
+        StateAssert.Equal(state.CreateSnapshot(), WorldState.Restore(state.CreateSnapshot()).CreateSnapshot());
     }
 
     [Theory]

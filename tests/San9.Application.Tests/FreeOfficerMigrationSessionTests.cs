@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.Persistence;
 using San9.Content.Scenarios;
 using San9.Core.Domain;
@@ -24,8 +25,8 @@ public sealed class FreeOfficerMigrationSessionTests
     public void MigrationCancelsRecruitmentAndRoundTripsSaveAndRecording()
     {
         var scenario = Scenario();
-        ulong seed = 0;
-        while (new StableRandom(StableRandom.DeriveSeed(seed, "personnel-free-migration")).NextUInt64() % 100 >= 50) seed++;
+        const ulong seed = 2UL;
+        Assert.True(new StableRandom(StableRandom.DeriveSeed(seed, "personnel-free-migration")).NextUInt64() % 100 < 50);
         var session = GameSession.Start(scenario, seed);
         session.AdvanceXun(); session.AdvanceXun();
         var command = new RecruitOfficerCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, 2, 9000);
@@ -39,17 +40,17 @@ public sealed class FreeOfficerMigrationSessionTests
         Assert.DoesNotContain(session.Snapshot.Simulation.Tasks, t => t.Kind == "personnel-recruit");
         Assert.Equal(1, session.Snapshot.Officers.Single(p => p.Id == 9000).SettlementId);
         Assert.Contains(session.View.Officers, p => p.Id == 9000);
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), scenario, GameSession.EngineFactory(scenario));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
         var after = SaveService.Decode(SaveService.Encode(session), scenario, GameSession.EngineFactory(scenario));
         Assert.Empty(after.InitialEvents);
-        Assert.Equal(session.Capture().StateHash, after.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), after.Capture());
     }
 
     [Fact]
-    public void DisabledMigrationIsIndependentOfAppearanceAndChangesContentFingerprint()
+    public void DisabledMigrationIsIndependentOfAppearance()
     {
         var scenario = Scenario() with { FreeOfficerMigrationEnabled = false };
         var session = GameSession.Start(scenario, 190);
@@ -58,7 +59,7 @@ public sealed class FreeOfficerMigrationSessionTests
         Assert.False(session.Snapshot.Simulation.FreeOfficerMigrationEnabled);
         Assert.Equal(2, session.Snapshot.Officers.Single(p => p.Id == 9000).SettlementId);
         Assert.DoesNotContain(session.Snapshot.Simulation.RandomStreams, s => s.Name.StartsWith("personnel-free-migration"));
-        Assert.NotEqual(session.ContentFingerprint, GameSession.Start(scenario with { FreeOfficerMigrationEnabled = true }, 190).ContentFingerprint);
+
         var restored = SaveService.Decode(SaveService.Encode(session), scenario, GameSession.EngineFactory(scenario));
         Assert.False(restored.Snapshot.Simulation.FreeOfficerMigrationEnabled);
     }

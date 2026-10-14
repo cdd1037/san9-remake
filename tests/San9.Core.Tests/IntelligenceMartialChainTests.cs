@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -201,8 +202,8 @@ public sealed class IntelligenceMartialChainTests
             var restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()), EconomyRulebook.Empty,
                 PersonnelRulebook.Empty, TreasureRulebook.Empty, military: rules);
             engine.EndControl(Player); restored.EndControl(Player);
-            Assert.Equal(CanonicalJson.Text(engine.AdvanceXun().Events), CanonicalJson.Text(restored.AdvanceXun().Events));
-            Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+            EventAssert.Equal(engine.AdvanceXun().Events, restored.AdvanceXun().Events);
+            StateAssert.Equal(engine.Snapshot, restored.Snapshot);
             checkedChain = true;
         }
         Assert.True(checkedChain);

@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Application.AI;
 using San9.Application.Persistence;
@@ -10,13 +11,13 @@ namespace San9.Application.Tests;
 public sealed class DomainOpportunityTests
 {
     [Fact]
-    public void DeferredEvidencePreservesThePersistedCooldownFingerprint()
+    public void CooldownEvidenceComparesByValueAfterPersistence()
     {
-        var subject = new { OwnerId = 2, Status = OfficerStatus.Serving, SettlementId = 3, UnitId = (int?)null, Loyalty = (int?)75 };
+        var subject = new OpportunityPerson(2, OfficerStatus.Serving, 3, null, 75);
         var evidence = new OpportunityConditions(80, 6, 60, subject, new(8, 9), null, 40);
-        string persisted = CanonicalJson.Hash(new { accuracy = 80, adviserId = (int?)6, prior = 60, subject,
-            actorBand = new { Intelligence = 8, Politics = 9 }, relation = (int?)null, gossipRelation = (int?)40 });
-        Assert.Equal(persisted, evidence.Fingerprint());
+        var restored = StrictJson.Deserialize<OpportunityConditions>(CanonicalJson.Encode(evidence));
+        Assert.Equal(evidence, restored);
+        Assert.NotEqual(evidence, restored with { Subject = subject with { Loyalty = 80 } });
     }
 
     [Theory]
@@ -28,7 +29,7 @@ public sealed class DomainOpportunityTests
         var content = G01ScenarioTests.Fixture();
         var session = GameSession.Start(content, 190);
         var saved = session.Capture();
-        var attempt = new OpportunityAttempt(2, controller!, "SearchCommand:2", "conditions", Guid.NewGuid(), 5,
+        var attempt = new OpportunityAttempt(2, controller!, "SearchCommand:2", Option().Conditions, Guid.NewGuid(), 5,
             saved.World.Clock, saved.World.Clock, "failed");
         Assert.Throws<ArgumentException>(() => GameSession.Restore(content,
             saved with { Ai = saved.Ai with { Opportunities = [attempt] } }));
@@ -69,10 +70,10 @@ public sealed class DomainOpportunityTests
         var economy = EconomicObservation.Capture(engine, seat, new(seat.ControllerId), 10000, quoteAll: true);
         var pressure = new SupportObservation([], [new(10, 1, 2, new(ArrivalEstimateStatus.Known, 10),
             5000, 5000, true, "public pressure")], true);
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         var observed = OpportunityObservationCapture.Capture(engine, seat, [(seat.ControllerId, economy)],
             pressure, [], session.MilitaryRules, new(10000));
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         var gifts = OpportunityPlanner.Plan(observed, [], new(10000)).Where(c => c.Intent is GiftCommand).ToArray();
         Assert.NotEmpty(gifts);
         Assert.All(gifts, gift =>
@@ -91,7 +92,7 @@ public sealed class DomainOpportunityTests
     {
         var session = GameSession.Start(G01ScenarioTests.Fixture(), 190);
         var option = Option(AdviserOpinion.Favorable);
-        var attempt = new OpportunityAttempt(2, "ai:2", option.Key, option.Conditions.Fingerprint(), Guid.NewGuid(), 5,
+        var attempt = new OpportunityAttempt(2, "ai:2", option.Key, option.Conditions, Guid.NewGuid(), 5,
             session.Snapshot.Clock, session.Snapshot.Clock, "pending");
         var unrelated = OpportunityPlanner.Feedback([attempt], session.Snapshot,
             [new RecruitmentResolvedEvent(session.Snapshot.Clock, 5, 99, 0, 0, false)]);
@@ -209,9 +210,9 @@ public sealed class DomainOpportunityTests
     public void TemporaryInjuryChangesAdviserWithoutStrippingLongTermEquipmentAndOffice()
     {
         var engine = Personnel();
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         var candidates = Configuration(engine);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         Assert.DoesNotContain(candidates, c => c.Intent is ConfiscateTreasureCommand or AssignOfficesCommand);
         var appointment = Assert.IsType<AppointAdviserCommand>(Assert.Single(candidates).Intent);
         Assert.Equal(3, appointment.OfficerId);
@@ -262,8 +263,8 @@ public sealed class DomainOpportunityTests
         Assert.Equal(SessionDisposition.Accepted, result.Disposition);
         Assert.Null(session.GetPendingResponse());
         Assert.Contains(result.Events.OfType<SearchResolvedEvent>(), e => e.OfficerId == 2 && e.Recruited);
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+        EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 }

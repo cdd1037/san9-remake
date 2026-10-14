@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using San9.Application.Persistence;
@@ -34,20 +35,20 @@ public sealed class ForceEmergenceSessionTests
         var result = session.AdvanceXun();
         var founded = Assert.Single(result.Events.OfType<ForceFoundedEvent>());
         Assert.Equal(81, founded.ForceId);
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(before.AdvanceXun().Events));
+        EventAssert.Equal(result.Events, before.AdvanceXun().Events);
         var view = session.View.Forces.Single(f => f.Id == 81);
         Assert.Equal("person.1", view.NameKey);
         Assert.InRange(view.ColorCode, 0, 49);
         Assert.Equal(view.ColorCode, session.View.Settlements.Single(s => s.Id == 1).CityMarkerColor);
         var restored = SaveService.Decode(SaveService.Encode(session), scenario, GameSession.EngineFactory(scenario));
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         Assert.Empty(restored.InitialEvents);
         Assert.Equal(view, restored.View.Forces.Single(f => f.Id == 81));
         var next = session.AdvanceXun();
         Assert.Empty(next.Events.OfType<ForceFoundedEvent>());
-        Assert.Equal(CanonicalJson.Text(next.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+        EventAssert.Equal(next.Events, restored.AdvanceXun().Events);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), scenario, GameSession.EngineFactory(scenario));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -63,7 +64,7 @@ public sealed class ForceEmergenceSessionTests
         var restored = SaveService.Decode(SaveService.Encode(session), scenario);
         Assert.Equal(9000, restored.View.Forces.Single(f => f.Id == 81).RankId);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), scenario, GameSession.EngineFactory(scenario));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -89,8 +90,8 @@ public sealed class ForceEmergenceSessionTests
         Assert.Null(session.GetCountryTitlePrompt());
         var restored = SaveService.Decode(SaveService.Encode(session), scenario);
         Assert.Equal(force, restored.View.Forces.Single(f => f.Id == 81));
-        Assert.Equal(session.Capture().StateHash, RecordingService.Replay(RecordingService.Encode(session.EndRecording()), scenario,
-            GameSession.EngineFactory(scenario)).Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), RecordingService.Replay(RecordingService.Encode(session.EndRecording()), scenario,
+            GameSession.EngineFactory(scenario)).Session.Capture());
     }
 
     [Theory]
@@ -118,13 +119,10 @@ public sealed class ForceEmergenceSessionTests
     }
 
     [Fact]
-    public void EmergenceInputsAffectFingerprintAndSavedFieldsAreRequired()
+    public void EmergenceSavedFieldsAreRequired()
     {
         var scenario = Scenario();
-        var fingerprint = GameSession.Fingerprint(scenario);
-        Assert.NotEqual(fingerprint, GameSession.Fingerprint(scenario with { ForceEmergenceEnabled = false }));
-        Assert.NotEqual(fingerprint, GameSession.Fingerprint(scenario with { Officers = scenario.Officers.Select(o =>
-            o.State.Id == 1 ? o with { State = o.State with { ForceFounderPriority = 1 } } : o).ToArray() }));
+
         var json = JsonNode.Parse(CanonicalJson.Text(GameSession.Start(scenario, 17).Snapshot.Simulation))!.AsObject();
         Assert.True(json.Remove("forceEmergenceEnabled"));
         Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<SimulationState>(json.ToJsonString(), CanonicalJson.Options));

@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -52,10 +53,10 @@ public sealed class TacticSelectionTests
     public void PassiveUnknownAndUnownedTacticsRejectAtomically(int tactic)
     {
         var engine = Engine();
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         Assert.Equal(CommandRejection.TacticUnavailable,
             engine.Execute(Player, new SelectTacticCommand(Guid.NewGuid(), 1, 0, 1, tactic)).Submission.Rejection);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
     }
 
     [Fact]

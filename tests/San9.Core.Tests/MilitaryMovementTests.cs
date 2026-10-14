@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -17,7 +18,7 @@ public sealed class MilitaryMovementTests
         var command = new OrderUnitCommand(Guid.NewGuid(), 1, before.Simulation.NextSequence, unit.Id,
             new(MilitaryOrderKind.Return, null, 1)) { Policies = policies, Waypoint = new(12, 2) };
         Assert.Equal(CommandRejection.None, engine.GetPreparationEligibility(Player, command));
-        Assert.Equal(before.StateHash, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         var result = engine.Execute(Player, command);
         Assert.True(result.Submission.Accepted);
         var ordered = Assert.Single(engine.Snapshot.Units);
@@ -39,11 +40,11 @@ public sealed class MilitaryMovementTests
         var invalid = new OrderUnitCommand(Guid.NewGuid(), 1, before.Simulation.NextSequence, unit.Id,
             new(MilitaryOrderKind.Return, null, 1)) { Policies = new(true, true, true, true), Waypoint = Rules().Places[2].Position };
         Assert.Equal(engine.Validate(Player, invalid).Rejection, engine.GetPreparationEligibility(Player, invalid));
-        Assert.Equal(before.StateHash, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         var result = engine.Execute(Player, new OrderUnitCommand(Guid.NewGuid(), 1, before.Simulation.NextSequence, unit.Id,
             new(MilitaryOrderKind.Return, null, 1)) { Policies = new(true, true, true, true), Waypoint = Rules().Places[2].Position });
         Assert.False(result.Submission.Accepted); Assert.Empty(result.Events);
-        Assert.Equal(before.StateHash, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
     }
 
     private static readonly CommandContext Player = new("player");
@@ -100,12 +101,12 @@ public sealed class MilitaryMovementTests
     public void InvalidDepartureOrWaypointIsRejectedAtomically(int delay, bool blockedWaypoint)
     {
         var engine = Engine(World(), Rules());
-        var hash = engine.Snapshot.StateHash;
+        var hash = engine.Snapshot;
         var result = engine.Execute(Player, new DeployUnitCommand(Guid.NewGuid(), 1, 0, 1, [11], 400, 7,
             new(MilitaryOrderKind.Move, new(32, 7), null))
             { DepartureDelayDays = delay, Waypoint = blockedWaypoint ? new(2, 7) : null });
         Assert.False(result.Submission.Accepted);
-        Assert.Equal(hash, engine.Snapshot.StateHash); Assert.Empty(result.Events);
+        StateAssert.Equal(hash, engine.Snapshot); Assert.Empty(result.Events);
     }
 
     [Fact]
@@ -153,11 +154,11 @@ public sealed class MilitaryMovementTests
         var restored = Engine(WorldState.Restore(engine.CaptureStableState()), rules);
         foreach (var current in new[] { engine, restored })
         {
-            var before = current.Snapshot.StateHash;
+            var before = current.Snapshot;
             Assert.Equal(CommandRejection.SettlementConfused, current.Validate(Player, command).Rejection);
             var result = current.Execute(Player, command);
             Assert.Equal(CommandRejection.SettlementConfused, result.Submission.Rejection);
-            Assert.Empty(result.Events); Assert.Equal(before, current.Snapshot.StateHash);
+            Assert.Empty(result.Events); StateAssert.Equal(before, current.Snapshot);
             Advance(current);
             Assert.Equal(2, current.Snapshot.Settlements.Single(s => s.Id == 1).ConfusionDaysRemaining);
             Assert.Equal(CommandRejection.SettlementConfused, current.Validate(Player, command with
@@ -167,7 +168,7 @@ public sealed class MilitaryMovementTests
             Assert.True(current.Execute(Player, command with { Sequence = current.Snapshot.Simulation.NextSequence }).Submission.Accepted);
             Assert.Single(current.Snapshot.Units);
         }
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
     }
 
     [Fact]
@@ -247,20 +248,20 @@ public sealed class MilitaryMovementTests
         var mutation = world.BeginMutation();
         mutation.Replace(mutation.Settlements[2] with { OwnerId = null });
         world.Commit(mutation);
-        var before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         var rejected = engine.Execute(Player, order);
         Assert.False(rejected.Submission.Accepted);
         Assert.Empty(rejected.Events);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         mutation = world.BeginMutation();
         mutation.Replace(mutation.Settlements[2] with { OwnerId = 1 });
         world.Commit(mutation);
         Assert.True(engine.Execute(Player, order).Submission.Accepted);
-        before = engine.Snapshot.StateHash;
+        before = engine.Snapshot;
         rejected = engine.Execute(Player, order);
         Assert.False(rejected.Submission.Accepted);
         Assert.Empty(rejected.Events);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         Assert.Single(Advance(engine).Events.OfType<UnitAbsorbedEvent>());
         Assert.Empty(Advance(engine).Events.OfType<UnitAbsorbedEvent>());
         Assert.Equal(500u, engine.Snapshot.Settlements.Single(s => s.Id == 2).Soldiers);
@@ -283,8 +284,8 @@ public sealed class MilitaryMovementTests
         var snapshot = System.Text.Json.JsonSerializer.Deserialize<WorldSnapshot>(json, CanonicalJson.Options)!;
         var restored = Engine(WorldState.Restore(snapshot), Rules(10));
         var first = Advance(engine);
-        Assert.Equal(CanonicalJson.Text(first.Events), CanonicalJson.Text(Advance(restored).Events));
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        EventAssert.Equal(first.Events, Advance(restored).Events);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
         Assert.Equal(expected, engine.Snapshot.Settlements.Single(s => s.Id == 2).Wounded);
         Assert.Equal((uint)loss, engine.Snapshot.Settlements.Single(s => s.Id == 2).DraftPopulation);
         Assert.Equal(0, first.Events.OfType<ResourceChangedEvent>().Where(e => e.Resource == ResourceKind.Wounded).Sum(e => e.SaturationLoss));
@@ -405,8 +406,8 @@ public sealed class MilitaryMovementTests
         {
             var originalEvents = Advance(first).Events;
             var restoredEvents = Advance(restored).Events;
-            Assert.Equal(CanonicalJson.Text(originalEvents), CanonicalJson.Text(restoredEvents));
-            Assert.Equal(first.Snapshot.StateHash, restored.Snapshot.StateHash);
+            EventAssert.Equal(originalEvents, restoredEvents);
+            StateAssert.Equal(first.Snapshot, restored.Snapshot);
         }
         Assert.Empty(first.Snapshot.Units);
     }
@@ -415,15 +416,15 @@ public sealed class MilitaryMovementTests
     public void RejectedDeploymentDoesNotSpendMoneySoldiersPersonnelOrRandom()
     {
         var engine = Engine(World(), Rules());
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         Assert.False(engine.Execute(Player, Deploy(soldiers: 1001)).Submission.Accepted);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         Assert.False(engine.Execute(Player, Deploy() with { OfficerIds = [11, 11] }).Submission.Accepted);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         Assert.False(engine.Execute(Player, new DeployUnitCommand(Guid.NewGuid(), 1, 0, 1, [11], 400, 999, new(MilitaryOrderKind.Move, new(32, 7), null))).Submission.Accepted);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         Assert.True(engine.Validate(Player, Deploy()).Accepted);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
     }
 
     [Fact]
@@ -461,7 +462,7 @@ public sealed class MilitaryMovementTests
         foreach (int id in Enumerable.Range(0, 4)) mutation.RemoveUnit(id);
         world.Commit(mutation);
         var restored = Engine(WorldState.Restore(engine.CaptureStableState()), Rules(10));
-        Assert.Equal(CanonicalJson.Text(Advance(engine).Events), CanonicalJson.Text(Advance(restored).Events));
+        EventAssert.Equal(Advance(engine).Events, Advance(restored).Events);
         Assert.Empty(engine.Snapshot.Units);
     }
 

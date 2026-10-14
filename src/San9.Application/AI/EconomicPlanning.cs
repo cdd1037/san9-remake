@@ -33,12 +33,12 @@ public sealed record AiSessionState
                 g.ExpectedOwnerId is int owner && !world.Forces.Any(f => f.Id == owner) ||
                 g.UnitIds.Any(id => world.Units.Any(u => u.Id == id && u.OwnerId != g.ForceId)) ||
                 g.UnitIds.Any(id => id < 0) || g.UnitIds.Distinct().Count() != g.UnitIds.Length ||
-                string.IsNullOrWhiteSpace(g.Conditions) || !CampaignAuthorized(world, g) || g.ExpectedDays < 0 || g.Progress < 0 ||
+                g.Conditions is null || !CampaignAuthorized(world, g) || g.ExpectedDays < 0 || g.Progress < 0 ||
                 g.Started.DayNumber < world.Simulation.Started.DayNumber || g.LastProgress.DayNumber < g.Started.DayNumber ||
                 g.LastProgress.DayNumber > world.Clock.DayNumber) ||
             Campaigns.DistinctBy(g => (g.ForceId, g.TargetId)).Count() != Campaigns.Length ||
             Opportunities.IsDefault || Opportunities.Any(a => a is null || string.IsNullOrWhiteSpace(a.ControllerId) || string.IsNullOrWhiteSpace(a.Key) ||
-                string.IsNullOrWhiteSpace(a.Conditions) || a.TaskId == Guid.Empty || a.ActorId < 0 ||
+                a.Conditions is null || a.TaskId == Guid.Empty || a.ActorId < 0 ||
                 a.Started.DayNumber > world.Clock.DayNumber || a.Started.DayNumber < world.Simulation.Started.DayNumber ||
                 a.RetryAfter.DayNumber < a.Started.DayNumber || a.Outcome is not ("pending" or "succeeded" or "failed" or "finished") ||
                 a.Outcome == "pending" && !world.Simulation.Tasks.Any(t => t.Id == a.TaskId &&

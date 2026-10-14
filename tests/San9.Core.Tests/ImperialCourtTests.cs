@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -19,12 +20,7 @@ public sealed class ImperialCourtTests
     private static SimulationRules Rules(ImperialCourtDefinition? definition = null) => new()
     { Economy = new([], []) { ImperialCourt = definition ?? Definition() } };
     private static WorldMutation Due(WorldState state) { var w = state.BeginMutation(economy: Rules().Economy); w.RebuildForceTrust(); w.SetClock(new(190, 4, 1)); return w; }
-    private static ulong Seed(int roll)
-    {
-        for (ulong seed = 0; seed < 100000; seed++)
-            if (World(seed).BeginMutation().NextRandom("event-emperor-death") % 100 == (ulong)roll) return seed;
-        throw new InvalidOperationException();
-    }
+    private static ulong Seed(int roll) => TestSeeds.ForNamedRoll("event-emperor-death", roll);
 
     [Theory]
     [InlineData(59, false)]

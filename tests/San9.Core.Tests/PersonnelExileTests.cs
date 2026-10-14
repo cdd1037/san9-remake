@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -58,9 +59,9 @@ public sealed class PersonnelExileTests
     public void NoEligibleDestinationRejectsBeforeRandomOrLoyaltyChanges(bool connected, bool barbarian)
     {
         var engine = Engine(connected, barbarian);
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         Assert.Equal(CommandRejection.NoDestination, Exile(engine).Submission.Rejection);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
     }
 
     [Theory]
@@ -69,9 +70,9 @@ public sealed class PersonnelExileTests
     public void InvalidSubjectDoesNotMutate(int person, CommandRejection rejection)
     {
         var engine = Engine();
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         Assert.Equal(rejection, Exile(engine, person).Submission.Rejection);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
     }
 
     [Fact]
@@ -81,15 +82,14 @@ public sealed class PersonnelExileTests
         var restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()), Economy, Geography(), new([new(10, new(5, 0, 0, 0), 0)]),
             new([new(1, 10000, 0) { AbilityBonuses = new(4, 0, 0, 0) }]));
         var command = new ExileOfficerCommand(Guid.NewGuid(), 1, 0, 11);
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         Assert.True(engine.Validate(new("player"), command).Accepted);
-        Assert.Equal(before, engine.Snapshot.StateHash);
-        Assert.Equal(CanonicalJson.Text(engine.Execute(new("player"), command).Events),
-            CanonicalJson.Text(restored.Execute(new("player"), command).Events));
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
-        before = engine.Snapshot.StateHash;
+        StateAssert.Equal(before, engine.Snapshot);
+        EventAssert.Equal(engine.Execute(new("player"), command).Events, restored.Execute(new("player"), command).Events);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
+        before = engine.Snapshot;
         Assert.Equal(CommandRejection.PersonUnavailable, Exile(engine).Submission.Rejection);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
     }
 
     [Fact]

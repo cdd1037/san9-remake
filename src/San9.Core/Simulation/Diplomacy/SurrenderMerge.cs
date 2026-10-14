@@ -66,7 +66,7 @@ internal static class SurrenderMerge
                 {
                     int origin = Place(prisoner);
                     if (prisoner.Status == OfficerStatus.Captive && rules.Personnel.Places.ContainsKey(origin) &&
-                        PrisonerRelease.Depart(world, prisoner.Id, origin, cause.Id, cause.Sequence, PrisonerDepartureKind.Released,
+                        PrisonerRelease.Depart(world, prisoner.Id, origin, cause.Sequence, PrisonerDepartureKind.Released,
                             force, rules.Personnel, rules.Economy, events, unit.Position) == CommandRejection.None) continue;
                     PersonnelTransitions.DiscoverDetached(world, prisoner.Id, origin, events);
                 }

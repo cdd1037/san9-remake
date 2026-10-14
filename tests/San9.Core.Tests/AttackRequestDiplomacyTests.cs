@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Text.Json;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -43,14 +44,14 @@ public sealed class AttackRequestDiplomacyTests
         var restored = Restore(engine);
         var quote = new RespondDailyTaskCommand(Guid.NewGuid(), 2, 1, prompt.TaskId, 0, true)
             { Offer = new(CompensationKind.Money, 1000, null, null) };
-        Assert.Equal(CanonicalJson.Text(engine.Execute(new("second"), quote).Events), CanonicalJson.Text(restored.Execute(new("second"), quote).Events));
+        EventAssert.Equal(engine.Execute(new("second"), quote).Events, restored.Execute(new("second"), quote).Events);
         prompt = engine.GetAttackRequestPrompt()!;
         Assert.Equal(1, prompt.Step);
         Assert.Equal(1, prompt.RespondingForceId);
         restored = Restore(engine);
         var answer = new RespondDailyTaskCommand(Guid.NewGuid(), 1, 2, prompt.TaskId, 1, accept);
         var result = engine.Execute(new("first"), answer);
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.Execute(new("first"), answer).Events));
+        EventAssert.Equal(result.Events, restored.Execute(new("first"), answer).Events);
         Assert.Equal(accept ? AttackRequestOutcome.Accepted : AttackRequestOutcome.Refused,
             Assert.Single(result.Events.OfType<AttackRequestResolvedEvent>()).Outcome);
         Assert.Equal(accept ? 1 : 0, result.Events.OfType<AttackRequestEstablishedEvent>().Count());
@@ -152,19 +153,19 @@ public sealed class AttackRequestDiplomacyTests
     public void AdviceViewSurvivesPreviewButRefreshesAfterCommandCommit()
     {
         var engine = new SimulationEngine(World(60, automatic: true), Rules());
-        var before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         var attack = engine.GetAttackRequestAdvice(1, 12, 2, 3);
         var surrender = engine.GetSurrenderAdvice(1, 12, 2);
         Assert.Equal(CommandRejection.None, attack.Rejection);
         Assert.Equal(CommandRejection.None, surrender.Rejection);
         var command = new RequestAttackCommand(Guid.NewGuid(), 1, 0, 12, 2, 3);
         Assert.True(engine.Validate(new("first"), command).Accepted);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         Assert.Equal(attack, engine.GetAttackRequestAdvice(1, 12, 2, 3));
         Assert.Equal(surrender, engine.GetSurrenderAdvice(1, 12, 2));
 
         Assert.True(engine.Execute(new("first"), command).Submission.Accepted);
-        var committed = engine.Snapshot.StateHash;
+        var committed = engine.Snapshot;
         var fresh = Restore(engine);
         Assert.Equal(CommandRejection.PersonUnavailable, engine.GetAttackRequestAdvice(1, 12, 2, 3).Rejection);
         Assert.Equal(CommandRejection.PersonUnavailable, engine.GetSurrenderAdvice(1, 12, 2).Rejection);
@@ -173,7 +174,7 @@ public sealed class AttackRequestDiplomacyTests
             Assert.Equal(fresh.GetAttackRequestAdvice(1, actor, 2, 3), engine.GetAttackRequestAdvice(1, actor, 2, 3));
             Assert.Equal(fresh.GetSurrenderAdvice(1, actor, 2), engine.GetSurrenderAdvice(1, actor, 2));
         }
-        Assert.Equal(committed, engine.Snapshot.StateHash);
+        StateAssert.Equal(committed, engine.Snapshot);
     }
 
     [Fact]
@@ -183,9 +184,9 @@ public sealed class AttackRequestDiplomacyTests
         var second = new SimulationEngine(World(60), Rules());
         var later = second.Snapshot;
         second = new(WorldState.Restore(later with { Simulation = later.Simulation with { NextSequence = 50 } }), Rules());
-        var before = first.Snapshot.StateHash;
+        var before = first.Snapshot;
         Assert.Equal(first.GetAttackRequestAdvice(1, 12, 2, 3), first.GetAttackRequestAdvice(1, 12, 2, 3));
-        Assert.Equal(before, first.Snapshot.StateHash);
+        StateAssert.Equal(before, first.Snapshot);
         Assert.True(first.Execute(new("first"), new RequestAttackCommand(Guid.NewGuid(), 1, 0, 12, 2, 3)).Submission.Accepted);
         Assert.True(second.Execute(new("first"), new RequestAttackCommand(Guid.NewGuid(), 1, 50, 12, 2, 3)).Submission.Accepted);
         Assert.Equal(first.Snapshot.Simulation.Tasks.Single().Journey!.SuccessRoll, second.Snapshot.Simulation.Tasks.Single().Journey!.SuccessRoll);

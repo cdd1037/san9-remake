@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using System.Text.Json;
 using San9.Core.Domain;
@@ -126,7 +127,7 @@ public sealed class WarfareAuditAlignmentTests
         Assert.Equal(3000u, m.Units[3].Wounded);
         Assert.Equal(0u, m.Units[1].Wounded);
         Assert.Equal(CanonicalJson.Text(first), CanonicalJson.Text(second));
-        Assert.Equal(world.CreateSnapshot().StateHash, restored.CreateSnapshot().StateHash);
+        StateAssert.Equal(world.CreateSnapshot(), restored.CreateSnapshot());
         Assert.NotEqual(0UL, m.Simulation.RandomStreams.Single(s => s.Name == "battle-capture-wounded").State);
     }
 

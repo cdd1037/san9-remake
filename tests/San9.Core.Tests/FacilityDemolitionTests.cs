@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -60,10 +61,10 @@ public sealed class FacilityDemolitionTests
         Assert.Equal(100u, unit.CargoFood);
         Assert.DoesNotContain(result.Events, e => e is UnitAbsorbedEvent);
         Assert.All(result.Events.OfType<ResourceChangedEvent>().Where(e => e.Reason == "facility-demolished"), e => Assert.Equal(0, e.SaturationLoss));
-        string hash = engine.Snapshot.StateHash;
+        var hash = engine.Snapshot;
         Assert.False(engine.Execute(Player, command).Submission.Accepted);
         Assert.False(engine.Execute(Player, command with { CommandId = Guid.NewGuid(), Sequence = 1 }).Submission.Accepted);
-        Assert.Equal(hash, engine.Snapshot.StateHash);
+        StateAssert.Equal(hash, engine.Snapshot);
     }
 
     [Theory]
@@ -72,32 +73,32 @@ public sealed class FacilityDemolitionTests
     public void ProtectedFacilityOrMissingFriendlyReceivingCityRejectsAtomically(bool allowed, bool friendlyCity)
     {
         var engine = Engine(allowed, friendlyCity);
-        string hash = engine.Snapshot.StateHash;
+        var hash = engine.Snapshot;
         Assert.False(engine.Execute(Player, new DemolishFacilityCommand(Guid.NewGuid(), 1, 0, 2)).Submission.Accepted);
-        Assert.Equal(hash, engine.Snapshot.StateHash);
+        StateAssert.Equal(hash, engine.Snapshot);
     }
 
     [Fact]
     public void EngagedFacilityRejectsDemolitionWithoutRemovingItsAttackerTarget()
     {
         var engine = Engine(engaged: true);
-        string hash = engine.Snapshot.StateHash;
+        var hash = engine.Snapshot;
         var result = engine.Execute(Player, new DemolishFacilityCommand(Guid.NewGuid(), 1, 0, 2));
         Assert.Equal(CommandRejection.InvalidTask, result.Submission.Rejection);
         Assert.Empty(result.Events);
         Assert.Equal(2, engine.Snapshot.Units.Single(u => u.Id == 1).Order!.SettlementId);
-        Assert.Equal(hash, engine.Snapshot.StateHash);
+        StateAssert.Equal(hash, engine.Snapshot);
     }
 
     [Fact]
     public void ConfusedFacilityRejectsDemolitionWithoutChangingState()
     {
         var engine = Engine(confused: true);
-        string hash = engine.Snapshot.StateHash;
+        var hash = engine.Snapshot;
         var result = engine.Execute(Player, new DemolishFacilityCommand(Guid.NewGuid(), 1, 0, 2));
         Assert.Equal(CommandRejection.SettlementConfused, result.Submission.Rejection);
         Assert.Empty(result.Events);
-        Assert.Equal(hash, engine.Snapshot.StateHash);
+        StateAssert.Equal(hash, engine.Snapshot);
     }
 
     [Fact]

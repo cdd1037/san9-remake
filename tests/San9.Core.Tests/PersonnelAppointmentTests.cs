@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -25,12 +26,12 @@ public sealed class PersonnelAppointmentTests
     {
         var engine = Engine(intelligence);
         var preview = new AppointAdviserCommand(Guid.NewGuid(), 1, engine.Snapshot.Simulation.NextSequence, 12);
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         Assert.Equal(accepted, engine.GetPreparationEligibility(new("player"), preview) == CommandRejection.None);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         var result = engine.Execute(new("player"), new AppointAdviserCommand(Guid.NewGuid(), 1, 0, 12));
         Assert.Equal(accepted, result.Submission.Accepted);
-        if (!accepted) { Assert.Equal(before, engine.Snapshot.StateHash); return; }
+        if (!accepted) { StateAssert.Equal(before, engine.Snapshot); return; }
         Assert.Equal(12, engine.Snapshot.Forces.Single().AdviserId);
         Assert.Equal(OfficerStatus.Serving, engine.Snapshot.Officers.Single(p => p.Id == 11).Status);
         var appointed = engine.Snapshot.Officers.Single(p => p.Id == 12);
@@ -68,14 +69,15 @@ public sealed class PersonnelAppointmentTests
         Assert.Equal(12, engine.Snapshot.Forces.Single().AdviserId);
         Assert.Equal(12, engine.Snapshot.Corps.Single().LeaderId);
         Assert.True(engine.Snapshot.Officers.Single(p => p.Id == 12).Acted);
-        Assert.Equal(engine.Snapshot.StateHash, WorldState.Restore(engine.CaptureStableState()).CreateSnapshot().StateHash);
+        StateAssert.Equal(engine.Snapshot, WorldState.Restore(engine.CaptureStableState()).CreateSnapshot());
     }
 
     [Fact]
     public void EqualIntelligenceConsumesExactlyOneRollAndSaturatesOldLoyalty()
     {
         HashSet<int> rolls = [];
-        for (ulong seed = 0; seed < 30 && rolls.Count < 3; seed++)
+        // One fixed vector for each of the three loyalty losses.
+        foreach (ulong seed in new ulong[] { 0, 2, 1 })
         {
             var engine = Engine(80, seed: seed);
             var random = new StableRandom(StableRandom.DeriveSeed(seed, "personnel-adviser-replacement"));

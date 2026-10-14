@@ -6,7 +6,7 @@ namespace San9.Core.Simulation;
 internal static class UnitAffiliation
 {
     internal static void Transfer(WorldMutation world, UnitState unit, int recipient, int? servicePlace,
-        IReadOnlyCollection<int> followers, int geographicPlace, Guid causeId, bool recruited,
+        IReadOnlyCollection<int> followers, int geographicPlace, bool recruited,
         SimulationRules rules, List<DomainEvent> events)
     {
         string reason = recruited ? "personnel-recruited" : "unit-defected";
@@ -34,8 +34,7 @@ internal static class UnitAffiliation
             .OrderBy(p => p.Id).ToArray())
         {
             long sequence = world.Simulation.NextSequence;
-            Guid cause = new(Convert.FromHexString(CanonicalJson.Hash(new { causeId, Captive = captive.Id, Sequence = sequence })).AsSpan(0, 16));
-            if (PrisonerRelease.Depart(world, captive.Id, geographicPlace, cause, sequence,
+            if (PrisonerRelease.Depart(world, captive.Id, geographicPlace, sequence,
                 PrisonerDepartureKind.Displaced, null, rules.Personnel, rules.Economy, events, unit.Position) == CommandRejection.None)
                 world.SetSimulation(world.Simulation with { NextSequence = checked(sequence + 1) });
         }

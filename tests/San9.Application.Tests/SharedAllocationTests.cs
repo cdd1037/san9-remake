@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Application.AI;
 using San9.Application.Persistence;
@@ -90,7 +91,7 @@ public sealed class SharedAllocationTests
         var delivery = SupportObservationCapture.Capture(engine, seat, [(seat.ControllerId, fresh)], session.MilitaryRules, new(65536));
         var expected = EconomicSupplyProjection.Apply([(seat.ControllerId, fresh)], delivery.FoodChanges);
         Assert.Equal(expected[0].Observation.Accounts.ToArray(), current[0].Observation.Accounts.ToArray());
-        Assert.Equal(CanonicalJson.Hash(fresh.Domestic.Settlements), CanonicalJson.Hash(current[0].Observation.Domestic.Settlements));
+        Assert.Equal(CanonicalJson.Text(fresh.Domestic.Settlements), CanonicalJson.Text(current[0].Observation.Domestic.Settlements));
     }
 
     [Theory]
@@ -119,8 +120,8 @@ public sealed class SharedAllocationTests
         for (int i = 0; i < 3; i++)
         {
             var result = session.AdvanceXun();
-            Assert.Equal(CanonicalJson.Hash(result.Events), CanonicalJson.Hash(restored.AdvanceXun().Events));
-            Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+            EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
+            StateAssert.Equal(session.Capture(), restored.Capture());
             events.AddRange(result.Events);
             if (i == 0) Assert.DoesNotContain(result.Events.OfType<UnitDeployedEvent>(), e => e.SettlementId == 2);
         }
@@ -132,7 +133,7 @@ public sealed class SharedAllocationTests
         Assert.Equal(0, diagnostic.FoodExpenditureError);
         Assert.Equal(0, diagnostic.SoldierLoss);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -166,7 +167,7 @@ public sealed class SharedAllocationTests
             Units = before.World.Units.Select(u => u.OwnerId == 1 ? u with { Order = new(MilitaryOrderKind.Move, new(77, 2), null),
                 DepartureDaysRemaining = 9, MovementRemainder = 0 } : u).ToArray()
         } });
-        Assert.Equal(CanonicalJson.Hash(Observe(session, definition).Support), CanonicalJson.Hash(Observe(changed, definition).Support));
+        Assert.Equal(CanonicalJson.Text(Observe(session, definition).Support), CanonicalJson.Text(Observe(changed, definition).Support));
     }
 
     [Fact]
@@ -244,8 +245,8 @@ public sealed class SharedAllocationTests
         detailed.AllocationDiagnosticsEnabled = true;
         var a = plain.Apply(plain.Request(new PrepareAdvanceOperation()));
         var b = detailed.Apply(detailed.Request(new PrepareAdvanceOperation()));
-        Assert.Equal(CanonicalJson.Hash(a.Events), CanonicalJson.Hash(b.Events));
-        Assert.Equal(plain.Capture().StateHash, detailed.Capture().StateHash);
+        EventAssert.Equal(a.Events, b.Events);
+        StateAssert.Equal(plain.Capture(), detailed.Capture());
         Assert.NotEmpty(detailed.AllocationDiagnostics.Actions);
         Assert.Empty(plain.AllocationDiagnostics.Actions);
         Assert.All(detailed.AllocationDiagnostics.Actions, trace => Assert.InRange(trace.WorkRemaining, 0, detailed.AiState.Configuration.WorkBudget));

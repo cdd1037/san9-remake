@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using San9.Application.Persistence;
@@ -46,32 +47,31 @@ public sealed class SettlementDefectionSessionTests
         var result = Assert.Single(events.OfType<SettlementDefectedEvent>());
         Assert.Equal(new GameClock(190, 2, 1), result.Clock);
         Assert.Equal(occupied ? SettlementDefectionKind.Isolated : SettlementDefectionKind.Abandoned, result.Kind);
-        Assert.Equal(CanonicalJson.Text(events), CanonicalJson.Text(before.AdvanceXun().Events));
+        EventAssert.Equal(events, before.AdvanceXun().Events);
         Assert.Equal(2, session.View.Settlements.Single(s => s.Id == 10).OwnerId);
         if (occupied) Assert.Equal(2, session.View.Officers.Single(p => p.Id == 10).OwnerId);
         var restored = SaveService.Decode(SaveService.Encode(session), content);
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         Assert.Empty(restored.InitialEvents);
         var next = session.AdvanceXun();
         Assert.Empty(next.Events.OfType<SettlementDefectedEvent>());
-        Assert.Equal(CanonicalJson.Text(next.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+        EventAssert.Equal(next.Events, restored.AdvanceXun().Events);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
-    public void ExplicitSwitchParticipatesInContentIdentityAndRestoreValidation()
+    public void SettlementDefectionSwitchIsRequiredAndRetainsSavedConfiguration()
     {
         var content = Scenario(false);
         var disabled = content with { SettlementDefectionsEnabled = false };
-        Assert.NotEqual(GameSession.Fingerprint(content), GameSession.Fingerprint(disabled));
+
         var session = GameSession.Start(disabled, 17);
         for (int i = 0; i < 4; i++) Assert.Empty(session.AdvanceXun().Events.OfType<SettlementDefectedEvent>());
         var restored = SaveService.Decode(SaveService.Encode(session), disabled);
         Assert.Equal(1, restored.View.Settlements.Single(s => s.Id == 10).OwnerId);
         var snapshot = session.Capture();
-        var tampered = snapshot.World with { Simulation = snapshot.World.Simulation with { SettlementDefectionsEnabled = true } };
-        Assert.Throws<ArgumentException>(() => GameSession.Restore(disabled, snapshot with { World = tampered }));
+        Assert.False(GameSession.Restore(content, snapshot).Snapshot.Simulation.SettlementDefectionsEnabled);
         var state = JsonNode.Parse(CanonicalJson.Text(snapshot.World.Simulation))!.AsObject();
         Assert.True(state.Remove("settlementDefectionsEnabled"));
         Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<SimulationState>(state.ToJsonString(), CanonicalJson.Options));

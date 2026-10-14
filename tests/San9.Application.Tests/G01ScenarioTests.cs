@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Text;
@@ -29,8 +30,6 @@ public sealed class G01ScenarioTests
         string? contentPath = Environment.GetEnvironmentVariable("SAN9_G01_SCENARIO");
         string? reportDirectory = Environment.GetEnvironmentVariable("SAN9_G01_REPORT_DIR");
         var timer = Stopwatch.StartNew();
-        string? fingerprint = null;
-        string? finalHash = null;
         string? failure = null;
         int completedXun = 0, accepted = 0, rejected = 0, restoreCount = 0;
         string label = string.IsNullOrWhiteSpace(contentPath) ? "public" : "private-190";
@@ -42,7 +41,6 @@ public sealed class G01ScenarioTests
             var definition = string.IsNullOrWhiteSpace(contentPath) ? Fixture() :
                 JsonSerializer.Deserialize<ScenarioInitialState>(File.ReadAllText(contentPath, Encoding.UTF8), ScenarioContentFiles.DataJsonOptions)!;
             definition.Validate();
-            fingerprint = GameSession.Fingerprint(definition);
             var session = GameSession.Start(definition, 190);
             Assert.Single(session.InitialEvents.OfType<StageCompletedEvent>(), e => e.Stage == ResolutionStage.XunUpdate);
             var continuous = new SimulationEngine(WorldState.Restore(session.CaptureStableState()));
@@ -72,7 +70,7 @@ public sealed class G01ScenarioTests
                     if (a.Submission.Accepted) accepted++;
                     else { rejected++; Assert.Same(snapshot, a.Snapshot); Assert.Empty(a.Events); }
                     log.Add(JsonSerializer.Serialize(new { xun, controller = seat.ControllerId, command = (object)command,
-                        accepted = a.Submission.Accepted, rejection = a.Submission.Rejection.ToString(), stateHash = a.Snapshot.StateHash }));
+                        accepted = a.Submission.Accepted, rejection = a.Submission.Rejection.ToString(), revision = a.Snapshot.Revision }));
                     if (seat.Kind == ControllerKind.Player && xun is 0 or 17)
                     {
                         resumed = Restore(resumed); restoreCount++;
@@ -91,7 +89,6 @@ public sealed class G01ScenarioTests
                 Assert.Equal(resumed.Snapshot.Clock.Year, projected.Year);
                 Assert.Equal(resumed.Snapshot.Corps.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money, projected.PlayerCorps!.Treasury.Money);
                 last = resumed.Snapshot;
-                finalHash = last.StateHash;
                 completedXun++;
             }
             Assert.True(accepted > 0);
@@ -108,10 +105,9 @@ public sealed class G01ScenarioTests
                 File.WriteAllLines(logPath!, log, new UTF8Encoding(false));
                 File.WriteAllText(Path.Combine(reportDirectory, $"{label}-report.json"), JsonSerializer.Serialize(new
                 {
-                    goal = "G01", scenario = label, contentFingerprint = fingerprint,
-                    fingerprintScope = "normalized gameplay content; shared Application fingerprint",
+                    goal = "G01", scenario = label,
                     seed = 190, commandLog = logPath, completedXun, terminationReason = failure is null ? "requested-36-xun" : "failure",
-                    finalHash, firstFailure = failure, elapsedMilliseconds = timer.ElapsedMilliseconds,
+                    firstFailure = failure, elapsedMilliseconds = timer.ElapsedMilliseconds,
                     acceptedCommands = accepted, rejectedCommands = rejected, restoreCount,
                     forces = last?.Forces.Count, settlements = last?.Settlements.Count, officers = last?.Officers.Count,
                     units = last?.Units.Count, corps = last?.Corps.Count, treasures = last?.Treasures.Count,
@@ -127,15 +123,15 @@ public sealed class G01ScenarioTests
         var json = JsonSerializer.Serialize(engine.CaptureStableState());
         var restored = new SimulationEngine(WorldState.Restore(JsonSerializer.Deserialize<WorldSnapshot>(json)!));
         Assert.Empty(restored.InitialEvents);
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
         return restored;
     }
 
     private static void Equal(WorldSnapshot a, WorldSnapshot b, IReadOnlyList<DomainEvent> aEvents, IReadOnlyList<DomainEvent> bEvents)
     {
-        Assert.Equal(a.StateHash, b.StateHash);
+        StateAssert.Equal(a, b);
         Assert.Equal(a.Revision, b.Revision);
-        Assert.Equal(aEvents.Select(e => JsonSerializer.Serialize(e, e.GetType())), bEvents.Select(e => JsonSerializer.Serialize(e, e.GetType())));
+        EventAssert.Equal(aEvents, bEvents);
     }
 
     [Fact]

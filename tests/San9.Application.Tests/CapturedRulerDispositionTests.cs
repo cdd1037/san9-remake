@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.Persistence;
 using San9.Application.AI;
 using System.Collections.Immutable;
@@ -42,7 +43,7 @@ public sealed class CapturedRulerDispositionTests
         Assert.Empty(result.Events.OfType<XunAdvancedEvent>());
         Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
         Assert.Throws<InvalidOperationException>(() => session.BeginRecording());
-        string hash = session.Snapshot.StateHash;
+        var hash = session.Snapshot;
         long sequence = session.Snapshot.Simulation.NextSequence;
         Assert.Equal(CommandRejection.DecisionPending, session.Execute(new("player"), new WaitCommand(Guid.NewGuid(), 1, sequence)).Submission.Rejection);
         Assert.Equal(CommandRejection.NotActiveController, session.Execute(new("ai:2"),
@@ -51,14 +52,14 @@ public sealed class CapturedRulerDispositionTests
             new ChooseCapturedRulerDispositionCommand(Guid.NewGuid(), 1, sequence, 5, action)).Submission.Rejection);
         Assert.Equal(CommandRejection.InvalidDecision, session.Execute(new("player"),
             new ChooseCapturedRulerDispositionCommand(Guid.NewGuid(), 1, sequence, 4, (CapturedRulerAction)99)).Submission.Rejection);
-        Assert.Equal(hash, session.Snapshot.StateHash);
+        StateAssert.Equal(hash, session.Snapshot);
         var command = new ChooseCapturedRulerDispositionCommand(Guid.NewGuid(), 1, sequence, 4, action);
         var request = session.Request(new CommandOperation(command), "player", command.CommandId);
         var completed = session.Apply(request);
         var other = restored.Apply(request);
         Assert.Equal(SessionDisposition.Accepted, completed.Disposition);
-        Assert.Equal(CanonicalJson.Text(completed.Events), CanonicalJson.Text(other.Events));
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        EventAssert.Equal(completed.Events, other.Events);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         Assert.Null(session.GetCapturedRulerPrompt());
         Assert.Equal(new GameClock(190, 1, 11), session.Snapshot.Clock);
         Assert.Single(completed.Events.OfType<XunAdvancedEvent>());
@@ -71,9 +72,9 @@ public sealed class CapturedRulerDispositionTests
             Assert.Equal(OfficerStatus.Ruler, session.Snapshot.Officers.Single(p => p.Id == 4).Status);
         }
         else Assert.Single(completed.Events.OfType<PrisonerExecutedEvent>());
-        Assert.Equal(session.Capture().StateHash, SaveService.Decode(SaveService.Encode(session), definition).Capture().StateHash);
+        StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), definition).Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
     private static ScenarioInitialState AddThirdForce(ScenarioInitialState original, bool captive = false) => original with
     {
@@ -120,9 +121,9 @@ public sealed class CapturedRulerDispositionTests
         Assert.Equal((1, 2, AllianceVictoryCause.CapturedRulerExecuted, 15),
             (victory.TargetForceId, victory.VictorForceId, victory.Cause, victory.BaseTrustGained));
         Assert.Equal(initialTrust + 15, session.Snapshot.Forces.Single(f => f.Id == 2).BaseTrust);
-        Assert.Equal(session.Capture().StateHash, SaveService.Decode(SaveService.Encode(session), definition).Capture().StateHash);
+        StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), definition).Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Theory]
@@ -162,10 +163,10 @@ public sealed class CapturedRulerDispositionTests
         else Assert.Empty(result.Events.OfType<AllianceVictoryEvent>());
         var restored = SaveService.Decode(saved, definition);
         restored.AdvanceXun();
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.Execute(new("player"), command).Events));
-        Assert.Equal(session.Capture().StateHash, SaveService.Decode(SaveService.Encode(session), definition).Capture().StateHash);
+        EventAssert.Equal(result.Events, restored.Execute(new("player"), command).Events);
+        StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), definition).Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -213,7 +214,7 @@ public sealed class CapturedRulerDispositionTests
         Assert.Single(result.Events.OfType<ForceEliminatedEvent>());
         Assert.Single(result.Events.OfType<SimulationEndedEvent>());
         Assert.DoesNotContain(result.Events, e => e is StageCompletedEvent or XunAdvancedEvent);
-        Assert.Equal(session.Capture().StateHash, SaveService.Decode(SaveService.Encode(session), definition).Capture().StateHash);
+        StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), definition).Capture());
     }
     private static ScenarioInitialState ComputerFixture(bool execute)
     {
@@ -257,12 +258,12 @@ public sealed class CapturedRulerDispositionTests
         Assert.Equal((finalPerson.Status, finalPerson.OwnerId, finalPerson.SettlementId),
             (displayedPerson.Status, displayedPerson.OwnerId, displayedPerson.SettlementId));
         var restored = SaveService.Decode(saved, definition);
-        Assert.Equal(CanonicalJson.Text(result.Result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        EventAssert.Equal(result.Result.Events, restored.AdvanceXun().Events);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         var recording = session.EndRecording();
         Assert.Single(recording.Operations);
         var replay = RecordingService.Replay(RecordingService.Encode(recording), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Theory]
@@ -290,14 +291,12 @@ public sealed class CapturedRulerDispositionTests
             controlEvents.AddRange(explicitControls.EndControl(new(seat.ControllerId)).Events);
         }
         controlEvents.AddRange(explicitControls.AdvanceXun().Events);
-        Assert.Equal(whole.Snapshot.StateHash, daily.Snapshot.StateHash);
-        Assert.Equal(whole.Snapshot.StateHash, explicitControls.Snapshot.StateHash);
+        StateAssert.Equal(whole.Snapshot, daily.Snapshot);
+        StateAssert.Equal(whole.Snapshot, explicitControls.Snapshot);
         // A command completes after its continuation, so its notification moves with the requested day/xun boundary.
-        Assert.Equal(CanonicalJson.Text(events.Where(e => e is not CommandResolvedEvent)),
-            CanonicalJson.Text(dailyEvents.Where(e => e is not CommandResolvedEvent)));
-        Assert.Equal(CanonicalJson.Text(events.OfType<CommandResolvedEvent>()),
-            CanonicalJson.Text(dailyEvents.OfType<CommandResolvedEvent>()));
-        Assert.Equal(CanonicalJson.Text(events), CanonicalJson.Text(controlEvents));
+        EventAssert.Equal(events.Where(e => e is not CommandResolvedEvent), dailyEvents.Where(e => e is not CommandResolvedEvent));
+        EventAssert.Equal(events.OfType<CommandResolvedEvent>(), dailyEvents.OfType<CommandResolvedEvent>());
+        EventAssert.Equal(events, controlEvents);
     }
 
     [Theory]
@@ -342,14 +341,14 @@ public sealed class CapturedRulerDispositionTests
         Assert.Equal("ai:2", response.Owner.ControllerId);
         var command = AutomaticResponseRunner.Choose(engine, response, evaluationBudget: 0);
         Assert.Equal(CapturedRulerAction.Release, Assert.IsType<ChooseCapturedRulerDispositionCommand>(command).Action);
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         Assert.Equal(CommandRejection.NotActiveController, engine.Execute(new("player"), command).Submission.Rejection);
         Assert.Equal(CommandRejection.InvalidDecision, engine.Execute(new("ai:2"),
             ((ChooseCapturedRulerDispositionCommand)command) with { RulerId = 8 }).Submission.Rejection);
         var failure = Assert.Throws<AutomaticResponseException>(() => AutomaticResponseRunner.Choose(engine,
             response with { Kind = "unimplemented" }));
         Assert.Equal("response-unsupported", failure.Failure.Code);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         Assert.True(engine.Execute(new("ai:2"), command).Submission.Accepted);
         Assert.Null(engine.GetPendingResponse());
     }
@@ -390,7 +389,7 @@ public sealed class CapturedRulerDispositionTests
         Assert.DoesNotContain(result.Events.OfType<StageCompletedEvent>(), e => e.Stage == ResolutionStage.UnitAndBuildingEvents);
         Assert.Empty(result.Events.OfType<XunAdvancedEvent>());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -405,7 +404,7 @@ public sealed class CapturedRulerDispositionTests
         Assert.Equal(SessionRejection.AutomaticResponseFailed, result.Rejection);
         Assert.Equal("response-no-progress", result.AutomaticResponseFailure!.Code);
         Assert.Equal("ai:2", result.AutomaticResponseFailure.ControllerId);
-        Assert.Equal(before.StateHash, session.Capture().StateHash);
+        StateAssert.Equal(before, session.Capture());
         Assert.Empty(result.Events);
         Assert.Empty(session.CaptureRecording().Operations);
         Assert.Empty(session.Records);

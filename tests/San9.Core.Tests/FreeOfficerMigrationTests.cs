@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -17,14 +18,7 @@ public sealed class FreeOfficerMigrationTests
          new OfficerState(9, null, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Free, StatusStartYear = 180 }
              .WithLoyalty(1, 70)], controls: [new("player", 1, ControllerKind.Player)], freeOfficerMigrationEnabled: enabled, corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(1000, 1000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 2, new(1000, 1000)) { IsRoot = true }]);
 
-    private static ulong SeedFor(int roll)
-    {
-        for (ulong seed = 0; ; seed++)
-        {
-            var random = new StableRandom(StableRandom.DeriveSeed(seed, "personnel-free-migration"));
-            if (random.NextUInt64() % 100 == (ulong)roll) return seed;
-        }
-    }
+    private static ulong SeedFor(int roll) => TestSeeds.ForNamedRoll("personnel-free-migration", roll);
 
     [Theory]
     [InlineData(29, true, 49, false)]
@@ -110,10 +104,10 @@ public sealed class FreeOfficerMigrationTests
         engine.EndControl(new("player")); resumed.EndControl(new("player"));
         var result = engine.AdvanceXun();
         Assert.Single(result.Events.OfType<FreeOfficerMigratedEvent>());
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(resumed.AdvanceXun().Events));
-        Assert.Equal(engine.Snapshot.StateHash, resumed.Snapshot.StateHash);
+        EventAssert.Equal(result.Events, resumed.AdvanceXun().Events);
+        StateAssert.Equal(engine.Snapshot, resumed.Snapshot);
         var restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()), EconomyRulebook.Empty, Places);
         Assert.Empty(restored.InitialEvents);
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
     }
 }

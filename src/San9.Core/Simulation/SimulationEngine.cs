@@ -802,7 +802,8 @@ public sealed partial class SimulationEngine
     {
         if (command.IssuerId < 0) return CommandRejection.NegativeIssuerId;
         if (command.Sequence < 0) return CommandRejection.NegativeSequence;
-        if (command.CommandId == Guid.Empty) return CommandRejection.InvalidCommandId;
+        if (command.CommandId == Guid.Empty || SimulationIdentity.TryGetTaskSequence(command.CommandId, out _))
+            return CommandRejection.InvalidCommandId;
         if (_world.IsExecuting || _world.Simulation.Boundary is not (SimulationBoundary.Stable or SimulationBoundary.AwaitingDecision))
             return CommandRejection.NotStable;
         if (_world.Simulation.Tasks.Any(t => t.Id == command.CommandId)) return CommandRejection.DuplicateCommandId;

@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -51,7 +52,7 @@ public sealed class BattleCaptureTests
             return result;
         }
         Assert.Equal(CanonicalJson.Text(Advance(world)), CanonicalJson.Text(Advance(restored)));
-        Assert.Equal(world.CreateSnapshot().StateHash, restored.CreateSnapshot().StateHash);
+        StateAssert.Equal(world.CreateSnapshot(), restored.CreateSnapshot());
         Assert.Empty(world.CreateSnapshot().Units);
         person = world.CreateSnapshot().Officers.Single(p => p.Id == 11);
         Assert.Equal(OfficerStatus.Captive, person.Status);
@@ -118,7 +119,7 @@ public sealed class BattleCaptureTests
             return events;
         }
         Assert.Equal(CanonicalJson.Text(Resolve(world)), CanonicalJson.Text(Resolve(restored)));
-        Assert.Equal(world.CreateSnapshot().StateHash, restored.CreateSnapshot().StateHash);
+        StateAssert.Equal(world.CreateSnapshot(), restored.CreateSnapshot());
         Assert.Contains(world.CreateSnapshot().Simulation.RandomStreams, s => s.Name == "battle-personnel-capture");
     }
 }

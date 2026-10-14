@@ -1,3 +1,5 @@
+using San9.Application.Diagnostics;
+using San9.Core.Diagnostics;
 using San9.Application.AI;
 using System.Diagnostics;
 using System.Globalization;
@@ -14,12 +16,18 @@ namespace San9.Headless;
 
 public sealed class HeadlessHost
 {
+    private readonly TextWriter _output;
+    private readonly TextWriter _error;
     private readonly HeadlessReport _report = new();
     private GameSession? _session;
     private string? _reportPath;
     private GameClock _started;
 
-    public static int Run(string[] args) => new HeadlessHost().Execute(args);
+    private HeadlessHost(TextWriter output, TextWriter error) { _output = output; _error = error; }
+
+    public static int Run(string[] args) => Run(args, Console.Out, Console.Error);
+
+    public static int Run(string[] args, TextWriter output, TextWriter error) => new HeadlessHost(output, error).Execute(args);
 
     private int Execute(string[] args)
     {
@@ -56,12 +64,9 @@ public sealed class HeadlessHost
             if (_session is not null)
             {
                 _report.RulesVersionWarnings = _report.RulesVersionWarnings.Union(_session.RulesVersionWarnings).ToList();
-                _report.ContentFingerprint = _session.ContentFingerprint;
                 _report.Seed = _session.Snapshot.Simulation.InitialSeed;
-                _report.FinalHash = _session.Snapshot.Simulation.CanPersist ? _session.Capture().StateHash : null;
                 _report.Terminal = _session.GetTerminalResult();
                 _report.Ending = _session.Ending;
-                _report.WorldHash = _session.Snapshot.StateHash;
                 _report.CompletedXun = _started == default ? 0 : (_session.Snapshot.Clock.DayNumber - _started.DayNumber) / 10;
                 _report.Coverage = new(_session.Snapshot.Forces.Count, _session.Snapshot.Settlements.Count,
                     _session.Snapshot.Officers.Count, _session.Snapshot.Units.Count, _session.Snapshot.Corps.Count,
@@ -78,14 +83,14 @@ public sealed class HeadlessHost
                 }
             }
             _report.ElapsedMilliseconds = timer.ElapsedMilliseconds;
-            foreach (var warning in _report.RulesVersionWarnings) Console.Error.WriteLine(warning.Message);
+            foreach (var warning in _report.RulesVersionWarnings) _error.WriteLine(warning.Message);
             if (_reportPath is not null)
             {
                 try { Write(_reportPath, CanonicalJson.Encode(_report)); }
                 catch (Exception error) when (error is IOException or UnauthorizedAccessException)
                 { exitCode = Fail(6, "report-io", error); }
             }
-            Console.WriteLine(CanonicalJson.Text(_report));
+            _output.WriteLine(CanonicalJson.Text(_report));
         }
         return exitCode;
     }
@@ -306,7 +311,7 @@ public sealed class HeadlessHost
         Directory.CreateDirectory(output);
         File.Delete(Path.Combine(output, "divergence.json"));
         SaveService.Write(Path.Combine(output, "initial.save.json"), _session);
-        List<string> events = [];
+        List<DomainEvent> events = [];
         List<object> checkpoints = [];
         void Compare(SessionRequest request)
         {
@@ -317,14 +322,15 @@ public sealed class HeadlessHost
             var a = _session.Apply(request);
             operationTimer.Stop();
             var b = restored.Apply(request);
+            var difference = SessionDiagnostics.Compare(_session, restored);
+            var eventDifference = EventDiagnostics.Compare(a.Events, b.Events);
             if (a.Disposition != SessionDisposition.Accepted || b.Disposition != SessionDisposition.Accepted ||
-                a.Snapshot.StateHash != b.Snapshot.StateHash || CanonicalJson.Hash(_session.AiState) != CanonicalJson.Hash(restored.AiState) ||
-                !a.Events.Select(e => CanonicalJson.Text<DomainEvent>(e)).SequenceEqual(b.Events.Select(e => CanonicalJson.Text<DomainEvent>(e))))
+                difference is not null || eventDifference is not null)
             {
                 Write(Path.Combine(output, "divergence.json"), CanonicalJson.Encode(new
                     { request, continuous = a, restored = b, continuousAi = _session.AiState, restoredAi = restored.AiState }));
                 throw new VerificationException($"Operation {request.Sequence}: continuous {a.Disposition}/{a.Rejection}, restored {b.Disposition}/{b.Rejection}; " +
-                    $"world equal={a.Snapshot.StateHash == b.Snapshot.StateHash}, AI equal={CanonicalJson.Hash(_session.AiState) == CanonicalJson.Hash(restored.AiState)}.");
+                    $"state difference={difference}; event difference={eventDifference}.");
             }
             if (request.Operation is EndControlOperation && _session.AllocationDiagnostics.Batches.LastOrDefault(b => b.IsTurnSummary) is { } turn)
                 _report.AiTurns.Add(new(turn.ForceId, turn.Clock, turn.Work, turn.SearchComplete, turn.BudgetExhausted,
@@ -334,17 +340,16 @@ public sealed class HeadlessHost
             _report.AcceptedOperations++;
             SummarizeEvents(a.Events);
             if (request.Operation is CommandOperation { Command: WaitCommand }) _report.WaitCommands++;
-            events.AddRange(a.Events.Select(e => CanonicalJson.Text<DomainEvent>(e)));
+            events.AddRange(a.Events);
         }
         void Checkpoint(string reason)
         {
             SaveService.Write(Path.Combine(output, "checkpoint.save.json"), restored);
             restored = SaveService.Read(Path.Combine(output, "checkpoint.save.json"), definition);
-            if (_session.Capture().StateHash != restored.Capture().StateHash || _session.Snapshot.Revision != restored.Snapshot.Revision)
-                throw new VerificationException("Restored session differs from continuous session.");
+            RequireEqual(_session.Capture(), restored.Capture(), "Restored session differs from continuous session");
             if (restored.InitialEvents.Count != 0) throw new VerificationException("Restore repeated initial preparation.");
             _report.RestoreCount++;
-            checkpoints.Add(new { reason, clock = restored.Snapshot.Clock, operationCount = restored.NextOperationSequence, stateHash = restored.Capture().StateHash });
+            checkpoints.Add(new { reason, clock = restored.Snapshot.Clock, operationCount = restored.NextOperationSequence });
         }
         Compare(_session.Request(new ChronicleOperation($"Headless {_report.Policy} verification")));
         CaptureAiCheckpoint();
@@ -412,7 +417,7 @@ public sealed class HeadlessHost
                 throw new VerificationException("Restored application query or records differ.");
         }
         if (!autonomous && _report.DevelopmentCommands == 0) throw new VerificationException("Scenario executed no development commands.");
-        if (_session.Capture().StateHash != restored.Capture().StateHash) throw new VerificationException("Final session hash mismatch.");
+        RequireEqual(_session.Capture(), restored.Capture(), "Final sessions differ");
         SaveService.Write(Path.Combine(output, "continuous.save.json"), _session);
         SaveService.Write(Path.Combine(output, "restored.save.json"), restored);
         if (!File.ReadAllBytes(Path.Combine(output, "continuous.save.json")).SequenceEqual(File.ReadAllBytes(Path.Combine(output, "restored.save.json"))))
@@ -420,24 +425,29 @@ public sealed class HeadlessHost
         _report.CommandLog = Path.Combine(output, "commands.jsonl");
         CommandLogService.Write(_report.CommandLog, _session);
         _report.EventLog = Path.Combine(output, "events.jsonl");
-        WriteLines(_report.EventLog, events);
+        WriteLines(_report.EventLog, events.Select(e => CanonicalJson.Text<DomainEvent>(e)));
         Write(Path.Combine(output, "checkpoints.json"), CanonicalJson.Encode(checkpoints));
         string recordingPath = Path.Combine(output, "verification.recording.json");
         RecordingService.Write(recordingPath, _session.CaptureRecording());
-        var recordingReplay = RecordingService.Replay(recordingPath, definition);
-        if (recordingReplay.Session.Capture().StateHash != _session.Capture().StateHash)
-            throw new VerificationException("Recording replay differs.");
+        var recordingReplay = RecordingService.Replay(recordingPath, definition, verifyEvents: true);
+        RequireEqual(_session.Capture(), recordingReplay.Session.Capture(), "Recording replay differs");
         var replayed = SaveService.Read(Path.Combine(output, "initial.save.json"), definition);
         var replay = CommandLogService.Replay(_report.CommandLog, replayed);
-        if (replay.FirstFailure is not null || replayed.Capture().StateHash != _session.Capture().StateHash ||
-            !events.SequenceEqual(replay.Events.Select(e => CanonicalJson.Text<DomainEvent>(e))))
+        if (replay.FirstFailure is not null || EventDiagnostics.Compare(events, replay.Events) is not null)
             throw new VerificationException("Exported log replay differs.");
+        RequireEqual(_session.Capture(), replayed.Capture(), "Exported log replay state differs");
         var duplicate = CommandLogService.Replay(_report.CommandLog, restored);
-        if (duplicate.FirstFailure is not null || duplicate.AlreadyProcessed != _session.NextOperationSequence || duplicate.Events.Length != 0 ||
-            restored.Capture().StateHash != _session.Capture().StateHash)
+        if (duplicate.FirstFailure is not null || duplicate.AlreadyProcessed != _session.NextOperationSequence || duplicate.Events.Length != 0)
             throw new VerificationException("Duplicate log prefix changed the session.");
+        RequireEqual(_session.Capture(), restored.Capture(), "Duplicate log prefix changed state");
         _report.AlreadyProcessedOperations = duplicate.AlreadyProcessed;
         _report.TerminationReason = _session.Snapshot.Simulation.TerminalReason ?? "requested-xuns";
+    }
+
+    private static void RequireEqual(SessionSnapshot expected, SessionSnapshot actual, string message)
+    {
+        if (SessionDiagnostics.Compare(expected, actual) is { } difference)
+            throw new VerificationException($"{message}: {difference.Path}, expected {difference.Expected}, actual {difference.Actual}.");
     }
 
     private void CaptureAiCheckpoint()

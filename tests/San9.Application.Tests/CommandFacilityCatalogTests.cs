@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.Persistence;
 using San9.Application.Presentation;
 
@@ -43,7 +44,7 @@ public sealed class CommandFacilityCatalogTests
     {
         var session = GameSession.Start(MissionScenario.Create(),42);
         var draft = new MissionDraft(session,1,"burn");
-        byte[] before = SaveService.Encode(session);
+        var before = session.Capture();
         int calls = 0;
         var catalog = new CommandFacilityCatalog(draft.View,MissionScenario.Texts(draft.View),"burn",draft.Targets,
             id => { calls++; return draft.ArrivalDaysToSettlement(id); });
@@ -52,7 +53,7 @@ public sealed class CommandFacilityCatalogTests
         catalog.Read(1); catalog.Read(0);
         Assert.Equal(draft.Targets.Length,calls);
         Assert.Null(draft.TargetId);
-        Assert.Equal(before,SaveService.Encode(session));
+        Assert.Same(before, session.Capture());
     }
 
     [Fact]

@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -58,15 +59,15 @@ public sealed class UnitReformationTests
         var engine = Engine(World(controller: controller, automaticCorps: automaticCorps));
         var context = automaticCorps ? new CommandContext(CorpsControl.ControllerId(1)) : Player;
         var command = Reform(engine, 20);
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
 
         var validation = engine.Validate(context, command);
         Assert.Equal(CommandRejection.UnsupportedCommand, validation.Rejection);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         var result = engine.Execute(context, command);
         Assert.Equal(validation, result.Submission);
         Assert.Empty(result.Events);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
     }
 
     [Theory]
@@ -76,9 +77,9 @@ public sealed class UnitReformationTests
     public void TerrainUnknownFormationAndMembershipRejectionsAreAtomic(int x, int formation, bool invalidMembers)
     {
         var engine = Engine(World(x));
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         Assert.False(engine.Execute(Player, Reform(engine, formation, invalidMembers ? [11, 11] : null)).Submission.Accepted);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
     }
 
     [Fact]

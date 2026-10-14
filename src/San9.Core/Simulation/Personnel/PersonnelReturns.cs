@@ -2,6 +2,14 @@ using San9.Core.Domain;
 
 namespace San9.Core.Simulation;
 
+internal sealed record PersonnelReturnContext(string ControllerId, int ForceId, long Sequence,
+    bool DiplomaticEnvoy = false, ReinforcementTroops? Reinforcements = null)
+{
+    internal static PersonnelReturnContext FromTask(PersistentTask task, int officerId) => new(
+        task.ControllerId, task.ForceId, task.Sequence, officerId == task.OfficerId &&
+            (DiplomacyJourney.IsDiplomatic(task) || task.Journey?.ReturnLeg?.DiplomaticEnvoy == true), task.Reinforcements);
+}
+
 internal static class PersonnelReturns
 {
     internal const string Kind = "personnel-return";
@@ -21,15 +29,12 @@ internal static class PersonnelReturns
         SettlementState home, MilitaryRulebook military, List<DomainEvent> events)
     {
         long sequence = world.Simulation.NextSequence;
-        Guid causeId = new(Convert.FromHexString(CanonicalJson.Hash(new { Kind = "transport-return", world.Clock,
-            UnitId = unit.Id, OfficerId = personId, Sequence = sequence })).AsSpan(0, 16));
-        var cause = new PersistentTask(causeId, Kind, "system", unit.OwnerId, personId, arrivalId,
-            world.Clock, world.Clock, 0, sequence);
+        var context = new PersonnelReturnContext("system", unit.OwnerId, sequence);
         world.SetSimulation(world.Simulation with { NextSequence = checked(sequence + 1) });
         var route = new PersonnelRoute(unit.Position, military.Place(home).Position, false);
         // Military map updates run after the date advances. The displayed date's
         // daily commands have not run yet, so they must consume the first return day.
-        Schedule(world, cause, personId, arrivalId, home.Id, route.Days, world.CurrentDateCommandsConsumed, events, route, true, home.CorpsId);
+        Schedule(world, context, personId, arrivalId, home.Id, route.Days, world.CurrentDateCommandsConsumed, events, route, true, home.CorpsId);
     }
 
     internal static void FromField(WorldMutation world, int personId, WorldPosition origin, SimulationRules rules,
@@ -45,16 +50,13 @@ internal static class PersonnelReturns
         PersonnelTransitions.CancelMissions(world, personId, "unit-defected", events, rules.Personnel, afterDailyCommands);
         world.Replace(world.Officers[personId] with { UnitId = null, SettlementId = home.Id, RegionId = null, TacticCooldown = 0 });
         long sequence = world.Simulation.NextSequence;
-        Guid id = new(Convert.FromHexString(CanonicalJson.Hash(new { Kind = "unit-defection-return", world.Clock, OfficerId = personId,
-            Sequence = sequence })).AsSpan(0, 16));
-        var cause = new PersistentTask(id, Kind, "system", person.OwnerId!.Value, personId, home.Id,
-            world.Clock, world.Clock, 0, sequence);
+        var context = new PersonnelReturnContext("system", person.OwnerId!.Value, sequence);
         world.SetSimulation(world.Simulation with { NextSequence = checked(sequence + 1) });
-        Schedule(world, cause, personId, home.Id, home.Id, BattleRetreat.Days(origin, rules.Military!.Place(home).Position),
+        Schedule(world, context, personId, home.Id, home.Id, BattleRetreat.Days(origin, rules.Military!.Place(home).Position),
             afterDailyCommands, events, new(origin, rules.Military.Place(home).Position, false), true, home.CorpsId);
     }
 
-    internal static void Repatriate(WorldMutation world, int personId, int origin, PersistentTask cause,
+    internal static void Repatriate(WorldMutation world, int personId, int origin, PersonnelReturnContext context,
         PersonnelRulebook places, List<DomainEvent> events, bool afterDailyCommands = true)
     {
         var person = world.Officers[personId];
@@ -68,9 +70,9 @@ internal static class PersonnelReturns
         var home = world.Settlements.Values.Where(s => s.OwnerId == person.OwnerId && s.CanHostPersons && s.Durability > 0 &&
                 places.Places.ContainsKey(s.Id)).OrderBy(s => PersonnelLocations.Route(world, places, origin, s.Id).Days).ThenBy(s => s.Id).FirstOrDefault();
         if (home is null) { PersonnelTransitions.DiscoverDetached(world, personId, origin, events); return; }
-        var previous = cause with { ForceId = person.OwnerId!.Value, ControllerId = "system" };
+        context = context with { ForceId = person.OwnerId!.Value, ControllerId = "system" };
         var route = PersonnelLocations.Route(world, places, origin, home.Id);
-        Schedule(world, previous, personId, origin, home.Id, route.Days, afterDailyCommands, events, route);
+        Schedule(world, context, personId, origin, home.Id, route.Days, afterDailyCommands, events, route);
     }
 
     internal static void Start(WorldMutation world, PersistentTask previous, PersonnelRulebook places,
@@ -114,21 +116,20 @@ internal static class PersonnelReturns
             }
             else if (days >= remaining) days -= remaining;
         }
-        Schedule(world, previous, person.Id, from, home.Id, days, afterDailyCommands, events,
+        Schedule(world, PersonnelReturnContext.FromTask(previous, person.Id), person.Id, from, home.Id, days, afterDailyCommands, events,
             new(origin, PersonnelLocations.Position(world, places, home.Id), false),
             previous.Journey.Route.FieldDestination || previous.Journey.ReturnLeg?.FieldTravel == true);
     }
 
-    internal static void Schedule(WorldMutation world, PersistentTask previous, int officerId, int from, int destination,
+    internal static void Schedule(WorldMutation world, PersonnelReturnContext context, int officerId, int from, int destination,
         int days, bool afterDailyCommands, List<DomainEvent> events, PersonnelRoute route, bool fieldTravel = false, int? corpsId = null)
     {
         var due = world.Clock;
         int offset = afterDailyCommands ? days : Math.Max(0, days - 1);
         for (int day = 0; day < offset; day++) due = due.NextDay();
-        Guid id = new(Convert.FromHexString(CanonicalJson.Hash(new { previous.Id, OfficerId = officerId,
-            ReturnStarted = world.Clock, Destination = destination })).AsSpan(0, 16));
-        var task = new PersistentTask(id, Kind, previous.ControllerId, previous.ForceId, officerId, destination,
-            world.Clock, due, 0, previous.Sequence)
+        Guid id = world.AllocateTaskId();
+        var task = new PersistentTask(id, Kind, context.ControllerId, context.ForceId, officerId, destination,
+            world.Clock, due, 0, context.Sequence)
         {
             Journey = new(destination, null, null)
             {
@@ -136,11 +137,10 @@ internal static class PersonnelReturns
                 ReturnLeg = new(from, days, afterDailyCommands)
                 {
                     FieldTravel = fieldTravel, CorpsId = corpsId,
-                    DiplomaticEnvoy = officerId == previous.OfficerId &&
-                        (DiplomacyJourney.IsDiplomatic(previous) || previous.Journey?.ReturnLeg?.DiplomaticEnvoy == true)
+                    DiplomaticEnvoy = context.DiplomaticEnvoy
                 }
             },
-            Reinforcements = previous.Reinforcements
+            Reinforcements = context.Reinforcements
         };
         world.Replace(world.Officers[officerId] with { SettlementId = destination, RegionId = null, Acted = true, IsCommander = false });
         world.SetSimulation(world.Simulation with { Tasks = world.Simulation.Tasks.Add(task) });

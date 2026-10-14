@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -94,17 +95,13 @@ public sealed class PrisonerCycleTests
         Assert.Equal(79, engine.Snapshot.Officers.Single(p => p.Id == 3).LoyaltyTo(2));
         Assert.False(engine.Snapshot.Officers.Single(p => p.Id == 3).RewardedThisXun);
         var restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()));
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
         engine.EndControl(new("player"));
         restored.EndControl(new("player"));
-        Assert.Equal(CanonicalJson.Text(engine.AdvanceXun().Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+        EventAssert.Equal(engine.AdvanceXun().Events, restored.AdvanceXun().Events);
         Assert.Equal(78, engine.Snapshot.Officers.Single(p => p.Id == 3).LoyaltyTo(2));
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
     }
 
-    private static ulong StateForRoll(int roll)
-    {
-        for (ulong state = 1; ; state++)
-            if (new StableRandom(state).NextUInt64() % 100 == (ulong)roll) return state;
-    }
+    private static ulong StateForRoll(int roll) => TestSeeds.StateForRoll(roll);
 }

@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.Persistence;
 using San9.Content.Scenarios;
 using San9.Core.Domain;
@@ -40,7 +41,7 @@ public sealed class ScenarioStartupTests
         Assert.Equal(expected, session.Snapshot.Settlements.Single(s => s.Id == 2).Soldiers);
         Assert.All(session.Snapshot.Settlements, s => Assert.Equal(12345u, s.DraftPopulation));
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(restored));
+        StateAssert.Equal(session.Capture(), restored.Capture());
         Assert.All(definition.Settlements, s => Assert.Equal(soldiers, s.Soldiers));
     }
 
@@ -81,7 +82,7 @@ public sealed class ScenarioStartupTests
         Assert.All(session.Snapshot.Officers.Where(o => o.Id is 1 or 4), o => Assert.Equal(expected, o.BirthYear));
         Assert.All(session.Snapshot.Officers.Where(o => o.Id is not (1 or 4)), o => Assert.Equal(150, o.BirthYear));
         session.AdvanceXun();
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(SaveService.Decode(SaveService.Encode(session), definition)));
+        StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), definition).Capture());
     }
 
     [Theory]
@@ -97,12 +98,18 @@ public sealed class ScenarioStartupTests
     }
 
     [Fact]
-    public void ChangingStartingAgeInvalidatesSavedContentFingerprint()
+    public void ChangedInitialConfigurationPreservesSavedAgeAndSimulationSettings()
     {
         var baseline = G01ScenarioTests.Fixture();
         var definition = baseline with { Officers = baseline.Officers.Select(o => o with { AgeAtScenarioStart = 19 }).ToArray() };
-        var saved = SaveService.Encode(GameSession.Start(definition, 123));
-        var changed = definition with { Officers = definition.Officers.Select(o => o with { AgeAtScenarioStart = 34 }).ToArray() };
-        Assert.Equal(SaveFailure.ContentMismatch, Assert.Throws<SaveException>(() => SaveService.Decode(saved, changed)).Failure);
+        var original = GameSession.Start(definition, 123);
+        var saved = SaveService.Encode(original);
+        var changed = definition with { Officers = definition.Officers.Select(o => o with { AgeAtScenarioStart = 34 }).ToArray(),
+            AnnualAppearancesEnabled = false, NaturalDeathsEnabled = false, FreeOfficerMigrationEnabled = false };
+        var restored = SaveService.Decode(saved, changed);
+        StateAssert.Equal(original.Capture(), restored.Capture());
+        Assert.True(restored.Snapshot.Simulation.AnnualAppearancesEnabled);
+        Assert.True(restored.Snapshot.Simulation.NaturalDeathsEnabled);
+        Assert.True(restored.Snapshot.Simulation.FreeOfficerMigrationEnabled);
     }
 }

@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -53,17 +54,17 @@ public sealed class FieldRecruitmentSessionTests
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         var result = session.AdvanceXun();
         Assert.Equal(success, Assert.Single(result.Events.OfType<RecruitmentResolvedEvent>()).Success);
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+        EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
         Assert.Equal(success ? 1 : 2, session.Snapshot.Units.Single(u => u.Id == 100).OwnerId);
         Assert.Equal(2, session.Snapshot.Settlements.Single(s => s.Id == 2).OwnerId);
         Assert.Equal(success, result.Events.OfType<UnitTransferredEvent>().Any());
         restored = SaveService.Decode(SaveService.Encode(session), definition);
         for (int i = 0; i < 3; i++)
-            Assert.Equal(CanonicalJson.Text(session.AdvanceXun().Events), CanonicalJson.Text(restored.AdvanceXun().Events));
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+            EventAssert.Equal(session.AdvanceXun().Events, restored.AdvanceXun().Events);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         Assert.DoesNotContain(session.Snapshot.Simulation.Tasks, t => t.OfficerId == 11);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]

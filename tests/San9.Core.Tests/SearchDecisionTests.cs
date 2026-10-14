@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -50,9 +51,9 @@ public sealed class SearchDecisionTests
         Assert.Equal(OfficerStatus.Undiscovered, target.Status);
         Assert.Equal(240, target.LoyaltyTo(1));
         Assert.DoesNotContain(engine.Snapshot.Simulation.RandomStreams, r => r.Name == "personnel-search-recruitment");
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         for (int query = 0; query < 3; query++) Assert.Equal(3, engine.GetSearchRecruitmentPrompt()!.DiscoveredOfficerId);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         Assert.Throws<InvalidOperationException>(() => engine.CaptureStableState());
         var answer = Answer(engine, accept);
         var resolved = engine.Execute(new("player"), answer);
@@ -63,9 +64,9 @@ public sealed class SearchDecisionTests
         Assert.Equal(SimulationBoundary.Stable, engine.Snapshot.Simulation.Boundary);
         Assert.Empty(engine.Snapshot.Simulation.Tasks);
         Assert.Equal(accept, engine.Snapshot.Simulation.RandomStreams.Any(r => r.Name == "personnel-search-recruitment"));
-        string after = engine.Snapshot.StateHash;
+        var after = engine.Snapshot;
         Assert.False(engine.Execute(new("player"), answer).Submission.Accepted);
-        Assert.Equal(after, engine.Snapshot.StateHash);
+        StateAssert.Equal(after, engine.Snapshot);
     }
 
     [Fact]
@@ -74,12 +75,12 @@ public sealed class SearchDecisionTests
         var engine = Engine(World());
         Begin(engine);
         var answer = Answer(engine, true);
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         Assert.False(engine.Execute(new("player"), answer with { TaskId = Guid.NewGuid() }).Submission.Accepted);
         Assert.False(engine.Execute(new("player"), answer with { Step = 0 }).Submission.Accepted);
         Assert.False(engine.Execute(new("other"), answer).Submission.Accepted);
         Assert.False(engine.Execute(new("player"), new WaitCommand(Guid.NewGuid(), 1, answer.Sequence)).Submission.Accepted);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
     }
 
     [Fact]

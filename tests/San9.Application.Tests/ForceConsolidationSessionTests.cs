@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -38,28 +39,26 @@ public sealed class ForceConsolidationSessionTests
         session.BeginRecording();
         var result = session.AdvanceXun();
         Assert.Single(result.Events.OfType<ForcesConsolidatedEvent>());
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+        EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
         Assert.False(session.Snapshot.Simulation.ForceConsolidationPending);
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         Assert.Empty(session.AdvanceXun().Events.OfType<ForcesConsolidatedEvent>());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), scenario, GameSession.EngineFactory(scenario));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
         var saved = SaveService.Decode(SaveService.Encode(session), scenario, GameSession.EngineFactory(scenario));
-        Assert.Equal(session.Capture().StateHash, saved.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), saved.Capture());
         Assert.Empty(saved.InitialEvents);
     }
 
     [Fact]
-    public void ContentFlagAndLeadershipTraitAffectFingerprintAndFlagIsCheckedOnRestore()
+    public void SavedConsolidationSwitchSurvivesChangedInitialConfiguration()
     {
         var scenario = Scenario();
         var session = GameSession.Start(scenario, 17);
-        Assert.NotEqual(session.ContentFingerprint, GameSession.Fingerprint(scenario with { ForceConsolidationEnabled = false }));
-        Assert.NotEqual(session.ContentFingerprint, GameSession.Fingerprint(scenario with
-        { Officers = scenario.Officers.Select(o => o.State.Id == 2 ? o with { State = o.State with { PrefersConsolidationLeadership = true } } : o).ToArray() }));
+
         var snapshot = session.Capture();
-        Assert.Throws<ArgumentException>(() => GameSession.Restore(scenario, snapshot with
-        { World = snapshot.World with { Simulation = snapshot.World.Simulation with { ForceConsolidationEnabled = false } } }));
+        Assert.True(GameSession.Restore(scenario with { ForceConsolidationEnabled = false }, snapshot)
+            .Snapshot.Simulation.ForceConsolidationEnabled);
     }
 
     [Theory]

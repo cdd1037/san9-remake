@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.Persistence;
 using San9.Content.Scenarios;
 using San9.Core.Domain;
@@ -42,7 +43,7 @@ public sealed class AllianceVictorySessionTests
         for (int i = 0; i < 3 && !session.Snapshot.Forces.Single(f => f.Id == 2).IsEliminated; i++)
         {
             var advance = session.AdvanceXun();
-            Assert.Equal(CanonicalJson.Text(advance.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+            EventAssert.Equal(advance.Events, restored.AdvanceXun().Events);
             events.AddRange(advance.Events);
         }
         var victory = Assert.Single(events.OfType<AllianceVictoryEvent>());
@@ -52,8 +53,8 @@ public sealed class AllianceVictorySessionTests
         Assert.Null(session.Snapshot.Simulation.Alliance);
         Assert.Single(events.OfType<AllianceEndedEvent>());
         Assert.True(session.Snapshot.Forces.Single(f => f.Id == 2).IsEliminated);
-        Assert.Equal(session.Capture().StateHash, SaveService.Decode(SaveService.Encode(session), definition).Capture().StateHash);
+        StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), definition).Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 }

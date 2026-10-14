@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using System.Text.Json;
 using San9.Application.Persistence;
@@ -31,14 +32,14 @@ public sealed class EndingSessionTests
                 [new(900, 2, TreasureDiscovery.Discovered, null)])
         };
         var session = GameSession.Start(content, 1);
-        string hash = session.Capture().StateHash;
+        var hash = session.Capture();
         var prompt = session.GetEndingPrompt()!;
         Assert.Equal(3, prompt.Officers.Single(o => o.Id == 2).LearnedTacticCount);
         Assert.All(prompt.Officers.Where(o => o.Id != 2), o => Assert.Equal(2, o.LearnedTacticCount));
         var restored = SaveService.Decode(SaveService.Encode(session), content);
         Assert.Equal(prompt.Officers.ToArray(), restored.GetEndingPrompt()!.Officers.ToArray());
         Assert.All(restored.Snapshot.Officers, o => Assert.Equal([0], o.LearnedTactics.ToArray()));
-        Assert.Equal(hash, session.Capture().StateHash);
+        StateAssert.Equal(hash, session.Capture());
     }
 
     [Fact]
@@ -56,16 +57,16 @@ public sealed class EndingSessionTests
         Assert.Equal(SessionDisposition.Accepted, session.Apply(request).Disposition);
         Assert.Equal(EndingOutcome.SouthernDynasty, session.Ending!.Outcome);
         Assert.Null(session.GetEndingPrompt());
-        Assert.Equal(snapshot.StateHash, session.Snapshot.StateHash);
+        StateAssert.Equal(snapshot, session.Snapshot);
         Assert.Equal(snapshot.Clock, session.Snapshot.Clock);
         Assert.Equal(SessionDisposition.AlreadyProcessed, session.Apply(request).Disposition);
         Assert.Equal(SessionDisposition.Rejected, session.Apply(session.Request(request.Operation)).Disposition);
         Assert.Equal(SessionRejection.Terminal, session.Apply(session.Request(new AdvanceOperation())).Rejection);
         var recording = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        Assert.Equal(session.Capture().StateHash, recording.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), recording.Session.Capture());
         Assert.Equal(session.Ending, recording.Session.Ending);
         var restored = SaveService.Decode(SaveService.Encode(session), content, GameSession.EngineFactory(content));
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         Assert.Equal(session.Ending, restored.Ending);
     }
 
@@ -73,13 +74,13 @@ public sealed class EndingSessionTests
     public void InvalidCourtAndControllerLeaveSelectionAndWatermarkUntouched()
     {
         var session = GameSession.Start(Fixture(), 1);
-        string hash = session.Capture().StateHash;
+        var hash = session.Capture();
         foreach (var selection in new[] { new EndingSelection(EndingPolicy.ContinentalExpansion, new(2, 2, 7, 8)),
             new(EndingPolicy.ContinentalExpansion, new(1, 3, 7, 8)), new((EndingPolicy)10, new(2, 3, 7, 8)),
             new(EndingPolicy.ContinentalExpansion, new(2, 3, 7, 99)) })
             Assert.Equal(SessionDisposition.Rejected, session.Apply(session.Request(new EndingOperation(selection))).Disposition);
         Assert.Equal(SessionDisposition.Rejected, session.Apply(session.Request(new EndingOperation(new(EndingPolicy.DomesticProsperity, new(2, 3, 7, 8))), "ai:2")).Disposition);
-        Assert.Equal(hash, session.Capture().StateHash);
+        StateAssert.Equal(hash, session.Capture());
     }
 
     [Fact]
@@ -96,13 +97,10 @@ public sealed class EndingSessionTests
     }
 
     [Fact]
-    public void ContentReferencesAreValidatedFingerprintedAndRequiredInSerializedContent()
+    public void ContentReferencesAreValidatedAndRequiredInSerializedContent()
     {
         var content = Fixture();
-        Assert.NotEqual(GameSession.Fingerprint(content), GameSession.Fingerprint(content with { Terminal = new([2], 350) }));
-        Assert.NotEqual(GameSession.Fingerprint(content), GameSession.Fingerprint(content with { Ending = content.Ending! with { DomesticGatewayCityIds = [1] } }));
-        var reordered = content with { Terminal = new([1, 2], 350) };
-        Assert.Equal(GameSession.Fingerprint(reordered), GameSession.Fingerprint(reordered with { Terminal = new([2, 1], 350) }));
+
         Assert.Throws<InvalidDataException>(() => (content with { Terminal = new([999], 350) }).Validate());
         Assert.Throws<InvalidDataException>(() => (content with { Ending = content.Ending! with { CulturalTreasureIds = [999] } }).Validate());
         var json = JsonSerializer.SerializeToNode(content, ScenarioContentFiles.DataJsonOptions)!;

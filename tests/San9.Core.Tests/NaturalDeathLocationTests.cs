@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -66,8 +67,8 @@ public sealed class NaturalDeathLocationTests
         var mission = location == "travel" ? Assert.Single(saved.Simulation.Tasks) : null;
         foreach (var running in new[] { engine, restored }) running.EndControl(new("player"));
         var result = engine.AdvanceXun();
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
         var dead = engine.Snapshot.Officers.Single(p => p.Id == 11);
         Assert.Equal(OfficerStatus.Dead, dead.Status);
         Assert.Null(dead.OwnerId);

@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.Presentation;
 using San9.Content.Scenarios;
 using San9.Core.Domain;
@@ -50,7 +51,7 @@ public sealed class SpecialUnitCommandTests
         Assert.False(targets.SetDepartureDelay(1));
         targets.SetPolicies(targets.Policies with { AutonomousRetreat = false });
         targets.ReturnToTargets();
-        Assert.Equal(before.StateHash, session.Snapshot.StateHash);
+        StateAssert.Equal(before, session.Snapshot);
         Assert.True(targets.BeginPolicies());
         var command = targets.CreateCommand(Guid.NewGuid(), session.Snapshot.Simulation.NextSequence);
         Assert.Equal(transport ? MilitaryOrderKind.Transport : MilitaryOrderKind.Return, command.Order.Kind);

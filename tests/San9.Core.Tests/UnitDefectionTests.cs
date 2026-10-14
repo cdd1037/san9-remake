@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -91,13 +92,8 @@ public sealed class UnitDefectionTests
         world.Replace(world.Forces[1] with { BaseTrust = 0 });
         world.Replace(world.Units[100] with { Soldiers = 20000 });
         world.Replace(world.Officers[20].WithLoyalty(1, 100));
-        for (ulong seed = 0; ; seed++)
-        {
-            var random = new StableRandom(seed);
-            if (random.NextUInt64() % 100 != (ulong)roll) continue;
-            world.SetSimulation(world.Simulation with { RandomStreams = [new(UnitDefections.RandomStream, seed)] });
-            break;
-        }
+        ulong seed = TestSeeds.StateForRoll(roll);
+        world.SetSimulation(world.Simulation with { RandomStreams = [new(UnitDefections.RandomStream, seed)] });
         Assert.Equal(defects, Apply(world).OfType<UnitDefectedEvent>().Any());
     }
 

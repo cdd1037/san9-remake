@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -30,7 +31,7 @@ public sealed class CommunitySearchTests
             treasures: [new(50, 2, TreasureDiscovery.Discovered, null)],
             corps: [new(7, 1, 2, new(5000, 5000)) { ControlMode = CorpsControlMode.Direct }, new San9.Core.Domain.CorpsState(1, 1, 1, new(0, 0)) { IsRoot = true }],
             controls: [new("player", 1, ControllerKind.Player)]).BeginMutation(new OfficerAbilityRules(new([new(50, default, 0)]), new([])));
-        ulong seed = Enumerable.Range(1, 10000).Select(i => (ulong)i).First(s => new StableRandom(s).NextUInt64() % 100 == 0);
+        ulong seed = TestSeeds.StateForRoll(0);
         world.SetSimulation(world.Simulation with { RandomStreams = [new("event-search-eligibility", seed)] });
         var task = new PersistentTask(Guid.NewGuid(), "personnel-search", "player", 1, 2, 1, world.Clock, world.Clock, 0, 0) { Journey = new(1, null, 0) };
         var d = Definition(kind); var rules = new SimulationRules { Personnel = new([new(1, new(0, 0))], searchEvents: [d]) };
@@ -178,7 +179,7 @@ public sealed class CommunitySearchTests
             { Kind = SettlementKind.Facility });
         Assert.Equal(eligible, CommunitySearch.CanResolve(world, task, rules, encounter));
         world.SetSimulation(world.Simulation with { RandomStreams = [new("event-search-eligibility",
-            Enumerable.Range(1, 10000).Select(i => (ulong)i).First(s => new StableRandom(s).NextUInt64() % 100 == 0))] });
+            TestSeeds.StateForRoll(0))] });
         Assert.Equal(eligible, CommunitySearch.Prepare(world, task, rules.Personnel, Definition("volunteers")));
     }
 

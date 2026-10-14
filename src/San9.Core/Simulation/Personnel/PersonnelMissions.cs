@@ -146,7 +146,7 @@ internal static class PersonnelMissions
         for (int index = 0; index < ids.Length; index++)
         {
             int id = ids[index];
-            Guid taskId = index == 0 ? command.CommandId : new Guid(Convert.FromHexString(CanonicalJson.Hash(new { command.CommandId, OfficerId = id })).AsSpan(0, 16));
+            Guid taskId = index == 0 ? command.CommandId : world.AllocateTaskId();
             Add(world, context, command, taskId, id, world.Officers[id].SettlementId!.Value,
                 new(command.DestinationId, null, null), MoveKind, rules, events);
         }

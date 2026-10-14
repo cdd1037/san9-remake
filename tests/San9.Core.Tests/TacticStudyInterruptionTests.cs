@@ -35,7 +35,7 @@ public sealed class TacticStudyInterruptionTests
         else
         {
             mutation.Replace(mutation.Settlements[1] with { OwnerId = 2 });
-            PersonnelReturns.Repatriate(mutation, 2, 1, mutation.Simulation.Tasks.Single(), places, changes);
+            PersonnelReturns.Repatriate(mutation, 2, 1, PersonnelReturnContext.FromTask(mutation.Simulation.Tasks.Single(), 2), places, changes);
         }
         world.Commit(mutation);
         Assert.Single(changes.OfType<TaskCancelledEvent>());

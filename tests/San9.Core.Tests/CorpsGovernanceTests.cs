@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -25,7 +26,7 @@ public sealed class CorpsGovernanceTests
         var before = engine.Snapshot;
         var command = new DissolveCorpsCommand(Guid.NewGuid(), 1, 0, 11);
         Assert.True(engine.Validate(new("player"), command).Accepted);
-        Assert.Equal(before.StateHash, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         var result = engine.Execute(new("player"), command);
         Assert.True(result.Submission.Accepted);
         Assert.Equal(10, Assert.Single(result.Snapshot.Corps).Id);
@@ -42,7 +43,7 @@ public sealed class CorpsGovernanceTests
         Assert.All(result.Events.OfType<ResourceChangedEvent>(), e => Assert.Equal(0, e.SaturationLoss));
         Assert.Equal(0, result.Events.OfType<ResourceChangedEvent>().Sum(e => e.Actual));
         Assert.Single(result.Events.OfType<CorpsDissolvedEvent>());
-        Assert.Equal(result.Snapshot.StateHash, WorldState.Restore(result.Snapshot).CreateSnapshot().StateHash);
+        StateAssert.Equal(result.Snapshot, WorldState.Restore(result.Snapshot).CreateSnapshot());
     }
 
     [Theory]
@@ -52,10 +53,10 @@ public sealed class CorpsGovernanceTests
     public void InvalidOrOverflowingDissolutionIsAtomic(int corps, bool overflow, CommandRejection expected)
     {
         var engine = Engine(overflow ? uint.MaxValue : 900000);
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         var result = engine.Execute(new("player"), new DissolveCorpsCommand(Guid.NewGuid(), 1, 0, corps));
         Assert.Equal(expected, result.Submission.Rejection);
         Assert.Empty(result.Events);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
     }
 }

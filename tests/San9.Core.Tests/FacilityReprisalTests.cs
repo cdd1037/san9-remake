@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -108,8 +109,8 @@ public sealed class FacilityReprisalTests
         Assert.NotNull(engine.Snapshot.Units.Single().Order);
         var restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()), EconomyRulebook.Empty,
             PersonnelRulebook.Empty, TreasureRulebook.Empty, military: rules);
-        Assert.Equal(CanonicalJson.Text(Advance(engine).Events), CanonicalJson.Text(Advance(restored).Events));
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        EventAssert.Equal(Advance(engine).Events, Advance(restored).Events);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
     }
 
     [Theory]
@@ -124,8 +125,8 @@ public sealed class FacilityReprisalTests
         Assert.Contains(engine.Snapshot.Simulation.RandomStreams, s => s.Name == "military-facility-reprisal");
         var restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()), EconomyRulebook.Empty,
             PersonnelRulebook.Empty, TreasureRulebook.Empty, military: rules);
-        Assert.Equal(CanonicalJson.Text(Advance(engine).Events), CanonicalJson.Text(Advance(restored).Events));
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        EventAssert.Equal(Advance(engine).Events, Advance(restored).Events);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
     }
 
     [Fact]

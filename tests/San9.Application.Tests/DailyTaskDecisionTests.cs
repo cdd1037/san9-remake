@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.Persistence;
 using San9.Content.Scenarios;
 using San9.Core.Domain;
@@ -97,7 +98,7 @@ public sealed class DailyTaskDecisionTests
         Assert.Single(events.OfType<XunAdvancedEvent>());
         Assert.Equal(10, events.OfType<StageCompletedEvent>().Count(e => e.Stage == ResolutionStage.BeforeDailyCommands));
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, Factory);
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -118,8 +119,7 @@ public sealed class DailyTaskDecisionTests
         Assert.Equal("response-unsupported", failure.Code);
         Assert.Equal("daily-task", failure.Kind);
         Assert.Equal("corps:1", failure.ControllerId);
-        Assert.NotEmpty(failure.Identity);
-        Assert.Equal(before.StateHash, session.Capture().StateHash);
+        StateAssert.Equal(before, session.Capture());
         Assert.Empty(session.CaptureRecording().Operations);
         Assert.Empty(advance.Events);
         Assert.Equal(failure, session.Apply(request).AutomaticResponseFailure);
@@ -156,9 +156,9 @@ public sealed class DailyTaskDecisionTests
         Assert.Equal(new[] { 2, 3, 3 }, advance.Frames.Select(f => f.Day));
         Assert.Equal(SimulationBoundary.AwaitingDecision, advance.Frames[^1].World.Simulation.Boundary);
         Assert.DoesNotContain(advance.Result.Events, e => e is XunAdvancedEvent);
-        string before = session.Snapshot.StateHash;
+        var before = session.Snapshot;
         Assert.Empty(session.AdvanceForPresentation().Frames);
-        Assert.Equal(before, session.Snapshot.StateHash);
+        StateAssert.Equal(before, session.Snapshot);
     }
 
     [Fact]
@@ -175,12 +175,12 @@ public sealed class DailyTaskDecisionTests
         var advance = session.AdvanceXun();
         Assert.Equal(3, session.Snapshot.Clock.Day);
         Assert.Equal(SimulationBoundary.AwaitingDecision, session.Snapshot.Simulation.Boundary);
-        string beforeSettings = session.Snapshot.StateHash;
+        var beforeSettings = session.Snapshot;
         long beforeSettingsSequence = session.NextOperationSequence;
         var settings = session.Apply(session.Request(new PkSettingsOperation(false, false, true)));
         Assert.Equal(SessionDisposition.Rejected, settings.Disposition);
         Assert.Equal(SessionRejection.NotStable, settings.Rejection);
-        Assert.Equal(beforeSettings, session.Snapshot.StateHash);
+        StateAssert.Equal(beforeSettings, session.Snapshot);
         Assert.Equal(beforeSettingsSequence, session.NextOperationSequence);
         Assert.Equal(97, session.Snapshot.Forces[0].BaseTrust);
         Assert.DoesNotContain(advance.Events, e => e is XunAdvancedEvent);
@@ -193,16 +193,16 @@ public sealed class DailyTaskDecisionTests
             var pending = session.Snapshot.Simulation.PendingDailyTask!;
             var command = new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence,
                 pending.RemainingTaskIds[0], 0, answer == 0);
-            string beforeAnswer = session.Snapshot.StateHash;
+            var beforeAnswer = session.Snapshot;
             Assert.True(session.Validate(new("player"), command).Accepted);
-            Assert.Equal(beforeAnswer, session.Snapshot.StateHash);
+            StateAssert.Equal(beforeAnswer, session.Snapshot);
             var request = session.Request(new CommandOperation(command), id: command.CommandId);
             var expected = session.Apply(request);
             var actual = restored.Apply(request);
             Assert.Equal(SessionDisposition.Accepted, expected.Disposition);
             Assert.Equal(SessionDisposition.Accepted, actual.Disposition);
-            Assert.Equal(CanonicalJson.Text(expected.Events), CanonicalJson.Text(actual.Events));
-            Assert.Equal(session.Snapshot.StateHash, restored.Snapshot.StateHash);
+            EventAssert.Equal(expected.Events, actual.Events);
+            StateAssert.Equal(session.Snapshot, restored.Snapshot);
             var afterAnswer = session.Snapshot;
             long operationSequence = session.NextOperationSequence;
             var duplicate = session.Apply(request);
@@ -225,7 +225,7 @@ public sealed class DailyTaskDecisionTests
         Assert.Empty(session.Snapshot.Simulation.Tasks);
         Assert.Null(session.Snapshot.Simulation.PendingDailyTask);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, Engine);
-        Assert.Equal(session.Snapshot.StateHash, replay.Session.Snapshot.StateHash);
+        StateAssert.Equal(session.Snapshot, replay.Session.Snapshot);
         Assert.Equal(10, replay.Events.OfType<StageCompletedEvent>().Count(e => e.Stage == ResolutionStage.BeforeDailyCommands));
     }
 
@@ -262,11 +262,11 @@ public sealed class DailyTaskDecisionTests
             "decision-fixture", 1, 1)).Submission.Accepted);
         session.AdvanceXun();
         var pending = session.Snapshot.Simulation.PendingDailyTask!;
-        string before = session.Snapshot.StateHash;
+        var before = session.Snapshot;
         var response = new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence,
             pending.RemainingTaskIds[0], 0, true);
         Assert.Equal(CommandRejection.NotActiveController, session.Execute(new("other"), response).Submission.Rejection);
-        Assert.Equal(before, session.Snapshot.StateHash);
+        StateAssert.Equal(before, session.Snapshot);
         long operationSequence = session.NextOperationSequence;
         foreach (var invalid in new[]
         {
@@ -279,13 +279,13 @@ public sealed class DailyTaskDecisionTests
             var result = session.Execute(new("player"), invalid);
             Assert.Equal(CommandRejection.InvalidDecision, result.Submission.Rejection);
             Assert.Empty(result.Events);
-            Assert.Equal(before, session.Snapshot.StateHash);
+            StateAssert.Equal(before, session.Snapshot);
             Assert.Equal(operationSequence, session.NextOperationSequence);
         }
         Assert.Equal(CommandRejection.DecisionPending, session.Execute(new("player"),
             new WaitCommand(Guid.NewGuid(), 1, response.Sequence)).Submission.Rejection);
-        Assert.Equal(before, session.Snapshot.StateHash);
+        StateAssert.Equal(before, session.Snapshot);
         Assert.Throws<InvalidOperationException>(() => session.AdvanceXun());
-        Assert.Equal(before, session.Snapshot.StateHash);
+        StateAssert.Equal(before, session.Snapshot);
     }
 }

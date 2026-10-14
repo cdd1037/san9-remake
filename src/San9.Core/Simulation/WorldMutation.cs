@@ -162,6 +162,13 @@ internal sealed partial class WorldMutation : IWorldQuery
         Clock = clock;
     }
 
+    internal Guid AllocateTaskId()
+    {
+        long identity = Simulation.NextTaskIdentity;
+        SetSimulation(Simulation with { NextTaskIdentity = checked(identity + 1) });
+        return SimulationIdentity.Task(identity);
+    }
+
     internal void SetSimulation(SimulationState simulation)
     {
         EnsureOpen();

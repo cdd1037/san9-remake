@@ -1,14 +1,12 @@
 using System.Buffers;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
 namespace San9.Core.Simulation;
 
-/// <summary>Versioned canonical encoding for integer-only authoritative data.</summary>
+/// <summary>Canonical encoding for integer-only authoritative data.</summary>
 public static class CanonicalJson
 {
-    public const int Version = 1;
     public static JsonSerializerOptions Options { get; } = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
     public static byte[] Encode<T>(T value, JsonSerializerOptions? options = null) =>
@@ -23,7 +21,6 @@ public static class CanonicalJson
         return buffer.WrittenSpan.ToArray();
     }
 
-    public static string Hash<T>(T value) => Convert.ToHexString(SHA256.HashData(Encode(value)));
     public static string Text<T>(T value) => Encoding.UTF8.GetString(Encode(value));
 
     private static void Write(Utf8JsonWriter writer, JsonElement value)

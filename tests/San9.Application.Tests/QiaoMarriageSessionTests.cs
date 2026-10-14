@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using San9.Application.Persistence;
@@ -36,7 +37,7 @@ public sealed class QiaoMarriageSessionTests
         var restored = SaveService.Decode(SaveService.Encode(session), definition); session.BeginRecording();
         var result = session.AdvanceXun();
         Assert.Single(result.Events.OfType<QiaoMarriageEvent>());
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+        EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
         Assert.Equal(120, session.Snapshot.Forces.Single(f => f.Id == 1).BaseTrust);
         Assert.Equal(120, session.View.Forces.Single(f => f.Id == 1).Trust);
         Assert.Equal(5, session.Snapshot.Officers.Single(p => p.Id == 11).LifespanTier);
@@ -46,10 +47,10 @@ public sealed class QiaoMarriageSessionTests
         {
             var next = session.AdvanceXun();
             Assert.Empty(next.Events.OfType<QiaoMarriageEvent>());
-            Assert.Equal(CanonicalJson.Text(next.Events), CanonicalJson.Text(after.AdvanceXun().Events));
+            EventAssert.Equal(next.Events, after.AdvanceXun().Events);
         }
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
         Assert.Single(replay.Events.OfType<QiaoMarriageEvent>());
     }
 
@@ -62,13 +63,12 @@ public sealed class QiaoMarriageSessionTests
     }
 
     [Fact]
-    public void ContentReferencesAndRequiredFieldAreValidatedAndRewardsAffectFingerprint()
+    public void ContentReferencesAndRequiredFieldAreValidated()
     {
         var definition = Scenario();
         Assert.Throws<InvalidDataException>(() => (definition with { QiaoMarriage = definition.QiaoMarriage! with { CompanionId = 999 } }).Validate());
         Assert.Throws<InvalidDataException>(() => (definition with { QiaoMarriage = definition.QiaoMarriage! with { ProvinceId = 999 } }).Validate());
-        Assert.NotEqual(GameSession.Fingerprint(definition), GameSession.Fingerprint(definition with
-            { QiaoMarriage = definition.QiaoMarriage! with { LifespanBonus = 2 } }));
+
         var json = JsonNode.Parse(CanonicalJson.Text(definition))!.AsObject(); json.Remove("qiaoMarriage");
         Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<ScenarioInitialState>(json.ToJsonString(),
             new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));

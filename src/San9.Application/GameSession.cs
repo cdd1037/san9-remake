@@ -68,7 +68,6 @@ public sealed partial class GameSession
     }
 
     public string InitialDate { get; }
-    public string ContentFingerprint => _definition.Fingerprint;
     internal MilitaryRulebook? MilitaryRules => _definition.MilitaryRules;
     public IReadOnlyList<DomainEvent> InitialEvents => _initialEvents;
     public IReadOnlyList<SessionRecord> Records => _readOnlyRecords;
@@ -83,8 +82,8 @@ public sealed partial class GameSession
     public SessionRecording CaptureRecording()
     {
         CaptureStableState();
-        return new(ContentFingerprint, _recordingInitial ?? throw new InvalidOperationException("Recording is not enabled."),
-            _recording.ToImmutableArray(), Capture().StateHash);
+        return new(_recordingInitial ?? throw new InvalidOperationException("Recording is not enabled."),
+            _recording.ToImmutableArray());
     }
 
     public SessionRecording EndRecording()
@@ -183,7 +182,6 @@ public sealed partial class GameSession
             definition.HanzhongKing, definition.FiveTigers, definition.ExpeditionMemorial, definition.ThreeVisits, definition.ChainedPlot, definition.RedCliffs, definition.ShanyangGong, definition.Guandu);
     }
 
-    public static string Fingerprint(ScenarioInitialState definition) => new ScenarioSessionDefinition(definition).Fingerprint;
     public static GameSession Start(ScenarioInitialState definition, ulong seed, int computerDamageBonusPercent = 0,
         bool battleDeathsEnabled = false, AiPolicyConfiguration? aiPolicy = null, ControllerKind playerForceController = ControllerKind.Player)
     {
@@ -280,14 +278,7 @@ public sealed partial class GameSession
         return new(requestId, NextOperationSequence, controllerId, operation);
     }
 
-    private Guid NextId()
-    {
-        // Stable sequence watermarks identify requests without retaining their history.
-        Span<byte> bytes = stackalloc byte[16];
-        System.Buffers.Binary.BinaryPrimitives.WriteUInt64BigEndian(bytes, Snapshot.Simulation.InitialSeed);
-        System.Buffers.Binary.BinaryPrimitives.WriteUInt64BigEndian(bytes[8..], (ulong)NextOperationSequence + 1);
-        return new Guid(bytes, bigEndian: true);
-    }
+    private Guid NextId() => SimulationIdentity.Request(NextOperationSequence);
 
     public SessionResult Apply(SessionRequest request) => Apply(request, false, out _);
 

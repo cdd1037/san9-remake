@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Text.Json;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -80,7 +81,7 @@ public sealed class OfficerInjuryRecoveryTests
             var events = engine.AdvanceXun().Events;
             var replay = restored.AdvanceXun().Events;
             Assert.Equal(CanonicalJson.Text(events), CanonicalJson.Text(replay));
-            Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+            StateAssert.Equal(engine.Snapshot, restored.Snapshot);
             Assert.Equal(Math.Max(0, 1 - step), Assert.Single(engine.Snapshot.Officers).Injury);
             Assert.Equal(step < 2 ? 1 : 0, events.OfType<OfficerInjuryRecoveredEvent>().Count());
         }

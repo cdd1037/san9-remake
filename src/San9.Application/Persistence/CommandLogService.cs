@@ -5,7 +5,7 @@ using San9.Core.Simulation;
 
 namespace San9.Application.Persistence;
 
-public sealed record CommandLogHeader(int FormatVersion, string RulesVersion, int HashVersion, string ContentFingerprint, ulong Seed)
+public sealed record CommandLogHeader(int FormatVersion, string RulesVersion, ulong Seed)
 {
     [System.Text.Json.Serialization.JsonRequired] public int ComputerDamageBonusPercent { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public bool BattleDeathsEnabled { get; init; }
@@ -26,8 +26,7 @@ public static class CommandLogService
     public static void Write(string path, GameSession session)
     {
         var recording = session.CaptureRecording();
-        Write(path, new(SessionProtocol.LogFormatVersion, SessionProtocol.RulesVersion, CanonicalJson.Version,
-            session.ContentFingerprint, recording.Initial.World.Simulation.InitialSeed)
+        Write(path, new(SessionProtocol.LogFormatVersion, SessionProtocol.RulesVersion, recording.Initial.World.Simulation.InitialSeed)
             { BattleDeathsEnabled = recording.Initial.World.Simulation.BattleDeathsEnabled,
                 ComputerDamageBonusPercent = recording.Initial.World.Simulation.ComputerDamageBonusPercent,
                 AiConfiguration = recording.Initial.Ai.Configuration, PlayerForceController = recording.Initial.PlayerForceController },
@@ -60,11 +59,10 @@ public static class CommandLogService
         using var reader = new StreamReader(path, new UTF8Encoding(false, true));
         var header = ReadHeader(reader);
         if (header.FormatVersion != SessionProtocol.LogFormatVersion ||
-            header.HashVersion != CanonicalJson.Version || header.ContentFingerprint != session.ContentFingerprint ||
             header.ComputerDamageBonusPercent != session.Snapshot.Simulation.ComputerDamageBonusPercent ||
             header.Seed != session.Snapshot.Simulation.InitialSeed || header.BattleDeathsEnabled != session.Snapshot.Simulation.BattleDeathsEnabled ||
             header.AiConfiguration != session.AiState.Configuration || header.PlayerForceController != session.PlayerForceController)
-            throw new CommandLogException(1, "Log version, content or seed mismatch.");
+            throw new CommandLogException(1, "Log version, seed or session configuration mismatch.");
         if (string.IsNullOrWhiteSpace(header.RulesVersion)) throw new CommandLogException(1, "Missing log rules version.");
         session.ReportRulesVersion(header.RulesVersion);
         int line = 1, accepted = 0, alreadyProcessed = 0;

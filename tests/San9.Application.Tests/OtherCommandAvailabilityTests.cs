@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Application.Presentation;
 using San9.Content.Scenarios;
@@ -168,9 +169,9 @@ public sealed class OtherCommandAvailabilityTests
         var definition = G01ScenarioTests.Fixture();
         var world = GameSession.Start(definition, 7).Snapshot with { Units = [new(81, 1, new(12, 12), 1000)
             { FormationId = 1, Condition = condition, CommandedThisXun = true }] };
-        var hash = world.StateHash;
+        var hash = world;
         Assert.All(MapCommandMenu.Unit(new(definition, world), 81), entry =>
             Assert.Equal(reason is null ? null : "ui.command-reason." + reason, entry.UnavailableReasonKey));
-        Assert.Equal(hash, world.StateHash);
+        StateAssert.Equal(hash, world);
     }
 }

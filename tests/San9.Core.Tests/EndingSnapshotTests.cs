@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -54,7 +55,7 @@ public sealed class EndingSnapshotTests
     public void ProjectionUsesCurrentOwnershipAndCountsEachResourceAccountOnce()
     {
         var world = World();
-        string before = world.StateHash;
+        var before = world;
         var snapshot = EndingSnapshotFactory.Create(world, 8, Definition, Abilities, Treasures);
         Assert.Equal(5, snapshot.Officers.Length);
         Assert.DoesNotContain(snapshot.Officers, o => o.Id == 405);
@@ -73,7 +74,7 @@ public sealed class EndingSnapshotTests
         Assert.False(snapshot.OwnsExpansionGateways);
         Assert.True(snapshot.OwnsDomesticGateways);
         Assert.True(snapshot.HasLivingBarbarianForce);
-        Assert.Equal(before, world.StateHash);
+        StateAssert.Equal(before, world);
     }
 
     [Fact]

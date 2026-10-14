@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -36,17 +37,17 @@ public sealed class CorpsDelegationTests
     {
         var engine = new SimulationEngine(World(), Rules());
         var command = new SetCorpsDelegationCommand(Guid.NewGuid(), 1, 0, 20, Policy(kind));
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         Assert.True(engine.Validate(new("first"), command).Accepted);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         Assert.False(engine.Execute(new("corps:20"), command).Submission.Accepted);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         var result = engine.Execute(new("first"), command);
         Assert.True(result.Submission.Accepted);
         Assert.Equal(Policy(kind), engine.Snapshot.Corps.Single(c => c.Id == 20).Delegation);
         var restored = new SimulationEngine(WorldState.Restore(JsonSerializer.Deserialize<WorldSnapshot>(
             CanonicalJson.Text(engine.Snapshot), CanonicalJson.Options)!), Rules());
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
         Assert.Equal(command, JsonSerializer.Deserialize<GameCommand>(JsonSerializer.Serialize<GameCommand>(command, CanonicalJson.Options), CanonicalJson.Options));
         foreach (var e in result.Events) Assert.NotNull(JsonSerializer.Deserialize<DomainEvent>(JsonSerializer.Serialize<DomainEvent>(e, CanonicalJson.Options), CanonicalJson.Options));
     }
@@ -56,14 +57,14 @@ public sealed class CorpsDelegationTests
     {
         var engine = new SimulationEngine(World(), Rules());
         var baseline = new SetCorpsDelegationCommand(Guid.NewGuid(), 1, 0, 20, new GeneralDelegation());
-        string hash = engine.Snapshot.StateHash;
+        var hash = engine.Snapshot;
         foreach (var c in new[] { baseline with { CorpsId = 10 }, baseline with { CorpsId = 99 },
             baseline with { Delegation = null! }, baseline with { Delegation = new DefeatForceDelegation(1) },
             baseline with { Delegation = new DefeatForceDelegation(99) }, baseline with { Delegation = new CaptureSettlementDelegation(1) },
             baseline with { Delegation = new CaptureSettlementDelegation(99) } })
         {
             Assert.Equal(CommandRejection.InvalidCorps, engine.Execute(new("first"), c).Submission.Rejection);
-            Assert.Equal(hash, engine.Snapshot.StateHash);
+            StateAssert.Equal(hash, engine.Snapshot);
         }
     }
 

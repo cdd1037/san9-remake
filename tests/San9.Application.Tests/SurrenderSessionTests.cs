@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -38,28 +39,24 @@ public sealed class SurrenderSessionTests
         session.EndControl(new("player"));
         Assert.True(session.Execute(new("ai:2"), new DemandSurrenderCommand(Guid.NewGuid(), 2, 0, 21, 1)).Submission.Accepted);
         var outbound = SaveService.Decode(SaveService.Encode(session), content);
-        Assert.Equal(CanonicalJson.Text(session.AdvanceXun().Events), CanonicalJson.Text(outbound.AdvanceXun().Events));
+        EventAssert.Equal(session.AdvanceXun().Events, outbound.AdvanceXun().Events);
         var task = Assert.Single(session.Snapshot.Simulation.Tasks, t => t.Surrender is not null);
         Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
         var restored = outbound;
         var response = new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, task.Id, 0, accept);
         var result = session.Execute(new("player"), response);
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.Execute(new("player"), response).Events));
+        EventAssert.Equal(result.Events, restored.Execute(new("player"), response).Events);
         Assert.Equal(accept, Assert.Single(result.Events.OfType<SurrenderResolvedEvent>()).Accepted);
         Assert.Equal(accept, session.Snapshot.Forces.Single(f => f.Id == 1).IsEliminated);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
-    public void DiplomacyTraitsAreRequiredValidatedAndPartOfContentFingerprint()
+    public void DiplomacyTraitsAreRequiredAndValidated()
     {
         var content = Content();
-        var fingerprint = GameSession.Fingerprint(content);
-        Assert.NotEqual(fingerprint, GameSession.Fingerprint(content with { Officers = content.Officers.Select(o =>
-            o.State.Id == 11 ? o with { State = o.State with { Ambition = 15 } } : o).ToArray() }));
-        Assert.NotEqual(fingerprint, GameSession.Fingerprint(content with { Officers = content.Officers.Select(o =>
-            o.State.Id == 11 ? o with { State = o.State with { AutomaticSurrenderAllowed = true } } : o).ToArray() }));
+
         Assert.False((content.Officers[0].State with { Ambition = 16 }).IsValid());
         foreach (string field in new[] { "ambition", "automaticSurrenderAllowed" })
         {

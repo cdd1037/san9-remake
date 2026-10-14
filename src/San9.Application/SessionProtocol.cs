@@ -7,9 +7,9 @@ namespace San9.Application;
 
 public static class SessionProtocol
 {
-    public const string RulesVersion = "san9-core-g10-v106";
-    public const int SaveFormatVersion = 108;
-    public const int LogFormatVersion = 112;
+    public const string RulesVersion = "san9-core-g10-v107";
+    public const int SaveFormatVersion = 110;
+    public const int LogFormatVersion = 114;
 }
 
 /// <summary>Non-authoritative load diagnostics; never included in saves or deterministic hashes.</summary>
@@ -48,7 +48,7 @@ public sealed record SessionResult(SessionDisposition Disposition, SessionReject
     CommandRejection CommandRejection = CommandRejection.None, DevelopmentOutcome? Development = null, AI.AutomaticResponseFailure? AutomaticResponseFailure = null);
 
 public sealed record RecordedOperation(SessionRequest Request, ImmutableArray<DomainEvent> Events);
-public sealed record SessionRecording(string ContentFingerprint, SessionSnapshot Initial, ImmutableArray<RecordedOperation> Operations, string FinalHash);
+public sealed record SessionRecording(SessionSnapshot Initial, ImmutableArray<RecordedOperation> Operations);
 
 public sealed record SessionSnapshot(WorldSnapshot World, ImmutableArray<SessionRecord> Records,
     ImmutableArray<ChronicleEntry> Chronicle, long NextOperationSequence)
@@ -57,8 +57,4 @@ public sealed record SessionSnapshot(WorldSnapshot World, ImmutableArray<Session
     [JsonRequired] public Presentation.StrategicContextState StrategicContext { get; init; } = Presentation.StrategicContextState.Empty;
     [JsonRequired] public AI.AiSessionState Ai { get; init; } = new();
     [JsonRequired] public ControllerKind PlayerForceController { get; init; } = ControllerKind.Player;
-    [JsonIgnore]
-    public string StateHash => CanonicalJson.Hash(new { version = CanonicalJson.Version,
-        world = World.StateHash, records = Records, chronicle = Chronicle, ending = Ending, strategicContext = StrategicContext, ai = Ai,
-        nextOperationSequence = NextOperationSequence, playerForceController = PlayerForceController });
 }

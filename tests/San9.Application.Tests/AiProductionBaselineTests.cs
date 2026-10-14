@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.AI;
 using San9.Application.Persistence;
 using San9.Core.Domain;
@@ -20,11 +21,11 @@ public sealed class AiProductionBaselineTests
         var b = automatic.Execute(new("player"), command);
         Assert.True(a.Submission.Accepted);
         Assert.Equal(a.Submission, b.Submission);
-        Assert.Equal(CanonicalJson.Text(a.Events), CanonicalJson.Text(b.Events));
+        EventAssert.Equal(a.Events, b.Events);
         Assert.Equal(player.Snapshot.Corps, automatic.Snapshot.Corps);
         Assert.Equal(player.Snapshot.Settlements, automatic.Snapshot.Settlements);
         var restored = SaveService.Decode(SaveService.Encode(automatic), content);
-        Assert.Equal(automatic.Capture().StateHash, restored.Capture().StateHash);
+        StateAssert.Equal(automatic.Capture(), restored.Capture());
         Assert.Equal(ControllerKind.Automatic, restored.PlayerForceController);
         Assert.Equal(16, restored.AiState.Configuration.WorkBudget);
         Assert.Throws<ArgumentException>(() => GameSession.Restore(content,

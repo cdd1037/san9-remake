@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -170,13 +171,13 @@ public sealed class CombatRuleCompletionTests
         SimulationEngine Engine(WorldState state) => new(state, rules.Economy, rules.Personnel, rules.Treasures, military: rules.Military);
         var engine = Engine(world);
         var restored = Engine(WorldState.Restore(engine.CaptureStableState()));
-        Assert.Equal(CanonicalJson.Text(engine.AdvanceXun().Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+        EventAssert.Equal(engine.AdvanceXun().Events, restored.AdvanceXun().Events);
         Assert.Single(engine.Snapshot.Simulation.Tasks);
         var result = engine.AdvanceXun();
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+        EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
         Assert.Equal(new GameClock(190, 1, 14), Assert.Single(result.Events.OfType<PersonnelReturnedEvent>()).Clock);
         Assert.Empty(engine.Snapshot.Simulation.Tasks);
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
     }
 
     [Fact]

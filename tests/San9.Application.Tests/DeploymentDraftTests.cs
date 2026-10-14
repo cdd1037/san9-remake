@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Application.Presentation;
 using San9.Content.Scenarios;
@@ -24,7 +25,7 @@ public sealed class DeploymentDraftTests
                 new(2, 2, MapCoordinates.Center(new(3, 0)), 100) { FormationId = 900 },
                 new(3, 1, MapCoordinates.Center(new(0, 3)), 100) { FormationId = 900 }]
         });
-        string hash = view.World.StateHash;
+        var hash = view.World;
         var attack = new UnitCommandTargets(view, 7, UnitCommandKind.Attack);
         Assert.Equal(new MilitaryTarget(2, true), attack.Selected);
         Assert.Equal(new MapCell(1, 0), attack.Waypoint);
@@ -48,7 +49,7 @@ public sealed class DeploymentDraftTests
         var marchCommand = march.CreateCommand(Guid.NewGuid(), 0);
         Assert.Equal(MilitaryOrderKind.Return, marchCommand.Order.Kind);
         Assert.Null(marchCommand.Waypoint);
-        Assert.Equal(hash, view.World.StateHash);
+        StateAssert.Equal(hash, view.World);
     }
 
     [Theory]
@@ -68,7 +69,7 @@ public sealed class DeploymentDraftTests
                     Order = originalOrder, Waypoint = new(8, 2) },
                 new(2, 2, MapCoordinates.Center(new(3, 0)), 100) { FormationId = 900 }]
         });
-        string hash = view.World.StateHash;
+        var hash = view.World;
         var original = new UnitCommandTargets(view, 7, originalKind);
         Assert.Equal(originalTarget, original.Selected);
         Assert.NotEmpty(original.Route);
@@ -89,7 +90,7 @@ public sealed class DeploymentDraftTests
         Assert.Equal(nextKind == UnitCommandKind.March ? MilitaryOrderKind.Return : MilitaryOrderKind.AttackUnit, command.Order.Kind);
         Assert.Equal(nextTarget.Id, nextTarget.IsUnit ? command.Order.UnitId : command.Order.SettlementId);
         Assert.Null(command.Waypoint);
-        Assert.Equal(hash, view.World.StateHash);
+        StateAssert.Equal(hash, view.World);
     }
 
     [Theory]
@@ -148,7 +149,7 @@ public sealed class DeploymentDraftTests
     [Fact]
     public void PreparationKeepsWorldUntouchedAndUsesCommanderAndCurrentMembers()
     {
-        var view = View(); string hash = view.World.StateHash; var draft = new DeploymentDraft(view, 1);
+        var view = View(); var hash = view.World; var draft = new DeploymentDraft(view, 1);
         Assert.Empty(draft.Members); Assert.False(draft.CanProceed);
         Assert.True(draft.SetMembers([3, 2, 1])); Assert.Equal(1, draft.CommanderId);
         Assert.Equal(900, draft.FormationId); Assert.Equal(700, draft.NavalFormationId); Assert.Equal(32000u, draft.Soldiers);
@@ -159,7 +160,7 @@ public sealed class DeploymentDraftTests
         Assert.DoesNotContain(draft.Formations(false), f => f.Id == 200);
         Assert.True(draft.SetMembers([3])); Assert.Equal(10000u, draft.MaximumSoldiers);
         Assert.False(draft.SetSoldiers(0)); Assert.False(draft.SetSoldiers(10001)); Assert.Equal(10000u, draft.Soldiers);
-        Assert.Equal(hash, view.World.StateHash); Assert.Empty(view.World.Units);
+        StateAssert.Equal(hash, view.World); Assert.Empty(view.World.Units);
     }
     [Fact]
     public void FormationChangeResetsPositionsAndRosterConfirmationRetainsValidPositions()
@@ -203,7 +204,7 @@ public sealed class DeploymentDraftTests
             new(4, 2, MapCoordinates.Center(new(3, 1)), 100) { FormationId = 900, IsEmbedded = true },
             new(5, 2, MapCoordinates.Center(new(3, 2)), 100) { IsPersonnel = true }] });
         var draft = new DeploymentDraft(view, 1); draft.SetMembers([1]); draft.SetSoldiers(123);
-        string hash = view.World.StateHash;
+        var hash = view.World;
         var targets = new DeploymentTargets(draft);
         Assert.Equal(2, targets.Candidates.Count);
         Assert.Equal(MilitaryMarker.Attack, targets.Candidates[new(2, false)]);
@@ -213,7 +214,7 @@ public sealed class DeploymentDraftTests
         Assert.Equal(new MilitaryTarget(2, true), targets.Selected);
         Assert.Contains(new MapCell(3, 0), targets.ClearCells);
         Assert.DoesNotContain(new MapCell(0, 0), targets.ClearCells);
-        Assert.Equal(hash, view.World.StateHash); Assert.Equal(123u, draft.Soldiers);
+        StateAssert.Equal(hash, view.World); Assert.Equal(123u, draft.Soldiers);
         Assert.Equal(new[] { 1 }, draft.Members);
     }
 
@@ -232,7 +233,7 @@ public sealed class DeploymentDraftTests
         var texts = new San9.Content.Text.TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion,
             keys.ToDictionary(k => k, k => k));
         var targets = new DeploymentTargets(new(view, 1));
-        string hash = view.World.StateHash;
+        var hash = view.World;
         var catalog = new MilitaryTargetCatalog(targets, texts);
         var place = Assert.Single(catalog.Rows, r => !catalog.Target(r.Id).IsUnit);
         var unit = Assert.Single(catalog.Rows, r => catalog.Target(r.Id).IsUnit);
@@ -247,7 +248,7 @@ public sealed class DeploymentDraftTests
         Assert.Equal(new MilitaryTarget(2, true), catalog.Target(table.Rows[0].Id));
         table.Sort(2);
         Assert.Equal(new MilitaryTarget(2, false), catalog.Target(table.Rows[0].Id));
-        Assert.Null(targets.Selected); Assert.Equal(hash, view.World.StateHash);
+        Assert.Null(targets.Selected); StateAssert.Equal(hash, view.World);
     }
 
     [Fact]
@@ -279,7 +280,7 @@ public sealed class DeploymentDraftTests
     public void RouteWaypointTargetSwitchAndPoliciesRemainLocalAndReversible()
     {
         var view = View(world => world with { Units = [new(2, 2, MapCoordinates.Center(new(3, 3)), 100) { FormationId = 900 }] });
-        string hash = view.World.StateHash;
+        var hash = view.World;
         var draft = new DeploymentDraft(view, 1); draft.SetMembers([1]);
         var targets = new DeploymentTargets(draft);
         Assert.False(targets.SetWaypoint(new(0, 0))); Assert.False(targets.BeginPolicies());
@@ -295,6 +296,6 @@ public sealed class DeploymentDraftTests
         Assert.False(targets.Select(new(2, false))); Assert.False(targets.SetWaypoint(new(0, 0)));
         targets.ReturnToTargets(); Assert.Equal(new UnitPolicies(true, true, false, true), targets.Policies);
         Assert.Equal(new MilitaryTarget(2, true), targets.Selected); Assert.NotEmpty(targets.Route);
-        Assert.Equal(hash, view.World.StateHash);
+        StateAssert.Equal(hash, view.World);
     }
 }

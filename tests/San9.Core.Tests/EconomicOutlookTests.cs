@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -45,7 +46,7 @@ public sealed class EconomicOutlookTests
             Settlements = [new(15, 5, 1000, 100, 100, 50, 800, 100, 100, 100, 100) { CorpsId = 10, Wounded = 1000 }],
             Officers = [new(1, 5, 15, new(50, 50, 50, 50), false) { IsDormant = true }]
         };
-        string before = snapshot.StateHash;
+        var before = snapshot;
         var supplied = EconomicOutlook.Read(snapshot, new Dictionary<int, int>(), 5, 10);
         Assert.Equal(0, supplied.Money.Expenditure);
         Assert.Equal(30000, supplied.Money.Forecast);
@@ -54,7 +55,7 @@ public sealed class EconomicOutlookTests
         var withoutCity = EconomicOutlook.Read(snapshot, new Dictionary<int, int>(), 5, 11);
         Assert.Equal(40000, withoutCity.Money.Forecast);
         Assert.Equal(200000, withoutCity.Food.Forecast);
-        Assert.Equal(before, snapshot.StateHash);
+        StateAssert.Equal(before, snapshot);
     }
 
     [Theory]
@@ -71,13 +72,13 @@ public sealed class EconomicOutlookTests
             Settlements=[new(15,5,500,1000,1000,50,100,0,1000,0,1000) { CorpsId=10,Kind=SettlementKind.City }],
             Officers=[new(1,5,15,new(50,50,50,50),false) { Status=OfficerStatus.Ruler },new(2,5,15,new(50,50,50,50),false) { Status=OfficerStatus.Serving }]
         };
-        string before=world.StateHash;
+        var before=world;
         var forecast=EconomicOutlook.Read(world,new Dictionary<int,int>(),5);
         Assert.Equal(salaryCount,forecast.Money.Expenditure);
         Assert.Equal(foodDays,forecast.Food.Expenditure);
         Assert.Equal(1000-salaryCount,forecast.Money.Forecast);
         Assert.Equal(1000-foodDays,forecast.Food.Forecast);
-        Assert.Equal(before,world.StateHash);
+        StateAssert.Equal(before, world);
     }
     [Fact]
     public void NewlyStartedScenarioSkipsIncomeBoundariesBeforeThirtyDays()

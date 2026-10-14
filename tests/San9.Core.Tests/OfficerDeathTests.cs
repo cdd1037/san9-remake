@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Text.Json;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -58,9 +59,8 @@ public sealed class OfficerDeathTests
             ? events.OfType<TreasureDroppedEvent>().Select(e => e.TreasureId)
             : events.OfType<TreasureTransferredEvent>().Select(e => e.TreasureId));
         var restored = WorldState.Restore(JsonSerializer.Deserialize<WorldSnapshot>(CanonicalJson.Text(snapshot), CanonicalJson.Options)!);
-        Assert.Equal(snapshot.StateHash, restored.CreateSnapshot().StateHash);
-        Assert.Equal(CanonicalJson.Text(events), CanonicalJson.Text(
-            JsonSerializer.Deserialize<DomainEvent[]>(JsonSerializer.Serialize(events))));
+        StateAssert.Equal(snapshot, restored.CreateSnapshot());
+        EventAssert.Equal(events, Assert.IsType<DomainEvent[]>(JsonSerializer.Deserialize<DomainEvent[]>(JsonSerializer.Serialize(events))));
     }
 
     [Fact]

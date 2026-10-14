@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using System.Text.Json;
 using San9.Core.Domain;
@@ -193,8 +194,8 @@ public sealed class OriginalCombatAlignmentTests
         var expected = first.AdvanceXun(); var actual = second.AdvanceXun();
         Assert.NotEmpty(expected.Events.OfType<DailyAttritionEvent>());
         Assert.NotEmpty(expected.Events.OfType<GarrisonMoraleRecoveredEvent>());
-        Assert.Equal(CanonicalJson.Text(expected.Events), CanonicalJson.Text(actual.Events));
-        Assert.Equal(first.Snapshot.StateHash, second.Snapshot.StateHash);
+        EventAssert.Equal(expected.Events, actual.Events);
+        StateAssert.Equal(first.Snapshot, second.Snapshot);
         Assert.NotNull(WorldState.Restore(first.CaptureStableState()));
     }
 }

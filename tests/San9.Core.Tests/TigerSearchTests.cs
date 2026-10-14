@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -13,8 +14,7 @@ public sealed class TigerSearchTests
             new Dictionary<int, int> { [2] = 1 }, cityProvinces: new Dictionary<int, int> { [1] = 800, [3] = 900 },
             searchEvents: definitions.Length == 0 ? [Definition] : definitions)
     };
-    private static ulong Seed(int roll) => Enumerable.Range(1, 10000).Select(i => (ulong)i)
-        .First(s => new StableRandom(s).NextUInt64() % 100 == (ulong)roll);
+    private static ulong Seed(int roll) => TestSeeds.StateForRoll(roll);
     private static (WorldMutation World, PersistentTask Task) Create(int eligibilityRoll = 0, int battleRoll = 0)
     {
         var world = WorldState.Create(new(190, 2, 1), 123,

@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Application.AI;
 using San9.Application.Persistence;
@@ -40,12 +41,12 @@ public sealed class CampaignPlanningTests
             { Simulation = world.Simulation with { ActiveControl = 1 } }));
         var command = new DeployUnitCommand(Guid.NewGuid(), 2, world.Simulation.NextSequence, 2, [3], 5000, 7,
             new(MilitaryOrderKind.AttackSettlement, null, 3));
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         foreach (var query in new[] { command, command with { Soldiers = 50000 }, command with { OfficerIds = [1] },
             command with { DepartureDelayDays = 20 } })
         foreach (var context in new[] { new CommandContext("ai:2"), new CommandContext("forged") })
             Assert.Equal(engine.Validate(context, query).Rejection, engine.GetPreparationEligibility(context, query));
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         Assert.Equal(CommandRejection.None, engine.GetPreparationEligibility(new("ai:2"), command));
         Assert.True(engine.Execute(new("ai:2"), command).Submission.Accepted);
         Assert.NotEqual(CommandRejection.None, engine.GetPreparationEligibility(new("ai:2"), command with
@@ -76,7 +77,8 @@ public sealed class CampaignPlanningTests
         session.AllocationDiagnosticsEnabled = true;
         session.BeginRecording();
         var result = session.Apply(session.Request(new PrepareAdvanceOperation()));
-        Assert.True(result.Events.OfType<UnitDeployedEvent>().Any(e => e.SettlementId == 2), System.Text.Json.JsonSerializer.Serialize(session.AllocationDiagnostics.Batches));
+        if (!result.Events.OfType<UnitDeployedEvent>().Any(e => e.SettlementId == 2))
+            Assert.Fail(System.Text.Json.JsonSerializer.Serialize(session.AllocationDiagnostics.Batches));
         Assert.Single(session.AiState.Campaigns);
         Assert.Equal(3, Assert.Single(session.Snapshot.Units).Order!.SettlementId);
         Assert.True(Assert.Single(session.Snapshot.Units).Policies.AutonomousRetreat);
@@ -85,8 +87,8 @@ public sealed class CampaignPlanningTests
         for (int i = 0; i < 6; i++)
         {
             var next = session.AdvanceXun();
-            Assert.Equal(CanonicalJson.Hash(next.Events), CanonicalJson.Hash(restored.AdvanceXun().Events));
-            Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+            EventAssert.Equal(next.Events, restored.AdvanceXun().Events);
+            StateAssert.Equal(session.Capture(), restored.Capture());
             events.AddRange(next.Events);
         }
         Assert.Contains(events.OfType<SettlementCapturedEvent>(), e => e.SettlementId == 3);
@@ -95,7 +97,7 @@ public sealed class CampaignPlanningTests
             e.Command.Activity is DomesticActivity.Patrol or DomesticActivity.Repair);
         Assert.DoesNotContain(session.Snapshot.Units, u => u.Order?.SettlementId == 3 && u.Order.Kind == MilitaryOrderKind.AttackSettlement);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -106,7 +108,7 @@ public sealed class CampaignPlanningTests
         var captured = session.Capture();
         var changed = GameSession.Restore(definition, captured with { World = captured.World with
             { Officers = captured.World.Officers.Select(p => p.OwnerId == 1 ? p with { Acted = true, TacticCooldown = 9 } : p).ToArray() } });
-        Assert.Equal(CanonicalJson.Hash(Observe(session, definition)), CanonicalJson.Hash(Observe(changed, definition)));
+        Assert.Equal(CanonicalJson.Text(Observe(session, definition)), CanonicalJson.Text(Observe(changed, definition)));
     }
 
     [Fact]
@@ -149,7 +151,7 @@ public sealed class CampaignPlanningTests
     public void UnresolvedCommittedArrivalIsNotEvidenceOfAnInvalidOrder()
     {
         var goal = new CampaignGoal(2, "ai:2", 3, 1, CampaignPhase.Attacking,
-            new(190, 1, 1), new(190, 1, 1), 100000, 20, [7], "conditions");
+            new(190, 1, 1), new(190, 1, 1), 100000, 20, [7], Target(1000, 5).CaptureConditions());
         var observed = Input([]) with { Complete = false, AnalysisReady = true, ActiveUnitIds = [7], UnresolvedUnitIds = [7] };
         var decision = CampaignPlanner.Decide(observed, [goal], new(65536));
         Assert.Empty(decision.Candidates);
@@ -206,7 +208,7 @@ public sealed class CampaignPlanningTests
     [Fact]
     public void IncompleteObservationPreservesTheCommitmentAndCannotOrderAWithdrawal()
     {
-        var goal = new CampaignGoal(2, "ai:2", 3, 1, CampaignPhase.Attacking, new(190, 1, 1), new(190, 1, 1), 100000, 20, [7], "conditions");
+        var goal = new CampaignGoal(2, "ai:2", 3, 1, CampaignPhase.Attacking, new(190, 1, 1), new(190, 1, 1), 100000, 20, [7], Target(1000, 5).CaptureConditions());
         var incomplete = Input([]) with { Places = [], Complete = false };
         var decision = CampaignPlanner.Decide(incomplete, [goal], new(65536));
         Assert.Empty(decision.Candidates);
@@ -241,8 +243,8 @@ public sealed class CampaignPlanningTests
         for (int i = 0; i < 8; i++)
         {
             var next = session.AdvanceXun();
-            Assert.Equal(CanonicalJson.Hash(next.Events), CanonicalJson.Hash(restored.AdvanceXun().Events));
-            Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+            EventAssert.Equal(next.Events, restored.AdvanceXun().Events);
+            StateAssert.Equal(session.Capture(), restored.Capture());
             events.AddRange(next.Events);
         }
         Assert.Contains(events.OfType<UnitDeployedEvent>(), e => e.SettlementId == 2);
@@ -263,7 +265,7 @@ public sealed class CampaignPlanningTests
         var retreat = new AllocationCandidate("ai:2", 2, new OrderUnitCommand(Guid.Empty, 2, 0, 7,
             new(MilitaryOrderKind.Return, null, 2)), [], 0, 10000, 0, 0, 2, 2, new(ArrivalEstimateStatus.Known, 5), Purpose: "withdraw:7");
         var active = Force(2, 10000) with { UnitId = 7 };
-        var goal = new CampaignGoal(2, "ai:2", 3, 1, CampaignPhase.Attacking, new(190, 1, 1), new(190, 1, 1), 1, 10, [7], "public-conditions");
+        var goal = new CampaignGoal(2, "ai:2", 3, 1, CampaignPhase.Attacking, new(190, 1, 1), new(190, 1, 1), 1, 10, [7], Target(1000, 5).CaptureConditions());
         var observation = Input([active]) with { Clock = new(190, 2, 1), ActiveUnitIds = [7], Returns = [retreat] };
         var stalled = CampaignPlanner.Decide(observation, [goal], new(65536));
         Assert.Equal(retreat, Assert.Single(stalled.Candidates));
@@ -279,7 +281,7 @@ public sealed class CampaignPlanningTests
     public void AlternatingFeintsDoNotRetargetTheCommittedArmyButARealCounterattackDoes()
     {
         var active = Force(2, 10000) with { UnitId = 7 };
-        var goal = new CampaignGoal(2, "ai:2", 3, 1, CampaignPhase.Attacking, new(190, 1, 1), new(190, 1, 1), 100000, 20, [7], "public-conditions");
+        var goal = new CampaignGoal(2, "ai:2", 3, 1, CampaignPhase.Attacking, new(190, 1, 1), new(190, 1, 1), 100000, 20, [7], Target(1000, 5).CaptureConditions());
         var retreat = new AllocationCandidate("ai:2", 2, new OrderUnitCommand(Guid.Empty, 2, 0, 7,
             new(MilitaryOrderKind.Return, null, 2)), [], 0, 10000, 0, 0, 2, 2, new(ArrivalEstimateStatus.Known, 5), Purpose: "withdraw:7");
         var observation = Input([active]) with { Places = [Target(1000, 5)], ActiveUnitIds = [7], Returns = [retreat] };
@@ -299,7 +301,7 @@ public sealed class CampaignPlanningTests
     public void ExhaustedComparisonDoesNotTreatAnUnknownPlanAsAProvenFailure()
     {
         var active = Force(2, 10000) with { UnitId = 7 };
-        var goal = new CampaignGoal(2, "ai:2", 3, 1, CampaignPhase.Attacking, new(190, 1, 1), new(190, 1, 1), 1, 20, [7], "public-conditions");
+        var goal = new CampaignGoal(2, "ai:2", 3, 1, CampaignPhase.Attacking, new(190, 1, 1), new(190, 1, 1), 1, 20, [7], Target(1000, 5).CaptureConditions());
         var observation = Input([active]) with { ActiveUnitIds = [7] };
         var decision = CampaignPlanner.Decide(observation, [goal], new(2));
         Assert.Empty(decision.Candidates);
@@ -341,8 +343,8 @@ public sealed class CampaignPlanningTests
         for (int i = 0; i < 8; i++)
         {
             var next = session.AdvanceXun();
-            Assert.Equal(CanonicalJson.Hash(next.Events), CanonicalJson.Hash(restored.AdvanceXun().Events));
-            Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+            EventAssert.Equal(next.Events, restored.AdvanceXun().Events);
+            StateAssert.Equal(session.Capture(), restored.Capture());
             events.AddRange(next.Events);
         }
         Assert.Contains(events.OfType<UnitDeployedEvent>(), e => e.SettlementId == 2);
@@ -432,7 +434,7 @@ public sealed class CampaignPlanningTests
     public void ConsolidationReturnsRemainingUnitsEvenWhenOnlyAnotherHomeIsReachable()
     {
         var goal = new CampaignGoal(2, "ai:2", 3, 1, CampaignPhase.Attacking,
-            new(190, 1, 1), new(190, 1, 1), 100000, 20, [7], "conditions");
+            new(190, 1, 1), new(190, 1, 1), 100000, 20, [7], Target(1000, 5).CaptureConditions());
         var retreat = new AllocationCandidate("ai:2", 2, new OrderUnitCommand(Guid.Empty, 2, 0, 7,
             new(MilitaryOrderKind.Return, null, 2)), [], 0, 10000, 0, 0,
             2, 2, new(ArrivalEstimateStatus.Known, 5), Purpose: "withdraw:7");

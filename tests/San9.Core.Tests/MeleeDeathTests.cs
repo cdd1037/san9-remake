@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using System.Text.Json;
 using San9.Core.Domain;
@@ -11,13 +12,9 @@ public sealed class MeleeDeathTests
 
     private static void Roll(WorldMutation world, string stream, uint value)
     {
-        for (ulong seed = 1; ; seed++)
-        {
-            if (new StableRandom(seed).NextUInt64() % 100 != value) continue;
-            world.SetSimulation(world.Simulation with { RandomStreams = world.Simulation.RandomStreams
-                .Where(s => s.Name != stream).Append(new(stream, seed)).OrderBy(s => s.Name, StringComparer.Ordinal).ToImmutableArray() });
-            return;
-        }
+        ulong seed = TestSeeds.StateForRoll((int)value);
+        world.SetSimulation(world.Simulation with { RandomStreams = world.Simulation.RandomStreams
+            .Where(s => s.Name != stream).Append(new(stream, seed)).OrderBy(s => s.Name, StringComparer.Ordinal).ToImmutableArray() });
     }
 
     [Theory]
@@ -158,7 +155,7 @@ public sealed class MeleeDeathTests
             state.Commit(m);
         }
         Assert.Equal(CanonicalJson.Text(first), CanonicalJson.Text(second));
-        Assert.Equal(world.CreateSnapshot().StateHash, restored.CreateSnapshot().StateHash);
-        Assert.Equal(world.CreateSnapshot().StateHash, WorldState.Restore(world.CreateSnapshot()).CreateSnapshot().StateHash);
+        StateAssert.Equal(world.CreateSnapshot(), restored.CreateSnapshot());
+        StateAssert.Equal(world.CreateSnapshot(), WorldState.Restore(world.CreateSnapshot()).CreateSnapshot());
     }
 }

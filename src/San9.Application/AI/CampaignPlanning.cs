@@ -8,16 +8,18 @@ namespace San9.Application.AI;
 public enum CampaignPhase { Preparing, Assembling, Attacking, Consolidating, Withdrawing, CoolingDown }
 public sealed record CampaignGoal(int ForceId, string ControllerId, int TargetId, int? ExpectedOwnerId,
     CampaignPhase Phase, GameClock Started, GameClock LastProgress, long Progress,
-    int ExpectedDays, ImmutableArray<int> UnitIds, string Conditions)
+    int ExpectedDays, ImmutableArray<int> UnitIds, CampaignConditions Conditions)
 {
     [JsonRequired] public ImmutableArray<int> SourceIds { get; init; } = [];
 }
+
+public sealed record CampaignConditions(int? OwnerId, uint Soldiers, int Durability, int Morale);
 
 public sealed record CampaignPlace(int Id, int? OwnerId, uint Soldiers, int Morale, int Durability,
     int MaxDurability, int PublicOrder, int Leadership, CombatProfile Profile, long Value)
 {
     public bool CanRetaliate { get; init; } = true;
-    public string ConditionsFingerprint() => CanonicalJson.Hash(new { OwnerId, Soldiers, Durability, Morale });
+    public CampaignConditions CaptureConditions() => new(OwnerId, Soldiers, Durability, Morale);
 }
 public sealed record CampaignForce(AllocationCandidate Action, uint Soldiers, int Morale, int Leadership,
     CombatProfile Profile, bool DamagesWalls, int? UnitId = null, long TacticValue = 0, bool NeedsOrder = false);
@@ -106,7 +108,7 @@ internal static class CampaignPlanner
             int index = goals.IndexOf(goal);
             if (goal.Phase == CampaignPhase.CoolingDown)
             {
-                if (target is null || observation.Clock.DayNumber - goal.LastProgress.DayNumber >= 30 || target.ConditionsFingerprint() != goal.Conditions)
+                if (target is null || observation.Clock.DayNumber - goal.LastProgress.DayNumber >= 30 || target.CaptureConditions() != goal.Conditions)
                     goals.Remove(goal);
                 continue;
             }
@@ -154,7 +156,7 @@ internal static class CampaignPlanner
                 bool exited = !goal.UnitIds.Intersect(observation.ActiveUnitIds).Any();
                 goals[index] = goal with { Phase = exited ? CampaignPhase.CoolingDown : CampaignPhase.Withdrawing,
                     LastProgress = exited ? observation.Clock : goal.LastProgress,
-                    Conditions = target?.ConditionsFingerprint() ?? goal.Conditions };
+                    Conditions = target?.CaptureConditions() ?? goal.Conditions };
             }
         }
         // A force finishes or exits its current commitment before spending the same reserve on a new objective.
@@ -177,7 +179,6 @@ internal static class CampaignPlanner
         if (options.IsEmpty) return null;
         var committed = options.Where(f => f.UnitId is not null).ToImmutableArray();
         (ImmutableArray<AllocationCandidate> Actions, CampaignForecast Forecast, long Value)? best = null;
-        string? conditions = null;
         List<ImmutableArray<CampaignForce>> evaluated = [];
         // Keep a mobility alternative as well as troop strength, wall strength and preparation.
         // Fast, weaker formations must reach the actual forecast before value comparison can reject them.
@@ -197,7 +198,7 @@ internal static class CampaignPlanner
                 var chosen = committed.AddRange(fresh.Take(count));
                 if (evaluated.Any(previous => previous.SequenceEqual(chosen))) continue;
                 evaluated.Add(chosen);
-                var plan = EvaluatePlan(target, chosen, observation, work, ref conditions);
+                var plan = EvaluatePlan(target, chosen, observation, work);
                 if (plan is { } result && (best is null || result.Value > best.Value.Value)) best = result;
             }
         }
@@ -205,7 +206,7 @@ internal static class CampaignPlanner
     }
 
     private static (ImmutableArray<AllocationCandidate> Actions, CampaignForecast Forecast, long Value)? EvaluatePlan(CampaignPlace target,
-        ImmutableArray<CampaignForce> chosen, CampaignObservation observation, AllocationWork work, ref string? conditions)
+        ImmutableArray<CampaignForce> chosen, CampaignObservation observation, AllocationWork work)
     {
         if (chosen.IsEmpty || chosen.Any(f => f.Morale < 30)) return null;
         var officers = chosen.SelectMany(f => f.Action.Officers).ToArray();
@@ -245,11 +246,10 @@ internal static class CampaignPlanner
         bool Preparing(AllocationCandidate c) => c.Intent is not (DeployUnitCommand or OrderUnitCommand);
         if (next.Any(Preparing)) next = next.Where(Preparing).ToImmutableArray();
         if (next.IsEmpty) return ([], delayed, value);
-        string fingerprint = conditions ??= target.ConditionsFingerprint();
         return (next.Select(c => c with
         { Benefit = value, Priority = 2, Purpose = "campaign", Campaign = new(observation.ForceId, c.ControllerId, target.Id,
             target.OwnerId, Preparing(c) ? CampaignPhase.Preparing : CampaignPhase.Assembling, observation.Clock, observation.Clock,
-            target.Soldiers + target.Durability * 100L + latest * 1000L, delayed.Days, [], fingerprint)
+            target.Soldiers + target.Durability * 100L + latest * 1000L, delayed.Days, [], target.CaptureConditions())
             { SourceIds = chosen.Select(f => f.Action.SourceId).OfType<int>().Distinct().Order().ToImmutableArray() } }).ToImmutableArray(), delayed, value);
     }
 }

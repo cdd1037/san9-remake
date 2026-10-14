@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.Persistence;
 using San9.Application.Presentation;
 using San9.Content.Scenarios;
@@ -41,11 +42,11 @@ public sealed class TreasureCommandTests
         var request = session.Request(new CommandOperation(new ConfiscateTreasureCommand(id, 1, 1, 10)), id: id);
         var result = session.Apply(request);
         Assert.Equal(SessionDisposition.Accepted, result.Disposition);
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.Apply(request).Events));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(restored));
+        EventAssert.Equal(result.Events, restored.Apply(request).Events);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         Assert.Equal(initialLoyalty + 8 - 12, session.Snapshot.Officers.Single(p => p.Id == 2).Loyalty);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
         Assert.Equal(1, definition.Information.TreasureStates.Single().HolderId);
         Assert.Equal(50, GameSession.Start(definition, 190).View.Officers.Single(p => p.Id == 2).Abilities.War);
     }

@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Content.Scenarios;
 using San9.Application.Presentation;
 using San9.Application.Persistence;
@@ -48,10 +49,10 @@ public sealed class ConstructionSessionTests
         Assert.Equal(3, building.X);
         Assert.Empty(ConstructionLocations.Read(session, 1, 9000));
         var restored = SaveService.Decode(SaveService.Encode(session), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(session.Snapshot.StateHash, restored.Snapshot.StateHash);
+        StateAssert.Equal(session.Snapshot, restored.Snapshot);
         for (int i = 0; i < 3; i++)
         {
-            Assert.Equal(CanonicalJson.Text(session.AdvanceXun().Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+            EventAssert.Equal(session.AdvanceXun().Events, restored.AdvanceXun().Events);
         }
         Assert.False(restored.View.Settlements.Single(s => s.Id == 8000).IsUnderConstruction);
         Assert.Equal(10000u, restored.View.Settlements.Single(s => s.Id == 8000).Soldiers);
@@ -80,8 +81,8 @@ public sealed class ConstructionSessionTests
         Assert.Equal(0u, rebuilt.Soldiers);
         var loaded = SaveService.Decode(SaveService.Encode(session), definition);
         Assert.Equal("白水土垒", loaded.View.Settlements.Single(s => s.Id == 8000).ResolveName(texts));
-        Assert.Equal(session.Snapshot.StateHash, loaded.Snapshot.StateHash);
+        StateAssert.Equal(session.Snapshot, loaded.Snapshot);
         var replay = RecordingService.Replay(RecordingService.Encode(session.CaptureRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 }

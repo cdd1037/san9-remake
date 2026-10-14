@@ -15,7 +15,7 @@ internal static class SessionValidation
         if (snapshot.Ai is null) throw new ArgumentException("Missing AI state.");
         if (!Enum.IsDefined(snapshot.PlayerForceController)) throw new ArgumentException("Invalid player force controller.");
         snapshot.Ai.Validate(snapshot.World);
-        var expected = definition.CreateWorld(snapshot.World.Simulation.InitialSeed);
+        var initialClock = new GameClock(definition.Content.Year, definition.Content.Month, definition.Content.Day);
         var generated = snapshot.World.Forces.Where(f => f.Origin is not null).OrderBy(f => f.Id).ToArray();
         long nextForceId = (long)definition.Content.Forces.Max(f => f.Id) + 1;
         foreach (var force in generated)
@@ -31,7 +31,7 @@ internal static class SessionValidation
                 }) ||
                 !definition.Content.Officers.Any(o => o.State.Id == origin.FounderId) ||
                 !definition.Content.Settlements.Any(s => s.Id == origin.SettlementId && s.Kind == SettlementKind.City) ||
-                origin.Clock.DayNumber < expected.Clock.DayNumber + 30 || origin.Clock.DayNumber > snapshot.World.Clock.DayNumber)
+                origin.Clock.DayNumber < initialClock.DayNumber + 30 || origin.Clock.DayNumber > snapshot.World.Clock.DayNumber)
                 throw new ArgumentException("Invalid runtime force provenance.");
         }
         var expectedControls = definition.Content.Forces.OrderBy(f => f.Id == definition.Content.PlayerForceId ? 0 : 1).ThenBy(f => f.Id)
@@ -39,17 +39,7 @@ internal static class SessionValidation
                 f.Id == definition.Content.PlayerForceId ? snapshot.PlayerForceController : ControllerKind.Automatic))
             .Concat(generated.Select(f => new ControlSeat($"ai:{f.Id}", f.Id, ControllerKind.Automatic)))
             .Where(c => snapshot.World.Forces.Any(f => f.Id == c.ForceId && !f.IsDormant && !f.IsEliminated));
-        if (snapshot.World.Simulation.Started != expected.Clock ||
-            snapshot.World.Simulation.AnnualAppearancesEnabled != expected.Simulation.AnnualAppearancesEnabled ||
-            snapshot.World.Simulation.FreeOfficerMigrationEnabled != expected.Simulation.FreeOfficerMigrationEnabled ||
-            snapshot.World.Simulation.OfficeRequestsEnabled != expected.Simulation.OfficeRequestsEnabled ||
-            snapshot.World.Simulation.ForceConsolidationEnabled != expected.Simulation.ForceConsolidationEnabled ||
-            snapshot.World.Simulation.ForceEmergenceEnabled != expected.Simulation.ForceEmergenceEnabled ||
-            snapshot.World.Simulation.CityIndependenceEnabled != expected.Simulation.CityIndependenceEnabled ||
-            snapshot.World.Simulation.UnitDefectionsEnabled != expected.Simulation.UnitDefectionsEnabled ||
-            snapshot.World.Simulation.SettlementDefectionsEnabled != expected.Simulation.SettlementDefectionsEnabled ||
-            snapshot.World.Simulation.NaturalDeathsEnabled != expected.Simulation.NaturalDeathsEnabled ||
-            expected.Simulation.ImperialCourtEnded && !snapshot.World.Simulation.ImperialCourtEnded ||
+        if (snapshot.World.Simulation.Started != initialClock ||
             !snapshot.World.Simulation.Controls.SequenceEqual(expectedControls))
             throw new ArgumentException("Scenario date or control configuration mismatch.");
         var content = definition.Content;

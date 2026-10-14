@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -47,10 +48,10 @@ public sealed class BurnStrategyTests
     {
         var engine = new SimulationEngine(world, rules);
         var command = new BurnCommand(Guid.NewGuid(), 1, world.Simulation.NextSequence, 11, 2);
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         var balances = engine.Snapshot.Forces;
         Assert.True(engine.Validate(new("player"), command).Accepted);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         Assert.True(engine.Execute(new("player"), command).Submission.Accepted);
         Assert.Equal(balances, engine.Snapshot.Forces);
         var mutation = world.BeginMutation();
@@ -143,10 +144,10 @@ public sealed class BurnStrategyTests
     public void GeographyUsesDirectedImmediateCityNeighborsAndAdviceIsReadOnly()
     {
         var world = World(); var rules = Rules(); var engine = new SimulationEngine(world, rules);
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         Assert.Equal(AdviserOpinion.NoAdviser, engine.GetBurnAdvice(1, 11, 2).Opinion);
         Assert.Equal(CommandRejection.InvalidTask, engine.GetBurnAdvice(1, 11, 3).Rejection);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         Assert.False(BurnStrategies.Eligible(world.BeginMutation(), 2, 2, 1, rules));
     }
 

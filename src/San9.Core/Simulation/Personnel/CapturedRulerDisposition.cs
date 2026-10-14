@@ -61,9 +61,7 @@ internal static class CapturedRulerDisposition
             .OrderBy(p => MapCoordinates.Distance(position!.Value, p.Position)).ThenBy(p => p.Id).First().Id;
         // The date has advanced: the shared release starts its countdown from the current day.
         long sequence = world.Simulation.NextSequence;
-        Guid cause = new(Convert.FromHexString(CanonicalJson.Hash(new { Kind = "captured-ruler-release", world.Clock,
-            pending.RulerId, Sequence = sequence })).AsSpan(0, 16));
-        var rejection = PrisonerRelease.Depart(world, ruler.Id, origin, cause, sequence, PrisonerDepartureKind.Released,
+        var rejection = PrisonerRelease.Depart(world, ruler.Id, origin, sequence, PrisonerDepartureKind.Released,
             pending.CaptorId, rules.Personnel, rules.Economy, events, position);
         if (rejection != CommandRejection.None) throw new InvalidOperationException("Captured ruler has no return destination.");
         world.SetSimulation(world.Simulation with { NextSequence = checked(sequence + 1) });

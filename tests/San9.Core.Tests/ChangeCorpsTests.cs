@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -31,7 +32,7 @@ public sealed class ChangeCorpsTests
         var before = engine.Snapshot;
         var command = new ChangeCorpsCommand(Guid.NewGuid(), 1, 0, 11, [3], 50, 300, new DomesticDelegation());
         Assert.True(engine.Validate(new("controller"), command).Accepted);
-        Assert.Equal(before.StateHash, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         var result = engine.Execute(new("controller"), command);
         Assert.True(result.Submission.Accepted);
         Assert.Equal(3, result.Snapshot.Corps.Single(c => c.Id == 11).LeaderId);
@@ -57,12 +58,12 @@ public sealed class ChangeCorpsTests
     public void InvalidChangesAndOverflowAreAtomic(int branch)
     {
         var engine = Engine(branch == 4 ? uint.MaxValue : 1000);
-        var before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         var result = engine.Execute(new("controller"), new ChangeCorpsCommand(Guid.NewGuid(), 1, 0,
             branch == 0 ? 10 : 11, branch == 1 ? [1] : branch == 2 ? [2, 2] : [3],
             branch == 3 ? uint.MaxValue : 0, 0, branch == 5 ? new DefeatForceDelegation(1) : new GeneralDelegation()));
         Assert.False(result.Submission.Accepted);
         Assert.Empty(result.Events);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
     }
 }

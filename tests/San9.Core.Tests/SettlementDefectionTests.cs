@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -202,13 +203,8 @@ public sealed class SettlementDefectionTests
         var world = World(true);
         world.Replace(world.Settlements[2] with { Soldiers = 0 });
         world.Replace(world.Officers[10].WithLoyalty(1, 0).WithLoyalty(2, 100));
-        for (ulong seed = 0; ; seed++)
-        {
-            var random = new StableRandom(seed);
-            if (random.NextUInt64() % 100 != (ulong)roll) continue;
-            world.SetSimulation(world.Simulation with { RandomStreams = [new(SettlementDefections.RandomStream, seed)] });
-            break;
-        }
+        ulong seed = TestSeeds.StateForRoll(roll);
+        world.SetSimulation(world.Simulation with { RandomStreams = [new(SettlementDefections.RandomStream, seed)] });
         Assert.Equal(transfers, Apply(world).OfType<SettlementDefectedEvent>().Any());
     }
 
@@ -264,9 +260,8 @@ public sealed class SettlementDefectionTests
     {
         var world = World(true);
         var route = PersonnelLocations.Route(world, Rules().Personnel, 3, 10);
-        var cause = new PersistentTask(Guid.NewGuid(), PersonnelReturns.Kind, "player", 1, 11, 3,
-            world.Clock, world.Clock, 0, 0);
-        PersonnelReturns.Schedule(world, cause, 11, 3, 10, route.Days, false, [], route);
+        var context = new PersonnelReturnContext("player", 1, 0);
+        PersonnelReturns.Schedule(world, context, 11, 3, 10, route.Days, false, [], route);
         var events = Apply(world);
         Assert.DoesNotContain(11, Assert.Single(events.OfType<SettlementDefectedEvent>()).FollowerIds);
         Assert.Equal(1, world.Officers[11].OwnerId);

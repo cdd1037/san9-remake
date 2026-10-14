@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -57,9 +58,9 @@ public sealed class ChainedPlotSessionTests
         Assert.Empty(restored.InitialEvents.OfType<ChainedPlotEvent>());
         Assert.Empty(session.AdvanceXun().Events.OfType<ChainedPlotEvent>());
         Assert.Empty(restored.AdvanceXun().Events.OfType<ChainedPlotEvent>());
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
     [Fact]
     public void PreludeAndCoupSaveAndReplayAtStableBoundariesWithoutRepeatingDeaths()
@@ -70,18 +71,18 @@ public sealed class ChainedPlotSessionTests
         {
             var restored = SaveService.Decode(SaveService.Encode(session), definition);
             var result = session.AdvanceXun();
-            Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+            EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
             Assert.Equal(step, Assert.Single(result.Events.OfType<ChainedPlotEvent>()).Step);
-            Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+            StateAssert.Equal(session.Capture(), restored.Capture());
             var stable = SaveService.Decode(SaveService.Encode(session), definition);
-            Assert.Equal(session.Capture().StateHash, stable.Capture().StateHash);
+            StateAssert.Equal(session.Capture(), stable.Capture());
             Assert.Empty(stable.InitialEvents);
         }
         Assert.Equal(12, session.Snapshot.Forces.Single().LeaderId);
         Assert.Equal(new[] { 11, 15 }, session.Snapshot.Officers.Where(p => p.Status == OfficerStatus.Dead).Select(p => p.Id));
         Assert.Empty(session.AdvanceXun().Events.OfType<ChainedPlotEvent>());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -93,15 +94,15 @@ public sealed class ChainedPlotSessionTests
         Assert.Equal(11, session.Snapshot.Forces.Single().LeaderId);
         session.BeginRecording();
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         Assert.Empty(restored.InitialEvents);
         Assert.Empty(session.AdvanceXun().Events.OfType<ChainedPlotEvent>());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
-    public void ContentValidatesReferencesAndParametersAndCanonicalizesListsInFingerprint()
+    public void ContentValidatesReferencesAndParameters()
     {
         var definition = Definition(); var plot = definition.ChainedPlot!;
         foreach (var invalid in new[] { plot with { RulerId = 999 }, plot with { SuccessorId = 999 },
@@ -109,8 +110,7 @@ public sealed class ChainedPlotSessionTests
             plot with { LoyaltyThreshold = 256 }, plot with { TrustThreshold = 1001 }, plot with { SupporterMinimumLoyalty = -1 },
             plot with { OpponentMaximumLoyalty = 256 }, plot with { AffinityDivisor = 0 }, plot with { CompletedKey = plot.StartedKey } })
             Assert.Throws<InvalidDataException>(() => (definition with { ChainedPlot = invalid }).Validate());
-        Assert.NotEqual(GameSession.Fingerprint(definition), GameSession.Fingerprint(definition with { ChainedPlot = plot with { TrustThreshold = 999 } }));
-        Assert.Equal(GameSession.Fingerprint(definition), GameSession.Fingerprint(definition with { ChainedPlot = plot with { SupporterIds = [14, 13] } }));
+
         var document = JsonNode.Parse(CanonicalJson.Encode(definition))!.AsObject(); document.Remove("chainedPlot");
         Assert.Throws<JsonException>(() => StrictJson.Deserialize<ScenarioInitialState>(Encoding.UTF8.GetBytes(document.ToJsonString())));
         foreach (string field in new[] { "successorId", "earliestDate", "supporterIds", "completedKey" })

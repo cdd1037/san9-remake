@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -119,7 +120,7 @@ public sealed class FoodTradeTests
         world.AddSettlement(world.Settlements[1] with { Id = 4, Kind = SettlementKind.Facility, MerchantPresenceChance = 0, MerchantPresent = false });
         foreach (int roll in new[] { 19, 20 })
         {
-            ulong seed = Enumerable.Range(1, 10000).Select(i => (ulong)i).First(s => new StableRandom(s).NextUInt64() % 100 == (ulong)roll);
+            ulong seed = TestSeeds.StateForRoll(roll);
             world.SetSimulation(world.Simulation with { RandomStreams = [new("city-merchants", seed)] });
             CityMerchants.Refresh(world, []);
             Assert.Equal(roll == 19, world.Settlements[1].MerchantPresent);

@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.Presentation;
 using San9.Application.Persistence;
 using San9.Content.Interface;
@@ -86,18 +87,18 @@ public sealed class FacilityCommandTests
         Assert.True(draft.SetRecruitAmount(11)); Assert.Equal(2u,draft.Cost);
         var command = Assert.IsType<DevelopCommand>(draft.CreateCommand(Guid.NewGuid(),0));
         Assert.Equal(11u,command.Development.RecruitAmount);
-        string hash = session.Snapshot.StateHash;
+        var hash = session.Snapshot;
         foreach (var invalid in new[] { command.Development with { RecruitAmount = 0 }, command.Development with { RecruitAmount = uint.MaxValue },
             command.Development with { Activity = DomesticActivity.Commerce } })
         {
             Assert.False(session.Execute(new("player"),command with { Development = invalid }).Submission.Accepted);
-            Assert.Equal(hash,session.Snapshot.StateHash);
+            StateAssert.Equal(hash, session.Snapshot);
         }
         var result = session.Execute(new("player"),command);
         Assert.True(result.Submission.Accepted);
         Assert.Equal(11,Assert.Single(result.Events.OfType<DevelopmentCompletedEvent>()).Increment);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()),definition,GameSession.EngineFactory(definition));
-        Assert.Equal(session.Snapshot.StateHash,replay.Session.Snapshot.StateHash);
+        StateAssert.Equal(session.Snapshot, replay.Session.Snapshot);
     }
 
     [Fact]

@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -35,13 +36,8 @@ public sealed class TacticRescueTests
 
     private static void RollValue(WorldMutation world, uint value)
     {
-        for (ulong seed = 1; ; seed++)
-        {
-            world.SetSimulation(world.Simulation with { RandomStreams = [new("military-tactic-rescue", seed)] });
-            if (world.NextRandom("military-tactic-rescue") % 100 != value) continue;
-            world.SetSimulation(world.Simulation with { RandomStreams = [new("military-tactic-rescue", seed)] });
-            return;
-        }
+        ulong seed = TestSeeds.StateForRoll((int)value);
+        world.SetSimulation(world.Simulation with { RandomStreams = [new("military-tactic-rescue", seed)] });
     }
 
     [Theory]
@@ -129,6 +125,6 @@ public sealed class TacticRescueTests
             return json;
         }
         Assert.Equal(Run(world), Run(restored));
-        Assert.Equal(world.CreateSnapshot().StateHash, restored.CreateSnapshot().StateHash);
+        StateAssert.Equal(world.CreateSnapshot(), restored.CreateSnapshot());
     }
 }

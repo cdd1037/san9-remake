@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using System.Text;
 using System.Text.Json;
@@ -26,11 +27,13 @@ public sealed class WomenVisitSessionTests
             new(102, 7, TacticEffect.CounterConfusion, 0, 0, 0, false, false, [])] }
     , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }], []) };
 
-    private static ulong Seed() => Enumerable.Range(1, 100000).Select(i => (ulong)i).First(seed =>
+    private static ulong Seed()
     {
+        const ulong seed = 50UL;
         var random = new StableRandom(StableRandom.DeriveSeed(seed, "event-search-eligibility"));
-        return random.NextUInt64() % 100 < 12 && random.NextUInt64() % 100 < 12 && random.NextUInt64() % 100 < 12;
-    });
+        Assert.True(random.NextUInt64() % 100 < 12 && random.NextUInt64() % 100 < 12 && random.NextUInt64() % 100 < 12);
+        return seed;
+    }
 
     [Fact]
     public void SameDayVisitsCompleteWithoutChoiceAndRepeatThroughSaveAndRecording()
@@ -40,7 +43,7 @@ public sealed class WomenVisitSessionTests
             Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, actor, 1)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), d);
         var result = session.AdvanceXun(); var again = restored.AdvanceXun();
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(again.Events));
+        EventAssert.Equal(result.Events, again.Events);
         Assert.Equal(new[] { 2, 4 }, result.Events.OfType<WomenVisitResolvedEvent>().Select(e => e.SearchingOfficerId));
         Assert.All(result.Events.OfType<WomenVisitResolvedEvent>(), e => Assert.Equal(101, e.LearnedTacticId));
         Assert.DoesNotContain(result.Events, e => e is SearchResolvedEvent);
@@ -50,13 +53,13 @@ public sealed class WomenVisitSessionTests
         Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, 2, 1)).Submission.Accepted);
         Assert.Equal(102, Assert.Single(session.AdvanceXun().Events.OfType<WomenVisitResolvedEvent>()).LearnedTacticId);
         Assert.Equal(new[] { 101, 102 }, session.Snapshot.Officers.Single(p => p.Id == 2).LearnedTactics);
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(SaveService.Decode(SaveService.Encode(session), d)));
+        StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), d).Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), d, GameSession.EngineFactory(d));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
-    public void ContentRejectsBrokenReferencesAndFingerprintsSemanticInputs()
+    public void ContentRejectsBrokenReferences()
     {
         var d = Definition(); var visit = (WomenVisitSearchEventDefinition)d.SearchEvents[0]; var site = visit.Sites[0];
         foreach (var invalid in new[] { site with { PlaceId = 999 }, site with { VisitorOfficerId = 999 },
@@ -67,11 +70,7 @@ public sealed class WomenVisitSessionTests
         foreach (var invalid in new[] { visit with { Sites = [site, site] }, visit with { PoliticsChanceDivisor = 0 },
             visit with { Consumption = EventConsumption.OnSuccess } })
             Assert.Throws<InvalidDataException>(() => (d with { SearchEvents = [invalid] }).Validate());
-        var reordered = d with { SearchEvents = [visit with { Sites = [site with { RewardTacticIds = [102, 101] }] }] };
-        Assert.NotEqual(GameSession.Fingerprint(d), GameSession.Fingerprint(reordered));
-        var first = d with { SearchEvents = [visit with { Sites = [site with { RequiredLeaderIds = [1, 2] }] }] };
-        var second = d with { SearchEvents = [visit with { Sites = [site with { RequiredLeaderIds = [2, 1] }] }] };
-        Assert.Equal(GameSession.Fingerprint(first), GameSession.Fingerprint(second));
+
         var document = JsonNode.Parse(CanonicalJson.Encode(d))!;
         document["searchEvents"]![0]!["sites"]![0]!.AsObject().Remove("earliestScenarioStart");
         Assert.Throws<JsonException>(() => StrictJson.Deserialize<ScenarioInitialState>(Encoding.UTF8.GetBytes(document.ToJsonString())));

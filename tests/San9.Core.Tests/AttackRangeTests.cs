@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -58,8 +59,8 @@ public sealed class AttackRangeTests
         var restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()), EconomyRulebook.Empty,
             PersonnelRulebook.Empty, TreasureRulebook.Empty, military: rules);
         engine.EndControl(Player); restored.EndControl(Player);
-        Assert.Equal(CanonicalJson.Text(engine.AdvanceXun().Events), CanonicalJson.Text(restored.AdvanceXun().Events));
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        EventAssert.Equal(engine.AdvanceXun().Events, restored.AdvanceXun().Events);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
     }
 
     [Theory]
@@ -71,11 +72,11 @@ public sealed class AttackRangeTests
     public void RestrictedAttackUsesTargetWaterTerrainOrActualHarbor(bool settlement, bool water, bool harbor, bool accepted)
     {
         var engine = Engine(restricted: true, waterTarget: water, harbor: harbor);
-        var before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         var order = settlement ? new MilitaryOrder(MilitaryOrderKind.AttackSettlement, null, 2) :
             new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 1 };
         Assert.Equal(accepted, engine.Execute(Player, new OrderUnitCommand(Guid.NewGuid(), 1, 0, 0, order)).Submission.Accepted);
-        if (!accepted) Assert.Equal(before, engine.Snapshot.StateHash);
+        if (!accepted) StateAssert.Equal(before, engine.Snapshot);
     }
 
     [Theory]

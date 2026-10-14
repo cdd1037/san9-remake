@@ -28,7 +28,7 @@ internal static class DiplomacySettlement
         var person = world.Officers[id];
         var position = person.UnitId is int unit ? world.Units[unit].Position : (WorldPosition?)null;
         int origin = person.SettlementId ?? rules.Military!.RegionAt(position!.Value)!.Value;
-        var result = PrisonerRelease.Depart(world, id, origin, task.Id, task.Sequence,
+        var result = PrisonerRelease.Depart(world, id, origin, task.Sequence,
             PrisonerDepartureKind.Recovered, null, rules.Personnel, rules.Economy, events, position);
         if (result != CommandRejection.None) throw new InvalidOperationException("Prisoner recovery failed after validation.");
     }

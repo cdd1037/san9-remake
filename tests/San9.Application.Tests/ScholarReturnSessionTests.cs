@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using System.Text;
 using System.Text.Json;
@@ -25,8 +26,12 @@ public sealed class ScholarReturnSessionTests
         { Tactics = [new(101, 7, TacticEffect.CounterConfusion, 0, 0, 0, false, false, []),
             new(102, 7, TacticEffect.CounterConfusion, 0, 0, 0, false, false, [])] }
     , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }], []) };
-    private static ulong Seed() => Enumerable.Range(1, 10000).Select(i => (ulong)i).First(seed =>
-        new StableRandom(StableRandom.DeriveSeed(seed, "event-search-eligibility")).NextUInt64() % 100 < 33);
+    private static ulong Seed()
+    {
+        const ulong seed = 4UL;
+        Assert.True(new StableRandom(StableRandom.DeriveSeed(seed, "event-search-eligibility")).NextUInt64() % 100 < 33);
+        return seed;
+    }
 
     [Theory]
     [InlineData(true)]
@@ -41,23 +46,23 @@ public sealed class ScholarReturnSessionTests
         var prompt = Assert.IsType<ScholarReturnPrompt>(session.GetScholarReturnPrompt());
         Assert.Equal(prompt, restored.GetScholarReturnPrompt());
         Assert.Equal(SimulationBoundary.AwaitingDecision, session.Snapshot.Simulation.Boundary);
-        string before = session.Snapshot.StateHash;
-        Assert.Equal(prompt, session.GetScholarReturnPrompt()); Assert.Equal(before, session.Snapshot.StateHash);
+        var before = session.Snapshot;
+        Assert.Equal(prompt, session.GetScholarReturnPrompt()); StateAssert.Equal(before, session.Snapshot);
         Assert.Empty(Assert.Single(session.Snapshot.Forces).EventHistory);
         Guid id = Guid.NewGuid();
         var command = new RespondDailyTaskCommand(id, 1, session.Snapshot.Simulation.NextSequence, prompt.TaskId, prompt.Step, accept);
         var request = session.Request(new CommandOperation(command), id: id);
         var first = session.Apply(request); var second = restored.Apply(request);
         Assert.Equal(SessionDisposition.Accepted, first.Disposition);
-        Assert.Equal(CanonicalJson.Text(first.Events), CanonicalJson.Text(second.Events));
+        EventAssert.Equal(first.Events, second.Events);
         Assert.Equal(accept, Assert.Single(first.Events.OfType<ScholarReturnResolvedEvent>()).Accepted);
         Assert.Equal(accept, Assert.Single(session.Snapshot.Forces).EventHistory.Contains(new("scholar.accepted")));
         Assert.Equal("scholar", Assert.Single(session.Snapshot.Simulation.ConsumedEventKeys).Value);
         Assert.Null(session.GetScholarReturnPrompt());
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
-        Assert.Equal(session.Capture().StateHash, SaveService.Decode(SaveService.Encode(session), definition).Capture().StateHash);
+        StateAssert.Equal(session.Capture(), restored.Capture());
+        StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), definition).Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -69,15 +74,14 @@ public sealed class ScholarReturnSessionTests
             d with { EarliestDate = default }, d with { EarliestDate = new(208, 1, 1) }, d with { SuccessHistoryKey = default },
             d with { RewardTacticIds = [101, 101] }, d with { ConsumptionKey = default } })
             Assert.Throws<InvalidDataException>(() => (definition with { SearchEvents = [bad] }).Validate());
-        Assert.NotEqual(GameSession.Fingerprint(definition), GameSession.Fingerprint(definition with { SearchEvents = [d with { RewardTacticIds = [102, 101] }] }));
+
         var history = Enumerable.Range(0, 100).Select(i => new PersistentEventKey($"custom.{i}")).ToImmutableArray();
         var expanded = definition with { Forces = definition.Forces.Select(f => f with { EventHistory = history }).ToArray() };
         var reversed = expanded with { Forces = expanded.Forces.Select(f => f with { EventHistory = history.Reverse().ToImmutableArray() }).ToArray() };
-        Assert.Equal(GameSession.Fingerprint(expanded), GameSession.Fingerprint(reversed));
-        Assert.NotEqual(GameSession.Fingerprint(expanded), GameSession.Fingerprint(definition));
+
         var session = GameSession.Start(reversed, Seed());
         Assert.Equal(100, Assert.Single(session.Snapshot.Forces).EventHistory.Length);
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(SaveService.Decode(SaveService.Encode(session), expanded)));
+        StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), expanded).Capture());
         var document = JsonNode.Parse(CanonicalJson.Encode(expanded))!;
         document["forces"]![0]!.AsObject().Remove("eventHistory");
         Assert.Throws<JsonException>(() => StrictJson.Deserialize<ScenarioInitialState>(Encoding.UTF8.GetBytes(document.ToJsonString())));

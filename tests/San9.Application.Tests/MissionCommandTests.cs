@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.Persistence;
 using San9.Application.Presentation;
 using San9.Content.Text;
@@ -52,7 +53,7 @@ public sealed class MissionCommandTests
             p with { State = p.State with { UnitId = null, SettlementId = 2, Status = OfficerStatus.Captive } } : p).ToArray(),
             Units = content.Units.Where(u => u.Id != 10).ToArray() };
         var session = GameSession.Start(content,42);
-        byte[] before = SaveService.Encode(session);
+        var before = session.Capture();
         var draft = new MissionDraft(session,1,kind);
         Assert.True(draft.SetActor(2));
         Assert.Contains(target,draft.Targets);
@@ -65,12 +66,12 @@ public sealed class MissionCommandTests
         var advice = draft.Advice;
         Assert.NotNull(advice);
         Assert.NotNull(preview.Arrival);
-        Assert.Equal(before,SaveService.Encode(session));
+        Assert.Same(before, session.Capture());
         var command = draft.CreateCommand();
         Assert.Equal(command,draft.CreateCommand());
         Assert.Equal(session.Preview(new("player"),command),session.GetMissionPreparation(new("player"),command));
         Assert.Equal(CommandRejection.None,session.GetPreparationEligibility(new("player"),command));
-        Assert.Equal(before,SaveService.Encode(session));
+        Assert.Same(before, session.Capture());
         var result = session.Execute(new("player"),command);
         Assert.True(result.Submission.Accepted);
         Assert.Equal(preview.Arrival,Assert.Single(result.Events.OfType<TaskStartedEvent>()).Task.Due);
@@ -90,7 +91,7 @@ public sealed class MissionCommandTests
     {
         var session = GameSession.Start(MissionScenario.Create(),42);
         var command = new BurnCommand(Guid.NewGuid(),1,session.Snapshot.Simulation.NextSequence,2,2);
-        byte[] before = SaveService.Encode(session);
+        var before = session.Capture();
         foreach (var (context, candidate) in new (CommandContext, GameCommand)[]
         {
             (new("player"), command with { CommandId = Guid.Empty }),
@@ -103,7 +104,7 @@ public sealed class MissionCommandTests
             Assert.Equal(trial,session.GetMissionPreparation(context,candidate));
             Assert.Equal(trial.Rejection,session.GetPreparationEligibility(context,candidate));
         }
-        Assert.Equal(before,SaveService.Encode(session));
+        Assert.Same(before, session.Capture());
     }
 
     [Theory]

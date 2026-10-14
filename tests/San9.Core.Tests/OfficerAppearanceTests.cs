@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -49,7 +50,7 @@ public sealed class OfficerAppearanceTests
         var expected = engine.AdvanceXun().Events;
         var actual = restored.AdvanceXun().Events;
         Assert.Equal(CanonicalJson.Text(expected), CanonicalJson.Text(actual));
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
         var person = engine.Snapshot.Officers.Single(p => p.Id == 9000);
         Assert.Equal(OfficerStatus.Serving, person.Status);
         Assert.Equal(1, person.OwnerId);

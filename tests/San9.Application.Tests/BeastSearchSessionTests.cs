@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using System.Text;
 using System.Text.Json;
@@ -23,9 +24,13 @@ public sealed class BeastSearchSessionTests
         { Tactics = [new(101, 7, TacticEffect.CounterConfusion, 0, 0, 0, false, false, []),
             new(102, 7, TacticEffect.CounterConfusion, 0, 0, 0, false, false, [])] }
     , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }], []) };
-    private static ulong Seed() => Enumerable.Range(1, 10000).Select(i => (ulong)i).First(seed =>
-        new StableRandom(StableRandom.DeriveSeed(seed, "event-search-eligibility")).NextUInt64() % 100 < 80 &&
+    private static ulong Seed()
+    {
+        const ulong seed = 18UL;
+        Assert.True(new StableRandom(StableRandom.DeriveSeed(seed, "event-search-eligibility")).NextUInt64() % 100 < 80 &&
         new StableRandom(StableRandom.DeriveSeed(seed, "event-beast-battle")).NextUInt64() % 100 < 16);
+        return seed;
+    }
 
     [Theory]
     [InlineData(false, true, EventResult.Escaped)]
@@ -43,25 +48,25 @@ public sealed class BeastSearchSessionTests
         Assert.NotNull(prompt);
         Assert.Equal(prompt, restored.GetBeastSearchPrompt());
         Assert.Equal(SimulationBoundary.AwaitingDecision, session.Snapshot.Simulation.Boundary);
-        string before = session.Snapshot.StateHash;
+        var before = session.Snapshot;
         Assert.Equal(prompt, session.GetBeastSearchPrompt());
-        Assert.Equal(before, session.Snapshot.StateHash);
+        StateAssert.Equal(before, session.Snapshot);
         Guid id = Guid.NewGuid();
         var command = new RespondDailyTaskCommand(id, prompt.ForceId, session.Snapshot.Simulation.NextSequence, prompt.TaskId, prompt.Step, fight);
         var request = session.Request(new CommandOperation(command), id: id);
         var first = session.Apply(request);
         var second = restored.Apply(request);
         Assert.Equal(SessionDisposition.Accepted, first.Disposition);
-        Assert.Equal(CanonicalJson.Text(first.Events), CanonicalJson.Text(second.Events));
+        EventAssert.Equal(first.Events, second.Events);
         Assert.Equal(expected, Assert.Single(first.Events.OfType<BeastSearchResolvedEvent>()).Result);
         Assert.Equal("site.home", Assert.Single(session.Snapshot.Simulation.ConsumedEventKeys).Value);
         Assert.Null(session.GetBeastSearchPrompt());
         Assert.DoesNotContain(first.Events, e => e is SearchResolvedEvent);
         var saved = SaveService.Decode(SaveService.Encode(session), definition);
-        Assert.Equal(session.Capture().StateHash, saved.Capture().StateHash);
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), saved.Capture());
+        StateAssert.Equal(session.Capture(), restored.Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
         var person = session.Snapshot.Officers.Single(p => p.Id == 2);
         Assert.Equal(expected == EventResult.Succeeded ? 82 : 80, person.BaseAbilities.War);
         Assert.Equal(expected == EventResult.Succeeded, person.LearnedTactics.Contains(102));
@@ -80,9 +85,7 @@ public sealed class BeastSearchSessionTests
             beast with { BattleTacticIds = [9999] },
             beast with { Sites = [new(1, null, [])] }
         }) Assert.Throws<InvalidDataException>(() => (definition with { SearchEvents = [invalid] }).Validate());
-        var first = definition with { SearchEvents = [beast with { Sites = [new(1, new("site.home"), [101, 102])] }] };
-        var reversed = definition with { SearchEvents = [beast with { Sites = [new(1, new("site.home"), [102, 101])] }] };
-        Assert.NotEqual(GameSession.Fingerprint(first), GameSession.Fingerprint(reversed));
+
         var document = JsonNode.Parse(CanonicalJson.Encode(new RespondDailyTaskCommand(Guid.NewGuid(), 1, 0, Guid.NewGuid(), 1, false)))!;
         document.AsObject().Remove("accept");
         Assert.Throws<JsonException>(() => StrictJson.Deserialize<RespondDailyTaskCommand>(Encoding.UTF8.GetBytes(document.ToJsonString())));

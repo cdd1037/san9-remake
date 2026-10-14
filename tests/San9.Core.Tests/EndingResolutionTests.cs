@@ -17,9 +17,9 @@ public sealed class EndingResolutionTests
     public void SuccessfulPoliciesDoNotMutateVictory(EndingPolicy policy, EndingOutcome outcome)
     {
         var snapshot = Victory();
-        string before = CanonicalJson.Hash(snapshot);
+        string before = CanonicalJson.Text(snapshot);
         Assert.Equal(new(outcome, 4, null), EndingResolution.Resolve(snapshot, Court, policy));
-        Assert.Equal(before, CanonicalJson.Hash(snapshot));
+        Assert.Equal(before, CanonicalJson.Text(snapshot));
     }
 
     public static TheoryData<EndingPolicy, string, int, EndingOutcome> Gates => new()

@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using San9.Application.Persistence;
@@ -36,7 +37,7 @@ public sealed class SunMarriageSessionTests
         var definition = Definition(); var session = GameSession.Start(definition, 17);
         session.BeginRecording(); var restored = SaveService.Decode(SaveService.Encode(session), definition);
         var result = session.AdvanceXun(); Assert.Single(result.Events.OfType<SunMarriageEvent>());
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+        EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
         var person = session.Snapshot.Officers.Single(p => p.Id == 22);
         Assert.Equal((1, 1, 150), (person.OwnerId, person.SettlementId, person.Loyalty));
         Assert.Equal(new[] { 101, 102 }, person.LearnedTactics);
@@ -45,10 +46,10 @@ public sealed class SunMarriageSessionTests
         for (int i = 0; i < 9; i++)
         {
             var next = session.AdvanceXun(); Assert.Empty(next.Events.OfType<SunMarriageEvent>());
-            Assert.Equal(CanonicalJson.Text(next.Events), CanonicalJson.Text(after.AdvanceXun().Events));
+            EventAssert.Equal(next.Events, after.AdvanceXun().Events);
         }
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
         Assert.Single(replay.Events.OfType<SunMarriageEvent>());
     }
 
@@ -69,16 +70,16 @@ public sealed class SunMarriageSessionTests
             else Assert.Single(next.Events.OfType<SunMarriageEvent>());
         }
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
-    public void DefinitionAndInitialConsumptionValidateAndParticipateInContentIdentity()
+    public void DefinitionAndInitialConsumptionValidate()
     {
         var definition = Definition();
         Assert.Throws<InvalidDataException>(() => (definition with { SunMarriage = definition.SunMarriage! with { BrideId = 999 } }).Validate());
         Assert.Throws<InvalidDataException>(() => (definition with { SunMarriage = definition.SunMarriage! with { GrantedTacticIds = [999] } }).Validate());
-        Assert.NotEqual(GameSession.Fingerprint(definition), GameSession.Fingerprint(definition with { SunMarriage = null }));
+
         Assert.Empty(GameSession.Start(definition with { ConsumedEventKeys = [new("sun-marriage")] }, 17).AdvanceXun().Events.OfType<SunMarriageEvent>());
         var json = JsonNode.Parse(CanonicalJson.Text(definition))!.AsObject(); json.Remove("sunMarriage");
         Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<ScenarioInitialState>(json.ToJsonString(), new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));

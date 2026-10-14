@@ -134,7 +134,7 @@ internal static class SeizeStrategies
             var person = thresholds.PersonCandidates[world.NextRandom("strategy-seize-person") %
                 (ulong)thresholds.PersonCandidates.Length];
             recoveredId = person.Id;
-            if (PrisonerRelease.Recover(world, person.Id, targetId, task.Id, task.Sequence,
+            if (PrisonerRelease.Recover(world, person.Id, targetId, task.Sequence,
                 rules.Personnel, rules.Economy, events) != CommandRejection.None)
                 throw new InvalidOperationException("Validated seize prisoner recovery failed.");
             outcome = SeizeOutcomeKind.Person;

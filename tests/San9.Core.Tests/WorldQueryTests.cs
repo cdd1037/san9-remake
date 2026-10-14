@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -30,7 +31,7 @@ public sealed class WorldQueryTests
     public void MemberQueriesFollowMovesStatusAndActivationWithoutPublishingChanges()
     {
         var state = Create();
-        string hash = state.CreateSnapshot().StateHash;
+        var hash = state.CreateSnapshot();
         var world = state.BeginMutation(Abilities);
         Assert.Equal([1, 2, 3], world.SettlementMembers(1).Select(p => p.Id).ToArray());
         Assert.Empty(world.UnitMembers(10));
@@ -47,7 +48,7 @@ public sealed class WorldQueryTests
         Assert.Equal([2, 4], world.ServingSettlementMembers(1).Select(p => p.Id).ToArray());
         world.Replace(world.Officers[4] with { IsDormant = true });
         Assert.Equal(2, Assert.Single(world.ServingSettlementMembers(1)).Id);
-        Assert.Equal(hash, state.CreateSnapshot().StateHash);
+        StateAssert.Equal(hash, state.CreateSnapshot());
     }
 
     [Fact]

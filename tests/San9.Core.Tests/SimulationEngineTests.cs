@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using System.Text.Json;
 using San9.Core.Domain;
@@ -28,7 +29,7 @@ public sealed class SimulationEngineTests
             next.SetSimulation(next.Simulation with { ActiveControl = 1 });
             state.Commit(next);
         }
-        Assert.Equal(world.CreateSnapshot().StateHash, restored.CreateSnapshot().StateHash);
+        StateAssert.Equal(world.CreateSnapshot(), restored.CreateSnapshot());
         Assert.Equal(new long[] { 0, 1 }, world.CreateSnapshot().Simulation.Tasks.Select(t => t.Sequence));
         Assert.Same(before.Officers, world.CreateSnapshot().Officers);
     }
@@ -38,21 +39,21 @@ public sealed class SimulationEngineTests
     {
         var engine = new SimulationEngine(CreateWorld());
         var before = engine.Snapshot;
-        string hash = before.StateHash;
+        var hash = before;
         var first = engine.Fork();
         var second = engine.Fork();
         Assert.Same(before, first.Snapshot);
         Assert.Same(before, second.Snapshot);
         var command = new WaitCommand(Id(701), 1, before.Simulation.NextSequence);
         Assert.True(first.Execute(new("player"), command).Submission.Accepted);
-        Assert.Equal(hash, engine.Snapshot.StateHash);
-        Assert.Equal(hash, second.Snapshot.StateHash);
+        StateAssert.Equal(hash, engine.Snapshot);
+        StateAssert.Equal(hash, second.Snapshot);
         Assert.Equal(before.Simulation.NextSequence + 1, first.Snapshot.Simulation.NextSequence);
         Assert.True(second.Execute(new("player"), command).Submission.Accepted);
-        Assert.Equal(first.Snapshot.StateHash, second.Snapshot.StateHash);
+        StateAssert.Equal(first.Snapshot, second.Snapshot);
         Advance(first);
-        Assert.Equal(hash, engine.Snapshot.StateHash);
-        Assert.NotEqual(first.Snapshot.StateHash, second.Snapshot.StateHash);
+        StateAssert.Equal(hash, engine.Snapshot);
+        StateAssert.NotEqual(first.Snapshot, second.Snapshot);
     }
     internal static WorldState CreateWorld(GameClock? clock = null) => WorldState.Create(clock ?? new(190, 1, 1), 190,
         [new(1, 50) { LeaderId = 1 }, new(2, 50) { LeaderId = 4 }],
@@ -64,7 +65,7 @@ public sealed class SimulationEngineTests
         corps: [new(1, 1, 1, new(1000, 2000)) { IsRoot = true }, new(2, 2, 4, new(1000, 2000)) { IsRoot = true }],
         controls: [new("player", 1, ControllerKind.Player), new("ai", 2, ControllerKind.Automatic)]);
 
-    internal static Guid Id(int value) => new(value, 0, 0, new byte[8]);
+    internal static Guid Id(int value) => SimulationIdentity.Command(value, 0);
     internal static AdvanceXunResult Advance(SimulationEngine engine)
     {
         while (engine.Snapshot.Simulation.ActiveControl < engine.Snapshot.Simulation.Controls.Length &&
@@ -121,7 +122,7 @@ public sealed class SimulationEngineTests
         engine.EndControl(new("ai"));
         restored.EndControl(new("ai"));
         Assert.Throws<InvalidOperationException>(() => engine.EndControl(new("ai")));
-        Assert.Equal(engine.AdvanceXun().Snapshot.StateHash, restored.AdvanceXun().Snapshot.StateHash);
+        StateAssert.Equal(engine.AdvanceXun().Snapshot, restored.AdvanceXun().Snapshot);
     }
 
     [Fact]
@@ -143,7 +144,7 @@ public sealed class SimulationEngineTests
         var restored = new SimulationEngine(WorldState.Restore(saved), rules);
         Assert.Equal(1, calls);
         Assert.Empty(restored.InitialEvents);
-        Assert.Equal(saved.StateHash, restored.Snapshot.StateHash);
+        StateAssert.Equal(saved, restored.Snapshot);
         Assert.Equal(saved.Revision, restored.Snapshot.Revision);
         var sameWorld = WorldState.Restore(saved);
         _ = new SimulationEngine(sameWorld, rules);
@@ -264,7 +265,7 @@ public sealed class SimulationEngineTests
         var expected = Advance(engine);
         var actual = Advance(restored);
         Assert.Equal(expected.Events, actual.Events);
-        Assert.Equal(expected.Snapshot.StateHash, actual.Snapshot.StateHash);
+        StateAssert.Equal(expected.Snapshot, actual.Snapshot);
         Assert.Equal(new GameClock(190, 1, 16), Assert.Single(actual.Events.OfType<TaskCompletedEvent>()).Clock);
         Assert.Empty(actual.Snapshot.Simulation.Tasks);
         Assert.Equal(941u, actual.Snapshot.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Money);
@@ -323,7 +324,7 @@ public sealed class SimulationEngineTests
         var expected = fresh.AdvanceXun();
         var actual = engine.AdvanceXun();
         Assert.Equal(expected.Events, actual.Events);
-        Assert.Equal(expected.Snapshot.StateHash, actual.Snapshot.StateHash);
+        StateAssert.Equal(expected.Snapshot, actual.Snapshot);
     }
 
     [Theory]
@@ -344,7 +345,7 @@ public sealed class SimulationEngineTests
         Assert.Same(before, engine.Snapshot);
         Assert.False(engine.Execute(new("player"), new WaitCommand(Id(1), 1, 0)).Submission.Accepted);
         Assert.Throws<InvalidOperationException>(() => engine.EndControl(new("player")));
-        Assert.Equal(before.StateHash, new SimulationEngine(WorldState.Restore(before), rules).Snapshot.StateHash);
+        StateAssert.Equal(before, new SimulationEngine(WorldState.Restore(before), rules).Snapshot);
     }
 
     [Fact]
@@ -367,7 +368,7 @@ public sealed class SimulationEngineTests
         Assert.Single(result.Events.OfType<TaskCancelledEvent>());
         Assert.Single(result.Events.OfType<SimulationEndedEvent>());
         Assert.DoesNotContain(result.Events.OfType<StageCompletedEvent>(), e => e.Stage == ResolutionStage.UnitAndBuildingEvents);
-        Assert.Equal(result.Snapshot.StateHash, new SimulationEngine(WorldState.Restore(result.Snapshot), new FixtureRules()).Snapshot.StateHash);
+        StateAssert.Equal(result.Snapshot, new SimulationEngine(WorldState.Restore(result.Snapshot), new FixtureRules()).Snapshot);
     }
 
     [Fact]
@@ -381,7 +382,7 @@ public sealed class SimulationEngineTests
         Assert.Equal(economy, second.NextRandom("economy"));
         Assert.Equal(combat, second.NextRandom("combat"));
         a.Commit(first); b.Commit(second);
-        Assert.Equal(a.CreateSnapshot().StateHash, b.CreateSnapshot().StateHash);
+        StateAssert.Equal(a.CreateSnapshot(), b.CreateSnapshot());
         var restored = WorldState.Restore(a.CreateSnapshot());
         Assert.Equal(a.BeginMutation().NextRandom("combat"), restored.BeginMutation().NextRandom("combat"));
         Assert.NotEqual(combat, economy);

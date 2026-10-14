@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -10,8 +11,8 @@ public sealed class ForceTrustTests
     [Fact]
     public void ExpiredRequestMustUseReducedTrustForSalaryLoyaltyRoll()
     {
-        ulong seed = Enumerable.Range(1, 10000).Select(i => (ulong)i).First(i =>
-            new StableRandom(StableRandom.DeriveSeed(i, "personnel-salary-loyalty")).NextUInt64() % 100 == 2);
+        const ulong seed = 460UL;
+        Assert.Equal(2UL, new StableRandom(StableRandom.DeriveSeed(seed, "personnel-salary-loyalty")).NextUInt64() % 100);
         var state = WorldState.Create(new(190, 2, 1), seed,
             [new(1, 100) { BaseTrust = 100, LeaderId = 1 }, new(2, 100), new(3, 100)],
             [City(10, 1), City(20, 2), City(30, 3)],
@@ -208,7 +209,7 @@ public sealed class ForceTrustTests
         var restored = new SimulationEngine(WorldState.Restore(stale), rules);
         Assert.Equal(snapshot.Revision, restored.Snapshot.Revision);
         Assert.Equal(snapshot.Simulation.NextSequence, restored.Snapshot.Simulation.NextSequence);
-        Assert.Equal(snapshot.StateHash, restored.Snapshot.StateHash);
+        StateAssert.Equal(snapshot, restored.Snapshot);
         Assert.Empty(restored.InitialEvents);
     }
 }

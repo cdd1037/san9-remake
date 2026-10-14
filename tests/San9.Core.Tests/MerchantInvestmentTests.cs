@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -10,7 +11,7 @@ public sealed class MerchantInvestmentTests
         new("cash", [1, 3], ResourceKind.Money, new("cash.banned")), new("food", [2], ResourceKind.Food, new("food.banned"))],
         12, 50, 1000, 100, 5, 20, 3, 2, 4, 5) { Id = "merchant", Consumption = EventConsumption.None };
     private static SimulationRules Rules => new() { Personnel = new([new(1, new(0, 0)), new(2, new(0, 0)), new(3, new(0, 0))], searchEvents: [Definition]) };
-    private static ulong Seed(int roll) => Enumerable.Range(1, 10000).Select(i => (ulong)i).First(s => new StableRandom(s).NextUInt64() % 100 == (ulong)roll);
+    private static ulong Seed(int roll) => TestSeeds.StateForRoll(roll);
     private static (WorldMutation World, PersistentTask Task) Create(int eligibilityRoll = 0, int investmentRoll = 0)
     {
         var world = WorldState.Create(new(190, 2, 1), 1,

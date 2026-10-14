@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -51,26 +52,26 @@ public sealed class SearchConflictSessionTests
         var p = Assert.IsType<SearchConflictPrompt>(session.GetSearchConflictPrompt());
         Assert.Equal(CanonicalJson.Text(p), CanonicalJson.Text(restored.GetSearchConflictPrompt()));
         Assert.Equal(SimulationBoundary.AwaitingDecision, session.Snapshot.Simulation.Boundary);
-        string hash = session.Snapshot.StateHash;
-        Assert.Equal(CanonicalJson.Text(p), CanonicalJson.Text(session.GetSearchConflictPrompt())); Assert.Equal(hash, session.Snapshot.StateHash);
+        var hash = session.Snapshot;
+        Assert.Equal(CanonicalJson.Text(p), CanonicalJson.Text(session.GetSearchConflictPrompt())); StateAssert.Equal(hash, session.Snapshot);
         bool accepted = choice is not (SearchConflictChoice.Decline or SearchConflictChoice.Execute);
         var answer = new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, p.TaskId, p.Step, accepted) { SearchConflict = choice };
         foreach (var invalid in new[] { answer with { SearchConflict = null }, answer with { SearchConflict = (SearchConflictChoice)99 },
             answer with { Accept = !accepted },
             answer with { CountryTitleId = 1 }, answer with { MerchantInvestment = new(MerchantInvestmentChoice.Decline, 0) } })
         {
-            Assert.False(session.Execute(new("player"), invalid).Submission.Accepted); Assert.Equal(hash, session.Snapshot.StateHash);
+            Assert.False(session.Execute(new("player"), invalid).Submission.Accepted); StateAssert.Equal(hash, session.Snapshot);
         }
         var request = session.Request(new CommandOperation(answer), id: answer.CommandId);
         var result = session.Apply(request); var other = restored.Apply(request);
         Assert.Equal(SessionDisposition.Accepted, result.Disposition);
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(other.Events));
+        EventAssert.Equal(result.Events, other.Events);
         Assert.Equal(choice, Assert.Single(result.Events.OfType<SearchConflictResolvedEvent>()).Choice);
         Assert.DoesNotContain(result.Events, e => e is SearchResolvedEvent);
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(restored));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(SaveService.Decode(SaveService.Encode(session), d)));
+        StateAssert.Equal(session.Capture(), restored.Capture());
+        StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), d).Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), d, GameSession.EngineFactory(d));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
         if (kind == "scholar" && choice == SearchConflictChoice.Execute)
         { Assert.True(session.Snapshot.Officers.Single(o => o.Id == 3).IsDormant); Assert.Equal(1, session.Snapshot.Officers.Single(o => o.Id == 2).LifespanTier); }
     }
@@ -119,19 +120,18 @@ public sealed class SearchConflictSessionTests
         Assert.True(result.Submission.Accepted); Assert.NotEqual(3, session.Snapshot.Forces.Single().LeaderId);
         Assert.Contains(result.Events, e => e is ForceLeaderChangedEvent);
         Assert.True(session.Snapshot.Officers.Single(o => o.Id == 3).IsDormant);
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(SaveService.Decode(SaveService.Encode(session), d)));
+        StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), d).Capture());
     }
 
     [Fact]
-    public void ContentRejectsUnknownReferencesAndInvalidRulesAndCanonicalizesOnlyUnorderedCollections()
+    public void ContentRejectsUnknownReferencesAndInvalidRules()
     {
         var d = Definition("demand"); var e = (MoneyDemandSearchEventDefinition)d.SearchEvents.Single();
         foreach (var bad in new[] { e with { ChanceDivisor = 0 }, e with { DemandingOfficerIds = [999] },
             e with { DemandingOfficerIds = [] }, e with { Months = [13] }, e with { MaximumInjuryExclusive = 16 },
             e with { Consumption = EventConsumption.OnSuccess }, e with { PoliticsCostDivisor = 0 } })
             Assert.Throws<InvalidDataException>(() => (d with { SearchEvents = [bad] }).Validate());
-        Assert.Equal(GameSession.Fingerprint(d), GameSession.Fingerprint(d with { SearchEvents = [e with { DemandingOfficerIds = [4, 3] }] }));
-        Assert.NotEqual(GameSession.Fingerprint(d), GameSession.Fingerprint(d with { SearchEvents = [e with { CostUnit = 50 }] }));
+
         var json = JsonNode.Parse(CanonicalJson.Encode(d))!;
         json["searchEvents"]![0]!.AsObject().Remove("chanceDivisor");
         Assert.Throws<JsonException>(() => StrictJson.Deserialize<ScenarioInitialState>(Encoding.UTF8.GetBytes(json.ToJsonString())));
@@ -162,9 +162,9 @@ public sealed class SearchConflictSessionTests
         Assert.Equal(0, resolved.MoneyReward); Assert.Equal(0u, resolved.Soldiers);
         Assert.DoesNotContain(result.Events.OfType<ResourceChangedEvent>(), e => e.Reason == "search-conflict");
         Assert.Equal(SessionDisposition.Accepted, restored.Apply(request).Disposition);
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(restored));
+        StateAssert.Equal(session.Capture(), restored.Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), d, GameSession.EngineFactory(d));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -172,7 +172,7 @@ public sealed class SearchConflictSessionTests
     {
         var d = Definition("mediation"); var e = (BanditMediationSearchEventDefinition)d.SearchEvents.Single();
         Assert.Throws<InvalidDataException>(() => (d with { SearchEvents = [e with { MaximumForceSoldiersExclusive = 0 }] }).Validate());
-        Assert.NotEqual(GameSession.Fingerprint(d), GameSession.Fingerprint(d with { SearchEvents = [e with { MaximumForceSoldiersExclusive = 50000 }] }));
+
         var json = JsonNode.Parse(CanonicalJson.Encode(d))!;
         json["searchEvents"]![0]!.AsObject().Remove("maximumForceSoldiersExclusive");
         Assert.Throws<JsonException>(() => StrictJson.Deserialize<ScenarioInitialState>(Encoding.UTF8.GetBytes(json.ToJsonString())));

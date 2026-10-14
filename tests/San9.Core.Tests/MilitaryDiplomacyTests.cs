@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -221,9 +222,9 @@ public sealed class MilitaryDiplomacyTests
         var order = new MilitaryOrder(MilitaryOrderKind.AttackSettlement, null, 2);
         GameCommand command = reform ? new ReformUnitCommand(Guid.NewGuid(), 1, 0, 0, 0, [12], order) :
             new DeployUnitCommand(Guid.NewGuid(), 1, 0, 1, [11], 1000, 0, order);
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         Assert.Equal(reform ? CommandRejection.UnsupportedCommand : CommandRejection.AttackConfirmationRequired, engine.Execute(new("player"), command).Submission.Rejection);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         GameCommand confirmed = command switch
         {
             ReformUnitCommand c => c with { ConfirmAttack = true },
@@ -231,7 +232,7 @@ public sealed class MilitaryDiplomacyTests
             _ => throw new InvalidOperationException()
         };
         Assert.Equal(!reform, engine.Execute(new("player"), confirmed).Submission.Accepted);
-        if (reform) Assert.Equal(before, engine.Snapshot.StateHash);
+        if (reform) StateAssert.Equal(before, engine.Snapshot);
         Assert.Equal(80, engine.Snapshot.Relations.Single(r => r.FirstId == 1 && r.SecondId == 2).Value);
     }
 
@@ -242,17 +243,17 @@ public sealed class MilitaryDiplomacyTests
         var engine = new SimulationEngine(World(70, true), rules);
         var command = new OrderUnitCommand(Guid.NewGuid(), 1, 0, 0, new(MilitaryOrderKind.AttackSettlement, null, 2));
         Assert.Equal(AttackWarning.FriendlyRelations | AttackWarning.AllianceBetrayal, engine.GetAttackWarning(1, command.Order));
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         Assert.Equal(CommandRejection.AttackConfirmationRequired, engine.Execute(new("player"), command).Submission.Rejection);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         GameCommand confirmed = command with { ConfirmAttack = true };
         var replay = System.Text.Json.JsonSerializer.Deserialize<GameCommand>(System.Text.Json.JsonSerializer.Serialize<GameCommand>(confirmed))!;
         Assert.True(engine.Execute(new("player"), replay).Submission.Accepted);
         var restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()), rules);
         engine.EndControl(new("player")); restored.EndControl(new("player"));
         var expected = engine.AdvanceXun(); var actual = restored.AdvanceXun();
-        Assert.Equal(expected.Snapshot.StateHash, actual.Snapshot.StateHash);
-        Assert.Equal(CanonicalJson.Text(expected.Events), CanonicalJson.Text(actual.Events));
+        StateAssert.Equal(expected.Snapshot, actual.Snapshot);
+        EventAssert.Equal(expected.Events, actual.Events);
         Assert.Single(expected.Events.OfType<WarDeclaredEvent>());
     }
 }

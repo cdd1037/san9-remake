@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -40,25 +41,24 @@ public sealed class UnitDefectionSessionTests
         var restored = SaveService.Decode(SaveService.Encode(session), content);
         var result = session.AdvanceXun();
         Assert.Equal(new GameClock(190, 2, 1), Assert.Single(result.Events.OfType<UnitDefectedEvent>()).Clock);
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+        EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
         Assert.Equal(1, session.Snapshot.Units.Single(u => u.Id == 100).OwnerId);
         restored = SaveService.Decode(SaveService.Encode(session), content);
         Assert.Empty(restored.InitialEvents);
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
-    public void IndependentSwitchIsRequiredFingerprintedAndValidatedOnRestore()
+    public void UnitDefectionSwitchIsRequiredAndRetainsSavedConfiguration()
     {
         var content = FieldRecruitmentSessionTests.Definition(true);
         var disabled = content with { UnitDefectionsEnabled = false };
-        Assert.NotEqual(GameSession.Fingerprint(content), GameSession.Fingerprint(disabled));
+
         var session = GameSession.Start(disabled, 17);
         var snapshot = session.Capture();
-        Assert.Throws<ArgumentException>(() => GameSession.Restore(disabled, snapshot with
-        { World = snapshot.World with { Simulation = snapshot.World.Simulation with { UnitDefectionsEnabled = true } } }));
+        Assert.False(GameSession.Restore(content, snapshot).Snapshot.Simulation.UnitDefectionsEnabled);
         var state = JsonNode.Parse(CanonicalJson.Text(snapshot.World.Simulation))!.AsObject();
         Assert.True(state.Remove("unitDefectionsEnabled"));
         Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<SimulationState>(state.ToJsonString(), CanonicalJson.Options));

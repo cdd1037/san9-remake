@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -19,7 +20,7 @@ public sealed class WomenVisitTests
              new(2, 1, 1, new(50, 99, 99, 50), false),
              new(3, null, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Special }],
             controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(0, 10000)) { IsRoot = true }]).BeginMutation();
-        ulong seed = Enumerable.Range(1, 10000).Select(i => (ulong)i).First(s => new StableRandom(s).NextUInt64() % 100 == (ulong)roll);
+        ulong seed = TestSeeds.StateForRoll(roll);
         world.SetSimulation(world.Simulation with { RandomStreams = [new("event-search-eligibility", seed)] });
         return (world, new(Guid.NewGuid(), "personnel-search", "player", 1, 2, 1, world.Clock, world.Clock, 0, 0)
             { Journey = new(1, null, 0) });
@@ -98,11 +99,9 @@ public sealed class WomenVisitTests
         var winner = Definition with { Id = "winner", Priority = 2 };
         var later = Definition with { Id = "later", Priority = 1 };
         // Choose a stream that passes both eligible-place checks.
-        ulong seed = Enumerable.Range(1, 10000).Select(i => (ulong)i).First(s =>
-        {
-            var random = new StableRandom(s);
-            return random.NextUInt64() % 100 < 12 && random.NextUInt64() % 100 < 12;
-        });
+        const ulong seed = 30UL;
+        var eligibilityRandom = new StableRandom(seed);
+        Assert.True(eligibilityRandom.NextUInt64() % 100 < 12 && eligibilityRandom.NextUInt64() % 100 < 12);
         world.SetSimulation(world.Simulation with { RandomStreams = [new("event-search-eligibility", seed)] });
         var rules = new SimulationRules { Personnel =
             new PersonnelRulebook([new(1, new(0, 0))], searchEvents: [later, winner, exhausted]) };

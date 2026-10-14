@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -95,7 +96,7 @@ public sealed class MovementForecastTests
         var rules = Rules(100);
         var world = World();
         var before = world.CreateSnapshot();
-        string hash = before.StateHash;
+        var hash = before;
         var query = new MilitaryOrderQuery(before, rules);
         var mutation = world.BeginMutation();
         MilitaryOrder[] orders =
@@ -115,7 +116,7 @@ public sealed class MovementForecastTests
         world.Commit(mutation);
         Assert.True(query.CanAssign(0, home));
         Assert.False(new MilitaryOrderQuery(world.CreateSnapshot(), rules).CanAssign(0, home));
-        Assert.Equal(hash, before.StateHash);
+        StateAssert.Equal(hash, before);
     }
 
     [Fact]

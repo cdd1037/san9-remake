@@ -1,3 +1,4 @@
+using San9.Application.Diagnostics;
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
@@ -49,17 +50,19 @@ for (int i = 0; i < xuns; i++)
     if (restored is not null)
     {
         restored.AdvanceXun();
-        if (session.Snapshot.StateHash != restored.Snapshot.StateHash) throw new InvalidOperationException("Restore diverged.");
+        if (SessionDiagnostics.Compare(session.Capture(), restored.Capture()) is { } difference)
+            throw new InvalidOperationException($"Restore diverged at {difference.Path}: {difference.Expected} != {difference.Actual}.");
     }
     if (i == 0 && args.Contains("verify")) restored = SaveService.Decode(SaveService.Encode(session), definition);
 }
-Log($"completed restore_verified={restored is not null && xuns > 1} final={session.Snapshot.StateHash}");
+Log($"completed restore_verified={restored is not null && xuns > 1} revision={session.Snapshot.Revision}");
 if (args.Contains("record"))
 {
     string recordingPath = report + ".recording.json";
     RecordingService.Write(recordingPath, session.EndRecording());
-    var replay = RecordingService.Replay(recordingPath, definition);
-    if (replay.Session.Snapshot.StateHash != session.Snapshot.StateHash) throw new InvalidOperationException("Recording diverged.");
+    var replay = RecordingService.Replay(recordingPath, definition, verifyEvents: true);
+    if (SessionDiagnostics.Compare(session.Capture(), replay.Session.Capture()) is { } difference)
+        throw new InvalidOperationException($"Recording diverged at {difference.Path}: {difference.Expected} != {difference.Actual}.");
     Log("recording_verified=True");
 }
 

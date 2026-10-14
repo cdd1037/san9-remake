@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -67,7 +68,7 @@ public sealed class TerminalEvaluationTests
         Assert.Empty(engine.AdvanceXun().Events);
         var restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()), rules);
         Assert.Empty(restored.InitialEvents);
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
     }
 
     [Theory]

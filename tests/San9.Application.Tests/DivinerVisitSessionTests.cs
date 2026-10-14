@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -22,8 +23,12 @@ public sealed class DivinerVisitSessionTests
             { Id = "diviner", Consumption = EventConsumption.None }]
     , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }], []) };
 
-    private static ulong Seed() => Enumerable.Range(1, 10000).Select(i => (ulong)i).First(seed =>
-        new StableRandom(StableRandom.DeriveSeed(seed, "event-search-eligibility")).NextUInt64() % 100 < 33);
+    private static ulong Seed()
+    {
+        const ulong seed = 4UL;
+        Assert.True(new StableRandom(StableRandom.DeriveSeed(seed, "event-search-eligibility")).NextUInt64() % 100 < 33);
+        return seed;
+    }
 
     [Fact]
     public void FirstSameDayVisitWritesForceHistoryAndPersistsThroughSaveAndRecording()
@@ -33,16 +38,16 @@ public sealed class DivinerVisitSessionTests
             Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, actor, 1)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), d);
         var result = session.AdvanceXun(); var again = restored.AdvanceXun();
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(again.Events));
+        EventAssert.Equal(result.Events, again.Events);
         Assert.Equal(2, Assert.Single(result.Events.OfType<DivinerVisitResolvedEvent>()).SearchingOfficerId);
         Assert.Single(result.Events.OfType<SearchResolvedEvent>());
         Assert.Null(session.Snapshot.Simulation.PendingDailyTask);
         Assert.Equal(new PersistentEventKey("visited"), Assert.Single(Assert.Single(session.Snapshot.Forces).EventHistory));
         Assert.Empty(session.Snapshot.Simulation.ConsumedEventKeys);
         Assert.Equal(0, session.Snapshot.Officers.Single(p => p.Id == 2).LifespanTier);
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(SaveService.Decode(SaveService.Encode(session), d)));
+        StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), d).Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), d, GameSession.EngineFactory(d));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
         var random = session.Snapshot.Simulation.RandomStreams.Single(s => s.Name == "event-search-eligibility");
         Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, 2, 1)).Submission.Accepted);
         Assert.DoesNotContain(session.AdvanceXun().Events, e => e is DivinerVisitResolvedEvent);
@@ -57,7 +62,7 @@ public sealed class DivinerVisitSessionTests
             visit with { HistoryKey = default }, visit with { PoliticsChanceDivisor = 0 },
             visit with { MinimumTrustExclusive = -1 }, visit with { Consumption = EventConsumption.OnSuccess } })
             Assert.Throws<InvalidDataException>(() => (d with { SearchEvents = [invalid] }).Validate());
-        Assert.NotEqual(GameSession.Fingerprint(d), GameSession.Fingerprint(d with { SearchEvents = [visit with { HistoryKey = new("other") }] }));
+
         var document = JsonNode.Parse(CanonicalJson.Encode(d))!;
         document["searchEvents"]![0]!.AsObject().Remove("historyKey");
         Assert.Throws<JsonException>(() => StrictJson.Deserialize<ScenarioInitialState>(Encoding.UTF8.GetBytes(document.ToJsonString())));

@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Application.Presentation;
 using San9.Content.Text;
@@ -29,7 +30,7 @@ public sealed class UnitCatalogTests
         var keys = definition.Officers.Select(o => o.NameKey).Concat(definition.Forces.Select(f => f.NameKey))
             .Concat(definition.Settlements.Select(s => s.NameKey)).Concat(["land", "water"]);
         var texts = new TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion, keys.ToDictionary(k => k, k => k));
-        var hash = world.StateHash;
+        var hash = world;
         InformationTable Read(int page) => UnitCatalog.Read(view, rules, texts, page);
         Assert.Equal(["所属", "战力", "陆上", "水上", "命令"], Read(0).Pages);
         Assert.Equal(["officer.1队", "force.1", "officer.1", "city.1", "1", "1"], Assert.Single(Read(0).Rows).Cells.Select(c => c.Text));
@@ -68,7 +69,7 @@ public sealed class UnitCatalogTests
         Assert.Equal(77, browser.UnitFilter);
         browser.Back();
         Assert.Null(browser.UnitFilter); Assert.True(browser.IsDetail); Assert.Equal(77, browser.SelectedId);
-        Assert.Equal(hash, world.StateHash);
+        StateAssert.Equal(hash, world);
     }
 
     [Theory]

@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application;
 using San9.Application.Presentation;
 using San9.Content.Scenarios;
@@ -38,7 +39,7 @@ public sealed class RuntimeSessionTests
         Assert.False(first.Develop(new(5, 15, [1], DomesticActivity.Commerce)).Accepted);
         Assert.Single(first.Records);
         Assert.Empty(second.Records);
-        Assert.NotEqual(first.Snapshot.StateHash,second.Snapshot.StateHash);
+        StateAssert.NotEqual(first.Snapshot, second.Snapshot);
         Assert.Same(first.InitialView.Information, first.View.Information);
         Assert.Same(first.InitialView.RegionNameKeys, first.View.RegionNameKeys);
         Assert.Same(first.InitialView.RegionCityIds, first.View.RegionCityIds);

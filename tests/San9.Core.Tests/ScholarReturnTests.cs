@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -9,8 +10,7 @@ public sealed class ScholarReturnTests
     internal static ScholarReturnSearchEventDefinition Definition => new(3, 1, new(195, 1, 1), new(207, 12, 30),
         115, 3, 300, 1000, 3000, 2, 2, 2, [10, 25, 22, 29], new("scholar-return"), new("scholar-return.accepted"))
         { Id = "scholar-return", Consumption = EventConsumption.OnPresentation };
-    private static ulong Seed(int roll) => Enumerable.Range(1, 10000).Select(i => (ulong)i)
-        .First(seed => new StableRandom(seed).NextUInt64() % 100 == (ulong)roll);
+    private static ulong Seed(int roll) => TestSeeds.StateForRoll(roll);
     private static (WorldState World, SimulationEngine Engine, PersonnelRulebook Rules) Create(int intelligence = 99, int politics = 99,
         int roll = 0, uint money = 10000, int trust = 999, GameClock? clock = null)
     {
@@ -50,14 +50,14 @@ public sealed class ScholarReturnTests
     {
         var (_, engine, _) = Create();
         Begin(engine);
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         var scholar = engine.Snapshot.Officers.Single(p => p.Id == 3);
         var force = Assert.Single(engine.Snapshot.Forces);
         uint beforeMoney = engine.Snapshot.Corps.Single(c => c.IsRoot).Treasury.Money;
         Assert.Empty(force.EventHistory); Assert.Empty(engine.Snapshot.Simulation.ConsumedEventKeys);
         Assert.Throws<InvalidOperationException>(() => engine.CaptureStableState());
         for (int i = 0; i < 3; i++) Assert.NotNull(engine.GetScholarReturnPrompt());
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         var command = Answer(engine, accept);
         var response = engine.Execute(new("player"), command);
         Assert.True(response.Submission.Accepted);
@@ -72,9 +72,9 @@ public sealed class ScholarReturnTests
         Assert.Equal(accept ? 1000 : 999, after.BaseTrust);
         Assert.Equal(accept ? 100 : 99, engine.Snapshot.Officers.Single(p => p.Id == 2).BaseAbilities.Intelligence);
         Assert.Equal(Definition.ConsumptionKey, Assert.Single(engine.Snapshot.Simulation.ConsumedEventKeys));
-        before = engine.Snapshot.StateHash;
+        before = engine.Snapshot;
         Assert.False(engine.Execute(new("player"), command).Submission.Accepted);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         Assert.Equal(SimulationBoundary.Stable, engine.Snapshot.Simulation.Boundary);
     }
 

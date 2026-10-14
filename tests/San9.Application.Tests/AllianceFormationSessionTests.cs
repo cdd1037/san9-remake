@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Text;
 using System.Text.Json.Nodes;
 using San9.Application.Persistence;
@@ -50,7 +51,7 @@ public sealed class AllianceFormationSessionTests
         }
         else Assert.Single(arrival.Events.OfType<QiaoMarriageEvent>());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
         Assert.Equal(offered ? 0 : 1, replay.Events.OfType<QiaoMarriageEvent>().Count());
     }
 
@@ -81,23 +82,23 @@ public sealed class AllianceFormationSessionTests
         session.AdvanceXun();
         Assert.Equal(draftPopulation, session.Snapshot.Settlements.Single(s => s.Id == 100).DraftPopulation);
         Assert.Equal(5, session.GetAllianceParticipationPrompt()!.Proposal.RespondingForceId);
-        string pendingHash = session.Snapshot.StateHash;
+        var pendingHash = session.Snapshot;
         Assert.Equal(SessionRejection.NotStable, session.Apply(session.Request(new AdvanceOperation())).Rejection);
-        Assert.Equal(pendingHash, session.Snapshot.StateHash);
+        StateAssert.Equal(pendingHash, session.Snapshot);
         Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
-        Assert.Equal(pendingHash, restored.Snapshot.StateHash);
+        StateAssert.Equal(pendingHash, restored.Snapshot);
         var command = new AllianceParticipationCommand(Guid.NewGuid(), 5, session.Snapshot.Simulation.NextSequence, 1, true);
         Assert.True(session.Execute(new("player"), command).Submission.Accepted);
         Assert.True(restored.Execute(new("player"), command).Submission.Accepted);
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         Assert.Equal(new[] { 2, 3, 4, 5 }, session.Snapshot.Simulation.Alliance!.MemberForceIds);
         Assert.Equal(75, session.Snapshot.Forces.Single(f => f.Id == 5).BaseTrust);
         Assert.Equal(draftPopulation + 100, session.Snapshot.Settlements.Single(s => s.Id == 100).DraftPopulation);
         Assert.True(session.Snapshot.Relations.Count > definition.Information.Relations.Length);
         var final = SaveService.Decode(SaveService.Encode(session), definition);
-        Assert.Equal(session.Capture().StateHash, final.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), final.Capture());
         var replayed = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(session.Capture().StateHash, replayed.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replayed.Session.Capture());
         Assert.Single(replayed.Events.OfType<AllianceProposedEvent>());
         Assert.Single(replayed.Events.OfType<AllianceFormedEvent>());
     }

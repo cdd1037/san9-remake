@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using San9.Core.Domain;
@@ -39,7 +40,7 @@ public sealed class ReinforcementSupplyTests
         Assert.Equal(3000, returned.Actual);
         world.Commit(mutation);
         var saved = world.CreateSnapshot();
-        Assert.Equal(saved.StateHash, WorldState.Restore(saved).CreateSnapshot().StateHash);
+        StateAssert.Equal(saved, WorldState.Restore(saved).CreateSnapshot());
     }
 
     private static (WorldState World, SimulationRules Rules, PersistentTask Task) Create(int distance = 300)
@@ -180,7 +181,7 @@ public sealed class ReinforcementSupplyTests
         var restoredEngine = new SimulationEngine(restored, rules);
         engine.EndControl(new("player")); restoredEngine.EndControl(new("player"));
         var first = engine.AdvanceXun().Events; var second = restoredEngine.AdvanceXun().Events;
-        Assert.Equal(world.CreateSnapshot().StateHash, restored.CreateSnapshot().StateHash);
+        StateAssert.Equal(world.CreateSnapshot(), restored.CreateSnapshot());
         string json = JsonSerializer.Serialize<DomainEvent[]>(first.ToArray(), CanonicalJson.Options);
         Assert.Equal(json, JsonSerializer.Serialize<DomainEvent[]>(second.ToArray(), CanonicalJson.Options));
         Assert.Contains(JsonSerializer.Deserialize<DomainEvent[]>(json, CanonicalJson.Options)!, e => e is DailyAttritionEvent { TaskId: not null });

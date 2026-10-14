@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -206,7 +207,7 @@ public sealed class PoliticalEventsTests
         var pending = (CountryTitleEventSession)snapshot.Simulation.PendingEvent!;
         var staleTrust = snapshot with { Forces = snapshot.Forces.Select(f => f with { Trust = 1 }).ToArray() };
         var restored = new SimulationEngine(WorldState.Restore(staleTrust), Rules());
-        Assert.Equal(snapshot.StateHash, restored.Snapshot.StateHash);
+        StateAssert.Equal(snapshot, restored.Snapshot);
         var invalidInput = snapshot with { Forces = snapshot.Forces.Select(f => f with { BaseTrust = 0 }).ToArray() };
         Assert.Throws<ArgumentException>(() => new SimulationEngine(WorldState.Restore(invalidInput), Rules()));
         var changed = snapshot with { Simulation = snapshot.Simulation with { PendingEvent = pending with { CandidateIds = [123456] } } };

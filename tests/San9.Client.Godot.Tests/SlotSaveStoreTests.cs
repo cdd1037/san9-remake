@@ -69,23 +69,22 @@ public sealed class SlotSaveStoreTests : IDisposable
     }
 
     [Fact]
-    public void WrongContentIsRejectedByCatalogAndLoad()
+    public void ChangedContentRemainsBrowsableAndLoadsSavedState()
     {
         var session = GameSession.Start(Definition, 1);
         var store = new SlotSaveStore(_directory, Definition);
         store.Write(2, SlotSaveStore.Encode(session, Summary("存档")));
         var other = new SlotSaveStore(_directory, Definition with { ScenarioId = "other" });
-        var incompatible = other.ReadCatalog(40)[2];
-        Assert.Null(incompatible.Summary);
-        Assert.Equal(SaveFailure.ContentMismatch, incompatible.Error!.Failure);
-        Assert.Equal(SaveFailure.ContentMismatch, Assert.Throws<SaveException>(() => other.Load(2)).Failure);
+        var listing = other.ReadCatalog(40)[2];
+        Assert.NotNull(listing.Summary);
+        Assert.Null(listing.Error);
+        Assert.Equal(session.Snapshot.Clock, other.Load(2).Snapshot.Clock);
         Assert.NotNull(store.ReadCatalog(40)[2].Summary);
     }
 
     [Theory]
     [InlineData("version")]
     [InlineData("saveVersion")]
-    [InlineData("hashVersion")]
     public void UnsupportedHeaderVersionsAreRejectedWithoutReadingTheBody(string field)
     {
         var store = new SlotSaveStore(_directory, Definition);

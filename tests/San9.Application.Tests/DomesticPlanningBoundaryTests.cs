@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.AI;
 using San9.Application.Persistence;
 using San9.Core.Domain;
@@ -66,12 +67,12 @@ public sealed class DomesticPlanningBoundaryTests
             Corps = before.Corps.Select(c => c.OwnerId == 2 ? c with { Treasury = new(999999, 999999) } : c).ToArray(),
             Officers = before.Officers.Select(p => p.OwnerId == 2 ? p with { Acted = true } : p).ToArray()
         };
-        Assert.Equal(CanonicalJson.Hash(observed), CanonicalJson.Hash(DomesticObservation.Capture(changed, seat, new("player"))));
-        string expected = CanonicalJson.Hash(DomesticPlanner.Plan(observed, new(100, 0), 0));
+        Assert.Equal(CanonicalJson.Text(observed), CanonicalJson.Text(DomesticObservation.Capture(changed, seat, new("player"))));
+        string expected = CanonicalJson.Text(DomesticPlanner.Plan(observed, new(100, 0), 0));
         var command = session.ChooseDomesticCommand(seat, Guid.NewGuid(), 0);
         Assert.True(session.Execute(new("player"), command).Submission.Accepted);
-        Assert.Equal(expected, CanonicalJson.Hash(DomesticPlanner.Plan(observed, new(100, 0), 0)));
-        Assert.NotEqual(CanonicalJson.Hash(observed), CanonicalJson.Hash(DomesticObservation.Capture(session.Snapshot, seat, new("player"))));
+        Assert.Equal(expected, CanonicalJson.Text(DomesticPlanner.Plan(observed, new(100, 0), 0)));
+        Assert.NotEqual(CanonicalJson.Text(observed), CanonicalJson.Text(DomesticObservation.Capture(session.Snapshot, seat, new("player"))));
     }
 
     [Fact]
@@ -86,7 +87,7 @@ public sealed class DomesticPlanningBoundaryTests
         Assert.Equal(3, small.Evaluations);
         Assert.Single(small.Candidates);
         Assert.False(full.BudgetExhausted);
-        Assert.Equal(CanonicalJson.Hash(full.Candidates[0]), CanonicalJson.Hash(small.Candidates[0]));
+        Assert.Equal(CanonicalJson.Text(full.Candidates[0]), CanonicalJson.Text(small.Candidates[0]));
         Assert.False(DomesticPlanner.Plan(observed with { Settlements = [] }, new(1, 0), 0).BudgetExhausted);
         Assert.Throws<ArgumentException>(() => DomesticPlanner.Plan(observed, new(0, 1), 0));
     }
@@ -122,10 +123,10 @@ public sealed class DomesticPlanningBoundaryTests
         foreach (var seat in split.Snapshot.Simulation.Controls)
             Assert.Equal(SessionDisposition.Accepted, split.Apply(split.Request(new EndControlOperation(), seat.ControllerId)).Disposition);
         Assert.Equal(SessionDisposition.Accepted, split.Apply(split.Request(new AdvanceOperation())).Disposition);
-        Assert.Equal(whole.Snapshot.StateHash, split.Snapshot.StateHash);
+        StateAssert.Equal(whole.Snapshot, split.Snapshot);
         var replay = RecordingService.Replay(RecordingService.Encode(whole.EndRecording()), initial, GameSession.EngineFactory(initial));
-        Assert.Equal(whole.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(whole.Capture(), replay.Session.Capture());
         var restored = SaveService.Decode(SaveService.Encode(whole), initial);
-        Assert.Equal(whole.AdvanceXun().Snapshot.StateHash, restored.AdvanceXun().Snapshot.StateHash);
+        StateAssert.Equal(whole.AdvanceXun().Snapshot, restored.AdvanceXun().Snapshot);
     }
 }

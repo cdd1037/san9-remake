@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Simulation;
 
@@ -80,7 +81,7 @@ public sealed class EventSelectionContractTests
         Assert.Empty(world.Simulation.ConsumedEventKeys);
         world.Commit(mutation);
         Assert.Single(world.Simulation.ConsumedEventKeys);
-        Assert.NotEqual(before.StateHash, world.CreateSnapshot().StateHash);
+        StateAssert.NotEqual(before, world.CreateSnapshot());
         var restored = WorldState.Restore(world.CreateSnapshot());
         Assert.Empty(EventSelection.Order([candidate], EventTrigger.Search, restored.Simulation.ConsumedEventKeys.ToHashSet()));
     }
@@ -90,14 +91,14 @@ public sealed class EventSelectionContractTests
     {
         var world = WorldState.Create(new(190, 1, 1), 1, [new(1, 100)], [], [], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(0, 0)) { IsRoot = true }]);
         var engine = new SimulationEngine(world);
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         var mutation = world.BeginMutation();
         mutation.ConsumeEvent(new("history", EventTrigger.Search, 1, EventConsumption.OnSuccess, new("history")),
             new("history", EventOutcomeKind.Completed, false, EventResult.Succeeded));
         mutation.Replace(mutation.Forces[1] with { BaseTrust = -1 });
         Assert.Throws<ArgumentException>(() => WorldInvariants.Validate(mutation));
         Assert.Empty(world.Simulation.ConsumedEventKeys);
-        Assert.Equal(before, world.CreateSnapshot().StateHash);
+        StateAssert.Equal(before, world.CreateSnapshot());
     }
 
     [Fact]

@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -67,11 +68,11 @@ public sealed class PersonnelRewardTests
     public void RejectionsHaveNoEffects(int loyalty, uint money, string controller, int officer, CommandRejection rejection)
     {
         var engine = Engine(loyalty, money: money);
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         var result = Reward(engine, controller, officer);
         Assert.Equal(rejection, result.Submission.Rejection);
         Assert.Empty(result.Events);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
     }
 
     [Theory]
@@ -82,13 +83,13 @@ public sealed class PersonnelRewardTests
         var engine = Engine(control: control);
         Assert.True(Reward(engine).Submission.Accepted);
         var restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()));
-        string before = restored.Snapshot.StateHash;
+        var before = restored.Snapshot;
         Assert.Equal(CommandRejection.AlreadyRewarded, Reward(restored).Submission.Rejection);
-        Assert.Equal(before, restored.Snapshot.StateHash);
+        StateAssert.Equal(before, restored.Snapshot);
         engine.EndControl(new("controller"));
         restored.EndControl(new("controller"));
-        Assert.Equal(CanonicalJson.Text(engine.AdvanceXun().Events), CanonicalJson.Text(restored.AdvanceXun().Events));
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        EventAssert.Equal(engine.AdvanceXun().Events, restored.AdvanceXun().Events);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
         Assert.False(restored.Snapshot.Officers.Single(p => p.Id == 1).RewardedThisXun);
         Assert.True(Reward(restored).Submission.Accepted);
     }
@@ -132,9 +133,9 @@ public sealed class PersonnelRewardTests
     {
         var engine = Engine(money: 100);
         var command = new RewardOfficerCommand(Guid.NewGuid(), 1, 0, 1);
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         Assert.True(engine.Validate(new("controller"), command).Accepted);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         Assert.True(engine.Execute(new("controller"), command).Submission.Accepted);
         Assert.Equal(0u, engine.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 1).Treasury.Money);
     }

@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -21,9 +22,13 @@ public sealed class TigerSearchSessionTests
         SearchEvents = [new TigerSearchEventDefinition([800], 1, 260, 5, 20, 1, 1, 2, 7)
             { Id = "tiger", Consumption = EventConsumption.None }]
     , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }], []) };
-    private static ulong Seed(bool wins) => Enumerable.Range(1, 10000).Select(i => (ulong)i).First(seed =>
-        new StableRandom(StableRandom.DeriveSeed(seed, "event-search-eligibility")).NextUInt64() % 100 < 80 &&
+    private static ulong Seed(bool wins)
+    {
+        ulong seed = wins ? 5UL : 1UL;
+        Assert.True(new StableRandom(StableRandom.DeriveSeed(seed, "event-search-eligibility")).NextUInt64() % 100 < 80 &&
         (new StableRandom(StableRandom.DeriveSeed(seed, "event-tiger-battle")).NextUInt64() % 100 < 80) == wins);
+        return seed;
+    }
 
     [Theory]
     [InlineData(false, true, EventResult.Declined)]
@@ -38,35 +43,33 @@ public sealed class TigerSearchSessionTests
         var prompt = Assert.IsType<TigerSearchPrompt>(session.GetTigerSearchPrompt());
         Assert.Equal(prompt, restored.GetTigerSearchPrompt()); Assert.Equal(80, prompt.BattleChance);
         Assert.Equal(SimulationBoundary.AwaitingDecision, session.Snapshot.Simulation.Boundary);
-        string before = session.Snapshot.StateHash;
-        Assert.Equal(prompt, session.GetTigerSearchPrompt()); Assert.Equal(before, session.Snapshot.StateHash);
+        var before = session.Snapshot;
+        Assert.Equal(prompt, session.GetTigerSearchPrompt()); StateAssert.Equal(before, session.Snapshot);
         Guid id = Guid.NewGuid();
         var request = session.Request(new CommandOperation(new RespondDailyTaskCommand(id, 1, session.Snapshot.Simulation.NextSequence,
             prompt.TaskId, prompt.Step, accept)), id: id);
         var first = session.Apply(request); var second = restored.Apply(request);
         Assert.Equal(SessionDisposition.Accepted, first.Disposition);
-        Assert.Equal(CanonicalJson.Text(first.Events), CanonicalJson.Text(second.Events));
+        EventAssert.Equal(first.Events, second.Events);
         var result = Assert.Single(first.Events.OfType<TigerSearchResolvedEvent>());
         Assert.Equal(expected, result.Result); Assert.Equal(expected == EventResult.Defeated ? 7 : 0, result.Injury);
         Assert.Equal(expected == EventResult.Succeeded ? 81 : 80, result.War);
         Assert.Equal(expected == EventResult.Succeeded ? 101 : 98, result.BaseTrust);
         Assert.Equal(3, result.LifespanTier); Assert.DoesNotContain(first.Events, e => e is SearchResolvedEvent or BeastSearchResolvedEvent);
         Assert.Empty(session.Snapshot.Simulation.ConsumedEventKeys); Assert.Null(session.GetTigerSearchPrompt());
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(restored));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(SaveService.Decode(SaveService.Encode(session), d)));
+        StateAssert.Equal(session.Capture(), restored.Capture());
+        StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), d).Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), d, GameSession.EngineFactory(d));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
     public void RefusalLeavesEventAvailableForNextSearcherOnSameDay()
     {
         var d = Definition;
-        ulong seed = Enumerable.Range(1, 10000).Select(i => (ulong)i).First(s =>
-        {
-            var random = new StableRandom(StableRandom.DeriveSeed(s, "event-search-eligibility"));
-            return random.NextUInt64() % 100 < 80 && random.NextUInt64() % 100 < 80;
-        });
+        const ulong seed = 1UL;
+        var eligibilityRandom = new StableRandom(StableRandom.DeriveSeed(seed, "event-search-eligibility"));
+        Assert.True(eligibilityRandom.NextUInt64() % 100 < 80 && eligibilityRandom.NextUInt64() % 100 < 80);
         var session = GameSession.Start(d, seed);
         foreach (int actor in new[] { 2, 3 })
             Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, actor, 1)).Submission.Accepted);
@@ -91,11 +94,7 @@ public sealed class TigerSearchSessionTests
             tiger with { WarChanceDivisor = 0 }, tiger with { MaximumBaseTrustExclusive = 0 }, tiger with { DefeatInjury = 15 },
             tiger with { Consumption = EventConsumption.OnPresentation }
         }) Assert.Throws<InvalidDataException>(() => (d with { SearchEvents = [invalid] }).Validate());
-        Assert.NotEqual(GameSession.Fingerprint(d), GameSession.Fingerprint(d with { SearchEvents = [tiger with { BaseTrustPenalty = 3 }] }));
-        var two = d with { CityProvinceIds = new() { [1] = 800, [4] = 900 },
-            Settlements = [.. d.Settlements, new(4, "other", 1, 10, 10, 0, 100, 100, 0, [])],
-            SearchEvents = [tiger with { ProvinceIds = [800, 900] }] };
-        Assert.Equal(GameSession.Fingerprint(two), GameSession.Fingerprint(two with { SearchEvents = [tiger with { ProvinceIds = [900, 800] }] }));
+
         var json = JsonNode.Parse(CanonicalJson.Encode(d))!;
         json["searchEvents"]![0]!.AsObject().Remove("baseTrustPenalty");
         Assert.Throws<JsonException>(() => StrictJson.Deserialize<ScenarioInitialState>(Encoding.UTF8.GetBytes(json.ToJsonString())));

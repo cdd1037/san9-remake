@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -105,14 +106,7 @@ public sealed class CityIndependenceTests
         Assert.Empty(world.Simulation.RandomStreams);
     }
 
-    private static ulong SeedFor(int roll)
-    {
-        for (ulong seed = 0; ; seed++)
-        {
-            var random = new StableRandom(StableRandom.DeriveSeed(seed, "event-city-independence"));
-            if (random.NextUInt64() % 100 == (ulong)roll) return seed;
-        }
-    }
+    private static ulong SeedFor(int roll) => TestSeeds.ForNamedRoll("event-city-independence", roll);
 
     [Theory]
     [InlineData(48, true)]

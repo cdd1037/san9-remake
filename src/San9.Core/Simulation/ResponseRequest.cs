@@ -1,7 +1,14 @@
 namespace San9.Core.Simulation;
 
 /// <summary>Identity and authority of the current decision, independent of the active turn.</summary>
-public sealed record ResponseRequest(string Kind, string Identity, ControlSeat Owner);
+public sealed record ResponseRequest(string Kind, ControlSeat Owner)
+{
+    internal object Decision { get; init; } = null!;
+    internal ResponseStep? Step { get; init; }
+}
+
+internal sealed record ResponseStep(Guid TaskId, int ResolutionStep, SearchEncounter? SearchEncounter,
+    CompensationOffer? AttackOffer, CompensationOffer? PrisonerOffer);
 
 public sealed partial class SimulationEngine
 {
@@ -22,11 +29,11 @@ public sealed partial class SimulationEngine
             _ => throw new InvalidOperationException("Awaiting decision has no response identity.")
         };
         var owner = sim.Controls.Single(c => c.ForceId == force);
-        object? step = null;
+        ResponseStep? step = null;
         if (sim.PendingDailyTask is { } daily)
         {
             var task = sim.Tasks.Single(t => t.Id == daily.RemainingTaskIds[0]);
-            step = new { task.Id, task.ResolutionStep, task.SearchEncounter, task.AttackRequest?.Offer, PrisonerOffer = task.PrisonerReturn?.Offer };
+            step = new(task.Id, task.ResolutionStep, task.SearchEncounter, task.AttackRequest?.Offer, task.PrisonerReturn?.Offer);
             if (task.ForceId == daily.RespondingForceId)
             {
                 var world = _world.BeginMutation(_rules.Abilities, _rules.Economy);
@@ -36,6 +43,6 @@ public sealed partial class SimulationEngine
                     owner = owner with { ControllerId = CorpsControl.ControllerId(id), Kind = ControllerKind.Automatic };
             }
         }
-        return new(kind, CanonicalJson.Hash(new { kind, Snapshot.Clock, pending, step, owner.ControllerId }), owner);
+        return new(kind, owner) { Decision = pending, Step = step };
     }
 }

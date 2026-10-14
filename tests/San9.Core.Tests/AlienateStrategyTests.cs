@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -89,9 +90,9 @@ public sealed class AlienateStrategyTests
         var rules = Rules();
         var world = World();
         var engine = new SimulationEngine(world, rules);
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         Assert.Equal(AdviserOpinion.NoAdviser, engine.GetAlienateAdvice(1, 11, 21).Opinion);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
 
         var task = Submit(world, rules, 0);
         Assert.Equal(80, world.BeginMutation().Officers[21].Loyalty);
@@ -99,7 +100,7 @@ public sealed class AlienateStrategyTests
         string json = CanonicalJson.Text(world.CreateSnapshot());
         var snapshot = System.Text.Json.JsonSerializer.Deserialize<WorldSnapshot>(json, CanonicalJson.Options)!;
         var restored = new SimulationEngine(WorldState.Restore(snapshot), rules);
-        Assert.Equal(world.CreateSnapshot().StateHash, restored.Snapshot.StateHash);
+        StateAssert.Equal(world.CreateSnapshot(), restored.Snapshot);
 
         Assert.Single(Day(world.BeginMutation(rules.Abilities), rules).OfType<AlienateResolvedEvent>());
     }
@@ -211,9 +212,9 @@ public sealed class AlienateStrategyTests
         for (ulong seed = 1; seed <= 8; seed++)
         {
             var rules = Rules(); var world = WithRulers(seed); var engine = new SimulationEngine(world, rules);
-            var before = engine.Snapshot.StateHash;
+            var before = engine.Snapshot;
             var advice = engine.GetAlienateAdvice(1, 11, 21);
-            Assert.Equal(before, engine.Snapshot.StateHash);
+            StateAssert.Equal(before, engine.Snapshot);
             var command = new AlienateCommand(Guid.NewGuid(), 1, engine.Snapshot.Simulation.NextSequence, 11, 21);
             Assert.True(engine.Execute(new("player"), command).Submission.Accepted);
             var restored = WorldState.Restore(engine.CaptureStableState());

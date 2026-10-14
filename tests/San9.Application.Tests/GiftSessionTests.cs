@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Application.Persistence;
 using San9.Content.Scenarios;
@@ -9,28 +10,19 @@ namespace San9.Application.Tests;
 public sealed class GiftSessionTests
 {
     [Fact]
-    public void AuthoredDiplomacyPreferencesAreValidatedMappedAndFingerprintRelevant()
+    public void AuthoredDiplomacyPreferencesAreValidatedMappedAndCanChangeWhenLoading()
     {
         var content = Content();
         var treasure = content.Information.Treasures[0] with { FavoredOwnerIds = [21, 11], AutomaticDiplomacyOfferAllowed = false };
         var modified = content with { Information = content.Information with { Treasures = [treasure] } };
         var original = GameSession.Start(content, 42);
-        foreach (var changed in new[] { content.Information.Treasures[0] with { FavoredOwnerIds = [11] },
-            content.Information.Treasures[0] with { RetentionGroup = TreasureRetentionGroup.War },
-            content.Information.Treasures[0] with { AutomaticDiplomacyOfferAllowed = false } })
-            Assert.NotEqual(original.ContentFingerprint, GameSession.Start(content with
-                { Information = content.Information with { Treasures = [changed] } }, 42).ContentFingerprint);
-        var session = GameSession.Start(modified, 42);
-        Assert.NotEqual(original.ContentFingerprint, session.ContentFingerprint);
-        var reordered = modified with { Information = modified.Information with { Treasures = [treasure with { FavoredOwnerIds = [11, 21] }] } };
-        Assert.Equal(session.ContentFingerprint, GameSession.Start(reordered, 42).ContentFingerprint);
         var rule = treasure.ToRule();
         Assert.False(rule.AutomaticDiplomacyOfferAllowed);
         Assert.Equal(treasure.FavoredOwnerIds, rule.FavoredOwnerIds);
         foreach (var ids in new System.Collections.Immutable.ImmutableArray<int>[] { [999], [11, 11], default })
             Assert.Throws<InvalidDataException>(() => (modified with { Information = modified.Information with
                 { Treasures = [treasure with { FavoredOwnerIds = ids }] } }).Validate());
-        Assert.Throws<SaveException>(() => SaveService.Decode(SaveService.Encode(original), modified));
+        StateAssert.Equal(original.Capture(), SaveService.Decode(SaveService.Encode(original), modified).Capture());
     }
 
     [Theory]
@@ -68,9 +60,9 @@ public sealed class GiftSessionTests
         var session = GameSession.Start(content, 42);
         session.BeginRecording();
         var offer = new GiftOffer(kind, amount, kind == GiftKind.Treasure ? 9 : null);
-        string beforeAdvice = session.Capture().StateHash;
+        var beforeAdvice = session.Capture();
         Assert.Equal(session.GetGiftAdvice(1, 12, 2, offer), session.GetGiftAdvice(1, 12, 2, offer));
-        Assert.Equal(beforeAdvice, session.Capture().StateHash);
+        StateAssert.Equal(beforeAdvice, session.Capture());
         uint before = kind == GiftKind.Food ? session.Snapshot.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Food : session.Snapshot.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Money;
         Assert.True(session.Execute(new("player"), new GiftCommand(Guid.NewGuid(), 1, 0, 12, 2, offer)).Submission.Accepted);
         Assert.Single(session.Snapshot.Simulation.Tasks);
@@ -78,8 +70,8 @@ public sealed class GiftSessionTests
         else Assert.Equal(before - amount, kind == GiftKind.Food ? session.Snapshot.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Food : session.Snapshot.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Money);
         var restored = SaveService.Decode(SaveService.Encode(session), content);
         var result = session.AdvanceXun();
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         var gift = Assert.Single(result.Events.OfType<GiftResolvedEvent>());
         Assert.True(gift.Accepted);
         Assert.Equal(amount, gift.Received);
@@ -90,14 +82,14 @@ public sealed class GiftSessionTests
         if (kind == GiftKind.Treasure) Assert.Equal(21, session.Snapshot.Treasures[0].HolderId);
         var returning = SaveService.Decode(SaveService.Encode(session), content);
         var next = session.AdvanceXun();
-        Assert.Equal(CanonicalJson.Text(next.Events), CanonicalJson.Text(returning.AdvanceXun().Events));
+        EventAssert.Equal(next.Events, returning.AdvanceXun().Events);
         Assert.Contains(next.Events.OfType<PersonnelReturnedEvent>(), e => e.OfficerId == 12 && e.Clock == new GameClock(190, 1, 13));
         Assert.DoesNotContain(session.Snapshot.Simulation.Tasks, t => t.OfficerId == 12);
         DecisionResponses.DeclineAll(session);
         DecisionResponses.DeclineAll(returning);
-        Assert.Equal(session.Capture().StateHash, returning.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), returning.Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Theory]
@@ -133,8 +125,8 @@ public sealed class GiftSessionTests
             pending.RemainingTaskIds[0], 0, accept);
         var result = session.Execute(new("player"), response);
         Assert.True(result.Submission.Accepted);
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.Execute(new("player"), response).Events));
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        EventAssert.Equal(result.Events, restored.Execute(new("player"), response).Events);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         var gift = Assert.Single(result.Events.OfType<GiftResolvedEvent>());
         Assert.Equal(accept, gift.Accepted);
         Assert.Equal(accept ? amount : 0, gift.Received);
@@ -156,17 +148,17 @@ public sealed class GiftSessionTests
             Assert.DoesNotContain(result.Events.OfType<OfficerAbilityGrownEvent>(), e => e.OfficerId == 22);
         }
         Assert.All(session.Snapshot.Simulation.Tasks, t => Assert.NotNull(t.Journey!.ReturnLeg));
-        var settled = session.Capture().StateHash;
+        var settled = session.Capture();
         var repeated = response with { CommandId = Guid.NewGuid(), Sequence = session.Snapshot.Simulation.NextSequence };
         Assert.False(session.Execute(new("player"), repeated).Submission.Accepted);
-        Assert.Equal(settled, session.Capture().StateHash);
+        StateAssert.Equal(settled, session.Capture());
         var returning = SaveService.Decode(SaveService.Encode(session), content);
         var home = session.AdvanceXun();
-        Assert.Equal(CanonicalJson.Text(home.Events), CanonicalJson.Text(returning.AdvanceXun().Events));
+        EventAssert.Equal(home.Events, returning.AdvanceXun().Events);
         Assert.DoesNotContain(home.Events.OfType<ResourceChangedEvent>(), e => e.Reason is "gift-refused" or "gift-cancelled");
         Assert.DoesNotContain(session.Snapshot.Simulation.Tasks, t => t.OfficerId == 22);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -298,12 +290,12 @@ public sealed class GiftSessionTests
     public void InvalidOffersAndInsufficientBalanceAreRejectedWithoutOccupationOrPayment()
     {
         var session = GameSession.Start(Content(), 42);
-        string before = session.Capture().StateHash;
+        var before = session.Capture();
         GiftOffer[] offers = [new(GiftKind.Money, 0, null), new(GiftKind.Money, 10, 9), new(GiftKind.Treasure, 1, 9),
             new(GiftKind.Treasure, 0, null), new((GiftKind)99, 1, null), new(GiftKind.Food, 1000000, null)];
         foreach (var offer in offers)
             Assert.False(session.Execute(new("player"), new GiftCommand(Guid.NewGuid(), 1, 0, 12, 2, offer)).Submission.Accepted);
-        Assert.Equal(before, session.Capture().StateHash);
+        StateAssert.Equal(before, session.Capture());
     }
 
     [Fact]

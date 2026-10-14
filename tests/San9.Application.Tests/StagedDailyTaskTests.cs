@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Text.Json;
 using San9.Application.Persistence;
 using San9.Content.Scenarios;
@@ -69,24 +70,24 @@ public sealed class StagedDailyTaskTests
         Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
         var answered = session.Execute(new("player"), first);
         Assert.True(answered.Submission.Accepted);
-        Assert.Equal(CanonicalJson.Text(answered.Events), CanonicalJson.Text(restored.Execute(new("player"), first).Events));
-        Assert.Equal(session.Snapshot.StateHash, restored.Snapshot.StateHash);
+        EventAssert.Equal(answered.Events, restored.Execute(new("player"), first).Events);
+        StateAssert.Equal(session.Snapshot, restored.Snapshot);
         if (!automaticFinal)
         {
             Assert.Equal(3, session.Snapshot.Clock.Day);
             Assert.Equal(2, Assert.Single(session.Snapshot.Simulation.Tasks).ResolutionStep);
             Assert.DoesNotContain(answered.Events, e => e is TaskCompletedEvent or XunAdvancedEvent or StageCompletedEvent);
             Assert.Equal(beforeMoney, session.Snapshot.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Money);
-            string beforeInvalid = session.Snapshot.StateHash;
+            var beforeInvalid = session.Snapshot;
             var stale = first with { CommandId = Guid.NewGuid(), Sequence = session.Snapshot.Simulation.NextSequence };
             Assert.Equal(CommandRejection.InvalidDecision, session.Execute(new("player"), stale).Submission.Rejection);
-            Assert.Equal(beforeInvalid, session.Snapshot.StateHash);
+            StateAssert.Equal(beforeInvalid, session.Snapshot);
             Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
             var final = stale with { CommandId = Guid.NewGuid(), Step = 2, Accept = accept };
             answered = session.Execute(new("player"), final);
             Assert.True(answered.Submission.Accepted);
-            Assert.Equal(CanonicalJson.Text(answered.Events), CanonicalJson.Text(restored.Execute(new("player"), final).Events));
-            Assert.Equal(session.Snapshot.StateHash, restored.Snapshot.StateHash);
+            EventAssert.Equal(answered.Events, restored.Execute(new("player"), final).Events);
+            StateAssert.Equal(session.Snapshot, restored.Snapshot);
         }
         Assert.Single(answered.Events.OfType<TaskCompletedEvent>(), e => e.TaskId == taskId);
         Assert.Single(answered.Events.OfType<XunAdvancedEvent>());
@@ -94,7 +95,7 @@ public sealed class StagedDailyTaskTests
         // The two ordinary officers also receive their next-xun salary after continuation.
         Assert.Equal(beforeMoney - 2 - (accept ? 100u : 0u), session.Snapshot.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Money);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, Factory);
-        Assert.Equal(session.Snapshot.StateHash, replay.Session.Snapshot.StateHash);
+        StateAssert.Equal(session.Snapshot, replay.Session.Snapshot);
         Assert.Equal(10, replay.Events.OfType<StageCompletedEvent>().Count(e => e.Stage == ResolutionStage.BeforeDailyCommands));
         Assert.Single(replay.Events.OfType<TaskCompletedEvent>(), e => e.TaskId == taskId);
     }
@@ -115,9 +116,9 @@ public sealed class StagedDailyTaskTests
         Assert.True(engine.Execute(new("first"), new RespondDailyTaskCommand(Guid.NewGuid(), 1, 1, id, 1, true)).Submission.Accepted);
         Assert.Equal(2, engine.Snapshot.Simulation.PendingDailyTask!.RespondingForceId);
         var response = new RespondDailyTaskCommand(Guid.NewGuid(), 2, 2, id, 2, true);
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         Assert.Equal(CommandRejection.NotActiveController, engine.Execute(new("first"), response).Submission.Rejection);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         var snapshot = engine.Snapshot;
         snapshot = snapshot with { Settlements = snapshot.Settlements.Select(s => s with { PublicOrder = 100 }).ToArray() };
         engine = new(WorldState.Restore(snapshot), new Rules(switchRespondent: true));

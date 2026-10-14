@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.Persistence;
 
 namespace San9.Application.Tests;
@@ -27,7 +28,7 @@ public sealed class PkSettingsTests
             (loaded.OtherForceOrdersVisible, loaded.OtherForceTacticsVisible, loaded.BattleDeathsEnabled));
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), scenario,
             GameSession.EngineFactory(scenario));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
         var fresh = GameSession.Start(scenario, 190).Snapshot.Simulation;
         Assert.True(fresh.OtherForceOrdersVisible);
         Assert.True(fresh.OtherForceTacticsVisible);
@@ -38,10 +39,10 @@ public sealed class PkSettingsTests
     public void NonPlayerCannotChangeSettingsOrConsumeAnOperation()
     {
         var session = GameSession.Start(G01ScenarioTests.Fixture(), 190);
-        var before = session.Capture().StateHash;
+        var before = session.Capture();
         var result = session.Apply(session.Request(new PkSettingsOperation(false, false, true), "computer"));
         Assert.Equal(SessionDisposition.Rejected, result.Disposition);
         Assert.Equal(SessionRejection.InvalidRequest, result.Rejection);
-        Assert.Equal(before, session.Capture().StateHash);
+        StateAssert.Equal(before, session.Capture());
     }
 }

@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.AI;
 using System.Collections.Immutable;
 using San9.Content.Scenarios;
@@ -37,12 +38,12 @@ public sealed class ShoreMilitarySessionTests
         Assert.Equal(original.Settlements.Single(s => s.Id == 1).DraftPopulation + 100u,
             session.Snapshot.Settlements.Single(s => s.Id == 1).DraftPopulation);
         var restored = GameSession.Restore(definition, session.Capture());
-        Assert.Equal(session.Snapshot.StateHash, restored.Snapshot.StateHash);
+        StateAssert.Equal(session.Snapshot, restored.Snapshot);
         Assert.False(restored.View.Settlements.Single(s => s.Id == 2).IsFacilityListEntry);
-        string hash = restored.Snapshot.StateHash;
+        var hash = restored.Snapshot;
         Assert.Equal(new WorldPosition(27, 2), Assert.Single(ConstructionLocations.Read(restored, 1, 9000)).Position);
         Assert.Empty(ConstructionLocations.Read(restored, 1, 8000));
-        Assert.Equal(hash, restored.Snapshot.StateHash);
+        StateAssert.Equal(hash, restored.Snapshot);
     }
 
     [Theory]
@@ -104,11 +105,11 @@ public sealed class ShoreMilitarySessionTests
         session.AdvanceXun();
         var command = new ReformUnitCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence,
             unit.Id, 20, [1], new(MilitaryOrderKind.Return, null, 2));
-        string before = session.Capture().StateHash;
+        var before = session.Capture();
         Assert.Equal(CommandRejection.UnsupportedCommand, session.Validate(new("player"), command).Rejection);
         var result = session.Execute(new("player"), command);
         Assert.Equal(CommandRejection.UnsupportedCommand, result.Submission.Rejection);
         Assert.Empty(result.Events);
-        Assert.Equal(before, session.Capture().StateHash);
+        StateAssert.Equal(before, session.Capture());
     }
 }

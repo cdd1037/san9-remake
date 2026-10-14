@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -142,7 +143,7 @@ public sealed class AllianceEligibilityTests
         var before = engine.CaptureStableState();
         string candidates = CanonicalJson.Text(engine.GetAllianceCandidates());
         Assert.Equal(candidates, CanonicalJson.Text(engine.GetAllianceCandidates()));
-        Assert.Equal(before.StateHash, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
         Assert.Equal(candidates, CanonicalJson.Text(new SimulationEngine(WorldState.Restore(before), Rules()).GetAllianceCandidates()));
     }
 }

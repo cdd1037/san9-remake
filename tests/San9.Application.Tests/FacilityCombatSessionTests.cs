@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.Persistence;
 using San9.Content.Scenarios;
 using San9.Core.Domain;
@@ -34,11 +35,11 @@ public sealed class FacilityCombatSessionTests
             { LinkRules = new(true, 20, [new(11, 9000, 45, false)]) } }).Validate());
         var session = GameSession.Start(definition, 42, 100, aiPolicy: San9.Application.AI.AiPolicyConfiguration.Standard with { WorkBudget = 1 });
         session.BeginRecording();
-        var beforeQuery = session.Snapshot.StateHash;
+        var beforeQuery = session.Snapshot;
         Assert.True(session.View.HasCityInfluence(1, new(7, 2)));
         Assert.False(session.View.HasCityInfluence(1, new(17, 2)));
         Assert.True(session.View.HasCityInfluence(2, new(17, 2)));
-        Assert.Equal(beforeQuery, session.Snapshot.StateHash);
+        StateAssert.Equal(beforeQuery, session.Snapshot);
         var query = session.View.Settlements.Single(s => s.Id == 1);
         Assert.Equal(8000, query.FacilityTypeId);
         Assert.Equal(2, query.BaseAttackRange);
@@ -58,11 +59,11 @@ public sealed class FacilityCombatSessionTests
         Assert.Equal(9000, restored.View.Settlements.Single(s => s.Id == 1).ConfiguredTacticId);
         Assert.True(restored.View.Settlements.Single(s => s.Id == 1).UsesRockfallPower);
         Assert.Equal(query.Reprisal, restored.View.Settlements.Single(s => s.Id == 1).Reprisal);
-        Assert.Equal(CanonicalJson.Text(session.AdvanceXun().Events), CanonicalJson.Text(restored.AdvanceXun().Events));
-        Assert.Equal(session.Snapshot.StateHash, restored.Snapshot.StateHash);
+        EventAssert.Equal(session.AdvanceXun().Events, restored.AdvanceXun().Events);
+        StateAssert.Equal(session.Snapshot, restored.Snapshot);
         var replay = RecordingService.Replay(RecordingService.Encode(session.CaptureRecording()), definition, GameSession.EngineFactory(definition));
         Assert.Equal(100, replay.Session.Snapshot.Simulation.ComputerDamageBonusPercent);
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
         string log = Path.Combine(Path.GetTempPath(), $"san9-bonus-{Guid.NewGuid():N}.jsonl");
         try
         {
@@ -70,13 +71,13 @@ public sealed class FacilityCombatSessionTests
             var header = CommandLogService.ReadHeader(log);
             Assert.Equal(100, header.ComputerDamageBonusPercent);
             var mismatch = GameSession.Start(definition, header.Seed);
-            string unchanged = mismatch.Capture().StateHash;
+            var unchanged = mismatch.Capture();
             Assert.Equal(1, Assert.Throws<CommandLogException>(() => CommandLogService.Replay(log, mismatch)).Line);
-            Assert.Equal(unchanged, mismatch.Capture().StateHash);
+            StateAssert.Equal(unchanged, mismatch.Capture());
             var logReplay = GameSession.Start(definition, header.Seed, header.ComputerDamageBonusPercent,
                 header.BattleDeathsEnabled, aiPolicy: San9.Application.AI.AiPolicyConfiguration.Standard with { WorkBudget = 1 });
             Assert.Null(CommandLogService.Replay(log, logReplay).FirstFailure);
-            Assert.Equal(session.Capture().StateHash, logReplay.Capture().StateHash);
+            StateAssert.Equal(session.Capture(), logReplay.Capture());
             Assert.Equal(session.Snapshot.Units.Single().Soldiers, logReplay.Snapshot.Units.Single().Soldiers);
             var lines = File.ReadAllLines(log);
             var missing = System.Text.Json.Nodes.JsonNode.Parse(lines[0])!;

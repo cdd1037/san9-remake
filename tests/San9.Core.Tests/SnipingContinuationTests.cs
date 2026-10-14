@@ -25,18 +25,15 @@ public sealed class SnipingContinuationTests
                 MemberRanks = u.MemberRanks.Add(12, BattleRank.Rear) } : u),
             controls: [new("first", 1, ControllerKind.Player), new("second", 2, ControllerKind.Player)], battleDeathsEnabled: true, corps: initial.Corps);
         var m = world.BeginMutation();
-        ulong seed = 1;
-        for (;; seed++)
-        {
-            var random = new StableRandom(seed);
-            if (random.NextUInt64() % 100 < 16 && random.NextUInt64() % 100 < 16) break;
-        }
+        const ulong seed = 30UL;
+        var random = new StableRandom(seed);
+        Assert.True(random.NextUInt64() % 100 < 16 && random.NextUInt64() % 100 < 16);
         m.SetSimulation(m.Simulation with { Boundary = SimulationBoundary.Stable, ActiveControl = 2,
             RandomStreams = [new("military-sniping-death", seed)] });
         m.SetClock(new(190, 1, 2));
         List<DomainEvent> events = [];
         MilitaryCombat.AdvanceDay(m, rules, events, initial.Clock);
-        Assert.True(m.Simulation.PendingSniping is not null, CanonicalJson.Text(events));
+        if (m.Simulation.PendingSniping is null) Assert.Fail(CanonicalJson.Text(events));
         Assert.Equal(22, m.Simulation.PendingSniping!.RulerId);
         Assert.True(m.Simulation.PendingSniping.Exchange!.CounterPending);
         world.Commit(m);

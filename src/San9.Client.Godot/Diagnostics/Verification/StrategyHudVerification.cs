@@ -174,7 +174,7 @@ public partial class StrategyHud
         Check(Selection.BuildingId == old, "Sidebar input leaked to map.");
         float zoom = World.ZoomFactor;
         var overviewCenter = World.CameraPosition;
-        string overviewHash = Session.Snapshot.StateHash;
+        long overviewRevision = Session.Snapshot.Revision;
         await Click(new(979, 628));
         Check(Overview.IsOpen && _overviewPanel.Visible && World.ZoomFactor == zoom && World.CameraPosition == overviewCenter && _small!.ButtonPressed,
             "Overview did not open independently of the detailed camera.");
@@ -193,7 +193,7 @@ public partial class StrategyHud
         Check(Overview.IsOpen && World.CameraPosition != overviewCenter && Selection.BuildingId == old, "Overview positioning closed panel or changed command selection.");
         var overviewTarget = World.CameraPosition;
         await Click(new(300,650));
-        Check(World.CameraPosition == overviewTarget && Session.Snapshot.StateHash == overviewHash, "Ranking click changed camera or world.");
+        Check(World.CameraPosition == overviewTarget && Session.Snapshot.Revision == overviewRevision, "Ranking click changed camera or world.");
         await Click(new(922, 649));
         Check(!Overview.IsOpen && World.ZoomFactor == zoom && World.CameraPosition == overviewTarget && _large!.ButtonPressed,
             $"Large map button did not restore detailed map: open={Overview.IsOpen}, zoom={World.ZoomFactor}/{zoom}, center={World.CameraPosition}/{overviewTarget}, pressed={_large!.ButtonPressed}.");

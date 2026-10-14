@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using System.Text;
 using System.Text.Json;
@@ -22,9 +23,13 @@ public sealed class MerchantInvestmentSessionTests
         SearchEvents = [new MerchantInvestmentDefinition([new("salt", [1], resource, new("salt.banned"))], 1, 50, 1000, 100, 5, 20, 3, 2, 4, 5)
             { Id = "merchant", Consumption = EventConsumption.None }]
     , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 1, new(50000, 10000)) { IsRoot = true }], []) };
-    private static ulong Seed(bool wins) => Enumerable.Range(1, 10000).Select(i => (ulong)i).First(seed =>
-        new StableRandom(StableRandom.DeriveSeed(seed, "event-search-eligibility")).NextUInt64() % 100 < 80 &&
+    private static ulong Seed(bool wins)
+    {
+        ulong seed = wins ? 1UL : 12UL;
+        Assert.True(new StableRandom(StableRandom.DeriveSeed(seed, "event-search-eligibility")).NextUInt64() % 100 < 80 &&
         (new StableRandom(StableRandom.DeriveSeed(seed, "event-merchant-investment")).NextUInt64() % 100 < 80) == wins);
+        return seed;
+    }
     private static RespondDailyTaskCommand Answer(GameSession session, MerchantInvestmentPrompt p, MerchantInvestmentChoice choice, uint amount) =>
         new(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, p.TaskId, p.Step, choice == MerchantInvestmentChoice.Invest)
         { MerchantInvestment = new(choice, amount) };
@@ -47,21 +52,21 @@ public sealed class MerchantInvestmentSessionTests
         Assert.Equal(prompt, restored.GetMerchantInvestmentPrompt()); Assert.Equal(price, prompt.FoodExchangeRate);
         Assert.Equal(100u, prompt.MinimumInvestment); Assert.Equal(9999u, prompt.MaximumInvestment); Assert.Equal(80, prompt.SuccessChance);
         Assert.Equal(SimulationBoundary.AwaitingDecision, session.Snapshot.Simulation.Boundary);
-        string before = session.Snapshot.StateHash; Assert.Equal(prompt, session.GetMerchantInvestmentPrompt()); Assert.Equal(before, session.Snapshot.StateHash);
+        var before = session.Snapshot; Assert.Equal(prompt, session.GetMerchantInvestmentPrompt()); StateAssert.Equal(before, session.Snapshot);
         uint amount = choice == MerchantInvestmentChoice.Invest ? 101u : 0u;
         var answer = Answer(session, prompt, choice, amount); var request = session.Request(new CommandOperation(answer), id: answer.CommandId);
         var first = session.Apply(request); var second = restored.Apply(request);
-        Assert.Equal(SessionDisposition.Accepted, first.Disposition); Assert.Equal(CanonicalJson.Text(first.Events), CanonicalJson.Text(second.Events));
+        Assert.Equal(SessionDisposition.Accepted, first.Disposition); EventAssert.Equal(first.Events, second.Events);
         var result = Assert.Single(first.Events.OfType<MerchantInvestmentResolvedEvent>());
         bool success = choice == MerchantInvestmentChoice.Invest && wins;
         Assert.Equal(success, result.Succeeded); Assert.Equal(success ? 471L * (resource == ResourceKind.Food ? price : 1) : 0, result.GrossReturn);
         Assert.Equal(choice == MerchantInvestmentChoice.Execute ? 95 : 100, result.BaseTrust);
         Assert.Equal(choice == MerchantInvestmentChoice.Execute, session.Snapshot.Forces.Single().EventHistory.Contains(new("salt.banned")));
         Assert.Empty(session.Snapshot.Simulation.ConsumedEventKeys); Assert.DoesNotContain(first.Events, e => e is SearchResolvedEvent);
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(restored));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(SaveService.Decode(SaveService.Encode(session), d)));
+        StateAssert.Equal(session.Capture(), restored.Capture());
+        StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), d).Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), d, GameSession.EngineFactory(d));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
         var rng = new StableRandom(StableRandom.DeriveSeed(Seed(wins), "food-market")); rng.NextUInt64(); rng.NextUInt64();
         Assert.Equal(rng.State, session.Snapshot.Simulation.RandomStreams.Single(s => s.Name == "food-market").State);
     }
@@ -71,7 +76,7 @@ public sealed class MerchantInvestmentSessionTests
     {
         var session = GameSession.Start(Definition(), Seed(true));
         session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 2, 1)); session.AdvanceXun();
-        var p = session.GetMerchantInvestmentPrompt()!; string hash = session.Snapshot.StateHash;
+        var p = session.GetMerchantInvestmentPrompt()!; var hash = session.Snapshot;
         var valid = Answer(session, p, MerchantInvestmentChoice.Invest, 100);
         foreach (var invalid in new[]
         {
@@ -82,13 +87,13 @@ public sealed class MerchantInvestmentSessionTests
             valid with { Accept = false, MerchantInvestment = new(MerchantInvestmentChoice.Decline, 100) }
         })
         {
-            Assert.False(session.Execute(new("player"), invalid).Submission.Accepted); Assert.Equal(hash, session.Snapshot.StateHash);
+            Assert.False(session.Execute(new("player"), invalid).Submission.Accepted); StateAssert.Equal(hash, session.Snapshot);
         }
         Assert.True(session.Execute(new("player"), valid).Submission.Accepted);
     }
 
     [Fact]
-    public void MarketAndMerchantContentValidateAndContributeToFingerprint()
+    public void MarketAndMerchantContentValidate()
     {
         var d = Definition(); var merchant = Assert.IsType<MerchantInvestmentDefinition>(d.SearchEvents.Single());
         foreach (var invalid in new[]
@@ -99,9 +104,7 @@ public sealed class MerchantInvestmentSessionTests
         }) Assert.Throws<InvalidDataException>(() => (d with { SearchEvents = [invalid] }).Validate());
         Assert.Throws<InvalidDataException>(() => (d with { FoodExchangeRate = 0 }).Validate());
         Assert.Throws<InvalidDataException>(() => (d with { FoodMarket = new([]) }).Validate());
-        Assert.NotEqual(GameSession.Fingerprint(d), GameSession.Fingerprint(d with { FoodExchangeRate = 4 }));
-        var otherMarket = d with { FoodMarket = new(d.FoodMarket!.MonthlyRates.SetItem(0, [8, 8, 9])) };
-        Assert.NotEqual(GameSession.Fingerprint(d), GameSession.Fingerprint(otherMarket));
+
         var json = JsonNode.Parse(CanonicalJson.Encode(d))!; json.AsObject().Remove("foodExchangeRate");
         Assert.Throws<JsonException>(() => StrictJson.Deserialize<ScenarioInitialState>(Encoding.UTF8.GetBytes(json.ToJsonString())));
     }

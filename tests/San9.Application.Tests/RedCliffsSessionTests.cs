@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using System.Text;
 using System.Text.Json;
@@ -45,17 +46,17 @@ public sealed class RedCliffsSessionTests
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         var result = session.AdvanceXun();
         Assert.Single(result.Events.OfType<RedCliffsEvent>());
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         Assert.Equal(3000u, session.Snapshot.Units.Single(u => u.Id == 20).Soldiers);
         Assert.Equal(150, session.Snapshot.Forces.Single(f => f.Id == 1).BaseTrust);
         Assert.Equal(85, session.Snapshot.Forces.Single(f => f.Id == 2).BaseTrust);
         Assert.Equal(115, session.Snapshot.Officers.Single(p => p.Id == 12).Loyalty);
         var saved = SaveService.Decode(SaveService.Encode(session), definition);
-        Assert.Empty(saved.InitialEvents); Assert.Equal(session.Capture().StateHash, saved.Capture().StateHash);
+        Assert.Empty(saved.InitialEvents); StateAssert.Equal(session.Capture(), saved.Capture());
         Assert.Empty(session.AdvanceXun().Events.OfType<RedCliffsEvent>());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -67,11 +68,11 @@ public sealed class RedCliffsSessionTests
         var session = GameSession.Start(definition, 17);
         Assert.Empty(session.InitialEvents.OfType<RedCliffsEvent>());
         Assert.Equal(30000u, session.Snapshot.Units.Single(u => u.Id == 20).Soldiers);
-        Assert.Equal(session.Capture().StateHash, SaveService.Decode(SaveService.Encode(session), definition).Capture().StateHash);
+        StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), definition).Capture());
     }
 
     [Fact]
-    public void ContentRequiresGeographyAndValidReferencesAndCanonicalizesSets()
+    public void ContentRequiresGeographyAndValidReferences()
     {
         var definition = Definition(); var battle = definition.RedCliffs!;
         foreach (var invalid in new[] { battle with { OfficerId = 999 }, battle with { OpposingCityId = 3 },
@@ -80,9 +81,7 @@ public sealed class RedCliffsSessionTests
             battle with { MinimumEnemySoldiers = -1 }, battle with { SoldierLossPercent = 101 }, battle with { LoyaltyBonus = -1 } })
             Assert.Throws<InvalidDataException>(() => (definition with { RedCliffs = invalid }).Validate());
         Assert.Throws<InvalidDataException>(() => (definition with { Military = definition.Military! with { RegionIds = [] } }).Validate());
-        Assert.NotEqual(GameSession.Fingerprint(definition), GameSession.Fingerprint(definition with { RedCliffs = battle with { SoldierLossPercent = 80 } }));
-        Assert.Equal(GameSession.Fingerprint(definition with { RedCliffs = battle with { RegionIds = [1, 3], ExcludedRulerIds = [11, 21] } }),
-            GameSession.Fingerprint(definition with { RedCliffs = battle with { RegionIds = [3, 1], ExcludedRulerIds = [21, 11] } }));
+
         var document = JsonNode.Parse(CanonicalJson.Encode(definition))!.AsObject(); document.Remove("redCliffs");
         Assert.Throws<JsonException>(() => StrictJson.Deserialize<ScenarioInitialState>(Encoding.UTF8.GetBytes(document.ToJsonString())));
         foreach (string field in new[] { "officerId", "regionIds", "soldierLossPercent", "consumptionKey" })

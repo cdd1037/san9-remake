@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using System.Text.Json;
 using San9.Application.Persistence;
@@ -30,7 +31,7 @@ public sealed class FoodTradeSessionTests
         Assert.Contains("merchant", session.View.Settlements.Single(s => s.Id == 2).Icons);
         var before = session.Snapshot; var quote = session.GetFoodTradeQuote(1, 2, [2], direction);
         Assert.True(quote.Available); Assert.Equal(new(ResourceOwnerKind.Corps, 2), quote.Account);
-        Assert.Equal(6000u, quote.MaximumFoodAmount); Assert.Equal(before.StateHash, session.Snapshot.StateHash);
+        Assert.Equal(6000u, quote.MaximumFoodAmount); StateAssert.Equal(before, session.Snapshot);
         var command = new FoodTradeCommand(Guid.NewGuid(), 1, 0, 2, [2], direction, 8);
         var request = session.Request(new CommandOperation(command), id: command.CommandId);
         var result = session.Apply(request); Assert.Equal(SessionDisposition.Accepted, result.Disposition);
@@ -44,12 +45,12 @@ public sealed class FoodTradeSessionTests
         Assert.Equal(SessionDisposition.AlreadyProcessed, session.Apply(request).Disposition);
         Assert.Equal(FoodTradeRejection.AlreadyUsed, session.GetFoodTradeQuote(1, 2, [3], direction).Rejection);
         var restored = SaveService.Decode(SaveService.Encode(session), d);
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(restored));
+        StateAssert.Equal(session.Capture(), restored.Capture());
         session.AdvanceXun(); restored.AdvanceXun();
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(restored));
+        StateAssert.Equal(session.Capture(), restored.Capture());
         Assert.True(session.GetFoodTradeQuote(1, 2, [2], direction).Available);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), d, GameSession.EngineFactory(d));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -60,14 +61,14 @@ public sealed class FoodTradeSessionTests
         foreach (var invalid in new[] { command with { FoodAmount = 0 }, command with { FoodAmount = 6001 }, command with { OfficerIds = [2, 2] },
             command with { OfficerIds = [1] }, command with { Direction = (FoodTradeDirection)99 }, command with { SettlementId = 99 } })
         {
-            string hash = session.Snapshot.StateHash;
-            Assert.False(session.Execute(new("player"), invalid).Submission.Accepted); Assert.Equal(hash, session.Snapshot.StateHash);
+            var hash = session.Snapshot;
+            Assert.False(session.Execute(new("player"), invalid).Submission.Accepted); StateAssert.Equal(hash, session.Snapshot);
         }
         Assert.True(session.Execute(new("player"), new SetCorpsControlCommand(Guid.NewGuid(), 1, 0, 2, CorpsControlMode.Automatic)).Submission.Accepted);
         command = command with { Sequence = 1 };
-        string delegated = session.Snapshot.StateHash;
+        var delegated = session.Snapshot;
         Assert.Equal(CommandRejection.NotActiveController, session.Execute(new("player"), command).Submission.Rejection);
-        Assert.Equal(delegated, session.Snapshot.StateHash);
+        StateAssert.Equal(delegated, session.Snapshot);
         Assert.True(session.Execute(new(CorpsControl.ControllerId(2)), command).Submission.Accepted);
     }
 
@@ -84,11 +85,11 @@ public sealed class FoodTradeSessionTests
             Assert.Equal(["merchant"], session.View.Settlements.Single(s => s.Id == 2).Icons);
             Assert.Equal(present, session.GetFoodTradeQuote(1, 1, [1], FoodTradeDirection.Buy).Available);
             var restored = SaveService.Decode(SaveService.Encode(session), d);
-            Assert.Equal(SaveService.Encode(session), SaveService.Encode(restored));
+            StateAssert.Equal(session.Capture(), restored.Capture());
             Assert.Equal(["training"], restored.View.Settlements.Single(s => s.Id == 1).Icons);
             Assert.Equal(["merchant"], restored.View.Settlements.Single(s => s.Id == 2).Icons);
             session.AdvanceXun(); restored.AdvanceXun();
-            Assert.Equal(SaveService.Encode(session), SaveService.Encode(restored));
+            StateAssert.Equal(session.Capture(), restored.Capture());
         }
         var random = new StableRandom(StableRandom.DeriveSeed(190, "city-merchants"));
         for (int i = 0; i < 9; i++) random.NextUInt64();
@@ -96,10 +97,10 @@ public sealed class FoodTradeSessionTests
     }
 
     [Fact]
-    public void MerchantContractIsRequiredValidatedAndFingerprintRelevant()
+    public void MerchantContractIsRequiredAndValidated()
     {
         var d = Definition(); var changed = d with { Settlements = [d.Settlements[0] with { MerchantPresenceChance = 20 }, d.Settlements[1]] };
-        Assert.NotEqual(GameSession.Start(d, 1).ContentFingerprint, GameSession.Start(changed, 1).ContentFingerprint);
+
         foreach (int chance in new[] { -1, 101 })
             Assert.Throws<InvalidDataException>(() => (d with { Settlements = [d.Settlements[0] with { MerchantPresenceChance = chance }, d.Settlements[1]] }).Validate());
         Assert.Throws<InvalidDataException>(() => (d with { Settlements = [d.Settlements[0] with { Kind = SettlementKind.Facility }, d.Settlements[1]] }).Validate());

@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -56,17 +57,17 @@ public sealed class FixedUnitFormationTests
             // Cancellation/arrival may leave the unit returning or idle; neither changes its purpose.
             var mutation = world.BeginMutation(); mutation.Replace(mutation.Units[unit.Id] with { Order = order }); world.Commit(mutation);
             engine = Engine(WorldState.Restore(engine.CaptureStableState()), rules);
-            string before = engine.Snapshot.StateHash;
+            var before = engine.Snapshot;
             foreach (int formation in new[] { 101, construction ? 601 : 501, unit.FormationId!.Value })
             {
                 var reform = new ReformUnitCommand(Guid.NewGuid(), 1, engine.Snapshot.Simulation.NextSequence,
                     unit.Id, formation, [11], new(MilitaryOrderKind.Move, new(7, 2), null));
                 Assert.Equal(CommandRejection.UnsupportedCommand, engine.Execute(Player, reform).Submission.Rejection);
-                Assert.Equal(before, engine.Snapshot.StateHash);
+                StateAssert.Equal(before, engine.Snapshot);
             }
             Assert.False(engine.Execute(Player, new OrderUnitCommand(Guid.NewGuid(), 1,
                 engine.Snapshot.Simulation.NextSequence, unit.Id, new(MilitaryOrderKind.AttackSettlement, null, 2))).Submission.Accepted);
-            Assert.Equal(before, engine.Snapshot.StateHash);
+            StateAssert.Equal(before, engine.Snapshot);
             world = WorldState.Restore(engine.CaptureStableState()); engine = Engine(world, rules);
         }
     }
@@ -79,11 +80,11 @@ public sealed class FixedUnitFormationTests
     public void OrdinaryDeploymentCannotSelectSpecialFormationsEvenWhenGranted(int land, int naval)
     {
         var engine = Engine(World(), new(Definition()));
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         var command = new DeployUnitCommand(Guid.NewGuid(), 1, 0, 1, [11], 500, land,
             new(MilitaryOrderKind.Move, new(7, 2), null)) { NavalFormationId = naval };
         Assert.False(engine.Execute(Player, command).Submission.Accepted);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
     }
 
     [Theory]
@@ -127,7 +128,7 @@ public sealed class FixedUnitFormationTests
         Assert.True(engine.Execute(Player, new DeployUnitCommand(Guid.NewGuid(), 1, 0, 1, [11], 500, 101,
             new(MilitaryOrderKind.Move, new(7, 2), null))).Submission.Accepted);
         var unit = Assert.Single(engine.Snapshot.Units);
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         long sequence = engine.Snapshot.Simulation.NextSequence;
         Assert.Equal(CommandRejection.InvalidTask, engine.Execute(Player, new OrderUnitCommand(Guid.NewGuid(), 1,
             sequence, unit.Id, new(MilitaryOrderKind.Transport, null, 2))).Submission.Rejection);
@@ -136,9 +137,9 @@ public sealed class FixedUnitFormationTests
             Assert.False(engine.Execute(Player, new ReformUnitCommand(Guid.NewGuid(), 1, sequence, unit.Id,
                 pair.LandFormationId, [11], new(MilitaryOrderKind.Move, new(7, 2), null))
                 { NavalFormationId = pair.NavalFormationId }).Submission.Accepted);
-            Assert.Equal(before, engine.Snapshot.StateHash);
+            StateAssert.Equal(before, engine.Snapshot);
         }
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
     }
 
     [Fact]

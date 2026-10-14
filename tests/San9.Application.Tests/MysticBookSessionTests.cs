@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -64,17 +65,17 @@ public sealed class MysticBookSessionTests
         var request = session.Request(new CommandOperation(answer), id: id);
         var first = session.Apply(request); var second = restored.Apply(request);
         Assert.Equal(SessionDisposition.Accepted, first.Disposition);
-        Assert.Equal(CanonicalJson.Text(first.Events), CanonicalJson.Text(second.Events));
+        EventAssert.Equal(first.Events, second.Events);
         Assert.DoesNotContain(first.Events, e => e is SearchResolvedEvent);
         Assert.Equal(returning ? (accept ? 4 : 2) : (accept ? 2 : 4), session.Snapshot.Treasures.Single().HolderId);
         Assert.Equal(returning ? 0 : -(accept ? 500L : 100L), first.Events.OfType<ResourceChangedEvent>().Where(e => e.Reason.StartsWith("mystic-book-", StringComparison.Ordinal)).Sum(e => e.Actual));
         Assert.Equal(returning && !accept, session.Snapshot.Officers.Single(o => o.Id == 2).LearnedTactics.Contains(26));
         Assert.Empty(session.Snapshot.Simulation.ConsumedEventKeys);
         Assert.Null(session.GetMysticBookOfferPrompt()); Assert.Null(session.GetMysticBookReturnPrompt());
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(restored));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(SaveService.Decode(SaveService.Encode(session), d)));
+        StateAssert.Equal(session.Capture(), restored.Capture());
+        StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), d).Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), d, GameSession.EngineFactory(d));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -96,7 +97,7 @@ public sealed class MysticBookSessionTests
     }
 
     [Fact]
-    public void ContentValidatesEveryReferenceAndFingerprintsRewardOrder()
+    public void ContentValidatesEveryReference()
     {
         var d = Definition(); var offer = (MysticBookOfferSearchEventDefinition)d.SearchEvents[0];
         var bookReturn = (MysticBookReturnSearchEventDefinition)d.SearchEvents[1];
@@ -104,7 +105,7 @@ public sealed class MysticBookSessionTests
             offer with { LeadershipChanceDivisor = 0 }, offer with { Consumption = EventConsumption.OnSuccess },
             bookReturn with { RewardTacticIds = [] }, bookReturn with { RewardTacticIds = [999] }, bookReturn with { RewardTacticIds = [26, 26] }];
         foreach (var invalid in bad) Assert.Throws<InvalidDataException>(() => (d with { SearchEvents = [invalid] }).Validate());
-        Assert.NotEqual(GameSession.Fingerprint(d), GameSession.Fingerprint(d with { SearchEvents = [offer, bookReturn with { RewardTacticIds = [30, 26, 29, 22] }] }));
+
         var document = JsonNode.Parse(CanonicalJson.Encode(d))!;
         document["searchEvents"]![0]!.AsObject().Remove("declineCost");
         Assert.Throws<JsonException>(() => StrictJson.Deserialize<ScenarioInitialState>(Encoding.UTF8.GetBytes(document.ToJsonString())));

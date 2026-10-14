@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.Persistence;
 using San9.Content.Scenarios;
 using San9.Core.Domain;
@@ -40,7 +41,7 @@ public sealed class PrisonerReturnSessionTests
         Assert.Null(Assert.Single(session.Snapshot.Simulation.Tasks).Journey!.SuccessRoll);
         var outbound = SaveService.Decode(SaveService.Encode(session), content);
         var arrived = session.AdvanceXun();
-        Assert.Equal(CanonicalJson.Text(arrived.Events), CanonicalJson.Text(outbound.AdvanceXun().Events));
+        EventAssert.Equal(arrived.Events, outbound.AdvanceXun().Events);
         var task = Assert.Single(session.Snapshot.Simulation.Tasks, t => t.ForceId == 1);
         Assert.Equal(11, session.Snapshot.Clock.Day);
         Assert.Equal(1, task.ResolutionStep);
@@ -52,8 +53,8 @@ public sealed class PrisonerReturnSessionTests
         var response = new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, task.Id, 1, accept);
         var result = session.Execute(new("player"), response);
         Assert.True(result.Submission.Accepted);
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.Execute(new("player"), response).Events));
-        Assert.Equal(session.Snapshot.StateHash, restored.Snapshot.StateHash);
+        EventAssert.Equal(result.Events, restored.Execute(new("player"), response).Events);
+        StateAssert.Equal(session.Snapshot, restored.Snapshot);
         var resolved = Assert.Single(result.Events.OfType<PrisonerReturnResolvedEvent>());
         Assert.Equal(accept, resolved.Accepted);
         Assert.Equal(accept && !exchange ? 500u : 0u, resolved.Received);
@@ -62,7 +63,7 @@ public sealed class PrisonerReturnSessionTests
         Assert.All(session.Snapshot.Simulation.Tasks, t => Assert.NotNull(t.Journey!.ReturnLeg));
         Assert.Single(result.Events.OfType<XunAdvancedEvent>());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        Assert.Equal(session.Snapshot.StateHash, replay.Session.Snapshot.StateHash);
+        StateAssert.Equal(session.Snapshot, replay.Session.Snapshot);
     }
 
     [Fact]
@@ -106,11 +107,11 @@ public sealed class PrisonerReturnSessionTests
         var restored = outbound;
         var result = session.Execute(new("player"), response);
         Assert.True(result.Submission.Accepted);
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.Execute(new("player"), response).Events));
+        EventAssert.Equal(result.Events, restored.Execute(new("player"), response).Events);
         Assert.Equal(kind != CompensationKind.Refuse, Assert.Single(result.Events.OfType<PrisonerReturnResolvedEvent>()).Accepted);
         if (kind == CompensationKind.Treasure) Assert.Equal(11, session.Snapshot.Treasures.Single().HolderId);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        Assert.Equal(session.Snapshot.StateHash, replay.Session.Snapshot.StateHash);
+        StateAssert.Equal(session.Snapshot, replay.Session.Snapshot);
     }
 
     [Fact]
@@ -122,11 +123,11 @@ public sealed class PrisonerReturnSessionTests
         Assert.True(session.Execute(new("ai:2"), new ReturnPrisonerCommand(Guid.NewGuid(), 2, 0, 22, 1, 23)).Submission.Accepted);
         session.AdvanceXun();
         var task = Assert.Single(session.Snapshot.Simulation.Tasks);
-        string before = session.Snapshot.StateHash;
+        var before = session.Snapshot;
         var response = new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, task.Id, 0, true)
             { Offer = new(CompensationKind.Money, 1000000, null, null) };
         Assert.Equal(CommandRejection.InvalidDecision, session.Execute(new("player"), response).Submission.Rejection);
-        Assert.Equal(before, session.Snapshot.StateHash);
+        StateAssert.Equal(before, session.Snapshot);
         var captured = session.Snapshot;
         var changed = captured with { Officers = captured.Officers.Select(p =>
             p.Id == 23 ? p with { Status = OfficerStatus.Serving, SettlementId = 2 } : p).ToArray() };

@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using System.Text.Json;
 using San9.Core.Domain;
@@ -43,13 +44,9 @@ public sealed class TacticSnipingTests
 
     private static void Roll(WorldMutation world, string stream, uint value)
     {
-        for (ulong seed = 1; ; seed++)
-        {
-            if (new StableRandom(seed).NextUInt64() % 100 != value) continue;
-            world.SetSimulation(world.Simulation with { RandomStreams = world.Simulation.RandomStreams
-                .Where(s => s.Name != stream).Append(new(stream, seed)).ToImmutableArray() });
-            return;
-        }
+        ulong seed = TestSeeds.StateForRoll((int)value);
+        world.SetSimulation(world.Simulation with { RandomStreams = world.Simulation.RandomStreams
+            .Where(s => s.Name != stream).Append(new(stream, seed)).ToImmutableArray() });
     }
 
     [Theory]
@@ -164,10 +161,10 @@ public sealed class TacticSnipingTests
         foreach (var engine in new[] { original, restored }) engine.EndControl(new("player"));
         var first = original.AdvanceXun(); var second = restored.AdvanceXun();
         Assert.NotEmpty(first.Events.OfType<TacticSnipingResolvedEvent>());
-        Assert.Equal(CanonicalJson.Hash(first.Events), CanonicalJson.Hash(second.Events));
-        Assert.Equal(original.Snapshot.StateHash, restored.Snapshot.StateHash);
+        EventAssert.Equal(first.Events, second.Events);
+        StateAssert.Equal(original.Snapshot, restored.Snapshot);
         var after = Engine(WorldState.Restore(original.Snapshot));
-        Assert.Equal(original.Snapshot.StateHash, after.Snapshot.StateHash);
+        StateAssert.Equal(original.Snapshot, after.Snapshot);
     }
 
     [Fact]

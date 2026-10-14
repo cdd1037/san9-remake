@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using System.Text.Json;
 using San9.Application.Persistence;
@@ -66,10 +67,10 @@ public sealed class SnipingSessionTests
     [InlineData("facility-counter", false)]
     public void SnipingWaitsAndResumesWithoutRepeatingDamageAndReplays(string path, bool automatic)
     {
-        ulong seed = 0;
-        while (new StableRandom(StableRandom.DeriveSeed(seed, "military-sniping-death")).NextUInt64() % 100 != 0 ||
-            new StableRandom(StableRandom.DeriveSeed(seed, "military-sniping")).NextUInt64() % 100 >= 50 ||
-            new StableRandom(StableRandom.DeriveSeed(seed, "military-sniping-target")).NextUInt64() % 2 != 1) seed++;
+        const ulong seed = 366UL;
+        Assert.Equal(0UL, new StableRandom(StableRandom.DeriveSeed(seed, "military-sniping-death")).NextUInt64() % 100);
+        Assert.True(new StableRandom(StableRandom.DeriveSeed(seed, "military-sniping")).NextUInt64() % 100 < 50);
+        Assert.Equal(1UL, new StableRandom(StableRandom.DeriveSeed(seed, "military-sniping-target")).NextUInt64() % 2);
         var scenario = Scenario(path);
         var session = GameSession.Start(scenario, seed, battleDeathsEnabled: true, aiPolicy: San9.Application.AI.AiPolicyConfiguration.Standard with { WorkBudget = 1 });
         Assert.True(session.Snapshot.Simulation.BattleDeathsEnabled);
@@ -78,7 +79,7 @@ public sealed class SnipingSessionTests
         session.BeginRecording();
         var restored = SaveService.Decode(SaveService.Encode(session), scenario);
         var arrival = session.AdvanceXun();
-        Assert.Equal(CanonicalJson.Text(arrival.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
+        EventAssert.Equal(arrival.Events, restored.AdvanceXun().Events);
         var prompt = Assert.IsType<SnipingSuccessionPrompt>(session.GetSnipingSuccessionPrompt());
         Assert.Equal(22, prompt.RulerId);
         Assert.Equal(new[] { 21, 23 }, prompt.CandidateIds);
@@ -88,7 +89,7 @@ public sealed class SnipingSessionTests
         Assert.DoesNotContain(arrival.Events.OfType<StageCompletedEvent>(), e => e.Stage == ResolutionStage.DailyMapUpdate);
         Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
         Assert.Throws<InvalidOperationException>(() => session.CaptureRecording());
-        string hash = session.Snapshot.StateHash;
+        var hash = session.Snapshot;
         long sequence = session.Snapshot.Simulation.NextSequence;
         Assert.Equal(CommandRejection.DecisionPending, session.Execute(new("player"), new WaitCommand(Guid.NewGuid(), 2, sequence)).Submission.Rejection);
         Assert.Equal(CommandRejection.NotActiveController, session.Execute(new("ai:1"),
@@ -97,7 +98,7 @@ public sealed class SnipingSessionTests
             new ChooseSnipingSuccessorCommand(Guid.NewGuid(), 2, sequence, 21, 23)).Submission.Rejection);
         Assert.Equal(CommandRejection.InvalidDecision, session.Execute(new("player"),
             new ChooseSnipingSuccessorCommand(Guid.NewGuid(), 2, sequence, 22, 11)).Submission.Rejection);
-        Assert.Equal(hash, session.Snapshot.StateHash);
+        StateAssert.Equal(hash, session.Snapshot);
         var pending = session.Snapshot.Simulation.PendingSniping!;
         var snapshot = new SessionSnapshot(session.Snapshot, [], [], session.NextOperationSequence);
         foreach (var invalid in new[] {
@@ -109,8 +110,8 @@ public sealed class SnipingSessionTests
         var answer = new ChooseSnipingSuccessorCommand(Guid.NewGuid(), 2, sequence, 22, automatic ? null : 23);
         var result = session.Execute(new("player"), answer);
         Assert.True(result.Submission.Accepted);
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.Execute(new("player"), answer).Events));
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        EventAssert.Equal(result.Events, restored.Execute(new("player"), answer).Events);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         Assert.Null(session.GetSnipingSuccessionPrompt());
         Assert.Equal(automatic ? 21 : 23, session.Snapshot.Forces.Single(f => f.Id == 2).LeaderId);
         Assert.Equal(new GameClock(190, 1, 11), session.Snapshot.Clock);
@@ -121,9 +122,9 @@ public sealed class SnipingSessionTests
         Assert.DoesNotContain(result.Events.OfType<BattleDamageEvent>(), e => e.Clock.Day == 2 && e.AttackerId == 1 &&
             e.TargetUnitId == pending.Tactic!.Target.UnitId && e.SettlementId == pending.Tactic.Target.SettlementId);
         Assert.DoesNotContain("pendingSniping", System.Text.Encoding.UTF8.GetString(SaveService.Encode(session)));
-        Assert.Equal(session.Capture().StateHash, SaveService.Decode(SaveService.Encode(session), scenario).Capture().StateHash);
+        StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), scenario).Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), scenario, GameSession.EngineFactory(scenario));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -137,10 +138,10 @@ public sealed class SnipingSessionTests
     [Fact]
     public void AutomaticSnipingSuccessionCompletesWithoutPlayerInputAndReplays()
     {
-        ulong seed = 0;
-        while (new StableRandom(StableRandom.DeriveSeed(seed, "military-sniping-death")).NextUInt64() % 100 != 0 ||
-            new StableRandom(StableRandom.DeriveSeed(seed, "military-sniping")).NextUInt64() % 100 >= 50 ||
-            new StableRandom(StableRandom.DeriveSeed(seed, "military-sniping-target")).NextUInt64() % 2 != 1) seed++;
+        const ulong seed = 366UL;
+        Assert.Equal(0UL, new StableRandom(StableRandom.DeriveSeed(seed, "military-sniping-death")).NextUInt64() % 100);
+        Assert.True(new StableRandom(StableRandom.DeriveSeed(seed, "military-sniping")).NextUInt64() % 100 < 50);
+        Assert.Equal(1UL, new StableRandom(StableRandom.DeriveSeed(seed, "military-sniping-target")).NextUInt64() % 2);
         var scenario = Scenario("field") with { PlayerForceId = 1 };
         var session = GameSession.Start(scenario, seed, battleDeathsEnabled: true, aiPolicy: San9.Application.AI.AiPolicyConfiguration.Standard with { WorkBudget = 1 });
         var events = AutomaticResponseReplay.Advance(session, scenario, 1);

@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -21,7 +22,7 @@ public sealed class PhysicianVisitTests
              new(4, null, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Special }],
             treasures: [new(500, 3, TreasureDiscovery.Discovered, null), new(501, 4, TreasureDiscovery.Discovered, null)],
             controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(0, 0)) { IsRoot = true }]).BeginMutation(new(Books, new([])));
-        ulong seed = Enumerable.Range(1, 10000).Select(i => (ulong)i).First(s => new StableRandom(s).NextUInt64() % 100 == (ulong)roll);
+        ulong seed = TestSeeds.StateForRoll(roll);
         world.SetSimulation(world.Simulation with { RandomStreams = [new("event-search-eligibility", seed)] });
         return (world, new(Guid.NewGuid(), "personnel-search", "player", 1, 2, 1, world.Clock, world.Clock, 0, 0)
             { Journey = new(place, null, 0) });

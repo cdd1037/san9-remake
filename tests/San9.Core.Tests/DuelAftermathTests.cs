@@ -47,13 +47,11 @@ public sealed class DuelAftermathTests
 
     private static ulong Seed()
     {
-        for (ulong seed = 0; seed < 100000; seed++)
-        {
-            var death = new StableRandom(StableRandom.DeriveSeed(seed, "duel-death"));
-            var capture = new StableRandom(StableRandom.DeriveSeed(seed, "duel-capture"));
-            if (death.NextUInt64() % 100 < 30 && death.NextUInt64() % 100 >= 30 && capture.NextUInt64() % 100 < 60) return seed;
-        }
-        throw new InvalidOperationException("Missing test seed.");
+        const ulong seed = 5UL;
+        var death = new StableRandom(StableRandom.DeriveSeed(seed, "duel-death"));
+        var capture = new StableRandom(StableRandom.DeriveSeed(seed, "duel-capture"));
+        Assert.True(death.NextUInt64() % 100 < 30 && death.NextUInt64() % 100 >= 30 && capture.NextUInt64() % 100 < 60);
+        return seed;
     }
 
     private static WorldMutation Mutation(bool deaths = true)

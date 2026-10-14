@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.Presentation;
 using San9.Content.Interface;
 using San9.Content.Scenarios;
@@ -29,7 +30,7 @@ public sealed class StrategistTests
     public void DefaultUsesEffectiveIntelligenceButLowerCandidateRemainsSelectable(int intelligence, bool incumbent, bool selected)
     {
         var session = GameSession.Start(Fixture(intelligence, incumbent), 190);
-        string hash = session.Snapshot.StateHash;
+        var hash = session.Snapshot;
         var draft = new AppointmentDraft(session, 1, "strategist");
         Assert.Equal(selected, draft.CanExecute);
         if (selected) Assert.Equal(new[] { 2 }, draft.Members.ToArray());
@@ -39,7 +40,7 @@ public sealed class StrategistTests
         Assert.False(draft.SetMembers([1]));
         Assert.True(draft.SetMembers([2]));
         Assert.True(draft.CanExecute);
-        Assert.Equal(hash, session.Snapshot.StateHash);
+        StateAssert.Equal(hash, session.Snapshot);
         Assert.Equal(CommandRejection.None, draft.Submit().Rejection);
         Assert.Equal(2, session.Snapshot.Forces.Single(f => f.Id == 1).AdviserId);
     }
@@ -64,7 +65,7 @@ public sealed class StrategistTests
             texts.Messages[key] = new([Name("person.0"), new MessageLiteral("/"), Name("person.1"), new MessageLiteral("/"), Name("person.2")]);
         texts.Messages["result"] = new([Name("person.0")]);
         var content = new StrategistPresentationDefinition("appointed", "superior", "other", "result");
-        string hash = session.Snapshot.StateHash;
+        var hash = session.Snapshot;
         var messages = StrategistPresentation.Create(draft.View, session.Messages(texts), content, result, _ => throw new InvalidOperationException());
         Assert.Equal(incumbent ? 3 : 2, messages.Count);
         Assert.Equal(2, messages[0].SpeakerId);
@@ -78,6 +79,6 @@ public sealed class StrategistTests
         Assert.Null(messages[^1].SpeakerId);
         Assert.Equal("result", messages[^1].Message.Key);
         Assert.All(messages, message => Assert.Null(message.SoundRole));
-        Assert.Equal(hash, session.Snapshot.StateHash);
+        StateAssert.Equal(hash, session.Snapshot);
     }
 }

@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.Persistence;
 using San9.Content.Scenarios;
 using San9.Core.Domain;
@@ -21,20 +22,15 @@ public sealed class NaturalMortalitySessionTests
         var restored = SaveService.Decode(SaveService.Encode(session), scenario, GameSession.EngineFactory(scenario));
         session.BeginRecording();
         var result = session.AdvanceXun();
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(restored.AdvanceXun().Events));
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         Assert.Equal(9000, Assert.Single(result.Events.OfType<OfficerDiedEvent>()).OfficerId);
         Assert.DoesNotContain(session.View.Officers, p => p.Id == 9000);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), scenario, GameSession.EngineFactory(scenario));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
         var after = SaveService.Decode(SaveService.Encode(session), scenario, GameSession.EngineFactory(scenario));
         Assert.Empty(after.InitialEvents);
-        Assert.Equal(session.Capture().StateHash, after.Capture().StateHash);
-        Assert.NotEqual(session.ContentFingerprint, GameSession.Start(scenario with { NaturalDeathsEnabled = false }, 190).ContentFingerprint);
-        Assert.NotEqual(session.ContentFingerprint, GameSession.Start(scenario with
-        {
-            Officers = scenario.Officers[..^1].Append(scenario.Officers[^1] with
-                { State = scenario.Officers[^1].State with { LifespanTier = 8, SuccessionPriority = 4000 } }).ToArray()
-        }, 190).ContentFingerprint);
+        StateAssert.Equal(session.Capture(), after.Capture());
+
     }
 }

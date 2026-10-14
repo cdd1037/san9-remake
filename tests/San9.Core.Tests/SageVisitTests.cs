@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -20,7 +21,7 @@ public sealed class SageVisitTests
              new OfficerState(5, null, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Undiscovered },
              new(6, 2, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }],
             controls: [new("player", 1, ControllerKind.Player), new("ai", 2, ControllerKind.Automatic)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(0, 0)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 6, new(0, 0)) { IsRoot = true }]).BeginMutation();
-        ulong seed = Enumerable.Range(1, 10000).Select(i => (ulong)i).First(s => new StableRandom(s).NextUInt64() % 100 == (ulong)roll);
+        ulong seed = TestSeeds.StateForRoll(roll);
         world.SetSimulation(world.Simulation with { RandomStreams = [new("event-search-eligibility", seed)] });
         return (world, new(Guid.NewGuid(), "personnel-search", "player", 1, 2, 1, world.Clock, world.Clock, 0, 0)
             { Journey = new(1, null, 0) });

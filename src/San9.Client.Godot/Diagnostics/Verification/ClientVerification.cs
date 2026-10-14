@@ -44,7 +44,7 @@ public partial class ClientVerification : Node
         if (World.StateRevision != session.Snapshot.Revision || Hud.DisplayedMoney != session.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 5).Treasury.Money.ToString())
             throw new InvalidOperationException("Runtime map or HUD did not consume the committed snapshot.");
         var after = session.Snapshot;
-        if (session.Develop(new(5, 15, [officer.Id], San9.Core.Domain.DomesticActivity.Commerce)).Accepted || session.Snapshot.StateHash != after.StateHash)
+        if (session.Develop(new(5, 15, [officer.Id], San9.Core.Domain.DomesticActivity.Commerce)).Accepted || session.Snapshot.Revision != after.Revision)
             throw new InvalidOperationException("Rejected runtime command changed the world.");
         GD.Print($"RUNTIME_SMOKE_OK development={result.Increment} cost={result.Cost} revision={World.StateRevision} old_snapshot_money={before.Corps.Single(f => f.IsRoot && f.OwnerId == 5).Treasury.Money}");
     }

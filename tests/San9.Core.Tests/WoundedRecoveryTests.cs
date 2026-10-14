@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -46,8 +47,8 @@ public sealed class WoundedRecoveryTests
         Assert.Equal(2, changes.Length);
         Assert.Equal(0, changes.Sum(e => e.Actual));
         var restored = Engine(WorldState.Restore(engine.CaptureStableState()));
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
-        Assert.Equal(CanonicalJson.Text(engine.AdvanceXun().Events), CanonicalJson.Text(restored.AdvanceXun().Events));
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
+        EventAssert.Equal(engine.AdvanceXun().Events, restored.AdvanceXun().Events);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
     }
 }

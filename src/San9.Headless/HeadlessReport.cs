@@ -22,16 +22,12 @@ public sealed class HeadlessReport
     public bool Success { get; set; }
     public string RulesVersion { get; init; } = Application.SessionProtocol.RulesVersion;
     public List<Application.RulesVersionWarning> RulesVersionWarnings { get; set; } = [];
-    public int HashVersion { get; init; } = Core.Simulation.CanonicalJson.Version;
-    public string? ContentFingerprint { get; set; }
     public ulong? Seed { get; set; }
     public string? CommandLog { get; set; }
     public string? EventLog { get; set; }
     public string? AttemptLog { get; set; }
     public long CompletedXun { get; set; }
     public string TerminationReason { get; set; } = "failure";
-    public string? FinalHash { get; set; }
-    public string? WorldHash { get; set; }
     public Core.Simulation.TerminalResult? Terminal { get; set; }
     public Core.Domain.EndingResult? Ending { get; set; }
     public HeadlessFailure? FirstFailure { get; set; }

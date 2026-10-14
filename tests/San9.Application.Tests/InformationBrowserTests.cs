@@ -78,7 +78,7 @@ public sealed class InformationBrowserTests
             ["treasure"] = "测试宝物", ["ruler"] = "持有人",
             [TreasureText.DescriptionKey(0)] = "第一行\n第二行"
         });
-        var hash = session.Snapshot.StateHash;
+        long revision = session.Snapshot.Revision;
         var detail = TreasureDetails.Read(session.View, texts, 0);
         Assert.Equal("持有人", detail.Holder);
         Assert.Equal("第一行\n第二行", detail.Description);
@@ -86,7 +86,7 @@ public sealed class InformationBrowserTests
         Assert.Equal("", detail.Effect);
         Assert.Equal(0, detail.TacticGroup);
         Assert.Equal("奋迅", detail.Tactic);
-        Assert.Equal(hash, session.Snapshot.StateHash);
+        Assert.Equal(revision, session.Snapshot.Revision);
         texts.Entries.Remove(TreasureText.DescriptionKey(0));
         Assert.Throws<InvalidDataException>(() => TreasureDetails.Read(session.View, texts, 0));
     }
@@ -117,7 +117,7 @@ public sealed class InformationBrowserTests
     public void TreasureCatalogFiltersHolderAndReturnsToOriginalOfficerDetail()
     {
         var (session, query) = Fixture();
-        var hash = session.Snapshot.StateHash;
+        long revision = session.Snapshot.Revision;
         var browser = new InformationBrowser();
         browser.Open(InformationCategory.Officers);
         browser.SelectPage(5, 13);
@@ -144,14 +144,14 @@ public sealed class InformationBrowserTests
         Assert.Equal(2, detail.FocusedId);
         browser.Navigate(new("宝物", InformationCategory.Treasures, HolderId: 2));
         Assert.Empty(query.Read(browser).Rows);
-        Assert.Equal(hash, session.Snapshot.StateHash);
+        Assert.Equal(revision, session.Snapshot.Revision);
     }
 
     [Fact]
     public void OfficerPagesShareCandidatesAndKeepThreeDistinctTacticSources()
     {
         var (session, query) = Fixture();
-        var before = session.Snapshot.StateHash;
+        long before = session.Snapshot.Revision;
         var ability = query.Read(InformationCategory.Officers);
         Assert.Equal(13, ability.Pages.Length);
         Assert.Equal(3, ability.Rows.Single(r => r.Key.Id == 1).Cells[5].Number);
@@ -163,7 +163,7 @@ public sealed class InformationBrowserTests
         Assert.All(infantry.Rows.Single(r => r.Key.Id == 2).Cells.Skip(2), c => Assert.Equal("", c.Text));
         for (int page = 0; page < 13; page++)
             Assert.Equal(ability.Rows.Select(r => r.Key), query.Read(InformationCategory.Officers, page).Rows.Select(r => r.Key));
-        Assert.Equal(before, session.Snapshot.StateHash);
+        Assert.Equal(before, session.Snapshot.Revision);
     }
 
     [Fact]
@@ -174,7 +174,7 @@ public sealed class InformationBrowserTests
         // The fixture names are their own display strings.
         foreach (string key in session.View.Officers.Select(o => o.NameKey).Concat(session.View.RegionNameKeys.Values)
             .Concat(session.View.Information.Offices.Select(o => o.NameKey))) texts.Entries[key] = key;
-        var before = session.Snapshot.StateHash;
+        long before = session.Snapshot.Revision;
         var detail = OfficerDetails.Read(session.View, texts, 1);
         Assert.Equal(new[] { 6, 4, 5, 6 }, detail.Fields.Select(c => c.Length));
         Assert.Equal(session.View.Officers.Single(o => o.Id == 1).Abilities, detail.RadarAbilities);
@@ -183,13 +183,13 @@ public sealed class InformationBrowserTests
         Assert.Equal(9, detail.Tactics.Length);
         Assert.All(detail.Tactics[0].Tactics, t => Assert.True(t.Available));
         Assert.Equal(session.View.World.Treasures.Where(t => t.Discovered && t.HolderId == 1).Select(t => t.Id), detail.Treasures);
-        Assert.Equal(before, session.Snapshot.StateHash);
+        Assert.Equal(before, session.Snapshot.Revision);
     }
     [Fact]
     public void EveryCategoryReadsRealStateAndUnoccupiedRegionIsNotACity()
     {
         var (session, query) = Fixture();
-        var before = session.Snapshot.StateHash;
+        long before = session.Snapshot.Revision;
         foreach (var category in InformationQuery.MenuCategories)
         {
             var table = query.Read(category);
@@ -203,7 +203,7 @@ public sealed class InformationBrowserTests
         Assert.Single(query.Read(InformationCategory.Officers, force: 5).Rows);
         Assert.Equal("region", query.Read(InformationCategory.Officers, 1).Rows.Single(r => r.Key.Id == 2).Cells[4].Text);
         Assert.False(query.Available(InformationCategory.Units));
-        Assert.Equal(before, session.Snapshot.StateHash);
+        Assert.Equal(before, session.Snapshot.Revision);
     }
 
     [Fact]

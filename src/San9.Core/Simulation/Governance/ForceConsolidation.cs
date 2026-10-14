@@ -79,8 +79,7 @@ internal static class ForceConsolidation
         {
             var position = person.UnitId is int id ? world.Units[id].Position : (WorldPosition?)null;
             int origin = Place(world, person, rules);
-            var cause = new Guid(Convert.FromHexString(CanonicalJson.Hash(new { Kind = Reason, world.Clock, OfficerId = person.Id })).AsSpan(0, 16));
-            if (PrisonerRelease.Depart(world, person.Id, origin, cause, world.Simulation.NextSequence,
+            if (PrisonerRelease.Depart(world, person.Id, origin, world.Simulation.NextSequence,
                 PrisonerDepartureKind.Recovered, null, rules.Personnel, rules.Economy, events, position) != CommandRejection.None)
                 throw new InvalidOperationException("Consolidation prisoner recovery failed.");
             world.SetSimulation(world.Simulation with { NextSequence = checked(world.Simulation.NextSequence + 1) });

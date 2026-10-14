@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -33,14 +34,14 @@ public sealed class ScholarInsultSessionTests
         var p = Assert.IsType<ScholarInsultPrompt>(session.GetScholarInsultPrompt());
         Assert.Equal(p, restored.GetScholarInsultPrompt()); Assert.Equal(4, p.ScholarOfficerId);
         Assert.Equal(SimulationBoundary.AwaitingDecision, session.Snapshot.Simulation.Boundary);
-        string before = session.Snapshot.StateHash;
-        Assert.Equal(p, session.GetScholarInsultPrompt()); Assert.Equal(before, session.Snapshot.StateHash);
+        var before = session.Snapshot;
+        Assert.Equal(p, session.GetScholarInsultPrompt()); StateAssert.Equal(before, session.Snapshot);
         Guid id = Guid.NewGuid();
         var answer = new RespondDailyTaskCommand(id, 1, session.Snapshot.Simulation.NextSequence, p.TaskId, p.Step, accept);
         var request = session.Request(new CommandOperation(answer), id: id);
         var first = session.Apply(request); var second = restored.Apply(request);
         Assert.Equal(SessionDisposition.Accepted, first.Disposition);
-        Assert.Equal(CanonicalJson.Text(first.Events), CanonicalJson.Text(second.Events));
+        EventAssert.Equal(first.Events, second.Events);
         Assert.Equal(accept, Assert.Single(first.Events.OfType<ScholarInsultResolvedEvent>()).AttemptedExecution);
         Assert.DoesNotContain(first.Events, e => e is SearchResolvedEvent);
         Assert.Empty(session.Snapshot.Simulation.ConsumedEventKeys);
@@ -48,10 +49,10 @@ public sealed class ScholarInsultSessionTests
         Assert.Equal(OfficerStatus.Special, session.Snapshot.Officers.Single(o => o.Id == 4).Status);
         Assert.Equal(new PersistentEventKey("visited"), Assert.Single(session.Snapshot.Forces.Single().EventHistory));
         Assert.Null(session.GetScholarInsultPrompt());
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(SaveService.Decode(SaveService.Encode(session), d)));
+        StateAssert.Equal(session.Capture(), restored.Capture());
+        StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), d).Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), d, GameSession.EngineFactory(d));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
 
     }
 
@@ -102,14 +103,14 @@ public sealed class ScholarInsultSessionTests
     }
 
     [Fact]
-    public void ContentReferencesThresholdsAndConsumptionPolicyAreValidatedAndFingerprinted()
+    public void ContentReferencesThresholdsAndConsumptionPolicyAreValidated()
     {
         var d = Definition(); var insult = (ScholarInsultSearchEventDefinition)d.SearchEvents[0];
         foreach (var bad in new[] { insult with { IntelligenceChanceDivisor = 0 }, insult with { MaximumBaseTrustExclusive = 0 }, insult with { ScholarOfficerId = 999 },
             insult with { IntelligenceReward = -1 }, insult with { RetaliationInjury = 15 }, insult with { MaximumInjuryExclusive = 0 },
             insult with { Consumption = EventConsumption.OnPresentation } })
             Assert.Throws<InvalidDataException>(() => (d with { SearchEvents = [bad] }).Validate());
-        Assert.NotEqual(GameSession.Fingerprint(d), GameSession.Fingerprint(d with { SearchEvents = [insult with { TrustRewardIntelligenceThreshold = 100 }] }));
+
         var document = JsonNode.Parse(CanonicalJson.Encode(d))!;
         document["searchEvents"]![0]!.AsObject().Remove("trustRewardIntelligenceThreshold");
         Assert.Throws<JsonException>(() => StrictJson.Deserialize<ScenarioInitialState>(Encoding.UTF8.GetBytes(document.ToJsonString())));

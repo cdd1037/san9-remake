@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -32,8 +33,7 @@ public sealed class SalaryCycleTests
              new(2, 1, 1, new(50, 50, 50, 50), false) { OfficeId = 1, Affinity = affinity, Righteousness = righteousness,
                  ForceLoyalties = ImmutableDictionary<int, int>.Empty.Add(1, loyalty).Add(2, 123) }], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(paid ? 10u : 9u, 0)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, null, new(0, 0)) { IsRoot = true }]);
         var mutation = world.BeginMutation();
-        ulong state = 0;
-        while (new StableRandom(state).NextUInt64() % 100 != (ulong)roll) state++;
+        ulong state = TestSeeds.StateForRoll(roll);
         var random = new StableRandom(state);
         random.NextUInt64();
         mutation.SetSimulation(mutation.Simulation with { RandomStreams = [new("personnel-salary-loyalty", state)] });

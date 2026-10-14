@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Application.Persistence;
 using San9.Application.Presentation;
@@ -65,12 +66,12 @@ public sealed class AmphibiousSessionTests
             .ToDictionary(key => key, key => key));
         var session = GameSession.Start(definition, 42);
         var query = new InformationQuery(session, texts);
-        var hash = session.Snapshot.StateHash;
+        var hash = session.Snapshot;
         Assert.Equal(additional && learned ? [100, 101] : new[] { 100 },
             query.Read(InformationCategory.Formations, force: 1).Rows.Select(row => row.Key.Id));
         Assert.Equal(additional && learned ? [200, 300] : new[] { 200 },
             query.Read(InformationCategory.Ships, force: 1).Rows.Select(row => row.Key.Id));
-        Assert.Equal(hash, session.Snapshot.StateHash);
+        StateAssert.Equal(hash, session.Snapshot);
     }
 
     [Theory]
@@ -97,7 +98,7 @@ public sealed class AmphibiousSessionTests
             Assert.Equal(100, Assert.Single(session.Snapshot.Units).FormationId);
             Assert.Equal(200, Assert.Single(session.Snapshot.Units).NavalFormationId);
         }
-        var before = session.Capture().StateHash;
+        var before = session.Capture();
         var order = new MilitaryOrder(MilitaryOrderKind.Move, new(32, 7), null);
         GameCommand command = reform
             ? new ReformUnitCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence,
@@ -110,18 +111,18 @@ public sealed class AmphibiousSessionTests
         if (!accepted)
         {
             Assert.Equal(reform ? CommandRejection.UnsupportedCommand : candidate ? CommandRejection.MissingFormationTactic : CommandRejection.FormationUnavailable, result.Submission.Rejection);
-            Assert.Equal(before, session.Capture().StateHash);
+            StateAssert.Equal(before, session.Capture());
         }
         else
         {
             var unit = Assert.Single(session.Snapshot.Units);
             Assert.Equal(special, naval ? unit.NavalFormationId : unit.FormationId);
             var restored = SaveService.Decode(SaveService.Encode(session), definition);
-            Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+            StateAssert.Equal(session.Capture(), restored.Capture());
             Assert.Equal(additional ? new[] { special } : [], restored.Snapshot.Forces.Single().AdditionalFormationIds);
         }
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Theory]
@@ -150,23 +151,23 @@ public sealed class AmphibiousSessionTests
         unit = Assert.Single(session.Snapshot.Units);
         Assert.Equal(200, session.View.FormationId(unit));
         Assert.Equal(forecast.Days - 10, session.View.UnitArrival(unit.Id).Days);
-        var before = session.Capture().StateHash;
+        var before = session.Capture();
         Assert.Equal(CommandRejection.UnsupportedCommand, session.Execute(new("player"), new ReformUnitCommand(Guid.NewGuid(), 1,
             session.Snapshot.Simulation.NextSequence, unit.Id, 100, [1], unit.Order) { NavalFormationId = 100 }).Submission.Rejection);
-        Assert.Equal(before, session.Capture().StateHash);
+        StateAssert.Equal(before, session.Capture());
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
-        Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         Assert.Equal(session.View.UnitArrival(unit.Id), restored.View.UnitArrival(unit.Id));
         for (int i = 0; i < 5 && session.Snapshot.Units.Single().Order is not null; i++)
         {
-            Assert.Equal(CanonicalJson.Text(session.AdvanceXun().Events), CanonicalJson.Text(restored.AdvanceXun().Events));
-            Assert.Equal(session.Capture().StateHash, restored.Capture().StateHash);
+            EventAssert.Equal(session.AdvanceXun().Events, restored.AdvanceXun().Events);
+            StateAssert.Equal(session.Capture(), restored.Capture());
         }
         unit = Assert.Single(session.Snapshot.Units);
         Assert.Equal(new WorldPosition(32, 7), unit.Position);
         Assert.Equal(100, session.View.FormationId(unit));
         Assert.Equal(200, unit.NavalFormationId);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(session.Capture().StateHash, replay.Session.Capture().StateHash);
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 }

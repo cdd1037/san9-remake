@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Content.Maps;
 using San9.Rendering;
 
@@ -18,7 +19,7 @@ public sealed class BuildingVisualTests
             Forces = [new(5, 0), new(6, 0) { IsDormant = true }],
             Settlements = [new(0, 6, 1000, 1000, 1000, 60, 0, 0, 100, 0, 100) { IsDormant = true }]
         };
-        var map = Map(); var hash = snapshot.StateHash;
+        var map = Map(); var hash = snapshot;
         BuildingVisuals Render(San9.Application.Presentation.StrategySnapshot view) => BuildingVisuals.Resolve(map,
             view.Settlements.Select(s => new BuildingVisualState(s.Id, s.Durability, s.Appearance, s.Commerce,
                 s.Soldiers, s.CityMarkerColor ?? 50, -1)).ToArray());
@@ -33,7 +34,7 @@ public sealed class BuildingVisualTests
         Assert.Single(Render(activated).Buildings);
         Assert.Single(activated.Settlements, s => s.CityMarkerColor is not null);
         Assert.Single(map.Buildings); Assert.Single(definition.Settlements);
-        Assert.Equal(hash, snapshot.StateHash);
+        StateAssert.Equal(hash, snapshot);
     }
 
     [Fact]

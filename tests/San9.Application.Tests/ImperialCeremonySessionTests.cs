@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application.Persistence;
 using San9.Content.Scenarios;
 using San9.Core.Domain;
@@ -25,7 +26,7 @@ public sealed class ImperialCeremonySessionTests
         Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 1, 1)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), d);
         var result = session.AdvanceXun(); var again = restored.AdvanceXun();
-        Assert.Equal(CanonicalJson.Text(result.Events), CanonicalJson.Text(again.Events));
+        EventAssert.Equal(result.Events, again.Events);
         Assert.Single(result.Events.OfType<ImperialCeremonyResolvedEvent>());
         Assert.DoesNotContain(result.Events, e => e is SearchResolvedEvent);
         Assert.Null(session.Snapshot.Simulation.PendingDailyTask);
@@ -33,21 +34,21 @@ public sealed class ImperialCeremonySessionTests
         Assert.Equal(110, session.Snapshot.Officers.Single(p => p.Id == 2).LoyaltyTo(1));
         Assert.Equal(150, Assert.Single(session.Snapshot.Forces).BaseTrust);
         var saved = SaveService.Decode(SaveService.Encode(session), d);
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(saved));
+        StateAssert.Equal(session.Capture(), saved.Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), d, GameSession.EngineFactory(d));
-        Assert.Equal(SaveService.Encode(session), SaveService.Encode(replay.Session));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
         Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, 1, 1)).Submission.Accepted);
         Assert.DoesNotContain(session.AdvanceXun().Events, e => e is ImperialCeremonyResolvedEvent);
         Assert.Single(session.Snapshot.Simulation.ConsumedEventKeys);
     }
 
     [Fact]
-    public void AuthoredRankReferenceAndRewardsAreValidatedAndFingerprinted()
+    public void AuthoredRankReferenceAndRewardsAreValidated()
     {
         var d = Definition(); var ceremony = (ImperialCeremonySearchEventDefinition)d.SearchEvents[0];
         foreach (var bad in new[] { ceremony with { RequiredRankId = 0 }, ceremony with { PlaceId = 999 },
             ceremony with { AbilityReward = -1 }, ceremony with { LoyaltyReward = -1 }, ceremony with { ConsumptionKey = default } })
             Assert.Throws<InvalidDataException>(() => (d with { SearchEvents = [bad] }).Validate());
-        Assert.NotEqual(GameSession.Fingerprint(d), GameSession.Fingerprint(d with { SearchEvents = [ceremony with { AbilityReward = 7 }] }));
+
     }
 }

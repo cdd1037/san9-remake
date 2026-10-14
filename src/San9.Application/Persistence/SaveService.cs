@@ -4,7 +4,7 @@ using San9.Core.Simulation;
 
 namespace San9.Application.Persistence;
 
-public enum SaveFailure { InvalidFormat, UnsupportedVersion, ContentMismatch, InvalidState, IoFailure, NotStable }
+public enum SaveFailure { InvalidFormat, UnsupportedVersion, InvalidState, IoFailure, NotStable }
 public sealed class SaveException(SaveFailure failure, string message, Exception? inner = null) : Exception(message, inner)
 {
     public SaveFailure Failure { get; } = failure;
@@ -31,18 +31,17 @@ public static class SaveService
         SessionSnapshot snapshot;
         try { snapshot = session.Capture(); }
         catch (InvalidOperationException error) { throw new SaveException(SaveFailure.NotStable, "Cannot save before the current interaction and xun resolution finish.", error); }
-        return CreateEnvelope(snapshot, session.ContentFingerprint);
+        return CreateEnvelope(snapshot);
     }
 
-    internal static byte[] EncodeSnapshot(SessionSnapshot snapshot, string contentFingerprint)
-        => CanonicalJson.Encode(CreateEnvelope(snapshot, contentFingerprint));
+    internal static byte[] EncodeSnapshot(SessionSnapshot snapshot)
+        => CanonicalJson.Encode(CreateEnvelope(snapshot));
 
-    private static SaveEnvelope CreateEnvelope(SessionSnapshot snapshot, string contentFingerprint)
+    private static SaveEnvelope CreateEnvelope(SessionSnapshot snapshot)
     {
         if (!snapshot.World.Simulation.CanPersist)
             throw new SaveException(SaveFailure.NotStable, "Session is not at a save boundary.");
-        return new SaveEnvelope(SessionProtocol.SaveFormatVersion, SessionProtocol.RulesVersion,
-            CanonicalJson.Version, contentFingerprint, snapshot);
+        return new SaveEnvelope(SessionProtocol.SaveFormatVersion, SessionProtocol.RulesVersion, snapshot);
     }
 
     public static GameSession Decode(ReadOnlyMemory<byte> bytes, ScenarioInitialState definition) => Decode(bytes, definition, GameSession.EngineFactory(definition));
@@ -54,14 +53,11 @@ public static class SaveService
     private static GameSession Restore(SaveEnvelope envelope, ScenarioInitialState definition,
         Func<WorldState, SimulationEngine> factory, bool playerLoad)
     {
-        if (envelope.FormatVersion != SessionProtocol.SaveFormatVersion ||
-            envelope.HashVersion != CanonicalJson.Version)
-            throw new SaveException(SaveFailure.UnsupportedVersion, "Unsupported save or hash version.");
+        if (envelope.FormatVersion != SessionProtocol.SaveFormatVersion)
+            throw new SaveException(SaveFailure.UnsupportedVersion, "Unsupported save version.");
         if (string.IsNullOrWhiteSpace(envelope.RulesVersion))
             throw new SaveException(SaveFailure.InvalidFormat, "Missing save rules version.");
         var owned = new ScenarioSessionDefinition(definition);
-        if (envelope.ContentFingerprint != owned.Fingerprint)
-            throw new SaveException(SaveFailure.ContentMismatch, "Save belongs to different gameplay content.");
         try
         {
             var session = playerLoad ? GameSession.Load(owned, envelope.Session, factory) : GameSession.Restore(owned, envelope.Session, factory);

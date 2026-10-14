@@ -7,7 +7,7 @@ namespace San9.Application.AI;
 internal static class AllocationTurnRunner
 {
     internal static AiSessionState Run(SimulationEngine engine, ControlSeat active, MilitaryRulebook? rules,
-        AiSessionState state, Func<string, string, Guid> identity, List<DomainEvent> events,
+        AiSessionState state, List<DomainEvent> events,
         List<AllocationTrace>? traces = null, List<AllocationBatchTrace>? batches = null)
     {
         var work = new AllocationWork(state.Configuration.WorkBudget);
@@ -171,13 +171,13 @@ internal static class AllocationTurnRunner
             };
             batches?.Add(new(engine.Snapshot.Clock, active.ForceId, state.Configuration.WorkBudget - work.Remaining,
                 searchComplete, lastAccounts, support.Arrivals)
-                { Candidates = proposals, SelectedIntentHash = intent is null ? null : CanonicalJson.Hash(intent) });
+                { Candidates = proposals });
             if (controllerId is null || intent is null) break;
             if (!work.Spend()) break;
             workByKind["execution"] = workByKind.GetValueOrDefault("execution") + 1;
             var source = traces is not null && candidate?.Intent is TransportUnitCommand && candidate.SourceId is int sourceId
                 ? engine.Snapshot.Settlements.Single(s => s.Id == sourceId) : null;
-            var command = intent with { CommandId = identity(controllerId, candidate?.Purpose ?? (economic is PurchaseFoodIntent ? "supply" : "domestic")),
+            var command = intent with { CommandId = SimulationIdentity.Command(engine.Snapshot.Simulation.NextSequence, active.ForceId),
                 Sequence = engine.Snapshot.Simulation.NextSequence };
             var result = engine.Execute(new(controllerId), command);
             if (traces is not null)
@@ -188,7 +188,7 @@ internal static class AllocationTurnRunner
                     candidate?.Intent is TransportUnitCommand transport ? transport.Soldiers : candidate?.Intent is DeployUnitCommand expedition ? expedition.Soldiers : null, candidate?.AdditionalFood ?? 0,
                     result.Submission.Accepted ? deployment is null || candidate?.Arrival is null ? AllocationOutcome.Completed : AllocationOutcome.Pending : AllocationOutcome.Rejected,
                     work.Remaining, input.SelectMany(e => e.Observation.Accounts).ToImmutableArray())
-                    { IntentHash = CanonicalJson.Hash(intent), AccountId = candidate?.AccountId,
+                    { AccountId = candidate?.AccountId,
                         ForceId = active.ForceId, CommandType = command.GetType().Name,
                         Rejection = result.Submission.Rejection,
                         PredictedAccountFoodExpenditure = candidate?.Intent is TransportUnitCommand shipment && source is not null && candidate.Arrival?.Days is int days
@@ -211,7 +211,7 @@ internal static class AllocationTurnRunner
                 if (started is not null)
                     state = state with { Opportunities = state.Opportunities
                         .Where(a => a.ControllerId != controllerId || a.Key != opportunity.Key)
-                        .Append(new(active.ForceId, controllerId, opportunity.Key, opportunity.Conditions.Fingerprint(),
+                        .Append(new(active.ForceId, controllerId, opportunity.Key, opportunity.Conditions,
                             started.Task.Id, started.Task.OfficerId, engine.Snapshot.Clock, engine.Snapshot.Clock, "pending")).ToImmutableArray() };
             }
             state = state with { Opportunities = OpportunityPlanner.Feedback(state.Opportunities, engine.Snapshot, result.Events) };

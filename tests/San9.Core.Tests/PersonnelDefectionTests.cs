@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -47,8 +48,8 @@ public sealed class PersonnelDefectionTests
         Assert.Contains(events, e => e is CorpsDissolvedEvent);
         var restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()), EconomyRulebook.Empty, Places);
         engine.EndControl(new("player")); restored.EndControl(new("player"));
-        Assert.Equal(CanonicalJson.Text(engine.AdvanceXun().Events), CanonicalJson.Text(restored.AdvanceXun().Events));
-        Assert.Equal(engine.Snapshot.StateHash, restored.Snapshot.StateHash);
+        EventAssert.Equal(engine.AdvanceXun().Events, restored.AdvanceXun().Events);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
         Assert.Empty(restored.Snapshot.Simulation.Tasks);
     }
 
@@ -60,8 +61,8 @@ public sealed class PersonnelDefectionTests
         change.Replace(change.Officers[2] with { SettlementId = 3 });
         world.Commit(change);
         var engine = new SimulationEngine(world, EconomyRulebook.Empty, Places);
-        string before = engine.Snapshot.StateHash;
+        var before = engine.Snapshot;
         Assert.False(engine.Execute(new("player"), new RecruitOfficerCommand(Guid.NewGuid(), 1, 0, 11, 20)).Submission.Accepted);
-        Assert.Equal(before, engine.Snapshot.StateHash);
+        StateAssert.Equal(before, engine.Snapshot);
     }
 }

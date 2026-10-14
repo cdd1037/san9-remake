@@ -43,7 +43,7 @@ internal static class PersonnelDefection
             var followers = world.Officers.Values.Where(p => p.IsServing && p.OwnerId == unit.OwnerId && p.UnitId == unit.Id)
                 .OrderBy(p => p.Id).Where(p => p.Id == target.Id || Follows(world, p, task.ForceId)).Select(p => p.Id).ToArray();
             UnitAffiliation.Transfer(world, unit, task.ForceId, task.OriginSettlementId, followers,
-                task.Journey!.DestinationPlaceId, task.Id, true, rules, events);
+                task.Journey!.DestinationPlaceId, true, rules, events);
         }
         else if (!transfersPlace)
         {
@@ -64,7 +64,7 @@ internal static class PersonnelDefection
             foreach (var person in people)
             {
                 if (followers.Contains(person.Id)) PersonnelTransitions.Recruit(world, person.Id, task.ForceId, source.Id, events, places, true);
-                else PersonnelReturns.Repatriate(world, person.Id, source.Id, task, places, events);
+                else PersonnelReturns.Repatriate(world, person.Id, source.Id, PersonnelReturnContext.FromTask(task, person.Id), places, events);
             }
             SettlementAffiliation.DisplacePrisoners(world, source.Id, owner, rules, events);
             events.Add(new PersonnelTerritoryTransferredEvent(world.Clock, source.Id, owner, task.ForceId, target.Id));

@@ -109,6 +109,7 @@ public sealed record SimulationState(GameClock Started, ulong InitialSeed)
     public ImmutableArray<ControlSeat> Controls { get; init; } = [];
     public int ActiveControl { get; init; }
     public long NextSequence { get; init; }
+    [JsonRequired] public long NextTaskIdentity { get; init; }
     [JsonRequired] public long NextUnitId { get; init; }
     public ImmutableArray<PersistentTask> Tasks { get; init; } = [];
     public ImmutableArray<RandomStreamState> RandomStreams { get; init; } = [];

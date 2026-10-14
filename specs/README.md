@@ -16,7 +16,7 @@
 ## 规范文件
 
 - [整体路线图](roadmap.md)
-- [游戏 AI 系统设计](ai-system-design.md)（G11 唯一权威计划；基础改造已接入，完整 AI 尚未交付）
+- [游戏 AI 文档](ai/README.md)（设计、实施计划、当前进度与验收分文档维护；完整 AI 尚未交付）
 - [表现层后续接入规划](presentation-implementation-plan.md)（操作、消息、战场与剧情演出及整局收口）
 - [粗格导航设计](navigation-redesign.md)（已采用：粗格导航、细步执行与端点接驳）
 - [项目与文档约定](project-conventions.md)

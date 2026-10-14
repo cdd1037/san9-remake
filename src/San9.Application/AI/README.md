@@ -15,7 +15,7 @@
 
 - `CampaignObservationCapture` 投影公开军事事实、可控制行动及共享到达预测；`CampaignCombatForecast` 用普通战斗公式作有界估算，`CampaignPlanner` 比较准备、会师、供养和净价值，维护巩固、退出及条件冷却。完整当前行为与限制见权威设计的 AI-04 条目。
 
-实施范围、系统设计、阶段及验收统一见[游戏 AI 系统设计](../../../specs/ai-system-design.md)。本目录只说明当前代码职责，不另行维护接入计划。
+实施范围、系统设计、阶段及验收统一见[游戏 AI 文档](../../../specs/ai/README.md)。本目录只说明当前代码职责，不另行维护接入计划。
 
 - `MilitarySituation` 用公开兵力和最快地形形成稀疏的最早到达威胁假设；忽略障碍的下界不能证明本方可达。`SupportObservation` 生成公开威胁、自己在途的到达与粮耗投影，计入调将准备和离队后的源城防御；`SharedAllocator` 只消费不可变经济观察和候选，分配当前账户、人物与供养余量。`AllocationObservations` 保留整批候选并在成功命令后更新本方资源及承诺；`GarrisonAssessment` 按当前驻军重算冻结到达波次，不重复寻路，不把未来物资当作现款。
 - `AllocationWork` 在全部自动控制范围内共用；路线复用 Core 显式 `NavigationArrivalInput`，路线成本键覆盖地图、占地、移动模式、占用、起终点及抵达范围；途经点拆成路线段，准备期、速度和余量只参与时间换算，缓存命中仍计查询工作。额度约束候选查询与导航扩展，基础权限投影及公共查询内部扫描不属于搜索额度。

@@ -30,7 +30,7 @@ public partial class StrategyHud
     private readonly MapAudioPlayback _mapAudioPlayback = new(Random.Shared.Next);
     private BattlePresentationView _battleView = null!;
     private TurnDayPresentation? _battleMessagesDay;
-    private readonly HashSet<Guid> _battleMessagesPlayed = [];
+    private readonly HashSet<string> _battleMessagesPlayed = [];
 
     private void BuildTurnControls()
     {

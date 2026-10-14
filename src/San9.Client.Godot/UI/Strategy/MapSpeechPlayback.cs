@@ -6,7 +6,7 @@ namespace San9.Client.Godot;
 /// <summary>Independent elapsed visual time. Pausing simulation does not stop the visible lifetime.</summary>
 public sealed class MapSpeechPlayback
 {
-    private readonly HashSet<Guid> _published = [];
+    private readonly HashSet<string> _published = [];
     private readonly List<Speech> _entries = [];
     public IReadOnlyList<Speech> Entries => _entries.AsReadOnly();
 
@@ -21,7 +21,7 @@ public sealed class MapSpeechPlayback
 
     public bool Publish(MapSpeechMessage message)
     {
-        if (message.Id == Guid.Empty || !Enum.IsDefined(message.Placement) ||
+        if (message.Id == string.Empty || !Enum.IsDefined(message.Placement) ||
             !double.IsFinite(message.DelaySeconds) || message.DelaySeconds < 0 || string.IsNullOrWhiteSpace(message.SpeakerName))
             throw new ArgumentException("Invalid retained map speech.", nameof(message));
         if (!_published.Add(message.Id)) return false;
@@ -37,5 +37,5 @@ public sealed class MapSpeechPlayback
         _entries.RemoveAll(entry => entry.Expired);
     }
 
-    public void Dismiss(Guid id) => _entries.RemoveAll(entry => entry.Message.Id == id);
+    public void Dismiss(string id) => _entries.RemoveAll(entry => entry.Message.Id == id);
 }

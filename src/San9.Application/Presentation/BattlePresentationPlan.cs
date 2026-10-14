@@ -10,10 +10,10 @@ using San9.Rendering;
 namespace San9.Application.Presentation;
 
 public enum BattleMessageChannel { MapSpeech, Dialogue }
-public sealed record BattleMessageCue(Guid Id, double Time, CommandMessage Message,
+public sealed record BattleMessageCue(string Id, double Time, CommandMessage Message,
     BattleMessageChannel Channel = BattleMessageChannel.MapSpeech);
 public sealed record BattleRecordCue(double Time, MapMessageRecord Record, string? SoundRole = null);
-public sealed record BattleVisualCue(Guid Id, double Start, double End, BattleObjectContext Source,
+public sealed record BattleVisualCue(string Id, double Start, double End, BattleObjectContext Source,
     BattleObjectContext Target, int TacticId, int ActorId, bool Blocked, bool Doubled,
     uint SoldierLoss, int DurabilityLoss, int MoraleLoss, BattleSprite? Effect, BattleZoomDefinition? Zoom)
 {
@@ -27,8 +27,8 @@ public sealed record BattleVisualCue(Guid Id, double Start, double End, BattleOb
     public ImmutableArray<BattleSceneLayer> Backdrop { get; init; } = [];
 }
 public sealed record BattleValueCue(double Time, int TargetId, bool IsSettlement, long Soldiers, int Morale, int Durability, UnitCondition? Condition = null);
-public sealed record BattleMapEffectCue(Guid Id, double Start, BattleObjectContext Target, BattleSprite Sprite);
-public sealed record BattleMapNumberCue(Guid Id, double Start, BattleObjectContext Target, long Amount);
+public sealed record BattleMapEffectCue(string Id, double Start, BattleObjectContext Target, BattleSprite Sprite);
+public sealed record BattleMapNumberCue(string Id, double Start, BattleObjectContext Target, long Amount);
 
 /// <summary>Occurrence ordered, immutable presentation. Text choices and identities are fixed before playback.</summary>
 public sealed class BattlePresentationPlan

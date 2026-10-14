@@ -32,14 +32,14 @@ public partial class BattlePresentationView : Control
     private AudioStreamPlayer _ambience = null!;
     private AudioStreamPlayer _numberRoll = null!;
     private BattleNumberLayer _numberLayer = null!;
-    private readonly HashSet<(Guid Cue, int Index)> _sounds = [];
-    private Guid? _ambienceCue;
+    private readonly HashSet<(string Cue, int Index)> _sounds = [];
+    private string? _ambienceCue;
     private TextureScope? _assets;
     private TextureScope? _flags;
     private readonly List<TextureScope> _portraits = [];
     private TurnDayPresentation? _day;
-    private readonly HashSet<Guid> _started = [];
-    private readonly HashSet<Guid> _doubles = [];
+    private readonly HashSet<string> _started = [];
+    private readonly HashSet<string> _doubles = [];
     private readonly CanvasItemMaterial _additive = new() { BlendMode = CanvasItemMaterial.BlendModeEnum.Add };
     private readonly List<Sprite2D> _effects = [];
     private BattleVisualCue? _zoom;

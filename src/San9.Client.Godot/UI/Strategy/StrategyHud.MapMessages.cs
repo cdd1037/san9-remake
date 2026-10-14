@@ -8,7 +8,7 @@ public partial class StrategyHud
 {
     private readonly MapMessageLog _mapRecords = new();
     private readonly MapSpeechPlayback _mapSpeech = new();
-    private readonly Dictionary<Guid,(MapSpeechView View,Vector2 Anchor,bool Placed)> _speechViews = [];
+    private readonly Dictionary<string,(MapSpeechView View,Vector2 Anchor,bool Placed)> _speechViews = [];
     private Control _speechHost = null!;
     private TextureScope _speechTextures = null!;
     private bool _mapRecordsRequested;

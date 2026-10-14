@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
 using San9.Content.Interface;
 using San9.Content.Text;
 using San9.Core.Domain;
@@ -12,7 +10,6 @@ internal static class ProgressMessageProducer
     internal static MessageBinding Person(int id) => MessageBinding.Reference(MessageEntityKind.Person, id);
     internal static MessageBinding Force(int id) => MessageBinding.Reference(MessageEntityKind.Force, id);
     internal static MessageBinding Place(int id) => MessageBinding.Reference(MessageEntityKind.Settlement, id);
-    internal static Guid Identity(string value) => new(SHA256.HashData(Encoding.UTF8.GetBytes(value)).AsSpan(0, 16));
     internal static CommandMessage Produce(DecisionMessageDefinition definition, WorldMessageContext context,
         TextCatalog texts, IReadOnlyDictionary<string, MessageBinding> values, Func<int, int> random)
     {
@@ -180,7 +177,7 @@ public static class ProgressMessages
             }
             if (role is null) continue;
             var occurrence = (role == "construction-completed" ? context.ForWorld(after.World) : context).AtOccurrence(clock, objects.ToArray());
-            Guid identity = ProgressMessageProducer.Identity($"report:{before.World.Revision}:{index}:{role}");
+            string identity = $"report:{before.World.Revision}:{index}:{role}";
             var random = new StableRandom(StableRandom.DeriveSeed((ulong)before.World.Revision,$"report-text:{index}:{role}"));
             var message = ProgressMessageProducer.Produce(content.Records[role], occurrence, texts, values,n => (int)(random.NextUInt64() % (ulong)n));
             result.Add(new(identity, message.Message, location,
@@ -190,7 +187,7 @@ public static class ProgressMessages
                 string territoryRole = role == "settlement-won" ? "territory-changed" : "territory-lost";
                 var territory = ProgressMessageProducer.Produce(content.Records[territoryRole],occurrence,texts,values,
                     n => (int)(random.NextUInt64() % (ulong)n));
-                result.Add(new(ProgressMessageProducer.Identity($"report:{before.World.Revision}:{index}:{territoryRole}"),
+                result.Add(new($"report:{before.World.Revision}:{index}:{territoryRole}",
                     territory.Message, location, result[^1].ForceColorCode));
             }
         }

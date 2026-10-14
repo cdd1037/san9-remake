@@ -7,7 +7,7 @@ namespace San9.Client.Godot;
 public sealed class MapMessageLog
 {
     private readonly List<MapMessageRecord> _entries = [];
-    private readonly HashSet<Guid> _published = [];
+    private readonly HashSet<string> _published = [];
     public event Action? Changed;
     public IReadOnlyList<MapMessageRecord> Entries => _entries.AsReadOnly();
     private readonly Queue<MapMessageRecord> _immediate = new(10);
@@ -36,7 +36,7 @@ public sealed class MapMessageLog
 
     public bool Append(MapMessageRecord entry)
     {
-        if (entry.Id == Guid.Empty) throw new ArgumentException("A publication identity is required.", nameof(entry));
+        if (entry.Id == string.Empty) throw new ArgumentException("A publication identity is required.", nameof(entry));
         if (!_published.Add(entry.Id)) return false;
         _entries.Add(entry);
         if (Allows(entry))

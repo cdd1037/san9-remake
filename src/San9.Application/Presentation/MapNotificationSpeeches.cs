@@ -45,7 +45,7 @@ internal static class MapNotificationSpeeches
         var place = participant.IsSettlement ? before.Settlements.Concat(after.Settlements).First(s => s.Id == participant.Id) : null;
         MapCell location = participant.Position is { } position ? MapCoordinates.Cell(position) : new(place!.X, place.Y);
         int? color = before.Forces.Concat(after.Forces).FirstOrDefault(f => f.Id == participant.ForceId)?.ColorCode;
-        var speech = new MapSpeechMessage(ProgressMessageProducer.Identity($"map-notification:{before.World.Revision}:{index}:{role}"),
+        var speech = new MapSpeechMessage($"map-notification:{before.World.Revision}:{index}:{role}",
             message.Message, actor, texts.Resolve(before.MessageSpeaker(actor).NameKey), location,
             participant.IsSettlement || fact is UnitWaypointReachedEvent ? null : participant.Id, color);
         return [message with { MapSpeech = speech }];

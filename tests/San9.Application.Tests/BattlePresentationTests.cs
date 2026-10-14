@@ -1,3 +1,4 @@
+using San9.Tests;
 using System.Collections.Immutable;
 using San9.Application.Presentation;
 using San9.Content.Interface;
@@ -339,7 +340,7 @@ public sealed class BattlePresentationTests
         DomainEvent[] facts = [new TacticActivatedEvent(before.World.Clock,10,false,20,false,99,[3,2],true,blocked?1:10) { Occurrence=occurrence },
             new BattleDamageEvent(before.World.Clock,10,20,null,500,0,500,0,0)
             { TacticId=99,CalculatedSoldierLoss=6000,Source=occurrence.Source,Target=occurrence.Target }];
-        string hash = before.World.StateHash;
+        var hash = before.World;
         var plan = BattlePresentationPlan.Create(before, after, facts, session.Messages(texts, before.World), texts, content);
         var repeated = BattlePresentationPlan.Create(before, after, facts, session.Messages(texts, before.World), texts, content);
         var visual = Assert.Single(plan.Visuals);
@@ -360,7 +361,7 @@ public sealed class BattlePresentationTests
         Assert.Equal(visual.End, plan.Duration);
         Assert.Equal(visual.End, Assert.Single(plan.Records, c => c.Record.Message.Key == (blocked ? "blocked" : "damage")).Time);
         Assert.Equal(plan.Messages, repeated.Messages);
-        Assert.Equal(hash, before.World.StateHash);
+        StateAssert.Equal(hash, before.World);
     }
 
     [Theory]

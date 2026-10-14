@@ -1,3 +1,4 @@
+using San9.Tests;
 using San9.Application;
 using San9.Content.Scenarios;
 using San9.Core.Simulation;
@@ -29,7 +30,7 @@ public sealed class TurnPresentationTests
             { Occurrence=occurrence }];
         var plan = San9.Application.Presentation.BattlePresentationPlan.Create(session.View, session.View, events, session.Messages(texts), texts, content);
         var day = new TurnDayPresentation(session.View, session.View, events, battle: plan);
-        var cue = Assert.Single(plan.Visuals); string hash = session.Snapshot.StateHash;
+        var cue = Assert.Single(plan.Visuals); var hash = session.Snapshot;
         day.Advance(cue.Start + .1);
         double gate = day.Elapsed;
         Assert.NotEmpty(day.PendingDialogues);
@@ -55,7 +56,7 @@ public sealed class TurnPresentationTests
         Assert.Equal(day.Duration, day.Elapsed);
         Assert.Contains(plan.Records, c => c.Record.Message.Key == "damage" && c.Time == day.Elapsed);
         day.SkipVisual(); Assert.Equal(cue.End, day.Elapsed, 6);
-        Assert.Same(plan, day.Battle); Assert.Equal(hash, session.Snapshot.StateHash);
+        Assert.Same(plan, day.Battle); StateAssert.Equal(hash, session.Snapshot);
     }
     [Fact]
     public void MapSpeechAtTheDialogueBoundaryWaitsForCompletionWithoutAnArtificialDelay()
@@ -109,20 +110,20 @@ public sealed class TurnPresentationTests
             }
         };
         Enter(turn); turn.Update(8);
-        var prepared = turn.Day!; string hash = session.Snapshot.StateHash;
+        var prepared = turn.Day!; var hash = session.Snapshot;
         Assert.Equal(0, prepared.Elapsed); Assert.Equal(0, calls);
         ready = true; turn.Update(.5);
         turn.TogglePause(); turn.Update(20);
         Assert.Same(prepared, turn.Day); Assert.Equal(.5, prepared.Elapsed); Assert.Equal(1, calls);
         fail = true; turn.Update(.2);
         Assert.Equal(TurnScreen.Failed, turn.Screen);
-        Assert.Equal(hash, session.Snapshot.StateHash);
+        StateAssert.Equal(hash, session.Snapshot);
         turn.Confirm(); Assert.Equal(1, retries);
         turn.Update(3); Assert.Same(prepared, turn.Day); Assert.Equal(.5, prepared.Elapsed);
         turn.TogglePause();
         turn.Update(3);
         Assert.Equal(2, calls); Assert.Null(turn.Day);
-        Assert.NotEqual(hash, session.Snapshot.StateHash);
+        StateAssert.NotEqual(hash, session.Snapshot);
     }
     [Fact]
     public void StrategyTitleCueOnlyRunsForCompletedXunAndEntranceDoesNotRepeatOnRepaintOrCancel()
@@ -159,10 +160,10 @@ public sealed class TurnPresentationTests
         turn.Update(2);
         Assert.Equal(TurnScreen.Presenting,turn.Screen);
         long operation=session.NextOperationSequence,publication=turn.Publication;
-        string hash=session.Snapshot.StateHash;
+        var hash=session.Snapshot;
         Assert.NotNull(turn.LastResult);
         turn.Update(20);turn.Update(20);
-        Assert.Equal(hash,session.Snapshot.StateHash);
+        StateAssert.Equal(hash, session.Snapshot);
         Assert.Equal(operation,session.NextOperationSequence);
         Assert.Equal(publication,turn.Publication);
         turn.CanContinue=()=>true;turn.Update(0);
@@ -259,17 +260,17 @@ public sealed class TurnPresentationTests
     public void CancelAndRepeatedConfirmationCannotAdvanceTheCalendar()
     {
         var session = Session(); var turn = new TurnPresentation(session);
-        string initial = session.Snapshot.StateHash;
+        var initial = session.Snapshot;
         Assert.True(turn.CanBrowseMap);
         turn.Confirm(); turn.Update(10);
         Assert.True(turn.Request()); Assert.False(turn.Request());
         Assert.False(turn.CanBrowseMap);
         turn.Cancel(); turn.Update(10);
         Assert.True(turn.CanBrowseMap);
-        Assert.Equal(initial, session.Snapshot.StateHash);
+        StateAssert.Equal(initial, session.Snapshot);
         Assert.True(turn.Request()); turn.Confirm(); turn.Confirm();
         turn.Update(0.2);
-        Assert.Equal(initial, session.Snapshot.StateHash);
+        StateAssert.Equal(initial, session.Snapshot);
         Ready(turn); turn.Update(2);
         Assert.Equal(1, session.NextOperationSequence);
         Assert.False(turn.Request());
@@ -287,12 +288,12 @@ public sealed class TurnPresentationTests
         Assert.False(turn.CanAdvance);
         turn.Update(0.4);
         var frame = turn.Display;
-        string settled = session.Snapshot.StateHash;
+        var settled = session.Snapshot;
         turn.TogglePause(); turn.Update(100);
         Assert.True(turn.CanBrowseMap);
         Assert.False(turn.CanAdvance);
         Assert.Same(frame, turn.Display);
-        Assert.Equal(settled, session.Snapshot.StateHash);
+        StateAssert.Equal(settled, session.Snapshot);
         turn.TogglePause();
         Assert.True(turn.CanBrowseMap);
         Assert.False(turn.CanAdvance);
@@ -332,21 +333,21 @@ public sealed class TurnPresentationTests
     {
         var session = Session(); var turn = new TurnPresentation(session);
         Enter(turn);
-        string hash = session.Snapshot.StateHash;
+        var hash = session.Snapshot;
         turn.CanPlayDay = () => false;
         turn.Update(20);
         Assert.NotNull(turn.Day);
         Assert.Equal(0, turn.Day.Elapsed);
-        Assert.Equal(hash, session.Snapshot.StateHash);
+        StateAssert.Equal(hash, session.Snapshot);
         turn.CanPlayDay = () => true;
         turn.Update(.4);
         Assert.Equal(.4, turn.Day.Elapsed);
         turn.TogglePause(); turn.Update(20);
         Assert.Equal(.4, turn.Day.Elapsed);
-        Assert.Equal(hash, session.Snapshot.StateHash);
+        StateAssert.Equal(hash, session.Snapshot);
         turn.TogglePause(); turn.Update(.6);
         Assert.Null(turn.Day);
-        Assert.NotEqual(hash, session.Snapshot.StateHash);
+        StateAssert.NotEqual(hash, session.Snapshot);
     }
 
     [Fact]

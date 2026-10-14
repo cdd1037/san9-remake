@@ -171,8 +171,8 @@ public static class MissionPresentation
         UnitStrategyKind.Inspire => "inspire", UnitStrategyKind.Reinforce => "rescue",
         _ => throw new ArgumentOutOfRangeException(nameof(kind))
     };
-    private static Guid ResultIdentity(StrategySnapshot before, PersistentTask task, DomainEvent fact, string role) =>
-        ProgressMessageProducer.Identity($"mission:{before.World.Revision}:{task.Id}:{fact.GetType().Name}:{role}");
+    private static string ResultIdentity(StrategySnapshot before, PersistentTask task, DomainEvent fact, string role) =>
+        $"mission:{before.World.Revision}:{task.Id}:{fact.GetType().Name}:{role}";
 
     private static CommandMessage? ResultMessage(string role, IReadOnlyDictionary<string, DecisionMessageDefinition> content,
         IReadOnlyDictionary<string, MessageBinding> values, WorldMessageContext context, TextCatalog texts, Func<int, int> random)

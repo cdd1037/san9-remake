@@ -86,7 +86,7 @@ internal sealed class BattlePresentationBuilder(StrategySnapshot before, Strateg
     private bool MapVisible(BattleObjectContext obj) => _mapVisibility.GetValueOrDefault((obj.Id, obj.IsSettlement), Player(obj.ForceId));
     private double MapTime(double time) => Math.Max(time, _mapAvailable);
 
-    private Guid Identity(string role) => ProgressMessageProducer.Identity($"battle:{before.World.Revision}:{_index}:{role}");
+    private string Identity(string role) => $"battle:{before.World.Revision}:{_index}:{role}";
     private void Number(BattleObjectContext? obj, long amount, double time, string role)
     {
         if (amount != 0 && obj is not null && MapVisible(obj) && content.Battle?.MapNumbers is { } digits)

@@ -28,7 +28,7 @@ public sealed class TurnDayPresentation(StrategySnapshot before, StrategySnapsho
         CombatMilliseconds < Plan!.AttackDuration(attack) * 1000;
     public bool IsCombatBlocking => _combatStarted && CombatMilliseconds < _combatDuration * 1000 - 1e-6;
     public BattlePresentationPlan? Battle { get; } = battle;
-    private readonly HashSet<Guid> _completedDialogues = [];
+    private readonly HashSet<string> _completedDialogues = [];
     public IReadOnlyList<BattleMessageCue> PendingDialogues => Battle?.Messages
         .Where(c => c.Channel == BattleMessageChannel.Dialogue && !_completedDialogues.Contains(c.Id) && c.Time <= Elapsed + 1e-9)
         .OrderBy(c => c.Time).ToArray() ?? [];
@@ -45,7 +45,7 @@ public sealed class TurnDayPresentation(StrategySnapshot before, StrategySnapsho
         }
     }
     public bool IsComplete => Elapsed >= Duration && !IsCombatBlocking && NextDialogueTime is null;
-    public void CompleteDialogue(Guid id)
+    public void CompleteDialogue(string id)
     {
         if (!PendingDialogues.Any(c => c.Id == id)) throw new InvalidOperationException("Battle dialogue is not pending.");
         _completedDialogues.Add(id);

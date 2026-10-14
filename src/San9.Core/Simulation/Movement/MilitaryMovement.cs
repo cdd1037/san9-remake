@@ -186,7 +186,7 @@ internal static class MilitaryMovement
         var account = ResourceAccounts.Resolve(world, command.IssuerId, home.CorpsId);
         if ((ulong)cargoMoney + (uint)deploymentCost > ResourceAccounts.Balance(world, account, ResourceKind.Money) ||
             cargoFood > ResourceAccounts.Balance(world, account, ResourceKind.Food)) return CommandRejection.InsufficientFunds;
-        var occupancy = new MovementOccupancy(world, rules).Query(world, command.IssuerId, command.Policies);
+        var occupancy = world.MovementOccupancy(rules, command.IssuerId, command.Policies, null, null);
         WorldPosition? start = MilitaryRouteQuery.DeploymentPosition(travel, rules.BuildingArea(place), occupancy);
         if (start is null) return CommandRejection.NoDestination;
         if (command.Waypoint is { } via && (Occupancy(world, rules, null, null).Any(o => o.Overlaps(new(via, new(1, 1)))) ||

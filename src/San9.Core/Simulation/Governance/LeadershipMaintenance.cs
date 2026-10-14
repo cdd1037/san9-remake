@@ -20,7 +20,8 @@ internal static class LeadershipMaintenance
     internal static void Apply(WorldMutation world, GovernanceRulebook governance)
     {
         var people = world.Officers.Values.Where(p => p.IsServing).ToArray();
-        var abilities = world.AbilitiesFor(people);
+        // This table is local to one maintenance pass and is never published as world state.
+        var abilities = people.ToDictionary(p => p.Id, world.Abilities);
         var commanders = people.Where(p => p.SettlementId is int home && !world.IsTraveling(p.Id) &&
                 world.Settlements.TryGetValue(home, out var place) && place.OwnerId == p.OwnerId && place.CanHostPersons && !place.IsDestroyed)
             .GroupBy(p => p.SettlementId!.Value)

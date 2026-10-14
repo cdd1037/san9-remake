@@ -162,13 +162,27 @@ internal static class CampaignPlanner
         // A force finishes or exits its current commitment before spending the same reserve on a new objective.
         if (goals.Any(g => g.ForceId == observation.ForceId && g.Phase != CampaignPhase.CoolingDown))
             return new(candidates.ToImmutable(), goals.ToImmutable());
+        List<CampaignPlanSearch> searches = [];
         foreach (var target in observation.Places.Where(p => p.OwnerId != observation.ForceId).OrderByDescending(p => p.Value).ThenBy(p => p.Id))
         {
             if (!work.Spend()) break;
             if (goals.Any(g => g.ForceId == observation.ForceId && g.TargetId == target.Id)) continue;
             var forces = observation.Forces.Where(f => f.Action.TargetId == target.Id && (f.UnitId is null || f.NeedsOrder)).ToImmutableArray();
-            var plan = Choose(target, forces, observation, work);
-            if (plan is not null) candidates.AddRange(plan.Value.Actions);
+            if (!forces.IsEmpty) searches.Add(new(target, forces, observation));
+        }
+        try
+        {
+            // Share comparison work across objectives before deepening any one objective's search.
+            // Completed searches spend nothing further; unused capacity flows to remaining searches.
+            while (work.Remaining > 0 && searches.Any(s => !s.Complete))
+                foreach (var search in searches)
+                    if (!search.Complete && work.Remaining > 0) search.Advance(work);
+            foreach (var search in searches)
+                if (search.Best is { } best) candidates.AddRange(best.Actions);
+        }
+        finally
+        {
+            foreach (var search in searches) search.Dispose();
         }
         return new(candidates.ToImmutable(), goals.ToImmutable());
     }
@@ -176,69 +190,79 @@ internal static class CampaignPlanner
     private static (ImmutableArray<AllocationCandidate> Actions, CampaignForecast Forecast)? Choose(CampaignPlace target,
         ImmutableArray<CampaignForce> options, CampaignObservation observation, AllocationWork work)
     {
-        if (options.IsEmpty) return null;
-        var committed = options.Where(f => f.UnitId is not null).ToImmutableArray();
-        (ImmutableArray<AllocationCandidate> Actions, CampaignForecast Forecast, long Value)? best = null;
-        List<ImmutableArray<CampaignForce>> evaluated = [];
-        // Keep a mobility alternative as well as troop strength, wall strength and preparation.
-        // Fast, weaker formations must reach the actual forecast before value comparison can reject them.
-        foreach (int mode in new[] { 0, 1, 2, 3 })
-        {
-            var fresh = options.Where(f => f.UnitId is null).GroupBy(f => f.Action.SourceId).Select(g => g
-                .OrderBy(f => mode < 2 && f.Action.Intent is not DeployUnitCommand ? 1 : 0)
-                .ThenBy(f => mode == 3 ? f.Action.Arrival!.Days : 0)
-                .ThenByDescending(f => mode == 3 ? 0 : mode == 1 ? f.DamagesWalls ? CombatMath.WallAttackStrength(f.Soldiers, f.Leadership, f.Profile.AgainstWalls) : 0 :
-                    CombatMath.FormationStrength(new(f.Soldiers, f.Morale, f.Leadership, 1, 10), f.Profile).AgainstGarrison + f.TacticValue)
-                .ThenBy(f => f.Action.Intent is DeployUnitCommand ? 0 : 1).ThenBy(f => f.Action.Arrival!.Days)
-                .ThenBy(f => f.Action.MoneyCost).ThenBy(f => (f.Action.Intent as DeployUnitCommand)?.FormationId ?? -1).First())
-                .OrderBy(f => f.Action.Arrival!.Days).ThenBy(f => f.Action.SourceId).ToImmutableArray();
-            for (int count = committed.IsEmpty ? 1 : 0; count <= fresh.Length; count++)
-            {
-                if (!work.Spend()) return best is { } known ? (known.Actions, known.Forecast) : null;
-                var chosen = committed.AddRange(fresh.Take(count));
-                Consider(chosen);
-            }
-        }
-        // The rankings above provide inexpensive seeds, not a restriction on legal combinations.
-        // Search source subsets and substitutions jointly. An optimistic bound can prune a branch
-        // only when even an immediate, lossless victory cannot improve the incumbent.
-        var sources = options.Where(f => f.UnitId is null).GroupBy(f => f.Action.SourceId)
-            .OrderBy(g => g.Min(f => f.Action.Arrival!.Days)).ThenBy(g => g.Key)
-            .Select(g => g.OrderBy(f => f.Action.Arrival!.Days).ThenBy(f => f.Action.MoneyCost + f.Action.OfficerOpportunityCost)
-                .ThenByDescending(f => f.Soldiers).ToImmutableArray()).ToArray();
-        Search(0, committed);
-        return best is { } selected ? (selected.Actions, selected.Forecast) : null;
+        using var search = new CampaignPlanSearch(target, options, observation);
+        while (!search.Complete && work.Remaining > 0) search.Advance(work);
+        return search.Best is { } best ? (best.Actions, best.Forecast) : null;
+    }
 
-        long UpperBound(ImmutableArray<CampaignForce> chosen, bool extend = false) => target.Value -
-            ((extend ? options : chosen).Min(f => f.Action.Arrival!.Days!.Value) + 2L) * 100 -
-            chosen.Sum(f => f.Action.MoneyCost + f.Action.OfficerOpportunityCost);
+    /// <summary>Resumable within one frozen observation. Each step evaluates at most one joint plan.</summary>
+    private sealed class CampaignPlanSearch(CampaignPlace target, ImmutableArray<CampaignForce> options,
+        CampaignObservation observation) : IDisposable
+    {
+        private readonly List<ImmutableArray<CampaignForce>> evaluated = [];
+        private IEnumerator<ImmutableArray<CampaignForce>>? proposals;
+        internal bool Complete { get; private set; }
+        internal (ImmutableArray<AllocationCandidate> Actions, CampaignForecast Forecast, long Value)? Best { get; private set; }
 
-        void Consider(ImmutableArray<CampaignForce> chosen)
+        internal void Advance(AllocationWork work)
         {
-            if (chosen.IsEmpty || !CanAssemble(chosen, observation) || best is { } incumbent && UpperBound(chosen) <= incumbent.Value) return;
+            if (Complete || !work.Spend()) return;
+            proposals ??= Enumerate().GetEnumerator();
+            if (!proposals.MoveNext()) { Complete = true; Dispose(); return; }
+            var chosen = proposals.Current;
+            if (chosen.IsEmpty || !CanAssemble(chosen, observation) || Best is { } incumbent && UpperBound(chosen) <= incumbent.Value) return;
             var ordered = chosen.OrderBy(f => f.Action.SourceId).ThenBy(f => f.UnitId).ToImmutableArray();
             if (evaluated.Any(previous => previous.SequenceEqual(ordered))) return;
             evaluated.Add(ordered);
             var plan = EvaluatePlan(target, chosen, observation, work);
-            if (plan is { } result && (best is null || result.Value > best.Value.Value)) best = result;
+            if (plan is { } result && (Best is null || result.Value > Best.Value.Value)) Best = result;
         }
 
-        void Search(int first, ImmutableArray<CampaignForce> chosen)
+        private long UpperBound(ImmutableArray<CampaignForce> chosen, bool extend = false) => target.Value -
+            ((extend ? options : chosen).Min(f => f.Action.Arrival!.Days!.Value) + 2L) * 100 -
+            chosen.Sum(f => f.Action.MoneyCost + f.Action.OfficerOpportunityCost);
+
+        private IEnumerable<ImmutableArray<CampaignForce>> Enumerate()
         {
-            for (int source = first; source < sources.Length; source++)
-            foreach (var option in sources[source])
+            if (options.IsEmpty) yield break;
+            var committed = options.Where(f => f.UnitId is not null).ToImmutableArray();
+            // Mobility, ordinary strength, wall strength and preparation seed the incumbent.
+            // These rankings do not restrict subsequent source subsets or substitutions.
+            foreach (int mode in new[] { 0, 1, 2, 3 })
             {
-                if (!work.Spend()) return;
-                var next = chosen.Add(option);
-                if (!CanAssemble(next, observation) || best is { } incumbent && UpperBound(next, extend: true) <= incumbent.Value) continue;
-                Consider(next);
-                if (work.Remaining == 0) return;
-                Search(source + 1, next);
-                if (work.Remaining == 0) return;
+                var fresh = options.Where(f => f.UnitId is null).GroupBy(f => f.Action.SourceId).Select(g => g
+                    .OrderBy(f => mode < 2 && f.Action.Intent is not DeployUnitCommand ? 1 : 0)
+                    .ThenBy(f => mode == 3 ? f.Action.Arrival!.Days : 0)
+                    .ThenByDescending(f => mode == 3 ? 0 : mode == 1 ? f.DamagesWalls ? CombatMath.WallAttackStrength(f.Soldiers, f.Leadership, f.Profile.AgainstWalls) : 0 :
+                        CombatMath.FormationStrength(new(f.Soldiers, f.Morale, f.Leadership, 1, 10), f.Profile).AgainstGarrison + f.TacticValue)
+                    .ThenBy(f => f.Action.Intent is DeployUnitCommand ? 0 : 1).ThenBy(f => f.Action.Arrival!.Days)
+                    .ThenBy(f => f.Action.MoneyCost).ThenBy(f => (f.Action.Intent as DeployUnitCommand)?.FormationId ?? -1).First())
+                    .OrderBy(f => f.Action.Arrival!.Days).ThenBy(f => f.Action.SourceId).ToImmutableArray();
+                for (int count = committed.IsEmpty ? 1 : 0; count <= fresh.Length; count++)
+                    yield return committed.AddRange(fresh.Take(count));
+            }
+            var sources = options.Where(f => f.UnitId is null).GroupBy(f => f.Action.SourceId)
+                .OrderBy(g => g.Min(f => f.Action.Arrival!.Days)).ThenBy(g => g.Key)
+                .Select(g => g.OrderBy(f => f.Action.Arrival!.Days).ThenBy(f => f.Action.MoneyCost + f.Action.OfficerOpportunityCost)
+                    .ThenByDescending(f => f.Soldiers).ToImmutableArray()).ToArray();
+            foreach (var chosen in Search(0, committed)) yield return chosen;
+
+            IEnumerable<ImmutableArray<CampaignForce>> Search(int first, ImmutableArray<CampaignForce> chosen)
+            {
+                for (int source = first; source < sources.Length; source++)
+                foreach (var option in sources[source])
+                {
+                    var next = chosen.Add(option);
+                    // Yield before pruning: even rejected or duplicate nodes consume deterministic work.
+                    yield return next;
+                    if (!CanAssemble(next, observation) || Best is { } incumbent && UpperBound(next, extend: true) <= incumbent.Value) continue;
+                    foreach (var extension in Search(source + 1, next)) yield return extension;
+                }
             }
         }
-    }
 
+        public void Dispose() => proposals?.Dispose();
+    }
     private static bool CanAssemble(ImmutableArray<CampaignForce> chosen, CampaignObservation observation)
     {
         if (chosen.Any(f => f.Morale < 30)) return false;

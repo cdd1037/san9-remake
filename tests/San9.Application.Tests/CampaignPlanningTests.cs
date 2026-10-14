@@ -275,6 +275,27 @@ public sealed class CampaignPlanningTests
         Assert.Equal(optimum, previous);
     }
 
+    [Theory]
+    [InlineData(512)]
+    [InlineData(2048)]
+    [InlineData(8192)]
+    public void CampaignSearchServesAnotherObjectiveBeforeRefiningAnUnwinnableOne(long budget)
+    {
+        var difficult = Enumerable.Range(0, 12).Select(i => Force(2, (uint)(5000 + i)) with
+            { TacticValue = i }).ToImmutableArray();
+        var attainable = Force(4, 12000);
+        attainable = attainable with { Action = attainable.Action with { TargetId = 5,
+            Intent = ((DeployUnitCommand)attainable.Action.Intent) with { Order = new(MilitaryOrderKind.AttackSettlement, null, 5) } } };
+        var observation = Input(difficult.Add(attainable)) with
+        {
+            Places = [Target(50000, 10000) with { Value = 100000, CanRetaliate = false }, Target(1000, 20) with { Id = 5 }]
+        };
+        var work = new AllocationWork(budget);
+        var result = CampaignPlanner.Decide(observation, [], work);
+        Assert.Equal(5, Assert.Single(result.Candidates).TargetId);
+        Assert.InRange(work.Remaining, 0, budget);
+    }
+
     [Fact]
     public void UnfinishedAlternativesDoNotDiscardAValidatedLocalCampaign()
     {

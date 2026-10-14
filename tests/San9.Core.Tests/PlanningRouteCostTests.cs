@@ -4,6 +4,66 @@ namespace San9.Core.Tests;
 
 public sealed class PlanningRouteCostTests
 {
+    [Theory]
+    [InlineData(20, 5)]
+    [InlineData(5, 20)]
+    public void SharedShorelineEndpointWeightsBothTerrainsBeforeTakingMaximum(int landSpeed, int waterSpeed)
+    {
+        var map = new BattlefieldMap(3, 3, Enumerable.Range(0, 9).Select(i => i % 3 == 0 ? 0 : 1),
+            [new(0, 1, null), new(1, null, 1) { IsWater = true }]);
+        var land = new FormationRule(0, landSpeed, 0, 1000, 1, new(3, 1), TravelMode.Land);
+        var ship = land with { Id = 1, MovementBudget = waterSpeed, TravelMode = TravelMode.Water };
+        var travel = map.ForTravel(land, ship, 20);
+        var start = new WorldPosition(3, 7);
+        var target = new MapOccupancy(new(4, 7), new(1, 1));
+        var shared = travel.PlanningMap().EstimateTravelCost(start, target, land.Footprint,
+            TravelMode.Land, [], new(65536), intoRange: false);
+        var actual = travel.EstimateTravelCost(start, target, land.Footprint,
+            TravelMode.Land, [], new(65536), intoRange: false);
+        Assert.Equal(RouteReachability.Reachable, shared.Status);
+        Assert.Equal(4, actual.Cost);
+        Assert.Equal(actual.Cost, travel.Reweight(shared.TerrainCost));
+    }
+
+    [Fact]
+    public void SharedGeometryRetainsLandAndWaterCostsForDifferentSpeedRatios()
+    {
+        var terrain = Enumerable.Range(0, 33).Select(i => i / 11 == 1 && i % 11 is >= 3 and <= 7 ? 1 : 0);
+        var map = new BattlefieldMap(11, 3, terrain, [new(0, 1, null), new(1, null, 1) { IsWater = true }]);
+        var land = new FormationRule(0, 20, 0, 1000, 1, new(1, 1), TravelMode.Land);
+        var ship = land with { Id = 1, MovementBudget = 5, TravelMode = TravelMode.Water };
+        var travel = map.ForTravel(land, ship, 20);
+        var shared = travel.PlanningMap();
+        var cost = shared.EstimateTravelCost(new(2, 7), new(new(52, 7), new(1, 1)),
+            new(1, 1), TravelMode.Land, [], new(65536), intoRange: false);
+        Assert.Equal(RouteReachability.Reachable, cost.Status);
+        Assert.Equal(cost.Cost, cost.TerrainCost.Land + cost.TerrainCost.Water);
+        Assert.True(cost.TerrainCost.Water > 0);
+        Assert.Equal(cost.TerrainCost.Land + 4 * cost.TerrainCost.Water, travel.Reweight(cost.TerrainCost));
+        var waterFast = map.ForTravel(land with { MovementBudget = 5 }, ship with { MovementBudget = 20 }, 20);
+        Assert.Equal(4 * cost.TerrainCost.Land + cost.TerrainCost.Water, waterFast.Reweight(cost.TerrainCost));
+        Assert.Same(shared, waterFast.PlanningMap());
+    }
+
+    [Fact]
+    public void ForecastEndpointCostsDoNotLeakBetweenModesMapsOrObstacles()
+    {
+        var map = new BattlefieldMap(3, 3, Enumerable.Repeat(0, 9), [new(0, 2, 3)]);
+        var other = new BattlefieldMap(2, 2, Enumerable.Repeat(0, 4), [new(0, 7, null)]);
+        var start = new WorldPosition(1, 1);
+        var target = new MapOccupancy(new(3, 3), new(1, 1));
+        RouteCostEstimate Estimate(BattlefieldMap field, TravelMode mode, params MapOccupancy[] objects) =>
+            field.EstimateTravelCost(start, target, new(1, 1), mode, objects, new(10000), intoRange: false);
+
+        Assert.Equal(8, Estimate(map, TravelMode.Land).Cost);
+        Assert.Equal(12, Estimate(map, TravelMode.Water).Cost);
+        Assert.Equal(28, Estimate(other, TravelMode.Land).Cost);
+        Assert.Equal(RouteReachability.Unreachable, Estimate(map, TravelMode.Land, target).Status);
+        var restored = Estimate(map, TravelMode.Land);
+        Assert.Equal(RouteReachability.Reachable, restored.Status);
+        Assert.Equal(8, restored.Cost);
+    }
+
     [Fact]
     public void ForecastUsesTerrainTimeWithoutChargingAvoidancePenalties()
     {

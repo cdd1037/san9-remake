@@ -9,10 +9,13 @@ internal sealed class BattlefieldPathSearch : IDisposable
     private BattlefieldMap map = null!;
     private readonly long[] endpointCosts = new long[225];
     private readonly long[] endpointPassage = new long[225];
+    private readonly int[] endpointTerrain = new int[225];
+    private readonly RouteTerrainCost[] endpointComponents = new RouteTerrainCost[225];
     private readonly int[] endpointParents = new int[225];
     private readonly PriorityQueue<int, (long Total, long Line, long Cost, int Node)> endpoints = new();
     private long[] distance = [];
     private long[] travelCosts = [];
+    private RouteTerrainCost[] terrainCosts = [];
     private bool forecast;
     private int[] previous = [];
     private readonly PriorityQueue<int, (long Total, long Line, long Remaining, int Node)> pending = new();
@@ -139,7 +142,8 @@ internal sealed class BattlefieldPathSearch : IDisposable
             distance = new long[count]; previous = new int[count];
             if (PathSearchDiagnostics.Current is { } d) { d.WorkspaceGrowths++; d.WorkspaceNodes = Math.Max(d.WorkspaceNodes, count); }
         }
-        if (forecast && travelCosts.Length < count) travelCosts = new long[count];
+        if (forecast && travelCosts.Length < count)
+        { travelCosts = new long[count]; terrainCosts = new RouteTerrainCost[count]; }
         Array.Fill(distance, long.MaxValue, 0, count); pending.Clear();
         bool centered = start == MapCoordinates.Center(MapCoordinates.Cell(start));
         var source = centered
@@ -149,12 +153,13 @@ internal sealed class BattlefieldPathSearch : IDisposable
         if (work?.Exhausted == true) return failure;
         long best = source.Goal?.Cost ?? long.MaxValue;
         long bestTravel = source.Goal?.TravelCost ?? 0;
+        var bestTerrain = source.Goal?.TerrainCost ?? default;
         ImmutableArray<WorldPosition> tail = source.Goal?.Steps ?? [];
         int finish = -1;
         foreach (var (node, link) in source.Centers)
         {
             distance[node] = link.Cost;
-            if (forecast) travelCosts[node] = link.TravelCost;
+            if (forecast) { travelCosts[node] = link.TravelCost; terrainCosts[node] = link.TerrainCost; }
             if (materializePaths) previous[node] = -1;
             Enqueue(node);
         }
@@ -172,7 +177,8 @@ internal sealed class BattlefieldPathSearch : IDisposable
                 if (work?.Exhausted == true) return failure;
                 if (connector is { } link && distance[current] + link.Cost < best)
                 { best = distance[current] + link.Cost; finish = current; tail = link.Steps;
-                    if (forecast) bestTravel = travelCosts[current] + link.TravelCost; }
+                    if (forecast) { bestTravel = travelCosts[current] + link.TravelCost;
+                        bestTerrain = terrainCosts[current] + link.TerrainCost; } }
             }
             int x = current % map.Width, y = current / map.Width;
             if (y > 0) Visit(current - map.Width);
@@ -181,6 +187,9 @@ internal sealed class BattlefieldPathSearch : IDisposable
             if (x > 0) Visit(current - 1);
             void Visit(int next)
             {
+                // A coarse edge contains five positive-cost steps. If even its terrain
+                // lower bound cannot improve this node, footprint and occupancy work is unnecessary.
+                if (distance[current] + (long)minimum * MapCoordinates.UnitsPerCell >= distance[next]) return;
                 long cost = 0, movement = 0;
                 var end = Position(next);
                 int dx = Math.Sign(end.X - position.X), dy = Math.Sign(end.Y - position.Y);
@@ -203,13 +212,17 @@ internal sealed class BattlefieldPathSearch : IDisposable
                 long total = checked(distance[current] + cost);
                 if (total >= distance[next]) return;
                 distance[next] = total;
-                if (forecast) travelCosts[next] = travelCosts[current] + movement;
+                if (forecast)
+                {
+                    travelCosts[next] = travelCosts[current] + movement;
+                    terrainCosts[next] = terrainCosts[current] + map.PassageComponents(end, shape, mode, true) * MapCoordinates.UnitsPerCell;
+                }
                 if (materializePaths) previous[next] = current;
                 Enqueue(next);
             }
         }
         if (best == long.MaxValue) return failure;
-        if (stepLimit == 0) return new(true, [], forecast ? bestTravel : best);
+        if (stepLimit == 0) return new(true, [], forecast ? bestTravel : best) { TerrainCost = bestTerrain };
         var result = ImmutableArray.CreateBuilder<WorldPosition>();
         WorldPosition? lookahead = null;
         if (finish >= 0)
@@ -287,7 +300,7 @@ internal sealed class BattlefieldPathSearch : IDisposable
         return true;
     }
 
-    private sealed record Link(long Cost, ImmutableArray<WorldPosition> Steps, long TravelCost = 0);
+    private sealed record Link(long Cost, ImmutableArray<WorldPosition> Steps, long TravelCost = 0, RouteTerrainCost TerrainCost = default);
     private sealed record Connections(Dictionary<int, Link> Centers, Link? Goal);
     private void ClearObjects()
     {
@@ -304,6 +317,10 @@ internal sealed class BattlefieldPathSearch : IDisposable
         if (!Expand(true)) return new(centers, goal);
         int left = Math.Max(0, (cell.X - 1) * 5), top = Math.Max(0, (cell.Y - 1) * 5);
         int right = Math.Min(map.FineWidth, (cell.X + 2) * 5), bottom = Math.Min(map.FineHeight, (cell.Y + 2) * 5);
+        int width = right - left;
+        // Both axis orders revisit the same points. Passage is fixed within this endpoint
+        // window; reset on every connector so no occupancy, footprint or mode can leak across queries.
+        Array.Fill(endpointPassage, -2L, 0, width * (bottom - top));
         for (int y = top; y < bottom; y++)
         for (int x = left; x < right; x++)
         {
@@ -324,15 +341,24 @@ internal sealed class BattlefieldPathSearch : IDisposable
         {
             var p = start;
             long routing = 0, movement = 0;
+            RouteTerrainCost components = default;
             while (p != end)
             {
                 bool horizontal = horizontalFirst ? p.X != end.X : p.Y == end.Y;
                 p = horizontal ? new(p.X + Math.Sign(end.X - p.X), p.Y) : new(p.X, p.Y + Math.Sign(end.Y - p.Y));
-                if (Cost(p, false, out int terrainCost) is not { } cost) return null;
+                int index = (p.Y - top) * width + p.X - left;
+                long cost = endpointPassage[index];
+                if (cost == -2)
+                {
+                    endpointPassage[index] = cost = Cost(p, false, out endpointTerrain[index]) ?? -1;
+                    if (cost >= 0) endpointComponents[index] = map.PassageComponents(p, shape, mode, false);
+                }
+                if (cost < 0) return null;
                 routing += cost;
-                movement += terrainCost;
+                movement += endpointTerrain[index];
+                components += endpointComponents[index];
             }
-            return new(routing, [], movement);
+            return new(routing, [], movement, components);
         }
     }
 

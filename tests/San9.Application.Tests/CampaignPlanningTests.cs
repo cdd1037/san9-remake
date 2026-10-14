@@ -32,6 +32,50 @@ public sealed class CampaignPlanningTests
     };
 
     [Fact]
+    public void HarborRouteSurvivesCandidateCommandRestoreAndActualMovement()
+    {
+        var original = Fixture();
+        var definition = original with
+        {
+            Settlements = original.Settlements.Select(s => s with { X = s.Id == 3 ? 10 : s.X, Y = 0 })
+                .Append(new(4, "harbor", 2, 3, 2, 3000, 100, 100, 100, [])).ToArray(),
+            Military = original.Military! with
+            {
+                Height = 5,
+                TerrainIds = Enumerable.Range(0, 100).Select(i => i / 20 > 0 && i % 20 is > 0 and < 10 ? 1 : 0).ToImmutableArray(),
+                Terrains = [new(0, 1, null), new(1, null, 1) { IsWater = true }],
+                Formations = original.Military.Formations.Select(f => f with { MovementBudget = 2 })
+                    .Append(original.Military.Formations[0] with { Id = 8, MovementBudget = 20, TravelMode = TravelMode.Water }).ToImmutableArray(),
+                BasicNavalFormationId = 8,
+                Places = original.Military.Places.Select(p => p with { Position = new(p.Id == 3 ? 52 : p.Position.X, 2), FacilityTypeId = 10 })
+                    .Append(new(4, new(17, 12), new(1, 1)) { FacilityTypeId = 9 }).ToImmutableArray(),
+                Facilities = [new(9, 0, 100, new(1, 1), 0, false, true, true, 500000, null, null, null, []) { IsHarbor = true },
+                    new(10, 0, 1000, new(1, 1), 0, false, true, true, 500000, null, null, null, [])]
+            }
+        };
+        var session = GameSession.Start(definition, 42);
+        var observation = Observe(session, definition);
+        var choice = observation.Forces.First(f => f.Action.TargetId == 3 && f.Action.Intent is DeployUnitCommand { Waypoint: not null });
+        var deploy = (DeployUnitCommand)choice.Action.Intent;
+        session.EndControl(new("player"));
+        var command = deploy with { CommandId = Guid.NewGuid(), Sequence = session.Snapshot.Simulation.NextSequence };
+        var submitted = session.Execute(new("ai:2"), command);
+        Assert.True(submitted.Submission.Accepted, submitted.Submission.Rejection.ToString());
+        int unitId = Assert.Single(submitted.Events.OfType<UnitDeployedEvent>()).UnitId;
+        Assert.Equal(command.Waypoint, session.Snapshot.Units.Single(u => u.Id == unitId).Waypoint);
+        var restored = SaveService.Decode(SaveService.Encode(session), definition);
+        Assert.Equal(command.Waypoint, restored.Snapshot.Units.Single(u => u.Id == unitId).Waypoint);
+        bool reached = false;
+        for (int xun = 0; xun < 8 && !reached; xun++)
+        {
+            var result = session.AdvanceXun();
+            EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
+            reached |= result.Events.OfType<UnitWaypointReachedEvent>().Any(e => e.Unit.Id == unitId && e.Position == command.Waypoint);
+        }
+        Assert.True(reached);
+    }
+
+    [Fact]
     public void DeploymentPreparationMatchesSubmissionWithoutMovingTheArmy()
     {
         var definition = Fixture();

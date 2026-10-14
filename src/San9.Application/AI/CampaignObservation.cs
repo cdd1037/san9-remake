@@ -19,6 +19,8 @@ internal static class CampaignObservationCapture
         var residents = world.Officers.Where(p => p.IsServing).ToLookup(p => p.SettlementId);
         var traveling = world.Simulation.Tasks.Where(t => t.Journey is not null).Select(t => t.OfficerId).ToHashSet();
         var force = world.Forces.Single(f => f.Id == seat.ForceId);
+        var routePlanner = new CampaignRoutePlanner(world.Settlements.Where(s => s.OwnerId == seat.ForceId &&
+            !s.IsDormant && !s.IsDestroyed && rules.IsHarbor(s)).OrderBy(s => s.Id).Select(rules.SettlementArea).ToImmutableArray(), routes);
         var occupancyByOwner = new Dictionary<int, ImmutableArray<MapOccupancy>>();
         ImmutableArray<MapOccupancy> Occupancy(int owner)
         {
@@ -272,13 +274,20 @@ internal static class CampaignObservationCapture
                 var occupancy = Occupancy(seat.ForceId);
                 var start = MilitaryRouteQuery.DeploymentPosition(rules.Travel(formation.Id, naval), rules.SettlementArea(source), occupancy);
                 if (start is null) continue;
-                var estimate = Route(start.Value, formation.Id, naval, target, seat.ForceId, preparationDays);
+                if (!Spend()) return Result();
+                var route = routePlanner.Choose(new(rules.Travel(formation.Id, naval), start.Value, rules.SettlementArea(target),
+                    occupancy, PreparationDays: preparationDays),
+                    naval is int vesselId && rules.Formations[vesselId].MovementBudget > formation.MovementBudget, work);
+                var estimate = route.Arrival;
+                if (estimate.Status == ArrivalEstimateStatus.Incomplete) complete = false;
                 if (estimate.Status != ArrivalEstimateStatus.Known) continue;
                 reserve = (uint)Math.Min(uint.MaxValue, Math.Max(reserve,
                     waves.Where(w => w.TargetId == source.Id && w.Days <= estimate.Days + 12).Sum(w => (long)w.Soldiers)));
                 soldiers = Math.Min(soldiers, (uint)Math.Max(0, projectedGarrison - (long)reserve));
                 if (soldiers < 1000) continue;
-                command = command with { Soldiers = soldiers };
+                // The selected route must survive into the public command. Execution validates the waypoint
+                // only for the chosen deployment, rather than exact-path probing every formation candidate.
+                command = command with { Soldiers = soldiers, Waypoint = route.Waypoint };
                 long cost = (long)formation.DeploymentCost + (naval is int vessel ? rules.Formations[vessel].DeploymentCost : 0);
                 long food = FoodSupplyForecast.DeploymentExpenditure(projectedGarrison, soldiers, account.HorizonDays, source.Wounded, source.ConsumesFood) +
                     FoodSupplyForecast.ReinforcementExpenditure(source.Soldiers, projectedGarrison - source.Soldiers, account.HorizonDays, source.Wounded, source.ConsumesFood);

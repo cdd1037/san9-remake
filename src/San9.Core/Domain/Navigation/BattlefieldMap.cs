@@ -55,11 +55,31 @@ public readonly record struct MapOccupancy(WorldPosition Position, Footprint Foo
 
 public sealed record MovementRoute(bool Reachable, ImmutableArray<WorldPosition> Steps, long Cost)
 {
+    internal RouteTerrainCost TerrainCost { get; init; }
     internal WorldPosition? Lookahead { get; init; }
 }
 public sealed record DailyMovement(WorldPosition Position, bool Reachable, bool Arrived, int Spent);
 public enum RouteReachability { Reachable, Unreachable, Incomplete }
-public readonly record struct RouteCostEstimate(RouteReachability Status, long Cost = 0);
+public readonly record struct RouteTerrainCost(long Land, long Water)
+{
+    // A shoreline footprint pays the maximum after speed weighting, not the terrain
+    // that happened to be most expensive in the neutral planning map.
+    public ImmutableArray<(int Land, int Water)> MixedSteps { get; init; }
+    public static RouteTerrainCost operator +(RouteTerrainCost a, RouteTerrainCost b) => new(a.Land + b.Land, a.Water + b.Water)
+    {
+        MixedSteps = a.MixedSteps.IsDefaultOrEmpty ? b.MixedSteps :
+            b.MixedSteps.IsDefaultOrEmpty ? a.MixedSteps : a.MixedSteps.AddRange(b.MixedSteps)
+    };
+    public static RouteTerrainCost operator *(RouteTerrainCost a, int count) => new(a.Land * count, a.Water * count)
+    {
+        MixedSteps = a.MixedSteps.IsDefaultOrEmpty ? default :
+            Enumerable.Range(0, count).SelectMany(_ => a.MixedSteps).ToImmutableArray()
+    };
+}
+public readonly record struct RouteCostEstimate(RouteReachability Status, long Cost = 0)
+{
+    public RouteTerrainCost TerrainCost { get; init; }
+}
 
 /// <summary>Immutable domain topology. Neither textures nor source-format identities determine passage.</summary>
 public sealed class BattlefieldMap
@@ -67,6 +87,7 @@ public sealed class BattlefieldMap
     private readonly (TerrainPassage Terrain, bool Blocked)[] cells;
     private readonly ImmutableDictionary<int, TerrainPassage> terrains;
     private readonly TravelTopology? travel;
+    private readonly BattlefieldMap? sourceMap;
     private readonly (int Minimum, int Maximum) landCosts, waterCosts;
     private readonly ConcurrentDictionary<TravelTopology, BattlefieldMap> travelMaps = new();
     private BattlefieldMap(BattlefieldMap source, TravelTopology profile)
@@ -74,12 +95,53 @@ public sealed class BattlefieldMap
         Width = source.Width; Height = source.Height; FineWidth = source.FineWidth; FineHeight = source.FineHeight;
         cells = source.cells; terrains = source.terrains;
         travel = profile;
+        sourceMap = source;
         landCosts = waterCosts = CostBounds(TravelMode.Land);
     }
 
     internal BattlefieldMap ForTravel(FormationRule land, FormationRule naval, int budget) =>
         travelMaps.GetOrAdd(new(land.Footprint, naval.Footprint, budget / land.MovementBudget, budget / naval.MovementBudget),
             profile => new(this, profile));
+
+    /// <summary>Shared terrain geometry for strategic estimates; execution retains its actual speed ratio.</summary>
+    public BattlefieldMap PlanningMap()
+    {
+        if (travel is not { } profile) return this;
+        var source = sourceMap!;
+        return source.travelMaps.GetOrAdd(new(profile.LandShape, profile.WaterShape, 1, 1), p => new(source, p));
+    }
+
+    public long Reweight(RouteTerrainCost cost)
+    {
+        int land = travel?.LandScale ?? 1, water = travel?.WaterScale ?? 1;
+        long total = checked(cost.Land * land + cost.Water * water);
+        if (!cost.MixedSteps.IsDefaultOrEmpty)
+            foreach (var step in cost.MixedSteps)
+                total = checked(total + Math.Max((long)step.Land * land, (long)step.Water * water));
+        return total;
+    }
+
+    internal RouteTerrainCost PassageComponents(WorldPosition position, Footprint footprint, TravelMode mode, bool coarse)
+    {
+        var area = new MapOccupancy(position, ShapeAt(position, footprint));
+        int left = coarse ? position.X / 5 : (int)area.Left / 5;
+        int right = coarse ? left : (int)(area.Right - 1) / 5;
+        int top = coarse ? position.Y / 5 : (int)area.Top / 5;
+        int bottom = coarse ? top : (int)(area.Bottom - 1) / 5;
+        int landCost = 0, waterCost = 0;
+        for (int y = top; y <= bottom; y++)
+        for (int x = left; x <= right; x++)
+        {
+            int index = y * Width + x;
+            int value = CellPassageCost(index, mode)!.Value;
+            bool water = travel is null ? mode == TravelMode.Water : cells[index].Terrain.IsWater;
+            int scale = travel is null ? 1 : water ? travel.Value.WaterScale : travel.Value.LandScale;
+            if (water) waterCost = Math.Max(waterCost, value / scale);
+            else landCost = Math.Max(landCost, value / scale);
+        }
+        return landCost > 0 && waterCost > 0
+            ? new(0, 0) { MixedSteps = [(landCost, waterCost)] } : new(landCost, waterCost);
+    }
     internal IEnumerable<WorldPosition> Entrances(MapOccupancy place, Footprint fallback) =>
         (travel is not { } profile ? new[] { fallback } : new[] { profile.LandShape, profile.WaterShape })
             .Distinct().SelectMany(shape => place.Entrances(shape).Where(p => p.X >= 0 && p.Y >= 0 && p.X < FineWidth && p.Y < FineHeight && ShapeAt(p, fallback) == shape)).Distinct();
@@ -338,7 +400,7 @@ public sealed class BattlefieldMap
         var route = search.Search(start, footprint, mode, objects, goal.Arrived, goal.Distance,
             intoRange ? null : target.Position, goal.Bounds, work, stepLimit: 0, forecast: forecast);
         return work.Exhausted ? new(RouteReachability.Incomplete) :
-            route.Reachable ? new(RouteReachability.Reachable, route.Cost) : new(RouteReachability.Unreachable);
+            route.Reachable ? new(RouteReachability.Reachable, route.Cost) { TerrainCost = route.TerrainCost } : new(RouteReachability.Unreachable);
     }
 
     /// <summary>Full presentation route to a legal position adjacent to an occupied target.</summary>

@@ -62,7 +62,7 @@ internal sealed class ArrivalProjectionCache
         }
     }
 
-    internal ArrivalEstimate Evaluate(NavigationArrivalInput input, AllocationWork work)
+    internal ArrivalEstimate Evaluate(NavigationArrivalInput input, AllocationWork work, bool sharedTerrain = false)
     {
         var travel = input.Travel;
         if (input.AllowTargetOverlap && input.Waypoint is null && new MapOccupancy(input.Start, travel.Shape).Overlaps(input.Target))
@@ -70,13 +70,19 @@ internal sealed class ArrivalProjectionCache
         var occupied = new OccupancyKey(input.Occupancy);
         RouteCostEstimate Leg(WorldPosition start, MapOccupancy target, bool adjacent, bool rectangular, int range)
         {
-            var key = (travel.Map, travel.Shape, travel.Mode, start, target, occupied, adjacent, rectangular, range);
+            var route = Search(sharedTerrain ? travel.Map.PlanningMap() : travel.Map, start, target, adjacent, rectangular, range);
+            return sharedTerrain && route.Status == RouteReachability.Reachable
+                ? route with { Cost = travel.Map.Reweight(route.TerrainCost) } : route;
+        }
+        RouteCostEstimate Search(BattlefieldMap map, WorldPosition start, MapOccupancy target, bool adjacent, bool rectangular, int range)
+        {
+            var key = (map, travel.Shape, travel.Mode, start, target, occupied, adjacent, rectangular, range);
             long allowance = Math.Min(work.Remaining, Math.Max(1, work.Maximum / 2));
             if (estimates.TryGetValue(key, out var saved) &&
                 (saved.Estimate.Status != RouteReachability.Incomplete || allowance <= saved.Allowance)) return saved.Estimate;
             if (allowance == 0) return new(RouteReachability.Incomplete);
             var search = new AllocationWork(allowance);
-            var estimate = travel.Map.EstimateTravelCost(start, target, travel.Shape, travel.Mode,
+            var estimate = map.EstimateTravelCost(start, target, travel.Shape, travel.Mode,
                 input.Occupancy, search.Navigation(), adjacent, range, rectangular);
             work.Charge(allowance - search.Remaining);
             estimates[key] = (estimate, allowance);

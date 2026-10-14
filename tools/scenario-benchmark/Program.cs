@@ -30,9 +30,9 @@ if (args.Contains("navigation"))
     return;
 }
 var startup = Stopwatch.StartNew();
-var session = GameSession.Start(definition, 42);
+var session = GameSession.Start(definition, 42, playerForceController: ControllerKind.Automatic);
 if (args.Contains("record")) session.BeginRecording();
-Log($"rules={SessionProtocol.RulesVersion} requested={count} actual={session.Snapshot.Units.Count} mode={args[3]} startup_ms={startup.Elapsed.TotalMilliseconds:F2}");
+Log($"rules={SessionProtocol.RulesVersion} requested={count} actual={session.Snapshot.Units.Count} mode={args[3]} player_controller={session.PlayerForceController} startup_ms={startup.Elapsed.TotalMilliseconds:F2}");
 GameSession? restored = null;
 for (int i = 0; i < xuns; i++)
 {

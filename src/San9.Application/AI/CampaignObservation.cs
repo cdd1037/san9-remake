@@ -5,12 +5,60 @@ using San9.Core.Simulation;
 namespace San9.Application.AI;
 
 /// <summary>Projects legal own actions and public military facts. The planner receives no world or engine handle.</summary>
-internal static class CampaignObservationCapture
+internal sealed class CampaignObservationCapture : IDisposable
 {
+    private readonly SimulationEngine engine;
+    private readonly long revision;
+    private readonly IEnumerator<Action<AllocationWork>?> steps;
+    private Func<CampaignObservation> snapshot = null!;
+    internal bool Finished { get; private set; }
+    internal CampaignObservation Observation
+    {
+        get
+        {
+            var value = snapshot();
+            return value with { Complete = Finished && value.Complete };
+        }
+    }
+
+    internal CampaignObservationCapture(SimulationEngine engine, ControlSeat seat,
+        ImmutableArray<(string ControllerId, EconomicObservation Observation)> economies,
+        SupportObservation support, MilitaryRulebook rules, ArrivalProjectionCache routes,
+        ImmutableArray<CampaignGoal> commitments = default)
+    {
+        this.engine = engine;
+        revision = engine.Snapshot.Revision;
+        steps = Project(engine, seat, economies, support, rules, routes, commitments).GetEnumerator();
+        Finished = !steps.MoveNext();
+    }
+
+    internal void Advance(AllocationWork work, int maximumSteps = int.MaxValue)
+    {
+        if (engine.Snapshot.Revision != revision)
+            throw new InvalidOperationException("Campaign observation cannot resume after the world changes.");
+        for (int count = 0; count < maximumSteps && !Finished && work.Spend(); count++)
+        {
+            steps.Current?.Invoke(work);
+            Finished = !steps.MoveNext();
+        }
+    }
+
+    public void Dispose() => steps.Dispose();
+
     internal static CampaignObservation Capture(SimulationEngine engine, ControlSeat seat,
         ImmutableArray<(string ControllerId, EconomicObservation Observation)> economies,
         SupportObservation support, MilitaryRulebook rules, AllocationWork work, ArrivalProjectionCache routes,
         ImmutableArray<CampaignGoal> commitments = default)
+    {
+        using var capture = new CampaignObservationCapture(engine, seat, economies, support, rules, routes, commitments);
+        capture.Advance(work);
+        return capture.Observation;
+    }
+
+    private IEnumerable<Action<AllocationWork>?> Project(SimulationEngine engine, ControlSeat seat,
+        ImmutableArray<(string ControllerId, EconomicObservation Observation)> economies,
+        SupportObservation support, MilitaryRulebook rules, ArrivalProjectionCache routes,
+        ImmutableArray<CampaignGoal> commitments)
     {
         var world = engine.Snapshot;
         var abilities = engine.GetAbilities(world);
@@ -38,13 +86,13 @@ internal static class CampaignObservationCapture
         var unresolvedUnits = world.Units.Where(u => u.OwnerId == seat.ForceId && !u.IsEmbedded && !u.IsPersonnel &&
             u.FormationId is not null && rules.Formation(u).Combat is not null).Select(u => u.Id).ToHashSet();
         bool complete = support.Complete || support.DefenseComplete;
-        bool Spend() { if (work.Spend()) return true; complete = false; return false; }
         CampaignObservation Result() => new(world.Clock, seat.ForceId, places.ToImmutable(), forces.ToImmutable(), waves.ToImmutable(),
             returns.ToImmutable(), consolidation.ToImmutable(), accounts, complete)
             { AnalysisReady = analysisReady, UnresolvedUnitIds = unresolvedUnits.Order().ToImmutableArray(), ActiveUnitIds = world.Units.Where(u => u.OwnerId == seat.ForceId).Select(u => u.Id).ToImmutableArray(),
                 Purchases = economies.SelectMany(e => e.Observation.Purchases.Select(p => new CampaignPurchase(e.ControllerId, p))).ToImmutableArray(),
                 WaitingSources = world.Simulation.Tasks.Where(t => t.ForceId == seat.ForceId && t.Kind == "personnel-move")
                     .Select(t => t.Journey?.DestinationPlaceId).OfType<int>().Distinct().Order().ToImmutableArray() };
+        snapshot = Result;
         bool Enemy(int? owner) => owner != seat.ForceId && (owner is not int other ||
             world.Simulation.Alliance?.Protects(seat.ForceId, other) != true &&
             !world.Simulation.AttackRequests.Any(r => r.Connects(seat.ForceId, other)) &&
@@ -60,7 +108,6 @@ internal static class CampaignObservationCapture
         var queryId = SimulationIdentity.Command(world.Simulation.NextSequence, seat.ForceId);
         bool Legal(string controller, GameCommand intent)
         {
-            if (!Spend()) return false;
             if (!eligibility.TryGetValue(controller, out var commands))
                 eligibility.Add(controller, commands = new(PlanningIntentEquality.Instance));
             if (commands.TryGetValue(intent, out bool accepted)) return accepted;
@@ -68,10 +115,9 @@ internal static class CampaignObservationCapture
                 Sequence = world.Simulation.NextSequence };
             return commands[intent] = engine.GetPreparationEligibility(new(controller), query) == CommandRejection.None;
         }
-        ArrivalEstimate Route(WorldPosition from, int formation, int? naval, SettlementState target, int owner,
+        ArrivalEstimate Route(AllocationWork work, WorldPosition from, int formation, int? naval, SettlementState target, int owner,
             int preparationDays = 0, int remainder = 0, WorldPosition? waypoint = null, NavigationLookahead? lookahead = null)
         {
-            if (!Spend()) return new(ArrivalEstimateStatus.Incomplete);
             // Close approach is required to finish a siege; maximum ranged reach alone is insufficient.
             var navigation = work;
             var estimate = routes.Evaluate(new(rules.Travel(formation, naval), from, rules.SettlementArea(target),
@@ -99,7 +145,7 @@ internal static class CampaignObservationCapture
                 rules.Place(target).Position)).DefaultIfEmpty(long.MaxValue).Min();
         foreach (var target in targets.OrderBy(NearestControlled).ThenBy(s => s.Id))
         {
-            if (!Spend()) return Result();
+            yield return null;
             // Foreign bases expose base abilities of visible members, never treasure modifiers or private tasks.
             int leadership = world.Officers.Where(p => p.IsServing && p.SettlementId == target.Id &&
                 (target.OwnerId == seat.ForceId || p.IsVisible)).Select(p => target.OwnerId == seat.ForceId
@@ -111,10 +157,10 @@ internal static class CampaignObservationCapture
         var formations = rules.Formations.Values.Where(f => f.Combat is not null && f.Attack is not null &&
             rules.CanSelectFormation(force, f.Id))
             .OrderBy(f => f.DeploymentCost).ThenBy(f => f.Id).ToArray();
-        var threats = routes.Situation(world, seat.ForceId, rules).Project(targets, rules, work, includeGarrisons: true, attackRange: false);
-        foreach (var threat in threats.Arrivals)
-            waves.Add(new(threat.TargetId, threat.EarliestDays, threat.Source.Soldiers));
-        if (!threats.Complete) { complete = false; return Result(); }
+        foreach (var step in routes.Situation(world, seat.ForceId, rules).ProjectSteps(targets, rules,
+            includeGarrisons: true, attackRange: false,
+            threat => waves.Add(new(threat.TargetId, threat.EarliestDays, threat.Source.Soldiers))))
+            yield return _ => step?.Invoke();
         analysisReady = support.Complete || support.DefenseComplete;
         foreach (var (controller, home) in controlled.Where(c => activeTargets.Contains(c.Place.Id)))
         {
@@ -123,12 +169,13 @@ internal static class CampaignObservationCapture
             // Capture survivors become normal residents; repair and patrol use exactly the same public commands.
             foreach (var activity in new[] { DomesticActivity.Patrol, DomesticActivity.Repair, DomesticActivity.Train })
             {
-                if (!Spend()) return Result();
+                yield return null;
                 if (people.Length == 0 || home.UnavailableActivities.Contains(activity) || activity == DomesticActivity.Patrol && home.PublicOrder >= 500 ||
                     activity == DomesticActivity.Repair && home.Durability >= home.MaxDurability / 2 ||
                     activity == DomesticActivity.Train && home.Morale >= 65) continue;
                 int actor = people.OrderByDescending(id => activity == DomesticActivity.Train ? abilities[id].Leadership : abilities[id].Politics).First();
                 var command = new DevelopCommand(Guid.Empty, seat.ForceId, 0, new(seat.ForceId, home.Id, [actor], activity));
+                yield return null;
                 if (Legal(controller, command)) consolidation.Add(new(controller, account.Id, command, [actor], 1, 1000, activity == DomesticActivity.Train ? 0 : 150, 0,
                     home.Id, home.Id, Purpose: "consolidate"));
             }
@@ -136,7 +183,7 @@ internal static class CampaignObservationCapture
         foreach (var unit in world.Units.Where(u => u.OwnerId == seat.ForceId && !u.IsEmbedded && !u.IsPersonnel &&
             u.FormationId is not null && rules.Formation(u).Combat is not null).OrderBy(u => u.Id))
         {
-            if (!Spend()) return Result();
+            yield return null;
             var scope = economies.FirstOrDefault(e => CorpsControl.CanControlUnit(world, seat, new(e.ControllerId), unit.Id));
             if (scope.Observation is null) { unresolvedUnits.Remove(unit.Id); continue; }
             bool unitComplete = true;
@@ -149,10 +196,12 @@ internal static class CampaignObservationCapture
                 .OrderBy(t => consolidationTargets.Contains(t.Id) ? 0 : 1)
                 .ThenBy(t => MapCoordinates.Distance(unit.Position, rules.Place(t).Position)).ThenBy(t => t.Id))
             {
-                if (!Spend()) return Result();
+                yield return null;
                 var retreat = new OrderUnitCommand(Guid.Empty, seat.ForceId, 0, unit.Id, new(MilitaryOrderKind.Return, null, home.Id));
+                yield return null;
                 if (!Legal(scope.ControllerId, retreat)) continue;
-                var estimate = Route(unit.Position, unit.FormationId!.Value, unit.NavalFormationId, home, seat.ForceId);
+                ArrivalEstimate estimate = null!;
+                yield return work => estimate = Route(work, unit.Position, unit.FormationId!.Value, unit.NavalFormationId, home, seat.ForceId);
                 if (estimate.Status != ArrivalEstimateStatus.Known) continue;
                 returns.Add(new(scope.ControllerId, accountId, retreat, [], 0, unit.Soldiers, 0, 0, unit.ServicePlaceId, home.Id, estimate,
                     Purpose: "withdraw:" + unit.Id));
@@ -165,8 +214,10 @@ internal static class CampaignObservationCapture
             {
                 bool needsOrder = unit.Order is null;
                 var repair = new OrderUnitCommand(Guid.Empty, seat.ForceId, 0, unit.Id, new(MilitaryOrderKind.AttackSettlement, null, target.Id));
+                if (needsOrder) yield return null;
                 if (needsOrder && !Legal(scope.ControllerId, repair)) continue;
-                var arrival = Route(unit.Position, unit.FormationId!.Value, unit.NavalFormationId, target, seat.ForceId,
+                ArrivalEstimate arrival = null!;
+                yield return work => arrival = Route(work, unit.Position, unit.FormationId!.Value, unit.NavalFormationId, target, seat.ForceId,
                     Math.Max(unit.DepartureDaysRemaining, unit.Condition == UnitCondition.Confused ? unit.ConditionDaysRemaining : 0),
                     unit.MovementRemainder, unit.Waypoint, unit.Lookahead);
                 if (arrival.Status == ArrivalEstimateStatus.Incomplete) unitComplete = false;
@@ -187,7 +238,7 @@ internal static class CampaignObservationCapture
             .OrderBy(c => MapCoordinates.Distance(rules.Place(settlementsById[c.Place.Id]).Position, rules.Place(target).Position))
             .ThenBy(c => c.Place.Id).Take(3))
         {
-            if (!Spend()) return Result();
+            yield return null;
             var source = settlementsById[home.Id];
             var account = accounts.Single(a => a.Id == home.AccountId);
             var people = home.OfficerIds.OrderByDescending(id => abilities[id].Leadership).ThenBy(id => abilities[id].Politics).ThenBy(id => id).ToArray();
@@ -195,7 +246,7 @@ internal static class CampaignObservationCapture
                     .OrderByDescending(p => abilities[p.Id].Politics).ThenBy(p => p.Id).Select(p => p.Id).FirstOrDefault(-1);
             foreach (var formation in formations)
             {
-                if (!Spend()) return Result();
+                yield return null;
                 int? naval = rules.NavalFormationForDeployment(formation.Id);
                 if (!rules.CanAttackTarget(formation.Attack, rules.Place(target).Position, true, rules.IsHarbor(target)) &&
                     (naval is not int shipAttack || !rules.CanAttackTarget(rules.Formations[shipAttack].Attack, rules.Place(target).Position, true, rules.IsHarbor(target)))) continue;
@@ -212,7 +263,7 @@ internal static class CampaignObservationCapture
                     if (world.Simulation.Tasks.Any(t => t.Kind == "personnel-move" && t.Journey?.DestinationPlaceId == source.Id)) continue;
                     foreach (var donor in controlled.Where(d => d.ControllerId == controller && d.Place.Id != source.Id && d.Place.OfficerIds.Length >= 2))
                     {
-                        if (!Spend()) return Result();
+                        yield return null;
                         int person = donor.Place.OfficerIds.OrderByDescending(id => abilities[id].Leadership).ThenBy(id => id).First();
                         var donorNeed = support.GarrisonRequirements.FirstOrDefault(r => r.SettlementId == donor.Place.Id && r.DepartingOfficerId == person);
                         if (donorNeed is null || donorNeed.Soldiers > donor.Place.Soldiers) continue;
@@ -252,7 +303,7 @@ internal static class CampaignObservationCapture
                     int morale = source.Morale;
                     while (morale < 65)
                     {
-                        if (!Spend()) return Result();
+                        yield return null;
                         morale += DomesticDevelopment.TrainingIncrement(source.Soldiers, morale, force.Trust,
                             members.Select(id => abilities[id]).ToArray());
                         preparationDays += 10;
@@ -265,6 +316,7 @@ internal static class CampaignObservationCapture
                 var command = new DeployUnitCommand(Guid.Empty, seat.ForceId, 0, source.Id, members, soldiers, formation.Id,
                     new(MilitaryOrderKind.AttackSettlement, null, target.Id)) { NavalFormationId = naval, Tactics = tactics,
                     Policies = new(AutonomousRetreat: true), Ranks = members.ToImmutableDictionary(id => id, _ => BattleRank.Middle) };
+                yield return null;
                 if (!Legal(controller, next ?? command)) continue;
                 // Preparation never bypasses a technology qualification on the future formation.
                 if (next is not null && new[] { formation, naval is int shipRule ? rules.Formations[shipRule] : formation }.Any(f =>
@@ -274,8 +326,8 @@ internal static class CampaignObservationCapture
                 var occupancy = Occupancy(seat.ForceId);
                 var start = MilitaryRouteQuery.DeploymentPosition(rules.Travel(formation.Id, naval), rules.SettlementArea(source), occupancy);
                 if (start is null) continue;
-                if (!Spend()) return Result();
-                var route = routePlanner.Choose(new(rules.Travel(formation.Id, naval), start.Value, rules.SettlementArea(target),
+                CampaignRoute route = null!;
+                yield return work => route = routePlanner.Choose(new(rules.Travel(formation.Id, naval), start.Value, rules.SettlementArea(target),
                     occupancy, PreparationDays: preparationDays),
                     naval is int vesselId && rules.Formations[vesselId].MovementBudget > formation.MovementBudget, work);
                 var estimate = route.Arrival;
@@ -304,6 +356,7 @@ internal static class CampaignObservationCapture
                     uint futureSoldiers = Math.Min(formation.SoldierCapacity, futureGarrison - reserve);
                     if (naval is int navalCapacity) futureSoldiers = Math.Min(futureSoldiers, rules.Formations[navalCapacity].SoldierCapacity);
                     var recruit = new DevelopCommand(Guid.Empty, seat.ForceId, 0, new(seat.ForceId, source.Id, members, DomesticActivity.Recruit) { RecruitAmount = recruitment });
+                    yield return null;
                     if (Legal(controller, recruit)) forces.Add(new(candidate with { Intent = recruit, MoneyCost = cost + (recruitment + 9L) / 10,
                         Arrival = estimate with { Days = estimate.Days + 10 }, AdditionalFood = FoodSupplyForecast.DeploymentExpenditure(futureGarrison,
                             futureSoldiers, account.HorizonDays, source.Wounded, source.ConsumesFood) + FoodSupplyForecast.ReinforcementExpenditure(source.Soldiers,
@@ -321,7 +374,7 @@ internal static class CampaignObservationCapture
                 foreach (var home in targets.Where(s => s.OwnerId == seat.ForceId && s.Id != target.Id)
                     .OrderBy(s => MapCoordinates.Distance(rules.Place(target).Position, rules.Place(s).Position)).ThenBy(s => s.Id).Take(3))
                 {
-                    if (!Spend()) return Result();
+                    yield return null;
                     // Position value only ranks potential targets; it neither proves reachability nor funds an action.
                     int days = NavigationArrivalForecast.EarliestDays(rules.Travel(transport.LandFormationId, transport.NavalFormationId),
                         rules.Place(target).Position, rules.SettlementArea(home), movementRemainder: 0);
@@ -331,6 +384,6 @@ internal static class CampaignObservationCapture
             int index = Enumerable.Range(0, places.Count).First(i => places[i].Id == target.Id);
             places[index] = places[index] with { Value = places[index].Value + mobility };
         }
-        return Result();
+        yield break;
     }
 }

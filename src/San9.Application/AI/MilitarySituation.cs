@@ -46,23 +46,37 @@ internal sealed class MilitarySituation(ImmutableArray<PublicMilitaryForce> sour
         IReadOnlyList<SettlementState> targets, MilitaryRulebook rules, AllocationWork work, bool includeGarrisons, bool attackRange)
     {
         var result = ImmutableArray.CreateBuilder<ThreatArrival>();
+        using var steps = ProjectSteps(targets, rules, includeGarrisons, attackRange, result.Add).GetEnumerator();
+        bool pending = steps.MoveNext();
+        while (pending && work.Spend())
+        {
+            steps.Current?.Invoke();
+            pending = steps.MoveNext();
+        }
+        return (result.ToImmutable(), !pending);
+    }
+
+    internal IEnumerable<Action?> ProjectSteps(IReadOnlyList<SettlementState> targets, MilitaryRulebook rules,
+        bool includeGarrisons, bool attackRange, Action<ThreatArrival> accept)
+    {
         foreach (var source in Sources.Where(s => includeGarrisons || s.UnitId is not null))
         {
-            if (!work.Spend()) return (result.ToImmutable(), false);
+            yield return null;
             int? targetId = null;
             int earliest = int.MaxValue;
             foreach (var target in targets)
             {
                 if (target.Id == source.SettlementId) continue;
-                if (!work.Spend()) return (result.ToImmutable(), false);
-                int days = NavigationArrivalForecast.EarliestDays(source.Travel, source.Position, rules.SettlementArea(target),
-                    source.PreparationDays, movementRemainder: source.UnitId is null ? 0 : null,
-                    maximumRange: attackRange ? source.AttackRange : 1);
-                if (targetId is null || days < earliest || days == earliest && target.Id < targetId)
-                { targetId = target.Id; earliest = days; }
+                yield return () =>
+                {
+                    int days = NavigationArrivalForecast.EarliestDays(source.Travel, source.Position, rules.SettlementArea(target),
+                        source.PreparationDays, movementRemainder: source.UnitId is null ? 0 : null,
+                        maximumRange: attackRange ? source.AttackRange : 1);
+                    if (targetId is null || days < earliest || days == earliest && target.Id < targetId)
+                    { targetId = target.Id; earliest = days; }
+                };
             }
-            if (targetId is int id) result.Add(new(source, id, earliest));
+            if (targetId is int id) accept(new(source, id, earliest));
         }
-        return (result.ToImmutable(), true);
     }
 }

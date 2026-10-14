@@ -85,16 +85,54 @@ internal static class AllocationTurnRunner
             var proposals = observations.SupportCandidates(engine.Snapshot, input)
                 .AddRange(observations.Remaining(observations.Configuration))
                 .Where(Available).ToImmutableArray();
+            decisionReserve += proposals.Length;
+            void CaptureOpportunities(long budget)
+            {
+                if (!observations.Opportunities.IsDefault || budget < 2) return;
+                var opportunityWork = new AllocationWork(budget);
+                var captureWork = new AllocationWork(budget / 2);
+                var observation = OpportunityObservationCapture.Capture(engine, active, input, support, state.Campaigns, rules, captureWork,
+                    completed, state.Opportunities);
+                opportunityWork.Charge(captureWork.Maximum - captureWork.Remaining);
+                observations.Opportunities = OpportunityPlanner.Plan(observation, state.Opportunities, opportunityWork);
+                observations.OpportunitiesComplete = observation.Complete && opportunityWork.Remaining > 0;
+                Charge("opportunity", budget - opportunityWork.Remaining);
+            }
             bool campaignComplete = observations.CampaignComplete;
             if (observations.Campaign.IsDefault && !proposals.Any(c => c.Priority < 4 && SharedAllocator.CanFund(c, input, rejected)) && rules is not null && (support.Complete || support.DefenseComplete) && OptionalWork() > 1 && input.All(e => e.Observation.Complete) &&
                 (state.Campaigns.Any(g => g.ForceId == active.ForceId) || input.All(e => e.Observation.Accounts.All(a => a.Food >= a.RequiredFood))))
             {
                 long campaignBudget = OptionalWork() / 2;
+                var observation = observations.CampaignInput;
+                if (observation is null)
+                {
+                    using var capture = new CampaignObservationCapture(engine, active, input, support, rules, routes, state.Campaigns);
+                    var captureWork = new AllocationWork(campaignBudget * 3 / 4);
+                    capture.Advance(captureWork);
+                    long used = captureWork.Maximum - captureWork.Remaining;
+                    Charge("campaign-observation", used);
+                    campaignBudget -= used;
+                    if (!capture.Finished)
+                    {
+                        // Give ordinary opportunities their initial service before lending unused capacity.
+                        // No command has been committed, so both observations still describe the same world.
+                        CaptureOpportunities(Math.Max(0, OptionalWork() - campaignBudget) / 2);
+                        if (!observations.Opportunities.IsDefault) decisionReserve += observations.Opportunities.Length;
+                        var continuation = new AllocationWork(Math.Max(0, OptionalWork() - campaignBudget));
+                        capture.Advance(continuation);
+                        Charge("campaign-continuation", continuation.Maximum - continuation.Remaining);
+                    }
+                    observation = capture.Observation;
+                }
+                // Reserve a comparison for every possible output before consuming the reclaimed pool.
+                // Funded campaign actions are bounded by observed forces, returns, consolidation and accounts.
+                campaignBudget = Math.Min(campaignBudget, OptionalWork());
+                long forceOutputs = observation.Forces.Select(f => (f.Action.TargetId, f.Action.SourceId, f.UnitId)).Distinct().LongCount();
+                long allocationReserve = Math.Min(campaignBudget, forceOutputs + observation.Returns.Length +
+                    observation.Consolidation.Length + observation.Accounts.Length);
+                campaignBudget -= allocationReserve;
+                decisionReserve += allocationReserve;
                 var campaignWork = new AllocationWork(campaignBudget);
-                var captureWork = new AllocationWork(campaignBudget * 3 / 4);
-                long captureBudget = captureWork.Remaining;
-                var observation = observations.CampaignInput ?? CampaignObservationCapture.Capture(engine, active, input, support, rules, captureWork, routes, state.Campaigns);
-                campaignWork.Charge(captureBudget - captureWork.Remaining);
                 // Ask for optional campaign funding only after there is a concrete force to fund.
                 // Quotes already requested for subsistence are reused, never regenerated here.
                 var accountsToQuote = observation.Forces.GroupBy(f => f.Action.AccountId).Where(group =>
@@ -124,29 +162,25 @@ internal static class AllocationTurnRunner
                 state = state with { Campaigns = campaign.Goals };
                 observations.Campaign = campaign.Candidates;
                 observations.CampaignComplete = campaignComplete;
+                // An early opportunity observation predates a newly selected campaign. Its demand-dependent
+                // candidates must be rebuilt after that campaign acts, against the refreshed own ledger.
+                if (campaign.Candidates.Any(c => SharedAllocator.CanFund(c, input, rejected))) observations.Opportunities = default;
                 Charge("campaign", campaignBudget - campaignWork.Remaining);
             }
             if (!observations.Campaign.IsDefault)
                 proposals = proposals.AddRange(observations.Remaining(observations.Campaign).Where(Available));
-            bool opportunityComplete = OptionalWork() > 2 && input.All(e => e.Observation.Complete);
+            bool opportunityComplete = !observations.Opportunities.IsDefault ? observations.OpportunitiesComplete :
+                OptionalWork() > 2 && input.All(e => e.Observation.Complete);
             if (opportunityComplete)
             {
                 long opportunityBudget = OptionalWork() / 2;
-                var opportunityWork = new AllocationWork(opportunityBudget);
                 // Opportunities all have priority 5. A funded earlier tier wins regardless of their scores;
                 // query them once the preceding tiers have committed their actors and resources.
                 if (observations.Opportunities.IsDefault && !proposals.Any(c => c.Priority < 5 && SharedAllocator.CanFund(c, input, rejected)))
                 {
-                    var captureWork = new AllocationWork(opportunityWork.Remaining / 2);
-                    long captureBudget = captureWork.Remaining;
-                    var observation = OpportunityObservationCapture.Capture(engine, active, input, support, state.Campaigns, rules, captureWork,
-                        completed, state.Opportunities);
-                    opportunityWork.Charge(captureBudget - captureWork.Remaining);
-                    observations.Opportunities = OpportunityPlanner.Plan(observation, state.Opportunities, opportunityWork);
-                    observations.OpportunitiesComplete = observation.Complete && opportunityWork.Remaining > 0;
+                    CaptureOpportunities(opportunityBudget);
                 }
-                Charge("opportunity", opportunityBudget - opportunityWork.Remaining);
-                opportunityComplete &= opportunityWork.Remaining > 0 && observations.OpportunitiesComplete;
+                opportunityComplete &= observations.OpportunitiesComplete;
             }
             if (!observations.Opportunities.IsDefault)
                 proposals = proposals.AddRange(observations.Remaining(observations.Opportunities).Where(c =>

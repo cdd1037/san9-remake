@@ -110,6 +110,91 @@ public sealed class CampaignPlanningTests
         return CampaignObservationCapture.Capture(engine, seat, [(seat.ControllerId, economy)], support, session.MilitaryRules!, work, routes, session.AiState.Campaigns);
     }
 
+    [Fact]
+    public void CampaignObservationResumesWithoutRepeatingProjectionOrRoutesAndRejectsChangedWorld()
+    {
+        var definition = Fixture();
+        var session = GameSession.Start(definition, 42);
+        var world = session.Snapshot;
+        var engine = GameSession.EngineFactory(definition)(WorldState.Restore(world with
+            { Simulation = world.Simulation with { ActiveControl = 1 } }));
+        var seat = world.Simulation.Controls.Single(s => s.ForceId == 2);
+        var economy = EconomicObservation.Capture(engine, seat, new(seat.ControllerId), 65536, quoteAll: true);
+        var support = SupportObservationCapture.Capture(engine, seat, [(seat.ControllerId, economy)], session.MilitaryRules, new(65536));
+        var fullWork = new AllocationWork(65536);
+        CampaignObservation full;
+        long fullQueries;
+        using (var diagnostics = new PathSearchDiagnostics())
+        {
+            full = CampaignObservationCapture.Capture(engine, seat, [(seat.ControllerId, economy)], support,
+                session.MilitaryRules!, fullWork, new());
+            fullQueries = diagnostics.Queries;
+        }
+        using var capture = new CampaignObservationCapture(engine, seat, [(seat.ControllerId, economy)], support, session.MilitaryRules!, new());
+        var slicedWork = new AllocationWork(65536);
+        using (var diagnostics = new PathSearchDiagnostics())
+        {
+            while (!capture.Finished && slicedWork.Remaining > 0)
+            {
+                Assert.False(capture.Observation.Complete);
+                capture.Advance(slicedWork, maximumSteps: 1);
+            }
+            Assert.Equal(fullQueries, diagnostics.Queries);
+        }
+        Assert.True(capture.Finished);
+        Assert.Equal(fullWork.Remaining, slicedWork.Remaining);
+        var sliced = capture.Observation;
+        Assert.Equal(full.Complete, sliced.Complete);
+        Assert.Equal(full.Places.AsEnumerable(), sliced.Places.AsEnumerable());
+        Assert.Equal(full.Waves.AsEnumerable(), sliced.Waves.AsEnumerable());
+        Assert.Equal(full.Forces.Length, sliced.Forces.Length);
+        Assert.NotEmpty(full.Forces);
+        for (int index = 0; index < full.Forces.Length; index++)
+        {
+            var expected = full.Forces[index];
+            var actual = sliced.Forces[index];
+            Assert.True(PlanningIntentEquality.Instance.Equals(expected.Action.Intent, actual.Action.Intent));
+            Assert.Equal(expected.Action.Officers.AsEnumerable(), actual.Action.Officers.AsEnumerable());
+            Assert.Equal(expected.Action, actual.Action with { Intent = expected.Action.Intent, Officers = expected.Action.Officers });
+            Assert.Equal(expected, actual with { Action = expected.Action });
+        }
+        using var invalidated = new CampaignObservationCapture(engine, seat, [(seat.ControllerId, economy)], support, session.MilitaryRules!, new());
+        invalidated.Advance(new(1));
+        engine.SetPkSettings(true, true, true);
+        var changed = engine.Snapshot;
+        Assert.Throws<InvalidOperationException>(() => invalidated.Advance(new(65536)));
+        StateAssert.Equal(changed, engine.Snapshot);
+    }
+
+    [Theory]
+    [InlineData(512)]
+    [InlineData(1024)]
+    public void CampaignObservationBorrowsUnusedWorkAfterServingOrdinaryOpportunities(long budget)
+    {
+        var basis = Fixture();
+        var definition = basis with { Military = basis.Military! with
+        {
+            Formations = basis.Military.Formations.Select(f => f with { Combat = f.Combat is null ? null : new(0, 0, 0, 20, 50),
+                Attack = f.Attack is null ? null : new(1, false) }).ToImmutableArray()
+                .AddRange(Enumerable.Range(100, 60).Select(id => basis.Military.Formations[0] with
+                    { Id = id, Combat = new(0, 0, 0, 20, 50), Attack = new(1, false) }))
+                .Add(basis.Military.Formations[0] with { Id = 180 })
+        } };
+        var session = GameSession.Start(definition, 42, aiPolicy: AiPolicyConfiguration.Standard with { WorkBudget = budget });
+        session.AllocationDiagnosticsEnabled = true;
+        var result = session.Apply(session.Request(new PrepareAdvanceOperation()));
+        var turn = Assert.Single(session.AllocationDiagnostics.Batches.Where(b => b.IsTurnSummary && b.ForceId == 2));
+        var deployment = Assert.Single(result.Events.OfType<UnitDeployedEvent>());
+        Assert.Equal(180, session.Snapshot.Units.Single(u => u.Id == deployment.UnitId).FormationId);
+        Assert.True(turn.WorkByKind.GetValueOrDefault("campaign-continuation") > 0);
+        Assert.InRange(turn.Work, 0, budget);
+        Assert.Equal(turn.Work, turn.WorkByKind.Values.Sum());
+        Assert.DoesNotContain(session.AllocationDiagnostics.Actions, a => a.Outcome == AllocationOutcome.Rejected);
+        for (int xun = 0; xun < 3 && session.Snapshot.Settlements.Single(s => s.Id == 3).OwnerId != 2; xun++)
+            session.AdvanceXun();
+        Assert.Equal(2, session.Snapshot.Settlements.Single(s => s.Id == 3).OwnerId);
+    }
+
     [Theory]
     [InlineData(7)]
     [InlineData(42)]

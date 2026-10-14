@@ -259,7 +259,14 @@ public sealed partial class GameSession
 
     public SessionSnapshot Capture()
     {
-        var world = CaptureStableState();
+        CaptureStableState();
+        return CaptureCurrentState();
+    }
+
+    internal SessionSnapshot CaptureCurrentState()
+    {
+        if (_executing) throw new InvalidOperationException("Session is executing.");
+        var world = Snapshot;
         if (_capture is not null && ReferenceEquals(_capture.World, world)) return _capture;
         var records = _records.ToImmutableArray();
         var chronicle = _chronicle.ToImmutableArray();

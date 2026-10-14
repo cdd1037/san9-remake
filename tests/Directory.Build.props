@@ -5,6 +5,11 @@
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)Shared/WorldStateAssert.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Shared/EventAssert.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Shared/TestSeeds.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Shared/SessionStateAssert.cs"
+      Condition="'$(MSBuildProjectName)' == 'San9.Application.Tests' Or '$(MSBuildProjectName)' == 'San9.Client.Godot.Tests' Or '$(MSBuildProjectName)' == 'San9.Headless.Tests'" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4">

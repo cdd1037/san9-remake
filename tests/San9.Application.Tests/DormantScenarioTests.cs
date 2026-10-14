@@ -20,8 +20,8 @@ public sealed class DormantScenarioTests
         var session = GameSession.Start(definition, 17);
         Assert.Equal(definition.Information.Corps.Single(c => c.IsRoot && c.OwnerId == 3).Treasury.Money, session.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 3).Treasury.Money);
         Assert.Equal(definition.Settlements[2].Soldiers, session.Snapshot.Settlements.Single(s => s.Id == 3).Soldiers);
-        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(definition.Officers[^1].State),
-            System.Text.Json.JsonSerializer.Serialize(session.Snapshot.Officers.Single(p => p.Id == 7)));
+        StateAssert.Equal(session.Snapshot with { Officers = [definition.Officers[^1].State] },
+            session.Snapshot with { Officers = [session.Snapshot.Officers.Single(p => p.Id == 7)] });
         Assert.DoesNotContain(session.Snapshot.Simulation.Controls, c => c.ForceId == 3);
         Assert.DoesNotContain(session.View.Forces, f => f.Id == 3);
         Assert.DoesNotContain(session.View.Settlements, s => s.Id == 3);

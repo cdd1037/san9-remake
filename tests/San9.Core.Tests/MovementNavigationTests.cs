@@ -1,4 +1,3 @@
-using System.Text.Json;
 using San9.Core.Domain;
 
 namespace San9.Core.Tests;
@@ -75,7 +74,12 @@ public sealed class MovementNavigationTests
         {
             var result = map.Navigate(position, target, false, new(3, 3), TravelMode.Land, [], 60);
             var replay = map.Navigate(position, target, false, new(3, 3), TravelMode.Land, [], 60);
-            Assert.Equal(JsonSerializer.Serialize(result), JsonSerializer.Serialize(replay));
+            Assert.Equal(result.Position, replay.Position);
+            Assert.Equal(result.Spent, replay.Spent);
+            Assert.Equal(result.Status, replay.Status);
+            Assert.Equal(result.Remainder, replay.Remainder);
+            Assert.Equal<WorldPosition>(result.Steps, replay.Steps);
+            Assert.Equal(result.Lookahead, replay.Lookahead);
             Assert.NotEqual(NavigationStatus.Unreachable, result.Status);
             Assert.NotNull(map.PassageCost(result.Position, new(3, 3), TravelMode.Land, []));
             Assert.InRange(result.Spent, 0, 60);

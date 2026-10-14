@@ -446,7 +446,7 @@ public sealed partial class GameSession
     {
         var result = Apply(Request(new EndControlOperation(), context.ControllerId));
         if (result.Disposition == SessionDisposition.Rejected) throw new InvalidOperationException(result.AutomaticResponseFailure is { } failure
-            ? CanonicalJson.Text(failure) : result.Rejection.ToString());
+            ? failure.ToString() : result.Rejection.ToString());
         return new(result.Events, result.Snapshot);
     }
 
@@ -455,7 +455,7 @@ public sealed partial class GameSession
         if (Snapshot.Simulation.Boundary == SimulationBoundary.Terminal) return new([], Snapshot);
         var result = Apply(Request(new AdvanceOperation()));
         if (result.Disposition == SessionDisposition.Rejected) throw new InvalidOperationException(result.AutomaticResponseFailure is { } failure
-            ? CanonicalJson.Text(failure) : result.Rejection.ToString());
+            ? failure.ToString() : result.Rejection.ToString());
         return new(result.Events, result.Snapshot);
     }
 

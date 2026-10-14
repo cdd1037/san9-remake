@@ -126,7 +126,7 @@ public sealed class WarfareAuditAlignmentTests
         restored.Commit(other);
         Assert.Equal(3000u, m.Units[3].Wounded);
         Assert.Equal(0u, m.Units[1].Wounded);
-        Assert.Equal(CanonicalJson.Text(first), CanonicalJson.Text(second));
+        EventAssert.Equal(first, second);
         StateAssert.Equal(world.CreateSnapshot(), restored.CreateSnapshot());
         Assert.NotEqual(0UL, m.Simulation.RandomStreams.Single(s => s.Name == "battle-capture-wounded").State);
     }

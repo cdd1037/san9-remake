@@ -123,6 +123,10 @@ public sealed class DailyTaskDecisionTests
         Assert.Empty(session.CaptureRecording().Operations);
         Assert.Empty(advance.Events);
         Assert.Equal(failure, session.Apply(request).AutomaticResponseFailure);
+        var exception = Assert.Throws<InvalidOperationException>(() => session.AdvanceXun());
+        Assert.Contains(failure.Code, exception.Message);
+        Assert.Contains(failure.ControllerId, exception.Message);
+        StateAssert.Equal(before, session.Capture());
     }
 
     [Fact]

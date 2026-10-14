@@ -276,6 +276,8 @@ public sealed class CampaignPlanningTests
     }
 
     [Theory]
+    [InlineData(64)]
+    [InlineData(128)]
     [InlineData(512)]
     [InlineData(2048)]
     [InlineData(8192)]
@@ -294,6 +296,26 @@ public sealed class CampaignPlanningTests
         var result = CampaignPlanner.Decide(observation, [], work);
         Assert.Equal(5, Assert.Single(result.Candidates).TargetId);
         Assert.InRange(work.Remaining, 0, budget);
+    }
+
+    [Fact]
+    public void TravelBeforeContactDoesNotConsumeCombatBudgetOrLoseEarlierReinforcements()
+    {
+        var target = Target(1000, 100) with { CanRetaliate = false };
+        int nearWork = 0, farWork = 0;
+        var near = CampaignCombatForecast.Evaluate(target, [Force(2, 20000, days: 10)],
+            [new(3, 8, 2000), new(3, 11, 3000)], 0, () => ++nearWork <= 100);
+        var far = CampaignCombatForecast.Evaluate(target, [Force(2, 20000, days: 10000)],
+            [new(3, 9998, 2000), new(3, 10001, 3000)], 0, () => ++farWork <= 100);
+        Assert.True(near.Feasible);
+        Assert.Equal(near with { Days = near.Days + 9990 }, far);
+        Assert.Equal(nearWork, farWork);
+
+        // Reinforcements reaching a wall before the army are still surviving field forces after collapse.
+        var exposed = CampaignCombatForecast.Evaluate(target with { Durability = 1 },
+            [Force(2, 5000, days: 10000) with { Profile = new(0, 0, 100, 1000, 50) }],
+            [new(3, 9998, 8000)], 0, () => true);
+        Assert.False(exposed.Feasible);
     }
 
     [Fact]

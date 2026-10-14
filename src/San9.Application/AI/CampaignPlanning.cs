@@ -39,59 +39,6 @@ public sealed record CampaignObservation(GameClock Clock, int ForceId, Immutable
 public sealed record CampaignForecast(bool Feasible, int Days, long Survivors, long Losses);
 public sealed record CampaignDecision(ImmutableArray<AllocationCandidate> Candidates, ImmutableArray<CampaignGoal> Goals);
 
-/// <summary>Bounded ordinary-combat estimate, not a second simulation or a prediction of hidden tactics.</summary>
-public static class CampaignCombatForecast
-{
-    public static CampaignForecast Evaluate(CampaignPlace target, ImmutableArray<CampaignForce> forces,
-        ImmutableArray<CampaignWave> waves, int delay, Func<bool> spend)
-    {
-        if (forces.IsDefaultOrEmpty) return new(false, 0, 0, 0);
-        var soldiers = forces.Select(f => f.Soldiers).ToArray();
-        uint defenders = target.Soldiers;
-        long arrivedReinforcements = 0;
-        int walls = target.Durability;
-        long original = soldiers.Sum(s => (long)s);
-        int arrival = forces.Max(f => f.Action.Arrival!.Days!.Value) + delay;
-        // Ninety days bounds the forecast horizon. No assumed tactic proc can make an infeasible siege feasible.
-        for (int day = 0; day <= arrival + 90; day++)
-        {
-            if (!spend()) return new(false, day, 0, original);
-            foreach (var wave in waves.Where(w => w.TargetId == target.Id && w.Days == day))
-            {
-                defenders = (uint)Math.Min(uint.MaxValue, (long)defenders + wave.Soldiers);
-                arrivedReinforcements += wave.Soldiers;
-            }
-            bool retaliated = false;
-            int active = forces.Where((f, i) => soldiers[i] > 0 && day >= f.Action.Arrival!.Days + delay).Count();
-            for (int i = 0; i < forces.Length; i++)
-            {
-                var force = forces[i];
-                if (day < force.Action.Arrival!.Days + delay || soldiers[i] == 0) continue;
-                var attacker = new CombatStrength(soldiers[i], force.Morale, force.Leadership, 1, 10);
-                var defender = new CombatStrength(defenders, target.Morale, target.Leadership, Math.Max(1, active), 10);
-                uint loss = CombatMath.TroopDamage(attacker, defender, force.Profile, target.Profile, true, walls);
-                uint reply = target.CanRetaliate && !retaliated ? CombatMath.TroopDamage(defender, attacker, target.Profile, force.Profile, false, 0) : 0;
-                retaliated |= target.CanRetaliate;
-                defenders -= loss;
-                if (force.DamagesWalls) walls -= CombatMath.DurabilityDamage(soldiers[i], force.Leadership, force.Profile.AgainstWalls, walls);
-                soldiers[i] -= reply;
-                if ((defenders == 0 || walls == 0) && soldiers[i] > 0)
-                {
-                    long survivors = soldiers.Where((s, j) => day >= forces[j].Action.Arrival!.Days + delay).Sum(s => (long)s);
-                    // Keep enough strength for the first counterattack window after capture, including a two-day arrival error.
-                    // Reinforcements already fought are bounded by the remaining defenders. Wall collapse
-                    // does not erase surviving field forces, but defeated forces cannot attack a second time.
-                    long counter = Math.Min(arrivedReinforcements, defenders) +
-                        waves.Where(w => w.TargetId == target.Id && w.Days > day && w.Days <= day + 12).Sum(w => (long)w.Soldiers);
-                    return new(survivors >= Math.Max(1000, counter), day, survivors, original - soldiers.Sum(s => (long)s));
-                }
-            }
-            if (soldiers.All(s => s == 0)) break;
-        }
-        return new(false, arrival + 90, soldiers.Sum(s => (long)s), original - soldiers.Sum(s => (long)s));
-    }
-}
-
 internal static class CampaignPlanner
 {
     internal static CampaignDecision Decide(CampaignObservation observation, ImmutableArray<CampaignGoal> memory, AllocationWork work)
@@ -195,18 +142,30 @@ internal static class CampaignPlanner
         return search.Best is { } best ? (best.Actions, best.Forecast) : null;
     }
 
-    /// <summary>Resumable within one frozen observation. Each step evaluates at most one joint plan.</summary>
+    /// <summary>Resumable within one frozen observation. Each step visits a candidate, simulates a day or checks funding.</summary>
     private sealed class CampaignPlanSearch(CampaignPlace target, ImmutableArray<CampaignForce> options,
         CampaignObservation observation) : IDisposable
     {
         private readonly List<ImmutableArray<CampaignForce>> evaluated = [];
         private IEnumerator<ImmutableArray<CampaignForce>>? proposals;
+        private IEnumerator<(ImmutableArray<AllocationCandidate> Actions, CampaignForecast Forecast, long Value)?>? evaluation;
         internal bool Complete { get; private set; }
         internal (ImmutableArray<AllocationCandidate> Actions, CampaignForecast Forecast, long Value)? Best { get; private set; }
 
         internal void Advance(AllocationWork work)
         {
             if (Complete || !work.Spend()) return;
+            if (evaluation is not null)
+            {
+                bool more = evaluation.MoveNext();
+                if (more && evaluation.Current is { } result && (Best is null || result.Value > Best.Value.Value)) Best = result;
+                if (!more || evaluation.Current is not null)
+                {
+                    evaluation.Dispose();
+                    evaluation = null;
+                }
+                return;
+            }
             proposals ??= Enumerate().GetEnumerator();
             if (!proposals.MoveNext()) { Complete = true; Dispose(); return; }
             var chosen = proposals.Current;
@@ -214,8 +173,7 @@ internal static class CampaignPlanner
             var ordered = chosen.OrderBy(f => f.Action.SourceId).ThenBy(f => f.UnitId).ToImmutableArray();
             if (evaluated.Any(previous => previous.SequenceEqual(ordered))) return;
             evaluated.Add(ordered);
-            var plan = EvaluatePlan(target, chosen, observation, work);
-            if (plan is { } result && (Best is null || result.Value > Best.Value.Value)) Best = result;
+            evaluation = EvaluatePlan(target, chosen, observation).GetEnumerator();
         }
 
         private long UpperBound(ImmutableArray<CampaignForce> chosen, bool extend = false) => target.Value -
@@ -261,7 +219,11 @@ internal static class CampaignPlanner
             }
         }
 
-        public void Dispose() => proposals?.Dispose();
+        public void Dispose()
+        {
+            evaluation?.Dispose();
+            proposals?.Dispose();
+        }
     }
     private static bool CanAssemble(ImmutableArray<CampaignForce> chosen, CampaignObservation observation)
     {
@@ -278,8 +240,8 @@ internal static class CampaignPlanner
         return true;
     }
 
-    private static (ImmutableArray<AllocationCandidate> Actions, CampaignForecast Forecast, long Value)? EvaluatePlan(CampaignPlace target,
-        ImmutableArray<CampaignForce> chosen, CampaignObservation observation, AllocationWork work)
+    private static IEnumerable<(ImmutableArray<AllocationCandidate> Actions, CampaignForecast Forecast, long Value)?> EvaluatePlan(CampaignPlace target,
+        ImmutableArray<CampaignForce> chosen, CampaignObservation observation)
     {
         var officers = chosen.SelectMany(f => f.Action.Officers).ToArray();
         // A signed departure can wait at most nine days. A larger split is not an executable assembly plan.
@@ -287,36 +249,47 @@ internal static class CampaignPlanner
         chosen = chosen.Select(f => f.UnitId is null && f.Action.Intent is DeployUnitCommand deploy
             ? f with { Action = f.Action with { Intent = deploy with { DepartureDelayDays = latest - f.Action.Arrival!.Days!.Value },
                 Arrival = f.Action.Arrival with { Days = latest } } } : f).ToImmutableArray();
-        var forecast = CampaignCombatForecast.Evaluate(target, chosen, observation.Waves, 0, work.Spend);
-        if (!forecast.Feasible) return null;
-        var delayed = CampaignCombatForecast.Evaluate(target, chosen, observation.Waves, 2, work.Spend);
-        if (!delayed.Feasible) return null;
+        CampaignForecast? forecast = null;
+        foreach (var step in CampaignCombatForecast.Project(target, chosen, observation.Waves, 0))
+        {
+            forecast = step;
+            yield return null;
+        }
+        if (forecast?.Feasible != true) yield break;
+        CampaignForecast? delayed = null;
+        foreach (var step in CampaignCombatForecast.Project(target, chosen, observation.Waves, 2))
+        {
+            delayed = step;
+            yield return null;
+        }
+        if (delayed?.Feasible != true) yield break;
         var supply = ImmutableArray.CreateBuilder<AllocationCandidate>();
         foreach (var group in chosen.GroupBy(f => f.Action.AccountId))
         {
+            yield return null;
             var account = observation.Accounts.FirstOrDefault(a => a.Id == group.Key);
             long food = group.Sum(f => f.Action.AdditionalFood) + group.Sum(f => FoodSupplyForecast.FieldConsumption(f.Soldiers, 0)) *
                 Math.Max(0, delayed.Days + 12 - (account?.HorizonDays ?? 0));
-            if (account is null || account.Money < group.Sum(f => f.Action.MoneyCost)) return null;
+            if (account is null || account.Money < group.Sum(f => f.Action.MoneyCost)) yield break;
             long shortage = account.RequiredFood + food - account.Food;
             if (shortage <= 0) continue;
             var purchase = observation.Purchases.Where(p => p.Quote.AccountId == account.Id && p.Quote.Maximum >= shortage &&
                 !p.Quote.OfficerIds.Any(officers.Contains) &&
                 p.Quote.ExchangeRate > 0 && account.Money >= group.Sum(f => f.Action.MoneyCost) + (shortage + p.Quote.ExchangeRate - 1) / p.Quote.ExchangeRate)
                 .OrderBy(p => p.Quote.OfficerIds.Length).ThenBy(p => p.Quote.SettlementId).FirstOrDefault();
-            if (purchase is null || !work.Spend()) return null;
+            if (purchase is null) yield break;
             var quote = purchase.Quote;
             supply.Add(new(purchase.ControllerId, account.Id, new FoodTradeCommand(Guid.Empty, observation.ForceId, 0,
                 quote.SettlementId, quote.OfficerIds, FoodTradeDirection.Buy, checked((uint)shortage)), quote.OfficerIds, 2, 0,
                 (shortage + quote.ExchangeRate - 1) / quote.ExchangeRate, 0, quote.SettlementId, target.Id, Purpose: "campaign"));
         }
         long value = target.Value - delayed.Losses - delayed.Days * 100L - chosen.Sum(f => f.Action.MoneyCost + f.Action.OfficerOpportunityCost);
-        if (value <= 0) return null;
+        if (value <= 0) yield break;
         var next = supply.Count > 0 ? supply.ToImmutable() : chosen.Where(f => f.UnitId is null || f.NeedsOrder).Select(f => f.Action).ToImmutableArray();
         bool Preparing(AllocationCandidate c) => c.Intent is not (DeployUnitCommand or OrderUnitCommand);
         if (next.Any(Preparing)) next = next.Where(Preparing).ToImmutableArray();
-        if (next.IsEmpty) return ([], delayed, value);
-        return (next.Select(c => c with
+        if (next.IsEmpty) { yield return ([], delayed, value); yield break; }
+        yield return (next.Select(c => c with
         { Benefit = value, Priority = 2, Purpose = "campaign", Campaign = new(observation.ForceId, c.ControllerId, target.Id,
             target.OwnerId, Preparing(c) ? CampaignPhase.Preparing : CampaignPhase.Assembling, observation.Clock, observation.Clock,
             target.Soldiers + target.Durability * 100L + latest * 1000L, delayed.Days, [], target.CaptureConditions())

@@ -34,7 +34,7 @@ internal static class TacticSupport
                 Math.Min(100, profile.OpportunityChance + (source.Condition == UnitCondition.HighSpirits ? 5 : 0)))) continue;
             foreach (var candidate in candidates)
             {
-                if (!TacticCombat.Roll(world, "military-tactic-support-member", TacticCombat.AllocationChance(
+                if (!TacticCombat.Roll(world, "military-tactic-support-member", TacticMath.AllocationChance(
                     military.Rank(source, candidate.Officer.Id), members.Length, false))) continue;
                 Resolve(world, new(id, false), candidate.Officer, candidate.Tactic, candidate.Targets, members, military, events);
                 break;

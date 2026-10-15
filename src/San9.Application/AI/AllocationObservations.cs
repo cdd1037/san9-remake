@@ -10,6 +10,8 @@ internal sealed class AllocationObservations
     internal ImmutableArray<(string ControllerId, EconomicObservation Observation)> Economies { get; set; }
     internal SupportObservation? Support { get; set; }
     internal ImmutableArray<AllocationCandidate> Configuration { get; set; }
+    internal ImmutableArray<AllocationCandidate> Field { get; set; }
+    internal bool FieldComplete { get; set; } = true;
     internal ImmutableArray<AllocationCandidate> Campaign { get; set; }
     internal CampaignObservation? CampaignInput { get; set; }
     internal ImmutableArray<AllocationCandidate> Opportunities { get; set; }
@@ -17,27 +19,65 @@ internal sealed class AllocationObservations
     internal bool OpportunitiesComplete { get; set; } = true;
     private readonly HashSet<GameCommand> executed = new(PlanningIntentEquality.Instance);
     private readonly HashSet<int> appointed = [];
-    private int? campaignTarget;
+    private readonly HashSet<int> orderedUnits = [];
     private GarrisonAssessment? defense;
 
+    internal long RefreshWork(GameCommand command, WorldSnapshot world) => command is RewardOfficerCommand or AppointAdviserCommand or
+        SetUnitPoliciesCommand or SelectTacticCommand
+        ? 1 + Economies.Sum(e => (long)e.Observation.Accounts.Length)
+        : 1 + world.Settlements.Count + world.Officers.Count + world.Corps.Count + world.Simulation.Tasks.Length +
+            Economies.Sum(e => (long)e.Observation.Accounts.Length + e.Observation.Domestic.Settlements.Sum(s => 1L + s.OfficerIds.Length)) +
+            (Support?.GarrisonRequirements.Length ?? 0);
+
+    internal long ExecutionWork(AllocationCandidate candidate, WorldSnapshot world) => 2 + RefreshWork(candidate.Intent, world) +
+        (candidate.Continuation is { DelayDays: 0 } next ? ExecutionWork(next.Action, world) : 0);
+
     internal IEnumerable<AllocationCandidate> Remaining(IEnumerable<AllocationCandidate> candidates) => candidates.Where(c =>
-        !executed.Contains(c.Intent) && (c.Campaign is null || campaignTarget is null || c.Campaign.TargetId == campaignTarget) &&
+        !executed.Contains(c.Intent) &&
+        (c.Intent is not OrderUnitCommand order || !orderedUnits.Contains(order.UnitId)) &&
+        (c.Intent is not SetUnitPoliciesCommand policies || !orderedUnits.Contains(policies.UnitId)) &&
         (c.Intent is not AssignOfficesCommand offices || !offices.Assignments.Any(a => appointed.Contains(a.OfficerId))));
 
     internal void Applied(SimulationEngine engine, ControlSeat seat, MilitaryRulebook? rules, GameCommand command,
         GameCommand intent, AllocationCandidate? candidate, IEnumerable<DomainEvent> events)
     {
         executed.Add(intent);
-        if (candidate?.Campaign is { } campaign) campaignTarget = campaign.TargetId;
+        if (command is OrderUnitCommand committedOrder) orderedUnits.Add(committedOrder.UnitId);
         if (command is AssignOfficesCommand assigned)
             foreach (var person in assigned.Assignments) appointed.Add(person.OfficerId);
         var world = engine.Snapshot;
+        // Local effects do not move actors or change garrison consumption. Update their resource deltas
+        // without building world indexes or revisiting every settlement and officer.
+        if (command is RewardOfficerCommand or AppointAdviserCommand or SetUnitPoliciesCommand or SelectTacticCommand)
+        {
+            var changes = events.OfType<ResourceChangedEvent>().Where(e => e.Account.Kind == ResourceOwnerKind.Corps).ToArray();
+            Economies = Economies.Select(e => (e.ControllerId, e.Observation with
+            { Accounts = e.Observation.Accounts.Select(a => a with
+                { Money = a.Money + changes.Where(c => c.Account.Id == a.Id && c.Resource == ResourceKind.Money).Sum(c => c.Actual),
+                  Food = a.Food + changes.Where(c => c.Account.Id == a.Id && c.Resource == ResourceKind.Food).Sum(c => c.Actual) }).ToImmutableArray() })).ToImmutableArray();
+            if (command is AppointAdviserCommand) Opportunities = default;
+            if (command is SelectTacticCommand) { Campaign = default; CampaignInput = null; }
+            return;
+        }
         var places = world.Settlements.ToDictionary(s => s.Id);
         var people = world.Officers.Where(p => p.OwnerId == seat.ForceId).ToDictionary(p => p.Id);
         var accounts = world.Corps.ToDictionary(c => c.Id);
         var busy = world.Simulation.Tasks.Select(t => t.OfficerId).ToHashSet();
         bool abilitiesChanged = command is AssignOfficesCommand or GrantTreasureCommand or ConfiscateTreasureCommand;
         var abilities = abilitiesChanged ? engine.GetAbilities(world) : null;
+        if (abilitiesChanged)
+        {
+            if (!Configuration.IsDefault)
+                Configuration = Configuration.Select(c => c.Intent is RewardOfficerCommand reward
+                    ? c with { Benefit = PersonnelConfiguration.RewardValue(people[reward.OfficerId], abilities![reward.OfficerId]) }
+                    : c).ToImmutableArray();
+            Field = default;
+            Campaign = default;
+            CampaignInput = null;
+            Opportunities = default;
+        }
+        if (command is DevelopCommand { Development.Activity: DomesticActivity.Train })
+        { Campaign = default; CampaignInput = null; }
         int? changedAccount = command switch
         {
             DevelopCommand { Development.Activity: DomesticActivity.Recruit } recruit =>
@@ -105,6 +145,30 @@ internal sealed class AllocationObservations
         }
     }
 
+    internal IEnumerable<AllocationCandidate> ConfigurationCandidates()
+    {
+        foreach (var original in Remaining(Configuration))
+        {
+            if (original.Benefit <= 0) continue;
+            var candidate = original;
+            if (original.Intent is ChangeCorpsCommand change)
+            {
+                // The plan owns a transfer amount; the public command takes absolute treasury values.
+                // Materialize against the live ledger without repeating organizational observation.
+                var receiver = Economies.SelectMany(e => e.Observation.Accounts).First(a => a.Id == change.CorpsId);
+                long amount = Math.Min(original.AdditionalFood, Math.Max(0, receiver.RequiredFood - receiver.Food));
+                amount = Math.Min(amount, uint.MaxValue - receiver.Food);
+                if (amount <= 0) continue;
+                candidate = original with { AdditionalFood = amount, Intent = change with
+                    { Money = checked((uint)receiver.Money), Food = checked((uint)(receiver.Food + amount)) } };
+                yield return candidate;
+                continue;
+            }
+            // Public eligibility is checked once for the selected step, immediately before commitment.
+            yield return candidate;
+        }
+    }
+
     internal ImmutableArray<AllocationCandidate> SupportCandidates(WorldSnapshot world,
         ImmutableArray<(string ControllerId, EconomicObservation Observation)> economies)
     {
@@ -149,6 +213,41 @@ internal sealed class AllocationObservations
                 ReceivingAccountId = receiving > 0 && cargo == 0 ? receiver!.Id : null, ReceivingFood = cargo == 0 ? receiving : 0 });
         }
         return result.ToImmutable();
+    }
+
+    internal IEnumerable<AllocationCandidate> CampaignCandidates(WorldSnapshot world,
+        ImmutableArray<(string ControllerId, EconomicObservation Observation)> economies)
+    {
+        foreach (var candidate in Remaining(Campaign))
+        {
+            if (candidate.Intent is TransportUnitCommand transport && candidate.ReceivingSoldierTarget is uint desired)
+            {
+                var destination = world.Settlements.Single(s => s.Id == candidate.TargetId);
+                long incoming = world.Units.Where(u => u.OwnerId == destination.OwnerId &&
+                    u.Order is { Kind: MilitaryOrderKind.Transport or MilitaryOrderKind.Return } && u.Order.SettlementId == destination.Id)
+                    .Sum(u => (long)u.Soldiers);
+                var donor = world.Settlements.Single(s => s.Id == transport.SettlementId);
+                long donorReserve = defense?.NeedAfterDeparture(donor, transport.OfficerIds).Required ??
+                    Support!.GarrisonRequirements.Where(r => r.SettlementId == donor.Id && transport.OfficerIds.Contains(r.DepartingOfficerId ?? -1))
+                        .Select(r => r.Soldiers).DefaultIfEmpty(donor.Soldiers).Max();
+                uint soldiers = (uint)Math.Max(0, Math.Min(transport.Soldiers, Math.Min((long)desired - destination.Soldiers - incoming, donor.Soldiers - donorReserve)));
+                if (soldiers < 1000) continue;
+                // Original full-shipment costs conservatively cover a reduced delivery.
+                yield return candidate with { Intent = transport with { Soldiers = soldiers } };
+                continue;
+            }
+            if (candidate.Intent is not DeployUnitCommand deploy) { yield return candidate; continue; }
+            var home = world.Settlements.Single(s => s.Id == deploy.SettlementId);
+            var source = CampaignInput!.Sources.Single(s => s.Id == home.Id);
+            int leadership = source.Guards.Where(g => !deploy.OfficerIds.Contains(g.OfficerId))
+                .Select(g => g.Leadership).DefaultIfEmpty(50).Max();
+            long reserve = Math.Max(defense?.NeedAfterDeparture(home, deploy.OfficerIds).Required ?? source.Reserves[leadership],
+                CampaignInput.Waves.Where(w => w.TargetId == home.Id && w.Days <= candidate.Arrival!.Days + 12).Sum(w => (long)w.Soldiers));
+            if (deploy.Soldiers + reserve > home.Soldiers) continue;
+            var account = economies.SelectMany(e => e.Observation.Accounts).First(a => a.Id == candidate.AccountId);
+            yield return candidate with { AdditionalFood = FoodSupplyForecast.DeploymentExpenditure(home.Soldiers,
+                deploy.Soldiers, account.HorizonDays, home.Wounded, home.ConsumesFood) };
+        }
     }
 
     internal static bool CanDepart(AllocationCandidate candidate, SupportObservation support,

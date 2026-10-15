@@ -32,7 +32,7 @@ internal static class PersonnelRewards
         if (rejection != CommandRejection.None) return rejection;
         var person = world.Officers[command.OfficerId];
         var account = ResourceAccounts.Resolve(world, command.IssuerId, null);
-        int gain = Math.Min(Math.Min(50 * (20 - person.Righteousness) / 100, 10), 100 - person.Loyalty);
+        int gain = PersonnelRewardMath.Gain(person.Loyalty, person.Righteousness);
         ResourceAccounts.Change(world, account, ResourceKind.Money, -100, "personnel-reward", person.Id, events, requireFull: true);
         world.Replace(person.WithLoyalty(command.IssuerId, person.Loyalty + gain) with { RewardedThisXun = true });
         events.Add(new OfficerLoyaltyChangedEvent(world.Clock, person.Id, person.OwnerId!.Value, person.Loyalty, person.Loyalty + gain, "reward"));

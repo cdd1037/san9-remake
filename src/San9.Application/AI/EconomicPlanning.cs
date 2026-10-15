@@ -218,11 +218,13 @@ public static class EconomicPlanner
             return Result(null, !observation.Complete || remainingWork - work <= 1);
         var funded = domestic with { Settlements = domestic.Settlements.Select(s => s with { Money = (uint)ledger[s.AccountId] }).ToImmutableArray() };
         // Leave capacity to inspect at least one generated candidate before the budget is exhausted.
-        var plan = DomesticPlanner.Plan(funded, new(remainingWork - work - 1, 0), observation.Turn);
+        var plan = DomesticPlanner.Plan(funded, new(Math.Max(1, (remainingWork - work) / 2), 0), observation.Turn);
         work += plan.Evaluations;
+        DevelopIntent? best = null;
+        long bestValue = 0;
         foreach (var generated in plan.Candidates)
         {
-            if (!Spend()) return Result(null, true);
+            if (!Spend()) return Result(best, true);
             var candidate = generated;
             var account = observation.Accounts.Single(a => a.Id == funded.Settlements.Single(s => s.Id == candidate.SettlementId).AccountId);
             if (goals.Any(g => g.AccountId == account.Id) && candidate.Activity != DomesticActivity.Train) continue;
@@ -238,8 +240,9 @@ public static class EconomicPlanner
                 candidate = candidate with { RecruitAmount = amount };
             }
             if (rejected?.Contains(candidate) == true) continue;
-            return Result(new DevelopIntent(account.Id, candidate), plan.BudgetExhausted);
+            long value = DomesticPlanner.Value(candidate, funded);
+            if (value > bestValue) { bestValue = value; best = new(account.Id, candidate); }
         }
-        return Result(null, plan.BudgetExhausted);
+        return Result(best, plan.BudgetExhausted);
     }
 }

@@ -112,7 +112,8 @@ public sealed class DomainOpportunityTests
         Assert.Empty(OpportunityPlanner.Plan(observation, decoded.AiState.Opportunities, new(100)));
     }
 
-    private static SimulationEngine Personnel(int intelligence = 100, int injury = 6, int loyalty = 100, int candidateIntelligence = 80)
+    private static SimulationEngine Personnel(int intelligence = 100, int injury = 6, int loyalty = 100, int candidateIntelligence = 80,
+        int righteousness = 15)
     {
         var rules = new SimulationRules
         {
@@ -126,7 +127,7 @@ public sealed class DomainOpportunityTests
             [new(1, 1, 0, 100, 100, 0, 0, 0, 0, 0, 0)],
             [new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
              new OfficerState(2, 1, 1, new(50, intelligence, 50, 50), false) { Status = OfficerStatus.Strategist, Injury = injury, OfficeId = 7 }.WithLoyalty(1, 100),
-             new OfficerState(3, 1, 1, new(50, candidateIntelligence, 50, 50), false) { Righteousness = 15 }.WithLoyalty(1, loyalty)],
+             new OfficerState(3, 1, 1, new(50, candidateIntelligence, 50, 50), false) { Righteousness = righteousness }.WithLoyalty(1, loyalty)],
             treasures: [new(9, 2, TreasureDiscovery.Discovered, null)],
             controls: [new("automatic", 1, ControllerKind.Automatic)],
             corps: [new(1, 1, 1, new(10000, 10000)) { IsRoot = true }]);
@@ -238,6 +239,72 @@ public sealed class DomainOpportunityTests
         var reward = Assert.IsType<RewardOfficerCommand>(Assert.Single(Configuration(engine), c => c.Intent is RewardOfficerCommand).Intent);
         Assert.True(engine.Execute(new("automatic"), reward with { CommandId = Guid.NewGuid(), Sequence = 0 }).Submission.Accepted);
         Assert.DoesNotContain(Configuration(engine), c => c.Intent is RewardOfficerCommand);
+    }
+
+    [Fact]
+    public void ConfiscationAndGrantCompleteFromOneConfigurationBatch()
+    {
+        var engine = Personnel(intelligence: 40, injury: 0);
+        List<DomainEvent> events = [];
+        List<AllocationTrace> traces = [];
+        List<AllocationBatchTrace> batches = [];
+        var seat = engine.Snapshot.Simulation.Controls[0];
+        var economy = EconomicObservation.Capture(engine, seat, new(seat.ControllerId), 10000);
+        var configurationWork = new AllocationWork(10000);
+        PersonnelConfiguration.Capture(engine, seat, [(seat.ControllerId, economy)], configurationWork);
+        AllocationTurnRunner.Run(engine, seat, null, new(), events, traces, batches);
+        var transfers = events.OfType<TreasureTransferredEvent>().ToArray();
+        Assert.Equal(new[] { "confiscate", "grant" }, transfers.Select(e => e.Reason));
+        Assert.Equal(3, transfers[1].HolderId);
+        Assert.Equal(3, engine.Snapshot.Treasures.Single().HolderId);
+        Assert.DoesNotContain(traces, t => t.Outcome == AllocationOutcome.Rejected);
+        Assert.Equal(configurationWork.Maximum - configurationWork.Remaining,
+            batches.Single(b => b.IsTurnSummary).WorkByKind["configuration"]);
+    }
+
+    [Fact]
+    public void AbilityChangesKeepConfigurationButInvalidateDependentForecasts()
+    {
+        var engine = Personnel(intelligence: 40, injury: 0);
+        var seat = engine.Snapshot.Simulation.Controls[0];
+        var economy = EconomicObservation.Capture(engine, seat, new(seat.ControllerId), 1000);
+        var configuration = Configuration(engine);
+        var office = configuration.First(c => c.Intent is AssignOfficesCommand);
+        var batch = new AllocationObservations { Economies = [(seat.ControllerId, economy)], Configuration = configuration,
+            Support = new([], [], true), Field = [], Opportunities = [], Campaign = [] };
+        var command = office.Intent with { CommandId = Guid.NewGuid(), Sequence = engine.Snapshot.Simulation.NextSequence };
+        var submitted = engine.Execute(new(seat.ControllerId), command);
+        Assert.True(submitted.Submission.Accepted);
+        batch.Applied(engine, seat, null, command, office.Intent, office, submitted.Events);
+        Assert.Equal(configuration.Select(c => c.Intent), batch.Configuration.Select(c => c.Intent));
+        Assert.True(batch.Opportunities.IsDefault && batch.Field.IsDefault && batch.Campaign.IsDefault);
+        Assert.NotNull(batch.Support);
+        var fresh = EconomicObservation.Capture(engine, seat, new(seat.ControllerId), 1000);
+        Assert.Equal(fresh.Domestic.Abilities[3], batch.Economies[0].Observation.Domestic.Abilities[3]);
+    }
+
+    [Fact]
+    public void ZeroGainRewardNeverBecomesAnAiCandidate()
+    {
+        Assert.Equal(0, PersonnelRewardMath.Gain(60, 19));
+        Assert.DoesNotContain(Configuration(Personnel(loyalty: 60, righteousness: 19)), c => c.Intent is RewardOfficerCommand);
+        Assert.Contains(Configuration(Personnel(loyalty: 60, righteousness: 15)), c => c.Intent is RewardOfficerCommand);
+    }
+
+    [Fact]
+    public void RewardUpdatesMoneyWithoutReplacingDomesticObservation()
+    {
+        var engine = Personnel(loyalty: 60);
+        var seat = engine.Snapshot.Simulation.Controls[0];
+        var economy = EconomicObservation.Capture(engine, seat, new(seat.ControllerId), 1000);
+        var batch = new AllocationObservations { Economies = [(seat.ControllerId, economy)] };
+        var intent = new RewardOfficerCommand(Guid.Empty, 1, 0, 3);
+        var command = intent with { CommandId = Guid.NewGuid(), Sequence = engine.Snapshot.Simulation.NextSequence };
+        var result = engine.Execute(new(seat.ControllerId), command);
+        Assert.True(result.Submission.Accepted);
+        batch.Applied(engine, seat, null, command, intent, null, result.Events);
+        Assert.Same(economy.Domestic, batch.Economies[0].Observation.Domestic);
+        Assert.Equal(economy.Accounts[0].Money - 100, batch.Economies[0].Observation.Accounts[0].Money);
     }
 
     [Fact]

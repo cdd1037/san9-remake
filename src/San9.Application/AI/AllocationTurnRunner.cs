@@ -23,6 +23,21 @@ internal static class AllocationTurnRunner
         Dictionary<string, int> purchases = [];
         var rejected = new RejectedPlanningIntents();
         var workByKind = new Dictionary<string, long>();
+        var allocatedByKind = new Dictionary<string, long>();
+        var elapsedByKind = new Dictionary<string, long>();
+        var pathsByKind = new Dictionary<string, long>();
+        T Measure<T>(string kind, Func<T> operation)
+        {
+            if (batches is null) return operation();
+            using var paths = new PathSearchDiagnostics();
+            long bytes = GC.GetAllocatedBytesForCurrentThread();
+            long start = System.Diagnostics.Stopwatch.GetTimestamp();
+            T result = operation();
+            elapsedByKind[kind] = elapsedByKind.GetValueOrDefault(kind) + System.Diagnostics.Stopwatch.GetTimestamp() - start;
+            allocatedByKind[kind] = allocatedByKind.GetValueOrDefault(kind) + GC.GetAllocatedBytesForCurrentThread() - bytes;
+            pathsByKind[kind] = pathsByKind.GetValueOrDefault(kind) + paths.Queries;
+            return result;
+        }
         void Charge(string kind, long amount)
         {
             work.Charge(amount);
@@ -50,14 +65,15 @@ internal static class AllocationTurnRunner
             }
             var input = observations.Economies;
             // Reserve account comparison and one submission before any optional domain search.
-            long decisionReserve = 1 + controllers.Length + input.Sum(e => 2L * e.Observation.Accounts.Length);
+            long decisionReserve = 2 + observations.RefreshWork(new WaitCommand(Guid.Empty, active.ForceId, 0), engine.Snapshot) +
+                controllers.Length + input.Sum(e => 2L * e.Observation.Accounts.Length);
             long OptionalWork() => Math.Max(0, work.Remaining - decisionReserve);
             // Retain decision capacity when route search is unfinished; optional navigation cannot starve known food needs.
             if (observations.Support is null)
             {
                 long supportBudget = OptionalWork() / 2;
                 var supportWork = new AllocationWork(supportBudget);
-                observations.Support = SupportObservationCapture.Capture(engine, active, input, rules, supportWork, routes);
+                observations.Support = Measure("support", () => SupportObservationCapture.Capture(engine, active, input, rules, supportWork, routes));
                 Charge("support", supportBudget - supportWork.Remaining);
             }
             var support = observations.Support;
@@ -82,10 +98,25 @@ internal static class AllocationTurnRunner
             }
             bool Available(AllocationCandidate c) => !completed.Contains(c.ControllerId + ":" + c.Purpose) &&
                 AllocationObservations.CanDepart(c, support, input);
+            var configuration = observations.ConfigurationCandidates().Where(Available).ToImmutableArray();
+            // Resolve free capability changes before evaluating facts they invalidate. Rewards still
+            // compete with funded missions; this is a dependency order, not a blanket configuration tier.
+            bool changingCapabilities = configuration.Any(c => c.Intent is AssignOfficesCommand or GrantTreasureCommand or
+                ConfiscateTreasureCommand or AppointAdviserCommand or SelectTacticCommand && SharedAllocator.CanFund(c, input, rejected));
+            if (observations.Field.IsDefault && !changingCapabilities)
+            {
+                var fieldWork = new AllocationWork(OptionalWork() / 8);
+                var field = rules is null ? new FieldObservation([], true) : FieldOperations.Capture(engine, active, input, rules, fieldWork, routes);
+                observations.Field = field.Candidates;
+                observations.FieldComplete = field.Complete;
+                Charge("field", fieldWork.Maximum - fieldWork.Remaining);
+            }
             var proposals = observations.SupportCandidates(engine.Snapshot, input)
-                .AddRange(observations.Remaining(observations.Configuration))
+                .AddRange(configuration)
+                .AddRange(observations.Field.IsDefault ? [] : observations.Remaining(observations.Field))
                 .Where(Available).ToImmutableArray();
             decisionReserve += proposals.Length;
+            if (!proposals.IsEmpty) decisionReserve += proposals.Max(c => observations.ExecutionWork(c, engine.Snapshot));
             void CaptureOpportunities(long budget)
             {
                 if (!observations.Opportunities.IsDefault || budget < 2) return;
@@ -99,37 +130,28 @@ internal static class AllocationTurnRunner
                 Charge("opportunity", budget - opportunityWork.Remaining);
             }
             bool campaignComplete = observations.CampaignComplete;
-            if (observations.Campaign.IsDefault && !proposals.Any(c => c.Priority < 4 && SharedAllocator.CanFund(c, input, rejected)) && rules is not null && (support.Complete || support.DefenseComplete) && OptionalWork() > 1 && input.All(e => e.Observation.Complete) &&
+            if (!changingCapabilities && observations.Campaign.IsDefault && !proposals.Any(c => !c.Configuration && c.Priority < 4 && SharedAllocator.CanFund(c, input, rejected)) && rules is not null && (support.Complete || support.DefenseComplete) && OptionalWork() > 1 && input.All(e => e.Observation.Complete) &&
                 (state.Campaigns.Any(g => g.ForceId == active.ForceId) || input.All(e => e.Observation.Accounts.All(a => a.Food >= a.RequiredFood))))
             {
                 long campaignBudget = OptionalWork() / 2;
                 var observation = observations.CampaignInput;
-                if (observation is null)
+                using var capture = observation is null ? new CampaignObservationCapture(engine, active, input, support, rules, routes, state.Campaigns) : null;
+                if (capture is not null)
                 {
-                    using var capture = new CampaignObservationCapture(engine, active, input, support, rules, routes, state.Campaigns);
                     var captureWork = new AllocationWork(campaignBudget * 3 / 4);
-                    capture.Advance(captureWork);
+                    Measure("campaign-observation", () => { capture.Advance(captureWork, stopAtDecision: true); return 0; });
                     long used = captureWork.Maximum - captureWork.Remaining;
                     Charge("campaign-observation", used);
                     campaignBudget -= used;
-                    if (!capture.Finished)
-                    {
-                        // Give ordinary opportunities their initial service before lending unused capacity.
-                        // No command has been committed, so both observations still describe the same world.
-                        CaptureOpportunities(Math.Max(0, OptionalWork() - campaignBudget) / 2);
-                        if (!observations.Opportunities.IsDefault) decisionReserve += observations.Opportunities.Length;
-                        var continuation = new AllocationWork(Math.Max(0, OptionalWork() - campaignBudget));
-                        capture.Advance(continuation);
-                        Charge("campaign-continuation", continuation.Maximum - continuation.Remaining);
-                    }
                     observation = capture.Observation;
                 }
                 // Reserve a comparison for every possible output before consuming the reclaimed pool.
                 // Funded campaign actions are bounded by observed forces, returns, consolidation and accounts.
                 campaignBudget = Math.Min(campaignBudget, OptionalWork());
-                long forceOutputs = observation.Forces.Select(f => (f.Action.TargetId, f.Action.SourceId, f.UnitId)).Distinct().LongCount();
+                long forceOutputs = observation!.Forces.Select(f => (f.Action.TargetId, f.Action.SourceId, f.UnitId)).Distinct().LongCount();
                 long allocationReserve = Math.Min(campaignBudget, forceOutputs + observation.Returns.Length +
-                    observation.Consolidation.Length + observation.Accounts.Length);
+                    observation.Consolidation.Length + observation.Accounts.Length +
+                    observation.Forces.Select(f => observations.ExecutionWork(f.Action, engine.Snapshot)).DefaultIfEmpty(0).Max());
                 campaignBudget -= allocationReserve;
                 decisionReserve += allocationReserve;
                 var campaignWork = new AllocationWork(campaignBudget);
@@ -156,27 +178,37 @@ internal static class AllocationTurnRunner
                     observation = observation with { Purchases = purchasesForCampaign.ToImmutable() };
                 }
                 observations.CampaignInput = observation;
-                campaignComplete = observation.Complete;
-                var campaign = CampaignPlanner.Decide(observation, state.Campaigns, campaignWork);
-                campaignComplete &= campaignWork.Remaining > 0;
+                var campaign = Measure("campaign", () => CampaignPlanner.Decide(observation, state.Campaigns, campaignWork));
+                Charge("campaign", campaignBudget - campaignWork.Remaining);
+                // Additional observation must answer a missing plan, rather than consume every spare unit before comparing anything.
+                while (campaign.Candidates.IsEmpty && capture is { Finished: false } && OptionalWork() > 4)
+                {
+                    var further = new AllocationWork(OptionalWork() / 2);
+                    Measure("campaign-observation", () => { capture.Advance(further, stopAtDecision: true); return 0; });
+                    Charge("campaign-continuation", further.Maximum - further.Remaining);
+                    observation = capture.Observation;
+                    var comparison = new AllocationWork(OptionalWork() / 2);
+                    campaign = Measure("campaign", () => CampaignPlanner.Decide(observation, state.Campaigns, comparison));
+                    Charge("campaign", comparison.Maximum - comparison.Remaining);
+                    if (further.Remaining == further.Maximum) break;
+                }
+                campaignComplete = observation.Complete && campaignWork.Remaining > 0;
                 state = state with { Campaigns = campaign.Goals };
+                observations.CampaignInput = observation;
                 observations.Campaign = campaign.Candidates;
                 observations.CampaignComplete = campaignComplete;
-                // An early opportunity observation predates a newly selected campaign. Its demand-dependent
-                // candidates must be rebuilt after that campaign acts, against the refreshed own ledger.
                 if (campaign.Candidates.Any(c => SharedAllocator.CanFund(c, input, rejected))) observations.Opportunities = default;
-                Charge("campaign", campaignBudget - campaignWork.Remaining);
             }
             if (!observations.Campaign.IsDefault)
-                proposals = proposals.AddRange(observations.Remaining(observations.Campaign).Where(Available));
+                proposals = proposals.AddRange(observations.CampaignCandidates(engine.Snapshot, input).Where(Available));
             bool opportunityComplete = !observations.Opportunities.IsDefault ? observations.OpportunitiesComplete :
                 OptionalWork() > 2 && input.All(e => e.Observation.Complete);
-            if (opportunityComplete)
+            if (opportunityComplete && !changingCapabilities)
             {
                 long opportunityBudget = OptionalWork() / 2;
                 // Opportunities all have priority 5. A funded earlier tier wins regardless of their scores;
                 // query them once the preceding tiers have committed their actors and resources.
-                if (observations.Opportunities.IsDefault && !proposals.Any(c => c.Priority < 5 && SharedAllocator.CanFund(c, input, rejected)))
+                if (observations.Opportunities.IsDefault && !proposals.Any(c => !c.Configuration && c.Priority < 5 && SharedAllocator.CanFund(c, input, rejected)))
                 {
                     CaptureOpportunities(opportunityBudget);
                 }
@@ -189,7 +221,8 @@ internal static class AllocationTurnRunner
             var decision = SharedAllocator.Decide(input, proposals, state.FoodSecurity, Math.Max(0, work.Remaining - 1),
                 developed, purchaseLimited, rejected);
             Charge("allocation", decision.Work);
-            searchComplete &= input.All(e => e.Observation.Complete && e.Observation.QuotesComplete) && support.Complete && campaignComplete && opportunityComplete && !decision.Exhausted;
+            searchComplete &= input.All(e => e.Observation.Complete && e.Observation.QuotesComplete) && support.Complete &&
+                observations.FieldComplete && campaignComplete && opportunityComplete && !decision.Exhausted;
             lastAccounts = input.SelectMany(e => e.Observation.Accounts).ToImmutableArray();
             state = state with { FoodSecurity = decision.Goals };
             var candidate = decision.Candidate;
@@ -207,72 +240,119 @@ internal static class AllocationTurnRunner
                 searchComplete, lastAccounts, support.Arrivals)
                 { Candidates = proposals });
             if (controllerId is null || intent is null) break;
-            if (!work.Spend()) break;
-            workByKind["execution"] = workByKind.GetValueOrDefault("execution") + 1;
-            var source = traces is not null && candidate?.Intent is TransportUnitCommand && candidate.SourceId is int sourceId
-                ? engine.Snapshot.Settlements.Single(s => s.Id == sourceId) : null;
-            var command = intent with { CommandId = SimulationIdentity.Command(engine.Snapshot.Simulation.NextSequence, active.ForceId),
-                Sequence = engine.Snapshot.Simulation.NextSequence };
-            var result = engine.Execute(new(controllerId), command);
-            if (traces is not null)
+            // Commit a selected sequence without reopening allocation between its zero-delay steps.
+            // Reserve submission and ledger work for the whole immediate chain before starting it.
+            if (candidate is { BeforeDeparture.IsEmpty: false, Continuation.DelayDays: 0 } optional &&
+                work.Remaining < observations.ExecutionWork(optional, engine.Snapshot))
             {
-                var deployment = result.Events.OfType<UnitDeployedEvent>().FirstOrDefault();
-                traces.Add(new(command.CommandId, controllerId, candidate?.Purpose ?? (economic is PurchaseFoodIntent ? "supply" : "domestic"),
-                    engine.Snapshot.Clock, deployment?.UnitId, candidate?.TargetId, candidate?.Campaign?.ExpectedDays ?? candidate?.Arrival?.Days,
-                    candidate?.Intent is TransportUnitCommand transport ? transport.Soldiers : candidate?.Intent is DeployUnitCommand expedition ? expedition.Soldiers : null, candidate?.AdditionalFood ?? 0,
-                    result.Submission.Accepted ? deployment is null || candidate?.Arrival is null ? AllocationOutcome.Completed : AllocationOutcome.Pending : AllocationOutcome.Rejected,
-                    work.Remaining, input.SelectMany(e => e.Observation.Accounts).ToImmutableArray())
-                    { AccountId = candidate?.AccountId,
-                        ForceId = active.ForceId, CommandType = command.GetType().Name,
-                        Rejection = result.Submission.Rejection,
-                        PredictedAccountFoodExpenditure = candidate?.Intent is TransportUnitCommand shipment && source is not null && candidate.Arrival?.Days is int days
-                            ? input.SelectMany(e => e.Observation.Accounts).Single(a => a.Id == candidate.AccountId).DailyConsumption * days +
-                                FoodSupplyForecast.DeploymentExpenditure(source.Soldiers, shipment.Soldiers, days, source.Wounded, source.ConsumesFood) : null });
+                candidate = optional.Continuation.Action;
+                controllerId = candidate.ControllerId;
+                intent = candidate.Intent;
             }
-            if (!result.Submission.Accepted)
+            if (candidate is not null && work.Remaining < observations.ExecutionWork(candidate, engine.Snapshot)) break;
+            if (work.Remaining < observations.RefreshWork(intent, engine.Snapshot) + 2) break;
+            do
             {
-                rejected.Add(intent);
-                if (economic is not null) rejected.Add(economic);
-                if (economic is DevelopIntent failure) rejected.Add(failure.Development);
+                long refreshWork = observations.RefreshWork(intent, engine.Snapshot);
+                if (work.Remaining < refreshWork + 2) break;
+                Charge("eligibility", 1);
+                var eligibilityQuery = intent with { CommandId = SimulationIdentity.Command(engine.Snapshot.Simulation.NextSequence, active.ForceId),
+                    Sequence = engine.Snapshot.Simulation.NextSequence };
+                if (intent is RewardOfficerCommand reward)
+                {
+                    var person = engine.Snapshot.Officers.Single(p => p.Id == reward.OfficerId);
+                    if (PersonnelRewardMath.Gain(person.Loyalty, person.Righteousness) <= 0) { rejected.Add(intent); break; }
+                }
+                // Configuration was captured once and may have lost its local prerequisites.
+                // Other actions retain their domain preparation and the authoritative Execute validation.
+                if (candidate?.Configuration == true && engine.GetPreparationEligibility(new(controllerId), eligibilityQuery) != CommandRejection.None)
+                {
+                    rejected.Add(intent);
+                    if (economic is not null) rejected.Add(economic);
+                    if (economic is DevelopIntent invalid) rejected.Add(invalid.Development);
+                    break;
+                }
+                if (!work.Spend()) break;
+                workByKind["execution"] = workByKind.GetValueOrDefault("execution") + 1;
+                var source = traces is not null && candidate?.Intent is TransportUnitCommand && candidate.SourceId is int sourceId
+                    ? engine.Snapshot.Settlements.Single(s => s.Id == sourceId) : null;
+                var command = intent with { CommandId = SimulationIdentity.Command(engine.Snapshot.Simulation.NextSequence, active.ForceId),
+                    Sequence = engine.Snapshot.Simulation.NextSequence };
+                var result = engine.Execute(new(controllerId), command);
+                if (traces is not null)
+                {
+                    var deployment = result.Events.OfType<UnitDeployedEvent>().FirstOrDefault();
+                    traces.Add(new(command.CommandId, controllerId, candidate?.Purpose ?? (economic is PurchaseFoodIntent ? "supply" : "domestic"),
+                        engine.Snapshot.Clock, deployment?.UnitId, candidate?.TargetId, candidate?.Campaign?.ExpectedDays ?? candidate?.Arrival?.Days,
+                        candidate?.Intent is TransportUnitCommand transport ? transport.Soldiers : candidate?.Intent is DeployUnitCommand expedition ? expedition.Soldiers : null, candidate?.AdditionalFood ?? 0,
+                        result.Submission.Accepted ? deployment is null || candidate?.Arrival is null ? AllocationOutcome.Completed : AllocationOutcome.Pending : AllocationOutcome.Rejected,
+                        work.Remaining, input.SelectMany(e => e.Observation.Accounts).ToImmutableArray())
+                        { AccountId = candidate?.AccountId,
+                            ForceId = active.ForceId, CommandType = command.GetType().Name,
+                            Rejection = result.Submission.Rejection,
+                            PredictedAccountFoodExpenditure = candidate?.Intent is TransportUnitCommand shipment && source is not null && candidate.Arrival?.Days is int days
+                                ? input.SelectMany(e => e.Observation.Accounts).Single(a => a.Id == candidate.AccountId).DailyConsumption * days +
+                                    FoodSupplyForecast.DeploymentExpenditure(source.Soldiers, shipment.Soldiers, days, source.Wounded, source.ConsumesFood) : null });
+                }
+                if (!result.Submission.Accepted)
+                {
+                    rejected.Add(intent);
+                    if (economic is not null) rejected.Add(economic);
+                    if (economic is DevelopIntent failure) rejected.Add(failure.Development);
+                    if (candidate is not null && candidate.Purpose is not ("support" or "campaign")) completed.Add(controllerId + ":" + candidate.Purpose);
+                    break;
+                }
+                Charge("ledger", refreshWork);
+                observations.Applied(engine, active, rules, command, intent, candidate, result.Events);
+                input = EconomicSupplyProjection.Apply(observations.Economies, observations.Support?.FoodChanges ?? []);
+                observations.Economies = input;
+                lastAccounts = input.SelectMany(e => e.Observation.Accounts).ToImmutableArray();
+                events.AddRange(result.Events);
+                if (candidate?.Opportunity is { } opportunity)
+                {
+                    var started = result.Events.OfType<TaskStartedEvent>().FirstOrDefault();
+                    if (started is not null)
+                        state = state with { Opportunities = state.Opportunities
+                            .Where(a => a.ControllerId != controllerId || a.Key != opportunity.Key)
+                            .Append(new(active.ForceId, controllerId, opportunity.Key, opportunity.Conditions,
+                                started.Task.Id, started.Task.OfficerId, engine.Snapshot.Clock, engine.Snapshot.Clock, "pending")).ToImmutableArray() };
+                }
+                state = state with { Opportunities = OpportunityPlanner.Feedback(state.Opportunities, engine.Snapshot, result.Events) };
+                if (candidate?.Campaign is { } commitment)
+                {
+                    var previous = state.Campaigns.FirstOrDefault(g => g.ForceId == commitment.ForceId && g.TargetId == commitment.TargetId);
+                    var deployed = (command is DeployUnitCommand ? result.Events.OfType<UnitDeployedEvent>().Select(e => e.UnitId) : [])
+                        .Concat(command is OrderUnitCommand order ? [order.UnitId] : []);
+                    var updated = (previous ?? commitment) with { UnitIds = (previous?.UnitIds ?? []).Concat(deployed).Distinct().Order().ToImmutableArray(),
+                        Phase = command is DeployUnitCommand or OrderUnitCommand ? CampaignPhase.Assembling : CampaignPhase.Preparing,
+                        SourceIds = commitment.SourceIds };
+                    state = state with { Campaigns = state.Campaigns.Where(g => g.ForceId != updated.ForceId || g.TargetId != updated.TargetId)
+                        .Append(updated).OrderBy(g => g.ForceId).ThenBy(g => g.TargetId).ToImmutableArray() };
+                }
                 if (candidate is not null && candidate.Purpose is not ("support" or "campaign")) completed.Add(controllerId + ":" + candidate.Purpose);
-                continue;
-            }
-            observations.Applied(engine, active, rules, command, intent, candidate, result.Events);
-            events.AddRange(result.Events);
-            if (candidate?.Opportunity is { } opportunity)
-            {
-                var started = result.Events.OfType<TaskStartedEvent>().FirstOrDefault();
-                if (started is not null)
-                    state = state with { Opportunities = state.Opportunities
-                        .Where(a => a.ControllerId != controllerId || a.Key != opportunity.Key)
-                        .Append(new(active.ForceId, controllerId, opportunity.Key, opportunity.Conditions,
-                            started.Task.Id, started.Task.OfficerId, engine.Snapshot.Clock, engine.Snapshot.Clock, "pending")).ToImmutableArray() };
-            }
-            state = state with { Opportunities = OpportunityPlanner.Feedback(state.Opportunities, engine.Snapshot, result.Events) };
-            if (candidate?.Campaign is { } commitment)
-            {
-                var previous = state.Campaigns.FirstOrDefault(g => g.ForceId == commitment.ForceId && g.TargetId == commitment.TargetId);
-                var deployed = result.Events.OfType<UnitDeployedEvent>().Select(e => e.UnitId).Concat(command is OrderUnitCommand order ? [order.UnitId] : []);
-                var updated = (previous ?? commitment) with { UnitIds = (previous?.UnitIds ?? []).Concat(deployed).Distinct().Order().ToImmutableArray(),
-                    Phase = command is DeployUnitCommand or OrderUnitCommand ? CampaignPhase.Assembling : CampaignPhase.Preparing,
-                    SourceIds = commitment.SourceIds };
-                state = state with { Campaigns = state.Campaigns.Where(g => g.ForceId != updated.ForceId || g.TargetId != updated.TargetId)
-                    .Append(updated).OrderBy(g => g.ForceId).ThenBy(g => g.TargetId).ToImmutableArray() };
-            }
-            if (candidate is not null && candidate.Purpose is not ("support" or "campaign")) completed.Add(controllerId + ":" + candidate.Purpose);
-            if (economic is DevelopIntent) developed.Add(controllerId);
-            if (economic is PurchaseFoodIntent purchase)
-            {
-                var account = input.Single(e => e.ControllerId == controllerId).Observation.Accounts.Single(a => a.Id == purchase.AccountId);
-                if (account.Food + purchase.Amount >= account.RequiredFood)
-                    state = state with { FoodSecurity = state.FoodSecurity.Where(g => g.ControllerId != controllerId || g.AccountId != account.Id).ToImmutableArray() };
-                purchases[controllerId] = purchases.GetValueOrDefault(controllerId) + 1;
-                if (purchases[controllerId] >= state.Configuration.MaximumPurchases) purchaseLimited.Add(controllerId);
-            }
+                if (economic is DevelopIntent) developed.Add(controllerId);
+                if (economic is PurchaseFoodIntent purchase)
+                {
+                    var account = input.Single(e => e.ControllerId == controllerId).Observation.Accounts.Single(a => a.Id == purchase.AccountId);
+                    if (account.Food >= account.RequiredFood)
+                        state = state with { FoodSecurity = state.FoodSecurity.Where(g => g.ControllerId != controllerId || g.AccountId != account.Id).ToImmutableArray() };
+                    purchases[controllerId] = purchases.GetValueOrDefault(controllerId) + 1;
+                    if (purchases[controllerId] >= state.Configuration.MaximumPurchases) purchaseLimited.Add(controllerId);
+                }
+                var continuation = candidate?.Continuation;
+                if (continuation is not { DelayDays: 0 }) break;
+                candidate = continuation.Action with { Campaign = continuation.Action.Campaign ?? candidate!.Campaign };
+                controllerId = candidate.ControllerId;
+                intent = candidate.Intent;
+                economic = null;
+                if (!SharedAllocator.CanFund(candidate, observations.Economies, rejected)) break;
+            } while (work.Remaining > 0);
         }
         batches?.Add(new(engine.Snapshot.Clock, active.ForceId, state.Configuration.WorkBudget - work.Remaining,
             searchComplete && work.Remaining > 0, lastAccounts, [])
-            { IsTurnSummary = true, BudgetExhausted = work.Remaining == 0, WorkByKind = workByKind.ToImmutableDictionary() });
+            { IsTurnSummary = true, BudgetExhausted = work.Remaining == 0, WorkByKind = workByKind.ToImmutableDictionary(),
+                AllocatedBytesByKind = allocatedByKind.ToImmutableDictionary(), ElapsedTicksByKind = elapsedByKind.ToImmutableDictionary(),
+                PathQueriesByKind = pathsByKind.ToImmutableDictionary() });
         return state;
 
     }

@@ -11,6 +11,10 @@ public sealed record DomesticSettlementObservation(int Id, int AccountId, uint M
     public uint SoldierCapacity { get; init; }
     public uint Wounded { get; init; }
     public bool ConsumesFood { get; init; } = true;
+    public int Commerce { get; init; }
+    public int MaxCommerce { get; init; }
+    public int Cultivation { get; init; }
+    public int MaxCultivation { get; init; }
     public ImmutableArray<DomesticActivity> UnavailableActivities { get; init; } = [];
 }
 
@@ -18,6 +22,7 @@ public sealed record DomesticSettlementObservation(int Id, int AccountId, uint M
 public sealed record DomesticObservation(AiObservation Perspective, ImmutableArray<DomesticSettlementObservation> Settlements)
 {
     public ImmutableDictionary<int, OfficerAbilities> Abilities { get; init; } = ImmutableDictionary<int, OfficerAbilities>.Empty;
+    public int Trust { get; init; }
     public static DomesticObservation Capture(WorldSnapshot world, ControlSeat seat, CommandContext context)
     {
         var perspective = AiObservation.FromSnapshot(seat.ForceId, world);
@@ -34,7 +39,8 @@ public sealed record DomesticObservation(AiObservation Perspective, ImmutableArr
             var account = s.CorpsId is int id ? accounts[id] : root;
             return Settlement(s, account.Id, account.Treasury.Money, account.Treasury.Food,
                 people[s.Id].OrderBy(p => p.Id).Select(p => p.Id).ToImmutableArray());
-        }).ToImmutableArray());
+        }).ToImmutableArray()) { Trust = world.Forces.Single(f => f.Id == seat.ForceId).Trust,
+            Abilities = world.Officers.Where(p => p.OwnerId == seat.ForceId).ToImmutableDictionary(p => p.Id, p => p.BaseAbilities) };
     }
 
     internal static DomesticSettlementObservation Settlement(SettlementState s, int accountId, uint money, uint food,
@@ -44,6 +50,7 @@ public sealed record DomesticObservation(AiObservation Perspective, ImmutableArr
             s.Soldiers, s.Morale, s.PublicOrder, s.Durability, s.MaxDurability,
             officers)
             { DraftPopulation = s.DraftPopulation, SoldierCapacity = s.SoldierCapacity, Wounded = s.Wounded, ConsumesFood = s.ConsumesFood,
+                Commerce = s.Commerce, MaxCommerce = s.MaxCommerce, Cultivation = s.Cultivation, MaxCultivation = s.MaxCultivation,
                 UnavailableActivities = Enum.GetValues<DomesticActivity>().Where(activity =>
                     s.Facility?.BuilderUnitId is not null ||
                     s.Kind != SettlementKind.City && activity is not (DomesticActivity.Repair or DomesticActivity.Train) ||

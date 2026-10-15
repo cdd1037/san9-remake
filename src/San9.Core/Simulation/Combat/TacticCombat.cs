@@ -63,7 +63,7 @@ internal static class TacticCombat
             ? new[] { candidates.OrderBy(p => p.Officer.Id).ElementAt((int)(world.NextRandom("military-tactic-member") % (uint)candidates.Length)) } : candidates;
         foreach (var candidate in selection)
         {
-            if (profile.AutomaticTactics.IsEmpty && !Roll(world, "military-tactic-member", AllocationChance(military.Rank(unit, candidate.Officer.Id),
+            if (profile.AutomaticTactics.IsEmpty && !Roll(world, "military-tactic-member", TacticMath.AllocationChance(military.Rank(unit, candidate.Officer.Id),
                 members.Length, candidate.Tactic.Effect == TacticEffect.Martial && profile.FavoredCategories.Contains(candidate.Tactic.Category!.Value)))) continue;
             if (candidate.Tactic.Effect != TacticEffect.Martial)
             {
@@ -117,7 +117,7 @@ internal static class TacticCombat
             .Where(p => p.Tactic?.Effect == TacticEffect.Martial).Select(p => new Participant(p.Officer, p.Tactic!)).ToArray();
         if (candidates.Length == 0) return;
         var primary = candidates[(int)(world.NextRandom("military-tactic-chain-member") % (uint)candidates.Length)];
-        if (!Roll(world, "military-tactic-chain-allocation", AllocationChance(military.Rank(unit, primary.Officer.Id), members.Length,
+        if (!Roll(world, "military-tactic-chain-allocation", TacticMath.AllocationChance(military.Rank(unit, primary.Officer.Id), members.Length,
             profile.FavoredCategories.Contains(primary.Tactic.Category!.Value)))) return;
         ActivateMartial(world, unit, members, candidates, primary, target, rules, events, isChain: true);
     }
@@ -245,13 +245,6 @@ internal static class TacticCombat
             t.CompatibleFormations.Contains(formation.Id) && (target.UnitId is not null || t.AffectsFacilities) &&
             t.Category is not null && (t.ContactRange is not int range || target.UnitId is not null &&
                 MilitaryCombat.Area(world.Units[officer.UnitId!.Value], military).IntersectsExpanded(MilitaryCombat.TargetArea(world, target, military), range)));
-    }
-
-    internal static int AllocationChance(BattleRank rank, int members, bool favored)
-    {
-        int count = members switch { 1 => 20, 2 => 14, 3 => 10, 4 => 9, >= 5 => 8, _ => throw new ArgumentOutOfRangeException(nameof(members)) };
-        int position = rank switch { BattleRank.Front => 5, BattleRank.Middle => 4, BattleRank.Rear => 3, _ => throw new ArgumentException("Unknown battle rank.") };
-        return position * count * (favored ? 2 : 1) * 5 / 8;
     }
 
     internal static bool Roll(WorldMutation world, string stream, int chance) =>

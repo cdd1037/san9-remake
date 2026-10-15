@@ -41,6 +41,15 @@ public static class DomesticPlanner
                 if (!Spend()) return Result(true);
                 if (city.UnavailableActivities.Contains(activity)) continue;
                 if (activity == DomesticActivity.Recruit && (city.Soldiers >= 10000 || city.Food < (city.Soldiers + 5000L) / 50)) continue;
+                if (!scripted && activity == DomesticActivity.Train)
+                {
+                    foreach (var trainers in TrainingPlans.Crews(city.OfficerIds, observation.Abilities))
+                    {
+                        if (!Spend()) return Result(true);
+                        candidates.Add(new(observation.Perspective.ObserverId, city.Id, trainers, activity));
+                    }
+                    continue;
+                }
                 for (int count = people.Length; count > 0; count--)
                 {
                     if (!Spend()) return Result(true);
@@ -53,5 +62,29 @@ public static class DomesticPlanner
             }
         }
         return Result(false);
+    }
+
+    internal static long Value(DevelopmentCommand command, DomesticObservation observation)
+    {
+        var city = observation.Settlements.Single(s => s.Id == command.SettlementId);
+        var abilities = command.OfficerIds.Select(id => observation.Abilities.GetValueOrDefault(id)).ToArray();
+        long opportunity = abilities.Sum(TrainingPlans.OpportunityCost);
+        if (command.Activity == DomesticActivity.Train)
+            return DomesticDevelopment.TrainingIncrement(city.Soldiers, city.Morale, observation.Trust, abilities) *
+                (long)city.Soldiers / 100 - opportunity;
+        if (command.Activity == DomesticActivity.Recruit)
+            return (command.RecruitAmount ?? (uint)DomesticDevelopment.RecruitCount(city.DraftPopulation,
+                city.Soldiers, city.SoldierCapacity, city.Money, abilities)) / 2L - opportunity;
+        var (current, maximum) = command.Activity switch
+        {
+            DomesticActivity.Commerce => (city.Commerce, city.MaxCommerce),
+            DomesticActivity.Cultivation => (city.Cultivation, city.MaxCultivation),
+            DomesticActivity.Patrol => (city.PublicOrder, 1000),
+            _ => (city.Durability, city.MaxDurability)
+        };
+        long gain = DomesticDevelopment.CalculateBaseEffect(command.Activity, current, maximum,
+            (int)Math.Min(int.MaxValue, city.Money), abilities);
+        return gain * (command.Activity is DomesticActivity.Commerce or DomesticActivity.Cultivation ? 9 : 2) -
+            command.OfficerIds.Length * 50 - opportunity;
     }
 }

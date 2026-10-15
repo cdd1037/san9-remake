@@ -95,6 +95,33 @@ public sealed class SharedAllocationTests
     }
 
     [Theory]
+    [InlineData(111u, true)] // Initial payroll takes one; 110 then funds reward 100 plus deployment 10.
+    [InlineData(100u, false)]
+    public void ImmediateRewardPrecedesRescueOnlyWhenBothRemainAffordable(uint money, bool rewarded)
+    {
+        var basis = Fixture();
+        var definition = basis with
+        {
+            Officers = basis.Officers.Select(p => p.State.Id == 3 ? p with { State = p.State.WithLoyalty(2, 80) } : p).ToArray(),
+            Information = basis.Information with { Corps = basis.Information.Corps.Select(c => c.Id == 2 ? c with
+                { Treasury = new(money, 100000) } : c).ToArray() }
+        };
+        var session = WithThreat(definition);
+        session.BeginRecording();
+        session.AllocationDiagnosticsEnabled = true;
+        var result = session.Apply(session.Request(new PrepareAdvanceOperation()));
+        var events = result.Events.ToArray();
+        int deployment = Array.FindIndex(events, e => e is UnitDeployedEvent d && d.OfficerIds.Contains(3));
+        int reward = Array.FindIndex(events, e => e is OfficerRewardedEvent r && r.OfficerId == 3);
+        Assert.True(deployment >= 0);
+        Assert.Equal(rewarded, reward >= 0);
+        if (rewarded) Assert.True(reward < deployment);
+        Assert.Empty(session.AllocationDiagnostics.Actions.Where(a => a.Outcome == AllocationOutcome.Rejected));
+        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
+    }
+
+    [Theory]
     [InlineData(7)]
     [InlineData(42)]
     [InlineData(190)]
@@ -140,6 +167,8 @@ public sealed class SharedAllocationTests
     public void ImpossibleDeadlineSkipsNavigationAndIncompleteObservationDoesNotAuthorizeRescue()
     {
         var definition = Fixture(12, 15);
+        // Isolate the already-deployed threat: no uncommitted garrison requires an independent route query.
+        definition = definition with { Settlements = definition.Settlements.Select(s => s.Id == 1 ? s with { Soldiers = 8000 } : s).ToArray() };
         var session = WithThreat(definition);
         using var navigation = new PathSearchDiagnostics();
         var (_, observed) = Observe(session, definition);
@@ -154,6 +183,39 @@ public sealed class SharedAllocationTests
         var result = session.Apply(session.Request(new PrepareAdvanceOperation()));
         Assert.DoesNotContain(result.Events.OfType<UnitDeployedEvent>(), e => e.SettlementId == 2 &&
             session.Snapshot.Units.Any(u => u.Id == e.UnitId && u.Order?.Kind == MilitaryOrderKind.Transport));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void PublicGarrisonTriggersAdvanceDefenseOnlyAcrossAReachableBorder(bool blocked)
+    {
+        var basis = Fixture();
+        var definition = basis with
+        {
+            Settlements = basis.Settlements.Select(s => s.Id == 3 ? s with { Soldiers = 3000 } : s).ToArray(),
+            Military = basis.Military! with
+            {
+                Terrains = [new(0, 1, null), new(1, null, null)],
+                TerrainIds = Enumerable.Range(0, 60).Select(i => blocked && i % 20 == 10 ? 1 : 0).ToImmutableArray()
+            }
+        };
+        var session = GameSession.Start(definition, 190);
+        Assert.Empty(session.Snapshot.Units);
+        var (_, observed) = Observe(session, definition);
+        if (blocked)
+        {
+            Assert.DoesNotContain(observed.Arrivals, a => a.Hostile && a.SourceId == 1);
+            Assert.DoesNotContain(observed.Candidates, c => c.Intent is TransportUnitCommand && c.TargetId == 3);
+        }
+        else
+        {
+            var threat = Assert.Single(observed.Arrivals, a => a.Hostile && a.SourceId == 1);
+            Assert.Contains(observed.Candidates, c => c.Intent is TransportUnitCommand && c.TargetId == 3 && c.Arrival!.Days <= threat.Estimate.Days);
+            var result = session.Apply(session.Request(new PrepareAdvanceOperation()));
+            Assert.Contains(result.Events.OfType<UnitDeployedEvent>(), e => session.Snapshot.Units.Any(u =>
+                u.Id == e.UnitId && u.Order is { Kind: MilitaryOrderKind.Transport, SettlementId: 3 }));
+        }
     }
 
     [Fact]
@@ -234,6 +296,41 @@ public sealed class SharedAllocationTests
         Assert.Contains(delivered.Events.OfType<UnitAbsorbedEvent>(), e => e.UnitId == transport.Id);
         Assert.True(session.Snapshot.Corps.Single(c => c.Id == 3).Treasury.Food > 200);
         Assert.Equal(0, Assert.Single(session.AllocationDiagnostics.Actions, a => a.UnitId == transport.Id).ArrivalError);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void OnlyAutonomousForceCanFundItsCorpsThroughPublicOrganization(bool autonomous)
+    {
+        var basis = Fixture();
+        var definition = basis with
+        {
+            Settlements = basis.Settlements.Select(s => s.Id == 3 ? s with { CorpsId = 3, Soldiers = 10000,
+                MerchantPresenceChance = 0 } : s.Id == 2 ? s with { CorpsId = 2 } : s).ToArray(),
+            Officers = [..basis.Officers, new("governor", new(4, 2, 3, new(70, 70, 70, 70), false) { Status = OfficerStatus.Governor })],
+            Information = basis.Information with { Corps = [..basis.Information.Corps,
+                new(3, 2, 4, new(0, 0)) { ControlMode = CorpsControlMode.Automatic }] }
+        };
+        var session = GameSession.Start(definition, 42);
+        var engine = GameSession.EngineFactory(definition)(WorldState.Restore(session.Snapshot));
+        engine.EndControl(new("player"));
+        var seat = engine.Snapshot.Simulation.Controls.Single(c => c.ForceId == 2);
+        var root = EconomicObservation.Capture(engine, seat, new(seat.ControllerId), 1000);
+        var corps = EconomicObservation.Capture(engine, seat, new("corps:3"), 1000);
+        var before = engine.Snapshot;
+        var proposals = PersonnelConfiguration.Capture(engine, autonomous ? seat : seat with { Kind = ControllerKind.Player },
+            [(seat.ControllerId, root), ("corps:3", corps)], new(1000));
+        StateAssert.Equal(before, engine.Snapshot);
+        if (!autonomous) { Assert.DoesNotContain(proposals, c => c.Intent is ChangeCorpsCommand); return; }
+        var batch = new AllocationObservations { Economies = [(seat.ControllerId, root), ("corps:3", corps)], Configuration = proposals };
+        Assert.Contains(batch.ConfigurationCandidates(), c => c.Intent is ChangeCorpsCommand);
+        var candidate = Assert.Single(proposals, c => c.Intent is ChangeCorpsCommand);
+        var command = (ChangeCorpsCommand)candidate.Intent with { CommandId = Guid.NewGuid(), Sequence = before.Simulation.NextSequence };
+        Assert.True(engine.Execute(new(seat.ControllerId), command).Submission.Accepted);
+        Assert.True(engine.Snapshot.Corps.Single(c => c.Id == 3).Treasury.Food > 0);
+        Assert.Equal(before.Corps.Sum(c => (long)c.Treasury.Food), engine.Snapshot.Corps.Sum(c => (long)c.Treasury.Food));
+        Assert.Equal(before.Settlements.Select(s => s.CorpsId), engine.Snapshot.Settlements.Select(s => s.CorpsId));
     }
 
     [Fact]

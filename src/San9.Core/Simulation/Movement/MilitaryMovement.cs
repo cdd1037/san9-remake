@@ -95,11 +95,19 @@ internal static class MilitaryMovement
         GovernanceRulebook governance, TreasureRulebook treasures, List<DomainEvent> events)
     {
         if (rules?.TransportFormations is not { } pair) return CommandRejection.UnsupportedCommand;
-        return Deploy(world, new(command.CommandId, command.IssuerId, command.Sequence, command.SettlementId,
-            command.OfficerIds, command.Soldiers, pair.LandFormationId, new(MilitaryOrderKind.Transport, null, command.DestinationId))
-            { NavalFormationId = pair.NavalFormationId, Policies = command.Policies, Waypoint = command.Waypoint }, rules, governance, treasures, events,
+        return Deploy(world, TransportDeployment(command, pair), rules, governance, treasures, events,
             UnitPurpose.Transport, command.CargoMoney, command.CargoFood);
     }
+
+    internal static CommandRejection TransportEligibility(WorldMutation world, TransportUnitCommand command,
+        MilitaryRulebook? rules, TreasureRulebook treasures) => rules?.TransportFormations is not { } pair
+        ? CommandRejection.UnsupportedCommand : PrepareDeployment(world, TransportDeployment(command, pair), rules, treasures,
+            UnitPurpose.Transport, command.CargoMoney, command.CargoFood, out _);
+
+    private static DeployUnitCommand TransportDeployment(TransportUnitCommand command, FixedUnitFormations pair) =>
+        new(command.CommandId, command.IssuerId, command.Sequence, command.SettlementId, command.OfficerIds,
+            command.Soldiers, pair.LandFormationId, new(MilitaryOrderKind.Transport, null, command.DestinationId))
+        { NavalFormationId = pair.NavalFormationId, Policies = command.Policies, Waypoint = command.Waypoint };
 
     internal static CommandRejection Deploy(WorldMutation world, DeployUnitCommand command, MilitaryRulebook? rules,
         GovernanceRulebook governance, TreasureRulebook treasures, List<DomainEvent> events,

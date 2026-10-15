@@ -28,6 +28,9 @@ public sealed record AllocationBatchTrace(GameClock Clock, int ForceId, long Wor
     public bool IsTurnSummary { get; init; }
     public bool BudgetExhausted { get; init; }
     public ImmutableDictionary<string, long> WorkByKind { get; init; } = ImmutableDictionary<string, long>.Empty;
+    public ImmutableDictionary<string, long> AllocatedBytesByKind { get; init; } = ImmutableDictionary<string, long>.Empty;
+    public ImmutableDictionary<string, long> ElapsedTicksByKind { get; init; } = ImmutableDictionary<string, long>.Empty;
+    public ImmutableDictionary<string, long> PathQueriesByKind { get; init; } = ImmutableDictionary<string, long>.Empty;
 }
 
 public sealed record AllocationWorkSummary(long Turns, long Work, long IncompleteTurns, long ExhaustedTurns,

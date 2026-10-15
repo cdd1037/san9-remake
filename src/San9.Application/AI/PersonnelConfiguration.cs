@@ -20,13 +20,35 @@ internal static class PersonnelConfiguration
         if (!economy.Accounts.Any(a => a.Id == root.Id)) return [];
         var people = world.Officers.Where(p => !p.IsDormant && p.OwnerId == force.Id && p.IsServing).OrderBy(p => p.Id).ToArray();
         var abilities = engine.GetAbilities(world);
+        var rootAccount = economy.Accounts.Single(a => a.Id == root.Id);
+        foreach (var account in economies.SelectMany(e => e.Observation.Accounts).DistinctBy(a => a.Id)
+            .Where(a => a.Id != root.Id && a.Food < a.RequiredFood).OrderByDescending(a => a.RequiredFood - a.Food).ThenBy(a => a.Id))
+        {
+            if (!work.Spend()) return result.ToImmutable();
+            var corps = world.Corps.Single(c => c.Id == account.Id);
+            // Only an autonomous force may resize its accounts. Existing cities, delegation and treasury money stay the same.
+            long food = Math.Min(account.RequiredFood - account.Food, Math.Max(0, rootAccount.Food - rootAccount.RequiredFood));
+            food = Math.Min(food, uint.MaxValue - (long)corps.Treasury.Food);
+            if (food == 0) continue;
+            var cities = world.Settlements.Where(s => s.OwnerId == force.Id && s.CorpsId == corps.Id && s.Kind == SettlementKind.City)
+                .OrderBy(s => s.Id).Select(s => s.Id).ToImmutableArray();
+            if (cities.IsEmpty) continue;
+            var command = new ChangeCorpsCommand(Guid.Empty, force.Id, 0, corps.Id, cities, corps.Treasury.Money,
+                checked(corps.Treasury.Food + (uint)food), corps.Delegation);
+            if (!work.Spend()) return result.ToImmutable();
+            // Organizational commands use the public transactional validator; no hypothetical balances enter live state.
+            if (!engine.Validate(new(active.ControllerId), command with { CommandId = new Guid("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+                Sequence = world.Simulation.NextSequence }).Accepted) continue;
+            result.Add(new(active.ControllerId, root.Id, command, [], 0, food, 0, food, Purpose: $"fund-corps:{corps.Id}"));
+        }
         int current = force.AdviserId is int adviser ? abilities[adviser].Intelligence : 0;
         foreach (var person in people)
         {
             if (!work.Spend()) return result.ToImmutable();
-            if (person.Loyalty < 95 && person.Righteousness < 20)
+            long rewardValue = RewardValue(person, abilities[person.Id]);
+            if (rewardValue > 0)
                 Add(new RewardOfficerCommand(Guid.Empty, force.Id, 0, person.Id), person.Id,
-                    (100 - person.Loyalty) * 100L, 100, $"reward:{person.Id}", 1);
+                    rewardValue, 100, $"reward:{person.Id}", 2);
             // Appointment only changes consultation ownership. Equipment and offices remain independent decisions.
             if (person.Status == OfficerStatus.Serving && abilities[person.Id].Intelligence > current)
                 Add(new AppointAdviserCommand(Guid.Empty, force.Id, 0, person.Id), person.Id,
@@ -77,7 +99,20 @@ internal static class PersonnelConfiguration
             GameCommand command = holder.Id == force.LeaderId
                 ? new GrantTreasureCommand(Guid.Empty, force.Id, 0, treasure.Id, best.Id)
                 : new ConfiscateTreasureCommand(Guid.Empty, force.Id, 0, treasure.Id);
-            Add(command, best.Id, benefit, 0, $"treasure:{treasure.Id}", 3);
+            int before = result.Count;
+            Add(command, best.Id, benefit, 0, $"treasure:{treasure.Id}:{(command is ConfiscateTreasureCommand ? "confiscate" : "grant")}", 3);
+            if (command is ConfiscateTreasureCommand && result.Count > before)
+            {
+                var confiscation = result[^1];
+                result[^1] = confiscation with
+                {
+                    Continuation = new(confiscation with
+                    {
+                        Intent = new GrantTreasureCommand(Guid.Empty, force.Id, 0, treasure.Id, best.Id),
+                        Purpose = $"treasure:{treasure.Id}:grant"
+                    })
+                };
+            }
         }
         return result.ToImmutable();
 
@@ -87,11 +122,21 @@ internal static class PersonnelConfiguration
             var query = intent with { CommandId = new Guid("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), Sequence = world.Simulation.NextSequence };
             if (engine.GetPreparationEligibility(new(active.ControllerId), query) != CommandRejection.None) return;
             result.Add(new(active.ControllerId, root.Id, intent, [], priority, benefit, cost, 0,
-                people.Single(p => p.Id == person).SettlementId, person, Purpose: purpose));
+                people.Single(p => p.Id == person).SettlementId, person, Purpose: purpose)
+                { Configuration = true, BeforeDeparture = intent is RewardOfficerCommand reward ? [reward.OfficerId] : [] });
         }
     }
 
     private static long PostValue(OfficerAbilities abilities, OfficerAbilities bonus) =>
         (long)abilities.Politics * bonus.Politics + (long)abilities.Leadership * bonus.Leadership +
         (long)abilities.War * bonus.War + (long)abilities.Intelligence * bonus.Intelligence;
+
+    internal static long RewardValue(OfficerState person, OfficerAbilities skill)
+    {
+        int gain = PersonnelRewardMath.Gain(person.Loyalty, person.Righteousness);
+        if (gain <= 0) return 0;
+        // The factor is a strategy valuation, not a claim about the probability of defection.
+        long value = Math.Max(skill.Leadership, skill.Politics) + Math.Max(skill.War, skill.Intelligence);
+        return Math.Max(0, gain * value * (100 - person.Loyalty) / 20 - 100);
+    }
 }

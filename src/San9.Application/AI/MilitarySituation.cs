@@ -5,12 +5,16 @@ using San9.Core.Simulation;
 namespace San9.Application.AI;
 
 internal sealed record PublicMilitaryForce(int? UnitId, int? SettlementId, WorldPosition Position,
-    UnitTravel Travel, uint Soldiers, long Strength, int PreparationDays, int AttackRange);
+    UnitTravel Travel, uint Soldiers, long Strength, int PreparationDays, int AttackRange)
+{
+    internal int OwnerId { get; init; }
+}
 internal sealed record ThreatArrival(PublicMilitaryForce Source, int TargetId, int EarliestDays);
 
 /// <summary>Sparse public influence projection. Each source belongs to one location in a joint hypothesis.
 /// Arrival bounds deliberately overestimate enemy mobility; they never certify an own route.</summary>
-internal sealed class MilitarySituation(ImmutableArray<PublicMilitaryForce> sources)
+internal sealed class MilitarySituation(ImmutableArray<PublicMilitaryForce> sources,
+    ImmutableDictionary<int, ImmutableHashSet<int>> enemies)
 {
     internal ImmutableArray<PublicMilitaryForce> Sources { get; } = sources;
 
@@ -29,17 +33,25 @@ internal sealed class MilitarySituation(ImmutableArray<PublicMilitaryForce> sour
                 : CombatMath.PolicyStrength(new(unit.Soldiers, unit.Morale, leadership, 100, 100));
             int Range(FormationRule f) => f.Attack?.RangedSiege == true ? checked(f.Attack.Range + f.Attack.MaximumElevationBonus) : 1;
             int range = Math.Max(Range(formation), unit.NavalFormationId is int naval ? Range(rules.Formations[naval]) : 1);
-            sources.Add(new(unit.Id, null, unit.Position, rules.Travel(unit), unit.Soldiers, strength, 0, range));
+            sources.Add(new(unit.Id, null, unit.Position, rules.Travel(unit), unit.Soldiers, strength, 0, range) { OwnerId = unit.OwnerId });
         }
-        var common = rules.Formations.Values.Where(f => f.IsCommon && f.RequiredTacticId is null && f.Combat is not null && f.Attack is not null)
+        var common = rules.Formations.Values.Where(f => f.IsCommon && f.RequiredTacticId is null && f.Combat is not null && f.Attack is not null &&
+                rules.ValidUnitFormations(f.Id, rules.NavalFormationForDeployment(f.Id)))
             .OrderByDescending(f => f.MovementBudget).ThenBy(f => f.Id).FirstOrDefault();
         if (common is not null)
             foreach (var place in world.Settlements.Where(s => !s.IsDormant && !s.IsDestroyed && s.CanHostPersons &&
                 s.OwnerId is int owner && Enemy(owner) && s.Soldiers > 1000 && rules.TryPlace(s, out var p) && p.Combat is not null).OrderBy(s => s.Id))
+            {
+                uint soldiers = Math.Min(place.Soldiers - 1000, common.SoldierCapacity);
+                int leadership = world.Officers.Where(p => p.IsVisible && p.SettlementId == place.Id && p.OwnerId == place.OwnerId)
+                    .Select(p => p.BaseAbilities.Leadership).DefaultIfEmpty(50).Max();
+                long strength = CombatMath.FormationStrength(new(soldiers, place.Morale, leadership, 100, 100), common.Combat!).AgainstGarrison * soldiers / 1000;
                 sources.Add(new(null, place.Id, rules.Place(place).Position,
                     rules.Travel(common.Id, rules.NavalFormationForDeployment(common.Id)),
-                    Math.Min(place.Soldiers - 1000, common.SoldierCapacity), 0, 10, 1));
-        return new(sources.ToImmutable());
+                    soldiers, strength, 10, 1) { OwnerId = place.OwnerId!.Value });
+            }
+        return new(sources.ToImmutable(), sources.Select(s => s.OwnerId).Distinct().ToImmutableDictionary(owner => owner,
+            owner => world.Forces.Where(f => MilitaryDiplomacy.AutomaticEnemy(world, owner, f.Id)).Select(f => f.Id).ToImmutableHashSet()));
     }
 
     internal (ImmutableArray<ThreatArrival> Arrivals, bool Complete) Project(
@@ -66,7 +78,7 @@ internal sealed class MilitarySituation(ImmutableArray<PublicMilitaryForce> sour
             int earliest = int.MaxValue;
             foreach (var target in targets)
             {
-                if (target.Id == source.SettlementId) continue;
+                if (target.Id == source.SettlementId || target.OwnerId is int owner && !enemies[source.OwnerId].Contains(owner)) continue;
                 yield return () =>
                 {
                     int days = NavigationArrivalForecast.EarliestDays(source.Travel, source.Position, rules.SettlementArea(target),

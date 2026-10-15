@@ -118,6 +118,8 @@ public sealed partial class SimulationEngine
                 : DomesticDevelopmentHandler.Prepare(world, develop.Development).Accepted
                     ? CommandRejection.None : CommandRejection.DevelopmentFailed,
             OrderUnitCommand order => MilitaryMovement.OrderEligibility(world, order, _rules.Military),
+            SelectTacticCommand tactic => MilitaryTactics.Eligibility(world, tactic, _rules),
+            SetUnitPoliciesCommand policies => MilitaryPolicies.Eligibility(world, policies),
             AppointAdviserCommand appoint => PersonnelAppointments.Eligibility(world, appoint),
             AssignOfficesCommand offices => PersonnelOffices.Eligibility(world, offices, _rules.Governance),
             RewardOfficerCommand reward => PersonnelRewards.Eligibility(world, reward),
@@ -127,6 +129,7 @@ public sealed partial class SimulationEngine
             RecruitOfficerCommand recruit => PersonnelMissions.ValidateRecruit(world, recruit, _rules, out _, out _),
             SearchCommand search => PersonnelMissions.ValidateSearch(world, search, _rules.Personnel),
             MoveOfficersCommand move => PersonnelMissions.ValidateMove(world, move, _rules.Personnel),
+            TransportUnitCommand transport => MilitaryMovement.TransportEligibility(world, transport, _rules.Military, _rules.Treasures),
             DeployUnitCommand deploy => MilitaryMovement.PrepareDeployment(world, deploy, _rules.Military,
                 _rules.Treasures, UnitPurpose.Combat, 0, 0, out _),
             _ => MissionPreparation.Eligibility(world, command, _rules)

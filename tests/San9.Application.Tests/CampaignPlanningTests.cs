@@ -32,6 +32,48 @@ public sealed class CampaignPlanningTests
     };
 
     [Fact]
+    public void OtherOfficerTrainingCanBeFollowedByDepartureInTheSameControlPhase()
+    {
+        var basis = Fixture();
+        var definition = basis with { Settlements = basis.Settlements.Select(s => s.Id == 2 ? s with { Morale = 50 } : s).ToArray() };
+        var session = GameSession.Start(definition, 42);
+        var observation = Observe(session, definition);
+        Assert.Contains(observation.Forces, f => f.Action.TargetId == 3 && f.Action.Intent is DeployUnitCommand && f.Morale == 50);
+        var option = observation.Forces.First(f => f.Action.TargetId == 3 &&
+            f.Action.Intent is DevelopCommand { Development.Activity: DomesticActivity.Train } &&
+            f.Action.Continuation is { DelayDays: 0, Action.Intent: DeployUnitCommand });
+        var training = (DevelopCommand)option.Action.Intent;
+        var departure = (DeployUnitCommand)option.Action.Continuation!.Action.Intent;
+        Assert.Empty(training.Development.OfficerIds.Intersect(departure.OfficerIds));
+        session.EndControl(new("player"));
+        var trained = session.Execute(new("ai:2"), training with { CommandId = Guid.NewGuid(), Sequence = session.Snapshot.Simulation.NextSequence });
+        Assert.True(trained.Submission.Accepted);
+        int morale = session.Snapshot.Settlements.Single(s => s.Id == 2).Morale;
+        Assert.True(morale >= option.Morale);
+        var deployed = session.Execute(new("ai:2"), departure with { CommandId = Guid.NewGuid(), Sequence = session.Snapshot.Simulation.NextSequence });
+        Assert.True(deployed.Submission.Accepted);
+        int unit = Assert.Single(deployed.Events.OfType<UnitDeployedEvent>()).UnitId;
+        Assert.Equal(morale, session.Snapshot.Units.Single(u => u.Id == unit).Morale);
+    }
+
+    [Fact]
+    public void ConfigurationDoesNotSpendTheLastDeploymentMoneyBeforeCampaignComparison()
+    {
+        var basis = Fixture();
+        var definition = basis with
+        {
+            Officers = basis.Officers.Select(p => p.State.Id == 3 ? p with
+                { State = p.State.WithLoyalty(2, 60) with { Righteousness = 0 } } : p).ToArray(),
+            Information = basis.Information with { Corps = basis.Information.Corps.Select(c => c.Id == 2
+                ? c with { Treasury = new(110, 100000) } : c).ToArray() }
+        };
+        var session = GameSession.Start(definition, 42);
+        var result = session.Apply(session.Request(new PrepareAdvanceOperation()));
+        Assert.Contains(result.Events.OfType<UnitDeployedEvent>(), e => e.SettlementId == 2);
+        Assert.DoesNotContain(result.Events.OfType<OfficerRewardedEvent>(), e => e.OfficerId == 3);
+    }
+
+    [Fact]
     public void HarborRouteSurvivesCandidateCommandRestoreAndActualMovement()
     {
         var original = Fixture();
@@ -108,6 +150,65 @@ public sealed class CampaignPlanningTests
         var routes = new ArrivalProjectionCache();
         var support = SupportObservationCapture.Capture(engine, seat, [(seat.ControllerId, economy)], session.MilitaryRules, work, routes);
         return CampaignObservationCapture.Capture(engine, seat, [(seat.ControllerId, economy)], support, session.MilitaryRules!, work, routes, session.AiState.Campaigns);
+    }
+
+    [Theory]
+    [InlineData(512)]
+    [InlineData(2048)]
+    [InlineData(8192)]
+    [InlineData(65536)]
+    public void CrewObservationPreservesIndividualAndComplementaryAlternatives(long budget)
+    {
+        var basis = Fixture();
+        var definition = basis with
+        {
+            Officers = [..basis.Officers,
+                new("specialist", new OfficerState(4, 2, 2, new(90, 60, 10, 30), false).WithLoyalty(2, 100)),
+                new("support", new OfficerState(5, 2, 2, new(70, 60, 10, 20), false).WithLoyalty(2, 100))]
+        };
+        var session = GameSession.Start(definition, 42);
+        var observation = Observe(session, definition, budget);
+        var crews = observation.Forces.Where(f => f.Action.TargetId == 3 && f.Action.Intent is DeployUnitCommand)
+            .Select(f => string.Join(",", f.Action.Officers.Order())).ToHashSet();
+        Assert.NotEmpty(crews);
+        var expected = Enumerable.Range(1, 15).Select(mask => string.Join(",",
+            Enumerable.Range(0, 4).Where(bit => (mask & (1 << bit)) != 0).Select(bit => bit + 2))).ToHashSet();
+        Assert.True(crews.IsSubsetOf(expected));
+        if (budget == 65536)
+            foreach (int person in Enumerable.Range(2, 4)) Assert.Contains(crews, crew => crew.Split(',').Contains(person.ToString()));
+        Assert.All(observation.Forces, f => Assert.Equal(f.Action.Officers.Length, f.Action.Officers.Distinct().Count()));
+    }
+
+    [Fact]
+    public void AnAvailableAdministratorCanLeadAnImmediateSuccessfulAttack()
+    {
+        var basis = Fixture();
+        var definition = basis with { Officers = basis.Officers.Where(p => p.State.Id != 3).ToArray() };
+        var session = GameSession.Start(definition, 42);
+        var first = session.Apply(session.Request(new PrepareAdvanceOperation()));
+        var deployment = Assert.Single(first.Events.OfType<UnitDeployedEvent>());
+        Assert.Equal(2, Assert.Single(deployment.OfficerIds));
+        var events = new List<DomainEvent>();
+        for (int i = 0; i < 4; i++) events.AddRange(session.AdvanceXun().Events);
+        Assert.Contains(events.OfType<SettlementCapturedEvent>(), e => e.SettlementId == 3);
+    }
+
+    [Fact]
+    public void WholeCrewDepartureUsesTheRemainingCommanderInsteadOfSingleDepartureMaxima()
+    {
+        var basis = Fixture();
+        var definition = basis with { Officers = [..basis.Officers,
+            new("reserve", new OfficerState(4, 2, 2, new(20, 20, 20, 20), false).WithLoyalty(2, 100))] };
+        var session = GameSession.Start(definition, 42);
+        var world = session.Snapshot;
+        var source = world.Settlements.Single(s => s.Id == 2);
+        var defense = new GarrisonAssessment(world, 2, session.MilitaryRules!,
+            world.Officers.ToImmutableDictionary(p => p.Id, p => p.BaseAbilities),
+            [new(99, null, 2, new(ArrivalEstimateStatus.Known, 3), 10000, 20000, true, "public attack")]);
+        uint together = defense.NeedAfterDeparture(source, [2, 3]).Required;
+        Assert.True(together > Math.Max(defense.Need(source, 2).Required, defense.Need(source, 3).Required));
+        Assert.Equal(together, defense.NeedAfterDeparture(source, [3, 2]).Required);
+        Assert.Equal(defense.Need(source).Required, defense.NeedAfterDeparture(source, [999]).Required);
     }
 
     [Fact]
@@ -208,9 +309,10 @@ public sealed class CampaignPlanningTests
         var result = session.Apply(session.Request(new PrepareAdvanceOperation()));
         if (!result.Events.OfType<UnitDeployedEvent>().Any(e => e.SettlementId == 2))
             Assert.Fail(System.Text.Json.JsonSerializer.Serialize(session.AllocationDiagnostics.Batches));
-        Assert.Single(session.AiState.Campaigns);
-        Assert.Equal(3, Assert.Single(session.Snapshot.Units).Order!.SettlementId);
-        Assert.True(Assert.Single(session.Snapshot.Units).Policies.AutonomousRetreat);
+        Assert.Contains(session.AiState.Campaigns, c => c.TargetId == 3);
+        Assert.NotEmpty(session.Snapshot.Units);
+        Assert.Contains(session.Snapshot.Units, u => u.Order!.SettlementId == 3);
+        Assert.All(session.Snapshot.Units, u => Assert.True(u.Policies.AutonomousRetreat));
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         List<DomainEvent> events = [];
         for (int i = 0; i < 6; i++)
@@ -241,21 +343,22 @@ public sealed class CampaignPlanningTests
     }
 
     [Fact]
-    public void OwnershipChangeWithdrawsInsteadOfLaunchingAnotherObjective()
+    public void OwnershipChangeWithdrawsAffectedUnitsAndPreservesTheOtherFront()
     {
         var definition = Fixture();
         var session = GameSession.Start(definition, 42);
         session.Apply(session.Request(new PrepareAdvanceOperation()));
         var capture = session.Capture();
-        var unit = Assert.Single(capture.World.Units);
+        var units = capture.World.Units.Where(u => u.Order?.SettlementId == 3).ToArray();
+        Assert.NotEmpty(units);
         var changed = GameSession.Restore(definition, capture with { World = capture.World with
             { Settlements = capture.World.Settlements.Select(s => s.Id == 3 ? s with { OwnerId = null, CorpsId = null } : s).ToArray(),
               Units = capture.World.Units.Select(u => u with { CommandedThisXun = false }).ToArray() } });
         var decision = CampaignPlanner.Decide(Observe(changed, definition), changed.AiState.Campaigns, new(65536));
-        var retreat = Assert.Single(decision.Candidates);
-        Assert.Equal(unit.Id, Assert.IsType<OrderUnitCommand>(retreat.Intent).UnitId);
-        Assert.Equal(MilitaryOrderKind.Return, ((OrderUnitCommand)retreat.Intent).Order.Kind);
-        Assert.Equal(CampaignPhase.Withdrawing, Assert.Single(decision.Goals).Phase);
+        Assert.Equal(units.Select(u => u.Id).Order(), decision.Candidates.Select(c => Assert.IsType<OrderUnitCommand>(c.Intent).UnitId).Order());
+        Assert.All(decision.Candidates, c => Assert.Equal(MilitaryOrderKind.Return, ((OrderUnitCommand)c.Intent).Order.Kind));
+        Assert.Equal(CampaignPhase.Withdrawing, Assert.Single(decision.Goals, g => g.TargetId == 3).Phase);
+        Assert.All(decision.Goals.Where(g => g.TargetId != 3), g => Assert.NotEqual(CampaignPhase.Withdrawing, g.Phase));
     }
 
     private static CampaignForce Force(int source, uint count, int days = 1, int cost = 10) => new(
@@ -451,6 +554,50 @@ public sealed class CampaignPlanningTests
         Assert.Contains(CampaignPlanner.Decide(observed, [], new(8192)).Candidates, c => c.TargetId == 3);
     }
 
+    [Theory]
+    [InlineData(512)]
+    [InlineData(2048)]
+    [InlineData(8192)]
+    [InlineData(65536)]
+    public void SameCityJointPlanRespectsCombinedSoldiersAndRemainingCommander(long budget)
+    {
+        var first = Force(2, 10000);
+        var second = Force(2, 10000) with { Action = first.Action with { Officers = [13],
+            Intent = ((DeployUnitCommand)first.Action.Intent) with { OfficerIds = [13] } } };
+        var source = new CampaignSource(2, 24000, 0, true, [new(12, 90), new(13, 90)],
+            new Dictionary<int, uint> { [90] = 3000, [50] = 4000 }.ToImmutableDictionary());
+        var observation = Input([first, second]) with { Sources = [source] };
+        var plan = CampaignPlanner.Decide(observation, [], new(budget));
+        Assert.Equal(2, plan.Candidates.Length);
+        Assert.Equal(20000, plan.Candidates.Sum(c => (long)((DeployUnitCommand)c.Intent).Soldiers));
+        var weakReserve = source with { Reserves = source.Reserves.SetItem(50, 10000) };
+        Assert.Empty(CampaignPlanner.Decide(observation with { Sources = [weakReserve] }, [], new(budget)).Candidates);
+        Assert.Empty(CampaignPlanner.Decide(observation with { Sources = [source with { Soldiers = 19000 }] }, [], new(budget)).Candidates);
+    }
+
+    [Theory]
+    [InlineData(512)]
+    [InlineData(2048)]
+    [InlineData(8192)]
+    [InlineData(65536)]
+    public void CompetingFrontsUseAnAlternativeCommanderAndShareTheAccount(long budget)
+    {
+        var first = Force(2, 5000);
+        var contested = first with { Action = first.Action with { TargetId = 4,
+            Intent = ((DeployUnitCommand)first.Action.Intent) with { Order = new(MilitaryOrderKind.AttackSettlement, null, 4) } } };
+        var alternative = Force(6, 5000, days: 2) with { Leadership = 40 };
+        alternative = alternative with { Action = alternative.Action with { TargetId = 4,
+            Intent = ((DeployUnitCommand)alternative.Action.Intent) with { Order = new(MilitaryOrderKind.AttackSettlement, null, 4) } } };
+        var target = Target(0, 1) with { OwnerId = null, CanRetaliate = false };
+        var input = Input([first, contested, alternative]) with { Places = [target, target with { Id = 4, Value = 40000 }] };
+        var plan = CampaignPlanner.Decide(input, [], new(budget));
+        Assert.Equal(2, plan.Candidates.Length);
+        Assert.Equal(new[] { 3, 4 }, plan.Candidates.Select(c => c.TargetId!.Value).Order().ToArray());
+        Assert.Equal(2, plan.Candidates.SelectMany(c => c.Officers).Distinct().Count());
+        var poor = input with { Accounts = [input.Accounts[0] with { Money = 10 }] };
+        Assert.Single(CampaignPlanner.Decide(poor, [], new(budget)).Candidates);
+    }
+
     [Fact]
     public void JointPlanRequiresEveryAccountAndRejectsLateAssembly()
     {
@@ -483,23 +630,25 @@ public sealed class CampaignPlanningTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public void RealPreparationBuysCampaignFoodOrTrainsBeforeDeployment(bool food)
+    public void CampaignPreparationAndLowMoraleChoicesExecuteAndReplay(bool food)
     {
         var basis = Fixture();
+        uint garrisonFood = checked((uint)Observe(GameSession.Start(basis, 42), basis).Accounts.Single(a => a.Id == 2).RequiredFood);
         var definition = basis with
         {
             Settlements = basis.Settlements.Select(s => !food && s.Id == 2 ? s with { Morale = 60 } : s).ToArray(),
             Information = basis.Information with { Corps = basis.Information.Corps.Select(c => food && c.OwnerId == 2
-                ? c with { Treasury = new(100000, 6000) } : c).ToArray() }
+                ? c with { Treasury = new(100000, garrisonFood) } : c).ToArray() }
         };
         var session = GameSession.Start(definition, 42);
         var first = session.Apply(session.Request(new PrepareAdvanceOperation()));
         if (food) Assert.Contains(first.Events, e => e is FoodTradeCompletedEvent);
-        else Assert.Contains(first.Events.OfType<DevelopmentCompletedEvent>(), e => e.Command.Activity == DomesticActivity.Train);
         if (!food)
         {
-            Assert.Empty(first.Events.OfType<UnitDeployedEvent>());
-            Assert.Equal(CampaignPhase.Preparing, Assert.Single(session.AiState.Campaigns).Phase);
+            Assert.Contains(first.Events, e => e is UnitDeployedEvent ||
+                e is DevelopmentCompletedEvent { Command.Activity: DomesticActivity.Train });
+            if (!first.Events.OfType<UnitDeployedEvent>().Any())
+                Assert.Contains(session.AiState.Campaigns, g => g.Phase == CampaignPhase.Preparing);
         }
         else Assert.True(first.Events.ToList().FindIndex(e => e is FoodTradeCompletedEvent) <
             first.Events.ToList().FindIndex(e => e is UnitDeployedEvent));
@@ -593,7 +742,7 @@ public sealed class CampaignPlanningTests
         var definition = personnel ? basis with
         {
             Settlements = [..basis.Settlements, new(4, "donor", 2, 3, 2, 3000, 100, 100, 100, [])],
-            Officers = [..basis.Officers.Select(p => p.State.Id == 3 ? p with { State = p.State with { SettlementId = 4 } } : p),
+            Officers = [..basis.Officers.Select(p => p.State.OwnerId == 2 ? p with { State = p.State with { SettlementId = 4 } } : p),
                 new("administrator", new OfficerState(4, 2, 4, new(70, 70, 95, 70), false).WithLoyalty(2, 100))],
             Military = basis.Military! with { Places = basis.Military.Places.Add(new(4, new(17, 12), new(1, 1)) { Combat = new(10, 10, 0, 10, 50) }) }
         } : basis with { Settlements = basis.Settlements.Select(s => s.Id == 2 ? s with { Soldiers = 3000, DraftPopulation = 10000 } : s).ToArray() };
@@ -639,6 +788,43 @@ public sealed class CampaignPlanningTests
         Assert.True(observed.Places.Single(p => p.Id == 3).Value > observed.Places.Single(p => p.Id == 1).Value);
     }
 
+    [Theory]
+    [InlineData(7ul)]
+    [InlineData(42ul)]
+    [InlineData(190ul)]
+    public void LowerLeadershipMartialSpecialistChangesTheCampaignAndExecutesLegally(ulong seed)
+    {
+        var basis = Fixture();
+        var definition = basis with
+        {
+            Settlements = basis.Settlements.Select(s => s.Id == 3 ? s with { Durability = 1000, MaxDurability = 1000, Soldiers = 5000 } : s).ToArray(),
+            Officers = [..basis.Officers, new("specialist", new OfficerState(4, 2, 2, new(100, 50, 0, 30), false)
+                .WithLoyalty(2, 100) with { LearnedTactics = [42], TacticProficiencies = [1000, 0, 0, 0, 0, 0, 0, 0, 0] })],
+            Military = basis.Military! with
+            {
+                Tactics = [new(42, 0, TacticEffect.Martial, 20, 3, 0, true, true, [7])],
+                Formations = basis.Military.Formations.Select(f => f.Id == 7 ? f with
+                    { Attack = new(1, false), Tactics = new(100, 0, 2, [0], []) } : f).ToImmutableArray()
+            }
+        };
+        var session = GameSession.Start(definition, seed);
+        var observation = Observe(session, definition);
+        observation = observation with { Places = observation.Places.Where(p => p.Id == 3).ToImmutableArray(),
+            Forces = observation.Forces.Where(f => f.Action.TargetId == 3).ToImmutableArray() };
+        var baseline = CampaignPlanner.Decide(observation with
+            { Forces = observation.Forces.Select(f => f with { Tactics = null, TacticValue = 0 }).ToImmutableArray() }, [], new(65536));
+        var improved = CampaignPlanner.Decide(observation, [], new(65536));
+        long SpecialistTroops(CampaignDecision decision) => decision.Candidates.Where(c => c.Officers.Contains(4))
+            .Sum(c => (long)((DeployUnitCommand)c.Intent).Soldiers);
+        Assert.True(SpecialistTroops(improved) > SpecialistTroops(baseline));
+        var first = session.Apply(session.Request(new PrepareAdvanceOperation()));
+        Assert.Contains(first.Events.OfType<UnitDeployedEvent>(), e => e.OfficerIds.Contains(4));
+        var events = new List<DomainEvent>();
+        for (int i = 0; i < 6; i++) events.AddRange(session.AdvanceXun().Events);
+        Assert.Contains(events.OfType<TacticActivatedEvent>(), e => e.OfficerIds.Contains(4));
+        Assert.Contains(events.OfType<SettlementCapturedEvent>(), e => e.SettlementId == 3);
+    }
+
     [Fact]
     public void ACompatibleLearnedTacticIsEquippedByThePublicDeployment()
     {
@@ -650,8 +836,8 @@ public sealed class CampaignPlanningTests
         };
         var session = GameSession.Start(definition, 42);
         var result = session.Apply(session.Request(new PrepareAdvanceOperation()));
-        var unit = Assert.Single(result.Events.OfType<UnitDeployedEvent>());
-        Assert.Equal(42, session.Snapshot.Officers.Single(p => p.UnitId == unit.UnitId).EquippedTacticId);
+        var unit = Assert.Single(result.Events.OfType<UnitDeployedEvent>(), e => e.OfficerIds.Contains(3));
+        Assert.Equal(42, session.Snapshot.Officers.Single(p => p.Id == 3 && p.UnitId == unit.UnitId).EquippedTacticId);
     }
 
     [Fact]

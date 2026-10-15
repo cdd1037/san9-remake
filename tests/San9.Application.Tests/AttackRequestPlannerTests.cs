@@ -81,7 +81,8 @@ public sealed class AttackRequestPlannerTests
         EventAssert.Equal(result.Events, restored.Apply(request).Events);
         StateAssert.Equal(session.Capture(), restored.Capture());
         if (expectedTarget == 0) Assert.Equal(MilitaryOrderKind.Transport, Assert.Single(session.Snapshot.Units).Order!.Kind);
-        else Assert.Equal(expectedTarget, Assert.Single(session.Snapshot.Units).Order!.SettlementId);
+        else if (policy == "general") Assert.Contains(session.Snapshot.Units, u => u.Order!.SettlementId == expectedTarget);
+        else Assert.All(session.Snapshot.Units, u => Assert.Equal(expectedTarget, u.Order!.SettlementId));
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
         StateAssert.Equal(session.Capture(), replay.Session.Capture());
         var authored = content with { Information = content.Information with { Corps = content.Information.Corps.Select(c =>

@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Runtime.CompilerServices;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -27,11 +28,35 @@ public static class EconomicSupplyProjection
 
 internal sealed class ArrivalProjectionCache
 {
+    private readonly record struct RouteKey(BattlefieldMap Map, Footprint Shape, TravelMode Mode, WorldPosition Start,
+        MapOccupancy Target, OccupancyKey Occupancy, bool Adjacent, bool Rectangular, int Range);
+    private sealed record CompletedRoute(RouteCostEstimate Estimate, long Work);
+    private sealed class CompletedRoutes
+    {
+        private readonly Dictionary<RouteKey, CompletedRoute> values = [];
+        private readonly Queue<RouteKey> order = [];
+        internal CompletedRoute? Find(RouteKey key, long allowance)
+        {
+            lock (values) return values.TryGetValue(key, out var route) && route.Work <= allowance ? route : null;
+        }
+        internal void Add(RouteKey key, CompletedRoute route)
+        {
+            lock (values)
+            {
+                if (values.ContainsKey(key)) return;
+                if (values.Count == 2048) values.Remove(order.Dequeue());
+                values.Add(key, route);
+                order.Enqueue(key);
+            }
+        }
+    }
+    // Only completed geometry is reusable across batches. Charge its original work on a hit,
+    // and redo searches whose allowance is smaller: cache warmth cannot change decisions.
+    // All passability inputs are in RouteKey; the weak map owner and bounded FIFO limit retention.
+    private static readonly ConditionalWeakTable<BattlefieldMap, CompletedRoutes> completedRoutes = new();
     // Path geometry is independent of preparation, daily budget, movement remainder and navigation lookahead.
     // This cache lives for one control batch and survives unrelated world changes through its input values.
-    private readonly Dictionary<(BattlefieldMap Map, Footprint Shape, TravelMode Mode, WorldPosition Start,
-        MapOccupancy Target, OccupancyKey Occupancy, bool Adjacent, bool Rectangular, int Range),
-        (RouteCostEstimate Estimate, long Allowance)> estimates = [];
+    private readonly Dictionary<RouteKey, (RouteCostEstimate Estimate, long Allowance)> estimates = [];
     private MilitarySituation? situation;
     private WorldSnapshot? situationWorld;
     private int situationObserver;
@@ -76,16 +101,24 @@ internal sealed class ArrivalProjectionCache
         }
         RouteCostEstimate Search(BattlefieldMap map, WorldPosition start, MapOccupancy target, bool adjacent, bool rectangular, int range)
         {
-            var key = (map, travel.Shape, travel.Mode, start, target, occupied, adjacent, rectangular, range);
+            var key = new RouteKey(map, travel.Shape, travel.Mode, start, target, occupied, adjacent, rectangular, range);
             long allowance = Math.Min(work.Remaining, Math.Max(1, work.Maximum / 2));
             if (estimates.TryGetValue(key, out var saved) &&
                 (saved.Estimate.Status != RouteReachability.Incomplete || allowance <= saved.Allowance)) return saved.Estimate;
             if (allowance == 0) return new(RouteReachability.Incomplete);
+            var completed = completedRoutes.GetValue(map, _ => new());
+            if (completed.Find(key, allowance) is { } reused)
+            {
+                work.Charge(reused.Work);
+                estimates[key] = (reused.Estimate, allowance);
+                return reused.Estimate;
+            }
             var search = new AllocationWork(allowance);
             var estimate = map.EstimateTravelCost(start, target, travel.Shape, travel.Mode,
                 input.Occupancy, search.Navigation(), adjacent, range, rectangular);
             work.Charge(allowance - search.Remaining);
             estimates[key] = (estimate, allowance);
+            if (estimate.Status != RouteReachability.Incomplete) completed.Add(key, new(estimate, allowance - search.Remaining));
             return estimate;
         }
         long cost = 0;
@@ -174,6 +207,52 @@ internal static class SupportObservationCapture
                 "existing own order; preparation and confusion; single-route ETA; frozen public buildings"));
             if (estimate.Status == ArrivalEstimateStatus.Incomplete) { complete = false; continue; }
         }
+        // Potential garrison attacks use actual public routes. A geometric lower bound can order
+        // these queries but cannot justify moving our reserve through an impassable border.
+        var mobilization = new AllocationWork(work.Remaining / 4);
+        foreach (var source in cache.Situation(world, seat.ForceId, rules).Sources.Where(s => s.SettlementId is not null))
+        {
+            if (!mobilization.Spend()) { complete = false; break; }
+            var place = world.Settlements.Single(s => s.Id == source.SettlementId);
+            var publicOccupancy = MilitaryRouteQuery.Occupancy(world, rules, place.OwnerId!.Value, new(), includeUnits: false).ToImmutableArray();
+            var start = MilitaryRouteQuery.DeploymentPosition(source.Travel, rules.SettlementArea(place), publicOccupancy);
+            if (start is null) continue;
+            // One public joint hypothesis: a garrison prefers a nearer reachable hostile objective.
+            // Remote enemies are not all assumed to mobilize against this observer simultaneously.
+            int firstOwn = own.Select(s => NavigationArrivalForecast.EarliestDays(source.Travel, start.Value,
+                rules.SettlementArea(s), source.PreparationDays)).DefaultIfEmpty(int.MaxValue).Min();
+            bool otherFront = false;
+            foreach (var alternative in world.Settlements.Where(s => !s.IsDormant && !s.IsDestroyed && s.CanHostPersons &&
+                s.OwnerId != seat.ForceId && s.OwnerId != source.OwnerId && rules.TryPlace(s, out _) &&
+                (s.OwnerId is not int owner || MilitaryDiplomacy.AutomaticEnemy(world, source.OwnerId, owner)))
+                .OrderBy(s => MapCoordinates.Distance(source.Position, rules.Place(s).Position)).ThenBy(s => s.Id))
+            {
+                if (!mobilization.Spend()) { complete = false; break; }
+                if (NavigationArrivalForecast.EarliestDays(source.Travel, start.Value, rules.SettlementArea(alternative), source.PreparationDays) >= firstOwn) continue;
+                var arrival = cache.Evaluate(new(source.Travel, start.Value, rules.SettlementArea(alternative), publicOccupancy,
+                    PreparationDays: source.PreparationDays), mobilization, sharedTerrain: true);
+                if (arrival.Status == ArrivalEstimateStatus.Incomplete) complete = false;
+                if (arrival.Status == ArrivalEstimateStatus.Known && arrival.Days < firstOwn) { otherFront = true; break; }
+            }
+            if (otherFront) continue;
+            (int Target, ArrivalEstimate Arrival)? nearest = null;
+            foreach (var target in own.OrderBy(s => NavigationArrivalForecast.EarliestDays(source.Travel, start.Value,
+                rules.SettlementArea(s), source.PreparationDays)).ThenBy(s => s.Id))
+            {
+                if (!mobilization.Spend()) { complete = false; break; }
+                int earliest = NavigationArrivalForecast.EarliestDays(source.Travel, start.Value, rules.SettlementArea(target), source.PreparationDays);
+                if (nearest is { } known && earliest > known.Arrival.Days) continue;
+                var arrival = cache.Evaluate(new(source.Travel, start.Value, rules.SettlementArea(target), publicOccupancy,
+                    PreparationDays: source.PreparationDays), mobilization);
+                if (arrival.Status == ArrivalEstimateStatus.Incomplete) complete = false;
+                if (arrival.Status != ArrivalEstimateStatus.Known) continue;
+                if (nearest is null || arrival.Days < nearest.Value.Arrival.Days || arrival.Days == nearest.Value.Arrival.Days && target.Id < nearest.Value.Target)
+                    nearest = (target.Id, arrival);
+            }
+            if (nearest is { } threat) arrivals.Add(new(null, source.SettlementId, threat.Target, threat.Arrival, source.Soldiers,
+                source.Strength, true, "public garrison mobilization; one destination; legal terrain route and preparation"));
+        }
+        work.Charge(mobilization.Maximum - mobilization.Remaining);
         int root = world.Corps.Single(c => c.OwnerId == seat.ForceId && c.IsRoot).Id;
         foodChanges.AddRange(ProjectFood(world, seat.ForceId, arrivals));
         accounts = EconomicSupplyProjection.Apply(economies, foodChanges.ToImmutable()).SelectMany(e => e.Observation.Accounts)

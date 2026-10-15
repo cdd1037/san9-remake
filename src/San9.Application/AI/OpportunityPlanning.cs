@@ -177,6 +177,12 @@ internal static class OpportunityObservationCapture
             if (!work.Spend()) { complete = false; break; }
             var account = economy.Accounts.Single(a => a.Id == home.AccountId);
             int posts = postsByPlace[home.Id].Count();
+            var incumbents = postsByPlace[home.Id].Select(p => abilities[p.Id]).ToArray();
+            var bestSkills = new OfficerAbilities(
+                incumbents.Select(a => a.War).DefaultIfEmpty(0).Max(),
+                incumbents.Select(a => a.Intelligence).DefaultIfEmpty(0).Max(),
+                incumbents.Select(a => a.Politics).DefaultIfEmpty(0).Max(),
+                incumbents.Select(a => a.Leadership).DefaultIfEmpty(0).Max());
             bool Wanted(string purpose) => completed?.Contains(controller + ":" + purpose) != true;
             foreach (int actor in home.OfficerIds.OrderByDescending(id => abilities[id].Intelligence + abilities[id].Politics).ThenBy(id => id))
             {
@@ -187,15 +193,23 @@ internal static class OpportunityObservationCapture
                 if (Wanted("personnel"))
                 foreach (var person in recruitable)
                 {
-                    if (posts >= 3 && person.Status is OfficerStatus.Free or OfficerStatus.Captive) continue;
                     if (person.IsServing && (person.Loyalty >= 95 || person.Status == OfficerStatus.Ruler)) continue;
                     if (!work.Spend()) { complete = false; break; }
+                    var skills = person.BaseAbilities;
+                    // Existing staffing reduces replacement value, but cannot hide a missing specialist.
+                    long marginal = Math.Max(0, skills.Leadership - bestSkills.Leadership) +
+                        Math.Max(0, skills.War - bestSkills.War) +
+                        Math.Max(0, skills.Intelligence - bestSkills.Intelligence) +
+                        Math.Max(0, skills.Politics - bestSkills.Politics);
+                    long staffing = posts < 3 ? (skills.Politics + skills.Leadership) * (3L - posts) / 3 : 0;
+                    long personnelValue = (marginal + staffing) * 50;
+                    if (personnelValue == 0) continue;
                     if (!CanDepart(0) || pending.Contains((controller, $"{nameof(RecruitOfficerCommand)}:{person.Id}"))) continue;
                     var journey = engine.GetPersonnelJourney(forceId, actor, person.Id, PersonnelJourneyKind.Recruit);
                     if (journey.Available)
                         Add(new RecruitOfficerCommand(Guid.Empty, forceId, 0, actor, person.Id), () => journey.Advice,
                             person.IsServing ? Math.Clamp(100 - person.Loyalty, 5, 60) : 40,
-                            (person.BaseAbilities.Politics + person.BaseAbilities.Leadership) * 50L,
+                            personnelValue,
                             "personnel", person.Id, journey.Days ?? 10, 0);
                 }
                 if (posts < 3 && Wanted("search"))

@@ -9,11 +9,19 @@ public sealed record UnitEngagementChangedEvent(GameClock Clock, int UnitId, int
 
 internal static class MilitaryPolicies
 {
-    internal static CommandRejection Set(WorldMutation world, SetUnitPoliciesCommand command, List<DomainEvent> events)
+    internal static CommandRejection Eligibility(WorldMutation world, SetUnitPoliciesCommand command)
     {
         if (command.Policies is null || !world.Units.TryGetValue(command.UnitId, out var unit) ||
             unit.OwnerId != command.IssuerId || unit.IsEmbedded || unit.IsPersonnel || unit.FormationId is null)
             return CommandRejection.InvalidTask;
+        return CommandRejection.None;
+    }
+
+    internal static CommandRejection Set(WorldMutation world, SetUnitPoliciesCommand command, List<DomainEvent> events)
+    {
+        var rejection = Eligibility(world, command);
+        if (rejection != CommandRejection.None) return rejection;
+        var unit = world.Units[command.UnitId];
         world.Replace(unit with { Policies = command.Policies, CommandedThisXun = true });
         events.Add(new UnitPoliciesChangedEvent(world.Clock, unit.Id, command.Policies));
         return CommandRejection.None;

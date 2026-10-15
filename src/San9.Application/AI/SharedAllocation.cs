@@ -27,7 +27,28 @@ public sealed record AllocationCandidate(string ControllerId, int AccountId, Gam
     public long OfficerOpportunityCost { get; init; }
     public CampaignGoal? Campaign { get; init; }
     public OpportunityOption? Opportunity { get; init; }
+    public ImmutableArray<int> BeforeDeparture { get; init; } = [];
+    public AllocationContinuation? Continuation { get; init; }
+    public bool Configuration { get; init; }
+    public uint? ReceivingSoldierTarget { get; init; }
+    // Includes actors reserved for subsequent steps, even when this step does not consume their action.
+    public ImmutableArray<int> Participants
+    {
+        get
+        {
+            if (Continuation is null) return Officers;
+            var people = Officers.ToBuilder();
+            foreach (int person in Continuation.Action.Participants)
+                if (!people.Contains(person)) people.Add(person);
+            return people.ToImmutable();
+        }
+    }
+    public int ImmediateSteps => 1 + (Continuation is { DelayDays: 0 } next ? next.Action.ImmediateSteps : 0);
 }
+
+/// <summary>Delay is the next step's earliest start, not the current command's effect time.
+/// Zero-delay continuations execute in order; later steps are reconsidered at the next control boundary.</summary>
+public sealed record AllocationContinuation(AllocationCandidate Action, int DelayDays = 0);
 
 public sealed record AllocationDecision(AllocationCandidate? Candidate, EconomicIntent? Economic,
     string? ControllerId, ImmutableArray<FoodSecurityGoal> Goals, long Work, bool Exhausted);
@@ -83,7 +104,7 @@ public static class SharedAllocator
         foreach (var candidate in ranked.Where(c => c.Priority == 0))
         {
             if (!work.Spend()) break;
-            if (Funded(candidate)) return Result(candidate, controller: candidate.ControllerId);
+            if (Funded(candidate)) return Select(candidate);
         }
         if (supply.Count > 0)
         {
@@ -95,7 +116,7 @@ public static class SharedAllocator
         foreach (var candidate in ranked.Where(c => c.Priority > 0))
         {
             if (!work.Spend()) return Result(exhausted: true);
-            if (Funded(candidate)) return Result(candidate, controller: candidate.ControllerId);
+            if (Funded(candidate)) return Select(candidate);
         }
         foreach (var (controller, observation) in economies)
         {
@@ -111,6 +132,23 @@ public static class SharedAllocator
         return Result(exhausted: work.Remaining == 0);
 
         bool Funded(AllocationCandidate candidate) => CanFund(candidate, economies, rejected);
+
+        AllocationDecision Select(AllocationCandidate action)
+        {
+            // Immediate configuration does not consume the departure's actor or any travel day.
+            // Keep the selected mission affordable; an optional reward must never buy away its rescue.
+            foreach (var before in ranked.Where(c => c.Benefit > 0 && c.BeforeDeparture.Intersect(action.Participants).Any()))
+            {
+                if (work.Remaining <= ranked.Length + 2 + economies.Sum(e => 2 * e.Observation.Accounts.Length)) break;
+                if (!work.Spend() || !Funded(before)) continue;
+                var after = economies.Select(e => (e.ControllerId, e.Observation with
+                { Accounts = e.Observation.Accounts.Select(a => a with
+                    { Money = a.Money - (a.Id == before.AccountId ? before.MoneyCost : 0),
+                      Food = a.Food - (a.Id == before.AccountId ? before.AdditionalFood : 0) }).ToImmutableArray() })).ToImmutableArray();
+                if (CanFund(action, after, rejected)) return Result(before with { Continuation = new(action) }, controller: before.ControllerId);
+            }
+            return Result(action, controller: action.ControllerId);
+        }
     }
 
     internal static bool CanFund(AllocationCandidate candidate,
@@ -130,6 +168,6 @@ public static class SharedAllocator
 
     private static bool HasAvailableOfficers(AllocationCandidate candidate,
         ImmutableArray<(string ControllerId, EconomicObservation Observation)> economies) =>
-        candidate.Officers.IsEmpty || economies.Any(e => e.ControllerId == candidate.ControllerId &&
-            candidate.Officers.All(id => e.Observation.Domestic.Settlements.Any(s => s.OfficerIds.Contains(id))));
+        candidate.Participants.IsEmpty || economies.Any(e => e.ControllerId == candidate.ControllerId &&
+            candidate.Participants.All(id => e.Observation.Domestic.Settlements.Any(s => s.OfficerIds.Contains(id))));
 }

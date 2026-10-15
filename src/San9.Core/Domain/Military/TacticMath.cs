@@ -8,6 +8,13 @@ public readonly record struct MartialTacticDamage(uint Calculated, uint Applied)
 /// <summary>Pure tactic arithmetic. Opportunity, resistance, targets and state changes belong to resolution.</summary>
 public static class TacticMath
 {
+    public static int AllocationChance(BattleRank rank, int members, bool favored)
+    {
+        int count = members switch { 1 => 20, 2 => 14, 3 => 10, 4 => 9, >= 5 => 8, _ => throw new ArgumentOutOfRangeException(nameof(members)) };
+        int position = rank switch { BattleRank.Front => 5, BattleRank.Middle => 4, BattleRank.Rear => 3, _ => throw new ArgumentException("Unknown battle rank.") };
+        return position * count * (favored ? 2 : 1) * 5 / 8;
+    }
+
     public static int IntelligenceSuccessChance(int intelligence, int defenderIntelligence)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(intelligence);

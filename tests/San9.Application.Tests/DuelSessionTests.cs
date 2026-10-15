@@ -42,7 +42,9 @@ public sealed class DuelSessionTests
         Assert.True(new StableRandom(StableRandom.DeriveSeed(seed, "duel-trigger")).NextUInt64() % 100 < 3);
         Assert.True(new StableRandom(StableRandom.DeriveSeed(seed, "duel-death")).NextUInt64() % 100 < 30);
         var scenario = Scenario();
-        var session = GameSession.Start(scenario, seed, battleDeathsEnabled: true);
+        // Isolate succession/replay from strategic decisions to withdraw from this deliberately losing duel.
+        var session = GameSession.Start(scenario, seed, battleDeathsEnabled: true,
+            aiPolicy: San9.Application.AI.AiPolicyConfiguration.Standard with { WorkBudget = 1 });
         session.BeginRecording();
         var restored = SaveService.Decode(SaveService.Encode(session), scenario);
         var arrival = session.AdvanceXun();

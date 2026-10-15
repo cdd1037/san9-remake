@@ -56,7 +56,7 @@ internal static class TexturePackagePacking
             new TextureAtlasCompiler.Source(v.Image,
                 a.Category.StartsWith("portraits/", StringComparison.Ordinal) || a.Category == "illustrations"
                     ? null : $"{a.Category}/{a.Id}/palette-{v.PaletteIndex}",
-                a.Id == "g_still" && v.ImageIndex is >= 172 and < 272 ? "illustrations/treasures" : a.Category,
+                a.Id == "g_still" && v.ImageIndex is >= 172 and < 272 ? "treasures" : a.Category,
                 a.Id == "g_still" && v.ImageIndex is >= 172 and < 272 ? v.ImageIndex - 172 : null)));
         var requests = mapSources.Concat(uiSources).Concat(landSources).Concat(librarySources)
             .Concat(portraits.Select(p => new TextureAtlasCompiler.Source(p.Image, null, "portraits", p.Id))).ToArray();

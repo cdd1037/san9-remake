@@ -82,7 +82,7 @@ public static class ScenarioContentCompiler
             return new ForceInitialState(id, name, f.ColorCode, f.Trust) { AdditionalFormationIds = AdditionalFormations(f.CountryTitleId), EventHistory = EventContentCompiler.ForceEventHistory(f), HasDeposedEmperor = f.HasEventHistoryMarker(0), BaseTrust = f.BaseTrust, ProvidedTactics = Enumerable.Range(0, San9ScenarioForceArchive.TacticCount).Where(f.HasTactic).ToImmutableArray(), RankId = f.RankGroupId, CountryTitleId = f.CountryTitleId, IsBarbarian = f.IsBarbarian || f.CountryTitleId is >= 4 and <= 8, LeaderId = leader, FlagGlyph = p.FlagCode < 186 ? p.FlagCode : -1 };
         }).ToArray();
         var officers = OfficerContentCompiler.Compile(persons, settlements, summaries, text, new San9MessageTable(biographies));
-        summaries = summaries.Select(f => f with { AdviserId = officers.Where(o => o.State.OwnerId == f.Id && o.State.Status == San9.Core.Domain.OfficerStatus.Strategist)
+        summaries = summaries.Select(f => f with { AutomaticSchedulingKey = f.Id, AdviserId = officers.Where(o => o.State.OwnerId == f.Id && o.State.Status == San9.Core.Domain.OfficerStatus.Strategist)
             .Select(o => (int?)o.State.Id).SingleOrDefault() }).ToArray();
         var treasureStates = TreasureContentCompiler.InitialStates(items);
         var treasureDiplomacy = TreasureContentCompiler.DiplomacyPreferences(exe, persons, officers.Select(o => o.State.Id),
@@ -141,6 +141,7 @@ public static class ScenarioContentCompiler
             header.StartDate.Year, header.StartDate.Month, header.StartDate.Day, 5, summaries, settlements.OrderBy(s => s.Id).ToArray(), regions, regionCities)
         { UnbuiltPlaces = personPlaces.Where(p => settlements.All(s => s.Id != p.Id)).Select(p => new San9.Core.Domain.PersonPlace(p.Id, San9.Core.Domain.MapCoordinates.Center(new(p.X, p.Y)))).ToImmutableArray(),
             FacilityNameSuffixKeys = suffixKeys,
+            OriginalAi = OriginalAiContentCompiler.Compile(persons, officers.Select(o => o.State.Id)),
             PoliticalEvents = PoliticalContentCompiler.Events(header.ScenarioModeCode),
             SunMarriage = EventContentCompiler.SunMarriage(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id)),
             HanzhongKing = EventContentCompiler.HanzhongKing(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id)),

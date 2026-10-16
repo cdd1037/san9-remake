@@ -45,6 +45,9 @@ public sealed partial class GameSession
     internal bool IsExecuting => _executing;
     private EndingSelection? _ending;
     public ControllerKind PlayerForceController { get; private set; } = ControllerKind.Player;
+    private OriginalAiState _originalAi;
+    public OriginalAiState OriginalAi => _originalAi;
+    public ImmutableArray<OriginalAiWorkReport> LastOriginalAiWork { get; private set; } = [];
     private StrategicContextState _strategicContext;
     public StrategicContextState StrategicContext => _strategicContext;
     public event Action? Changed;
@@ -53,6 +56,7 @@ public sealed partial class GameSession
     {
         _definition = definition;
         _simulation = simulation;
+        _originalAi = OriginalAiState.Create(definition.Content);
         _initialEvents = simulation.InitialEvents;
         _snapshotSource = new(definition.Content, definition.MilitaryRules);
         _view = _snapshotSource.Project(simulation.Snapshot);
@@ -236,6 +240,7 @@ public sealed partial class GameSession
         session.NextOperationSequence = snapshot.NextOperationSequence;
         session._ending = snapshot.Ending;
         session._strategicContext = snapshot.StrategicContext;
+        session._originalAi = snapshot.OriginalAi;
         session.PlayerForceController = snapshot.PlayerForceController;
         session.HasUnsavedChanges = false;
         return session;
@@ -261,7 +266,7 @@ public sealed partial class GameSession
         var records = _records.ToImmutableArray();
         var chronicle = _chronicle.ToImmutableArray();
         return _capture = new(world, records, chronicle, NextOperationSequence)
-            { Ending = _ending, StrategicContext = _strategicContext, PlayerForceController = PlayerForceController };
+            { Ending = _ending, StrategicContext = _strategicContext, PlayerForceController = PlayerForceController, OriginalAi = _originalAi };
     }
 
     public SessionRequest Request(SessionOperation operation, string controllerId = "player", Guid? id = null)
@@ -299,6 +304,8 @@ public sealed partial class GameSession
         {
             // One operation can close several controls and advance. Publish only after all validation succeeds.
             var candidate = _simulation.Fork();
+            var originalAi = _originalAi;
+            List<OriginalAiWorkReport> aiReports = [];
             List<DomainEvent> events = [];
             List<WorldSnapshot> frames = [];
             DevelopmentOutcome? development = null;
@@ -328,7 +335,7 @@ public sealed partial class GameSession
                     events.AddRange(command.Events);
                     break;
                 case EndControlOperation:
-                    AutomaticTurnRunner.EndControl(candidate, new(request.ControllerId), events);
+                    originalAi = AutomaticTurnRunner.EndControl(candidate, new(request.ControllerId), events, _definition, originalAi, aiReports);
                     break;
                 case PrepareAdvanceOperation:
                 case AdvanceOperation:
@@ -339,7 +346,7 @@ public sealed partial class GameSession
                         candidate.Snapshot.Simulation.ActiveControl < candidate.Snapshot.Simulation.Controls.Length)
                     {
                         var seat = candidate.Snapshot.Simulation.Controls[candidate.Snapshot.Simulation.ActiveControl];
-                        AutomaticTurnRunner.EndControl(candidate, new(seat.ControllerId), events);
+                        originalAi = AutomaticTurnRunner.EndControl(candidate, new(seat.ControllerId), events, _definition, originalAi, aiReports);
                     }
                     if (request.Operation is AdvanceOperation && candidate.Snapshot.Simulation.Boundary == SimulationBoundary.Stable)
                     {
@@ -370,6 +377,8 @@ public sealed partial class GameSession
             var publishedEvents = events.ToImmutableArray();
             var recorded = IsRecording ? new RecordedOperation(request, publishedEvents) : null;
             _simulation = candidate;
+            _originalAi = originalAi.Reconcile(snapshot);
+            LastOriginalAiWork = aiReports.ToImmutableArray();
             _ending = ending;
             _strategicContext = strategicContext;
             _records.AddRange(completed);

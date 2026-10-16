@@ -3,6 +3,18 @@ namespace San9.Headless;
 public sealed record HeadlessFailure(string Code, string Message, int? Line = null);
 public sealed record ContentCoverage(int Forces, int Settlements, int Officers, int Units, int Corps, int Treasures, int Relations);
 public sealed record EvaluationMachine(string Framework, string OperatingSystem, string Architecture, int LogicalProcessors);
+public sealed record OriginalAiXunMeasurement(Core.Simulation.GameClock Clock, long Microseconds, long AllocatedBytes);
+public sealed class OriginalAiWorkMeasurement(int corpsId, string work)
+{
+    public int CorpsId { get; } = corpsId;
+    public string Work { get; } = work;
+    public int Runs { get; set; }
+    public long Attempts { get; set; }
+    public long Submitted { get; set; }
+    public long TotalMicroseconds { get; set; }
+    public long MaximumMicroseconds { get; set; }
+    public long AllocatedBytes { get; set; }
+}
 
 public sealed class HeadlessReport
 {
@@ -42,6 +54,8 @@ public sealed class HeadlessReport
     public long BattleSoldierLoss { get; set; }
     public long BattleDead { get; set; }
     public long UnrecoveredSoldiers { get; set; }
-    public string ProactiveAi { get; } = "unavailable";
-    public string Scope { get; set; } = "Domestic commands and economic cycles with scripted/simple policy, save and replay; no warfare or complete strategic AI.";
+    public string ProactiveAi { get; } = "original-economy-v1";
+    public List<OriginalAiXunMeasurement> OriginalAiXuns { get; } = [];
+    public List<OriginalAiWorkMeasurement> OriginalAiWorkCosts { get; } = [];
+    public string Scope { get; set; } = "Original economic AI cycle and optional player scripts, save and replay; later personnel, military and diplomacy policies remain pending.";
 }

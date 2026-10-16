@@ -23,7 +23,8 @@ public sealed partial class GameSession
         {
             // Apply branches the shared committed runtime once, before making any changes.
             var worker = new GameSession(_definition, simulation)
-            { NextOperationSequence = sequence, _ending = ending };
+            { NextOperationSequence = sequence, _ending = ending, _originalAi = _originalAi,
+                _strategicContext = _strategicContext, PlayerForceController = PlayerForceController };
             worker._records.AddRange(records);
             worker._chronicle.AddRange(chronicle);
             var result = worker.Apply(request);
@@ -72,11 +73,14 @@ public sealed partial class GameSession
                     _owner._view = worker._view;
                     _owner._ending = worker._ending;
                     _owner._strategicContext = worker._strategicContext;
+                    _owner._originalAi = worker._originalAi;
+                    _owner.LastOriginalAiWork = worker.LastOriginalAiWork;
                     _owner._records.Clear();
                     _owner._records.AddRange(worker._records);
                     _owner._chronicle.Clear();
                     _owner._chronicle.AddRange(worker._chronicle);
                     _owner.NextOperationSequence = worker.NextOperationSequence;
+                    _owner.HasUnsavedChanges = true;
                     _owner._capture = null;
                     if (_owner.IsRecording)
                         _owner._recording.Add(new(_request, result.Events.ToImmutableArray()));

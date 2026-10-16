@@ -240,10 +240,11 @@ public sealed class GiftSessionTests
         var session = GameSession.Start(content, 42);
         Assert.True(session.Execute(new("player"), new GiftCommand(Guid.NewGuid(), 1, 0, 12, 2,
             new(GiftKind.Money, 20000, null))).Submission.Accepted);
-        // Isolate overflow settlement from optional economic and search income.
-        Assert.Equal(SessionDisposition.Accepted, session.Apply(session.Request(new PrepareAdvanceOperation())).Disposition);
-        uint room = 1000000 - session.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 2).Treasury.Money;
-        var result = Assert.Single(session.AdvanceXun().Events.OfType<GiftResolvedEvent>());
+        // Public capacity settlement is independent of automatic economics and residual searches.
+        var engine = GameSession.EngineFactory(content)(WorldState.Restore(session.Snapshot));
+        foreach (var seat in engine.Snapshot.Simulation.Controls) engine.EndControl(new(seat.ControllerId));
+        uint room = 1000000 - engine.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 2).Treasury.Money;
+        var result = Assert.Single(engine.AdvanceXun().Events.OfType<GiftResolvedEvent>());
         Assert.True(result.Accepted);
         Assert.Equal(room, result.Received);
         Assert.Equal(20000u, result.Received + result.Spent);

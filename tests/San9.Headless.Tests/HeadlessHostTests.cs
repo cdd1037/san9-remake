@@ -53,7 +53,7 @@ public sealed class HeadlessHostTests : IDisposable
         var verified = Run("verify", "--fixture", "--strategy", "autonomous", "--xuns", "6",
             "--seed", seed.ToString(), "--output", _directory);
         Assert.Equal(0, verified.Code);
-        Assert.Equal("unavailable", verified.Report.GetProperty("proactiveAi").GetString());
+        Assert.Equal("original-economy-v1", verified.Report.GetProperty("proactiveAi").GetString());
         Assert.Equal(6, verified.Report.GetProperty("completedXun").GetInt32());
         var initial = StrictJson.Deserialize<SaveEnvelope>(File.ReadAllBytes(FilePath("initial.save.json"))).Session;
         Assert.All(initial.World.Simulation.Controls, seat => Assert.Equal(ControllerKind.Automatic, seat.Kind));
@@ -91,6 +91,25 @@ public sealed class HeadlessHostTests : IDisposable
         var result = Run("run", "--scenario", FilePath("scenario.json"), "--log", FilePath("invalid-policy.jsonl"),
             "--report", FilePath("invalid-policy-report.json"));
         Assert.Equal(5, result.Code);
+        Assert.Equal(1, result.Report.GetProperty("firstFailure").GetProperty("line").GetInt32());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void InvalidLoggedPolicyIsAReplayFailure(bool unknownRuler)
+    {
+        WriteFailureScenario();
+        var lines = File.ReadAllLines(FilePath("commands.jsonl"));
+        var header = JsonNode.Parse(lines[0])!;
+        if (unknownRuler) header["originalAi"]!["preferredStrategyRulerIds"] = new JsonArray(9001);
+        else header["originalAi"]!["workRules"]!.AsObject().Remove("Trade");
+        lines[0] = header.ToJsonString();
+        File.WriteAllLines(FilePath("invalid-policy.jsonl"), lines, System.Text.Encoding.UTF8);
+        var result = Run("run", "--scenario", FilePath("scenario.json"), "--log", FilePath("invalid-policy.jsonl"),
+            "--report", FilePath("invalid-policy-report.json"));
+        Assert.Equal(5, result.Code);
+        Assert.Equal("replay", result.Report.GetProperty("firstFailure").GetProperty("code").GetString());
         Assert.Equal(1, result.Report.GetProperty("firstFailure").GetProperty("line").GetInt32());
     }
 
@@ -359,8 +378,8 @@ public sealed class HeadlessHostTests : IDisposable
         Assert.Equal(0, verification.Code);
         Assert.True(verification.Report.GetProperty("success").GetBoolean());
         Assert.Equal(2, verification.Report.GetProperty("completedXun").GetInt32());
-        // Only the explicit player script develops; automatic seats do not plan work.
-        Assert.Equal(2, verification.Report.GetProperty("developmentCommands").GetInt32());
+        // Explicit scripts and the production original economic cycle share public commands.
+        Assert.True(verification.Report.GetProperty("developmentCommands").GetInt32() > 2);
         var readOptions = new JsonSerializerOptions(CanonicalJson.Options) { AllowOutOfOrderMetadataProperties = true };
         var requests = File.ReadLines(FilePath("commands.jsonl")).Skip(1)
             .Select(line => JsonSerializer.Deserialize<SessionRequest>(line, readOptions)!).ToArray();

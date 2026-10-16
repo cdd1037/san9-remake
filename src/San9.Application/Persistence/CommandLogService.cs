@@ -10,6 +10,7 @@ public sealed record CommandLogHeader(int FormatVersion, string RulesVersion, ul
     [System.Text.Json.Serialization.JsonRequired] public int ComputerDamageBonusPercent { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public bool BattleDeathsEnabled { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public ControllerKind PlayerForceController { get; init; } = ControllerKind.Player;
+    [System.Text.Json.Serialization.JsonRequired] public San9.Content.Scenarios.OriginalAiDefinition OriginalAi { get; init; } = San9.Content.Scenarios.OriginalAiDefinition.Default;
 }
 public sealed record ReplayAttempt(int Line, SessionRequest? Request, SessionDisposition Disposition, SessionRejection Rejection);
 public sealed record ReplayResult(int Accepted, int AlreadyProcessed, ReplayAttempt? FirstFailure,
@@ -28,7 +29,7 @@ public static class CommandLogService
         Write(path, new(SessionProtocol.LogFormatVersion, SessionProtocol.RulesVersion, recording.Initial.World.Simulation.InitialSeed)
             { BattleDeathsEnabled = recording.Initial.World.Simulation.BattleDeathsEnabled,
                 ComputerDamageBonusPercent = recording.Initial.World.Simulation.ComputerDamageBonusPercent,
-                PlayerForceController = recording.Initial.PlayerForceController },
+                PlayerForceController = recording.Initial.PlayerForceController, OriginalAi = recording.Initial.OriginalAi.Policy },
             recording.Operations.Select(e => e.Request));
     }
 
@@ -48,7 +49,7 @@ public static class CommandLogService
     private static CommandLogHeader ReadHeader(StreamReader reader)
     {
         var header = Parse<CommandLogHeader>(reader.ReadLine(), 1);
-        if (!Enum.IsDefined(header.PlayerForceController))
+        if (!Enum.IsDefined(header.PlayerForceController) || header.OriginalAi is null)
             throw new CommandLogException(1, "Invalid player force controller.");
         return header;
     }
@@ -60,7 +61,8 @@ public static class CommandLogService
         if (header.FormatVersion != SessionProtocol.LogFormatVersion ||
             header.ComputerDamageBonusPercent != session.Snapshot.Simulation.ComputerDamageBonusPercent ||
             header.Seed != session.Snapshot.Simulation.InitialSeed || header.BattleDeathsEnabled != session.Snapshot.Simulation.BattleDeathsEnabled ||
-            header.PlayerForceController != session.PlayerForceController)
+            header.PlayerForceController != session.PlayerForceController ||
+            CanonicalJson.Text(header.OriginalAi) != CanonicalJson.Text(session.OriginalAi.Policy))
             throw new CommandLogException(1, "Log version, seed or session configuration mismatch.");
         if (string.IsNullOrWhiteSpace(header.RulesVersion)) throw new CommandLogException(1, "Missing log rules version.");
         session.ReportRulesVersion(header.RulesVersion);

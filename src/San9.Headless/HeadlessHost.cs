@@ -244,6 +244,9 @@ public sealed class HeadlessHost
         string log = Path.GetFullPath(Required(options, "log"));
         _report.CommandLog = log;
         var header = CommandLogService.ReadHeader(log);
+        try { header.OriginalAi.Validate(definition.Officers.Select(o => o.State.Id).ToHashSet()); }
+        catch (InvalidDataException error) { throw new CommandLogException(1, "Invalid original AI policy.", error); }
+        definition = definition with { OriginalAi = header.OriginalAi };
         _session = options.TryGetValue("load", out string? load) ? SaveService.Load(load, definition) :
             options.TryGetValue("restore", out string? restore) ? SaveService.Read(restore, definition) : GameSession.Start(definition, header.Seed, header.ComputerDamageBonusPercent, battleDeathsEnabled: header.BattleDeathsEnabled, playerForceController: header.PlayerForceController);
         _started = _session.Snapshot.Clock;
@@ -298,9 +301,30 @@ public sealed class HeadlessHost
         SaveService.Write(Path.Combine(output, "initial.save.json"), _session);
         List<DomainEvent> events = [];
         List<object> checkpoints = [];
+        long xunTicks = 0, xunAllocation = 0;
+        var workCosts = new Dictionary<(int Corps, string Work), OriginalAiWorkMeasurement>();
         void Compare(SessionRequest request)
         {
+            long tick = Stopwatch.GetTimestamp(), allocation = GC.GetAllocatedBytesForCurrentThread();
             var a = _session.Apply(request);
+            xunTicks += Stopwatch.GetTimestamp() - tick;
+            xunAllocation += GC.GetAllocatedBytesForCurrentThread() - allocation;
+            foreach (var work in _session.LastOriginalAiWork)
+            {
+                var key = (work.CorpsId, work.Work.ToString());
+                if (!workCosts.TryGetValue(key, out var cost))
+                {
+                    workCosts[key] = cost = new(work.CorpsId, key.Item2);
+                    _report.OriginalAiWorkCosts.Add(cost);
+                }
+                long microseconds = work.ElapsedTimestampTicks * 1000000 / Stopwatch.Frequency;
+                cost.Runs++;
+                cost.Attempts += work.Attempts;
+                cost.Submitted += work.Submitted;
+                cost.TotalMicroseconds += microseconds;
+                cost.MaximumMicroseconds = Math.Max(cost.MaximumMicroseconds, microseconds);
+                cost.AllocatedBytes += work.AllocatedBytes;
+            }
             var b = restored.Apply(request);
             var difference = SessionDiagnostics.Compare(_session, restored);
             var eventDifference = EventDiagnostics.Compare(a.Events, b.Events);
@@ -330,6 +354,8 @@ public sealed class HeadlessHost
         bool firstCommand = true;
         for (int xun = 0; xun < xuns && _session.Snapshot.Simulation.Boundary != SimulationBoundary.Terminal; xun++)
         {
+            xunTicks = 0;
+            xunAllocation = 0;
             foreach (var seat in _session.Snapshot.Simulation.Controls)
             {
                 if (_session.Snapshot.Simulation.Boundary == SimulationBoundary.Terminal) break;
@@ -384,6 +410,7 @@ public sealed class HeadlessHost
                 Compare(request with { Operation = new CommandOperation(answer) });
             }
             if (answeredDecision) Checkpoint("after-player-decisions");
+            _report.OriginalAiXuns.Add(new(_session.Snapshot.Clock, xunTicks * 1000000 / Stopwatch.Frequency, xunAllocation));
             if (xun % 5 == 0 || _session.Snapshot.Clock is { Month: 12, Day: 21 }) Checkpoint("stable-period");
             if (_session.View.Year != restored.View.Year || _session.View.Day != restored.View.Day ||
                 !_session.Records.SequenceEqual(restored.Records) || !_session.Chronicle.SequenceEqual(restored.Chronicle))

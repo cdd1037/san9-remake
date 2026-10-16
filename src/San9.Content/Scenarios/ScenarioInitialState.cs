@@ -4,6 +4,7 @@ namespace San9.Content.Scenarios;
 
 public sealed record ForceInitialState(int Id, string NameKey, int ColorCode, int Trust)
 {
+    [JsonRequired] public long? AutomaticSchedulingKey { get; init; }
     [JsonRequired] public System.Collections.Immutable.ImmutableArray<int> AdditionalFormationIds { get; init; } = [];
     [JsonRequired] public bool IsDormant { get; init; }
     [JsonRequired] public bool HasDeposedEmperor { get; init; }
@@ -43,7 +44,8 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 129;
+    public const int CurrentSchemaVersion = 130;
+    [JsonRequired] public OriginalAiDefinition OriginalAi { get; init; } = OriginalAiDefinition.Default;
     [JsonRequired] public int FoodExchangeRate { get; init; } = 1;
     [JsonRequired] public San9.Core.Domain.FoodMarketDefinition? FoodMarket { get; init; }
     [JsonRequired] public San9.Core.Domain.HanzhongKingDefinition? HanzhongKing { get; init; }
@@ -90,6 +92,12 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
     [JsonRequired] public InformationDefinitions Information { get; init; } = InformationDefinitions.Empty;
     public void Validate()
     {
+        if (OriginalAi is null) throw new InvalidDataException("Missing original AI policy.");
+        OriginalAi.Validate(Officers.Select(p => p.State.Id).ToHashSet());
+        if (Forces.Any(f => f.AutomaticSchedulingKey < 0 || f.AutomaticSchedulingKey == long.MaxValue) ||
+            Forces.Where(f => f.AutomaticSchedulingKey is not null).Select(f => f.AutomaticSchedulingKey).Distinct().Count() !=
+            Forces.Count(f => f.AutomaticSchedulingKey is not null))
+            throw new InvalidDataException("Invalid automatic scheduling keys.");
         if (SchemaVersion != CurrentSchemaVersion || string.IsNullOrWhiteSpace(ScenarioId) || Year < 1 || Month is < 1 or > 12 || Day is < 1 or > 30 ||
             SearchEvents.IsDefault || Forces.Select(f => f.Id).Distinct().Count() != Forces.Length ||
             !Forces.Any(f => f.Id == PlayerForceId && (!f.IsDormant || SearchEvents.OfType<San9.Core.Domain.ForceActivationSearchEventDefinition>().Any(d => d.ForceId == f.Id))))

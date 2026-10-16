@@ -9,7 +9,7 @@ namespace San9.Application.Diagnostics;
 
 public sealed record SessionDiagnosticSnapshot(WorldDiagnosticSnapshot World, ImmutableArray<SessionRecord> Records,
     ImmutableArray<ChronicleEntry> Chronicle, EndingSelection? Ending, Presentation.StrategicContextState StrategicContext,
-    long NextOperationSequence, ControllerKind PlayerForceController);
+    long NextOperationSequence, ControllerKind PlayerForceController, AI.OriginalAiState OriginalAi);
 
 public static class SessionDiagnostics
 {
@@ -19,7 +19,7 @@ public static class SessionDiagnostics
 
     public static SessionDiagnosticSnapshot Capture(SessionSnapshot session) => new(WorldDiagnostics.Capture(session.World),
         session.Records, session.Chronicle, session.Ending, session.StrategicContext,
-        session.NextOperationSequence, session.PlayerForceController);
+        session.NextOperationSequence, session.PlayerForceController, session.OriginalAi);
 
     public static JsonElement Serialize(SessionSnapshot session) =>
         JsonSerializer.SerializeToElement(Capture(session), SessionDiagnosticJsonContext.Default.SessionDiagnosticSnapshot);
@@ -43,6 +43,7 @@ public static class SessionDiagnostics
         bool equal = comparison.Check(expected.Chronicle, actual.Chronicle, "$.chronicle") &&
             comparison.Check(expected.Ending, actual.Ending, "$.ending") &&
             comparison.Check(expected.NextOperationSequence, actual.NextOperationSequence, "$.nextOperationSequence") &&
+            comparison.Check(expected.OriginalAi, actual.OriginalAi, "$.originalAi") &&
             comparison.Check(expected.PlayerForceController, actual.PlayerForceController, "$.playerForceController") &&
             comparison.Check(expected.Records, actual.Records, "$.records") &&
             comparison.Check(expected.StrategicContext, actual.StrategicContext, "$.strategicContext");

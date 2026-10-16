@@ -12,7 +12,7 @@ public sealed class AiProductionBaselineTests
     [InlineData(ControllerKind.Player, CorpsControlMode.Automatic)]
     [InlineData(ControllerKind.Automatic, CorpsControlMode.Direct)]
     [InlineData(ControllerKind.Automatic, CorpsControlMode.Automatic)]
-    public void EndingControlsMatchesPublicEngineWithoutPlanningOrResourceChanges(
+    public void AutomaticControlsRunEconomicWorkOnceAndRestoreExactly(
         ControllerKind controller, CorpsControlMode corpsMode)
     {
         var basis = G01ScenarioTests.Fixture();
@@ -20,21 +20,22 @@ public sealed class AiProductionBaselineTests
             .Select(c => c with { ControlMode = corpsMode }).ToArray() } };
         var session = GameSession.Start(content, 190, playerForceController: controller);
         var before = session.Capture();
-        var engine = GameSession.EngineFactory(content)(WorldState.Restore(before.World));
+        var restored = SaveService.Decode(SaveService.Encode(session), content);
         var invalid = session.Apply(session.Request(new EndControlOperation(), "forged"));
         Assert.Equal(SessionDisposition.Rejected, invalid.Disposition);
         StateAssert.Equal(before, session.Capture());
 
         foreach (var seat in before.World.Simulation.Controls)
         {
-            var expected = engine.EndControl(new(seat.ControllerId));
+            var expected = restored.Apply(restored.Request(new EndControlOperation(), seat.ControllerId));
             var actual = session.Apply(session.Request(new EndControlOperation(), seat.ControllerId));
             Assert.Equal(SessionDisposition.Accepted, actual.Disposition);
             EventAssert.Equal(expected.Events, actual.Events);
-            StateAssert.Equal(engine.Snapshot, session.Snapshot);
+            StateAssert.Equal(restored.Capture(), session.Capture());
+            Assert.All(actual.Events.OfType<DevelopmentCompletedEvent>(), e => Assert.Equal(seat.ForceId, e.Command.ForceId));
         }
-        Assert.Equal(before.World.Simulation.NextSequence, session.Snapshot.Simulation.NextSequence);
-        Assert.Empty(session.Records);
+        Assert.True(session.Snapshot.Simulation.NextSequence > before.World.Simulation.NextSequence);
+        Assert.NotEmpty(session.Records);
     }
 
     [Fact]

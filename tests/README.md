@@ -92,4 +92,4 @@ Headless 的领域场景由`HeadlessHostTests`直接调用生产宿主，并以�
 
 ## 原型AI退出后的覆盖
 
-2026-10-16删除共同分配、经济目标、战役搜索／配队／选阵、机会冷却、预测缓存与拒绝集合的专属测试，所约束实现已退出，不移为另一套生产回退。公共部署预检、途经点保存及实际行军、显式导航对照保留在`DeploymentPreparationTests`；军事、计略、军团权限及终局测试改为显式公共命令，继续验证实际效果和回放。经营脚本选人及独立规划随机测试仍保留。`AiProductionBaselineTests`、`DomesticPlanningBoundaryTests`与Headless覆盖无主动AI的控制、推进、恢复及协议；必要电脑响应沿原有响应专项。新基线能力按原版AI规格另行验收。
+2026-10-16删除共同分配、经济目标、战役搜索／配队／选阵、机会冷却、预测缓存与拒绝集合的专属测试，所约束实现已退出，不移为另一套生产回退。公共部署预检、途经点保存及实际行军、显式导航对照保留在`DeploymentPreparationTests`；军事、计略、军团权限及终局测试以显式公共命令继续验证实际效果和回放。经营脚本选人及独立规划随机测试仍保留。OAI-01新增`OriginalDomesticWorkTests`、`OriginalAiCycleTests`覆盖原版经营规则与生产接线，`AiProductionBaselineTests`、`DomesticPlanningBoundaryTests`与Headless同步验证实际自动经营、控制权限、推进、恢复及协议；必要电脑响应沿原有响应专项。后续基线能力按原版AI规格另行验收。

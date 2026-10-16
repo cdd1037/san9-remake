@@ -35,7 +35,8 @@ public sealed class CorpsControlTests
         var result = session.Apply(session.Request(new AdvanceOperation()));
         Assert.Equal(SessionDisposition.Accepted, result.Disposition);
         Assert.Contains(result.Events, e => e is RecruitmentResolvedEvent);
-        Assert.DoesNotContain(result.Events, e => e is DevelopmentCompletedEvent);
+        Assert.Contains(result.Events, e => e is DevelopmentCompletedEvent { Command.SettlementId: 3 });
+        Assert.DoesNotContain(result.Events, e => e is DevelopmentCompletedEvent { Command.SettlementId: 1 });
         var saveState = session.Capture();
         var save = SaveService.Encode(session);
         StateAssert.Equal(saveState, SaveService.Decode(save, definition).Capture());

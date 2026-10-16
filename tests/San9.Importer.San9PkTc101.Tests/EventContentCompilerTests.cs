@@ -465,6 +465,20 @@ public sealed class EventContentCompilerTests
         [], 0, 0, [], 0);
 
     [Fact]
+    public void OriginalAiMapsFamilyAndRulerPreferencesIntoIndependentReferences()
+    {
+        var people = new[] { Person(60) with { BloodlineRootPersonCode = 77 }, Person(36) with { BloodlineRootPersonCode = 88 },
+            Person(62) with { BloodlineRootPersonCode = 99 }, Person(1) };
+        var policy = OriginalAiContentCompiler.Compile(people, [0, 1, 2, 3]);
+        Assert.Equal(200, policy.FamilyRankBonuses[77]);
+        Assert.Equal(100, policy.FamilyRankBonuses[88]);
+        Assert.Equal(100, policy.FamilyRankBonuses[99]);
+        Assert.Equal(new[] { 0, 1, 2 }, policy.PreferredStrategyRulerIds);
+        policy.Validate(new HashSet<int> { 0, 1, 2, 3 });
+        Assert.Equal(new[] { 0, 2 }, OriginalAiContentCompiler.Compile(people, [0, 2, 3]).PreferredStrategyRulerIds);
+    }
+
+    [Fact]
     public void HealingReferencesUseRetainedPersonIdentityAndModesExcludeTheCandidate()
     {
         var people = new[] { Person(60), Person(497), Person(60), Person(569) };

@@ -96,5 +96,18 @@ public static class StrictJson
             if (!IsValid(value)) throw new JsonException("Unknown enum value.");
             writer.WriteNumberValue(Convert.ToInt32(value, System.Globalization.CultureInfo.InvariantCulture));
         }
+
+        public override T ReadAsPropertyName(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            string? key = reader.GetString();
+            if (!Enum.TryParse<T>(key, out var value) || !IsValid(value) || value.ToString() != key) throw new JsonException("Unknown enum dictionary key.");
+            return value;
+        }
+
+        public override void WriteAsPropertyName(Utf8JsonWriter writer, T value, JsonSerializerOptions options)
+        {
+            if (!IsValid(value)) throw new JsonException("Unknown enum dictionary key.");
+            writer.WritePropertyName(value.ToString());
+        }
     }
 }

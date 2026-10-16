@@ -6,6 +6,47 @@ namespace San9.Core.Tests;
 
 public sealed class CreateCorpsTests
 {
+    [Fact]
+    public void ExplicitGovernorUsesTheSelectedEligiblePersonInsteadOfAutomaticPrecedence()
+    {
+        var engine = Engine();
+        var result = engine.Execute(new("player"), new CreateCorpsCommand(Guid.NewGuid(), 1, 0, [2], 100, 200, new GeneralDelegation())
+            { GovernorId = 2 });
+        Assert.True(result.Submission.Accepted);
+        Assert.Equal(2, result.Snapshot.Corps.Single(c => !c.IsRoot).LeaderId);
+        Assert.Equal(OfficerStatus.Governor, result.Snapshot.Officers.Single(p => p.Id == 2).Status);
+    }
+
+    [Fact]
+    public void OmittedCorpsReferenceMeansRootForCreationAsForPublicControlAndAccounts()
+    {
+        var snapshot = Engine().Snapshot;
+        var world = WorldState.Restore(snapshot with { Settlements = snapshot.Settlements.Select(s => s with { CorpsId = null }).ToArray() });
+        var engine = new SimulationEngine(world, EconomyRulebook.Empty, new PersonnelRulebook(
+            [new(1, new(0, 0)), new(2, new(100, 100)), new(20, new(110, 110))],
+            new Dictionary<int, int> { [1] = 1, [2] = 2, [20] = 2 }));
+        var result = engine.Execute(new("player"), new CreateCorpsCommand(Guid.NewGuid(), 1, 0, [2], 100, 200, new GeneralDelegation())
+            { GovernorId = 2 });
+        Assert.True(result.Submission.Accepted);
+        int child = result.Snapshot.Corps.Single(c => !c.IsRoot).Id;
+        Assert.Equal(child, result.Snapshot.Settlements.Single(s => s.Id == 20).CorpsId);
+        Assert.Null(result.Snapshot.Settlements.Single(s => s.Id == 1).CorpsId);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(999)]
+    [InlineData(3)]
+    public void ExplicitGovernorOutsideEligibleTerritoryRejectsAtomically(int person)
+    {
+        var engine = Engine(rulerAtFacility: true);
+        var before = engine.Snapshot;
+        var result = engine.Execute(new("player"), new CreateCorpsCommand(Guid.NewGuid(), 1, 0, [2], 100, 200, new GeneralDelegation())
+            { GovernorId = person });
+        Assert.False(result.Submission.Accepted);
+        StateAssert.Equal(before, engine.Snapshot);
+    }
+
     private static SimulationEngine Engine(bool rulerAtFacility = false)
     {
         var world = WorldState.Create(new(190, 1, 1), 1,

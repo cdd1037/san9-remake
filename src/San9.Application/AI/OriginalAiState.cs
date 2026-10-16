@@ -11,7 +11,9 @@ public sealed record OriginalAiForceState(int ForceId, long SchedulingKey, Origi
 public sealed record OriginalAiCorpsState(int CorpsId, OriginalAiMode Mode, int? TargetForceId, int? TargetSettlementId);
 public sealed record OriginalAiState
 {
-    public const string CurrentVersion = "original-economy-v1";
+    public const string CurrentVersion = "original-personnel-v1";
+    // Unstable boundaries cannot be saved. The immutable cursor is copied with the session transaction.
+    [JsonIgnore] internal OriginalAiContinuation? Continuation { get; init; }
     [JsonRequired] public string Version { get; init; } = CurrentVersion;
     [JsonRequired] public OriginalAiDefinition Policy { get; init; } = OriginalAiDefinition.Default;
     [JsonRequired] public GameClock? PreparedClock { get; init; }
@@ -75,6 +77,10 @@ public sealed record OriginalAiState
         catch (InvalidDataException error) { throw new ArgumentException("Invalid saved original AI policy.", error); }
     }
 }
+
+internal sealed record OriginalAiContinuation(ControlSeat Seat, ImmutableArray<int> Queue, ImmutableArray<int> Seen,
+    int WorkIndex, bool Prepared, ulong RandomState, ImmutableDictionary<int, long> Quotas,
+    OriginalPrisonerProgress? Prisoners);
 
 internal sealed class OriginalAiRandom
 {

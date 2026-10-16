@@ -8,7 +8,10 @@ public sealed record DissolveCorpsCommand(Guid CommandId, int IssuerId, long Seq
     : GameCommand(CommandId, IssuerId, Sequence);
 public sealed record CorpsDissolvedEvent(GameClock Clock, int ForceId, int CorpsId, int DestinationCorpsId) : DomainEvent;
 public sealed record CreateCorpsCommand(Guid CommandId, int IssuerId, long Sequence, ImmutableArray<int> CityIds, uint Money, uint Food, [property: JsonRequired] CorpsDelegation Delegation)
-    : GameCommand(CommandId, IssuerId, Sequence);
+    : GameCommand(CommandId, IssuerId, Sequence)
+{
+    [JsonRequired] public int? GovernorId { get; init; }
+}
 public sealed record CorpsCreatedEvent(GameClock Clock, int ForceId, int CorpsId, int LeaderId, ImmutableArray<int> CityIds) : DomainEvent;
 public sealed record ChangeCorpsCommand(Guid CommandId, int IssuerId, long Sequence, int CorpsId,
     ImmutableArray<int> CityIds, uint Money, uint Food, [property: JsonRequired] CorpsDelegation Delegation) : GameCommand(CommandId, IssuerId, Sequence);
@@ -93,16 +96,18 @@ internal static class CorpsGovernance
             return CommandRejection.InvalidCorps;
         var cities = command.CityIds.ToHashSet();
         if (cities.Any(id => !world.Settlements.TryGetValue(id, out var city) || city.Kind != SettlementKind.City ||
-                city.OwnerId != force.Id || city.CorpsId != root.Id) ||
-            !world.Settlements.Values.Any(s => s.Kind == SettlementKind.City && s.CorpsId == root.Id && !cities.Contains(s.Id)) ||
+                city.OwnerId != force.Id || (city.CorpsId ?? root.Id) != root.Id) ||
+            !world.Settlements.Values.Any(s => s.OwnerId == force.Id && s.Kind == SettlementKind.City && (s.CorpsId ?? root.Id) == root.Id && !cities.Contains(s.Id)) ||
             PersonnelLocations.ServicePlace(world, ruler) is int rulerCity && cities.Contains(rulerCity)) return CommandRejection.InvalidCorps;
         var places = geography.RegionCities.Where(p => cities.Contains(p.Value)).Select(p => p.Key).Concat(cities).ToHashSet();
         var facilities = world.Settlements.Values.Where(s => places.Contains(s.Id) && s.OwnerId == force.Id && s.Id != PersonnelLocations.ServicePlace(world, ruler)).ToArray();
-        if (facilities.Any(s => s.CorpsId != root.Id)) return CommandRejection.InvalidCorps;
+        if (facilities.Any(s => (s.CorpsId ?? root.Id) != root.Id)) return CommandRejection.InvalidCorps;
         places = facilities.Select(s => s.Id).ToHashSet();
         var busy = world.Simulation.Tasks.Where(t => t.Journey is not null).Select(t => t.OfficerId).ToHashSet();
-        var leader = rules.SelectGovernor(world.Officers.Values.Where(p => p.OwnerId == force.Id &&
-            p.SettlementId is int home && places.Contains(home) && home != PersonnelLocations.ServicePlace(world, ruler) && !busy.Contains(p.Id)), world.AbilitiesFor(world.Officers.Values));
+        var candidates = world.Officers.Values.Where(p => p.IsServing && p.Status != OfficerStatus.Ruler && p.OwnerId == force.Id &&
+            p.SettlementId is int home && places.Contains(home) && home != PersonnelLocations.ServicePlace(world, ruler) && !busy.Contains(p.Id)).ToArray();
+        var leader = command.GovernorId is int selected ? candidates.FirstOrDefault(p => p.Id == selected) :
+            rules.SelectGovernor(candidates, world.AbilitiesFor(world.Officers.Values));
         if (leader is null) return CommandRejection.PersonUnavailable;
         if (command.Money > root.Treasury.Money || command.Food > root.Treasury.Food) return CommandRejection.InsufficientFunds;
         int id = world.AllCorps.Keys.Max() + 1;
@@ -110,7 +115,7 @@ internal static class CorpsGovernance
         world.Replace(leader with { Status = OfficerStatus.Governor });
         world.AddCorps(new(id, force.Id, leader.Id, new(command.Money, command.Food)) { ControlMode = CorpsControlMode.Automatic, Delegation = command.Delegation });
         foreach (var facility in facilities) world.Replace(facility with { CorpsId = id });
-        foreach (var unit in world.Units.Values.Where(u => u.OwnerId == force.Id && u.CorpsId == root.Id &&
+        foreach (var unit in world.Units.Values.Where(u => u.OwnerId == force.Id && (u.CorpsId ?? root.Id) == root.Id &&
             u.ServicePlaceId is int home && places.Contains(home) && u.FollowsServicePlace(true)).ToArray())
             world.Replace(unit with { CorpsId = id });
         world.Replace(root with { Treasury = new(root.Treasury.Money - command.Money, root.Treasury.Food - command.Food) });

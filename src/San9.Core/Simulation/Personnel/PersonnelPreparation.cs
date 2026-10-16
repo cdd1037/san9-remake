@@ -20,6 +20,17 @@ internal static class PersonnelSearchChances
 
 public sealed partial class SimulationEngine
 {
+    /// <summary>Public recruitment forecast; shares the resolution formula and never draws or starts a mission.</summary>
+    public int GetRecruitmentThreshold(int officerId, int targetOfficerId)
+    {
+        var world = PreparationWorld();
+        if (!world.Officers.TryGetValue(officerId, out var actor) || actor.IsDormant || !actor.IsVisible || actor.OwnerId is not int owner ||
+            world.Forces[owner].LeaderId is null || !world.Officers.TryGetValue(targetOfficerId, out var target) ||
+            target.IsDormant || !target.IsVisible)
+            throw new ArgumentException("Recruitment forecast requires an affiliated visible actor and a visible target.");
+        return RecruitmentRules.Threshold(world, officerId, targetOfficerId, _rules);
+    }
+
     public ImmutableArray<int> GetRecruitTargets(int forceId, int officerId)
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");

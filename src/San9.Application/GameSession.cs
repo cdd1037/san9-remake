@@ -369,6 +369,7 @@ public sealed partial class GameSession
                     return Rejected(SessionRejection.InvalidRequest);
             }
             AutomaticResponseRunner.Run(candidate, events, capturePresentation ? frames : null);
+            originalAi = AutomaticTurnRunner.Resume(candidate, events, _definition, originalAi, aiReports);
             var completed = events.OfType<DevelopmentCompletedEvent>().Select(e =>
                 new SessionRecord(e.Clock, e.Command.ForceId, e.Command.SettlementId, e.Command.OfficerIds[0],
                     e.Command.Activity, e.Increment, e.Cost)).ToArray();

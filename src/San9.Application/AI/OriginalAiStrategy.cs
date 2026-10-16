@@ -8,6 +8,19 @@ namespace San9.Application.AI;
 /// <summary>Strategy preparation from public force facts, direct-corps aggregates and declared geography.</summary>
 internal static class OriginalAiStrategy
 {
+    internal static bool IsOpponent(WorldSnapshot world, int owner, int target)
+    {
+        if (target == owner || !world.Forces.Any(f => f.Id == target && !f.IsDormant && !f.IsEliminated && !f.IsBarbarian)) return false;
+        var alliance = world.Simulation.Alliance;
+        if (alliance?.MemberForceIds.Contains(owner) == true)
+        {
+            if (alliance.TargetForceId == target) return true;
+            if (alliance.MemberForceIds.Contains(target)) return false;
+        }
+        if (world.Simulation.AttackRequests.Any(r => r.RequestedForceId == owner && r.RequesterForceId == target ||
+            r.RequestedForceId == target && r.RequesterForceId == owner)) return false;
+        return (world.Relations.FirstOrDefault(r => r.FirstId == Math.Min(owner, target) && r.SecondId == Math.Max(owner, target))?.Value ?? 50) / 20 < 3;
+    }
     internal static OriginalAiState PrepareGlobal(WorldSnapshot world, OriginalAiState state)
     {
         state = state.Reconcile(world);
@@ -69,18 +82,7 @@ internal static class OriginalAiStrategy
         bool Player(int id) => world.Simulation.Controls.Any(c => c.ForceId == id && c.ControllerId == "player");
         int Relation(int from, int to) => world.Relations.FirstOrDefault(r => r.FirstId == Math.Min(from, to) && r.SecondId == Math.Max(from, to))?.Value ?? 50;
         bool AllianceMember(int id) => world.Simulation.Alliance?.MemberForceIds.Contains(id) == true;
-        bool Opponent(int id)
-        {
-            if (!Valid(id) || id == owner.Id || valid.Single(f => f.Id == id).IsBarbarian) return false;
-            if (AllianceMember(owner.Id))
-            {
-                if (world.Simulation.Alliance!.TargetForceId == id) return true;
-                if (AllianceMember(id)) return false;
-            }
-            if (world.Simulation.AttackRequests.Any(r => r.RequestedForceId == owner.Id && r.RequesterForceId == id ||
-                r.RequestedForceId == id && r.RequesterForceId == owner.Id)) return false;
-            return Relation(owner.Id, id) / 20 < 3;
-        }
+        bool Opponent(int id) => IsOpponent(world, owner.Id, id);
         var frontier = direct.Where(s => geography.Frontier(s.Id, owner.Id)).ToArray();
         var neighbors = direct.SelectMany(s => geography.Neighbors(s.Id)).Select(p => p.OwnerId).OfType<int>()
             .Where(Opponent).Distinct().ToArray();

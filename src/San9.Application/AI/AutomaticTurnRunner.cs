@@ -14,8 +14,16 @@ internal static class AutomaticTurnRunner
             state.Controls[state.ActiveControl].ControllerId != context.ControllerId)
             throw new InvalidOperationException("Not the active stable controller.");
         ai = OriginalAiTurnRunner.Run(engine, definition, state.Controls[state.ActiveControl], ai, events, reports);
-        events.AddRange(engine.EndControl(context).Events);
+        if (engine.Snapshot.Simulation.Boundary == SimulationBoundary.Stable)
+            events.AddRange(engine.EndControl(context).Events);
         AutomaticResponseRunner.Run(engine, events);
         return ai;
+    }
+
+    internal static OriginalAiState Resume(SimulationEngine engine, List<DomainEvent> events,
+        ScenarioSessionDefinition definition, OriginalAiState ai, List<OriginalAiWorkReport> reports)
+    {
+        if (ai.Continuation is not { } continuation || engine.Snapshot.Simulation.Boundary != SimulationBoundary.Stable) return ai;
+        return EndControl(engine, new(continuation.Seat.ControllerId), events, definition, ai, reports);
     }
 }

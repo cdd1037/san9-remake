@@ -54,7 +54,7 @@ public sealed class HeadlessReport
     public long BattleSoldierLoss { get; set; }
     public long BattleDead { get; set; }
     public long UnrecoveredSoldiers { get; set; }
-    public string ProactiveAi { get; } = "original-economy-v1";
+    public string ProactiveAi { get; } = Application.AI.OriginalAiState.CurrentVersion;
     public List<OriginalAiXunMeasurement> OriginalAiXuns { get; } = [];
     public List<OriginalAiWorkMeasurement> OriginalAiWorkCosts { get; } = [];
     public string Scope { get; set; } = "Original economic AI cycle and optional player scripts, save and replay; later personnel, military and diplomacy policies remain pending.";

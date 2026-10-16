@@ -48,6 +48,17 @@ public sealed record OriginalAiDefinition
         [OriginalAiWork.Recruit] = new(60, 0, 255, true, true),
         [OriginalAiWork.Train] = new(0, 0, 255, true, true),
         [OriginalAiWork.Trade] = new(60, 0, 1, false, true),
+        [OriginalAiWork.CreateCorps] = new(120, 90, 1, false, false),
+        [OriginalAiWork.Adviser] = new(40, 30, 1, false, false),
+        [OriginalAiWork.Offices] = new(120, 30, 1, false, false),
+        [OriginalAiWork.Reward] = new(90, 30, 1, false, false),
+        [OriginalAiWork.GrantTreasure] = new(120, 30, 1, false, false),
+        [OriginalAiWork.ConfiscateTreasure] = new(120, 30, 1, false, false),
+        [OriginalAiWork.MoveOfficers] = new(60, 0, 255, false, true),
+        [OriginalAiWork.Search] = new(40, 0, 3, false, true),
+        [OriginalAiWork.RecruitLocal] = new(90, 20, 3, false, true),
+        [OriginalAiWork.RecruitEnemy] = new(90, 20, 3, false, true),
+        [OriginalAiWork.DisposePrisoner] = new(150, 45, 2, false, false),
         [OriginalAiWork.Residual] = new(0, 0, 255, true, true),
     }.ToImmutableDictionary();
 

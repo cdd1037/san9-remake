@@ -19,32 +19,51 @@ internal static class OriginalAiTurnRunner
     internal static OriginalAiState Run(SimulationEngine engine, ScenarioSessionDefinition definition, ControlSeat seat,
         OriginalAiState state, List<DomainEvent> events, List<OriginalAiWorkReport> reports)
     {
-        state = OriginalAiStrategy.PrepareGlobal(engine.Snapshot, state);
+        var cursor = state.Continuation;
+        if (cursor is null)
+        {
+            state = OriginalAiStrategy.PrepareGlobal(engine.Snapshot, state);
+            cursor = new(seat, engine.Snapshot.Corps.Where(c => c.OwnerId == seat.ForceId)
+                .OrderByDescending(c => c.IsRoot).Select(c => c.Id).ToImmutableArray(), [], 0, false, 0,
+                ImmutableDictionary<int, long>.Empty, null);
+        }
+        else if (cursor.Seat != seat) throw new InvalidOperationException("Original AI continuation belongs to another control.");
         var force = engine.Snapshot.Forces.Single(f => f.Id == seat.ForceId);
         var geography = new OriginalAiGeography(definition.Content, definition.MilitaryRules, engine.Snapshot);
-        // The Core seat authorizes this force. Within it each direct corps owns exactly one
-        // economic pass; a delegated account never falls through to the root's projection.
-        foreach (var selected in engine.Snapshot.Corps.Where(c => c.OwnerId == seat.ForceId)
-            .OrderByDescending(c => c.IsRoot).ToArray())
+        while (!cursor.Queue.IsEmpty && engine.Snapshot.Simulation.Boundary == SimulationBoundary.Stable)
         {
-            var corps = engine.Snapshot.Corps.Single(c => c.Id == selected.Id);
-            if (seat.Kind == ControllerKind.Player && corps.ControlMode == CorpsControlMode.Direct) continue;
+            int selected = cursor.Queue[0];
+            var corps = engine.Snapshot.Corps.FirstOrDefault(c => c.Id == selected);
+            if (corps is null || seat.Kind == ControllerKind.Player && corps.ControlMode == CorpsControlMode.Direct)
+            {
+                cursor = cursor with { Queue = cursor.Queue.RemoveAt(0), Seen = cursor.Seen.Add(selected), Prepared = false, WorkIndex = 0 };
+                continue;
+            }
             var context = new CommandContext(corps.ControlMode == CorpsControlMode.Automatic ? CorpsControl.ControllerId(corps.Id) : seat.ControllerId);
-            var stream = new StableRandom(StableRandom.DeriveSeed(engine.Snapshot.Simulation.RunSeed,
+            var stream = new StableRandom(cursor.Prepared ? cursor.RandomState : StableRandom.DeriveSeed(engine.Snapshot.Simulation.RunSeed,
                 FormattableString.Invariant($"original-ai:{corps.Id}:{engine.Snapshot.Clock.DayNumber}")));
             var random = new OriginalAiRandom(stream);
-            var strategy = OriginalAiStrategy.PrepareCorps(engine.Snapshot, corps, state, geography, random);
-            state = state with { Corps = state.Corps.Where(c => c.CorpsId != corps.Id).Append(strategy).OrderBy(c => c.CorpsId).ToImmutableArray() };
+            var strategy = cursor.Prepared ? state.Corps.Single(c => c.CorpsId == corps.Id) :
+                OriginalAiStrategy.PrepareCorps(engine.Snapshot, corps, state, geography, random);
+            if (!cursor.Prepared)
+            {
+                state = state with { Corps = state.Corps.Where(c => c.CorpsId != corps.Id).Append(strategy).OrderBy(c => c.CorpsId).ToImmutableArray() };
+                cursor = cursor with { Prepared = true, Quotas = OriginalAiStaffing.Quotas(engine.Snapshot, corps.Id, geography) };
+            }
             var forceState = state.Forces.Single(f => f.ForceId == seat.ForceId);
             var policy = state.Policy;
             var works = (force.IsBarbarian ? BarbarianFirst : corps.IsRoot ? RootFirst : ChildFirst)
-                .Concat(force.IsBarbarian ? [] : policy.SecondaryBatches[strategy.Mode]).Append(OriginalAiWork.Residual);
+                .Concat(force.IsBarbarian ? [] : policy.SecondaryBatches[strategy.Mode]).Append(OriginalAiWork.Residual).ToArray();
             OriginalDomesticInputs Capture() => OriginalAiProjection.Domestic(engine, definition.Content,
                 engine.Snapshot.Corps.Single(c => c.Id == corps.Id), geography, policy.RecruitmentEnabled);
             bool Submit(GameCommand command)
             {
                 var result = engine.Execute(context, command);
-                if (result.Submission.Accepted) events.AddRange(result.Events);
+                if (result.Submission.Accepted)
+                {
+                    events.AddRange(result.Events);
+                    AutomaticResponseRunner.Run(engine, events);
+                }
                 return result.Submission.Accepted;
             }
             (Guid Id, long Sequence) Identity()
@@ -57,8 +76,10 @@ internal static class OriginalAiTurnRunner
                 var id = Identity();
                 return Submit(new DevelopCommand(id.Id, seat.ForceId, id.Sequence, development));
             }
-            foreach (var work in works)
+            var personnel = new OriginalAiPersonnel(engine, definition.Content, corps.Id, geography, context, random, Submit);
+            for (int workIndex = cursor.WorkIndex; workIndex < works.Length; workIndex++)
             {
+                var work = works[workIndex];
                 long revision = engine.Snapshot.Revision;
                 long started = System.Diagnostics.Stopwatch.GetTimestamp();
                 long allocated = GC.GetAllocatedBytesForCurrentThread();
@@ -120,9 +141,35 @@ internal static class OriginalAiTurnRunner
                             var id = Identity();
                             return Submit(new SearchCommand(id.Id, seat.ForceId, id.Sequence, person, place));
                         }));
+                else if (work == OriginalAiWork.CreateCorps)
+                {
+                    var organization = OriginalAiStaffing.Organize(engine, definition.Content, corps.Id, geography, Submit);
+                    Report(organization);
+                    if (organization.Submitted > 0)
+                    {
+                        cursor = cursor with { Quotas = OriginalAiStaffing.Quotas(engine.Snapshot, corps.Id, geography) };
+                        var pending = cursor.Queue.Where(id => engine.Snapshot.Corps.Any(c => c.Id == id)).ToImmutableArray();
+                        cursor = cursor with { Queue = pending.AddRange(engine.Snapshot.Corps.Where(c => c.OwnerId == seat.ForceId &&
+                            !cursor.Seen.Contains(c.Id) && !pending.Contains(c.Id)).Select(c => c.Id)) };
+                        state = state.Reconcile(engine.Snapshot);
+                    }
+                }
+                else if (OriginalAiPersonnel.Handles(work))
+                    Report(personnel.Run(work, limit, state, cursor.Quotas));
+                else if (work == OriginalAiWork.DisposePrisoner)
+                {
+                    var progress = personnel.Dispose(cursor.Prisoners ?? personnel.PreparePrisoners(), limit);
+                    if (engine.Snapshot.Simulation.Boundary == SimulationBoundary.AwaitingDecision)
+                        return state with { Continuation = cursor with { WorkIndex = workIndex, RandomState = stream.State, Prisoners = progress } };
+                    Report(new(corps.Id, work, progress.Attempts >= limit ? OriginalAiWorkEnd.AttemptsExhausted : OriginalAiWorkEnd.NoCandidates,
+                        progress.Attempts, progress.Submitted) { Rejected = progress.Rejected, EmptyPlans = progress.EmptyPlans });
+                    cursor = cursor with { Prisoners = null };
+                }
                 else Report(new(corps.Id, work, OriginalAiWorkEnd.LaterStage, 0, 0));
+                if (engine.Snapshot.Simulation.Boundary == SimulationBoundary.Terminal) return state with { Continuation = null };
             }
+            cursor = cursor with { Queue = cursor.Queue.RemoveAt(0), Seen = cursor.Seen.Add(corps.Id), Prepared = false, WorkIndex = 0 };
         }
-        return state;
+        return state with { Continuation = null };
     }
 }

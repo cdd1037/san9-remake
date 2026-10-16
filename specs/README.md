@@ -16,7 +16,8 @@
 ## 规范文件
 
 - [整体路线图](roadmap.md)
-- [游戏 AI 文档](ai/README.md)（设计、实施计划、当前进度与验收分文档维护；完整 AI 尚未交付）
+- [原版AI新规格](original-ai/README.md)（独立建立行为、实施和验收；研究只引用[唯一权威正文](../research/ai.md)）
+- [旧自主AI规格](ai/README.md)（冻结的增强路线与暂停实现记录，不继续追加原版AI规格）
 - [表现层后续接入规划](presentation-implementation-plan.md)（操作、消息、战场与剧情演出及整局收口）
 - [粗格导航设计](navigation-redesign.md)（已采用：粗格导航、细步执行与端点接驳）
 - [项目与文档约定](project-conventions.md)

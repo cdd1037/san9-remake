@@ -101,7 +101,7 @@ internal sealed class BattlefieldPathSearch : IDisposable
     internal MovementRoute Search(WorldPosition start, Footprint shape, TravelMode mode,
         IReadOnlyList<MapOccupancy> objects, Func<WorldPosition, bool> arrived,
         Func<WorldPosition, long> lowerBound, WorldPosition? destination, PathGoalBounds? bounds = null, NavigationWorkBudget? work = null,
-        int stepLimit = int.MaxValue, int lookaheadCells = 25, bool forecast = false)
+        int stepLimit = int.MaxValue, int lookaheadCells = 25, bool forecast = false, bool includeCells = false)
     {
         if (!shape.IsValid || !Enum.IsDefined(mode)) throw new ArgumentException("Invalid movement shape or mode.");
         foreach (var area in objects)
@@ -113,7 +113,7 @@ internal sealed class BattlefieldPathSearch : IDisposable
         target = destination ?? (bounds is { } b ? new((int)((b.Left + b.Right) / 2), (int)((b.Top + b.Bottom) / 2)) : start);
         minimum = map.MinimumStepCost(mode); expanded = 0;
         // Route costs retain the execution graph; strategic forecasts use coarse edges and direct endpoint links.
-        materializePaths = stepLimit != 0;
+        materializePaths = stepLimit != 0 || includeCells;
         if (PathSearchDiagnostics.Current is { } diagnostics) diagnostics.Queries++;
         var failure = new MovementRoute(false, [], 0);
         ClearObjects();
@@ -222,6 +222,26 @@ internal sealed class BattlefieldPathSearch : IDisposable
             }
         }
         if (best == long.MaxValue) return failure;
+        if (includeCells)
+        {
+            var cells = ImmutableArray.CreateBuilder<MapCell>();
+            void Add(WorldPosition p)
+            {
+                var cell = MapCoordinates.Cell(p);
+                if (cells.Count == 0 || cells[^1] != cell) cells.Add(cell);
+            }
+            Add(start);
+            if (finish >= 0)
+            {
+                var nodes = new List<int>();
+                for (int node = finish; node >= 0; node = previous[node]) nodes.Add(node);
+                nodes.Reverse();
+                foreach (var p in source.Centers[nodes[0]].Steps) Add(p);
+                foreach (int node in nodes) Add(Position(node));
+            }
+            foreach (var p in tail) Add(p);
+            return new(true, [], bestTravel) { TerrainCost = bestTerrain, Cells = cells.ToImmutable() };
+        }
         if (stepLimit == 0) return new(true, [], forecast ? bestTravel : best) { TerrainCost = bestTerrain };
         var result = ImmutableArray.CreateBuilder<WorldPosition>();
         WorldPosition? lookahead = null;
@@ -342,6 +362,7 @@ internal sealed class BattlefieldPathSearch : IDisposable
             var p = start;
             long routing = 0, movement = 0;
             RouteTerrainCost components = default;
+            var steps = materializePaths ? ImmutableArray.CreateBuilder<WorldPosition>() : null;
             while (p != end)
             {
                 bool horizontal = horizontalFirst ? p.X != end.X : p.Y == end.Y;
@@ -357,8 +378,9 @@ internal sealed class BattlefieldPathSearch : IDisposable
                 routing += cost;
                 movement += endpointTerrain[index];
                 components += endpointComponents[index];
+                steps?.Add(p);
             }
-            return new(routing, [], movement, components);
+            return new(routing, steps?.ToImmutable() ?? [], movement, components);
         }
     }
 

@@ -54,8 +54,8 @@ internal static class OriginalAiTurnRunner
             var policy = state.Policy;
             var works = (force.IsBarbarian ? BarbarianFirst : corps.IsRoot ? RootFirst : ChildFirst)
                 .Concat(force.IsBarbarian ? [] : policy.SecondaryBatches[strategy.Mode]).Append(OriginalAiWork.Residual).ToArray();
-            OriginalDomesticInputs Capture() => OriginalAiProjection.Domestic(engine, definition.Content,
-                engine.Snapshot.Corps.Single(c => c.Id == corps.Id), geography, policy.RecruitmentEnabled);
+            var domestic = new OriginalAiProjection(engine, definition.Content, corps.Id, geography, policy.RecruitmentEnabled);
+            OriginalDomesticInputs Capture() => domestic.Domestic();
             bool Submit(GameCommand command)
             {
                 var result = engine.Execute(context, command);
@@ -140,7 +140,7 @@ internal static class OriginalAiTurnRunner
                         {
                             var id = Identity();
                             return Submit(new SearchCommand(id.Id, seat.ForceId, id.Sequence, person, place));
-                        }));
+                        }, domestic.Observe));
                 else if (work == OriginalAiWork.CreateCorps)
                 {
                     var organization = OriginalAiStaffing.Organize(engine, definition.Content, corps.Id, geography, Submit);

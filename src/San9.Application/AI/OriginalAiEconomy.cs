@@ -14,6 +14,9 @@ public sealed record OriginalAiWorkReport(int CorpsId, OriginalAiWork Work, Orig
     public int EmptyPlans { get; init; }
     public int Rejected { get; init; }
     public int PathQueries { get; init; }
+    public long PathSearches { get; init; }
+    public long PathExpanded { get; init; }
+    public long PathEndpointExpanded { get; init; }
 }
 internal sealed record OriginalFoodTradePlan(FoodTradeDirection Direction, uint FoodAmount);
 
@@ -86,7 +89,8 @@ internal static class OriginalAiEconomy
 
     internal static OriginalAiWorkReport Residual(int corpsId, bool barbarian, int attempts,
         Func<OriginalDomesticInputs> capture, Func<WorldSnapshot> snapshot,
-        Func<DevelopmentCommand, bool> train, Func<int, int, bool> search)
+        Func<DevelopmentCommand, bool> train, Func<int, int, bool> search,
+        Func<int, DomesticSettlementObservation?> observe)
     {
         var sources = capture().Sites.Where(s => !s.Settlement.OfficerIds.IsEmpty).Select(s => s.Settlement.Id).ToArray();
         int used = 0, submitted = 0, empty = 0, rejected = 0;
@@ -111,9 +115,9 @@ internal static class OriginalAiEconomy
             {
                 if (used >= attempts) return Report(OriginalAiWorkEnd.AttemptsExhausted);
                 used++;
-                var refreshed = capture().Sites.FirstOrDefault(s => s.Settlement.Id == source);
-                if (refreshed is not null && !refreshed.Settlement.UnavailableActivities.Contains(DomesticActivity.Train) &&
-                    refreshed.Settlement.Soldiers > 0 && refreshed.Settlement.Morale < 100)
+                var refreshed = observe(source);
+                if (refreshed is not null && !refreshed.UnavailableActivities.Contains(DomesticActivity.Train) &&
+                    refreshed.Soldiers > 0 && refreshed.Morale < 100)
                 {
                     var crew = people.Skip(cursor).Take(5).ToImmutableArray();
                     cursor += crew.Length;

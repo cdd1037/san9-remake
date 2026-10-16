@@ -325,6 +325,9 @@ public sealed class HeadlessHost
                 cost.MaximumMicroseconds = Math.Max(cost.MaximumMicroseconds, microseconds);
                 cost.AllocatedBytes += work.AllocatedBytes;
                 cost.PathQueries += work.PathQueries;
+                cost.PathSearches += work.PathSearches;
+                cost.PathExpanded += work.PathExpanded;
+                cost.PathEndpointExpanded += work.PathEndpointExpanded;
             }
             var b = restored.Apply(request);
             var difference = SessionDiagnostics.Compare(_session, restored);

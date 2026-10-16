@@ -12,8 +12,8 @@ internal sealed class OriginalAiPersonnel(SimulationEngine engine, ScenarioIniti
 {
     private const int MaximumSearchJourneyDays = 255;
     private WorldSnapshot World => engine.Snapshot;
-    // These projections depend on the immutable world snapshot. A successful command or response
-    // publishes a new snapshot, so the next candidate sees changed offices, loyalty and governance.
+    // Reuse each projection while its immutable input collections remain unchanged.
+    // Commands still refresh current records, abilities and task availability before the next candidate.
     private WorldSnapshot? _projectedWorld;
     private CorpsState _corps = null!;
     private ForceState _force = null!;
@@ -30,17 +30,24 @@ internal sealed class OriginalAiPersonnel(SimulationEngine engine, ScenarioIniti
         if (ReferenceEquals(world, _projectedWorld)) return;
         var corps = world.Corps.Single(c => c.Id == corpsId);
         var force = world.Forces.Single(f => f.Id == corps.OwnerId);
+        bool ownerChanged = _projectedWorld is null || _corps.OwnerId != corps.OwnerId;
         _corps = corps;
         _force = force;
         _ruler = world.Officers.FirstOrDefault(p => p.Id == force.LeaderId);
         _abilities = engine.GetAbilities(world);
-        _own = world.Officers.Where(p => !p.IsDormant && p.IsServing && p.OwnerId == corps.OwnerId).ToImmutableArray();
-        _places = world.Settlements.Where(s => !s.IsDormant && !s.IsDestroyed && s.OwnerId == corps.OwnerId &&
-            (s.CorpsId == corpsId || s.CorpsId is null && corps.IsRoot) &&
-            s.CanHostPersons && s.Durability > 0 && s.Facility?.BuilderUnitId is null).ToImmutableArray();
-        _placeIds = _places.Select(s => s.Id).ToHashSet();
-        _cityIds = _places.Where(s => s.Kind == SettlementKind.City).Select(s => s.Id).ToHashSet();
-        _busy = world.Simulation.Tasks.Select(t => t.OfficerId).ToHashSet();
+        if (_projectedWorld is null || _projectedWorld.Officers != world.Officers || ownerChanged)
+            _own = world.Officers.Where(p => !p.IsDormant && p.IsServing && p.OwnerId == corps.OwnerId).ToImmutableArray();
+        if (_projectedWorld is null || _projectedWorld.Settlements != world.Settlements ||
+            _projectedWorld.Corps != world.Corps)
+        {
+            _places = world.Settlements.Where(s => !s.IsDormant && !s.IsDestroyed && s.OwnerId == corps.OwnerId &&
+                (s.CorpsId == corpsId || s.CorpsId is null && corps.IsRoot) &&
+                s.CanHostPersons && s.Durability > 0 && s.Facility?.BuilderUnitId is null).ToImmutableArray();
+            _placeIds = _places.Select(s => s.Id).ToHashSet();
+            _cityIds = _places.Where(s => s.Kind == SettlementKind.City).Select(s => s.Id).ToHashSet();
+        }
+        if (_projectedWorld is null || _projectedWorld.Simulation.Tasks != world.Simulation.Tasks)
+            _busy = world.Simulation.Tasks.Select(t => t.OfficerId).ToHashSet();
         _projectedWorld = world;
     }
     private CorpsState Corps { get { Refresh(); return _corps; } }
@@ -181,7 +188,7 @@ internal sealed class OriginalAiPersonnel(SimulationEngine engine, ScenarioIniti
                         {
                             var preview = engine.GetPersonnelJourney(Owner, actor, target,
                                 work == OriginalAiWork.Search ? PersonnelJourneyKind.Search : PersonnelJourneyKind.Recruit);
-                            int threshold = preview.Available && work != OriginalAiWork.Search ? engine.GetRecruitmentThreshold(actor, target) : 0;
+                            int threshold = preview.Available && work != OriginalAiWork.Search ? preview.RecruitmentThreshold!.Value : 0;
                             int score = !preview.Available ? 0 : work == OriginalAiWork.Search
                                 ? preview.Advice.Opinion == AdviserOpinion.Unfavorable ? 0 : 100
                                 : preview.Advice.Opinion switch { AdviserOpinion.Favorable => 100, AdviserOpinion.Unfavorable => 0, _ => threshold };
@@ -253,7 +260,7 @@ internal sealed class OriginalAiPersonnel(SimulationEngine engine, ScenarioIniti
                 people.OrderByDescending(p => Ability(p).Leadership + Ability(p).Intelligence + Age(p)), _ => true);
         Fill(offices.OrderByDescending(o => o.HasBonus ? -1 : o.Priority).TakeWhile(o => !o.HasBonus),
             people.OrderByDescending(p => Ability(p).Leadership + Age(p)), p => Ability(p).Leadership >= 60);
-        long payroll = OriginalAiProjection.Domestic(engine, content, Corps, geography, true).SalaryDemand;
+        long payroll = OriginalAiProjection.SalaryDemand(World, Corps, content.Information.Offices.ToDictionary(o => o.Id, o => o.Salary));
         if (Corps.Treasury.Money > payroll)
             Fill(offices.OrderByDescending(o => o.Capacity == 10000 ? o.Priority : -1).TakeWhile(o => o.Capacity <= 10000),
                 people.OrderByDescending(p => Ability(p).Intelligence + Ability(p).Politics + Age(p)),

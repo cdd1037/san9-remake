@@ -96,11 +96,11 @@ internal sealed partial class OriginalAiMilitary
                     var people = Commanders(People(source.Id));
                     var basic = Basic([people[0]]);
                     if (basic is null) continue;
-                    var targets = World.Units.Where(u => Departed(u) && Opponent(u.OwnerId) && !consumed.Contains((source.Id, u.Id)))
+                    var targets = World.Units.Where(u => Departed(u) && Opponent(u.OwnerId) &&
+                        rules.RegionAt(u.Position) is int region && Near(source.Id, region) && !consumed.Contains((source.Id, u.Id)))
                         .Select(u => (Unit: u, Route: RouteFrom(source, u.FormationId!.Value, u.NavalFormationId,
                             new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = u.Id })))
                         .Where(c => c.Route is not null && c.Route.Days + c.Unit.DepartureDaysRemaining < 20).ToArray();
-                    long Assigned(UnitState target) => World.Units.Where(u => u.OwnerId == Owner && KnownOrder(u)?.UnitId == target.Id).Sum(u => (long)u.Soldiers);
                     int Score(UnitState target) => Policy.Formations.FirstOrDefault(p => p.Value == target.FormationId).Key switch
                     {
                         San9.Content.Scenarios.OriginalAiFormationRole.Mobile => 80,
@@ -111,7 +111,7 @@ internal sealed partial class OriginalAiMilitary
                         San9.Content.Scenarios.OriginalAiFormationRole.Catapult => 240,
                         _ => 40,
                     };
-                    var preferred = targets.Where(c => Assigned(c.Unit) == 0).ToArray();
+                    var preferred = targets.Where(c => Assigned(c.Unit.Id) == 0).ToArray();
                     var ranked = group == 0 ? preferred.Length > 0
                         ? preferred.OrderByDescending(c => Score(c.Unit) - c.Route!.Days - c.Unit.DepartureDaysRemaining).ToArray()
                         : targets.OrderBy(c => MapCoordinates.Distance(rules.Place(source).Position, c.Unit.Position)).ToArray()
@@ -119,7 +119,7 @@ internal sealed partial class OriginalAiMilitary
                     if (group == 1 && ranked.Length > 0)
                     {
                         int minimum = ranked[0].Route!.Days + ranked[0].Unit.DepartureDaysRemaining;
-                        ranked = ranked.Where(c => c.Route!.Days + c.Unit.DepartureDaysRemaining == minimum && c.Unit.Soldiers > Assigned(c.Unit)).ToArray();
+                        ranked = ranked.Where(c => c.Route!.Days + c.Unit.DepartureDaysRemaining == minimum && c.Unit.Soldiers > Assigned(c.Unit.Id)).ToArray();
                     }
                     if (ranked.Length == 0) continue;
                     var candidate = ranked[0];
@@ -147,7 +147,7 @@ internal sealed partial class OriginalAiMilitary
                     .Select(s => (Place: s, Basic: Basic([People(s.Id)[0]], true))).Where(c => c.Basic is not null)
                     .Select(c => (c.Place, Route: RouteFrom(c.Place, c.Basic!.Value.Land, c.Basic.Value.Naval,
                         new(MilitaryOrderKind.Return, null, target.Place.Id))))
-                    .Where(c => c.Route is not null && !c.Route.Obstacle).OrderBy(c => c.Route!.Steps.Length).ToArray();
+                    .Where(c => c.Route is not null && !c.Route.Obstacle).OrderBy(c => c.Route!.CellCount).ToArray();
                 foreach (var candidate in candidates)
                 {
                     long usable = candidate.Place.Soldiers - Math.Max(Fortified(candidate.Place) ? 10000 : 0, PressureNear(candidate.Place.Id, 20));
@@ -177,7 +177,7 @@ internal sealed partial class OriginalAiMilitary
     {
         bool Front(SettlementState s) => Related(s.Id).Any(p => p.OwnerId != Owner && p.OwnerId is int id &&
             !World.Forces.Single(f => f.Id == id).IsBarbarian);
-        var geography = new OriginalAiGeography(content, rules, World);
+        var geography = Geography;
         var budgets = Places.ToDictionary(s => s.Id, TransportBudget);
         var sources = Places.Where(s => budgets[s.Id] > 0 && (!Front(s) || !geography.Priority(s.Id, Owner)) && s.Morale >= 70 &&
             People(s.Id).Length > 0 && (s.Kind != SettlementKind.City || budgets[s.Id] >= 10000))

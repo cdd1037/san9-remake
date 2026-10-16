@@ -4,6 +4,21 @@ namespace San9.Core.Tests;
 
 public sealed class PlanningRouteCostTests
 {
+    [Fact]
+    public void CoarseRouteCellsIncludeEndpointRegionsWithoutChangingCost()
+    {
+        var map = new BattlefieldMap(9, 1, Enumerable.Repeat(0, 9), [new(0, 2, null)]);
+        var start = new WorldPosition(1, 2);
+        var target = new MapOccupancy(new(43, 2), new(1, 1));
+        var cost = map.EstimateTravelCost(start, target, new(1, 1), TravelMode.Land, [], new(10000), intoRange: false);
+        using var diagnostics = new PathSearchDiagnostics();
+        var route = map.EstimateTravelCost(start, target, new(1, 1), TravelMode.Land, [], new(10000), intoRange: false, includeCells: true);
+        Assert.Equal(RouteReachability.Reachable, route.Status);
+        Assert.Equal(cost.Cost, route.Cost);
+        Assert.Equal(Enumerable.Range(0, 9).Select(x => new MapCell(x, 0)), route.Cells);
+        Assert.Equal(1, diagnostics.Queries);
+    }
+
     [Theory]
     [InlineData(20, 5)]
     [InlineData(5, 20)]

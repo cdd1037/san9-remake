@@ -78,9 +78,12 @@ public static class MilitaryRouteQuery
     /// <summary>Traces daily navigation against a frozen world, including relay and automatic lookahead state.</summary>
     public static MilitaryRoutePlan Plan(WorldSnapshot snapshot, MilitaryRulebook rules, UnitState unit, int? movingUnit,
         int maximumDays = 4096, int maximumExpanded = 100000)
+        => new MilitaryRouteQueryContext(snapshot, rules).Plan(unit, movingUnit, maximumDays, maximumExpanded);
+
+    internal static MilitaryRoutePlan Plan(IWorldQuery world, MilitaryRulebook rules, UnitState unit, int? movingUnit,
+        int maximumDays, int maximumExpanded)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumDays);
-        var world = new WorldQuery(snapshot);
         var work = new NavigationWorkBudget(maximumExpanded);
         var steps = ImmutableArray.CreateBuilder<WorldPosition>();
         steps.Add(unit.Position);

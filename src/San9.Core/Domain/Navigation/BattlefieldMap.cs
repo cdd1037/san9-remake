@@ -55,6 +55,7 @@ public readonly record struct MapOccupancy(WorldPosition Position, Footprint Foo
 
 public sealed record MovementRoute(bool Reachable, ImmutableArray<WorldPosition> Steps, long Cost)
 {
+    internal ImmutableArray<MapCell> Cells { get; init; } = [];
     internal RouteTerrainCost TerrainCost { get; init; }
     internal WorldPosition? Lookahead { get; init; }
 }
@@ -78,6 +79,7 @@ public readonly record struct RouteTerrainCost(long Land, long Water)
 }
 public readonly record struct RouteCostEstimate(RouteReachability Status, long Cost = 0)
 {
+    public ImmutableArray<MapCell> Cells { get; init; } = [];
     public RouteTerrainCost TerrainCost { get; init; }
 }
 
@@ -372,8 +374,8 @@ public sealed class BattlefieldMap
     /// Interior cell samples do not guarantee passage for the moving footprint.</summary>
     public RouteCostEstimate EstimateTravelCost(WorldPosition start, MapOccupancy target, Footprint footprint,
         TravelMode mode, IReadOnlyList<MapOccupancy> occupied, NavigationWorkBudget work,
-        bool intoRange = true, int range = 1, bool rectangularReach = false) =>
-        EstimateRouteCostCore(start, target, footprint, mode, occupied, work, intoRange, range, rectangularReach, true);
+        bool intoRange = true, int range = 1, bool rectangularReach = false, bool includeCells = false) =>
+        EstimateRouteCostCore(start, target, footprint, mode, occupied, work, intoRange, range, rectangularReach, true, includeCells);
 
     /// <summary>One bounded path-cost search for planning, without materializing or replaying daily steps.</summary>
     public RouteCostEstimate EstimateRouteCost(WorldPosition start, MapOccupancy target, Footprint footprint,
@@ -383,7 +385,7 @@ public sealed class BattlefieldMap
 
     private RouteCostEstimate EstimateRouteCostCore(WorldPosition start, MapOccupancy target, Footprint footprint,
         TravelMode mode, IReadOnlyList<MapOccupancy> occupied, NavigationWorkBudget work,
-        bool intoRange, int range, bool rectangularReach, bool forecast)
+        bool intoRange, int range, bool rectangularReach, bool forecast, bool includeCells = false)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(range);
         if (work.Exhausted) return new(RouteReachability.Incomplete);
@@ -394,13 +396,13 @@ public sealed class BattlefieldMap
             (Arrived: (Func<WorldPosition, bool>)(p => p == target.Position),
              Distance: (Func<WorldPosition, long>)(p => Math.Abs((long)p.X - target.Position.X) + Math.Abs((long)p.Y - target.Position.Y)),
              Bounds: (PathGoalBounds?)new(target.Position.X, target.Position.Y, target.Position.X, target.Position.Y));
-        if (goal.Arrived(start)) return new(RouteReachability.Reachable);
+        if (goal.Arrived(start)) return new(RouteReachability.Reachable) { Cells = includeCells ? [MapCoordinates.Cell(start)] : [] };
         var objects = intoRange ? TargetOccupancy(occupied, target) : occupied;
         using var search = BattlefieldPathSearch.Rent(this);
         var route = search.Search(start, footprint, mode, objects, goal.Arrived, goal.Distance,
-            intoRange ? null : target.Position, goal.Bounds, work, stepLimit: 0, forecast: forecast);
+            intoRange ? null : target.Position, goal.Bounds, work, stepLimit: 0, forecast: forecast, includeCells: includeCells);
         return work.Exhausted ? new(RouteReachability.Incomplete) :
-            route.Reachable ? new(RouteReachability.Reachable, route.Cost) { TerrainCost = route.TerrainCost } : new(RouteReachability.Unreachable);
+            route.Reachable ? new(RouteReachability.Reachable, route.Cost) { TerrainCost = route.TerrainCost, Cells = route.Cells } : new(RouteReachability.Unreachable);
     }
 
     /// <summary>Full presentation route to a legal position adjacent to an occupied target.</summary>

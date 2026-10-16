@@ -10,6 +10,27 @@ namespace San9.Application.Tests;
 
 public sealed class OriginalAiCycleTests
 {
+    [Fact]
+    public void DomesticProjectionRefreshesAvailabilityAndAccountsAfterDevelopment()
+    {
+        var content = G01ScenarioTests.Fixture();
+        var engine = GameSession.EngineFactory(content)(WorldState.Restore(GameSession.Start(content, 190).Snapshot));
+        var geography = new OriginalAiGeography(content, null, engine.Snapshot);
+        var projection = new OriginalAiProjection(engine, content, 1, geography, true);
+        var before = projection.Domestic();
+        Assert.Same(before, projection.Domestic());
+        var command = new DevelopCommand(Guid.NewGuid(), 1, engine.Snapshot.Simulation.NextSequence,
+            new(1, 1, [1, 2, 3], DomesticActivity.Commerce));
+        Assert.True(engine.Execute(new("player"), command).Submission.Accepted);
+        var after = projection.Domestic();
+        var fresh = new OriginalAiProjection(engine, content, 1, geography, true).Domestic();
+        Assert.Equal(CanonicalJson.Text(fresh), CanonicalJson.Text(after));
+        Assert.Empty(after.Sites.Single(s => s.Settlement.Id == 1).Settlement.OfficerIds);
+        Assert.True(after.Money < before.Money);
+        Assert.Equal(after.Sites.Single(s => s.Settlement.Id == 1).Settlement.Commerce, projection.Observe(1)!.Commerce);
+        Assert.DoesNotContain(4, after.Abilities.Keys);
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
@@ -20,8 +41,8 @@ public sealed class OriginalAiCycleTests
             content.Settlements[0] with { Id = 3, Soldiers = 1, CanHostPersons = canHostPersons }] };
         var session = GameSession.Start(content, 190);
         var engine = GameSession.EngineFactory(content)(WorldState.Restore(session.Snapshot));
-        var input = OriginalAiProjection.Domestic(engine, content, engine.Snapshot.Corps.Single(c => c.Id == 1),
-            new(content, null, engine.Snapshot), true);
+        var input = new OriginalAiProjection(engine, content, 1,
+            new(content, null, engine.Snapshot), true).Domestic();
         Assert.Equal(360, input.RationDemand); // Two daily rations for the 180 days until July.
         Assert.Equal(canHostPersons ? 2 : 1, input.Sites.Length);
     }
@@ -76,7 +97,8 @@ public sealed class OriginalAiCycleTests
         };
         var engine = GameSession.EngineFactory(content)(WorldState.Restore(GameSession.Start(content, 190).Snapshot));
         var geography = new OriginalAiGeography(content, null, engine.Snapshot);
-        OriginalDomesticInputs Capture() => OriginalAiProjection.Domestic(engine, content, engine.Snapshot.Corps.Single(c => c.Id == 1), geography, true);
+        var projection = new OriginalAiProjection(engine, content, 1, geography, true);
+        OriginalDomesticInputs Capture() => projection.Domestic();
         uint money = Capture().Money;
         int calls = 0;
         var report = OriginalAiEconomy.Trade(1, 2, Capture, () => engine.Snapshot,
@@ -144,8 +166,8 @@ public sealed class OriginalAiCycleTests
         var first = GameSession.EngineFactory(content)(WorldState.Restore(world));
         var second = GameSession.EngineFactory(content)(WorldState.Restore(changed));
         var corps = world.Corps.Single(c => c.Id == 1);
-        var a = OriginalAiProjection.Domestic(first, content, corps, new(content, null, world), true);
-        var b = OriginalAiProjection.Domestic(second, content, corps, new(content, null, changed), true);
+        var a = new OriginalAiProjection(first, content, corps.Id, new(content, null, world), true).Domestic();
+        var b = new OriginalAiProjection(second, content, corps.Id, new(content, null, changed), true).Domestic();
         Assert.Equal(CanonicalJson.Text(a), CanonicalJson.Text(b));
         Assert.Equal(first.GetAbilities(first.Snapshot)[2], a.Abilities[2]);
         Assert.NotEqual(world.Officers.Single(o => o.Id == 2).BaseAbilities, a.Abilities[2]);
@@ -363,15 +385,16 @@ public sealed class OriginalAiCycleTests
         var engine = GameSession.EngineFactory(content)(WorldState.Restore(session.Snapshot));
         var corps = engine.Snapshot.Corps.Single(c => c.Id == 1);
         var geography = new OriginalAiGeography(content, null, engine.Snapshot);
-        var input = OriginalAiProjection.Domestic(engine, content, corps, geography, true);
+        var input = new OriginalAiProjection(engine, content, corps.Id, geography, true).Domestic();
         var searches = new List<int>();
         var report = OriginalAiEconomy.Residual(1, false, 100, () => input, () => engine.Snapshot,
-            _ => throw new InvalidOperationException(), (person, _) => { searches.Add(person); return false; });
+            _ => throw new InvalidOperationException(), (person, _) => { searches.Add(person); return false; }, id => input.Sites.FirstOrDefault(s => s.Settlement.Id == id)?.Settlement);
         Assert.Equal(new[] { 2, 3 }, searches);
         Assert.Equal(2, report.Attempts);
         input = input with { Sites = input.Sites.Select(s => s with { Settlement = s.Settlement with { OfficerIds = [1] } }).ToImmutableArray() };
         var singleWorld = engine.Snapshot with { Officers = engine.Snapshot.Officers.Where(o => o.OwnerId != 1 || o.Id == 1).ToArray() };
-        report = OriginalAiEconomy.Residual(1, false, 100, () => input, () => singleWorld, _ => false, (_, _) => throw new InvalidOperationException());
+        report = OriginalAiEconomy.Residual(1, false, 100, () => input, () => singleWorld, _ => false, (_, _) => throw new InvalidOperationException(),
+            id => input.Sites.FirstOrDefault(s => s.Settlement.Id == id)?.Settlement);
         Assert.Equal(OriginalAiWorkEnd.PreparationFailed, report.End);
         Assert.Equal(0, report.Attempts);
     }

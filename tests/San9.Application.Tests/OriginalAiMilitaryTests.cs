@@ -33,7 +33,9 @@ public sealed class OriginalAiMilitaryTests
                  new(500, 10, 0, 30000, 5, new(1, 1), TravelMode.Land)],
                 [new(1, new(7, 7), new(1, 1)) { Combat = new(1, 1, 1, 1, 10) },
                  new(2, new(67, 7), new(1, 1)) { Combat = new(1, 1, 1, 1, 10) }])
-                    { TransportFormations = new(500, null) },
+                    { TransportFormations = new(500, null),
+                        RegionIds = Enumerable.Range(0, 60).Select(i => (int?)(i % 20 < 10 ? 1 : 2)).ToImmutableArray(),
+                        TerritoryExits = Enumerable.Repeat(TerritoryExits.All, 60).ToImmutableArray() },
             OriginalAi = OriginalAiDefinition.Default with { Advanced = true,
                 Military = new() { Formations = new Dictionary<OriginalAiFormationRole, int>
                     { [OriginalAiFormationRole.March] = 400, [OriginalAiFormationRole.Defense] = 400 }.ToImmutableDictionary() },
@@ -65,6 +67,36 @@ public sealed class OriginalAiMilitaryTests
             State = OriginalAiState.Create(content) with { Corps = [new(1, OriginalAiMode.TargetForce, 2, null)] };
         }
         internal OriginalAiWorkReport Run(OriginalAiWork work, int limit = 20) => Military.Run(work, limit, State, State.Corps[0]);
+    }
+
+    [Theory]
+    [InlineData(false, 600)]
+    [InlineData(true, 400)]
+    public void DormantFacilitiesDoNotTriggerSiegeEquipment(bool dormant, int formation)
+    {
+        var content = Fixture();
+        content = content with
+        {
+            Settlements = content.Settlements.Append(content.Settlements[1] with
+                { Id = 3, OwnerId = null, X = 7, Soldiers = 0, Morale = 0, Kind = SettlementKind.Facility }).ToArray(),
+            RegionCityIds = new() { [1] = 1, [2] = 2, [3] = 1 },
+            RegionNameKeys = new() { [1] = "region.1", [2] = "region.2", [3] = "region.3" },
+            Military = content.Military! with
+            {
+                Formations = content.Military.Formations.Add(content.Military.Formations[0] with
+                    { Id = 600, Combat = new(1, 1, 1, 1, 10) }),
+                Facilities = [new(700, 1000, 100, new(1, 1), 0, true, true, true, 30000, null, null, null, []),
+                    new(701, 1000, 100, new(1, 1), 0, true, true, true, 30000, null, null, null, [])],
+                Places = content.Military.Places.Select(p => p with { FacilityTypeId = 701 }).ToImmutableArray()
+                    .Add(new(3, new(37, 7), new(1, 1)) { FacilityTypeId = 700 }),
+                RegionIds = Enumerable.Range(0, 60).Select(i => (int?)(i % 20 < 5 ? 1 : i % 20 < 10 ? 3 : 2)).ToImmutableArray()
+            },
+            OriginalAi = content.OriginalAi with { Military = content.OriginalAi.Military with
+                { RouteObstacleFacilityIds = [700], Formations = content.OriginalAi.Military.Formations.Add(OriginalAiFormationRole.Ram, 600) } }
+        };
+        var h = new Harness(content, w => w with { Settlements = w.Settlements.Select(s => s.Id == 3 ? s with { IsDormant = dormant } : s).ToArray() });
+        Assert.Equal(1, h.Run(OriginalAiWork.Attack).Submitted);
+        Assert.Equal(formation, Assert.IsType<DeployUnitCommand>(Assert.Single(h.Commands)).FormationId);
     }
 
     [Fact]
@@ -225,6 +257,18 @@ public sealed class OriginalAiMilitaryTests
     };
 
     [Fact]
+    public void DeploymentRejectsUnrelatedRegionsBeforeSearchingRoutes()
+    {
+        var content = Fixture() with { CityConnections = [] };
+        var h = new Harness(content, w => EnemyArmy(w) with { Simulation = w.Simulation with
+            { OtherForceOrdersVisible = false, NextUnitId = 901 } });
+        var report = h.Run(OriginalAiWork.Deploy);
+        Assert.Equal(0, report.Submitted);
+        Assert.Equal(0, report.PathQueries);
+        Assert.Empty(h.Commands);
+    }
+
+    [Fact]
     public void DeploymentUsesTargetCombatWaitOnceWithoutChangingForeignOrders()
     {
         var a = new Harness(Fixture(), w => EnemyArmy(w, 8));
@@ -276,7 +320,8 @@ public sealed class OriginalAiMilitaryTests
             Settlements = content.Settlements.Append(content.Settlements[0] with { Id = 3, X = 5, Soldiers = 1000 }).ToArray(),
             RegionCityIds = new() { [1] = 1, [2] = 2, [3] = 1 },
             RegionNameKeys = new() { [1] = "region.1", [2] = "region.2", [3] = "region.3" },
-            Military = content.Military! with { Places = content.Military.Places.Add(new(3, new(27, 7), new(1, 1)) { Combat = new(1, 1, 1, 1, 10) }) }
+            Military = content.Military! with { Places = content.Military.Places.Add(new(3, new(27, 7), new(1, 1)) { Combat = new(1, 1, 1, 1, 10) }),
+                RegionIds = Enumerable.Range(0, 60).Select(i => (int?)(i % 20 < 2 ? 1 : i % 20 < 10 ? 3 : 2)).ToImmutableArray() }
         };
         var h = new Harness(content, w => EnemyArmy(w, target: 3), _ => throw new InvalidOperationException("Unexpected planning draw"));
         Assert.Equal(1, h.Run(OriginalAiWork.Deploy, 1).Submitted);

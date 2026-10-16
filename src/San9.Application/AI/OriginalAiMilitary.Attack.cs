@@ -141,9 +141,8 @@ internal sealed partial class OriginalAiMilitary
         regions = path.Steps.Select(rules.RegionAt).OfType<int>().Distinct().ToImmutableArray();
         foreach (var step in path.Steps)
         {
-            var building = World.Settlements.FirstOrDefault(s => s.Id != source.Id && !s.IsDestroyed && !s.IsDormant &&
-                rules.TryPlace(s, out var place) && !(place.FacilityTypeId is int type && Policy.RouteObstacleFacilityIds.Contains(type)) &&
-                InRegion(step, s));
+            var building = BuildingAlongRoute(step, s => s.Id != source.Id && !s.IsDestroyed && !s.IsDormant &&
+                rules.TryPlace(s, out var place) && !(place.FacilityTypeId is int type && Policy.RouteObstacleFacilityIds.Contains(type)));
             if (building is null) continue;
             if (World.Units.Any(u => Direct(u) && Active(u) && KnownOrder(u)?.SettlementId == building.Id &&
                 KnownOrder(u)?.Kind is MilitaryOrderKind.Construct or MilitaryOrderKind.Transport)) return null;
@@ -195,12 +194,12 @@ internal sealed partial class OriginalAiMilitary
             var sites = rules.ConstructionSites.Values.Where(s => s.RegionId == region.Id)
                 .Select(s => (Site: s, Route: RouteFrom(source, fixedPair.LandFormationId, fixedPair.NavalFormationId,
                     new(MilitaryOrderKind.Move, s.Position, null))))
-                .Where(p => p.Route is not null).OrderBy(p => p.Route!.Steps.Length + MapCoordinates.Distance(region.Position, p.Site.Position)).ToArray();
+                .Where(p => p.Route is not null).OrderBy(p => p.Route!.CellCount + MapCoordinates.Distance(region.Position, p.Site.Position) / MapCoordinates.UnitsPerCell).ToArray();
             foreach (var candidate in sites.Take(1))
             {
                 var facilities = candidate.Site.FacilityIds.Select(id => rules.Facilities[id]).Where(f => f.Buildable &&
                     f.ConstructionCost <= Corps.Treasury.Money && (f.RequiredTacticId is not int required ||
-                        TacticAvailability.HasForMembers(required, people, Force, World.Treasures, treasures))).ToArray();
+                        TacticAvailability.HasForMembers(required, people, Force, World.Treasures, Treasures))).ToArray();
                 bool preferred = group == OriginalAiGroup.ReducedAttempts && random.Percent(33);
                 var horizontal = facilities.Where(f => f.Footprint.Width > f.Footprint.Height || f.Footprint == new Footprint(3, 3)).ToArray();
                 var shape = preferred ? horizontal.Length > 0 ? horizontal : facilities.Where(f =>

@@ -15,6 +15,9 @@ public sealed class OriginalAiWorkMeasurement(int corpsId, string work)
     public long MaximumMicroseconds { get; set; }
     public long AllocatedBytes { get; set; }
     public long PathQueries { get; set; }
+    public long PathSearches { get; set; }
+    public long PathExpanded { get; set; }
+    public long PathEndpointExpanded { get; set; }
 }
 
 public sealed class HeadlessReport

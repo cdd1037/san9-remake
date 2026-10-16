@@ -6,6 +6,7 @@ namespace San9.Core.Simulation;
 public sealed record PersonnelJourneyPreview(CommandRejection Rejection, int? Days, CommandAdvice Advice)
 {
     public int? DistanceDays { get; init; }
+    public int? RecruitmentThreshold { get; init; }
     public ThreeVisitsStep? SearchAdvice { get; init; }
     public bool Available => Rejection == CommandRejection.None;
 }
@@ -65,9 +66,12 @@ public sealed partial class SimulationEngine
         var route = PersonnelLocations.Route(world, _rules.Personnel, origin, destination, unit?.Position);
         var advice = new CommandAdvice(CommandRejection.None, null, AdviserOpinion.Unavailable);
         ThreeVisitsStep? searchAdvice = null;
+        int? threshold = null;
         if (kind == PersonnelJourneyKind.Recruit)
-            advice = AdviserJudgment.Evaluate(world, forceId, ConditionalRandomPurpose.Recruitment, officerId, targetId,
-                RecruitmentRules.Threshold(world, officerId, targetId, _rules));
+        {
+            threshold = RecruitmentRules.Threshold(world, officerId, targetId, _rules);
+            advice = AdviserJudgment.Evaluate(world, forceId, ConditionalRandomPurpose.Recruitment, officerId, targetId, threshold.Value);
+        }
         if (kind == PersonnelJourneyKind.Search)
         {
             long score = PersonnelSearchChances.PoliticsScore(world.Abilities(world.Officers[officerId]).Politics);
@@ -83,6 +87,6 @@ public sealed partial class SimulationEngine
                 if (searchAdvice is not null) advice = advice with { Opinion = AdviserOpinion.Favorable };
             }
         }
-        return new(CommandRejection.None, kind == PersonnelJourneyKind.Search ? route.XunRoundedDays : route.Days, advice) { DistanceDays = route.Days, SearchAdvice = searchAdvice };
+        return new(CommandRejection.None, kind == PersonnelJourneyKind.Search ? route.XunRoundedDays : route.Days, advice) { DistanceDays = route.Days, SearchAdvice = searchAdvice, RecruitmentThreshold = threshold };
     }
 }

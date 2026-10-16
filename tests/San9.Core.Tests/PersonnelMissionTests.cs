@@ -39,6 +39,7 @@ public sealed class PersonnelMissionTests
         for (int i = 0; i < 30; i++) Assert.Equal(preview,engine.GetPersonnelJourney(1,11,20,PersonnelJourneyKind.Recruit));
         StateAssert.Equal(before, engine.Snapshot);
         Assert.True(preview.Available);
+        Assert.Equal(engine.GetRecruitmentThreshold(11, 20), preview.RecruitmentThreshold);
         Assert.Equal(15,preview.Days);
         Assert.True(Recruit(engine).Submission.Accepted);
         RecruitmentResolvedEvent? outcome = null;

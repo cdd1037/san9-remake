@@ -7,6 +7,49 @@ namespace San9.Core.Tests;
 
 public sealed class MovementForecastTests
 {
+    [Fact]
+    public void StrategicEstimateUsesOneSearchAndKeepsZeroUnreachableAndIncompleteDistinct()
+    {
+        var rules = Rules(10);
+        var unit = new UnitState(0, 1, new(2, 2), 100)
+            { FormationId = 0, Order = new(MilitaryOrderKind.Move, new(402, 2), null) };
+        var context = new MilitaryRouteQueryContext(World(unit).CreateSnapshot(), rules);
+        using var diagnostics = new PathSearchDiagnostics();
+        var estimate = context.Estimate(unit, unit.Id);
+        Assert.Equal(RouteReachability.Reachable, estimate.Status);
+        Assert.Equal(400, estimate.Days);
+        Assert.Equal(1, diagnostics.Queries);
+        Assert.Equal(0, context.Estimate(unit with { Order = new(MilitaryOrderKind.Move, unit.Position, null) }, unit.Id).Days);
+        var incomplete = context.Estimate(unit, unit.Id, maximumExpanded: 1);
+        Assert.Equal(RouteReachability.Incomplete, incomplete.Status);
+        Assert.Null(incomplete.Days);
+        var unreachable = context.Estimate(unit with { Order = new(MilitaryOrderKind.Move, new(502, 2), null) }, unit.Id);
+        Assert.Equal(RouteReachability.Unreachable, unreachable.Status);
+        Assert.Null(unreachable.Days);
+    }
+
+    [Fact]
+    public void RouteContextKeepsPolicyAndBudgetQueriesSeparateAndRemainsBoundToItsSnapshot()
+    {
+        var rules = new MilitaryRulebook(new(20, 1, new int[20].ToImmutableArray(), [new(0, 10, null)],
+            [new(0, 95, 0, 10000, 1, new(1, 1), TravelMode.Land),
+             new(1, 95, 0, 10000, 1, new(1, 5), TravelMode.Land)], [new(1, new(2, 2), new(1, 1))]));
+        var snapshot = World(new(0, 2, new(27, 2), 100) { FormationId = 1 }).CreateSnapshot();
+        var context = new MilitaryRouteQueryContext(snapshot, rules);
+        var planned = new UnitState(1, 1, new(2, 2), 100) { FormationId = 0,
+            Order = new(MilitaryOrderKind.Move, new(52, 2), null), Policies = new(AttackApproachingEnemies: true) };
+        Assert.Equal(NavigationStatus.Waiting, context.Plan(planned, null).Status);
+        var passing = planned with { Policies = new() };
+        Assert.Equal(NavigationStatus.Planning, context.Plan(passing, null, maximumExpanded: 1).Status);
+        var route = context.Plan(passing, null);
+        Assert.Equal(NavigationStatus.Arrived, route.Status);
+        Assert.Equal(new WorldPosition(52, 2), route.Steps[^1]);
+        Assert.Equal(NavigationStatus.Waiting, context.Plan(planned, null).Status);
+        var moved = snapshot with { Units = [snapshot.Units[0] with { Position = new(77, 2) }] };
+        Assert.Equal(NavigationStatus.Arrived, new MilitaryRouteQueryContext(moved, rules).Plan(planned, null).Status);
+        Assert.Equal(NavigationStatus.Waiting, context.Plan(planned, null).Status);
+    }
+
     private static MilitaryRulebook Rules(int budget, bool mixed = false) => new(new(100, 1,
         Enumerable.Range(0, 100).Select(x => mixed && x % 3 == 1 ? 1 : 0).ToImmutableArray(),
         [new(0, 10, null), new(1, 12, null)],

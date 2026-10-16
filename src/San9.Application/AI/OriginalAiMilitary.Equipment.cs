@@ -7,9 +7,12 @@ namespace San9.Application.AI;
 
 internal sealed partial class OriginalAiMilitary
 {
-    private TacticRule[] Tactics(OfficerState person) => rules.Tactics.Values.Where(t => t.Selectable &&
-        t.Category is 0 or 1 or 2 or 3 or 6 or 7 or 8 &&
-        TacticAvailability.ForOfficer(person, Force, World.Treasures, treasures).ContainsKey(t.Id)).OrderBy(t => t.Id).ToArray();
+    private TacticRule[] Tactics(OfficerState person)
+    {
+        var available = TacticAvailability.ForOfficer(person, Force, World.Treasures, Treasures);
+        return rules.Tactics.Values.Where(t => t.Selectable && t.Category is 0 or 1 or 2 or 3 or 6 or 7 or 8 &&
+            available.ContainsKey(t.Id)).OrderBy(t => t.Id).ToArray();
+    }
     private TacticRule? Draw(IEnumerable<TacticRule> source)
     {
         var all = source.ToArray(); return all.Length == 0 ? null : all[random.Next(all.Length)];
@@ -61,7 +64,9 @@ internal sealed partial class OriginalAiMilitary
         var subset = all.Where(t => t.Effect is TacticEffect.CounterTrap or TacticEffect.TrapSelection or TacticEffect.Taunt or TacticEffect.Inspire).ToArray();
         if (Ability(person).Intelligence > Ability(person).War && subset.Length > 0) return Draw(subset)!.Id;
         var remaining = ordinary.Concat(subset).Concat(all.Where(t => t.Effect == TacticEffect.CounterConfusion)).ToArray();
-        return remaining.Length == 0 ? null : Draw(remaining.Where(t => t.Power == remaining.Max(t => t.Power)))!.Id;
+        if (remaining.Length == 0) return null;
+        int maximumPower = remaining.Max(t => t.Power);
+        return Draw(remaining.Where(t => t.Power == maximumPower))!.Id;
     }
 
     private (int Land, int? Naval)? Equipment(OfficerState[] people, IReadOnlyDictionary<int, int?> tactics,

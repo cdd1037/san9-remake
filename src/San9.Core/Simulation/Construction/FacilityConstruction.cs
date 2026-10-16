@@ -16,9 +16,28 @@ public sealed record FacilityConstructionChangedEvent(GameClock Clock, int Settl
 
 internal static class FacilityConstruction
 {
+    private sealed record Preparation(DeployUnitCommand Deployment, ResourceAccount Account, int Cost);
+    internal static CommandRejection Eligibility(WorldMutation world, ConstructFacilityCommand command, SimulationRules rules) =>
+        Prepare(world, command, rules, out _);
+
     internal static CommandRejection Start(WorldMutation world, ConstructFacilityCommand command, SimulationRules rules,
         List<DomainEvent> events)
     {
+        var rejection = Prepare(world, command, rules, out var preparation);
+        if (rejection != CommandRejection.None) return rejection;
+        int unitId = (int)world.Simulation.NextUnitId;
+        rejection = MilitaryMovement.Deploy(world, preparation!.Deployment, rules.Military, rules.Governance,
+            rules.Treasures, events, UnitPurpose.Construction);
+        if (rejection != CommandRejection.None) return rejection;
+        ResourceAccounts.Change(world, preparation.Account, ResourceKind.Money, -preparation.Cost, "facility-construction", command.RegionId, events, true);
+        events.Add(new FacilityConstructionChangedEvent(world.Clock, command.RegionId, unitId, "ordered", 0));
+        return CommandRejection.None;
+    }
+
+    private static CommandRejection Prepare(WorldMutation world, ConstructFacilityCommand command, SimulationRules rules,
+        out Preparation? preparation)
+    {
+        preparation = null;
         if (rules.Military is not { ConstructionFormations: { } pair } military || !military.Facilities.TryGetValue(command.FacilityTypeId, out var type) ||
             !military.ConstructionSites.TryGetValue((command.RegionId, command.Position), out var site) ||
             !world.Settlements.TryGetValue(command.SettlementId, out var home) || home.OwnerId != command.IssuerId ||
@@ -38,16 +57,16 @@ internal static class FacilityConstruction
             return CommandRejection.PersonUnavailable;
         var plan = new ConstructionPlan(command.RegionId, type.Id, command.Position, commander);
         if (world.Simulation.NextUnitId > int.MaxValue) return CommandRejection.ResourceOverflow;
-        int unitId = (int)world.Simulation.NextUnitId;
-        var rejection = MilitaryMovement.Deploy(world, new(command.CommandId, command.IssuerId, command.Sequence, home.Id,
+        var deployment = new DeployUnitCommand(command.CommandId, command.IssuerId, command.Sequence, home.Id,
             command.OfficerIds, command.Soldiers, pair.LandFormationId, new(MilitaryOrderKind.Construct, null, null) { Construction = plan })
-            { Policies = command.Policies, NavalFormationId = pair.NavalFormationId, Waypoint = command.Waypoint },
-            military, rules.Governance, rules.Treasures, events, UnitPurpose.Construction);
+            { Policies = command.Policies, NavalFormationId = pair.NavalFormationId, Waypoint = command.Waypoint };
+        var rejection = MilitaryMovement.PrepareDeployment(world, deployment, military, rules.Treasures,
+            UnitPurpose.Construction, 0, 0, out var prepared);
         if (rejection != CommandRejection.None) return rejection;
-        if (MilitaryCombat.Area(world.Units[unitId], military).Overlaps(military.FacilityArea(command.Position, type.Id)))
+        if (new MapOccupancy(prepared!.Start, military.Travel(pair.LandFormationId, pair.NavalFormationId).Shape)
+            .Overlaps(military.FacilityArea(command.Position, type.Id)))
             return CommandRejection.NoDestination;
-        ResourceAccounts.Change(world, account, ResourceKind.Money, -cost, "facility-construction", command.RegionId, events, true);
-        events.Add(new FacilityConstructionChangedEvent(world.Clock, command.RegionId, unitId, "ordered", 0));
+        preparation = new(deployment, account, cost);
         return CommandRejection.None;
     }
 

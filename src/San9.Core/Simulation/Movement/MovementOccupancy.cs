@@ -67,7 +67,10 @@ internal sealed class MovementOccupancy
     }
 }
 
-public sealed record MilitaryRoutePlan(NavigationStatus Status, ImmutableArray<WorldPosition> Steps);
+public sealed record MilitaryRoutePlan(NavigationStatus Status, ImmutableArray<WorldPosition> Steps)
+{
+    public int? Days { get; init; }
+}
 
 /// <summary>Read-only route queries use the same navigation as daily movement.</summary>
 public static class MilitaryRouteQuery
@@ -81,13 +84,15 @@ public static class MilitaryRouteQuery
         var work = new NavigationWorkBudget(maximumExpanded);
         var steps = ImmutableArray.CreateBuilder<WorldPosition>();
         steps.Add(unit.Position);
+        if (MilitaryNavigation.Advance(world, unit, movingUnit, rules, 0, work).Arrived)
+            return new(NavigationStatus.Arrived, steps.ToImmutable()) { Days = 0 };
         for (int day = 0; day < maximumDays; day++)
         {
             var step = MilitaryNavigation.Advance(world, unit, movingUnit, rules, MilitaryNavigation.Budget(unit, rules), work);
             steps.AddRange(step.Navigation.Steps);
             if (step.Arrived || step.Status is NavigationStatus.Unreachable or NavigationStatus.Planning ||
                 step.Status == NavigationStatus.Waiting && step.Remainder == 0 && step.Spent == 0)
-                return new(step.Status, steps.ToImmutable());
+                return new(step.Status, steps.ToImmutable()) { Days = step.Arrived ? day + 1 : null };
             unit = MilitaryNavigation.Apply(unit, step);
         }
         return new(NavigationStatus.Planning, steps.ToImmutable());

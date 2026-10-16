@@ -156,6 +156,10 @@ internal static class OriginalAiTurnRunner
                 }
                 else if (OriginalAiPersonnel.Handles(work))
                     Report(personnel.Run(work, limit, state, cursor.Quotas));
+                else if (OriginalAiMilitary.Handles(work))
+                    Report(definition.MilitaryRules is { } military
+                        ? new OriginalAiMilitary(engine, definition.Content with { OriginalAi = policy }, military, corps.Id, context, random, Submit).Run(work, limit, state, strategy)
+                        : new(corps.Id, work, OriginalAiWorkEnd.PreparationFailed, 0, 0));
                 else if (work == OriginalAiWork.DisposePrisoner)
                 {
                     var progress = personnel.Dispose(cursor.Prisoners ?? personnel.PreparePrisoners(), limit);

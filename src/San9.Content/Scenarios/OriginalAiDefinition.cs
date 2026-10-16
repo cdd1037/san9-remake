@@ -19,6 +19,7 @@ public sealed record OriginalAiWorkRule(int OpeningWaitDays, int PeriodDays, int
 /// <summary>Authored policy, independent of executable offsets and source object slots.</summary>
 public sealed record OriginalAiDefinition
 {
+    [JsonRequired] public OriginalAiMilitaryDefinition Military { get; init; } = new();
     [JsonRequired] public bool Advanced { get; init; }
     [JsonRequired] public bool RecruitmentEnabled { get; init; } = true;
     [JsonRequired] public ImmutableDictionary<int, int> FamilyRankBonuses { get; init; } = ImmutableDictionary<int, int>.Empty;
@@ -60,6 +61,11 @@ public sealed record OriginalAiDefinition
         [OriginalAiWork.RecruitEnemy] = new(90, 20, 3, false, true),
         [OriginalAiWork.DisposePrisoner] = new(150, 45, 2, false, false),
         [OriginalAiWork.Residual] = new(0, 0, 255, true, true),
+        [OriginalAiWork.Attack] = new(120, 0, 255, true, true),
+        [OriginalAiWork.Retreat] = new(0, 0, 5, true, true),
+        [OriginalAiWork.Deploy] = new(0, 0, 255, true, true),
+        [OriginalAiWork.Transport] = new(90, 20, 3, false, true),
+        [OriginalAiWork.FulfillRequest] = new(10, 0, 255, false, true),
     }.ToImmutableDictionary();
 
     private static ImmutableDictionary<OriginalAiMode, ImmutableArray<OriginalAiWork>> DefaultBatches { get; } =

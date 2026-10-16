@@ -5,7 +5,7 @@ using San9.Core.Simulation;
 
 namespace San9.Application.AI;
 
-public enum OriginalAiWorkEnd { LaterStage, Permission, Calendar, NoCandidates, PreparationFailed, ReserveReached, AttemptsExhausted, ProbabilityFailed }
+public enum OriginalAiWorkEnd { LaterStage, Permission, Calendar, NoCandidates, PreparationFailed, ReserveReached, AttemptsExhausted, ProbabilityFailed, AnalysisIncomplete }
 public sealed record OriginalAiWorkReport(int CorpsId, OriginalAiWork Work, OriginalAiWorkEnd End, int Attempts, int Submitted)
 {
     public long InputRevision { get; init; }
@@ -13,6 +13,7 @@ public sealed record OriginalAiWorkReport(int CorpsId, OriginalAiWork Work, Orig
     public long AllocatedBytes { get; init; }
     public int EmptyPlans { get; init; }
     public int Rejected { get; init; }
+    public int PathQueries { get; init; }
 }
 internal sealed record OriginalFoodTradePlan(FoodTradeDirection Direction, uint FoodAmount);
 

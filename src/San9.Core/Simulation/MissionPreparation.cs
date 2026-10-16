@@ -130,6 +130,7 @@ public sealed partial class SimulationEngine
             SearchCommand search => PersonnelMissions.ValidateSearch(world, search, _rules.Personnel),
             MoveOfficersCommand move => PersonnelMissions.ValidateMove(world, move, _rules.Personnel),
             TransportUnitCommand transport => MilitaryMovement.TransportEligibility(world, transport, _rules.Military, _rules.Treasures),
+            ConstructFacilityCommand construct => FacilityConstruction.Eligibility(world, construct, _rules),
             DeployUnitCommand deploy => MilitaryMovement.PrepareDeployment(world, deploy, _rules.Military,
                 _rules.Treasures, UnitPurpose.Combat, 0, 0, out _),
             _ => MissionPreparation.Eligibility(world, command, _rules)

@@ -33,6 +33,9 @@ public sealed class SnipingSessionTests
                 new(3, "reserve", 2, 99, 1, 10000, 100, 100, 100, [])], [], [])
         {
             NaturalDeathsEnabled = false,
+            OriginalAi = OriginalAiDefinition.Default with { WorkRules = OriginalAiDefinition.Default.WorkRules
+                .SetItem(OriginalAiWork.Retreat, new(int.MaxValue, 0, 5, true, true))
+                .SetItem(OriginalAiWork.Deploy, new(int.MaxValue, 0, 255, true, true)) },
             Officers = [new("actor", actor), new("commander", commander), new("ruler", ruler),
                 new("heir", new(23, 2, 3, new(50, 50, 50, 50), false))],
             Units = [..(facility ? Array.Empty<UnitState>() : [new(1, 1, new(102, 7), 100000)

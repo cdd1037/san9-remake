@@ -46,30 +46,18 @@ public sealed class HeadlessHostTests : IDisposable
     }
 
     [Theory]
-    [InlineData(190, 65536)]
-    [InlineData(42, 16)]
-    public void AutonomousPolicyReportsCommittedWorkAndReplaysFromItsSavedInitialState(int seed, int budget)
+    [InlineData(190)]
+    [InlineData(42)]
+    public void AutomaticControlsWithoutProactiveAiRestoreAndReplay(int seed)
     {
         var verified = Run("verify", "--fixture", "--strategy", "autonomous", "--xuns", "6",
-            "--seed", seed.ToString(), "--ai-budget", budget.ToString(), "--output", _directory);
+            "--seed", seed.ToString(), "--output", _directory);
         Assert.Equal(0, verified.Code);
-        Assert.Equal("AI-06", verified.Report.GetProperty("goal").GetString());
+        Assert.Equal("unavailable", verified.Report.GetProperty("proactiveAi").GetString());
         Assert.Equal(6, verified.Report.GetProperty("completedXun").GetInt32());
-        Assert.Equal(budget, verified.Report.GetProperty("aiConfiguration").GetProperty("workBudget").GetInt64());
-        var turns = verified.Report.GetProperty("aiTurns").EnumerateArray().ToArray();
-        Assert.Equal(12, turns.Length);
-        Assert.All(turns, turn =>
-        {
-            long work = turn.GetProperty("work").GetInt64();
-            Assert.InRange(work, 0, budget);
-            Assert.Equal(work, turn.GetProperty("workByKind").EnumerateObject().Sum(p => p.Value.GetInt64()));
-        });
-        Assert.Equal(7, verified.Report.GetProperty("aiCheckpoints").GetArrayLength());
         var initial = StrictJson.Deserialize<SaveEnvelope>(File.ReadAllBytes(FilePath("initial.save.json"))).Session;
         Assert.All(initial.World.Simulation.Controls, seat => Assert.Equal(ControllerKind.Automatic, seat.Kind));
         Assert.Equal(0, initial.World.Simulation.ComputerDamageBonusPercent);
-        foreach (var force in verified.Report.GetProperty("aiWorkByForce").EnumerateObject())
-            Assert.Equal(6, force.Value.GetProperty("turns").GetInt64());
         var logReplay = Run("run", "--fixture", "--log", FilePath("commands.jsonl"), "--restore", FilePath("initial.save.json"),
             "--report", FilePath("autonomous-log.json"), "--save", FilePath("autonomous-log.save.json"));
         Assert.Equal(0, logReplay.Code);
@@ -84,7 +72,7 @@ public sealed class HeadlessHostTests : IDisposable
     }
 
     [Fact]
-    public void InvalidEvaluationBudgetIsAUsageFailure()
+    public void RemovedEvaluationBudgetIsAUsageFailure()
     {
         var result = Run("verify", "--fixture", "--strategy", "autonomous", "--ai-budget", "0", "--output", _directory);
         Assert.Equal(2, result.Code);
@@ -92,12 +80,12 @@ public sealed class HeadlessHostTests : IDisposable
     }
 
     [Fact]
-    public void MissingLoggedPolicyCannotSilentlyUseTheDefault()
+    public void MissingLoggedControllerCannotSilentlyUseTheDefault()
     {
         WriteFailureScenario();
         var lines = File.ReadAllLines(FilePath("commands.jsonl"));
         var header = JsonNode.Parse(lines[0])!;
-        header["aiConfiguration"] = null;
+        header.AsObject().Remove("playerForceController");
         lines[0] = header.ToJsonString();
         File.WriteAllLines(FilePath("invalid-policy.jsonl"), lines);
         var result = Run("run", "--scenario", FilePath("scenario.json"), "--log", FilePath("invalid-policy.jsonl"),
@@ -263,7 +251,7 @@ public sealed class HeadlessHostTests : IDisposable
             Information = San9.Content.Scenarios.InformationDefinitions.Empty with { Corps = [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 3, new(30000, 10000)) { IsRoot = true }], Relations = [new(1, 2, 60)] }
         };
         File.WriteAllBytes(FilePath("scenario.json"), San9.Core.Simulation.CanonicalJson.Encode(definition));
-        var session = GameSession.Start(definition, 190, aiPolicy: San9.Application.AI.AiPolicyConfiguration.Standard with { WorkBudget = 1 });
+        var session = GameSession.Start(definition, 190);
         SaveService.Write(FilePath("initial.json"), session);
         session.BeginRecording();
         session.EndControl(new("player"));
@@ -371,7 +359,8 @@ public sealed class HeadlessHostTests : IDisposable
         Assert.Equal(0, verification.Code);
         Assert.True(verification.Report.GetProperty("success").GetBoolean());
         Assert.Equal(2, verification.Report.GetProperty("completedXun").GetInt32());
-        Assert.Equal(4, verification.Report.GetProperty("developmentCommands").GetInt32());
+        // Only the explicit player script develops; automatic seats do not plan work.
+        Assert.Equal(2, verification.Report.GetProperty("developmentCommands").GetInt32());
         var readOptions = new JsonSerializerOptions(CanonicalJson.Options) { AllowOutOfOrderMetadataProperties = true };
         var requests = File.ReadLines(FilePath("commands.jsonl")).Skip(1)
             .Select(line => JsonSerializer.Deserialize<SessionRequest>(line, readOptions)!).ToArray();

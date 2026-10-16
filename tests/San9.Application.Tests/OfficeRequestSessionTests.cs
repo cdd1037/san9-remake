@@ -81,7 +81,7 @@ public sealed class OfficeRequestSessionTests
     public void AutomaticOfficeRequestResumesWithNoOptionalPlanningBudget()
     {
         var scenario = Scenario() with { PlayerForceId = 2 };
-        var session = GameSession.Start(scenario, 190, aiPolicy: San9.Application.AI.AiPolicyConfiguration.Standard with { WorkBudget = 1 });
+        var session = GameSession.Start(scenario, 190);
         var events = AutomaticResponseReplay.Advance(session, scenario, 3);
         Assert.Contains(events.OfType<OfficeRequestResolvedEvent>(), e => e.OfficerId == 9000 && e.Choice == EventChoice.Accept);
         Assert.Equal(1, session.Snapshot.Officers.Single(p => p.Id == 9000).OwnerId);

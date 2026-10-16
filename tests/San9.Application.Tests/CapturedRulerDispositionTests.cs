@@ -235,8 +235,7 @@ public sealed class CapturedRulerDispositionTests
     public void ComputerResponsesCompleteWithExhaustedTurnBudgetAndRegenerateInReplay(bool execute)
     {
         var definition = ComputerFixture(execute);
-        var session = GameSession.Start(definition, 190,
-            aiPolicy: AiPolicyConfiguration.Standard with { WorkBudget = 1 });
+        var session = GameSession.Start(definition, 190);
         session.BeginRecording();
         var saved = SaveService.Encode(session);
         var result = session.AdvanceForPresentation();

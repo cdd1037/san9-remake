@@ -1,6 +1,5 @@
 using San9.Application.Diagnostics;
 using San9.Core.Diagnostics;
-using San9.Application.AI;
 using System.Diagnostics;
 using System.Globalization;
 using System.Text;
@@ -71,16 +70,6 @@ public sealed class HeadlessHost
                 _report.Coverage = new(_session.Snapshot.Forces.Count, _session.Snapshot.Settlements.Count,
                     _session.Snapshot.Officers.Count, _session.Snapshot.Units.Count, _session.Snapshot.Corps.Count,
                     _session.Snapshot.Treasures.Count, _session.Snapshot.Relations.Count);
-                _report.AiConfiguration = _session.AiState.Configuration;
-                _report.AiWorkByForce = new(_session.AllocationDiagnostics.WorkByForce);
-                _report.AiAcceptedCommands = new(_session.AllocationDiagnostics.AcceptedCommands);
-                _report.AiRejectedCommands = new(_session.AllocationDiagnostics.RejectedCommands);
-                _report.AiRejectionReasons = new(_session.AllocationDiagnostics.RejectionReasons);
-                if (_report.Policy == "autonomous")
-                {
-                    _report.Goal = "AI-06";
-                    _report.Scope = "Unified autonomous policy; deterministic work, public outcomes, exact restoration and replay. Mirror games measure stability, not human-level strength or G12 completion.";
-                }
             }
             _report.ElapsedMilliseconds = timer.ElapsedMilliseconds;
             foreach (var warning in _report.RulesVersionWarnings) _error.WriteLine(warning.Message);
@@ -256,7 +245,7 @@ public sealed class HeadlessHost
         _report.CommandLog = log;
         var header = CommandLogService.ReadHeader(log);
         _session = options.TryGetValue("load", out string? load) ? SaveService.Load(load, definition) :
-            options.TryGetValue("restore", out string? restore) ? SaveService.Read(restore, definition) : GameSession.Start(definition, header.Seed, header.ComputerDamageBonusPercent, battleDeathsEnabled: header.BattleDeathsEnabled, aiPolicy: header.AiConfiguration, playerForceController: header.PlayerForceController);
+            options.TryGetValue("restore", out string? restore) ? SaveService.Read(restore, definition) : GameSession.Start(definition, header.Seed, header.ComputerDamageBonusPercent, battleDeathsEnabled: header.BattleDeathsEnabled, playerForceController: header.PlayerForceController);
         _started = _session.Snapshot.Clock;
         if (options.ContainsKey("record")) _session.BeginRecording();
         var result = CommandLogService.Replay(log, _session);
@@ -298,13 +287,9 @@ public sealed class HeadlessHost
         if (options.TryGetValue("strategy", out var strategy) && strategy is not ("simple" or "autonomous")) throw new UsageException("Unknown strategy.");
         bool autonomous = strategy == "autonomous";
         _report.Policy = strategy ?? "scripted";
-        long budget = options.TryGetValue("ai-budget", out value) && long.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out long parsedBudget) && parsedBudget is >= 1 and <= 1000000 ? parsedBudget :
-            options.ContainsKey("ai-budget") ? throw new UsageException("AI budget must be between 1 and 1000000.") : AiPolicyConfiguration.Standard.WorkBudget;
-        var configuration = AiPolicyConfiguration.Standard with { WorkBudget = budget };
         var definition = Content(options);
-        _session = GameSession.Start(definition, seed, aiPolicy: configuration,
+        _session = GameSession.Start(definition, seed,
             playerForceController: autonomous ? ControllerKind.Automatic : ControllerKind.Player);
-        _session.AllocationDiagnosticsEnabled = true;
         _session.BeginRecording();
         _started = _session.Snapshot.Clock;
         var restored = GameSession.Restore(definition, _session.Capture());
@@ -315,12 +300,7 @@ public sealed class HeadlessHost
         List<object> checkpoints = [];
         void Compare(SessionRequest request)
         {
-            var oldTargets = _session.AiState.Campaigns.Select(g => (g.ForceId, g.TargetId)).ToHashSet();
-            long acceptedBefore = _session.AllocationDiagnostics.AcceptedCommands.Values.Sum();
-            long rejectedBefore = _session.AllocationDiagnostics.RejectedCommands.Values.Sum();
-            var operationTimer = Stopwatch.StartNew();
             var a = _session.Apply(request);
-            operationTimer.Stop();
             var b = restored.Apply(request);
             var difference = SessionDiagnostics.Compare(_session, restored);
             var eventDifference = EventDiagnostics.Compare(a.Events, b.Events);
@@ -328,15 +308,10 @@ public sealed class HeadlessHost
                 difference is not null || eventDifference is not null)
             {
                 Write(Path.Combine(output, "divergence.json"), CanonicalJson.Encode(new
-                    { request, continuous = a, restored = b, continuousAi = _session.AiState, restoredAi = restored.AiState }));
+                    { request, continuous = a, restored = b }));
                 throw new VerificationException($"Operation {request.Sequence}: continuous {a.Disposition}/{a.Rejection}, restored {b.Disposition}/{b.Rejection}; " +
                     $"state difference={difference}; event difference={eventDifference}.");
             }
-            if (request.Operation is EndControlOperation && _session.AllocationDiagnostics.Batches.LastOrDefault(b => b.IsTurnSummary) is { } turn)
-                _report.AiTurns.Add(new(turn.ForceId, turn.Clock, turn.Work, turn.SearchComplete, turn.BudgetExhausted,
-                    operationTimer.ElapsedMilliseconds, checked((int)(_session.AllocationDiagnostics.AcceptedCommands.Values.Sum() - acceptedBefore)),
-                    checked((int)(_session.AllocationDiagnostics.RejectedCommands.Values.Sum() - rejectedBefore)),
-                    _session.AiState.Campaigns.Count(g => g.ForceId == turn.ForceId && !oldTargets.Contains((g.ForceId, g.TargetId))), new(turn.WorkByKind)));
             _report.AcceptedOperations++;
             SummarizeEvents(a.Events);
             if (request.Operation is CommandOperation { Command: WaitCommand }) _report.WaitCommands++;
@@ -352,7 +327,6 @@ public sealed class HeadlessHost
             checkpoints.Add(new { reason, clock = restored.Snapshot.Clock, operationCount = restored.NextOperationSequence });
         }
         Compare(_session.Request(new ChronicleOperation($"Headless {_report.Policy} verification")));
-        CaptureAiCheckpoint();
         bool firstCommand = true;
         for (int xun = 0; xun < xuns && _session.Snapshot.Simulation.Boundary != SimulationBoundary.Terminal; xun++)
         {
@@ -410,7 +384,6 @@ public sealed class HeadlessHost
                 Compare(request with { Operation = new CommandOperation(answer) });
             }
             if (answeredDecision) Checkpoint("after-player-decisions");
-            CaptureAiCheckpoint();
             if (xun % 5 == 0 || _session.Snapshot.Clock is { Month: 12, Day: 21 }) Checkpoint("stable-period");
             if (_session.View.Year != restored.View.Year || _session.View.Day != restored.View.Day ||
                 !_session.Records.SequenceEqual(restored.Records) || !_session.Chronicle.SequenceEqual(restored.Chronicle))
@@ -450,20 +423,6 @@ public sealed class HeadlessHost
             throw new VerificationException($"{message}: {difference.Path}, expected {difference.Expected}, actual {difference.Actual}.");
     }
 
-    private void CaptureAiCheckpoint()
-    {
-        var world = _session!.Snapshot;
-        _report.AiCheckpoints.Add(new(world.Clock, world.Forces.Where(f => !f.IsDormant).OrderBy(f => f.Id).Select(f =>
-            new AiForceState(f.Id, world.Settlements.Count(s => s.OwnerId == f.Id && !s.IsDormant && !s.IsDestroyed),
-                world.Settlements.Where(s => s.OwnerId == f.Id && !s.IsDormant && !s.IsDestroyed).Sum(s => (long)s.Soldiers) +
-                    world.Units.Where(u => u.OwnerId == f.Id).Sum(u => (long)u.Soldiers),
-                world.Corps.Where(c => c.OwnerId == f.Id).Sum(c => c.Treasury.Money),
-                world.Corps.Where(c => c.OwnerId == f.Id).Sum(c => c.Treasury.Food),
-                _session.AiState.Campaigns.Count(g => g.ForceId == f.Id),
-                _session.AiState.Campaigns.Where(g => g.ForceId == f.Id && g.Phase != CampaignPhase.CoolingDown)
-                    .Select(g => (world.Clock.DayNumber - g.LastProgress.DayNumber) / 10).DefaultIfEmpty(0).Max())).ToArray()));
-    }
-
     private static ScenarioInitialState Content(Dictionary<string, string> options)
     {
         try
@@ -481,9 +440,9 @@ public sealed class HeadlessHost
     private static Dictionary<string, string> Parse(string[] args)
     {
         if (args.Length == 0 || args[0] is not ("run" or "verify" or "replay"))
-            throw new UsageException("Use verify --fixture|--scenario PATH --output DIR [--xuns N] [--seed N] [--strategy simple|autonomous] [--ai-budget N], or run --fixture|--scenario PATH --log PATH --report PATH [--load PATH|--restore PATH] [--save PATH] [--record PATH], or replay --fixture|--scenario PATH --recording PATH --report PATH [--save PATH].");
+            throw new UsageException("Use verify --fixture|--scenario PATH --output DIR [--xuns N] [--seed N] [--strategy simple|autonomous], or run --fixture|--scenario PATH --log PATH --report PATH [--load PATH|--restore PATH] [--save PATH] [--record PATH], or replay --fixture|--scenario PATH --recording PATH --report PATH [--save PATH].");
         var values = new Dictionary<string, string>(StringComparer.Ordinal);
-        string[] allowed = args[0] == "verify" ? ["fixture", "scenario", "output", "xuns", "seed", "strategy", "ai-budget"] : args[0] == "run" ? ["fixture", "scenario", "log", "report", "load", "restore", "save", "record"] : ["fixture", "scenario", "recording", "report", "save"];
+        string[] allowed = args[0] == "verify" ? ["fixture", "scenario", "output", "xuns", "seed", "strategy"] : args[0] == "run" ? ["fixture", "scenario", "log", "report", "load", "restore", "save", "record"] : ["fixture", "scenario", "recording", "report", "save"];
         for (int i = 1; i < args.Length; i++)
         {
             if (!args[i].StartsWith("--", StringComparison.Ordinal)) throw new UsageException("Expected named option.");

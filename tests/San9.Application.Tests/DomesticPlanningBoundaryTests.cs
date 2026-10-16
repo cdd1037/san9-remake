@@ -9,7 +9,7 @@ namespace San9.Application.Tests;
 public sealed class DomesticPlanningBoundaryTests
 {
     [Fact]
-    public void DelegatingPlayerRootRevokesPlayerObservationAndRunsUnderCorpsAuthority()
+    public void DelegatingPlayerRootRevokesPlayerObservationWithoutStartingWork()
     {
         var initial = G01ScenarioTests.Fixture();
         initial = initial with { Information = initial.Information with { Corps = initial.Information.Corps
@@ -21,7 +21,8 @@ public sealed class DomesticPlanningBoundaryTests
         Assert.Equal(1, Assert.Single(DomesticObservation.Capture(world, seat, new(CorpsControl.ControllerId(1))).Settlements).Id);
         var result = session.Apply(session.Request(new EndControlOperation()));
         Assert.Equal(SessionDisposition.Accepted, result.Disposition);
-        Assert.Equal(1, Assert.Single(result.Events.OfType<DevelopmentCompletedEvent>()).Command.ForceId);
+        Assert.Empty(result.Events.OfType<DevelopmentCompletedEvent>());
+        Assert.Equal(world.Simulation.NextSequence, session.Snapshot.Simulation.NextSequence);
     }
 
     [Fact]
@@ -108,7 +109,7 @@ public sealed class DomesticPlanningBoundaryTests
     [Theory]
     [InlineData(CorpsControlMode.Direct)]
     [InlineData(CorpsControlMode.Automatic)]
-    public void ComputerRootRunsOnceAcrossAdvanceEntryPointsAndReplays(CorpsControlMode mode)
+    public void ComputerRootEndsControlWithoutWorkAcrossAdvanceEntryPointsAndReplays(CorpsControlMode mode)
     {
         var initial = G01ScenarioTests.Fixture();
         initial = initial with { Information = initial.Information with { Corps = initial.Information.Corps
@@ -118,8 +119,8 @@ public sealed class DomesticPlanningBoundaryTests
         whole.BeginRecording();
         var result = whole.Apply(whole.Request(new AdvanceOperation()));
         Assert.Equal(SessionDisposition.Accepted, result.Disposition);
-        var development = Assert.Single(result.Events.OfType<DevelopmentCompletedEvent>());
-        Assert.Equal(2, development.Command.ForceId);
+        Assert.Empty(result.Events.OfType<DevelopmentCompletedEvent>());
+        Assert.Equal(0, whole.Snapshot.Simulation.NextSequence);
         foreach (var seat in split.Snapshot.Simulation.Controls)
             Assert.Equal(SessionDisposition.Accepted, split.Apply(split.Request(new EndControlOperation(), seat.ControllerId)).Disposition);
         Assert.Equal(SessionDisposition.Accepted, split.Apply(split.Request(new AdvanceOperation())).Disposition);

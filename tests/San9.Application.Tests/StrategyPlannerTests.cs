@@ -24,10 +24,15 @@ public sealed class StrategyPlannerTests
         };
         var session = GameSession.Start(content, 42);
         session.BeginRecording();
+        var actor = new ControlSeat(content.PlayerForceId == 3 ? "ai:1" : "corps:11", 1, ControllerKind.Automatic);
+        if (content.PlayerForceId == 3) session.EndControl(new("player"));
+        var command = StrategyPlanner.Choose(session, actor, Guid.NewGuid());
+        var submitted = session.Execute(new(actor.ControllerId), command);
+        Assert.True(submitted.Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), content);
         var result = session.AdvanceXun();
-        Assert.Contains(result.Events.OfType<TaskStartedEvent>(), e => e.Task.ControllerId == "corps:11" &&
-            e.Task.OfficerId == 2 && e.Task.Journey?.UnitStrategy is not null);
+        Assert.Contains(submitted.Events.OfType<TaskStartedEvent>(), e => e.Task.ControllerId == "corps:11" &&
+            e.Task.OfficerId == 2 && e.Task.Journey?.Burn is not null);
         EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
         StateAssert.Equal(session.Capture(), replay.Session.Capture());
@@ -106,7 +111,7 @@ public sealed class StrategyPlannerTests
     }
 
     [Fact]
-    public void UncontactedEnemyUnitsAreNotUsedAndAutomaticControlActuallyDispatches()
+    public void UncontactedEnemyUnitsAreNotUsedByExplicitScriptedDispatch()
     {
         var content = MissionScenario.Create();
         content = content with { Units = content.Units.Select(u => u.Id == 10 ? u with { Order = null } : u).ToArray() };
@@ -115,9 +120,14 @@ public sealed class StrategyPlannerTests
         content = content with { PlayerForceId = 3 };
         session = GameSession.Start(content, 42);
         session.BeginRecording();
+        var actor = new ControlSeat(content.PlayerForceId == 3 ? "ai:1" : "corps:11", 1, ControllerKind.Automatic);
+        if (content.PlayerForceId == 3) session.EndControl(new("player"));
+        var command = StrategyPlanner.Choose(session, actor, Guid.NewGuid());
+        var submitted = session.Execute(new(actor.ControllerId), command);
+        Assert.True(submitted.Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), content);
         var result = session.AdvanceXun();
-        Assert.Contains(result.Events.OfType<TaskStartedEvent>(), e => e.Task.ForceId == 1 &&
+        Assert.Contains(submitted.Events.OfType<TaskStartedEvent>(), e => e.Task.ForceId == 1 &&
             (e.Task.Journey?.UnitStrategy is not null || e.Task.Journey?.Burn is not null || e.Task.Journey?.Seize is not null ||
              e.Task.Journey?.Gossip is not null || e.Task.Kind == "strategy-alienate"));
         EventAssert.Equal(result.Events, restored.AdvanceXun().Events);

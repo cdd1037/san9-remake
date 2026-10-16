@@ -72,7 +72,7 @@ public sealed class SnipingSessionTests
         Assert.True(new StableRandom(StableRandom.DeriveSeed(seed, "military-sniping")).NextUInt64() % 100 < 50);
         Assert.Equal(1UL, new StableRandom(StableRandom.DeriveSeed(seed, "military-sniping-target")).NextUInt64() % 2);
         var scenario = Scenario(path);
-        var session = GameSession.Start(scenario, seed, battleDeathsEnabled: true, aiPolicy: San9.Application.AI.AiPolicyConfiguration.Standard with { WorkBudget = 1 });
+        var session = GameSession.Start(scenario, seed, battleDeathsEnabled: true);
         Assert.True(session.Snapshot.Simulation.BattleDeathsEnabled);
         Assert.Equal(70, session.Snapshot.Officers.Single(p => p.Id == 22).BaseAbilities.War);
 
@@ -143,7 +143,7 @@ public sealed class SnipingSessionTests
         Assert.True(new StableRandom(StableRandom.DeriveSeed(seed, "military-sniping")).NextUInt64() % 100 < 50);
         Assert.Equal(1UL, new StableRandom(StableRandom.DeriveSeed(seed, "military-sniping-target")).NextUInt64() % 2);
         var scenario = Scenario("field") with { PlayerForceId = 1 };
-        var session = GameSession.Start(scenario, seed, battleDeathsEnabled: true, aiPolicy: San9.Application.AI.AiPolicyConfiguration.Standard with { WorkBudget = 1 });
+        var session = GameSession.Start(scenario, seed, battleDeathsEnabled: true);
         var events = AutomaticResponseReplay.Advance(session, scenario, 1);
         Assert.Contains(events.OfType<OfficerDiedEvent>(), e => e.OfficerId == 22);
         Assert.NotEqual(22, session.Snapshot.Forces.Single(f => f.Id == 2).LeaderId);

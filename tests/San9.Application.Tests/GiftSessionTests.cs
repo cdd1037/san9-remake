@@ -237,7 +237,7 @@ public sealed class GiftSessionTests
     {
         var content = Content();
         content = content with { Information = content.Information with { Corps = content.Information.Corps.Select(f => f.IsRoot && f.OwnerId == 2 ? f with { Treasury = f.Treasury with { Money = 999950 } } : f).ToArray() } };
-        var session = GameSession.Start(content, 42, aiPolicy: San9.Application.AI.AiPolicyConfiguration.Standard with { WorkBudget = 1 });
+        var session = GameSession.Start(content, 42);
         Assert.True(session.Execute(new("player"), new GiftCommand(Guid.NewGuid(), 1, 0, 12, 2,
             new(GiftKind.Money, 20000, null))).Submission.Accepted);
         // Isolate overflow settlement from optional economic and search income.

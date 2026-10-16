@@ -9,7 +9,7 @@ namespace San9.Application.Diagnostics;
 
 public sealed record SessionDiagnosticSnapshot(WorldDiagnosticSnapshot World, ImmutableArray<SessionRecord> Records,
     ImmutableArray<ChronicleEntry> Chronicle, EndingSelection? Ending, Presentation.StrategicContextState StrategicContext,
-    AI.AiSessionState Ai, long NextOperationSequence, ControllerKind PlayerForceController);
+    long NextOperationSequence, ControllerKind PlayerForceController);
 
 public static class SessionDiagnostics
 {
@@ -18,7 +18,7 @@ public static class SessionDiagnostics
         Compare(expected.CaptureCurrentState(), actual.CaptureCurrentState());
 
     public static SessionDiagnosticSnapshot Capture(SessionSnapshot session) => new(WorldDiagnostics.Capture(session.World),
-        session.Records, session.Chronicle, session.Ending, session.StrategicContext, session.Ai,
+        session.Records, session.Chronicle, session.Ending, session.StrategicContext,
         session.NextOperationSequence, session.PlayerForceController);
 
     public static JsonElement Serialize(SessionSnapshot session) =>
@@ -40,8 +40,7 @@ public static class SessionDiagnostics
         if (ReferenceEquals(expected, actual)) return true;
         var comparison = new DiagnosticComparison(SessionDiagnosticJsonContext.Default, describeDifference);
         // Keep diagnostic paths in ordinal order; World owns its own normalization and comparison.
-        bool equal = comparison.Check(expected.Ai, actual.Ai, "$.ai") &&
-            comparison.Check(expected.Chronicle, actual.Chronicle, "$.chronicle") &&
+        bool equal = comparison.Check(expected.Chronicle, actual.Chronicle, "$.chronicle") &&
             comparison.Check(expected.Ending, actual.Ending, "$.ending") &&
             comparison.Check(expected.NextOperationSequence, actual.NextOperationSequence, "$.nextOperationSequence") &&
             comparison.Check(expected.PlayerForceController, actual.PlayerForceController, "$.playerForceController") &&

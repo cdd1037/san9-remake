@@ -12,9 +12,7 @@ internal static class SessionValidation
         if (snapshot.Records.IsDefault || snapshot.Chronicle.IsDefault || snapshot.Records.Length > GameSession.RecentRecordLimit ||
             snapshot.NextOperationSequence < 0)
             throw new ArgumentException("Missing session state.");
-        if (snapshot.Ai is null) throw new ArgumentException("Missing AI state.");
         if (!Enum.IsDefined(snapshot.PlayerForceController)) throw new ArgumentException("Invalid player force controller.");
-        snapshot.Ai.Validate(snapshot.World);
         var initialClock = new GameClock(definition.Content.Year, definition.Content.Month, definition.Content.Day);
         var generated = snapshot.World.Forces.Where(f => f.Origin is not null).OrderBy(f => f.Id).ToArray();
         long nextForceId = (long)definition.Content.Forces.Max(f => f.Id) + 1;

@@ -475,16 +475,24 @@ public sealed class MilitarySessionTests
         StateAssert.Equal(hash, session.Capture());
         Assert.Empty(session.AdvanceXun().Events.OfType<UnitDeployedEvent>());
         Assert.Empty(session.AdvanceXun().Events.OfType<UnitDeployedEvent>());
-        Assert.Single(session.AdvanceXun().Events.OfType<UnitDeployedEvent>());
+        Assert.Empty(session.AdvanceXun().Events.OfType<UnitDeployedEvent>());
+        Assert.Equal(0, session.Snapshot.Settlements.Single(s => s.Id == 1).ConfusionDaysRemaining);
+        if (!delegated) session.EndControl(new("player"));
+        var deployment = Assert.IsType<TransportUnitCommand>(MilitaryPlanner.Choose(session, seat, Guid.NewGuid()));
+        var submitted = session.Execute(new(seat.ControllerId), deployment);
+        Assert.True(submitted.Submission.Accepted);
+        Assert.Single(submitted.Events.OfType<UnitDeployedEvent>());
     }
 
     [Fact]
-    public void AutomaticCorpsReinforcesThroughPublicCommandsAndReplaysInFlight()
+    public void ExplicitCorpsReinforcementReplaysInFlight()
     {
         var definition = ReinforcementFixture();
         var session = GameSession.Start(definition, 42);
         session.BeginRecording();
-        var first = session.AdvanceXun();
+        var deployment = MilitaryPlanner.Choose(session, new("corps:10", 1, ControllerKind.Automatic), Guid.NewGuid());
+        var first = session.Execute(new("corps:10"), deployment);
+        Assert.True(first.Submission.Accepted);
         Assert.Single(first.Events.OfType<UnitDeployedEvent>());
         Assert.Equal(2900u, Assert.Single(session.Snapshot.Units).Soldiers);
         Assert.IsType<WaitCommand>(MilitaryPlanner.Choose(session, new("corps:10", 1, ControllerKind.Automatic), Guid.NewGuid()));
@@ -509,6 +517,8 @@ public sealed class MilitarySessionTests
     public void ControlChangeImmediatelyChangesFieldOrderAuthority()
     {
         var session = GameSession.Start(ReinforcementFixture(), 42);
+        var deployment = MilitaryPlanner.Choose(session, new("corps:10", 1, ControllerKind.Automatic), Guid.NewGuid());
+        Assert.True(session.Execute(new("corps:10"), deployment).Submission.Accepted);
         session.AdvanceXun();
         int unitId = Assert.Single(session.Snapshot.Units).Id;
         OrderUnitCommand Order() => new(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence,
@@ -530,7 +540,7 @@ public sealed class MilitarySessionTests
     }
 
     [Fact]
-    public void AutomaticForceWithoutDelegatedCorpsAlsoDeploysAndDisconnectedPolicyIsReadOnly()
+    public void AutomaticForceWithoutDelegatedCorpsStaysIdleAndScriptedPolicyIsReadOnly()
     {
         var baseline = Fixture();
         var definition = baseline with
@@ -541,7 +551,7 @@ public sealed class MilitarySessionTests
             Settlements = [baseline.Settlements[0] with { Soldiers = 10000 }, baseline.Settlements[1]]
         };
         var session = GameSession.Start(definition, 42);
-        Assert.Single(session.AdvanceXun().Events.OfType<UnitDeployedEvent>());
+        Assert.Empty(session.AdvanceXun().Events.OfType<UnitDeployedEvent>());
         var blocked = definition with { Military = definition.Military! with { BlockedCells = [new(4, 0), new(4, 1), new(4, 2)] } };
         var waiting = GameSession.Start(blocked, 42);
         waiting.EndControl(new("player"));

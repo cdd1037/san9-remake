@@ -41,22 +41,6 @@ public sealed class AiPlanningTests
     }
 
     [Fact]
-    public void DiagnosticLevel_DoesNotChangeProposals()
-    {
-        var content = G01ScenarioTests.Fixture();
-        var plain = GameSession.Start(content, 190, playerForceController: ControllerKind.Automatic);
-        var diagnosed = GameSession.Start(content, 190, playerForceController: ControllerKind.Automatic);
-        diagnosed.AllocationDiagnosticsEnabled = true;
-        for (int turn = 0; turn < 3; turn++)
-        {
-            EventAssert.Equal(plain.AdvanceXun().Events, diagnosed.AdvanceXun().Events);
-            StateAssert.Equal(plain.Capture(), diagnosed.Capture());
-        }
-        Assert.Empty(plain.AllocationDiagnostics.Batches);
-        Assert.NotEmpty(diagnosed.AllocationDiagnostics.Batches);
-    }
-
-    [Fact]
     public void CandidateCommand_UsesSharedValidationAndRejectedCandidateDoesNotCommit()
     {
         SimulationEngine engine = CreateEngine();

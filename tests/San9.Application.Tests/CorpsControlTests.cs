@@ -31,10 +31,11 @@ public sealed class CorpsControlTests
         Assert.True(session.Validate(new(CorpsControl.ControllerId(11)), command).Accepted);
         Assert.False(session.Validate(new(CorpsControl.ControllerId(11)), command with { OfficerId = 1 }).Accepted);
         Assert.False(session.Validate(new(CorpsControl.ControllerId(11)), new DissolveCorpsCommand(Guid.NewGuid(), 1, 1, 11)).Accepted);
+        Assert.True(session.Execute(new("corps:11"), command).Submission.Accepted);
         var result = session.Apply(session.Request(new AdvanceOperation()));
         Assert.Equal(SessionDisposition.Accepted, result.Disposition);
         Assert.Contains(result.Events, e => e is RecruitmentResolvedEvent);
-        Assert.Contains(result.Events, e => e is DevelopmentCompletedEvent);
+        Assert.DoesNotContain(result.Events, e => e is DevelopmentCompletedEvent);
         var saveState = session.Capture();
         var save = SaveService.Encode(session);
         StateAssert.Equal(saveState, SaveService.Decode(save, definition).Capture());

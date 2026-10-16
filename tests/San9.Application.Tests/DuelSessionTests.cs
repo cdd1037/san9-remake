@@ -43,8 +43,7 @@ public sealed class DuelSessionTests
         Assert.True(new StableRandom(StableRandom.DeriveSeed(seed, "duel-death")).NextUInt64() % 100 < 30);
         var scenario = Scenario();
         // Isolate succession/replay from strategic decisions to withdraw from this deliberately losing duel.
-        var session = GameSession.Start(scenario, seed, battleDeathsEnabled: true,
-            aiPolicy: San9.Application.AI.AiPolicyConfiguration.Standard with { WorkBudget = 1 });
+        var session = GameSession.Start(scenario, seed, battleDeathsEnabled: true);
         session.BeginRecording();
         var restored = SaveService.Decode(SaveService.Encode(session), scenario);
         var arrival = session.AdvanceXun();
@@ -78,7 +77,7 @@ public sealed class DuelSessionTests
         Assert.True(new StableRandom(StableRandom.DeriveSeed(seed, "duel-trigger")).NextUInt64() % 100 < 3);
         Assert.True(new StableRandom(StableRandom.DeriveSeed(seed, "duel-death")).NextUInt64() % 100 < 30);
         var scenario = Scenario() with { PlayerForceId = 1 };
-        var session = GameSession.Start(scenario, seed, battleDeathsEnabled: true, aiPolicy: San9.Application.AI.AiPolicyConfiguration.Standard with { WorkBudget = 1 });
+        var session = GameSession.Start(scenario, seed, battleDeathsEnabled: true);
         var events = AutomaticResponseReplay.Advance(session, scenario, 1);
         Assert.Contains(events.OfType<OfficerDiedEvent>(), e => e.OfficerId == 22);
         Assert.NotEqual(22, session.Snapshot.Forces.Single(f => f.Id == 2).LeaderId);

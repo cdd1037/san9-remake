@@ -137,8 +137,7 @@ public sealed class EmperorTransferSessionTests
     {
         var scenario = Content() with { PlayerForceId = 2 };
         var initial = Pending(scenario).Capture();
-        var session = GameSession.Restore(scenario, initial with { Ai = initial.Ai with
-            { Configuration = San9.Application.AI.AiPolicyConfiguration.Standard with { WorkBudget = 1 } } });
+        var session = GameSession.Restore(scenario, initial);
         var events = AutomaticResponseReplay.Advance(session, scenario, 1);
         Assert.Equal(EmperorTransferChoice.Support, Assert.Single(events.OfType<EmperorTransferResolvedEvent>()).Choice);
     }

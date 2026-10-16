@@ -67,14 +67,18 @@ public sealed class G06CampaignTests
     }
 
     [Fact]
-    public void AutomaticForceAttacksThroughPublicCommandsAndPlayerDefeatStopsFurtherWork()
+    public void ExplicitComputerAttackAndPlayerDefeatStopsFurtherWork()
     {
         var initial = Fixture();
         var definition = initial with { PlayerForceId = 2,
             Settlements = [initial.Settlements[0] with { Soldiers = 10000 }, initial.Settlements[1]] };
         var session = GameSession.Start(definition, 42);
         session.BeginRecording();
-        var events = new List<DomainEvent>();
+        session.EndControl(new("player"));
+        var attack = MilitaryPlanner.Choose(session, new("ai:1", 1, ControllerKind.Automatic), Guid.NewGuid());
+        var submitted = session.Execute(new("ai:1"), attack);
+        Assert.True(submitted.Submission.Accepted);
+        var events = new List<DomainEvent>(submitted.Events);
         for (int i = 0; i < 10 && session.Snapshot.Simulation.Boundary != SimulationBoundary.Terminal; i++)
             events.AddRange(session.AdvanceXun().Events);
         Assert.Contains(events, e => e is UnitDeployedEvent);

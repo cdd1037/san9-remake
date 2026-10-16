@@ -520,17 +520,17 @@ public sealed class PersistenceTests : IDisposable
     }
 
     [Fact]
-    public void DiagnosticComparisonIncludesAiChangesWithoutWorldMutation()
+    public void DiagnosticComparisonIncludesSessionChangesWithoutWorldMutation()
     {
         var before = GameSession.Start(Fixture(), 190).Capture();
         var changed = before with
         {
-            Ai = before.Ai with { Configuration = before.Ai.Configuration with { WorkBudget = before.Ai.Configuration.WorkBudget + 1 } }
+            NextOperationSequence = before.NextOperationSequence + 1
         };
         Assert.Same(before.World, changed.World);
         Assert.True(SessionDiagnostics.AreEqual(before, before with { World = before.World with { Revision = before.World.Revision + 1 } }));
         Assert.False(SessionDiagnostics.AreEqual(before, changed));
-        Assert.Equal("$.ai.configuration.workBudget", SessionDiagnostics.Compare(before, changed)?.Path);
+        Assert.Equal("$.nextOperationSequence", SessionDiagnostics.Compare(before, changed)?.Path);
         var worldChanged = before with { World = before.World with { Clock = new(190, 1, 2) } };
         Assert.False(SessionDiagnostics.AreEqual(before, worldChanged));
         Assert.Equal("$.world.clock.day", SessionDiagnostics.Compare(before, worldChanged)?.Path);
@@ -566,7 +566,7 @@ public sealed class PersistenceTests : IDisposable
                 State = o.State with { Righteousness = 15, ForceLoyalties = ImmutableDictionary<int, int>.Empty.Add(1, 80).Add(2, 255) }
             } : o).ToArray()
         };
-        var session = GameSession.Start(definition, 190, aiPolicy: San9.Application.AI.AiPolicyConfiguration.Standard with { WorkBudget = 1 });
+        var session = GameSession.Start(definition, 190);
         session.BeginRecording();
         var request = session.Request(new CommandOperation(new RewardOfficerCommand(Id(80), 1, 0, 2)), id: Id(80));
         Assert.Equal(SessionDisposition.Accepted, session.Apply(request).Disposition);

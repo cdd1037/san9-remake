@@ -33,7 +33,7 @@ public sealed class FacilityCombatSessionTests
         , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 100000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 100000)) { IsRoot = true }], []) };
         Assert.Throws<InvalidDataException>(() => (definition with { Military = definition.Military with
             { LinkRules = new(true, 20, [new(11, 9000, 45, false)]) } }).Validate());
-        var session = GameSession.Start(definition, 42, 100, aiPolicy: San9.Application.AI.AiPolicyConfiguration.Standard with { WorkBudget = 1 });
+        var session = GameSession.Start(definition, 42, 100);
         session.BeginRecording();
         var beforeQuery = session.Snapshot;
         Assert.True(session.View.HasCityInfluence(1, new(7, 2)));
@@ -75,7 +75,7 @@ public sealed class FacilityCombatSessionTests
             Assert.Equal(1, Assert.Throws<CommandLogException>(() => CommandLogService.Replay(log, mismatch)).Line);
             StateAssert.Equal(unchanged, mismatch.Capture());
             var logReplay = GameSession.Start(definition, header.Seed, header.ComputerDamageBonusPercent,
-                header.BattleDeathsEnabled, aiPolicy: San9.Application.AI.AiPolicyConfiguration.Standard with { WorkBudget = 1 });
+                header.BattleDeathsEnabled);
             Assert.Null(CommandLogService.Replay(log, logReplay).FirstFailure);
             StateAssert.Equal(session.Capture(), logReplay.Capture());
             Assert.Equal(session.Snapshot.Units.Single().Soldiers, logReplay.Snapshot.Units.Single().Soldiers);

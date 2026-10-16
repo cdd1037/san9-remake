@@ -18,7 +18,7 @@
 | 八计略与四外交 | [计略](../../research/ai.md#strategy-actions)、[外交](../../research/ai.md#diplomacy) | B05～B06、B14～B18、B28 |
 | 公共响应及电脑待决选择 | [响应](../../research/ai.md#responses)、[待决](../../research/ai.md#computer-prompt-policy) | B26～B30；效果仍归公共规则 |
 
-新基线采用本目录要求；当前生产原型与其历史验收不会因本文确认而改变。迁移时同步受影响的公共BEH、内容和协议，按[实施计划](implementation-plan.md)接管唯一执行者；冻结的旧`specs/ai/`不追加本基线规则。
+新基线采用本目录要求；旧生产原型已按用户决定退出；历史验收不代表本基线通过。迁移时同步受影响的公共BEH、内容和协议，按[实施计划](implementation-plan.md)接管唯一执行者；冻结的旧`specs/ai/`不追加本基线规则。
 
 ## 调度与战略
 

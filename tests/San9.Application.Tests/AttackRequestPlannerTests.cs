@@ -47,11 +47,11 @@ public sealed class AttackRequestPlannerTests
     }
 
     [Theory]
-    [InlineData("general", 2)]
-    [InlineData("domestic", 0)]
-    [InlineData("force", 4)]
-    [InlineData("settlement", 3)]
-    public void AutomaticCorpsUsesItsDelegationAndRestoresTheSamePlan(string policy, int expectedTarget)
+    [InlineData("general")]
+    [InlineData("domestic")]
+    [InlineData("force")]
+    [InlineData("settlement")]
+    public void AutomaticCorpsPreservesDelegationWithoutGeneratingWork(string policy)
     {
         var basis = Fixture();
         var home = basis.Settlements[0] with { Id = 5, NameKey = "root-home", X = 1, Y = 2, Soldiers = 100, CorpsId = 10 };
@@ -80,9 +80,8 @@ public sealed class AttackRequestPlannerTests
         Assert.Equal(SessionDisposition.Accepted, result.Disposition);
         EventAssert.Equal(result.Events, restored.Apply(request).Events);
         StateAssert.Equal(session.Capture(), restored.Capture());
-        if (expectedTarget == 0) Assert.Equal(MilitaryOrderKind.Transport, Assert.Single(session.Snapshot.Units).Order!.Kind);
-        else if (policy == "general") Assert.Contains(session.Snapshot.Units, u => u.Order!.SettlementId == expectedTarget);
-        else Assert.All(session.Snapshot.Units, u => Assert.Equal(expectedTarget, u.Order!.SettlementId));
+        Assert.Empty(session.Snapshot.Units);
+        Assert.Equal(delegation, session.Snapshot.Corps.Single(c => c.Id == 20).Delegation);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
         StateAssert.Equal(session.Capture(), replay.Session.Capture());
         var authored = content with { Information = content.Information with { Corps = content.Information.Corps.Select(c =>

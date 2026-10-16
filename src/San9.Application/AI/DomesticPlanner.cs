@@ -43,7 +43,7 @@ public static class DomesticPlanner
                 if (activity == DomesticActivity.Recruit && (city.Soldiers >= 10000 || city.Food < (city.Soldiers + 5000L) / 50)) continue;
                 if (!scripted && activity == DomesticActivity.Train)
                 {
-                    foreach (var trainers in TrainingPlans.Crews(city.OfficerIds, observation.Abilities))
+                    foreach (var trainers in TrainingCrews(city.OfficerIds, observation.Abilities))
                     {
                         if (!Spend()) return Result(true);
                         candidates.Add(new(observation.Perspective.ObserverId, city.Id, trainers, activity));
@@ -53,8 +53,8 @@ public static class DomesticPlanner
                 for (int count = people.Length; count > 0; count--)
                 {
                     if (!Spend()) return Result(true);
-                    // Supply reservations belong to the account allocator. Recruitment pays for actual
-                    // recruits; ordinary development costs exactly 50 per participant and training is free.
+                    // Recruitment pays for actual recruits; ordinary development costs exactly 50
+                    // per participant and training is free.
                     if (activity == DomesticActivity.Recruit ? city.Money == 0 :
                         activity != DomesticActivity.Train && city.Money < 50 * count) continue;
                     candidates.Add(new(observation.Perspective.ObserverId, city.Id, people.Take(count).ToImmutableArray(), activity));
@@ -68,7 +68,7 @@ public static class DomesticPlanner
     {
         var city = observation.Settlements.Single(s => s.Id == command.SettlementId);
         var abilities = command.OfficerIds.Select(id => observation.Abilities.GetValueOrDefault(id)).ToArray();
-        long opportunity = abilities.Sum(TrainingPlans.OpportunityCost);
+        long opportunity = abilities.Sum(OpportunityCost);
         if (command.Activity == DomesticActivity.Train)
             return DomesticDevelopment.TrainingIncrement(city.Soldiers, city.Morale, observation.Trust, abilities) *
                 (long)city.Soldiers / 100 - opportunity;
@@ -87,4 +87,25 @@ public static class DomesticPlanner
         return gain * (command.Activity is DomesticActivity.Commerce or DomesticActivity.Cultivation ? 9 : 2) -
             command.OfficerIds.Length * 50 - opportunity;
     }
+
+    // Every officer is considered individually. Group seeds compare effect and opportunity cost;
+    // the public five-participant limit bounds group size, not the pool of available officers.
+    private static IEnumerable<ImmutableArray<int>> TrainingCrews(IEnumerable<int> available,
+        ImmutableDictionary<int, OfficerAbilities> abilities)
+    {
+        var people = available.OrderByDescending(id => abilities.GetValueOrDefault(id).Leadership).ThenBy(id => id).ToArray();
+        foreach (int id in people) yield return [id];
+        var economical = people.OrderBy(id => OpportunityCost(abilities.GetValueOrDefault(id)) - abilities.GetValueOrDefault(id).Leadership)
+            .ThenByDescending(id => abilities.GetValueOrDefault(id).Leadership).ThenBy(id => id).ToArray();
+        for (int count = 2; count <= Math.Min(5, people.Length); count++)
+        {
+            var strongest = people.Take(count).Order().ToImmutableArray();
+            yield return strongest;
+            var cheapest = economical.Take(count).Order().ToImmutableArray();
+            if (!strongest.AsSpan().SequenceEqual(cheapest.AsSpan())) yield return cheapest;
+        }
+    }
+
+    private static long OpportunityCost(OfficerAbilities ability) => Math.Max(ability.Politics,
+        Math.Max(ability.Intelligence, Math.Max(ability.War, ability.Leadership)));
 }

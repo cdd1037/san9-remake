@@ -129,7 +129,7 @@ public sealed class PoliticalEventSessionTests
     public void AutomaticCountryTitleUsesTheSamePublicChoiceAndReplays()
     {
         var scenario = Scenario() with { PlayerForceId = 2 };
-        var session = GameSession.Start(scenario, 17, aiPolicy: San9.Application.AI.AiPolicyConfiguration.Standard with { WorkBudget = 1 });
+        var session = GameSession.Start(scenario, 17);
         var events = AutomaticResponseReplay.Advance(session, scenario, 3);
         Assert.Single(events.OfType<PeerageChangedEvent>(), e => e.ForceId == 1);
         Assert.Equal(500, session.Snapshot.Forces.Single(f => f.Id == 1).CountryTitleId);

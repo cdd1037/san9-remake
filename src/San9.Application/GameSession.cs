@@ -44,11 +44,7 @@ public sealed partial class GameSession
     private bool _executing;
     internal bool IsExecuting => _executing;
     private EndingSelection? _ending;
-    private AiSessionState _ai = new();
     public ControllerKind PlayerForceController { get; private set; } = ControllerKind.Player;
-    public AiSessionState AiState => _ai;
-    public bool AllocationDiagnosticsEnabled { get; set; }
-    public AllocationDiagnostics AllocationDiagnostics { get; } = new();
     private StrategicContextState _strategicContext;
     public StrategicContextState StrategicContext => _strategicContext;
     public event Action? Changed;
@@ -183,13 +179,10 @@ public sealed partial class GameSession
     }
 
     public static GameSession Start(ScenarioInitialState definition, ulong seed, int computerDamageBonusPercent = 0,
-        bool battleDeathsEnabled = false, AiPolicyConfiguration? aiPolicy = null, ControllerKind playerForceController = ControllerKind.Player)
+        bool battleDeathsEnabled = false, ControllerKind playerForceController = ControllerKind.Player)
     {
         if (!Enum.IsDefined(playerForceController)) throw new ArgumentOutOfRangeException(nameof(playerForceController));
-        var session = Start(definition, seed, EngineFactory(definition), computerDamageBonusPercent, battleDeathsEnabled, playerForceController);
-        session._ai = new() { Configuration = aiPolicy ?? AiPolicyConfiguration.Standard };
-        session._ai.Validate(session.Snapshot);
-        return session;
+        return Start(definition, seed, EngineFactory(definition), computerDamageBonusPercent, battleDeathsEnabled, playerForceController);
     }
 
     internal static GameSession Start(ScenarioInitialState definition, ulong seed, Func<WorldState, SimulationEngine> factory, int computerDamageBonusPercent = 0, bool battleDeathsEnabled = false, ControllerKind playerForceController = ControllerKind.Player)
@@ -243,7 +236,6 @@ public sealed partial class GameSession
         session.NextOperationSequence = snapshot.NextOperationSequence;
         session._ending = snapshot.Ending;
         session._strategicContext = snapshot.StrategicContext;
-        session._ai = snapshot.Ai;
         session.PlayerForceController = snapshot.PlayerForceController;
         session.HasUnsavedChanges = false;
         return session;
@@ -269,7 +261,7 @@ public sealed partial class GameSession
         var records = _records.ToImmutableArray();
         var chronicle = _chronicle.ToImmutableArray();
         return _capture = new(world, records, chronicle, NextOperationSequence)
-            { Ending = _ending, StrategicContext = _strategicContext, Ai = _ai, PlayerForceController = PlayerForceController };
+            { Ending = _ending, StrategicContext = _strategicContext, PlayerForceController = PlayerForceController };
     }
 
     public SessionRequest Request(SessionOperation operation, string controllerId = "player", Guid? id = null)
@@ -312,9 +304,6 @@ public sealed partial class GameSession
             DevelopmentOutcome? development = null;
             ChronicleEntry? note = null;
             var ending = _ending;
-            var ai = _ai;
-            List<AllocationTrace>? allocationTraces = AllocationDiagnosticsEnabled ? [] : null;
-            List<AllocationBatchTrace>? allocationBatches = AllocationDiagnosticsEnabled ? [] : null;
             switch (request.Operation)
             {
                 case EndingOperation selection:
@@ -339,7 +328,7 @@ public sealed partial class GameSession
                     events.AddRange(command.Events);
                     break;
                 case EndControlOperation:
-                    AutomaticTurnRunner.EndControl(candidate, new(request.ControllerId), MilitaryRules, events, ref ai, allocationTraces, allocationBatches);
+                    AutomaticTurnRunner.EndControl(candidate, new(request.ControllerId), events);
                     break;
                 case PrepareAdvanceOperation:
                 case AdvanceOperation:
@@ -350,7 +339,7 @@ public sealed partial class GameSession
                         candidate.Snapshot.Simulation.ActiveControl < candidate.Snapshot.Simulation.Controls.Length)
                     {
                         var seat = candidate.Snapshot.Simulation.Controls[candidate.Snapshot.Simulation.ActiveControl];
-                        AutomaticTurnRunner.EndControl(candidate, new(seat.ControllerId), MilitaryRules, events, ref ai, allocationTraces, allocationBatches);
+                        AutomaticTurnRunner.EndControl(candidate, new(seat.ControllerId), events);
                     }
                     if (request.Operation is AdvanceOperation && candidate.Snapshot.Simulation.Boundary == SimulationBoundary.Stable)
                     {
@@ -377,13 +366,10 @@ public sealed partial class GameSession
                 new SessionRecord(e.Clock, e.Command.ForceId, e.Command.SettlementId, e.Command.OfficerIds[0],
                     e.Command.Activity, e.Increment, e.Cost)).ToArray();
             var snapshot = candidate.Snapshot;
-            ai = (ai with { Opportunities = OpportunityPlanner.Feedback(ai.Opportunities, snapshot, events) }).Prune(snapshot);
             var strategicContext = Presentation.StrategicContext.Prepare(_snapshotSource.Project(snapshot), _strategicContext);
             var publishedEvents = events.ToImmutableArray();
             var recorded = IsRecording ? new RecordedOperation(request, publishedEvents) : null;
             _simulation = candidate;
-            _ai = ai;
-            if (allocationTraces is not null) AllocationDiagnostics.Publish(allocationTraces, allocationBatches!, publishedEvents);
             _ending = ending;
             _strategicContext = strategicContext;
             _records.AddRange(completed);

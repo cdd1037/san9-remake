@@ -9,6 +9,50 @@ namespace San9.Core.Tests;
 public sealed class WarfareAuditAlignmentTests
 {
     [Theory]
+    [InlineData(0, 1000u, 70, 49000u, 50000u, 25)]
+    [InlineData(20, 0u, 70, 0u, 200u, 25)]
+    [InlineData(80, 1000u, 0, 0u, 1200u, 80)]
+    public void BarbarianCaptureAbandonsCityAndReturnsReceivingCorpsAttackers(int durability, uint soldiers, int morale,
+        uint existingWounded, uint expectedWounded, int expectedDurability)
+    {
+        var m = World(); List<DomainEvent> events = [];
+        m.Replace(m.Forces[1] with { IsBarbarian = true });
+        // Retain a defender city to isolate capture from force elimination.
+        m.AddSettlement(m.Settlements[2] with { Id = 99 });
+        m.Replace(m.Settlements[2] with { Durability = durability, Soldiers = soldiers, Wounded = 200, Morale = morale });
+        var attack = new MilitaryOrder(MilitaryOrderKind.AttackSettlement, null, 2);
+        m.Replace(m.Units[1] with { Position = new(30, 7), Order = attack, ServicePlaceId = 1,
+            Wounded = existingWounded, Morale = 60 });
+        // Return applies to matching corps attack orders even outside the absorption range.
+        m.AddUnit(new(3, 1, new(10, 7), 1000) { FormationId = 101, Morale = 40, Order = attack, ServicePlaceId = 1 });
+        m.AddUnit(new(4, 1, new(10, 9), 1000) { FormationId = 101, Morale = 40,
+            Order = new(MilitaryOrderKind.Move, new(12, 9), null), ServicePlaceId = 1 });
+        uint money = ResourceAccounts.Root(m, 1).Treasury.Money;
+
+        BattleAftermath.ResolveSettlementDefeat(m, 2, new(1, false), new() { Military = Rules() }, events);
+
+        var city = m.Settlements[2];
+        Assert.Null(city.OwnerId);
+        Assert.Null(city.CorpsId);
+        Assert.False(city.IsDestroyed);
+        Assert.Equal(expectedDurability, city.Durability);
+        Assert.Equal(0u, city.Soldiers + city.Wounded);
+        Assert.Equal(0, city.Morale);
+        Assert.Equal(500, city.PublicOrder);
+        Assert.Empty(events.OfType<CityCapturePublicOrderEvent>());
+        Assert.Equal(expectedWounded, m.Units[1].Wounded);
+        Assert.Equal(70, m.Units[1].Morale);
+        Assert.True(ResourceAccounts.Root(m, 1).Treasury.Money > money);
+        Assert.All(new[] { 1, 3 }, id => Assert.Equal(new MilitaryOrder(MilitaryOrderKind.Return, null, 1), m.Units[id].Order));
+        Assert.Equal(MilitaryOrderKind.Move, m.Units[4].Order!.Kind);
+        Assert.Empty(events.OfType<UnitAbsorbedEvent>());
+        Assert.False(Assert.Single(events.OfType<SettlementCapturedEvent>()).Destroyed);
+        var recovery = Assert.Single(events.OfType<ResourceChangedEvent>(), e => e.Reason == "settlement-abandoned-recovery");
+        Assert.Equal((long)soldiers + 200, recovery.Requested);
+        Assert.Equal(expectedWounded - existingWounded, recovery.Actual);
+    }
+
+    [Theory]
     [InlineData(1000u, 20, 60, 45)]
     [InlineData(1000u, 0, 60, 35)]
     [InlineData(0u, 20, 60, 70)]
@@ -102,22 +146,25 @@ public sealed class WarfareAuditAlignmentTests
         Assert.Empty(events.OfType<UnitAbsorbedEvent>());
     }
 
-    [Fact]
-    public void DestroyedGarrisonRecipientAndRecoverySurviveRestore()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ClearedGarrisonRecipientAndRecoverySurviveRestore(bool abandoned)
     {
         var world = InitialWorld();
         var m = world.BeginMutation();
+        m.Replace(m.Forces[1] with { IsBarbarian = abandoned });
         m.AddSettlement(m.Settlements[2] with { Id = 99 });
         var attack = new MilitaryOrder(MilitaryOrderKind.AttackSettlement, null, 2);
         m.Replace(m.Settlements[2] with { Durability = 0, Soldiers = 1000, Wounded = 2000 });
-        m.Replace(m.Units[1] with { Position = new(30, 7), Order = attack });
-        m.AddUnit(new(3, 1, new(32, 5), 1000) { FormationId = 101, Morale = 40, Order = attack });
+        m.Replace(m.Units[1] with { Position = new(30, 7), Order = attack, ServicePlaceId = 1 });
+        m.AddUnit(new(3, 1, new(32, 5), 1000) { FormationId = 101, Morale = 40, Order = attack, ServicePlaceId = 1 });
         m.SetSimulation(m.Simulation with { Boundary = SimulationBoundary.Stable, NextUnitId = 4,
             RandomStreams = [new("battle-capture-wounded", 0)] });
         world.Commit(m);
         var restored = WorldState.Restore(world.CreateSnapshot());
         List<DomainEvent> first = [], second = [];
-        var rules = new SimulationRules { Military = Rules(destroyed: true) };
+        var rules = new SimulationRules { Military = Rules(destroyed: !abandoned) };
         m = world.BeginMutation();
         BattleAftermath.ResolveSettlementDefeat(m, 2, new(1, false), rules, first);
         world.Commit(m);
@@ -128,6 +175,8 @@ public sealed class WarfareAuditAlignmentTests
         Assert.Equal(0u, m.Units[1].Wounded);
         EventAssert.Equal(first, second);
         StateAssert.Equal(world.CreateSnapshot(), restored.CreateSnapshot());
+        StateAssert.Equal(world.CreateSnapshot(), WorldState.Restore(world.CreateSnapshot()).CreateSnapshot());
+        Assert.Equal(!abandoned, m.Settlements[2].IsDestroyed);
         Assert.NotEqual(0UL, m.Simulation.RandomStreams.Single(s => s.Name == "battle-capture-wounded").State);
     }
 

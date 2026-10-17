@@ -226,6 +226,42 @@ public sealed class MilitaryCombatTests
         StateAssert.Equal(engine.Snapshot, Engine(WorldState.Restore(engine.CaptureStableState())).Snapshot);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void PublicCaptureUsesCurrentBarbarianIdentityAndDoesNotRecaptureAbandonedCity(bool barbarian)
+    {
+        var world = World(defenders: 0);
+        var mutation = world.BeginMutation();
+        mutation.Replace(mutation.Forces[1] with { IsBarbarian = barbarian });
+        mutation.AddSettlement(mutation.Settlements[2] with { Id = 3, Soldiers = 1000 });
+        mutation.Replace(mutation.Officers[22] with { SettlementId = 3 });
+        world.Commit(mutation);
+        var engine = Engine(world);
+        var restored = Engine(WorldState.Restore(engine.CaptureStableState()));
+
+        var result = engine.AdvanceXun();
+        EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
+        var city = engine.Snapshot.Settlements.Single(s => s.Id == 2);
+        Assert.Equal(barbarian ? (int?)null : 1, city.OwnerId);
+        Assert.False(city.IsDestroyed);
+        Assert.Single(result.Events.OfType<SettlementCapturedEvent>());
+        Assert.Empty(result.Events.OfType<ForceEliminatedEvent>());
+        if (barbarian)
+        {
+            Assert.Contains(result.Events.OfType<UnitOrderChangedEvent>(), e => e.UnitId == 0 &&
+                e.Reason == "settlement-abandoned" && e.Order == new MilitaryOrder(MilitaryOrderKind.Return, null, 1));
+            Assert.DoesNotContain(result.Events.OfType<UnitAbsorbedEvent>(), e => e.SettlementId == 2);
+            Assert.Equal(0u, city.Soldiers + city.Wounded);
+        }
+        restored = Engine(WorldState.Restore(engine.CaptureStableState()));
+        var next = engine.AdvanceXun();
+        EventAssert.Equal(next.Events, restored.AdvanceXun().Events);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
+        Assert.Empty(next.Events.OfType<SettlementCapturedEvent>());
+    }
+
     [Fact]
     public void BattleEliminationReturnsEnvoyBeforeCurrentDatesCommandsAcrossRestore()
     {

@@ -51,7 +51,7 @@ internal static class BattleAftermath
         foreach (var capture in captures)
             CaptureSettlement(world, capture.Id, winner, capture.Units, rules, events);
         foreach (int owner in previousOwners) EliminateIfDefeated(world, owner, rules, events, world.CurrentDateCommandsConsumed, victor);
-        foreach (var capture in captures.Where(c => !world.Settlements[c.Id].IsDestroyed))
+        foreach (var capture in captures.Where(c => !world.Settlements[c.Id].IsDestroyed && world.Settlements[c.Id].OwnerId == victor))
             foreach (int unitId in capture.Units)
                 if (world.Units.TryGetValue(unitId, out var unit))
                     MilitaryMovement.Absorb(world, unit, capture.Id, rules.Governance, rules.Personnel, rules.Military!, events);
@@ -88,10 +88,13 @@ internal static class BattleAftermath
             return;
         }
         bool destroyed = settlement.Durability == 0 && definition.DestroyedAtZeroDurability;
+        bool abandoned = !destroyed && world.Forces[winner.Owner(world)].IsBarbarian;
+        bool cleared = destroyed || abandoned;
         if (settlement.OwnerId is int previousOwner && !world.Forces[previousOwner].IsEliminated)
             BattleLearning.CapturedSettlement(world, winner, rules.Military, events);
-        if (destroyed)
+        if (cleared)
         {
+            string reason = abandoned ? "settlement-abandoned" : "settlement-destroyed";
             if (candidates.Length > 0)
             {
                 int recipient = candidates.Length == 1 ? candidates[0] :
@@ -100,11 +103,11 @@ internal static class BattleAftermath
                 uint accepted = (uint)Math.Min(pool, MilitaryRulebook.WoundedCapacity - world.Units[recipient].Wounded);
                 new BattleSource(recipient, false).Reward(world, accepted, 0);
                 ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, recipient), ResourceKind.Wounded,
-                    "settlement-destroyed-recovery", id, pool, accepted, events);
+                    reason + "-recovery", id, pool, accepted, events);
             }
-            ResourceAccounts.Report(world, new(ResourceOwnerKind.Settlement, id), ResourceKind.Soldiers, "settlement-destroyed", winner.Id,
+            ResourceAccounts.Report(world, new(ResourceOwnerKind.Settlement, id), ResourceKind.Soldiers, reason, winner.Id,
                 -(long)settlement.Soldiers, -(long)settlement.Soldiers, events);
-            ResourceAccounts.Report(world, new(ResourceOwnerKind.Settlement, id), ResourceKind.Wounded, "settlement-destroyed", winner.Id,
+            ResourceAccounts.Report(world, new(ResourceOwnerKind.Settlement, id), ResourceKind.Wounded, reason, winner.Id,
                 -(long)settlement.Wounded, -(long)settlement.Wounded, events);
         }
         ResolvePeople(world, world.SettlementMembers(id).Where(p => !world.IsTraveling(p.Id)), rules.Military.BuildingArea(definition),
@@ -114,12 +117,12 @@ internal static class BattleAftermath
             BattleTreasury.Transfer(world, owner, settlement.CorpsId, BattleTreasury.Weight(settlement), winner, id,
                 "settlement-captured", events);
         }
-        int publicOrder = destroyed ? settlement.PublicOrder : CityBattleEffects.CapturedPublicOrder(world, settlement, winner.Owner(world), events);
-        world.Replace(settlement with { PublicOrder = publicOrder, OwnerId = destroyed ? null : winner.Owner(world), CorpsId = destroyed ? null : winner.Corps(world),
+        int publicOrder = cleared ? settlement.PublicOrder : CityBattleEffects.CapturedPublicOrder(world, settlement, winner.Owner(world), events);
+        world.Replace(settlement with { PublicOrder = publicOrder, OwnerId = cleared ? null : winner.Owner(world), CorpsId = cleared ? null : winner.Corps(world),
             Facility = settlement.Facility is { } instance ? instance with { BuilderUnitId = null } : null,
             ConfusionDaysRemaining = 0,
-            IsDestroyed = destroyed, Soldiers = destroyed ? 0 : settlement.Soldiers, Wounded = destroyed ? 0 : settlement.Wounded,
-            Morale = destroyed ? 0 : settlement.Morale, Durability = destroyed ? 0 :
+            IsDestroyed = destroyed, Soldiers = cleared ? 0 : settlement.Soldiers, Wounded = cleared ? 0 : settlement.Wounded,
+            Morale = cleared ? 0 : settlement.Morale, Durability = destroyed ? 0 :
                 Math.Max(settlement.Durability, Math.Max(1, settlement.MaxDurability / 4)) });
         foreach (var task in world.Simulation.Tasks.Where(t => t.OriginSettlementId == id || t.Journey?.DestinationPlaceId == id)
             .OrderBy(t => t.Sequence).ThenBy(t => t.Id).ToArray())
@@ -128,6 +131,10 @@ internal static class BattleAftermath
             if (task.Journey is not null) BattlePersonnel.ResumeReturn(world, task, rules, events);
         }
         winner.Reward(world, 0, 10);
+        if (abandoned)
+            foreach (var unit in world.Units.Values.Where(u => u.OwnerId == winner.Owner(world) && u.CorpsId == winner.Corps(world) &&
+                u.Order is { Kind: MilitaryOrderKind.AttackSettlement } order && order.SettlementId == id).OrderBy(u => u.Id).ToArray())
+                MilitaryPolicies.Return(world, unit, rules.Military!, events, "settlement-abandoned");
         MilitaryPolicies.SettlementChanged(world, id, rules.Military!, events);
         events.Add(new SettlementCapturedEvent(world.Clock, id, settlement.OwnerId, winner, destroyed)
             { Source = BattleObjectContext.Capture(world, winner) });

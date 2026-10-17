@@ -23,7 +23,8 @@ public sealed record DomesticObservation(AiObservation Perspective, ImmutableArr
 {
     public ImmutableDictionary<int, OfficerAbilities> Abilities { get; init; } = ImmutableDictionary<int, OfficerAbilities>.Empty;
     public int Trust { get; init; }
-    public static DomesticObservation Capture(WorldSnapshot world, ControlSeat seat, CommandContext context)
+    public static DomesticObservation Capture(WorldSnapshot world, ControlSeat seat, CommandContext context,
+        IReadOnlyDictionary<int, OfficerAbilities> abilities)
     {
         var perspective = AiObservation.FromSnapshot(seat.ForceId, world);
         if (!world.Forces.Any(f => f.Id == seat.ForceId && !f.IsDormant && !f.IsEliminated)) return new(perspective, []);
@@ -40,7 +41,7 @@ public sealed record DomesticObservation(AiObservation Perspective, ImmutableArr
             return Settlement(s, account.Id, account.Treasury.Money, account.Treasury.Food,
                 people[s.Id].OrderBy(p => p.Id).Select(p => p.Id).ToImmutableArray());
         }).ToImmutableArray()) { Trust = world.Forces.Single(f => f.Id == seat.ForceId).Trust,
-            Abilities = world.Officers.Where(p => p.OwnerId == seat.ForceId).ToImmutableDictionary(p => p.Id, p => p.BaseAbilities) };
+            Abilities = world.Officers.Where(p => p.OwnerId == seat.ForceId).ToImmutableDictionary(p => p.Id, p => abilities[p.Id]) };
     }
 
     internal static DomesticSettlementObservation Settlement(SettlementState s, int accountId, uint money, uint food,

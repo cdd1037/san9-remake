@@ -129,7 +129,7 @@ public sealed partial class GameSession
     public CapturedRulerPrompt? GetCapturedRulerPrompt() => _simulation.GetCapturedRulerPrompt();
     public ExecutionSuccessionPrompt? GetExecutionSuccessionPrompt() => _simulation.GetExecutionSuccessionPrompt();
     public GameCommand ChooseDomesticCommand(ControlSeat seat, Guid commandId, int turn, bool scripted = false) =>
-        DomesticCommandSelection.Choose(Snapshot, Validate, seat, new(seat.ControllerId), commandId, turn, scripted);
+        DomesticCommandSelection.Choose(Snapshot, _simulation.GetAbilities(Snapshot), Validate, seat, new(seat.ControllerId), commandId, turn, scripted);
     public CommandAdvice GetSurrenderAdvice(int forceId, int officerId, int targetForceId) =>
         _simulation.GetSurrenderAdvice(forceId, officerId, targetForceId);
     public AttackRequestPrompt? GetAttackRequestPrompt() => _simulation.GetAttackRequestPrompt();

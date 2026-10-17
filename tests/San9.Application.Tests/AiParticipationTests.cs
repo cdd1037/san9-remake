@@ -21,7 +21,7 @@ public sealed class AiParticipationTests
         // the existing active personnel unavailable for this pure planning query.
         var snapshot = session.Snapshot with { Officers = session.Snapshot.Officers.Select(p => p.Id < 10 ? p with { Acted = true } : p).ToArray() };
         var engine = new SimulationEngine(WorldState.Restore(snapshot));
-        var command = DomesticCommandSelection.Choose(snapshot, engine.Validate, snapshot.Simulation.Controls[0], new("player"), Guid.NewGuid(), 0);
+        var command = DomesticCommandSelection.Choose(snapshot, engine.GetAbilities(snapshot), engine.Validate, snapshot.Simulation.Controls[0], new("player"), Guid.NewGuid(), 0);
         var development = Assert.IsType<DevelopCommand>(command);
         Assert.Equal(new[] { 99 }, development.Development.OfficerIds);
         Assert.True(engine.Validate(new("player"), command).Accepted);

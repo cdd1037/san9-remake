@@ -194,7 +194,8 @@ public sealed class OriginalDomesticWorkTests
         var seat = session.Snapshot.Simulation.Controls[0];
         OriginalDomesticInputs Capture()
         {
-            var observed = DomesticObservation.Capture(session.Snapshot, seat, context);
+            var engine = new SimulationEngine(WorldState.Restore(session.Snapshot));
+            var observed = DomesticObservation.Capture(session.Snapshot, seat, context, engine.GetAbilities(session.Snapshot));
             return new(seat.ForceId, observed.Settlements[0].Money, observed.Settlements[0].Food, 0, 0, true,
                 observed.Settlements.Select(s => new OriginalDomesticSite(s, true, false)).ToImmutableArray(), observed.Abilities);
         }
